@@ -2639,7 +2639,7 @@ static inline int aac_adapter_check_health(struct aac_dev *dev)
 
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
-int aac_report_phys_luns(struct aac_dev *dev, int rescan);
+int aac_get_safw_ciss_luns(struct aac_dev *dev, int rescan);
 const char *aac_driverinfo(struct Scsi_Host *);
 void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);

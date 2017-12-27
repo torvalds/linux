@@ -1753,17 +1753,18 @@ fib_error:
 	return rcode;
 }
 
-static int aac_issue_bmic_identify(struct aac_dev *dev, u32 bus, u32 target)
+static int aac_issue_safw_bmic_identify(struct aac_dev *dev,
+	u32 bus, u32 target)
 {
 	int rcode = -ENOMEM;
-	u16 datasize;
+	int datasize;
 	struct aac_srb_unit srbu;
 	struct aac_srb *srbcmd;
-	struct aac_ciss_identify_pd *identify_resp;
+	struct aac_ciss_identify_pd *identify_reply;
 
 	datasize = sizeof(struct aac_ciss_identify_pd);
-	identify_resp = kmalloc(datasize, GFP_KERNEL);
-	if (!identify_resp)
+	identify_reply = kmalloc(datasize, GFP_KERNEL);
+	if (!identify_reply)
 		goto out;
 
 	memset(&srbu, 0, sizeof(struct aac_srb_unit));
@@ -1774,30 +1775,31 @@ static int aac_issue_bmic_identify(struct aac_dev *dev, u32 bus, u32 target)
 	srbcmd->cdb[2]	= (u8)((AAC_MAX_LUN + target) & 0x00FF);
 	srbcmd->cdb[6]	= CISS_IDENTIFY_PHYSICAL_DEVICE;
 
-	rcode = aac_send_safw_bmic_cmd(dev, &srbu, identify_resp, datasize);
+	rcode = aac_send_safw_bmic_cmd(dev, &srbu, identify_reply, datasize);
 	if (unlikely(rcode < 0))
 		goto out;
 
-	if (identify_resp->current_queue_depth_limit <= 0 ||
-		identify_resp->current_queue_depth_limit > 32)
+	if (identify_reply->current_queue_depth_limit <= 0 ||
+		identify_reply->current_queue_depth_limit > 32)
 		dev->hba_map[bus][target].qd_limit = 32;
 	else
 		dev->hba_map[bus][target].qd_limit =
-			identify_resp->current_queue_depth_limit;
+			identify_reply->current_queue_depth_limit;
 
-	kfree(identify_resp);
+	kfree(identify_reply);
 out:
 	return rcode;
 }
 
 /**
- *	aac_update hba_map()-	update current hba map with data from FW
+ *	aac_set_safw_attr_all_targets-	update current hba map with data from FW
  *	@dev:	aac_dev structure
  *	@phys_luns: FW information from report phys luns
+ *	@rescan: Indicates scan type
  *
  *	Update our hba map with the information gathered from the FW
  */
-void aac_update_hba_map(struct aac_dev *dev,
+static void aac_set_safw_attr_all_targets(struct aac_dev *dev,
 		struct aac_ciss_phys_luns_resp *phys_luns, int rescan)
 {
 	/* ok and extended reporting */
@@ -1839,7 +1841,7 @@ void aac_update_hba_map(struct aac_dev *dev,
 		if (devtype != AAC_DEVTYPE_NATIVE_RAW)
 			goto update_devtype;
 
-		if (aac_issue_bmic_identify(dev, bus, target) < 0)
+		if (aac_issue_safw_bmic_identify(dev, bus, target) < 0)
 			dev->hba_map[bus][target].qd_limit = 32;
 
 update_devtype:
@@ -1851,14 +1853,14 @@ update_devtype:
 }
 
 /**
- *	aac_report_phys_luns()	Process topology change
+ *	aac_get_safw_ciss_luns()	Process topology change
  *	@dev:		aac_dev structure
  *	@rescan:	Indicates rescan
  *
  *	Execute a CISS REPORT PHYS LUNS and process the results into
  *	the current hba_map.
  */
-int aac_report_phys_luns(struct aac_dev *dev, int rescan)
+int aac_get_safw_ciss_luns(struct aac_dev *dev, int rescan)
 {
 	int rcode = -ENOMEM;
 	int datasize;
@@ -1888,7 +1890,7 @@ int aac_report_phys_luns(struct aac_dev *dev, int rescan)
 	/* analyse data */
 	if (rcode >= 0 && phys_luns->resp_flag == 2) {
 		/* ok and extended reporting */
-		aac_update_hba_map(dev, phys_luns, rescan);
+		aac_set_safw_attr_all_targets(dev, phys_luns, rescan);
 	}
 
 	kfree(phys_luns);
@@ -2001,7 +2003,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	if (!dev->sync_mode && dev->sa_firmware &&
 		dev->supplement_adapter_info.virt_device_bus != 0xffff) {
 		/* Thor SA Firmware -> CISS_REPORT_PHYSICAL_LUNS */
-		rcode = aac_report_phys_luns(dev, AAC_INIT);
+		rcode = aac_get_safw_ciss_luns(dev, AAC_INIT);
 	}
 
 	if (!dev->in_reset) {
