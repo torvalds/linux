@@ -274,7 +274,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 	struct qeth_ipaddr *addr;
 	char *tmp;
-	int i;
+	int rc, i;
 
 	if (!card)
 		return -EINVAL;
@@ -343,11 +343,11 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		return -ENOMEM;
 
 	spin_lock_bh(&card->ip_lock);
-	qeth_l3_add_ip(card, addr);
+	rc = qeth_l3_add_ip(card, addr);
 	spin_unlock_bh(&card->ip_lock);
 	kfree(addr);
 
-	return count;
+	return rc ? rc : count;
 }
 
 static DEVICE_ATTR(hsuid, 0644, qeth_l3_dev_hsuid_show,
@@ -585,7 +585,7 @@ static ssize_t qeth_l3_dev_ipato_del_store(const char *buf, size_t count,
 	mutex_lock(&card->conf_mutex);
 	rc = qeth_l3_parse_ipatoe(buf, proto, addr, &mask_bits);
 	if (!rc)
-		qeth_l3_del_ipato_entry(card, proto, addr, mask_bits);
+		rc = qeth_l3_del_ipato_entry(card, proto, addr, mask_bits);
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
@@ -796,7 +796,7 @@ static ssize_t qeth_l3_dev_vipa_del_store(const char *buf, size_t count,
 	mutex_lock(&card->conf_mutex);
 	rc = qeth_l3_parse_vipae(buf, proto, addr);
 	if (!rc)
-		qeth_l3_del_vipa(card, proto, addr);
+		rc = qeth_l3_del_vipa(card, proto, addr);
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
@@ -976,7 +976,7 @@ static ssize_t qeth_l3_dev_rxip_del_store(const char *buf, size_t count,
 	mutex_lock(&card->conf_mutex);
 	rc = qeth_l3_parse_rxipe(buf, proto, addr);
 	if (!rc)
-		qeth_l3_del_rxip(card, proto, addr);
+		rc = qeth_l3_del_rxip(card, proto, addr);
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
