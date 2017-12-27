@@ -112,10 +112,16 @@ static inline void qdisc_enqueue_skb_bad_txq(struct Qdisc *q,
 
 static inline int __dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
-	__skb_queue_head(&q->gso_skb, skb);
-	q->qstats.requeues++;
-	qdisc_qstats_backlog_inc(q, skb);
-	q->q.qlen++;	/* it's still part of the queue */
+	while (skb) {
+		struct sk_buff *next = skb->next;
+
+		__skb_queue_tail(&q->gso_skb, skb);
+		q->qstats.requeues++;
+		qdisc_qstats_backlog_inc(q, skb);
+		q->q.qlen++;	/* it's still part of the queue */
+
+		skb = next;
+	}
 	__netif_schedule(q);
 
 	return 0;
@@ -126,12 +132,19 @@ static inline int dev_requeue_skb_locked(struct sk_buff *skb, struct Qdisc *q)
 	spinlock_t *lock = qdisc_lock(q);
 
 	spin_lock(lock);
-	__skb_queue_tail(&q->gso_skb, skb);
+	while (skb) {
+		struct sk_buff *next = skb->next;
+
+		__skb_queue_tail(&q->gso_skb, skb);
+
+		qdisc_qstats_cpu_requeues_inc(q);
+		qdisc_qstats_cpu_backlog_inc(q, skb);
+		qdisc_qstats_cpu_qlen_inc(q);
+
+		skb = next;
+	}
 	spin_unlock(lock);
 
-	qdisc_qstats_cpu_requeues_inc(q);
-	qdisc_qstats_cpu_backlog_inc(q, skb);
-	qdisc_qstats_cpu_qlen_inc(q);
 	__netif_schedule(q);
 
 	return 0;
