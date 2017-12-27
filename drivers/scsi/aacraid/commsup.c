@@ -33,6 +33,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/crash_dump.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
@@ -1675,7 +1676,7 @@ out:
 	 * Issue bus rescan to catch any configuration that might have
 	 * occurred
 	 */
-	if (!retval) {
+	if (!retval && !is_kdump_kernel()) {
 		dev_info(&aac->pdev->dev, "Scheduling bus rescan\n");
 		aac_schedule_safw_scan_worker(aac);
 	}
