@@ -1945,7 +1945,7 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 			for (target = 0; target < AAC_MAX_TARGETS; target++)
 				dev->hba_map[bus][target].new_devtype = 0;
 
-		rcode = aac_get_safw_ciss_luns(dev, AAC_RESCAN);
+		rcode = aac_setup_safw_adapter(dev, AAC_RESCAN);
 
 		aac_resolve_luns(dev);
 

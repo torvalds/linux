@@ -1860,7 +1860,7 @@ update_devtype:
  *	Execute a CISS REPORT PHYS LUNS and process the results into
  *	the current hba_map.
  */
-int aac_get_safw_ciss_luns(struct aac_dev *dev, int rescan)
+static int aac_get_safw_ciss_luns(struct aac_dev *dev, int rescan)
 {
 	int rcode = -ENOMEM;
 	int datasize;
@@ -1896,6 +1896,16 @@ int aac_get_safw_ciss_luns(struct aac_dev *dev, int rescan)
 	kfree(phys_luns);
 err_out:
 	return rcode;
+}
+
+static int aac_setup_safw_targets(struct aac_dev *dev, int rescan)
+{
+	return aac_get_safw_ciss_luns(dev, rescan);
+}
+
+int aac_setup_safw_adapter(struct aac_dev *dev, int rescan)
+{
+	return aac_setup_safw_targets(dev, rescan);
 }
 
 int aac_get_adapter_info(struct aac_dev* dev)
@@ -2001,10 +2011,8 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	}
 
 	if (!dev->sync_mode && dev->sa_firmware &&
-		dev->supplement_adapter_info.virt_device_bus != 0xffff) {
-		/* Thor SA Firmware -> CISS_REPORT_PHYSICAL_LUNS */
-		rcode = aac_get_safw_ciss_luns(dev, AAC_INIT);
-	}
+		dev->supplement_adapter_info.virt_device_bus != 0xffff)
+		rcode = aac_setup_safw_adapter(dev, AAC_INIT);
 
 	if (!dev->in_reset) {
 		char buffer[16];
