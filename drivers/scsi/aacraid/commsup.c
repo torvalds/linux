@@ -1997,7 +1997,9 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 	case SA_AIF_LDEV_CHANGE:
 	case SA_AIF_BPCFG_CHANGE:
 
+		mutex_lock(&dev->scan_mutex);
 		aac_update_safw_host_devices(dev, AAC_RESCAN);
+		mutex_unlock(&dev->scan_mutex);
 		break;
 
 	case SA_AIF_BPSTAT_CHANGE:

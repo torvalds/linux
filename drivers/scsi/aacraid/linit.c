@@ -1683,6 +1683,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&aac->fib_lock);
 
 	mutex_init(&aac->ioctl_mutex);
+	mutex_init(&aac->scan_mutex);
 	/*
 	 *	Map in the registers from the adapter.
 	 */

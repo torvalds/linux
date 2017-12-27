@@ -1565,6 +1565,7 @@ struct aac_dev
 	spinlock_t		fib_lock;
 
 	struct mutex		ioctl_mutex;
+	struct mutex		scan_mutex;
 	struct aac_queue_block *queues;
 	/*
 	 *	The user API will use an IOCTL to register itself to receive
