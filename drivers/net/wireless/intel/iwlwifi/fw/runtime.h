@@ -150,6 +150,10 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 
 void iwl_fw_runtime_exit(struct iwl_fw_runtime *fwrt);
 
+void iwl_fw_runtime_suspend(struct iwl_fw_runtime *fwrt);
+
+void iwl_fw_runtime_resume(struct iwl_fw_runtime *fwrt);
+
 static inline void iwl_fw_set_current_image(struct iwl_fw_runtime *fwrt,
 					    enum iwl_ucode_type cur_fw_img)
 {
