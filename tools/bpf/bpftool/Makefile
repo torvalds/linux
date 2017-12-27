@@ -23,6 +23,8 @@ endif
 
 LIBBPF = $(BPF_PATH)libbpf.a
 
+BPFTOOL_VERSION=$(shell make --no-print-directory -sC ../../.. kernelversion)
+
 $(LIBBPF): FORCE
 	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) $(OUTPUT)libbpf.a FEATURES_DUMP=$(FEATURE_DUMP_EXPORT)
 
@@ -38,6 +40,7 @@ CC = gcc
 CFLAGS += -O2
 CFLAGS += -W -Wall -Wextra -Wno-unused-parameter -Wshadow
 CFLAGS += -D__EXPORTED_HEADERS__ -I$(srctree)/tools/include/uapi -I$(srctree)/tools/include -I$(srctree)/tools/lib/bpf -I$(srctree)/kernel/bpf/
+CFLAGS += -DBPFTOOL_VERSION='"$(BPFTOOL_VERSION)"'
 LIBS = -lelf -lbfd -lopcodes $(LIBBPF)
 
 INSTALL ?= install
