@@ -6351,6 +6351,9 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 			dev_dbg(&pf->pdev->dev,
 				"DCBX offload is supported for this PF.\n");
 		}
+	} else if (pf->hw.aq.asq_last_status == I40E_AQ_RC_EPERM) {
+		dev_info(&pf->pdev->dev, "FW LLDP disabled for this PF.\n");
+		pf->flags |= I40E_FLAG_DISABLE_FW_LLDP;
 	} else {
 		dev_info(&pf->pdev->dev,
 			 "Query for DCB configuration failed, err %s aq_err %s\n",
