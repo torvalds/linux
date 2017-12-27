@@ -278,6 +278,8 @@ const char *i40e_stat_str(struct i40e_hw *hw, i40e_status stat_err)
 		return "I40E_NOT_SUPPORTED";
 	case I40E_ERR_FIRMWARE_API_VERSION:
 		return "I40E_ERR_FIRMWARE_API_VERSION";
+	case I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR:
+		return "I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR";
 	}
 
 	snprintf(hw->err_str, sizeof(hw->err_str), "%d", stat_err);
