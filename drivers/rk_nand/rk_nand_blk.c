@@ -584,26 +584,13 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
 
 	gd->fops = &nand_blktrans_ops;
 
-	if (part->name[0])
+	if (part->name[0]) {
 		snprintf(gd->disk_name,
 			 sizeof(gd->disk_name),
 			 "%s_%s",
 			 nandr->name,
 			 part->name);
-	else
-		snprintf(gd->disk_name,
-			 sizeof(gd->disk_name),
-			 "%s%d",
-			 nandr->name,
-			 dev->devnum);
-
-	set_capacity(gd, dev->size);
-
-	gd->private_data = dev;
-	dev->blkcore_priv = gd;
-	gd->queue = nandr->rq;
-	gd->queue->bypass_depth = 1;
-	if (part->size == rk_ftl_get_capacity()) {
+	} else {
 		gd->flags = GENHD_FL_EXT_DEVT;
 		gd->minors = 255;
 		snprintf(gd->disk_name,
@@ -612,6 +599,12 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
 			 nandr->name,
 			 dev->devnum);
 	}
+	set_capacity(gd, dev->size);
+
+	gd->private_data = dev;
+	dev->blkcore_priv = gd;
+	gd->queue = nandr->rq;
+	gd->queue->bypass_depth = 1;
 
 	if (part->type == PART_NO_ACCESS)
 		dev->disable_access = 1;
@@ -708,7 +701,13 @@ static int nand_blk_register(struct nand_blk_ops *nandr)
 			nand_add_dev(nandr, &disk_array[i]);
 		}
 	} else {
-		nand_blk_add_whole_disk();
+		struct nand_part part;
+
+		part.offset = 0;
+		part.size = rk_ftl_get_capacity();
+		part.type = 0;
+		part.name[0] = 0;
+		nand_add_dev(&mytr, &part);
 	}
 
 	rknand_create_procfs();
