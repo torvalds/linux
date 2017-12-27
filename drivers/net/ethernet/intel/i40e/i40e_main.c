@@ -11069,13 +11069,13 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	    pf->hw.aq.fw_maj_ver >= 6)
 		pf->hw_features |= I40E_HW_PTP_L4_CAPABLE;
 
-	if (pf->hw.func_caps.vmdq) {
+	if (pf->hw.func_caps.vmdq && num_online_cpus() != 1) {
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
 		pf->flags |= I40E_FLAG_VMDQ_ENABLED;
 		pf->num_vmdq_qps = i40e_default_queues_per_vmdq(pf);
 	}
 
-	if (pf->hw.func_caps.iwarp) {
+	if (pf->hw.func_caps.iwarp && num_online_cpus() != 1) {
 		pf->flags |= I40E_FLAG_IWARP_ENABLED;
 		/* IWARP needs one extra vector for CQP just like MISC.*/
 		pf->num_iwarp_msix = (int)num_online_cpus() + 1;
