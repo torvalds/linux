@@ -1755,6 +1755,28 @@ fib_error:
 	return rcode;
 }
 
+static void aac_set_safw_target_qd(struct aac_dev *dev, int bus, int target)
+{
+
+	struct aac_ciss_identify_pd *identify_resp;
+
+	if (dev->hba_map[bus][target].devtype != AAC_DEVTYPE_NATIVE_RAW)
+		return;
+
+	identify_resp = dev->hba_map[bus][target].safw_identify_resp;
+	if (identify_resp == NULL) {
+		dev->hba_map[bus][target].qd_limit = 32;
+		return;
+	}
+
+	if (identify_resp->current_queue_depth_limit <= 0 ||
+		identify_resp->current_queue_depth_limit > 255)
+		dev->hba_map[bus][target].qd_limit = 32;
+	else
+		dev->hba_map[bus][target].qd_limit =
+			identify_resp->current_queue_depth_limit;
+}
+
 static int aac_issue_safw_bmic_identify(struct aac_dev *dev,
 	struct aac_ciss_identify_pd **identify_resp, u32 bus, u32 target)
 {
@@ -1780,13 +1802,6 @@ static int aac_issue_safw_bmic_identify(struct aac_dev *dev,
 	rcode = aac_send_safw_bmic_cmd(dev, &srbu, identify_reply, datasize);
 	if (unlikely(rcode < 0))
 		goto mem_free_all;
-
-	if (identify_reply->current_queue_depth_limit <= 0 ||
-		identify_reply->current_queue_depth_limit > 32)
-		dev->hba_map[bus][target].qd_limit = 32;
-	else
-		dev->hba_map[bus][target].qd_limit =
-			identify_reply->current_queue_depth_limit;
 
 	*identify_resp = identify_reply;
 
@@ -1936,17 +1951,14 @@ static int aac_get_safw_attr_all_targets(struct aac_dev *dev, int rescan)
 		rcode = aac_issue_safw_bmic_identify(dev,
 						&identify_resp, bus, target);
 
-		if (unlikely(rcode < 0)) {
-			dev->hba_map[bus][target].qd_limit = 32;
+		if (unlikely(rcode < 0))
 			goto free_identify_resp;
-		}
 
 		dev->hba_map[bus][target].safw_identify_resp = identify_resp;
 	}
 
 out:
 	return rcode;
-
 free_identify_resp:
 	aac_free_safw_all_identify_resp(dev, i);
 	goto out;
@@ -1995,8 +2007,7 @@ static void aac_set_safw_attr_all_targets(struct aac_dev *dev, int rescan)
 		} else
 			devtype = AAC_DEVTYPE_ARC_RAW;
 
-		if (devtype != AAC_DEVTYPE_NATIVE_RAW)
-			goto update_devtype;
+		aac_set_safw_target_qd(dev, bus, target);
 
 update_devtype:
 		if (rescan == AAC_INIT)
