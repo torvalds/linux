@@ -3579,6 +3579,8 @@ void dw_hdmi_unbind(struct device *dev, struct device *master, void *data)
 
 	/* Disable all interrupts */
 	hdmi_writeb(hdmi, ~0, HDMI_IH_MUTE_PHY_STAT0);
+	if (hdmi->cec_notifier)
+		cec_notifier_put(hdmi->cec_notifier);
 
 #ifdef CONFIG_SWITCH
 	switch_dev_unregister(&hdmi->switchdev);
