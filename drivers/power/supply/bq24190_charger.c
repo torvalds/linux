@@ -1199,8 +1199,6 @@ static int bq24190_charger_set_property(struct power_supply *psy,
 static int bq24190_charger_property_is_writeable(struct power_supply *psy,
 		enum power_supply_property psp)
 {
-	int ret;
-
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
@@ -1208,13 +1206,10 @@ static int bq24190_charger_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
-		ret = 1;
-		break;
+		return 1;
 	default:
-		ret = 0;
+		return 0;
 	}
-
-	return ret;
 }
 
 static void bq24190_input_current_limit_work(struct work_struct *work)
