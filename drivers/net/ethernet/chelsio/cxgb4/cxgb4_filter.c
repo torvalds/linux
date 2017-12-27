@@ -694,7 +694,7 @@ void clear_filter(struct adapter *adap, struct filter_entry *f)
 	if (f->smt)
 		cxgb4_smt_release(f->smt);
 
-	if (f->fs.hash && f->fs.type)
+	if ((f->fs.hash || is_t6(adap->params.chip)) && f->fs.type)
 		cxgb4_clip_release(f->dev, (const u32 *)&f->fs.val.lip, 1);
 
 	/* The zeroing of the filter rule below clears the filter valid,
@@ -1290,6 +1290,16 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 	 */
 	if (f->valid)
 		clear_filter(adapter, f);
+
+	if (is_t6(adapter->params.chip) && fs->type &&
+	    ipv6_addr_type((const struct in6_addr *)fs->val.lip) !=
+	    IPV6_ADDR_ANY) {
+		ret = cxgb4_clip_get(dev, (const u32 *)&fs->val.lip, 1);
+		if (ret) {
+			cxgb4_clear_ftid(&adapter->tids, filter_id, PF_INET6);
+			return ret;
+		}
+	}
 
 	/* Convert the filter specification into our internal format.
 	 * We copy the PF/VF specification into the Outer VLAN field
