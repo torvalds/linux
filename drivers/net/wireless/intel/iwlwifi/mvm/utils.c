@@ -1034,13 +1034,17 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
 }
 
 int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       bool prev)
+			       bool low_latency,
+			       enum iwl_mvm_low_latency_cause cause)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int res;
-	bool low_latency;
+	bool prev;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	prev = iwl_mvm_vif_low_latency(mvmvif);
+	iwl_mvm_vif_set_low_latency(mvmvif, low_latency, cause);
 
 	low_latency = iwl_mvm_vif_low_latency(mvmvif);
 
