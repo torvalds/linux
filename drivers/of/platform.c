@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *    Copyright (C) 2006 Benjamin Herrenschmidt, IBM Corp.
  *			 <benh@kernel.crashing.org>
  *    and		 Arnd Bergmann, IBM Corp.
  *    Merged from powerpc/kernel/of_platform.c and
  *    sparc{,64}/kernel/of_device.c by Stephen Rothwell
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 
 #define pr_fmt(fmt)	"OF: " fmt
