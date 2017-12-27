@@ -25,10 +25,10 @@ int init_initiator_rw_fcoe_task(struct fcoe_task_params *task_params,
 				u32 task_retry_id,
 				u8 fcp_cmd_payload[32])
 {
-	struct fcoe_task_context *ctx = task_params->context;
+	struct e4_fcoe_task_context *ctx = task_params->context;
+	struct e4_ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct ystorm_fcoe_task_st_ctx *y_st_ctx;
 	struct tstorm_fcoe_task_st_ctx *t_st_ctx;
-	struct ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct mstorm_fcoe_task_st_ctx *m_st_ctx;
 	u32 io_size, val;
 	bool slow_sgl;
@@ -112,10 +112,10 @@ int init_initiator_midpath_unsolicited_fcoe_task(
 	struct scsi_sgl_task_params *rx_sgl_task_params,
 	u8 fw_to_place_fc_header)
 {
-	struct fcoe_task_context *ctx = task_params->context;
+	struct e4_fcoe_task_context *ctx = task_params->context;
+	struct e4_ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct ystorm_fcoe_task_st_ctx *y_st_ctx;
 	struct tstorm_fcoe_task_st_ctx *t_st_ctx;
-	struct ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct mstorm_fcoe_task_st_ctx *m_st_ctx;
 	u32 val;
 

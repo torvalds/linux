@@ -156,11 +156,11 @@
 
 #define MAX_NUM_VOQS_K2		(NUM_TCS_4PORT_K2 * MAX_NUM_PORTS_K2)
 #define MAX_NUM_VOQS_BB		(NUM_OF_TCS * MAX_NUM_PORTS_BB)
-#define MAX_NUM_VOQS		(MAX_NUM_VOQS_K2)
+#define MAX_NUM_VOQS_E4		(MAX_NUM_VOQS_K2)
 #define MAX_PHYS_VOQS		(NUM_OF_PHYS_TCS * MAX_NUM_PORTS_BB)
 
 /* CIDs */
-#define NUM_OF_CONNECTION_TYPES	(8)
+#define NUM_OF_CONNECTION_TYPES_E4	(8)
 #define NUM_OF_LCIDS			(320)
 #define NUM_OF_LTIDS			(320)
 
@@ -401,7 +401,7 @@
 #define CAU_FSM_ETH_TX  1
 
 /* Number of Protocol Indices per Status Block */
-#define PIS_PER_SB    12
+#define PIS_PER_SB_E4	12
 
 #define CAU_HC_STOPPED_STATE	3
 #define CAU_HC_DISABLE_STATE	4
@@ -1202,20 +1202,20 @@ struct rdif_task_context {
 };
 
 /* Status block structure */
-struct status_block {
-	__le16	pi_array[PIS_PER_SB];
+struct status_block_e4 {
+	__le16	pi_array[PIS_PER_SB_E4];
 	__le32	sb_num;
-#define STATUS_BLOCK_SB_NUM_MASK      0x1FF
-#define STATUS_BLOCK_SB_NUM_SHIFT     0
-#define STATUS_BLOCK_ZERO_PAD_MASK    0x7F
-#define STATUS_BLOCK_ZERO_PAD_SHIFT   9
-#define STATUS_BLOCK_ZERO_PAD2_MASK   0xFFFF
-#define STATUS_BLOCK_ZERO_PAD2_SHIFT  16
+#define STATUS_BLOCK_E4_SB_NUM_MASK	0x1FF
+#define STATUS_BLOCK_E4_SB_NUM_SHIFT	0
+#define STATUS_BLOCK_E4_ZERO_PAD_MASK	0x7F
+#define STATUS_BLOCK_E4_ZERO_PAD_SHIFT	9
+#define STATUS_BLOCK_E4_ZERO_PAD2_MASK	0xFFFF
+#define STATUS_BLOCK_E4_ZERO_PAD2_SHIFT	16
 	__le32 prod_index;
-#define STATUS_BLOCK_PROD_INDEX_MASK  0xFFFFFF
-#define STATUS_BLOCK_PROD_INDEX_SHIFT 0
-#define STATUS_BLOCK_ZERO_PAD3_MASK   0xFF
-#define STATUS_BLOCK_ZERO_PAD3_SHIFT  24
+#define STATUS_BLOCK_E4_PROD_INDEX_MASK		0xFFFFFF
+#define STATUS_BLOCK_E4_PROD_INDEX_SHIFT	0
+#define STATUS_BLOCK_E4_ZERO_PAD3_MASK		0xFF
+#define STATUS_BLOCK_E4_ZERO_PAD3_SHIFT		24
 };
 
 /* Tdif context */

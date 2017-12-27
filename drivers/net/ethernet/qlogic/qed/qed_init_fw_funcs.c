@@ -64,7 +64,7 @@
 #define QM_WFQ_VP_PQ_VOQ_SHIFT	0
 
 /* Bit  of PF in WFQ VP PQ map */
-#define QM_WFQ_VP_PQ_PF_SHIFT	5
+#define QM_WFQ_VP_PQ_PF_E4_SHIFT	5
 
 /* 0x9000 = 4*9*1024 */
 #define QM_WFQ_INC_VAL(weight)	((weight) * 0x9000)
@@ -171,7 +171,7 @@ static void qed_enable_pf_rl(struct qed_hwfn *p_hwfn, bool pf_rl_en)
 	if (pf_rl_en) {
 		/* Enable RLs for all VOQs */
 		STORE_RT_REG(p_hwfn, QM_REG_RLPFVOQENABLE_RT_OFFSET,
-			     (1 << MAX_NUM_VOQS) - 1);
+			     (1 << MAX_NUM_VOQS_E4) - 1);
 		/* Write RL period */
 		STORE_RT_REG(p_hwfn,
 			     QM_REG_RLPFPERIOD_RT_OFFSET, QM_RL_PERIOD_CLK_25M);
@@ -260,7 +260,7 @@ static void qed_cmdq_lines_rt_init(
 	u8 tc, voq, port_id, num_tcs_in_port;
 
 	/* Clear PBF lines for all VOQs */
-	for (voq = 0; voq < MAX_NUM_VOQS; voq++)
+	for (voq = 0; voq < MAX_NUM_VOQS_E4; voq++)
 		STORE_RT_REG(p_hwfn, PBF_CMDQ_LINES_RT_OFFSET(voq), 0);
 	for (port_id = 0; port_id < max_ports_per_engine; port_id++) {
 		if (port_params[port_id].active) {
@@ -387,7 +387,7 @@ static void qed_tx_pq_map_rt_init(
 		u8 voq = VOQ(p_params->port_id, p_params->pq_params[i].tc_id,
 			     p_params->max_phys_tcs_per_port);
 		bool is_vf_pq = (i >= p_params->num_pf_pqs);
-		struct qm_rf_pq_map tx_pq_map;
+		struct qm_rf_pq_map_e4 tx_pq_map;
 
 		bool rl_valid = p_params->pq_params[i].rl_valid &&
 				(p_params->pq_params[i].vport_id <
@@ -410,7 +410,7 @@ static void qed_tx_pq_map_rt_init(
 				     first_tx_pq_id,
 				     (voq << QM_WFQ_VP_PQ_VOQ_SHIFT) |
 				     (p_params->pf_id <<
-				      QM_WFQ_VP_PQ_PF_SHIFT));
+				      QM_WFQ_VP_PQ_PF_E4_SHIFT));
 		}
 
 		if (p_params->pq_params[i].rl_valid && !rl_valid)
@@ -418,15 +418,16 @@ static void qed_tx_pq_map_rt_init(
 				  "Invalid VPORT ID for rate limiter configuration");
 		/* Fill PQ map entry */
 		memset(&tx_pq_map, 0, sizeof(tx_pq_map));
-		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_PQ_VALID, 1);
+		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_E4_PQ_VALID, 1);
 		SET_FIELD(tx_pq_map.reg,
-			  QM_RF_PQ_MAP_RL_VALID, rl_valid ? 1 : 0);
-		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_VP_PQ_ID, first_tx_pq_id);
-		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_RL_ID,
+			  QM_RF_PQ_MAP_E4_RL_VALID, rl_valid ? 1 : 0);
+		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_E4_VP_PQ_ID,
+			  first_tx_pq_id);
+		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_E4_RL_ID,
 			  rl_valid ?
 			  p_params->pq_params[i].vport_id : 0);
-		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_VOQ, voq);
-		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_WRR_WEIGHT_GROUP,
+		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_E4_VOQ, voq);
+		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_E4_WRR_WEIGHT_GROUP,
 			  p_params->pq_params[i].wrr_group);
 		/* Write PQ map entry to CAM */
 		STORE_RT_REG(p_hwfn, QM_REG_TXPQMAP_RT_OFFSET + pq_id,
@@ -902,7 +903,7 @@ void qed_set_vxlan_enable(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
 
 	if (reg_val)
-		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
+		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
 		       PRS_ETH_TUNN_FIC_FORMAT);
 
 	reg_val = qed_rd(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE);
@@ -929,7 +930,7 @@ void qed_set_gre_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	qed_set_tunnel_type_enable_bit(&reg_val, shift, ip_gre_enable);
 	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
 	if (reg_val)
-		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
+		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
 		       PRS_ETH_TUNN_FIC_FORMAT);
 
 	reg_val = qed_rd(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE);
@@ -970,7 +971,7 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 
 	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
 	if (reg_val)
-		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
+		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2,
 		       PRS_ETH_TUNN_FIC_FORMAT);
 
 	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_ETH_ENABLE,
@@ -981,9 +982,9 @@ void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
 	if (QED_IS_BB_B0(p_hwfn->cdev))
 		return;
 
-	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_ETH_EN,
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_ETH_EN_K2_E5,
 	       eth_geneve_enable ? 1 : 0);
-	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_IP_EN,
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_IP_EN_K2_E5,
 	       ip_geneve_enable ? 1 : 0);
 }
 

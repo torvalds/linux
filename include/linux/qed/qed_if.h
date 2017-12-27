@@ -316,7 +316,7 @@ enum qed_int_mode {
 };
 
 struct qed_sb_info {
-	struct status_block *sb_virt;
+	struct status_block_e4 *sb_virt;
 	dma_addr_t sb_phys;
 	u32 sb_ack; /* Last given ack */
 	u16 igu_sb_id;
@@ -939,7 +939,7 @@ static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)
 	u16 rc = 0;
 
 	prod = le32_to_cpu(sb_info->sb_virt->prod_index) &
-	       STATUS_BLOCK_PROD_INDEX_MASK;
+	       STATUS_BLOCK_E4_PROD_INDEX_MASK;
 	if (sb_info->sb_ack != prod) {
 		sb_info->sb_ack = prod;
 		rc |= QED_SB_IDX;
