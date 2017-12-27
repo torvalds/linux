@@ -683,6 +683,9 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 	u32 bus, cid;
 	int ret = FAILED;
 
+	if (aac_adapter_check_health(aac))
+		return ret;
+
 	bus = aac_logical_to_phys(scmd_channel(cmd));
 	cid = scmd_id(cmd);
 	if (aac->hba_map[bus][cid].devtype == AAC_DEVTYPE_NATIVE_RAW) {
