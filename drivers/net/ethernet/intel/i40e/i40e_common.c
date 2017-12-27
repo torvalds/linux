@@ -3641,7 +3641,34 @@ i40e_status i40e_aq_start_lldp(struct i40e_hw *hw,
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_lldp_start);
 
 	cmd->command = I40E_AQ_LLDP_AGENT_START;
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
+	return status;
+}
+
+/**
+ * i40e_aq_set_dcb_parameters
+ * @hw: pointer to the hw struct
+ * @cmd_details: pointer to command details structure or NULL
+ * @dcb_enable: True if DCB configuration needs to be applied
+ *
+ **/
+enum i40e_status_code
+i40e_aq_set_dcb_parameters(struct i40e_hw *hw, bool dcb_enable,
+			   struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_set_dcb_parameters *cmd =
+		(struct i40e_aqc_set_dcb_parameters *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_dcb_parameters);
+
+	if (dcb_enable) {
+		cmd->valid_flags = I40E_DCB_VALID;
+		cmd->command = I40E_AQ_DCB_SET_AGENT;
+	}
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	return status;
