@@ -112,6 +112,9 @@ u64 vcpu_read_sys_reg(struct kvm_vcpu *vcpu, int reg)
 	case AMAIR_EL1:		return read_sysreg_s(amair_EL12);
 	case CNTKCTL_EL1:	return read_sysreg_s(cntkctl_EL12);
 	case PAR_EL1:		return read_sysreg_s(SYS_PAR_EL1);
+	case DACR32_EL2:	return read_sysreg_s(SYS_DACR32_EL2);
+	case IFSR32_EL2:	return read_sysreg_s(SYS_IFSR32_EL2);
+	case DBGVCR32_EL2:	return read_sysreg_s(SYS_DBGVCR32_EL2);
 	}
 
 immediate_read:
@@ -152,6 +155,9 @@ void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 	case AMAIR_EL1:		write_sysreg_s(val, amair_EL12);	return;
 	case CNTKCTL_EL1:	write_sysreg_s(val, cntkctl_EL12);	return;
 	case PAR_EL1:		write_sysreg_s(val, SYS_PAR_EL1);	return;
+	case DACR32_EL2:	write_sysreg_s(val, SYS_DACR32_EL2);	return;
+	case IFSR32_EL2:	write_sysreg_s(val, SYS_IFSR32_EL2);	return;
+	case DBGVCR32_EL2:	write_sysreg_s(val, SYS_DBGVCR32_EL2);	return;
 	}
 
 immediate_write:
