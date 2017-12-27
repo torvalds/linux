@@ -117,6 +117,36 @@ int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
 }
 EXPORT_SYMBOL(of_get_named_gpio_flags);
 
+/*
+ * The SPI GPIO bindings happened before we managed to establish that GPIO
+ * properties should be named "foo-gpios" so we have this special kludge for
+ * them.
+ */
+static struct gpio_desc *of_find_spi_gpio(struct device *dev, const char *con_id,
+					  enum of_gpio_flags *of_flags)
+{
+	char prop_name[32]; /* 32 is max size of property name */
+	struct device_node *np = dev->of_node;
+	struct gpio_desc *desc;
+
+	/*
+	 * Hopefully the compiler stubs the rest of the function if this
+	 * is false.
+	 */
+	if (!IS_ENABLED(CONFIG_SPI_MASTER))
+		return ERR_PTR(-ENOENT);
+
+	/* Allow this specifically for "spi-gpio" devices */
+	if (!of_device_is_compatible(np, "spi-gpio") || !con_id)
+		return ERR_PTR(-ENOENT);
+
+	/* Will be "gpio-sck", "gpio-mosi" or "gpio-miso" */
+	snprintf(prop_name, sizeof(prop_name), "%s-%s", "gpio", con_id);
+
+	desc = of_get_named_gpiod_flags(np, prop_name, 0, of_flags);
+	return desc;
+}
+
 struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 			       unsigned int idx,
 			       enum gpio_lookup_flags *flags)
@@ -126,6 +156,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 	struct gpio_desc *desc;
 	unsigned int i;
 
+	/* Try GPIO property "foo-gpios" and "foo-gpio" */
 	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
 		if (con_id)
 			snprintf(prop_name, sizeof(prop_name), "%s-%s", con_id,
@@ -139,6 +170,10 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
 			break;
 	}
+
+	/* Special handling for SPI GPIOs if used */
+	if (IS_ERR(desc))
+		desc = of_find_spi_gpio(dev, con_id, &of_flags);
 
 	if (IS_ERR(desc))
 		return desc;
