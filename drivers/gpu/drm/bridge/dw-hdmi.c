@@ -23,6 +23,8 @@
 #include <linux/of_device.h>
 #include <linux/spinlock.h>
 
+#include <media/cec-notifier.h>
+
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
@@ -203,6 +205,7 @@ struct dw_hdmi {
 	struct clk *isfr_clk;
 	struct clk *iahb_clk;
 	struct dw_hdmi_i2c *i2c;
+	struct cec_notifier *cec_notifier;
 
 	struct hdmi_data_info hdmi_data;
 	const struct dw_hdmi_plat_data *plat_data;
@@ -2462,6 +2465,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		hdmi->sink_is_hdmi = drm_detect_hdmi_monitor(edid);
 		hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
 		drm_mode_connector_update_edid_property(connector, edid);
+		cec_notifier_set_phys_addr_from_edid(hdmi->cec_notifier, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		/* Store the ELD */
 		drm_edid_to_eld(connector, edid);
@@ -2798,6 +2802,10 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 			 */
 			if (phy_stat & HDMI_PHY_HPD)
 				hdmi->rxsense = true;
+
+			if (!(phy_stat & (HDMI_PHY_RX_SENSE | HDMI_PHY_HPD)))
+				cec_notifier_set_phys_addr(hdmi->cec_notifier,
+							   0xffff);
 
 			dw_hdmi_update_power(hdmi);
 			dw_hdmi_update_phy_mask(hdmi);
@@ -3438,6 +3446,12 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	if (ret)
 		goto err_iahb;
 
+	hdmi->cec_notifier = cec_notifier_get(dev);
+	if (!hdmi->cec_notifier) {
+		ret = -ENOMEM;
+		goto err_iahb;
+	}
+
 	/*
 	 * To prevent overflows in HDMI_IH_FC_STAT2, set the clk regenerator
 	 * N and cts values before enabling phy
@@ -3527,6 +3541,9 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 err_iahb:
 	if (hdmi->i2c)
 		i2c_del_adapter(&hdmi->i2c->adap);
+
+	if (hdmi->cec_notifier)
+		cec_notifier_put(hdmi->cec_notifier);
 
 	clk_disable_unprepare(hdmi->iahb_clk);
 err_isfr:

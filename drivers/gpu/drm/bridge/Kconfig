@@ -10,6 +10,7 @@ menu "Display Interface Bridges"
 config DRM_DW_HDMI
 	tristate
 	select DRM_KMS_HELPER
+	select CEC_CORE if CEC_NOTIFIER
 
 config DRM_DW_HDMI_AHB_AUDIO
 	tristate "Synopsis Designware AHB Audio interface"
