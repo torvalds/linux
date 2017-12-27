@@ -792,7 +792,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 			ptr += 2 + offset;
 		}
 	} else
-		ptr += session->offset;
+		ptr += session->peer_offset;
 
 	offset = ptr - optr;
 	if (!pskb_may_pull(skb, offset))
@@ -1785,6 +1785,7 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 			session->lns_mode = cfg->lns_mode;
 			session->reorder_timeout = cfg->reorder_timeout;
 			session->offset = cfg->offset;
+			session->peer_offset = cfg->peer_offset;
 			session->l2specific_type = cfg->l2specific_type;
 			session->l2specific_len = cfg->l2specific_len;
 			session->cookie_len = cfg->cookie_len;

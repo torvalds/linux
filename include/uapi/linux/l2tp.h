@@ -127,6 +127,7 @@ enum {
 	L2TP_ATTR_UDP_ZERO_CSUM6_TX,	/* flag */
 	L2TP_ATTR_UDP_ZERO_CSUM6_RX,	/* flag */
 	L2TP_ATTR_PAD,
+	L2TP_ATTR_PEER_OFFSET,		/* u16 */
 	__L2TP_ATTR_MAX,
 };
 

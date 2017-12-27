@@ -547,8 +547,24 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 	}
 
 	if (tunnel->version > 2) {
-		if (info->attrs[L2TP_ATTR_OFFSET])
+		if (info->attrs[L2TP_ATTR_PEER_OFFSET]) {
+			struct nlattr *peer_offset;
+
+			peer_offset = info->attrs[L2TP_ATTR_PEER_OFFSET];
+			cfg.peer_offset = nla_get_u16(peer_offset);
+		}
+
+		if (info->attrs[L2TP_ATTR_OFFSET]) {
 			cfg.offset = nla_get_u16(info->attrs[L2TP_ATTR_OFFSET]);
+
+			/* in order to maintain compatibility with older
+			 * versions where offset was used for both tx and
+			 * rx side, update rx side with offset if peer_offset
+			 * is not provided by userspace
+			 */
+			if (!info->attrs[L2TP_ATTR_PEER_OFFSET])
+				cfg.peer_offset = cfg.offset;
+		}
 
 		if (info->attrs[L2TP_ATTR_DATA_SEQ])
 			cfg.data_seq = nla_get_u8(info->attrs[L2TP_ATTR_DATA_SEQ]);
@@ -761,6 +777,10 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 
 	if ((session->ifname[0] &&
 	     nla_put_string(skb, L2TP_ATTR_IFNAME, session->ifname)) ||
+	    (session->offset &&
+	     nla_put_u16(skb, L2TP_ATTR_OFFSET, session->offset)) ||
+	    (session->peer_offset &&
+	     nla_put_u16(skb, L2TP_ATTR_PEER_OFFSET, session->peer_offset)) ||
 	    (session->cookie_len &&
 	     nla_put(skb, L2TP_ATTR_COOKIE, session->cookie_len,
 		     &session->cookie[0])) ||
@@ -901,6 +921,7 @@ static const struct nla_policy l2tp_nl_policy[L2TP_ATTR_MAX + 1] = {
 	[L2TP_ATTR_PW_TYPE]		= { .type = NLA_U16, },
 	[L2TP_ATTR_ENCAP_TYPE]		= { .type = NLA_U16, },
 	[L2TP_ATTR_OFFSET]		= { .type = NLA_U16, },
+	[L2TP_ATTR_PEER_OFFSET]		= { .type = NLA_U16, },
 	[L2TP_ATTR_DATA_SEQ]		= { .type = NLA_U8, },
 	[L2TP_ATTR_L2SPEC_TYPE]		= { .type = NLA_U8, },
 	[L2TP_ATTR_L2SPEC_LEN]		= { .type = NLA_U8, },
