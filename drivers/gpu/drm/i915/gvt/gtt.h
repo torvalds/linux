@@ -308,4 +308,7 @@ int intel_vgpu_emulate_gtt_mmio_read(struct intel_vgpu *vgpu,
 int intel_vgpu_emulate_gtt_mmio_write(struct intel_vgpu *vgpu,
 	unsigned int off, void *p_data, unsigned int bytes);
 
+int intel_vgpu_write_protect_handler(struct intel_vgpu *vgpu, u64 pa,
+				     void *p_data, unsigned int bytes);
+
 #endif /* _GVT_GTT_H_ */

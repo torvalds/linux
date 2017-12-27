@@ -416,6 +416,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	int n;
 
 	err_printf(m, "%s command stream:\n", engine_str(ee->engine_id));
+	err_printf(m, "  IDLE?: %s\n", yesno(ee->idle));
 	err_printf(m, "  START: 0x%08x\n", ee->start);
 	err_printf(m, "  HEAD:  0x%08x [0x%08x]\n", ee->head, ee->rq_head);
 	err_printf(m, "  TAIL:  0x%08x [0x%08x, 0x%08x]\n",
@@ -564,34 +565,17 @@ static void print_error_obj(struct drm_i915_error_state_buf *m,
 static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 				   const struct intel_device_info *info)
 {
-#define PRINT_FLAG(x)  err_printf(m, #x ": %s\n", yesno(info->x))
-	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
-#undef PRINT_FLAG
-}
+	struct drm_printer p = i915_error_printer(m);
 
-static __always_inline void err_print_param(struct drm_i915_error_state_buf *m,
-					    const char *name,
-					    const char *type,
-					    const void *x)
-{
-	if (!__builtin_strcmp(type, "bool"))
-		err_printf(m, "i915.%s=%s\n", name, yesno(*(const bool *)x));
-	else if (!__builtin_strcmp(type, "int"))
-		err_printf(m, "i915.%s=%d\n", name, *(const int *)x);
-	else if (!__builtin_strcmp(type, "unsigned int"))
-		err_printf(m, "i915.%s=%u\n", name, *(const unsigned int *)x);
-	else if (!__builtin_strcmp(type, "char *"))
-		err_printf(m, "i915.%s=%s\n", name, *(const char **)x);
-	else
-		BUILD_BUG();
+	intel_device_info_dump_flags(info, &p);
 }
 
 static void err_print_params(struct drm_i915_error_state_buf *m,
-			     const struct i915_params *p)
+			     const struct i915_params *params)
 {
-#define PRINT(T, x, ...) err_print_param(m, #x, #T, &p->x);
-	I915_PARAMS_FOR_EACH(PRINT);
-#undef PRINT
+	struct drm_printer p = i915_error_printer(m);
+
+	i915_params_dump(params, &p);
 }
 
 static void err_print_pciid(struct drm_i915_error_state_buf *m,
@@ -1256,6 +1240,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 		ee->hws = I915_READ(mmio);
 	}
 
+	ee->idle = intel_engine_is_idle(engine);
 	ee->hangcheck_timestamp = engine->hangcheck.action_timestamp;
 	ee->hangcheck_action = engine->hangcheck.action;
 	ee->hangcheck_stalled = engine->hangcheck.stalled;

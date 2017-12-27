@@ -479,6 +479,7 @@ void __i915_gem_request_submit(struct drm_i915_gem_request *request)
 	/* Transfer from per-context onto the global per-engine timeline */
 	timeline = engine->timeline;
 	GEM_BUG_ON(timeline == request->timeline);
+	GEM_BUG_ON(request->global_seqno);
 
 	seqno = timeline_get_seqno(timeline);
 	GEM_BUG_ON(!seqno);
@@ -525,6 +526,7 @@ void __i915_gem_request_unsubmit(struct drm_i915_gem_request *request)
 	/* Only unwind in reverse order, required so that the per-context list
 	 * is kept in seqno/ring order.
 	 */
+	GEM_BUG_ON(!request->global_seqno);
 	GEM_BUG_ON(request->global_seqno != engine->timeline->seqno);
 	engine->timeline->seqno--;
 

@@ -2596,7 +2596,7 @@ static int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	}
 
 	err = obj->ops->get_pages(obj);
-	GEM_BUG_ON(!err && IS_ERR_OR_NULL(obj->mm.pages));
+	GEM_BUG_ON(!err && !i915_gem_object_has_pages(obj));
 
 	return err;
 }
@@ -3089,7 +3089,12 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 void i915_gem_reset_engine(struct intel_engine_cs *engine,
 			   struct drm_i915_gem_request *request)
 {
-	engine->irq_posted = 0;
+	/*
+	 * Make sure this write is visible before we re-enable the interrupt
+	 * handlers on another CPU, as tasklet_enable() resolves to just
+	 * a compiler barrier which is insufficient for our purpose here.
+	 */
+	smp_store_mb(engine->irq_posted, 0);
 
 	if (request)
 		request = i915_gem_reset_request(engine, request);
@@ -3119,6 +3124,25 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 		ctx = fetch_and_zero(&engine->last_retired_context);
 		if (ctx)
 			engine->context_unpin(engine, ctx);
+
+		/*
+		 * Ostensibily, we always want a context loaded for powersaving,
+		 * so if the engine is idle after the reset, send a request
+		 * to load our scratch kernel_context.
+		 *
+		 * More mysteriously, if we leave the engine idle after a reset,
+		 * the next userspace batch may hang, with what appears to be
+		 * an incoherent read by the CS (presumably stale TLB). An
+		 * empty request appears sufficient to paper over the glitch.
+		 */
+		if (list_empty(&engine->timeline->requests)) {
+			struct drm_i915_gem_request *rq;
+
+			rq = i915_gem_request_alloc(engine,
+						    dev_priv->kernel_context);
+			if (!IS_ERR(rq))
+				__i915_add_request(rq, false);
+		}
 	}
 
 	i915_gem_restore_fences(dev_priv);

@@ -1360,8 +1360,8 @@ static void kvmgt_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 					struct kvmgt_guest_info, track_node);
 
 	if (kvmgt_gfn_is_write_protected(info, gpa_to_gfn(gpa)))
-		intel_gvt_ops->emulate_mmio_write(info->vgpu, gpa,
-					(void *)val, len);
+		intel_gvt_ops->write_protect_handler(info->vgpu, gpa,
+						     (void *)val, len);
 }
 
 static void kvmgt_page_track_flush_slot(struct kvm *kvm,
