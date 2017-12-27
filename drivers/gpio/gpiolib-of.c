@@ -147,6 +147,41 @@ static struct gpio_desc *of_find_spi_gpio(struct device *dev, const char *con_id
 	return desc;
 }
 
+/*
+ * Some regulator bindings happened before we managed to establish that GPIO
+ * properties should be named "foo-gpios" so we have this special kludge for
+ * them.
+ */
+static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *con_id,
+						enum of_gpio_flags *of_flags)
+{
+	/* These are the connection IDs we accept as legacy GPIO phandles */
+	const char *whitelist[] = {
+		"wlf,ldoena", /* Arizona */
+		"wlf,ldo1ena", /* WM8994 */
+		"wlf,ldo2ena", /* WM8994 */
+	};
+	struct device_node *np = dev->of_node;
+	struct gpio_desc *desc;
+	int i;
+
+	if (!IS_ENABLED(CONFIG_REGULATOR))
+		return ERR_PTR(-ENOENT);
+
+	if (!con_id)
+		return ERR_PTR(-ENOENT);
+
+	for (i = 0; i < ARRAY_SIZE(whitelist); i++)
+		if (!strcmp(con_id, whitelist[i]))
+			break;
+
+	if (i == ARRAY_SIZE(whitelist))
+		return ERR_PTR(-ENOENT);
+
+	desc = of_get_named_gpiod_flags(np, con_id, 0, of_flags);
+	return desc;
+}
+
 struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 			       unsigned int idx,
 			       enum gpio_lookup_flags *flags)
@@ -174,6 +209,10 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 	/* Special handling for SPI GPIOs if used */
 	if (IS_ERR(desc))
 		desc = of_find_spi_gpio(dev, con_id, &of_flags);
+
+	/* Special handling for regulator GPIOs if used */
+	if (IS_ERR(desc))
+		desc = of_find_regulator_gpio(dev, con_id, &of_flags);
 
 	if (IS_ERR(desc))
 		return desc;
