@@ -233,6 +233,7 @@ static const struct i40e_priv_flags i40e_gstrings_priv_flags[] = {
 	I40E_PRIV_FLAG("legacy-rx", I40E_FLAG_LEGACY_RX, 0),
 	I40E_PRIV_FLAG("disable-source-pruning",
 		       I40E_FLAG_SOURCE_PRUNING_DISABLED, 0),
+	I40E_PRIV_FLAG("disable-fw-lldp", I40E_FLAG_DISABLE_FW_LLDP, 0),
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_gstrings_priv_flags)
@@ -4317,6 +4318,25 @@ flags_complete:
 	    !(pf->hw_features & I40E_HW_ATR_EVICT_CAPABLE))
 		return -EOPNOTSUPP;
 
+	/* Disable FW LLDP not supported if NPAR active or if FW
+	 * API version < 1.7
+	 */
+	if (new_flags & I40E_FLAG_DISABLE_FW_LLDP) {
+		if (pf->hw.func_caps.npar_enable) {
+			dev_warn(&pf->pdev->dev,
+				 "Unable to stop FW LLDP if NPAR active\n");
+			return -EOPNOTSUPP;
+		}
+
+		if (pf->hw.aq.api_maj_ver < 1 ||
+		    (pf->hw.aq.api_maj_ver == 1 &&
+		     pf->hw.aq.api_min_ver < 7)) {
+			dev_warn(&pf->pdev->dev,
+				 "FW ver does not support stopping FW LLDP\n");
+			return -EOPNOTSUPP;
+		}
+	}
+
 	/* Compare and exchange the new flags into place. If we failed, that
 	 * is if cmpxchg returns anything but the old value, this means that
 	 * something else has modified the flags variable since we copied it
@@ -4362,12 +4382,37 @@ flags_complete:
 		}
 	}
 
+	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
+		if (pf->flags & I40E_FLAG_DISABLE_FW_LLDP) {
+			struct i40e_dcbx_config *dcbcfg;
+			int i;
+
+			i40e_aq_stop_lldp(&pf->hw, true, NULL);
+			i40e_aq_set_dcb_parameters(&pf->hw, true, NULL);
+			/* reset local_dcbx_config to default */
+			dcbcfg = &pf->hw.local_dcbx_config;
+			dcbcfg->etscfg.willing = 1;
+			dcbcfg->etscfg.maxtcs = 0;
+			dcbcfg->etscfg.tcbwtable[0] = 100;
+			for (i = 1; i < I40E_MAX_TRAFFIC_CLASS; i++)
+				dcbcfg->etscfg.tcbwtable[i] = 0;
+			for (i = 0; i < I40E_MAX_USER_PRIORITY; i++)
+				dcbcfg->etscfg.prioritytable[i] = 0;
+			dcbcfg->etscfg.tsatable[0] = I40E_IEEE_TSA_ETS;
+			dcbcfg->pfc.willing = 1;
+			dcbcfg->pfc.pfccap = I40E_MAX_TRAFFIC_CLASS;
+		} else {
+			i40e_aq_start_lldp(&pf->hw, NULL);
+		}
+	}
+
 	/* Issue reset to cause things to take effect, as additional bits
 	 * are added we will need to create a mask of bits requiring reset
 	 */
 	if (changed_flags & (I40E_FLAG_VEB_STATS_ENABLED |
 			     I40E_FLAG_LEGACY_RX |
-			     I40E_FLAG_SOURCE_PRUNING_DISABLED))
+			     I40E_FLAG_SOURCE_PRUNING_DISABLED |
+			     I40E_FLAG_DISABLE_FW_LLDP))
 		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED), true);
 
 	return 0;

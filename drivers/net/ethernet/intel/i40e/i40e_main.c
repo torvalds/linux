@@ -6320,8 +6320,11 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	int err = 0;
 
-	/* Do not enable DCB for SW1 and SW2 images even if the FW is capable */
-	if (pf->hw_features & I40E_HW_NO_DCB_SUPPORT)
+	/* Do not enable DCB for SW1 and SW2 images even if the FW is capable
+	 * Also do not enable DCBx if FW LLDP agent is disabled
+	 */
+	if ((pf->hw_features & I40E_HW_NO_DCB_SUPPORT) ||
+	    (pf->flags & I40E_FLAG_DISABLE_FW_LLDP))
 		goto out;
 
 	/* Get the initial DCB configuration */
@@ -9220,6 +9223,9 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 		dev_info(&pf->pdev->dev, "configure_lan_hmc failed: %d\n", ret);
 		goto end_core_reset;
 	}
+
+	/* Enable FW to write a default DCB config on link-up */
+	i40e_aq_set_dcb_parameters(hw, true, NULL);
 
 #ifdef CONFIG_I40E_DCB
 	ret = i40e_init_pf_dcb(pf);
@@ -13543,6 +13549,10 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, pf);
 	pci_save_state(pdev);
+
+	/* Enable FW to write default DCB config on link-up */
+	i40e_aq_set_dcb_parameters(hw, true, NULL);
+
 #ifdef CONFIG_I40E_DCB
 	err = i40e_init_pf_dcb(pf);
 	if (err) {
