@@ -278,6 +278,8 @@ struct hnae3_ae_dev {
  *   Set vlan filter config of Ports
  * set_vf_vlan_filter()
  *   Set vlan filter config of vf
+ * enable_hw_strip_rxvtag()
+ *   Enable/disable hardware strip vlan tag of packets received
  */
 struct hnae3_ae_ops {
 	int (*init_ae_dev)(struct hnae3_ae_dev *ae_dev);
@@ -384,8 +386,16 @@ struct hnae3_ae_ops {
 			       u16 vlan_id, bool is_kill);
 	int (*set_vf_vlan_filter)(struct hnae3_handle *handle, int vfid,
 				  u16 vlan, u8 qos, __be16 proto);
+	int (*enable_hw_strip_rxvtag)(struct hnae3_handle *handle, bool enable);
 	void (*reset_event)(struct hnae3_handle *handle,
 			    enum hnae3_reset_type reset);
+	void (*get_channels)(struct hnae3_handle *handle,
+			     struct ethtool_channels *ch);
+	void (*get_tqps_and_rss_info)(struct hnae3_handle *h,
+				      u16 *free_tqps, u16 *max_rss_size);
+	int (*set_channels)(struct hnae3_handle *handle, u32 new_tqps_num);
+	void (*get_flowctrl_adv)(struct hnae3_handle *handle,
+				 u32 *flowctrl_adv);
 };
 
 struct hnae3_dcb_ops {

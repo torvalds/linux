@@ -723,6 +723,58 @@ static void hns3_set_txbd_baseinfo(u16 *bdtp_fe_sc_vld_ra_ri, int frag_end)
 	hnae_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_SC_M, HNS3_TXD_SC_S, 0);
 }
 
+static int hns3_fill_desc_vtags(struct sk_buff *skb,
+				struct hns3_enet_ring *tx_ring,
+				u32 *inner_vlan_flag,
+				u32 *out_vlan_flag,
+				u16 *inner_vtag,
+				u16 *out_vtag)
+{
+#define HNS3_TX_VLAN_PRIO_SHIFT 13
+
+	if (skb->protocol == htons(ETH_P_8021Q) &&
+	    !(tx_ring->tqp->handle->kinfo.netdev->features &
+	    NETIF_F_HW_VLAN_CTAG_TX)) {
+		/* When HW VLAN acceleration is turned off, and the stack
+		 * sets the protocol to 802.1q, the driver just need to
+		 * set the protocol to the encapsulated ethertype.
+		 */
+		skb->protocol = vlan_get_protocol(skb);
+		return 0;
+	}
+
+	if (skb_vlan_tag_present(skb)) {
+		u16 vlan_tag;
+
+		vlan_tag = skb_vlan_tag_get(skb);
+		vlan_tag |= (skb->priority & 0x7) << HNS3_TX_VLAN_PRIO_SHIFT;
+
+		/* Based on hw strategy, use out_vtag in two layer tag case,
+		 * and use inner_vtag in one tag case.
+		 */
+		if (skb->protocol == htons(ETH_P_8021Q)) {
+			hnae_set_bit(*out_vlan_flag, HNS3_TXD_OVLAN_B, 1);
+			*out_vtag = vlan_tag;
+		} else {
+			hnae_set_bit(*inner_vlan_flag, HNS3_TXD_VLAN_B, 1);
+			*inner_vtag = vlan_tag;
+		}
+	} else if (skb->protocol == htons(ETH_P_8021Q)) {
+		struct vlan_ethhdr *vhdr;
+		int rc;
+
+		rc = skb_cow_head(skb, 0);
+		if (rc < 0)
+			return rc;
+		vhdr = (struct vlan_ethhdr *)skb->data;
+		vhdr->h_vlan_TCI |= cpu_to_be16((skb->priority & 0x7)
+					<< HNS3_TX_VLAN_PRIO_SHIFT);
+	}
+
+	skb->protocol = vlan_get_protocol(skb);
+	return 0;
+}
+
 static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			  int size, dma_addr_t dma, int frag_end,
 			  enum hns_desc_type type)
@@ -733,6 +785,8 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	u16 bdtp_fe_sc_vld_ra_ri = 0;
 	u32 type_cs_vlan_tso = 0;
 	struct sk_buff *skb;
+	u16 inner_vtag = 0;
+	u16 out_vtag = 0;
 	u32 paylen = 0;
 	u16 mss = 0;
 	__be16 protocol;
@@ -756,15 +810,16 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		skb = (struct sk_buff *)priv;
 		paylen = skb->len;
 
+		ret = hns3_fill_desc_vtags(skb, ring, &type_cs_vlan_tso,
+					   &ol_type_vlan_len_msec,
+					   &inner_vtag, &out_vtag);
+		if (unlikely(ret))
+			return ret;
+
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			skb_reset_mac_len(skb);
 			protocol = skb->protocol;
 
-			/* vlan packet*/
-			if (protocol == htons(ETH_P_8021Q)) {
-				protocol = vlan_get_protocol(skb);
-				skb->protocol = protocol;
-			}
 			ret = hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
 			if (ret)
 				return ret;
@@ -790,6 +845,8 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			cpu_to_le32(type_cs_vlan_tso);
 		desc->tx.paylen = cpu_to_le32(paylen);
 		desc->tx.mss = cpu_to_le16(mss);
+		desc->tx.vlan_tag = cpu_to_le16(inner_vtag);
+		desc->tx.outer_vlan_tag = cpu_to_le16(out_vtag);
 	}
 
 	/* move ring pointer to next.*/
@@ -1032,6 +1089,9 @@ static int hns3_nic_set_features(struct net_device *netdev,
 				 netdev_features_t features)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
+	netdev_features_t changed;
+	int ret;
 
 	if (features & (NETIF_F_TSO | NETIF_F_TSO6)) {
 		priv->ops.fill_desc = hns3_fill_desc_tso;
@@ -1039,6 +1099,17 @@ static int hns3_nic_set_features(struct net_device *netdev,
 	} else {
 		priv->ops.fill_desc = hns3_fill_desc;
 		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
+	}
+
+	changed = netdev->features ^ features;
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
+		if (features & NETIF_F_HW_VLAN_CTAG_RX)
+			ret = h->ae_algo->ops->enable_hw_strip_rxvtag(h, true);
+		else
+			ret = h->ae_algo->ops->enable_hw_strip_rxvtag(h, false);
+
+		if (ret)
+			return ret;
 	}
 
 	netdev->features = features;
@@ -1492,6 +1563,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 
 	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_HW_VLAN_CTAG_FILTER |
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
@@ -1506,6 +1578,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 
 	netdev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_HW_VLAN_CTAG_FILTER |
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
@@ -2085,6 +2158,22 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 
 	prefetchw(skb->data);
 
+	/* Based on hw strategy, the tag offloaded will be stored at
+	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag
+	 * in one layer tag case.
+	 */
+	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
+		u16 vlan_tag;
+
+		vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
+		if (!(vlan_tag & VLAN_VID_MASK))
+			vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
+		if (vlan_tag & VLAN_VID_MASK)
+			__vlan_hwaccel_put_tag(skb,
+					       htons(ETH_P_8021Q),
+					       vlan_tag);
+	}
+
 	bnum = 1;
 	if (length <= HNS3_RX_HEAD_SIZE) {
 		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
@@ -2651,6 +2740,19 @@ err:
 	return ret;
 }
 
+static void hns3_put_ring_config(struct hns3_nic_priv *priv)
+{
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		devm_kfree(priv->dev, priv->ring_data[i].ring);
+		devm_kfree(priv->dev,
+			   priv->ring_data[i + h->kinfo.num_tqps].ring);
+	}
+	devm_kfree(priv->dev, priv->ring_data);
+}
+
 static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 {
 	int ret;
@@ -2787,8 +2889,12 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 			h->ae_algo->ops->reset_queue(h, i);
 
 		hns3_fini_ring(priv->ring_data[i].ring);
+		devm_kfree(priv->dev, priv->ring_data[i].ring);
 		hns3_fini_ring(priv->ring_data[i + h->kinfo.num_tqps].ring);
+		devm_kfree(priv->dev,
+			   priv->ring_data[i + h->kinfo.num_tqps].ring);
 	}
+	devm_kfree(priv->dev, priv->ring_data);
 
 	return 0;
 }
@@ -3158,6 +3264,115 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 	default:
 		break;
 	}
+
+	return ret;
+}
+
+static u16 hns3_get_max_available_channels(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	u16 free_tqps, max_rss_size, max_tqps;
+
+	h->ae_algo->ops->get_tqps_and_rss_info(h, &free_tqps, &max_rss_size);
+	max_tqps = h->kinfo.num_tc * max_rss_size;
+
+	return min_t(u16, max_tqps, (free_tqps + h->kinfo.num_tqps));
+}
+
+static int hns3_modify_tqp_num(struct net_device *netdev, u16 new_tqp_num)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	int ret;
+
+	ret = h->ae_algo->ops->set_channels(h, new_tqp_num);
+	if (ret)
+		return ret;
+
+	ret = hns3_get_ring_config(priv);
+	if (ret)
+		return ret;
+
+	ret = hns3_nic_init_vector_data(priv);
+	if (ret)
+		goto err_uninit_vector;
+
+	ret = hns3_init_all_ring(priv);
+	if (ret)
+		goto err_put_ring;
+
+	return 0;
+
+err_put_ring:
+	hns3_put_ring_config(priv);
+err_uninit_vector:
+	hns3_nic_uninit_vector_data(priv);
+	return ret;
+}
+
+static int hns3_adjust_tqps_num(u8 num_tc, u32 new_tqp_num)
+{
+	return (new_tqp_num / num_tc) * num_tc;
+}
+
+int hns3_set_channels(struct net_device *netdev,
+		      struct ethtool_channels *ch)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	bool if_running = netif_running(netdev);
+	u32 new_tqp_num = ch->combined_count;
+	u16 org_tqp_num;
+	int ret;
+
+	if (ch->rx_count || ch->tx_count)
+		return -EINVAL;
+
+	if (new_tqp_num > hns3_get_max_available_channels(netdev) ||
+	    new_tqp_num < kinfo->num_tc) {
+		dev_err(&netdev->dev,
+			"Change tqps fail, the tqp range is from %d to %d",
+			kinfo->num_tc,
+			hns3_get_max_available_channels(netdev));
+		return -EINVAL;
+	}
+
+	new_tqp_num = hns3_adjust_tqps_num(kinfo->num_tc, new_tqp_num);
+	if (kinfo->num_tqps == new_tqp_num)
+		return 0;
+
+	if (if_running)
+		dev_close(netdev);
+
+	hns3_clear_all_ring(h);
+
+	ret = hns3_nic_uninit_vector_data(priv);
+	if (ret) {
+		dev_err(&netdev->dev,
+			"Unbind vector with tqp fail, nothing is changed");
+		goto open_netdev;
+	}
+
+	hns3_uninit_all_ring(priv);
+
+	org_tqp_num = h->kinfo.num_tqps;
+	ret = hns3_modify_tqp_num(netdev, new_tqp_num);
+	if (ret) {
+		ret = hns3_modify_tqp_num(netdev, org_tqp_num);
+		if (ret) {
+			/* If revert to old tqp failed, fatal error occurred */
+			dev_err(&netdev->dev,
+				"Revert to old tqp num fail, ret=%d", ret);
+			return ret;
+		}
+		dev_info(&netdev->dev,
+			 "Change tqp num fail, Revert to old tqp num");
+	}
+
+open_netdev:
+	if (if_running)
+		dev_open(netdev);
 
 	return ret;
 }

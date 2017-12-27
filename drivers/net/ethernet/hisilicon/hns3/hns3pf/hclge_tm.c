@@ -23,8 +23,8 @@ enum hclge_shaper_level {
 	HCLGE_SHAPER_LVL_PF	= 1,
 };
 
-#define HCLGE_SHAPER_BS_U_DEF	1
-#define HCLGE_SHAPER_BS_S_DEF	4
+#define HCLGE_SHAPER_BS_U_DEF	5
+#define HCLGE_SHAPER_BS_S_DEF	20
 
 #define HCLGE_ETHER_MAX_RATE	100000
 
@@ -112,7 +112,7 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 	return 0;
 }
 
-static int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx)
+int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx)
 {
 	struct hclge_desc desc;
 

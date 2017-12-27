@@ -79,6 +79,10 @@
 #define HCLGE_PHY_MDIX_STATUS_B	(6)
 #define HCLGE_PHY_SPEED_DUP_RESOLVE_B	(11)
 
+/* Factor used to calculate offset and bitmap of VF num */
+#define HCLGE_VF_NUM_PER_CMD           64
+#define HCLGE_VF_NUM_PER_BYTE          8
+
 /* Reset related Registers */
 #define HCLGE_MISC_RESET_STS_REG	0x20700
 #define HCLGE_GLOBAL_RESET_REG		0x20A00
@@ -220,6 +224,7 @@ struct hclge_cfg {
 	u8 tc_num;
 	u16 tqp_desc_num;
 	u16 rx_buf_len;
+	u16 rss_size_max;
 	u8 phy_addr;
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
@@ -423,6 +428,15 @@ struct hclge_hw_stats {
 	struct hclge_32_bit_stats   all_32_bit_stats;
 };
 
+struct hclge_vlan_type_cfg {
+	u16 rx_ot_fst_vlan_type;
+	u16 rx_ot_sec_vlan_type;
+	u16 rx_in_fst_vlan_type;
+	u16 rx_in_sec_vlan_type;
+	u16 tx_ot_vlan_type;
+	u16 tx_in_vlan_type;
+};
+
 struct hclge_dev {
 	struct pci_dev *pdev;
 	struct hnae3_ae_dev *ae_dev;
@@ -509,6 +523,26 @@ struct hclge_dev {
 	enum hclge_mta_dmac_sel_type mta_mac_sel_type;
 	bool enable_mta; /* Mutilcast filter enable */
 	bool accept_mta_mc; /* Whether accept mta filter multicast */
+
+	struct hclge_vlan_type_cfg vlan_type_cfg;
+};
+
+/* VPort level vlan tag configuration for TX direction */
+struct hclge_tx_vtag_cfg {
+	bool accept_tag;	/* Whether accept tagged packet from host */
+	bool accept_untag;	/* Whether accept untagged packet from host */
+	bool insert_tag1_en;	/* Whether insert inner vlan tag */
+	bool insert_tag2_en;	/* Whether insert outer vlan tag */
+	u16  default_tag1;	/* The default inner vlan tag to insert */
+	u16  default_tag2;	/* The default outer vlan tag to insert */
+};
+
+/* VPort level vlan tag configuration for RX direction */
+struct hclge_rx_vtag_cfg {
+	bool strip_tag1_en;	/* Whether strip inner vlan tag */
+	bool strip_tag2_en;	/* Whether strip outer vlan tag */
+	bool vlan1_vlan_prionly;/* Inner VLAN Tag up to descriptor Enable */
+	bool vlan2_vlan_prionly;/* Outer VLAN Tag up to descriptor Enable */
 };
 
 struct hclge_vport {
@@ -522,6 +556,9 @@ struct hclge_vport {
 	u16 qs_offset;
 	u16 bw_limit;		/* VSI BW Limit (0 = disabled) */
 	u8  dwrr;
+
+	struct hclge_tx_vtag_cfg  txvlan_cfg;
+	struct hclge_rx_vtag_cfg  rxvlan_cfg;
 
 	int vport_id;
 	struct hclge_dev *back;  /* Back reference to associated dev */
@@ -565,4 +602,5 @@ int hclge_rss_init_hw(struct hclge_dev *hdev);
 
 void hclge_mbx_handler(struct hclge_dev *hdev);
 void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id);
+int hclge_cfg_flowctrl(struct hclge_dev *hdev);
 #endif

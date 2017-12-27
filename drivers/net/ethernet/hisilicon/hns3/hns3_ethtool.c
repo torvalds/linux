@@ -559,10 +559,23 @@ static void hns3_get_pauseparam(struct net_device *netdev,
 			&param->rx_pause, &param->tx_pause);
 }
 
+static int hns3_set_pauseparam(struct net_device *netdev,
+			       struct ethtool_pauseparam *param)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->set_pauseparam)
+		return h->ae_algo->ops->set_pauseparam(h, param->autoneg,
+						       param->rx_pause,
+						       param->tx_pause);
+	return -EOPNOTSUPP;
+}
+
 static int hns3_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	u32 flowctrl_adv = 0;
 	u32 supported_caps;
 	u32 advertised_caps;
 	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
@@ -638,6 +651,8 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 		if (!cmd->base.autoneg)
 			advertised_caps &= ~HNS3_LM_AUTONEG_BIT;
 
+		advertised_caps &= ~HNS3_LM_PAUSE_BIT;
+
 		/* now, map driver link modes to ethtool link modes */
 		hns3_driv_to_eth_caps(supported_caps, cmd, false);
 		hns3_driv_to_eth_caps(advertised_caps, cmd, true);
@@ -649,6 +664,18 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 					       &cmd->base.eth_tp_mdix);
 	/* 4.mdio_support */
 	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
+
+	/* 5.get flow control setttings */
+	if (h->ae_algo->ops->get_flowctrl_adv)
+		h->ae_algo->ops->get_flowctrl_adv(h, &flowctrl_adv);
+
+	if (flowctrl_adv & ADVERTISED_Pause)
+		ethtool_link_ksettings_add_link_mode(cmd, advertising,
+						     Pause);
+
+	if (flowctrl_adv & ADVERTISED_Asym_Pause)
+		ethtool_link_ksettings_add_link_mode(cmd, advertising,
+						     Asym_Pause);
 
 	return 0;
 }
@@ -730,7 +757,7 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = h->kinfo.num_tc * h->kinfo.rss_size;
+		cmd->data = h->kinfo.rss_size;
 		break;
 	case ETHTOOL_GRXFH:
 		return h->ae_algo->ops->get_rss_tuple(h, cmd);
@@ -849,6 +876,15 @@ static int hns3_nway_reset(struct net_device *netdev)
 	return genphy_restart_aneg(phy);
 }
 
+void hns3_get_channels(struct net_device *netdev,
+		       struct ethtool_channels *ch)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->get_channels)
+		h->ae_algo->ops->get_channels(h, ch);
+}
+
 static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_ringparam = hns3_get_ringparam,
@@ -871,6 +907,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_ringparam = hns3_get_ringparam,
 	.set_ringparam = hns3_set_ringparam,
 	.get_pauseparam = hns3_get_pauseparam,
+	.set_pauseparam = hns3_set_pauseparam,
 	.get_strings = hns3_get_strings,
 	.get_ethtool_stats = hns3_get_stats,
 	.get_sset_count = hns3_get_sset_count,
@@ -883,6 +920,8 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_link_ksettings = hns3_get_link_ksettings,
 	.set_link_ksettings = hns3_set_link_ksettings,
 	.nway_reset = hns3_nway_reset,
+	.get_channels = hns3_get_channels,
+	.set_channels = hns3_set_channels,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)
