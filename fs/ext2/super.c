@@ -1225,7 +1225,7 @@ static void ext2_clear_super_error(struct super_block *sb)
 		 * write and hope for the best.
 		 */
 		ext2_msg(sb, KERN_ERR,
-		       "previous I/O error to superblock detected\n");
+		       "previous I/O error to superblock detected");
 		clear_buffer_write_io_error(sbh);
 		set_buffer_uptodate(sbh);
 	}
