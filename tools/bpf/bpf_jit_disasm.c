@@ -72,7 +72,14 @@ static void get_asm_insns(uint8_t *image, size_t len, int opcodes)
 
 	disassemble_init_for_target(&info);
 
+#ifdef DISASM_FOUR_ARGS_SIGNATURE
+	disassemble = disassembler(info.arch,
+				   bfd_big_endian(bfdf),
+				   info.mach,
+				   bfdf);
+#else
 	disassemble = disassembler(bfdf);
+#endif
 	assert(disassemble);
 
 	do {

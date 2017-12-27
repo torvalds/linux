@@ -13,6 +13,7 @@ FILES=                                          \
          test-hello.bin                         \
          test-libaudit.bin                      \
          test-libbfd.bin                        \
+         test-disassembler-four-args.bin        \
          test-liberty.bin                       \
          test-liberty-z.bin                     \
          test-cplus-demangle.bin                \
@@ -187,6 +188,9 @@ $(OUTPUT)test-libpython-version.bin:
 
 $(OUTPUT)test-libbfd.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -lz -liberty -ldl
+
+$(OUTPUT)test-disassembler-four-args.bin:
+	$(BUILD) -lbfd -lopcodes
 
 $(OUTPUT)test-liberty.bin:
 	$(CC) $(CFLAGS) -Wall -Werror -o $@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty
