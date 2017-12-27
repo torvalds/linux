@@ -2351,7 +2351,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	if (hdw_desc == NULL) {
 		pvr2_trace(PVR2_TRACE_INIT, "pvr2_hdw_create: No device description pointer, unable to continue.");
-		pvr2_trace(PVR2_TRACE_INIT, "If you have a new device type, please contact Mike Isely <isely@pobox.com> to get it included in the driver\n");
+		pvr2_trace(PVR2_TRACE_INIT,
+			   "If you have a new device type, please contact Mike Isely <isely@pobox.com> to get it included in the driver");
 		goto fail;
 	}
 
