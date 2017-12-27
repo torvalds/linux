@@ -1919,7 +1919,6 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 {
 	int i, bus, target, container, rcode = 0;
 	u32 events = 0;
-	struct fib *fib;
 	struct scsi_device *sdev;
 
 	if (fibptr->hbacmd_size & SA_AIF_HOTPLUG)
@@ -1942,19 +1941,11 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 	case SA_AIF_LDEV_CHANGE:
 	case SA_AIF_BPCFG_CHANGE:
 
-		fib = aac_fib_alloc(dev);
-		if (!fib) {
-			pr_err("aac_handle_sa_aif: out of memory\n");
-			return;
-		}
 		for (bus = 0; bus < AAC_MAX_BUSES; bus++)
 			for (target = 0; target < AAC_MAX_TARGETS; target++)
 				dev->hba_map[bus][target].new_devtype = 0;
 
-		rcode = aac_report_phys_luns(dev, fib, AAC_RESCAN);
-
-		if (rcode != -ERESTARTSYS)
-			aac_fib_free(fib);
+		rcode = aac_report_phys_luns(dev, AAC_RESCAN);
 
 		aac_resolve_luns(dev);
 

@@ -1853,66 +1853,37 @@ update_devtype:
 /**
  *	aac_report_phys_luns()	Process topology change
  *	@dev:		aac_dev structure
- *	@fibptr:	fib pointer
+ *	@rescan:	Indicates rescan
  *
  *	Execute a CISS REPORT PHYS LUNS and process the results into
  *	the current hba_map.
  */
-int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr, int rescan)
+int aac_report_phys_luns(struct aac_dev *dev, int rescan)
 {
-	int fibsize, datasize;
-	struct aac_ciss_phys_luns_resp *phys_luns;
+	int rcode = -ENOMEM;
+	int datasize;
 	struct aac_srb *srbcmd;
-	struct sgmap64 *sg64;
-	dma_addr_t addr;
-	u32 vbus, vid;
-	int rcode = 0;
+	struct aac_srb_unit srbu;
+	struct aac_ciss_phys_luns_resp *phys_luns;
 
-	/* Thor SA Firmware -> CISS_REPORT_PHYSICAL_LUNS */
-	fibsize = sizeof(struct aac_srb) - sizeof(struct sgentry)
-			+ sizeof(struct sgentry64);
-	datasize = sizeof(struct aac_ciss_phys_luns_resp)
-			+ (AAC_MAX_TARGETS - 1) * sizeof(struct _ciss_lun);
-
-	phys_luns = dma_alloc_coherent(&dev->pdev->dev, datasize, &addr,
-				       GFP_KERNEL);
-	if (phys_luns == NULL) {
-		rcode = -ENOMEM;
+	datasize = sizeof(struct aac_ciss_phys_luns_resp) +
+		(AAC_MAX_TARGETS - 1) * sizeof(struct _ciss_lun);
+	phys_luns = kmalloc(datasize, GFP_KERNEL);
+	if (phys_luns == NULL)
 		goto err_out;
-	}
 
-	vbus = (u32) le16_to_cpu(
-			dev->supplement_adapter_info.virt_device_bus);
-	vid = (u32) le16_to_cpu(
-			dev->supplement_adapter_info.virt_device_target);
+	memset(&srbu, 0, sizeof(struct aac_srb_unit));
 
-	aac_fib_init(fibptr);
+	srbcmd = &srbu.srb;
+	srbcmd->flags	= cpu_to_le32(SRB_DataIn);
+	srbcmd->cdb[0]	= CISS_REPORT_PHYSICAL_LUNS;
+	srbcmd->cdb[1]	= 2; /* extended reporting */
+	srbcmd->cdb[8]	= (u8)(datasize >> 8);
+	srbcmd->cdb[9]	= (u8)(datasize);
 
-	srbcmd = (struct aac_srb *) fib_data(fibptr);
-	srbcmd->function = cpu_to_le32(SRBF_ExecuteScsi);
-	srbcmd->channel = cpu_to_le32(vbus);
-	srbcmd->id = cpu_to_le32(vid);
-	srbcmd->lun = 0;
-	srbcmd->flags = cpu_to_le32(SRB_DataIn);
-	srbcmd->timeout = cpu_to_le32(10);
-	srbcmd->retry_limit = 0;
-	srbcmd->cdb_size = cpu_to_le32(12);
-	srbcmd->count = cpu_to_le32(datasize);
-
-	memset(srbcmd->cdb, 0, sizeof(srbcmd->cdb));
-	srbcmd->cdb[0] = CISS_REPORT_PHYSICAL_LUNS;
-	srbcmd->cdb[1] = 2; /* extended reporting */
-	srbcmd->cdb[8] = (u8)(datasize >> 8);
-	srbcmd->cdb[9] = (u8)(datasize);
-
-	sg64 = (struct sgmap64 *) &srbcmd->sg;
-	sg64->count = cpu_to_le32(1);
-	sg64->sg[0].addr[1] = cpu_to_le32(upper_32_bits(addr));
-	sg64->sg[0].addr[0] = cpu_to_le32(lower_32_bits(addr));
-	sg64->sg[0].count = cpu_to_le32(datasize);
-
-	rcode = aac_fib_send(ScsiPortCommand64, fibptr, fibsize,
-			FsaNormal, 1, 1, NULL, NULL);
+	rcode = aac_send_safw_bmic_cmd(dev, &srbu, phys_luns, datasize);
+	if (unlikely(rcode < 0))
+		goto err_out;
 
 	/* analyse data */
 	if (rcode >= 0 && phys_luns->resp_flag == 2) {
@@ -1920,7 +1891,7 @@ int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr, int rescan)
 		aac_update_hba_map(dev, phys_luns, rescan);
 	}
 
-	dma_free_coherent(&dev->pdev->dev, datasize, phys_luns, addr);
+	kfree(phys_luns);
 err_out:
 	return rcode;
 }
@@ -2030,7 +2001,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	if (!dev->sync_mode && dev->sa_firmware &&
 		dev->supplement_adapter_info.virt_device_bus != 0xffff) {
 		/* Thor SA Firmware -> CISS_REPORT_PHYSICAL_LUNS */
-		rcode = aac_report_phys_luns(dev, fibptr, AAC_INIT);
+		rcode = aac_report_phys_luns(dev, AAC_INIT);
 	}
 
 	if (!dev->in_reset) {
