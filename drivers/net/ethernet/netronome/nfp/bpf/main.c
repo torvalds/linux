@@ -84,6 +84,33 @@ static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 	return nfp_net_ebpf_capable(nn) ? "BPF" : "";
 }
 
+static int
+nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
+{
+	int err;
+
+	nn->app_priv = kzalloc(sizeof(struct nfp_bpf_vnic), GFP_KERNEL);
+	if (!nn->app_priv)
+		return -ENOMEM;
+
+	err = nfp_app_nic_vnic_alloc(app, nn, id);
+	if (err)
+		goto err_free_priv;
+
+	return 0;
+err_free_priv:
+	kfree(nn->app_priv);
+	return err;
+}
+
+static void nfp_bpf_vnic_free(struct nfp_app *app, struct nfp_net *nn)
+{
+	struct nfp_bpf_vnic *bv = nn->app_priv;
+
+	WARN_ON(bv->tc_prog);
+	kfree(bv);
+}
+
 static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 				     void *type_data, void *cb_priv)
 {
@@ -286,7 +313,8 @@ const struct nfp_app_type app_bpf = {
 
 	.extra_cap	= nfp_bpf_extra_cap,
 
-	.vnic_alloc	= nfp_app_nic_vnic_alloc,
+	.vnic_alloc	= nfp_bpf_vnic_alloc,
+	.vnic_free	= nfp_bpf_vnic_free,
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.tc_busy	= nfp_bpf_tc_busy,
