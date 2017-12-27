@@ -1671,6 +1671,7 @@ struct aac_dev
 	struct msix_entry	msixentry[AAC_MAX_MSIX];
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	struct aac_hba_map_info	hba_map[AAC_MAX_BUSES][AAC_MAX_TARGETS];
+	struct aac_ciss_phys_luns_resp *safw_phys_luns;
 	u8			adapter_shutdown;
 	u32			handle_pci_error;
 };

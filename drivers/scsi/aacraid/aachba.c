@@ -1799,14 +1799,16 @@ out:
  *
  *	Update our hba map with the information gathered from the FW
  */
-static void aac_set_safw_attr_all_targets(struct aac_dev *dev,
-		struct aac_ciss_phys_luns_resp *phys_luns, int rescan)
+static void aac_set_safw_attr_all_targets(struct aac_dev *dev, int rescan)
 {
 	/* ok and extended reporting */
 	u32 lun_count, nexus;
 	u32 i, bus, target;
 	u8 expose_flag, attribs;
 	u8 devtype;
+	struct aac_ciss_phys_luns_resp *phys_luns;
+
+	phys_luns = dev->safw_phys_luns;
 
 	lun_count = ((phys_luns->list_length[0] << 24)
 			+ (phys_luns->list_length[1] << 16)
@@ -1852,6 +1854,12 @@ update_devtype:
 	}
 }
 
+static inline void aac_free_safw_ciss_luns(struct aac_dev *dev)
+{
+	kfree(dev->safw_phys_luns);
+	dev->safw_phys_luns = NULL;
+}
+
 /**
  *	aac_get_safw_ciss_luns()	Process topology change
  *	@dev:		aac_dev structure
@@ -1872,7 +1880,7 @@ static int aac_get_safw_ciss_luns(struct aac_dev *dev, int rescan)
 		(AAC_MAX_TARGETS - 1) * sizeof(struct _ciss_lun);
 	phys_luns = kmalloc(datasize, GFP_KERNEL);
 	if (phys_luns == NULL)
-		goto err_out;
+		goto out;
 
 	memset(&srbu, 0, sizeof(struct aac_srb_unit));
 
@@ -1885,22 +1893,36 @@ static int aac_get_safw_ciss_luns(struct aac_dev *dev, int rescan)
 
 	rcode = aac_send_safw_bmic_cmd(dev, &srbu, phys_luns, datasize);
 	if (unlikely(rcode < 0))
-		goto err_out;
+		goto mem_free_all;
 
-	/* analyse data */
-	if (rcode >= 0 && phys_luns->resp_flag == 2) {
-		/* ok and extended reporting */
-		aac_set_safw_attr_all_targets(dev, phys_luns, rescan);
+	if (phys_luns->resp_flag != 2) {
+		rcode = -ENOMSG;
+		goto mem_free_all;
 	}
 
-	kfree(phys_luns);
-err_out:
+	dev->safw_phys_luns = phys_luns;
+
+out:
 	return rcode;
+mem_free_all:
+	kfree(phys_luns);
+	goto out;
+
 }
 
 static int aac_setup_safw_targets(struct aac_dev *dev, int rescan)
 {
-	return aac_get_safw_ciss_luns(dev, rescan);
+	int rcode = 0;
+
+	rcode = aac_get_safw_ciss_luns(dev, rescan);
+	if (unlikely(rcode < 0))
+		goto out;
+
+	aac_set_safw_attr_all_targets(dev, rescan);
+
+	aac_free_safw_ciss_luns(dev);
+out:
+	return rcode;
 }
 
 int aac_setup_safw_adapter(struct aac_dev *dev, int rescan)
