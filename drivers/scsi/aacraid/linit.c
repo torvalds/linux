@@ -1375,18 +1375,15 @@ static ssize_t aac_store_reset_adapter(struct device *device,
 				       const char *buf, size_t count)
 {
 	int retval = -EACCES;
-	int bled = 0;
-	struct aac_dev *aac;
-
 
 	if (!capable(CAP_SYS_ADMIN))
 		return retval;
 
-	aac = (struct aac_dev *)class_to_shost(device)->hostdata;
-	bled = buf[0] == '!' ? 1:0;
-	retval = aac_reset_adapter(aac, bled, IOP_HWSOFT_RESET);
+	retval = aac_reset_adapter(shost_priv(class_to_shost(device)),
+					buf[0] == '!', IOP_HWSOFT_RESET);
 	if (retval >= 0)
 		retval = count;
+
 	return retval;
 }
 
