@@ -62,22 +62,6 @@
 #include "qed_sriov.h"
 #include "qed_reg_addr.h"
 
-static int
-qed_iscsi_async_event(struct qed_hwfn *p_hwfn,
-		      u8 fw_event_code,
-		      u16 echo, union event_ring_data *data, u8 fw_return_code)
-{
-	if (p_hwfn->p_iscsi_info->event_cb) {
-		struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
-
-		return p_iscsi->event_cb(p_iscsi->event_context,
-					 fw_event_code, data);
-	} else {
-		DP_NOTICE(p_hwfn, "iSCSI async completion is not set\n");
-		return -EINVAL;
-	}
-}
-
 struct qed_iscsi_conn {
 	struct list_head list_entry;
 	bool free_on_delete;
@@ -160,6 +144,22 @@ struct qed_iscsi_conn {
 	u16 physical_q1;
 	u8 abortive_dsconnect;
 };
+
+static int
+qed_iscsi_async_event(struct qed_hwfn *p_hwfn,
+		      u8 fw_event_code,
+		      u16 echo, union event_ring_data *data, u8 fw_return_code)
+{
+	if (p_hwfn->p_iscsi_info->event_cb) {
+		struct qed_iscsi_info *p_iscsi = p_hwfn->p_iscsi_info;
+
+		return p_iscsi->event_cb(p_iscsi->event_context,
+					 fw_event_code, data);
+	} else {
+		DP_NOTICE(p_hwfn, "iSCSI async completion is not set\n");
+		return -EINVAL;
+	}
+}
 
 static int
 qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
@@ -276,7 +276,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->tcp_init.two_msl_timer = cpu_to_le32(p_params->two_msl_timer);
 	val = p_params->tx_sws_timer;
 	p_ramrod->tcp_init.tx_sws_timer = cpu_to_le16(val);
-	p_ramrod->tcp_init.maxfinrt = p_params->max_fin_rt;
+	p_ramrod->tcp_init.max_fin_rt = p_params->max_fin_rt;
 
 	p_hwfn->p_iscsi_info->event_context = event_context;
 	p_hwfn->p_iscsi_info->event_cb = async_event_cb;
@@ -304,8 +304,8 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 	int rc = 0;
 	u32 dval;
 	u16 wval;
-	u8 i;
 	u16 *p;
+	u8 i;
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));

@@ -358,20 +358,14 @@ struct phy_defs {
 			(arr)[i] = qed_rd(dev, ptt, addr); \
 	} while (0)
 
-#ifndef DWORDS_TO_BYTES
 #define DWORDS_TO_BYTES(dwords)		((dwords) * BYTES_IN_DWORD)
-#endif
-#ifndef BYTES_TO_DWORDS
 #define BYTES_TO_DWORDS(bytes)		((bytes) / BYTES_IN_DWORD)
-#endif
 
-/* extra lines include a signature line + optional latency events line */
-#ifndef NUM_DBG_LINES
+/* Extra lines include a signature line + optional latency events line */
 #define NUM_EXTRA_DBG_LINES(block_desc) \
 	(1 + ((block_desc)->has_latency_events ? 1 : 0))
 #define NUM_DBG_LINES(block_desc) \
 	((block_desc)->num_of_lines + NUM_EXTRA_DBG_LINES(block_desc))
-#endif
 
 #define RAM_LINES_TO_DWORDS(lines)	((lines) * 2)
 #define RAM_LINES_TO_BYTES(lines) \
@@ -441,23 +435,17 @@ struct phy_defs {
 
 #define FW_IMG_MAIN			1
 
-#ifndef REG_FIFO_ELEMENT_DWORDS
 #define REG_FIFO_ELEMENT_DWORDS		2
-#endif
 #define REG_FIFO_DEPTH_ELEMENTS		32
 #define REG_FIFO_DEPTH_DWORDS \
 	(REG_FIFO_ELEMENT_DWORDS * REG_FIFO_DEPTH_ELEMENTS)
 
-#ifndef IGU_FIFO_ELEMENT_DWORDS
 #define IGU_FIFO_ELEMENT_DWORDS		4
-#endif
 #define IGU_FIFO_DEPTH_ELEMENTS		64
 #define IGU_FIFO_DEPTH_DWORDS \
 	(IGU_FIFO_ELEMENT_DWORDS * IGU_FIFO_DEPTH_ELEMENTS)
 
-#ifndef PROTECTION_OVERRIDE_ELEMENT_DWORDS
 #define PROTECTION_OVERRIDE_ELEMENT_DWORDS	2
-#endif
 #define PROTECTION_OVERRIDE_DEPTH_ELEMENTS	20
 #define PROTECTION_OVERRIDE_DEPTH_DWORDS \
 	(PROTECTION_OVERRIDE_DEPTH_ELEMENTS * \
@@ -1089,6 +1077,20 @@ static struct block_defs block_xyld_defs = {
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 12
 };
 
+static struct block_defs block_ptld_defs = {
+	"ptld", {false, false}, false, 0,
+	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
+	0, 0, 0, 0, 0,
+	false, false, MAX_DBG_RESET_REGS, 0
+};
+
+static struct block_defs block_ypld_defs = {
+	"ypld", {false, false}, false, 0,
+	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
+	0, 0, 0, 0, 0,
+	false, false, MAX_DBG_RESET_REGS, 0
+};
+
 static struct block_defs block_prm_defs = {
 	"prm",
 	{true, true}, false, 0,
@@ -1221,6 +1223,34 @@ static struct block_defs block_cau_defs = {
 	true, true, DBG_RESET_REG_MISC_PL_PDA_VMAIN_2, 19
 };
 
+static struct block_defs block_rgfs_defs = {
+	"rgfs", {false, false}, false, 0,
+	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
+	0, 0, 0, 0, 0,
+	false, false, MAX_DBG_RESET_REGS, 0
+};
+
+static struct block_defs block_rgsrc_defs = {
+	"rgsrc", {false, false}, false, 0,
+	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
+	0, 0, 0, 0, 0,
+	false, false, MAX_DBG_RESET_REGS, 0
+};
+
+static struct block_defs block_tgfs_defs = {
+	"tgfs", {false, false}, false, 0,
+	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
+	0, 0, 0, 0, 0,
+	false, false, MAX_DBG_RESET_REGS, 0
+};
+
+static struct block_defs block_tgsrc_defs = {
+	"tgsrc", {false, false}, false, 0,
+	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
+	0, 0, 0, 0, 0,
+	false, false, MAX_DBG_RESET_REGS, 0
+};
+
 static struct block_defs block_umac_defs = {
 	"umac",
 	{false, true}, false, 0,
@@ -1336,48 +1366,6 @@ static struct block_defs block_avs_wrap_defs = {
 	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
 	0, 0, 0, 0, 0,
 	true, false, DBG_RESET_REG_MISCS_PL_UA, 11
-};
-
-static struct block_defs block_rgfs_defs = {
-	"rgfs", {false, false}, false, 0,
-	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0
-};
-
-static struct block_defs block_rgsrc_defs = {
-	"rgsrc", {false, false}, false, 0,
-	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0
-};
-
-static struct block_defs block_tgfs_defs = {
-	"tgfs", {false, false}, false, 0,
-	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0
-};
-
-static struct block_defs block_tgsrc_defs = {
-	"tgsrc", {false, false}, false, 0,
-	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0
-};
-
-static struct block_defs block_ptld_defs = {
-	"ptld", {false, false}, false, 0,
-	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0
-};
-
-static struct block_defs block_ypld_defs = {
-	"ypld", {false, false}, false, 0,
-	{MAX_DBG_BUS_CLIENTS, MAX_DBG_BUS_CLIENTS},
-	0, 0, 0, 0, 0,
-	false, false, MAX_DBG_RESET_REGS, 0
 };
 
 static struct block_defs block_misc_aeu_defs = {
@@ -5595,10 +5583,6 @@ struct igu_fifo_addr_data {
 #define REG_FIFO_ELEMENT_IS_PF_VF_VAL		127
 
 #define PROTECTION_OVERRIDE_ELEMENT_ADDR_FACTOR	4
-
-/********************************* Macros ************************************/
-
-#define BYTES_TO_DWORDS(bytes)			((bytes) / BYTES_IN_DWORD)
 
 /***************************** Constant Arrays *******************************/
 

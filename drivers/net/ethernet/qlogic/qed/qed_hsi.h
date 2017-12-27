@@ -54,7 +54,7 @@
 struct qed_hwfn;
 struct qed_ptt;
 
-/* opcodes for the event ring */
+/* Opcodes for the event ring */
 enum common_event_opcode {
 	COMMON_EVENT_PF_START,
 	COMMON_EVENT_PF_STOP,
@@ -80,6 +80,286 @@ enum common_ramrod_cmd_id {
 	COMMON_RAMROD_RL_UPDATE,
 	COMMON_RAMROD_EMPTY,
 	MAX_COMMON_RAMROD_CMD_ID
+};
+
+/* How ll2 should deal with packet upon errors */
+enum core_error_handle {
+	LL2_DROP_PACKET,
+	LL2_DO_NOTHING,
+	LL2_ASSERT,
+	MAX_CORE_ERROR_HANDLE
+};
+
+/* Opcodes for the event ring */
+enum core_event_opcode {
+	CORE_EVENT_TX_QUEUE_START,
+	CORE_EVENT_TX_QUEUE_STOP,
+	CORE_EVENT_RX_QUEUE_START,
+	CORE_EVENT_RX_QUEUE_STOP,
+	CORE_EVENT_RX_QUEUE_FLUSH,
+	MAX_CORE_EVENT_OPCODE
+};
+
+/* The L4 pseudo checksum mode for Core */
+enum core_l4_pseudo_checksum_mode {
+	CORE_L4_PSEUDO_CSUM_CORRECT_LENGTH,
+	CORE_L4_PSEUDO_CSUM_ZERO_LENGTH,
+	MAX_CORE_L4_PSEUDO_CHECKSUM_MODE
+};
+
+/* Light-L2 RX Producers in Tstorm RAM */
+struct core_ll2_port_stats {
+	struct regpair gsi_invalid_hdr;
+	struct regpair gsi_invalid_pkt_length;
+	struct regpair gsi_unsupported_pkt_typ;
+	struct regpair gsi_crcchksm_error;
+};
+
+/* Ethernet TX Per Queue Stats */
+struct core_ll2_pstorm_per_queue_stat {
+	struct regpair sent_ucast_bytes;
+	struct regpair sent_mcast_bytes;
+	struct regpair sent_bcast_bytes;
+	struct regpair sent_ucast_pkts;
+	struct regpair sent_mcast_pkts;
+	struct regpair sent_bcast_pkts;
+};
+
+/* Light-L2 RX Producers in Tstorm RAM */
+struct core_ll2_rx_prod {
+	__le16 bd_prod;
+	__le16 cqe_prod;
+	__le32 reserved;
+};
+
+struct core_ll2_tstorm_per_queue_stat {
+	struct regpair packet_too_big_discard;
+	struct regpair no_buff_discard;
+};
+
+struct core_ll2_ustorm_per_queue_stat {
+	struct regpair rcv_ucast_bytes;
+	struct regpair rcv_mcast_bytes;
+	struct regpair rcv_bcast_bytes;
+	struct regpair rcv_ucast_pkts;
+	struct regpair rcv_mcast_pkts;
+	struct regpair rcv_bcast_pkts;
+};
+
+/* Core Ramrod Command IDs (light L2) */
+enum core_ramrod_cmd_id {
+	CORE_RAMROD_UNUSED,
+	CORE_RAMROD_RX_QUEUE_START,
+	CORE_RAMROD_TX_QUEUE_START,
+	CORE_RAMROD_RX_QUEUE_STOP,
+	CORE_RAMROD_TX_QUEUE_STOP,
+	CORE_RAMROD_RX_QUEUE_FLUSH,
+	MAX_CORE_RAMROD_CMD_ID
+};
+
+/* Core RX CQE Type for Light L2 */
+enum core_roce_flavor_type {
+	CORE_ROCE,
+	CORE_RROCE,
+	MAX_CORE_ROCE_FLAVOR_TYPE
+};
+
+/* Specifies how ll2 should deal with packets errors: packet_too_big and
+ * no_buff.
+ */
+struct core_rx_action_on_error {
+	u8 error_type;
+#define CORE_RX_ACTION_ON_ERROR_PACKET_TOO_BIG_MASK	0x3
+#define CORE_RX_ACTION_ON_ERROR_PACKET_TOO_BIG_SHIFT	0
+#define CORE_RX_ACTION_ON_ERROR_NO_BUFF_MASK		0x3
+#define CORE_RX_ACTION_ON_ERROR_NO_BUFF_SHIFT		2
+#define CORE_RX_ACTION_ON_ERROR_RESERVED_MASK		0xF
+#define CORE_RX_ACTION_ON_ERROR_RESERVED_SHIFT		4
+};
+
+/* Core RX BD for Light L2 */
+struct core_rx_bd {
+	struct regpair addr;
+	__le16 reserved[4];
+};
+
+/* Core RX CM offload BD for Light L2 */
+struct core_rx_bd_with_buff_len {
+	struct regpair addr;
+	__le16 buff_length;
+	__le16 reserved[3];
+};
+
+/* Core RX CM offload BD for Light L2 */
+union core_rx_bd_union {
+	struct core_rx_bd rx_bd;
+	struct core_rx_bd_with_buff_len rx_bd_with_len;
+};
+
+/* Opaque Data for Light L2 RX CQE */
+struct core_rx_cqe_opaque_data {
+	__le32 data[2];
+};
+
+/* Core RX CQE Type for Light L2 */
+enum core_rx_cqe_type {
+	CORE_RX_CQE_ILLEGAL_TYPE,
+	CORE_RX_CQE_TYPE_REGULAR,
+	CORE_RX_CQE_TYPE_GSI_OFFLOAD,
+	CORE_RX_CQE_TYPE_SLOW_PATH,
+	MAX_CORE_RX_CQE_TYPE
+};
+
+/* Core RX CQE for Light L2 */
+struct core_rx_fast_path_cqe {
+	u8 type;
+	u8 placement_offset;
+	struct parsing_and_err_flags parse_flags;
+	__le16 packet_length;
+	__le16 vlan;
+	struct core_rx_cqe_opaque_data opaque_data;
+	struct parsing_err_flags err_flags;
+	__le16 reserved0;
+	__le32 reserved1[3];
+};
+
+/* Core Rx CM offload CQE */
+struct core_rx_gsi_offload_cqe {
+	u8 type;
+	u8 data_length_error;
+	struct parsing_and_err_flags parse_flags;
+	__le16 data_length;
+	__le16 vlan;
+	__le32 src_mac_addrhi;
+	__le16 src_mac_addrlo;
+	__le16 qp_id;
+	__le32 gid_dst[4];
+};
+
+/* Core RX CQE for Light L2 */
+struct core_rx_slow_path_cqe {
+	u8 type;
+	u8 ramrod_cmd_id;
+	__le16 echo;
+	struct core_rx_cqe_opaque_data opaque_data;
+	__le32 reserved1[5];
+};
+
+/* Core RX CM offload BD for Light L2 */
+union core_rx_cqe_union {
+	struct core_rx_fast_path_cqe rx_cqe_fp;
+	struct core_rx_gsi_offload_cqe rx_cqe_gsi;
+	struct core_rx_slow_path_cqe rx_cqe_sp;
+};
+
+/* Ramrod data for rx queue start ramrod */
+struct core_rx_start_ramrod_data {
+	struct regpair bd_base;
+	struct regpair cqe_pbl_addr;
+	__le16 mtu;
+	__le16 sb_id;
+	u8 sb_index;
+	u8 complete_cqe_flg;
+	u8 complete_event_flg;
+	u8 drop_ttl0_flg;
+	__le16 num_of_pbl_pages;
+	u8 inner_vlan_removal_en;
+	u8 queue_id;
+	u8 main_func_queue;
+	u8 mf_si_bcast_accept_all;
+	u8 mf_si_mcast_accept_all;
+	struct core_rx_action_on_error action_on_error;
+	u8 gsi_offload_flag;
+	u8 reserved[7];
+};
+
+/* Ramrod data for rx queue stop ramrod */
+struct core_rx_stop_ramrod_data {
+	u8 complete_cqe_flg;
+	u8 complete_event_flg;
+	u8 queue_id;
+	u8 reserved1;
+	__le16 reserved2[2];
+};
+
+/* Flags for Core TX BD */
+struct core_tx_bd_data {
+	__le16 as_bitfield;
+#define CORE_TX_BD_DATA_FORCE_VLAN_MODE_MASK		0x1
+#define CORE_TX_BD_DATA_FORCE_VLAN_MODE_SHIFT		0
+#define CORE_TX_BD_DATA_VLAN_INSERTION_MASK		0x1
+#define CORE_TX_BD_DATA_VLAN_INSERTION_SHIFT		1
+#define CORE_TX_BD_DATA_START_BD_MASK			0x1
+#define CORE_TX_BD_DATA_START_BD_SHIFT			2
+#define CORE_TX_BD_DATA_IP_CSUM_MASK			0x1
+#define CORE_TX_BD_DATA_IP_CSUM_SHIFT			3
+#define CORE_TX_BD_DATA_L4_CSUM_MASK			0x1
+#define CORE_TX_BD_DATA_L4_CSUM_SHIFT			4
+#define CORE_TX_BD_DATA_IPV6_EXT_MASK			0x1
+#define CORE_TX_BD_DATA_IPV6_EXT_SHIFT			5
+#define CORE_TX_BD_DATA_L4_PROTOCOL_MASK		0x1
+#define CORE_TX_BD_DATA_L4_PROTOCOL_SHIFT		6
+#define CORE_TX_BD_DATA_L4_PSEUDO_CSUM_MODE_MASK	0x1
+#define CORE_TX_BD_DATA_L4_PSEUDO_CSUM_MODE_SHIFT	7
+#define CORE_TX_BD_DATA_NBDS_MASK			0xF
+#define CORE_TX_BD_DATA_NBDS_SHIFT			8
+#define CORE_TX_BD_DATA_ROCE_FLAV_MASK			0x1
+#define CORE_TX_BD_DATA_ROCE_FLAV_SHIFT			12
+#define CORE_TX_BD_DATA_IP_LEN_MASK			0x1
+#define CORE_TX_BD_DATA_IP_LEN_SHIFT			13
+#define CORE_TX_BD_DATA_RESERVED0_MASK			0x3
+#define CORE_TX_BD_DATA_RESERVED0_SHIFT			14
+};
+
+/* Core TX BD for Light L2 */
+struct core_tx_bd {
+	struct regpair addr;
+	__le16 nbytes;
+	__le16 nw_vlan_or_lb_echo;
+	struct core_tx_bd_data bd_data;
+	__le16 bitfield1;
+#define CORE_TX_BD_L4_HDR_OFFSET_W_MASK		0x3FFF
+#define CORE_TX_BD_L4_HDR_OFFSET_W_SHIFT	0
+#define CORE_TX_BD_TX_DST_MASK			0x3
+#define CORE_TX_BD_TX_DST_SHIFT			14
+};
+
+/* Light L2 TX Destination */
+enum core_tx_dest {
+	CORE_TX_DEST_NW,
+	CORE_TX_DEST_LB,
+	CORE_TX_DEST_RESERVED,
+	CORE_TX_DEST_DROP,
+	MAX_CORE_TX_DEST
+};
+
+/* Ramrod data for tx queue start ramrod */
+struct core_tx_start_ramrod_data {
+	struct regpair pbl_base_addr;
+	__le16 mtu;
+	__le16 sb_id;
+	u8 sb_index;
+	u8 stats_en;
+	u8 stats_id;
+	u8 conn_type;
+	__le16 pbl_size;
+	__le16 qm_pq_id;
+	u8 gsi_offload_flag;
+	u8 resrved[3];
+};
+
+/* Ramrod data for tx queue stop ramrod */
+struct core_tx_stop_ramrod_data {
+	__le32 reserved0[2];
+};
+
+/* Enum flag for what type of dcb data to update */
+enum dcb_dscp_update_mode {
+	DONT_UPDATE_DCB_DSCP,
+	UPDATE_DCB,
+	UPDATE_DSCP,
+	UPDATE_DCB_DSCP,
+	MAX_DCB_DSCP_UPDATE_MODE
 };
 
 /* The core storm context for the Ystorm */
@@ -369,85 +649,85 @@ struct tstorm_core_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define TSTORM_CORE_CONN_AG_CTX_BIT0_MASK     0x1	/* exist_in_qm0 */
-#define TSTORM_CORE_CONN_AG_CTX_BIT0_SHIFT    0
-#define TSTORM_CORE_CONN_AG_CTX_BIT1_MASK     0x1	/* exist_in_qm1 */
-#define TSTORM_CORE_CONN_AG_CTX_BIT1_SHIFT    1
-#define TSTORM_CORE_CONN_AG_CTX_BIT2_MASK     0x1	/* bit2 */
-#define TSTORM_CORE_CONN_AG_CTX_BIT2_SHIFT    2
-#define TSTORM_CORE_CONN_AG_CTX_BIT3_MASK     0x1	/* bit3 */
-#define TSTORM_CORE_CONN_AG_CTX_BIT3_SHIFT    3
-#define TSTORM_CORE_CONN_AG_CTX_BIT4_MASK     0x1	/* bit4 */
-#define TSTORM_CORE_CONN_AG_CTX_BIT4_SHIFT    4
-#define TSTORM_CORE_CONN_AG_CTX_BIT5_MASK     0x1	/* bit5 */
-#define TSTORM_CORE_CONN_AG_CTX_BIT5_SHIFT    5
-#define TSTORM_CORE_CONN_AG_CTX_CF0_MASK      0x3	/* timer0cf */
-#define TSTORM_CORE_CONN_AG_CTX_CF0_SHIFT     6
+#define TSTORM_CORE_CONN_AG_CTX_BIT0_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_BIT0_SHIFT	0
+#define TSTORM_CORE_CONN_AG_CTX_BIT1_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_BIT1_SHIFT	1
+#define TSTORM_CORE_CONN_AG_CTX_BIT2_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_BIT2_SHIFT	2
+#define TSTORM_CORE_CONN_AG_CTX_BIT3_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_BIT3_SHIFT	3
+#define TSTORM_CORE_CONN_AG_CTX_BIT4_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_BIT4_SHIFT	4
+#define TSTORM_CORE_CONN_AG_CTX_BIT5_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_BIT5_SHIFT	5
+#define TSTORM_CORE_CONN_AG_CTX_CF0_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF0_SHIFT	6
 	u8 flags1;
-#define TSTORM_CORE_CONN_AG_CTX_CF1_MASK      0x3	/* timer1cf */
-#define TSTORM_CORE_CONN_AG_CTX_CF1_SHIFT     0
-#define TSTORM_CORE_CONN_AG_CTX_CF2_MASK      0x3	/* timer2cf */
-#define TSTORM_CORE_CONN_AG_CTX_CF2_SHIFT     2
-#define TSTORM_CORE_CONN_AG_CTX_CF3_MASK      0x3	/* timer_stop_all */
-#define TSTORM_CORE_CONN_AG_CTX_CF3_SHIFT     4
-#define TSTORM_CORE_CONN_AG_CTX_CF4_MASK      0x3	/* cf4 */
-#define TSTORM_CORE_CONN_AG_CTX_CF4_SHIFT     6
+#define TSTORM_CORE_CONN_AG_CTX_CF1_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF1_SHIFT	0
+#define TSTORM_CORE_CONN_AG_CTX_CF2_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF2_SHIFT	2
+#define TSTORM_CORE_CONN_AG_CTX_CF3_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF3_SHIFT	4
+#define TSTORM_CORE_CONN_AG_CTX_CF4_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF4_SHIFT	6
 	u8 flags2;
-#define TSTORM_CORE_CONN_AG_CTX_CF5_MASK      0x3	/* cf5 */
-#define TSTORM_CORE_CONN_AG_CTX_CF5_SHIFT     0
-#define TSTORM_CORE_CONN_AG_CTX_CF6_MASK      0x3	/* cf6 */
-#define TSTORM_CORE_CONN_AG_CTX_CF6_SHIFT     2
-#define TSTORM_CORE_CONN_AG_CTX_CF7_MASK      0x3	/* cf7 */
-#define TSTORM_CORE_CONN_AG_CTX_CF7_SHIFT     4
-#define TSTORM_CORE_CONN_AG_CTX_CF8_MASK      0x3	/* cf8 */
-#define TSTORM_CORE_CONN_AG_CTX_CF8_SHIFT     6
+#define TSTORM_CORE_CONN_AG_CTX_CF5_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF5_SHIFT	0
+#define TSTORM_CORE_CONN_AG_CTX_CF6_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF6_SHIFT	2
+#define TSTORM_CORE_CONN_AG_CTX_CF7_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF7_SHIFT	4
+#define TSTORM_CORE_CONN_AG_CTX_CF8_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF8_SHIFT	6
 	u8 flags3;
-#define TSTORM_CORE_CONN_AG_CTX_CF9_MASK      0x3	/* cf9 */
-#define TSTORM_CORE_CONN_AG_CTX_CF9_SHIFT     0
-#define TSTORM_CORE_CONN_AG_CTX_CF10_MASK     0x3	/* cf10 */
-#define TSTORM_CORE_CONN_AG_CTX_CF10_SHIFT    2
-#define TSTORM_CORE_CONN_AG_CTX_CF0EN_MASK    0x1	/* cf0en */
-#define TSTORM_CORE_CONN_AG_CTX_CF0EN_SHIFT   4
-#define TSTORM_CORE_CONN_AG_CTX_CF1EN_MASK    0x1	/* cf1en */
-#define TSTORM_CORE_CONN_AG_CTX_CF1EN_SHIFT   5
-#define TSTORM_CORE_CONN_AG_CTX_CF2EN_MASK    0x1	/* cf2en */
-#define TSTORM_CORE_CONN_AG_CTX_CF2EN_SHIFT   6
-#define TSTORM_CORE_CONN_AG_CTX_CF3EN_MASK    0x1	/* cf3en */
-#define TSTORM_CORE_CONN_AG_CTX_CF3EN_SHIFT   7
+#define TSTORM_CORE_CONN_AG_CTX_CF9_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF9_SHIFT	0
+#define TSTORM_CORE_CONN_AG_CTX_CF10_MASK	0x3
+#define TSTORM_CORE_CONN_AG_CTX_CF10_SHIFT	2
+#define TSTORM_CORE_CONN_AG_CTX_CF0EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF0EN_SHIFT	4
+#define TSTORM_CORE_CONN_AG_CTX_CF1EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF1EN_SHIFT	5
+#define TSTORM_CORE_CONN_AG_CTX_CF2EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF2EN_SHIFT	6
+#define TSTORM_CORE_CONN_AG_CTX_CF3EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF3EN_SHIFT	7
 	u8 flags4;
-#define TSTORM_CORE_CONN_AG_CTX_CF4EN_MASK    0x1	/* cf4en */
-#define TSTORM_CORE_CONN_AG_CTX_CF4EN_SHIFT   0
-#define TSTORM_CORE_CONN_AG_CTX_CF5EN_MASK    0x1	/* cf5en */
-#define TSTORM_CORE_CONN_AG_CTX_CF5EN_SHIFT   1
-#define TSTORM_CORE_CONN_AG_CTX_CF6EN_MASK    0x1	/* cf6en */
-#define TSTORM_CORE_CONN_AG_CTX_CF6EN_SHIFT   2
-#define TSTORM_CORE_CONN_AG_CTX_CF7EN_MASK    0x1	/* cf7en */
-#define TSTORM_CORE_CONN_AG_CTX_CF7EN_SHIFT   3
-#define TSTORM_CORE_CONN_AG_CTX_CF8EN_MASK    0x1	/* cf8en */
-#define TSTORM_CORE_CONN_AG_CTX_CF8EN_SHIFT   4
-#define TSTORM_CORE_CONN_AG_CTX_CF9EN_MASK    0x1	/* cf9en */
-#define TSTORM_CORE_CONN_AG_CTX_CF9EN_SHIFT   5
-#define TSTORM_CORE_CONN_AG_CTX_CF10EN_MASK   0x1	/* cf10en */
-#define TSTORM_CORE_CONN_AG_CTX_CF10EN_SHIFT  6
-#define TSTORM_CORE_CONN_AG_CTX_RULE0EN_MASK  0x1	/* rule0en */
-#define TSTORM_CORE_CONN_AG_CTX_RULE0EN_SHIFT 7
+#define TSTORM_CORE_CONN_AG_CTX_CF4EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF4EN_SHIFT	0
+#define TSTORM_CORE_CONN_AG_CTX_CF5EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF5EN_SHIFT	1
+#define TSTORM_CORE_CONN_AG_CTX_CF6EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF6EN_SHIFT	2
+#define TSTORM_CORE_CONN_AG_CTX_CF7EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF7EN_SHIFT	3
+#define TSTORM_CORE_CONN_AG_CTX_CF8EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF8EN_SHIFT	4
+#define TSTORM_CORE_CONN_AG_CTX_CF9EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF9EN_SHIFT	5
+#define TSTORM_CORE_CONN_AG_CTX_CF10EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_CF10EN_SHIFT	6
+#define TSTORM_CORE_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_RULE0EN_SHIFT	7
 	u8 flags5;
-#define TSTORM_CORE_CONN_AG_CTX_RULE1EN_MASK  0x1	/* rule1en */
-#define TSTORM_CORE_CONN_AG_CTX_RULE1EN_SHIFT 0
-#define TSTORM_CORE_CONN_AG_CTX_RULE2EN_MASK  0x1	/* rule2en */
-#define TSTORM_CORE_CONN_AG_CTX_RULE2EN_SHIFT 1
-#define TSTORM_CORE_CONN_AG_CTX_RULE3EN_MASK  0x1	/* rule3en */
-#define TSTORM_CORE_CONN_AG_CTX_RULE3EN_SHIFT 2
-#define TSTORM_CORE_CONN_AG_CTX_RULE4EN_MASK  0x1	/* rule4en */
-#define TSTORM_CORE_CONN_AG_CTX_RULE4EN_SHIFT 3
-#define TSTORM_CORE_CONN_AG_CTX_RULE5EN_MASK  0x1	/* rule5en */
-#define TSTORM_CORE_CONN_AG_CTX_RULE5EN_SHIFT 4
-#define TSTORM_CORE_CONN_AG_CTX_RULE6EN_MASK  0x1	/* rule6en */
-#define TSTORM_CORE_CONN_AG_CTX_RULE6EN_SHIFT 5
-#define TSTORM_CORE_CONN_AG_CTX_RULE7EN_MASK  0x1	/* rule7en */
-#define TSTORM_CORE_CONN_AG_CTX_RULE7EN_SHIFT 6
-#define TSTORM_CORE_CONN_AG_CTX_RULE8EN_MASK  0x1	/* rule8en */
-#define TSTORM_CORE_CONN_AG_CTX_RULE8EN_SHIFT 7
+#define TSTORM_CORE_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define TSTORM_CORE_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define TSTORM_CORE_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define TSTORM_CORE_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define TSTORM_CORE_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define TSTORM_CORE_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define TSTORM_CORE_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define TSTORM_CORE_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define TSTORM_CORE_CONN_AG_CTX_RULE8EN_SHIFT	7
 	__le32 reg0;
 	__le32 reg1;
 	__le32 reg2;
@@ -563,258 +843,6 @@ struct core_conn_context {
 	struct regpair ustorm_st_padding[2];
 };
 
-enum core_error_handle {
-	LL2_DROP_PACKET,
-	LL2_DO_NOTHING,
-	LL2_ASSERT,
-	MAX_CORE_ERROR_HANDLE
-};
-
-enum core_event_opcode {
-	CORE_EVENT_TX_QUEUE_START,
-	CORE_EVENT_TX_QUEUE_STOP,
-	CORE_EVENT_RX_QUEUE_START,
-	CORE_EVENT_RX_QUEUE_STOP,
-	CORE_EVENT_RX_QUEUE_FLUSH,
-	MAX_CORE_EVENT_OPCODE
-};
-
-enum core_l4_pseudo_checksum_mode {
-	CORE_L4_PSEUDO_CSUM_CORRECT_LENGTH,
-	CORE_L4_PSEUDO_CSUM_ZERO_LENGTH,
-	MAX_CORE_L4_PSEUDO_CHECKSUM_MODE
-};
-
-struct core_ll2_port_stats {
-	struct regpair gsi_invalid_hdr;
-	struct regpair gsi_invalid_pkt_length;
-	struct regpair gsi_unsupported_pkt_typ;
-	struct regpair gsi_crcchksm_error;
-};
-
-struct core_ll2_pstorm_per_queue_stat {
-	struct regpair sent_ucast_bytes;
-	struct regpair sent_mcast_bytes;
-	struct regpair sent_bcast_bytes;
-	struct regpair sent_ucast_pkts;
-	struct regpair sent_mcast_pkts;
-	struct regpair sent_bcast_pkts;
-};
-
-struct core_ll2_rx_prod {
-	__le16 bd_prod;
-	__le16 cqe_prod;
-	__le32 reserved;
-};
-
-struct core_ll2_tstorm_per_queue_stat {
-	struct regpair packet_too_big_discard;
-	struct regpair no_buff_discard;
-};
-
-struct core_ll2_ustorm_per_queue_stat {
-	struct regpair rcv_ucast_bytes;
-	struct regpair rcv_mcast_bytes;
-	struct regpair rcv_bcast_bytes;
-	struct regpair rcv_ucast_pkts;
-	struct regpair rcv_mcast_pkts;
-	struct regpair rcv_bcast_pkts;
-};
-
-enum core_ramrod_cmd_id {
-	CORE_RAMROD_UNUSED,
-	CORE_RAMROD_RX_QUEUE_START,
-	CORE_RAMROD_TX_QUEUE_START,
-	CORE_RAMROD_RX_QUEUE_STOP,
-	CORE_RAMROD_TX_QUEUE_STOP,
-	CORE_RAMROD_RX_QUEUE_FLUSH,
-	MAX_CORE_RAMROD_CMD_ID
-};
-
-enum core_roce_flavor_type {
-	CORE_ROCE,
-	CORE_RROCE,
-	MAX_CORE_ROCE_FLAVOR_TYPE
-};
-
-struct core_rx_action_on_error {
-	u8 error_type;
-#define CORE_RX_ACTION_ON_ERROR_PACKET_TOO_BIG_MASK	0x3
-#define CORE_RX_ACTION_ON_ERROR_PACKET_TOO_BIG_SHIFT 0
-#define CORE_RX_ACTION_ON_ERROR_NO_BUFF_MASK	0x3
-#define CORE_RX_ACTION_ON_ERROR_NO_BUFF_SHIFT	2
-#define CORE_RX_ACTION_ON_ERROR_RESERVED_MASK	0xF
-#define CORE_RX_ACTION_ON_ERROR_RESERVED_SHIFT	4
-};
-
-struct core_rx_bd {
-	struct regpair addr;
-	__le16 reserved[4];
-};
-
-struct core_rx_bd_with_buff_len {
-	struct regpair addr;
-	__le16 buff_length;
-	__le16 reserved[3];
-};
-
-union core_rx_bd_union {
-	struct core_rx_bd rx_bd;
-	struct core_rx_bd_with_buff_len rx_bd_with_len;
-};
-
-struct core_rx_cqe_opaque_data {
-	__le32 data[2];
-};
-
-enum core_rx_cqe_type {
-	CORE_RX_CQE_ILLIGAL_TYPE,
-	CORE_RX_CQE_TYPE_REGULAR,
-	CORE_RX_CQE_TYPE_GSI_OFFLOAD,
-	CORE_RX_CQE_TYPE_SLOW_PATH,
-	MAX_CORE_RX_CQE_TYPE
-};
-
-struct core_rx_fast_path_cqe {
-	u8 type;
-	u8 placement_offset;
-	struct parsing_and_err_flags parse_flags;
-	__le16 packet_length;
-	__le16 vlan;
-	struct core_rx_cqe_opaque_data opaque_data;
-	struct parsing_err_flags err_flags;
-	__le16 reserved0;
-	__le32 reserved1[3];
-};
-
-struct core_rx_gsi_offload_cqe {
-	u8 type;
-	u8 data_length_error;
-	struct parsing_and_err_flags parse_flags;
-	__le16 data_length;
-	__le16 vlan;
-	__le32 src_mac_addrhi;
-	__le16 src_mac_addrlo;
-	__le16 qp_id;
-	__le32 gid_dst[4];
-};
-
-struct core_rx_slow_path_cqe {
-	u8 type;
-	u8 ramrod_cmd_id;
-	__le16 echo;
-	struct core_rx_cqe_opaque_data opaque_data;
-	__le32 reserved1[5];
-};
-
-union core_rx_cqe_union {
-	struct core_rx_fast_path_cqe rx_cqe_fp;
-	struct core_rx_gsi_offload_cqe rx_cqe_gsi;
-	struct core_rx_slow_path_cqe rx_cqe_sp;
-};
-
-struct core_rx_start_ramrod_data {
-	struct regpair bd_base;
-	struct regpair cqe_pbl_addr;
-	__le16 mtu;
-	__le16 sb_id;
-	u8 sb_index;
-	u8 complete_cqe_flg;
-	u8 complete_event_flg;
-	u8 drop_ttl0_flg;
-	__le16 num_of_pbl_pages;
-	u8 inner_vlan_removal_en;
-	u8 queue_id;
-	u8 main_func_queue;
-	u8 mf_si_bcast_accept_all;
-	u8 mf_si_mcast_accept_all;
-	struct core_rx_action_on_error action_on_error;
-	u8 gsi_offload_flag;
-	u8 reserved[7];
-};
-
-struct core_rx_stop_ramrod_data {
-	u8 complete_cqe_flg;
-	u8 complete_event_flg;
-	u8 queue_id;
-	u8 reserved1;
-	__le16 reserved2[2];
-};
-
-struct core_tx_bd_data {
-	__le16 as_bitfield;
-#define CORE_TX_BD_DATA_FORCE_VLAN_MODE_MASK	0x1
-#define CORE_TX_BD_DATA_FORCE_VLAN_MODE_SHIFT     0
-#define CORE_TX_BD_DATA_VLAN_INSERTION_MASK	0x1
-#define CORE_TX_BD_DATA_VLAN_INSERTION_SHIFT      1
-#define CORE_TX_BD_DATA_START_BD_MASK	0x1
-#define CORE_TX_BD_DATA_START_BD_SHIFT            2
-#define CORE_TX_BD_DATA_IP_CSUM_MASK	0x1
-#define CORE_TX_BD_DATA_IP_CSUM_SHIFT             3
-#define CORE_TX_BD_DATA_L4_CSUM_MASK	0x1
-#define CORE_TX_BD_DATA_L4_CSUM_SHIFT             4
-#define CORE_TX_BD_DATA_IPV6_EXT_MASK	0x1
-#define CORE_TX_BD_DATA_IPV6_EXT_SHIFT            5
-#define CORE_TX_BD_DATA_L4_PROTOCOL_MASK	0x1
-#define CORE_TX_BD_DATA_L4_PROTOCOL_SHIFT         6
-#define CORE_TX_BD_DATA_L4_PSEUDO_CSUM_MODE_MASK	0x1
-#define CORE_TX_BD_DATA_L4_PSEUDO_CSUM_MODE_SHIFT 7
-#define CORE_TX_BD_DATA_NBDS_MASK	0xF
-#define CORE_TX_BD_DATA_NBDS_SHIFT                8
-#define CORE_TX_BD_DATA_ROCE_FLAV_MASK	0x1
-#define CORE_TX_BD_DATA_ROCE_FLAV_SHIFT           12
-#define CORE_TX_BD_DATA_IP_LEN_MASK	0x1
-#define CORE_TX_BD_DATA_IP_LEN_SHIFT              13
-#define CORE_TX_BD_DATA_RESERVED0_MASK            0x3
-#define CORE_TX_BD_DATA_RESERVED0_SHIFT           14
-};
-
-struct core_tx_bd {
-	struct regpair addr;
-	__le16 nbytes;
-	__le16 nw_vlan_or_lb_echo;
-	struct core_tx_bd_data bd_data;
-	__le16 bitfield1;
-#define CORE_TX_BD_L4_HDR_OFFSET_W_MASK	0x3FFF
-#define CORE_TX_BD_L4_HDR_OFFSET_W_SHIFT 0
-#define CORE_TX_BD_TX_DST_MASK		0x3
-#define CORE_TX_BD_TX_DST_SHIFT		14
-};
-
-enum core_tx_dest {
-	CORE_TX_DEST_NW,
-	CORE_TX_DEST_LB,
-	CORE_TX_DEST_RESERVED,
-	CORE_TX_DEST_DROP,
-	MAX_CORE_TX_DEST
-};
-
-struct core_tx_start_ramrod_data {
-	struct regpair pbl_base_addr;
-	__le16 mtu;
-	__le16 sb_id;
-	u8 sb_index;
-	u8 stats_en;
-	u8 stats_id;
-	u8 conn_type;
-	__le16 pbl_size;
-	__le16 qm_pq_id;
-	u8 gsi_offload_flag;
-	u8 resrved[3];
-};
-
-struct core_tx_stop_ramrod_data {
-	__le32 reserved0[2];
-};
-
-enum dcb_dscp_update_mode {
-	DONT_UPDATE_DCB_DSCP,
-	UPDATE_DCB,
-	UPDATE_DSCP,
-	UPDATE_DCB_DSCP,
-	MAX_DCB_DSCP_UPDATE_MODE
-};
-
 struct eth_mstorm_per_pf_stat {
 	struct regpair gre_discard_pkts;
 	struct regpair vxlan_discard_pkts;
@@ -896,6 +924,49 @@ struct eth_ustorm_per_queue_stat {
 	struct regpair rcv_bcast_pkts;
 };
 
+/* Event Ring VF-PF Channel data */
+struct vf_pf_channel_eqe_data {
+	struct regpair msg_addr;
+};
+
+/* Event Ring malicious VF data */
+struct malicious_vf_eqe_data {
+	u8 vf_id;
+	u8 err_id;
+	__le16 reserved[3];
+};
+
+/* Event Ring initial cleanup data */
+struct initial_cleanup_eqe_data {
+	u8 vf_id;
+	u8 reserved[7];
+};
+
+/* Event Data Union */
+union event_ring_data {
+	u8 bytes[8];
+	struct vf_pf_channel_eqe_data vf_pf_channel;
+	struct iscsi_eqe_data iscsi_info;
+	union rdma_eqe_data rdma_data;
+	struct malicious_vf_eqe_data malicious_vf;
+	struct initial_cleanup_eqe_data vf_init_cleanup;
+};
+
+/* Event Ring Entry */
+struct event_ring_entry {
+	u8 protocol_id;
+	u8 opcode;
+	__le16 reserved0;
+	__le16 echo;
+	u8 fw_return_code;
+	u8 flags;
+#define EVENT_RING_ENTRY_ASYNC_MASK		0x1
+#define EVENT_RING_ENTRY_ASYNC_SHIFT		0
+#define EVENT_RING_ENTRY_RESERVED1_MASK		0x7F
+#define EVENT_RING_ENTRY_RESERVED1_SHIFT	1
+	union event_ring_data data;
+};
+
 /* Event Ring Next Page Address */
 struct event_ring_next_addr {
 	struct regpair addr;
@@ -908,6 +979,7 @@ union event_ring_element {
 	struct event_ring_next_addr next_addr;
 };
 
+/* Ports mode */
 enum fw_flow_ctrl_mode {
 	flow_ctrl_pause,
 	flow_ctrl_pfc,
@@ -921,14 +993,14 @@ struct hsi_fp_ver_struct {
 };
 
 enum iwarp_ll2_tx_queues {
-	IWARP_LL2_IN_ORDER_TX_QUEUE =			1,
+	IWARP_LL2_IN_ORDER_TX_QUEUE = 1,
 	IWARP_LL2_ALIGNED_TX_QUEUE,
 	IWARP_LL2_ALIGNED_RIGHT_TRIMMED_TX_QUEUE,
 	IWARP_LL2_ERROR,
 	MAX_IWARP_LL2_TX_QUEUES
 };
 
-/* Mstorm non-triggering VF zone */
+/* Malicious VF error ID */
 enum malicious_vf_error_id {
 	MALICIOUS_VF_NO_ERROR,
 	VF_PF_CHANNEL_NOT_READY,
@@ -954,6 +1026,7 @@ enum malicious_vf_error_id {
 	MAX_MALICIOUS_VF_ERROR_ID
 };
 
+/* Mstorm non-triggering VF zone */
 struct mstorm_non_trigger_vf_zone {
 	struct eth_mstorm_per_queue_stat eth_queue_stat;
 	struct eth_rx_prod_data eth_rx_queue_producers[ETH_MAX_NUM_RX_QUEUES_PER_VF_QUAD];
@@ -962,7 +1035,6 @@ struct mstorm_non_trigger_vf_zone {
 /* Mstorm VF zone */
 struct mstorm_vf_zone {
 	struct mstorm_non_trigger_vf_zone non_trigger;
-
 };
 
 /* personality per PF */
@@ -974,7 +1046,7 @@ enum personality_type {
 	PERSONALITY_RDMA,
 	PERSONALITY_CORE,
 	PERSONALITY_ETH,
-	PERSONALITY_RESERVED4,
+	PERSONALITY_RESERVED,
 	MAX_PERSONALITY_TYPE
 };
 
@@ -1017,6 +1089,7 @@ struct pf_start_ramrod_data {
 	struct hsi_fp_ver_struct hsi_fp_ver;
 };
 
+/* Data for port update ramrod */
 struct protocol_dcb_data {
 	u8 dcb_enable_flag;
 	u8 reserved_a;
@@ -1026,6 +1099,7 @@ struct protocol_dcb_data {
 	u8 reserved0;
 };
 
+/* Update tunnel configuration */
 struct pf_update_tunnel_config {
 	u8 update_rx_pf_clss;
 	u8 update_rx_def_ucast_clss;
@@ -1042,6 +1116,7 @@ struct pf_update_tunnel_config {
 	__le16 reserved;
 };
 
+/* Data for port update ramrod */
 struct pf_update_ramrod_data {
 	u8 pf_id;
 	u8 update_eth_dcb_data_mode;
@@ -1079,11 +1154,13 @@ enum protocol_version_array_key {
 	MAX_PROTOCOL_VERSION_ARRAY_KEY
 };
 
+/* RDMA TX Stats */
 struct rdma_sent_stats {
 	struct regpair sent_bytes;
 	struct regpair sent_pkts;
 };
 
+/* Pstorm non-triggering VF zone */
 struct pstorm_non_trigger_vf_zone {
 	struct eth_pstorm_per_queue_stat eth_queue_stat;
 	struct rdma_sent_stats rdma_stats;
@@ -1103,11 +1180,13 @@ struct ramrod_header {
 	__le16 echo;
 };
 
+/* RDMA RX Stats */
 struct rdma_rcv_stats {
 	struct regpair rcv_bytes;
 	struct regpair rcv_pkts;
 };
 
+/* Slowpath Element (SPQE) */
 struct slow_path_element {
 	struct ramrod_header hdr;
 	struct regpair data_ptr;
@@ -1197,6 +1276,7 @@ struct vf_stop_ramrod_data {
 	__le32 reserved2;
 };
 
+/* VF zone size mode */
 enum vf_zone_size_mode {
 	VF_ZONE_SIZE_MODE_DEFAULT,
 	VF_ZONE_SIZE_MODE_DOUBLE,
@@ -1204,18 +1284,13 @@ enum vf_zone_size_mode {
 	MAX_VF_ZONE_SIZE_MODE
 };
 
+/* Attentions status block */
 struct atten_status_block {
 	__le32 atten_bits;
 	__le32 atten_ack;
 	__le16 reserved0;
 	__le16 sb_index;
 	__le32 reserved1;
-};
-
-enum command_type_bit {
-	IGU_COMMAND_TYPE_NOP = 0,
-	IGU_COMMAND_TYPE_SET = 1,
-	MAX_COMMAND_TYPE_BIT
 };
 
 /* DMAE command */
@@ -1841,7 +1916,7 @@ struct dbg_attn_block_result {
 	struct dbg_attn_reg_result reg_results[15];
 };
 
-/* mode header */
+/* Mode header */
 struct dbg_mode_hdr {
 	__le16 data;
 #define DBG_MODE_HDR_EVAL_MODE_MASK		0x1
@@ -1863,80 +1938,83 @@ struct dbg_attn_reg {
 	__le32 mask_address;
 };
 
-/* attention types */
+/* Attention types */
 enum dbg_attn_type {
 	ATTN_TYPE_INTERRUPT,
 	ATTN_TYPE_PARITY,
 	MAX_DBG_ATTN_TYPE
 };
 
+/* Debug Bus block data */
 struct dbg_bus_block {
 	u8 num_of_lines;
 	u8 has_latency_events;
 	__le16 lines_offset;
 };
 
+/* Debug Bus block user data */
 struct dbg_bus_block_user_data {
 	u8 num_of_lines;
 	u8 has_latency_events;
 	__le16 names_offset;
 };
 
+/* Block Debug line data */
 struct dbg_bus_line {
 	u8 data;
-#define DBG_BUS_LINE_NUM_OF_GROUPS_MASK  0xF
-#define DBG_BUS_LINE_NUM_OF_GROUPS_SHIFT 0
-#define DBG_BUS_LINE_IS_256B_MASK        0x1
-#define DBG_BUS_LINE_IS_256B_SHIFT       4
-#define DBG_BUS_LINE_RESERVED_MASK       0x7
-#define DBG_BUS_LINE_RESERVED_SHIFT      5
+#define DBG_BUS_LINE_NUM_OF_GROUPS_MASK		0xF
+#define DBG_BUS_LINE_NUM_OF_GROUPS_SHIFT	0
+#define DBG_BUS_LINE_IS_256B_MASK		0x1
+#define DBG_BUS_LINE_IS_256B_SHIFT		4
+#define DBG_BUS_LINE_RESERVED_MASK		0x7
+#define DBG_BUS_LINE_RESERVED_SHIFT		5
 	u8 group_sizes;
 };
 
-/* condition header for registers dump */
+/* Condition header for registers dump */
 struct dbg_dump_cond_hdr {
 	struct dbg_mode_hdr mode; /* Mode header */
 	u8 block_id; /* block ID */
 	u8 data_size; /* size in dwords of the data following this header */
 };
 
-/* memory data for registers dump */
+/* Memory data for registers dump */
 struct dbg_dump_mem {
 	__le32 dword0;
-#define DBG_DUMP_MEM_ADDRESS_MASK       0xFFFFFF
-#define DBG_DUMP_MEM_ADDRESS_SHIFT      0
-#define DBG_DUMP_MEM_MEM_GROUP_ID_MASK  0xFF
-#define DBG_DUMP_MEM_MEM_GROUP_ID_SHIFT 24
+#define DBG_DUMP_MEM_ADDRESS_MASK	0xFFFFFF
+#define DBG_DUMP_MEM_ADDRESS_SHIFT	0
+#define DBG_DUMP_MEM_MEM_GROUP_ID_MASK	0xFF
+#define DBG_DUMP_MEM_MEM_GROUP_ID_SHIFT	24
 	__le32 dword1;
-#define DBG_DUMP_MEM_LENGTH_MASK        0xFFFFFF
-#define DBG_DUMP_MEM_LENGTH_SHIFT       0
-#define DBG_DUMP_MEM_WIDE_BUS_MASK      0x1
-#define DBG_DUMP_MEM_WIDE_BUS_SHIFT     24
-#define DBG_DUMP_MEM_RESERVED_MASK      0x7F
-#define DBG_DUMP_MEM_RESERVED_SHIFT     25
+#define DBG_DUMP_MEM_LENGTH_MASK	0xFFFFFF
+#define DBG_DUMP_MEM_LENGTH_SHIFT	0
+#define DBG_DUMP_MEM_WIDE_BUS_MASK	0x1
+#define DBG_DUMP_MEM_WIDE_BUS_SHIFT	24
+#define DBG_DUMP_MEM_RESERVED_MASK	0x7F
+#define DBG_DUMP_MEM_RESERVED_SHIFT	25
 };
 
-/* register data for registers dump */
+/* Register data for registers dump */
 struct dbg_dump_reg {
 	__le32 data;
-#define DBG_DUMP_REG_ADDRESS_MASK 0x7FFFFF /* register address (in dwords) */
-#define DBG_DUMP_REG_ADDRESS_SHIFT 0
-#define DBG_DUMP_REG_WIDE_BUS_MASK 0x1 /* indicates register is wide-bus */
-#define DBG_DUMP_REG_WIDE_BUS_SHIFT 23
-#define DBG_DUMP_REG_LENGTH_MASK  0xFF /* register size (in dwords) */
-#define DBG_DUMP_REG_LENGTH_SHIFT 24
+#define DBG_DUMP_REG_ADDRESS_MASK	0x7FFFFF
+#define DBG_DUMP_REG_ADDRESS_SHIFT	0
+#define DBG_DUMP_REG_WIDE_BUS_MASK	0x1
+#define DBG_DUMP_REG_WIDE_BUS_SHIFT	23
+#define DBG_DUMP_REG_LENGTH_MASK	0xFF
+#define DBG_DUMP_REG_LENGTH_SHIFT	24
 };
 
-/* split header for registers dump */
+/* Split header for registers dump */
 struct dbg_dump_split_hdr {
 	__le32 hdr;
-#define DBG_DUMP_SPLIT_HDR_DATA_SIZE_MASK      0xFFFFFF
-#define DBG_DUMP_SPLIT_HDR_DATA_SIZE_SHIFT     0
-#define DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID_MASK  0xFF
-#define DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID_SHIFT 24
+#define DBG_DUMP_SPLIT_HDR_DATA_SIZE_MASK	0xFFFFFF
+#define DBG_DUMP_SPLIT_HDR_DATA_SIZE_SHIFT	0
+#define DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID_MASK	0xFF
+#define DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID_SHIFT	24
 };
 
-/* condition header for idle check */
+/* Condition header for idle check */
 struct dbg_idle_chk_cond_hdr {
 	struct dbg_mode_hdr mode; /* Mode header */
 	__le16 data_size; /* size in dwords of the data following this header */
@@ -1945,12 +2023,12 @@ struct dbg_idle_chk_cond_hdr {
 /* Idle Check condition register */
 struct dbg_idle_chk_cond_reg {
 	__le32 data;
-#define DBG_IDLE_CHK_COND_REG_ADDRESS_MASK   0x7FFFFF
-#define DBG_IDLE_CHK_COND_REG_ADDRESS_SHIFT  0
-#define DBG_IDLE_CHK_COND_REG_WIDE_BUS_MASK  0x1
-#define DBG_IDLE_CHK_COND_REG_WIDE_BUS_SHIFT 23
-#define DBG_IDLE_CHK_COND_REG_BLOCK_ID_MASK  0xFF
-#define DBG_IDLE_CHK_COND_REG_BLOCK_ID_SHIFT 24
+#define DBG_IDLE_CHK_COND_REG_ADDRESS_MASK	0x7FFFFF
+#define DBG_IDLE_CHK_COND_REG_ADDRESS_SHIFT	0
+#define DBG_IDLE_CHK_COND_REG_WIDE_BUS_MASK	0x1
+#define DBG_IDLE_CHK_COND_REG_WIDE_BUS_SHIFT	23
+#define DBG_IDLE_CHK_COND_REG_BLOCK_ID_MASK	0xFF
+#define DBG_IDLE_CHK_COND_REG_BLOCK_ID_SHIFT	24
 	__le16 num_entries;
 	u8 entry_size;
 	u8 start_entry;
@@ -1959,12 +2037,12 @@ struct dbg_idle_chk_cond_reg {
 /* Idle Check info register */
 struct dbg_idle_chk_info_reg {
 	__le32 data;
-#define DBG_IDLE_CHK_INFO_REG_ADDRESS_MASK   0x7FFFFF
-#define DBG_IDLE_CHK_INFO_REG_ADDRESS_SHIFT  0
-#define DBG_IDLE_CHK_INFO_REG_WIDE_BUS_MASK  0x1
-#define DBG_IDLE_CHK_INFO_REG_WIDE_BUS_SHIFT 23
-#define DBG_IDLE_CHK_INFO_REG_BLOCK_ID_MASK  0xFF
-#define DBG_IDLE_CHK_INFO_REG_BLOCK_ID_SHIFT 24
+#define DBG_IDLE_CHK_INFO_REG_ADDRESS_MASK	0x7FFFFF
+#define DBG_IDLE_CHK_INFO_REG_ADDRESS_SHIFT	0
+#define DBG_IDLE_CHK_INFO_REG_WIDE_BUS_MASK	0x1
+#define DBG_IDLE_CHK_INFO_REG_WIDE_BUS_SHIFT	23
+#define DBG_IDLE_CHK_INFO_REG_BLOCK_ID_MASK	0xFF
+#define DBG_IDLE_CHK_INFO_REG_BLOCK_ID_SHIFT	24
 	__le16 size; /* register size in dwords */
 	struct dbg_mode_hdr mode; /* Mode header */
 };
@@ -2016,13 +2094,13 @@ struct dbg_idle_chk_rule {
 /* Idle Check rule parsing data */
 struct dbg_idle_chk_rule_parsing_data {
 	__le32 data;
-#define DBG_IDLE_CHK_RULE_PARSING_DATA_HAS_FW_MSG_MASK  0x1
-#define DBG_IDLE_CHK_RULE_PARSING_DATA_HAS_FW_MSG_SHIFT 0
-#define DBG_IDLE_CHK_RULE_PARSING_DATA_STR_OFFSET_MASK  0x7FFFFFFF
-#define DBG_IDLE_CHK_RULE_PARSING_DATA_STR_OFFSET_SHIFT 1
+#define DBG_IDLE_CHK_RULE_PARSING_DATA_HAS_FW_MSG_MASK	0x1
+#define DBG_IDLE_CHK_RULE_PARSING_DATA_HAS_FW_MSG_SHIFT	0
+#define DBG_IDLE_CHK_RULE_PARSING_DATA_STR_OFFSET_MASK	0x7FFFFFFF
+#define DBG_IDLE_CHK_RULE_PARSING_DATA_STR_OFFSET_SHIFT	1
 };
 
-/* idle check severity types */
+/* Idle check severity types */
 enum dbg_idle_chk_severity_types {
 	/* idle check failure should cause an error */
 	IDLE_CHK_SEVERITY_ERROR,
@@ -2036,14 +2114,14 @@ enum dbg_idle_chk_severity_types {
 /* Debug Bus block data */
 struct dbg_bus_block_data {
 	__le16 data;
-#define DBG_BUS_BLOCK_DATA_ENABLE_MASK_MASK       0xF
-#define DBG_BUS_BLOCK_DATA_ENABLE_MASK_SHIFT      0
-#define DBG_BUS_BLOCK_DATA_RIGHT_SHIFT_MASK       0xF
-#define DBG_BUS_BLOCK_DATA_RIGHT_SHIFT_SHIFT      4
-#define DBG_BUS_BLOCK_DATA_FORCE_VALID_MASK_MASK  0xF
-#define DBG_BUS_BLOCK_DATA_FORCE_VALID_MASK_SHIFT 8
-#define DBG_BUS_BLOCK_DATA_FORCE_FRAME_MASK_MASK  0xF
-#define DBG_BUS_BLOCK_DATA_FORCE_FRAME_MASK_SHIFT 12
+#define DBG_BUS_BLOCK_DATA_ENABLE_MASK_MASK		0xF
+#define DBG_BUS_BLOCK_DATA_ENABLE_MASK_SHIFT		0
+#define DBG_BUS_BLOCK_DATA_RIGHT_SHIFT_MASK		0xF
+#define DBG_BUS_BLOCK_DATA_RIGHT_SHIFT_SHIFT		4
+#define DBG_BUS_BLOCK_DATA_FORCE_VALID_MASK_MASK	0xF
+#define DBG_BUS_BLOCK_DATA_FORCE_VALID_MASK_SHIFT	8
+#define DBG_BUS_BLOCK_DATA_FORCE_FRAME_MASK_MASK	0xF
+#define DBG_BUS_BLOCK_DATA_FORCE_FRAME_MASK_SHIFT	12
 	u8 line_num;
 	u8 hw_id;
 };
@@ -2072,6 +2150,7 @@ enum dbg_bus_clients {
 	MAX_DBG_BUS_CLIENTS
 };
 
+/* Debug Bus constraint operation types */
 enum dbg_bus_constraint_ops {
 	DBG_BUS_CONSTRAINT_OP_EQ,
 	DBG_BUS_CONSTRAINT_OP_NE,
@@ -2086,12 +2165,13 @@ enum dbg_bus_constraint_ops {
 	MAX_DBG_BUS_CONSTRAINT_OPS
 };
 
+/* Debug Bus trigger state data */
 struct dbg_bus_trigger_state_data {
 	u8 data;
-#define DBG_BUS_TRIGGER_STATE_DATA_BLOCK_SHIFTED_ENABLE_MASK_MASK  0xF
-#define DBG_BUS_TRIGGER_STATE_DATA_BLOCK_SHIFTED_ENABLE_MASK_SHIFT 0
-#define DBG_BUS_TRIGGER_STATE_DATA_CONSTRAINT_DWORD_MASK_MASK      0xF
-#define DBG_BUS_TRIGGER_STATE_DATA_CONSTRAINT_DWORD_MASK_SHIFT     4
+#define DBG_BUS_TRIGGER_STATE_DATA_BLOCK_SHIFTED_ENABLE_MASK_MASK	0xF
+#define DBG_BUS_TRIGGER_STATE_DATA_BLOCK_SHIFTED_ENABLE_MASK_SHIFT	0
+#define DBG_BUS_TRIGGER_STATE_DATA_CONSTRAINT_DWORD_MASK_MASK		0xF
+#define DBG_BUS_TRIGGER_STATE_DATA_CONSTRAINT_DWORD_MASK_SHIFT		4
 };
 
 /* Debug Bus memory address */
@@ -2165,6 +2245,7 @@ struct dbg_bus_data {
 	struct dbg_bus_storm_data storms[6];
 };
 
+/* Debug bus filter types */
 enum dbg_bus_filter_types {
 	DBG_BUS_FILTER_TYPE_OFF,
 	DBG_BUS_FILTER_TYPE_PRE,
@@ -2181,6 +2262,7 @@ enum dbg_bus_frame_modes {
 	MAX_DBG_BUS_FRAME_MODES
 };
 
+/* Debug bus other engine mode */
 enum dbg_bus_other_engine_modes {
 	DBG_BUS_OTHER_ENGINE_MODE_NONE,
 	DBG_BUS_OTHER_ENGINE_MODE_DOUBLE_BW_TX,
@@ -2190,12 +2272,14 @@ enum dbg_bus_other_engine_modes {
 	MAX_DBG_BUS_OTHER_ENGINE_MODES
 };
 
+/* Debug bus post-trigger recording types */
 enum dbg_bus_post_trigger_types {
 	DBG_BUS_POST_TRIGGER_RECORD,
 	DBG_BUS_POST_TRIGGER_DROP,
 	MAX_DBG_BUS_POST_TRIGGER_TYPES
 };
 
+/* Debug bus pre-trigger recording types */
 enum dbg_bus_pre_trigger_types {
 	DBG_BUS_PRE_TRIGGER_START_FROM_ZERO,
 	DBG_BUS_PRE_TRIGGER_NUM_CHUNKS,
@@ -2203,11 +2287,10 @@ enum dbg_bus_pre_trigger_types {
 	MAX_DBG_BUS_PRE_TRIGGER_TYPES
 };
 
+/* Debug bus SEMI frame modes */
 enum dbg_bus_semi_frame_modes {
-	DBG_BUS_SEMI_FRAME_MODE_0SLOW_4FAST =
-	    0,
-	DBG_BUS_SEMI_FRAME_MODE_4SLOW_0FAST =
-	    3,
+	DBG_BUS_SEMI_FRAME_MODE_0SLOW_4FAST = 0,
+	DBG_BUS_SEMI_FRAME_MODE_4SLOW_0FAST = 3,
 	MAX_DBG_BUS_SEMI_FRAME_MODES
 };
 
@@ -2220,6 +2303,7 @@ enum dbg_bus_states {
 	MAX_DBG_BUS_STATES
 };
 
+/* Debug Bus Storm modes */
 enum dbg_bus_storm_modes {
 	DBG_BUS_STORM_MODE_PRINTF,
 	DBG_BUS_STORM_MODE_PRAM_ADDR,
@@ -2406,6 +2490,7 @@ struct dbg_tools_data {
 /* Number of VLAN priorities */
 #define NUM_OF_VLAN_PRIORITIES	8
 
+/* BRB RAM init requirements */
 struct init_brb_ram_req {
 	__le32 guranteed_per_tc;
 	__le32 headroom_per_tc;
@@ -2414,17 +2499,20 @@ struct init_brb_ram_req {
 	u8 num_active_tcs[MAX_NUM_PORTS];
 };
 
+/* ETS per-TC init requirements */
 struct init_ets_tc_req {
 	u8 use_sp;
 	u8 use_wfq;
 	__le16 weight;
 };
 
+/* ETS init requirements */
 struct init_ets_req {
 	__le32 mtu;
 	struct init_ets_tc_req tc_req[NUM_OF_TCS];
 };
 
+/* NIG LB RL init requirements */
 struct init_nig_lb_rl_req {
 	__le16 lb_mac_rate;
 	__le16 lb_rate;
@@ -2432,15 +2520,18 @@ struct init_nig_lb_rl_req {
 	__le16 tc_rate[NUM_OF_PHYS_TCS];
 };
 
+/* NIG TC mapping for each priority */
 struct init_nig_pri_tc_map_entry {
 	u8 tc_id;
 	u8 valid;
 };
 
+/* NIG priority to TC map init requirements */
 struct init_nig_pri_tc_map_req {
 	struct init_nig_pri_tc_map_entry pri[NUM_OF_VLAN_PRIORITIES];
 };
 
+/* QM per-port init parameters */
 struct init_qm_port_params {
 	u8 active;
 	u8 active_phys_tcs;
@@ -2563,7 +2654,7 @@ struct bin_buffer_hdr {
 	__le32 length;
 };
 
-/* binary init buffer types */
+/* Binary init buffer types */
 enum bin_init_buffer_type {
 	BIN_BUF_INIT_FW_VER_INFO,
 	BIN_BUF_INIT_CMD,
@@ -2793,6 +2884,7 @@ struct iro {
 };
 
 /***************************** Public Functions *******************************/
+
 /**
  * @brief qed_dbg_set_bin_ptr - Sets a pointer to the binary data with debug
  *	arrays.
@@ -3119,6 +3211,7 @@ enum dbg_status qed_dbg_print_attn(struct qed_hwfn *p_hwfn,
 #define MAX_NAME_LEN	16
 
 /***************************** Public Functions *******************************/
+
 /**
  * @brief qed_dbg_user_set_bin_ptr - Sets a pointer to the binary data with
  *	debug arrays.
@@ -3820,115 +3913,194 @@ void qed_set_rfs_mode_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 			     u16 pf_id, bool tcp, bool udp,
 			     bool ipv4, bool ipv6);
 
-#define	YSTORM_FLOW_CONTROL_MODE_OFFSET			(IRO[0].base)
-#define	YSTORM_FLOW_CONTROL_MODE_SIZE			(IRO[0].size)
-#define	TSTORM_PORT_STAT_OFFSET(port_id) \
+/* Ystorm flow control mode. Use enum fw_flow_ctrl_mode */
+#define YSTORM_FLOW_CONTROL_MODE_OFFSET			(IRO[0].base)
+#define YSTORM_FLOW_CONTROL_MODE_SIZE			(IRO[0].size)
+
+/* Tstorm port statistics */
+#define TSTORM_PORT_STAT_OFFSET(port_id) \
 	(IRO[1].base + ((port_id) * IRO[1].m1))
-#define	TSTORM_PORT_STAT_SIZE				(IRO[1].size)
+#define TSTORM_PORT_STAT_SIZE				(IRO[1].size)
+
+/* Tstorm ll2 port statistics */
 #define TSTORM_LL2_PORT_STAT_OFFSET(port_id) \
 	(IRO[2].base + ((port_id) * IRO[2].m1))
 #define TSTORM_LL2_PORT_STAT_SIZE			(IRO[2].size)
-#define	USTORM_VF_PF_CHANNEL_READY_OFFSET(vf_id) \
+
+/* Ustorm VF-PF Channel ready flag */
+#define USTORM_VF_PF_CHANNEL_READY_OFFSET(vf_id) \
 	(IRO[3].base + ((vf_id) * IRO[3].m1))
-#define	USTORM_VF_PF_CHANNEL_READY_SIZE			(IRO[3].size)
-#define	USTORM_FLR_FINAL_ACK_OFFSET(pf_id) \
-	(IRO[4].base + (pf_id) * IRO[4].m1)
-#define	USTORM_FLR_FINAL_ACK_SIZE			(IRO[4].size)
-#define	USTORM_EQE_CONS_OFFSET(pf_id) \
+#define USTORM_VF_PF_CHANNEL_READY_SIZE			(IRO[3].size)
+
+/* Ustorm Final flr cleanup ack */
+#define USTORM_FLR_FINAL_ACK_OFFSET(pf_id) \
+	(IRO[4].base + ((pf_id) * IRO[4].m1))
+#define USTORM_FLR_FINAL_ACK_SIZE			(IRO[4].size)
+
+/* Ustorm Event ring consumer */
+#define USTORM_EQE_CONS_OFFSET(pf_id) \
 	(IRO[5].base + ((pf_id) * IRO[5].m1))
-#define	USTORM_EQE_CONS_SIZE				(IRO[5].size)
-#define	USTORM_ETH_QUEUE_ZONE_OFFSET(queue_zone_id) \
+#define USTORM_EQE_CONS_SIZE				(IRO[5].size)
+
+/* Ustorm eth queue zone */
+#define USTORM_ETH_QUEUE_ZONE_OFFSET(queue_zone_id) \
 	(IRO[6].base + ((queue_zone_id) * IRO[6].m1))
-#define	USTORM_ETH_QUEUE_ZONE_SIZE			(IRO[6].size)
-#define	USTORM_COMMON_QUEUE_CONS_OFFSET(queue_zone_id) \
+#define USTORM_ETH_QUEUE_ZONE_SIZE			(IRO[6].size)
+
+/* Ustorm Common Queue ring consumer */
+#define USTORM_COMMON_QUEUE_CONS_OFFSET(queue_zone_id) \
 	(IRO[7].base + ((queue_zone_id) * IRO[7].m1))
-#define	USTORM_COMMON_QUEUE_CONS_SIZE			(IRO[7].size)
+#define USTORM_COMMON_QUEUE_CONS_SIZE			(IRO[7].size)
+
+/* Tstorm producers */
 #define TSTORM_LL2_RX_PRODS_OFFSET(core_rx_queue_id) \
-	(IRO[14].base +	((core_rx_queue_id) * IRO[14].m1))
+	(IRO[14].base + ((core_rx_queue_id) * IRO[14].m1))
 #define TSTORM_LL2_RX_PRODS_SIZE			(IRO[14].size)
+
+/* Tstorm LightL2 queue statistics */
 #define CORE_LL2_TSTORM_PER_QUEUE_STAT_OFFSET(core_rx_queue_id) \
 	(IRO[15].base + ((core_rx_queue_id) * IRO[15].m1))
 #define CORE_LL2_TSTORM_PER_QUEUE_STAT_SIZE		(IRO[15].size)
+
+/* Ustorm LiteL2 queue statistics */
 #define CORE_LL2_USTORM_PER_QUEUE_STAT_OFFSET(core_rx_queue_id) \
-	(IRO[16].base +	((core_rx_queue_id) * IRO[16].m1))
+	(IRO[16].base + ((core_rx_queue_id) * IRO[16].m1))
 #define CORE_LL2_USTORM_PER_QUEUE_STAT_SIZE		(IRO[16].size)
+
+/* Pstorm LiteL2 queue statistics */
 #define CORE_LL2_PSTORM_PER_QUEUE_STAT_OFFSET(core_tx_stats_id) \
-	(IRO[17].base +	((core_tx_stats_id) * IRO[17].m1))
-#define CORE_LL2_PSTORM_PER_QUEUE_STAT_SIZE	(IRO[17].	size)
-#define	MSTORM_QUEUE_STAT_OFFSET(stat_counter_id) \
+	(IRO[17].base + ((core_tx_stats_id) * IRO[17].m1))
+#define CORE_LL2_PSTORM_PER_QUEUE_STAT_SIZE		(IRO[17].size)
+
+/* Mstorm queue statistics */
+#define MSTORM_QUEUE_STAT_OFFSET(stat_counter_id) \
 	(IRO[18].base + ((stat_counter_id) * IRO[18].m1))
-#define	MSTORM_QUEUE_STAT_SIZE				(IRO[18].size)
-#define	MSTORM_ETH_PF_PRODS_OFFSET(queue_id) \
+#define MSTORM_QUEUE_STAT_SIZE				(IRO[18].size)
+
+/* Mstorm ETH PF queues producers */
+#define MSTORM_ETH_PF_PRODS_OFFSET(queue_id) \
 	(IRO[19].base + ((queue_id) * IRO[19].m1))
-#define	MSTORM_ETH_PF_PRODS_SIZE			(IRO[19].size)
+#define MSTORM_ETH_PF_PRODS_SIZE			(IRO[19].size)
+
+/* Mstorm ETH VF queues producers offset in RAM. Used in default VF zone size
+ * mode.
+ */
 #define MSTORM_ETH_VF_PRODS_OFFSET(vf_id, vf_queue_id) \
-	(IRO[20].base +	((vf_id) * IRO[20].m1) + ((vf_queue_id) * IRO[20].m2))
+	(IRO[20].base + ((vf_id) * IRO[20].m1) + ((vf_queue_id) * IRO[20].m2))
 #define MSTORM_ETH_VF_PRODS_SIZE			(IRO[20].size)
-#define	MSTORM_TPA_TIMEOUT_US_OFFSET			(IRO[21].base)
-#define	MSTORM_TPA_TIMEOUT_US_SIZE			(IRO[21].size)
-#define	MSTORM_ETH_PF_STAT_OFFSET(pf_id) \
+
+/* TPA agregation timeout in us resolution (on ASIC) */
+#define MSTORM_TPA_TIMEOUT_US_OFFSET			(IRO[21].base)
+#define MSTORM_TPA_TIMEOUT_US_SIZE			(IRO[21].size)
+
+/* Mstorm pf statistics */
+#define MSTORM_ETH_PF_STAT_OFFSET(pf_id) \
 	(IRO[22].base + ((pf_id) * IRO[22].m1))
-#define	MSTORM_ETH_PF_STAT_SIZE				(IRO[22].size)
-#define	USTORM_QUEUE_STAT_OFFSET(stat_counter_id) \
+#define MSTORM_ETH_PF_STAT_SIZE				(IRO[22].size)
+
+/* Ustorm queue statistics */
+#define USTORM_QUEUE_STAT_OFFSET(stat_counter_id) \
 	(IRO[23].base + ((stat_counter_id) * IRO[23].m1))
-#define	USTORM_QUEUE_STAT_SIZE				(IRO[23].size)
-#define	USTORM_ETH_PF_STAT_OFFSET(pf_id) \
+#define USTORM_QUEUE_STAT_SIZE				(IRO[23].size)
+
+/* Ustorm pf statistics */
+#define USTORM_ETH_PF_STAT_OFFSET(pf_id)\
 	(IRO[24].base + ((pf_id) * IRO[24].m1))
-#define	USTORM_ETH_PF_STAT_SIZE				(IRO[24].size)
-#define	PSTORM_QUEUE_STAT_OFFSET(stat_counter_id) \
+#define USTORM_ETH_PF_STAT_SIZE				(IRO[24].size)
+
+/* Pstorm queue statistics */
+#define PSTORM_QUEUE_STAT_OFFSET(stat_counter_id) \
 	(IRO[25].base + ((stat_counter_id) * IRO[25].m1))
-#define	PSTORM_QUEUE_STAT_SIZE				(IRO[25].size)
-#define	PSTORM_ETH_PF_STAT_OFFSET(pf_id) \
+#define PSTORM_QUEUE_STAT_SIZE				(IRO[25].size)
+
+/* Pstorm pf statistics */
+#define PSTORM_ETH_PF_STAT_OFFSET(pf_id) \
 	(IRO[26].base + ((pf_id) * IRO[26].m1))
-#define	PSTORM_ETH_PF_STAT_SIZE				(IRO[26].size)
-#define	PSTORM_CTL_FRAME_ETHTYPE_OFFSET(ethtype) \
-	(IRO[27].base + ((ethtype) * IRO[27].m1))
-#define	PSTORM_CTL_FRAME_ETHTYPE_SIZE			(IRO[27].size)
-#define	TSTORM_ETH_PRS_INPUT_OFFSET			(IRO[28].base)
-#define	TSTORM_ETH_PRS_INPUT_SIZE			(IRO[28].size)
-#define	ETH_RX_RATE_LIMIT_OFFSET(pf_id) \
+#define PSTORM_ETH_PF_STAT_SIZE				(IRO[26].size)
+
+/* Control frame's EthType configuration for TX control frame security */
+#define PSTORM_CTL_FRAME_ETHTYPE_OFFSET(eth_type_id) \
+	(IRO[27].base + ((eth_type_id) * IRO[27].m1))
+#define PSTORM_CTL_FRAME_ETHTYPE_SIZE			(IRO[27].size)
+
+/* Tstorm last parser message */
+#define TSTORM_ETH_PRS_INPUT_OFFSET			(IRO[28].base)
+#define TSTORM_ETH_PRS_INPUT_SIZE			(IRO[28].size)
+
+/* Tstorm Eth limit Rx rate */
+#define ETH_RX_RATE_LIMIT_OFFSET(pf_id) \
 	(IRO[29].base + ((pf_id) * IRO[29].m1))
-#define	ETH_RX_RATE_LIMIT_SIZE				(IRO[29].size)
-#define	XSTORM_ETH_QUEUE_ZONE_OFFSET(queue_id) \
+#define ETH_RX_RATE_LIMIT_SIZE				(IRO[29].size)
+
+/* Xstorm queue zone */
+#define XSTORM_ETH_QUEUE_ZONE_OFFSET(queue_id) \
 	(IRO[30].base + ((queue_id) * IRO[30].m1))
-#define	XSTORM_ETH_QUEUE_ZONE_SIZE			(IRO[30].size)
+#define XSTORM_ETH_QUEUE_ZONE_SIZE			(IRO[30].size)
+
+/* Tstorm cmdq-cons of given command queue-id */
 #define TSTORM_SCSI_CMDQ_CONS_OFFSET(cmdq_queue_id) \
-	(IRO[34].base +	((cmdq_queue_id) * IRO[34].m1))
-#define TSTORM_SCSI_CMDQ_CONS_SIZE				(IRO[34].size)
+	(IRO[34].base + ((cmdq_queue_id) * IRO[34].m1))
+#define TSTORM_SCSI_CMDQ_CONS_SIZE			(IRO[34].size)
+
+/* Tstorm (reflects M-Storm) bdq-external-producer of given function ID,
+ * BDqueue-id.
+ */
 #define TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id, bdq_id) \
-	(IRO[35].base +	((func_id) * IRO[35].m1) + ((bdq_id) * IRO[35].m2))
-#define TSTORM_SCSI_BDQ_EXT_PROD_SIZE				(IRO[35].size)
+	(IRO[35].base + ((func_id) * IRO[35].m1) + ((bdq_id) * IRO[35].m2))
+#define TSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[35].size)
+
+/* Mstorm bdq-external-producer of given BDQ resource ID, BDqueue-id */
 #define MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(func_id, bdq_id) \
-	(IRO[36].base +	((func_id) * IRO[36].m1) + ((bdq_id) * IRO[36].m2))
-#define MSTORM_SCSI_BDQ_EXT_PROD_SIZE				(IRO[36].size)
+	(IRO[36].base + ((func_id) * IRO[36].m1) + ((bdq_id) * IRO[36].m2))
+#define MSTORM_SCSI_BDQ_EXT_PROD_SIZE			(IRO[36].size)
+
+/* Tstorm iSCSI RX stats */
 #define TSTORM_ISCSI_RX_STATS_OFFSET(pf_id) \
-	(IRO[37].base +	((pf_id) * IRO[37].m1))
-#define TSTORM_ISCSI_RX_STATS_SIZE				(IRO[37].size)
+	(IRO[37].base + ((pf_id) * IRO[37].m1))
+#define TSTORM_ISCSI_RX_STATS_SIZE			(IRO[37].size)
+
+/* Mstorm iSCSI RX stats */
 #define MSTORM_ISCSI_RX_STATS_OFFSET(pf_id) \
-	(IRO[38].base +	((pf_id) * IRO[38].m1))
-#define MSTORM_ISCSI_RX_STATS_SIZE				(IRO[38].size)
+	(IRO[38].base + ((pf_id) * IRO[38].m1))
+#define MSTORM_ISCSI_RX_STATS_SIZE			(IRO[38].size)
+
+/* Ustorm iSCSI RX stats */
 #define USTORM_ISCSI_RX_STATS_OFFSET(pf_id) \
-	(IRO[39].base +	((pf_id) * IRO[39].m1))
-#define USTORM_ISCSI_RX_STATS_SIZE				(IRO[39].size)
+	(IRO[39].base + ((pf_id) * IRO[39].m1))
+#define USTORM_ISCSI_RX_STATS_SIZE			(IRO[39].size)
+
+/* Xstorm iSCSI TX stats */
 #define XSTORM_ISCSI_TX_STATS_OFFSET(pf_id) \
-	(IRO[40].base +	((pf_id) * IRO[40].m1))
-#define XSTORM_ISCSI_TX_STATS_SIZE				(IRO[40].size)
+	(IRO[40].base + ((pf_id) * IRO[40].m1))
+#define XSTORM_ISCSI_TX_STATS_SIZE			(IRO[40].size)
+
+/* Ystorm iSCSI TX stats */
 #define YSTORM_ISCSI_TX_STATS_OFFSET(pf_id) \
-	(IRO[41].base +	((pf_id) * IRO[41].m1))
-#define YSTORM_ISCSI_TX_STATS_SIZE				(IRO[41].size)
+	(IRO[41].base + ((pf_id) * IRO[41].m1))
+#define YSTORM_ISCSI_TX_STATS_SIZE			(IRO[41].size)
+
+/* Pstorm iSCSI TX stats */
 #define PSTORM_ISCSI_TX_STATS_OFFSET(pf_id) \
-	(IRO[42].base +	((pf_id) * IRO[42].m1))
-#define PSTORM_ISCSI_TX_STATS_SIZE				(IRO[42].size)
-#define PSTORM_RDMA_QUEUE_STAT_OFFSET(rdma_stat_counter_id) \
-	(IRO[45].base +	((rdma_stat_counter_id) * IRO[45].m1))
-#define PSTORM_RDMA_QUEUE_STAT_SIZE				(IRO[45].size)
-#define TSTORM_RDMA_QUEUE_STAT_OFFSET(rdma_stat_counter_id) \
-	(IRO[46].base +	((rdma_stat_counter_id) * IRO[46].m1))
-#define TSTORM_RDMA_QUEUE_STAT_SIZE				(IRO[46].size)
+	(IRO[42].base + ((pf_id) * IRO[42].m1))
+#define PSTORM_ISCSI_TX_STATS_SIZE			(IRO[42].size)
+
+/* Tstorm FCoE RX stats */
 #define TSTORM_FCOE_RX_STATS_OFFSET(pf_id) \
-	(IRO[43].base +	((pf_id) * IRO[43].m1))
+	(IRO[43].base + ((pf_id) * IRO[43].m1))
+
+/* Pstorm FCoE TX stats */
 #define PSTORM_FCOE_TX_STATS_OFFSET(pf_id) \
 	(IRO[44].base + ((pf_id) * IRO[44].m1))
+
+/* Pstorm RDMA queue statistics */
+#define PSTORM_RDMA_QUEUE_STAT_OFFSET(rdma_stat_counter_id) \
+	(IRO[45].base + ((rdma_stat_counter_id) * IRO[45].m1))
+#define PSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[45].size)
+
+/* Tstorm RDMA queue statistics */
+#define TSTORM_RDMA_QUEUE_STAT_OFFSET(rdma_stat_counter_id) \
+	(IRO[46].base + ((rdma_stat_counter_id) * IRO[46].m1))
+#define TSTORM_RDMA_QUEUE_STAT_SIZE			(IRO[46].size)
 
 static const struct iro iro_arr[49] = {
 	{0x0, 0x0, 0x0, 0x0, 0x8},
@@ -4475,31 +4647,31 @@ struct xstorm_eth_conn_ag_ctx {
 #define XSTORM_ETH_CONN_AG_CTX_DQ_CF_ACTIVE_SHIFT	7
 	u8 flags2;
 #define XSTORM_ETH_CONN_AG_CTX_CF0_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF0_SHIFT		0
+#define XSTORM_ETH_CONN_AG_CTX_CF0_SHIFT	0
 #define XSTORM_ETH_CONN_AG_CTX_CF1_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF1_SHIFT		2
+#define XSTORM_ETH_CONN_AG_CTX_CF1_SHIFT	2
 #define XSTORM_ETH_CONN_AG_CTX_CF2_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF2_SHIFT		4
+#define XSTORM_ETH_CONN_AG_CTX_CF2_SHIFT	4
 #define XSTORM_ETH_CONN_AG_CTX_CF3_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF3_SHIFT		6
+#define XSTORM_ETH_CONN_AG_CTX_CF3_SHIFT	6
 	u8 flags3;
 #define XSTORM_ETH_CONN_AG_CTX_CF4_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF4_SHIFT		0
+#define XSTORM_ETH_CONN_AG_CTX_CF4_SHIFT	0
 #define XSTORM_ETH_CONN_AG_CTX_CF5_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF5_SHIFT		2
+#define XSTORM_ETH_CONN_AG_CTX_CF5_SHIFT	2
 #define XSTORM_ETH_CONN_AG_CTX_CF6_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF6_SHIFT		4
+#define XSTORM_ETH_CONN_AG_CTX_CF6_SHIFT	4
 #define XSTORM_ETH_CONN_AG_CTX_CF7_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF7_SHIFT		6
+#define XSTORM_ETH_CONN_AG_CTX_CF7_SHIFT	6
 		u8 flags4;
 #define XSTORM_ETH_CONN_AG_CTX_CF8_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF8_SHIFT		0
+#define XSTORM_ETH_CONN_AG_CTX_CF8_SHIFT	0
 #define XSTORM_ETH_CONN_AG_CTX_CF9_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF9_SHIFT		2
-#define XSTORM_ETH_CONN_AG_CTX_CF10_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF10_SHIFT		4
-#define XSTORM_ETH_CONN_AG_CTX_CF11_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_CF11_SHIFT		6
+#define XSTORM_ETH_CONN_AG_CTX_CF9_SHIFT	2
+#define XSTORM_ETH_CONN_AG_CTX_CF10_MASK	0x3
+#define XSTORM_ETH_CONN_AG_CTX_CF10_SHIFT	4
+#define XSTORM_ETH_CONN_AG_CTX_CF11_MASK	0x3
+#define XSTORM_ETH_CONN_AG_CTX_CF11_SHIFT	6
 	u8 flags5;
 #define XSTORM_ETH_CONN_AG_CTX_CF12_MASK		0x3
 #define XSTORM_ETH_CONN_AG_CTX_CF12_SHIFT		0
@@ -4547,39 +4719,39 @@ struct xstorm_eth_conn_ag_ctx {
 #define XSTORM_ETH_CONN_AG_CTX_CF9EN_MASK		0x1
 #define XSTORM_ETH_CONN_AG_CTX_CF9EN_SHIFT		7
 	u8 flags9;
-#define XSTORM_ETH_CONN_AG_CTX_CF10EN_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_CF10EN_SHIFT		0
-#define XSTORM_ETH_CONN_AG_CTX_CF11EN_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_CF11EN_SHIFT		1
-#define XSTORM_ETH_CONN_AG_CTX_CF12EN_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_CF12EN_SHIFT		2
-#define XSTORM_ETH_CONN_AG_CTX_CF13EN_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_CF13EN_SHIFT		3
-#define XSTORM_ETH_CONN_AG_CTX_CF14EN_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_CF14EN_SHIFT		4
-#define XSTORM_ETH_CONN_AG_CTX_CF15EN_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_CF15EN_SHIFT		5
-#define XSTORM_ETH_CONN_AG_CTX_GO_TO_BD_CONS_CF_EN_MASK	0x1
-#define XSTORM_ETH_CONN_AG_CTX_GO_TO_BD_CONS_CF_EN_SHIFT 6
-#define XSTORM_ETH_CONN_AG_CTX_MULTI_UNICAST_CF_EN_MASK	0x1
-#define XSTORM_ETH_CONN_AG_CTX_MULTI_UNICAST_CF_EN_SHIFT 7
+#define XSTORM_ETH_CONN_AG_CTX_CF10EN_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_CF10EN_SHIFT			0
+#define XSTORM_ETH_CONN_AG_CTX_CF11EN_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_CF11EN_SHIFT			1
+#define XSTORM_ETH_CONN_AG_CTX_CF12EN_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_CF12EN_SHIFT			2
+#define XSTORM_ETH_CONN_AG_CTX_CF13EN_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_CF13EN_SHIFT			3
+#define XSTORM_ETH_CONN_AG_CTX_CF14EN_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_CF14EN_SHIFT			4
+#define XSTORM_ETH_CONN_AG_CTX_CF15EN_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_CF15EN_SHIFT			5
+#define XSTORM_ETH_CONN_AG_CTX_GO_TO_BD_CONS_CF_EN_MASK		0x1
+#define XSTORM_ETH_CONN_AG_CTX_GO_TO_BD_CONS_CF_EN_SHIFT	6
+#define XSTORM_ETH_CONN_AG_CTX_MULTI_UNICAST_CF_EN_MASK		0x1
+#define XSTORM_ETH_CONN_AG_CTX_MULTI_UNICAST_CF_EN_SHIFT	7
 	u8 flags10;
-#define XSTORM_ETH_CONN_AG_CTX_DQ_CF_EN_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_DQ_CF_EN_SHIFT		0
-#define XSTORM_ETH_CONN_AG_CTX_TERMINATE_CF_EN_MASK	0x1
-#define XSTORM_ETH_CONN_AG_CTX_TERMINATE_CF_EN_SHIFT	1
-#define XSTORM_ETH_CONN_AG_CTX_FLUSH_Q0_EN_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT	2
-#define XSTORM_ETH_CONN_AG_CTX_RESERVED11_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_RESERVED11_SHIFT		3
-#define XSTORM_ETH_CONN_AG_CTX_SLOW_PATH_EN_MASK	0x1
-#define XSTORM_ETH_CONN_AG_CTX_SLOW_PATH_EN_SHIFT	4
-#define XSTORM_ETH_CONN_AG_CTX_TPH_ENABLE_EN_RESERVED_MASK 0x1
-#define XSTORM_ETH_CONN_AG_CTX_TPH_ENABLE_EN_RESERVED_SHIFT 5
-#define XSTORM_ETH_CONN_AG_CTX_RESERVED12_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_RESERVED12_SHIFT		6
-#define XSTORM_ETH_CONN_AG_CTX_RESERVED13_MASK		0x1
-#define XSTORM_ETH_CONN_AG_CTX_RESERVED13_SHIFT		7
+#define XSTORM_ETH_CONN_AG_CTX_DQ_CF_EN_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_DQ_CF_EN_SHIFT			0
+#define XSTORM_ETH_CONN_AG_CTX_TERMINATE_CF_EN_MASK		0x1
+#define XSTORM_ETH_CONN_AG_CTX_TERMINATE_CF_EN_SHIFT		1
+#define XSTORM_ETH_CONN_AG_CTX_FLUSH_Q0_EN_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT		2
+#define XSTORM_ETH_CONN_AG_CTX_RESERVED11_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_RESERVED11_SHIFT			3
+#define XSTORM_ETH_CONN_AG_CTX_SLOW_PATH_EN_MASK		0x1
+#define XSTORM_ETH_CONN_AG_CTX_SLOW_PATH_EN_SHIFT		4
+#define XSTORM_ETH_CONN_AG_CTX_TPH_ENABLE_EN_RESERVED_MASK	0x1
+#define XSTORM_ETH_CONN_AG_CTX_TPH_ENABLE_EN_RESERVED_SHIFT	5
+#define XSTORM_ETH_CONN_AG_CTX_RESERVED12_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_RESERVED12_SHIFT			6
+#define XSTORM_ETH_CONN_AG_CTX_RESERVED13_MASK			0x1
+#define XSTORM_ETH_CONN_AG_CTX_RESERVED13_SHIFT			7
 	u8 flags11;
 #define XSTORM_ETH_CONN_AG_CTX_RESERVED14_MASK		0x1
 #define XSTORM_ETH_CONN_AG_CTX_RESERVED14_SHIFT		0
@@ -4632,20 +4804,20 @@ struct xstorm_eth_conn_ag_ctx {
 #define XSTORM_ETH_CONN_AG_CTX_A0_RESERVED9_MASK	0x1
 #define XSTORM_ETH_CONN_AG_CTX_A0_RESERVED9_SHIFT	7
 	u8 flags14;
-#define XSTORM_ETH_CONN_AG_CTX_EDPM_USE_EXT_HDR_MASK	0x1
-#define XSTORM_ETH_CONN_AG_CTX_EDPM_USE_EXT_HDR_SHIFT	0
-#define XSTORM_ETH_CONN_AG_CTX_EDPM_SEND_RAW_L3L4_MASK	0x1
-#define XSTORM_ETH_CONN_AG_CTX_EDPM_SEND_RAW_L3L4_SHIFT	1
-#define XSTORM_ETH_CONN_AG_CTX_EDPM_INBAND_PROP_HDR_MASK 0x1
-#define XSTORM_ETH_CONN_AG_CTX_EDPM_INBAND_PROP_HDR_SHIFT 2
-#define XSTORM_ETH_CONN_AG_CTX_EDPM_SEND_EXT_TUNNEL_MASK 0x1
-#define XSTORM_ETH_CONN_AG_CTX_EDPM_SEND_EXT_TUNNEL_SHIFT 3
-#define XSTORM_ETH_CONN_AG_CTX_L2_EDPM_ENABLE_MASK	0x1
-#define XSTORM_ETH_CONN_AG_CTX_L2_EDPM_ENABLE_SHIFT	4
-#define XSTORM_ETH_CONN_AG_CTX_ROCE_EDPM_ENABLE_MASK	0x1
-#define XSTORM_ETH_CONN_AG_CTX_ROCE_EDPM_ENABLE_SHIFT	5
-#define XSTORM_ETH_CONN_AG_CTX_TPH_ENABLE_MASK		0x3
-#define XSTORM_ETH_CONN_AG_CTX_TPH_ENABLE_SHIFT		6
+#define XSTORM_ETH_CONN_AG_CTX_EDPM_USE_EXT_HDR_MASK		0x1
+#define XSTORM_ETH_CONN_AG_CTX_EDPM_USE_EXT_HDR_SHIFT		0
+#define XSTORM_ETH_CONN_AG_CTX_EDPM_SEND_RAW_L3L4_MASK		0x1
+#define XSTORM_ETH_CONN_AG_CTX_EDPM_SEND_RAW_L3L4_SHIFT		1
+#define XSTORM_ETH_CONN_AG_CTX_EDPM_INBAND_PROP_HDR_MASK	0x1
+#define XSTORM_ETH_CONN_AG_CTX_EDPM_INBAND_PROP_HDR_SHIFT	2
+#define XSTORM_ETH_CONN_AG_CTX_EDPM_SEND_EXT_TUNNEL_MASK	0x1
+#define XSTORM_ETH_CONN_AG_CTX_EDPM_SEND_EXT_TUNNEL_SHIFT	3
+#define XSTORM_ETH_CONN_AG_CTX_L2_EDPM_ENABLE_MASK		0x1
+#define XSTORM_ETH_CONN_AG_CTX_L2_EDPM_ENABLE_SHIFT		4
+#define XSTORM_ETH_CONN_AG_CTX_ROCE_EDPM_ENABLE_MASK		0x1
+#define XSTORM_ETH_CONN_AG_CTX_ROCE_EDPM_ENABLE_SHIFT		5
+#define XSTORM_ETH_CONN_AG_CTX_TPH_ENABLE_MASK			0x3
+#define XSTORM_ETH_CONN_AG_CTX_TPH_ENABLE_SHIFT			6
 	u8 edpm_event_id;
 	__le16 physical_q0;
 	__le16 ereserved1;
@@ -4752,85 +4924,85 @@ struct tstorm_eth_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define TSTORM_ETH_CONN_AG_CTX_BIT0_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_BIT0_SHIFT		0
-#define TSTORM_ETH_CONN_AG_CTX_BIT1_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_BIT1_SHIFT		1
-#define TSTORM_ETH_CONN_AG_CTX_BIT2_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_BIT2_SHIFT		2
-#define TSTORM_ETH_CONN_AG_CTX_BIT3_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_BIT3_SHIFT		3
-#define TSTORM_ETH_CONN_AG_CTX_BIT4_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_BIT4_SHIFT		4
-#define TSTORM_ETH_CONN_AG_CTX_BIT5_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_BIT5_SHIFT		5
-#define TSTORM_ETH_CONN_AG_CTX_CF0_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF0_SHIFT		6
+#define TSTORM_ETH_CONN_AG_CTX_BIT0_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_BIT0_SHIFT	0
+#define TSTORM_ETH_CONN_AG_CTX_BIT1_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_BIT1_SHIFT	1
+#define TSTORM_ETH_CONN_AG_CTX_BIT2_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_BIT2_SHIFT	2
+#define TSTORM_ETH_CONN_AG_CTX_BIT3_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_BIT3_SHIFT	3
+#define TSTORM_ETH_CONN_AG_CTX_BIT4_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_BIT4_SHIFT	4
+#define TSTORM_ETH_CONN_AG_CTX_BIT5_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_BIT5_SHIFT	5
+#define TSTORM_ETH_CONN_AG_CTX_CF0_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF0_SHIFT	6
 	u8 flags1;
-#define TSTORM_ETH_CONN_AG_CTX_CF1_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF1_SHIFT		0
-#define TSTORM_ETH_CONN_AG_CTX_CF2_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF2_SHIFT		2
-#define TSTORM_ETH_CONN_AG_CTX_CF3_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF3_SHIFT		4
-#define TSTORM_ETH_CONN_AG_CTX_CF4_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF4_SHIFT		6
+#define TSTORM_ETH_CONN_AG_CTX_CF1_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF1_SHIFT	0
+#define TSTORM_ETH_CONN_AG_CTX_CF2_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF2_SHIFT	2
+#define TSTORM_ETH_CONN_AG_CTX_CF3_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF3_SHIFT	4
+#define TSTORM_ETH_CONN_AG_CTX_CF4_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF4_SHIFT	6
 	u8 flags2;
-#define TSTORM_ETH_CONN_AG_CTX_CF5_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF5_SHIFT		0
-#define TSTORM_ETH_CONN_AG_CTX_CF6_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF6_SHIFT		2
-#define TSTORM_ETH_CONN_AG_CTX_CF7_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF7_SHIFT		4
-#define TSTORM_ETH_CONN_AG_CTX_CF8_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF8_SHIFT		6
+#define TSTORM_ETH_CONN_AG_CTX_CF5_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF5_SHIFT	0
+#define TSTORM_ETH_CONN_AG_CTX_CF6_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF6_SHIFT	2
+#define TSTORM_ETH_CONN_AG_CTX_CF7_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF7_SHIFT	4
+#define TSTORM_ETH_CONN_AG_CTX_CF8_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF8_SHIFT	6
 	u8 flags3;
-#define TSTORM_ETH_CONN_AG_CTX_CF9_MASK			0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF9_SHIFT		0
-#define TSTORM_ETH_CONN_AG_CTX_CF10_MASK		0x3
-#define TSTORM_ETH_CONN_AG_CTX_CF10_SHIFT		2
-#define TSTORM_ETH_CONN_AG_CTX_CF0EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF0EN_SHIFT		4
-#define TSTORM_ETH_CONN_AG_CTX_CF1EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF1EN_SHIFT		5
-#define TSTORM_ETH_CONN_AG_CTX_CF2EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF2EN_SHIFT		6
-#define TSTORM_ETH_CONN_AG_CTX_CF3EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF3EN_SHIFT		7
+#define TSTORM_ETH_CONN_AG_CTX_CF9_MASK		0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF9_SHIFT	0
+#define TSTORM_ETH_CONN_AG_CTX_CF10_MASK	0x3
+#define TSTORM_ETH_CONN_AG_CTX_CF10_SHIFT	2
+#define TSTORM_ETH_CONN_AG_CTX_CF0EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF0EN_SHIFT	4
+#define TSTORM_ETH_CONN_AG_CTX_CF1EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF1EN_SHIFT	5
+#define TSTORM_ETH_CONN_AG_CTX_CF2EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF2EN_SHIFT	6
+#define TSTORM_ETH_CONN_AG_CTX_CF3EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF3EN_SHIFT	7
 	u8 flags4;
-#define TSTORM_ETH_CONN_AG_CTX_CF4EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF4EN_SHIFT		0
-#define TSTORM_ETH_CONN_AG_CTX_CF5EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF5EN_SHIFT		1
-#define TSTORM_ETH_CONN_AG_CTX_CF6EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF6EN_SHIFT		2
-#define TSTORM_ETH_CONN_AG_CTX_CF7EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF7EN_SHIFT		3
-#define TSTORM_ETH_CONN_AG_CTX_CF8EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF8EN_SHIFT		4
-#define TSTORM_ETH_CONN_AG_CTX_CF9EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF9EN_SHIFT		5
-#define TSTORM_ETH_CONN_AG_CTX_CF10EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_CF10EN_SHIFT		6
-#define TSTORM_ETH_CONN_AG_CTX_RULE0EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_RULE0EN_SHIFT		7
+#define TSTORM_ETH_CONN_AG_CTX_CF4EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF4EN_SHIFT	0
+#define TSTORM_ETH_CONN_AG_CTX_CF5EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF5EN_SHIFT	1
+#define TSTORM_ETH_CONN_AG_CTX_CF6EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF6EN_SHIFT	2
+#define TSTORM_ETH_CONN_AG_CTX_CF7EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF7EN_SHIFT	3
+#define TSTORM_ETH_CONN_AG_CTX_CF8EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF8EN_SHIFT	4
+#define TSTORM_ETH_CONN_AG_CTX_CF9EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF9EN_SHIFT	5
+#define TSTORM_ETH_CONN_AG_CTX_CF10EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_CF10EN_SHIFT	6
+#define TSTORM_ETH_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_RULE0EN_SHIFT	7
 	u8 flags5;
-#define TSTORM_ETH_CONN_AG_CTX_RULE1EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_RULE1EN_SHIFT		0
-#define TSTORM_ETH_CONN_AG_CTX_RULE2EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_RULE2EN_SHIFT		1
-#define TSTORM_ETH_CONN_AG_CTX_RULE3EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_RULE3EN_SHIFT		2
-#define TSTORM_ETH_CONN_AG_CTX_RULE4EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_RULE4EN_SHIFT		3
-#define TSTORM_ETH_CONN_AG_CTX_RULE5EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_RULE5EN_SHIFT		4
-#define TSTORM_ETH_CONN_AG_CTX_RX_BD_EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_RX_BD_EN_SHIFT		5
-#define TSTORM_ETH_CONN_AG_CTX_RULE7EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_RULE7EN_SHIFT		6
-#define TSTORM_ETH_CONN_AG_CTX_RULE8EN_MASK		0x1
-#define TSTORM_ETH_CONN_AG_CTX_RULE8EN_SHIFT		7
+#define TSTORM_ETH_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define TSTORM_ETH_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define TSTORM_ETH_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define TSTORM_ETH_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define TSTORM_ETH_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define TSTORM_ETH_CONN_AG_CTX_RX_BD_EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_RX_BD_EN_SHIFT	5
+#define TSTORM_ETH_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define TSTORM_ETH_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define TSTORM_ETH_CONN_AG_CTX_RULE8EN_SHIFT	7
 	__le32 reg0;
 	__le32 reg1;
 	__le32 reg2;
@@ -4867,14 +5039,14 @@ struct ustorm_eth_conn_ag_ctx {
 #define USTORM_ETH_CONN_AG_CTX_CF2_MASK				0x3
 #define USTORM_ETH_CONN_AG_CTX_CF2_SHIFT			6
 	u8 flags1;
-#define USTORM_ETH_CONN_AG_CTX_CF3_MASK				0x3
-#define USTORM_ETH_CONN_AG_CTX_CF3_SHIFT			0
-#define USTORM_ETH_CONN_AG_CTX_TX_ARM_CF_MASK			0x3
-#define USTORM_ETH_CONN_AG_CTX_TX_ARM_CF_SHIFT			2
-#define USTORM_ETH_CONN_AG_CTX_RX_ARM_CF_MASK			0x3
-#define USTORM_ETH_CONN_AG_CTX_RX_ARM_CF_SHIFT			4
-#define USTORM_ETH_CONN_AG_CTX_TX_BD_CONS_UPD_CF_MASK		0x3
-#define USTORM_ETH_CONN_AG_CTX_TX_BD_CONS_UPD_CF_SHIFT		6
+#define USTORM_ETH_CONN_AG_CTX_CF3_MASK			0x3
+#define USTORM_ETH_CONN_AG_CTX_CF3_SHIFT		0
+#define USTORM_ETH_CONN_AG_CTX_TX_ARM_CF_MASK		0x3
+#define USTORM_ETH_CONN_AG_CTX_TX_ARM_CF_SHIFT		2
+#define USTORM_ETH_CONN_AG_CTX_RX_ARM_CF_MASK		0x3
+#define USTORM_ETH_CONN_AG_CTX_RX_ARM_CF_SHIFT		4
+#define USTORM_ETH_CONN_AG_CTX_TX_BD_CONS_UPD_CF_MASK	0x3
+#define USTORM_ETH_CONN_AG_CTX_TX_BD_CONS_UPD_CF_SHIFT	6
 	u8 flags2;
 #define USTORM_ETH_CONN_AG_CTX_TX_PMD_TERMINATE_CF_EN_MASK	0x1
 #define USTORM_ETH_CONN_AG_CTX_TX_PMD_TERMINATE_CF_EN_SHIFT	0
@@ -4893,22 +5065,22 @@ struct ustorm_eth_conn_ag_ctx {
 #define USTORM_ETH_CONN_AG_CTX_RULE0EN_MASK			0x1
 #define USTORM_ETH_CONN_AG_CTX_RULE0EN_SHIFT			7
 	u8 flags3;
-#define USTORM_ETH_CONN_AG_CTX_RULE1EN_MASK			0x1
-#define USTORM_ETH_CONN_AG_CTX_RULE1EN_SHIFT			0
-#define USTORM_ETH_CONN_AG_CTX_RULE2EN_MASK			0x1
-#define USTORM_ETH_CONN_AG_CTX_RULE2EN_SHIFT			1
-#define USTORM_ETH_CONN_AG_CTX_RULE3EN_MASK			0x1
-#define USTORM_ETH_CONN_AG_CTX_RULE3EN_SHIFT			2
-#define USTORM_ETH_CONN_AG_CTX_RULE4EN_MASK			0x1
-#define USTORM_ETH_CONN_AG_CTX_RULE4EN_SHIFT			3
-#define USTORM_ETH_CONN_AG_CTX_RULE5EN_MASK			0x1
-#define USTORM_ETH_CONN_AG_CTX_RULE5EN_SHIFT			4
-#define USTORM_ETH_CONN_AG_CTX_RULE6EN_MASK			0x1
-#define USTORM_ETH_CONN_AG_CTX_RULE6EN_SHIFT			5
-#define USTORM_ETH_CONN_AG_CTX_RULE7EN_MASK			0x1
-#define USTORM_ETH_CONN_AG_CTX_RULE7EN_SHIFT			6
-#define USTORM_ETH_CONN_AG_CTX_RULE8EN_MASK			0x1
-#define USTORM_ETH_CONN_AG_CTX_RULE8EN_SHIFT			7
+#define USTORM_ETH_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define USTORM_ETH_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define USTORM_ETH_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define USTORM_ETH_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define USTORM_ETH_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define USTORM_ETH_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define USTORM_ETH_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define USTORM_ETH_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define USTORM_ETH_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define USTORM_ETH_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define USTORM_ETH_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define USTORM_ETH_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define USTORM_ETH_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define USTORM_ETH_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define USTORM_ETH_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define USTORM_ETH_CONN_AG_CTX_RULE8EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -4946,6 +5118,7 @@ struct eth_conn_context {
 	struct mstorm_eth_conn_st_ctx mstorm_st_context;
 };
 
+/* Ethernet filter types: mac/vlan/pair */
 enum eth_error_code {
 	ETH_OK = 0x00,
 	ETH_FILTERS_MAC_ADD_FAIL_FULL,
@@ -4972,6 +5145,7 @@ enum eth_error_code {
 	MAX_ETH_ERROR_CODE
 };
 
+/* Opcodes for the event ring */
 enum eth_event_opcode {
 	ETH_EVENT_UNUSED,
 	ETH_EVENT_VPORT_START,
@@ -5039,6 +5213,7 @@ enum eth_filter_type {
 	MAX_ETH_FILTER_TYPE
 };
 
+/* Eth IPv4 Fragment Type */
 enum eth_ipv4_frag_type {
 	ETH_IPV4_NOT_FRAG,
 	ETH_IPV4_FIRST_FRAG,
@@ -5046,12 +5221,14 @@ enum eth_ipv4_frag_type {
 	MAX_ETH_IPV4_FRAG_TYPE
 };
 
+/* eth IPv4 Fragment Type */
 enum eth_ip_type {
 	ETH_IPV4,
 	ETH_IPV6,
 	MAX_ETH_IP_TYPE
 };
 
+/* Ethernet Ramrod Command IDs */
 enum eth_ramrod_cmd_id {
 	ETH_RAMROD_UNUSED,
 	ETH_RAMROD_VPORT_START,
@@ -5073,7 +5250,7 @@ enum eth_ramrod_cmd_id {
 	MAX_ETH_RAMROD_CMD_ID
 };
 
-/* return code from eth sp ramrods */
+/* Return code from eth sp ramrods */
 struct eth_return_code {
 	u8 value;
 #define ETH_RETURN_CODE_ERR_CODE_MASK	0x1F
@@ -5209,6 +5386,7 @@ struct eth_vport_tx_mode {
 	__le16 reserved2[3];
 };
 
+/* GFT filter update action type */
 enum gft_filter_update_action {
 	GFT_ADD_FILTER,
 	GFT_DELETE_FILTER,
@@ -5221,6 +5399,7 @@ enum gft_logic_filter_type {
 	MAX_GFT_LOGIC_FILTER_TYPE
 };
 
+/* Ramrod data for rx add openflow filter */
 struct rx_add_openflow_filter_data {
 	__le16 action_icid;
 	u8 priority;
@@ -5244,11 +5423,13 @@ struct rx_add_openflow_filter_data {
 	__le16 l4_src_port;
 };
 
+/* Ramrod data for rx create gft action */
 struct rx_create_gft_action_data {
 	u8 vport_id;
 	u8 reserved[7];
 };
 
+/* Ramrod data for rx create openflow action */
 struct rx_create_openflow_action_data {
 	u8 vport_id;
 	u8 reserved[7];
@@ -5286,7 +5467,7 @@ struct rx_queue_start_ramrod_data {
 	struct regpair reserved2;
 };
 
-/* Ramrod data for rx queue start ramrod */
+/* Ramrod data for rx queue stop ramrod */
 struct rx_queue_stop_ramrod_data {
 	__le16 rx_queue_id;
 	u8 complete_cqe_flg;
@@ -5324,6 +5505,9 @@ struct rx_udp_filter_data {
 	__le32 tenant_id;
 };
 
+/* Add or delete GFT filter - filter is packet header of type of packet wished
+ * to pass certain FW flow.
+ */
 struct rx_update_gft_filter_data {
 	struct regpair pkt_hdr_addr;
 	__le16 pkt_hdr_length;
@@ -5481,212 +5665,212 @@ struct xstorm_eth_conn_agctxdq_ext_ldpart {
 	u8 reserved0;
 	u8 eth_state;
 	u8 flags0;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EXIST_IN_QM0_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EXIST_IN_QM0_SHIFT           0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED1_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED1_SHIFT              1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED2_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED2_SHIFT              2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EXIST_IN_QM3_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EXIST_IN_QM3_SHIFT           3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED3_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED3_SHIFT              4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED4_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED4_SHIFT              5
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED5_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED5_SHIFT              6
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED6_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED6_SHIFT              7
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EXIST_IN_QM0_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EXIST_IN_QM0_SHIFT	0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED1_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED1_SHIFT		1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED2_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED2_SHIFT		2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EXIST_IN_QM3_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EXIST_IN_QM3_SHIFT	3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED3_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED3_SHIFT		4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED4_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED4_SHIFT		5
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED5_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED5_SHIFT		6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED6_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED6_SHIFT		7
 	u8 flags1;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED7_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED7_SHIFT              0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED8_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED8_SHIFT              1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED9_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED9_SHIFT              2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT11_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT11_SHIFT                  3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT12_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT12_SHIFT                  4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT13_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT13_SHIFT                  5
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED7_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED7_SHIFT		0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED8_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED8_SHIFT		1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED9_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED9_SHIFT		2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT11_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT11_SHIFT		3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT12_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT12_SHIFT		4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT13_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_BIT13_SHIFT		5
 #define XSTORMETHCONNAGCTXDQEXTLDPART_TX_RULE_ACTIVE_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_TX_RULE_ACTIVE_SHIFT         6
-#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_ACTIVE_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_ACTIVE_SHIFT           7
+#define XSTORMETHCONNAGCTXDQEXTLDPART_TX_RULE_ACTIVE_SHIFT	6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_ACTIVE_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_ACTIVE_SHIFT	7
 	u8 flags2;
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF0_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF0_SHIFT                    0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF0_SHIFT	0
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF1_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF1_SHIFT                    2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF1_SHIFT	2
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF2_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF2_SHIFT                    4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF2_SHIFT	4
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF3_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF3_SHIFT                    6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF3_SHIFT	6
 	u8 flags3;
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF4_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF4_SHIFT                    0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF4_SHIFT	0
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF5_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF5_SHIFT                    2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF5_SHIFT	2
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF6_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF6_SHIFT                    4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF6_SHIFT	4
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF7_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF7_SHIFT                    6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF7_SHIFT	6
 	u8 flags4;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF8_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF8_SHIFT                    0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF9_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF9_SHIFT                    2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF10_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF10_SHIFT                   4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF11_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF11_SHIFT                   6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF8_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF8_SHIFT		0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF9_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF9_SHIFT		2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF10_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF10_SHIFT	4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF11_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF11_SHIFT	6
 	u8 flags5;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF12_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF12_SHIFT                   0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF13_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF13_SHIFT                   2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF14_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF14_SHIFT                   4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF15_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF15_SHIFT                   6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF12_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF12_SHIFT	0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF13_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF13_SHIFT	2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF14_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF14_SHIFT	4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF15_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF15_SHIFT	6
 	u8 flags6;
 #define XSTORMETHCONNAGCTXDQEXTLDPART_GO_TO_BD_CONS_CF_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_GO_TO_BD_CONS_CF_SHIFT       0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_GO_TO_BD_CONS_CF_SHIFT	0
 #define XSTORMETHCONNAGCTXDQEXTLDPART_MULTI_UNICAST_CF_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_MULTI_UNICAST_CF_SHIFT       2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_SHIFT                  4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_TERMINATE_CF_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_TERMINATE_CF_SHIFT           6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_MULTI_UNICAST_CF_SHIFT	2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_SHIFT		4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_TERMINATE_CF_MASK		0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_TERMINATE_CF_SHIFT	6
 	u8 flags7;
 #define XSTORMETHCONNAGCTXDQEXTLDPART_FLUSH_Q0_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_FLUSH_Q0_SHIFT               0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_FLUSH_Q0_SHIFT	0
 #define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED10_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED10_SHIFT             2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED10_SHIFT	2
 #define XSTORMETHCONNAGCTXDQEXTLDPART_SLOW_PATH_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_SLOW_PATH_SHIFT              4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_SLOW_PATH_SHIFT	4
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF0EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF0EN_SHIFT                  6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF0EN_SHIFT	6
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF1EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF1EN_SHIFT                  7
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF1EN_SHIFT	7
 	u8 flags8;
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF2EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF2EN_SHIFT                  0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF2EN_SHIFT	0
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF3EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF3EN_SHIFT                  1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF3EN_SHIFT	1
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF4EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF4EN_SHIFT                  2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF4EN_SHIFT	2
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF5EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF5EN_SHIFT                  3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF5EN_SHIFT	3
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF6EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF6EN_SHIFT                  4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF6EN_SHIFT	4
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF7EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF7EN_SHIFT                  5
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF7EN_SHIFT	5
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF8EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF8EN_SHIFT                  6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF8EN_SHIFT	6
 #define XSTORMETHCONNAGCTXDQEXTLDPART_CF9EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF9EN_SHIFT                  7
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF9EN_SHIFT	7
 	u8 flags9;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF10EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF10EN_SHIFT                 0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF11EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF11EN_SHIFT                 1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF12EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF12EN_SHIFT                 2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF13EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF13EN_SHIFT                 3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF14EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF14EN_SHIFT                 4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF15EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_CF15EN_SHIFT                 5
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF10EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF10EN_SHIFT		0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF11EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF11EN_SHIFT		1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF12EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF12EN_SHIFT		2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF13EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF13EN_SHIFT		3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF14EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF14EN_SHIFT		4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF15EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_CF15EN_SHIFT		5
 #define XSTORMETHCONNAGCTXDQEXTLDPART_GO_TO_BD_CONS_CF_EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_GO_TO_BD_CONS_CF_EN_SHIFT    6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_GO_TO_BD_CONS_CF_EN_SHIFT	6
 #define XSTORMETHCONNAGCTXDQEXTLDPART_MULTI_UNICAST_CF_EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_MULTI_UNICAST_CF_EN_SHIFT    7
+#define XSTORMETHCONNAGCTXDQEXTLDPART_MULTI_UNICAST_CF_EN_SHIFT	7
 	u8 flags10;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_EN_SHIFT               0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_TERMINATE_CF_EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_TERMINATE_CF_EN_SHIFT        1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_FLUSH_Q0_EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_FLUSH_Q0_EN_SHIFT            2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED11_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED11_SHIFT             3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_SLOW_PATH_EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_SLOW_PATH_EN_SHIFT           4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_EN_MASK			0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_DQ_CF_EN_SHIFT			0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_TERMINATE_CF_EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_TERMINATE_CF_EN_SHIFT		1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_FLUSH_Q0_EN_MASK			0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_FLUSH_Q0_EN_SHIFT			2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED11_MASK			0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED11_SHIFT			3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_SLOW_PATH_EN_MASK			0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_SLOW_PATH_EN_SHIFT		4
 #define XSTORMETHCONNAGCTXDQEXTLDPART_TPH_ENABLE_EN_RESERVED_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_TPH_ENABLE_EN_RESERVED_SHIFT 5
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED12_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED12_SHIFT             6
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED13_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED13_SHIFT             7
+#define XSTORMETHCONNAGCTXDQEXTLDPART_TPH_ENABLE_EN_RESERVED_SHIFT	5
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED12_MASK			0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED12_SHIFT			6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED13_MASK			0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED13_SHIFT			7
 	u8 flags11;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED14_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED14_SHIFT             0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED15_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED15_SHIFT             1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED14_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED14_SHIFT		0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED15_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RESERVED15_SHIFT		1
 #define XSTORMETHCONNAGCTXDQEXTLDPART_TX_DEC_RULE_EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_TX_DEC_RULE_EN_SHIFT         2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE5EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE5EN_SHIFT                3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE6EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE6EN_SHIFT                4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE7EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE7EN_SHIFT                5
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED1_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED1_SHIFT           6
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE9EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE9EN_SHIFT                7
+#define XSTORMETHCONNAGCTXDQEXTLDPART_TX_DEC_RULE_EN_SHIFT	2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE5EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE5EN_SHIFT		3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE6EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE6EN_SHIFT		4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE7EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE7EN_SHIFT		5
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED1_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED1_SHIFT	6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE9EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE9EN_SHIFT		7
 	u8 flags12;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE10EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE10EN_SHIFT               0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE11EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE11EN_SHIFT               1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED2_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED2_SHIFT           2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED3_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED3_SHIFT           3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE14EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE14EN_SHIFT               4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE15EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE15EN_SHIFT               5
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE16EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE16EN_SHIFT               6
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE17EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE17EN_SHIFT               7
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE10EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE10EN_SHIFT		0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE11EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE11EN_SHIFT		1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED2_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED2_SHIFT	2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED3_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED3_SHIFT	3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE14EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE14EN_SHIFT		4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE15EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE15EN_SHIFT		5
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE16EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE16EN_SHIFT		6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE17EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE17EN_SHIFT		7
 	u8 flags13;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE18EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE18EN_SHIFT               0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE19EN_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE19EN_SHIFT               1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED4_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED4_SHIFT           2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED5_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED5_SHIFT           3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED6_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED6_SHIFT           4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED7_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED7_SHIFT           5
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED8_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED8_SHIFT           6
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED9_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED9_SHIFT           7
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE18EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE18EN_SHIFT		0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE19EN_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_RULE19EN_SHIFT		1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED4_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED4_SHIFT	2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED5_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED5_SHIFT	3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED6_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED6_SHIFT	4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED7_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED7_SHIFT	5
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED8_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED8_SHIFT	6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED9_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_A0_RESERVED9_SHIFT	7
 	u8 flags14;
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_USE_EXT_HDR_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_USE_EXT_HDR_SHIFT       0
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_SEND_RAW_L3L4_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_SEND_RAW_L3L4_SHIFT     1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_INBAND_PROP_HDR_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_INBAND_PROP_HDR_SHIFT   2
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_SEND_EXT_TUNNEL_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_SEND_EXT_TUNNEL_SHIFT   3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_L2_EDPM_ENABLE_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_L2_EDPM_ENABLE_SHIFT         4
-#define XSTORMETHCONNAGCTXDQEXTLDPART_ROCE_EDPM_ENABLE_MASK	0x1
-#define XSTORMETHCONNAGCTXDQEXTLDPART_ROCE_EDPM_ENABLE_SHIFT       5
-#define XSTORMETHCONNAGCTXDQEXTLDPART_TPH_ENABLE_MASK	0x3
-#define XSTORMETHCONNAGCTXDQEXTLDPART_TPH_ENABLE_SHIFT             6
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_USE_EXT_HDR_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_USE_EXT_HDR_SHIFT		0
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_SEND_RAW_L3L4_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_SEND_RAW_L3L4_SHIFT		1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_INBAND_PROP_HDR_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_INBAND_PROP_HDR_SHIFT	2
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_SEND_EXT_TUNNEL_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_EDPM_SEND_EXT_TUNNEL_SHIFT	3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_L2_EDPM_ENABLE_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_L2_EDPM_ENABLE_SHIFT		4
+#define XSTORMETHCONNAGCTXDQEXTLDPART_ROCE_EDPM_ENABLE_MASK		0x1
+#define XSTORMETHCONNAGCTXDQEXTLDPART_ROCE_EDPM_ENABLE_SHIFT		5
+#define XSTORMETHCONNAGCTXDQEXTLDPART_TPH_ENABLE_MASK			0x3
+#define XSTORMETHCONNAGCTXDQEXTLDPART_TPH_ENABLE_SHIFT			6
 	u8 edpm_event_id;
 	__le16 physical_q0;
 	__le16 ereserved1;
@@ -5711,32 +5895,32 @@ struct mstorm_eth_conn_ag_ctx {
 	u8 byte1;
 	u8 flags0;
 #define MSTORM_ETH_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_EXIST_IN_QM0_SHIFT 0
-#define MSTORM_ETH_CONN_AG_CTX_BIT1_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_BIT1_SHIFT         1
-#define MSTORM_ETH_CONN_AG_CTX_CF0_MASK	0x3
-#define MSTORM_ETH_CONN_AG_CTX_CF0_SHIFT          2
-#define MSTORM_ETH_CONN_AG_CTX_CF1_MASK	0x3
-#define MSTORM_ETH_CONN_AG_CTX_CF1_SHIFT          4
-#define MSTORM_ETH_CONN_AG_CTX_CF2_MASK	0x3
-#define MSTORM_ETH_CONN_AG_CTX_CF2_SHIFT          6
+#define MSTORM_ETH_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define MSTORM_ETH_CONN_AG_CTX_BIT1_MASK		0x1
+#define MSTORM_ETH_CONN_AG_CTX_BIT1_SHIFT		1
+#define MSTORM_ETH_CONN_AG_CTX_CF0_MASK			0x3
+#define MSTORM_ETH_CONN_AG_CTX_CF0_SHIFT		2
+#define MSTORM_ETH_CONN_AG_CTX_CF1_MASK			0x3
+#define MSTORM_ETH_CONN_AG_CTX_CF1_SHIFT		4
+#define MSTORM_ETH_CONN_AG_CTX_CF2_MASK			0x3
+#define MSTORM_ETH_CONN_AG_CTX_CF2_SHIFT		6
 	u8 flags1;
 #define MSTORM_ETH_CONN_AG_CTX_CF0EN_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_CF0EN_SHIFT        0
+#define MSTORM_ETH_CONN_AG_CTX_CF0EN_SHIFT	0
 #define MSTORM_ETH_CONN_AG_CTX_CF1EN_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_CF1EN_SHIFT        1
+#define MSTORM_ETH_CONN_AG_CTX_CF1EN_SHIFT	1
 #define MSTORM_ETH_CONN_AG_CTX_CF2EN_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_CF2EN_SHIFT        2
+#define MSTORM_ETH_CONN_AG_CTX_CF2EN_SHIFT	2
 #define MSTORM_ETH_CONN_AG_CTX_RULE0EN_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_RULE0EN_SHIFT      3
+#define MSTORM_ETH_CONN_AG_CTX_RULE0EN_SHIFT	3
 #define MSTORM_ETH_CONN_AG_CTX_RULE1EN_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_RULE1EN_SHIFT      4
+#define MSTORM_ETH_CONN_AG_CTX_RULE1EN_SHIFT	4
 #define MSTORM_ETH_CONN_AG_CTX_RULE2EN_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_RULE2EN_SHIFT      5
+#define MSTORM_ETH_CONN_AG_CTX_RULE2EN_SHIFT	5
 #define MSTORM_ETH_CONN_AG_CTX_RULE3EN_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_RULE3EN_SHIFT      6
+#define MSTORM_ETH_CONN_AG_CTX_RULE3EN_SHIFT	6
 #define MSTORM_ETH_CONN_AG_CTX_RULE4EN_MASK	0x1
-#define MSTORM_ETH_CONN_AG_CTX_RULE4EN_SHIFT      7
+#define MSTORM_ETH_CONN_AG_CTX_RULE4EN_SHIFT	7
 	__le16 word0;
 	__le16 word1;
 	__le32 reg0;
@@ -5748,211 +5932,211 @@ struct xstorm_eth_hw_conn_ag_ctx {
 	u8 eth_state;
 	u8 flags0;
 #define XSTORM_ETH_HW_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_EXIST_IN_QM0_SHIFT           0
+#define XSTORM_ETH_HW_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED1_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED1_SHIFT              1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED1_SHIFT	1
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED2_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED2_SHIFT              2
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED2_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_EXIST_IN_QM3_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_EXIST_IN_QM3_SHIFT           3
+#define XSTORM_ETH_HW_CONN_AG_CTX_EXIST_IN_QM3_SHIFT	3
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED3_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED3_SHIFT              4
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED3_SHIFT	4
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED4_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED4_SHIFT              5
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED4_SHIFT	5
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED5_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED5_SHIFT              6
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED5_SHIFT	6
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED6_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED6_SHIFT              7
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED6_SHIFT	7
 	u8 flags1;
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED7_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED7_SHIFT              0
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED7_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED8_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED8_SHIFT              1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED8_SHIFT	1
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED9_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED9_SHIFT              2
-#define XSTORM_ETH_HW_CONN_AG_CTX_BIT11_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_BIT11_SHIFT                  3
-#define XSTORM_ETH_HW_CONN_AG_CTX_BIT12_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_BIT12_SHIFT                  4
-#define XSTORM_ETH_HW_CONN_AG_CTX_BIT13_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_BIT13_SHIFT                  5
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED9_SHIFT	2
+#define XSTORM_ETH_HW_CONN_AG_CTX_BIT11_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_BIT11_SHIFT		3
+#define XSTORM_ETH_HW_CONN_AG_CTX_BIT12_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_BIT12_SHIFT		4
+#define XSTORM_ETH_HW_CONN_AG_CTX_BIT13_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_BIT13_SHIFT		5
 #define XSTORM_ETH_HW_CONN_AG_CTX_TX_RULE_ACTIVE_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_TX_RULE_ACTIVE_SHIFT         6
+#define XSTORM_ETH_HW_CONN_AG_CTX_TX_RULE_ACTIVE_SHIFT	6
 #define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_ACTIVE_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_ACTIVE_SHIFT           7
+#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_ACTIVE_SHIFT	7
 	u8 flags2;
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF0_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF0_SHIFT                    0
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF0_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF1_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF1_SHIFT                    2
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF1_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF2_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF2_SHIFT                    4
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF2_SHIFT	4
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF3_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF3_SHIFT                    6
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF3_SHIFT	6
 	u8 flags3;
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF4_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF4_SHIFT                    0
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF4_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF5_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF5_SHIFT                    2
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF5_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF6_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF6_SHIFT                    4
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF6_SHIFT	4
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF7_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF7_SHIFT                    6
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF7_SHIFT	6
 	u8 flags4;
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF8_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF8_SHIFT                    0
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF8_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF9_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF9_SHIFT                    2
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF9_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF10_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF10_SHIFT                   4
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF10_SHIFT	4
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF11_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF11_SHIFT                   6
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF11_SHIFT	6
 	u8 flags5;
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF12_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF12_SHIFT                   0
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF12_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF13_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF13_SHIFT                   2
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF13_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF14_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF14_SHIFT                   4
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF14_SHIFT	4
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF15_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF15_SHIFT                   6
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF15_SHIFT	6
 	u8 flags6;
-#define XSTORM_ETH_HW_CONN_AG_CTX_GO_TO_BD_CONS_CF_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_GO_TO_BD_CONS_CF_SHIFT       0
-#define XSTORM_ETH_HW_CONN_AG_CTX_MULTI_UNICAST_CF_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_MULTI_UNICAST_CF_SHIFT       2
-#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_SHIFT                  4
-#define XSTORM_ETH_HW_CONN_AG_CTX_TERMINATE_CF_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_TERMINATE_CF_SHIFT           6
+#define XSTORM_ETH_HW_CONN_AG_CTX_GO_TO_BD_CONS_CF_MASK		0x3
+#define XSTORM_ETH_HW_CONN_AG_CTX_GO_TO_BD_CONS_CF_SHIFT	0
+#define XSTORM_ETH_HW_CONN_AG_CTX_MULTI_UNICAST_CF_MASK		0x3
+#define XSTORM_ETH_HW_CONN_AG_CTX_MULTI_UNICAST_CF_SHIFT	2
+#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_MASK			0x3
+#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_SHIFT			4
+#define XSTORM_ETH_HW_CONN_AG_CTX_TERMINATE_CF_MASK		0x3
+#define XSTORM_ETH_HW_CONN_AG_CTX_TERMINATE_CF_SHIFT		6
 	u8 flags7;
-#define XSTORM_ETH_HW_CONN_AG_CTX_FLUSH_Q0_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_FLUSH_Q0_SHIFT               0
+#define XSTORM_ETH_HW_CONN_AG_CTX_FLUSH_Q0_MASK		0x3
+#define XSTORM_ETH_HW_CONN_AG_CTX_FLUSH_Q0_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED10_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED10_SHIFT             2
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED10_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_SLOW_PATH_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_SLOW_PATH_SHIFT              4
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF0EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF0EN_SHIFT                  6
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF1EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF1EN_SHIFT                  7
+#define XSTORM_ETH_HW_CONN_AG_CTX_SLOW_PATH_SHIFT	4
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF0EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF0EN_SHIFT		6
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF1EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF1EN_SHIFT		7
 	u8 flags8;
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF2EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF2EN_SHIFT                  0
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF2EN_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF3EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF3EN_SHIFT                  1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF3EN_SHIFT	1
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF4EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF4EN_SHIFT                  2
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF4EN_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF5EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF5EN_SHIFT                  3
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF5EN_SHIFT	3
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF6EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF6EN_SHIFT                  4
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF6EN_SHIFT	4
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF7EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF7EN_SHIFT                  5
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF7EN_SHIFT	5
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF8EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF8EN_SHIFT                  6
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF8EN_SHIFT	6
 #define XSTORM_ETH_HW_CONN_AG_CTX_CF9EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF9EN_SHIFT                  7
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF9EN_SHIFT	7
 	u8 flags9;
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF10EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF10EN_SHIFT                 0
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF11EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF11EN_SHIFT                 1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF12EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF12EN_SHIFT                 2
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF13EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF13EN_SHIFT                 3
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF14EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF14EN_SHIFT                 4
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF15EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_CF15EN_SHIFT                 5
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF10EN_MASK			0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF10EN_SHIFT			0
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF11EN_MASK			0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF11EN_SHIFT			1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF12EN_MASK			0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF12EN_SHIFT			2
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF13EN_MASK			0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF13EN_SHIFT			3
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF14EN_MASK			0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF14EN_SHIFT			4
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF15EN_MASK			0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_CF15EN_SHIFT			5
 #define XSTORM_ETH_HW_CONN_AG_CTX_GO_TO_BD_CONS_CF_EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_GO_TO_BD_CONS_CF_EN_SHIFT    6
+#define XSTORM_ETH_HW_CONN_AG_CTX_GO_TO_BD_CONS_CF_EN_SHIFT	6
 #define XSTORM_ETH_HW_CONN_AG_CTX_MULTI_UNICAST_CF_EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_MULTI_UNICAST_CF_EN_SHIFT    7
+#define XSTORM_ETH_HW_CONN_AG_CTX_MULTI_UNICAST_CF_EN_SHIFT	7
 	u8 flags10;
-#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_EN_SHIFT               0
-#define XSTORM_ETH_HW_CONN_AG_CTX_TERMINATE_CF_EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_TERMINATE_CF_EN_SHIFT        1
-#define XSTORM_ETH_HW_CONN_AG_CTX_FLUSH_Q0_EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT            2
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED11_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED11_SHIFT             3
-#define XSTORM_ETH_HW_CONN_AG_CTX_SLOW_PATH_EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_SLOW_PATH_EN_SHIFT           4
+#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_EN_MASK			0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_DQ_CF_EN_SHIFT		0
+#define XSTORM_ETH_HW_CONN_AG_CTX_TERMINATE_CF_EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_TERMINATE_CF_EN_SHIFT		1
+#define XSTORM_ETH_HW_CONN_AG_CTX_FLUSH_Q0_EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT		2
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED11_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED11_SHIFT		3
+#define XSTORM_ETH_HW_CONN_AG_CTX_SLOW_PATH_EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_SLOW_PATH_EN_SHIFT		4
 #define XSTORM_ETH_HW_CONN_AG_CTX_TPH_ENABLE_EN_RESERVED_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_TPH_ENABLE_EN_RESERVED_SHIFT 5
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED12_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED12_SHIFT             6
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED13_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED13_SHIFT             7
+#define XSTORM_ETH_HW_CONN_AG_CTX_TPH_ENABLE_EN_RESERVED_SHIFT	5
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED12_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED12_SHIFT		6
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED13_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED13_SHIFT		7
 	u8 flags11;
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED14_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED14_SHIFT             0
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED14_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED15_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED15_SHIFT             1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RESERVED15_SHIFT	1
 #define XSTORM_ETH_HW_CONN_AG_CTX_TX_DEC_RULE_EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_TX_DEC_RULE_EN_SHIFT         2
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE5EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE5EN_SHIFT                3
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE6EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE6EN_SHIFT                4
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE7EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE7EN_SHIFT                5
+#define XSTORM_ETH_HW_CONN_AG_CTX_TX_DEC_RULE_EN_SHIFT	2
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE5EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE5EN_SHIFT		3
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE6EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE6EN_SHIFT		4
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE7EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE7EN_SHIFT		5
 #define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED1_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED1_SHIFT           6
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE9EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE9EN_SHIFT                7
+#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED1_SHIFT	6
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE9EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE9EN_SHIFT		7
 	u8 flags12;
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE10EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE10EN_SHIFT               0
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE11EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE11EN_SHIFT               1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE10EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE10EN_SHIFT	0
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE11EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE11EN_SHIFT	1
 #define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED2_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED2_SHIFT           2
+#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED2_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED3_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED3_SHIFT           3
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE14EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE14EN_SHIFT               4
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE15EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE15EN_SHIFT               5
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE16EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE16EN_SHIFT               6
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE17EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE17EN_SHIFT               7
+#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED3_SHIFT	3
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE14EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE14EN_SHIFT	4
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE15EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE15EN_SHIFT	5
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE16EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE16EN_SHIFT	6
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE17EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE17EN_SHIFT	7
 	u8 flags13;
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE18EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE18EN_SHIFT               0
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE19EN_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_RULE19EN_SHIFT               1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE18EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE18EN_SHIFT	0
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE19EN_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_RULE19EN_SHIFT	1
 #define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED4_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED4_SHIFT           2
+#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED4_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED5_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED5_SHIFT           3
+#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED5_SHIFT	3
 #define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED6_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED6_SHIFT           4
+#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED6_SHIFT	4
 #define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED7_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED7_SHIFT           5
+#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED7_SHIFT	5
 #define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED8_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED8_SHIFT           6
+#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED8_SHIFT	6
 #define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED9_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED9_SHIFT           7
+#define XSTORM_ETH_HW_CONN_AG_CTX_A0_RESERVED9_SHIFT	7
 	u8 flags14;
-#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_USE_EXT_HDR_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_USE_EXT_HDR_SHIFT       0
+#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_USE_EXT_HDR_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_USE_EXT_HDR_SHIFT	0
 #define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_SEND_RAW_L3L4_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_SEND_RAW_L3L4_SHIFT     1
+#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_SEND_RAW_L3L4_SHIFT	1
 #define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_INBAND_PROP_HDR_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_INBAND_PROP_HDR_SHIFT   2
+#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_INBAND_PROP_HDR_SHIFT	2
 #define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_SEND_EXT_TUNNEL_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_SEND_EXT_TUNNEL_SHIFT   3
-#define XSTORM_ETH_HW_CONN_AG_CTX_L2_EDPM_ENABLE_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_L2_EDPM_ENABLE_SHIFT         4
-#define XSTORM_ETH_HW_CONN_AG_CTX_ROCE_EDPM_ENABLE_MASK	0x1
-#define XSTORM_ETH_HW_CONN_AG_CTX_ROCE_EDPM_ENABLE_SHIFT       5
-#define XSTORM_ETH_HW_CONN_AG_CTX_TPH_ENABLE_MASK	0x3
-#define XSTORM_ETH_HW_CONN_AG_CTX_TPH_ENABLE_SHIFT             6
+#define XSTORM_ETH_HW_CONN_AG_CTX_EDPM_SEND_EXT_TUNNEL_SHIFT	3
+#define XSTORM_ETH_HW_CONN_AG_CTX_L2_EDPM_ENABLE_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_L2_EDPM_ENABLE_SHIFT		4
+#define XSTORM_ETH_HW_CONN_AG_CTX_ROCE_EDPM_ENABLE_MASK		0x1
+#define XSTORM_ETH_HW_CONN_AG_CTX_ROCE_EDPM_ENABLE_SHIFT	5
+#define XSTORM_ETH_HW_CONN_AG_CTX_TPH_ENABLE_MASK		0x3
+#define XSTORM_ETH_HW_CONN_AG_CTX_TPH_ENABLE_SHIFT		6
 	u8 edpm_event_id;
 	__le16 physical_q0;
 	__le16 ereserved1;
@@ -5963,6 +6147,7 @@ struct xstorm_eth_hw_conn_ag_ctx {
 	__le16 conn_dpi;
 };
 
+/* GFT CAM line struct */
 struct gft_cam_line {
 	__le32 camline;
 #define GFT_CAM_LINE_VALID_MASK		0x1
@@ -5975,6 +6160,7 @@ struct gft_cam_line {
 #define GFT_CAM_LINE_RESERVED1_SHIFT	29
 };
 
+/* GFT CAM line struct with fields breakout */
 struct gft_cam_line_mapped {
 	__le32 camline;
 #define GFT_CAM_LINE_MAPPED_VALID_MASK				0x1
@@ -6008,28 +6194,31 @@ union gft_cam_line_union {
 	struct gft_cam_line_mapped cam_line_mapped;
 };
 
+/* Used in gft_profile_key: Indication for ip version */
 enum gft_profile_ip_version {
 	GFT_PROFILE_IPV4 = 0,
 	GFT_PROFILE_IPV6 = 1,
 	MAX_GFT_PROFILE_IP_VERSION
 };
 
+/* Profile key stucr fot GFT logic in Prs */
 struct gft_profile_key {
 	__le16 profile_key;
-#define GFT_PROFILE_KEY_IP_VERSION_MASK           0x1
-#define GFT_PROFILE_KEY_IP_VERSION_SHIFT          0
-#define GFT_PROFILE_KEY_TUNNEL_IP_VERSION_MASK    0x1
-#define GFT_PROFILE_KEY_TUNNEL_IP_VERSION_SHIFT   1
-#define GFT_PROFILE_KEY_UPPER_PROTOCOL_TYPE_MASK  0xF
-#define GFT_PROFILE_KEY_UPPER_PROTOCOL_TYPE_SHIFT 2
-#define GFT_PROFILE_KEY_TUNNEL_TYPE_MASK          0xF
-#define GFT_PROFILE_KEY_TUNNEL_TYPE_SHIFT         6
-#define GFT_PROFILE_KEY_PF_ID_MASK                0xF
-#define GFT_PROFILE_KEY_PF_ID_SHIFT               10
-#define GFT_PROFILE_KEY_RESERVED0_MASK            0x3
-#define GFT_PROFILE_KEY_RESERVED0_SHIFT           14
+#define GFT_PROFILE_KEY_IP_VERSION_MASK			0x1
+#define GFT_PROFILE_KEY_IP_VERSION_SHIFT		0
+#define GFT_PROFILE_KEY_TUNNEL_IP_VERSION_MASK		0x1
+#define GFT_PROFILE_KEY_TUNNEL_IP_VERSION_SHIFT		1
+#define GFT_PROFILE_KEY_UPPER_PROTOCOL_TYPE_MASK	0xF
+#define GFT_PROFILE_KEY_UPPER_PROTOCOL_TYPE_SHIFT	2
+#define GFT_PROFILE_KEY_TUNNEL_TYPE_MASK		0xF
+#define GFT_PROFILE_KEY_TUNNEL_TYPE_SHIFT		6
+#define GFT_PROFILE_KEY_PF_ID_MASK			0xF
+#define GFT_PROFILE_KEY_PF_ID_SHIFT			10
+#define GFT_PROFILE_KEY_RESERVED0_MASK			0x3
+#define GFT_PROFILE_KEY_RESERVED0_SHIFT			14
 };
 
+/* Used in gft_profile_key: Indication for tunnel type */
 enum gft_profile_tunnel_type {
 	GFT_PROFILE_NO_TUNNEL = 0,
 	GFT_PROFILE_VXLAN_TUNNEL = 1,
@@ -6040,6 +6229,7 @@ enum gft_profile_tunnel_type {
 	MAX_GFT_PROFILE_TUNNEL_TYPE
 };
 
+/* Used in gft_profile_key: Indication for protocol type */
 enum gft_profile_upper_protocol_type {
 	GFT_PROFILE_ROCE_PROTOCOL = 0,
 	GFT_PROFILE_RROCE_PROTOCOL = 1,
@@ -6060,6 +6250,7 @@ enum gft_profile_upper_protocol_type {
 	MAX_GFT_PROFILE_UPPER_PROTOCOL_TYPE
 };
 
+/* GFT RAM line struct */
 struct gft_ram_line {
 	__le32 lo;
 #define GFT_RAM_LINE_VLAN_SELECT_MASK			0x3
@@ -6149,6 +6340,7 @@ struct gft_ram_line {
 #define GFT_RAM_LINE_RESERVED1_SHIFT			10
 };
 
+/* Used in the first 2 bits for gft_ram_line: Indication for vlan mask */
 enum gft_vlan_select {
 	INNER_PROVIDER_VLAN = 0,
 	INNER_VLAN = 1,
@@ -6157,207 +6349,7 @@ enum gft_vlan_select {
 	MAX_GFT_VLAN_SELECT
 };
 
-struct mstorm_rdma_task_st_ctx {
-	struct regpair temp[4];
-};
-
-struct rdma_close_func_ramrod_data {
-	u8 cnq_start_offset;
-	u8 num_cnqs;
-	u8 vf_id;
-	u8 vf_valid;
-	u8 reserved[4];
-};
-
-struct rdma_cnq_params {
-	__le16 sb_num;
-	u8 sb_index;
-	u8 num_pbl_pages;
-	__le32 reserved;
-	struct regpair pbl_base_addr;
-	__le16 queue_zone_num;
-	u8 reserved1[6];
-};
-
-struct rdma_create_cq_ramrod_data {
-	struct regpair cq_handle;
-	struct regpair pbl_addr;
-	__le32 max_cqes;
-	__le16 pbl_num_pages;
-	__le16 dpi;
-	u8 is_two_level_pbl;
-	u8 cnq_id;
-	u8 pbl_log_page_size;
-	u8 toggle_bit;
-	__le16 int_timeout;
-	__le16 reserved1;
-};
-
-struct rdma_deregister_tid_ramrod_data {
-	__le32 itid;
-	__le32 reserved;
-};
-
-struct rdma_destroy_cq_output_params {
-	__le16 cnq_num;
-	__le16 reserved0;
-	__le32 reserved1;
-};
-
-struct rdma_destroy_cq_ramrod_data {
-	struct regpair output_params_addr;
-};
-
-enum rdma_event_opcode {
-	RDMA_EVENT_UNUSED,
-	RDMA_EVENT_FUNC_INIT,
-	RDMA_EVENT_FUNC_CLOSE,
-	RDMA_EVENT_REGISTER_MR,
-	RDMA_EVENT_DEREGISTER_MR,
-	RDMA_EVENT_CREATE_CQ,
-	RDMA_EVENT_RESIZE_CQ,
-	RDMA_EVENT_DESTROY_CQ,
-	RDMA_EVENT_CREATE_SRQ,
-	RDMA_EVENT_MODIFY_SRQ,
-	RDMA_EVENT_DESTROY_SRQ,
-	MAX_RDMA_EVENT_OPCODE
-};
-
-enum rdma_fw_return_code {
-	RDMA_RETURN_OK = 0,
-	RDMA_RETURN_REGISTER_MR_BAD_STATE_ERR,
-	RDMA_RETURN_DEREGISTER_MR_BAD_STATE_ERR,
-	RDMA_RETURN_RESIZE_CQ_ERR,
-	RDMA_RETURN_NIG_DRAIN_REQ,
-	MAX_RDMA_FW_RETURN_CODE
-};
-
-struct rdma_init_func_hdr {
-	u8 cnq_start_offset;
-	u8 num_cnqs;
-	u8 cq_ring_mode;
-	u8 vf_id;
-	u8 vf_valid;
-	u8 reserved[3];
-};
-
-struct rdma_init_func_ramrod_data {
-	struct rdma_init_func_hdr params_header;
-	struct rdma_cnq_params cnq_params[NUM_OF_GLOBAL_QUEUES];
-};
-
-enum rdma_ramrod_cmd_id {
-	RDMA_RAMROD_UNUSED,
-	RDMA_RAMROD_FUNC_INIT,
-	RDMA_RAMROD_FUNC_CLOSE,
-	RDMA_RAMROD_REGISTER_MR,
-	RDMA_RAMROD_DEREGISTER_MR,
-	RDMA_RAMROD_CREATE_CQ,
-	RDMA_RAMROD_RESIZE_CQ,
-	RDMA_RAMROD_DESTROY_CQ,
-	RDMA_RAMROD_CREATE_SRQ,
-	RDMA_RAMROD_MODIFY_SRQ,
-	RDMA_RAMROD_DESTROY_SRQ,
-	MAX_RDMA_RAMROD_CMD_ID
-};
-
-struct rdma_register_tid_ramrod_data {
-	__le16 flags;
-#define RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG_MASK	0x1F
-#define RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG_SHIFT	0
-#define RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL_SHIFT	5
-#define RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED_SHIFT	6
-#define RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR_SHIFT	7
-#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ_SHIFT	8
-#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE_SHIFT	9
-#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC_SHIFT	10
-#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE_SHIFT	11
-#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ_SHIFT	12
-#define RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND_SHIFT	13
-#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED_MASK	0x3
-#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED_SHIFT	14
-	u8 flags1;
-#define RDMA_REGISTER_TID_RAMROD_DATA_PBL_PAGE_SIZE_LOG_MASK	0x1F
-#define RDMA_REGISTER_TID_RAMROD_DATA_PBL_PAGE_SIZE_LOG_SHIFT 0
-#define RDMA_REGISTER_TID_RAMROD_DATA_TID_TYPE_MASK	0x7
-#define RDMA_REGISTER_TID_RAMROD_DATA_TID_TYPE_SHIFT	5
-	u8 flags2;
-#define RDMA_REGISTER_TID_RAMROD_DATA_DMA_MR_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_DMA_MR_SHIFT	0
-#define RDMA_REGISTER_TID_RAMROD_DATA_DIF_ON_HOST_FLG_MASK	0x1
-#define RDMA_REGISTER_TID_RAMROD_DATA_DIF_ON_HOST_FLG_SHIFT	1
-#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED1_MASK	0x3F
-#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED1_SHIFT	2
-	u8 key;
-	u8 length_hi;
-	u8 vf_id;
-	u8 vf_valid;
-	__le16 pd;
-	__le16 reserved2;
-	__le32 length_lo;
-	__le32 itid;
-	__le32 reserved3;
-	struct regpair va;
-	struct regpair pbl_base;
-	struct regpair dif_error_addr;
-	struct regpair dif_runt_addr;
-	__le32 reserved4[2];
-};
-
-struct rdma_resize_cq_output_params {
-	__le32 old_cq_cons;
-	__le32 old_cq_prod;
-};
-
-struct rdma_resize_cq_ramrod_data {
-	u8 flags;
-#define RDMA_RESIZE_CQ_RAMROD_DATA_TOGGLE_BIT_MASK        0x1
-#define RDMA_RESIZE_CQ_RAMROD_DATA_TOGGLE_BIT_SHIFT       0
-#define RDMA_RESIZE_CQ_RAMROD_DATA_IS_TWO_LEVEL_PBL_MASK  0x1
-#define RDMA_RESIZE_CQ_RAMROD_DATA_IS_TWO_LEVEL_PBL_SHIFT 1
-#define RDMA_RESIZE_CQ_RAMROD_DATA_RESERVED_MASK          0x3F
-#define RDMA_RESIZE_CQ_RAMROD_DATA_RESERVED_SHIFT         2
-	u8 pbl_log_page_size;
-	__le16 pbl_num_pages;
-	__le32 max_cqes;
-	struct regpair pbl_addr;
-	struct regpair output_params_addr;
-};
-
-struct rdma_srq_context {
-	struct regpair temp[8];
-};
-
-struct rdma_srq_create_ramrod_data {
-	struct regpair pbl_base_addr;
-	__le16 pages_in_srq_pbl;
-	__le16 pd_id;
-	struct rdma_srq_id srq_id;
-	__le16 page_size;
-	__le16 reserved1;
-	__le32 reserved2;
-	struct regpair producers_addr;
-};
-
-struct rdma_srq_destroy_ramrod_data {
-	struct rdma_srq_id srq_id;
-	__le32 reserved;
-};
-
-struct rdma_srq_modify_ramrod_data {
-	struct rdma_srq_id srq_id;
-	__le32 wqe_limit;
-};
-
+/* The rdma task context of Mstorm */
 struct ystorm_rdma_task_st_ctx {
 	struct regpair temp[4];
 };
@@ -6367,44 +6359,44 @@ struct ystorm_rdma_task_ag_ctx {
 	u8 byte1;
 	__le16 msem_ctx_upd_seq;
 	u8 flags0;
-#define YSTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_MASK  0xF
-#define YSTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_SHIFT 0
-#define YSTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_MASK     0x1
-#define YSTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_SHIFT    4
-#define YSTORM_RDMA_TASK_AG_CTX_BIT1_MASK             0x1
-#define YSTORM_RDMA_TASK_AG_CTX_BIT1_SHIFT            5
-#define YSTORM_RDMA_TASK_AG_CTX_VALID_MASK            0x1
-#define YSTORM_RDMA_TASK_AG_CTX_VALID_SHIFT           6
-#define YSTORM_RDMA_TASK_AG_CTX_BIT3_MASK             0x1
-#define YSTORM_RDMA_TASK_AG_CTX_BIT3_SHIFT            7
+#define YSTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_MASK	0xF
+#define YSTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_SHIFT	0
+#define YSTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define YSTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_SHIFT	4
+#define YSTORM_RDMA_TASK_AG_CTX_BIT1_MASK		0x1
+#define YSTORM_RDMA_TASK_AG_CTX_BIT1_SHIFT		5
+#define YSTORM_RDMA_TASK_AG_CTX_VALID_MASK		0x1
+#define YSTORM_RDMA_TASK_AG_CTX_VALID_SHIFT		6
+#define YSTORM_RDMA_TASK_AG_CTX_BIT3_MASK		0x1
+#define YSTORM_RDMA_TASK_AG_CTX_BIT3_SHIFT		7
 	u8 flags1;
-#define YSTORM_RDMA_TASK_AG_CTX_CF0_MASK              0x3
-#define YSTORM_RDMA_TASK_AG_CTX_CF0_SHIFT             0
-#define YSTORM_RDMA_TASK_AG_CTX_CF1_MASK              0x3
-#define YSTORM_RDMA_TASK_AG_CTX_CF1_SHIFT             2
-#define YSTORM_RDMA_TASK_AG_CTX_CF2SPECIAL_MASK       0x3
-#define YSTORM_RDMA_TASK_AG_CTX_CF2SPECIAL_SHIFT      4
-#define YSTORM_RDMA_TASK_AG_CTX_CF0EN_MASK            0x1
-#define YSTORM_RDMA_TASK_AG_CTX_CF0EN_SHIFT           6
-#define YSTORM_RDMA_TASK_AG_CTX_CF1EN_MASK            0x1
-#define YSTORM_RDMA_TASK_AG_CTX_CF1EN_SHIFT           7
+#define YSTORM_RDMA_TASK_AG_CTX_CF0_MASK		0x3
+#define YSTORM_RDMA_TASK_AG_CTX_CF0_SHIFT		0
+#define YSTORM_RDMA_TASK_AG_CTX_CF1_MASK		0x3
+#define YSTORM_RDMA_TASK_AG_CTX_CF1_SHIFT		2
+#define YSTORM_RDMA_TASK_AG_CTX_CF2SPECIAL_MASK		0x3
+#define YSTORM_RDMA_TASK_AG_CTX_CF2SPECIAL_SHIFT	4
+#define YSTORM_RDMA_TASK_AG_CTX_CF0EN_MASK		0x1
+#define YSTORM_RDMA_TASK_AG_CTX_CF0EN_SHIFT		6
+#define YSTORM_RDMA_TASK_AG_CTX_CF1EN_MASK		0x1
+#define YSTORM_RDMA_TASK_AG_CTX_CF1EN_SHIFT		7
 	u8 flags2;
-#define YSTORM_RDMA_TASK_AG_CTX_BIT4_MASK             0x1
-#define YSTORM_RDMA_TASK_AG_CTX_BIT4_SHIFT            0
-#define YSTORM_RDMA_TASK_AG_CTX_RULE0EN_MASK          0x1
-#define YSTORM_RDMA_TASK_AG_CTX_RULE0EN_SHIFT         1
-#define YSTORM_RDMA_TASK_AG_CTX_RULE1EN_MASK          0x1
-#define YSTORM_RDMA_TASK_AG_CTX_RULE1EN_SHIFT         2
-#define YSTORM_RDMA_TASK_AG_CTX_RULE2EN_MASK          0x1
-#define YSTORM_RDMA_TASK_AG_CTX_RULE2EN_SHIFT         3
-#define YSTORM_RDMA_TASK_AG_CTX_RULE3EN_MASK          0x1
-#define YSTORM_RDMA_TASK_AG_CTX_RULE3EN_SHIFT         4
-#define YSTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK          0x1
-#define YSTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT         5
-#define YSTORM_RDMA_TASK_AG_CTX_RULE5EN_MASK          0x1
-#define YSTORM_RDMA_TASK_AG_CTX_RULE5EN_SHIFT         6
-#define YSTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK          0x1
-#define YSTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT         7
+#define YSTORM_RDMA_TASK_AG_CTX_BIT4_MASK	0x1
+#define YSTORM_RDMA_TASK_AG_CTX_BIT4_SHIFT	0
+#define YSTORM_RDMA_TASK_AG_CTX_RULE0EN_MASK	0x1
+#define YSTORM_RDMA_TASK_AG_CTX_RULE0EN_SHIFT	1
+#define YSTORM_RDMA_TASK_AG_CTX_RULE1EN_MASK	0x1
+#define YSTORM_RDMA_TASK_AG_CTX_RULE1EN_SHIFT	2
+#define YSTORM_RDMA_TASK_AG_CTX_RULE2EN_MASK	0x1
+#define YSTORM_RDMA_TASK_AG_CTX_RULE2EN_SHIFT	3
+#define YSTORM_RDMA_TASK_AG_CTX_RULE3EN_MASK	0x1
+#define YSTORM_RDMA_TASK_AG_CTX_RULE3EN_SHIFT	4
+#define YSTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK	0x1
+#define YSTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT	5
+#define YSTORM_RDMA_TASK_AG_CTX_RULE5EN_MASK	0x1
+#define YSTORM_RDMA_TASK_AG_CTX_RULE5EN_SHIFT	6
+#define YSTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK	0x1
+#define YSTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT	7
 	u8 key;
 	__le32 mw_cnt;
 	u8 ref_cnt_seq;
@@ -6423,44 +6415,44 @@ struct mstorm_rdma_task_ag_ctx {
 	u8 byte1;
 	__le16 icid;
 	u8 flags0;
-#define MSTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_MASK  0xF
-#define MSTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_SHIFT 0
-#define MSTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_MASK     0x1
-#define MSTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_SHIFT    4
-#define MSTORM_RDMA_TASK_AG_CTX_BIT1_MASK             0x1
-#define MSTORM_RDMA_TASK_AG_CTX_BIT1_SHIFT            5
-#define MSTORM_RDMA_TASK_AG_CTX_BIT2_MASK             0x1
-#define MSTORM_RDMA_TASK_AG_CTX_BIT2_SHIFT            6
-#define MSTORM_RDMA_TASK_AG_CTX_BIT3_MASK             0x1
-#define MSTORM_RDMA_TASK_AG_CTX_BIT3_SHIFT            7
+#define MSTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_MASK	0xF
+#define MSTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_SHIFT	0
+#define MSTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_SHIFT	4
+#define MSTORM_RDMA_TASK_AG_CTX_BIT1_MASK		0x1
+#define MSTORM_RDMA_TASK_AG_CTX_BIT1_SHIFT		5
+#define MSTORM_RDMA_TASK_AG_CTX_BIT2_MASK		0x1
+#define MSTORM_RDMA_TASK_AG_CTX_BIT2_SHIFT		6
+#define MSTORM_RDMA_TASK_AG_CTX_BIT3_MASK		0x1
+#define MSTORM_RDMA_TASK_AG_CTX_BIT3_SHIFT		7
 	u8 flags1;
-#define MSTORM_RDMA_TASK_AG_CTX_CF0_MASK              0x3
-#define MSTORM_RDMA_TASK_AG_CTX_CF0_SHIFT             0
-#define MSTORM_RDMA_TASK_AG_CTX_CF1_MASK              0x3
-#define MSTORM_RDMA_TASK_AG_CTX_CF1_SHIFT             2
-#define MSTORM_RDMA_TASK_AG_CTX_CF2_MASK              0x3
-#define MSTORM_RDMA_TASK_AG_CTX_CF2_SHIFT             4
-#define MSTORM_RDMA_TASK_AG_CTX_CF0EN_MASK            0x1
-#define MSTORM_RDMA_TASK_AG_CTX_CF0EN_SHIFT           6
-#define MSTORM_RDMA_TASK_AG_CTX_CF1EN_MASK            0x1
-#define MSTORM_RDMA_TASK_AG_CTX_CF1EN_SHIFT           7
+#define MSTORM_RDMA_TASK_AG_CTX_CF0_MASK	0x3
+#define MSTORM_RDMA_TASK_AG_CTX_CF0_SHIFT	0
+#define MSTORM_RDMA_TASK_AG_CTX_CF1_MASK	0x3
+#define MSTORM_RDMA_TASK_AG_CTX_CF1_SHIFT	2
+#define MSTORM_RDMA_TASK_AG_CTX_CF2_MASK	0x3
+#define MSTORM_RDMA_TASK_AG_CTX_CF2_SHIFT	4
+#define MSTORM_RDMA_TASK_AG_CTX_CF0EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_CF0EN_SHIFT	6
+#define MSTORM_RDMA_TASK_AG_CTX_CF1EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_CF1EN_SHIFT	7
 	u8 flags2;
-#define MSTORM_RDMA_TASK_AG_CTX_CF2EN_MASK            0x1
-#define MSTORM_RDMA_TASK_AG_CTX_CF2EN_SHIFT           0
-#define MSTORM_RDMA_TASK_AG_CTX_RULE0EN_MASK          0x1
-#define MSTORM_RDMA_TASK_AG_CTX_RULE0EN_SHIFT         1
-#define MSTORM_RDMA_TASK_AG_CTX_RULE1EN_MASK          0x1
-#define MSTORM_RDMA_TASK_AG_CTX_RULE1EN_SHIFT         2
-#define MSTORM_RDMA_TASK_AG_CTX_RULE2EN_MASK          0x1
-#define MSTORM_RDMA_TASK_AG_CTX_RULE2EN_SHIFT         3
-#define MSTORM_RDMA_TASK_AG_CTX_RULE3EN_MASK          0x1
-#define MSTORM_RDMA_TASK_AG_CTX_RULE3EN_SHIFT         4
-#define MSTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK          0x1
-#define MSTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT         5
-#define MSTORM_RDMA_TASK_AG_CTX_RULE5EN_MASK          0x1
-#define MSTORM_RDMA_TASK_AG_CTX_RULE5EN_SHIFT         6
-#define MSTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK          0x1
-#define MSTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT         7
+#define MSTORM_RDMA_TASK_AG_CTX_CF2EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_CF2EN_SHIFT	0
+#define MSTORM_RDMA_TASK_AG_CTX_RULE0EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_RULE0EN_SHIFT	1
+#define MSTORM_RDMA_TASK_AG_CTX_RULE1EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_RULE1EN_SHIFT	2
+#define MSTORM_RDMA_TASK_AG_CTX_RULE2EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_RULE2EN_SHIFT	3
+#define MSTORM_RDMA_TASK_AG_CTX_RULE3EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_RULE3EN_SHIFT	4
+#define MSTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT	5
+#define MSTORM_RDMA_TASK_AG_CTX_RULE5EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_RULE5EN_SHIFT	6
+#define MSTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK	0x1
+#define MSTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT	7
 	u8 key;
 	__le32 mw_cnt;
 	u8 ref_cnt_seq;
@@ -6474,6 +6466,12 @@ struct mstorm_rdma_task_ag_ctx {
 	__le32 fbo_hi;
 };
 
+/* The roce task context of Mstorm */
+struct mstorm_rdma_task_st_ctx {
+	struct regpair temp[4];
+};
+
+/* The roce task context of Ustorm */
 struct ustorm_rdma_task_st_ctx {
 	struct regpair temp[2];
 };
@@ -6483,51 +6481,51 @@ struct ustorm_rdma_task_ag_ctx {
 	u8 byte1;
 	__le16 icid;
 	u8 flags0;
-#define USTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_MASK         0xF
-#define USTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_SHIFT        0
-#define USTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_MASK            0x1
-#define USTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_SHIFT           4
-#define USTORM_RDMA_TASK_AG_CTX_DIF_RUNT_VALID_MASK          0x1
-#define USTORM_RDMA_TASK_AG_CTX_DIF_RUNT_VALID_SHIFT         5
-#define USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_MASK     0x3
-#define USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_SHIFT    6
+#define USTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_MASK		0xF
+#define USTORM_RDMA_TASK_AG_CTX_CONNECTION_TYPE_SHIFT		0
+#define USTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_MASK		0x1
+#define USTORM_RDMA_TASK_AG_CTX_EXIST_IN_QM0_SHIFT		4
+#define USTORM_RDMA_TASK_AG_CTX_DIF_RUNT_VALID_MASK		0x1
+#define USTORM_RDMA_TASK_AG_CTX_DIF_RUNT_VALID_SHIFT		5
+#define USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_MASK	0x3
+#define USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_SHIFT	6
 	u8 flags1;
-#define USTORM_RDMA_TASK_AG_CTX_DIF_RESULT_TOGGLE_BIT_MASK   0x3
-#define USTORM_RDMA_TASK_AG_CTX_DIF_RESULT_TOGGLE_BIT_SHIFT  0
-#define USTORM_RDMA_TASK_AG_CTX_DIF_TX_IO_FLG_MASK           0x3
-#define USTORM_RDMA_TASK_AG_CTX_DIF_TX_IO_FLG_SHIFT          2
-#define USTORM_RDMA_TASK_AG_CTX_CF3_MASK                     0x3
-#define USTORM_RDMA_TASK_AG_CTX_CF3_SHIFT                    4
-#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_CF_MASK            0x3
-#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_CF_SHIFT           6
+#define USTORM_RDMA_TASK_AG_CTX_DIF_RESULT_TOGGLE_BIT_MASK	0x3
+#define USTORM_RDMA_TASK_AG_CTX_DIF_RESULT_TOGGLE_BIT_SHIFT	0
+#define USTORM_RDMA_TASK_AG_CTX_DIF_TX_IO_FLG_MASK		0x3
+#define USTORM_RDMA_TASK_AG_CTX_DIF_TX_IO_FLG_SHIFT		2
+#define USTORM_RDMA_TASK_AG_CTX_CF3_MASK			0x3
+#define USTORM_RDMA_TASK_AG_CTX_CF3_SHIFT			4
+#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_CF_MASK		0x3
+#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_CF_SHIFT		6
 	u8 flags2;
-#define USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_EN_MASK  0x1
-#define USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_EN_SHIFT 0
-#define USTORM_RDMA_TASK_AG_CTX_RESERVED2_MASK               0x1
-#define USTORM_RDMA_TASK_AG_CTX_RESERVED2_SHIFT              1
-#define USTORM_RDMA_TASK_AG_CTX_RESERVED3_MASK               0x1
-#define USTORM_RDMA_TASK_AG_CTX_RESERVED3_SHIFT              2
-#define USTORM_RDMA_TASK_AG_CTX_CF3EN_MASK                   0x1
-#define USTORM_RDMA_TASK_AG_CTX_CF3EN_SHIFT                  3
-#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_CF_EN_MASK         0x1
-#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_CF_EN_SHIFT        4
-#define USTORM_RDMA_TASK_AG_CTX_RULE0EN_MASK                 0x1
-#define USTORM_RDMA_TASK_AG_CTX_RULE0EN_SHIFT                5
-#define USTORM_RDMA_TASK_AG_CTX_RULE1EN_MASK                 0x1
-#define USTORM_RDMA_TASK_AG_CTX_RULE1EN_SHIFT                6
-#define USTORM_RDMA_TASK_AG_CTX_RULE2EN_MASK                 0x1
-#define USTORM_RDMA_TASK_AG_CTX_RULE2EN_SHIFT                7
+#define USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_EN_MASK	0x1
+#define USTORM_RDMA_TASK_AG_CTX_DIF_WRITE_RESULT_CF_EN_SHIFT	0
+#define USTORM_RDMA_TASK_AG_CTX_RESERVED2_MASK			0x1
+#define USTORM_RDMA_TASK_AG_CTX_RESERVED2_SHIFT			1
+#define USTORM_RDMA_TASK_AG_CTX_RESERVED3_MASK			0x1
+#define USTORM_RDMA_TASK_AG_CTX_RESERVED3_SHIFT			2
+#define USTORM_RDMA_TASK_AG_CTX_CF3EN_MASK			0x1
+#define USTORM_RDMA_TASK_AG_CTX_CF3EN_SHIFT			3
+#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_CF_EN_MASK		0x1
+#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_CF_EN_SHIFT		4
+#define USTORM_RDMA_TASK_AG_CTX_RULE0EN_MASK			0x1
+#define USTORM_RDMA_TASK_AG_CTX_RULE0EN_SHIFT			5
+#define USTORM_RDMA_TASK_AG_CTX_RULE1EN_MASK			0x1
+#define USTORM_RDMA_TASK_AG_CTX_RULE1EN_SHIFT			6
+#define USTORM_RDMA_TASK_AG_CTX_RULE2EN_MASK			0x1
+#define USTORM_RDMA_TASK_AG_CTX_RULE2EN_SHIFT			7
 	u8 flags3;
-#define USTORM_RDMA_TASK_AG_CTX_RULE3EN_MASK                 0x1
-#define USTORM_RDMA_TASK_AG_CTX_RULE3EN_SHIFT                0
-#define USTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK                 0x1
-#define USTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT                1
-#define USTORM_RDMA_TASK_AG_CTX_RULE5EN_MASK                 0x1
-#define USTORM_RDMA_TASK_AG_CTX_RULE5EN_SHIFT                2
-#define USTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK                 0x1
-#define USTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT                3
-#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_TYPE_MASK          0xF
-#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_TYPE_SHIFT         4
+#define USTORM_RDMA_TASK_AG_CTX_RULE3EN_MASK		0x1
+#define USTORM_RDMA_TASK_AG_CTX_RULE3EN_SHIFT		0
+#define USTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK		0x1
+#define USTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT		1
+#define USTORM_RDMA_TASK_AG_CTX_RULE5EN_MASK		0x1
+#define USTORM_RDMA_TASK_AG_CTX_RULE5EN_SHIFT		2
+#define USTORM_RDMA_TASK_AG_CTX_RULE6EN_MASK		0x1
+#define USTORM_RDMA_TASK_AG_CTX_RULE6EN_SHIFT		3
+#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_TYPE_MASK	0xF
+#define USTORM_RDMA_TASK_AG_CTX_DIF_ERROR_TYPE_SHIFT	4
 	__le32 dif_err_intervals;
 	__le32 dif_error_1st_interval;
 	__le32 reg2;
@@ -6536,6 +6534,7 @@ struct ustorm_rdma_task_ag_ctx {
 	__le32 reg5;
 };
 
+/* RDMA task context */
 struct rdma_task_context {
 	struct ystorm_rdma_task_st_ctx ystorm_st_context;
 	struct ystorm_rdma_task_ag_ctx ystorm_ag_context;
@@ -6548,6 +6547,222 @@ struct rdma_task_context {
 	struct ustorm_rdma_task_ag_ctx ustorm_ag_context;
 };
 
+/* rdma function init ramrod data */
+struct rdma_close_func_ramrod_data {
+	u8 cnq_start_offset;
+	u8 num_cnqs;
+	u8 vf_id;
+	u8 vf_valid;
+	u8 reserved[4];
+};
+
+/* rdma function init CNQ parameters */
+struct rdma_cnq_params {
+	__le16 sb_num;
+	u8 sb_index;
+	u8 num_pbl_pages;
+	__le32 reserved;
+	struct regpair pbl_base_addr;
+	__le16 queue_zone_num;
+	u8 reserved1[6];
+};
+
+/* rdma create cq ramrod data */
+struct rdma_create_cq_ramrod_data {
+	struct regpair cq_handle;
+	struct regpair pbl_addr;
+	__le32 max_cqes;
+	__le16 pbl_num_pages;
+	__le16 dpi;
+	u8 is_two_level_pbl;
+	u8 cnq_id;
+	u8 pbl_log_page_size;
+	u8 toggle_bit;
+	__le16 int_timeout;
+	__le16 reserved1;
+};
+
+/* rdma deregister tid ramrod data */
+struct rdma_deregister_tid_ramrod_data {
+	__le32 itid;
+	__le32 reserved;
+};
+
+/* rdma destroy cq output params */
+struct rdma_destroy_cq_output_params {
+	__le16 cnq_num;
+	__le16 reserved0;
+	__le32 reserved1;
+};
+
+/* rdma destroy cq ramrod data */
+struct rdma_destroy_cq_ramrod_data {
+	struct regpair output_params_addr;
+};
+
+/* RDMA slow path EQ cmd IDs */
+enum rdma_event_opcode {
+	RDMA_EVENT_UNUSED,
+	RDMA_EVENT_FUNC_INIT,
+	RDMA_EVENT_FUNC_CLOSE,
+	RDMA_EVENT_REGISTER_MR,
+	RDMA_EVENT_DEREGISTER_MR,
+	RDMA_EVENT_CREATE_CQ,
+	RDMA_EVENT_RESIZE_CQ,
+	RDMA_EVENT_DESTROY_CQ,
+	RDMA_EVENT_CREATE_SRQ,
+	RDMA_EVENT_MODIFY_SRQ,
+	RDMA_EVENT_DESTROY_SRQ,
+	MAX_RDMA_EVENT_OPCODE
+};
+
+/* RDMA FW return code for slow path ramrods */
+enum rdma_fw_return_code {
+	RDMA_RETURN_OK = 0,
+	RDMA_RETURN_REGISTER_MR_BAD_STATE_ERR,
+	RDMA_RETURN_DEREGISTER_MR_BAD_STATE_ERR,
+	RDMA_RETURN_RESIZE_CQ_ERR,
+	RDMA_RETURN_NIG_DRAIN_REQ,
+	MAX_RDMA_FW_RETURN_CODE
+};
+
+/* rdma function init header */
+struct rdma_init_func_hdr {
+	u8 cnq_start_offset;
+	u8 num_cnqs;
+	u8 cq_ring_mode;
+	u8 vf_id;
+	u8 vf_valid;
+	u8 reserved[3];
+};
+
+/* rdma function init ramrod data */
+struct rdma_init_func_ramrod_data {
+	struct rdma_init_func_hdr params_header;
+	struct rdma_cnq_params cnq_params[NUM_OF_GLOBAL_QUEUES];
+};
+
+/* RDMA ramrod command IDs */
+enum rdma_ramrod_cmd_id {
+	RDMA_RAMROD_UNUSED,
+	RDMA_RAMROD_FUNC_INIT,
+	RDMA_RAMROD_FUNC_CLOSE,
+	RDMA_RAMROD_REGISTER_MR,
+	RDMA_RAMROD_DEREGISTER_MR,
+	RDMA_RAMROD_CREATE_CQ,
+	RDMA_RAMROD_RESIZE_CQ,
+	RDMA_RAMROD_DESTROY_CQ,
+	RDMA_RAMROD_CREATE_SRQ,
+	RDMA_RAMROD_MODIFY_SRQ,
+	RDMA_RAMROD_DESTROY_SRQ,
+	MAX_RDMA_RAMROD_CMD_ID
+};
+
+/* rdma register tid ramrod data */
+struct rdma_register_tid_ramrod_data {
+	__le16 flags;
+#define RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG_MASK	0x1F
+#define RDMA_REGISTER_TID_RAMROD_DATA_PAGE_SIZE_LOG_SHIFT	0
+#define RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL_MASK	0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_TWO_LEVEL_PBL_SHIFT	5
+#define RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED_MASK		0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_ZERO_BASED_SHIFT		6
+#define RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR_MASK		0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_PHY_MR_SHIFT		7
+#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ_MASK		0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_READ_SHIFT		8
+#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE_MASK		0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_WRITE_SHIFT	9
+#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC_MASK	0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_REMOTE_ATOMIC_SHIFT	10
+#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE_MASK		0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_WRITE_SHIFT		11
+#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ_MASK		0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_LOCAL_READ_SHIFT		12
+#define RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND_MASK	0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_ENABLE_MW_BIND_SHIFT	13
+#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED_MASK		0x3
+#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED_SHIFT		14
+	u8 flags1;
+#define RDMA_REGISTER_TID_RAMROD_DATA_PBL_PAGE_SIZE_LOG_MASK	0x1F
+#define RDMA_REGISTER_TID_RAMROD_DATA_PBL_PAGE_SIZE_LOG_SHIFT	0
+#define RDMA_REGISTER_TID_RAMROD_DATA_TID_TYPE_MASK		0x7
+#define RDMA_REGISTER_TID_RAMROD_DATA_TID_TYPE_SHIFT		5
+	u8 flags2;
+#define RDMA_REGISTER_TID_RAMROD_DATA_DMA_MR_MASK		0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_DMA_MR_SHIFT		0
+#define RDMA_REGISTER_TID_RAMROD_DATA_DIF_ON_HOST_FLG_MASK	0x1
+#define RDMA_REGISTER_TID_RAMROD_DATA_DIF_ON_HOST_FLG_SHIFT	1
+#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED1_MASK		0x3F
+#define RDMA_REGISTER_TID_RAMROD_DATA_RESERVED1_SHIFT		2
+	u8 key;
+	u8 length_hi;
+	u8 vf_id;
+	u8 vf_valid;
+	__le16 pd;
+	__le16 reserved2;
+	__le32 length_lo;
+	__le32 itid;
+	__le32 reserved3;
+	struct regpair va;
+	struct regpair pbl_base;
+	struct regpair dif_error_addr;
+	struct regpair dif_runt_addr;
+	__le32 reserved4[2];
+};
+
+/* rdma resize cq output params */
+struct rdma_resize_cq_output_params {
+	__le32 old_cq_cons;
+	__le32 old_cq_prod;
+};
+
+/* rdma resize cq ramrod data */
+struct rdma_resize_cq_ramrod_data {
+	u8 flags;
+#define RDMA_RESIZE_CQ_RAMROD_DATA_TOGGLE_BIT_MASK		0x1
+#define RDMA_RESIZE_CQ_RAMROD_DATA_TOGGLE_BIT_SHIFT		0
+#define RDMA_RESIZE_CQ_RAMROD_DATA_IS_TWO_LEVEL_PBL_MASK	0x1
+#define RDMA_RESIZE_CQ_RAMROD_DATA_IS_TWO_LEVEL_PBL_SHIFT	1
+#define RDMA_RESIZE_CQ_RAMROD_DATA_RESERVED_MASK		0x3F
+#define RDMA_RESIZE_CQ_RAMROD_DATA_RESERVED_SHIFT		2
+	u8 pbl_log_page_size;
+	__le16 pbl_num_pages;
+	__le32 max_cqes;
+	struct regpair pbl_addr;
+	struct regpair output_params_addr;
+};
+
+/* The rdma storm context of Mstorm */
+struct rdma_srq_context {
+	struct regpair temp[8];
+};
+
+/* rdma create qp requester ramrod data */
+struct rdma_srq_create_ramrod_data {
+	struct regpair pbl_base_addr;
+	__le16 pages_in_srq_pbl;
+	__le16 pd_id;
+	struct rdma_srq_id srq_id;
+	__le16 page_size;
+	__le16 reserved1;
+	__le32 reserved2;
+	struct regpair producers_addr;
+};
+
+/* rdma create qp requester ramrod data */
+struct rdma_srq_destroy_ramrod_data {
+	struct rdma_srq_id srq_id;
+	__le32 reserved;
+};
+
+/* rdma create qp requester ramrod data */
+struct rdma_srq_modify_ramrod_data {
+	struct rdma_srq_id srq_id;
+	__le32 wqe_limit;
+};
+
+/* RDMA Tid type enumeration (for register_tid ramrod) */
 enum rdma_tid_type {
 	RDMA_TID_REGISTERED_MR,
 	RDMA_TID_FMR,
@@ -6560,210 +6775,210 @@ struct xstorm_roce_conn_ag_ctx_dq_ext_ld_part {
 	u8 reserved0;
 	u8 state;
 	u8 flags0;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_EXIST_IN_QM0_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_EXIST_IN_QM0_SHIFT     0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT1_MASK              0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT1_SHIFT             1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT2_MASK              0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT2_SHIFT             2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_EXIST_IN_QM3_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_EXIST_IN_QM3_SHIFT     3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT4_MASK              0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT4_SHIFT             4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT5_MASK              0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT5_SHIFT             5
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT6_MASK              0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT6_SHIFT             6
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT7_MASK              0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT7_SHIFT             7
+#define XSTORMROCECONNAGCTXDQEXTLDPART_EXIST_IN_QM0_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_EXIST_IN_QM0_SHIFT	0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT1_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT1_SHIFT		1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT2_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT2_SHIFT		2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_EXIST_IN_QM3_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_EXIST_IN_QM3_SHIFT	3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT4_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT4_SHIFT		4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT5_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT5_SHIFT		5
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT6_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT6_SHIFT		6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT7_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT7_SHIFT		7
 	u8 flags1;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT8_MASK              0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT8_SHIFT             0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT9_MASK              0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT9_SHIFT             1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT10_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT10_SHIFT            2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT11_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT11_SHIFT            3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT12_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT12_SHIFT            4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_MSTORM_FLUSH_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_MSTORM_FLUSH_SHIFT     5
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT14_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT14_SHIFT            6
-#define XSTORMROCECONNAGCTXDQEXTLDPART_YSTORM_FLUSH_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_YSTORM_FLUSH_SHIFT     7
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT8_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT8_SHIFT		0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT9_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT9_SHIFT		1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT10_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT10_SHIFT		2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT11_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT11_SHIFT		3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT12_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT12_SHIFT		4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_MSTORM_FLUSH_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_MSTORM_FLUSH_SHIFT	5
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT14_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT14_SHIFT		6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_YSTORM_FLUSH_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_YSTORM_FLUSH_SHIFT	7
 	u8 flags2;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF0_MASK               0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF0_SHIFT              0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF1_MASK               0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF1_SHIFT              2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF2_MASK               0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF2_SHIFT              4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF3_MASK               0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF3_SHIFT              6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF0_MASK		0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF0_SHIFT	0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF1_MASK		0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF1_SHIFT	2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF2_MASK		0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF2_SHIFT	4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF3_MASK		0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF3_SHIFT	6
 	u8 flags3;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF4_MASK               0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF4_SHIFT              0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF5_MASK               0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF5_SHIFT              2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF6_MASK               0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF6_SHIFT              4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_FLUSH_Q0_CF_MASK       0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_FLUSH_Q0_CF_SHIFT      6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF4_MASK			0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF4_SHIFT		0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF5_MASK			0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF5_SHIFT		2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF6_MASK			0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF6_SHIFT		4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_FLUSH_Q0_CF_MASK		0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_FLUSH_Q0_CF_SHIFT	6
 	u8 flags4;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF8_MASK               0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF8_SHIFT              0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF9_MASK               0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF9_SHIFT              2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF10_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF10_SHIFT             4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF11_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF11_SHIFT             6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF8_MASK		0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF8_SHIFT	0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF9_MASK		0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF9_SHIFT	2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF10_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF10_SHIFT	4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF11_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF11_SHIFT	6
 	u8 flags5;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF12_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF12_SHIFT             0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF13_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF13_SHIFT             2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF14_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF14_SHIFT             4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF15_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF15_SHIFT             6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF12_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF12_SHIFT	0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF13_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF13_SHIFT	2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF14_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF14_SHIFT	4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF15_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF15_SHIFT	6
 	u8 flags6;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF16_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF16_SHIFT             0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF17_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF17_SHIFT             2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF18_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF18_SHIFT             4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF19_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF19_SHIFT             6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF16_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF16_SHIFT	0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF17_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF17_SHIFT	2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF18_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF18_SHIFT	4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF19_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF19_SHIFT	6
 	u8 flags7;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF20_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF20_SHIFT             0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF21_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF21_SHIFT             2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_SLOW_PATH_MASK         0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_SLOW_PATH_SHIFT        4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF0EN_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF0EN_SHIFT            6
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF1EN_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF1EN_SHIFT            7
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF20_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF20_SHIFT	0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF21_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF21_SHIFT	2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_SLOW_PATH_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_SLOW_PATH_SHIFT	4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF0EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF0EN_SHIFT	6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF1EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF1EN_SHIFT	7
 	u8 flags8;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF2EN_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF2EN_SHIFT            0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF3EN_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF3EN_SHIFT            1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF4EN_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF4EN_SHIFT            2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF5EN_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF5EN_SHIFT            3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF6EN_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF6EN_SHIFT            4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_FLUSH_Q0_CF_EN_MASK    0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_FLUSH_Q0_CF_EN_SHIFT   5
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF8EN_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF8EN_SHIFT            6
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF9EN_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF9EN_SHIFT            7
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF2EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF2EN_SHIFT		0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF3EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF3EN_SHIFT		1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF4EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF4EN_SHIFT		2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF5EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF5EN_SHIFT		3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF6EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF6EN_SHIFT		4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_FLUSH_Q0_CF_EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_FLUSH_Q0_CF_EN_SHIFT	5
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF8EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF8EN_SHIFT		6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF9EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF9EN_SHIFT		7
 	u8 flags9;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF10EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF10EN_SHIFT           0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF11EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF11EN_SHIFT           1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF12EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF12EN_SHIFT           2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF13EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF13EN_SHIFT           3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF14EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF14EN_SHIFT           4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF15EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF15EN_SHIFT           5
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF16EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF16EN_SHIFT           6
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF17EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF17EN_SHIFT           7
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF10EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF10EN_SHIFT	0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF11EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF11EN_SHIFT	1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF12EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF12EN_SHIFT	2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF13EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF13EN_SHIFT	3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF14EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF14EN_SHIFT	4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF15EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF15EN_SHIFT	5
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF16EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF16EN_SHIFT	6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF17EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF17EN_SHIFT	7
 	u8 flags10;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF18EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF18EN_SHIFT           0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF19EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF19EN_SHIFT           1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF20EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF20EN_SHIFT           2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF21EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF21EN_SHIFT           3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_SLOW_PATH_EN_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_SLOW_PATH_EN_SHIFT     4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF23EN_MASK            0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF23EN_SHIFT           5
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE0EN_MASK           0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE0EN_SHIFT          6
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE1EN_MASK           0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE1EN_SHIFT          7
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF18EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF18EN_SHIFT		0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF19EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF19EN_SHIFT		1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF20EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF20EN_SHIFT		2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF21EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF21EN_SHIFT		3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_SLOW_PATH_EN_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_SLOW_PATH_EN_SHIFT	4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF23EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF23EN_SHIFT		5
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE0EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE0EN_SHIFT		6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE1EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE1EN_SHIFT		7
 	u8 flags11;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE2EN_MASK           0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE2EN_SHIFT          0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE3EN_MASK           0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE3EN_SHIFT          1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE4EN_MASK           0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE4EN_SHIFT          2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE5EN_MASK           0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE5EN_SHIFT          3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE6EN_MASK           0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE6EN_SHIFT          4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE7EN_MASK           0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE7EN_SHIFT          5
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED1_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED1_SHIFT     6
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE9EN_MASK           0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE9EN_SHIFT          7
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE2EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE2EN_SHIFT		0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE3EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE3EN_SHIFT		1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE4EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE4EN_SHIFT		2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE5EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE5EN_SHIFT		3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE6EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE6EN_SHIFT		4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE7EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE7EN_SHIFT		5
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED1_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED1_SHIFT	6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE9EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE9EN_SHIFT		7
 	u8 flags12;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE10EN_MASK          0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE10EN_SHIFT         0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE11EN_MASK          0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE11EN_SHIFT         1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED2_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED2_SHIFT     2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED3_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED3_SHIFT     3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE14EN_MASK          0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE14EN_SHIFT         4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE15EN_MASK          0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE15EN_SHIFT         5
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE16EN_MASK          0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE16EN_SHIFT         6
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE17EN_MASK          0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE17EN_SHIFT         7
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE10EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE10EN_SHIFT		0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE11EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE11EN_SHIFT		1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED2_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED2_SHIFT	2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED3_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED3_SHIFT	3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE14EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE14EN_SHIFT		4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE15EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE15EN_SHIFT		5
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE16EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE16EN_SHIFT		6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE17EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE17EN_SHIFT		7
 	u8 flags13;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE18EN_MASK          0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE18EN_SHIFT         0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE19EN_MASK          0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE19EN_SHIFT         1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED4_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED4_SHIFT     2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED5_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED5_SHIFT     3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED6_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED6_SHIFT     4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED7_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED7_SHIFT     5
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED8_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED8_SHIFT     6
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED9_MASK      0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED9_SHIFT     7
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE18EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE18EN_SHIFT		0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE19EN_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RULE19EN_SHIFT		1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED4_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED4_SHIFT	2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED5_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED5_SHIFT	3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED6_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED6_SHIFT	4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED7_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED7_SHIFT	5
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED8_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED8_SHIFT	6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED9_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_A0_RESERVED9_SHIFT	7
 	u8 flags14;
-#define XSTORMROCECONNAGCTXDQEXTLDPART_MIGRATION_MASK         0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_MIGRATION_SHIFT        0
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT17_MASK             0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT17_SHIFT            1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_DPM_PORT_NUM_MASK      0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_DPM_PORT_NUM_SHIFT     2
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RESERVED_MASK          0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_RESERVED_SHIFT         4
-#define XSTORMROCECONNAGCTXDQEXTLDPART_ROCE_EDPM_ENABLE_MASK  0x1
-#define XSTORMROCECONNAGCTXDQEXTLDPART_ROCE_EDPM_ENABLE_SHIFT 5
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF23_MASK              0x3
-#define XSTORMROCECONNAGCTXDQEXTLDPART_CF23_SHIFT             6
+#define XSTORMROCECONNAGCTXDQEXTLDPART_MIGRATION_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_MIGRATION_SHIFT		0
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT17_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_BIT17_SHIFT		1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_DPM_PORT_NUM_MASK	0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_DPM_PORT_NUM_SHIFT	2
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RESERVED_MASK		0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_RESERVED_SHIFT		4
+#define XSTORMROCECONNAGCTXDQEXTLDPART_ROCE_EDPM_ENABLE_MASK	0x1
+#define XSTORMROCECONNAGCTXDQEXTLDPART_ROCE_EDPM_ENABLE_SHIFT	5
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF23_MASK		0x3
+#define XSTORMROCECONNAGCTXDQEXTLDPART_CF23_SHIFT		6
 	u8 byte2;
 	__le16 physical_q0;
 	__le16 word1;
@@ -6787,33 +7002,33 @@ struct mstorm_rdma_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define MSTORM_RDMA_CONN_AG_CTX_BIT0_MASK     0x1
-#define MSTORM_RDMA_CONN_AG_CTX_BIT0_SHIFT    0
-#define MSTORM_RDMA_CONN_AG_CTX_BIT1_MASK     0x1
-#define MSTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT    1
-#define MSTORM_RDMA_CONN_AG_CTX_CF0_MASK      0x3
-#define MSTORM_RDMA_CONN_AG_CTX_CF0_SHIFT     2
-#define MSTORM_RDMA_CONN_AG_CTX_CF1_MASK      0x3
-#define MSTORM_RDMA_CONN_AG_CTX_CF1_SHIFT     4
-#define MSTORM_RDMA_CONN_AG_CTX_CF2_MASK      0x3
-#define MSTORM_RDMA_CONN_AG_CTX_CF2_SHIFT     6
+#define MSTORM_RDMA_CONN_AG_CTX_BIT0_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_BIT0_SHIFT	0
+#define MSTORM_RDMA_CONN_AG_CTX_BIT1_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT	1
+#define MSTORM_RDMA_CONN_AG_CTX_CF0_MASK	0x3
+#define MSTORM_RDMA_CONN_AG_CTX_CF0_SHIFT	2
+#define MSTORM_RDMA_CONN_AG_CTX_CF1_MASK	0x3
+#define MSTORM_RDMA_CONN_AG_CTX_CF1_SHIFT	4
+#define MSTORM_RDMA_CONN_AG_CTX_CF2_MASK	0x3
+#define MSTORM_RDMA_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define MSTORM_RDMA_CONN_AG_CTX_CF0EN_MASK    0x1
-#define MSTORM_RDMA_CONN_AG_CTX_CF0EN_SHIFT   0
-#define MSTORM_RDMA_CONN_AG_CTX_CF1EN_MASK    0x1
-#define MSTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT   1
-#define MSTORM_RDMA_CONN_AG_CTX_CF2EN_MASK    0x1
-#define MSTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT   2
-#define MSTORM_RDMA_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define MSTORM_RDMA_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define MSTORM_RDMA_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define MSTORM_RDMA_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define MSTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define MSTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define MSTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define MSTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define MSTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define MSTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define MSTORM_RDMA_CONN_AG_CTX_CF0EN_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_CF0EN_SHIFT	0
+#define MSTORM_RDMA_CONN_AG_CTX_CF1EN_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT	1
+#define MSTORM_RDMA_CONN_AG_CTX_CF2EN_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT	2
+#define MSTORM_RDMA_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define MSTORM_RDMA_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define MSTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define MSTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define MSTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define MSTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT	7
 	__le16 word0;
 	__le16 word1;
 	__le32 reg0;
@@ -6824,85 +7039,85 @@ struct tstorm_rdma_conn_ag_ctx {
 	u8 reserved0;
 	u8 byte1;
 	u8 flags0;
-#define TSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_MASK          0x1
-#define TSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_SHIFT         0
-#define TSTORM_RDMA_CONN_AG_CTX_BIT1_MASK                  0x1
-#define TSTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT                 1
-#define TSTORM_RDMA_CONN_AG_CTX_BIT2_MASK                  0x1
-#define TSTORM_RDMA_CONN_AG_CTX_BIT2_SHIFT                 2
-#define TSTORM_RDMA_CONN_AG_CTX_BIT3_MASK                  0x1
-#define TSTORM_RDMA_CONN_AG_CTX_BIT3_SHIFT                 3
-#define TSTORM_RDMA_CONN_AG_CTX_BIT4_MASK                  0x1
-#define TSTORM_RDMA_CONN_AG_CTX_BIT4_SHIFT                 4
-#define TSTORM_RDMA_CONN_AG_CTX_BIT5_MASK                  0x1
-#define TSTORM_RDMA_CONN_AG_CTX_BIT5_SHIFT                 5
-#define TSTORM_RDMA_CONN_AG_CTX_CF0_MASK                   0x3
-#define TSTORM_RDMA_CONN_AG_CTX_CF0_SHIFT                  6
+#define TSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define TSTORM_RDMA_CONN_AG_CTX_BIT1_MASK		0x1
+#define TSTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT		1
+#define TSTORM_RDMA_CONN_AG_CTX_BIT2_MASK		0x1
+#define TSTORM_RDMA_CONN_AG_CTX_BIT2_SHIFT		2
+#define TSTORM_RDMA_CONN_AG_CTX_BIT3_MASK		0x1
+#define TSTORM_RDMA_CONN_AG_CTX_BIT3_SHIFT		3
+#define TSTORM_RDMA_CONN_AG_CTX_BIT4_MASK		0x1
+#define TSTORM_RDMA_CONN_AG_CTX_BIT4_SHIFT		4
+#define TSTORM_RDMA_CONN_AG_CTX_BIT5_MASK		0x1
+#define TSTORM_RDMA_CONN_AG_CTX_BIT5_SHIFT		5
+#define TSTORM_RDMA_CONN_AG_CTX_CF0_MASK		0x3
+#define TSTORM_RDMA_CONN_AG_CTX_CF0_SHIFT		6
 	u8 flags1;
-#define TSTORM_RDMA_CONN_AG_CTX_CF1_MASK                   0x3
-#define TSTORM_RDMA_CONN_AG_CTX_CF1_SHIFT                  0
-#define TSTORM_RDMA_CONN_AG_CTX_CF2_MASK                   0x3
-#define TSTORM_RDMA_CONN_AG_CTX_CF2_SHIFT                  2
-#define TSTORM_RDMA_CONN_AG_CTX_TIMER_STOP_ALL_CF_MASK     0x3
-#define TSTORM_RDMA_CONN_AG_CTX_TIMER_STOP_ALL_CF_SHIFT    4
-#define TSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_MASK           0x3
-#define TSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT          6
+#define TSTORM_RDMA_CONN_AG_CTX_CF1_MASK		0x3
+#define TSTORM_RDMA_CONN_AG_CTX_CF1_SHIFT		0
+#define TSTORM_RDMA_CONN_AG_CTX_CF2_MASK		0x3
+#define TSTORM_RDMA_CONN_AG_CTX_CF2_SHIFT		2
+#define TSTORM_RDMA_CONN_AG_CTX_TIMER_STOP_ALL_CF_MASK	0x3
+#define TSTORM_RDMA_CONN_AG_CTX_TIMER_STOP_ALL_CF_SHIFT	4
+#define TSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_MASK	0x3
+#define TSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT	6
 	u8 flags2;
-#define TSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_CF_MASK       0x3
-#define TSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_CF_SHIFT      0
-#define TSTORM_RDMA_CONN_AG_CTX_CF6_MASK                   0x3
-#define TSTORM_RDMA_CONN_AG_CTX_CF6_SHIFT                  2
-#define TSTORM_RDMA_CONN_AG_CTX_CF7_MASK                   0x3
-#define TSTORM_RDMA_CONN_AG_CTX_CF7_SHIFT                  4
-#define TSTORM_RDMA_CONN_AG_CTX_CF8_MASK                   0x3
-#define TSTORM_RDMA_CONN_AG_CTX_CF8_SHIFT                  6
+#define TSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_CF_MASK	0x3
+#define TSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_CF_SHIFT	0
+#define TSTORM_RDMA_CONN_AG_CTX_CF6_MASK		0x3
+#define TSTORM_RDMA_CONN_AG_CTX_CF6_SHIFT		2
+#define TSTORM_RDMA_CONN_AG_CTX_CF7_MASK		0x3
+#define TSTORM_RDMA_CONN_AG_CTX_CF7_SHIFT		4
+#define TSTORM_RDMA_CONN_AG_CTX_CF8_MASK		0x3
+#define TSTORM_RDMA_CONN_AG_CTX_CF8_SHIFT		6
 	u8 flags3;
-#define TSTORM_RDMA_CONN_AG_CTX_CF9_MASK                   0x3
-#define TSTORM_RDMA_CONN_AG_CTX_CF9_SHIFT                  0
-#define TSTORM_RDMA_CONN_AG_CTX_CF10_MASK                  0x3
-#define TSTORM_RDMA_CONN_AG_CTX_CF10_SHIFT                 2
-#define TSTORM_RDMA_CONN_AG_CTX_CF0EN_MASK                 0x1
-#define TSTORM_RDMA_CONN_AG_CTX_CF0EN_SHIFT                4
-#define TSTORM_RDMA_CONN_AG_CTX_CF1EN_MASK                 0x1
-#define TSTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT                5
-#define TSTORM_RDMA_CONN_AG_CTX_CF2EN_MASK                 0x1
-#define TSTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT                6
-#define TSTORM_RDMA_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_MASK  0x1
-#define TSTORM_RDMA_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_SHIFT 7
+#define TSTORM_RDMA_CONN_AG_CTX_CF9_MASK			0x3
+#define TSTORM_RDMA_CONN_AG_CTX_CF9_SHIFT			0
+#define TSTORM_RDMA_CONN_AG_CTX_CF10_MASK			0x3
+#define TSTORM_RDMA_CONN_AG_CTX_CF10_SHIFT			2
+#define TSTORM_RDMA_CONN_AG_CTX_CF0EN_MASK			0x1
+#define TSTORM_RDMA_CONN_AG_CTX_CF0EN_SHIFT			4
+#define TSTORM_RDMA_CONN_AG_CTX_CF1EN_MASK			0x1
+#define TSTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT			5
+#define TSTORM_RDMA_CONN_AG_CTX_CF2EN_MASK			0x1
+#define TSTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT			6
+#define TSTORM_RDMA_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_SHIFT	7
 	u8 flags4;
-#define TSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK        0x1
-#define TSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT       0
-#define TSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_MASK    0x1
-#define TSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_SHIFT   1
-#define TSTORM_RDMA_CONN_AG_CTX_CF6EN_MASK                 0x1
-#define TSTORM_RDMA_CONN_AG_CTX_CF6EN_SHIFT                2
-#define TSTORM_RDMA_CONN_AG_CTX_CF7EN_MASK                 0x1
-#define TSTORM_RDMA_CONN_AG_CTX_CF7EN_SHIFT                3
-#define TSTORM_RDMA_CONN_AG_CTX_CF8EN_MASK                 0x1
-#define TSTORM_RDMA_CONN_AG_CTX_CF8EN_SHIFT                4
-#define TSTORM_RDMA_CONN_AG_CTX_CF9EN_MASK                 0x1
-#define TSTORM_RDMA_CONN_AG_CTX_CF9EN_SHIFT                5
-#define TSTORM_RDMA_CONN_AG_CTX_CF10EN_MASK                0x1
-#define TSTORM_RDMA_CONN_AG_CTX_CF10EN_SHIFT               6
-#define TSTORM_RDMA_CONN_AG_CTX_RULE0EN_MASK               0x1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE0EN_SHIFT              7
+#define TSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK		0x1
+#define TSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT		0
+#define TSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_MASK		0x1
+#define TSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_SHIFT	1
+#define TSTORM_RDMA_CONN_AG_CTX_CF6EN_MASK			0x1
+#define TSTORM_RDMA_CONN_AG_CTX_CF6EN_SHIFT			2
+#define TSTORM_RDMA_CONN_AG_CTX_CF7EN_MASK			0x1
+#define TSTORM_RDMA_CONN_AG_CTX_CF7EN_SHIFT			3
+#define TSTORM_RDMA_CONN_AG_CTX_CF8EN_MASK			0x1
+#define TSTORM_RDMA_CONN_AG_CTX_CF8EN_SHIFT			4
+#define TSTORM_RDMA_CONN_AG_CTX_CF9EN_MASK			0x1
+#define TSTORM_RDMA_CONN_AG_CTX_CF9EN_SHIFT			5
+#define TSTORM_RDMA_CONN_AG_CTX_CF10EN_MASK			0x1
+#define TSTORM_RDMA_CONN_AG_CTX_CF10EN_SHIFT			6
+#define TSTORM_RDMA_CONN_AG_CTX_RULE0EN_MASK			0x1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE0EN_SHIFT			7
 	u8 flags5;
-#define TSTORM_RDMA_CONN_AG_CTX_RULE1EN_MASK               0x1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE1EN_SHIFT              0
-#define TSTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK               0x1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT              1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK               0x1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT              2
-#define TSTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK               0x1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT              3
-#define TSTORM_RDMA_CONN_AG_CTX_RULE5EN_MASK               0x1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE5EN_SHIFT              4
-#define TSTORM_RDMA_CONN_AG_CTX_RULE6EN_MASK               0x1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE6EN_SHIFT              5
-#define TSTORM_RDMA_CONN_AG_CTX_RULE7EN_MASK               0x1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE7EN_SHIFT              6
-#define TSTORM_RDMA_CONN_AG_CTX_RULE8EN_MASK               0x1
-#define TSTORM_RDMA_CONN_AG_CTX_RULE8EN_SHIFT              7
+#define TSTORM_RDMA_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define TSTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define TSTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define TSTORM_RDMA_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define TSTORM_RDMA_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define TSTORM_RDMA_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define TSTORM_RDMA_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define TSTORM_RDMA_CONN_AG_CTX_RULE8EN_SHIFT	7
 	__le32 reg0;
 	__le32 reg1;
 	__le32 reg2;
@@ -6929,68 +7144,68 @@ struct tstorm_rdma_task_ag_ctx {
 	u8 byte1;
 	__le16 word0;
 	u8 flags0;
-#define TSTORM_RDMA_TASK_AG_CTX_NIBBLE0_MASK  0xF
-#define TSTORM_RDMA_TASK_AG_CTX_NIBBLE0_SHIFT 0
-#define TSTORM_RDMA_TASK_AG_CTX_BIT0_MASK     0x1
-#define TSTORM_RDMA_TASK_AG_CTX_BIT0_SHIFT    4
-#define TSTORM_RDMA_TASK_AG_CTX_BIT1_MASK     0x1
-#define TSTORM_RDMA_TASK_AG_CTX_BIT1_SHIFT    5
-#define TSTORM_RDMA_TASK_AG_CTX_BIT2_MASK     0x1
-#define TSTORM_RDMA_TASK_AG_CTX_BIT2_SHIFT    6
-#define TSTORM_RDMA_TASK_AG_CTX_BIT3_MASK     0x1
-#define TSTORM_RDMA_TASK_AG_CTX_BIT3_SHIFT    7
+#define TSTORM_RDMA_TASK_AG_CTX_NIBBLE0_MASK	0xF
+#define TSTORM_RDMA_TASK_AG_CTX_NIBBLE0_SHIFT	0
+#define TSTORM_RDMA_TASK_AG_CTX_BIT0_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_BIT0_SHIFT	4
+#define TSTORM_RDMA_TASK_AG_CTX_BIT1_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_BIT1_SHIFT	5
+#define TSTORM_RDMA_TASK_AG_CTX_BIT2_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_BIT2_SHIFT	6
+#define TSTORM_RDMA_TASK_AG_CTX_BIT3_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_BIT3_SHIFT	7
 	u8 flags1;
-#define TSTORM_RDMA_TASK_AG_CTX_BIT4_MASK     0x1
-#define TSTORM_RDMA_TASK_AG_CTX_BIT4_SHIFT    0
-#define TSTORM_RDMA_TASK_AG_CTX_BIT5_MASK     0x1
-#define TSTORM_RDMA_TASK_AG_CTX_BIT5_SHIFT    1
-#define TSTORM_RDMA_TASK_AG_CTX_CF0_MASK      0x3
-#define TSTORM_RDMA_TASK_AG_CTX_CF0_SHIFT     2
-#define TSTORM_RDMA_TASK_AG_CTX_CF1_MASK      0x3
-#define TSTORM_RDMA_TASK_AG_CTX_CF1_SHIFT     4
-#define TSTORM_RDMA_TASK_AG_CTX_CF2_MASK      0x3
-#define TSTORM_RDMA_TASK_AG_CTX_CF2_SHIFT     6
+#define TSTORM_RDMA_TASK_AG_CTX_BIT4_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_BIT4_SHIFT	0
+#define TSTORM_RDMA_TASK_AG_CTX_BIT5_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_BIT5_SHIFT	1
+#define TSTORM_RDMA_TASK_AG_CTX_CF0_MASK	0x3
+#define TSTORM_RDMA_TASK_AG_CTX_CF0_SHIFT	2
+#define TSTORM_RDMA_TASK_AG_CTX_CF1_MASK	0x3
+#define TSTORM_RDMA_TASK_AG_CTX_CF1_SHIFT	4
+#define TSTORM_RDMA_TASK_AG_CTX_CF2_MASK	0x3
+#define TSTORM_RDMA_TASK_AG_CTX_CF2_SHIFT	6
 	u8 flags2;
-#define TSTORM_RDMA_TASK_AG_CTX_CF3_MASK      0x3
-#define TSTORM_RDMA_TASK_AG_CTX_CF3_SHIFT     0
-#define TSTORM_RDMA_TASK_AG_CTX_CF4_MASK      0x3
-#define TSTORM_RDMA_TASK_AG_CTX_CF4_SHIFT     2
-#define TSTORM_RDMA_TASK_AG_CTX_CF5_MASK      0x3
-#define TSTORM_RDMA_TASK_AG_CTX_CF5_SHIFT     4
-#define TSTORM_RDMA_TASK_AG_CTX_CF6_MASK      0x3
-#define TSTORM_RDMA_TASK_AG_CTX_CF6_SHIFT     6
+#define TSTORM_RDMA_TASK_AG_CTX_CF3_MASK	0x3
+#define TSTORM_RDMA_TASK_AG_CTX_CF3_SHIFT	0
+#define TSTORM_RDMA_TASK_AG_CTX_CF4_MASK	0x3
+#define TSTORM_RDMA_TASK_AG_CTX_CF4_SHIFT	2
+#define TSTORM_RDMA_TASK_AG_CTX_CF5_MASK	0x3
+#define TSTORM_RDMA_TASK_AG_CTX_CF5_SHIFT	4
+#define TSTORM_RDMA_TASK_AG_CTX_CF6_MASK	0x3
+#define TSTORM_RDMA_TASK_AG_CTX_CF6_SHIFT	6
 	u8 flags3;
-#define TSTORM_RDMA_TASK_AG_CTX_CF7_MASK      0x3
-#define TSTORM_RDMA_TASK_AG_CTX_CF7_SHIFT     0
-#define TSTORM_RDMA_TASK_AG_CTX_CF0EN_MASK    0x1
-#define TSTORM_RDMA_TASK_AG_CTX_CF0EN_SHIFT   2
-#define TSTORM_RDMA_TASK_AG_CTX_CF1EN_MASK    0x1
-#define TSTORM_RDMA_TASK_AG_CTX_CF1EN_SHIFT   3
-#define TSTORM_RDMA_TASK_AG_CTX_CF2EN_MASK    0x1
-#define TSTORM_RDMA_TASK_AG_CTX_CF2EN_SHIFT   4
-#define TSTORM_RDMA_TASK_AG_CTX_CF3EN_MASK    0x1
-#define TSTORM_RDMA_TASK_AG_CTX_CF3EN_SHIFT   5
-#define TSTORM_RDMA_TASK_AG_CTX_CF4EN_MASK    0x1
-#define TSTORM_RDMA_TASK_AG_CTX_CF4EN_SHIFT   6
-#define TSTORM_RDMA_TASK_AG_CTX_CF5EN_MASK    0x1
-#define TSTORM_RDMA_TASK_AG_CTX_CF5EN_SHIFT   7
+#define TSTORM_RDMA_TASK_AG_CTX_CF7_MASK	0x3
+#define TSTORM_RDMA_TASK_AG_CTX_CF7_SHIFT	0
+#define TSTORM_RDMA_TASK_AG_CTX_CF0EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_CF0EN_SHIFT	2
+#define TSTORM_RDMA_TASK_AG_CTX_CF1EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_CF1EN_SHIFT	3
+#define TSTORM_RDMA_TASK_AG_CTX_CF2EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_CF2EN_SHIFT	4
+#define TSTORM_RDMA_TASK_AG_CTX_CF3EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_CF3EN_SHIFT	5
+#define TSTORM_RDMA_TASK_AG_CTX_CF4EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_CF4EN_SHIFT	6
+#define TSTORM_RDMA_TASK_AG_CTX_CF5EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_CF5EN_SHIFT	7
 	u8 flags4;
-#define TSTORM_RDMA_TASK_AG_CTX_CF6EN_MASK    0x1
-#define TSTORM_RDMA_TASK_AG_CTX_CF6EN_SHIFT   0
-#define TSTORM_RDMA_TASK_AG_CTX_CF7EN_MASK    0x1
-#define TSTORM_RDMA_TASK_AG_CTX_CF7EN_SHIFT   1
-#define TSTORM_RDMA_TASK_AG_CTX_RULE0EN_MASK  0x1
-#define TSTORM_RDMA_TASK_AG_CTX_RULE0EN_SHIFT 2
-#define TSTORM_RDMA_TASK_AG_CTX_RULE1EN_MASK  0x1
-#define TSTORM_RDMA_TASK_AG_CTX_RULE1EN_SHIFT 3
-#define TSTORM_RDMA_TASK_AG_CTX_RULE2EN_MASK  0x1
-#define TSTORM_RDMA_TASK_AG_CTX_RULE2EN_SHIFT 4
-#define TSTORM_RDMA_TASK_AG_CTX_RULE3EN_MASK  0x1
-#define TSTORM_RDMA_TASK_AG_CTX_RULE3EN_SHIFT 5
-#define TSTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK  0x1
-#define TSTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT 6
-#define TSTORM_RDMA_TASK_AG_CTX_RULE5EN_MASK  0x1
-#define TSTORM_RDMA_TASK_AG_CTX_RULE5EN_SHIFT 7
+#define TSTORM_RDMA_TASK_AG_CTX_CF6EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_CF6EN_SHIFT	0
+#define TSTORM_RDMA_TASK_AG_CTX_CF7EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_CF7EN_SHIFT	1
+#define TSTORM_RDMA_TASK_AG_CTX_RULE0EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_RULE0EN_SHIFT	2
+#define TSTORM_RDMA_TASK_AG_CTX_RULE1EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_RULE1EN_SHIFT	3
+#define TSTORM_RDMA_TASK_AG_CTX_RULE2EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_RULE2EN_SHIFT	4
+#define TSTORM_RDMA_TASK_AG_CTX_RULE3EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_RULE3EN_SHIFT	5
+#define TSTORM_RDMA_TASK_AG_CTX_RULE4EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_RULE4EN_SHIFT	6
+#define TSTORM_RDMA_TASK_AG_CTX_RULE5EN_MASK	0x1
+#define TSTORM_RDMA_TASK_AG_CTX_RULE5EN_SHIFT	7
 	u8 byte2;
 	__le16 word1;
 	__le32 reg0;
@@ -7007,59 +7222,59 @@ struct ustorm_rdma_conn_ag_ctx {
 	u8 reserved;
 	u8 byte1;
 	u8 flags0;
-#define USTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_MASK     0x1
-#define USTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_SHIFT    0
-#define USTORM_RDMA_CONN_AG_CTX_BIT1_MASK             0x1
-#define USTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT            1
-#define USTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_MASK      0x3
-#define USTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT     2
-#define USTORM_RDMA_CONN_AG_CTX_CF1_MASK              0x3
-#define USTORM_RDMA_CONN_AG_CTX_CF1_SHIFT             4
-#define USTORM_RDMA_CONN_AG_CTX_CF2_MASK              0x3
-#define USTORM_RDMA_CONN_AG_CTX_CF2_SHIFT             6
+#define USTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define USTORM_RDMA_CONN_AG_CTX_BIT1_MASK		0x1
+#define USTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT		1
+#define USTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_MASK	0x3
+#define USTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT	2
+#define USTORM_RDMA_CONN_AG_CTX_CF1_MASK		0x3
+#define USTORM_RDMA_CONN_AG_CTX_CF1_SHIFT		4
+#define USTORM_RDMA_CONN_AG_CTX_CF2_MASK		0x3
+#define USTORM_RDMA_CONN_AG_CTX_CF2_SHIFT		6
 	u8 flags1;
-#define USTORM_RDMA_CONN_AG_CTX_CF3_MASK              0x3
-#define USTORM_RDMA_CONN_AG_CTX_CF3_SHIFT             0
-#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_SE_CF_MASK     0x3
-#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_SE_CF_SHIFT    2
-#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_CF_MASK        0x3
-#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_CF_SHIFT       4
-#define USTORM_RDMA_CONN_AG_CTX_CF6_MASK              0x3
-#define USTORM_RDMA_CONN_AG_CTX_CF6_SHIFT             6
+#define USTORM_RDMA_CONN_AG_CTX_CF3_MASK		0x3
+#define USTORM_RDMA_CONN_AG_CTX_CF3_SHIFT		0
+#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_SE_CF_MASK	0x3
+#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_SE_CF_SHIFT	2
+#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_CF_MASK		0x3
+#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_CF_SHIFT		4
+#define USTORM_RDMA_CONN_AG_CTX_CF6_MASK		0x3
+#define USTORM_RDMA_CONN_AG_CTX_CF6_SHIFT		6
 	u8 flags2;
-#define USTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK   0x1
-#define USTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT  0
-#define USTORM_RDMA_CONN_AG_CTX_CF1EN_MASK            0x1
-#define USTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT           1
-#define USTORM_RDMA_CONN_AG_CTX_CF2EN_MASK            0x1
-#define USTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT           2
-#define USTORM_RDMA_CONN_AG_CTX_CF3EN_MASK            0x1
-#define USTORM_RDMA_CONN_AG_CTX_CF3EN_SHIFT           3
-#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_SE_CF_EN_MASK  0x1
-#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_SE_CF_EN_SHIFT 4
-#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_CF_EN_MASK     0x1
-#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_CF_EN_SHIFT    5
-#define USTORM_RDMA_CONN_AG_CTX_CF6EN_MASK            0x1
-#define USTORM_RDMA_CONN_AG_CTX_CF6EN_SHIFT           6
-#define USTORM_RDMA_CONN_AG_CTX_CQ_SE_EN_MASK         0x1
-#define USTORM_RDMA_CONN_AG_CTX_CQ_SE_EN_SHIFT        7
+#define USTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT	0
+#define USTORM_RDMA_CONN_AG_CTX_CF1EN_MASK		0x1
+#define USTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT		1
+#define USTORM_RDMA_CONN_AG_CTX_CF2EN_MASK		0x1
+#define USTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT		2
+#define USTORM_RDMA_CONN_AG_CTX_CF3EN_MASK		0x1
+#define USTORM_RDMA_CONN_AG_CTX_CF3EN_SHIFT		3
+#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_SE_CF_EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_SE_CF_EN_SHIFT	4
+#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_CF_EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_CQ_ARM_CF_EN_SHIFT	5
+#define USTORM_RDMA_CONN_AG_CTX_CF6EN_MASK		0x1
+#define USTORM_RDMA_CONN_AG_CTX_CF6EN_SHIFT		6
+#define USTORM_RDMA_CONN_AG_CTX_CQ_SE_EN_MASK		0x1
+#define USTORM_RDMA_CONN_AG_CTX_CQ_SE_EN_SHIFT		7
 	u8 flags3;
-#define USTORM_RDMA_CONN_AG_CTX_CQ_EN_MASK            0x1
-#define USTORM_RDMA_CONN_AG_CTX_CQ_EN_SHIFT           0
-#define USTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK          0x1
-#define USTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT         1
-#define USTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK          0x1
-#define USTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT         2
-#define USTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK          0x1
-#define USTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT         3
-#define USTORM_RDMA_CONN_AG_CTX_RULE5EN_MASK          0x1
-#define USTORM_RDMA_CONN_AG_CTX_RULE5EN_SHIFT         4
-#define USTORM_RDMA_CONN_AG_CTX_RULE6EN_MASK          0x1
-#define USTORM_RDMA_CONN_AG_CTX_RULE6EN_SHIFT         5
-#define USTORM_RDMA_CONN_AG_CTX_RULE7EN_MASK          0x1
-#define USTORM_RDMA_CONN_AG_CTX_RULE7EN_SHIFT         6
-#define USTORM_RDMA_CONN_AG_CTX_RULE8EN_MASK          0x1
-#define USTORM_RDMA_CONN_AG_CTX_RULE8EN_SHIFT         7
+#define USTORM_RDMA_CONN_AG_CTX_CQ_EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_CQ_EN_SHIFT	0
+#define USTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define USTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define USTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define USTORM_RDMA_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define USTORM_RDMA_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define USTORM_RDMA_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define USTORM_RDMA_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define USTORM_RDMA_CONN_AG_CTX_RULE8EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 conn_dpi;
@@ -7076,210 +7291,210 @@ struct xstorm_rdma_conn_ag_ctx {
 	u8 reserved0;
 	u8 state;
 	u8 flags0;
-#define XSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_SHIFT     0
-#define XSTORM_RDMA_CONN_AG_CTX_BIT1_MASK              0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT             1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT2_MASK              0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT2_SHIFT             2
-#define XSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM3_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM3_SHIFT     3
-#define XSTORM_RDMA_CONN_AG_CTX_BIT4_MASK              0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT4_SHIFT             4
-#define XSTORM_RDMA_CONN_AG_CTX_BIT5_MASK              0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT5_SHIFT             5
-#define XSTORM_RDMA_CONN_AG_CTX_BIT6_MASK              0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT6_SHIFT             6
-#define XSTORM_RDMA_CONN_AG_CTX_BIT7_MASK              0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT7_SHIFT             7
+#define XSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define XSTORM_RDMA_CONN_AG_CTX_BIT1_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT		1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT2_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT2_SHIFT		2
+#define XSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM3_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_EXIST_IN_QM3_SHIFT	3
+#define XSTORM_RDMA_CONN_AG_CTX_BIT4_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT4_SHIFT		4
+#define XSTORM_RDMA_CONN_AG_CTX_BIT5_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT5_SHIFT		5
+#define XSTORM_RDMA_CONN_AG_CTX_BIT6_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT6_SHIFT		6
+#define XSTORM_RDMA_CONN_AG_CTX_BIT7_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT7_SHIFT		7
 	u8 flags1;
-#define XSTORM_RDMA_CONN_AG_CTX_BIT8_MASK              0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT8_SHIFT             0
-#define XSTORM_RDMA_CONN_AG_CTX_BIT9_MASK              0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT9_SHIFT             1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT10_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT10_SHIFT            2
-#define XSTORM_RDMA_CONN_AG_CTX_BIT11_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT11_SHIFT            3
-#define XSTORM_RDMA_CONN_AG_CTX_BIT12_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT12_SHIFT            4
-#define XSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_SHIFT     5
-#define XSTORM_RDMA_CONN_AG_CTX_BIT14_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT14_SHIFT            6
-#define XSTORM_RDMA_CONN_AG_CTX_YSTORM_FLUSH_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_YSTORM_FLUSH_SHIFT     7
+#define XSTORM_RDMA_CONN_AG_CTX_BIT8_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT8_SHIFT		0
+#define XSTORM_RDMA_CONN_AG_CTX_BIT9_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT9_SHIFT		1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT10_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT10_SHIFT		2
+#define XSTORM_RDMA_CONN_AG_CTX_BIT11_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT11_SHIFT		3
+#define XSTORM_RDMA_CONN_AG_CTX_BIT12_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT12_SHIFT		4
+#define XSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_MSTORM_FLUSH_SHIFT	5
+#define XSTORM_RDMA_CONN_AG_CTX_BIT14_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT14_SHIFT		6
+#define XSTORM_RDMA_CONN_AG_CTX_YSTORM_FLUSH_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_YSTORM_FLUSH_SHIFT	7
 	u8 flags2;
-#define XSTORM_RDMA_CONN_AG_CTX_CF0_MASK               0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF0_SHIFT              0
-#define XSTORM_RDMA_CONN_AG_CTX_CF1_MASK               0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF1_SHIFT              2
-#define XSTORM_RDMA_CONN_AG_CTX_CF2_MASK               0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF2_SHIFT              4
-#define XSTORM_RDMA_CONN_AG_CTX_CF3_MASK               0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF3_SHIFT              6
+#define XSTORM_RDMA_CONN_AG_CTX_CF0_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF0_SHIFT	0
+#define XSTORM_RDMA_CONN_AG_CTX_CF1_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF1_SHIFT	2
+#define XSTORM_RDMA_CONN_AG_CTX_CF2_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF2_SHIFT	4
+#define XSTORM_RDMA_CONN_AG_CTX_CF3_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF3_SHIFT	6
 	u8 flags3;
-#define XSTORM_RDMA_CONN_AG_CTX_CF4_MASK               0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF4_SHIFT              0
-#define XSTORM_RDMA_CONN_AG_CTX_CF5_MASK               0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF5_SHIFT              2
-#define XSTORM_RDMA_CONN_AG_CTX_CF6_MASK               0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF6_SHIFT              4
-#define XSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_MASK       0x3
-#define XSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT      6
+#define XSTORM_RDMA_CONN_AG_CTX_CF4_MASK		0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF4_SHIFT		0
+#define XSTORM_RDMA_CONN_AG_CTX_CF5_MASK		0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF5_SHIFT		2
+#define XSTORM_RDMA_CONN_AG_CTX_CF6_MASK		0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF6_SHIFT		4
+#define XSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT	6
 	u8 flags4;
-#define XSTORM_RDMA_CONN_AG_CTX_CF8_MASK               0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF8_SHIFT              0
-#define XSTORM_RDMA_CONN_AG_CTX_CF9_MASK               0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF9_SHIFT              2
-#define XSTORM_RDMA_CONN_AG_CTX_CF10_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF10_SHIFT             4
-#define XSTORM_RDMA_CONN_AG_CTX_CF11_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF11_SHIFT             6
+#define XSTORM_RDMA_CONN_AG_CTX_CF8_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF8_SHIFT	0
+#define XSTORM_RDMA_CONN_AG_CTX_CF9_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF9_SHIFT	2
+#define XSTORM_RDMA_CONN_AG_CTX_CF10_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF10_SHIFT	4
+#define XSTORM_RDMA_CONN_AG_CTX_CF11_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF11_SHIFT	6
 	u8 flags5;
-#define XSTORM_RDMA_CONN_AG_CTX_CF12_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF12_SHIFT             0
-#define XSTORM_RDMA_CONN_AG_CTX_CF13_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF13_SHIFT             2
-#define XSTORM_RDMA_CONN_AG_CTX_CF14_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF14_SHIFT             4
-#define XSTORM_RDMA_CONN_AG_CTX_CF15_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF15_SHIFT             6
+#define XSTORM_RDMA_CONN_AG_CTX_CF12_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF12_SHIFT	0
+#define XSTORM_RDMA_CONN_AG_CTX_CF13_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF13_SHIFT	2
+#define XSTORM_RDMA_CONN_AG_CTX_CF14_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF14_SHIFT	4
+#define XSTORM_RDMA_CONN_AG_CTX_CF15_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF15_SHIFT	6
 	u8 flags6;
-#define XSTORM_RDMA_CONN_AG_CTX_CF16_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF16_SHIFT             0
-#define XSTORM_RDMA_CONN_AG_CTX_CF17_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF17_SHIFT             2
-#define XSTORM_RDMA_CONN_AG_CTX_CF18_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF18_SHIFT             4
-#define XSTORM_RDMA_CONN_AG_CTX_CF19_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF19_SHIFT             6
+#define XSTORM_RDMA_CONN_AG_CTX_CF16_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF16_SHIFT	0
+#define XSTORM_RDMA_CONN_AG_CTX_CF17_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF17_SHIFT	2
+#define XSTORM_RDMA_CONN_AG_CTX_CF18_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF18_SHIFT	4
+#define XSTORM_RDMA_CONN_AG_CTX_CF19_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF19_SHIFT	6
 	u8 flags7;
-#define XSTORM_RDMA_CONN_AG_CTX_CF20_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF20_SHIFT             0
-#define XSTORM_RDMA_CONN_AG_CTX_CF21_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF21_SHIFT             2
-#define XSTORM_RDMA_CONN_AG_CTX_SLOW_PATH_MASK         0x3
-#define XSTORM_RDMA_CONN_AG_CTX_SLOW_PATH_SHIFT        4
-#define XSTORM_RDMA_CONN_AG_CTX_CF0EN_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF0EN_SHIFT            6
-#define XSTORM_RDMA_CONN_AG_CTX_CF1EN_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT            7
+#define XSTORM_RDMA_CONN_AG_CTX_CF20_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF20_SHIFT	0
+#define XSTORM_RDMA_CONN_AG_CTX_CF21_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF21_SHIFT	2
+#define XSTORM_RDMA_CONN_AG_CTX_SLOW_PATH_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_SLOW_PATH_SHIFT	4
+#define XSTORM_RDMA_CONN_AG_CTX_CF0EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF0EN_SHIFT	6
+#define XSTORM_RDMA_CONN_AG_CTX_CF1EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT	7
 	u8 flags8;
-#define XSTORM_RDMA_CONN_AG_CTX_CF2EN_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT            0
-#define XSTORM_RDMA_CONN_AG_CTX_CF3EN_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF3EN_SHIFT            1
-#define XSTORM_RDMA_CONN_AG_CTX_CF4EN_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF4EN_SHIFT            2
-#define XSTORM_RDMA_CONN_AG_CTX_CF5EN_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF5EN_SHIFT            3
-#define XSTORM_RDMA_CONN_AG_CTX_CF6EN_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF6EN_SHIFT            4
-#define XSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK    0x1
-#define XSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT   5
-#define XSTORM_RDMA_CONN_AG_CTX_CF8EN_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF8EN_SHIFT            6
-#define XSTORM_RDMA_CONN_AG_CTX_CF9EN_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF9EN_SHIFT            7
+#define XSTORM_RDMA_CONN_AG_CTX_CF2EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT		0
+#define XSTORM_RDMA_CONN_AG_CTX_CF3EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF3EN_SHIFT		1
+#define XSTORM_RDMA_CONN_AG_CTX_CF4EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF4EN_SHIFT		2
+#define XSTORM_RDMA_CONN_AG_CTX_CF5EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF5EN_SHIFT		3
+#define XSTORM_RDMA_CONN_AG_CTX_CF6EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF6EN_SHIFT		4
+#define XSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT	5
+#define XSTORM_RDMA_CONN_AG_CTX_CF8EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF8EN_SHIFT		6
+#define XSTORM_RDMA_CONN_AG_CTX_CF9EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF9EN_SHIFT		7
 	u8 flags9;
-#define XSTORM_RDMA_CONN_AG_CTX_CF10EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF10EN_SHIFT           0
-#define XSTORM_RDMA_CONN_AG_CTX_CF11EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF11EN_SHIFT           1
-#define XSTORM_RDMA_CONN_AG_CTX_CF12EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF12EN_SHIFT           2
-#define XSTORM_RDMA_CONN_AG_CTX_CF13EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF13EN_SHIFT           3
-#define XSTORM_RDMA_CONN_AG_CTX_CF14EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF14EN_SHIFT           4
-#define XSTORM_RDMA_CONN_AG_CTX_CF15EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF15EN_SHIFT           5
-#define XSTORM_RDMA_CONN_AG_CTX_CF16EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF16EN_SHIFT           6
-#define XSTORM_RDMA_CONN_AG_CTX_CF17EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF17EN_SHIFT           7
+#define XSTORM_RDMA_CONN_AG_CTX_CF10EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF10EN_SHIFT	0
+#define XSTORM_RDMA_CONN_AG_CTX_CF11EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF11EN_SHIFT	1
+#define XSTORM_RDMA_CONN_AG_CTX_CF12EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF12EN_SHIFT	2
+#define XSTORM_RDMA_CONN_AG_CTX_CF13EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF13EN_SHIFT	3
+#define XSTORM_RDMA_CONN_AG_CTX_CF14EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF14EN_SHIFT	4
+#define XSTORM_RDMA_CONN_AG_CTX_CF15EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF15EN_SHIFT	5
+#define XSTORM_RDMA_CONN_AG_CTX_CF16EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF16EN_SHIFT	6
+#define XSTORM_RDMA_CONN_AG_CTX_CF17EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF17EN_SHIFT	7
 	u8 flags10;
-#define XSTORM_RDMA_CONN_AG_CTX_CF18EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF18EN_SHIFT           0
-#define XSTORM_RDMA_CONN_AG_CTX_CF19EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF19EN_SHIFT           1
-#define XSTORM_RDMA_CONN_AG_CTX_CF20EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF20EN_SHIFT           2
-#define XSTORM_RDMA_CONN_AG_CTX_CF21EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF21EN_SHIFT           3
-#define XSTORM_RDMA_CONN_AG_CTX_SLOW_PATH_EN_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_SLOW_PATH_EN_SHIFT     4
-#define XSTORM_RDMA_CONN_AG_CTX_CF23EN_MASK            0x1
-#define XSTORM_RDMA_CONN_AG_CTX_CF23EN_SHIFT           5
-#define XSTORM_RDMA_CONN_AG_CTX_RULE0EN_MASK           0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE0EN_SHIFT          6
-#define XSTORM_RDMA_CONN_AG_CTX_RULE1EN_MASK           0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE1EN_SHIFT          7
+#define XSTORM_RDMA_CONN_AG_CTX_CF18EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF18EN_SHIFT		0
+#define XSTORM_RDMA_CONN_AG_CTX_CF19EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF19EN_SHIFT		1
+#define XSTORM_RDMA_CONN_AG_CTX_CF20EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF20EN_SHIFT		2
+#define XSTORM_RDMA_CONN_AG_CTX_CF21EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF21EN_SHIFT		3
+#define XSTORM_RDMA_CONN_AG_CTX_SLOW_PATH_EN_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_SLOW_PATH_EN_SHIFT	4
+#define XSTORM_RDMA_CONN_AG_CTX_CF23EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_CF23EN_SHIFT		5
+#define XSTORM_RDMA_CONN_AG_CTX_RULE0EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE0EN_SHIFT		6
+#define XSTORM_RDMA_CONN_AG_CTX_RULE1EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE1EN_SHIFT		7
 	u8 flags11;
-#define XSTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK           0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT          0
-#define XSTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK           0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT          1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK           0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT          2
-#define XSTORM_RDMA_CONN_AG_CTX_RULE5EN_MASK           0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE5EN_SHIFT          3
-#define XSTORM_RDMA_CONN_AG_CTX_RULE6EN_MASK           0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE6EN_SHIFT          4
-#define XSTORM_RDMA_CONN_AG_CTX_RULE7EN_MASK           0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE7EN_SHIFT          5
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED1_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED1_SHIFT     6
-#define XSTORM_RDMA_CONN_AG_CTX_RULE9EN_MASK           0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE9EN_SHIFT          7
+#define XSTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT		0
+#define XSTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT		1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT		2
+#define XSTORM_RDMA_CONN_AG_CTX_RULE5EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE5EN_SHIFT		3
+#define XSTORM_RDMA_CONN_AG_CTX_RULE6EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE6EN_SHIFT		4
+#define XSTORM_RDMA_CONN_AG_CTX_RULE7EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE7EN_SHIFT		5
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED1_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED1_SHIFT	6
+#define XSTORM_RDMA_CONN_AG_CTX_RULE9EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE9EN_SHIFT		7
 	u8 flags12;
-#define XSTORM_RDMA_CONN_AG_CTX_RULE10EN_MASK          0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE10EN_SHIFT         0
-#define XSTORM_RDMA_CONN_AG_CTX_RULE11EN_MASK          0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE11EN_SHIFT         1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED2_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED2_SHIFT     2
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED3_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED3_SHIFT     3
-#define XSTORM_RDMA_CONN_AG_CTX_RULE14EN_MASK          0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE14EN_SHIFT         4
-#define XSTORM_RDMA_CONN_AG_CTX_RULE15EN_MASK          0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE15EN_SHIFT         5
-#define XSTORM_RDMA_CONN_AG_CTX_RULE16EN_MASK          0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE16EN_SHIFT         6
-#define XSTORM_RDMA_CONN_AG_CTX_RULE17EN_MASK          0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE17EN_SHIFT         7
+#define XSTORM_RDMA_CONN_AG_CTX_RULE10EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE10EN_SHIFT		0
+#define XSTORM_RDMA_CONN_AG_CTX_RULE11EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE11EN_SHIFT		1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED2_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED2_SHIFT	2
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED3_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED3_SHIFT	3
+#define XSTORM_RDMA_CONN_AG_CTX_RULE14EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE14EN_SHIFT		4
+#define XSTORM_RDMA_CONN_AG_CTX_RULE15EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE15EN_SHIFT		5
+#define XSTORM_RDMA_CONN_AG_CTX_RULE16EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE16EN_SHIFT		6
+#define XSTORM_RDMA_CONN_AG_CTX_RULE17EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE17EN_SHIFT		7
 	u8 flags13;
-#define XSTORM_RDMA_CONN_AG_CTX_RULE18EN_MASK          0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE18EN_SHIFT         0
-#define XSTORM_RDMA_CONN_AG_CTX_RULE19EN_MASK          0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RULE19EN_SHIFT         1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED4_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED4_SHIFT     2
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED5_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED5_SHIFT     3
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED6_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED6_SHIFT     4
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED7_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED7_SHIFT     5
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED8_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED8_SHIFT     6
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED9_MASK      0x1
-#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED9_SHIFT     7
+#define XSTORM_RDMA_CONN_AG_CTX_RULE18EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE18EN_SHIFT		0
+#define XSTORM_RDMA_CONN_AG_CTX_RULE19EN_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RULE19EN_SHIFT		1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED4_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED4_SHIFT	2
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED5_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED5_SHIFT	3
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED6_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED6_SHIFT	4
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED7_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED7_SHIFT	5
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED8_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED8_SHIFT	6
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED9_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_A0_RESERVED9_SHIFT	7
 	u8 flags14;
-#define XSTORM_RDMA_CONN_AG_CTX_MIGRATION_MASK         0x1
-#define XSTORM_RDMA_CONN_AG_CTX_MIGRATION_SHIFT        0
-#define XSTORM_RDMA_CONN_AG_CTX_BIT17_MASK             0x1
-#define XSTORM_RDMA_CONN_AG_CTX_BIT17_SHIFT            1
-#define XSTORM_RDMA_CONN_AG_CTX_DPM_PORT_NUM_MASK      0x3
-#define XSTORM_RDMA_CONN_AG_CTX_DPM_PORT_NUM_SHIFT     2
-#define XSTORM_RDMA_CONN_AG_CTX_RESERVED_MASK          0x1
-#define XSTORM_RDMA_CONN_AG_CTX_RESERVED_SHIFT         4
-#define XSTORM_RDMA_CONN_AG_CTX_ROCE_EDPM_ENABLE_MASK  0x1
-#define XSTORM_RDMA_CONN_AG_CTX_ROCE_EDPM_ENABLE_SHIFT 5
-#define XSTORM_RDMA_CONN_AG_CTX_CF23_MASK              0x3
-#define XSTORM_RDMA_CONN_AG_CTX_CF23_SHIFT             6
+#define XSTORM_RDMA_CONN_AG_CTX_MIGRATION_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_MIGRATION_SHIFT		0
+#define XSTORM_RDMA_CONN_AG_CTX_BIT17_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_BIT17_SHIFT		1
+#define XSTORM_RDMA_CONN_AG_CTX_DPM_PORT_NUM_MASK	0x3
+#define XSTORM_RDMA_CONN_AG_CTX_DPM_PORT_NUM_SHIFT	2
+#define XSTORM_RDMA_CONN_AG_CTX_RESERVED_MASK		0x1
+#define XSTORM_RDMA_CONN_AG_CTX_RESERVED_SHIFT		4
+#define XSTORM_RDMA_CONN_AG_CTX_ROCE_EDPM_ENABLE_MASK	0x1
+#define XSTORM_RDMA_CONN_AG_CTX_ROCE_EDPM_ENABLE_SHIFT	5
+#define XSTORM_RDMA_CONN_AG_CTX_CF23_MASK		0x3
+#define XSTORM_RDMA_CONN_AG_CTX_CF23_SHIFT		6
 	u8 byte2;
 	__le16 physical_q0;
 	__le16 word1;
@@ -7305,33 +7520,33 @@ struct ystorm_rdma_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define YSTORM_RDMA_CONN_AG_CTX_BIT0_MASK     0x1
-#define YSTORM_RDMA_CONN_AG_CTX_BIT0_SHIFT    0
-#define YSTORM_RDMA_CONN_AG_CTX_BIT1_MASK     0x1
-#define YSTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT    1
-#define YSTORM_RDMA_CONN_AG_CTX_CF0_MASK      0x3
-#define YSTORM_RDMA_CONN_AG_CTX_CF0_SHIFT     2
-#define YSTORM_RDMA_CONN_AG_CTX_CF1_MASK      0x3
-#define YSTORM_RDMA_CONN_AG_CTX_CF1_SHIFT     4
-#define YSTORM_RDMA_CONN_AG_CTX_CF2_MASK      0x3
-#define YSTORM_RDMA_CONN_AG_CTX_CF2_SHIFT     6
+#define YSTORM_RDMA_CONN_AG_CTX_BIT0_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_BIT0_SHIFT	0
+#define YSTORM_RDMA_CONN_AG_CTX_BIT1_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_BIT1_SHIFT	1
+#define YSTORM_RDMA_CONN_AG_CTX_CF0_MASK	0x3
+#define YSTORM_RDMA_CONN_AG_CTX_CF0_SHIFT	2
+#define YSTORM_RDMA_CONN_AG_CTX_CF1_MASK	0x3
+#define YSTORM_RDMA_CONN_AG_CTX_CF1_SHIFT	4
+#define YSTORM_RDMA_CONN_AG_CTX_CF2_MASK	0x3
+#define YSTORM_RDMA_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define YSTORM_RDMA_CONN_AG_CTX_CF0EN_MASK    0x1
-#define YSTORM_RDMA_CONN_AG_CTX_CF0EN_SHIFT   0
-#define YSTORM_RDMA_CONN_AG_CTX_CF1EN_MASK    0x1
-#define YSTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT   1
-#define YSTORM_RDMA_CONN_AG_CTX_CF2EN_MASK    0x1
-#define YSTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT   2
-#define YSTORM_RDMA_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define YSTORM_RDMA_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define YSTORM_RDMA_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define YSTORM_RDMA_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define YSTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define YSTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define YSTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define YSTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define YSTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define YSTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define YSTORM_RDMA_CONN_AG_CTX_CF0EN_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_CF0EN_SHIFT	0
+#define YSTORM_RDMA_CONN_AG_CTX_CF1EN_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_CF1EN_SHIFT	1
+#define YSTORM_RDMA_CONN_AG_CTX_CF2EN_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_CF2EN_SHIFT	2
+#define YSTORM_RDMA_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define YSTORM_RDMA_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define YSTORM_RDMA_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define YSTORM_RDMA_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define YSTORM_RDMA_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define YSTORM_RDMA_CONN_AG_CTX_RULE4EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -7345,30 +7560,37 @@ struct ystorm_rdma_conn_ag_ctx {
 	__le32 reg3;
 };
 
-struct mstorm_roce_conn_st_ctx {
-	struct regpair temp[6];
-};
-
-struct pstorm_roce_conn_st_ctx {
-	struct regpair temp[16];
-};
-
+/* The roce storm context of Ystorm */
 struct ystorm_roce_conn_st_ctx {
 	struct regpair temp[2];
 };
 
+/* The roce storm context of Mstorm */
+struct pstorm_roce_conn_st_ctx {
+	struct regpair temp[16];
+};
+
+/* The roce storm context of Xstorm */
 struct xstorm_roce_conn_st_ctx {
 	struct regpair temp[24];
 };
 
+/* The roce storm context of Tstorm */
 struct tstorm_roce_conn_st_ctx {
 	struct regpair temp[30];
 };
 
+/* The roce storm context of Mstorm */
+struct mstorm_roce_conn_st_ctx {
+	struct regpair temp[6];
+};
+
+/* The roce storm context of Ystorm */
 struct ustorm_roce_conn_st_ctx {
 	struct regpair temp[12];
 };
 
+/* roce connection context */
 struct roce_conn_context {
 	struct ystorm_roce_conn_st_ctx ystorm_st_context;
 	struct regpair ystorm_st_padding[2];
@@ -7385,22 +7607,23 @@ struct roce_conn_context {
 	struct regpair ustorm_st_padding[2];
 };
 
+/* roce create qp requester ramrod data */
 struct roce_create_qp_req_ramrod_data {
 	__le16 flags;
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_ROCE_FLAVOR_MASK          0x3
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_ROCE_FLAVOR_SHIFT         0
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_FMR_AND_RESERVED_EN_MASK  0x1
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_FMR_AND_RESERVED_EN_SHIFT 2
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_SIGNALED_COMP_MASK        0x1
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_SIGNALED_COMP_SHIFT       3
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_PRI_MASK                  0x7
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_PRI_SHIFT                 4
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_MASK             0x1
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_SHIFT            7
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_MASK        0xF
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_SHIFT       8
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_MASK          0xF
-#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_SHIFT         12
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_ROCE_FLAVOR_MASK			0x3
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_ROCE_FLAVOR_SHIFT		0
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_FMR_AND_RESERVED_EN_MASK		0x1
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_FMR_AND_RESERVED_EN_SHIFT	2
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_SIGNALED_COMP_MASK		0x1
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_SIGNALED_COMP_SHIFT		3
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_PRI_MASK				0x7
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_PRI_SHIFT			4
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_MASK			0x1
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RESERVED_SHIFT			7
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_MASK		0xF
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_SHIFT		8
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_MASK			0xF
+#define ROCE_CREATE_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_SHIFT		12
 	u8 max_ord;
 	u8 traffic_class;
 	u8 hop_limit;
@@ -7431,26 +7654,27 @@ struct roce_create_qp_req_ramrod_data {
 	__le16 dpi;
 };
 
+/* roce create qp responder ramrod data */
 struct roce_create_qp_resp_ramrod_data {
 	__le16 flags;
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_ROCE_FLAVOR_MASK          0x3
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_ROCE_FLAVOR_SHIFT         0
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_RD_EN_MASK           0x1
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_RD_EN_SHIFT          2
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_WR_EN_MASK           0x1
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_WR_EN_SHIFT          3
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_ATOMIC_EN_MASK            0x1
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_ATOMIC_EN_SHIFT           4
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_SRQ_FLG_MASK              0x1
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_SRQ_FLG_SHIFT             5
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_E2E_FLOW_CONTROL_EN_MASK  0x1
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_E2E_FLOW_CONTROL_EN_SHIFT 6
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_KEY_EN_MASK	0x1
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_KEY_EN_SHIFT	7
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_PRI_MASK                  0x7
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_PRI_SHIFT                 8
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_MASK    0x1F
-#define ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_SHIFT   11
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_ROCE_FLAVOR_MASK		0x3
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_ROCE_FLAVOR_SHIFT		0
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_RD_EN_MASK			0x1
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_RD_EN_SHIFT		2
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_WR_EN_MASK			0x1
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RDMA_WR_EN_SHIFT		3
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_ATOMIC_EN_MASK			0x1
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_ATOMIC_EN_SHIFT			4
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_SRQ_FLG_MASK			0x1
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_SRQ_FLG_SHIFT			5
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_E2E_FLOW_CONTROL_EN_MASK	0x1
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_E2E_FLOW_CONTROL_EN_SHIFT	6
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_KEY_EN_MASK		0x1
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_RESERVED_KEY_EN_SHIFT		7
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_PRI_MASK			0x7
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_PRI_SHIFT			8
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_MASK		0x1F
+#define ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_SHIFT		11
 	u8 max_ird;
 	u8 traffic_class;
 	u8 hop_limit;
@@ -7482,24 +7706,29 @@ struct roce_create_qp_resp_ramrod_data {
 	__le16 dpi;
 };
 
+/* RoCE destroy qp requester output params */
 struct roce_destroy_qp_req_output_params {
 	__le32 num_bound_mw;
 	__le32 cq_prod;
 };
 
+/* RoCE destroy qp requester ramrod data */
 struct roce_destroy_qp_req_ramrod_data {
 	struct regpair output_params_addr;
 };
 
+/* RoCE destroy qp responder output params */
 struct roce_destroy_qp_resp_output_params {
 	__le32 num_invalidated_mw;
 	__le32 cq_prod;
 };
 
+/* RoCE destroy qp responder ramrod data */
 struct roce_destroy_qp_resp_ramrod_data {
 	struct regpair output_params_addr;
 };
 
+/* roce special events statistics */
 struct roce_events_stats {
 	__le16 silent_drops;
 	__le16 rnr_naks_sent;
@@ -7508,6 +7737,7 @@ struct roce_events_stats {
 	__le32 reserved;
 };
 
+/* ROCE slow path EQ cmd IDs */
 enum roce_event_opcode {
 	ROCE_EVENT_CREATE_QP = 11,
 	ROCE_EVENT_MODIFY_QP,
@@ -7518,6 +7748,7 @@ enum roce_event_opcode {
 	MAX_ROCE_EVENT_OPCODE
 };
 
+/* roce func init ramrod data */
 struct roce_init_func_params {
 	u8 ll2_queue_id;
 	u8 cnp_vlan_priority;
@@ -7526,42 +7757,44 @@ struct roce_init_func_params {
 	__le32 cnp_send_timeout;
 };
 
+/* roce func init ramrod data */
 struct roce_init_func_ramrod_data {
 	struct rdma_init_func_ramrod_data rdma;
 	struct roce_init_func_params roce;
 };
 
+/* roce modify qp requester ramrod data */
 struct roce_modify_qp_req_ramrod_data {
 	__le16 flags;
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_ERR_FLG_MASK      0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_ERR_FLG_SHIFT     0
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_SQD_FLG_MASK      0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_SQD_FLG_SHIFT     1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_NOTIFY_MASK  0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_NOTIFY_SHIFT 2
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_P_KEY_FLG_MASK            0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_P_KEY_FLG_SHIFT           3
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ADDRESS_VECTOR_FLG_MASK   0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ADDRESS_VECTOR_FLG_SHIFT  4
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MAX_ORD_FLG_MASK          0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MAX_ORD_FLG_SHIFT         5
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_FLG_MASK      0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_FLG_SHIFT     6
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_FLG_MASK    0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_FLG_SHIFT   7
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ACK_TIMEOUT_FLG_MASK      0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ACK_TIMEOUT_FLG_SHIFT     8
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_FLG_MASK              0x1
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_FLG_SHIFT             9
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_MASK                  0x7
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_SHIFT                 10
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_MASK            0x7
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_SHIFT           13
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_ERR_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_ERR_FLG_SHIFT		0
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_SQD_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MOVE_TO_SQD_FLG_SHIFT		1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_NOTIFY_MASK		0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_EN_SQD_ASYNC_NOTIFY_SHIFT	2
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_P_KEY_FLG_MASK			0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_P_KEY_FLG_SHIFT			3
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ADDRESS_VECTOR_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ADDRESS_VECTOR_FLG_SHIFT		4
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MAX_ORD_FLG_MASK			0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_MAX_ORD_FLG_SHIFT		5
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_FLG_SHIFT		6
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_FLG_SHIFT		7
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ACK_TIMEOUT_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ACK_TIMEOUT_FLG_SHIFT		8
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_FLG_MASK			0x1
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_FLG_SHIFT			9
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_MASK				0x7
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_PRI_SHIFT			10
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_MASK			0x7
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RESERVED1_SHIFT			13
 	u8 fields;
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_MASK        0xF
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_SHIFT       0
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_MASK          0xF
-#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_SHIFT         4
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_MASK	0xF
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_ERR_RETRY_CNT_SHIFT	0
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_MASK		0xF
+#define ROCE_MODIFY_QP_REQ_RAMROD_DATA_RNR_NAK_CNT_SHIFT	4
 	u8 max_ord;
 	u8 traffic_class;
 	u8 hop_limit;
@@ -7575,35 +7808,36 @@ struct roce_modify_qp_req_ramrod_data {
 	__le32 dst_gid[4];
 };
 
+/* roce modify qp responder ramrod data */
 struct roce_modify_qp_resp_ramrod_data {
 	__le16 flags;
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MOVE_TO_ERR_FLG_MASK        0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MOVE_TO_ERR_FLG_SHIFT       0
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_RD_EN_MASK             0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_RD_EN_SHIFT            1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_WR_EN_MASK             0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_WR_EN_SHIFT            2
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_ATOMIC_EN_MASK              0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_ATOMIC_EN_SHIFT             3
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_P_KEY_FLG_MASK              0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_P_KEY_FLG_SHIFT             4
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_ADDRESS_VECTOR_FLG_MASK     0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_ADDRESS_VECTOR_FLG_SHIFT    5
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MAX_IRD_FLG_MASK            0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MAX_IRD_FLG_SHIFT           6
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_FLG_MASK                0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_FLG_SHIFT               7
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_FLG_MASK  0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_FLG_SHIFT 8
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG_MASK        0x1
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG_SHIFT       9
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_MASK              0x3F
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_SHIFT             10
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MOVE_TO_ERR_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MOVE_TO_ERR_FLG_SHIFT		0
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_RD_EN_MASK			0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_RD_EN_SHIFT		1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_WR_EN_MASK			0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_WR_EN_SHIFT		2
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_ATOMIC_EN_MASK			0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_ATOMIC_EN_SHIFT			3
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_P_KEY_FLG_MASK			0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_P_KEY_FLG_SHIFT			4
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_ADDRESS_VECTOR_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_ADDRESS_VECTOR_FLG_SHIFT	5
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MAX_IRD_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MAX_IRD_FLG_SHIFT		6
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_FLG_MASK			0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_FLG_SHIFT			7
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_FLG_MASK	0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_FLG_SHIFT	8
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG_MASK		0x1
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RDMA_OPS_EN_FLG_SHIFT		9
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_MASK			0x3F
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_RESERVED1_SHIFT			10
 	u8 fields;
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_MASK                    0x7
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_SHIFT                   0
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_MASK      0x1F
-#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_SHIFT     3
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_MASK		0x7
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_PRI_SHIFT		0
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_MASK	0x1F
+#define ROCE_MODIFY_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER_SHIFT	3
 	u8 max_ird;
 	u8 traffic_class;
 	u8 hop_limit;
@@ -7615,21 +7849,24 @@ struct roce_modify_qp_resp_ramrod_data {
 	__le32 dst_gid[4];
 };
 
+/* RoCE query qp requester output params */
 struct roce_query_qp_req_output_params {
 	__le32 psn;
 	__le32 flags;
-#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_ERR_FLG_MASK          0x1
-#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_ERR_FLG_SHIFT         0
-#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_SQ_DRAINING_FLG_MASK  0x1
-#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_SQ_DRAINING_FLG_SHIFT 1
-#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_RESERVED0_MASK        0x3FFFFFFF
-#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_RESERVED0_SHIFT       2
+#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_ERR_FLG_MASK		0x1
+#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_ERR_FLG_SHIFT		0
+#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_SQ_DRAINING_FLG_MASK	0x1
+#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_SQ_DRAINING_FLG_SHIFT	1
+#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_RESERVED0_MASK		0x3FFFFFFF
+#define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_RESERVED0_SHIFT		2
 };
 
+/* RoCE query qp requester ramrod data */
 struct roce_query_qp_req_ramrod_data {
 	struct regpair output_params_addr;
 };
 
+/* RoCE query qp responder output params */
 struct roce_query_qp_resp_output_params {
 	__le32 psn;
 	__le32 err_flag;
@@ -7639,10 +7876,12 @@ struct roce_query_qp_resp_output_params {
 #define ROCE_QUERY_QP_RESP_OUTPUT_PARAMS_RESERVED0_SHIFT 1
 };
 
+/* RoCE query qp responder ramrod data */
 struct roce_query_qp_resp_ramrod_data {
 	struct regpair output_params_addr;
 };
 
+/* ROCE ramrod command IDs */
 enum roce_ramrod_cmd_id {
 	ROCE_RAMROD_CREATE_QP = 11,
 	ROCE_RAMROD_MODIFY_QP,
@@ -7657,33 +7896,33 @@ struct mstorm_roce_req_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_BIT0_MASK     0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_BIT0_SHIFT    0
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_BIT1_MASK     0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_BIT1_SHIFT    1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF0_MASK      0x3
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF0_SHIFT     2
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK      0x3
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT     4
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF2_MASK      0x3
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF2_SHIFT     6
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_BIT0_MASK	0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_BIT0_SHIFT	0
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_BIT1_MASK	0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_BIT1_SHIFT	1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF0_MASK	0x3
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF0_SHIFT	2
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK	0x3
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT	4
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF2_MASK	0x3
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_MASK    0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_SHIFT   0
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK    0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT   1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_MASK    0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_SHIFT   2
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_MASK		0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_SHIFT		0
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK		0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT		1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_MASK		0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_SHIFT		2
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define MSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT	7
 	__le16 word0;
 	__le16 word1;
 	__le32 reg0;
@@ -7694,33 +7933,33 @@ struct mstorm_roce_resp_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_BIT0_MASK     0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_BIT0_SHIFT    0
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_MASK     0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_SHIFT    1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK      0x3
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT     2
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF1_MASK      0x3
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF1_SHIFT     4
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF2_MASK      0x3
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF2_SHIFT     6
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_BIT0_MASK	0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_BIT0_SHIFT	0
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_MASK	0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_SHIFT	1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK	0x3
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT	2
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF1_MASK	0x3
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF1_SHIFT	4
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF2_MASK	0x3
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK    0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT   0
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_MASK    0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_SHIFT   1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_MASK    0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_SHIFT   2
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK		0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT	0
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_MASK		0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_SHIFT	1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_MASK		0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_SHIFT	2
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define MSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT	7
 	__le16 word0;
 	__le16 word1;
 	__le32 reg0;
@@ -7731,85 +7970,85 @@ struct tstorm_roce_req_conn_ag_ctx {
 	u8 reserved0;
 	u8 state;
 	u8 flags0;
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM0_MASK                0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM0_SHIFT               0
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_OCCURED_MASK            0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_OCCURED_SHIFT           1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_CQE_ERROR_OCCURED_MASK        0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_CQE_ERROR_OCCURED_SHIFT       2
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_BIT3_MASK                        0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_BIT3_SHIFT                       3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_MASK                0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_SHIFT               4
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_CACHED_ORQ_MASK                  0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_CACHED_ORQ_SHIFT                 5
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_CF_MASK                    0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_CF_SHIFT                   6
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM0_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM0_SHIFT		0
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_OCCURRED_MASK	0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_OCCURRED_SHIFT	1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_CQE_ERROR_OCCURRED_MASK	0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_CQE_ERROR_OCCURRED_SHIFT	2
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_BIT3_MASK			0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_BIT3_SHIFT			3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_SHIFT		4
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_CACHED_ORQ_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_CACHED_ORQ_SHIFT		5
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_CF_MASK		0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_CF_SHIFT		6
 	u8 flags1;
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK                         0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT                        0
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_SQ_CF_MASK                 0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_SQ_CF_SHIFT                2
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_STOP_ALL_CF_MASK           0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_STOP_ALL_CF_SHIFT          4
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_MASK                 0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT                6
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK			0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT			0
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_SQ_CF_MASK		0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_SQ_CF_SHIFT		2
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_STOP_ALL_CF_MASK	0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_STOP_ALL_CF_SHIFT	4
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_MASK		0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT		6
 	u8 flags2;
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_CF_MASK             0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_CF_SHIFT            0
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SET_TIMER_CF_MASK                0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SET_TIMER_CF_SHIFT               2
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_ASYNC_ERROR_CF_MASK           0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_ASYNC_ERROR_CF_SHIFT          4
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RXMIT_DONE_CF_MASK               0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RXMIT_DONE_CF_SHIFT              6
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_CF_MASK	0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_CF_SHIFT	0
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SET_TIMER_CF_MASK		0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SET_TIMER_CF_SHIFT		2
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_ASYNC_ERROR_CF_MASK	0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_ASYNC_ERROR_CF_SHIFT	4
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RXMIT_DONE_CF_MASK		0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RXMIT_DONE_CF_SHIFT		6
 	u8 flags3;
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_SCAN_COMPLETED_CF_MASK     0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_SCAN_COMPLETED_CF_SHIFT    0
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SQ_DRAIN_COMPLETED_CF_MASK       0x3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SQ_DRAIN_COMPLETED_CF_SHIFT      2
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_CF_EN_MASK                 0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_CF_EN_SHIFT                4
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK                       0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT                      5
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_SQ_CF_EN_MASK              0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_SQ_CF_EN_SHIFT             6
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_MASK        0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_SHIFT       7
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_SCAN_COMPLETED_CF_MASK	0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_SCAN_COMPLETED_CF_SHIFT	0
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SQ_DRAIN_COMPLETED_CF_MASK		0x3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SQ_DRAIN_COMPLETED_CF_SHIFT		2
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_CF_EN_MASK			0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_CF_EN_SHIFT			4
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK				0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT				5
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_SQ_CF_EN_MASK			0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_SQ_CF_EN_SHIFT		6
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_SHIFT		7
 	u8 flags4;
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK              0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT             0
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_MASK          0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_SHIFT         1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SET_TIMER_CF_EN_MASK             0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SET_TIMER_CF_EN_SHIFT            2
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_ASYNC_ERROR_CF_EN_MASK        0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_ASYNC_ERROR_CF_EN_SHIFT       3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RXMIT_DONE_CF_EN_MASK            0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RXMIT_DONE_CF_EN_SHIFT           4
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_SCAN_COMPLETED_CF_EN_MASK  0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_SCAN_COMPLETED_CF_EN_SHIFT 5
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SQ_DRAIN_COMPLETED_CF_EN_MASK    0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SQ_DRAIN_COMPLETED_CF_EN_SHIFT   6
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK                     0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT                    7
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK			0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT		0
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_SHIFT		1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SET_TIMER_CF_EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SET_TIMER_CF_EN_SHIFT		2
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_ASYNC_ERROR_CF_EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_TX_ASYNC_ERROR_CF_EN_SHIFT		3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RXMIT_DONE_CF_EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RXMIT_DONE_CF_EN_SHIFT		4
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_SCAN_COMPLETED_CF_EN_MASK	0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_SCAN_COMPLETED_CF_EN_SHIFT	5
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SQ_DRAIN_COMPLETED_CF_EN_MASK	0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SQ_DRAIN_COMPLETED_CF_EN_SHIFT	6
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK			0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT			7
 	u8 flags5;
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK                     0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT                    0
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK                     0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT                    1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK                     0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT                    2
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK                     0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT                    3
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_MASK                     0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_SHIFT                    4
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SND_SQ_CONS_EN_MASK              0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_SND_SQ_CONS_EN_SHIFT             5
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE7EN_MASK                     0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE7EN_SHIFT                    6
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_MASK                     0x1
-#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_SHIFT                    7
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT		0
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT		1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT		2
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT		3
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_SHIFT		4
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SND_SQ_CONS_EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_SND_SQ_CONS_EN_SHIFT	5
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE7EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE7EN_SHIFT		6
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_MASK		0x1
+#define TSTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_SHIFT		7
 	__le32 reg0;
 	__le32 snd_nxt_psn;
 	__le32 snd_max_psn;
@@ -7835,85 +8074,85 @@ struct tstorm_roce_resp_conn_ag_ctx {
 	u8 byte0;
 	u8 state;
 	u8 flags0;
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_MASK        0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT       0
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_NOTIFY_REQUESTER_MASK  0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_NOTIFY_REQUESTER_SHIFT 1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_MASK                0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_SHIFT               2
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT3_MASK                0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT3_SHIFT               3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_MASK        0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_SHIFT       4
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT5_MASK                0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT5_SHIFT               5
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK                 0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT                6
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_MASK			0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT			0
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_NOTIFY_REQUESTER_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_NOTIFY_REQUESTER_SHIFT	1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_MASK				0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT2_SHIFT				2
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT3_MASK				0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT3_SHIFT				3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_MASK			0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_SHIFT			4
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT5_MASK				0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_BIT5_SHIFT				5
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK				0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT				6
 	u8 flags1;
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_MASK         0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_SHIFT        0
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_MASK         0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_SHIFT        2
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF3_MASK                 0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF3_SHIFT                4
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_MASK         0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT        6
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_MASK	0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_SHIFT	0
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_MASK	0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_SHIFT	2
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF3_MASK		0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF3_SHIFT		4
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_MASK	0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT	6
 	u8 flags2;
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_MASK     0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_SHIFT    0
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF6_MASK                 0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF6_SHIFT                2
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF7_MASK                 0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF7_SHIFT                4
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF8_MASK                 0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF8_SHIFT                6
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_MASK	0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_SHIFT	0
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF6_MASK			0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF6_SHIFT			2
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF7_MASK			0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF7_SHIFT			4
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF8_MASK			0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF8_SHIFT			6
 	u8 flags3;
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF9_MASK                 0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF9_SHIFT                0
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF10_MASK                0x3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF10_SHIFT               2
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK               0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT              4
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_MASK      0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_SHIFT     5
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_EN_MASK      0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_EN_SHIFT     6
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_MASK               0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_SHIFT              7
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF9_MASK			0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF9_SHIFT			0
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF10_MASK			0x3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF10_SHIFT			2
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK			0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT		4
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_SHIFT	5
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_TX_ERROR_CF_EN_SHIFT	6
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_MASK			0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_SHIFT		7
 	u8 flags4;
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK      0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT     0
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_MASK  0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_SHIFT 1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_MASK               0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_SHIFT              2
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF7EN_MASK               0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF7EN_SHIFT              3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_MASK               0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_SHIFT              4
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_MASK               0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_SHIFT              5
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_MASK              0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_SHIFT             6
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK             0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT            7
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT	0
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_MSTORM_FLUSH_CF_EN_SHIFT	1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_MASK			0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_SHIFT		2
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF7EN_MASK			0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF7EN_SHIFT		3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_MASK			0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_SHIFT		4
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_MASK			0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_SHIFT		5
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_MASK		0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_SHIFT		6
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK		0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT		7
 	u8 flags5;
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK             0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT            0
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK             0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT            1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK             0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT            2
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK             0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT            3
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_MASK             0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_SHIFT            4
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RQ_RULE_EN_MASK          0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RQ_RULE_EN_SHIFT         5
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_MASK             0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_SHIFT            6
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_MASK             0x1
-#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_SHIFT            7
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RQ_RULE_EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RQ_RULE_EN_SHIFT	5
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define TSTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_SHIFT	7
 	__le32 psn_and_rxmit_id_echo;
 	__le32 reg1;
 	__le32 reg2;
@@ -7939,59 +8178,59 @@ struct ustorm_roce_req_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define USTORM_ROCE_REQ_CONN_AG_CTX_BIT0_MASK     0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_BIT0_SHIFT    0
-#define USTORM_ROCE_REQ_CONN_AG_CTX_BIT1_MASK     0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_BIT1_SHIFT    1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF0_MASK      0x3
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF0_SHIFT     2
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK      0x3
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT     4
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF2_MASK      0x3
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF2_SHIFT     6
+#define USTORM_ROCE_REQ_CONN_AG_CTX_BIT0_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_BIT0_SHIFT	0
+#define USTORM_ROCE_REQ_CONN_AG_CTX_BIT1_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_BIT1_SHIFT	1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF0_MASK	0x3
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF0_SHIFT	2
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK	0x3
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT	4
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF2_MASK	0x3
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF3_MASK      0x3
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF3_SHIFT     0
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF4_MASK      0x3
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF4_SHIFT     2
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF5_MASK      0x3
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF5_SHIFT     4
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF6_MASK      0x3
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF6_SHIFT     6
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF3_MASK	0x3
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF3_SHIFT	0
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF4_MASK	0x3
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF4_SHIFT	2
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF5_MASK	0x3
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF5_SHIFT	4
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF6_MASK	0x3
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF6_SHIFT	6
 	u8 flags2;
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_MASK    0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_SHIFT   0
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK    0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT   1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_MASK    0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_SHIFT   2
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF3EN_MASK    0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF3EN_SHIFT   3
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF4EN_MASK    0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF4EN_SHIFT   4
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF5EN_MASK    0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF5EN_SHIFT   5
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF6EN_MASK    0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_CF6EN_SHIFT   6
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT 7
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_MASK		0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_SHIFT		0
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK		0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT		1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_MASK		0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_SHIFT		2
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF3EN_MASK		0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF3EN_SHIFT		3
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF4EN_MASK		0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF4EN_SHIFT		4
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF5EN_MASK		0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF5EN_SHIFT		5
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF6EN_MASK		0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_CF6EN_SHIFT		6
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT	7
 	u8 flags3;
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT 0
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT 1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT 2
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT 3
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_MASK  0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_SHIFT 4
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE6EN_MASK  0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE6EN_SHIFT 5
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE7EN_MASK  0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE7EN_SHIFT 6
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_MASK  0x1
-#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_SHIFT 7
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define USTORM_ROCE_REQ_CONN_AG_CTX_RULE8EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -8008,59 +8247,59 @@ struct ustorm_roce_resp_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define USTORM_ROCE_RESP_CONN_AG_CTX_BIT0_MASK     0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_BIT0_SHIFT    0
-#define USTORM_ROCE_RESP_CONN_AG_CTX_BIT1_MASK     0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_BIT1_SHIFT    1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK      0x3
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT     2
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF1_MASK      0x3
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF1_SHIFT     4
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF2_MASK      0x3
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF2_SHIFT     6
+#define USTORM_ROCE_RESP_CONN_AG_CTX_BIT0_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_BIT0_SHIFT	0
+#define USTORM_ROCE_RESP_CONN_AG_CTX_BIT1_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_BIT1_SHIFT	1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK	0x3
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT	2
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF1_MASK	0x3
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF1_SHIFT	4
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF2_MASK	0x3
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF3_MASK      0x3
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF3_SHIFT     0
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF4_MASK      0x3
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF4_SHIFT     2
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF5_MASK      0x3
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF5_SHIFT     4
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF6_MASK      0x3
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF6_SHIFT     6
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF3_MASK	0x3
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF3_SHIFT	0
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF4_MASK	0x3
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF4_SHIFT	2
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF5_MASK	0x3
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF5_SHIFT	4
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF6_MASK	0x3
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF6_SHIFT	6
 	u8 flags2;
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK    0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT   0
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_MASK    0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_SHIFT   1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_MASK    0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_SHIFT   2
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_MASK    0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_SHIFT   3
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF4EN_MASK    0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF4EN_SHIFT   4
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF5EN_MASK    0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF5EN_SHIFT   5
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_MASK    0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_SHIFT   6
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT 7
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK		0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT	0
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_MASK		0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_SHIFT	1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_MASK		0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_SHIFT	2
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_MASK		0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_SHIFT	3
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF4EN_MASK		0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF4EN_SHIFT	4
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF5EN_MASK		0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF5EN_SHIFT	5
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_MASK		0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_CF6EN_SHIFT	6
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT	7
 	u8 flags3;
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT 0
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT 1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT 2
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT 3
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_MASK  0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_SHIFT 4
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE6EN_MASK  0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE6EN_SHIFT 5
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_MASK  0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_SHIFT 6
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_MASK  0x1
-#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_SHIFT 7
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define USTORM_ROCE_RESP_CONN_AG_CTX_RULE8EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -8077,210 +8316,210 @@ struct xstorm_roce_req_conn_ag_ctx {
 	u8 reserved0;
 	u8 state;
 	u8 flags0;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM0_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM0_SHIFT       0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED1_MASK           0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED1_SHIFT          1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED2_MASK           0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED2_SHIFT          2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM3_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM3_SHIFT       3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED3_MASK           0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED3_SHIFT          4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED4_MASK           0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED4_SHIFT          5
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED5_MASK           0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED5_SHIFT          6
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED6_MASK           0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED6_SHIFT          7
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED1_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED1_SHIFT	1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED2_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED2_SHIFT	2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM3_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_EXIST_IN_QM3_SHIFT	3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED3_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED3_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED4_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED4_SHIFT	5
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED5_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED5_SHIFT	6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED6_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED6_SHIFT	7
 	u8 flags1;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED7_MASK           0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED7_SHIFT          0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED8_MASK           0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED8_SHIFT          1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT10_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT10_SHIFT              2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT11_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT11_SHIFT              3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT12_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT12_SHIFT              4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT13_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT13_SHIFT              5
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_STATE_MASK         0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_STATE_SHIFT        6
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_YSTORM_FLUSH_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_YSTORM_FLUSH_SHIFT       7
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED7_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED7_SHIFT	0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED8_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED8_SHIFT	1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT10_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT10_SHIFT		2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT11_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT11_SHIFT		3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT12_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT12_SHIFT		4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT13_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT13_SHIFT		5
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_STATE_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_ERROR_STATE_SHIFT	6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_YSTORM_FLUSH_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_YSTORM_FLUSH_SHIFT	7
 	u8 flags2;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF0_MASK                 0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF0_SHIFT                0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK                 0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT                2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF2_MASK                 0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF2_SHIFT                4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF3_MASK                 0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF3_SHIFT                6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF0_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF0_SHIFT	0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT	2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF2_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF2_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF3_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF3_SHIFT	6
 	u8 flags3;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_FLUSH_CF_MASK         0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_FLUSH_CF_SHIFT        0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_CF_MASK         0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_CF_SHIFT        2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SND_RXMIT_CF_MASK        0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SND_RXMIT_CF_SHIFT       4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_MASK         0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT        6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_FLUSH_CF_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_FLUSH_CF_SHIFT	0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_CF_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_CF_SHIFT	2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SND_RXMIT_CF_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SND_RXMIT_CF_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT	6
 	u8 flags4;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF8_MASK                 0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF8_SHIFT                0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF9_MASK                 0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF9_SHIFT                2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF10_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF10_SHIFT               4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF11_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF11_SHIFT               6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF8_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF8_SHIFT	0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF9_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF9_SHIFT	2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF10_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF10_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF11_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF11_SHIFT	6
 	u8 flags5;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF12_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF12_SHIFT               0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF13_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF13_SHIFT               2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_FMR_ENDED_CF_MASK        0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_FMR_ENDED_CF_SHIFT       4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF15_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF15_SHIFT               6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF12_MASK		0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF12_SHIFT		0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF13_MASK		0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF13_SHIFT		2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_FMR_ENDED_CF_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_FMR_ENDED_CF_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF15_MASK		0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF15_SHIFT		6
 	u8 flags6;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF16_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF16_SHIFT               0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF17_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF17_SHIFT               2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF18_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF18_SHIFT               4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF19_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF19_SHIFT               6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF16_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF16_SHIFT	0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF17_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF17_SHIFT	2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF18_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF18_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF19_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF19_SHIFT	6
 	u8 flags7;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF20_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF20_SHIFT               0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF21_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF21_SHIFT               2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SLOW_PATH_MASK           0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SLOW_PATH_SHIFT          4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_SHIFT              6
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT              7
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF20_MASK		0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF20_SHIFT		0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF21_MASK		0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF21_SHIFT		2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SLOW_PATH_MASK	0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SLOW_PATH_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_SHIFT		6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT		7
 	u8 flags8;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_SHIFT              0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF3EN_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF3EN_SHIFT              1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_FLUSH_CF_EN_MASK      0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_FLUSH_CF_EN_SHIFT     2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_CF_EN_MASK      0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_CF_EN_SHIFT     3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SND_RXMIT_CF_EN_MASK     0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SND_RXMIT_CF_EN_SHIFT    4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK      0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT     5
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF8EN_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF8EN_SHIFT              6
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF9EN_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF9EN_SHIFT              7
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_SHIFT			0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF3EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF3EN_SHIFT			1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_FLUSH_CF_EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_FLUSH_CF_EN_SHIFT	2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_CF_EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RX_ERROR_CF_EN_SHIFT	3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SND_RXMIT_CF_EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SND_RXMIT_CF_EN_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT	5
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF8EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF8EN_SHIFT			6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF9EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF9EN_SHIFT			7
 	u8 flags9;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF10EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF10EN_SHIFT             0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF11EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF11EN_SHIFT             1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF12EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF12EN_SHIFT             2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF13EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF13EN_SHIFT             3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_FME_ENDED_CF_EN_MASK     0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_FME_ENDED_CF_EN_SHIFT    4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF15EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF15EN_SHIFT             5
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF16EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF16EN_SHIFT             6
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF17EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF17EN_SHIFT             7
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF10EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF10EN_SHIFT		0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF11EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF11EN_SHIFT		1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF12EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF12EN_SHIFT		2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF13EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF13EN_SHIFT		3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_FME_ENDED_CF_EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_FME_ENDED_CF_EN_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF15EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF15EN_SHIFT		5
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF16EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF16EN_SHIFT		6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF17EN_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF17EN_SHIFT		7
 	u8 flags10;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF18EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF18EN_SHIFT             0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF19EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF19EN_SHIFT             1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF20EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF20EN_SHIFT             2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF21EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF21EN_SHIFT             3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SLOW_PATH_EN_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SLOW_PATH_EN_SHIFT       4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF23EN_MASK              0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF23EN_SHIFT             5
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK             0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT            6
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK             0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT            7
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF18EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF18EN_SHIFT	0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF19EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF19EN_SHIFT	1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF20EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF20EN_SHIFT	2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF21EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF21EN_SHIFT	3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SLOW_PATH_EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SLOW_PATH_EN_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF23EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF23EN_SHIFT	5
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT	6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT	7
 	u8 flags11;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK             0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT            0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK             0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT            1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK             0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT            2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_MASK             0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_SHIFT            3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE6EN_MASK             0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE6EN_SHIFT            4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_E2E_CREDIT_RULE_EN_MASK  0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_E2E_CREDIT_RULE_EN_SHIFT 5
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED1_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED1_SHIFT       6
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE9EN_MASK             0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE9EN_SHIFT            7
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT		0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT		1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT		2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE5EN_SHIFT		3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE6EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE6EN_SHIFT		4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_E2E_CREDIT_RULE_EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_E2E_CREDIT_RULE_EN_SHIFT	5
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED1_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED1_SHIFT		6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE9EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE9EN_SHIFT		7
 	u8 flags12;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_PROD_EN_MASK          0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_PROD_EN_SHIFT         0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE11EN_MASK            0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE11EN_SHIFT           1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED2_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED2_SHIFT       2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED3_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED3_SHIFT       3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_INV_FENCE_RULE_EN_MASK   0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_INV_FENCE_RULE_EN_SHIFT  4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE15EN_MASK            0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE15EN_SHIFT           5
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_ORQ_FENCE_RULE_EN_MASK   0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_ORQ_FENCE_RULE_EN_SHIFT  6
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_MAX_ORD_RULE_EN_MASK     0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_MAX_ORD_RULE_EN_SHIFT    7
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_PROD_EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_SQ_PROD_EN_SHIFT		0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE11EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE11EN_SHIFT		1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED2_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED2_SHIFT		2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED3_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED3_SHIFT		3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_INV_FENCE_RULE_EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_INV_FENCE_RULE_EN_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE15EN_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE15EN_SHIFT		5
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_ORQ_FENCE_RULE_EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_ORQ_FENCE_RULE_EN_SHIFT	6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_MAX_ORD_RULE_EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_MAX_ORD_RULE_EN_SHIFT	7
 	u8 flags13;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE18EN_MASK            0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE18EN_SHIFT           0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE19EN_MASK            0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE19EN_SHIFT           1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED4_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED4_SHIFT       2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED5_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED5_SHIFT       3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED6_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED6_SHIFT       4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED7_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED7_SHIFT       5
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED8_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED8_SHIFT       6
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED9_MASK        0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED9_SHIFT       7
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE18EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE18EN_SHIFT	0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE19EN_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RULE19EN_SHIFT	1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED4_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED4_SHIFT	2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED5_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED5_SHIFT	3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED6_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED6_SHIFT	4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED7_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED7_SHIFT	5
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED8_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED8_SHIFT	6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED9_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_A0_RESERVED9_SHIFT	7
 	u8 flags14;
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_MIGRATION_FLAG_MASK      0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_MIGRATION_FLAG_SHIFT     0
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT17_MASK               0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT17_SHIFT              1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_DPM_PORT_NUM_MASK        0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_DPM_PORT_NUM_SHIFT       2
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED_MASK            0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED_SHIFT           4
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_ROCE_EDPM_ENABLE_MASK    0x1
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_ROCE_EDPM_ENABLE_SHIFT   5
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF23_MASK                0x3
-#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF23_SHIFT               6
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_MIGRATION_FLAG_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_MIGRATION_FLAG_SHIFT	0
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT17_MASK			0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_BIT17_SHIFT			1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_DPM_PORT_NUM_MASK		0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_DPM_PORT_NUM_SHIFT		2
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED_MASK		0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_RESERVED_SHIFT		4
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_ROCE_EDPM_ENABLE_MASK	0x1
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_ROCE_EDPM_ENABLE_SHIFT	5
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF23_MASK			0x3
+#define XSTORM_ROCE_REQ_CONN_AG_CTX_CF23_SHIFT			6
 	u8 byte2;
 	__le16 physical_q0;
 	__le16 word1;
@@ -8306,212 +8545,212 @@ struct xstorm_roce_resp_conn_ag_ctx {
 	u8 reserved0;
 	u8 state;
 	u8 flags0;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT     0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED1_MASK         0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED1_SHIFT        1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED2_MASK         0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED2_SHIFT        2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM3_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM3_SHIFT     3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED3_MASK         0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED3_SHIFT        4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED4_MASK         0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED4_SHIFT        5
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED5_MASK         0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED5_SHIFT        6
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED6_MASK         0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED6_SHIFT        7
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED1_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED1_SHIFT	1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED2_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED2_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM3_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_EXIST_IN_QM3_SHIFT	3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED3_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED3_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED4_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED4_SHIFT	5
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED5_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED5_SHIFT	6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED6_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED6_SHIFT	7
 	u8 flags1;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED7_MASK         0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED7_SHIFT        0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED8_MASK         0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED8_SHIFT        1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT10_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT10_SHIFT            2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT11_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT11_SHIFT            3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT12_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT12_SHIFT            4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT13_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT13_SHIFT            5
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_ERROR_STATE_MASK       0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_ERROR_STATE_SHIFT      6
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_YSTORM_FLUSH_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_YSTORM_FLUSH_SHIFT     7
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED7_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED7_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED8_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RESERVED8_SHIFT	1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT10_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT10_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT11_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT11_SHIFT	3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT12_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT12_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT13_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT13_SHIFT	5
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_ERROR_STATE_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_ERROR_STATE_SHIFT	6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_YSTORM_FLUSH_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_YSTORM_FLUSH_SHIFT	7
 	u8 flags2;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK               0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT              0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF1_MASK               0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF1_SHIFT              2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF2_MASK               0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF2_SHIFT              4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF3_MASK               0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF3_SHIFT              6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF1_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF1_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF2_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF2_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF3_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF3_SHIFT	6
 	u8 flags3;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RXMIT_CF_MASK          0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RXMIT_CF_SHIFT         0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_MASK       0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_SHIFT      2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_FORCE_ACK_CF_MASK      0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_FORCE_ACK_CF_SHIFT     4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_MASK       0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT      6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RXMIT_CF_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RXMIT_CF_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_FORCE_ACK_CF_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_FORCE_ACK_CF_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT	6
 	u8 flags4;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF8_MASK               0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF8_SHIFT              0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF9_MASK               0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF9_SHIFT              2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF10_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF10_SHIFT             4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF11_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF11_SHIFT             6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF8_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF8_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF9_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF9_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF10_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF10_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF11_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF11_SHIFT	6
 	u8 flags5;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF12_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF12_SHIFT             0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF13_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF13_SHIFT             2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF14_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF14_SHIFT             4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF15_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF15_SHIFT             6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF12_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF12_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF13_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF13_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF14_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF14_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF15_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF15_SHIFT	6
 	u8 flags6;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF16_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF16_SHIFT             0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF17_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF17_SHIFT             2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF18_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF18_SHIFT             4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF19_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF19_SHIFT             6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF16_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF16_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF17_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF17_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF18_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF18_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF19_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF19_SHIFT	6
 	u8 flags7;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF20_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF20_SHIFT             0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF21_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF21_SHIFT             2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_SLOW_PATH_MASK         0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_SLOW_PATH_SHIFT        4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT            6
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_SHIFT            7
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF20_MASK		0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF20_SHIFT		0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF21_MASK		0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF21_SHIFT		2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_SLOW_PATH_MASK	0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_SLOW_PATH_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT	6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_SHIFT	7
 	u8 flags8;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_SHIFT            0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_SHIFT            1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RXMIT_CF_EN_MASK       0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RXMIT_CF_EN_SHIFT      2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_MASK    0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_SHIFT   3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_FORCE_ACK_CF_EN_MASK   0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_FORCE_ACK_CF_EN_SHIFT  4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK    0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT   5
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_SHIFT            6
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_SHIFT            7
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_MASK			0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_SHIFT		0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_MASK			0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF3EN_SHIFT		1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RXMIT_CF_EN_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RXMIT_CF_EN_SHIFT		2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RX_ERROR_CF_EN_SHIFT	3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_FORCE_ACK_CF_EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_FORCE_ACK_CF_EN_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT	5
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_MASK			0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF8EN_SHIFT		6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_MASK			0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF9EN_SHIFT		7
 	u8 flags9;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_SHIFT           0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF11EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF11EN_SHIFT           1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF12EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF12EN_SHIFT           2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF13EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF13EN_SHIFT           3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF14EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF14EN_SHIFT           4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF15EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF15EN_SHIFT           5
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF16EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF16EN_SHIFT           6
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF17EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF17EN_SHIFT           7
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF10EN_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF11EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF11EN_SHIFT	1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF12EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF12EN_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF13EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF13EN_SHIFT	3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF14EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF14EN_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF15EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF15EN_SHIFT	5
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF16EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF16EN_SHIFT	6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF17EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF17EN_SHIFT	7
 	u8 flags10;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF18EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF18EN_SHIFT           0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF19EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF19EN_SHIFT           1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF20EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF20EN_SHIFT           2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF21EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF21EN_SHIFT           3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_SLOW_PATH_EN_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_SLOW_PATH_EN_SHIFT     4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF23EN_MASK            0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF23EN_SHIFT           5
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK           0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT          6
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK           0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT          7
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF18EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF18EN_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF19EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF19EN_SHIFT	1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF20EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF20EN_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF21EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF21EN_SHIFT	3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_SLOW_PATH_EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_SLOW_PATH_EN_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF23EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF23EN_SHIFT	5
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT	6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT	7
 	u8 flags11;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK           0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT          0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK           0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT          1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK           0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT          2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_MASK           0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_SHIFT          3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE6EN_MASK           0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE6EN_SHIFT          4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_MASK           0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_SHIFT          5
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED1_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED1_SHIFT     6
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE9EN_MASK           0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE9EN_SHIFT          7
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT	1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE5EN_SHIFT	3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE6EN_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE7EN_SHIFT	5
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED1_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED1_SHIFT	6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE9EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE9EN_SHIFT	7
 	u8 flags12;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE10EN_MASK          0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE10EN_SHIFT         0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_IRQ_PROD_RULE_EN_MASK  0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_IRQ_PROD_RULE_EN_SHIFT 1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED2_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED2_SHIFT     2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED3_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED3_SHIFT     3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE14EN_MASK          0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE14EN_SHIFT         4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE15EN_MASK          0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE15EN_SHIFT         5
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE16EN_MASK          0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE16EN_SHIFT         6
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE17EN_MASK          0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE17EN_SHIFT         7
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_IRQ_PROD_RULE_EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_IRQ_PROD_RULE_EN_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE11EN_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE11EN_SHIFT		1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED2_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED2_SHIFT		2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED3_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED3_SHIFT		3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE14EN_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE14EN_SHIFT		4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE15EN_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE15EN_SHIFT		5
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE16EN_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE16EN_SHIFT		6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE17EN_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE17EN_SHIFT		7
 	u8 flags13;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE18EN_MASK          0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE18EN_SHIFT         0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE19EN_MASK          0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE19EN_SHIFT         1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED4_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED4_SHIFT     2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED5_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED5_SHIFT     3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED6_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED6_SHIFT     4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED7_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED7_SHIFT     5
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED8_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED8_SHIFT     6
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED9_MASK      0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED9_SHIFT     7
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE18EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE18EN_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE19EN_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_RULE19EN_SHIFT	1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED4_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED4_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED5_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED5_SHIFT	3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED6_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED6_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED7_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED7_SHIFT	5
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED8_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED8_SHIFT	6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED9_MASK	0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_A0_RESERVED9_SHIFT	7
 	u8 flags14;
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT16_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT16_SHIFT            0
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT17_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT17_SHIFT            1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT18_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT18_SHIFT            2
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT19_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT19_SHIFT            3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT20_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT20_SHIFT            4
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT21_MASK             0x1
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT21_SHIFT            5
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF23_MASK              0x3
-#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF23_SHIFT             6
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT16_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT16_SHIFT	0
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT17_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT17_SHIFT	1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT18_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT18_SHIFT	2
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT19_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT19_SHIFT	3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT20_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT20_SHIFT	4
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT21_MASK		0x1
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_BIT21_SHIFT	5
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF23_MASK		0x3
+#define XSTORM_ROCE_RESP_CONN_AG_CTX_CF23_SHIFT		6
 	u8 byte2;
 	__le16 physical_q0;
 	__le16 word1;
@@ -8537,33 +8776,33 @@ struct ystorm_roce_req_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_BIT0_MASK     0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_BIT0_SHIFT    0
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_BIT1_MASK     0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_BIT1_SHIFT    1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF0_MASK      0x3
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF0_SHIFT     2
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK      0x3
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT     4
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF2_MASK      0x3
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF2_SHIFT     6
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_BIT0_MASK	0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_BIT0_SHIFT	0
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_BIT1_MASK	0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_BIT1_SHIFT	1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF0_MASK	0x3
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF0_SHIFT	2
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF1_MASK	0x3
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF1_SHIFT	4
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF2_MASK	0x3
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_MASK    0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_SHIFT   0
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK    0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT   1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_MASK    0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_SHIFT   2
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_MASK		0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF0EN_SHIFT		0
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_MASK		0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF1EN_SHIFT		1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_MASK		0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_CF2EN_SHIFT		2
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define YSTORM_ROCE_REQ_CONN_AG_CTX_RULE4EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -8581,33 +8820,33 @@ struct ystorm_roce_resp_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_BIT0_MASK     0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_BIT0_SHIFT    0
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_MASK     0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_SHIFT    1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK      0x3
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT     2
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF1_MASK      0x3
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF1_SHIFT     4
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF2_MASK      0x3
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF2_SHIFT     6
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_BIT0_MASK	0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_BIT0_SHIFT	0
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_MASK	0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_BIT1_SHIFT	1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF0_MASK	0x3
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF0_SHIFT	2
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF1_MASK	0x3
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF1_SHIFT	4
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF2_MASK	0x3
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK    0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT   0
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_MASK    0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_SHIFT   1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_MASK    0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_SHIFT   2
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_MASK		0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF0EN_SHIFT	0
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_MASK		0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF1EN_SHIFT	1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_MASK		0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_CF2EN_SHIFT	2
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define YSTORM_ROCE_RESP_CONN_AG_CTX_RULE4EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -8621,6 +8860,7 @@ struct ystorm_roce_resp_conn_ag_ctx {
 	__le32 reg3;
 };
 
+/* Roce doorbell data */
 enum roce_flavor {
 	PLAIN_ROCE,
 	RROCE_IPV4,
@@ -8628,14 +8868,17 @@ enum roce_flavor {
 	MAX_ROCE_FLAVOR
 };
 
+/* The iwarp storm context of Ystorm */
 struct ystorm_iwarp_conn_st_ctx {
 	__le32 reserved[4];
 };
 
+/* The iwarp storm context of Pstorm */
 struct pstorm_iwarp_conn_st_ctx {
 	__le32 reserved[36];
 };
 
+/* The iwarp storm context of Xstorm */
 struct xstorm_iwarp_conn_st_ctx {
 	__le32 reserved[44];
 };
@@ -8652,38 +8895,38 @@ struct xstorm_iwarp_conn_ag_ctx {
 #define XSTORM_IWARP_CONN_AG_CTX_EXIST_IN_QM2_SHIFT	2
 #define XSTORM_IWARP_CONN_AG_CTX_EXIST_IN_QM3_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_EXIST_IN_QM3_SHIFT	3
-#define XSTORM_IWARP_CONN_AG_CTX_BIT4_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT4_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_RESERVED2_MASK	0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT4_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT4_SHIFT		4
+#define XSTORM_IWARP_CONN_AG_CTX_RESERVED2_MASK		0x1
 #define XSTORM_IWARP_CONN_AG_CTX_RESERVED2_SHIFT	5
-#define XSTORM_IWARP_CONN_AG_CTX_BIT6_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT6_SHIFT	6
-#define XSTORM_IWARP_CONN_AG_CTX_BIT7_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT7_SHIFT	7
+#define XSTORM_IWARP_CONN_AG_CTX_BIT6_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT6_SHIFT		6
+#define XSTORM_IWARP_CONN_AG_CTX_BIT7_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT7_SHIFT		7
 	u8 flags1;
-#define XSTORM_IWARP_CONN_AG_CTX_BIT8_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT8_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_BIT9_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT9_SHIFT	1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT10_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT10_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_BIT11_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT11_SHIFT	3
-#define XSTORM_IWARP_CONN_AG_CTX_BIT12_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT12_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_BIT13_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT13_SHIFT	5
-#define XSTORM_IWARP_CONN_AG_CTX_BIT14_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT14_SHIFT	6
+#define XSTORM_IWARP_CONN_AG_CTX_BIT8_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT8_SHIFT				0
+#define XSTORM_IWARP_CONN_AG_CTX_BIT9_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT9_SHIFT				1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT10_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT10_SHIFT				2
+#define XSTORM_IWARP_CONN_AG_CTX_BIT11_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT11_SHIFT				3
+#define XSTORM_IWARP_CONN_AG_CTX_BIT12_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT12_SHIFT				4
+#define XSTORM_IWARP_CONN_AG_CTX_BIT13_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT13_SHIFT				5
+#define XSTORM_IWARP_CONN_AG_CTX_BIT14_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT14_SHIFT				6
 #define XSTORM_IWARP_CONN_AG_CTX_YSTORM_FLUSH_OR_REWIND_SND_MAX_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_YSTORM_FLUSH_OR_REWIND_SND_MAX_SHIFT	7
 	u8 flags2;
-#define XSTORM_IWARP_CONN_AG_CTX_CF0_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_CF0_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_CF1_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_CF1_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_CF2_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_CF2_SHIFT	4
+#define XSTORM_IWARP_CONN_AG_CTX_CF0_MASK		0x3
+#define XSTORM_IWARP_CONN_AG_CTX_CF0_SHIFT		0
+#define XSTORM_IWARP_CONN_AG_CTX_CF1_MASK		0x3
+#define XSTORM_IWARP_CONN_AG_CTX_CF1_SHIFT		2
+#define XSTORM_IWARP_CONN_AG_CTX_CF2_MASK		0x3
+#define XSTORM_IWARP_CONN_AG_CTX_CF2_SHIFT		4
 #define XSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_MASK	0x3
 #define XSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_SHIFT	6
 	u8 flags3;
@@ -8705,119 +8948,119 @@ struct xstorm_iwarp_conn_ag_ctx {
 #define XSTORM_IWARP_CONN_AG_CTX_CF11_MASK	0x3
 #define XSTORM_IWARP_CONN_AG_CTX_CF11_SHIFT	6
 	u8 flags5;
-#define XSTORM_IWARP_CONN_AG_CTX_CF12_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_CF12_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_CF13_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_CF13_SHIFT	2
+#define XSTORM_IWARP_CONN_AG_CTX_CF12_MASK		0x3
+#define XSTORM_IWARP_CONN_AG_CTX_CF12_SHIFT		0
+#define XSTORM_IWARP_CONN_AG_CTX_CF13_MASK		0x3
+#define XSTORM_IWARP_CONN_AG_CTX_CF13_SHIFT		2
 #define XSTORM_IWARP_CONN_AG_CTX_SQ_FLUSH_CF_MASK	0x3
 #define XSTORM_IWARP_CONN_AG_CTX_SQ_FLUSH_CF_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_CF15_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_CF15_SHIFT	6
+#define XSTORM_IWARP_CONN_AG_CTX_CF15_MASK		0x3
+#define XSTORM_IWARP_CONN_AG_CTX_CF15_SHIFT		6
 	u8 flags6;
 #define XSTORM_IWARP_CONN_AG_CTX_MPA_OR_ERROR_WAKEUP_TRIGGER_CF_MASK	0x3
 #define XSTORM_IWARP_CONN_AG_CTX_MPA_OR_ERROR_WAKEUP_TRIGGER_CF_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_CF17_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_CF17_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_CF18_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_CF18_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_DQ_FLUSH_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_DQ_FLUSH_SHIFT	6
+#define XSTORM_IWARP_CONN_AG_CTX_CF17_MASK				0x3
+#define XSTORM_IWARP_CONN_AG_CTX_CF17_SHIFT				2
+#define XSTORM_IWARP_CONN_AG_CTX_CF18_MASK				0x3
+#define XSTORM_IWARP_CONN_AG_CTX_CF18_SHIFT				4
+#define XSTORM_IWARP_CONN_AG_CTX_DQ_FLUSH_MASK				0x3
+#define XSTORM_IWARP_CONN_AG_CTX_DQ_FLUSH_SHIFT				6
 	u8 flags7;
-#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q1_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q1_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_SLOW_PATH_MASK	0x3
+#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_MASK		0x3
+#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_SHIFT		0
+#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q1_MASK		0x3
+#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q1_SHIFT		2
+#define XSTORM_IWARP_CONN_AG_CTX_SLOW_PATH_MASK		0x3
 #define XSTORM_IWARP_CONN_AG_CTX_SLOW_PATH_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_CF0EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF0EN_SHIFT	6
-#define XSTORM_IWARP_CONN_AG_CTX_CF1EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF1EN_SHIFT	7
+#define XSTORM_IWARP_CONN_AG_CTX_CF0EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF0EN_SHIFT		6
+#define XSTORM_IWARP_CONN_AG_CTX_CF1EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF1EN_SHIFT		7
 	u8 flags8;
-#define XSTORM_IWARP_CONN_AG_CTX_CF2EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF2EN_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK	0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF2EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF2EN_SHIFT			0
+#define XSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK		0x1
 #define XSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_EN_SHIFT	1
-#define XSTORM_IWARP_CONN_AG_CTX_CF4EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF4EN_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_CF5EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF5EN_SHIFT	3
-#define XSTORM_IWARP_CONN_AG_CTX_CF6EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF6EN_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_CF7EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF7EN_SHIFT	5
-#define XSTORM_IWARP_CONN_AG_CTX_CF8EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF8EN_SHIFT	6
-#define XSTORM_IWARP_CONN_AG_CTX_CF9EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF9EN_SHIFT	7
+#define XSTORM_IWARP_CONN_AG_CTX_CF4EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF4EN_SHIFT			2
+#define XSTORM_IWARP_CONN_AG_CTX_CF5EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF5EN_SHIFT			3
+#define XSTORM_IWARP_CONN_AG_CTX_CF6EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF6EN_SHIFT			4
+#define XSTORM_IWARP_CONN_AG_CTX_CF7EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF7EN_SHIFT			5
+#define XSTORM_IWARP_CONN_AG_CTX_CF8EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF8EN_SHIFT			6
+#define XSTORM_IWARP_CONN_AG_CTX_CF9EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF9EN_SHIFT			7
 	u8 flags9;
-#define XSTORM_IWARP_CONN_AG_CTX_CF10EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF10EN_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_CF11EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF11EN_SHIFT	1
-#define XSTORM_IWARP_CONN_AG_CTX_CF12EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF12EN_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_CF13EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF13EN_SHIFT	3
-#define XSTORM_IWARP_CONN_AG_CTX_SQ_FLUSH_CF_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_SQ_FLUSH_CF_EN_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_CF15EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF15EN_SHIFT	5
+#define XSTORM_IWARP_CONN_AG_CTX_CF10EN_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF10EN_SHIFT				0
+#define XSTORM_IWARP_CONN_AG_CTX_CF11EN_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF11EN_SHIFT				1
+#define XSTORM_IWARP_CONN_AG_CTX_CF12EN_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF12EN_SHIFT				2
+#define XSTORM_IWARP_CONN_AG_CTX_CF13EN_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF13EN_SHIFT				3
+#define XSTORM_IWARP_CONN_AG_CTX_SQ_FLUSH_CF_EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_SQ_FLUSH_CF_EN_SHIFT			4
+#define XSTORM_IWARP_CONN_AG_CTX_CF15EN_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF15EN_SHIFT				5
 #define XSTORM_IWARP_CONN_AG_CTX_MPA_OR_ERROR_WAKEUP_TRIGGER_CF_EN_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_MPA_OR_ERROR_WAKEUP_TRIGGER_CF_EN_SHIFT 6
-#define XSTORM_IWARP_CONN_AG_CTX_CF17EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF17EN_SHIFT	7
+#define XSTORM_IWARP_CONN_AG_CTX_CF17EN_MASK				0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF17EN_SHIFT				7
 	u8 flags10;
-#define XSTORM_IWARP_CONN_AG_CTX_CF18EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF18EN_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_DQ_FLUSH_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_DQ_FLUSH_EN_SHIFT	1
-#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q1_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q1_EN_SHIFT	3
-#define XSTORM_IWARP_CONN_AG_CTX_SLOW_PATH_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_SLOW_PATH_EN_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_CF23EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_CF23EN_SHIFT	5
-#define XSTORM_IWARP_CONN_AG_CTX_RULE0EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE0EN_SHIFT	6
+#define XSTORM_IWARP_CONN_AG_CTX_CF18EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF18EN_SHIFT			0
+#define XSTORM_IWARP_CONN_AG_CTX_DQ_FLUSH_EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_DQ_FLUSH_EN_SHIFT		1
+#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT		2
+#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q1_EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_FLUSH_Q1_EN_SHIFT		3
+#define XSTORM_IWARP_CONN_AG_CTX_SLOW_PATH_EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_SLOW_PATH_EN_SHIFT		4
+#define XSTORM_IWARP_CONN_AG_CTX_CF23EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_CF23EN_SHIFT			5
+#define XSTORM_IWARP_CONN_AG_CTX_RULE0EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE0EN_SHIFT			6
 #define XSTORM_IWARP_CONN_AG_CTX_MORE_TO_SEND_RULE_EN_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_MORE_TO_SEND_RULE_EN_SHIFT	7
 	u8 flags11;
 #define XSTORM_IWARP_CONN_AG_CTX_TX_BLOCKED_EN_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_TX_BLOCKED_EN_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_RULE3EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE3EN_SHIFT	1
-#define XSTORM_IWARP_CONN_AG_CTX_RESERVED3_MASK	0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE3EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE3EN_SHIFT		1
+#define XSTORM_IWARP_CONN_AG_CTX_RESERVED3_MASK		0x1
 #define XSTORM_IWARP_CONN_AG_CTX_RESERVED3_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_RULE5EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE5EN_SHIFT	3
-#define XSTORM_IWARP_CONN_AG_CTX_RULE6EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE6EN_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_RULE7EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE7EN_SHIFT	5
+#define XSTORM_IWARP_CONN_AG_CTX_RULE5EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE5EN_SHIFT		3
+#define XSTORM_IWARP_CONN_AG_CTX_RULE6EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE6EN_SHIFT		4
+#define XSTORM_IWARP_CONN_AG_CTX_RULE7EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE7EN_SHIFT		5
 #define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED1_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED1_SHIFT	6
-#define XSTORM_IWARP_CONN_AG_CTX_RULE9EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE9EN_SHIFT	7
+#define XSTORM_IWARP_CONN_AG_CTX_RULE9EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE9EN_SHIFT		7
 	u8 flags12;
 #define XSTORM_IWARP_CONN_AG_CTX_SQ_NOT_EMPTY_RULE_EN_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_SQ_NOT_EMPTY_RULE_EN_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_RULE11EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE11EN_SHIFT	1
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED2_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED2_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED3_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED3_SHIFT	3
-#define XSTORM_IWARP_CONN_AG_CTX_SQ_FENCE_RULE_EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_SQ_FENCE_RULE_EN_SHIFT	4
-#define XSTORM_IWARP_CONN_AG_CTX_RULE15EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE15EN_SHIFT	5
-#define XSTORM_IWARP_CONN_AG_CTX_RULE16EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE16EN_SHIFT	6
-#define XSTORM_IWARP_CONN_AG_CTX_RULE17EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE17EN_SHIFT	7
+#define XSTORM_IWARP_CONN_AG_CTX_RULE11EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE11EN_SHIFT			1
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED2_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED2_SHIFT		2
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED3_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED3_SHIFT		3
+#define XSTORM_IWARP_CONN_AG_CTX_SQ_FENCE_RULE_EN_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_SQ_FENCE_RULE_EN_SHIFT		4
+#define XSTORM_IWARP_CONN_AG_CTX_RULE15EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE15EN_SHIFT			5
+#define XSTORM_IWARP_CONN_AG_CTX_RULE16EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE16EN_SHIFT			6
+#define XSTORM_IWARP_CONN_AG_CTX_RULE17EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE17EN_SHIFT			7
 	u8 flags13;
 #define XSTORM_IWARP_CONN_AG_CTX_IRQ_NOT_EMPTY_RULE_EN_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_IRQ_NOT_EMPTY_RULE_EN_SHIFT	0
@@ -8825,31 +9068,31 @@ struct xstorm_iwarp_conn_ag_ctx {
 #define XSTORM_IWARP_CONN_AG_CTX_HQ_NOT_FULL_RULE_EN_SHIFT	1
 #define XSTORM_IWARP_CONN_AG_CTX_ORQ_RD_FENCE_RULE_EN_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_ORQ_RD_FENCE_RULE_EN_SHIFT	2
-#define XSTORM_IWARP_CONN_AG_CTX_RULE21EN_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_RULE21EN_SHIFT	3
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED6_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED6_SHIFT	4
+#define XSTORM_IWARP_CONN_AG_CTX_RULE21EN_MASK			0x1
+#define XSTORM_IWARP_CONN_AG_CTX_RULE21EN_SHIFT			3
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED6_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED6_SHIFT		4
 #define XSTORM_IWARP_CONN_AG_CTX_ORQ_NOT_FULL_RULE_EN_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_ORQ_NOT_FULL_RULE_EN_SHIFT	5
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED8_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED8_SHIFT	6
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED9_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED9_SHIFT	7
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED8_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED8_SHIFT		6
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED9_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_A0_RESERVED9_SHIFT		7
 	u8 flags14;
-#define XSTORM_IWARP_CONN_AG_CTX_BIT16_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT16_SHIFT	0
-#define XSTORM_IWARP_CONN_AG_CTX_BIT17_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT17_SHIFT	1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT18_MASK	0x1
-#define XSTORM_IWARP_CONN_AG_CTX_BIT18_SHIFT	2
+#define XSTORM_IWARP_CONN_AG_CTX_BIT16_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT16_SHIFT		0
+#define XSTORM_IWARP_CONN_AG_CTX_BIT17_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT17_SHIFT		1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT18_MASK		0x1
+#define XSTORM_IWARP_CONN_AG_CTX_BIT18_SHIFT		2
 #define XSTORM_IWARP_CONN_AG_CTX_E5_RESERVED1_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_E5_RESERVED1_SHIFT	3
 #define XSTORM_IWARP_CONN_AG_CTX_E5_RESERVED2_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_E5_RESERVED2_SHIFT	4
 #define XSTORM_IWARP_CONN_AG_CTX_E5_RESERVED3_MASK	0x1
 #define XSTORM_IWARP_CONN_AG_CTX_E5_RESERVED3_SHIFT	5
-#define XSTORM_IWARP_CONN_AG_CTX_CF23_MASK	0x3
-#define XSTORM_IWARP_CONN_AG_CTX_CF23_SHIFT	6
+#define XSTORM_IWARP_CONN_AG_CTX_CF23_MASK		0x3
+#define XSTORM_IWARP_CONN_AG_CTX_CF23_SHIFT		6
 	u8 byte2;
 	__le16 physical_q0;
 	__le16 physical_q1;
@@ -8903,18 +9146,18 @@ struct tstorm_iwarp_conn_ag_ctx {
 	u8 flags0;
 #define TSTORM_IWARP_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
 #define TSTORM_IWARP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
-#define TSTORM_IWARP_CONN_AG_CTX_BIT1_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_BIT1_SHIFT	1
-#define TSTORM_IWARP_CONN_AG_CTX_BIT2_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_BIT2_SHIFT	2
+#define TSTORM_IWARP_CONN_AG_CTX_BIT1_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_BIT1_SHIFT		1
+#define TSTORM_IWARP_CONN_AG_CTX_BIT2_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_BIT2_SHIFT		2
 #define TSTORM_IWARP_CONN_AG_CTX_MSTORM_FLUSH_MASK	0x1
 #define TSTORM_IWARP_CONN_AG_CTX_MSTORM_FLUSH_SHIFT	3
-#define TSTORM_IWARP_CONN_AG_CTX_BIT4_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_BIT4_SHIFT	4
+#define TSTORM_IWARP_CONN_AG_CTX_BIT4_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_BIT4_SHIFT		4
 #define TSTORM_IWARP_CONN_AG_CTX_CACHED_ORQ_MASK	0x1
 #define TSTORM_IWARP_CONN_AG_CTX_CACHED_ORQ_SHIFT	5
-#define TSTORM_IWARP_CONN_AG_CTX_CF0_MASK	0x3
-#define TSTORM_IWARP_CONN_AG_CTX_CF0_SHIFT	6
+#define TSTORM_IWARP_CONN_AG_CTX_CF0_MASK		0x3
+#define TSTORM_IWARP_CONN_AG_CTX_CF0_SHIFT		6
 	u8 flags1;
 #define TSTORM_IWARP_CONN_AG_CTX_RQ_POST_CF_MASK	0x3
 #define TSTORM_IWARP_CONN_AG_CTX_RQ_POST_CF_SHIFT	0
@@ -8922,8 +9165,8 @@ struct tstorm_iwarp_conn_ag_ctx {
 #define TSTORM_IWARP_CONN_AG_CTX_MPA_TIMEOUT_CF_SHIFT	2
 #define TSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_MASK	0x3
 #define TSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_SHIFT	4
-#define TSTORM_IWARP_CONN_AG_CTX_CF4_MASK	0x3
-#define TSTORM_IWARP_CONN_AG_CTX_CF4_SHIFT	6
+#define TSTORM_IWARP_CONN_AG_CTX_CF4_MASK		0x3
+#define TSTORM_IWARP_CONN_AG_CTX_CF4_SHIFT		6
 	u8 flags2;
 #define TSTORM_IWARP_CONN_AG_CTX_CF5_MASK	0x3
 #define TSTORM_IWARP_CONN_AG_CTX_CF5_SHIFT	0
@@ -8934,52 +9177,52 @@ struct tstorm_iwarp_conn_ag_ctx {
 #define TSTORM_IWARP_CONN_AG_CTX_CF8_MASK	0x3
 #define TSTORM_IWARP_CONN_AG_CTX_CF8_SHIFT	6
 	u8 flags3;
-#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_MASK	0x3
-#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_SHIFT	0
+#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_MASK			0x3
+#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_SHIFT			0
 #define TSTORM_IWARP_CONN_AG_CTX_FLUSH_OR_ERROR_DETECTED_MASK	0x3
 #define TSTORM_IWARP_CONN_AG_CTX_FLUSH_OR_ERROR_DETECTED_SHIFT	2
-#define TSTORM_IWARP_CONN_AG_CTX_CF0EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_CF0EN_SHIFT	4
-#define TSTORM_IWARP_CONN_AG_CTX_RQ_POST_CF_EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_RQ_POST_CF_EN_SHIFT	5
-#define TSTORM_IWARP_CONN_AG_CTX_MPA_TIMEOUT_CF_EN_MASK	0x1
+#define TSTORM_IWARP_CONN_AG_CTX_CF0EN_MASK			0x1
+#define TSTORM_IWARP_CONN_AG_CTX_CF0EN_SHIFT			4
+#define TSTORM_IWARP_CONN_AG_CTX_RQ_POST_CF_EN_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_RQ_POST_CF_EN_SHIFT		5
+#define TSTORM_IWARP_CONN_AG_CTX_MPA_TIMEOUT_CF_EN_MASK		0x1
 #define TSTORM_IWARP_CONN_AG_CTX_MPA_TIMEOUT_CF_EN_SHIFT	6
-#define TSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK	0x1
+#define TSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK		0x1
 #define TSTORM_IWARP_CONN_AG_CTX_TIMER_STOP_ALL_EN_SHIFT	7
 	u8 flags4;
-#define TSTORM_IWARP_CONN_AG_CTX_CF4EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_CF4EN_SHIFT	0
-#define TSTORM_IWARP_CONN_AG_CTX_CF5EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_CF5EN_SHIFT	1
-#define TSTORM_IWARP_CONN_AG_CTX_CF6EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_CF6EN_SHIFT	2
-#define TSTORM_IWARP_CONN_AG_CTX_CF7EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_CF7EN_SHIFT	3
-#define TSTORM_IWARP_CONN_AG_CTX_CF8EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_CF8EN_SHIFT	4
-#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT	5
+#define TSTORM_IWARP_CONN_AG_CTX_CF4EN_MASK				0x1
+#define TSTORM_IWARP_CONN_AG_CTX_CF4EN_SHIFT				0
+#define TSTORM_IWARP_CONN_AG_CTX_CF5EN_MASK				0x1
+#define TSTORM_IWARP_CONN_AG_CTX_CF5EN_SHIFT				1
+#define TSTORM_IWARP_CONN_AG_CTX_CF6EN_MASK				0x1
+#define TSTORM_IWARP_CONN_AG_CTX_CF6EN_SHIFT				2
+#define TSTORM_IWARP_CONN_AG_CTX_CF7EN_MASK				0x1
+#define TSTORM_IWARP_CONN_AG_CTX_CF7EN_SHIFT				3
+#define TSTORM_IWARP_CONN_AG_CTX_CF8EN_MASK				0x1
+#define TSTORM_IWARP_CONN_AG_CTX_CF8EN_SHIFT				4
+#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_EN_MASK			0x1
+#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT			5
 #define TSTORM_IWARP_CONN_AG_CTX_FLUSH_OR_ERROR_DETECTED_EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_OR_ERROR_DETECTED_EN_SHIFT 6
-#define TSTORM_IWARP_CONN_AG_CTX_RULE0EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_RULE0EN_SHIFT	7
+#define TSTORM_IWARP_CONN_AG_CTX_FLUSH_OR_ERROR_DETECTED_EN_SHIFT	6
+#define TSTORM_IWARP_CONN_AG_CTX_RULE0EN_MASK				0x1
+#define TSTORM_IWARP_CONN_AG_CTX_RULE0EN_SHIFT				7
 	u8 flags5;
-#define TSTORM_IWARP_CONN_AG_CTX_RULE1EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_RULE1EN_SHIFT	0
-#define TSTORM_IWARP_CONN_AG_CTX_RULE2EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_RULE2EN_SHIFT	1
-#define TSTORM_IWARP_CONN_AG_CTX_RULE3EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_RULE3EN_SHIFT	2
-#define TSTORM_IWARP_CONN_AG_CTX_RULE4EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_RULE4EN_SHIFT	3
-#define TSTORM_IWARP_CONN_AG_CTX_RULE5EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define TSTORM_IWARP_CONN_AG_CTX_RULE1EN_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_RULE1EN_SHIFT		0
+#define TSTORM_IWARP_CONN_AG_CTX_RULE2EN_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_RULE2EN_SHIFT		1
+#define TSTORM_IWARP_CONN_AG_CTX_RULE3EN_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_RULE3EN_SHIFT		2
+#define TSTORM_IWARP_CONN_AG_CTX_RULE4EN_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_RULE4EN_SHIFT		3
+#define TSTORM_IWARP_CONN_AG_CTX_RULE5EN_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_RULE5EN_SHIFT		4
 #define TSTORM_IWARP_CONN_AG_CTX_SND_SQ_CONS_RULE_MASK	0x1
 #define TSTORM_IWARP_CONN_AG_CTX_SND_SQ_CONS_RULE_SHIFT	5
-#define TSTORM_IWARP_CONN_AG_CTX_RULE7EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_RULE7EN_SHIFT	6
-#define TSTORM_IWARP_CONN_AG_CTX_RULE8EN_MASK	0x1
-#define TSTORM_IWARP_CONN_AG_CTX_RULE8EN_SHIFT	7
+#define TSTORM_IWARP_CONN_AG_CTX_RULE7EN_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_RULE7EN_SHIFT		6
+#define TSTORM_IWARP_CONN_AG_CTX_RULE8EN_MASK		0x1
+#define TSTORM_IWARP_CONN_AG_CTX_RULE8EN_SHIFT		7
 	__le32 reg0;
 	__le32 reg1;
 	__le32 unaligned_nxt_seq;
@@ -9001,18 +9244,22 @@ struct tstorm_iwarp_conn_ag_ctx {
 	__le32 last_hq_sequence;
 };
 
+/* The iwarp storm context of Tstorm */
 struct tstorm_iwarp_conn_st_ctx {
 	__le32 reserved[60];
 };
 
+/* The iwarp storm context of Mstorm */
 struct mstorm_iwarp_conn_st_ctx {
 	__le32 reserved[32];
 };
 
+/* The iwarp storm context of Ustorm */
 struct ustorm_iwarp_conn_st_ctx {
 	__le32 reserved[24];
 };
 
+/* iwarp connection context */
 struct iwarp_conn_context {
 	struct ystorm_iwarp_conn_st_ctx ystorm_st_context;
 	struct regpair ystorm_st_padding[2];
@@ -9030,22 +9277,23 @@ struct iwarp_conn_context {
 	struct ustorm_iwarp_conn_st_ctx ustorm_st_context;
 };
 
+/* iWARP create QP params passed by driver to FW in CreateQP Request Ramrod */
 struct iwarp_create_qp_ramrod_data {
 	u8 flags;
 #define IWARP_CREATE_QP_RAMROD_DATA_FMR_AND_RESERVED_EN_MASK	0x1
-#define IWARP_CREATE_QP_RAMROD_DATA_FMR_AND_RESERVED_EN_SHIFT 0
-#define IWARP_CREATE_QP_RAMROD_DATA_SIGNALED_COMP_MASK	0x1
-#define IWARP_CREATE_QP_RAMROD_DATA_SIGNALED_COMP_SHIFT	1
-#define IWARP_CREATE_QP_RAMROD_DATA_RDMA_RD_EN_MASK	0x1
-#define IWARP_CREATE_QP_RAMROD_DATA_RDMA_RD_EN_SHIFT	2
-#define IWARP_CREATE_QP_RAMROD_DATA_RDMA_WR_EN_MASK	0x1
-#define IWARP_CREATE_QP_RAMROD_DATA_RDMA_WR_EN_SHIFT	3
-#define IWARP_CREATE_QP_RAMROD_DATA_ATOMIC_EN_MASK	0x1
-#define IWARP_CREATE_QP_RAMROD_DATA_ATOMIC_EN_SHIFT	4
-#define IWARP_CREATE_QP_RAMROD_DATA_SRQ_FLG_MASK	0x1
-#define IWARP_CREATE_QP_RAMROD_DATA_SRQ_FLG_SHIFT	5
-#define IWARP_CREATE_QP_RAMROD_DATA_RESERVED0_MASK	0x3
-#define IWARP_CREATE_QP_RAMROD_DATA_RESERVED0_SHIFT	6
+#define IWARP_CREATE_QP_RAMROD_DATA_FMR_AND_RESERVED_EN_SHIFT	0
+#define IWARP_CREATE_QP_RAMROD_DATA_SIGNALED_COMP_MASK		0x1
+#define IWARP_CREATE_QP_RAMROD_DATA_SIGNALED_COMP_SHIFT		1
+#define IWARP_CREATE_QP_RAMROD_DATA_RDMA_RD_EN_MASK		0x1
+#define IWARP_CREATE_QP_RAMROD_DATA_RDMA_RD_EN_SHIFT		2
+#define IWARP_CREATE_QP_RAMROD_DATA_RDMA_WR_EN_MASK		0x1
+#define IWARP_CREATE_QP_RAMROD_DATA_RDMA_WR_EN_SHIFT		3
+#define IWARP_CREATE_QP_RAMROD_DATA_ATOMIC_EN_MASK		0x1
+#define IWARP_CREATE_QP_RAMROD_DATA_ATOMIC_EN_SHIFT		4
+#define IWARP_CREATE_QP_RAMROD_DATA_SRQ_FLG_MASK		0x1
+#define IWARP_CREATE_QP_RAMROD_DATA_SRQ_FLG_SHIFT		5
+#define IWARP_CREATE_QP_RAMROD_DATA_RESERVED0_MASK		0x3
+#define IWARP_CREATE_QP_RAMROD_DATA_RESERVED0_SHIFT		6
 	u8 reserved1;
 	__le16 pd;
 	__le16 sq_num_pages;
@@ -9061,6 +9309,7 @@ struct iwarp_create_qp_ramrod_data {
 	u8 reserved2[6];
 };
 
+/* iWARP completion queue types */
 enum iwarp_eqe_async_opcode {
 	IWARP_EVENT_TYPE_ASYNC_CONNECT_COMPLETE,
 	IWARP_EVENT_TYPE_ASYNC_ENHANCED_MPA_REPLY_ARRIVED,
@@ -9083,6 +9332,7 @@ struct iwarp_eqe_data_tcp_async_completion {
 	u8 reserved[5];
 };
 
+/* iWARP completion queue types */
 enum iwarp_eqe_sync_opcode {
 	IWARP_EVENT_TYPE_TCP_OFFLOAD =
 	11,
@@ -9095,6 +9345,7 @@ enum iwarp_eqe_sync_opcode {
 	MAX_IWARP_EQE_SYNC_OPCODE
 };
 
+/* iWARP EQE completion status */
 enum iwarp_fw_return_code {
 	IWARP_CONN_ERROR_TCP_CONNECT_INVALID_PACKET = 5,
 	IWARP_CONN_ERROR_TCP_CONNECTION_RST,
@@ -9125,54 +9376,60 @@ enum iwarp_fw_return_code {
 	MAX_IWARP_FW_RETURN_CODE
 };
 
+/* unaligned opaque data received from LL2 */
 struct iwarp_init_func_params {
 	u8 ll2_ooo_q_index;
 	u8 reserved1[7];
 };
 
+/* iwarp func init ramrod data */
 struct iwarp_init_func_ramrod_data {
 	struct rdma_init_func_ramrod_data rdma;
 	struct tcp_init_params tcp;
 	struct iwarp_init_func_params iwarp;
 };
 
+/* iWARP QP - possible states to transition to */
 enum iwarp_modify_qp_new_state_type {
 	IWARP_MODIFY_QP_STATE_CLOSING = 1,
-	IWARP_MODIFY_QP_STATE_ERROR =
-	2,
+	IWARP_MODIFY_QP_STATE_ERROR = 2,
 	MAX_IWARP_MODIFY_QP_NEW_STATE_TYPE
 };
 
+/* iwarp modify qp responder ramrod data */
 struct iwarp_modify_qp_ramrod_data {
 	__le16 transition_to_state;
 	__le16 flags;
-#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_RD_EN_MASK	0x1
-#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_RD_EN_SHIFT	0
-#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_WR_EN_MASK	0x1
-#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_WR_EN_SHIFT	1
-#define IWARP_MODIFY_QP_RAMROD_DATA_ATOMIC_EN_MASK	0x1
-#define IWARP_MODIFY_QP_RAMROD_DATA_ATOMIC_EN_SHIFT	2
-#define IWARP_MODIFY_QP_RAMROD_DATA_STATE_TRANS_EN_MASK	0x1
+#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_RD_EN_MASK		0x1
+#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_RD_EN_SHIFT		0
+#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_WR_EN_MASK		0x1
+#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_WR_EN_SHIFT		1
+#define IWARP_MODIFY_QP_RAMROD_DATA_ATOMIC_EN_MASK		0x1
+#define IWARP_MODIFY_QP_RAMROD_DATA_ATOMIC_EN_SHIFT		2
+#define IWARP_MODIFY_QP_RAMROD_DATA_STATE_TRANS_EN_MASK		0x1
 #define IWARP_MODIFY_QP_RAMROD_DATA_STATE_TRANS_EN_SHIFT	3
 #define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_OPS_EN_FLG_MASK	0x1
-#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_OPS_EN_FLG_SHIFT 4
-#define IWARP_MODIFY_QP_RAMROD_DATA_RESERVED_MASK	0x7FF
-#define IWARP_MODIFY_QP_RAMROD_DATA_RESERVED_SHIFT	5
+#define IWARP_MODIFY_QP_RAMROD_DATA_RDMA_OPS_EN_FLG_SHIFT	4
+#define IWARP_MODIFY_QP_RAMROD_DATA_RESERVED_MASK		0x7FF
+#define IWARP_MODIFY_QP_RAMROD_DATA_RESERVED_SHIFT		5
 	__le32 reserved3[3];
 	__le32 reserved4[8];
 };
 
+/* MPA params for Enhanced mode */
 struct mpa_rq_params {
 	__le32 ird;
 	__le32 ord;
 };
 
+/* MPA host Address-Len for private data */
 struct mpa_ulp_buffer {
 	struct regpair addr;
 	__le16 len;
 	__le16 reserved[3];
 };
 
+/* iWARP MPA offload params common to Basic and Enhanced modes */
 struct mpa_outgoing_params {
 	u8 crc_needed;
 	u8 reject;
@@ -9181,6 +9438,9 @@ struct mpa_outgoing_params {
 	struct mpa_ulp_buffer outgoing_ulp_buffer;
 };
 
+/* iWARP MPA offload params passed by driver to FW in MPA Offload Request
+ * Ramrod.
+ */
 struct iwarp_mpa_offload_ramrod_data {
 	struct mpa_outgoing_params common;
 	__le32 tcp_cid;
@@ -9188,9 +9448,9 @@ struct iwarp_mpa_offload_ramrod_data {
 	u8 tcp_connect_side;
 	u8 rtr_pref;
 #define IWARP_MPA_OFFLOAD_RAMROD_DATA_RTR_SUPPORTED_MASK	0x7
-#define IWARP_MPA_OFFLOAD_RAMROD_DATA_RTR_SUPPORTED_SHIFT 0
-#define IWARP_MPA_OFFLOAD_RAMROD_DATA_RESERVED1_MASK	0x1F
-#define IWARP_MPA_OFFLOAD_RAMROD_DATA_RESERVED1_SHIFT	3
+#define IWARP_MPA_OFFLOAD_RAMROD_DATA_RTR_SUPPORTED_SHIFT	0
+#define IWARP_MPA_OFFLOAD_RAMROD_DATA_RESERVED1_MASK		0x1F
+#define IWARP_MPA_OFFLOAD_RAMROD_DATA_RESERVED1_SHIFT		3
 	u8 reserved2;
 	struct mpa_ulp_buffer incoming_ulp_buffer;
 	struct regpair async_eqe_output_buf;
@@ -9200,6 +9460,7 @@ struct iwarp_mpa_offload_ramrod_data {
 	u8 reserved3[15];
 };
 
+/* iWARP TCP connection offload params passed by driver to FW */
 struct iwarp_offload_params {
 	struct mpa_ulp_buffer incoming_ulp_buffer;
 	struct regpair async_eqe_output_buf;
@@ -9211,22 +9472,24 @@ struct iwarp_offload_params {
 	u8 reserved[10];
 };
 
+/* iWARP query QP output params */
 struct iwarp_query_qp_output_params {
 	__le32 flags;
 #define IWARP_QUERY_QP_OUTPUT_PARAMS_ERROR_FLG_MASK	0x1
-#define IWARP_QUERY_QP_OUTPUT_PARAMS_ERROR_FLG_SHIFT 0
+#define IWARP_QUERY_QP_OUTPUT_PARAMS_ERROR_FLG_SHIFT	0
 #define IWARP_QUERY_QP_OUTPUT_PARAMS_RESERVED0_MASK	0x7FFFFFFF
-#define IWARP_QUERY_QP_OUTPUT_PARAMS_RESERVED0_SHIFT 1
+#define IWARP_QUERY_QP_OUTPUT_PARAMS_RESERVED0_SHIFT	1
 	u8 reserved1[4];
 };
 
+/* iWARP query QP ramrod data */
 struct iwarp_query_qp_ramrod_data {
 	struct regpair output_params_addr;
 };
 
+/* iWARP Ramrod Command IDs */
 enum iwarp_ramrod_cmd_id {
-	IWARP_RAMROD_CMD_ID_TCP_OFFLOAD =
-	11,
+	IWARP_RAMROD_CMD_ID_TCP_OFFLOAD = 11,
 	IWARP_RAMROD_CMD_ID_MPA_OFFLOAD,
 	IWARP_RAMROD_CMD_ID_MPA_OFFLOAD_SEND_RTR,
 	IWARP_RAMROD_CMD_ID_CREATE_QP,
@@ -9236,22 +9499,28 @@ enum iwarp_ramrod_cmd_id {
 	MAX_IWARP_RAMROD_CMD_ID
 };
 
+/* Per PF iWARP retransmit path statistics */
 struct iwarp_rxmit_stats_drv {
 	struct regpair tx_go_to_slow_start_event_cnt;
 	struct regpair tx_fast_retransmit_event_cnt;
 };
 
+/* iWARP and TCP connection offload params passed by driver to FW in iWARP
+ * offload ramrod.
+ */
 struct iwarp_tcp_offload_ramrod_data {
 	struct iwarp_offload_params iwarp;
 	struct tcp_offload_params_opt2 tcp;
 };
 
+/* iWARP MPA negotiation types */
 enum mpa_negotiation_mode {
 	MPA_NEGOTIATION_TYPE_BASIC = 1,
 	MPA_NEGOTIATION_TYPE_ENHANCED = 2,
 	MAX_MPA_NEGOTIATION_MODE
 };
 
+/* iWARP MPA Enhanced mode RTR types */
 enum mpa_rtr_type {
 	MPA_RTR_TYPE_NONE = 0,
 	MPA_RTR_TYPE_ZERO_SEND = 1,
@@ -9264,16 +9533,17 @@ enum mpa_rtr_type {
 	MAX_MPA_RTR_TYPE
 };
 
+/* unaligned opaque data received from LL2 */
 struct unaligned_opaque_data {
 	__le16 first_mpa_offset;
 	u8 tcp_payload_offset;
 	u8 flags;
 #define UNALIGNED_OPAQUE_DATA_PKT_REACHED_WIN_RIGHT_EDGE_MASK	0x1
-#define UNALIGNED_OPAQUE_DATA_PKT_REACHED_WIN_RIGHT_EDGE_SHIFT 0
-#define UNALIGNED_OPAQUE_DATA_CONNECTION_CLOSED_MASK	0x1
-#define UNALIGNED_OPAQUE_DATA_CONNECTION_CLOSED_SHIFT	1
-#define UNALIGNED_OPAQUE_DATA_RESERVED_MASK	0x3F
-#define UNALIGNED_OPAQUE_DATA_RESERVED_SHIFT	2
+#define UNALIGNED_OPAQUE_DATA_PKT_REACHED_WIN_RIGHT_EDGE_SHIFT	0
+#define UNALIGNED_OPAQUE_DATA_CONNECTION_CLOSED_MASK		0x1
+#define UNALIGNED_OPAQUE_DATA_CONNECTION_CLOSED_SHIFT		1
+#define UNALIGNED_OPAQUE_DATA_RESERVED_MASK			0x3F
+#define UNALIGNED_OPAQUE_DATA_RESERVED_SHIFT			2
 	__le32 cid;
 };
 
@@ -9283,31 +9553,31 @@ struct mstorm_iwarp_conn_ag_ctx {
 	u8 flags0;
 #define MSTORM_IWARP_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
 #define MSTORM_IWARP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
-#define MSTORM_IWARP_CONN_AG_CTX_BIT1_MASK	0x1
-#define MSTORM_IWARP_CONN_AG_CTX_BIT1_SHIFT	1
+#define MSTORM_IWARP_CONN_AG_CTX_BIT1_MASK		0x1
+#define MSTORM_IWARP_CONN_AG_CTX_BIT1_SHIFT		1
 #define MSTORM_IWARP_CONN_AG_CTX_INV_STAG_DONE_CF_MASK	0x3
 #define MSTORM_IWARP_CONN_AG_CTX_INV_STAG_DONE_CF_SHIFT	2
-#define MSTORM_IWARP_CONN_AG_CTX_CF1_MASK	0x3
-#define MSTORM_IWARP_CONN_AG_CTX_CF1_SHIFT	4
-#define MSTORM_IWARP_CONN_AG_CTX_CF2_MASK	0x3
-#define MSTORM_IWARP_CONN_AG_CTX_CF2_SHIFT	6
+#define MSTORM_IWARP_CONN_AG_CTX_CF1_MASK		0x3
+#define MSTORM_IWARP_CONN_AG_CTX_CF1_SHIFT		4
+#define MSTORM_IWARP_CONN_AG_CTX_CF2_MASK		0x3
+#define MSTORM_IWARP_CONN_AG_CTX_CF2_SHIFT		6
 	u8 flags1;
 #define MSTORM_IWARP_CONN_AG_CTX_INV_STAG_DONE_CF_EN_MASK	0x1
-#define MSTORM_IWARP_CONN_AG_CTX_INV_STAG_DONE_CF_EN_SHIFT 0
-#define MSTORM_IWARP_CONN_AG_CTX_CF1EN_MASK	0x1
-#define MSTORM_IWARP_CONN_AG_CTX_CF1EN_SHIFT	1
-#define MSTORM_IWARP_CONN_AG_CTX_CF2EN_MASK	0x1
-#define MSTORM_IWARP_CONN_AG_CTX_CF2EN_SHIFT	2
-#define MSTORM_IWARP_CONN_AG_CTX_RULE0EN_MASK	0x1
-#define MSTORM_IWARP_CONN_AG_CTX_RULE0EN_SHIFT	3
-#define MSTORM_IWARP_CONN_AG_CTX_RULE1EN_MASK	0x1
-#define MSTORM_IWARP_CONN_AG_CTX_RULE1EN_SHIFT	4
-#define MSTORM_IWARP_CONN_AG_CTX_RULE2EN_MASK	0x1
-#define MSTORM_IWARP_CONN_AG_CTX_RULE2EN_SHIFT	5
-#define MSTORM_IWARP_CONN_AG_CTX_RCQ_CONS_EN_MASK	0x1
-#define MSTORM_IWARP_CONN_AG_CTX_RCQ_CONS_EN_SHIFT	6
-#define MSTORM_IWARP_CONN_AG_CTX_RULE4EN_MASK	0x1
-#define MSTORM_IWARP_CONN_AG_CTX_RULE4EN_SHIFT	7
+#define MSTORM_IWARP_CONN_AG_CTX_INV_STAG_DONE_CF_EN_SHIFT	0
+#define MSTORM_IWARP_CONN_AG_CTX_CF1EN_MASK			0x1
+#define MSTORM_IWARP_CONN_AG_CTX_CF1EN_SHIFT			1
+#define MSTORM_IWARP_CONN_AG_CTX_CF2EN_MASK			0x1
+#define MSTORM_IWARP_CONN_AG_CTX_CF2EN_SHIFT			2
+#define MSTORM_IWARP_CONN_AG_CTX_RULE0EN_MASK			0x1
+#define MSTORM_IWARP_CONN_AG_CTX_RULE0EN_SHIFT			3
+#define MSTORM_IWARP_CONN_AG_CTX_RULE1EN_MASK			0x1
+#define MSTORM_IWARP_CONN_AG_CTX_RULE1EN_SHIFT			4
+#define MSTORM_IWARP_CONN_AG_CTX_RULE2EN_MASK			0x1
+#define MSTORM_IWARP_CONN_AG_CTX_RULE2EN_SHIFT			5
+#define MSTORM_IWARP_CONN_AG_CTX_RCQ_CONS_EN_MASK		0x1
+#define MSTORM_IWARP_CONN_AG_CTX_RCQ_CONS_EN_SHIFT		6
+#define MSTORM_IWARP_CONN_AG_CTX_RULE4EN_MASK			0x1
+#define MSTORM_IWARP_CONN_AG_CTX_RULE4EN_SHIFT			7
 	__le16 rcq_cons;
 	__le16 rcq_cons_th;
 	__le32 reg0;
@@ -9320,40 +9590,40 @@ struct ustorm_iwarp_conn_ag_ctx {
 	u8 flags0;
 #define USTORM_IWARP_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
 #define USTORM_IWARP_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
-#define USTORM_IWARP_CONN_AG_CTX_BIT1_MASK	0x1
-#define USTORM_IWARP_CONN_AG_CTX_BIT1_SHIFT	1
-#define USTORM_IWARP_CONN_AG_CTX_CF0_MASK	0x3
-#define USTORM_IWARP_CONN_AG_CTX_CF0_SHIFT	2
-#define USTORM_IWARP_CONN_AG_CTX_CF1_MASK	0x3
-#define USTORM_IWARP_CONN_AG_CTX_CF1_SHIFT	4
-#define USTORM_IWARP_CONN_AG_CTX_CF2_MASK	0x3
-#define USTORM_IWARP_CONN_AG_CTX_CF2_SHIFT	6
+#define USTORM_IWARP_CONN_AG_CTX_BIT1_MASK		0x1
+#define USTORM_IWARP_CONN_AG_CTX_BIT1_SHIFT		1
+#define USTORM_IWARP_CONN_AG_CTX_CF0_MASK		0x3
+#define USTORM_IWARP_CONN_AG_CTX_CF0_SHIFT		2
+#define USTORM_IWARP_CONN_AG_CTX_CF1_MASK		0x3
+#define USTORM_IWARP_CONN_AG_CTX_CF1_SHIFT		4
+#define USTORM_IWARP_CONN_AG_CTX_CF2_MASK		0x3
+#define USTORM_IWARP_CONN_AG_CTX_CF2_SHIFT		6
 	u8 flags1;
-#define USTORM_IWARP_CONN_AG_CTX_CF3_MASK	0x3
-#define USTORM_IWARP_CONN_AG_CTX_CF3_SHIFT	0
+#define USTORM_IWARP_CONN_AG_CTX_CF3_MASK		0x3
+#define USTORM_IWARP_CONN_AG_CTX_CF3_SHIFT		0
 #define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_SE_CF_MASK	0x3
 #define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_SE_CF_SHIFT	2
-#define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_CF_MASK	0x3
+#define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_CF_MASK		0x3
 #define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_CF_SHIFT	4
-#define USTORM_IWARP_CONN_AG_CTX_CF6_MASK	0x3
-#define USTORM_IWARP_CONN_AG_CTX_CF6_SHIFT	6
+#define USTORM_IWARP_CONN_AG_CTX_CF6_MASK		0x3
+#define USTORM_IWARP_CONN_AG_CTX_CF6_SHIFT		6
 	u8 flags2;
-#define USTORM_IWARP_CONN_AG_CTX_CF0EN_MASK	0x1
-#define USTORM_IWARP_CONN_AG_CTX_CF0EN_SHIFT	0
-#define USTORM_IWARP_CONN_AG_CTX_CF1EN_MASK	0x1
-#define USTORM_IWARP_CONN_AG_CTX_CF1EN_SHIFT	1
-#define USTORM_IWARP_CONN_AG_CTX_CF2EN_MASK	0x1
-#define USTORM_IWARP_CONN_AG_CTX_CF2EN_SHIFT	2
-#define USTORM_IWARP_CONN_AG_CTX_CF3EN_MASK	0x1
-#define USTORM_IWARP_CONN_AG_CTX_CF3EN_SHIFT	3
+#define USTORM_IWARP_CONN_AG_CTX_CF0EN_MASK		0x1
+#define USTORM_IWARP_CONN_AG_CTX_CF0EN_SHIFT		0
+#define USTORM_IWARP_CONN_AG_CTX_CF1EN_MASK		0x1
+#define USTORM_IWARP_CONN_AG_CTX_CF1EN_SHIFT		1
+#define USTORM_IWARP_CONN_AG_CTX_CF2EN_MASK		0x1
+#define USTORM_IWARP_CONN_AG_CTX_CF2EN_SHIFT		2
+#define USTORM_IWARP_CONN_AG_CTX_CF3EN_MASK		0x1
+#define USTORM_IWARP_CONN_AG_CTX_CF3EN_SHIFT		3
 #define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_SE_CF_EN_MASK	0x1
-#define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_SE_CF_EN_SHIFT 4
+#define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_SE_CF_EN_SHIFT	4
 #define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_CF_EN_MASK	0x1
 #define USTORM_IWARP_CONN_AG_CTX_CQ_ARM_CF_EN_SHIFT	5
-#define USTORM_IWARP_CONN_AG_CTX_CF6EN_MASK	0x1
-#define USTORM_IWARP_CONN_AG_CTX_CF6EN_SHIFT	6
-#define USTORM_IWARP_CONN_AG_CTX_CQ_SE_EN_MASK	0x1
-#define USTORM_IWARP_CONN_AG_CTX_CQ_SE_EN_SHIFT	7
+#define USTORM_IWARP_CONN_AG_CTX_CF6EN_MASK		0x1
+#define USTORM_IWARP_CONN_AG_CTX_CF6EN_SHIFT		6
+#define USTORM_IWARP_CONN_AG_CTX_CQ_SE_EN_MASK		0x1
+#define USTORM_IWARP_CONN_AG_CTX_CQ_SE_EN_SHIFT		7
 	u8 flags3;
 #define USTORM_IWARP_CONN_AG_CTX_CQ_EN_MASK	0x1
 #define USTORM_IWARP_CONN_AG_CTX_CQ_EN_SHIFT	0
@@ -9405,15 +9675,15 @@ struct ystorm_iwarp_conn_ag_ctx {
 #define YSTORM_IWARP_CONN_AG_CTX_CF2EN_MASK	0x1
 #define YSTORM_IWARP_CONN_AG_CTX_CF2EN_SHIFT	2
 #define YSTORM_IWARP_CONN_AG_CTX_RULE0EN_MASK	0x1
-#define YSTORM_IWARP_CONN_AG_CTX_RULE0EN_SHIFT 3
+#define YSTORM_IWARP_CONN_AG_CTX_RULE0EN_SHIFT	3
 #define YSTORM_IWARP_CONN_AG_CTX_RULE1EN_MASK	0x1
-#define YSTORM_IWARP_CONN_AG_CTX_RULE1EN_SHIFT 4
+#define YSTORM_IWARP_CONN_AG_CTX_RULE1EN_SHIFT	4
 #define YSTORM_IWARP_CONN_AG_CTX_RULE2EN_MASK	0x1
-#define YSTORM_IWARP_CONN_AG_CTX_RULE2EN_SHIFT 5
+#define YSTORM_IWARP_CONN_AG_CTX_RULE2EN_SHIFT	5
 #define YSTORM_IWARP_CONN_AG_CTX_RULE3EN_MASK	0x1
-#define YSTORM_IWARP_CONN_AG_CTX_RULE3EN_SHIFT 6
+#define YSTORM_IWARP_CONN_AG_CTX_RULE3EN_SHIFT	6
 #define YSTORM_IWARP_CONN_AG_CTX_RULE4EN_MASK	0x1
-#define YSTORM_IWARP_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define YSTORM_IWARP_CONN_AG_CTX_RULE4EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -9427,6 +9697,7 @@ struct ystorm_iwarp_conn_ag_ctx {
 	__le32 reg3;
 };
 
+/* The fcoe storm context of Ystorm */
 struct ystorm_fcoe_conn_st_ctx {
 	u8 func_mode;
 	u8 cos;
@@ -9442,45 +9713,49 @@ struct ystorm_fcoe_conn_st_ctx {
 	struct regpair reserved;
 	__le16 min_frame_size;
 	u8 protection_info_flags;
-#define YSTORM_FCOE_CONN_ST_CTX_SUPPORT_PROTECTION_MASK  0x1
-#define YSTORM_FCOE_CONN_ST_CTX_SUPPORT_PROTECTION_SHIFT 0
-#define YSTORM_FCOE_CONN_ST_CTX_VALID_MASK               0x1
-#define YSTORM_FCOE_CONN_ST_CTX_VALID_SHIFT              1
-#define YSTORM_FCOE_CONN_ST_CTX_RESERVED1_MASK           0x3F
-#define YSTORM_FCOE_CONN_ST_CTX_RESERVED1_SHIFT          2
+#define YSTORM_FCOE_CONN_ST_CTX_SUPPORT_PROTECTION_MASK		0x1
+#define YSTORM_FCOE_CONN_ST_CTX_SUPPORT_PROTECTION_SHIFT	0
+#define YSTORM_FCOE_CONN_ST_CTX_VALID_MASK			0x1
+#define YSTORM_FCOE_CONN_ST_CTX_VALID_SHIFT			1
+#define YSTORM_FCOE_CONN_ST_CTX_RESERVED1_MASK			0x3F
+#define YSTORM_FCOE_CONN_ST_CTX_RESERVED1_SHIFT			2
 	u8 dst_protection_per_mss;
 	u8 src_protection_per_mss;
 	u8 ptu_log_page_size;
 	u8 flags;
-#define YSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_MASK     0x1
-#define YSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_SHIFT    0
-#define YSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_MASK     0x1
-#define YSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_SHIFT    1
-#define YSTORM_FCOE_CONN_ST_CTX_RSRV_MASK                0x3F
-#define YSTORM_FCOE_CONN_ST_CTX_RSRV_SHIFT               2
+#define YSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_MASK	0x1
+#define YSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_SHIFT	0
+#define YSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_MASK	0x1
+#define YSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_SHIFT	1
+#define YSTORM_FCOE_CONN_ST_CTX_RSRV_MASK		0x3F
+#define YSTORM_FCOE_CONN_ST_CTX_RSRV_SHIFT		2
 	u8 fcp_xfer_size;
 };
 
+/* FCoE 16-bits vlan structure */
 struct fcoe_vlan_fields {
 	__le16 fields;
-#define FCOE_VLAN_FIELDS_VID_MASK  0xFFF
-#define FCOE_VLAN_FIELDS_VID_SHIFT 0
-#define FCOE_VLAN_FIELDS_CLI_MASK  0x1
-#define FCOE_VLAN_FIELDS_CLI_SHIFT 12
-#define FCOE_VLAN_FIELDS_PRI_MASK  0x7
-#define FCOE_VLAN_FIELDS_PRI_SHIFT 13
+#define FCOE_VLAN_FIELDS_VID_MASK	0xFFF
+#define FCOE_VLAN_FIELDS_VID_SHIFT	0
+#define FCOE_VLAN_FIELDS_CLI_MASK	0x1
+#define FCOE_VLAN_FIELDS_CLI_SHIFT	12
+#define FCOE_VLAN_FIELDS_PRI_MASK	0x7
+#define FCOE_VLAN_FIELDS_PRI_SHIFT	13
 };
 
+/* FCoE 16-bits vlan union */
 union fcoe_vlan_field_union {
 	struct fcoe_vlan_fields fields;
 	__le16 val;
 };
 
+/* FCoE 16-bits vlan, vif union */
 union fcoe_vlan_vif_field_union {
 	union fcoe_vlan_field_union vlan;
 	__le16 vif;
 };
 
+/* Ethernet context section */
 struct pstorm_fcoe_eth_context_section {
 	u8 remote_addr_3;
 	u8 remote_addr_2;
@@ -9500,6 +9775,7 @@ struct pstorm_fcoe_eth_context_section {
 	__le16 inner_eth_type;
 };
 
+/* The fcoe storm context of Pstorm */
 struct pstorm_fcoe_conn_st_ctx {
 	u8 func_mode;
 	u8 cos;
@@ -9513,16 +9789,16 @@ struct pstorm_fcoe_conn_st_ctx {
 	u8 sid_1;
 	u8 sid_0;
 	u8 flags;
-#define PSTORM_FCOE_CONN_ST_CTX_VNTAG_VLAN_MASK          0x1
-#define PSTORM_FCOE_CONN_ST_CTX_VNTAG_VLAN_SHIFT         0
-#define PSTORM_FCOE_CONN_ST_CTX_SUPPORT_REC_RR_TOV_MASK  0x1
-#define PSTORM_FCOE_CONN_ST_CTX_SUPPORT_REC_RR_TOV_SHIFT 1
-#define PSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_MASK     0x1
-#define PSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_SHIFT    2
-#define PSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_MASK     0x1
-#define PSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_SHIFT    3
-#define PSTORM_FCOE_CONN_ST_CTX_RESERVED_MASK            0xF
-#define PSTORM_FCOE_CONN_ST_CTX_RESERVED_SHIFT           4
+#define PSTORM_FCOE_CONN_ST_CTX_VNTAG_VLAN_MASK			0x1
+#define PSTORM_FCOE_CONN_ST_CTX_VNTAG_VLAN_SHIFT		0
+#define PSTORM_FCOE_CONN_ST_CTX_SUPPORT_REC_RR_TOV_MASK		0x1
+#define PSTORM_FCOE_CONN_ST_CTX_SUPPORT_REC_RR_TOV_SHIFT	1
+#define PSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_MASK		0x1
+#define PSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_SHIFT		2
+#define PSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_MASK		0x1
+#define PSTORM_FCOE_CONN_ST_CTX_OUTER_VLAN_FLAG_SHIFT		3
+#define PSTORM_FCOE_CONN_ST_CTX_RESERVED_MASK			0xF
+#define PSTORM_FCOE_CONN_ST_CTX_RESERVED_SHIFT			4
 	u8 did_2;
 	u8 did_1;
 	u8 did_0;
@@ -9532,6 +9808,7 @@ struct pstorm_fcoe_conn_st_ctx {
 	u8 reserved1;
 };
 
+/* The fcoe storm context of Xstorm */
 struct xstorm_fcoe_conn_st_ctx {
 	u8 func_mode;
 	u8 src_mac_index;
@@ -9539,16 +9816,16 @@ struct xstorm_fcoe_conn_st_ctx {
 	u8 cached_wqes_avail;
 	__le16 stat_ram_addr;
 	u8 flags;
-#define XSTORM_FCOE_CONN_ST_CTX_SQ_DEFERRED_MASK             0x1
-#define XSTORM_FCOE_CONN_ST_CTX_SQ_DEFERRED_SHIFT            0
-#define XSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_MASK         0x1
-#define XSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_SHIFT        1
-#define XSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_ORIG_MASK    0x1
-#define XSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_ORIG_SHIFT   2
-#define XSTORM_FCOE_CONN_ST_CTX_LAST_QUEUE_HANDLED_MASK      0x3
-#define XSTORM_FCOE_CONN_ST_CTX_LAST_QUEUE_HANDLED_SHIFT     3
-#define XSTORM_FCOE_CONN_ST_CTX_RSRV_MASK                    0x7
-#define XSTORM_FCOE_CONN_ST_CTX_RSRV_SHIFT                   5
+#define XSTORM_FCOE_CONN_ST_CTX_SQ_DEFERRED_MASK		0x1
+#define XSTORM_FCOE_CONN_ST_CTX_SQ_DEFERRED_SHIFT		0
+#define XSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_MASK		0x1
+#define XSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_SHIFT		1
+#define XSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_ORIG_MASK	0x1
+#define XSTORM_FCOE_CONN_ST_CTX_INNER_VLAN_FLAG_ORIG_SHIFT	2
+#define XSTORM_FCOE_CONN_ST_CTX_LAST_QUEUE_HANDLED_MASK		0x3
+#define XSTORM_FCOE_CONN_ST_CTX_LAST_QUEUE_HANDLED_SHIFT	3
+#define XSTORM_FCOE_CONN_ST_CTX_RSRV_MASK			0x7
+#define XSTORM_FCOE_CONN_ST_CTX_RSRV_SHIFT			5
 	u8 cached_wqes_offset;
 	u8 reserved2;
 	u8 eth_hdr_size;
@@ -9574,18 +9851,18 @@ struct xstorm_fcoe_conn_st_ctx {
 	u8 fcp_cmd_byte_credit;
 	u8 fcp_rsp_byte_credit;
 	__le16 protection_info;
-#define XSTORM_FCOE_CONN_ST_CTX_PROTECTION_PERF_MASK         0x1
-#define XSTORM_FCOE_CONN_ST_CTX_PROTECTION_PERF_SHIFT        0
-#define XSTORM_FCOE_CONN_ST_CTX_SUPPORT_PROTECTION_MASK      0x1
-#define XSTORM_FCOE_CONN_ST_CTX_SUPPORT_PROTECTION_SHIFT     1
-#define XSTORM_FCOE_CONN_ST_CTX_VALID_MASK                   0x1
-#define XSTORM_FCOE_CONN_ST_CTX_VALID_SHIFT                  2
-#define XSTORM_FCOE_CONN_ST_CTX_FRAME_PROT_ALIGNED_MASK      0x1
-#define XSTORM_FCOE_CONN_ST_CTX_FRAME_PROT_ALIGNED_SHIFT     3
-#define XSTORM_FCOE_CONN_ST_CTX_RESERVED3_MASK               0xF
-#define XSTORM_FCOE_CONN_ST_CTX_RESERVED3_SHIFT              4
-#define XSTORM_FCOE_CONN_ST_CTX_DST_PROTECTION_PER_MSS_MASK  0xFF
-#define XSTORM_FCOE_CONN_ST_CTX_DST_PROTECTION_PER_MSS_SHIFT 8
+#define XSTORM_FCOE_CONN_ST_CTX_PROTECTION_PERF_MASK		0x1
+#define XSTORM_FCOE_CONN_ST_CTX_PROTECTION_PERF_SHIFT		0
+#define XSTORM_FCOE_CONN_ST_CTX_SUPPORT_PROTECTION_MASK		0x1
+#define XSTORM_FCOE_CONN_ST_CTX_SUPPORT_PROTECTION_SHIFT	1
+#define XSTORM_FCOE_CONN_ST_CTX_VALID_MASK			0x1
+#define XSTORM_FCOE_CONN_ST_CTX_VALID_SHIFT			2
+#define XSTORM_FCOE_CONN_ST_CTX_FRAME_PROT_ALIGNED_MASK		0x1
+#define XSTORM_FCOE_CONN_ST_CTX_FRAME_PROT_ALIGNED_SHIFT	3
+#define XSTORM_FCOE_CONN_ST_CTX_RESERVED3_MASK			0xF
+#define XSTORM_FCOE_CONN_ST_CTX_RESERVED3_SHIFT			4
+#define XSTORM_FCOE_CONN_ST_CTX_DST_PROTECTION_PER_MSS_MASK	0xFF
+#define XSTORM_FCOE_CONN_ST_CTX_DST_PROTECTION_PER_MSS_SHIFT	8
 	__le16 xferq_pbl_next_index;
 	__le16 page_size;
 	u8 mid_seq;
@@ -9598,212 +9875,212 @@ struct xstorm_fcoe_conn_ag_ctx {
 	u8 reserved0;
 	u8 fcoe_state;
 	u8 flags0;
-#define XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_SHIFT      0
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED1_MASK          0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED1_SHIFT         1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED2_MASK          0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED2_SHIFT         2
-#define XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM3_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM3_SHIFT      3
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED3_MASK          0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED3_SHIFT         4
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED4_MASK          0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED4_SHIFT         5
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED5_MASK          0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED5_SHIFT         6
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED6_MASK          0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED6_SHIFT         7
+#define XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED1_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED1_SHIFT		1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED2_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED2_SHIFT		2
+#define XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM3_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM3_SHIFT	3
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED3_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED3_SHIFT		4
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED4_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED4_SHIFT		5
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED5_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED5_SHIFT		6
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED6_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED6_SHIFT		7
 	u8 flags1;
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED7_MASK          0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED7_SHIFT         0
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED8_MASK          0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED8_SHIFT         1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED9_MASK          0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED9_SHIFT         2
-#define XSTORM_FCOE_CONN_AG_CTX_BIT11_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT11_SHIFT             3
-#define XSTORM_FCOE_CONN_AG_CTX_BIT12_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT12_SHIFT             4
-#define XSTORM_FCOE_CONN_AG_CTX_BIT13_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT13_SHIFT             5
-#define XSTORM_FCOE_CONN_AG_CTX_BIT14_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT14_SHIFT             6
-#define XSTORM_FCOE_CONN_AG_CTX_BIT15_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT15_SHIFT             7
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED7_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED7_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED8_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED8_SHIFT	1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED9_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED9_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_BIT11_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT11_SHIFT	3
+#define XSTORM_FCOE_CONN_AG_CTX_BIT12_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT12_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_BIT13_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT13_SHIFT	5
+#define XSTORM_FCOE_CONN_AG_CTX_BIT14_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT14_SHIFT	6
+#define XSTORM_FCOE_CONN_AG_CTX_BIT15_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT15_SHIFT	7
 	u8 flags2;
-#define XSTORM_FCOE_CONN_AG_CTX_CF0_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF0_SHIFT               0
-#define XSTORM_FCOE_CONN_AG_CTX_CF1_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF1_SHIFT               2
-#define XSTORM_FCOE_CONN_AG_CTX_CF2_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF2_SHIFT               4
-#define XSTORM_FCOE_CONN_AG_CTX_CF3_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF3_SHIFT               6
+#define XSTORM_FCOE_CONN_AG_CTX_CF0_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF0_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_CF1_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF1_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_CF2_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF2_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_CF3_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF3_SHIFT	6
 	u8 flags3;
-#define XSTORM_FCOE_CONN_AG_CTX_CF4_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF4_SHIFT               0
-#define XSTORM_FCOE_CONN_AG_CTX_CF5_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF5_SHIFT               2
-#define XSTORM_FCOE_CONN_AG_CTX_CF6_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF6_SHIFT               4
-#define XSTORM_FCOE_CONN_AG_CTX_CF7_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF7_SHIFT               6
+#define XSTORM_FCOE_CONN_AG_CTX_CF4_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF4_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_CF5_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF5_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_CF6_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF6_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_CF7_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF7_SHIFT	6
 	u8 flags4;
-#define XSTORM_FCOE_CONN_AG_CTX_CF8_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF8_SHIFT               0
-#define XSTORM_FCOE_CONN_AG_CTX_CF9_MASK                0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF9_SHIFT               2
-#define XSTORM_FCOE_CONN_AG_CTX_CF10_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF10_SHIFT              4
-#define XSTORM_FCOE_CONN_AG_CTX_CF11_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF11_SHIFT              6
+#define XSTORM_FCOE_CONN_AG_CTX_CF8_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF8_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_CF9_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF9_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_CF10_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF10_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_CF11_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF11_SHIFT	6
 	u8 flags5;
-#define XSTORM_FCOE_CONN_AG_CTX_CF12_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF12_SHIFT              0
-#define XSTORM_FCOE_CONN_AG_CTX_CF13_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF13_SHIFT              2
-#define XSTORM_FCOE_CONN_AG_CTX_CF14_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF14_SHIFT              4
-#define XSTORM_FCOE_CONN_AG_CTX_CF15_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF15_SHIFT              6
+#define XSTORM_FCOE_CONN_AG_CTX_CF12_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF12_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_CF13_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF13_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_CF14_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF14_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_CF15_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF15_SHIFT	6
 	u8 flags6;
-#define XSTORM_FCOE_CONN_AG_CTX_CF16_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF16_SHIFT              0
-#define XSTORM_FCOE_CONN_AG_CTX_CF17_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF17_SHIFT              2
-#define XSTORM_FCOE_CONN_AG_CTX_CF18_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF18_SHIFT              4
-#define XSTORM_FCOE_CONN_AG_CTX_DQ_CF_MASK              0x3
-#define XSTORM_FCOE_CONN_AG_CTX_DQ_CF_SHIFT             6
+#define XSTORM_FCOE_CONN_AG_CTX_CF16_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF16_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_CF17_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF17_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_CF18_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF18_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_DQ_CF_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_DQ_CF_SHIFT	6
 	u8 flags7;
-#define XSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_MASK           0x3
-#define XSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_SHIFT          0
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED10_MASK         0x3
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED10_SHIFT        2
-#define XSTORM_FCOE_CONN_AG_CTX_SLOW_PATH_MASK          0x3
-#define XSTORM_FCOE_CONN_AG_CTX_SLOW_PATH_SHIFT         4
-#define XSTORM_FCOE_CONN_AG_CTX_CF0EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF0EN_SHIFT             6
-#define XSTORM_FCOE_CONN_AG_CTX_CF1EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF1EN_SHIFT             7
+#define XSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_MASK		0x3
+#define XSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_SHIFT		0
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED10_MASK		0x3
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED10_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_SLOW_PATH_MASK		0x3
+#define XSTORM_FCOE_CONN_AG_CTX_SLOW_PATH_SHIFT		4
+#define XSTORM_FCOE_CONN_AG_CTX_CF0EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF0EN_SHIFT		6
+#define XSTORM_FCOE_CONN_AG_CTX_CF1EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF1EN_SHIFT		7
 	u8 flags8;
-#define XSTORM_FCOE_CONN_AG_CTX_CF2EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT             0
-#define XSTORM_FCOE_CONN_AG_CTX_CF3EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF3EN_SHIFT             1
-#define XSTORM_FCOE_CONN_AG_CTX_CF4EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF4EN_SHIFT             2
-#define XSTORM_FCOE_CONN_AG_CTX_CF5EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF5EN_SHIFT             3
-#define XSTORM_FCOE_CONN_AG_CTX_CF6EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF6EN_SHIFT             4
-#define XSTORM_FCOE_CONN_AG_CTX_CF7EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF7EN_SHIFT             5
-#define XSTORM_FCOE_CONN_AG_CTX_CF8EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF8EN_SHIFT             6
-#define XSTORM_FCOE_CONN_AG_CTX_CF9EN_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF9EN_SHIFT             7
+#define XSTORM_FCOE_CONN_AG_CTX_CF2EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_CF3EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF3EN_SHIFT	1
+#define XSTORM_FCOE_CONN_AG_CTX_CF4EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF4EN_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_CF5EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF5EN_SHIFT	3
+#define XSTORM_FCOE_CONN_AG_CTX_CF6EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF6EN_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_CF7EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF7EN_SHIFT	5
+#define XSTORM_FCOE_CONN_AG_CTX_CF8EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF8EN_SHIFT	6
+#define XSTORM_FCOE_CONN_AG_CTX_CF9EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF9EN_SHIFT	7
 	u8 flags9;
-#define XSTORM_FCOE_CONN_AG_CTX_CF10EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF10EN_SHIFT            0
-#define XSTORM_FCOE_CONN_AG_CTX_CF11EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF11EN_SHIFT            1
-#define XSTORM_FCOE_CONN_AG_CTX_CF12EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF12EN_SHIFT            2
-#define XSTORM_FCOE_CONN_AG_CTX_CF13EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF13EN_SHIFT            3
-#define XSTORM_FCOE_CONN_AG_CTX_CF14EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF14EN_SHIFT            4
-#define XSTORM_FCOE_CONN_AG_CTX_CF15EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF15EN_SHIFT            5
-#define XSTORM_FCOE_CONN_AG_CTX_CF16EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF16EN_SHIFT            6
-#define XSTORM_FCOE_CONN_AG_CTX_CF17EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF17EN_SHIFT            7
+#define XSTORM_FCOE_CONN_AG_CTX_CF10EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF10EN_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_CF11EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF11EN_SHIFT	1
+#define XSTORM_FCOE_CONN_AG_CTX_CF12EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF12EN_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_CF13EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF13EN_SHIFT	3
+#define XSTORM_FCOE_CONN_AG_CTX_CF14EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF14EN_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_CF15EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF15EN_SHIFT	5
+#define XSTORM_FCOE_CONN_AG_CTX_CF16EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF16EN_SHIFT	6
+#define XSTORM_FCOE_CONN_AG_CTX_CF17EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF17EN_SHIFT	7
 	u8 flags10;
-#define XSTORM_FCOE_CONN_AG_CTX_CF18EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF18EN_SHIFT            0
-#define XSTORM_FCOE_CONN_AG_CTX_DQ_CF_EN_MASK           0x1
-#define XSTORM_FCOE_CONN_AG_CTX_DQ_CF_EN_SHIFT          1
-#define XSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_EN_MASK        0x1
-#define XSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT       2
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED11_MASK         0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED11_SHIFT        3
-#define XSTORM_FCOE_CONN_AG_CTX_SLOW_PATH_EN_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_SLOW_PATH_EN_SHIFT      4
-#define XSTORM_FCOE_CONN_AG_CTX_CF23EN_MASK             0x1
-#define XSTORM_FCOE_CONN_AG_CTX_CF23EN_SHIFT            5
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED12_MASK         0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED12_SHIFT        6
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED13_MASK         0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED13_SHIFT        7
+#define XSTORM_FCOE_CONN_AG_CTX_CF18EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF18EN_SHIFT		0
+#define XSTORM_FCOE_CONN_AG_CTX_DQ_CF_EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_DQ_CF_EN_SHIFT		1
+#define XSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED11_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED11_SHIFT	3
+#define XSTORM_FCOE_CONN_AG_CTX_SLOW_PATH_EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_SLOW_PATH_EN_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_CF23EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_CF23EN_SHIFT		5
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED12_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED12_SHIFT	6
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED13_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED13_SHIFT	7
 	u8 flags11;
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED14_MASK         0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED14_SHIFT        0
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED15_MASK         0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED15_SHIFT        1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED16_MASK         0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESERVED16_SHIFT        2
-#define XSTORM_FCOE_CONN_AG_CTX_RULE5EN_MASK            0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RULE5EN_SHIFT           3
-#define XSTORM_FCOE_CONN_AG_CTX_RULE6EN_MASK            0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RULE6EN_SHIFT           4
-#define XSTORM_FCOE_CONN_AG_CTX_RULE7EN_MASK            0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RULE7EN_SHIFT           5
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED1_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED1_SHIFT      6
-#define XSTORM_FCOE_CONN_AG_CTX_XFERQ_DECISION_EN_MASK  0x1
-#define XSTORM_FCOE_CONN_AG_CTX_XFERQ_DECISION_EN_SHIFT 7
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED14_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED14_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED15_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED15_SHIFT	1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED16_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESERVED16_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_RULE5EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RULE5EN_SHIFT		3
+#define XSTORM_FCOE_CONN_AG_CTX_RULE6EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RULE6EN_SHIFT		4
+#define XSTORM_FCOE_CONN_AG_CTX_RULE7EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RULE7EN_SHIFT		5
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED1_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED1_SHIFT	6
+#define XSTORM_FCOE_CONN_AG_CTX_XFERQ_DECISION_EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_XFERQ_DECISION_EN_SHIFT	7
 	u8 flags12;
-#define XSTORM_FCOE_CONN_AG_CTX_SQ_DECISION_EN_MASK     0x1
-#define XSTORM_FCOE_CONN_AG_CTX_SQ_DECISION_EN_SHIFT    0
-#define XSTORM_FCOE_CONN_AG_CTX_RULE11EN_MASK           0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RULE11EN_SHIFT          1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED2_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED2_SHIFT      2
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED3_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED3_SHIFT      3
-#define XSTORM_FCOE_CONN_AG_CTX_RULE14EN_MASK           0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RULE14EN_SHIFT          4
-#define XSTORM_FCOE_CONN_AG_CTX_RULE15EN_MASK           0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RULE15EN_SHIFT          5
-#define XSTORM_FCOE_CONN_AG_CTX_RULE16EN_MASK           0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RULE16EN_SHIFT          6
-#define XSTORM_FCOE_CONN_AG_CTX_RULE17EN_MASK           0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RULE17EN_SHIFT          7
+#define XSTORM_FCOE_CONN_AG_CTX_SQ_DECISION_EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_SQ_DECISION_EN_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_RULE11EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RULE11EN_SHIFT		1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED2_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED2_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED3_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED3_SHIFT	3
+#define XSTORM_FCOE_CONN_AG_CTX_RULE14EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RULE14EN_SHIFT		4
+#define XSTORM_FCOE_CONN_AG_CTX_RULE15EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RULE15EN_SHIFT		5
+#define XSTORM_FCOE_CONN_AG_CTX_RULE16EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RULE16EN_SHIFT		6
+#define XSTORM_FCOE_CONN_AG_CTX_RULE17EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RULE17EN_SHIFT		7
 	u8 flags13;
-#define XSTORM_FCOE_CONN_AG_CTX_RESPQ_DECISION_EN_MASK  0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RESPQ_DECISION_EN_SHIFT 0
-#define XSTORM_FCOE_CONN_AG_CTX_RULE19EN_MASK           0x1
-#define XSTORM_FCOE_CONN_AG_CTX_RULE19EN_SHIFT          1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED4_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED4_SHIFT      2
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED5_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED5_SHIFT      3
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED6_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED6_SHIFT      4
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED7_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED7_SHIFT      5
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED8_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED8_SHIFT      6
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED9_MASK       0x1
-#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED9_SHIFT      7
+#define XSTORM_FCOE_CONN_AG_CTX_RESPQ_DECISION_EN_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RESPQ_DECISION_EN_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_RULE19EN_MASK		0x1
+#define XSTORM_FCOE_CONN_AG_CTX_RULE19EN_SHIFT		1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED4_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED4_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED5_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED5_SHIFT	3
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED6_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED6_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED7_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED7_SHIFT	5
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED8_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED8_SHIFT	6
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED9_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_A0_RESERVED9_SHIFT	7
 	u8 flags14;
-#define XSTORM_FCOE_CONN_AG_CTX_BIT16_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT16_SHIFT             0
-#define XSTORM_FCOE_CONN_AG_CTX_BIT17_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT17_SHIFT             1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT18_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT18_SHIFT             2
-#define XSTORM_FCOE_CONN_AG_CTX_BIT19_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT19_SHIFT             3
-#define XSTORM_FCOE_CONN_AG_CTX_BIT20_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT20_SHIFT             4
-#define XSTORM_FCOE_CONN_AG_CTX_BIT21_MASK              0x1
-#define XSTORM_FCOE_CONN_AG_CTX_BIT21_SHIFT             5
-#define XSTORM_FCOE_CONN_AG_CTX_CF23_MASK               0x3
-#define XSTORM_FCOE_CONN_AG_CTX_CF23_SHIFT              6
+#define XSTORM_FCOE_CONN_AG_CTX_BIT16_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT16_SHIFT	0
+#define XSTORM_FCOE_CONN_AG_CTX_BIT17_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT17_SHIFT	1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT18_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT18_SHIFT	2
+#define XSTORM_FCOE_CONN_AG_CTX_BIT19_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT19_SHIFT	3
+#define XSTORM_FCOE_CONN_AG_CTX_BIT20_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT20_SHIFT	4
+#define XSTORM_FCOE_CONN_AG_CTX_BIT21_MASK	0x1
+#define XSTORM_FCOE_CONN_AG_CTX_BIT21_SHIFT	5
+#define XSTORM_FCOE_CONN_AG_CTX_CF23_MASK	0x3
+#define XSTORM_FCOE_CONN_AG_CTX_CF23_SHIFT	6
 	u8 byte2;
 	__le16 physical_q0;
 	__le16 word1;
@@ -9831,6 +10108,7 @@ struct xstorm_fcoe_conn_ag_ctx {
 	__le32 reg8;
 };
 
+/* The fcoe storm context of Ustorm */
 struct ustorm_fcoe_conn_st_ctx {
 	struct regpair respq_pbl_addr;
 	__le16 num_pages_in_pbl;
@@ -9844,85 +10122,85 @@ struct tstorm_fcoe_conn_ag_ctx {
 	u8 reserved0;
 	u8 fcoe_state;
 	u8 flags0;
-#define TSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_MASK          0x1
-#define TSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_SHIFT         0
-#define TSTORM_FCOE_CONN_AG_CTX_BIT1_MASK                  0x1
-#define TSTORM_FCOE_CONN_AG_CTX_BIT1_SHIFT                 1
-#define TSTORM_FCOE_CONN_AG_CTX_BIT2_MASK                  0x1
-#define TSTORM_FCOE_CONN_AG_CTX_BIT2_SHIFT                 2
-#define TSTORM_FCOE_CONN_AG_CTX_BIT3_MASK                  0x1
-#define TSTORM_FCOE_CONN_AG_CTX_BIT3_SHIFT                 3
-#define TSTORM_FCOE_CONN_AG_CTX_BIT4_MASK                  0x1
-#define TSTORM_FCOE_CONN_AG_CTX_BIT4_SHIFT                 4
-#define TSTORM_FCOE_CONN_AG_CTX_BIT5_MASK                  0x1
-#define TSTORM_FCOE_CONN_AG_CTX_BIT5_SHIFT                 5
-#define TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_MASK        0x3
-#define TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_SHIFT       6
+#define TSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define TSTORM_FCOE_CONN_AG_CTX_BIT1_MASK		0x1
+#define TSTORM_FCOE_CONN_AG_CTX_BIT1_SHIFT		1
+#define TSTORM_FCOE_CONN_AG_CTX_BIT2_MASK		0x1
+#define TSTORM_FCOE_CONN_AG_CTX_BIT2_SHIFT		2
+#define TSTORM_FCOE_CONN_AG_CTX_BIT3_MASK		0x1
+#define TSTORM_FCOE_CONN_AG_CTX_BIT3_SHIFT		3
+#define TSTORM_FCOE_CONN_AG_CTX_BIT4_MASK		0x1
+#define TSTORM_FCOE_CONN_AG_CTX_BIT4_SHIFT		4
+#define TSTORM_FCOE_CONN_AG_CTX_BIT5_MASK		0x1
+#define TSTORM_FCOE_CONN_AG_CTX_BIT5_SHIFT		5
+#define TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_MASK	0x3
+#define TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_SHIFT	6
 	u8 flags1;
-#define TSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_CF_MASK           0x3
-#define TSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT          0
-#define TSTORM_FCOE_CONN_AG_CTX_CF2_MASK                   0x3
-#define TSTORM_FCOE_CONN_AG_CTX_CF2_SHIFT                  2
-#define TSTORM_FCOE_CONN_AG_CTX_TIMER_STOP_ALL_CF_MASK     0x3
-#define TSTORM_FCOE_CONN_AG_CTX_TIMER_STOP_ALL_CF_SHIFT    4
-#define TSTORM_FCOE_CONN_AG_CTX_CF4_MASK                   0x3
-#define TSTORM_FCOE_CONN_AG_CTX_CF4_SHIFT                  6
+#define TSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_CF_MASK	0x3
+#define TSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_CF_SHIFT	0
+#define TSTORM_FCOE_CONN_AG_CTX_CF2_MASK		0x3
+#define TSTORM_FCOE_CONN_AG_CTX_CF2_SHIFT		2
+#define TSTORM_FCOE_CONN_AG_CTX_TIMER_STOP_ALL_CF_MASK	0x3
+#define TSTORM_FCOE_CONN_AG_CTX_TIMER_STOP_ALL_CF_SHIFT	4
+#define TSTORM_FCOE_CONN_AG_CTX_CF4_MASK		0x3
+#define TSTORM_FCOE_CONN_AG_CTX_CF4_SHIFT		6
 	u8 flags2;
-#define TSTORM_FCOE_CONN_AG_CTX_CF5_MASK                   0x3
-#define TSTORM_FCOE_CONN_AG_CTX_CF5_SHIFT                  0
-#define TSTORM_FCOE_CONN_AG_CTX_CF6_MASK                   0x3
-#define TSTORM_FCOE_CONN_AG_CTX_CF6_SHIFT                  2
-#define TSTORM_FCOE_CONN_AG_CTX_CF7_MASK                   0x3
-#define TSTORM_FCOE_CONN_AG_CTX_CF7_SHIFT                  4
-#define TSTORM_FCOE_CONN_AG_CTX_CF8_MASK                   0x3
-#define TSTORM_FCOE_CONN_AG_CTX_CF8_SHIFT                  6
+#define TSTORM_FCOE_CONN_AG_CTX_CF5_MASK	0x3
+#define TSTORM_FCOE_CONN_AG_CTX_CF5_SHIFT	0
+#define TSTORM_FCOE_CONN_AG_CTX_CF6_MASK	0x3
+#define TSTORM_FCOE_CONN_AG_CTX_CF6_SHIFT	2
+#define TSTORM_FCOE_CONN_AG_CTX_CF7_MASK	0x3
+#define TSTORM_FCOE_CONN_AG_CTX_CF7_SHIFT	4
+#define TSTORM_FCOE_CONN_AG_CTX_CF8_MASK	0x3
+#define TSTORM_FCOE_CONN_AG_CTX_CF8_SHIFT	6
 	u8 flags3;
-#define TSTORM_FCOE_CONN_AG_CTX_CF9_MASK                   0x3
-#define TSTORM_FCOE_CONN_AG_CTX_CF9_SHIFT                  0
-#define TSTORM_FCOE_CONN_AG_CTX_CF10_MASK                  0x3
-#define TSTORM_FCOE_CONN_AG_CTX_CF10_SHIFT                 2
-#define TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_EN_MASK     0x1
-#define TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_EN_SHIFT    4
-#define TSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK        0x1
-#define TSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT       5
-#define TSTORM_FCOE_CONN_AG_CTX_CF2EN_MASK                 0x1
-#define TSTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT                6
-#define TSTORM_FCOE_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_MASK  0x1
-#define TSTORM_FCOE_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_SHIFT 7
+#define TSTORM_FCOE_CONN_AG_CTX_CF9_MASK			0x3
+#define TSTORM_FCOE_CONN_AG_CTX_CF9_SHIFT			0
+#define TSTORM_FCOE_CONN_AG_CTX_CF10_MASK			0x3
+#define TSTORM_FCOE_CONN_AG_CTX_CF10_SHIFT			2
+#define TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_EN_MASK		0x1
+#define TSTORM_FCOE_CONN_AG_CTX_DUMMY_TIMER_CF_EN_SHIFT		4
+#define TSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_CF_EN_MASK		0x1
+#define TSTORM_FCOE_CONN_AG_CTX_FLUSH_Q0_CF_EN_SHIFT		5
+#define TSTORM_FCOE_CONN_AG_CTX_CF2EN_MASK			0x1
+#define TSTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT			6
+#define TSTORM_FCOE_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_TIMER_STOP_ALL_CF_EN_SHIFT	7
 	u8 flags4;
-#define TSTORM_FCOE_CONN_AG_CTX_CF4EN_MASK                 0x1
-#define TSTORM_FCOE_CONN_AG_CTX_CF4EN_SHIFT                0
-#define TSTORM_FCOE_CONN_AG_CTX_CF5EN_MASK                 0x1
-#define TSTORM_FCOE_CONN_AG_CTX_CF5EN_SHIFT                1
-#define TSTORM_FCOE_CONN_AG_CTX_CF6EN_MASK                 0x1
-#define TSTORM_FCOE_CONN_AG_CTX_CF6EN_SHIFT                2
-#define TSTORM_FCOE_CONN_AG_CTX_CF7EN_MASK                 0x1
-#define TSTORM_FCOE_CONN_AG_CTX_CF7EN_SHIFT                3
-#define TSTORM_FCOE_CONN_AG_CTX_CF8EN_MASK                 0x1
-#define TSTORM_FCOE_CONN_AG_CTX_CF8EN_SHIFT                4
-#define TSTORM_FCOE_CONN_AG_CTX_CF9EN_MASK                 0x1
-#define TSTORM_FCOE_CONN_AG_CTX_CF9EN_SHIFT                5
-#define TSTORM_FCOE_CONN_AG_CTX_CF10EN_MASK                0x1
-#define TSTORM_FCOE_CONN_AG_CTX_CF10EN_SHIFT               6
-#define TSTORM_FCOE_CONN_AG_CTX_RULE0EN_MASK               0x1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE0EN_SHIFT              7
+#define TSTORM_FCOE_CONN_AG_CTX_CF4EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_CF4EN_SHIFT	0
+#define TSTORM_FCOE_CONN_AG_CTX_CF5EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_CF5EN_SHIFT	1
+#define TSTORM_FCOE_CONN_AG_CTX_CF6EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_CF6EN_SHIFT	2
+#define TSTORM_FCOE_CONN_AG_CTX_CF7EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_CF7EN_SHIFT	3
+#define TSTORM_FCOE_CONN_AG_CTX_CF8EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_CF8EN_SHIFT	4
+#define TSTORM_FCOE_CONN_AG_CTX_CF9EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_CF9EN_SHIFT	5
+#define TSTORM_FCOE_CONN_AG_CTX_CF10EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_CF10EN_SHIFT	6
+#define TSTORM_FCOE_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE0EN_SHIFT	7
 	u8 flags5;
-#define TSTORM_FCOE_CONN_AG_CTX_RULE1EN_MASK               0x1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE1EN_SHIFT              0
-#define TSTORM_FCOE_CONN_AG_CTX_RULE2EN_MASK               0x1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE2EN_SHIFT              1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE3EN_MASK               0x1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE3EN_SHIFT              2
-#define TSTORM_FCOE_CONN_AG_CTX_RULE4EN_MASK               0x1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE4EN_SHIFT              3
-#define TSTORM_FCOE_CONN_AG_CTX_RULE5EN_MASK               0x1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE5EN_SHIFT              4
-#define TSTORM_FCOE_CONN_AG_CTX_RULE6EN_MASK               0x1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE6EN_SHIFT              5
-#define TSTORM_FCOE_CONN_AG_CTX_RULE7EN_MASK               0x1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE7EN_SHIFT              6
-#define TSTORM_FCOE_CONN_AG_CTX_RULE8EN_MASK               0x1
-#define TSTORM_FCOE_CONN_AG_CTX_RULE8EN_SHIFT              7
+#define TSTORM_FCOE_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define TSTORM_FCOE_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define TSTORM_FCOE_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define TSTORM_FCOE_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define TSTORM_FCOE_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define TSTORM_FCOE_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define TSTORM_FCOE_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define TSTORM_FCOE_CONN_AG_CTX_RULE8EN_SHIFT	7
 	__le32 reg0;
 	__le32 reg1;
 };
@@ -9931,59 +10209,59 @@ struct ustorm_fcoe_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define USTORM_FCOE_CONN_AG_CTX_BIT0_MASK     0x1
-#define USTORM_FCOE_CONN_AG_CTX_BIT0_SHIFT    0
-#define USTORM_FCOE_CONN_AG_CTX_BIT1_MASK     0x1
-#define USTORM_FCOE_CONN_AG_CTX_BIT1_SHIFT    1
-#define USTORM_FCOE_CONN_AG_CTX_CF0_MASK      0x3
-#define USTORM_FCOE_CONN_AG_CTX_CF0_SHIFT     2
-#define USTORM_FCOE_CONN_AG_CTX_CF1_MASK      0x3
-#define USTORM_FCOE_CONN_AG_CTX_CF1_SHIFT     4
-#define USTORM_FCOE_CONN_AG_CTX_CF2_MASK      0x3
-#define USTORM_FCOE_CONN_AG_CTX_CF2_SHIFT     6
+#define USTORM_FCOE_CONN_AG_CTX_BIT0_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_BIT0_SHIFT	0
+#define USTORM_FCOE_CONN_AG_CTX_BIT1_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_BIT1_SHIFT	1
+#define USTORM_FCOE_CONN_AG_CTX_CF0_MASK	0x3
+#define USTORM_FCOE_CONN_AG_CTX_CF0_SHIFT	2
+#define USTORM_FCOE_CONN_AG_CTX_CF1_MASK	0x3
+#define USTORM_FCOE_CONN_AG_CTX_CF1_SHIFT	4
+#define USTORM_FCOE_CONN_AG_CTX_CF2_MASK	0x3
+#define USTORM_FCOE_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define USTORM_FCOE_CONN_AG_CTX_CF3_MASK      0x3
-#define USTORM_FCOE_CONN_AG_CTX_CF3_SHIFT     0
-#define USTORM_FCOE_CONN_AG_CTX_CF4_MASK      0x3
-#define USTORM_FCOE_CONN_AG_CTX_CF4_SHIFT     2
-#define USTORM_FCOE_CONN_AG_CTX_CF5_MASK      0x3
-#define USTORM_FCOE_CONN_AG_CTX_CF5_SHIFT     4
-#define USTORM_FCOE_CONN_AG_CTX_CF6_MASK      0x3
-#define USTORM_FCOE_CONN_AG_CTX_CF6_SHIFT     6
+#define USTORM_FCOE_CONN_AG_CTX_CF3_MASK	0x3
+#define USTORM_FCOE_CONN_AG_CTX_CF3_SHIFT	0
+#define USTORM_FCOE_CONN_AG_CTX_CF4_MASK	0x3
+#define USTORM_FCOE_CONN_AG_CTX_CF4_SHIFT	2
+#define USTORM_FCOE_CONN_AG_CTX_CF5_MASK	0x3
+#define USTORM_FCOE_CONN_AG_CTX_CF5_SHIFT	4
+#define USTORM_FCOE_CONN_AG_CTX_CF6_MASK	0x3
+#define USTORM_FCOE_CONN_AG_CTX_CF6_SHIFT	6
 	u8 flags2;
-#define USTORM_FCOE_CONN_AG_CTX_CF0EN_MASK    0x1
-#define USTORM_FCOE_CONN_AG_CTX_CF0EN_SHIFT   0
-#define USTORM_FCOE_CONN_AG_CTX_CF1EN_MASK    0x1
-#define USTORM_FCOE_CONN_AG_CTX_CF1EN_SHIFT   1
-#define USTORM_FCOE_CONN_AG_CTX_CF2EN_MASK    0x1
-#define USTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT   2
-#define USTORM_FCOE_CONN_AG_CTX_CF3EN_MASK    0x1
-#define USTORM_FCOE_CONN_AG_CTX_CF3EN_SHIFT   3
-#define USTORM_FCOE_CONN_AG_CTX_CF4EN_MASK    0x1
-#define USTORM_FCOE_CONN_AG_CTX_CF4EN_SHIFT   4
-#define USTORM_FCOE_CONN_AG_CTX_CF5EN_MASK    0x1
-#define USTORM_FCOE_CONN_AG_CTX_CF5EN_SHIFT   5
-#define USTORM_FCOE_CONN_AG_CTX_CF6EN_MASK    0x1
-#define USTORM_FCOE_CONN_AG_CTX_CF6EN_SHIFT   6
-#define USTORM_FCOE_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define USTORM_FCOE_CONN_AG_CTX_RULE0EN_SHIFT 7
+#define USTORM_FCOE_CONN_AG_CTX_CF0EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_CF0EN_SHIFT	0
+#define USTORM_FCOE_CONN_AG_CTX_CF1EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_CF1EN_SHIFT	1
+#define USTORM_FCOE_CONN_AG_CTX_CF2EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT	2
+#define USTORM_FCOE_CONN_AG_CTX_CF3EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_CF3EN_SHIFT	3
+#define USTORM_FCOE_CONN_AG_CTX_CF4EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_CF4EN_SHIFT	4
+#define USTORM_FCOE_CONN_AG_CTX_CF5EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_CF5EN_SHIFT	5
+#define USTORM_FCOE_CONN_AG_CTX_CF6EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_CF6EN_SHIFT	6
+#define USTORM_FCOE_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_RULE0EN_SHIFT	7
 	u8 flags3;
-#define USTORM_FCOE_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define USTORM_FCOE_CONN_AG_CTX_RULE1EN_SHIFT 0
-#define USTORM_FCOE_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define USTORM_FCOE_CONN_AG_CTX_RULE2EN_SHIFT 1
-#define USTORM_FCOE_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define USTORM_FCOE_CONN_AG_CTX_RULE3EN_SHIFT 2
-#define USTORM_FCOE_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define USTORM_FCOE_CONN_AG_CTX_RULE4EN_SHIFT 3
-#define USTORM_FCOE_CONN_AG_CTX_RULE5EN_MASK  0x1
-#define USTORM_FCOE_CONN_AG_CTX_RULE5EN_SHIFT 4
-#define USTORM_FCOE_CONN_AG_CTX_RULE6EN_MASK  0x1
-#define USTORM_FCOE_CONN_AG_CTX_RULE6EN_SHIFT 5
-#define USTORM_FCOE_CONN_AG_CTX_RULE7EN_MASK  0x1
-#define USTORM_FCOE_CONN_AG_CTX_RULE7EN_SHIFT 6
-#define USTORM_FCOE_CONN_AG_CTX_RULE8EN_MASK  0x1
-#define USTORM_FCOE_CONN_AG_CTX_RULE8EN_SHIFT 7
+#define USTORM_FCOE_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define USTORM_FCOE_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define USTORM_FCOE_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define USTORM_FCOE_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define USTORM_FCOE_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define USTORM_FCOE_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define USTORM_FCOE_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define USTORM_FCOE_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define USTORM_FCOE_CONN_AG_CTX_RULE8EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -9996,28 +10274,29 @@ struct ustorm_fcoe_conn_ag_ctx {
 	__le16 word3;
 };
 
+/* The fcoe storm context of Tstorm */
 struct tstorm_fcoe_conn_st_ctx {
 	__le16 stat_ram_addr;
 	__le16 rx_max_fc_payload_len;
 	__le16 e_d_tov_val;
 	u8 flags;
-#define TSTORM_FCOE_CONN_ST_CTX_INC_SEQ_CNT_MASK   0x1
-#define TSTORM_FCOE_CONN_ST_CTX_INC_SEQ_CNT_SHIFT  0
-#define TSTORM_FCOE_CONN_ST_CTX_SUPPORT_CONF_MASK  0x1
-#define TSTORM_FCOE_CONN_ST_CTX_SUPPORT_CONF_SHIFT 1
-#define TSTORM_FCOE_CONN_ST_CTX_DEF_Q_IDX_MASK     0x3F
-#define TSTORM_FCOE_CONN_ST_CTX_DEF_Q_IDX_SHIFT    2
+#define TSTORM_FCOE_CONN_ST_CTX_INC_SEQ_CNT_MASK	0x1
+#define TSTORM_FCOE_CONN_ST_CTX_INC_SEQ_CNT_SHIFT	0
+#define TSTORM_FCOE_CONN_ST_CTX_SUPPORT_CONF_MASK	0x1
+#define TSTORM_FCOE_CONN_ST_CTX_SUPPORT_CONF_SHIFT	1
+#define TSTORM_FCOE_CONN_ST_CTX_DEF_Q_IDX_MASK		0x3F
+#define TSTORM_FCOE_CONN_ST_CTX_DEF_Q_IDX_SHIFT		2
 	u8 timers_cleanup_invocation_cnt;
 	__le32 reserved1[2];
-	__le32 dst_mac_address_bytes0to3;
-	__le16 dst_mac_address_bytes4to5;
+	__le32 dst_mac_address_bytes_0_to_3;
+	__le16 dst_mac_address_bytes_4_to_5;
 	__le16 ramrod_echo;
 	u8 flags1;
-#define TSTORM_FCOE_CONN_ST_CTX_MODE_MASK          0x3
-#define TSTORM_FCOE_CONN_ST_CTX_MODE_SHIFT         0
-#define TSTORM_FCOE_CONN_ST_CTX_RESERVED_MASK      0x3F
-#define TSTORM_FCOE_CONN_ST_CTX_RESERVED_SHIFT     2
-	u8 q_relative_offset;
+#define TSTORM_FCOE_CONN_ST_CTX_MODE_MASK	0x3
+#define TSTORM_FCOE_CONN_ST_CTX_MODE_SHIFT	0
+#define TSTORM_FCOE_CONN_ST_CTX_RESERVED_MASK	0x3F
+#define TSTORM_FCOE_CONN_ST_CTX_RESERVED_SHIFT	2
+	u8 cq_relative_offset;
 	u8 bdq_resource_id;
 	u8 reserved0[5];
 };
@@ -10026,39 +10305,40 @@ struct mstorm_fcoe_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define MSTORM_FCOE_CONN_AG_CTX_BIT0_MASK     0x1
-#define MSTORM_FCOE_CONN_AG_CTX_BIT0_SHIFT    0
-#define MSTORM_FCOE_CONN_AG_CTX_BIT1_MASK     0x1
-#define MSTORM_FCOE_CONN_AG_CTX_BIT1_SHIFT    1
-#define MSTORM_FCOE_CONN_AG_CTX_CF0_MASK      0x3
-#define MSTORM_FCOE_CONN_AG_CTX_CF0_SHIFT     2
-#define MSTORM_FCOE_CONN_AG_CTX_CF1_MASK      0x3
-#define MSTORM_FCOE_CONN_AG_CTX_CF1_SHIFT     4
-#define MSTORM_FCOE_CONN_AG_CTX_CF2_MASK      0x3
-#define MSTORM_FCOE_CONN_AG_CTX_CF2_SHIFT     6
+#define MSTORM_FCOE_CONN_AG_CTX_BIT0_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_BIT0_SHIFT	0
+#define MSTORM_FCOE_CONN_AG_CTX_BIT1_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_BIT1_SHIFT	1
+#define MSTORM_FCOE_CONN_AG_CTX_CF0_MASK	0x3
+#define MSTORM_FCOE_CONN_AG_CTX_CF0_SHIFT	2
+#define MSTORM_FCOE_CONN_AG_CTX_CF1_MASK	0x3
+#define MSTORM_FCOE_CONN_AG_CTX_CF1_SHIFT	4
+#define MSTORM_FCOE_CONN_AG_CTX_CF2_MASK	0x3
+#define MSTORM_FCOE_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define MSTORM_FCOE_CONN_AG_CTX_CF0EN_MASK    0x1
-#define MSTORM_FCOE_CONN_AG_CTX_CF0EN_SHIFT   0
-#define MSTORM_FCOE_CONN_AG_CTX_CF1EN_MASK    0x1
-#define MSTORM_FCOE_CONN_AG_CTX_CF1EN_SHIFT   1
-#define MSTORM_FCOE_CONN_AG_CTX_CF2EN_MASK    0x1
-#define MSTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT   2
-#define MSTORM_FCOE_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define MSTORM_FCOE_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define MSTORM_FCOE_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define MSTORM_FCOE_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define MSTORM_FCOE_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define MSTORM_FCOE_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define MSTORM_FCOE_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define MSTORM_FCOE_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define MSTORM_FCOE_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define MSTORM_FCOE_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define MSTORM_FCOE_CONN_AG_CTX_CF0EN_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_CF0EN_SHIFT	0
+#define MSTORM_FCOE_CONN_AG_CTX_CF1EN_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_CF1EN_SHIFT	1
+#define MSTORM_FCOE_CONN_AG_CTX_CF2EN_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT	2
+#define MSTORM_FCOE_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define MSTORM_FCOE_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define MSTORM_FCOE_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define MSTORM_FCOE_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define MSTORM_FCOE_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define MSTORM_FCOE_CONN_AG_CTX_RULE4EN_SHIFT	7
 	__le16 word0;
 	__le16 word1;
 	__le32 reg0;
 	__le32 reg1;
 };
 
+/* Fast path part of the fcoe storm context of Mstorm */
 struct fcoe_mstorm_fcoe_conn_st_ctx_fp {
 	__le16 xfer_prod;
 	__le16 reserved1;
@@ -10073,6 +10353,7 @@ struct fcoe_mstorm_fcoe_conn_st_ctx_fp {
 	u8 reserved2[2];
 };
 
+/* Non fast path part of the fcoe storm context of Mstorm */
 struct fcoe_mstorm_fcoe_conn_st_ctx_non_fp {
 	__le16 conn_id;
 	__le16 stat_ram_addr;
@@ -10088,11 +10369,13 @@ struct fcoe_mstorm_fcoe_conn_st_ctx_non_fp {
 	struct regpair reserved2[3];
 };
 
+/* The fcoe storm context of Mstorm */
 struct mstorm_fcoe_conn_st_ctx {
 	struct fcoe_mstorm_fcoe_conn_st_ctx_fp fp;
 	struct fcoe_mstorm_fcoe_conn_st_ctx_non_fp non_fp;
 };
 
+/* fcoe connection context */
 struct fcoe_conn_context {
 	struct ystorm_fcoe_conn_st_ctx ystorm_st_context;
 	struct pstorm_fcoe_conn_st_ctx pstorm_st_context;
@@ -10111,14 +10394,21 @@ struct fcoe_conn_context {
 	struct mstorm_fcoe_conn_st_ctx mstorm_st_context;
 };
 
+/* FCoE connection offload params passed by driver to FW in FCoE offload
+ * ramrod.
+ */
 struct fcoe_conn_offload_ramrod_params {
 	struct fcoe_conn_offload_ramrod_data offload_ramrod_data;
 };
 
+/* FCoE connection terminate params passed by driver to FW in FCoE terminate
+ * conn ramrod.
+ */
 struct fcoe_conn_terminate_ramrod_params {
 	struct fcoe_conn_terminate_ramrod_data terminate_ramrod_data;
 };
 
+/* FCoE event type */
 enum fcoe_event_type {
 	FCOE_EVENT_INIT_FUNC,
 	FCOE_EVENT_DESTROY_FUNC,
@@ -10129,10 +10419,12 @@ enum fcoe_event_type {
 	MAX_FCOE_EVENT_TYPE
 };
 
+/* FCoE init params passed by driver to FW in FCoE init ramrod */
 struct fcoe_init_ramrod_params {
 	struct fcoe_init_func_ramrod_data init_ramrod_data;
 };
 
+/* FCoE ramrod Command IDs */
 enum fcoe_ramrod_cmd_id {
 	FCOE_RAMROD_CMD_ID_INIT_FUNC,
 	FCOE_RAMROD_CMD_ID_DESTROY_FUNC,
@@ -10142,6 +10434,9 @@ enum fcoe_ramrod_cmd_id {
 	MAX_FCOE_RAMROD_CMD_ID
 };
 
+/* FCoE statistics params buffer passed by driver to FW in FCoE statistics
+ * ramrod.
+ */
 struct fcoe_stat_ramrod_params {
 	struct fcoe_stat_ramrod_data stat_ramrod_data;
 };
@@ -10150,33 +10445,33 @@ struct ystorm_fcoe_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define YSTORM_FCOE_CONN_AG_CTX_BIT0_MASK     0x1
-#define YSTORM_FCOE_CONN_AG_CTX_BIT0_SHIFT    0
-#define YSTORM_FCOE_CONN_AG_CTX_BIT1_MASK     0x1
-#define YSTORM_FCOE_CONN_AG_CTX_BIT1_SHIFT    1
-#define YSTORM_FCOE_CONN_AG_CTX_CF0_MASK      0x3
-#define YSTORM_FCOE_CONN_AG_CTX_CF0_SHIFT     2
-#define YSTORM_FCOE_CONN_AG_CTX_CF1_MASK      0x3
-#define YSTORM_FCOE_CONN_AG_CTX_CF1_SHIFT     4
-#define YSTORM_FCOE_CONN_AG_CTX_CF2_MASK      0x3
-#define YSTORM_FCOE_CONN_AG_CTX_CF2_SHIFT     6
+#define YSTORM_FCOE_CONN_AG_CTX_BIT0_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_BIT0_SHIFT	0
+#define YSTORM_FCOE_CONN_AG_CTX_BIT1_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_BIT1_SHIFT	1
+#define YSTORM_FCOE_CONN_AG_CTX_CF0_MASK	0x3
+#define YSTORM_FCOE_CONN_AG_CTX_CF0_SHIFT	2
+#define YSTORM_FCOE_CONN_AG_CTX_CF1_MASK	0x3
+#define YSTORM_FCOE_CONN_AG_CTX_CF1_SHIFT	4
+#define YSTORM_FCOE_CONN_AG_CTX_CF2_MASK	0x3
+#define YSTORM_FCOE_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define YSTORM_FCOE_CONN_AG_CTX_CF0EN_MASK    0x1
-#define YSTORM_FCOE_CONN_AG_CTX_CF0EN_SHIFT   0
-#define YSTORM_FCOE_CONN_AG_CTX_CF1EN_MASK    0x1
-#define YSTORM_FCOE_CONN_AG_CTX_CF1EN_SHIFT   1
-#define YSTORM_FCOE_CONN_AG_CTX_CF2EN_MASK    0x1
-#define YSTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT   2
-#define YSTORM_FCOE_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define YSTORM_FCOE_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define YSTORM_FCOE_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define YSTORM_FCOE_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define YSTORM_FCOE_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define YSTORM_FCOE_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define YSTORM_FCOE_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define YSTORM_FCOE_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define YSTORM_FCOE_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define YSTORM_FCOE_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define YSTORM_FCOE_CONN_AG_CTX_CF0EN_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_CF0EN_SHIFT	0
+#define YSTORM_FCOE_CONN_AG_CTX_CF1EN_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_CF1EN_SHIFT	1
+#define YSTORM_FCOE_CONN_AG_CTX_CF2EN_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_CF2EN_SHIFT	2
+#define YSTORM_FCOE_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define YSTORM_FCOE_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define YSTORM_FCOE_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define YSTORM_FCOE_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define YSTORM_FCOE_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define YSTORM_FCOE_CONN_AG_CTX_RULE4EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -10190,15 +10485,18 @@ struct ystorm_fcoe_conn_ag_ctx {
 	__le32 reg3;
 };
 
+/* The iscsi storm connection context of Ystorm */
 struct ystorm_iscsi_conn_st_ctx {
 	__le32 reserved[4];
 };
 
+/* Combined iSCSI and TCP storm connection of Pstorm */
 struct pstorm_iscsi_tcp_conn_st_ctx {
 	__le32 tcp[32];
 	__le32 iscsi[4];
 };
 
+/* The combined tcp and iscsi storm context of Xstorm */
 struct xstorm_iscsi_tcp_conn_st_ctx {
 	__le32 reserved_iscsi[40];
 	__le32 reserved_tcp[4];
@@ -10208,212 +10506,212 @@ struct xstorm_iscsi_conn_ag_ctx {
 	u8 cdu_validation;
 	u8 state;
 	u8 flags0;
-#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_SHIFT               0
-#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM1_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM1_SHIFT               1
-#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED1_MASK                   0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED1_SHIFT                  2
-#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM3_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM3_SHIFT               3
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT4_MASK                        0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT4_SHIFT                       4
-#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED2_MASK                   0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED2_SHIFT                  5
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT6_MASK                        0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT6_SHIFT                       6
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT7_MASK                        0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT7_SHIFT                       7
+#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM1_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM1_SHIFT	1
+#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED1_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED1_SHIFT	2
+#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM3_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM3_SHIFT	3
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT4_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT4_SHIFT		4
+#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED2_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED2_SHIFT	5
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT6_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT6_SHIFT		6
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT7_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT7_SHIFT		7
 	u8 flags1;
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT8_MASK                        0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT8_SHIFT                       0
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT9_MASK                        0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT9_SHIFT                       1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT10_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT10_SHIFT                      2
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT11_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT11_SHIFT                      3
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT12_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT12_SHIFT                      4
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT13_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT13_SHIFT                      5
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT14_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT14_SHIFT                      6
-#define XSTORM_ISCSI_CONN_AG_CTX_TX_TRUNCATE_MASK                 0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_TX_TRUNCATE_SHIFT                7
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT8_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT8_SHIFT		0
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT9_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT9_SHIFT		1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT10_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT10_SHIFT		2
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT11_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT11_SHIFT		3
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT12_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT12_SHIFT		4
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT13_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT13_SHIFT		5
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT14_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT14_SHIFT		6
+#define XSTORM_ISCSI_CONN_AG_CTX_TX_TRUNCATE_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_TX_TRUNCATE_SHIFT	7
 	u8 flags2;
-#define XSTORM_ISCSI_CONN_AG_CTX_CF0_MASK                         0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT                        0
-#define XSTORM_ISCSI_CONN_AG_CTX_CF1_MASK                         0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT                        2
-#define XSTORM_ISCSI_CONN_AG_CTX_CF2_MASK                         0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT                        4
-#define XSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_MASK              0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_SHIFT             6
+#define XSTORM_ISCSI_CONN_AG_CTX_CF0_MASK		0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT		0
+#define XSTORM_ISCSI_CONN_AG_CTX_CF1_MASK		0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT		2
+#define XSTORM_ISCSI_CONN_AG_CTX_CF2_MASK		0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT		4
+#define XSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_SHIFT	6
 	u8 flags3;
-#define XSTORM_ISCSI_CONN_AG_CTX_CF4_MASK                         0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT                        0
-#define XSTORM_ISCSI_CONN_AG_CTX_CF5_MASK                         0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT                        2
-#define XSTORM_ISCSI_CONN_AG_CTX_CF6_MASK                         0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT                        4
-#define XSTORM_ISCSI_CONN_AG_CTX_CF7_MASK                         0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF7_SHIFT                        6
+#define XSTORM_ISCSI_CONN_AG_CTX_CF4_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT	0
+#define XSTORM_ISCSI_CONN_AG_CTX_CF5_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT	2
+#define XSTORM_ISCSI_CONN_AG_CTX_CF6_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT	4
+#define XSTORM_ISCSI_CONN_AG_CTX_CF7_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF7_SHIFT	6
 	u8 flags4;
-#define XSTORM_ISCSI_CONN_AG_CTX_CF8_MASK                         0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF8_SHIFT                        0
-#define XSTORM_ISCSI_CONN_AG_CTX_CF9_MASK                         0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF9_SHIFT                        2
-#define XSTORM_ISCSI_CONN_AG_CTX_CF10_MASK                        0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF10_SHIFT                       4
-#define XSTORM_ISCSI_CONN_AG_CTX_CF11_MASK                        0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF11_SHIFT                       6
+#define XSTORM_ISCSI_CONN_AG_CTX_CF8_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF8_SHIFT	0
+#define XSTORM_ISCSI_CONN_AG_CTX_CF9_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF9_SHIFT	2
+#define XSTORM_ISCSI_CONN_AG_CTX_CF10_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF10_SHIFT	4
+#define XSTORM_ISCSI_CONN_AG_CTX_CF11_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF11_SHIFT	6
 	u8 flags5;
-#define XSTORM_ISCSI_CONN_AG_CTX_CF12_MASK                        0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF12_SHIFT                       0
-#define XSTORM_ISCSI_CONN_AG_CTX_CF13_MASK                        0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF13_SHIFT                       2
-#define XSTORM_ISCSI_CONN_AG_CTX_CF14_MASK                        0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF14_SHIFT                       4
-#define XSTORM_ISCSI_CONN_AG_CTX_UPDATE_STATE_TO_BASE_CF_MASK     0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_UPDATE_STATE_TO_BASE_CF_SHIFT    6
+#define XSTORM_ISCSI_CONN_AG_CTX_CF12_MASK			0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF12_SHIFT			0
+#define XSTORM_ISCSI_CONN_AG_CTX_CF13_MASK			0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF13_SHIFT			2
+#define XSTORM_ISCSI_CONN_AG_CTX_CF14_MASK			0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF14_SHIFT			4
+#define XSTORM_ISCSI_CONN_AG_CTX_UPDATE_STATE_TO_BASE_CF_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_UPDATE_STATE_TO_BASE_CF_SHIFT	6
 	u8 flags6;
-#define XSTORM_ISCSI_CONN_AG_CTX_CF16_MASK                        0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF16_SHIFT                       0
-#define XSTORM_ISCSI_CONN_AG_CTX_CF17_MASK                        0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF17_SHIFT                       2
-#define XSTORM_ISCSI_CONN_AG_CTX_CF18_MASK                        0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF18_SHIFT                       4
-#define XSTORM_ISCSI_CONN_AG_CTX_DQ_FLUSH_MASK                    0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_DQ_FLUSH_SHIFT                   6
+#define XSTORM_ISCSI_CONN_AG_CTX_CF16_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF16_SHIFT	0
+#define XSTORM_ISCSI_CONN_AG_CTX_CF17_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF17_SHIFT	2
+#define XSTORM_ISCSI_CONN_AG_CTX_CF18_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF18_SHIFT	4
+#define XSTORM_ISCSI_CONN_AG_CTX_DQ_FLUSH_MASK	0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_DQ_FLUSH_SHIFT	6
 	u8 flags7;
 #define XSTORM_ISCSI_CONN_AG_CTX_MST_XCM_Q0_FLUSH_CF_MASK	0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_MST_XCM_Q0_FLUSH_CF_SHIFT        0
+#define XSTORM_ISCSI_CONN_AG_CTX_MST_XCM_Q0_FLUSH_CF_SHIFT	0
 #define XSTORM_ISCSI_CONN_AG_CTX_UST_XCM_Q1_FLUSH_CF_MASK	0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_UST_XCM_Q1_FLUSH_CF_SHIFT        2
-#define XSTORM_ISCSI_CONN_AG_CTX_SLOW_PATH_MASK                   0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_SLOW_PATH_SHIFT                  4
-#define XSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT                      6
-#define XSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT                      7
+#define XSTORM_ISCSI_CONN_AG_CTX_UST_XCM_Q1_FLUSH_CF_SHIFT	2
+#define XSTORM_ISCSI_CONN_AG_CTX_SLOW_PATH_MASK			0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_SLOW_PATH_SHIFT		4
+#define XSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT			6
+#define XSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT			7
 	u8 flags8;
-#define XSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT                      0
-#define XSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK           0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_SHIFT          1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT                      2
-#define XSTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT                      3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT                      4
-#define XSTORM_ISCSI_CONN_AG_CTX_CF7EN_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF7EN_SHIFT                      5
-#define XSTORM_ISCSI_CONN_AG_CTX_CF8EN_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF8EN_SHIFT                      6
-#define XSTORM_ISCSI_CONN_AG_CTX_CF9EN_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF9EN_SHIFT                      7
+#define XSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT			0
+#define XSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_SHIFT	1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT			2
+#define XSTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT			3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT			4
+#define XSTORM_ISCSI_CONN_AG_CTX_CF7EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF7EN_SHIFT			5
+#define XSTORM_ISCSI_CONN_AG_CTX_CF8EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF8EN_SHIFT			6
+#define XSTORM_ISCSI_CONN_AG_CTX_CF9EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF9EN_SHIFT			7
 	u8 flags9;
-#define XSTORM_ISCSI_CONN_AG_CTX_CF10EN_MASK                      0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF10EN_SHIFT                     0
-#define XSTORM_ISCSI_CONN_AG_CTX_CF11EN_MASK                      0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF11EN_SHIFT                     1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF12EN_MASK                      0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF12EN_SHIFT                     2
-#define XSTORM_ISCSI_CONN_AG_CTX_CF13EN_MASK                      0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF13EN_SHIFT                     3
-#define XSTORM_ISCSI_CONN_AG_CTX_CF14EN_MASK                      0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF14EN_SHIFT                     4
-#define XSTORM_ISCSI_CONN_AG_CTX_UPDATE_STATE_TO_BASE_CF_EN_MASK  0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_UPDATE_STATE_TO_BASE_CF_EN_SHIFT 5
-#define XSTORM_ISCSI_CONN_AG_CTX_CF16EN_MASK                      0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF16EN_SHIFT                     6
-#define XSTORM_ISCSI_CONN_AG_CTX_CF17EN_MASK                      0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF17EN_SHIFT                     7
+#define XSTORM_ISCSI_CONN_AG_CTX_CF10EN_MASK				0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF10EN_SHIFT				0
+#define XSTORM_ISCSI_CONN_AG_CTX_CF11EN_MASK				0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF11EN_SHIFT				1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF12EN_MASK				0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF12EN_SHIFT				2
+#define XSTORM_ISCSI_CONN_AG_CTX_CF13EN_MASK				0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF13EN_SHIFT				3
+#define XSTORM_ISCSI_CONN_AG_CTX_CF14EN_MASK				0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF14EN_SHIFT				4
+#define XSTORM_ISCSI_CONN_AG_CTX_UPDATE_STATE_TO_BASE_CF_EN_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_UPDATE_STATE_TO_BASE_CF_EN_SHIFT	5
+#define XSTORM_ISCSI_CONN_AG_CTX_CF16EN_MASK				0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF16EN_SHIFT				6
+#define XSTORM_ISCSI_CONN_AG_CTX_CF17EN_MASK				0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF17EN_SHIFT				7
 	u8 flags10;
-#define XSTORM_ISCSI_CONN_AG_CTX_CF18EN_MASK                      0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_CF18EN_SHIFT                     0
-#define XSTORM_ISCSI_CONN_AG_CTX_DQ_FLUSH_EN_MASK                 0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_DQ_FLUSH_EN_SHIFT                1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF18EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_CF18EN_SHIFT			0
+#define XSTORM_ISCSI_CONN_AG_CTX_DQ_FLUSH_EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_DQ_FLUSH_EN_SHIFT		1
 #define XSTORM_ISCSI_CONN_AG_CTX_MST_XCM_Q0_FLUSH_CF_EN_MASK	0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_MST_XCM_Q0_FLUSH_CF_EN_SHIFT     2
+#define XSTORM_ISCSI_CONN_AG_CTX_MST_XCM_Q0_FLUSH_CF_EN_SHIFT	2
 #define XSTORM_ISCSI_CONN_AG_CTX_UST_XCM_Q1_FLUSH_CF_EN_MASK	0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_UST_XCM_Q1_FLUSH_CF_EN_SHIFT     3
-#define XSTORM_ISCSI_CONN_AG_CTX_SLOW_PATH_EN_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_SLOW_PATH_EN_SHIFT               4
-#define XSTORM_ISCSI_CONN_AG_CTX_PROC_ONLY_CLEANUP_EN_MASK        0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_PROC_ONLY_CLEANUP_EN_SHIFT       5
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK                     0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT                    6
-#define XSTORM_ISCSI_CONN_AG_CTX_MORE_TO_SEND_DEC_RULE_EN_MASK    0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_MORE_TO_SEND_DEC_RULE_EN_SHIFT   7
+#define XSTORM_ISCSI_CONN_AG_CTX_UST_XCM_Q1_FLUSH_CF_EN_SHIFT	3
+#define XSTORM_ISCSI_CONN_AG_CTX_SLOW_PATH_EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_SLOW_PATH_EN_SHIFT		4
+#define XSTORM_ISCSI_CONN_AG_CTX_PROC_ONLY_CLEANUP_EN_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_PROC_ONLY_CLEANUP_EN_SHIFT	5
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT			6
+#define XSTORM_ISCSI_CONN_AG_CTX_MORE_TO_SEND_DEC_RULE_EN_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_MORE_TO_SEND_DEC_RULE_EN_SHIFT	7
 	u8 flags11;
 #define XSTORM_ISCSI_CONN_AG_CTX_TX_BLOCKED_EN_MASK	0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_TX_BLOCKED_EN_SHIFT              0
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK                     0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT                    1
-#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED3_MASK                   0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED3_SHIFT                  2
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK                     0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT                    3
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK                     0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT                    4
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK                     0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT                    5
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED1_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED1_SHIFT               6
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE9EN_MASK                     0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE9EN_SHIFT                    7
+#define XSTORM_ISCSI_CONN_AG_CTX_TX_BLOCKED_EN_SHIFT	0
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT		1
+#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED3_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RESERVED3_SHIFT	2
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT		3
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT		4
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT		5
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED1_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED1_SHIFT	6
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE9EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE9EN_SHIFT		7
 	u8 flags12;
-#define XSTORM_ISCSI_CONN_AG_CTX_SQ_DEC_RULE_EN_MASK              0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_SQ_DEC_RULE_EN_SHIFT             0
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE11EN_MASK                    0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE11EN_SHIFT                   1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED2_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED2_SHIFT               2
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED3_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED3_SHIFT               3
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE14EN_MASK                    0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE14EN_SHIFT                   4
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE15EN_MASK                    0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE15EN_SHIFT                   5
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE16EN_MASK                    0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE16EN_SHIFT                   6
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE17EN_MASK                    0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_RULE17EN_SHIFT                   7
+#define XSTORM_ISCSI_CONN_AG_CTX_SQ_DEC_RULE_EN_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_SQ_DEC_RULE_EN_SHIFT	0
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE11EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE11EN_SHIFT		1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED2_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED2_SHIFT	2
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED3_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED3_SHIFT	3
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE14EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE14EN_SHIFT		4
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE15EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE15EN_SHIFT		5
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE16EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE16EN_SHIFT		6
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE17EN_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_RULE17EN_SHIFT		7
 	u8 flags13;
-#define XSTORM_ISCSI_CONN_AG_CTX_R2TQ_DEC_RULE_EN_MASK            0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_R2TQ_DEC_RULE_EN_SHIFT           0
-#define XSTORM_ISCSI_CONN_AG_CTX_HQ_DEC_RULE_EN_MASK              0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_HQ_DEC_RULE_EN_SHIFT             1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED4_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED4_SHIFT               2
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED5_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED5_SHIFT               3
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED6_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED6_SHIFT               4
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED7_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED7_SHIFT               5
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED8_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED8_SHIFT               6
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED9_MASK                0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED9_SHIFT               7
+#define XSTORM_ISCSI_CONN_AG_CTX_R2TQ_DEC_RULE_EN_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_R2TQ_DEC_RULE_EN_SHIFT	0
+#define XSTORM_ISCSI_CONN_AG_CTX_HQ_DEC_RULE_EN_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_HQ_DEC_RULE_EN_SHIFT	1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED4_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED4_SHIFT	2
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED5_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED5_SHIFT	3
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED6_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED6_SHIFT	4
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED7_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED7_SHIFT	5
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED8_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED8_SHIFT	6
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED9_MASK	0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_A0_RESERVED9_SHIFT	7
 	u8 flags14;
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT16_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT16_SHIFT                      0
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT17_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT17_SHIFT                      1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT18_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT18_SHIFT                      2
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT19_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT19_SHIFT                      3
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT20_MASK                       0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_BIT20_SHIFT                      4
-#define XSTORM_ISCSI_CONN_AG_CTX_DUMMY_READ_DONE_MASK             0x1
-#define XSTORM_ISCSI_CONN_AG_CTX_DUMMY_READ_DONE_SHIFT            5
-#define XSTORM_ISCSI_CONN_AG_CTX_PROC_ONLY_CLEANUP_MASK           0x3
-#define XSTORM_ISCSI_CONN_AG_CTX_PROC_ONLY_CLEANUP_SHIFT          6
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT16_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT16_SHIFT			0
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT17_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT17_SHIFT			1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT18_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT18_SHIFT			2
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT19_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT19_SHIFT			3
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT20_MASK			0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_BIT20_SHIFT			4
+#define XSTORM_ISCSI_CONN_AG_CTX_DUMMY_READ_DONE_MASK		0x1
+#define XSTORM_ISCSI_CONN_AG_CTX_DUMMY_READ_DONE_SHIFT		5
+#define XSTORM_ISCSI_CONN_AG_CTX_PROC_ONLY_CLEANUP_MASK		0x3
+#define XSTORM_ISCSI_CONN_AG_CTX_PROC_ONLY_CLEANUP_SHIFT	6
 	u8 byte2;
 	__le16 physical_q0;
 	__le16 physical_q1;
@@ -10465,85 +10763,85 @@ struct tstorm_iscsi_conn_ag_ctx {
 	u8 reserved0;
 	u8 state;
 	u8 flags0;
-#define TSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_MASK       0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_SHIFT      0
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK               0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT              1
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT2_MASK               0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT2_SHIFT              2
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT3_MASK               0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT3_SHIFT              3
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT4_MASK               0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT4_SHIFT              4
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT5_MASK               0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_BIT5_SHIFT              5
-#define TSTORM_ISCSI_CONN_AG_CTX_CF0_MASK                0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT               6
+#define TSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_EXIST_IN_QM0_SHIFT	0
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT		1
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT2_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT2_SHIFT		2
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT3_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT3_SHIFT		3
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT4_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT4_SHIFT		4
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT5_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_BIT5_SHIFT		5
+#define TSTORM_ISCSI_CONN_AG_CTX_CF0_MASK		0x3
+#define TSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT		6
 	u8 flags1;
 #define TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_MASK	0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_SHIFT      0
+#define TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_SHIFT	0
 #define TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_MASK	0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_SHIFT      2
-#define TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_MASK     0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_SHIFT    4
-#define TSTORM_ISCSI_CONN_AG_CTX_CF4_MASK                0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT               6
+#define TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_SHIFT	2
+#define TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_MASK	0x3
+#define TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_SHIFT	4
+#define TSTORM_ISCSI_CONN_AG_CTX_CF4_MASK		0x3
+#define TSTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT		6
 	u8 flags2;
-#define TSTORM_ISCSI_CONN_AG_CTX_CF5_MASK                0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT               0
-#define TSTORM_ISCSI_CONN_AG_CTX_CF6_MASK                0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT               2
-#define TSTORM_ISCSI_CONN_AG_CTX_CF7_MASK                0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_CF7_SHIFT               4
-#define TSTORM_ISCSI_CONN_AG_CTX_CF8_MASK                0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_CF8_SHIFT               6
+#define TSTORM_ISCSI_CONN_AG_CTX_CF5_MASK	0x3
+#define TSTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT	0
+#define TSTORM_ISCSI_CONN_AG_CTX_CF6_MASK	0x3
+#define TSTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT	2
+#define TSTORM_ISCSI_CONN_AG_CTX_CF7_MASK	0x3
+#define TSTORM_ISCSI_CONN_AG_CTX_CF7_SHIFT	4
+#define TSTORM_ISCSI_CONN_AG_CTX_CF8_MASK	0x3
+#define TSTORM_ISCSI_CONN_AG_CTX_CF8_SHIFT	6
 	u8 flags3;
-#define TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_MASK           0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_SHIFT          0
-#define TSTORM_ISCSI_CONN_AG_CTX_CF10_MASK               0x3
-#define TSTORM_ISCSI_CONN_AG_CTX_CF10_SHIFT              2
-#define TSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK              0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT             4
-#define TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_EN_MASK	0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_EN_SHIFT   5
-#define TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_EN_MASK	0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_EN_SHIFT   6
-#define TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK  0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_SHIFT 7
+#define TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_MASK			0x3
+#define TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_SHIFT			0
+#define TSTORM_ISCSI_CONN_AG_CTX_CF10_MASK			0x3
+#define TSTORM_ISCSI_CONN_AG_CTX_CF10_SHIFT			2
+#define TSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK			0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT			4
+#define TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_P2T_FLUSH_CF_EN_SHIFT		5
+#define TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_M2T_FLUSH_CF_EN_SHIFT		6
+#define TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_TIMER_STOP_ALL_EN_SHIFT	7
 	u8 flags4;
-#define TSTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK              0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT             0
-#define TSTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK              0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT             1
-#define TSTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK              0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT             2
-#define TSTORM_ISCSI_CONN_AG_CTX_CF7EN_MASK              0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_CF7EN_SHIFT             3
-#define TSTORM_ISCSI_CONN_AG_CTX_CF8EN_MASK              0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_CF8EN_SHIFT             4
-#define TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_EN_MASK        0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT       5
-#define TSTORM_ISCSI_CONN_AG_CTX_CF10EN_MASK             0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_CF10EN_SHIFT            6
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK            0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT           7
+#define TSTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT		0
+#define TSTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT		1
+#define TSTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT		2
+#define TSTORM_ISCSI_CONN_AG_CTX_CF7EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_CF7EN_SHIFT		3
+#define TSTORM_ISCSI_CONN_AG_CTX_CF8EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_CF8EN_SHIFT		4
+#define TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_EN_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_FLUSH_Q0_EN_SHIFT	5
+#define TSTORM_ISCSI_CONN_AG_CTX_CF10EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_CF10EN_SHIFT		6
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK		0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT		7
 	u8 flags5;
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK            0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT           0
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK            0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT           1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK            0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT           2
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK            0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT           3
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK            0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT           4
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK            0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT           5
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK            0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT           6
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE8EN_MASK            0x1
-#define TSTORM_ISCSI_CONN_AG_CTX_RULE8EN_SHIFT           7
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define TSTORM_ISCSI_CONN_AG_CTX_RULE8EN_SHIFT	7
 	__le32 reg0;
 	__le32 reg1;
 	__le32 reg2;
@@ -10562,59 +10860,59 @@ struct ustorm_iscsi_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define USTORM_ISCSI_CONN_AG_CTX_BIT0_MASK     0x1
-#define USTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT    0
-#define USTORM_ISCSI_CONN_AG_CTX_BIT1_MASK     0x1
-#define USTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT    1
-#define USTORM_ISCSI_CONN_AG_CTX_CF0_MASK      0x3
-#define USTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT     2
-#define USTORM_ISCSI_CONN_AG_CTX_CF1_MASK      0x3
-#define USTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT     4
-#define USTORM_ISCSI_CONN_AG_CTX_CF2_MASK      0x3
-#define USTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT     6
+#define USTORM_ISCSI_CONN_AG_CTX_BIT0_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT	0
+#define USTORM_ISCSI_CONN_AG_CTX_BIT1_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT	1
+#define USTORM_ISCSI_CONN_AG_CTX_CF0_MASK	0x3
+#define USTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT	2
+#define USTORM_ISCSI_CONN_AG_CTX_CF1_MASK	0x3
+#define USTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT	4
+#define USTORM_ISCSI_CONN_AG_CTX_CF2_MASK	0x3
+#define USTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define USTORM_ISCSI_CONN_AG_CTX_CF3_MASK      0x3
-#define USTORM_ISCSI_CONN_AG_CTX_CF3_SHIFT     0
-#define USTORM_ISCSI_CONN_AG_CTX_CF4_MASK      0x3
-#define USTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT     2
-#define USTORM_ISCSI_CONN_AG_CTX_CF5_MASK      0x3
-#define USTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT     4
-#define USTORM_ISCSI_CONN_AG_CTX_CF6_MASK      0x3
-#define USTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT     6
+#define USTORM_ISCSI_CONN_AG_CTX_CF3_MASK	0x3
+#define USTORM_ISCSI_CONN_AG_CTX_CF3_SHIFT	0
+#define USTORM_ISCSI_CONN_AG_CTX_CF4_MASK	0x3
+#define USTORM_ISCSI_CONN_AG_CTX_CF4_SHIFT	2
+#define USTORM_ISCSI_CONN_AG_CTX_CF5_MASK	0x3
+#define USTORM_ISCSI_CONN_AG_CTX_CF5_SHIFT	4
+#define USTORM_ISCSI_CONN_AG_CTX_CF6_MASK	0x3
+#define USTORM_ISCSI_CONN_AG_CTX_CF6_SHIFT	6
 	u8 flags2;
-#define USTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK    0x1
-#define USTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT   0
-#define USTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK    0x1
-#define USTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT   1
-#define USTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK    0x1
-#define USTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT   2
-#define USTORM_ISCSI_CONN_AG_CTX_CF3EN_MASK    0x1
-#define USTORM_ISCSI_CONN_AG_CTX_CF3EN_SHIFT   3
-#define USTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK    0x1
-#define USTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT   4
-#define USTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK    0x1
-#define USTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT   5
-#define USTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK    0x1
-#define USTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT   6
-#define USTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT 7
+#define USTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT	0
+#define USTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT	1
+#define USTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT	2
+#define USTORM_ISCSI_CONN_AG_CTX_CF3EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_CF3EN_SHIFT	3
+#define USTORM_ISCSI_CONN_AG_CTX_CF4EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_CF4EN_SHIFT	4
+#define USTORM_ISCSI_CONN_AG_CTX_CF5EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_CF5EN_SHIFT	5
+#define USTORM_ISCSI_CONN_AG_CTX_CF6EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_CF6EN_SHIFT	6
+#define USTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT	7
 	u8 flags3;
-#define USTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT 0
-#define USTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT 1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT 2
-#define USTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT 3
-#define USTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK  0x1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT 4
-#define USTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK  0x1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT 5
-#define USTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK  0x1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT 6
-#define USTORM_ISCSI_CONN_AG_CTX_RULE8EN_MASK  0x1
-#define USTORM_ISCSI_CONN_AG_CTX_RULE8EN_SHIFT 7
+#define USTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT	0
+#define USTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT	1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT	2
+#define USTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT	3
+#define USTORM_ISCSI_CONN_AG_CTX_RULE5EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE5EN_SHIFT	4
+#define USTORM_ISCSI_CONN_AG_CTX_RULE6EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE6EN_SHIFT	5
+#define USTORM_ISCSI_CONN_AG_CTX_RULE7EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE7EN_SHIFT	6
+#define USTORM_ISCSI_CONN_AG_CTX_RULE8EN_MASK	0x1
+#define USTORM_ISCSI_CONN_AG_CTX_RULE8EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;
@@ -10627,6 +10925,7 @@ struct ustorm_iscsi_conn_ag_ctx {
 	__le16 word3;
 };
 
+/* The iscsi storm connection context of Tstorm */
 struct tstorm_iscsi_conn_st_ctx {
 	__le32 reserved[40];
 };
@@ -10635,48 +10934,51 @@ struct mstorm_iscsi_conn_ag_ctx {
 	u8 reserved;
 	u8 state;
 	u8 flags0;
-#define MSTORM_ISCSI_CONN_AG_CTX_BIT0_MASK     0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT    0
-#define MSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK     0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT    1
-#define MSTORM_ISCSI_CONN_AG_CTX_CF0_MASK      0x3
-#define MSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT     2
-#define MSTORM_ISCSI_CONN_AG_CTX_CF1_MASK      0x3
-#define MSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT     4
-#define MSTORM_ISCSI_CONN_AG_CTX_CF2_MASK      0x3
-#define MSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT     6
+#define MSTORM_ISCSI_CONN_AG_CTX_BIT0_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT	0
+#define MSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT	1
+#define MSTORM_ISCSI_CONN_AG_CTX_CF0_MASK	0x3
+#define MSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT	2
+#define MSTORM_ISCSI_CONN_AG_CTX_CF1_MASK	0x3
+#define MSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT	4
+#define MSTORM_ISCSI_CONN_AG_CTX_CF2_MASK	0x3
+#define MSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define MSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK    0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT   0
-#define MSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK    0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT   1
-#define MSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK    0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT   2
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define MSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define MSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT	0
+#define MSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT	1
+#define MSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT	2
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define MSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT	7
 	__le16 word0;
 	__le16 word1;
 	__le32 reg0;
 	__le32 reg1;
 };
 
+/* Combined iSCSI and TCP storm connection of Mstorm */
 struct mstorm_iscsi_tcp_conn_st_ctx {
 	__le32 reserved_tcp[20];
 	__le32 reserved_iscsi[8];
 };
 
+/* The iscsi storm context of Ustorm */
 struct ustorm_iscsi_conn_st_ctx {
 	__le32 reserved[52];
 };
 
+/* iscsi connection context */
 struct iscsi_conn_context {
 	struct ystorm_iscsi_conn_st_ctx ystorm_st_context;
 	struct regpair ystorm_st_padding[2];
@@ -10698,6 +11000,7 @@ struct iscsi_conn_context {
 	struct ustorm_iscsi_conn_st_ctx ustorm_st_context;
 };
 
+/* iSCSI init params passed by driver to FW in iSCSI init ramrod */
 struct iscsi_init_ramrod_params {
 	struct iscsi_spe_func_init iscsi_init_spe;
 	struct tcp_init_params tcp_init;
@@ -10707,33 +11010,33 @@ struct ystorm_iscsi_conn_ag_ctx {
 	u8 byte0;
 	u8 byte1;
 	u8 flags0;
-#define YSTORM_ISCSI_CONN_AG_CTX_BIT0_MASK     0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT    0
-#define YSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK     0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT    1
-#define YSTORM_ISCSI_CONN_AG_CTX_CF0_MASK      0x3
-#define YSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT     2
-#define YSTORM_ISCSI_CONN_AG_CTX_CF1_MASK      0x3
-#define YSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT     4
-#define YSTORM_ISCSI_CONN_AG_CTX_CF2_MASK      0x3
-#define YSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT     6
+#define YSTORM_ISCSI_CONN_AG_CTX_BIT0_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_BIT0_SHIFT	0
+#define YSTORM_ISCSI_CONN_AG_CTX_BIT1_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_BIT1_SHIFT	1
+#define YSTORM_ISCSI_CONN_AG_CTX_CF0_MASK	0x3
+#define YSTORM_ISCSI_CONN_AG_CTX_CF0_SHIFT	2
+#define YSTORM_ISCSI_CONN_AG_CTX_CF1_MASK	0x3
+#define YSTORM_ISCSI_CONN_AG_CTX_CF1_SHIFT	4
+#define YSTORM_ISCSI_CONN_AG_CTX_CF2_MASK	0x3
+#define YSTORM_ISCSI_CONN_AG_CTX_CF2_SHIFT	6
 	u8 flags1;
-#define YSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK    0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT   0
-#define YSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK    0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT   1
-#define YSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK    0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT   2
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK  0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT 3
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK  0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT 4
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK  0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT 5
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK  0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT 6
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK  0x1
-#define YSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT 7
+#define YSTORM_ISCSI_CONN_AG_CTX_CF0EN_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_CF0EN_SHIFT	0
+#define YSTORM_ISCSI_CONN_AG_CTX_CF1EN_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_CF1EN_SHIFT	1
+#define YSTORM_ISCSI_CONN_AG_CTX_CF2EN_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_CF2EN_SHIFT	2
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE0EN_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE0EN_SHIFT	3
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE1EN_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE1EN_SHIFT	4
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE2EN_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE2EN_SHIFT	5
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE3EN_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE3EN_SHIFT	6
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE4EN_MASK	0x1
+#define YSTORM_ISCSI_CONN_AG_CTX_RULE4EN_SHIFT	7
 	u8 byte2;
 	u8 byte3;
 	__le16 word0;

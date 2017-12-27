@@ -758,7 +758,7 @@ static void qed_init_qm_info(struct qed_hwfn *p_hwfn)
 /* This function reconfigures the QM pf on the fly.
  * For this purpose we:
  * 1. reconfigure the QM database
- * 2. set new values to runtime arrat
+ * 2. set new values to runtime array
  * 3. send an sdm_qm_cmd through the rbc interface to stop the QM
  * 4. activate init tool in QM_PF stage
  * 5. send an sdm_qm_cmd through rbc interface to release the QM
@@ -1515,7 +1515,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 			     NIG_REG_LLH_FUNC_TAGMAC_CLS_TYPE_RT_OFFSET, 1);
 	}
 
-	/* Protocl Configuration  */
+	/* Protocol Configuration */
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_TCP_RT_OFFSET,
 		     (p_hwfn->hw_info.personality == QED_PCI_ISCSI) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_FCOE_RT_OFFSET,

@@ -33,8 +33,13 @@
 #ifndef __TCP_COMMON__
 #define __TCP_COMMON__
 
-#define TCP_INVALID_TIMEOUT_VAL -1
+/********************/
+/* TCP FW CONSTANTS */
+/********************/
 
+#define TCP_INVALID_TIMEOUT_VAL	-1
+
+/* OOO opaque data received from LL2 */
 struct ooo_opaque {
 	__le32 cid;
 	u8 drop_isle;
@@ -43,25 +48,29 @@ struct ooo_opaque {
 	u8 ooo_isle;
 };
 
+/* tcp connect mode enum */
 enum tcp_connect_mode {
 	TCP_CONNECT_ACTIVE,
 	TCP_CONNECT_PASSIVE,
 	MAX_TCP_CONNECT_MODE
 };
 
+/* tcp function init parameters */
 struct tcp_init_params {
 	__le32 two_msl_timer;
 	__le16 tx_sws_timer;
-	u8 maxfinrt;
+	u8 max_fin_rt;
 	u8 reserved[9];
 };
 
+/* tcp IPv4/IPv6 enum */
 enum tcp_ip_version {
 	TCP_IPV4,
 	TCP_IPV6,
 	MAX_TCP_IP_VERSION
 };
 
+/* tcp offload parameters */
 struct tcp_offload_params {
 	__le16 local_mac_addr_lo;
 	__le16 local_mac_addr_mid;
@@ -71,22 +80,22 @@ struct tcp_offload_params {
 	__le16 remote_mac_addr_hi;
 	__le16 vlan_id;
 	u8 flags;
-#define TCP_OFFLOAD_PARAMS_TS_EN_MASK         0x1
-#define TCP_OFFLOAD_PARAMS_TS_EN_SHIFT        0
-#define TCP_OFFLOAD_PARAMS_DA_EN_MASK         0x1
-#define TCP_OFFLOAD_PARAMS_DA_EN_SHIFT        1
-#define TCP_OFFLOAD_PARAMS_KA_EN_MASK         0x1
-#define TCP_OFFLOAD_PARAMS_KA_EN_SHIFT        2
-#define TCP_OFFLOAD_PARAMS_NAGLE_EN_MASK      0x1
-#define TCP_OFFLOAD_PARAMS_NAGLE_EN_SHIFT     3
-#define TCP_OFFLOAD_PARAMS_DA_CNT_EN_MASK     0x1
-#define TCP_OFFLOAD_PARAMS_DA_CNT_EN_SHIFT    4
-#define TCP_OFFLOAD_PARAMS_FIN_SENT_MASK      0x1
-#define TCP_OFFLOAD_PARAMS_FIN_SENT_SHIFT     5
-#define TCP_OFFLOAD_PARAMS_FIN_RECEIVED_MASK  0x1
-#define TCP_OFFLOAD_PARAMS_FIN_RECEIVED_SHIFT 6
-#define TCP_OFFLOAD_PARAMS_RESERVED0_MASK     0x1
-#define TCP_OFFLOAD_PARAMS_RESERVED0_SHIFT    7
+#define TCP_OFFLOAD_PARAMS_TS_EN_MASK			0x1
+#define TCP_OFFLOAD_PARAMS_TS_EN_SHIFT			0
+#define TCP_OFFLOAD_PARAMS_DA_EN_MASK			0x1
+#define TCP_OFFLOAD_PARAMS_DA_EN_SHIFT			1
+#define TCP_OFFLOAD_PARAMS_KA_EN_MASK			0x1
+#define TCP_OFFLOAD_PARAMS_KA_EN_SHIFT			2
+#define TCP_OFFLOAD_PARAMS_NAGLE_EN_MASK		0x1
+#define TCP_OFFLOAD_PARAMS_NAGLE_EN_SHIFT		3
+#define TCP_OFFLOAD_PARAMS_DA_CNT_EN_MASK		0x1
+#define TCP_OFFLOAD_PARAMS_DA_CNT_EN_SHIFT		4
+#define TCP_OFFLOAD_PARAMS_FIN_SENT_MASK		0x1
+#define TCP_OFFLOAD_PARAMS_FIN_SENT_SHIFT		5
+#define TCP_OFFLOAD_PARAMS_FIN_RECEIVED_MASK		0x1
+#define TCP_OFFLOAD_PARAMS_FIN_RECEIVED_SHIFT		6
+#define TCP_OFFLOAD_PARAMS_RESERVED0_MASK		0x1
+#define TCP_OFFLOAD_PARAMS_RESERVED0_SHIFT		7
 	u8 ip_version;
 	__le32 remote_ip[4];
 	__le32 local_ip[4];
@@ -132,6 +141,7 @@ struct tcp_offload_params {
 	__le32 reserved3[2];
 };
 
+/* tcp offload parameters */
 struct tcp_offload_params_opt2 {
 	__le16 local_mac_addr_lo;
 	__le16 local_mac_addr_mid;
@@ -141,14 +151,14 @@ struct tcp_offload_params_opt2 {
 	__le16 remote_mac_addr_hi;
 	__le16 vlan_id;
 	u8 flags;
-#define TCP_OFFLOAD_PARAMS_OPT2_TS_EN_MASK      0x1
-#define TCP_OFFLOAD_PARAMS_OPT2_TS_EN_SHIFT     0
-#define TCP_OFFLOAD_PARAMS_OPT2_DA_EN_MASK      0x1
-#define TCP_OFFLOAD_PARAMS_OPT2_DA_EN_SHIFT     1
-#define TCP_OFFLOAD_PARAMS_OPT2_KA_EN_MASK      0x1
-#define TCP_OFFLOAD_PARAMS_OPT2_KA_EN_SHIFT     2
-#define TCP_OFFLOAD_PARAMS_OPT2_RESERVED0_MASK  0x1F
-#define TCP_OFFLOAD_PARAMS_OPT2_RESERVED0_SHIFT 3
+#define TCP_OFFLOAD_PARAMS_OPT2_TS_EN_MASK	0x1
+#define TCP_OFFLOAD_PARAMS_OPT2_TS_EN_SHIFT	0
+#define TCP_OFFLOAD_PARAMS_OPT2_DA_EN_MASK	0x1
+#define TCP_OFFLOAD_PARAMS_OPT2_DA_EN_SHIFT	1
+#define TCP_OFFLOAD_PARAMS_OPT2_KA_EN_MASK	0x1
+#define TCP_OFFLOAD_PARAMS_OPT2_KA_EN_SHIFT	2
+#define TCP_OFFLOAD_PARAMS_OPT2_RESERVED0_MASK	0x1F
+#define TCP_OFFLOAD_PARAMS_OPT2_RESERVED0_SHIFT	3
 	u8 ip_version;
 	__le32 remote_ip[4];
 	__le32 local_ip[4];
@@ -166,6 +176,7 @@ struct tcp_offload_params_opt2 {
 	__le32 reserved1[22];
 };
 
+/* tcp IPv4/IPv6 enum */
 enum tcp_seg_placement_event {
 	TCP_EVENT_ADD_PEN,
 	TCP_EVENT_ADD_NEW_ISLE,
@@ -177,40 +188,41 @@ enum tcp_seg_placement_event {
 	MAX_TCP_SEG_PLACEMENT_EVENT
 };
 
+/* tcp init parameters */
 struct tcp_update_params {
 	__le16 flags;
-#define TCP_UPDATE_PARAMS_REMOTE_MAC_ADDR_CHANGED_MASK   0x1
-#define TCP_UPDATE_PARAMS_REMOTE_MAC_ADDR_CHANGED_SHIFT  0
-#define TCP_UPDATE_PARAMS_MSS_CHANGED_MASK               0x1
-#define TCP_UPDATE_PARAMS_MSS_CHANGED_SHIFT              1
-#define TCP_UPDATE_PARAMS_TTL_CHANGED_MASK               0x1
-#define TCP_UPDATE_PARAMS_TTL_CHANGED_SHIFT              2
-#define TCP_UPDATE_PARAMS_TOS_OR_TC_CHANGED_MASK         0x1
-#define TCP_UPDATE_PARAMS_TOS_OR_TC_CHANGED_SHIFT        3
-#define TCP_UPDATE_PARAMS_KA_TIMEOUT_CHANGED_MASK        0x1
-#define TCP_UPDATE_PARAMS_KA_TIMEOUT_CHANGED_SHIFT       4
-#define TCP_UPDATE_PARAMS_KA_INTERVAL_CHANGED_MASK       0x1
-#define TCP_UPDATE_PARAMS_KA_INTERVAL_CHANGED_SHIFT      5
-#define TCP_UPDATE_PARAMS_MAX_RT_TIME_CHANGED_MASK       0x1
-#define TCP_UPDATE_PARAMS_MAX_RT_TIME_CHANGED_SHIFT      6
-#define TCP_UPDATE_PARAMS_FLOW_LABEL_CHANGED_MASK        0x1
-#define TCP_UPDATE_PARAMS_FLOW_LABEL_CHANGED_SHIFT       7
-#define TCP_UPDATE_PARAMS_INITIAL_RCV_WND_CHANGED_MASK   0x1
-#define TCP_UPDATE_PARAMS_INITIAL_RCV_WND_CHANGED_SHIFT  8
-#define TCP_UPDATE_PARAMS_KA_MAX_PROBE_CNT_CHANGED_MASK  0x1
-#define TCP_UPDATE_PARAMS_KA_MAX_PROBE_CNT_CHANGED_SHIFT 9
-#define TCP_UPDATE_PARAMS_KA_EN_CHANGED_MASK             0x1
-#define TCP_UPDATE_PARAMS_KA_EN_CHANGED_SHIFT            10
-#define TCP_UPDATE_PARAMS_NAGLE_EN_CHANGED_MASK          0x1
-#define TCP_UPDATE_PARAMS_NAGLE_EN_CHANGED_SHIFT         11
-#define TCP_UPDATE_PARAMS_KA_EN_MASK                     0x1
-#define TCP_UPDATE_PARAMS_KA_EN_SHIFT                    12
-#define TCP_UPDATE_PARAMS_NAGLE_EN_MASK                  0x1
-#define TCP_UPDATE_PARAMS_NAGLE_EN_SHIFT                 13
-#define TCP_UPDATE_PARAMS_KA_RESTART_MASK                0x1
-#define TCP_UPDATE_PARAMS_KA_RESTART_SHIFT               14
-#define TCP_UPDATE_PARAMS_RETRANSMIT_RESTART_MASK        0x1
-#define TCP_UPDATE_PARAMS_RETRANSMIT_RESTART_SHIFT       15
+#define TCP_UPDATE_PARAMS_REMOTE_MAC_ADDR_CHANGED_MASK		0x1
+#define TCP_UPDATE_PARAMS_REMOTE_MAC_ADDR_CHANGED_SHIFT		0
+#define TCP_UPDATE_PARAMS_MSS_CHANGED_MASK			0x1
+#define TCP_UPDATE_PARAMS_MSS_CHANGED_SHIFT			1
+#define TCP_UPDATE_PARAMS_TTL_CHANGED_MASK			0x1
+#define TCP_UPDATE_PARAMS_TTL_CHANGED_SHIFT			2
+#define TCP_UPDATE_PARAMS_TOS_OR_TC_CHANGED_MASK		0x1
+#define TCP_UPDATE_PARAMS_TOS_OR_TC_CHANGED_SHIFT		3
+#define TCP_UPDATE_PARAMS_KA_TIMEOUT_CHANGED_MASK		0x1
+#define TCP_UPDATE_PARAMS_KA_TIMEOUT_CHANGED_SHIFT		4
+#define TCP_UPDATE_PARAMS_KA_INTERVAL_CHANGED_MASK		0x1
+#define TCP_UPDATE_PARAMS_KA_INTERVAL_CHANGED_SHIFT		5
+#define TCP_UPDATE_PARAMS_MAX_RT_TIME_CHANGED_MASK		0x1
+#define TCP_UPDATE_PARAMS_MAX_RT_TIME_CHANGED_SHIFT		6
+#define TCP_UPDATE_PARAMS_FLOW_LABEL_CHANGED_MASK		0x1
+#define TCP_UPDATE_PARAMS_FLOW_LABEL_CHANGED_SHIFT		7
+#define TCP_UPDATE_PARAMS_INITIAL_RCV_WND_CHANGED_MASK		0x1
+#define TCP_UPDATE_PARAMS_INITIAL_RCV_WND_CHANGED_SHIFT		8
+#define TCP_UPDATE_PARAMS_KA_MAX_PROBE_CNT_CHANGED_MASK		0x1
+#define TCP_UPDATE_PARAMS_KA_MAX_PROBE_CNT_CHANGED_SHIFT	9
+#define TCP_UPDATE_PARAMS_KA_EN_CHANGED_MASK			0x1
+#define TCP_UPDATE_PARAMS_KA_EN_CHANGED_SHIFT			10
+#define TCP_UPDATE_PARAMS_NAGLE_EN_CHANGED_MASK			0x1
+#define TCP_UPDATE_PARAMS_NAGLE_EN_CHANGED_SHIFT		11
+#define TCP_UPDATE_PARAMS_KA_EN_MASK				0x1
+#define TCP_UPDATE_PARAMS_KA_EN_SHIFT				12
+#define TCP_UPDATE_PARAMS_NAGLE_EN_MASK				0x1
+#define TCP_UPDATE_PARAMS_NAGLE_EN_SHIFT			13
+#define TCP_UPDATE_PARAMS_KA_RESTART_MASK			0x1
+#define TCP_UPDATE_PARAMS_KA_RESTART_SHIFT			14
+#define TCP_UPDATE_PARAMS_RETRANSMIT_RESTART_MASK		0x1
+#define TCP_UPDATE_PARAMS_RETRANSMIT_RESTART_SHIFT		15
 	__le16 remote_mac_addr_lo;
 	__le16 remote_mac_addr_mid;
 	__le16 remote_mac_addr_hi;
@@ -226,6 +238,7 @@ struct tcp_update_params {
 	u8 reserved1[7];
 };
 
+/* toe upload parameters */
 struct tcp_upload_params {
 	__le32 rcv_next;
 	__le32 snd_una;

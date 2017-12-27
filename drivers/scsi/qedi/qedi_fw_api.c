@@ -342,56 +342,57 @@ void init_rtdif_task_context(struct rdif_task_context *rdif_context,
 			     cpu_to_le16(dif_task_params->application_tag_mask);
 		SET_FIELD(rdif_context->flags0, RDIF_TASK_CONTEXT_CRC_SEED,
 			  dif_task_params->crc_seed ? 1 : 0);
-		SET_FIELD(rdif_context->flags0, RDIF_TASK_CONTEXT_HOSTGUARDTYPE,
+		SET_FIELD(rdif_context->flags0,
+			  RDIF_TASK_CONTEXT_HOST_GUARD_TYPE,
 			  dif_task_params->host_guard_type);
 		SET_FIELD(rdif_context->flags0,
-			  RDIF_TASK_CONTEXT_PROTECTIONTYPE,
+			  RDIF_TASK_CONTEXT_PROTECTION_TYPE,
 			  dif_task_params->protection_type);
 		SET_FIELD(rdif_context->flags0,
-			  RDIF_TASK_CONTEXT_INITIALREFTAGVALID, 1);
+			  RDIF_TASK_CONTEXT_INITIAL_REF_TAG_VALID, 1);
 		SET_FIELD(rdif_context->flags0,
-			  RDIF_TASK_CONTEXT_KEEPREFTAGCONST,
+			  RDIF_TASK_CONTEXT_KEEP_REF_TAG_CONST,
 			  dif_task_params->keep_ref_tag_const ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_VALIDATEAPPTAG,
+			  RDIF_TASK_CONTEXT_VALIDATE_APP_TAG,
 			  (dif_task_params->validate_app_tag &&
 			  dif_task_params->dif_on_network) ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_VALIDATEGUARD,
+			  RDIF_TASK_CONTEXT_VALIDATE_GUARD,
 			  (dif_task_params->validate_guard &&
 			  dif_task_params->dif_on_network) ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_VALIDATEREFTAG,
+			  RDIF_TASK_CONTEXT_VALIDATE_REF_TAG,
 			  (dif_task_params->validate_ref_tag &&
 			  dif_task_params->dif_on_network) ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_HOSTINTERFACE,
+			  RDIF_TASK_CONTEXT_HOST_INTERFACE,
 			  dif_task_params->dif_on_host ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_NETWORKINTERFACE,
+			  RDIF_TASK_CONTEXT_NETWORK_INTERFACE,
 			  dif_task_params->dif_on_network ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_FORWARDGUARD,
+			  RDIF_TASK_CONTEXT_FORWARD_GUARD,
 			  dif_task_params->forward_guard ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_FORWARDAPPTAG,
+			  RDIF_TASK_CONTEXT_FORWARD_APP_TAG,
 			  dif_task_params->forward_app_tag ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_FORWARDREFTAG,
+			  RDIF_TASK_CONTEXT_FORWARD_REF_TAG,
 			  dif_task_params->forward_ref_tag ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_FORWARDAPPTAGWITHMASK,
+			  RDIF_TASK_CONTEXT_FORWARD_APP_TAG_WITH_MASK,
 			  dif_task_params->forward_app_tag_with_mask ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_FORWARDREFTAGWITHMASK,
+			  RDIF_TASK_CONTEXT_FORWARD_REF_TAG_WITH_MASK,
 			  dif_task_params->forward_ref_tag_with_mask ? 1 : 0);
 		SET_FIELD(rdif_context->flags1,
-			  RDIF_TASK_CONTEXT_INTERVALSIZE,
+			  RDIF_TASK_CONTEXT_INTERVAL_SIZE,
 			  dif_task_params->dif_block_size_log - 9);
 		SET_FIELD(rdif_context->state,
-			  RDIF_TASK_CONTEXT_REFTAGMASK,
+			  RDIF_TASK_CONTEXT_REF_TAG_MASK,
 			  dif_task_params->ref_tag_mask);
-		SET_FIELD(rdif_context->state, RDIF_TASK_CONTEXT_IGNOREAPPTAG,
+		SET_FIELD(rdif_context->state, RDIF_TASK_CONTEXT_IGNORE_APP_TAG,
 			  dif_task_params->ignore_app_tag);
 	}
 
@@ -399,7 +400,7 @@ void init_rtdif_task_context(struct rdif_task_context *rdif_context,
 	    task_type == ISCSI_TASK_TYPE_INITIATOR_WRITE) {
 		tdif_context->app_tag_value =
 				  cpu_to_le16(dif_task_params->application_tag);
-		tdif_context->partial_crc_valueB =
+		tdif_context->partial_crc_value_b =
 		       cpu_to_le16(dif_task_params->crc_seed ? 0xffff : 0x0000);
 		tdif_context->partial_crc_value_a =
 		       cpu_to_le16(dif_task_params->crc_seed ? 0xffff : 0x0000);
@@ -407,59 +408,63 @@ void init_rtdif_task_context(struct rdif_task_context *rdif_context,
 			  dif_task_params->crc_seed ? 1 : 0);
 
 		SET_FIELD(tdif_context->flags0,
-			  TDIF_TASK_CONTEXT_SETERRORWITHEOP,
+			  TDIF_TASK_CONTEXT_SET_ERROR_WITH_EOP,
 			  dif_task_params->tx_dif_conn_err_en ? 1 : 0);
-		SET_FIELD(tdif_context->flags1, TDIF_TASK_CONTEXT_FORWARDGUARD,
+		SET_FIELD(tdif_context->flags1, TDIF_TASK_CONTEXT_FORWARD_GUARD,
 			  dif_task_params->forward_guard   ? 1 : 0);
-		SET_FIELD(tdif_context->flags1, TDIF_TASK_CONTEXT_FORWARDAPPTAG,
+		SET_FIELD(tdif_context->flags1,
+			  TDIF_TASK_CONTEXT_FORWARD_APP_TAG,
 			  dif_task_params->forward_app_tag ? 1 : 0);
-		SET_FIELD(tdif_context->flags1, TDIF_TASK_CONTEXT_FORWARDREFTAG,
+		SET_FIELD(tdif_context->flags1,
+			  TDIF_TASK_CONTEXT_FORWARD_REF_TAG,
 			  dif_task_params->forward_ref_tag ? 1 : 0);
-		SET_FIELD(tdif_context->flags1, TDIF_TASK_CONTEXT_INTERVALSIZE,
+		SET_FIELD(tdif_context->flags1, TDIF_TASK_CONTEXT_INTERVAL_SIZE,
 			  dif_task_params->dif_block_size_log - 9);
-		SET_FIELD(tdif_context->flags1, TDIF_TASK_CONTEXT_HOSTINTERFACE,
+		SET_FIELD(tdif_context->flags1,
+			  TDIF_TASK_CONTEXT_HOST_INTERFACE,
 			  dif_task_params->dif_on_host    ? 1 : 0);
 		SET_FIELD(tdif_context->flags1,
-			  TDIF_TASK_CONTEXT_NETWORKINTERFACE,
+			  TDIF_TASK_CONTEXT_NETWORK_INTERFACE,
 			  dif_task_params->dif_on_network ? 1 : 0);
 		val = cpu_to_le32(dif_task_params->initial_ref_tag);
 		tdif_context->initial_ref_tag = val;
 		tdif_context->app_tag_mask =
 			     cpu_to_le16(dif_task_params->application_tag_mask);
 		SET_FIELD(tdif_context->flags0,
-			  TDIF_TASK_CONTEXT_HOSTGUARDTYPE,
+			  TDIF_TASK_CONTEXT_HOST_GUARD_TYPE,
 			  dif_task_params->host_guard_type);
 		SET_FIELD(tdif_context->flags0,
-			  TDIF_TASK_CONTEXT_PROTECTIONTYPE,
+			  TDIF_TASK_CONTEXT_PROTECTION_TYPE,
 			  dif_task_params->protection_type);
 		SET_FIELD(tdif_context->flags0,
-			  TDIF_TASK_CONTEXT_INITIALREFTAGVALID,
+			  TDIF_TASK_CONTEXT_INITIAL_REF_TAG_VALID,
 			  dif_task_params->initial_ref_tag_is_valid ? 1 : 0);
 		SET_FIELD(tdif_context->flags0,
-			  TDIF_TASK_CONTEXT_KEEPREFTAGCONST,
+			  TDIF_TASK_CONTEXT_KEEP_REF_TAG_CONST,
 			  dif_task_params->keep_ref_tag_const ? 1 : 0);
-		SET_FIELD(tdif_context->flags1, TDIF_TASK_CONTEXT_VALIDATEGUARD,
+		SET_FIELD(tdif_context->flags1,
+			  TDIF_TASK_CONTEXT_VALIDATE_GUARD,
 			  (dif_task_params->validate_guard &&
 			   dif_task_params->dif_on_host) ? 1 : 0);
 		SET_FIELD(tdif_context->flags1,
-			  TDIF_TASK_CONTEXT_VALIDATEAPPTAG,
+			  TDIF_TASK_CONTEXT_VALIDATE_APP_TAG,
 			  (dif_task_params->validate_app_tag &&
 			  dif_task_params->dif_on_host) ? 1 : 0);
 		SET_FIELD(tdif_context->flags1,
-			  TDIF_TASK_CONTEXT_VALIDATEREFTAG,
+			  TDIF_TASK_CONTEXT_VALIDATE_REF_TAG,
 			  (dif_task_params->validate_ref_tag &&
 			   dif_task_params->dif_on_host) ? 1 : 0);
 		SET_FIELD(tdif_context->flags1,
-			  TDIF_TASK_CONTEXT_FORWARDAPPTAGWITHMASK,
+			  TDIF_TASK_CONTEXT_FORWARD_APP_TAG_WITH_MASK,
 			  dif_task_params->forward_app_tag_with_mask ? 1 : 0);
 		SET_FIELD(tdif_context->flags1,
-			  TDIF_TASK_CONTEXT_FORWARDREFTAGWITHMASK,
+			  TDIF_TASK_CONTEXT_FORWARD_REF_TAG_WITH_MASK,
 			  dif_task_params->forward_ref_tag_with_mask ? 1 : 0);
 		SET_FIELD(tdif_context->flags1,
-			  TDIF_TASK_CONTEXT_REFTAGMASK,
+			  TDIF_TASK_CONTEXT_REF_TAG_MASK,
 			  dif_task_params->ref_tag_mask);
 		SET_FIELD(tdif_context->flags0,
-			  TDIF_TASK_CONTEXT_IGNOREAPPTAG,
+			  TDIF_TASK_CONTEXT_IGNORE_APP_TAG,
 			  dif_task_params->ignore_app_tag ? 1 : 0);
 	}
 }

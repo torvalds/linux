@@ -46,75 +46,110 @@
 							0x1000) : 0)
 #define QM_PQ_SIZE_256B(pq_size)	(pq_size ? DIV_ROUND_UP(pq_size, \
 								0x100) - 1 : 0)
-#define QM_INVALID_PQ_ID                        0xffff
+#define QM_INVALID_PQ_ID		0xffff
+
 /* Feature enable */
-#define QM_BYPASS_EN                            1
-#define QM_BYTE_CRD_EN                          1
+#define QM_BYPASS_EN	1
+#define QM_BYTE_CRD_EN	1
+
 /* Other PQ constants */
-#define QM_OTHER_PQS_PER_PF                     4
+#define QM_OTHER_PQS_PER_PF	4
+
 /* WFQ constants */
-#define QM_WFQ_UPPER_BOUND		62500000
-#define QM_WFQ_VP_PQ_VOQ_SHIFT          0
-#define QM_WFQ_VP_PQ_PF_SHIFT           5
-#define QM_WFQ_INC_VAL(weight)          ((weight) * 0x9000)
-#define QM_WFQ_MAX_INC_VAL                      43750000
+
+/* Upper bound in MB, 10 * burst size of 1ms in 50Gbps */
+#define QM_WFQ_UPPER_BOUND	62500000
+
+/* Bit  of VOQ in WFQ VP PQ map */
+#define QM_WFQ_VP_PQ_VOQ_SHIFT	0
+
+/* Bit  of PF in WFQ VP PQ map */
+#define QM_WFQ_VP_PQ_PF_SHIFT	5
+
+/* 0x9000 = 4*9*1024 */
+#define QM_WFQ_INC_VAL(weight)	((weight) * 0x9000)
+
+/* Max WFQ increment value is 0.7 * upper bound */
+#define QM_WFQ_MAX_INC_VAL	43750000
 
 /* RL constants */
-#define QM_RL_UPPER_BOUND                       62500000
-#define QM_RL_PERIOD                            5               /* in us */
-#define QM_RL_PERIOD_CLK_25M            (25 * QM_RL_PERIOD)
-#define QM_RL_MAX_INC_VAL                       43750000
+
+/* Period in us */
+#define QM_RL_PERIOD	5
+
+/* Period in 25MHz cycles */
+#define QM_RL_PERIOD_CLK_25M	(25 * QM_RL_PERIOD)
+
+/* RL increment value - rate is specified in mbps */
 #define QM_RL_INC_VAL(rate)		max_t(u32,	\
 					      (u32)(((rate ? rate : \
 						      1000000) *    \
 						     QM_RL_PERIOD * \
 						     101) / (8 * 100)), 1)
+
+/* PF RL Upper bound is set to 10 * burst size of 1ms in 50Gbps */
+#define QM_RL_UPPER_BOUND	62500000
+
+/* Max PF RL increment value is 0.7 * upper bound */
+#define QM_RL_MAX_INC_VAL	43750000
+
 /* AFullOprtnstcCrdMask constants */
-#define QM_OPPOR_LINE_VOQ_DEF           1
-#define QM_OPPOR_FW_STOP_DEF            0
-#define QM_OPPOR_PQ_EMPTY_DEF           1
+#define QM_OPPOR_LINE_VOQ_DEF	1
+#define QM_OPPOR_FW_STOP_DEF	0
+#define QM_OPPOR_PQ_EMPTY_DEF	1
+
 /* Command Queue constants */
-#define PBF_CMDQ_PURE_LB_LINES                          150
-#define PBF_CMDQ_LINES_RT_OFFSET(voq)           (		 \
-		PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET + voq * \
-		(PBF_REG_YCMD_QS_NUM_LINES_VOQ1_RT_OFFSET -	 \
-		 PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET))
-#define PBF_BTB_GUARANTEED_RT_OFFSET(voq)       (	      \
-		PBF_REG_BTB_GUARANTEED_VOQ0_RT_OFFSET + voq * \
-		(PBF_REG_BTB_GUARANTEED_VOQ1_RT_OFFSET -      \
-		 PBF_REG_BTB_GUARANTEED_VOQ0_RT_OFFSET))
-#define QM_VOQ_LINE_CRD(pbf_cmd_lines)          ((((pbf_cmd_lines) - \
-						   4) *		     \
-						  2) | QM_LINE_CRD_REG_SIGN_BIT)
+
+/* Pure LB CmdQ lines (+spare) */
+#define PBF_CMDQ_PURE_LB_LINES	150
+
+#define PBF_CMDQ_LINES_RT_OFFSET(ext_voq) \
+	(PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET + \
+	 (ext_voq) * (PBF_REG_YCMD_QS_NUM_LINES_VOQ1_RT_OFFSET - \
+		PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET))
+
+#define PBF_BTB_GUARANTEED_RT_OFFSET(ext_voq) \
+	(PBF_REG_BTB_GUARANTEED_VOQ0_RT_OFFSET + \
+	 (ext_voq) * (PBF_REG_BTB_GUARANTEED_VOQ1_RT_OFFSET - \
+		PBF_REG_BTB_GUARANTEED_VOQ0_RT_OFFSET))
+
+#define QM_VOQ_LINE_CRD(pbf_cmd_lines) \
+	((((pbf_cmd_lines) - 4) * 2) | QM_LINE_CRD_REG_SIGN_BIT)
+
 /* BTB: blocks constants (block size = 256B) */
-#define BTB_JUMBO_PKT_BLOCKS            38
-#define BTB_HEADROOM_BLOCKS                     BTB_JUMBO_PKT_BLOCKS
-#define BTB_PURE_LB_FACTOR                      10
-#define BTB_PURE_LB_RATIO                       7
+
+/* 256B blocks in 9700B packet */
+#define BTB_JUMBO_PKT_BLOCKS	38
+
+/* Headroom per-port */
+#define BTB_HEADROOM_BLOCKS	BTB_JUMBO_PKT_BLOCKS
+#define BTB_PURE_LB_FACTOR	10
+
+/* Factored (hence really 0.7) */
+#define BTB_PURE_LB_RATIO	7
+
 /* QM stop command constants */
-#define QM_STOP_PQ_MASK_WIDTH           32
-#define QM_STOP_CMD_ADDR                2
-#define QM_STOP_CMD_STRUCT_SIZE         2
-#define QM_STOP_CMD_PAUSE_MASK_OFFSET   0
-#define QM_STOP_CMD_PAUSE_MASK_SHIFT    0
-#define QM_STOP_CMD_PAUSE_MASK_MASK     -1
-#define QM_STOP_CMD_GROUP_ID_OFFSET     1
-#define QM_STOP_CMD_GROUP_ID_SHIFT      16
-#define QM_STOP_CMD_GROUP_ID_MASK       15
-#define QM_STOP_CMD_PQ_TYPE_OFFSET      1
-#define QM_STOP_CMD_PQ_TYPE_SHIFT       24
-#define QM_STOP_CMD_PQ_TYPE_MASK        1
-#define QM_STOP_CMD_MAX_POLL_COUNT      100
-#define QM_STOP_CMD_POLL_PERIOD_US      500
+#define QM_STOP_PQ_MASK_WIDTH		32
+#define QM_STOP_CMD_ADDR		2
+#define QM_STOP_CMD_STRUCT_SIZE		2
+#define QM_STOP_CMD_PAUSE_MASK_OFFSET	0
+#define QM_STOP_CMD_PAUSE_MASK_SHIFT	0
+#define QM_STOP_CMD_PAUSE_MASK_MASK	-1
+#define QM_STOP_CMD_GROUP_ID_OFFSET	1
+#define QM_STOP_CMD_GROUP_ID_SHIFT	16
+#define QM_STOP_CMD_GROUP_ID_MASK	15
+#define QM_STOP_CMD_PQ_TYPE_OFFSET	1
+#define QM_STOP_CMD_PQ_TYPE_SHIFT	24
+#define QM_STOP_CMD_PQ_TYPE_MASK	1
+#define QM_STOP_CMD_MAX_POLL_COUNT	100
+#define QM_STOP_CMD_POLL_PERIOD_US	500
 
 /* QM command macros */
-#define QM_CMD_STRUCT_SIZE(cmd)			cmd ## \
-	_STRUCT_SIZE
-#define QM_CMD_SET_FIELD(var, cmd, field,				  \
-			 value)        SET_FIELD(var[cmd ## _ ## field ## \
-						     _OFFSET],		  \
-						 cmd ## _ ## field,	  \
-						 value)
+#define QM_CMD_STRUCT_SIZE(cmd)	cmd ## _STRUCT_SIZE
+#define QM_CMD_SET_FIELD(var, cmd, field, value) \
+	SET_FIELD(var[cmd ## _ ## field ## _OFFSET], \
+		  cmd ## _ ## field, \
+		  value)
 /* QM: VOQ macros */
 #define PHYS_VOQ(port, tc, max_phys_tcs_per_port) ((port) *	\
 						   (max_phys_tcs_per_port) + \
@@ -128,6 +163,7 @@
 			  max_phy_tcs_pr_port) \
 		: LB_VOQ(port))
 /******************** INTERNAL IMPLEMENTATION *********************/
+
 /* Prepare PF RL enable/disable runtime init values */
 static void qed_enable_pf_rl(struct qed_hwfn *p_hwfn, bool pf_rl_en)
 {

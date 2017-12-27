@@ -109,8 +109,8 @@ struct src_ent {
 	u64 next;
 };
 
-#define CDUT_SEG_ALIGNMET 3	/* in 4k chunks */
-#define CDUT_SEG_ALIGNMET_IN_BYTES (1 << (CDUT_SEG_ALIGNMET + 12))
+#define CDUT_SEG_ALIGNMET		3 /* in 4k chunks */
+#define CDUT_SEG_ALIGNMET_IN_BYTES	BIT(CDUT_SEG_ALIGNMET + 12)
 
 #define CONN_CXT_SIZE(p_hwfn) \
 	ALIGNED_TYPE_SIZE(union conn_context, p_hwfn)
@@ -2326,7 +2326,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		for (elem_i = 0; elem_i < elems_per_p; elem_i++) {
 			elem = (union type1_task_context *)elem_start;
 			SET_FIELD(elem->roce_ctx.tdif_context.flags1,
-				  TDIF_TASK_CONTEXT_REFTAGMASK, 0xf);
+				  TDIF_TASK_CONTEXT_REF_TAG_MASK, 0xf);
 			elem_start += TYPE1_TASK_CXT_SIZE(p_hwfn);
 		}
 	}

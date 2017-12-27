@@ -316,16 +316,16 @@ enum qed_int_mode {
 };
 
 struct qed_sb_info {
-	struct status_block	*sb_virt;
-	dma_addr_t		sb_phys;
-	u32			sb_ack; /* Last given ack */
-	u16			igu_sb_id;
-	void __iomem		*igu_addr;
-	u8			flags;
-#define QED_SB_INFO_INIT        0x1
-#define QED_SB_INFO_SETUP       0x2
+	struct status_block *sb_virt;
+	dma_addr_t sb_phys;
+	u32 sb_ack; /* Last given ack */
+	u16 igu_sb_id;
+	void __iomem *igu_addr;
+	u8 flags;
+#define QED_SB_INFO_INIT	0x1
+#define QED_SB_INFO_SETUP	0x2
 
-	struct qed_dev		*cdev;
+	struct qed_dev *cdev;
 };
 
 enum qed_dev_type {
