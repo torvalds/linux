@@ -493,7 +493,8 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	/* If the chip defines names itself, these take precedence */
 	if (!chip->names)
-		devprop_gpiochip_set_names(chip);
+		devprop_gpiochip_set_names(chip,
+					   of_fwnode_handle(chip->of_node));
 
 	of_node_get(chip->of_node);
 
