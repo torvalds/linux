@@ -546,7 +546,7 @@ static int iceland_get_std_voltage_value_sidd(struct pp_hwmgr *hwmgr,
 
 	/* SCLK/VDDC Dependency Table has to exist. */
 	PP_ASSERT_WITH_CODE(NULL != hwmgr->dyn_state.vddc_dependency_on_sclk,
-			"The SCLK/VDDC Dependency Table does not exist.\n",
+			"The SCLK/VDDC Dependency Table does not exist.",
 			return -EINVAL);
 
 	if (NULL == hwmgr->dyn_state.cac_leakage_table) {

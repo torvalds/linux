@@ -2266,14 +2266,18 @@ static int smu7_set_private_data_based_on_pptable_v0(struct pp_hwmgr *hwmgr)
 	struct phm_clock_voltage_dependency_table *allowed_mclk_vddci_table = hwmgr->dyn_state.vddci_dependency_on_mclk;
 
 	PP_ASSERT_WITH_CODE(allowed_sclk_vddc_table != NULL,
-		"VDDC dependency on SCLK table is missing. This table is mandatory\n", return -EINVAL);
+		"VDDC dependency on SCLK table is missing. This table is mandatory",
+		return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_sclk_vddc_table->count >= 1,
-		"VDDC dependency on SCLK table has to have is missing. This table is mandatory\n", return -EINVAL);
+		"VDDC dependency on SCLK table has to have is missing. This table is mandatory",
+		return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(allowed_mclk_vddc_table != NULL,
-		"VDDC dependency on MCLK table is missing. This table is mandatory\n", return -EINVAL);
+		"VDDC dependency on MCLK table is missing. This table is mandatory",
+		return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_mclk_vddc_table->count >= 1,
-		"VDD dependency on MCLK table has to have is missing. This table is mandatory\n", return -EINVAL);
+		"VDD dependency on MCLK table has to have is missing. This table is mandatory",
+		return -EINVAL);
 
 	data->min_vddc_in_pptable = (uint16_t)allowed_sclk_vddc_table->entries[0].v;
 	data->max_vddc_in_pptable = (uint16_t)allowed_sclk_vddc_table->entries[allowed_sclk_vddc_table->count - 1].v;
