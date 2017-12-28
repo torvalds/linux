@@ -29,6 +29,9 @@
 #include <linux/slab.h>
 #include <linux/soc/rockchip/pvtm.h>
 
+#define RK3288_PVTM_CORE	0
+#define RK3288_PVTM_GPU		1
+
 #define RK3366_PVTM_CORE	0
 #define RK3366_PVTM_GPU		1
 #define RK3366_PVTM_PMU		2
@@ -309,6 +312,19 @@ static u32 rockchip_pvtm_get_value(struct rockchip_pvtm *pvtm,
 	return val;
 }
 
+static const struct rockchip_pvtm_channel rk3288_pvtm_channels[] = {
+	PVTM(RK3288_PVTM_CORE, "core", 1, 0, 1, 0x4, 0, 0x4),
+	PVTM(RK3288_PVTM_GPU, "gpu", 1, 8, 9, 0x8, 1, 0x8),
+};
+
+static const struct rockchip_pvtm_info rk3288_pvtm = {
+	.con = 0x368,
+	.sta = 0x374,
+	.num_channels = ARRAY_SIZE(rk3288_pvtm_channels),
+	.channels = rk3288_pvtm_channels,
+	.get_value = rockchip_pvtm_get_value,
+};
+
 static const struct rockchip_pvtm_channel rk3366_pvtm_channels[] = {
 	PVTM(RK3366_PVTM_CORE, "core", 1, 0, 1, 0x4, 0, 0x4),
 	PVTM(RK3366_PVTM_GPU, "gpu", 1, 8, 9, 0x8, 1, 0x8),
@@ -363,6 +379,10 @@ static const struct rockchip_pvtm_info rk3399_pmupvtm = {
 };
 
 static const struct of_device_id rockchip_pvtm_match[] = {
+	{
+		.compatible = "rockchip,rk3288-pvtm",
+		.data = (void *)&rk3288_pvtm,
+	},
 	{
 		.compatible = "rockchip,rk3366-pvtm",
 		.data = (void *)&rk3366_pvtm,
