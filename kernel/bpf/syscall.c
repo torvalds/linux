@@ -1707,6 +1707,12 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 			return -EFAULT;
 	}
 
+	if (bpf_prog_is_dev_bound(prog->aux)) {
+		err = bpf_prog_offload_info_fill(&info, prog);
+		if (err)
+			return err;
+	}
+
 done:
 	if (copy_to_user(uinfo, &info, info_len) ||
 	    put_user(info_len, &uattr->info.info_len))

@@ -16,9 +16,11 @@
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
 #include <linux/bug.h>
+#include <linux/kdev_t.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
+#include <linux/proc_ns.h>
 #include <linux/rtnetlink.h>
 #include <linux/rwsem.h>
 
@@ -174,6 +176,63 @@ int bpf_prog_offload_compile(struct bpf_prog *prog)
 	prog->bpf_func = bpf_prog_warn_on_exec;
 
 	return bpf_prog_offload_translate(prog);
+}
+
+struct ns_get_path_bpf_prog_args {
+	struct bpf_prog *prog;
+	struct bpf_prog_info *info;
+};
+
+static struct ns_common *bpf_prog_offload_info_fill_ns(void *private_data)
+{
+	struct ns_get_path_bpf_prog_args *args = private_data;
+	struct bpf_prog_aux *aux = args->prog->aux;
+	struct ns_common *ns;
+	struct net *net;
+
+	rtnl_lock();
+	down_read(&bpf_devs_lock);
+
+	if (aux->offload) {
+		args->info->ifindex = aux->offload->netdev->ifindex;
+		net = dev_net(aux->offload->netdev);
+		get_net(net);
+		ns = &net->ns;
+	} else {
+		args->info->ifindex = 0;
+		ns = NULL;
+	}
+
+	up_read(&bpf_devs_lock);
+	rtnl_unlock();
+
+	return ns;
+}
+
+int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
+			       struct bpf_prog *prog)
+{
+	struct ns_get_path_bpf_prog_args args = {
+		.prog	= prog,
+		.info	= info,
+	};
+	struct inode *ns_inode;
+	struct path ns_path;
+	void *res;
+
+	res = ns_get_path_cb(&ns_path, bpf_prog_offload_info_fill_ns, &args);
+	if (IS_ERR(res)) {
+		if (!info->ifindex)
+			return -ENODEV;
+		return PTR_ERR(res);
+	}
+
+	ns_inode = ns_path.dentry->d_inode;
+	info->netns_dev = new_encode_dev(ns_inode->i_sb->s_dev);
+	info->netns_ino = ns_inode->i_ino;
+	path_put(&ns_path);
+
+	return 0;
 }
 
 const struct bpf_prog_ops bpf_offload_prog_ops = {
