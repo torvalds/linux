@@ -198,6 +198,12 @@
 		output-low;
 		line-name = "nic_func_mode1";
 	};
+	seq_cont {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(S, 7) GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "seq_cont";
+	};
 };
 
 &vuart {
