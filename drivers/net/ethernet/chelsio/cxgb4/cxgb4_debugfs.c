@@ -1743,7 +1743,7 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 			 */
 			if (lookup_type && (lookup_type != DATALKPTYPE_M)) {
 				/* Inner header VNI */
-				vniy = ((data2 & DATAVIDH2_F) << 23) |
+				vniy = (data2 & DATAVIDH2_F) |
 				       (DATAVIDH1_G(data2) << 16) | VIDL_G(val);
 				dip_hit = data2 & DATADIPHIT_F;
 			} else {
@@ -1753,6 +1753,7 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 			port_num = DATAPORTNUM_G(data2);
 
 			/* Read tcamx. Change the control param */
+			vnix = 0;
 			ctl |= CTLXYBITSEL_V(1);
 			t4_write_reg(adap, MPS_CLS_TCAM_DATA2_CTL_A, ctl);
 			val = t4_read_reg(adap, MPS_CLS_TCAM_DATA1_A);
@@ -1761,7 +1762,7 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 			data2 = t4_read_reg(adap, MPS_CLS_TCAM_DATA2_CTL_A);
 			if (lookup_type && (lookup_type != DATALKPTYPE_M)) {
 				/* Inner header VNI mask */
-				vnix = ((data2 & DATAVIDH2_F) << 23) |
+				vnix = (data2 & DATAVIDH2_F) |
 				       (DATAVIDH1_G(data2) << 16) | VIDL_G(val);
 			}
 		} else {
@@ -1834,7 +1835,8 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 					   addr[1], addr[2], addr[3],
 					   addr[4], addr[5],
 					   (unsigned long long)mask,
-					   vniy, vnix, dip_hit ? 'Y' : 'N',
+					   vniy, (vnix | vniy),
+					   dip_hit ? 'Y' : 'N',
 					   port_num,
 					   (cls_lo & T6_SRAM_VLD_F) ? 'Y' : 'N',
 					   PORTMAP_G(cls_hi),
