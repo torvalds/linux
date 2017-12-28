@@ -261,7 +261,7 @@ int hwmgr_hw_init(struct pp_instance *handle)
 	ret = phm_enable_dynamic_state_management(hwmgr);
 	if (ret)
 		goto err2;
-	ret = phm_start_thermal_controller(hwmgr, NULL);
+	ret = phm_start_thermal_controller(hwmgr);
 	ret |= psm_set_performance_states(hwmgr);
 	if (ret)
 		goto err2;
@@ -341,7 +341,7 @@ int hwmgr_hw_resume(struct pp_instance *handle)
 	ret = phm_enable_dynamic_state_management(hwmgr);
 	if (ret)
 		return ret;
-	ret = phm_start_thermal_controller(hwmgr, NULL);
+	ret = phm_start_thermal_controller(hwmgr);
 	if (ret)
 		return ret;
 
