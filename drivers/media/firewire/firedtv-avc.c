@@ -24,7 +24,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
-#include <dvb_frontend.h>
+#include <media/dvb_frontend.h>
 
 #include "firedtv.h"
 

@@ -14,8 +14,8 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 
-#include "dvb_math.h"
-#include "dvb_frontend.h"
+#include <media/dvb_math.h>
+#include <media/dvb_frontend.h>
 
 #include "dib9000.h"
 #include "dibx000_common.h"

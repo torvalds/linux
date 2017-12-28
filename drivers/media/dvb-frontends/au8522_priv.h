@@ -32,7 +32,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-mc.h>
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "au8522.h"
 #include "tuner-i2c.h"
 

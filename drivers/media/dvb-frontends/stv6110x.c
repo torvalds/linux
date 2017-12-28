@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "stv6110x_reg.h"
 #include "stv6110x.h"

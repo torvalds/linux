@@ -20,7 +20,7 @@
 #include "tuner-xc2028-types.h"
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  80

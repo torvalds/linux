@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "va1j5jf8007s.h"
 
 enum va1j5jf8007s_tune_state {

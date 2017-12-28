@@ -22,7 +22,7 @@
 #ifndef __STV090x_PRIV_H
 #define __STV090x_PRIV_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define FE_ERROR				0
 #define FE_NOTICE				1

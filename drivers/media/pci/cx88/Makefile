@@ -13,5 +13,4 @@ obj-$(CONFIG_VIDEO_CX88_VP3054) += cx88-vp3054-i2c.o
 
 ccflags-y += -Idrivers/media/i2c
 ccflags-y += -Idrivers/media/tuners
-ccflags-y += -Idrivers/media/dvb-core
 ccflags-y += -Idrivers/media/dvb-frontends

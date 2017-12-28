@@ -27,7 +27,7 @@
 #include <linux/mutex.h>
 #include <asm/unaligned.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "xc4000.h"
 #include "tuner-i2c.h"

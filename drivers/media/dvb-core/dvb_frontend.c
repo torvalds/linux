@@ -43,8 +43,8 @@
 #include <linux/compat.h>
 #include <asm/processor.h>
 
-#include "dvb_frontend.h"
-#include "dvbdev.h"
+#include <media/dvb_frontend.h>
+#include <media/dvbdev.h>
 #include <linux/dvb/version.h>
 
 static int dvb_frontend_debug;

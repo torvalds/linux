@@ -41,7 +41,7 @@
 #include <linux/init.h>
 #include <linux/firmware.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "cx24116.h"
 
 static int debug;

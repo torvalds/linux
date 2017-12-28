@@ -64,8 +64,8 @@
 #include <linux/mutex.h>
 #include <linux/sched.h>
 
-#include "dvb_demux.h"
-#include "dvb_net.h"
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
 
 static inline __u32 iov_crc32( __u32 c, struct kvec *iov, unsigned int cnt )
 {

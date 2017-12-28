@@ -55,13 +55,13 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_ringbuffer.h"
-#include "dvb_ca_en50221.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_ringbuffer.h>
+#include <media/dvb_ca_en50221.h>
+#include <media/dvb_net.h>
 
 #define DDBRIDGE_VERSION "0.9.32-integrated"
 

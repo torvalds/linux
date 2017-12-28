@@ -27,8 +27,8 @@
 #include <linux/firmware.h>
 #include <linux/regmap.h>
 
-#include "dvb_frontend.h"
-#include "dvb_math.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_math.h>
 #include "si2165_priv.h"
 #include "si2165.h"
 

@@ -24,7 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 
-#include "demux.h"
+#include <media/demux.h>
 
 /**
  * enum dvb_dmx_filter_type - type of demux feed.

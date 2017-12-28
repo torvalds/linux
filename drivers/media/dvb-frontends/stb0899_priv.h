@@ -22,7 +22,7 @@
 #ifndef __STB0899_PRIV_H
 #define __STB0899_PRIV_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "stb0899_drv.h"
 
 #define FE_ERROR				0

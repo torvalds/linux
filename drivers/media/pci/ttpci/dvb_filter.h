@@ -19,7 +19,7 @@
 
 #include <linux/slab.h>
 
-#include "demux.h"
+#include <media/demux.h>
 
 typedef int (dvb_filter_pes2ts_cb_t) (void *, unsigned char *);
 

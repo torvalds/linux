@@ -19,7 +19,7 @@
 
 #include <linux/kconfig.h>
 #include <media/media-device.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define TDA18250_XTAL_FREQ_16MHZ 0
 #define TDA18250_XTAL_FREQ_24MHZ 1

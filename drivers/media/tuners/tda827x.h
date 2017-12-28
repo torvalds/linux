@@ -25,7 +25,7 @@
 #define __DVB_TDA827X_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda8290.h"
 
 struct tda827x_config

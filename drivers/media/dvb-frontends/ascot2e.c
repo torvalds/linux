@@ -24,7 +24,7 @@
 #include <linux/dvb/frontend.h>
 #include <linux/types.h>
 #include "ascot2e.h"
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define MAX_WRITE_REGSIZE 10
 

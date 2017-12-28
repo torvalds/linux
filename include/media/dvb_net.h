@@ -24,7 +24,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
-#include "dvbdev.h"
+#include <media/dvbdev.h>
 
 #define DVB_NET_DEVICES_MAX 10
 

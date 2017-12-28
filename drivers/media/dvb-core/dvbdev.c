@@ -30,7 +30,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/mutex.h>
-#include "dvbdev.h"
+#include <media/dvbdev.h>
 
 /* Due to enum tuner_pad_index */
 #include <media/tuner.h>

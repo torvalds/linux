@@ -53,7 +53,7 @@
 
 #include <linux/dvb/frontend.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "ttpci-eeprom.h"
 #include "av7110.h"

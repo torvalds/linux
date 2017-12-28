@@ -35,7 +35,7 @@
 
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda1002x.h"
 
 #define REG0_INIT_VAL 0x23

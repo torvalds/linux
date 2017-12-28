@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/dvb/frontend.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "zl10039.h"
 
 static int debug;

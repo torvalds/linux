@@ -25,7 +25,7 @@
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "xc5000.h"
 #include "tuner-i2c.h"

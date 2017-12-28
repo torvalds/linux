@@ -27,8 +27,8 @@
 #include <linux/ioctl.h>
 #include <linux/wait.h>
 #include <linux/uaccess.h>
-#include "dmxdev.h"
-#include "dvb_vb2.h"
+#include <media/dmxdev.h>
+#include <media/dvb_vb2.h>
 
 static int debug;
 

@@ -25,7 +25,7 @@
 
 #include "stv6111.h"
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct stv {
 	struct i2c_adapter *i2c;

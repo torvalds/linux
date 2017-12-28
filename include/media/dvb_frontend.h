@@ -44,7 +44,7 @@
 
 #include <linux/dvb/frontend.h>
 
-#include "dvbdev.h"
+#include <media/dvbdev.h>
 
 /*
  * Maximum number of Delivery systems per frontend. It

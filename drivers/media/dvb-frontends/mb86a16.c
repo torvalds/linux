@@ -24,7 +24,7 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mb86a16.h"
 #include "mb86a16_priv.h"
 

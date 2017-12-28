@@ -27,7 +27,7 @@
 
 #include <media/v4l2-common.h>
 
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 #include "s5h1409.h"
 #include "s5h1411.h"
 #include "mt2131.h"

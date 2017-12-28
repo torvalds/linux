@@ -39,7 +39,7 @@
 #include <media/drv-intf/msp3400.h>
 #include <media/tuner.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "cx231xx-vbi.h"
 

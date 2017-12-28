@@ -18,7 +18,7 @@
 #define __TDA9887_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /* ------------------------------------------------------------------------ */
 #if IS_REACHABLE(CONFIG_MEDIA_TUNER_TDA9887)

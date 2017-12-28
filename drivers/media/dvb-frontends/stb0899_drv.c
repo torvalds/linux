@@ -27,7 +27,7 @@
 #include <linux/string.h>
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "stb0899_drv.h"
 #include "stb0899_priv.h"

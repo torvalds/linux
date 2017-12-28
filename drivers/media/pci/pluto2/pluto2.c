@@ -29,12 +29,12 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
-#include "demux.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
-#include "dvbdev.h"
+#include <media/demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
+#include <media/dvbdev.h>
 #include "tda1004x.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);

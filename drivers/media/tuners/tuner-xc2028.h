@@ -8,7 +8,7 @@
 #ifndef __TUNER_XC2028_H__
 #define __TUNER_XC2028_H__
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define XC2028_DEFAULT_FIRMWARE "xc3028-v27.fw"
 #define XC3028L_DEFAULT_FIRMWARE "xc3028L-v36.fw"

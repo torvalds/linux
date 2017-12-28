@@ -22,7 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "itd1000.h"
 #include "itd1000_priv.h"

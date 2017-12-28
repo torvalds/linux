@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "isl6421.h"
 
 struct isl6421 {

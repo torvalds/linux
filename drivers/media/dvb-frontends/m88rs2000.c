@@ -31,7 +31,7 @@
 #include <linux/types.h>
 
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "m88rs2000.h"
 
 struct m88rs2000_state {

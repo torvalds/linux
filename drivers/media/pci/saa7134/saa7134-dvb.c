@@ -29,7 +29,7 @@
 
 #include <media/v4l2-common.h>
 #include "dvb-pll.h"
-#include <dvb_frontend.h>
+#include <media/dvb_frontend.h>
 
 #include "mt352.h"
 #include "mt352_priv.h" /* FIXME */

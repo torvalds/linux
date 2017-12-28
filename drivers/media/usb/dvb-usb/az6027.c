@@ -17,7 +17,7 @@
 
 #include "stb6100.h"
 #include "stb6100_cfg.h"
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 int dvb_usb_az6027_debug;
 module_param_named(debug, dvb_usb_az6027_debug, int, 0644);

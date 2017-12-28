@@ -27,7 +27,7 @@
 
 #include <linux/i2c.h>
 #include <media/v4l2-subdev.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /**
  * struct rtl2832_sdr_platform_data - Platform data for the rtl2832_sdr driver

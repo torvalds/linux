@@ -35,7 +35,7 @@
 
 #include "budget.h"
 
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 #include "stv0299.h"
 #include "stv0297.h"
 #include "tda1004x.h"

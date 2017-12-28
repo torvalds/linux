@@ -16,7 +16,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
-#include <dvb_frontend.h>
+#include <media/dvb_frontend.h>
 
 #include "firedtv.h"
 

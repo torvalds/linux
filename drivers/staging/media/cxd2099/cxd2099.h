@@ -16,7 +16,7 @@
 #ifndef _CXD2099_H_
 #define _CXD2099_H_
 
-#include <dvb_ca_en50221.h>
+#include <media/dvb_ca_en50221.h>
 
 struct cxd2099_cfg {
 	u32 bitrate;

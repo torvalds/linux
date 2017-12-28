@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mb86a20s.h"
 
 #define NUM_LAYERS 3

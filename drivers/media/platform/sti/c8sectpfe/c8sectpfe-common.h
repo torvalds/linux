@@ -15,10 +15,10 @@
 #include <linux/gpio.h>
 #include <linux/version.h>
 
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 /* Maximum number of channels */
 #define C8SECTPFE_MAXADAPTER (4)

@@ -32,10 +32,10 @@
 
 #include <linux/dvb/dmx.h>
 
-#include "dvbdev.h"
-#include "demux.h"
-#include "dvb_ringbuffer.h"
-#include "dvb_vb2.h"
+#include <media/dvbdev.h>
+#include <media/demux.h>
+#include <media/dvb_ringbuffer.h>
+#include <media/dvb_vb2.h>
 
 /**
  * enum dmxdev_type - type of demux filter type.

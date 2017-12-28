@@ -18,7 +18,7 @@
 #ifndef QT1010_H
 #define QT1010_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct qt1010_config {
 	u8 i2c_address;

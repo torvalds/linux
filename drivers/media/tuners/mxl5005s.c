@@ -63,7 +63,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mxl5005s.h"
 
 static int debug;

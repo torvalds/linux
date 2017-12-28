@@ -24,7 +24,7 @@
 #include <linux/i2c.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "stv0910.h"
 #include "stv0910_regs.h"
 

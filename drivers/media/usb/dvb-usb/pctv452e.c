@@ -26,7 +26,7 @@
 /* FE Power */
 #include "lnbp22.h"
 
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 #include "ttpci-eeprom.h"
 
 static int debug;

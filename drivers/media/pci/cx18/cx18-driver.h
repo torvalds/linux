@@ -50,12 +50,12 @@
 #include "cx23418.h"
 
 /* DVB */
-#include "demux.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
-#include "dvbdev.h"
+#include <media/demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
+#include <media/dvbdev.h>
 
 /* Videobuf / YUV support */
 #include <media/videobuf-core.h>

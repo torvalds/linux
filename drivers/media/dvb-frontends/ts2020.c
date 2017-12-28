@@ -19,7 +19,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "ts2020.h"
 #include <linux/regmap.h>
 #include <linux/math64.h>

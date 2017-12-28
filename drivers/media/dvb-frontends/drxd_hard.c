@@ -26,7 +26,7 @@
 #include <linux/i2c.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "drxd.h"
 #include "drxd_firm.h"
 

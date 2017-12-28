@@ -51,7 +51,7 @@
 #include <linux/input.h>
 #include <linux/spinlock.h>
 
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 #define DEBICICAM		0x02420000
 

@@ -29,10 +29,10 @@
 #include <linux/hardirq.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "drxk.h"
 #include "drxk_hard.h"
-#include "dvb_math.h"
+#include <media/dvb_math.h>
 
 static int power_down_dvbt(struct drxk_state *state, bool set_power_mode);
 static int power_down_qam(struct drxk_state *state);

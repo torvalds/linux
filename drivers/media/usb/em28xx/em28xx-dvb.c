@@ -28,9 +28,9 @@
 #include <linux/usb.h>
 
 #include <media/v4l2-common.h>
-#include <dvb_demux.h>
-#include <dvb_net.h>
-#include <dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
+#include <media/dmxdev.h>
 #include <media/tuner.h>
 #include "tuner-simple.h"
 #include <linux/gpio.h>

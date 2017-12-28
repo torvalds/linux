@@ -22,10 +22,10 @@
 #include <linux/mutex.h>
 #include <linux/firmware.h>
 
-#include "dvb_frontend.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_net.h"
+#include <media/dvb_frontend.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
 #include "ves1820.h"
 #include "cx22700.h"
 #include "tda1004x.h"

@@ -11,6 +11,5 @@ obj-$(CONFIG_VIDEO_CX231XX_DVB) += cx231xx-dvb.o
 
 ccflags-y += -Idrivers/media/i2c
 ccflags-y += -Idrivers/media/tuners
-ccflags-y += -Idrivers/media/dvb-core
 ccflags-y += -Idrivers/media/dvb-frontends
 ccflags-y += -Idrivers/media/usb/dvb-usb

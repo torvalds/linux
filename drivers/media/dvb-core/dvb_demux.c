@@ -30,7 +30,7 @@
 #include <linux/uaccess.h>
 #include <asm/div64.h>
 
-#include "dvb_demux.h"
+#include <media/dvb_demux.h>
 
 static int dvb_demux_tscheck;
 module_param(dvb_demux_tscheck, int, 0644);

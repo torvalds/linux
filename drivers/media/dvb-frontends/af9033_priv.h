@@ -18,12 +18,12 @@
 #ifndef AF9033_PRIV_H
 #define AF9033_PRIV_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "af9033.h"
 #include <linux/math64.h>
 #include <linux/regmap.h>
 #include <linux/kernel.h>
-#include "dvb_math.h"
+#include <media/dvb_math.h>
 
 struct reg_val {
 	u32 reg;

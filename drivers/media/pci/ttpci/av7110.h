@@ -17,14 +17,14 @@
 #include <linux/dvb/net.h>
 #include <linux/mutex.h>
 
-#include "dvbdev.h"
-#include "demux.h"
-#include "dvb_demux.h"
-#include "dmxdev.h"
+#include <media/dvbdev.h>
+#include <media/demux.h>
+#include <media/dvb_demux.h>
+#include <media/dmxdev.h>
 #include "dvb_filter.h"
-#include "dvb_net.h"
-#include "dvb_ringbuffer.h"
-#include "dvb_frontend.h"
+#include <media/dvb_net.h>
+#include <media/dvb_ringbuffer.h>
+#include <media/dvb_frontend.h>
 #include "ves1820.h"
 #include "ves1x93.h"
 #include "stv0299.h"

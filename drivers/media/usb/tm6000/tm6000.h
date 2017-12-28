@@ -19,9 +19,9 @@
 #include <media/v4l2-fh.h>
 
 #include <linux/dvb/frontend.h>
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dmxdev.h"
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dmxdev.h>
 
 /* Inputs */
 enum tm6000_itype {

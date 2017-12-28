@@ -11,10 +11,10 @@
 #include <linux/spinlock.h>
 #include <linux/usb.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
 
 #include "smsdvb.h"
 

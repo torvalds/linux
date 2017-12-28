@@ -32,7 +32,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mt312_priv.h"
 #include "mt312.h"
 
