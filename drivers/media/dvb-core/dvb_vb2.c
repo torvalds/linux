@@ -35,7 +35,7 @@ static int _queue_setup(struct vb2_queue *vq,
 {
 	struct dvb_vb2_ctx *ctx = vb2_get_drv_priv(vq);
 
-	*nbuffers = ctx->buf_cnt;
+	ctx->buf_cnt = *nbuffers;
 	*nplanes = 1;
 	sizes[0] = ctx->buf_siz;
 
