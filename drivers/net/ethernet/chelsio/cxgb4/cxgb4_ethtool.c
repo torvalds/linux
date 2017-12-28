@@ -517,7 +517,8 @@ static int from_fw_port_mod_type(enum fw_port_type port_type,
 		else
 			return PORT_OTHER;
 	} else if (port_type == FW_PORT_TYPE_KR4_100G ||
-		   port_type == FW_PORT_TYPE_KR_SFP28) {
+		   port_type == FW_PORT_TYPE_KR_SFP28 ||
+		   port_type == FW_PORT_TYPE_KR_XLAUI) {
 		return PORT_NONE;
 	}
 
@@ -643,6 +644,13 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
 		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		FW_CAPS_TO_LMM(SPEED_25G, 25000baseKR_Full);
+		break;
+
+	case FW_PORT_TYPE_KR_XLAUI:
+		SET_LMM(Backplane);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_40G, 40000baseKR4_Full);
 		break;
 
 	case FW_PORT_TYPE_CR2_QSFP:

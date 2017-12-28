@@ -6084,6 +6084,7 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"CR2_QSFP",
 		"SFP28",
 		"KR_SFP28",
+		"KR_XLAUI"
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))
