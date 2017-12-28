@@ -87,6 +87,7 @@ then
         cd ../SD
         fname=bpi-r2_${kernver}_${gitbranch}.tar.gz
         tar -czf $fname BPI-BOOT BPI-ROOT
+		md5sum $fname > $fname.md5
         ls -lh $(pwd)"/"$fname
         cd $olddir
       elif [[ "$choice" == "2" ]];then
