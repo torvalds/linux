@@ -277,6 +277,12 @@ MODULE_PARM_DESC(ql2xenablemsix,
 		 " 1 -- enable MSI-X interrupt mechanism.\n"
 		 " 2 -- enable MSI interrupt mechanism.\n");
 
+int qla2xuseresexchforels;
+module_param(qla2xuseresexchforels, int, 0444);
+MODULE_PARM_DESC(qla2xuseresexchforels,
+		 "Reserve 1/2 of emergency exchanges for ELS.\n"
+		 " 0 (default): disabled");
+
 /*
  * SCSI host template entry points
  */
