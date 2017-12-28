@@ -1,5 +1,4 @@
 #include <stdio.h>
-#ifdef CONFIG_AUTO_LKL_VIRTIO_NET_VDE
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -166,13 +165,3 @@ struct lkl_netdev *lkl_netdev_vde_create(char const *switch_path)
 
 	return &nd->dev;
 }
-
-#else /* CONFIG_AUTO_LKL_VIRTIO_NET_VDE */
-
-struct lkl_netdev *lkl_netdev_vde_create(char const *switch_path)
-{
-	fprintf(stderr, "lkl: The host library was compiled without support for VDE networking. Please rebuild with VDE enabled.\n");
-	return 0;
-}
-
-#endif /* CONFIG_AUTO_LKL_VIRTIO_NET_VDE */

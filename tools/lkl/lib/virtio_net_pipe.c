@@ -15,32 +15,36 @@
 #include "virtio.h"
 #include "virtio_net_fd.h"
 
-struct lkl_netdev *lkl_netdev_pipe_create(char *ifname, int offload)
+struct lkl_netdev *lkl_netdev_pipe_create(const char *_ifname, int offload)
 {
 	struct lkl_netdev *nd;
 	int fd_rx, fd_tx;
-	char *ifname_rx = NULL, *ifname_tx = NULL;
+	char *ifname = strdup(_ifname), *ifname_rx = NULL, *ifname_tx = NULL;
 
 	ifname_rx = strtok(ifname, "|");
 	if (ifname_rx == NULL) {
 		fprintf(stderr, "invalid ifname format: %s\n", ifname);
+		free(ifname);
 		return NULL;
 	}
 
 	ifname_tx = strtok(NULL, "|");
 	if (ifname_tx == NULL) {
 		fprintf(stderr, "invalid ifname format: %s\n", ifname);
+		free(ifname);
 		return NULL;
 	}
 
 	if (strtok(NULL, "|") != NULL) {
 		fprintf(stderr, "invalid ifname format: %s\n", ifname);
+		free(ifname);
 		return NULL;
 	}
 
 	fd_rx = open(ifname_rx, O_RDWR|O_NONBLOCK);
 	if (fd_rx < 0) {
 		perror("can not open ifname_rx pipe");
+		free(ifname);
 		return NULL;
 	}
 
@@ -48,6 +52,7 @@ struct lkl_netdev *lkl_netdev_pipe_create(char *ifname, int offload)
 	if (fd_tx < 0) {
 		perror("can not open ifname_tx pipe");
 		close(fd_rx);
+		free(ifname);
 		return NULL;
 	}
 
@@ -56,6 +61,7 @@ struct lkl_netdev *lkl_netdev_pipe_create(char *ifname, int offload)
 		perror("failed to register to.");
 		close(fd_rx);
 		close(fd_tx);
+		free(ifname);
 		return NULL;
 	}
 

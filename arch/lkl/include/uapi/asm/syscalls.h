@@ -92,6 +92,8 @@ typedef __s64			s64;
 #include <asm/siginfo.h>
 #include <linux/utime.h>
 #include <asm/socket.h>
+#include <linux/icmp.h>
+#include <linux/ip.h>
 
 /* Define data structures used in system calls that are not defined in UAPI
  * headers */
@@ -225,6 +227,7 @@ typedef __kernel_rwf_t		rwf_t;
 #define SOCK_PACKET		10
 
 #define MSG_TRUNC 0x20
+#define MSG_DONTWAIT 0x40
 
 /* avoid colision with system headers defines */
 #define sa_handler sa_handler

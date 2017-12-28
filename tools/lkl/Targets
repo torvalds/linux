@@ -1,0 +1,23 @@
+libs-y += lib/liblkl
+
+libs-$(LKL_HOST_CONFIG_POSIX) += lib/hijack/liblkl-hijack
+LDFLAGS_lib/hijack/liblkl-hijack-y += -shared -nodefaultlibs
+LDLIBS_lib/hijack/liblkl-hijack-y += -ldl
+LDLIBS_lib/hijack/liblkl-hijack-$(LKL_HOST_CONFIG_ANDROID) += -lgcc -lc
+
+progs-$(LKL_HOST_CONFIG_FUSE) += lklfuse
+LDLIBS_lklfuse-y := -lfuse
+
+progs-$(LKL_HOST_CONFIG_ARCHIVE) += fs2tar
+LDLIBS_fs2tar-y := -larchive
+LDLIBS_fs2tar-$(LKL_HOST_CONFIG_NEEDS_LARGP) += -largs
+
+
+progs-$(LKL_HOST_CONFIG_ARCHIVE) += cptofs
+LDLIBS_cptofs-y := -larchive
+LDLIBS_cptofs-$(LKL_HOST_CONFIG_NEEDS_LARGP) += -largs
+
+progs-y += tests/boot
+progs-y += tests/disk
+progs-y += tests/net-test
+

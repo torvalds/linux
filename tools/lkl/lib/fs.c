@@ -335,8 +335,10 @@ struct lkl_dir *lkl_opendir(const char *path, int *err)
 {
 	struct lkl_dir *dir = lkl_dir_alloc(err);
 
-	if (!dir)
+	if (!dir) {
+		*err = -LKL_ENOMEM;
 		return NULL;
+	}
 
 	dir->fd = lkl_sys_open(path, LKL_O_RDONLY | LKL_O_DIRECTORY, 0);
 	if (dir->fd < 0) {
@@ -344,6 +346,8 @@ struct lkl_dir *lkl_opendir(const char *path, int *err)
 		lkl_host_ops.mem_free(dir);
 		return NULL;
 	}
+
+	*err = 0;
 
 	return dir;
 }

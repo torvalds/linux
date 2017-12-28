@@ -1,102 +1,175 @@
 #!/bin/bash
 
-set -e
+script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
 
-# currently not supported mingw
-if [ "`printenv CONFIG_AUTO_LKL_POSIX_HOST`" != "y" ] ; then
+source $script_dir/test.sh
+source $script_dir/net-setup.sh
+
+cleanup_backend()
+{
+    set -e
+
+    case "$1" in
+    "tap")
+        tap_cleanup
+        ;;
+    "pipe")
+        rm -rf $work_dir
+        ;;
+    "raw")
+        ;;
+    "macvtap")
+        sudo ip link del dev $(tap_ifname) type macvtap
+        ;;
+    "loopback")
+        ;;
+    esac
+}
+
+get_test_ip()
+{
+    # DHCP test parameters
+    TEST_HOST=8.8.8.8
+    HOST_IF=$(lkl_test_cmd ip route get $TEST_HOST | head -n1 |cut -d ' ' -f5)
+    HOST_GW=$(lkl_test_cmd ip route get $TEST_HOST | head -n1 | cut -d ' ' -f3)
+    if lkl_test_cmd ping -c1 -w1 $HOST_GW; then
+        TEST_IP_REMOTE=$HOST_GW
+    elif lkl_test_cmd ping -c1 -w1 $TEST_HOST; then
+        TEST_IP_REMOTE=$TEST_HOST
+    else
+        echo "could not find remote test ip"
+        return $TEST_SKIP
+    fi
+
+    export_vars HOST_IF TEST_IP_REMOTE
+}
+
+setup_backend()
+{
+    set -e
+
+    if [ "$LKL_HOST_CONFIG_POSIX" != "y" ] &&
+       [ "$1" != "loopback" ]; then
+        echo "not a posix environment"
+        return $TEST_SKIP
+    fi
+
+    case "$1" in
+    "loopback")
+        ;;
+    "pipe")
+        if [ -z $(lkl_test_cmd which mkfifo) ]; then
+            echo "no mkfifo command"
+            return $TEST_SKIP
+        else
+            work_dir=$(lkl_test_cmd mktemp -d)
+        fi
+        fifo1=$work_dir/fifo1
+        fifo2=$work_dir/fifo2
+        lkl_test_cmd mkfifo $fifo1
+        lkl_test_cmd mkfifo $fifo2
+        export_vars work_dir fifo1 fifo2
+        ;;
+    "tap")
+        tap_prepare
+        if ! lkl_test_cmd test -c /dev/net/tun; then
+            echo "missing /dev/net/tun"
+            return $TEST_SKIP
+        fi
+        tap_setup
+        ;;
+    "raw")
+        get_test_ip
+        ;;
+    "macvtap")
+        get_test_ip
+        if ! lkl_test_cmd sudo ip link add link $HOST_IF \
+             name $(tap_ifname) type macvtap mode passthru; then
+            echo "failed to create macvtap, skipping"
+            return $TEST_SKIP
+        fi
+        MACVTAP=/dev/tap$(lkl_test_cmd ip link show dev $(tap_ifname) | \
+                                 grep -o ^[0-9]*)
+        lkl_test_cmd sudo ip link set dev $(tap_ifname) up
+        lkl_test_cmd sudo chown $USER $MACVTAP
+        export_vars MACVTAP
+        ;;
+    "dpdk")
+        if -z [ $LKL_TEST_NET_DPDK ]; then
+            echo "DPDK needs user setup"
+            return $TEST_SKIP
+        fi
+        ;;
+    *)
+        echo "don't know how to setup backend $1"
+        return $TEST_FAILED
+        ;;
+    esac
+}
+
+run_tests()
+{
+    case "$1" in
+    "loopback")
+        lkl_test_exec $script_dir/net-test --dst 127.0.0.1
+        ;;
+    "pipe")
+        lkl_test_exec $script_dir/net-test --backend pipe \
+                      --ifname "$fifo1|$fifo2" \
+                      --ip $(ip_host) --netmask-len $TEST_IP_NETMASK \
+                      --sleep 2 >/dev/null &
+        lkl_test_exec $script_dir/net-test --backend pipe \
+                      --ifname "$fifo2|$fifo1" \
+                      --ip $(ip_lkl) --netmask-len $TEST_IP_NETMASK \
+                      --dst $(ip_host)
+        wait
+        ;;
+    "tap")
+        lkl_test_exec $script_dir/net-test --backend tap \
+                      --ifname $(tap_ifname) \
+                      --ip $(ip_lkl) --netmask-len $TEST_IP_NETMASK \
+                      --dst $(ip_host)
+        ;;
+    "raw")
+        lkl_test_exec sudo $script_dir/net-test --backend raw \
+                      --ifname $HOST_IF --dhcp --dst $TEST_IP_REMOTE
+        ;;
+    "macvtap")
+        lkl_test_exec $script_dir/net-test --backend macvtap \
+                      --ifname $MACVTAP \
+                      --dhcp --dst $TEST_IP_REMOTE
+        ;;
+    "dpdk")
+        lkl_test_exec sudo $script_dir/net-test --backend dpdk \
+                      --ifname dpdk0 \
+                      --ip $(ip_lkl) --netmask-len $TEST_IP_NETMASK \
+                      --dst $(ip_host)
+        ;;
+    esac
+}
+
+if [ "$1" = "-b" ]; then
+    shift
+    backend=$1
+    shift
+fi
+
+if [ -z "$backend" ]; then
+    backend="loopback"
+fi
+
+lkl_test_plan 1 "net $backend"
+lkl_test_run 1 setup_backend $backend
+
+if [ $? = $TEST_SKIP ]; then
     exit 0
 fi
 
-# android doesn't have sudo
-if [ -z ${LKL_ANDROID_TEST} ] ; then
-    SUDO="sudo"
-fi
+trap "cleanup_backend $backend" EXIT
 
-TEST_HOST=8.8.8.8
-IFNAME=`ip route get ${TEST_HOST} |head -n1 | cut -d ' ' -f5`
-GW=`ip route get ${TEST_HOST} |head -n1 | cut -d ' ' -f3`
+run_tests $backend
 
-script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
-cd ${script_dir}
+trap : EXIT
+lkl_test_plan 1 "net $backend"
+lkl_test_run 1 cleanup_backend $backend
 
-# Make a temporary directory to run tests in, since we'll be copying
-# things there.
-work_dir=$(mktemp -d)
-
-# And make sure we clean up when we're done
-function clear_work_dir {
-    rm -rf ${work_dir}
-    ${SUDO} ip link set dev lkl_ptt1 down &> /dev/null || true
-    ${SUDO} ip tuntap del dev lkl_ptt1 mode tap &> /dev/null || true
-    ${SUDO} ip link del dev lkl_vtap0 type macvtap &> /dev/null || true
-}
-
-trap clear_work_dir EXIT
-
-echo "== PIPE (LKL net) tests =="
-if [ -z `which mkfifo` ]; then
-    echo "WARNIG: no mkfifo command, skipping PIPE tests."
-else
-
-fifo1=${work_dir}/fifo1
-fifo2=${work_dir}/fifo2
-mkfifo ${fifo1}
-mkfifo ${fifo2}
-hijack_script=${script_dir}/../bin/lkl-hijack.sh
-LKL_HIJACK_NET_IFTYPE=pipe \
-	LKL_HIJACK_NET_IFPARAMS="${fifo1}|${fifo2}" \
-	LKL_HIJACK_NET_IP=192.168.16.1 \
-	LKL_HIJACK_NET_NETMASK_LEN=24 \
-	${hijack_script} sleep 10 &
-sleep 5
-./net-test pipe "${fifo2}|${fifo1}" 192.168.16.1 192.168.16.2 24
-wait
-fi
-
-echo "== TAP (LKL net) tests =="
-if [ -c /dev/net/tun ]; then
-    ${SUDO} ip link set dev lkl_ptt1 down || true
-    ${SUDO} ip tuntap del dev lkl_ptt1 mode tap || true
-    ${SUDO} ip tuntap add dev lkl_ptt1 mode tap user $USER
-    ${SUDO} ip link set dev lkl_ptt1 up
-    ${SUDO} ip addr add dev lkl_ptt1 192.168.14.1/24
-
-    ./net-test tap lkl_ptt1 192.168.14.1 192.168.14.2 24
-
-    ${SUDO} ip link set dev lkl_ptt1 down
-    ${SUDO} ip tuntap del dev lkl_ptt1 mode tap
-fi
-
-if ping -c1 -w1 $GW &>/dev/null; then
-    DST=$GW
-elif ping -c1 -w1 ${TEST_HOST} &>/dev/null; then
-    DST=${TEST_HOST}
-fi
-
-if [ -z $LKL_TEST_DHCP ] ; then
-    echo "\$LKL_TEST_DHCP is not configured. skipped dhcp client test"
-else
-if ! [ -z $DST ]; then
-    echo "== RAW socket (LKL net) tests =="
-    ${SUDO} ip link set dev ${IFNAME} promisc on
-    ${SUDO} ./net-test raw ${IFNAME} ${DST} dhcp
-    ${SUDO} ip link set dev ${IFNAME} promisc off
-
-    echo "== macvtap (LKL net) tests =="
-    ${SUDO} ip link add link ${IFNAME} name lkl_vtap0 \
-	    type macvtap mode passthru || true
-    if ls /dev/tap* > /dev/null 2>&1 ; then
-	${SUDO} ip link set dev lkl_vtap0 up
-	${SUDO} chown ${USER} `ls /dev/tap*`
-	./net-test macvtap `ls /dev/tap*` $DST dhcp
-    fi
-fi
-fi
-
-# we disabled this DPDK test because it's unlikely possible to describe
-# a generic set of commands for all environments to test with DPDK.  users
-# may customize those test commands for your host.
-if false ; then
-    echo "== DPDK (LKL net) tests =="
-    ${SUDO} ./net-test dpdk dpdk0 192.168.15.1 192.168.15.2 24
-fi

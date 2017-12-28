@@ -1,6 +1,8 @@
 #ifndef _LKL_H
 #define _LKL_H
 
+#include "autoconf.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,7 +12,18 @@ extern "C" {
 #ifdef __cplusplus
 #define class __lkl__class
 #endif
+
+/*
+ * Avoid collisions between Android which defines __unused and
+ * linux/icmp.h which uses __unused as a structure field.
+ */
+#pragma push_macro("__unused")
+#undef __unused
+
 #include <lkl/asm/syscalls.h>
+
+#pragma pop_macro("__unused")
+
 #ifdef __cplusplus
 #undef class
 #endif
@@ -375,8 +388,15 @@ struct lkl_netdev_args {
  * @returns a network device id (0 is valid) or a strictly negative value in
  * case of error
  */
-
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET
 int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args);
+#else
+static inline int lkl_netdev_add(struct lkl_netdev *nd,
+				 struct lkl_netdev_args *args)
+{
+	return -LKL_ENOSYS;
+}
+#endif
 
 /**
 * lkl_netdev_remove - remove a previously added network device
@@ -386,14 +406,26 @@ int lkl_netdev_add(struct lkl_netdev *nd, struct lkl_netdev_args* args);
 *
 * @id - the network device id, as return by @lkl_netdev_add
 */
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET
 void lkl_netdev_remove(int id);
+#else
+static inline void lkl_netdev_remove(int id)
+{
+}
+#endif
 
 /**
  * lkl_netdev_free - frees a network device
  *
  * @nd - the network device to free
  */
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET
 void lkl_netdev_free(struct lkl_netdev *nd);
+#else
+static inline void lkl_netdev_free(struct lkl_netdev *nd)
+{
+}
+#endif
 
 /**
  * lkl_netdev_get_ifindex - retrieve the interface index for a given network
@@ -411,7 +443,15 @@ int lkl_netdev_get_ifindex(int id);
  * on host in advance
  * @offload - offload bits for the device
  */
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET
 struct lkl_netdev *lkl_netdev_tap_create(const char *ifname, int offload);
+#else
+static inline struct lkl_netdev *
+lkl_netdev_tap_create(const char *ifname, int offload)
+{
+	return NULL;
+}
+#endif
 
 /**
  * lkl_netdev_dpdk_create - create DPDK net_device for the virtio net backend
@@ -421,8 +461,16 @@ struct lkl_netdev *lkl_netdev_tap_create(const char *ifname, int offload);
  * @offload - offload bits for the device
  * @mac - mac address pointer of dpdk-ed device
  */
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET_DPDK
 struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifname, int offload,
 					unsigned char *mac);
+#else
+static inline struct lkl_netdev *
+lkl_netdev_dpdk_create(const char *ifname, int offload, unsigned char *mac)
+{
+	return NULL;
+}
+#endif
 
 /**
  * lkl_netdev_vde_create - create VDE net_device for the virtio net backend
@@ -430,7 +478,14 @@ struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifname, int offload,
  * @switch_path - path to the VDE switch directory. Needs to be started on host
  * in advance.
  */
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET_VDE
 struct lkl_netdev *lkl_netdev_vde_create(const char *switch_path);
+#else
+static inline struct lkl_netdev *lkl_netdev_vde_create(const char *switch_path)
+{
+	return NULL;
+}
+#endif
 
 /**
  * lkl_netdev_raw_create - create raw socket net_device for the virtio net
@@ -438,7 +493,14 @@ struct lkl_netdev *lkl_netdev_vde_create(const char *switch_path);
  *
  * @ifname - interface name for the snoop device.
  */
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET
 struct lkl_netdev *lkl_netdev_raw_create(const char *ifname);
+#else
+static inline struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
+{
+	return NULL;
+}
+#endif
 
 /**
  * lkl_netdev_macvtap_create - create macvtap net_device for the virtio
@@ -448,7 +510,15 @@ struct lkl_netdev *lkl_netdev_raw_create(const char *ifname);
  * on host in advance
  * @offload - offload bits for the device
  */
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET
 struct lkl_netdev *lkl_netdev_macvtap_create(const char *path, int offload);
+#else
+static inline struct lkl_netdev *
+lkl_netdev_macvtap_create(const char *path, int offload)
+{
+	return NULL;
+}
+#endif
 
 /**
  * lkl_netdev_pipe_create - create pipe net_device for the virtio
@@ -458,7 +528,15 @@ struct lkl_netdev *lkl_netdev_macvtap_create(const char *path, int offload);
  * on host in advance. delimiter is "|". e.g. "rx_name|tx_name".
  * @offload - offload bits for the device
  */
-struct lkl_netdev *lkl_netdev_pipe_create(char *ifname, int offload);
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET
+struct lkl_netdev *lkl_netdev_pipe_create(const char *ifname, int offload);
+#else
+static inline struct lkl_netdev *
+lkl_netdev_pipe_create(const char *ifname, int offload)
+{
+	return NULL;
+}
+#endif
 
 /*
  * lkl_register_dbg_handler- register a signal handler that loads a debug lib.

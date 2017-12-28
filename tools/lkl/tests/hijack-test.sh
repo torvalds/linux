@@ -1,591 +1,746 @@
 #!/bin/bash
 
-set -e
-
 script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
-hijack_script=${script_dir}/../bin/lkl-hijack.sh
 
-if [[ ! -e ${script_dir}/../liblkl-hijack.so ]]; then
-    echo "WARNING: tests can't be run. Quitting early."
-    exit 0;
+clear_wdir()
+{
+    test -f ${VDESWITCH}.pid && kill $(cat ${VDESWITCH}.pid)
+    rm -rf ${wdir}
+    tap_cleanup
+    tap_cleanup 1
+}
+
+set_cfgjson()
+{
+    if [ -n "$LKL_HOST_CONFIG_ANDROID" ]; then
+        adb shell cat \> ${cfgjson}
+    else
+        cat > ${cfgjson}
+    fi
+}
+
+test_ping()
+{
+    set -e
+
+    ${hijack} ${ping} -c 1 127.0.0.1
+}
+
+test_ping6()
+{
+    set -e
+
+    ${hijack} ${ping6} -c 1 ::1
+}
+
+test_mount_and_dump()
+{
+    set -e
+
+    if [ -n "$LKL_HOST_CONFIG_ANDROID" ]; then
+        echo "TODO: android-23 doesn't call destructor..."
+        return $TEST_SKIP
+    fi
+
+    set_cfgjson << EOF
+    {
+        "mount":"proc,sysfs",
+        "dump":"/sysfs/class/net/lo/mtu,/sysfs/class/net/lo/dev_id",
+        "debug": "1"
+    }
+EOF
+
+    ans=$(${hijack_cfg} $(lkl_test_cmd which true))
+    echo "$ans"
+    echo "$ans" | grep "^65536" # lo's MTU
+    echo "$ans" | grep "0x0" # lo's dev_id
+}
+
+test_boot_cmdline()
+{
+    set -e
+
+    set_cfgjson << EOF
+    {
+        "debug":"1",
+        "boot_cmdline":"loglevel=1"
+    }
+EOF
+
+    ans=$(${hijack_cfg} $(lkl_test_cmd which true))
+    echo "$ans"
+    [ $(echo "$ans" | wc -l) = 1 ]
+}
+
+
+test_pipe_setup()
+{
+    set -e
+
+    mkfifo ${fifo1}
+    mkfifo ${fifo2}
+
+    set_cfgjson << EOF
+    {
+        "interfaces":
+        [
+            {
+                "type":"pipe",
+                "param":"${fifo1}|${fifo2}",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "mac":"$TEST_MAC0",
+            }
+        ]
+    }
+EOF
+
+    # Make sure our device has the addresses we expect
+    addr=$(${hijack_cfg} ip addr)
+    echo "$addr" | grep eth0
+    echo "$addr" | grep $(ip_lkl)
+    echo "$addr" | grep "$TEST_MAC0"
+}
+
+test_pipe_ping()
+{
+    set -e
+
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_lkl)",
+        "gateway6":"$(ip6_lkl)",
+        "interfaces":
+        [
+            {
+                "type":"pipe",
+                "param":"${fifo1}|${fifo2}",
+                "ip":"$(ip_host)",
+                "masklen":"$TEST_IP_NETMASK",
+                "mac":"$TEST_MAC0",
+                "ipv6":"$(ip6_host)",
+                "masklen6":"$TEST_IP6_NETMASK"
+            }
+        ]
+    }
+EOF
+
+    ${hijack_cfg} $(lkl_test_cmd which sleep) 10 &
+
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "type":"pipe",
+                "param":"${fifo2}|${fifo1}",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "mac":"$TEST_MAC0",
+                "ipv6":"$(ip6_lkl)",
+               "masklen6":"$TEST_IP6_NETMASK"
+            }
+        ]
+    }
+EOF
+
+    # Ping under LKL
+    ${hijack_cfg} ${ping} $(ip_host) -c 1 -w 10
+
+    # Ping 6 under LKL
+    ${hijack_cfg} ${ping6} $(ip6_host) -c 1 -w 10
+
+    jobs
+    kill -9 %1
+    wait
+}
+
+test_tap_setup()
+{
+    set -e
+
+    # Set up the TAP device we'd like to use
+    tap_setup
+
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "debug":"1",
+        "interfaces": [
+            {
+                "type":"tap",
+                "param":"$(tap_ifname)",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "mac": "$TEST_MAC0"
+            }
+        ]
+    }
+EOF
+
+    # Make sure our device has the addresses we expect
+    addr=$(${hijack_cfg} ip addr)
+    echo "$addr" | grep eth0
+    echo "$addr" | grep $(ip_lkl)
+    echo "$addr" | grep "$TEST_MAC0"
+    echo "$addr" | grep "$(ip6_lkl)"
+    ! echo "$addr" | grep "WARN: failed to free"
+}
+
+test_tap_cleanup()
+{
+    tap_cleanup
+    tap_cleanup 1
+}
+
+test_tap_ping_host()
+{
+    set -e
+
+    # Make sure we can ping the host from inside LKL
+    ${hijack_cfg} ${ping} -c 1 $(ip_host)
+    ${hijack_cfg} ${ping6} -c 1 $(ip6_host)
+}
+
+test_tap_ping_lkl()
+{
+    set -e
+
+    # Now let's check that the host can see LKL.
+    lkl_test_cmd sudo ip -6 neigh del $(ip6_lkl) dev $(tap_ifname)
+    lkl_test_cmd sudo ip neigh del $(ip_lkl) dev $(tap_ifname)
+    ${hijack_cfg} $(lkl_test_cmd which sleep) 3 &
+    sleep 2
+    lkl_test_cmd sudo ping -i 0.01 -c 65 $(ip_lkl)
+    lkl_test_cmd sudo ping6 -i 0.01 -c 65 $(ip6_lkl)
+}
+
+test_tap_neighbours()
+{
+    set -e
+
+    neigh1="$(ip_add 100)|12:34:56:78:9a:bc"
+    neigh2="$(ip6_add 100)|12:34:56:78:9a:be"
+
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "type":"tap",
+                "param":"$(tap_ifname)",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "neigh":"${neigh1};${neigh2}"
+            }
+        ]
+    }
+EOF
+
+    # add neighbor entries
+    ans=$(${hijack_cfg} ip neighbor show) || true
+    echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bc"
+    echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:be"
+
+    # gateway
+    ans=$(${hijack_cfg} ip route show) || true
+    echo "$ans" | tail -n 15 | grep "$(ip_host)"
+
+    # gateway v6
+    ans=$(${hijack_cfg} ip -6 route show) || true
+    echo "$ans" | tail -n 15 | grep "$(ip6_host)"
+}
+
+test_tap_netperf_stream_tso_csum()
+{
+    set -e
+
+    # offload
+    # LKL_VIRTIO_NET_F_HOST_TSO4 && LKL_VIRTIO_NET_F_GUEST_TSO4
+    # LKL_VIRTIO_NET_F_CSUM && LKL_VIRTIO_NET_F_GUEST_CSUM
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "offload":"0x883",
+                "type":"tap",
+                "param":"$(tap_ifname)",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK"
+            }
+        ]
+    }
+EOF
+
+    ${netperf} $(ip_host) TCP_STREAM
+}
+
+test_tap_netperf_maerts_csum_tso()
+{
+    ${netperf} $(ip_host) TCP_MAERTS
+}
+
+test_tap_netperf_stream_csum_tso_mrgrxbuf()
+{
+    set -e
+
+    # offload
+    # LKL_VIRTIO_NET_F_HOST_TSO4 && LKL_VIRTIO_NET_F_MRG_RXBUF
+    # LKL_VIRTIO_NET_F_CSUM && LKL_VIRTIO_NET_F_GUEST_CSUM
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "offload":"0x8803",
+                "type":"tap",
+                "param":"$(tap_ifname)",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK"
+            }
+        ]
+    }
+EOF
+
+    ${netperf} $(ip_host) TCP_MAERTS
+}
+
+test_tap_netperf_tcp_rr()
+{
+    set -e
+
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "type":"tap",
+                "param":"$(tap_ifname)",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK"
+            }
+        ]
+    }
+EOF
+
+    ${netperf} $(ip_host) TCP_RR
+}
+
+test_tap_netperf_tcp_stream()
+{
+    set -e
+
+    ${netperf} $(ip_host) TCP_STREAM
+}
+
+test_tap_netperf_tcp_maerts()
+{
+    set -e
+
+    ${netperf} $(ip_host) TCP_MAERTS
+}
+
+
+test_tap_qdisc()
+{
+    set -e
+
+    if [ -n "$LKL_HOST_CONFIG_ANDROID" ]; then
+        return $TEST_SKIP
+    fi
+
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "type":"tap",
+                "param":"$(tap_ifname)",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "mac":"$TEST_MAC0",
+                "qdisc":"root|fq"
+            }
+        ]
+    }
+EOF
+
+    qdisc=$(${hijack_cfg} tc -s -d qdisc show)
+    echo "$qdisc"
+    echo "$qdisc" | grep "qdisc fq" > /dev/null
+    echo "$qdisc" | grep throttled > /dev/null
+}
+
+test_tap_multi_if_setup()
+{
+    set -e
+
+    # Set up 2nd TAP device we'd like to use
+    tap_setup 1
+
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "type":"tap",
+                "param":"$(tap_ifname)",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "mac":"$TEST_MAC0"
+            },
+            {
+                "type":"tap",
+                "param":"$(tap_ifname 1)",
+                "ip":"$(ip_lkl 1)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl 1)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "mac":"$TEST_MAC1"
+            }
+        ]
+    }
+EOF
+
+    # Make sure our device has the addresses we expect
+    addr=$(${hijack_cfg} ip addr)
+    echo "$addr" | grep eth0
+    echo "$addr" | grep $(ip_lkl)
+    echo "$addr" | grep "$TEST_MAC0"
+    echo "$addr" | grep "$(ip6_lkl)"
+    echo "$addr" | grep eth1
+    echo "$addr" | grep $(ip_lkl 1)
+    echo "$addr" | grep "$TEST_MAC1"
+    echo "$addr" | grep "$(ip6_lkl 1)"
+    ! echo "$addr" | grep "WARN: failed to free"
+}
+
+test_tap_multi_if_ping()
+{
+    ${hijack_cfg} ${ping} -c 1 $(ip_host)
+    ${hijack_cfg} ${ping6} -c 1 $(ip6_host)
+    ${hijack_cfg} ${ping} -c 1 $(ip_host 1)
+    ${hijack_cfg} ${ping6} -c 1 $(ip6_host 1)
+}
+
+test_tap_multi_if_neigh()
+{
+
+    neigh1="$(ip_host)00|12:34:56:78:9a:bc"
+    neigh2="$(ip6_host)00|12:34:56:78:9a:be"
+    neigh3="$(ip_host 1)00|12:34:56:78:9a:bd"
+    neigh4="$(ip6_host 1)00|12:34:56:78:9a:bf"
+
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "type":"tap",
+                "param":"$(tap_ifname)",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "mac":"$TEST_MAC0",
+                "neigh":"${neigh1};${neigh2}"
+            },
+            {
+                "type":"tap",
+                "param":"$(tap_ifname 1)",
+                "ip":"$(ip_lkl 1)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl 1)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "mac":"$TEST_MAC1",
+                "neigh":"${neigh3};${neigh4}"
+            }
+        ]
+    }
+EOF
+
+    # add neighbor entries
+    ans=$(${hijack_cfg} ip neighbor show) || true
+    echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bc"
+    echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:be"
+    echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bd"
+    echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bf"
+}
+
+test_tap_multi_if_gateway()
+{
+    ans=$(${hijack_cfg} ip route show) || true
+    echo "$ans" | tail -n 15 | grep "$(ip_host)"
+}
+
+test_tap_multi_if_gateway_v6()
+{
+    ans=$(${hijack_cfg} ip -6 route show) || true
+    echo "$ans" | tail -n 15 | grep "$(ip6_host)"
+}
+
+
+test_tap_multitable_setup()
+{
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "type":"tap",
+                "param":"$(tap_ifname)",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ifgateway":"$(ip_host)",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "ifgateway6":"$(ip6_host)",
+                "mac":"$TEST_MAC0",
+                "neigh":"${neigh1};${neigh2}"
+            },
+            {
+                "type":"tap",
+                "param":"$(tap_ifname 1)",
+                "ip":"$(ip_lkl 1)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ifgateway":"$(ip_host 1)",
+                "ipv6":"$(ip6_lkl 1)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "ifgateway6":"$(ip6_host 1)",
+                "mac":"$TEST_MAC1",
+                "neigh":"${neigh3};${neigh4}"
+            }
+        ]
+    }
+EOF
+}
+
+test_tap_multitable_ipv4_rule()
+{
+    addr=$(${hijack_cfg} ip rule show)
+    echo "$addr" | grep $(ip_lkl)
+    echo "$addr" | grep $(ip_lkl 1)
+}
+
+test_tap_multitable_ipv6_rule()
+{
+    addr=$(${hijack_cfg} ip -6 rule show)
+    echo "$addr" | grep $(ip6_lkl)
+    echo "$addr" | grep $(ip6_lkl 1)
+}
+
+test_tap_multitable_ipv4_rule_table_4()
+{
+    addr=$(${hijack_cfg} ip route show table 4)
+    echo "$addr" | grep $(ip_host)
+}
+
+test_tap_multitable_ipv6_rule_table_5()
+{
+    addr=$(${hijack_cfg} ip -6 route show table 5)
+    echo "$addr" | grep fc03::
+    echo "$addr" | grep $(ip6_host)
+}
+
+test_tap_multitable_ipv6_rule_table_6()
+{
+    addr=$(${hijack_cfg} ip route show table 6)
+    echo "$addr" | grep $(ip_host 1)
+}
+
+test_tap_multitable_ipv6_rule_table_7()
+{
+    addr=$(${hijack_cfg} ip -6 route show table 7)
+    echo "$addr" | grep fc04::
+    echo "$addr" | grep $(ip6_host 1)
+}
+
+test_vde_setup()
+{
+    set_cfgjson << EOF
+    {
+        "gateway":"$(ip_host)",
+        "gateway6":"$(ip6_host)",
+        "interfaces":
+        [
+            {
+                "type":"vde",
+                "param":"${VDESWITCH}",
+                "ip":"$(ip_lkl)",
+                "masklen":"$TEST_IP_NETMASK",
+                "ipv6":"$(ip6_lkl)",
+                "masklen6":"$TEST_IP6_NETMASK",
+                "mac":"$TEST_MAC0",
+                "neigh":"${neigh1};${neigh2}"
+            }
+        ]
+    }
+EOF
+
+    tap_setup
+
+    sleep 2
+    vde_switch -d -t $(tap_ifname) -s ${VDESWITCH} -p ${VDESWITCH}.pid
+
+    # Make sure our device has the addresses we expect
+    addr=$(${hijack_cfg} ip addr)
+    echo "$addr" | grep eth0
+    echo "$addr" | grep $(ip_lkl)
+    echo "$addr" | grep "$TEST_MAC0"
+}
+
+test_vde_cleanup()
+{
+    tap_cleanup
+}
+
+test_vde_ping_host()
+{
+    ${hijack_cfg} ./ping $(ip_host) -c 1
+}
+
+test_vde_ping_lkl()
+{
+    lkl_test_cmd sudo arp -d $(ip_lkl)
+    lkl_test_cmd sudo ping -i 0.01 -c 65 $(ip_lkl) &
+    ${hijack_cfg} sleep 3
+}
+
+source ${script_dir}/test.sh
+source ${script_dir}/net-setup.sh
+
+if [[ ! -e ${basedir}/lib/hijack/liblkl-hijack.so ]]; then
+    lkl_test_plan 0 "hijack tests"
+    echo "missing liblkl-hijack.so"
+    exit 0
 fi
 
-# Make a temporary directory to run tests in, since we'll be copying
-# things there.
-work_dir=$(mktemp -d)
+if [ -n "$LKL_HOST_CONFIG_ANDROID" ]; then
+    wdir=$ANDROID_WDIR
+    adb_push lib/hijack/liblkl-hijack.so bin/lkl-hijack.sh tests/net-setup.sh \
+             tests/run_netperf.sh tests/hijack-test.sh
+    ping="ping"
+    ping6="ping6"
+    hijack="$wdir/bin/lkl-hijack.sh"
+    netperf="$wdir/tests/run_netperf.sh"
+else
+    # Make a temporary directory to run tests in, since we'll be copying
+    # things there.
+    wdir=$(mktemp -d)
+    cp `which ping` ${wdir}
+    cp `which ping6` ${wdir}
+    ping=${wdir}/ping
+    ping6=${wdir}/ping6
+    hijack=$basedir/bin/lkl-hijack.sh
+    netperf=$basedir/tests/run_netperf.sh
+fi
+
+cfgjson=${wdir}/hijack-test.conf
+fifo1=${wdir}/fifo1
+fifo2=${wdir}/fifo2
+VDESWITCH=${wdir}/vde_switch
+hijack_cfg="lkl_test_cmd LKL_HIJACK_CONFIG_FILE=$cfgjson $hijack"
+hijack="lkl_test_cmd $hijack"
+netperf="lkl_test_cmd TEST_NETSERVER_PORT=$TEST_NETSERVER_PORT \
+         LKL_HIJACK_CONFIG_FILE=$cfgjson $netperf"
 
 # And make sure we clean up when we're done
-function clear_work_dir {
-    test -f ${VDESWITCH}.pid && kill $(cat ${VDESWITCH}.pid)
-    rm -rf ${work_dir}
-    sudo ip link set dev lkl_ptt0 down &> /dev/null || true
-    sudo ip tuntap del dev lkl_ptt0 mode tap &> /dev/null || true
-    sudo ip link set dev lkl_ptt1 down &> /dev/null || true
-    sudo ip tuntap del dev lkl_ptt1 mode tap &> /dev/null || true
-}
+trap "clear_wdir &>/dev/null" EXIT
 
-trap clear_work_dir EXIT
+lkl_test_plan 5 "hijack basic tests"
+lkl_test_run 1 ${hijack} ip addr
+lkl_test_run 2 ${hijack} ip route
+lkl_test_run 3 test_ping
+lkl_test_run 4 test_ping6
+lkl_test_run 5 test_mount_and_dump
+lkl_test_run 6 test_boot_cmdline
 
-echo "Running tests in ${work_dir}"
-
-echo "== ip addr test=="
-${hijack_script} ip addr
-
-echo "== ip route test=="
-${hijack_script} ip route
-
-echo "== ping test=="
-cp `which ping` .
-${hijack_script} ./ping -c 1 127.0.0.1
-rm ./ping
-
-echo "== ping6 test=="
-cp `which ping6` .
-${hijack_script} ./ping6 -c 1 ::1
-rm ./ping6
-
-echo "== Mount/dump tests =="
-cfgjson=${work_dir}/hijack-test.conf
-
-cat << EOF > ${cfgjson}
-{
-	"mount":"proc,sysfs",
-	"dump":"/sysfs/class/net/lo/mtu,/sysfs/class/net/lo/dev_id",
-	"debug":"1"
-}
-EOF
-
-# Need to say || true because ip -h returns < 0
-ans=$(LKL_HIJACK_CONFIG_FILE=$cfgjson\
-  ${hijack_script} ip -h) || true
-# Need to grab the end because something earlier on prints out this
-# number
-# XXX: android-23 doesn't call destructor...
-if [ -z ${LKL_ANDROID_TEST} ] ; then
-echo "$ans" | tail -n 15 | grep "65536" # lo's MTU
-# lo's dev id
-echo "$ans" | grep "0x0"        # lo's dev_id
-# Doesn't really belong in this section, but might as well check for
-# it here.
-! echo "$ans" | grep "WARN: failed to free"
-fi
-
-# boot_cmdline test
-echo "== boot command line tests =="
-
-cat << EOF > ${cfgjson}
-{
-	"debug":"1",
-	"boot_cmdline":"mem=100M"
-}
-EOF
-
-ans=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip ad)
-if [ -z ${CROSS_COMPILE} ] ; then
-echo "$ans" | grep "100752k"
-elif [ "${CROSS_COMPILE}" = "arm-linux-androideabi-" ] ; then
-(echo "$ans" | grep "101424k") || true
-elif [ "${CROSS_COMPILE}" = "aarch64-linux-android-" ] ; then
-(echo "$ans" | grep "100756k") || true
-fi
-
-echo "== PIPE tests =="
-if [ -z `which mkfifo` ]; then
-    echo "WARNIG: no mkfifo command, skipping PIPE tests."
+if [ -z "$(QUIET=1 lkl_test_cmd which mkfifo)" ]; then
+    lkl_test_plan 0 "hijack pipe backend tests"
+    echo "no mkfifo command"
 else
-
-fifo1=${work_dir}/fifo1
-fifo2=${work_dir}/fifo2
-mkfifo ${fifo1}
-mkfifo ${fifo2}
-
-cat << EOF > ${cfgjson}
-{
-	"interfaces":[
-	{
-		"type":"pipe",
-		"param":"${fifo1}|${fifo2}",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"mac":"aa:bb:cc:dd:ee:ff",
-	}
-	]
-}
-EOF
-
-# Make sure our device has the addresses we expect
-addr=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip addr)
-echo "$addr" | grep eth0
-echo "$addr" | grep 192.168.13.2
-echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
-
-# Copy ping so we're allowed to run it under LKL
-cp $(which ping) .
-cp $(which ping6) .
-
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.2",
-	"gateway6":"fc03::2",
-	"interfaces":[
-	{
-		"type":"pipe",
-		"param":"${fifo1}|${fifo2}",
-		"ip":"192.168.13.1",
-		"masklen":"24",
-		"mac":"aa:bb:cc:dd:ee:ff",
-		"ipv6":"fc03::1",
-		"masklen6":"64"
-	}
-	]
-}
-EOF
-
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} sleep 10 &
-
-sleep 5
-
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"type":"pipe",
-		"param":"${fifo2}|${fifo1}",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"mac":"aa:bb:cc:dd:ee:ff",
-		"ipv6":"fc03::2",
-		"masklen6":"64"
-	}
-	]
-}
-EOF
-
-# Ping under LKL
-sudo LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ./ping 192.168.13.1 -c 1
-
-# Ping 6 under LKL
-sudo LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ./ping6 fc03::1 -c 1
-
-wait
-rm ./ping
-rm ./ping6
+    lkl_test_plan 2 "hijack pipe backend tests"
+    lkl_test_run 1 test_pipe_setup
+    lkl_test_run 2 test_pipe_ping
 fi
 
-echo "== TAP tests =="
-if [ ! -c /dev/net/tun ]; then
-    echo "WARNING: missing /dev/net/tun, skipping TAP and VDE tests."
-    exit 0
+tap_prepare
+
+if ! lkl_test_cmd test -c /dev/net/tun &>/dev/null; then
+    lkl_test_plan 0 "hijack tap backend tests"
+    echo "missing /dev/net/tun"
+else
+    lkl_test_plan 23 "hijack tap backend tests"
+    lkl_test_run 1 test_tap_setup
+    lkl_test_run 2 test_tap_ping_host
+    lkl_test_run 3 test_tap_ping_lkl
+    lkl_test_run 4 test_tap_neighbours
+    lkl_test_run 5 test_tap_netperf_tcp_rr
+    lkl_test_run 6 test_tap_netperf_tcp_stream
+    lkl_test_run 7 test_tap_netperf_tcp_maerts
+    lkl_test_run 8 test_tap_netperf_stream_tso_csum
+    lkl_test_run 9 test_tap_netperf_maerts_csum_tso
+    lkl_test_run 10 test_tap_netperf_stream_csum_tso_mrgrxbuf
+    lkl_test_run 11 test_tap_qdisc
+    lkl_test_run 12 test_tap_multi_if_setup
+    lkl_test_run 13 test_tap_multi_if_ping
+    lkl_test_run 14 test_tap_multi_if_neigh
+    lkl_test_run 15 test_tap_multi_if_gateway
+    lkl_test_run 16 test_tap_multi_if_gateway_v6
+    lkl_test_run 17 test_tap_multitable_setup
+    lkl_test_run 18 test_tap_multitable_ipv4_rule
+    lkl_test_run 19 test_tap_multitable_ipv6_rule
+    lkl_test_run 20 test_tap_multitable_ipv4_rule_table_4
+    lkl_test_run 21 test_tap_multitable_ipv6_rule_table_5
+    lkl_test_run 22 test_tap_multitable_ipv6_rule_table_6
+    lkl_test_run 23 test_tap_multitable_ipv6_rule_table_7
+    lkl_test_run 24 test_tap_cleanup
 fi
 
-# Set up the TAP device we'd like to use
-sudo ip tuntap del dev lkl_ptt0 mode tap || true
-sudo ip tuntap add dev lkl_ptt0 mode tap user $USER
-sudo ip link set dev lkl_ptt0 up
-sudo ip addr add dev lkl_ptt0 192.168.13.1/24
-sudo ip -6 addr add dev lkl_ptt0 fc03::1/64
-
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"type":"tap",
-		"param":"lkl_ptt0",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ipv6":"fc03::2",
-		"masklen6":"64"
-	}
-	]
-}
-EOF
-
-# Make sure our device has the addresses we expect
-addr=$(LKL_HIJACK_DEBUG=1 LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" \
-	LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip addr)
-echo "$addr" | grep eth0
-echo "$addr" | grep 192.168.13.2
-echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
-echo "$addr" | grep "fc03::2"
-! echo "$addr" | grep "WARN: failed to free"
-
-# Copy ping so we're allowed to run it under LKL
-cp `which ping` .
-cp `which ping6` .
-
-# Make sure we can ping the host from inside LKL
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ./ping 192.168.13.1 -c 1
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ./ping6 fc03::1 -c 1
-rm ./ping ./ping6
-
-# Now let's check that the host can see LKL.
-sudo ip -6 neigh del fc03::2 dev lkl_ptt0
-sudo ip neigh del 192.168.13.2 dev lkl_ptt0
-sudo ping -i 0.01 -c 65 192.168.13.2 &
-sudo ping6 -i 0.01 -c 65 fc03::2 &
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} sleep 3
-
-neigh1="192.168.13.100|12:34:56:78:9a:bc"
-neigh2="fc03::100|12:34:56:78:9a:be"
-
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"type":"tap",
-		"param":"lkl_ptt0",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ipv6":"fc03::2",
-		"masklen6":"64",
-		"neigh":"${neigh1};${neigh2}"
-	}
-	]
-}
-EOF
-
-# add neighbor entries
-ans=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip neighbor show) || true
-echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bc"
-echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:be"
-
-# gateway
-ans=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip route show) || true
-echo "$ans" | tail -n 15 | grep "192.168.13.1"
-
-# gateway v6
-ans=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip -6 route show) || true
-echo "$ans" | tail -n 15 | grep "fc03::1"
-
-# offload
-# LKL_VIRTIO_NET_F_HOST_TSO4 && LKL_VIRTIO_NET_F_GUEST_TSO4
-# LKL_VIRTIO_NET_F_CSUM && LKL_VIRTIO_NET_F_GUEST_CSUM
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"offload":"0x883",
-		"type":"tap",
-		"param":"lkl_ptt0",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ipv6":"fc03::2",
-		"masklen6":"64"
-	}
-	]
-}
-EOF
-
-LKL_HIJACK_CONFIG_FILE=$cfgjson sh \
-	${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_STREAM
-LKL_HIJACK_CONFIG_FILE=$cfgjson sh \
-	${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_MAERTS
-
-# offload
-# LKL_VIRTIO_NET_F_HOST_TSO4 && LKL_VIRTIO_NET_F_MRG_RXBUF
-# LKL_VIRTIO_NET_F_CSUM && LKL_VIRTIO_NET_F_GUEST_CSUM
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"offload":"0x8803",
-		"type":"tap",
-		"param":"lkl_ptt0",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ipv6":"fc03::2",
-		"masklen6":"64"
-	}
-	]
-}
-EOF
-
-LKL_HIJACK_CONFIG_FILE=$cfgjson sh \
-	${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_MAERTS
-
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"type":"tap",
-		"param":"lkl_ptt0",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ipv6":"fc03::2",
-		"masklen6":"64"
-	}
-	]
-}
-EOF
-
-LKL_HIJACK_CONFIG_FILE=$cfgjson sh \
-	${script_dir}/run_netperf.sh 192.168.13.1 1 0 TCP_RR
-LKL_HIJACK_CONFIG_FILE=$cfgjson sh \
-	${script_dir}/run_netperf.sh fc03::1 1 0 TCP_STREAM
-
-# QDISC test
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"type":"tap",
-		"param":"lkl_ptt0",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ipv6":"fc03::2",
-		"masklen6":"64",
-		"mac":"aa:bb:cc:dd:ee:ff",
-		"qdisc":"root|fq"
-	}
-	]
-}
-EOF
-
-qdisc=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} tc -s -d qdisc show)
-echo "$qdisc"
-echo "$qdisc" | grep "qdisc fq" > /dev/null
-echo "$qdisc" | grep throttled > /dev/null
-
-echo "== Multiple interfaces with TAP tests=="
-# Set up 2nd TAP device we'd like to use
-sudo ip tuntap del dev lkl_ptt1 mode tap || true
-sudo ip tuntap add dev lkl_ptt1 mode tap user $USER
-sudo ip link set dev lkl_ptt1 up
-sudo ip addr add dev lkl_ptt1 192.168.14.1/24
-sudo ip -6 addr add dev lkl_ptt1 fc04::1/64
-
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"type":"tap",
-		"param":"lkl_ptt0",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ipv6":"fc03::2",
-		"masklen6":"64",
-		"mac":"aa:bb:cc:dd:ee:ff"
-	},
-	{
-		"type":"tap",
-		"param":"lkl_ptt1",
-		"ip":"192.168.14.2",
-		"masklen":"24",
-		"ipv6":"fc04::2",
-		"masklen6":"64",
-		"mac":"aa:bb:cc:dd:ee:aa"
-	}
-	]
-}
-EOF
-
-# Make sure our device has the addresses we expect
-addr=$(LKL_HIJACK_DEBUG=1 \
-	LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip addr)
-echo "$addr" | grep eth0
-echo "$addr" | grep 192.168.13.2
-echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
-echo "$addr" | grep "fc03::2"
-echo "$addr" | grep eth1
-echo "$addr" | grep 192.168.14.2
-echo "$addr" | grep "aa:bb:cc:dd:ee:aa"
-echo "$addr" | grep "fc04::2"
-! echo "$addr" | grep "WARN: failed to free"
-
-# Copy ping so we're allowed to run it under LKL
-cp `which ping` .
-cp `which ping6` .
-
-# Make sure we can ping the host from inside LKL
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ./ping 192.168.13.1 -c 1
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ./ping6 fc03::1 -c 1
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ./ping 192.168.14.1 -c 1
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ./ping6 fc04::1 -c 1
-rm ./ping ./ping6
-
-neigh1="192.168.13.100|12:34:56:78:9a:bc"
-neigh2="fc03::100|12:34:56:78:9a:be"
-neigh3="192.168.14.100|12:34:56:78:9a:bd"
-neigh4="fc04::100|12:34:56:78:9a:bf"
-
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"type":"tap",
-		"param":"lkl_ptt0",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ipv6":"fc03::2",
-		"masklen6":"64",
-		"mac":"aa:bb:cc:dd:ee:ff",
-		"neigh":"${neigh1};${neigh2}"
-	},
-	{
-		"type":"tap",
-		"param":"lkl_ptt1",
-		"ip":"192.168.14.2",
-		"masklen":"24",
-		"ipv6":"fc04::2",
-		"masklen6":"64",
-		"mac":"aa:bb:cc:dd:ee:aa",
-		"neigh":"${neigh3};${neigh4}"
-	}
-	]
-}
-EOF
-
-# add neighbor entries
-ans=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip neighbor show) || true
-echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bc"
-echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:be"
-echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bd"
-echo "$ans" | tail -n 15 | grep "12:34:56:78:9a:bf"
-
-# gateway
-ans=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip route show) || true
-echo "$ans" | tail -n 15 | grep "192.168.13.1"
-
-# gateway v6
-ans=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip -6 route show) || true
-echo "$ans" | tail -n 15 | grep "fc03::1"
-
-echo "== multiple table tests =="
-
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"type":"tap",
-		"param":"lkl_ptt0",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ifgateway":"192.168.13.1",
-		"ipv6":"fc03::2",
-		"masklen6":"64",
-		"ifgateway6":"fc03::1",
-		"mac":"aa:bb:cc:dd:ee:ff",
-		"neigh":"${neigh1};${neigh2}"
-	},
-	{
-		"type":"tap",
-		"param":"lkl_ptt1",
-		"ip":"192.168.14.2",
-		"masklen":"24",
-		"ifgateway":"192.168.14.1",
-		"ipv6":"fc04::2",
-		"masklen6":"64",
-		"ifgateway6":"fc04::1",
-		"mac":"aa:bb:cc:dd:ee:aa",
-		"neigh":"${neigh3};${neigh4}"
-	}
-	]
-}
-EOF
-
-# Make sure our device has ipv4 rule we expect
-addr=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip rule show)
-echo "$addr" | grep 192.168.13.2
-echo "$addr" | grep 192.168.14.2
-
-# Make sure our device has ipv6 rule we expect
-addr=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip -6 rule show)
-echo "$addr" | grep fc03::2
-echo "$addr" | grep fc04::2
-
-# Make sure our device has ipv4 rule table
-addr=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip route show table 4)
-echo "$addr" | grep 192.168.13.1
-
-# Make sure our device has ipv6 rule table
-addr=$(LKL_HIJACK_CONFIG_FILE=$cfgjson \
-		${hijack_script} ip -6 route show table 5)
-echo "$addr" | grep fc03::
-echo "$addr" | grep fc03::1
-
-# Make sure our device has ipv4 rule table
-addr=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip route show table 6)
-echo "$addr" | grep 192.168.14.1
-
-# Make sure our device has ipv6 rule table
-addr=$(LKL_HIJACK_CONFIG_FILE=$cfgjson \
-		${hijack_script} ip -6 route show table 7)
-echo "$addr" | grep fc04::
-echo "$addr" | grep fc04::1
-
-if [ -z "`printenv CONFIG_AUTO_LKL_VIRTIO_NET_VDE`" ]; then
-    exit 0
+if [ -z "$LKL_HOST_CONFIG_VIRTIO_NET_VDE" ]; then
+    lkl_test_plan 0 "vde tests"
+    echo "vde not supported"
+elif [ ! -x "$(which vde_switch)" ]; then
+    lkl_test_plan 0 "hijack vde tests"
+    echo "could not find a vde_switch executable"
+else
+    lkl_test_plan 3 "hijack vde tests"
+    lkl_test_run 1 test_vde_setup
+    lkl_test_run 2 test_vde_ping_host
+    lkl_test_run 3 test_vde_ping_lkl
+    lkl_test_run 4 test_vde_cleanup
 fi
-
-echo "== VDE tests =="
-if [ ! -x "$(which vde_switch)" ]; then
-    echo "WARNING: Cannot find a vde_switch executable, skipping VDE tests."
-    exit 0
-fi
-VDESWITCH=${work_dir}/vde_switch
-
-cat << EOF > ${cfgjson}
-{
-	"gateway":"192.168.13.1",
-	"gateway6":"fc03::1",
-	"interfaces":[
-	{
-		"type":"vde",
-		"param":"${VDESWITCH}",
-		"ip":"192.168.13.2",
-		"masklen":"24",
-		"ipv6":"fc03::2",
-		"masklen6":"64",
-		"mac":"aa:bb:cc:dd:ee:ff",
-		"neigh":"${neigh1};${neigh2}"
-	}
-	]
-}
-EOF
-
-sudo ip link set dev lkl_ptt0 down &> /dev/null || true
-sudo ip link del dev lkl_ptt0 &> /dev/null || true
-sudo ip tuntap add dev lkl_ptt0 mode tap user $USER
-sudo ip link set dev lkl_ptt0 up
-sudo ip addr add dev lkl_ptt0 192.168.13.1/24
-
-sleep 2
-vde_switch -d -t lkl_ptt0 -s ${VDESWITCH} -p ${VDESWITCH}.pid
-
-# Make sure our device has the addresses we expect
-addr=$(LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ip addr)
-echo "$addr" | grep eth0
-echo "$addr" | grep 192.168.13.2
-echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
-
-# Copy ping so we're allowed to run it under LKL
-cp $(which ping) .
-
-# Make sure we can ping the host from inside LKL
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} ./ping 192.168.13.1 -c 1
-rm ./ping
-
-# Now let's check that the host can see LKL.
-sudo arp -d 192.168.13.2
-sudo ping -i 0.01 -c 65 192.168.13.2 &
-LKL_HIJACK_CONFIG_FILE=$cfgjson ${hijack_script} sleep 3
