@@ -353,7 +353,7 @@ void qla24xx_handle_adisc_event(scsi_qla_host_t *vha, struct event_arg *ea)
 		ql_dbg(ql_dbg_disc, vha, 0x2066,
 		    "%s %8phC: adisc fail: post delete\n",
 		    __func__, ea->fcport->port_name);
-		qlt_schedule_sess_for_deletion(ea->fcport, 1);
+		qlt_schedule_sess_for_deletion(ea->fcport);
 		return;
 	}
 
@@ -527,7 +527,7 @@ static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 			ql_dbg(ql_dbg_disc, vha, 0x20e3,
 			    "%s %d %8phC post del sess\n",
 			    __func__, __LINE__, fcport->port_name);
-			qlt_schedule_sess_for_deletion(fcport, 1);
+			qlt_schedule_sess_for_deletion(fcport);
 			return;
 		}
 
@@ -599,7 +599,7 @@ static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 				    __func__, __LINE__,
 				    conflict_fcport->port_name);
 				qlt_schedule_sess_for_deletion
-					(conflict_fcport, 1);
+					(conflict_fcport);
 			}
 
 			/* FW already picked this loop id for another fcport */
@@ -1134,7 +1134,7 @@ static void qla_chk_n2n_b4_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 				    "%s %d %8phC post del sess - out of loopid\n",
 				    __func__, __LINE__, fcport->port_name);
 				fcport->scan_state = 0;
-				qlt_schedule_sess_for_deletion(fcport, true);
+				qlt_schedule_sess_for_deletion(fcport);
 				return;
 			}
 		}
@@ -1780,7 +1780,7 @@ qla24xx_handle_plogi_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 			set_bit(lid, vha->hw->loop_id_map);
 			ea->fcport->loop_id = lid;
 			ea->fcport->keep_nport_handle = 0;
-			qlt_schedule_sess_for_deletion(ea->fcport, false);
+			qlt_schedule_sess_for_deletion(ea->fcport);
 		}
 		break;
 	}
