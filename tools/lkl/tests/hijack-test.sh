@@ -147,7 +147,7 @@ EOF
 
     run_hijack_cfg $(lkl_test_cmd which sleep) 10 &
 
-    set_cfgjson << EOF
+    set_cfgjson 2 << EOF
     {
         "gateway":"$(ip_host)",
         "gateway6":"$(ip6_host)",
@@ -160,7 +160,7 @@ EOF
                 "masklen":"$TEST_IP_NETMASK",
                 "mac":"$TEST_MAC0",
                 "ipv6":"$(ip6_lkl)",
-               "masklen6":"$TEST_IP6_NETMASK"
+                "masklen6":"$TEST_IP6_NETMASK"
             }
         ]
     }
@@ -172,8 +172,6 @@ EOF
     # Ping 6 under LKL
     run_hijack_cfg ${ping6} -c 1 -w 10 $(ip6_host)
 
-    jobs
-    kill -9 %1
     wait
 }
 
