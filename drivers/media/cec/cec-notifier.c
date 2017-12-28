@@ -106,6 +106,15 @@ void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
 }
 EXPORT_SYMBOL_GPL(cec_notifier_set_phys_addr_from_edid);
 
+void cec_notifier_repo_cec_hpd(struct cec_notifier *n,
+					  bool hpd_state, ktime_t ts)
+{
+	if (!n)
+		return;
+	cec_queue_pin_hpd_event(n->cec_adap, hpd_state, ts);
+}
+EXPORT_SYMBOL_GPL(cec_notifier_repo_cec_hpd);
+
 void cec_notifier_register(struct cec_notifier *n,
 			   struct cec_adapter *adap,
 			   void (*callback)(struct cec_adapter *adap, u16 pa))

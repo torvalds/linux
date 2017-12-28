@@ -52,6 +52,9 @@ void cec_notifier_put(struct cec_notifier *n);
  */
 void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa);
 
+void cec_notifier_repo_cec_hpd(struct cec_notifier *n,
+			       bool hpd_state, ktime_t ts);
+
 /**
  * cec_notifier_set_phys_addr_from_edid - set parse the PA from the EDID.
  * @n: the CEC notifier
