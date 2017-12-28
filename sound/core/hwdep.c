@@ -233,8 +233,6 @@ static int snd_hwdep_dsp_load(struct snd_hwdep *hw,
 	/* check whether the dsp was already loaded */
 	if (hw->dsp_loaded & (1 << info.index))
 		return -EBUSY;
-	if (!access_ok(VERIFY_READ, info.image, info.length))
-		return -EFAULT;
 	err = hw->ops.dsp_load(hw, &info);
 	if (err < 0)
 		return err;
