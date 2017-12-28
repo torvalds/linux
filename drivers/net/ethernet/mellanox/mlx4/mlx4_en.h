@@ -476,6 +476,7 @@ struct mlx4_en_frag_info {
 #define MLX4_EN_BW_MIN 1
 #define MLX4_EN_BW_MAX 100 /* Utilize 100% of the line */
 
+#define MLX4_EN_TC_VENDOR 0
 #define MLX4_EN_TC_ETS 7
 
 enum dcb_pfc_type {
