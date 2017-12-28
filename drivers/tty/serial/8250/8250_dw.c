@@ -189,7 +189,6 @@ static unsigned int dw8250_serial_in32(struct uart_port *p, int offset)
 
 static int dw8250_handle_irq(struct uart_port *p)
 {
-	struct uart_8250_port *up = up_to_u8250p(p);
 	struct dw8250_data *d = p->private_data;
 	unsigned int iir = p->serial_in(p, UART_IIR);
 	unsigned int status;
@@ -201,11 +200,8 @@ static int dw8250_handle_irq(struct uart_port *p)
 	 * data available.  If we see such a case then we'll do a bogus
 	 * read.  If we don't do this then the "RX TIMEOUT" interrupt will
 	 * fire forever.
-	 *
-	 * This problem has only been observed so far when not in DMA mode
-	 * so we limit the workaround only to non-DMA mode.
 	 */
-	if (!up->dma && ((iir & 0x3f) == UART_IIR_RX_TIMEOUT)) {
+	if ((iir & 0x3f) == UART_IIR_RX_TIMEOUT) {
 		spin_lock_irqsave(&p->lock, flags);
 		status = p->serial_in(p, UART_LSR);
 
