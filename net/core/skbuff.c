@@ -1181,11 +1181,11 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 	int i, new_frags;
 	u32 d_off;
 
-	if (!num_frags)
-		goto release;
-
 	if (skb_shared(skb) || skb_unclone(skb, gfp_mask))
 		return -EINVAL;
+
+	if (!num_frags)
+		goto release;
 
 	new_frags = (__skb_pagelen(skb) + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < new_frags; i++) {
