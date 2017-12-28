@@ -342,6 +342,11 @@
 					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					contribution = <4096>;
 				};
+				map2 {
+					trip = <&target>;
+					cooling-device = <&rkvdec THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
 			};
 		};
 
@@ -695,7 +700,16 @@
 		allocator = <1>;
 		power-domains = <&power RK3328_PD_VIDEO>;
 		operating-points-v2 = <&rkvdec_opp_table>;
+		#cooling-cells = <2>;
 		status = "disabled";
+
+		vcodec_power_model: vcodec_power_model {
+			compatible = "vcodec_power_model";
+			dynamic-power-coefficient = <120>;
+			static-power-coefficient = <200>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "soc-thermal";
+		};
 	};
 
 	rkvdec_opp_table: rkvdec-opp-table {
