@@ -257,7 +257,7 @@ static const struct pll_rate_table axg_gp0_pll_rate_table[] = {
 	{ /* sentinel */ },
 };
 
-struct pll_params_table axg_gp0_params_table[] = {
+static struct pll_params_table axg_gp0_params_table[] = {
 	PLL_PARAM(HHI_GP0_PLL_CNTL, 0x40010250),
 	PLL_PARAM(HHI_GP0_PLL_CNTL1, 0xc084a000),
 	PLL_PARAM(HHI_GP0_PLL_CNTL2, 0xb75020be),
