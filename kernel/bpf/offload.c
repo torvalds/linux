@@ -44,7 +44,6 @@ int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
 		return -ENOMEM;
 
 	offload->prog = prog;
-	init_waitqueue_head(&offload->verifier_done);
 
 	offload->netdev = dev_get_by_index(current->nsproxy->net_ns,
 					   attr->prog_ifindex);
@@ -97,13 +96,26 @@ int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env)
 	if (err)
 		goto exit_unlock;
 
-	env->dev_ops = data.verifier.ops;
-
+	env->prog->aux->offload->dev_ops = data.verifier.ops;
 	env->prog->aux->offload->dev_state = true;
-	env->prog->aux->offload->verifier_running = true;
 exit_unlock:
 	rtnl_unlock();
 	return err;
+}
+
+int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
+				 int insn_idx, int prev_insn_idx)
+{
+	struct bpf_dev_offload *offload;
+	int ret = -ENODEV;
+
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload->netdev)
+		ret = offload->dev_ops->insn_hook(env, insn_idx, prev_insn_idx);
+	up_read(&bpf_devs_lock);
+
+	return ret;
 }
 
 static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
@@ -117,9 +129,6 @@ static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 
 	data.offload.prog = prog;
 
-	if (offload->verifier_running)
-		wait_event(offload->verifier_done, !offload->verifier_running);
-
 	if (offload->dev_state)
 		WARN_ON(__bpf_offload_ndo(prog, BPF_OFFLOAD_DESTROY, &data));
 
@@ -132,9 +141,6 @@ void bpf_prog_offload_destroy(struct bpf_prog *prog)
 {
 	struct bpf_dev_offload *offload = prog->aux->offload;
 
-	offload->verifier_running = false;
-	wake_up(&offload->verifier_done);
-
 	rtnl_lock();
 	down_write(&bpf_devs_lock);
 	__bpf_prog_offload_destroy(prog);
@@ -146,14 +152,10 @@ void bpf_prog_offload_destroy(struct bpf_prog *prog)
 
 static int bpf_prog_offload_translate(struct bpf_prog *prog)
 {
-	struct bpf_dev_offload *offload = prog->aux->offload;
 	struct netdev_bpf data = {};
 	int ret;
 
 	data.offload.prog = prog;
-
-	offload->verifier_running = false;
-	wake_up(&offload->verifier_done);
 
 	rtnl_lock();
 	ret = __bpf_offload_ndo(prog, BPF_OFFLOAD_TRANSLATE, &data);

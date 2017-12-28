@@ -17,6 +17,7 @@
 #include <linux/numa.h>
 #include <linux/wait.h>
 
+struct bpf_verifier_env;
 struct perf_event;
 struct bpf_prog;
 struct bpf_map;
@@ -184,14 +185,18 @@ struct bpf_verifier_ops {
 				  struct bpf_prog *prog, u32 *target_size);
 };
 
+struct bpf_prog_offload_ops {
+	int (*insn_hook)(struct bpf_verifier_env *env,
+			 int insn_idx, int prev_insn_idx);
+};
+
 struct bpf_dev_offload {
 	struct bpf_prog		*prog;
 	struct net_device	*netdev;
 	void			*dev_priv;
 	struct list_head	offloads;
 	bool			dev_state;
-	bool			verifier_running;
-	wait_queue_head_t	verifier_done;
+	const struct bpf_prog_offload_ops *dev_ops;
 };
 
 struct bpf_prog_aux {
