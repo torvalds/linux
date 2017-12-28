@@ -447,7 +447,12 @@ static inline int ptr_ring_consume_batched_bh(struct ptr_ring *r,
 
 static inline void **__ptr_ring_init_queue_alloc(unsigned int size, gfp_t gfp)
 {
-	return kcalloc(size, sizeof(void *), gfp);
+	/* Allocate an extra dummy element at end of ring to avoid consumer head
+	 * or produce head access past the end of the array. Possible when
+	 * producer/consumer operations and __ptr_ring_peek operations run in
+	 * parallel.
+	 */
+	return kcalloc(size + 1, sizeof(void *), gfp);
 }
 
 static inline void __ptr_ring_set_size(struct ptr_ring *r, int size)
