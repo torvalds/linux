@@ -2,28 +2,42 @@ EEPROMs (I2C)
 
 Required properties:
 
-  - compatible : should be "<manufacturer>,<type>", like these:
+  - compatible: Must be a "<manufacturer>,<model>" pair. The following <model>
+                values are supported (assuming "atmel" as manufacturer):
 
-	"atmel,24c00", "atmel,24c01", "atmel,24c02", "atmel,24c04",
-	"atmel,24c08", "atmel,24c16", "atmel,24c32", "atmel,24c64",
-	"atmel,24c128", "atmel,24c256", "atmel,24c512", "atmel,24c1024"
+                "atmel,24c00",
+                "atmel,24c01",
+                "atmel,24c02",
+                "atmel,spd",
+                "atmel,24c04",
+                "atmel,24c08",
+                "atmel,24c16",
+                "atmel,24c32",
+                "atmel,24c64",
+                "atmel,24c128",
+                "atmel,24c256",
+                "atmel,24c512",
+                "atmel,24c1024",
 
-	"catalyst,24c32"
+                If <manufacturer> is not "atmel", then a fallback must be used
+                with the same <model> and "atmel" as manufacturer.
 
-	"microchip,24c128"
+                Example:
+                        compatible = "microchip,24c128", "atmel,24c128";
 
-	"ramtron,24c64"
+                Supported manufacturers are:
 
-	"renesas,r1ex24002"
+                "catalyst",
+                "microchip",
+                "ramtron",
+                "renesas",
+                "nxp",
+                "st",
 
-	The following manufacturers values have been deprecated:
-	"at", "at24"
+                Some vendors use different model names for chips which are just
+                variants of the above. Known such exceptions are listed below:
 
-	 If there is no specific driver for <manufacturer>, a generic
-	 device with <type> and manufacturer "atmel" should be used.
-	 Possible types are:
-	 "24c00", "24c01", "24c02", "24c04", "24c08", "24c16", "24c32", "24c64",
-	 "24c128", "24c256", "24c512", "24c1024", "spd"
+                "renesas,r1ex24002" - the fallback is "atmel,24c02"
 
   - reg : the I2C address of the EEPROM
 
