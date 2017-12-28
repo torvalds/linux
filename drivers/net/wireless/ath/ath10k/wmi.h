@@ -2929,7 +2929,7 @@ struct wmi_ext_resource_config_10_4_cmd {
 	__le32 max_tdls_concurrent_buffer_sta;
 };
 
-/* strucutre describing host memory chunk. */
+/* structure describing host memory chunk. */
 struct host_memory_chunk {
 	/* id of the request that is passed up in service ready */
 	__le32 req_id;
