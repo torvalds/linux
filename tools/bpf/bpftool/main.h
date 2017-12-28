@@ -96,6 +96,8 @@ struct pinned_obj {
 int build_pinned_obj_table(struct pinned_obj_table *table,
 			   enum bpf_obj_type type);
 void delete_pinned_obj_table(struct pinned_obj_table *tab);
+void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
+void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode);
 
 struct cmd {
 	const char *cmd;
