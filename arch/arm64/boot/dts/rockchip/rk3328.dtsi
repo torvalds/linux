@@ -107,7 +107,7 @@
 		};
 	};
 
-	cpu0_opp_table: opp_table0 {
+	cpu0_opp_table: cpu0-opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -628,7 +628,7 @@
 		};
 	};
 
-	gpu_opp_table: opp-table2 {
+	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
 		opp-200000000 {
@@ -698,7 +698,7 @@
 		status = "disabled";
 	};
 
-	rkvdec_opp_table: opp-table3 {
+	rkvdec_opp_table: rkvdec-opp-table {
 		compatible = "operating-points-v2";
 
 		opp-100000000 {
@@ -1281,7 +1281,7 @@
 		status = "disabled";
 	};
 
-	dmc_opp_table: opp-table3 {
+	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
 
 		opp-400000000 {
