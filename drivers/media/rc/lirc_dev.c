@@ -816,3 +816,5 @@ void __exit lirc_dev_exit(void)
 	class_destroy(lirc_class);
 	unregister_chrdev_region(lirc_base_dev, RC_DEV_MAX);
 }
+
+MODULE_ALIAS("lirc_dev");
