@@ -319,8 +319,18 @@ static void repo_hpd_event(struct work_struct *p_work)
 {
 	struct dw_hdmi *hdmi = container_of(p_work, struct dw_hdmi, work.work);
 
-	if (hdmi->bridge.dev)
-		drm_helper_hpd_irq_event(hdmi->bridge.dev);
+	if (hdmi->bridge.dev) {
+		bool change;
+
+		change = drm_helper_hpd_irq_event(hdmi->bridge.dev);
+
+#ifdef CONFIG_CEC_NOTIFIER
+		if (change)
+			cec_notifier_repo_cec_hpd(hdmi->cec_notifier,
+						  hdmi->hpd_state,
+						  ktime_get());
+#endif
+	}
 
 #ifdef CONFIG_SWITCH
 	if (hdmi->hpd_state)
