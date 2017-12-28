@@ -1187,6 +1187,18 @@ static int amdgpu_cgs_call_acpi_method(struct cgs_device *cgs_device,
 	return amdgpu_cgs_acpi_eval_object(cgs_device, &info);
 }
 
+static int amdgpu_cgs_set_temperature_range(struct cgs_device *cgs_device,
+					int min_temperature,
+					int max_temperature)
+{
+	CGS_FUNC_ADEV;
+
+	adev->pm.dpm.thermal.min_temp = min_temperature;
+	adev->pm.dpm.thermal.max_temp = max_temperature;
+
+	return 0;
+}
+
 static const struct cgs_ops amdgpu_cgs_ops = {
 	.alloc_gpu_mem = amdgpu_cgs_alloc_gpu_mem,
 	.free_gpu_mem = amdgpu_cgs_free_gpu_mem,
@@ -1214,6 +1226,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	.enter_safe_mode = amdgpu_cgs_enter_safe_mode,
 	.lock_grbm_idx = amdgpu_cgs_lock_grbm_idx,
 	.register_pp_handle = amdgpu_cgs_register_pp_handle,
+	.set_temperature_range = amdgpu_cgs_set_temperature_range,
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {
