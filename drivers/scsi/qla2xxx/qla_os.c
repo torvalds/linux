@@ -294,7 +294,6 @@ static int qla2xxx_eh_host_reset(struct scsi_cmnd *);
 
 static void qla2x00_clear_drv_active(struct qla_hw_data *);
 static void qla2x00_free_device(scsi_qla_host_t *);
-static void qla83xx_disable_laser(scsi_qla_host_t *vha);
 static int qla2xxx_map_queues(struct Scsi_Host *shost);
 static void qla2x00_destroy_deferred_work(struct qla_hw_data *);
 
@@ -3449,8 +3448,13 @@ qla2x00_shutdown(struct pci_dev *pdev)
 	if (ha->eft)
 		qla2x00_disable_eft_trace(vha);
 
-	/* Stop currently executing firmware. */
-	qla2x00_try_to_stop_firmware(vha);
+	if (IS_QLA25XX(ha) ||  IS_QLA2031(ha) || IS_QLA27XX(ha)) {
+		if (ha->flags.fw_started)
+			qla2x00_abort_isp_cleanup(vha);
+	} else {
+		/* Stop currently executing firmware. */
+		qla2x00_try_to_stop_firmware(vha);
+	}
 
 	/* Turn adapter off line */
 	vha->flags.online = 0;
@@ -3629,10 +3633,6 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	qla84xx_put_chip(base_vha);
 
-	/* Laser should be disabled only for ISP2031 */
-	if (IS_QLA2031(ha))
-		qla83xx_disable_laser(base_vha);
-
 	/* Disable timer */
 	if (base_vha->timer_active)
 		qla2x00_stop_timer(base_vha);
@@ -3693,8 +3693,16 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 	if (ha->eft)
 		qla2x00_disable_eft_trace(vha);
 
-	/* Stop currently executing firmware. */
-	qla2x00_try_to_stop_firmware(vha);
+	if (IS_QLA25XX(ha) ||  IS_QLA2031(ha) || IS_QLA27XX(ha)) {
+		if (ha->flags.fw_started)
+			qla2x00_abort_isp_cleanup(vha);
+	} else {
+		if (ha->flags.fw_started) {
+			/* Stop currently executing firmware. */
+			qla2x00_try_to_stop_firmware(vha);
+			ha->flags.fw_started = 0;
+		}
+	}
 
 	vha->flags.online = 0;
 
@@ -6615,32 +6623,6 @@ qla2xxx_pci_resume(struct pci_dev *pdev)
 	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	ha->flags.eeh_busy = 0;
-}
-
-static void
-qla83xx_disable_laser(scsi_qla_host_t *vha)
-{
-	uint32_t reg, data, fn;
-	struct qla_hw_data *ha = vha->hw;
-	struct device_reg_24xx __iomem *isp_reg = &ha->iobase->isp24;
-
-	/* pci func #/port # */
-	ql_dbg(ql_dbg_init, vha, 0x004b,
-	    "Disabling Laser for hba: %p\n", vha);
-
-	fn = (RD_REG_DWORD(&isp_reg->ctrl_status) &
-		(BIT_15|BIT_14|BIT_13|BIT_12));
-
-	fn = (fn >> 12);
-
-	if (fn & 1)
-		reg = PORT_1_2031;
-	else
-		reg = PORT_0_2031;
-
-	data = LASER_OFF_2031;
-
-	qla83xx_wr_reg(vha, reg, data);
 }
 
 static int qla2xxx_map_queues(struct Scsi_Host *shost)
