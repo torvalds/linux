@@ -681,15 +681,15 @@ qla24xx_async_gnl_sp_done(void *s, int res)
 			}
 		}
 
-		id.b.domain = e->port_id[0];
+		id.b.domain = e->port_id[2];
 		id.b.area = e->port_id[1];
-		id.b.al_pa = e->port_id[2];
+		id.b.al_pa = e->port_id[0];
 		id.b.rsvd_1 = 0;
 
 		if (!found && wwn && !IS_SW_RESV_ADDR(id)) {
 			ql_dbg(ql_dbg_disc, vha, 0x2065,
-			    "%s %d %8phC post new sess\n",
-			    __func__, __LINE__, (u8 *)&wwn);
+			    "%s %d %8phC %06x post new sess\n",
+			    __func__, __LINE__, (u8 *)&wwn, id.b24);
 			wwnn = wwn_to_u64(e->node_name);
 			qla24xx_post_newsess_work(vha, &id, (u8 *)&wwn,
 			    (u8 *)&wwnn, NULL, FC4_TYPE_UNKNOWN);

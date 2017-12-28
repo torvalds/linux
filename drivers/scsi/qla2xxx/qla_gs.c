@@ -3878,6 +3878,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		ql_dbg(ql_dbg_disc, vha, 0xffff,
 		    "GPNFT failed. FC4type %x. Rescanning.\n",
 		    fc4type);
+		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		goto out;
 	}
@@ -3987,6 +3988,19 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 	    "Async done-%s res %x FC4Type %x\n",
 	    sp->name, res, sp->gen2);
 
+	if (res) {
+		unsigned long flags;
+
+		ql_dbg(ql_dbg_disc, sp->vha, 0xffff,
+		    "Async done-%s timed out.\n",
+		    sp->name);
+		sp->free(sp);
+		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+		qla2xxx_wake_dpc(vha);
+		return;
+	}
+
 	if (!res) {
 		port_id_t id;
 		u64 wwn;
@@ -4048,6 +4062,7 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 		    "Async done-%s unable to alloc work element\n",
 		    sp->name);
 		sp->free(sp);
+		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		return;
 	}
