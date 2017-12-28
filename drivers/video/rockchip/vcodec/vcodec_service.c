@@ -21,6 +21,7 @@
 #include <linux/compat.h>
 #include <linux/delay.h>
 #include <linux/devfreq.h>
+#include <linux/devfreq_cooling.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -47,6 +48,7 @@
 #include <linux/rockchip/pmu.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/rockchip_sip.h>
+#include <linux/thermal.h>
 
 #include <linux/dma-iommu.h>
 #include <linux/dma-buf.h>
@@ -96,16 +98,18 @@
 #define MHZ					(1000 * 1000)
 #define SIZE_REG(reg)				((reg) * 4)
 
-#define VCODEC_CLOCK_ENABLE	1
-#define IOMMU_PAGE_SIZE		4096
-#define EXTRA_INFO_MAGIC	0x4C4A46
+#define VCODEC_CLOCK_ENABLE			1
+#define IOMMU_PAGE_SIZE				4096
+#define EXTRA_INFO_MAGIC			0x4C4A46
 
-#define RK3328_VCODEC_RATE_ON	(500 * MHZ)
-#define RK3328_CODE_RATE_ON	(250 * MHZ)
-#define RK3328_CABAC_RATE_ON	(400 * MHZ)
-#define RK3328_VCODEC_RATE_OFF	(100 * MHZ)
-#define RK3328_CODE_RATE_OFF	(100 * MHZ)
-#define RK3328_CABAC_RATE_OFF	(100 * MHZ)
+#define RK3328_VCODEC_RATE_ON			(500 * MHZ)
+#define RK3328_CODE_RATE_ON			(250 * MHZ)
+#define RK3328_CABAC_RATE_ON			(400 * MHZ)
+#define RK3328_VCODEC_RATE_OFF			(100 * MHZ)
+#define RK3328_CODE_RATE_OFF			(100 * MHZ)
+#define RK3328_CABAC_RATE_OFF			(100 * MHZ)
+
+#define FALLBACK_STATIC_TEMPERATURE		55000
 
 static int debug;
 module_param(debug, int, S_IRUGO | S_IWUSR);
@@ -371,6 +375,11 @@ struct vpu_service_info {
 	unsigned long vcodec_rate;
 	unsigned long core_rate;
 	unsigned long cabac_rate;
+
+	struct thermal_cooling_device *devfreq_cooling;
+	u32 static_coefficient;
+	s32 ts[4];
+	struct thermal_zone_device *vcodec_tz;
 
 	struct clk *aclk_vcodec;
 	struct clk *hclk_vcodec;
@@ -3149,6 +3158,106 @@ static struct devfreq_dev_profile devfreq_vcodec_profile = {
 	.get_cur_freq	= devfreq_vcodec_get_cur_freq,
 };
 
+static unsigned long model_static_power(struct devfreq *devfreq,
+					unsigned long voltage)
+{
+	struct device *dev = devfreq->dev.parent;
+	struct vpu_subdev_data *data = dev_get_drvdata(dev);
+	struct vpu_service_info *pservice = data->pservice;
+
+	int temperature;
+	unsigned long temp;
+	unsigned long temp_squared, temp_cubed, temp_scaling_factor;
+	const unsigned long voltage_cubed = (voltage * voltage * voltage) >> 10;
+
+	if (!IS_ERR_OR_NULL(pservice->vcodec_tz) &&
+	    pservice->vcodec_tz->ops->get_temp) {
+		int ret;
+
+		ret = pservice->vcodec_tz->ops->get_temp(pservice->vcodec_tz,
+							 &temperature);
+		if (ret) {
+			dev_warn_ratelimited(dev,
+					     "failed to read temp for ddr thermal zone: %d\n",
+					     ret);
+			temperature = FALLBACK_STATIC_TEMPERATURE;
+		}
+	} else {
+		temperature = FALLBACK_STATIC_TEMPERATURE;
+	}
+
+	/*
+	 * Calculate the temperature scaling factor. To be applied to the
+	 * voltage scaled power.
+	 */
+	temp = temperature / 1000;
+	temp_squared = temp * temp;
+	temp_cubed = temp_squared * temp;
+	temp_scaling_factor = (pservice->ts[3] * temp_cubed)
+	    + (pservice->ts[2] * temp_squared)
+	    + (pservice->ts[1] * temp)
+	    + pservice->ts[0];
+
+	return (((pservice->static_coefficient * voltage_cubed) >> 20)
+		* temp_scaling_factor) / 1000000;
+}
+
+static struct devfreq_cooling_power vcodec_cooling_power_data = {
+	.get_static_power = model_static_power,
+	.dyn_power_coeff = 120,
+};
+
+static int vcodec_power_model_simple_init(struct vpu_service_info *pservice)
+{
+	struct device_node *power_model_node;
+	const char *tz_name;
+	u32 temp;
+
+	power_model_node = of_get_child_by_name(pservice->dev->of_node,
+						"vcodec_power_model");
+	if (!power_model_node) {
+		dev_err(pservice->dev, "could not find power_model node\n");
+		return -ENODEV;
+	}
+
+	if (of_property_read_string(power_model_node, "thermal-zone", &tz_name)) {
+		dev_err(pservice->dev, "ts in power_model not available\n");
+		return -EINVAL;
+	}
+
+	pservice->vcodec_tz = thermal_zone_get_zone_by_name(tz_name);
+	if (IS_ERR(pservice->vcodec_tz)) {
+		pr_warn_ratelimited
+		    ("Error getting ddr thermal zone (%ld), not yet ready?\n",
+		     PTR_ERR(pservice->vcodec_tz));
+		pservice->vcodec_tz = NULL;
+
+		return -EPROBE_DEFER;
+	}
+
+	if (of_property_read_u32(power_model_node, "static-power-coefficient",
+				 &pservice->static_coefficient)) {
+		dev_err(pservice->dev,
+			"static-power-coefficient not available\n");
+		return -EINVAL;
+	}
+	if (of_property_read_u32(power_model_node, "dynamic-power-coefficient",
+				 &temp)) {
+		dev_err(pservice->dev,
+			"dynamic-power-coefficient not available\n");
+		return -EINVAL;
+	}
+	vcodec_cooling_power_data.dyn_power_coeff = (unsigned long)temp;
+
+	if (of_property_read_u32_array
+	    (power_model_node, "ts", (u32 *)pservice->ts, 4)) {
+		dev_err(pservice->dev, "ts in power_model not available\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int vcodec_probe(struct platform_device *pdev)
 {
 	int i;
@@ -3297,6 +3406,21 @@ static int vcodec_probe(struct platform_device *pdev)
 		}
 	} else {
 		vcodec_subdev_probe(pdev, pservice);
+	}
+
+	ret = vcodec_power_model_simple_init(pservice);
+
+	if (!ret && pservice->devfreq) {
+		pservice->devfreq_cooling =
+		    of_devfreq_cooling_register_power(pservice->dev->of_node,
+						      pservice->devfreq,
+						      &vcodec_cooling_power_data);
+		if (IS_ERR_OR_NULL(pservice->devfreq_cooling)) {
+			ret = PTR_ERR(pservice->devfreq_cooling);
+			dev_err(pservice->dev,
+				"Failed to register cooling device (%d)\n",
+				ret);
+		}
 	}
 
 	dev_info(dev, "init success\n");
