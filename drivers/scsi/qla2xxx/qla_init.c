@@ -3939,6 +3939,7 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 	port_id_t id;
+	unsigned long flags;
 
 	/* Get host addresses. */
 	rval = qla2x00_get_adapter_id(vha,
@@ -4020,7 +4021,9 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 	id.b.area = area;
 	id.b.al_pa = al_pa;
 	id.b.rsvd_1 = 0;
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qlt_update_host_map(vha, id);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (!vha->flags.init_done)
 		ql_log(ql_log_info, vha, 0x2010,

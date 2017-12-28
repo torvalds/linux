@@ -50,10 +50,11 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 
 	spin_lock_irqsave(&ha->vport_slock, flags);
 	list_add_tail(&vha->list, &ha->vp_list);
-
-	qlt_update_vp_map(vha, SET_VP_IDX);
-
 	spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	qlt_update_vp_map(vha, SET_VP_IDX);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	mutex_unlock(&ha->vport_lock);
 	return vp_id;
@@ -158,9 +159,9 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 
 	/* Remove port id from vp target map */
-	spin_lock_irqsave(&vha->hw->vport_slock, flags);
+	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
 	qlt_update_vp_map(vha, RESET_AL_PA);
-	spin_unlock_irqrestore(&vha->hw->vport_slock, flags);
+	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 
 	qla2x00_mark_vp_devices_dead(vha);
 	atomic_set(&vha->vp_state, VP_FAILED);

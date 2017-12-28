@@ -7184,20 +7184,14 @@ qlt_update_vp_map(struct scsi_qla_host *vha, int cmd)
 
 void qlt_update_host_map(struct scsi_qla_host *vha, port_id_t id)
 {
-	unsigned long flags;
-	struct qla_hw_data *ha = vha->hw;
 
 	if (!vha->d_id.b24) {
-		spin_lock_irqsave(&ha->vport_slock, flags);
 		vha->d_id = id;
 		qlt_update_vp_map(vha, SET_AL_PA);
-		spin_unlock_irqrestore(&ha->vport_slock, flags);
 	} else if (vha->d_id.b24 != id.b24) {
-		spin_lock_irqsave(&ha->vport_slock, flags);
 		qlt_update_vp_map(vha, RESET_AL_PA);
 		vha->d_id = id;
 		qlt_update_vp_map(vha, SET_AL_PA);
-		spin_unlock_irqrestore(&ha->vport_slock, flags);
 	}
 }
 
