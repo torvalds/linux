@@ -1008,6 +1008,12 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_dump_desc *desc;
 
+	if (trigger && trigger->flags & IWL_FW_DBG_FORCE_RESTART) {
+		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", trig);
+		iwl_force_nmi(fwrt->trans);
+		return 0;
+	}
+
 	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
 	if (!desc)
 		return -ENOMEM;
