@@ -403,13 +403,13 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 			val |= LIRC_CAN_REC_SCANCODE;
 
 		if (dev->driver_type == RC_DRIVER_IR_RAW) {
-			val |= LIRC_CAN_REC_MODE2 | LIRC_CAN_REC_SCANCODE;
+			val |= LIRC_CAN_REC_MODE2;
 			if (dev->rx_resolution)
 				val |= LIRC_CAN_GET_REC_RESOLUTION;
 		}
 
 		if (dev->tx_ir) {
-			val |= LIRC_CAN_SEND_PULSE | LIRC_CAN_SEND_SCANCODE;
+			val |= LIRC_CAN_SEND_PULSE;
 			if (dev->s_tx_mask)
 				val |= LIRC_CAN_SET_TRANSMITTER_MASK;
 			if (dev->s_tx_carrier)
