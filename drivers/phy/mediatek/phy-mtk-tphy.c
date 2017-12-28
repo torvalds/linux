@@ -20,6 +20,7 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 
@@ -995,7 +996,6 @@ MODULE_DEVICE_TABLE(of, mtk_tphy_id_table);
 
 static int mtk_tphy_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *child_np;
@@ -1005,15 +1005,14 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	struct resource res;
 	int port, retval;
 
-	match = of_match_node(mtk_tphy_id_table, pdev->dev.of_node);
-	if (!match)
-		return -EINVAL;
-
 	tphy = devm_kzalloc(dev, sizeof(*tphy), GFP_KERNEL);
 	if (!tphy)
 		return -ENOMEM;
 
-	tphy->pdata = match->data;
+	tphy->pdata = of_device_get_match_data(dev);
+	if (!tphy->pdata)
+		return -EINVAL;
+
 	tphy->nphys = of_get_child_count(np);
 	tphy->phys = devm_kcalloc(dev, tphy->nphys,
 				       sizeof(*tphy->phys), GFP_KERNEL);
