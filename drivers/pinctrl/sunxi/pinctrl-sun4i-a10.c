@@ -1167,7 +1167,7 @@ static const struct sunxi_desc_pin sun4i_a10_pins[] = {
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
 		  SUNXI_FUNCTION(0x2, "pwm"),		/* PWM1 */
-		  SUNXI_FUNCTION_VARIANT(0x3, "i2c3",	/* SDA */
+		  SUNXI_FUNCTION_VARIANT(0x3, "i2c4",	/* SDA */
 					 PINCTRL_SUN7I_A20 |
 					 PINCTRL_SUN8I_R40)),
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(I, 4),
