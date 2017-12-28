@@ -3732,6 +3732,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	unsigned long   flags;
 	int found;
 	port_id_t id;
+	struct fc_port *fcport;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b6,
 	    "Entered %s.\n", __func__);
@@ -3754,7 +3755,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		    "Primary port id %02x%02x%02x.\n",
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
-
+		ha->current_topology = ISP_CFG_NL;
 		qlt_update_host_map(vha, id);
 
 	} else if (rptid_entry->format == 1) {
@@ -3798,6 +3799,8 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			return;
 		}
 
+		ha->flags.gpsc_supported = 1;
+		ha->current_topology = ISP_CFG_F;
 		/* buffer to buffer credit flag */
 		vha->flags.bbcr_enable = (rptid_entry->u.f1.bbcr & 0xf) != 0;
 
@@ -3863,6 +3866,8 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		    rptid_entry->u.f2.port_name);
 
 		/* N2N.  direct connect */
+		ha->current_topology = ISP_CFG_N;
+		ha->flags.rida_fmt2 = 1;
 		vha->d_id.b.domain = rptid_entry->port_id[2];
 		vha->d_id.b.area = rptid_entry->port_id[1];
 		vha->d_id.b.al_pa = rptid_entry->port_id[0];
@@ -3870,6 +3875,37 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		spin_lock_irqsave(&ha->vport_slock, flags);
 		qlt_update_vp_map(vha, SET_AL_PA);
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			fcport->scan_state = QLA_FCPORT_SCAN;
+		}
+
+		fcport = qla2x00_find_fcport_by_wwpn(vha,
+		    rptid_entry->u.f2.port_name, 1);
+
+		if (fcport) {
+			fcport->plogi_nack_done_deadline = jiffies + HZ;
+			fcport->scan_state = QLA_FCPORT_FOUND;
+			switch (fcport->disc_state) {
+			case DSC_DELETED:
+				ql_dbg(ql_dbg_disc, vha, 0x210d,
+				    "%s %d %8phC login\n",
+				    __func__, __LINE__, fcport->port_name);
+				qla24xx_fcport_handle_login(vha, fcport);
+				break;
+			case DSC_DELETE_PEND:
+				break;
+			default:
+				qlt_schedule_sess_for_deletion_lock(fcport);
+				break;
+			}
+		} else {
+			id.b.al_pa  = rptid_entry->u.f2.remote_nport_id[0];
+			id.b.area   = rptid_entry->u.f2.remote_nport_id[1];
+			id.b.domain = rptid_entry->u.f2.remote_nport_id[2];
+			qla24xx_post_newsess_work(vha, &id,
+			    rptid_entry->u.f2.port_name, NULL);
+		}
 	}
 }
 

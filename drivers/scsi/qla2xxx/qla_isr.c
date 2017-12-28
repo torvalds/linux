@@ -809,6 +809,7 @@ skip_rio:
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
+		SAVE_TOPO(ha);
 		ha->flags.n2n_ae = 0;
 		ha->flags.lip_ae = 0;
 		ha->current_topology = 0;
@@ -922,7 +923,6 @@ skip_rio:
 		set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
 		set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
 
-		ha->flags.gpsc_supported = 1;
 		vha->flags.management_server_logged_in = 0;
 		break;
 
@@ -1059,8 +1059,6 @@ global_port_update:
 		 * Mark all devices as missing so we will login again.
 		 */
 		atomic_set(&vha->loop_state, LOOP_UP);
-
-		qla2x00_mark_all_devices_lost(vha, 1);
 
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);

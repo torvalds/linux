@@ -4761,6 +4761,10 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	    (struct qlt_plogi_ack_t *)e->u.new_sess.pla;
 	uint8_t free_fcport = 0;
 
+	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	    "%s %d %8phC enter\n",
+	    __func__, __LINE__, e->u.new_sess.port_name);
+
 	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 	fcport = qla2x00_find_fcport_by_wwpn(vha, e->u.new_sess.port_name, 1);
 	if (fcport) {
@@ -4822,7 +4826,31 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	if (fcport) {
+		if (N2N_TOPO(vha->hw))
+			fcport->flags &= ~FCF_FABRIC_DEVICE;
+
 		if (pla) {
+			if (pla->iocb.u.isp24.status_subcode == ELS_PRLI) {
+				u16 wd3_lo;
+
+				fcport->fw_login_state = DSC_LS_PRLI_PEND;
+				fcport->local = 0;
+				fcport->loop_id =
+					le16_to_cpu(
+					    pla->iocb.u.isp24.nport_handle);
+				fcport->fw_login_state = DSC_LS_PRLI_PEND;
+				wd3_lo =
+				    le16_to_cpu(
+					pla->iocb.u.isp24.u.prli.wd3_lo);
+
+				if (wd3_lo & BIT_7)
+					fcport->conf_compl_supported = 1;
+
+				if ((wd3_lo & BIT_4) == 0)
+					fcport->port_type = FCT_INITIATOR;
+				else
+					fcport->port_type = FCT_TARGET;
+			}
 			qlt_plogi_ack_unref(vha, pla);
 		} else {
 			spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
@@ -4985,14 +5013,13 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 	struct event_arg ea;
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
-	/*
-	 * If the port is not ONLINE then try to login
-	 * to it if we haven't run out of retries.
-	 */
+		/*
+		 * If the port is not ONLINE then try to login
+		 * to it if we haven't run out of retries.
+		 */
 		if (atomic_read(&fcport->state) != FCS_ONLINE &&
 		    fcport->login_retry && !(fcport->flags & FCF_ASYNC_SENT)) {
-
-			if (fcport->flags & FCF_FABRIC_DEVICE) {
+			if (vha->hw->current_topology != ISP_CFG_NL) {
 				ql_dbg(ql_dbg_disc, fcport->vha, 0x2108,
 				    "%s %8phC DS %d LS %d\n", __func__,
 				    fcport->port_name, fcport->disc_state,
@@ -5001,7 +5028,7 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 				ea.event = FCME_RELOGIN;
 				ea.fcport = fcport;
 				qla2x00_fcport_event_handler(vha, &ea);
-			} else {
+			} else if (vha->hw->current_topology == ISP_CFG_NL) {
 				fcport->login_retry--;
 				status = qla2x00_local_device_login(vha,
 								fcport);
