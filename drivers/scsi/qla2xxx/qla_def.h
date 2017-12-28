@@ -2334,6 +2334,7 @@ typedef struct fc_port {
 
 	unsigned int conf_compl_supported:1;
 	unsigned int deleted:2;
+	unsigned int free_pending:1;
 	unsigned int local:1;
 	unsigned int logout_on_delete:1;
 	unsigned int logo_ack_needed:1;

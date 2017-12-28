@@ -1105,6 +1105,7 @@ static void qlt_free_session_done(struct work_struct *work)
 			sess->plogi_link[QLT_PLOGI_LINK_SAME_WWN] = NULL;
 		}
 	}
+
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf001,
@@ -1118,6 +1119,9 @@ static void qlt_free_session_done(struct work_struct *work)
 		wake_up_all(&vha->fcport_waitQ);
 
 	base_vha = pci_get_drvdata(ha->pdev);
+
+	sess->free_pending = 0;
+
 	if (test_bit(PFLG_DRIVER_REMOVING, &base_vha->pci_flags))
 		return;
 
@@ -1140,10 +1144,19 @@ static void qlt_free_session_done(struct work_struct *work)
 void qlt_unreg_sess(struct fc_port *sess)
 {
 	struct scsi_qla_host *vha = sess->vha;
+	unsigned long flags;
 
 	ql_dbg(ql_dbg_disc, sess->vha, 0x210a,
 	    "%s sess %p for deletion %8phC\n",
 	    __func__, sess, sess->port_name);
+
+	spin_lock_irqsave(&sess->vha->work_lock, flags);
+	if (sess->free_pending) {
+		spin_unlock_irqrestore(&sess->vha->work_lock, flags);
+		return;
+	}
+	sess->free_pending = 1;
+	spin_unlock_irqrestore(&sess->vha->work_lock, flags);
 
 	if (sess->se_sess)
 		vha->hw->tgt.tgt_ops->clear_nacl_from_fcport_map(sess);
