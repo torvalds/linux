@@ -265,12 +265,19 @@ qla2x00_alert_all_vps(struct rsp_que *rsp, uint16_t *mb)
 			case MBA_LIP_RESET:
 			case MBA_POINT_TO_POINT:
 			case MBA_CHG_IN_CONNECTION:
-			case MBA_PORT_UPDATE:
-			case MBA_RSCN_UPDATE:
 				ql_dbg(ql_dbg_async, vha, 0x5024,
 				    "Async_event for VP[%d], mb=0x%x vha=%p.\n",
 				    i, *mb, vha);
 				qla2x00_async_event(vha, rsp, mb);
+				break;
+			case MBA_PORT_UPDATE:
+			case MBA_RSCN_UPDATE:
+				if ((mb[3] & 0xff) == vha->vp_idx) {
+					ql_dbg(ql_dbg_async, vha, 0x5024,
+					    "Async_event for VP[%d], mb=0x%x vha=%p\n",
+					    i, *mb, vha);
+					qla2x00_async_event(vha, rsp, mb);
+				}
 				break;
 			}
 
