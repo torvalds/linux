@@ -2522,7 +2522,7 @@ static int vb2_thread(void *data)
 				break;
 		call_void_qop(q, wait_finish, q);
 		if (copy_timestamp)
-			vb->timestamp = ktime_get_ns();;
+			vb->timestamp = ktime_get_ns();
 		if (!threadio->stop)
 			ret = vb2_core_qbuf(q, vb->index, NULL);
 		call_void_qop(q, wait_prepare, q);
