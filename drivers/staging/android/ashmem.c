@@ -808,7 +808,23 @@ static long compat_ashmem_ioctl(struct file *file, unsigned int cmd,
 	return ashmem_ioctl(file, cmd, arg);
 }
 #endif
+#ifdef CONFIG_PROC_FS
+static void ashmem_show_fdinfo(struct seq_file *m, struct file *file)
+{
+	struct ashmem_area *asma = file->private_data;
 
+	mutex_lock(&ashmem_mutex);
+
+	if (asma->file)
+		seq_printf(m, "inode:\t%ld\n", file_inode(asma->file)->i_ino);
+
+	if (asma->name[ASHMEM_NAME_PREFIX_LEN] != '\0')
+		seq_printf(m, "name:\t%s\n",
+			   asma->name + ASHMEM_NAME_PREFIX_LEN);
+
+	mutex_unlock(&ashmem_mutex);
+}
+#endif
 static const struct file_operations ashmem_fops = {
 	.owner = THIS_MODULE,
 	.open = ashmem_open,
@@ -819,6 +835,9 @@ static const struct file_operations ashmem_fops = {
 	.unlocked_ioctl = ashmem_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_ashmem_ioctl,
+#endif
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo = ashmem_show_fdinfo,
 #endif
 };
 
