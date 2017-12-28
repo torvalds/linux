@@ -30,8 +30,9 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
-
 #include <linux/mali/mali_utgard.h>
+#include <soc/rockchip/rockchip_opp_select.h>
+
 #include "mali_kernel_common.h"
 #include "mali_session.h"
 #include "mali_kernel_core.h"
@@ -517,7 +518,10 @@ static int mali_probe(struct platform_device *pdev)
 {
 	int err;
 #ifdef CONFIG_MALI_DEVFREQ
+#define MAX_PROP_NAME_LEN	3
 	struct mali_device *mdev;
+	char name[MAX_PROP_NAME_LEN];
+	int lkg_volt_sel;
 #endif
 
 	MALI_DEBUG_PRINT(2, ("mali_probe(): Called for platform device %s\n", pdev->name));
@@ -562,6 +566,14 @@ static int mali_probe(struct platform_device *pdev)
 
 	mdev->dev = &pdev->dev;
 	dev_set_drvdata(mdev->dev, mdev);
+
+	lkg_volt_sel = rockchip_of_get_lkg_volt_sel(mdev->dev, "gpu_leakage");
+	if (lkg_volt_sel >= 0) {
+		snprintf(name, MAX_PROP_NAME_LEN, "L%d", lkg_volt_sel);
+		err = dev_pm_opp_set_prop_name(mdev->dev, name);
+		if (err)
+			dev_err(mdev->dev, "Failed to set prop name\n");
+	}
 
 	/*Initilization clock and regulator*/
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 12, 0)) && defined(CONFIG_OF) \

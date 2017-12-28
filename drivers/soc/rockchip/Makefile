@@ -14,3 +14,4 @@ obj-$(CONFIG_ROCK_CHIP_SOC_CAMERA) += rk_camera.o
 
 obj-y += rk_vendor_storage.o
 obj-y += rockchip-system-status.o
+obj-y += rockchip_opp_select.o

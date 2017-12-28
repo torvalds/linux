@@ -44,6 +44,7 @@
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_sip.h>
 #include <soc/rockchip/rockchip-system-status.h>
+#include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/scpi.h>
 #include <uapi/drm/drm_mode.h>
 
@@ -2347,6 +2348,9 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int (*init)(struct platform_device *pdev,
 		    struct rockchip_dmcfreq *data);
+#define MAX_PROP_NAME_LEN	3
+	char name[MAX_PROP_NAME_LEN];
+	int lkg_volt_sel;
 	int ret;
 
 	data = devm_kzalloc(dev, sizeof(struct rockchip_dmcfreq), GFP_KERNEL);
@@ -2392,6 +2396,14 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	 * We add a devfreq driver to our parent since it has a device tree node
 	 * with operating points.
 	 */
+	lkg_volt_sel = rockchip_of_get_lkg_volt_sel(dev, "ddr_leakage");
+	if (lkg_volt_sel >= 0) {
+		snprintf(name, MAX_PROP_NAME_LEN, "L%d", lkg_volt_sel);
+		ret = dev_pm_opp_set_prop_name(dev, name);
+		if (ret)
+			dev_err(dev, "Failed to set prop name\n");
+	}
+
 	if (dev_pm_opp_of_add_table(dev)) {
 		dev_err(dev, "Invalid operating-points in device tree.\n");
 		return -EINVAL;
