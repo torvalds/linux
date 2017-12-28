@@ -320,6 +320,7 @@ static void repo_hpd_event(struct work_struct *p_work)
 
 	if (hdmi->bridge.dev)
 		drm_helper_hpd_irq_event(hdmi->bridge.dev);
+
 #ifdef CONFIG_SWITCH
 	if (hdmi->hpd_state)
 		switch_set_state(&hdmi->switchdev, 1);
@@ -2809,14 +2810,13 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 			if (phy_stat & HDMI_PHY_HPD)
 				hdmi->rxsense = true;
 
-			if (!(phy_stat & (HDMI_PHY_RX_SENSE | HDMI_PHY_HPD)))
-				cec_notifier_set_phys_addr(hdmi->cec_notifier,
-							   0xffff);
-
 			dw_hdmi_update_power(hdmi);
 			dw_hdmi_update_phy_mask(hdmi);
 		}
 		mutex_unlock(&hdmi->mutex);
+		if (!(phy_stat & (HDMI_PHY_RX_SENSE | HDMI_PHY_HPD)))
+			cec_notifier_set_phys_addr(hdmi->cec_notifier,
+						   CEC_PHYS_ADDR_INVALID);
 	}
 
 	check_hdmi_irq(hdmi, intr_stat, phy_int_pol);
