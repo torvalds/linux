@@ -3875,13 +3875,17 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 
 	rc = sp->rc;
 	if (rc) {
-		ql_dbg(ql_dbg_disc, vha, 0xffff,
-		    "GPNFT failed. FC4type %x. Rescanning.\n",
-		    fc4type);
-		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
-		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+		vha->scan.scan_retry++;
+		if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
+			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+		} else {
+			ql_dbg(ql_dbg_disc, vha, 0xffff,
+			    "Fabric scan failed on all retries.\n");
+		}
 		goto out;
 	}
+	vha->scan.scan_retry = 0;
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list)
 		fcport->scan_state = QLA_FCPORT_SCAN;
@@ -3964,7 +3968,6 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 
 out:
 	qla24xx_sp_unmap(vha, sp);
-
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
 	spin_unlock_irqrestore(&vha->work_lock, flags);
@@ -3992,16 +3995,21 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 	if (res) {
 		unsigned long flags;
 
-		ql_dbg(ql_dbg_disc, sp->vha, 0xffff,
-		    "Async done-%s timed out.\n",
-		    sp->name);
 		sp->free(sp);
 		spin_lock_irqsave(&vha->work_lock, flags);
 		vha->scan.scan_flags &= ~SF_SCANNING;
+		vha->scan.scan_retry++;
 		spin_unlock_irqrestore(&vha->work_lock, flags);
-		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
-		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-		qla2xxx_wake_dpc(vha);
+
+		if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
+			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
+		} else {
+			ql_dbg(ql_dbg_disc, sp->vha, 0xffff,
+			    "Async done-%s rescan failed on all retries\n",
+			    sp->name);
+		}
 		return;
 	}
 

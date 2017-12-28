@@ -2986,6 +2986,8 @@ struct fab_scan_rp {
 struct fab_scan {
 	struct fab_scan_rp *l;
 	u32 size;
+	u16 scan_retry;
+#define MAX_SCAN_RETRIES 5
 	enum scan_flags_t scan_flags;
 	struct delayed_work scan_work;
 };
