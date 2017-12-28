@@ -18,6 +18,8 @@
 #include "dvbdev.h"
 #include "dvb_vb2.h"
 
+#define DVB_V2_MAX_SIZE		(4096 * 188)
+
 static int vb2_debug;
 module_param(vb2_debug, int, 0644);
 
@@ -329,6 +331,12 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 int dvb_vb2_reqbufs(struct dvb_vb2_ctx *ctx, struct dmx_requestbuffers *req)
 {
 	int ret;
+
+	/* Adjust size to a sane value */
+	if (req->size > DVB_V2_MAX_SIZE)
+		req->size = DVB_V2_MAX_SIZE;
+
+	/* FIXME: round req->size to a 188 or 204 multiple */
 
 	ctx->buf_siz = req->size;
 	ctx->buf_cnt = req->count;
