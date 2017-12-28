@@ -246,8 +246,8 @@
  * There is no correspondence between an N-PORT id and an AL_PA.  Therefore the
  * valid range of an N-PORT id is 0 through 0x7ef.
  */
-#define NPH_LAST_HANDLE		0x7ef
-#define NPH_MGMT_SERVER		0x7fa		/*  FFFFFA */
+#define NPH_LAST_HANDLE		0x7ee
+#define NPH_MGMT_SERVER		0x7ef		/*  FFFFEF */
 #define NPH_SNS			0x7fc		/*  FFFFFC */
 #define NPH_FABRIC_CONTROLLER	0x7fd		/*  FFFFFD */
 #define NPH_F_PORT		0x7fe		/*  FFFFFE */
