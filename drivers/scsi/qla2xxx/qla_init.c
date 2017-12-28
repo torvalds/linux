@@ -1268,11 +1268,6 @@ void qla24xx_handle_relogin_event(scsi_qla_host_t *vha,
 {
 	fc_port_t *fcport = ea->fcport;
 
-	if (fcport->scan_state != QLA_FCPORT_FOUND) {
-		fcport->login_retry++;
-		return;
-	}
-
 	ql_dbg(ql_dbg_disc, vha, 0x2102,
 	    "%s %8phC DS %d LS %d P %d del %d cnfl %p rscn %d|%d login %d|%d fl %x\n",
 	    __func__, fcport->port_name, fcport->disc_state,
@@ -1322,7 +1317,6 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 	int rc;
 
 	switch (ea->event) {
-	case FCME_RELOGIN:
 	case FCME_RSCN:
 	case FCME_GIDPN_DONE:
 	case FCME_GPSC_DONE:
