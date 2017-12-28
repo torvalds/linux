@@ -66,6 +66,7 @@ extern void qla84xx_put_chip(struct scsi_qla_host *);
 extern int qla2x00_async_login(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_async_logout(struct scsi_qla_host *, fc_port_t *);
+extern int qla2x00_async_prlo(struct scsi_qla_host *, fc_port_t *);
 extern int qla2x00_async_adisc(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_async_tm_cmd(fc_port_t *, uint32_t, uint32_t, uint32_t);
@@ -109,6 +110,13 @@ int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *,
 int qla24xx_fcport_handle_login(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_detect_sfp(scsi_qla_host_t *vha);
 int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
+void qla2x00_async_prlo_done(struct scsi_qla_host *, fc_port_t *,
+    uint16_t *);
+extern int qla2x00_post_async_prlo_work(struct scsi_qla_host *, fc_port_t *,
+    uint16_t *);
+extern int qla2x00_post_async_prlo_done_work(struct scsi_qla_host *,
+    fc_port_t *, uint16_t *);
+
 /*
  * Global Data in qla_os.c source file.
  */

@@ -507,6 +507,7 @@ struct srb_iocb {
 #define SRB_NVME_LS	20
 #define SRB_PRLI_CMD	21
 #define SRB_CTRL_VP	22
+#define SRB_PRLO_CMD	23
 
 enum {
 	TYPE_SRB,
@@ -3140,6 +3141,8 @@ enum qla_work_type {
 	QLA_EVT_GNL,
 	QLA_EVT_NACK,
 	QLA_EVT_RELOGIN,
+	QLA_EVT_ASYNC_PRLO,
+	QLA_EVT_ASYNC_PRLO_DONE,
 };
 
 

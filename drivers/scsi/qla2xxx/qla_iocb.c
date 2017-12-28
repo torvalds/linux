@@ -3390,6 +3390,20 @@ qla25xx_ctrlvp_iocb(srb_t *sp, struct vp_ctrl_entry_24xx *vce)
 	vce->vp_idx_map[map] |= 1 << pos;
 }
 
+static void
+qla24xx_prlo_iocb(srb_t *sp, struct logio_entry_24xx *logio)
+{
+	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	logio->control_flags =
+	    cpu_to_le16(LCF_COMMAND_PRLO|LCF_IMPL_PRLO);
+
+	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
+	logio->port_id[1] = sp->fcport->d_id.b.area;
+	logio->port_id[2] = sp->fcport->d_id.b.domain;
+	logio->vp_index = sp->fcport->vha->vp_idx;
+}
+
 int
 qla2x00_start_sp(srb_t *sp)
 {
@@ -3470,6 +3484,9 @@ qla2x00_start_sp(srb_t *sp)
 		break;
 	case SRB_CTRL_VP:
 		qla25xx_ctrlvp_iocb(sp, pkt);
+		break;
+	case SRB_PRLO_CMD:
+		qla24xx_prlo_iocb(sp, pkt);
 		break;
 	default:
 		break;

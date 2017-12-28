@@ -4690,6 +4690,8 @@ qla2x00_post_async_work(logout, QLA_EVT_ASYNC_LOGOUT);
 qla2x00_post_async_work(logout_done, QLA_EVT_ASYNC_LOGOUT_DONE);
 qla2x00_post_async_work(adisc, QLA_EVT_ASYNC_ADISC);
 qla2x00_post_async_work(adisc_done, QLA_EVT_ASYNC_ADISC_DONE);
+qla2x00_post_async_work(prlo, QLA_EVT_ASYNC_PRLO);
+qla2x00_post_async_work(prlo_done, QLA_EVT_ASYNC_PRLO_DONE);
 
 int
 qla2x00_post_uevent_work(struct scsi_qla_host *vha, u32 code)
@@ -4942,6 +4944,13 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 			break;
 		case QLA_EVT_NACK:
 			qla24xx_do_nack_work(vha, e);
+			break;
+		case QLA_EVT_ASYNC_PRLO:
+			qla2x00_async_prlo(vha, e->u.logio.fcport);
+			break;
+		case QLA_EVT_ASYNC_PRLO_DONE:
+			qla2x00_async_prlo_done(vha, e->u.logio.fcport,
+			    e->u.logio.data);
 			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
