@@ -22,6 +22,7 @@ config LKL
        select 64BIT if OUTPUT_FORMAT = "elf64-littleaarch64"
        select IP_PNP
        select IP_PNP_DHCP
+       select TCP_CONG_ADVANCED
        select TCP_CONG_BBR
        select HIGH_RES_TIMERS
        select NET_SCHED
