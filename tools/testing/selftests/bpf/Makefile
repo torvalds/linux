@@ -39,7 +39,7 @@ $(BPFOBJ): force
 CLANG ?= clang
 LLC   ?= llc
 
-PROBE := $(shell llc -march=bpf -mcpu=probe -filetype=null /dev/null 2>&1)
+PROBE := $(shell $(LLC) -march=bpf -mcpu=probe -filetype=null /dev/null 2>&1)
 
 # Let newer LLVM versions transparently probe the kernel for availability
 # of full BPF instruction set.
