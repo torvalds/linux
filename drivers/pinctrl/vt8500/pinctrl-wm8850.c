@@ -345,10 +345,8 @@ static int wm8850_pinctrl_probe(struct platform_device *pdev)
 	struct wmt_pinctrl_data *data;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "failed to allocate data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->banks = wm8850_banks;
 	data->nbanks = ARRAY_SIZE(wm8850_banks);
