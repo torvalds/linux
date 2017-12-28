@@ -2823,15 +2823,19 @@ void qla24xx_handle_gidpn_event(scsi_qla_host_t *vha, struct event_arg *ea)
 					    "%s %d %8phC post %s\n", __func__,
 					    __LINE__, fcport->port_name,
 					    (atomic_read(&fcport->state) ==
-					    FCS_ONLINE) ? "gpdb" : "gnl");
+					    FCS_ONLINE) ? "adisc" : "gnl");
 
 					if (atomic_read(&fcport->state) ==
-					    FCS_ONLINE)
-						qla24xx_post_gpdb_work(vha,
-						    fcport, PDO_FORCE_ADISC);
-					else
+					    FCS_ONLINE) {
+						u16 data[2];
+
+						data[0] = data[1] = 0;
+						qla2x00_post_async_adisc_work(
+						    vha, fcport, data);
+					} else {
 						qla24xx_post_gnl_work(vha,
 						    fcport);
+					}
 					break;
 				}
 			} else { /* fcport->d_id.b24 != ea->id.b24 */
@@ -3172,6 +3176,7 @@ void qla24xx_async_gpnid_done(scsi_qla_host_t *vha, srb_t *sp)
 void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 {
 	fc_port_t *fcport, *conflict, *t;
+	u16 data[2];
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "%s %d port_id: %06x\n",
@@ -3246,8 +3251,9 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 				ql_dbg(ql_dbg_disc, vha, 0x210d,
 				    "%s %d %8phC revalidate session with ADISC\n",
 				    __func__, __LINE__, fcport->port_name);
-				qla24xx_post_gpdb_work(vha, fcport,
-				    PDO_FORCE_ADISC);
+				data[0] = data[1] = 0;
+				qla2x00_post_async_adisc_work(vha, fcport,
+				    data);
 				break;
 			case DSC_DELETED:
 				ql_dbg(ql_dbg_disc, vha, 0x210d,

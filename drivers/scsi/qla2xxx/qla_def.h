@@ -2277,6 +2277,7 @@ enum discovery_state {
 	DSC_GPSC,
 	DSC_UPD_FCPORT,
 	DSC_LOGIN_COMPLETE,
+	DSC_ADISC,
 	DSC_DELETE_PEND,
 };
 
@@ -2303,6 +2304,7 @@ enum fcport_mgt_event {
 	FCME_GPNID_DONE,
 	FCME_GFFID_DONE,
 	FCME_DELETE_DONE,
+	FCME_ADISC_DONE,
 };
 
 enum rscn_addr_format {
