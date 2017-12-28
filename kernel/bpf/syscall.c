@@ -1157,6 +1157,8 @@ static int bpf_prog_load(union bpf_attr *attr)
 	if (!prog)
 		return -ENOMEM;
 
+	prog->aux->offload_requested = !!attr->prog_ifindex;
+
 	err = security_bpf_prog_alloc(prog->aux);
 	if (err)
 		goto free_prog_nouncharge;
@@ -1178,7 +1180,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 	atomic_set(&prog->aux->refcnt, 1);
 	prog->gpl_compatible = is_gpl ? 1 : 0;
 
-	if (attr->prog_ifindex) {
+	if (bpf_prog_is_dev_bound(prog->aux)) {
 		err = bpf_prog_offload_init(prog, attr);
 		if (err)
 			goto free_prog;
