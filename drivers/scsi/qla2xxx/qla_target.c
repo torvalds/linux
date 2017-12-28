@@ -969,7 +969,6 @@ static void qlt_free_session_done(struct work_struct *work)
 	struct qla_hw_data *ha = vha->hw;
 	unsigned long flags;
 	bool logout_started = false;
-	struct event_arg ea;
 	scsi_qla_host_t *base_vha;
 	struct qlt_plogi_ack_t *own =
 		sess->plogi_link[QLT_PLOGI_LINK_SAME_WWN];
@@ -1121,11 +1120,18 @@ static void qlt_free_session_done(struct work_struct *work)
 	if (test_bit(PFLG_DRIVER_REMOVING, &base_vha->pci_flags))
 		return;
 
-	if (!tgt || !tgt->tgt_stop) {
-		memset(&ea, 0, sizeof(ea));
-		ea.event = FCME_DELETE_DONE;
-		ea.fcport = sess;
-		qla2x00_fcport_event_handler(vha, &ea);
+	if ((!tgt || !tgt->tgt_stop) && !LOOP_TRANSITION(vha)) {
+		switch (vha->host->active_mode) {
+		case MODE_INITIATOR:
+		case MODE_DUAL:
+			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
+			break;
+		case MODE_TARGET:
+		default:
+			/* no-op */
+			break;
+		}
 	}
 }
 
@@ -4318,12 +4324,19 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 	struct fc_port *sess;
 	struct qla_tgt_cmd *cmd;
 	unsigned long flags;
+	port_id_t id;
 
 	if (unlikely(tgt->tgt_stop)) {
 		ql_dbg(ql_dbg_io, vha, 0x3061,
 		    "New command while device %p is shutting down\n", tgt);
 		return -EFAULT;
 	}
+
+	id.b.al_pa = atio->u.isp24.fcp_hdr.s_id[2];
+	id.b.area = atio->u.isp24.fcp_hdr.s_id[1];
+	id.b.domain = atio->u.isp24.fcp_hdr.s_id[0];
+	if (IS_SW_RESV_ADDR(id))
+		return -EBUSY;
 
 	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha, atio->u.isp24.fcp_hdr.s_id);
 	if (unlikely(!sess)) {
@@ -4739,8 +4752,16 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 		ql_dbg(ql_dbg_disc, vha, 0xffff,
 		    "%s %d %8phC post new sess\n",
 		    __func__, __LINE__, iocb->u.isp24.port_name);
-		qla24xx_post_newsess_work(vha, &port_id,
-		    iocb->u.isp24.port_name, pla);
+		if (iocb->u.isp24.status_subcode == ELS_PLOGI)
+			qla24xx_post_newsess_work(vha, &port_id,
+			    iocb->u.isp24.port_name,
+			    iocb->u.isp24.u.plogi.node_name,
+			    pla, FC4_TYPE_UNKNOWN);
+		else
+			qla24xx_post_newsess_work(vha, &port_id,
+			    iocb->u.isp24.port_name, NULL,
+			    pla, FC4_TYPE_UNKNOWN);
+
 		goto out;
 	}
 
@@ -4869,6 +4890,11 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 			break;
 		}
 
+		if (IS_SW_RESV_ADDR(port_id)) {
+			res = 1;
+			break;
+		}
+
 		wd3_lo = le16_to_cpu(iocb->u.isp24.u.prli.wd3_lo);
 
 		if (wwn) {
@@ -4896,12 +4922,32 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 		}
 
 		if (sess != NULL) {
+			bool delete = false;
 			spin_lock_irqsave(&tgt->ha->tgt.sess_lock, flags);
 			switch (sess->fw_login_state) {
+			case DSC_LS_PLOGI_PEND:
 			case DSC_LS_PLOGI_COMP:
 			case DSC_LS_PRLI_COMP:
 				break;
 			default:
+				delete = true;
+				break;
+			}
+
+			switch (sess->disc_state) {
+			case DSC_LOGIN_PEND:
+			case DSC_GPDB:
+			case DSC_GPSC:
+			case DSC_UPD_FCPORT:
+			case DSC_LOGIN_COMPLETE:
+			case DSC_ADISC:
+				delete = false;
+				break;
+			default:
+				break;
+			}
+
+			if (delete) {
 				spin_unlock_irqrestore(&tgt->ha->tgt.sess_lock,
 				    flags);
 				/*

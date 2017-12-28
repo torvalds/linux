@@ -3904,7 +3904,10 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			id.b.area   = rptid_entry->u.f2.remote_nport_id[1];
 			id.b.domain = rptid_entry->u.f2.remote_nport_id[2];
 			qla24xx_post_newsess_work(vha, &id,
-			    rptid_entry->u.f2.port_name, NULL);
+			    rptid_entry->u.f2.port_name,
+			    rptid_entry->u.f2.node_name,
+			    NULL,
+			    FC4_TYPE_UNKNOWN);
 		}
 	}
 }

@@ -105,8 +105,8 @@ int qla24xx_async_gpdb(struct scsi_qla_host *, fc_port_t *, u8);
 int qla24xx_async_prli(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_notify_ack(scsi_qla_host_t *, fc_port_t *,
 	struct imm_ntfy_from_isp *, int);
-int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *,
-    void *);
+int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *, u8*,
+    void *, u8);
 int qla24xx_fcport_handle_login(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_detect_sfp(scsi_qla_host_t *vha);
 int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
@@ -655,9 +655,20 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *, struct event_arg *);
 
 int qla24xx_post_gpsc_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_gpsc(scsi_qla_host_t *, fc_port_t *);
+void qla24xx_handle_gpsc_event(scsi_qla_host_t *, struct event_arg *);
 int qla2x00_mgmt_svr_login(scsi_qla_host_t *);
 void qla24xx_handle_gffid_event(scsi_qla_host_t *vha, struct event_arg *ea);
 int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport);
+int qla24xx_async_gpnft(scsi_qla_host_t *, u8);
+void qla24xx_async_gpnft_done(scsi_qla_host_t *, srb_t *);
+void qla24xx_async_gnnft_done(scsi_qla_host_t *, srb_t *);
+int qla24xx_async_gnnid(scsi_qla_host_t *, fc_port_t *);
+void qla24xx_handle_gnnid_event(scsi_qla_host_t *, struct event_arg *);
+int qla24xx_post_gnnid_work(struct scsi_qla_host *, fc_port_t *);
+int qla24xx_post_gfpnid_work(struct scsi_qla_host *, fc_port_t *);
+int qla24xx_async_gfpnid(scsi_qla_host_t *, fc_port_t *);
+void qla24xx_handle_gfpnid_event(scsi_qla_host_t *, struct event_arg *);
+
 /*
  * Global Function Prototypes in qla_attr.c source file.
  */

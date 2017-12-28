@@ -993,7 +993,7 @@ struct qla_tgt_prm {
 
 /* Check for Switch reserved address */
 #define IS_SW_RESV_ADDR(_s_id) \
-	((_s_id.b.domain == 0xff) && (_s_id.b.area == 0xfc))
+	((_s_id.b.domain == 0xff) && ((_s_id.b.area & 0xf0) == 0xf0))
 
 #define QLA_TGT_XMIT_DATA		1
 #define QLA_TGT_XMIT_STATUS		2

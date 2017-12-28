@@ -3639,6 +3639,8 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	dma_free_coherent(&ha->pdev->dev,
 		base_vha->gnl.size, base_vha->gnl.l, base_vha->gnl.ldma);
 
+	vfree(base_vha->scan.l);
+
 	if (IS_QLAFX00(ha))
 		qlafx00_driver_shutdown(base_vha, 20);
 
@@ -4587,6 +4589,18 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 		return NULL;
 	}
 
+	/* todo: what about ext login? */
+	vha->scan.size = ha->max_fibre_devices * sizeof(struct fab_scan_rp);
+	vha->scan.l = vmalloc(vha->scan.size);
+	if (!vha->scan.l) {
+		ql_log(ql_log_fatal, vha, 0xd04a,
+		    "Alloc failed for scan database.\n");
+		dma_free_coherent(&ha->pdev->dev, vha->gnl.size,
+		    vha->gnl.l, vha->gnl.ldma);
+		scsi_remove_host(vha->host);
+		return NULL;
+	}
+
 	sprintf(vha->host_str, "%s_%ld", QLA2XXX_DRIVER_NAME, vha->host_no);
 	ql_dbg(ql_dbg_init, vha, 0x0041,
 	    "Allocated the host=%p hw=%p vha=%p dev_name=%s",
@@ -4760,6 +4774,7 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	struct qlt_plogi_ack_t *pla =
 	    (struct qlt_plogi_ack_t *)e->u.new_sess.pla;
 	uint8_t free_fcport = 0;
+	u64 wwn;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "%s %d %8phC enter\n",
@@ -4785,9 +4800,10 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 		fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
 		if (fcport) {
 			fcport->d_id = e->u.new_sess.id;
-			fcport->scan_state = QLA_FCPORT_FOUND;
 			fcport->flags |= FCF_FABRIC_DEVICE;
 			fcport->fw_login_state = DSC_LS_PLOGI_PEND;
+			if (e->u.new_sess.fc4_type == FC4_TYPE_FCP_SCSI)
+				fcport->fc4_type = FC4_TYPE_FCP_SCSI;
 
 			memcpy(fcport->port_name, e->u.new_sess.port_name,
 			    WWN_SIZE);
@@ -4802,7 +4818,7 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 		}
 
 		spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
-		/* search again to make sure one else got ahead */
+		/* search again to make sure no one else got ahead */
 		tfcp = qla2x00_find_fcport_by_wwpn(vha,
 		    e->u.new_sess.port_name, 1);
 		if (tfcp) {
@@ -4828,6 +4844,10 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	if (fcport) {
 		if (N2N_TOPO(vha->hw))
 			fcport->flags &= ~FCF_FABRIC_DEVICE;
+
+		fcport->id_changed = 1;
+		fcport->scan_state = QLA_FCPORT_FOUND;
+		memcpy(fcport->node_name, e->u.new_sess.node_name, WWN_SIZE);
 
 		if (pla) {
 			if (pla->iocb.u.isp24.status_subcode == ELS_PRLI) {
@@ -4881,7 +4901,13 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 				}
 			}
 			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-			qla24xx_async_gnl(vha, fcport);
+
+			wwn = wwn_to_u64(fcport->node_name);
+
+			if (!wwn)
+				qla24xx_async_gnnid(vha, fcport);
+			else
+				qla24xx_async_gnl(vha, fcport);
 		}
 	}
 
@@ -4979,6 +5005,21 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_ASYNC_PRLO_DONE:
 			qla2x00_async_prlo_done(vha, e->u.logio.fcport,
 			    e->u.logio.data);
+			break;
+		case QLA_EVT_GPNFT:
+			qla24xx_async_gpnft(vha, e->u.gpnft.fc4_type);
+			break;
+		case QLA_EVT_GPNFT_DONE:
+			qla24xx_async_gpnft_done(vha, e->u.iosb.sp);
+			break;
+		case QLA_EVT_GNNFT_DONE:
+			qla24xx_async_gnnft_done(vha, e->u.iosb.sp);
+			break;
+		case QLA_EVT_GNNID:
+			qla24xx_async_gnnid(vha, e->u.fcport.fcport);
+			break;
+		case QLA_EVT_GFPNID:
+			qla24xx_async_gfpnid(vha, e->u.fcport.fcport);
 			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
