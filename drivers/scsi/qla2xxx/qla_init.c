@@ -580,36 +580,29 @@ static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 
 	if (!found) {
 		/* fw has no record of this port */
-		if (fcport->loop_id == FC_NO_LOOP_ID) {
-			qla2x00_find_new_loop_id(vha, fcport);
-			fcport->fw_login_state = DSC_LS_PORT_UNAVAIL;
-		} else {
-			for (i = 0; i < n; i++) {
-				e = &vha->gnl.l[i];
-				id.b.domain = e->port_id[0];
-				id.b.area = e->port_id[1];
-				id.b.al_pa = e->port_id[2];
-				id.b.rsvd_1 = 0;
-				loop_id = le16_to_cpu(e->nport_handle);
+		for (i = 0; i < n; i++) {
+			e = &vha->gnl.l[i];
+			id.b.domain = e->port_id[0];
+			id.b.area = e->port_id[1];
+			id.b.al_pa = e->port_id[2];
+			id.b.rsvd_1 = 0;
+			loop_id = le16_to_cpu(e->nport_handle);
 
-				if (fcport->d_id.b24 == id.b24) {
-					conflict_fcport =
-					    qla2x00_find_fcport_by_wwpn(vha,
-						e->port_name, 0);
-
-					ql_dbg(ql_dbg_disc, vha, 0x20e6,
-					    "%s %d %8phC post del sess\n",
-					    __func__, __LINE__,
-					    conflict_fcport->port_name);
-					qlt_schedule_sess_for_deletion
-						(conflict_fcport, 1);
-				}
-
-				if (fcport->loop_id == loop_id) {
-					/* FW already picked this loop id for another fcport */
-					qla2x00_find_new_loop_id(vha, fcport);
-				}
+			if (fcport->d_id.b24 == id.b24) {
+				conflict_fcport =
+					qla2x00_find_fcport_by_wwpn(vha,
+					    e->port_name, 0);
+				ql_dbg(ql_dbg_disc, vha, 0x20e6,
+				    "%s %d %8phC post del sess\n",
+				    __func__, __LINE__,
+				    conflict_fcport->port_name);
+				qlt_schedule_sess_for_deletion
+					(conflict_fcport, 1);
 			}
+
+			/* FW already picked this loop id for another fcport */
+			if (fcport->loop_id == loop_id)
+				fcport->loop_id = FC_NO_LOOP_ID;
 		}
 		qla24xx_fcport_handle_login(vha, fcport);
 	}
@@ -1104,6 +1097,7 @@ void qla24xx_handle_gpdb_event(scsi_qla_host_t *vha, struct event_arg *ea)
 static void qla_chk_n2n_b4_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
 	u8 login = 0;
+	int rc;
 
 	if (qla_tgt_mode_enabled(vha))
 		return;
@@ -1129,6 +1123,18 @@ static void qla_chk_n2n_b4_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 	}
 
 	if (login) {
+		if (fcport->loop_id == FC_NO_LOOP_ID) {
+			fcport->fw_login_state = DSC_LS_PORT_UNAVAIL;
+			rc = qla2x00_find_new_loop_id(vha, fcport);
+			if (rc) {
+				ql_dbg(ql_dbg_disc, vha, 0x20e6,
+				    "%s %d %8phC post del sess - out of loopid\n",
+				    __func__, __LINE__, fcport->port_name);
+				fcport->scan_state = 0;
+				qlt_schedule_sess_for_deletion(fcport, true);
+				return;
+			}
+		}
 		ql_dbg(ql_dbg_disc, vha, 0x20bf,
 		    "%s %d %8phC post login\n",
 		    __func__, __LINE__, fcport->port_name);
