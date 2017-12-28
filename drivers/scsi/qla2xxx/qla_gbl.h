@@ -504,6 +504,7 @@ int qla24xx_get_port_login_templ(scsi_qla_host_t *, dma_addr_t,
 
 extern int qla27xx_get_zio_threshold(scsi_qla_host_t *, uint16_t *);
 extern int qla27xx_set_zio_threshold(scsi_qla_host_t *, uint16_t);
+int qla24xx_res_count_wait(struct scsi_qla_host *, uint16_t *, int);
 
 /*
  * Global Function Prototypes in qla_isr.c source file.

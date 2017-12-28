@@ -127,21 +127,23 @@ static int
 qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 {
 	struct scsi_qla_host *vha = s->private;
-	struct qla_hw_data *ha = vha->hw;
+	uint16_t mb[MAX_IOCB_MB_REG];
+	int rc;
 
-	seq_puts(s, "FW Resource count\n\n");
-	seq_printf(s, "Original TGT exchg count[%d]\n",
-	    ha->orig_fw_tgt_xcb_count);
-	seq_printf(s, "current TGT exchg count[%d]\n",
-	    ha->cur_fw_tgt_xcb_count);
-	seq_printf(s, "original Initiator Exchange count[%d]\n",
-	    ha->orig_fw_xcb_count);
-	seq_printf(s, "Current Initiator Exchange count[%d]\n",
-	    ha->cur_fw_xcb_count);
-	seq_printf(s, "Original IOCB count[%d]\n", ha->orig_fw_iocb_count);
-	seq_printf(s, "Current IOCB count[%d]\n", ha->cur_fw_iocb_count);
-	seq_printf(s, "MAX VP count[%d]\n", ha->max_npiv_vports);
-	seq_printf(s, "MAX FCF count[%d]\n", ha->fw_max_fcf_count);
+	rc = qla24xx_res_count_wait(vha, mb, SIZEOF_IOCB_MB_REG);
+	if (rc != QLA_SUCCESS) {
+		seq_printf(s, "Mailbox Command failed %d, mb %#x", rc, mb[0]);
+	} else {
+		seq_puts(s, "FW Resource count\n\n");
+		seq_printf(s, "Original TGT exchg count[%d]\n", mb[1]);
+		seq_printf(s, "current TGT exchg count[%d]\n", mb[2]);
+		seq_printf(s, "original Initiator Exchange count[%d]\n", mb[3]);
+		seq_printf(s, "Current Initiator Exchange count[%d]\n", mb[6]);
+		seq_printf(s, "Original IOCB count[%d]\n", mb[7]);
+		seq_printf(s, "Current IOCB count[%d]\n", mb[10]);
+		seq_printf(s, "MAX VP count[%d]\n", mb[11]);
+		seq_printf(s, "MAX FCF count[%d]\n", mb[12]);
+	}
 
 	return 0;
 }
