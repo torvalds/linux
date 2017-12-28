@@ -144,6 +144,18 @@ config DVB_CORE
 	default y
 	select CRC32
 
+config DVB_MMAP
+	bool "Enable DVB memory-mapped API (EXPERIMENTAL)"
+	depends on DVB_CORE
+	default n
+	help
+	  This option enables DVB experimental memory-mapped API, with
+	  reduces the number of context switches to read DVB buffers, as
+	  the buffers can use mmap() syscalls.
+
+	  Support for it is experimental. Use with care. If unsure,
+	  say N.
+
 config DVB_NET
 	bool "DVB Network Support"
 	default (NET && INET)

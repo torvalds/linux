@@ -54,13 +54,37 @@ struct dvb_vb2_ctx {
 	char	name[DVB_VB2_NAME_MAX + 1];
 };
 
-int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int non_blocking);
-int dvb_vb2_release(struct dvb_vb2_ctx *ctx);
 int dvb_vb2_stream_on(struct dvb_vb2_ctx *ctx);
 int dvb_vb2_stream_off(struct dvb_vb2_ctx *ctx);
+#ifndef DVB_MMAP
+static inline int dvb_vb2_init(struct dvb_vb2_ctx *ctx,
+			       const char *name, int non_blocking)
+{
+	return 0;
+};
+static inline int dvb_vb2_release(struct dvb_vb2_ctx *ctx)
+{
+	return 0;
+};
+#define dvb_vb2_is_streaming(ctx) (0)
+#define dvb_vb2_fill_buffer(ctx, file, wait) (0)
+
+static inline unsigned int dvb_vb2_poll(struct dvb_vb2_ctx *ctx,
+					struct file *file,
+					poll_table *wait)
+{
+	return 0;
+}
+#else
+int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int non_blocking);
+int dvb_vb2_release(struct dvb_vb2_ctx *ctx);
 int dvb_vb2_is_streaming(struct dvb_vb2_ctx *ctx);
 int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 			const unsigned char *src, int len);
+unsigned int dvb_vb2_poll(struct dvb_vb2_ctx *ctx, struct file *file,
+			  poll_table *wait);
+#endif
+
 
 int dvb_vb2_reqbufs(struct dvb_vb2_ctx *ctx, struct dmx_requestbuffers *req);
 int dvb_vb2_querybuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b);
@@ -68,7 +92,5 @@ int dvb_vb2_expbuf(struct dvb_vb2_ctx *ctx, struct dmx_exportbuffer *exp);
 int dvb_vb2_qbuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b);
 int dvb_vb2_dqbuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b);
 int dvb_vb2_mmap(struct dvb_vb2_ctx *ctx, struct vm_area_struct *vma);
-unsigned int dvb_vb2_poll(struct dvb_vb2_ctx *ctx, struct file *file,
-			  poll_table *wait);
 
 #endif /* _DVB_VB2_H */
