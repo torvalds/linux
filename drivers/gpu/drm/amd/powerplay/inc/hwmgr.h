@@ -339,6 +339,8 @@ struct pp_hwmgr_func {
 					uint32_t mc_addr_low,
 					uint32_t mc_addr_hi,
 					uint32_t size);
+	int (*get_thermal_temperature_range)(struct pp_hwmgr *hwmgr,
+					struct PP_TemperatureRange *range);
 };
 
 struct pp_table_func {
