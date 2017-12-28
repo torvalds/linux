@@ -36,6 +36,8 @@ struct ccu_nm {
 	struct ccu_frac_internal	frac;
 	struct ccu_sdm_internal		sdm;
 
+	unsigned int		fixed_post_div;
+
 	struct ccu_common	common;
 };
 
