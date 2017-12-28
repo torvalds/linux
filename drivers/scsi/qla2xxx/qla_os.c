@@ -3869,7 +3869,7 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha, int defer)
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		fcport->scan_state = 0;
-		qlt_schedule_sess_for_deletion_lock(fcport);
+		qlt_schedule_sess_for_deletion(fcport);
 
 		if (vha->vp_idx != 0 && vha->vp_idx != fcport->vha->vp_idx)
 			continue;
@@ -4897,8 +4897,7 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 				default:
 					fcport->login_pause = 1;
 					tfcp->conflict = fcport;
-					qlt_schedule_sess_for_deletion_lock
-						(tfcp);
+					qlt_schedule_sess_for_deletion(tfcp);
 					break;
 				}
 			}

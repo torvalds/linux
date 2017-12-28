@@ -888,7 +888,6 @@ void qlt_plogi_ack_link(struct scsi_qla_host *, struct qlt_plogi_ack_t *,
 	struct fc_port *, enum qlt_plogi_link_t);
 void qlt_plogi_ack_unref(struct scsi_qla_host *, struct qlt_plogi_ack_t *);
 extern void qlt_schedule_sess_for_deletion(struct fc_port *);
-extern void qlt_schedule_sess_for_deletion_lock(struct fc_port *);
 extern struct fc_port *qlt_find_sess_invalidate_other(scsi_qla_host_t *,
 	uint64_t wwn, port_id_t port_id, uint16_t loop_id, struct fc_port **);
 void qla24xx_delete_sess_fn(struct work_struct *);

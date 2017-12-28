@@ -1214,6 +1214,7 @@ static void qla24xx_chk_fcp_state(struct fc_port *sess)
 void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 {
 	struct qla_tgt *tgt = sess->tgt;
+	unsigned long flags;
 
 	if (sess->disc_state == DSC_DELETE_PEND)
 		return;
@@ -1229,12 +1230,19 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 			return;
 	}
 
-	sess->disc_state = DSC_DELETE_PEND;
-
 	if (sess->deleted == QLA_SESS_DELETED)
 		sess->logout_on_delete = 0;
 
+	spin_lock_irqsave(&sess->vha->work_lock, flags);
+	if (sess->deleted == QLA_SESS_DELETION_IN_PROGRESS) {
+		spin_unlock_irqrestore(&sess->vha->work_lock, flags);
+		return;
+	}
 	sess->deleted = QLA_SESS_DELETION_IN_PROGRESS;
+	spin_unlock_irqrestore(&sess->vha->work_lock, flags);
+
+	sess->disc_state = DSC_DELETE_PEND;
+
 	qla24xx_chk_fcp_state(sess);
 
 	ql_dbg(ql_dbg_tgt, sess->vha, 0xe001,
@@ -1244,15 +1252,6 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess)
 	cancel_work_sync(&sess->del_work);
 	INIT_WORK(&sess->del_work, qla24xx_delete_sess_fn);
 	queue_work(sess->vha->hw->wq, &sess->del_work);
-}
-
-void qlt_schedule_sess_for_deletion_lock(struct fc_port *sess)
-{
-	unsigned long flags;
-	struct qla_hw_data *ha = sess->vha->hw;
-	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-	qlt_schedule_sess_for_deletion(sess);
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 }
 
 /* ha->tgt.sess_lock supposed to be held on entry */
@@ -2210,7 +2209,7 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 			    "TM response logo %phC status %#x state %#x",
 			    mcmd->sess->port_name, mcmd->fc_tm_rsp,
 			    mcmd->flags);
-			qlt_schedule_sess_for_deletion_lock(mcmd->sess);
+			qlt_schedule_sess_for_deletion(mcmd->sess);
 		} else {
 			qlt_send_notify_ack(vha->hw->base_qpair,
 			    &mcmd->orig_iocb.imm_ntfy, 0, 0, 0, 0, 0, 0);
@@ -3905,7 +3904,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 				    "%s %d %8phC post del sess\n",
 				    __func__, __LINE__, cmd->sess->port_name);
 
-				qlt_schedule_sess_for_deletion_lock(cmd->sess);
+				qlt_schedule_sess_for_deletion(cmd->sess);
 			}
 			break;
 		}
@@ -4723,7 +4722,7 @@ static int qlt_handle_login(struct scsi_qla_host *vha,
 		    __func__, __LINE__, sess->port_name);
 
 
-		qlt_schedule_sess_for_deletion_lock(sess);
+		qlt_schedule_sess_for_deletion(sess);
 		break;
 	}
 out:
@@ -4951,7 +4950,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 		} else {
 			/* cmd did not go to upper layer. */
 			if (sess) {
-				qlt_schedule_sess_for_deletion_lock(sess);
+				qlt_schedule_sess_for_deletion(sess);
 				res = 0;
 			}
 			/* else logo will be ack */

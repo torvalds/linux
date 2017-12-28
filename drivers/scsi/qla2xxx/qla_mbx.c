@@ -3896,7 +3896,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			case DSC_DELETE_PEND:
 				break;
 			default:
-				qlt_schedule_sess_for_deletion_lock(fcport);
+				qlt_schedule_sess_for_deletion(fcport);
 				break;
 			}
 		} else {

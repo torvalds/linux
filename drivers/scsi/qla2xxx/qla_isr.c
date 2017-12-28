@@ -1009,7 +1009,7 @@ skip_rio:
 			if (qla_ini_mode_enabled(vha)) {
 				qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
 				fcport->logout_on_delete = 0;
-				qlt_schedule_sess_for_deletion_lock(fcport);
+				qlt_schedule_sess_for_deletion(fcport);
 			}
 			break;
 
@@ -2701,7 +2701,7 @@ check_scsi_status:
 				comp_status);
 
 			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
-			qlt_schedule_sess_for_deletion_lock(fcport);
+			qlt_schedule_sess_for_deletion(fcport);
 		}
 
 		break;
