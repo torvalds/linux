@@ -3139,6 +3139,7 @@ enum qla_work_type {
 	QLA_EVT_UPD_FCPORT,
 	QLA_EVT_GNL,
 	QLA_EVT_NACK,
+	QLA_EVT_RELOGIN,
 };
 
 
@@ -3446,10 +3447,6 @@ struct qlt_hw_data {
 	((ha->cur_fw_xcb_count/100) * Q_FULL_THRESH_HOLD_PERCENT)
 
 #define LEAK_EXCHG_THRESH_HOLD_PERCENT 75	/* 75 percent */
-
-#define QLA_EARLY_LINKUP(_ha) \
-	((_ha->flags.n2n_ae || _ha->flags.lip_ae) && \
-	 _ha->flags.fw_started && !_ha->flags.fw_init_done)
 
 /*
  * Qlogic host adapter specific data structure.
@@ -4155,6 +4152,7 @@ typedef struct scsi_qla_host {
 #define SET_ZIO_THRESHOLD_NEEDED	28
 #define DETECT_SFP_CHANGE	29
 #define N2N_LOGIN_NEEDED	30
+#define IOCB_WORK_ACTIVE	31
 
 	unsigned long	pci_flags;
 #define PFLG_DISCONNECTED	0	/* PCI device removed */

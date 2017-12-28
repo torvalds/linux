@@ -203,6 +203,7 @@ void qla2x00_handle_login_done_event(struct scsi_qla_host *, fc_port_t *,
 	uint16_t *);
 int qla24xx_post_gnl_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_abort_cmd(srb_t *);
+int qla24xx_post_relogin_work(struct scsi_qla_host *vha);
 
 /*
  * Global Functions in qla_mid.c source file.

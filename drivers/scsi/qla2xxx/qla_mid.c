@@ -319,8 +319,6 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_dpc + ql_dbg_verbose, vha, 0x4012,
 	    "Entering %s vp_flags: 0x%lx.\n", __func__, vha->vp_flags);
 
-	qla2x00_do_work(vha);
-
 	/* Check if Fw is ready to configure VP first */
 	if (test_bit(VP_CONFIG_OK, &base_vha->vp_flags)) {
 		if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
@@ -354,9 +352,7 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 
 			ql_dbg(ql_dbg_dpc, vha, 0x4018,
 			    "Relogin needed scheduled.\n");
-			qla2x00_relogin(vha);
-			ql_dbg(ql_dbg_dpc, vha, 0x4019,
-			    "Relogin needed end.\n");
+			qla24xx_post_relogin_work(vha);
 		}
 	}
 

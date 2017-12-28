@@ -898,6 +898,7 @@ void qla24xx_handle_gpdb_event(scsi_qla_host_t *vha, struct event_arg *ea)
 		    __func__, fcport->port_name, fcport->last_rscn_gen,
 		    fcport->rscn_gen, fcport->last_login_gen,
 		    fcport->login_gen);
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 		return;
 	} else if (ea->sp->gen1 != fcport->rscn_gen) {
 		ql_dbg(ql_dbg_disc, vha, 0x20d4, "%s %d %8phC post gidpn\n",
