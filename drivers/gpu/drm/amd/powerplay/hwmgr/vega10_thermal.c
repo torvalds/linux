@@ -386,9 +386,9 @@ int vega10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *range)
 {
-	uint32_t low = VEGA10_THERMAL_MINIMUM_ALERT_TEMP *
+	int low = VEGA10_THERMAL_MINIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	uint32_t high = VEGA10_THERMAL_MAXIMUM_ALERT_TEMP *
+	int high = VEGA10_THERMAL_MAXIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	uint32_t val, reg;
 
