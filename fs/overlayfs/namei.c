@@ -585,6 +585,21 @@ orphan:
 	goto out;
 }
 
+static int ovl_get_index_name_fh(struct ovl_fh *fh, struct qstr *name)
+{
+	char *n, *s;
+
+	n = kzalloc(fh->len * 2, GFP_KERNEL);
+	if (!n)
+		return -ENOMEM;
+
+	s  = bin2hex(n, fh, fh->len);
+	*name = (struct qstr) QSTR_INIT(n, s - n);
+
+	return 0;
+
+}
+
 /*
  * Lookup in indexdir for the index entry of a lower real inode or a copy up
  * origin inode. The index entry name is the hex representation of the lower
@@ -602,25 +617,49 @@ orphan:
  */
 int ovl_get_index_name(struct dentry *origin, struct qstr *name)
 {
-	int err;
 	struct ovl_fh *fh;
-	char *n, *s;
+	int err;
 
 	fh = ovl_encode_fh(origin, false);
 	if (IS_ERR(fh))
 		return PTR_ERR(fh);
 
-	err = -ENOMEM;
-	n = kzalloc(fh->len * 2, GFP_KERNEL);
-	if (n) {
-		s  = bin2hex(n, fh, fh->len);
-		*name = (struct qstr) QSTR_INIT(n, s - n);
-		err = 0;
-	}
+	err = ovl_get_index_name_fh(fh, name);
+
 	kfree(fh);
-
 	return err;
+}
 
+/* Lookup index by file handle for NFS export */
+struct dentry *ovl_get_index_fh(struct ovl_fs *ofs, struct ovl_fh *fh)
+{
+	struct dentry *index;
+	struct qstr name;
+	int err;
+
+	err = ovl_get_index_name_fh(fh, &name);
+	if (err)
+		return ERR_PTR(err);
+
+	index = lookup_one_len_unlocked(name.name, ofs->indexdir, name.len);
+	kfree(name.name);
+	if (IS_ERR(index)) {
+		if (PTR_ERR(index) == -ENOENT)
+			index = NULL;
+		return index;
+	}
+
+	if (d_is_negative(index))
+		err = 0;
+	else if (ovl_is_whiteout(index))
+		err = -ESTALE;
+	else if (ovl_dentry_weird(index))
+		err = -EIO;
+	else
+		return index;
+
+	dput(index);
+	return ERR_PTR(err);
 }
 
 static struct dentry *ovl_lookup_index(struct dentry *dentry,

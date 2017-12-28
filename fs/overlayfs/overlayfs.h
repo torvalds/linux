@@ -257,6 +257,7 @@ int ovl_verify_set_fh(struct dentry *dentry, const char *name,
 		      struct dentry *real, bool is_upper, bool set);
 int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index);
 int ovl_get_index_name(struct dentry *origin, struct qstr *name);
+struct dentry *ovl_get_index_fh(struct ovl_fs *ofs, struct ovl_fh *fh);
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags);
