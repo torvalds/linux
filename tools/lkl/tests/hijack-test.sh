@@ -12,11 +12,15 @@ clear_wdir()
 
 set_cfgjson()
 {
+    cfgjson=${wdir}/hijack-test$1.conf
+
     if [ -n "$LKL_HOST_CONFIG_ANDROID" ]; then
         adb shell cat \> ${cfgjson}
     else
         cat > ${cfgjson}
     fi
+
+    export_vars cfgjson
 }
 
 run_hijack_cfg()
@@ -685,7 +689,6 @@ else
     netperf=$basedir/tests/run_netperf.sh
 fi
 
-cfgjson=${wdir}/hijack-test.conf
 fifo1=${wdir}/fifo1
 fifo2=${wdir}/fifo2
 VDESWITCH=${wdir}/vde_switch
