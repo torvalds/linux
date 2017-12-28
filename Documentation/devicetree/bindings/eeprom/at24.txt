@@ -39,23 +39,23 @@ Required properties:
 
                 "renesas,r1ex24002" - the fallback is "atmel,24c02"
 
-  - reg : the I2C address of the EEPROM
+  - reg: The I2C address of the EEPROM.
 
 Optional properties:
 
-  - pagesize : the length of the pagesize for writing. Please consult the
-               manual of your device, that value varies a lot. A wrong value
-	       may result in data loss! If not specified, a safety value of
-	       '1' is used which will be very slow.
+  - pagesize: The length of the pagesize for writing. Please consult the
+              manual of your device, that value varies a lot. A wrong value
+              may result in data loss! If not specified, a safety value of
+              '1' is used which will be very slow.
 
-  - read-only: this parameterless property disables writes to the eeprom
+  - read-only: This parameterless property disables writes to the eeprom.
 
-  - size: total eeprom size in bytes
+  - size: Total eeprom size in bytes.
 
-  - no-read-rollover:
-			This parameterless property indicates that the multi-address
-			eeprom does not automatically roll over reads to the next
-			slave address. Please consult the manual of your device.
+  - no-read-rollover: This parameterless property indicates that the
+                      multi-address eeprom does not automatically roll over
+                      reads to the next slave address. Please consult the
+                      manual of your device.
 
   - wp-gpios: GPIO to which the write-protect pin of the chip is connected.
 
