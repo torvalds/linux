@@ -322,8 +322,19 @@ static void repo_hpd_event(struct work_struct *p_work)
 		hdmi->rxsense = true;
 	mutex_unlock(&hdmi->mutex);
 
-	if (hdmi->bridge.dev)
-		drm_helper_hpd_irq_event(hdmi->bridge.dev);
+	if (hdmi->bridge.dev) {
+		bool change;
+
+		change = drm_helper_hpd_irq_event(hdmi->bridge.dev);
+
+#ifdef CONFIG_CEC_NOTIFIER
+		if (change)
+			cec_notifier_repo_cec_hpd(hdmi->cec_notifier,
+						  hdmi->hpd_state,
+						  ktime_get());
+#endif
+	}
+
 #ifdef CONFIG_SWITCH
 	if (hdmi->hpd_state)
 		switch_set_state(&hdmi->switchdev, 1);
