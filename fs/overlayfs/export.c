@@ -136,6 +136,204 @@ nomem:
 	return ERR_PTR(-ENOMEM);
 }
 
+/*
+ * Lookup a child overlay dentry to get a connected overlay dentry whose real
+ * dentry is @real. If @real is on upper layer, we lookup a child overlay
+ * dentry with the same name as the real dentry. Otherwise, we need to consult
+ * index for lookup.
+ */
+static struct dentry *ovl_lookup_real_one(struct dentry *connected,
+					  struct dentry *real,
+					  struct ovl_layer *layer)
+{
+	struct inode *dir = d_inode(connected);
+	struct dentry *this, *parent = NULL;
+	struct name_snapshot name;
+	int err;
+
+	/* TODO: lookup by lower real dentry */
+	if (layer->idx)
+		return ERR_PTR(-EACCES);
+
+	/*
+	 * Lookup child overlay dentry by real name. The dir mutex protects us
+	 * from racing with overlay rename. If the overlay dentry that is above
+	 * real has already been moved to a parent that is not under the
+	 * connected overlay dir, we return -ECHILD and restart the lookup of
+	 * connected real path from the top.
+	 */
+	inode_lock_nested(dir, I_MUTEX_PARENT);
+	err = -ECHILD;
+	parent = dget_parent(real);
+	if (ovl_dentry_upper(connected) != parent)
+		goto fail;
+
+	/*
+	 * We also need to take a snapshot of real dentry name to protect us
+	 * from racing with underlying layer rename. In this case, we don't
+	 * care about returning ESTALE, only from dereferencing a free name
+	 * pointer because we hold no lock on the real dentry.
+	 */
+	take_dentry_name_snapshot(&name, real);
+	this = lookup_one_len(name.name, connected, strlen(name.name));
+	err = PTR_ERR(this);
+	if (IS_ERR(this)) {
+		goto fail;
+	} else if (!this || !this->d_inode) {
+		dput(this);
+		err = -ENOENT;
+		goto fail;
+	} else if (ovl_dentry_upper(this) != real) {
+		dput(this);
+		err = -ESTALE;
+		goto fail;
+	}
+
+out:
+	release_dentry_name_snapshot(&name);
+	dput(parent);
+	inode_unlock(dir);
+	return this;
+
+fail:
+	pr_warn_ratelimited("overlayfs: failed to lookup one by real (%pd2, layer=%d, connected=%pd2, err=%i)\n",
+			    real, layer->idx, connected, err);
+	this = ERR_PTR(err);
+	goto out;
+}
+
+/*
+ * Lookup a connected overlay dentry whose real dentry is @real.
+ * If @real is on upper layer, we lookup a child overlay dentry with the same
+ * path the real dentry. Otherwise, we need to consult index for lookup.
+ */
+static struct dentry *ovl_lookup_real(struct super_block *sb,
+				      struct dentry *real,
+				      struct ovl_layer *layer)
+{
+	struct dentry *connected;
+	int err = 0;
+
+	/* TODO: use index when looking up by lower real dentry */
+	if (layer->idx)
+		return ERR_PTR(-EACCES);
+
+	connected = dget(sb->s_root);
+	while (!err) {
+		struct dentry *next, *this;
+		struct dentry *parent = NULL;
+		struct dentry *real_connected = ovl_dentry_upper(connected);
+
+		if (real_connected == real)
+			break;
+
+		/* Find the topmost dentry not yet connected */
+		next = dget(real);
+		for (;;) {
+			parent = dget_parent(next);
+
+			if (parent == real_connected)
+				break;
+
+			/*
+			 * If real has been moved out of 'real_connected',
+			 * we will not find 'real_connected' and hit the layer
+			 * root. In that case, we need to restart connecting.
+			 * This game can go on forever in the worst case. We
+			 * may want to consider taking s_vfs_rename_mutex if
+			 * this happens more than once.
+			 */
+			if (parent == layer->mnt->mnt_root) {
+				dput(connected);
+				connected = dget(sb->s_root);
+				break;
+			}
+
+			/*
+			 * If real file has been moved out of the layer root
+			 * directory, we will eventully hit the real fs root.
+			 * This cannot happen by legit overlay rename, so we
+			 * return error in that case.
+			 */
+			if (parent == next) {
+				err = -EXDEV;
+				break;
+			}
+
+			dput(next);
+			next = parent;
+		}
+
+		if (!err) {
+			this = ovl_lookup_real_one(connected, next, layer);
+			if (IS_ERR(this))
+				err = PTR_ERR(this);
+
+			/*
+			 * Lookup of child in overlay can fail when racing with
+			 * overlay rename of child away from 'connected' parent.
+			 * In this case, we need to restart the lookup from the
+			 * top, because we cannot trust that 'real_connected' is
+			 * still an ancestor of 'real'.
+			 */
+			if (err == -ECHILD) {
+				this = dget(sb->s_root);
+				err = 0;
+			}
+			if (!err) {
+				dput(connected);
+				connected = this;
+			}
+		}
+
+		dput(parent);
+		dput(next);
+	}
+
+	if (err)
+		goto fail;
+
+	return connected;
+
+fail:
+	pr_warn_ratelimited("overlayfs: failed to lookup by real (%pd2, layer=%d, connected=%pd2, err=%i)\n",
+			    real, layer->idx, connected, err);
+	dput(connected);
+	return ERR_PTR(err);
+}
+
+/*
+ * Get an overlay dentry from upper/lower real dentries.
+ */
+static struct dentry *ovl_get_dentry(struct super_block *sb,
+				     struct dentry *upper,
+				     struct ovl_path *lowerpath)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_layer upper_layer = { .mnt = ofs->upper_mnt };
+
+	/* TODO: get non-upper dentry */
+	if (!upper)
+		return ERR_PTR(-EACCES);
+
+	/*
+	 * Obtain a disconnected overlay dentry from a non-dir real upper
+	 * dentry.
+	 */
+	if (!d_is_dir(upper))
+		return ovl_obtain_alias(sb, upper, NULL);
+
+	/* Removed empty directory? */
+	if ((upper->d_flags & DCACHE_DISCONNECTED) || d_unhashed(upper))
+		return ERR_PTR(-ENOENT);
+
+	/*
+	 * If real upper dentry is connected and hashed, get a connected
+	 * overlay dentry with the same path as the real upper dentry.
+	 */
+	return ovl_lookup_real(sb, upper, &upper_layer);
+}
+
 static struct dentry *ovl_upper_fh_to_d(struct super_block *sb,
 					struct ovl_fh *fh)
 {
@@ -150,7 +348,7 @@ static struct dentry *ovl_upper_fh_to_d(struct super_block *sb,
 	if (IS_ERR_OR_NULL(upper))
 		return upper;
 
-	dentry = ovl_obtain_alias(sb, upper, NULL);
+	dentry = ovl_get_dentry(sb, upper, NULL);
 	dput(upper);
 
 	return dentry;
@@ -189,7 +387,38 @@ out_err:
 	return ERR_PTR(err);
 }
 
+static struct dentry *ovl_fh_to_parent(struct super_block *sb, struct fid *fid,
+				       int fh_len, int fh_type)
+{
+	pr_warn_ratelimited("overlayfs: connectable file handles not supported; use 'no_subtree_check' exportfs option.\n");
+	return ERR_PTR(-EACCES);
+}
+
+static int ovl_get_name(struct dentry *parent, char *name,
+			struct dentry *child)
+{
+	/*
+	 * ovl_fh_to_dentry() returns connected dir overlay dentries and
+	 * ovl_fh_to_parent() is not implemented, so we should not get here.
+	 */
+	WARN_ON_ONCE(1);
+	return -EIO;
+}
+
+static struct dentry *ovl_get_parent(struct dentry *dentry)
+{
+	/*
+	 * ovl_fh_to_dentry() returns connected dir overlay dentries, so we
+	 * should not get here.
+	 */
+	WARN_ON_ONCE(1);
+	return ERR_PTR(-EIO);
+}
+
 const struct export_operations ovl_export_operations = {
 	.encode_fh	= ovl_encode_inode_fh,
 	.fh_to_dentry	= ovl_fh_to_dentry,
+	.fh_to_parent	= ovl_fh_to_parent,
+	.get_name	= ovl_get_name,
+	.get_parent	= ovl_get_parent,
 };
