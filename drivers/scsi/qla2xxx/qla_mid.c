@@ -894,3 +894,79 @@ que_failed:
 failed:
 	return 0;
 }
+
+static void qla_ctrlvp_sp_done(void *s, int res)
+{
+	struct srb *sp = s;
+
+	complete(&sp->comp);
+	/* don't free sp here. Let the caller do the free */
+}
+
+/**
+ * qla24xx_control_vp() - Enable a virtual port for given host
+ * @vha:	adapter block pointer
+ * @cmd:	command type to be sent for enable virtual port
+ *
+ * Return:	qla2xxx local function return status code.
+ */
+int qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
+{
+	int rval = QLA_MEMORY_ALLOC_FAILED;
+	struct qla_hw_data *ha = vha->hw;
+	int	vp_index = vha->vp_idx;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
+	srb_t *sp;
+
+	ql_dbg(ql_dbg_vport, vha, 0x10c1,
+	    "Entered %s cmd %x index %d.\n", __func__, cmd, vp_index);
+
+	if (vp_index == 0 || vp_index >= ha->max_npiv_vports)
+		return QLA_PARAMETER_ERROR;
+
+	sp = qla2x00_get_sp(base_vha, NULL, GFP_KERNEL);
+	if (!sp)
+		goto done;
+
+	sp->type = SRB_CTRL_VP;
+	sp->name = "ctrl_vp";
+	sp->done = qla_ctrlvp_sp_done;
+	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
+	sp->u.iocb_cmd.u.ctrlvp.cmd = cmd;
+	sp->u.iocb_cmd.u.ctrlvp.vp_index = vp_index;
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_async, vha, 0xffff,
+		    "%s: %s Failed submission. %x.\n",
+		    __func__, sp->name, rval);
+		goto done_free_sp;
+	}
+
+	ql_dbg(ql_dbg_vport, vha, 0x113f, "%s hndl %x submitted\n",
+	    sp->name, sp->handle);
+
+	wait_for_completion(&sp->comp);
+	rval = sp->rc;
+	switch (rval) {
+	case QLA_FUNCTION_TIMEOUT:
+		ql_dbg(ql_dbg_vport, vha, 0xffff, "%s: %s Timeout. %x.\n",
+		    __func__, sp->name, rval);
+		break;
+	case QLA_SUCCESS:
+		ql_dbg(ql_dbg_vport, vha, 0xffff, "%s: %s done.\n",
+		    __func__, sp->name);
+		goto done_free_sp;
+	default:
+		ql_dbg(ql_dbg_vport, vha, 0xffff, "%s: %s Failed. %x.\n",
+		    __func__, sp->name, rval);
+		goto done_free_sp;
+	}
+done:
+	return rval;
+
+done_free_sp:
+	sp->free(sp);
+	return rval;
+}

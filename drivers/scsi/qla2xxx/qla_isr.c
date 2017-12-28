@@ -1937,6 +1937,37 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	sp->done(sp, ret);
 }
 
+static void qla_ctrlvp_completed(scsi_qla_host_t *vha, struct req_que *req,
+    struct vp_ctrl_entry_24xx *vce)
+{
+	const char func[] = "CTRLVP-IOCB";
+	srb_t *sp;
+	int rval = QLA_SUCCESS;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, vce);
+	if (!sp)
+		return;
+
+	if (vce->entry_status != 0) {
+		ql_dbg(ql_dbg_vport, vha, 0x10c4,
+		    "%s: Failed to complete IOCB -- error status (%x)\n",
+		    sp->name, vce->entry_status);
+		rval = QLA_FUNCTION_FAILED;
+	} else if (vce->comp_status != cpu_to_le16(CS_COMPLETE)) {
+		ql_dbg(ql_dbg_vport, vha, 0x10c5,
+		    "%s: Failed to complete IOCB -- completion status (%x) vpidx %x\n",
+		    sp->name, le16_to_cpu(vce->comp_status),
+		    le16_to_cpu(vce->vp_idx_failed));
+		rval = QLA_FUNCTION_FAILED;
+	} else {
+		ql_dbg(ql_dbg_vport, vha, 0x10c6,
+		    "Done %s.\n", __func__);
+	}
+
+	sp->rc = rval;
+	sp->done(sp, rval);
+}
+
 /**
  * qla2x00_process_response_queue() - Process response queue entries.
  * @ha: SCSI driver HA context
@@ -3000,6 +3031,10 @@ process_err:
 		case MBX_IOCB_TYPE:
 			qla24xx_mbx_iocb_entry(vha, rsp->req,
 			    (struct mbx_24xx_entry *)pkt);
+			break;
+		case VP_CTRL_IOCB_TYPE:
+			qla_ctrlvp_completed(vha, rsp->req,
+			    (struct vp_ctrl_entry_24xx *)pkt);
 			break;
 		default:
 			/* Type Not Supported. */

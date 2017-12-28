@@ -135,6 +135,7 @@ qla2x00_async_iocb_timeout(void *data)
 	case SRB_NACK_PLOGI:
 	case SRB_NACK_PRLI:
 	case SRB_NACK_LOGO:
+	case SRB_CTRL_VP:
 		sp->done(sp, QLA_FUNCTION_TIMEOUT);
 		break;
 	}

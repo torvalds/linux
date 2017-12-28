@@ -3368,6 +3368,26 @@ qla_nvme_ls(srb_t *sp, struct pt_ls4_request *cmd_pkt)
 	return rval;
 }
 
+static void
+qla25xx_ctrlvp_iocb(srb_t *sp, struct vp_ctrl_entry_24xx *vce)
+{
+	int map, pos;
+
+	vce->entry_type = VP_CTRL_IOCB_TYPE;
+	vce->handle = sp->handle;
+	vce->entry_count = 1;
+	vce->command = cpu_to_le16(sp->u.iocb_cmd.u.ctrlvp.cmd);
+	vce->vp_count = cpu_to_le16(1);
+
+	/*
+	 * index map in firmware starts with 1; decrement index
+	 * this is ok as we never use index 0
+	 */
+	map = (sp->u.iocb_cmd.u.ctrlvp.vp_index - 1) / 8;
+	pos = (sp->u.iocb_cmd.u.ctrlvp.vp_index - 1) & 7;
+	vce->vp_idx_map[map] |= 1 << pos;
+}
+
 int
 qla2x00_start_sp(srb_t *sp)
 {
@@ -3445,6 +3465,9 @@ qla2x00_start_sp(srb_t *sp)
 	case SRB_NACK_PRLI:
 	case SRB_NACK_LOGO:
 		qla2x00_send_notify_ack_iocb(sp, pkt);
+		break;
+	case SRB_CTRL_VP:
+		qla25xx_ctrlvp_iocb(sp, pkt);
 		break;
 	default:
 		break;
