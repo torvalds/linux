@@ -1131,7 +1131,6 @@ struct hfi1_devdata {
 	u16 pcie_lnkctl;
 	u16 pcie_devctl2;
 	u32 pci_msix0;
-	u32 pci_lnkctl3;
 	u32 pci_tph2;
 
 	/*
