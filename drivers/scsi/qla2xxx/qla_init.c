@@ -1132,7 +1132,6 @@ static void qla_chk_n2n_b4_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 		ql_dbg(ql_dbg_disc, vha, 0x20bf,
 		    "%s %d %8phC post login\n",
 		    __func__, __LINE__, fcport->port_name);
-		fcport->disc_state = DSC_LOGIN_PEND;
 		qla2x00_post_async_login_work(vha, fcport, NULL);
 	}
 }
