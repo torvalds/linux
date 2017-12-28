@@ -617,6 +617,10 @@ static int get_fixed_ipv6_csum(__wsum hw_checksum, struct sk_buff *skb,
 	return 0;
 }
 #endif
+
+/* We reach this function only after checking that any of
+ * the (IPv4 | IPv6) bits are set in cqe->status.
+ */
 static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
 		      netdev_features_t dev_features)
 {
@@ -632,13 +636,11 @@ static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
 		hdr += sizeof(struct vlan_hdr);
 	}
 
-	if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV4))
-		return get_fixed_ipv4_csum(hw_checksum, skb, hdr);
 #if IS_ENABLED(CONFIG_IPV6)
 	if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV6))
 		return get_fixed_ipv6_csum(hw_checksum, skb, hdr);
 #endif
-	return 0;
+	return get_fixed_ipv4_csum(hw_checksum, skb, hdr);
 }
 
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
@@ -814,33 +816,33 @@ xdp_drop_no_cnt:
 		if (likely(dev->features & NETIF_F_RXCSUM)) {
 			if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_TCP |
 						      MLX4_CQE_STATUS_UDP)) {
-				if ((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
-				    cqe->checksum == cpu_to_be16(0xffff)) {
-					bool l2_tunnel = (dev->hw_enc_features & NETIF_F_RXCSUM) &&
-						(cqe->vlan_my_qpn & cpu_to_be32(MLX4_CQE_L2_TUNNEL));
+				bool l2_tunnel;
 
-					ip_summed = CHECKSUM_UNNECESSARY;
-					hash_type = PKT_HASH_TYPE_L4;
-					if (l2_tunnel)
-						skb->csum_level = 1;
-					ring->csum_ok++;
-				} else {
+				if (!((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
+				      cqe->checksum == cpu_to_be16(0xffff)))
 					goto csum_none;
-				}
+
+				l2_tunnel = (dev->hw_enc_features & NETIF_F_RXCSUM) &&
+					(cqe->vlan_my_qpn & cpu_to_be32(MLX4_CQE_L2_TUNNEL));
+				ip_summed = CHECKSUM_UNNECESSARY;
+				hash_type = PKT_HASH_TYPE_L4;
+				if (l2_tunnel)
+					skb->csum_level = 1;
+				ring->csum_ok++;
 			} else {
-				if (priv->flags & MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP &&
-				    (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV4 |
-							       MLX4_CQE_STATUS_IPV6))) {
-					if (check_csum(cqe, skb, va, dev->features)) {
-						goto csum_none;
-					} else {
-						ip_summed = CHECKSUM_COMPLETE;
-						hash_type = PKT_HASH_TYPE_L3;
-						ring->csum_complete++;
-					}
-				} else {
+				if (!(priv->flags & MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP &&
+				      (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV4 |
+#if IS_ENABLED(CONFIG_IPV6)
+								 MLX4_CQE_STATUS_IPV6))))
+#else
+								 0))))
+#endif
 					goto csum_none;
-				}
+				if (check_csum(cqe, skb, va, dev->features))
+					goto csum_none;
+				ip_summed = CHECKSUM_COMPLETE;
+				hash_type = PKT_HASH_TYPE_L3;
+				ring->csum_complete++;
 			}
 		} else {
 csum_none:

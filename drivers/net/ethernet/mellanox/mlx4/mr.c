@@ -1103,30 +1103,16 @@ EXPORT_SYMBOL_GPL(mlx4_fmr_enable);
 void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 		    u32 *lkey, u32 *rkey)
 {
-	struct mlx4_cmd_mailbox *mailbox;
-	int err;
-
 	if (!fmr->maps)
 		return;
 
+	/* To unmap: it is sufficient to take back ownership from HW */
+	*(u8 *)fmr->mpt = MLX4_MPT_STATUS_SW;
+
+	/* Make sure MPT status is visible */
+	wmb();
+
 	fmr->maps = 0;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox)) {
-		err = PTR_ERR(mailbox);
-		pr_warn("mlx4_ib: mlx4_alloc_cmd_mailbox failed (%d)\n", err);
-		return;
-	}
-
-	err = mlx4_HW2SW_MPT(dev, NULL,
-			     key_to_hw_index(fmr->mr.key) &
-			     (dev->caps.num_mpts - 1));
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	if (err) {
-		pr_warn("mlx4_ib: mlx4_HW2SW_MPT failed (%d)\n", err);
-		return;
-	}
-	fmr->mr.enabled = MLX4_MPT_EN_SW;
 }
 EXPORT_SYMBOL_GPL(mlx4_fmr_unmap);
 
@@ -1136,6 +1122,22 @@ int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
 
 	if (fmr->maps)
 		return -EBUSY;
+	if (fmr->mr.enabled == MLX4_MPT_EN_HW) {
+		/* In case of FMR was enabled and unmapped
+		 * make sure to give ownership of MPT back to HW
+		 * so HW2SW_MPT command will success.
+		 */
+		*(u8 *)fmr->mpt = MLX4_MPT_STATUS_SW;
+		/* Make sure MPT status is visible before changing MPT fields */
+		wmb();
+		fmr->mpt->length = 0;
+		fmr->mpt->start  = 0;
+		/* Make sure MPT data is visible after changing MPT status */
+		wmb();
+		*(u8 *)fmr->mpt = MLX4_MPT_STATUS_HW;
+		/* make sure MPT status is visible */
+		wmb();
+	}
 
 	ret = mlx4_mr_free(dev, &fmr->mr);
 	if (ret)
