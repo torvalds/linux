@@ -876,8 +876,8 @@ static int hns3_nway_reset(struct net_device *netdev)
 	return genphy_restart_aneg(phy);
 }
 
-void hns3_get_channels(struct net_device *netdev,
-		       struct ethtool_channels *ch)
+static void hns3_get_channels(struct net_device *netdev,
+			      struct ethtool_channels *ch)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
