@@ -209,7 +209,7 @@ struct scsi_qla_host *qlt_find_host_by_d_id(struct scsi_qla_host *vha,
 
 	host = btree_lookup32(&vha->hw->tgt.host_map, key);
 	if (!host)
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf005,
+		ql_dbg(ql_dbg_tgt_mgt + ql_dbg_verbose, vha, 0xf005,
 		    "Unable to find host %06x\n", key);
 
 	return host;
@@ -310,17 +310,17 @@ static void qlt_try_to_dequeue_unknown_atios(struct scsi_qla_host *vha,
 
 		host = qlt_find_host_by_d_id(vha, u->atio.u.isp24.fcp_hdr.d_id);
 		if (host != NULL) {
-			ql_dbg(ql_dbg_async, vha, 0x502f,
+			ql_dbg(ql_dbg_async + ql_dbg_verbose, vha, 0x502f,
 			    "Requeuing unknown ATIO_TYPE7 %p\n", u);
 			qlt_24xx_atio_pkt(host, &u->atio, ha_locked);
 		} else if (tgt->tgt_stop) {
-			ql_dbg(ql_dbg_async, vha, 0x503a,
+			ql_dbg(ql_dbg_async + ql_dbg_verbose, vha, 0x503a,
 			    "Freeing unknown %s %p, because tgt is being stopped\n",
 			    "ATIO_TYPE7", u);
 			qlt_send_term_exchange(vha->hw->base_qpair, NULL,
 			    &u->atio, ha_locked, 0);
 		} else {
-			ql_dbg(ql_dbg_async, vha, 0x503d,
+			ql_dbg(ql_dbg_async + ql_dbg_verbose, vha, 0x503d,
 			    "Reschedule u %p, vha %p, host %p\n", u, vha, host);
 			if (!queued) {
 				queued = 1;
