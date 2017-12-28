@@ -4918,6 +4918,20 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 	}
 }
 
+static void qla_sp_retry(struct scsi_qla_host *vha, struct qla_work_evt *e)
+{
+	struct srb *sp = e->u.iosb.sp;
+	int rval;
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_disc, vha, 0x2043,
+		    "%s: %s: Re-issue IOCB failed (%d).\n",
+		    __func__, sp->name, rval);
+		qla24xx_sp_unmap(vha, sp);
+	}
+}
+
 void
 qla2x00_do_work(struct scsi_qla_host *vha)
 {
@@ -4971,8 +4985,8 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_GPNID:
 			qla24xx_async_gpnid(vha, &e->u.gpnid.id);
 			break;
-		case QLA_EVT_GPNID_DONE:
-			qla24xx_async_gpnid_done(vha, e->u.iosb.sp);
+		case QLA_EVT_UNMAP:
+			qla24xx_sp_unmap(vha, e->u.iosb.sp);
 			break;
 		case QLA_EVT_RELOGIN:
 			qla2x00_relogin(vha);
@@ -5021,6 +5035,8 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		case QLA_EVT_GFPNID:
 			qla24xx_async_gfpnid(vha, e->u.fcport.fcport);
 			break;
+		case QLA_EVT_SP_RETRY:
+			qla_sp_retry(vha, e);
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
 			kfree(e);

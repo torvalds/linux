@@ -6619,18 +6619,21 @@ qlt_vport_create(struct scsi_qla_host *vha, struct qla_hw_data *ha)
 	qlt_add_target(ha, vha);
 }
 
-void
-qlt_rff_id(struct scsi_qla_host *vha, struct ct_sns_req *ct_req)
+u8
+qlt_rff_id(struct scsi_qla_host *vha)
 {
+	u8 fc4_feature = 0;
 	/*
 	 * FC-4 Feature bit 0 indicates target functionality to the name server.
 	 */
 	if (qla_tgt_mode_enabled(vha)) {
-		ct_req->req.rff_id.fc4_feature = BIT_0;
+		fc4_feature = BIT_0;
 	} else if (qla_ini_mode_enabled(vha)) {
-		ct_req->req.rff_id.fc4_feature = BIT_1;
+		fc4_feature = BIT_1;
 	} else if (qla_dual_mode_enabled(vha))
-		ct_req->req.rff_id.fc4_feature = BIT_0 | BIT_1;
+		fc4_feature = BIT_0 | BIT_1;
+
+	return fc4_feature;
 }
 
 /*
