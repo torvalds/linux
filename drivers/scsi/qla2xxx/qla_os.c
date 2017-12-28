@@ -4600,6 +4600,7 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 		scsi_remove_host(vha->host);
 		return NULL;
 	}
+	INIT_DELAYED_WORK(&vha->scan.scan_work, qla_scan_work_fn);
 
 	sprintf(vha->host_str, "%s_%ld", QLA2XXX_DRIVER_NAME, vha->host_no);
 	ql_dbg(ql_dbg_init, vha, 0x0041,

@@ -668,6 +668,7 @@ int qla24xx_post_gfpnid_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_gfpnid(scsi_qla_host_t *, fc_port_t *);
 void qla24xx_handle_gfpnid_event(scsi_qla_host_t *, struct event_arg *);
 void qla24xx_sp_unmap(scsi_qla_host_t *, srb_t *);
+void qla_scan_work_fn(struct work_struct *);
 
 /*
  * Global Function Prototypes in qla_attr.c source file.
