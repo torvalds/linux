@@ -299,7 +299,7 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
 	}
 
 	rc = teedev->desc->ops->shm_register(ctx, shm, shm->pages,
-					     shm->num_pages);
+					     shm->num_pages, start);
 	if (rc) {
 		ret = ERR_PTR(rc);
 		goto err;

@@ -108,7 +108,8 @@ struct tee_driver_ops {
 	int (*supp_send)(struct tee_context *ctx, u32 ret, u32 num_params,
 			 struct tee_param *param);
 	int (*shm_register)(struct tee_context *ctx, struct tee_shm *shm,
-			    struct page **pages, size_t num_pages);
+			    struct page **pages, size_t num_pages,
+			    unsigned long start);
 	int (*shm_unregister)(struct tee_context *ctx, struct tee_shm *shm);
 };
 
