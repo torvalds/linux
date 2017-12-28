@@ -64,6 +64,14 @@ int arch__compare_symbol_names_n(const char *namea, const char *nameb,
 
 	return strncmp(namea, nameb, n);
 }
+
+const char *arch__normalize_symbol_name(const char *name)
+{
+	/* Skip over initial dot */
+	if (name && *name == '.')
+		name++;
+	return name;
+}
 #endif
 
 #if defined(_CALL_ELF) && _CALL_ELF == 2

@@ -27,7 +27,6 @@
 #include "cpumap.h"
 
 #include <err.h>
-#include <sys/time.h>
 
 static unsigned int nthreads = 0;
 static unsigned int nsecs    = 10;

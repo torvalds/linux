@@ -26,7 +26,6 @@
 #include <pthread.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
-#include <sys/utsname.h>
 
 #include "sane_ctype.h"
 
@@ -1420,18 +1419,6 @@ fallback:
 	return 0;
 }
 
-static const char *annotate__norm_arch(const char *arch_name)
-{
-	struct utsname uts;
-
-	if (!arch_name) { /* Assume we are annotating locally. */
-		if (uname(&uts) < 0)
-			return NULL;
-		arch_name = uts.machine;
-	}
-	return normalize_arch((char *)arch_name);
-}
-
 static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 {
 	struct map *map = args->map;
@@ -1622,21 +1609,18 @@ void symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel)
 
 int symbol__annotate(struct symbol *sym, struct map *map,
 		     struct perf_evsel *evsel, size_t privsize,
-		     struct arch **parch, char *cpuid)
+		     struct arch **parch)
 {
 	struct annotate_args args = {
 		.privsize	= privsize,
 		.map		= map,
 		.evsel		= evsel,
 	};
-	const char *arch_name = NULL;
+	struct perf_env *env = perf_evsel__env(evsel);
+	const char *arch_name = perf_env__arch(env);
 	struct arch *arch;
 	int err;
 
-	if (evsel)
-		arch_name = perf_evsel__env_arch(evsel);
-
-	arch_name = annotate__norm_arch(arch_name);
 	if (!arch_name)
 		return -1;
 
@@ -1648,7 +1632,7 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		*parch = arch;
 
 	if (arch->init) {
-		err = arch->init(arch, cpuid);
+		err = arch->init(arch, env ? env->cpuid : NULL);
 		if (err) {
 			pr_err("%s: failed to initialize %s arch priv area\n", __func__, arch->name);
 			return err;
@@ -1999,7 +1983,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	struct dso *dso = map->dso;
 	struct rb_root source_line = RB_ROOT;
 
-	if (symbol__annotate(sym, map, evsel, 0, NULL, NULL) < 0)
+	if (symbol__annotate(sym, map, evsel, 0, NULL) < 0)
 		return -1;
 
 	symbol__calc_percent(sym, evsel);
