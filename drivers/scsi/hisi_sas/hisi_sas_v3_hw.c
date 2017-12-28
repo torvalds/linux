@@ -1047,7 +1047,7 @@ static int prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 		dw1 |= 1 << CMD_HDR_RESET_OFF;
 
 	dw1 |= (hisi_sas_get_ata_protocol(
-		task->ata_task.fis.command, task->data_dir))
+		&task->ata_task.fis, task->data_dir))
 		<< CMD_HDR_FRAME_TYPE_OFF;
 	dw1 |= sas_dev->device_id << CMD_HDR_DEV_ID_OFF;
 
