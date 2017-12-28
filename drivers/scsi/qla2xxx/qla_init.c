@@ -1537,6 +1537,7 @@ qla24xx_handle_plogi_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 	port_id_t cid;	/* conflict Nport id */
 	u16 lid;
 	struct fc_port *conflict_fcport;
+	unsigned long flags;
 
 	switch (ea->data[0]) {
 	case MBS_COMMAND_COMPLETE:
@@ -1557,10 +1558,14 @@ qla24xx_handle_plogi_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 			    ea->fcport->loop_id, ea->fcport->d_id.b24);
 
 			set_bit(ea->fcport->loop_id, vha->hw->loop_id_map);
+			spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 			ea->fcport->loop_id = FC_NO_LOOP_ID;
 			ea->fcport->chip_reset = vha->hw->base_qpair->chip_reset;
 			ea->fcport->logout_on_delete = 1;
 			ea->fcport->send_els_logo = 0;
+			ea->fcport->fw_login_state = DSC_LS_PRLI_COMP;
+			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+
 			qla24xx_post_gpdb_work(vha, ea->fcport, 0);
 		}
 		break;
