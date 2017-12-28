@@ -288,6 +288,8 @@ struct name_list_extended {
 #define ATIO_ENTRY_CNT_24XX		4096	/* Number of ATIO entries. */
 #define RESPONSE_ENTRY_CNT_FX00		256     /* Number of response entries.*/
 #define FW_DEF_EXCHANGES_CNT 2048
+#define FW_MAX_EXCHANGES_CNT (32 * 1024)
+#define REDUCE_EXCHANGES_CNT  (8 * 1024)
 
 struct req_que;
 struct qla_tgt_sess;
@@ -3506,6 +3508,7 @@ struct qla_hw_data {
 		uint32_t	using_lr_setting:1;
 	} flags;
 
+	uint16_t max_exchg;
 	uint16_t long_range_distance;	/* 32G & above */
 #define LR_DISTANCE_5K  1
 #define LR_DISTANCE_10K 0

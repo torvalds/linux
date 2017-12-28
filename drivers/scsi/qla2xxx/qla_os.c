@@ -2789,6 +2789,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->init_cb_size = sizeof(init_cb_t);
 	ha->link_data_rate = PORT_SPEED_UNKNOWN;
 	ha->optrom_size = OPTROM_SIZE_2300;
+	ha->max_exchg = FW_MAX_EXCHANGES_CNT;
 
 	/* Assign ISP specific operations. */
 	if (IS_QLA2100(ha)) {
@@ -4230,6 +4231,9 @@ qla2x00_number_of_exch(scsi_qla_host_t *vha, u32 *ret_cnt, u16 max_cnt)
 	u32 temp;
 	*ret_cnt = FW_DEF_EXCHANGES_CNT;
 
+	if (max_cnt > vha->hw->max_exchg)
+		max_cnt = vha->hw->max_exchg;
+
 	if (qla_ini_mode_enabled(vha)) {
 		if (ql2xiniexchg > max_cnt)
 			ql2xiniexchg = max_cnt;
@@ -4259,8 +4263,8 @@ int
 qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
 {
 	int rval;
-	u16 size, max_cnt;
-	u32 temp;
+	u16	size, max_cnt;
+	u32 actual_cnt, totsz;
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!ha->flags.exchoffld_enabled)
@@ -4277,16 +4281,19 @@ qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
 		return rval;
 	}
 
-	qla2x00_number_of_exch(vha, &temp, max_cnt);
-	temp *= size;
+	qla2x00_number_of_exch(vha, &actual_cnt, max_cnt);
+	ql_log(ql_log_info, vha, 0xd014,
+	    "Actual exchange offload count: %d.\n", actual_cnt);
 
-	if (temp != ha->exchoffld_size) {
+	totsz = actual_cnt * size;
+
+	if (totsz != ha->exchoffld_size) {
 		qla2x00_free_exchoffld_buffer(ha);
-		ha->exchoffld_size = temp;
+		ha->exchoffld_size = totsz;
 
 		ql_log(ql_log_info, vha, 0xd016,
-		    "Exchange offload: max_count=%d, buffers=0x%x, total=%d.\n",
-		    max_cnt, size, temp);
+		    "Exchange offload: max_count=%d, actual count=%d entry sz=0x%x, total sz=0x%x\n",
+		    max_cnt, actual_cnt, size, totsz);
 
 		ql_log(ql_log_info, vha, 0xd017,
 		    "Exchange Buffers requested size = 0x%x\n",
@@ -4297,7 +4304,21 @@ qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
 			ha->exchoffld_size, &ha->exchoffld_buf_dma, GFP_KERNEL);
 		if (!ha->exchoffld_buf) {
 			ql_log_pci(ql_log_fatal, ha->pdev, 0xd013,
-			"Failed to allocate memory for exchoffld_buf_dma.\n");
+			"Failed to allocate memory for Exchange Offload.\n");
+
+			if (ha->max_exchg >
+			    (FW_DEF_EXCHANGES_CNT + REDUCE_EXCHANGES_CNT)) {
+				ha->max_exchg -= REDUCE_EXCHANGES_CNT;
+			} else if (ha->max_exchg >
+			    (FW_DEF_EXCHANGES_CNT + 512)) {
+				ha->max_exchg -= 512;
+			} else {
+				ha->flags.exchoffld_enabled = 0;
+				ql_log_pci(ql_log_fatal, ha->pdev, 0xd013,
+				    "Disabling Exchange offload due to lack of memory\n");
+			}
+			ha->exchoffld_size = 0;
+
 			return -ENOMEM;
 		}
 	}
