@@ -49,6 +49,20 @@
 
 	/delete-node/ reg_vcc_wifi;
 
+	/*
+	 * Ths pin of this regulator is the same with the Wi-Fi extra
+	 * regulator on the original Zero. However it's used for USB
+	 * Ethernet rather than the Wi-Fi now.
+	 */
+	reg_vcc_usb_eth: reg-vcc-usb-ethernet {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "vcc-usb-ethernet";
+		enable-active-high;
+		gpio = <&pio 0 20 GPIO_ACTIVE_HIGH>;
+	};
+
 	aliases {
 		ethernet1 = &rtl8189etv;
 	};
@@ -70,4 +84,8 @@
 	rtl8189etv: sdio_wifi@1 {
 		reg = <1>;
 	};
+};
+
+&usbphy {
+	usb1_vbus-supply = <&reg_vcc_usb_eth>;
 };
