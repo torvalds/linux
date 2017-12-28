@@ -158,6 +158,8 @@ static void ena_init_io_rings_common(struct ena_adapter *adapter,
 	ring->per_napi_packets = 0;
 	ring->per_napi_bytes = 0;
 	ring->cpu = 0;
+	ring->first_interrupt = false;
+	ring->no_interrupt_event_cnt = 0;
 	u64_stats_init(&ring->syncp);
 }
 
@@ -1273,6 +1275,9 @@ static irqreturn_t ena_intr_msix_mgmnt(int irq, void *data)
 static irqreturn_t ena_intr_msix_io(int irq, void *data)
 {
 	struct ena_napi *ena_napi = data;
+
+	ena_napi->tx_ring->first_interrupt = true;
+	ena_napi->rx_ring->first_interrupt = true;
 
 	napi_schedule_irqoff(&ena_napi->napi);
 
@@ -2648,8 +2653,32 @@ static void ena_fw_reset_device(struct work_struct *work)
 	rtnl_unlock();
 }
 
-static int check_missing_comp_in_queue(struct ena_adapter *adapter,
-				       struct ena_ring *tx_ring)
+static int check_for_rx_interrupt_queue(struct ena_adapter *adapter,
+					struct ena_ring *rx_ring)
+{
+	if (likely(rx_ring->first_interrupt))
+		return 0;
+
+	if (ena_com_cq_empty(rx_ring->ena_com_io_cq))
+		return 0;
+
+	rx_ring->no_interrupt_event_cnt++;
+
+	if (rx_ring->no_interrupt_event_cnt == ENA_MAX_NO_INTERRUPT_ITERATIONS) {
+		netif_err(adapter, rx_err, adapter->netdev,
+			  "Potential MSIX issue on Rx side Queue = %d. Reset the device\n",
+			  rx_ring->qid);
+		adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
+		smp_mb__before_atomic();
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
+					  struct ena_ring *tx_ring)
 {
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
@@ -2659,8 +2688,27 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		tx_buf = &tx_ring->tx_buffer_info[i];
 		last_jiffies = tx_buf->last_jiffies;
-		if (unlikely(last_jiffies &&
-			     time_is_before_jiffies(last_jiffies + adapter->missing_tx_completion_to))) {
+
+		if (last_jiffies == 0)
+			/* no pending Tx at this location */
+			continue;
+
+		if (unlikely(!tx_ring->first_interrupt && time_is_before_jiffies(last_jiffies +
+			     2 * adapter->missing_tx_completion_to))) {
+			/* If after graceful period interrupt is still not
+			 * received, we schedule a reset
+			 */
+			netif_err(adapter, tx_err, adapter->netdev,
+				  "Potential MSIX issue on Tx side Queue = %d. Reset the device\n",
+				  tx_ring->qid);
+			adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
+			smp_mb__before_atomic();
+			set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+			return -EIO;
+		}
+
+		if (unlikely(time_is_before_jiffies(last_jiffies +
+				adapter->missing_tx_completion_to))) {
 			if (!tx_buf->print_once)
 				netif_notice(adapter, tx_err, adapter->netdev,
 					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
@@ -2689,9 +2737,10 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 	return rc;
 }
 
-static void check_for_missing_tx_completions(struct ena_adapter *adapter)
+static void check_for_missing_completions(struct ena_adapter *adapter)
 {
 	struct ena_ring *tx_ring;
+	struct ena_ring *rx_ring;
 	int i, budget, rc;
 
 	/* Make sure the driver doesn't turn the device in other process */
@@ -2710,8 +2759,13 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 
 	for (i = adapter->last_monitored_tx_qid; i < adapter->num_queues; i++) {
 		tx_ring = &adapter->tx_ring[i];
+		rx_ring = &adapter->rx_ring[i];
 
-		rc = check_missing_comp_in_queue(adapter, tx_ring);
+		rc = check_missing_comp_in_tx_queue(adapter, tx_ring);
+		if (unlikely(rc))
+			return;
+
+		rc = check_for_rx_interrupt_queue(adapter, rx_ring);
 		if (unlikely(rc))
 			return;
 
@@ -2870,7 +2924,7 @@ static void ena_timer_service(struct timer_list *t)
 
 	check_for_admin_com_state(adapter);
 
-	check_for_missing_tx_completions(adapter);
+	check_for_missing_completions(adapter);
 
 	check_for_empty_rx_ring(adapter);
 

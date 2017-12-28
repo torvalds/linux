@@ -504,3 +504,14 @@ int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id)
 
 	return 0;
 }
+
+bool ena_com_cq_empty(struct ena_com_io_cq *io_cq)
+{
+	struct ena_eth_io_rx_cdesc_base *cdesc;
+
+	cdesc = ena_com_get_next_rx_cdesc(io_cq);
+	if (cdesc)
+		return false;
+	else
+		return true;
+}

@@ -122,6 +122,7 @@
  * We wait for 6 sec just to be on the safe side.
  */
 #define ENA_DEVICE_KALIVE_TIMEOUT	(6 * HZ)
+#define ENA_MAX_NO_INTERRUPT_ITERATIONS 3
 
 #define ENA_MMIO_DISABLE_REG_READ	BIT(0)
 
@@ -235,6 +236,9 @@ struct ena_ring {
 
 	/* The maximum header length the device can handle */
 	u8 tx_max_header_size;
+
+	bool first_interrupt;
+	u16 no_interrupt_event_cnt;
 
 	/* cpu for TPH */
 	int cpu;
