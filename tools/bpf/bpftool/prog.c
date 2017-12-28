@@ -401,6 +401,88 @@ static int do_show(int argc, char **argv)
 	return err;
 }
 
+#define SYM_MAX_NAME	256
+
+struct kernel_sym {
+	unsigned long address;
+	char name[SYM_MAX_NAME];
+};
+
+struct dump_data {
+	unsigned long address_call_base;
+	struct kernel_sym *sym_mapping;
+	__u32 sym_count;
+	char scratch_buff[SYM_MAX_NAME];
+};
+
+static int kernel_syms_cmp(const void *sym_a, const void *sym_b)
+{
+	return ((struct kernel_sym *)sym_a)->address -
+	       ((struct kernel_sym *)sym_b)->address;
+}
+
+static void kernel_syms_load(struct dump_data *dd)
+{
+	struct kernel_sym *sym;
+	char buff[256];
+	void *tmp, *address;
+	FILE *fp;
+
+	fp = fopen("/proc/kallsyms", "r");
+	if (!fp)
+		return;
+
+	while (!feof(fp)) {
+		if (!fgets(buff, sizeof(buff), fp))
+			break;
+		tmp = realloc(dd->sym_mapping,
+			      (dd->sym_count + 1) *
+			      sizeof(*dd->sym_mapping));
+		if (!tmp) {
+out:
+			free(dd->sym_mapping);
+			dd->sym_mapping = NULL;
+			fclose(fp);
+			return;
+		}
+		dd->sym_mapping = tmp;
+		sym = &dd->sym_mapping[dd->sym_count];
+		if (sscanf(buff, "%p %*c %s", &address, sym->name) != 2)
+			continue;
+		sym->address = (unsigned long)address;
+		if (!strcmp(sym->name, "__bpf_call_base")) {
+			dd->address_call_base = sym->address;
+			/* sysctl kernel.kptr_restrict was set */
+			if (!sym->address)
+				goto out;
+		}
+		if (sym->address)
+			dd->sym_count++;
+	}
+
+	fclose(fp);
+
+	qsort(dd->sym_mapping, dd->sym_count,
+	      sizeof(*dd->sym_mapping), kernel_syms_cmp);
+}
+
+static void kernel_syms_destroy(struct dump_data *dd)
+{
+	free(dd->sym_mapping);
+}
+
+static struct kernel_sym *kernel_syms_search(struct dump_data *dd,
+					     unsigned long key)
+{
+	struct kernel_sym sym = {
+		.address = key,
+	};
+
+	return dd->sym_mapping ?
+	       bsearch(&sym, dd->sym_mapping, dd->sym_count,
+		       sizeof(*dd->sym_mapping), kernel_syms_cmp) : NULL;
+}
+
 static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
 {
 	va_list args;
@@ -410,8 +492,71 @@ static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
 	va_end(args);
 }
 
-static void dump_xlated_plain(void *buf, unsigned int len, bool opcodes)
+static const char *print_call_pcrel(struct dump_data *dd,
+				    struct kernel_sym *sym,
+				    unsigned long address,
+				    const struct bpf_insn *insn)
 {
+	if (sym)
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			 "%+d#%s", insn->off, sym->name);
+	else
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			 "%+d#0x%lx", insn->off, address);
+	return dd->scratch_buff;
+}
+
+static const char *print_call_helper(struct dump_data *dd,
+				     struct kernel_sym *sym,
+				     unsigned long address)
+{
+	if (sym)
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			 "%s", sym->name);
+	else
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			 "0x%lx", address);
+	return dd->scratch_buff;
+}
+
+static const char *print_call(void *private_data,
+			      const struct bpf_insn *insn)
+{
+	struct dump_data *dd = private_data;
+	unsigned long address = dd->address_call_base + insn->imm;
+	struct kernel_sym *sym;
+
+	sym = kernel_syms_search(dd, address);
+	if (insn->src_reg == BPF_PSEUDO_CALL)
+		return print_call_pcrel(dd, sym, address, insn);
+	else
+		return print_call_helper(dd, sym, address);
+}
+
+static const char *print_imm(void *private_data,
+			     const struct bpf_insn *insn,
+			     __u64 full_imm)
+{
+	struct dump_data *dd = private_data;
+
+	if (insn->src_reg == BPF_PSEUDO_MAP_FD)
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			 "map[id:%u]", insn->imm);
+	else
+		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
+			 "0x%llx", (unsigned long long)full_imm);
+	return dd->scratch_buff;
+}
+
+static void dump_xlated_plain(struct dump_data *dd, void *buf,
+			      unsigned int len, bool opcodes)
+{
+	const struct bpf_insn_cbs cbs = {
+		.cb_print	= print_insn,
+		.cb_call	= print_call,
+		.cb_imm		= print_imm,
+		.private_data	= dd,
+	};
 	struct bpf_insn *insn = buf;
 	bool double_insn = false;
 	unsigned int i;
@@ -425,7 +570,7 @@ static void dump_xlated_plain(void *buf, unsigned int len, bool opcodes)
 		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);
 
 		printf("% 4d: ", i);
-		print_bpf_insn(print_insn, NULL, insn + i, true);
+		print_bpf_insn(&cbs, NULL, insn + i, true);
 
 		if (opcodes) {
 			printf("       ");
@@ -454,8 +599,15 @@ static void print_insn_json(struct bpf_verifier_env *env, const char *fmt, ...)
 	va_end(args);
 }
 
-static void dump_xlated_json(void *buf, unsigned int len, bool opcodes)
+static void dump_xlated_json(struct dump_data *dd, void *buf,
+			     unsigned int len, bool opcodes)
 {
+	const struct bpf_insn_cbs cbs = {
+		.cb_print	= print_insn_json,
+		.cb_call	= print_call,
+		.cb_imm		= print_imm,
+		.private_data	= dd,
+	};
 	struct bpf_insn *insn = buf;
 	bool double_insn = false;
 	unsigned int i;
@@ -470,7 +622,7 @@ static void dump_xlated_json(void *buf, unsigned int len, bool opcodes)
 
 		jsonw_start_object(json_wtr);
 		jsonw_name(json_wtr, "disasm");
-		print_bpf_insn(print_insn_json, NULL, insn + i, true);
+		print_bpf_insn(&cbs, NULL, insn + i, true);
 
 		if (opcodes) {
 			jsonw_name(json_wtr, "opcodes");
@@ -505,6 +657,7 @@ static void dump_xlated_json(void *buf, unsigned int len, bool opcodes)
 static int do_dump(int argc, char **argv)
 {
 	struct bpf_prog_info info = {};
+	struct dump_data dd = {};
 	__u32 len = sizeof(info);
 	unsigned int buf_size;
 	char *filepath = NULL;
@@ -592,6 +745,14 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
+	if ((member_len == &info.jited_prog_len &&
+	     info.jited_prog_insns == 0) ||
+	    (member_len == &info.xlated_prog_len &&
+	     info.xlated_prog_insns == 0)) {
+		p_err("error retrieving insn dump: kernel.kptr_restrict set?");
+		goto err_free;
+	}
+
 	if (filepath) {
 		fd = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 		if (fd < 0) {
@@ -608,17 +769,19 @@ static int do_dump(int argc, char **argv)
 			goto err_free;
 		}
 	} else {
-		if (member_len == &info.jited_prog_len)
+		if (member_len == &info.jited_prog_len) {
 			disasm_print_insn(buf, *member_len, opcodes);
-		else
+		} else {
+			kernel_syms_load(&dd);
 			if (json_output)
-				dump_xlated_json(buf, *member_len, opcodes);
+				dump_xlated_json(&dd, buf, *member_len, opcodes);
 			else
-				dump_xlated_plain(buf, *member_len, opcodes);
+				dump_xlated_plain(&dd, buf, *member_len, opcodes);
+			kernel_syms_destroy(&dd);
+		}
 	}
 
 	free(buf);
-
 	return 0;
 
 err_free:

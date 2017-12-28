@@ -772,7 +772,7 @@ static int check_subprogs(struct bpf_verifier_env *env)
 			return -EPERM;
 		}
 		if (bpf_prog_is_dev_bound(env->prog->aux)) {
-			verbose(env, "funcation calls in offloaded programs are not supported yet\n");
+			verbose(env, "function calls in offloaded programs are not supported yet\n");
 			return -EINVAL;
 		}
 		ret = add_subprog(env, i + insn[i].imm + 1);
@@ -823,6 +823,7 @@ next:
 	return 0;
 }
 
+static
 struct bpf_verifier_state *skip_callee(struct bpf_verifier_env *env,
 				       const struct bpf_verifier_state *state,
 				       struct bpf_verifier_state *parent,
@@ -867,7 +868,7 @@ bug:
 	verbose(env, "verifier bug regno %d tmp %p\n", regno, tmp);
 	verbose(env, "regno %d parent frame %d current frame %d\n",
 		regno, parent->curframe, state->curframe);
-	return 0;
+	return NULL;
 }
 
 static int mark_reg_read(struct bpf_verifier_env *env,
@@ -1434,33 +1435,80 @@ static int update_stack_depth(struct bpf_verifier_env *env,
 			      const struct bpf_func_state *func,
 			      int off)
 {
-	u16 stack = env->subprog_stack_depth[func->subprogno], total = 0;
-	struct bpf_verifier_state *cur = env->cur_state;
-	int i;
+	u16 stack = env->subprog_stack_depth[func->subprogno];
 
 	if (stack >= -off)
 		return 0;
 
 	/* update known max for given subprogram */
 	env->subprog_stack_depth[func->subprogno] = -off;
+	return 0;
+}
 
-	/* compute the total for current call chain */
-	for (i = 0; i <= cur->curframe; i++) {
-		u32 depth = env->subprog_stack_depth[cur->frame[i]->subprogno];
+/* starting from main bpf function walk all instructions of the function
+ * and recursively walk all callees that given function can call.
+ * Ignore jump and exit insns.
+ * Since recursion is prevented by check_cfg() this algorithm
+ * only needs a local stack of MAX_CALL_FRAMES to remember callsites
+ */
+static int check_max_stack_depth(struct bpf_verifier_env *env)
+{
+	int depth = 0, frame = 0, subprog = 0, i = 0, subprog_end;
+	struct bpf_insn *insn = env->prog->insnsi;
+	int insn_cnt = env->prog->len;
+	int ret_insn[MAX_CALL_FRAMES];
+	int ret_prog[MAX_CALL_FRAMES];
 
-		/* round up to 32-bytes, since this is granularity
-		 * of interpreter stack sizes
-		 */
-		depth = round_up(depth, 32);
-		total += depth;
-	}
-
-	if (total > MAX_BPF_STACK) {
+process_func:
+	/* round up to 32-bytes, since this is granularity
+	 * of interpreter stack size
+	 */
+	depth += round_up(max_t(u32, env->subprog_stack_depth[subprog], 1), 32);
+	if (depth > MAX_BPF_STACK) {
 		verbose(env, "combined stack size of %d calls is %d. Too large\n",
-			cur->curframe, total);
+			frame + 1, depth);
 		return -EACCES;
 	}
-	return 0;
+continue_func:
+	if (env->subprog_cnt == subprog)
+		subprog_end = insn_cnt;
+	else
+		subprog_end = env->subprog_starts[subprog];
+	for (; i < subprog_end; i++) {
+		if (insn[i].code != (BPF_JMP | BPF_CALL))
+			continue;
+		if (insn[i].src_reg != BPF_PSEUDO_CALL)
+			continue;
+		/* remember insn and function to return to */
+		ret_insn[frame] = i + 1;
+		ret_prog[frame] = subprog;
+
+		/* find the callee */
+		i = i + insn[i].imm + 1;
+		subprog = find_subprog(env, i);
+		if (subprog < 0) {
+			WARN_ONCE(1, "verifier bug. No program starts at insn %d\n",
+				  i);
+			return -EFAULT;
+		}
+		subprog++;
+		frame++;
+		if (frame >= MAX_CALL_FRAMES) {
+			WARN_ONCE(1, "verifier bug. Call stack is too deep\n");
+			return -EFAULT;
+		}
+		goto process_func;
+	}
+	/* end of for() loop means the last insn of the 'subprog'
+	 * was reached. Doesn't matter whether it was JA or EXIT
+	 */
+	if (frame == 0)
+		return 0;
+	depth -= round_up(max_t(u32, env->subprog_stack_depth[subprog], 1), 32);
+	frame--;
+	i = ret_insn[frame];
+	subprog = ret_prog[frame];
+	goto continue_func;
 }
 
 static int get_callee_stack_depth(struct bpf_verifier_env *env,
@@ -2105,9 +2153,9 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	struct bpf_func_state *caller, *callee;
 	int i, subprog, target_insn;
 
-	if (state->curframe >= MAX_CALL_FRAMES) {
+	if (state->curframe + 1 >= MAX_CALL_FRAMES) {
 		verbose(env, "the call stack of %d frames is too deep\n",
-			state->curframe);
+			state->curframe + 2);
 		return -E2BIG;
 	}
 
@@ -4155,7 +4203,7 @@ static bool stacksafe(struct bpf_func_state *old,
 
 		if (!(old->stack[spi].spilled_ptr.live & REG_LIVE_READ))
 			/* explored state didn't use this */
-			return true;
+			continue;
 
 		if (old->stack[spi].slot_type[i % BPF_REG_SIZE] == STACK_INVALID)
 			continue;
@@ -4475,9 +4523,12 @@ static int do_check(struct bpf_verifier_env *env)
 		}
 
 		if (env->log.level) {
+			const struct bpf_insn_cbs cbs = {
+				.cb_print	= verbose,
+			};
+
 			verbose(env, "%d: ", insn_idx);
-			print_bpf_insn(verbose, env, insn,
-				       env->allow_ptr_leaks);
+			print_bpf_insn(&cbs, env, insn, env->allow_ptr_leaks);
 		}
 
 		err = ext_analyzer_insn_hook(env, insn_idx, prev_insn_idx);
@@ -5065,14 +5116,14 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 {
 	struct bpf_prog *prog = env->prog, **func, *tmp;
 	int i, j, subprog_start, subprog_end = 0, len, subprog;
-	struct bpf_insn *insn = prog->insnsi;
+	struct bpf_insn *insn;
 	void *old_bpf_func;
 	int err = -ENOMEM;
 
 	if (env->subprog_cnt == 0)
 		return 0;
 
-	for (i = 0; i < prog->len; i++, insn++) {
+	for (i = 0, insn = prog->insnsi; i < prog->len; i++, insn++) {
 		if (insn->code != (BPF_JMP | BPF_CALL) ||
 		    insn->src_reg != BPF_PSEUDO_CALL)
 			continue;
@@ -5111,7 +5162,10 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 			goto out_free;
 		memcpy(func[i]->insnsi, &prog->insnsi[subprog_start],
 		       len * sizeof(struct bpf_insn));
+		func[i]->type = prog->type;
 		func[i]->len = len;
+		if (bpf_prog_calc_tag(func[i]))
+			goto out_free;
 		func[i]->is_func = 1;
 		/* Use bpf_prog_F_tag to indicate functions in stack traces.
 		 * Long term would need debug info to populate names
@@ -5161,6 +5215,25 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		bpf_prog_lock_ro(func[i]);
 		bpf_prog_kallsyms_add(func[i]);
 	}
+
+	/* Last step: make now unused interpreter insns from main
+	 * prog consistent for later dump requests, so they can
+	 * later look the same as if they were interpreted only.
+	 */
+	for (i = 0, insn = prog->insnsi; i < prog->len; i++, insn++) {
+		unsigned long addr;
+
+		if (insn->code != (BPF_JMP | BPF_CALL) ||
+		    insn->src_reg != BPF_PSEUDO_CALL)
+			continue;
+		insn->off = env->insn_aux_data[i].call_imm;
+		subprog = find_subprog(env, i + insn->off + 1);
+		addr  = (unsigned long)func[subprog + 1]->bpf_func;
+		addr &= PAGE_MASK;
+		insn->imm = (u64 (*)(u64, u64, u64, u64, u64))
+			    addr - __bpf_call_base;
+	}
+
 	prog->jited = 1;
 	prog->bpf_func = func[0]->bpf_func;
 	prog->aux->func = func;
@@ -5425,6 +5498,9 @@ skip_full_check:
 
 	if (ret == 0)
 		sanitize_dead_code(env);
+
+	if (ret == 0)
+		ret = check_max_stack_depth(env);
 
 	if (ret == 0)
 		/* program is valid, convert *(u32*)(ctx + off) accesses */

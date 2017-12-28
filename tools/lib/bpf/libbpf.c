@@ -910,8 +910,9 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 				   GELF_R_SYM(rel.r_info));
 			return -LIBBPF_ERRNO__FORMAT;
 		}
-		pr_debug("relo for %ld value %ld name %d\n",
-			 rel.r_info >> 32, sym.st_value, sym.st_name);
+		pr_debug("relo for %lld value %lld name %d\n",
+			 (long long) (rel.r_info >> 32),
+			 (long long) sym.st_value, sym.st_name);
 
 		if (sym.st_shndx != maps_shndx && sym.st_shndx != text_shndx) {
 			pr_warning("Program '%s' contains non-map related relo data pointing to section %u\n",
