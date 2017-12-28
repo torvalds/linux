@@ -4697,6 +4697,7 @@ int qla2x00_post_async_##name##_work(		\
 		e->u.logio.data[0] = data[0];	\
 		e->u.logio.data[1] = data[1];	\
 	}					\
+	fcport->flags |= FCF_ASYNC_ACTIVE;	\
 	return qla2x00_post_work(vha, e);	\
 }
 
@@ -5076,7 +5077,8 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 		 * to it if we haven't run out of retries.
 		 */
 		if (atomic_read(&fcport->state) != FCS_ONLINE &&
-		    fcport->login_retry && !(fcport->flags & FCF_ASYNC_SENT)) {
+		    fcport->login_retry &&
+		    !(fcport->flags & (FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE))) {
 			if (vha->hw->current_topology != ISP_CFG_NL) {
 				ql_dbg(ql_dbg_disc, fcport->vha, 0x2108,
 				    "%s %8phC DS %d LS %d\n", __func__,

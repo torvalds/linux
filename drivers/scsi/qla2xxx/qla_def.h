@@ -2454,6 +2454,7 @@ static const char * const port_state_str[] = {
 #define FCF_FCP2_DEVICE		BIT_2
 #define FCF_ASYNC_SENT		BIT_3
 #define FCF_CONF_COMP_SUPPORTED BIT_4
+#define FCF_ASYNC_ACTIVE	BIT_5
 
 /* No loop ID flag. */
 #define FC_NO_LOOP_ID		0x1000
