@@ -955,6 +955,10 @@ static void dw_mipi_dsi_set_vid_mode(struct dw_mipi_dsi *dsi)
 
 	regmap_write(dsi->regmap, DSI_VID_MODE_CFG, val);
 
+	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+				   AUTO_CLKLANE_CTRL, AUTO_CLKLANE_CTRL);
+
 	if (dsi->slave || dsi->master)
 		val = mode->hdisplay / 2;
 	else
