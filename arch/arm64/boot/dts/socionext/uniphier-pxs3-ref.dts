@@ -45,6 +45,14 @@
 	status = "okay";
 };
 
+&serial2 {
+	status = "okay";
+};
+
+&serial3 {
+	status = "okay";
+};
+
 &gpio {
 	xirq4 {
 		gpio-hog;
