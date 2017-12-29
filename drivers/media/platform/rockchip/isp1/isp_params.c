@@ -1352,10 +1352,11 @@ static const struct v4l2_ioctl_ops rkisp1_params_ioctl = {
 };
 
 static int rkisp1_params_vb2_queue_setup(struct vb2_queue *vq,
+					 const void *parg,
 					 unsigned int *num_buffers,
 					 unsigned int *num_planes,
 					 unsigned int sizes[],
-					 struct device *alloc_devs[])
+					 void *alloc_ctxs[])
 {
 	struct rkisp1_isp_params_vdev *params_vdev = vq->drv_priv;
 
@@ -1524,8 +1525,7 @@ int rkisp1_register_params_vdev(struct rkisp1_isp_params_vdev *params_vdev,
 	video_set_drvdata(vdev, params_vdev);
 
 	node->pad.flags = MEDIA_PAD_FL_SOURCE;
-	vdev->entity.function = MEDIA_ENT_F_IO_V4L;
-	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
+	ret = media_entity_init(&vdev->entity, 1, &node->pad, 0);
 	if (ret < 0)
 		goto err_release_queue;
 	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);

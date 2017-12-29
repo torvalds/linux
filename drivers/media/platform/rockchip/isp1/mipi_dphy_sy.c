@@ -585,7 +585,7 @@ rockchip_mipidphy_notifier_bound(struct v4l2_async_notifier *notifier,
 		return -ENXIO;
 	}
 
-	ret = media_create_pad_link(
+	ret = media_entity_create_link(
 			&sensor->sd->entity, pad,
 			&priv->sd.entity, MIPI_DPHY_SY_PAD_SINK,
 			priv->num_sensors != 1 ? 0 : MEDIA_LNK_FL_ENABLED);
@@ -670,8 +670,8 @@ static int rockchip_mipidphy_media_init(struct mipidphy_priv *priv)
 	priv->pads[MIPI_DPHY_SY_PAD_SINK].flags =
 		MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
 
-	ret = media_entity_pads_init(&priv->sd.entity,
-				 MIPI_DPHY_SY_PADS_NUM, priv->pads);
+	ret = media_entity_init(&priv->sd.entity,
+				 MIPI_DPHY_SY_PADS_NUM, priv->pads, 0);
 	if (ret < 0)
 		return ret;
 

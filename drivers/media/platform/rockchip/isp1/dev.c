@@ -230,7 +230,7 @@ static int rkisp1_create_links(struct rkisp1_device *dev)
 			return -ENXIO;
 		}
 
-		ret = media_create_pad_link(
+		ret = media_entity_create_link(
 				&sensor->sd->entity, pad,
 				&dev->isp_sdev.sd.entity,
 				RKISP1_ISP_PAD_SINK + s,
@@ -247,7 +247,7 @@ static int rkisp1_create_links(struct rkisp1_device *dev)
 	source = &dev->params_vdev.vnode.vdev.entity;
 	sink = &dev->isp_sdev.sd.entity;
 	flags = MEDIA_LNK_FL_ENABLED;
-	ret = media_create_pad_link(source, 0, sink,
+	ret = media_entity_create_link(source, 0, sink,
 				       RKISP1_ISP_PAD_SINK_PARAMS, flags);
 	if (ret < 0)
 		return ret;
@@ -256,7 +256,7 @@ static int rkisp1_create_links(struct rkisp1_device *dev)
 	/* SP links */
 	source = &dev->isp_sdev.sd.entity;
 	sink = &dev->stream[RKISP1_STREAM_SP].vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKISP1_ISP_PAD_SOURCE_PATH,
+	ret = media_entity_create_link(source, RKISP1_ISP_PAD_SOURCE_PATH,
 				       sink, 0, flags);
 	if (ret < 0)
 		return ret;
@@ -264,7 +264,7 @@ static int rkisp1_create_links(struct rkisp1_device *dev)
 	/* MP links */
 	source = &dev->isp_sdev.sd.entity;
 	sink = &dev->stream[RKISP1_STREAM_MP].vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKISP1_ISP_PAD_SOURCE_PATH,
+	ret = media_entity_create_link(source, RKISP1_ISP_PAD_SOURCE_PATH,
 				       sink, 0, flags);
 	if (ret < 0)
 		return ret;
@@ -272,7 +272,7 @@ static int rkisp1_create_links(struct rkisp1_device *dev)
 	/* 3A stats links */
 	source = &dev->isp_sdev.sd.entity;
 	sink = &dev->stats_vdev.vnode.vdev.entity;
-	return media_create_pad_link(source, RKISP1_ISP_PAD_SOURCE_STATS,
+	return media_entity_create_link(source, RKISP1_ISP_PAD_SOURCE_STATS,
 					sink, 0, flags);
 }
 
@@ -560,8 +560,6 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	strlcpy(isp_dev->media_dev.model, "rkisp1",
 		sizeof(isp_dev->media_dev.model));
 	isp_dev->media_dev.dev = &pdev->dev;
-	media_device_init(&isp_dev->media_dev);
-
 	v4l2_dev = &isp_dev->v4l2_dev;
 	v4l2_dev->mdev = &isp_dev->media_dev;
 	strlcpy(v4l2_dev->name, "rkisp1", sizeof(v4l2_dev->name));
