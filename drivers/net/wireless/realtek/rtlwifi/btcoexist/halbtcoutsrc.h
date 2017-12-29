@@ -152,7 +152,6 @@ struct btc_board_info {
 	u8 btdm_ant_num;	/* ant number for btdm */
 	u8 btdm_ant_pos;
 	u8 single_ant_path; /* current used for 8723b only, 1=>s0,  0=>s1 */
-	bool bt_exist;
 	bool tfbga_package;
 };
 
@@ -179,6 +178,12 @@ enum btc_wifi_role {
 	BTC_ROLE_IBSS = 0x2,
 	BTC_ROLE_HS_MODE = 0x3,
 	BTC_ROLE_MAX
+};
+
+enum btc_wireless_freq {
+	BTC_FREQ_2_4G = 0x0,
+	BTC_FREQ_5G = 0x1,
+	BTC_FREQ_MAX
 };
 
 enum btc_wifi_bw_mode {
@@ -355,6 +360,7 @@ enum btc_dbg_disp_type {
 	BTC_DBG_DISP_BT_LINK_INFO = 0x1,
 	BTC_DBG_DISP_BT_FW_VER = 0x2,
 	BTC_DBG_DISP_FW_PWR_MODE_CMD = 0x3,
+	BTC_DBG_DISP_WIFI_STATUS = 0x04,
 	BTC_DBG_DISP_MAX
 };
 
@@ -458,7 +464,8 @@ typedef	bool (*bfp_btc_set)(void *btcoexist, u8 set_type, void *in_buf);
 typedef void (*bfp_btc_set_bt_reg)(void *btc_context, u8 reg_type, u32 offset,
 				   u32 value);
 
-typedef void (*bfp_btc_disp_dbg_msg)(void *btcoexist, u8 disp_type);
+typedef void (*bfp_btc_disp_dbg_msg)(void *btcoexist, u8 disp_type,
+				     struct seq_file *m);
 
 struct btc_bt_info {
 	bool bt_disabled;
