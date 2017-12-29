@@ -883,7 +883,6 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ctrl = kzalloc(sizeof(struct controller), GFP_KERNEL);
 	if (!ctrl) {
-		err("%s : out of memory\n", __func__);
 		rc = -ENOMEM;
 		goto err_disable_device;
 	}

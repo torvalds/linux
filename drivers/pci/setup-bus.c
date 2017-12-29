@@ -67,10 +67,8 @@ static int add_to_list(struct list_head *head,
 	struct pci_dev_resource *tmp;
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
-	if (!tmp) {
-		pr_warn("add_to_list: kmalloc() failed!\n");
+	if (!tmp)
 		return -ENOMEM;
-	}
 
 	tmp->res = res;
 	tmp->dev = dev;
