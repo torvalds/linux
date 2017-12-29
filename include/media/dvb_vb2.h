@@ -24,7 +24,6 @@
 
 enum dvb_buf_type {
 	DVB_BUF_TYPE_CAPTURE        = 1,
-	DVB_BUF_TYPE_OUTPUT         = 2,
 };
 
 #define DVB_VB2_STATE_NONE (0x0)
