@@ -40,13 +40,6 @@ enum {
 	 */
 	MV_AN_CTRL1000		= 0x8000, /* 1000base-T control register */
 	MV_AN_STAT1000		= 0x8001, /* 1000base-T status register */
-
-	/* This register appears to reflect the copper status */
-	MV_AN_RESULT		= 0xa016,
-	MV_AN_RESULT_SPD_10	= BIT(12),
-	MV_AN_RESULT_SPD_100	= BIT(13),
-	MV_AN_RESULT_SPD_1000	= BIT(14),
-	MV_AN_RESULT_SPD_10000	= BIT(15),
 };
 
 static int mv3310_modify(struct phy_device *phydev, int devad, u16 reg,
@@ -160,12 +153,18 @@ static int mv3310_config_init(struct phy_device *phydev)
 		if (val & MDIO_PMA_EXTABLE_1000BKX)
 			__set_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
 				  supported);
-		if (val & MDIO_PMA_EXTABLE_100BTX)
+		if (val & MDIO_PMA_EXTABLE_100BTX) {
 			__set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 				  supported);
-		if (val & MDIO_PMA_EXTABLE_10BT)
+			__set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+				  supported);
+		}
+		if (val & MDIO_PMA_EXTABLE_10BT) {
 			__set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
 				  supported);
+			__set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+				  supported);
+		}
 	}
 
 	if (!ethtool_convert_link_mode_to_legacy_u32(&mask, supported))
@@ -325,22 +324,8 @@ static int mv3310_read_status(struct phy_device *phydev)
 
 		phydev->lp_advertising |= mii_stat1000_to_ethtool_lpa_t(val);
 
-		if (phydev->autoneg == AUTONEG_ENABLE) {
-			val = phy_read_mmd(phydev, MDIO_MMD_AN, MV_AN_RESULT);
-			if (val < 0)
-				return val;
-
-			if (val & MV_AN_RESULT_SPD_10000)
-				phydev->speed = SPEED_10000;
-			else if (val & MV_AN_RESULT_SPD_1000)
-				phydev->speed = SPEED_1000;
-			else if (val & MV_AN_RESULT_SPD_100)
-				phydev->speed = SPEED_100;
-			else if (val & MV_AN_RESULT_SPD_10)
-				phydev->speed = SPEED_10;
-
-			phydev->duplex = DUPLEX_FULL;
-		}
+		if (phydev->autoneg == AUTONEG_ENABLE)
+			phy_resolve_aneg_linkmode(phydev);
 	}
 
 	if (phydev->autoneg != AUTONEG_ENABLE) {
@@ -382,7 +367,9 @@ static struct phy_driver mv3310_drivers[] = {
 		.phy_id_mask	= MARVELL_PHY_ID_MASK,
 		.name		= "mv88x3310",
 		.features	= SUPPORTED_10baseT_Full |
+				  SUPPORTED_10baseT_Half |
 				  SUPPORTED_100baseT_Full |
+				  SUPPORTED_100baseT_Half |
 				  SUPPORTED_1000baseT_Full |
 				  SUPPORTED_Autoneg |
 				  SUPPORTED_TP |
