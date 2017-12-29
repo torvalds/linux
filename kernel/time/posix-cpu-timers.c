@@ -1363,8 +1363,8 @@ static long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 	return do_cpu_nanosleep(which_clock, TIMER_ABSTIME, &t);
 }
 
-#define PROCESS_CLOCK	MAKE_PROCESS_CPUCLOCK(0, CPUCLOCK_SCHED)
-#define THREAD_CLOCK	MAKE_THREAD_CPUCLOCK(0, CPUCLOCK_SCHED)
+#define PROCESS_CLOCK	make_process_cpuclock(0, CPUCLOCK_SCHED)
+#define THREAD_CLOCK	make_thread_cpuclock(0, CPUCLOCK_SCHED)
 
 static int process_cpu_clock_getres(const clockid_t which_clock,
 				    struct timespec64 *tp)

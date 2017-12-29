@@ -216,7 +216,7 @@ struct posix_clock_desc {
 
 static int get_clock_desc(const clockid_t id, struct posix_clock_desc *cd)
 {
-	struct file *fp = fget(CLOCKID_TO_FD(id));
+	struct file *fp = fget(clockid_to_fd(id));
 	int err = -EINVAL;
 
 	if (!fp)
