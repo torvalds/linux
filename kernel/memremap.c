@@ -275,9 +275,10 @@ static unsigned long pfn_end(struct dev_pagemap *pgmap)
 #define for_each_device_pfn(pfn, map) \
 	for (pfn = pfn_first(map); pfn < pfn_end(map); pfn++)
 
-static void devm_memremap_pages_release(struct device *dev, void *data)
+static void devm_memremap_pages_release(void *data)
 {
 	struct dev_pagemap *pgmap = data;
+	struct device *dev = pgmap->dev;
 	struct resource *res = &pgmap->res;
 	resource_size_t align_start, align_size;
 	unsigned long pfn;
@@ -316,29 +317,34 @@ static struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
 /**
  * devm_memremap_pages - remap and provide memmap backing for the given resource
  * @dev: hosting device for @res
- * @res: "host memory" address range
- * @ref: a live per-cpu reference count
- * @altmap: optional descriptor for allocating the memmap from @res
+ * @pgmap: pointer to a struct dev_pgmap
  *
  * Notes:
- * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
- *    (or devm release event). The expected order of events is that @ref has
+ * 1/ At a minimum the res, ref and type members of @pgmap must be initialized
+ *    by the caller before passing it to this function
+ *
+ * 2/ The altmap field may optionally be initialized, in which case altmap_valid
+ *    must be set to true
+ *
+ * 3/ pgmap.ref must be 'live' on entry and 'dead' before devm_memunmap_pages()
+ *    time (or devm release event). The expected order of events is that ref has
  *    been through percpu_ref_kill() before devm_memremap_pages_release(). The
  *    wait for the completion of all references being dropped and
  *    percpu_ref_exit() must occur after devm_memremap_pages_release().
  *
- * 2/ @res is expected to be a host memory range that could feasibly be
+ * 4/ res is expected to be a host memory range that could feasibly be
  *    treated as a "System RAM" range, i.e. not a device mmio range, but
  *    this is not enforced.
  */
-void *devm_memremap_pages(struct device *dev, struct resource *res,
-		struct percpu_ref *ref, struct vmem_altmap *altmap)
+void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 {
 	resource_size_t align_start, align_size, align_end;
+	struct vmem_altmap *altmap = pgmap->altmap_valid ?
+			&pgmap->altmap : NULL;
 	unsigned long pfn, pgoff, order;
 	pgprot_t pgprot = PAGE_KERNEL;
-	struct dev_pagemap *pgmap;
 	int error, nid, is_ram, i = 0;
+	struct resource *res = &pgmap->res;
 
 	align_start = res->start & ~(SECTION_SIZE - 1);
 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
@@ -355,27 +361,10 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 	if (is_ram == REGION_INTERSECTS)
 		return __va(res->start);
 
-	if (!ref)
+	if (!pgmap->ref)
 		return ERR_PTR(-EINVAL);
 
-	pgmap = devres_alloc_node(devm_memremap_pages_release,
-			sizeof(*pgmap), GFP_KERNEL, dev_to_node(dev));
-	if (!pgmap)
-		return ERR_PTR(-ENOMEM);
-
-	memcpy(&pgmap->res, res, sizeof(*res));
-
 	pgmap->dev = dev;
-	if (altmap) {
-		memcpy(&pgmap->altmap, altmap, sizeof(*altmap));
-		pgmap->altmap_valid = true;
-		altmap = &pgmap->altmap;
-	}
-	pgmap->ref = ref;
-	pgmap->type = MEMORY_DEVICE_HOST;
-	pgmap->page_fault = NULL;
-	pgmap->page_free = NULL;
-	pgmap->data = NULL;
 
 	mutex_lock(&pgmap_lock);
 	error = 0;
@@ -423,11 +412,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 		 */
 		list_del(&page->lru);
 		page->pgmap = pgmap;
-		percpu_ref_get(ref);
+		percpu_ref_get(pgmap->ref);
 		if (!(++i % 1024))
 			cond_resched();
 	}
-	devres_add(dev, pgmap);
+
+	devm_add_action(dev, devm_memremap_pages_release, pgmap);
+
 	return __va(res->start);
 
  err_add_memory:
