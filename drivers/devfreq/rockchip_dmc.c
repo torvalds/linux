@@ -806,6 +806,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	 * 2. Ddr frequency scaling sucessful, we get the rate we set.
 	 */
 	dmcfreq->rate = clk_get_rate(dmcfreq->dmc_clk);
+	dmcfreq->devfreq->last_status.current_frequency = dmcfreq->rate;
 
 	/* If get the incorrect rate, set voltage to old value. */
 	if (dmcfreq->rate != target_rate) {
@@ -948,6 +949,12 @@ static int rockchip_dmcfreq_init_freq_table(struct device *dev,
 
 	devp->max_state = i;
 	return 0;
+}
+
+static inline void reset_last_status(struct devfreq *devfreq)
+{
+	devfreq->last_status.total_time = 1;
+	devfreq->last_status.busy_time = 1;
 }
 
 static void of_get_rk3128_timings(struct device *dev,
@@ -2118,19 +2125,19 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 			target_freq = dmcfreq->normal_rate;
 		if (target_freq)
 			*freq = target_freq;
-		goto next;
+		goto reset_last_status;
 	}
 
 	if (!upthreshold || !downdifferential)
-		goto next;
+		goto reset_last_status;
 
 	if (upthreshold > 100 ||
 	    upthreshold < downdifferential)
-		goto next;
+		goto reset_last_status;
 
 	err = devfreq_update_stats(df);
 	if (err)
-		goto next;
+		goto reset_last_status;
 
 	stat = &df->last_status;
 
@@ -2173,7 +2180,10 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 	b *= 100;
 	b = div_u64(b, (upthreshold - downdifferential / 2));
 	*freq = max_t(unsigned long, target_freq, b);
+	goto next;
 
+reset_last_status:
+	reset_last_status(df);
 next:
 	if (df->min_freq && *freq < df->min_freq)
 		*freq = df->min_freq;
@@ -2433,6 +2443,8 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	data->max = devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
 	data->devfreq->min_freq = data->min;
 	data->devfreq->max_freq = data->max;
+	data->devfreq->last_status.current_frequency = data->rate;
+	reset_last_status(data->devfreq);
 
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
