@@ -931,10 +931,11 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
 	 * want the linear mapping and thus use arch_add_memory().
 	 */
 	if (devmem->pagemap.type == MEMORY_DEVICE_PUBLIC)
-		ret = arch_add_memory(nid, align_start, align_size, false);
+		ret = arch_add_memory(nid, align_start, align_size, NULL,
+				false);
 	else
 		ret = add_pages(nid, align_start >> PAGE_SHIFT,
-				align_size >> PAGE_SHIFT, false);
+				align_size >> PAGE_SHIFT, NULL, false);
 	if (ret) {
 		mem_hotplug_done();
 		goto error_add_memory;

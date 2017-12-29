@@ -13,6 +13,7 @@ struct pglist_data;
 struct mem_section;
 struct memory_block;
 struct resource;
+struct vmem_altmap;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
@@ -131,18 +132,19 @@ extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
 /* reasonably generic interface to expand the physical pages */
-extern int __add_pages(int nid, unsigned long start_pfn,
-	unsigned long nr_pages, bool want_memblock);
+extern int __add_pages(int nid, unsigned long start_pfn, unsigned long nr_pages,
+		struct vmem_altmap *altmap, bool want_memblock);
 
 #ifndef CONFIG_ARCH_HAS_ADD_PAGES
 static inline int add_pages(int nid, unsigned long start_pfn,
-			    unsigned long nr_pages, bool want_memblock)
+		unsigned long nr_pages, struct vmem_altmap *altmap,
+		bool want_memblock)
 {
-	return __add_pages(nid, start_pfn, nr_pages, want_memblock);
+	return __add_pages(nid, start_pfn, nr_pages, altmap, want_memblock);
 }
 #else /* ARCH_HAS_ADD_PAGES */
-int add_pages(int nid, unsigned long start_pfn,
-	      unsigned long nr_pages, bool want_memblock);
+int add_pages(int nid, unsigned long start_pfn, unsigned long nr_pages,
+		struct vmem_altmap *altmap, bool want_memblock);
 #endif /* ARCH_HAS_ADD_PAGES */
 
 #ifdef CONFIG_NUMA
@@ -318,7 +320,8 @@ extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
 		void *arg, int (*func)(struct memory_block *, void *));
 extern int add_memory(int nid, u64 start, u64 size);
 extern int add_memory_resource(int nid, struct resource *resource, bool online);
-extern int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock);
+extern int arch_add_memory(int nid, u64 start, u64 size,
+		struct vmem_altmap *altmap, bool want_memblock);
 extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
 		unsigned long nr_pages);
 extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
