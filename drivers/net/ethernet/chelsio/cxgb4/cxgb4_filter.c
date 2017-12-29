@@ -1189,6 +1189,7 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		       struct filter_ctx *ctx)
 {
 	struct adapter *adapter = netdev2adap(dev);
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	unsigned int max_fidx, fidx;
 	struct filter_entry *f;
 	u32 iconf;
@@ -1225,12 +1226,18 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 	 * insertion.
 	 */
 	if (fs->type == 0) { /* IPv4 */
-		/* If our IPv4 filter isn't being written to a
-		 * multiple of four filter index and there's an IPv6
-		 * filter at the multiple of 4 base slot, then we
-		 * prevent insertion.
+		/* For T6, If our IPv4 filter isn't being written to a
+		 * multiple of two filter index and there's an IPv6
+		 * filter at the multiple of 2 base slot, then we need
+		 * to delete that IPv6 filter ...
+		 * For adapters below T6, IPv6 filter occupies 4 entries.
+		 * Hence we need to delete the filter in multiple of 4 slot.
 		 */
-		fidx = filter_id & ~0x3;
+		if (chip_ver < CHELSIO_T6)
+			fidx = filter_id & ~0x3;
+		else
+			fidx = filter_id & ~0x1;
+
 		if (fidx != filter_id &&
 		    adapter->tids.ftid_tab[fidx].fs.type) {
 			f = &adapter->tids.ftid_tab[fidx];
