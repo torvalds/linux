@@ -80,6 +80,12 @@ then
         cp utils/wmt/src/{wmt_loader,wmt_loopback,stp_uart_launcher} ../SD/BPI-ROOT/usr/bin/
         cp -r utils/wmt/firmware/* ../SD/BPI-ROOT/etc/firmware/
 
+        if [[ -n "$(grep 'CONFIG_MT76=' .config)" ]];then
+          echo "MT76 set,don't forget the firmware-files...";
+          mkdir ../SD/BPI-ROOT/lib/firmware/
+          cp drivers/net/wireless/mediatek/mt76/firmware/* ../SD/BPI-ROOT/lib/firmware/
+        fi
+
         echo "pack..."
         kernver=$(make kernelversion)
         gitbranch=$(git rev-parse --abbrev-ref HEAD)
@@ -103,6 +109,9 @@ then
           cp ./uImage /media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
 		  echo "copy modules (root needed because of ext-fs permission)"
           sudo cp -r ../mod/lib/modules /media/$USER/BPI-ROOT/lib/
+          if [[ -n "$(grep 'CONFIG_MT76=' .config)" ]];then
+            echo "MT76 set,don't forget the firmware-files...";
+          fi
           sync
         else
           echo "SD-Card not found!"
