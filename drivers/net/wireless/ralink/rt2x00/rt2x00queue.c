@@ -1244,10 +1244,8 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->data_queues = 2 + rt2x00dev->ops->tx_queues + req_atim;
 
 	queue = kcalloc(rt2x00dev->data_queues, sizeof(*queue), GFP_KERNEL);
-	if (!queue) {
-		rt2x00_err(rt2x00dev, "Queue allocation failed\n");
+	if (!queue)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Initialize pointers
