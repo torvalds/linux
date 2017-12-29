@@ -57,21 +57,19 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	case SFP_CONNECTOR_MT_RJ:
 	case SFP_CONNECTOR_MU:
 	case SFP_CONNECTOR_OPTICAL_PIGTAIL:
-		if (support)
-			phylink_set(support, FIBRE);
 		port = PORT_FIBRE;
 		break;
 
 	case SFP_CONNECTOR_RJ45:
-		if (support)
-			phylink_set(support, TP);
 		port = PORT_TP;
+		break;
+
+	case SFP_CONNECTOR_COPPER_PIGTAIL:
+		port = PORT_DA;
 		break;
 
 	case SFP_CONNECTOR_UNSPEC:
 		if (id->base.e1000_base_t) {
-			if (support)
-				phylink_set(support, TP);
 			port = PORT_TP;
 			break;
 		}
@@ -80,7 +78,6 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	case SFP_CONNECTOR_MPO_1X12:
 	case SFP_CONNECTOR_MPO_2X16:
 	case SFP_CONNECTOR_HSSDC_II:
-	case SFP_CONNECTOR_COPPER_PIGTAIL:
 	case SFP_CONNECTOR_NOSEPARATE:
 	case SFP_CONNECTOR_MXC_2X16:
 		port = PORT_OTHER;
@@ -90,6 +87,18 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 			 id->base.connector);
 		port = PORT_OTHER;
 		break;
+	}
+
+	if (support) {
+		switch (port) {
+		case PORT_FIBRE:
+			phylink_set(support, FIBRE);
+			break;
+
+		case PORT_TP:
+			phylink_set(support, TP);
+			break;
+		}
 	}
 
 	return port;
@@ -143,6 +152,11 @@ phy_interface_t sfp_parse_interface(struct sfp_bus *bus,
 		break;
 
 	default:
+		if (id->base.e1000_base_cx) {
+			iface = PHY_INTERFACE_MODE_1000BASEX;
+			break;
+		}
+
 		iface = PHY_INTERFACE_MODE_NA;
 		dev_err(bus->sfp_dev,
 			"SFP module encoding does not support 8b10b nor 64b66b\n");
@@ -207,6 +221,29 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	if ((id->base.e_base_px || id->base.e_base_bx10) &&
 	    br_min <= 1300 && br_max >= 1200)
 		phylink_set(support, 1000baseX_Full);
+
+	/* For active or passive cables, select the link modes
+	 * based on the bit rates and the cable compliance bytes.
+	 */
+	if ((id->base.sfp_ct_passive || id->base.sfp_ct_active) && br_nom) {
+		/* This may look odd, but some manufacturers use 12000MBd */
+		if (br_min <= 12000 && br_max >= 10300)
+			phylink_set(support, 10000baseCR_Full);
+		if (br_min <= 3200 && br_max >= 3100)
+			phylink_set(support, 2500baseX_Full);
+		if (br_min <= 1300 && br_max >= 1200)
+			phylink_set(support, 1000baseX_Full);
+	}
+	if (id->base.sfp_ct_passive) {
+		if (id->base.passive.sff8431_app_e)
+			phylink_set(support, 10000baseCR_Full);
+	}
+	if (id->base.sfp_ct_active) {
+		if (id->base.active.sff8431_app_e ||
+		    id->base.active.sff8431_lim) {
+			phylink_set(support, 10000baseCR_Full);
+		}
+	}
 
 	switch (id->base.extended_cc) {
 	case 0x00: /* Unspecified */
