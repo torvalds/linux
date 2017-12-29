@@ -867,9 +867,10 @@ static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	esw_debug(dev, "Create vport[%d] egress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_EGRESS_ACL(dev, log_max_ft_size));
 
-	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS);
+	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS,
+						    vport->vport);
 	if (!root_ns) {
-		esw_warn(dev, "Failed to get E-Switch egress flow namespace\n");
+		esw_warn(dev, "Failed to get E-Switch egress flow namespace for vport (%d)\n", vport->vport);
 		return -EOPNOTSUPP;
 	}
 
@@ -984,9 +985,10 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	esw_debug(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_INGRESS_ACL(dev, log_max_ft_size));
 
-	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS);
+	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS,
+						    vport->vport);
 	if (!root_ns) {
-		esw_warn(dev, "Failed to get E-Switch ingress flow namespace\n");
+		esw_warn(dev, "Failed to get E-Switch ingress flow namespace for vport (%d)\n", vport->vport);
 		return -EOPNOTSUPP;
 	}
 
@@ -1290,7 +1292,7 @@ static int esw_create_tsar(struct mlx5_eswitch *esw)
 
 	err = mlx5_create_scheduling_element_cmd(dev,
 						 SCHEDULING_HIERARCHY_E_SWITCH,
-						 &tsar_ctx,
+						 tsar_ctx,
 						 &esw->qos.root_tsar_id);
 	if (err) {
 		esw_warn(esw->dev, "E-Switch create TSAR failed (%d)\n", err);
@@ -1333,20 +1335,20 @@ static int esw_vport_enable_qos(struct mlx5_eswitch *esw, int vport_num,
 	if (vport->qos.enabled)
 		return -EEXIST;
 
-	MLX5_SET(scheduling_context, &sched_ctx, element_type,
+	MLX5_SET(scheduling_context, sched_ctx, element_type,
 		 SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT);
-	vport_elem = MLX5_ADDR_OF(scheduling_context, &sched_ctx,
+	vport_elem = MLX5_ADDR_OF(scheduling_context, sched_ctx,
 				  element_attributes);
 	MLX5_SET(vport_element, vport_elem, vport_number, vport_num);
-	MLX5_SET(scheduling_context, &sched_ctx, parent_element_id,
+	MLX5_SET(scheduling_context, sched_ctx, parent_element_id,
 		 esw->qos.root_tsar_id);
-	MLX5_SET(scheduling_context, &sched_ctx, max_average_bw,
+	MLX5_SET(scheduling_context, sched_ctx, max_average_bw,
 		 initial_max_rate);
-	MLX5_SET(scheduling_context, &sched_ctx, bw_share, initial_bw_share);
+	MLX5_SET(scheduling_context, sched_ctx, bw_share, initial_bw_share);
 
 	err = mlx5_create_scheduling_element_cmd(dev,
 						 SCHEDULING_HIERARCHY_E_SWITCH,
-						 &sched_ctx,
+						 sched_ctx,
 						 &vport->qos.esw_tsar_ix);
 	if (err) {
 		esw_warn(esw->dev, "E-Switch create TSAR vport element failed (vport=%d,err=%d)\n",
@@ -1392,22 +1394,22 @@ static int esw_vport_qos_config(struct mlx5_eswitch *esw, int vport_num,
 	if (!vport->qos.enabled)
 		return -EIO;
 
-	MLX5_SET(scheduling_context, &sched_ctx, element_type,
+	MLX5_SET(scheduling_context, sched_ctx, element_type,
 		 SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT);
-	vport_elem = MLX5_ADDR_OF(scheduling_context, &sched_ctx,
+	vport_elem = MLX5_ADDR_OF(scheduling_context, sched_ctx,
 				  element_attributes);
 	MLX5_SET(vport_element, vport_elem, vport_number, vport_num);
-	MLX5_SET(scheduling_context, &sched_ctx, parent_element_id,
+	MLX5_SET(scheduling_context, sched_ctx, parent_element_id,
 		 esw->qos.root_tsar_id);
-	MLX5_SET(scheduling_context, &sched_ctx, max_average_bw,
+	MLX5_SET(scheduling_context, sched_ctx, max_average_bw,
 		 max_rate);
-	MLX5_SET(scheduling_context, &sched_ctx, bw_share, bw_share);
+	MLX5_SET(scheduling_context, sched_ctx, bw_share, bw_share);
 	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW;
 	bitmask |= MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_BW_SHARE;
 
 	err = mlx5_modify_scheduling_element_cmd(dev,
 						 SCHEDULING_HIERARCHY_E_SWITCH,
-						 &sched_ctx,
+						 sched_ctx,
 						 vport->qos.esw_tsar_ix,
 						 bitmask);
 	if (err) {
@@ -1644,13 +1646,9 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		goto abort;
 	}
 
-	esw->offloads.vport_reps =
-		kzalloc(total_vports * sizeof(struct mlx5_eswitch_rep),
-			GFP_KERNEL);
-	if (!esw->offloads.vport_reps) {
-		err = -ENOMEM;
+	err = esw_offloads_init_reps(esw);
+	if (err)
 		goto abort;
-	}
 
 	hash_init(esw->offloads.encap_tbl);
 	hash_init(esw->offloads.mod_hdr_tbl);
@@ -1681,8 +1679,8 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 abort:
 	if (esw->work_queue)
 		destroy_workqueue(esw->work_queue);
+	esw_offloads_cleanup_reps(esw);
 	kfree(esw->vports);
-	kfree(esw->offloads.vport_reps);
 	kfree(esw);
 	return err;
 }
@@ -1696,7 +1694,7 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
-	kfree(esw->offloads.vport_reps);
+	esw_offloads_cleanup_reps(esw);
 	kfree(esw->vports);
 	kfree(esw);
 }

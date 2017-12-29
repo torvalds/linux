@@ -2026,16 +2026,6 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 			return &steering->fdb_root_ns->ns;
 		else
 			return NULL;
-	case MLX5_FLOW_NAMESPACE_ESW_EGRESS:
-		if (steering->esw_egress_root_ns)
-			return &steering->esw_egress_root_ns->ns;
-		else
-			return NULL;
-	case MLX5_FLOW_NAMESPACE_ESW_INGRESS:
-		if (steering->esw_ingress_root_ns)
-			return &steering->esw_ingress_root_ns->ns;
-		else
-			return NULL;
 	case MLX5_FLOW_NAMESPACE_SNIFFER_RX:
 		if (steering->sniffer_rx_root_ns)
 			return &steering->sniffer_rx_root_ns->ns;
@@ -2065,6 +2055,33 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 	return ns;
 }
 EXPORT_SYMBOL(mlx5_get_flow_namespace);
+
+struct mlx5_flow_namespace *mlx5_get_flow_vport_acl_namespace(struct mlx5_core_dev *dev,
+							      enum mlx5_flow_namespace_type type,
+							      int vport)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+
+	if (!steering || vport >= MLX5_TOTAL_VPORTS(dev))
+		return NULL;
+
+	switch (type) {
+	case MLX5_FLOW_NAMESPACE_ESW_EGRESS:
+		if (steering->esw_egress_root_ns &&
+		    steering->esw_egress_root_ns[vport])
+			return &steering->esw_egress_root_ns[vport]->ns;
+		else
+			return NULL;
+	case MLX5_FLOW_NAMESPACE_ESW_INGRESS:
+		if (steering->esw_ingress_root_ns &&
+		    steering->esw_ingress_root_ns[vport])
+			return &steering->esw_ingress_root_ns[vport]->ns;
+		else
+			return NULL;
+	default:
+		return NULL;
+	}
+}
 
 static struct fs_prio *fs_create_prio(struct mlx5_flow_namespace *ns,
 				      unsigned int prio, int num_levels)
@@ -2343,13 +2360,41 @@ static void cleanup_root_ns(struct mlx5_flow_root_namespace *root_ns)
 	clean_tree(&root_ns->ns.node);
 }
 
+static void cleanup_egress_acls_root_ns(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int i;
+
+	if (!steering->esw_egress_root_ns)
+		return;
+
+	for (i = 0; i < MLX5_TOTAL_VPORTS(dev); i++)
+		cleanup_root_ns(steering->esw_egress_root_ns[i]);
+
+	kfree(steering->esw_egress_root_ns);
+}
+
+static void cleanup_ingress_acls_root_ns(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int i;
+
+	if (!steering->esw_ingress_root_ns)
+		return;
+
+	for (i = 0; i < MLX5_TOTAL_VPORTS(dev); i++)
+		cleanup_root_ns(steering->esw_ingress_root_ns[i]);
+
+	kfree(steering->esw_ingress_root_ns);
+}
+
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_flow_steering *steering = dev->priv.steering;
 
 	cleanup_root_ns(steering->root_ns);
-	cleanup_root_ns(steering->esw_egress_root_ns);
-	cleanup_root_ns(steering->esw_ingress_root_ns);
+	cleanup_egress_acls_root_ns(dev);
+	cleanup_ingress_acls_root_ns(dev);
 	cleanup_root_ns(steering->fdb_root_ns);
 	cleanup_root_ns(steering->sniffer_rx_root_ns);
 	cleanup_root_ns(steering->sniffer_tx_root_ns);
@@ -2418,32 +2463,84 @@ out_err:
 	return PTR_ERR(prio);
 }
 
-static int init_ingress_acl_root_ns(struct mlx5_flow_steering *steering)
+static int init_egress_acl_root_ns(struct mlx5_flow_steering *steering, int vport)
 {
 	struct fs_prio *prio;
 
-	steering->esw_egress_root_ns = create_root_ns(steering, FS_FT_ESW_EGRESS_ACL);
-	if (!steering->esw_egress_root_ns)
+	steering->esw_egress_root_ns[vport] = create_root_ns(steering, FS_FT_ESW_EGRESS_ACL);
+	if (!steering->esw_egress_root_ns[vport])
 		return -ENOMEM;
 
 	/* create 1 prio*/
-	prio = fs_create_prio(&steering->esw_egress_root_ns->ns, 0,
-			      MLX5_TOTAL_VPORTS(steering->dev));
+	prio = fs_create_prio(&steering->esw_egress_root_ns[vport]->ns, 0, 1);
 	return PTR_ERR_OR_ZERO(prio);
 }
 
-static int init_egress_acl_root_ns(struct mlx5_flow_steering *steering)
+static int init_ingress_acl_root_ns(struct mlx5_flow_steering *steering, int vport)
 {
 	struct fs_prio *prio;
 
-	steering->esw_ingress_root_ns = create_root_ns(steering, FS_FT_ESW_INGRESS_ACL);
-	if (!steering->esw_ingress_root_ns)
+	steering->esw_ingress_root_ns[vport] = create_root_ns(steering, FS_FT_ESW_INGRESS_ACL);
+	if (!steering->esw_ingress_root_ns[vport])
 		return -ENOMEM;
 
 	/* create 1 prio*/
-	prio = fs_create_prio(&steering->esw_ingress_root_ns->ns, 0,
-			      MLX5_TOTAL_VPORTS(steering->dev));
+	prio = fs_create_prio(&steering->esw_ingress_root_ns[vport]->ns, 0, 1);
 	return PTR_ERR_OR_ZERO(prio);
+}
+
+static int init_egress_acls_root_ns(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int err;
+	int i;
+
+	steering->esw_egress_root_ns = kcalloc(MLX5_TOTAL_VPORTS(dev),
+					       sizeof(*steering->esw_egress_root_ns),
+					       GFP_KERNEL);
+	if (!steering->esw_egress_root_ns)
+		return -ENOMEM;
+
+	for (i = 0; i < MLX5_TOTAL_VPORTS(dev); i++) {
+		err = init_egress_acl_root_ns(steering, i);
+		if (err)
+			goto cleanup_root_ns;
+	}
+
+	return 0;
+
+cleanup_root_ns:
+	for (i--; i >= 0; i--)
+		cleanup_root_ns(steering->esw_egress_root_ns[i]);
+	kfree(steering->esw_egress_root_ns);
+	return err;
+}
+
+static int init_ingress_acls_root_ns(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+	int err;
+	int i;
+
+	steering->esw_ingress_root_ns = kcalloc(MLX5_TOTAL_VPORTS(dev),
+						sizeof(*steering->esw_ingress_root_ns),
+						GFP_KERNEL);
+	if (!steering->esw_ingress_root_ns)
+		return -ENOMEM;
+
+	for (i = 0; i < MLX5_TOTAL_VPORTS(dev); i++) {
+		err = init_ingress_acl_root_ns(steering, i);
+		if (err)
+			goto cleanup_root_ns;
+	}
+
+	return 0;
+
+cleanup_root_ns:
+	for (i--; i >= 0; i--)
+		cleanup_root_ns(steering->esw_ingress_root_ns[i]);
+	kfree(steering->esw_ingress_root_ns);
+	return err;
 }
 
 int mlx5_init_fs(struct mlx5_core_dev *dev)
@@ -2488,12 +2585,12 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 				goto err;
 		}
 		if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support)) {
-			err = init_egress_acl_root_ns(steering);
+			err = init_egress_acls_root_ns(dev);
 			if (err)
 				goto err;
 		}
 		if (MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support)) {
-			err = init_ingress_acl_root_ns(steering);
+			err = init_ingress_acls_root_ns(dev);
 			if (err)
 				goto err;
 		}
