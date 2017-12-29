@@ -507,22 +507,23 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
  * @pfn: page frame number to lookup page_map
  * @pgmap: optional known pgmap that already has a reference
  *
- * @pgmap allows the overhead of a lookup to be bypassed when @pfn lands in the
- * same mapping.
+ * If @pgmap is non-NULL and covers @pfn it will be returned as-is.  If @pgmap
+ * is non-NULL but does not cover @pfn the reference to it will be released.
  */
 struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 		struct dev_pagemap *pgmap)
 {
-	const struct resource *res = pgmap ? pgmap->res : NULL;
 	resource_size_t phys = PFN_PHYS(pfn);
 
 	/*
-	 * In the cached case we're already holding a live reference so
-	 * we can simply do a blind increment
+	 * In the cached case we're already holding a live reference.
 	 */
-	if (res && phys >= res->start && phys <= res->end) {
-		percpu_ref_get(pgmap->ref);
-		return pgmap;
+	if (pgmap) {
+		const struct resource *res = pgmap ? pgmap->res : NULL;
+
+		if (res && phys >= res->start && phys <= res->end)
+			return pgmap;
+		put_dev_pagemap(pgmap);
 	}
 
 	/* fall back to slow path lookup */
