@@ -196,7 +196,7 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 	enum version_8723e version = rtlhal->version;
 	int max_page;
 
-	if (!rtlhal->pfirmware)
+	if (rtlpriv->max_fw_size == 0 || !rtlhal->pfirmware)
 		return 1;
 
 	pfwheader = (struct rtlwifi_firmware_header *)rtlhal->pfirmware;
