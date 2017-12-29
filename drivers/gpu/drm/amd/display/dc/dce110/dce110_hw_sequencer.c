@@ -2819,7 +2819,8 @@ static void dce110_apply_ctx_for_surface(
 
 static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	int fe_idx = pipe_ctx->plane_res.mi->inst;
+	int fe_idx = pipe_ctx->plane_res.mi ?
+		pipe_ctx->plane_res.mi->inst : pipe_ctx->pipe_idx;
 
 	/* Do not power down fe when stream is active on dce*/
 	if (dc->current_state->res_ctx.pipe_ctx[fe_idx].stream)

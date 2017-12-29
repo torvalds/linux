@@ -1407,7 +1407,8 @@ static int acquire_first_free_pipe(
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
 			pipe_ctx->plane_res.dpp = pool->dpps[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
-			pipe_ctx->plane_res.mpcc_inst = pool->dpps[i]->inst;
+			if (pool->dpps[i])
+				pipe_ctx->plane_res.mpcc_inst = pool->dpps[i]->inst;
 			pipe_ctx->pipe_idx = i;
 
 
