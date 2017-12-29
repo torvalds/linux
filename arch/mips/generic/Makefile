@@ -11,3 +11,5 @@
 obj-y += init.o
 obj-y += irq.o
 obj-y += proc.o
+
+obj-$(CONFIG_VIRT_BOARD_RANCHU)	+= board-ranchu.o
