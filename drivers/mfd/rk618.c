@@ -25,6 +25,9 @@ static const struct mfd_cell rk618_devs[] = {
 		.name = "rk618-cru",
 		.of_compatible = "rockchip,rk618-cru",
 	}, {
+		.name = "rk618-vif",
+		.of_compatible = "rockchip,rk618-vif",
+	}, {
 		.name = "rk618-hdmi",
 		.of_compatible = "rockchip,rk618-hdmi",
 	}, {
