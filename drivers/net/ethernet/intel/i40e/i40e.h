@@ -824,6 +824,7 @@ struct i40e_q_vector {
 	struct i40e_ring_container rx;
 	struct i40e_ring_container tx;
 
+	u8 itr_countdown;	/* when 0 should adjust adaptive ITR */
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 
 	cpumask_t affinity_mask;
@@ -832,8 +833,6 @@ struct i40e_q_vector {
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[I40E_INT_NAME_STR_LEN];
 	bool arm_wb_state;
-#define ITR_COUNTDOWN_START 100
-	u8 itr_countdown;	/* when 0 should adjust ITR */
 } ____cacheline_internodealigned_in_smp;
 
 /* lan device */

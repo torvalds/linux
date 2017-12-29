@@ -117,9 +117,8 @@ struct i40e_q_vector {
 	struct i40e_ring_container rx;
 	struct i40e_ring_container tx;
 	u32 ring_mask;
+	u8 itr_countdown;	/* when 0 should adjust adaptive ITR */
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
-#define ITR_COUNTDOWN_START 100
-	u8 itr_countdown;	/* when 0 or 1 update ITR */
 	u16 v_idx;		/* index in the vsi->q_vector array. */
 	u16 reg_idx;		/* register index of the interrupt */
 	char name[IFNAMSIZ + 15];

@@ -428,20 +428,19 @@ static inline void clear_ring_build_skb_enabled(struct i40e_ring *ring)
 	ring->flags &= ~I40E_RXR_FLAGS_BUILD_SKB_ENABLED;
 }
 
-enum i40e_latency_range {
-	I40E_LOWEST_LATENCY = 0,
-	I40E_LOW_LATENCY = 1,
-	I40E_BULK_LATENCY = 2,
-};
+#define I40E_ITR_ADAPTIVE_MIN_INC	0x0002
+#define I40E_ITR_ADAPTIVE_MIN_USECS	0x0002
+#define I40E_ITR_ADAPTIVE_MAX_USECS	0x007e
+#define I40E_ITR_ADAPTIVE_LATENCY	0x8000
+#define I40E_ITR_ADAPTIVE_BULK		0x0000
+#define ITR_IS_BULK(x) (!((x) & I40E_ITR_ADAPTIVE_LATENCY))
 
 struct i40e_ring_container {
-	/* array of pointers to rings */
-	struct i40e_ring *ring;
+	struct i40e_ring *ring;		/* pointer to linked list of ring(s) */
+	unsigned long next_update;	/* jiffies value of next update */
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_packets;	/* total packets processed this int */
-	unsigned long last_itr_update;	/* jiffies of last ITR update */
 	u16 count;
-	enum i40e_latency_range latency_range;
 	u16 target_itr;			/* target ITR setting for ring(s) */
 	u16 current_itr;		/* current ITR setting for ring(s) */
 };
