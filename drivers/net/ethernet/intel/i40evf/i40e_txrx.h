@@ -28,31 +28,35 @@
 #define _I40E_TXRX_H_
 
 /* Interrupt Throttling and Rate Limiting Goodies */
-
-#define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */
-#define I40E_MIN_ITR               0x0001  /* reg uses 2 usec resolution */
-#define I40E_ITR_100K              0x0005
-#define I40E_ITR_50K               0x000A
-#define I40E_ITR_20K               0x0019
-#define I40E_ITR_18K               0x001B
-#define I40E_ITR_8K                0x003E
-#define I40E_ITR_4K                0x007A
-#define I40E_MAX_INTRL             0x3B    /* reg uses 4 usec resolution */
-#define I40E_ITR_RX_DEF            (ITR_REG_TO_USEC(I40E_ITR_20K) | \
-				    I40E_ITR_DYNAMIC)
-#define I40E_ITR_TX_DEF            (ITR_REG_TO_USEC(I40E_ITR_20K) | \
-				    I40E_ITR_DYNAMIC)
-#define I40E_ITR_DYNAMIC           0x8000  /* use top bit as a flag */
-#define I40E_MIN_INT_RATE          250     /* ~= 1000000 / (I40E_MAX_ITR * 2) */
-#define I40E_MAX_INT_RATE          500000  /* == 1000000 / (I40E_MIN_ITR * 2) */
 #define I40E_DEFAULT_IRQ_WORK      256
-#define ITR_TO_REG(setting) ((setting & ~I40E_ITR_DYNAMIC) >> 1)
-#define ITR_IS_DYNAMIC(setting) (!!(setting & I40E_ITR_DYNAMIC))
-#define ITR_REG_TO_USEC(itr_reg) (itr_reg << 1)
+
+/* The datasheet for the X710 and XL710 indicate that the maximum value for
+ * the ITR is 8160usec which is then called out as 0xFF0 with a 2usec
+ * resolution. 8160 is 0x1FE0 when written out in hex. So instead of storing
+ * the register value which is divided by 2 lets use the actual values and
+ * avoid an excessive amount of translation.
+ */
+#define I40E_ITR_DYNAMIC	0x8000	/* use top bit as a flag */
+#define I40E_ITR_MASK		0x1FFE	/* mask for ITR register value */
+#define I40E_MIN_ITR		     2	/* reg uses 2 usec resolution */
+#define I40E_ITR_100K		    10	/* all values below must be even */
+#define I40E_ITR_50K		    20
+#define I40E_ITR_20K		    50
+#define I40E_ITR_18K		    60
+#define I40E_ITR_8K		   122
+#define I40E_MAX_ITR		  8160	/* maximum value as per datasheet */
+#define ITR_TO_REG(setting) ((setting) & ~I40E_ITR_DYNAMIC)
+#define ITR_REG_ALIGN(setting) __ALIGN_MASK(setting, ~I40E_ITR_MASK)
+#define ITR_IS_DYNAMIC(setting) (!!((setting) & I40E_ITR_DYNAMIC))
+
+#define I40E_ITR_RX_DEF		(I40E_ITR_20K | I40E_ITR_DYNAMIC)
+#define I40E_ITR_TX_DEF		(I40E_ITR_20K | I40E_ITR_DYNAMIC)
+
 /* 0x40 is the enable bit for interrupt rate limiting, and must be set if
  * the value of the rate limit is non-zero
  */
 #define INTRL_ENA                  BIT(6)
+#define I40E_MAX_INTRL             0x3B    /* reg uses 4 usec resolution */
 #define INTRL_REG_TO_USEC(intrl) ((intrl & ~INTRL_ENA) << 2)
 #define INTRL_USEC_TO_REG(set) ((set) ? ((set) >> 2) | INTRL_ENA : 0)
 #define I40E_INTRL_8K              125     /* 8000 ints/sec */

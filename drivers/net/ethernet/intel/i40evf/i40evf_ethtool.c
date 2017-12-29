@@ -517,8 +517,8 @@ static void i40evf_set_itr_per_queue(struct i40evf_adapter *adapter,
 	struct i40e_hw *hw = &adapter->hw;
 	struct i40e_q_vector *q_vector;
 
-	rx_ring->itr_setting = ec->rx_coalesce_usecs;
-	tx_ring->itr_setting = ec->tx_coalesce_usecs;
+	rx_ring->itr_setting = ITR_REG_ALIGN(ec->rx_coalesce_usecs);
+	tx_ring->itr_setting = ITR_REG_ALIGN(ec->tx_coalesce_usecs);
 
 	rx_ring->itr_setting |= I40E_ITR_DYNAMIC;
 	if (!ec->use_adaptive_rx_coalesce)
@@ -563,8 +563,8 @@ static int __i40evf_set_coalesce(struct net_device *netdev,
 	if (ec->rx_coalesce_usecs == 0) {
 		if (ec->use_adaptive_rx_coalesce)
 			netif_info(adapter, drv, netdev, "rx-usecs=0, need to disable adaptive-rx for a complete disable\n");
-	} else if ((ec->rx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		   (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
+	} else if ((ec->rx_coalesce_usecs < I40E_MIN_ITR) ||
+		   (ec->rx_coalesce_usecs > I40E_MAX_ITR)) {
 		netif_info(adapter, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
@@ -573,8 +573,8 @@ static int __i40evf_set_coalesce(struct net_device *netdev,
 	if (ec->tx_coalesce_usecs == 0) {
 		if (ec->use_adaptive_tx_coalesce)
 			netif_info(adapter, drv, netdev, "tx-usecs=0, need to disable adaptive-tx for a complete disable\n");
-	} else if ((ec->tx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		   (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
+	} else if ((ec->tx_coalesce_usecs < I40E_MIN_ITR) ||
+		   (ec->tx_coalesce_usecs > I40E_MAX_ITR)) {
 		netif_info(adapter, drv, netdev, "Invalid value, tx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}

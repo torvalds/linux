@@ -2277,7 +2277,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	return failure ? budget : (int)total_rx_packets;
 }
 
-static u32 i40e_buildreg_itr(const int type, const u16 itr)
+static inline u32 i40e_buildreg_itr(const int type, u16 itr)
 {
 	u32 val;
 
@@ -2290,10 +2290,17 @@ static u32 i40e_buildreg_itr(const int type, const u16 itr)
 	 * xxINT_DYN_CTLx CSR with INTENA_MSK (bit 31) set to 0 will clear
 	 * an event in the PBA anyway so we need to rely on the automask
 	 * to hold pending events for us until the interrupt is re-enabled
+	 *
+	 * The itr value is reported in microseconds, and the register
+	 * value is recorded in 2 microsecond units. For this reason we
+	 * only need to shift by the interval shift - 1 instead of the
+	 * full value.
 	 */
+	itr &= I40E_ITR_MASK;
+
 	val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
 	      (type << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT) |
-	      (itr << I40E_PFINT_DYN_CTLN_INTERVAL_SHIFT);
+	      (itr << (I40E_PFINT_DYN_CTLN_INTERVAL_SHIFT - 1));
 
 	return val;
 }

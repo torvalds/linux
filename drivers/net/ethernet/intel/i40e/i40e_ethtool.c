@@ -2315,8 +2315,8 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 
 	intrl = i40e_intrl_usec_to_reg(vsi->int_rate_limit);
 
-	rx_ring->itr_setting = ec->rx_coalesce_usecs;
-	tx_ring->itr_setting = ec->tx_coalesce_usecs;
+	rx_ring->itr_setting = ITR_REG_ALIGN(ec->rx_coalesce_usecs);
+	tx_ring->itr_setting = ITR_REG_ALIGN(ec->tx_coalesce_usecs);
 
 	if (ec->use_adaptive_rx_coalesce)
 		rx_ring->itr_setting |= I40E_ITR_DYNAMIC;
@@ -2396,7 +2396,7 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1)) {
+	if (ec->rx_coalesce_usecs > I40E_MAX_ITR) {
 		netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
@@ -2407,16 +2407,16 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1)) {
+	if (ec->tx_coalesce_usecs > I40E_MAX_ITR) {
 		netif_info(pf, drv, netdev, "Invalid value, tx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
 
 	if (ec->use_adaptive_rx_coalesce && !cur_rx_itr)
-		ec->rx_coalesce_usecs = I40E_MIN_ITR << 1;
+		ec->rx_coalesce_usecs = I40E_MIN_ITR;
 
 	if (ec->use_adaptive_tx_coalesce && !cur_tx_itr)
-		ec->tx_coalesce_usecs = I40E_MIN_ITR << 1;
+		ec->tx_coalesce_usecs = I40E_MIN_ITR;
 
 	intrl_reg = i40e_intrl_usec_to_reg(ec->rx_coalesce_usecs_high);
 	vsi->int_rate_limit = INTRL_REG_TO_USEC(intrl_reg);
