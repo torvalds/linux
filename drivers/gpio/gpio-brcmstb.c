@@ -348,7 +348,7 @@ static int brcmstb_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	if (ret < 0)
 		return ret;
 	irq_set_lockdep_class(irq, &brcmstb_gpio_irq_lock_class,
-			      &brcmstb_gpio_irq_lock_class);
+			      &brcmstb_gpio_irq_request_class);
 	irq_set_chip_and_handler(irq, &priv->irq_chip, handle_level_irq);
 	irq_set_noprobe(irq);
 	return 0;
