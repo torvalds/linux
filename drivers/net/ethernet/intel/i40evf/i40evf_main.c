@@ -354,11 +354,12 @@ i40evf_map_vector_to_rxq(struct i40evf_adapter *adapter, int v_idx, int r_idx)
 	q_vector->rx.ring = rx_ring;
 	q_vector->rx.count++;
 	q_vector->rx.latency_range = I40E_LOW_LATENCY;
-	q_vector->rx.itr = ITR_TO_REG(rx_ring->itr_setting);
+	q_vector->rx.target_itr = ITR_TO_REG(rx_ring->itr_setting);
 	q_vector->ring_mask |= BIT(r_idx);
 	q_vector->itr_countdown = ITR_COUNTDOWN_START;
 	wr32(hw, I40E_VFINT_ITRN1(I40E_RX_ITR, q_vector->reg_idx),
-	     q_vector->rx.itr);
+	     q_vector->rx.current_itr);
+	q_vector->rx.current_itr = q_vector->rx.target_itr;
 }
 
 /**
@@ -380,11 +381,12 @@ i40evf_map_vector_to_txq(struct i40evf_adapter *adapter, int v_idx, int t_idx)
 	q_vector->tx.ring = tx_ring;
 	q_vector->tx.count++;
 	q_vector->tx.latency_range = I40E_LOW_LATENCY;
-	q_vector->tx.itr = ITR_TO_REG(tx_ring->itr_setting);
+	q_vector->tx.target_itr = ITR_TO_REG(tx_ring->itr_setting);
 	q_vector->itr_countdown = ITR_COUNTDOWN_START;
 	q_vector->num_ringpairs++;
 	wr32(hw, I40E_VFINT_ITRN1(I40E_TX_ITR, q_vector->reg_idx),
-	     q_vector->tx.itr);
+	     q_vector->tx.target_itr);
+	q_vector->tx.current_itr = q_vector->tx.target_itr;
 }
 
 /**
