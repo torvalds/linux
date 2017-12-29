@@ -254,7 +254,8 @@ static unsigned long vmemmap_list_free(unsigned long start)
 	return vmem_back->phys;
 }
 
-void __ref vmemmap_free(unsigned long start, unsigned long end)
+void __ref vmemmap_free(unsigned long start, unsigned long end,
+		struct vmem_altmap *altmap)
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 	unsigned long page_order = get_order(page_size);
@@ -265,7 +266,6 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
 
 	for (; start < end; start += page_size) {
 		unsigned long nr_pages, addr;
-		struct vmem_altmap *altmap;
 		struct page *section_base;
 		struct page *page;
 
@@ -285,7 +285,6 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
 		section_base = pfn_to_page(vmemmap_section_start(start));
 		nr_pages = 1 << page_order;
 
-		altmap = to_vmem_altmap((unsigned long) section_base);
 		if (altmap) {
 			vmem_altmap_free(altmap, nr_pages);
 		} else if (PageReserved(page)) {
