@@ -2311,7 +2311,7 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_q_vector *q_vector;
-	u16 vector, intrl;
+	u16 intrl;
 
 	intrl = i40e_intrl_usec_to_reg(vsi->int_rate_limit);
 
@@ -2330,15 +2330,15 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 
 	q_vector = rx_ring->q_vector;
 	q_vector->rx.itr = ITR_TO_REG(rx_ring->itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
+	wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, q_vector->reg_idx),
+	     q_vector->rx.itr);
 
 	q_vector = tx_ring->q_vector;
 	q_vector->tx.itr = ITR_TO_REG(tx_ring->itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
+	wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, q_vector->reg_idx),
+	     q_vector->tx.itr);
 
-	wr32(hw, I40E_PFINT_RATEN(vector - 1), intrl);
+	wr32(hw, I40E_PFINT_RATEN(q_vector->reg_idx), intrl);
 	i40e_flush(hw);
 }
 

@@ -502,7 +502,7 @@ static int i40evf_get_per_queue_coalesce(struct net_device *netdev,
 
 /**
  * i40evf_set_itr_per_queue - set ITR values for specific queue
- * @vsi: the VSI to set values for
+ * @adapter: the VF adapter struct to set values for
  * @ec: coalesce settings from ethtool
  * @queue: the queue to modify
  *
@@ -514,10 +514,8 @@ static void i40evf_set_itr_per_queue(struct i40evf_adapter *adapter,
 {
 	struct i40e_ring *rx_ring = &adapter->rx_rings[queue];
 	struct i40e_ring *tx_ring = &adapter->tx_rings[queue];
-	struct i40e_vsi *vsi = &adapter->vsi;
 	struct i40e_hw *hw = &adapter->hw;
 	struct i40e_q_vector *q_vector;
-	u16 vector;
 
 	rx_ring->itr_setting = ec->rx_coalesce_usecs;
 	tx_ring->itr_setting = ec->tx_coalesce_usecs;
@@ -532,13 +530,13 @@ static void i40evf_set_itr_per_queue(struct i40evf_adapter *adapter,
 
 	q_vector = rx_ring->q_vector;
 	q_vector->rx.itr = ITR_TO_REG(rx_ring->itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_VFINT_ITRN1(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
+	wr32(hw, I40E_VFINT_ITRN1(I40E_RX_ITR, q_vector->reg_idx),
+	     q_vector->rx.itr);
 
 	q_vector = tx_ring->q_vector;
 	q_vector->tx.itr = ITR_TO_REG(tx_ring->itr_setting);
-	vector = vsi->base_vector + q_vector->v_idx;
-	wr32(hw, I40E_VFINT_ITRN1(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
+	wr32(hw, I40E_VFINT_ITRN1(I40E_TX_ITR, q_vector->reg_idx),
+	     q_vector->tx.itr);
 
 	i40e_flush(hw);
 }
