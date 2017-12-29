@@ -586,7 +586,6 @@
 	card-detect-delay = <800>;
 	ignore-pm-notify;
 	keep-power-in-suspend;
-	cd-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>; /* CD GPIO */
 	status = "disabled";
 };
 
