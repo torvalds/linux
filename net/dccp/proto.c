@@ -38,6 +38,9 @@
 #include "dccp.h"
 #include "feat.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 DEFINE_SNMP_STAT(struct dccp_mib, dccp_statistics) __read_mostly;
 
 EXPORT_SYMBOL_GPL(dccp_statistics);
@@ -760,6 +763,8 @@ int dccp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct sk_buff *skb;
 	int rc, size;
 	long timeo;
+
+	trace_dccp_probe(sk, len);
 
 	if (len > dp->dccps_mss_cache)
 		return -EMSGSIZE;
