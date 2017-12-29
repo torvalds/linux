@@ -450,16 +450,13 @@ static int cqspi_command_write_addr(struct spi_nor *nor,
 	return cqspi_exec_flash_cmd(cqspi, reg);
 }
 
-static int cqspi_indirect_read_setup(struct spi_nor *nor,
-				     const unsigned int from_addr)
+static int cqspi_read_setup(struct spi_nor *nor)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;
 	void __iomem *reg_base = cqspi->iobase;
 	unsigned int dummy_clk = 0;
 	unsigned int reg;
-
-	writel(from_addr, reg_base + CQSPI_REG_INDIRECTRDSTARTADDR);
 
 	reg = nor->read_opcode << CQSPI_REG_RD_INSTR_OPCODE_LSB;
 	reg |= cqspi_calc_rdreg(nor, nor->read_opcode);
@@ -493,8 +490,8 @@ static int cqspi_indirect_read_setup(struct spi_nor *nor,
 	return 0;
 }
 
-static int cqspi_indirect_read_execute(struct spi_nor *nor,
-				       u8 *rxbuf, const unsigned n_rx)
+static int cqspi_indirect_read_execute(struct spi_nor *nor, u8 *rxbuf,
+				       loff_t from_addr, const size_t n_rx)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;
@@ -504,6 +501,7 @@ static int cqspi_indirect_read_execute(struct spi_nor *nor,
 	unsigned int bytes_to_read = 0;
 	int ret = 0;
 
+	writel(from_addr, reg_base + CQSPI_REG_INDIRECTRDSTARTADDR);
 	writel(remaining, reg_base + CQSPI_REG_INDIRECTRDBYTES);
 
 	/* Clear all interrupts. */
@@ -570,8 +568,7 @@ failrd:
 	return ret;
 }
 
-static int cqspi_indirect_write_setup(struct spi_nor *nor,
-				      const unsigned int to_addr)
+static int cqspi_write_setup(struct spi_nor *nor)
 {
 	unsigned int reg;
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
@@ -584,8 +581,6 @@ static int cqspi_indirect_write_setup(struct spi_nor *nor,
 	reg = cqspi_calc_rdreg(nor, nor->program_opcode);
 	writel(reg, reg_base + CQSPI_REG_RD_INSTR);
 
-	writel(to_addr, reg_base + CQSPI_REG_INDIRECTWRSTARTADDR);
-
 	reg = readl(reg_base + CQSPI_REG_SIZE);
 	reg &= ~CQSPI_REG_SIZE_ADDRESS_MASK;
 	reg |= (nor->addr_width - 1);
@@ -593,8 +588,8 @@ static int cqspi_indirect_write_setup(struct spi_nor *nor,
 	return 0;
 }
 
-static int cqspi_indirect_write_execute(struct spi_nor *nor,
-					const u8 *txbuf, const unsigned n_tx)
+static int cqspi_indirect_write_execute(struct spi_nor *nor, loff_t to_addr,
+					const u8 *txbuf, const size_t n_tx)
 {
 	const unsigned int page_size = nor->page_size;
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
@@ -604,6 +599,7 @@ static int cqspi_indirect_write_execute(struct spi_nor *nor,
 	unsigned int write_bytes;
 	int ret;
 
+	writel(to_addr, reg_base + CQSPI_REG_INDIRECTWRSTARTADDR);
 	writel(remaining, reg_base + CQSPI_REG_INDIRECTWRBYTES);
 
 	/* Clear all interrupts. */
@@ -900,11 +896,11 @@ static ssize_t cqspi_write(struct spi_nor *nor, loff_t to,
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_write_setup(nor, to);
+	ret = cqspi_write_setup(nor);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_write_execute(nor, buf, len);
+	ret = cqspi_indirect_write_execute(nor, to, buf, len);
 	if (ret)
 		return ret;
 
@@ -920,11 +916,11 @@ static ssize_t cqspi_read(struct spi_nor *nor, loff_t from,
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_read_setup(nor, from);
+	ret = cqspi_read_setup(nor);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_read_execute(nor, buf, len);
+	ret = cqspi_indirect_read_execute(nor, buf, from, len);
 	if (ret)
 		return ret;
 
