@@ -103,7 +103,7 @@ void dsa_legacy_unregister(void);
 #else
 static inline int dsa_legacy_register(void)
 {
-	return -ENODEV;
+	return 0;
 }
 
 static inline void dsa_legacy_unregister(void) { }
