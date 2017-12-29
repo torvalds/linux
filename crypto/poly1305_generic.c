@@ -210,7 +210,6 @@ EXPORT_SYMBOL_GPL(crypto_poly1305_update);
 int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
 {
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
-	__le32 *mac = (__le32 *)dst;
 	u32 h0, h1, h2, h3, h4;
 	u32 g0, g1, g2, g3, g4;
 	u32 mask;
@@ -267,10 +266,10 @@ int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
 	h3 = (h3 >> 18) | (h4 <<  8);
 
 	/* mac = (h + s) % (2^128) */
-	f = (f >> 32) + h0 + dctx->s[0]; mac[0] = cpu_to_le32(f);
-	f = (f >> 32) + h1 + dctx->s[1]; mac[1] = cpu_to_le32(f);
-	f = (f >> 32) + h2 + dctx->s[2]; mac[2] = cpu_to_le32(f);
-	f = (f >> 32) + h3 + dctx->s[3]; mac[3] = cpu_to_le32(f);
+	f = (f >> 32) + h0 + dctx->s[0]; put_unaligned_le32(f, dst +  0);
+	f = (f >> 32) + h1 + dctx->s[1]; put_unaligned_le32(f, dst +  4);
+	f = (f >> 32) + h2 + dctx->s[2]; put_unaligned_le32(f, dst +  8);
+	f = (f >> 32) + h3 + dctx->s[3]; put_unaligned_le32(f, dst + 12);
 
 	return 0;
 }
