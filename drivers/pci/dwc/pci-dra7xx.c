@@ -257,7 +257,8 @@ static irqreturn_t dra7xx_pcie_msi_irq_handler(int irq, void *arg)
 	struct dra7xx_pcie *dra7xx = arg;
 	struct dw_pcie *pci = dra7xx->pci;
 	struct pcie_port *pp = &pci->pp;
-	u32 reg;
+	unsigned long reg;
+	u32 virq, bit;
 
 	reg = dra7xx_pcie_readl(dra7xx, PCIECTRL_DRA7XX_CONF_IRQSTATUS_MSI);
 
@@ -269,8 +270,11 @@ static irqreturn_t dra7xx_pcie_msi_irq_handler(int irq, void *arg)
 	case INTB:
 	case INTC:
 	case INTD:
-		generic_handle_irq(irq_find_mapping(dra7xx->irq_domain,
-						    ffs(reg) - 1));
+		for_each_set_bit(bit, &reg, PCI_NUM_INTX) {
+			virq = irq_find_mapping(dra7xx->irq_domain, bit);
+			if (virq)
+				generic_handle_irq(virq);
+		}
 		break;
 	}
 
