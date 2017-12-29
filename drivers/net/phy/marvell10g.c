@@ -6,11 +6,17 @@
  *
  * There appears to be several different data paths through the PHY which
  * are automatically managed by the PHY.  The following has been determined
- * via observation and experimentation:
+ * via observation and experimentation for a setup using single-lane Serdes:
  *
  *       SGMII PHYXS -- BASE-T PCS -- 10G PMA -- AN -- Copper (for <= 1G)
  *  10GBASE-KR PHYXS -- BASE-T PCS -- 10G PMA -- AN -- Copper (for 10G)
  *  10GBASE-KR PHYXS -- BASE-R PCS -- Fiber
+ *
+ * With XAUI, observation shows:
+ *
+ *        XAUI PHYXS -- <appropriate PCS as above>
+ *
+ * and no switching of the host interface mode occurs.
  *
  * If both the fiber and copper ports are connected, the first to gain
  * link takes priority and the other port is completely locked out.
