@@ -942,7 +942,7 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
 	}
 	move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
 				align_start >> PAGE_SHIFT,
-				align_size >> PAGE_SHIFT);
+				align_size >> PAGE_SHIFT, NULL);
 	mem_hotplug_done();
 
 	for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {

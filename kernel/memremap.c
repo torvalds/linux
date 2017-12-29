@@ -432,7 +432,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 	if (!error)
 		move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
 					align_start >> PAGE_SHIFT,
-					align_size >> PAGE_SHIFT);
+					align_size >> PAGE_SHIFT, altmap);
 	mem_hotplug_done();
 	if (error)
 		goto err_add_memory;

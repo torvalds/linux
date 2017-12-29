@@ -501,7 +501,7 @@ virtual_memmap_init(u64 start, u64 end, void *arg)
 	if (map_start < map_end)
 		memmap_init_zone((unsigned long)(map_end - map_start),
 				 args->nid, args->zone, page_to_pfn(map_start),
-				 MEMMAP_EARLY);
+				 MEMMAP_EARLY, NULL);
 	return 0;
 }
 
@@ -509,9 +509,10 @@ void __meminit
 memmap_init (unsigned long size, int nid, unsigned long zone,
 	     unsigned long start_pfn)
 {
-	if (!vmem_map)
-		memmap_init_zone(size, nid, zone, start_pfn, MEMMAP_EARLY);
-	else {
+	if (!vmem_map) {
+		memmap_init_zone(size, nid, zone, start_pfn, MEMMAP_EARLY,
+				NULL);
+	} else {
 		struct page *start;
 		struct memmap_init_callback_data args;
 

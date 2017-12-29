@@ -798,8 +798,8 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
 	pgdat->node_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->node_start_pfn;
 }
 
-void __ref move_pfn_range_to_zone(struct zone *zone,
-		unsigned long start_pfn, unsigned long nr_pages)
+void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+		unsigned long nr_pages, struct vmem_altmap *altmap)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int nid = pgdat->node_id;
@@ -824,7 +824,8 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
 	 * expects the zone spans the pfn range. All the pages in the range
 	 * are reserved so nobody should be touching them so we should be safe
 	 */
-	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn, MEMMAP_HOTPLUG);
+	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn,
+			MEMMAP_HOTPLUG, altmap);
 
 	set_zone_contiguous(zone);
 }
@@ -896,7 +897,7 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
 	struct zone *zone;
 
 	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
-	move_pfn_range_to_zone(zone, start_pfn, nr_pages);
+	move_pfn_range_to_zone(zone, start_pfn, nr_pages, NULL);
 	return zone;
 }
 
