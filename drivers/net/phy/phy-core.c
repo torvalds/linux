@@ -189,6 +189,49 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 	return count;
 }
 
+/**
+ * phy_resolve_aneg_linkmode - resolve the advertisments into phy settings
+ * @phydev: The phy_device struct
+ *
+ * Resolve our and the link partner advertisments into their corresponding
+ * speed and duplex. If full duplex was negotiated, extract the pause mode
+ * from the link partner mask.
+ */
+void phy_resolve_aneg_linkmode(struct phy_device *phydev)
+{
+	u32 common = phydev->lp_advertising & phydev->advertising;
+
+	if (common & ADVERTISED_10000baseT_Full) {
+		phydev->speed = SPEED_10000;
+		phydev->duplex = DUPLEX_FULL;
+	} else if (common & ADVERTISED_1000baseT_Full) {
+		phydev->speed = SPEED_1000;
+		phydev->duplex = DUPLEX_FULL;
+	} else if (common & ADVERTISED_1000baseT_Half) {
+		phydev->speed = SPEED_1000;
+		phydev->duplex = DUPLEX_HALF;
+	} else if (common & ADVERTISED_100baseT_Full) {
+		phydev->speed = SPEED_100;
+		phydev->duplex = DUPLEX_FULL;
+	} else if (common & ADVERTISED_100baseT_Half) {
+		phydev->speed = SPEED_100;
+		phydev->duplex = DUPLEX_HALF;
+	} else if (common & ADVERTISED_10baseT_Full) {
+		phydev->speed = SPEED_10;
+		phydev->duplex = DUPLEX_FULL;
+	} else if (common & ADVERTISED_10baseT_Half) {
+		phydev->speed = SPEED_10;
+		phydev->duplex = DUPLEX_HALF;
+	}
+
+	if (phydev->duplex == DUPLEX_FULL) {
+		phydev->pause = !!(phydev->lp_advertising & ADVERTISED_Pause);
+		phydev->asym_pause = !!(phydev->lp_advertising &
+					ADVERTISED_Asym_Pause);
+	}
+}
+EXPORT_SYMBOL_GPL(phy_resolve_aneg_linkmode);
+
 static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 			     u16 regnum)
 {

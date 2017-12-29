@@ -690,6 +690,8 @@ phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
 size_t phy_speeds(unsigned int *speeds, size_t size,
 		  unsigned long *mask, size_t maxbit);
 
+void phy_resolve_aneg_linkmode(struct phy_device *phydev);
+
 /**
  * phy_read_mmd - Convenience function for reading a register
  * from an MMD on a given PHY.
