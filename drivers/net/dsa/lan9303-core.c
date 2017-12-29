@@ -495,10 +495,7 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 		return reg;
 	}
 
-	if ((reg != 0) && (reg != 0xffff))
-		chip->phy_addr_base = 1;
-	else
-		chip->phy_addr_base = 0;
+	chip->phy_addr_base = reg != 0 && reg != 0xffff;
 
 	dev_dbg(chip->dev, "Phy setup '%s' detected\n",
 		chip->phy_addr_base ? "1-2-3" : "0-1-2");
@@ -1283,13 +1280,16 @@ static const struct dsa_switch_ops lan9303_switch_ops = {
 
 static int lan9303_register_switch(struct lan9303 *chip)
 {
+	int base;
+
 	chip->ds = dsa_switch_alloc(chip->dev, LAN9303_NUM_PORTS);
 	if (!chip->ds)
 		return -ENOMEM;
 
 	chip->ds->priv = chip;
 	chip->ds->ops = &lan9303_switch_ops;
-	chip->ds->phys_mii_mask = chip->phy_addr_base ? 0xe : 0x7;
+	base = chip->phy_addr_base;
+	chip->ds->phys_mii_mask = GENMASK(LAN9303_NUM_PORTS - 1 + base, base);
 
 	return dsa_register_switch(chip->ds);
 }
