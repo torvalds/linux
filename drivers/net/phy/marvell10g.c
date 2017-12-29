@@ -246,6 +246,24 @@ static int mv3310_aneg_done(struct phy_device *phydev)
 	return genphy_c45_aneg_done(phydev);
 }
 
+static void mv3310_update_interface(struct phy_device *phydev)
+{
+	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
+	     phydev->interface == PHY_INTERFACE_MODE_10GKR) && phydev->link) {
+		/* The PHY automatically switches its serdes interface (and
+		 * active PHYXS instance) between Cisco SGMII and 10GBase-KR
+		 * modes according to the speed.  Florian suggests setting
+		 * phydev->interface to communicate this to the MAC. Only do
+		 * this if we are already in either SGMII or 10GBase-KR mode.
+		 */
+		if (phydev->speed == SPEED_10000)
+			phydev->interface = PHY_INTERFACE_MODE_10GKR;
+		else if (phydev->speed >= SPEED_10 &&
+			 phydev->speed < SPEED_10000)
+			phydev->interface = PHY_INTERFACE_MODE_SGMII;
+	}
+}
+
 /* 10GBASE-ER,LR,LRM,SR do not support autonegotiation. */
 static int mv3310_read_10gbr_status(struct phy_device *phydev)
 {
@@ -253,8 +271,7 @@ static int mv3310_read_10gbr_status(struct phy_device *phydev)
 	phydev->speed = SPEED_10000;
 	phydev->duplex = DUPLEX_FULL;
 
-	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
-		phydev->interface = PHY_INTERFACE_MODE_10GKR;
+	mv3310_update_interface(phydev);
 
 	return 0;
 }
@@ -354,20 +371,7 @@ static int mv3310_read_status(struct phy_device *phydev)
 		}
 	}
 
-	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
-	     phydev->interface == PHY_INTERFACE_MODE_10GKR) && phydev->link) {
-		/* The PHY automatically switches its serdes interface (and
-		 * active PHYXS instance) between Cisco SGMII and 10GBase-KR
-		 * modes according to the speed.  Florian suggests setting
-		 * phydev->interface to communicate this to the MAC. Only do
-		 * this if we are already in either SGMII or 10GBase-KR mode.
-		 */
-		if (phydev->speed == SPEED_10000)
-			phydev->interface = PHY_INTERFACE_MODE_10GKR;
-		else if (phydev->speed >= SPEED_10 &&
-			 phydev->speed < SPEED_10000)
-			phydev->interface = PHY_INTERFACE_MODE_SGMII;
-	}
+	mv3310_update_interface(phydev);
 
 	return 0;
 }
