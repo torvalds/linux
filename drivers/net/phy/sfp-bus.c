@@ -220,35 +220,6 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		if (id->base.br_nominal >= 12)
 			phylink_set(support, 1000baseX_Full);
 	}
-
-	switch (id->base.connector) {
-	case SFP_CONNECTOR_SC:
-	case SFP_CONNECTOR_FIBERJACK:
-	case SFP_CONNECTOR_LC:
-	case SFP_CONNECTOR_MT_RJ:
-	case SFP_CONNECTOR_MU:
-	case SFP_CONNECTOR_OPTICAL_PIGTAIL:
-		break;
-
-	case SFP_CONNECTOR_UNSPEC:
-		if (id->base.e1000_base_t)
-			break;
-
-	case SFP_CONNECTOR_SG: /* guess */
-	case SFP_CONNECTOR_MPO_1X12:
-	case SFP_CONNECTOR_MPO_2X16:
-	case SFP_CONNECTOR_HSSDC_II:
-	case SFP_CONNECTOR_COPPER_PIGTAIL:
-	case SFP_CONNECTOR_NOSEPARATE:
-	case SFP_CONNECTOR_MXC_2X16:
-	default:
-		/* a guess at the supported link modes */
-		dev_warn(bus->sfp_dev,
-			 "Guessing link modes, please report...\n");
-		phylink_set(support, 1000baseT_Half);
-		phylink_set(support, 1000baseT_Full);
-		break;
-	}
 }
 EXPORT_SYMBOL_GPL(sfp_parse_support);
 
