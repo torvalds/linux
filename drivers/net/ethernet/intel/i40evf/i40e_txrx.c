@@ -1273,7 +1273,7 @@ static struct sk_buff *i40e_build_skb(struct i40e_ring *rx_ring,
  * @rx_buffer: rx buffer to pull data from
  *
  * This function will clean up the contents of the rx_buffer.  It will
- * either recycle the bufer or unmap it and free the associated resources.
+ * either recycle the buffer or unmap it and free the associated resources.
  */
 static void i40e_put_rx_buffer(struct i40e_ring *rx_ring,
 			       struct i40e_rx_buffer *rx_buffer)
