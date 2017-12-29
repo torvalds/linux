@@ -399,21 +399,21 @@ static int activate_managed(struct irq_data *irqd)
 }
 
 static int x86_vector_activate(struct irq_domain *dom, struct irq_data *irqd,
-			       bool early)
+			       bool reserve)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
 	unsigned long flags;
 	int ret = 0;
 
 	trace_vector_activate(irqd->irq, apicd->is_managed,
-			      apicd->can_reserve, early);
+			      apicd->can_reserve, reserve);
 
 	/* Nothing to do for fixed assigned vectors */
 	if (!apicd->can_reserve && !apicd->is_managed)
 		return 0;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
-	if (early || irqd_is_managed_and_shutdown(irqd))
+	if (reserve || irqd_is_managed_and_shutdown(irqd))
 		vector_assign_managed_shutdown(irqd);
 	else if (apicd->is_managed)
 		ret = activate_managed(irqd);
