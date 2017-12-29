@@ -505,8 +505,6 @@ static void dlfb_compress_hline(
 	*command_buffer_ptr = cmd;
 	*pixel_start_ptr = pixel;
 	*device_address_ptr = dev_addr;
-
-	return;
 }
 
 /*
@@ -1777,8 +1775,6 @@ static void dlfb_usb_disconnect(struct usb_interface *interface)
 	kref_put(&dev->kref, dlfb_free);
 
 	/* consider dlfb_data freed */
-
-	return;
 }
 
 static struct usb_driver dlfb_driver = {
