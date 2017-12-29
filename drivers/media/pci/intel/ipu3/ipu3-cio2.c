@@ -1894,20 +1894,17 @@ static void arrange(void *ptr, size_t elem_size, size_t elems, size_t start)
 		{ start, elems - 1 },
 	};
 
-#define arr_size(a) ((a)->end - (a)->begin + 1)
+#define CHUNK_SIZE(a) ((a)->end - (a)->begin + 1)
 
 	/* Loop as long as we have out-of-place entries */
-	while (arr_size(&arr[0]) && arr_size(&arr[1])) {
+	while (CHUNK_SIZE(&arr[0]) && CHUNK_SIZE(&arr[1])) {
 		size_t size0, i;
 
 		/*
 		 * Find the number of entries that can be arranged on this
 		 * iteration.
 		 */
-		if (arr_size(&arr[0]) > arr_size(&arr[1]))
-			size0 = arr_size(&arr[1]);
-		else
-			size0 = arr_size(&arr[0]);
+		size0 = min(CHUNK_SIZE(&arr[0]), CHUNK_SIZE(&arr[1]));
 
 		/* Swap the entries in two parts of the array. */
 		for (i = 0; i < size0; i++) {
@@ -1919,7 +1916,7 @@ static void arrange(void *ptr, size_t elem_size, size_t elems, size_t start)
 				swap(d[j], s[j]);
 		}
 
-		if (arr_size(&arr[0]) > arr_size(&arr[1])) {
+		if (CHUNK_SIZE(&arr[0]) > CHUNK_SIZE(&arr[1])) {
 			/* The end of the first array remains unarranged. */
 			arr[0].begin += size0;
 		} else {
