@@ -4406,6 +4406,8 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	}
 
 flags_complete:
+	changed_flags = orig_flags ^ new_flags;
+
 	/* Before we finalize any flag changes, we need to perform some
 	 * checks to ensure that the changes are supported and safe.
 	 */
@@ -4415,13 +4417,17 @@ flags_complete:
 	    !(pf->hw_features & I40E_HW_ATR_EVICT_CAPABLE))
 		return -EOPNOTSUPP;
 
-	/* Disable FW LLDP not supported if NPAR active or if FW
-	 * API version < 1.7
+	/* If the driver detected FW LLDP was disabled on init, this flag could
+	 * be set, however we do not support _changing_ the flag if NPAR is
+	 * enabled or FW API version < 1.7.  There are situations where older
+	 * FW versions/NPAR enabled PFs could disable LLDP, however we _must_
+	 * not allow the user to enable/disable LLDP with this flag on
+	 * unsupported FW versions.
 	 */
-	if (new_flags & I40E_FLAG_DISABLE_FW_LLDP) {
+	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
 		if (pf->hw.func_caps.npar_enable) {
 			dev_warn(&pf->pdev->dev,
-				 "Unable to stop FW LLDP if NPAR active\n");
+				 "Unable to change FW LLDP if NPAR active\n");
 			return -EOPNOTSUPP;
 		}
 
@@ -4429,7 +4435,7 @@ flags_complete:
 		    (pf->hw.aq.api_maj_ver == 1 &&
 		     pf->hw.aq.api_min_ver < 7)) {
 			dev_warn(&pf->pdev->dev,
-				 "FW ver does not support stopping FW LLDP\n");
+				 "FW ver does not support changing FW LLDP\n");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -4439,14 +4445,16 @@ flags_complete:
 	 * something else has modified the flags variable since we copied it
 	 * originally. We'll just punt with an error and log something in the
 	 * message buffer.
+	 *
+	 * This is the point of no return for this function.  We need to have
+	 * checked any discrepancies or misconfigurations and returned
+	 * EOPNOTSUPP before updating pf->flags here.
 	 */
 	if (cmpxchg64(&pf->flags, orig_flags, new_flags) != orig_flags) {
 		dev_warn(&pf->pdev->dev,
 			 "Unable to update pf->flags as it was modified by another thread...\n");
 		return -EAGAIN;
 	}
-
-	changed_flags = orig_flags ^ new_flags;
 
 	/* Process any additional changes needed as a result of flag changes.
 	 * The changed_flags value reflects the list of bits that were
