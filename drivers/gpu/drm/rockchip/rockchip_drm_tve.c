@@ -280,6 +280,7 @@ rockchip_tve_encoder_atomic_check(struct drm_encoder *encoder,
 		s->bus_format = MEDIA_BUS_FMT_YUV8_1X24;
 
 	s->color_space = V4L2_COLORSPACE_SMPTE170M;
+	s->tv_state = &conn_state->tv;
 
 	return 0;
 }
