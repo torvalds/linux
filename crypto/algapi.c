@@ -62,7 +62,7 @@ static int crypto_check_alg(struct crypto_alg *alg)
 	if (alg->cra_priority < 0)
 		return -EINVAL;
 
-	atomic_set(&alg->cra_refcnt, 1);
+	refcount_set(&alg->cra_refcnt, 1);
 
 	return crypto_set_driver_name(alg);
 }
@@ -224,7 +224,7 @@ static struct crypto_larval *__crypto_register_alg(struct crypto_alg *alg)
 	if (!larval->adult)
 		goto free_larval;
 
-	atomic_set(&larval->alg.cra_refcnt, 1);
+	refcount_set(&larval->alg.cra_refcnt, 1);
 	memcpy(larval->alg.cra_driver_name, alg->cra_driver_name,
 	       CRYPTO_MAX_ALG_NAME);
 	larval->alg.cra_priority = alg->cra_priority;
@@ -399,7 +399,7 @@ int crypto_unregister_alg(struct crypto_alg *alg)
 	if (ret)
 		return ret;
 
-	BUG_ON(atomic_read(&alg->cra_refcnt) != 1);
+	BUG_ON(refcount_read(&alg->cra_refcnt) != 1);
 	if (alg->cra_destroy)
 		alg->cra_destroy(alg);
 
@@ -490,7 +490,7 @@ void crypto_unregister_template(struct crypto_template *tmpl)
 	up_write(&crypto_alg_sem);
 
 	hlist_for_each_entry_safe(inst, n, list, list) {
-		BUG_ON(atomic_read(&inst->alg.cra_refcnt) != 1);
+		BUG_ON(refcount_read(&inst->alg.cra_refcnt) != 1);
 		crypto_free_instance(inst);
 	}
 	crypto_remove_final(&users);

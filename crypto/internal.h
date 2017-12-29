@@ -105,13 +105,13 @@ int crypto_type_has_alg(const char *name, const struct crypto_type *frontend,
 
 static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 {
-	atomic_inc(&alg->cra_refcnt);
+	refcount_inc(&alg->cra_refcnt);
 	return alg;
 }
 
 static inline void crypto_alg_put(struct crypto_alg *alg)
 {
-	if (atomic_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
+	if (refcount_dec_and_test(&alg->cra_refcnt) && alg->cra_destroy)
 		alg->cra_destroy(alg);
 }
 
