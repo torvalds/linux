@@ -1876,7 +1876,7 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 	INIT_LIST_HEAD(&dev->urbs.list);
 
 	while (i < count) {
-		unode = kzalloc(sizeof(struct urb_node), GFP_KERNEL);
+		unode = kzalloc(sizeof(*unode), GFP_KERNEL);
 		if (!unode)
 			break;
 		unode->dev = dev;
