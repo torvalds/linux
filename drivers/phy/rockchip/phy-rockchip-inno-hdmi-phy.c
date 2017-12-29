@@ -283,7 +283,7 @@ static const struct phy_config rk3228_phy_cfg[] = {
 
 static const struct phy_config rk3328_phy_cfg[] = {
 	{	165000000, {
-			0x07, 0x08, 0x08, 0x08, 0x00, 0x00, 0x08, 0x08, 0x08,
+			0x07, 0x0a, 0x0a, 0x0a, 0x00, 0x00, 0x08, 0x08, 0x08,
 			0x00, 0xac, 0xcc, 0xcc, 0xcc,
 		},
 	}, {
@@ -774,17 +774,15 @@ inno_hdmi_phy_rk3328_power_on(struct inno_hdmi_phy *inno,
 		inno_write(inno, 0xc6, val & 0xff);
 		inno_write(inno, 0xc7, 3 << 1);
 		inno_write(inno, 0xc5, ((val >> 8) & 0xff));
-	} else if (phy_cfg->tmdsclock > 165000000) {
+	} else {
 		inno_write(inno, 0xc5, 0x81);
-		/* clk termination resistor is 50ohm
-		 * data termination resistor is 150ohm
-		 */
-		inno_write(inno, 0xc8, 0x30);
+		/* clk termination resistor is 50ohm */
+		if (phy_cfg->tmdsclock > 165000000)
+			inno_write(inno, 0xc8, 0x30);
+		/* data termination resistor is 150ohm */
 		inno_write(inno, 0xc9, 0x10);
 		inno_write(inno, 0xca, 0x10);
 		inno_write(inno, 0xcb, 0x10);
-	} else {
-		inno_write(inno, 0xc5, 0x81);
 	}
 
 	/* Power up post PLL */
