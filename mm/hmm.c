@@ -838,10 +838,10 @@ static void hmm_devmem_release(struct device *dev, void *data)
 
 	mem_hotplug_begin();
 	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
-		__remove_pages(zone, start_pfn, npages);
+		__remove_pages(zone, start_pfn, npages, NULL);
 	else
 		arch_remove_memory(start_pfn << PAGE_SHIFT,
-				   npages << PAGE_SHIFT);
+				   npages << PAGE_SHIFT, NULL);
 	mem_hotplug_done();
 
 	hmm_devmem_radix_release(resource);

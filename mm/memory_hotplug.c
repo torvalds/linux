@@ -569,7 +569,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
  * calling offline_pages().
  */
 int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
-		 unsigned long nr_pages)
+		 unsigned long nr_pages, struct vmem_altmap *altmap)
 {
 	unsigned long i;
 	unsigned long map_offset = 0;
@@ -577,10 +577,6 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
 
 	/* In the ZONE_DEVICE case device driver owns the memory region */
 	if (is_dev_zone(zone)) {
-		struct page *page = pfn_to_page(phys_start_pfn);
-		struct vmem_altmap *altmap;
-
-		altmap = to_vmem_altmap((unsigned long) page);
 		if (altmap)
 			map_offset = vmem_altmap_offset(altmap);
 	} else {
@@ -1890,7 +1886,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
 	memblock_free(start, size);
 	memblock_remove(start, size);
 
-	arch_remove_memory(start, size);
+	arch_remove_memory(start, size, NULL);
 
 	try_offline_node(nid);
 
