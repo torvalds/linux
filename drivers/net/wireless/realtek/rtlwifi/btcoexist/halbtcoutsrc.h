@@ -626,7 +626,8 @@ void exhalbtc_update_min_bt_rssi(s8 bt_rssi);
 void exhalbtc_set_bt_exist(bool bt_exist);
 void exhalbtc_set_chip_type(u8 chip_type);
 void exhalbtc_set_ant_num(struct rtl_priv *rtlpriv, u8 type, u8 ant_num);
-void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist);
+void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist,
+				   struct seq_file *m);
 void exhalbtc_signal_compensation(struct btc_coexist *btcoexist,
 				  u8 *rssi_wifi, u8 *rssi_bt);
 void exhalbtc_lps_leave(struct btc_coexist *btcoexist);

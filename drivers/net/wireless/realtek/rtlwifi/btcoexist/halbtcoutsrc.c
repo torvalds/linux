@@ -1513,7 +1513,8 @@ void exhalbtc_set_single_ant_path(u8 single_ant_path)
 	gl_bt_coexist.board_info.single_ant_path = single_ant_path;
 }
 
-void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist)
+void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist,
+				   struct seq_file *m)
 {
 	if (!halbtc_is_bt_coexist_available(btcoexist))
 		return;
