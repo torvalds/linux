@@ -1200,13 +1200,19 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
          *
          * The second command is for the shadow pagetables.
 	 */
-	ncmds = ((nptes >> min(adev->vm_manager.block_size, 11u)) + 1) * 2;
+	if (vm->root.base.bo->shadow)
+		ncmds = ((nptes >> min(adev->vm_manager.block_size, 11u)) + 1) * 2;
+	else
+		ncmds = ((nptes >> min(adev->vm_manager.block_size, 11u)) + 1);
 
 	/* padding, etc. */
 	ndw = 64;
 
 	/* one PDE write for each huge page */
-	ndw += ((nptes >> adev->vm_manager.block_size) + 1) * 6;
+	if (vm->root.base.bo->shadow)
+		ndw += ((nptes >> adev->vm_manager.block_size) + 1) * 6 * 2;
+	else
+		ndw += ((nptes >> adev->vm_manager.block_size) + 1) * 6;
 
 	if (pages_addr) {
 		/* copy commands needed */
