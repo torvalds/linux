@@ -1,9 +1,9 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _V4L2_PIX_FMT_IPU3_SBGGR10:
-.. _V4L2_PIX_FMT_IPU3_SGBRG10:
-.. _V4L2_PIX_FMT_IPU3_SGRBG10:
-.. _V4L2_PIX_FMT_IPU3_SRGGB10:
+.. _v4l2-pix-fmt-ipu3-sbggr10:
+.. _v4l2-pix-fmt-ipu3-sgbrg10:
+.. _v4l2-pix-fmt-ipu3-sgrbg10:
+.. _v4l2-pix-fmt-ipu3-srggb10:
 
 **********************************************************************************************************************************************
 V4L2_PIX_FMT_IPU3_SBGGR10 ('ip3b'), V4L2_PIX_FMT_IPU3_SGBRG10 ('ip3g'), V4L2_PIX_FMT_IPU3_SGRBG10 ('ip3G'), V4L2_PIX_FMT_IPU3_SRGGB10 ('ip3r')
