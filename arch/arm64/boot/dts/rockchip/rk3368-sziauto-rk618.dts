@@ -270,7 +270,7 @@
 					hdmi_output_lvds: endpoint@1 {
 						reg = <1>;
 						remote-endpoint = <&lvds_input_hdmi>;
-						status = "disabled";
+						status = "okay";
 					};
 				};
 			};
@@ -281,7 +281,7 @@
 			clocks = <&CRU LVDS_CLK>, <&CRU DITHER_CLK>,
 				 <&CRU VIF0_CLK>, <&CRU SCALER_CLK>;
 			clock-names = "lvds", "dither", "vif", "scaler";
-			status = "disabled";
+			status = "okay";
 
 			ports {
 				#address-cells = <1>;
