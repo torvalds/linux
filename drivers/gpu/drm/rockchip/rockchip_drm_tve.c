@@ -11,6 +11,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 
+#include <uapi/linux/videodev2.h>
+
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_tve.h"
 #include "rockchip_drm_vop.h"
@@ -276,6 +278,8 @@ rockchip_tve_encoder_atomic_check(struct drm_encoder *encoder,
 		s->bus_format = info->bus_formats[0];
 	else
 		s->bus_format = MEDIA_BUS_FMT_YUV8_1X24;
+
+	s->color_space = V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
 }
