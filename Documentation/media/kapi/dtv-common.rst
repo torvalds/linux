@@ -53,3 +53,8 @@ copy it from/to userspace.
      Two or more writers must be locked against each other.
 
 .. kernel-doc:: include/media/dvb_ringbuffer.h
+
+Digital TV VB2 handler
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: include/media/dvb_vb2.h
