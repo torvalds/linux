@@ -417,7 +417,8 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
 }
 
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
-struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
+struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
+		struct vmem_altmap *altmap)
 {
 	struct page *map;
 	unsigned long size;
@@ -472,7 +473,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 
 		if (!present_section_nr(pnum))
 			continue;
-		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid);
+		map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
 		if (map_map[pnum])
 			continue;
 		ms = __nr_to_section(pnum);
@@ -500,7 +501,7 @@ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 	struct mem_section *ms = __nr_to_section(pnum);
 	int nid = sparse_early_nid(ms);
 
-	map = sparse_mem_map_populate(pnum, nid);
+	map = sparse_mem_map_populate(pnum, nid, NULL);
 	if (map)
 		return map;
 
@@ -678,10 +679,11 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
 #endif
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid)
+static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+		struct vmem_altmap *altmap)
 {
 	/* This will make the necessary allocations eventually. */
-	return sparse_mem_map_populate(pnum, nid);
+	return sparse_mem_map_populate(pnum, nid, altmap);
 }
 static void __kfree_section_memmap(struct page *memmap)
 {
@@ -721,7 +723,8 @@ got_map_ptr:
 	return ret;
 }
 
-static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid)
+static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+		struct vmem_altmap *altmap)
 {
 	return __kmalloc_section_memmap();
 }
@@ -773,7 +776,8 @@ static void free_map_bootmem(struct page *memmap)
  * set.  If this is <=0, then that means that the passed-in
  * map was not consumed and must be freed.
  */
-int __meminit sparse_add_one_section(struct pglist_data *pgdat, unsigned long start_pfn)
+int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+		unsigned long start_pfn, struct vmem_altmap *altmap)
 {
 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
 	struct mem_section *ms;
@@ -789,7 +793,7 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat, unsigned long st
 	ret = sparse_index_init(section_nr, pgdat->node_id);
 	if (ret < 0 && ret != -EEXIST)
 		return ret;
-	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id);
+	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, altmap);
 	if (!memmap)
 		return -ENOMEM;
 	usemap = __kmalloc_section_usemap();

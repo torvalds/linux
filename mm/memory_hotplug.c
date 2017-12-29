@@ -250,7 +250,7 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
 #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
 
 static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
-		bool want_memblock)
+		struct vmem_altmap *altmap, bool want_memblock)
 {
 	int ret;
 	int i;
@@ -258,7 +258,7 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
 	if (pfn_valid(phys_start_pfn))
 		return -EEXIST;
 
-	ret = sparse_add_one_section(NODE_DATA(nid), phys_start_pfn);
+	ret = sparse_add_one_section(NODE_DATA(nid), phys_start_pfn, altmap);
 	if (ret < 0)
 		return ret;
 
@@ -317,7 +317,8 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
 	}
 
 	for (i = start_sec; i <= end_sec; i++) {
-		err = __add_section(nid, section_nr_to_pfn(i), want_memblock);
+		err = __add_section(nid, section_nr_to_pfn(i), altmap,
+				want_memblock);
 
 		/*
 		 * EEXIST is finally dealt with by ioresource collision
