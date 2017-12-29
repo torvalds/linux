@@ -4479,6 +4479,12 @@ flags_complete:
 		}
 	}
 
+	if ((changed_flags & pf->flags &
+	     I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED) &&
+	    (pf->flags & I40E_FLAG_MFP_ENABLED))
+		dev_warn(&pf->pdev->dev,
+			 "Turning on link-down-on-close flag may affect other partitions\n");
+
 	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
 		if (pf->flags & I40E_FLAG_DISABLE_FW_LLDP) {
 			struct i40e_dcbx_config *dcbcfg;
