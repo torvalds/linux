@@ -113,8 +113,9 @@ typedef void (*dev_page_free_t)(struct page *page, void *data);
 struct dev_pagemap {
 	dev_page_fault_t page_fault;
 	dev_page_free_t page_free;
-	struct vmem_altmap *altmap;
-	const struct resource *res;
+	struct vmem_altmap altmap;
+	bool altmap_valid;
+	struct resource res;
 	struct percpu_ref *ref;
 	struct device *dev;
 	void *data;

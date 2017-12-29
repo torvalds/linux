@@ -882,7 +882,7 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
 	else
 		devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
 
-	devmem->pagemap.res = devmem->resource;
+	devmem->pagemap.res = *devmem->resource;
 	devmem->pagemap.page_fault = hmm_devmem_fault;
 	devmem->pagemap.page_free = hmm_devmem_free;
 	devmem->pagemap.dev = devmem->device;
