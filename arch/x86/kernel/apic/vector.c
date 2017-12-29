@@ -369,8 +369,18 @@ static int activate_reserved(struct irq_data *irqd)
 	int ret;
 
 	ret = assign_irq_vector_any_locked(irqd);
-	if (!ret)
+	if (!ret) {
 		apicd->has_reserved = false;
+		/*
+		 * Core might have disabled reservation mode after
+		 * allocating the irq descriptor. Ideally this should
+		 * happen before allocation time, but that would require
+		 * completely convoluted ways of transporting that
+		 * information.
+		 */
+		if (!irqd_can_reserve(irqd))
+			apicd->can_reserve = false;
+	}
 	return ret;
 }
 
