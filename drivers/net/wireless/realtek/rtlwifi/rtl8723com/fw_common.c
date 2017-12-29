@@ -200,6 +200,8 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 		return 1;
 
 	pfwheader = (struct rtlwifi_firmware_header *)rtlhal->pfirmware;
+	rtlhal->fw_version = le16_to_cpu(pfwheader->version);
+	rtlhal->fw_subversion = pfwheader->subversion;
 	pfwdata = rtlhal->pfirmware;
 	fwsize = rtlhal->fwsize;
 
