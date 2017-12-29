@@ -200,7 +200,10 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		if (vmemmap_populated(start, page_size))
 			continue;
 
-		p =  __vmemmap_alloc_block_buf(page_size, node, altmap);
+		if (altmap)
+			p = altmap_alloc_block_buf(page_size, altmap);
+		else
+			p = vmemmap_alloc_block_buf(page_size, node);
 		if (!p)
 			return -ENOMEM;
 
