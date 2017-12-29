@@ -184,6 +184,7 @@ static void reserve_irq_vector_locked(struct irq_data *irqd)
 	irq_matrix_reserve(vector_matrix);
 	apicd->can_reserve = true;
 	apicd->has_reserved = true;
+	irqd_set_can_reserve(irqd);
 	trace_vector_reserve(irqd->irq, 0);
 	vector_assign_managed_shutdown(irqd);
 }
@@ -478,6 +479,7 @@ static bool vector_configure_legacy(unsigned int virq, struct irq_data *irqd,
 	} else {
 		/* Release the vector */
 		apicd->can_reserve = true;
+		irqd_set_can_reserve(irqd);
 		clear_irq_vector(irqd);
 		realloc = true;
 	}
