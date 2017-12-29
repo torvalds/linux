@@ -116,7 +116,7 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 	}
 
 	if (adev->powerplay.pp_funcs->dispatch_tasks) {
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_ENABLE_USER_STATE, &state, NULL);
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_ENABLE_USER_STATE, &state);
 	} else {
 		mutex_lock(&adev->pm.mutex);
 		adev->pm.dpm.user_state = state;
@@ -316,7 +316,7 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 		if (state != POWER_STATE_TYPE_INTERNAL_BOOT &&
 		    state != POWER_STATE_TYPE_DEFAULT) {
 			amdgpu_dpm_dispatch_task(adev,
-					AMD_PP_TASK_ENABLE_USER_STATE, &state, NULL);
+					AMD_PP_TASK_ENABLE_USER_STATE, &state);
 			adev->pp_force_state_enabled = true;
 		}
 	}
@@ -530,7 +530,7 @@ static ssize_t amdgpu_set_pp_sclk_od(struct device *dev,
 		amdgpu_dpm_set_sclk_od(adev, (uint32_t)value);
 
 	if (adev->powerplay.pp_funcs->dispatch_tasks) {
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_READJUST_POWER_STATE, NULL, NULL);
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
 	} else {
 		adev->pm.dpm.current_ps = adev->pm.dpm.boot_ps;
 		amdgpu_pm_compute_clocks(adev);
@@ -574,7 +574,7 @@ static ssize_t amdgpu_set_pp_mclk_od(struct device *dev,
 		amdgpu_dpm_set_mclk_od(adev, (uint32_t)value);
 
 	if (adev->powerplay.pp_funcs->dispatch_tasks) {
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_READJUST_POWER_STATE, NULL, NULL);
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
 	} else {
 		adev->pm.dpm.current_ps = adev->pm.dpm.boot_ps;
 		amdgpu_pm_compute_clocks(adev);
@@ -1462,7 +1462,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 	}
 
 	if (adev->powerplay.pp_funcs->dispatch_tasks) {
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_DISPLAY_CONFIG_CHANGE, NULL, NULL);
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_DISPLAY_CONFIG_CHANGE, NULL);
 	} else {
 		mutex_lock(&adev->pm.mutex);
 		adev->pm.dpm.new_active_crtcs = 0;

@@ -33,7 +33,7 @@
 #define PP_DPM_DISABLED 0xCCCC
 
 static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_task task_id,
-		void *input, void *output);
+		enum amd_pm_state_type *user_state);
 
 static inline int pp_check(struct pp_instance *handle)
 {
@@ -198,7 +198,7 @@ static int pp_late_init(void *handle)
 	ret = pp_check(pp_handle);
 	if (ret == 0)
 		pp_dpm_dispatch_tasks(pp_handle,
-					AMD_PP_TASK_COMPLETE_INIT, NULL, NULL);
+					AMD_PP_TASK_COMPLETE_INIT, NULL);
 
 	return 0;
 }
@@ -392,7 +392,7 @@ static int pp_dpm_force_performance_level(void *handle,
 	mutex_lock(&pp_handle->pp_lock);
 	pp_dpm_en_umd_pstate(hwmgr, &level);
 	hwmgr->request_dpm_level = level;
-	hwmgr_handle_task(pp_handle, AMD_PP_TASK_READJUST_POWER_STATE, NULL, NULL);
+	hwmgr_handle_task(pp_handle, AMD_PP_TASK_READJUST_POWER_STATE, NULL);
 	mutex_unlock(&pp_handle->pp_lock);
 
 	return 0;
@@ -511,7 +511,7 @@ static void pp_dpm_powergate_uvd(void *handle, bool gate)
 }
 
 static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_task task_id,
-		void *input, void *output)
+		enum amd_pm_state_type *user_state)
 {
 	int ret = 0;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
@@ -522,7 +522,7 @@ static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_task task_id,
 		return ret;
 
 	mutex_lock(&pp_handle->pp_lock);
-	ret = hwmgr_handle_task(pp_handle, task_id, input, output);
+	ret = hwmgr_handle_task(pp_handle, task_id, user_state);
 	mutex_unlock(&pp_handle->pp_lock);
 
 	return ret;
@@ -799,7 +799,7 @@ static int amd_powerplay_reset(void *handle)
 	if (ret)
 		return ret;
 
-	return hwmgr_handle_task(instance, AMD_PP_TASK_COMPLETE_INIT, NULL, NULL);
+	return hwmgr_handle_task(instance, AMD_PP_TASK_COMPLETE_INIT, NULL);
 }
 
 static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
