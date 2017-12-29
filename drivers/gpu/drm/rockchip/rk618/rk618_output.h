@@ -84,6 +84,7 @@
 #define MIPI_EDPI_HALT			BIT(16)
 #define HDMI_HSYNC_POL_INV		BIT(15)
 #define HDMI_VSYNC_POL_INV		BIT(14)
+#define HDMI_CLK_SEL_MASK		GENMASK(13, 12)
 #define HDMI_CLK_SEL_VIDEO_INF0_CLK	UPDATE(2, 13, 12)
 #define HDMI_CLK_SEL_SCALER_CLK		UPDATE(1, 13, 12)
 #define HDMI_CLK_SEL_VIDEO_INF1_CLK	0
@@ -132,11 +133,6 @@ int rk618_output_register(struct rk618_output *output);
 int rk618_output_bind(struct rk618_output *output, struct drm_device *drm,
 			  int encoder_type, int connector_type);
 void rk618_output_unbind(struct rk618_output *output);
-
-void rk618_vif_enable(struct rk618 *rk618);
-void rk618_vif_disable(struct rk618 *rk618);
-void rk618_vif_configure(struct rk618 *rk618,
-			 const struct drm_display_mode *mode);
 
 void rk618_scaler_enable(struct rk618 *rk618);
 void rk618_scaler_disable(struct rk618 *rk618);

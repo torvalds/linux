@@ -39,20 +39,33 @@
 #define RK618_VIF1_REG4			0x0028
 #define RK618_VIF1_REG5			0x002c
 
-void rk618_vif_enable(struct rk618 *rk618)
-{
-	regmap_write(rk618->regmap, RK618_VIF0_REG0, VIF_ENABLE);
-}
-EXPORT_SYMBOL(rk618_vif_enable);
+struct rk618_vif {
+	struct drm_bridge base;
+	struct drm_bridge *bridge;
+	struct drm_display_mode mode;
+	struct device *dev;
+	struct regmap *regmap;
+	struct clk *vif_clk;
+	struct clk *vif_pre_clk;
+};
 
-void rk618_vif_disable(struct rk618 *rk618)
+static inline struct rk618_vif *bridge_to_vif(struct drm_bridge *bridge)
 {
-	regmap_write(rk618->regmap, RK618_VIF0_REG0, VIF_DISABLE);
+	return container_of(bridge, struct rk618_vif, base);
 }
-EXPORT_SYMBOL(rk618_vif_disable);
 
-void rk618_vif_configure(struct rk618 *rk618,
-			 const struct drm_display_mode *mode)
+static void rk618_vif_enable(struct rk618_vif *vif)
+{
+	regmap_write(vif->regmap, RK618_VIF0_REG0, VIF_ENABLE);
+}
+
+static void rk618_vif_disable(struct rk618_vif *vif)
+{
+	regmap_write(vif->regmap, RK618_VIF0_REG0, VIF_DISABLE);
+}
+
+static void rk618_vif_configure(struct rk618_vif *vif,
+				const struct drm_display_mode *mode)
 {
 	struct videomode vm;
 	u32 vif_frame_vst, vif_frame_hst;
@@ -76,18 +89,180 @@ void rk618_vif_configure(struct rk618 *rk618,
 	vif_vact_end = vm.vsync_len + vm.vback_porch + vm.vactive;
 	vif_vact_st = vm.vsync_len + vm.vback_porch;
 
-	regmap_write(rk618->regmap, RK618_VIF0_REG1,
+	regmap_write(vif->regmap, RK618_VIF0_REG1,
 		     VIF_FRAME_VST(vif_frame_vst) |
 		     VIF_FRAME_HST(vif_frame_hst));
-	regmap_write(rk618->regmap, RK618_VIF0_REG2,
+	regmap_write(vif->regmap, RK618_VIF0_REG2,
 		     VIF_HS_END(vif_hs_end) | VIF_HTOTAL(vif_htotal));
-	regmap_write(rk618->regmap, RK618_VIF0_REG3,
+	regmap_write(vif->regmap, RK618_VIF0_REG3,
 		     VIF_HACT_END(vif_hact_end) | VIF_HACT_ST(vif_hact_st));
-	regmap_write(rk618->regmap, RK618_VIF0_REG4,
+	regmap_write(vif->regmap, RK618_VIF0_REG4,
 		     VIF_VS_END(vif_vs_end) | VIF_VTOTAL(vif_vtotal));
-	regmap_write(rk618->regmap, RK618_VIF0_REG5,
+	regmap_write(vif->regmap, RK618_VIF0_REG5,
 		     VIF_VACT_END(vif_vact_end) | VIF_VACT_ST(vif_vact_st));
-	regmap_write(rk618->regmap, RK618_IO_CON0,
+	regmap_write(vif->regmap, RK618_IO_CON0,
 		     VIF0_SYNC_MODE_ENABLE);
 }
-EXPORT_SYMBOL(rk618_vif_configure);
+
+static void rk618_vif_bridge_pre_enable(struct drm_bridge *bridge)
+{
+	struct rk618_vif *vif = bridge_to_vif(bridge);
+	const struct drm_display_mode *mode = &vif->mode;
+	long rate;
+
+	clk_set_parent(vif->vif_clk, vif->vif_pre_clk);
+
+	rate = clk_round_rate(vif->vif_clk, mode->clock * 1000);
+	clk_set_rate(vif->vif_clk, rate);
+
+	rk618_vif_configure(vif, mode);
+}
+
+static void rk618_vif_bridge_enable(struct drm_bridge *bridge)
+{
+	struct rk618_vif *vif = bridge_to_vif(bridge);
+
+	rk618_vif_enable(vif);
+	clk_prepare_enable(vif->vif_clk);
+}
+
+static void rk618_vif_bridge_disable(struct drm_bridge *bridge)
+{
+	struct rk618_vif *vif = bridge_to_vif(bridge);
+
+	rk618_vif_disable(vif);
+}
+
+static void rk618_vif_bridge_post_disable(struct drm_bridge *bridge)
+{
+	struct rk618_vif *vif = bridge_to_vif(bridge);
+
+	clk_disable_unprepare(vif->vif_clk);
+}
+
+static void rk618_vif_bridge_mode_set(struct drm_bridge *bridge,
+				      struct drm_display_mode *mode,
+				      struct drm_display_mode *adjusted)
+{
+	struct rk618_vif *vif = bridge_to_vif(bridge);
+
+	drm_mode_copy(&vif->mode, adjusted);
+}
+
+static int rk618_vif_bridge_attach(struct drm_bridge *bridge)
+{
+	struct rk618_vif *vif = bridge_to_vif(bridge);
+	struct device *dev = vif->dev;
+	struct device_node *endpoint;
+	int ret;
+
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
+	if (endpoint && of_device_is_available(endpoint)) {
+		struct device_node *remote;
+
+		remote = of_graph_get_remote_port_parent(endpoint);
+		of_node_put(endpoint);
+		if (!remote || !of_device_is_available(remote))
+			return -ENODEV;
+
+		vif->bridge = of_drm_find_bridge(remote);
+		of_node_put(remote);
+		if (!vif->bridge)
+			return -EPROBE_DEFER;
+
+		vif->bridge->encoder = bridge->encoder;
+
+		ret = drm_bridge_attach(bridge->dev, vif->bridge);
+		if (ret) {
+			dev_err(dev, "failed to attach bridge\n");
+			return ret;
+		}
+
+		bridge->next = vif->bridge;
+	}
+
+	return 0;
+}
+
+static const struct drm_bridge_funcs rk618_vif_bridge_funcs = {
+	.pre_enable = rk618_vif_bridge_pre_enable,
+	.enable = rk618_vif_bridge_enable,
+	.disable = rk618_vif_bridge_disable,
+	.post_disable = rk618_vif_bridge_post_disable,
+	.mode_set = rk618_vif_bridge_mode_set,
+	.attach = rk618_vif_bridge_attach,
+};
+
+static int rk618_vif_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct rk618_vif *vif;
+	int ret;
+
+	if (!of_device_is_available(dev->of_node))
+		return -ENODEV;
+
+	vif = devm_kzalloc(dev, sizeof(*vif), GFP_KERNEL);
+	if (!vif)
+		return -ENOMEM;
+
+	vif->dev = dev;
+	platform_set_drvdata(pdev, vif);
+
+	vif->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	if (!vif->regmap)
+		return -ENODEV;
+
+	vif->vif_clk = devm_clk_get(dev, "vif");
+	if (IS_ERR(vif->vif_clk)) {
+		ret = PTR_ERR(vif->vif_clk);
+		dev_err(dev, "failed to get vif clock: %d\n", ret);
+		return ret;
+	}
+
+	vif->vif_pre_clk = devm_clk_get(dev, "vif_pre");
+	if (IS_ERR(vif->vif_pre_clk)) {
+		ret = PTR_ERR(vif->vif_pre_clk);
+		dev_err(dev, "failed to get vif pre clock: %d\n", ret);
+		return ret;
+	}
+
+	vif->base.funcs = &rk618_vif_bridge_funcs;
+	vif->base.of_node = dev->of_node;
+	ret = drm_bridge_add(&vif->base);
+	if (ret) {
+		dev_err(dev, "failed to add bridge\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rk618_vif_remove(struct platform_device *pdev)
+{
+	struct rk618_vif *vif = platform_get_drvdata(pdev);
+
+	drm_bridge_remove(&vif->base);
+
+	return 0;
+}
+
+static const struct of_device_id rk618_vif_of_match[] = {
+	{ .compatible = "rockchip,rk618-vif", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rk618_vif_of_match);
+
+static struct platform_driver rk618_vif_driver = {
+	.driver = {
+		.name = "rk618-vif",
+		.of_match_table = of_match_ptr(rk618_vif_of_match),
+	},
+	.probe = rk618_vif_probe,
+	.remove = rk618_vif_remove,
+};
+module_platform_driver(rk618_vif_driver);
+
+MODULE_AUTHOR("Wyon Bi <bivvy.bi@rock-chips.com>");
+MODULE_DESCRIPTION("Rockchip RK618 VIF driver");
+MODULE_LICENSE("GPL v2");

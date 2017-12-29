@@ -1,6 +1,55 @@
 Rockchip RK618 display bridge bindings
 ======================================
 
+VIF Module
+----------
+
+Required properties:
+- compatible: value should be one of the following:
+   "rockchip,rk618-vif"
+- clocks: must include clock specifiers corresponding to entries in the
+	  clock-names property.
+	  See ../clocks/clock-bindings.txt for details.
+- clock-names: list of clock names sorted in the same order as the clocks
+	       property. Must contain "vif", "vif_pre".
+
+Required nodes:
+
+The connections to the video ports are modeled using the OF graph
+bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+Example:
+
+&rk618 {
+	VIF: vif {
+		compatible = "rockchip,rk618-vif";
+		clocks = <&CRU VIF0_CLK>, <&CRU VIF0_PRE_CLK>;
+		clock-names = "vif", "vif_pre";
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				vif_input_hdmi: endpoint {
+					remote-endpoint = <&hdmi_output_vif>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				vif_output_lvds: endpoint {
+					remote-endpoint = <&lvds_input_vif>;
+				};
+			};
+		};
+	};
+};
+
 LVDS Encoder
 ------------
 
@@ -13,11 +62,12 @@ Required properties:
 - clock-names: list of clock names sorted in the same order as the clocks
 	       property. Must contain "lvds", "dither", "vif", "scaler".
 
-The LVDS has two video ports. Their connections are modeled using the OF
-graph bindings specified in Documentation/devicetree/bindings/graph.txt.
+Required nodes:
 
-- Video port 0 for DPI input
-- Video port 1 for LVDS output
+The connections to the video ports are modeled using the OF graph
+bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+Example:
 
 &rk618 {
 	status = "okay";
@@ -43,9 +93,14 @@ graph bindings specified in Documentation/devicetree/bindings/graph.txt.
 					remote-endpoint = <&vop_output_lvds>;
 				};
 
-				lvds_input_bridge: endpoint@1 {
+				lvds_input_vif: endpoint@1 {
 					reg = <1>;
-					remote-endpoint = <&hdmi_output_bridge>;
+					remote-endpoint = <&vif_output_lvds>;
+				};
+
+				lvds_input_hdmi: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&hdmi_output_lvds>;
 				};
 			};
 
