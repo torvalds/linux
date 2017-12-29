@@ -193,6 +193,12 @@ void gpiod_set_array_value_complex(bool raw, bool can_sleep,
 				   struct gpio_desc **desc_array,
 				   int *value_array);
 
+/* This is just passed between gpiolib and devres */
+struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+					 const char *propname, int index,
+					 enum gpiod_flags dflags,
+					 const char *label);
+
 extern struct spinlock gpio_lock;
 extern struct list_head gpio_devices;
 

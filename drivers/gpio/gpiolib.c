@@ -3682,10 +3682,10 @@ EXPORT_SYMBOL_GPL(gpiod_get_index);
  *
  * In case of error an ERR_PTR() is returned.
  */
-static struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
-						const char *propname, int index,
-						enum gpiod_flags dflags,
-						const char *label)
+struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+					 const char *propname, int index,
+					 enum gpiod_flags dflags,
+					 const char *label)
 {
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
 	unsigned long lflags = 0;
@@ -3736,6 +3736,7 @@ static struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
 
 	return desc;
 }
+EXPORT_SYMBOL(gpiod_get_from_of_node);
 
 /**
  * fwnode_get_named_gpiod - obtain a GPIO from firmware node

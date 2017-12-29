@@ -151,8 +151,14 @@ struct gpio_desc *gpio_to_desc(unsigned gpio);
 int desc_to_gpio(const struct gpio_desc *desc);
 
 /* Child properties interface */
+struct device_node;
 struct fwnode_handle;
 
+struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
+					      struct device_node *node,
+					      const char *propname, int index,
+					      enum gpiod_flags dflags,
+					      const char *label);
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 					 const char *propname, int index,
 					 enum gpiod_flags dflags,
@@ -472,7 +478,18 @@ static inline int desc_to_gpio(const struct gpio_desc *desc)
 }
 
 /* Child properties interface */
+struct device_node;
 struct fwnode_handle;
+
+static inline
+struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
+					      struct device_node *node,
+					      const char *propname, int index,
+					      enum gpiod_flags dflags,
+					      const char *label)
+{
+	return ERR_PTR(-ENOSYS);
+}
 
 static inline
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
