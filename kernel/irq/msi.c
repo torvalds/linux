@@ -339,6 +339,13 @@ int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
 	return ret;
 }
 
+static bool msi_check_reservation_mode(struct msi_domain_info *info)
+{
+	if (!(info->flags & MSI_FLAG_MUST_REACTIVATE))
+		return false;
+	return true;
+}
+
 /**
  * msi_domain_alloc_irqs - Allocate interrupts from a MSI interrupt domain
  * @domain:	The domain to allocate from
@@ -353,9 +360,11 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 {
 	struct msi_domain_info *info = domain->host_data;
 	struct msi_domain_ops *ops = info->ops;
-	msi_alloc_info_t arg;
+	struct irq_data *irq_data;
 	struct msi_desc *desc;
+	msi_alloc_info_t arg;
 	int i, ret, virq;
+	bool can_reserve;
 
 	ret = msi_domain_prepare_irqs(domain, dev, nvec, &arg);
 	if (ret)
@@ -385,6 +394,8 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 	if (ops->msi_finish)
 		ops->msi_finish(&arg, 0);
 
+	can_reserve = msi_check_reservation_mode(info);
+
 	for_each_msi_entry(desc, dev) {
 		virq = desc->irq;
 		if (desc->nvec_used == 1)
@@ -397,15 +408,23 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 		 * the MSI entries before the PCI layer enables MSI in the
 		 * card. Otherwise the card latches a random msi message.
 		 */
-		if (info->flags & MSI_FLAG_ACTIVATE_EARLY) {
-			struct irq_data *irq_data;
+		if (!(info->flags & MSI_FLAG_ACTIVATE_EARLY))
+			continue;
 
+		irq_data = irq_domain_get_irq_data(domain, desc->irq);
+		ret = irq_domain_activate_irq(irq_data, true);
+		if (ret)
+			goto cleanup;
+	}
+
+	/*
+	 * If these interrupts use reservation mode, clear the activated bit
+	 * so request_irq() will assign the final vector.
+	 */
+	if (can_reserve) {
+		for_each_msi_entry(desc, dev) {
 			irq_data = irq_domain_get_irq_data(domain, desc->irq);
-			ret = irq_domain_activate_irq(irq_data, true);
-			if (ret)
-				goto cleanup;
-			if (info->flags & MSI_FLAG_MUST_REACTIVATE)
-				irqd_clr_activated(irq_data);
+			irqd_clr_activated(irq_data);
 		}
 	}
 	return 0;
