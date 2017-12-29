@@ -3668,65 +3668,48 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 EXPORT_SYMBOL_GPL(gpiod_get_index);
 
 /**
- * fwnode_get_named_gpiod - obtain a GPIO from firmware node
- * @fwnode:	handle of the firmware node
- * @propname:	name of the firmware property representing the GPIO
- * @index:	index of the GPIO to obtain in the consumer
+ * gpiod_get_from_of_node() - obtain a GPIO from an OF node
+ * @node:	handle of the OF node
+ * @propname:	name of the DT property representing the GPIO
+ * @index:	index of the GPIO to obtain for the consumer
  * @dflags:	GPIO initialization flags
  * @label:	label to attach to the requested GPIO
  *
- * This function can be used for drivers that get their configuration
- * from firmware.
- *
- * Function properly finds the corresponding GPIO using whatever is the
- * underlying firmware interface and then makes sure that the GPIO
- * descriptor is requested before it is returned to the caller.
- *
  * Returns:
  * On successful request the GPIO pin is configured in accordance with
- * provided @dflags.
+ * provided @dflags. If the node does not have the requested GPIO
+ * property, NULL is returned.
  *
  * In case of error an ERR_PTR() is returned.
  */
-struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
-					 const char *propname, int index,
-					 enum gpiod_flags dflags,
-					 const char *label)
+static struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+						const char *propname, int index,
+						enum gpiod_flags dflags,
+						const char *label)
 {
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
 	unsigned long lflags = 0;
+	enum of_gpio_flags flags;
 	bool active_low = false;
 	bool single_ended = false;
 	bool open_drain = false;
 	bool transitory = false;
 	int ret;
 
-	if (!fwnode)
-		return ERR_PTR(-EINVAL);
+	desc = of_get_named_gpiod_flags(node, propname,
+					index, &flags);
 
-	if (is_of_node(fwnode)) {
-		enum of_gpio_flags flags;
-
-		desc = of_get_named_gpiod_flags(to_of_node(fwnode), propname,
-						index, &flags);
-		if (!IS_ERR(desc)) {
-			active_low = flags & OF_GPIO_ACTIVE_LOW;
-			single_ended = flags & OF_GPIO_SINGLE_ENDED;
-			open_drain = flags & OF_GPIO_OPEN_DRAIN;
-			transitory = flags & OF_GPIO_TRANSITORY;
-		}
-	} else if (is_acpi_node(fwnode)) {
-		struct acpi_gpio_info info;
-
-		desc = acpi_node_get_gpiod(fwnode, propname, index, &info);
-		if (!IS_ERR(desc)) {
-			active_low = info.polarity == GPIO_ACTIVE_LOW;
-			acpi_gpio_update_gpiod_flags(&dflags, &info);
-		}
+	if (!desc || IS_ERR(desc)) {
+		/* If it is not there, just return NULL */
+		if (PTR_ERR(desc) == -ENOENT)
+			return NULL;
+		return desc;
 	}
 
-	if (IS_ERR(desc))
-		return desc;
+	active_low = flags & OF_GPIO_ACTIVE_LOW;
+	single_ended = flags & OF_GPIO_SINGLE_ENDED;
+	open_drain = flags & OF_GPIO_OPEN_DRAIN;
+	transitory = flags & OF_GPIO_TRANSITORY;
 
 	ret = gpiod_request(desc, label);
 	if (ret)
@@ -3744,6 +3727,72 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 
 	if (transitory)
 		lflags |= GPIO_TRANSITORY;
+
+	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
+	if (ret < 0) {
+		gpiod_put(desc);
+		return ERR_PTR(ret);
+	}
+
+	return desc;
+}
+
+/**
+ * fwnode_get_named_gpiod - obtain a GPIO from firmware node
+ * @fwnode:	handle of the firmware node
+ * @propname:	name of the firmware property representing the GPIO
+ * @index:	index of the GPIO to obtain for the consumer
+ * @dflags:	GPIO initialization flags
+ * @label:	label to attach to the requested GPIO
+ *
+ * This function can be used for drivers that get their configuration
+ * from opaque firmware.
+ *
+ * The function properly finds the corresponding GPIO using whatever is the
+ * underlying firmware interface and then makes sure that the GPIO
+ * descriptor is requested before it is returned to the caller.
+ *
+ * Returns:
+ * On successful request the GPIO pin is configured in accordance with
+ * provided @dflags.
+ *
+ * In case of error an ERR_PTR() is returned.
+ */
+struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
+					 const char *propname, int index,
+					 enum gpiod_flags dflags,
+					 const char *label)
+{
+	struct gpio_desc *desc = ERR_PTR(-ENODEV);
+	unsigned long lflags = 0;
+	int ret;
+
+	if (!fwnode)
+		return ERR_PTR(-EINVAL);
+
+	if (is_of_node(fwnode)) {
+		desc = gpiod_get_from_of_node(to_of_node(fwnode),
+					      propname, index,
+					      dflags,
+					      label);
+		return desc;
+	} else if (is_acpi_node(fwnode)) {
+		struct acpi_gpio_info info;
+
+		desc = acpi_node_get_gpiod(fwnode, propname, index, &info);
+		if (IS_ERR(desc))
+			return desc;
+
+		acpi_gpio_update_gpiod_flags(&dflags, &info);
+
+		if (info.polarity == GPIO_ACTIVE_LOW)
+			lflags |= GPIO_ACTIVE_LOW;
+	}
+
+	/* Currently only ACPI takes this path */
+	ret = gpiod_request(desc, label);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
 	if (ret < 0) {
