@@ -3207,10 +3207,6 @@ static void set_eq_cons_index_v2(struct hns_roce_eq *eq)
 		       (eq->cons_index & HNS_ROCE_V2_CONS_IDX_M));
 
 	hns_roce_write64_k(doorbell, eq->doorbell);
-
-	/* Memory barrier */
-	mb();
-
 }
 
 static void hns_roce_v2_wq_catas_err_handle(struct hns_roce_dev *hr_dev,
@@ -3392,8 +3388,11 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 	int event_type;
 
 	while ((aeqe = next_aeqe_sw_v2(eq))) {
-		/* Memory barrier */
-		rmb();
+
+		/* Make sure we read AEQ entry after we have checked the
+		 * ownership bit
+		 */
+		dma_rmb();
 
 		event_type = roce_get_field(aeqe->asyn,
 					    HNS_ROCE_V2_AEQE_EVENT_TYPE_M,
@@ -3508,8 +3507,11 @@ static int hns_roce_v2_ceq_int(struct hns_roce_dev *hr_dev,
 
 	while ((ceqe = next_ceqe_sw_v2(eq))) {
 
-		/* Memory barrier */
-		rmb();
+		/* Make sure we read CEQ entry after we have checked the
+		 * ownership bit
+		 */
+		dma_rmb();
+
 		cqn = roce_get_field(ceqe->comp,
 				     HNS_ROCE_V2_CEQE_COMP_CQN_M,
 				     HNS_ROCE_V2_CEQE_COMP_CQN_S);
@@ -3564,9 +3566,6 @@ static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 		roce_set_bit(int_st, HNS_ROCE_V2_VF_INT_ST_AEQ_OVERFLOW_S, 1);
 		roce_write(hr_dev, ROCEE_VF_ABN_INT_ST_REG, int_st);
 
-		/* Memory barrier */
-		mb();
-
 		roce_set_bit(int_en, HNS_ROCE_V2_VF_ABN_INT_EN_S, 1);
 		roce_write(hr_dev, ROCEE_VF_ABN_INT_EN_REG, int_en);
 
@@ -3576,9 +3575,6 @@ static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 
 		roce_set_bit(int_st, HNS_ROCE_V2_VF_INT_ST_BUS_ERR_S, 1);
 		roce_write(hr_dev, ROCEE_VF_ABN_INT_ST_REG, int_st);
-
-		/* Memory barrier */
-		mb();
 
 		roce_set_bit(int_en, HNS_ROCE_V2_VF_ABN_INT_EN_S, 1);
 		roce_write(hr_dev, ROCEE_VF_ABN_INT_EN_REG, int_en);
@@ -3590,8 +3586,6 @@ static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 		roce_set_bit(int_st, HNS_ROCE_V2_VF_INT_ST_OTHER_ERR_S, 1);
 		roce_write(hr_dev, ROCEE_VF_ABN_INT_ST_REG, int_st);
 
-		/* Memory barrier */
-		mb();
 		roce_set_bit(int_en, HNS_ROCE_V2_VF_ABN_INT_EN_S, 1);
 		roce_write(hr_dev, ROCEE_VF_ABN_INT_EN_REG, int_en);
 

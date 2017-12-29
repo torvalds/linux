@@ -3963,8 +3963,6 @@ static void set_eq_cons_index_v1(struct hns_roce_eq *eq, int req_not)
 {
 	roce_raw_write((eq->cons_index & HNS_ROCE_V1_CONS_IDX_M) |
 		      (req_not << eq->log_entries), eq->doorbell);
-	/* Memory barrier */
-	mb();
 }
 
 static void hns_roce_v1_wq_catas_err_handle(struct hns_roce_dev *hr_dev,
@@ -4156,13 +4154,16 @@ static int hns_roce_v1_aeq_int(struct hns_roce_dev *hr_dev,
 	int event_type;
 
 	while ((aeqe = next_aeqe_sw_v1(eq))) {
+
+		/* Make sure we read the AEQ entry after we have checked the
+		 * ownership bit
+		 */
+		dma_rmb();
+
 		dev_dbg(dev, "aeqe = %p, aeqe->asyn.event_type = 0x%lx\n", aeqe,
 			roce_get_field(aeqe->asyn,
 				       HNS_ROCE_AEQE_U32_4_EVENT_TYPE_M,
 				       HNS_ROCE_AEQE_U32_4_EVENT_TYPE_S));
-		/* Memory barrier */
-		rmb();
-
 		event_type = roce_get_field(aeqe->asyn,
 					    HNS_ROCE_AEQE_U32_4_EVENT_TYPE_M,
 					    HNS_ROCE_AEQE_U32_4_EVENT_TYPE_S);
@@ -4260,8 +4261,12 @@ static int hns_roce_v1_ceq_int(struct hns_roce_dev *hr_dev,
 	u32 cqn;
 
 	while ((ceqe = next_ceqe_sw_v1(eq))) {
-		/* Memory barrier */
-		rmb();
+
+		/* Make sure we read CEQ entry after we have checked the
+		 * ownership bit
+		 */
+		dma_rmb();
+
 		cqn = roce_get_field(ceqe->comp,
 				     HNS_ROCE_CEQE_CEQE_COMP_CQN_M,
 				     HNS_ROCE_CEQE_CEQE_COMP_CQN_S);
