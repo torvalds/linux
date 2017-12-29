@@ -46,10 +46,12 @@
 	((len) > MEP_HDR_LEN && \
 	 EXTRACT_BIT_SET(PMS_FIFONO, (buf)[3]) == PMS_FIFONO_MEP)
 
-#define PMS_IS_MAMAC(buf, len) \
-	((len) > MDP_HDR_LEN && \
-	 EXTRACT_BIT_SET(PMS_FIFONO, (buf)[3]) == PMS_FIFONO_MDP && \
-	 EXTRACT_BIT_SET(PMS_TELID, (buf)[14]) == PMS_TELID_UNSEGM_MAMAC)
+static inline bool pms_is_mamac(char *buf, u32 len)
+{
+	return (len > MDP_HDR_LEN &&
+		EXTRACT_BIT_SET(PMS_FIFONO, buf[3]) == PMS_FIFONO_MDP &&
+		EXTRACT_BIT_SET(PMS_TELID, buf[14]) == PMS_TELID_UNSEGM_MAMAC);
+}
 
 struct net_dev_channel {
 	bool linked;
@@ -435,7 +437,7 @@ static int comp_rx_data(struct mbo *mbo)
 	dev = nd->dev;
 
 	if (nd->is_mamac) {
-		if (!PMS_IS_MAMAC(buf, len)) {
+		if (!pms_is_mamac(buf, len)) {
 			ret = -EIO;
 			goto put_nd;
 		}
