@@ -709,10 +709,12 @@ static void rockchip_set_transfer_mode(struct dw_mipi_dsi *dsi, int flags)
 {
 	if (flags & MIPI_DSI_MSG_USE_LPM) {
 		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, CMD_MODE_ALL_LP);
-		regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
+		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+				   PHY_TXREQUESTCLKHS, 0);
 	} else {
 		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, 0);
-		regmap_write(dsi->regmap, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
+		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+				   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
 	}
 }
 
@@ -863,6 +865,10 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 		val |= VID_MODE_TYPE_BURST_SYNC_EVENTS;
 
 	regmap_write(dsi->regmap, DSI_VID_MODE_CFG, val);
+
+	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+				   AUTO_CLKLANE_CTRL, AUTO_CLKLANE_CTRL);
 }
 
 static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
@@ -872,7 +878,8 @@ static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 		regmap_write(dsi->regmap, DSI_MODE_CFG, ENABLE_CMD_MODE);
 	} else {
 		regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
-		regmap_write(dsi->regmap, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
+		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+				   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
 		regmap_write(dsi->regmap, DSI_MODE_CFG, ENABLE_VIDEO_MODE);
 		regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
 	}
