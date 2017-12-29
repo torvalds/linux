@@ -1818,6 +1818,10 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	num_tc_qps = qcount / numtc;
 	num_tc_qps = min_t(int, num_tc_qps, i40e_pf_get_max_q_per_tc(pf));
 
+	/* Do not allow use more TC queue pairs than MSI-X vectors exist */
+	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
+		num_tc_qps = min_t(int, num_tc_qps, pf->num_lan_msix);
+
 	/* Setup queue offset/count for all TCs for given VSI */
 	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
 		/* See if the given TC is enabled for the given VSI */
