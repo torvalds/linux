@@ -796,7 +796,6 @@ int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
 
 	return add_pages(nid, start_pfn, nr_pages, want_memblock);
 }
-EXPORT_SYMBOL_GPL(arch_add_memory);
 
 #define PAGE_INUSE 0xFD
 

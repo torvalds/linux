@@ -498,7 +498,6 @@ int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(arch_add_memory);
 
 #ifdef CONFIG_NUMA
 int memory_add_physaddr_to_nid(u64 addr)
