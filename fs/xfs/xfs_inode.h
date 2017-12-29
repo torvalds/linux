@@ -232,6 +232,7 @@ static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
  * log recovery to replay a bmap operation on the inode.
  */
 #define XFS_IRECOVERY		(1 << 11)
+#define XFS_ICOWBLOCKS		(1 << 12)/* has the cowblocks tag set */
 
 /*
  * Per-lifetime flags need to be reset when re-using a reclaimable inode during

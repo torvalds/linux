@@ -222,7 +222,7 @@ int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *cmd_mod,
 				   NULL, &val, NULL);
 
 	val  = val	<< shift;
-	mask = 0xffff	<< shift;
+	mask = 0x0f1f	<< shift;
 
 	rsnd_mod_bset(adg_mod, CMDOUT_TIMSEL, mask, val);
 
@@ -250,7 +250,7 @@ int rsnd_adg_set_src_timesel_gen2(struct rsnd_mod *src_mod,
 
 	in   = in	<< shift;
 	out  = out	<< shift;
-	mask = 0xffff	<< shift;
+	mask = 0x0f1f	<< shift;
 
 	switch (id / 2) {
 	case 0:
@@ -380,7 +380,7 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 			ckr = 0x80000000;
 	}
 
-	rsnd_mod_bset(adg_mod, BRGCKR, 0x80FF0000, adg->ckr | ckr);
+	rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr | ckr);
 	rsnd_mod_write(adg_mod, BRRA,  adg->rbga);
 	rsnd_mod_write(adg_mod, BRRB,  adg->rbgb);
 

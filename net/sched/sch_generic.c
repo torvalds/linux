@@ -1261,6 +1261,8 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 
 	if (!tp_head) {
 		RCU_INIT_POINTER(*miniqp->p_miniq, NULL);
+		/* Wait for flying RCU callback before it is freed. */
+		rcu_barrier_bh();
 		return;
 	}
 
@@ -1276,7 +1278,7 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 	rcu_assign_pointer(*miniqp->p_miniq, miniq);
 
 	if (miniq_old)
-		/* This is counterpart of the rcu barrier above. We need to
+		/* This is counterpart of the rcu barriers above. We need to
 		 * block potential new user of miniq_old until all readers
 		 * are not seeing it.
 		 */

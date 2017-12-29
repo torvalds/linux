@@ -1333,6 +1333,36 @@ static void ip6gre_tunnel_setup(struct net_device *dev)
 	eth_random_addr(dev->perm_addr);
 }
 
+#define GRE6_FEATURES (NETIF_F_SG |		\
+		       NETIF_F_FRAGLIST |	\
+		       NETIF_F_HIGHDMA |	\
+		       NETIF_F_HW_CSUM)
+
+static void ip6gre_tnl_init_features(struct net_device *dev)
+{
+	struct ip6_tnl *nt = netdev_priv(dev);
+
+	dev->features		|= GRE6_FEATURES;
+	dev->hw_features	|= GRE6_FEATURES;
+
+	if (!(nt->parms.o_flags & TUNNEL_SEQ)) {
+		/* TCP offload with GRE SEQ is not supported, nor
+		 * can we support 2 levels of outer headers requiring
+		 * an update.
+		 */
+		if (!(nt->parms.o_flags & TUNNEL_CSUM) ||
+		    nt->encap.type == TUNNEL_ENCAP_NONE) {
+			dev->features    |= NETIF_F_GSO_SOFTWARE;
+			dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+		}
+
+		/* Can use a lockless transmit, unless we generate
+		 * output sequences
+		 */
+		dev->features |= NETIF_F_LLTX;
+	}
+}
+
 static int ip6gre_tunnel_init_common(struct net_device *dev)
 {
 	struct ip6_tnl *tunnel;
@@ -1371,6 +1401,7 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 		dev->features |= NETIF_F_NETNS_LOCAL;
 		netif_keep_dst(dev);
 	}
+	ip6gre_tnl_init_features(dev);
 
 	return 0;
 }
@@ -1705,11 +1736,6 @@ static const struct net_device_ops ip6gre_tap_netdev_ops = {
 	.ndo_get_iflink = ip6_tnl_get_iflink,
 };
 
-#define GRE6_FEATURES (NETIF_F_SG |		\
-		       NETIF_F_FRAGLIST |	\
-		       NETIF_F_HIGHDMA |		\
-		       NETIF_F_HW_CSUM)
-
 static int ip6erspan_tap_init(struct net_device *dev)
 {
 	struct ip6_tnl *tunnel;
@@ -1847,26 +1873,6 @@ static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
 	nt->dev = dev;
 	nt->net = dev_net(dev);
 	ip6gre_tnl_link_config(nt, !tb[IFLA_MTU]);
-
-	dev->features		|= GRE6_FEATURES;
-	dev->hw_features	|= GRE6_FEATURES;
-
-	if (!(nt->parms.o_flags & TUNNEL_SEQ)) {
-		/* TCP offload with GRE SEQ is not supported, nor
-		 * can we support 2 levels of outer headers requiring
-		 * an update.
-		 */
-		if (!(nt->parms.o_flags & TUNNEL_CSUM) ||
-		    (nt->encap.type == TUNNEL_ENCAP_NONE)) {
-			dev->features    |= NETIF_F_GSO_SOFTWARE;
-			dev->hw_features |= NETIF_F_GSO_SOFTWARE;
-		}
-
-		/* Can use a lockless transmit, unless we generate
-		 * output sequences
-		 */
-		dev->features |= NETIF_F_LLTX;
-	}
 
 	err = register_netdevice(dev);
 	if (err)
