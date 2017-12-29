@@ -1475,14 +1475,14 @@ static inline int get_rx_itr(struct i40e_vsi *vsi, int idx)
 {
 	struct i40evf_adapter *adapter = vsi->back;
 
-	return adapter->rx_rings[idx].rx_itr_setting;
+	return adapter->rx_rings[idx].itr_setting;
 }
 
 static inline int get_tx_itr(struct i40e_vsi *vsi, int idx)
 {
 	struct i40evf_adapter *adapter = vsi->back;
 
-	return adapter->tx_rings[idx].tx_itr_setting;
+	return adapter->tx_rings[idx].itr_setting;
 }
 
 /**
@@ -1503,7 +1503,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	/* avoid dynamic calculation if in countdown mode OR if
 	 * all dynamic is disabled
 	 */
-	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
+	txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
 
 	rx_itr_setting = get_rx_itr(vsi, idx);
 	tx_itr_setting = get_tx_itr(vsi, idx);
