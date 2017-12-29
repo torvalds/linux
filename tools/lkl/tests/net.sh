@@ -117,7 +117,7 @@ run_tests()
         lkl_test_exec $script_dir/net-test --backend pipe \
                       --ifname "$fifo1|$fifo2" \
                       --ip $(ip_host) --netmask-len $TEST_IP_NETMASK \
-                      --sleep 2 >/dev/null &
+                      --sleep 10 >/dev/null &
         lkl_test_exec $script_dir/net-test --backend pipe \
                       --ifname "$fifo2|$fifo1" \
                       --ip $(ip_lkl) --netmask-len $TEST_IP_NETMASK \

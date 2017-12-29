@@ -14,8 +14,7 @@ build_and_test()
     cd tools/lkl
     make clean-conf
     make -j4
-    ./tests/run.py
+    make run-tests
 }
 
 build_and_test
-CROSS_COMPILE=i686-w64-mingw32- build_and_test
