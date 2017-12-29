@@ -1187,7 +1187,7 @@ config FB_INTEL
           830M/845G/852GM/855GM/865G/915G/915GM/945G/945GM/965G/965GM chipsets.
           Say Y if you have and plan to use such a board.
 
-	  To make FB_INTELFB=Y work you need to say AGP_INTEL=y too.
+	  To make FB_INTEL=Y work you need to say AGP_INTEL=y too.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called intelfb.
