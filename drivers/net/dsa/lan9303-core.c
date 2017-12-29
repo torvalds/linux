@@ -479,7 +479,8 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 {
 	int reg;
 
-	/* depending on the 'phy_addr_sel_strap' setting, the three phys are
+	/* Calculate chip->phy_addr_base:
+	 * Depending on the 'phy_addr_sel_strap' setting, the three phys are
 	 * using IDs 0-1-2 or IDs 1-2-3. We cannot read back the
 	 * 'phy_addr_sel_strap' setting directly, so we need a test, which
 	 * configuration is active:
@@ -495,12 +496,12 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 	}
 
 	if ((reg != 0) && (reg != 0xffff))
-		chip->phy_addr_sel_strap = 1;
+		chip->phy_addr_base = 1;
 	else
-		chip->phy_addr_sel_strap = 0;
+		chip->phy_addr_base = 0;
 
 	dev_dbg(chip->dev, "Phy setup '%s' detected\n",
-		chip->phy_addr_sel_strap ? "1-2-3" : "0-1-2");
+		chip->phy_addr_base ? "1-2-3" : "0-1-2");
 
 	return 0;
 }
@@ -1019,7 +1020,7 @@ static int lan9303_get_sset_count(struct dsa_switch *ds)
 static int lan9303_phy_read(struct dsa_switch *ds, int phy, int regnum)
 {
 	struct lan9303 *chip = ds->priv;
-	int phy_base = chip->phy_addr_sel_strap;
+	int phy_base = chip->phy_addr_base;
 
 	if (phy == phy_base)
 		return lan9303_virt_phy_reg_read(chip, regnum);
@@ -1033,7 +1034,7 @@ static int lan9303_phy_write(struct dsa_switch *ds, int phy, int regnum,
 			     u16 val)
 {
 	struct lan9303 *chip = ds->priv;
-	int phy_base = chip->phy_addr_sel_strap;
+	int phy_base = chip->phy_addr_base;
 
 	if (phy == phy_base)
 		return lan9303_virt_phy_reg_write(chip, regnum, val);
@@ -1070,7 +1071,7 @@ static void lan9303_adjust_link(struct dsa_switch *ds, int port,
 
 	res =  lan9303_phy_write(ds, port, MII_BMCR, ctl);
 
-	if (port == chip->phy_addr_sel_strap) {
+	if (port == chip->phy_addr_base) {
 		/* Virtual Phy: Remove Turbo 200Mbit mode */
 		lan9303_read(chip->regmap, LAN9303_VIRT_SPECIAL_CTRL, &ctl);
 
@@ -1094,8 +1095,7 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port,
 	struct lan9303 *chip = ds->priv;
 
 	lan9303_disable_processing_port(chip, port);
-	lan9303_phy_write(ds, chip->phy_addr_sel_strap + port,
-			  MII_BMCR, BMCR_PDOWN);
+	lan9303_phy_write(ds, chip->phy_addr_base + port, MII_BMCR, BMCR_PDOWN);
 }
 
 static int lan9303_port_bridge_join(struct dsa_switch *ds, int port,
@@ -1289,7 +1289,7 @@ static int lan9303_register_switch(struct lan9303 *chip)
 
 	chip->ds->priv = chip;
 	chip->ds->ops = &lan9303_switch_ops;
-	chip->ds->phys_mii_mask = chip->phy_addr_sel_strap ? 0xe : 0x7;
+	chip->ds->phys_mii_mask = chip->phy_addr_base ? 0xe : 0x7;
 
 	return dsa_register_switch(chip->ds);
 }
