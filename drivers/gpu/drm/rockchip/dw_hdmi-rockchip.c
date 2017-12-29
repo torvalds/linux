@@ -842,7 +842,7 @@ dw_hdmi_rockchip_get_enc_out_encoding(void *data)
 }
 
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
-	{ 0, "Automatic" }, /* Prefer highest color depth */
+	{ 0, "Automatic" }, /* Same as 24bit */
 	{ 8, "24bit" },
 	{ 10, "30bit" },
 };
