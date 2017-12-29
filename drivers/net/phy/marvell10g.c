@@ -29,6 +29,11 @@ enum {
 	MV_PCS_BASE_R		= 0x1000,
 	MV_PCS_1000BASEX	= 0x2000,
 
+	MV_PCS_PAIRSWAP		= 0x8182,
+	MV_PCS_PAIRSWAP_MASK	= 0x0003,
+	MV_PCS_PAIRSWAP_AB	= 0x0002,
+	MV_PCS_PAIRSWAP_NONE	= 0x0003,
+
 	/* These registers appear at 0x800X and 0xa00X - the 0xa00X control
 	 * registers appear to set themselves to the 0x800X when AN is
 	 * restarted, but status registers appear readable from either.
@@ -180,6 +185,9 @@ static int mv3310_config_aneg(struct phy_device *phydev)
 	u32 advertising;
 	int ret;
 
+	/* We don't support manual MDI control */
+	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+
 	if (phydev->autoneg == AUTONEG_DISABLE) {
 		ret = genphy_c45_pma_setup_forced(phydev);
 		if (ret < 0)
@@ -269,6 +277,7 @@ static int mv3310_read_status(struct phy_device *phydev)
 	phydev->link = 0;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
+	phydev->mdix = 0;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_BASE_R + MDIO_STAT1);
 	if (val < 0)
@@ -321,6 +330,28 @@ static int mv3310_read_status(struct phy_device *phydev)
 		val = genphy_c45_read_pma(phydev);
 		if (val < 0)
 			return val;
+	}
+
+	if (phydev->speed == SPEED_10000) {
+		val = genphy_c45_read_mdix(phydev);
+		if (val < 0)
+			return val;
+	} else {
+		val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_PAIRSWAP);
+		if (val < 0)
+			return val;
+
+		switch (val & MV_PCS_PAIRSWAP_MASK) {
+		case MV_PCS_PAIRSWAP_AB:
+			phydev->mdix = ETH_TP_MDI_X;
+			break;
+		case MV_PCS_PAIRSWAP_NONE:
+			phydev->mdix = ETH_TP_MDI;
+			break;
+		default:
+			phydev->mdix = ETH_TP_MDI_INVALID;
+			break;
+		}
 	}
 
 	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
