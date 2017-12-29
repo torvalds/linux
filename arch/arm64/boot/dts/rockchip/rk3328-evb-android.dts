@@ -544,6 +544,10 @@
 	status = "okay";
 };
 
+&tve {
+	status = "okay";
+};
+
 &u2phy {
 	otg-vbus-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
