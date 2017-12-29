@@ -278,6 +278,16 @@ static bool sig_enforce = IS_ENABLED(CONFIG_MODULE_SIG_FORCE);
 module_param(sig_enforce, bool_enable_only, 0644);
 #endif /* !CONFIG_MODULE_SIG_FORCE */
 
+/*
+ * Export sig_enforce kernel cmdline parameter to allow other subsystems rely
+ * on that instead of directly to CONFIG_MODULE_SIG_FORCE config.
+ */
+bool is_module_sig_enforced(void)
+{
+	return sig_enforce;
+}
+EXPORT_SYMBOL(is_module_sig_enforced);
+
 /* Block module loading/unloading? */
 int modules_disabled = 0;
 core_param(nomodule, modules_disabled, bint, 0);
@@ -837,10 +847,8 @@ static int add_module_usage(struct module *a, struct module *b)
 
 	pr_debug("Allocating new usage for %s.\n", a->name);
 	use = kmalloc(sizeof(*use), GFP_ATOMIC);
-	if (!use) {
-		pr_warn("%s: out of memory loading\n", a->name);
+	if (!use)
 		return -ENOMEM;
-	}
 
 	use->source = a;
 	use->target = b;
@@ -1516,7 +1524,7 @@ static void add_sect_attrs(struct module *mod, const struct load_info *info)
 		sattr->mattr.show = module_sect_show;
 		sattr->mattr.store = NULL;
 		sattr->mattr.attr.name = sattr->name;
-		sattr->mattr.attr.mode = S_IRUGO;
+		sattr->mattr.attr.mode = S_IRUSR;
 		*(gattr++) = &(sattr++)->mattr.attr;
 	}
 	*gattr = NULL;
@@ -3473,6 +3481,8 @@ static noinline int do_init_module(struct module *mod)
 	if (!mod->async_probe_requested && (current->flags & PF_USED_ASYNC))
 		async_synchronize_full();
 
+	ftrace_free_mem(mod, mod->init_layout.base, mod->init_layout.base +
+			mod->init_layout.size);
 	mutex_lock(&module_mutex);
 	/* Drop initial reference. */
 	module_put(mod);
@@ -4147,6 +4157,7 @@ static int m_show(struct seq_file *m, void *p)
 {
 	struct module *mod = list_entry(p, struct module, list);
 	char buf[MODULE_FLAGS_BUF_SIZE];
+	void *value;
 
 	/* We always ignore unformed modules. */
 	if (mod->state == MODULE_STATE_UNFORMED)
@@ -4162,7 +4173,8 @@ static int m_show(struct seq_file *m, void *p)
 		   mod->state == MODULE_STATE_COMING ? "Loading" :
 		   "Live");
 	/* Used by oprofile and other similar tools. */
-	seq_printf(m, " 0x%pK", mod->core_layout.base);
+	value = m->private ? NULL : mod->core_layout.base;
+	seq_printf(m, " 0x%px", value);
 
 	/* Taints info */
 	if (mod->taints)
@@ -4184,9 +4196,23 @@ static const struct seq_operations modules_op = {
 	.show	= m_show
 };
 
+/*
+ * This also sets the "private" pointer to non-NULL if the
+ * kernel pointers should be hidden (so you can just test
+ * "m->private" to see if you should keep the values private).
+ *
+ * We use the same logic as for /proc/kallsyms.
+ */
 static int modules_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &modules_op);
+	int err = seq_open(file, &modules_op);
+
+	if (!err) {
+		struct seq_file *m = file->private_data;
+		m->private = kallsyms_show_value() ? NULL : (void *)8ul;
+	}
+
+	return 0;
 }
 
 static const struct file_operations proc_modules_operations = {

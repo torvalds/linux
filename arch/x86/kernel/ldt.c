@@ -1,9 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 1992 Krishna Balasubramanian and Linus Torvalds
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
  * Copyright (C) 2002 Andi Kleen
  *
  * This handles calls from both 32bit and 64bit mode.
+ *
+ * Lock order:
+ *	contex.ldt_usr_sem
+ *	  mmap_sem
+ *	    context.lock
  */
 
 #include <linux/errno.h>
@@ -12,6 +18,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/syscalls.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
@@ -40,7 +47,7 @@ static void refresh_ldt_segments(void)
 #endif
 }
 
-/* context.lock is held for us, so we don't need any locking. */
+/* context.lock is held by the task which issued the smp function call */
 static void flush_ldt(void *__mm)
 {
 	struct mm_struct *mm = __mm;
@@ -97,15 +104,17 @@ static void finalize_ldt_struct(struct ldt_struct *ldt)
 	paravirt_alloc_ldt(ldt->entries, ldt->nr_entries);
 }
 
-/* context.lock is held */
-static void install_ldt(struct mm_struct *current_mm,
-			struct ldt_struct *ldt)
+static void install_ldt(struct mm_struct *mm, struct ldt_struct *ldt)
 {
-	/* Synchronizes with lockless_dereference in load_mm_ldt. */
-	smp_store_release(&current_mm->context.ldt, ldt);
+	mutex_lock(&mm->context.lock);
 
-	/* Activate the LDT for all CPUs using current_mm. */
-	on_each_cpu_mask(mm_cpumask(current_mm), flush_ldt, current_mm, true);
+	/* Synchronizes with READ_ONCE in load_mm_ldt. */
+	smp_store_release(&mm->context.ldt, ldt);
+
+	/* Activate the LDT for all CPUs using currents mm. */
+	on_each_cpu_mask(mm_cpumask(mm), flush_ldt, mm, true);
+
+	mutex_unlock(&mm->context.lock);
 }
 
 static void free_ldt_struct(struct ldt_struct *ldt)
@@ -122,27 +131,20 @@ static void free_ldt_struct(struct ldt_struct *ldt)
 }
 
 /*
- * we do not have to muck with descriptors here, that is
- * done in switch_mm() as needed.
+ * Called on fork from arch_dup_mmap(). Just copy the current LDT state,
+ * the new task is not running, so nothing can be installed.
  */
-int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm)
+int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
 {
 	struct ldt_struct *new_ldt;
-	struct mm_struct *old_mm;
 	int retval = 0;
 
-	mutex_init(&mm->context.lock);
-	old_mm = current->mm;
-	if (!old_mm) {
-		mm->context.ldt = NULL;
+	if (!old_mm)
 		return 0;
-	}
 
 	mutex_lock(&old_mm->context.lock);
-	if (!old_mm->context.ldt) {
-		mm->context.ldt = NULL;
+	if (!old_mm->context.ldt)
 		goto out_unlock;
-	}
 
 	new_ldt = alloc_ldt_struct(old_mm->context.ldt->nr_entries);
 	if (!new_ldt) {
@@ -178,7 +180,7 @@ static int read_ldt(void __user *ptr, unsigned long bytecount)
 	unsigned long entries_size;
 	int retval;
 
-	mutex_lock(&mm->context.lock);
+	down_read(&mm->context.ldt_usr_sem);
 
 	if (!mm->context.ldt) {
 		retval = 0;
@@ -207,7 +209,7 @@ static int read_ldt(void __user *ptr, unsigned long bytecount)
 	retval = bytecount;
 
 out_unlock:
-	mutex_unlock(&mm->context.lock);
+	up_read(&mm->context.ldt_usr_sem);
 	return retval;
 }
 
@@ -267,7 +269,8 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 			ldt.avl = 0;
 	}
 
-	mutex_lock(&mm->context.lock);
+	if (down_write_killable(&mm->context.ldt_usr_sem))
+		return -EINTR;
 
 	old_ldt       = mm->context.ldt;
 	old_nr_entries = old_ldt ? old_ldt->nr_entries : 0;
@@ -289,13 +292,13 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 	error = 0;
 
 out_unlock:
-	mutex_unlock(&mm->context.lock);
+	up_write(&mm->context.ldt_usr_sem);
 out:
 	return error;
 }
 
-asmlinkage int sys_modify_ldt(int func, void __user *ptr,
-			      unsigned long bytecount)
+SYSCALL_DEFINE3(modify_ldt, int , func , void __user * , ptr ,
+		unsigned long , bytecount)
 {
 	int ret = -ENOSYS;
 
@@ -313,5 +316,14 @@ asmlinkage int sys_modify_ldt(int func, void __user *ptr,
 		ret = write_ldt(ptr, bytecount, 0);
 		break;
 	}
-	return ret;
+	/*
+	 * The SYSCALL_DEFINE() macros give us an 'unsigned long'
+	 * return type, but tht ABI for sys_modify_ldt() expects
+	 * 'int'.  This cast gives us an int-sized value in %rax
+	 * for the return code.  The 'unsigned' is necessary so
+	 * the compiler does not try to sign-extend the negative
+	 * return codes into the high half of the register when
+	 * taking the value from int->long.
+	 */
+	return (unsigned int)ret;
 }

@@ -217,7 +217,6 @@ static const struct attribute_group bh1750_attribute_group = {
 };
 
 static const struct iio_info bh1750_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &bh1750_attribute_group,
 	.read_raw = bh1750_read_raw,
 	.write_raw = bh1750_write_raw,

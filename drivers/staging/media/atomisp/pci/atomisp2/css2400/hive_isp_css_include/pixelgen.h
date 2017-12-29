@@ -31,18 +31,17 @@
  * - local:   system and cell specific constants and identifiers
  */
 
-#include "storage_class.h"
 
 #include "system_local.h"
 #include "pixelgen_local.h"
 
 #ifndef __INLINE_PIXELGEN__
-#define STORAGE_CLASS_PIXELGEN_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_PIXELGEN_H extern
 #define STORAGE_CLASS_PIXELGEN_C
 #include "pixelgen_public.h"
 #else  /* __INLINE_PIXELGEN__ */
-#define STORAGE_CLASS_PIXELGEN_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_PIXELGEN_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_PIXELGEN_H static inline
+#define STORAGE_CLASS_PIXELGEN_C static inline
 #include "pixelgen_private.h"
 #endif /* __INLINE_PIXELGEN__ */
 

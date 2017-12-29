@@ -785,8 +785,8 @@ config COMEDI_ADV_PCI_DIO
 	---help---
 	  Enable support for Advantech PCI DIO cards
 	  PCI-1730, PCI-1733, PCI-1734, PCI-1735U, PCI-1736UP, PCI-1739U,
-	  PCI-1750, PCI-1751, PCI-1752, PCI-1753/E, PCI-1754, PCI-1756 and
-	  PCI-1762
+	  PCI-1750, PCI-1751, PCI-1752, PCI-1753/E, PCI-1754, PCI-1756,
+	  PCI-1761 and PCI-1762
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci_dio.

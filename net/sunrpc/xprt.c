@@ -696,9 +696,9 @@ xprt_schedule_autodisconnect(struct rpc_xprt *xprt)
 }
 
 static void
-xprt_init_autodisconnect(unsigned long data)
+xprt_init_autodisconnect(struct timer_list *t)
 {
-	struct rpc_xprt *xprt = (struct rpc_xprt *)data;
+	struct rpc_xprt *xprt = from_timer(xprt, t, timer);
 
 	spin_lock(&xprt->transport_lock);
 	if (!list_empty(&xprt->recv))
@@ -1001,6 +1001,7 @@ void xprt_transmit(struct rpc_task *task)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
+	unsigned int connect_cookie;
 	int status, numreqs;
 
 	dprintk("RPC: %5u xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
@@ -1024,6 +1025,7 @@ void xprt_transmit(struct rpc_task *task)
 	} else if (!req->rq_bytes_sent)
 		return;
 
+	connect_cookie = xprt->connect_cookie;
 	req->rq_xtime = ktime_get();
 	status = xprt->ops->send_request(task);
 	trace_xprt_transmit(xprt, req->rq_xid, status);
@@ -1047,20 +1049,28 @@ void xprt_transmit(struct rpc_task *task)
 	xprt->stat.bklog_u += xprt->backlog.qlen;
 	xprt->stat.sending_u += xprt->sending.qlen;
 	xprt->stat.pending_u += xprt->pending.qlen;
-
-	/* Don't race with disconnect */
-	if (!xprt_connected(xprt))
-		task->tk_status = -ENOTCONN;
-	else {
-		/*
-		 * Sleep on the pending queue since
-		 * we're expecting a reply.
-		 */
-		if (!req->rq_reply_bytes_recvd && rpc_reply_expected(task))
-			rpc_sleep_on(&xprt->pending, task, xprt_timer);
-		req->rq_connect_cookie = xprt->connect_cookie;
-	}
 	spin_unlock_bh(&xprt->transport_lock);
+
+	req->rq_connect_cookie = connect_cookie;
+	if (rpc_reply_expected(task) && !READ_ONCE(req->rq_reply_bytes_recvd)) {
+		/*
+		 * Sleep on the pending queue if we're expecting a reply.
+		 * The spinlock ensures atomicity between the test of
+		 * req->rq_reply_bytes_recvd, and the call to rpc_sleep_on().
+		 */
+		spin_lock(&xprt->recv_lock);
+		if (!req->rq_reply_bytes_recvd) {
+			rpc_sleep_on(&xprt->pending, task, xprt_timer);
+			/*
+			 * Send an extra queue wakeup call if the
+			 * connection was dropped in case the call to
+			 * rpc_sleep_on() raced.
+			 */
+			if (!xprt_connected(xprt))
+				xprt_wake_pending_tasks(xprt, -ENOTCONN);
+		}
+		spin_unlock(&xprt->recv_lock);
+	}
 }
 
 static void xprt_add_backlog(struct rpc_xprt *xprt, struct rpc_task *task)
@@ -1139,6 +1149,7 @@ void xprt_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
 	case -EAGAIN:
 		xprt_add_backlog(xprt, task);
 		dprintk("RPC:       waiting for request slot\n");
+		/* fall through */
 	default:
 		task->tk_status = -EAGAIN;
 	}
@@ -1333,7 +1344,7 @@ void xprt_release(struct rpc_task *task)
 		rpc_count_iostats(task, task->tk_client->cl_metrics);
 	spin_lock(&xprt->recv_lock);
 	if (!list_empty(&req->rq_list)) {
-		list_del(&req->rq_list);
+		list_del_init(&req->rq_list);
 		xprt_wait_on_pinned_rqst(req);
 	}
 	spin_unlock(&xprt->recv_lock);
@@ -1422,10 +1433,9 @@ found:
 		xprt->idle_timeout = 0;
 	INIT_WORK(&xprt->task_cleanup, xprt_autoclose);
 	if (xprt_has_timer(xprt))
-		setup_timer(&xprt->timer, xprt_init_autodisconnect,
-			    (unsigned long)xprt);
+		timer_setup(&xprt->timer, xprt_init_autodisconnect, 0);
 	else
-		init_timer(&xprt->timer);
+		timer_setup(&xprt->timer, NULL, 0);
 
 	if (strlen(args->servername) > RPC_MAXNETNAMELEN) {
 		xprt_destroy(xprt);
@@ -1445,6 +1455,23 @@ out:
 	return xprt;
 }
 
+static void xprt_destroy_cb(struct work_struct *work)
+{
+	struct rpc_xprt *xprt =
+		container_of(work, struct rpc_xprt, task_cleanup);
+
+	rpc_xprt_debugfs_unregister(xprt);
+	rpc_destroy_wait_queue(&xprt->binding);
+	rpc_destroy_wait_queue(&xprt->pending);
+	rpc_destroy_wait_queue(&xprt->sending);
+	rpc_destroy_wait_queue(&xprt->backlog);
+	kfree(xprt->servername);
+	/*
+	 * Tear down transport state and free the rpc_xprt
+	 */
+	xprt->ops->destroy(xprt);
+}
+
 /**
  * xprt_destroy - destroy an RPC transport, killing off all requests.
  * @xprt: transport to destroy
@@ -1454,22 +1481,19 @@ static void xprt_destroy(struct rpc_xprt *xprt)
 {
 	dprintk("RPC:       destroying transport %p\n", xprt);
 
-	/* Exclude transport connect/disconnect handlers */
+	/*
+	 * Exclude transport connect/disconnect handlers and autoclose
+	 */
 	wait_on_bit_lock(&xprt->state, XPRT_LOCKED, TASK_UNINTERRUPTIBLE);
 
 	del_timer_sync(&xprt->timer);
 
-	rpc_xprt_debugfs_unregister(xprt);
-	rpc_destroy_wait_queue(&xprt->binding);
-	rpc_destroy_wait_queue(&xprt->pending);
-	rpc_destroy_wait_queue(&xprt->sending);
-	rpc_destroy_wait_queue(&xprt->backlog);
-	cancel_work_sync(&xprt->task_cleanup);
-	kfree(xprt->servername);
 	/*
-	 * Tear down transport state and free the rpc_xprt
+	 * Destroy sockets etc from the system workqueue so they can
+	 * safely flush receive work running on rpciod.
 	 */
-	xprt->ops->destroy(xprt);
+	INIT_WORK(&xprt->task_cleanup, xprt_destroy_cb);
+	schedule_work(&xprt->task_cleanup);
 }
 
 static void xprt_destroy_kref(struct kref *kref)

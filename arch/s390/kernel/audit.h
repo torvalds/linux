@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ARCH_S390_KERNEL_AUDIT_H
 #define __ARCH_S390_KERNEL_AUDIT_H
 

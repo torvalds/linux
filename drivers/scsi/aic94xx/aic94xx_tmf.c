@@ -35,14 +35,13 @@
 static int asd_enqueue_internal(struct asd_ascb *ascb,
 		void (*tasklet_complete)(struct asd_ascb *,
 					 struct done_list_struct *),
-				void (*timed_out)(unsigned long))
+				void (*timed_out)(struct timer_list *t))
 {
 	int res;
 
 	ascb->tasklet_complete = tasklet_complete;
 	ascb->uldd_timer = 1;
 
-	ascb->timer.data = (unsigned long) ascb;
 	ascb->timer.function = timed_out;
 	ascb->timer.expires = jiffies + AIC94XX_SCB_TIMEOUT;
 
@@ -87,9 +86,9 @@ static void asd_clear_nexus_tasklet_complete(struct asd_ascb *ascb,
 	asd_ascb_free(ascb);
 }
 
-static void asd_clear_nexus_timedout(unsigned long data)
+static void asd_clear_nexus_timedout(struct timer_list *t)
 {
-	struct asd_ascb *ascb = (void *)data;
+	struct asd_ascb *ascb = from_timer(ascb, t, timer);
 	struct tasklet_completion_status *tcs = ascb->uldd_task;
 
 	ASD_DPRINTK("%s: here\n", __func__);
@@ -261,9 +260,9 @@ static int asd_clear_nexus_index(struct sas_task *task)
 
 /* ---------- TMFs ---------- */
 
-static void asd_tmf_timedout(unsigned long data)
+static void asd_tmf_timedout(struct timer_list *t)
 {
-	struct asd_ascb *ascb = (void *) data;
+	struct asd_ascb *ascb = from_timer(ascb, t, timer);
 	struct tasklet_completion_status *tcs = ascb->uldd_task;
 
 	ASD_DPRINTK("tmf timed out\n");

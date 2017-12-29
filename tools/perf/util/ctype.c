@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Sane locale-independent, ASCII ctype.
  *

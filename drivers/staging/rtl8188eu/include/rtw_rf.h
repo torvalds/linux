@@ -31,7 +31,8 @@
 #define RTL8711_RF_DEF_SENS		4
 
 /*  We now define the following channels as the max channels in each
- * channel plan. */
+ * channel plan.
+ */
 /*  2G, total 14 chnls */
 /*  {1,2,3,4,5,6,7,8,9,10,11,12,13,14} */
 #define	MAX_CHANNEL_NUM_2G		14
@@ -65,7 +66,8 @@ enum capability {
 	cChannelAgility	= 0x0080,
 	cSpectrumMgnt	= 0x0100,
 	cQos		= 0x0200,	/* For HCCA, use with CF-Pollable
-					 * and CF-PollReq */
+					 * and CF-PollReq
+					 */
 	cShortSlotTime	= 0x0400,
 	cAPSD		= 0x0800,
 	cRM		= 0x1000,	/*  RRM (Radio Request Measurement) */

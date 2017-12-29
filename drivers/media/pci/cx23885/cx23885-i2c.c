@@ -270,7 +270,7 @@ static const struct i2c_adapter cx23885_i2c_adap_template = {
 	.algo              = &cx23885_i2c_algo_template,
 };
 
-static struct i2c_client cx23885_i2c_client_template = {
+static const struct i2c_client cx23885_i2c_client_template = {
 	.name	= "cx23885 internal",
 };
 

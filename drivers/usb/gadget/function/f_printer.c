@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_printer.c - USB printer function driver
  *
@@ -8,11 +9,6 @@
  *
  * Copyright (C) 2003-2005 David Brownell
  * Copyright (C) 2006 Craig W. Nadler
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -1261,7 +1257,7 @@ static struct configfs_attribute *printer_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type printer_func_type = {
+static const struct config_item_type printer_func_type = {
 	.ct_item_ops	= &printer_item_ops,
 	.ct_attrs	= printer_attrs,
 	.ct_owner	= THIS_MODULE,

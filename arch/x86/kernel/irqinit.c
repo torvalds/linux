@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/linkage.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -60,9 +61,6 @@ void __init init_ISA_irqs(void)
 	struct irq_chip *chip = legacy_pic->chip;
 	int i;
 
-#if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
-	init_bsp_APIC();
-#endif
 	legacy_pic->init(0);
 
 	for (i = 0; i < nr_legacy_irqs(); i++)
@@ -93,6 +91,7 @@ void __init native_init_IRQ(void)
 	x86_init.irqs.pre_vector_init();
 
 	idt_setup_apic_and_irq_gates();
+	lapic_assign_system_vectors();
 
 	if (!acpi_ioapic && !of_ioapic && nr_legacy_irqs())
 		setup_irq(2, &irq2);

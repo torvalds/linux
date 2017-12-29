@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_MMU_H_
 #define _ASM_POWERPC_BOOK3S_64_MMU_H_
 
@@ -92,7 +93,7 @@ typedef struct {
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;	/* SLB page size encodings */
 	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
-	unsigned long addr_limit;
+	unsigned long slb_addr_limit;
 #else
 	u16 sllp;		/* SLB page size encoding */
 #endif

@@ -19,7 +19,7 @@ found in Documentation/devicetree/bindings/sram/sram.txt
 
 Example:
 
-	sysram@02020000 {
+	sysram@2020000 {
 		compatible = "mmio-sram";
 		reg = <0x02020000 0x54000>;
 		#address-cells = <1>;

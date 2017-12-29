@@ -41,7 +41,6 @@
 #include "powernv.h"
 #include "pci.h"
 
-static bool pnv_eeh_nb_init = false;
 static int eeh_event_irq = -EINVAL;
 
 static int pnv_eeh_init(void)
@@ -197,31 +196,31 @@ PNV_EEH_DBGFS_ENTRY(inbB, 0xE10);
  * been built. If the I/O cache staff has been built, EEH is
  * ready to supply service.
  */
-static int pnv_eeh_post_init(void)
+int pnv_eeh_post_init(void)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 	int ret = 0;
 
+	/* Probe devices & build address cache */
+	eeh_probe_devices();
+	eeh_addr_cache_build();
+
 	/* Register OPAL event notifier */
-	if (!pnv_eeh_nb_init) {
-		eeh_event_irq = opal_event_request(ilog2(OPAL_EVENT_PCI_ERROR));
-		if (eeh_event_irq < 0) {
-			pr_err("%s: Can't register OPAL event interrupt (%d)\n",
-			       __func__, eeh_event_irq);
-			return eeh_event_irq;
-		}
+	eeh_event_irq = opal_event_request(ilog2(OPAL_EVENT_PCI_ERROR));
+	if (eeh_event_irq < 0) {
+		pr_err("%s: Can't register OPAL event interrupt (%d)\n",
+		       __func__, eeh_event_irq);
+		return eeh_event_irq;
+	}
 
-		ret = request_irq(eeh_event_irq, pnv_eeh_event,
-				IRQ_TYPE_LEVEL_HIGH, "opal-eeh", NULL);
-		if (ret < 0) {
-			irq_dispose_mapping(eeh_event_irq);
-			pr_err("%s: Can't request OPAL event interrupt (%d)\n",
-			       __func__, eeh_event_irq);
-			return ret;
-		}
-
-		pnv_eeh_nb_init = true;
+	ret = request_irq(eeh_event_irq, pnv_eeh_event,
+			  IRQ_TYPE_LEVEL_HIGH, "opal-eeh", NULL);
+	if (ret < 0) {
+		irq_dispose_mapping(eeh_event_irq);
+		pr_err("%s: Can't request OPAL event interrupt (%d)\n",
+		       __func__, eeh_event_irq);
+		return ret;
 	}
 
 	if (!eeh_enabled())
@@ -365,6 +364,10 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 
 	/* Skip for PCI-ISA bridge */
 	if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_ISA)
+		return NULL;
+
+	/* Skip if we haven't probed yet */
+	if (phb->ioda.pe_rmap[config_addr] == IODA_INVALID_PE)
 		return NULL;
 
 	/* Initialize eeh device */
@@ -1731,7 +1734,6 @@ static int pnv_eeh_restore_config(struct pci_dn *pdn)
 static struct eeh_ops pnv_eeh_ops = {
 	.name                   = "powernv",
 	.init                   = pnv_eeh_init,
-	.post_init              = pnv_eeh_post_init,
 	.probe			= pnv_eeh_probe,
 	.set_option             = pnv_eeh_set_option,
 	.get_pe_addr            = pnv_eeh_get_pe_addr,

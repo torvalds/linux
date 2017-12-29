@@ -1,5 +1,4 @@
 TODO:
-	- checkpatch.pl cleanups
 	- sparse fixes
 	- rename files to be not so "generic"
 	- add proper arch dependencies as needed

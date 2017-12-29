@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * builtin-buildid-cache.c
  *
@@ -311,7 +312,7 @@ int cmd_buildid_cache(int argc, const char **argv)
 		   *kcore_filename = NULL;
 	char sbuf[STRERR_BUFSIZE];
 
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
 	};
 	struct perf_session *session = NULL;
@@ -352,10 +353,10 @@ int cmd_buildid_cache(int argc, const char **argv)
 		nsi = nsinfo__new(ns_id);
 
 	if (missing_filename) {
-		file.path = missing_filename;
-		file.force = force;
+		data.file.path = missing_filename;
+		data.force     = force;
 
-		session = perf_session__new(&file, false, NULL);
+		session = perf_session__new(&data, false, NULL);
 		if (session == NULL)
 			return -1;
 	}

@@ -34,6 +34,7 @@
 #include <linux/mm.h>
 
 #include <asm/microcode_intel.h>
+#include <asm/intel-family.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
@@ -564,15 +565,6 @@ static void print_ucode(struct ucode_cpu_info *uci)
 }
 #else
 
-/*
- * Flush global tlb. We only do this in x86_64 where paging has been enabled
- * already and PGE should be enabled as well.
- */
-static inline void flush_tlb_early(void)
-{
-	__native_flush_tlb_global_irq_disabled();
-}
-
 static inline void print_ucode(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc;
@@ -601,10 +593,6 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 	if (rev != mc->hdr.rev)
 		return -1;
 
-#ifdef CONFIG_X86_64
-	/* Flush global tlb. This is precaution. */
-	flush_tlb_early();
-#endif
 	uci->cpu_sig.rev = rev;
 
 	if (early)
@@ -918,6 +906,18 @@ static int get_ucode_fw(void *to, const void *from, size_t n)
 	return 0;
 }
 
+static bool is_blacklisted(unsigned int cpu)
+{
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+	if (c->x86 == 6 && c->x86_model == INTEL_FAM6_BROADWELL_X) {
+		pr_err_once("late loading on model 79 is disabled.\n");
+		return true;
+	}
+
+	return false;
+}
+
 static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 					     bool refresh_fw)
 {
@@ -925,6 +925,9 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	const struct firmware *firmware;
 	enum ucode_state ret;
+
+	if (is_blacklisted(cpu))
+		return UCODE_NFOUND;
 
 	sprintf(name, "intel-ucode/%02x-%02x-%02x",
 		c->x86, c->x86_model, c->x86_mask);
@@ -950,6 +953,9 @@ static int get_ucode_user(void *to, const void *from, size_t n)
 static enum ucode_state
 request_microcode_user(int cpu, const void __user *buf, size_t size)
 {
+	if (is_blacklisted(cpu))
+		return UCODE_NFOUND;
+
 	return generic_load_microcode(cpu, (void *)buf, size, &get_ucode_user);
 }
 

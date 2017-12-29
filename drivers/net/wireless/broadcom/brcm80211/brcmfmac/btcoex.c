@@ -280,9 +280,9 @@ static void brcmf_btcoex_restore_part1(struct brcmf_btcoex_info *btci)
 /**
  * brcmf_btcoex_timerfunc() - BT coex timer callback
  */
-static void brcmf_btcoex_timerfunc(ulong data)
+static void brcmf_btcoex_timerfunc(struct timer_list *t)
 {
-	struct brcmf_btcoex_info *bt_local = (struct brcmf_btcoex_info *)data;
+	struct brcmf_btcoex_info *bt_local = from_timer(bt_local, t, timer);
 	brcmf_dbg(TRACE, "enter\n");
 
 	bt_local->timer_on = false;
@@ -380,7 +380,7 @@ int brcmf_btcoex_attach(struct brcmf_cfg80211_info *cfg)
 	/* Set up timer for BT  */
 	btci->timer_on = false;
 	btci->timeout = BRCMF_BTCOEX_OPPR_WIN_TIME;
-	setup_timer(&btci->timer, brcmf_btcoex_timerfunc, (ulong)btci);
+	timer_setup(&btci->timer, brcmf_btcoex_timerfunc, 0);
 	btci->cfg = cfg;
 	btci->saved_regs_part1 = false;
 	btci->saved_regs_part2 = false;

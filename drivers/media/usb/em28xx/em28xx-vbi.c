@@ -93,7 +93,7 @@ vbi_buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
-struct vb2_ops em28xx_vbi_qops = {
+const struct vb2_ops em28xx_vbi_qops = {
 	.queue_setup    = vbi_queue_setup,
 	.buf_prepare    = vbi_buffer_prepare,
 	.buf_queue      = vbi_buffer_queue,

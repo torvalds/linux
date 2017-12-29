@@ -399,7 +399,7 @@ xfs_map_blocks(
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
 	ASSERT(offset <= mp->m_super->s_maxbytes);
 
-	if (offset + count > mp->m_super->s_maxbytes)
+	if ((xfs_ufsize_t)offset + count > mp->m_super->s_maxbytes)
 		count = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
@@ -445,6 +445,19 @@ xfs_imap_valid(
 	xfs_off_t		offset)
 {
 	offset >>= inode->i_blkbits;
+
+	/*
+	 * We have to make sure the cached mapping is within EOF to protect
+	 * against eofblocks trimming on file release leaving us with a stale
+	 * mapping. Otherwise, a page for a subsequent file extending buffered
+	 * write could get picked up by this writeback cycle and written to the
+	 * wrong blocks.
+	 *
+	 * Note that what we really want here is a generic mapping invalidation
+	 * mechanism to protect us from arbitrary extent modifying contexts, not
+	 * just eofblocks.
+	 */
+	xfs_trim_extent_eof(imap, XFS_I(inode));
 
 	return offset >= imap->br_startoff &&
 		offset < imap->br_startoff + imap->br_blockcount;
@@ -735,6 +748,14 @@ xfs_vm_invalidatepage(
 {
 	trace_xfs_invalidatepage(page->mapping->host, page, offset,
 				 length);
+
+	/*
+	 * If we are invalidating the entire page, clear the dirty state from it
+	 * so that we can check for attempts to release dirty cached pages in
+	 * xfs_vm_releasepage().
+	 */
+	if (offset == 0 && length >= PAGE_SIZE)
+		cancel_dirty_page(page);
 	block_invalidatepage(page, offset, length);
 }
 
@@ -875,13 +896,13 @@ xfs_writepage_map(
 	struct writeback_control *wbc,
 	struct inode		*inode,
 	struct page		*page,
-	loff_t			offset,
-	uint64_t              end_offset)
+	uint64_t		end_offset)
 {
 	LIST_HEAD(submit_list);
 	struct xfs_ioend	*ioend, *next;
 	struct buffer_head	*bh, *head;
 	ssize_t			len = i_blocksize(inode);
+	uint64_t		offset;
 	int			error = 0;
 	int			count = 0;
 	int			uptodate = 1;
@@ -1125,7 +1146,7 @@ xfs_do_writepage(
 		end_offset = offset;
 	}
 
-	return xfs_writepage_map(wpc, wbc, inode, page, offset, end_offset);
+	return xfs_writepage_map(wpc, wbc, inode, page, end_offset);
 
 redirty:
 	redirty_page_for_writepage(wbc, page);
@@ -1190,25 +1211,27 @@ xfs_vm_releasepage(
 	 * mm accommodates an old ext3 case where clean pages might not have had
 	 * the dirty bit cleared. Thus, it can send actual dirty pages to
 	 * ->releasepage() via shrink_active_list(). Conversely,
-	 * block_invalidatepage() can send pages that are still marked dirty
-	 * but otherwise have invalidated buffers.
+	 * block_invalidatepage() can send pages that are still marked dirty but
+	 * otherwise have invalidated buffers.
 	 *
 	 * We want to release the latter to avoid unnecessary buildup of the
-	 * LRU, skip the former and warn if we've left any lingering
-	 * delalloc/unwritten buffers on clean pages. Skip pages with delalloc
-	 * or unwritten buffers and warn if the page is not dirty. Otherwise
-	 * try to release the buffers.
+	 * LRU, so xfs_vm_invalidatepage() clears the page dirty flag on pages
+	 * that are entirely invalidated and need to be released.  Hence the
+	 * only time we should get dirty pages here is through
+	 * shrink_active_list() and so we can simply skip those now.
+	 *
+	 * warn if we've left any lingering delalloc/unwritten buffers on clean
+	 * or invalidated pages we are about to release.
 	 */
+	if (PageDirty(page))
+		return 0;
+
 	xfs_count_page_state(page, &delalloc, &unwritten);
 
-	if (delalloc) {
-		WARN_ON_ONCE(!PageDirty(page));
+	if (WARN_ON_ONCE(delalloc))
 		return 0;
-	}
-	if (unwritten) {
-		WARN_ON_ONCE(!PageDirty(page));
+	if (WARN_ON_ONCE(unwritten))
 		return 0;
-	}
 
 	return try_to_free_buffers(page);
 }
@@ -1242,7 +1265,7 @@ xfs_map_trim_size(
 	if (mapping_size > size)
 		mapping_size = size;
 	if (offset < i_size_read(inode) &&
-	    offset + mapping_size >= i_size_read(inode)) {
+	    (xfs_ufsize_t)offset + mapping_size >= i_size_read(inode)) {
 		/* limit mapping to block that spans EOF */
 		mapping_size = roundup_64(i_size_read(inode) - offset,
 					  i_blocksize(inode));
@@ -1289,7 +1312,7 @@ xfs_get_blocks(
 	lockmode = xfs_ilock_data_map_shared(ip);
 
 	ASSERT(offset <= mp->m_super->s_maxbytes);
-	if (offset + size > mp->m_super->s_maxbytes)
+	if ((xfs_ufsize_t)offset + size > mp->m_super->s_maxbytes)
 		size = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + size);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);

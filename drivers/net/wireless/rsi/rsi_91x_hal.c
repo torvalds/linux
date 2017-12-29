@@ -42,7 +42,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	struct ieee80211_hdr *wh = NULL;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_conf *conf = &adapter->hw->conf;
-	struct ieee80211_vif *vif = adapter->vifs[0];
+	struct ieee80211_vif *vif;
 	struct rsi_mgmt_desc *mgmt_desc;
 	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss = NULL;
@@ -57,6 +57,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 
 	info = IEEE80211_SKB_CB(skb);
 	tx_params = (struct skb_info *)info->driver_data;
+	vif = tx_params->vif;
 
 	/* Update header size */
 	header_size = FRAME_DESC_SZ + sizeof(struct xtended_desc);
@@ -78,7 +79,7 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 
 	tx_params->internal_hdr_size = header_size;
 	memset(&skb->data[0], 0, header_size);
-	bss = &info->control.vif->bss_conf;
+	bss = &vif->bss_conf;
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 
 	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
@@ -95,10 +96,10 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 
 	mgmt_desc->seq_ctrl =
 		cpu_to_le16(IEEE80211_SEQ_TO_SN(le16_to_cpu(wh->seq_ctrl)));
-	if (common->band == NL80211_BAND_2GHZ)
-		mgmt_desc->rate_info = RSI_RATE_1;
+	if ((common->band == NL80211_BAND_2GHZ) && !common->p2p_enabled)
+		mgmt_desc->rate_info = cpu_to_le16(RSI_RATE_1);
 	else
-		mgmt_desc->rate_info = RSI_RATE_6;
+		mgmt_desc->rate_info = cpu_to_le16(RSI_RATE_6);
 
 	if (conf_is_ht40(conf))
 		mgmt_desc->bbp_info = cpu_to_le16(FULL40M_ENABLE);
@@ -121,7 +122,8 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 		xtend_desc->retry_cnt = PROBE_RESP_RETRY_CNT;
 	}
 
-	if ((vif->type == NL80211_IFTYPE_AP) &&
+	if (((vif->type == NL80211_IFTYPE_AP) ||
+	     (vif->type == NL80211_IFTYPE_P2P_GO)) &&
 	    (ieee80211_is_action(wh->frame_control))) {
 		struct rsi_sta *rsta = rsi_find_sta(common, wh->addr1);
 
@@ -130,6 +132,10 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 		else
 			return -EINVAL;
 	}
+	mgmt_desc->rate_info |=
+		cpu_to_le16((tx_params->vap_id << RSI_DESC_VAP_ID_OFST) &
+			    RSI_DESC_VAP_ID_MASK);
+
 	return 0;
 }
 
@@ -151,7 +157,8 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	u16 seq_num;
 
 	info = IEEE80211_SKB_CB(skb);
-	bss = &info->control.vif->bss_conf;
+	vif = info->control.vif;
+	bss = &vif->bss_conf;
 	tx_params = (struct skb_info *)info->driver_data;
 
 	header_size = FRAME_DESC_SZ + sizeof(struct xtended_desc);
@@ -175,7 +182,6 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	xtend_desc = (struct xtended_desc *)&skb->data[FRAME_DESC_SZ];
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 	seq_num = IEEE80211_SEQ_TO_SN(le16_to_cpu(wh->seq_ctrl));
-	vif = adapter->vifs[0];
 
 	data_desc->xtend_desc_size = header_size - FRAME_DESC_SZ;
 
@@ -184,7 +190,8 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		data_desc->mac_flags |= cpu_to_le16(RSI_QOS_ENABLE);
 	}
 
-	if ((vif->type == NL80211_IFTYPE_STATION) &&
+	if (((vif->type == NL80211_IFTYPE_STATION) ||
+	     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
 	    (adapter->ps_state == PS_ENABLED))
 		wh->frame_control |= cpu_to_le16(RSI_SET_PS_ENABLE);
 
@@ -240,16 +247,22 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		data_desc->frame_info |= cpu_to_le16(RSI_BROADCAST_PKT);
 		data_desc->sta_id = vap_id;
 
-		if (vif->type == NL80211_IFTYPE_AP) {
+		if ((vif->type == NL80211_IFTYPE_AP) ||
+		    (vif->type == NL80211_IFTYPE_P2P_GO)) {
 			if (common->band == NL80211_BAND_5GHZ)
 				data_desc->rate_info = cpu_to_le16(RSI_RATE_6);
 			else
 				data_desc->rate_info = cpu_to_le16(RSI_RATE_1);
 		}
 	}
-	if ((vif->type == NL80211_IFTYPE_AP) &&
+	if (((vif->type == NL80211_IFTYPE_AP) ||
+	     (vif->type == NL80211_IFTYPE_P2P_GO)) &&
 	    (ieee80211_has_moredata(wh->frame_control)))
 		data_desc->frame_info |= cpu_to_le16(MORE_DATA_PRESENT);
+
+	data_desc->rate_info |=
+		cpu_to_le16((tx_params->vap_id << RSI_DESC_VAP_ID_OFST) &
+			    RSI_DESC_VAP_ID_MASK);
 
 	return 0;
 }
@@ -258,7 +271,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
-	struct ieee80211_vif *vif = adapter->vifs[0];
+	struct ieee80211_vif *vif;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_bss_conf *bss;
 	int status = -EINVAL;
@@ -271,9 +284,12 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	info = IEEE80211_SKB_CB(skb);
 	if (!info->control.vif)
 		goto err;
-	bss = &info->control.vif->bss_conf;
+	vif = info->control.vif;
+	bss = &vif->bss_conf;
 
-	if ((vif->type == NL80211_IFTYPE_STATION) && (!bss->assoc))
+	if (((vif->type == NL80211_IFTYPE_STATION) ||
+	     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
+	    (!bss->assoc))
 		goto err;
 
 	status = rsi_prepare_data_desc(common, skb);
@@ -306,21 +322,11 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
 	int status = -E2BIG;
-	u8 extnd_size;
 
 	info = IEEE80211_SKB_CB(skb);
 	tx_params = (struct skb_info *)info->driver_data;
-	extnd_size = ((uintptr_t)skb->data & 0x3);
 
 	if (tx_params->flags & INTERNAL_MGMT_PKT) {
-		skb->data[1] |= BIT(7); /* Immediate Wakeup bit*/
-		if ((extnd_size) > skb_headroom(skb)) {
-			rsi_dbg(ERR_ZONE, "%s: Unable to send pkt\n", __func__);
-			dev_kfree_skb(skb);
-			return -ENOSPC;
-		}
-		skb_push(skb, extnd_size);
-		skb->data[extnd_size + 4] = extnd_size;
 		status = adapter->host_intf_ops->write_pkt(common->priv,
 							   (u8 *)skb->data,
 							   skb->len);
@@ -352,12 +358,23 @@ int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_data_desc *bcn_frm;
 	struct ieee80211_hw *hw = common->priv->hw;
 	struct ieee80211_conf *conf = &hw->conf;
+	struct ieee80211_vif *vif;
 	struct sk_buff *mac_bcn;
-	u8 vap_id = 0;
-	u16 tim_offset;
+	u8 vap_id = 0, i;
+	u16 tim_offset = 0;
 
+	for (i = 0; i < RSI_MAX_VIFS; i++) {
+		vif = adapter->vifs[i];
+		if (!vif)
+			continue;
+		if ((vif->type == NL80211_IFTYPE_AP) ||
+		    (vif->type == NL80211_IFTYPE_P2P_GO))
+			break;
+	}
+	if (!vif)
+		return -EINVAL;
 	mac_bcn = ieee80211_beacon_get_tim(adapter->hw,
-					   adapter->vifs[adapter->sc_nvifs - 1],
+					   vif,
 					   &tim_offset, NULL);
 	if (!mac_bcn) {
 		rsi_dbg(ERR_ZONE, "Failed to get beacon from mac80211\n");
@@ -401,9 +418,9 @@ int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb)
 	return 0;
 }
 
-static void bl_cmd_timeout(unsigned long priv)
+static void bl_cmd_timeout(struct timer_list *t)
 {
-	struct rsi_hw *adapter = (struct rsi_hw *)priv;
+	struct rsi_hw *adapter = from_timer(adapter, t, bl_cmd_timer);
 
 	adapter->blcmd_timer_expired = true;
 	del_timer(&adapter->bl_cmd_timer);
@@ -411,9 +428,7 @@ static void bl_cmd_timeout(unsigned long priv)
 
 static int bl_start_cmd_timer(struct rsi_hw *adapter, u32 timeout)
 {
-	init_timer(&adapter->bl_cmd_timer);
-	adapter->bl_cmd_timer.data = (unsigned long)adapter;
-	adapter->bl_cmd_timer.function = (void *)&bl_cmd_timeout;
+	timer_setup(&adapter->bl_cmd_timer, bl_cmd_timeout, 0);
 	adapter->bl_cmd_timer.expires = (msecs_to_jiffies(timeout) + jiffies);
 
 	adapter->blcmd_timer_expired = false;
@@ -752,6 +767,7 @@ static int auto_fw_upgrade(struct rsi_hw *adapter, u8 *flash_content,
 
 static int rsi_load_firmware(struct rsi_hw *adapter)
 {
+	struct rsi_common *common = adapter->priv;
 	struct rsi_host_intf_ops *hif_ops = adapter->host_intf_ops;
 	const struct firmware *fw_entry = NULL;
 	u32 regout_val = 0, content_size;
@@ -826,6 +842,18 @@ static int rsi_load_firmware(struct rsi_hw *adapter)
 	}
 	content_size = fw_entry->size;
 	rsi_dbg(INFO_ZONE, "FW Length = %d bytes\n", content_size);
+
+	/* Get the firmware version */
+	common->lmac_ver.ver.info.fw_ver[0] =
+		flash_content[LMAC_VER_OFFSET] & 0xFF;
+	common->lmac_ver.ver.info.fw_ver[1] =
+		flash_content[LMAC_VER_OFFSET + 1] & 0xFF;
+	common->lmac_ver.major = flash_content[LMAC_VER_OFFSET + 2] & 0xFF;
+	common->lmac_ver.release_num =
+		flash_content[LMAC_VER_OFFSET + 3] & 0xFF;
+	common->lmac_ver.minor = flash_content[LMAC_VER_OFFSET + 4] & 0xFF;
+	common->lmac_ver.patch_num = 0;
+	rsi_print_version(common);
 
 	status = bl_write_header(adapter, flash_content, content_size);
 	if (status) {

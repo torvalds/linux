@@ -41,16 +41,16 @@ typedef enum {
 	IA_CSS_SP_SW_RUNNING
 } ia_css_spctrl_sp_sw_state;
 
-/** Structure to encapsulate required arguments for
+/* Structure to encapsulate required arguments for
  * initialization of SP DMEM using the SP itself
  */
 struct ia_css_sp_init_dmem_cfg {
-	ia_css_ptr      ddr_data_addr;  /**< data segment address in ddr  */
-	uint32_t        dmem_data_addr; /**< data segment address in dmem */
-	uint32_t        dmem_bss_addr;  /**< bss segment address in dmem  */
-	uint32_t        data_size;      /**< data segment size            */
-	uint32_t        bss_size;       /**< bss segment size             */
-	sp_ID_t         sp_id;          /** <sp Id */
+	ia_css_ptr      ddr_data_addr;  /** data segment address in ddr  */
+	uint32_t        dmem_data_addr; /** data segment address in dmem */
+	uint32_t        dmem_bss_addr;  /** bss segment address in dmem  */
+	uint32_t        data_size;      /** data segment size            */
+	uint32_t        bss_size;       /** bss segment size             */
+	sp_ID_t         sp_id;          /* <sp Id */
 };
 
 #define SIZE_OF_IA_CSS_SP_INIT_DMEM_CFG_STRUCT	\

@@ -186,6 +186,7 @@ static inline void vema_get_pod_values(struct opa_veswport_info *port_info)
 		cpu_to_be16(OPA_VNIC_MAX_SMAC_LIMIT);
 	port_info->vport.oper_state = OPA_VNIC_STATE_DROP_ALL;
 	port_info->vport.config_state = OPA_VNIC_STATE_DROP_ALL;
+	port_info->vesw.eth_mtu = cpu_to_be16(ETH_DATA_LEN);
 }
 
 /**

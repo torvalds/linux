@@ -106,7 +106,7 @@ void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
 
 /* Update the connection delivery information and generate a rate sample. */
 void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
-		  struct rate_sample *rs)
+		  bool is_sack_reneg, struct rate_sample *rs)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 snd_us, ack_us;
@@ -124,8 +124,12 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 
 	rs->acked_sacked = delivered;	/* freshly ACKed or SACKed */
 	rs->losses = lost;		/* freshly marked lost */
-	/* Return an invalid sample if no timing information is available. */
-	if (!rs->prior_mstamp) {
+	/* Return an invalid sample if no timing information is available or
+	 * in recovery from loss with SACK reneging. Rate samples taken during
+	 * a SACK reneging event may overestimate bw by including packets that
+	 * were SACKed before the reneg.
+	 */
+	if (!rs->prior_mstamp || is_sack_reneg) {
 		rs->delivered = -1;
 		rs->interval_us = -1;
 		return;

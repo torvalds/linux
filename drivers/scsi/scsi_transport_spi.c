@@ -50,14 +50,14 @@
 
 /* Our blacklist flags */
 enum {
-	SPI_BLIST_NOIUS = 0x1,
+	SPI_BLIST_NOIUS = (__force blist_flags_t)0x1,
 };
 
 /* blacklist table, modelled on scsi_devinfo.c */
 static struct {
 	char *vendor;
 	char *model;
-	unsigned flags;
+	blist_flags_t flags;
 } spi_static_device_list[] __initdata = {
 	{"HP", "Ultrium 3-SCSI", SPI_BLIST_NOIUS },
 	{"IBM", "ULTRIUM-TD3", SPI_BLIST_NOIUS },
@@ -221,9 +221,11 @@ static int spi_device_configure(struct transport_container *tc,
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct scsi_target *starget = sdev->sdev_target;
-	unsigned bflags = scsi_get_device_flags_keyed(sdev, &sdev->inquiry[8],
-						      &sdev->inquiry[16],
-						      SCSI_DEVINFO_SPI);
+	blist_flags_t bflags;
+
+	bflags = scsi_get_device_flags_keyed(sdev, &sdev->inquiry[8],
+					     &sdev->inquiry[16],
+					     SCSI_DEVINFO_SPI);
 
 	/* Populate the target capability fields with the values
 	 * gleaned from the device inquiry */

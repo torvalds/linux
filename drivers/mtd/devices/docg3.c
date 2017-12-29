@@ -1814,8 +1814,13 @@ static void __init doc_dbg_register(struct mtd_info *floor)
 	struct dentry *root = floor->dbg.dfs_dir;
 	struct docg3 *docg3 = floor->priv;
 
-	if (IS_ERR_OR_NULL(root))
+	if (IS_ERR_OR_NULL(root)) {
+		if (IS_ENABLED(CONFIG_DEBUG_FS) &&
+		    !IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER))
+			dev_warn(floor->dev.parent,
+				 "CONFIG_MTD_PARTITIONED_MASTER must be enabled to expose debugfs stuff\n");
 		return;
+	}
 
 	debugfs_create_file("docg3_flashcontrol", S_IRUSR, root, docg3,
 			    &flashcontrol_fops);

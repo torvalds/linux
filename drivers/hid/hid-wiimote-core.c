@@ -1226,9 +1226,9 @@ static void wiimote_schedule(struct wiimote_data *wdata)
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
 }
 
-static void wiimote_init_timeout(unsigned long arg)
+static void wiimote_init_timeout(struct timer_list *t)
 {
-	struct wiimote_data *wdata = (void*)arg;
+	struct wiimote_data *wdata = from_timer(wdata, t, timer);
 
 	wiimote_schedule(wdata);
 }
@@ -1740,7 +1740,7 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	wdata->state.cmd_battery = 0xff;
 
 	INIT_WORK(&wdata->init_worker, wiimote_init_worker);
-	setup_timer(&wdata->timer, wiimote_init_timeout, (long)wdata);
+	timer_setup(&wdata->timer, wiimote_init_timeout, 0);
 
 	return wdata;
 }

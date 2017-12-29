@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_HUGETLB_H
 #define _LINUX_HUGETLB_H
 
@@ -232,14 +233,6 @@ static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
 
 #ifndef pgd_write
 static inline int pgd_write(pgd_t pgd)
-{
-	BUG();
-	return 0;
-}
-#endif
-
-#ifndef pud_write
-static inline int pud_write(pud_t pud)
 {
 	BUG();
 	return 0;

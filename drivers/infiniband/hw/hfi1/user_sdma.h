@@ -80,15 +80,26 @@
 #define PBC2LRH(x) ((((x) & 0xfff) << 2) - 4)
 #define LRH2PBC(x) ((((x) >> 2) + 1) & 0xfff)
 
-#define AHG_HEADER_SET(arr, idx, dw, bit, width, value)			\
-	do {								\
-		if ((idx) < ARRAY_SIZE((arr)))				\
-			(arr)[(idx++)] = sdma_build_ahg_descriptor(	\
-				(__force u16)(value), (dw), (bit),	\
-							(width));	\
-		else							\
-			return -ERANGE;					\
-	} while (0)
+/**
+ * Build an SDMA AHG header update descriptor and save it to an array.
+ * @arr        - Array to save the descriptor to.
+ * @idx        - Index of the array at which the descriptor will be saved.
+ * @array_size - Size of the array arr.
+ * @dw         - Update index into the header in DWs.
+ * @bit        - Start bit.
+ * @width      - Field width.
+ * @value      - 16 bits of immediate data to write into the field.
+ * Returns -ERANGE if idx is invalid. If successful, returns the next index
+ * (idx + 1) of the array to be used for the next descriptor.
+ */
+static inline int ahg_header_set(u32 *arr, int idx, size_t array_size,
+				 u8 dw, u8 bit, u8 width, u16 value)
+{
+	if ((size_t)idx >= array_size)
+		return -ERANGE;
+	arr[idx++] = sdma_build_ahg_descriptor(value, dw, bit, width);
+	return idx;
+}
 
 /* Tx request flag bits */
 #define TXREQ_FLAGS_REQ_ACK   BIT(0)      /* Set the ACK bit in the header */

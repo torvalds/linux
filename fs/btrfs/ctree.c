@@ -192,7 +192,7 @@ struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
  * tree until you end up with a lock on the root.  A locked buffer
  * is returned, with a reference held.
  */
-static struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
+struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
 {
 	struct extent_buffer *eb;
 
@@ -1032,14 +1032,17 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 		     root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) &&
 		    !(flags & BTRFS_BLOCK_FLAG_FULL_BACKREF)) {
 			ret = btrfs_inc_ref(trans, root, buf, 1);
-			BUG_ON(ret); /* -ENOMEM */
+			if (ret)
+				return ret;
 
 			if (root->root_key.objectid ==
 			    BTRFS_TREE_RELOC_OBJECTID) {
 				ret = btrfs_dec_ref(trans, root, buf, 0);
-				BUG_ON(ret); /* -ENOMEM */
+				if (ret)
+					return ret;
 				ret = btrfs_inc_ref(trans, root, cow, 1);
-				BUG_ON(ret); /* -ENOMEM */
+				if (ret)
+					return ret;
 			}
 			new_flags |= BTRFS_BLOCK_FLAG_FULL_BACKREF;
 		} else {
@@ -1049,7 +1052,8 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 				ret = btrfs_inc_ref(trans, root, cow, 1);
 			else
 				ret = btrfs_inc_ref(trans, root, cow, 0);
-			BUG_ON(ret); /* -ENOMEM */
+			if (ret)
+				return ret;
 		}
 		if (new_flags != 0) {
 			int level = btrfs_header_level(buf);
@@ -1068,9 +1072,11 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 				ret = btrfs_inc_ref(trans, root, cow, 1);
 			else
 				ret = btrfs_inc_ref(trans, root, cow, 0);
-			BUG_ON(ret); /* -ENOMEM */
+			if (ret)
+				return ret;
 			ret = btrfs_dec_ref(trans, root, buf, 1);
-			BUG_ON(ret); /* -ENOMEM */
+			if (ret)
+				return ret;
 		}
 		clean_tree_block(fs_info, buf);
 		*last_ref = 1;
@@ -5496,8 +5502,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 			goto out;
 		} else if (left_end_reached) {
 			if (right_level == 0) {
-				ret = changed_cb(left_root, right_root,
-						left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						&right_key,
 						BTRFS_COMPARE_TREE_DELETED,
 						ctx);
@@ -5508,8 +5513,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 			continue;
 		} else if (right_end_reached) {
 			if (left_level == 0) {
-				ret = changed_cb(left_root, right_root,
-						left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						&left_key,
 						BTRFS_COMPARE_TREE_NEW,
 						ctx);
@@ -5523,8 +5527,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 		if (left_level == 0 && right_level == 0) {
 			cmp = btrfs_comp_cpu_keys(&left_key, &right_key);
 			if (cmp < 0) {
-				ret = changed_cb(left_root, right_root,
-						left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						&left_key,
 						BTRFS_COMPARE_TREE_NEW,
 						ctx);
@@ -5532,8 +5535,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 					goto out;
 				advance_left = ADVANCE;
 			} else if (cmp > 0) {
-				ret = changed_cb(left_root, right_root,
-						left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						&right_key,
 						BTRFS_COMPARE_TREE_DELETED,
 						ctx);
@@ -5550,8 +5552,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 					result = BTRFS_COMPARE_TREE_CHANGED;
 				else
 					result = BTRFS_COMPARE_TREE_SAME;
-				ret = changed_cb(left_root, right_root,
-						 left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						 &left_key, result, ctx);
 				if (ret < 0)
 					goto out;

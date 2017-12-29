@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NOUVEAU_ABI16_H__
 #define __NOUVEAU_ABI16_H__
 
@@ -23,7 +24,7 @@ struct nouveau_abi16_chan {
 	struct nouveau_channel *chan;
 	struct list_head notifiers;
 	struct nouveau_bo *ntfy;
-	struct nvkm_vma ntfy_vma;
+	struct nouveau_vma *ntfy_vma;
 	struct nvkm_mm  heap;
 };
 

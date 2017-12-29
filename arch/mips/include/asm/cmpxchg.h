@@ -155,14 +155,16 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 		return __cmpxchg_small(ptr, old, new, size);
 
 	case 4:
-		return __cmpxchg_asm("ll", "sc", (volatile u32 *)ptr, old, new);
+		return __cmpxchg_asm("ll", "sc", (volatile u32 *)ptr,
+				     (u32)old, new);
 
 	case 8:
 		/* lld/scd are only available for MIPS64 */
 		if (!IS_ENABLED(CONFIG_64BIT))
 			return __cmpxchg_called_with_bad_pointer();
 
-		return __cmpxchg_asm("lld", "scd", (volatile u64 *)ptr, old, new);
+		return __cmpxchg_asm("lld", "scd", (volatile u64 *)ptr,
+				     (u64)old, new);
 
 	default:
 		return __cmpxchg_called_with_bad_pointer();
@@ -202,7 +204,9 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 #else
 #include <asm-generic/cmpxchg-local.h>
 #define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
+#ifndef CONFIG_SMP
 #define cmpxchg64(ptr, o, n) cmpxchg64_local((ptr), (o), (n))
+#endif
 #endif
 
 #undef __scbeqz

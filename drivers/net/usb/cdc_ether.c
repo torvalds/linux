@@ -230,7 +230,7 @@ skip:
 			goto bad_desc;
 	}
 
-	if (header.usb_cdc_ether_desc) {
+	if (header.usb_cdc_ether_desc && info->ether->wMaxSegmentSize) {
 		dev->hard_mtu = le16_to_cpu(info->ether->wMaxSegmentSize);
 		/* because of Zaurus, we may be ignoring the host
 		 * side link address we were given.
@@ -560,6 +560,8 @@ static const struct driver_info wwan_info = {
 #define NVIDIA_VENDOR_ID	0x0955
 #define HP_VENDOR_ID		0x03f0
 #define MICROSOFT_VENDOR_ID	0x045e
+#define UBLOX_VENDOR_ID		0x1546
+#define TPLINK_VENDOR_ID	0x2357
 
 static const struct usb_device_id	products[] = {
 /* BLACKLIST !!
@@ -812,6 +814,13 @@ static const struct usb_device_id	products[] = {
 	.driver_info = 0,
 },
 
+	/* TP-LINK UE300 USB 3.0 Ethernet Adapters (based on Realtek RTL8153) */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(TPLINK_VENDOR_ID, 0x0601, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
 /* WHITELIST!!!
  *
  * CDC Ether uses two interfaces, not necessarily consecutive.
@@ -863,11 +872,29 @@ static const struct usb_device_id	products[] = {
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
 	.driver_info = (kernel_ulong_t)&wwan_info,
 }, {
+	/* Huawei ME906 and ME909 */
+	USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0x15c1, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = (unsigned long)&wwan_info,
+}, {
 	/* ZTE modules */
 	USB_VENDOR_AND_INTERFACE_INFO(ZTE_VENDOR_ID, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
 				      USB_CDC_PROTO_NONE),
 	.driver_info = (unsigned long)&zte_cdc_info,
+}, {
+	/* U-blox TOBY-L2 */
+	USB_DEVICE_AND_INTERFACE_INFO(UBLOX_VENDOR_ID, 0x1143, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = (unsigned long)&wwan_info,
+}, {
+	/* U-blox SARA-U2 */
+	USB_DEVICE_AND_INTERFACE_INFO(UBLOX_VENDOR_ID, 0x1104, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = (unsigned long)&wwan_info,
 }, {
 	USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
 			USB_CDC_PROTO_NONE),

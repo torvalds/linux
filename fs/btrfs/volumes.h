@@ -542,7 +542,5 @@ void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
 void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
 
 bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info);
-void btrfs_report_missing_device(struct btrfs_fs_info *fs_info, u64 devid,
-				 u8 *uuid);
 
 #endif

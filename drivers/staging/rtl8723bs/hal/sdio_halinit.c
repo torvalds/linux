@@ -1019,8 +1019,8 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 			rtw_btcoex_IQKNotify(padapter, true);
 
-			restore_iqk_rst = (pwrpriv->bips_processing == true) ? true : false;
-			b2Ant = pHalData->EEPROMBluetoothAntNum == Ant_x2 ? true : false;
+			restore_iqk_rst = pwrpriv->bips_processing;
+			b2Ant = pHalData->EEPROMBluetoothAntNum == Ant_x2;
 			PHY_IQCalibrate_8723B(padapter, false, restore_iqk_rst, b2Ant, pHalData->ant_path);
 			pHalData->odmpriv.RFCalibrateInfo.bIQKInitialized = true;
 

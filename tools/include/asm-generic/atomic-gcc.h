@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __TOOLS_ASM_GENERIC_ATOMIC_H
 #define __TOOLS_ASM_GENERIC_ATOMIC_H
 
@@ -21,7 +22,7 @@
  */
 static inline int atomic_read(const atomic_t *v)
 {
-	return ACCESS_ONCE((v)->counter);
+	return READ_ONCE((v)->counter);
 }
 
 /**

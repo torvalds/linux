@@ -106,7 +106,7 @@ static int readmagic_bitstream(u8 *bitdata, int *offset)
 	read_bitstream(bitdata, buf, offset, 13);
 	r = memcmp(buf, bits_magic, 13);
 	if (r) {
-		pr_err("error: corrupted header");
+		pr_err("error: corrupted header\n");
 		return -EINVAL;
 	}
 	pr_info("bitstream file magic number Ok\n");

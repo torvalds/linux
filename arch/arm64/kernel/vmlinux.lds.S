@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ld script to make ARM Linux kernel
  * taken from the i386 version by Russell King

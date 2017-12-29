@@ -207,6 +207,8 @@ struct mtk_pll_data {
 	uint32_t en_mask;
 	uint32_t pd_reg;
 	uint32_t tuner_reg;
+	uint32_t tuner_en_reg;
+	uint8_t tuner_en_bit;
 	int pd_shift;
 	unsigned int flags;
 	const struct clk_ops *ops;
@@ -216,6 +218,7 @@ struct mtk_pll_data {
 	uint32_t pcw_reg;
 	int pcw_shift;
 	const struct mtk_pll_div_table *div_table;
+	const char *parent_name;
 };
 
 void mtk_clk_register_plls(struct device_node *node,

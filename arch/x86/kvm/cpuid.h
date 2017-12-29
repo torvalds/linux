@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ARCH_X86_KVM_CPUID_H
 #define ARCH_X86_KVM_CPUID_H
 
@@ -43,7 +44,7 @@ static const struct cpuid_reg reverse_cpuid[] = {
 	[CPUID_8086_0001_EDX] = {0x80860001, 0, CPUID_EDX},
 	[CPUID_1_ECX]         = {         1, 0, CPUID_ECX},
 	[CPUID_C000_0001_EDX] = {0xc0000001, 0, CPUID_EDX},
-	[CPUID_8000_0001_ECX] = {0xc0000001, 0, CPUID_ECX},
+	[CPUID_8000_0001_ECX] = {0x80000001, 0, CPUID_ECX},
 	[CPUID_7_0_EBX]       = {         7, 0, CPUID_EBX},
 	[CPUID_D_1_EAX]       = {       0xd, 1, CPUID_EAX},
 	[CPUID_F_0_EDX]       = {       0xf, 0, CPUID_EDX},

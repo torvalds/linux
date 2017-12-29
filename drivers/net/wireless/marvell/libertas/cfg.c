@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Implement cfg80211 ("iw") support.
  *
@@ -1697,9 +1698,6 @@ static void lbs_join_post(struct lbs_private *priv,
 				  fake_ie, fake - fake_ie,
 				  0, GFP_KERNEL);
 	cfg80211_put_bss(priv->wdev->wiphy, bss);
-
-	memcpy(priv->wdev->ssid, params->ssid, params->ssid_len);
-	priv->wdev->ssid_len = params->ssid_len;
 
 	cfg80211_ibss_joined(priv->dev, bssid, params->chandef.chan,
 			     GFP_KERNEL);

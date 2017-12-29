@@ -166,6 +166,14 @@ int ip6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }
 
+static bool ip6_autoflowlabel(struct net *net, const struct ipv6_pinfo *np)
+{
+	if (!np->autoflowlabel_set)
+		return ip6_default_np_autolabel(net);
+	else
+		return np->autoflowlabel;
+}
+
 /*
  * xmit an sk_buff (used by TCP, SCTP and DCCP)
  * Note : socket lock is not held for SYNACK packets, but might be modified
@@ -230,7 +238,7 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 		hlimit = ip6_dst_hoplimit(dst);
 
 	ip6_flow_hdr(hdr, tclass, ip6_make_flowlabel(net, skb, fl6->flowlabel,
-						     np->autoflowlabel, fl6));
+				ip6_autoflowlabel(net, np), fl6));
 
 	hdr->payload_len = htons(seg_len);
 	hdr->nexthdr = proto;
@@ -1161,11 +1169,11 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 		if (WARN_ON(v6_cork->opt))
 			return -EINVAL;
 
-		v6_cork->opt = kzalloc(opt->tot_len, sk->sk_allocation);
+		v6_cork->opt = kzalloc(sizeof(*opt), sk->sk_allocation);
 		if (unlikely(!v6_cork->opt))
 			return -ENOBUFS;
 
-		v6_cork->opt->tot_len = opt->tot_len;
+		v6_cork->opt->tot_len = sizeof(*opt);
 		v6_cork->opt->opt_flen = opt->opt_flen;
 		v6_cork->opt->opt_nflen = opt->opt_nflen;
 
@@ -1626,7 +1634,7 @@ struct sk_buff *__ip6_make_skb(struct sock *sk,
 
 	ip6_flow_hdr(hdr, v6_cork->tclass,
 		     ip6_make_flowlabel(net, skb, fl6->flowlabel,
-					np->autoflowlabel, fl6));
+					ip6_autoflowlabel(net, np), fl6));
 	hdr->hop_limit = v6_cork->hop_limit;
 	hdr->nexthdr = proto;
 	hdr->saddr = fl6->saddr;

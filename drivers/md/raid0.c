@@ -768,7 +768,7 @@ static void *raid0_takeover(struct mddev *mddev)
 	return ERR_PTR(-EINVAL);
 }
 
-static void raid0_quiesce(struct mddev *mddev, int state)
+static void raid0_quiesce(struct mddev *mddev, int quiesce)
 {
 }
 

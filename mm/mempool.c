@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/mm/mempool.c
  *
@@ -188,7 +189,7 @@ mempool_t *mempool_create_node(int min_nr, mempool_alloc_t *alloc_fn,
 	pool = kzalloc_node(sizeof(*pool), gfp_mask, node_id);
 	if (!pool)
 		return NULL;
-	pool->elements = kmalloc_node(min_nr * sizeof(void *),
+	pool->elements = kmalloc_array_node(min_nr, sizeof(void *),
 				      gfp_mask, node_id);
 	if (!pool->elements) {
 		kfree(pool);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 infiniband-$(CONFIG_INFINIBAND_ADDR_TRANS)	:= rdma_cm.o
 user_access-$(CONFIG_INFINIBAND_ADDR_TRANS)	:= rdma_ucm.o
 
@@ -14,7 +15,7 @@ ib_core-y :=			packer.o ud_header.o verbs.o cq.o rw.o sysfs.o \
 				security.o nldev.o
 
 ib_core-$(CONFIG_INFINIBAND_USER_MEM) += umem.o
-ib_core-$(CONFIG_INFINIBAND_ON_DEMAND_PAGING) += umem_odp.o umem_rbtree.o
+ib_core-$(CONFIG_INFINIBAND_ON_DEMAND_PAGING) += umem_odp.o
 ib_core-$(CONFIG_CGROUP_RDMA) += cgroup.o
 
 ib_cm-y :=			cm.o

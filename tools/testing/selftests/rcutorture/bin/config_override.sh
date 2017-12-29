@@ -42,7 +42,7 @@ else
 	exit 1
 fi
 
-T=/tmp/config_override.sh.$$
+T=${TMPDIR-/tmp}/config_override.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 

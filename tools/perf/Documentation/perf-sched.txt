@@ -106,6 +106,14 @@ OPTIONS for 'perf sched timehist'
 --max-stack::
 	Maximum number of functions to display in backtrace, default 5.
 
+-p=::
+--pid=::
+	Only show events for given process ID (comma separated list).
+
+-t=::
+--tid=::
+	Only show events for given thread ID (comma separated list).
+
 -s::
 --summary::
     Show only a summary of scheduling by thread with min, max, and average

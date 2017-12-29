@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DELAYED_CALL_H
 #define _DELAYED_CALL_H
 

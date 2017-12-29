@@ -71,11 +71,10 @@ config SAMPLE_RPMSG_CLIENT
 	  the rpmsg bus.
 
 config SAMPLE_LIVEPATCH
-	tristate "Build live patching sample -- loadable modules only"
+	tristate "Build live patching samples -- loadable modules only"
 	depends on LIVEPATCH && m
 	help
-	  Builds a sample live patch that replaces the procfs handler
-	  for /proc/cmdline to print "this has been live patched".
+	  Build sample live patch demonstrations.
 
 config SAMPLE_CONFIGFS
 	tristate "Build configfs patching sample -- loadable modules only"

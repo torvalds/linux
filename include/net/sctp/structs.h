@@ -380,6 +380,7 @@ struct sctp_sender_hb_info {
 
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp);
+int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid);
 void sctp_stream_free(struct sctp_stream *stream);
 void sctp_stream_clear(struct sctp_stream *stream);
 void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
@@ -502,7 +503,8 @@ struct sctp_datamsg {
 	/* Did the messenge fail to send? */
 	int send_error;
 	u8 send_failed:1,
-	   can_delay;	    /* should this message be Nagle delayed */
+	   can_delay:1,	/* should this message be Nagle delayed */
+	   abandoned:1;	/* should this message be abandoned */
 };
 
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *,
@@ -529,8 +531,12 @@ struct sctp_chunk {
 	/* How many times this chunk have been sent, for prsctp RTX policy */
 	int sent_count;
 
-	/* This is our link to the per-transport transmitted list.  */
-	struct list_head transmitted_list;
+	union {
+		/* This is our link to the per-transport transmitted list.  */
+		struct list_head transmitted_list;
+		/* List in specific stream outq */
+		struct list_head stream_list;
+	};
 
 	/* This field is used by chunks that hold fragmented data.
 	 * For the first fragment this is the list that holds the rest of
@@ -639,6 +645,11 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *,
 void sctp_init_addrs(struct sctp_chunk *, union sctp_addr *,
 		     union sctp_addr *);
 const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
+
+static inline __u16 sctp_chunk_stream_no(struct sctp_chunk *ch)
+{
+	return ntohs(ch->subh.data_hdr->stream);
+}
 
 enum {
 	SCTP_ADDR_NEW,		/* new address added to assoc/ep */
@@ -1012,6 +1023,9 @@ struct sctp_outq {
 	/* Data pending that has never been transmitted.  */
 	struct list_head out_chunk_list;
 
+	/* Stream scheduler being used */
+	struct sctp_sched_ops *sched;
+
 	unsigned int out_qlen;	/* Total length of queued data chunks. */
 
 	/* Error of send failed, may used in SCTP_SEND_FAILED event. */
@@ -1315,11 +1329,37 @@ struct sctp_inithdr_host {
 	__u32 initial_tsn;
 };
 
+struct sctp_stream_priorities {
+	/* List of priorities scheduled */
+	struct list_head prio_sched;
+	/* List of streams scheduled */
+	struct list_head active;
+	/* The next stream stream in line */
+	struct sctp_stream_out_ext *next;
+	__u16 prio;
+};
+
+struct sctp_stream_out_ext {
+	__u64 abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
+	__u64 abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
+	struct list_head outq; /* chunks enqueued by this stream */
+	union {
+		struct {
+			/* Scheduled streams list */
+			struct list_head prio_list;
+			struct sctp_stream_priorities *prio_head;
+		};
+		/* Fields used by RR scheduler */
+		struct {
+			struct list_head rr_list;
+		};
+	};
+};
+
 struct sctp_stream_out {
 	__u16	ssn;
 	__u8	state;
-	__u64	abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
-	__u64	abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
+	struct sctp_stream_out_ext *ext;
 };
 
 struct sctp_stream_in {
@@ -1331,6 +1371,22 @@ struct sctp_stream {
 	struct sctp_stream_in *in;
 	__u16 outcnt;
 	__u16 incnt;
+	/* Current stream being sent, if any */
+	struct sctp_stream_out *out_curr;
+	union {
+		/* Fields used by priority scheduler */
+		struct {
+			/* List of priorities scheduled */
+			struct list_head prio_list;
+		};
+		/* Fields used by RR scheduler */
+		struct {
+			/* List of streams scheduled */
+			struct list_head rr_list;
+			/* The next stream stream in line */
+			struct sctp_stream_out_ext *rr_next;
+		};
+	};
 };
 
 #define SCTP_STREAM_CLOSED		0x00

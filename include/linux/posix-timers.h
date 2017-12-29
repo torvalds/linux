@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _linux_POSIX_TIMERS_H
 #define _linux_POSIX_TIMERS_H
 

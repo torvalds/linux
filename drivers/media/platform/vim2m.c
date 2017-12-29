@@ -343,7 +343,7 @@ static void schedule_irq(struct vim2m_dev *dev, int msec_timeout)
  * mem2mem callbacks
  */
 
-/**
+/*
  * job_ready() - check whether an instance is ready to be scheduled to run
  */
 static int job_ready(void *priv)
@@ -388,9 +388,9 @@ static void device_run(void *priv)
 	schedule_irq(dev, ctx->transtime);
 }
 
-static void device_isr(unsigned long priv)
+static void device_isr(struct timer_list *t)
 {
-	struct vim2m_dev *vim2m_dev = (struct vim2m_dev *)priv;
+	struct vim2m_dev *vim2m_dev = from_timer(vim2m_dev, t, timer);
 	struct vim2m_ctx *curr_ctx;
 	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 	unsigned long flags;
@@ -1024,7 +1024,7 @@ static int vim2m_probe(struct platform_device *pdev)
 	v4l2_info(&dev->v4l2_dev,
 			"Device registered as /dev/video%d\n", vfd->num);
 
-	setup_timer(&dev->timer, device_isr, (long)dev);
+	timer_setup(&dev->timer, device_isr, 0);
 	platform_set_drvdata(pdev, dev);
 
 	dev->m2m_dev = v4l2_m2m_init(&m2m_ops);

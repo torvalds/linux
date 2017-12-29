@@ -352,7 +352,7 @@ static int __tm6000_ir_int_start(struct rc_dev *rc)
 	dprintk(1, "IR max size: %d\n", size);
 
 	ir->int_urb->transfer_buffer = kzalloc(size, GFP_ATOMIC);
-	if (ir->int_urb->transfer_buffer == NULL) {
+	if (!ir->int_urb->transfer_buffer) {
 		usb_free_urb(ir->int_urb);
 		return err;
 	}

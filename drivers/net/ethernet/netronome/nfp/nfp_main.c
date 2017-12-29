@@ -346,6 +346,32 @@ exit_release_fw:
 	return err < 0 ? err : 1;
 }
 
+static void
+nfp_nsp_init_ports(struct pci_dev *pdev, struct nfp_pf *pf,
+		   struct nfp_nsp *nsp)
+{
+	bool needs_reinit = false;
+	int i;
+
+	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+	if (!pf->eth_tbl)
+		return;
+
+	if (!nfp_nsp_has_mac_reinit(nsp))
+		return;
+
+	for (i = 0; i < pf->eth_tbl->count; i++)
+		needs_reinit |= pf->eth_tbl->ports[i].override_changed;
+	if (!needs_reinit)
+		return;
+
+	kfree(pf->eth_tbl);
+	if (nfp_nsp_mac_reinit(nsp))
+		dev_warn(&pdev->dev, "MAC reinit failed\n");
+
+	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+}
+
 static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
 {
 	struct nfp_nsp *nsp;
@@ -366,7 +392,7 @@ static int nfp_nsp_init(struct pci_dev *pdev, struct nfp_pf *pf)
 	if (err < 0)
 		goto exit_close_nsp;
 
-	pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+	nfp_nsp_init_ports(pdev, pf, nsp);
 
 	pf->nspi = __nfp_nsp_identify(nsp);
 	if (pf->nspi)

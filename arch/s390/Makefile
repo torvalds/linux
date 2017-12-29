@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # s390/Makefile
 #
@@ -5,10 +6,6 @@
 # architecture-specific flags and dependencies. Remember to do have actions
 # for "archclean" and "archdep" for cleaning up and making dependencies for
 # this architecture
-#
-# This file is subject to the terms and conditions of the GNU General Public
-# License.  See the file "COPYING" in the main directory of this archive
-# for more details.
 #
 # Copyright (C) 1994 by Linus Torvalds
 #
@@ -21,7 +18,7 @@ KBUILD_CFLAGS	+= -m64
 KBUILD_AFLAGS	+= -m64
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= 16384
-CHECKFLAGS	+= -D__s390__ -D__s390x__
+CHECKFLAGS	+= -D__s390__ -D__s390x__ -mbig-endian
 
 export LD_BFD
 
@@ -133,6 +130,7 @@ archclean:
 
 archprepare:
 	$(Q)$(MAKE) $(build)=$(tools) include/generated/facilities.h
+	$(Q)$(MAKE) $(build)=$(tools) include/generated/dis.h
 
 # Don't use tabs in echo arguments
 define archhelp

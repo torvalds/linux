@@ -45,7 +45,6 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #include <net/netfilter/nf_conntrack_labels.h>
-#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_synproxy.h>
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_core.h>
@@ -533,11 +532,12 @@ nla_put_failure:
 	return -1;
 }
 
-static inline size_t ctnetlink_proto_size(const struct nf_conn *ct)
+#if defined(CONFIG_NETFILTER_NETLINK_GLUE_CT) || defined(CONFIG_NF_CONNTRACK_EVENTS)
+static size_t ctnetlink_proto_size(const struct nf_conn *ct)
 {
 	const struct nf_conntrack_l3proto *l3proto;
 	const struct nf_conntrack_l4proto *l4proto;
-	size_t len;
+	size_t len, len4 = 0;
 
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
 	len = l3proto->nla_size;
@@ -545,9 +545,14 @@ static inline size_t ctnetlink_proto_size(const struct nf_conn *ct)
 
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	len += l4proto->nla_size;
+	if (l4proto->nlattr_tuple_size) {
+		len4 = l4proto->nlattr_tuple_size();
+		len4 *= 3u; /* ORIG, REPLY, MASTER */
+	}
 
-	return len;
+	return len + len4;
 }
+#endif
 
 static inline size_t ctnetlink_acct_size(const struct nf_conn *ct)
 {
@@ -1560,9 +1565,11 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 static int ctnetlink_change_timeout(struct nf_conn *ct,
 				    const struct nlattr * const cda[])
 {
-	u_int32_t timeout = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
+	u64 timeout = (u64)ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
 
-	ct->timeout = nfct_time_stamp + timeout * HZ;
+	if (timeout > INT_MAX)
+		timeout = INT_MAX;
+	ct->timeout = nfct_time_stamp + (u32)timeout;
 
 	if (test_bit(IPS_DYING_BIT, &ct->status))
 		return -ETIME;
@@ -1762,6 +1769,7 @@ ctnetlink_create_conntrack(struct net *net,
 	int err = -EINVAL;
 	struct nf_conntrack_helper *helper;
 	struct nf_conn_tstamp *tstamp;
+	u64 timeout;
 
 	ct = nf_conntrack_alloc(net, zone, otuple, rtuple, GFP_ATOMIC);
 	if (IS_ERR(ct))
@@ -1770,7 +1778,10 @@ ctnetlink_create_conntrack(struct net *net,
 	if (!cda[CTA_TIMEOUT])
 		goto err1;
 
-	ct->timeout = nfct_time_stamp + ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
+	timeout = (u64)ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
+	if (timeout > INT_MAX)
+		timeout = INT_MAX;
+	ct->timeout = (u32)timeout + nfct_time_stamp;
 
 	rcu_read_lock();
  	if (cda[CTA_HELP]) {

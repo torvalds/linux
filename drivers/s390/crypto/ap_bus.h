@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright IBM Corp. 2006, 2012
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -7,20 +8,6 @@
  *	      Holger Dengler <hd@linux.vnet.ibm.com>
  *
  * Adjunct processor bus header file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _AP_BUS_H_
@@ -241,7 +228,7 @@ void ap_flush_queue(struct ap_queue *aq);
 
 void *ap_airq_ptr(void);
 void ap_wait(enum ap_wait wait);
-void ap_request_timeout(unsigned long data);
+void ap_request_timeout(struct timer_list *t);
 void ap_bus_force_rescan(void);
 
 void ap_queue_init_reply(struct ap_queue *aq, struct ap_message *ap_msg);
@@ -250,8 +237,8 @@ void ap_queue_remove(struct ap_queue *aq);
 void ap_queue_suspend(struct ap_device *ap_dev);
 void ap_queue_resume(struct ap_device *ap_dev);
 
-struct ap_card *ap_card_create(int id, int queue_depth, int device_type,
-			       unsigned int device_functions);
+struct ap_card *ap_card_create(int id, int queue_depth, int raw_device_type,
+			       int comp_device_type, unsigned int functions);
 
 int ap_module_init(void);
 void ap_module_exit(void);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* apc - Driver definitions for power management functions
  * of Aurora Personality Chip (APC) on SPARCstation-4/5 and 
  * derivatives

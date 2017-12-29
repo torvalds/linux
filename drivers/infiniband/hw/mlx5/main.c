@@ -715,6 +715,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (mlx5_get_flow_namespace(dev->mdev, MLX5_FLOW_NAMESPACE_BYPASS))
 		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
 
+	if (MLX5_CAP_GEN(mdev, end_pad))
+		props->device_cap_flags |= IB_DEVICE_PCI_WRITE_END_PADDING;
+
 	props->vendor_part_id	   = mdev->pdev->device;
 	props->hw_ver		   = mdev->pdev->revision;
 
@@ -787,6 +790,13 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		props->tm_caps.max_sge = MLX5_TM_MAX_SGE;
 	}
 
+	if (MLX5_CAP_GEN(dev->mdev, cq_moderation)) {
+		props->cq_caps.max_cq_moderation_count =
+						MLX5_MAX_CQ_COUNT;
+		props->cq_caps.max_cq_moderation_period =
+						MLX5_MAX_CQ_PERIOD;
+	}
+
 	if (field_avail(typeof(resp), cqe_comp_caps, uhw->outlen)) {
 		resp.cqe_comp_caps.max_num =
 			MLX5_CAP_GEN(dev->mdev, cqe_compression) ?
@@ -824,8 +834,16 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 			sizeof(resp.mlx5_ib_support_multi_pkt_send_wqes);
 	}
 
-	if (field_avail(typeof(resp), reserved, uhw->outlen))
-		resp.response_length += sizeof(resp.reserved);
+	if (field_avail(typeof(resp), flags, uhw->outlen)) {
+		resp.response_length += sizeof(resp.flags);
+
+		if (MLX5_CAP_GEN(mdev, cqe_compression_128))
+			resp.flags |=
+				MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_COMP;
+
+		if (MLX5_CAP_GEN(mdev, cqe_128_always))
+			resp.flags |= MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_PAD;
+	}
 
 	if (field_avail(typeof(resp), sw_parsing_caps,
 			uhw->outlen)) {
@@ -846,6 +864,36 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 				resp.sw_parsing_caps.supported_qpts =
 					BIT(IB_QPT_RAW_PACKET);
 		}
+	}
+
+	if (field_avail(typeof(resp), striding_rq_caps, uhw->outlen)) {
+		resp.response_length += sizeof(resp.striding_rq_caps);
+		if (MLX5_CAP_GEN(mdev, striding_rq)) {
+			resp.striding_rq_caps.min_single_stride_log_num_of_bytes =
+				MLX5_MIN_SINGLE_STRIDE_LOG_NUM_BYTES;
+			resp.striding_rq_caps.max_single_stride_log_num_of_bytes =
+				MLX5_MAX_SINGLE_STRIDE_LOG_NUM_BYTES;
+			resp.striding_rq_caps.min_single_wqe_log_num_of_strides =
+				MLX5_MIN_SINGLE_WQE_LOG_NUM_STRIDES;
+			resp.striding_rq_caps.max_single_wqe_log_num_of_strides =
+				MLX5_MAX_SINGLE_WQE_LOG_NUM_STRIDES;
+			resp.striding_rq_caps.supported_qpts =
+				BIT(IB_QPT_RAW_PACKET);
+		}
+	}
+
+	if (field_avail(typeof(resp), tunnel_offloads_caps,
+			uhw->outlen)) {
+		resp.response_length += sizeof(resp.tunnel_offloads_caps);
+		if (MLX5_CAP_ETH(mdev, tunnel_stateless_vxlan))
+			resp.tunnel_offloads_caps |=
+				MLX5_IB_TUNNELED_OFFLOADS_VXLAN;
+		if (MLX5_CAP_ETH(mdev, tunnel_stateless_geneve_rx))
+			resp.tunnel_offloads_caps |=
+				MLX5_IB_TUNNELED_OFFLOADS_GENEVE;
+		if (MLX5_CAP_ETH(mdev, tunnel_stateless_gre))
+			resp.tunnel_offloads_caps |=
+				MLX5_IB_TUNNELED_OFFLOADS_GRE;
 	}
 
 	if (uhw->outlen) {
@@ -3097,6 +3145,8 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 	qp->real_qp    = qp;
 	qp->uobject    = NULL;
 	qp->qp_type    = MLX5_IB_QPT_REG_UMR;
+	qp->send_cq    = init_attr->send_cq;
+	qp->recv_cq    = init_attr->recv_cq;
 
 	attr->qp_state = IB_QPS_INIT;
 	attr->port_num = 1;
@@ -3979,7 +4029,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE)	|
 		(1ull << IB_USER_VERBS_EX_CMD_CREATE_CQ)	|
 		(1ull << IB_USER_VERBS_EX_CMD_CREATE_QP)	|
-		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_QP);
+		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_QP)	|
+		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_CQ);
 
 	dev->ib_dev.query_device	= mlx5_ib_query_device;
 	dev->ib_dev.query_port		= mlx5_ib_query_port;

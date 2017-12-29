@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
 

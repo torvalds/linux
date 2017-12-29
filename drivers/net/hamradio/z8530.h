@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /* 8530 Serial Communications Controller Register definitions */
 #define	FLAG	0x7e

@@ -110,7 +110,6 @@ static int ds1803_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info ds1803_info = {
 	.read_raw = ds1803_read_raw,
 	.write_raw = ds1803_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int ds1803_probe(struct i2c_client *client,

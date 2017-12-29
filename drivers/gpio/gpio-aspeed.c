@@ -411,13 +411,16 @@ static int aspeed_gpio_set_type(struct irq_data *d, unsigned int type)
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_BOTH:
 		type2 |= bit;
+		/* fall through */
 	case IRQ_TYPE_EDGE_RISING:
 		type0 |= bit;
+		/* fall through */
 	case IRQ_TYPE_EDGE_FALLING:
 		handler = handle_edge_irq;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		type0 |= bit;
+		/* fall through */
 	case IRQ_TYPE_LEVEL_LOW:
 		type1 |= bit;
 		handler = handle_level_irq;
@@ -466,7 +469,7 @@ static void aspeed_gpio_irq_handler(struct irq_desc *desc)
 		reg = ioread32(bank_irq_reg(data, bank, GPIO_IRQ_STATUS));
 
 		for_each_set_bit(p, &reg, 32) {
-			girq = irq_find_mapping(gc->irqdomain, i * 32 + p);
+			girq = irq_find_mapping(gc->irq.domain, i * 32 + p);
 			generic_handle_irq(girq);
 		}
 
@@ -498,7 +501,7 @@ static void set_irq_valid_mask(struct aspeed_gpio *gpio)
 			if (i >= gpio->config->nr_gpios)
 				break;
 
-			clear_bit(i, gpio->chip.irq_valid_mask);
+			clear_bit(i, gpio->chip.irq.valid_mask);
 		}
 
 		props++;
@@ -536,12 +539,12 @@ static int aspeed_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	if (!have_gpio(gpiochip_get_data(chip), offset))
 		return -ENODEV;
 
-	return pinctrl_request_gpio(chip->base + offset);
+	return pinctrl_gpio_request(chip->base + offset);
 }
 
 static void aspeed_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
-	pinctrl_free_gpio(chip->base + offset);
+	pinctrl_gpio_free(chip->base + offset);
 }
 
 static inline void __iomem *bank_debounce_reg(struct aspeed_gpio *gpio,
@@ -853,7 +856,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
 	gpio->chip.set_config = aspeed_gpio_set_config;
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
-	gpio->chip.irq_need_valid_mask = true;
+	gpio->chip.irq.need_valid_mask = true;
 
 	rc = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (rc < 0)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    SCLP OCF communication parameters sysfs interface
  *

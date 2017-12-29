@@ -237,9 +237,9 @@ static void ad7879_ts_event_release(struct ad7879 *ts)
 	input_sync(input_dev);
 }
 
-static void ad7879_timer(unsigned long handle)
+static void ad7879_timer(struct timer_list *t)
 {
-	struct ad7879 *ts = (void *)handle;
+	struct ad7879 *ts = from_timer(ts, t, timer);
 
 	ad7879_ts_event_release(ts);
 }
@@ -524,13 +524,6 @@ static int ad7879_parse_dt(struct device *dev, struct ad7879 *ts)
 	return 0;
 }
 
-static void ad7879_cleanup_sysfs(void *_ts)
-{
-	struct ad7879 *ts = _ts;
-
-	sysfs_remove_group(&ts->dev->kobj, &ad7879_attr_group);
-}
-
 int ad7879_probe(struct device *dev, struct regmap *regmap,
 		 int irq, u16 bustype, u8 devid)
 {
@@ -577,7 +570,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	ts->irq = irq;
 	ts->regmap = regmap;
 
-	setup_timer(&ts->timer, ad7879_timer, (unsigned long) ts);
+	timer_setup(&ts->timer, ad7879_timer, 0);
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(dev));
 
 	input_dev->name = "AD7879 Touchscreen";
@@ -658,11 +651,7 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 
 	__ad7879_disable(ts);
 
-	err = sysfs_create_group(&dev->kobj, &ad7879_attr_group);
-	if (err)
-		return err;
-
-	err = devm_add_action_or_reset(dev, ad7879_cleanup_sysfs, ts);
+	err = devm_device_add_group(dev, &ad7879_attr_group);
 	if (err)
 		return err;
 

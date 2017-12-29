@@ -52,6 +52,12 @@ struct drm_lock_data {
  * @dev: Link back to the DRM device
  * @lock: DRI1 lock information.
  * @driver_priv: Pointer to driver-private information.
+ * @lessor: Lease holder
+ * @lessee_id: id for lessees. Owners always have id 0
+ * @lessee_list: other lessees of the same master
+ * @lessees: drm_masters leasing from this one
+ * @leases: Objects leased to this drm_master.
+ * @lessee_idr: All lessees under this owner (only used where lessor == NULL)
  *
  * Note that master structures are only relevant for the legacy/primary device
  * nodes, hence there can only be one per device, not one per drm_minor.
@@ -76,10 +82,25 @@ struct drm_master {
 	struct idr magic_map;
 	struct drm_lock_data lock;
 	void *driver_priv;
+
+	/* Tree of display resource leases, each of which is a drm_master struct
+	 * All of these get activated simultaneously, so drm_device master points
+	 * at the top of the tree (for which lessor is NULL). Protected by
+	 * &drm_device.mode_config.idr_mutex.
+	 */
+
+	struct drm_master *lessor;
+	int	lessee_id;
+	struct list_head lessee_list;
+	struct list_head lessees;
+	struct idr leases;
+	struct idr lessee_idr;
 };
 
 struct drm_master *drm_master_get(struct drm_master *master);
 void drm_master_put(struct drm_master **master);
 bool drm_is_current_master(struct drm_file *fpriv);
+
+struct drm_master *drm_master_create(struct drm_device *dev);
 
 #endif

@@ -271,6 +271,7 @@ static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len, int dir)
 		case NEXTHDR_DEST:
 			if (dir == XFRM_POLICY_OUT)
 				ipv6_rearrange_destopt(iph, exthdr.opth);
+			/* fall through */
 		case NEXTHDR_HOP:
 			if (!zero_out_mutable_opts(exthdr.opth)) {
 				net_dbg_ratelimited("overrun %sopts\n",
@@ -443,7 +444,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 		if (err == -EINPROGRESS)
 			goto out;
 
-		if (err == -EBUSY)
+		if (err == -ENOSPC)
 			err = NET_XMIT_DROP;
 		goto out_free;
 	}

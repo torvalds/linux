@@ -108,7 +108,7 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 					   unsigned int data_blocks,
 					   unsigned int *syt)
 {
-	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
+	struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 	unsigned int pcm_frames;
 
 	if (pcm) {
@@ -127,7 +127,7 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 					   unsigned int data_blocks,
 					   unsigned int *syt)
 {
-	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
+	struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 	unsigned int pcm_frames;
 
 	if (pcm) {

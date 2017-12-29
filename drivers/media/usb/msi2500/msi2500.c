@@ -386,7 +386,7 @@ static void msi2500_isoc_handler(struct urb *urb)
 	if (unlikely(urb->status == -ENOENT ||
 		     urb->status == -ECONNRESET ||
 		     urb->status == -ESHUTDOWN)) {
-		dev_dbg(dev->dev, "URB (%p) unlinked %ssynchronuously\n",
+		dev_dbg(dev->dev, "URB (%p) unlinked %ssynchronously\n",
 			urb, urb->status == -ENOENT ? "" : "a");
 		return;
 	}

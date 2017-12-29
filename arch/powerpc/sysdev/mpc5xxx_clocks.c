@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * 	mpc5xxx_get_bus_frequency - Find the bus frequency for a device
  * 	@node:	device node

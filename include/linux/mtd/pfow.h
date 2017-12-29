@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Primary function overlay window definitions
  * and service functions used by LPDDR chips
  */

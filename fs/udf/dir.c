@@ -43,7 +43,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 	struct udf_fileident_bh fibh = { .sbh = NULL, .ebh = NULL};
 	struct fileIdentDesc *fi = NULL;
 	struct fileIdentDesc cfi;
-	int block, iblock;
+	udf_pblk_t block, iblock;
 	loff_t nf_pos;
 	int flen;
 	unsigned char *fname = NULL, *copy_name = NULL;

@@ -27,6 +27,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 
 /* I2C Register */
@@ -132,6 +133,7 @@ struct aspeed_i2c_bus {
 	struct i2c_adapter		adap;
 	struct device			*dev;
 	void __iomem			*base;
+	struct reset_control		*rst;
 	/* Synchronizes I/O mem access to base. */
 	spinlock_t			lock;
 	struct completion		cmd_complete;
@@ -847,6 +849,14 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	/* We just need the clock rate, we don't actually use the clk object. */
 	devm_clk_put(&pdev->dev, parent_clk);
 
+	bus->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
+	if (IS_ERR(bus->rst)) {
+		dev_err(&pdev->dev,
+			"missing or invalid reset controller device tree entry");
+		return PTR_ERR(bus->rst);
+	}
+	reset_control_deassert(bus->rst);
+
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "bus-frequency", &bus->bus_frequency);
 	if (ret < 0) {
@@ -916,6 +926,8 @@ static int aspeed_i2c_remove_bus(struct platform_device *pdev)
 	writel(0, bus->base + ASPEED_I2C_INTR_CTRL_REG);
 
 	spin_unlock_irqrestore(&bus->lock, flags);
+
+	reset_control_assert(bus->rst);
 
 	i2c_del_adapter(&bus->adap);
 

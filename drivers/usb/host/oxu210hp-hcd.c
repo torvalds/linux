@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2008 Rodolfo Giometti <giometti@linux.it>
  * Copyright (c) 2008 Eurotech S.p.A. <info@eurtech.it>
  *
  * This code is *strongly* based on EHCI-HCD code by David Brownell since
  * the chip is a quasi-EHCI compatible.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -2552,9 +2539,9 @@ static irqreturn_t oxu_irq(struct usb_hcd *hcd)
 	return ret;
 }
 
-static void oxu_watchdog(unsigned long param)
+static void oxu_watchdog(struct timer_list *t)
 {
-	struct oxu_hcd	*oxu = (struct oxu_hcd *) param;
+	struct oxu_hcd	*oxu = from_timer(oxu, t, watchdog);
 	unsigned long flags;
 
 	spin_lock_irqsave(&oxu->lock, flags);
@@ -2590,7 +2577,7 @@ static int oxu_hcd_init(struct usb_hcd *hcd)
 
 	spin_lock_init(&oxu->lock);
 
-	setup_timer(&oxu->watchdog, oxu_watchdog, (unsigned long)oxu);
+	timer_setup(&oxu->watchdog, oxu_watchdog, 0);
 
 	/*
 	 * hw default: 1K periodic list heads, one per frame.
@@ -3040,7 +3027,7 @@ idle_timeout:
 			qh_put(qh);
 			break;
 		}
-		/* else FALL THROUGH */
+		/* fall through */
 	default:
 nogood:
 		/* caller was supposed to have unlinked any requests;

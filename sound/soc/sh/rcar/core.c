@@ -121,14 +121,6 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 	}
 }
 
-char *rsnd_mod_name(struct rsnd_mod *mod)
-{
-	if (!mod || !mod->ops)
-		return "unknown";
-
-	return mod->ops->name;
-}
-
 struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
 				  struct rsnd_mod *mod)
 {
@@ -172,8 +164,7 @@ int rsnd_mod_init(struct rsnd_priv *priv,
 
 void rsnd_mod_quit(struct rsnd_mod *mod)
 {
-	if (mod->clk)
-		clk_unprepare(mod->clk);
+	clk_unprepare(mod->clk);
 	mod->clk = NULL;
 }
 
@@ -200,7 +191,10 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 int rsnd_io_is_working(struct rsnd_dai_stream *io)
 {
 	/* see rsnd_dai_stream_init/quit() */
-	return !!io->substream;
+	if (io->substream)
+		return snd_pcm_running(io->substream);
+
+	return 0;
 }
 
 int rsnd_runtime_channel_original(struct rsnd_dai_stream *io)
@@ -407,11 +401,9 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 
 	for (; *iterator < max; (*iterator)++) {
 		type = (array) ? array[*iterator] : *iterator;
-		mod = io->mod[type];
-		if (!mod)
-			continue;
-
-		return mod;
+		mod = rsnd_io_to_mod(io, type);
+		if (mod)
+			return mod;
 	}
 
 	return NULL;
@@ -1241,6 +1233,33 @@ struct rsnd_kctrl_cfg *rsnd_kctrl_init_s(struct rsnd_kctrl_cfg_s *cfg)
 
 	return &cfg->cfg;
 }
+
+const char * const volume_ramp_rate[] = {
+	"128 dB/1 step",	 /* 00000 */
+	"64 dB/1 step",		 /* 00001 */
+	"32 dB/1 step",		 /* 00010 */
+	"16 dB/1 step",		 /* 00011 */
+	"8 dB/1 step",		 /* 00100 */
+	"4 dB/1 step",		 /* 00101 */
+	"2 dB/1 step",		 /* 00110 */
+	"1 dB/1 step",		 /* 00111 */
+	"0.5 dB/1 step",	 /* 01000 */
+	"0.25 dB/1 step",	 /* 01001 */
+	"0.125 dB/1 step",	 /* 01010 = VOLUME_RAMP_MAX_MIX */
+	"0.125 dB/2 steps",	 /* 01011 */
+	"0.125 dB/4 steps",	 /* 01100 */
+	"0.125 dB/8 steps",	 /* 01101 */
+	"0.125 dB/16 steps",	 /* 01110 */
+	"0.125 dB/32 steps",	 /* 01111 */
+	"0.125 dB/64 steps",	 /* 10000 */
+	"0.125 dB/128 steps",	 /* 10001 */
+	"0.125 dB/256 steps",	 /* 10010 */
+	"0.125 dB/512 steps",	 /* 10011 */
+	"0.125 dB/1024 steps",	 /* 10100 */
+	"0.125 dB/2048 steps",	 /* 10101 */
+	"0.125 dB/4096 steps",	 /* 10110 */
+	"0.125 dB/8192 steps",	 /* 10111 = VOLUME_RAMP_MAX_DVC */
+};
 
 int rsnd_kctrl_new(struct rsnd_mod *mod,
 		   struct rsnd_dai_stream *io,

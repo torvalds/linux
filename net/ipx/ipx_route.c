@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Implements the IPX routing routines.
  *	Code moved from af_ipx.c.

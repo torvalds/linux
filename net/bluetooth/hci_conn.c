@@ -729,8 +729,8 @@ static void create_le_conn_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 		goto done;
 	}
 
-	BT_ERR("HCI request failed to create LE connection: status 0x%2.2x",
-	       status);
+	bt_dev_err(hdev, "request failed to create LE connection: "
+		   "status 0x%2.2x", status);
 
 	if (!conn)
 		goto done;
@@ -907,7 +907,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 		 */
 		if (hci_dev_test_flag(hdev, HCI_LE_SCAN) &&
 		    hdev->le_scan_type == LE_SCAN_ACTIVE) {
-			skb_queue_purge(&req.cmd_q);
+			hci_req_purge(&req);
 			hci_conn_del(conn);
 			return ERR_PTR(-EBUSY);
 		}

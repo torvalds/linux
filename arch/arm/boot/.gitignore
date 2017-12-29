@@ -3,4 +3,3 @@ zImage
 xipImage
 bootpImage
 uImage
-*.dtb

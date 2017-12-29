@@ -16,6 +16,6 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts);
 bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		 struct page *page, u8 **data_ptr, unsigned int *len,
 		 u8 *event);
-int bnxt_xdp(struct net_device *dev, struct netdev_xdp *xdp);
+int bnxt_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 
 #endif

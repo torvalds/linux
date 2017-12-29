@@ -10931,9 +10931,9 @@ static void tg3_chk_missed_msi(struct tg3 *tp)
 	}
 }
 
-static void tg3_timer(unsigned long __opaque)
+static void tg3_timer(struct timer_list *t)
 {
-	struct tg3 *tp = (struct tg3 *) __opaque;
+	struct tg3 *tp = from_timer(tp, t, timer);
 
 	spin_lock(&tp->lock);
 
@@ -11087,9 +11087,7 @@ static void tg3_timer_init(struct tg3 *tp)
 	tp->asf_multiplier = (HZ / tp->timer_offset) *
 			     TG3_FW_UPDATE_FREQ_SEC;
 
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long) tp;
-	tp->timer.function = tg3_timer;
+	timer_setup(&tp->timer, tg3_timer, 0);
 }
 
 static void tg3_timer_start(struct tg3 *tp)
@@ -14227,7 +14225,9 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 	/* Reset PHY, otherwise the read DMA engine will be in a mode that
 	 * breaks all requests to 256 bytes.
 	 */
-	if (tg3_asic_rev(tp) == ASIC_REV_57766)
+	if (tg3_asic_rev(tp) == ASIC_REV_57766 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5717 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5719)
 		reset_phy = true;
 
 	err = tg3_restart_hw(tp, reset_phy);

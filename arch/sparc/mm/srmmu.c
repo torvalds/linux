@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * srmmu.c:  SRMMU specific routines for memory management.
  *

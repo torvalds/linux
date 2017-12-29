@@ -103,8 +103,8 @@ static int gpio_reg_to_irq(struct gpio_chip *gc, unsigned offset)
 	struct gpio_reg *r = to_gpio_reg(gc);
 	int irq = r->irqs[offset];
 
-	if (irq >= 0 && r->irqdomain)
-		irq = irq_find_mapping(r->irqdomain, irq);
+	if (irq >= 0 && r->irq.domain)
+		irq = irq_find_mapping(r->irq.domain, irq);
 
 	return irq;
 }

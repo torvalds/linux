@@ -1,5 +1,6 @@
-out := $(obj)/../../include/generated/asm
-uapi := $(obj)/../../include/generated/uapi/asm
+# SPDX-License-Identifier: GPL-2.0
+out := arch/$(SRCARCH)/include/generated/asm
+uapi := arch/$(SRCARCH)/include/generated/uapi/asm
 
 # Create output directory if not already present
 _dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)') \

@@ -1,9 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "microAptiv.dtsi"
 
 / {
 	compatible = "digilent,nexys4ddr";
+
+	aliases {
+		serial0 = &axi_uart16550;
+	};
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
+	};
 
 	memory {
 		device_type = "memory";

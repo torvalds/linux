@@ -198,7 +198,7 @@ void __cw1200_cqm_bssloss_sm(struct cw1200_common *priv,
 
 		priv->bss_loss_state++;
 
-		skb = ieee80211_nullfunc_get(priv->hw, priv->vif);
+		skb = ieee80211_nullfunc_get(priv->hw, priv->vif, false);
 		WARN_ON(!skb);
 		if (skb)
 			cw1200_tx(priv->hw, NULL, skb);
@@ -2112,10 +2112,9 @@ void cw1200_multicast_stop_work(struct work_struct *work)
 	}
 }
 
-void cw1200_mcast_timeout(unsigned long arg)
+void cw1200_mcast_timeout(struct timer_list *t)
 {
-	struct cw1200_common *priv =
-		(struct cw1200_common *)arg;
+	struct cw1200_common *priv = from_timer(priv, t, mcast_timeout);
 
 	wiphy_warn(priv->hw->wiphy,
 		   "Multicast delivery timeout.\n");
@@ -2266,7 +2265,7 @@ static int cw1200_upload_null(struct cw1200_common *priv)
 		.rate = 0xFF,
 	};
 
-	frame.skb = ieee80211_nullfunc_get(priv->hw, priv->vif);
+	frame.skb = ieee80211_nullfunc_get(priv->hw, priv->vif, false);
 	if (!frame.skb)
 		return -ENOMEM;
 

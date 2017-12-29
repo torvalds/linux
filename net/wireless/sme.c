@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SME code for cfg80211
  * both driver SME event handling and the SME implementation
@@ -522,11 +523,6 @@ static int cfg80211_sme_connect(struct wireless_dev *wdev,
 		return -EOPNOTSUPP;
 
 	if (wdev->current_bss) {
-		if (!prev_bssid)
-			return -EALREADY;
-		if (prev_bssid &&
-		    !ether_addr_equal(prev_bssid, wdev->current_bss->pub.bssid))
-			return -ENOTCONN;
 		cfg80211_unhold_bss(wdev->current_bss);
 		cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
 		wdev->current_bss = NULL;
@@ -960,7 +956,6 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 	ev->rm.resp_ie_len = info->resp_ie_len;
 	memcpy((void *)ev->rm.resp_ie, info->resp_ie, info->resp_ie_len);
 	ev->rm.bss = info->bss;
-	ev->rm.authorized = info->authorized;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
@@ -968,6 +963,50 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 	queue_work(cfg80211_wq, &rdev->event_work);
 }
 EXPORT_SYMBOL(cfg80211_roamed);
+
+void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid)
+{
+	ASSERT_WDEV_LOCK(wdev);
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
+		return;
+
+	if (WARN_ON(!wdev->current_bss) ||
+	    WARN_ON(!ether_addr_equal(wdev->current_bss->pub.bssid, bssid)))
+		return;
+
+	nl80211_send_port_authorized(wiphy_to_rdev(wdev->wiphy), wdev->netdev,
+				     bssid);
+}
+
+void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
+			      gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	struct cfg80211_event *ev;
+	unsigned long flags;
+
+	if (WARN_ON(!bssid))
+		return;
+
+	ev = kzalloc(sizeof(*ev), gfp);
+	if (!ev)
+		return;
+
+	ev->type = EVENT_PORT_AUTHORIZED;
+	memcpy(ev->pa.bssid, bssid, ETH_ALEN);
+
+	/*
+	 * Use the wdev event list so that if there are pending
+	 * connected/roamed events, they will be reported first.
+	 */
+	spin_lock_irqsave(&wdev->event_lock, flags);
+	list_add_tail(&ev->list, &wdev->event_list);
+	spin_unlock_irqrestore(&wdev->event_lock, flags);
+	queue_work(cfg80211_wq, &rdev->event_work);
+}
+EXPORT_SYMBOL(cfg80211_port_authorized);
 
 void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 			     size_t ie_len, u16 reason, bool from_ap)
@@ -1063,10 +1102,34 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (WARN_ON(wdev->connect_keys)) {
-		kzfree(wdev->connect_keys);
-		wdev->connect_keys = NULL;
+	/*
+	 * If we have an ssid_len, we're trying to connect or are
+	 * already connected, so reject a new SSID unless it's the
+	 * same (which is the case for re-association.)
+	 */
+	if (wdev->ssid_len &&
+	    (wdev->ssid_len != connect->ssid_len ||
+	     memcmp(wdev->ssid, connect->ssid, wdev->ssid_len)))
+		return -EALREADY;
+
+	/*
+	 * If connected, reject (re-)association unless prev_bssid
+	 * matches the current BSSID.
+	 */
+	if (wdev->current_bss) {
+		if (!prev_bssid)
+			return -EALREADY;
+		if (!ether_addr_equal(prev_bssid, wdev->current_bss->pub.bssid))
+			return -ENOTCONN;
 	}
+
+	/*
+	 * Reject if we're in the process of connecting with WEP,
+	 * this case isn't very interesting and trying to handle
+	 * it would make the code much more complex.
+	 */
+	if (wdev->connect_keys)
+		return -EINPROGRESS;
 
 	cfg80211_oper_and_ht_capa(&connect->ht_capa_mask,
 				  rdev->wiphy.ht_capa_mod_mask);
@@ -1118,7 +1181,12 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 
 	if (err) {
 		wdev->connect_keys = NULL;
-		wdev->ssid_len = 0;
+		/*
+		 * This could be reassoc getting refused, don't clear
+		 * ssid_len in that case.
+		 */
+		if (!wdev->current_bss)
+			wdev->ssid_len = 0;
 		return err;
 	}
 
@@ -1144,6 +1212,14 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 		cfg80211_mlme_down(rdev, dev);
 	else if (wdev->ssid_len)
 		err = rdev_disconnect(rdev, dev, reason);
+
+	/*
+	 * Clear ssid_len unless we actually were fully connected,
+	 * in which case cfg80211_disconnected() will take care of
+	 * this later.
+	 */
+	if (!wdev->current_bss)
+		wdev->ssid_len = 0;
 
 	return err;
 }

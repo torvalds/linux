@@ -31,15 +31,14 @@ more details.
 #ifndef _IA_CSS_RMGR_H
 #define _IA_CSS_RMGR_H
 
-#include "storage_class.h"
 #include <ia_css_err.h>
 
 #ifndef __INLINE_RMGR__
-#define STORAGE_CLASS_RMGR_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_RMGR_H extern
 #define STORAGE_CLASS_RMGR_C
 #else				/* __INLINE_RMGR__ */
-#define STORAGE_CLASS_RMGR_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_RMGR_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_RMGR_H static inline
+#define STORAGE_CLASS_RMGR_C static inline
 #endif				/* __INLINE_RMGR__ */
 
 /**

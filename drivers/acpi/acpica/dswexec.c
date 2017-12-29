@@ -134,7 +134,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 	 * object. Implicitly convert the argument if necessary.
 	 */
 	status = acpi_ex_convert_to_integer(obj_desc, &local_obj_desc,
-					    ACPI_STRTOUL_BASE16);
+					    ACPI_IMPLICIT_CONVERSION);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}

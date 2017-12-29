@@ -248,6 +248,11 @@ int snd_ctl_add_vmaster_hook(struct snd_kcontrol *kctl,
 			     void *private_data);
 void snd_ctl_sync_vmaster(struct snd_kcontrol *kctl, bool hook_only);
 #define snd_ctl_sync_vmaster_hook(kctl)	snd_ctl_sync_vmaster(kctl, true)
+int snd_ctl_apply_vmaster_slaves(struct snd_kcontrol *kctl,
+				 int (*func)(struct snd_kcontrol *vslave,
+					     struct snd_kcontrol *slave,
+					     void *arg),
+				 void *arg);
 
 /*
  * Helper functions for jack-detection controls

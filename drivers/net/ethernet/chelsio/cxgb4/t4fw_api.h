@@ -105,7 +105,8 @@ enum fw_wr_opcodes {
 	FW_ISCSI_TX_DATA_WR	       = 0x45,
 	FW_PTP_TX_PKT_WR               = 0x46,
 	FW_CRYPTO_LOOKASIDE_WR         = 0X6d,
-	FW_LASTC2E_WR                  = 0x70
+	FW_LASTC2E_WR                  = 0x70,
+	FW_FILTER2_WR		       = 0x77
 };
 
 struct fw_wr_hdr {
@@ -199,6 +200,51 @@ struct fw_filter_wr {
 	__be16 fpm;
 	__be16 r7;
 	__u8   sma[6];
+};
+
+struct fw_filter2_wr {
+	__be32 op_pkd;
+	__be32 len16_pkd;
+	__be64 r3;
+	__be32 tid_to_iq;
+	__be32 del_filter_to_l2tix;
+	__be16 ethtype;
+	__be16 ethtypem;
+	__u8   frag_to_ovlan_vldm;
+	__u8   smac_sel;
+	__be16 rx_chan_rx_rpl_iq;
+	__be32 maci_to_matchtypem;
+	__u8   ptcl;
+	__u8   ptclm;
+	__u8   ttyp;
+	__u8   ttypm;
+	__be16 ivlan;
+	__be16 ivlanm;
+	__be16 ovlan;
+	__be16 ovlanm;
+	__u8   lip[16];
+	__u8   lipm[16];
+	__u8   fip[16];
+	__u8   fipm[16];
+	__be16 lp;
+	__be16 lpm;
+	__be16 fp;
+	__be16 fpm;
+	__be16 r7;
+	__u8   sma[6];
+	__be16 r8;
+	__u8   filter_type_swapmac;
+	__u8   natmode_to_ulp_type;
+	__be16 newlport;
+	__be16 newfport;
+	__u8   newlip[16];
+	__u8   newfip[16];
+	__be32 natseqcheck;
+	__be32 r9;
+	__be64 r10;
+	__be64 r11;
+	__be64 r12;
+	__be64 r13;
 };
 
 #define FW_FILTER_WR_TID_S      12
@@ -384,6 +430,32 @@ struct fw_filter_wr {
 #define FW_FILTER_WR_RX_RPL_IQ_V(x)     ((x) << FW_FILTER_WR_RX_RPL_IQ_S)
 #define FW_FILTER_WR_RX_RPL_IQ_G(x)     \
 	(((x) >> FW_FILTER_WR_RX_RPL_IQ_S) & FW_FILTER_WR_RX_RPL_IQ_M)
+
+#define FW_FILTER2_WR_FILTER_TYPE_S	1
+#define FW_FILTER2_WR_FILTER_TYPE_M	0x1
+#define FW_FILTER2_WR_FILTER_TYPE_V(x)	((x) << FW_FILTER2_WR_FILTER_TYPE_S)
+#define FW_FILTER2_WR_FILTER_TYPE_G(x)  \
+	(((x) >> FW_FILTER2_WR_FILTER_TYPE_S) & FW_FILTER2_WR_FILTER_TYPE_M)
+#define FW_FILTER2_WR_FILTER_TYPE_F	FW_FILTER2_WR_FILTER_TYPE_V(1U)
+
+#define FW_FILTER2_WR_NATMODE_S		5
+#define FW_FILTER2_WR_NATMODE_M		0x7
+#define FW_FILTER2_WR_NATMODE_V(x)	((x) << FW_FILTER2_WR_NATMODE_S)
+#define FW_FILTER2_WR_NATMODE_G(x)      \
+	(((x) >> FW_FILTER2_WR_NATMODE_S) & FW_FILTER2_WR_NATMODE_M)
+
+#define FW_FILTER2_WR_NATFLAGCHECK_S	4
+#define FW_FILTER2_WR_NATFLAGCHECK_M	0x1
+#define FW_FILTER2_WR_NATFLAGCHECK_V(x)	((x) << FW_FILTER2_WR_NATFLAGCHECK_S)
+#define FW_FILTER2_WR_NATFLAGCHECK_G(x) \
+	(((x) >> FW_FILTER2_WR_NATFLAGCHECK_S) & FW_FILTER2_WR_NATFLAGCHECK_M)
+#define FW_FILTER2_WR_NATFLAGCHECK_F	FW_FILTER2_WR_NATFLAGCHECK_V(1U)
+
+#define FW_FILTER2_WR_ULP_TYPE_S	0
+#define FW_FILTER2_WR_ULP_TYPE_M	0xf
+#define FW_FILTER2_WR_ULP_TYPE_V(x)	((x) << FW_FILTER2_WR_ULP_TYPE_S)
+#define FW_FILTER2_WR_ULP_TYPE_G(x)     \
+	(((x) >> FW_FILTER2_WR_ULP_TYPE_S) & FW_FILTER2_WR_ULP_TYPE_M)
 
 #define FW_FILTER_WR_MACI_S     23
 #define FW_FILTER_WR_MACI_M     0x1ff
@@ -1020,6 +1092,7 @@ enum fw_caps_config_switch {
 enum fw_caps_config_nic {
 	FW_CAPS_CONFIG_NIC		= 0x00000001,
 	FW_CAPS_CONFIG_NIC_VM		= 0x00000002,
+	FW_CAPS_CONFIG_NIC_HASHFILTER	= 0x00000020,
 };
 
 enum fw_caps_config_ofld {
@@ -1127,6 +1200,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_SCFGREV = 0x1A,
 	FW_PARAMS_PARAM_DEV_VPDREV = 0x1B,
 	FW_PARAMS_PARAM_DEV_RI_FR_NSMR_TPTE_WR	= 0x1C,
+	FW_PARAMS_PARAM_DEV_FILTER2_WR  = 0x1D,
 	FW_PARAMS_PARAM_DEV_MPSBGMAP	= 0x1E,
 };
 
@@ -1171,9 +1245,12 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_EQ_END	= 0x2C,
 	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_START = 0x2D,
 	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_END = 0x2E,
+	FW_PARAMS_PARAM_PFVF_ETHOFLD_START = 0x2F,
 	FW_PARAMS_PARAM_PFVF_ETHOFLD_END = 0x30,
 	FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP = 0x31,
-	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x32,
+	FW_PARAMS_PARAM_PFVF_HPFILTER_START = 0x32,
+	FW_PARAMS_PARAM_PFVF_HPFILTER_END = 0x33,
+	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x39,
 	FW_PARAMS_PARAM_PFVF_PORT_CAPS32 = 0x3A,
 };
 

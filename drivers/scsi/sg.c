@@ -217,7 +217,7 @@ static int sg_allow_access(struct file *filp, unsigned char *cmd)
 	if (sfp->parentdp->device->type == TYPE_SCANNER)
 		return 0;
 
-	return blk_verify_command(cmd, filp->f_mode & FMODE_WRITE);
+	return blk_verify_command(cmd, filp->f_mode);
 }
 
 static int
@@ -837,7 +837,7 @@ sg_fill_request_table(Sg_fd *sfp, sg_req_info_t *rinfo)
 
 	val = 0;
 	list_for_each_entry(srp, &sfp->rq_list, entry) {
-		if (val > SG_MAX_QUEUE)
+		if (val >= SG_MAX_QUEUE)
 			break;
 		rinfo[val].req_state = srp->done + 1;
 		rinfo[val].problem =

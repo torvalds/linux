@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SCSI_SCSI_DEVICE_H
 #define _SCSI_SCSI_DEVICE_H
 
@@ -13,6 +14,8 @@ struct request_queue;
 struct scsi_cmnd;
 struct scsi_lun;
 struct scsi_sense_hdr;
+
+typedef unsigned int __bitwise blist_flags_t;
 
 struct scsi_mode_data {
 	__u32	length;
@@ -64,9 +67,10 @@ enum scsi_device_event {
 	SDEV_EVT_MODE_PARAMETER_CHANGE_REPORTED,	/* 2A 01  UA reported */
 	SDEV_EVT_LUN_CHANGE_REPORTED,			/* 3F 0E  UA reported */
 	SDEV_EVT_ALUA_STATE_CHANGE_REPORTED,		/* 2A 06  UA reported */
+	SDEV_EVT_POWER_ON_RESET_OCCURRED,		/* 29 00  UA reported */
 
 	SDEV_EVT_FIRST		= SDEV_EVT_MEDIA_CHANGE,
-	SDEV_EVT_LAST		= SDEV_EVT_ALUA_STATE_CHANGE_REPORTED,
+	SDEV_EVT_LAST		= SDEV_EVT_POWER_ON_RESET_OCCURRED,
 
 	SDEV_EVT_MAXBITS	= SDEV_EVT_LAST + 1
 };
@@ -139,7 +143,7 @@ struct scsi_device {
 	unsigned char current_tag;	/* current tag */
 	struct scsi_target      *sdev_target;   /* used only for single_lun */
 
-	unsigned int	sdev_bflags; /* black/white flags as also found in
+	blist_flags_t		sdev_bflags; /* black/white flags as also found in
 				 * scsi_devinfo.[hc]. For now used only to
 				 * pass settings from slave_alloc to scsi
 				 * core. */
@@ -220,6 +224,7 @@ struct scsi_device {
 	unsigned char		access_state;
 	struct mutex		state_mutex;
 	enum scsi_device_state sdev_state;
+	struct task_struct	*quiesced_by;
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
 

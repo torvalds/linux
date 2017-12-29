@@ -1,0 +1,42 @@
+* HiDeep Finger and Stylus touchscreen controller
+
+Required properties:
+- compatible		: must be "hideep,hideep-ts"
+- reg			: I2C slave address, (e.g. 0x6C).
+- interrupt-parent : Interrupt controller to which the chip is connected.
+- interrupts : Interrupt to which the chip is connected.
+
+Optional properties:
+- vdd-supply	: It is the controller supply for controlling
+					 main voltage(3.3V) through the regulator.
+- vid-supply	: It is the controller supply for controlling
+					IO voltage(1.8V) through the regulator.
+- reset-gpios	: Define for reset gpio pin.
+						It is to use for reset IC.
+- touchscreen-size-x	: X axis size of touchscreen
+- touchscreen-size-y	: Y axis size of touchscreen
+- linux,keycodes	: Specifies an array of numeric keycode values to
+			be used for reporting button presses. The array can
+			contain up to 3 entries.
+
+Example:
+
+#include "dt-bindings/input/input.h"
+
+i2c@00000000 {
+
+	/* ... */
+
+	touchscreen@6c {
+		compatible = "hideep,hideep-ts";
+		reg = <0x6c>;
+		interrupt-parent = <&gpx1>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		vdd-supply = <&ldo15_reg>";
+		vid-supply = <&ldo18_reg>;
+		reset-gpios = <&gpx1 5 0>;
+		touchscreen-size-x = <1080>;
+		touchscreen-size-y = <1920>;
+		linux,keycodes = <KEY_HOME>, <KEY_MENU>, <KEY_BACK>;
+	};
+};

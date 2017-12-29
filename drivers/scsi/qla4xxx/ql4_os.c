@@ -3955,16 +3955,15 @@ exit_session_conn_param:
 /*
  * Timer routines
  */
+static void qla4xxx_timer(struct timer_list *t);
 
-static void qla4xxx_start_timer(struct scsi_qla_host *ha, void *func,
+static void qla4xxx_start_timer(struct scsi_qla_host *ha,
 				unsigned long interval)
 {
 	DEBUG(printk("scsi: %s: Starting timer thread for adapter %d\n",
 		     __func__, ha->host->host_no));
-	init_timer(&ha->timer);
+	timer_setup(&ha->timer, qla4xxx_timer, 0);
 	ha->timer.expires = jiffies + interval * HZ;
-	ha->timer.data = (unsigned long)ha;
-	ha->timer.function = (void (*)(unsigned long))func;
 	add_timer(&ha->timer);
 	ha->timer_active = 1;
 }
@@ -4508,8 +4507,9 @@ static void qla4xxx_check_relogin_flash_ddb(struct iscsi_cls_session *cls_sess)
  * qla4xxx_timer - checks every second for work to do.
  * @ha: Pointer to host adapter structure.
  **/
-static void qla4xxx_timer(struct scsi_qla_host *ha)
+static void qla4xxx_timer(struct timer_list *t)
 {
+	struct scsi_qla_host *ha = from_timer(ha, t, timer);
 	int start_dpc = 0;
 	uint16_t w;
 
@@ -8805,7 +8805,7 @@ skip_retry_init:
 	ha->isp_ops->enable_intrs(ha);
 
 	/* Start timer thread. */
-	qla4xxx_start_timer(ha, qla4xxx_timer, 1);
+	qla4xxx_start_timer(ha, 1);
 
 	set_bit(AF_INIT_DONE, &ha->flags);
 

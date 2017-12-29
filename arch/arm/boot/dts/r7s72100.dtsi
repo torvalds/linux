@@ -203,6 +203,7 @@
 			compatible = "arm,cortex-a9";
 			reg = <0>;
 			clock-frequency = <400000000>;
+			clocks = <&cpg_clocks R7S72100_CLK_I>;
 			next-level-cache = <&L2>;
 		};
 	};

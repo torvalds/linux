@@ -73,7 +73,7 @@ static void request_key_auth_describe(const struct key *key,
 
 	seq_puts(m, "key:");
 	seq_puts(m, key->description);
-	if (key_is_instantiated(key))
+	if (key_is_positive(key))
 		seq_printf(m, " pid:%d ci:%zu", rka->pid, rka->callout_len);
 }
 

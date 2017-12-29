@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Percpu refcounts:
  * (C) 2012 Google, Inc.

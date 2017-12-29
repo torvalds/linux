@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "hfa384x_usb.c"
 #include "prism2mgmt.c"
 #include "prism2mib.c"

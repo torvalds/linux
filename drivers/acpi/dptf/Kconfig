@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config DPTF_POWER
 	tristate "DPTF Platform Power Participant"
 	depends on X86

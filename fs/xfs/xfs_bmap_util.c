@@ -84,6 +84,7 @@ xfs_zero_extent(
 		GFP_NOFS, 0);
 }
 
+#ifdef CONFIG_XFS_RT
 int
 xfs_bmap_rtalloc(
 	struct xfs_bmalloca	*ap)	/* bmap alloc argument struct */
@@ -190,6 +191,7 @@ xfs_bmap_rtalloc(
 	}
 	return 0;
 }
+#endif /* CONFIG_XFS_RT */
 
 /*
  * Check if the endoff is outside the last extent. If so the caller will grow
@@ -227,15 +229,17 @@ xfs_bmap_count_leaves(
 	struct xfs_ifork	*ifp,
 	xfs_filblks_t		*count)
 {
+	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_irec	got;
-	xfs_extnum_t		numrecs = 0, i = 0;
+	xfs_extnum_t		numrecs = 0;
 
-	while (xfs_iext_get_extent(ifp, i++, &got)) {
+	for_each_xfs_iext(ifp, &icur, &got) {
 		if (!isnullstartblock(got.br_startblock)) {
 			*count += got.br_blockcount;
 			numrecs++;
 		}
 	}
+
 	return numrecs;
 }
 
@@ -403,125 +407,103 @@ xfs_bmap_count_blocks(
 	return 0;
 }
 
-/*
- * returns 1 for success, 0 if we failed to map the extent.
- */
-STATIC int
-xfs_getbmapx_fix_eof_hole(
-	xfs_inode_t		*ip,		/* xfs incore inode pointer */
-	int			whichfork,
-	struct getbmapx		*out,		/* output structure */
-	int			prealloced,	/* this is a file with
-						 * preallocated data space */
-	int64_t			end,		/* last block requested */
-	xfs_fsblock_t		startblock,
-	bool			moretocome)
+static int
+xfs_getbmap_report_one(
+	struct xfs_inode	*ip,
+	struct getbmapx		*bmv,
+	struct kgetbmap		*out,
+	int64_t			bmv_end,
+	struct xfs_bmbt_irec	*got)
 {
-	int64_t			fixlen;
-	xfs_mount_t		*mp;		/* file system mount point */
-	xfs_ifork_t		*ifp;		/* inode fork pointer */
-	xfs_extnum_t		lastx;		/* last extent pointer */
-	xfs_fileoff_t		fileblock;
+	struct kgetbmap		*p = out + bmv->bmv_entries;
+	bool			shared = false, trimmed = false;
+	int			error;
 
-	if (startblock == HOLESTARTBLOCK) {
-		mp = ip->i_mount;
-		out->bmv_block = -1;
-		fixlen = XFS_FSB_TO_BB(mp, XFS_B_TO_FSB(mp, XFS_ISIZE(ip)));
-		fixlen -= out->bmv_offset;
-		if (prealloced && out->bmv_offset + out->bmv_length == end) {
-			/* Came to hole at EOF. Trim it. */
-			if (fixlen <= 0)
-				return 0;
-			out->bmv_length = fixlen;
-		}
-	} else {
-		if (startblock == DELAYSTARTBLOCK)
-			out->bmv_block = -2;
-		else
-			out->bmv_block = xfs_fsb_to_db(ip, startblock);
-		fileblock = XFS_BB_TO_FSB(ip->i_mount, out->bmv_offset);
-		ifp = XFS_IFORK_PTR(ip, whichfork);
-		if (!moretocome &&
-		    xfs_iext_bno_to_ext(ifp, fileblock, &lastx) &&
-		   (lastx == xfs_iext_count(ifp) - 1))
-			out->bmv_oflags |= BMV_OF_LAST;
-	}
-
-	return 1;
-}
-
-/* Adjust the reported bmap around shared/unshared extent transitions. */
-STATIC int
-xfs_getbmap_adjust_shared(
-	struct xfs_inode		*ip,
-	int				whichfork,
-	struct xfs_bmbt_irec		*map,
-	struct getbmapx			*out,
-	struct xfs_bmbt_irec		*next_map)
-{
-	struct xfs_mount		*mp = ip->i_mount;
-	xfs_agnumber_t			agno;
-	xfs_agblock_t			agbno;
-	xfs_agblock_t			ebno;
-	xfs_extlen_t			elen;
-	xfs_extlen_t			nlen;
-	int				error;
-
-	next_map->br_startblock = NULLFSBLOCK;
-	next_map->br_startoff = NULLFILEOFF;
-	next_map->br_blockcount = 0;
-
-	/* Only written data blocks can be shared. */
-	if (!xfs_is_reflink_inode(ip) ||
-	    whichfork != XFS_DATA_FORK ||
-	    !xfs_bmap_is_real_extent(map))
-		return 0;
-
-	agno = XFS_FSB_TO_AGNO(mp, map->br_startblock);
-	agbno = XFS_FSB_TO_AGBNO(mp, map->br_startblock);
-	error = xfs_reflink_find_shared(mp, NULL, agno, agbno,
-			map->br_blockcount, &ebno, &elen, true);
+	error = xfs_reflink_trim_around_shared(ip, got, &shared, &trimmed);
 	if (error)
 		return error;
 
-	if (ebno == NULLAGBLOCK) {
-		/* No shared blocks at all. */
-		return 0;
-	} else if (agbno == ebno) {
+	if (isnullstartblock(got->br_startblock) ||
+	    got->br_startblock == DELAYSTARTBLOCK) {
 		/*
-		 * Shared extent at (agbno, elen).  Shrink the reported
-		 * extent length and prepare to move the start of map[i]
-		 * to agbno+elen, with the aim of (re)formatting the new
-		 * map[i] the next time through the inner loop.
+		 * Delalloc extents that start beyond EOF can occur due to
+		 * speculative EOF allocation when the delalloc extent is larger
+		 * than the largest freespace extent at conversion time.  These
+		 * extents cannot be converted by data writeback, so can exist
+		 * here even if we are not supposed to be finding delalloc
+		 * extents.
 		 */
-		out->bmv_length = XFS_FSB_TO_BB(mp, elen);
-		out->bmv_oflags |= BMV_OF_SHARED;
-		if (elen != map->br_blockcount) {
-			*next_map = *map;
-			next_map->br_startblock += elen;
-			next_map->br_startoff += elen;
-			next_map->br_blockcount -= elen;
-		}
-		map->br_blockcount -= elen;
+		if (got->br_startoff < XFS_B_TO_FSB(ip->i_mount, XFS_ISIZE(ip)))
+			ASSERT((bmv->bmv_iflags & BMV_IF_DELALLOC) != 0);
+
+		p->bmv_oflags |= BMV_OF_DELALLOC;
+		p->bmv_block = -2;
 	} else {
-		/*
-		 * There's an unshared extent (agbno, ebno - agbno)
-		 * followed by shared extent at (ebno, elen).  Shrink
-		 * the reported extent length to cover only the unshared
-		 * extent and prepare to move up the start of map[i] to
-		 * ebno, with the aim of (re)formatting the new map[i]
-		 * the next time through the inner loop.
-		 */
-		*next_map = *map;
-		nlen = ebno - agbno;
-		out->bmv_length = XFS_FSB_TO_BB(mp, nlen);
-		next_map->br_startblock += nlen;
-		next_map->br_startoff += nlen;
-		next_map->br_blockcount -= nlen;
-		map->br_blockcount -= nlen;
+		p->bmv_block = xfs_fsb_to_db(ip, got->br_startblock);
 	}
 
+	if (got->br_state == XFS_EXT_UNWRITTEN &&
+	    (bmv->bmv_iflags & BMV_IF_PREALLOC))
+		p->bmv_oflags |= BMV_OF_PREALLOC;
+
+	if (shared)
+		p->bmv_oflags |= BMV_OF_SHARED;
+
+	p->bmv_offset = XFS_FSB_TO_BB(ip->i_mount, got->br_startoff);
+	p->bmv_length = XFS_FSB_TO_BB(ip->i_mount, got->br_blockcount);
+
+	bmv->bmv_offset = p->bmv_offset + p->bmv_length;
+	bmv->bmv_length = max(0LL, bmv_end - bmv->bmv_offset);
+	bmv->bmv_entries++;
 	return 0;
+}
+
+static void
+xfs_getbmap_report_hole(
+	struct xfs_inode	*ip,
+	struct getbmapx		*bmv,
+	struct kgetbmap		*out,
+	int64_t			bmv_end,
+	xfs_fileoff_t		bno,
+	xfs_fileoff_t		end)
+{
+	struct kgetbmap		*p = out + bmv->bmv_entries;
+
+	if (bmv->bmv_iflags & BMV_IF_NO_HOLES)
+		return;
+
+	p->bmv_block = -1;
+	p->bmv_offset = XFS_FSB_TO_BB(ip->i_mount, bno);
+	p->bmv_length = XFS_FSB_TO_BB(ip->i_mount, end - bno);
+
+	bmv->bmv_offset = p->bmv_offset + p->bmv_length;
+	bmv->bmv_length = max(0LL, bmv_end - bmv->bmv_offset);
+	bmv->bmv_entries++;
+}
+
+static inline bool
+xfs_getbmap_full(
+	struct getbmapx		*bmv)
+{
+	return bmv->bmv_length == 0 || bmv->bmv_entries >= bmv->bmv_count - 1;
+}
+
+static bool
+xfs_getbmap_next_rec(
+	struct xfs_bmbt_irec	*rec,
+	xfs_fileoff_t		total_end)
+{
+	xfs_fileoff_t		end = rec->br_startoff + rec->br_blockcount;
+
+	if (end == total_end)
+		return false;
+
+	rec->br_startoff += rec->br_blockcount;
+	if (!isnullstartblock(rec->br_startblock) &&
+	    rec->br_startblock != DELAYSTARTBLOCK)
+		rec->br_startblock += rec->br_blockcount;
+	rec->br_blockcount = total_end - end;
+	return true;
 }
 
 /*
@@ -533,33 +515,22 @@ xfs_getbmap_adjust_shared(
  */
 int						/* error code */
 xfs_getbmap(
-	xfs_inode_t		*ip,
+	struct xfs_inode	*ip,
 	struct getbmapx		*bmv,		/* user bmap structure */
-	xfs_bmap_format_t	formatter,	/* format to user */
-	void			*arg)		/* formatter arg */
+	struct kgetbmap		*out)
 {
-	int64_t			bmvend;		/* last block requested */
-	int			error = 0;	/* return value */
-	int64_t			fixlen;		/* length for -1 case */
-	int			i;		/* extent number */
-	int			lock;		/* lock state */
-	xfs_bmbt_irec_t		*map;		/* buffer for user's data */
-	xfs_mount_t		*mp;		/* file system mount point */
-	int			nex;		/* # of user extents can do */
-	int			subnex;		/* # of bmapi's can do */
-	int			nmap;		/* number of map entries */
-	struct getbmapx		*out;		/* output structure */
-	int			whichfork;	/* data or attr fork */
-	int			prealloced;	/* this is a file with
-						 * preallocated data space */
-	int			iflags;		/* interface flags */
-	int			bmapi_flags;	/* flags for xfs_bmapi */
-	int			cur_ext = 0;
-	struct xfs_bmbt_irec	inject_map;
+	struct xfs_mount	*mp = ip->i_mount;
+	int			iflags = bmv->bmv_iflags;
+	int			whichfork, lock, error = 0;
+	int64_t			bmv_end, max_len;
+	xfs_fileoff_t		bno, first_bno;
+	struct xfs_ifork	*ifp;
+	struct xfs_bmbt_irec	got, rec;
+	xfs_filblks_t		len;
+	struct xfs_iext_cursor	icur;
 
-	mp = ip->i_mount;
-	iflags = bmv->bmv_iflags;
-
+	if (bmv->bmv_iflags & ~BMV_IF_VALID)
+		return -EINVAL;
 #ifndef DEBUG
 	/* Only allow CoW fork queries if we're debugging. */
 	if (iflags & BMV_IF_COWFORK)
@@ -568,89 +539,42 @@ xfs_getbmap(
 	if ((iflags & BMV_IF_ATTRFORK) && (iflags & BMV_IF_COWFORK))
 		return -EINVAL;
 
+	if (bmv->bmv_length < -1)
+		return -EINVAL;
+	bmv->bmv_entries = 0;
+	if (bmv->bmv_length == 0)
+		return 0;
+
 	if (iflags & BMV_IF_ATTRFORK)
 		whichfork = XFS_ATTR_FORK;
 	else if (iflags & BMV_IF_COWFORK)
 		whichfork = XFS_COW_FORK;
 	else
 		whichfork = XFS_DATA_FORK;
-
-	switch (whichfork) {
-	case XFS_ATTR_FORK:
-		if (XFS_IFORK_Q(ip)) {
-			if (ip->i_d.di_aformat != XFS_DINODE_FMT_EXTENTS &&
-			    ip->i_d.di_aformat != XFS_DINODE_FMT_BTREE &&
-			    ip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL)
-				return -EINVAL;
-		} else if (unlikely(
-			   ip->i_d.di_aformat != 0 &&
-			   ip->i_d.di_aformat != XFS_DINODE_FMT_EXTENTS)) {
-			XFS_ERROR_REPORT("xfs_getbmap", XFS_ERRLEVEL_LOW,
-					 ip->i_mount);
-			return -EFSCORRUPTED;
-		}
-
-		prealloced = 0;
-		fixlen = 1LL << 32;
-		break;
-	case XFS_COW_FORK:
-		if (ip->i_cformat != XFS_DINODE_FMT_EXTENTS)
-			return -EINVAL;
-
-		if (xfs_get_cowextsz_hint(ip)) {
-			prealloced = 1;
-			fixlen = mp->m_super->s_maxbytes;
-		} else {
-			prealloced = 0;
-			fixlen = XFS_ISIZE(ip);
-		}
-		break;
-	default:
-		/* Local format data forks report no extents. */
-		if (ip->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
-			bmv->bmv_entries = 0;
-			return 0;
-		}
-		if (ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS &&
-		    ip->i_d.di_format != XFS_DINODE_FMT_BTREE)
-			return -EINVAL;
-
-		if (xfs_get_extsz_hint(ip) ||
-		    ip->i_d.di_flags & (XFS_DIFLAG_PREALLOC|XFS_DIFLAG_APPEND)){
-			prealloced = 1;
-			fixlen = mp->m_super->s_maxbytes;
-		} else {
-			prealloced = 0;
-			fixlen = XFS_ISIZE(ip);
-		}
-		break;
-	}
-
-	if (bmv->bmv_length == -1) {
-		fixlen = XFS_FSB_TO_BB(mp, XFS_B_TO_FSB(mp, fixlen));
-		bmv->bmv_length =
-			max_t(int64_t, fixlen - bmv->bmv_offset, 0);
-	} else if (bmv->bmv_length == 0) {
-		bmv->bmv_entries = 0;
-		return 0;
-	} else if (bmv->bmv_length < 0) {
-		return -EINVAL;
-	}
-
-	nex = bmv->bmv_count - 1;
-	if (nex <= 0)
-		return -EINVAL;
-	bmvend = bmv->bmv_offset + bmv->bmv_length;
-
-
-	if (bmv->bmv_count > ULONG_MAX / sizeof(struct getbmapx))
-		return -ENOMEM;
-	out = kmem_zalloc_large(bmv->bmv_count * sizeof(struct getbmapx), 0);
-	if (!out)
-		return -ENOMEM;
+	ifp = XFS_IFORK_PTR(ip, whichfork);
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	switch (whichfork) {
+	case XFS_ATTR_FORK:
+		if (!XFS_IFORK_Q(ip))
+			goto out_unlock_iolock;
+
+		max_len = 1LL << 32;
+		lock = xfs_ilock_attr_map_shared(ip);
+		break;
+	case XFS_COW_FORK:
+		/* No CoW fork? Just return */
+		if (!ifp)
+			goto out_unlock_iolock;
+
+		if (xfs_get_cowextsz_hint(ip))
+			max_len = mp->m_super->s_maxbytes;
+		else
+			max_len = XFS_ISIZE(ip);
+
+		lock = XFS_ILOCK_SHARED;
+		xfs_ilock(ip, lock);
+		break;
 	case XFS_DATA_FORK:
 		if (!(iflags & BMV_IF_DELALLOC) &&
 		    (ip->i_delayed_blks || XFS_ISIZE(ip) > ip->i_d.di_size)) {
@@ -668,154 +592,105 @@ xfs_getbmap(
 			 */
 		}
 
+		if (xfs_get_extsz_hint(ip) ||
+		    (ip->i_d.di_flags &
+		     (XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)))
+			max_len = mp->m_super->s_maxbytes;
+		else
+			max_len = XFS_ISIZE(ip);
+
 		lock = xfs_ilock_data_map_shared(ip);
 		break;
-	case XFS_COW_FORK:
-		lock = XFS_ILOCK_SHARED;
-		xfs_ilock(ip, lock);
-		break;
-	case XFS_ATTR_FORK:
-		lock = xfs_ilock_attr_map_shared(ip);
-		break;
 	}
 
-	/*
-	 * Don't let nex be bigger than the number of extents
-	 * we can have assuming alternating holes and real extents.
-	 */
-	if (nex > XFS_IFORK_NEXTENTS(ip, whichfork) * 2 + 1)
-		nex = XFS_IFORK_NEXTENTS(ip, whichfork) * 2 + 1;
-
-	bmapi_flags = xfs_bmapi_aflag(whichfork);
-	if (!(iflags & BMV_IF_PREALLOC))
-		bmapi_flags |= XFS_BMAPI_IGSTATE;
-
-	/*
-	 * Allocate enough space to handle "subnex" maps at a time.
-	 */
-	error = -ENOMEM;
-	subnex = 16;
-	map = kmem_alloc(subnex * sizeof(*map), KM_MAYFAIL | KM_NOFS);
-	if (!map)
+	switch (XFS_IFORK_FORMAT(ip, whichfork)) {
+	case XFS_DINODE_FMT_EXTENTS:
+	case XFS_DINODE_FMT_BTREE:
+		break;
+	case XFS_DINODE_FMT_LOCAL:
+		/* Local format inode forks report no extents. */
 		goto out_unlock_ilock;
-
-	bmv->bmv_entries = 0;
-
-	if (XFS_IFORK_NEXTENTS(ip, whichfork) == 0 &&
-	    (whichfork == XFS_ATTR_FORK || !(iflags & BMV_IF_DELALLOC))) {
-		error = 0;
-		goto out_free_map;
+	default:
+		error = -EINVAL;
+		goto out_unlock_ilock;
 	}
 
-	do {
-		nmap = (nex> subnex) ? subnex : nex;
-		error = xfs_bmapi_read(ip, XFS_BB_TO_FSBT(mp, bmv->bmv_offset),
-				       XFS_BB_TO_FSB(mp, bmv->bmv_length),
-				       map, &nmap, bmapi_flags);
+	if (bmv->bmv_length == -1) {
+		max_len = XFS_FSB_TO_BB(mp, XFS_B_TO_FSB(mp, max_len));
+		bmv->bmv_length = max(0LL, max_len - bmv->bmv_offset);
+	}
+
+	bmv_end = bmv->bmv_offset + bmv->bmv_length;
+
+	first_bno = bno = XFS_BB_TO_FSBT(mp, bmv->bmv_offset);
+	len = XFS_BB_TO_FSB(mp, bmv->bmv_length);
+
+	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
+		error = xfs_iread_extents(NULL, ip, whichfork);
 		if (error)
-			goto out_free_map;
-		ASSERT(nmap <= subnex);
+			goto out_unlock_ilock;
+	}
 
-		for (i = 0; i < nmap && bmv->bmv_length &&
-				cur_ext < bmv->bmv_count - 1; i++) {
-			out[cur_ext].bmv_oflags = 0;
-			if (map[i].br_state == XFS_EXT_UNWRITTEN)
-				out[cur_ext].bmv_oflags |= BMV_OF_PREALLOC;
-			else if (map[i].br_startblock == DELAYSTARTBLOCK)
-				out[cur_ext].bmv_oflags |= BMV_OF_DELALLOC;
-			out[cur_ext].bmv_offset =
-				XFS_FSB_TO_BB(mp, map[i].br_startoff);
-			out[cur_ext].bmv_length =
-				XFS_FSB_TO_BB(mp, map[i].br_blockcount);
-			out[cur_ext].bmv_unused1 = 0;
-			out[cur_ext].bmv_unused2 = 0;
+	if (!xfs_iext_lookup_extent(ip, ifp, bno, &icur, &got)) {
+		/*
+		 * Report a whole-file hole if the delalloc flag is set to
+		 * stay compatible with the old implementation.
+		 */
+		if (iflags & BMV_IF_DELALLOC)
+			xfs_getbmap_report_hole(ip, bmv, out, bmv_end, bno,
+					XFS_B_TO_FSB(mp, XFS_ISIZE(ip)));
+		goto out_unlock_ilock;
+	}
 
-			/*
-			 * delayed allocation extents that start beyond EOF can
-			 * occur due to speculative EOF allocation when the
-			 * delalloc extent is larger than the largest freespace
-			 * extent at conversion time. These extents cannot be
-			 * converted by data writeback, so can exist here even
-			 * if we are not supposed to be finding delalloc
-			 * extents.
-			 */
-			if (map[i].br_startblock == DELAYSTARTBLOCK &&
-			    map[i].br_startoff < XFS_B_TO_FSB(mp, XFS_ISIZE(ip)))
-				ASSERT((iflags & BMV_IF_DELALLOC) != 0);
+	while (!xfs_getbmap_full(bmv)) {
+		xfs_trim_extent(&got, first_bno, len);
 
-                        if (map[i].br_startblock == HOLESTARTBLOCK &&
-			    whichfork == XFS_ATTR_FORK) {
-				/* came to the end of attribute fork */
-				out[cur_ext].bmv_oflags |= BMV_OF_LAST;
-				goto out_free_map;
-			}
-
-			/* Is this a shared block? */
-			error = xfs_getbmap_adjust_shared(ip, whichfork,
-					&map[i], &out[cur_ext], &inject_map);
-			if (error)
-				goto out_free_map;
-
-			if (!xfs_getbmapx_fix_eof_hole(ip, whichfork,
-					&out[cur_ext], prealloced, bmvend,
-					map[i].br_startblock,
-					inject_map.br_startblock != NULLFSBLOCK))
-				goto out_free_map;
-
-			bmv->bmv_offset =
-				out[cur_ext].bmv_offset +
-				out[cur_ext].bmv_length;
-			bmv->bmv_length =
-				max_t(int64_t, 0, bmvend - bmv->bmv_offset);
-
-			/*
-			 * In case we don't want to return the hole,
-			 * don't increase cur_ext so that we can reuse
-			 * it in the next loop.
-			 */
-			if ((iflags & BMV_IF_NO_HOLES) &&
-			    map[i].br_startblock == HOLESTARTBLOCK) {
-				memset(&out[cur_ext], 0, sizeof(out[cur_ext]));
-				continue;
-			}
-
-			/*
-			 * In order to report shared extents accurately,
-			 * we report each distinct shared/unshared part
-			 * of a single bmbt record using multiple bmap
-			 * extents.  To make that happen, we iterate the
-			 * same map array item multiple times, each
-			 * time trimming out the subextent that we just
-			 * reported.
-			 *
-			 * Because of this, we must check the out array
-			 * index (cur_ext) directly against bmv_count-1
-			 * to avoid overflows.
-			 */
-			if (inject_map.br_startblock != NULLFSBLOCK) {
-				map[i] = inject_map;
-				i--;
-			}
-			bmv->bmv_entries++;
-			cur_ext++;
+		/*
+		 * Report an entry for a hole if this extent doesn't directly
+		 * follow the previous one.
+		 */
+		if (got.br_startoff > bno) {
+			xfs_getbmap_report_hole(ip, bmv, out, bmv_end, bno,
+					got.br_startoff);
+			if (xfs_getbmap_full(bmv))
+				break;
 		}
-	} while (nmap && bmv->bmv_length && cur_ext < bmv->bmv_count - 1);
 
- out_free_map:
-	kmem_free(map);
- out_unlock_ilock:
-	xfs_iunlock(ip, lock);
- out_unlock_iolock:
-	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+		/*
+		 * In order to report shared extents accurately, we report each
+		 * distinct shared / unshared part of a single bmbt record with
+		 * an individual getbmapx record.
+		 */
+		bno = got.br_startoff + got.br_blockcount;
+		rec = got;
+		do {
+			error = xfs_getbmap_report_one(ip, bmv, out, bmv_end,
+					&rec);
+			if (error || xfs_getbmap_full(bmv))
+				goto out_unlock_ilock;
+		} while (xfs_getbmap_next_rec(&rec, bno));
 
-	for (i = 0; i < cur_ext; i++) {
-		/* format results & advance arg */
-		error = formatter(&arg, &out[i]);
-		if (error)
+		if (!xfs_iext_next_extent(ifp, &icur, &got)) {
+			xfs_fileoff_t	end = XFS_B_TO_FSB(mp, XFS_ISIZE(ip));
+
+			out[bmv->bmv_entries - 1].bmv_oflags |= BMV_OF_LAST;
+
+			if (whichfork != XFS_ATTR_FORK && bno < end &&
+			    !xfs_getbmap_full(bmv)) {
+				xfs_getbmap_report_hole(ip, bmv, out, bmv_end,
+						bno, end);
+			}
+			break;
+		}
+
+		if (bno >= first_bno + len)
 			break;
 	}
 
-	kmem_free(out);
+out_unlock_ilock:
+	xfs_iunlock(ip, lock);
+out_unlock_iolock:
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 	return error;
 }
 
@@ -1387,53 +1262,12 @@ out:
 
 }
 
-/*
- * @next_fsb will keep track of the extent currently undergoing shift.
- * @stop_fsb will keep track of the extent at which we have to stop.
- * If we are shifting left, we will start with block (offset + len) and
- * shift each extent till last extent.
- * If we are shifting right, we will start with last extent inside file space
- * and continue until we reach the block corresponding to offset.
- */
 static int
-xfs_shift_file_space(
-	struct xfs_inode        *ip,
-	xfs_off_t               offset,
-	xfs_off_t               len,
-	enum shift_direction	direction)
+xfs_prepare_shift(
+	struct xfs_inode	*ip,
+	loff_t			offset)
 {
-	int			done = 0;
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_trans	*tp;
 	int			error;
-	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		first_block;
-	xfs_fileoff_t		stop_fsb;
-	xfs_fileoff_t		next_fsb;
-	xfs_fileoff_t		shift_fsb;
-	uint			resblks;
-
-	ASSERT(direction == SHIFT_LEFT || direction == SHIFT_RIGHT);
-
-	if (direction == SHIFT_LEFT) {
-		/*
-		 * Reserve blocks to cover potential extent merges after left
-		 * shift operations.
-		 */
-		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
-		next_fsb = XFS_B_TO_FSB(mp, offset + len);
-		stop_fsb = XFS_B_TO_FSB(mp, VFS_I(ip)->i_size);
-	} else {
-		/*
-		 * If right shift, delegate the work of initialization of
-		 * next_fsb to xfs_bmap_shift_extent as it has ilock held.
-		 */
-		resblks = 0;
-		next_fsb = NULLFSBLOCK;
-		stop_fsb = XFS_B_TO_FSB(mp, offset);
-	}
-
-	shift_fsb = XFS_B_TO_FSB(mp, len);
 
 	/*
 	 * Trim eofblocks to avoid shifting uninitialized post-eof preallocation
@@ -1449,8 +1283,7 @@ xfs_shift_file_space(
 	 * Writeback and invalidate cache for the remainder of the file as we're
 	 * about to shift down every extent from offset to EOF.
 	 */
-	error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-					     offset, -1);
+	error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping, offset, -1);
 	if (error)
 		return error;
 	error = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
@@ -1470,58 +1303,7 @@ xfs_shift_file_space(
 			return error;
 	}
 
-	/*
-	 * The extent shifting code works on extent granularity. So, if
-	 * stop_fsb is not the starting block of extent, we need to split
-	 * the extent at stop_fsb.
-	 */
-	if (direction == SHIFT_RIGHT) {
-		error = xfs_bmap_split_extent(ip, stop_fsb);
-		if (error)
-			return error;
-	}
-
-	while (!error && !done) {
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0,
-					&tp);
-		if (error)
-			break;
-
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		error = xfs_trans_reserve_quota(tp, mp, ip->i_udquot,
-				ip->i_gdquot, ip->i_pdquot, resblks, 0,
-				XFS_QMOPT_RES_REGBLKS);
-		if (error)
-			goto out_trans_cancel;
-
-		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-
-		xfs_defer_init(&dfops, &first_block);
-
-		/*
-		 * We are using the write transaction in which max 2 bmbt
-		 * updates are allowed
-		 */
-		error = xfs_bmap_shift_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &first_block, &dfops,
-				direction, XFS_BMAP_MAX_SHIFT_EXTENTS);
-		if (error)
-			goto out_bmap_cancel;
-
-		error = xfs_defer_finish(&tp, &dfops);
-		if (error)
-			goto out_bmap_cancel;
-
-		error = xfs_trans_commit(tp);
-	}
-
-	return error;
-
-out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
-out_trans_cancel:
-	xfs_trans_cancel(tp);
-	return error;
+	return 0;
 }
 
 /*
@@ -1542,16 +1324,63 @@ xfs_collapse_file_space(
 	xfs_off_t		offset,
 	xfs_off_t		len)
 {
-	int error;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+	struct xfs_defer_ops	dfops;
+	xfs_fsblock_t		first_block;
+	xfs_fileoff_t		stop_fsb = XFS_B_TO_FSB(mp, VFS_I(ip)->i_size);
+	xfs_fileoff_t		next_fsb = XFS_B_TO_FSB(mp, offset + len);
+	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
+	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
+	bool			done = false;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
+
 	trace_xfs_collapse_file_space(ip);
 
 	error = xfs_free_file_space(ip, offset, len);
 	if (error)
 		return error;
 
-	return xfs_shift_file_space(ip, offset, len, SHIFT_LEFT);
+	error = xfs_prepare_shift(ip, offset);
+	if (error)
+		return error;
+
+	while (!error && !done) {
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0,
+					&tp);
+		if (error)
+			break;
+
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		error = xfs_trans_reserve_quota(tp, mp, ip->i_udquot,
+				ip->i_gdquot, ip->i_pdquot, resblks, 0,
+				XFS_QMOPT_RES_REGBLKS);
+		if (error)
+			goto out_trans_cancel;
+		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+
+		xfs_defer_init(&dfops, &first_block);
+		error = xfs_bmap_collapse_extents(tp, ip, &next_fsb, shift_fsb,
+				&done, stop_fsb, &first_block, &dfops);
+		if (error)
+			goto out_bmap_cancel;
+
+		error = xfs_defer_finish(&tp, &dfops);
+		if (error)
+			goto out_bmap_cancel;
+		error = xfs_trans_commit(tp);
+	}
+
+	return error;
+
+out_bmap_cancel:
+	xfs_defer_cancel(&dfops);
+out_trans_cancel:
+	xfs_trans_cancel(tp);
+	return error;
 }
 
 /*
@@ -1572,10 +1401,60 @@ xfs_insert_file_space(
 	loff_t			offset,
 	loff_t			len)
 {
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+	struct xfs_defer_ops	dfops;
+	xfs_fsblock_t		first_block;
+	xfs_fileoff_t		stop_fsb = XFS_B_TO_FSB(mp, offset);
+	xfs_fileoff_t		next_fsb = NULLFSBLOCK;
+	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
+	bool			done = false;
+
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
+
 	trace_xfs_insert_file_space(ip);
 
-	return xfs_shift_file_space(ip, offset, len, SHIFT_RIGHT);
+	error = xfs_prepare_shift(ip, offset);
+	if (error)
+		return error;
+
+	/*
+	 * The extent shifting code works on extent granularity. So, if stop_fsb
+	 * is not the starting block of extent, we need to split the extent at
+	 * stop_fsb.
+	 */
+	error = xfs_bmap_split_extent(ip, stop_fsb);
+	if (error)
+		return error;
+
+	while (!error && !done) {
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0, 0, 0,
+					&tp);
+		if (error)
+			break;
+
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+		xfs_defer_init(&dfops, &first_block);
+		error = xfs_bmap_insert_extents(tp, ip, &next_fsb, shift_fsb,
+				&done, stop_fsb, &first_block, &dfops);
+		if (error)
+			goto out_bmap_cancel;
+
+		error = xfs_defer_finish(&tp, &dfops);
+		if (error)
+			goto out_bmap_cancel;
+		error = xfs_trans_commit(tp);
+	}
+
+	return error;
+
+out_bmap_cancel:
+	xfs_defer_cancel(&dfops);
+	xfs_trans_cancel(tp);
+	return error;
 }
 
 /*
@@ -1830,7 +1709,6 @@ xfs_swap_extent_forks(
 	xfs_filblks_t		aforkblks = 0;
 	xfs_filblks_t		taforkblks = 0;
 	xfs_extnum_t		junk;
-	xfs_extnum_t		nextents;
 	uint64_t		tmp;
 	int			error;
 
@@ -1905,13 +1783,6 @@ xfs_swap_extent_forks(
 
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
-		/*
-		 * If the extents fit in the inode, fix the pointer.  Otherwise
-		 * it's already NULL or pointing to the extent.
-		 */
-		nextents = xfs_iext_count(&ip->i_df);
-		if (nextents <= XFS_INLINE_EXTS)
-			ifp->if_u1.if_extents = ifp->if_u2.if_inline_ext;
 		(*src_log_flags) |= XFS_ILOG_DEXT;
 		break;
 	case XFS_DINODE_FMT_BTREE:
@@ -1923,13 +1794,6 @@ xfs_swap_extent_forks(
 
 	switch (tip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
-		/*
-		 * If the extents fit in the inode, fix the pointer.  Otherwise
-		 * it's already NULL or pointing to the extent.
-		 */
-		nextents = xfs_iext_count(&tip->i_df);
-		if (nextents <= XFS_INLINE_EXTS)
-			tifp->if_u1.if_extents = tifp->if_u2.if_inline_ext;
 		(*target_log_flags) |= XFS_ILOG_DEXT;
 		break;
 	case XFS_DINODE_FMT_BTREE:

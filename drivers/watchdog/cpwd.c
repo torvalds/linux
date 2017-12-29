@@ -230,9 +230,9 @@ static void cpwd_resetbrokentimer(struct cpwd *p, int index)
  * interrupts within the PLD so me must continually
  * reset the timers ad infinitum.
  */
-static void cpwd_brokentimer(unsigned long data)
+static void cpwd_brokentimer(struct timer_list *unused)
 {
-	struct cpwd *p = (struct cpwd *) data;
+	struct cpwd *p = cpwd_device;
 	int id, tripped = 0;
 
 	/* kill a running timer instance, in case we
@@ -275,7 +275,7 @@ static void cpwd_stoptimer(struct cpwd *p, int index)
 
 		if (p->broken) {
 			p->devs[index].runstatus |= WD_STAT_BSTOP;
-			cpwd_brokentimer((unsigned long) p);
+			cpwd_brokentimer(NULL);
 		}
 	}
 }
@@ -608,7 +608,7 @@ static int cpwd_probe(struct platform_device *op)
 	}
 
 	if (p->broken) {
-		setup_timer(&cpwd_timer, cpwd_brokentimer, (unsigned long)p);
+		timer_setup(&cpwd_timer, cpwd_brokentimer, 0);
 		cpwd_timer.expires	= WD_BTIMEOUT;
 
 		pr_info("PLD defect workaround enabled for model %s\n",

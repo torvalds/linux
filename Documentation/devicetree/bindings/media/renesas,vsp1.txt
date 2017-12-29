@@ -22,7 +22,7 @@ Optional properties:
 
 Example: R8A7790 (R-Car H2) VSP1-S node
 
-	vsp1@fe928000 {
+	vsp@fe928000 {
 		compatible = "renesas,vsp1";
 		reg = <0 0xfe928000 0 0x8000>;
 		interrupts = <0 267 IRQ_TYPE_LEVEL_HIGH>;

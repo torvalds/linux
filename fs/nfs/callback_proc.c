@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/nfs/callback_proc.c
  *
@@ -439,7 +440,7 @@ static bool referring_call_exists(struct nfs_client *clp,
 				  uint32_t nrclists,
 				  struct referring_call_list *rclists)
 {
-	bool status = 0;
+	bool status = false;
 	int i, j;
 	struct nfs4_session *session;
 	struct nfs4_slot_table *tbl;

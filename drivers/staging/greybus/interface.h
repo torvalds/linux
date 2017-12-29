@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus Interface Block code
  *
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #ifndef __INTERFACE_H

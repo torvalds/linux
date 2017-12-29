@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * handling privileged instructions
  *
  * Copyright IBM Corp. 2008, 2013
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -235,8 +232,6 @@ static int try_handle_skey(struct kvm_vcpu *vcpu)
 		VCPU_EVENT(vcpu, 4, "%s", "retrying storage key operation");
 		return -EAGAIN;
 	}
-	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
-		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 	return 0;
 }
 
@@ -246,6 +241,9 @@ static int handle_iske(struct kvm_vcpu *vcpu)
 	unsigned char key;
 	int reg1, reg2;
 	int rc;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	rc = try_handle_skey(vcpu);
 	if (rc)
@@ -275,6 +273,9 @@ static int handle_rrbe(struct kvm_vcpu *vcpu)
 	unsigned long addr;
 	int reg1, reg2;
 	int rc;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	rc = try_handle_skey(vcpu);
 	if (rc)
@@ -310,6 +311,9 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 	unsigned char key, oldkey;
 	int reg1, reg2;
 	int rc;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	rc = try_handle_skey(vcpu);
 	if (rc)

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 menu "UML Network Devices"
 	depends on NET

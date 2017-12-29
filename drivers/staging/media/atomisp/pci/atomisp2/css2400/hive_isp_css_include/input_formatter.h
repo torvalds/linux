@@ -29,18 +29,17 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-#include "storage_class.h"
 
 #include "system_local.h"
 #include "input_formatter_local.h"
 
 #ifndef __INLINE_INPUT_FORMATTER__
-#define STORAGE_CLASS_INPUT_FORMATTER_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_INPUT_FORMATTER_H extern
 #define STORAGE_CLASS_INPUT_FORMATTER_C 
 #include "input_formatter_public.h"
 #else  /* __INLINE_INPUT_FORMATTER__ */
-#define STORAGE_CLASS_INPUT_FORMATTER_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_INPUT_FORMATTER_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_INPUT_FORMATTER_H static inline
+#define STORAGE_CLASS_INPUT_FORMATTER_C static inline
 #include "input_formatter_private.h"
 #endif /* __INLINE_INPUT_FORMATTER__ */
 

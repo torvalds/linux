@@ -48,6 +48,8 @@ enum sdio_interrupt_type {
 
 #define RSI_DEVICE_BUFFER_STATUS_REGISTER       0xf3
 #define RSI_FN1_INT_REGISTER                    0xf9
+#define RSI_INT_ENABLE_REGISTER			0x04
+#define RSI_INT_ENABLE_MASK			0xfc
 #define RSI_SD_REQUEST_MASTER                   0x10000
 
 /* FOR SD CARD ONLY */

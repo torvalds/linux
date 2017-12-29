@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/jz4780-cgu.h>
 
 / {
@@ -216,6 +217,11 @@
 		clock-names = "baud", "module";
 
 		status = "disabled";
+	};
+
+	watchdog: watchdog@10002000 {
+		compatible = "ingenic,jz4780-watchdog";
+		reg = <0x10002000 0x100>;
 	};
 
 	nemc: nemc@13410000 {

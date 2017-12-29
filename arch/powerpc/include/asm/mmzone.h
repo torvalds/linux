@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Written by Kanoj Sarcar (kanoj@sgi.com) Aug 99
  *

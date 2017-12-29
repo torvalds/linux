@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Helper routines for building identity mapping page tables. This is
  * included by both the compressed kernel and the regular kernel.

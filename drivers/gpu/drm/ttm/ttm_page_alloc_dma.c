@@ -60,37 +60,32 @@
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
 #define SMALL_ALLOCATION		4
 #define FREE_ALL_PAGES			(~0U)
-/* times are in msecs */
-#define IS_UNDEFINED			(0)
-#define IS_WC				(1<<1)
-#define IS_UC				(1<<2)
-#define IS_CACHED			(1<<3)
-#define IS_DMA32			(1<<4)
+#define VADDR_FLAG_HUGE_POOL		1UL
 
 enum pool_type {
-	POOL_IS_UNDEFINED,
-	POOL_IS_WC = IS_WC,
-	POOL_IS_UC = IS_UC,
-	POOL_IS_CACHED = IS_CACHED,
-	POOL_IS_WC_DMA32 = IS_WC | IS_DMA32,
-	POOL_IS_UC_DMA32 = IS_UC | IS_DMA32,
-	POOL_IS_CACHED_DMA32 = IS_CACHED | IS_DMA32,
+	IS_UNDEFINED	= 0,
+	IS_WC		= 1 << 1,
+	IS_UC		= 1 << 2,
+	IS_CACHED	= 1 << 3,
+	IS_DMA32	= 1 << 4,
+	IS_HUGE		= 1 << 5
 };
+
 /*
- * The pool structure. There are usually six pools:
+ * The pool structure. There are up to nine pools:
  *  - generic (not restricted to DMA32):
  *      - write combined, uncached, cached.
  *  - dma32 (up to 2^32 - so up 4GB):
+ *      - write combined, uncached, cached.
+ *  - huge (not restricted to DMA32):
  *      - write combined, uncached, cached.
  * for each 'struct device'. The 'cached' is for pages that are actively used.
  * The other ones can be shrunk by the shrinker API if neccessary.
  * @pools: The 'struct device->dma_pools' link.
  * @type: Type of the pool
- * @lock: Protects the inuse_list and free_list from concurrnet access. Must be
+ * @lock: Protects the free_list from concurrnet access. Must be
  * used with irqsave/irqrestore variants because pool allocator maybe called
  * from delayed work.
- * @inuse_list: Pool of pages that are in use. The order is very important and
- *   it is in the order that the TTM pages that are put back are in.
  * @free_list: Pool of pages that are free to be used. No order requirements.
  * @dev: The device that is associated with these pools.
  * @size: Size used during DMA allocation.
@@ -107,7 +102,6 @@ struct dma_pool {
 	struct list_head pools; /* The 'struct device->dma_pools link */
 	enum pool_type type;
 	spinlock_t lock;
-	struct list_head inuse_list;
 	struct list_head free_list;
 	struct device *dev;
 	unsigned size;
@@ -124,13 +118,14 @@ struct dma_pool {
  * The accounting page keeping track of the allocated page along with
  * the DMA address.
  * @page_list: The link to the 'page_list' in 'struct dma_pool'.
- * @vaddr: The virtual address of the page
+ * @vaddr: The virtual address of the page and a flag if the page belongs to a
+ * huge pool
  * @dma: The bus address of the page. If the page is not allocated
  *   via the DMA API, it will be -1.
  */
 struct dma_page {
 	struct list_head page_list;
-	void *vaddr;
+	unsigned long vaddr;
 	struct page *p;
 	dma_addr_t dma;
 };
@@ -329,7 +324,8 @@ static int ttm_set_pages_caching(struct dma_pool *pool,
 static void __ttm_dma_free_page(struct dma_pool *pool, struct dma_page *d_page)
 {
 	dma_addr_t dma = d_page->dma;
-	dma_free_coherent(pool->dev, pool->size, d_page->vaddr, dma);
+	d_page->vaddr &= ~VADDR_FLAG_HUGE_POOL;
+	dma_free_coherent(pool->dev, pool->size, (void *)d_page->vaddr, dma);
 
 	kfree(d_page);
 	d_page = NULL;
@@ -337,19 +333,22 @@ static void __ttm_dma_free_page(struct dma_pool *pool, struct dma_page *d_page)
 static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
 {
 	struct dma_page *d_page;
+	void *vaddr;
 
 	d_page = kmalloc(sizeof(struct dma_page), GFP_KERNEL);
 	if (!d_page)
 		return NULL;
 
-	d_page->vaddr = dma_alloc_coherent(pool->dev, pool->size,
-					   &d_page->dma,
-					   pool->gfp_flags);
-	if (d_page->vaddr) {
-		if (is_vmalloc_addr(d_page->vaddr))
-			d_page->p = vmalloc_to_page(d_page->vaddr);
+	vaddr = dma_alloc_coherent(pool->dev, pool->size, &d_page->dma,
+				   pool->gfp_flags);
+	if (vaddr) {
+		if (is_vmalloc_addr(vaddr))
+			d_page->p = vmalloc_to_page(vaddr);
 		else
-			d_page->p = virt_to_page(d_page->vaddr);
+			d_page->p = virt_to_page(vaddr);
+		d_page->vaddr = (unsigned long)vaddr;
+		if (pool->type & IS_HUGE)
+			d_page->vaddr |= VADDR_FLAG_HUGE_POOL;
 	} else {
 		kfree(d_page);
 		d_page = NULL;
@@ -381,10 +380,39 @@ static void ttm_pool_update_free_locked(struct dma_pool *pool,
 }
 
 /* set memory back to wb and free the pages. */
+static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
+{
+	struct page *page = d_page->p;
+	unsigned i, num_pages;
+	int ret;
+
+	/* Don't set WB on WB page pool. */
+	if (!(pool->type & IS_CACHED)) {
+		num_pages = pool->size / PAGE_SIZE;
+		for (i = 0; i < num_pages; ++i, ++page) {
+			ret = set_pages_array_wb(&page, 1);
+			if (ret) {
+				pr_err("%s: Failed to set %d pages to wb!\n",
+				       pool->dev_name, 1);
+			}
+		}
+	}
+
+	list_del(&d_page->page_list);
+	__ttm_dma_free_page(pool, d_page);
+}
+
 static void ttm_dma_pages_put(struct dma_pool *pool, struct list_head *d_pages,
 			      struct page *pages[], unsigned npages)
 {
 	struct dma_page *d_page, *tmp;
+
+	if (pool->type & IS_HUGE) {
+		list_for_each_entry_safe(d_page, tmp, d_pages, page_list)
+			ttm_dma_page_put(pool, d_page);
+
+		return;
+	}
 
 	/* Don't set WB on WB page pool. */
 	if (npages && !(pool->type & IS_CACHED) &&
@@ -396,17 +424,6 @@ static void ttm_dma_pages_put(struct dma_pool *pool, struct list_head *d_pages,
 		list_del(&d_page->page_list);
 		__ttm_dma_free_page(pool, d_page);
 	}
-}
-
-static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
-{
-	/* Don't set WB on WB page pool. */
-	if (!(pool->type & IS_CACHED) && set_pages_array_wb(&d_page->p, 1))
-		pr_err("%s: Failed to set %d pages to wb!\n",
-		       pool->dev_name, 1);
-
-	list_del(&d_page->page_list);
-	__ttm_dma_free_page(pool, d_page);
 }
 
 /*
@@ -446,7 +463,7 @@ static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free,
 					GFP_KERNEL);
 
 	if (!pages_to_free) {
-		pr_err("%s: Failed to allocate memory for pool free operation\n",
+		pr_debug("%s: Failed to allocate memory for pool free operation\n",
 		       pool->dev_name);
 		return 0;
 	}
@@ -577,8 +594,8 @@ static int ttm_dma_pool_match(struct device *dev, void *res, void *match_data)
 static struct dma_pool *ttm_dma_pool_init(struct device *dev, gfp_t flags,
 					  enum pool_type type)
 {
-	char *n[] = {"wc", "uc", "cached", " dma32", "unknown",};
-	enum pool_type t[] = {IS_WC, IS_UC, IS_CACHED, IS_DMA32, IS_UNDEFINED};
+	const char *n[] = {"wc", "uc", "cached", " dma32", "huge"};
+	enum pool_type t[] = {IS_WC, IS_UC, IS_CACHED, IS_DMA32, IS_HUGE};
 	struct device_pools *sec_pool = NULL;
 	struct dma_pool *pool = NULL, **ptr;
 	unsigned i;
@@ -609,18 +626,24 @@ static struct dma_pool *ttm_dma_pool_init(struct device *dev, gfp_t flags,
 	sec_pool->pool =  pool;
 
 	INIT_LIST_HEAD(&pool->free_list);
-	INIT_LIST_HEAD(&pool->inuse_list);
 	INIT_LIST_HEAD(&pool->pools);
 	spin_lock_init(&pool->lock);
 	pool->dev = dev;
 	pool->npages_free = pool->npages_in_use = 0;
 	pool->nfrees = 0;
 	pool->gfp_flags = flags;
-	pool->size = PAGE_SIZE;
+	if (type & IS_HUGE)
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+		pool->size = HPAGE_PMD_SIZE;
+#else
+		BUG();
+#endif
+	else
+		pool->size = PAGE_SIZE;
 	pool->type = type;
 	pool->nrefills = 0;
 	p = pool->name;
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < ARRAY_SIZE(t); i++) {
 		if (type & t[i]) {
 			p += snprintf(p, sizeof(pool->name) - (p - pool->name),
 				      "%s", n[i]);
@@ -724,7 +747,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 	struct dma_page *dma_p;
 	struct page *p;
 	int r = 0;
-	unsigned i, cpages;
+	unsigned i, j, npages, cpages;
 	unsigned max_cpages = min(count,
 			(unsigned)(PAGE_SIZE/sizeof(struct page *)));
 
@@ -732,7 +755,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
 
 	if (!caching_array) {
-		pr_err("%s: Unable to allocate table for new pages\n",
+		pr_debug("%s: Unable to allocate table for new pages\n",
 		       pool->dev_name);
 		return -ENOMEM;
 	}
@@ -745,8 +768,8 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 	for (i = 0, cpages = 0; i < count; ++i) {
 		dma_p = __ttm_dma_alloc_page(pool);
 		if (!dma_p) {
-			pr_err("%s: Unable to get page %u\n",
-			       pool->dev_name, i);
+			pr_debug("%s: Unable to get page %u\n",
+				 pool->dev_name, i);
 
 			/* store already allocated pages in the pool after
 			 * setting the caching state */
@@ -762,28 +785,32 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 			goto out;
 		}
 		p = dma_p->p;
+		list_add(&dma_p->page_list, d_pages);
+
 #ifdef CONFIG_HIGHMEM
 		/* gfp flags of highmem page should never be dma32 so we
 		 * we should be fine in such case
 		 */
-		if (!PageHighMem(p))
+		if (PageHighMem(p))
+			continue;
 #endif
-		{
-			caching_array[cpages++] = p;
+
+		npages = pool->size / PAGE_SIZE;
+		for (j = 0; j < npages; ++j) {
+			caching_array[cpages++] = p + j;
 			if (cpages == max_cpages) {
 				/* Note: Cannot hold the spinlock */
 				r = ttm_set_pages_caching(pool, caching_array,
-						 cpages);
+							  cpages);
 				if (r) {
 					ttm_dma_handle_caching_state_failure(
-						pool, d_pages, caching_array,
-						cpages);
+					     pool, d_pages, caching_array,
+					     cpages);
 					goto out;
 				}
 				cpages = 0;
 			}
 		}
-		list_add(&dma_p->page_list, d_pages);
 	}
 
 	if (cpages) {
@@ -828,8 +855,8 @@ static int ttm_dma_page_pool_fill_locked(struct dma_pool *pool,
 			struct dma_page *d_page;
 			unsigned cpages = 0;
 
-			pr_err("%s: Failed to fill %s pool (r:%d)!\n",
-			       pool->dev_name, pool->name, r);
+			pr_debug("%s: Failed to fill %s pool (r:%d)!\n",
+				 pool->dev_name, pool->name, r);
 
 			list_for_each_entry(d_page, &d_pages, page_list) {
 				cpages++;
@@ -871,6 +898,27 @@ static int ttm_dma_pool_get_pages(struct dma_pool *pool,
 	return r;
 }
 
+static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
+{
+	struct ttm_tt *ttm = &ttm_dma->ttm;
+	gfp_t gfp_flags;
+
+	if (ttm->page_flags & TTM_PAGE_FLAG_DMA32)
+		gfp_flags = GFP_USER | GFP_DMA32;
+	else
+		gfp_flags = GFP_HIGHUSER;
+	if (ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
+		gfp_flags |= __GFP_ZERO;
+
+	if (huge) {
+		gfp_flags |= GFP_TRANSHUGE;
+		gfp_flags &= ~__GFP_MOVABLE;
+		gfp_flags &= ~__GFP_COMP;
+	}
+
+	return gfp_flags;
+}
+
 /*
  * On success pages list will hold count number of correctly
  * cached pages. On failure will hold the negative return value (-ENOMEM, etc).
@@ -879,33 +927,70 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
+	unsigned long num_pages = ttm->num_pages;
 	struct dma_pool *pool;
 	enum pool_type type;
 	unsigned i;
-	gfp_t gfp_flags;
 	int ret;
 
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
+	INIT_LIST_HEAD(&ttm_dma->pages_list);
+	i = 0;
+
 	type = ttm_to_type(ttm->page_flags, ttm->caching_state);
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (ttm->page_flags & TTM_PAGE_FLAG_DMA32)
-		gfp_flags = GFP_USER | GFP_DMA32;
-	else
-		gfp_flags = GFP_HIGHUSER;
-	if (ttm->page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
-		gfp_flags |= __GFP_ZERO;
+		goto skip_huge;
+
+	pool = ttm_dma_find_pool(dev, type | IS_HUGE);
+	if (!pool) {
+		gfp_t gfp_flags = ttm_dma_pool_gfp_flags(ttm_dma, true);
+
+		pool = ttm_dma_pool_init(dev, gfp_flags, type | IS_HUGE);
+		if (IS_ERR_OR_NULL(pool))
+			goto skip_huge;
+	}
+
+	while (num_pages >= HPAGE_PMD_NR) {
+		unsigned j;
+
+		ret = ttm_dma_pool_get_pages(pool, ttm_dma, i);
+		if (ret != 0)
+			break;
+
+		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
+						pool->size);
+		if (unlikely(ret != 0)) {
+			ttm_dma_unpopulate(ttm_dma, dev);
+			return -ENOMEM;
+		}
+
+		for (j = i + 1; j < (i + HPAGE_PMD_NR); ++j) {
+			ttm->pages[j] = ttm->pages[j - 1] + 1;
+			ttm_dma->dma_address[j] = ttm_dma->dma_address[j - 1] +
+				PAGE_SIZE;
+		}
+
+		i += HPAGE_PMD_NR;
+		num_pages -= HPAGE_PMD_NR;
+	}
+
+skip_huge:
+#endif
 
 	pool = ttm_dma_find_pool(dev, type);
 	if (!pool) {
+		gfp_t gfp_flags = ttm_dma_pool_gfp_flags(ttm_dma, false);
+
 		pool = ttm_dma_pool_init(dev, gfp_flags, type);
-		if (IS_ERR_OR_NULL(pool)) {
+		if (IS_ERR_OR_NULL(pool))
 			return -ENOMEM;
-		}
 	}
 
-	INIT_LIST_HEAD(&ttm_dma->pages_list);
-	for (i = 0; i < ttm->num_pages; ++i) {
+	while (num_pages) {
 		ret = ttm_dma_pool_get_pages(pool, ttm_dma, i);
 		if (ret != 0) {
 			ttm_dma_unpopulate(ttm_dma, dev);
@@ -913,11 +998,14 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 		}
 
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						false, false);
+						pool->size);
 		if (unlikely(ret != 0)) {
 			ttm_dma_unpopulate(ttm_dma, dev);
 			return -ENOMEM;
 		}
+
+		++i;
+		--num_pages;
 	}
 
 	if (unlikely(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
@@ -941,10 +1029,33 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	struct dma_page *d_page, *next;
 	enum pool_type type;
 	bool is_cached = false;
-	unsigned count = 0, i, npages = 0;
+	unsigned count, i, npages = 0;
 	unsigned long irq_flags;
 
 	type = ttm_to_type(ttm->page_flags, ttm->caching_state);
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	pool = ttm_dma_find_pool(dev, type | IS_HUGE);
+	if (pool) {
+		count = 0;
+		list_for_each_entry_safe(d_page, next, &ttm_dma->pages_list,
+					 page_list) {
+			if (!(d_page->vaddr & VADDR_FLAG_HUGE_POOL))
+				continue;
+
+			count++;
+			ttm_mem_global_free_page(ttm->glob->mem_glob,
+						 d_page->p, pool->size);
+			ttm_dma_page_put(pool, d_page);
+		}
+
+		spin_lock_irqsave(&pool->lock, irq_flags);
+		pool->npages_in_use -= count;
+		pool->nfrees += count;
+		spin_unlock_irqrestore(&pool->lock, irq_flags);
+	}
+#endif
+
 	pool = ttm_dma_find_pool(dev, type);
 	if (!pool)
 		return;
@@ -953,6 +1064,7 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 		     ttm_to_type(ttm->page_flags, tt_cached)) == pool);
 
 	/* make sure pages array match list and count number of pages */
+	count = 0;
 	list_for_each_entry(d_page, &ttm_dma->pages_list, page_list) {
 		ttm->pages[count] = d_page->p;
 		count++;
@@ -978,13 +1090,13 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	if (is_cached) {
 		list_for_each_entry_safe(d_page, next, &ttm_dma->pages_list, page_list) {
 			ttm_mem_global_free_page(ttm->glob->mem_glob,
-						 d_page->p);
+						 d_page->p, pool->size);
 			ttm_dma_page_put(pool, d_page);
 		}
 	} else {
 		for (i = 0; i < count; i++) {
 			ttm_mem_global_free_page(ttm->glob->mem_glob,
-						 ttm->pages[i]);
+						 ttm->pages[i], pool->size);
 		}
 	}
 

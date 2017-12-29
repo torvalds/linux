@@ -409,7 +409,7 @@ struct stmmac_desc_ops {
 	/* get timestamp value */
 	 u64(*get_timestamp) (void *desc, u32 ats);
 	/* get rx timestamp status */
-	int (*get_rx_timestamp_status) (void *desc, u32 ats);
+	int (*get_rx_timestamp_status)(void *desc, void *next_desc, u32 ats);
 	/* Display ring */
 	void (*display_ring)(void *head, unsigned int size, bool rx);
 	/* set MSS via context descriptor */
@@ -442,8 +442,9 @@ struct stmmac_dma_ops {
 	void (*dma_mode)(void __iomem *ioaddr, int txmode, int rxmode,
 			 int rxfifosz);
 	void (*dma_rx_mode)(void __iomem *ioaddr, int mode, u32 channel,
-			    int fifosz);
-	void (*dma_tx_mode)(void __iomem *ioaddr, int mode, u32 channel);
+			    int fifosz, u8 qmode);
+	void (*dma_tx_mode)(void __iomem *ioaddr, int mode, u32 channel,
+			    int fifosz, u8 qmode);
 	/* To track extra statistic (if supported) */
 	void (*dma_diagnostic_fr) (void *data, struct stmmac_extra_stats *x,
 				   void __iomem *ioaddr);

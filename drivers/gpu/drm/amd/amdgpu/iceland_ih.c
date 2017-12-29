@@ -208,6 +208,34 @@ static u32 iceland_ih_get_wptr(struct amdgpu_device *adev)
 }
 
 /**
+ * iceland_ih_prescreen_iv - prescreen an interrupt vector
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns true if the interrupt vector should be further processed.
+ */
+static bool iceland_ih_prescreen_iv(struct amdgpu_device *adev)
+{
+	u32 ring_index = adev->irq.ih.rptr >> 2;
+	u16 pasid;
+
+	switch (le32_to_cpu(adev->irq.ih.ring[ring_index]) & 0xff) {
+	case 146:
+	case 147:
+		pasid = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]) >> 16;
+		if (!pasid || amdgpu_vm_pasid_fault_credit(adev, pasid))
+			return true;
+		break;
+	default:
+		/* Not a VM fault */
+		return true;
+	}
+
+	adev->irq.ih.rptr += 16;
+	return false;
+}
+
+/**
  * iceland_ih_decode_iv - decode an interrupt vector
  *
  * @adev: amdgpu_device pointer
@@ -412,6 +440,7 @@ static const struct amd_ip_funcs iceland_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs iceland_ih_funcs = {
 	.get_wptr = iceland_ih_get_wptr,
+	.prescreen_iv = iceland_ih_prescreen_iv,
 	.decode_iv = iceland_ih_decode_iv,
 	.set_rptr = iceland_ih_set_rptr
 };

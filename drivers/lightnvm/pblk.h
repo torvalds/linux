@@ -40,10 +40,6 @@
 #define PBLK_MAX_REQ_ADDRS (64)
 #define PBLK_MAX_REQ_ADDRS_PW (6)
 
-#define PBLK_WS_POOL_SIZE (128)
-#define PBLK_META_POOL_SIZE (128)
-#define PBLK_READ_REQ_POOL_SIZE (1024)
-
 #define PBLK_NR_CLOSE_JOBS (4)
 
 #define PBLK_CACHE_NAME_LEN (DISK_NAME_LEN + 16)
@@ -59,7 +55,15 @@
 		for ((i) = 0, rlun = &(pblk)->luns[0]; \
 			(i) < (pblk)->nr_luns; (i)++, rlun = &(pblk)->luns[(i)])
 
-#define ERASE 2 /* READ = 0, WRITE = 1 */
+/* Static pool sizes */
+#define PBLK_GEN_WS_POOL_SIZE (2)
+
+enum {
+	PBLK_READ		= READ,
+	PBLK_WRITE		= WRITE,/* Write from write buffer */
+	PBLK_WRITE_INT,			/* Internal write - no write buffer */
+	PBLK_ERASE,
+};
 
 enum {
 	/* IO Types */
@@ -95,6 +99,7 @@ enum {
 };
 
 #define pblk_dma_meta_size (sizeof(struct pblk_sec_meta) * PBLK_MAX_REQ_ADDRS)
+#define pblk_dma_ppa_size (sizeof(u64) * PBLK_MAX_REQ_ADDRS)
 
 /* write buffer completion context */
 struct pblk_c_ctx {
@@ -106,9 +111,10 @@ struct pblk_c_ctx {
 	unsigned int nr_padded;
 };
 
-/* generic context */
+/* read context */
 struct pblk_g_ctx {
 	void *private;
+	u64 lba;
 };
 
 /* Pad context */
@@ -207,6 +213,7 @@ struct pblk_lun {
 struct pblk_gc_rq {
 	struct pblk_line *line;
 	void *data;
+	u64 paddr_list[PBLK_MAX_REQ_ADDRS];
 	u64 lba_list[PBLK_MAX_REQ_ADDRS];
 	int nr_secs;
 	int secs_to_gc;
@@ -231,7 +238,10 @@ struct pblk_gc {
 	struct timer_list gc_timer;
 
 	struct semaphore gc_sem;
-	atomic_t inflight_gc;
+	atomic_t read_inflight_gc; /* Number of lines with inflight GC reads */
+	atomic_t pipeline_gc;	   /* Number of lines in the GC pipeline -
+				    * started reads to finished writes
+				    */
 	int w_entries;
 
 	struct list_head w_list;
@@ -267,6 +277,7 @@ struct pblk_rl {
 	int rb_gc_max;		/* Max buffer entries available for GC I/O */
 	int rb_gc_rsv;		/* Reserved buffer entries for GC I/O */
 	int rb_state;		/* Rate-limiter current state */
+	int rb_max_io;		/* Maximum size for an I/O giving the config */
 
 	atomic_t rb_user_cnt;	/* User I/O buffer counter */
 	atomic_t rb_gc_cnt;	/* GC I/O buffer counter */
@@ -310,6 +321,7 @@ enum {
 };
 
 #define PBLK_MAGIC 0x70626c6b /*pblk*/
+#define SMETA_VERSION cpu_to_le16(1)
 
 struct line_header {
 	__le32 crc;
@@ -618,15 +630,16 @@ struct pblk {
 
 	struct list_head compl_list;
 
-	mempool_t *page_pool;
-	mempool_t *line_ws_pool;
+	mempool_t *page_bio_pool;
+	mempool_t *gen_ws_pool;
 	mempool_t *rec_pool;
-	mempool_t *g_rq_pool;
+	mempool_t *r_rq_pool;
 	mempool_t *w_rq_pool;
-	mempool_t *line_meta_pool;
+	mempool_t *e_rq_pool;
 
 	struct workqueue_struct *close_wq;
 	struct workqueue_struct *bb_wq;
+	struct workqueue_struct *r_end_wq;
 
 	struct timer_list wtimer;
 
@@ -657,15 +670,15 @@ int pblk_rb_may_write_gc(struct pblk_rb *rb, unsigned int nr_entries,
 void pblk_rb_write_entry_user(struct pblk_rb *rb, void *data,
 			      struct pblk_w_ctx w_ctx, unsigned int pos);
 void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
-			    struct pblk_w_ctx w_ctx, struct pblk_line *gc_line,
-			    unsigned int pos);
+			    struct pblk_w_ctx w_ctx, struct pblk_line *line,
+			    u64 paddr, unsigned int pos);
 struct pblk_w_ctx *pblk_rb_w_ctx(struct pblk_rb *rb, unsigned int pos);
 void pblk_rb_flush(struct pblk_rb *rb);
 
 void pblk_rb_sync_l2p(struct pblk_rb *rb);
 unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
-				 struct bio *bio, unsigned int pos,
-				 unsigned int nr_entries, unsigned int count);
+				 unsigned int pos, unsigned int nr_entries,
+				 unsigned int count);
 unsigned int pblk_rb_read_to_bio_list(struct pblk_rb *rb, struct bio *bio,
 				      struct list_head *list,
 				      unsigned int max);
@@ -692,24 +705,23 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf);
 /*
  * pblk core
  */
-struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int rw);
+struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int type);
+void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type);
 void pblk_set_sec_per_write(struct pblk *pblk, int sec_per_write);
 int pblk_setup_w_rec_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			struct pblk_c_ctx *c_ctx);
-void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int rw);
-void pblk_wait_for_meta(struct pblk *pblk);
-struct ppa_addr pblk_get_lba_map(struct pblk *pblk, sector_t lba);
 void pblk_discard(struct pblk *pblk, struct bio *bio);
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd);
 int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd);
+int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd);
 int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line);
 struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 			      unsigned int nr_secs, unsigned int len,
 			      int alloc_type, gfp_t gfp_mask);
 struct pblk_line *pblk_line_get(struct pblk *pblk);
 struct pblk_line *pblk_line_get_first_data(struct pblk *pblk);
-void pblk_line_replace_data(struct pblk *pblk);
+struct pblk_line *pblk_line_replace_data(struct pblk *pblk);
 int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_recov_close(struct pblk *pblk, struct pblk_line *line);
 struct pblk_line *pblk_line_get_data(struct pblk *pblk);
@@ -719,19 +731,18 @@ int pblk_line_is_full(struct pblk_line *line);
 void pblk_line_free(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_close(struct pblk *pblk, struct pblk_line *line);
-void pblk_line_close_meta_sync(struct pblk *pblk);
 void pblk_line_close_ws(struct work_struct *work);
 void pblk_pipeline_stop(struct pblk *pblk);
-void pblk_line_mark_bb(struct work_struct *work);
-void pblk_line_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
-		      void (*work)(struct work_struct *),
-		      struct workqueue_struct *wq);
+void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
+		     void (*work)(struct work_struct *), gfp_t gfp_mask,
+		     struct workqueue_struct *wq);
 u64 pblk_line_smeta_start(struct pblk *pblk, struct pblk_line *line);
 int pblk_line_read_smeta(struct pblk *pblk, struct pblk_line *line);
 int pblk_line_read_emeta(struct pblk *pblk, struct pblk_line *line,
 			 void *emeta_buf);
 int pblk_blk_erase_async(struct pblk *pblk, struct ppa_addr erase_ppa);
 void pblk_line_put(struct kref *ref);
+void pblk_line_put_wq(struct kref *ref);
 struct list_head *pblk_line_gc_list(struct pblk *pblk, struct pblk_line *line);
 u64 pblk_lookup_page(struct pblk *pblk, struct pblk_line *line);
 void pblk_dealloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs);
@@ -745,7 +756,6 @@ void pblk_down_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
 void pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas);
 void pblk_up_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
 		unsigned long *lun_bitmap);
-void pblk_end_bio_sync(struct bio *bio);
 void pblk_end_io_sync(struct nvm_rq *rqd);
 int pblk_bio_add_pages(struct pblk *pblk, struct bio *bio, gfp_t flags,
 		       int nr_pages);
@@ -760,7 +770,7 @@ void pblk_update_map_cache(struct pblk *pblk, sector_t lba,
 void pblk_update_map_dev(struct pblk *pblk, sector_t lba,
 			 struct ppa_addr ppa, struct ppa_addr entry_line);
 int pblk_update_map_gc(struct pblk *pblk, sector_t lba, struct ppa_addr ppa,
-		       struct pblk_line *gc_line);
+		       struct pblk_line *gc_line, u64 paddr);
 void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,
 			  u64 *lba_list, int nr_secs);
 void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
@@ -771,9 +781,7 @@ void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
  */
 int pblk_write_to_cache(struct pblk *pblk, struct bio *bio,
 			unsigned long flags);
-int pblk_write_gc_to_cache(struct pblk *pblk, void *data, u64 *lba_list,
-			   unsigned int nr_entries, unsigned int nr_rec_entries,
-			   struct pblk_line *gc_line, unsigned long flags);
+int pblk_write_gc_to_cache(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 
 /*
  * pblk map
@@ -789,7 +797,7 @@ void pblk_map_rq(struct pblk *pblk, struct nvm_rq *rqd, unsigned int sentry,
  * pblk write thread
  */
 int pblk_write_ts(void *data);
-void pblk_write_timer_fn(unsigned long data);
+void pblk_write_timer_fn(struct timer_list *t);
 void pblk_write_should_kick(struct pblk *pblk);
 
 /*
@@ -797,9 +805,7 @@ void pblk_write_should_kick(struct pblk *pblk);
  */
 extern struct bio_set *pblk_bio_set;
 int pblk_submit_read(struct pblk *pblk, struct bio *bio);
-int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
-			unsigned int nr_secs, unsigned int *secs_to_gc,
-			struct pblk_line *line);
+int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 /*
  * pblk recovery
  */
@@ -815,7 +821,7 @@ int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
  * pblk gc
  */
 #define PBLK_GC_MAX_READERS 8	/* Max number of outstanding GC reader jobs */
-#define PBLK_GC_W_QD 128	/* Queue depth for inflight GC write I/Os */
+#define PBLK_GC_RQ_QD 128	/* Queue depth for inflight GC requests */
 #define PBLK_GC_L_QD 4		/* Queue depth for inflight GC lines */
 #define PBLK_GC_RSV_LINE 1	/* Reserved lines for GC */
 
@@ -824,7 +830,7 @@ void pblk_gc_exit(struct pblk *pblk);
 void pblk_gc_should_start(struct pblk *pblk);
 void pblk_gc_should_stop(struct pblk *pblk);
 void pblk_gc_should_kick(struct pblk *pblk);
-void pblk_gc_kick(struct pblk *pblk);
+void pblk_gc_free_full_lines(struct pblk *pblk);
 void pblk_gc_sysfs_state_show(struct pblk *pblk, int *gc_enabled,
 			      int *gc_active);
 int pblk_gc_sysfs_force(struct pblk *pblk, int force);
@@ -834,8 +840,8 @@ int pblk_gc_sysfs_force(struct pblk *pblk, int force);
  */
 void pblk_rl_init(struct pblk_rl *rl, int budget);
 void pblk_rl_free(struct pblk_rl *rl);
+void pblk_rl_update_rates(struct pblk_rl *rl);
 int pblk_rl_high_thrs(struct pblk_rl *rl);
-int pblk_rl_low_thrs(struct pblk_rl *rl);
 unsigned long pblk_rl_nr_free_blks(struct pblk_rl *rl);
 int pblk_rl_user_may_insert(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_inserted(struct pblk_rl *rl, int nr_entries);
@@ -843,10 +849,9 @@ void pblk_rl_user_in(struct pblk_rl *rl, int nr_entries);
 int pblk_rl_gc_may_insert(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_gc_in(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_out(struct pblk_rl *rl, int nr_user, int nr_gc);
-int pblk_rl_sysfs_rate_show(struct pblk_rl *rl);
+int pblk_rl_max_io(struct pblk_rl *rl);
 void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line);
 void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line);
-void pblk_rl_set_space_limit(struct pblk_rl *rl, int entries_left);
 int pblk_rl_is_limit(struct pblk_rl *rl);
 
 /*
@@ -892,13 +897,7 @@ static inline void *emeta_to_vsc(struct pblk *pblk, struct line_emeta *emeta)
 
 static inline int pblk_line_vsc(struct pblk_line *line)
 {
-	int vsc;
-
-	spin_lock(&line->lock);
-	vsc = le32_to_cpu(*line->vsc);
-	spin_unlock(&line->lock);
-
-	return vsc;
+	return le32_to_cpu(*line->vsc);
 }
 
 #define NVM_MEM_PAGE_WRITE (8)
@@ -1140,7 +1139,7 @@ static inline int pblk_set_progr_mode(struct pblk *pblk, int type)
 
 	flags = geo->plane_mode >> 1;
 
-	if (type == WRITE)
+	if (type == PBLK_WRITE)
 		flags |= NVM_IO_SCRAMBLE_ENABLE;
 
 	return flags;
@@ -1200,7 +1199,6 @@ static inline void pblk_print_failed_rqd(struct pblk *pblk, struct nvm_rq *rqd,
 
 	pr_err("error:%d, ppa_status:%llx\n", error, rqd->ppa_status);
 }
-#endif
 
 static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 				       struct ppa_addr *ppas, int nr_ppas)
@@ -1221,13 +1219,49 @@ static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 				ppa->g.sec < geo->sec_per_pg)
 			continue;
 
-#ifdef CONFIG_NVM_DEBUG
 		print_ppa(ppa, "boundary", i);
-#endif
+
 		return 1;
 	}
 	return 0;
 }
+
+static inline int pblk_check_io(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct ppa_addr *ppa_list;
+
+	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
+
+	if (pblk_boundary_ppa_checks(dev, ppa_list, rqd->nr_ppas)) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	if (rqd->opcode == NVM_OP_PWRITE) {
+		struct pblk_line *line;
+		struct ppa_addr ppa;
+		int i;
+
+		for (i = 0; i < rqd->nr_ppas; i++) {
+			ppa = ppa_list[i];
+			line = &pblk->lines[pblk_dev_ppa_to_line(ppa)];
+
+			spin_lock(&line->lock);
+			if (line->state != PBLK_LINESTATE_OPEN) {
+				pr_err("pblk: bad ppa: line:%d,state:%d\n",
+							line->id, line->state);
+				WARN_ON(1);
+				spin_unlock(&line->lock);
+				return -EINVAL;
+			}
+			spin_unlock(&line->lock);
+		}
+	}
+
+	return 0;
+}
+#endif
 
 static inline int pblk_boundary_paddr_checks(struct pblk *pblk, u64 paddr)
 {

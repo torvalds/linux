@@ -89,7 +89,7 @@ Optional subnode-properties:
 
 Examples:
 
-pio: pinctrl@01c20800 {
+pio: pinctrl@1c20800 {
 	compatible = "allwinner,sun5i-a13-pinctrl";
 	reg = <0x01c20800 0x400>;
 	#address-cells = <1>;

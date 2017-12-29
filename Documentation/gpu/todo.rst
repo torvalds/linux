@@ -75,17 +75,6 @@ helpers.
 
 Contact: Ville Syrjälä, Daniel Vetter, driver maintainers
 
-Implement deferred fbdev setup in the helper
---------------------------------------------
-
-Many (especially embedded drivers) want to delay fbdev setup until there's a
-real screen plugged in. This is to avoid the dreaded fallback to the low-res
-fbdev default. Many drivers have a hacked-up (and often broken) version of this,
-better to do it once in the shared helpers. Thierry has a patch series, but that
-one needs to be rebased and final polish applied.
-
-Contact: Thierry Reding, Daniel Vetter, driver maintainers
-
 Convert early atomic drivers to async commit helpers
 ----------------------------------------------------
 
@@ -138,6 +127,8 @@ interfaces to fix these issues:
   the acquire context explicitly on stack and then also pass it down into
   drivers explicitly so that the legacy-on-atomic functions can use them.
 
+  Except for some driver code this is done.
+
 * A bunch of the vtable hooks are now in the wrong place: DRM has a split
   between core vfunc tables (named ``drm_foo_funcs``), which are used to
   implement the userspace ABI. And then there's the optional hooks for the
@@ -150,6 +141,8 @@ interfaces to fix these issues:
   used by all atomic drivers which don't select the encoder for a given
   connector at runtime. That's almost all of them, and would allow us to get
   rid of a lot of ``best_encoder`` boilerplate in drivers.
+
+  This was almost done, but new drivers added a few more cases again.
 
 Contact: Daniel Vetter
 
@@ -177,14 +170,19 @@ following drivers still use ``struct_mutex``: ``msm``, ``omapdrm`` and
 
 Contact: Daniel Vetter, respective driver maintainers
 
+Convert instances of dev_info/dev_err/dev_warn to their DRM_DEV_* equivalent
+----------------------------------------------------------------------------
+
+For drivers which could have multiple instances, it is necessary to
+differentiate between which is which in the logs. Since DRM_INFO/WARN/ERROR
+don't do this, drivers used dev_info/warn/err to make this differentiation. We
+now have DRM_DEV_* variants of the drm print macros, so we can start to convert
+those drivers back to using drm-formwatted specific log messages.
+
+Contact: Sean Paul, Maintainer of the driver you plan to convert
+
 Core refactorings
 =================
-
-Use new IDR deletion interface to clean up drm_gem_handle_delete()
-------------------------------------------------------------------
-
-See the "This is gross" comment -- apparently the IDR system now can return an
-error code instead of oopsing.
 
 Clean up the DRM header mess
 ----------------------------
@@ -306,6 +304,18 @@ There's a bunch of issues with it:
 
 Contact: Daniel Vetter
 
+KMS cleanups
+------------
+
+Some of these date from the very introduction of KMS in 2008 ...
+
+- drm_mode_config.crtc_idr is misnamed, since it contains all KMS object. Should
+  be renamed to drm_mode_config.object_idr.
+
+- drm_display_mode doesn't need to be derived from drm_mode_object. That's
+  leftovers from older (never merged into upstream) KMS designs where modes
+  where set using their ID, including support to add/remove modes.
+
 Better Testing
 ==============
 
@@ -353,7 +363,16 @@ those drivers as simple as possible, so lots of room for refactoring:
 - backlight helpers, probably best to put them into a new drm_backlight.c.
   This is because drivers/video is de-facto unmaintained. We could also
   move drivers/video/backlight to drivers/gpu/backlight and take it all
-  over within drm-misc, but that's more work.
+  over within drm-misc, but that's more work. Backlight helpers require a fair
+  bit of reworking and refactoring. A simple example is the enabling of a backlight.
+  Tinydrm has helpers for this. It would be good if other drivers can also use the
+  helper. However, there are various cases we need to consider i.e different
+  drivers seem to have different ways of enabling/disabling a backlight.
+  We also need to consider the backlight drivers (like gpio_backlight). The situation
+  is further complicated by the fact that the backlight is tied to fbdev
+  via fb_notifier_callback() which has complicated logic. For further details, refer
+  to the following discussion thread:
+  https://groups.google.com/forum/#!topic/outreachy-kernel/8rBe30lwtdA
 
 - spi helpers, probably best put into spi core/helper code. Thierry said
   the spi maintainer is fast&reactive, so shouldn't be a big issue.
@@ -389,6 +408,16 @@ those drivers as simple as possible, so lots of room for refactoring:
 - also rework the drm_framebuffer_funcs->dirty hook wire-up, see above.
 
 Contact: Noralf Trønnes, Daniel Vetter
+
+AMD DC Display Driver
+---------------------
+
+AMD DC is the display driver for AMD devices starting with Vega. There has been
+a bunch of progress cleaning it up but there's still plenty of work to be done.
+
+See drivers/gpu/drm/amd/display/TODO for tasks.
+
+Contact: Harry Wentland, Alex Deucher
 
 Outside DRM
 ===========

@@ -435,8 +435,7 @@ static void delete_glists(struct lio *lio)
 		do {
 			g = (struct octnic_gather *)
 			    list_delete_head(&lio->glist[i]);
-			if (g)
-				kfree(g);
+			kfree(g);
 		} while (g);
 
 		if (lio->glists_virt_base && lio->glists_virt_base[i] &&
@@ -748,7 +747,7 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		if (lio_wait_for_oq_pkts(oct))
 			dev_err(&oct->pci_dev->dev, "OQ had pending packets\n");
-
+		/* fall through */
 	case OCT_DEV_INTR_SET_DONE:
 		/* Disable interrupts  */
 		oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
@@ -1289,6 +1288,9 @@ static int liquidio_stop(struct net_device *netdev)
 	struct octeon_device *oct = lio->oct_dev;
 	struct napi_struct *napi, *n;
 
+	/* tell Octeon to stop forwarding packets to host */
+	send_rx_ctrl_cmd(lio, 0);
+
 	if (oct->props[lio->ifidx].napi_enabled) {
 		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
 			napi_disable(napi);
@@ -1305,9 +1307,6 @@ static int liquidio_stop(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 	lio->link_changes++;
-
-	/* tell Octeon to stop forwarding packets to host */
-	send_rx_ctrl_cmd(lio, 0);
 
 	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
 
@@ -1691,7 +1690,8 @@ static void handle_timestamp(struct octeon_device *oct, u32 status, void *buf)
  */
 static int send_nic_timestamp_pkt(struct octeon_device *oct,
 				  struct octnic_data_pkt *ndata,
-				  struct octnet_buf_free_info *finfo)
+				  struct octnet_buf_free_info *finfo,
+				  int xmit_more)
 {
 	struct octeon_soft_command *sc;
 	int ring_doorbell;
@@ -1721,7 +1721,7 @@ static int send_nic_timestamp_pkt(struct octeon_device *oct,
 
 	len = (u32)((struct octeon_instr_ih3 *)(&sc->cmd.cmd3.ih3))->dlengsz;
 
-	ring_doorbell = 1;
+	ring_doorbell = !xmit_more;
 
 	retval = octeon_send_command(oct, sc->iq_no, ring_doorbell, &sc->cmd,
 				     sc, len, ndata->reqtype);
@@ -1753,6 +1753,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct octeon_device *oct;
 	int q_idx = 0, iq_no = 0;
 	union tx_info *tx_info;
+	int xmit_more = 0;
 	struct lio *lio;
 	int status = 0;
 	u64 dptr = 0;
@@ -1941,10 +1942,12 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		irh->vlan = skb_vlan_tag_get(skb) & VLAN_VID_MASK;
 	}
 
+	xmit_more = skb->xmit_more;
+
 	if (unlikely(cmdsetup.s.timestamp))
-		status = send_nic_timestamp_pkt(oct, &ndata, finfo);
+		status = send_nic_timestamp_pkt(oct, &ndata, finfo, xmit_more);
 	else
-		status = octnet_send_nic_data_pkt(oct, &ndata);
+		status = octnet_send_nic_data_pkt(oct, &ndata, xmit_more);
 	if (status == IQ_SEND_FAILED)
 		goto lio_xmit_failed;
 
@@ -1953,7 +1956,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (status == IQ_SEND_STOP) {
 		dev_err(&oct->pci_dev->dev, "Rcvd IQ_SEND_STOP signal; stopping IQ-%d\n",
 			iq_no);
-		stop_q(lio->netdev, q_idx);
+		stop_q(netdev, q_idx);
 	}
 
 	netif_trans_update(netdev);
@@ -1973,6 +1976,9 @@ lio_xmit_failed:
 	if (dptr)
 		dma_unmap_single(&oct->pci_dev->dev, dptr,
 				 ndata.datasize, DMA_TO_DEVICE);
+
+	octeon_ring_doorbell_locked(oct, iq_no);
+
 	tx_buffer_free(skb);
 	return NETDEV_TX_OK;
 }

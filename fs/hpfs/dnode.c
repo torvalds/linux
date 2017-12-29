@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/hpfs/dnode.c
  *
@@ -418,7 +419,6 @@ int hpfs_add_dirent(struct inode *i,
 		c = 1;
 		goto ret;
 	}	
-	i->i_version++;
 	c = hpfs_add_to_dnode(i, dno, name, namelen, new_de, 0);
 	ret:
 	return c;
@@ -725,7 +725,6 @@ int hpfs_remove_dirent(struct inode *i, dnode_secno dno, struct hpfs_dirent *de,
 			return 2;
 		}
 	}
-	i->i_version++;
 	for_all_poss(i, hpfs_pos_del, (t = get_pos(dnode, de)) + 1, 1);
 	hpfs_delete_de(i->i_sb, dnode, de);
 	hpfs_mark_4buffers_dirty(qbh);

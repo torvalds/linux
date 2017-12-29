@@ -85,6 +85,7 @@ struct ccid2_hc_tx_sock {
 				tx_rto;
 	u64			tx_rtt_seq:48;
 	struct timer_list	tx_rtotimer;
+	struct sock		*sk;
 
 	/* Congestion Window validation (optional, RFC 2861) */
 	u32			tx_cwnd_used,

@@ -6,7 +6,7 @@
  * Support for Kernel relocation at boot time
  *
  * Copyright (C) 2015, Imagination Technologies Ltd.
- * Authors: Matt Redfearn (matt.redfearn@imgtec.com)
+ * Authors: Matt Redfearn (matt.redfearn@mips.com)
  */
 #include <asm/bootinfo.h>
 #include <asm/cacheflush.h>

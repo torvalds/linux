@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _GEN_PV_LOCK_SLOWPATH
 #error "do not include this file"
 #endif
@@ -60,21 +61,50 @@ struct pv_node {
 #include "qspinlock_stat.h"
 
 /*
+ * Hybrid PV queued/unfair lock
+ *
  * By replacing the regular queued_spin_trylock() with the function below,
  * it will be called once when a lock waiter enter the PV slowpath before
- * being queued. By allowing one lock stealing attempt here when the pending
- * bit is off, it helps to reduce the performance impact of lock waiter
- * preemption without the drawback of lock starvation.
+ * being queued.
+ *
+ * The pending bit is set by the queue head vCPU of the MCS wait queue in
+ * pv_wait_head_or_lock() to signal that it is ready to spin on the lock.
+ * When that bit becomes visible to the incoming waiters, no lock stealing
+ * is allowed. The function will return immediately to make the waiters
+ * enter the MCS wait queue. So lock starvation shouldn't happen as long
+ * as the queued mode vCPUs are actively running to set the pending bit
+ * and hence disabling lock stealing.
+ *
+ * When the pending bit isn't set, the lock waiters will stay in the unfair
+ * mode spinning on the lock unless the MCS wait queue is empty. In this
+ * case, the lock waiters will enter the queued mode slowpath trying to
+ * become the queue head and set the pending bit.
+ *
+ * This hybrid PV queued/unfair lock combines the best attributes of a
+ * queued lock (no lock starvation) and an unfair lock (good performance
+ * on not heavily contended locks).
  */
-#define queued_spin_trylock(l)	pv_queued_spin_steal_lock(l)
-static inline bool pv_queued_spin_steal_lock(struct qspinlock *lock)
+#define queued_spin_trylock(l)	pv_hybrid_queued_unfair_trylock(l)
+static inline bool pv_hybrid_queued_unfair_trylock(struct qspinlock *lock)
 {
 	struct __qspinlock *l = (void *)lock;
 
-	if (!(atomic_read(&lock->val) & _Q_LOCKED_PENDING_MASK) &&
-	    (cmpxchg_acquire(&l->locked, 0, _Q_LOCKED_VAL) == 0)) {
-		qstat_inc(qstat_pv_lock_stealing, true);
-		return true;
+	/*
+	 * Stay in unfair lock mode as long as queued mode waiters are
+	 * present in the MCS wait queue but the pending bit isn't set.
+	 */
+	for (;;) {
+		int val = atomic_read(&lock->val);
+
+		if (!(val & _Q_LOCKED_PENDING_MASK) &&
+		   (cmpxchg_acquire(&l->locked, 0, _Q_LOCKED_VAL) == 0)) {
+			qstat_inc(qstat_pv_lock_stealing, true);
+			return true;
+		}
+		if (!(val & _Q_TAIL_MASK) || (val & _Q_PENDING_MASK))
+			break;
+
+		cpu_relax();
 	}
 
 	return false;

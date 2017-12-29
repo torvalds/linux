@@ -114,18 +114,18 @@ static int hfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int hfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_NODIRATIME;
-	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
+	*flags |= SB_NODIRATIME;
+	if ((bool)(*flags & SB_RDONLY) == sb_rdonly(sb))
 		return 0;
-	if (!(*flags & MS_RDONLY)) {
+	if (!(*flags & SB_RDONLY)) {
 		if (!(HFS_SB(sb)->mdb->drAtrb & cpu_to_be16(HFS_SB_ATTRIB_UNMNT))) {
 			pr_warn("filesystem was not cleanly unmounted, running fsck.hfs is recommended.  leaving read-only.\n");
-			sb->s_flags |= MS_RDONLY;
-			*flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
+			*flags |= SB_RDONLY;
 		} else if (HFS_SB(sb)->mdb->drAtrb & cpu_to_be16(HFS_SB_ATTRIB_SLOCK)) {
 			pr_warn("filesystem is marked locked, leaving read-only.\n");
-			sb->s_flags |= MS_RDONLY;
-			*flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
+			*flags |= SB_RDONLY;
 		}
 	}
 	return 0;
@@ -407,7 +407,7 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_op = &hfs_super_operations;
 	sb->s_xattr = hfs_xattr_handlers;
-	sb->s_flags |= MS_NODIRATIME;
+	sb->s_flags |= SB_NODIRATIME;
 	mutex_init(&sbi->bitmap_lock);
 
 	res = hfs_mdb_get(sb);

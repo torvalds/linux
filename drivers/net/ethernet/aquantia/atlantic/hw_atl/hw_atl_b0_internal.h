@@ -139,6 +139,9 @@
 
 #define HW_ATL_B0_FW_VER_EXPECTED 0x01050006U
 
+#define HW_ATL_INTR_MODER_MAX  0x1FF
+#define HW_ATL_INTR_MODER_MIN  0xFF
+
 /* Hardware tx descriptor */
 struct __packed hw_atl_txd_s {
 	u64 buf_addr;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __IPC_NAMESPACE_H__
 #define __IPC_NAMESPACE_H__
 
@@ -18,7 +19,10 @@ struct ipc_ids {
 	bool tables_initialized;
 	struct rw_semaphore rwsem;
 	struct idr ipcs_idr;
+	int max_id;
+#ifdef CONFIG_CHECKPOINT_RESTORE
 	int next_id;
+#endif
 	struct rhashtable key_ht;
 };
 

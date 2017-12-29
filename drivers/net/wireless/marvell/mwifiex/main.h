@@ -680,7 +680,6 @@ struct mwifiex_private {
 	struct mwifiex_user_scan_chan hidden_chan[MWIFIEX_USER_SCAN_CHAN_MAX];
 	u8 assoc_resp_ht_param;
 	bool ht_param_present;
-	u8 random_mac[ETH_ALEN];
 };
 
 
@@ -1073,7 +1072,7 @@ int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
 int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		     u16 cmd_action, u32 cmd_oid, void *data_buf, bool sync);
 
-void mwifiex_cmd_timeout_func(unsigned long function_context);
+void mwifiex_cmd_timeout_func(struct timer_list *t);
 
 int mwifiex_get_debug_info(struct mwifiex_private *,
 			   struct mwifiex_debug_info *);
@@ -1618,7 +1617,7 @@ void mwifiex_auto_tdls_update_peer_status(struct mwifiex_private *priv,
 					  const u8 *mac, u8 link_status);
 void mwifiex_auto_tdls_update_peer_signal(struct mwifiex_private *priv,
 					  u8 *mac, s8 snr, s8 nflr);
-void mwifiex_check_auto_tdls(unsigned long context);
+void mwifiex_check_auto_tdls(struct timer_list *t);
 void mwifiex_add_auto_tdls_peer(struct mwifiex_private *priv, const u8 *mac);
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv);
 void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);

@@ -72,18 +72,15 @@ static int xen_suspend(void *data)
 	}
 
 	gnttab_suspend();
+	xen_manage_runstate_time(-1);
 	xen_arch_pre_suspend();
 
-	/*
-	 * This hypercall returns 1 if suspend was cancelled
-	 * or the domain was merely checkpointed, and 0 if it
-	 * is resuming in a new domain.
-	 */
 	si->cancelled = HYPERVISOR_suspend(xen_pv_domain()
                                            ? virt_to_gfn(xen_start_info)
                                            : 0);
 
 	xen_arch_post_suspend(si->cancelled);
+	xen_manage_runstate_time(si->cancelled ? 1 : 0);
 	gnttab_resume();
 
 	if (!si->cancelled) {

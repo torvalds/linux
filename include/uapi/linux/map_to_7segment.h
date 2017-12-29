@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * Copyright (c) 2005 Henk Vergonet <Henk.Vergonet@gmail.com>
  *

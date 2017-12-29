@@ -86,7 +86,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		greh = (struct gre_base_hdr *)skb_transport_header(skb);
 		pcsum = (__sum16 *)(greh + 1);
 
-		if (gso_partial) {
+		if (gso_partial && skb_is_gso(skb)) {
 			unsigned int partial_adj;
 
 			/* Adjust checksum to account for the fact that

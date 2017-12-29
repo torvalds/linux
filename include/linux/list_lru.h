@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2013 Red Hat, Inc. and Parallels Inc. All rights reserved.
  * Authors: David Chinner and Glauber Costa

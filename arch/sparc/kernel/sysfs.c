@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* sysfs.c: Topology sysfs support code for sparc64.
  *
  * Copyright (C) 2007 David S. Miller <davem@davemloft.net>

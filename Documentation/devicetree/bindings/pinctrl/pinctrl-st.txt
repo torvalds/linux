@@ -89,7 +89,7 @@ Example:
 		interrupt-names = "irqmux";
 		ranges = <0 0x09610000 0x6000>;
 
-		pio0: gpio@09610000 {
+		pio0: gpio@9610000 {
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;

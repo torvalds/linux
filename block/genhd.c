@@ -588,6 +588,11 @@ static void register_disk(struct device *parent, struct gendisk *disk)
 	disk->part0.holder_dir = kobject_create_and_add("holders", &ddev->kobj);
 	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
 
+	if (disk->flags & GENHD_FL_HIDDEN) {
+		dev_set_uevent_suppress(ddev, 0);
+		return;
+	}
+
 	/* No minors to use for partitions */
 	if (!disk_part_scan_enabled(disk))
 		goto exit;
@@ -616,6 +621,11 @@ exit:
 	while ((part = disk_part_iter_next(&piter)))
 		kobject_uevent(&part_to_dev(part)->kobj, KOBJ_ADD);
 	disk_part_iter_exit(&piter);
+
+	err = sysfs_create_link(&ddev->kobj,
+				&disk->queue->backing_dev_info->dev->kobj,
+				"bdi");
+	WARN_ON(err);
 }
 
 /**
@@ -630,7 +640,6 @@ exit:
  */
 void device_add_disk(struct device *parent, struct gendisk *disk)
 {
-	struct backing_dev_info *bdi;
 	dev_t devt;
 	int retval;
 
@@ -639,7 +648,8 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 	 * parameters make sense.
 	 */
 	WARN_ON(disk->minors && !(disk->major || disk->first_minor));
-	WARN_ON(!disk->minors && !(disk->flags & GENHD_FL_EXT_DEVT));
+	WARN_ON(!disk->minors &&
+		!(disk->flags & (GENHD_FL_EXT_DEVT | GENHD_FL_HIDDEN)));
 
 	disk->flags |= GENHD_FL_UP;
 
@@ -648,22 +658,29 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 		WARN_ON(1);
 		return;
 	}
-	disk_to_dev(disk)->devt = devt;
-
-	/* ->major and ->first_minor aren't supposed to be
-	 * dereferenced from here on, but set them just in case.
-	 */
 	disk->major = MAJOR(devt);
 	disk->first_minor = MINOR(devt);
 
 	disk_alloc_events(disk);
 
-	/* Register BDI before referencing it from bdev */
-	bdi = disk->queue->backing_dev_info;
-	bdi_register_owner(bdi, disk_to_dev(disk));
+	if (disk->flags & GENHD_FL_HIDDEN) {
+		/*
+		 * Don't let hidden disks show up in /proc/partitions,
+		 * and don't bother scanning for partitions either.
+		 */
+		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
+		disk->flags |= GENHD_FL_NO_PART_SCAN;
+	} else {
+		int ret;
 
-	blk_register_region(disk_devt(disk), disk->minors, NULL,
-			    exact_match, exact_lock, disk);
+		/* Register BDI before referencing it from bdev */
+		disk_to_dev(disk)->devt = devt;
+		ret = bdi_register_owner(disk->queue->backing_dev_info,
+						disk_to_dev(disk));
+		WARN_ON(ret);
+		blk_register_region(disk_devt(disk), disk->minors, NULL,
+				    exact_match, exact_lock, disk);
+	}
 	register_disk(parent, disk);
 	blk_register_queue(disk);
 
@@ -672,10 +689,6 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 	 * so that it sticks around as long as @disk is there.
 	 */
 	WARN_ON_ONCE(!blk_get_queue(disk->queue));
-
-	retval = sysfs_create_link(&disk_to_dev(disk)->kobj, &bdi->dev->kobj,
-				   "bdi");
-	WARN_ON(retval);
 
 	disk_add_events(disk);
 	blk_integrity_add(disk);
@@ -705,7 +718,8 @@ void del_gendisk(struct gendisk *disk)
 	set_capacity(disk, 0);
 	disk->flags &= ~GENHD_FL_UP;
 
-	sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
+	if (!(disk->flags & GENHD_FL_HIDDEN))
+		sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
 	if (disk->queue) {
 		/*
 		 * Unregister bdi before releasing device numbers (as they can
@@ -716,13 +730,15 @@ void del_gendisk(struct gendisk *disk)
 	} else {
 		WARN_ON(1);
 	}
-	blk_unregister_region(disk_devt(disk), disk->minors);
 
-	part_stat_set_all(&disk->part0, 0);
-	disk->part0.stamp = 0;
+	if (!(disk->flags & GENHD_FL_HIDDEN))
+		blk_unregister_region(disk_devt(disk), disk->minors);
 
 	kobject_put(disk->part0.holder_dir);
 	kobject_put(disk->slave_dir);
+
+	part_stat_set_all(&disk->part0, 0);
+	disk->part0.stamp = 0;
 	if (!sysfs_deprecated)
 		sysfs_remove_link(block_depr, dev_name(disk_to_dev(disk)));
 	pm_runtime_set_memalloc_noio(disk_to_dev(disk), false);
@@ -785,6 +801,10 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
 		spin_unlock_bh(&ext_devt_lock);
 	}
 
+	if (disk && unlikely(disk->flags & GENHD_FL_HIDDEN)) {
+		put_disk(disk);
+		disk = NULL;
+	}
 	return disk;
 }
 EXPORT_SYMBOL(get_gendisk);
@@ -1028,6 +1048,15 @@ static ssize_t disk_removable_show(struct device *dev,
 		       (disk->flags & GENHD_FL_REMOVABLE ? 1 : 0));
 }
 
+static ssize_t disk_hidden_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	return sprintf(buf, "%d\n",
+		       (disk->flags & GENHD_FL_HIDDEN ? 1 : 0));
+}
+
 static ssize_t disk_ro_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -1065,6 +1094,7 @@ static ssize_t disk_discard_alignment_show(struct device *dev,
 static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);
 static DEVICE_ATTR(ext_range, S_IRUGO, disk_ext_range_show, NULL);
 static DEVICE_ATTR(removable, S_IRUGO, disk_removable_show, NULL);
+static DEVICE_ATTR(hidden, S_IRUGO, disk_hidden_show, NULL);
 static DEVICE_ATTR(ro, S_IRUGO, disk_ro_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
 static DEVICE_ATTR(alignment_offset, S_IRUGO, disk_alignment_offset_show, NULL);
@@ -1089,6 +1119,7 @@ static struct attribute *disk_attrs[] = {
 	&dev_attr_range.attr,
 	&dev_attr_ext_range.attr,
 	&dev_attr_removable.attr,
+	&dev_attr_hidden.attr,
 	&dev_attr_ro.attr,
 	&dev_attr_size.attr,
 	&dev_attr_alignment_offset.attr,
@@ -1354,20 +1385,14 @@ dev_t blk_lookup_devt(const char *name, int partno)
 }
 EXPORT_SYMBOL(blk_lookup_devt);
 
-struct gendisk *alloc_disk(int minors)
-{
-	return alloc_disk_node(minors, NUMA_NO_NODE);
-}
-EXPORT_SYMBOL(alloc_disk);
-
-struct gendisk *alloc_disk_node(int minors, int node_id)
+struct gendisk *__alloc_disk_node(int minors, int node_id)
 {
 	struct gendisk *disk;
 	struct disk_part_tbl *ptbl;
 
 	if (minors > DISK_MAX_PARTS) {
 		printk(KERN_ERR
-			"block: can't allocated more than %d partitions\n",
+			"block: can't allocate more than %d partitions\n",
 			DISK_MAX_PARTS);
 		minors = DISK_MAX_PARTS;
 	}
@@ -1411,7 +1436,7 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 	}
 	return disk;
 }
-EXPORT_SYMBOL(alloc_disk_node);
+EXPORT_SYMBOL(__alloc_disk_node);
 
 struct kobject *get_disk(struct gendisk *disk)
 {

@@ -559,8 +559,8 @@ struct smb_vol {
 			 CIFS_MOUNT_MULTIUSER | CIFS_MOUNT_STRICT_IO | \
 			 CIFS_MOUNT_CIFS_BACKUPUID | CIFS_MOUNT_CIFS_BACKUPGID)
 
-#define CIFS_MS_MASK (MS_RDONLY | MS_MANDLOCK | MS_NOEXEC | MS_NOSUID | \
-		      MS_NODEV | MS_SYNCHRONOUS)
+#define CIFS_MS_MASK (SB_RDONLY | SB_MANDLOCK | SB_NOEXEC | SB_NOSUID | \
+		      SB_NODEV | SB_SYNCHRONOUS)
 
 struct cifs_mnt_data {
 	struct cifs_sb_info *cifs_sb;
@@ -661,7 +661,9 @@ struct TCP_Server_Info {
 #endif
 	unsigned int	max_read;
 	unsigned int	max_write;
-	__u8		preauth_hash[512];
+#ifdef CONFIG_CIFS_SMB311
+	__u8	preauth_sha_hash[64]; /* save initital negprot hash */
+#endif /* 3.1.1 */
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
 	unsigned long echo_interval;
@@ -849,7 +851,9 @@ struct cifs_ses {
 	__u8 smb3signingkey[SMB3_SIGN_KEY_SIZE];
 	__u8 smb3encryptionkey[SMB3_SIGN_KEY_SIZE];
 	__u8 smb3decryptionkey[SMB3_SIGN_KEY_SIZE];
-	__u8 preauth_hash[512];
+#ifdef CONFIG_CIFS_SMB311
+	__u8 preauth_sha_hash[64];
+#endif /* 3.1.1 */
 };
 
 static inline bool

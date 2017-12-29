@@ -81,7 +81,9 @@ If you want the driver to put an event into the event log on a panic,
 enable the 'Generate a panic event to all BMCs on a panic' option.  If
 you want the whole panic string put into the event log using OEM
 events, enable the 'Generate OEM events containing the panic string'
-option.
+option.  You can also enable these dynamically by setting the module
+parameter named "panic_op" in the ipmi_msghandler module to "event"
+or "string".  Setting that parameter to "none" disables this function.
 
 Basic Design
 ------------

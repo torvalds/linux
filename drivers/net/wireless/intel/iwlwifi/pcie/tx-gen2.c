@@ -289,8 +289,7 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 		struct sk_buff *csum_skb = NULL;
 		unsigned int tb_len;
 		dma_addr_t tb_phys;
-		struct tcphdr *tcph;
-		u8 *iph, *subf_hdrs_start = hdr_page->pos;
+		u8 *subf_hdrs_start = hdr_page->pos;
 
 		total_len -= data_left;
 
@@ -312,8 +311,6 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 		 * as MAC header.
 		 */
 		tso_build_hdr(skb, hdr_page->pos, &tso, data_left, !total_len);
-		iph = hdr_page->pos + 8;
-		tcph = (void *)(iph + ip_hdrlen);
 
 		hdr_page->pos += snap_ip_tcp_hdrlen;
 
@@ -1160,6 +1157,8 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
 	struct iwl_txq *cmd_queue;
 	int txq_id = trans_pcie->cmd_queue, ret;
 
+	iwl_pcie_set_tx_cmd_queue_size(trans);
+
 	/* alloc and init the command queue */
 	if (!trans_pcie->txq[txq_id]) {
 		cmd_queue = kzalloc(sizeof(*cmd_queue), GFP_KERNEL);
@@ -1168,7 +1167,8 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
 			return -ENOMEM;
 		}
 		trans_pcie->txq[txq_id] = cmd_queue;
-		ret = iwl_pcie_txq_alloc(trans, cmd_queue, TFD_CMD_SLOTS, true);
+		ret = iwl_pcie_txq_alloc(trans, cmd_queue,
+					 trans_pcie->tx_cmd_queue_size, true);
 		if (ret) {
 			IWL_ERR(trans, "Tx %d queue init failed\n", txq_id);
 			goto error;
@@ -1177,7 +1177,8 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
 		cmd_queue = trans_pcie->txq[txq_id];
 	}
 
-	ret = iwl_pcie_txq_init(trans, cmd_queue, TFD_CMD_SLOTS, true);
+	ret = iwl_pcie_txq_init(trans, cmd_queue,
+				trans_pcie->tx_cmd_queue_size, true);
 	if (ret) {
 		IWL_ERR(trans, "Tx %d queue alloc failed\n", txq_id);
 		goto error;

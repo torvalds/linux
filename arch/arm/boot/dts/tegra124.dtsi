@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/tegra124-car.h>
 #include <dt-bindings/gpio/tegra-gpio.h>
 #include <dt-bindings/memory/tegra124-mc.h>
@@ -124,7 +125,7 @@
 			nvidia,head = <1>;
 		};
 
-		hdmi@54280000 {
+		hdmi: hdmi@54280000 {
 			compatible = "nvidia,tegra124-hdmi";
 			reg = <0x0 0x54280000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
@@ -850,6 +851,16 @@
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
 		status = "disabled";
+	};
+
+	cec@70015000 {
+		compatible = "nvidia,tegra124-cec";
+		reg = <0x0 0x70015000 0x0 0x00001000>;
+		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_CEC>;
+		clock-names = "cec";
+		status = "disabled";
+		hdmi-phandle = <&hdmi>;
 	};
 
 	soctherm: thermal-sensor@700e2000 {

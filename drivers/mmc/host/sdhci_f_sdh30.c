@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/clk.h>
 
 #include "sdhci-pltfm.h"
@@ -47,6 +48,7 @@ struct f_sdhost_priv {
 	struct clk *clk;
 	u32 vendor_hs200;
 	struct device *dev;
+	bool enable_cmd_dat_delay;
 };
 
 static void sdhci_f_sdh30_soft_voltage_switch(struct sdhci_host *host)
@@ -84,10 +86,19 @@ static unsigned int sdhci_f_sdh30_get_min_clock(struct sdhci_host *host)
 
 static void sdhci_f_sdh30_reset(struct sdhci_host *host, u8 mask)
 {
+	struct f_sdhost_priv *priv = sdhci_priv(host);
+	u32 ctl;
+
 	if (sdhci_readw(host, SDHCI_CLOCK_CONTROL) == 0)
 		sdhci_writew(host, 0xBC01, SDHCI_CLOCK_CONTROL);
 
 	sdhci_reset(host, mask);
+
+	if (priv->enable_cmd_dat_delay) {
+		ctl = sdhci_readl(host, F_SDH30_ESD_CONTROL);
+		ctl |= F_SDH30_CMD_DAT_DELAY;
+		sdhci_writel(host, ctl, F_SDH30_ESD_CONTROL);
+	}
 }
 
 static const struct sdhci_ops sdhci_f_sdh30_ops = {
@@ -125,6 +136,9 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 		       SDHCI_QUIRK_INVERTED_WRITE_PROTECT;
 	host->quirks2 = SDHCI_QUIRK2_SUPPORT_SINGLE |
 			SDHCI_QUIRK2_TUNING_WORK_AROUND;
+
+	priv->enable_cmd_dat_delay = device_property_read_bool(dev,
+						"fujitsu,cmd-dat-delay-select");
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)

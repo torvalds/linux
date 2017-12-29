@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
@@ -49,14 +50,14 @@ static int parse_status(const char *value)
 
 	while (*c != '\0') {
 		int port, status, speed, devid;
-		unsigned long socket;
+		int sockfd;
 		char lbusid[SYSFS_BUS_ID_SIZE];
 		struct usbip_imported_device *idev;
 		char hub[3];
 
-		ret = sscanf(c, "%2s  %d %d %d %x %lx %31s\n",
+		ret = sscanf(c, "%2s  %d %d %d %x %u %31s\n",
 				hub, &port, &status, &speed,
-				&devid, &socket, lbusid);
+				&devid, &sockfd, lbusid);
 
 		if (ret < 5) {
 			dbg("sscanf failed: %d", ret);
@@ -65,7 +66,7 @@ static int parse_status(const char *value)
 
 		dbg("hub %s port %d status %d speed %d devid %x",
 				hub, port, status, speed, devid);
-		dbg("socket %lx lbusid %s", socket, lbusid);
+		dbg("sockfd %u lbusid %s", sockfd, lbusid);
 
 		/* if a device is connected, look at it */
 		idev = &vhci_driver->idev[port];
@@ -105,7 +106,7 @@ static int parse_status(const char *value)
 	return 0;
 }
 
-#define MAX_STATUS_NAME 16
+#define MAX_STATUS_NAME 18
 
 static int refresh_imported_device_list(void)
 {
@@ -328,9 +329,17 @@ err:
 int usbip_vhci_get_free_port(uint32_t speed)
 {
 	for (int i = 0; i < vhci_driver->nports; i++) {
-		if (speed == USB_SPEED_SUPER &&
-		    vhci_driver->idev[i].hub != HUB_SPEED_SUPER)
-			continue;
+
+		switch (speed) {
+		case	USB_SPEED_SUPER:
+			if (vhci_driver->idev[i].hub != HUB_SPEED_SUPER)
+				continue;
+		break;
+		default:
+			if (vhci_driver->idev[i].hub != HUB_SPEED_HIGH)
+				continue;
+		break;
+		}
 
 		if (vhci_driver->idev[i].status == VDEV_ST_NULL)
 			return vhci_driver->idev[i].port;

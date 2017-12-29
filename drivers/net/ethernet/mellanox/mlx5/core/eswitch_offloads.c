@@ -306,7 +306,7 @@ static struct mlx5_flow_handle *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn)
 {
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_spec *spec;
 	void *misc;
@@ -395,7 +395,7 @@ out_err:
 static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 {
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle *flow_rule = NULL;
 	struct mlx5_flow_spec *spec;
 	int err = 0;
@@ -670,7 +670,7 @@ struct mlx5_flow_handle *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 {
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_spec *spec;
 	void *misc;

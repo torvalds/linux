@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "../perf.h"
 #include <errno.h>
 #include <stdlib.h>
@@ -45,6 +46,8 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 		thread->cpu = -1;
 		INIT_LIST_HEAD(&thread->namespaces_list);
 		INIT_LIST_HEAD(&thread->comm_list);
+		init_rwsem(&thread->namespaces_lock);
+		init_rwsem(&thread->comm_lock);
 
 		comm_str = malloc(32);
 		if (!comm_str)
@@ -83,18 +86,26 @@ void thread__delete(struct thread *thread)
 		map_groups__put(thread->mg);
 		thread->mg = NULL;
 	}
+	down_write(&thread->namespaces_lock);
 	list_for_each_entry_safe(namespaces, tmp_namespaces,
 				 &thread->namespaces_list, list) {
 		list_del(&namespaces->list);
 		namespaces__free(namespaces);
 	}
+	up_write(&thread->namespaces_lock);
+
+	down_write(&thread->comm_lock);
 	list_for_each_entry_safe(comm, tmp_comm, &thread->comm_list, list) {
 		list_del(&comm->list);
 		comm__free(comm);
 	}
+	up_write(&thread->comm_lock);
+
 	unwind__finish_access(thread);
 	nsinfo__zput(thread->nsinfo);
 
+	exit_rwsem(&thread->namespaces_lock);
+	exit_rwsem(&thread->comm_lock);
 	free(thread);
 }
 
@@ -125,8 +136,8 @@ struct namespaces *thread__namespaces(const struct thread *thread)
 	return list_first_entry(&thread->namespaces_list, struct namespaces, list);
 }
 
-int thread__set_namespaces(struct thread *thread, u64 timestamp,
-			   struct namespaces_event *event)
+static int __thread__set_namespaces(struct thread *thread, u64 timestamp,
+				    struct namespaces_event *event)
 {
 	struct namespaces *new, *curr = thread__namespaces(thread);
 
@@ -147,6 +158,17 @@ int thread__set_namespaces(struct thread *thread, u64 timestamp,
 	}
 
 	return 0;
+}
+
+int thread__set_namespaces(struct thread *thread, u64 timestamp,
+			   struct namespaces_event *event)
+{
+	int ret;
+
+	down_write(&thread->namespaces_lock);
+	ret = __thread__set_namespaces(thread, timestamp, event);
+	up_write(&thread->namespaces_lock);
+	return ret;
 }
 
 struct comm *thread__comm(const struct thread *thread)
@@ -170,8 +192,8 @@ struct comm *thread__exec_comm(const struct thread *thread)
 	return last;
 }
 
-int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
-		       bool exec)
+static int ____thread__set_comm(struct thread *thread, const char *str,
+				u64 timestamp, bool exec)
 {
 	struct comm *new, *curr = thread__comm(thread);
 
@@ -195,6 +217,17 @@ int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
 	return 0;
 }
 
+int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
+		       bool exec)
+{
+	int ret;
+
+	down_write(&thread->comm_lock);
+	ret = ____thread__set_comm(thread, str, timestamp, exec);
+	up_write(&thread->comm_lock);
+	return ret;
+}
+
 int thread__set_comm_from_proc(struct thread *thread)
 {
 	char path[64];
@@ -212,7 +245,7 @@ int thread__set_comm_from_proc(struct thread *thread)
 	return err;
 }
 
-const char *thread__comm_str(const struct thread *thread)
+static const char *__thread__comm_str(const struct thread *thread)
 {
 	const struct comm *comm = thread__comm(thread);
 
@@ -220,6 +253,17 @@ const char *thread__comm_str(const struct thread *thread)
 		return NULL;
 
 	return comm__str(comm);
+}
+
+const char *thread__comm_str(const struct thread *thread)
+{
+	const char *str;
+
+	down_read((struct rw_semaphore *)&thread->comm_lock);
+	str = __thread__comm_str(thread);
+	up_read((struct rw_semaphore *)&thread->comm_lock);
+
+	return str;
 }
 
 /* CHECKME: it should probably better return the max comm len from its comm list */
@@ -264,7 +308,7 @@ static int __thread__prepare_access(struct thread *thread)
 		struct maps *maps = &thread->mg->maps[i];
 		struct map *map;
 
-		pthread_rwlock_rdlock(&maps->lock);
+		down_read(&maps->lock);
 
 		for (map = maps__first(maps); map; map = map__next(map)) {
 			err = unwind__prepare_access(thread, map, &initialized);
@@ -272,7 +316,7 @@ static int __thread__prepare_access(struct thread *thread)
 				break;
 		}
 
-		pthread_rwlock_unlock(&maps->lock);
+		up_read(&maps->lock);
 	}
 
 	return err;

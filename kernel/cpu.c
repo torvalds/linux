@@ -632,6 +632,11 @@ cpuhp_invoke_ap_callback(int cpu, enum cpuhp_state state, bool bringup,
 		__cpuhp_kick_ap(st);
 	}
 
+	/*
+	 * Clean up the leftovers so the next hotplug operation wont use stale
+	 * data.
+	 */
+	st->node = st->last = NULL;
 	return ret;
 }
 
@@ -775,8 +780,8 @@ static int takedown_cpu(unsigned int cpu)
 	BUG_ON(cpu_online(cpu));
 
 	/*
-	 * The CPUHP_AP_SCHED_MIGRATE_DYING callback will have removed all
-	 * runnable tasks from the cpu, there's only the idle task left now
+	 * The teardown callback for CPUHP_AP_SCHED_STARTING will have removed
+	 * all runnable tasks from the CPU, there's only the idle task left now
 	 * that the migration thread is done doing the stop_machine thing.
 	 *
 	 * Wait for the stop thread to go away.
@@ -1284,11 +1289,6 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown.single	= NULL,
 		.cant_stop		= true,
 	},
-	[CPUHP_AP_SMPCFD_DYING] = {
-		.name			= "smpcfd:dying",
-		.startup.single		= NULL,
-		.teardown.single	= smpcfd_dying_cpu,
-	},
 	/*
 	 * Handled on controll processor until the plugged processor manages
 	 * this itself.
@@ -1329,6 +1329,11 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.name			= "RCU/tree:dying",
 		.startup.single		= NULL,
 		.teardown.single	= rcutree_dying_cpu,
+	},
+	[CPUHP_AP_SMPCFD_DYING] = {
+		.name			= "smpcfd:dying",
+		.startup.single		= NULL,
+		.teardown.single	= smpcfd_dying_cpu,
 	},
 	/* Entry state on starting. Interrupts enabled from here on. Transient
 	 * state for synchronsization */

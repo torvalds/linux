@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_TLBFLUSH_H
 #define _ASM_X86_TLBFLUSH_H
 
@@ -8,70 +9,66 @@
 #include <asm/cpufeature.h>
 #include <asm/special_insns.h>
 #include <asm/smp.h>
-
-static inline void __invpcid(unsigned long pcid, unsigned long addr,
-			     unsigned long type)
-{
-	struct { u64 d[2]; } desc = { { pcid, addr } };
-
-	/*
-	 * The memory clobber is because the whole point is to invalidate
-	 * stale TLB entries and, especially if we're flushing global
-	 * mappings, we don't want the compiler to reorder any subsequent
-	 * memory accesses before the TLB flush.
-	 *
-	 * The hex opcode is invpcid (%ecx), %eax in 32-bit mode and
-	 * invpcid (%rcx), %rax in long mode.
-	 */
-	asm volatile (".byte 0x66, 0x0f, 0x38, 0x82, 0x01"
-		      : : "m" (desc), "a" (type), "c" (&desc) : "memory");
-}
-
-#define INVPCID_TYPE_INDIV_ADDR		0
-#define INVPCID_TYPE_SINGLE_CTXT	1
-#define INVPCID_TYPE_ALL_INCL_GLOBAL	2
-#define INVPCID_TYPE_ALL_NON_GLOBAL	3
-
-/* Flush all mappings for a given pcid and addr, not including globals. */
-static inline void invpcid_flush_one(unsigned long pcid,
-				     unsigned long addr)
-{
-	__invpcid(pcid, addr, INVPCID_TYPE_INDIV_ADDR);
-}
-
-/* Flush all mappings for a given PCID, not including globals. */
-static inline void invpcid_flush_single_context(unsigned long pcid)
-{
-	__invpcid(pcid, 0, INVPCID_TYPE_SINGLE_CTXT);
-}
-
-/* Flush all mappings, including globals, for all PCIDs. */
-static inline void invpcid_flush_all(void)
-{
-	__invpcid(0, 0, INVPCID_TYPE_ALL_INCL_GLOBAL);
-}
-
-/* Flush all mappings for all PCIDs except globals. */
-static inline void invpcid_flush_all_nonglobals(void)
-{
-	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
-}
+#include <asm/invpcid.h>
 
 static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
 {
-	u64 new_tlb_gen;
-
 	/*
 	 * Bump the generation count.  This also serves as a full barrier
 	 * that synchronizes with switch_mm(): callers are required to order
 	 * their read of mm_cpumask after their writes to the paging
 	 * structures.
 	 */
-	smp_mb__before_atomic();
-	new_tlb_gen = atomic64_inc_return(&mm->context.tlb_gen);
-	smp_mb__after_atomic();
+	return atomic64_inc_return(&mm->context.tlb_gen);
+}
 
-	return new_tlb_gen;
+/* There are 12 bits of space for ASIDS in CR3 */
+#define CR3_HW_ASID_BITS		12
+/*
+ * When enabled, PAGE_TABLE_ISOLATION consumes a single bit for
+ * user/kernel switches
+ */
+#define PTI_CONSUMED_ASID_BITS		0
+
+#define CR3_AVAIL_ASID_BITS (CR3_HW_ASID_BITS - PTI_CONSUMED_ASID_BITS)
+/*
+ * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below to account
+ * for them being zero-based.  Another -1 is because ASID 0 is reserved for
+ * use by non-PCID-aware users.
+ */
+#define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_ASID_BITS) - 2)
+
+static inline u16 kern_pcid(u16 asid)
+{
+	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+	/*
+	 * If PCID is on, ASID-aware code paths put the ASID+1 into the
+	 * PCID bits.  This serves two purposes.  It prevents a nasty
+	 * situation in which PCID-unaware code saves CR3, loads some other
+	 * value (with PCID == 0), and then restores CR3, thus corrupting
+	 * the TLB for ASID 0 if the saved ASID was nonzero.  It also means
+	 * that any bugs involving loading a PCID-enabled CR3 with
+	 * CR4.PCIDE off will trigger deterministically.
+	 */
+	return asid + 1;
+}
+
+struct pgd_t;
+static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
+{
+	if (static_cpu_has(X86_FEATURE_PCID)) {
+		return __sme_pa(pgd) | kern_pcid(asid);
+	} else {
+		VM_WARN_ON_ONCE(asid != 0);
+		return __sme_pa(pgd);
+	}
+}
+
+static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
+{
+	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+	VM_WARN_ON_ONCE(!this_cpu_has(X86_FEATURE_PCID));
+	return __sme_pa(pgd) | kern_pcid(asid) | CR3_NOFLUSH;
 }
 
 #ifdef CONFIG_PARAVIRT
@@ -81,6 +78,22 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
 #define __flush_tlb_global() __native_flush_tlb_global()
 #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
 #endif
+
+static inline bool tlb_defer_switch_to_init_mm(void)
+{
+	/*
+	 * If we have PCID, then switching to init_mm is reasonably
+	 * fast.  If we don't have PCID, then switching to init_mm is
+	 * quite slow, so we try to defer it in the hopes that we can
+	 * avoid it entirely.  The latter approach runs the risk of
+	 * receiving otherwise unnecessary IPIs.
+	 *
+	 * This choice is just a heuristic.  The tlb code can handle this
+	 * function returning true or false regardless of whether we have
+	 * PCID.
+	 */
+	return !static_cpu_has(X86_FEATURE_PCID);
+}
 
 /*
  * 6 because 6 should be plenty and struct tlb_state will fit in
@@ -103,6 +116,23 @@ struct tlb_state {
 	struct mm_struct *loaded_mm;
 	u16 loaded_mm_asid;
 	u16 next_asid;
+
+	/*
+	 * We can be in one of several states:
+	 *
+	 *  - Actively using an mm.  Our CPU's bit will be set in
+	 *    mm_cpumask(loaded_mm) and is_lazy == false;
+	 *
+	 *  - Not using a real mm.  loaded_mm == &init_mm.  Our CPU's bit
+	 *    will not be set in mm_cpumask(&init_mm) and is_lazy == false.
+	 *
+	 *  - Lazily using a real mm.  loaded_mm != &init_mm, our bit
+	 *    is set in mm_cpumask(loaded_mm), but is_lazy == true.
+	 *    We're heuristically guessing that the CR3 load we
+	 *    skipped more than makes up for the overhead added by
+	 *    lazy mode.
+	 */
+	bool is_lazy;
 
 	/*
 	 * Access to this CR4 shadow and to H/W CR4 is protected by
@@ -139,40 +169,43 @@ static inline void cr4_init_shadow(void)
 	this_cpu_write(cpu_tlbstate.cr4, __read_cr4());
 }
 
+static inline void __cr4_set(unsigned long cr4)
+{
+	lockdep_assert_irqs_disabled();
+	this_cpu_write(cpu_tlbstate.cr4, cr4);
+	__write_cr4(cr4);
+}
+
 /* Set in this cpu's CR4. */
 static inline void cr4_set_bits(unsigned long mask)
 {
-	unsigned long cr4;
+	unsigned long cr4, flags;
 
+	local_irq_save(flags);
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	if ((cr4 | mask) != cr4) {
-		cr4 |= mask;
-		this_cpu_write(cpu_tlbstate.cr4, cr4);
-		__write_cr4(cr4);
-	}
+	if ((cr4 | mask) != cr4)
+		__cr4_set(cr4 | mask);
+	local_irq_restore(flags);
 }
 
 /* Clear in this cpu's CR4. */
 static inline void cr4_clear_bits(unsigned long mask)
 {
-	unsigned long cr4;
+	unsigned long cr4, flags;
 
+	local_irq_save(flags);
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	if ((cr4 & ~mask) != cr4) {
-		cr4 &= ~mask;
-		this_cpu_write(cpu_tlbstate.cr4, cr4);
-		__write_cr4(cr4);
-	}
+	if ((cr4 & ~mask) != cr4)
+		__cr4_set(cr4 & ~mask);
+	local_irq_restore(flags);
 }
 
-static inline void cr4_toggle_bits(unsigned long mask)
+static inline void cr4_toggle_bits_irqsoff(unsigned long mask)
 {
 	unsigned long cr4;
 
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	cr4 ^= mask;
-	this_cpu_write(cpu_tlbstate.cr4, cr4);
-	__write_cr4(cr4);
+	__cr4_set(cr4 ^ mask);
 }
 
 /* Read the CR4 shadow. */
@@ -200,6 +233,9 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
 
 extern void initialize_tlbstate_and_flush(void);
 
+/*
+ * flush the entire current user mapping
+ */
 static inline void __native_flush_tlb(void)
 {
 	/*
@@ -212,20 +248,12 @@ static inline void __native_flush_tlb(void)
 	preempt_enable();
 }
 
-static inline void __native_flush_tlb_global_irq_disabled(void)
-{
-	unsigned long cr4;
-
-	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	/* clear PGE */
-	native_write_cr4(cr4 & ~X86_CR4_PGE);
-	/* write old PGE again and flush TLBs */
-	native_write_cr4(cr4);
-}
-
+/*
+ * flush everything
+ */
 static inline void __native_flush_tlb_global(void)
 {
-	unsigned long flags;
+	unsigned long cr4, flags;
 
 	if (static_cpu_has(X86_FEATURE_INVPCID)) {
 		/*
@@ -243,22 +271,36 @@ static inline void __native_flush_tlb_global(void)
 	 */
 	raw_local_irq_save(flags);
 
-	__native_flush_tlb_global_irq_disabled();
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+	/* toggle PGE */
+	native_write_cr4(cr4 ^ X86_CR4_PGE);
+	/* write old PGE again and flush TLBs */
+	native_write_cr4(cr4);
 
 	raw_local_irq_restore(flags);
 }
 
+/*
+ * flush one page in the user mapping
+ */
 static inline void __native_flush_tlb_single(unsigned long addr)
 {
 	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
 }
 
+/*
+ * flush everything
+ */
 static inline void __flush_tlb_all(void)
 {
-	if (boot_cpu_has(X86_FEATURE_PGE))
+	if (boot_cpu_has(X86_FEATURE_PGE)) {
 		__flush_tlb_global();
-	else
+	} else {
+		/*
+		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.
+		 */
 		__flush_tlb();
+	}
 
 	/*
 	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
@@ -269,6 +311,9 @@ static inline void __flush_tlb_all(void)
 	 */
 }
 
+/*
+ * flush one page in the kernel mapping
+ */
 static inline void __flush_tlb_one(unsigned long addr)
 {
 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);

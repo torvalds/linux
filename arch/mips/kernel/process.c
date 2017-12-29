@@ -487,7 +487,7 @@ arch_initcall(frame_info_init);
 /*
  * Return saved PC of a blocked thread.
  */
-unsigned long thread_saved_pc(struct task_struct *tsk)
+static unsigned long thread_saved_pc(struct task_struct *tsk)
 {
 	struct thread_struct *t = &tsk->thread;
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PARISC
 	def_bool y
 	select ARCH_MIGHT_HAVE_PC_PARPORT
@@ -31,6 +32,7 @@ config PARISC
 	select GENERIC_PCI_IOMAP
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_CPU_DEVICES
 	select GENERIC_STRNCPY_FROM_USER
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	select SYSCTL_EXCEPTION_TRACE
@@ -55,9 +57,6 @@ config PARISC
 	  in many of their workstations & servers (HP9000 700 and 800 series,
 	  and later HP3000 series).  The PA-RISC Linux project home page is
 	  at <http://www.parisc-linux.org/>.
-
-config CPU_BIG_ENDIAN
-	def_bool y
 
 config CPU_BIG_ENDIAN
 	def_bool y
@@ -286,6 +285,21 @@ config SMP
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config PARISC_CPU_TOPOLOGY
+	bool "Support cpu topology definition"
+	depends on SMP
+	default y
+	help
+	  Support PARISC cpu topology definition.
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on PARISC_CPU_TOPOLOGY && PA8X00
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
 
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"

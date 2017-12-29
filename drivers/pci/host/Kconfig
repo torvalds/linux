@@ -95,6 +95,12 @@ config PCI_XGENE_MSI
 	  Say Y here if you want PCIe MSI support for the APM X-Gene v1 SoC.
 	  This MSI driver supports 5 PCIe ports on the APM X-Gene v1 SoC.
 
+config PCI_V3_SEMI
+	bool "V3 Semiconductor PCI controller"
+	depends on OF
+	depends on ARM
+	default ARCH_INTEGRATOR_AP
+
 config PCI_VERSATILE
 	bool "ARM Versatile PB PCI controller"
 	depends on ARCH_VERSATILE

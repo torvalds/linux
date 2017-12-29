@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_PARISC_PCI_H
 #define __ASM_PARISC_PCI_H
 
@@ -87,13 +88,6 @@ struct pci_hba_data {
 #endif /* !CONFIG_64BIT */
 
 /*
-** KLUGE: linux/pci.h include asm/pci.h BEFORE declaring struct pci_bus
-** (This eliminates some of the warnings).
-*/
-struct pci_bus;
-struct pci_dev;
-
-/*
  * If the PCI device's view of memory is the same as the CPU's view of memory,
  * PCI_DMA_BUS_IS_PHYS is true.  The networking and block device layers use
  * this boolean for bounce buffer decisions.
@@ -161,7 +155,6 @@ extern struct pci_bios_ops *pci_bios;
 
 #ifdef CONFIG_PCI
 extern void pcibios_register_hba(struct pci_hba_data *);
-extern void pcibios_set_master(struct pci_dev *);
 #else
 static inline void pcibios_register_hba(struct pci_hba_data *x)
 {

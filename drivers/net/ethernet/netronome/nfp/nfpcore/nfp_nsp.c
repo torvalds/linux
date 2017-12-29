@@ -477,6 +477,11 @@ int nfp_nsp_device_soft_reset(struct nfp_nsp *state)
 	return nfp_nsp_command(state, SPCODE_SOFT_RESET, 0, 0, 0);
 }
 
+int nfp_nsp_mac_reinit(struct nfp_nsp *state)
+{
+	return nfp_nsp_command(state, SPCODE_MAC_INIT, 0, 0, 0);
+}
+
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw)
 {
 	return nfp_nsp_command_buf(state, SPCODE_FW_LOAD, fw->size, fw->data,

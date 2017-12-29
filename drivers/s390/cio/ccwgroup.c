@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  bus driver for ccwgroup
  *
@@ -370,6 +371,12 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 	}
 	/* Check for trailing stuff. */
 	if (i == num_devices && strlen(buf) > 0) {
+		rc = -EINVAL;
+		goto error;
+	}
+	/* Check if the devices are bound to the required ccw driver. */
+	if (gdev->count && gdrv && gdrv->ccw_driver &&
+	    gdev->cdev[0]->drv != gdrv->ccw_driver) {
 		rc = -EINVAL;
 		goto error;
 	}

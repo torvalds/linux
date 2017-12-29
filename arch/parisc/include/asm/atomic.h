@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2000 Philipp Rumpf <prumpf@tux.org>
  * Copyright (C) 2006 Kyle McMartin <kyle@parisc-linux.org>
  */
@@ -260,7 +261,7 @@ atomic64_set(atomic64_t *v, s64 i)
 static __inline__ s64
 atomic64_read(const atomic64_t *v)
 {
-	return ACCESS_ONCE((v)->counter);
+	return READ_ONCE((v)->counter);
 }
 
 #define atomic64_inc(v)		(atomic64_add(   1,(v)))

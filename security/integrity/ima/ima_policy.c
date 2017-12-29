@@ -196,9 +196,9 @@ static int __init policy_setup(char *str)
 		if ((strcmp(p, "tcb") == 0) && !ima_policy)
 			ima_policy = DEFAULT_TCB;
 		else if (strcmp(p, "appraise_tcb") == 0)
-			ima_use_appraise_tcb = 1;
+			ima_use_appraise_tcb = true;
 		else if (strcmp(p, "secure_boot") == 0)
-			ima_use_secure_boot = 1;
+			ima_use_secure_boot = true;
 	}
 
 	return 1;
@@ -207,7 +207,7 @@ __setup("ima_policy=", policy_setup);
 
 static int __init default_appraise_policy_setup(char *str)
 {
-	ima_use_appraise_tcb = 1;
+	ima_use_appraise_tcb = true;
 	return 1;
 }
 __setup("ima_appraise_tcb", default_appraise_policy_setup);

@@ -1169,9 +1169,8 @@ static void __ebt_unregister_table(struct net *net, struct ebt_table *table)
 	kfree(table);
 }
 
-struct ebt_table *
-ebt_register_table(struct net *net, const struct ebt_table *input_table,
-		   const struct nf_hook_ops *ops)
+int ebt_register_table(struct net *net, const struct ebt_table *input_table,
+		       const struct nf_hook_ops *ops, struct ebt_table **res)
 {
 	struct ebt_table_info *newinfo;
 	struct ebt_table *t, *table;
@@ -1183,7 +1182,7 @@ ebt_register_table(struct net *net, const struct ebt_table *input_table,
 	    repl->entries == NULL || repl->entries_size == 0 ||
 	    repl->counters != NULL || input_table->private != NULL) {
 		BUGPRINT("Bad table data for ebt_register_table!!!\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* Don't add one table to multiple lists. */
@@ -1252,16 +1251,18 @@ ebt_register_table(struct net *net, const struct ebt_table *input_table,
 	list_add(&table->list, &net->xt.tables[NFPROTO_BRIDGE]);
 	mutex_unlock(&ebt_mutex);
 
+	WRITE_ONCE(*res, table);
+
 	if (!ops)
-		return table;
+		return 0;
 
 	ret = nf_register_net_hooks(net, ops, hweight32(table->valid_hooks));
 	if (ret) {
 		__ebt_unregister_table(net, table);
-		return ERR_PTR(ret);
+		*res = NULL;
 	}
 
-	return table;
+	return ret;
 free_unlock:
 	mutex_unlock(&ebt_mutex);
 free_chainstack:
@@ -1276,7 +1277,7 @@ free_newinfo:
 free_table:
 	kfree(table);
 out:
-	return ERR_PTR(ret);
+	return ret;
 }
 
 void ebt_unregister_table(struct net *net, struct ebt_table *table,
@@ -2111,9 +2112,8 @@ static int size_entry_mwt(struct ebt_entry *entry, const unsigned char *base,
 	for (i = 0, j = 1 ; j < 4 ; j++, i++) {
 		struct compat_ebt_entry_mwt *match32;
 		unsigned int size;
-		char *buf = buf_start;
+		char *buf = buf_start + offsets[i];
 
-		buf = buf_start + offsets[i];
 		if (offsets[i] > offsets[j])
 			return -EINVAL;
 

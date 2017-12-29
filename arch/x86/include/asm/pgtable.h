@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PGTABLE_H
 #define _ASM_X86_PGTABLE_H
 
@@ -666,11 +667,6 @@ static inline bool pte_accessible(struct mm_struct *mm, pte_t a)
 	return false;
 }
 
-static inline int pte_hidden(pte_t pte)
-{
-	return pte_flags(pte) & _PAGE_HIDDEN;
-}
-
 static inline int pmd_present(pmd_t pmd)
 {
 	/*
@@ -1065,7 +1061,7 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
 				  unsigned long address, pmd_t *pmdp);
 
 
-#define __HAVE_ARCH_PMD_WRITE
+#define pmd_write pmd_write
 static inline int pmd_write(pmd_t pmd)
 {
 	return pmd_flags(pmd) & _PAGE_RW;
@@ -1090,6 +1086,12 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 				      unsigned long addr, pmd_t *pmdp)
 {
 	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
+}
+
+#define pud_write pud_write
+static inline int pud_write(pud_t pud)
+{
+	return pud_flags(pud) & _PAGE_RW;
 }
 
 /*

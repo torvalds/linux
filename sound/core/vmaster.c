@@ -484,3 +484,36 @@ void snd_ctl_sync_vmaster(struct snd_kcontrol *kcontrol, bool hook_only)
 		master->hook(master->hook_private_data, master->val);
 }
 EXPORT_SYMBOL_GPL(snd_ctl_sync_vmaster);
+
+/**
+ * snd_ctl_apply_vmaster_slaves - Apply function to each vmaster slave
+ * @kctl: vmaster kctl element
+ * @func: function to apply
+ * @arg: optional function argument
+ *
+ * Apply the function @func to each slave kctl of the given vmaster kctl.
+ * Returns 0 if successful, or a negative error code.
+ */
+int snd_ctl_apply_vmaster_slaves(struct snd_kcontrol *kctl,
+				 int (*func)(struct snd_kcontrol *vslave,
+					     struct snd_kcontrol *slave,
+					     void *arg),
+				 void *arg)
+{
+	struct link_master *master;
+	struct link_slave *slave;
+	int err;
+
+	master = snd_kcontrol_chip(kctl);
+	err = master_init(master);
+	if (err < 0)
+		return err;
+	list_for_each_entry(slave, &master->slaves, list) {
+		err = func(slave->kctl, &slave->slave, arg);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_ctl_apply_vmaster_slaves);

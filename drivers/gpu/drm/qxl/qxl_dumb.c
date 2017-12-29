@@ -63,6 +63,7 @@ int qxl_mode_dumb_create(struct drm_file *file_priv,
 					      &handle);
 	if (r)
 		return r;
+	qobj->is_dumb = true;
 	args->pitch = pitch;
 	args->handle = handle;
 	return 0;

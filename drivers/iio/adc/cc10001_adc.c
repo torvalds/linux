@@ -262,7 +262,6 @@ static int cc10001_update_scan_mode(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info cc10001_adc_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &cc10001_adc_read_raw,
 	.update_scan_mode = &cc10001_update_scan_mode,
 };

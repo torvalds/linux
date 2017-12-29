@@ -34,13 +34,6 @@
 			       &node_to_cpu_mask[node])
 
 /*
- * Returns the number of the node containing Node 'nid'.
- * Not implemented here. Multi-level hierarchies detected with
- * the help of node_distance().
- */
-#define parent_node(nid) (nid)
-
-/*
  * Determines the node for a given pci bus
  */
 #define pcibus_to_node(bus) PCI_CONTROLLER(bus)->node

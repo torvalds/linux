@@ -153,7 +153,7 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	int i;
 
 	params->udp_rss = udp_rss;
-	params->num_tx_rings_p_up = mlx4_low_memory_profile() ?
+	params->max_num_tx_rings_p_up = mlx4_low_memory_profile() ?
 		MLX4_EN_MIN_TX_RING_P_UP :
 		min_t(int, num_online_cpus(), MLX4_EN_MAX_TX_RING_P_UP);
 
@@ -170,8 +170,8 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 		params->prof[i].tx_ring_size = MLX4_EN_DEF_TX_RING_SIZE;
 		params->prof[i].rx_ring_size = MLX4_EN_DEF_RX_RING_SIZE;
 		params->prof[i].num_up = MLX4_EN_NUM_UP_LOW;
-		params->prof[i].num_tx_rings_p_up = params->num_tx_rings_p_up;
-		params->prof[i].tx_ring_num[TX] = params->num_tx_rings_p_up *
+		params->prof[i].num_tx_rings_p_up = params->max_num_tx_rings_p_up;
+		params->prof[i].tx_ring_num[TX] = params->max_num_tx_rings_p_up *
 			params->prof[i].num_up;
 		params->prof[i].rss_rings = 0;
 		params->prof[i].inline_thold = inline_thold;

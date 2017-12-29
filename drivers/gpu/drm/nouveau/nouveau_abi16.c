@@ -34,6 +34,7 @@
 #include "nouveau_gem.h"
 #include "nouveau_chan.h"
 #include "nouveau_abi16.h"
+#include "nouveau_vmm.h"
 
 static struct nouveau_abi16 *
 nouveau_abi16(struct drm_file *file_priv)
@@ -134,7 +135,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	}
 
 	if (chan->ntfy) {
-		nouveau_bo_vma_del(chan->ntfy, &chan->ntfy_vma);
+		nouveau_vma_del(&chan->ntfy_vma);
 		nouveau_bo_unpin(chan->ntfy);
 		drm_gem_object_unreference_unlocked(&chan->ntfy->gem);
 	}
@@ -184,29 +185,33 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = device->info.chipset;
 		break;
 	case NOUVEAU_GETPARAM_PCI_VENDOR:
-		if (nvxx_device(device)->func->pci)
+		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
 			getparam->value = dev->pdev->vendor;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_PCI_DEVICE:
-		if (nvxx_device(device)->func->pci)
+		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
 			getparam->value = dev->pdev->device;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
-		if (!nvxx_device(device)->func->pci)
-			getparam->value = 3;
-		else
-		if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP))
-			getparam->value = 0;
-		else
-		if (!pci_is_pcie(dev->pdev))
-			getparam->value = 1;
-		else
-			getparam->value = 2;
-		break;
+		switch (device->info.platform) {
+		case NV_DEVICE_INFO_V0_AGP : getparam->value = 0; break;
+		case NV_DEVICE_INFO_V0_PCI : getparam->value = 1; break;
+		case NV_DEVICE_INFO_V0_PCIE: getparam->value = 2; break;
+		case NV_DEVICE_INFO_V0_SOC : getparam->value = 3; break;
+		case NV_DEVICE_INFO_V0_IGP :
+			if (!pci_is_pcie(dev->pdev))
+				getparam->value = 1;
+			else
+				getparam->value = 2;
+			break;
+		default:
+			WARN_ON(1);
+			break;
+		}
 	case NOUVEAU_GETPARAM_FB_SIZE:
 		getparam->value = drm->gem.vram_available;
 		break;
@@ -329,8 +334,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		goto done;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_bo_vma_add(chan->ntfy, cli->vm,
-					&chan->ntfy_vma);
+		ret = nouveau_vma_new(chan->ntfy, &cli->vmm, &chan->ntfy_vma);
 		if (ret)
 			goto done;
 	}
@@ -340,7 +344,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	ret = nvkm_mm_init(&chan->heap, 0, PAGE_SIZE, 1);
+	ret = nvkm_mm_init(&chan->heap, 0, 0, PAGE_SIZE, 1);
 done:
 	if (ret)
 		nouveau_abi16_chan_fini(abi16, chan);
@@ -548,8 +552,8 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
-		args.start += chan->ntfy_vma.offset;
-		args.limit += chan->ntfy_vma.offset;
+		args.start += chan->ntfy_vma->addr;
+		args.limit += chan->ntfy_vma->addr;
 	} else
 	if (drm->agp.bridge) {
 		args.target = NV_DMA_V0_TARGET_AGP;

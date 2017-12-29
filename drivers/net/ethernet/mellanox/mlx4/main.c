@@ -4066,6 +4066,7 @@ int mlx4_restart_one(struct pci_dev *pdev)
 #define MLX_GN(id) { PCI_VDEVICE(MELLANOX, id), 0 }
 
 static const struct pci_device_id mlx4_pci_table[] = {
+#ifdef CONFIG_MLX4_CORE_GEN2
 	/* MT25408 "Hermon" */
 	MLX_SP(PCI_DEVICE_ID_MELLANOX_HERMON_SDR),	/* SDR */
 	MLX_SP(PCI_DEVICE_ID_MELLANOX_HERMON_DDR),	/* DDR */
@@ -4085,6 +4086,7 @@ static const struct pci_device_id mlx4_pci_table[] = {
 	MLX_SP(PCI_DEVICE_ID_MELLANOX_CONNECTX2),
 	/* MT25400 Family [ConnectX-2] */
 	MLX_VF(0x1002),					/* Virtual Function */
+#endif /* CONFIG_MLX4_CORE_GEN2 */
 	/* MT27500 Family [ConnectX-3] */
 	MLX_GN(PCI_DEVICE_ID_MELLANOX_CONNECTX3),
 	MLX_VF(0x1004),					/* Virtual Function */

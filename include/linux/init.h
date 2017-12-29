@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_INIT_H
 #define _LINUX_INIT_H
 
@@ -39,7 +40,7 @@
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
-#define __init		__section(.init.text) __cold __inittrace __latent_entropy
+#define __init		__section(.init.text) __cold  __latent_entropy
 #define __initdata	__section(.init.data)
 #define __initconst	__section(.init.rodata)
 #define __exitdata	__section(.exit.data)
@@ -68,10 +69,8 @@
 
 #ifdef MODULE
 #define __exitused
-#define __inittrace notrace
 #else
 #define __exitused  __used
-#define __inittrace
 #endif
 
 #define __exit          __section(.exit.text) __exitused __cold notrace

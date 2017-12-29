@@ -175,13 +175,24 @@ static int rdma_nl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	    !netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
+	/*
+	 * LS responses overload the 0x100 (NLM_F_ROOT) flag.  Don't
+	 * mistakenly call the .dump() function.
+	 */
+	if (index == RDMA_NL_LS) {
+		if (cb_table[op].doit)
+			return cb_table[op].doit(skb, nlh, extack);
+		return -EINVAL;
+	}
 	/* FIXME: Convert IWCM to properly handle doit callbacks */
 	if ((nlh->nlmsg_flags & NLM_F_DUMP) || index == RDMA_NL_RDMA_CM ||
 	    index == RDMA_NL_IWCM) {
 		struct netlink_dump_control c = {
 			.dump = cb_table[op].dump,
 		};
-		return netlink_dump_start(nls, skb, nlh, &c);
+		if (c.dump)
+			return netlink_dump_start(nls, skb, nlh, &c);
+		return -EINVAL;
 	}
 
 	if (cb_table[op].doit)

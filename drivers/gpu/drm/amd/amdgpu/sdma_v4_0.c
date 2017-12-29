@@ -54,7 +54,7 @@ static void sdma_v4_0_set_vm_pte_funcs(struct amdgpu_device *adev);
 static void sdma_v4_0_set_irq_funcs(struct amdgpu_device *adev);
 
 static const u32 golden_settings_sdma_4[] = {
-	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CHICKEN_BITS), 0xfe931f07, 0x02831f07,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CHICKEN_BITS), 0xfe931f07, 0x02831d07,
 	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CLK_CTRL), 0xff000ff0, 0x3f000100,
 	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GFX_IB_CNTL), 0x800f0100, 0x00000100,
 	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GFX_RB_WPTR_POLL_CNTL), 0xfffffff7, 0x00403000,
@@ -89,7 +89,7 @@ static const u32 golden_settings_sdma_vg10[] = {
 
 static const u32 golden_settings_sdma_4_1[] =
 {
-	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CHICKEN_BITS), 0xfe931f07, 0x02831f07,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CHICKEN_BITS), 0xfe931f07, 0x02831d07,
 	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CLK_CTRL), 0xffffffff, 0x3f000100,
 	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GFX_IB_CNTL), 0x800f0111, 0x00000100,
 	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GFX_RB_WPTR_POLL_CNTL), 0xfffffff7, 0x00403000,
@@ -371,7 +371,7 @@ static void sdma_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
 static void sdma_v4_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	u32 ref_and_mask = 0;
-	struct nbio_hdp_flush_reg *nbio_hf_reg;
+	const struct nbio_hdp_flush_reg *nbio_hf_reg;
 
 	if (ring->adev->flags & AMD_IS_APU)
 		nbio_hf_reg = &nbio_v7_0_hdp_flush_reg;
@@ -398,7 +398,7 @@ static void sdma_v4_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, SOC15_REG_OFFSET(HDP, 0, mmHDP_DEBUG0));
+	amdgpu_ring_write(ring, SOC15_REG_OFFSET(HDP, 0, mmHDP_READ_CACHE_INVALIDATE));
 	amdgpu_ring_write(ring, 1);
 }
 
@@ -1264,6 +1264,11 @@ static int sdma_v4_0_sw_fini(void *handle)
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		release_firmware(adev->sdma.instance[i].fw);
+		adev->sdma.instance[i].fw = NULL;
+	}
+
 	return 0;
 }
 
@@ -1714,8 +1719,13 @@ static void sdma_v4_0_set_buffer_funcs(struct amdgpu_device *adev)
 }
 
 static const struct amdgpu_vm_pte_funcs sdma_v4_0_vm_pte_funcs = {
+	.copy_pte_num_dw = 7,
 	.copy_pte = sdma_v4_0_vm_copy_pte,
+
 	.write_pte = sdma_v4_0_vm_write_pte,
+
+	.set_max_nums_pte_pde = 0x400000 >> 3,
+	.set_pte_pde_num_dw = 10,
 	.set_pte_pde = sdma_v4_0_vm_set_pte_pde,
 };
 

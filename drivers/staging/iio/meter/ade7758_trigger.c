@@ -53,7 +53,6 @@ static int ade7758_trig_try_reen(struct iio_trigger *trig)
 }
 
 static const struct iio_trigger_ops ade7758_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &ade7758_data_rdy_trigger_set_state,
 	.try_reenable = &ade7758_trig_try_reen,
 };

@@ -99,7 +99,7 @@ static inline u32 vdso_data_read_begin(const union mips_vdso_data *data)
 	u32 seq;
 
 	while (true) {
-		seq = ACCESS_ONCE(data->seq_count);
+		seq = READ_ONCE(data->seq_count);
 		if (likely(!(seq & 1))) {
 			/* Paired with smp_wmb() in vdso_data_write_*(). */
 			smp_rmb();

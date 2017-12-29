@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* This has so very few changes over libgcc2's __udivmoddi4 it isn't funny.  */
 
 #include <math-emu/soft-fp.h>

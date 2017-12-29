@@ -788,13 +788,12 @@ static int ccp5_init(struct ccp_device *ccp)
 	struct ccp_cmd_queue *cmd_q;
 	struct dma_pool *dma_pool;
 	char dma_pool_name[MAX_DMAPOOL_NAME_LEN];
-	unsigned int qmr, qim, i;
+	unsigned int qmr, i;
 	u64 status;
 	u32 status_lo, status_hi;
 	int ret;
 
 	/* Find available queues */
-	qim = 0;
 	qmr = ioread32(ccp->io_regs + Q_MASK_REG);
 	for (i = 0; i < MAX_HW_QUEUES; i++) {
 

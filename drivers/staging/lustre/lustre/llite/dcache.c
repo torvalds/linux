@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -141,7 +142,8 @@ void ll_intent_drop_lock(struct lookup_intent *it)
 
 		handle.cookie = it->it_lock_handle;
 
-		CDEBUG(D_DLMTRACE, "releasing lock with cookie %#llx from it %p\n",
+		CDEBUG(D_DLMTRACE,
+		       "releasing lock with cookie %#llx from it %p\n",
 		       handle.cookie, it);
 		ldlm_lock_decref(&handle, it->it_lock_mode);
 
@@ -152,7 +154,8 @@ void ll_intent_drop_lock(struct lookup_intent *it)
 		if (it->it_remote_lock_mode != 0) {
 			handle.cookie = it->it_remote_lock_handle;
 
-			CDEBUG(D_DLMTRACE, "releasing remote lock with cookie%#llx from it %p\n",
+			CDEBUG(D_DLMTRACE,
+			       "releasing remote lock with cookie%#llx from it %p\n",
 			       handle.cookie, it);
 			ldlm_lock_decref(&handle,
 					 it->it_remote_lock_mode);
@@ -185,7 +188,8 @@ void ll_invalidate_aliases(struct inode *inode)
 
 	spin_lock(&inode->i_lock);
 	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
-		CDEBUG(D_DENTRY, "dentry in drop %pd (%p) parent %p inode %p flags %d\n",
+		CDEBUG(D_DENTRY,
+		       "dentry in drop %pd (%p) parent %p inode %p flags %d\n",
 		       dentry, dentry, dentry->d_parent,
 		       d_inode(dentry), dentry->d_flags);
 

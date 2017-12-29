@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ioport.h	Definitions of routines for detecting, reserving and
  *		allocating system resources.
@@ -270,11 +271,14 @@ extern int
 walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 		void *arg, int (*func)(unsigned long, unsigned long, void *));
 extern int
+walk_mem_res(u64 start, u64 end, void *arg,
+	     int (*func)(struct resource *, void *));
+extern int
 walk_system_ram_res(u64 start, u64 end, void *arg,
-		    int (*func)(u64, u64, void *));
+		    int (*func)(struct resource *, void *));
 extern int
 walk_iomem_res_desc(unsigned long desc, unsigned long flags, u64 start, u64 end,
-		    void *arg, int (*func)(u64, u64, void *));
+		    void *arg, int (*func)(struct resource *, void *));
 
 /* True if any part of r1 overlaps r2 */
 static inline bool resource_overlaps(struct resource *r1, struct resource *r2)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_SMSCPHY_H__
 #define __LINUX_SMSCPHY_H__
 

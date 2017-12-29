@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_MPC52xx
 	bool "52xx-based boards"
 	depends on 6xx

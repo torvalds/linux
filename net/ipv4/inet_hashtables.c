@@ -456,10 +456,7 @@ static int inet_reuseport_add_sock(struct sock *sk,
 			return reuseport_add_sock(sk, sk2);
 	}
 
-	/* Initial allocation may have already happened via setsockopt */
-	if (!rcu_access_pointer(sk->sk_reuseport_cb))
-		return reuseport_alloc(sk);
-	return 0;
+	return reuseport_alloc(sk);
 }
 
 int __inet_hash(struct sock *sk, struct sock *osk)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __iop_timer_grp_defs_h
 #define __iop_timer_grp_defs_h
 

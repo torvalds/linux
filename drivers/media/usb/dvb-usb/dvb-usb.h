@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* dvb-usb.h is part of the DVB USB library.
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
@@ -207,6 +208,7 @@ struct dvb_rc {
 	int (*rc_query) (struct dvb_usb_device *d);
 	int rc_interval;
 	bool bulk_mode;				/* uses bulk mode */
+	u32 scancode_mask;
 };
 
 /**

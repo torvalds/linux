@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if CRIS_MACH_ARTPEC3
 
 menu "Artpec-3 options"

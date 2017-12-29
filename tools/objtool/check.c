@@ -267,12 +267,13 @@ static int decode_instructions(struct objtool_file *file)
 						      &insn->immediate,
 						      &insn->stack_op);
 			if (ret)
-				return ret;
+				goto err;
 
 			if (!insn->type || insn->type > INSN_LAST) {
 				WARN_FUNC("invalid instruction type %d",
 					  insn->sec, insn->offset, insn->type);
-				return -1;
+				ret = -1;
+				goto err;
 			}
 
 			hash_add(file->insn_hash, &insn->hash, insn->offset);
@@ -296,6 +297,10 @@ static int decode_instructions(struct objtool_file *file)
 	}
 
 	return 0;
+
+err:
+	free(insn);
+	return ret;
 }
 
 /*
@@ -1752,11 +1757,14 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 		if (insn->dead_end)
 			return 0;
 
-		insn = next_insn;
-		if (!insn) {
+		if (!next_insn) {
+			if (state.cfa.base == CFI_UNDEFINED)
+				return 0;
 			WARN("%s: unexpected end of section", sec->name);
 			return 1;
 		}
+
+		insn = next_insn;
 	}
 
 	return 0;

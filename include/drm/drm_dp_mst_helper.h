@@ -631,5 +631,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 				     struct drm_dp_mst_topology_mgr *mgr,
 				     int slots);
+int drm_dp_send_power_updown_phy(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_dp_mst_port *port, bool power_up);
 
 #endif

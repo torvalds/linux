@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /*
  * 1999 Copyright (C) Pavel Machek, pavel@ucw.cz. This code is GPL.
  * 1999/11/04 Copyright (C) 1999 VMware, Inc. (Regis "HPReg" Duchesne)

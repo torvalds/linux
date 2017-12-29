@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Routines to identify caches on Intel CPU.
  *
@@ -831,7 +832,6 @@ static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 	} else if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		unsigned int apicid, nshared, first, last;
 
-		this_leaf = this_cpu_ci->info_list + index;
 		nshared = base->eax.split.num_threads_sharing + 1;
 		apicid = cpu_data(cpu).apicid;
 		first = apicid - (apicid % nshared);

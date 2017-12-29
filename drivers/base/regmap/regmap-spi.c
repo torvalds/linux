@@ -102,7 +102,7 @@ static int regmap_spi_read(void *context,
 	return spi_write_then_read(spi, reg, reg_size, val, val_size);
 }
 
-static struct regmap_bus regmap_spi = {
+static const struct regmap_bus regmap_spi = {
 	.write = regmap_spi_write,
 	.gather_write = regmap_spi_gather_write,
 	.async_write = regmap_spi_async_write,

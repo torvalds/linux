@@ -169,6 +169,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_vmem_size = get_vmem_size,
 	.get_gpu_clock_counter = get_gpu_clock_counter,
 	.get_max_engine_clock_in_mhz = get_max_engine_clock_in_mhz,
+	.alloc_pasid = amdgpu_vm_alloc_pasid,
+	.free_pasid = amdgpu_vm_free_pasid,
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_pipeline = kgd_init_pipeline,
@@ -336,6 +338,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	struct cik_mqd *m;
 	uint32_t *mqd_hqd;
 	uint32_t reg, wptr_val, data;
+	bool valid_wptr = false;
 
 	m = get_mqd(mqd);
 
@@ -354,7 +357,14 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			     CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
 	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, data);
 
-	if (read_user_wptr(mm, wptr, wptr_val))
+	/* read_user_ptr may take the mm->mmap_sem.
+	 * release srbm_mutex to avoid circular dependency between
+	 * srbm_mutex->mm_sem->reservation_ww_class_mutex->srbm_mutex.
+	 */
+	release_queue(kgd);
+	valid_wptr = read_user_wptr(mm, wptr, wptr_val);
+	acquire_queue(kgd, pipe_id, queue_id);
+	if (valid_wptr)
 		WREG32(mmCP_HQD_PQ_WPTR, (wptr_val << wptr_shift) & wptr_mask);
 
 	data = REG_SET_FIELD(m->cp_hqd_active, CP_HQD_ACTIVE, ACTIVE, 1);
@@ -369,29 +379,50 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct cik_sdma_rlc_registers *m;
+	unsigned long end_jiffies;
 	uint32_t sdma_base_addr;
+	uint32_t data;
 
 	m = get_sdma_mqd(mqd);
 	sdma_base_addr = get_sdma_base_addr(m);
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_VIRTUAL_ADDR,
-			m->sdma_rlc_virtual_addr);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
+		m->sdma_rlc_rb_cntl & (~SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK));
 
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE,
-			m->sdma_rlc_rb_base);
-
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE_HI,
-			m->sdma_rlc_rb_base_hi);
-
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_LO,
-			m->sdma_rlc_rb_rptr_addr_lo);
-
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_HI,
-			m->sdma_rlc_rb_rptr_addr_hi);
+	end_jiffies = msecs_to_jiffies(2000) + jiffies;
+	while (true) {
+		data = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
+		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
+			break;
+		if (time_after(jiffies, end_jiffies))
+			return -ETIME;
+		usleep_range(500, 1000);
+	}
+	if (m->sdma_engine_id) {
+		data = RREG32(mmSDMA1_GFX_CONTEXT_CNTL);
+		data = REG_SET_FIELD(data, SDMA1_GFX_CONTEXT_CNTL,
+				RESUME_CTX, 0);
+		WREG32(mmSDMA1_GFX_CONTEXT_CNTL, data);
+	} else {
+		data = RREG32(mmSDMA0_GFX_CONTEXT_CNTL);
+		data = REG_SET_FIELD(data, SDMA0_GFX_CONTEXT_CNTL,
+				RESUME_CTX, 0);
+		WREG32(mmSDMA0_GFX_CONTEXT_CNTL, data);
+	}
 
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL,
-			m->sdma_rlc_doorbell);
-
+				m->sdma_rlc_doorbell);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, 0);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR, 0);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_VIRTUAL_ADDR,
+				m->sdma_rlc_virtual_addr);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE, m->sdma_rlc_rb_base);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE_HI,
+			m->sdma_rlc_rb_base_hi);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_LO,
+			m->sdma_rlc_rb_rptr_addr_lo);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR_ADDR_HI,
+			m->sdma_rlc_rb_rptr_addr_hi);
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
 			m->sdma_rlc_rb_cntl);
 
@@ -564,9 +595,9 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 	}
 
 	WREG32(sdma_base_addr + mmSDMA0_RLC0_DOORBELL, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_RPTR, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_WPTR, 0);
-	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_BASE, 0);
+	WREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL,
+		RREG32(sdma_base_addr + mmSDMA0_RLC0_RB_CNTL) |
+		SDMA0_RLC0_RB_CNTL__RB_ENABLE_MASK);
 
 	return 0;
 }

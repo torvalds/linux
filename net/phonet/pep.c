@@ -1351,7 +1351,7 @@ static struct proto pep_proto = {
 	.name		= "PNPIPE",
 };
 
-static struct phonet_protocol pep_pn_proto = {
+static const struct phonet_protocol pep_pn_proto = {
 	.ops		= &phonet_stream_ops,
 	.prot		= &pep_proto,
 	.sock_type	= SOCK_SEQPACKET,

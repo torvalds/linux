@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # arch/blackfin/kernel/cplb-nompu/Makefile
 #

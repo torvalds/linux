@@ -1,4 +1,5 @@
 
+# SPDX-License-Identifier: GPL-2.0
 is_consistent()
 {
 	val=

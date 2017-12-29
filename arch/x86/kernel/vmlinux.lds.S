@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ld script for the x86 kernel
  *
@@ -106,6 +107,15 @@ SECTIONS
 		SOFTIRQENTRY_TEXT
 		*(.fixup)
 		*(.gnu.warning)
+
+#ifdef CONFIG_X86_64
+		. = ALIGN(PAGE_SIZE);
+		_entry_trampoline = .;
+		*(.entry_trampoline)
+		. = ALIGN(PAGE_SIZE);
+		ASSERT(. - _entry_trampoline == PAGE_SIZE, "entry trampoline is too big");
+#endif
+
 		/* End of text section */
 		_etext = .;
 	} :text = 0x9090

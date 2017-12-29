@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # General architecture dependent options
 #
@@ -90,7 +91,7 @@ config STATIC_KEYS_SELFTEST
 config OPTPROBES
 	def_bool y
 	depends on KPROBES && HAVE_OPTPROBES
-	depends on !PREEMPT
+	select TASKS_RCU if PREEMPT
 
 config KPROBES_ON_FTRACE
 	def_bool y
@@ -936,9 +937,6 @@ config STRICT_MODULE_RWX
 	  If this is set, module text and rodata memory will be made read-only,
 	  and non-text memory will be made non-executable. This provides
 	  protection against certain security exploits (e.g. writing to text)
-
-config ARCH_WANT_RELAX_ORDER
-	bool
 
 config ARCH_HAS_REFCOUNT
 	bool

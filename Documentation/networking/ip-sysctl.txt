@@ -289,8 +289,7 @@ tcp_ecn_fallback - BOOLEAN
 	Default: 1 (fallback enabled)
 
 tcp_fack - BOOLEAN
-	Enable FACK congestion avoidance and fast retransmission.
-	The value is not used, if tcp_sack is not enabled.
+	This is a legacy option, it has no effect anymore.
 
 tcp_fin_timeout - INTEGER
 	The length of time an orphaned (no longer referenced by any
@@ -454,6 +453,7 @@ tcp_recovery - INTEGER
 
 	RACK: 0x1 enables the RACK loss detection for fast detection of lost
 	      retransmissions and tail drops.
+	RACK: 0x2 makes RACK's reordering window static (min_rtt/4).
 
 	Default: 0x1
 
@@ -1385,6 +1385,30 @@ mld_qrv - INTEGER
 	Default: 2 (as specified by RFC3810 9.1)
 	Minimum: 1 (as specified by RFC6636 4.5)
 
+max_dst_opts_cnt - INTEGER
+	Maximum number of non-padding TLVs allowed in a Destination
+	options extension header. If this value is less than zero
+	then unknown options are disallowed and the number of known
+	TLVs allowed is the absolute value of this number.
+	Default: 8
+
+max_hbh_opts_cnt - INTEGER
+	Maximum number of non-padding TLVs allowed in a Hop-by-Hop
+	options extension header. If this value is less than zero
+	then unknown options are disallowed and the number of known
+	TLVs allowed is the absolute value of this number.
+	Default: 8
+
+max dst_opts_len - INTEGER
+	Maximum length allowed for a Destination options extension
+	header.
+	Default: INT_MAX (unlimited)
+
+max hbh_opts_len - INTEGER
+	Maximum length allowed for a Hop-by-Hop options extension
+	header.
+	Default: INT_MAX (unlimited)
+
 IPv6 Fragmentation:
 
 ip6frag_high_thresh - INTEGER
@@ -1706,6 +1730,15 @@ ndisc_notify - BOOLEAN
 	0 - (default): do nothing
 	1 - Generate unsolicited neighbour advertisements when device is brought
 	    up or hardware address changes.
+
+ndisc_tclass - INTEGER
+	The IPv6 Traffic Class to use by default when sending IPv6 Neighbor
+	Discovery (Router Solicitation, Router Advertisement, Neighbor
+	Solicitation, Neighbor Advertisement, Redirect) messages.
+	These 8 bits can be interpreted as 6 high order bits holding the DSCP
+	value and 2 low order bits representing ECN (which you probably want
+	to leave cleared).
+	0 - (default)
 
 mldv1_unsolicited_report_interval - INTEGER
 	The interval in milliseconds in which the next unsolicited

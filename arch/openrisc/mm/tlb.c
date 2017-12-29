@@ -49,7 +49,7 @@
  *
  */
 
-void flush_tlb_all(void)
+void local_flush_tlb_all(void)
 {
 	int i;
 	unsigned long num_tlb_sets;
@@ -86,7 +86,7 @@ void flush_tlb_all(void)
 #define flush_itlb_page_no_eir(addr) \
 	mtspr_off(SPR_ITLBMR_BASE(0), ITLB_OFFSET(addr), 0);
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
+void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 {
 	if (have_dtlbeir)
 		flush_dtlb_page_eir(addr);
@@ -99,8 +99,8 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 		flush_itlb_page_no_eir(addr);
 }
 
-void flush_tlb_range(struct vm_area_struct *vma,
-		     unsigned long start, unsigned long end)
+void local_flush_tlb_range(struct vm_area_struct *vma,
+			   unsigned long start, unsigned long end)
 {
 	int addr;
 	bool dtlbeir;
@@ -129,13 +129,13 @@ void flush_tlb_range(struct vm_area_struct *vma,
  * This should be changed to loop over over mm and call flush_tlb_range.
  */
 
-void flush_tlb_mm(struct mm_struct *mm)
+void local_flush_tlb_mm(struct mm_struct *mm)
 {
 
 	/* Was seeing bugs with the mm struct passed to us. Scrapped most of
 	   this function. */
 	/* Several architctures do this */
-	flush_tlb_all();
+	local_flush_tlb_all();
 }
 
 /* called in schedule() just before actually doing the switch_to */
@@ -149,14 +149,14 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 * might be invalid at points where we still need to derefer
 	 * the pgd.
 	 */
-	current_pgd = next->pgd;
+	current_pgd[smp_processor_id()] = next->pgd;
 
 	/* We don't have context support implemented, so flush all
 	 * entries belonging to previous map
 	 */
 
 	if (prev != next)
-		flush_tlb_mm(prev);
+		local_flush_tlb_mm(prev);
 
 }
 

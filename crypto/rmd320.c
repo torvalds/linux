@@ -275,8 +275,6 @@ static void rmd320_transform(u32 *state, const __le32 *in)
 	state[7] += ccc;
 	state[8] += ddd;
 	state[9] += eee;
-
-	return;
 }
 
 static int rmd320_init(struct shash_desc *desc)

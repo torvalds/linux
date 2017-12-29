@@ -343,6 +343,9 @@ int octeon_delete_instr_queue(struct octeon_device *octeon_dev, u32 iq_no);
 
 int lio_wait_for_instr_fetch(struct octeon_device *oct);
 
+void
+octeon_ring_doorbell_locked(struct octeon_device *oct, u32 iq_no);
+
 int
 octeon_register_reqtype_free_fn(struct octeon_device *oct, int reqtype,
 				void (*fn)(void *));

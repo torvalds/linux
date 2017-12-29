@@ -18,8 +18,9 @@
 #include "bpf_lru_list.h"
 #include "map_in_map.h"
 
-#define HTAB_CREATE_FLAG_MASK \
-	(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU | BPF_F_NUMA_NODE)
+#define HTAB_CREATE_FLAG_MASK						\
+	(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU | BPF_F_NUMA_NODE |	\
+	 BPF_F_RDONLY | BPF_F_WRONLY)
 
 struct bucket {
 	struct hlist_nulls_head head;
@@ -113,6 +114,7 @@ static void htab_free_elems(struct bpf_htab *htab)
 		pptr = htab_elem_get_ptr(get_htab_elem(htab, i),
 					 htab->map.key_size);
 		free_percpu(pptr);
+		cond_resched();
 	}
 free_elems:
 	bpf_map_area_free(htab->elems);
@@ -158,6 +160,7 @@ static int prealloc_init(struct bpf_htab *htab)
 			goto free_elems;
 		htab_elem_set_ptr(get_htab_elem(htab, i), htab->map.key_size,
 				  pptr);
+		cond_resched();
 	}
 
 skip_percpu_elems:
@@ -315,10 +318,6 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		 * sure that the elem_size doesn't overflow and it's
 		 * kmalloc-able later in htab_map_update_elem()
 		 */
-		goto free_htab;
-
-	if (percpu && round_up(htab->map.value_size, 8) > PCPU_MIN_UNIT_SIZE)
-		/* make sure the size for pcpu_alloc() is reasonable */
 		goto free_htab;
 
 	htab->elem_size = sizeof(struct htab_elem) +

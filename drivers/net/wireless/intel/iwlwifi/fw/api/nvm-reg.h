@@ -108,6 +108,7 @@ enum iwl_nvm_access_target {
  * @NVM_SECTION_TYPE_REGULATORY: regulatory section
  * @NVM_SECTION_TYPE_CALIBRATION: calibration section
  * @NVM_SECTION_TYPE_PRODUCTION: production section
+ * @NVM_SECTION_TYPE_REGULATORY_SDP: regulatory section used by 3168 series
  * @NVM_SECTION_TYPE_MAC_OVERRIDE: MAC override section
  * @NVM_SECTION_TYPE_PHY_SKU: PHY SKU section
  * @NVM_MAX_NUM_SECTIONS: number of sections
@@ -117,6 +118,7 @@ enum iwl_nvm_section_type {
 	NVM_SECTION_TYPE_REGULATORY = 3,
 	NVM_SECTION_TYPE_CALIBRATION = 4,
 	NVM_SECTION_TYPE_PRODUCTION = 5,
+	NVM_SECTION_TYPE_REGULATORY_SDP = 8,
 	NVM_SECTION_TYPE_MAC_OVERRIDE = 11,
 	NVM_SECTION_TYPE_PHY_SKU = 12,
 	NVM_MAX_NUM_SECTIONS = 13,

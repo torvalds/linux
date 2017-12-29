@@ -119,9 +119,6 @@
 #define I40IW_CQP_COMPL_SQ_WQE_FLUSHED    3
 #define I40IW_CQP_COMPL_RQ_SQ_WQE_FLUSHED 4
 
-#define I40IW_MTU_TO_MSS		40
-#define I40IW_DEFAULT_MSS		1460
-
 struct i40iw_cqp_compl_info {
 	u32 op_ret_val;
 	u16 maj_err_code;

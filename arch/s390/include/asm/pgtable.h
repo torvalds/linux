@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -708,7 +709,7 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 	return (pmd_val(pmd) & origin_mask) >> PAGE_SHIFT;
 }
 
-#define __HAVE_ARCH_PMD_WRITE
+#define pmd_write pmd_write
 static inline int pmd_write(pmd_t pmd)
 {
 	return (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE) != 0;

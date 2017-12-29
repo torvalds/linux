@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
@@ -35,6 +36,15 @@ const char *stack_type_name(enum stack_type type)
 
 	if (type == STACK_TYPE_IRQ)
 		return "IRQ";
+
+	if (type == STACK_TYPE_ENTRY) {
+		/*
+		 * On 64-bit, we have a generic entry stack that we
+		 * use for all the kernel entry points, including
+		 * SYSENTER.
+		 */
+		return "ENTRY_TRAMPOLINE";
+	}
 
 	if (type >= STACK_TYPE_EXCEPTION && type <= STACK_TYPE_EXCEPTION_LAST)
 		return exception_stack_names[type - STACK_TYPE_EXCEPTION];
@@ -112,6 +122,9 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 		goto recursion_check;
 
 	if (in_irq_stack(stack, info))
+		goto recursion_check;
+
+	if (in_entry_stack(stack, info))
 		goto recursion_check;
 
 	goto unknown;

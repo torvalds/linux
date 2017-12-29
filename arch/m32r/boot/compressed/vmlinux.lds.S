@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 OUTPUT_ARCH(m32r)
 ENTRY(startup)

@@ -127,7 +127,7 @@ static const struct mssr_mod_clk r8a77995_mod_clks[] __initconst = {
 	DEF_MOD("usb-dmac1",		 331,	R8A77995_CLK_S3D1),
 	DEF_MOD("rwdt",			 402,	R8A77995_CLK_R),
 	DEF_MOD("intc-ex",		 407,	R8A77995_CLK_CP),
-	DEF_MOD("intc-ap",		 408,	R8A77995_CLK_S3D1),
+	DEF_MOD("intc-ap",		 408,	R8A77995_CLK_S1D2),
 	DEF_MOD("audmac0",		 502,	R8A77995_CLK_S3D1),
 	DEF_MOD("hscif3",		 517,	R8A77995_CLK_S3D1C),
 	DEF_MOD("hscif0",		 520,	R8A77995_CLK_S3D1C),

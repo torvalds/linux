@@ -18,6 +18,8 @@ Required properties:
 	"core"	- SDC MMC clock (MCLK) (required)
 	"bus"	- SDCC bus voter clock (optional)
 	"xo"	- TCXO clock (optional)
+	"cal"	- reference clock for RCLK delay calibration (optional)
+	"sleep"	- sleep clock for RCLK delay calibration (optional)
 
 Example:
 

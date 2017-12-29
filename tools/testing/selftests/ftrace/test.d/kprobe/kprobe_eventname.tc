@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: Kprobe event auto/manual naming
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable

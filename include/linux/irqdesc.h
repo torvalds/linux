@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_IRQDESC_H
 #define _LINUX_IRQDESC_H
 
@@ -93,6 +94,7 @@ struct irq_desc {
 #endif
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
 	struct dentry		*debugfs_file;
+	const char		*dev_name;
 #endif
 #ifdef CONFIG_SPARSE_IRQ
 	struct rcu_head		rcu;
@@ -228,7 +230,7 @@ irq_set_chip_handler_name_locked(struct irq_data *data, struct irq_chip *chip,
 	data->chip = chip;
 }
 
-static inline int irq_balancing_disabled(unsigned int irq)
+static inline bool irq_balancing_disabled(unsigned int irq)
 {
 	struct irq_desc *desc;
 
@@ -236,12 +238,20 @@ static inline int irq_balancing_disabled(unsigned int irq)
 	return desc->status_use_accessors & IRQ_NO_BALANCING_MASK;
 }
 
-static inline int irq_is_percpu(unsigned int irq)
+static inline bool irq_is_percpu(unsigned int irq)
 {
 	struct irq_desc *desc;
 
 	desc = irq_to_desc(irq);
 	return desc->status_use_accessors & IRQ_PER_CPU;
+}
+
+static inline bool irq_is_percpu_devid(unsigned int irq)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	return desc->status_use_accessors & IRQ_PER_CPU_DEVID;
 }
 
 static inline void

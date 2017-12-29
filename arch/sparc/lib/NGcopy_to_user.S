@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* NGcopy_to_user.S: Niagara optimized copy to userspace.
  *
  * Copyright (C) 2006, 2007 David S. Miller (davem@davemloft.net)

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 KBUILD_DEFCONFIG := mmu_defconfig
 
 ifeq ($(CONFIG_MMU),y)

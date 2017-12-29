@@ -263,8 +263,8 @@ static int stm32_spi_prepare_mbr(struct stm32_spi *spi, u32 speed_hz)
 	 * no need to check it there.
 	 * However, we need to ensure the following calculations.
 	 */
-	if ((div < SPI_MBR_DIV_MIN) &&
-	    (div > SPI_MBR_DIV_MAX))
+	if (div < SPI_MBR_DIV_MIN ||
+	    div > SPI_MBR_DIV_MAX)
 		return -EINVAL;
 
 	/* Determine the first power of 2 greater than or equal to div */

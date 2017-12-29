@@ -80,7 +80,7 @@ static struct shash_desc *init_desc(char type)
 
 	if (type == EVM_XATTR_HMAC) {
 		if (!(evm_initialized & EVM_INIT_HMAC)) {
-			pr_err("HMAC key is not set\n");
+			pr_err_once("HMAC key is not set\n");
 			return ERR_PTR(-ENOKEY);
 		}
 		tfm = &hmac_tfm;

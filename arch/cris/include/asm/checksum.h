@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* TODO: csum_tcpudp_magic could be speeded up, and csum_fold as well */
 
 #ifndef _CRIS_CHECKSUM_H

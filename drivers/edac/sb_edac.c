@@ -36,7 +36,7 @@ static LIST_HEAD(sbridge_edac_list);
  * Alter this version for the module when modifications are made
  */
 #define SBRIDGE_REVISION    " Ver: 1.1.2 "
-#define EDAC_MOD_STR      "sbridge_edac"
+#define EDAC_MOD_STR	    "sb_edac"
 
 /*
  * Debug macros
@@ -462,6 +462,7 @@ static const struct pci_id_table pci_dev_descr_sbridge_table[] = {
 static const struct pci_id_descr pci_dev_descr_ibridge[] = {
 		/* Processor Home Agent */
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0,        0, IMC0) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1,        1, IMC1) },
 
 		/* Memory controller */
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA,     0, IMC0) },
@@ -472,7 +473,6 @@ static const struct pci_id_descr pci_dev_descr_ibridge[] = {
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD3,   0, IMC0) },
 
 		/* Optional, mode 2HA */
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1,        1, IMC1) },
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TA,     1, IMC1) },
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_RAS,    1, IMC1) },
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0,   1, IMC1) },
@@ -1318,9 +1318,7 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 	int cur_reg_start;
 	int mc;
 	int channel;
-	int way;
 	int participants[KNL_MAX_CHANNELS];
-	int participant_count = 0;
 
 	for (i = 0; i < KNL_MAX_CHANNELS; i++)
 		mc_sizes[i] = 0;
@@ -1495,31 +1493,20 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 		 * this channel mapped to the given target?
 		 */
 		for (channel = 0; channel < KNL_MAX_CHANNELS; channel++) {
-			for (way = 0; way < intrlv_ways; way++) {
-				int target;
-				int cha;
+			int target;
+			int cha;
 
-				if (KNL_MOD3(dram_rule))
-					target = way;
-				else
-					target = 0x7 & sad_pkg(
-				pvt->info.interleave_pkg, interleave_reg, way);
-
+			for (target = 0; target < KNL_MAX_CHANNELS; target++) {
 				for (cha = 0; cha < KNL_MAX_CHAS; cha++) {
 					if (knl_get_mc_route(target,
 						mc_route_reg[cha]) == channel
 						&& !participants[channel]) {
-						participant_count++;
 						participants[channel] = 1;
 						break;
 					}
 				}
 			}
 		}
-
-		if (participant_count != intrlv_ways)
-			edac_dbg(0, "participant_count (%d) != interleave_ways (%d): DIMM size may be incorrect\n",
-				participant_count, intrlv_ways);
 
 		for (channel = 0; channel < KNL_MAX_CHANNELS; channel++) {
 			mc = knl_channel_mc(channel);
@@ -2291,6 +2278,13 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 next_imc:
 	sbridge_dev = get_sbridge_dev(bus, dev_descr->dom, multi_bus, sbridge_dev);
 	if (!sbridge_dev) {
+		/* If the HA1 wasn't found, don't create EDAC second memory controller */
+		if (dev_descr->dom == IMC1 && devno != 1) {
+			edac_dbg(0, "Skip IMC1: %04x:%04x (since HA1 was absent)\n",
+				 PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
+			pci_dev_put(pdev);
+			return 0;
+		}
 
 		if (dev_descr->dom == SOCK)
 			goto out_imc;
@@ -2491,6 +2485,7 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA:
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TA:
 			pvt->pci_ta = pdev;
+			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_RAS:
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_RAS:
 			pvt->pci_ras = pdev;
@@ -3155,7 +3150,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		MEM_FLAG_DDR4 : MEM_FLAG_DDR3;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
-	mci->mod_name = "sb_edac.c";
+	mci->mod_name = EDAC_MOD_STR;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 
@@ -3287,6 +3282,11 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		break;
 	}
 
+	if (!mci->ctl_name) {
+		rc = -ENOMEM;
+		goto fail0;
+	}
+
 	/* Get dimm basic config and the memory layout */
 	rc = get_dimm_config(mci);
 	if (rc < 0) {
@@ -3402,9 +3402,14 @@ static void sbridge_remove(void)
 static int __init sbridge_init(void)
 {
 	const struct x86_cpu_id *id;
+	const char *owner;
 	int rc;
 
 	edac_dbg(2, "\n");
+
+	owner = edac_get_owner();
+	if (owner && strncmp(owner, EDAC_MOD_STR, sizeof(EDAC_MOD_STR)))
+		return -EBUSY;
 
 	id = x86_match_cpu(sbridge_cpuids);
 	if (!id)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_LINUX_IF_LINK_H
 #define _UAPI_LINUX_IF_LINK_H
 
@@ -158,6 +159,8 @@ enum {
 	IFLA_PAD,
 	IFLA_XDP,
 	IFLA_EVENT,
+	IFLA_NEW_NETNSID,
+	IFLA_IF_NETNSID,
 	__IFLA_MAX
 };
 
@@ -325,6 +328,8 @@ enum {
 	IFLA_BRPORT_MCAST_TO_UCAST,
 	IFLA_BRPORT_VLAN_TUNNEL,
 	IFLA_BRPORT_BCAST_FLOOD,
+	IFLA_BRPORT_GROUP_FWD_MASK,
+	IFLA_BRPORT_NEIGH_SUPPRESS,
 	__IFLA_BRPORT_MAX
 };
 #define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)
@@ -462,6 +467,7 @@ enum macsec_validation_type {
 enum {
 	IFLA_IPVLAN_UNSPEC,
 	IFLA_IPVLAN_MODE,
+	IFLA_IPVLAN_FLAGS,
 	__IFLA_IPVLAN_MAX
 };
 
@@ -473,6 +479,9 @@ enum ipvlan_mode {
 	IPVLAN_MODE_L3S,
 	IPVLAN_MODE_MAX
 };
+
+#define IPVLAN_F_PRIVATE	0x01
+#define IPVLAN_F_VEPA		0x02
 
 /* VXLAN section */
 enum {

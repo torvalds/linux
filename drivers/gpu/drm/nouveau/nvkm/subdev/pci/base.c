@@ -87,7 +87,7 @@ nvkm_pci_fini(struct nvkm_subdev *subdev, bool suspend)
 	if (pci->irq >= 0) {
 		free_irq(pci->irq, pci);
 		pci->irq = -1;
-	};
+	}
 
 	if (pci->agp.bridge)
 		nvkm_agp_fini(pci);
@@ -136,6 +136,13 @@ nvkm_pci_init(struct nvkm_subdev *subdev)
 		return ret;
 
 	pci->irq = pdev->irq;
+
+	/* Ensure MSI interrupts are armed, for the case where there are
+	 * already interrupts pending (for whatever reason) at load time.
+	 */
+	if (pci->msi)
+		pci->func->msi_rearm(pci);
+
 	return ret;
 }
 

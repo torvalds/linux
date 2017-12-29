@@ -508,7 +508,7 @@ static unsigned long epapr_hypercall(unsigned long *in,
 
 static inline long epapr_hypercall0_1(unsigned int nr, unsigned long *r2)
 {
-	unsigned long in[8];
+	unsigned long in[8] = {0};
 	unsigned long out[8];
 	unsigned long r;
 
@@ -520,7 +520,7 @@ static inline long epapr_hypercall0_1(unsigned int nr, unsigned long *r2)
 
 static inline long epapr_hypercall0(unsigned int nr)
 {
-	unsigned long in[8];
+	unsigned long in[8] = {0};
 	unsigned long out[8];
 
 	return epapr_hypercall(in, out, nr);
@@ -528,7 +528,7 @@ static inline long epapr_hypercall0(unsigned int nr)
 
 static inline long epapr_hypercall1(unsigned int nr, unsigned long p1)
 {
-	unsigned long in[8];
+	unsigned long in[8] = {0};
 	unsigned long out[8];
 
 	in[0] = p1;
@@ -538,7 +538,7 @@ static inline long epapr_hypercall1(unsigned int nr, unsigned long p1)
 static inline long epapr_hypercall2(unsigned int nr, unsigned long p1,
 				    unsigned long p2)
 {
-	unsigned long in[8];
+	unsigned long in[8] = {0};
 	unsigned long out[8];
 
 	in[0] = p1;
@@ -549,7 +549,7 @@ static inline long epapr_hypercall2(unsigned int nr, unsigned long p1,
 static inline long epapr_hypercall3(unsigned int nr, unsigned long p1,
 				    unsigned long p2, unsigned long p3)
 {
-	unsigned long in[8];
+	unsigned long in[8] = {0};
 	unsigned long out[8];
 
 	in[0] = p1;
@@ -562,7 +562,7 @@ static inline long epapr_hypercall4(unsigned int nr, unsigned long p1,
 				    unsigned long p2, unsigned long p3,
 				    unsigned long p4)
 {
-	unsigned long in[8];
+	unsigned long in[8] = {0};
 	unsigned long out[8];
 
 	in[0] = p1;

@@ -168,7 +168,6 @@ struct iwch_qp {
 	atomic_t refcnt;
 	wait_queue_head_t wait;
 	enum IWCH_QP_FLAGS flags;
-	struct timer_list timer;
 };
 
 static inline int qp_quiesced(struct iwch_qp *qhp)

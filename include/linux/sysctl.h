@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * sysctl.h: General linux system control interface
  *
@@ -50,6 +51,9 @@ extern int proc_dointvec_minmax(struct ctl_table *, int,
 extern int proc_douintvec_minmax(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp,
 				 loff_t *ppos);
+extern int proc_dopipe_max_size(struct ctl_table *table, int write,
+				void __user *buffer, size_t *lenp,
+				loff_t *ppos);
 extern int proc_dointvec_jiffies(struct ctl_table *, int,
 				 void __user *, size_t *, loff_t *);
 extern int proc_dointvec_userhz_jiffies(struct ctl_table *, int,
@@ -208,6 +212,11 @@ static inline struct ctl_table_header *register_sysctl_table(struct ctl_table * 
 
 static inline struct ctl_table_header *register_sysctl_paths(
 			const struct ctl_path *path, struct ctl_table *table)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *register_sysctl(const char *path, struct ctl_table *table)
 {
 	return NULL;
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  *

@@ -132,10 +132,10 @@ static ssize_t batadv_socket_read(struct file *file, char __user *buf,
 	size_t packet_len;
 	int error;
 
-	if ((file->f_flags & O_NONBLOCK) && (socket_client->queue_len == 0))
+	if ((file->f_flags & O_NONBLOCK) && socket_client->queue_len == 0)
 		return -EAGAIN;
 
-	if ((!buf) || (count < sizeof(struct batadv_icmp_packet)))
+	if (!buf || count < sizeof(struct batadv_icmp_packet))
 		return -EINVAL;
 
 	if (!access_ok(VERIFY_WRITE, buf, count))

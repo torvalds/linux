@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PARAVIRT_TYPES_H
 #define _ASM_X86_PARAVIRT_TYPES_H
 
@@ -133,7 +134,7 @@ struct pv_cpu_ops {
 	void (*alloc_ldt)(struct desc_struct *ldt, unsigned entries);
 	void (*free_ldt)(struct desc_struct *ldt, unsigned entries);
 
-	void (*load_sp0)(struct tss_struct *tss, struct thread_struct *t);
+	void (*load_sp0)(unsigned long sp0);
 
 	void (*set_iopl_mask)(unsigned mask);
 

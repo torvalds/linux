@@ -362,6 +362,9 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 
 	card->name = devm_kasprintf(dev, GFP_KERNEL,
 				    "HDMI %s", dev_name(ad->dssdev));
+	if (!card->name)
+		return -ENOMEM;
+
 	card->owner = THIS_MODULE;
 	card->dai_link =
 		devm_kzalloc(dev, sizeof(*(card->dai_link)), GFP_KERNEL);

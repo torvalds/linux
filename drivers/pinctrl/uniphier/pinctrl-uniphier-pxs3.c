@@ -776,8 +776,8 @@ static const struct pinctrl_pin_desc uniphier_pxs3_pins[] = {
 			     250, UNIPHIER_PIN_PULL_DOWN),
 };
 
-static const unsigned int emmc_pins[] = {31, 32, 33, 34, 35, 36, 37, 38};
-static const int emmc_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0};
+static const unsigned int emmc_pins[] = {32, 33, 34, 35, 36, 37, 38};
+static const int emmc_muxvals[] = {0, 0, 0, 0, 0, 0, 0};
 static const unsigned int emmc_dat8_pins[] = {39, 40, 41, 42};
 static const int emmc_dat8_muxvals[] = {0, 0, 0, 0};
 static const unsigned int ether_rgmii_pins[] = {52, 53, 54, 55, 56, 57, 58, 59,

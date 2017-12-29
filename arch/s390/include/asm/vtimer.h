@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Copyright IBM Corp. 2003, 2012
  *  Virtual CPU timer

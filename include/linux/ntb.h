@@ -70,6 +70,7 @@ struct pci_dev;
  * @NTB_TOPO_SEC:	On secondary side of remote ntb.
  * @NTB_TOPO_B2B_USD:	On primary side of local ntb upstream of remote ntb.
  * @NTB_TOPO_B2B_DSD:	On primary side of local ntb downstream of remote ntb.
+ * @NTB_TOPO_SWITCH:	Connected via a switch which supports ntb.
  */
 enum ntb_topo {
 	NTB_TOPO_NONE = -1,
@@ -77,6 +78,7 @@ enum ntb_topo {
 	NTB_TOPO_SEC,
 	NTB_TOPO_B2B_USD,
 	NTB_TOPO_B2B_DSD,
+	NTB_TOPO_SWITCH,
 };
 
 static inline int ntb_topo_is_b2b(enum ntb_topo topo)
@@ -97,6 +99,7 @@ static inline char *ntb_topo_string(enum ntb_topo topo)
 	case NTB_TOPO_SEC:	return "NTB_TOPO_SEC";
 	case NTB_TOPO_B2B_USD:	return "NTB_TOPO_B2B_USD";
 	case NTB_TOPO_B2B_DSD:	return "NTB_TOPO_B2B_DSD";
+	case NTB_TOPO_SWITCH:	return "NTB_TOPO_SWITCH";
 	}
 	return "NTB_TOPO_INVALID";
 }
@@ -730,7 +733,8 @@ static inline int ntb_link_disable(struct ntb_dev *ntb)
  * Hardware and topology may support a different number of memory windows.
  * Moreover different peer devices can support different number of memory
  * windows. Simply speaking this method returns the number of possible inbound
- * memory windows to share with specified peer device.
+ * memory windows to share with specified peer device. Note: this may return
+ * zero if the link is not up yet.
  *
  * Return: the number of memory windows.
  */
@@ -751,7 +755,7 @@ static inline int ntb_mw_count(struct ntb_dev *ntb, int pidx)
  * Get the alignments of an inbound memory window with specified index.
  * NULL may be given for any output parameter if the value is not needed.
  * The alignment and size parameters may be used for allocation of proper
- * shared memory.
+ * shared memory. Note: this must only be called when the link is up.
  *
  * Return: Zero on success, otherwise a negative error number.
  */
@@ -760,6 +764,9 @@ static inline int ntb_mw_get_align(struct ntb_dev *ntb, int pidx, int widx,
 				   resource_size_t *size_align,
 				   resource_size_t *size_max)
 {
+	if (!(ntb_link_is_up(ntb, NULL, NULL) & (1 << pidx)))
+		return -ENOTCONN;
+
 	return ntb->ops->mw_get_align(ntb, pidx, widx, addr_align, size_align,
 				      size_max);
 }

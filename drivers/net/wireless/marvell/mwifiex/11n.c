@@ -658,12 +658,6 @@ void mwifiex_11n_delba(struct mwifiex_private *priv, int tid)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
-	if (list_empty(&priv->rx_reorder_tbl_ptr)) {
-		dev_dbg(priv->adapter->dev,
-			"mwifiex_11n_delba: rx_reorder_tbl_ptr empty\n");
-		goto exit;
-	}
-
 	list_for_each_entry(rx_reor_tbl_ptr, &priv->rx_reorder_tbl_ptr, list) {
 		if (rx_reor_tbl_ptr->tid == tid) {
 			dev_dbg(priv->adapter->dev,
@@ -853,9 +847,6 @@ mwifiex_send_delba_txbastream_tbl(struct mwifiex_private *priv, u8 tid)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_stream_tbl_ptr;
-
-	if (list_empty(&priv->tx_ba_stream_tbl_ptr))
-		return;
 
 	list_for_each_entry(tx_ba_stream_tbl_ptr,
 			    &priv->tx_ba_stream_tbl_ptr, list) {

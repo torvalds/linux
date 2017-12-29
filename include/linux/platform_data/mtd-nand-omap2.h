@@ -63,24 +63,5 @@ struct gpmc_nand_regs {
 	void __iomem	*gpmc_bch_result4[GPMC_BCH_NUM_REMAINDER];
 	void __iomem	*gpmc_bch_result5[GPMC_BCH_NUM_REMAINDER];
 	void __iomem	*gpmc_bch_result6[GPMC_BCH_NUM_REMAINDER];
-	/* Deprecated. Do not use */
-	void __iomem	*gpmc_status;
-};
-
-struct omap_nand_platform_data {
-	int			cs;
-	struct mtd_partition	*parts;
-	int			nr_parts;
-	bool			flash_bbt;
-	enum nand_io		xfer_type;
-	int			devsize;
-	enum omap_ecc           ecc_opt;
-
-	struct device_node	*elm_of_node;
-
-	/* deprecated */
-	struct gpmc_nand_regs	reg;
-	struct device_node	*of_node;
-	bool			dev_ready;
 };
 #endif

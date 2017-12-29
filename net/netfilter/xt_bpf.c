@@ -8,6 +8,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/syscalls.h>
 #include <linux/skbuff.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
@@ -25,6 +26,9 @@ static int __bpf_mt_check_bytecode(struct sock_filter *insns, __u16 len,
 				   struct bpf_prog **ret)
 {
 	struct sock_fprog_kern program;
+
+	if (len > XT_BPF_MAX_NUM_INSTR)
+		return -EINVAL;
 
 	program.len = len;
 	program.filter = insns;
@@ -49,6 +53,25 @@ static int __bpf_mt_check_fd(int fd, struct bpf_prog **ret)
 	return 0;
 }
 
+static int __bpf_mt_check_path(const char *path, struct bpf_prog **ret)
+{
+	mm_segment_t oldfs = get_fs();
+	int retval, fd;
+
+	if (strnlen(path, XT_BPF_PATH_MAX) == XT_BPF_PATH_MAX)
+		return -EINVAL;
+
+	set_fs(KERNEL_DS);
+	fd = bpf_obj_get_user(path, 0);
+	set_fs(oldfs);
+	if (fd < 0)
+		return fd;
+
+	retval = __bpf_mt_check_fd(fd, ret);
+	sys_close(fd);
+	return retval;
+}
+
 static int bpf_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_bpf_info *info = par->matchinfo;
@@ -66,9 +89,10 @@ static int bpf_mt_check_v1(const struct xt_mtchk_param *par)
 		return __bpf_mt_check_bytecode(info->bpf_program,
 					       info->bpf_program_num_elem,
 					       &info->filter);
-	else if (info->mode == XT_BPF_MODE_FD_PINNED ||
-		 info->mode == XT_BPF_MODE_FD_ELF)
+	else if (info->mode == XT_BPF_MODE_FD_ELF)
 		return __bpf_mt_check_fd(info->fd, &info->filter);
+	else if (info->mode == XT_BPF_MODE_PATH_PINNED)
+		return __bpf_mt_check_path(info->path, &info->filter);
 	else
 		return -EINVAL;
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config FB_OMAP2_DSS_INIT
 	bool
 

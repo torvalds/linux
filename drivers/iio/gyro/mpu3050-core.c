@@ -742,7 +742,6 @@ static const struct attribute_group mpu3050_attribute_group = {
 };
 
 static const struct iio_info mpu3050_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = mpu3050_read_raw,
 	.write_raw = mpu3050_write_raw,
 	.attrs = &mpu3050_attribute_group,
@@ -1032,7 +1031,6 @@ static int mpu3050_drdy_trigger_set_state(struct iio_trigger *trig,
 }
 
 static const struct iio_trigger_ops mpu3050_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = mpu3050_drdy_trigger_set_state,
 };
 

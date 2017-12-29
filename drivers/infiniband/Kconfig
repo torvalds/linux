@@ -1,7 +1,6 @@
 menuconfig INFINIBAND
 	tristate "InfiniBand support"
-	depends on PCI || BROKEN
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && HAS_DMA
 	depends on NET
 	depends on INET
 	depends on m || IPV6 != m
@@ -46,6 +45,7 @@ config INFINIBAND_EXP_USER_ACCESS
 config INFINIBAND_USER_MEM
 	bool
 	depends on INFINIBAND_USER_ACCESS != n
+	depends on MMU
 	default y
 
 config INFINIBAND_ON_DEMAND_PAGING

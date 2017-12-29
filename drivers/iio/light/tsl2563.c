@@ -697,13 +697,11 @@ static int tsl2563_read_interrupt_config(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info tsl2563_info_no_irq = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &tsl2563_read_raw,
 	.write_raw = &tsl2563_write_raw,
 };
 
 static const struct iio_info tsl2563_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &tsl2563_read_raw,
 	.write_raw = &tsl2563_write_raw,
 	.read_event_value = &tsl2563_read_thresh,

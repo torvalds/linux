@@ -47,6 +47,7 @@
 #include <dt-bindings/clock/meson8b-clkc.h>
 #include <dt-bindings/gpio/meson8b-gpio.h>
 #include <dt-bindings/reset/amlogic,meson8b-reset.h>
+#include <dt-bindings/reset/amlogic,meson8b-clkc-reset.h>
 #include "meson.dtsi"
 
 / {
@@ -59,6 +60,8 @@
 			compatible = "arm,cortex-a5";
 			next-level-cache = <&L2>;
 			reg = <0x200>;
+			enable-method = "amlogic,meson8b-smp";
+			resets = <&clkc CLKC_RESET_CPU0_SOFT_RESET>;
 		};
 
 		cpu@201 {
@@ -66,6 +69,8 @@
 			compatible = "arm,cortex-a5";
 			next-level-cache = <&L2>;
 			reg = <0x201>;
+			enable-method = "amlogic,meson8b-smp";
+			resets = <&clkc CLKC_RESET_CPU1_SOFT_RESET>;
 		};
 
 		cpu@202 {
@@ -73,6 +78,8 @@
 			compatible = "arm,cortex-a5";
 			next-level-cache = <&L2>;
 			reg = <0x202>;
+			enable-method = "amlogic,meson8b-smp";
+			resets = <&clkc CLKC_RESET_CPU2_SOFT_RESET>;
 		};
 
 		cpu@203 {
@@ -80,6 +87,20 @@
 			compatible = "arm,cortex-a5";
 			next-level-cache = <&L2>;
 			reg = <0x203>;
+			enable-method = "amlogic,meson8b-smp";
+			resets = <&clkc CLKC_RESET_CPU3_SOFT_RESET>;
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* 2 MiB reserved for Hardware ROM Firmware? */
+		hwrom@0 {
+			reg = <0x0 0x200000>;
+			no-map;
 		};
 	};
 
@@ -90,6 +111,11 @@
 }; /* end of / */
 
 &aobus {
+	pmu: pmu@e0 {
+		compatible = "amlogic,meson8b-pmu", "syscon";
+		reg = <0xe0 0x18>;
+	};
+
 	pinctrl_aobus: pinctrl@84 {
 		compatible = "amlogic,meson8b-aobus-pinctrl";
 		reg = <0x84 0xc>;
@@ -104,7 +130,7 @@
 			reg-names = "mux", "pull", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
-			gpio-ranges = <&pinctrl_aobus 0 130 16>;
+			gpio-ranges = <&pinctrl_aobus 0 0 16>;
 		};
 
 		uart_ao_a_pins: uart_ao_a {
@@ -128,6 +154,11 @@
 		compatible = "amlogic,meson8b-reset";
 		reg = <0x4404 0x20>;
 		#reset-cells = <1>;
+	};
+
+	analog_top: analog-top@81a8 {
+		compatible = "amlogic,meson8b-analog-top", "syscon";
+		reg = <0x81a8 0x14>;
 	};
 
 	pwm_ef: pwm@86c0 {
@@ -157,9 +188,29 @@
 	};
 };
 
+&ahb_sram {
+	smp-sram@1ff80 {
+		compatible = "amlogic,meson8b-smp-sram";
+		reg = <0x1ff80 0x8>;
+	};
+};
+
+
+&efuse {
+	compatible = "amlogic,meson8b-efuse";
+	clocks = <&clkc CLKID_EFUSE>;
+	clock-names = "core";
+};
+
 &ethmac {
 	clocks = <&clkc CLKID_ETH>;
 	clock-names = "stmmaceth";
+};
+
+&gpio_intc {
+	compatible = "amlogic,meson-gpio-intc",
+		     "amlogic,meson8b-gpio-intc";
+	status = "okay";
 };
 
 &hwrng {
@@ -188,6 +239,12 @@
 		<&clkc CLKID_SAR_ADC>,
 		<&clkc CLKID_SANA>;
 	clock-names = "clkin", "core", "sana";
+};
+
+&sdio {
+	compatible = "amlogic,meson8b-sdio", "amlogic,meson-mx-sdio";
+	clocks = <&clkc CLKID_SDIO>, <&clkc CLKID_CLK81>;
+	clock-names = "core", "clkin";
 };
 
 &uart_AO {

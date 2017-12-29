@@ -389,7 +389,7 @@ static void tcp_cdg_release(struct sock *sk)
 	kfree(ca->gradients);
 }
 
-struct tcp_congestion_ops tcp_cdg __read_mostly = {
+static struct tcp_congestion_ops tcp_cdg __read_mostly = {
 	.cong_avoid = tcp_cdg_cong_avoid,
 	.cwnd_event = tcp_cdg_cwnd_event,
 	.pkts_acked = tcp_cdg_acked,

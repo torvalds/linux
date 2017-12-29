@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NOUVEAU_GEM_H__
 #define __NOUVEAU_GEM_H__
 
@@ -5,9 +6,6 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_bo.h"
-
-#define nouveau_bo_tile_layout(nvbo)				\
-	((nvbo)->tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK)
 
 static inline struct nouveau_bo *
 nouveau_gem_object(struct drm_gem_object *gem)

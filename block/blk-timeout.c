@@ -134,8 +134,6 @@ void blk_timeout_work(struct work_struct *work)
 	struct request *rq, *tmp;
 	int next_set = 0;
 
-	if (blk_queue_enter(q, true))
-		return;
 	spin_lock_irqsave(q->queue_lock, flags);
 
 	list_for_each_entry_safe(rq, tmp, &q->timeout_list, timeout_list)
@@ -145,7 +143,6 @@ void blk_timeout_work(struct work_struct *work)
 		mod_timer(&q->timeout, round_jiffies_up(next));
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
-	blk_queue_exit(q);
 }
 
 /**
@@ -211,7 +208,7 @@ void blk_add_timer(struct request *req)
 	if (!req->timeout)
 		req->timeout = q->rq_timeout;
 
-	req->deadline = jiffies + req->timeout;
+	WRITE_ONCE(req->deadline, jiffies + req->timeout);
 
 	/*
 	 * Only the non-mq case needs to add the request to a protected list.

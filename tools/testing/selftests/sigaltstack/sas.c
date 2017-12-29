@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Stas Sergeev <stsp@users.sourceforge.net>
  *

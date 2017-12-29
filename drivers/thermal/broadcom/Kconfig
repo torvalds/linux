@@ -6,6 +6,13 @@ config BCM2835_THERMAL
 	help
 	  Support for thermal sensors on Broadcom bcm2835 SoCs.
 
+config BRCMSTB_THERMAL
+	tristate "Broadcom STB AVS TMON thermal driver"
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	help
+	  Enable this driver if you have a Broadcom STB SoC and would like
+	  thermal framework support.
+
 config BCM_NS_THERMAL
 	tristate "Northstar thermal driver"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST

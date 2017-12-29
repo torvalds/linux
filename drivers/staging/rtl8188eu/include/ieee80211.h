@@ -202,9 +202,9 @@ enum NETWORK_TYPE {
 #define IsSupportedTxCCK(NetType)				\
 	((NetType) & (WIRELESS_11B) ? true : false)
 #define IsSupportedTxOFDM(NetType)				\
-	((NetType) & (WIRELESS_11G|WIRELESS_11A) ? true : false)
+	((NetType) & (WIRELESS_11G | WIRELESS_11A) ? true : false)
 #define IsSupportedTxMCS(NetType)				\
-	((NetType) & (WIRELESS_11_24N|WIRELESS_11_5N) ? true : false)
+	((NetType) & (WIRELESS_11_24N | WIRELESS_11_5N) ? true : false)
 
 
 struct ieee_param {
@@ -276,12 +276,13 @@ struct sta_data {
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
-   6.2.1.1.2.
+ * 6.2.1.1.2.
 
-   The figure in section 7.1.2 suggests a body size of up to 2312
-   bytes is allowed, which is a bit confusing, I suspect this
-   represents the 2304 bytes of real data, plus a possible 8 bytes of
-   WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
+ * The figure in section 7.1.2 suggests a body size of up to 2312
+ * bytes is allowed, which is a bit confusing, I suspect this
+ * represents the 2304 bytes of real data, plus a possible 8 bytes of
+ * WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro)
+ */
 
 
 #define IEEE80211_HLEN			30
@@ -358,11 +359,11 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_DATA_HDR3_LEN 24
 #define IEEE80211_DATA_HDR4_LEN 30
 
-#define IEEE80211_CCK_MODULATION    (1<<0)
-#define IEEE80211_OFDM_MODULATION   (1<<1)
+#define IEEE80211_CCK_MODULATION	BIT(0)
+#define IEEE80211_OFDM_MODULATION	BIT(1)
 
-#define IEEE80211_24GHZ_BAND     (1<<0)
-#define IEEE80211_52GHZ_BAND     (1<<1)
+#define IEEE80211_24GHZ_BAND	BIT(0)
+#define IEEE80211_52GHZ_BAND	BIT(1)
 
 #define IEEE80211_CCK_RATE_LEN			4
 #define IEEE80211_NUM_OFDM_RATESLEN	8
@@ -383,18 +384,18 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_OFDM_RATE_54MB		0x6C
 #define IEEE80211_BASIC_RATE_MASK		0x80
 
-#define IEEE80211_CCK_RATE_1MB_MASK		(1<<0)
-#define IEEE80211_CCK_RATE_2MB_MASK		(1<<1)
-#define IEEE80211_CCK_RATE_5MB_MASK		(1<<2)
-#define IEEE80211_CCK_RATE_11MB_MASK		(1<<3)
-#define IEEE80211_OFDM_RATE_6MB_MASK		(1<<4)
-#define IEEE80211_OFDM_RATE_9MB_MASK		(1<<5)
-#define IEEE80211_OFDM_RATE_12MB_MASK		(1<<6)
-#define IEEE80211_OFDM_RATE_18MB_MASK		(1<<7)
-#define IEEE80211_OFDM_RATE_24MB_MASK		(1<<8)
-#define IEEE80211_OFDM_RATE_36MB_MASK		(1<<9)
-#define IEEE80211_OFDM_RATE_48MB_MASK		(1<<10)
-#define IEEE80211_OFDM_RATE_54MB_MASK		(1<<11)
+#define IEEE80211_CCK_RATE_1MB_MASK		BIT(0)
+#define IEEE80211_CCK_RATE_2MB_MASK		BIT(1)
+#define IEEE80211_CCK_RATE_5MB_MASK		BIT(2)
+#define IEEE80211_CCK_RATE_11MB_MASK		BIT(3)
+#define IEEE80211_OFDM_RATE_6MB_MASK		BIT(4)
+#define IEEE80211_OFDM_RATE_9MB_MASK		BIT(5)
+#define IEEE80211_OFDM_RATE_12MB_MASK		BIT(6)
+#define IEEE80211_OFDM_RATE_18MB_MASK		BIT(7)
+#define IEEE80211_OFDM_RATE_24MB_MASK		BIT(8)
+#define IEEE80211_OFDM_RATE_36MB_MASK		BIT(9)
+#define IEEE80211_OFDM_RATE_48MB_MASK		BIT(10)
+#define IEEE80211_OFDM_RATE_54MB_MASK		BIT(11)
 
 #define IEEE80211_CCK_RATES_MASK		0x0000000F
 #define IEEE80211_CCK_BASIC_RATES_MASK	(IEEE80211_CCK_RATE_1MB_MASK | \
@@ -423,18 +424,19 @@ struct ieee80211_snap_hdr {
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
  * concurrent frames, but it should be noted that each entry can consume about
- * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
+ * 2 kB of RAM and increasing cache size will slow down frame reassembly.
+ */
 #define IEEE80211_FRAG_CACHE_LEN 4
 
-#define SEC_KEY_1	(1<<0)
-#define SEC_KEY_2	(1<<1)
-#define SEC_KEY_3	(1<<2)
-#define SEC_KEY_4	(1<<3)
-#define SEC_ACTIVE_KEY  (1<<4)
-#define SEC_AUTH_MODE   (1<<5)
-#define SEC_UNICAST_GROUP (1<<6)
-#define SEC_LEVEL	(1<<7)
-#define SEC_ENABLED     (1<<8)
+#define SEC_KEY_1	BIT(0)
+#define SEC_KEY_2	BIT(1)
+#define SEC_KEY_3	BIT(2)
+#define SEC_KEY_4	BIT(3)
+#define SEC_ACTIVE_KEY  BIT(4)
+#define SEC_AUTH_MODE   BIT(5)
+#define SEC_UNICAST_GROUP BIT(6)
+#define SEC_LEVEL	BIT(7)
+#define SEC_ENABLED     BIT(8)
 
 #define SEC_LEVEL_0      0 /* None */
 #define SEC_LEVEL_1      1 /* WEP 40 and 104 bit */
@@ -451,7 +453,8 @@ struct ieee80211_snap_hdr {
 /* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
  * only use 8, and then use extended rates for the remaining supported
  * rates.  Other APs, however, stick all of their supported rates on the
- * main rates information element... */
+ * main rates information element...
+ */
 #define MAX_RATES_LENGTH		((u8)12)
 #define MAX_RATES_EX_LENGTH		((u8)16)
 #define MAX_NETWORK_COUNT		128
@@ -467,17 +470,17 @@ struct ieee80211_snap_hdr {
 #define MAX_P2P_IE_LEN (256)
 #define MAX_WFD_IE_LEN (128)
 
-#define NETWORK_EMPTY_ESSID (1<<0)
-#define NETWORK_HAS_OFDM    (1<<1)
-#define NETWORK_HAS_CCK     (1<<2)
+#define NETWORK_EMPTY_ESSID	BIT(0)
+#define NETWORK_HAS_OFDM	BIT(1)
+#define NETWORK_HAS_CCK		BIT(2)
 
 #define IW_ESSID_MAX_SIZE 32
 /*
-join_res:
--1: authentication fail
--2: association fail
-> 0: TID
-*/
+ * join_res:
+ * -1: authentication fail
+ * -2: association fail
+ * > 0: TID
+ */
 
 enum ieee80211_state {
 	/* the card is not linked at all */
@@ -531,15 +534,15 @@ static inline int is_broadcast_mac_addr(const u8 *addr)
 	       (addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff);
 }
 
-#define CFG_IEEE80211_RESERVE_FCS (1<<0)
-#define CFG_IEEE80211_COMPUTE_FCS (1<<1)
+#define CFG_IEEE80211_RESERVE_FCS	BIT(0)
+#define CFG_IEEE80211_COMPUTE_FCS	BIT(1)
 
 #define MAXTID	16
 
-#define IEEE_A	    (1<<0)
-#define IEEE_B	    (1<<1)
-#define IEEE_G	    (1<<2)
-#define IEEE_MODE_MASK    (IEEE_A|IEEE_B|IEEE_G)
+#define IEEE_A	    BIT(0)
+#define IEEE_B	    BIT(1)
+#define IEEE_G	    BIT(2)
+#define IEEE_MODE_MASK    (IEEE_A | IEEE_B | IEEE_G)
 
 /* Action category code */
 enum rtw_ieee80211_category {
@@ -615,7 +618,8 @@ enum rtw_ieee80211_back_parties {
 };
 
 #define OUI_MICROSOFT 0x0050f2 /* Microsoft (also used in Wi-Fi specs)
-				* 00:50:F2 */
+				* 00:50:F2
+				*/
 #define WME_OUI_TYPE 2
 #define WME_OUI_SUBTYPE_INFORMATION_ELEMENT 0
 #define WME_OUI_SUBTYPE_PARAMETER_ELEMENT 1
@@ -655,12 +659,12 @@ enum rtw_ieee80211_back_parties {
  *      is not permitted.
  */
 enum rtw_ieee80211_channel_flags {
-	RTW_IEEE80211_CHAN_DISABLED	 = 1<<0,
-	RTW_IEEE80211_CHAN_PASSIVE_SCAN     = 1<<1,
-	RTW_IEEE80211_CHAN_NO_IBSS	  = 1<<2,
-	RTW_IEEE80211_CHAN_RADAR	    = 1<<3,
-	RTW_IEEE80211_CHAN_NO_HT40PLUS      = 1<<4,
-	RTW_IEEE80211_CHAN_NO_HT40MINUS     = 1<<5,
+	RTW_IEEE80211_CHAN_DISABLED	 = BIT(0),
+	RTW_IEEE80211_CHAN_PASSIVE_SCAN     = BIT(1),
+	RTW_IEEE80211_CHAN_NO_IBSS	  = BIT(2),
+	RTW_IEEE80211_CHAN_RADAR	    = BIT(3),
+	RTW_IEEE80211_CHAN_NO_HT40PLUS      = BIT(4),
+	RTW_IEEE80211_CHAN_NO_HT40MINUS     = BIT(5),
 };
 
 #define RTW_IEEE80211_CHAN_NO_HT40 \

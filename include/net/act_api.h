@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_ACT_API_H
 #define __NET_ACT_API_H
 
@@ -93,8 +94,7 @@ struct tc_action_ops {
 	int     (*walk)(struct net *, struct sk_buff *,
 			struct netlink_callback *, int, const struct tc_action_ops *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64);
-	int	(*get_dev)(const struct tc_action *a, struct net *net,
-			   struct net_device **mirred_dev);
+	struct net_device *(*get_dev)(const struct tc_action *a);
 };
 
 struct tc_action_net {
@@ -122,7 +122,9 @@ void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
 
 static inline void tc_action_net_exit(struct tc_action_net *tn)
 {
+	rtnl_lock();
 	tcf_idrinfo_destroy(tn->ops, tn->idrinfo);
+	rtnl_unlock();
 	kfree(tn->idrinfo);
 }
 
@@ -174,5 +176,39 @@ static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
 	a->ops->stats_update(a, bytes, packets, lastuse);
 #endif
 }
+
+typedef int tc_setup_cb_t(enum tc_setup_type type,
+			  void *type_data, void *cb_priv);
+
+#ifdef CONFIG_NET_CLS_ACT
+int tc_setup_cb_egdev_register(const struct net_device *dev,
+			       tc_setup_cb_t *cb, void *cb_priv);
+void tc_setup_cb_egdev_unregister(const struct net_device *dev,
+				  tc_setup_cb_t *cb, void *cb_priv);
+int tc_setup_cb_egdev_call(const struct net_device *dev,
+			   enum tc_setup_type type, void *type_data,
+			   bool err_stop);
+#else
+static inline
+int tc_setup_cb_egdev_register(const struct net_device *dev,
+			       tc_setup_cb_t *cb, void *cb_priv)
+{
+	return 0;
+}
+
+static inline
+void tc_setup_cb_egdev_unregister(const struct net_device *dev,
+				  tc_setup_cb_t *cb, void *cb_priv)
+{
+}
+
+static inline
+int tc_setup_cb_egdev_call(const struct net_device *dev,
+			   enum tc_setup_type type, void *type_data,
+			   bool err_stop)
+{
+	return 0;
+}
+#endif
 
 #endif

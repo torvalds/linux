@@ -304,4 +304,7 @@ static inline void nsh_set_flags_ttl_len(struct nshhdr *nsh, u8 flags,
 			NSH_FLAGS_MASK | NSH_TTL_MASK | NSH_LEN_MASK);
 }
 
+int nsh_push(struct sk_buff *skb, const struct nshhdr *pushed_nh);
+int nsh_pop(struct sk_buff *skb);
+
 #endif /* __NET_NSH_H */
