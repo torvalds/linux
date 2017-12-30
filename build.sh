@@ -50,10 +50,12 @@ then
   if [[ -z "$action" ]];
   then
  #   set -x
+    exec 3> >(tee build.log)
 #    make --debug && make modules_install
-    make ${CFLAGS} && make modules_install
+    make ${CFLAGS} 2>&3 && make modules_install 2>&3
     ret=$?
 #    set +x
+    exec 3>&-
     if [[ $ret == 0 ]];
     then
       cat arch/arm/boot/zImage arch/arm/boot/dts/mt7623n-bananapi-bpi-r2.dtb > arch/arm/boot/zImage-dtb
