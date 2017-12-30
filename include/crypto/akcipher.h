@@ -98,7 +98,7 @@ struct akcipher_alg {
 			   unsigned int keylen);
 	int (*set_priv_key)(struct crypto_akcipher *tfm, const void *key,
 			    unsigned int keylen);
-	int (*max_size)(struct crypto_akcipher *tfm);
+	unsigned int (*max_size)(struct crypto_akcipher *tfm);
 	int (*init)(struct crypto_akcipher *tfm);
 	void (*exit)(struct crypto_akcipher *tfm);
 
@@ -257,13 +257,14 @@ static inline void akcipher_request_set_crypt(struct akcipher_request *req,
 /**
  * crypto_akcipher_maxsize() - Get len for output buffer
  *
- * Function returns the dest buffer size required for a given key
+ * Function returns the dest buffer size required for a given key.
+ * Function assumes that the key is already set in the transformation. If this
+ * function is called without a setkey or with a failed setkey, you will end up
+ * in a NULL dereference.
  *
  * @tfm:	AKCIPHER tfm handle allocated with crypto_alloc_akcipher()
- *
- * Return: minimum len for output buffer or error code in key hasn't been set
  */
-static inline int crypto_akcipher_maxsize(struct crypto_akcipher *tfm)
+static inline unsigned int crypto_akcipher_maxsize(struct crypto_akcipher *tfm)
 {
 	struct akcipher_alg *alg = crypto_akcipher_alg(tfm);
 

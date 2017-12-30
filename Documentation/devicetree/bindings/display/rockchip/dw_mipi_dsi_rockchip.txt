@@ -36,7 +36,6 @@ Example:
 		resets = <&cru SRST_MIPIDSI0>;
 		reset-names = "apb";
 		rockchip,grf = <&grf>;
-		status = "okay";
 
 		ports {
 			#address-cells = <1>;
@@ -65,6 +64,5 @@ Example:
 			pinctrl-names = "default";
 			pinctrl-0 = <&lcd_en>;
 			backlight = <&backlight>;
-			status = "okay";
 		};
 	};

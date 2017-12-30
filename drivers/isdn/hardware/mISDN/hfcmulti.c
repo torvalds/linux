@@ -1926,7 +1926,7 @@ hfcmulti_dtmf(struct hfc_multi *hc)
 			hh = mISDN_HEAD_P(skb);
 			hh->prim = PH_CONTROL_IND;
 			hh->id = DTMF_HFC_COEF;
-			memcpy(skb_put(skb, 512), hc->chan[ch].coeff, 512);
+			skb_put_data(skb, hc->chan[ch].coeff, 512);
 			recv_Bchannel_skb(bch, skb);
 		}
 	}
@@ -2332,8 +2332,7 @@ next_frame:
 				skb = *sp;
 				*sp = mI_alloc_skb(skb->len, GFP_ATOMIC);
 				if (*sp) {
-					memcpy(skb_put(*sp, skb->len),
-					       skb->data, skb->len);
+					skb_put_data(*sp, skb->data, skb->len);
 					skb_trim(skb, 0);
 				} else {
 					printk(KERN_DEBUG "%s: No mem\n",
@@ -2856,7 +2855,7 @@ irq_notforus:
  */
 
 static void
-hfcmulti_dbusy_timer(struct hfc_multi *hc)
+hfcmulti_dbusy_timer(struct timer_list *t)
 {
 }
 
@@ -3878,8 +3877,7 @@ hfcmulti_initmode(struct dchannel *dch)
 		if (hc->dnum[pt]) {
 			mode_hfcmulti(hc, dch->slot, dch->dev.D.protocol,
 				      -1, 0, -1, 0);
-			setup_timer(&dch->timer, (void *)hfcmulti_dbusy_timer,
-				    (long)dch);
+			timer_setup(&dch->timer, hfcmulti_dbusy_timer, 0);
 		}
 		for (i = 1; i <= 31; i++) {
 			if (!((1 << i) & hc->bmask[pt])) /* skip unused chan */
@@ -3985,8 +3983,7 @@ hfcmulti_initmode(struct dchannel *dch)
 		hc->chan[i].slot_rx = -1;
 		hc->chan[i].conf = -1;
 		mode_hfcmulti(hc, i, dch->dev.D.protocol, -1, 0, -1, 0);
-		setup_timer(&dch->timer, (void *)hfcmulti_dbusy_timer,
-			    (long)dch);
+		timer_setup(&dch->timer, hfcmulti_dbusy_timer, 0);
 		hc->chan[i - 2].slot_tx = -1;
 		hc->chan[i - 2].slot_rx = -1;
 		hc->chan[i - 2].conf = -1;
@@ -5349,7 +5346,7 @@ static const struct hm_map hfcm_map[] = {
 
 #undef H
 #define H(x)	((unsigned long)&hfcm_map[x])
-static struct pci_device_id hfmultipci_ids[] = {
+static const struct pci_device_id hfmultipci_ids[] = {
 
 	/* Cards with HFC-4S Chip */
 	{ PCI_VENDOR_ID_CCD, PCI_DEVICE_ID_CCD_HFC4S, PCI_VENDOR_ID_CCD,

@@ -206,7 +206,7 @@ static int sun4i_get_tz_temp(void *data, int *temp)
 	return sun4i_get_temp(data, temp);
 }
 
-static struct thermal_zone_of_device_ops sun4i_ts_tz_ops = {
+static const struct thermal_zone_of_device_ops sun4i_ts_tz_ops = {
 	.get_temp = sun4i_get_tz_temp,
 };
 

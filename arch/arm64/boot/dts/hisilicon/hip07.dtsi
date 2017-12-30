@@ -1534,5 +1534,27 @@
 				     <637 1>,<638 1>,<639 1>;
 			status = "disabled";
 		};
+
+		p0_pcie2_a: pcie@a00a0000 {
+			compatible = "hisilicon,hip07-pcie-ecam";
+			reg = <0 0xaf800000 0 0x800000>,
+			      <0 0xa00a0000 0 0x10000>;
+			bus-range = <0xf8 0xff>;
+			msi-map = <0xf800 &p0_its_dsa_a 0xf800 0x800>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xa8000000 0 0xa8000000 0 0x77f0000
+				  0x01000000 0 0 0 0xaf7f0000 0 0x10000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <0x0 0 0 1 &mbigen_pcie2_a 671 4
+					 0x0 0 0 2 &mbigen_pcie2_a 671 4
+					 0x0 0 0 3 &mbigen_pcie2_a 671 4
+					 0x0 0 0 4 &mbigen_pcie2_a 671 4>;
+			status = "disabled";
+		};
 	};
 };

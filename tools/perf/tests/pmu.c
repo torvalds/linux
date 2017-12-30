@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "parse-events.h"
 #include "pmu.h"
 #include "util.h"
@@ -135,7 +136,7 @@ static struct list_head *test_terms_list(void)
 	return &terms;
 }
 
-int test__pmu(int subtest __maybe_unused)
+int test__pmu(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	char *format = test_format_dir_get();
 	LIST_HEAD(formats);

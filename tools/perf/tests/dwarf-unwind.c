@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <inttypes.h>
@@ -6,7 +7,7 @@
 #include "debug.h"
 #include "machine.h"
 #include "event.h"
-#include "unwind.h"
+#include "../util/unwind.h"
 #include "perf_regs.h"
 #include "map.h"
 #include "thread.h"
@@ -76,8 +77,7 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	return strcmp((const char *) symbol, funcs[idx]);
 }
 
-__attribute__ ((noinline))
-static int unwind_thread(struct thread *thread)
+static noinline int unwind_thread(struct thread *thread)
 {
 	struct perf_sample sample;
 	unsigned long cnt = 0;
@@ -108,8 +108,7 @@ static int unwind_thread(struct thread *thread)
 
 static int global_unwind_retval = -INT_MAX;
 
-__attribute__ ((noinline))
-static int compare(void *p1, void *p2)
+static noinline int compare(void *p1, void *p2)
 {
 	/* Any possible value should be 'thread' */
 	struct thread *thread = *(struct thread **)p1;
@@ -128,8 +127,7 @@ static int compare(void *p1, void *p2)
 	return p1 - p2;
 }
 
-__attribute__ ((noinline))
-static int krava_3(struct thread *thread)
+static noinline int krava_3(struct thread *thread)
 {
 	struct thread *array[2] = {thread, thread};
 	void *fp = &bsearch;
@@ -147,19 +145,17 @@ static int krava_3(struct thread *thread)
 	return global_unwind_retval;
 }
 
-__attribute__ ((noinline))
-static int krava_2(struct thread *thread)
+static noinline int krava_2(struct thread *thread)
 {
 	return krava_3(thread);
 }
 
-__attribute__ ((noinline))
-static int krava_1(struct thread *thread)
+static noinline int krava_1(struct thread *thread)
 {
 	return krava_2(thread);
 }
 
-int test__dwarf_unwind(int subtest __maybe_unused)
+int test__dwarf_unwind(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machine *machine;
 	struct thread *thread;

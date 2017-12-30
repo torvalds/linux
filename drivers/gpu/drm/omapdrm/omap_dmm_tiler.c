@@ -388,7 +388,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, uint16_t w,
 	u32 min_align = 128;
 	int ret;
 	unsigned long flags;
-	size_t slot_bytes;
+	u32 slot_bytes;
 
 	BUG_ON(!validfmt(fmt));
 
@@ -638,7 +638,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 		match = of_match_node(dmm_of_match, dev->dev.of_node);
 		if (!match) {
 			dev_err(&dev->dev, "failed to find matching device node\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto fail;
 		}
 
 		omap_dmm->plat_data = match->data;

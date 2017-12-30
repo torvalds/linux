@@ -321,7 +321,7 @@ static struct net_device_stats *pcnet32_get_stats(struct net_device *);
 static void pcnet32_load_multicast(struct net_device *dev);
 static void pcnet32_set_multicast_list(struct net_device *);
 static int pcnet32_ioctl(struct net_device *, struct ifreq *, int);
-static void pcnet32_watchdog(struct net_device *);
+static void pcnet32_watchdog(struct timer_list *);
 static int mdio_read(struct net_device *dev, int phy_id, int reg_num);
 static void mdio_write(struct net_device *dev, int phy_id, int reg_num,
 		       int val);
@@ -731,12 +731,10 @@ static int pcnet32_get_link_ksettings(struct net_device *dev,
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 	unsigned long flags;
-	int r = -EOPNOTSUPP;
 
 	spin_lock_irqsave(&lp->lock, flags);
 	if (lp->mii) {
 		mii_ethtool_get_link_ksettings(&lp->mii_if, cmd);
-		r = 0;
 	} else if (lp->chip_version == PCNET32_79C970A) {
 		if (lp->autoneg) {
 			cmd->base.autoneg = AUTONEG_ENABLE;
@@ -753,10 +751,9 @@ static int pcnet32_get_link_ksettings(struct net_device *dev,
 		ethtool_convert_legacy_u32_to_link_mode(
 						cmd->link_modes.supported,
 						SUPPORTED_TP | SUPPORTED_AUI);
-		r = 0;
 	}
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return r;
+	return 0;
 }
 
 static int pcnet32_set_link_ksettings(struct net_device *dev,
@@ -1973,9 +1970,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 			lp->options |= PCNET32_PORT_MII;
 	}
 
-	init_timer(&lp->watchdog_timer);
-	lp->watchdog_timer.data = (unsigned long)dev;
-	lp->watchdog_timer.function = (void *)&pcnet32_watchdog;
+	timer_setup(&lp->watchdog_timer, pcnet32_watchdog, 0);
 
 	/* The PCNET32-specific entries in the device structure. */
 	dev->netdev_ops = &pcnet32_netdev_ops;
@@ -2905,9 +2900,10 @@ static void pcnet32_check_media(struct net_device *dev, int verbose)
  * Could possibly be changed to use mii_check_media instead.
  */
 
-static void pcnet32_watchdog(struct net_device *dev)
+static void pcnet32_watchdog(struct timer_list *t)
 {
-	struct pcnet32_private *lp = netdev_priv(dev);
+	struct pcnet32_private *lp = from_timer(lp, t, watchdog_timer);
+	struct net_device *dev = lp->dev;
 	unsigned long flags;
 
 	/* Print the link status if it has changed */

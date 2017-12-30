@@ -20,25 +20,24 @@
 #ifndef R8192_HW
 #define R8192_HW
 
-typedef enum _VERSION_819xU{
+typedef enum _VERSION_819xU {
 	VERSION_819xU_A, // A-cut
 	VERSION_819xU_B, // B-cut
 	VERSION_819xU_C,// C-cut
 } VERSION_819xU, *PVERSION_819xU;
 //added for different RF type
-typedef enum _RT_RF_TYPE_DEF
-{
+typedef enum _RT_RF_TYPE_DEF {
 	RF_1T2R = 0,
 	RF_2T4R,
 
 	RF_819X_MAX_TYPE
-}RT_RF_TYPE_DEF;
+} RT_RF_TYPE_DEF;
 
 
-typedef enum _BaseBand_Config_Type{
+typedef enum _BaseBand_Config_Type {
 	BaseBand_Config_PHY_REG = 0,			//Radio Path A
 	BaseBand_Config_AGC_TAB = 1,			//Radio Path B
-}BaseBand_Config_Type, *PBaseBand_Config_Type;
+} BaseBand_Config_Type, *PBaseBand_Config_Type;
 #define	RTL8187_REQT_READ	0xc0
 #define	RTL8187_REQT_WRITE	0x40
 #define	RTL8187_REQ_GET_REGS	0x05

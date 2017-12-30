@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef S390_IO_SCH_H
 #define S390_IO_SCH_H
 
@@ -131,6 +132,8 @@ struct ccw_device_private {
 				   not operable */
 	u8 path_gone_mask;	/* mask of paths, that became unavailable */
 	u8 path_new_mask;	/* mask of paths, that became available */
+	u8 path_broken_mask;	/* mask of paths, which were found to be
+				   unusable */
 	struct {
 		unsigned int fast:1;	/* post with "channel end" */
 		unsigned int repall:1;	/* report every interrupt status */

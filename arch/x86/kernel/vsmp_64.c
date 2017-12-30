@@ -26,9 +26,6 @@
 
 #define TOPOLOGY_REGISTER_OFFSET 0x10
 
-/* Flag below is initialized once during vSMP PCI initialization. */
-static int irq_routing_comply = 1;
-
 #if defined CONFIG_PCI && defined CONFIG_PARAVIRT
 /*
  * Interrupt control on vSMPowered systems:
@@ -104,9 +101,6 @@ static void __init set_vsmp_pv_ops(void)
 #ifdef CONFIG_SMP
 	if (cap & ctl & BIT(8)) {
 		ctl &= ~BIT(8);
-
-		/* Interrupt routing set to ignore */
-		irq_routing_comply = 0;
 
 #ifdef CONFIG_PROC_FS
 		/* Don't let users change irq affinity via procfs */
@@ -211,23 +205,10 @@ static int apicid_phys_pkg_id(int initial_apic_id, int index_msb)
 	return hard_smp_processor_id() >> index_msb;
 }
 
-/*
- * In vSMP, all cpus should be capable of handling interrupts, regardless of
- * the APIC used.
- */
-static void fill_vector_allocation_domain(int cpu, struct cpumask *retmask,
-					  const struct cpumask *mask)
-{
-	cpumask_setall(retmask);
-}
-
 static void vsmp_apic_post_init(void)
 {
 	/* need to update phys_pkg_id */
 	apic->phys_pkg_id = apicid_phys_pkg_id;
-
-	if (!irq_routing_comply)
-		apic->vector_allocation_domain = fill_vector_allocation_domain;
 }
 
 void __init vsmp_init(void)

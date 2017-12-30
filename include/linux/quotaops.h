@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for diskquota-operations. When diskquota is configured these
  * macros expand to the right source-code.
@@ -38,11 +39,6 @@ void __quota_error(struct super_block *sb, const char *func,
 /*
  * declaration of quota_function calls in kernel.
  */
-void inode_add_rsv_space(struct inode *inode, qsize_t number);
-void inode_claim_rsv_space(struct inode *inode, qsize_t number);
-void inode_sub_rsv_space(struct inode *inode, qsize_t number);
-void inode_reclaim_rsv_space(struct inode *inode, qsize_t number);
-
 int dquot_initialize(struct inode *inode);
 bool dquot_initialize_needed(struct inode *inode);
 void dquot_drop(struct inode *inode);

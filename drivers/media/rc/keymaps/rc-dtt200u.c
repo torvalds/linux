@@ -35,10 +35,10 @@ static struct rc_map_table dtt200u_table[] = {
 
 static struct rc_map_list dtt200u_map = {
 	.map = {
-		.scan    = dtt200u_table,
-		.size    = ARRAY_SIZE(dtt200u_table),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_DTT200U,
+		.scan     = dtt200u_table,
+		.size     = ARRAY_SIZE(dtt200u_table),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_DTT200U,
 	}
 };
 

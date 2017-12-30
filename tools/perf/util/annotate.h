@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_ANNOTATE_H
 #define __PERF_ANNOTATE_H
 
@@ -52,7 +53,9 @@ struct ins_ops {
 bool ins__is_jump(const struct ins *ins);
 bool ins__is_call(const struct ins *ins);
 bool ins__is_ret(const struct ins *ins);
+bool ins__is_lock(const struct ins *ins);
 int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
+bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
 struct annotation;
 
@@ -72,16 +75,22 @@ static inline bool disasm_line__has_offset(const struct disasm_line *dl)
 	return dl->ops.target.offset_avail;
 }
 
+struct sym_hist_entry {
+	u64		nr_samples;
+	u64		period;
+};
+
 void disasm_line__free(struct disasm_line *dl);
 struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos);
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
 double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
-			    s64 end, const char **path, u64 *nr_samples);
+			    s64 end, const char **path, struct sym_hist_entry *sample);
 
 struct sym_hist {
-	u64		sum;
-	u64		addr[0];
+	u64		      nr_samples;
+	u64		      period;
+	struct sym_hist_entry addr[0];
 };
 
 struct cyc_hist {
@@ -147,18 +156,22 @@ static inline struct annotation *symbol__annotation(struct symbol *sym)
 	return (void *)sym - symbol_conf.priv_size;
 }
 
-int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, int evidx);
+int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
+				 int evidx);
 
 int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 				    struct addr_map_symbol *start,
 				    unsigned cycles);
 
-int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
+int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *sample,
+				 int evidx, u64 addr);
 
 int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
-int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_name, size_t privsize);
+int symbol__disassemble(struct symbol *sym, struct map *map,
+			const char *arch_name, size_t privsize,
+			struct arch **parch, char *cpuid);
 
 enum symbol_disassemble_errno {
 	SYMBOL_ANNOTATE_ERRNO__SUCCESS		= 0,

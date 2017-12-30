@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Runtime locking correctness validator
  *
@@ -18,6 +19,8 @@ extern int lock_stat;
 
 #define MAX_LOCKDEP_SUBCLASSES		8UL
 
+#include <linux/types.h>
+
 #ifdef CONFIG_LOCKDEP
 
 #include <linux/linkage.h>
@@ -29,7 +32,7 @@ extern int lock_stat;
  * We'd rather not expose kernel/lockdep_states.h this wide, but we do need
  * the total number of states... :-(
  */
-#define XXX_LOCK_USAGE_STATES		(1+3*4)
+#define XXX_LOCK_USAGE_STATES		(1+2*4)
 
 /*
  * NR_LOCKDEP_CACHING_CLASSES ... Number of classes
@@ -282,13 +285,6 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
 			     struct lock_class_key *key, int subclass);
 
 /*
- * To initialize a lockdep_map statically use this macro.
- * Note that _name must not be NULL.
- */
-#define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
-	{ .name = (_name), .key = (void *)(_key), }
-
-/*
  * Reinitialize a lock key - for cases where there is special locking or
  * special initialization of locks so that the validator gets the scope
  * of dependencies wrong: they are either too broad (they need a class-split)
@@ -363,10 +359,6 @@ static inline void lock_set_subclass(struct lockdep_map *lock,
 
 extern void lock_downgrade(struct lockdep_map *lock, unsigned long ip);
 
-extern void lockdep_set_current_reclaim_state(gfp_t gfp_mask);
-extern void lockdep_clear_current_reclaim_state(void);
-extern void lockdep_trace_alloc(gfp_t mask);
-
 struct pin_cookie { unsigned int val; };
 
 #define NIL_COOKIE (struct pin_cookie){ .val = 0U, }
@@ -375,7 +367,7 @@ extern struct pin_cookie lock_pin_lock(struct lockdep_map *lock);
 extern void lock_repin_lock(struct lockdep_map *lock, struct pin_cookie);
 extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 
-# define INIT_LOCKDEP				.lockdep_recursion = 0, .lockdep_reclaim_gfp = 0,
+# define INIT_LOCKDEP				.lockdep_recursion = 0,
 
 #define lockdep_depth(tsk)	(debug_locks ? (tsk)->lockdep_depth : 0)
 
@@ -416,9 +408,6 @@ static inline void lockdep_on(void)
 # define lock_downgrade(l, i)			do { } while (0)
 # define lock_set_class(l, n, k, s, i)		do { } while (0)
 # define lock_set_subclass(l, s, i)		do { } while (0)
-# define lockdep_set_current_reclaim_state(g)	do { } while (0)
-# define lockdep_clear_current_reclaim_state()	do { } while (0)
-# define lockdep_trace_alloc(g)			do { } while (0)
 # define lockdep_info()				do { } while (0)
 # define lockdep_init_map(lock, name, key, sub) \
 		do { (void)(name); (void)(key); } while (0)
@@ -446,6 +435,11 @@ static inline void lockdep_on(void)
  */
 struct lock_class_key { };
 
+/*
+ * The lockdep_map takes no space if lockdep is disabled:
+ */
+struct lockdep_map { };
+
 #define lockdep_depth(tsk)	(0)
 
 #define lockdep_is_held_type(l, r)		(1)
@@ -466,6 +460,26 @@ struct pin_cookie { };
 #define lockdep_unpin_lock(l, c)		do { (void)(l); (void)(c); } while (0)
 
 #endif /* !LOCKDEP */
+
+enum xhlock_context_t {
+	XHLOCK_HARD,
+	XHLOCK_SOFT,
+	XHLOCK_CTX_NR,
+};
+
+#define lockdep_init_map_crosslock(m, n, k, s) do {} while (0)
+/*
+ * To initialize a lockdep_map statically use this macro.
+ * Note that _name must not be NULL.
+ */
+#define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
+	{ .name = (_name), .key = (void *)(_key), }
+
+static inline void crossrelease_hist_start(enum xhlock_context_t c) {}
+static inline void crossrelease_hist_end(enum xhlock_context_t c) {}
+static inline void lockdep_invariant_state(bool force) {}
+static inline void lockdep_init_task(struct task_struct *task) {}
+static inline void lockdep_free_task(struct task_struct *task) {}
 
 #ifdef CONFIG_LOCK_STAT
 
@@ -586,9 +600,24 @@ do {									\
 	lock_acquire(&(lock)->dep_map, 0, 0, 1, 1, NULL, _THIS_IP_);	\
 	lock_release(&(lock)->dep_map, 0, _THIS_IP_);			\
 } while (0)
+
+#define lockdep_assert_irqs_enabled()	do {				\
+		WARN_ONCE(debug_locks && !current->lockdep_recursion &&	\
+			  !current->hardirqs_enabled,			\
+			  "IRQs not enabled as expected\n");		\
+	} while (0)
+
+#define lockdep_assert_irqs_disabled()	do {				\
+		WARN_ONCE(debug_locks && !current->lockdep_recursion &&	\
+			  current->hardirqs_enabled,			\
+			  "IRQs not disabled as expected\n");		\
+	} while (0)
+
 #else
 # define might_lock(lock) do { } while (0)
 # define might_lock_read(lock) do { } while (0)
+# define lockdep_assert_irqs_enabled() do { } while (0)
+# define lockdep_assert_irqs_disabled() do { } while (0)
 #endif
 
 #ifdef CONFIG_LOCKDEP

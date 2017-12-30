@@ -16,15 +16,16 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
+#include <asm/param.h>
 #include <asm/delay.h>
 #include <asm/timex.h>
 #include <asm/processor.h>
 
 int read_current_timer(unsigned long *timer_value)
 {
-	*timer_value = mfspr(SPR_TTCR);
+	*timer_value = get_cycles();
 	return 0;
 }
 

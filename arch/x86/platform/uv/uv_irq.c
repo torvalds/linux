@@ -127,10 +127,11 @@ static void uv_domain_free(struct irq_domain *domain, unsigned int virq,
  * Re-target the irq to the specified CPU and enable the specified MMR located
  * on the specified blade to allow the sending of MSIs to the specified CPU.
  */
-static void uv_domain_activate(struct irq_domain *domain,
-			       struct irq_data *irq_data)
+static int uv_domain_activate(struct irq_domain *domain,
+			      struct irq_data *irq_data, bool early)
 {
 	uv_program_mmr(irqd_cfg(irq_data), irq_data->chip_data);
+	return 0;
 }
 
 /*
@@ -160,13 +161,21 @@ static struct irq_domain *uv_get_irq_domain(void)
 {
 	static struct irq_domain *uv_domain;
 	static DEFINE_MUTEX(uv_lock);
+	struct fwnode_handle *fn;
 
 	mutex_lock(&uv_lock);
-	if (uv_domain == NULL) {
-		uv_domain = irq_domain_add_tree(NULL, &uv_domain_ops, NULL);
-		if (uv_domain)
-			uv_domain->parent = x86_vector_domain;
-	}
+	if (uv_domain)
+		goto out;
+
+	fn = irq_domain_alloc_named_fwnode("UV-CORE");
+	if (!fn)
+		goto out;
+
+	uv_domain = irq_domain_create_tree(fn, &uv_domain_ops, NULL);
+	irq_domain_free_fwnode(fn);
+	if (uv_domain)
+		uv_domain->parent = x86_vector_domain;
+out:
 	mutex_unlock(&uv_lock);
 
 	return uv_domain;

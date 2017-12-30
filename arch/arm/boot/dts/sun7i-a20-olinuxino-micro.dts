@@ -66,6 +66,17 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -92,6 +103,10 @@
 	cpu-supply = <&reg_dcdc2>;
 };
 
+&de {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -102,13 +117,23 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
+	pinctrl-0 = <&gmac_pins_mii_a>, <&gmac_txerr>;
 	phy = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
 
 	phy1: ethernet-phy@1 {
 		reg = <1>;
+	};
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
 	};
 };
 
@@ -198,7 +223,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
@@ -229,6 +254,11 @@
 };
 
 &pio {
+	gmac_txerr: gmac_txerr@0 {
+		pins = "PA17";
+		function = "gmac";
+	};
+
 	mmc3_cd_pin_olinuxinom: mmc3_cd_pin@0 {
 		pins = "PH11";
 		function = "gpio_in";
@@ -255,6 +285,14 @@
 };
 
 #include "axp209.dtsi"
+
+&ac_power_supply {
+	status = "okay";
+};
+
+&battery_power_supply {
+	status = "okay";
+};
 
 &reg_dcdc2 {
 	regulator-always-on;
@@ -327,6 +365,10 @@
 
 &usb_otg {
 	dr_mode = "otg";
+	status = "okay";
+};
+
+&usb_power_supply {
 	status = "okay";
 };
 

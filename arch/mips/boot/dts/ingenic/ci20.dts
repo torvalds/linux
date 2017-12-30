@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "jz4780.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	compatible = "img,ci20", "ingenic,jz4780";
@@ -21,6 +23,13 @@
 		reg = <0x0 0x10000000
 		       0x30000000 0x30000000>;
 	};
+
+	eth0_power: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "eth0_power";
+		gpio = <&gpb 25 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+	};
 };
 
 &ext {
@@ -29,18 +38,30 @@
 
 &uart0 {
 	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart0>;
 };
 
 &uart1 {
 	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart1>;
 };
 
 &uart3 {
 	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart2>;
 };
 
 &uart4 {
 	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pins_uart4>;
 };
 
 &nemc {
@@ -61,6 +82,13 @@
 		ingenic,nemc-tAW = <15>;
 		ingenic,nemc-tSTRV = <100>;
 
+		/*
+		 * Only CLE/ALE are needed for the devices that are connected, rather
+		 * than the full address line set.
+		 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_nemc>;
+
 		nand@1 {
 			reg = <1>;
 
@@ -68,6 +96,9 @@
 			nand-ecc-strength = <24>;
 			nand-ecc-mode = "hw";
 			nand-on-flash-bbt;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pins_nemc_cs1>;
 
 			partitions {
 				compatible = "fixed-partitions";
@@ -101,8 +132,75 @@
 			};
 		};
 	};
+
+	dm9000@6 {
+		compatible = "davicom,dm9000";
+		davicom,no-eeprom;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_nemc_cs6>;
+
+		reg = <6 0 1   /* addr */
+		       6 2 1>; /* data */
+
+		ingenic,nemc-tAS = <15>;
+		ingenic,nemc-tAH = <10>;
+		ingenic,nemc-tBP = <20>;
+		ingenic,nemc-tAW = <50>;
+		ingenic,nemc-tSTRV = <100>;
+
+		reset-gpios = <&gpf 12 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&eth0_power>;
+
+		interrupt-parent = <&gpe>;
+		interrupts = <19 4>;
+	};
 };
 
 &bch {
 	status = "okay";
+};
+
+&pinctrl {
+	pins_uart0: uart0 {
+		function = "uart0";
+		groups = "uart0-data";
+		bias-disable;
+	};
+
+	pins_uart1: uart1 {
+		function = "uart1";
+		groups = "uart1-data";
+		bias-disable;
+	};
+
+	pins_uart2: uart2 {
+		function = "uart2";
+		groups = "uart2-data", "uart2-hwflow";
+		bias-disable;
+	};
+
+	pins_uart4: uart4 {
+		function = "uart4";
+		groups = "uart4-data";
+		bias-disable;
+	};
+
+	pins_nemc: nemc {
+		function = "nemc";
+		groups = "nemc-data", "nemc-cle-ale", "nemc-rd-we", "nemc-frd-fwe";
+		bias-disable;
+	};
+
+	pins_nemc_cs1: nemc-cs1 {
+		function = "nemc-cs1";
+		groups = "nemc-cs1";
+		bias-disable;
+	};
+
+	pins_nemc_cs6: nemc-cs6 {
+		function = "nemc-cs6";
+		groups = "nemc-cs6";
+		bias-disable;
+	};
 };

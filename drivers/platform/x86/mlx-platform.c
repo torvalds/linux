@@ -216,8 +216,8 @@ static struct resource mlxplat_mlxcpld_resources[] = {
 	[0] = DEFINE_RES_IRQ_NAMED(17, "mlxcpld-hotplug"),
 };
 
-struct platform_device *mlxplat_dev;
-struct mlxcpld_hotplug_platform_data *mlxplat_hotplug;
+static struct platform_device *mlxplat_dev;
+static struct mlxcpld_hotplug_platform_data *mlxplat_hotplug;
 
 static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 {
@@ -247,7 +247,7 @@ static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
 	return 1;
 };
 
-static struct dmi_system_id mlxplat_dmi_table[] __initdata = {
+static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {

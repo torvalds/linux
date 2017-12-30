@@ -316,7 +316,7 @@ fail:
 static int mxl111sf_i2c_send_data(struct mxl111sf_state *state,
 				  u8 index, u8 *wdata)
 {
-	int ret = mxl111sf_ctrl_msg(state->d, wdata[0],
+	int ret = mxl111sf_ctrl_msg(state, wdata[0],
 				    &wdata[1], 25, NULL, 0);
 	mxl_fail(ret);
 
@@ -326,7 +326,7 @@ static int mxl111sf_i2c_send_data(struct mxl111sf_state *state,
 static int mxl111sf_i2c_get_data(struct mxl111sf_state *state,
 				 u8 index, u8 *wdata, u8 *rdata)
 {
-	int ret = mxl111sf_ctrl_msg(state->d, wdata[0],
+	int ret = mxl111sf_ctrl_msg(state, wdata[0],
 				    &wdata[1], 25, rdata, 24);
 	mxl_fail(ret);
 
@@ -516,7 +516,6 @@ static int mxl111sf_i2c_hw_xfer_msg(struct mxl111sf_state *state,
 		   data required to program */
 		block_len = (msg->len / 8);
 		left_over_len = (msg->len % 8);
-		index = 0;
 
 		mxl_i2c("block_len %d, left_over_len %d",
 			block_len, left_over_len);

@@ -57,7 +57,7 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 		if (status >= 0)
 			return 0;
 
-		if (status == -ENODEV) {
+		if (status == -ENODEV || status == -ENOENT) {
 			/* Device has disappeared. */
 			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 			break;
@@ -145,7 +145,7 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 		return -ENODEV;
 
 	for (i = 0; i < REGISTER_USB_BUSY_COUNT; i++) {
-		rt2x00usb_register_read_lock(rt2x00dev, offset, reg);
+		*reg = rt2x00usb_register_read_lock(rt2x00dev, offset);
 		if (!rt2x00_get_field32(*reg, field))
 			return 1;
 		udelay(REGISTER_BUSY_DELAY);
@@ -321,7 +321,7 @@ static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void *data)
 
 	status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 	if (status) {
-		if (status == -ENODEV)
+		if (status == -ENODEV || status == -ENOENT)
 			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 		rt2x00lib_dmadone(entry);
@@ -410,7 +410,7 @@ static bool rt2x00usb_kick_rx_entry(struct queue_entry *entry, void *data)
 
 	status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 	if (status) {
-		if (status == -ENODEV)
+		if (status == -ENODEV || status == -ENOENT)
 			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 		rt2x00lib_dmadone(entry);

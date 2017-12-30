@@ -140,7 +140,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 	} else if (vec == ECR_V_ITLB_MISS) {
 		pr_cont("Insn could not be fetched\n");
 	} else if (vec == ECR_V_MACH_CHK) {
-		pr_cont("%s\n", (cause_code == 0x0) ?
+		pr_cont("Machine Check (%s)\n", (cause_code == 0x0) ?
 					"Double Fault" : "Other Fatal Err");
 
 	} else if (vec == ECR_V_PROTV) {
@@ -178,7 +178,7 @@ void show_regs(struct pt_regs *regs)
 	struct callee_regs *cregs;
 	char *buf;
 
-	buf = (char *)__get_free_page(GFP_TEMPORARY);
+	buf = (char *)__get_free_page(GFP_KERNEL);
 	if (!buf)
 		return;
 
@@ -232,6 +232,9 @@ void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
 			    unsigned long address)
 {
 	current->thread.fault_address = address;
+
+	/* Show fault description */
+	pr_info("\n%s\n", str);
 
 	/* Caller and Callee regs */
 	show_regs(regs);

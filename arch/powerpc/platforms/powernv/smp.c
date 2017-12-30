@@ -49,6 +49,13 @@
 
 static void pnv_smp_setup_cpu(int cpu)
 {
+	/*
+	 * P9 workaround for CI vector load (see traps.c),
+	 * enable the corresponding HMI interrupt
+	 */
+	if (pvr_version_is(PVR_POWER9))
+		mtspr(SPRN_HMEER, mfspr(SPRN_HMEER) | PPC_BIT(17));
+
 	if (xive_enabled())
 		xive_smp_setup_cpu();
 	else if (cpu != boot_cpuid)
@@ -57,14 +64,16 @@ static void pnv_smp_setup_cpu(int cpu)
 
 static int pnv_smp_kick_cpu(int nr)
 {
-	unsigned int pcpu = get_hard_smp_processor_id(nr);
+	unsigned int pcpu;
 	unsigned long start_here =
 			__pa(ppc_function_entry(generic_secondary_smp_init));
 	long rc;
 	uint8_t status;
 
-	BUG_ON(nr < 0 || nr >= NR_CPUS);
+	if (nr < 0 || nr >= nr_cpu_ids)
+		return -EINVAL;
 
+	pcpu = get_hard_smp_processor_id(nr);
 	/*
 	 * If we already started or OPAL is not supported, we just
 	 * kick the CPU via the PACA
@@ -144,7 +153,14 @@ static void pnv_smp_cpu_kill_self(void)
 	unsigned long srr1, wmask;
 
 	/* Standard hot unplug procedure */
-	local_irq_disable();
+	/*
+	 * This hard disables local interurpts, ensuring we have no lazy
+	 * irqs pending.
+	 */
+	WARN_ON(irqs_disabled());
+	hard_irq_disable();
+	WARN_ON(lazy_irq_pending());
+
 	idle_task_exit();
 	current->active_mm = NULL; /* for sanity */
 	cpu = smp_processor_id();
@@ -156,22 +172,6 @@ static void pnv_smp_cpu_kill_self(void)
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		wmask = SRR1_WAKEMASK_P8;
 
-	/* We don't want to take decrementer interrupts while we are offline,
-	 * so clear LPCR:PECE1. We keep PECE2 (and LPCR_PECE_HVEE on P9)
-	 * enabled as to let IPIs in.
-	 */
-	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
-
-	/*
-	 * Hard-disable interrupts, and then clear irq_happened flags
-	 * that we can safely ignore while off-line, since they
-	 * are for things for which we do no processing when off-line
-	 * (or in the case of HMI, all the processing we need to do
-	 * is done in lower-level real-mode code).
-	 */
-	hard_irq_disable();
-	local_paca->irq_happened &= ~(PACA_IRQ_DEC | PACA_IRQ_HMI);
-
 	while (!generic_check_cpu_restart(cpu)) {
 		/*
 		 * Clear IPI flag, since we don't handle IPIs while
@@ -182,9 +182,9 @@ static void pnv_smp_cpu_kill_self(void)
 		 */
 		kvmppc_set_host_ipi(cpu, 0);
 
-		ppc64_runlatch_off();
 		srr1 = pnv_cpu_offline(cpu);
-		ppc64_runlatch_on();
+
+		WARN_ON(lazy_irq_pending());
 
 		/*
 		 * If the SRR1 value indicates that we woke up due to
@@ -198,8 +198,7 @@ static void pnv_smp_cpu_kill_self(void)
 		 * contains 0.
 		 */
 		if (((srr1 & wmask) == SRR1_WAKEEE) ||
-		    ((srr1 & wmask) == SRR1_WAKEHVI) ||
-		    (local_paca->irq_happened & PACA_IRQ_EE)) {
+		    ((srr1 & wmask) == SRR1_WAKEHVI)) {
 			if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 				if (xive_enabled())
 					xive_flush_interrupt();
@@ -211,18 +210,17 @@ static void pnv_smp_cpu_kill_self(void)
 			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 			asm volatile(PPC_MSGCLR(%0) : : "r" (msg));
 		}
-		local_paca->irq_happened &= ~(PACA_IRQ_EE | PACA_IRQ_DBELL);
 		smp_mb();
 
 		if (cpu_core_split_required())
 			continue;
 
 		if (srr1 && !generic_check_cpu_restart(cpu))
-			DBG("CPU%d Unexpected exit while offline !\n", cpu);
+			DBG("CPU%d Unexpected exit while offline srr1=%lx!\n",
+					cpu, srr1);
+
 	}
 
-	/* Re-enable decrementer interrupts */
-	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_PECE1);
 	DBG("CPU%d coming online...\n", cpu);
 }
 
@@ -299,6 +297,54 @@ static void __init pnv_smp_probe(void)
 	}
 }
 
+static int pnv_system_reset_exception(struct pt_regs *regs)
+{
+	if (smp_handle_nmi_ipi(regs))
+		return 1;
+	return 0;
+}
+
+static int pnv_cause_nmi_ipi(int cpu)
+{
+	int64_t rc;
+
+	if (cpu >= 0) {
+		rc = opal_signal_system_reset(get_hard_smp_processor_id(cpu));
+		if (rc != OPAL_SUCCESS)
+			return 0;
+		return 1;
+
+	} else if (cpu == NMI_IPI_ALL_OTHERS) {
+		bool success = true;
+		int c;
+
+
+		/*
+		 * We do not use broadcasts (yet), because it's not clear
+		 * exactly what semantics Linux wants or the firmware should
+		 * provide.
+		 */
+		for_each_online_cpu(c) {
+			if (c == smp_processor_id())
+				continue;
+
+			rc = opal_signal_system_reset(
+						get_hard_smp_processor_id(c));
+			if (rc != OPAL_SUCCESS)
+				success = false;
+		}
+		if (success)
+			return 1;
+
+		/*
+		 * Caller will fall back to doorbells, which may pick
+		 * up the remainders.
+		 */
+	}
+
+	return 0;
+}
+
 static struct smp_ops_t pnv_smp_ops = {
 	.message_pass	= NULL, /* Use smp_muxed_ipi_message_pass */
 	.cause_ipi	= NULL,	/* Filled at runtime by pnv_smp_probe() */
@@ -317,6 +363,10 @@ static struct smp_ops_t pnv_smp_ops = {
 /* This is called very early during platform setup_arch */
 void __init pnv_smp_init(void)
 {
+	if (opal_check_token(OPAL_SIGNAL_SYSTEM_RESET)) {
+		ppc_md.system_reset_exception = pnv_system_reset_exception;
+		pnv_smp_ops.cause_nmi_ipi = pnv_cause_nmi_ipi;
+	}
 	smp_ops = &pnv_smp_ops;
 
 #ifdef CONFIG_HOTPLUG_CPU

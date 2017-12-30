@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SVM_H
 #define __SVM_H
 
@@ -83,7 +84,7 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 event_inj;
 	u32 event_inj_err;
 	u64 nested_cr3;
-	u64 lbr_ctl;
+	u64 virt_ext;
 	u32 clean;
 	u32 reserved_5;
 	u64 next_rip;
@@ -107,6 +108,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define V_IRQ_SHIFT 8
 #define V_IRQ_MASK (1 << V_IRQ_SHIFT)
 
+#define V_GIF_SHIFT 9
+#define V_GIF_MASK (1 << V_GIF_SHIFT)
+
 #define V_INTR_PRIO_SHIFT 16
 #define V_INTR_PRIO_MASK (0x0f << V_INTR_PRIO_SHIFT)
 
@@ -116,8 +120,14 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define V_INTR_MASKING_SHIFT 24
 #define V_INTR_MASKING_MASK (1 << V_INTR_MASKING_SHIFT)
 
+#define V_GIF_ENABLE_SHIFT 25
+#define V_GIF_ENABLE_MASK (1 << V_GIF_ENABLE_SHIFT)
+
 #define AVIC_ENABLE_SHIFT 31
 #define AVIC_ENABLE_MASK (1 << AVIC_ENABLE_SHIFT)
+
+#define LBR_CTL_ENABLE_MASK BIT_ULL(0)
+#define VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK BIT_ULL(1)
 
 #define SVM_INTERRUPT_SHADOW_MASK 1
 

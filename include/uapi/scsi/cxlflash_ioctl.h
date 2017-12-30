@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * CXL Flash Device Driver
  *
@@ -18,6 +19,11 @@
 #include <linux/types.h>
 
 /*
+ * Structure and definitions for all CXL Flash ioctls
+ */
+#define CXLFLASH_WWID_LEN		16
+
+/*
  * Structure and flag definitions CXL Flash superpipe ioctls
  */
 
@@ -31,7 +37,7 @@ struct dk_cxlflash_hdr {
 };
 
 /*
- * Return flag definitions available to all ioctls
+ * Return flag definitions available to all superpipe ioctls
  *
  * Similar to the input flags, these are grown from the bottom-up with the
  * intention that ioctl-specific return flag definitions would grow from the
@@ -151,7 +157,7 @@ struct dk_cxlflash_recover_afu {
 	__u64 reserved[8];		/* Reserved for future use */
 };
 
-#define DK_CXLFLASH_MANAGE_LUN_WWID_LEN			16
+#define DK_CXLFLASH_MANAGE_LUN_WWID_LEN			CXLFLASH_WWID_LEN
 #define DK_CXLFLASH_MANAGE_LUN_ENABLE_SUPERPIPE		0x8000000000000000ULL
 #define DK_CXLFLASH_MANAGE_LUN_DISABLE_SUPERPIPE	0x4000000000000000ULL
 #define DK_CXLFLASH_MANAGE_LUN_ALL_PORTS_ACCESSIBLE	0x2000000000000000ULL
@@ -180,6 +186,10 @@ union cxlflash_ioctls {
 #define CXL_MAGIC 0xCA
 #define CXL_IOWR(_n, _s)	_IOWR(CXL_MAGIC, _n, struct _s)
 
+/*
+ * CXL Flash superpipe ioctls start at base of the reserved CXL_MAGIC
+ * region (0x80) and grow upwards.
+ */
 #define DK_CXLFLASH_ATTACH		CXL_IOWR(0x80, dk_cxlflash_attach)
 #define DK_CXLFLASH_USER_DIRECT		CXL_IOWR(0x81, dk_cxlflash_udirect)
 #define DK_CXLFLASH_RELEASE		CXL_IOWR(0x82, dk_cxlflash_release)
@@ -190,5 +200,77 @@ union cxlflash_ioctls {
 #define DK_CXLFLASH_USER_VIRTUAL	CXL_IOWR(0x87, dk_cxlflash_uvirtual)
 #define DK_CXLFLASH_VLUN_RESIZE		CXL_IOWR(0x88, dk_cxlflash_resize)
 #define DK_CXLFLASH_VLUN_CLONE		CXL_IOWR(0x89, dk_cxlflash_clone)
+
+/*
+ * Structure and flag definitions CXL Flash host ioctls
+ */
+
+#define HT_CXLFLASH_VERSION_0  0
+
+struct ht_cxlflash_hdr {
+	__u16 version;		/* Version data */
+	__u16 subcmd;		/* Sub-command */
+	__u16 rsvd[2];		/* Reserved for future use */
+	__u64 flags;		/* Input flags */
+	__u64 return_flags;	/* Returned flags */
+};
+
+/*
+ * Input flag definitions available to all host ioctls
+ *
+ * These are grown from the bottom-up with the intention that ioctl-specific
+ * input flag definitions would grow from the top-down, allowing the two sets
+ * to co-exist. While not required/enforced at this time, this provides future
+ * flexibility.
+ */
+#define HT_CXLFLASH_HOST_READ				0x0000000000000000ULL
+#define HT_CXLFLASH_HOST_WRITE				0x0000000000000001ULL
+
+#define HT_CXLFLASH_LUN_PROVISION_SUBCMD_CREATE_LUN	0x0001
+#define HT_CXLFLASH_LUN_PROVISION_SUBCMD_DELETE_LUN	0x0002
+#define HT_CXLFLASH_LUN_PROVISION_SUBCMD_QUERY_PORT	0x0003
+
+struct ht_cxlflash_lun_provision {
+	struct ht_cxlflash_hdr hdr; /* Common fields */
+	__u16 port;		    /* Target port for provision request */
+	__u16 reserved16[3];	    /* Reserved for future use */
+	__u64 size;		    /* Size of LUN (4K blocks) */
+	__u64 lun_id;		    /* SCSI LUN ID */
+	__u8 wwid[CXLFLASH_WWID_LEN];/* Page83 WWID, NAA-6 */
+	__u64 max_num_luns;	    /* Maximum number of LUNs provisioned */
+	__u64 cur_num_luns;	    /* Current number of LUNs provisioned */
+	__u64 max_cap_port;	    /* Total capacity for port (4K blocks) */
+	__u64 cur_cap_port;	    /* Current capacity for port (4K blocks) */
+	__u64 reserved[8];	    /* Reserved for future use */
+};
+
+#define	HT_CXLFLASH_AFU_DEBUG_MAX_DATA_LEN		262144	/* 256K */
+#define HT_CXLFLASH_AFU_DEBUG_SUBCMD_LEN		12
+struct ht_cxlflash_afu_debug {
+	struct ht_cxlflash_hdr hdr; /* Common fields */
+	__u8 reserved8[4];	    /* Reserved for future use */
+	__u8 afu_subcmd[HT_CXLFLASH_AFU_DEBUG_SUBCMD_LEN]; /* AFU subcommand,
+							    * (pass through)
+							    */
+	__u64 data_ea;		    /* Data buffer effective address */
+	__u32 data_len;		    /* Data buffer length */
+	__u32 reserved32;	    /* Reserved for future use */
+	__u64 reserved[8];	    /* Reserved for future use */
+};
+
+union cxlflash_ht_ioctls {
+	struct ht_cxlflash_lun_provision lun_provision;
+	struct ht_cxlflash_afu_debug afu_debug;
+};
+
+#define MAX_HT_CXLFLASH_IOCTL_SZ	(sizeof(union cxlflash_ht_ioctls))
+
+/*
+ * CXL Flash host ioctls start at the top of the reserved CXL_MAGIC
+ * region (0xBF) and grow downwards.
+ */
+#define HT_CXLFLASH_LUN_PROVISION CXL_IOWR(0xBF, ht_cxlflash_lun_provision)
+#define HT_CXLFLASH_AFU_DEBUG	  CXL_IOWR(0xBE, ht_cxlflash_afu_debug)
+
 
 #endif /* ifndef _CXLFLASH_IOCTL_H */

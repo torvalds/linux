@@ -38,6 +38,17 @@
 #include <linux/cgroup_rdma.h>
 
 #include <rdma/ib_verbs.h>
+#include <rdma/opa_addr.h>
+#include <rdma/ib_mad.h>
+#include "mad_priv.h"
+
+struct pkey_index_qp_list {
+	struct list_head    pkey_index_list;
+	u16                 pkey_index;
+	/* Lock to hold while iterating the qp_list. */
+	spinlock_t          qp_list_lock;
+	struct list_head    qp_list;
+};
 
 #if IS_ENABLED(CONFIG_INFINIBAND_ADDR_TRANS_CONFIGFS)
 int cma_configfs_init(void);
@@ -91,6 +102,14 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 			      void *filter_cookie,
 			      roce_netdev_callback cb,
 			      void *cookie);
+
+typedef int (*nldev_callback)(struct ib_device *device,
+			      struct sk_buff *skb,
+			      struct netlink_callback *cb,
+			      unsigned int idx);
+
+int ib_enum_all_devs(nldev_callback nldev_cb, struct sk_buff *skb,
+		     struct netlink_callback *cb);
 
 enum ib_cache_gid_default_mode {
 	IB_CACHE_GID_DEFAULT_MODE_SET,
@@ -169,8 +188,8 @@ void ib_mad_cleanup(void);
 int ib_sa_init(void);
 void ib_sa_cleanup(void);
 
-int ibnl_init(void);
-void ibnl_cleanup(void);
+int rdma_nl_init(void);
+void rdma_nl_exit(void);
 
 /**
  * Check if there are any listeners to the netlink group
@@ -180,10 +199,123 @@ void ibnl_cleanup(void);
 int ibnl_chk_listeners(unsigned int group);
 
 int ib_nl_handle_resolve_resp(struct sk_buff *skb,
-			      struct netlink_callback *cb);
+			      struct nlmsghdr *nlh,
+			      struct netlink_ext_ack *extack);
 int ib_nl_handle_set_timeout(struct sk_buff *skb,
-			     struct netlink_callback *cb);
+			     struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack);
 int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
-			     struct netlink_callback *cb);
+			     struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack);
 
+int ib_get_cached_subnet_prefix(struct ib_device *device,
+				u8                port_num,
+				u64              *sn_pfx);
+
+#ifdef CONFIG_SECURITY_INFINIBAND
+int ib_security_pkey_access(struct ib_device *dev,
+			    u8 port_num,
+			    u16 pkey_index,
+			    void *sec);
+
+void ib_security_destroy_port_pkey_list(struct ib_device *device);
+
+void ib_security_cache_change(struct ib_device *device,
+			      u8 port_num,
+			      u64 subnet_prefix);
+
+int ib_security_modify_qp(struct ib_qp *qp,
+			  struct ib_qp_attr *qp_attr,
+			  int qp_attr_mask,
+			  struct ib_udata *udata);
+
+int ib_create_qp_security(struct ib_qp *qp, struct ib_device *dev);
+void ib_destroy_qp_security_begin(struct ib_qp_security *sec);
+void ib_destroy_qp_security_abort(struct ib_qp_security *sec);
+void ib_destroy_qp_security_end(struct ib_qp_security *sec);
+int ib_open_shared_qp_security(struct ib_qp *qp, struct ib_device *dev);
+void ib_close_shared_qp_security(struct ib_qp_security *sec);
+int ib_mad_agent_security_setup(struct ib_mad_agent *agent,
+				enum ib_qp_type qp_type);
+void ib_mad_agent_security_cleanup(struct ib_mad_agent *agent);
+int ib_mad_enforce_security(struct ib_mad_agent_private *map, u16 pkey_index);
+#else
+static inline int ib_security_pkey_access(struct ib_device *dev,
+					  u8 port_num,
+					  u16 pkey_index,
+					  void *sec)
+{
+	return 0;
+}
+
+static inline void ib_security_destroy_port_pkey_list(struct ib_device *device)
+{
+}
+
+static inline void ib_security_cache_change(struct ib_device *device,
+					    u8 port_num,
+					    u64 subnet_prefix)
+{
+}
+
+static inline int ib_security_modify_qp(struct ib_qp *qp,
+					struct ib_qp_attr *qp_attr,
+					int qp_attr_mask,
+					struct ib_udata *udata)
+{
+	return qp->device->modify_qp(qp->real_qp,
+				     qp_attr,
+				     qp_attr_mask,
+				     udata);
+}
+
+static inline int ib_create_qp_security(struct ib_qp *qp,
+					struct ib_device *dev)
+{
+	return 0;
+}
+
+static inline void ib_destroy_qp_security_begin(struct ib_qp_security *sec)
+{
+}
+
+static inline void ib_destroy_qp_security_abort(struct ib_qp_security *sec)
+{
+}
+
+static inline void ib_destroy_qp_security_end(struct ib_qp_security *sec)
+{
+}
+
+static inline int ib_open_shared_qp_security(struct ib_qp *qp,
+					     struct ib_device *dev)
+{
+	return 0;
+}
+
+static inline void ib_close_shared_qp_security(struct ib_qp_security *sec)
+{
+}
+
+static inline int ib_mad_agent_security_setup(struct ib_mad_agent *agent,
+					      enum ib_qp_type qp_type)
+{
+	return 0;
+}
+
+static inline void ib_mad_agent_security_cleanup(struct ib_mad_agent *agent)
+{
+}
+
+static inline int ib_mad_enforce_security(struct ib_mad_agent_private *map,
+					  u16 pkey_index)
+{
+	return 0;
+}
+#endif
+
+struct ib_device *__ib_device_get_by_index(u32 ifindex);
+/* RDMA device netlink */
+void nldev_init(void);
+void nldev_exit(void);
 #endif /* _CORE_PRIV_H */

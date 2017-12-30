@@ -158,7 +158,7 @@ int radeon_fence_emit(struct radeon_device *rdev,
  * for the fence locking itself, so unlocked variants are used for
  * fence_signal, and remove_wait_queue.
  */
-static int radeon_fence_check_signaled(wait_queue_t *wait, unsigned mode, int flags, void *key)
+static int radeon_fence_check_signaled(wait_queue_entry_t *wait, unsigned mode, int flags, void *key)
 {
 	struct radeon_fence *fence;
 	u64 seq;

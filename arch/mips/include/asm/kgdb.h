@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_KGDB_H_
 #define __ASM_KGDB_H_
 

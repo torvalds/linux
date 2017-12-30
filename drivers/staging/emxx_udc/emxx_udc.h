@@ -144,7 +144,7 @@
 /*------- (0x001C) Setup Data 1 Register */
 
 /*------- (0x0020) USB Interrupt Status Register */
-#define EPn_INT				0x00FFFF00
+#define EPN_INT				0x00FFFF00
 #define EP15_INT			BIT23
 #define EP14_INT			BIT22
 #define EP13_INT			BIT21
@@ -264,102 +264,102 @@
 /*------- (0x0038) EP0 Read Register */
 /*------- (0x003C) EP0 Write Register */
 
-/*------- (0x0040:) EPn Control Register */
-#define EPn_EN				BIT31
-#define EPn_BUF_TYPE			BIT30
-#define EPn_BUF_SINGLE			BIT30
+/*------- (0x0040:) EPN Control Register */
+#define EPN_EN				BIT31
+#define EPN_BUF_TYPE			BIT30
+#define EPN_BUF_SINGLE			BIT30
 
-#define EPn_DIR0			BIT26
-#define EPn_MODE			(BIT25 + BIT24)
-#define EPn_BULK			0
-#define EPn_INTERRUPT			BIT24
-#define EPn_ISO				BIT25
+#define EPN_DIR0			BIT26
+#define EPN_MODE			(BIT25 + BIT24)
+#define EPN_BULK			0
+#define EPN_INTERRUPT			BIT24
+#define EPN_ISO				BIT25
 
-#define EPn_OVERSEL			BIT17
-#define EPn_AUTO			BIT16
+#define EPN_OVERSEL			BIT17
+#define EPN_AUTO			BIT16
 
-#define EPn_IPIDCLR			BIT11
-#define EPn_OPIDCLR			BIT10
-#define EPn_BCLR			BIT09
-#define EPn_CBCLR			BIT08
-#define EPn_DEND			BIT07
-#define EPn_DW				(BIT06 + BIT05)
-#define EPn_DW4				0
-#define EPn_DW3				(BIT06 + BIT05)
-#define EPn_DW2				BIT06
-#define EPn_DW1				BIT05
+#define EPN_IPIDCLR			BIT11
+#define EPN_OPIDCLR			BIT10
+#define EPN_BCLR			BIT09
+#define EPN_CBCLR			BIT08
+#define EPN_DEND			BIT07
+#define EPN_DW				(BIT06 + BIT05)
+#define EPN_DW4				0
+#define EPN_DW3				(BIT06 + BIT05)
+#define EPN_DW2				BIT06
+#define EPN_DW1				BIT05
 
-#define EPn_OSTL_EN			BIT04
-#define EPn_ISTL			BIT03
-#define EPn_OSTL			BIT02
+#define EPN_OSTL_EN			BIT04
+#define EPN_ISTL			BIT03
+#define EPN_OSTL			BIT02
 
-#define EPn_ONAK			BIT00
+#define EPN_ONAK			BIT00
 
-/*------- (0x0044:) EPn Status Register	*/
-#define EPn_ISO_PIDERR			BIT29		/* R */
-#define EPn_OPID			BIT28		/* R */
-#define EPn_OUT_NOTKN			BIT27		/* R */
-#define EPn_ISO_OR			BIT26		/* R */
+/*------- (0x0044:) EPN Status Register	*/
+#define EPN_ISO_PIDERR			BIT29		/* R */
+#define EPN_OPID			BIT28		/* R */
+#define EPN_OUT_NOTKN			BIT27		/* R */
+#define EPN_ISO_OR			BIT26		/* R */
 
-#define EPn_ISO_CRC			BIT24		/* R */
-#define EPn_OUT_END_INT			BIT23		/* RW */
-#define EPn_OUT_OR_INT			BIT22		/* RW */
-#define EPn_OUT_NAK_ERR_INT		BIT21		/* RW */
-#define EPn_OUT_STALL_INT		BIT20		/* RW */
-#define EPn_OUT_INT			BIT19		/* RW */
-#define EPn_OUT_NULL_INT		BIT18		/* RW */
-#define EPn_OUT_FULL			BIT17		/* R */
-#define EPn_OUT_EMPTY			BIT16		/* R */
+#define EPN_ISO_CRC			BIT24		/* R */
+#define EPN_OUT_END_INT			BIT23		/* RW */
+#define EPN_OUT_OR_INT			BIT22		/* RW */
+#define EPN_OUT_NAK_ERR_INT		BIT21		/* RW */
+#define EPN_OUT_STALL_INT		BIT20		/* RW */
+#define EPN_OUT_INT			BIT19		/* RW */
+#define EPN_OUT_NULL_INT		BIT18		/* RW */
+#define EPN_OUT_FULL			BIT17		/* R */
+#define EPN_OUT_EMPTY			BIT16		/* R */
 
-#define EPn_IPID			BIT10		/* R */
-#define EPn_IN_NOTKN			BIT09		/* R */
-#define EPn_ISO_UR			BIT08		/* R */
-#define EPn_IN_END_INT			BIT07		/* RW */
+#define EPN_IPID			BIT10		/* R */
+#define EPN_IN_NOTKN			BIT09		/* R */
+#define EPN_ISO_UR			BIT08		/* R */
+#define EPN_IN_END_INT			BIT07		/* RW */
 
-#define EPn_IN_NAK_ERR_INT		BIT05		/* RW */
-#define EPn_IN_STALL_INT		BIT04		/* RW */
-#define EPn_IN_INT			BIT03		/* RW */
-#define EPn_IN_DATA			BIT02		/* R */
-#define EPn_IN_FULL			BIT01		/* R */
-#define EPn_IN_EMPTY			BIT00		/* R */
+#define EPN_IN_NAK_ERR_INT		BIT05		/* RW */
+#define EPN_IN_STALL_INT		BIT04		/* RW */
+#define EPN_IN_INT			BIT03		/* RW */
+#define EPN_IN_DATA			BIT02		/* R */
+#define EPN_IN_FULL			BIT01		/* R */
+#define EPN_IN_EMPTY			BIT00		/* R */
 
-#define EPn_INT_EN	\
-	(EPn_OUT_END_INT | EPn_OUT_INT | EPn_IN_END_INT | EPn_IN_INT)
+#define EPN_INT_EN	\
+	(EPN_OUT_END_INT | EPN_OUT_INT | EPN_IN_END_INT | EPN_IN_INT)
 
-/*------- (0x0048:) EPn Interrupt Enable Register */
-#define EPn_OUT_END_EN			BIT23		/* RW */
-#define EPn_OUT_OR_EN			BIT22		/* RW */
-#define EPn_OUT_NAK_ERR_EN		BIT21		/* RW */
-#define EPn_OUT_STALL_EN		BIT20		/* RW */
-#define EPn_OUT_EN			BIT19		/* RW */
-#define EPn_OUT_NULL_EN			BIT18		/* RW */
+/*------- (0x0048:) EPN Interrupt Enable Register */
+#define EPN_OUT_END_EN			BIT23		/* RW */
+#define EPN_OUT_OR_EN			BIT22		/* RW */
+#define EPN_OUT_NAK_ERR_EN		BIT21		/* RW */
+#define EPN_OUT_STALL_EN		BIT20		/* RW */
+#define EPN_OUT_EN			BIT19		/* RW */
+#define EPN_OUT_NULL_EN			BIT18		/* RW */
 
-#define EPn_IN_END_EN			BIT07		/* RW */
+#define EPN_IN_END_EN			BIT07		/* RW */
 
-#define EPn_IN_NAK_ERR_EN		BIT05		/* RW */
-#define EPn_IN_STALL_EN			BIT04		/* RW */
-#define EPn_IN_EN			BIT03		/* RW */
+#define EPN_IN_NAK_ERR_EN		BIT05		/* RW */
+#define EPN_IN_STALL_EN			BIT04		/* RW */
+#define EPN_IN_EN			BIT03		/* RW */
 
-/*------- (0x004C:) EPn Interrupt Enable Register */
-#define EPn_STOP_MODE			BIT11
-#define EPn_DEND_SET			BIT10
-#define EPn_BURST_SET			BIT09
-#define EPn_STOP_SET			BIT08
+/*------- (0x004C:) EPN Interrupt Enable Register */
+#define EPN_STOP_MODE			BIT11
+#define EPN_DEND_SET			BIT10
+#define EPN_BURST_SET			BIT09
+#define EPN_STOP_SET			BIT08
 
-#define EPn_DMA_EN			BIT04
+#define EPN_DMA_EN			BIT04
 
-#define EPn_DMAMODE0			BIT00
+#define EPN_DMAMODE0			BIT00
 
-/*------- (0x0050:) EPn MaxPacket & BaseAddress Register */
-#define EPn_BASEAD			0x1FFF0000
-#define EPn_MPKT			0x000007FF
+/*------- (0x0050:) EPN MaxPacket & BaseAddress Register */
+#define EPN_BASEAD			0x1FFF0000
+#define EPN_MPKT			0x000007FF
 
-/*------- (0x0054:) EPn Length & DMA Count Register */
-#define EPn_DMACNT			0x01FF0000
-#define EPn_LDATA			0x000007FF
+/*------- (0x0054:) EPN Length & DMA Count Register */
+#define EPN_DMACNT			0x01FF0000
+#define EPN_LDATA			0x000007FF
 
-/*------- (0x0058:) EPn Read Register */
-/*------- (0x005C:) EPn Write Register */
+/*------- (0x0058:) EPN Read Register */
+/*------- (0x005C:) EPN Write Register */
 
 /*------- (0x1000) AHBSCTR Register */
 #define WAIT_MODE			BIT00
@@ -428,19 +428,19 @@
 #define EP_AVAILABLE			0xFFFF0000	/* R */
 #define DMA_AVAILABLE			0x0000FFFF	/* R */
 
-/*------- (0x1110:) EPnDCR1 Register */
-#define DCR1_EPn_DMACNT			0x00FF0000	/* RW */
+/*------- (0x1110:) EPNDCR1 Register */
+#define DCR1_EPN_DMACNT			0x00FF0000	/* RW */
 
-#define DCR1_EPn_DIR0			BIT01		/* RW */
-#define DCR1_EPn_REQEN			BIT00		/* RW */
+#define DCR1_EPN_DIR0			BIT01		/* RW */
+#define DCR1_EPN_REQEN			BIT00		/* RW */
 
-/*------- (0x1114:) EPnDCR2 Register */
-#define DCR2_EPn_LMPKT			0x07FF0000	/* RW */
+/*------- (0x1114:) EPNDCR2 Register */
+#define DCR2_EPN_LMPKT			0x07FF0000	/* RW */
 
-#define DCR2_EPn_MPKT			0x000007FF	/* RW */
+#define DCR2_EPN_MPKT			0x000007FF	/* RW */
 
-/*------- (0x1118:) EPnTADR Register */
-#define EPn_TADR			0xFFFFFFFF	/* RW */
+/*------- (0x1118:) EPNTADR Register */
+#define EPN_TADR			0xFFFFFFFF	/* RW */
 
 /*===========================================================================*/
 /* Struct */
@@ -471,7 +471,7 @@ struct fc_regs {
 	u32 USB_ADDRESS;		/* (0x0008) USB Address */
 	u32 UTMI_CHARACTER_1;		/* (0x000C) UTMI Setting */
 	u32 TEST_CONTROL;		/* (0x0010) TEST Control */
-	u32 Reserved_14;		/* (0x0014) Reserved */
+	u32 reserved_14;		/* (0x0014) Reserved */
 	u32 SETUP_DATA0;		/* (0x0018) Setup Data0 */
 	u32 SETUP_DATA1;		/* (0x001C) Setup Data1 */
 	u32 USB_INT_STA;		/* (0x0020) USB Interrupt Status */
@@ -485,7 +485,7 @@ struct fc_regs {
 
 	struct ep_regs EP_REGS[REG_EP_NUM];	/* Endpoint Register */
 
-	u8 Reserved220[0x1000 - 0x220];	/* (0x0220:0x0FFF) Reserved */
+	u8 reserved_220[0x1000 - 0x220];	/* (0x0220:0x0FFF) Reserved */
 
 	u32 AHBSCTR;			/* (0x1000) AHBSCTR */
 	u32 AHBMCTR;			/* (0x1004) AHBMCTR */
@@ -494,25 +494,25 @@ struct fc_regs {
 	u32 EPCTR;			/* (0x1010) EPCTR */
 	u32 USBF_EPTEST;		/* (0x1014) USBF_EPTEST */
 
-	u8 Reserved1018[0x20 - 0x18];	/* (0x1018:0x101F) Reserved */
+	u8 reserved_1018[0x20 - 0x18];	/* (0x1018:0x101F) Reserved */
 
 	u32 USBSSVER;			/* (0x1020) USBSSVER */
 	u32 USBSSCONF;			/* (0x1024) USBSSCONF */
 
-	u8 Reserved1028[0x110 - 0x28];	/* (0x1028:0x110F) Reserved */
+	u8 reserved_1028[0x110 - 0x28];	/* (0x1028:0x110F) Reserved */
 
 	struct ep_dcr EP_DCR[REG_EP_NUM];	/* */
 
-	u8 Reserved1200[0x1000 - 0x200];	/* Reserved */
+	u8 reserved_1200[0x1000 - 0x200];	/* Reserved */
 } __aligned(32);
 
 #define EP0_PACKETSIZE			64
 #define EP_PACKETSIZE			1024
 
-/* EPn RAM SIZE */
+/* EPN RAM SIZE */
 #define D_RAM_SIZE_CTRL			64
 
-/* EPn Bulk Endpoint Max Packet Size */
+/* EPN Bulk Endpoint Max Packet Size */
 #define D_FS_RAM_SIZE_BULK		64
 #define D_HS_RAM_SIZE_BULK		512
 

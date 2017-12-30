@@ -29,5 +29,4 @@ Examples:
 		interrupts = <22>;
 		marvell,crypto-srams = <&crypto_sram>;
 		marvell,crypto-sram-size = <0x600>;
-		status = "okay";
 	};

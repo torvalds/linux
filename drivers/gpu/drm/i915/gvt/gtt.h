@@ -49,14 +49,18 @@ struct intel_gvt_gtt_entry {
 };
 
 struct intel_gvt_gtt_pte_ops {
-	struct intel_gvt_gtt_entry *(*get_entry)(void *pt,
-		struct intel_gvt_gtt_entry *e,
-		unsigned long index, bool hypervisor_access, unsigned long gpa,
-		struct intel_vgpu *vgpu);
-	struct intel_gvt_gtt_entry *(*set_entry)(void *pt,
-		struct intel_gvt_gtt_entry *e,
-		unsigned long index, bool hypervisor_access, unsigned long gpa,
-		struct intel_vgpu *vgpu);
+	int (*get_entry)(void *pt,
+			 struct intel_gvt_gtt_entry *e,
+			 unsigned long index,
+			 bool hypervisor_access,
+			 unsigned long gpa,
+			 struct intel_vgpu *vgpu);
+	int (*set_entry)(void *pt,
+			 struct intel_gvt_gtt_entry *e,
+			 unsigned long index,
+			 bool hypervisor_access,
+			 unsigned long gpa,
+			 struct intel_vgpu *vgpu);
 	bool (*test_present)(struct intel_gvt_gtt_entry *e);
 	void (*clear_present)(struct intel_gvt_gtt_entry *e);
 	bool (*test_pse)(struct intel_gvt_gtt_entry *e);
@@ -143,12 +147,12 @@ struct intel_vgpu_mm {
 	struct intel_vgpu *vgpu;
 };
 
-extern struct intel_gvt_gtt_entry *intel_vgpu_mm_get_entry(
+extern int intel_vgpu_mm_get_entry(
 		struct intel_vgpu_mm *mm,
 		void *page_table, struct intel_gvt_gtt_entry *e,
 		unsigned long index);
 
-extern struct intel_gvt_gtt_entry *intel_vgpu_mm_set_entry(
+extern int intel_vgpu_mm_set_entry(
 		struct intel_vgpu_mm *mm,
 		void *page_table, struct intel_gvt_gtt_entry *e,
 		unsigned long index);
@@ -208,7 +212,7 @@ extern void intel_vgpu_clean_gtt(struct intel_vgpu *vgpu);
 void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu);
 
 extern int intel_gvt_init_gtt(struct intel_gvt *gvt);
-extern void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu, bool dmlr);
+void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu);
 extern void intel_gvt_clean_gtt(struct intel_gvt *gvt);
 
 extern struct intel_vgpu_mm *intel_gvt_find_ppgtt_mm(struct intel_vgpu *vgpu,

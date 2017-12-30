@@ -10,7 +10,7 @@ Required properties:
   - #io-channel-cells: shall be 0,
 
 Example:
-	ths: ths@01c25000 {
+	ths: ths@1c25000 {
 		compatible = "allwinner,sun8i-a33-ths";
 		reg = <0x01c25000 0x100>;
 		#thermal-sensor-cells = <0>;
@@ -47,7 +47,7 @@ Optional properties:
 
 Example:
 
-	rtp: rtp@01c25000 {
+	rtp: rtp@1c25000 {
 		compatible = "allwinner,sun4i-a10-ts";
 		reg = <0x01c25000 0x100>;
 		interrupts = <29>;

@@ -13,7 +13,7 @@
  * more details.
  */
 #else
-/**
+/*
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
 
@@ -37,17 +37,17 @@ more details.
 #include "ia_css_spctrl.h"
 #include "ia_css_debug.h"
 
-typedef struct {
+struct spctrl_context_info {
 	struct ia_css_sp_init_dmem_cfg dmem_config;
-	uint32_t        spctrl_config_dmem_addr; /** location of dmem_cfg  in SP dmem */
+	uint32_t        spctrl_config_dmem_addr; /* location of dmem_cfg  in SP dmem */
 	uint32_t        spctrl_state_dmem_addr;
 	unsigned int    sp_entry;           /* entry function ptr on SP */
 	hrt_vaddress    code_addr;          /* sp firmware location in host mem-DDR*/
 	uint32_t        code_size;
 	char           *program_name;       /* used in case of PLATFORM_SIM */
-} spctrl_context_info;
+};
 
-static spctrl_context_info spctrl_cofig_info[N_SP_ID];
+static struct spctrl_context_info spctrl_cofig_info[N_SP_ID];
 static bool spctrl_loaded[N_SP_ID] = {0};
 
 /* Load firmware */
@@ -57,17 +57,11 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	hrt_vaddress code_addr = mmgr_NULL;
 	struct ia_css_sp_init_dmem_cfg *init_dmem_cfg;
 
-	if ((sp_id >= N_SP_ID) || (spctrl_cfg == 0))
+	if ((sp_id >= N_SP_ID) || (spctrl_cfg == NULL))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	spctrl_cofig_info[sp_id].code_addr = mmgr_NULL;
 
-#if defined(HRT_UNSCHED)
-	(void)init_dmem_cfg;
-	code_addr = mmgr_malloc(1);
-	if (code_addr == mmgr_NULL)
-		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-#else
 	init_dmem_cfg = &spctrl_cofig_info[sp_id].dmem_config;
 	init_dmem_cfg->dmem_data_addr = spctrl_cfg->dmem_data_addr;
 	init_dmem_cfg->dmem_bss_addr  = spctrl_cfg->dmem_bss_addr;
@@ -104,7 +98,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 		code_addr = mmgr_NULL;
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	}
-#endif
+
 	spctrl_cofig_info[sp_id].sp_entry = spctrl_cfg->sp_entry;
 	spctrl_cofig_info[sp_id].code_addr = code_addr;
 	spctrl_cofig_info[sp_id].program_name = spctrl_cfg->program_name;

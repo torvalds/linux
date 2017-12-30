@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/ftrace.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
+#include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/exec.h>
 #include <asm/pgtable.h>
@@ -11,7 +13,6 @@
 #include <asm/mmu_context.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
-#include <asm/tlbflush.h>
 
 /*
  * This is allocated by cpu_suspend_init(), and used to store a pointer to
@@ -57,7 +58,7 @@ void notrace __cpu_suspend_exit(void)
 	/*
 	 * Restore HW breakpoint registers to sane values
 	 * before debug exceptions are possibly reenabled
-	 * through local_dbg_restore.
+	 * by cpu_suspend()s local_daif_restore() call.
 	 */
 	if (hw_breakpoint_restore)
 		hw_breakpoint_restore(cpu);
@@ -81,7 +82,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 * updates to mdscr register (saved and restored along with
 	 * general purpose registers) from kernel debuggers.
 	 */
-	local_dbg_save(flags);
+	flags = local_daif_save();
 
 	/*
 	 * Function graph tracer state gets incosistent when the kernel
@@ -114,7 +115,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 * restored, so from this point onwards, debugging is fully
 	 * renabled if it was enabled when core started shutdown.
 	 */
-	local_dbg_restore(flags);
+	local_daif_restore(flags);
 
 	return ret;
 }

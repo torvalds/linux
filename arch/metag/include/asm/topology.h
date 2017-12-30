@@ -1,10 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_METAG_TOPOLOGY_H
 #define _ASM_METAG_TOPOLOGY_H
 
 #ifdef CONFIG_NUMA
 
 #define cpu_to_node(cpu)	((void)(cpu), 0)
-#define parent_node(node)	((void)(node), 0)
 
 #define cpumask_of_node(node)	((void)node, cpu_online_mask)
 

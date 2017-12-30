@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
 config NIOS2
 	def_bool y
-	select CLKSRC_OF
+	select TIMER_OF
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CPU_DEVICES

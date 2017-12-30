@@ -75,6 +75,10 @@ static void acpi_rs_dump_short_byte_list(u8 length, u8 *data);
 static void
 acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source);
 
+static void
+acpi_rs_dump_resource_label(char *title,
+			    struct acpi_resource_label *resource_label);
+
 static void acpi_rs_dump_address_common(union acpi_resource_data *resource);
 
 static void
@@ -371,6 +375,26 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 								   target));
 			break;
 
+		case ACPI_RSD_LABEL:
+			/*
+			 * resource_label
+			 */
+			acpi_rs_dump_resource_label("Resource Label",
+						    ACPI_CAST_PTR(struct
+								  acpi_resource_label,
+								  target));
+			break;
+
+		case ACPI_RSD_SOURCE_LABEL:
+			/*
+			 * resource_source_label
+			 */
+			acpi_rs_dump_resource_label("Resource Source Label",
+						    ACPI_CAST_PTR(struct
+								  acpi_resource_label,
+								  target));
+			break;
+
 		default:
 
 			acpi_os_printf("**** Invalid table opcode [%X] ****\n",
@@ -410,6 +434,30 @@ acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source)
 	acpi_rs_out_string("Resource Source",
 			   resource_source->string_ptr ?
 			   resource_source->string_ptr : "[Not Specified]");
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_dump_resource_label
+ *
+ * PARAMETERS:  title              - Title of the dumped resource field
+ *              resource_label     - Pointer to a Resource Label struct
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Common routine for dumping the resource_label
+ *
+ ******************************************************************************/
+
+static void
+acpi_rs_dump_resource_label(char *title,
+			    struct acpi_resource_label *resource_label)
+{
+	ACPI_FUNCTION_ENTRY();
+
+	acpi_rs_out_string(title,
+			   resource_label->string_ptr ?
+			   resource_label->string_ptr : "[Not Specified]");
 }
 
 /*******************************************************************************

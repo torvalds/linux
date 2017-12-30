@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Android"
 
 config ANDROID
@@ -22,7 +23,7 @@ config ANDROID_BINDER_IPC
 config ANDROID_BINDER_DEVICES
 	string "Android Binder devices"
 	depends on ANDROID_BINDER_IPC
-	default "binder,hwbinder"
+	default "binder,hwbinder,vndbinder"
 	---help---
 	  Default value for the binder.devices parameter.
 
@@ -32,7 +33,7 @@ config ANDROID_BINDER_DEVICES
 	  therefore logically separated from the other devices.
 
 config ANDROID_BINDER_IPC_32BIT
-	bool
+	bool "Use old (Android 4.4 and earlier) 32-bit binder API"
 	depends on !64BIT && ANDROID_BINDER_IPC
 	default y
 	---help---
@@ -43,6 +44,16 @@ config ANDROID_BINDER_IPC_32BIT
 	  earlier).
 
 	  Note that enabling this will break newer Android user-space.
+
+config ANDROID_BINDER_IPC_SELFTEST
+	bool "Android Binder IPC Driver Selftest"
+	depends on ANDROID_BINDER_IPC
+	---help---
+	  This feature allows binder selftest to run.
+
+	  Binder selftest checks the allocation and free of binder buffers
+	  exhaustively with combinations of various buffer sizes and
+	  alignments.
 
 endif # if ANDROID
 

@@ -123,10 +123,10 @@ void __show_regs(struct pt_regs *regs)
 
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	print_symbol("LR is at %s\n", regs->ARM_lr);
-	printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
-	       "sp : %08lx  ip : %08lx  fp : %08lx\n",
-		regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr,
-		regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
+	printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n",
+	       regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr);
+	printk("sp : %08lx  ip : %08lx  fp : %08lx\n",
+	       regs->ARM_sp, regs->ARM_ip, regs->ARM_fp);
 	printk("r10: %08lx  r9 : %08lx  r8 : %08lx\n",
 		regs->ARM_r10, regs->ARM_r9,
 		regs->ARM_r8);
@@ -404,9 +404,17 @@ static unsigned long sigpage_addr(const struct mm_struct *mm,
 static struct page *signal_page;
 extern struct page *get_signal_page(void);
 
+static int sigpage_mremap(const struct vm_special_mapping *sm,
+		struct vm_area_struct *new_vma)
+{
+	current->mm->context.sigpage = new_vma->vm_start;
+	return 0;
+}
+
 static const struct vm_special_mapping sigpage_mapping = {
 	.name = "[sigpage]",
 	.pages = &signal_page,
+	.mremap = sigpage_mremap,
 };
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)

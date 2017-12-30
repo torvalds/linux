@@ -104,8 +104,10 @@ static unsigned long can_optimize(struct kprobe *p)
 	 * and that can be emulated.
 	 */
 	if (!is_conditional_branch(*p->ainsn.insn) &&
-			analyse_instr(&op, &regs, *p->ainsn.insn))
+			analyse_instr(&op, &regs, *p->ainsn.insn) == 1) {
+		emulate_update_regs(&regs, &op);
 		nip = regs.nip;
+	}
 
 	return nip;
 }
@@ -113,32 +115,23 @@ static unsigned long can_optimize(struct kprobe *p)
 static void optimized_callback(struct optimized_kprobe *op,
 			       struct pt_regs *regs)
 {
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	unsigned long flags;
-
 	/* This is possible if op is under delayed unoptimizing */
 	if (kprobe_disabled(&op->kp))
 		return;
 
-	local_irq_save(flags);
-	hard_irq_disable();
+	preempt_disable();
 
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(&op->kp);
 	} else {
 		__this_cpu_write(current_kprobe, &op->kp);
 		regs->nip = (unsigned long)op->kp.addr;
-		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
+		get_kprobe_ctlblk()->kprobe_status = KPROBE_HIT_ACTIVE;
 		opt_pre_handler(&op->kp, regs);
 		__this_cpu_write(current_kprobe, NULL);
 	}
 
-	/*
-	 * No need for an explicit __hard_irq_enable() here.
-	 * local_irq_restore() will re-enable interrupts,
-	 * if they were hard disabled.
-	 */
-	local_irq_restore(flags);
+	preempt_enable_no_resched();
 }
 NOKPROBE_SYMBOL(optimized_callback);
 
@@ -158,12 +151,13 @@ void arch_remove_optimized_kprobe(struct optimized_kprobe *op)
 void patch_imm32_load_insns(unsigned int val, kprobe_opcode_t *addr)
 {
 	/* addis r4,0,(insn)@h */
-	*addr++ = PPC_INST_ADDIS | ___PPC_RT(4) |
-		  ((val >> 16) & 0xffff);
+	patch_instruction(addr, PPC_INST_ADDIS | ___PPC_RT(4) |
+			  ((val >> 16) & 0xffff));
+	addr++;
 
 	/* ori r4,r4,(insn)@l */
-	*addr = PPC_INST_ORI | ___PPC_RA(4) | ___PPC_RS(4) |
-		(val & 0xffff);
+	patch_instruction(addr, PPC_INST_ORI | ___PPC_RA(4) |
+			  ___PPC_RS(4) | (val & 0xffff));
 }
 
 /*
@@ -173,24 +167,28 @@ void patch_imm32_load_insns(unsigned int val, kprobe_opcode_t *addr)
 void patch_imm64_load_insns(unsigned long val, kprobe_opcode_t *addr)
 {
 	/* lis r3,(op)@highest */
-	*addr++ = PPC_INST_ADDIS | ___PPC_RT(3) |
-		  ((val >> 48) & 0xffff);
+	patch_instruction(addr, PPC_INST_ADDIS | ___PPC_RT(3) |
+			  ((val >> 48) & 0xffff));
+	addr++;
 
 	/* ori r3,r3,(op)@higher */
-	*addr++ = PPC_INST_ORI | ___PPC_RA(3) | ___PPC_RS(3) |
-		  ((val >> 32) & 0xffff);
+	patch_instruction(addr, PPC_INST_ORI | ___PPC_RA(3) |
+			  ___PPC_RS(3) | ((val >> 32) & 0xffff));
+	addr++;
 
 	/* rldicr r3,r3,32,31 */
-	*addr++ = PPC_INST_RLDICR | ___PPC_RA(3) | ___PPC_RS(3) |
-		  __PPC_SH64(32) | __PPC_ME64(31);
+	patch_instruction(addr, PPC_INST_RLDICR | ___PPC_RA(3) |
+			  ___PPC_RS(3) | __PPC_SH64(32) | __PPC_ME64(31));
+	addr++;
 
 	/* oris r3,r3,(op)@h */
-	*addr++ = PPC_INST_ORIS | ___PPC_RA(3) | ___PPC_RS(3) |
-		  ((val >> 16) & 0xffff);
+	patch_instruction(addr, PPC_INST_ORIS | ___PPC_RA(3) |
+			  ___PPC_RS(3) | ((val >> 16) & 0xffff));
+	addr++;
 
 	/* ori r3,r3,(op)@l */
-	*addr = PPC_INST_ORI | ___PPC_RA(3) | ___PPC_RS(3) |
-		(val & 0xffff);
+	patch_instruction(addr, PPC_INST_ORI | ___PPC_RA(3) |
+			  ___PPC_RS(3) | (val & 0xffff));
 }
 
 int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
@@ -198,7 +196,8 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	kprobe_opcode_t *buff, branch_op_callback, branch_emulate_step;
 	kprobe_opcode_t *op_callback_addr, *emulate_step_addr;
 	long b_offset;
-	unsigned long nip;
+	unsigned long nip, size;
+	int rc, i;
 
 	kprobe_ppc_optinsn_slots.insn_size = MAX_OPTINSN_SIZE;
 
@@ -231,8 +230,14 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 		goto error;
 
 	/* Setup template */
-	memcpy(buff, optprobe_template_entry,
-			TMPL_END_IDX * sizeof(kprobe_opcode_t));
+	/* We can optimize this via patch_instruction_window later */
+	size = (TMPL_END_IDX * sizeof(kprobe_opcode_t)) / sizeof(int);
+	pr_devel("Copying template to %p, size %lu\n", buff, size);
+	for (i = 0; i < size; i++) {
+		rc = patch_instruction(buff + i, *(optprobe_template_entry + i));
+		if (rc < 0)
+			goto error;
+	}
 
 	/*
 	 * Fixup the template with instructions to:
@@ -261,8 +266,8 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	if (!branch_op_callback || !branch_emulate_step)
 		goto error;
 
-	buff[TMPL_CALL_HDLR_IDX] = branch_op_callback;
-	buff[TMPL_EMULATE_IDX] = branch_emulate_step;
+	patch_instruction(buff + TMPL_CALL_HDLR_IDX, branch_op_callback);
+	patch_instruction(buff + TMPL_EMULATE_IDX, branch_emulate_step);
 
 	/*
 	 * 3. load instruction to be emulated into relevant register, and
@@ -272,8 +277,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	/*
 	 * 4. branch back from trampoline
 	 */
-	buff[TMPL_RET_IDX] = create_branch((unsigned int *)buff + TMPL_RET_IDX,
-				(unsigned long)nip, 0);
+	patch_branch(buff + TMPL_RET_IDX, (unsigned long)nip, 0);
 
 	flush_icache_range((unsigned long)buff,
 			   (unsigned long)(&buff[TMPL_END_IDX]));

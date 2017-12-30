@@ -67,7 +67,7 @@
 
 	backlight-j20 {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 5000000>;
+		pwms = <&pwm1 0 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 		status = "okay";
@@ -181,7 +181,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	pmic: pfuze3000@08 {
+	pmic: pfuze3000@8 {
 		compatible = "fsl,pfuze3000";
 		reg = <0x08>;
 
@@ -279,7 +279,7 @@
 	status = "okay";
 
 	rtc@68 {
-		compatible = "rv4162";
+		compatible = "microcrystal,rv4162";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c2_rv4162>;
 		reg = <0x68>;
@@ -738,7 +738,7 @@
 
 	pinctrl_wdog1: wdog1grp {
 		fsl,pins = <
-			MX7D_PAD_LPSR_GPIO1_IO00__WDOD1_WDOG_B	0x75
+			MX7D_PAD_LPSR_GPIO1_IO00__WDOG1_WDOG_B	0x75
 		>;
 	};
 };

@@ -36,6 +36,7 @@
 #include <asm/opal.h>
 #include <asm/kexec.h>
 #include <asm/smp.h>
+#include <asm/tm.h>
 
 #include "powernv.h"
 
@@ -225,6 +226,8 @@ static void pnv_kexec_wait_secondaries_down(void)
 
 static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 {
+	u64 reinit_flags;
+
 	if (xive_enabled())
 		xive_kexec_teardown_cpu(secondary);
 	else
@@ -254,8 +257,15 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 		 * We might be running as little-endian - now that interrupts
 		 * are disabled, reset the HILE bit to big-endian so we don't
 		 * take interrupts in the wrong endian later
+		 *
+		 * We reinit to enable both radix and hash on P9 to ensure
+		 * the mode used by the next kernel is always supported.
 		 */
-		opal_reinit_cpus(OPAL_REINIT_CPUS_HILE_BE);
+		reinit_flags = OPAL_REINIT_CPUS_HILE_BE;
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			reinit_flags |= OPAL_REINIT_CPUS_MMU_RADIX |
+				OPAL_REINIT_CPUS_MMU_HASH;
+		opal_reinit_cpus(reinit_flags);
 	}
 }
 #endif /* CONFIG_KEXEC_CORE */
@@ -263,7 +273,15 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 static unsigned long pnv_memory_block_size(void)
 {
-	return 256UL * 1024 * 1024;
+	/*
+	 * We map the kernel linear region with 1GB large pages on radix. For
+	 * memory hot unplug to work our memory block size must be at least
+	 * this size.
+	 */
+	if (radix_enabled())
+		return 1UL * 1024 * 1024 * 1024;
+	else
+		return 256UL * 1024 * 1024;
 }
 #endif
 
@@ -273,6 +291,7 @@ static void __init pnv_setup_machdep_opal(void)
 	ppc_md.restart = pnv_restart;
 	pm_power_off = pnv_power_off;
 	ppc_md.halt = pnv_halt;
+	/* ppc_md.system_reset_exception gets filled in by pnv_smp_init() */
 	ppc_md.machine_check_exception = opal_machine_check;
 	ppc_md.mce_check_early_recovery = opal_mce_check_early_recovery;
 	ppc_md.hmi_exception_early = opal_hmi_exception_early;
@@ -294,6 +313,28 @@ static int __init pnv_probe(void)
 	return 1;
 }
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+void __init pnv_tm_init(void)
+{
+	if (!firmware_has_feature(FW_FEATURE_OPAL) ||
+	    !pvr_version_is(PVR_POWER9) ||
+	    early_cpu_has_feature(CPU_FTR_TM))
+		return;
+
+	if (opal_reinit_cpus(OPAL_REINIT_CPUS_TM_SUSPEND_DISABLED) != OPAL_SUCCESS)
+		return;
+
+	pr_info("Enabling TM (Transactional Memory) with Suspend Disabled\n");
+	cur_cpu_spec->cpu_features |= CPU_FTR_TM;
+	/* Make sure "normal" HTM is off (it should be) */
+	cur_cpu_spec->cpu_user_features2 &= ~PPC_FEATURE2_HTM;
+	/* Turn on no suspend mode, and HTM no SC */
+	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_HTM_NO_SUSPEND | \
+					    PPC_FEATURE2_HTM_NOSC;
+	tm_suspend_disabled = true;
+}
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+
 /*
  * Returns the cpu frequency for 'cpu' in Hz. This is used by
  * /proc/cpuinfo
@@ -302,7 +343,7 @@ static unsigned long pnv_get_proc_freq(unsigned int cpu)
 {
 	unsigned long ret_freq;
 
-	ret_freq = cpufreq_quick_get(cpu) * 1000ul;
+	ret_freq = cpufreq_get(cpu) * 1000ul;
 
 	/*
 	 * If the backend cpufreq driver does not exist,

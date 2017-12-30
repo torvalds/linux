@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _POWERNV_H
 #define _POWERNV_H
 
@@ -6,6 +7,8 @@ extern void pnv_smp_init(void);
 #else
 static inline void pnv_smp_init(void) { }
 #endif
+
+extern void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg) __noreturn;
 
 struct pci_dev;
 

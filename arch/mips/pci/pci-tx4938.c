@@ -112,7 +112,7 @@ int __init tx4938_pciclk66_setup(void)
 	return pciclk;
 }
 
-int __init tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot)
+int tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot)
 {
 	if (get_tx4927_pcicptr(dev->bus->sysdata) == tx4938_pcic1ptr) {
 		switch (slot) {

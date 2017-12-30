@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __UM_FS_HOSTFS
 #define __UM_FS_HOSTFS
 

@@ -171,7 +171,7 @@ void clocksource_mark_unstable(struct clocksource *cs)
 	spin_unlock_irqrestore(&watchdog_lock, flags);
 }
 
-static void clocksource_watchdog(unsigned long data)
+static void clocksource_watchdog(struct timer_list *unused)
 {
 	struct clocksource *cs;
 	u64 csnow, wdnow, cslast, wdlast, delta;
@@ -233,6 +233,9 @@ static void clocksource_watchdog(unsigned long data)
 			continue;
 		}
 
+		if (cs == curr_clocksource && cs->tick_stable)
+			cs->tick_stable(cs);
+
 		if (!(cs->flags & CLOCK_SOURCE_VALID_FOR_HRES) &&
 		    (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) &&
 		    (watchdog->flags & CLOCK_SOURCE_IS_CONTINUOUS)) {
@@ -287,8 +290,7 @@ static inline void clocksource_start_watchdog(void)
 {
 	if (watchdog_running || !watchdog || list_empty(&watchdog_list))
 		return;
-	init_timer(&watchdog_timer);
-	watchdog_timer.function = clocksource_watchdog;
+	timer_setup(&watchdog_timer, clocksource_watchdog, 0);
 	watchdog_timer.expires = jiffies + WATCHDOG_INTERVAL;
 	add_timer_on(&watchdog_timer, cpumask_first(cpu_online_mask));
 	watchdog_running = 1;

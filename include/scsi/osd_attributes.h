@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __OSD_ATTRIBUTES_H__
 #define __OSD_ATTRIBUTES_H__
 

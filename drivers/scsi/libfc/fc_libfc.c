@@ -178,7 +178,7 @@ void fc_fill_hdr(struct fc_frame *fp, const struct fc_frame *in_fp,
 		fill = -fr_len(fp) & 3;
 		if (fill) {
 			/* TODO, this may be a problem with fragmented skb */
-			memset(skb_put(fp_skb(fp), fill), 0, fill);
+			skb_put_zero(fp_skb(fp), fill);
 			f_ctl |= fill;
 		}
 		fr_eof(fp) = FC_EOF_T;

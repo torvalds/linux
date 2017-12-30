@@ -28,7 +28,7 @@ Required properties:
 
 Example:
 
-gmii_to_sgmii_converter: phy@0x100000240 {
+gmii_to_sgmii_converter: phy@100000240 {
 	compatible = "altr,gmii-to-sgmii-2.0";
 	reg = <0x00000001 0x00000240 0x00000008>,
 		<0x00000001 0x00000200 0x00000040>;
@@ -40,7 +40,6 @@ gmii_to_sgmii_converter: phy@0x100000240 {
 gmac0: ethernet@ff700000 {
 	compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a", "snps,dwmac";
 	altr,sysmgr-syscon = <&sysmgr 0x60 0>;
-	status = "disabled";
 	reg = <0xff700000 0x2000>;
 	interrupts = <0 115 4>;
 	interrupt-names = "macirq";

@@ -43,25 +43,72 @@
 #include "port.h"
 #include "reg.h"
 
+struct mlxsw_sp_sb_pr {
+	enum mlxsw_reg_sbpr_mode mode;
+	u32 size;
+};
+
+struct mlxsw_cp_sb_occ {
+	u32 cur;
+	u32 max;
+};
+
+struct mlxsw_sp_sb_cm {
+	u32 min_buff;
+	u32 max_buff;
+	u8 pool;
+	struct mlxsw_cp_sb_occ occ;
+};
+
+struct mlxsw_sp_sb_pm {
+	u32 min_buff;
+	u32 max_buff;
+	struct mlxsw_cp_sb_occ occ;
+};
+
+#define MLXSW_SP_SB_POOL_COUNT	4
+#define MLXSW_SP_SB_TC_COUNT	8
+
+struct mlxsw_sp_sb_port {
+	struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
+	struct mlxsw_sp_sb_pm pms[2][MLXSW_SP_SB_POOL_COUNT];
+};
+
+struct mlxsw_sp_sb {
+	struct mlxsw_sp_sb_pr prs[2][MLXSW_SP_SB_POOL_COUNT];
+	struct mlxsw_sp_sb_port *ports;
+	u32 cell_size;
+};
+
+u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
+{
+	return mlxsw_sp->sb->cell_size * cells;
+}
+
+u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp, u32 bytes)
+{
+	return DIV_ROUND_UP(bytes, mlxsw_sp->sb->cell_size);
+}
+
 static struct mlxsw_sp_sb_pr *mlxsw_sp_sb_pr_get(struct mlxsw_sp *mlxsw_sp,
 						 u8 pool,
 						 enum mlxsw_reg_sbxx_dir dir)
 {
-	return &mlxsw_sp->sb.prs[dir][pool];
+	return &mlxsw_sp->sb->prs[dir][pool];
 }
 
 static struct mlxsw_sp_sb_cm *mlxsw_sp_sb_cm_get(struct mlxsw_sp *mlxsw_sp,
 						 u8 local_port, u8 pg_buff,
 						 enum mlxsw_reg_sbxx_dir dir)
 {
-	return &mlxsw_sp->sb.ports[local_port].cms[dir][pg_buff];
+	return &mlxsw_sp->sb->ports[local_port].cms[dir][pg_buff];
 }
 
 static struct mlxsw_sp_sb_pm *mlxsw_sp_sb_pm_get(struct mlxsw_sp *mlxsw_sp,
 						 u8 local_port, u8 pool,
 						 enum mlxsw_reg_sbxx_dir dir)
 {
-	return &mlxsw_sp->sb.ports[local_port].pms[dir][pool];
+	return &mlxsw_sp->sb->ports[local_port].pms[dir][pool];
 }
 
 static int mlxsw_sp_sb_pr_write(struct mlxsw_sp *mlxsw_sp, u8 pool,
@@ -215,16 +262,17 @@ static int mlxsw_sp_sb_ports_init(struct mlxsw_sp *mlxsw_sp)
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
 
-	mlxsw_sp->sb.ports = kcalloc(max_ports, sizeof(struct mlxsw_sp_sb_port),
-				     GFP_KERNEL);
-	if (!mlxsw_sp->sb.ports)
+	mlxsw_sp->sb->ports = kcalloc(max_ports,
+				      sizeof(struct mlxsw_sp_sb_port),
+				      GFP_KERNEL);
+	if (!mlxsw_sp->sb->ports)
 		return -ENOMEM;
 	return 0;
 }
 
 static void mlxsw_sp_sb_ports_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	kfree(mlxsw_sp->sb.ports);
+	kfree(mlxsw_sp->sb->ports);
 }
 
 #define MLXSW_SP_SB_PR_INGRESS_SIZE	12440000
@@ -551,15 +599,19 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, CELL_SIZE))
 		return -EIO;
-	mlxsw_sp->sb.cell_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, CELL_SIZE);
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_BUFFER_SIZE))
 		return -EIO;
 	sb_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE);
 
+	mlxsw_sp->sb = kzalloc(sizeof(*mlxsw_sp->sb), GFP_KERNEL);
+	if (!mlxsw_sp->sb)
+		return -ENOMEM;
+	mlxsw_sp->sb->cell_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, CELL_SIZE);
+
 	err = mlxsw_sp_sb_ports_init(mlxsw_sp);
 	if (err)
-		return err;
+		goto err_sb_ports_init;
 	err = mlxsw_sp_sb_prs_init(mlxsw_sp);
 	if (err)
 		goto err_sb_prs_init;
@@ -584,6 +636,8 @@ err_sb_mms_init:
 err_sb_cpu_port_sb_cms_init:
 err_sb_prs_init:
 	mlxsw_sp_sb_ports_fini(mlxsw_sp);
+err_sb_ports_init:
+	kfree(mlxsw_sp->sb);
 	return err;
 }
 
@@ -591,6 +645,7 @@ void mlxsw_sp_buffers_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	devlink_sb_unregister(priv_to_devlink(mlxsw_sp->core), 0);
 	mlxsw_sp_sb_ports_fini(mlxsw_sp);
+	kfree(mlxsw_sp->sb);
 }
 
 int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port)

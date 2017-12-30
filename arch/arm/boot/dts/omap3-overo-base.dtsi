@@ -51,6 +51,7 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio6 23 GPIO_ACTIVE_LOW>;	/* gpio_183 */
 		vcc-supply = <&hsusb2_power>;
+		#phy-cells = <0>;
 	};
 
 	/* Regulator to trigger the nPoweron signal of the Wifi module */
@@ -72,16 +73,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio1 16 GPIO_ACTIVE_HIGH>;		/* gpio_16: WiFi nReset */
-		startup-delay-us = <10000>;
-	};
-
-	/* Regulator to trigger the nReset signal of the Bluetooth module */
-	w3cbw003c_bt_nreset: regulator-w3cbw003c-bt-nreset {
-		compatible = "regulator-fixed";
-		regulator-name = "regulator-w3cbw003c-bt-nreset";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio6 4 GPIO_ACTIVE_HIGH>;		/* gpio_164: BT nReset */
 		startup-delay-us = <10000>;
 	};
 };
@@ -191,8 +182,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&w3cbw003c_npoweron>;
-	vqmmc-supply = <&w3cbw003c_bt_nreset>;
-	vmmc_aux-supply = <&w3cbw003c_wifi_nreset>;
+	vqmmc-supply = <&w3cbw003c_wifi_nreset>;
 	bus-width = <4>;
 	cap-sdio-irq;
 	non-removable;

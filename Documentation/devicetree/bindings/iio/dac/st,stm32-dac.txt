@@ -10,7 +10,9 @@ current.
 Contents of a stm32 dac root node:
 -----------------------------------
 Required properties:
-- compatible: Must be "st,stm32h7-dac-core".
+- compatible: Should be one of:
+  "st,stm32f4-dac-core"
+  "st,stm32h7-dac-core"
 - reg: Offset and length of the device's register set.
 - clocks: Must contain an entry for pclk (which feeds the peripheral bus
   interface)

@@ -77,7 +77,7 @@
 #include <linux/sysfs.h>
 #include <linux/debugfs.h>
 #include <linux/mod_devicetable.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/i2c.h>
 #include <linux/pci_ids.h>
 #include <linux/delay.h>
@@ -1089,101 +1089,85 @@ static void idt_set_defval(struct idt_89hpesx_dev *pdev)
 	pdev->eeaddr = 0;
 }
 
-#ifdef CONFIG_OF
 static const struct i2c_device_id ee_ids[];
+
 /*
  * idt_ee_match_id() - check whether the node belongs to compatible EEPROMs
  */
-static const struct i2c_device_id *idt_ee_match_id(struct device_node *node)
+static const struct i2c_device_id *idt_ee_match_id(struct fwnode_handle *fwnode)
 {
 	const struct i2c_device_id *id = ee_ids;
+	const char *compatible, *p;
 	char devname[I2C_NAME_SIZE];
+	int ret;
 
-	/* Retrieve the device name without manufacturer name */
-	if (of_modalias_node(node, devname, sizeof(devname)))
+	ret = fwnode_property_read_string(fwnode, "compatible", &compatible);
+	if (ret)
 		return NULL;
 
+	p = strchr(compatible, ',');
+	strlcpy(devname, p ? p + 1 : compatible, sizeof(devname));
 	/* Search through the device name */
-        while (id->name[0]) {
-                if (strcmp(devname, id->name) == 0)
-                        return id;
-                id++;
-        }
-        return NULL;
+	while (id->name[0]) {
+		if (strcmp(devname, id->name) == 0)
+			return id;
+		id++;
+	}
+	return NULL;
 }
 
 /*
- * idt_get_ofdata() - get IDT i2c-device parameters from device tree
+ * idt_get_fw_data() - get IDT i2c-device parameters from device tree
  * @pdev:	Pointer to the driver data
  */
-static void idt_get_ofdata(struct idt_89hpesx_dev *pdev)
+static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 {
-	const struct device_node *node = pdev->client->dev.of_node;
 	struct device *dev = &pdev->client->dev;
+	struct fwnode_handle *fwnode;
+	const struct i2c_device_id *ee_id = NULL;
+	u32 eeprom_addr;
+	int ret;
 
-	/* Read dts node parameters */
-	if (node) {
-		const struct i2c_device_id *ee_id = NULL;
-		struct device_node *child;
-		const __be32 *addr_be;
-		int len;
-
-		/* Walk through all child nodes looking for compatible one */
-		for_each_available_child_of_node(node, child) {
-			ee_id = idt_ee_match_id(child);
-			if (IS_ERR_OR_NULL(ee_id)) {
-				dev_warn(dev, "Skip unsupported child node %s",
-					child->full_name);
-				continue;
-			} else
-				break;
-		}
-
-		/* If there is no child EEPROM device, then set zero size */
-		if (!ee_id) {
-			idt_set_defval(pdev);
-			return;
-		}
-
-		/* Retrieve EEPROM size */
-		pdev->eesize = (u32)ee_id->driver_data;
-
-		/* Get custom EEPROM address from 'reg' attribute */
-		addr_be = of_get_property(child, "reg", &len);
-		if (!addr_be || (len < sizeof(*addr_be))) {
-			dev_warn(dev, "No reg on %s, use default address %d",
-				child->full_name, EEPROM_DEF_ADDR);
-			pdev->inieecmd = 0;
-			pdev->eeaddr = EEPROM_DEF_ADDR << 1;
-		} else {
-			pdev->inieecmd = EEPROM_USA;
-			pdev->eeaddr = be32_to_cpup(addr_be) << 1;
-		}
-
-		/* Check EEPROM 'read-only' flag */
-		if (of_get_property(child, "read-only", NULL))
-			pdev->eero = true;
-		else /* if (!of_get_property(node, "read-only", NULL)) */
-			pdev->eero = false;
-
-		dev_dbg(dev, "EEPROM of %u bytes found by %hhu",
-			pdev->eesize, pdev->eeaddr);
-	} else {
-		dev_warn(dev, "No dts node, EEPROM access disabled");
-		idt_set_defval(pdev);
+	device_for_each_child_node(dev, fwnode) {
+		ee_id = idt_ee_match_id(fwnode);
+		if (IS_ERR_OR_NULL(ee_id)) {
+			dev_warn(dev, "Skip unsupported EEPROM device");
+			continue;
+		} else
+			break;
 	}
-}
-#else
-static void idt_get_ofdata(struct idt_89hpesx_dev *pdev)
-{
-	struct device *dev = &pdev->client->dev;
 
-	dev_warn(dev, "OF table is unsupported, EEPROM access disabled");
+	/* If there is no fwnode EEPROM device, then set zero size */
+	if (!ee_id) {
+		dev_warn(dev, "No fwnode, EEPROM access disabled");
+		idt_set_defval(pdev);
+		return;
+	}
 
-	/* Nothing we can do, just set the default values */
-	idt_set_defval(pdev);
+	/* Retrieve EEPROM size */
+	pdev->eesize = (u32)ee_id->driver_data;
+
+	/* Get custom EEPROM address from 'reg' attribute */
+	ret = fwnode_property_read_u32(fwnode, "reg", &eeprom_addr);
+	if (ret || (eeprom_addr == 0)) {
+		dev_warn(dev, "No EEPROM reg found, use default address 0x%x",
+			 EEPROM_DEF_ADDR);
+		pdev->inieecmd = 0;
+		pdev->eeaddr = EEPROM_DEF_ADDR << 1;
+	} else {
+		pdev->inieecmd = EEPROM_USA;
+		pdev->eeaddr = eeprom_addr << 1;
+	}
+
+	/* Check EEPROM 'read-only' flag */
+	if (fwnode_property_read_bool(fwnode, "read-only"))
+		pdev->eero = true;
+	else /* if (!fwnode_property_read_bool(node, "read-only")) */
+		pdev->eero = false;
+
+	dev_info(dev, "EEPROM of %d bytes found by 0x%x",
+		pdev->eesize, pdev->eeaddr);
 }
-#endif /* CONFIG_OF */
 
 /*
  * idt_create_pdev() - create and init data structure of the driver
@@ -1203,8 +1187,8 @@ static struct idt_89hpesx_dev *idt_create_pdev(struct i2c_client *client)
 	pdev->client = client;
 	i2c_set_clientdata(client, pdev);
 
-	/* Read OF nodes information */
-	idt_get_ofdata(pdev);
+	/* Read firmware nodes information */
+	idt_get_fw_data(pdev);
 
 	/* Initialize basic CSR CMD field - use full DWORD-sized r/w ops */
 	pdev->inicsrcmd = CSR_DWE;

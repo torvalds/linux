@@ -88,7 +88,7 @@ static void kbtab_irq(struct urb *urb)
 			__func__, retval);
 }
 
-static struct usb_device_id kbtab_ids[] = {
+static const struct usb_device_id kbtab_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_KBGEAR, 0x1001), .driver_info = 0 },
 	{ }
 };

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 rc-core-objs	:= rc-main.o rc-ir-raw.o
 
 obj-y += keymaps/
@@ -32,6 +33,8 @@ obj-$(CONFIG_IR_STREAMZAP) += streamzap.o
 obj-$(CONFIG_IR_WINBOND_CIR) += winbond-cir.o
 obj-$(CONFIG_RC_LOOPBACK) += rc-loopback.o
 obj-$(CONFIG_IR_GPIO_CIR) += gpio-ir-recv.o
+obj-$(CONFIG_IR_GPIO_TX) += gpio-ir-tx.o
+obj-$(CONFIG_IR_PWM_TX) += pwm-ir-tx.o
 obj-$(CONFIG_IR_IGORPLUGUSB) += igorplugusb.o
 obj-$(CONFIG_IR_IGUANA) += iguanair.o
 obj-$(CONFIG_IR_TTUSBIR) += ttusbir.o
@@ -41,3 +44,5 @@ obj-$(CONFIG_IR_IMG) += img-ir/
 obj-$(CONFIG_IR_SERIAL) += serial_ir.o
 obj-$(CONFIG_IR_SIR) += sir_ir.o
 obj-$(CONFIG_IR_MTK) += mtk-cir.o
+obj-$(CONFIG_IR_ZX) += zx-irdec.o
+obj-$(CONFIG_IR_TANGO) += tango-ir.o

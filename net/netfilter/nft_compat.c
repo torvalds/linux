@@ -305,7 +305,7 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		hook_mask = 1 << ops->hooknum;
-		if (!(hook_mask & target->hooks))
+		if (target->hooks && !(hook_mask & target->hooks))
 			return -EINVAL;
 
 		ret = nft_compat_chain_validate_dependency(target->table,
@@ -484,7 +484,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		hook_mask = 1 << ops->hooknum;
-		if (!(hook_mask & match->hooks))
+		if (match->hooks && !(hook_mask & match->hooks))
 			return -EINVAL;
 
 		ret = nft_compat_chain_validate_dependency(match->table,
@@ -530,7 +530,8 @@ nla_put_failure:
 
 static int nfnl_compat_get(struct net *net, struct sock *nfnl,
 			   struct sk_buff *skb, const struct nlmsghdr *nlh,
-			   const struct nlattr * const tb[])
+			   const struct nlattr * const tb[],
+			   struct netlink_ext_ack *extack)
 {
 	int ret = 0, target;
 	struct nfgenmsg *nfmsg;

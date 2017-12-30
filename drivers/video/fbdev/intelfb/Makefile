@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_FB_INTEL) += intelfb.o
 
 intelfb-y := intelfbdrv.o intelfbhw.o

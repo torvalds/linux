@@ -100,14 +100,14 @@ static int dtt200u_rc_query(struct dvb_usb_device *d)
 		goto ret;
 
 	if (st->data[0] == 1) {
-		enum rc_type proto = RC_TYPE_NEC;
+		enum rc_proto proto = RC_PROTO_NEC;
 
 		scancode = st->data[1];
 		if ((u8) ~st->data[1] != st->data[2]) {
 			/* Extended NEC */
 			scancode = scancode << 8;
 			scancode |= st->data[2];
-			proto = RC_TYPE_NECX;
+			proto = RC_PROTO_NECX;
 		}
 		scancode = scancode << 8;
 		scancode |= st->data[3];
@@ -213,7 +213,7 @@ static struct dvb_usb_device_properties dtt200u_properties = {
 		.rc_interval     = 300,
 		.rc_codes        = RC_MAP_DTT200U,
 		.rc_query        = dtt200u_rc_query,
-		.allowed_protos  = RC_BIT_NEC,
+		.allowed_protos  = RC_PROTO_BIT_NEC,
 	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -265,7 +265,7 @@ static struct dvb_usb_device_properties wt220u_properties = {
 		.rc_interval     = 300,
 		.rc_codes        = RC_MAP_DTT200U,
 		.rc_query        = dtt200u_rc_query,
-		.allowed_protos  = RC_BIT_NEC,
+		.allowed_protos  = RC_PROTO_BIT_NEC,
 	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -317,7 +317,7 @@ static struct dvb_usb_device_properties wt220u_fc_properties = {
 		.rc_interval     = 300,
 		.rc_codes        = RC_MAP_DTT200U,
 		.rc_query        = dtt200u_rc_query,
-		.allowed_protos  = RC_BIT_NEC,
+		.allowed_protos  = RC_PROTO_BIT_NEC,
 	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -369,7 +369,7 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 		.rc_interval     = 300,
 		.rc_codes        = RC_MAP_DTT200U,
 		.rc_query        = dtt200u_rc_query,
-		.allowed_protos  = RC_BIT_NEC,
+		.allowed_protos  = RC_PROTO_BIT_NEC,
 	},
 
 	.generic_bulk_ctrl_endpoint = 0x01,

@@ -55,6 +55,7 @@ struct nfp_mip;
 const struct nfp_mip *nfp_mip_open(struct nfp_cpp *cpp);
 void nfp_mip_close(const struct nfp_mip *mip);
 
+const char *nfp_mip_name(const struct nfp_mip *mip);
 void nfp_mip_symtab(const struct nfp_mip *mip, u32 *addr, u32 *size);
 void nfp_mip_strtab(const struct nfp_mip *mip, u32 *addr, u32 *size);
 
@@ -87,9 +88,20 @@ struct nfp_rtsym {
 	int domain;
 };
 
-int nfp_rtsym_count(struct nfp_cpp *cpp);
-const struct nfp_rtsym *nfp_rtsym_get(struct nfp_cpp *cpp, int idx);
-const struct nfp_rtsym *nfp_rtsym_lookup(struct nfp_cpp *cpp, const char *name);
-u64 nfp_rtsym_read_le(struct nfp_cpp *cpp, const char *name, int *error);
+struct nfp_rtsym_table;
+
+struct nfp_rtsym_table *nfp_rtsym_table_read(struct nfp_cpp *cpp);
+struct nfp_rtsym_table *
+__nfp_rtsym_table_read(struct nfp_cpp *cpp, const struct nfp_mip *mip);
+int nfp_rtsym_count(struct nfp_rtsym_table *rtbl);
+const struct nfp_rtsym *nfp_rtsym_get(struct nfp_rtsym_table *rtbl, int idx);
+const struct nfp_rtsym *
+nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name);
+
+u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
+		      int *error);
+u8 __iomem *
+nfp_rtsym_map(struct nfp_rtsym_table *rtbl, const char *name, const char *id,
+	      unsigned int min_size, struct nfp_cpp_area **area);
 
 #endif /* NFP_NFFW_H */

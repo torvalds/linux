@@ -57,10 +57,10 @@ static struct rc_map_table trekstor[] = {
 
 static struct rc_map_list trekstor_map = {
 	.map = {
-		.scan    = trekstor,
-		.size    = ARRAY_SIZE(trekstor),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_TREKSTOR,
+		.scan     = trekstor,
+		.size     = ARRAY_SIZE(trekstor),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_TREKSTOR,
 	}
 };
 

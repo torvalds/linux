@@ -194,16 +194,24 @@ static int tegra_bpmp_wait_master_free(struct tegra_bpmp_channel *channel)
 }
 
 static ssize_t __tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
-					 void *data, size_t size)
+					 void *data, size_t size, int *ret)
 {
+	int err;
+
 	if (data && size > 0)
 		memcpy(data, channel->ib->data, size);
 
-	return tegra_ivc_read_advance(channel->ivc);
+	err = tegra_ivc_read_advance(channel->ivc);
+	if (err < 0)
+		return err;
+
+	*ret = channel->ib->code;
+
+	return 0;
 }
 
 static ssize_t tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
-				       void *data, size_t size)
+				       void *data, size_t size, int *ret)
 {
 	struct tegra_bpmp *bpmp = channel->bpmp;
 	unsigned long flags;
@@ -211,14 +219,17 @@ static ssize_t tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
 	int index;
 
 	index = tegra_bpmp_channel_get_thread_index(channel);
-	if (index < 0)
-		return index;
+	if (index < 0) {
+		err = index;
+		goto unlock;
+	}
 
 	spin_lock_irqsave(&bpmp->lock, flags);
-	err = __tegra_bpmp_channel_read(channel, data, size);
+	err = __tegra_bpmp_channel_read(channel, data, size, ret);
 	clear_bit(index, bpmp->threaded.allocated);
 	spin_unlock_irqrestore(&bpmp->lock, flags);
 
+unlock:
 	up(&bpmp->threaded.lock);
 
 	return err;
@@ -256,18 +267,18 @@ tegra_bpmp_write_threaded(struct tegra_bpmp *bpmp, unsigned int mrq,
 
 	index = find_first_zero_bit(bpmp->threaded.allocated, count);
 	if (index == count) {
-		channel = ERR_PTR(-EBUSY);
+		err = -EBUSY;
 		goto unlock;
 	}
 
 	channel = tegra_bpmp_channel_get_thread(bpmp, index);
 	if (!channel) {
-		channel = ERR_PTR(-EINVAL);
+		err = -EINVAL;
 		goto unlock;
 	}
 
 	if (!tegra_bpmp_master_free(channel)) {
-		channel = ERR_PTR(-EBUSY);
+		err = -EBUSY;
 		goto unlock;
 	}
 
@@ -275,16 +286,21 @@ tegra_bpmp_write_threaded(struct tegra_bpmp *bpmp, unsigned int mrq,
 
 	err = __tegra_bpmp_channel_write(channel, mrq, MSG_ACK | MSG_RING,
 					 data, size);
-	if (err < 0) {
-		clear_bit(index, bpmp->threaded.allocated);
-		goto unlock;
-	}
+	if (err < 0)
+		goto clear_allocated;
 
 	set_bit(index, bpmp->threaded.busy);
 
-unlock:
 	spin_unlock_irqrestore(&bpmp->lock, flags);
 	return channel;
+
+clear_allocated:
+	clear_bit(index, bpmp->threaded.allocated);
+unlock:
+	spin_unlock_irqrestore(&bpmp->lock, flags);
+	up(&bpmp->threaded.lock);
+
+	return ERR_PTR(err);
 }
 
 static ssize_t tegra_bpmp_channel_write(struct tegra_bpmp_channel *channel,
@@ -329,7 +345,8 @@ int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 	if (err < 0)
 		return err;
 
-	return __tegra_bpmp_channel_read(channel, msg->rx.data, msg->rx.size);
+	return __tegra_bpmp_channel_read(channel, msg->rx.data, msg->rx.size,
+					 &msg->rx.ret);
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_transfer_atomic);
 
@@ -363,7 +380,8 @@ int tegra_bpmp_transfer(struct tegra_bpmp *bpmp,
 	if (err == 0)
 		return -ETIMEDOUT;
 
-	return tegra_bpmp_channel_read(channel, msg->rx.data, msg->rx.size);
+	return tegra_bpmp_channel_read(channel, msg->rx.data, msg->rx.size,
+				       &msg->rx.ret);
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_transfer);
 
@@ -379,8 +397,8 @@ static struct tegra_bpmp_mrq *tegra_bpmp_find_mrq(struct tegra_bpmp *bpmp,
 	return NULL;
 }
 
-static void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel,
-				  int code, const void *data, size_t size)
+void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel, int code,
+			   const void *data, size_t size)
 {
 	unsigned long flags = channel->ib->flags;
 	struct tegra_bpmp *bpmp = channel->bpmp;
@@ -418,6 +436,7 @@ static void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel,
 		mbox_client_txdone(bpmp->mbox.channel, 0);
 	}
 }
+EXPORT_SYMBOL_GPL(tegra_bpmp_mrq_return);
 
 static void tegra_bpmp_handle_mrq(struct tegra_bpmp *bpmp,
 				  unsigned int mrq,
@@ -798,6 +817,8 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "firmware: %s\n", tag);
 
+	platform_set_drvdata(pdev, bpmp);
+
 	err = of_platform_default_populate(pdev->dev.of_node, NULL, &pdev->dev);
 	if (err < 0)
 		goto free_mrq;
@@ -810,7 +831,13 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto free_mrq;
 
-	platform_set_drvdata(pdev, bpmp);
+	err = tegra_bpmp_init_powergates(bpmp);
+	if (err < 0)
+		goto free_mrq;
+
+	err = tegra_bpmp_init_debugfs(bpmp);
+	if (err < 0)
+		dev_err(&pdev->dev, "debugfs initialization failed: %d\n", err);
 
 	return 0;
 

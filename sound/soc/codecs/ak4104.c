@@ -242,7 +242,7 @@ static int ak4104_soc_resume(struct snd_soc_codec *codec)
 #define ak4104_soc_resume	NULL
 #endif /* CONFIG_PM */
 
-static struct snd_soc_codec_driver soc_codec_device_ak4104 = {
+static const struct snd_soc_codec_driver soc_codec_device_ak4104 = {
 	.probe = ak4104_probe,
 	.remove = ak4104_remove,
 	.suspend = ak4104_soc_suspend,

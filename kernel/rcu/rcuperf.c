@@ -48,6 +48,8 @@
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
 
+#include "rcu.h"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
 
@@ -59,12 +61,16 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
 #define VERBOSE_PERFOUT_ERRSTRING(s) \
 	do { if (verbose) pr_alert("%s" PERF_FLAG "!!! %s\n", perf_type, s); } while (0)
 
+torture_param(bool, gp_async, false, "Use asynchronous GP wait primitives");
+torture_param(int, gp_async_max, 1000, "Max # outstanding waits per reader");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
-torture_param(int, nreaders, -1, "Number of RCU reader threads");
+torture_param(int, nreaders, 0, "Number of RCU reader threads");
 torture_param(int, nwriters, -1, "Number of RCU updater threads");
-torture_param(bool, shutdown, false, "Shutdown at end of performance tests.");
+torture_param(bool, shutdown, !IS_ENABLED(MODULE),
+	      "Shutdown at end of performance tests.");
 torture_param(bool, verbose, true, "Enable verbose debugging printk()s");
+torture_param(int, writer_holdoff, 0, "Holdoff (us) between GPs, zero to disable");
 
 static char *perf_type = "rcu";
 module_param(perf_type, charp, 0444);
@@ -86,13 +92,16 @@ static u64 t_rcu_perf_writer_started;
 static u64 t_rcu_perf_writer_finished;
 static unsigned long b_rcu_perf_writer_started;
 static unsigned long b_rcu_perf_writer_finished;
+static DEFINE_PER_CPU(atomic_t, n_async_inflight);
 
 static int rcu_perf_writer_state;
 #define RTWS_INIT		0
-#define RTWS_EXP_SYNC		1
-#define RTWS_SYNC		2
-#define RTWS_IDLE		2
-#define RTWS_STOPPING		3
+#define RTWS_ASYNC		1
+#define RTWS_BARRIER		2
+#define RTWS_EXP_SYNC		3
+#define RTWS_SYNC		4
+#define RTWS_IDLE		5
+#define RTWS_STOPPING		6
 
 #define MAX_MEAS 10000
 #define MIN_MEAS 100
@@ -114,6 +123,8 @@ struct rcu_perf_ops {
 	unsigned long (*started)(void);
 	unsigned long (*completed)(void);
 	unsigned long (*exp_completed)(void);
+	void (*async)(struct rcu_head *head, rcu_callback_t func);
+	void (*gp_barrier)(void);
 	void (*sync)(void);
 	void (*exp_sync)(void);
 	const char *name;
@@ -153,6 +164,8 @@ static struct rcu_perf_ops rcu_ops = {
 	.started	= rcu_batches_started,
 	.completed	= rcu_batches_completed,
 	.exp_completed	= rcu_exp_batches_completed,
+	.async		= call_rcu,
+	.gp_barrier	= rcu_barrier,
 	.sync		= synchronize_rcu,
 	.exp_sync	= synchronize_rcu_expedited,
 	.name		= "rcu"
@@ -181,6 +194,8 @@ static struct rcu_perf_ops rcu_bh_ops = {
 	.started	= rcu_batches_started_bh,
 	.completed	= rcu_batches_completed_bh,
 	.exp_completed	= rcu_exp_batches_completed_sched,
+	.async		= call_rcu_bh,
+	.gp_barrier	= rcu_barrier_bh,
 	.sync		= synchronize_rcu_bh,
 	.exp_sync	= synchronize_rcu_bh_expedited,
 	.name		= "rcu_bh"
@@ -208,6 +223,16 @@ static unsigned long srcu_perf_completed(void)
 	return srcu_batches_completed(srcu_ctlp);
 }
 
+static void srcu_call_rcu(struct rcu_head *head, rcu_callback_t func)
+{
+	call_srcu(srcu_ctlp, head, func);
+}
+
+static void srcu_rcu_barrier(void)
+{
+	srcu_barrier(srcu_ctlp);
+}
+
 static void srcu_perf_synchronize(void)
 {
 	synchronize_srcu(srcu_ctlp);
@@ -226,9 +251,40 @@ static struct rcu_perf_ops srcu_ops = {
 	.started	= NULL,
 	.completed	= srcu_perf_completed,
 	.exp_completed	= srcu_perf_completed,
+	.async		= srcu_call_rcu,
+	.gp_barrier	= srcu_rcu_barrier,
 	.sync		= srcu_perf_synchronize,
 	.exp_sync	= srcu_perf_synchronize_expedited,
 	.name		= "srcu"
+};
+
+static struct srcu_struct srcud;
+
+static void srcu_sync_perf_init(void)
+{
+	srcu_ctlp = &srcud;
+	init_srcu_struct(srcu_ctlp);
+}
+
+static void srcu_sync_perf_cleanup(void)
+{
+	cleanup_srcu_struct(srcu_ctlp);
+}
+
+static struct rcu_perf_ops srcud_ops = {
+	.ptype		= SRCU_FLAVOR,
+	.init		= srcu_sync_perf_init,
+	.cleanup	= srcu_sync_perf_cleanup,
+	.readlock	= srcu_perf_read_lock,
+	.readunlock	= srcu_perf_read_unlock,
+	.started	= NULL,
+	.completed	= srcu_perf_completed,
+	.exp_completed	= srcu_perf_completed,
+	.async		= srcu_call_rcu,
+	.gp_barrier	= srcu_rcu_barrier,
+	.sync		= srcu_perf_synchronize,
+	.exp_sync	= srcu_perf_synchronize_expedited,
+	.name		= "srcud"
 };
 
 /*
@@ -254,12 +310,12 @@ static struct rcu_perf_ops sched_ops = {
 	.started	= rcu_batches_started_sched,
 	.completed	= rcu_batches_completed_sched,
 	.exp_completed	= rcu_exp_batches_completed_sched,
+	.async		= call_rcu_sched,
+	.gp_barrier	= rcu_barrier_sched,
 	.sync		= synchronize_sched,
 	.exp_sync	= synchronize_sched_expedited,
 	.name		= "sched"
 };
-
-#ifdef CONFIG_TASKS_RCU
 
 /*
  * Definitions for RCU-tasks perf testing.
@@ -281,28 +337,17 @@ static struct rcu_perf_ops tasks_ops = {
 	.readunlock	= tasks_perf_read_unlock,
 	.started	= rcu_no_completed,
 	.completed	= rcu_no_completed,
+	.async		= call_rcu_tasks,
+	.gp_barrier	= rcu_barrier_tasks,
 	.sync		= synchronize_rcu_tasks,
 	.exp_sync	= synchronize_rcu_tasks,
 	.name		= "tasks"
 };
 
-#define RCUPERF_TASKS_OPS &tasks_ops,
-
 static bool __maybe_unused torturing_tasks(void)
 {
 	return cur_ops == &tasks_ops;
 }
-
-#else /* #ifdef CONFIG_TASKS_RCU */
-
-#define RCUPERF_TASKS_OPS
-
-static bool __maybe_unused torturing_tasks(void)
-{
-	return false;
-}
-
-#endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /*
  * If performance tests complete, wait for shutdown to commence.
@@ -344,6 +389,15 @@ rcu_perf_reader(void *arg)
 }
 
 /*
+ * Callback function for asynchronous grace periods from rcu_perf_writer().
+ */
+static void rcu_perf_async_cb(struct rcu_head *rhp)
+{
+	atomic_dec(this_cpu_ptr(&n_async_inflight));
+	kfree(rhp);
+}
+
+/*
  * RCU perf writer kthread.  Repeatedly does a grace period.
  */
 static int
@@ -352,6 +406,7 @@ rcu_perf_writer(void *arg)
 	int i = 0;
 	int i_max;
 	long me = (long)arg;
+	struct rcu_head *rhp = NULL;
 	struct sched_param sp;
 	bool started = false, done = false, alldone = false;
 	u64 t;
@@ -380,9 +435,27 @@ rcu_perf_writer(void *arg)
 	}
 
 	do {
+		if (writer_holdoff)
+			udelay(writer_holdoff);
 		wdp = &wdpp[i];
 		*wdp = ktime_get_mono_fast_ns();
-		if (gp_exp) {
+		if (gp_async) {
+retry:
+			if (!rhp)
+				rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
+			if (rhp && atomic_read(this_cpu_ptr(&n_async_inflight)) < gp_async_max) {
+				rcu_perf_writer_state = RTWS_ASYNC;
+				atomic_inc(this_cpu_ptr(&n_async_inflight));
+				cur_ops->async(rhp, rcu_perf_async_cb);
+				rhp = NULL;
+			} else if (!kthread_should_stop()) {
+				rcu_perf_writer_state = RTWS_BARRIER;
+				cur_ops->gp_barrier();
+				goto retry;
+			} else {
+				kfree(rhp); /* Because we are stopping. */
+			}
+		} else if (gp_exp) {
 			rcu_perf_writer_state = RTWS_EXP_SYNC;
 			cur_ops->exp_sync();
 		} else {
@@ -429,6 +502,10 @@ rcu_perf_writer(void *arg)
 			i++;
 		rcu_perf_wait_shutdown();
 	} while (!torture_must_stop());
+	if (gp_async) {
+		rcu_perf_writer_state = RTWS_BARRIER;
+		cur_ops->gp_barrier();
+	}
 	rcu_perf_writer_state = RTWS_STOPPING;
 	writer_n_durations[me] = i_max;
 	torture_kthread_stopping("rcu_perf_writer");
@@ -451,6 +528,17 @@ rcu_perf_cleanup(void)
 	int ngps = 0;
 	u64 *wdp;
 	u64 *wdpp;
+
+	/*
+	 * Would like warning at start, but everything is expedited
+	 * during the mid-boot phase, so have to wait till the end.
+	 */
+	if (rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp)
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods expedited, no normal ones to measure!");
+	if (rcu_gp_is_normal() && gp_exp)
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods normal, no expedited ones to measure!");
+	if (gp_exp && gp_async)
+		VERBOSE_PERFOUT_ERRSTRING("No expedited async GPs, so went with async!");
 
 	if (torture_cleanup_begin())
 		return;
@@ -554,8 +642,8 @@ rcu_perf_init(void)
 	long i;
 	int firsterr = 0;
 	static struct rcu_perf_ops *perf_ops[] = {
-		&rcu_ops, &rcu_bh_ops, &srcu_ops, &sched_ops,
-		RCUPERF_TASKS_OPS
+		&rcu_ops, &rcu_bh_ops, &srcu_ops, &srcud_ops, &sched_ops,
+		&tasks_ops,
 	};
 
 	if (!torture_init_begin(perf_type, verbose, &perf_runnable))
@@ -622,16 +710,6 @@ rcu_perf_init(void)
 	if (!writer_tasks || !writer_durations || !writer_n_durations) {
 		VERBOSE_PERFOUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;
-		goto unwind;
-	}
-	if (rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp) {
-		VERBOSE_PERFOUT_ERRSTRING("All grace periods expedited, no normal ones to measure!");
-		firsterr = -EINVAL;
-		goto unwind;
-	}
-	if (rcu_gp_is_normal() && gp_exp) {
-		VERBOSE_PERFOUT_ERRSTRING("All grace periods normal, no expedited ones to measure!");
-		firsterr = -EINVAL;
 		goto unwind;
 	}
 	for (i = 0; i < nrealwriters; i++) {

@@ -30,7 +30,7 @@
 
 	soc {
 
-		mmc0: sdhci@09060000 {
+		mmc0: sdhci@9060000 {
 			max-frequency = <200000000>;
 			sd-uhs-sdr50;
 			sd-uhs-sdr104;

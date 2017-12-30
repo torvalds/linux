@@ -18,6 +18,13 @@ Optional property:
 	- ti,max-output-impedance - MAC Interface Impedance control to set
 				    the programmable output impedance to
 				    maximum value (70 ohms).
+	- ti,dp83867-rxctrl-strap-quirk - This denotes the fact that the
+				    board has RX_DV/RX_CTRL pin strapped in
+				    mode 1 or 2. To ensure PHY operation,
+				    there are specific actions that
+				    software needs to take when this pin is
+				    strapped in these modes. See data manual
+				    for details.
 
 Note: ti,min-output-impedance and ti,max-output-impedance are mutually
       exclusive. When both properties are present ti,max-output-impedance

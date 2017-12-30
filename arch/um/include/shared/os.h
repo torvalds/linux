@@ -242,6 +242,10 @@ extern void setup_hostinfo(char *buf, int len);
 extern void os_dump_core(void) __attribute__ ((noreturn));
 extern void um_early_printk(const char *s, unsigned int n);
 extern void os_fix_helper_signals(void);
+extern void os_info(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
+extern void os_warn(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
 
 /* time.c */
 extern void os_idle_sleep(unsigned long long nsecs);
@@ -274,7 +278,7 @@ extern int protect(struct mm_id * mm_idp, unsigned long addr,
 extern int is_skas_winch(int pid, int fd, void *data);
 extern int start_userspace(unsigned long stub_stack);
 extern int copy_context_skas0(unsigned long stack, int pid);
-extern void userspace(struct uml_pt_regs *regs);
+extern void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs);
 extern int map_stub_pages(int fd, unsigned long code, unsigned long data,
 			  unsigned long stack);
 extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));

@@ -47,7 +47,6 @@
 
 #include "skeleton.dtsi"
 #include "armv7-m.dtsi"
-#include <dt-bindings/pinctrl/stm32f429-pinfunc.h>
 #include <dt-bindings/clock/stm32fx-clock.h>
 #include <dt-bindings/mfd/stm32f4-rcc.h>
 
@@ -65,7 +64,7 @@
 			clock-frequency = <32768>;
 		};
 
-		clk-lsi {
+		clk_lsi: clk-lsi {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <32000>;
@@ -307,8 +306,15 @@
 			status = "disabled";
 		};
 
+		iwdg: watchdog@40003000 {
+			compatible = "st,stm32-iwdg";
+			reg = <0x40003000 0x400>;
+			clocks = <&clk_lsi>;
+			status = "disabled";
+		};
+
 		usart2: serial@40004400 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40004400 0x400>;
 			interrupts = <38>;
 			clocks = <&rcc 0 STM32F4_APB1_CLOCK(UART2)>;
@@ -316,7 +322,7 @@
 		};
 
 		usart3: serial@40004800 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40004800 0x400>;
 			interrupts = <39>;
 			clocks = <&rcc 0 STM32F4_APB1_CLOCK(UART3)>;
@@ -354,8 +360,33 @@
 			status = "disabled";
 		};
 
+		dac: dac@40007400 {
+			compatible = "st,stm32f4-dac-core";
+			reg = <0x40007400 0x400>;
+			resets = <&rcc STM32F4_APB1_RESET(DAC)>;
+			clocks = <&rcc 0 STM32F4_APB1_CLOCK(DAC)>;
+			clock-names = "pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			dac1: dac@1 {
+				compatible = "st,stm32-dac";
+				#io-channels-cells = <1>;
+				reg = <1>;
+				status = "disabled";
+			};
+
+			dac2: dac@2 {
+				compatible = "st,stm32-dac";
+				#io-channels-cells = <1>;
+				reg = <2>;
+				status = "disabled";
+			};
+		};
+
 		usart7: serial@40007800 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40007800 0x400>;
 			interrupts = <82>;
 			clocks = <&rcc 0 STM32F4_APB1_CLOCK(UART7)>;
@@ -363,7 +394,7 @@
 		};
 
 		usart8: serial@40007c00 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40007c00 0x400>;
 			interrupts = <83>;
 			clocks = <&rcc 0 STM32F4_APB1_CLOCK(UART8)>;
@@ -413,7 +444,7 @@
 		};
 
 		usart1: serial@40011000 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40011000 0x400>;
 			interrupts = <37>;
 			clocks = <&rcc 0 STM32F4_APB2_CLOCK(USART1)>;
@@ -424,7 +455,7 @@
 		};
 
 		usart6: serial@40011400 {
-			compatible = "st,stm32-usart", "st,stm32-uart";
+			compatible = "st,stm32-uart";
 			reg = <0x40011400 0x400>;
 			interrupts = <71>;
 			clocks = <&rcc 0 STM32F4_APB2_CLOCK(USART6)>;
@@ -549,221 +580,21 @@
 			reg = <0x40007000 0x400>;
 		};
 
-		pin-controller {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "st,stm32f429-pinctrl";
-			ranges = <0 0x40020000 0x3000>;
-			interrupt-parent = <&exti>;
-			st,syscfg = <&syscfg 0x8>;
-			pins-are-numbered;
+		ltdc: display-controller@40016800 {
+			compatible = "st,stm32-ltdc";
+			reg = <0x40016800 0x200>;
+			interrupts = <88>, <89>;
+			resets = <&rcc STM32F4_APB2_RESET(LTDC)>;
+			clocks = <&rcc 1 CLK_LCD>;
+			clock-names = "lcd";
+			status = "disabled";
+		};
 
-			gpioa: gpio@40020000 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x0 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOA)>;
-				st,bank-name = "GPIOA";
-			};
-
-			gpiob: gpio@40020400 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x400 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOB)>;
-				st,bank-name = "GPIOB";
-			};
-
-			gpioc: gpio@40020800 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x800 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOC)>;
-				st,bank-name = "GPIOC";
-			};
-
-			gpiod: gpio@40020c00 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0xc00 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOD)>;
-				st,bank-name = "GPIOD";
-			};
-
-			gpioe: gpio@40021000 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x1000 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOE)>;
-				st,bank-name = "GPIOE";
-			};
-
-			gpiof: gpio@40021400 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x1400 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOF)>;
-				st,bank-name = "GPIOF";
-			};
-
-			gpiog: gpio@40021800 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x1800 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOG)>;
-				st,bank-name = "GPIOG";
-			};
-
-			gpioh: gpio@40021c00 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x1c00 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOH)>;
-				st,bank-name = "GPIOH";
-			};
-
-			gpioi: gpio@40022000 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x2000 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOI)>;
-				st,bank-name = "GPIOI";
-			};
-
-			gpioj: gpio@40022400 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x2400 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOJ)>;
-				st,bank-name = "GPIOJ";
-			};
-
-			gpiok: gpio@40022800 {
-				gpio-controller;
-				#gpio-cells = <2>;
-				reg = <0x2800 0x400>;
-				clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOK)>;
-				st,bank-name = "GPIOK";
-			};
-
-			usart1_pins_a: usart1@0 {
-				pins1 {
-					pinmux = <STM32F429_PA9_FUNC_USART1_TX>;
-					bias-disable;
-					drive-push-pull;
-					slew-rate = <0>;
-				};
-				pins2 {
-					pinmux = <STM32F429_PA10_FUNC_USART1_RX>;
-					bias-disable;
-				};
-			};
-
-			usart3_pins_a: usart3@0 {
-				pins1 {
-					pinmux = <STM32F429_PB10_FUNC_USART3_TX>;
-					bias-disable;
-					drive-push-pull;
-					slew-rate = <0>;
-				};
-				pins2 {
-					pinmux = <STM32F429_PB11_FUNC_USART3_RX>;
-					bias-disable;
-				};
-			};
-
-			usbotg_fs_pins_a: usbotg_fs@0 {
-				pins {
-					pinmux = <STM32F429_PA10_FUNC_OTG_FS_ID>,
-						 <STM32F429_PA11_FUNC_OTG_FS_DM>,
-						 <STM32F429_PA12_FUNC_OTG_FS_DP>;
-					bias-disable;
-					drive-push-pull;
-					slew-rate = <2>;
-				};
-			};
-
-			usbotg_fs_pins_b: usbotg_fs@1 {
-				pins {
-					pinmux = <STM32F429_PB12_FUNC_OTG_HS_ID>,
-						 <STM32F429_PB14_FUNC_OTG_HS_DM>,
-						 <STM32F429_PB15_FUNC_OTG_HS_DP>;
-					bias-disable;
-					drive-push-pull;
-					slew-rate = <2>;
-				};
-			};
-
-			usbotg_hs_pins_a: usbotg_hs@0 {
-				pins {
-					pinmux = <STM32F429_PH4_FUNC_OTG_HS_ULPI_NXT>,
-						 <STM32F429_PI11_FUNC_OTG_HS_ULPI_DIR>,
-						 <STM32F429_PC0_FUNC_OTG_HS_ULPI_STP>,
-						 <STM32F429_PA5_FUNC_OTG_HS_ULPI_CK>,
-						 <STM32F429_PA3_FUNC_OTG_HS_ULPI_D0>,
-						 <STM32F429_PB0_FUNC_OTG_HS_ULPI_D1>,
-						 <STM32F429_PB1_FUNC_OTG_HS_ULPI_D2>,
-						 <STM32F429_PB10_FUNC_OTG_HS_ULPI_D3>,
-						 <STM32F429_PB11_FUNC_OTG_HS_ULPI_D4>,
-						 <STM32F429_PB12_FUNC_OTG_HS_ULPI_D5>,
-						 <STM32F429_PB13_FUNC_OTG_HS_ULPI_D6>,
-						 <STM32F429_PB5_FUNC_OTG_HS_ULPI_D7>;
-					bias-disable;
-					drive-push-pull;
-					slew-rate = <2>;
-				};
-			};
-
-			ethernet_mii: mii@0 {
-				pins {
-					pinmux = <STM32F429_PG13_FUNC_ETH_MII_TXD0_ETH_RMII_TXD0>,
-						 <STM32F429_PG14_FUNC_ETH_MII_TXD1_ETH_RMII_TXD1>,
-						 <STM32F429_PC2_FUNC_ETH_MII_TXD2>,
-						 <STM32F429_PB8_FUNC_ETH_MII_TXD3>,
-						 <STM32F429_PC3_FUNC_ETH_MII_TX_CLK>,
-						 <STM32F429_PG11_FUNC_ETH_MII_TX_EN_ETH_RMII_TX_EN>,
-						 <STM32F429_PA2_FUNC_ETH_MDIO>,
-						 <STM32F429_PC1_FUNC_ETH_MDC>,
-						 <STM32F429_PA1_FUNC_ETH_MII_RX_CLK_ETH_RMII_REF_CLK>,
-						 <STM32F429_PA7_FUNC_ETH_MII_RX_DV_ETH_RMII_CRS_DV>,
-						 <STM32F429_PC4_FUNC_ETH_MII_RXD0_ETH_RMII_RXD0>,
-						 <STM32F429_PC5_FUNC_ETH_MII_RXD1_ETH_RMII_RXD1>,
-						 <STM32F429_PH6_FUNC_ETH_MII_RXD2>,
-						 <STM32F429_PH7_FUNC_ETH_MII_RXD3>;
-					slew-rate = <2>;
-				};
-			};
-
-			adc3_in8_pin: adc@200 {
-				pins {
-					pinmux = <STM32F429_PF10_FUNC_ANALOG>;
-				};
-			};
-
-			pwm1_pins: pwm@1 {
-				pins {
-					pinmux = <STM32F429_PA8_FUNC_TIM1_CH1>,
-						 <STM32F429_PB13_FUNC_TIM1_CH1N>,
-						 <STM32F429_PB12_FUNC_TIM1_BKIN>;
-				};
-			};
-
-			pwm3_pins: pwm@3 {
-				pins {
-					pinmux = <STM32F429_PB4_FUNC_TIM3_CH1>,
-						 <STM32F429_PB5_FUNC_TIM3_CH2>;
-				};
-			};
-
-			i2c1_pins: i2c1@0 {
-				pins {
-					pinmux = <STM32F429_PB9_FUNC_I2C1_SDA>,
-						 <STM32F429_PB6_FUNC_I2C1_SCL>;
-					bias-disable;
-					drive-open-drain;
-					slew-rate = <3>;
-				};
-			};
+		crc: crc@40023000 {
+			compatible = "st,stm32f4-crc";
+			reg = <0x40023000 0x400>;
+			clocks = <&rcc 0 STM32F4_AHB1_CLOCK(CRC)>;
+			status = "disabled";
 		};
 
 		rcc: rcc@40023810 {
@@ -839,6 +670,20 @@
 			interrupts = <67>;
 			clocks = <&rcc 0 39>;
 			clock-names = "otg";
+			status = "disabled";
+		};
+
+		dcmi: dcmi@50050000 {
+			compatible = "st,stm32-dcmi";
+			reg = <0x50050000 0x400>;
+			interrupts = <78>;
+			resets = <&rcc STM32F4_AHB2_RESET(DCMI)>;
+			clocks = <&rcc 0 STM32F4_AHB2_CLOCK(DCMI)>;
+			clock-names = "mclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dcmi_pins>;
+			dmas = <&dma2 1 1 0x414 0x3>;
+			dma-names = "tx";
 			status = "disabled";
 		};
 

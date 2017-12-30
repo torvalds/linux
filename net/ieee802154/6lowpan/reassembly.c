@@ -80,12 +80,13 @@ static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
 	fq->daddr = *arg->dst;
 }
 
-static void lowpan_frag_expire(unsigned long data)
+static void lowpan_frag_expire(struct timer_list *t)
 {
+	struct inet_frag_queue *frag = from_timer(frag, t, timer);
 	struct frag_queue *fq;
 	struct net *net;
 
-	fq = container_of((struct inet_frag_queue *)data, struct frag_queue, q);
+	fq = container_of(frag, struct frag_queue, q);
 	net = container_of(fq->q.net, struct net, ieee802154_lowpan.frags);
 
 	spin_lock(&fq->q.lock);
@@ -580,19 +581,14 @@ static int __net_init lowpan_frags_init_net(struct net *net)
 {
 	struct netns_ieee802154_lowpan *ieee802154_lowpan =
 		net_ieee802154_lowpan(net);
-	int res;
 
 	ieee802154_lowpan->frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	ieee802154_lowpan->frags.low_thresh = IPV6_FRAG_LOW_THRESH;
 	ieee802154_lowpan->frags.timeout = IPV6_FRAG_TIMEOUT;
 
-	res = inet_frags_init_net(&ieee802154_lowpan->frags);
-	if (res)
-		return res;
-	res = lowpan_frags_ns_sysctl_register(net);
-	if (res)
-		inet_frags_uninit_net(&ieee802154_lowpan->frags);
-	return res;
+	inet_frags_init_net(&ieee802154_lowpan->frags);
+
+	return lowpan_frags_ns_sysctl_register(net);
 }
 
 static void __net_exit lowpan_frags_exit_net(struct net *net)

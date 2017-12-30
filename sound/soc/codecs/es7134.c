@@ -69,7 +69,7 @@ static const struct snd_soc_dapm_route es7134_dapm_routes[] = {
 	{ "AOUTR", NULL, "DAC" },
 };
 
-static struct snd_soc_codec_driver es7134_codec_driver = {
+static const struct snd_soc_codec_driver es7134_codec_driver = {
 	.component_driver = {
 		.dapm_widgets		= es7134_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(es7134_dapm_widgets),

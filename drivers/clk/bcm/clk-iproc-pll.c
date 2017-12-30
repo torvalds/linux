@@ -617,12 +617,12 @@ static void iproc_pll_sw_cfg(struct iproc_pll *pll)
 	}
 }
 
-void __init iproc_pll_clk_setup(struct device_node *node,
-				const struct iproc_pll_ctrl *pll_ctrl,
-				const struct iproc_pll_vco_param *vco,
-				unsigned int num_vco_entries,
-				const struct iproc_clk_ctrl *clk_ctrl,
-				unsigned int num_clks)
+void iproc_pll_clk_setup(struct device_node *node,
+			 const struct iproc_pll_ctrl *pll_ctrl,
+			 const struct iproc_pll_vco_param *vco,
+			 unsigned int num_vco_entries,
+			 const struct iproc_clk_ctrl *clk_ctrl,
+			 unsigned int num_clks)
 {
 	int i, ret;
 	struct iproc_pll *pll;

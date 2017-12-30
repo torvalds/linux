@@ -58,8 +58,6 @@ struct panel_drv_data {
 
 	struct videomode vm;
 
-	int data_lines;
-
 	struct spi_device *spi;
 	struct regulator *vcc_reg;
 	int nreset_gpio;
@@ -284,7 +282,7 @@ static struct attribute *tpo_td043_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group tpo_td043_attr_group = {
+static const struct attribute_group tpo_td043_attr_group = {
 	.attrs = tpo_td043_attrs,
 };
 
@@ -378,8 +376,6 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	if (ddata->data_lines)
-		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	r = in->ops.dpi->enable(in);
@@ -461,8 +457,6 @@ static struct omap_dss_driver tpo_td043_ops = {
 
 	.set_mirror	= tpo_td043_set_hmirror,
 	.get_mirror	= tpo_td043_get_hmirror,
-
-	.get_resolution	= omapdss_default_get_resolution,
 };
 
 static int tpo_td043_probe_of(struct spi_device *spi)

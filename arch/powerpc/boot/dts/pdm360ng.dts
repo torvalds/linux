@@ -13,7 +13,7 @@
  * option) any later version.
  */
 
-#include <mpc5121.dtsi>
+#include "mpc5121.dtsi"
 
 / {
 	model = "pdm360ng";

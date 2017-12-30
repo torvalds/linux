@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	.file	"shr_Xsig.S"
 /*---------------------------------------------------------------------------+
  |  shr_Xsig.S                                                               |
@@ -85,3 +86,4 @@ L_more_than_95:
 	popl	%esi
 	leave
 	ret
+ENDPROC(shr_Xsig)

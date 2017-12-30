@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -131,8 +132,7 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 
 	if (prism_header == 1) {
 		struct linux_wlan_ng_prism_hdr *hdr;
-		hdr = (struct linux_wlan_ng_prism_hdr *)
-			skb_push(skb, phdrlen);
+		hdr = skb_push(skb, phdrlen);
 		memset(hdr, 0, phdrlen);
 		hdr->msgcode = LWNG_CAP_DID_BASE;
 		hdr->msglen = sizeof(*hdr);
@@ -153,8 +153,7 @@ hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 #undef LWNG_SETVAL
 	} else if (prism_header == 2) {
 		struct linux_wlan_ng_cap_hdr *hdr;
-		hdr = (struct linux_wlan_ng_cap_hdr *)
-			skb_push(skb, phdrlen);
+		hdr = skb_push(skb, phdrlen);
 		memset(hdr, 0, phdrlen);
 		hdr->version    = htonl(LWNG_CAPHDR_VERSION);
 		hdr->length     = htonl(phdrlen);
@@ -172,7 +171,7 @@ hdr->f.status = s; hdr->f.len = l; hdr->f.data = d
 		hdr->encoding   = htonl(1); /* cck */
 	} else if (prism_header == 3) {
 		struct hostap_radiotap_rx *hdr;
-		hdr = (struct hostap_radiotap_rx *)skb_push(skb, phdrlen);
+		hdr = skb_push(skb, phdrlen);
 		memset(hdr, 0, phdrlen);
 		hdr->hdr.it_len = cpu_to_le16(phdrlen);
 		hdr->hdr.it_present =

@@ -3,6 +3,7 @@ config VIDEO_AM437X_VPFE
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAS_DMA
 	depends on SOC_AM43XX || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
 	help
 	   Support for AM437x Video Processing Front End based Video
 	   Capture Driver.

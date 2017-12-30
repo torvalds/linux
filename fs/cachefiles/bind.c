@@ -133,7 +133,7 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 		goto error_unsupported;
 
 	ret = -EROFS;
-	if (root->d_sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(root->d_sb))
 		goto error_unsupported;
 
 	/* determine the security of the on-disk cache as this governs

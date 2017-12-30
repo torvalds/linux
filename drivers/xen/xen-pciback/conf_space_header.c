@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCI Backend - Handles the virtual fields in the configuration space headers.
  *
@@ -169,6 +170,9 @@ static int rom_write(struct pci_dev *dev, int offset, u32 value, void *data)
 static int bar_write(struct pci_dev *dev, int offset, u32 value, void *data)
 {
 	struct pci_bar_info *bar = data;
+	unsigned int pos = (offset - PCI_BASE_ADDRESS_0) / 4;
+	const struct resource *res = dev->resource;
+	u32 mask;
 
 	if (unlikely(!bar)) {
 		pr_warn(DRV_NAME ": driver data not found for %s\n",
@@ -179,7 +183,13 @@ static int bar_write(struct pci_dev *dev, int offset, u32 value, void *data)
 	/* A write to obtain the length must happen as a 32-bit write.
 	 * This does not (yet) support writing individual bytes
 	 */
-	if (value == ~0)
+	if (res[pos].flags & IORESOURCE_IO)
+		mask = ~PCI_BASE_ADDRESS_IO_MASK;
+	else if (pos && (res[pos - 1].flags & IORESOURCE_MEM_64))
+		mask = 0;
+	else
+		mask = ~PCI_BASE_ADDRESS_MEM_MASK;
+	if ((value | mask) == ~0U)
 		bar->which = 1;
 	else {
 		u32 tmpval;

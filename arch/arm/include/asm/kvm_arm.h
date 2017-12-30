@@ -161,8 +161,7 @@
 #else
 #define VTTBR_X		(5 - KVM_T0SZ)
 #endif
-#define VTTBR_BADDR_SHIFT (VTTBR_X - 1)
-#define VTTBR_BADDR_MASK  (((_AC(1, ULL) << (40 - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
+#define VTTBR_BADDR_MASK  (((_AC(1, ULL) << (40 - VTTBR_X)) - 1) << VTTBR_X)
 #define VTTBR_VMID_SHIFT  _AC(48, ULL)
 #define VTTBR_VMID_MASK(size)	(_AT(u64, (1 << size) - 1) << VTTBR_VMID_SHIFT)
 
@@ -187,6 +186,16 @@
 #define FSC_FAULT	(0x04)
 #define FSC_ACCESS	(0x08)
 #define FSC_PERM	(0x0c)
+#define FSC_SEA		(0x10)
+#define FSC_SEA_TTW0	(0x14)
+#define FSC_SEA_TTW1	(0x15)
+#define FSC_SEA_TTW2	(0x16)
+#define FSC_SEA_TTW3	(0x17)
+#define FSC_SECC	(0x18)
+#define FSC_SECC_TTW0	(0x1c)
+#define FSC_SECC_TTW1	(0x1d)
+#define FSC_SECC_TTW2	(0x1e)
+#define FSC_SECC_TTW3	(0x1f)
 
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~0xf)
@@ -217,7 +226,6 @@
 
 #define HSR_DABT_S1PTW		(_AC(1, UL) << 7)
 #define HSR_DABT_CM		(_AC(1, UL) << 8)
-#define HSR_DABT_EA		(_AC(1, UL) << 9)
 
 #define kvm_arm_exception_type	\
 	{0, "RESET" }, 		\

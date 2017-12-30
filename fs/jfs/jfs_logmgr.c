@@ -1995,7 +1995,7 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
 	bio = bio_alloc(GFP_NOFS, 1);
 
 	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
-	bio->bi_bdev = log->bdev;
+	bio_set_dev(bio, log->bdev);
 
 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
@@ -2139,7 +2139,7 @@ static void lbmStartIO(struct lbuf * bp)
 
 	bio = bio_alloc(GFP_NOFS, 1);
 	bio->bi_iter.bi_sector = bp->l_blkno << (log->l2bsize - 9);
-	bio->bi_bdev = log->bdev;
+	bio_set_dev(bio, log->bdev);
 
 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
 	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
@@ -2205,7 +2205,7 @@ static void lbmIODone(struct bio *bio)
 
 	bp->l_flag |= lbmDONE;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		bp->l_flag |= lbmERROR;
 
 		jfs_err("lbmIODone: I/O error in JFS log");

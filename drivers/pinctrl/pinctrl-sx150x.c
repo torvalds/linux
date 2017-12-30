@@ -561,7 +561,7 @@ static irqreturn_t sx150x_irq_thread_fn(int irq, void *dev_id)
 
 	status = val;
 	for_each_set_bit(n, &status, pctl->data->ngpios)
-		handle_nested_irq(irq_find_mapping(pctl->gpio.irqdomain, n));
+		handle_nested_irq(irq_find_mapping(pctl->gpio.irq.domain, n));
 
 	return IRQ_HANDLED;
 }
@@ -1087,7 +1087,7 @@ static bool sx150x_reg_volatile(struct device *dev, unsigned int reg)
 	return reg == pctl->data->reg_irq_src || reg == pctl->data->reg_data;
 }
 
-const struct regmap_config sx150x_regmap_config = {
+static const struct regmap_config sx150x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 32,
 

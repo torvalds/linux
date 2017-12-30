@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Based on Mans Rullgard's Tango3 DT
  * https://github.com/mansr/linux-tangox
@@ -159,7 +160,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			irq0: irq0@000 {
+			irq0: irq0@0 {
 				reg = <0x000 0x100>;
 				interrupt-controller;
 				#interrupt-cells = <2>;

@@ -226,5 +226,5 @@ err:
 	return error;
 }
 
-CLOCKSOURCE_OF_DECLARE(keystone_timer, "ti,keystone-timer",
+TIMER_OF_DECLARE(keystone_timer, "ti,keystone-timer",
 			   keystone_timer_init);

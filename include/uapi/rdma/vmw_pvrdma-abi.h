@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
 /*
  * Copyright (c) 2012-2016 VMware, Inc.  All rights reserved.
  *
@@ -125,7 +126,8 @@ enum pvrdma_wc_flags {
 	PVRDMA_WC_IP_CSUM_OK		= 1 << 3,
 	PVRDMA_WC_WITH_SMAC		= 1 << 4,
 	PVRDMA_WC_WITH_VLAN		= 1 << 5,
-	PVRDMA_WC_FLAGS_MAX		= PVRDMA_WC_WITH_VLAN,
+	PVRDMA_WC_WITH_NETWORK_HDR_TYPE	= 1 << 6,
+	PVRDMA_WC_FLAGS_MAX		= PVRDMA_WC_WITH_NETWORK_HDR_TYPE,
 };
 
 struct pvrdma_alloc_ucontext_resp {
@@ -157,6 +159,8 @@ struct pvrdma_resize_cq {
 
 struct pvrdma_create_srq {
 	__u64 buf_addr;
+	__u32 buf_size;
+	__u32 reserved;
 };
 
 struct pvrdma_create_srq_resp {
@@ -283,7 +287,8 @@ struct pvrdma_cqe {
 	__u8 dlid_path_bits;
 	__u8 port_num;
 	__u8 smac[6];
-	__u8 reserved2[7]; /* Pad to next power of 2 (64). */
+	__u8 network_hdr_type;
+	__u8 reserved2[6]; /* Pad to next power of 2 (64). */
 };
 
 #endif /* __VMW_PVRDMA_ABI_H__ */

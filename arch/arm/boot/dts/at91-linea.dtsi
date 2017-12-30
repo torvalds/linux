@@ -31,19 +31,30 @@
 	status = "okay";
 
 	eeprom@51 {
-		compatible = "st,24c64";
+		compatible = "st,24c64", "atmel,24c64";
 		reg = <0x51>;
 		pagesize = <32>;
 	};
 };
 
-&nand0 {
+&ebi {
+	pinctrl-0 = <&pinctrl_ebi_nand_addr>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+
+&nand_controller {
 	status = "okay";
 
-	nand-bus-width = <8>;
-	nand-ecc-mode = "hw";
-	atmel,has-pmecc;
-	atmel,pmecc-cap = <4>;
-	atmel,pmecc-sector-size = <512>;
-	nand-on-flash-bbt;
+	nand: nand@3 {
+		reg = <0x3 0x0 0x2>;
+		atmel,rb = <0>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+		nand-on-flash-bbt;
+		label = "atmel_nand";
+	};
 };

@@ -3066,7 +3066,7 @@ static int airo_thread(void *data) {
 		if (ai->jobs) {
 			locked = down_interruptible(&ai->sem);
 		} else {
-			wait_queue_t wait;
+			wait_queue_entry_t wait;
 
 			init_waitqueue_entry(&wait, current);
 			add_wait_queue(&ai->thr_wait, &wait);
@@ -3330,7 +3330,7 @@ static void airo_handle_rx(struct airo_info *ai)
 	}
 
 	skb_reserve(skb, 2); /* This way the IP header is aligned */
-	buffer = (__le16 *) skb_put(skb, len + hdrlen);
+	buffer = skb_put(skb, len + hdrlen);
 	if (test_bit(FLAG_802_11, &ai->flags)) {
 		buffer[0] = fc;
 		bap_read(ai, buffer + 1, hdrlen - 2, BAP0);
@@ -3734,7 +3734,7 @@ static void mpi_receive_802_11(struct airo_info *ai)
 		ai->dev->stats.rx_dropped++;
 		goto badrx;
 	}
-	buffer = (u16*)skb_put (skb, len + hdrlen);
+	buffer = skb_put(skb, len + hdrlen);
 	memcpy ((char *)buffer, ptr, hdrlen);
 	ptr += hdrlen;
 	if (hdrlen == 24)
@@ -7837,7 +7837,7 @@ static int writerids(struct net_device *dev, aironet_ioctl *comp) {
 	struct airo_info *ai = dev->ml_priv;
 	int  ridcode;
         int  enabled;
-	static int (* writer)(struct airo_info *, u16 rid, const void *, int, int);
+	int (*writer)(struct airo_info *, u16 rid, const void *, int, int);
 	unsigned char *iobuf;
 
 	/* Only super-user can write RIDs */

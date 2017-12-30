@@ -27,6 +27,9 @@
 
 #include "omapdss.h"
 
+#define MAX_DSS_LCD_MANAGERS	3
+#define MAX_NUM_DSI		2
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -71,6 +74,14 @@
 #define FLD_GET(val, start, end) (((val) & FLD_MASK(start, end)) >> (end))
 #define FLD_MOD(orig, val, start, end) \
 	(((orig) & ~FLD_MASK(start, end)) | FLD_VAL(val, start, end))
+
+enum dss_model {
+	DSS_MODEL_OMAP2,
+	DSS_MODEL_OMAP3,
+	DSS_MODEL_OMAP4,
+	DSS_MODEL_OMAP5,
+	DSS_MODEL_DRA7,
+};
 
 enum dss_io_pad_mode {
 	DSS_IO_PAD_MODE_RESET,
@@ -174,6 +185,9 @@ struct dss_pll_hw {
 	bool has_freqsel;
 	bool has_selfreqdco;
 	bool has_refsel;
+
+	/* DRA7 errata i886: use high N & M to avoid jitter */
+	bool errata_i886;
 };
 
 struct dss_pll {
@@ -190,6 +204,11 @@ struct dss_pll {
 	const struct dss_pll_ops *ops;
 
 	struct dss_pll_clock_info cinfo;
+};
+
+/* Defines a generic omap register field */
+struct dss_reg_field {
+	u8 start, end;
 };
 
 struct dispc_clock_info {
@@ -219,11 +238,11 @@ struct seq_file;
 struct platform_device;
 
 /* core */
-struct platform_device *dss_get_core_pdev(void);
-int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask);
-void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
-int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
-int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
+static inline int dss_set_min_bus_tput(struct device *dev, unsigned long tput)
+{
+	/* To be implemented when the OMAP platform will provide this feature */
+	return 0;
+}
 
 static inline bool dss_mgr_is_lcd(enum omap_channel id)
 {
@@ -235,6 +254,16 @@ static inline bool dss_mgr_is_lcd(enum omap_channel id)
 }
 
 /* DSS */
+#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
+int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
+#else
+static inline int dss_debugfs_create_file(const char *name,
+					  void (*write)(struct seq_file *))
+{
+	return 0;
+}
+#endif /* CONFIG_OMAP2_DSS_DEBUGFS */
+
 int dss_init_platform_driver(void) __init;
 void dss_uninit_platform_driver(void);
 
@@ -242,6 +271,8 @@ int dss_runtime_get(void);
 void dss_runtime_put(void);
 
 unsigned long dss_get_dispc_clk_rate(void);
+unsigned long dss_get_max_fck_rate(void);
+enum omap_dss_output_id dss_get_supported_outputs(enum omap_channel channel);
 int dss_dpi_select_source(int port, enum omap_channel channel);
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
 enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void);
@@ -252,10 +283,6 @@ void dss_dump_clocks(struct seq_file *s);
 struct dss_pll *dss_video_pll_init(struct platform_device *pdev, int id,
 	struct regulator *regulator);
 void dss_video_pll_uninit(struct dss_pll *pll);
-
-#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
-void dss_debug_dump_clocks(struct seq_file *s);
-#endif
 
 void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable);
 
@@ -281,9 +308,6 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 		dss_div_calc_func func, void *data);
 
 /* SDI */
-int sdi_init_platform_driver(void) __init;
-void sdi_uninit_platform_driver(void);
-
 #ifdef CONFIG_OMAP2_DSS_SDI
 int sdi_init_port(struct platform_device *pdev, struct device_node *port);
 void sdi_uninit_port(struct device_node *port);
@@ -315,15 +339,13 @@ void dsi_irq_handler(void);
 #endif
 
 /* DPI */
-int dpi_init_platform_driver(void) __init;
-void dpi_uninit_platform_driver(void);
-
 #ifdef CONFIG_OMAP2_DSS_DPI
-int dpi_init_port(struct platform_device *pdev, struct device_node *port);
+int dpi_init_port(struct platform_device *pdev, struct device_node *port,
+		  enum dss_model dss_model);
 void dpi_uninit_port(struct device_node *port);
 #else
 static inline int dpi_init_port(struct platform_device *pdev,
-		struct device_node *port)
+		struct device_node *port, enum dss_model dss_model)
 {
 	return 0;
 }
@@ -388,10 +410,6 @@ void hdmi4_uninit_platform_driver(void);
 
 int hdmi5_init_platform_driver(void) __init;
 void hdmi5_uninit_platform_driver(void);
-
-/* RFBI */
-int rfbi_init_platform_driver(void) __init;
-void rfbi_uninit_platform_driver(void);
 
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS

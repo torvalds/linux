@@ -122,7 +122,8 @@ void raw_unhash_sk(struct sock *sk)
 EXPORT_SYMBOL_GPL(raw_unhash_sk);
 
 struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
-		unsigned short num, __be32 raddr, __be32 laddr, int dif)
+			     unsigned short num, __be32 raddr, __be32 laddr,
+			     int dif, int sdif)
 {
 	sk_for_each_from(sk) {
 		struct inet_sock *inet = inet_sk(sk);
@@ -130,7 +131,8 @@ struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
 		if (net_eq(sock_net(sk), net) && inet->inet_num == num	&&
 		    !(inet->inet_daddr && inet->inet_daddr != raddr) 	&&
 		    !(inet->inet_rcv_saddr && inet->inet_rcv_saddr != laddr) &&
-		    !(sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif))
+		    !(sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif &&
+		      sk->sk_bound_dev_if != sdif))
 			goto found; /* gotcha */
 	}
 	sk = NULL;
@@ -171,6 +173,7 @@ static int icmp_filter(const struct sock *sk, const struct sk_buff *skb)
  */
 static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
 {
+	int sdif = inet_sdif(skb);
 	struct sock *sk;
 	struct hlist_head *head;
 	int delivered = 0;
@@ -184,13 +187,13 @@ static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
 	net = dev_net(skb->dev);
 	sk = __raw_v4_lookup(net, __sk_head(head), iph->protocol,
 			     iph->saddr, iph->daddr,
-			     skb->dev->ifindex);
+			     skb->dev->ifindex, sdif);
 
 	while (sk) {
 		delivered = 1;
 		if ((iph->protocol != IPPROTO_ICMP || !icmp_filter(sk, skb)) &&
 		    ip_mc_sf_allow(sk, iph->daddr, iph->saddr,
-				   skb->dev->ifindex)) {
+				   skb->dev->ifindex, sdif)) {
 			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
 
 			/* Not releasing hash table! */
@@ -199,7 +202,7 @@ static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
 		}
 		sk = __raw_v4_lookup(net, sk_next(sk), iph->protocol,
 				     iph->saddr, iph->daddr,
-				     skb->dev->ifindex);
+				     skb->dev->ifindex, sdif);
 	}
 out:
 	read_unlock(&raw_v4_hashinfo.lock);
@@ -297,12 +300,15 @@ void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
 	read_lock(&raw_v4_hashinfo.lock);
 	raw_sk = sk_head(&raw_v4_hashinfo.ht[hash]);
 	if (raw_sk) {
+		int dif = skb->dev->ifindex;
+		int sdif = inet_sdif(skb);
+
 		iph = (const struct iphdr *)skb->data;
 		net = dev_net(skb->dev);
 
 		while ((raw_sk = __raw_v4_lookup(net, raw_sk, protocol,
 						iph->daddr, iph->saddr,
-						skb->dev->ifindex)) != NULL) {
+						dif, sdif)) != NULL) {
 			raw_err(raw_sk, skb, info);
 			raw_sk = sk_next(raw_sk);
 			iph = (const struct iphdr *)skb->data;
@@ -507,11 +513,16 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int err;
 	struct ip_options_data opt_copy;
 	struct raw_frag_vec rfv;
+	int hdrincl;
 
 	err = -EMSGSIZE;
 	if (len > 0xFFFF)
 		goto out;
 
+	/* hdrincl should be READ_ONCE(inet->hdrincl)
+	 * but READ_ONCE() doesn't work with bit fields
+	 */
+	hdrincl = inet->hdrincl;
 	/*
 	 *	Check the flags.
 	 */
@@ -587,7 +598,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		/* Linux does not mangle headers on raw sockets,
 		 * so that IP options + IP_HDRINCL is non-sense.
 		 */
-		if (inet->hdrincl)
+		if (hdrincl)
 			goto done;
 		if (ipc.opt->opt.srr) {
 			if (!daddr)
@@ -609,12 +620,12 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	flowi4_init_output(&fl4, ipc.oif, sk->sk_mark, tos,
 			   RT_SCOPE_UNIVERSE,
-			   inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
+			   hdrincl ? IPPROTO_RAW : sk->sk_protocol,
 			   inet_sk_flowi_flags(sk) |
-			    (inet->hdrincl ? FLOWI_FLAG_KNOWN_NH : 0),
+			    (hdrincl ? FLOWI_FLAG_KNOWN_NH : 0),
 			   daddr, saddr, 0, 0, sk->sk_uid);
 
-	if (!inet->hdrincl) {
+	if (!hdrincl) {
 		rfv.msg = msg;
 		rfv.hlen = 0;
 
@@ -639,7 +650,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		goto do_confirm;
 back_from_confirm:
 
-	if (inet->hdrincl)
+	if (hdrincl)
 		err = raw_send_hdrinc(sk, &fl4, msg, len,
 				      &rt, msg->msg_flags, &ipc.sockc);
 
@@ -1063,7 +1074,7 @@ static void raw_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 		0, 0L, 0,
 		from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
 		0, sock_i_ino(sp),
-		atomic_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
+		refcount_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
 }
 
 static int raw_seq_show(struct seq_file *seq, void *v)

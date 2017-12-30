@@ -107,24 +107,22 @@ void log_verbosity(int level)
  *
  * print_result() is primarily intended for functional tests.
  */
-void print_result(int ret)
+void print_result(const char *test_name, int ret)
 {
-	const char *result = "Unknown return code";
-
 	switch (ret) {
 	case RET_PASS:
-		ksft_inc_pass_cnt();
-		result = PASS;
-		break;
+		ksft_test_result_pass("%s\n", test_name);
+		ksft_print_cnts();
+		return;
 	case RET_ERROR:
-		result = ERROR;
-		break;
+		ksft_test_result_error("%s\n", test_name);
+		ksft_print_cnts();
+		return;
 	case RET_FAIL:
-		ksft_inc_fail_cnt();
-		result = FAIL;
-		break;
+		ksft_test_result_fail("%s\n", test_name);
+		ksft_print_cnts();
+		return;
 	}
-	printf("Result: %s\n", result);
 }
 
 /* log level macros */

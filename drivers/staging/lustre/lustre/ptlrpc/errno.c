@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -25,8 +26,8 @@
  * Copyright (c) 2013, Intel Corporation.
  */
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/lustre/lustre_errno.h"
+#include <linux/libcfs/libcfs.h>
+#include <lustre_errno.h>
 
 /*
  * The two translation tables below must define a one-to-one mapping between

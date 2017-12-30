@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * relocate_kernel.S - put the kernel image in place to boot
  */

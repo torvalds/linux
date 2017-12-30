@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * UHCI HCD (Host Controller Driver) for GRLIB GRUSBHC
  *

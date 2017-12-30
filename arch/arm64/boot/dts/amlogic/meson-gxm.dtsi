@@ -117,6 +117,10 @@
 	};
 };
 
+&clkc_AO {
+	compatible = "amlogic,meson-gxm-aoclkc", "amlogic,meson-gx-aoclkc";
+};
+
 &saradc {
 	compatible = "amlogic,meson-gxm-saradc", "amlogic,meson-saradc";
 };

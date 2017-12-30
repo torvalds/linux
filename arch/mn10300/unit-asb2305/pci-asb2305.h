@@ -30,9 +30,6 @@ extern void pcibios_resource_survey(void);
 
 extern struct pci_ops *pci_root_ops;
 
-extern struct irq_routing_table *pcibios_get_irq_routing_table(void);
-extern int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
-
 /* pci-irq.c */
 
 struct irq_info {

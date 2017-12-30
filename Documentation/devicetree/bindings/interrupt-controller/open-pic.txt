@@ -92,7 +92,6 @@ Example 2:
 
 * References
 
-[1] Power.org (TM) Standard for Embedded Power Architecture (TM) Platform
-    Requirements (ePAPR), Version 1.0, July 2008.
-    (http://www.power.org/resources/downloads/Power_ePAPR_APPROVED_v1.0.pdf)
+[1] Devicetree Specification
+    (https://www.devicetree.org/specifications/)
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  bootmem - A boot-time physical memory allocator and configurator
  *
@@ -118,7 +119,7 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
 	unsigned long end_pfn = min_t(unsigned long,
 				      PFN_DOWN(end), max_low_pfn);
 
-	if (start_pfn > end_pfn)
+	if (start_pfn >= end_pfn)
 		return 0;
 
 	__free_pages_memory(start_pfn, end_pfn);
@@ -145,22 +146,6 @@ static unsigned long __init free_low_memory_core_early(void)
 	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
 				NULL)
 		count += __free_memory_core(start, end);
-
-#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
-	{
-		phys_addr_t size;
-
-		/* Free memblock.reserved array if it was allocated */
-		size = get_allocated_memblock_reserved_regions_info(&start);
-		if (size)
-			count += __free_memory_core(start, start + size);
-
-		/* Free memblock.memory array if it was allocated */
-		size = get_allocated_memblock_memory_regions_info(&start);
-		if (size)
-			count += __free_memory_core(start, start + size);
-	}
-#endif
 
 	return count;
 }

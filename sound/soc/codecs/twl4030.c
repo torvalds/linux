@@ -28,7 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <sound/core.h>
@@ -232,7 +232,7 @@ static struct twl4030_codec_data *twl4030_get_pdata(struct snd_soc_codec *codec)
 	struct twl4030_codec_data *pdata = dev_get_platdata(codec->dev);
 	struct device_node *twl4030_codec_node = NULL;
 
-	twl4030_codec_node = of_find_node_by_name(codec->dev->parent->of_node,
+	twl4030_codec_node = of_get_child_by_name(codec->dev->parent->of_node,
 						  "codec");
 
 	if (!pdata && twl4030_codec_node) {
@@ -241,9 +241,11 @@ static struct twl4030_codec_data *twl4030_get_pdata(struct snd_soc_codec *codec)
 				     GFP_KERNEL);
 		if (!pdata) {
 			dev_err(codec->dev, "Can not allocate memory\n");
+			of_node_put(twl4030_codec_node);
 			return NULL;
 		}
 		twl4030_setup_pdata_of(pdata, twl4030_codec_node);
+		of_node_put(twl4030_codec_node);
 	}
 
 	return pdata;
@@ -2191,7 +2193,7 @@ static int twl4030_soc_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
+static const struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 	.probe = twl4030_soc_probe,
 	.remove = twl4030_soc_remove,
 	.read = twl4030_read,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef XONAR_DG_H_INCLUDED
 #define XONAR_DG_H_INCLUDED
 
@@ -51,6 +52,6 @@ void dg_suspend(struct oxygen *chip);
 void dg_resume(struct oxygen *chip);
 void dg_cleanup(struct oxygen *chip);
 
-extern struct oxygen_model model_xonar_dg;
+extern const struct oxygen_model model_xonar_dg;
 
 #endif

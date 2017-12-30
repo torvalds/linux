@@ -12,7 +12,10 @@ Linux GPU Driver Developer's Guide
    drm-uapi
    i915
    meson
+   pl111
+   tegra
    tinydrm
+   tve200
    vc4
    vga-switcheroo
    vgaarbiter

@@ -145,7 +145,6 @@ static u32
 ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_supported_band *sband,
 			     struct ieee80211_channel *channel,
-			     const struct ieee80211_ht_cap *ht_cap,
 			     const struct ieee80211_ht_operation *ht_oper,
 			     const struct ieee80211_vht_operation *vht_oper,
 			     struct cfg80211_chan_def *chandef, bool tracking)
@@ -163,19 +162,12 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	chandef->center_freq1 = channel->center_freq;
 	chandef->center_freq2 = 0;
 
-	if (!ht_cap || !ht_oper || !sta_ht_cap.ht_supported) {
+	if (!ht_oper || !sta_ht_cap.ht_supported) {
 		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_VHT;
 		goto out;
 	}
 
 	chandef->width = NL80211_CHAN_WIDTH_20;
-
-	if (!(ht_cap->cap_info &
-	      cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40))) {
-		ret = IEEE80211_STA_DISABLE_40MHZ;
-		vht_chandef = *chandef;
-		goto out;
-	}
 
 	ht_cfreq = ieee80211_channel_to_frequency(ht_oper->primary_chan,
 						  channel->band);
@@ -344,7 +336,7 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 
 	/* calculate new channel (type) based on HT/VHT operation IEs */
 	flags = ieee80211_determine_chantype(sdata, sband, chan,
-					     ht_cap, ht_oper, vht_oper,
+					     ht_oper, vht_oper,
 					     &chandef, true);
 
 	/*
@@ -674,8 +666,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	if (ifmgd->flags & IEEE80211_STA_ENABLE_RRM)
 		capab |= WLAN_CAPABILITY_RADIO_MEASURE;
 
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
-	memset(mgmt, 0, 24);
+	mgmt = skb_put_zero(skb, 24);
 	memcpy(mgmt->da, assoc_data->bss->bssid, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, assoc_data->bss->bssid, ETH_ALEN);
@@ -781,11 +772,12 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
 			WLAN_EID_HT_CAPABILITY,
 			WLAN_EID_BSS_COEX_2040,
+			/* luckily this is almost always there */
 			WLAN_EID_EXT_CAPABILITY,
 			WLAN_EID_QOS_TRAFFIC_CAPA,
 			WLAN_EID_TIM_BCAST_REQ,
 			WLAN_EID_INTERWORKING,
-			/* 60GHz doesn't happen right now */
+			/* 60 GHz (Multi-band, DMG, MMS) can't happen */
 			WLAN_EID_VHT_CAPABILITY,
 			WLAN_EID_OPMODE_NOTIF,
 		};
@@ -797,8 +789,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 						 after_ric,
 						 ARRAY_SIZE(after_ric),
 						 offset);
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
+		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
 		offset = noffset;
 	}
 
@@ -813,30 +804,23 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	/* if present, add any custom IEs that go before VHT */
 	if (assoc_data->ie_len) {
 		static const u8 before_vht[] = {
-			WLAN_EID_SSID,
-			WLAN_EID_SUPP_RATES,
-			WLAN_EID_EXT_SUPP_RATES,
-			WLAN_EID_PWR_CAPABILITY,
-			WLAN_EID_SUPPORTED_CHANNELS,
-			WLAN_EID_RSN,
-			WLAN_EID_QOS_CAPA,
-			WLAN_EID_RRM_ENABLED_CAPABILITIES,
-			WLAN_EID_MOBILITY_DOMAIN,
-			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
-			WLAN_EID_HT_CAPABILITY,
+			/*
+			 * no need to list the ones split off before HT
+			 * or generated here
+			 */
 			WLAN_EID_BSS_COEX_2040,
 			WLAN_EID_EXT_CAPABILITY,
 			WLAN_EID_QOS_TRAFFIC_CAPA,
 			WLAN_EID_TIM_BCAST_REQ,
 			WLAN_EID_INTERWORKING,
+			/* 60 GHz (Multi-band, DMG, MMS) can't happen */
 		};
 
 		/* RIC already taken above, so no need to handle here anymore */
 		noffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
 					     before_vht, ARRAY_SIZE(before_vht),
 					     offset);
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
+		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
 		offset = noffset;
 	}
 
@@ -849,8 +833,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		noffset = ieee80211_ie_split_vendor(assoc_data->ie,
 						    assoc_data->ie_len,
 						    offset);
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
+		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
 		offset = noffset;
 	}
 
@@ -869,8 +852,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	/* add any remaining custom (i.e. vendor specific here) IEs */
 	if (assoc_data->ie_len) {
 		noffset = assoc_data->ie_len;
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
+		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
 	}
 
 	if (assoc_data->fils_kek_len &&
@@ -913,7 +895,7 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	struct ieee80211_hdr_3addr *nullfunc;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif);
+	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif, true);
 	if (!skb)
 		return;
 
@@ -949,8 +931,7 @@ static void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	nullfunc = (struct ieee80211_hdr *) skb_put(skb, 30);
-	memset(nullfunc, 0, 30);
+	nullfunc = skb_put_zero(skb, 30);
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC |
 			 IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 	nullfunc->frame_control = fc;
@@ -1085,10 +1066,10 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success)
 }
 EXPORT_SYMBOL(ieee80211_chswitch_done);
 
-static void ieee80211_chswitch_timer(unsigned long data)
+static void ieee80211_chswitch_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		(struct ieee80211_sub_if_data *) data;
+		from_timer(sdata, t, u.mgd.chswitch_timer);
 
 	ieee80211_queue_work(&sdata->local->hw, &sdata->u.mgd.chswitch_work);
 }
@@ -1122,7 +1103,6 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	current_band = cbss->channel->band;
-	memset(&csa_ie, 0, sizeof(csa_ie));
 	res = ieee80211_parse_ch_switch_ie(sdata, elems, current_band,
 					   ifmgd->flags,
 					   ifmgd->associated->bssid, &csa_ie);
@@ -1597,9 +1577,9 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	}
 }
 
-void ieee80211_dynamic_ps_timer(unsigned long data)
+void ieee80211_dynamic_ps_timer(struct timer_list *t)
 {
-	struct ieee80211_local *local = (void *) data;
+	struct ieee80211_local *local = from_timer(local, t, dynamic_ps_timer);
 
 	ieee80211_queue_work(&local->hw, &local->dynamic_ps_enable_work);
 }
@@ -3162,7 +3142,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	if (len < 24 + 6)
 		return;
 
-	reassoc = ieee80211_is_reassoc_req(mgmt->frame_control);
+	reassoc = ieee80211_is_reassoc_resp(mgmt->frame_control);
 	capab_info = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
 	status_code = le16_to_cpu(mgmt->u.assoc_resp.status_code);
 	aid = le16_to_cpu(mgmt->u.assoc_resp.aid);
@@ -3731,10 +3711,10 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	sdata_unlock(sdata);
 }
 
-static void ieee80211_sta_timer(unsigned long data)
+static void ieee80211_sta_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		(struct ieee80211_sub_if_data *) data;
+		from_timer(sdata, t, u.mgd.timer);
 
 	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 }
@@ -4011,10 +3991,10 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 	sdata_unlock(sdata);
 }
 
-static void ieee80211_sta_bcn_mon_timer(unsigned long data)
+static void ieee80211_sta_bcn_mon_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		(struct ieee80211_sub_if_data *) data;
+		from_timer(sdata, t, u.mgd.bcn_mon_timer);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	if (sdata->vif.csa_active && !ifmgd->csa_waiting_bcn)
@@ -4025,10 +4005,10 @@ static void ieee80211_sta_bcn_mon_timer(unsigned long data)
 			     &sdata->u.mgd.beacon_connection_loss_work);
 }
 
-static void ieee80211_sta_conn_mon_timer(unsigned long data)
+static void ieee80211_sta_conn_mon_timer(struct timer_list *t)
 {
 	struct ieee80211_sub_if_data *sdata =
-		(struct ieee80211_sub_if_data *) data;
+		from_timer(sdata, t, u.mgd.conn_mon_timer);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
 
@@ -4159,14 +4139,10 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	INIT_WORK(&ifmgd->request_smps_work, ieee80211_request_smps_mgd_work);
 	INIT_DELAYED_WORK(&ifmgd->tdls_peer_del_work,
 			  ieee80211_tdls_peer_del_work);
-	setup_timer(&ifmgd->timer, ieee80211_sta_timer,
-		    (unsigned long) sdata);
-	setup_timer(&ifmgd->bcn_mon_timer, ieee80211_sta_bcn_mon_timer,
-		    (unsigned long) sdata);
-	setup_timer(&ifmgd->conn_mon_timer, ieee80211_sta_conn_mon_timer,
-		    (unsigned long) sdata);
-	setup_timer(&ifmgd->chswitch_timer, ieee80211_chswitch_timer,
-		    (unsigned long) sdata);
+	timer_setup(&ifmgd->timer, ieee80211_sta_timer, 0);
+	timer_setup(&ifmgd->bcn_mon_timer, ieee80211_sta_bcn_mon_timer, 0);
+	timer_setup(&ifmgd->conn_mon_timer, ieee80211_sta_conn_mon_timer, 0);
+	timer_setup(&ifmgd->chswitch_timer, ieee80211_chswitch_timer, 0);
 	INIT_DELAYED_WORK(&ifmgd->tx_tspec_wk,
 			  ieee80211_sta_handle_tspec_ac_params_wk);
 
@@ -4324,7 +4300,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->flags |= ieee80211_determine_chantype(sdata, sband,
 						     cbss->channel,
-						     ht_cap, ht_oper, vht_oper,
+						     ht_oper, vht_oper,
 						     &chandef, false);
 
 	sdata->needed_rx_chains = min(ieee80211_ht_vht_rx_chains(sdata, cbss),

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for CSR SiRFprimaII onboard UARTs.
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/module.h>
@@ -1253,7 +1252,7 @@ next_hrt:
 	return HRTIMER_RESTART;
 }
 
-static struct of_device_id sirfsoc_uart_ids[] = {
+static const struct of_device_id sirfsoc_uart_ids[] = {
 	{ .compatible = "sirf,prima2-uart", .data = &sirfsoc_uart,},
 	{ .compatible = "sirf,atlas7-uart", .data = &sirfsoc_uart},
 	{ .compatible = "sirf,prima2-usp-uart", .data = &sirfsoc_usp},

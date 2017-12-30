@@ -245,22 +245,26 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 	return 0;
 }
 
-static void iscsi_login_set_conn_values(
+static int iscsi_login_set_conn_values(
 	struct iscsi_session *sess,
 	struct iscsi_conn *conn,
 	__be16 cid)
 {
+	int ret;
 	conn->sess		= sess;
 	conn->cid		= be16_to_cpu(cid);
 	/*
 	 * Generate a random Status sequence number (statsn) for the new
 	 * iSCSI connection.
 	 */
-	get_random_bytes(&conn->stat_sn, sizeof(u32));
+	ret = get_random_bytes_wait(&conn->stat_sn, sizeof(u32));
+	if (unlikely(ret))
+		return ret;
 
 	mutex_lock(&auth_id_lock);
 	conn->auth_id		= iscsit_global->auth_id++;
 	mutex_unlock(&auth_id_lock);
+	return 0;
 }
 
 __printf(2, 3) int iscsi_change_param_sprintf(
@@ -306,7 +310,11 @@ static int iscsi_login_zero_tsih_s1(
 		return -ENOMEM;
 	}
 
-	iscsi_login_set_conn_values(sess, conn, pdu->cid);
+	ret = iscsi_login_set_conn_values(sess, conn, pdu->cid);
+	if (unlikely(ret)) {
+		kfree(sess);
+		return ret;
+	}
 	sess->init_task_tag	= pdu->itt;
 	memcpy(&sess->isid, pdu->isid, 6);
 	sess->exp_cmd_sn	= be32_to_cpu(pdu->cmdsn);
@@ -324,6 +332,9 @@ static int iscsi_login_zero_tsih_s1(
 	spin_lock_init(&sess->cr_i_lock);
 	spin_lock_init(&sess->session_usage_lock);
 	spin_lock_init(&sess->ttt_lock);
+
+	timer_setup(&sess->time2retain_timer,
+		    iscsit_handle_time2retain_timeout, 0);
 
 	idr_preload(GFP_KERNEL);
 	spin_lock_bh(&sess_idr_lock);
@@ -497,8 +508,7 @@ static int iscsi_login_non_zero_tsih_s1(
 {
 	struct iscsi_login_req *pdu = (struct iscsi_login_req *)buf;
 
-	iscsi_login_set_conn_values(NULL, conn, pdu->cid);
-	return 0;
+	return iscsi_login_set_conn_values(NULL, conn, pdu->cid);
 }
 
 /*
@@ -554,9 +564,8 @@ static int iscsi_login_non_zero_tsih_s2(
 		atomic_set(&sess->session_continuation, 1);
 	spin_unlock_bh(&sess->conn_lock);
 
-	iscsi_login_set_conn_values(sess, conn, pdu->cid);
-
-	if (iscsi_copy_param_list(&conn->param_list,
+	if (iscsi_login_set_conn_values(sess, conn, pdu->cid) < 0 ||
+	    iscsi_copy_param_list(&conn->param_list,
 			conn->tpg->param_list, 0) < 0) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
@@ -833,9 +842,9 @@ void iscsi_post_login_handler(
 	iscsit_dec_conn_usage_count(conn);
 }
 
-static void iscsi_handle_login_thread_timeout(unsigned long data)
+void iscsi_handle_login_thread_timeout(struct timer_list *t)
 {
-	struct iscsi_np *np = (struct iscsi_np *) data;
+	struct iscsi_np *np = from_timer(np, t, np_login_timer);
 
 	spin_lock_bh(&np->np_thread_lock);
 	pr_err("iSCSI Login timeout on Network Portal %pISpc\n",
@@ -860,13 +869,9 @@ static void iscsi_start_login_thread_timer(struct iscsi_np *np)
 	 * point we do not have access to ISCSI_TPG_ATTRIB(tpg)->login_timeout
 	 */
 	spin_lock_bh(&np->np_thread_lock);
-	init_timer(&np->np_login_timer);
-	np->np_login_timer.expires = (get_jiffies_64() + TA_LOGIN_TIMEOUT * HZ);
-	np->np_login_timer.data = (unsigned long)np;
-	np->np_login_timer.function = iscsi_handle_login_thread_timeout;
 	np->np_login_timer_flags &= ~ISCSI_TF_STOP;
 	np->np_login_timer_flags |= ISCSI_TF_RUNNING;
-	add_timer(&np->np_login_timer);
+	mod_timer(&np->np_login_timer, jiffies + TA_LOGIN_TIMEOUT * HZ);
 
 	pr_debug("Added timeout timer to iSCSI login request for"
 			" %u seconds.\n", TA_LOGIN_TIMEOUT);
@@ -1237,9 +1242,11 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	flush_signals(current);
 
 	spin_lock_bh(&np->np_thread_lock);
-	if (np->np_thread_state == ISCSI_NP_THREAD_RESET) {
+	if (atomic_dec_if_positive(&np->np_reset_count) >= 0) {
 		np->np_thread_state = ISCSI_NP_THREAD_ACTIVE;
+		spin_unlock_bh(&np->np_thread_lock);
 		complete(&np->np_restart_comp);
+		return 1;
 	} else if (np->np_thread_state == ISCSI_NP_THREAD_SHUTDOWN) {
 		spin_unlock_bh(&np->np_thread_lock);
 		goto exit;
@@ -1258,6 +1265,10 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	pr_debug("Moving to TARG_CONN_STATE_FREE.\n");
 	conn->conn_state = TARG_CONN_STATE_FREE;
 
+	timer_setup(&conn->nopin_response_timer,
+		    iscsit_handle_nopin_response_timeout, 0);
+	timer_setup(&conn->nopin_timer, iscsit_handle_nopin_timeout, 0);
+
 	if (iscsit_conn_set_transport(conn, np->np_transport) < 0) {
 		kfree(conn);
 		return 1;
@@ -1272,7 +1283,8 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		goto exit;
 	} else if (rc < 0) {
 		spin_lock_bh(&np->np_thread_lock);
-		if (np->np_thread_state == ISCSI_NP_THREAD_RESET) {
+		if (atomic_dec_if_positive(&np->np_reset_count) >= 0) {
+			np->np_thread_state = ISCSI_NP_THREAD_ACTIVE;
 			spin_unlock_bh(&np->np_thread_lock);
 			complete(&np->np_restart_comp);
 			iscsit_put_transport(conn->conn_transport);

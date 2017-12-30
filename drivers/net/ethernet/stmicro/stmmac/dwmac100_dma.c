@@ -70,7 +70,7 @@ static void dwmac100_dump_dma_regs(void __iomem *ioaddr, u32 *reg_space)
 {
 	int i;
 
-	for (i = 0; i < 9; i++)
+	for (i = 0; i < NUM_DWMAC100_DMA_REGS; i++)
 		reg_space[DMA_BUS_MODE / 4 + i] =
 			readl(ioaddr + DMA_BUS_MODE + i * 4);
 

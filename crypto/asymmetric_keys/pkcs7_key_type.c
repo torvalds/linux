@@ -19,6 +19,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("PKCS#7 testing key type");
+MODULE_AUTHOR("Red Hat, Inc.");
 
 static unsigned pkcs7_usage;
 module_param_named(usage, pkcs7_usage, uint, S_IWUSR | S_IRUGO);

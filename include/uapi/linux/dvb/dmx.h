@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
 /*
  * dmx.h
  *
@@ -32,28 +33,74 @@
 
 #define DMX_FILTER_SIZE 16
 
-enum dmx_output
-{
-	DMX_OUT_DECODER, /* Streaming directly to decoder. */
-	DMX_OUT_TAP,     /* Output going to a memory buffer */
-			 /* (to be retrieved via the read command).*/
-	DMX_OUT_TS_TAP,  /* Output multiplexed into a new TS  */
-			 /* (to be retrieved by reading from the */
-			 /* logical DVR device).                 */
-	DMX_OUT_TSDEMUX_TAP /* Like TS_TAP but retrieved from the DMX device */
+/**
+ * enum dmx_output - Output for the demux.
+ *
+ * @DMX_OUT_DECODER:
+ *	Streaming directly to decoder.
+ * @DMX_OUT_TAP:
+ *	Output going to a memory buffer (to be retrieved via the read command).
+ *	Delivers the stream output to the demux device on which the ioctl
+ *	is called.
+ * @DMX_OUT_TS_TAP:
+ *	Output multiplexed into a new TS (to be retrieved by reading from the
+ *	logical DVR device). Routes output to the logical DVR device
+ *	``/dev/dvb/adapter?/dvr?``, which delivers a TS multiplexed from all
+ *	filters for which @DMX_OUT_TS_TAP was specified.
+ * @DMX_OUT_TSDEMUX_TAP:
+ *	Like @DMX_OUT_TS_TAP but retrieved from the DMX device.
+ */
+enum dmx_output {
+	DMX_OUT_DECODER,
+	DMX_OUT_TAP,
+	DMX_OUT_TS_TAP,
+	DMX_OUT_TSDEMUX_TAP
 };
 
-typedef enum dmx_output dmx_output_t;
 
-typedef enum dmx_input
-{
-	DMX_IN_FRONTEND, /* Input from a front-end device.  */
-	DMX_IN_DVR       /* Input from the logical DVR device.  */
-} dmx_input_t;
+/**
+ * enum dmx_input - Input from the demux.
+ *
+ * @DMX_IN_FRONTEND:	Input from a front-end device.
+ * @DMX_IN_DVR:		Input from the logical DVR device.
+ */
+enum dmx_input {
+	DMX_IN_FRONTEND,
+	DMX_IN_DVR
+};
 
+/**
+ * enum dmx_ts_pes - type of the PES filter.
+ *
+ * @DMX_PES_AUDIO0:	first audio PID. Also referred as @DMX_PES_AUDIO.
+ * @DMX_PES_VIDEO0:	first video PID. Also referred as @DMX_PES_VIDEO.
+ * @DMX_PES_TELETEXT0:	first teletext PID. Also referred as @DMX_PES_TELETEXT.
+ * @DMX_PES_SUBTITLE0:	first subtitle PID. Also referred as @DMX_PES_SUBTITLE.
+ * @DMX_PES_PCR0:	first Program Clock Reference PID.
+ *			Also referred as @DMX_PES_PCR.
+ *
+ * @DMX_PES_AUDIO1:	second audio PID.
+ * @DMX_PES_VIDEO1:	second video PID.
+ * @DMX_PES_TELETEXT1:	second teletext PID.
+ * @DMX_PES_SUBTITLE1:	second subtitle PID.
+ * @DMX_PES_PCR1:	second Program Clock Reference PID.
+ *
+ * @DMX_PES_AUDIO2:	third audio PID.
+ * @DMX_PES_VIDEO2:	third video PID.
+ * @DMX_PES_TELETEXT2:	third teletext PID.
+ * @DMX_PES_SUBTITLE2:	third subtitle PID.
+ * @DMX_PES_PCR2:	third Program Clock Reference PID.
+ *
+ * @DMX_PES_AUDIO3:	fourth audio PID.
+ * @DMX_PES_VIDEO3:	fourth video PID.
+ * @DMX_PES_TELETEXT3:	fourth teletext PID.
+ * @DMX_PES_SUBTITLE3:	fourth subtitle PID.
+ * @DMX_PES_PCR3:	fourth Program Clock Reference PID.
+ *
+ * @DMX_PES_OTHER:	any other PID.
+ */
 
-typedef enum dmx_ts_pes
-{
+enum dmx_ts_pes {
 	DMX_PES_AUDIO0,
 	DMX_PES_VIDEO0,
 	DMX_PES_TELETEXT0,
@@ -79,7 +126,7 @@ typedef enum dmx_ts_pes
 	DMX_PES_PCR3,
 
 	DMX_PES_OTHER
-} dmx_pes_type_t;
+};
 
 #define DMX_PES_AUDIO    DMX_PES_AUDIO0
 #define DMX_PES_VIDEO    DMX_PES_VIDEO0
@@ -88,56 +135,80 @@ typedef enum dmx_ts_pes
 #define DMX_PES_PCR      DMX_PES_PCR0
 
 
-typedef struct dmx_filter
-{
+
+/**
+ * struct dmx_filter - Specifies a section header filter.
+ *
+ * @filter: bit array with bits to be matched at the section header.
+ * @mask: bits that are valid at the filter bit array.
+ * @mode: mode of match: if bit is zero, it will match if equal (positive
+ *	  match); if bit is one, it will match if the bit is negated.
+ *
+ * Note: All arrays in this struct have a size of DMX_FILTER_SIZE (16 bytes).
+ */
+struct dmx_filter {
 	__u8  filter[DMX_FILTER_SIZE];
 	__u8  mask[DMX_FILTER_SIZE];
 	__u8  mode[DMX_FILTER_SIZE];
-} dmx_filter_t;
+};
 
-
-struct dmx_sct_filter_params
-{
-	__u16          pid;
-	dmx_filter_t   filter;
-	__u32          timeout;
-	__u32          flags;
+/**
+ * struct dmx_sct_filter_params - Specifies a section filter.
+ *
+ * @pid: PID to be filtered.
+ * @filter: section header filter, as defined by &struct dmx_filter.
+ * @timeout: maximum time to filter, in milliseconds.
+ * @flags: extra flags for the section filter.
+ *
+ * Carries the configuration for a MPEG-TS section filter.
+ *
+ * The @flags can be:
+ *
+ *	- %DMX_CHECK_CRC - only deliver sections where the CRC check succeeded;
+ *	- %DMX_ONESHOT - disable the section filter after one section
+ *	  has been delivered;
+ *	- %DMX_IMMEDIATE_START - Start filter immediately without requiring a
+ *	  :ref:`DMX_START`.
+ */
+struct dmx_sct_filter_params {
+	__u16             pid;
+	struct dmx_filter filter;
+	__u32             timeout;
+	__u32             flags;
 #define DMX_CHECK_CRC       1
 #define DMX_ONESHOT         2
 #define DMX_IMMEDIATE_START 4
-#define DMX_KERNEL_CLIENT   0x8000
 };
 
-
-struct dmx_pes_filter_params
-{
-	__u16          pid;
-	dmx_input_t    input;
-	dmx_output_t   output;
-	dmx_pes_type_t pes_type;
-	__u32          flags;
+/**
+ * struct dmx_pes_filter_params - Specifies Packetized Elementary Stream (PES)
+ *	filter parameters.
+ *
+ * @pid:	PID to be filtered.
+ * @input:	Demux input, as specified by &enum dmx_input.
+ * @output:	Demux output, as specified by &enum dmx_output.
+ * @pes_type:	Type of the pes filter, as specified by &enum dmx_pes_type.
+ * @flags:	Demux PES flags.
+ */
+struct dmx_pes_filter_params {
+	__u16           pid;
+	enum dmx_input  input;
+	enum dmx_output output;
+	enum dmx_ts_pes pes_type;
+	__u32           flags;
 };
 
-typedef struct dmx_caps {
-	__u32 caps;
-	int num_decoders;
-} dmx_caps_t;
-
-typedef enum dmx_source {
-	DMX_SOURCE_FRONT0 = 0,
-	DMX_SOURCE_FRONT1,
-	DMX_SOURCE_FRONT2,
-	DMX_SOURCE_FRONT3,
-	DMX_SOURCE_DVR0   = 16,
-	DMX_SOURCE_DVR1,
-	DMX_SOURCE_DVR2,
-	DMX_SOURCE_DVR3
-} dmx_source_t;
-
+/**
+ * struct dmx_stc - Stores System Time Counter (STC) information.
+ *
+ * @num: input data: number of the STC, from 0 to N.
+ * @base: output: divisor for STC to get 90 kHz clock.
+ * @stc: output: stc in @base * 90 kHz units.
+ */
 struct dmx_stc {
-	unsigned int num;	/* input : which STC? 0..N */
-	unsigned int base;	/* output: divisor for stc to get 90 kHz clock */
-	__u64 stc;		/* output: stc in 'base'*90 kHz units */
+	unsigned int num;
+	unsigned int base;
+	__u64 stc;
 };
 
 #define DMX_START                _IO('o', 41)
@@ -146,10 +217,18 @@ struct dmx_stc {
 #define DMX_SET_PES_FILTER       _IOW('o', 44, struct dmx_pes_filter_params)
 #define DMX_SET_BUFFER_SIZE      _IO('o', 45)
 #define DMX_GET_PES_PIDS         _IOR('o', 47, __u16[5])
-#define DMX_GET_CAPS             _IOR('o', 48, dmx_caps_t)
-#define DMX_SET_SOURCE           _IOW('o', 49, dmx_source_t)
 #define DMX_GET_STC              _IOWR('o', 50, struct dmx_stc)
 #define DMX_ADD_PID              _IOW('o', 51, __u16)
 #define DMX_REMOVE_PID           _IOW('o', 52, __u16)
+
+#if !defined(__KERNEL__)
+
+/* This is needed for legacy userspace support */
+typedef enum dmx_output dmx_output_t;
+typedef enum dmx_input dmx_input_t;
+typedef enum dmx_ts_pes dmx_pes_type_t;
+typedef struct dmx_filter dmx_filter_t;
+
+#endif
 
 #endif /* _UAPI_DVBDMX_H_ */

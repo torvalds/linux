@@ -22,7 +22,7 @@
 		      <0xb0000000 0x20000000>;
 	};
 
-	display0: display@di0 {
+	display0: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb565";
 		pinctrl-names = "default";
@@ -172,7 +172,7 @@
 			>;
 		};
 
-		led_pin_gpio7_7: led_gpio7_7@0 {
+		led_pin_gpio7_7: led_gpio7_7 {
 			fsl,pins = <
 				MX53_PAD_PATA_DA_1__GPIO7_7 0x80000000
 			>;
@@ -314,7 +314,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	sgtl5000: codec@0a {
+	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		VDDA-supply = <&reg_3p2v>;
@@ -344,7 +344,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio7 6 0>;
+	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

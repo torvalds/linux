@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * include/uapi/linux/devlink.h - Network physical device Netlink interface
  * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
@@ -224,6 +225,24 @@ enum devlink_dpipe_match_type {
 /* Action type - specify the action type */
 enum devlink_dpipe_action_type {
 	DEVLINK_DPIPE_ACTION_TYPE_FIELD_MODIFY,
+};
+
+enum devlink_dpipe_field_ethernet_id {
+	DEVLINK_DPIPE_FIELD_ETHERNET_DST_MAC,
+};
+
+enum devlink_dpipe_field_ipv4_id {
+	DEVLINK_DPIPE_FIELD_IPV4_DST_IP,
+};
+
+enum devlink_dpipe_field_ipv6_id {
+	DEVLINK_DPIPE_FIELD_IPV6_DST_IP,
+};
+
+enum devlink_dpipe_header_id {
+	DEVLINK_DPIPE_HEADER_ETHERNET,
+	DEVLINK_DPIPE_HEADER_IPV4,
+	DEVLINK_DPIPE_HEADER_IPV6,
 };
 
 #endif /* _UAPI_LINUX_DEVLINK_H_ */

@@ -106,7 +106,6 @@ static int tpl0102_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info tpl0102_info = {
 	.read_raw = tpl0102_read_raw,
 	.write_raw = tpl0102_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int tpl0102_probe(struct i2c_client *client,

@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/gpio/consumer.h>
 #include <asm/unaligned.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -300,6 +301,7 @@ struct mxt_data {
 	u8 multitouch;
 	struct t7_config t7_cfg;
 	struct mxt_dbg dbg;
+	struct gpio_desc *reset_gpio;
 
 	/* Cached parameters from object table */
 	u16 T5_address;
@@ -3117,11 +3119,9 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (IS_ERR(pdata))
 		return PTR_ERR(pdata);
 
-	data = kzalloc(sizeof(struct mxt_data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&client->dev, "Failed to allocate memory\n");
+	data = devm_kzalloc(&client->dev, sizeof(struct mxt_data), GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
-	}
 
 	snprintf(data->phys, sizeof(data->phys), "i2c-%u-%04x/input0",
 		 client->adapter->nr, client->addr);
@@ -3135,19 +3135,40 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	init_completion(&data->reset_completion);
 	init_completion(&data->crc_completion);
 
-	error = request_threaded_irq(client->irq, NULL, mxt_interrupt,
-				     pdata->irqflags | IRQF_ONESHOT,
-				     client->name, data);
+	data->reset_gpio = devm_gpiod_get_optional(&client->dev,
+						   "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(data->reset_gpio)) {
+		error = PTR_ERR(data->reset_gpio);
+		dev_err(&client->dev, "Failed to get reset gpio: %d\n", error);
+		return error;
+	}
+
+	error = devm_request_threaded_irq(&client->dev, client->irq,
+					  NULL, mxt_interrupt,
+					  pdata->irqflags | IRQF_ONESHOT,
+					  client->name, data);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
-		goto err_free_mem;
+		return error;
+	}
+
+	if (data->reset_gpio) {
+		data->in_bootloader = true;
+		msleep(MXT_RESET_TIME);
+		reinit_completion(&data->bl_completion);
+		gpiod_set_value(data->reset_gpio, 1);
+		error = mxt_wait_for_completion(data, &data->bl_completion,
+						MXT_RESET_TIMEOUT);
+		if (error)
+			return error;
+		data->in_bootloader = false;
 	}
 
 	disable_irq(client->irq);
 
 	error = mxt_initialize(data);
 	if (error)
-		goto err_free_irq;
+		return error;
 
 	error = sysfs_create_group(&client->dev.kobj, &mxt_attr_group);
 	if (error) {
@@ -3161,10 +3182,6 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 err_free_object:
 	mxt_free_input_device(data);
 	mxt_free_object_table(data);
-err_free_irq:
-	free_irq(client->irq, data);
-err_free_mem:
-	kfree(data);
 	return error;
 }
 
@@ -3172,11 +3189,10 @@ static int mxt_remove(struct i2c_client *client)
 {
 	struct mxt_data *data = i2c_get_clientdata(client);
 
+	disable_irq(data->irq);
 	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
-	free_irq(data->irq, data);
 	mxt_free_input_device(data);
 	mxt_free_object_table(data);
-	kfree(data);
 
 	return 0;
 }

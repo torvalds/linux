@@ -141,12 +141,6 @@ static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
 	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
 	usleep_range(100, 200);
 
-	/*
-	 * Enable writing to config regs. This is required as the Synopsys
-	 * driver changes the class code. That register needs DBI write enable.
-	 */
-	dw_pcie_writel_dbi(pci, MISC_CONTROL_1_OFF, DBI_RO_WR_EN);
-
 	/* setup root complex */
 	dw_pcie_setup_rc(pp);
 
@@ -175,16 +169,18 @@ static void artpec6_pcie_enable_interrupts(struct artpec6_pcie *artpec6_pcie)
 		dw_pcie_msi_init(pp);
 }
 
-static void artpec6_pcie_host_init(struct pcie_port *pp)
+static int artpec6_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
 
 	artpec6_pcie_establish_link(artpec6_pcie);
 	artpec6_pcie_enable_interrupts(artpec6_pcie);
+
+	return 0;
 }
 
-static struct dw_pcie_host_ops artpec6_pcie_host_ops = {
+static const struct dw_pcie_host_ops artpec6_pcie_host_ops = {
 	.host_init = artpec6_pcie_host_init,
 };
 
@@ -207,9 +203,9 @@ static int artpec6_add_pcie_port(struct artpec6_pcie *artpec6_pcie,
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
-		if (pp->msi_irq <= 0) {
+		if (pp->msi_irq < 0) {
 			dev_err(dev, "failed to get MSI irq\n");
-			return -ENODEV;
+			return pp->msi_irq;
 		}
 
 		ret = devm_request_irq(dev, pp->msi_irq,

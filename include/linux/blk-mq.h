@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BLK_MQ_H
 #define BLK_MQ_H
 
@@ -30,16 +31,16 @@ struct blk_mq_hw_ctx {
 
 	struct sbitmap		ctx_map;
 
+	struct blk_mq_ctx	*dispatch_from;
+
 	struct blk_mq_ctx	**ctxs;
 	unsigned int		nr_ctx;
 
-	wait_queue_t		dispatch_wait;
+	wait_queue_entry_t	dispatch_wait;
 	atomic_t		wait_index;
 
 	struct blk_mq_tags	*tags;
 	struct blk_mq_tags	*sched_tags;
-
-	struct srcu_struct	queue_rq_srcu;
 
 	unsigned long		queued;
 	unsigned long		run;
@@ -62,6 +63,9 @@ struct blk_mq_hw_ctx {
 	struct dentry		*debugfs_dir;
 	struct dentry		*sched_debugfs_dir;
 #endif
+
+	/* Must be the last member - see also blk_mq_hw_ctx_size(). */
+	struct srcu_struct	queue_rq_srcu[0];
 };
 
 struct blk_mq_tag_set {
@@ -87,7 +91,10 @@ struct blk_mq_queue_data {
 	bool last;
 };
 
-typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, const struct blk_mq_queue_data *);
+typedef blk_status_t (queue_rq_fn)(struct blk_mq_hw_ctx *,
+		const struct blk_mq_queue_data *);
+typedef bool (get_budget_fn)(struct blk_mq_hw_ctx *);
+typedef void (put_budget_fn)(struct blk_mq_hw_ctx *);
 typedef enum blk_eh_timer_return (timeout_fn)(struct request *, bool);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
@@ -95,7 +102,6 @@ typedef int (init_request_fn)(struct blk_mq_tag_set *set, struct request *,
 		unsigned int, unsigned int);
 typedef void (exit_request_fn)(struct blk_mq_tag_set *set, struct request *,
 		unsigned int);
-typedef int (reinit_request_fn)(void *, struct request *);
 
 typedef void (busy_iter_fn)(struct blk_mq_hw_ctx *, struct request *, void *,
 		bool);
@@ -109,6 +115,15 @@ struct blk_mq_ops {
 	 * Queue request
 	 */
 	queue_rq_fn		*queue_rq;
+
+	/*
+	 * Reserve budget before queue request, once .queue_rq is
+	 * run, it is driver's responsibility to release the
+	 * reserved budget. Also we have to handle failure case
+	 * of .get_budget for avoiding I/O deadlock.
+	 */
+	get_budget_fn		*get_budget;
+	put_budget_fn		*put_budget;
 
 	/*
 	 * Called on request timeout
@@ -141,7 +156,8 @@ struct blk_mq_ops {
 	 */
 	init_request_fn		*init_request;
 	exit_request_fn		*exit_request;
-	reinit_request_fn	*reinit_request;
+	/* Called from inside blk_get_request() */
+	void (*initialize_rq_fn)(struct request *rq);
 
 	map_queues_fn		*map_queues;
 
@@ -155,10 +171,6 @@ struct blk_mq_ops {
 };
 
 enum {
-	BLK_MQ_RQ_QUEUE_OK	= 0,	/* queued fine */
-	BLK_MQ_RQ_QUEUE_BUSY	= 1,	/* requeue IO for later */
-	BLK_MQ_RQ_QUEUE_ERROR	= 2,	/* end IO with error */
-
 	BLK_MQ_F_SHOULD_MERGE	= 1 << 0,
 	BLK_MQ_F_TAG_SHARED	= 1 << 1,
 	BLK_MQ_F_SG_MERGE	= 1 << 2,
@@ -170,8 +182,7 @@ enum {
 	BLK_MQ_S_STOPPED	= 0,
 	BLK_MQ_S_TAG_ACTIVE	= 1,
 	BLK_MQ_S_SCHED_RESTART	= 2,
-	BLK_MQ_S_TAG_WAITING	= 3,
-	BLK_MQ_S_START_ON_RUN	= 4,
+	BLK_MQ_S_START_ON_RUN	= 3,
 
 	BLK_MQ_MAX_DEPTH	= 10240,
 
@@ -199,15 +210,21 @@ void blk_mq_free_request(struct request *rq);
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *);
 
 enum {
-	BLK_MQ_REQ_NOWAIT	= (1 << 0), /* return when out of requests */
-	BLK_MQ_REQ_RESERVED	= (1 << 1), /* allocate from reserved pool */
-	BLK_MQ_REQ_INTERNAL	= (1 << 2), /* allocate internal/sched tag */
+	/* return when out of requests */
+	BLK_MQ_REQ_NOWAIT	= (__force blk_mq_req_flags_t)(1 << 0),
+	/* allocate from reserved pool */
+	BLK_MQ_REQ_RESERVED	= (__force blk_mq_req_flags_t)(1 << 1),
+	/* allocate internal/sched tag */
+	BLK_MQ_REQ_INTERNAL	= (__force blk_mq_req_flags_t)(1 << 2),
+	/* set RQF_PREEMPT */
+	BLK_MQ_REQ_PREEMPT	= (__force blk_mq_req_flags_t)(1 << 3),
 };
 
-struct request *blk_mq_alloc_request(struct request_queue *q, int rw,
-		unsigned int flags);
-struct request *blk_mq_alloc_request_hctx(struct request_queue *q, int op,
-		unsigned int flags, unsigned int hctx_idx);
+struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
+		blk_mq_req_flags_t flags);
+struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
+		unsigned int op, blk_mq_req_flags_t flags,
+		unsigned int hctx_idx);
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 
 enum {
@@ -230,8 +247,8 @@ static inline u16 blk_mq_unique_tag_to_tag(u32 unique_tag)
 
 int blk_mq_request_started(struct request *rq);
 void blk_mq_start_request(struct request *rq);
-void blk_mq_end_request(struct request *rq, int error);
-void __blk_mq_end_request(struct request *rq, int error);
+void blk_mq_end_request(struct request *rq, blk_status_t error);
+void __blk_mq_end_request(struct request *rq, blk_status_t error);
 
 void blk_mq_requeue_request(struct request *rq, bool kick_requeue_list);
 void blk_mq_add_to_requeue_list(struct request *rq, bool at_head,
@@ -247,8 +264,10 @@ void blk_mq_stop_hw_queues(struct request_queue *q);
 void blk_mq_start_hw_queues(struct request_queue *q);
 void blk_mq_start_stopped_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
 void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async);
+void blk_mq_quiesce_queue(struct request_queue *q);
+void blk_mq_unquiesce_queue(struct request_queue *q);
 void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
-void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
+bool blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
 void blk_mq_run_hw_queues(struct request_queue *q, bool async);
 void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
 void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
@@ -259,10 +278,13 @@ void blk_freeze_queue_start(struct request_queue *q);
 void blk_mq_freeze_queue_wait(struct request_queue *q);
 int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,
 				     unsigned long timeout);
-int blk_mq_reinit_tagset(struct blk_mq_tag_set *set);
+int blk_mq_tagset_iter(struct blk_mq_tag_set *set, void *data,
+		int (reinit_request)(void *, struct request *));
 
 int blk_mq_map_queues(struct blk_mq_tag_set *set);
 void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
+
+void blk_mq_quiesce_queue_nowait(struct request_queue *q);
 
 /*
  * Driver command data is immediately after the request. So subtract request

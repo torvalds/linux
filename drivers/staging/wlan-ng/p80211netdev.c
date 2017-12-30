@@ -258,7 +258,7 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev,
 		return 0;
 	}
 
-	netdev_dbg(wlandev->netdev, "p80211_convert_to_ether failed.\n");
+	netdev_dbg(wlandev->netdev, "%s failed.\n", __func__);
 	return CONV_TO_ETHER_FAILED;
 }
 

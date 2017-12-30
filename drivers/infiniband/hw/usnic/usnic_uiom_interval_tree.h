@@ -48,12 +48,12 @@ struct usnic_uiom_interval_node {
 
 extern void
 usnic_uiom_interval_tree_insert(struct usnic_uiom_interval_node *node,
-					struct rb_root *root);
+					struct rb_root_cached *root);
 extern void
 usnic_uiom_interval_tree_remove(struct usnic_uiom_interval_node *node,
-					struct rb_root *root);
+					struct rb_root_cached *root);
 extern struct usnic_uiom_interval_node *
-usnic_uiom_interval_tree_iter_first(struct rb_root *root,
+usnic_uiom_interval_tree_iter_first(struct rb_root_cached *root,
 					unsigned long start,
 					unsigned long last);
 extern struct usnic_uiom_interval_node *
@@ -63,7 +63,7 @@ usnic_uiom_interval_tree_iter_next(struct usnic_uiom_interval_node *node,
  * Inserts {start...last} into {root}.  If there are overlaps,
  * nodes will be broken up and merged
  */
-int usnic_uiom_insert_interval(struct rb_root *root,
+int usnic_uiom_insert_interval(struct rb_root_cached *root,
 				unsigned long start, unsigned long last,
 				int flags);
 /*
@@ -71,7 +71,7 @@ int usnic_uiom_insert_interval(struct rb_root *root,
  * 'removed.' The caller is responsibile for freeing memory of nodes in
  * 'removed.'
  */
-void usnic_uiom_remove_interval(struct rb_root *root,
+void usnic_uiom_remove_interval(struct rb_root_cached *root,
 				unsigned long start, unsigned long last,
 				struct list_head *removed);
 /*
@@ -81,7 +81,7 @@ void usnic_uiom_remove_interval(struct rb_root *root,
 int usnic_uiom_get_intervals_diff(unsigned long start,
 					unsigned long last, int flags,
 					int flag_mask,
-					struct rb_root *root,
+					struct rb_root_cached *root,
 					struct list_head *diff_set);
 /* Call this to free diff_set returned by usnic_uiom_get_intervals_diff */
 void usnic_uiom_put_interval_set(struct list_head *intervals);

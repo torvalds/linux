@@ -162,7 +162,7 @@ static void arcfour_encrypt(
 		dest[i] = src[i] ^ (unsigned char)arcfour_byte(parc4ctx);
 }
 
-static sint bcrc32initialized = 0;
+static sint bcrc32initialized;
 static u32 crc32_table[256];
 
 
@@ -791,9 +791,9 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 		stainfo = rtw_get_stainfo(&padapter->stapriv, &prxattrib->ta[0]);
 		if (stainfo != NULL) {
 			if (IS_MCAST(prxattrib->ra)) {
-				static unsigned long start = 0;
-				static u32 no_gkey_bc_cnt = 0;
-				static u32 no_gkey_mc_cnt = 0;
+				static unsigned long start;
+				static u32 no_gkey_bc_cnt;
+				static u32 no_gkey_mc_cnt;
 
 				if (psecuritypriv->binstallGrpkey == false) {
 					res = _FAIL;
@@ -1882,9 +1882,9 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_aes_decrypt: stainfo!= NULL!!!\n"));
 
 			if (IS_MCAST(prxattrib->ra)) {
-				static unsigned long start = 0;
-				static u32 no_gkey_bc_cnt = 0;
-				static u32 no_gkey_mc_cnt = 0;
+				static unsigned long start;
+				static u32 no_gkey_bc_cnt;
+				static u32 no_gkey_mc_cnt;
 
 				/* DBG_871X("rx bc/mc packets, to perform sw rtw_aes_decrypt\n"); */
 				/* prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey; */
@@ -2272,7 +2272,7 @@ static void *aes_encrypt_init(u8 *key, size_t len)
 	u32 *rk;
 	if (len != 16)
 		return NULL;
-	rk = (u32 *)rtw_malloc(AES_PRIV_SIZE);
+	rk = rtw_malloc(AES_PRIV_SIZE);
 	if (rk == NULL)
 		return NULL;
 	rijndaelKeySetupEnc(rk, key);

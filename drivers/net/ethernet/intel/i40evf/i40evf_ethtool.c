@@ -165,7 +165,7 @@ static void i40evf_get_ethtool_stats(struct net_device *netdev,
 				     struct ethtool_stats *stats, u64 *data)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	int i, j;
+	unsigned int i, j;
 	char *p;
 
 	for (i = 0; i < I40EVF_GLOBAL_STATS_LEN; i++) {
@@ -197,7 +197,7 @@ static void i40evf_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 	int i;
 
 	if (sset == ETH_SS_STATS) {
-		for (i = 0; i < I40EVF_GLOBAL_STATS_LEN; i++) {
+		for (i = 0; i < (int)I40EVF_GLOBAL_STATS_LEN; i++) {
 			memcpy(p, i40evf_gstrings_stats[i].stat_string,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
@@ -258,29 +258,50 @@ static u32 i40evf_get_priv_flags(struct net_device *netdev)
 static int i40evf_set_priv_flags(struct net_device *netdev, u32 flags)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	u64 changed_flags;
+	u32 orig_flags, new_flags, changed_flags;
 	u32 i;
 
-	changed_flags = adapter->flags;
+	orig_flags = READ_ONCE(adapter->flags);
+	new_flags = orig_flags;
 
 	for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
 		const struct i40evf_priv_flags *priv_flags;
 
 		priv_flags = &i40evf_gstrings_priv_flags[i];
 
-		if (priv_flags->read_only)
-			continue;
-
 		if (flags & BIT(i))
-			adapter->flags |= priv_flags->flag;
+			new_flags |= priv_flags->flag;
 		else
-			adapter->flags &= ~(priv_flags->flag);
+			new_flags &= ~(priv_flags->flag);
+
+		if (priv_flags->read_only &&
+		    ((orig_flags ^ new_flags) & ~BIT(i)))
+			return -EOPNOTSUPP;
 	}
 
-	/* check for flags that changed */
-	changed_flags ^= adapter->flags;
+	/* Before we finalize any flag changes, any checks which we need to
+	 * perform to determine if the new flags will be supported should go
+	 * here...
+	 */
 
-	/* Process any additional changes needed as a result of flag changes. */
+	/* Compare and exchange the new flags into place. If we failed, that
+	 * is if cmpxchg returns anything but the old value, this means
+	 * something else must have modified the flags variable since we
+	 * copied it. We'll just punt with an error and log something in the
+	 * message buffer.
+	 */
+	if (cmpxchg(&adapter->flags, orig_flags, new_flags) != orig_flags) {
+		dev_warn(&adapter->pdev->dev,
+			 "Unable to update adapter->flags as it was modified by another thread...\n");
+		return -EAGAIN;
+	}
+
+	changed_flags = orig_flags ^ new_flags;
+
+	/* Process any additional changes needed as a result of flag changes.
+	 * The changed_flags value reflects the list of bits that were changed
+	 * in the code above.
+	 */
 
 	/* issue a reset to force legacy-rx change to take effect */
 	if (changed_flags & I40EVF_FLAG_LEGACY_RX) {
@@ -648,12 +669,47 @@ static void i40evf_get_channels(struct net_device *netdev,
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	/* Report maximum channels */
-	ch->max_combined = adapter->num_active_queues;
+	ch->max_combined = I40EVF_MAX_REQ_QUEUES;
 
 	ch->max_other = NONQ_VECS;
 	ch->other_count = NONQ_VECS;
 
 	ch->combined_count = adapter->num_active_queues;
+}
+
+/**
+ * i40evf_set_channels: set the new channel count
+ * @netdev: network interface device structure
+ * @ch: channel information structure
+ *
+ * Negotiate a new number of channels with the PF then do a reset.  During
+ * reset we'll realloc queues and fix the RSS table.  Returns 0 on success,
+ * negative on failure.
+ **/
+static int i40evf_set_channels(struct net_device *netdev,
+			       struct ethtool_channels *ch)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	int num_req = ch->combined_count;
+
+	if (num_req != adapter->num_active_queues &&
+	    !(adapter->vf_res->vf_cap_flags &
+	      VIRTCHNL_VF_OFFLOAD_REQ_QUEUES)) {
+		dev_info(&adapter->pdev->dev, "PF is not capable of queue negotiation.\n");
+		return -EINVAL;
+	}
+
+	/* All of these should have already been checked by ethtool before this
+	 * even gets to us, but just to be sure.
+	 */
+	if (num_req <= 0 || num_req > I40EVF_MAX_REQ_QUEUES)
+		return -EINVAL;
+
+	if (ch->rx_count || ch->tx_count || ch->other_count != NONQ_VECS)
+		return -EINVAL;
+
+	adapter->num_req_queues = num_req;
+	return i40evf_request_queues(adapter, num_req);
 }
 
 /**
@@ -764,6 +820,7 @@ static const struct ethtool_ops i40evf_ethtool_ops = {
 	.get_rxfh		= i40evf_get_rxfh,
 	.set_rxfh		= i40evf_set_rxfh,
 	.get_channels		= i40evf_get_channels,
+	.set_channels		= i40evf_set_channels,
 	.get_rxfh_key_size	= i40evf_get_rxfh_key_size,
 	.get_link_ksettings	= i40evf_get_link_ksettings,
 };

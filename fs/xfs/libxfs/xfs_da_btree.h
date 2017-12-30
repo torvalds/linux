@@ -60,10 +60,10 @@ enum xfs_dacmp {
  */
 typedef struct xfs_da_args {
 	struct xfs_da_geometry *geo;	/* da block geometry */
-	const __uint8_t	*name;		/* string (maybe not NULL terminated) */
+	const uint8_t		*name;		/* string (maybe not NULL terminated) */
 	int		namelen;	/* length of string (maybe no NULL) */
-	__uint8_t	filetype;	/* filetype of inode for directories */
-	__uint8_t	*value;		/* set of bytes (maybe contain NULLs) */
+	uint8_t		filetype;	/* filetype of inode for directories */
+	uint8_t		*value;		/* set of bytes (maybe contain NULLs) */
 	int		valuelen;	/* length of value */
 	int		flags;		/* argument flags (eg: ATTR_NOCREATE) */
 	xfs_dahash_t	hashval;	/* hash value of name */
@@ -207,7 +207,7 @@ int	xfs_da_reada_buf(struct xfs_inode *dp, xfs_dablk_t bno,
 int	xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 					  struct xfs_buf *dead_buf);
 
-uint xfs_da_hashname(const __uint8_t *name_string, int name_length);
+uint xfs_da_hashname(const uint8_t *name_string, int name_length);
 enum xfs_dacmp xfs_da_compname(struct xfs_da_args *args,
 				const unsigned char *name, int len);
 

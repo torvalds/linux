@@ -508,8 +508,8 @@ static void __init p1022_ds_setup_arch(void)
 				 * allocate one static local variable for each
 				 * call to this function.
 				 */
-				pr_info("p1022ds: disabling %s node",
-					np2->full_name);
+				pr_info("p1022ds: disabling %pOF node",
+					np2);
 				of_update_property(np2, &nor_status);
 				of_node_put(np2);
 			}
@@ -524,8 +524,8 @@ static void __init p1022_ds_setup_arch(void)
 					.length = sizeof("disabled"),
 				};
 
-				pr_info("p1022ds: disabling %s node",
-					np2->full_name);
+				pr_info("p1022ds: disabling %pOF node",
+					np2);
 				of_update_property(np2, &nand_status);
 				of_node_put(np2);
 			}

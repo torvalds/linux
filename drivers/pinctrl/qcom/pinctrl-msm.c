@@ -202,10 +202,11 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 	return 0;
 }
 
-#define MSM_NO_PULL	0
-#define MSM_PULL_DOWN	1
-#define MSM_KEEPER	2
-#define MSM_PULL_UP	3
+#define MSM_NO_PULL		0
+#define MSM_PULL_DOWN		1
+#define MSM_KEEPER		2
+#define MSM_PULL_UP_NO_KEEPER	2
+#define MSM_PULL_UP		3
 
 static unsigned msm_regval_to_drive(u32 val)
 {
@@ -243,10 +244,16 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = arg == MSM_PULL_DOWN;
 		break;
 	case PIN_CONFIG_BIAS_BUS_HOLD:
+		if (pctrl->soc->pull_no_keeper)
+			return -ENOTSUPP;
+
 		arg = arg == MSM_KEEPER;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
-		arg = arg == MSM_PULL_UP;
+		if (pctrl->soc->pull_no_keeper)
+			arg = arg == MSM_PULL_UP_NO_KEEPER;
+		else
+			arg = arg == MSM_PULL_UP;
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		arg = msm_regval_to_drive(arg);
@@ -309,10 +316,16 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			arg = MSM_PULL_DOWN;
 			break;
 		case PIN_CONFIG_BIAS_BUS_HOLD:
+			if (pctrl->soc->pull_no_keeper)
+				return -ENOTSUPP;
+
 			arg = MSM_KEEPER;
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			arg = MSM_PULL_UP;
+			if (pctrl->soc->pull_no_keeper)
+				arg = MSM_PULL_UP_NO_KEEPER;
+			else
+				arg = MSM_PULL_UP;
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			/* Check for invalid values */
@@ -521,7 +534,7 @@ static void msm_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 #define msm_gpio_dbg_show NULL
 #endif
 
-static struct gpio_chip msm_gpio_template = {
+static const struct gpio_chip msm_gpio_template = {
 	.direction_input  = msm_gpio_direction_input,
 	.direction_output = msm_gpio_direction_output,
 	.get_direction    = msm_gpio_get_direction,
@@ -782,7 +795,7 @@ static void msm_gpio_irq_handler(struct irq_desc *desc)
 		g = &pctrl->soc->groups[i];
 		val = readl(pctrl->regs + g->intr_status_reg);
 		if (val & BIT(g->intr_status_bit)) {
-			irq_pin = irq_find_mapping(gc->irqdomain, i);
+			irq_pin = irq_find_mapping(gc->irq.domain, i);
 			generic_handle_irq(irq_pin);
 			handled++;
 		}

@@ -217,7 +217,7 @@ static int adis16400_set_freq(struct adis16400_state *st, unsigned int freq)
 	return adis_write_reg_8(&st->adis, ADIS16400_SMPL_PRD, val);
 }
 
-static const unsigned adis16400_3db_divisors[] = {
+static const unsigned int adis16400_3db_divisors[] = {
 	[0] = 2, /* Special case */
 	[1] = 6,
 	[2] = 12,
@@ -833,7 +833,6 @@ static struct adis16400_chip_info adis16400_chips[] = {
 };
 
 static const struct iio_info adis16400_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &adis16400_read_raw,
 	.write_raw = &adis16400_write_raw,
 	.update_scan_mode = adis16400_update_scan_mode,
@@ -890,7 +889,7 @@ static const struct adis_data adis16400_data = {
 static void adis16400_setup_chan_mask(struct adis16400_state *st)
 {
 	const struct adis16400_chip_info *chip_info = st->variant;
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < chip_info->num_channels; i++) {
 		const struct iio_chan_spec *ch = &chip_info->channels[i];

@@ -276,7 +276,7 @@ static void stm_disable(struct coresight_device *csdev,
 		spin_unlock(&drvdata->spinlock);
 
 		/* Wait until the engine has completely stopped */
-		coresight_timeout(drvdata, STMTCSR, STMTCSR_BUSY_BIT, 0);
+		coresight_timeout(drvdata->base, STMTCSR, STMTCSR_BUSY_BIT, 0);
 
 		pm_runtime_put(drvdata->dev);
 
@@ -307,7 +307,8 @@ static inline bool stm_addr_unaligned(const void *addr, u8 write_bytes)
 	return ((unsigned long)addr & (write_bytes - 1));
 }
 
-static void stm_send(void *addr, const void *data, u32 size, u8 write_bytes)
+static void stm_send(void __iomem *addr, const void *data,
+		     u32 size, u8 write_bytes)
 {
 	u8 paload[8];
 
@@ -414,7 +415,7 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 				  unsigned int size,
 				  const unsigned char *payload)
 {
-	unsigned long ch_addr;
+	void __iomem *ch_addr;
 	struct stm_drvdata *drvdata = container_of(stm_data,
 						   struct stm_drvdata, stm);
 
@@ -424,7 +425,7 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 	if (channel >= drvdata->numsp)
 		return -EINVAL;
 
-	ch_addr = (unsigned long)stm_channel_addr(drvdata, channel);
+	ch_addr = stm_channel_addr(drvdata, channel);
 
 	flags = (flags == STP_PACKET_TIMESTAMPED) ? STM_FLAG_TIMESTAMPED : 0;
 	flags |= test_bit(channel, drvdata->chs.guaranteed) ?
@@ -437,20 +438,20 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 
 	switch (packet) {
 	case STP_PACKET_FLAG:
-		ch_addr |= stm_channel_off(STM_PKT_TYPE_FLAG, flags);
+		ch_addr += stm_channel_off(STM_PKT_TYPE_FLAG, flags);
 
 		/*
 		 * The generic STM core sets a size of '0' on flag packets.
 		 * As such send a flag packet of size '1' and tell the
 		 * core we did so.
 		 */
-		stm_send((void *)ch_addr, payload, 1, drvdata->write_bytes);
+		stm_send(ch_addr, payload, 1, drvdata->write_bytes);
 		size = 1;
 		break;
 
 	case STP_PACKET_DATA:
-		ch_addr |= stm_channel_off(STM_PKT_TYPE_DATA, flags);
-		stm_send((void *)ch_addr, payload, size,
+		ch_addr += stm_channel_off(STM_PKT_TYPE_DATA, flags);
+		stm_send(ch_addr, payload, size,
 				drvdata->write_bytes);
 		break;
 
@@ -635,21 +636,21 @@ static ssize_t traceid_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(traceid);
 
-#define coresight_stm_simple_func(name, offset)	\
-	coresight_simple_func(struct stm_drvdata, NULL, name, offset)
+#define coresight_stm_reg(name, offset)	\
+	coresight_simple_reg32(struct stm_drvdata, name, offset)
 
-coresight_stm_simple_func(tcsr, STMTCSR);
-coresight_stm_simple_func(tsfreqr, STMTSFREQR);
-coresight_stm_simple_func(syncr, STMSYNCR);
-coresight_stm_simple_func(sper, STMSPER);
-coresight_stm_simple_func(spter, STMSPTER);
-coresight_stm_simple_func(privmaskr, STMPRIVMASKR);
-coresight_stm_simple_func(spscr, STMSPSCR);
-coresight_stm_simple_func(spmscr, STMSPMSCR);
-coresight_stm_simple_func(spfeat1r, STMSPFEAT1R);
-coresight_stm_simple_func(spfeat2r, STMSPFEAT2R);
-coresight_stm_simple_func(spfeat3r, STMSPFEAT3R);
-coresight_stm_simple_func(devid, CORESIGHT_DEVID);
+coresight_stm_reg(tcsr, STMTCSR);
+coresight_stm_reg(tsfreqr, STMTSFREQR);
+coresight_stm_reg(syncr, STMSYNCR);
+coresight_stm_reg(sper, STMSPER);
+coresight_stm_reg(spter, STMSPTER);
+coresight_stm_reg(privmaskr, STMPRIVMASKR);
+coresight_stm_reg(spscr, STMSPSCR);
+coresight_stm_reg(spmscr, STMSPMSCR);
+coresight_stm_reg(spfeat1r, STMSPFEAT1R);
+coresight_stm_reg(spfeat2r, STMSPFEAT2R);
+coresight_stm_reg(spfeat3r, STMSPFEAT3R);
+coresight_stm_reg(devid, CORESIGHT_DEVID);
 
 static struct attribute *coresight_stm_attrs[] = {
 	&dev_attr_hwevent_enable.attr,
@@ -914,15 +915,15 @@ static const struct dev_pm_ops stm_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(stm_runtime_suspend, stm_runtime_resume, NULL)
 };
 
-static struct amba_id stm_ids[] = {
+static const struct amba_id stm_ids[] = {
 	{
-		.id     = 0x0003b962,
-		.mask   = 0x0003ffff,
+		.id     = 0x000bb962,
+		.mask   = 0x000fffff,
 		.data	= "STM32",
 	},
 	{
-		.id	= 0x0003b963,
-		.mask	= 0x0003ffff,
+		.id	= 0x000bb963,
+		.mask	= 0x000fffff,
 		.data	= "STM500",
 	},
 	{ 0, 0},

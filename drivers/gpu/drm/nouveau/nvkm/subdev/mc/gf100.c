@@ -27,6 +27,7 @@ static const struct nvkm_mc_map
 gf100_mc_reset[] = {
 	{ 0x00020000, NVKM_ENGINE_MSPDEC },
 	{ 0x00008000, NVKM_ENGINE_MSVLD },
+	{ 0x00002000, NVKM_SUBDEV_PMU, true },
 	{ 0x00001000, NVKM_ENGINE_GR },
 	{ 0x00000100, NVKM_ENGINE_FIFO },
 	{ 0x00000080, NVKM_ENGINE_CE1 },

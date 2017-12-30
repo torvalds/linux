@@ -43,7 +43,11 @@
 #ifndef _DT_BINDINGS_CLK_SUN6I_A31_H_
 #define _DT_BINDINGS_CLK_SUN6I_A31_H_
 
+#define CLK_PLL_VIDEO0_2X	7
+
 #define CLK_PLL_PERIPH		10
+
+#define CLK_PLL_VIDEO1_2X	13
 
 #define CLK_CPU			18
 

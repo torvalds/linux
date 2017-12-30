@@ -184,6 +184,7 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 		/* Execute flag should always be set when this function is entered */
 
 		if (!(walk_state->parse_flags & ACPI_PARSE_EXECUTE)) {
+			ACPI_ERROR((AE_INFO, "Parse execute mode is not set"));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 
@@ -556,6 +557,7 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 			return_ACPI_STATUS(AE_OK);
 		}
 
+		ACPI_ERROR((AE_INFO, "Parse deferred mode is not set"));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 

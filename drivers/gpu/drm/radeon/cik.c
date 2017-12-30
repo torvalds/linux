@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
@@ -33,7 +33,6 @@
 #include "cik_blit_shaders.h"
 #include "radeon_ucode.h"
 #include "clearstate_ci.h"
-#include "radeon_kfd.h"
 
 #define SH_MEM_CONFIG_GFX_DEFAULT \
 	ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED)
@@ -4580,23 +4579,24 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 	/* init the pipes */
 	mutex_lock(&rdev->srbm_mutex);
 
-	eop_gpu_addr = rdev->mec.hpd_eop_gpu_addr;
+	for (i = 0; i < rdev->mec.num_pipe; ++i) {
+		cik_srbm_select(rdev, 0, i, 0, 0);
 
-	cik_srbm_select(rdev, 0, 0, 0, 0);
+		eop_gpu_addr = rdev->mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE * 2) ;
+		/* write the EOP addr */
+		WREG32(CP_HPD_EOP_BASE_ADDR, eop_gpu_addr >> 8);
+		WREG32(CP_HPD_EOP_BASE_ADDR_HI, upper_32_bits(eop_gpu_addr) >> 8);
 
-	/* write the EOP addr */
-	WREG32(CP_HPD_EOP_BASE_ADDR, eop_gpu_addr >> 8);
-	WREG32(CP_HPD_EOP_BASE_ADDR_HI, upper_32_bits(eop_gpu_addr) >> 8);
+		/* set the VMID assigned */
+		WREG32(CP_HPD_EOP_VMID, 0);
 
-	/* set the VMID assigned */
-	WREG32(CP_HPD_EOP_VMID, 0);
+		/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
+		tmp = RREG32(CP_HPD_EOP_CONTROL);
+		tmp &= ~EOP_SIZE_MASK;
+		tmp |= order_base_2(MEC_HPD_SIZE / 8);
+		WREG32(CP_HPD_EOP_CONTROL, tmp);
 
-	/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
-	tmp = RREG32(CP_HPD_EOP_CONTROL);
-	tmp &= ~EOP_SIZE_MASK;
-	tmp |= order_base_2(MEC_HPD_SIZE / 8);
-	WREG32(CP_HPD_EOP_CONTROL, tmp);
-
+	}
 	mutex_unlock(&rdev->srbm_mutex);
 
 	/* init the queues.  Just two for now. */
@@ -5451,28 +5451,6 @@ void cik_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	WREG32(VM_INVALIDATE_REQUEST, 0x1);
 }
 
-static void cik_pcie_init_compute_vmid(struct radeon_device *rdev)
-{
-	int i;
-	uint32_t sh_mem_bases, sh_mem_config;
-
-	sh_mem_bases = 0x6000 | 0x6000 << 16;
-	sh_mem_config = ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED);
-	sh_mem_config |= DEFAULT_MTYPE(MTYPE_NONCACHED);
-
-	mutex_lock(&rdev->srbm_mutex);
-	for (i = 8; i < 16; i++) {
-		cik_srbm_select(rdev, 0, 0, 0, i);
-		/* CP and shaders */
-		WREG32(SH_MEM_CONFIG, sh_mem_config);
-		WREG32(SH_MEM_APE1_BASE, 1);
-		WREG32(SH_MEM_APE1_LIMIT, 0);
-		WREG32(SH_MEM_BASES, sh_mem_bases);
-	}
-	cik_srbm_select(rdev, 0, 0, 0, 0);
-	mutex_unlock(&rdev->srbm_mutex);
-}
-
 /**
  * cik_pcie_gart_enable - gart enable
  *
@@ -5586,8 +5564,6 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	cik_srbm_select(rdev, 0, 0, 0, 0);
 	mutex_unlock(&rdev->srbm_mutex);
 
-	cik_pcie_init_compute_vmid(rdev);
-
 	cik_pcie_gart_tlb_flush(rdev);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(rdev->mc.gtt_size >> 20),
@@ -5683,10 +5659,9 @@ int cik_vm_init(struct radeon_device *rdev)
 	/*
 	 * number of VMs
 	 * VMID 0 is reserved for System
-	 * radeon graphics/compute will use VMIDs 1-7
-	 * amdkfd will use VMIDs 8-15
+	 * radeon graphics/compute will use VMIDs 1-15
 	 */
-	rdev->vm_manager.nvm = RADEON_NUM_OF_VMIDS;
+	rdev->vm_manager.nvm = 16;
 	/* base offset of vram pages */
 	if (rdev->flags & RADEON_IS_IGP) {
 		u64 tmp = RREG32(MC_VM_FB_OFFSET);
@@ -7588,9 +7563,6 @@ restart_ih:
 		/* wptr/rptr are in bytes! */
 		ring_index = rptr / 4;
 
-		radeon_kfd_interrupt(rdev,
-				(const void *) &rdev->ih.ring[ring_index]);
-
 		src_id =  le32_to_cpu(rdev->ih.ring[ring_index]) & 0xff;
 		src_data = le32_to_cpu(rdev->ih.ring[ring_index + 1]) & 0xfffffff;
 		ring_id = le32_to_cpu(rdev->ih.ring[ring_index + 2]) & 0xff;
@@ -8485,10 +8457,6 @@ static int cik_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_kfd_resume(rdev);
-	if (r)
-		return r;
-
 	return 0;
 }
 
@@ -8537,7 +8505,6 @@ int cik_resume(struct radeon_device *rdev)
  */
 int cik_suspend(struct radeon_device *rdev)
 {
-	radeon_kfd_suspend(rdev);
 	radeon_pm_suspend(rdev);
 	radeon_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);

@@ -190,25 +190,6 @@ static void tegra_sdhci_reset(struct sdhci_host *host, u8 mask)
 	tegra_host->ddr_signaling = false;
 }
 
-static void tegra_sdhci_set_bus_width(struct sdhci_host *host, int bus_width)
-{
-	u32 ctrl;
-
-	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
-	if ((host->mmc->caps & MMC_CAP_8_BIT_DATA) &&
-	    (bus_width == MMC_BUS_WIDTH_8)) {
-		ctrl &= ~SDHCI_CTRL_4BITBUS;
-		ctrl |= SDHCI_CTRL_8BITBUS;
-	} else {
-		ctrl &= ~SDHCI_CTRL_8BITBUS;
-		if (bus_width == MMC_BUS_WIDTH_4)
-			ctrl |= SDHCI_CTRL_4BITBUS;
-		else
-			ctrl &= ~SDHCI_CTRL_4BITBUS;
-	}
-	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
-}
-
 static void tegra_sdhci_pad_autocalib(struct sdhci_host *host)
 {
 	u32 val;
@@ -323,7 +304,7 @@ static const struct sdhci_ops tegra_sdhci_ops = {
 	.read_w     = tegra_sdhci_readw,
 	.write_l    = tegra_sdhci_writel,
 	.set_clock  = tegra_sdhci_set_clock,
-	.set_bus_width = tegra_sdhci_set_bus_width,
+	.set_bus_width = sdhci_set_bus_width,
 	.reset      = tegra_sdhci_reset,
 	.platform_execute_tuning = tegra_sdhci_execute_tuning,
 	.set_uhs_signaling = tegra_sdhci_set_uhs_signaling,
@@ -371,7 +352,7 @@ static const struct sdhci_ops tegra114_sdhci_ops = {
 	.write_w    = tegra_sdhci_writew,
 	.write_l    = tegra_sdhci_writel,
 	.set_clock  = tegra_sdhci_set_clock,
-	.set_bus_width = tegra_sdhci_set_bus_width,
+	.set_bus_width = sdhci_set_bus_width,
 	.reset      = tegra_sdhci_reset,
 	.platform_execute_tuning = tegra_sdhci_execute_tuning,
 	.set_uhs_signaling = tegra_sdhci_set_uhs_signaling,
@@ -441,7 +422,15 @@ static const struct sdhci_pltfm_data sdhci_tegra186_pdata = {
 		  SDHCI_QUIRK_NO_HISPD_BIT |
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC |
 		  SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
-	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
+		   /* SDHCI controllers on Tegra186 support 40-bit addressing.
+		    * IOVA addresses are 48-bit wide on Tegra186.
+		    * With 64-bit dma mask used for SDHCI, accesses can
+		    * be broken. Disable 64-bit dma, which would fall back
+		    * to 32-bit dma mask. Ideally 40-bit dma mask would work,
+		    * But it is not supported as of now.
+		    */
+		   SDHCI_QUIRK2_BROKEN_64_BIT_DMA,
 	.ops  = &tegra114_sdhci_ops,
 };
 
@@ -508,7 +497,8 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 	clk_prepare_enable(clk);
 	pltfm_host->clk = clk;
 
-	tegra_host->rst = devm_reset_control_get(&pdev->dev, "sdhci");
+	tegra_host->rst = devm_reset_control_get_exclusive(&pdev->dev,
+							   "sdhci");
 	if (IS_ERR(tegra_host->rst)) {
 		rc = PTR_ERR(tegra_host->rst);
 		dev_err(&pdev->dev, "failed to get reset control: %d\n", rc);

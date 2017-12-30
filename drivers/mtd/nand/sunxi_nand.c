@@ -31,7 +31,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -1301,7 +1301,6 @@ static int sunxi_nfc_hw_ecc_read_subpage(struct mtd_info *mtd,
 
 	sunxi_nfc_hw_ecc_enable(mtd);
 
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
 	for (i = data_offs / ecc->size;
 	     i < DIV_ROUND_UP(data_offs + readlen, ecc->size); i++) {
 		int data_off = i * ecc->size;
@@ -1592,9 +1591,8 @@ static int _sunxi_nand_lookup_timing(const s32 *lut, int lut_size, u32 duration,
 #define sunxi_nand_lookup_timing(l, p, c) \
 			_sunxi_nand_lookup_timing(l, ARRAY_SIZE(l), p, c)
 
-static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd,
-					const struct nand_data_interface *conf,
-					bool check_only)
+static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd, int csline,
+					const struct nand_data_interface *conf)
 {
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *chip = to_sunxi_nand(nand);
@@ -1707,7 +1705,7 @@ static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd,
 		return tRHW;
 	}
 
-	if (check_only)
+	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
 
 	/*
@@ -1730,6 +1728,10 @@ static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd,
 	 */
 	chip->clk_rate = NSEC_PER_SEC / min_clk_period;
 	real_clk_rate = clk_round_rate(nfc->mod_clk, chip->clk_rate);
+	if (real_clk_rate <= 0) {
+		dev_err(nfc->dev, "Unable to round clk %lu\n", chip->clk_rate);
+		return -EINVAL;
+	}
 
 	/*
 	 * ONFI specification 3.1, paragraph 4.15.2 dictates that EDO data
@@ -1922,7 +1924,6 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct mtd_info *mtd,
 	ecc->write_subpage = sunxi_nfc_hw_ecc_write_subpage;
 	ecc->read_oob_raw = nand_read_oob_std;
 	ecc->write_oob_raw = nand_write_oob_std;
-	ecc->read_subpage = sunxi_nfc_hw_ecc_read_subpage;
 
 	return 0;
 }
@@ -2211,7 +2212,7 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_ahb_clk_unprepare;
 
-	nfc->reset = devm_reset_control_get_optional(dev, "ahb");
+	nfc->reset = devm_reset_control_get_optional_exclusive(dev, "ahb");
 	if (IS_ERR(nfc->reset)) {
 		ret = PTR_ERR(nfc->reset);
 		goto out_mod_clk_unprepare;

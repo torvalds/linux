@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * zfcp device driver
  *
@@ -193,9 +194,8 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need, u32 act_status,
 		atomic_or(ZFCP_STATUS_COMMON_ERP_INUSE,
 				&zfcp_sdev->status);
 		erp_action = &zfcp_sdev->erp_action;
-		memset(erp_action, 0, sizeof(struct zfcp_erp_action));
-		erp_action->port = port;
-		erp_action->sdev = sdev;
+		WARN_ON_ONCE(erp_action->port != port);
+		WARN_ON_ONCE(erp_action->sdev != sdev);
 		if (!(atomic_read(&zfcp_sdev->status) &
 		      ZFCP_STATUS_COMMON_RUNNING))
 			act_status |= ZFCP_STATUS_ERP_CLOSE_ONLY;
@@ -208,8 +208,8 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need, u32 act_status,
 		zfcp_erp_action_dismiss_port(port);
 		atomic_or(ZFCP_STATUS_COMMON_ERP_INUSE, &port->status);
 		erp_action = &port->erp_action;
-		memset(erp_action, 0, sizeof(struct zfcp_erp_action));
-		erp_action->port = port;
+		WARN_ON_ONCE(erp_action->port != port);
+		WARN_ON_ONCE(erp_action->sdev != NULL);
 		if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_RUNNING))
 			act_status |= ZFCP_STATUS_ERP_CLOSE_ONLY;
 		break;
@@ -219,7 +219,8 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need, u32 act_status,
 		zfcp_erp_action_dismiss_adapter(adapter);
 		atomic_or(ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status);
 		erp_action = &adapter->erp_action;
-		memset(erp_action, 0, sizeof(struct zfcp_erp_action));
+		WARN_ON_ONCE(erp_action->port != NULL);
+		WARN_ON_ONCE(erp_action->sdev != NULL);
 		if (!(atomic_read(&adapter->status) &
 		      ZFCP_STATUS_COMMON_RUNNING))
 			act_status |= ZFCP_STATUS_ERP_CLOSE_ONLY;
@@ -229,7 +230,11 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need, u32 act_status,
 		return NULL;
 	}
 
-	erp_action->adapter = adapter;
+	WARN_ON_ONCE(erp_action->adapter != adapter);
+	memset(&erp_action->list, 0, sizeof(erp_action->list));
+	memset(&erp_action->timer, 0, sizeof(erp_action->timer));
+	erp_action->step = ZFCP_ERP_STEP_UNINITIALIZED;
+	erp_action->fsf_req_id = 0;
 	erp_action->action = need;
 	erp_action->status = act_status;
 
@@ -559,22 +564,24 @@ void zfcp_erp_notify(struct zfcp_erp_action *erp_action, unsigned long set_mask)
  * zfcp_erp_timeout_handler - Trigger ERP action from timed out ERP request
  * @data: ERP action (from timer data)
  */
-void zfcp_erp_timeout_handler(unsigned long data)
+void zfcp_erp_timeout_handler(struct timer_list *t)
 {
-	struct zfcp_erp_action *act = (struct zfcp_erp_action *) data;
+	struct zfcp_fsf_req *fsf_req = from_timer(fsf_req, t, timer);
+	struct zfcp_erp_action *act = fsf_req->erp_action;
+
 	zfcp_erp_notify(act, ZFCP_STATUS_ERP_TIMEDOUT);
 }
 
-static void zfcp_erp_memwait_handler(unsigned long data)
+static void zfcp_erp_memwait_handler(struct timer_list *t)
 {
-	zfcp_erp_notify((struct zfcp_erp_action *)data, 0);
+	struct zfcp_erp_action *act = from_timer(act, t, timer);
+
+	zfcp_erp_notify(act, 0);
 }
 
 static void zfcp_erp_strategy_memwait(struct zfcp_erp_action *erp_action)
 {
-	init_timer(&erp_action->timer);
-	erp_action->timer.function = zfcp_erp_memwait_handler;
-	erp_action->timer.data = (unsigned long) erp_action;
+	timer_setup(&erp_action->timer, zfcp_erp_memwait_handler, 0);
 	erp_action->timer.expires = jiffies + HZ;
 	add_timer(&erp_action->timer);
 }

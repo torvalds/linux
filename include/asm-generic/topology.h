@@ -44,11 +44,12 @@
 #define cpu_to_mem(cpu)		((void)(cpu),0)
 #endif
 
-#ifndef parent_node
-#define parent_node(node)	((void)(node),0)
-#endif
 #ifndef cpumask_of_node
-#define cpumask_of_node(node)	((void)node, cpu_online_mask)
+  #ifdef CONFIG_NEED_MULTIPLE_NODES
+    #define cpumask_of_node(node)	((node) == 0 ? cpu_online_mask : cpu_none_mask)
+  #else
+    #define cpumask_of_node(node)	((void)node, cpu_online_mask)
+  #endif
 #endif
 #ifndef pcibus_to_node
 #define pcibus_to_node(bus)	((void)(bus), -1)

@@ -101,9 +101,6 @@ static DEFINE_IDA(ida_index);
 #define PP_BUFFER_SIZE 1024
 #define PARDEVICE_MAX 8
 
-/* ROUND_UP macro from fs/select.c */
-#define ROUND_UP(x,y) (((x)+(y)-1)/(y))
-
 static DEFINE_MUTEX(pp_do_mutex);
 
 /* define fixed sized ioctl cmd for y2038 migration */

@@ -244,7 +244,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 		if ((acpi_gbl_db_output_to_file) ||
 		    (acpi_dbg_level & ACPI_LV_PARSE)) {
 			acpi_os_printf
-			    ("\n[AmlDebug] Next AML Opcode to execute:\n");
+			    ("\nAML Debug: Next AML Opcode to execute:\n");
 		}
 
 		/*

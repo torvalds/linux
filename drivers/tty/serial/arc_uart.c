@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARC On-Chip(fpga) UART Driver
  *
  * Copyright (C) 2010-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * vineetg: July 10th 2012
  *  -Decoupled the driver from arch/arc
@@ -549,8 +546,8 @@ static struct console arc_console = {
 	.data	= &arc_uart_driver
 };
 
-static __init void arc_early_serial_write(struct console *con, const char *s,
-					  unsigned int n)
+static void arc_early_serial_write(struct console *con, const char *s,
+				   unsigned int n)
 {
 	struct earlycon_device *dev = con->data;
 

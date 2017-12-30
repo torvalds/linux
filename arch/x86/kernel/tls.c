@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -92,17 +93,10 @@ static void set_tls_desc(struct task_struct *p, int idx,
 	cpu = get_cpu();
 
 	while (n-- > 0) {
-		if (LDT_empty(info) || LDT_zero(info)) {
-			desc->a = desc->b = 0;
-		} else {
+		if (LDT_empty(info) || LDT_zero(info))
+			memset(desc, 0, sizeof(*desc));
+		else
 			fill_ldt(desc, info);
-
-			/*
-			 * Always set the accessed bit so that the CPU
-			 * doesn't try to write to the (read-only) GDT.
-			 */
-			desc->type |= 1;
-		}
 		++info;
 		++desc;
 	}

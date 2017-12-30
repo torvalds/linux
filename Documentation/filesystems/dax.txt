@@ -63,9 +63,8 @@ Filesystem support consists of
 - implementing an mmap file operation for DAX files which sets the
   VM_MIXEDMAP and VM_HUGEPAGE flags on the VMA, and setting the vm_ops to
   include handlers for fault, pmd_fault, page_mkwrite, pfn_mkwrite. These
-  handlers should probably call dax_iomap_fault() (for fault and page_mkwrite
-  handlers), dax_iomap_pmd_fault(), dax_pfn_mkwrite() passing the appropriate
-  iomap operations.
+  handlers should probably call dax_iomap_fault() passing the appropriate
+  fault size and iomap operations.
 - calling iomap_zero_range() passing appropriate iomap operations instead of
   block_truncate_page() for DAX files
 - ensuring that there is sufficient locking between reads, writes,

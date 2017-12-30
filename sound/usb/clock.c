@@ -43,7 +43,7 @@ static struct uac_clock_source_descriptor *
 	while ((cs = snd_usb_find_csint_desc(ctrl_iface->extra,
 					     ctrl_iface->extralen,
 					     cs, UAC2_CLOCK_SOURCE))) {
-		if (cs->bClockID == clock_id)
+		if (cs->bLength >= sizeof(*cs) && cs->bClockID == clock_id)
 			return cs;
 	}
 
@@ -59,8 +59,11 @@ static struct uac_clock_selector_descriptor *
 	while ((cs = snd_usb_find_csint_desc(ctrl_iface->extra,
 					     ctrl_iface->extralen,
 					     cs, UAC2_CLOCK_SELECTOR))) {
-		if (cs->bClockID == clock_id)
+		if (cs->bLength >= sizeof(*cs) && cs->bClockID == clock_id) {
+			if (cs->bLength < 5 + cs->bNrInPins)
+				return NULL;
 			return cs;
+		}
 	}
 
 	return NULL;
@@ -75,7 +78,7 @@ static struct uac_clock_multiplier_descriptor *
 	while ((cs = snd_usb_find_csint_desc(ctrl_iface->extra,
 					     ctrl_iface->extralen,
 					     cs, UAC2_CLOCK_MULTIPLIER))) {
-		if (cs->bClockID == clock_id)
+		if (cs->bLength >= sizeof(*cs) && cs->bClockID == clock_id)
 			return cs;
 	}
 

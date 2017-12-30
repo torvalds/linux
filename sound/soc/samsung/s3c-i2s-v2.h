@@ -92,6 +92,13 @@ extern int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 			   unsigned long base);
 
 /**
+ * s3c_i2sv2_cleanup - cleanup resources allocated in s3c_i2sv2_probe
+ * @dai: The ASoC DAI structure supplied to the original probe.
+ * @i2s: Our local i2s structure to fill in.
+ */
+extern void s3c_i2sv2_cleanup(struct snd_soc_dai *dai,
+			      struct s3c_i2sv2_info *i2s);
+/**
  * s3c_i2sv2_register_component - register component and dai with soc core
  * @dev: DAI device
  * @id: DAI ID

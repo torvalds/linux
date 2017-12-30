@@ -29,7 +29,6 @@ Example:
 	       cell-index = <0>;
 	       reg = <0x10600 0x28>;
 	       interrupts = <23>;
-	       status = "disabled";
        };
 
 Example with SPI direct mode support (optionally):
@@ -48,7 +47,6 @@ Example with SPI direct mode support (optionally):
 		      <MBUS_ID(0x01, 0x9f) 0 0xffffffff>, /* CS6 */
 		      <MBUS_ID(0x01, 0xdf) 0 0xffffffff>; /* CS7 */
 		interrupts = <23>;
-		status = "disabled";
 	};
 
 To enable the direct mode, the board specific 'ranges' property in the

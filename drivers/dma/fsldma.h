@@ -36,6 +36,10 @@
 #define FSL_DMA_MR_DAHE		0x00002000
 #define FSL_DMA_MR_SAHE		0x00001000
 
+#define FSL_DMA_MR_SAHTS_MASK	0x0000C000
+#define FSL_DMA_MR_DAHTS_MASK	0x00030000
+#define FSL_DMA_MR_BWC_MASK	0x0f000000
+
 /*
  * Bandwidth/pause control determines how many bytes a given
  * channel is allowed to transfer before the DMA engine pauses

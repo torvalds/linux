@@ -165,14 +165,14 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 	u32 reg;
 
 	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
-		dev_err(dev, "modalias failure on %s\n", node->full_name);
+		dev_err(dev, "modalias failure on %pOF\n", node);
 		return ERR_PTR(-EINVAL);
 	}
 
 	ret = of_property_read_u32(node, "reg", &reg);
 	if (ret) {
-		dev_err(dev, "device node %s has no valid reg property: %d\n",
-			node->full_name, ret);
+		dev_err(dev, "device node %pOF has no valid reg property: %d\n",
+			node, ret);
 		return ERR_PTR(-EINVAL);
 	}
 

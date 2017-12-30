@@ -22,37 +22,18 @@
 #include <linux/pci-ecam.h>
 #include <linux/slab.h>
 
-/*
- * Called after each bus is probed, but before its children are examined
- */
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-	/* nothing to do, expected to be removed in the future */
-}
-
-/*
- * We don't have to worry about legacy ISA devices, so nothing to do here
- */
-resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-				resource_size_t size, resource_size_t align)
-{
-	return res->start;
-}
-
+#ifdef CONFIG_ACPI
 /*
  * Try to assign the IRQ number when probing a new device
  */
 int pcibios_alloc_irq(struct pci_dev *dev)
 {
-	if (acpi_disabled)
-		dev->irq = of_irq_parse_and_map_pci(dev, 0, 0);
-#ifdef CONFIG_ACPI
-	else
-		return acpi_pci_irq_enable(dev);
-#endif
+	if (!acpi_disabled)
+		acpi_pci_irq_enable(dev);
 
 	return 0;
 }
+#endif
 
 /*
  * raw_pci_read/write - Platform-specific PCI config space access.
@@ -108,7 +89,10 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 	if (!acpi_disabled) {
 		struct pci_config_window *cfg = bridge->bus->sysdata;
 		struct acpi_device *adev = to_acpi_device(cfg->parent);
+		struct device *bus_dev = &bridge->bus->dev;
+
 		ACPI_COMPANION_SET(&bridge->dev, adev);
+		set_dev_node(bus_dev, acpi_get_node(acpi_device_handle(adev)));
 	}
 
 	return 0;

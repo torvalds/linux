@@ -79,15 +79,15 @@
 	};
 
 	soc {
-		ocram: sram@00900000 {
+		ocram: sram@900000 {
 			compatible = "mmio-sram";
 			reg = <0x00900000 0x40000>;
 			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
 
-		aips-bus@02000000 { /* AIPS1 */
-			spba-bus@02000000 {
-				ecspi5: ecspi@02018000 {
+		aips-bus@2000000 { /* AIPS1 */
+			spba-bus@2000000 {
+				ecspi5: ecspi@2018000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
@@ -102,12 +102,12 @@
 				};
 			};
 
-			iomuxc: iomuxc@020e0000 {
+			iomuxc: iomuxc@20e0000 {
 				compatible = "fsl,imx6q-iomuxc";
 			};
 		};
 
-		sata: sata@02200000 {
+		sata: sata@2200000 {
 			compatible = "fsl,imx6q-ahci";
 			reg = <0x02200000 0x4000>;
 			interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
@@ -118,17 +118,17 @@
 			status = "disabled";
 		};
 
-		gpu_vg: gpu@02204000 {
+		gpu_vg: gpu@2204000 {
 			compatible = "vivante,gc";
 			reg = <0x02204000 0x4000>;
 			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clks IMX6QDL_CLK_OPENVG_AXI>,
 				 <&clks IMX6QDL_CLK_GPU2D_CORE>;
 			clock-names = "bus", "core";
-			power-domains = <&gpc 1>;
+			power-domains = <&pd_pu>;
 		};
 
-		ipu2: ipu@02800000 {
+		ipu2: ipu@2800000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,imx6q-ipu";
@@ -143,10 +143,18 @@
 
 			ipu2_csi0: port@0 {
 				reg = <0>;
+
+				ipu2_csi0_from_mipi_vc2: endpoint {
+					remote-endpoint = <&mipi_vc2_to_ipu2_csi0>;
+				};
 			};
 
 			ipu2_csi1: port@1 {
 				reg = <1>;
+
+				ipu2_csi1_from_ipu2_csi1_mux: endpoint {
+					remote-endpoint = <&ipu2_csi1_mux_to_ipu2_csi1>;
+				};
 			};
 
 			ipu2_di0: port@2 {
@@ -198,6 +206,11 @@
 		};
 	};
 
+	capture-subsystem {
+		compatible = "fsl,imx-capture-subsystem";
+		ports = <&ipu1_csi0>, <&ipu1_csi1>, <&ipu2_csi0>, <&ipu2_csi1>;
+	};
+
 	display-subsystem {
 		compatible = "fsl,imx-display-subsystem";
 		ports = <&ipu1_di0>, <&ipu1_di1>, <&ipu2_di0>, <&ipu2_di1>;
@@ -246,6 +259,68 @@
 	gpio-ranges = <&iomuxc 0 172 9>, <&iomuxc 9 189 2>, <&iomuxc 11 146 3>;
 };
 
+&gpr {
+	ipu1_csi0_mux {
+		compatible = "video-mux";
+		mux-controls = <&mux 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			ipu1_csi0_mux_from_mipi_vc0: endpoint {
+				remote-endpoint = <&mipi_vc0_to_ipu1_csi0_mux>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			ipu1_csi0_mux_from_parallel_sensor: endpoint {
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+
+			ipu1_csi0_mux_to_ipu1_csi0: endpoint {
+				remote-endpoint = <&ipu1_csi0_from_ipu1_csi0_mux>;
+			};
+		};
+	};
+
+	ipu2_csi1_mux {
+		compatible = "video-mux";
+		mux-controls = <&mux 1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			ipu2_csi1_mux_from_mipi_vc3: endpoint {
+				remote-endpoint = <&mipi_vc3_to_ipu2_csi1_mux>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			ipu2_csi1_mux_from_parallel_sensor: endpoint {
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+
+			ipu2_csi1_mux_to_ipu2_csi1: endpoint {
+				remote-endpoint = <&ipu2_csi1_from_ipu2_csi1_mux>;
+			};
+		};
+	};
+};
+
 &hdmi {
 	compatible = "fsl,imx6q-hdmi";
 
@@ -263,6 +338,12 @@
 		hdmi_mux_3: endpoint {
 			remote-endpoint = <&ipu2_di1_hdmi>;
 		};
+	};
+};
+
+&ipu1_csi1 {
+	ipu1_csi1_from_mipi_vc1: endpoint {
+		remote-endpoint = <&mipi_vc1_to_ipu1_csi1>;
 	};
 };
 
@@ -312,6 +393,40 @@
 	};
 };
 
+&mipi_csi {
+	port@1 {
+		reg = <1>;
+
+		mipi_vc0_to_ipu1_csi0_mux: endpoint {
+			remote-endpoint = <&ipu1_csi0_mux_from_mipi_vc0>;
+		};
+	};
+
+	port@2 {
+		reg = <2>;
+
+		mipi_vc1_to_ipu1_csi1: endpoint {
+			remote-endpoint = <&ipu1_csi1_from_mipi_vc1>;
+		};
+	};
+
+	port@3 {
+		reg = <3>;
+
+		mipi_vc2_to_ipu2_csi0: endpoint {
+			remote-endpoint = <&ipu2_csi0_from_mipi_vc2>;
+		};
+	};
+
+	port@4 {
+		reg = <4>;
+
+		mipi_vc3_to_ipu2_csi1_mux: endpoint {
+			remote-endpoint = <&ipu2_csi1_mux_from_mipi_vc3>;
+		};
+	};
+};
+
 &mipi_dsi {
 	ports {
 		port@2 {
@@ -330,6 +445,16 @@
 			};
 		};
 	};
+};
+
+&mux {
+	mux-reg-masks = <0x04 0x00080000>, /* MIPI_IPU1_MUX */
+			<0x04 0x00100000>, /* MIPI_IPU2_MUX */
+			<0x0c 0x0000000c>, /* HDMI_MUX_CTL */
+			<0x0c 0x000000c0>, /* LVDS0_MUX_CTL */
+			<0x0c 0x00000300>, /* LVDS1_MUX_CTL */
+			<0x28 0x00000003>, /* DCIC1_MUX_CTL */
+			<0x28 0x0000000c>; /* DCIC2_MUX_CTL */
 };
 
 &vpu {

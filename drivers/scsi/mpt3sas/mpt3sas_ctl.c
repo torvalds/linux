@@ -79,32 +79,6 @@ enum block_state {
 };
 
 /**
- * _ctl_sas_device_find_by_handle - sas device search
- * @ioc: per adapter object
- * @handle: sas device handle (assigned by firmware)
- * Context: Calling function should acquire ioc->sas_device_lock
- *
- * This searches for sas_device based on sas_address, then return sas_device
- * object.
- */
-static struct _sas_device *
-_ctl_sas_device_find_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle)
-{
-	struct _sas_device *sas_device, *r;
-
-	r = NULL;
-	list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
-		if (sas_device->handle != handle)
-			continue;
-		r = sas_device;
-		goto out;
-	}
-
- out:
-	return r;
-}
-
-/**
  * _ctl_display_some_debug - debug routine
  * @ioc: per adapter object
  * @smid: system request message index
@@ -229,10 +203,9 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 		Mpi2SCSIIOReply_t *scsi_reply =
 		    (Mpi2SCSIIOReply_t *)mpi_reply;
 		struct _sas_device *sas_device = NULL;
-		unsigned long flags;
+		struct _pcie_device *pcie_device = NULL;
 
-		spin_lock_irqsave(&ioc->sas_device_lock, flags);
-		sas_device = _ctl_sas_device_find_by_handle(ioc,
+		sas_device = mpt3sas_get_sdev_by_handle(ioc,
 		    le16_to_cpu(scsi_reply->DevHandle));
 		if (sas_device) {
 			pr_warn(MPT3SAS_FMT "\tsas_address(0x%016llx), phy(%d)\n",
@@ -242,8 +215,25 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 			    "\tenclosure_logical_id(0x%016llx), slot(%d)\n",
 			    ioc->name, (unsigned long long)
 			    sas_device->enclosure_logical_id, sas_device->slot);
+			sas_device_put(sas_device);
 		}
-		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+		if (!sas_device) {
+			pcie_device = mpt3sas_get_pdev_by_handle(ioc,
+				le16_to_cpu(scsi_reply->DevHandle));
+			if (pcie_device) {
+				pr_warn(MPT3SAS_FMT
+				    "\tWWID(0x%016llx), port(%d)\n", ioc->name,
+				    (unsigned long long)pcie_device->wwid,
+				    pcie_device->port_num);
+				if (pcie_device->enclosure_handle != 0)
+					pr_warn(MPT3SAS_FMT
+					    "\tenclosure_logical_id(0x%016llx), slot(%d)\n",
+					    ioc->name, (unsigned long long)
+					    pcie_device->enclosure_logical_id,
+					    pcie_device->slot);
+				pcie_device_put(pcie_device);
+			}
+		}
 		if (scsi_reply->SCSIState || scsi_reply->SCSIStatus)
 			pr_info(MPT3SAS_FMT
 			    "\tscsi_state(0x%02x), scsi_status"
@@ -272,6 +262,7 @@ mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 {
 	MPI2DefaultReply_t *mpi_reply;
 	Mpi2SCSIIOReply_t *scsiio_reply;
+	Mpi26NVMeEncapsulatedErrorReply_t *nvme_error_reply;
 	const void *sense_data;
 	u32 sz;
 
@@ -298,7 +289,20 @@ mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 				memcpy(ioc->ctl_cmds.sense, sense_data, sz);
 			}
 		}
+		/*
+		 * Get Error Response data for NVMe device. The ctl_cmds.sense
+		 * buffer is used to store the Error Response data.
+		 */
+		if (mpi_reply->Function == MPI2_FUNCTION_NVME_ENCAPSULATED) {
+			nvme_error_reply =
+			    (Mpi26NVMeEncapsulatedErrorReply_t *)mpi_reply;
+			sz = min_t(u32, NVME_ERROR_RESPONSE_SIZE,
+			    le32_to_cpu(nvme_error_reply->ErrorResponseCount));
+			sense_data = mpt3sas_base_get_sense_buffer(ioc, smid);
+			memcpy(ioc->ctl_cmds.sense, sense_data, sz);
+		}
 	}
+
 	_ctl_display_some_debug(ioc, smid, "ctl_done", mpi_reply);
 	ioc->ctl_cmds.status &= ~MPT3_CMD_PENDING;
 	complete(&ioc->ctl_cmds.done);
@@ -640,11 +644,12 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 {
 	MPI2RequestHeader_t *mpi_request = NULL, *request;
 	MPI2DefaultReply_t *mpi_reply;
+	Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request = NULL;
 	u32 ioc_state;
 	u16 smid;
 	unsigned long timeout;
 	u8 issue_reset;
-	u32 sz;
+	u32 sz, sz_arg;
 	void *psge;
 	void *data_out = NULL;
 	dma_addr_t data_out_dma = 0;
@@ -741,7 +746,8 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	if (mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
 	    mpi_request->Function == MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH ||
 	    mpi_request->Function == MPI2_FUNCTION_SCSI_TASK_MGMT ||
-	    mpi_request->Function == MPI2_FUNCTION_SATA_PASSTHROUGH) {
+	    mpi_request->Function == MPI2_FUNCTION_SATA_PASSTHROUGH ||
+	    mpi_request->Function == MPI2_FUNCTION_NVME_ENCAPSULATED) {
 
 		device_handle = le16_to_cpu(mpi_request->FunctionDependent1);
 		if (!device_handle || (device_handle >
@@ -792,6 +798,38 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 
 	init_completion(&ioc->ctl_cmds.done);
 	switch (mpi_request->Function) {
+	case MPI2_FUNCTION_NVME_ENCAPSULATED:
+	{
+		nvme_encap_request = (Mpi26NVMeEncapsulatedRequest_t *)request;
+		/*
+		 * Get the Physical Address of the sense buffer.
+		 * Use Error Response buffer address field to hold the sense
+		 * buffer address.
+		 * Clear the internal sense buffer, which will potentially hold
+		 * the Completion Queue Entry on return, or 0 if no Entry.
+		 * Build the PRPs and set direction bits.
+		 * Send the request.
+		 */
+		nvme_encap_request->ErrorResponseBaseAddress = ioc->sense_dma &
+		    0xFFFFFFFF00000000;
+		nvme_encap_request->ErrorResponseBaseAddress |=
+		    (U64)mpt3sas_base_get_sense_buffer_dma(ioc, smid);
+		nvme_encap_request->ErrorResponseAllocationLength =
+						NVME_ERROR_RESPONSE_SIZE;
+		memset(ioc->ctl_cmds.sense, 0, NVME_ERROR_RESPONSE_SIZE);
+		ioc->build_nvme_prp(ioc, smid, nvme_encap_request,
+		    data_out_dma, data_out_sz, data_in_dma, data_in_sz);
+		if (test_bit(device_handle, ioc->device_remove_in_progress)) {
+			dtmprintk(ioc, pr_info(MPT3SAS_FMT "handle(0x%04x) :"
+			    "ioctl failed due to device removal in progress\n",
+			    ioc->name, device_handle));
+			mpt3sas_base_free_smid(ioc, smid);
+			ret = -EINVAL;
+			goto out;
+		}
+		ioc->put_smid_nvme_encap(ioc, smid);
+		break;
+	}
 	case MPI2_FUNCTION_SCSI_IO_REQUEST:
 	case MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH:
 	{
@@ -1007,15 +1045,25 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		}
 	}
 
-	/* copy out sense to user */
+	/* copy out sense/NVMe Error Response to user */
 	if (karg.max_sense_bytes && (mpi_request->Function ==
 	    MPI2_FUNCTION_SCSI_IO_REQUEST || mpi_request->Function ==
-	    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)) {
-		sz = min_t(u32, karg.max_sense_bytes, SCSI_SENSE_BUFFERSIZE);
+	    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH || mpi_request->Function ==
+	    MPI2_FUNCTION_NVME_ENCAPSULATED)) {
+		if (karg.sense_data_ptr == NULL) {
+			pr_info(MPT3SAS_FMT "Response buffer provided"
+			    " by application is NULL; Response data will"
+			    " not be returned.\n", ioc->name);
+			goto out;
+		}
+		sz_arg = (mpi_request->Function ==
+		MPI2_FUNCTION_NVME_ENCAPSULATED) ? NVME_ERROR_RESPONSE_SIZE :
+							SCSI_SENSE_BUFFERSIZE;
+		sz = min_t(u32, karg.max_sense_bytes, sz_arg);
 		if (copy_to_user(karg.sense_data_ptr, ioc->ctl_cmds.sense,
 		    sz)) {
 			pr_err("failure at %s:%d/%s()!\n", __FILE__,
-			    __LINE__, __func__);
+				__LINE__, __func__);
 			ret = -ENODATA;
 			goto out;
 		}
@@ -1064,12 +1112,6 @@ static long
 _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 {
 	struct mpt3_ioctl_iocinfo karg;
-
-	if (copy_from_user(&karg, arg, sizeof(karg))) {
-		pr_err("failure at %s:%d/%s()!\n",
-		    __FILE__, __LINE__, __func__);
-		return -EFAULT;
-	}
 
 	dctlprintk(ioc, pr_info(MPT3SAS_FMT "%s: enter\n", ioc->name,
 	    __func__));
@@ -1295,6 +1337,42 @@ _ctl_btdh_search_sas_device(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
+ * _ctl_btdh_search_pcie_device - searching for pcie device
+ * @ioc: per adapter object
+ * @btdh: btdh ioctl payload
+ */
+static int
+_ctl_btdh_search_pcie_device(struct MPT3SAS_ADAPTER *ioc,
+	struct mpt3_ioctl_btdh_mapping *btdh)
+{
+	struct _pcie_device *pcie_device;
+	unsigned long flags;
+	int rc = 0;
+
+	if (list_empty(&ioc->pcie_device_list))
+		return rc;
+
+	spin_lock_irqsave(&ioc->pcie_device_lock, flags);
+	list_for_each_entry(pcie_device, &ioc->pcie_device_list, list) {
+		if (btdh->bus == 0xFFFFFFFF && btdh->id == 0xFFFFFFFF &&
+			   btdh->handle == pcie_device->handle) {
+			btdh->bus = pcie_device->channel;
+			btdh->id = pcie_device->id;
+			rc = 1;
+			goto out;
+		} else if (btdh->bus == pcie_device->channel && btdh->id ==
+			   pcie_device->id && btdh->handle == 0xFFFF) {
+			btdh->handle = pcie_device->handle;
+			rc = 1;
+			goto out;
+		}
+	}
+ out:
+	spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
+	return rc;
+}
+
+/**
  * _ctl_btdh_search_raid_device - searching for raid device
  * @ioc: per adapter object
  * @btdh: btdh ioctl payload
@@ -1351,6 +1429,8 @@ _ctl_btdh_mapping(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	    __func__));
 
 	rc = _ctl_btdh_search_sas_device(ioc, &karg);
+	if (!rc)
+		rc = _ctl_btdh_search_pcie_device(ioc, &karg);
 	if (!rc)
 		_ctl_btdh_search_raid_device(ioc, &karg);
 

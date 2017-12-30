@@ -161,7 +161,7 @@ static unsigned int clocktab[] = {
 	CLK_LOW
 };     
 
-static struct atmdev_ops he_ops =
+static const struct atmdev_ops he_ops =
 {
 	.open =		he_open,
 	.close =	he_close,	
@@ -1735,7 +1735,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 		__net_timestamp(skb);
 
 		list_for_each_entry(heb, &he_vcc->buffers, entry)
-			memcpy(skb_put(skb, heb->len), &heb->data, heb->len);
+			skb_put_data(skb, &heb->data, heb->len);
 
 		switch (vcc->qos.aal) {
 			case ATM_AAL0:
@@ -2395,7 +2395,7 @@ he_close(struct atm_vcc *vcc)
 		 * TBRQ, the host issues the close command to the adapter.
 		 */
 
-		while (((tx_inuse = atomic_read(&sk_atm(vcc)->sk_wmem_alloc)) > 1) &&
+		while (((tx_inuse = refcount_read(&sk_atm(vcc)->sk_wmem_alloc)) > 1) &&
 		       (retry < MAX_RETRY)) {
 			msleep(sleep);
 			if (sleep < 250)
@@ -2851,7 +2851,7 @@ MODULE_PARM_DESC(irq_coalesce, "use interrupt coalescing (default 1)");
 module_param(sdh, bool, 0);
 MODULE_PARM_DESC(sdh, "use SDH framing (default 0)");
 
-static struct pci_device_id he_pci_tbl[] = {
+static const struct pci_device_id he_pci_tbl[] = {
 	{ PCI_VDEVICE(FORE, PCI_DEVICE_ID_FORE_HE), 0 },
 	{ 0, }
 };

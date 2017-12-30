@@ -47,7 +47,8 @@
 	: "r"(data), "r"(ptr));		\
 })
 
-#define ARCH_DMA_MINALIGN      L1_CACHE_BYTES
+/* Largest line length for either L1 or L2 is 128 bytes */
+#define ARCH_DMA_MINALIGN      128
 
 extern void arc_cache_init(void);
 extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
@@ -95,8 +96,12 @@ extern unsigned long perip_base, perip_end;
 #define ARC_REG_SLC_CTRL	0x903
 #define ARC_REG_SLC_FLUSH	0x904
 #define ARC_REG_SLC_INVALIDATE	0x905
+#define ARC_AUX_SLC_IVDL	0x910
+#define ARC_AUX_SLC_FLDL	0x912
 #define ARC_REG_SLC_RGN_START	0x914
+#define ARC_REG_SLC_RGN_START1	0x915
 #define ARC_REG_SLC_RGN_END	0x916
+#define ARC_REG_SLC_RGN_END1	0x917
 
 /* Bit val in SLC_CONTROL */
 #define SLC_CTRL_DIS		0x001

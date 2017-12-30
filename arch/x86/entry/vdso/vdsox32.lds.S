@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linker script for x32 vDSO.
  * We #include the file to define the layout details.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* memset.S */
 
 #include <asm/linkage.h>

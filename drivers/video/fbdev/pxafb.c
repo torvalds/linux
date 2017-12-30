@@ -1436,7 +1436,10 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	pr_debug("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
 
 	/* enable LCD controller clock */
-	clk_prepare_enable(fbi->clk);
+	if (clk_prepare_enable(fbi->clk)) {
+		pr_err("%s: Failed to prepare clock\n", __func__);
+		return;
+	}
 
 	if (fbi->lccr0 & LCCR0_LCDT)
 		return;

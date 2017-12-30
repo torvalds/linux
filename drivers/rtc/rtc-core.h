@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_RTC_INTF_DEV
 
 extern void __init rtc_dev_init(void);
@@ -44,4 +45,12 @@ static inline const struct attribute_group **rtc_get_dev_attribute_groups(void)
 {
 	return NULL;
 }
+#endif
+
+#ifdef CONFIG_RTC_NVMEM
+void rtc_nvmem_register(struct rtc_device *rtc);
+void rtc_nvmem_unregister(struct rtc_device *rtc);
+#else
+static inline void rtc_nvmem_register(struct rtc_device *rtc) {}
+static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
 #endif

@@ -182,57 +182,21 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
  * VSP1 Partition Algorithm support
  */
 
-static void vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
-{
-	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
-	const struct v4l2_mbus_framefmt *format;
-	struct vsp1_entity *entity;
-	unsigned int div_size;
-
-	/*
-	 * Partitions are computed on the size before rotation, use the format
-	 * at the WPF sink.
-	 */
-	format = vsp1_entity_get_pad_format(&pipe->output->entity,
-					    pipe->output->entity.config,
-					    RWPF_PAD_SINK);
-	div_size = format->width;
-
-	/* Gen2 hardware doesn't require image partitioning. */
-	if (vsp1->info->gen == 2) {
-		pipe->div_size = div_size;
-		pipe->partitions = 1;
-		return;
-	}
-
-	list_for_each_entry(entity, &pipe->entities, list_pipe) {
-		unsigned int entity_max = VSP1_VIDEO_MAX_WIDTH;
-
-		if (entity->ops->max_width) {
-			entity_max = entity->ops->max_width(entity, pipe);
-			if (entity_max)
-				div_size = min(div_size, entity_max);
-		}
-	}
-
-	pipe->div_size = div_size;
-	pipe->partitions = DIV_ROUND_UP(format->width, div_size);
-}
-
 /**
- * vsp1_video_partition - Calculate the active partition output window
+ * vsp1_video_calculate_partition - Calculate the active partition output window
  *
+ * @pipe: the pipeline
+ * @partition: partition that will hold the calculated values
  * @div_size: pre-determined maximum partition division size
  * @index: partition index
- *
- * Returns a v4l2_rect describing the partition window.
  */
-static struct v4l2_rect vsp1_video_partition(struct vsp1_pipeline *pipe,
-					     unsigned int div_size,
-					     unsigned int index)
+static void vsp1_video_calculate_partition(struct vsp1_pipeline *pipe,
+					   struct vsp1_partition *partition,
+					   unsigned int div_size,
+					   unsigned int index)
 {
 	const struct v4l2_mbus_framefmt *format;
-	struct v4l2_rect partition;
+	struct vsp1_partition_window window;
 	unsigned int modulus;
 
 	/*
@@ -245,18 +209,17 @@ static struct v4l2_rect vsp1_video_partition(struct vsp1_pipeline *pipe,
 
 	/* A single partition simply processes the output size in full. */
 	if (pipe->partitions <= 1) {
-		partition.left = 0;
-		partition.top = 0;
-		partition.width = format->width;
-		partition.height = format->height;
-		return partition;
+		window.left = 0;
+		window.width = format->width;
+
+		vsp1_pipeline_propagate_partition(pipe, partition, index,
+						  &window);
+		return;
 	}
 
 	/* Initialise the partition with sane starting conditions. */
-	partition.left = index * div_size;
-	partition.top = 0;
-	partition.width = div_size;
-	partition.height = format->height;
+	window.left = index * div_size;
+	window.width = div_size;
 
 	modulus = format->width % div_size;
 
@@ -279,18 +242,65 @@ static struct v4l2_rect vsp1_video_partition(struct vsp1_pipeline *pipe,
 		if (modulus < div_size / 2) {
 			if (index == partitions - 1) {
 				/* Halve the penultimate partition. */
-				partition.width = div_size / 2;
+				window.width = div_size / 2;
 			} else if (index == partitions) {
 				/* Increase the final partition. */
-				partition.width = (div_size / 2) + modulus;
-				partition.left -= div_size / 2;
+				window.width = (div_size / 2) + modulus;
+				window.left -= div_size / 2;
 			}
 		} else if (index == partitions) {
-			partition.width = modulus;
+			window.width = modulus;
 		}
 	}
 
-	return partition;
+	vsp1_pipeline_propagate_partition(pipe, partition, index, &window);
+}
+
+static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
+{
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+	const struct v4l2_mbus_framefmt *format;
+	struct vsp1_entity *entity;
+	unsigned int div_size;
+	unsigned int i;
+
+	/*
+	 * Partitions are computed on the size before rotation, use the format
+	 * at the WPF sink.
+	 */
+	format = vsp1_entity_get_pad_format(&pipe->output->entity,
+					    pipe->output->entity.config,
+					    RWPF_PAD_SINK);
+	div_size = format->width;
+
+	/*
+	 * Only Gen3 hardware requires image partitioning, Gen2 will operate
+	 * with a single partition that covers the whole output.
+	 */
+	if (vsp1->info->gen == 3) {
+		list_for_each_entry(entity, &pipe->entities, list_pipe) {
+			unsigned int entity_max;
+
+			if (!entity->ops->max_width)
+				continue;
+
+			entity_max = entity->ops->max_width(entity, pipe);
+			if (entity_max)
+				div_size = min(div_size, entity_max);
+		}
+	}
+
+	pipe->partitions = DIV_ROUND_UP(format->width, div_size);
+	pipe->part_table = kcalloc(pipe->partitions, sizeof(*pipe->part_table),
+				   GFP_KERNEL);
+	if (!pipe->part_table)
+		return -ENOMEM;
+
+	for (i = 0; i < pipe->partitions; ++i)
+		vsp1_video_calculate_partition(pipe, &pipe->part_table[i],
+					       div_size, i);
+
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -369,12 +379,12 @@ static void vsp1_video_frame_end(struct vsp1_pipeline *pipe,
 }
 
 static void vsp1_video_pipeline_run_partition(struct vsp1_pipeline *pipe,
-					      struct vsp1_dl_list *dl)
+					      struct vsp1_dl_list *dl,
+					      unsigned int partition)
 {
 	struct vsp1_entity *entity;
 
-	pipe->partition = vsp1_video_partition(pipe, pipe->div_size,
-					       pipe->current_partition);
+	pipe->partition = &pipe->part_table[partition];
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		if (entity->ops->configure)
@@ -387,6 +397,7 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	struct vsp1_entity *entity;
+	unsigned int partition;
 
 	if (!pipe->dl)
 		pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
@@ -403,20 +414,12 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	}
 
 	/* Run the first partition */
-	pipe->current_partition = 0;
-	vsp1_video_pipeline_run_partition(pipe, pipe->dl);
+	vsp1_video_pipeline_run_partition(pipe, pipe->dl, 0);
 
 	/* Process consecutive partitions as necessary */
-	for (pipe->current_partition = 1;
-	     pipe->current_partition < pipe->partitions;
-	     pipe->current_partition++) {
+	for (partition = 1; partition < pipe->partitions; ++partition) {
 		struct vsp1_dl_list *dl;
 
-		/*
-		 * Partition configuration operations will utilise
-		 * the pipe->current_partition variable to determine
-		 * the work they should complete.
-		 */
 		dl = vsp1_dl_list_get(pipe->output->dlm);
 
 		/*
@@ -429,7 +432,7 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 			break;
 		}
 
-		vsp1_video_pipeline_run_partition(pipe, dl);
+		vsp1_video_pipeline_run_partition(pipe, dl, partition);
 		vsp1_dl_list_add_chain(pipe->dl, dl);
 	}
 
@@ -440,12 +443,16 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	vsp1_pipeline_run(pipe);
 }
 
-static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe)
+static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe,
+					  bool completed)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	enum vsp1_pipeline_state state;
 	unsigned long flags;
 	unsigned int i;
+
+	/* M2M Pipelines should never call here with an incomplete frame. */
+	WARN_ON_ONCE(!completed);
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
@@ -481,7 +488,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 	struct media_entity_enum ent_enum;
 	struct vsp1_entity *entity;
 	struct media_pad *pad;
-	bool bru_found = false;
+	struct vsp1_bru *bru = NULL;
 	int ret;
 
 	ret = media_entity_enum_init(&ent_enum, &input->entity.vsp1->media_dev);
@@ -511,16 +518,20 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 			media_entity_to_v4l2_subdev(pad->entity));
 
 		/*
-		 * A BRU is present in the pipeline, store the BRU input pad
+		 * A BRU or BRS is present in the pipeline, store its input pad
 		 * number in the input RPF for use when configuring the RPF.
 		 */
-		if (entity->type == VSP1_ENTITY_BRU) {
-			struct vsp1_bru *bru = to_bru(&entity->subdev);
+		if (entity->type == VSP1_ENTITY_BRU ||
+		    entity->type == VSP1_ENTITY_BRS) {
+			/* BRU and BRS can't be chained. */
+			if (bru) {
+				ret = -EPIPE;
+				goto out;
+			}
 
+			bru = to_bru(&entity->subdev);
 			bru->inputs[pad->index].rpf = input;
 			input->bru_input = pad->index;
-
-			bru_found = true;
 		}
 
 		/* We've reached the WPF, we're done. */
@@ -542,8 +553,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 			}
 
 			pipe->uds = entity;
-			pipe->uds_input = bru_found ? pipe->bru
-					: &input->entity;
+			pipe->uds_input = bru ? &bru->entity : &input->entity;
 		}
 
 		/* Follow the source link, ignoring any HGO or HGT. */
@@ -589,30 +599,42 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 		e = to_vsp1_entity(subdev);
 		list_add_tail(&e->list_pipe, &pipe->entities);
 
-		if (e->type == VSP1_ENTITY_RPF) {
+		switch (e->type) {
+		case VSP1_ENTITY_RPF:
 			rwpf = to_rwpf(subdev);
 			pipe->inputs[rwpf->entity.index] = rwpf;
 			rwpf->video->pipe_index = ++pipe->num_inputs;
 			rwpf->pipe = pipe;
-		} else if (e->type == VSP1_ENTITY_WPF) {
+			break;
+
+		case VSP1_ENTITY_WPF:
 			rwpf = to_rwpf(subdev);
 			pipe->output = rwpf;
 			rwpf->video->pipe_index = 0;
 			rwpf->pipe = pipe;
-		} else if (e->type == VSP1_ENTITY_LIF) {
+			break;
+
+		case VSP1_ENTITY_LIF:
 			pipe->lif = e;
-		} else if (e->type == VSP1_ENTITY_BRU) {
+			break;
+
+		case VSP1_ENTITY_BRU:
+		case VSP1_ENTITY_BRS:
 			pipe->bru = e;
-		} else if (e->type == VSP1_ENTITY_HGO) {
-			struct vsp1_hgo *hgo = to_hgo(subdev);
+			break;
 
+		case VSP1_ENTITY_HGO:
 			pipe->hgo = e;
-			hgo->histo.pipe = pipe;
-		} else if (e->type == VSP1_ENTITY_HGT) {
-			struct vsp1_hgt *hgt = to_hgt(subdev);
+			to_hgo(subdev)->histo.pipe = pipe;
+			break;
 
+		case VSP1_ENTITY_HGT:
 			pipe->hgt = e;
-			hgt->histo.pipe = pipe;
+			to_hgt(subdev)->histo.pipe = pipe;
+			break;
+
+		default:
+			break;
 		}
 	}
 
@@ -783,9 +805,12 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 {
 	struct vsp1_entity *entity;
+	int ret;
 
 	/* Determine this pipelines sizes for image partitioning support. */
-	vsp1_video_pipeline_setup_partitions(pipe);
+	ret = vsp1_video_pipeline_setup_partitions(pipe);
+	if (ret < 0)
+		return ret;
 
 	/* Prepare the display list. */
 	pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
@@ -796,12 +821,14 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 		struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
 
 		/*
-		 * If a BRU is present in the pipeline before the UDS, the alpha
-		 * component doesn't need to be scaled as the BRU output alpha
-		 * value is fixed to 255. Otherwise we need to scale the alpha
-		 * component only when available at the input RPF.
+		 * If a BRU or BRS is present in the pipeline before the UDS,
+		 * the alpha component doesn't need to be scaled as the BRU and
+		 * BRS output alpha value is fixed to 255. Otherwise we need to
+		 * scale the alpha component only when available at the input
+		 * RPF.
 		 */
-		if (pipe->uds_input->type == VSP1_ENTITY_BRU) {
+		if (pipe->uds_input->type == VSP1_ENTITY_BRU ||
+		    pipe->uds_input->type == VSP1_ENTITY_BRS) {
 			uds->scale_alpha = false;
 		} else {
 			struct vsp1_rwpf *rpf =
@@ -822,6 +849,26 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	return 0;
 }
 
+static void vsp1_video_cleanup_pipeline(struct vsp1_pipeline *pipe)
+{
+	struct vsp1_video *video = pipe->output->video;
+	struct vsp1_vb2_buffer *buffer;
+	unsigned long flags;
+
+	/* Remove all buffers from the IRQ queue. */
+	spin_lock_irqsave(&video->irqlock, flags);
+	list_for_each_entry(buffer, &video->irqqueue, queue)
+		vb2_buffer_done(&buffer->buf.vb2_buf, VB2_BUF_STATE_ERROR);
+	INIT_LIST_HEAD(&video->irqqueue);
+	spin_unlock_irqrestore(&video->irqlock, flags);
+
+	/* Release our partition table allocation */
+	mutex_lock(&pipe->lock);
+	kfree(pipe->part_table);
+	pipe->part_table = NULL;
+	mutex_unlock(&pipe->lock);
+}
+
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
@@ -835,6 +882,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 		ret = vsp1_video_setup_pipeline(pipe);
 		if (ret < 0) {
 			mutex_unlock(&pipe->lock);
+			vsp1_video_cleanup_pipeline(pipe);
 			return ret;
 		}
 
@@ -866,7 +914,6 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	struct vsp1_pipeline *pipe = video->rwpf->pipe;
-	struct vsp1_vb2_buffer *buffer;
 	unsigned long flags;
 	int ret;
 
@@ -891,14 +938,8 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&pipe->lock);
 
 	media_pipeline_stop(&video->video.entity);
+	vsp1_video_cleanup_pipeline(pipe);
 	vsp1_video_pipeline_put(pipe);
-
-	/* Remove all buffers from the IRQ queue. */
-	spin_lock_irqsave(&video->irqlock, flags);
-	list_for_each_entry(buffer, &video->irqqueue, queue)
-		vb2_buffer_done(&buffer->buf.vb2_buf, VB2_BUF_STATE_ERROR);
-	INIT_LIST_HEAD(&video->irqqueue);
-	spin_unlock_irqrestore(&video->irqlock, flags);
 }
 
 static const struct vb2_ops vsp1_video_queue_qops = {
@@ -1197,7 +1238,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	video->queue.ops = &vsp1_video_queue_qops;
 	video->queue.mem_ops = &vb2_dma_contig_memops;
 	video->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
-	video->queue.dev = video->vsp1->dev;
+	video->queue.dev = video->vsp1->bus_master;
 	ret = vb2_queue_init(&video->queue);
 	if (ret < 0) {
 		dev_err(video->vsp1->dev, "failed to initialize vb2 queue\n");

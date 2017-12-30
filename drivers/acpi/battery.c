@@ -620,7 +620,7 @@ static ssize_t acpi_battery_alarm_store(struct device *dev,
 	return count;
 }
 
-static struct device_attribute alarm_attr = {
+static const struct device_attribute alarm_attr = {
 	.attr = {.name = "alarm", .mode = 0644},
 	.show = acpi_battery_alarm_show,
 	.store = acpi_battery_alarm_store,
@@ -782,7 +782,7 @@ static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 	if ((battery->state & ACPI_BATTERY_STATE_CRITICAL) ||
 	    (test_bit(ACPI_BATTERY_ALARM_PRESENT, &battery->flags) &&
             (battery->capacity_now <= battery->alarm)))
-		pm_wakeup_event(&battery->device->dev, 0);
+		acpi_pm_wakeup_event(&battery->device->dev);
 
 	return result;
 }

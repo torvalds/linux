@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2010 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2008, 2009 QLogic Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -187,112 +188,59 @@ void qib_pcie_ddcleanup(struct qib_devdata *dd)
 	pci_set_drvdata(dd->pcidev, NULL);
 }
 
-static void qib_msix_setup(struct qib_devdata *dd, int pos, u32 *msixcnt,
-			   struct qib_msix_entry *qib_msix_entry)
-{
-	int ret;
-	int nvec = *msixcnt;
-	struct msix_entry *msix_entry;
-	int i;
-
-	ret = pci_msix_vec_count(dd->pcidev);
-	if (ret < 0)
-		goto do_intx;
-
-	nvec = min(nvec, ret);
-
-	/* We can't pass qib_msix_entry array to qib_msix_setup
-	 * so use a dummy msix_entry array and copy the allocated
-	 * irq back to the qib_msix_entry array. */
-	msix_entry = kcalloc(nvec, sizeof(*msix_entry), GFP_KERNEL);
-	if (!msix_entry)
-		goto do_intx;
-
-	for (i = 0; i < nvec; i++)
-		msix_entry[i] = qib_msix_entry[i].msix;
-
-	ret = pci_enable_msix_range(dd->pcidev, msix_entry, 1, nvec);
-	if (ret < 0)
-		goto free_msix_entry;
-	else
-		nvec = ret;
-
-	for (i = 0; i < nvec; i++)
-		qib_msix_entry[i].msix = msix_entry[i];
-
-	kfree(msix_entry);
-	*msixcnt = nvec;
-	return;
-
-free_msix_entry:
-	kfree(msix_entry);
-
-do_intx:
-	qib_dev_err(
-		dd,
-		"pci_enable_msix_range %d vectors failed: %d, falling back to INTx\n",
-		nvec, ret);
-	*msixcnt = 0;
-	qib_enable_intx(dd->pcidev);
-}
-
 /**
  * We save the msi lo and hi values, so we can restore them after
  * chip reset (the kernel PCI infrastructure doesn't yet handle that
  * correctly.
  */
-static int qib_msi_setup(struct qib_devdata *dd, int pos)
+static void qib_cache_msi_info(struct qib_devdata *dd, int pos)
 {
 	struct pci_dev *pdev = dd->pcidev;
 	u16 control;
-	int ret;
 
-	ret = pci_enable_msi(pdev);
-	if (ret)
-		qib_dev_err(dd,
-			"pci_enable_msi failed: %d, interrupts may not work\n",
-			ret);
-	/* continue even if it fails, we may still be OK... */
-
-	pci_read_config_dword(pdev, pos + PCI_MSI_ADDRESS_LO,
-			      &dd->msi_lo);
-	pci_read_config_dword(pdev, pos + PCI_MSI_ADDRESS_HI,
-			      &dd->msi_hi);
+	pci_read_config_dword(pdev, pos + PCI_MSI_ADDRESS_LO, &dd->msi_lo);
+	pci_read_config_dword(pdev, pos + PCI_MSI_ADDRESS_HI, &dd->msi_hi);
 	pci_read_config_word(pdev, pos + PCI_MSI_FLAGS, &control);
+
 	/* now save the data (vector) info */
-	pci_read_config_word(pdev, pos + ((control & PCI_MSI_FLAGS_64BIT)
-				    ? 12 : 8),
+	pci_read_config_word(pdev,
+			     pos + ((control & PCI_MSI_FLAGS_64BIT) ? 12 : 8),
 			     &dd->msi_data);
-	return ret;
 }
 
-int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent,
-		    struct qib_msix_entry *entry)
+int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent)
 {
 	u16 linkstat, speed;
-	int pos = 0, ret = 1;
+	int nvec;
+	int maxvec;
+	unsigned int flags = PCI_IRQ_MSIX | PCI_IRQ_MSI;
 
 	if (!pci_is_pcie(dd->pcidev)) {
 		qib_dev_err(dd, "Can't find PCI Express capability!\n");
 		/* set up something... */
 		dd->lbus_width = 1;
 		dd->lbus_speed = 2500; /* Gen1, 2.5GHz */
+		nvec = -1;
 		goto bail;
 	}
 
-	pos = dd->pcidev->msix_cap;
-	if (nent && *nent && pos) {
-		qib_msix_setup(dd, pos, nent, entry);
-		ret = 0; /* did it, either MSIx or INTx */
-	} else {
-		pos = dd->pcidev->msi_cap;
-		if (pos)
-			ret = qib_msi_setup(dd, pos);
-		else
-			qib_dev_err(dd, "No PCI MSI or MSIx capability!\n");
-	}
-	if (!pos)
-		qib_enable_intx(dd->pcidev);
+	if (dd->flags & QIB_HAS_INTX)
+		flags |= PCI_IRQ_LEGACY;
+	maxvec = (nent && *nent) ? *nent : 1;
+	nvec = pci_alloc_irq_vectors(dd->pcidev, 1, maxvec, flags);
+	if (nvec < 0)
+		goto bail;
+
+	/*
+	 * If nent exists, make sure to record how many vectors were allocated.
+	 * If msix_enabled is false, return 0 so the fallback code works
+	 * correctly.
+	 */
+	if (nent)
+		*nent = !dd->pcidev->msix_enabled ? 0 : nvec;
+
+	if (dd->pcidev->msi_enabled)
+		qib_cache_msi_info(dd, dd->pcidev->msi_cap);
 
 	pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKSTA, &linkstat);
 	/*
@@ -333,7 +281,21 @@ bail:
 	/* fill in string, even on errors */
 	snprintf(dd->lbus_info, sizeof(dd->lbus_info),
 		 "PCIe,%uMHz,x%u\n", dd->lbus_speed, dd->lbus_width);
-	return ret;
+	return nvec < 0 ? nvec : 0;
+}
+
+/**
+ * qib_free_irq - Cleanup INTx and MSI interrupts
+ * @dd: valid pointer to qib dev data
+ *
+ * Since cleanup for INTx and MSI interrupts is trivial, have a common
+ * routine.
+ *
+ */
+void qib_free_irq(struct qib_devdata *dd)
+{
+	pci_free_irq(dd->pcidev, 0, dd);
+	pci_free_irq_vectors(dd->pcidev);
 }
 
 /*
@@ -378,67 +340,15 @@ int qib_reinit_intr(struct qib_devdata *dd)
 			      dd->msi_data);
 	ret = 1;
 bail:
-	if (!ret && (dd->flags & QIB_HAS_INTX)) {
-		qib_enable_intx(dd->pcidev);
+	qib_free_irq(dd);
+
+	if (!ret && (dd->flags & QIB_HAS_INTX))
 		ret = 1;
-	}
 
 	/* and now set the pci master bit again */
 	pci_set_master(dd->pcidev);
 
 	return ret;
-}
-
-/*
- * Disable msi interrupt if enabled, and clear msi_lo.
- * This is used primarily for the fallback to INTx, but
- * is also used in reinit after reset, and during cleanup.
- */
-void qib_nomsi(struct qib_devdata *dd)
-{
-	dd->msi_lo = 0;
-	pci_disable_msi(dd->pcidev);
-}
-
-/*
- * Same as qib_nosmi, but for MSIx.
- */
-void qib_nomsix(struct qib_devdata *dd)
-{
-	pci_disable_msix(dd->pcidev);
-}
-
-/*
- * Similar to pci_intx(pdev, 1), except that we make sure
- * msi(x) is off.
- */
-void qib_enable_intx(struct pci_dev *pdev)
-{
-	u16 cw, new;
-	int pos;
-
-	/* first, turn on INTx */
-	pci_read_config_word(pdev, PCI_COMMAND, &cw);
-	new = cw & ~PCI_COMMAND_INTX_DISABLE;
-	if (new != cw)
-		pci_write_config_word(pdev, PCI_COMMAND, new);
-
-	pos = pdev->msi_cap;
-	if (pos) {
-		/* then turn off MSI */
-		pci_read_config_word(pdev, pos + PCI_MSI_FLAGS, &cw);
-		new = cw & ~PCI_MSI_FLAGS_ENABLE;
-		if (new != cw)
-			pci_write_config_word(pdev, pos + PCI_MSI_FLAGS, new);
-	}
-	pos = pdev->msix_cap;
-	if (pos) {
-		/* then turn off MSIx */
-		pci_read_config_word(pdev, pos + PCI_MSIX_FLAGS, &cw);
-		new = cw & ~PCI_MSIX_FLAGS_ENABLE;
-		if (new != cw)
-			pci_write_config_word(pdev, pos + PCI_MSIX_FLAGS, new);
-	}
 }
 
 /*
@@ -487,7 +397,6 @@ MODULE_PARM_DESC(pcie_coalesce, "tune PCIe colescing on some Intel chipsets");
  */
 static void qib_tune_pcie_coalesce(struct qib_devdata *dd)
 {
-	int r;
 	struct pci_dev *parent;
 	u16 devid;
 	u32 mask, bits, val;
@@ -542,7 +451,7 @@ static void qib_tune_pcie_coalesce(struct qib_devdata *dd)
 	pci_read_config_dword(parent, 0x48, &val);
 	val &= ~mask;
 	val |= bits;
-	r = pci_write_config_dword(parent, 0x48, val);
+	pci_write_config_dword(parent, 0x48, val);
 }
 
 /*

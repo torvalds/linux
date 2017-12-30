@@ -296,8 +296,7 @@ batadv_frag_merge_packets(struct hlist_head *chain)
 	/* Copy the payload of the each fragment into the last skb */
 	hlist_for_each_entry(entry, chain, list) {
 		size = entry->skb->len - hdr_size;
-		memcpy(skb_put(skb_out, size), entry->skb->data + hdr_size,
-		       size);
+		skb_put_data(skb_out, entry->skb->data + hdr_size, size);
 	}
 
 free:
@@ -500,6 +499,8 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 	 */
 	if (skb->priority >= 256 && skb->priority <= 263)
 		frag_header.priority = skb->priority - 256;
+	else
+		frag_header.priority = 0;
 
 	ether_addr_copy(frag_header.orig, primary_if->net_dev->dev_addr);
 	ether_addr_copy(frag_header.dest, orig_node->orig);

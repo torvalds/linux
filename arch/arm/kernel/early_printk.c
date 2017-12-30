@@ -11,16 +11,20 @@
 #include <linux/kernel.h>
 #include <linux/console.h>
 #include <linux/init.h>
+#include <linux/string.h>
 
-extern void printch(int);
+extern void printascii(const char *);
 
 static void early_write(const char *s, unsigned n)
 {
-	while (n-- > 0) {
-		if (*s == '\n')
-			printch('\r');
-		printch(*s);
-		s++;
+	char buf[128];
+	while (n) {
+		unsigned l = min(n, sizeof(buf)-1);
+		memcpy(buf, s, l);
+		buf[l] = 0;
+		s += l;
+		n -= l;
+		printascii(buf);
 	}
 }
 

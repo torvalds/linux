@@ -182,7 +182,7 @@ struct snd_cmi8330 {
 
 #ifdef CONFIG_PNP
 
-static struct pnp_card_device_id snd_cmi8330_pnpids[] = {
+static const struct pnp_card_device_id snd_cmi8330_pnpids[] = {
 	{ .id = "CMI0001", .devs = { { "@X@0001" }, { "@@@0001" }, { "@H@0001" }, { "A@@0001" } } },
 	{ .id = "CMI0001", .devs = { { "@@@0001" }, { "@X@0001" }, { "@H@0001" } } },
 	{ .id = "" }

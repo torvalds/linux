@@ -18,7 +18,7 @@ Example :
 This example shows these optional properties, plus other properties
 required for the TI Davinci MDIO driver.
 
-	davinci_mdio: ethernet@0x5c030000 {
+	davinci_mdio: ethernet@5c030000 {
 		compatible = "ti,davinci_mdio";
 		reg = <0x5c030000 0x1000>;
 		#address-cells = <1>;

@@ -49,7 +49,7 @@
 #define	FCOE_CTLR_MIN_FKA	500		/* min keep alive (mS) */
 #define	FCOE_CTLR_DEF_FKA	FIP_DEF_FKA	/* default keep alive (mS) */
 
-static void fcoe_ctlr_timeout(unsigned long);
+static void fcoe_ctlr_timeout(struct timer_list *);
 static void fcoe_ctlr_timer_work(struct work_struct *);
 static void fcoe_ctlr_recv_work(struct work_struct *);
 static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *);
@@ -156,7 +156,7 @@ void fcoe_ctlr_init(struct fcoe_ctlr *fip, enum fip_state mode)
 	mutex_init(&fip->ctlr_mutex);
 	spin_lock_init(&fip->ctlr_lock);
 	fip->flogi_oxid = FC_XID_UNKNOWN;
-	setup_timer(&fip->timer, fcoe_ctlr_timeout, (unsigned long)fip);
+	timer_setup(&fip->timer, fcoe_ctlr_timeout, 0);
 	INIT_WORK(&fip->timer_work, fcoe_ctlr_timer_work);
 	INIT_WORK(&fip->recv_work, fcoe_ctlr_recv_work);
 	skb_queue_head_init(&fip->fip_recv_list);
@@ -626,7 +626,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	fh = (struct fc_frame_header *)skb->data;
 	op = *(u8 *)(fh + 1);
 	dlen = sizeof(struct fip_encaps) + skb->len;	/* len before push */
-	cap = (struct fip_encaps_head *)skb_push(skb, sizeof(*cap));
+	cap = skb_push(skb, sizeof(*cap));
 	memset(cap, 0, sizeof(*cap));
 
 	if (lport->point_to_multipoint) {
@@ -660,8 +660,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 
 	if (op != ELS_LS_RJT) {
 		dlen += sizeof(*mac);
-		mac = (struct fip_mac_desc *)skb_put(skb, sizeof(*mac));
-		memset(mac, 0, sizeof(*mac));
+		mac = skb_put_zero(skb, sizeof(*mac));
 		mac->fd_desc.fip_dtype = FIP_DT_MAC;
 		mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
 		if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC) {
@@ -1787,9 +1786,9 @@ unlock:
  * fcoe_ctlr_timeout() - FIP timeout handler
  * @arg: The FCoE controller that timed out
  */
-static void fcoe_ctlr_timeout(unsigned long arg)
+static void fcoe_ctlr_timeout(struct timer_list *t)
 {
-	struct fcoe_ctlr *fip = (struct fcoe_ctlr *)arg;
+	struct fcoe_ctlr *fip = from_timer(fip, t, timer);
 
 	schedule_work(&fip->timer_work);
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * RT Mutexes: blocking mutual exclusion locks with PI support
  *
@@ -40,9 +41,12 @@ struct rt_mutex_waiter {
 /*
  * Various helpers to access the waiters-tree:
  */
+
+#ifdef CONFIG_RT_MUTEXES
+
 static inline int rt_mutex_has_waiters(struct rt_mutex *lock)
 {
-	return !RB_EMPTY_ROOT(&lock->waiters);
+	return !RB_EMPTY_ROOT(&lock->waiters.rb_root);
 }
 
 static inline struct rt_mutex_waiter *
@@ -50,8 +54,8 @@ rt_mutex_top_waiter(struct rt_mutex *lock)
 {
 	struct rt_mutex_waiter *w;
 
-	w = rb_entry(lock->waiters_leftmost, struct rt_mutex_waiter,
-		     tree_entry);
+	w = rb_entry(lock->waiters.rb_leftmost,
+		     struct rt_mutex_waiter, tree_entry);
 	BUG_ON(w->lock != lock);
 
 	return w;
@@ -59,15 +63,41 @@ rt_mutex_top_waiter(struct rt_mutex *lock)
 
 static inline int task_has_pi_waiters(struct task_struct *p)
 {
-	return !RB_EMPTY_ROOT(&p->pi_waiters);
+	return !RB_EMPTY_ROOT(&p->pi_waiters.rb_root);
 }
 
 static inline struct rt_mutex_waiter *
 task_top_pi_waiter(struct task_struct *p)
 {
-	return rb_entry(p->pi_waiters_leftmost, struct rt_mutex_waiter,
-			pi_tree_entry);
+	return rb_entry(p->pi_waiters.rb_leftmost,
+			struct rt_mutex_waiter, pi_tree_entry);
 }
+
+#else
+
+static inline int rt_mutex_has_waiters(struct rt_mutex *lock)
+{
+	return false;
+}
+
+static inline struct rt_mutex_waiter *
+rt_mutex_top_waiter(struct rt_mutex *lock)
+{
+	return NULL;
+}
+
+static inline int task_has_pi_waiters(struct task_struct *p)
+{
+	return false;
+}
+
+static inline struct rt_mutex_waiter *
+task_top_pi_waiter(struct task_struct *p)
+{
+	return NULL;
+}
+
+#endif
 
 /*
  * lock->owner state tracking:

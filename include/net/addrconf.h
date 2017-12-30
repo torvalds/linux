@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ADDRCONF_H
 #define _ADDRCONF_H
 
@@ -48,13 +49,15 @@ struct prefix_info {
 	struct in6_addr		prefix;
 };
 
-
 #include <linux/netdevice.h>
 #include <net/if_inet6.h>
 #include <net/ipv6.h>
 
-#define IN6_ADDR_HSIZE_SHIFT	4
-#define IN6_ADDR_HSIZE		(1 << IN6_ADDR_HSIZE_SHIFT)
+struct in6_validator_info {
+	struct in6_addr		i6vi_addr;
+	struct inet6_dev	*i6vi_dev;
+	struct netlink_ext_ack	*extack;
+};
 
 int addrconf_init(void);
 void addrconf_cleanup(void);
@@ -90,8 +93,8 @@ int __ipv6_get_lladdr(struct inet6_dev *idev, struct in6_addr *addr,
 		      u32 banned_flags);
 int ipv6_get_lladdr(struct net_device *dev, struct in6_addr *addr,
 		    u32 banned_flags);
-int inet_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
-			 bool match_wildcard);
+bool inet_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
+			  bool match_wildcard);
 void addrconf_join_solict(struct net_device *dev, const struct in6_addr *addr);
 void addrconf_leave_solict(struct inet6_dev *idev, const struct in6_addr *addr);
 
@@ -203,7 +206,7 @@ void ipv6_mc_remap(struct inet6_dev *idev);
 void ipv6_mc_init_dev(struct inet6_dev *idev);
 void ipv6_mc_destroy_dev(struct inet6_dev *idev);
 int ipv6_mc_check_mld(struct sk_buff *skb, struct sk_buff **skb_trimmed);
-void addrconf_dad_failure(struct inet6_ifaddr *ifp);
+void addrconf_dad_failure(struct sk_buff *skb, struct inet6_ifaddr *ifp);
 
 bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 			 const struct in6_addr *src_addr);
@@ -278,6 +281,10 @@ int register_inet6addr_notifier(struct notifier_block *nb);
 int unregister_inet6addr_notifier(struct notifier_block *nb);
 int inet6addr_notifier_call_chain(unsigned long val, void *v);
 
+int register_inet6addr_validator_notifier(struct notifier_block *nb);
+int unregister_inet6addr_validator_notifier(struct notifier_block *nb);
+int inet6addr_validator_notifier_call_chain(unsigned long val, void *v);
+
 void inet6_netconf_notify_devconf(struct net *net, int event, int type,
 				  int ifindex, struct ipv6_devconf *devconf);
 
@@ -308,7 +315,7 @@ static inline struct inet6_dev *in6_dev_get(const struct net_device *dev)
 	rcu_read_lock();
 	idev = rcu_dereference(dev->ip6_ptr);
 	if (idev)
-		atomic_inc(&idev->refcnt);
+		refcount_inc(&idev->refcnt);
 	rcu_read_unlock();
 	return idev;
 }
@@ -324,36 +331,46 @@ void in6_dev_finish_destroy(struct inet6_dev *idev);
 
 static inline void in6_dev_put(struct inet6_dev *idev)
 {
-	if (atomic_dec_and_test(&idev->refcnt))
+	if (refcount_dec_and_test(&idev->refcnt))
 		in6_dev_finish_destroy(idev);
+}
+
+static inline void in6_dev_put_clear(struct inet6_dev **pidev)
+{
+	struct inet6_dev *idev = *pidev;
+
+	if (idev) {
+		in6_dev_put(idev);
+		*pidev = NULL;
+	}
 }
 
 static inline void __in6_dev_put(struct inet6_dev *idev)
 {
-	atomic_dec(&idev->refcnt);
+	refcount_dec(&idev->refcnt);
 }
 
 static inline void in6_dev_hold(struct inet6_dev *idev)
 {
-	atomic_inc(&idev->refcnt);
+	refcount_inc(&idev->refcnt);
 }
 
 void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp);
 
 static inline void in6_ifa_put(struct inet6_ifaddr *ifp)
 {
-	if (atomic_dec_and_test(&ifp->refcnt))
+	if (refcount_dec_and_test(&ifp->refcnt))
 		inet6_ifa_finish_destroy(ifp);
 }
 
 static inline void __in6_ifa_put(struct inet6_ifaddr *ifp)
 {
-	atomic_dec(&ifp->refcnt);
+	refcount_dec(&ifp->refcnt);
 }
 
 static inline void in6_ifa_hold(struct inet6_ifaddr *ifp)
 {
-	atomic_inc(&ifp->refcnt);
+	refcount_inc(&ifp->refcnt);
 }
 
 

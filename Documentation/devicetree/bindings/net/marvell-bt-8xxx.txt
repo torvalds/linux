@@ -44,7 +44,6 @@ Example for SDIO device follows (calibration data is also available in
 below example).
 
 &mmc3 {
-	status = "okay";
 	vmmc-supply = <&wlan_en_reg>;
 	bus-width = <4>;
 	cap-power-off-card;
@@ -70,7 +69,6 @@ below example).
 Example for USB device:
 
 &usb_host1_ohci {
-    status = "okay";
     #address-cells = <1>;
     #size-cells = <0>;
 

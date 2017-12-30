@@ -149,7 +149,7 @@ int r8712_free_recvframe(union recv_frame *precvframe,
 	list_add_tail(&(precvframe->u.hdr.list), &pfree_recv_queue->queue);
 	if (padapter != NULL) {
 		if (pfree_recv_queue == &precvpriv->free_recv_queue)
-				precvpriv->free_recvframe_cnt++;
+			precvpriv->free_recvframe_cnt++;
 	}
 	spin_unlock_irqrestore(&pfree_recv_queue->lock, irqL);
 	return _SUCCESS;
@@ -340,7 +340,7 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 	int	a_len, padding_len;
 	u16	eth_type, nSubframe_Length;
 	u8	nr_subframes, i;
-	unsigned char *data_ptr, *pdata;
+	unsigned char *pdata;
 	struct rx_pkt_attrib *pattrib;
 	_pkt *sub_skb, *subframes[MAX_SUBFRAME_COUNT];
 	struct recv_priv *precvpriv = &padapter->recvpriv;
@@ -372,8 +372,7 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 		if (!sub_skb)
 			break;
 		skb_reserve(sub_skb, 12);
-		data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
-		memcpy(data_ptr, pdata, nSubframe_Length);
+		skb_put_data(sub_skb, pdata, nSubframe_Length);
 		subframes[nr_subframes++] = sub_skb;
 		if (nr_subframes >= MAX_SUBFRAME_COUNT) {
 			netdev_warn(padapter->pnetdev, "r8712u: ParseSubframe(): Too many Subframes! Packets dropped!\n");
@@ -884,10 +883,10 @@ static void query_rx_phy_status(struct _adapter *padapter,
 	 * from 0~100. It is assigned to the BSS List in
 	 * GetValueFromBeaconOrProbeRsp().
 	 */
-	if (bcck_rate)
+	if (bcck_rate) {
 		prframe->u.hdr.attrib.signal_strength =
 			 (u8)r8712_signal_scale_mapping(pwdb_all);
-	else {
+	} else {
 		if (rf_rx_num != 0)
 			prframe->u.hdr.attrib.signal_strength =
 				 (u8)(r8712_signal_scale_mapping(total_rssi /=

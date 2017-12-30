@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2008 - 2012 QLogic Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -150,7 +150,7 @@ static struct kparam_string kp_txselect = {
 	.string = txselect_list,
 	.maxlen = MAX_ATTEN_LEN
 };
-static int  setup_txselect(const char *, struct kernel_param *);
+static int  setup_txselect(const char *, const struct kernel_param *);
 module_param_call(txselect, setup_txselect, param_get_string,
 		  &kp_txselect, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(txselect,
@@ -553,7 +553,6 @@ struct qib_chip_specific {
 	u32 updthresh; /* current AvailUpdThld */
 	u32 updthresh_dflt; /* default AvailUpdThld */
 	u32 r1;
-	int irq;
 	u32 num_msix_entries;
 	u32 sdmabufcnt;
 	u32 lastbuf_for_pio;
@@ -756,10 +755,8 @@ static void check_7322_rxe_status(struct qib_pportdata *);
 static u32 __iomem *qib_7322_getsendbuf(struct qib_pportdata *, u64, u32 *);
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 static void qib_setup_dca(struct qib_devdata *dd);
-static void setup_dca_notifier(struct qib_devdata *dd,
-			       struct qib_msix_entry *m);
-static void reset_dca_notifier(struct qib_devdata *dd,
-			       struct qib_msix_entry *m);
+static void setup_dca_notifier(struct qib_devdata *dd, int msixnum);
+static void reset_dca_notifier(struct qib_devdata *dd, int msixnum);
 #endif
 
 /**
@@ -1647,7 +1644,6 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	u64 iserr = 0;
 	u64 errs;
 	u64 mask;
-	int log_idx;
 
 	qib_stats.sps_errints++;
 	errs = qib_read_kreg64(dd, kr_errstatus);
@@ -1665,10 +1661,7 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	if (errs & QIB_E_HARDWARE) {
 		*msg = '\0';
 		qib_7322_handle_hwerrors(dd, msg, sizeof(dd->cspec->emsgbuf));
-	} else
-		for (log_idx = 0; log_idx < QIB_EEP_LOG_CNT; ++log_idx)
-			if (errs & dd->eep_st_masks[log_idx].errs_to_log)
-				qib_inc_eeprom_err(dd, log_idx, 1);
+	}
 
 	if (errs & QIB_E_SPKTERRS) {
 		qib_disarm_7322_senderrbufs(dd->pport);
@@ -1739,9 +1732,10 @@ static void qib_error_tasklet(unsigned long data)
 	qib_write_kreg(dd, kr_errmask, dd->cspec->errormask);
 }
 
-static void reenable_chase(unsigned long opaque)
+static void reenable_chase(struct timer_list *t)
 {
-	struct qib_pportdata *ppd = (struct qib_pportdata *)opaque;
+	struct qib_chippport_specific *cp = from_timer(cp, t, chase_timer);
+	struct qib_pportdata *ppd = cp->ppd;
 
 	ppd->cpspec->chase_timer.expires = 0;
 	qib_set_ib_7322_lstate(ppd, QLOGIC_IB_IBCC_LINKCMD_DOWN,
@@ -2531,7 +2525,7 @@ static void qib_7322_mini_quiet_serdes(struct qib_pportdata *ppd)
 		cancel_delayed_work_sync(&ppd->cpspec->ipg_work);
 
 	ppd->cpspec->chase_end = 0;
-	if (ppd->cpspec->chase_timer.data) /* if initted */
+	if (ppd->cpspec->chase_timer.function) /* if initted */
 		del_timer_sync(&ppd->cpspec->chase_timer);
 
 	/*
@@ -2778,7 +2772,7 @@ static void qib_setup_dca(struct qib_devdata *dd)
 		qib_write_kreg(dd, KREG_IDX(DCACtrlB) + i,
 			       cspec->dca_rcvhdr_ctrl[i]);
 	for (i = 0; i < cspec->num_msix_entries; i++)
-		setup_dca_notifier(dd, &cspec->msix_entries[i]);
+		setup_dca_notifier(dd, i);
 }
 
 static void qib_irq_notifier_notify(struct irq_affinity_notify *notify,
@@ -2820,47 +2814,39 @@ static void qib_irq_notifier_release(struct kref *ref)
 }
 #endif
 
-/*
- * Disable MSIx interrupt if enabled, call generic MSIx code
- * to cleanup, and clear pending MSIx interrupts.
- * Used for fallback to INTx, after reset, and when MSIx setup fails.
- */
-static void qib_7322_nomsix(struct qib_devdata *dd)
+static void qib_7322_free_irq(struct qib_devdata *dd)
 {
 	u64 intgranted;
-	int n;
+	int i;
 
 	dd->cspec->main_int_mask = ~0ULL;
-	n = dd->cspec->num_msix_entries;
-	if (n) {
-		int i;
 
-		dd->cspec->num_msix_entries = 0;
-		for (i = 0; i < n; i++) {
+	for (i = 0; i < dd->cspec->num_msix_entries; i++) {
+		/* only free IRQs that were allocated */
+		if (dd->cspec->msix_entries[i].arg) {
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-			reset_dca_notifier(dd, &dd->cspec->msix_entries[i]);
+			reset_dca_notifier(dd, i);
 #endif
-			irq_set_affinity_hint(
-			  dd->cspec->msix_entries[i].msix.vector, NULL);
+			irq_set_affinity_hint(pci_irq_vector(dd->pcidev, i),
+					      NULL);
 			free_cpumask_var(dd->cspec->msix_entries[i].mask);
-			free_irq(dd->cspec->msix_entries[i].msix.vector,
-			   dd->cspec->msix_entries[i].arg);
+			pci_free_irq(dd->pcidev, i,
+				     dd->cspec->msix_entries[i].arg);
 		}
-		qib_nomsix(dd);
 	}
+
+	/* If num_msix_entries was 0, disable the INTx IRQ */
+	if (!dd->cspec->num_msix_entries)
+		pci_free_irq(dd->pcidev, 0, dd);
+	else
+		dd->cspec->num_msix_entries = 0;
+
+	pci_free_irq_vectors(dd->pcidev);
+
 	/* make sure no MSIx interrupts are left pending */
 	intgranted = qib_read_kreg64(dd, kr_intgranted);
 	if (intgranted)
 		qib_write_kreg(dd, kr_intgranted, intgranted);
-}
-
-static void qib_7322_free_irq(struct qib_devdata *dd)
-{
-	if (dd->cspec->irq) {
-		free_irq(dd->cspec->irq, dd);
-		dd->cspec->irq = 0;
-	}
-	qib_7322_nomsix(dd);
 }
 
 static void qib_setup_7322_cleanup(struct qib_devdata *dd)
@@ -3329,22 +3315,20 @@ static irqreturn_t sdma_cleanup_intr(int irq, void *data)
 
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 
-static void reset_dca_notifier(struct qib_devdata *dd, struct qib_msix_entry *m)
+static void reset_dca_notifier(struct qib_devdata *dd, int msixnum)
 {
-	if (!m->dca)
+	if (!dd->cspec->msix_entries[msixnum].dca)
 		return;
-	qib_devinfo(dd->pcidev,
-		"Disabling notifier on HCA %d irq %d\n",
-		dd->unit,
-		m->msix.vector);
-	irq_set_affinity_notifier(
-		m->msix.vector,
-		NULL);
-	m->notifier = NULL;
+
+	qib_devinfo(dd->pcidev, "Disabling notifier on HCA %d irq %d\n",
+		    dd->unit, pci_irq_vector(dd->pcidev, msixnum));
+	irq_set_affinity_notifier(pci_irq_vector(dd->pcidev, msixnum), NULL);
+	dd->cspec->msix_entries[msixnum].notifier = NULL;
 }
 
-static void setup_dca_notifier(struct qib_devdata *dd, struct qib_msix_entry *m)
+static void setup_dca_notifier(struct qib_devdata *dd, int msixnum)
 {
+	struct qib_msix_entry *m = &dd->cspec->msix_entries[msixnum];
 	struct qib_irq_notify *n;
 
 	if (!m->dca)
@@ -3354,7 +3338,7 @@ static void setup_dca_notifier(struct qib_devdata *dd, struct qib_msix_entry *m)
 		int ret;
 
 		m->notifier = n;
-		n->notify.irq = m->msix.vector;
+		n->notify.irq = pci_irq_vector(dd->pcidev, msixnum);
 		n->notify.notify = qib_irq_notifier_notify;
 		n->notify.release = qib_irq_notifier_release;
 		n->arg = m->arg;
@@ -3415,22 +3399,17 @@ static void qib_setup_7322_interrupt(struct qib_devdata *dd, int clearpend)
 	if (!dd->cspec->num_msix_entries) {
 		/* Try to get INTx interrupt */
 try_intx:
-		if (!dd->pcidev->irq) {
-			qib_dev_err(dd,
-				"irq is 0, BIOS error?  Interrupts won't work\n");
-			goto bail;
-		}
-		ret = request_irq(dd->pcidev->irq, qib_7322intr,
-				  IRQF_SHARED, QIB_DRV_NAME, dd);
+		ret = pci_request_irq(dd->pcidev, 0, qib_7322intr, NULL, dd,
+				      QIB_DRV_NAME);
 		if (ret) {
-			qib_dev_err(dd,
+			qib_dev_err(
+				dd,
 				"Couldn't setup INTx interrupt (irq=%d): %d\n",
-				dd->pcidev->irq, ret);
-			goto bail;
+				pci_irq_vector(dd->pcidev, 0), ret);
+			return;
 		}
-		dd->cspec->irq = dd->pcidev->irq;
 		dd->cspec->main_int_mask = ~0ULL;
-		goto bail;
+		return;
 	}
 
 	/* Try to get MSIx interrupts */
@@ -3453,15 +3432,10 @@ try_intx:
 	for (i = 0; msixnum < dd->cspec->num_msix_entries; i++) {
 		irq_handler_t handler;
 		void *arg;
-		u64 val;
 		int lsb, reg, sh;
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 		int dca = 0;
 #endif
-
-		dd->cspec->msix_entries[msixnum].
-			name[sizeof(dd->cspec->msix_entries[msixnum].name) - 1]
-			= '\0';
 		if (i < ARRAY_SIZE(irq_table)) {
 			if (irq_table[i].port) {
 				/* skip if for a non-configured port */
@@ -3475,11 +3449,10 @@ try_intx:
 #endif
 			lsb = irq_table[i].lsb;
 			handler = irq_table[i].handler;
-			snprintf(dd->cspec->msix_entries[msixnum].name,
-				sizeof(dd->cspec->msix_entries[msixnum].name)
-				 - 1,
-				QIB_DRV_NAME "%d%s", dd->unit,
-				irq_table[i].name);
+			ret = pci_request_irq(dd->pcidev, msixnum, handler,
+					      NULL, arg, QIB_DRV_NAME "%d%s",
+					      dd->unit,
+					      irq_table[i].name);
 		} else {
 			unsigned ctxt;
 
@@ -3495,26 +3468,25 @@ try_intx:
 #endif
 			lsb = QIB_I_RCVAVAIL_LSB + ctxt;
 			handler = qib_7322pintr;
-			snprintf(dd->cspec->msix_entries[msixnum].name,
-				sizeof(dd->cspec->msix_entries[msixnum].name)
-				 - 1,
-				QIB_DRV_NAME "%d (kctx)", dd->unit);
+			ret = pci_request_irq(dd->pcidev, msixnum, handler,
+					      NULL, arg,
+					      QIB_DRV_NAME "%d (kctx)",
+					      dd->unit);
 		}
-		ret = request_irq(
-			dd->cspec->msix_entries[msixnum].msix.vector,
-			handler, 0, dd->cspec->msix_entries[msixnum].name,
-			arg);
+
 		if (ret) {
 			/*
 			 * Shouldn't happen since the enable said we could
 			 * have as many as we are trying to setup here.
 			 */
 			qib_dev_err(dd,
-				"Couldn't setup MSIx interrupt (vec=%d, irq=%d): %d\n",
-				msixnum,
-				dd->cspec->msix_entries[msixnum].msix.vector,
-				ret);
-			qib_7322_nomsix(dd);
+				    "Couldn't setup MSIx interrupt (vec=%d, irq=%d): %d\n",
+				    msixnum,
+				    pci_irq_vector(dd->pcidev, msixnum),
+				    ret);
+			qib_7322_free_irq(dd);
+			pci_alloc_irq_vectors(dd->pcidev, 1, 1,
+					      PCI_IRQ_LEGACY);
 			goto try_intx;
 		}
 		dd->cspec->msix_entries[msixnum].arg = arg;
@@ -3530,8 +3502,8 @@ try_intx:
 			mask &= ~(1ULL << lsb);
 			redirect[reg] |= ((u64) msixnum) << sh;
 		}
-		val = qib_read_kreg64(dd, 2 * msixnum + 1 +
-			(QIB_7322_MsixTable_OFFS / sizeof(u64)));
+		qib_read_kreg64(dd, 2 * msixnum + 1 +
+				(QIB_7322_MsixTable_OFFS / sizeof(u64)));
 		if (firstcpu < nr_cpu_ids &&
 			zalloc_cpumask_var(
 				&dd->cspec->msix_entries[msixnum].mask,
@@ -3548,7 +3520,7 @@ try_intx:
 					dd->cspec->msix_entries[msixnum].mask);
 			}
 			irq_set_affinity_hint(
-				dd->cspec->msix_entries[msixnum].msix.vector,
+				pci_irq_vector(dd->pcidev, msixnum),
 				dd->cspec->msix_entries[msixnum].mask);
 		}
 		msixnum++;
@@ -3559,7 +3531,6 @@ try_intx:
 	dd->cspec->main_int_mask = mask;
 	tasklet_init(&dd->error_tasklet, qib_error_tasklet,
 		(unsigned long)dd);
-bail:;
 }
 
 /**
@@ -3571,75 +3542,69 @@ bail:;
 static unsigned qib_7322_boardname(struct qib_devdata *dd)
 {
 	/* Will need enumeration of board-types here */
-	char *n;
-	u32 boardid, namelen;
-	unsigned features = DUAL_PORT_CAP;
+	u32 boardid;
+	unsigned int features = DUAL_PORT_CAP;
 
 	boardid = SYM_FIELD(dd->revision, Revision, BoardID);
 
 	switch (boardid) {
 	case 0:
-		n = "InfiniPath_QLE7342_Emulation";
+		dd->boardname = "InfiniPath_QLE7342_Emulation";
 		break;
 	case 1:
-		n = "InfiniPath_QLE7340";
+		dd->boardname = "InfiniPath_QLE7340";
 		dd->flags |= QIB_HAS_QSFP;
 		features = PORT_SPD_CAP;
 		break;
 	case 2:
-		n = "InfiniPath_QLE7342";
+		dd->boardname = "InfiniPath_QLE7342";
 		dd->flags |= QIB_HAS_QSFP;
 		break;
 	case 3:
-		n = "InfiniPath_QMI7342";
+		dd->boardname = "InfiniPath_QMI7342";
 		break;
 	case 4:
-		n = "InfiniPath_Unsupported7342";
+		dd->boardname = "InfiniPath_Unsupported7342";
 		qib_dev_err(dd, "Unsupported version of QMH7342\n");
 		features = 0;
 		break;
 	case BOARD_QMH7342:
-		n = "InfiniPath_QMH7342";
+		dd->boardname = "InfiniPath_QMH7342";
 		features = 0x24;
 		break;
 	case BOARD_QME7342:
-		n = "InfiniPath_QME7342";
+		dd->boardname = "InfiniPath_QME7342";
 		break;
 	case 8:
-		n = "InfiniPath_QME7362";
+		dd->boardname = "InfiniPath_QME7362";
 		dd->flags |= QIB_HAS_QSFP;
 		break;
 	case BOARD_QMH7360:
-		n = "Intel IB QDR 1P FLR-QSFP Adptr";
+		dd->boardname = "Intel IB QDR 1P FLR-QSFP Adptr";
 		dd->flags |= QIB_HAS_QSFP;
 		break;
 	case 15:
-		n = "InfiniPath_QLE7342_TEST";
+		dd->boardname = "InfiniPath_QLE7342_TEST";
 		dd->flags |= QIB_HAS_QSFP;
 		break;
 	default:
-		n = "InfiniPath_QLE73xy_UNKNOWN";
+		dd->boardname = "InfiniPath_QLE73xy_UNKNOWN";
 		qib_dev_err(dd, "Unknown 7322 board type %u\n", boardid);
 		break;
 	}
 	dd->board_atten = 1; /* index into txdds_Xdr */
 
-	namelen = strlen(n) + 1;
-	dd->boardname = kmalloc(namelen, GFP_KERNEL);
-	if (dd->boardname)
-		snprintf(dd->boardname, namelen, "%s", n);
-
 	snprintf(dd->boardversion, sizeof(dd->boardversion),
 		 "ChipABI %u.%u, %s, InfiniPath%u %u.%u, SW Compat %u\n",
 		 QIB_CHIP_VERS_MAJ, QIB_CHIP_VERS_MIN, dd->boardname,
-		 (unsigned)SYM_FIELD(dd->revision, Revision_R, Arch),
+		 (unsigned int)SYM_FIELD(dd->revision, Revision_R, Arch),
 		 dd->majrev, dd->minrev,
-		 (unsigned)SYM_FIELD(dd->revision, Revision_R, SW));
+		 (unsigned int)SYM_FIELD(dd->revision, Revision_R, SW));
 
 	if (qib_singleport && (features >> PORT_SPD_CAP_SHIFT) & PORT_SPD_CAP) {
 		qib_devinfo(dd->pcidev,
-			"IB%u: Forced to single port mode by module parameter\n",
-			dd->unit);
+			    "IB%u: Forced to single port mode by module parameter\n",
+			    dd->unit);
 		features &= PORT_SPD_CAP;
 	}
 
@@ -3669,8 +3634,9 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	/* no interrupts till re-initted */
 	qib_7322_set_intr_state(dd, 0);
 
+	qib_7322_free_irq(dd);
+
 	if (msix_entries) {
-		qib_7322_nomsix(dd);
 		/* can be up to 512 bytes, too big for stack */
 		msix_vecsave = kmalloc(2 * dd->cspec->num_msix_entries *
 			sizeof(u64), GFP_KERNEL);
@@ -3744,7 +3710,6 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	if (msix_entries) {
 		/* restore the MSIx vector address and data if saved above */
 		for (i = 0; i < msix_entries; i++) {
-			dd->cspec->msix_entries[i].msix.entry = i;
 			if (!msix_vecsave || !msix_vecsave[2 * i])
 				continue;
 			qib_write_kreg(dd, 2 * i +
@@ -3761,12 +3726,11 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 		write_7322_init_portregs(&dd->pport[i]);
 	write_7322_initregs(dd);
 
-	if (qib_pcie_params(dd, dd->lbus_width,
-			    &dd->cspec->num_msix_entries,
-			    dd->cspec->msix_entries))
+	if (qib_pcie_params(dd, dd->lbus_width, &msix_entries))
 		qib_dev_err(dd,
 			"Reset failed to setup PCIe or interrupts; continuing anyway\n");
 
+	dd->cspec->num_msix_entries = msix_entries;
 	qib_setup_7322_interrupt(dd, 1);
 
 	for (i = 0; i < dd->num_pports; ++i) {
@@ -5135,9 +5099,9 @@ done:
  *
  * called from add_timer
  */
-static void qib_get_7322_faststats(unsigned long opaque)
+static void qib_get_7322_faststats(struct timer_list *t)
 {
-	struct qib_devdata *dd = (struct qib_devdata *) opaque;
+	struct qib_devdata *dd = from_timer(dd, t, stats_timer);
 	struct qib_pportdata *ppd;
 	unsigned long flags;
 	u64 traffic_wds;
@@ -5194,8 +5158,9 @@ static int qib_7322_intr_fallback(struct qib_devdata *dd)
 
 	qib_devinfo(dd->pcidev,
 		"MSIx interrupt not detected, trying INTx interrupts\n");
-	qib_7322_nomsix(dd);
-	qib_enable_intx(dd->pcidev);
+	qib_7322_free_irq(dd);
+	if (pci_alloc_irq_vectors(dd->pcidev, 1, 1, PCI_IRQ_LEGACY) < 0)
+		qib_dev_err(dd, "Failed to enable INTx\n");
 	qib_setup_7322_interrupt(dd, 0);
 	return 1;
 }
@@ -5393,16 +5358,11 @@ static void try_7322_autoneg(struct qib_pportdata *ppd)
 static void autoneg_7322_work(struct work_struct *work)
 {
 	struct qib_pportdata *ppd;
-	struct qib_devdata *dd;
-	u64 startms;
 	u32 i;
 	unsigned long flags;
 
 	ppd = container_of(work, struct qib_chippport_specific,
 			    autoneg_work.work)->ppd;
-	dd = ppd->dd;
-
-	startms = jiffies_to_msecs(jiffies);
 
 	/*
 	 * Busy wait for this first part, it should be at most a
@@ -6166,13 +6126,13 @@ static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
 }
 
 /* handle the txselect parameter changing */
-static int setup_txselect(const char *str, struct kernel_param *kp)
+static int setup_txselect(const char *str, const struct kernel_param *kp)
 {
 	struct qib_devdata *dd;
 	unsigned long val;
 	char *n;
 
-	if (strlen(str) >= MAX_ATTEN_LEN) {
+	if (strlen(str) >= ARRAY_SIZE(txselect_list)) {
 		pr_info("txselect_values string too long\n");
 		return -ENOSPC;
 	}
@@ -6183,7 +6143,7 @@ static int setup_txselect(const char *str, struct kernel_param *kp)
 			TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ + TXDDS_MFG_SZ);
 		return -EINVAL;
 	}
-	strcpy(txselect_list, str);
+	strncpy(txselect_list, str, ARRAY_SIZE(txselect_list) - 1);
 
 	list_for_each_entry(dd, &qib_dev_list, list)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)
@@ -6611,8 +6571,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		if (!qib_mini_init)
 			write_7322_init_portregs(ppd);
 
-		setup_timer(&cp->chase_timer, reenable_chase,
-			    (unsigned long)ppd);
+		timer_setup(&cp->chase_timer, reenable_chase, 0);
 
 		ppd++;
 	}
@@ -6638,8 +6597,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		(u64) rcv_int_count << IBA7322_HDRHEAD_PKTINT_SHIFT;
 
 	/* setup the stats timer; the add_timer is done at end of init */
-	setup_timer(&dd->stats_timer, qib_get_7322_faststats,
-		    (unsigned long)dd);
+	timer_setup(&dd->stats_timer, qib_get_7322_faststats, 0);
 
 	dd->ureg_align = 0x10000;  /* 64KB alignment */
 
@@ -7327,10 +7285,7 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 	if (!dd->cspec->msix_entries)
 		tabsize = 0;
 
-	for (i = 0; i < tabsize; i++)
-		dd->cspec->msix_entries[i].msix.entry = i;
-
-	if (qib_pcie_params(dd, 8, &tabsize, dd->cspec->msix_entries))
+	if (qib_pcie_params(dd, 8, &tabsize))
 		qib_dev_err(dd,
 			"Failed to setup PCIe or interrupts; continuing anyway\n");
 	/* may be less than we wanted, if not enough available */
@@ -7845,13 +7800,12 @@ static void ibsd_wr_allchans(struct qib_pportdata *ppd, int addr, unsigned data,
 {
 	struct qib_devdata *dd = ppd->dd;
 	int chan;
-	u32 rbc;
 
 	for (chan = 0; chan < SERDES_CHANS; ++chan) {
 		ahb_mod(dd, IBSD(ppd->hw_pidx), (chan + (chan >> 1)), addr,
 			data, mask);
-		rbc = ahb_mod(dd, IBSD(ppd->hw_pidx), (chan + (chan >> 1)),
-			      addr, 0, 0);
+		ahb_mod(dd, IBSD(ppd->hw_pidx), (chan + (chan >> 1)), addr,
+			0, 0);
 	}
 }
 

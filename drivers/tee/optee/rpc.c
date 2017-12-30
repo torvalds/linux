@@ -140,11 +140,8 @@ static void handle_rpc_func_cmd_wait(struct optee_msg_arg *arg)
 
 	msec_to_wait = arg->params[0].u.value.a;
 
-	/* set task's state to interruptible sleep */
-	set_current_state(TASK_INTERRUPTIBLE);
-
-	/* take a nap */
-	msleep(msec_to_wait);
+	/* Go to interruptible sleep */
+	msleep_interruptible(msec_to_wait);
 
 	arg->ret = TEEC_SUCCESS;
 	return;
@@ -374,11 +371,11 @@ void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param)
 		shm = reg_pair_to_ptr(param->a1, param->a2);
 		tee_shm_free(shm);
 		break;
-	case OPTEE_SMC_RPC_FUNC_IRQ:
+	case OPTEE_SMC_RPC_FUNC_FOREIGN_INTR:
 		/*
-		 * An IRQ was raised while secure world was executing,
-		 * since all IRQs are handled in Linux a dummy RPC is
-		 * performed to let Linux take the IRQ through the normal
+		 * A foreign interrupt was raised while secure world was
+		 * executing, since they are handled in Linux a dummy RPC is
+		 * performed to let Linux take the interrupt through the normal
 		 * vector.
 		 */
 		break;

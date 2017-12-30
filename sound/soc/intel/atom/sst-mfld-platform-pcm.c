@@ -76,7 +76,7 @@ int sst_unregister_dsp(struct sst_device *dev)
 }
 EXPORT_SYMBOL_GPL(sst_unregister_dsp);
 
-static struct snd_pcm_hardware sst_platform_pcm_hw = {
+static const struct snd_pcm_hardware sst_platform_pcm_hw = {
 	.info =	(SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_DOUBLE |
 			SNDRV_PCM_INFO_PAUSE |
@@ -471,7 +471,7 @@ static void sst_disable_ssp(struct snd_pcm_substream *substream,
 	}
 }
 
-static struct snd_soc_dai_ops sst_media_dai_ops = {
+static const struct snd_soc_dai_ops sst_media_dai_ops = {
 	.startup = sst_media_open,
 	.shutdown = sst_media_close,
 	.prepare = sst_media_prepare,
@@ -480,11 +480,11 @@ static struct snd_soc_dai_ops sst_media_dai_ops = {
 	.mute_stream = sst_media_digital_mute,
 };
 
-static struct snd_soc_dai_ops sst_compr_dai_ops = {
+static const struct snd_soc_dai_ops sst_compr_dai_ops = {
 	.mute_stream = sst_media_digital_mute,
 };
 
-static struct snd_soc_dai_ops sst_be_dai_ops = {
+static const struct snd_soc_dai_ops sst_be_dai_ops = {
 	.startup = sst_enable_ssp,
 	.hw_params = sst_be_hw_params,
 	.set_fmt = sst_set_format,
@@ -690,7 +690,7 @@ static int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			snd_dma_continuous_data(GFP_DMA),
 			SST_MIN_BUFFER, SST_MAX_BUFFER);
 		if (retval) {
-			dev_err(rtd->dev, "dma buffer allocationf fail\n");
+			dev_err(rtd->dev, "dma buffer allocation failure\n");
 			return retval;
 		}
 	}
@@ -705,7 +705,7 @@ static int sst_soc_probe(struct snd_soc_platform *platform)
 	return sst_dsp_init_v2_dpcm(platform);
 }
 
-static struct snd_soc_platform_driver sst_soc_platform_drv  = {
+static const struct snd_soc_platform_driver sst_soc_platform_drv  = {
 	.probe		= sst_soc_probe,
 	.ops		= &sst_platform_ops,
 	.compr_ops	= &sst_platform_compr_ops,

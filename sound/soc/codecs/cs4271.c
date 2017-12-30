@@ -639,7 +639,7 @@ static int cs4271_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
 	.probe			= cs4271_codec_probe,
 	.remove			= cs4271_codec_remove,
 	.suspend		= cs4271_soc_suspend,
@@ -674,8 +674,6 @@ static int cs4271_common_probe(struct device *dev,
 		cs4271->gpio_nreset = cs4271plat->gpio_nreset;
 
 	if (gpio_is_valid(cs4271->gpio_nreset)) {
-		int ret;
-
 		ret = devm_gpio_request(dev, cs4271->gpio_nreset,
 					"CS4271 Reset");
 		if (ret < 0)

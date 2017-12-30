@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -33,8 +34,8 @@
 #ifndef LOV_INTERNAL_H
 #define LOV_INTERNAL_H
 
-#include "../include/obd_class.h"
-#include "../include/lustre/lustre_user.h"
+#include <obd_class.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 
 /*
  * If we are unable to get the maximum object size from the OST in
@@ -161,41 +162,20 @@ struct lov_request {
 	struct list_head	       rq_link;
 
 	int		      rq_idx;	/* index in lov->tgts array */
-	int		      rq_stripe;     /* stripe number */
-	int		      rq_complete;
-	int		      rq_rc;
-
-	u32		      rq_oabufs;
-	u32		      rq_pgaidx;
 };
 
 struct lov_request_set {
 	struct obd_info			*set_oi;
-	atomic_t			set_refcount;
-	struct obd_export		*set_exp;
-	/* XXX: There is @set_exp already, however obd_statfs gets obd_device
-	 * only.
-	 */
 	struct obd_device		*set_obd;
 	int				set_count;
 	atomic_t			set_completes;
 	atomic_t			set_success;
-	atomic_t			set_finish_checked;
 	struct list_head			set_list;
-	wait_queue_head_t			set_waitq;
 };
 
 extern struct kmem_cache *lov_oinfo_slab;
 
 extern struct lu_kmem_descr lov_caches[];
-
-void lov_finish_set(struct lov_request_set *set);
-
-static inline void lov_put_reqset(struct lov_request_set *set)
-{
-	if (atomic_dec_and_test(&set->set_refcount))
-		lov_finish_set(set);
-}
 
 #define lov_uuid2str(lv, index) \
 	(char *)((lv)->lov_tgts[index]->ltd_uuid.uuid)
@@ -217,15 +197,9 @@ pgoff_t lov_stripe_pgoff(struct lov_stripe_md *lsm, pgoff_t stripe_index,
 			 int stripe);
 
 /* lov_request.c */
-int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
-			 struct lov_request_set **reqset);
-int lov_fini_getattr_set(struct lov_request_set *set);
 int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 			struct lov_request_set **reqset);
-int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,
-		    int success);
 int lov_fini_statfs_set(struct lov_request_set *set);
-int lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc);
 
 /* lov_obd.c */
 void lov_stripe_lock(struct lov_stripe_md *md);

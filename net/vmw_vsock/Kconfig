@@ -15,6 +15,16 @@ config VSOCKETS
 	  To compile this driver as a module, choose M here: the module
 	  will be called vsock. If unsure, say N.
 
+config VSOCKETS_DIAG
+	tristate "Virtual Sockets monitoring interface"
+	depends on VSOCKETS
+	default y
+	help
+	  Support for PF_VSOCK sockets monitoring interface used by the ss tool.
+	  If unsure, say Y.
+
+	  Enable this module so userspace applications can query open sockets.
+
 config VMWARE_VMCI_VSOCKETS
 	tristate "VMware VMCI transport for Virtual Sockets"
 	depends on VSOCKETS && VMWARE_VMCI
@@ -46,3 +56,15 @@ config VIRTIO_VSOCKETS_COMMON
 	  This option is selected by any driver which needs to access
 	  the virtio_vsock.  The module will be called
 	  vmw_vsock_virtio_transport_common.
+
+config HYPERV_VSOCKETS
+	tristate "Hyper-V transport for Virtual Sockets"
+	depends on VSOCKETS && HYPERV
+	help
+	  This module implements a Hyper-V transport for Virtual Sockets.
+
+	  Enable this transport if your Virtual Machine host supports Virtual
+	  Sockets over Hyper-V VMBus.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called hv_sock. If unsure, say N.

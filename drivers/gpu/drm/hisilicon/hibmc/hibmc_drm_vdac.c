@@ -36,7 +36,7 @@ static int hibmc_connector_mode_valid(struct drm_connector *connector,
 static struct drm_encoder *
 hibmc_connector_best_encoder(struct drm_connector *connector)
 {
-	return drm_encoder_find(connector->dev, connector->encoder_ids[0]);
+	return drm_encoder_find(connector->dev, NULL, connector->encoder_ids[0]);
 }
 
 static const struct drm_connector_helper_funcs
@@ -47,7 +47,6 @@ static const struct drm_connector_helper_funcs
 };
 
 static const struct drm_connector_funcs hibmc_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,

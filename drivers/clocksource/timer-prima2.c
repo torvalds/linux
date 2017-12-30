@@ -245,5 +245,5 @@ static int __init sirfsoc_prima2_timer_init(struct device_node *np)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(sirfsoc_prima2_timer,
+TIMER_OF_DECLARE(sirfsoc_prima2_timer,
 	"sirf,prima2-tick", sirfsoc_prima2_timer_init);

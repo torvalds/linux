@@ -271,12 +271,15 @@ static bool is_prefix_bad(struct insn *insn)
 	int i;
 
 	for (i = 0; i < insn->prefixes.nbytes; i++) {
-		switch (insn->prefixes.bytes[i]) {
-		case 0x26:	/* INAT_PFX_ES   */
-		case 0x2E:	/* INAT_PFX_CS   */
-		case 0x36:	/* INAT_PFX_DS   */
-		case 0x3E:	/* INAT_PFX_SS   */
-		case 0xF0:	/* INAT_PFX_LOCK */
+		insn_attr_t attr;
+
+		attr = inat_get_opcode_attribute(insn->prefixes.bytes[i]);
+		switch (attr) {
+		case INAT_MAKE_PREFIX(INAT_PFX_ES):
+		case INAT_MAKE_PREFIX(INAT_PFX_CS):
+		case INAT_MAKE_PREFIX(INAT_PFX_DS):
+		case INAT_MAKE_PREFIX(INAT_PFX_SS):
+		case INAT_MAKE_PREFIX(INAT_PFX_LOCK):
 			return true;
 		}
 	}

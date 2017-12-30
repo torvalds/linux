@@ -254,7 +254,6 @@ struct exynos_dsi {
 	struct drm_encoder encoder;
 	struct mipi_dsi_host dsi_host;
 	struct drm_connector connector;
-	struct device_node *panel_node;
 	struct drm_panel *panel;
 	struct device *dev;
 
@@ -1329,12 +1328,13 @@ static int exynos_dsi_init(struct exynos_dsi *dsi)
 	return 0;
 }
 
-static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi)
+static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi,
+				      struct device *panel)
 {
 	int ret;
 	int te_gpio_irq;
 
-	dsi->te_gpio = of_get_named_gpio(dsi->panel_node, "te-gpios", 0);
+	dsi->te_gpio = of_get_named_gpio(panel->of_node, "te-gpios", 0);
 	if (dsi->te_gpio == -ENOENT)
 		return 0;
 
@@ -1373,85 +1373,6 @@ static void exynos_dsi_unregister_te_irq(struct exynos_dsi *dsi)
 		dsi->te_gpio = -ENOENT;
 	}
 }
-
-static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
-				  struct mipi_dsi_device *device)
-{
-	struct exynos_dsi *dsi = host_to_dsi(host);
-
-	dsi->lanes = device->lanes;
-	dsi->format = device->format;
-	dsi->mode_flags = device->mode_flags;
-	dsi->panel_node = device->dev.of_node;
-
-	/*
-	 * This is a temporary solution and should be made by more generic way.
-	 *
-	 * If attached panel device is for command mode one, dsi should register
-	 * TE interrupt handler.
-	 */
-	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO)) {
-		int ret = exynos_dsi_register_te_irq(dsi);
-
-		if (ret)
-			return ret;
-	}
-
-	if (dsi->connector.dev)
-		drm_helper_hpd_irq_event(dsi->connector.dev);
-
-	return 0;
-}
-
-static int exynos_dsi_host_detach(struct mipi_dsi_host *host,
-				  struct mipi_dsi_device *device)
-{
-	struct exynos_dsi *dsi = host_to_dsi(host);
-
-	exynos_dsi_unregister_te_irq(dsi);
-
-	dsi->panel_node = NULL;
-
-	if (dsi->connector.dev)
-		drm_helper_hpd_irq_event(dsi->connector.dev);
-
-	return 0;
-}
-
-static ssize_t exynos_dsi_host_transfer(struct mipi_dsi_host *host,
-				        const struct mipi_dsi_msg *msg)
-{
-	struct exynos_dsi *dsi = host_to_dsi(host);
-	struct exynos_dsi_transfer xfer;
-	int ret;
-
-	if (!(dsi->state & DSIM_STATE_ENABLED))
-		return -EINVAL;
-
-	if (!(dsi->state & DSIM_STATE_INITIALIZED)) {
-		ret = exynos_dsi_init(dsi);
-		if (ret)
-			return ret;
-		dsi->state |= DSIM_STATE_INITIALIZED;
-	}
-
-	ret = mipi_dsi_create_packet(&xfer.packet, msg);
-	if (ret < 0)
-		return ret;
-
-	xfer.rx_len = msg->rx_len;
-	xfer.rx_payload = msg->rx_buf;
-	xfer.flags = msg->flags;
-
-	ret = exynos_dsi_transfer(dsi, &xfer);
-	return (ret < 0) ? ret : xfer.rx_done;
-}
-
-static const struct mipi_dsi_host_ops exynos_dsi_ops = {
-	.attach = exynos_dsi_host_attach,
-	.detach = exynos_dsi_host_detach,
-	.transfer = exynos_dsi_host_transfer,
-};
 
 static void exynos_dsi_enable(struct drm_encoder *encoder)
 {
@@ -1508,25 +1429,7 @@ static void exynos_dsi_disable(struct drm_encoder *encoder)
 static enum drm_connector_status
 exynos_dsi_detect(struct drm_connector *connector, bool force)
 {
-	struct exynos_dsi *dsi = connector_to_dsi(connector);
-
-	if (!dsi->panel) {
-		dsi->panel = of_drm_find_panel(dsi->panel_node);
-		if (dsi->panel)
-			drm_panel_attach(dsi->panel, &dsi->connector);
-	} else if (!dsi->panel_node) {
-		struct drm_encoder *encoder;
-
-		encoder = platform_get_drvdata(to_platform_device(dsi->dev));
-		exynos_dsi_disable(encoder);
-		drm_panel_detach(dsi->panel);
-		dsi->panel = NULL;
-	}
-
-	if (dsi->panel)
-		return connector_status_connected;
-
-	return connector_status_disconnected;
+	return connector->status;
 }
 
 static void exynos_dsi_connector_destroy(struct drm_connector *connector)
@@ -1537,7 +1440,6 @@ static void exynos_dsi_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs exynos_dsi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = exynos_dsi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = exynos_dsi_connector_destroy,
@@ -1576,6 +1478,7 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 		return ret;
 	}
 
+	connector->status = connector_status_disconnected;
 	drm_connector_helper_add(connector, &exynos_dsi_connector_helper_funcs);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
@@ -1612,14 +1515,112 @@ static const struct drm_encoder_funcs exynos_dsi_encoder_funcs = {
 
 MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
 
+static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
+				  struct mipi_dsi_device *device)
+{
+	struct exynos_dsi *dsi = host_to_dsi(host);
+	struct drm_device *drm = dsi->connector.dev;
+
+	/*
+	 * This is a temporary solution and should be made by more generic way.
+	 *
+	 * If attached panel device is for command mode one, dsi should register
+	 * TE interrupt handler.
+	 */
+	if (!(device->mode_flags & MIPI_DSI_MODE_VIDEO)) {
+		int ret = exynos_dsi_register_te_irq(dsi, &device->dev);
+		if (ret)
+			return ret;
+	}
+
+	mutex_lock(&drm->mode_config.mutex);
+
+	dsi->lanes = device->lanes;
+	dsi->format = device->format;
+	dsi->mode_flags = device->mode_flags;
+	dsi->panel = of_drm_find_panel(device->dev.of_node);
+	if (dsi->panel) {
+		drm_panel_attach(dsi->panel, &dsi->connector);
+		dsi->connector.status = connector_status_connected;
+	}
+	exynos_drm_crtc_get_by_type(drm, EXYNOS_DISPLAY_TYPE_LCD)->i80_mode =
+			!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO);
+
+	mutex_unlock(&drm->mode_config.mutex);
+
+	if (drm->mode_config.poll_enabled)
+		drm_kms_helper_hotplug_event(drm);
+
+	return 0;
+}
+
+static int exynos_dsi_host_detach(struct mipi_dsi_host *host,
+				  struct mipi_dsi_device *device)
+{
+	struct exynos_dsi *dsi = host_to_dsi(host);
+	struct drm_device *drm = dsi->connector.dev;
+
+	mutex_lock(&drm->mode_config.mutex);
+
+	if (dsi->panel) {
+		exynos_dsi_disable(&dsi->encoder);
+		drm_panel_detach(dsi->panel);
+		dsi->panel = NULL;
+		dsi->connector.status = connector_status_disconnected;
+	}
+
+	mutex_unlock(&drm->mode_config.mutex);
+
+	if (drm->mode_config.poll_enabled)
+		drm_kms_helper_hotplug_event(drm);
+
+	exynos_dsi_unregister_te_irq(dsi);
+
+	return 0;
+}
+
+static ssize_t exynos_dsi_host_transfer(struct mipi_dsi_host *host,
+					 const struct mipi_dsi_msg *msg)
+{
+	struct exynos_dsi *dsi = host_to_dsi(host);
+	struct exynos_dsi_transfer xfer;
+	int ret;
+
+	if (!(dsi->state & DSIM_STATE_ENABLED))
+		return -EINVAL;
+
+	if (!(dsi->state & DSIM_STATE_INITIALIZED)) {
+		ret = exynos_dsi_init(dsi);
+		if (ret)
+			return ret;
+		dsi->state |= DSIM_STATE_INITIALIZED;
+	}
+
+	ret = mipi_dsi_create_packet(&xfer.packet, msg);
+	if (ret < 0)
+		return ret;
+
+	xfer.rx_len = msg->rx_len;
+	xfer.rx_payload = msg->rx_buf;
+	xfer.flags = msg->flags;
+
+	ret = exynos_dsi_transfer(dsi, &xfer);
+	return (ret < 0) ? ret : xfer.rx_done;
+}
+
+static const struct mipi_dsi_host_ops exynos_dsi_ops = {
+	.attach = exynos_dsi_host_attach,
+	.detach = exynos_dsi_host_detach,
+	.transfer = exynos_dsi_host_transfer,
+};
+
 static int exynos_dsi_of_read_u32(const struct device_node *np,
 				  const char *propname, u32 *out_value)
 {
 	int ret = of_property_read_u32(np, propname, out_value);
 
 	if (ret < 0)
-		pr_err("%s: failed to get '%s' property\n", np->full_name,
-		       propname);
+		pr_err("%pOF: failed to get '%s' property\n", np, propname);
 
 	return ret;
 }
@@ -1650,9 +1651,7 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 	if (ret < 0)
 		return ret;
 
-	dsi->bridge_node = of_graph_get_remote_node(node, DSI_PORT_OUT, 0);
-	if (!dsi->bridge_node)
-		return -EINVAL;
+	dsi->bridge_node = of_graph_get_remote_node(node, DSI_PORT_IN, 0);
 
 	return 0;
 }
@@ -1666,19 +1665,14 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	struct drm_bridge *bridge;
 	int ret;
 
-	ret = exynos_drm_crtc_get_pipe_from_type(drm_dev,
-						  EXYNOS_DISPLAY_TYPE_LCD);
-	if (ret < 0)
-		return ret;
-
-	encoder->possible_crtcs = 1 << ret;
-
-	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
-
 	drm_encoder_init(drm_dev, encoder, &exynos_dsi_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	drm_encoder_helper_add(encoder, &exynos_dsi_encoder_helper_funcs);
+
+	ret = exynos_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_LCD);
+	if (ret < 0)
+		return ret;
 
 	ret = exynos_dsi_create_connector(encoder);
 	if (ret) {
@@ -1687,9 +1681,11 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 		return ret;
 	}
 
-	bridge = of_drm_find_bridge(dsi->bridge_node);
-	if (bridge)
-		drm_bridge_attach(encoder, bridge, NULL);
+	if (dsi->bridge_node) {
+		bridge = of_drm_find_bridge(dsi->bridge_node);
+		if (bridge)
+			drm_bridge_attach(encoder, bridge, NULL);
+	}
 
 	return mipi_dsi_host_register(&dsi->dsi_host);
 }

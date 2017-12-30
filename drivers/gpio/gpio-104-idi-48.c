@@ -209,7 +209,7 @@ static irqreturn_t idi_48_irq_handler(int irq, void *dev_id)
 		for_each_set_bit(bit_num, &irq_mask, 8) {
 			gpio = bit_num + boundary * 8;
 
-			generic_handle_irq(irq_find_mapping(chip->irqdomain,
+			generic_handle_irq(irq_find_mapping(chip->irq.domain,
 				gpio));
 		}
 	}

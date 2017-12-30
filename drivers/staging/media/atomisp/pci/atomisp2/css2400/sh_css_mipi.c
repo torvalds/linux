@@ -321,7 +321,7 @@ calculate_mipi_buff_size(
 	height = stream_cfg->input_config.input_res.height;
 	format = stream_cfg->input_config.format;
 	pack_raw_pixels = stream_cfg->pack_raw_pixels;
-	/** end of NOTE */
+	/* end of NOTE */
 
 	/**
 #ifndef ISP2401
@@ -341,7 +341,7 @@ calculate_mipi_buff_size(
 	 * in the non-continuous use scenario.
 	 */
 	width_padded = width + (2 * ISP_VEC_NELEMS);
-	/** end of NOTE */
+	/* end of NOTE */
 
 	IA_CSS_ENTER("padded_width=%d, height=%d, format=%d\n",
 		     width_padded, height, format);
@@ -681,7 +681,7 @@ send_mipi_frames(struct ia_css_pipe *pipe)
 	unsigned int port = 0;
 #endif
 
-	IA_CSS_ENTER_PRIVATE("pipe=%d", pipe);
+	IA_CSS_ENTER_PRIVATE("pipe=%p", pipe);
 
 	assert(pipe != NULL);
 	assert(pipe->stream != NULL);

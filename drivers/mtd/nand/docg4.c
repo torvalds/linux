@@ -41,7 +41,7 @@
 #include <linux/bitops.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/bch.h>
 #include <linux/bitrev.h>
 #include <linux/jiffies.h>
@@ -1260,6 +1260,8 @@ static void __init init_mtd_structs(struct mtd_info *mtd)
 	nand->read_buf = docg4_read_buf;
 	nand->write_buf = docg4_write_buf16;
 	nand->erase = docg4_erase_block;
+	nand->onfi_set_features = nand_onfi_get_set_features_notsupp;
+	nand->onfi_get_features = nand_onfi_get_set_features_notsupp;
 	nand->ecc.read_page = docg4_read_page;
 	nand->ecc.write_page = docg4_write_page;
 	nand->ecc.read_page_raw = docg4_read_page_raw;

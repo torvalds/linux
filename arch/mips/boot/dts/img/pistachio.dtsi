@@ -805,7 +805,6 @@
 		pinctrl-0 = <&sdhost_pins>;
 		pinctrl-names = "default";
 		fifo-depth = <0x20>;
-		num-slots = <1>;
 		clock-frequency = <50000000>;
 		bus-width = <8>;
 		cap-mmc-highspeed;

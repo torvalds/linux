@@ -1355,7 +1355,7 @@ static struct regmap *pm860x_get_regmap(struct device *dev)
 	return pm860x->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_pm860x = {
+static const struct snd_soc_codec_driver soc_codec_dev_pm860x = {
 	.probe		= pm860x_probe,
 	.remove		= pm860x_remove,
 	.set_bias_level	= pm860x_set_bias_level,

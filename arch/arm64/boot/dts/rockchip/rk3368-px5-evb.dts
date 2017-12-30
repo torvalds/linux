@@ -86,12 +86,10 @@
 	cap-mmc-highspeed;
 	clock-frequency = <150000000>;
 	disable-wp;
-	keep-power-in-suspend;
 	mmc-hs200-1_8v;
 	no-sdio;
 	no-sd;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_bus8>;
 	vmmc-supply = <&vcc_io>;
@@ -281,7 +279,6 @@
 	card-detect-delay = <200>;
 	no-emmc;
 	no-sdio;
-	num-slots = <1>;
 	sd-uhs-sdr12;
 	sd-uhs-sdr25;
 	pinctrl-names = "default";

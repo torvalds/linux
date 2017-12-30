@@ -1727,7 +1727,7 @@ static snd_pcm_uframes_t snd_trident_spdif_pointer(struct snd_pcm_substream *sub
  *  Playback support device description
  */
 
-static struct snd_pcm_hardware snd_trident_playback =
+static const struct snd_pcm_hardware snd_trident_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1752,7 +1752,7 @@ static struct snd_pcm_hardware snd_trident_playback =
  *  Capture support device description
  */
 
-static struct snd_pcm_hardware snd_trident_capture =
+static const struct snd_pcm_hardware snd_trident_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1777,7 +1777,7 @@ static struct snd_pcm_hardware snd_trident_capture =
  *  Foldback capture support device description
  */
 
-static struct snd_pcm_hardware snd_trident_foldback =
+static const struct snd_pcm_hardware snd_trident_foldback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1801,7 +1801,7 @@ static struct snd_pcm_hardware snd_trident_foldback =
  *  SPDIF playback support device description
  */
 
-static struct snd_pcm_hardware snd_trident_spdif =
+static const struct snd_pcm_hardware snd_trident_spdif =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1822,7 +1822,7 @@ static struct snd_pcm_hardware snd_trident_spdif =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_trident_spdif_7018 =
+static const struct snd_pcm_hardware snd_trident_spdif_7018 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -2093,7 +2093,7 @@ static const struct snd_pcm_ops snd_trident_nx_playback_ops = {
 	.page =		snd_pcm_sgbuf_ops_page,
 };
 
-static struct snd_pcm_ops snd_trident_capture_ops = {
+static const struct snd_pcm_ops snd_trident_capture_ops = {
 	.open =		snd_trident_capture_open,
 	.close =	snd_trident_capture_close,
 	.ioctl =	snd_trident_ioctl,
@@ -2104,7 +2104,7 @@ static struct snd_pcm_ops snd_trident_capture_ops = {
 	.pointer =	snd_trident_capture_pointer,
 };
 
-static struct snd_pcm_ops snd_trident_si7018_capture_ops = {
+static const struct snd_pcm_ops snd_trident_si7018_capture_ops = {
 	.open =		snd_trident_capture_open,
 	.close =	snd_trident_capture_close,
 	.ioctl =	snd_trident_ioctl,
@@ -3363,11 +3363,9 @@ static int snd_trident_tlb_alloc(struct snd_trident *trident)
 	trident->tlb.entries_dmaaddr = ALIGN(trident->tlb.buffer.addr, SNDRV_TRIDENT_MAX_PAGES * 4);
 	/* allocate shadow TLB page table (virtual addresses) */
 	trident->tlb.shadow_entries = vmalloc(SNDRV_TRIDENT_MAX_PAGES*sizeof(unsigned long));
-	if (trident->tlb.shadow_entries == NULL) {
-		dev_err(trident->card->dev,
-			"unable to allocate shadow TLB entries\n");
+	if (!trident->tlb.shadow_entries)
 		return -ENOMEM;
-	}
+
 	/* allocate and setup silent page and initialise TLB entries */
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci),
 				SNDRV_TRIDENT_PAGE_SIZE, &trident->tlb.silent_page) < 0) {

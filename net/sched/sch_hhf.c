@@ -477,6 +477,9 @@ static void hhf_destroy(struct Qdisc *sch)
 		kvfree(q->hhf_valid_bits[i]);
 	}
 
+	if (!q->hh_flows)
+		return;
+
 	for (i = 0; i < HH_FLOWS_CNT; i++) {
 		struct hh_flow_state *flow, *next;
 		struct list_head *head = &q->hh_flows[i];

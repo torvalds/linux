@@ -29,7 +29,7 @@
 		reg = <0x40000000 0x1ff00000>;
 	};
 
-	firmware@0205f000 {
+	firmware@205f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0205f000 0x1000>;
 	};
@@ -304,7 +304,6 @@
 };
 
 &mshc_0 {
-	num-slots = <1>;
 	non-removable;
 	cap-mmc-highspeed;
 	card-detect-delay = <200>;

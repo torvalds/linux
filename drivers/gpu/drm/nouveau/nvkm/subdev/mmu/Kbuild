@@ -3,4 +3,33 @@ nvkm-y += nvkm/subdev/mmu/nv04.o
 nvkm-y += nvkm/subdev/mmu/nv41.o
 nvkm-y += nvkm/subdev/mmu/nv44.o
 nvkm-y += nvkm/subdev/mmu/nv50.o
+nvkm-y += nvkm/subdev/mmu/g84.o
 nvkm-y += nvkm/subdev/mmu/gf100.o
+nvkm-y += nvkm/subdev/mmu/gk104.o
+nvkm-y += nvkm/subdev/mmu/gk20a.o
+nvkm-y += nvkm/subdev/mmu/gm200.o
+nvkm-y += nvkm/subdev/mmu/gm20b.o
+nvkm-y += nvkm/subdev/mmu/gp100.o
+nvkm-y += nvkm/subdev/mmu/gp10b.o
+
+nvkm-y += nvkm/subdev/mmu/mem.o
+nvkm-y += nvkm/subdev/mmu/memnv04.o
+nvkm-y += nvkm/subdev/mmu/memnv50.o
+nvkm-y += nvkm/subdev/mmu/memgf100.o
+
+nvkm-y += nvkm/subdev/mmu/vmm.o
+nvkm-y += nvkm/subdev/mmu/vmmnv04.o
+nvkm-y += nvkm/subdev/mmu/vmmnv41.o
+nvkm-y += nvkm/subdev/mmu/vmmnv44.o
+nvkm-y += nvkm/subdev/mmu/vmmnv50.o
+nvkm-y += nvkm/subdev/mmu/vmmgf100.o
+nvkm-y += nvkm/subdev/mmu/vmmgk104.o
+nvkm-y += nvkm/subdev/mmu/vmmgk20a.o
+nvkm-y += nvkm/subdev/mmu/vmmgm200.o
+nvkm-y += nvkm/subdev/mmu/vmmgm20b.o
+nvkm-y += nvkm/subdev/mmu/vmmgp100.o
+nvkm-y += nvkm/subdev/mmu/vmmgp10b.o
+
+nvkm-y += nvkm/subdev/mmu/umem.o
+nvkm-y += nvkm/subdev/mmu/ummu.o
+nvkm-y += nvkm/subdev/mmu/uvmm.o

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XT_RATEEST_H
 #define _XT_RATEEST_H
 

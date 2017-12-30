@@ -214,8 +214,8 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			phandle = np->phandle;
 		else {
 			dev_err(&pdev->dev,
-				"node %s has an invalid fsl,msi phandle %u\n",
-				hose->dn->full_name, np->phandle);
+				"node %pOF has an invalid fsl,msi phandle %u\n",
+				hose->dn, np->phandle);
 			return -EINVAL;
 		}
 	}
@@ -438,16 +438,16 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	if ((features->fsl_pic_ip & FSL_PIC_IP_MASK) != FSL_PIC_IP_VMPIC) {
 		err = of_address_to_resource(dev->dev.of_node, 0, &res);
 		if (err) {
-			dev_err(&dev->dev, "invalid resource for node %s\n",
-				dev->dev.of_node->full_name);
+			dev_err(&dev->dev, "invalid resource for node %pOF\n",
+				dev->dev.of_node);
 			goto error_out;
 		}
 
 		msi->msi_regs = ioremap(res.start, resource_size(&res));
 		if (!msi->msi_regs) {
 			err = -ENOMEM;
-			dev_err(&dev->dev, "could not map node %s\n",
-				dev->dev.of_node->full_name);
+			dev_err(&dev->dev, "could not map node %pOF\n",
+				dev->dev.of_node);
 			goto error_out;
 		}
 		msi->msiir_offset =
@@ -522,8 +522,8 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 		for (irq_index = 0, i = 0; i < len / (2 * sizeof(u32)); i++) {
 			if (p[i * 2] % IRQS_PER_MSI_REG ||
 			    p[i * 2 + 1] % IRQS_PER_MSI_REG) {
-				pr_warn("%s: %s: msi available range of %u at %u is not IRQ-aligned\n",
-				       __func__, dev->dev.of_node->full_name,
+				pr_warn("%s: %pOF: msi available range of %u at %u is not IRQ-aligned\n",
+				       __func__, dev->dev.of_node,
 				       p[i * 2 + 1], p[i * 2]);
 				err = -EINVAL;
 				goto error_out;

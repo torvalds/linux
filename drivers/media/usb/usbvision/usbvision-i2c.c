@@ -163,7 +163,7 @@ static u32 functionality(struct i2c_adapter *adap)
 
 /* -----exported algorithm data: -------------------------------------	*/
 
-static struct i2c_algorithm usbvision_algo = {
+static const struct i2c_algorithm usbvision_algo = {
 	.master_xfer   = usbvision_i2c_xfer,
 	.smbus_xfer    = NULL,
 	.functionality = functionality,
@@ -173,7 +173,7 @@ static struct i2c_algorithm usbvision_algo = {
 /* ----------------------------------------------------------------------- */
 /* usbvision specific I2C functions                                        */
 /* ----------------------------------------------------------------------- */
-static struct i2c_adapter i2c_adap_template;
+static const struct i2c_adapter i2c_adap_template;
 
 int usbvision_i2c_register(struct usb_usbvision *usbvision)
 {
@@ -187,8 +187,9 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 
 	usbvision->i2c_adap = i2c_adap_template;
 
-	sprintf(usbvision->i2c_adap.name, "%s-%d-%s", i2c_adap_template.name,
-		usbvision->dev->bus->busnum, usbvision->dev->devpath);
+	snprintf(usbvision->i2c_adap.name, sizeof(usbvision->i2c_adap.name),
+		 "usbvision-%d-%s",
+		 usbvision->dev->bus->busnum, usbvision->dev->devpath);
 	PDEBUG(DBG_I2C, "Adaptername: %s", usbvision->i2c_adap.name);
 	usbvision->i2c_adap.dev.parent = &usbvision->dev->dev;
 
@@ -311,10 +312,13 @@ usbvision_i2c_read_max4(struct usb_usbvision *usbvision, unsigned char addr,
 	switch (len) {
 	case 4:
 		buf[3] = usbvision_read_reg(usbvision, USBVISION_SER_DAT4);
+		/* fall through */
 	case 3:
 		buf[2] = usbvision_read_reg(usbvision, USBVISION_SER_DAT3);
+		/* fall through */
 	case 2:
 		buf[1] = usbvision_read_reg(usbvision, USBVISION_SER_DAT2);
+		/* fall through */
 	case 1:
 		buf[0] = usbvision_read_reg(usbvision, USBVISION_SER_DAT1);
 		break;
@@ -437,7 +441,7 @@ static int usbvision_i2c_read(struct usb_usbvision *usbvision, unsigned char add
 	return rdcount;
 }
 
-static struct i2c_adapter i2c_adap_template = {
+static const struct i2c_adapter i2c_adap_template = {
 	.owner = THIS_MODULE,
 	.name              = "usbvision",
 };

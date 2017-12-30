@@ -27,7 +27,7 @@ Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 Example:
 
-	tc358743@0f {
+	tc358743@f {
 		compatible = "toshiba,tc358743";
 		reg = <0x0f>;
 		clocks = <&hdmi_osc>;

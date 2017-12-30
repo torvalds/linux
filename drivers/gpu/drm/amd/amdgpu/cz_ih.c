@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
 #include "vid.h"
@@ -205,6 +205,34 @@ static u32 cz_ih_get_wptr(struct amdgpu_device *adev)
 		WREG32(mmIH_RB_CNTL, tmp);
 	}
 	return (wptr & adev->irq.ih.ptr_mask);
+}
+
+/**
+ * cz_ih_prescreen_iv - prescreen an interrupt vector
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns true if the interrupt vector should be further processed.
+ */
+static bool cz_ih_prescreen_iv(struct amdgpu_device *adev)
+{
+	u32 ring_index = adev->irq.ih.rptr >> 2;
+	u16 pasid;
+
+	switch (le32_to_cpu(adev->irq.ih.ring[ring_index]) & 0xff) {
+	case 146:
+	case 147:
+		pasid = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]) >> 16;
+		if (!pasid || amdgpu_vm_pasid_fault_credit(adev, pasid))
+			return true;
+		break;
+	default:
+		/* Not a VM fault */
+		return true;
+	}
+
+	adev->irq.ih.rptr += 16;
+	return false;
 }
 
 /**
@@ -414,6 +442,7 @@ static const struct amd_ip_funcs cz_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs cz_ih_funcs = {
 	.get_wptr = cz_ih_get_wptr,
+	.prescreen_iv = cz_ih_prescreen_iv,
 	.decode_iv = cz_ih_decode_iv,
 	.set_rptr = cz_ih_set_rptr
 };

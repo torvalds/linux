@@ -2,7 +2,7 @@
  * common LSM auditing functions
  *
  * Based on code written for SELinux by :
- *			Stephen Smalley, <sds@epoch.ncsc.mil>
+ *			Stephen Smalley, <sds@tycho.nsa.gov>
  * 			James Morris <jmorris@redhat.com>
  * Author : Etienne Basset, <etienne.basset@ensta.org>
  *
@@ -409,6 +409,22 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	case LSM_AUDIT_DATA_KMOD:
 		audit_log_format(ab, " kmod=");
 		audit_log_untrustedstring(ab, a->u.kmod_name);
+		break;
+	case LSM_AUDIT_DATA_IBPKEY: {
+		struct in6_addr sbn_pfx;
+
+		memset(&sbn_pfx.s6_addr, 0,
+		       sizeof(sbn_pfx.s6_addr));
+		memcpy(&sbn_pfx.s6_addr, &a->u.ibpkey->subnet_prefix,
+		       sizeof(a->u.ibpkey->subnet_prefix));
+		audit_log_format(ab, " pkey=0x%x subnet_prefix=%pI6c",
+				 a->u.ibpkey->pkey, &sbn_pfx);
+		break;
+	}
+	case LSM_AUDIT_DATA_IBENDPORT:
+		audit_log_format(ab, " device=%s port_num=%u",
+				 a->u.ibendport->dev_name,
+				 a->u.ibendport->port);
 		break;
 	} /* switch (a->type) */
 }

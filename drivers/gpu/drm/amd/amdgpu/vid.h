@@ -361,6 +361,12 @@
 #define	PACKET3_WAIT_ON_CE_COUNTER			0x86
 #define	PACKET3_WAIT_ON_DE_COUNTER_DIFF			0x88
 #define	PACKET3_SWITCH_BUFFER				0x8B
+#define PACKET3_FRAME_CONTROL				0x90
+#			define FRAME_CMD(x) ((x) << 28)
+			/*
+			 * x=0: tmz_begin
+			 * x=1: tmz_end
+			 */
 #define	PACKET3_SET_RESOURCES				0xA0
 /* 1. header
  * 2. CONTROL
@@ -458,6 +464,16 @@
 #define VCE_CMD_WAIT_GE         0x00000106
 #define VCE_CMD_UPDATE_PTB      0x00000107
 #define VCE_CMD_FLUSH_TLB       0x00000108
+
+/* HEVC ENC */
+#define HEVC_ENC_CMD_NO_OP         0x00000000
+#define HEVC_ENC_CMD_END           0x00000001
+#define HEVC_ENC_CMD_FENCE         0x00000003
+#define HEVC_ENC_CMD_TRAP          0x00000004
+#define HEVC_ENC_CMD_IB_VM         0x00000102
+#define HEVC_ENC_CMD_WAIT_GE       0x00000106
+#define HEVC_ENC_CMD_UPDATE_PTB    0x00000107
+#define HEVC_ENC_CMD_FLUSH_TLB     0x00000108
 
 /* mmPA_SC_RASTER_CONFIG mask */
 #define RB_MAP_PKR0(x)				((x) << 0)

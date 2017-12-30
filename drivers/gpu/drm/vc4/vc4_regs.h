@@ -561,16 +561,129 @@
 # define VC4_HDMI_VERTB_VBP_MASK		VC4_MASK(8, 0)
 # define VC4_HDMI_VERTB_VBP_SHIFT		0
 
+#define VC4_HDMI_CEC_CNTRL_1			0x0e8
+/* Set when the transmission has ended. */
+# define VC4_HDMI_CEC_TX_EOM			BIT(31)
+/* If set, transmission was acked on the 1st or 2nd attempt (only one
+ * retry is attempted).  If in continuous mode, this means TX needs to
+ * be filled if !TX_EOM.
+ */
+# define VC4_HDMI_CEC_TX_STATUS_GOOD		BIT(30)
+# define VC4_HDMI_CEC_RX_EOM			BIT(29)
+# define VC4_HDMI_CEC_RX_STATUS_GOOD		BIT(28)
+/* Number of bytes received for the message. */
+# define VC4_HDMI_CEC_REC_WRD_CNT_MASK		VC4_MASK(27, 24)
+# define VC4_HDMI_CEC_REC_WRD_CNT_SHIFT		24
+/* Sets continuous receive mode.  Generates interrupt after each 8
+ * bytes to signal that RX_DATA should be consumed, and at RX_EOM.
+ *
+ * If disabled, maximum 16 bytes will be received (including header),
+ * and interrupt at RX_EOM.  Later bytes will be acked but not put
+ * into the RX_DATA.
+ */
+# define VC4_HDMI_CEC_RX_CONTINUE		BIT(23)
+# define VC4_HDMI_CEC_TX_CONTINUE		BIT(22)
+/* Set this after a CEC interrupt. */
+# define VC4_HDMI_CEC_CLEAR_RECEIVE_OFF		BIT(21)
+/* Starts a TX.  Will wait for appropriate idel time before CEC
+ * activity. Must be cleared in between transmits.
+ */
+# define VC4_HDMI_CEC_START_XMIT_BEGIN		BIT(20)
+# define VC4_HDMI_CEC_MESSAGE_LENGTH_MASK	VC4_MASK(19, 16)
+# define VC4_HDMI_CEC_MESSAGE_LENGTH_SHIFT	16
+/* Device's CEC address */
+# define VC4_HDMI_CEC_ADDR_MASK			VC4_MASK(15, 12)
+# define VC4_HDMI_CEC_ADDR_SHIFT		12
+/* Divides off of HSM clock to generate CEC bit clock. */
+/* With the current defaults the CEC bit clock is 40 kHz = 25 usec */
+# define VC4_HDMI_CEC_DIV_CLK_CNT_MASK		VC4_MASK(11, 0)
+# define VC4_HDMI_CEC_DIV_CLK_CNT_SHIFT		0
+
+/* Set these fields to how many bit clock cycles get to that many
+ * microseconds.
+ */
+#define VC4_HDMI_CEC_CNTRL_2			0x0ec
+# define VC4_HDMI_CEC_CNT_TO_1500_US_MASK	VC4_MASK(30, 24)
+# define VC4_HDMI_CEC_CNT_TO_1500_US_SHIFT	24
+# define VC4_HDMI_CEC_CNT_TO_1300_US_MASK	VC4_MASK(23, 17)
+# define VC4_HDMI_CEC_CNT_TO_1300_US_SHIFT	17
+# define VC4_HDMI_CEC_CNT_TO_800_US_MASK	VC4_MASK(16, 11)
+# define VC4_HDMI_CEC_CNT_TO_800_US_SHIFT	11
+# define VC4_HDMI_CEC_CNT_TO_600_US_MASK	VC4_MASK(10, 5)
+# define VC4_HDMI_CEC_CNT_TO_600_US_SHIFT	5
+# define VC4_HDMI_CEC_CNT_TO_400_US_MASK	VC4_MASK(4, 0)
+# define VC4_HDMI_CEC_CNT_TO_400_US_SHIFT	0
+
+#define VC4_HDMI_CEC_CNTRL_3			0x0f0
+# define VC4_HDMI_CEC_CNT_TO_2750_US_MASK	VC4_MASK(31, 24)
+# define VC4_HDMI_CEC_CNT_TO_2750_US_SHIFT	24
+# define VC4_HDMI_CEC_CNT_TO_2400_US_MASK	VC4_MASK(23, 16)
+# define VC4_HDMI_CEC_CNT_TO_2400_US_SHIFT	16
+# define VC4_HDMI_CEC_CNT_TO_2050_US_MASK	VC4_MASK(15, 8)
+# define VC4_HDMI_CEC_CNT_TO_2050_US_SHIFT	8
+# define VC4_HDMI_CEC_CNT_TO_1700_US_MASK	VC4_MASK(7, 0)
+# define VC4_HDMI_CEC_CNT_TO_1700_US_SHIFT	0
+
+#define VC4_HDMI_CEC_CNTRL_4			0x0f4
+# define VC4_HDMI_CEC_CNT_TO_4300_US_MASK	VC4_MASK(31, 24)
+# define VC4_HDMI_CEC_CNT_TO_4300_US_SHIFT	24
+# define VC4_HDMI_CEC_CNT_TO_3900_US_MASK	VC4_MASK(23, 16)
+# define VC4_HDMI_CEC_CNT_TO_3900_US_SHIFT	16
+# define VC4_HDMI_CEC_CNT_TO_3600_US_MASK	VC4_MASK(15, 8)
+# define VC4_HDMI_CEC_CNT_TO_3600_US_SHIFT	8
+# define VC4_HDMI_CEC_CNT_TO_3500_US_MASK	VC4_MASK(7, 0)
+# define VC4_HDMI_CEC_CNT_TO_3500_US_SHIFT	0
+
+#define VC4_HDMI_CEC_CNTRL_5			0x0f8
+# define VC4_HDMI_CEC_TX_SW_RESET		BIT(27)
+# define VC4_HDMI_CEC_RX_SW_RESET		BIT(26)
+# define VC4_HDMI_CEC_PAD_SW_RESET		BIT(25)
+# define VC4_HDMI_CEC_MUX_TP_OUT_CEC		BIT(24)
+# define VC4_HDMI_CEC_RX_CEC_INT		BIT(23)
+# define VC4_HDMI_CEC_CLK_PRELOAD_MASK		VC4_MASK(22, 16)
+# define VC4_HDMI_CEC_CLK_PRELOAD_SHIFT		16
+# define VC4_HDMI_CEC_CNT_TO_4700_US_MASK	VC4_MASK(15, 8)
+# define VC4_HDMI_CEC_CNT_TO_4700_US_SHIFT	8
+# define VC4_HDMI_CEC_CNT_TO_4500_US_MASK	VC4_MASK(7, 0)
+# define VC4_HDMI_CEC_CNT_TO_4500_US_SHIFT	0
+
+/* Transmit data, first byte is low byte of the 32-bit reg.  MSB of
+ * each byte transmitted first.
+ */
+#define VC4_HDMI_CEC_TX_DATA_1			0x0fc
+#define VC4_HDMI_CEC_TX_DATA_2			0x100
+#define VC4_HDMI_CEC_TX_DATA_3			0x104
+#define VC4_HDMI_CEC_TX_DATA_4			0x108
+#define VC4_HDMI_CEC_RX_DATA_1			0x10c
+#define VC4_HDMI_CEC_RX_DATA_2			0x110
+#define VC4_HDMI_CEC_RX_DATA_3			0x114
+#define VC4_HDMI_CEC_RX_DATA_4			0x118
+
 #define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
 
 #define VC4_HDMI_TX_PHY_CTL0			0x2c4
 # define VC4_HDMI_TX_PHY_RNG_PWRDN		BIT(25)
+
+/* Interrupt status bits */
+#define VC4_HDMI_CPU_STATUS			0x340
+#define VC4_HDMI_CPU_SET			0x344
+#define VC4_HDMI_CPU_CLEAR			0x348
+# define VC4_HDMI_CPU_CEC			BIT(6)
+# define VC4_HDMI_CPU_HOTPLUG			BIT(0)
+
+#define VC4_HDMI_CPU_MASK_STATUS		0x34c
+#define VC4_HDMI_CPU_MASK_SET			0x350
+#define VC4_HDMI_CPU_MASK_CLEAR			0x354
 
 #define VC4_HDMI_GCP(x)				(0x400 + ((x) * 0x4))
 #define VC4_HDMI_RAM_PACKET(x)			(0x400 + ((x) * 0x24))
 #define VC4_HDMI_PACKET_STRIDE			0x24
 
 #define VC4_HD_M_CTL				0x00c
+/* Debug: Current receive value on the CEC pad. */
+# define VC4_HD_CECRXD				BIT(9)
+/* Debug: Override CEC output to 0. */
+# define VC4_HD_CECOVR				BIT(8)
 # define VC4_HD_M_REGISTER_FILE_STANDBY		(3 << 6)
 # define VC4_HD_M_RAM_STANDBY			(3 << 4)
 # define VC4_HD_M_SW_RST			BIT(2)
@@ -709,6 +822,13 @@ enum hvs_pixel_format {
 #define SCALER_CTL0_SIZE_MASK			VC4_MASK(29, 24)
 #define SCALER_CTL0_SIZE_SHIFT			24
 
+#define SCALER_CTL0_TILING_MASK			VC4_MASK(21, 20)
+#define SCALER_CTL0_TILING_SHIFT		20
+#define SCALER_CTL0_TILING_LINEAR		0
+#define SCALER_CTL0_TILING_64B			1
+#define SCALER_CTL0_TILING_128B			2
+#define SCALER_CTL0_TILING_256B_OR_T		3
+
 #define SCALER_CTL0_HFLIP                       BIT(16)
 #define SCALER_CTL0_VFLIP                       BIT(15)
 
@@ -838,7 +958,19 @@ enum hvs_pixel_format {
 #define SCALER_PPF_KERNEL_OFFSET_SHIFT		0
 #define SCALER_PPF_KERNEL_UNCACHED		BIT(31)
 
+/* PITCH0/1/2 fields for raster. */
 #define SCALER_SRC_PITCH_MASK			VC4_MASK(15, 0)
 #define SCALER_SRC_PITCH_SHIFT			0
+
+/* PITCH0 fields for T-tiled. */
+#define SCALER_PITCH0_TILE_WIDTH_L_MASK		VC4_MASK(22, 16)
+#define SCALER_PITCH0_TILE_WIDTH_L_SHIFT	16
+#define SCALER_PITCH0_TILE_LINE_DIR		BIT(15)
+#define SCALER_PITCH0_TILE_INITIAL_LINE_DIR	BIT(14)
+/* Y offset within a tile. */
+#define SCALER_PITCH0_TILE_Y_OFFSET_MASK	VC4_MASK(13, 7)
+#define SCALER_PITCH0_TILE_Y_OFFSET_SHIFT	7
+#define SCALER_PITCH0_TILE_WIDTH_R_MASK		VC4_MASK(6, 0)
+#define SCALER_PITCH0_TILE_WIDTH_R_SHIFT	0
 
 #endif /* VC4_REGS_H */

@@ -43,7 +43,7 @@
 
 / {
 	memory@0 {
-		reg = <0x0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 		device_type = "memory";
 	};
 
@@ -89,7 +89,6 @@
 	cap-mmc-highspeed;
 	disable-wp;
 	non-removable;
-	num-slots = <1>;
 	mmc-pwrseq = <&emmc_pwrseq>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
@@ -111,6 +110,11 @@
 	snps,reset-delays-us = <0 10000 30000>;
 	rx_delay = <0x10>;
 	tx_delay = <0x30>;
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu>;
+	status = "okay";
 };
 
 &i2c0 {

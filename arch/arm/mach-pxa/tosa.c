@@ -24,7 +24,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mfd/tc6393xb.h>
 #include <linux/mfd/tmio.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pm.h>

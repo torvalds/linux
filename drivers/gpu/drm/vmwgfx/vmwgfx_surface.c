@@ -25,11 +25,12 @@
  *
  **************************************************************************/
 
+#include <drm/ttm/ttm_placement.h>
+
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_so.h"
 #include "vmwgfx_binding.h"
-#include <ttm/ttm_placement.h>
 #include "device_include/svga3d_surfacedefs.h"
 
 
@@ -903,7 +904,7 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		if (unlikely(drm_is_render_client(file_priv)))
 			require_exist = true;
 
-		if (ACCESS_ONCE(vmw_fpriv(file_priv)->locked_master)) {
+		if (READ_ONCE(vmw_fpriv(file_priv)->locked_master)) {
 			DRM_ERROR("Locked master refused legacy "
 				  "surface reference.\n");
 			return -EACCES;

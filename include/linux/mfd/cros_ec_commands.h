@@ -285,6 +285,11 @@ enum host_event_code {
 	EC_HOST_EVENT_HANG_DETECT = 20,
 	/* Hang detect logic detected a hang and warm rebooted the AP */
 	EC_HOST_EVENT_HANG_REBOOT = 21,
+	/* PD MCU triggering host event */
+	EC_HOST_EVENT_PD_MCU = 22,
+
+	/* EC desires to change state of host-controlled USB mux */
+	EC_HOST_EVENT_USB_MUX = 28,
 
 	/*
 	 * The high bit of the event mask is not used as a host event code.  If
@@ -623,6 +628,10 @@ struct ec_params_read_memmap {
 
 struct ec_params_get_cmd_versions {
 	uint8_t cmd;      /* Command to check */
+} __packed;
+
+struct ec_params_get_cmd_versions_v1 {
+	uint16_t cmd;     /* Command to check */
 } __packed;
 
 struct ec_response_get_cmd_versions {
@@ -1158,13 +1167,20 @@ struct lightbar_params_v1 {
 	struct rgb_s color[8];			/* 0-3 are Google colors */
 } __packed;
 
+/* Lightbar program */
+#define EC_LB_PROG_LEN 192
+struct lightbar_program {
+	uint8_t size;
+	uint8_t data[EC_LB_PROG_LEN];
+};
+
 struct ec_params_lightbar {
 	uint8_t cmd;		      /* Command (see enum lightbar_command) */
 	union {
 		struct {
 			/* no args */
 		} dump, off, on, init, get_seq, get_params_v0, get_params_v1,
-			version, get_brightness, get_demo;
+			version, get_brightness, get_demo, suspend, resume;
 
 		struct {
 			uint8_t num;
@@ -1182,8 +1198,13 @@ struct ec_params_lightbar {
 			uint8_t led;
 		} get_rgb;
 
+		struct {
+			uint8_t enable;
+		} manual_suspend_ctrl;
+
 		struct lightbar_params_v0 set_params_v0;
 		struct lightbar_params_v1 set_params_v1;
+		struct lightbar_program set_program;
 	};
 } __packed;
 
@@ -1216,7 +1237,8 @@ struct ec_response_lightbar {
 		struct {
 			/* no return params */
 		} off, on, init, set_brightness, seq, reg, set_rgb,
-			demo, set_params_v0, set_params_v1;
+			demo, set_params_v0, set_params_v1,
+			set_program, manual_suspend_ctrl, suspend, resume;
 	};
 } __packed;
 
@@ -1240,6 +1262,10 @@ enum lightbar_command {
 	LIGHTBAR_CMD_GET_DEMO = 15,
 	LIGHTBAR_CMD_GET_PARAMS_V1 = 16,
 	LIGHTBAR_CMD_SET_PARAMS_V1 = 17,
+	LIGHTBAR_CMD_SET_PROGRAM = 18,
+	LIGHTBAR_CMD_MANUAL_SUSPEND_CTRL = 19,
+	LIGHTBAR_CMD_SUSPEND = 20,
+	LIGHTBAR_CMD_RESUME = 21,
 	LIGHTBAR_NUM_CMDS
 };
 
@@ -2285,12 +2311,27 @@ struct ec_params_charge_control {
 #define EC_CMD_CONSOLE_SNAPSHOT 0x97
 
 /*
- * Read next chunk of data from saved snapshot.
+ * Read data from the saved snapshot. If the subcmd parameter is
+ * CONSOLE_READ_NEXT, this will return data starting from the beginning of
+ * the latest snapshot. If it is CONSOLE_READ_RECENT, it will start from the
+ * end of the previous snapshot.
+ *
+ * The params are only looked at in version >= 1 of this command. Prior
+ * versions will just default to CONSOLE_READ_NEXT behavior.
  *
  * Response is null-terminated string.  Empty string, if there is no more
  * remaining output.
  */
 #define EC_CMD_CONSOLE_READ 0x98
+
+enum ec_console_read_subcmd {
+	CONSOLE_READ_NEXT = 0,
+	CONSOLE_READ_RECENT
+};
+
+struct ec_params_console_read_v1 {
+	uint8_t subcmd; /* enum ec_console_read_subcmd */
+} __packed;
 
 /*****************************************************************************/
 
@@ -2867,6 +2908,76 @@ struct ec_params_usb_pd_control {
 	uint8_t port;
 	uint8_t role;
 	uint8_t mux;
+} __packed;
+
+#define PD_CTRL_RESP_ENABLED_COMMS      (1 << 0) /* Communication enabled */
+#define PD_CTRL_RESP_ENABLED_CONNECTED  (1 << 1) /* Device connected */
+#define PD_CTRL_RESP_ENABLED_PD_CAPABLE (1 << 2) /* Partner is PD capable */
+
+struct ec_response_usb_pd_control_v1 {
+	uint8_t enabled;
+	uint8_t role;
+	uint8_t polarity;
+	char state[32];
+} __packed;
+
+#define EC_CMD_USB_PD_PORTS 0x102
+
+struct ec_response_usb_pd_ports {
+	uint8_t num_ports;
+} __packed;
+
+#define EC_CMD_USB_PD_POWER_INFO 0x103
+
+#define PD_POWER_CHARGING_PORT 0xff
+struct ec_params_usb_pd_power_info {
+	uint8_t port;
+} __packed;
+
+enum usb_chg_type {
+	USB_CHG_TYPE_NONE,
+	USB_CHG_TYPE_PD,
+	USB_CHG_TYPE_C,
+	USB_CHG_TYPE_PROPRIETARY,
+	USB_CHG_TYPE_BC12_DCP,
+	USB_CHG_TYPE_BC12_CDP,
+	USB_CHG_TYPE_BC12_SDP,
+	USB_CHG_TYPE_OTHER,
+	USB_CHG_TYPE_VBUS,
+	USB_CHG_TYPE_UNKNOWN,
+};
+
+struct usb_chg_measures {
+	uint16_t voltage_max;
+	uint16_t voltage_now;
+	uint16_t current_max;
+	uint16_t current_lim;
+} __packed;
+
+struct ec_response_usb_pd_power_info {
+	uint8_t role;
+	uint8_t type;
+	uint8_t dualrole;
+	uint8_t reserved1;
+	struct usb_chg_measures meas;
+	uint32_t max_power;
+} __packed;
+
+/* Get info about USB-C SS muxes */
+#define EC_CMD_USB_PD_MUX_INFO 0x11a
+
+struct ec_params_usb_pd_mux_info {
+	uint8_t port; /* USB-C port number */
+} __packed;
+
+/* Flags representing mux state */
+#define USB_PD_MUX_USB_ENABLED       (1 << 0)
+#define USB_PD_MUX_DP_ENABLED        (1 << 1)
+#define USB_PD_MUX_POLARITY_INVERTED (1 << 2)
+#define USB_PD_MUX_HPD_IRQ           (1 << 3)
+
+struct ec_response_usb_pd_mux_info {
+	uint8_t flags; /* USB_PD_MUX_*-encoded USB mux state */
 } __packed;
 
 /*****************************************************************************/

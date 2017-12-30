@@ -810,7 +810,7 @@ xfs_growfs_rt_alloc(
 		/*
 		 * Free any blocks freed up in the transaction, then commit.
 		 */
-		error = xfs_defer_finish(&tp, &dfops, NULL);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_bmap_cancel;
 		error = xfs_trans_commit(tp);
@@ -1256,13 +1256,13 @@ xfs_rtpick_extent(
 {
 	xfs_rtblock_t	b;		/* result block */
 	int		log2;		/* log of sequence number */
-	__uint64_t	resid;		/* residual after log removed */
-	__uint64_t	seq;		/* sequence number of file creation */
-	__uint64_t	*seqp;		/* pointer to seqno in inode */
+	uint64_t	resid;		/* residual after log removed */
+	uint64_t	seq;		/* sequence number of file creation */
+	uint64_t	*seqp;		/* pointer to seqno in inode */
 
 	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
 
-	seqp = (__uint64_t *)&VFS_I(mp->m_rbmip)->i_atime;
+	seqp = (uint64_t *)&VFS_I(mp->m_rbmip)->i_atime;
 	if (!(mp->m_rbmip->i_d.di_flags & XFS_DIFLAG_NEWRTBM)) {
 		mp->m_rbmip->i_d.di_flags |= XFS_DIFLAG_NEWRTBM;
 		*seqp = 0;

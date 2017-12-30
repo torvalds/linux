@@ -155,6 +155,8 @@ static int rn5t618_i2c_remove(struct i2c_client *i2c)
 		pm_power_off = NULL;
 	}
 
+	unregister_restart_handler(&rn5t618_restart_handler);
+
 	return 0;
 }
 

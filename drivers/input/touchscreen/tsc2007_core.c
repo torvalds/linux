@@ -25,9 +25,9 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/i2c/tsc2007.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/platform_data/tsc2007.h>
 #include "tsc2007.h"
 
 int tsc2007_xfer(struct tsc2007 *tsc, u8 cmd)

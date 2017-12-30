@@ -295,7 +295,7 @@ out:
 }
 
 static void *bpf_obj_do_get(const struct filename *pathname,
-			    enum bpf_type *type)
+			    enum bpf_type *type, int flags)
 {
 	struct inode *inode;
 	struct path path;
@@ -307,7 +307,7 @@ static void *bpf_obj_do_get(const struct filename *pathname,
 		return ERR_PTR(ret);
 
 	inode = d_backing_inode(path.dentry);
-	ret = inode_permission(inode, MAY_WRITE);
+	ret = inode_permission(inode, ACC_MODE(flags));
 	if (ret)
 		goto out;
 
@@ -326,18 +326,23 @@ out:
 	return ERR_PTR(ret);
 }
 
-int bpf_obj_get_user(const char __user *pathname)
+int bpf_obj_get_user(const char __user *pathname, int flags)
 {
 	enum bpf_type type = BPF_TYPE_UNSPEC;
 	struct filename *pname;
 	int ret = -ENOENT;
+	int f_flags;
 	void *raw;
+
+	f_flags = bpf_get_file_flag(flags);
+	if (f_flags < 0)
+		return f_flags;
 
 	pname = getname(pathname);
 	if (IS_ERR(pname))
 		return PTR_ERR(pname);
 
-	raw = bpf_obj_do_get(pname, &type);
+	raw = bpf_obj_do_get(pname, &type, f_flags);
 	if (IS_ERR(raw)) {
 		ret = PTR_ERR(raw);
 		goto out;
@@ -346,7 +351,7 @@ int bpf_obj_get_user(const char __user *pathname)
 	if (type == BPF_TYPE_PROG)
 		ret = bpf_prog_new_fd(raw);
 	else if (type == BPF_TYPE_MAP)
-		ret = bpf_map_new_fd(raw);
+		ret = bpf_map_new_fd(raw, f_flags);
 	else
 		goto out;
 
@@ -363,6 +368,7 @@ out:
 	putname(pname);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(bpf_obj_get_user);
 
 static void bpf_evict_inode(struct inode *inode)
 {
@@ -377,10 +383,22 @@ static void bpf_evict_inode(struct inode *inode)
 		bpf_any_put(inode->i_private, type);
 }
 
+/*
+ * Display the mount options in /proc/mounts.
+ */
+static int bpf_show_options(struct seq_file *m, struct dentry *root)
+{
+	umode_t mode = d_inode(root)->i_mode & S_IALLUGO & ~S_ISVTX;
+
+	if (mode != S_IRWXUGO)
+		seq_printf(m, ",mode=%o", mode);
+	return 0;
+}
+
 static const struct super_operations bpf_super_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
-	.show_options	= generic_show_options,
+	.show_options	= bpf_show_options,
 	.evict_inode	= bpf_evict_inode,
 };
 
@@ -433,8 +451,6 @@ static int bpf_fill_super(struct super_block *sb, void *data, int silent)
 	struct bpf_mount_opts opts;
 	struct inode *inode;
 	int ret;
-
-	save_mount_options(sb, data);
 
 	ret = bpf_parse_options(data, &opts);
 	if (ret)

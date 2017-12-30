@@ -536,11 +536,14 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	list_add_tail(&mid->qhead, &server->pending_mid_q);
 	spin_unlock(&GlobalMid_Lock);
 
-
+	/*
+	 * Need to store the time in mid before calling I/O. For call_async,
+	 * I/O response may come back and free the mid entry on another thread.
+	 */
+	cifs_save_when_sent(mid);
 	cifs_in_send_inc(server);
 	rc = smb_send_rqst(server, rqst, flags);
 	cifs_in_send_dec(server);
-	cifs_save_when_sent(mid);
 
 	if (rc < 0) {
 		server->sequence_number -= 2;

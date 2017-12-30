@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1994-1998	   Linus Torvalds & authors (see below)
  *  Copyright (C) 1998-2002	   Linux ATA Development
@@ -478,7 +479,6 @@ static int set_multcount(ide_drive_t *drive, int arg)
 		return -EBUSY;
 
 	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
-	scsi_req_init(rq);
 	ide_req(rq)->type = ATA_PRIV_TASKFILE;
 
 	drive->mult_req = arg;

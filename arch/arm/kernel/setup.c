@@ -987,6 +987,9 @@ static void __init reserve_crashkernel(void)
 
 	if (crash_base <= 0) {
 		unsigned long long crash_max = idmap_to_phys((u32)~0);
+		unsigned long long lowmem_max = __pa(high_memory - 1) + 1;
+		if (crash_max > lowmem_max)
+			crash_max = lowmem_max;
 		crash_base = memblock_find_in_range(CRASH_ALIGN, crash_max,
 						    crash_size, CRASH_ALIGN);
 		if (!crash_base) {
@@ -1066,6 +1069,16 @@ void __init setup_arch(char **cmdline_p)
 	mdesc = setup_machine_fdt(__atags_pointer);
 	if (!mdesc)
 		mdesc = setup_machine_tags(__atags_pointer, __machine_arch_type);
+	if (!mdesc) {
+		early_print("\nError: invalid dtb and unrecognized/unsupported machine ID\n");
+		early_print("  r1=0x%08x, r2=0x%08x\n", __machine_arch_type,
+			    __atags_pointer);
+		if (__atags_pointer)
+			early_print("  r2[]=%*ph\n", 16,
+				    phys_to_virt(__atags_pointer));
+		dump_machine_table();
+	}
+
 	machine_desc = mdesc;
 	machine_name = mdesc->name;
 	dump_stack_set_arch_desc("%s", mdesc->name);

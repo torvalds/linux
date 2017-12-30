@@ -24,8 +24,6 @@ DMA-ISA-LPC.txt
 	- How to do DMA with ISA (and LPC) devices.
 DMA-attributes.txt
 	- listing of the various possible attributes a DMA region can have
-DocBook/
-	- directory with DocBook templates etc. for kernel documentation.
 EDID/
 	- directory with info on customizing EDID for broken gfx/displays.
 IPMI.txt
@@ -39,8 +37,6 @@ IRQ.txt
 Intel-IOMMU.txt
 	- basic info on the Intel IOMMU virtualization support.
 Makefile
-	- It's not of interest for those who aren't touching the build system.
-Makefile.sphinx
 	- It's not of interest for those who aren't touching the build system.
 PCI/
 	- info related to PCI drivers.
@@ -246,8 +242,6 @@ kprobes.txt
 	- documents the kernel probes debugging feature.
 kref.txt
 	- docs on adding reference counters (krefs) to kernel objects.
-kselftest.txt
-	- small unittests for (some) individual codepaths in the kernel.
 laptops/
 	- directory with laptop related info and laptop driver documentation.
 ldm.txt
@@ -264,6 +258,8 @@ logo.gif
 	- full colour GIF image of Linux logo (penguin - Tux).
 logo.txt
 	- info on creator of above logo & site to get additional images from.
+lsm.txt
+	- Linux Security Modules: General Security Hooks for Linux
 lzo.txt
 	- kernel LZO decompressor input formats
 m68k/

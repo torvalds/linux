@@ -949,7 +949,7 @@ static int st95hf_in_send_cmd(struct nfc_digital_dev *ddev,
 	switch (stcontext->current_rf_tech) {
 	case NFC_DIGITAL_RF_TECH_106A:
 		len_data_to_tag = skb->len + 1;
-		*skb_put(skb, 1) = stcontext->sendrcv_trflag;
+		skb_put_u8(skb, stcontext->sendrcv_trflag);
 		break;
 	case NFC_DIGITAL_RF_TECH_106B:
 	case NFC_DIGITAL_RF_TECH_ISO15693:

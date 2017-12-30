@@ -16,7 +16,7 @@
  * @rq: request to complete
  * @error: end I/O status of the request
  */
-static void blk_end_sync_rq(struct request *rq, int error)
+static void blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	struct completion *waiting = rq->end_io_data;
 
@@ -69,7 +69,7 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 
 	if (unlikely(blk_queue_dying(q))) {
 		rq->rq_flags |= RQF_QUIET;
-		__blk_end_request_all(rq, -ENXIO);
+		__blk_end_request_all(rq, BLK_STS_IOERR);
 		spin_unlock_irq(q->queue_lock);
 		return;
 	}

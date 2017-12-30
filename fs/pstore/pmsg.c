@@ -22,15 +22,15 @@ static DEFINE_MUTEX(pmsg_lock);
 static ssize_t write_pmsg(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct pstore_record record = {
-		.type = PSTORE_TYPE_PMSG,
-		.size = count,
-		.psi = psinfo,
-	};
+	struct pstore_record record;
 	int ret;
 
 	if (!count)
 		return 0;
+
+	pstore_record_init(&record, psinfo);
+	record.type = PSTORE_TYPE_PMSG;
+	record.size = count;
 
 	/* check outside lock, page in any data. write_user also checks */
 	if (!access_ok(VERIFY_READ, buf, count))

@@ -210,11 +210,8 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 	davinci_vcif_dev = devm_kzalloc(&pdev->dev,
 					sizeof(struct davinci_vcif_dev),
 					GFP_KERNEL);
-	if (!davinci_vcif_dev) {
-		dev_dbg(&pdev->dev,
-			"could not allocate memory for private data\n");
+	if (!davinci_vcif_dev)
 		return -ENOMEM;
-	}
 
 	/* DMA tx params */
 	davinci_vcif_dev->davinci_vc = davinci_vc;

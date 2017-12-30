@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,7 +37,7 @@ static int cps_nc_enter(struct cpuidle_device *dev,
 	 * TODO: don't treat core 0 specially, just prevent the final core
 	 * TODO: remap interrupt affinity temporarily
 	 */
-	if (!cpu_data[dev->cpu].core && (index > STATE_NC_WAIT))
+	if (cpus_are_siblings(0, dev->cpu) && (index > STATE_NC_WAIT))
 		index = STATE_NC_WAIT;
 
 	/* Select the appropriate cps_pm_state */

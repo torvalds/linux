@@ -17,7 +17,6 @@ Example (for ARM-based BeagleBone with NPC100 NFC controller on I2C2):
 
 &i2c2 {
 
-	status = "okay";
 
 	npc100: npc100@29 {
 

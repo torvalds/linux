@@ -105,11 +105,16 @@ static int native_afu_reset(struct cxl_afu *afu)
 			   CXL_AFU_Cntl_An_RS_MASK | CXL_AFU_Cntl_An_ES_MASK,
 			   false);
 
-	/* Re-enable any masked interrupts */
-	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
-	serr &= ~CXL_PSL_SERR_An_IRQ_MASKS;
-	cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
-
+	/*
+	 * Re-enable any masked interrupts when the AFU is not
+	 * activated to avoid side effects after attaching a process
+	 * in dedicated mode.
+	 */
+	if (afu->current_mode == 0) {
+		serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
+		serr &= ~CXL_PSL_SERR_An_IRQ_MASKS;
+		cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
+	}
 
 	return rc;
 }
@@ -139,9 +144,9 @@ int cxl_psl_purge(struct cxl_afu *afu)
 
 	pr_devel("PSL purge request\n");
 
-	if (cxl_is_psl8(afu))
+	if (cxl_is_power8())
 		trans_fault = CXL_PSL_DSISR_TRANS;
-	if (cxl_is_psl9(afu))
+	if (cxl_is_power9())
 		trans_fault = CXL_PSL9_DSISR_An_TF;
 
 	if (!cxl_ops->link_ok(afu->adapter, afu)) {
@@ -581,17 +586,17 @@ err:
 #define set_endian(sr) ((sr) &= ~(CXL_PSL_SR_An_LE))
 #endif
 
-static u64 calculate_sr(struct cxl_context *ctx)
+u64 cxl_calculate_sr(bool master, bool kernel, bool real_mode, bool p9)
 {
 	u64 sr = 0;
 
 	set_endian(sr);
-	if (ctx->master)
+	if (master)
 		sr |= CXL_PSL_SR_An_MP;
 	if (mfspr(SPRN_LPCR) & LPCR_TC)
 		sr |= CXL_PSL_SR_An_TC;
-	if (ctx->kernel) {
-		if (!ctx->real_mode)
+	if (kernel) {
+		if (!real_mode)
 			sr |= CXL_PSL_SR_An_R;
 		sr |= (mfmsr() & MSR_SF) | CXL_PSL_SR_An_HV;
 	} else {
@@ -603,13 +608,19 @@ static u64 calculate_sr(struct cxl_context *ctx)
 		if (!test_tsk_thread_flag(current, TIF_32BIT))
 			sr |= CXL_PSL_SR_An_SF;
 	}
-	if (cxl_is_psl9(ctx->afu)) {
+	if (p9) {
 		if (radix_enabled())
 			sr |= CXL_PSL_SR_An_XLAT_ror;
 		else
 			sr |= CXL_PSL_SR_An_XLAT_hpt;
 	}
 	return sr;
+}
+
+static u64 calculate_sr(struct cxl_context *ctx)
+{
+	return cxl_calculate_sr(ctx->master, ctx->kernel, ctx->real_mode,
+				cxl_is_power9());
 }
 
 static void update_ivtes_directed(struct cxl_context *ctx)
@@ -886,6 +897,14 @@ int cxl_attach_dedicated_process_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
 	if (ctx->afu->adapter->native->sl_ops->update_dedicated_ivtes)
 		afu->adapter->native->sl_ops->update_dedicated_ivtes(ctx);
 
+	ctx->elem->software_state = cpu_to_be32(CXL_PE_SOFTWARE_STATE_V);
+	/*
+	 * Ideally we should do a wmb() here to make sure the changes to the
+	 * PE are visible to the card before we call afu_enable.
+	 * On ppc64 though all mmios are preceded by a 'sync' instruction hence
+	 * we dont dont need one here.
+	 */
+
 	result = cxl_ops->afu_reset(afu);
 	if (result)
 		return result;
@@ -1066,13 +1085,11 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 
 void cxl_native_irq_dump_regs_psl9(struct cxl_context *ctx)
 {
-	u64 fir1, fir2, serr;
+	u64 fir1, serr;
 
 	fir1 = cxl_p1_read(ctx->afu->adapter, CXL_PSL9_FIR1);
-	fir2 = cxl_p1_read(ctx->afu->adapter, CXL_PSL9_FIR2);
 
 	dev_crit(&ctx->afu->dev, "PSL_FIR1: 0x%016llx\n", fir1);
-	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%016llx\n", fir2);
 	if (ctx->afu->adapter->native->sl_ops->register_serr_irq) {
 		serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
 		cxl_afu_decode_psl_serr(ctx->afu, serr);
@@ -1117,10 +1134,10 @@ static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
 
 static bool cxl_is_translation_fault(struct cxl_afu *afu, u64 dsisr)
 {
-	if ((cxl_is_psl8(afu)) && (dsisr & CXL_PSL_DSISR_TRANS))
+	if ((cxl_is_power8()) && (dsisr & CXL_PSL_DSISR_TRANS))
 		return true;
 
-	if ((cxl_is_psl9(afu)) && (dsisr & CXL_PSL9_DSISR_An_TF))
+	if ((cxl_is_power9()) && (dsisr & CXL_PSL9_DSISR_An_TF))
 		return true;
 
 	return false;
@@ -1194,10 +1211,10 @@ static void native_irq_wait(struct cxl_context *ctx)
 		if (ph != ctx->pe)
 			return;
 		dsisr = cxl_p2n_read(ctx->afu, CXL_PSL_DSISR_An);
-		if (cxl_is_psl8(ctx->afu) &&
+		if (cxl_is_power8() &&
 		   ((dsisr & CXL_PSL_DSISR_PENDING) == 0))
 			return;
-		if (cxl_is_psl9(ctx->afu) &&
+		if (cxl_is_power9() &&
 		   ((dsisr & CXL_PSL9_DSISR_PENDING) == 0))
 			return;
 		/*
@@ -1246,14 +1263,23 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void cxl_native_err_irq_dump_regs(struct cxl *adapter)
+void cxl_native_err_irq_dump_regs_psl9(struct cxl *adapter)
+{
+	u64 fir1;
+
+	fir1 = cxl_p1_read(adapter, CXL_PSL9_FIR1);
+	dev_crit(&adapter->dev, "PSL_FIR: 0x%016llx\n", fir1);
+}
+
+void cxl_native_err_irq_dump_regs_psl8(struct cxl *adapter)
 {
 	u64 fir1, fir2;
 
 	fir1 = cxl_p1_read(adapter, CXL_PSL_FIR1);
 	fir2 = cxl_p1_read(adapter, CXL_PSL_FIR2);
-
-	dev_crit(&adapter->dev, "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n", fir1, fir2);
+	dev_crit(&adapter->dev,
+		 "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n",
+		 fir1, fir2);
 }
 
 static irqreturn_t native_irq_err(int irq, void *data)

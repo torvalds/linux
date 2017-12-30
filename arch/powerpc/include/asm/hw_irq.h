@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1999 Cort Dougan <cort@cs.nmt.edu>
  */
@@ -31,6 +32,7 @@
 
 #ifndef __ASSEMBLY__
 
+extern void replay_system_reset(void);
 extern void __replay_interrupt(unsigned int vector);
 
 extern void timer_interrupt(struct pt_regs *);
@@ -129,6 +131,10 @@ static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
 }
 
 extern bool prep_irq_for_idle(void);
+extern bool prep_irq_for_idle_irqsoff(void);
+extern void irq_set_pending_from_srr1(unsigned long srr1);
+
+#define fini_irq_for_idle_irqsoff() trace_hardirqs_off();
 
 extern void force_external_irq_replay(void);
 

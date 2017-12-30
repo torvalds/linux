@@ -794,9 +794,6 @@ static struct dma_async_tx_descriptor *zynqmp_dma_prep_memcpy(
 
 	chan = to_chan(dchan);
 
-	if (len > ZYNQMP_DMA_MAX_TRANS_LEN)
-		return NULL;
-
 	desc_cnt = DIV_ROUND_UP(len, ZYNQMP_DMA_MAX_TRANS_LEN);
 
 	spin_lock_bh(&chan->lock);
@@ -828,98 +825,6 @@ static struct dma_async_tx_descriptor *zynqmp_dma_prep_memcpy(
 
 	zynqmp_dma_desc_config_eod(chan, desc);
 	async_tx_ack(&first->async_tx);
-	first->async_tx.flags = flags;
-	return &first->async_tx;
-}
-
-/**
- * zynqmp_dma_prep_slave_sg - prepare descriptors for a memory sg transaction
- * @dchan: DMA channel
- * @dst_sg: Destination scatter list
- * @dst_sg_len: Number of entries in destination scatter list
- * @src_sg: Source scatter list
- * @src_sg_len: Number of entries in source scatter list
- * @flags: transfer ack flags
- *
- * Return: Async transaction descriptor on success and NULL on failure
- */
-static struct dma_async_tx_descriptor *zynqmp_dma_prep_sg(
-			struct dma_chan *dchan, struct scatterlist *dst_sg,
-			unsigned int dst_sg_len, struct scatterlist *src_sg,
-			unsigned int src_sg_len, unsigned long flags)
-{
-	struct zynqmp_dma_desc_sw *new, *first = NULL;
-	struct zynqmp_dma_chan *chan = to_chan(dchan);
-	void *desc = NULL, *prev = NULL;
-	size_t len, dst_avail, src_avail;
-	dma_addr_t dma_dst, dma_src;
-	u32 desc_cnt = 0, i;
-	struct scatterlist *sg;
-
-	for_each_sg(src_sg, sg, src_sg_len, i)
-		desc_cnt += DIV_ROUND_UP(sg_dma_len(sg),
-					 ZYNQMP_DMA_MAX_TRANS_LEN);
-
-	spin_lock_bh(&chan->lock);
-	if (desc_cnt > chan->desc_free_cnt) {
-		spin_unlock_bh(&chan->lock);
-		dev_dbg(chan->dev, "chan %p descs are not available\n", chan);
-		return NULL;
-	}
-	chan->desc_free_cnt = chan->desc_free_cnt - desc_cnt;
-	spin_unlock_bh(&chan->lock);
-
-	dst_avail = sg_dma_len(dst_sg);
-	src_avail = sg_dma_len(src_sg);
-
-	/* Run until we are out of scatterlist entries */
-	while (true) {
-		/* Allocate and populate the descriptor */
-		new = zynqmp_dma_get_descriptor(chan);
-		desc = (struct zynqmp_dma_desc_ll *)new->src_v;
-		len = min_t(size_t, src_avail, dst_avail);
-		len = min_t(size_t, len, ZYNQMP_DMA_MAX_TRANS_LEN);
-		if (len == 0)
-			goto fetch;
-		dma_dst = sg_dma_address(dst_sg) + sg_dma_len(dst_sg) -
-			dst_avail;
-		dma_src = sg_dma_address(src_sg) + sg_dma_len(src_sg) -
-			src_avail;
-
-		zynqmp_dma_config_sg_ll_desc(chan, desc, dma_src, dma_dst,
-					     len, prev);
-		prev = desc;
-		dst_avail -= len;
-		src_avail -= len;
-
-		if (!first)
-			first = new;
-		else
-			list_add_tail(&new->node, &first->tx_list);
-fetch:
-		/* Fetch the next dst scatterlist entry */
-		if (dst_avail == 0) {
-			if (dst_sg_len == 0)
-				break;
-			dst_sg = sg_next(dst_sg);
-			if (dst_sg == NULL)
-				break;
-			dst_sg_len--;
-			dst_avail = sg_dma_len(dst_sg);
-		}
-		/* Fetch the next src scatterlist entry */
-		if (src_avail == 0) {
-			if (src_sg_len == 0)
-				break;
-			src_sg = sg_next(src_sg);
-			if (src_sg == NULL)
-				break;
-			src_sg_len--;
-			src_avail = sg_dma_len(src_sg);
-		}
-	}
-
-	zynqmp_dma_desc_config_eod(chan, desc);
 	first->async_tx.flags = flags;
 	return &first->async_tx;
 }
@@ -1067,11 +972,9 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&zdev->common.channels);
 
 	dma_set_mask(&pdev->dev, DMA_BIT_MASK(44));
-	dma_cap_set(DMA_SG, zdev->common.cap_mask);
 	dma_cap_set(DMA_MEMCPY, zdev->common.cap_mask);
 
 	p = &zdev->common;
-	p->device_prep_dma_sg = zynqmp_dma_prep_sg;
 	p->device_prep_dma_memcpy = zynqmp_dma_prep_memcpy;
 	p->device_terminate_all = zynqmp_dma_device_terminate_all;
 	p->device_issue_pending = zynqmp_dma_issue_pending;

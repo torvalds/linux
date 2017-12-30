@@ -394,7 +394,7 @@ struct octeon_hcd {
 				result = -1;				    \
 				break;					    \
 			} else						    \
-				cvmx_wait(100);				    \
+				__delay(100);				    \
 		}							    \
 	} while (0);							    \
 	result; })
@@ -774,7 +774,7 @@ retry:
 	usbn_clk_ctl.s.hclk_rst = 1;
 	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
 	/* 2e.  Wait 64 core-clock cycles for HCLK to stabilize */
-	cvmx_wait(64);
+	__delay(64);
 	/*
 	 * 3. Program the power-on reset field in the USBN clock-control
 	 *    register:
@@ -795,7 +795,7 @@ retry:
 	cvmx_write64_uint64(CVMX_USBNX_USBP_CTL_STATUS(usb->index),
 			    usbn_usbp_ctl_status.u64);
 	/* 6. Wait 10 cycles */
-	cvmx_wait(10);
+	__delay(10);
 	/*
 	 * 7. Clear ATE_RESET field in the USBN clock-control register:
 	 *    USBN_USBP_CTL_STATUS[ATE_RESET] = 0
@@ -3659,14 +3659,14 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	status = cvmx_usb_initialize(dev, usb);
 	if (status) {
 		dev_dbg(dev, "USB initialization failed with %d\n", status);
-		kfree(hcd);
+		usb_put_hcd(hcd);
 		return -1;
 	}
 
 	status = usb_add_hcd(hcd, irq, 0);
 	if (status) {
 		dev_dbg(dev, "USB add HCD failed with %d\n", status);
-		kfree(hcd);
+		usb_put_hcd(hcd);
 		return -1;
 	}
 	device_wakeup_enable(hcd->self.controller);
@@ -3691,7 +3691,7 @@ static int octeon_usb_remove(struct platform_device *pdev)
 	if (status)
 		dev_dbg(dev, "USB shutdown failed with %d\n", status);
 
-	kfree(hcd);
+	usb_put_hcd(hcd);
 
 	return 0;
 }

@@ -27,14 +27,13 @@ Optional properties:
 
 Example:
 
-	fb0: fb@0x00500000 {
+	fb0: fb@00500000 {
 		compatible = "atmel,at91sam9g45-lcdc";
 		reg = <0x00500000 0x1000>;
 		interrupts = <23 3 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_fb>;
 		display = <&display0>;
-		status = "okay";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -42,7 +41,7 @@ Example:
 
 Example for fixed framebuffer memory:
 
-	fb0: fb@0x00500000 {
+	fb0: fb@00500000 {
 		compatible = "atmel,at91sam9263-lcdc";
 		reg = <0x00700000 0x1000 0x70000000 0x200000>;
 		[...]

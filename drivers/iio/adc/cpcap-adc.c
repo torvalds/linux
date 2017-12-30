@@ -52,6 +52,10 @@
 #define CPCAP_BIT_RAND0			BIT(1)	/* Set with CAL_MODE */
 #define CPCAP_BIT_ADEN			BIT(0)	/* Currently unused */
 
+#define CPCAP_REG_ADCC1_DEFAULTS	(CPCAP_BIT_ADEN_AUTO_CLR | \
+					 CPCAP_BIT_ADC_CLK_SEL0 |  \
+					 CPCAP_BIT_RAND1)
+
 /* Register CPCAP_REG_ADCC2 bits */
 #define CPCAP_BIT_CAL_FACTOR_ENABLE	BIT(15)	/* Currently unused */
 #define CPCAP_BIT_BATDETB_EN		BIT(14)	/* Currently unused */
@@ -62,13 +66,19 @@
 #define CPCAP_BIT_ADC_PS_FACTOR0	BIT(9)
 #define CPCAP_BIT_AD4_SELECT		BIT(8)	/* Currently unused */
 #define CPCAP_BIT_ADC_BUSY		BIT(7)	/* Currently unused */
-#define CPCAP_BIT_THERMBIAS_EN		BIT(6)	/* Currently unused */
+#define CPCAP_BIT_THERMBIAS_EN		BIT(6)	/* Bias for AD0_BATTDETB */
 #define CPCAP_BIT_ADTRIG_DIS		BIT(5)	/* Disable interrupt */
 #define CPCAP_BIT_LIADC			BIT(4)	/* Currently unused */
 #define CPCAP_BIT_TS_REFEN		BIT(3)	/* Currently unused */
 #define CPCAP_BIT_TS_M2			BIT(2)	/* Currently unused */
 #define CPCAP_BIT_TS_M1			BIT(1)	/* Currently unused */
 #define CPCAP_BIT_TS_M0			BIT(0)	/* Currently unused */
+
+#define CPCAP_REG_ADCC2_DEFAULTS	(CPCAP_BIT_AD4_SELECT | \
+					 CPCAP_BIT_ADTRIG_DIS | \
+					 CPCAP_BIT_LIADC | \
+					 CPCAP_BIT_TS_M2 | \
+					 CPCAP_BIT_TS_M1)
 
 #define CPCAP_MAX_TEMP_LVL		27
 #define CPCAP_FOUR_POINT_TWO_ADC	801
@@ -78,7 +88,7 @@
 #define ST_ADC_CAL_BATTI_LOW_THRESHOLD	494
 #define ST_ADC_CALIBRATE_DIFF_THRESHOLD	3
 
-#define CPCAP_ADC_MAX_RETRIES		5	/* Calibration and quirk */
+#define CPCAP_ADC_MAX_RETRIES		5	/* Calibration */
 
 /**
  * struct cpcap_adc_ato - timing settings for cpcap adc
@@ -124,10 +134,10 @@ struct cpcap_adc {
  */
 enum cpcap_adc_channel {
 	/* Bank0 channels */
-	CPCAP_ADC_AD0_BATTDETB,	/* Battery detection */
+	CPCAP_ADC_AD0,		/* Battery temperature */
 	CPCAP_ADC_BATTP,	/* Battery voltage */
 	CPCAP_ADC_VBUS,		/* USB VBUS voltage */
-	CPCAP_ADC_AD3,		/* Battery temperature when charging */
+	CPCAP_ADC_AD3,		/* Die temperature when charging */
 	CPCAP_ADC_BPLUS_AD4,	/* Another battery or system voltage */
 	CPCAP_ADC_CHG_ISENSE,	/* Calibrated charge current */
 	CPCAP_ADC_BATTI,	/* Calibrated system current */
@@ -217,7 +227,7 @@ struct cpcap_adc_request {
 /* Phasing table for channels. Note that channels 16 & 17 use BATTP and BATTI */
 static const struct cpcap_adc_phasing_tbl bank_phasing[] = {
 	/* Bank0 */
-	[CPCAP_ADC_AD0_BATTDETB] = {0, 0x80, 0x80,    0, 1023},
+	[CPCAP_ADC_AD0] =          {0, 0x80, 0x80,    0, 1023},
 	[CPCAP_ADC_BATTP] =        {0, 0x80, 0x80,    0, 1023},
 	[CPCAP_ADC_VBUS] =         {0, 0x80, 0x80,    0, 1023},
 	[CPCAP_ADC_AD3] =          {0, 0x80, 0x80,    0, 1023},
@@ -243,7 +253,7 @@ static const struct cpcap_adc_phasing_tbl bank_phasing[] = {
  */
 static struct cpcap_adc_conversion_tbl bank_conversion[] = {
 	/* Bank0 */
-	[CPCAP_ADC_AD0_BATTDETB] = {
+	[CPCAP_ADC_AD0] = {
 		IIO_CHAN_INFO_PROCESSED,    0,    0, 0,     1,    1,
 	},
 	[CPCAP_ADC_BATTP] = {
@@ -541,6 +551,15 @@ static void cpcap_adc_setup_bank(struct cpcap_adc *ddata,
 		return;
 
 	switch (req->channel) {
+	case CPCAP_ADC_AD0:
+		value2 |= CPCAP_BIT_THERMBIAS_EN;
+		error = regmap_update_bits(ddata->reg, CPCAP_REG_ADCC2,
+					   CPCAP_BIT_THERMBIAS_EN,
+					   value2);
+		if (error)
+			return;
+		usleep_range(800, 1000);
+		break;
 	case CPCAP_ADC_AD8 ... CPCAP_ADC_TSY2_AD15:
 		value1 |= CPCAP_BIT_AD_SEL1;
 		break;
@@ -583,7 +602,8 @@ static void cpcap_adc_setup_bank(struct cpcap_adc *ddata,
 	error = regmap_update_bits(ddata->reg, CPCAP_REG_ADCC2,
 				   CPCAP_BIT_ATOX_PS_FACTOR |
 				   CPCAP_BIT_ADC_PS_FACTOR1 |
-				   CPCAP_BIT_ADC_PS_FACTOR0,
+				   CPCAP_BIT_ADC_PS_FACTOR0 |
+				   CPCAP_BIT_THERMBIAS_EN,
 				   value2);
 	if (error)
 		return;
@@ -614,27 +634,6 @@ static void cpcap_adc_setup_bank(struct cpcap_adc *ddata,
 	}
 }
 
-/*
- * Occasionally the ADC does not seem to start and there will be no
- * interrupt. Let's re-init interrupt to prevent the ADC from hanging
- * for the next request. It is unclear why this happens, but the next
- * request will usually work after doing this.
- */
-static void cpcap_adc_quirk_reset_lost_irq(struct cpcap_adc *ddata)
-{
-	int error;
-
-	dev_info(ddata->dev, "lost ADC irq, attempting to reinit\n");
-	disable_irq(ddata->irq);
-	error = regmap_update_bits(ddata->reg, CPCAP_REG_ADCC2,
-				   CPCAP_BIT_ADTRIG_DIS,
-				   CPCAP_BIT_ADTRIG_DIS);
-	if (error)
-		dev_warn(ddata->dev, "%s reset failed: %i\n",
-			 __func__, error);
-	enable_irq(ddata->irq);
-}
-
 static int cpcap_adc_start_bank(struct cpcap_adc *ddata,
 				struct cpcap_adc_request *req)
 {
@@ -652,7 +651,6 @@ static int cpcap_adc_start_bank(struct cpcap_adc *ddata,
 			return 0;
 
 		if (error == 0) {
-			cpcap_adc_quirk_reset_lost_irq(ddata);
 			error = -ETIMEDOUT;
 			continue;
 		}
@@ -662,6 +660,21 @@ static int cpcap_adc_start_bank(struct cpcap_adc *ddata,
 	}
 
 	return error;
+}
+
+static int cpcap_adc_stop_bank(struct cpcap_adc *ddata)
+{
+	int error;
+
+	error = regmap_update_bits(ddata->reg, CPCAP_REG_ADCC1,
+				   0xffff,
+				   CPCAP_REG_ADCC1_DEFAULTS);
+	if (error)
+		return error;
+
+	return regmap_update_bits(ddata->reg, CPCAP_REG_ADCC2,
+				  0xffff,
+				  CPCAP_REG_ADCC2_DEFAULTS);
 }
 
 static void cpcap_adc_phase(struct cpcap_adc_request *req)
@@ -758,7 +771,7 @@ static void cpcap_adc_convert(struct cpcap_adc_request *req)
 		return;
 
 	/* Temperatures use a lookup table instead of conversion table */
-	if ((req->channel == CPCAP_ADC_AD0_BATTDETB) ||
+	if ((req->channel == CPCAP_ADC_AD0) ||
 	    (req->channel == CPCAP_ADC_AD3)) {
 		req->result =
 			cpcap_adc_table_to_millicelcius(req->result);
@@ -820,7 +833,7 @@ static int cpcap_adc_init_request(struct cpcap_adc_request *req,
 	req->conv_tbl = bank_conversion;
 
 	switch (channel) {
-	case CPCAP_ADC_AD0_BATTDETB ... CPCAP_ADC_USB_ID:
+	case CPCAP_ADC_AD0 ... CPCAP_ADC_USB_ID:
 		req->bank_index = channel;
 		break;
 	case CPCAP_ADC_AD8 ... CPCAP_ADC_TSY2_AD15:
@@ -835,6 +848,22 @@ static int cpcap_adc_init_request(struct cpcap_adc_request *req,
 	default:
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int cpcap_adc_read_st_die_temp(struct cpcap_adc *ddata,
+				      int addr, int *val)
+{
+	int error;
+
+	error = regmap_read(ddata->reg, addr, val);
+	if (error)
+		return error;
+
+	*val -= 282;
+	*val *= 114;
+	*val += 25000;
 
 	return 0;
 }
@@ -860,6 +889,9 @@ static int cpcap_adc_read(struct iio_dev *indio_dev,
 		error = regmap_read(ddata->reg, chan->address, val);
 		if (error)
 			goto err_unlock;
+		error = cpcap_adc_stop_bank(ddata);
+		if (error)
+			goto err_unlock;
 		mutex_unlock(&ddata->lock);
 		break;
 	case IIO_CHAN_INFO_PROCESSED:
@@ -867,7 +899,19 @@ static int cpcap_adc_read(struct iio_dev *indio_dev,
 		error = cpcap_adc_start_bank(ddata, &req);
 		if (error)
 			goto err_unlock;
-		error = cpcap_adc_read_bank_scaled(ddata, &req);
+		if ((ddata->vendor == CPCAP_VENDOR_ST) &&
+		    (chan->channel == CPCAP_ADC_AD3)) {
+			error = cpcap_adc_read_st_die_temp(ddata,
+							   chan->address,
+							   &req.result);
+			if (error)
+				goto err_unlock;
+		} else {
+			error = cpcap_adc_read_bank_scaled(ddata, &req);
+			if (error)
+				goto err_unlock;
+		}
+		error = cpcap_adc_stop_bank(ddata);
 		if (error)
 			goto err_unlock;
 		mutex_unlock(&ddata->lock);
@@ -888,7 +932,6 @@ err_unlock:
 
 static const struct iio_info cpcap_adc_info = {
 	.read_raw = &cpcap_adc_read,
-	.driver_module = THIS_MODULE,
 };
 
 /*
@@ -968,7 +1011,7 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	ddata->irq = platform_get_irq_byname(pdev, "adcdone");
-	if (!ddata->irq)
+	if (ddata->irq < 0)
 		return -ENODEV;
 
 	error = devm_request_threaded_irq(&pdev->dev, ddata->irq, NULL,

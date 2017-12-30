@@ -5,14 +5,13 @@ the built-in half-duplex mode.
 The properties described hereafter shall be given to a half-duplex capable
 UART node.
 
-Required properties:
+Optional properties:
 - rs485-rts-delay: prop-encoded-array <a b> where:
   * a is the delay between rts signal and beginning of data sent in milliseconds.
       it corresponds to the delay before sending data.
   * b is the delay between end of data sent and rts signal in milliseconds
       it corresponds to the delay after sending data and actual release of the line.
-
-Optional properties:
+  If this property is not specified, <0 0> is assumed.
 - linux,rs485-enabled-at-boot-time: empty property telling to enable the rs485
   feature at boot time. It can be disabled later with proper ioctl.
 - rs485-rx-during-tx: empty property that enables the receiving of data even

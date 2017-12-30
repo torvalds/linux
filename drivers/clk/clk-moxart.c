@@ -18,7 +18,7 @@
 
 static void __init moxart_of_pll_clk_init(struct device_node *node)
 {
-	static void __iomem *base;
+	void __iomem *base;
 	struct clk_hw *hw;
 	struct clk *ref_clk;
 	unsigned int mul;
@@ -30,7 +30,7 @@ static void __init moxart_of_pll_clk_init(struct device_node *node)
 
 	base = of_iomap(node, 0);
 	if (!base) {
-		pr_err("%s: of_iomap failed\n", node->full_name);
+		pr_err("%pOF: of_iomap failed\n", node);
 		return;
 	}
 
@@ -39,13 +39,13 @@ static void __init moxart_of_pll_clk_init(struct device_node *node)
 
 	ref_clk = of_clk_get(node, 0);
 	if (IS_ERR(ref_clk)) {
-		pr_err("%s: of_clk_get failed\n", node->full_name);
+		pr_err("%pOF: of_clk_get failed\n", node);
 		return;
 	}
 
 	hw = clk_hw_register_fixed_factor(NULL, name, parent_name, 0, mul, 1);
 	if (IS_ERR(hw)) {
-		pr_err("%s: failed to register clock\n", node->full_name);
+		pr_err("%pOF: failed to register clock\n", node);
 		return;
 	}
 
@@ -57,7 +57,7 @@ CLK_OF_DECLARE(moxart_pll_clock, "moxa,moxart-pll-clock",
 
 static void __init moxart_of_apb_clk_init(struct device_node *node)
 {
-	static void __iomem *base;
+	void __iomem *base;
 	struct clk_hw *hw;
 	struct clk *pll_clk;
 	unsigned int div, val;
@@ -70,7 +70,7 @@ static void __init moxart_of_apb_clk_init(struct device_node *node)
 
 	base = of_iomap(node, 0);
 	if (!base) {
-		pr_err("%s: of_iomap failed\n", node->full_name);
+		pr_err("%pOF: of_iomap failed\n", node);
 		return;
 	}
 
@@ -83,13 +83,13 @@ static void __init moxart_of_apb_clk_init(struct device_node *node)
 
 	pll_clk = of_clk_get(node, 0);
 	if (IS_ERR(pll_clk)) {
-		pr_err("%s: of_clk_get failed\n", node->full_name);
+		pr_err("%pOF: of_clk_get failed\n", node);
 		return;
 	}
 
 	hw = clk_hw_register_fixed_factor(NULL, name, parent_name, 0, 1, div);
 	if (IS_ERR(hw)) {
-		pr_err("%s: failed to register clock\n", node->full_name);
+		pr_err("%pOF: failed to register clock\n", node);
 		return;
 	}
 

@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
 #include "soc15.h"
@@ -97,7 +97,10 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	/* disable irqs */
 	vega10_ih_disable_interrupts(adev);
 
-	nbio_v6_1_ih_control(adev);
+	if (adev->flags & AMD_IS_APU)
+		nbio_v7_0_ih_control(adev);
+	else
+		nbio_v6_1_ih_control(adev);
 
 	ih_rb_cntl = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
@@ -148,7 +151,10 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 						 ENABLE, 0);
 	}
 	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_DOORBELL_RPTR), ih_doorbell_rtpr);
-	nbio_v6_1_ih_doorbell_range(adev, adev->irq.ih.use_doorbell, adev->irq.ih.doorbell_index);
+	if (adev->flags & AMD_IS_APU)
+		nbio_v7_0_ih_doorbell_range(adev, adev->irq.ih.use_doorbell, adev->irq.ih.doorbell_index);
+	else
+		nbio_v6_1_ih_doorbell_range(adev, adev->irq.ih.use_doorbell, adev->irq.ih.doorbell_index);
 
 	tmp = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_STORM_CLIENT_LIST_CNTL));
 	tmp = REG_SET_FIELD(tmp, IH_STORM_CLIENT_LIST_CNTL,
@@ -213,11 +219,92 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev)
 			wptr, adev->irq.ih.rptr, tmp);
 		adev->irq.ih.rptr = tmp;
 
-		tmp = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
+		tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
 		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
-		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), tmp);
+		WREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), tmp);
 	}
 	return (wptr & adev->irq.ih.ptr_mask);
+}
+
+/**
+ * vega10_ih_prescreen_iv - prescreen an interrupt vector
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns true if the interrupt vector should be further processed.
+ */
+static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
+{
+	u32 ring_index = adev->irq.ih.rptr >> 2;
+	u32 dw0, dw3, dw4, dw5;
+	u16 pasid;
+	u64 addr, key;
+	struct amdgpu_vm *vm;
+	int r;
+
+	dw0 = le32_to_cpu(adev->irq.ih.ring[ring_index + 0]);
+	dw3 = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
+	dw4 = le32_to_cpu(adev->irq.ih.ring[ring_index + 4]);
+	dw5 = le32_to_cpu(adev->irq.ih.ring[ring_index + 5]);
+
+	/* Filter retry page faults, let only the first one pass. If
+	 * there are too many outstanding faults, ignore them until
+	 * some faults get cleared.
+	 */
+	switch (dw0 & 0xff) {
+	case AMDGPU_IH_CLIENTID_VMC:
+	case AMDGPU_IH_CLIENTID_UTCL2:
+		break;
+	default:
+		/* Not a VM fault */
+		return true;
+	}
+
+	pasid = dw3 & 0xffff;
+	/* No PASID, can't identify faulting process */
+	if (!pasid)
+		return true;
+
+	/* Not a retry fault, check fault credit */
+	if (!(dw5 & 0x80)) {
+		if (!amdgpu_vm_pasid_fault_credit(adev, pasid))
+			goto ignore_iv;
+		return true;
+	}
+
+	addr = ((u64)(dw5 & 0xf) << 44) | ((u64)dw4 << 12);
+	key = AMDGPU_VM_FAULT(pasid, addr);
+	r = amdgpu_ih_add_fault(adev, key);
+
+	/* Hash table is full or the fault is already being processed,
+	 * ignore further page faults
+	 */
+	if (r != 0)
+		goto ignore_iv;
+
+	/* Track retry faults in per-VM fault FIFO. */
+	spin_lock(&adev->vm_manager.pasid_lock);
+	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
+	spin_unlock(&adev->vm_manager.pasid_lock);
+	if (WARN_ON_ONCE(!vm)) {
+		/* VM not found, process it normally */
+		amdgpu_ih_clear_fault(adev, key);
+		return true;
+	}
+	/* No locking required with single writer and single reader */
+	r = kfifo_put(&vm->faults, key);
+	if (!r) {
+		/* FIFO is full. Ignore it until there is space */
+		amdgpu_ih_clear_fault(adev, key);
+		goto ignore_iv;
+	}
+
+	/* It's the first fault for this address, process it normally */
+	return true;
+
+ignore_iv:
+	adev->irq.ih.rptr += 32;
+	return false;
 }
 
 /**
@@ -304,6 +391,14 @@ static int vega10_ih_sw_init(void *handle)
 	adev->irq.ih.use_doorbell = true;
 	adev->irq.ih.doorbell_index = AMDGPU_DOORBELL64_IH << 1;
 
+	adev->irq.ih.faults = kmalloc(sizeof(*adev->irq.ih.faults), GFP_KERNEL);
+	if (!adev->irq.ih.faults)
+		return -ENOMEM;
+	INIT_CHASH_TABLE(adev->irq.ih.faults->hash,
+			 AMDGPU_PAGEFAULT_HASH_BITS, 8, 0);
+	spin_lock_init(&adev->irq.ih.faults->lock);
+	adev->irq.ih.faults->count = 0;
+
 	r = amdgpu_irq_init(adev);
 
 	return r;
@@ -315,6 +410,9 @@ static int vega10_ih_sw_fini(void *handle)
 
 	amdgpu_irq_fini(adev);
 	amdgpu_ih_ring_fini(adev);
+
+	kfree(adev->irq.ih.faults);
+	adev->irq.ih.faults = NULL;
 
 	return 0;
 }
@@ -404,6 +502,7 @@ const struct amd_ip_funcs vega10_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs vega10_ih_funcs = {
 	.get_wptr = vega10_ih_get_wptr,
+	.prescreen_iv = vega10_ih_prescreen_iv,
 	.decode_iv = vega10_ih_decode_iv,
 	.set_rptr = vega10_ih_set_rptr
 };

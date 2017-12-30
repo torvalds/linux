@@ -400,6 +400,7 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	struct btrfs_path *path;
 	struct inode *inode;
 	struct btrfs_block_rsv *rsv;
+	struct extent_changeset *data_reserved = NULL;
 	u64 num_bytes;
 	u64 alloc_hint = 0;
 	int ret;
@@ -492,18 +493,19 @@ again:
 	/* Just to make sure we have enough space */
 	prealloc += 8 * PAGE_SIZE;
 
-	ret = btrfs_delalloc_reserve_space(inode, 0, prealloc);
+	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, 0, prealloc);
 	if (ret)
 		goto out_put;
 
 	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, prealloc,
 					      prealloc, prealloc, &alloc_hint);
 	if (ret) {
-		btrfs_delalloc_release_metadata(BTRFS_I(inode), prealloc);
+		btrfs_delalloc_release_extents(BTRFS_I(inode), prealloc);
 		goto out_put;
 	}
 
 	ret = btrfs_write_out_ino_cache(root, trans, path, inode);
+	btrfs_delalloc_release_extents(BTRFS_I(inode), prealloc);
 out_put:
 	iput(inode);
 out_release:
@@ -516,6 +518,7 @@ out:
 	trans->bytes_reserved = num_bytes;
 
 	btrfs_free_path(path);
+	extent_changeset_free(data_reserved);
 	return ret;
 }
 

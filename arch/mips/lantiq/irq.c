@@ -61,10 +61,6 @@
 /* we have a cascade of 8 irqs */
 #define MIPS_CPU_IRQ_CASCADE		8
 
-#ifdef CONFIG_MIPS_MT_SMP
-int gic_present;
-#endif
-
 static int exin_avail;
 static u32 ltq_eiu_irq[MAX_EIU];
 static void __iomem *ltq_icu_membase[MAX_IM];

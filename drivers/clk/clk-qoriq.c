@@ -12,6 +12,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/clkdev.h>
 #include <linux/fsl/guts.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -87,7 +88,7 @@ struct clockgen {
 	struct device_node *node;
 	void __iomem *regs;
 	struct clockgen_chipinfo info; /* mutable copy */
-	struct clk *sysclk;
+	struct clk *sysclk, *coreclk;
 	struct clockgen_pll pll[6];
 	struct clk *cmux[NUM_CMUX];
 	struct clk *hwaccel[NUM_HWACCEL];
@@ -537,6 +538,17 @@ static const struct clockgen_chipinfo chipinfo[] = {
 		.flags = CG_PLL_8BIT,
 	},
 	{
+		.compat = "fsl,ls1088a-clockgen",
+		.cmux_groups = {
+			&clockgen2_cmux_cga12
+		},
+		.cmux_to_group = {
+			0, 0, -1
+		},
+		.pll_mask = 0x07,
+		.flags = CG_VER3 | CG_LITTLE_ENDIAN,
+	},
+	{
 		.compat = "fsl,ls1012a-clockgen",
 		.cmux_groups = {
 			&ls1012a_cmux
@@ -904,7 +916,12 @@ static void __init create_muxes(struct clockgen *cg)
 
 static void __init clockgen_init(struct device_node *np);
 
-/* Legacy nodes may get probed before the parent clockgen node */
+/*
+ * Legacy nodes may get probed before the parent clockgen node.
+ * It is assumed that device trees with legacy nodes will not
+ * contain a "clocks" property -- otherwise the input clocks may
+ * not be initialized at this point.
+ */
 static void __init legacy_init_clockgen(struct device_node *np)
 {
 	if (!clockgen.node)
@@ -945,24 +962,42 @@ static struct clk __init
 	return clk_register_fixed_rate(NULL, name, NULL, 0, rate);
 }
 
-static struct clk *sysclk_from_parent(const char *name)
+static struct clk __init *input_clock(const char *name, struct clk *clk)
 {
-	struct clk *clk;
-	const char *parent_name;
-
-	clk = of_clk_get(clockgen.node, 0);
-	if (IS_ERR(clk))
-		return clk;
+	const char *input_name;
 
 	/* Register the input clock under the desired name. */
-	parent_name = __clk_get_name(clk);
-	clk = clk_register_fixed_factor(NULL, name, parent_name,
+	input_name = __clk_get_name(clk);
+	clk = clk_register_fixed_factor(NULL, name, input_name,
 					0, 1, 1);
 	if (IS_ERR(clk))
 		pr_err("%s: Couldn't register %s: %ld\n", __func__, name,
 		       PTR_ERR(clk));
 
 	return clk;
+}
+
+static struct clk __init *input_clock_by_name(const char *name,
+					      const char *dtname)
+{
+	struct clk *clk;
+
+	clk = of_clk_get_by_name(clockgen.node, dtname);
+	if (IS_ERR(clk))
+		return clk;
+
+	return input_clock(name, clk);
+}
+
+static struct clk __init *input_clock_by_index(const char *name, int idx)
+{
+	struct clk *clk;
+
+	clk = of_clk_get(clockgen.node, 0);
+	if (IS_ERR(clk))
+		return clk;
+
+	return input_clock(name, clk);
 }
 
 static struct clk * __init create_sysclk(const char *name)
@@ -974,7 +1009,11 @@ static struct clk * __init create_sysclk(const char *name)
 	if (!IS_ERR(clk))
 		return clk;
 
-	clk = sysclk_from_parent(name);
+	clk = input_clock_by_name(name, "sysclk");
+	if (!IS_ERR(clk))
+		return clk;
+
+	clk = input_clock_by_index(name, 0);
 	if (!IS_ERR(clk))
 		return clk;
 
@@ -985,7 +1024,27 @@ static struct clk * __init create_sysclk(const char *name)
 			return clk;
 	}
 
-	pr_err("%s: No input clock\n", __func__);
+	pr_err("%s: No input sysclk\n", __func__);
+	return NULL;
+}
+
+static struct clk * __init create_coreclk(const char *name)
+{
+	struct clk *clk;
+
+	clk = input_clock_by_name(name, "coreclk");
+	if (!IS_ERR(clk))
+		return clk;
+
+	/*
+	 * This indicates a mix of legacy nodes with the new coreclk
+	 * mechanism, which should never happen.  If this error occurs,
+	 * don't use the wrong input clock just because coreclk isn't
+	 * ready yet.
+	 */
+	if (WARN_ON(PTR_ERR(clk) == -EPROBE_DEFER))
+		return clk;
+
 	return NULL;
 }
 
@@ -1008,10 +1067,18 @@ static void __init create_one_pll(struct clockgen *cg, int idx)
 	u32 __iomem *reg;
 	u32 mult;
 	struct clockgen_pll *pll = &cg->pll[idx];
+	const char *input = "cg-sysclk";
 	int i;
 
 	if (!(cg->info.pll_mask & (1 << idx)))
 		return;
+
+	if (cg->coreclk && idx != PLATFORM_PLL) {
+		if (IS_ERR(cg->coreclk))
+			return;
+
+		input = "cg-coreclk";
+	}
 
 	if (cg->info.flags & CG_VER3) {
 		switch (idx) {
@@ -1058,12 +1125,13 @@ static void __init create_one_pll(struct clockgen *cg, int idx)
 
 	for (i = 0; i < ARRAY_SIZE(pll->div); i++) {
 		struct clk *clk;
+		int ret;
 
 		snprintf(pll->div[i].name, sizeof(pll->div[i].name),
 			 "cg-pll%d-div%d", idx, i + 1);
 
 		clk = clk_register_fixed_factor(NULL,
-				pll->div[i].name, "cg-sysclk", 0, mult, i + 1);
+				pll->div[i].name, input, 0, mult, i + 1);
 		if (IS_ERR(clk)) {
 			pr_err("%s: %s: register failed %ld\n",
 			       __func__, pll->div[i].name, PTR_ERR(clk));
@@ -1071,6 +1139,11 @@ static void __init create_one_pll(struct clockgen *cg, int idx)
 		}
 
 		pll->div[i].clk = clk;
+		ret = clk_register_clkdev(clk, pll->div[i].name, NULL);
+		if (ret != 0)
+			pr_err("%s: %s: register to lookup table failed %ld\n",
+			       __func__, pll->div[i].name, PTR_ERR(clk));
+
 	}
 }
 
@@ -1200,6 +1273,13 @@ static struct clk *clockgen_clk_get(struct of_phandle_args *clkspec, void *data)
 			goto bad_args;
 		clk = pll->div[idx].clk;
 		break;
+	case 5:
+		if (idx != 0)
+			goto bad_args;
+		clk = cg->coreclk;
+		if (IS_ERR(clk))
+			clk = NULL;
+		break;
 	default:
 		goto bad_args;
 	}
@@ -1286,8 +1366,7 @@ static void __init clockgen_init(struct device_node *np)
 	}
 
 	if (i == ARRAY_SIZE(chipinfo)) {
-		pr_err("%s: unknown clockgen node %s\n", __func__,
-		       np->full_name);
+		pr_err("%s: unknown clockgen node %pOF\n", __func__, np);
 		goto err;
 	}
 	clockgen.info = chipinfo[i];
@@ -1300,8 +1379,8 @@ static void __init clockgen_init(struct device_node *np)
 		if (guts) {
 			clockgen.guts = of_iomap(guts, 0);
 			if (!clockgen.guts) {
-				pr_err("%s: Couldn't map %s regs\n", __func__,
-				       guts->full_name);
+				pr_err("%s: Couldn't map %pOF regs\n", __func__,
+				       guts);
 			}
 		}
 
@@ -1311,6 +1390,7 @@ static void __init clockgen_init(struct device_node *np)
 		clockgen.info.flags |= CG_CMUX_GE_PLAT;
 
 	clockgen.sysclk = create_sysclk("cg-sysclk");
+	clockgen.coreclk = create_coreclk("cg-coreclk");
 	create_plls(&clockgen);
 	create_muxes(&clockgen);
 
@@ -1335,6 +1415,7 @@ CLK_OF_DECLARE(qoriq_clockgen_ls1012a, "fsl,ls1012a-clockgen", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_ls1021a, "fsl,ls1021a-clockgen", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_ls1043a, "fsl,ls1043a-clockgen", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_ls1046a, "fsl,ls1046a-clockgen", clockgen_init);
+CLK_OF_DECLARE(qoriq_clockgen_ls1088a, "fsl,ls1088a-clockgen", clockgen_init);
 CLK_OF_DECLARE(qoriq_clockgen_ls2080a, "fsl,ls2080a-clockgen", clockgen_init);
 
 /* Legacy nodes */

@@ -31,7 +31,7 @@ static int mi0283qt_init(struct mipi_dbi *mipi)
 
 	ret = regulator_enable(mipi->regulator);
 	if (ret) {
-		dev_err(dev, "Failed to enable regulator %d\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to enable regulator %d\n", ret);
 		return ret;
 	}
 
@@ -42,7 +42,7 @@ static int mi0283qt_init(struct mipi_dbi *mipi)
 	mipi_dbi_hw_reset(mipi);
 	ret = mipi_dbi_command(mipi, MIPI_DCS_SOFT_RESET);
 	if (ret) {
-		dev_err(dev, "Error sending command %d\n", ret);
+		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
 		regulator_disable(mipi->regulator);
 		return ret;
 	}
@@ -163,7 +163,6 @@ MODULE_DEVICE_TABLE(spi, mi0283qt_id);
 static int mi0283qt_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct tinydrm_device *tdev;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
@@ -175,13 +174,13 @@ static int mi0283qt_probe(struct spi_device *spi)
 
 	mipi->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
-		dev_err(dev, "Failed to get gpio 'reset'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
 		return PTR_ERR(mipi->reset);
 	}
 
 	dc = devm_gpiod_get_optional(dev, "dc", GPIOD_OUT_LOW);
 	if (IS_ERR(dc)) {
-		dev_err(dev, "Failed to get gpio 'dc'\n");
+		DRM_DEV_ERROR(dev, "Failed to get gpio 'dc'\n");
 		return PTR_ERR(dc);
 	}
 
@@ -195,8 +194,12 @@ static int mi0283qt_probe(struct spi_device *spi)
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
-	ret = mipi_dbi_spi_init(spi, mipi, dc, &mi0283qt_pipe_funcs,
-				&mi0283qt_driver, &mi0283qt_mode, rotation);
+	ret = mipi_dbi_spi_init(spi, mipi, dc);
+	if (ret)
+		return ret;
+
+	ret = mipi_dbi_init(&spi->dev, mipi, &mi0283qt_pipe_funcs,
+			    &mi0283qt_driver, &mi0283qt_mode, rotation);
 	if (ret)
 		return ret;
 
@@ -211,20 +214,9 @@ static int mi0283qt_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	tdev = &mipi->tinydrm;
-
-	ret = devm_tinydrm_register(tdev);
-	if (ret)
-		return ret;
-
 	spi_set_drvdata(spi, mipi);
 
-	DRM_DEBUG_DRIVER("Initialized %s:%s @%uMHz on minor %d\n",
-			 tdev->drm->driver->name, dev_name(dev),
-			 spi->max_speed_hz / 1000000,
-			 tdev->drm->primary->index);
-
-	return 0;
+	return devm_tinydrm_register(&mipi->tinydrm);
 }
 
 static void mi0283qt_shutdown(struct spi_device *spi)

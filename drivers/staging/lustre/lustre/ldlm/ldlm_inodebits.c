@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -49,9 +50,9 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include "../include/lustre_dlm.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_lib.h"
+#include <lustre_dlm.h>
+#include <obd_support.h>
+#include <lustre_lib.h>
 #include "ldlm_internal.h"
 
 void ldlm_ibits_policy_wire_to_local(const union ldlm_wire_policy_data *wpolicy,

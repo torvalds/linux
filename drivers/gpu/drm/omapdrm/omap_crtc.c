@@ -26,6 +26,16 @@
 
 #include "omap_drv.h"
 
+#define to_omap_crtc_state(x) container_of(x, struct omap_crtc_state, base)
+
+struct omap_crtc_state {
+	/* Must be first. */
+	struct drm_crtc_state base;
+	/* Shadow values for legacy userspace support. */
+	unsigned int rotation;
+	unsigned int zpos;
+};
+
 #define to_omap_crtc(x) container_of(x, struct omap_crtc, base)
 
 struct omap_crtc {
@@ -343,7 +353,21 @@ static void omap_crtc_destroy(struct drm_crtc *crtc)
 	kfree(omap_crtc);
 }
 
-static void omap_crtc_enable(struct drm_crtc *crtc)
+static void omap_crtc_arm_event(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+
+	WARN_ON(omap_crtc->pending);
+	omap_crtc->pending = true;
+
+	if (crtc->state->event) {
+		omap_crtc->event = crtc->state->event;
+		crtc->state->event = NULL;
+	}
+}
+
+static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	int ret;
@@ -355,16 +379,23 @@ static void omap_crtc_enable(struct drm_crtc *crtc)
 	ret = drm_crtc_vblank_get(crtc);
 	WARN_ON(ret != 0);
 
-	WARN_ON(omap_crtc->pending);
-	omap_crtc->pending = true;
+	omap_crtc_arm_event(crtc);
 	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
-static void omap_crtc_disable(struct drm_crtc *crtc)
+static void omap_crtc_atomic_disable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
 	DBG("%s", omap_crtc->name);
+
+	spin_lock_irq(&crtc->dev->event_lock);
+	if (crtc->state->event) {
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		crtc->state->event = NULL;
+	}
+	spin_unlock_irq(&crtc->dev->event_lock);
 
 	drm_crtc_vblank_off(crtc);
 }
@@ -424,12 +455,24 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 static int omap_crtc_atomic_check(struct drm_crtc *crtc,
 				struct drm_crtc_state *state)
 {
+	struct drm_plane_state *pri_state;
+
 	if (state->color_mgmt_changed && state->gamma_lut) {
 		uint length = state->gamma_lut->length /
 			sizeof(struct drm_color_lut);
 
 		if (length < 2)
 			return -EINVAL;
+	}
+
+	pri_state = drm_atomic_get_new_plane_state(state->state, crtc->primary);
+	if (pri_state) {
+		struct omap_crtc_state *omap_crtc_state =
+			to_omap_crtc_state(state);
+
+		/* Mirror new values for zpos and rotation in omap_crtc_state */
+		omap_crtc_state->zpos = pri_state->zpos;
+		omap_crtc_state->rotation = pri_state->rotation;
 	}
 
 	return 0;
@@ -473,23 +516,8 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	spin_lock_irq(&crtc->dev->event_lock);
 	priv->dispc_ops->mgr_go(omap_crtc->channel);
-
-	WARN_ON(omap_crtc->pending);
-	omap_crtc->pending = true;
-
-	if (crtc->state->event)
-		omap_crtc->event = crtc->state->event;
+	omap_crtc_arm_event(crtc);
 	spin_unlock_irq(&crtc->dev->event_lock);
-}
-
-static bool omap_crtc_is_plane_prop(struct drm_crtc *crtc,
-	struct drm_property *property)
-{
-	struct drm_device *dev = crtc->dev;
-	struct omap_drm_private *priv = dev->dev_private;
-
-	return property == priv->zorder_prop ||
-		property == crtc->primary->rotation_property;
 }
 
 static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,
@@ -497,24 +525,27 @@ static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,
 					 struct drm_property *property,
 					 uint64_t val)
 {
-	if (omap_crtc_is_plane_prop(crtc, property)) {
-		struct drm_plane_state *plane_state;
-		struct drm_plane *plane = crtc->primary;
+	struct omap_drm_private *priv = crtc->dev->dev_private;
+	struct drm_plane_state *plane_state;
 
-		/*
-		 * Delegate property set to the primary plane. Get the plane
-		 * state and set the property directly.
-		 */
+	/*
+	 * Delegate property set to the primary plane. Get the plane state and
+	 * set the property directly, the shadow copy will be assigned in the
+	 * omap_crtc_atomic_check callback. This way updates to plane state will
+	 * always be mirrored in the crtc state correctly.
+	 */
+	plane_state = drm_atomic_get_plane_state(state->state, crtc->primary);
+	if (IS_ERR(plane_state))
+		return PTR_ERR(plane_state);
 
-		plane_state = drm_atomic_get_plane_state(state->state, plane);
-		if (IS_ERR(plane_state))
-			return PTR_ERR(plane_state);
+	if (property == crtc->primary->rotation_property)
+		plane_state->rotation = val;
+	else if (property == priv->zorder_prop)
+		plane_state->zpos = val;
+	else
+		return -EINVAL;
 
-		return drm_atomic_plane_set_property(plane, plane_state,
-				property, val);
-	}
-
-	return -EINVAL;
+	return 0;
 }
 
 static int omap_crtc_atomic_get_property(struct drm_crtc *crtc,
@@ -522,28 +553,60 @@ static int omap_crtc_atomic_get_property(struct drm_crtc *crtc,
 					 struct drm_property *property,
 					 uint64_t *val)
 {
-	if (omap_crtc_is_plane_prop(crtc, property)) {
-		/*
-		 * Delegate property get to the primary plane. The
-		 * drm_atomic_plane_get_property() function isn't exported, but
-		 * can be called through drm_object_property_get_value() as that
-		 * will call drm_atomic_get_property() for atomic drivers.
-		 */
-		return drm_object_property_get_value(&crtc->primary->base,
-				property, val);
-	}
+	struct omap_drm_private *priv = crtc->dev->dev_private;
+	struct omap_crtc_state *omap_state = to_omap_crtc_state(state);
 
-	return -EINVAL;
+	if (property == crtc->primary->rotation_property)
+		*val = omap_state->rotation;
+	else if (property == priv->zorder_prop)
+		*val = omap_state->zpos;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static void omap_crtc_reset(struct drm_crtc *crtc)
+{
+	if (crtc->state)
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+
+	kfree(crtc->state);
+	crtc->state = kzalloc(sizeof(struct omap_crtc_state), GFP_KERNEL);
+
+	if (crtc->state)
+		crtc->state->crtc = crtc;
+}
+
+static struct drm_crtc_state *
+omap_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct omap_crtc_state *state, *current_state;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
+	current_state = to_omap_crtc_state(crtc->state);
+
+	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
+
+	state->zpos = current_state->zpos;
+	state->rotation = current_state->rotation;
+
+	return &state->base;
 }
 
 static const struct drm_crtc_funcs omap_crtc_funcs = {
-	.reset = drm_atomic_helper_crtc_reset,
+	.reset = omap_crtc_reset,
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = omap_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
-	.set_property = drm_atomic_helper_crtc_set_property,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_duplicate_state = omap_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.atomic_set_property = omap_crtc_atomic_set_property,
 	.atomic_get_property = omap_crtc_atomic_get_property,
@@ -553,11 +616,11 @@ static const struct drm_crtc_funcs omap_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.mode_set_nofb = omap_crtc_mode_set_nofb,
-	.disable = omap_crtc_disable,
-	.enable = omap_crtc_enable,
 	.atomic_check = omap_crtc_atomic_check,
 	.atomic_begin = omap_crtc_atomic_begin,
 	.atomic_flush = omap_crtc_atomic_flush,
+	.atomic_enable = omap_crtc_atomic_enable,
+	.atomic_disable = omap_crtc_atomic_disable,
 };
 
 /* -----------------------------------------------------------------------------

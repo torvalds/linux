@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "util.h"
 #include <api/fs/fs.h>
 #include "../perf.h"

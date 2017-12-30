@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Texas Instruments DSPS platforms "glue layer"
  *
@@ -6,22 +7,6 @@
  * Based on the am35x "glue layer" code.
  *
  * This file is part of the Inventra Controller Driver for Linux.
- *
- * The Inventra Controller Driver for Linux is free software; you
- * can redistribute it and/or modify it under the terms of the GNU
- * General Public License version 2 as published by the Free Software
- * Foundation.
- *
- * The Inventra Controller Driver for Linux is distributed in
- * the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
- * License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with The Inventra Controller Driver for Linux ; if not,
- * write to the Free Software Foundation, Inc., 59 Temple Place,
- * Suite 330, Boston, MA  02111-1307  USA
  *
  * musb_dsps.c will be a common file for all the TI DSPS platforms
  * such as dm64x, dm36x, dm35x, da8x, am35x and ti81x.
@@ -119,7 +104,6 @@ struct dsps_glue {
 	struct platform_device *musb;	/* child musb pdev */
 	const struct dsps_musb_wrapper *wrp; /* wrapper register offsets */
 	int vbus_irq;			/* optional vbus irq */
-	struct timer_list timer;	/* otg_workaround timer */
 	unsigned long last_timer;    /* last timer data for each instance */
 	bool sw_babble_enabled;
 	void __iomem *usbss_base;
@@ -149,6 +133,7 @@ static const struct debugfs_reg32 dsps_musb_regs[] = {
 
 static void dsps_mod_timer(struct dsps_glue *glue, int wait_ms)
 {
+	struct musb *musb = platform_get_drvdata(glue->musb);
 	int wait;
 
 	if (wait_ms < 0)
@@ -156,7 +141,7 @@ static void dsps_mod_timer(struct dsps_glue *glue, int wait_ms)
 	else
 		wait = msecs_to_jiffies(wait_ms);
 
-	mod_timer(&glue->timer, jiffies + wait);
+	mod_timer(&musb->dev_timer, jiffies + wait);
 }
 
 /*
@@ -216,7 +201,7 @@ static void dsps_musb_disable(struct musb *musb)
 	musb_writel(reg_base, wrp->coreintr_clear, wrp->usb_bitmap);
 	musb_writel(reg_base, wrp->epintr_clear,
 			 wrp->txep_bitmap | wrp->rxep_bitmap);
-	del_timer_sync(&glue->timer);
+	del_timer_sync(&musb->dev_timer);
 }
 
 /* Caller must take musb->lock */
@@ -230,7 +215,7 @@ static int dsps_check_status(struct musb *musb, void *unused)
 	int skip_session = 0;
 
 	if (glue->vbus_irq)
-		del_timer(&glue->timer);
+		del_timer(&musb->dev_timer);
 
 	/*
 	 * We poll because DSPS IP's won't expose several OTG-critical
@@ -282,9 +267,9 @@ static int dsps_check_status(struct musb *musb, void *unused)
 	return 0;
 }
 
-static void otg_timer(unsigned long _musb)
+static void otg_timer(struct timer_list *t)
 {
-	struct musb *musb = (void *)_musb;
+	struct musb *musb = from_timer(musb, t, dev_timer);
 	struct device *dev = musb->controller;
 	unsigned long flags;
 	int err;
@@ -480,7 +465,7 @@ static int dsps_musb_init(struct musb *musb)
 		}
 	}
 
-	setup_timer(&glue->timer, otg_timer, (unsigned long) musb);
+	timer_setup(&musb->dev_timer, otg_timer, 0);
 
 	/* Reset the musb */
 	musb_writel(reg_base, wrp->control, (1 << wrp->reset));
@@ -515,7 +500,7 @@ static int dsps_musb_exit(struct musb *musb)
 	struct device *dev = musb->controller;
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 
-	del_timer_sync(&glue->timer);
+	del_timer_sync(&musb->dev_timer);
 	usb_phy_shutdown(musb->xceiv);
 	phy_power_off(musb->phy);
 	phy_exit(musb->phy);
@@ -1015,12 +1000,19 @@ static int dsps_suspend(struct device *dev)
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	struct musb *musb = platform_get_drvdata(glue->musb);
 	void __iomem *mbase;
-
-	del_timer_sync(&glue->timer);
+	int ret;
 
 	if (!musb)
 		/* This can happen if the musb device is in -EPROBE_DEFER */
 		return 0;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		return ret;
+	}
+
+	del_timer_sync(&musb->dev_timer);
 
 	mbase = musb->ctrl_base;
 	glue->context.control = musb_readl(mbase, wrp->control);
@@ -1059,6 +1051,8 @@ static int dsps_resume(struct device *dev)
 	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE &&
 	    musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
 		dsps_mod_timer(glue, -1);
+
+	pm_runtime_put(dev);
 
 	return 0;
 }

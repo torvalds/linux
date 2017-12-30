@@ -464,12 +464,10 @@ static int axp20x_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info axp20x_adc_iio_info = {
 	.read_raw = axp20x_read_raw,
 	.write_raw = axp20x_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_info axp22x_adc_iio_info = {
 	.read_raw = axp22x_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int axp20x_adc_rate(int rate)

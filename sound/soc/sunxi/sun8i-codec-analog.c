@@ -219,6 +219,22 @@ static const struct snd_kcontrol_new sun8i_codec_mixer_controls[] = {
 			  SUN8I_ADDA_LOMIXSC_MIC2, 1, 0),
 };
 
+/* mixer controls */
+static const struct snd_kcontrol_new sun8i_v3s_codec_mixer_controls[] = {
+	SOC_DAPM_DOUBLE_R("DAC Playback Switch",
+			  SUN8I_ADDA_LOMIXSC,
+			  SUN8I_ADDA_ROMIXSC,
+			  SUN8I_ADDA_LOMIXSC_DACL, 1, 0),
+	SOC_DAPM_DOUBLE_R("DAC Reversed Playback Switch",
+			  SUN8I_ADDA_LOMIXSC,
+			  SUN8I_ADDA_ROMIXSC,
+			  SUN8I_ADDA_LOMIXSC_DACR, 1, 0),
+	SOC_DAPM_DOUBLE_R("Mic1 Playback Switch",
+			  SUN8I_ADDA_LOMIXSC,
+			  SUN8I_ADDA_ROMIXSC,
+			  SUN8I_ADDA_LOMIXSC_MIC1, 1, 0),
+};
+
 /* ADC mixer controls */
 static const struct snd_kcontrol_new sun8i_codec_adc_mixer_controls[] = {
 	SOC_DAPM_DOUBLE_R("Mixer Capture Switch",
@@ -241,6 +257,22 @@ static const struct snd_kcontrol_new sun8i_codec_adc_mixer_controls[] = {
 			  SUN8I_ADDA_LADCMIXSC,
 			  SUN8I_ADDA_RADCMIXSC,
 			  SUN8I_ADDA_LADCMIXSC_MIC2, 1, 0),
+};
+
+/* ADC mixer controls */
+static const struct snd_kcontrol_new sun8i_v3s_codec_adc_mixer_controls[] = {
+	SOC_DAPM_DOUBLE_R("Mixer Capture Switch",
+			  SUN8I_ADDA_LADCMIXSC,
+			  SUN8I_ADDA_RADCMIXSC,
+			  SUN8I_ADDA_LADCMIXSC_OMIXRL, 1, 0),
+	SOC_DAPM_DOUBLE_R("Mixer Reversed Capture Switch",
+			  SUN8I_ADDA_LADCMIXSC,
+			  SUN8I_ADDA_RADCMIXSC,
+			  SUN8I_ADDA_LADCMIXSC_OMIXRR, 1, 0),
+	SOC_DAPM_DOUBLE_R("Mic1 Capture Switch",
+			  SUN8I_ADDA_LADCMIXSC,
+			  SUN8I_ADDA_RADCMIXSC,
+			  SUN8I_ADDA_LADCMIXSC_MIC1, 1, 0),
 };
 
 /* volume / mute controls */
@@ -289,16 +321,12 @@ static const struct snd_soc_dapm_widget sun8i_codec_common_widgets[] = {
 	/* Microphone input */
 	SND_SOC_DAPM_INPUT("MIC1"),
 
-	/* Microphone Bias */
-	SND_SOC_DAPM_SUPPLY("MBIAS", SUN8I_ADDA_MIC1G_MICBIAS_CTRL,
-			    SUN8I_ADDA_MIC1G_MICBIAS_CTRL_MMICBIASEN,
-			    0, NULL, 0),
-
 	/* Mic input path */
 	SND_SOC_DAPM_PGA("Mic1 Amplifier", SUN8I_ADDA_MIC1G_MICBIAS_CTRL,
 			 SUN8I_ADDA_MIC1G_MICBIAS_CTRL_MIC1AMPEN, 0, NULL, 0),
+};
 
-	/* Mixers */
+static const struct snd_soc_dapm_widget sun8i_codec_mixer_widgets[] = {
 	SND_SOC_DAPM_MIXER("Left Mixer", SUN8I_ADDA_DAC_PA_SRC,
 			   SUN8I_ADDA_DAC_PA_SRC_LMIXEN, 0,
 			   sun8i_codec_mixer_controls,
@@ -317,10 +345,31 @@ static const struct snd_soc_dapm_widget sun8i_codec_common_widgets[] = {
 			   ARRAY_SIZE(sun8i_codec_adc_mixer_controls)),
 };
 
+static const struct snd_soc_dapm_widget sun8i_v3s_codec_mixer_widgets[] = {
+	SND_SOC_DAPM_MIXER("Left Mixer", SUN8I_ADDA_DAC_PA_SRC,
+			   SUN8I_ADDA_DAC_PA_SRC_LMIXEN, 0,
+			   sun8i_v3s_codec_mixer_controls,
+			   ARRAY_SIZE(sun8i_v3s_codec_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Right Mixer", SUN8I_ADDA_DAC_PA_SRC,
+			   SUN8I_ADDA_DAC_PA_SRC_RMIXEN, 0,
+			   sun8i_v3s_codec_mixer_controls,
+			   ARRAY_SIZE(sun8i_v3s_codec_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Left ADC Mixer", SUN8I_ADDA_ADC_AP_EN,
+			   SUN8I_ADDA_ADC_AP_EN_ADCLEN, 0,
+			   sun8i_v3s_codec_adc_mixer_controls,
+			   ARRAY_SIZE(sun8i_v3s_codec_adc_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Right ADC Mixer", SUN8I_ADDA_ADC_AP_EN,
+			   SUN8I_ADDA_ADC_AP_EN_ADCREN, 0,
+			   sun8i_v3s_codec_adc_mixer_controls,
+			   ARRAY_SIZE(sun8i_v3s_codec_adc_mixer_controls)),
+};
+
 static const struct snd_soc_dapm_route sun8i_codec_common_routes[] = {
 	/* Microphone Routes */
 	{ "Mic1 Amplifier", NULL, "MIC1"},
+};
 
+static const struct snd_soc_dapm_route sun8i_codec_mixer_routes[] = {
 	/* Left Mixer Routes */
 	{ "Left Mixer", "DAC Playback Switch", "Left DAC" },
 	{ "Left Mixer", "DAC Reversed Playback Switch", "Right DAC" },
@@ -451,6 +500,27 @@ static int sun8i_codec_add_headphone(struct snd_soc_component *cmpnt)
 	}
 
 	return 0;
+}
+
+/* mbias specific widget */
+static const struct snd_soc_dapm_widget sun8i_codec_mbias_widgets[] = {
+	SND_SOC_DAPM_SUPPLY("MBIAS", SUN8I_ADDA_MIC1G_MICBIAS_CTRL,
+			    SUN8I_ADDA_MIC1G_MICBIAS_CTRL_MMICBIASEN,
+			    0, NULL, 0),
+};
+
+static int sun8i_codec_add_mbias(struct snd_soc_component *cmpnt)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct device *dev = cmpnt->dev;
+	int ret;
+
+	ret = snd_soc_dapm_new_controls(dapm, sun8i_codec_mbias_widgets,
+					ARRAY_SIZE(sun8i_codec_mbias_widgets));
+	if (ret)
+		dev_err(dev, "Failed to add MBIAS DAPM widgets: %d\n", ret);
+
+	return ret;
 }
 
 /* hmic specific widget */
@@ -679,6 +749,7 @@ struct sun8i_codec_analog_quirks {
 	bool has_hmic;
 	bool has_linein;
 	bool has_lineout;
+	bool has_mbias;
 	bool has_mic2;
 };
 
@@ -686,13 +757,62 @@ static const struct sun8i_codec_analog_quirks sun8i_a23_quirks = {
 	.has_headphone	= true,
 	.has_hmic	= true,
 	.has_linein	= true,
+	.has_mbias	= true,
 	.has_mic2	= true,
 };
 
 static const struct sun8i_codec_analog_quirks sun8i_h3_quirks = {
 	.has_linein	= true,
 	.has_lineout	= true,
+	.has_mbias	= true,
 	.has_mic2	= true,
+};
+
+static int sun8i_codec_analog_add_mixer(struct snd_soc_component *cmpnt,
+					const struct sun8i_codec_analog_quirks *quirks)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct device *dev = cmpnt->dev;
+	int ret;
+
+	if (!quirks->has_mic2 && !quirks->has_linein) {
+		/*
+		 * Apply the special widget set which has uses a control
+		 * without MIC2 and Line In, for SoCs without these.
+		 * TODO: not all special cases are supported now, this case
+		 * is present because it's the case of V3s.
+		 */
+		ret = snd_soc_dapm_new_controls(dapm,
+						sun8i_v3s_codec_mixer_widgets,
+						ARRAY_SIZE(sun8i_v3s_codec_mixer_widgets));
+		if (ret) {
+			dev_err(dev, "Failed to add V3s Mixer DAPM widgets: %d\n", ret);
+			return ret;
+		}
+	} else {
+		/* Apply the generic mixer widget set. */
+		ret = snd_soc_dapm_new_controls(dapm,
+						sun8i_codec_mixer_widgets,
+						ARRAY_SIZE(sun8i_codec_mixer_widgets));
+		if (ret) {
+			dev_err(dev, "Failed to add Mixer DAPM widgets: %d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = snd_soc_dapm_add_routes(dapm, sun8i_codec_mixer_routes,
+				      ARRAY_SIZE(sun8i_codec_mixer_routes));
+	if (ret) {
+		dev_err(dev, "Failed to add Mixer DAPM routes: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static const struct sun8i_codec_analog_quirks sun8i_v3s_quirks = {
+	.has_headphone	= true,
+	.has_hmic	= true,
 };
 
 static int sun8i_codec_analog_cmpnt_probe(struct snd_soc_component *cmpnt)
@@ -709,6 +829,9 @@ static int sun8i_codec_analog_cmpnt_probe(struct snd_soc_component *cmpnt)
 	quirks = of_device_get_match_data(dev);
 
 	/* Add controls, widgets, and routes for individual features */
+	ret = sun8i_codec_analog_add_mixer(cmpnt, quirks);
+	if (ret)
+		return ret;
 
 	if (quirks->has_headphone) {
 		ret = sun8i_codec_add_headphone(cmpnt);
@@ -730,6 +853,12 @@ static int sun8i_codec_analog_cmpnt_probe(struct snd_soc_component *cmpnt)
 
 	if (quirks->has_lineout) {
 		ret = sun8i_codec_add_lineout(cmpnt);
+		if (ret)
+			return ret;
+	}
+
+	if (quirks->has_mbias) {
+		ret = sun8i_codec_add_mbias(cmpnt);
 		if (ret)
 			return ret;
 	}
@@ -761,6 +890,10 @@ static const struct of_device_id sun8i_codec_analog_of_match[] = {
 	{
 		.compatible = "allwinner,sun8i-h3-codec-analog",
 		.data = &sun8i_h3_quirks,
+	},
+	{
+		.compatible = "allwinner,sun8i-v3s-codec-analog",
+		.data = &sun8i_v3s_quirks,
 	},
 	{}
 };

@@ -72,8 +72,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -85,14 +83,10 @@
 #include "axp209.dtsi"
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 
 	ft5406ee8: touchscreen@38 {
@@ -109,35 +103,35 @@
 	vref-supply = <&reg_ldo2>;
 	status = "okay";
 
-	button@200 {
+	button-200 {
 		label = "Menu";
 		linux,code = <KEY_MENU>;
 		channel = <0>;
 		voltage = <200000>;
 	};
 
-	button@600 {
+	button-600 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <600000>;
 	};
 
-	button@800 {
+	button-800 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <800000>;
 	};
 
-	button@1000 {
+	button-1000 {
 		label = "Home";
 		linux,code = <KEY_HOMEPAGE>;
 		channel = <0>;
 		voltage = <1000000>;
 	};
 
-	button@1200 {
+	button-1200 {
 		label = "Esc";
 		linux,code = <KEY_ESC>;
 		channel = <0>;
@@ -146,8 +140,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
@@ -160,13 +152,13 @@
 };
 
 &pio {
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
 	};
 
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
+	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
 		pins = "PH5";
 		function = "gpio_in";
 		bias-pull-down;
@@ -208,7 +200,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999
@@ -25,8 +26,6 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
 
 #define IO_SPACE_LIMIT 0
 
-#ifdef CONFIG_PCI
-
 #define ioremap_nocache(addr, size)	ioremap(addr, size)
 #define ioremap_wc			ioremap_nocache
 #define ioremap_wt			ioremap_nocache
@@ -48,6 +47,8 @@ static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
 static inline void ioport_unmap(void __iomem *p)
 {
 }
+
+#ifdef CONFIG_PCI
 
 /*
  * s390 needs a private implementation of pci_iomap since ioremap with its

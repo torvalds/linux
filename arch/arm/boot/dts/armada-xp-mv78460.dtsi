@@ -104,7 +104,7 @@
 		 * configured as x4 or quad x1 lanes. Two units are
 		 * x4/x1.
 		 */
-		pciec: pcie-controller@82000000 {
+		pciec: pcie@82000000 {
 			compatible = "marvell,armada-xp-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -159,6 +159,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
 					  0x81000000 0 0 0x81000000 0x1 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 58>;
 				marvell,pcie-port = <0>;
@@ -176,6 +177,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x2 0 1 0
 					  0x81000000 0 0 0x81000000 0x2 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 59>;
 				marvell,pcie-port = <0>;
@@ -193,6 +195,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x3 0 1 0
 					  0x81000000 0 0 0x81000000 0x3 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 60>;
 				marvell,pcie-port = <0>;
@@ -210,6 +213,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x4 0 1 0
 					  0x81000000 0 0 0x81000000 0x4 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 61>;
 				marvell,pcie-port = <0>;
@@ -227,6 +231,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x5 0 1 0
 					  0x81000000 0 0 0x81000000 0x5 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 62>;
 				marvell,pcie-port = <1>;
@@ -244,6 +249,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x6 0 1 0
 					  0x81000000 0 0 0x81000000 0x6 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 63>;
 				marvell,pcie-port = <1>;
@@ -261,6 +267,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x7 0 1 0
 					  0x81000000 0 0 0x81000000 0x7 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 64>;
 				marvell,pcie-port = <1>;
@@ -278,6 +285,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x8 0 1 0
 					  0x81000000 0 0 0x81000000 0x8 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 65>;
 				marvell,pcie-port = <1>;
@@ -295,6 +303,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x9 0 1 0
 					  0x81000000 0 0 0x81000000 0x9 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 99>;
 				marvell,pcie-port = <2>;
@@ -303,7 +312,7 @@
 				status = "disabled";
 			};
 
-			pcie10: pcie@10,0 {
+			pcie10: pcie@a,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82005000 0 0x82000 0 0x2000>;
 				reg = <0x5000 0 0 0 0>;
@@ -312,6 +321,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0xa 0 1 0
 					  0x81000000 0 0 0x81000000 0xa 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &mpic 103>;
 				marvell,pcie-port = <3>;
@@ -323,29 +333,38 @@
 
 		internal-regs {
 			gpio0: gpio@18100 {
-				compatible = "marvell,orion-gpio";
-				reg = <0x18100 0x40>;
+				compatible = "marvell,armada-370-gpio",
+					     "marvell,orion-gpio";
+				reg = <0x18100 0x40>, <0x181c0 0x08>;
+				reg-names = "gpio", "pwm";
 				ngpios = <32>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				#pwm-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupts = <82>, <83>, <84>, <85>;
+				clocks = <&coreclk 0>;
 			};
 
 			gpio1: gpio@18140 {
-				compatible = "marvell,orion-gpio";
-				reg = <0x18140 0x40>;
+				compatible = "marvell,armada-370-gpio",
+					     "marvell,orion-gpio";
+				reg = <0x18140 0x40>, <0x181c8 0x08>;
+				reg-names = "gpio", "pwm";
 				ngpios = <32>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				#pwm-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupts = <87>, <88>, <89>, <90>;
+				clocks = <&coreclk 0>;
 			};
 
 			gpio2: gpio@18180 {
-				compatible = "marvell,orion-gpio";
+				compatible = "marvell,armada-370-gpio",
+					     "marvell,orion-gpio";
 				reg = <0x18180 0x40>;
 				ngpios = <3>;
 				gpio-controller;

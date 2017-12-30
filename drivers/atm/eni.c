@@ -2292,7 +2292,7 @@ err_disable:
 }
 
 
-static struct pci_device_id eni_pci_tbl[] = {
+static const struct pci_device_id eni_pci_tbl[] = {
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_FPGA), 0 /* FPGA */ },
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_ASIC), 1 /* ASIC */ },
 	{ 0, }

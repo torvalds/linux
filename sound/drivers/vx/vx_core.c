@@ -256,8 +256,8 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 	if (rmh->LgCmd > 1) {
 		printk(KERN_DEBUG "  ");
 		for (i = 1; i < rmh->LgCmd; i++)
-			printk("0x%06x ", rmh->Cmd[i]);
-		printk("\n");
+			printk(KERN_CONT "0x%06x ", rmh->Cmd[i]);
+		printk(KERN_CONT "\n");
 	}
 #endif
 	/* Check bit M is set according to length of the command */

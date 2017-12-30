@@ -247,7 +247,7 @@ static inline struct team_port *team_get_port_by_index(struct team *team,
 
 static inline int team_num_to_port_index(struct team *team, unsigned int num)
 {
-	int en_port_count = ACCESS_ONCE(team->en_port_count);
+	int en_port_count = READ_ONCE(team->en_port_count);
 
 	if (unlikely(!en_port_count))
 		return 0;
@@ -297,5 +297,7 @@ extern void team_mode_unregister(const struct team_mode *mode);
 
 #define TEAM_DEFAULT_NUM_TX_QUEUES 16
 #define TEAM_DEFAULT_NUM_RX_QUEUES 16
+
+#define MODULE_ALIAS_TEAM_MODE(kind) MODULE_ALIAS("team-mode-" kind)
 
 #endif /* _LINUX_IF_TEAM_H_ */

@@ -70,19 +70,26 @@
 #define overflows_type(x, T) \
 	(sizeof(x) > sizeof(T) && (x) >> (sizeof(T) * BITS_PER_BYTE))
 
-#define ptr_mask_bits(ptr) ({						\
+#define ptr_mask_bits(ptr, n) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\
-	(typeof(ptr))(__v & PAGE_MASK);					\
+	(typeof(ptr))(__v & -BIT(n));					\
 })
 
-#define ptr_unpack_bits(ptr, bits) ({					\
+#define ptr_unmask_bits(ptr, n) ((unsigned long)(ptr) & (BIT(n) - 1))
+
+#define ptr_unpack_bits(ptr, bits, n) ({				\
 	unsigned long __v = (unsigned long)(ptr);			\
-	(bits) = __v & ~PAGE_MASK;					\
-	(typeof(ptr))(__v & PAGE_MASK);					\
+	*(bits) = __v & (BIT(n) - 1);					\
+	(typeof(ptr))(__v & -BIT(n));					\
 })
 
-#define ptr_pack_bits(ptr, bits)					\
+#define ptr_pack_bits(ptr, bits, n)					\
 	((typeof(ptr))((unsigned long)(ptr) | (bits)))
+
+#define page_mask_bits(ptr) ptr_mask_bits(ptr, PAGE_SHIFT)
+#define page_unmask_bits(ptr) ptr_unmask_bits(ptr, PAGE_SHIFT)
+#define page_pack_bits(ptr, bits) ptr_pack_bits(ptr, bits, PAGE_SHIFT)
+#define page_unpack_bits(ptr, bits) ptr_unpack_bits(ptr, bits, PAGE_SHIFT)
 
 #define ptr_offset(ptr, member) offsetof(typeof(*(ptr)), member)
 
@@ -91,5 +98,43 @@
 	*(ptr) = (typeof(*ptr))0;					\
 	__T;								\
 })
+
+static inline u64 ptr_to_u64(const void *ptr)
+{
+	return (uintptr_t)ptr;
+}
+
+#define u64_to_ptr(T, x) ({						\
+	typecheck(u64, x);						\
+	(T *)(uintptr_t)(x);						\
+})
+
+#define __mask_next_bit(mask) ({					\
+	int __idx = ffs(mask) - 1;					\
+	mask &= ~BIT(__idx);						\
+	__idx;								\
+})
+
+#include <linux/list.h>
+
+static inline void __list_del_many(struct list_head *head,
+				   struct list_head *first)
+{
+	first->prev = head;
+	WRITE_ONCE(head->next, first);
+}
+
+/*
+ * Wait until the work is finally complete, even if it tries to postpone
+ * by requeueing itself. Note, that if the worker never cancels itself,
+ * we will spin forever.
+ */
+static inline void drain_delayed_work(struct delayed_work *dw)
+{
+	do {
+		while (flush_delayed_work(dw))
+			;
+	} while (delayed_work_pending(dw));
+}
 
 #endif /* !__I915_UTILS_H */

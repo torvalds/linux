@@ -16,6 +16,7 @@
 #include <linux/ipv6.h>
 #include <linux/hardirq.h>
 #include <linux/jhash.h>
+#include <linux/refcount.h>
 #include <net/if_inet6.h>
 #include <net/ndisc.h>
 #include <net/flow.h>
@@ -49,6 +50,46 @@
 
 #define IPV6_DEFAULT_HOPLIMIT   64
 #define IPV6_DEFAULT_MCASTHOPS	1
+
+/* Limits on Hop-by-Hop and Destination options.
+ *
+ * Per RFC8200 there is no limit on the maximum number or lengths of options in
+ * Hop-by-Hop or Destination options other then the packet must fit in an MTU.
+ * We allow configurable limits in order to mitigate potential denial of
+ * service attacks.
+ *
+ * There are three limits that may be set:
+ *   - Limit the number of options in a Hop-by-Hop or Destination options
+ *     extension header
+ *   - Limit the byte length of a Hop-by-Hop or Destination options extension
+ *     header
+ *   - Disallow unknown options
+ *
+ * The limits are expressed in corresponding sysctls:
+ *
+ * ipv6.sysctl.max_dst_opts_cnt
+ * ipv6.sysctl.max_hbh_opts_cnt
+ * ipv6.sysctl.max_dst_opts_len
+ * ipv6.sysctl.max_hbh_opts_len
+ *
+ * max_*_opts_cnt is the number of TLVs that are allowed for Destination
+ * options or Hop-by-Hop options. If the number is less than zero then unknown
+ * TLVs are disallowed and the number of known options that are allowed is the
+ * absolute value. Setting the value to INT_MAX indicates no limit.
+ *
+ * max_*_opts_len is the length limit in bytes of a Destination or
+ * Hop-by-Hop options extension header. Setting the value to INT_MAX
+ * indicates no length limit.
+ *
+ * If a limit is exceeded when processing an extension header the packet is
+ * silently discarded.
+ */
+
+/* Default limits for Hop-by-Hop and Destination options */
+#define IP6_DEFAULT_MAX_DST_OPTS_CNT	 8
+#define IP6_DEFAULT_MAX_HBH_OPTS_CNT	 8
+#define IP6_DEFAULT_MAX_DST_OPTS_LEN	 INT_MAX /* No limit */
+#define IP6_DEFAULT_MAX_HBH_OPTS_LEN	 INT_MAX /* No limit */
 
 /*
  *	Addr type
@@ -203,7 +244,7 @@ extern rwlock_t ip6_ra_lock;
  */
 
 struct ipv6_txoptions {
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	/* Length of this structure */
 	int			tot_len;
 
@@ -265,7 +306,7 @@ static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 	rcu_read_lock();
 	opt = rcu_dereference(np->opt);
 	if (opt) {
-		if (!atomic_inc_not_zero(&opt->refcnt))
+		if (!refcount_inc_not_zero(&opt->refcnt))
 			opt = NULL;
 		else
 			opt = rcu_pointer_handoff(opt);
@@ -276,7 +317,7 @@ static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 
 static inline void txopt_put(struct ipv6_txoptions *opt)
 {
-	if (opt && atomic_dec_and_test(&opt->refcnt))
+	if (opt && refcount_dec_and_test(&opt->refcnt))
 		kfree_rcu(opt, rcu);
 }
 
@@ -299,8 +340,8 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 
 void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info);
 
-int icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
-			       struct icmp6hdr *thdr, int len);
+void icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
+				struct icmp6hdr *thdr, int len);
 
 int ip6_ra_control(struct sock *sk, int sel);
 
@@ -726,7 +767,7 @@ static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_add
 __be32 ipv6_select_ident(struct net *net,
 			 const struct in6_addr *daddr,
 			 const struct in6_addr *saddr);
-void ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb);
+__be32 ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb);
 
 int ip6_dst_hoplimit(struct dst_entry *dst);
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 ccflags-$(CONFIG_PM_DEBUG)	:= -DDEBUG
 

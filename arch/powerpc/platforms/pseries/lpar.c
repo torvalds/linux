@@ -93,7 +93,7 @@ void vpa_init(int cpu)
 		return;
 	}
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	/*
 	 * PAPR says this feature is SLB-Buffer but firmware never
 	 * reports that.  All SPLPAR support SLB shadow buffer.
@@ -106,7 +106,7 @@ void vpa_init(int cpu)
 			       "cpu %d (hw %d) of area %lx failed with %ld\n",
 			       cpu, hwcpu, addr, ret);
 	}
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 	/*
 	 * Register dispatch trace log, if one has been allocated.
@@ -129,7 +129,7 @@ void vpa_init(int cpu)
 	}
 }
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 
 static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 				     unsigned long vpn, unsigned long pa,
@@ -301,13 +301,18 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       int ssize, unsigned long inv_flags)
 {
 	unsigned long lpar_rc;
-	unsigned long flags = (newpp & 7) | H_AVPN;
+	unsigned long flags;
 	unsigned long want_v;
 
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
 	pr_devel("    update: avpnv=%016lx, hash=%016lx, f=%lx, psize: %d ...",
 		 want_v, slot, flags, psize);
+
+	flags = (newpp & 7) | H_AVPN;
+	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
+		/* Move pp0 into bit 8 (IBM 55) */
+		flags |= (newpp & HPTE_R_PP0) >> 55;
 
 	lpar_rc = plpar_pte_protect(flags, slot, want_v);
 
@@ -380,6 +385,10 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 	BUG_ON(slot == -1);
 
 	flags = newpp & 7;
+	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
+		/* Move pp0 into bit 8 (IBM 55) */
+		flags |= (newpp & HPTE_R_PP0) >> 55;
+
 	lpar_rc = plpar_pte_protect(flags, slot, 0);
 
 	BUG_ON(lpar_rc != H_SUCCESS);
@@ -815,7 +824,7 @@ void arch_free_page(struct page *page, int order)
 EXPORT_SYMBOL(arch_free_page);
 
 #endif /* CONFIG_PPC_SMLPAR */
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_TRACEPOINTS
 #ifdef HAVE_JUMP_LABEL

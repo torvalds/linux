@@ -66,9 +66,9 @@ static const struct cfhsi_config  hsi_default_config = {
 
 static LIST_HEAD(cfhsi_list);
 
-static void cfhsi_inactivity_tout(unsigned long arg)
+static void cfhsi_inactivity_tout(struct timer_list *t)
 {
-	struct cfhsi *cfhsi = (struct cfhsi *)arg;
+	struct cfhsi *cfhsi = from_timer(cfhsi, t, inactivity_timer);
 
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
@@ -426,7 +426,6 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 	/* Check for embedded CAIF frame. */
 	if (desc->offset) {
 		struct sk_buff *skb;
-		u8 *dst = NULL;
 		int len = 0;
 		pfrm = ((u8 *)desc) + desc->offset;
 
@@ -454,8 +453,7 @@ static int cfhsi_rx_desc(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		}
 		caif_assert(skb != NULL);
 
-		dst = skb_put(skb, len);
-		memcpy(dst, pfrm, len);
+		skb_put_data(skb, pfrm, len);
 
 		skb->protocol = htons(ETH_P_CAIF);
 		skb_reset_mac_header(skb);
@@ -556,7 +554,6 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 	/* Parse payload. */
 	while (nfrms < CFHSI_MAX_PKTS && *plen) {
 		struct sk_buff *skb;
-		u8 *dst = NULL;
 		u8 *pcffrm = NULL;
 		int len;
 
@@ -585,8 +582,7 @@ static int cfhsi_rx_pld(struct cfhsi_desc *desc, struct cfhsi *cfhsi)
 		}
 		caif_assert(skb != NULL);
 
-		dst = skb_put(skb, len);
-		memcpy(dst, pcffrm, len);
+		skb_put_data(skb, pcffrm, len);
 
 		skb->protocol = htons(ETH_P_CAIF);
 		skb_reset_mac_header(skb);
@@ -741,9 +737,9 @@ out_of_sync:
 	schedule_work(&cfhsi->out_of_sync_work);
 }
 
-static void cfhsi_rx_slowpath(unsigned long arg)
+static void cfhsi_rx_slowpath(struct timer_list *t)
 {
-	struct cfhsi *cfhsi = (struct cfhsi *)arg;
+	struct cfhsi *cfhsi = from_timer(cfhsi, t, rx_slowpath_timer);
 
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
@@ -1001,9 +997,9 @@ static void cfhsi_wake_down_cb(struct cfhsi_cb_ops *cb_ops)
 	wake_up_interruptible(&cfhsi->wake_down_wait);
 }
 
-static void cfhsi_aggregation_tout(unsigned long arg)
+static void cfhsi_aggregation_tout(struct timer_list *t)
 {
-	struct cfhsi *cfhsi = (struct cfhsi *)arg;
+	struct cfhsi *cfhsi = from_timer(cfhsi, t, aggregation_timer);
 
 	netdev_dbg(cfhsi->ndev, "%s.\n",
 		__func__);
@@ -1215,17 +1211,11 @@ static int cfhsi_open(struct net_device *ndev)
 	init_waitqueue_head(&cfhsi->flush_fifo_wait);
 
 	/* Setup the inactivity timer. */
-	init_timer(&cfhsi->inactivity_timer);
-	cfhsi->inactivity_timer.data = (unsigned long)cfhsi;
-	cfhsi->inactivity_timer.function = cfhsi_inactivity_tout;
+	timer_setup(&cfhsi->inactivity_timer, cfhsi_inactivity_tout, 0);
 	/* Setup the slowpath RX timer. */
-	init_timer(&cfhsi->rx_slowpath_timer);
-	cfhsi->rx_slowpath_timer.data = (unsigned long)cfhsi;
-	cfhsi->rx_slowpath_timer.function = cfhsi_rx_slowpath;
+	timer_setup(&cfhsi->rx_slowpath_timer, cfhsi_rx_slowpath, 0);
 	/* Setup the aggregation timer. */
-	init_timer(&cfhsi->aggregation_timer);
-	cfhsi->aggregation_timer.data = (unsigned long)cfhsi;
-	cfhsi->aggregation_timer.function = cfhsi_aggregation_tout;
+	timer_setup(&cfhsi->aggregation_timer, cfhsi_aggregation_tout, 0);
 
 	/* Activate HSI interface. */
 	res = cfhsi->ops->cfhsi_up(cfhsi->ops);
@@ -1356,7 +1346,8 @@ static void cfhsi_netlink_parms(struct nlattr *data[], struct cfhsi *cfhsi)
 }
 
 static int caif_hsi_changelink(struct net_device *dev, struct nlattr *tb[],
-				struct nlattr *data[])
+			       struct nlattr *data[],
+			       struct netlink_ext_ack *extack)
 {
 	cfhsi_netlink_parms(data, netdev_priv(dev));
 	netdev_state_change(dev);
@@ -1403,7 +1394,8 @@ static int caif_hsi_fill_info(struct sk_buff *skb, const struct net_device *dev)
 }
 
 static int caif_hsi_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			    struct nlattr *tb[], struct nlattr *data[],
+			    struct netlink_ext_ack *extack)
 {
 	struct cfhsi *cfhsi = NULL;
 	struct cfhsi_ops *(*get_ops)(void);

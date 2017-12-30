@@ -61,12 +61,12 @@ static void rt2800usb_start_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
 		rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
@@ -84,12 +84,12 @@ static void rt2800usb_stop_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
 		rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
@@ -333,7 +333,7 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	if (rt2800_wait_csr_ready(rt2x00dev))
 		return -EBUSY;
 
-	rt2x00usb_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
+	reg = rt2x00usb_register_read(rt2x00dev, PBF_SYS_CTRL);
 	rt2x00usb_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
 
 	reg = 0;
@@ -456,7 +456,7 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * Initialize TXINFO descriptor
 	 */
-	rt2x00_desc_read(txi, 0, &word);
+	word = rt2x00_desc_read(txi, 0);
 
 	/*
 	 * The size of TXINFO_W0_USB_DMA_TX_PKT_LEN is
@@ -527,7 +527,7 @@ static bool rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	 */
 	txwi = rt2800usb_get_txwi(entry);
 
-	rt2x00_desc_read(txwi, 1, &word);
+	word = rt2x00_desc_read(txwi, 1);
 	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
 	tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
 	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
@@ -652,7 +652,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	 * | RXINFO | RXWI | header | L2 pad | payload | pad | RXD | USB pad |
 	 *          |<------------ rx_pkt_len -------------->|
 	 */
-	rt2x00_desc_read(rxi, 0, &word);
+	word = rt2x00_desc_read(rxi, 0);
 	rx_pkt_len = rt2x00_get_field32(word, RXINFO_W0_USB_DMA_RX_PKT_LEN);
 
 	/*
@@ -676,7 +676,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * It is now safe to read the descriptor on all architectures.
 	 */
-	rt2x00_desc_read(rxd, 0, &word);
+	word = rt2x00_desc_read(rxd, 0);
 
 	if (rt2x00_get_field32(word, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
@@ -697,11 +697,20 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 		 * stripped it from the frame. Signal this to mac80211.
 		 */
 		rxdesc->flags |= RX_FLAG_MMIC_STRIPPED;
-
-		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS)
+        
+		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS) {
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
-		else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC)
+		} else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC) {
+			/*
+			 * In order to check the Michael Mic, the packet must have
+			 * been decrypted.  Mac80211 doesnt check the MMIC failure 
+			 * flag to initiate MMIC countermeasures if the decoded flag
+			 * has not been set.
+			 */
+			rxdesc->flags |= RX_FLAG_DECRYPTED;
+
 			rxdesc->flags |= RX_FLAG_MMIC_ERROR;
+		}
 	}
 
 	if (rt2x00_get_field32(word, RXD_W0_MY_BSS))
@@ -915,7 +924,7 @@ static const struct rt2x00_ops rt2800usb_ops = {
 /*
  * rt2800usb module information.
  */
-static struct usb_device_id rt2800usb_device_table[] = {
+static const struct usb_device_id rt2800usb_device_table[] = {
 	/* Abocom */
 	{ USB_DEVICE(0x07b8, 0x2870) },
 	{ USB_DEVICE(0x07b8, 0x2770) },
@@ -1156,6 +1165,8 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x2001, 0x3c17) },
 	/* Panasonic */
 	{ USB_DEVICE(0x083a, 0xb511) },
+	/* Accton/Arcadyan/Epson */
+	{ USB_DEVICE(0x083a, 0xb512) },
 	/* Philips */
 	{ USB_DEVICE(0x0471, 0x20dd) },
 	/* Ralink */

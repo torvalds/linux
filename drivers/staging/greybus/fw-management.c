@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus Firmware Management Protocol Driver.
  *
  * Copyright 2016 Google Inc.
  * Copyright 2016 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/cdev.h>

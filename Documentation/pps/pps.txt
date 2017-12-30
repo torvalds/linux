@@ -48,12 +48,12 @@ problem:
    time_pps_create().
 
 This implies that the source has a /dev/... entry. This assumption is
-ok for the serial and parallel port, where you can do something
+OK for the serial and parallel port, where you can do something
 useful besides(!) the gathering of timestamps as it is the central
-task for a PPS-API. But this assumption does not work for a single
+task for a PPS API. But this assumption does not work for a single
 purpose GPIO line. In this case even basic file-related functionality
 (like read() and write()) makes no sense at all and should not be a
-precondition for the use of a PPS-API.
+precondition for the use of a PPS API.
 
 The problem can be simply solved if you consider that a PPS source is
 not always connected with a GPS data source.
@@ -88,13 +88,13 @@ Coding example
 --------------
 
 To register a PPS source into the kernel you should define a struct
-pps_source_info_s as follows:
+pps_source_info as follows:
 
     static struct pps_source_info pps_ktimer_info = {
 	    .name         = "ktimer",
 	    .path         = "",
-	    .mode         = PPS_CAPTUREASSERT | PPS_OFFSETASSERT | \
-			    PPS_ECHOASSERT | \
+	    .mode         = PPS_CAPTUREASSERT | PPS_OFFSETASSERT |
+			    PPS_ECHOASSERT |
 			    PPS_CANWAIT | PPS_TSFMT_TSPEC,
 	    .echo         = pps_ktimer_echo,
 	    .owner        = THIS_MODULE,
@@ -108,13 +108,13 @@ initialization routine as follows:
 
 The pps_register_source() prototype is:
 
-  int pps_register_source(struct pps_source_info_s *info, int default_params)
+  int pps_register_source(struct pps_source_info *info, int default_params)
 
 where "info" is a pointer to a structure that describes a particular
 PPS source, "default_params" tells the system what the initial default
 parameters for the device should be (it is obvious that these parameters
 must be a subset of ones defined in the struct
-pps_source_info_s which describe the capabilities of the driver).
+pps_source_info which describe the capabilities of the driver).
 
 Once you have registered a new PPS source into the system you can
 signal an assert event (for example in the interrupt handler routine)
@@ -142,8 +142,10 @@ If the SYSFS filesystem is enabled in the kernel it provides a new class:
 Every directory is the ID of a PPS sources defined in the system and
 inside you find several files:
 
-   $ ls /sys/class/pps/pps0/
-   assert	clear  echo  mode  name  path  subsystem@  uevent
+   $ ls -F /sys/class/pps/pps0/
+   assert     dev        mode       path       subsystem@
+   clear      echo       name       power/     uevent
+
 
 Inside each "assert" and "clear" file you can find the timestamp and a
 sequence number:
@@ -154,32 +156,32 @@ sequence number:
 Where before the "#" is the timestamp in seconds; after it is the
 sequence number. Other files are:
 
-* echo: reports if the PPS source has an echo function or not;
+ * echo: reports if the PPS source has an echo function or not;
 
-* mode: reports available PPS functioning modes;
+ * mode: reports available PPS functioning modes;
 
-* name: reports the PPS source's name;
+ * name: reports the PPS source's name;
 
-* path: reports the PPS source's device path, that is the device the
-  PPS source is connected to (if it exists).
+ * path: reports the PPS source's device path, that is the device the
+   PPS source is connected to (if it exists).
 
 
 Testing the PPS support
 -----------------------
 
 In order to test the PPS support even without specific hardware you can use
-the ktimer driver (see the client subsection in the PPS configuration menu)
+the pps-ktimer driver (see the client subsection in the PPS configuration menu)
 and the userland tools available in your distribution's pps-tools package,
-http://linuxpps.org , or https://github.com/ago/pps-tools .
+http://linuxpps.org , or https://github.com/redlab-i/pps-tools.
 
-Once you have enabled the compilation of ktimer just modprobe it (if
+Once you have enabled the compilation of pps-ktimer just modprobe it (if
 not statically compiled):
 
-   # modprobe ktimer
+   # modprobe pps-ktimer
 
 and the run ppstest as follow:
 
-   $ ./ppstest /dev/pps0
+   $ ./ppstest /dev/pps1
    trying PPS source "/dev/pps1"
    found PPS source "/dev/pps1"
    ok, found 1 source(s), now start fetching data...
@@ -187,7 +189,7 @@ and the run ppstest as follow:
    source 0 - assert 1186592700.388931295, sequence: 365 - clear  0.000000000, sequence: 0
    source 0 - assert 1186592701.389032765, sequence: 366 - clear  0.000000000, sequence: 0
 
-Please, note that to compile userland programs you need the file timepps.h .
+Please note that to compile userland programs, you need the file timepps.h.
 This is available in the pps-tools repository mentioned above.
 
 

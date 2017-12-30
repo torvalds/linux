@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_CACHE_H
 #define _ASM_POWERPC_CACHE_H
 
@@ -5,7 +6,7 @@
 
 
 /* bytes per L1 cache line */
-#if defined(CONFIG_8xx) || defined(CONFIG_403GCX)
+#if defined(CONFIG_PPC_8xx) || defined(CONFIG_403GCX)
 #define L1_CACHE_SHIFT		4
 #define MAX_COPY_PREFETCH	1
 #elif defined(CONFIG_PPC_E500MC)

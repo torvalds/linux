@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This is <linux/capability.h>
  *
@@ -247,5 +248,7 @@ extern bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns);
 
 /* audit system wants to get cap info from files as well */
 extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);
+
+extern int cap_convert_nscap(struct dentry *dentry, void **ivalue, size_t size);
 
 #endif /* !_LINUX_CAPABILITY_H */

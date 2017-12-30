@@ -1,9 +1,9 @@
-			       ================
-			       CIRCULAR BUFFERS
-			       ================
+================
+Circular Buffers
+================
 
-By: David Howells <dhowells@redhat.com>
-    Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+:Author: David Howells <dhowells@redhat.com>
+:Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 
 Linux provides a number of features that can be used to implement circular
@@ -20,7 +20,7 @@ producer and just one consumer.  It is possible to handle multiple producers by
 serialising them, and to handle multiple consumers by serialising them.
 
 
-Contents:
+.. Contents:
 
  (*) What is a circular buffer?
 
@@ -31,8 +31,8 @@ Contents:
      - The consumer.
 
 
-==========================
-WHAT IS A CIRCULAR BUFFER?
+
+What is a circular buffer?
 ==========================
 
 First of all, what is a circular buffer?  A circular buffer is a buffer of
@@ -60,9 +60,7 @@ buffer, provided that neither index overtakes the other.  The implementer must
 be careful, however, as a region more than one unit in size may wrap the end of
 the buffer and be broken into two segments.
 
-
-============================
-MEASURING POWER-OF-2 BUFFERS
+Measuring power-of-2 buffers
 ============================
 
 Calculation of the occupancy or the remaining capacity of an arbitrarily sized
@@ -71,13 +69,13 @@ modulus (divide) instruction.  However, if the buffer is of a power-of-2 size,
 then a much quicker bitwise-AND instruction can be used instead.
 
 Linux provides a set of macros for handling power-of-2 circular buffers.  These
-can be made use of by:
+can be made use of by::
 
 	#include <linux/circ_buf.h>
 
 The macros are:
 
- (*) Measure the remaining capacity of a buffer:
+ (#) Measure the remaining capacity of a buffer::
 
 	CIRC_SPACE(head_index, tail_index, buffer_size);
 
@@ -85,7 +83,7 @@ The macros are:
      can be inserted.
 
 
- (*) Measure the maximum consecutive immediate space in a buffer:
+ (#) Measure the maximum consecutive immediate space in a buffer::
 
 	CIRC_SPACE_TO_END(head_index, tail_index, buffer_size);
 
@@ -94,14 +92,14 @@ The macros are:
      beginning of the buffer.
 
 
- (*) Measure the occupancy of a buffer:
+ (#) Measure the occupancy of a buffer::
 
 	CIRC_CNT(head_index, tail_index, buffer_size);
 
      This returns the number of items currently occupying a buffer[2].
 
 
- (*) Measure the non-wrapping occupancy of a buffer:
+ (#) Measure the non-wrapping occupancy of a buffer::
 
 	CIRC_CNT_TO_END(head_index, tail_index, buffer_size);
 
@@ -112,7 +110,7 @@ The macros are:
 Each of these macros will nominally return a value between 0 and buffer_size-1,
 however:
 
- [1] CIRC_SPACE*() are intended to be used in the producer.  To the producer
+ (1) CIRC_SPACE*() are intended to be used in the producer.  To the producer
      they will return a lower bound as the producer controls the head index,
      but the consumer may still be depleting the buffer on another CPU and
      moving the tail index.
@@ -120,7 +118,7 @@ however:
      To the consumer it will show an upper bound as the producer may be busy
      depleting the space.
 
- [2] CIRC_CNT*() are intended to be used in the consumer.  To the consumer they
+ (2) CIRC_CNT*() are intended to be used in the consumer.  To the consumer they
      will return a lower bound as the consumer controls the tail index, but the
      producer may still be filling the buffer on another CPU and moving the
      head index.
@@ -128,14 +126,12 @@ however:
      To the producer it will show an upper bound as the consumer may be busy
      emptying the buffer.
 
- [3] To a third party, the order in which the writes to the indices by the
+ (3) To a third party, the order in which the writes to the indices by the
      producer and consumer become visible cannot be guaranteed as they are
      independent and may be made on different CPUs - so the result in such a
      situation will merely be a guess, and may even be negative.
 
-
-===========================================
-USING MEMORY BARRIERS WITH CIRCULAR BUFFERS
+Using memory barriers with circular buffers
 ===========================================
 
 By using memory barriers in conjunction with circular buffers, you can avoid
@@ -152,10 +148,10 @@ time, and only one thing should be emptying a buffer at any one time, but the
 two sides can operate simultaneously.
 
 
-THE PRODUCER
+The producer
 ------------
 
-The producer will look something like this:
+The producer will look something like this::
 
 	spin_lock(&producer_lock);
 
@@ -193,10 +189,10 @@ ordering between the read of the index indicating that the consumer has
 vacated a given element and the write by the producer to that same element.
 
 
-THE CONSUMER
+The Consumer
 ------------
 
-The consumer will look something like this:
+The consumer will look something like this::
 
 	spin_lock(&consumer_lock);
 
@@ -235,8 +231,7 @@ prevents the compiler from tearing the store, and enforces ordering
 against previous accesses.
 
 
-===============
-FURTHER READING
+Further reading
 ===============
 
 See also Documentation/memory-barriers.txt for a description of Linux's memory

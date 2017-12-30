@@ -27,7 +27,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 
 #define PWR_PWRON_IRQ (1 << 0)
 

@@ -47,12 +47,6 @@ config SOC_CAMERA_OV5642
 	help
 	  This is a V4L2 camera driver for the OmniVision OV5642 sensor
 
-config SOC_CAMERA_OV6650
-	tristate "ov6650 sensor support"
-	depends on SOC_CAMERA && I2C
-	---help---
-	  This is a V4L2 SoC camera driver for the OmniVision OV6650 sensor
-
 config SOC_CAMERA_OV772X
 	tristate "ov772x camera support"
 	depends on SOC_CAMERA && I2C

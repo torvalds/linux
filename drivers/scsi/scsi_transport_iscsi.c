@@ -1009,7 +1009,7 @@ static void iscsi_flashnode_sess_release(struct device *dev)
 	kfree(fnode_sess);
 }
 
-static struct device_type iscsi_flashnode_sess_dev_type = {
+static const struct device_type iscsi_flashnode_sess_dev_type = {
 	.name = "iscsi_flashnode_sess_dev_type",
 	.groups = iscsi_flashnode_sess_attr_groups,
 	.release = iscsi_flashnode_sess_release,
@@ -1195,7 +1195,7 @@ static void iscsi_flashnode_conn_release(struct device *dev)
 	kfree(fnode_conn);
 }
 
-static struct device_type iscsi_flashnode_conn_dev_type = {
+static const struct device_type iscsi_flashnode_conn_dev_type = {
 	.name = "iscsi_flashnode_conn_dev_type",
 	.groups = iscsi_flashnode_conn_attr_groups,
 	.release = iscsi_flashnode_conn_release,
@@ -1542,7 +1542,7 @@ iscsi_bsg_host_add(struct Scsi_Host *shost, struct iscsi_cls_host *ihost)
 		return -ENOTSUPP;
 
 	snprintf(bsg_name, sizeof(bsg_name), "iscsi_host%d", shost->host_no);
-	q = bsg_setup_queue(dev, bsg_name, iscsi_bsg_host_dispatch, 0);
+	q = bsg_setup_queue(dev, bsg_name, iscsi_bsg_host_dispatch, 0, NULL);
 	if (IS_ERR(q)) {
 		shost_printk(KERN_ERR, shost, "bsg interface failed to "
 			     "initialize - no request queue\n");
@@ -2209,22 +2209,6 @@ void iscsi_free_session(struct iscsi_cls_session *session)
 	put_device(&session->dev);
 }
 EXPORT_SYMBOL_GPL(iscsi_free_session);
-
-/**
- * iscsi_destroy_session - destroy iscsi session
- * @session: iscsi_session
- *
- * Can be called by a LLD or iscsi_transport. There must not be
- * any running connections.
- */
-int iscsi_destroy_session(struct iscsi_cls_session *session)
-{
-	iscsi_remove_session(session);
-	ISCSI_DBG_TRANS_SESSION(session, "Completing session destruction\n");
-	iscsi_free_session(session);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(iscsi_destroy_session);
 
 /**
  * iscsi_create_conn - create iscsi class connection
@@ -3436,7 +3420,7 @@ iscsi_get_host_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 
 	shost = scsi_host_lookup(ev->u.get_host_stats.host_no);
 	if (!shost) {
-		pr_err("%s: failed. Cound not find host no %u\n",
+		pr_err("%s: failed. Could not find host no %u\n",
 		       __func__, ev->u.get_host_stats.host_no);
 		return -ENODEV;
 	}
@@ -3689,7 +3673,7 @@ iscsi_if_rx(struct sk_buff *skb)
 		uint32_t group;
 
 		nlh = nlmsg_hdr(skb);
-		if (nlh->nlmsg_len < sizeof(*nlh) ||
+		if (nlh->nlmsg_len < sizeof(*nlh) + sizeof(*ev) ||
 		    skb->len < nlh->nlmsg_len) {
 			break;
 		}

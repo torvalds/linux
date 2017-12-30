@@ -55,8 +55,12 @@ EXPORT_SYMBOL_GPL(kvmppc_pr_ops);
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return !!(v->arch.pending_exceptions) ||
-	       v->requests;
+	return !!(v->arch.pending_exceptions) || kvm_request_pending(v);
+}
+
+bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
+{
+	return false;
 }
 
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
@@ -108,7 +112,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 		 */
 		smp_mb();
 
-		if (vcpu->requests) {
+		if (kvm_request_pending(vcpu)) {
 			/* Make sure we process requests preemptable */
 			local_irq_enable();
 			trace_kvm_check_requests(vcpu);
@@ -554,11 +558,26 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_SMT:
 		r = 0;
-		if (hv_enabled) {
+		if (kvm) {
+			if (kvm->arch.emul_smt_mode > 1)
+				r = kvm->arch.emul_smt_mode;
+			else
+				r = kvm->arch.smt_mode;
+		} else if (hv_enabled) {
 			if (cpu_has_feature(CPU_FTR_ARCH_300))
 				r = 1;
 			else
 				r = threads_per_subcore;
+		}
+		break;
+	case KVM_CAP_PPC_SMT_POSSIBLE:
+		r = 1;
+		if (hv_enabled) {
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				r = ((threads_per_subcore << 1) - 1);
+			else
+				/* P9 can emulate dbells, so allow any mode */
+				r = 8 | 4 | 2 | 1;
 		}
 		break;
 	case KVM_CAP_PPC_RMA:
@@ -571,8 +590,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = !!(hv_enabled && radix_enabled());
 		break;
 	case KVM_CAP_PPC_MMU_HASH_V3:
-		r = !!(hv_enabled && !radix_enabled() &&
-		       cpu_has_feature(CPU_FTR_ARCH_300));
+		r = !!(hv_enabled && cpu_has_feature(CPU_FTR_ARCH_300));
 		break;
 #endif
 	case KVM_CAP_SYNC_MMU:
@@ -619,9 +637,14 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = !!hv_enabled && !cpu_has_feature(CPU_FTR_ARCH_300);
 		break;
 #endif
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	case KVM_CAP_PPC_FWNMI:
+		r = hv_enabled;
+		break;
+#endif
 	case KVM_CAP_PPC_HTM:
-		r = cpu_has_feature(CPU_FTR_TM_COMP) &&
-		    is_kvmppc_hv_enabled(kvm);
+		r = hv_enabled &&
+		    (cur_cpu_spec->cpu_user_features2 & PPC_FEATURE2_HTM_COMP);
 		break;
 	default:
 		r = 0;
@@ -1384,7 +1407,6 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	int r;
-	sigset_t sigsaved;
 
 	if (vcpu->mmio_needed) {
 		vcpu->mmio_needed = 0;
@@ -1425,16 +1447,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 #endif
 	}
 
-	if (vcpu->sigset_active)
-		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
+	kvm_sigset_activate(vcpu);
 
 	if (run->immediate_exit)
 		r = -EINTR;
 	else
 		r = kvmppc_vcpu_run(run, vcpu);
 
-	if (vcpu->sigset_active)
-		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	kvm_sigset_deactivate(vcpu);
 
 	return r;
 }
@@ -1538,6 +1558,15 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		break;
 	}
 #endif /* CONFIG_KVM_XICS */
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	case KVM_CAP_PPC_FWNMI:
+		r = -EINVAL;
+		if (!is_kvmppc_hv_enabled(vcpu->kvm))
+			break;
+		r = 0;
+		vcpu->kvm->arch.fwnmi_enabled = true;
+		break;
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 	default:
 		r = -EINVAL;
 		break;
@@ -1710,6 +1739,15 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		else
 			clear_bit(hcall / 4, kvm->arch.enabled_hcalls);
 		r = 0;
+		break;
+	}
+	case KVM_CAP_PPC_SMT: {
+		unsigned long mode = cap->args[0];
+		unsigned long flags = cap->args[1];
+
+		r = -EINVAL;
+		if (kvm->arch.kvm_ops->set_smt_mode)
+			r = kvm->arch.kvm_ops->set_smt_mode(kvm, mode, flags);
 		break;
 	}
 #endif

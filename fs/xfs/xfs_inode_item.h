@@ -48,7 +48,7 @@ extern void xfs_iflush_done(struct xfs_buf *, struct xfs_log_item *);
 extern void xfs_istale_done(struct xfs_buf *, struct xfs_log_item *);
 extern void xfs_iflush_abort(struct xfs_inode *, bool);
 extern int xfs_inode_item_format_convert(xfs_log_iovec_t *,
-					 xfs_inode_log_format_t *);
+					 struct xfs_inode_log_format *);
 
 extern struct kmem_zone	*xfs_ili_zone;
 

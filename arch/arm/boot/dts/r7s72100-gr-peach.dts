@@ -1,0 +1,137 @@
+/*
+ * Device Tree Source for the GR-Peach board
+ *
+ * Copyright (C) 2017 Jacopo Mondi <jacopo+renesas@jmondi.org>
+ * Copyright (C) 2016 Renesas Electronics
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "r7s72100.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/r7s72100-pinctrl.h>
+
+/ {
+	model = "GR-Peach";
+	compatible = "renesas,gr-peach", "renesas,r7s72100";
+
+	aliases {
+		serial0 = &scif2;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel rw root=/dev/mtdblock0";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@20000000 {
+		device_type = "memory";
+		reg = <0x20000000 0x00a00000>;
+	};
+
+	lbsc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	flash@18000000 {
+		compatible = "mtd-rom";
+		probe-type = "map_rom";
+		reg = <0x18000000 0x00800000>;
+		bank-width = <4>;
+		device-width = <1>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		rootfs@600000 {
+			label = "rootfs";
+			reg = <0x00600000 0x00200000>;
+		};
+	};
+
+	leds {
+		status = "okay";
+		compatible = "gpio-leds";
+
+		led1 {
+			gpios = <&port6 12 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&pinctrl {
+	scif2_pins: serial2 {
+		/* P6_2 as RxD2; P6_3 as TxD2 */
+		pinmux = <RZA1_PINMUX(6, 2, 7)>, <RZA1_PINMUX(6, 3, 7)>;
+	};
+
+	ether_pins: ether {
+		/* Ethernet on Ports 1,3,5,10 */
+		pinmux = <RZA1_PINMUX(1, 14, 4)>, /* P1_14 = ET_COL   */
+			 <RZA1_PINMUX(3, 0, 2)>,  /* P3_0 = ET_TXCLK  */
+			 <RZA1_PINMUX(3, 3, 2)>,  /* P3_3 = ET_MDIO   */
+			 <RZA1_PINMUX(3, 4, 2)>,  /* P3_4 = ET_RXCLK  */
+			 <RZA1_PINMUX(3, 5, 2)>,  /* P3_5 = ET_RXER   */
+			 <RZA1_PINMUX(3, 6, 2)>,  /* P3_6 = ET_RXDV   */
+			 <RZA1_PINMUX(5, 9, 2)>,  /* P5_9 = ET_MDC    */
+			 <RZA1_PINMUX(10, 1, 4)>, /* P10_1 = ET_TXER  */
+			 <RZA1_PINMUX(10, 2, 4)>, /* P10_2 = ET_TXEN  */
+			 <RZA1_PINMUX(10, 3, 4)>, /* P10_3 = ET_CRS   */
+			 <RZA1_PINMUX(10, 4, 4)>, /* P10_4 = ET_TXD0  */
+			 <RZA1_PINMUX(10, 5, 4)>, /* P10_5 = ET_TXD1  */
+			 <RZA1_PINMUX(10, 6, 4)>, /* P10_6 = ET_TXD2  */
+			 <RZA1_PINMUX(10, 7, 4)>, /* P10_7 = ET_TXD3  */
+			 <RZA1_PINMUX(10, 8, 4)>, /* P10_8 = ET_RXD0  */
+			 <RZA1_PINMUX(10, 9, 4)>, /* P10_9 = ET_RXD1  */
+			 <RZA1_PINMUX(10, 10, 4)>,/* P10_10 = ET_RXD2 */
+			 <RZA1_PINMUX(10, 11, 4)>;/* P10_11 = ET_RXD3 */
+	};
+};
+
+&extal_clk {
+	clock-frequency = <13333000>;
+};
+
+&usb_x1_clk {
+	clock-frequency = <48000000>;
+};
+
+&mtu2 {
+	status = "okay";
+};
+
+&ostm0 {
+	status = "okay";
+};
+
+&ostm1 {
+	status = "okay";
+};
+
+&scif2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&scif2_pins>;
+
+	status = "okay";
+};
+
+&ether {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ether_pins>;
+
+	status = "okay";
+
+	renesas,no-ether-link;
+	phy-handle = <&phy0>;
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+
+		reset-gpios = <&port4 2 GPIO_ACTIVE_LOW>;
+		reset-delay-us = <5>;
+	};
+};

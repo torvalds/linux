@@ -98,16 +98,13 @@ static void rain_process_msg(struct rain *rain)
 
 	switch (stat) {
 	case 1:
-		cec_transmit_done(rain->adap, CEC_TX_STATUS_OK,
-				  0, 0, 0, 0);
+		cec_transmit_attempt_done(rain->adap, CEC_TX_STATUS_OK);
 		break;
 	case 2:
-		cec_transmit_done(rain->adap, CEC_TX_STATUS_NACK,
-				  0, 1, 0, 0);
+		cec_transmit_attempt_done(rain->adap, CEC_TX_STATUS_NACK);
 		break;
 	default:
-		cec_transmit_done(rain->adap, CEC_TX_STATUS_LOW_DRIVE,
-				  0, 0, 0, 1);
+		cec_transmit_attempt_done(rain->adap, CEC_TX_STATUS_LOW_DRIVE);
 		break;
 	}
 }
@@ -119,20 +116,19 @@ static void rain_irq_work_handler(struct work_struct *work)
 
 	while (true) {
 		unsigned long flags;
-		bool exit_loop = false;
 		char data;
 
 		spin_lock_irqsave(&rain->buf_lock, flags);
-		exit_loop = rain->buf_len == 0;
-		if (rain->buf_len) {
-			data = rain->buf[rain->buf_rd_idx];
-			rain->buf_len--;
-			rain->buf_rd_idx = (rain->buf_rd_idx + 1) & 0xff;
-		}
-		spin_unlock_irqrestore(&rain->buf_lock, flags);
-
-		if (exit_loop)
+		if (!rain->buf_len) {
+			spin_unlock_irqrestore(&rain->buf_lock, flags);
 			break;
+		}
+
+		data = rain->buf[rain->buf_rd_idx];
+		rain->buf_len--;
+		rain->buf_rd_idx = (rain->buf_rd_idx + 1) & 0xff;
+
+		spin_unlock_irqrestore(&rain->buf_lock, flags);
 
 		if (!rain->cmd_started && data != '?')
 			continue;
@@ -296,7 +292,7 @@ static int rain_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 			 cec_msg_destination(msg), msg->msg[1]);
 		for (i = 2; i < msg->len; i++) {
 			snprintf(hex, sizeof(hex), "%02x", msg->msg[i]);
-			strncat(cmd, hex, sizeof(cmd));
+			strlcat(cmd, hex, sizeof(cmd));
 		}
 	}
 	mutex_lock(&rain->write_lock);
@@ -313,8 +309,7 @@ static const struct cec_adap_ops rain_cec_adap_ops = {
 
 static int rain_connect(struct serio *serio, struct serio_driver *drv)
 {
-	u32 caps = CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS | CEC_CAP_PHYS_ADDR |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC | CEC_CAP_MONITOR_ALL;
+	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_PHYS_ADDR | CEC_CAP_MONITOR_ALL;
 	struct rain *rain;
 	int err = -ENOMEM;
 	struct cec_log_addrs log_addrs = {};
@@ -327,7 +322,7 @@ static int rain_connect(struct serio *serio, struct serio_driver *drv)
 
 	rain->serio = serio;
 	rain->adap = cec_allocate_adapter(&rain_cec_adap_ops, rain,
-		"HDMI CEC", caps, 1);
+					  dev_name(&serio->dev), caps, 1);
 	err = PTR_ERR_OR_ZERO(rain->adap);
 	if (err < 0)
 		goto free_device;
@@ -363,7 +358,7 @@ free_device:
 	return err;
 }
 
-static struct serio_device_id rain_serio_ids[] = {
+static const struct serio_device_id rain_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_RAINSHADOW_CEC,

@@ -33,5 +33,4 @@ serial@70006000 {
 	reset-names = "serial";
 	dmas = <&apbdma 8>, <&apbdma 8>;
 	dma-names = "rx", "tx";
-	status = "disabled";
 };

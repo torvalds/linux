@@ -744,7 +744,6 @@ static int apds9960_write_event_config(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info apds9960_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &apds9960_attribute_group,
 	.read_raw = apds9960_read_raw,
 	.write_raw = apds9960_write_raw,

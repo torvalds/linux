@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* 
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
@@ -72,7 +73,10 @@ typedef struct dasd_information2_t {
  * 0x02: use diag discipline (diag)
  * 0x04: set the device initially online (internal use only)
  * 0x08: enable ERP related logging
- * 0x20: give access to raw eckd data
+ * 0x10: allow I/O to fail on lost paths
+ * 0x20: allow I/O to fail when a lock was stolen
+ * 0x40: give access to raw eckd data
+ * 0x80: enable discard support
  */
 #define DASD_FEATURE_DEFAULT	     0x00
 #define DASD_FEATURE_READONLY	     0x01
@@ -82,6 +86,7 @@ typedef struct dasd_information2_t {
 #define DASD_FEATURE_FAILFAST	     0x10
 #define DASD_FEATURE_FAILONSLCK      0x20
 #define DASD_FEATURE_USERAW	     0x40
+#define DASD_FEATURE_DISCARD	     0x80
 
 #define DASD_PARTN_BITS 2
 

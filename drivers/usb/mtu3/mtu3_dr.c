@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_dr.c - dual role switch and host glue layer
  *
  * Copyright (C) 2016 MediaTek Inc.
  *
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/debugfs.h>
@@ -261,20 +252,21 @@ static void extcon_register_dwork(struct work_struct *work)
  * depending on user input.
  * This is useful in special cases, such as uses TYPE-A receptacle but also
  * wants to support dual-role mode.
- * It generates cable state changes by pulling up/down IDPIN and
- * notifies driver to switch mode by "extcon-usb-gpio".
- * NOTE: when use MICRO receptacle, should not enable this interface.
  */
 static void ssusb_mode_manual_switch(struct ssusb_mtk *ssusb, int to_host)
 {
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
-	if (to_host)
-		pinctrl_select_state(otg_sx->id_pinctrl, otg_sx->id_ground);
-	else
-		pinctrl_select_state(otg_sx->id_pinctrl, otg_sx->id_float);
+	if (to_host) {
+		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_HOST);
+		ssusb_set_mailbox(otg_sx, MTU3_VBUS_OFF);
+		ssusb_set_mailbox(otg_sx, MTU3_ID_GROUND);
+	} else {
+		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_DEVICE);
+		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
+		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
+	}
 }
-
 
 static int ssusb_mode_show(struct seq_file *sf, void *unused)
 {
@@ -322,23 +314,65 @@ static const struct file_operations ssusb_mode_fops = {
 	.release = single_release,
 };
 
+static int ssusb_vbus_show(struct seq_file *sf, void *unused)
+{
+	struct ssusb_mtk *ssusb = sf->private;
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
+
+	seq_printf(sf, "vbus state: %s\n(echo on/off)\n",
+		regulator_is_enabled(otg_sx->vbus) ? "on" : "off");
+
+	return 0;
+}
+
+static int ssusb_vbus_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ssusb_vbus_show, inode->i_private);
+}
+
+static ssize_t ssusb_vbus_write(struct file *file,
+	const char __user *ubuf, size_t count, loff_t *ppos)
+{
+	struct seq_file *sf = file->private_data;
+	struct ssusb_mtk *ssusb = sf->private;
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
+	char buf[16];
+	bool enable;
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	if (kstrtobool(buf, &enable)) {
+		dev_err(ssusb->dev, "wrong setting\n");
+		return -EINVAL;
+	}
+
+	ssusb_set_vbus(otg_sx, enable);
+
+	return count;
+}
+
+static const struct file_operations ssusb_vbus_fops = {
+	.open = ssusb_vbus_open,
+	.write = ssusb_vbus_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static void ssusb_debugfs_init(struct ssusb_mtk *ssusb)
 {
 	struct dentry *root;
-	struct dentry *file;
 
 	root = debugfs_create_dir(dev_name(ssusb->dev), usb_debug_root);
-	if (IS_ERR_OR_NULL(root)) {
-		if (!root)
-			dev_err(ssusb->dev, "create debugfs root failed\n");
+	if (!root) {
+		dev_err(ssusb->dev, "create debugfs root failed\n");
 		return;
 	}
 	ssusb->dbgfs_root = root;
 
-	file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
-			ssusb, &ssusb_mode_fops);
-	if (!file)
-		dev_dbg(ssusb->dev, "create debugfs mode failed\n");
+	debugfs_create_file("mode", 0644, root, ssusb, &ssusb_mode_fops);
+	debugfs_create_file("vbus", 0644, root, ssusb, &ssusb_vbus_fops);
 }
 
 static void ssusb_debugfs_exit(struct ssusb_mtk *ssusb)
@@ -346,17 +380,45 @@ static void ssusb_debugfs_exit(struct ssusb_mtk *ssusb)
 	debugfs_remove_recursive(ssusb->dbgfs_root);
 }
 
+void ssusb_set_force_mode(struct ssusb_mtk *ssusb,
+			  enum mtu3_dr_force_mode mode)
+{
+	u32 value;
+
+	value = mtu3_readl(ssusb->ippc_base, SSUSB_U2_CTRL(0));
+	switch (mode) {
+	case MTU3_DR_FORCE_DEVICE:
+		value |= SSUSB_U2_PORT_FORCE_IDDIG | SSUSB_U2_PORT_RG_IDDIG;
+		break;
+	case MTU3_DR_FORCE_HOST:
+		value |= SSUSB_U2_PORT_FORCE_IDDIG;
+		value &= ~SSUSB_U2_PORT_RG_IDDIG;
+		break;
+	case MTU3_DR_FORCE_NONE:
+		value &= ~(SSUSB_U2_PORT_FORCE_IDDIG | SSUSB_U2_PORT_RG_IDDIG);
+		break;
+	default:
+		return;
+	}
+	mtu3_writel(ssusb->ippc_base, SSUSB_U2_CTRL(0), value);
+}
+
 int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
 {
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
-	INIT_DELAYED_WORK(&otg_sx->extcon_reg_dwork, extcon_register_dwork);
-
-	if (otg_sx->manual_drd_enabled)
+	if (otg_sx->manual_drd_enabled) {
 		ssusb_debugfs_init(ssusb);
+	} else {
+		INIT_DELAYED_WORK(&otg_sx->extcon_reg_dwork,
+				  extcon_register_dwork);
 
-	/* It is enough to delay 1s for waiting for host initialization */
-	schedule_delayed_work(&otg_sx->extcon_reg_dwork, HZ);
+		/*
+		 * It is enough to delay 1s for waiting for
+		 * host initialization
+		 */
+		schedule_delayed_work(&otg_sx->extcon_reg_dwork, HZ);
+	}
 
 	return 0;
 }
@@ -365,8 +427,8 @@ void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
 {
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
-	cancel_delayed_work(&otg_sx->extcon_reg_dwork);
-
 	if (otg_sx->manual_drd_enabled)
 		ssusb_debugfs_exit(ssusb);
+	else
+		cancel_delayed_work(&otg_sx->extcon_reg_dwork);
 }

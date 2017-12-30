@@ -85,13 +85,13 @@ static int	audit_initialized;
 #define AUDIT_OFF	0
 #define AUDIT_ON	1
 #define AUDIT_LOCKED	2
-u32		audit_enabled;
-u32		audit_ever_enabled;
+u32		audit_enabled = AUDIT_OFF;
+bool		audit_ever_enabled = !!AUDIT_OFF;
 
 EXPORT_SYMBOL_GPL(audit_enabled);
 
 /* Default state when kernel boots without any parameters. */
-static u32	audit_default;
+static u32	audit_default = AUDIT_OFF;
 
 /* If auditing cannot proceed, audit_failure selects what happens. */
 static u32	audit_failure = AUDIT_FAIL_PRINTK;
@@ -575,12 +575,16 @@ static void kauditd_retry_skb(struct sk_buff *skb)
 
 /**
  * auditd_reset - Disconnect the auditd connection
+ * @ac: auditd connection state
  *
  * Description:
  * Break the auditd/kauditd connection and move all the queued records into the
- * hold queue in case auditd reconnects.
+ * hold queue in case auditd reconnects.  It is important to note that the @ac
+ * pointer should never be dereferenced inside this function as it may be NULL
+ * or invalid, you can only compare the memory address!  If @ac is NULL then
+ * the connection will always be reset.
  */
-static void auditd_reset(void)
+static void auditd_reset(const struct auditd_connection *ac)
 {
 	unsigned long flags;
 	struct sk_buff *skb;
@@ -590,16 +594,20 @@ static void auditd_reset(void)
 	spin_lock_irqsave(&auditd_conn_lock, flags);
 	ac_old = rcu_dereference_protected(auditd_conn,
 					   lockdep_is_held(&auditd_conn_lock));
+	if (ac && ac != ac_old) {
+		/* someone already registered a new auditd connection */
+		spin_unlock_irqrestore(&auditd_conn_lock, flags);
+		return;
+	}
 	rcu_assign_pointer(auditd_conn, NULL);
 	spin_unlock_irqrestore(&auditd_conn_lock, flags);
 
 	if (ac_old)
 		call_rcu(&ac_old->rcu, auditd_conn_free);
 
-	/* flush all of the main and retry queues to the hold queue */
+	/* flush the retry queue to the hold queue, but don't touch the main
+	 * queue since we need to process that normally for multicast */
 	while ((skb = skb_dequeue(&audit_retry_queue)))
-		kauditd_hold_skb(skb);
-	while ((skb = skb_dequeue(&audit_queue)))
 		kauditd_hold_skb(skb);
 }
 
@@ -633,6 +641,7 @@ static int auditd_send_unicast_skb(struct sk_buff *skb)
 	ac = rcu_dereference(auditd_conn);
 	if (!ac) {
 		rcu_read_unlock();
+		kfree_skb(skb);
 		rc = -ECONNREFUSED;
 		goto err;
 	}
@@ -649,8 +658,8 @@ static int auditd_send_unicast_skb(struct sk_buff *skb)
 	return rc;
 
 err:
-	if (rc == -ECONNREFUSED)
-		auditd_reset();
+	if (ac && rc == -ECONNREFUSED)
+		auditd_reset(ac);
 	return rc;
 }
 
@@ -795,9 +804,9 @@ static int kauditd_thread(void *dummy)
 		rc = kauditd_send_queue(sk, portid,
 					&audit_hold_queue, UNICAST_RETRIES,
 					NULL, kauditd_rehold_skb);
-		if (rc < 0) {
+		if (ac && rc < 0) {
 			sk = NULL;
-			auditd_reset();
+			auditd_reset(ac);
 			goto main_queue;
 		}
 
@@ -805,9 +814,9 @@ static int kauditd_thread(void *dummy)
 		rc = kauditd_send_queue(sk, portid,
 					&audit_retry_queue, UNICAST_RETRIES,
 					NULL, kauditd_hold_skb);
-		if (rc < 0) {
+		if (ac && rc < 0) {
 			sk = NULL;
-			auditd_reset();
+			auditd_reset(ac);
 			goto main_queue;
 		}
 
@@ -815,12 +824,13 @@ main_queue:
 		/* process the main queue - do the multicast send and attempt
 		 * unicast, dump failed record sends to the retry queue; if
 		 * sk == NULL due to previous failures we will just do the
-		 * multicast send and move the record to the retry queue */
+		 * multicast send and move the record to the hold queue */
 		rc = kauditd_send_queue(sk, portid, &audit_queue, 1,
 					kauditd_send_multicast_skb,
-					kauditd_retry_skb);
-		if (sk == NULL || rc < 0)
-			auditd_reset();
+					(sk ?
+					 kauditd_retry_skb : kauditd_hold_skb));
+		if (ac && rc < 0)
+			auditd_reset(ac);
 		sk = NULL;
 
 		/* drop our netns reference, no auditd sends past this line */
@@ -1187,25 +1197,28 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			pid_t auditd_pid;
 			struct pid *req_pid = task_tgid(current);
 
-			/* sanity check - PID values must match */
-			if (new_pid != pid_vnr(req_pid))
+			/* Sanity check - PID values must match. Setting
+			 * pid to 0 is how auditd ends auditing. */
+			if (new_pid && (new_pid != pid_vnr(req_pid)))
 				return -EINVAL;
 
 			/* test the auditd connection */
 			audit_replace(req_pid);
 
 			auditd_pid = auditd_pid_vnr();
-			/* only the current auditd can unregister itself */
-			if ((!new_pid) && (new_pid != auditd_pid)) {
-				audit_log_config_change("audit_pid", new_pid,
-							auditd_pid, 0);
-				return -EACCES;
-			}
-			/* replacing a healthy auditd is not allowed */
-			if (auditd_pid && new_pid) {
-				audit_log_config_change("audit_pid", new_pid,
-							auditd_pid, 0);
-				return -EEXIST;
+			if (auditd_pid) {
+				/* replacing a healthy auditd is not allowed */
+				if (new_pid) {
+					audit_log_config_change("audit_pid",
+							new_pid, auditd_pid, 0);
+					return -EEXIST;
+				}
+				/* only current auditd can unregister itself */
+				if (pid_vnr(req_pid) != auditd_pid) {
+					audit_log_config_change("audit_pid",
+							new_pid, auditd_pid, 0);
+					return -EACCES;
+				}
 			}
 
 			if (new_pid) {
@@ -1230,7 +1243,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 								auditd_pid, 1);
 
 				/* unregister the auditd connection */
-				auditd_reset();
+				auditd_reset(NULL);
 			}
 		}
 		if (s.mask & AUDIT_STATUS_RATE_LIMIT) {
@@ -1539,8 +1552,6 @@ static int __init audit_init(void)
 	register_pernet_subsys(&audit_net_ops);
 
 	audit_initialized = AUDIT_INITIALIZED;
-	audit_enabled = audit_default;
-	audit_ever_enabled |= !!audit_default;
 
 	kauditd_task = kthread_run(kauditd_thread, NULL, "kauditd");
 	if (IS_ERR(kauditd_task)) {
@@ -1554,14 +1565,21 @@ static int __init audit_init(void)
 
 	return 0;
 }
-__initcall(audit_init);
+postcore_initcall(audit_init);
 
 /* Process kernel command-line parameter at boot time.  audit=0 or audit=1. */
 static int __init audit_enable(char *str)
 {
-	audit_default = !!simple_strtol(str, NULL, 0);
-	if (!audit_default)
+	long val;
+
+	if (kstrtol(str, 0, &val))
+		panic("audit: invalid 'audit' parameter value (%s)\n", str);
+	audit_default = (val ? AUDIT_ON : AUDIT_OFF);
+
+	if (audit_default == AUDIT_OFF)
 		audit_initialized = AUDIT_DISABLED;
+	if (audit_set_enabled(audit_default))
+		panic("audit: error setting audit state (%d)\n", audit_default);
 
 	pr_info("%s\n", audit_default ?
 		"enabled (after initialization)" : "disabled (until reboot)");
@@ -1652,7 +1670,7 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 				   struct timespec64 *t, unsigned int *serial)
 {
 	if (!ctx || !auditsc_get_stamp(ctx, t, serial)) {
-		ktime_get_real_ts64(t);
+		*t = current_kernel_time64();
 		*serial = audit_serial();
 	}
 }
@@ -1823,7 +1841,7 @@ void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
 }
 
 /**
- * audit_log_hex - convert a buffer to hex and append it to the audit skb
+ * audit_log_n_hex - convert a buffer to hex and append it to the audit skb
  * @ab: the audit_buffer
  * @buf: buffer to convert to hex
  * @len: length of @buf to be converted
@@ -1999,22 +2017,10 @@ void audit_log_cap(struct audit_buffer *ab, char *prefix, kernel_cap_t *cap)
 
 static void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
 {
-	kernel_cap_t *perm = &name->fcap.permitted;
-	kernel_cap_t *inh = &name->fcap.inheritable;
-	int log = 0;
-
-	if (!cap_isclear(*perm)) {
-		audit_log_cap(ab, "cap_fp", perm);
-		log = 1;
-	}
-	if (!cap_isclear(*inh)) {
-		audit_log_cap(ab, "cap_fi", inh);
-		log = 1;
-	}
-
-	if (log)
-		audit_log_format(ab, " cap_fe=%d cap_fver=%x",
-				 name->fcap.fE, name->fcap_ver);
+	audit_log_cap(ab, "cap_fp", &name->fcap.permitted);
+	audit_log_cap(ab, "cap_fi", &name->fcap.inheritable);
+	audit_log_format(ab, " cap_fe=%d cap_fver=%x",
+			 name->fcap.fE, name->fcap_ver);
 }
 
 static inline int audit_copy_fcaps(struct audit_names *name,
@@ -2338,32 +2344,6 @@ void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type,
 		audit_log_end(ab);
 	}
 }
-
-#ifdef CONFIG_SECURITY
-/**
- * audit_log_secctx - Converts and logs SELinux context
- * @ab: audit_buffer
- * @secid: security number
- *
- * This is a helper function that calls security_secid_to_secctx to convert
- * secid to secctx and then adds the (converted) SELinux context to the audit
- * log by calling audit_log_format, thus also preventing leak of internal secid
- * to userspace. If secid cannot be converted audit_panic is called.
- */
-void audit_log_secctx(struct audit_buffer *ab, u32 secid)
-{
-	u32 len;
-	char *secctx;
-
-	if (security_secid_to_secctx(secid, &secctx, &len)) {
-		audit_panic("Cannot convert secid to context");
-	} else {
-		audit_log_format(ab, " obj=%s", secctx);
-		security_release_secctx(secctx, len);
-	}
-}
-EXPORT_SYMBOL(audit_log_secctx);
-#endif
 
 EXPORT_SYMBOL(audit_log_start);
 EXPORT_SYMBOL(audit_log_end);

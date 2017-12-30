@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -382,9 +383,15 @@ out:
 		if (type == ORANGEFS_IO_READ) {
 			file_accessed(file);
 		} else {
-			SetMtimeFlag(orangefs_inode);
-			inode->i_mtime = current_time(inode);
-			mark_inode_dirty_sync(inode);
+			file_update_time(file);
+			/*
+			 * Must invalidate to ensure write loop doesn't
+			 * prevent kernel from reading updated
+			 * attribute.  Size probably changed because of
+			 * the write, and other clients could update
+			 * any other attribute.
+			 */
+			orangefs_inode->getattr_time = jiffies - 1;
 		}
 	}
 
@@ -614,8 +621,6 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 		     "orangefs_file_release: called on %pD\n",
 		     file);
 
-	orangefs_flush_inode(inode);
-
 	/*
 	 * remove all associated inode pages from the page cache and
 	 * readahead cache (if any); this forces an expensive refresh of
@@ -646,13 +651,10 @@ static int orangefs_fsync(struct file *file,
 		       loff_t end,
 		       int datasync)
 {
-	int ret = -EINVAL;
+	int ret;
 	struct orangefs_inode_s *orangefs_inode =
 		ORANGEFS_I(file_inode(file));
 	struct orangefs_kernel_op_s *new_op = NULL;
-
-	/* required call */
-	filemap_write_and_wait_range(file->f_mapping, start, end);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FSYNC);
 	if (!new_op)
@@ -668,8 +670,6 @@ static int orangefs_fsync(struct file *file,
 		     ret);
 
 	op_release(new_op);
-
-	orangefs_flush_inode(file_inode(file));
 	return ret;
 }
 

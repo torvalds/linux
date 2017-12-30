@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -36,11 +37,11 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include "../include/obd_support.h"
-#include "../include/obd_cksum.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_sec.h"
+#include <obd_support.h>
+#include <obd_cksum.h>
+#include <obd_class.h>
+#include <lustre_net.h>
+#include <lustre_sec.h>
 
 #include "ptlrpc_internal.h"
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * uaccess.h: User space memore access functions.
  *
@@ -277,7 +278,6 @@ static inline unsigned long clear_user(void __user *addr, unsigned long n)
 		return n;
 }
 
-__must_check long strlen_user(const char __user *str);
 __must_check long strnlen_user(const char __user *str, long n);
 
 #endif /* _ASM_UACCESS_H */

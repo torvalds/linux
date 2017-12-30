@@ -18,26 +18,8 @@ config CRYPTO_DEV_CCREE
 	select CRYPTO_CTR
 	select CRYPTO_XTS
 	help
-	  Say 'Y' to enable a driver for the Arm TrustZone CryptoCell 
+	  Say 'Y' to enable a driver for the Arm TrustZone CryptoCell
 	  C7xx. Currently only the CryptoCell 712 REE is supported.
 	  Choose this if you wish to use hardware acceleration of
 	  cryptographic operations on the system REE.
 	  If unsure say Y.
-
-config CCREE_FIPS_SUPPORT
-	bool "Turn on CryptoCell 7XX REE FIPS mode support"
-	depends on CRYPTO_DEV_CCREE
-	default n
-	help
-	  Say 'Y' to enable support for FIPS compliant mode by the
-	  CCREE driver.
-	  If unsure say N.
-
-config CCREE_DISABLE_COHERENT_DMA_OPS
-	bool "Disable Coherent DMA operations for the CCREE driver"
-	depends on CRYPTO_DEV_CCREE
-	default n
-	help
-	  Say 'Y' to disable the use of coherent DMA operations by the
-	  CCREE driver for debugging purposes.  
-	  If unsure say N.

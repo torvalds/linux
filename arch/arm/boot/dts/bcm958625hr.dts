@@ -177,10 +177,6 @@
 	status = "okay";
 };
 
-&sata {
-	status = "okay";
-};
-
 &srab {
 	compatible = "brcm,bcm58625-srab", "brcm,nsp-srab";
 	status = "okay";
@@ -227,5 +223,13 @@
 };
 
 &uart0 {
+	status = "okay";
+};
+
+&usb3_phy {
+	status = "okay";
+};
+
+&xhci {
 	status = "okay";
 };

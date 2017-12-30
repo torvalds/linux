@@ -30,6 +30,7 @@
 #include "debug.h"
 #include "fwil_types.h"
 #include "p2p.h"
+#include "pno.h"
 #include "cfg80211.h"
 #include "fwil.h"
 #include "feature.h"
@@ -68,6 +69,43 @@ struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx)
 		ifp = drvr->iflist[bsscfgidx];
 
 	return ifp;
+}
+
+void brcmf_configure_arp_nd_offload(struct brcmf_if *ifp, bool enable)
+{
+	s32 err;
+	u32 mode;
+
+	if (enable)
+		mode = BRCMF_ARP_OL_AGENT | BRCMF_ARP_OL_PEER_AUTO_REPLY;
+	else
+		mode = 0;
+
+	/* Try to set and enable ARP offload feature, this may fail, then it  */
+	/* is simply not supported and err 0 will be returned                 */
+	err = brcmf_fil_iovar_int_set(ifp, "arp_ol", mode);
+	if (err) {
+		brcmf_dbg(TRACE, "failed to set ARP offload mode to 0x%x, err = %d\n",
+			  mode, err);
+	} else {
+		err = brcmf_fil_iovar_int_set(ifp, "arpoe", enable);
+		if (err) {
+			brcmf_dbg(TRACE, "failed to configure (%d) ARP offload err = %d\n",
+				  enable, err);
+		} else {
+			brcmf_dbg(TRACE, "successfully configured (%d) ARP offload to 0x%x\n",
+				  enable, mode);
+		}
+	}
+
+	err = brcmf_fil_iovar_int_set(ifp, "ndoe", enable);
+	if (err) {
+		brcmf_dbg(TRACE, "failed to configure (%d) ND offload err = %d\n",
+			  enable, err);
+	} else {
+		brcmf_dbg(TRACE, "successfully configured (%d) ND offload to 0x%x\n",
+			  enable, mode);
+	}
 }
 
 static void _brcmf_set_multicast_list(struct work_struct *work)
@@ -133,6 +171,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	if (err < 0)
 		brcmf_err("Setting BRCMF_C_SET_PROMISC failed, %d\n",
 			  err);
+	brcmf_configure_arp_nd_offload(ifp, !cmd_value);
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -198,6 +237,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct ethhdr *eh;
+	int head_delta;
 
 	brcmf_dbg(DATA, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
@@ -210,13 +250,21 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		goto done;
 	}
 
-	/* Make sure there's enough writable headroom*/
-	ret = skb_cow_head(skb, drvr->hdrlen);
-	if (ret < 0) {
-		brcmf_err("%s: skb_cow_head failed\n",
-			  brcmf_ifname(ifp));
-		dev_kfree_skb(skb);
-		goto done;
+	/* Make sure there's enough writeable headroom */
+	if (skb_headroom(skb) < drvr->hdrlen || skb_header_cloned(skb)) {
+		head_delta = max_t(int, drvr->hdrlen - skb_headroom(skb), 0);
+
+		brcmf_dbg(INFO, "%s: insufficient headroom (%d)\n",
+			  brcmf_ifname(ifp), head_delta);
+		atomic_inc(&drvr->bus_if->stats.pktcowed);
+		ret = pskb_expand_head(skb, ALIGN(head_delta, NET_SKB_PAD), 0,
+				       GFP_ATOMIC);
+		if (ret < 0) {
+			brcmf_err("%s: failed to expand headroom\n",
+				  brcmf_ifname(ifp));
+			atomic_inc(&drvr->bus_if->stats.pktcow_failed);
+			goto done;
+		}
 	}
 
 	/* validate length for ether packet */
@@ -484,13 +532,13 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 		goto fail;
 	}
 
+	ndev->priv_destructor = brcmf_cfg80211_free_netdev;
 	brcmf_dbg(INFO, "%s: Broadcom Dongle Host Driver\n", ndev->name);
 	return 0;
 
 fail:
 	drvr->iflist[ifp->bsscfgidx] = NULL;
 	ndev->netdev_ops = NULL;
-	free_netdev(ndev);
 	return -EBADE;
 }
 
@@ -503,6 +551,7 @@ static void brcmf_net_detach(struct net_device *ndev, bool rtnl_locked)
 			unregister_netdev(ndev);
 	} else {
 		brcmf_cfg80211_free_netdev(ndev);
+		free_netdev(ndev);
 	}
 }
 
@@ -579,7 +628,6 @@ static int brcmf_net_p2p_attach(struct brcmf_if *ifp)
 fail:
 	ifp->drvr->iflist[ifp->bsscfgidx] = NULL;
 	ndev->netdev_ops = NULL;
-	free_netdev(ndev);
 	return -EBADE;
 }
 
@@ -625,7 +673,6 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			return ERR_PTR(-ENOMEM);
 
 		ndev->needs_free_netdev = true;
-		ndev->priv_destructor = brcmf_cfg80211_free_netdev;
 		ifp = netdev_priv(ndev);
 		ifp->ndev = ndev;
 		/* store mapping ifidx to bsscfgidx */
@@ -940,6 +987,8 @@ static int brcmf_revinfo_read(struct seq_file *s, void *data)
 	seq_printf(s, "phyrev: %u\n", ri->phyrev);
 	seq_printf(s, "anarev: %u\n", ri->anarev);
 	seq_printf(s, "nvramrev: %08x\n", ri->nvramrev);
+
+	seq_printf(s, "clmver: %s\n", bus_if->drvr->clmver);
 
 	return 0;
 }

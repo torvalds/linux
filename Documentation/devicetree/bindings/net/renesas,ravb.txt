@@ -4,19 +4,27 @@ This file provides information on what the device node for the Ethernet AVB
 interface contains.
 
 Required properties:
-- compatible: "renesas,etheravb-r8a7790" if the device is a part of R8A7790 SoC.
-	      "renesas,etheravb-r8a7791" if the device is a part of R8A7791 SoC.
-	      "renesas,etheravb-r8a7792" if the device is a part of R8A7792 SoC.
-	      "renesas,etheravb-r8a7793" if the device is a part of R8A7793 SoC.
-	      "renesas,etheravb-r8a7794" if the device is a part of R8A7794 SoC.
-	      "renesas,etheravb-r8a7795" if the device is a part of R8A7795 SoC.
-	      "renesas,etheravb-r8a7796" if the device is a part of R8A7796 SoC.
-	      "renesas,etheravb-rcar-gen2" for generic R-Car Gen 2 compatible interface.
-	      "renesas,etheravb-rcar-gen3" for generic R-Car Gen 3 compatible interface.
+- compatible: Must contain one or more of the following:
+      - "renesas,etheravb-r8a7743" for the R8A7743 SoC.
+      - "renesas,etheravb-r8a7745" for the R8A7745 SoC.
+      - "renesas,etheravb-r8a7790" for the R8A7790 SoC.
+      - "renesas,etheravb-r8a7791" for the R8A7791 SoC.
+      - "renesas,etheravb-r8a7792" for the R8A7792 SoC.
+      - "renesas,etheravb-r8a7793" for the R8A7793 SoC.
+      - "renesas,etheravb-r8a7794" for the R8A7794 SoC.
+      - "renesas,etheravb-rcar-gen2" as a fallback for the above
+		R-Car Gen2 and RZ/G1 devices.
 
-	      When compatible with the generic version, nodes must list the
-	      SoC-specific version corresponding to the platform first
-	      followed by the generic version.
+      - "renesas,etheravb-r8a7795" for the R8A7795 SoC.
+      - "renesas,etheravb-r8a7796" for the R8A7796 SoC.
+      - "renesas,etheravb-r8a77970" for the R8A77970 SoC.
+      - "renesas,etheravb-r8a77995" for the R8A77995 SoC.
+      - "renesas,etheravb-rcar-gen3" as a fallback for the above
+		R-Car Gen3 devices.
+
+	When compatible with the generic version, nodes must list the
+	SoC-specific version corresponding to the platform first followed by
+	the generic version.
 
 - reg: offset and length of (1) the register block and (2) the stream buffer.
 - interrupts: A list of interrupt-specifiers, one for each entry in
@@ -34,7 +42,7 @@ Optional properties:
 - interrupt-parent: the phandle for the interrupt controller that services
 		    interrupts for this device.
 - interrupt-names: A list of interrupt names.
-		   For the R8A779[56] SoCs this property is mandatory;
+		   For the R-Car Gen 3 SoCs this property is mandatory;
 		   it should include one entry per channel, named "ch%u",
 		   where %u is the channel number ranging from 0 to 24.
 		   For other SoCs this property is optional; if present

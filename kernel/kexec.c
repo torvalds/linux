@@ -144,6 +144,14 @@ static int do_kexec_load(unsigned long entry, unsigned long nr_segments,
 	if (ret)
 		goto out;
 
+	/*
+	 * Some architecture(like S390) may touch the crash memory before
+	 * machine_kexec_prepare(), we must copy vmcoreinfo data after it.
+	 */
+	ret = kimage_crash_copy_vmcoreinfo(image);
+	if (ret)
+		goto out;
+
 	for (i = 0; i < nr_segments; i++) {
 		ret = kimage_load_segment(image, &image->segment[i]);
 		if (ret)

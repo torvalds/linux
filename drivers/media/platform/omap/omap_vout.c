@@ -1004,10 +1004,11 @@ static int omap_vout_open(struct file *file)
 	struct omap_vout_device *vout = NULL;
 
 	vout = video_drvdata(file);
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
 
 	if (vout == NULL)
 		return -ENODEV;
+
+	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
 
 	/* for now, we only support single open */
 	if (vout->opened)

@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Power Supply driver for a Greybus module.
  *
  * Copyright 2014-2015 Google Inc.
  * Copyright 2014-2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/kernel.h>
@@ -944,7 +943,7 @@ static int gb_power_supplies_setup(struct gb_power_supplies *supplies)
 	if (ret < 0)
 		goto out;
 
-	supplies->supply = kzalloc(supplies->supplies_count *
+	supplies->supply = kcalloc(supplies->supplies_count,
 				     sizeof(struct gb_power_supply),
 				     GFP_KERNEL);
 

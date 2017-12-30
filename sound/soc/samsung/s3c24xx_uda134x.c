@@ -44,7 +44,7 @@ struct s3c24xx_uda134x {
 
 static unsigned int rates[33 * 2];
 #ifdef ENFORCE_RATES
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count	= ARRAY_SIZE(rates),
 	.list	= rates,
 	.mask	= 0,
@@ -199,7 +199,7 @@ static int s3c24xx_uda134x_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops s3c24xx_uda134x_ops = {
+static const struct snd_soc_ops s3c24xx_uda134x_ops = {
 	.startup = s3c24xx_uda134x_startup,
 	.shutdown = s3c24xx_uda134x_shutdown,
 	.hw_params = s3c24xx_uda134x_hw_params,
@@ -237,7 +237,6 @@ static int s3c24xx_uda134x_probe(struct platform_device *pdev)
 	mutex_init(&priv->clk_lock);
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, priv);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);

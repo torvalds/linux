@@ -143,47 +143,40 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 	chip->card = card;
 
 	ret = usb6fire_comm_init(chip);
-	if (ret < 0) {
-		usb6fire_chip_destroy(chip);
-		return ret;
-	}
+	if (ret < 0)
+		goto destroy_chip;
 
 	ret = usb6fire_midi_init(chip);
-	if (ret < 0) {
-		usb6fire_chip_destroy(chip);
-		return ret;
-	}
+	if (ret < 0)
+		goto destroy_chip;
 
 	ret = usb6fire_pcm_init(chip);
-	if (ret < 0) {
-		usb6fire_chip_destroy(chip);
-		return ret;
-	}
+	if (ret < 0)
+		goto destroy_chip;
 
 	ret = usb6fire_control_init(chip);
-	if (ret < 0) {
-		usb6fire_chip_destroy(chip);
-		return ret;
-	}
+	if (ret < 0)
+		goto destroy_chip;
 
 	ret = snd_card_register(card);
 	if (ret < 0) {
 		dev_err(&intf->dev, "cannot register card.");
-		usb6fire_chip_destroy(chip);
-		return ret;
+		goto destroy_chip;
 	}
 	usb_set_intfdata(intf, chip);
 	return 0;
+
+destroy_chip:
+	usb6fire_chip_destroy(chip);
+	return ret;
 }
 
 static void usb6fire_chip_disconnect(struct usb_interface *intf)
 {
 	struct sfire_chip *chip;
-	struct snd_card *card;
 
 	chip = usb_get_intfdata(intf);
 	if (chip) { /* if !chip, fw upload has been performed */
-		card = chip->card;
 		chip->intf_count--;
 		if (!chip->intf_count) {
 			mutex_lock(&register_mutex);
@@ -198,7 +191,7 @@ static void usb6fire_chip_disconnect(struct usb_interface *intf)
 	}
 }
 
-static struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{
 		.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor = 0x0ccd,

@@ -198,7 +198,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 	}
 
 
-	LOCK_TAKE(hdw->ctl_lock); do {
+	LOCK_TAKE(hdw->ctl_lock); while (1) {
 
 		if (!hdw->state_encoder_ok) {
 			ret = -EIO;
@@ -293,9 +293,9 @@ rdData[0]);
 
 		wrData[0] = 0x0;
 		ret = pvr2_encoder_write_words(hdw,MBOX_BASE,wrData,1);
-		if (ret) break;
+		break;
 
-	} while(0); LOCK_GIVE(hdw->ctl_lock);
+	}; LOCK_GIVE(hdw->ctl_lock);
 
 	return ret;
 }

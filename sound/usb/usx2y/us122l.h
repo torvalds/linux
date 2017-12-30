@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef US122L_H
 #define US122L_H
 
@@ -16,6 +17,8 @@ struct us122l {
 	struct list_head	midi_list;
 
 	atomic_t		mmap_count;
+
+	bool			is_us144;
 };
 
 

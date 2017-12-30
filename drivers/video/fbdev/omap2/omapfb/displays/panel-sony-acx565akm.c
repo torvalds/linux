@@ -509,7 +509,7 @@ static struct attribute *bldev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group bldev_attr_group = {
+static const struct attribute_group bldev_attr_group = {
 	.attrs = bldev_attrs,
 };
 

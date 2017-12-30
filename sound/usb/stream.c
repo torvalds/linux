@@ -658,10 +658,8 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 			continue;
 
 		fp = kzalloc(sizeof(*fp), GFP_KERNEL);
-		if (! fp) {
-			dev_err(&dev->dev, "cannot malloc\n");
+		if (!fp)
 			return -ENOMEM;
-		}
 
 		fp->iface = iface_no;
 		fp->altsetting = altno;

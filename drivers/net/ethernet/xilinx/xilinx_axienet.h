@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for Xilinx Axi Ethernet device driver.
  *
@@ -389,7 +390,7 @@ struct axidma_bd {
  * @dma_err_tasklet: Tasklet structure to process Axi DMA errors
  * @tx_irq:	Axidma TX IRQ number
  * @rx_irq:	Axidma RX IRQ number
- * @phy_type:	Phy type to identify between MII/GMII/RGMII/SGMII/1000 Base-X
+ * @phy_mode:	Phy type to identify between MII/GMII/RGMII/SGMII/1000 Base-X
  * @options:	AxiEthernet option word
  * @last_link:	Phy link state in which the PHY was negotiated earlier
  * @features:	Stores the extended features supported by the axienet hw
@@ -432,7 +433,7 @@ struct axienet_local {
 
 	int tx_irq;
 	int rx_irq;
-	u32 phy_type;
+	phy_interface_t phy_mode;
 
 	u32 options;			/* Current options word */
 	u32 last_link;

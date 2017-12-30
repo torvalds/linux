@@ -58,6 +58,18 @@ Required properties:
    integer cells.  The first cell is the offset of SYSCTRL register used
    to control TV Encoder DAC power, and the second cell is the bit mask.
 
+* VGA output device
+
+Required properties:
+ - compatible: should be "zte,zx296718-vga"
+ - reg: Physical base address and length of the VGA device IO region
+ - interrupts : VGA interrupt number to CPU
+ - clocks: Phandle with clock-specifier pointing to VGA I2C clock.
+ - clock-names: Must be "i2c_wclk".
+ - zte,vga-power-control: the phandle to SYSCTRL block followed by two
+   integer cells.  The first cell is the offset of SYSCTRL register used
+   to control VGA DAC power, and the second cell is the bit mask.
+
 Example:
 
 vou: vou@1440000 {
@@ -79,6 +91,15 @@ vou: vou@1440000 {
 			 <&topcrm VOU_MAIN_WCLK>, <&topcrm VOU_AUX_WCLK>;
 		clock-names = "aclk", "ppu_wclk",
 			      "main_wclk", "aux_wclk";
+	};
+
+	vga: vga@8000 {
+		compatible = "zte,zx296718-vga";
+		reg = <0x8000 0x1000>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&topcrm VGA_I2C_WCLK>;
+		clock-names = "i2c_wclk";
+		zte,vga-power-control = <&sysctrl 0x170 0xe0>;
 	};
 
 	hdmi: hdmi@c000 {

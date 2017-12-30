@@ -126,18 +126,6 @@ static int tegra_rt5640_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int tegra_rt5640_card_remove(struct snd_soc_card *card)
-{
-	struct tegra_rt5640 *machine = snd_soc_card_get_drvdata(card);
-
-	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_jack_free_gpios(&tegra_rt5640_hp_jack, 1,
-					&tegra_rt5640_hp_jack_gpio);
-	}
-
-	return 0;
-}
-
 static struct snd_soc_dai_link tegra_rt5640_dai = {
 	.name = "RT5640",
 	.stream_name = "RT5640 PCM",
@@ -151,7 +139,6 @@ static struct snd_soc_dai_link tegra_rt5640_dai = {
 static struct snd_soc_card snd_soc_tegra_rt5640 = {
 	.name = "tegra-rt5640",
 	.owner = THIS_MODULE,
-	.remove = tegra_rt5640_card_remove,
 	.dai_link = &tegra_rt5640_dai,
 	.num_links = 1,
 	.controls = tegra_rt5640_controls,
@@ -174,7 +161,6 @@ static int tegra_rt5640_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
 	machine->gpio_hp_det = of_get_named_gpio_flags(

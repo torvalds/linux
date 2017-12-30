@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __GENWQE_CARD_H__
 #define __GENWQE_CARD_H__
 

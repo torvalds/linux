@@ -96,6 +96,7 @@ struct ipvl_port {
 	struct hlist_head	hlhead[IPVLAN_HASH_SIZE];
 	struct list_head	ipvlans;
 	u16			mode;
+	u16			flags;
 	u16			dev_id_start;
 	struct work_struct	wq;
 	struct sk_buff_head	backlog;
@@ -123,6 +124,36 @@ static inline struct ipvl_port *ipvlan_port_get_rtnl(const struct net_device *d)
 	return rtnl_dereference(d->rx_handler_data);
 }
 
+static inline bool ipvlan_is_private(const struct ipvl_port *port)
+{
+	return !!(port->flags & IPVLAN_F_PRIVATE);
+}
+
+static inline void ipvlan_mark_private(struct ipvl_port *port)
+{
+	port->flags |= IPVLAN_F_PRIVATE;
+}
+
+static inline void ipvlan_clear_private(struct ipvl_port *port)
+{
+	port->flags &= ~IPVLAN_F_PRIVATE;
+}
+
+static inline bool ipvlan_is_vepa(const struct ipvl_port *port)
+{
+	return !!(port->flags & IPVLAN_F_VEPA);
+}
+
+static inline void ipvlan_mark_vepa(struct ipvl_port *port)
+{
+	port->flags |= IPVLAN_F_VEPA;
+}
+
+static inline void ipvlan_clear_vepa(struct ipvl_port *port)
+{
+	port->flags &= ~IPVLAN_F_VEPA;
+}
+
 void ipvlan_init_secret(void);
 unsigned int ipvlan_mac_hash(const unsigned char *addr);
 rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb);
@@ -140,7 +171,8 @@ unsigned int ipvlan_nf_input(void *priv, struct sk_buff *skb,
 void ipvlan_count_rx(const struct ipvl_dev *ipvlan,
 		     unsigned int len, bool success, bool mcast);
 int ipvlan_link_new(struct net *src_net, struct net_device *dev,
-		    struct nlattr *tb[], struct nlattr *data[]);
+		    struct nlattr *tb[], struct nlattr *data[],
+		    struct netlink_ext_ack *extack);
 void ipvlan_link_delete(struct net_device *dev, struct list_head *head);
 void ipvlan_link_setup(struct net_device *dev);
 int ipvlan_link_register(struct rtnl_link_ops *ops);

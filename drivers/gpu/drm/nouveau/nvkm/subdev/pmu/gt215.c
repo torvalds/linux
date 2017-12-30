@@ -180,13 +180,19 @@ gt215_pmu_fini(struct nvkm_pmu *pmu)
 	nvkm_wr32(pmu->subdev.device, 0x10a014, 0x00000060);
 }
 
-void
+static void
 gt215_pmu_reset(struct nvkm_pmu *pmu)
 {
 	struct nvkm_device *device = pmu->subdev.device;
-	nvkm_mask(device, 0x000200, 0x00002000, 0x00000000);
-	nvkm_mask(device, 0x000200, 0x00002000, 0x00002000);
-	nvkm_rd32(device, 0x000200);
+	nvkm_mask(device, 0x022210, 0x00000001, 0x00000000);
+	nvkm_mask(device, 0x022210, 0x00000001, 0x00000001);
+	nvkm_rd32(device, 0x022210);
+}
+
+static bool
+gt215_pmu_enabled(struct nvkm_pmu *pmu)
+{
+	return nvkm_rd32(pmu->subdev.device, 0x022210) & 0x00000001;
 }
 
 int
@@ -241,6 +247,7 @@ gt215_pmu = {
 	.code.size = sizeof(gt215_pmu_code),
 	.data.data = gt215_pmu_data,
 	.data.size = sizeof(gt215_pmu_data),
+	.enabled = gt215_pmu_enabled,
 	.reset = gt215_pmu_reset,
 	.init = gt215_pmu_init,
 	.fini = gt215_pmu_fini,

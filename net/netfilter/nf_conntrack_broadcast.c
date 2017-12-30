@@ -40,7 +40,6 @@ int nf_conntrack_broadcast_help(struct sk_buff *skb,
 	if (CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL)
 		goto out;
 
-	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(rt->dst.dev);
 	if (in_dev != NULL) {
 		for_primary_ifa(in_dev) {
@@ -50,7 +49,6 @@ int nf_conntrack_broadcast_help(struct sk_buff *skb,
 			}
 		} endfor_ifa(in_dev);
 	}
-	rcu_read_unlock();
 
 	if (mask == 0)
 		goto out;

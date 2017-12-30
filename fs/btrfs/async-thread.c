@@ -67,7 +67,7 @@ struct btrfs_workqueue {
 static void normal_work_helper(struct btrfs_work *work);
 
 #define BTRFS_WORK_HELPER(name)					\
-void btrfs_##name(struct work_struct *arg)				\
+noinline_for_stack void btrfs_##name(struct work_struct *arg)		\
 {									\
 	struct btrfs_work *work = container_of(arg, struct btrfs_work,	\
 					       normal_work);		\
@@ -75,18 +75,18 @@ void btrfs_##name(struct work_struct *arg)				\
 }
 
 struct btrfs_fs_info *
-btrfs_workqueue_owner(struct __btrfs_workqueue *wq)
+btrfs_workqueue_owner(const struct __btrfs_workqueue *wq)
 {
 	return wq->fs_info;
 }
 
 struct btrfs_fs_info *
-btrfs_work_owner(struct btrfs_work *work)
+btrfs_work_owner(const struct btrfs_work *work)
 {
 	return work->wq->fs_info;
 }
 
-bool btrfs_workqueue_normal_congested(struct btrfs_workqueue *wq)
+bool btrfs_workqueue_normal_congested(const struct btrfs_workqueue *wq)
 {
 	/*
 	 * We could compare wq->normal->pending with num_online_cpus()

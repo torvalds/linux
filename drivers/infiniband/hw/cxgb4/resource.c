@@ -90,7 +90,7 @@ u32 c4iw_get_resource(struct c4iw_id_table *id_table)
 
 void c4iw_put_resource(struct c4iw_id_table *id_table, u32 entry)
 {
-	pr_debug("%s entry 0x%x\n", __func__, entry);
+	pr_debug("entry 0x%x\n", entry);
 	c4iw_id_free(id_table, entry);
 }
 
@@ -141,7 +141,7 @@ u32 c4iw_get_cqid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
 	}
 out:
 	mutex_unlock(&uctx->lock);
-	pr_debug("%s qid 0x%x\n", __func__, qid);
+	pr_debug("qid 0x%x\n", qid);
 	mutex_lock(&rdev->stats.lock);
 	if (rdev->stats.qid.cur > rdev->stats.qid.max)
 		rdev->stats.qid.max = rdev->stats.qid.cur;
@@ -157,7 +157,7 @@ void c4iw_put_cqid(struct c4iw_rdev *rdev, u32 qid,
 	entry = kmalloc(sizeof *entry, GFP_KERNEL);
 	if (!entry)
 		return;
-	pr_debug("%s qid 0x%x\n", __func__, qid);
+	pr_debug("qid 0x%x\n", qid);
 	entry->qid = qid;
 	mutex_lock(&uctx->lock);
 	list_add_tail(&entry->entry, &uctx->cqids);
@@ -215,7 +215,7 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
 	}
 out:
 	mutex_unlock(&uctx->lock);
-	pr_debug("%s qid 0x%x\n", __func__, qid);
+	pr_debug("qid 0x%x\n", qid);
 	mutex_lock(&rdev->stats.lock);
 	if (rdev->stats.qid.cur > rdev->stats.qid.max)
 		rdev->stats.qid.max = rdev->stats.qid.cur;
@@ -231,7 +231,7 @@ void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qid,
 	entry = kmalloc(sizeof *entry, GFP_KERNEL);
 	if (!entry)
 		return;
-	pr_debug("%s qid 0x%x\n", __func__, qid);
+	pr_debug("qid 0x%x\n", qid);
 	entry->qid = qid;
 	mutex_lock(&uctx->lock);
 	list_add_tail(&entry->entry, &uctx->qpids);
@@ -254,7 +254,7 @@ void c4iw_destroy_resource(struct c4iw_resource *rscp)
 u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev->pbl_pool, size);
-	pr_debug("%s addr 0x%x size %d\n", __func__, (u32)addr, size);
+	pr_debug("addr 0x%x size %d\n", (u32)addr, size);
 	mutex_lock(&rdev->stats.lock);
 	if (addr) {
 		rdev->stats.pbl.cur += roundup(size, 1 << MIN_PBL_SHIFT);
@@ -268,7 +268,7 @@ u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size)
 
 void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size)
 {
-	pr_debug("%s addr 0x%x size %d\n", __func__, addr, size);
+	pr_debug("addr 0x%x size %d\n", addr, size);
 	mutex_lock(&rdev->stats.lock);
 	rdev->stats.pbl.cur -= roundup(size, 1 << MIN_PBL_SHIFT);
 	mutex_unlock(&rdev->stats.lock);
@@ -290,8 +290,8 @@ int c4iw_pblpool_create(struct c4iw_rdev *rdev)
 	while (pbl_start < pbl_top) {
 		pbl_chunk = min(pbl_top - pbl_start + 1, pbl_chunk);
 		if (gen_pool_add(rdev->pbl_pool, pbl_start, pbl_chunk, -1)) {
-			pr_debug("%s failed to add PBL chunk (%x/%x)\n",
-				 __func__, pbl_start, pbl_chunk);
+			pr_debug("failed to add PBL chunk (%x/%x)\n",
+				 pbl_start, pbl_chunk);
 			if (pbl_chunk <= 1024 << MIN_PBL_SHIFT) {
 				pr_warn("Failed to add all PBL chunks (%x/%x)\n",
 					pbl_start, pbl_top - pbl_start);
@@ -299,8 +299,8 @@ int c4iw_pblpool_create(struct c4iw_rdev *rdev)
 			}
 			pbl_chunk >>= 1;
 		} else {
-			pr_debug("%s added PBL chunk (%x/%x)\n",
-				 __func__, pbl_start, pbl_chunk);
+			pr_debug("added PBL chunk (%x/%x)\n",
+				 pbl_start, pbl_chunk);
 			pbl_start += pbl_chunk;
 		}
 	}
@@ -322,7 +322,7 @@ void c4iw_pblpool_destroy(struct c4iw_rdev *rdev)
 u32 c4iw_rqtpool_alloc(struct c4iw_rdev *rdev, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev->rqt_pool, size << 6);
-	pr_debug("%s addr 0x%x size %d\n", __func__, (u32)addr, size << 6);
+	pr_debug("addr 0x%x size %d\n", (u32)addr, size << 6);
 	if (!addr)
 		pr_warn_ratelimited("%s: Out of RQT memory\n",
 				    pci_name(rdev->lldi.pdev));
@@ -339,7 +339,7 @@ u32 c4iw_rqtpool_alloc(struct c4iw_rdev *rdev, int size)
 
 void c4iw_rqtpool_free(struct c4iw_rdev *rdev, u32 addr, int size)
 {
-	pr_debug("%s addr 0x%x size %d\n", __func__, addr, size << 6);
+	pr_debug("addr 0x%x size %d\n", addr, size << 6);
 	mutex_lock(&rdev->stats.lock);
 	rdev->stats.rqt.cur -= roundup(size << 6, 1 << MIN_RQT_SHIFT);
 	mutex_unlock(&rdev->stats.lock);
@@ -361,8 +361,8 @@ int c4iw_rqtpool_create(struct c4iw_rdev *rdev)
 	while (rqt_start < rqt_top) {
 		rqt_chunk = min(rqt_top - rqt_start + 1, rqt_chunk);
 		if (gen_pool_add(rdev->rqt_pool, rqt_start, rqt_chunk, -1)) {
-			pr_debug("%s failed to add RQT chunk (%x/%x)\n",
-				 __func__, rqt_start, rqt_chunk);
+			pr_debug("failed to add RQT chunk (%x/%x)\n",
+				 rqt_start, rqt_chunk);
 			if (rqt_chunk <= 1024 << MIN_RQT_SHIFT) {
 				pr_warn("Failed to add all RQT chunks (%x/%x)\n",
 					rqt_start, rqt_top - rqt_start);
@@ -370,8 +370,8 @@ int c4iw_rqtpool_create(struct c4iw_rdev *rdev)
 			}
 			rqt_chunk >>= 1;
 		} else {
-			pr_debug("%s added RQT chunk (%x/%x)\n",
-				 __func__, rqt_start, rqt_chunk);
+			pr_debug("added RQT chunk (%x/%x)\n",
+				 rqt_start, rqt_chunk);
 			rqt_start += rqt_chunk;
 		}
 	}
@@ -391,7 +391,7 @@ void c4iw_rqtpool_destroy(struct c4iw_rdev *rdev)
 u32 c4iw_ocqp_pool_alloc(struct c4iw_rdev *rdev, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev->ocqp_pool, size);
-	pr_debug("%s addr 0x%x size %d\n", __func__, (u32)addr, size);
+	pr_debug("addr 0x%x size %d\n", (u32)addr, size);
 	if (addr) {
 		mutex_lock(&rdev->stats.lock);
 		rdev->stats.ocqp.cur += roundup(size, 1 << MIN_OCQP_SHIFT);
@@ -404,7 +404,7 @@ u32 c4iw_ocqp_pool_alloc(struct c4iw_rdev *rdev, int size)
 
 void c4iw_ocqp_pool_free(struct c4iw_rdev *rdev, u32 addr, int size)
 {
-	pr_debug("%s addr 0x%x size %d\n", __func__, addr, size);
+	pr_debug("addr 0x%x size %d\n", addr, size);
 	mutex_lock(&rdev->stats.lock);
 	rdev->stats.ocqp.cur -= roundup(size, 1 << MIN_OCQP_SHIFT);
 	mutex_unlock(&rdev->stats.lock);
@@ -426,8 +426,8 @@ int c4iw_ocqp_pool_create(struct c4iw_rdev *rdev)
 	while (start < top) {
 		chunk = min(top - start + 1, chunk);
 		if (gen_pool_add(rdev->ocqp_pool, start, chunk, -1)) {
-			pr_debug("%s failed to add OCQP chunk (%x/%x)\n",
-				 __func__, start, chunk);
+			pr_debug("failed to add OCQP chunk (%x/%x)\n",
+				 start, chunk);
 			if (chunk <= 1024 << MIN_OCQP_SHIFT) {
 				pr_warn("Failed to add all OCQP chunks (%x/%x)\n",
 					start, top - start);
@@ -435,8 +435,8 @@ int c4iw_ocqp_pool_create(struct c4iw_rdev *rdev)
 			}
 			chunk >>= 1;
 		} else {
-			pr_debug("%s added OCQP chunk (%x/%x)\n",
-				 __func__, start, chunk);
+			pr_debug("added OCQP chunk (%x/%x)\n",
+				 start, chunk);
 			start += chunk;
 		}
 	}

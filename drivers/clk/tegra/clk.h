@@ -362,12 +362,6 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 			    struct tegra_clk_pll_params *pll_params,
 			    spinlock_t *lock);
 
-struct clk *tegra_clk_register_pllxc_tegra210(const char *name,
-			const char *parent_name, void __iomem *clk_base,
-			void __iomem *pmc, unsigned long flags,
-			struct tegra_clk_pll_params *pll_params,
-			spinlock_t *lock);
-
 struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 			   void __iomem *clk_base, void __iomem *pmc,
 			   unsigned long flags,
@@ -667,6 +661,9 @@ struct tegra_periph_init_data {
 			_div_shift, _div_width, _div_frac_width, _div_flags, \
 			_clk_num, _gate_flags, _clk_id,\
 			NULL, 0, NULL)
+
+struct clk *tegra_clk_register_periph_data(void __iomem *clk_base,
+					   struct tegra_periph_init_data *init);
 
 /**
  * struct clk_super_mux - super clock

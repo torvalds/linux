@@ -189,9 +189,7 @@ static int mwifiex_cmd_tx_rate_cfg(struct mwifiex_private *priv,
 	if (pbitmap_rates != NULL) {
 		rate_scope->hr_dsss_rate_bitmap = cpu_to_le16(pbitmap_rates[0]);
 		rate_scope->ofdm_rate_bitmap = cpu_to_le16(pbitmap_rates[1]);
-		for (i = 0;
-		     i < sizeof(rate_scope->ht_mcs_rate_bitmap) / sizeof(u16);
-		     i++)
+		for (i = 0; i < ARRAY_SIZE(rate_scope->ht_mcs_rate_bitmap); i++)
 			rate_scope->ht_mcs_rate_bitmap[i] =
 				cpu_to_le16(pbitmap_rates[2 + i]);
 		if (priv->adapter->fw_api_ver == MWIFIEX_FW_V15) {
@@ -206,9 +204,7 @@ static int mwifiex_cmd_tx_rate_cfg(struct mwifiex_private *priv,
 			cpu_to_le16(priv->bitmap_rates[0]);
 		rate_scope->ofdm_rate_bitmap =
 			cpu_to_le16(priv->bitmap_rates[1]);
-		for (i = 0;
-		     i < sizeof(rate_scope->ht_mcs_rate_bitmap) / sizeof(u16);
-		     i++)
+		for (i = 0; i < ARRAY_SIZE(rate_scope->ht_mcs_rate_bitmap); i++)
 			rate_scope->ht_mcs_rate_bitmap[i] =
 				cpu_to_le16(priv->bitmap_rates[2 + i]);
 		if (priv->adapter->fw_api_ver == MWIFIEX_FW_V15) {
@@ -1755,7 +1751,7 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 	struct mwifiex_ie_types_vhtcap *vht_capab;
 	struct mwifiex_ie_types_aid *aid;
 	struct mwifiex_ie_types_tdls_idle_timeout *timeout;
-	u8 *pos, qos_info;
+	u8 *pos;
 	u16 config_len = 0;
 	struct station_parameters *params = priv->sta_params;
 
@@ -1789,12 +1785,11 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 		put_unaligned_le16(params->capability, pos);
 		config_len += sizeof(params->capability);
 
-		qos_info = params->uapsd_queues | (params->max_sp << 5);
-		wmm_qos_info = (struct mwifiex_ie_types_qos_info *)(pos +
-								    config_len);
+		wmm_qos_info = (void *)(pos + config_len);
 		wmm_qos_info->header.type = cpu_to_le16(WLAN_EID_QOS_CAPA);
-		wmm_qos_info->header.len = cpu_to_le16(sizeof(qos_info));
-		wmm_qos_info->qos_info = qos_info;
+		wmm_qos_info->header.len =
+				cpu_to_le16(sizeof(wmm_qos_info->qos_info));
+		wmm_qos_info->qos_info = 0;
 		config_len += sizeof(struct mwifiex_ie_types_qos_info);
 
 		if (params->ht_capa) {
@@ -2064,6 +2059,15 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_11AC_CFG:
 		ret = mwifiex_cmd_11ac_cfg(priv, cmd_ptr, cmd_action, data_buf);
 		break;
+	case HostCmd_CMD_PACKET_AGGR_CTRL:
+		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->params.pkt_aggr_ctrl.action = cpu_to_le16(cmd_action);
+		cmd_ptr->params.pkt_aggr_ctrl.enable =
+						cpu_to_le16(*(u16 *)data_buf);
+		cmd_ptr->size =
+			cpu_to_le16(sizeof(struct host_cmd_ds_pkt_aggr_ctrl) +
+				    S_DS_GEN);
+		break;
 	case HostCmd_CMD_P2P_MODE_CFG:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
 		cmd_ptr->params.mode_cfg.action = cpu_to_le16(cmd_action);
@@ -2241,6 +2245,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 	enum state_11d_t state_11d;
 	struct mwifiex_ds_11n_tx_cfg tx_cfg;
 	u8 sdio_sp_rx_aggr_enable;
+	u16 packet_aggr_enable;
 	int data;
 
 	if (first_sta) {
@@ -2385,6 +2390,14 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 		if (ret)
 			mwifiex_dbg(priv->adapter, ERROR,
 				    "11D: failed to enable 11D\n");
+	}
+
+	/* Pacekt aggregation handshake with firmware */
+	if (aggr_ctrl) {
+		packet_aggr_enable = true;
+		mwifiex_send_cmd(priv, HostCmd_CMD_PACKET_AGGR_CTRL,
+				 HostCmd_ACT_GEN_SET, 0,
+				 &packet_aggr_enable, true);
 	}
 
 	/* Send cmd to FW to configure 11n specific configuration

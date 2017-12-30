@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/sched/mm.h>
+#include <linux/mmu_context.h>
 #include <asm/cputable.h>
 #include <asm/current.h>
 #include <asm/copro.h>
@@ -45,7 +46,7 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 	mutex_init(&ctx->mapping_lock);
 	ctx->mapping = NULL;
 
-	if (cxl_is_psl8(afu)) {
+	if (cxl_is_power8()) {
 		spin_lock_init(&ctx->sste_lock);
 
 		/*
@@ -189,7 +190,7 @@ int cxl_context_iomap(struct cxl_context *ctx, struct vm_area_struct *vma)
 		if (start + len > ctx->afu->adapter->ps_size)
 			return -EINVAL;
 
-		if (cxl_is_psl9(ctx->afu)) {
+		if (cxl_is_power9()) {
 			/*
 			 * Make sure there is a valid problem state
 			 * area space for this AFU.
@@ -267,6 +268,8 @@ int __detach_context(struct cxl_context *ctx)
 
 	/* Decrease the mm count on the context */
 	cxl_context_mm_count_put(ctx);
+	if (ctx->mm)
+		mm_context_remove_copro(ctx->mm);
 	ctx->mm = NULL;
 
 	return 0;
@@ -324,7 +327,7 @@ static void reclaim_ctx(struct rcu_head *rcu)
 {
 	struct cxl_context *ctx = container_of(rcu, struct cxl_context, rcu);
 
-	if (cxl_is_psl8(ctx->afu))
+	if (cxl_is_power8())
 		free_page((u64)ctx->sstp);
 	if (ctx->ff_page)
 		__free_page(ctx->ff_page);

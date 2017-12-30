@@ -30,13 +30,13 @@
 /* Read a register in a PRM instance */
 static u32 am33xx_prm_read_reg(s16 inst, u16 idx)
 {
-	return readl_relaxed(prm_base + inst + idx);
+	return readl_relaxed(prm_base.va + inst + idx);
 }
 
 /* Write into a register in a PRM instance */
 static void am33xx_prm_write_reg(u32 val, s16 inst, u16 idx)
 {
-	writel_relaxed(val, prm_base + inst + idx);
+	writel_relaxed(val, prm_base.va + inst + idx);
 }
 
 /* Read-modify-write a register in PRM. Caller must lock */
@@ -172,17 +172,6 @@ static int am33xx_pwrdm_read_pwrst(struct powerdomain *pwrdm)
 	v = am33xx_prm_read_reg(pwrdm->prcm_offs, pwrdm->pwrstst_offs);
 	v &= OMAP_POWERSTATEST_MASK;
 	v >>= OMAP_POWERSTATEST_SHIFT;
-
-	return v;
-}
-
-static int am33xx_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
-{
-	u32 v;
-
-	v = am33xx_prm_read_reg(pwrdm->prcm_offs, pwrdm->pwrstst_offs);
-	v &= AM33XX_LASTPOWERSTATEENTERED_MASK;
-	v >>= AM33XX_LASTPOWERSTATEENTERED_SHIFT;
 
 	return v;
 }
@@ -357,7 +346,6 @@ struct pwrdm_ops am33xx_pwrdm_operations = {
 	.pwrdm_set_next_pwrst		= am33xx_pwrdm_set_next_pwrst,
 	.pwrdm_read_next_pwrst		= am33xx_pwrdm_read_next_pwrst,
 	.pwrdm_read_pwrst		= am33xx_pwrdm_read_pwrst,
-	.pwrdm_read_prev_pwrst		= am33xx_pwrdm_read_prev_pwrst,
 	.pwrdm_set_logic_retst		= am33xx_pwrdm_set_logic_retst,
 	.pwrdm_read_logic_pwrst		= am33xx_pwrdm_read_logic_pwrst,
 	.pwrdm_read_logic_retst		= am33xx_pwrdm_read_logic_retst,

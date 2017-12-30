@@ -127,7 +127,8 @@ static void nlmon_setup(struct net_device *dev)
 	dev->min_mtu = sizeof(struct nlmsghdr);
 }
 
-static int nlmon_validate(struct nlattr *tb[], struct nlattr *data[])
+static int nlmon_validate(struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	if (tb[IFLA_ADDRESS])
 		return -EINVAL;

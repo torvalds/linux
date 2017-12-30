@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2002-2003  David McCullough <davidm@snapgear.com>
  * Copyright (C) 1998       Kenneth Albanowski <kjahds@kjahds.com>
@@ -9,8 +10,8 @@
 #ifndef _LINUX_FLAT_H
 #define _LINUX_FLAT_H
 
-#include <asm/flat.h>
 #include <uapi/linux/flat.h>
+#include <asm/flat.h>
 
 /*
  * While it would be nice to keep this header clean,  users of older

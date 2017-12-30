@@ -49,6 +49,7 @@
 #include <linux/uaccess.h>
 
 #include <rdma/ib.h>
+#include <rdma/uverbs_std_types.h>
 
 #include "uverbs.h"
 #include "core_priv.h"
@@ -127,6 +128,7 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL] = ib_uverbs_ex_create_rwq_ind_table,
 	[IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL] = ib_uverbs_ex_destroy_rwq_ind_table,
 	[IB_USER_VERBS_EX_CMD_MODIFY_QP]        = ib_uverbs_ex_modify_qp,
+	[IB_USER_VERBS_EX_CMD_MODIFY_CQ]        = ib_uverbs_ex_modify_cq,
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
@@ -250,6 +252,7 @@ void ib_uverbs_release_file(struct kref *ref)
 	if (atomic_dec_and_test(&file->device->refcount))
 		ib_uverbs_comp_dev(file->device);
 
+	kobject_put(&file->device->kobj);
 	kfree(file);
 }
 
@@ -594,7 +597,6 @@ struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file
 {
 	struct ib_uverbs_async_event_file *ev_file;
 	struct file *filp;
-	int ret;
 
 	ev_file = kzalloc(sizeof(*ev_file), GFP_KERNEL);
 	if (!ev_file)
@@ -620,20 +622,10 @@ struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file
 	INIT_IB_EVENT_HANDLER(&uverbs_file->event_handler,
 			      ib_dev,
 			      ib_uverbs_event_handler);
-	ret = ib_register_event_handler(&uverbs_file->event_handler);
-	if (ret)
-		goto err_put_file;
-
+	ib_register_event_handler(&uverbs_file->event_handler);
 	/* At that point async file stuff was fully set */
 
 	return filp;
-
-err_put_file:
-	fput(filp);
-	kref_put(&uverbs_file->async_file->ref,
-		 ib_uverbs_release_async_event_file);
-	uverbs_file->async_file = NULL;
-	return ERR_PTR(ret);
 
 err_put_refs:
 	kref_put(&ev_file->uverbs_file->ref, ib_uverbs_release_file);
@@ -772,7 +764,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			}
 
 			if (!access_ok(VERIFY_WRITE,
-				       (void __user *) (unsigned long) ex_hdr.response,
+				       u64_to_user_ptr(ex_hdr.response),
 				       (hdr.out_words + ex_hdr.provider_out_words) * 8)) {
 				ret = -EFAULT;
 				goto out;
@@ -784,19 +776,17 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			}
 		}
 
-		INIT_UDATA_BUF_OR_NULL(&ucore, buf, (unsigned long) ex_hdr.response,
-				       hdr.in_words * 8, hdr.out_words * 8);
+		ib_uverbs_init_udata_buf_or_null(&ucore, buf,
+					u64_to_user_ptr(ex_hdr.response),
+					hdr.in_words * 8, hdr.out_words * 8);
 
-		INIT_UDATA_BUF_OR_NULL(&uhw,
-				       buf + ucore.inlen,
-				       (unsigned long) ex_hdr.response + ucore.outlen,
-				       ex_hdr.provider_in_words * 8,
-				       ex_hdr.provider_out_words * 8);
+		ib_uverbs_init_udata_buf_or_null(&uhw,
+					buf + ucore.inlen,
+					u64_to_user_ptr(ex_hdr.response) + ucore.outlen,
+					ex_hdr.provider_in_words * 8,
+					ex_hdr.provider_out_words * 8);
 
-		ret = uverbs_ex_cmd_table[command](file,
-						   ib_dev,
-						   &ucore,
-						   &uhw);
+		ret = uverbs_ex_cmd_table[command](file, ib_dev, &ucore, &uhw);
 		if (!ret)
 			ret = written_count;
 	} else {
@@ -917,7 +907,6 @@ err:
 static int ib_uverbs_close(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_file *file = filp->private_data;
-	struct ib_uverbs_device *dev = file->device;
 
 	mutex_lock(&file->cleanup_mutex);
 	if (file->ucontext) {
@@ -939,7 +928,6 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 			 ib_uverbs_release_async_event_file);
 
 	kref_put(&file->ref, ib_uverbs_release_file);
-	kobject_put(&dev->kobj);
 
 	return 0;
 }
@@ -950,6 +938,9 @@ static const struct file_operations uverbs_fops = {
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
 	.llseek	 = no_llseek,
+#if IS_ENABLED(CONFIG_INFINIBAND_EXP_USER_ACCESS)
+	.unlocked_ioctl = ib_uverbs_ioctl,
+#endif
 };
 
 static const struct file_operations uverbs_mmap_fops = {
@@ -959,6 +950,9 @@ static const struct file_operations uverbs_mmap_fops = {
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
 	.llseek	 = no_llseek,
+#if IS_ENABLED(CONFIG_INFINIBAND_EXP_USER_ACCESS)
+	.unlocked_ioctl = ib_uverbs_ioctl,
+#endif
 };
 
 static struct ib_client uverbs_client = {
@@ -1109,6 +1103,18 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (device_create_file(uverbs_dev->dev, &dev_attr_abi_version))
 		goto err_class;
 
+	if (!device->specs_root) {
+		const struct uverbs_object_tree_def *default_root[] = {
+			uverbs_default_get_objects()};
+
+		uverbs_dev->specs_root = uverbs_alloc_spec_tree(1,
+								default_root);
+		if (IS_ERR(uverbs_dev->specs_root))
+			goto err_class;
+
+		device->specs_root = uverbs_dev->specs_root;
+	}
+
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
 
 	return;
@@ -1154,7 +1160,6 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 		kref_get(&file->ref);
 		mutex_unlock(&uverbs_dev->lists_mutex);
 
-		ib_uverbs_event_handler(&file->event_handler, &event);
 
 		mutex_lock(&file->cleanup_mutex);
 		ucontext = file->ucontext;
@@ -1171,6 +1176,7 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 			 * for example due to freeing the resources
 			 * (e.g mmput).
 			 */
+			ib_uverbs_event_handler(&file->event_handler, &event);
 			ib_dev->disassociate_ucontext(ucontext);
 			mutex_lock(&file->cleanup_mutex);
 			ib_uverbs_cleanup_ucontext(file, ucontext, true);
@@ -1240,6 +1246,11 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 		ib_uverbs_comp_dev(uverbs_dev);
 	if (wait_clients)
 		wait_for_completion(&uverbs_dev->comp);
+	if (uverbs_dev->specs_root) {
+		uverbs_free_spec_tree(uverbs_dev->specs_root);
+		device->specs_root = NULL;
+	}
+
 	kobject_put(&uverbs_dev->kobj);
 }
 

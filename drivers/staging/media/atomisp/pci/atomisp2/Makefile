@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 atomisp-objs += \
 	atomisp_drvfs.o \
 	atomisp_file.o \
@@ -108,7 +109,6 @@ atomisp-objs += \
 	css2400/sh_css_metadata.o \
 	css2400/base/refcount/src/refcount.o \
 	css2400/base/circbuf/src/circbuf.o \
-	css2400/sh_css_irq.o \
 	css2400/camera/pipe/src/pipe_binarydesc.o \
 	css2400/camera/pipe/src/pipe_util.o \
 	css2400/camera/pipe/src/pipe_stagedesc.o \
@@ -353,3 +353,11 @@ DEFINES += -DSYSTEM_hive_isp_css_2400_system -DISP2400
 
 ccflags-y += $(INCLUDES) $(DEFINES) -fno-common
 
+# HACK! While this driver is in bad shape, don't enable several warnings
+#       that would be otherwise enabled with W=1
+ccflags-y += $(call cc-disable-warning, implicit-fallthrough)
+ccflags-y += $(call cc-disable-warning, missing-prototypes)
+ccflags-y += $(call cc-disable-warning, missing-declarations)
+ccflags-y += $(call cc-disable-warning, suggest-attribute=format)
+ccflags-y += $(call cc-disable-warning, unused-const-variable)
+ccflags-y += $(call cc-disable-warning, unused-but-set-variable)

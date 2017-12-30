@@ -381,13 +381,11 @@ static irqreturn_t max1027_trigger_handler(int irq, void *private)
 }
 
 static const struct iio_trigger_ops max1027_trigger_ops = {
-	.owner = THIS_MODULE,
 	.validate_device = &iio_trigger_validate_own_device,
 	.set_trigger_state = &max1027_set_trigger_state,
 };
 
 static const struct iio_info max1027_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &max1027_read_raw,
 	.validate_trigger = &max1027_validate_trigger,
 	.debugfs_reg_access = &max1027_debugfs_reg_access,

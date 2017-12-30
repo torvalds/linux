@@ -38,6 +38,8 @@
 #define MAX_WRITE_REGSIZE	16
 #define LOG2_E_100X 144
 
+#define INTLOG10X100(x) ((u32) (((u64) intlog10(x) * 100) >> 24))
+
 /* DVB-C constellation */
 enum sony_dvbc_constellation_t {
 	SONY_DVBC_CONSTELLATION_16QAM,
@@ -65,6 +67,7 @@ struct cxd2841er_priv {
 	u8				system;
 	enum cxd2841er_xtal		xtal;
 	enum fe_caps caps;
+	u32				flags;
 };
 
 static const struct cxd2841er_cnr_data s_cn_data[] = {
@@ -201,11 +204,6 @@ static const struct cxd2841er_cnr_data s2_cn_data[] = {
 	{ 0x0016, 19700 }, { 0x0015, 19900 }, { 0x0014, 20000 },
 };
 
-#define MAKE_IFFREQ_CONFIG(iffreq) ((u32)(((iffreq)/41.0)*16777216.0 + 0.5))
-#define MAKE_IFFREQ_CONFIG_XTAL(xtal, iffreq) ((xtal == SONY_XTAL_24000) ? \
-		(u32)(((iffreq)/48.0)*16777216.0 + 0.5) : \
-		(u32)(((iffreq)/41.0)*16777216.0 + 0.5))
-
 static int cxd2841er_freeze_regs(struct cxd2841er_priv *priv);
 static int cxd2841er_unfreeze_regs(struct cxd2841er_priv *priv);
 
@@ -214,10 +212,8 @@ static void cxd2841er_i2c_debug(struct cxd2841er_priv *priv,
 				const u8 *data, u32 len)
 {
 	dev_dbg(&priv->i2c->dev,
-		"cxd2841er: I2C %s addr %02x reg 0x%02x size %d\n",
-		(write == 0 ? "read" : "write"), addr, reg, len);
-	print_hex_dump_bytes("cxd2841er: I2C data: ",
-		DUMP_PREFIX_OFFSET, data, len);
+		"cxd2841er: I2C %s addr %02x reg 0x%02x size %d data %*ph\n",
+		(write == 0 ? "read" : "write"), addr, reg, len, len, data);
 }
 
 static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
@@ -284,17 +280,8 @@ static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
 		}
 	};
 
-	ret = i2c_transfer(priv->i2c, &msg[0], 1);
-	if (ret >= 0 && ret != 1)
-		ret = -EIO;
-	if (ret < 0) {
-		dev_warn(&priv->i2c->dev,
-			"%s: i2c rw failed=%d addr=%02x reg=%02x\n",
-			KBUILD_MODNAME, ret, i2c_addr, reg);
-		return ret;
-	}
-	ret = i2c_transfer(priv->i2c, &msg[1], 1);
-	if (ret >= 0 && ret != 1)
+	ret = i2c_transfer(priv->i2c, msg, 2);
+	if (ret >= 0 && ret != 2)
 		ret = -EIO;
 	if (ret < 0) {
 		dev_warn(&priv->i2c->dev,
@@ -325,6 +312,49 @@ static int cxd2841er_set_reg_bits(struct cxd2841er_priv *priv,
 		data = ((data & mask) | (rdata & (mask ^ 0xFF)));
 	}
 	return cxd2841er_write_reg(priv, addr, reg, data);
+}
+
+static u32 cxd2841er_calc_iffreq_xtal(enum cxd2841er_xtal xtal, u32 ifhz)
+{
+	u64 tmp;
+
+	tmp = (u64) ifhz * 16777216;
+	do_div(tmp, ((xtal == SONY_XTAL_24000) ? 48000000 : 41000000));
+
+	return (u32) tmp;
+}
+
+static u32 cxd2841er_calc_iffreq(u32 ifhz)
+{
+	return cxd2841er_calc_iffreq_xtal(SONY_XTAL_20500, ifhz);
+}
+
+static int cxd2841er_get_if_hz(struct cxd2841er_priv *priv, u32 def_hz)
+{
+	u32 hz;
+
+	if (priv->frontend.ops.tuner_ops.get_if_frequency
+			&& (priv->flags & CXD2841ER_AUTO_IFHZ))
+		priv->frontend.ops.tuner_ops.get_if_frequency(
+			&priv->frontend, &hz);
+	else
+		hz = def_hz;
+
+	return hz;
+}
+
+static int cxd2841er_tuner_set(struct dvb_frontend *fe)
+{
+	struct cxd2841er_priv *priv = fe->demodulator_priv;
+
+	if ((priv->flags & CXD2841ER_USE_GATECTRL) && fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+	if (fe->ops.tuner_ops.set_params)
+		fe->ops.tuner_ops.set_params(fe);
+	if ((priv->flags & CXD2841ER_USE_GATECTRL) && fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	return 0;
 }
 
 static int cxd2841er_dvbs2_set_symbol_rate(struct cxd2841er_priv *priv,
@@ -456,6 +486,8 @@ static int cxd2841er_active_i_to_sleep_tc(struct cxd2841er_priv *priv);
 static int cxd2841er_sleep_tc_to_shutdown(struct cxd2841er_priv *priv);
 
 static int cxd2841er_shutdown_to_sleep_tc(struct cxd2841er_priv *priv);
+
+static int cxd2841er_sleep_tc(struct dvb_frontend *fe);
 
 static int cxd2841er_retune_active(struct cxd2841er_priv *priv,
 				   struct dtv_frontend_properties *p)
@@ -884,6 +916,18 @@ static void cxd2841er_set_ts_clock_mode(struct cxd2841er_priv *priv,
 
 	/*
 	 * slave    Bank    Addr    Bit    default    Name
+	 * <SLV-T>  00h     C4h     [1:0]  2'b??      OSERCKMODE
+	 */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4,
+		((priv->flags & CXD2841ER_TS_SERIAL) ? 0x01 : 0x00), 0x03);
+	/*
+	 * slave    Bank    Addr    Bit    default    Name
+	 * <SLV-T>  00h     D1h     [1:0]  2'b??      OSERDUTYMODE
+	 */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xd1,
+		((priv->flags & CXD2841ER_TS_SERIAL) ? 0x01 : 0x00), 0x03);
+	/*
+	 * slave    Bank    Addr    Bit    default    Name
 	 * <SLV-T>  00h     D9h     [7:0]  8'h08      OTSCKPERIOD
 	 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0xd9, 0x08);
@@ -897,7 +941,8 @@ static void cxd2841er_set_ts_clock_mode(struct cxd2841er_priv *priv,
 	 * slave    Bank    Addr    Bit    default    Name
 	 * <SLV-T>  00h     33h     [1:0]  2'b01      OREG_CKSEL_TSIF
 	 */
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x33, 0x00, 0x03);
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x33,
+		((priv->flags & CXD2841ER_TS_SERIAL) ? 0x01 : 0x00), 0x03);
 	/*
 	 * Enable TS IF Clock
 	 * slave    Bank    Addr    Bit    default    Name
@@ -1421,11 +1466,11 @@ static int cxd2841er_read_ber_i(struct cxd2841er_priv *priv,
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x60);
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x5B, pktnum, sizeof(pktnum));
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x16, data, sizeof(data));
+	cxd2841er_unfreeze_regs(priv);
 
 	if (!pktnum[0] && !pktnum[1]) {
 		dev_dbg(&priv->i2c->dev,
 				"%s(): no valid BER data\n", __func__);
-		cxd2841er_unfreeze_regs(priv);
 		return -EINVAL;
 	}
 
@@ -1435,7 +1480,6 @@ static int cxd2841er_read_ber_i(struct cxd2841er_priv *priv,
 	dev_dbg(&priv->i2c->dev, "%s(): bit_error=%u bit_count=%u\n",
 			__func__, *bit_error, *bit_count);
 
-	cxd2841er_unfreeze_regs(priv);
 	return 0;
 }
 
@@ -1645,6 +1689,8 @@ static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 	 * <SLV-T>    A1h       12h       [7:0]   ICPM_QUICKCNDT[7:0]
 	 */
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x10, data, 3);
+	cxd2841er_unfreeze_regs(priv);
+
 	if (data[0] & 0x01) {
 		value = ((u32)(data[1] & 0x1F) << 8) | (u32)(data[2] & 0xFF);
 		min_index = 0;
@@ -1687,11 +1733,9 @@ static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 	} else {
 		dev_dbg(&priv->i2c->dev,
 			"%s(): no data available\n", __func__);
-		cxd2841er_unfreeze_regs(priv);
 		return -EINVAL;
 	}
 done:
-	cxd2841er_unfreeze_regs(priv);
 	*snr = res;
 	return 0;
 }
@@ -1720,12 +1764,12 @@ static int cxd2841er_read_snr_c(struct cxd2841er_priv *priv, u32 *snr)
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x19, data, 1);
 	qam = (enum sony_dvbc_constellation_t) (data[0] & 0x07);
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x4C, data, 2);
+	cxd2841er_unfreeze_regs(priv);
 
 	reg = ((u32)(data[0]&0x1f) << 8) | (u32)data[1];
 	if (reg == 0) {
 		dev_dbg(&priv->i2c->dev,
 				"%s(): reg value out of range\n", __func__);
-		cxd2841er_unfreeze_regs(priv);
 		return 0;
 	}
 
@@ -1746,11 +1790,9 @@ static int cxd2841er_read_snr_c(struct cxd2841er_priv *priv, u32 *snr)
 		*snr = -88 * (int32_t)sony_log(reg) + 86999;
 		break;
 	default:
-		cxd2841er_unfreeze_regs(priv);
 		return -EINVAL;
 	}
 
-	cxd2841er_unfreeze_regs(priv);
 	return 0;
 }
 
@@ -1769,17 +1811,17 @@ static int cxd2841er_read_snr_t(struct cxd2841er_priv *priv, u32 *snr)
 	cxd2841er_freeze_regs(priv);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x28, data, sizeof(data));
+	cxd2841er_unfreeze_regs(priv);
+
 	reg = ((u32)data[0] << 8) | (u32)data[1];
 	if (reg == 0) {
 		dev_dbg(&priv->i2c->dev,
 			"%s(): reg value out of range\n", __func__);
-		cxd2841er_unfreeze_regs(priv);
 		return 0;
 	}
 	if (reg > 4996)
 		reg = 4996;
-	*snr = 10000 * ((intlog10(reg) - intlog10(5350 - reg)) >> 24) + 28500;
-	cxd2841er_unfreeze_regs(priv);
+	*snr = 100 * ((INTLOG10X100(reg) - INTLOG10X100(5350 - reg)) + 285);
 	return 0;
 }
 
@@ -1798,18 +1840,17 @@ static int cxd2841er_read_snr_t2(struct cxd2841er_priv *priv, u32 *snr)
 	cxd2841er_freeze_regs(priv);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x20);
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x28, data, sizeof(data));
+	cxd2841er_unfreeze_regs(priv);
+
 	reg = ((u32)data[0] << 8) | (u32)data[1];
 	if (reg == 0) {
 		dev_dbg(&priv->i2c->dev,
 			"%s(): reg value out of range\n", __func__);
-		cxd2841er_unfreeze_regs(priv);
 		return 0;
 	}
 	if (reg > 10876)
 		reg = 10876;
-	*snr = 10000 * ((intlog10(reg) -
-		intlog10(12600 - reg)) >> 24) + 32000;
-	cxd2841er_unfreeze_regs(priv);
+	*snr = 100 * ((INTLOG10X100(reg) - INTLOG10X100(12600 - reg)) + 320);
 	return 0;
 }
 
@@ -1829,15 +1870,15 @@ static int cxd2841er_read_snr_i(struct cxd2841er_priv *priv, u32 *snr)
 	cxd2841er_freeze_regs(priv);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x60);
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x28, data, sizeof(data));
+	cxd2841er_unfreeze_regs(priv);
+
 	reg = ((u32)data[0] << 8) | (u32)data[1];
 	if (reg == 0) {
 		dev_dbg(&priv->i2c->dev,
 				"%s(): reg value out of range\n", __func__);
-		cxd2841er_unfreeze_regs(priv);
 		return 0;
 	}
 	*snr = 10000 * (intlog10(reg) >> 24) - 9031;
-	cxd2841er_unfreeze_regs(priv);
 	return 0;
 }
 
@@ -2136,45 +2177,45 @@ static int cxd2841er_dvbt2_set_plp_config(struct cxd2841er_priv *priv,
 static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 						u32 bandwidth)
 {
-	u32 iffreq;
+	u32 iffreq, ifhz;
 	u8 data[MAX_WRITE_REGSIZE];
 
-	const uint8_t nominalRate8bw[3][5] = {
+	static const uint8_t nominalRate8bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x15, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	const uint8_t nominalRate7bw[3][5] = {
+	static const uint8_t nominalRate7bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x14, 0x80, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x18, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x14, 0x80, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	const uint8_t nominalRate6bw[3][5] = {
+	static const uint8_t nominalRate6bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}, /* 20.5MHz XTal */
 		{0x1C, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}  /* 41MHz XTal */
 	};
 
-	const uint8_t nominalRate5bw[3][5] = {
+	static const uint8_t nominalRate5bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}, /* 20.5MHz XTal */
 		{0x21, 0x99, 0x99, 0x99, 0x99}, /* 24MHz XTal */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}  /* 41MHz XTal */
 	};
 
-	const uint8_t nominalRate17bw[3][5] = {
+	static const uint8_t nominalRate17bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x58, 0xE2, 0xAF, 0xE0, 0xBC}, /* 20.5MHz XTal */
 		{0x68, 0x0F, 0xA2, 0x32, 0xD0}, /* 24MHz XTal */
 		{0x58, 0xE2, 0xAF, 0xE0, 0xBC}  /* 41MHz XTal */
 	};
 
-	const uint8_t itbCoef8bw[3][14] = {
+	static const uint8_t itbCoef8bw[3][14] = {
 		{0x26, 0xAF, 0x06, 0xCD, 0x13, 0xBB, 0x28, 0xBA,
 			0x23, 0xA9, 0x1F, 0xA8, 0x2C, 0xC8}, /* 20.5MHz XTal */
 		{0x2F, 0xBA, 0x28, 0x9B, 0x28, 0x9D, 0x28, 0xA1,
@@ -2183,7 +2224,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 			0x23, 0xA9, 0x1F, 0xA8, 0x2C, 0xC8}  /* 41MHz XTal   */
 	};
 
-	const uint8_t itbCoef7bw[3][14] = {
+	static const uint8_t itbCoef7bw[3][14] = {
 		{0x2C, 0xBD, 0x02, 0xCF, 0x04, 0xF8, 0x23, 0xA6,
 			0x29, 0xB0, 0x26, 0xA9, 0x21, 0xA5}, /* 20.5MHz XTal */
 		{0x30, 0xB1, 0x29, 0x9A, 0x28, 0x9C, 0x28, 0xA0,
@@ -2192,7 +2233,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 			0x29, 0xB0, 0x26, 0xA9, 0x21, 0xA5}  /* 41MHz XTal   */
 	};
 
-	const uint8_t itbCoef6bw[3][14] = {
+	static const uint8_t itbCoef6bw[3][14] = {
 		{0x27, 0xA7, 0x28, 0xB3, 0x02, 0xF0, 0x01, 0xE8,
 			0x00, 0xCF, 0x00, 0xE6, 0x23, 0xA4}, /* 20.5MHz XTal */
 		{0x31, 0xA8, 0x29, 0x9B, 0x27, 0x9C, 0x28, 0x9E,
@@ -2201,7 +2242,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 			0x00, 0xCF, 0x00, 0xE6, 0x23, 0xA4}  /* 41MHz XTal   */
 	};
 
-	const uint8_t itbCoef5bw[3][14] = {
+	static const uint8_t itbCoef5bw[3][14] = {
 		{0x27, 0xA7, 0x28, 0xB3, 0x02, 0xF0, 0x01, 0xE8,
 			0x00, 0xCF, 0x00, 0xE6, 0x23, 0xA4}, /* 20.5MHz XTal */
 		{0x31, 0xA8, 0x29, 0x9B, 0x27, 0x9C, 0x28, 0x9E,
@@ -2210,7 +2251,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 			0x00, 0xCF, 0x00, 0xE6, 0x23, 0xA4}  /* 41MHz XTal   */
 	};
 
-	const uint8_t itbCoef17bw[3][14] = {
+	static const uint8_t itbCoef17bw[3][14] = {
 		{0x25, 0xA0, 0x36, 0x8D, 0x2E, 0x94, 0x28, 0x9B,
 			0x32, 0x90, 0x2C, 0x9D, 0x29, 0x99}, /* 20.5MHz XTal */
 		{0x33, 0x8E, 0x2B, 0x97, 0x2D, 0x95, 0x37, 0x8B,
@@ -2239,10 +2280,12 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		 */
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef8bw[priv->xtal], 14);
 		/* <IF freq setting> */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 4.80);
+		ifhz = cxd2841er_get_if_hz(priv, 4800000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2267,10 +2310,12 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		 */
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef7bw[priv->xtal], 14);
 		/* <IF freq setting> */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 4.20);
+		ifhz = cxd2841er_get_if_hz(priv, 4200000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2295,10 +2340,12 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		 */
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef6bw[priv->xtal], 14);
 		/* <IF freq setting> */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 3.60);
+		ifhz = cxd2841er_get_if_hz(priv, 3600000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2323,10 +2370,12 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		 */
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef5bw[priv->xtal], 14);
 		/* <IF freq setting> */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 3.60);
+		ifhz = cxd2841er_get_if_hz(priv, 3600000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2351,10 +2400,12 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		 */
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef17bw[priv->xtal], 14);
 		/* <IF freq setting> */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 3.50);
+		ifhz = cxd2841er_get_if_hz(priv, 3500000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2373,33 +2424,33 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		struct cxd2841er_priv *priv, u32 bandwidth)
 {
 	u8 data[MAX_WRITE_REGSIZE];
-	u32 iffreq;
-	u8 nominalRate8bw[3][5] = {
+	u32 iffreq, ifhz;
+	static const u8 nominalRate8bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x15, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
-	u8 nominalRate7bw[3][5] = {
+	static const u8 nominalRate7bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x14, 0x80, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x18, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x14, 0x80, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
-	u8 nominalRate6bw[3][5] = {
+	static const u8 nominalRate6bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}, /* 20.5MHz XTal */
 		{0x1C, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}  /* 41MHz XTal */
 	};
-	u8 nominalRate5bw[3][5] = {
+	static const u8 nominalRate5bw[3][5] = {
 		/* TRCG Nominal Rate [37:0] */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}, /* 20.5MHz XTal */
 		{0x21, 0x99, 0x99, 0x99, 0x99}, /* 24MHz XTal */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}  /* 41MHz XTal */
 	};
 
-	u8 itbCoef8bw[3][14] = {
+	static const u8 itbCoef8bw[3][14] = {
 		{0x26, 0xAF, 0x06, 0xCD, 0x13, 0xBB, 0x28, 0xBA, 0x23, 0xA9,
 			0x1F, 0xA8, 0x2C, 0xC8}, /* 20.5MHz XTal */
 		{0x2F, 0xBA, 0x28, 0x9B, 0x28, 0x9D, 0x28, 0xA1, 0x29, 0xA5,
@@ -2407,7 +2458,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		{0x26, 0xAF, 0x06, 0xCD, 0x13, 0xBB, 0x28, 0xBA, 0x23, 0xA9,
 			0x1F, 0xA8, 0x2C, 0xC8}  /* 41MHz XTal   */
 	};
-	u8 itbCoef7bw[3][14] = {
+	static const u8 itbCoef7bw[3][14] = {
 		{0x2C, 0xBD, 0x02, 0xCF, 0x04, 0xF8, 0x23, 0xA6, 0x29, 0xB0,
 			0x26, 0xA9, 0x21, 0xA5}, /* 20.5MHz XTal */
 		{0x30, 0xB1, 0x29, 0x9A, 0x28, 0x9C, 0x28, 0xA0, 0x29, 0xA2,
@@ -2415,7 +2466,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		{0x2C, 0xBD, 0x02, 0xCF, 0x04, 0xF8, 0x23, 0xA6, 0x29, 0xB0,
 			0x26, 0xA9, 0x21, 0xA5}  /* 41MHz XTal   */
 	};
-	u8 itbCoef6bw[3][14] = {
+	static const u8 itbCoef6bw[3][14] = {
 		{0x27, 0xA7, 0x28, 0xB3, 0x02, 0xF0, 0x01, 0xE8, 0x00, 0xCF,
 			0x00, 0xE6, 0x23, 0xA4}, /* 20.5MHz XTal */
 		{0x31, 0xA8, 0x29, 0x9B, 0x27, 0x9C, 0x28, 0x9E, 0x29, 0xA4,
@@ -2423,7 +2474,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		{0x27, 0xA7, 0x28, 0xB3, 0x02, 0xF0, 0x01, 0xE8, 0x00, 0xCF,
 			0x00, 0xE6, 0x23, 0xA4}  /* 41MHz XTal   */
 	};
-	u8 itbCoef5bw[3][14] = {
+	static const u8 itbCoef5bw[3][14] = {
 		{0x27, 0xA7, 0x28, 0xB3, 0x02, 0xF0, 0x01, 0xE8, 0x00, 0xCF,
 			0x00, 0xE6, 0x23, 0xA4}, /* 20.5MHz XTal */
 		{0x31, 0xA8, 0x29, 0x9B, 0x27, 0x9C, 0x28, 0x9E, 0x29, 0xA4,
@@ -2450,10 +2501,12 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef8bw[priv->xtal], 14);
 		/* <IF freq setting> */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 4.80);
+		ifhz = cxd2841er_get_if_hz(priv, 4800000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2485,10 +2538,12 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef7bw[priv->xtal], 14);
 		/* <IF freq setting> */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 4.20);
+		ifhz = cxd2841er_get_if_hz(priv, 4200000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2520,10 +2575,12 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef6bw[priv->xtal], 14);
 		/* <IF freq setting> */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 3.60);
+		ifhz = cxd2841er_get_if_hz(priv, 3600000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2555,10 +2612,12 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef5bw[priv->xtal], 14);
 		/* <IF freq setting> */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 3.60);
+		ifhz = cxd2841er_get_if_hz(priv, 3600000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2591,43 +2650,43 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 static int cxd2841er_sleep_tc_to_active_i_band(
 		struct cxd2841er_priv *priv, u32 bandwidth)
 {
-	u32 iffreq;
+	u32 iffreq, ifhz;
 	u8 data[3];
 
 	/* TRCG Nominal Rate */
-	u8 nominalRate8bw[3][5] = {
+	static const u8 nominalRate8bw[3][5] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x11, 0xB8, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x00, 0x00, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	u8 nominalRate7bw[3][5] = {
+	static const u8 nominalRate7bw[3][5] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x14, 0x40, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x00, 0x00, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	u8 nominalRate6bw[3][5] = {
+	static const u8 nominalRate6bw[3][5] = {
 		{0x14, 0x2E, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x17, 0xA0, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x14, 0x2E, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	u8 itbCoef8bw[3][14] = {
+	static const u8 itbCoef8bw[3][14] = {
 		{0x00}, /* 20.5MHz XTal */
 		{0x2F, 0xBA, 0x28, 0x9B, 0x28, 0x9D, 0x28, 0xA1, 0x29,
 			0xA5, 0x2A, 0xAC, 0x29, 0xB5}, /* 24MHz Xtal */
 		{0x0}, /* 41MHz XTal   */
 	};
 
-	u8 itbCoef7bw[3][14] = {
+	static const u8 itbCoef7bw[3][14] = {
 		{0x00}, /* 20.5MHz XTal */
 		{0x30, 0xB1, 0x29, 0x9A, 0x28, 0x9C, 0x28, 0xA0, 0x29,
 			0xA2, 0x2B, 0xA6, 0x2B, 0xAD}, /* 24MHz Xtal */
 		{0x00}, /* 41MHz XTal   */
 	};
 
-	u8 itbCoef6bw[3][14] = {
+	static const u8 itbCoef6bw[3][14] = {
 		{0x27, 0xA7, 0x28, 0xB3, 0x02, 0xF0, 0x01, 0xE8, 0x00,
 			0xCF, 0x00, 0xE6, 0x23, 0xA4}, /* 20.5MHz XTal */
 		{0x31, 0xA8, 0x29, 0x9B, 0x27, 0x9C, 0x28, 0x9E, 0x29,
@@ -2656,11 +2715,13 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 		cxd2841er_write_regs(priv, I2C_SLVT,
 				0x9F, nominalRate8bw[priv->xtal], 5);
 		/*  Group delay equaliser settings for ASCOT tuners optimized */
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef8bw[priv->xtal], 14);
 
 		/* IF freq setting */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 4.75);
+		ifhz = cxd2841er_get_if_hz(priv, 4750000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2685,11 +2746,13 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 		cxd2841er_write_regs(priv, I2C_SLVT,
 				0x9F, nominalRate7bw[priv->xtal], 5);
 		/*  Group delay equaliser settings for ASCOT tuners optimized */
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef7bw[priv->xtal], 14);
 
 		/* IF freq setting */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 4.15);
+		ifhz = cxd2841er_get_if_hz(priv, 4150000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2714,11 +2777,13 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 		cxd2841er_write_regs(priv, I2C_SLVT,
 				0x9F, nominalRate6bw[priv->xtal], 5);
 		/*  Group delay equaliser settings for ASCOT tuners optimized */
-		cxd2841er_write_regs(priv, I2C_SLVT,
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(priv, I2C_SLVT,
 				0xA6, itbCoef6bw[priv->xtal], 14);
 
 		/* IF freq setting */
-		iffreq = MAKE_IFFREQ_CONFIG_XTAL(priv->xtal, 3.55);
+		ifhz = cxd2841er_get_if_hz(priv, 3550000);
+		iffreq = cxd2841er_calc_iffreq_xtal(priv->xtal, ifhz);
 		data[0] = (u8) ((iffreq >> 16) & 0xff);
 		data[1] = (u8)((iffreq >> 8) & 0xff);
 		data[2] = (u8)(iffreq & 0xff);
@@ -2761,7 +2826,7 @@ static int cxd2841er_sleep_tc_to_active_c_band(struct cxd2841er_priv *priv,
 		0x27, 0xA7, 0x28, 0xB3, 0x02, 0xF0, 0x01, 0xE8,
 		0x00, 0xCF, 0x00, 0xE6, 0x23, 0xA4 };
 	u8 b10_b6[3];
-	u32 iffreq;
+	u32 iffreq, ifhz;
 
 	if (bandwidth != 6000000 &&
 			bandwidth != 7000000 &&
@@ -2776,16 +2841,20 @@ static int cxd2841er_sleep_tc_to_active_c_band(struct cxd2841er_priv *priv,
 	switch (bandwidth) {
 	case 8000000:
 	case 7000000:
-		cxd2841er_write_regs(
-			priv, I2C_SLVT, 0xa6,
-			bw7_8mhz_b10_a6, sizeof(bw7_8mhz_b10_a6));
-		iffreq = MAKE_IFFREQ_CONFIG(4.9);
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(
+				priv, I2C_SLVT, 0xa6,
+				bw7_8mhz_b10_a6, sizeof(bw7_8mhz_b10_a6));
+		ifhz = cxd2841er_get_if_hz(priv, 4900000);
+		iffreq = cxd2841er_calc_iffreq(ifhz);
 		break;
 	case 6000000:
-		cxd2841er_write_regs(
-			priv, I2C_SLVT, 0xa6,
-			bw6mhz_b10_a6, sizeof(bw6mhz_b10_a6));
-		iffreq = MAKE_IFFREQ_CONFIG(3.7);
+		if (priv->flags & CXD2841ER_ASCOT)
+			cxd2841er_write_regs(
+				priv, I2C_SLVT, 0xa6,
+				bw6mhz_b10_a6, sizeof(bw6mhz_b10_a6));
+		ifhz = cxd2841er_get_if_hz(priv, 3700000);
+		iffreq = cxd2841er_calc_iffreq(ifhz);
 		break;
 	default:
 		dev_err(&priv->i2c->dev, "%s(): unsupported bandwidth %d\n",
@@ -2872,8 +2941,9 @@ static int cxd2841er_sleep_tc_to_active_t(struct cxd2841er_priv *priv,
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x6a, 0x50);
 	/* Set SLV-T Bank : 0x10 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
-	/* ASCOT setting ON */
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xa5, 0x01, 0x01);
+	/* ASCOT setting */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xa5,
+		((priv->flags & CXD2841ER_ASCOT) ? 0x01 : 0x00), 0x01);
 	/* Set SLV-T Bank : 0x18 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x18);
 	/* Pre-RS BER moniter setting */
@@ -2950,8 +3020,9 @@ static int cxd2841er_sleep_tc_to_active_t2(struct cxd2841er_priv *priv,
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x6a, 0x50);
 	/* Set SLV-T Bank : 0x10 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
-	/* ASCOT setting ON */
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xa5, 0x01, 0x01);
+	/* ASCOT setting */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xa5,
+		((priv->flags & CXD2841ER_ASCOT) ? 0x01 : 0x00), 0x01);
 	/* Set SLV-T Bank : 0x20 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x20);
 	/* Acquisition optimization setting */
@@ -3088,8 +3159,9 @@ static int cxd2841er_sleep_tc_to_active_i(struct cxd2841er_priv *priv,
 	cxd2841er_write_regs(priv, I2C_SLVT, 0x43, data, 2);
 	/* Enable ADC 4 */
 	cxd2841er_write_reg(priv, I2C_SLVX, 0x18, 0x00);
-	/* ASCOT setting ON */
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xa5, 0x01, 0x01);
+	/* ASCOT setting */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xa5,
+		((priv->flags & CXD2841ER_ASCOT) ? 0x01 : 0x00), 0x01);
 	/* FEC Auto Recovery setting */
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x30, 0x01, 0x01);
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x31, 0x00, 0x01);
@@ -3173,8 +3245,9 @@ static int cxd2841er_sleep_tc_to_active_c(struct cxd2841er_priv *priv,
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x6a, 0x48);
 	/* Set SLV-T Bank : 0x10 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
-	/* ASCOT setting ON */
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xa5, 0x01, 0x01);
+	/* ASCOT setting */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xa5,
+		((priv->flags & CXD2841ER_ASCOT) ? 0x01 : 0x00), 0x01);
 	/* Set SLV-T Bank : 0x40 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x40);
 	/* Demod setting */
@@ -3208,7 +3281,10 @@ static int cxd2841er_get_frontend(struct dvb_frontend *fe,
 	else if (priv->state == STATE_ACTIVE_TC)
 		cxd2841er_read_status_tc(fe, &status);
 
-	cxd2841er_read_signal_strength(fe);
+	if (priv->state == STATE_ACTIVE_TC || priv->state == STATE_ACTIVE_S)
+		cxd2841er_read_signal_strength(fe);
+	else
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	if (status & FE_HAS_LOCK) {
 		cxd2841er_read_snr(fe);
@@ -3236,6 +3312,10 @@ static int cxd2841er_set_frontend_s(struct dvb_frontend *fe)
 		__func__,
 		(p->delivery_system == SYS_DVBS ? "DVB-S" : "DVB-S2"),
 		 p->frequency, symbol_rate, priv->xtal);
+
+	if (priv->flags & CXD2841ER_EARLY_TUNE)
+		cxd2841er_tuner_set(fe);
+
 	switch (priv->state) {
 	case STATE_SLEEP_S:
 		ret = cxd2841er_sleep_s_to_active_s(
@@ -3254,12 +3334,10 @@ static int cxd2841er_set_frontend_s(struct dvb_frontend *fe)
 		dev_dbg(&priv->i2c->dev, "%s(): tune failed\n", __func__);
 		goto done;
 	}
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	if (!(priv->flags & CXD2841ER_EARLY_TUNE))
+		cxd2841er_tuner_set(fe);
+
 	cxd2841er_tune_done(priv);
 	timeout = ((3000000 + (symbol_rate - 1)) / symbol_rate) + 150;
 	for (i = 0; i < timeout / CXD2841ER_DVBS_POLLING_INVL; i++) {
@@ -3298,6 +3376,18 @@ static int cxd2841er_set_frontend_tc(struct dvb_frontend *fe)
 
 	dev_dbg(&priv->i2c->dev, "%s() delivery_system=%d bandwidth_hz=%d\n",
 		 __func__, p->delivery_system, p->bandwidth_hz);
+
+	if (priv->flags & CXD2841ER_EARLY_TUNE)
+		cxd2841er_tuner_set(fe);
+
+	/* deconfigure/put demod to sleep on delsys switch if active */
+	if (priv->state == STATE_ACTIVE_TC &&
+	    priv->system != p->delivery_system) {
+		dev_dbg(&priv->i2c->dev, "%s(): old_delsys=%d, new_delsys=%d -> sleep\n",
+			 __func__, priv->system, p->delivery_system);
+		cxd2841er_sleep_tc(fe);
+	}
+
 	if (p->delivery_system == SYS_DVBT) {
 		priv->system = SYS_DVBT;
 		switch (priv->state) {
@@ -3379,13 +3469,15 @@ static int cxd2841er_set_frontend_tc(struct dvb_frontend *fe)
 	}
 	if (ret)
 		goto done;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	if (!(priv->flags & CXD2841ER_EARLY_TUNE))
+		cxd2841er_tuner_set(fe);
+
 	cxd2841er_tune_done(priv);
+
+	if (priv->flags & CXD2841ER_NO_WAIT_LOCK)
+		goto done;
+
 	timeout = 2500;
 	while (timeout > 0) {
 		ret = cxd2841er_read_status_tc(fe, &status);
@@ -3512,6 +3604,7 @@ static int cxd2841er_sleep_tc(struct dvb_frontend *fe)
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+
 	if (priv->state == STATE_ACTIVE_TC) {
 		switch (priv->system) {
 		case SYS_DVBT:
@@ -3537,7 +3630,17 @@ static int cxd2841er_sleep_tc(struct dvb_frontend *fe)
 			__func__, priv->state);
 		return -EINVAL;
 	}
-	cxd2841er_sleep_tc_to_shutdown(priv);
+	return 0;
+}
+
+static int cxd2841er_shutdown_tc(struct dvb_frontend *fe)
+{
+	struct cxd2841er_priv *priv = fe->demodulator_priv;
+
+	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+
+	if (!cxd2841er_sleep_tc(fe))
+		cxd2841er_sleep_tc_to_shutdown(priv);
 	return 0;
 }
 
@@ -3705,14 +3808,20 @@ static int cxd2841er_init_tc(struct dvb_frontend *fe)
 	dev_dbg(&priv->i2c->dev, "%s() bandwidth_hz=%d\n",
 			__func__, p->bandwidth_hz);
 	cxd2841er_shutdown_to_sleep_tc(priv);
-	/* SONY_DEMOD_CONFIG_IFAGCNEG = 1 */
+	/* SONY_DEMOD_CONFIG_IFAGCNEG = 1 (0 for NO_AGCNEG */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xcb, 0x40, 0x40);
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xcb,
+		((priv->flags & CXD2841ER_NO_AGCNEG) ? 0x00 : 0x40), 0x40);
 	/* SONY_DEMOD_CONFIG_IFAGC_ADC_FS = 0 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0xcd, 0x50);
 	/* SONY_DEMOD_CONFIG_PARALLEL_SEL = 1 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x00);
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4, 0x00, 0x80);
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4,
+		((priv->flags & CXD2841ER_TS_SERIAL) ? 0x80 : 0x00), 0x80);
+
+	/* clear TSCFG bits 3+4 */
+	if (priv->flags & CXD2841ER_TSBITS)
+		cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4, 0x00, 0x18);
 
 	cxd2841er_init_stats(fe);
 
@@ -3740,6 +3849,7 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 	priv->i2c_addr_slvx = (cfg->i2c_addr + 4) >> 1;
 	priv->i2c_addr_slvt = (cfg->i2c_addr) >> 1;
 	priv->xtal = cfg->xtal;
+	priv->flags = cfg->flags;
 	priv->frontend.demodulator_priv = priv;
 	dev_info(&priv->i2c->dev,
 		"%s(): I2C adapter %p SLVX addr %x SLVT addr %x\n",
@@ -3747,16 +3857,39 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 		priv->i2c_addr_slvx, priv->i2c_addr_slvt);
 	chip_id = cxd2841er_chip_id(priv);
 	switch (chip_id) {
+	case CXD2837ER_CHIP_ID:
+		snprintf(cxd2841er_t_c_ops.info.name, 128,
+				"Sony CXD2837ER DVB-T/T2/C demodulator");
+		name = "CXD2837ER";
+		type = "C/T/T2";
+		break;
+	case CXD2838ER_CHIP_ID:
+		snprintf(cxd2841er_t_c_ops.info.name, 128,
+				"Sony CXD2838ER ISDB-T demodulator");
+		cxd2841er_t_c_ops.delsys[0] = SYS_ISDBT;
+		cxd2841er_t_c_ops.delsys[1] = SYS_UNDEFINED;
+		cxd2841er_t_c_ops.delsys[2] = SYS_UNDEFINED;
+		name = "CXD2838ER";
+		type = "ISDB-T";
+		break;
 	case CXD2841ER_CHIP_ID:
 		snprintf(cxd2841er_t_c_ops.info.name, 128,
 				"Sony CXD2841ER DVB-T/T2/C demodulator");
 		name = "CXD2841ER";
+		type = "T/T2/C/ISDB-T";
+		break;
+	case CXD2843ER_CHIP_ID:
+		snprintf(cxd2841er_t_c_ops.info.name, 128,
+				"Sony CXD2843ER DVB-T/T2/C/C2 demodulator");
+		name = "CXD2843ER";
+		type = "C/C2/T/T2";
 		break;
 	case CXD2854ER_CHIP_ID:
 		snprintf(cxd2841er_t_c_ops.info.name, 128,
 				"Sony CXD2854ER DVB-T/T2/C and ISDB-T demodulator");
 		cxd2841er_t_c_ops.delsys[3] = SYS_ISDBT;
 		name = "CXD2854ER";
+		type = "C/C2/T/T2/ISDB-T";
 		break;
 	default:
 		dev_err(&priv->i2c->dev, "%s(): invalid chip ID 0x%02x\n",
@@ -3776,7 +3909,6 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 		memcpy(&priv->frontend.ops,
 			&cxd2841er_t_c_ops,
 			sizeof(struct dvb_frontend_ops));
-		type = "T/T2/C/ISDB-T";
 	}
 
 	dev_info(&priv->i2c->dev,
@@ -3857,7 +3989,7 @@ static struct dvb_frontend_ops cxd2841er_t_c_ops = {
 		.symbol_rate_max = 11700000
 	},
 	.init = cxd2841er_init_tc,
-	.sleep = cxd2841er_sleep_tc,
+	.sleep = cxd2841er_shutdown_tc,
 	.release = cxd2841er_release,
 	.set_frontend = cxd2841er_set_frontend_tc,
 	.get_frontend = cxd2841er_get_frontend,
@@ -3867,6 +3999,6 @@ static struct dvb_frontend_ops cxd2841er_t_c_ops = {
 	.get_frontend_algo = cxd2841er_get_algo
 };
 
-MODULE_DESCRIPTION("Sony CXD2841ER/CXD2854ER DVB-C/C2/T/T2/S/S2 demodulator driver");
+MODULE_DESCRIPTION("Sony CXD2837/38/41/43/54ER DVB-C/C2/T/T2/S/S2 demodulator driver");
 MODULE_AUTHOR("Sergey Kozlov <serjk@netup.ru>, Abylay Ospan <aospan@netup.ru>");
 MODULE_LICENSE("GPL");

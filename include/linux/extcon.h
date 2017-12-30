@@ -1,5 +1,6 @@
 /*
- *  External connector (extcon) class driver
+ * External Connector (extcon) framework
+ * - linux/include/linux/extcon.h for extcon consumer device driver.
  *
  * Copyright (C) 2015 Samsung Electronics
  * Author: Chanwoo Choi <cw00.choi@samsung.com>
@@ -20,8 +21,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
-*/
+ */
 
 #ifndef __LINUX_EXTCON_H__
 #define __LINUX_EXTCON_H__
@@ -93,7 +93,7 @@
 #define EXTCON_NUM		63
 
 /*
- * Define the property of supported external connectors.
+ * Define the properties of supported external connectors.
  *
  * When adding the new extcon property, they *must* have
  * the type/value/default information. Also, you *have to*
@@ -171,81 +171,43 @@ union extcon_property_value {
 	int intval;	/* type : integer (intval) */
 };
 
-struct extcon_cable;
 struct extcon_dev;
 
 #if IS_ENABLED(CONFIG_EXTCON)
-
 /*
- * Following APIs are for notifiers or configurations.
- * Notifiers are the external port and connection devices.
- */
-extern int extcon_dev_register(struct extcon_dev *edev);
-extern void extcon_dev_unregister(struct extcon_dev *edev);
-extern int devm_extcon_dev_register(struct device *dev,
-				    struct extcon_dev *edev);
-extern void devm_extcon_dev_unregister(struct device *dev,
-				       struct extcon_dev *edev);
-extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
-
-/*
- * Following APIs control the memory of extcon device.
- */
-extern struct extcon_dev *extcon_dev_allocate(const unsigned int *cable);
-extern void extcon_dev_free(struct extcon_dev *edev);
-extern struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-						   const unsigned int *cable);
-extern void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev);
-
-/*
- * get/set_state access each bit of the 32b encoded state value.
- * They are used to access the status of each cable based on the cable id.
+ * Following APIs get the connected state of each external connector.
+ * The 'id' argument indicates the defined external connector.
  */
 extern int extcon_get_state(struct extcon_dev *edev, unsigned int id);
-extern int extcon_set_state(struct extcon_dev *edev, unsigned int id,
-				   bool cable_state);
-extern int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id,
-				bool cable_state);
-/*
- * Synchronize the state and property data for a specific external connector.
- */
-extern int extcon_sync(struct extcon_dev *edev, unsigned int id);
 
 /*
- * get/set_property access the property value of each external connector.
- * They are used to access the property of each cable based on the property id.
+ * Following APIs get the property of each external connector.
+ * The 'id' argument indicates the defined external connector
+ * and the 'prop' indicates the extcon property.
+ *
+ * And extcon_get_property_capability() get the capability of the property
+ * for each external connector. They are used to get the capability of the
+ * property of each external connector based on the id and property.
  */
 extern int extcon_get_property(struct extcon_dev *edev, unsigned int id,
 				unsigned int prop,
 				union extcon_property_value *prop_val);
-extern int extcon_set_property(struct extcon_dev *edev, unsigned int id,
-				unsigned int prop,
-				union extcon_property_value prop_val);
-extern int extcon_set_property_sync(struct extcon_dev *edev, unsigned int id,
-				unsigned int prop,
-				union extcon_property_value prop_val);
-
-/*
- * get/set_property_capability set the capability of the property for each
- * external connector. They are used to set the capability of the property
- * of each external connector based on the id and property.
- */
 extern int extcon_get_property_capability(struct extcon_dev *edev,
 				unsigned int id, unsigned int prop);
-extern int extcon_set_property_capability(struct extcon_dev *edev,
-				unsigned int id, unsigned int prop);
 
 /*
- * Following APIs are to monitor the status change of the external connectors.
+ * Following APIs register the notifier block in order to detect
+ * the change of both state and property value for each external connector.
+ *
  * extcon_register_notifier(*edev, id, *nb) : Register a notifier block
  *			for specific external connector of the extcon.
  * extcon_register_notifier_all(*edev, *nb) : Register a notifier block
  *			for all supported external connectors of the extcon.
  */
 extern int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
-				    struct notifier_block *nb);
+				struct notifier_block *nb);
 extern int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
-				    struct notifier_block *nb);
+				struct notifier_block *nb);
 extern int devm_extcon_register_notifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
@@ -265,118 +227,42 @@ extern void devm_extcon_unregister_notifier_all(struct device *dev,
 				struct notifier_block *nb);
 
 /*
- * Following API get the extcon device from devicetree.
- * This function use phandle of devicetree to get extcon device directly.
+ * Following APIs get the extcon_dev from devicetree or by through extcon name.
  */
+extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
 extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 						     int index);
 
-/* Following API to get information of extcon device */
+/* Following API get the name of extcon device. */
 extern const char *extcon_get_edev_name(struct extcon_dev *edev);
 
-
 #else /* CONFIG_EXTCON */
-static inline int extcon_dev_register(struct extcon_dev *edev)
-{
-	return 0;
-}
-
-static inline void extcon_dev_unregister(struct extcon_dev *edev) { }
-
-static inline int devm_extcon_dev_register(struct device *dev,
-					   struct extcon_dev *edev)
-{
-	return -EINVAL;
-}
-
-static inline void devm_extcon_dev_unregister(struct device *dev,
-					      struct extcon_dev *edev) { }
-
-static inline struct extcon_dev *extcon_dev_allocate(const unsigned int *cable)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-static inline void extcon_dev_free(struct extcon_dev *edev) { }
-
-static inline struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-						const unsigned int *cable)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-static inline void devm_extcon_dev_free(struct extcon_dev *edev) { }
-
-
 static inline int extcon_get_state(struct extcon_dev *edev, unsigned int id)
 {
 	return 0;
 }
 
-static inline int extcon_set_state(struct extcon_dev *edev, unsigned int id,
-				bool cable_state)
-{
-	return 0;
-}
-
-static inline int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id,
-				bool cable_state)
-{
-	return 0;
-}
-
-static inline int extcon_sync(struct extcon_dev *edev, unsigned int id)
-{
-	return 0;
-}
-
 static inline int extcon_get_property(struct extcon_dev *edev, unsigned int id,
-					unsigned int prop,
-					union extcon_property_value *prop_val)
-{
-	return 0;
-}
-static inline int extcon_set_property(struct extcon_dev *edev, unsigned int id,
-					unsigned int prop,
-					union extcon_property_value prop_val)
-{
-	return 0;
-}
-
-static inline int extcon_set_property_sync(struct extcon_dev *edev,
-					unsigned int id, unsigned int prop,
-					union extcon_property_value prop_val)
+				unsigned int prop,
+				union extcon_property_value *prop_val)
 {
 	return 0;
 }
 
 static inline int extcon_get_property_capability(struct extcon_dev *edev,
-					unsigned int id, unsigned int prop)
+				unsigned int id, unsigned int prop)
 {
 	return 0;
-}
-
-static inline int extcon_set_property_capability(struct extcon_dev *edev,
-					unsigned int id, unsigned int prop)
-{
-	return 0;
-}
-
-static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
-{
-	return NULL;
 }
 
 static inline int extcon_register_notifier(struct extcon_dev *edev,
-					unsigned int id,
-					struct notifier_block *nb)
+				unsigned int id, struct notifier_block *nb)
 {
 	return 0;
 }
 
 static inline int extcon_unregister_notifier(struct extcon_dev *edev,
-					unsigned int id,
-					struct notifier_block *nb)
+				unsigned int id, struct notifier_block *nb)
 {
 	return 0;
 }
@@ -392,8 +278,13 @@ static inline  void devm_extcon_unregister_notifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb) { }
 
+static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 static inline struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
-							    int index)
+				int index)
 {
 	return ERR_PTR(-ENODEV);
 }
@@ -411,26 +302,14 @@ struct extcon_specific_cable_nb {
 };
 
 static inline int extcon_register_interest(struct extcon_specific_cable_nb *obj,
-			const char *extcon_name, const char *cable_name,
-			struct notifier_block *nb)
+				const char *extcon_name, const char *cable_name,
+				struct notifier_block *nb)
 {
 	return -EINVAL;
 }
 
-static inline int extcon_unregister_interest(struct extcon_specific_cable_nb
-						    *obj)
+static inline int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
 {
 	return -EINVAL;
-}
-
-static inline int extcon_get_cable_state_(struct extcon_dev *edev, unsigned int id)
-{
-	return extcon_get_state(edev, id);
-}
-
-static inline int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
-				   bool cable_state)
-{
-	return extcon_set_state_sync(edev, id, cable_state);
 }
 #endif /* __LINUX_EXTCON_H__ */

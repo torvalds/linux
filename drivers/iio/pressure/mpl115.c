@@ -144,7 +144,6 @@ static const struct iio_chan_spec mpl115_channels[] = {
 
 static const struct iio_info mpl115_info = {
 	.read_raw = &mpl115_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 int mpl115_probe(struct device *dev, const char *name,

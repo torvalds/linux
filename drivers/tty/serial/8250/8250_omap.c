@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * 8250-core based driver for the OMAP internal UART
  *
@@ -199,7 +200,7 @@ static void omap_8250_get_divisor(struct uart_port *port, unsigned int baud,
 	 * Old custom speed handling.
 	 */
 	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST) {
-		priv->quot = port->custom_divisor & 0xffff;
+		priv->quot = port->custom_divisor & UART_DIV_MAX;
 		/*
 		 * I assume that nobody is using this. But hey, if somebody
 		 * would like to specify the divisor _and_ the mode then the
@@ -358,7 +359,7 @@ static void omap_8250_set_termios(struct uart_port *port,
 	 * Ask the core to calculate the divisor for us.
 	 */
 	baud = uart_get_baud_rate(port, termios, old,
-				  port->uartclk / 16 / 0xffff,
+				  port->uartclk / 16 / UART_DIV_MAX,
 				  port->uartclk / 13);
 	omap_8250_get_divisor(port, baud, priv);
 
@@ -613,6 +614,10 @@ static int omap_8250_startup(struct uart_port *port)
 	up->lsr_saved_flags = 0;
 	up->msr_saved_flags = 0;
 
+	/* Disable DMA for console UART */
+	if (uart_console(port))
+		up->dma = NULL;
+
 	if (up->dma) {
 		ret = serial8250_request_dma(up);
 		if (ret) {
@@ -782,8 +787,27 @@ unlock:
 
 static void __dma_rx_complete(void *param)
 {
-	__dma_rx_do_complete(param);
-	omap_8250_rx_dma(param);
+	struct uart_8250_port *p = param;
+	struct uart_8250_dma *dma = p->dma;
+	struct dma_tx_state     state;
+	unsigned long flags;
+
+	spin_lock_irqsave(&p->port.lock, flags);
+
+	/*
+	 * If the tx status is not DMA_COMPLETE, then this is a delayed
+	 * completion callback. A previous RX timeout flush would have
+	 * already pushed the data, so exit.
+	 */
+	if (dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state) !=
+			DMA_COMPLETE) {
+		spin_unlock_irqrestore(&p->port.lock, flags);
+		return;
+	}
+	__dma_rx_do_complete(p);
+	omap_8250_rx_dma(p);
+
+	spin_unlock_irqrestore(&p->port.lock, flags);
 }
 
 static void omap_8250_rx_dma_flush(struct uart_8250_port *p)

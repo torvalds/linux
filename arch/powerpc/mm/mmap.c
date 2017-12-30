@@ -34,16 +34,9 @@
 /*
  * Top of mmap area (just below the process stack).
  *
- * Leave at least a ~128 MB hole on 32bit applications.
- *
- * On 64bit applications we randomise the stack by 1GB so we need to
- * space our mmap start address by a further 1GB, otherwise there is a
- * chance the mmap area will end up closer to the stack than our ulimit
- * requires.
+ * Leave at least a ~128 MB hole.
  */
-#define MIN_GAP32 (128*1024*1024)
-#define MIN_GAP64 ((128 + 1024)*1024*1024UL)
-#define MIN_GAP ((is_32bit_task()) ? MIN_GAP32 : MIN_GAP64)
+#define MIN_GAP (128*1024*1024)
 #define MAX_GAP (TASK_SIZE/6*5)
 
 static inline int mmap_is_legacy(void)
@@ -71,9 +64,26 @@ unsigned long arch_mmap_rnd(void)
 	return rnd << PAGE_SHIFT;
 }
 
+static inline unsigned long stack_maxrandom_size(void)
+{
+	if (!(current->flags & PF_RANDOMIZE))
+		return 0;
+
+	/* 8MB for 32bit, 1GB for 64bit */
+	if (is_32bit_task())
+		return (1<<23);
+	else
+		return (1<<30);
+}
+
 static inline unsigned long mmap_base(unsigned long rnd)
 {
 	unsigned long gap = rlimit(RLIMIT_STACK);
+	unsigned long pad = stack_maxrandom_size() + stack_guard_gap;
+
+	/* Values close to RLIM_INFINITY can overflow. */
+	if (gap + pad > gap)
+		gap += pad;
 
 	if (gap < MIN_GAP)
 		gap = MIN_GAP;
@@ -96,22 +106,27 @@ radix__arch_get_unmapped_area(struct file *filp, unsigned long addr,
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
+	int fixed = (flags & MAP_FIXED);
+	unsigned long high_limit;
 	struct vm_unmapped_area_info info;
 
-	if (unlikely(addr > mm->context.addr_limit &&
-		     mm->context.addr_limit != TASK_SIZE))
-		mm->context.addr_limit = TASK_SIZE;
+	high_limit = DEFAULT_MAP_WINDOW;
+	if (addr >= high_limit || (fixed && (addr + len > high_limit)))
+		high_limit = TASK_SIZE;
 
-	if (len > mm->task_size - mmap_min_addr)
+	if (len > high_limit)
 		return -ENOMEM;
 
-	if (flags & MAP_FIXED)
+	if (fixed) {
+		if (addr > high_limit - len)
+			return -ENOMEM;
 		return addr;
+	}
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
-		if (mm->task_size - len >= addr && addr >= mmap_min_addr &&
+		if (high_limit - len >= addr && addr >= mmap_min_addr &&
 		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
@@ -119,12 +134,8 @@ radix__arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	info.flags = 0;
 	info.length = len;
 	info.low_limit = mm->mmap_base;
+	info.high_limit = high_limit;
 	info.align_mask = 0;
-
-	if (unlikely(addr > DEFAULT_MAP_WINDOW))
-		info.high_limit = mm->context.addr_limit;
-	else
-		info.high_limit = DEFAULT_MAP_WINDOW;
 
 	return vm_unmapped_area(&info);
 }
@@ -139,36 +150,36 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = addr0;
+	int fixed = (flags & MAP_FIXED);
+	unsigned long high_limit;
 	struct vm_unmapped_area_info info;
 
-	if (unlikely(addr > mm->context.addr_limit &&
-		     mm->context.addr_limit != TASK_SIZE))
-		mm->context.addr_limit = TASK_SIZE;
+	high_limit = DEFAULT_MAP_WINDOW;
+	if (addr >= high_limit || (fixed && (addr + len > high_limit)))
+		high_limit = TASK_SIZE;
 
-	/* requested length too big for entire address space */
-	if (len > mm->task_size - mmap_min_addr)
+	if (len > high_limit)
 		return -ENOMEM;
 
-	if (flags & MAP_FIXED)
+	if (fixed) {
+		if (addr > high_limit - len)
+			return -ENOMEM;
 		return addr;
+	}
 
-	/* requesting a specific address */
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
-		if (mm->task_size - len >= addr && addr >= mmap_min_addr &&
-				(!vma || addr + len <= vm_start_gap(vma)))
+		if (high_limit - len >= addr && addr >= mmap_min_addr &&
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
 	info.length = len;
 	info.low_limit = max(PAGE_SIZE, mmap_min_addr);
-	info.high_limit = mm->mmap_base;
+	info.high_limit = mm->mmap_base + (high_limit - DEFAULT_MAP_WINDOW);
 	info.align_mask = 0;
-
-	if (addr > DEFAULT_MAP_WINDOW)
-		info.high_limit += mm->context.addr_limit - DEFAULT_MAP_WINDOW;
 
 	addr = vm_unmapped_area(&info);
 	if (!(addr & ~PAGE_MASK))

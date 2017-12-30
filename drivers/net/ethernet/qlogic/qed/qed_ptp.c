@@ -80,7 +80,7 @@ static int qed_ptp_res_lock(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		/* MFW doesn't support resource locking, first PF on the port
 		 * has lock ownership.
 		 */
-		if (p_hwfn->abs_pf_id < p_hwfn->cdev->num_ports_in_engines)
+		if (p_hwfn->abs_pf_id < p_hwfn->cdev->num_ports_in_engine)
 			return 0;
 
 		DP_INFO(p_hwfn, "PF doesn't have lock ownership\n");
@@ -108,7 +108,7 @@ static int qed_ptp_res_unlock(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	rc = qed_mcp_resc_unlock(p_hwfn, p_ptt, &params);
 	if (rc == -EINVAL) {
 		/* MFW doesn't support locking, first PF has lock ownership */
-		if (p_hwfn->abs_pf_id < p_hwfn->cdev->num_ports_in_engines) {
+		if (p_hwfn->abs_pf_id < p_hwfn->cdev->num_ports_in_engine) {
 			rc = 0;
 		} else {
 			DP_INFO(p_hwfn, "PF doesn't have lock ownership\n");

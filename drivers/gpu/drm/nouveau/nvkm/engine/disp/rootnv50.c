@@ -23,6 +23,9 @@
  */
 #include "rootnv50.h"
 #include "dmacnv50.h"
+#include "dp.h"
+#include "head.h"
+#include "ior.h"
 
 #include <core/client.h>
 #include <core/ramht.h>
@@ -31,40 +34,6 @@
 #include <nvif/class.h>
 #include <nvif/cl5070.h>
 #include <nvif/unpack.h>
-
-int
-nv50_disp_root_scanoutpos(NV50_DISP_MTHD_V0)
-{
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 blanke = nvkm_rd32(device, 0x610aec + (head * 0x540));
-	const u32 blanks = nvkm_rd32(device, 0x610af4 + (head * 0x540));
-	const u32 total  = nvkm_rd32(device, 0x610afc + (head * 0x540));
-	union {
-		struct nv50_disp_scanoutpos_v0 v0;
-	} *args = data;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "disp scanoutpos size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "disp scanoutpos vers %d\n",
-			   args->v0.version);
-		args->v0.vblanke = (blanke & 0xffff0000) >> 16;
-		args->v0.hblanke = (blanke & 0x0000ffff);
-		args->v0.vblanks = (blanks & 0xffff0000) >> 16;
-		args->v0.hblanks = (blanks & 0x0000ffff);
-		args->v0.vtotal  = ( total & 0xffff0000) >> 16;
-		args->v0.htotal  = ( total & 0x0000ffff);
-		args->v0.time[0] = ktime_to_ns(ktime_get());
-		args->v0.vline = /* vline read locks hline */
-			nvkm_rd32(device, 0x616340 + (head * 0x800)) & 0xffff;
-		args->v0.time[1] = ktime_to_ns(ktime_get());
-		args->v0.hline =
-			nvkm_rd32(device, 0x616344 + (head * 0x800)) & 0xffff;
-	} else
-		return ret;
-
-	return 0;
-}
 
 static int
 nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
@@ -75,11 +44,10 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	} *args = data;
 	struct nv50_disp_root *root = nv50_disp_root(object);
 	struct nv50_disp *disp = root->disp;
-	const struct nv50_disp_func *func = disp->func;
-	struct nvkm_output *outp = NULL;
-	struct nvkm_output *temp;
+	struct nvkm_outp *temp, *outp = NULL;
+	struct nvkm_head *head;
 	u16 type, mask = 0;
-	int head, ret = -ENOSYS;
+	int hidx, ret = -ENOSYS;
 
 	if (mthd != NV50_DISP_MTHD)
 		return -EINVAL;
@@ -89,7 +57,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		nvif_ioctl(object, "disp mthd vers %d mthd %02x head %d\n",
 			   args->v0.version, args->v0.method, args->v0.head);
 		mthd = args->v0.method;
-		head = args->v0.head;
+		hidx = args->v0.head;
 	} else
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v1, 1, 1, true))) {
 		nvif_ioctl(object, "disp mthd vers %d mthd %02x "
@@ -99,11 +67,11 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		mthd = args->v1.method;
 		type = args->v1.hasht;
 		mask = args->v1.hashm;
-		head = ffs((mask >> 8) & 0x0f) - 1;
+		hidx = ffs((mask >> 8) & 0x0f) - 1;
 	} else
 		return ret;
 
-	if (head < 0 || head >= disp->base.head.nr)
+	if (!(head = nvkm_head_find(&disp->base, hidx)))
 		return -ENXIO;
 
 	if (mask) {
@@ -119,27 +87,126 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	}
 
 	switch (mthd) {
-	case NV50_DISP_SCANOUTPOS:
-		return func->head.scanoutpos(object, disp, data, size, head);
+	case NV50_DISP_SCANOUTPOS: {
+		return nvkm_head_mthd_scanoutpos(object, head, data, size);
+	}
 	default:
 		break;
 	}
 
 	switch (mthd * !!outp) {
-	case NV50_DISP_MTHD_V1_DAC_PWR:
-		return func->dac.power(object, disp, data, size, head, outp);
-	case NV50_DISP_MTHD_V1_DAC_LOAD:
-		return func->dac.sense(object, disp, data, size, head, outp);
-	case NV50_DISP_MTHD_V1_SOR_PWR:
-		return func->sor.power(object, disp, data, size, head, outp);
-	case NV50_DISP_MTHD_V1_SOR_HDA_ELD:
-		if (!func->sor.hda_eld)
+	case NV50_DISP_MTHD_V1_ACQUIRE: {
+		union {
+			struct nv50_disp_acquire_v0 v0;
+		} *args = data;
+		int ret = -ENOSYS;
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
+			ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER);
+			if (ret == 0) {
+				args->v0.or = outp->ior->id;
+				args->v0.link = outp->ior->asy.link;
+			}
+		}
+		return ret;
+	}
+		break;
+	case NV50_DISP_MTHD_V1_RELEASE:
+		nvkm_outp_release(outp, NVKM_OUTP_USER);
+		return 0;
+	case NV50_DISP_MTHD_V1_DAC_LOAD: {
+		union {
+			struct nv50_disp_dac_load_v0 v0;
+		} *args = data;
+		int ret = -ENOSYS;
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
+			if (args->v0.data & 0xfff00000)
+				return -EINVAL;
+			ret = nvkm_outp_acquire(outp, NVKM_OUTP_PRIV);
+			if (ret)
+				return ret;
+			ret = outp->ior->func->sense(outp->ior, args->v0.data);
+			nvkm_outp_release(outp, NVKM_OUTP_PRIV);
+			if (ret < 0)
+				return ret;
+			args->v0.load = ret;
+			return 0;
+		} else
+			return ret;
+	}
+		break;
+	case NV50_DISP_MTHD_V1_SOR_HDA_ELD: {
+		union {
+			struct nv50_disp_sor_hda_eld_v0 v0;
+		} *args = data;
+		struct nvkm_ior *ior = outp->ior;
+		int ret = -ENOSYS;
+
+		nvif_ioctl(object, "disp sor hda eld size %d\n", size);
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
+			nvif_ioctl(object, "disp sor hda eld vers %d\n",
+				   args->v0.version);
+			if (size > 0x60)
+				return -E2BIG;
+		} else
+			return ret;
+
+		if (!ior->func->hda.hpd)
 			return -ENODEV;
-		return func->sor.hda_eld(object, disp, data, size, head, outp);
-	case NV50_DISP_MTHD_V1_SOR_HDMI_PWR:
-		if (!func->sor.hdmi)
+
+		if (size && args->v0.data[0]) {
+			if (outp->info.type == DCB_OUTPUT_DP)
+				ior->func->dp.audio(ior, hidx, true);
+			ior->func->hda.hpd(ior, hidx, true);
+			ior->func->hda.eld(ior, data, size);
+		} else {
+			if (outp->info.type == DCB_OUTPUT_DP)
+				ior->func->dp.audio(ior, hidx, false);
+			ior->func->hda.hpd(ior, hidx, false);
+		}
+
+		return 0;
+	}
+		break;
+	case NV50_DISP_MTHD_V1_SOR_HDMI_PWR: {
+		union {
+			struct nv50_disp_sor_hdmi_pwr_v0 v0;
+		} *args = data;
+		u8 *vendor, vendor_size;
+		u8 *avi, avi_size;
+		int ret = -ENOSYS;
+
+		nvif_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
+			nvif_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
+					   "max_ac_packet %d rekey %d\n",
+				   args->v0.version, args->v0.state,
+				   args->v0.max_ac_packet, args->v0.rekey);
+			if (args->v0.max_ac_packet > 0x1f || args->v0.rekey > 0x7f)
+				return -EINVAL;
+			if ((args->v0.avi_infoframe_length
+			     + args->v0.vendor_infoframe_length) > size)
+				return -EINVAL;
+			else
+			if ((args->v0.avi_infoframe_length
+			     + args->v0.vendor_infoframe_length) < size)
+				return -E2BIG;
+			avi = data;
+			avi_size = args->v0.avi_infoframe_length;
+			vendor = avi + avi_size;
+			vendor_size = args->v0.vendor_infoframe_length;
+		} else
+			return ret;
+
+		if (!outp->ior->func->hdmi.ctrl)
 			return -ENODEV;
-		return func->sor.hdmi(object, disp, data, size, head, outp);
+
+		outp->ior->func->hdmi.ctrl(outp->ior, hidx, args->v0.state,
+					   args->v0.max_ac_packet,
+					   args->v0.rekey, avi, avi_size,
+					   vendor, vendor_size);
+		return 0;
+	}
+		break;
 	case NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT: {
 		union {
 			struct nv50_disp_sor_lvds_script_v0 v0;
@@ -156,32 +223,8 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 			return ret;
 	}
 		break;
-	case NV50_DISP_MTHD_V1_SOR_DP_PWR: {
-		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
-		union {
-			struct nv50_disp_sor_dp_pwr_v0 v0;
-		} *args = data;
-		int ret = -ENOSYS;
-		nvif_ioctl(object, "disp sor dp pwr size %d\n", size);
-		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-			nvif_ioctl(object, "disp sor dp pwr vers %d state %d\n",
-				   args->v0.version, args->v0.state);
-			if (args->v0.state == 0) {
-				nvkm_notify_put(&outpdp->irq);
-				outpdp->func->lnk_pwr(outpdp, 0);
-				atomic_set(&outpdp->lt.done, 0);
-				return 0;
-			} else
-			if (args->v0.state != 0) {
-				nvkm_output_dp_train(&outpdp->base, 0);
-				return 0;
-			}
-		} else
-			return ret;
-	}
-		break;
 	case NV50_DISP_MTHD_V1_SOR_DP_MST_LINK: {
-		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
+		struct nvkm_dp *dp = nvkm_dp(outp);
 		union {
 			struct nv50_disp_sor_dp_mst_link_v0 v0;
 		} *args = data;
@@ -190,18 +233,13 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 			nvif_ioctl(object, "disp sor dp mst link vers %d state %d\n",
 				   args->v0.version, args->v0.state);
-			if (outpdp->lt.mst != !!args->v0.state) {
-				outpdp->lt.mst = !!args->v0.state;
-				atomic_set(&outpdp->lt.done, 0);
-				nvkm_output_dp_train(&outpdp->base, 0);
-			}
+			dp->lt.mst = !!args->v0.state;
 			return 0;
 		} else
 			return ret;
 	}
 		break;
 	case NV50_DISP_MTHD_V1_SOR_DP_MST_VCPI: {
-		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
 		union {
 			struct nv50_disp_sor_dp_mst_vcpi_v0 v0;
 		} *args = data;
@@ -213,20 +251,18 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 				   args->v0.version, args->v0.start_slot,
 				   args->v0.num_slots, args->v0.pbn,
 				   args->v0.aligned_pbn);
-			if (!outpdp->func->vcpi)
+			if (!outp->ior->func->dp.vcpi)
 				return -ENODEV;
-			outpdp->func->vcpi(outpdp, head, args->v0.start_slot,
-					   args->v0.num_slots, args->v0.pbn,
-					   args->v0.aligned_pbn);
+			outp->ior->func->dp.vcpi(outp->ior, hidx,
+						 args->v0.start_slot,
+						 args->v0.num_slots,
+						 args->v0.pbn,
+						 args->v0.aligned_pbn);
 			return 0;
 		} else
 			return ret;
 	}
 		break;
-	case NV50_DISP_MTHD_V1_PIOR_PWR:
-		if (!func->pior.power)
-			return -ENODEV;
-		return func->pior.power(object, disp, data, size, head, outp);
 	default:
 		break;
 	}
@@ -291,7 +327,21 @@ static int
 nv50_disp_root_init_(struct nvkm_object *object)
 {
 	struct nv50_disp_root *root = nv50_disp_root(object);
-	return root->func->init(root);
+	struct nvkm_ior *ior;
+	int ret;
+
+	ret = root->func->init(root);
+	if (ret)
+		return ret;
+
+	/* Set 'normal' (ie. when it's attached to a head) state for
+	 * each output resource to 'fully enabled'.
+	 */
+	list_for_each_entry(ior, &root->disp->base.ior, head) {
+		ior->func->power(ior, true, true, true, true, true);
+	}
+
+	return 0;
 }
 
 static void *
@@ -352,6 +402,7 @@ int
 nv50_disp_root_init(struct nv50_disp_root *root)
 {
 	struct nv50_disp *disp = root->disp;
+	struct nvkm_head *head;
 	struct nvkm_device *device = disp->base.engine.subdev.device;
 	u32 tmp;
 	int i;
@@ -364,15 +415,15 @@ nv50_disp_root_init(struct nv50_disp_root *root)
 	nvkm_wr32(device, 0x610184, tmp);
 
 	/* ... CRTC caps */
-	for (i = 0; i < disp->base.head.nr; i++) {
-		tmp = nvkm_rd32(device, 0x616100 + (i * 0x800));
-		nvkm_wr32(device, 0x610190 + (i * 0x10), tmp);
-		tmp = nvkm_rd32(device, 0x616104 + (i * 0x800));
-		nvkm_wr32(device, 0x610194 + (i * 0x10), tmp);
-		tmp = nvkm_rd32(device, 0x616108 + (i * 0x800));
-		nvkm_wr32(device, 0x610198 + (i * 0x10), tmp);
-		tmp = nvkm_rd32(device, 0x61610c + (i * 0x800));
-		nvkm_wr32(device, 0x61019c + (i * 0x10), tmp);
+	list_for_each_entry(head, &disp->base.head, head) {
+		tmp = nvkm_rd32(device, 0x616100 + (head->id * 0x800));
+		nvkm_wr32(device, 0x610190 + (head->id * 0x10), tmp);
+		tmp = nvkm_rd32(device, 0x616104 + (head->id * 0x800));
+		nvkm_wr32(device, 0x610194 + (head->id * 0x10), tmp);
+		tmp = nvkm_rd32(device, 0x616108 + (head->id * 0x800));
+		nvkm_wr32(device, 0x610198 + (head->id * 0x10), tmp);
+		tmp = nvkm_rd32(device, 0x61610c + (head->id * 0x800));
+		nvkm_wr32(device, 0x61019c + (head->id * 0x10), tmp);
 	}
 
 	/* ... DAC caps */

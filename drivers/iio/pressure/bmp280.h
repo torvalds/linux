@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/regmap.h>
@@ -95,6 +96,11 @@
 #define BMP280_CHIP_ID			0x58
 #define BME280_CHIP_ID			0x60
 #define BMP280_SOFT_RESET_VAL		0xB6
+
+/* BMP280 register skipped special values */
+#define BMP280_TEMP_SKIPPED		0x80000
+#define BMP280_PRESS_SKIPPED		0x80000
+#define BMP280_HUMIDITY_SKIPPED		0x8000
 
 /* Regmap configurations */
 extern const struct regmap_config bmp180_regmap_config;

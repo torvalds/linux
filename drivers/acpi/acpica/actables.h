@@ -76,7 +76,8 @@ void acpi_tb_release_temp_table(struct acpi_table_desc *table_desc);
 acpi_status acpi_tb_validate_temp_table(struct acpi_table_desc *table_desc);
 
 acpi_status
-acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc, char *signature);
+acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc,
+			  char *signature, u32 *table_index);
 
 u8 acpi_tb_is_table_loaded(u32 table_index);
 
@@ -131,6 +132,8 @@ acpi_tb_install_and_load_table(acpi_physical_address address,
 			       u8 flags, u8 override, u32 *table_index);
 
 acpi_status acpi_tb_unload_table(u32 table_index);
+
+void acpi_tb_notify_table(u32 event, void *table);
 
 void acpi_tb_terminate(void);
 

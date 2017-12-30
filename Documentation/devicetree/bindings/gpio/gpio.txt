@@ -74,11 +74,14 @@ GPIO pin number, and GPIO flags as accepted by the "qe_pio_e" gpio-controller.
 Optional standard bitfield specifiers for the last cell:
 
 - Bit 0: 0 means active high, 1 means active low
-- Bit 1: 1 means single-ended wiring, see:
+- Bit 1: 0 mean push-pull wiring, see:
+           https://en.wikipedia.org/wiki/Push-pull_output
+         1 means single-ended wiring, see:
            https://en.wikipedia.org/wiki/Single-ended_triode
-	   When used with active-low, this means open drain/collector, see:
+- Bit 2: 0 means open-source, 1 means open drain, see:
            https://en.wikipedia.org/wiki/Open_collector
-	   When used with active-high, this means open source/emitter
+- Bit 3: 0 means the output should be maintained during sleep/low-power mode
+         1 means the output state can be lost during sleep/low-power mode
 
 1.1) GPIO specifier best practices
 ----------------------------------
@@ -282,8 +285,8 @@ Example 1:
 	};
 
 Here, a single GPIO controller has GPIOs 0..9 routed to pin controller
-pinctrl1's pins 20..29, and GPIOs 10..19 routed to pin controller pinctrl2's
-pins 50..59.
+pinctrl1's pins 20..29, and GPIOs 10..29 routed to pin controller pinctrl2's
+pins 50..69.
 
 Example 2:
 

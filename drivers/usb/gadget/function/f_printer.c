@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_printer.c - USB printer function driver
  *
@@ -8,11 +9,6 @@
  *
  * Copyright (C) 2003-2005 David Brownell
  * Copyright (C) 2006 Craig W. Nadler
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -555,6 +551,7 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	size_t			size;	/* Amount of data in a TX request. */
 	size_t			bytes_copied = 0;
 	struct usb_request	*req;
+	int			value;
 
 	DBG(dev, "printer_write trying to send %d bytes\n", (int)len);
 
@@ -634,7 +631,11 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 			return -EAGAIN;
 		}
 
-		if (usb_ep_queue(dev->in_ep, req, GFP_ATOMIC)) {
+		/* here, we unlock, and only unlock, to avoid deadlock. */
+		spin_unlock(&dev->lock);
+		value = usb_ep_queue(dev->in_ep, req, GFP_ATOMIC);
+		spin_lock(&dev->lock);
+		if (value) {
 			list_add(&req->list, &dev->tx_reqs);
 			spin_unlock_irqrestore(&dev->lock, flags);
 			mutex_unlock(&dev->lock_printer_io);
@@ -1256,7 +1257,7 @@ static struct configfs_attribute *printer_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type printer_func_type = {
+static const struct config_item_type printer_func_type = {
 	.ct_item_ops	= &printer_item_ops,
 	.ct_attrs	= printer_attrs,
 	.ct_owner	= THIS_MODULE,

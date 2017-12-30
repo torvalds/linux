@@ -493,8 +493,8 @@ start:
 	switch (reg&0xff) {
 	case 0x06:
 		if (reg & 0x1000) usK = 3 << 24;
-		/* Fall through to QAM64 case */
-	case 0x43:
+		/* fall through */
+	case 0x43: /* QAM64 */
 		c = 150204167;
 		break;
 	case 0x45:

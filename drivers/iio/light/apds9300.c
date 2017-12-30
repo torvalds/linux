@@ -337,12 +337,10 @@ static int apds9300_write_interrupt_config(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info apds9300_info_no_irq = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= apds9300_read_raw,
 };
 
 static const struct iio_info apds9300_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= apds9300_read_raw,
 	.read_event_value	= apds9300_read_thresh,
 	.write_event_value	= apds9300_write_thresh,
@@ -505,7 +503,7 @@ static SIMPLE_DEV_PM_OPS(apds9300_pm_ops, apds9300_suspend, apds9300_resume);
 #define APDS9300_PM_OPS NULL
 #endif
 
-static struct i2c_device_id apds9300_id[] = {
+static const struct i2c_device_id apds9300_id[] = {
 	{ APDS9300_DRV_NAME, 0 },
 	{ }
 };

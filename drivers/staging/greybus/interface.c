@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus interface code
  *
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/delay.h>
@@ -47,7 +46,7 @@ static int gb_interface_hibernate_link(struct gb_interface *intf);
 static int gb_interface_refclk_set(struct gb_interface *intf, bool enable);
 
 static int gb_interface_dme_attr_get(struct gb_interface *intf,
-							u16 attr, u32 *val)
+				     u16 attr, u32 *val)
 {
 	return gb_svc_dme_peer_get(intf->hd->svc, intf->interface_id,
 					attr, DME_SELECTOR_INDEX_NULL, val);
@@ -64,7 +63,7 @@ static int gb_interface_read_ara_dme(struct gb_interface *intf)
 	 */
 	if (intf->ddbl1_manufacturer_id != TOSHIBA_DMID) {
 		dev_err(&intf->dev, "unknown manufacturer %08x\n",
-				intf->ddbl1_manufacturer_id);
+			intf->ddbl1_manufacturer_id);
 		return -ENODEV;
 	}
 
@@ -110,7 +109,7 @@ static int gb_interface_read_dme(struct gb_interface *intf)
 		return ret;
 
 	if (intf->ddbl1_manufacturer_id == TOSHIBA_DMID &&
-			intf->ddbl1_product_id == TOSHIBA_ES2_BRIDGE_DPID) {
+	    intf->ddbl1_product_id == TOSHIBA_ES2_BRIDGE_DPID) {
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_GMP_IDS;
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_INIT_STATUS;
 	}
@@ -144,7 +143,7 @@ static int gb_interface_route_create(struct gb_interface *intf)
 	ret = gb_svc_intf_device_id(svc, intf_id, device_id);
 	if (ret) {
 		dev_err(&intf->dev, "failed to set device id %u: %d\n",
-				device_id, ret);
+			device_id, ret);
 		goto err_ida_remove;
 	}
 
@@ -205,21 +204,21 @@ static int gb_interface_legacy_mode_switch(struct gb_interface *intf)
 }
 
 void gb_interface_mailbox_event(struct gb_interface *intf, u16 result,
-								u32 mailbox)
+				u32 mailbox)
 {
 	mutex_lock(&intf->mutex);
 
 	if (result) {
 		dev_warn(&intf->dev,
-				"mailbox event with UniPro error: 0x%04x\n",
-				result);
+			 "mailbox event with UniPro error: 0x%04x\n",
+			 result);
 		goto err_disable;
 	}
 
 	if (mailbox != GB_SVC_INTF_MAILBOX_GREYBUS) {
 		dev_warn(&intf->dev,
-				"mailbox event with unexpected value: 0x%08x\n",
-				mailbox);
+			 "mailbox event with unexpected value: 0x%08x\n",
+			 mailbox);
 		goto err_disable;
 	}
 
@@ -230,7 +229,7 @@ void gb_interface_mailbox_event(struct gb_interface *intf, u16 result,
 
 	if (!intf->mode_switch) {
 		dev_warn(&intf->dev, "unexpected mailbox event: 0x%08x\n",
-				mailbox);
+			 mailbox);
 		goto err_disable;
 	}
 
@@ -299,7 +298,7 @@ static void gb_interface_mode_switch_work(struct work_struct *work)
 		ret = gb_interface_enable(intf);
 		if (ret) {
 			dev_err(&intf->dev, "failed to re-enable interface: %d\n",
-					ret);
+				ret);
 			gb_interface_deactivate(intf);
 		}
 	}
@@ -619,7 +618,7 @@ static struct attribute *interface_common_attrs[] = {
 };
 
 static umode_t interface_unipro_is_visible(struct kobject *kobj,
-						struct attribute *attr, int n)
+					   struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -634,7 +633,7 @@ static umode_t interface_unipro_is_visible(struct kobject *kobj,
 }
 
 static umode_t interface_greybus_is_visible(struct kobject *kobj,
-						struct attribute *attr, int n)
+					    struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -648,7 +647,7 @@ static umode_t interface_greybus_is_visible(struct kobject *kobj,
 }
 
 static umode_t interface_power_is_visible(struct kobject *kobj,
-						struct attribute *attr, int n)
+					  struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct gb_interface *intf = to_gb_interface(dev);
@@ -813,7 +812,7 @@ struct gb_interface *gb_interface_create(struct gb_module *module,
 	intf->dev.dma_mask = module->dev.dma_mask;
 	device_initialize(&intf->dev);
 	dev_set_name(&intf->dev, "%s.%u", dev_name(&module->dev),
-			interface_id);
+		     interface_id);
 
 	pm_runtime_set_autosuspend_delay(&intf->dev,
 					 GB_INTERFACE_AUTOSUSPEND_MS);
@@ -1083,7 +1082,7 @@ int gb_interface_enable(struct gb_interface *intf)
 	control = gb_control_create(intf);
 	if (IS_ERR(control)) {
 		dev_err(&intf->dev, "failed to create control device: %ld\n",
-				PTR_ERR(control));
+			PTR_ERR(control));
 		return PTR_ERR(control);
 	}
 	intf->control = control;
@@ -1228,17 +1227,17 @@ int gb_interface_add(struct gb_interface *intf)
 	trace_gb_interface_add(intf);
 
 	dev_info(&intf->dev, "Interface added (%s)\n",
-			gb_interface_type_string(intf));
+		 gb_interface_type_string(intf));
 
 	switch (intf->type) {
 	case GB_INTERFACE_TYPE_GREYBUS:
 		dev_info(&intf->dev, "GMP VID=0x%08x, PID=0x%08x\n",
-				intf->vendor_id, intf->product_id);
+			 intf->vendor_id, intf->product_id);
 		/* fall-through */
 	case GB_INTERFACE_TYPE_UNIPRO:
 		dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
-				intf->ddbl1_manufacturer_id,
-				intf->ddbl1_product_id);
+			 intf->ddbl1_manufacturer_id,
+			 intf->ddbl1_product_id);
 		break;
 	default:
 		break;

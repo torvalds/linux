@@ -177,8 +177,8 @@ static int fsl_bman_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "Can't get %s property 'IORESOURCE_MEM'\n",
-			node->full_name);
+		dev_err(dev, "Can't get %pOF property 'IORESOURCE_MEM'\n",
+			node);
 		return -ENXIO;
 	}
 	bm_ccsr_start = devm_ioremap(dev, res->start, resource_size(res));
@@ -201,18 +201,33 @@ static int fsl_bman_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/*
+	 * If FBPR memory wasn't defined using the qbman compatible string
+	 * try using the of_reserved_mem_device method
+	 */
+	if (!fbpr_a) {
+		ret = qbman_init_private_mem(dev, 0, &fbpr_a, &fbpr_sz);
+		if (ret) {
+			dev_err(dev, "qbman_init_private_mem() failed 0x%x\n",
+				ret);
+			return -ENODEV;
+		}
+	}
+
+	dev_dbg(dev, "Allocated FBPR 0x%llx 0x%zx\n", fbpr_a, fbpr_sz);
+
 	bm_set_memory(fbpr_a, fbpr_sz);
 
 	err_irq = platform_get_irq(pdev, 0);
 	if (err_irq <= 0) {
-		dev_info(dev, "Can't get %s IRQ\n", node->full_name);
+		dev_info(dev, "Can't get %pOF IRQ\n", node);
 		return -ENODEV;
 	}
 	ret = devm_request_irq(dev, err_irq, bman_isr, IRQF_SHARED, "bman-err",
 			       dev);
 	if (ret)  {
-		dev_err(dev, "devm_request_irq() failed %d for '%s'\n",
-			ret, node->full_name);
+		dev_err(dev, "devm_request_irq() failed %d for '%pOF'\n",
+			ret, node);
 		return ret;
 	}
 	/* Disable Buffer Pool State Change */

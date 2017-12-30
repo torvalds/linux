@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # SATA/PATA driver configuration
 #
@@ -153,6 +154,16 @@ config AHCI_CEVA
 
 	  If unsure, say N.
 
+config AHCI_MTK
+	tristate "MediaTek AHCI SATA support"
+	depends on ARCH_MEDIATEK
+	select MFD_SYSCON
+	help
+	  This option enables support for the MediaTek SoC's
+	  onboard AHCI SATA controller.
+
+	  If unsure, say N.
+
 config AHCI_MVEBU
 	tristate "Marvell EBU AHCI SATA support"
 	depends on ARCH_MVEBU
@@ -210,6 +221,16 @@ config SATA_FSL
 	help
 	  This option enables support for Freescale 3.0Gbps SATA controller.
 	  It can be found on MPC837x and MPC8315.
+
+	  If unsure, say N.
+
+config SATA_GEMINI
+	tristate "Gemini SATA bridge support"
+	depends on ARCH_GEMINI || COMPILE_TEST
+	default ARCH_GEMINI
+	help
+	  This enabled support for the FTIDE010 to SATA bridge
+	  found in Cortina Systems Gemini platform.
 
 	  If unsure, say N.
 
@@ -596,6 +617,17 @@ config PATA_EP93XX
 	help
 	  This option enables support for the PATA controller in
 	  the Cirrus Logic EP9312 and EP9315 ARM CPU.
+
+	  If unsure, say N.
+
+config PATA_FTIDE010
+	tristate "Faraday Technology FTIDE010 PATA support"
+	depends on OF
+	depends on ARM
+	depends on SATA_GEMINI
+	help
+	  This option enables support for the Faraday FTIDE010
+	  PATA controller found in the Cortina Gemini SoCs.
 
 	  If unsure, say N.
 

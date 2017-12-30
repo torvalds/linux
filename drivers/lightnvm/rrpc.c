@@ -267,9 +267,9 @@ static void rrpc_gc_kick(struct rrpc *rrpc)
 /*
  * timed GC every interval.
  */
-static void rrpc_gc_timer(unsigned long data)
+static void rrpc_gc_timer(struct timer_list *t)
 {
-	struct rrpc *rrpc = (struct rrpc *)data;
+	struct rrpc *rrpc = from_timer(rrpc, t, gc_timer);
 
 	rrpc_gc_kick(rrpc);
 	mod_timer(&rrpc->gc_timer, jiffies + msecs_to_jiffies(10));
@@ -279,8 +279,8 @@ static void rrpc_end_sync_bio(struct bio *bio)
 {
 	struct completion *waiting = bio->bi_private;
 
-	if (bio->bi_error)
-		pr_err("nvm: gc request failed (%u).\n", bio->bi_error);
+	if (bio->bi_status)
+		pr_err("nvm: gc request failed (%u).\n", bio->bi_status);
 
 	complete(waiting);
 }
@@ -359,7 +359,7 @@ try:
 			goto finished;
 		}
 		wait_for_completion_io(&wait);
-		if (bio->bi_error) {
+		if (bio->bi_status) {
 			rrpc_inflight_laddr_release(rrpc, rqd);
 			goto finished;
 		}
@@ -385,7 +385,7 @@ try:
 		wait_for_completion_io(&wait);
 
 		rrpc_inflight_laddr_release(rrpc, rqd);
-		if (bio->bi_error)
+		if (bio->bi_status)
 			goto finished;
 
 		bio_reset(bio);
@@ -994,7 +994,7 @@ static blk_qc_t rrpc_make_rq(struct request_queue *q, struct bio *bio)
 	struct nvm_rq *rqd;
 	int err;
 
-	blk_queue_split(q, &bio, q->bio_split);
+	blk_queue_split(q, &bio);
 
 	if (bio_op(bio) == REQ_OP_DISCARD) {
 		rrpc_discard(rrpc, bio);
@@ -1063,7 +1063,7 @@ static int rrpc_gc_init(struct rrpc *rrpc)
 	if (!rrpc->kgc_wq)
 		return -ENOMEM;
 
-	setup_timer(&rrpc->gc_timer, rrpc_gc_timer, (unsigned long)rrpc);
+	timer_setup(&rrpc->gc_timer, rrpc_gc_timer, 0);
 
 	return 0;
 }

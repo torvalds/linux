@@ -11,14 +11,54 @@
 #include "vdso.h"
 
 #include <linux/compiler.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/time.h>
 
 #include <asm/clocksource.h>
 #include <asm/io.h>
-#include <asm/mips-cm.h>
 #include <asm/unistd.h>
 #include <asm/vdso.h>
+
+#ifdef CONFIG_MIPS_CLOCK_VSYSCALL
+
+static __always_inline long gettimeofday_fallback(struct timeval *_tv,
+					  struct timezone *_tz)
+{
+	register struct timezone *tz asm("a1") = _tz;
+	register struct timeval *tv asm("a0") = _tv;
+	register long ret asm("v0");
+	register long nr asm("v0") = __NR_gettimeofday;
+	register long error asm("a3");
+
+	asm volatile(
+	"       syscall\n"
+	: "=r" (ret), "=r" (error)
+	: "r" (tv), "r" (tz), "r" (nr)
+	: "$1", "$3", "$8", "$9", "$10", "$11", "$12", "$13",
+	  "$14", "$15", "$24", "$25", "hi", "lo", "memory");
+
+	return error ? -ret : ret;
+}
+
+#endif
+
+static __always_inline long clock_gettime_fallback(clockid_t _clkid,
+					   struct timespec *_ts)
+{
+	register struct timespec *ts asm("a1") = _ts;
+	register clockid_t clkid asm("a0") = _clkid;
+	register long ret asm("v0");
+	register long nr asm("v0") = __NR_clock_gettime;
+	register long error asm("a3");
+
+	asm volatile(
+	"       syscall\n"
+	: "=r" (ret), "=r" (error)
+	: "r" (clkid), "r" (ts), "r" (nr)
+	: "$1", "$3", "$8", "$9", "$10", "$11", "$12", "$13",
+	  "$14", "$15", "$24", "$25", "hi", "lo", "memory");
+
+	return error ? -ret : ret;
+}
 
 static __always_inline int do_realtime_coarse(struct timespec *ts,
 					      const union mips_vdso_data *data)
@@ -39,8 +79,8 @@ static __always_inline int do_monotonic_coarse(struct timespec *ts,
 					       const union mips_vdso_data *data)
 {
 	u32 start_seq;
-	u32 to_mono_sec;
-	u32 to_mono_nsec;
+	u64 to_mono_sec;
+	u64 to_mono_nsec;
 
 	do {
 		start_seq = vdso_data_read_begin(data);
@@ -84,9 +124,9 @@ static __always_inline u64 read_gic_count(const union mips_vdso_data *data)
 	u32 hi, hi2, lo;
 
 	do {
-		hi = __raw_readl(gic + GIC_UMV_SH_COUNTER_63_32_OFS);
-		lo = __raw_readl(gic + GIC_UMV_SH_COUNTER_31_00_OFS);
-		hi2 = __raw_readl(gic + GIC_UMV_SH_COUNTER_63_32_OFS);
+		hi = __raw_readl(gic + sizeof(lo));
+		lo = __raw_readl(gic);
+		hi2 = __raw_readl(gic + sizeof(lo));
 	} while (hi2 != hi);
 
 	return (((u64)hi) << 32) + lo;
@@ -148,8 +188,8 @@ static __always_inline int do_monotonic(struct timespec *ts,
 {
 	u32 start_seq;
 	u64 ns;
-	u32 to_mono_sec;
-	u32 to_mono_nsec;
+	u64 to_mono_sec;
+	u64 to_mono_nsec;
 
 	do {
 		start_seq = vdso_data_read_begin(data);
@@ -187,7 +227,7 @@ int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 
 	ret = do_realtime(&ts, data);
 	if (ret)
-		return ret;
+		return gettimeofday_fallback(tv, tz);
 
 	if (tv) {
 		tv->tv_sec = ts.tv_sec;
@@ -202,12 +242,12 @@ int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 	return 0;
 }
 
-#endif /* CONFIG_CLKSRC_MIPS_GIC */
+#endif /* CONFIG_MIPS_CLOCK_VSYSCALL */
 
 int __vdso_clock_gettime(clockid_t clkid, struct timespec *ts)
 {
 	const union mips_vdso_data *data = get_vdso_data();
-	int ret;
+	int ret = -1;
 
 	switch (clkid) {
 	case CLOCK_REALTIME_COARSE:
@@ -223,10 +263,11 @@ int __vdso_clock_gettime(clockid_t clkid, struct timespec *ts)
 		ret = do_monotonic(ts, data);
 		break;
 	default:
-		ret = -ENOSYS;
 		break;
 	}
 
-	/* If we return -ENOSYS libc should fall back to a syscall. */
+	if (ret)
+		ret = clock_gettime_fallback(clkid, ts);
+
 	return ret;
 }

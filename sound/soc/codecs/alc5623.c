@@ -951,7 +951,7 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_device_alc5623 = {
+static const struct snd_soc_codec_driver soc_codec_device_alc5623 = {
 	.probe = alc5623_probe,
 	.suspend = alc5623_suspend,
 	.resume = alc5623_resume,

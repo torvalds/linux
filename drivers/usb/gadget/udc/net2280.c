@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for the PLX NET2280 USB device controller.
  * Specs and errata are available from <http://www.plxtech.com>.
@@ -31,11 +32,6 @@
  *
  * Modified Ricardo Ribalda Qtechnology AS  to provide compatibility
  *	with usb 338x chip. Based on PLX driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -3566,7 +3562,6 @@ static void net2280_remove(struct pci_dev *pdev)
 	BUG_ON(dev->driver);
 
 	/* then clean up the resources we allocated during probe() */
-	net2280_led_shutdown(dev);
 	if (dev->requests) {
 		int		i;
 		for (i = 1; i < 5; i++) {
@@ -3581,8 +3576,10 @@ static void net2280_remove(struct pci_dev *pdev)
 		free_irq(pdev->irq, dev);
 	if (dev->quirks & PLX_PCIE)
 		pci_disable_msi(pdev);
-	if (dev->regs)
+	if (dev->regs) {
+		net2280_led_shutdown(dev);
 		iounmap(dev->regs);
+	}
 	if (dev->region)
 		release_mem_region(pci_resource_start(pdev, 0),
 				pci_resource_len(pdev, 0));

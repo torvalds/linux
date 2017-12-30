@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
 config M68K
 	bool
 	default y
 	select ARCH_MIGHT_HAVE_PC_PARPORT if ISA
+	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
 	select HAVE_IDE
 	select HAVE_AOUT if MMU
 	select HAVE_DEBUG_BUGVERBOSE
@@ -22,6 +24,9 @@ config M68K
 	select MODULES_USE_ELF_RELA
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
+
+config CPU_BIG_ENDIAN
+	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
 	bool

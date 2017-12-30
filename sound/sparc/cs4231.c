@@ -200,12 +200,12 @@ static unsigned char freq_bits[14] = {
 	/* 48000 */	0x0C | CS4231_XTAL1
 };
 
-static unsigned int rates[14] = {
+static const unsigned int rates[14] = {
 	5510, 6620, 8000, 9600, 11025, 16000, 18900, 22050,
 	27042, 32000, 33075, 37800, 44100, 48000
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count	= ARRAY_SIZE(rates),
 	.list	= rates,
 };
@@ -1089,7 +1089,7 @@ static int snd_cs4231_probe(struct snd_cs4231 *chip)
 	return 0;		/* all things are ok.. */
 }
 
-static struct snd_pcm_hardware snd_cs4231_playback = {
+static const struct snd_pcm_hardware snd_cs4231_playback = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_MMAP_VALID |
@@ -1113,7 +1113,7 @@ static struct snd_pcm_hardware snd_cs4231_playback = {
 	.periods_max		= 1024,
 };
 
-static struct snd_pcm_hardware snd_cs4231_capture = {
+static const struct snd_pcm_hardware snd_cs4231_capture = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_MMAP_VALID |
@@ -1203,7 +1203,7 @@ static int snd_cs4231_capture_close(struct snd_pcm_substream *substream)
  * XXX the audio AUXIO register...
  */
 
-static struct snd_pcm_ops snd_cs4231_playback_ops = {
+static const struct snd_pcm_ops snd_cs4231_playback_ops = {
 	.open		=	snd_cs4231_playback_open,
 	.close		=	snd_cs4231_playback_close,
 	.ioctl		=	snd_pcm_lib_ioctl,
@@ -1214,7 +1214,7 @@ static struct snd_pcm_ops snd_cs4231_playback_ops = {
 	.pointer	=	snd_cs4231_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_cs4231_capture_ops = {
+static const struct snd_pcm_ops snd_cs4231_capture_ops = {
 	.open		=	snd_cs4231_capture_open,
 	.close		=	snd_cs4231_capture_close,
 	.ioctl		=	snd_pcm_lib_ioctl,

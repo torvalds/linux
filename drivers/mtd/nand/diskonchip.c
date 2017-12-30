@@ -27,7 +27,7 @@
 #include <linux/io.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/doc2000.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/inftl.h>
@@ -705,8 +705,7 @@ static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int colu
 		if (page_addr != -1) {
 			WriteDOC((unsigned char)(page_addr & 0xff), docptr, Mplus_FlashAddress);
 			WriteDOC((unsigned char)((page_addr >> 8) & 0xff), docptr, Mplus_FlashAddress);
-			/* One more address cycle for higher density devices */
-			if (this->chipsize & 0x0c000000) {
+			if (this->options & NAND_ROW_ADDR_3) {
 				WriteDOC((unsigned char)((page_addr >> 16) & 0x0f), docptr, Mplus_FlashAddress);
 				printk("high density\n");
 			}

@@ -308,19 +308,14 @@ static int fec_alloc_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 {
 	unsigned n;
 
-	if (!fio->rs) {
-		fio->rs = mempool_alloc(v->fec->rs_pool, 0);
-		if (unlikely(!fio->rs)) {
-			DMERR("failed to allocate RS");
-			return -ENOMEM;
-		}
-	}
+	if (!fio->rs)
+		fio->rs = mempool_alloc(v->fec->rs_pool, GFP_NOIO);
 
 	fec_for_each_prealloc_buffer(n) {
 		if (fio->bufs[n])
 			continue;
 
-		fio->bufs[n] = mempool_alloc(v->fec->prealloc_pool, GFP_NOIO);
+		fio->bufs[n] = mempool_alloc(v->fec->prealloc_pool, GFP_NOWAIT);
 		if (unlikely(!fio->bufs[n])) {
 			DMERR("failed to allocate FEC buffer");
 			return -ENOMEM;
@@ -332,21 +327,15 @@ static int fec_alloc_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 		if (fio->bufs[n])
 			continue;
 
-		fio->bufs[n] = mempool_alloc(v->fec->extra_pool, GFP_NOIO);
+		fio->bufs[n] = mempool_alloc(v->fec->extra_pool, GFP_NOWAIT);
 		/* we can manage with even one buffer if necessary */
 		if (unlikely(!fio->bufs[n]))
 			break;
 	}
 	fio->nbufs = n;
 
-	if (!fio->output) {
+	if (!fio->output)
 		fio->output = mempool_alloc(v->fec->output_pool, GFP_NOIO);
-
-		if (!fio->output) {
-			DMERR("failed to allocate FEC page");
-			return -ENOMEM;
-		}
-	}
 
 	return 0;
 }

@@ -31,6 +31,7 @@
 #define __sctp_auth_h__
 
 #include <linux/list.h>
+#include <linux/refcount.h>
 
 struct sctp_endpoint;
 struct sctp_association;
@@ -53,7 +54,7 @@ struct sctp_hmac {
  * over SCTP-AUTH
  */
 struct sctp_auth_bytes {
-	atomic_t refcnt;
+	refcount_t refcnt;
 	__u32 len;
 	__u8  data[];
 };
@@ -76,7 +77,7 @@ static inline void sctp_auth_key_hold(struct sctp_auth_bytes *key)
 	if (!key)
 		return;
 
-	atomic_inc(&key->refcnt);
+	refcount_inc(&key->refcnt);
 }
 
 void sctp_auth_key_put(struct sctp_auth_bytes *key);
@@ -97,8 +98,10 @@ void sctp_auth_asoc_set_default_hmac(struct sctp_association *asoc,
 				     struct sctp_hmac_algo_param *hmacs);
 int sctp_auth_asoc_verify_hmac_id(const struct sctp_association *asoc,
 				    __be16 hmac_id);
-int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc);
-int sctp_auth_recv_cid(sctp_cid_t chunk, const struct sctp_association *asoc);
+int sctp_auth_send_cid(enum sctp_cid chunk,
+		       const struct sctp_association *asoc);
+int sctp_auth_recv_cid(enum sctp_cid chunk,
+		       const struct sctp_association *asoc);
 void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
 			    struct sk_buff *skb,
 			    struct sctp_auth_chunk *auth, gfp_t gfp);

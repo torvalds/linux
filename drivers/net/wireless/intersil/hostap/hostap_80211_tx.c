@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/etherdevice.h>
@@ -242,7 +243,7 @@ netdev_tx_t hostap_data_start_xmit(struct sk_buff *skb,
 		memcpy(skb_push(skb, encaps_len), encaps_data, encaps_len);
 	memcpy(skb_push(skb, hdr_len), &hdr, hdr_len);
 	if (use_wds == WDS_OWN_FRAME) {
-		memcpy(skb_put(skb, ETH_ALEN), &hdr.addr4, ETH_ALEN);
+		skb_put_data(skb, &hdr.addr4, ETH_ALEN);
 	}
 
 	iface->stats.tx_packets++;

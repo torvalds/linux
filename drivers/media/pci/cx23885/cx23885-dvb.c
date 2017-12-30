@@ -2637,6 +2637,11 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 	struct vb2_dvb_frontend *fe0;
 	struct i2c_client *client;
 
+	fe0 = vb2_dvb_get_frontend(&port->frontends, 1);
+
+	if (fe0 && fe0->dvb.frontend)
+		vb2_dvb_unregister_bus(&port->frontends);
+
 	/* remove I2C client for CI */
 	client = port->i2c_client_ci;
 	if (client) {
@@ -2664,11 +2669,6 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 		module_put(client->dev.driver->owner);
 		i2c_unregister_device(client);
 	}
-
-	fe0 = vb2_dvb_get_frontend(&port->frontends, 1);
-
-	if (fe0 && fe0->dvb.frontend)
-		vb2_dvb_unregister_bus(&port->frontends);
 
 	switch (port->dev->board) {
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:

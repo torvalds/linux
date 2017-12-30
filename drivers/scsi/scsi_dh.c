@@ -126,20 +126,36 @@ static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 static int scsi_dh_handler_attach(struct scsi_device *sdev,
 				  struct scsi_device_handler *scsi_dh)
 {
-	int error;
+	int error, ret = 0;
 
 	if (!try_module_get(scsi_dh->module))
 		return -EINVAL;
 
 	error = scsi_dh->attach(sdev);
-	if (error) {
-		sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%d)\n",
-			    scsi_dh->name, error);
+	if (error != SCSI_DH_OK) {
+		switch (error) {
+		case SCSI_DH_NOMEM:
+			ret = -ENOMEM;
+			break;
+		case SCSI_DH_RES_TEMP_UNAVAIL:
+			ret = -EAGAIN;
+			break;
+		case SCSI_DH_DEV_UNSUPP:
+		case SCSI_DH_NOSYS:
+			ret = -ENODEV;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+		if (ret != -ENODEV)
+			sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%d)\n",
+				    scsi_dh->name, error);
 		module_put(scsi_dh->module);
 	} else
 		sdev->handler = scsi_dh;
 
-	return error;
+	return ret;
 }
 
 /*
@@ -153,18 +169,20 @@ static void scsi_dh_handler_detach(struct scsi_device *sdev)
 	module_put(sdev->handler->module);
 }
 
-int scsi_dh_add_device(struct scsi_device *sdev)
+void scsi_dh_add_device(struct scsi_device *sdev)
 {
 	struct scsi_device_handler *devinfo = NULL;
 	const char *drv;
-	int err = 0;
 
 	drv = scsi_dh_find_driver(sdev);
 	if (drv)
 		devinfo = __scsi_dh_lookup(drv);
+	/*
+	 * device_handler is optional, so ignore errors
+	 * from scsi_dh_handler_attach()
+	 */
 	if (devinfo)
-		err = scsi_dh_handler_attach(sdev, devinfo);
-	return err;
+		(void)scsi_dh_handler_attach(sdev, devinfo);
 }
 
 void scsi_dh_release_device(struct scsi_device *sdev)

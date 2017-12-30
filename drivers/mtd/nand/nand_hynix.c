@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 
@@ -477,7 +477,7 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 		 * The ECC requirements field meaning depends on the
 		 * NAND technology.
 		 */
-		u8 nand_tech = chip->id.data[5] & 0x3;
+		u8 nand_tech = chip->id.data[5] & 0x7;
 
 		if (nand_tech < 3) {
 			/* > 26nm, reference: H27UBG8T2A datasheet */
@@ -533,7 +533,7 @@ static void hynix_nand_extract_scrambling_requirements(struct nand_chip *chip,
 		if (nand_tech > 0)
 			chip->options |= NAND_NEED_SCRAMBLING;
 	} else {
-		nand_tech = chip->id.data[5] & 0x3;
+		nand_tech = chip->id.data[5] & 0x7;
 
 		/* < 32nm */
 		if (nand_tech > 2)

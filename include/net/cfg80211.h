@@ -649,6 +649,7 @@ struct survey_info {
  * @wep_keys: static WEP keys, if not NULL points to an array of
  *	CFG80211_MAX_WEP_KEYS WEP keys
  * @wep_tx_key: key index (0..3) of the default TX static WEP key
+ * @psk: PSK (for devices supporting 4-way-handshake offload)
  */
 struct cfg80211_crypto_settings {
 	u32 wpa_versions;
@@ -662,6 +663,7 @@ struct cfg80211_crypto_settings {
 	bool control_port_no_encrypt;
 	struct key_params *wep_keys;
 	int wep_tx_key;
+	const u8 *psk;
 };
 
 /**
@@ -1441,6 +1443,9 @@ struct mesh_config {
  * @mcast_rate: multicat rate for Mesh Node [6Mbps is the default for 802.11a]
  * @basic_rates: basic rates to use when creating the mesh
  * @beacon_rate: bitrate to be used for beacons
+ * @userspace_handles_dfs: whether user space controls DFS operation, i.e.
+ *	changes the channel when a radar is detected. This is required
+ *	to operate on DFS channels.
  *
  * These parameters are fixed when the mesh is created.
  */
@@ -1462,6 +1467,7 @@ struct mesh_setup {
 	int mcast_rate[NUM_NL80211_BANDS];
 	u32 basic_rates;
 	struct cfg80211_bitrate_mask beacon_rate;
+	bool userspace_handles_dfs;
 };
 
 /**
@@ -2106,6 +2112,8 @@ struct cfg80211_bss_selection {
  * @fils_erp_rrk: ERP re-authentication Root Key (rRK) used to derive additional
  *	keys in FILS or %NULL if not specified.
  * @fils_erp_rrk_len: Length of @fils_erp_rrk in octets.
+ * @want_1x: indicates user-space supports and wants to use 802.1X driver
+ *	offload of 4-way handshake.
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
@@ -2138,6 +2146,7 @@ struct cfg80211_connect_params {
 	u16 fils_erp_next_seq_num;
 	const u8 *fils_erp_rrk;
 	size_t fils_erp_rrk_len;
+	bool want_1x;
 };
 
 /**
@@ -2560,6 +2569,23 @@ struct cfg80211_nan_func {
 };
 
 /**
+ * struct cfg80211_pmk_conf - PMK configuration
+ *
+ * @aa: authenticator address
+ * @pmk_len: PMK length in bytes.
+ * @pmk: the PMK material
+ * @pmk_r0_name: PMK-R0 Name. NULL if not applicable (i.e., the PMK
+ *	is not PMK-R0). When pmk_r0_name is not NULL, the pmk field
+ *	holds PMK-R0.
+ */
+struct cfg80211_pmk_conf {
+	const u8 *aa;
+	u8 pmk_len;
+	const u8 *pmk;
+	const u8 *pmk_r0_name;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -2875,6 +2901,13 @@ struct cfg80211_nan_func {
  *	All other parameters must be ignored.
  *
  * @set_multicast_to_unicast: configure multicast to unicast conversion for BSS
+ *
+ * @set_pmk: configure the PMK to be used for offloaded 802.1X 4-Way handshake.
+ *	If not deleted through @del_pmk the PMK remains valid until disconnect
+ *	upon which the driver should clear it.
+ *	(invoked with the wireless_dev mutex held)
+ * @del_pmk: delete the previously configured PMK for the given authenticator.
+ *	(invoked with the wireless_dev mutex held)
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3163,6 +3196,11 @@ struct cfg80211_ops {
 	int	(*set_multicast_to_unicast)(struct wiphy *wiphy,
 					    struct net_device *dev,
 					    const bool enabled);
+
+	int	(*set_pmk)(struct wiphy *wiphy, struct net_device *dev,
+			   const struct cfg80211_pmk_conf *conf);
+	int	(*del_pmk)(struct wiphy *wiphy, struct net_device *dev,
+			   const u8 *aa);
 };
 
 /*
@@ -3188,7 +3226,6 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_IBSS_RSN: The device supports IBSS RSN.
  * @WIPHY_FLAG_MESH_AUTH: The device supports mesh authentication by routing
  *	auth frames to userspace. See @NL80211_MESH_SETUP_USERSPACE_AUTH.
- * @WIPHY_FLAG_SUPPORTS_SCHED_SCAN: The device supports scheduled scans.
  * @WIPHY_FLAG_SUPPORTS_FW_ROAM: The device supports roaming feature in the
  *	firmware.
  * @WIPHY_FLAG_AP_UAPSD: The device supports uapsd on AP.
@@ -4309,19 +4346,6 @@ static inline int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 }
 
 /**
- * ieee80211_data_from_8023 - convert an 802.3 frame to 802.11
- * @skb: the 802.3 frame
- * @addr: the device MAC address
- * @iftype: the virtual interface type
- * @bssid: the network bssid (used only for iftype STATION and ADHOC)
- * @qos: build 802.11 QoS data frame
- * Return: 0 on success, or a negative error code.
- */
-int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
-			     enum nl80211_iftype iftype, const u8 *bssid,
-			     bool qos);
-
-/**
  * ieee80211_amsdu_to_8023s - decode an IEEE 802.11n A-MSDU frame
  *
  * Decode an IEEE 802.11 A-MSDU and convert it to a list of 802.3 frames.
@@ -5436,6 +5460,23 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 		     gfp_t gfp);
 
 /**
+ * cfg80211_port_authorized - notify cfg80211 of successful security association
+ *
+ * @dev: network device
+ * @bssid: the BSSID of the AP
+ * @gfp: allocation flags
+ *
+ * This function should be called by a driver that supports 4 way handshake
+ * offload after a security association was successfully established (i.e.,
+ * the 4 way handshake was completed successfully). The call to this function
+ * should be preceded with a call to cfg80211_connect_result(),
+ * cfg80211_connect_done(), cfg80211_connect_bss() or cfg80211_roamed() to
+ * indicate the 802.11 association.
+ */
+void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
+			      gfp_t gfp);
+
+/**
  * cfg80211_disconnected - notify cfg80211 that connection was dropped
  *
  * @dev: network device
@@ -5892,7 +5933,8 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
  * @ies: the IE buffer
  * @ielen: the length of the IE buffer
  * @ids: an array with element IDs that are allowed before
- *	the split
+ *	the split. A WLAN_EID_EXTENSION value means that the next
+ *	EID in the list is a sub-element of the EXTENSION IE.
  * @n_ids: the size of the element ID array
  * @after_ric: array IE types that come after the RIC element
  * @n_after_ric: size of the @after_ric array
@@ -5923,7 +5965,8 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
  * @ies: the IE buffer
  * @ielen: the length of the IE buffer
  * @ids: an array with element IDs that are allowed before
- *	the split
+ *	the split. A WLAN_EID_EXTENSION value means that the next
+ *	EID in the list is a sub-element of the EXTENSION IE.
  * @n_ids: the size of the element ID array
  * @offset: offset where to start splitting in the buffer
  *

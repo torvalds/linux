@@ -27,8 +27,6 @@
 #include <linux/compiler.h>
 #include <linux/uaccess.h>
 
-DECLARE_PER_CPU(struct exception_data, exception_data);
-
 #define get_user_space() (uaccess_kernel() ? 0 : mfsp(3))
 #define get_kernel_space() (0)
 

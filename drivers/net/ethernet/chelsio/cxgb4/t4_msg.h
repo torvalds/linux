@@ -50,6 +50,7 @@ enum {
 	CPL_RX_DATA_ACK       = 0xD,
 	CPL_TX_PKT            = 0xE,
 	CPL_L2T_WRITE_REQ     = 0x12,
+	CPL_SMT_WRITE_REQ     = 0x14,
 	CPL_TID_RELEASE       = 0x1A,
 	CPL_TX_DATA_ISO	      = 0x1F,
 
@@ -60,6 +61,7 @@ enum {
 	CPL_PEER_CLOSE        = 0x26,
 	CPL_ABORT_REQ_RSS     = 0x2B,
 	CPL_ABORT_RPL_RSS     = 0x2D,
+	CPL_SMT_WRITE_RPL     = 0x2E,
 
 	CPL_RX_PHYS_ADDR      = 0x30,
 	CPL_CLOSE_CON_RPL     = 0x32,
@@ -92,6 +94,7 @@ enum {
 	CPL_RDMA_TERMINATE    = 0xA2,
 	CPL_RDMA_WRITE        = 0xA4,
 	CPL_SGE_EGR_UPDATE    = 0xA5,
+	CPL_RX_MPS_PKT        = 0xAF,
 
 	CPL_TRACE_PKT         = 0xB0,
 	CPL_ISCSI_DATA	      = 0xB2,
@@ -283,6 +286,7 @@ struct work_request_hdr {
 
 #define RX_CHANNEL_S    26
 #define RX_CHANNEL_V(x) ((x) << RX_CHANNEL_S)
+#define RX_CHANNEL_F	RX_CHANNEL_V(1U)
 
 #define WND_SCALE_EN_S    28
 #define WND_SCALE_EN_V(x) ((x) << WND_SCALE_EN_S)
@@ -311,6 +315,10 @@ struct cpl_pass_open_req {
 #define DELACK_S    5
 #define DELACK_V(x) ((x) << DELACK_S)
 #define DELACK_F    DELACK_V(1U)
+
+#define NON_OFFLOAD_S		7
+#define NON_OFFLOAD_V(x)	((x) << NON_OFFLOAD_S)
+#define NON_OFFLOAD_F		NON_OFFLOAD_V(1U)
 
 #define DSCP_S    22
 #define DSCP_M    0x3F
@@ -680,8 +688,8 @@ struct cpl_set_tcb_field {
 };
 
 /* cpl_set_tcb_field.word_cookie fields */
-#define TCB_WORD_S    0
-#define TCB_WORD(x)   ((x) << TCB_WORD_S)
+#define TCB_WORD_S	0
+#define TCB_WORD_V(x)	((x) << TCB_WORD_S)
 
 #define TCB_COOKIE_S    5
 #define TCB_COOKIE_M    0x7
@@ -806,6 +814,10 @@ struct cpl_tx_pkt {
 #define TXPKT_INS_OVLAN_S    21
 #define TXPKT_INS_OVLAN_V(x) ((x) << TXPKT_INS_OVLAN_S)
 #define TXPKT_INS_OVLAN_F    TXPKT_INS_OVLAN_V(1U)
+
+#define TXPKT_TSTAMP_S    23
+#define TXPKT_TSTAMP_V(x) ((x) << TXPKT_TSTAMP_S)
+#define TXPKT_TSTAMP_F    TXPKT_TSTAMP_V(1ULL)
 
 #define TXPKT_OPCODE_S    24
 #define TXPKT_OPCODE_V(x) ((x) << TXPKT_OPCODE_S)
@@ -1260,6 +1272,44 @@ struct cpl_l2t_write_rpl {
 	u8 status;
 	u8 rsvd[3];
 };
+
+struct cpl_smt_write_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 params;
+	__be16 pfvf1;
+	u8 src_mac1[6];
+	__be16 pfvf0;
+	u8 src_mac0[6];
+};
+
+struct cpl_t6_smt_write_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 params;
+	__be64 tag;
+	__be16 pfvf0;
+	u8 src_mac0[6];
+	__be32 local_ip;
+	__be32 rsvd;
+};
+
+struct cpl_smt_write_rpl {
+	union opcode_tid ot;
+	u8 status;
+	u8 rsvd[3];
+};
+
+/* cpl_smt_{read,write}_req.params fields */
+#define SMTW_OVLAN_IDX_S	16
+#define SMTW_OVLAN_IDX_V(x)	((x) << SMTW_OVLAN_IDX_S)
+
+#define SMTW_IDX_S	20
+#define SMTW_IDX_V(x)	((x) << SMTW_IDX_S)
+
+#define SMTW_NORPL_S	31
+#define SMTW_NORPL_V(x)	((x) << SMTW_NORPL_S)
+#define SMTW_NORPL_F	SMTW_NORPL_V(1U)
 
 struct cpl_rdma_terminate {
 	union opcode_tid ot;
@@ -1875,4 +1925,27 @@ struct cpl_rx_phys_dsgl {
 	(((x) >> CPL_RX_PHYS_DSGL_NOOFSGENTR_S) & \
 	 CPL_RX_PHYS_DSGL_NOOFSGENTR_M)
 
+struct cpl_rx_mps_pkt {
+	__be32 op_to_r1_hi;
+	__be32 r1_lo_length;
+};
+
+#define CPL_RX_MPS_PKT_OP_S     24
+#define CPL_RX_MPS_PKT_OP_M     0xff
+#define CPL_RX_MPS_PKT_OP_V(x)  ((x) << CPL_RX_MPS_PKT_OP_S)
+#define CPL_RX_MPS_PKT_OP_G(x)  \
+	(((x) >> CPL_RX_MPS_PKT_OP_S) & CPL_RX_MPS_PKT_OP_M)
+
+#define CPL_RX_MPS_PKT_TYPE_S           20
+#define CPL_RX_MPS_PKT_TYPE_M           0xf
+#define CPL_RX_MPS_PKT_TYPE_V(x)        ((x) << CPL_RX_MPS_PKT_TYPE_S)
+#define CPL_RX_MPS_PKT_TYPE_G(x)        \
+	(((x) >> CPL_RX_MPS_PKT_TYPE_S) & CPL_RX_MPS_PKT_TYPE_M)
+
+enum {
+	X_CPL_RX_MPS_PKT_TYPE_PAUSE = 1 << 0,
+	X_CPL_RX_MPS_PKT_TYPE_PPP   = 1 << 1,
+	X_CPL_RX_MPS_PKT_TYPE_QFC   = 1 << 2,
+	X_CPL_RX_MPS_PKT_TYPE_PTP   = 1 << 3
+};
 #endif  /* __T4_MSG_H */

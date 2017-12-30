@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/asm-parisc/processor.h
  *
@@ -103,6 +104,8 @@ struct cpuinfo_parisc {
 	unsigned long bh_count;     /* number of times bh was invoked */
 	unsigned long fp_rev;
 	unsigned long fp_model;
+	unsigned long cpu_num;      /* CPU number from PAT firmware */
+	unsigned long cpu_loc;      /* CPU location from PAT firmware */
 	unsigned int state;
 	struct parisc_device *dev;
 	unsigned long loops_per_jiffy;

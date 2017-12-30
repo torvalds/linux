@@ -25,8 +25,8 @@
  *  *_SIZE  is the size of the region
  *  *_BASE  is the virtual address
  */
-#define RAM_SIZE		0x10000000
-#define RAM_START		0x10000000
+#define RPC_RAM_SIZE		0x10000000
+#define RPC_RAM_START		0x10000000
 
 #define EASI_SIZE		0x08000000	/* EASI I/O */
 #define EASI_START		0x08000000

@@ -266,7 +266,7 @@ static int cw1200_sdio_pm(struct hwbus_priv *self, bool suspend)
 	return ret;
 }
 
-static struct hwbus_ops cw1200_sdio_hwbus_ops = {
+static const struct hwbus_ops cw1200_sdio_hwbus_ops = {
 	.hwbus_memcpy_fromio	= cw1200_sdio_memcpy_fromio,
 	.hwbus_memcpy_toio	= cw1200_sdio_memcpy_toio,
 	.lock			= cw1200_sdio_lock,

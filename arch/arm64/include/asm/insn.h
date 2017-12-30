@@ -433,7 +433,6 @@ u32 aarch64_set_branch_offset(u32 insn, s32 offset);
 bool aarch64_insn_hotpatch_safe(u32 old_insn, u32 new_insn);
 
 int aarch64_insn_patch_text_nosync(void *addr, u32 insn);
-int aarch64_insn_patch_text_sync(void *addrs[], u32 insns[], int cnt);
 int aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt);
 
 s32 aarch64_insn_adrp_get_offset(u32 insn);

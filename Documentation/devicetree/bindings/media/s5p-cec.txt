@@ -15,7 +15,11 @@ Required properties:
   - clock-names : from common clock binding: must contain "hdmicec",
 		  corresponding to entry in the clocks property.
   - samsung,syscon-phandle - phandle to the PMU system controller
-  - hdmi-phandle - phandle to the HDMI controller
+  - hdmi-phandle - phandle to the HDMI controller, see also cec.txt.
+
+Optional:
+  - needs-hpd : if present the CEC support is only available when the HPD
+		is high. See cec.txt for more details.
 
 Example:
 
@@ -29,5 +33,4 @@ hdmicec: cec@100B0000 {
 	hdmi-phandle = <&hdmi>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_cec>;
-	status = "okay";
 };

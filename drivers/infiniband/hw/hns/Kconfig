@@ -1,10 +1,31 @@
 config INFINIBAND_HNS
 	tristate "HNS RoCE Driver"
 	depends on NET_VENDOR_HISILICON
-	depends on ARM64 && HNS && HNS_DSAF && HNS_ENET
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
 	---help---
 	  This is a RoCE/RDMA driver for the Hisilicon RoCE engine. The engine
-	  is used in Hisilicon Hi1610 and more further ICT SoC.
+	  is used in Hisilicon Hip06 and more further ICT SoC based on
+	  platform device.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called hns-roce.
+
+config INFINIBAND_HNS_HIP06
+	tristate "Hisilicon Hip06 Family RoCE support"
+	depends on INFINIBAND_HNS && HNS && HNS_DSAF && HNS_ENET
+	---help---
+	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip06 and
+	  Hip07 SoC. These RoCE engines are platform devices.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hns-roce-hw-v1.
+
+config INFINIBAND_HNS_HIP08
+	tristate "Hisilicon Hip08 Family RoCE support"
+	depends on INFINIBAND_HNS && PCI && HNS3
+	---help---
+	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip08 SoC.
+	  The RoCE engine is a PCI device.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hns-roce-hw-v2.

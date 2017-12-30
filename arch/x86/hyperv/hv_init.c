@@ -26,6 +26,8 @@
 #include <linux/mm.h>
 #include <linux/clockchips.h>
 #include <linux/hyperv.h>
+#include <linux/slab.h>
+#include <linux/cpuhotplug.h>
 
 #ifdef CONFIG_HYPERV_TSCPAGE
 
@@ -75,9 +77,29 @@ static struct clocksource hyperv_cs_msr = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void *hypercall_pg;
+void *hv_hypercall_pg;
+EXPORT_SYMBOL_GPL(hv_hypercall_pg);
 struct clocksource *hyperv_cs;
 EXPORT_SYMBOL_GPL(hyperv_cs);
+
+u32 *hv_vp_index;
+EXPORT_SYMBOL_GPL(hv_vp_index);
+
+u32 hv_max_vp_index;
+
+static int hv_cpu_init(unsigned int cpu)
+{
+	u64 msr_vp_index;
+
+	hv_get_vp_index(msr_vp_index);
+
+	hv_vp_index[smp_processor_id()] = msr_vp_index;
+
+	if (msr_vp_index > hv_max_vp_index)
+		hv_max_vp_index = msr_vp_index;
+
+	return 0;
+}
 
 /*
  * This function is to be invoked early in the boot sequence after the
@@ -91,8 +113,18 @@ void hyperv_init(void)
 	u64 guest_id;
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 
-	if (x86_hyper != &x86_hyper_ms_hyperv)
+	if (x86_hyper_type != X86_HYPER_MS_HYPERV)
 		return;
+
+	/* Allocate percpu VP index */
+	hv_vp_index = kmalloc_array(num_possible_cpus(), sizeof(*hv_vp_index),
+				    GFP_KERNEL);
+	if (!hv_vp_index)
+		return;
+
+	if (cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/hyperv_init:online",
+			      hv_cpu_init, NULL) < 0)
+		goto free_vp_index;
 
 	/*
 	 * Setup the hypercall page and enable hypercalls.
@@ -102,16 +134,18 @@ void hyperv_init(void)
 	guest_id = generate_guest_id(0, LINUX_VERSION_CODE, 0);
 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, guest_id);
 
-	hypercall_pg  = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL_RX);
-	if (hypercall_pg == NULL) {
+	hv_hypercall_pg  = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL_RX);
+	if (hv_hypercall_pg == NULL) {
 		wrmsrl(HV_X64_MSR_GUEST_OS_ID, 0);
-		return;
+		goto free_vp_index;
 	}
 
 	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 	hypercall_msr.enable = 1;
-	hypercall_msr.guest_physical_address = vmalloc_to_pfn(hypercall_pg);
+	hypercall_msr.guest_physical_address = vmalloc_to_pfn(hv_hypercall_pg);
 	wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
+
+	hyper_alloc_mmu();
 
 	/*
 	 * Register Hyper-V specific clocksource.
@@ -148,6 +182,12 @@ register_msr_cs:
 	hyperv_cs = &hyperv_cs_msr;
 	if (ms_hyperv.features & HV_X64_MSR_TIME_REF_COUNT_AVAILABLE)
 		clocksource_register_hz(&hyperv_cs_msr, NSEC_PER_SEC/100);
+
+	return;
+
+free_vp_index:
+	kfree(hv_vp_index);
+	hv_vp_index = NULL;
 }
 
 /*
@@ -170,54 +210,10 @@ void hyperv_cleanup(void)
 }
 EXPORT_SYMBOL_GPL(hyperv_cleanup);
 
-/*
- * hv_do_hypercall- Invoke the specified hypercall
- */
-u64 hv_do_hypercall(u64 control, void *input, void *output)
-{
-	u64 input_address = (input) ? virt_to_phys(input) : 0;
-	u64 output_address = (output) ? virt_to_phys(output) : 0;
-#ifdef CONFIG_X86_64
-	u64 hv_status = 0;
-
-	if (!hypercall_pg)
-		return (u64)ULLONG_MAX;
-
-	__asm__ __volatile__("mov %0, %%r8" : : "r" (output_address) : "r8");
-	__asm__ __volatile__("call *%3" : "=a" (hv_status) :
-			     "c" (control), "d" (input_address),
-			     "m" (hypercall_pg));
-
-	return hv_status;
-
-#else
-
-	u32 control_hi = control >> 32;
-	u32 control_lo = control & 0xFFFFFFFF;
-	u32 hv_status_hi = 1;
-	u32 hv_status_lo = 1;
-	u32 input_address_hi = input_address >> 32;
-	u32 input_address_lo = input_address & 0xFFFFFFFF;
-	u32 output_address_hi = output_address >> 32;
-	u32 output_address_lo = output_address & 0xFFFFFFFF;
-
-	if (!hypercall_pg)
-		return (u64)ULLONG_MAX;
-
-	__asm__ __volatile__ ("call *%8" : "=d"(hv_status_hi),
-			      "=a"(hv_status_lo) : "d" (control_hi),
-			      "a" (control_lo), "b" (input_address_hi),
-			      "c" (input_address_lo), "D"(output_address_hi),
-			      "S"(output_address_lo), "m" (hypercall_pg));
-
-	return hv_status_lo | ((u64)hv_status_hi << 32);
-#endif /* !x86_64 */
-}
-EXPORT_SYMBOL_GPL(hv_do_hypercall);
-
-void hyperv_report_panic(struct pt_regs *regs)
+void hyperv_report_panic(struct pt_regs *regs, long err)
 {
 	static bool panic_reported;
+	u64 guest_id;
 
 	/*
 	 * We prefer to report panic on 'die' chain as we have proper
@@ -228,11 +224,13 @@ void hyperv_report_panic(struct pt_regs *regs)
 		return;
 	panic_reported = true;
 
-	wrmsrl(HV_X64_MSR_CRASH_P0, regs->ip);
-	wrmsrl(HV_X64_MSR_CRASH_P1, regs->ax);
-	wrmsrl(HV_X64_MSR_CRASH_P2, regs->bx);
-	wrmsrl(HV_X64_MSR_CRASH_P3, regs->cx);
-	wrmsrl(HV_X64_MSR_CRASH_P4, regs->dx);
+	rdmsrl(HV_X64_MSR_GUEST_OS_ID, guest_id);
+
+	wrmsrl(HV_X64_MSR_CRASH_P0, err);
+	wrmsrl(HV_X64_MSR_CRASH_P1, guest_id);
+	wrmsrl(HV_X64_MSR_CRASH_P2, regs->ip);
+	wrmsrl(HV_X64_MSR_CRASH_P3, regs->ax);
+	wrmsrl(HV_X64_MSR_CRASH_P4, regs->sp);
 
 	/*
 	 * Let Hyper-V know there is crash data available

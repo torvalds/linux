@@ -469,7 +469,7 @@ static struct attribute *serio_device_id_attrs[] = {
 	NULL
 };
 
-static struct attribute_group serio_id_attr_group = {
+static const struct attribute_group serio_id_attr_group = {
 	.name	= "id",
 	.attrs	= serio_device_id_attrs,
 };
@@ -489,7 +489,7 @@ static struct attribute *serio_device_attrs[] = {
 	NULL
 };
 
-static struct attribute_group serio_device_attr_group = {
+static const struct attribute_group serio_device_attr_group = {
 	.attrs	= serio_device_attrs,
 };
 

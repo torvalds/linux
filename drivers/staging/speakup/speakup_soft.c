@@ -36,7 +36,7 @@
 static int softsynth_probe(struct spk_synth *synth);
 static void softsynth_release(void);
 static int softsynth_is_alive(struct spk_synth *synth);
-static unsigned char get_index(void);
+static unsigned char get_index(struct spk_synth *synth);
 
 static struct miscdevice synth_device, synthu_device;
 static int init_pos;
@@ -340,7 +340,7 @@ static unsigned int softsynth_poll(struct file *fp, struct poll_table_struct *wa
 	return ret;
 }
 
-static unsigned char get_index(void)
+static unsigned char get_index(struct spk_synth *synth)
 {
 	int rv;
 

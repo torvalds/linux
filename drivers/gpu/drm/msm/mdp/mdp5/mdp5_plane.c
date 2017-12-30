@@ -22,8 +22,6 @@
 struct mdp5_plane {
 	struct drm_plane base;
 
-	spinlock_t pipe_lock;     /* protect REG_MDP5_PIPE_* registers */
-
 	uint32_t nformats;
 	uint32_t formats[32];
 };
@@ -32,15 +30,6 @@ struct mdp5_plane {
 static int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		struct drm_rect *src, struct drm_rect *dest);
-
-static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
-		struct drm_crtc *crtc,
-		struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h,
-		struct drm_modeset_acquire_ctx *ctx);
 
 static struct mdp5_kms *get_kms(struct drm_plane *plane)
 {
@@ -67,11 +56,11 @@ static void mdp5_plane_install_rotation_property(struct drm_device *dev,
 		struct drm_plane *plane)
 {
 	drm_plane_create_rotation_property(plane,
-					   DRM_ROTATE_0,
-					   DRM_ROTATE_0 |
-					   DRM_ROTATE_180 |
-					   DRM_REFLECT_X |
-					   DRM_REFLECT_Y);
+					   DRM_MODE_ROTATE_0,
+					   DRM_MODE_ROTATE_0 |
+					   DRM_MODE_ROTATE_180 |
+					   DRM_MODE_REFLECT_X |
+					   DRM_MODE_REFLECT_Y);
 }
 
 /* helper to install properties which are common to planes and crtcs */
@@ -248,20 +237,6 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.update_plane = drm_atomic_helper_update_plane,
 		.disable_plane = drm_atomic_helper_disable_plane,
 		.destroy = mdp5_plane_destroy,
-		.set_property = drm_atomic_helper_plane_set_property,
-		.atomic_set_property = mdp5_plane_atomic_set_property,
-		.atomic_get_property = mdp5_plane_atomic_get_property,
-		.reset = mdp5_plane_reset,
-		.atomic_duplicate_state = mdp5_plane_duplicate_state,
-		.atomic_destroy_state = mdp5_plane_destroy_state,
-		.atomic_print_state = mdp5_plane_atomic_print_state,
-};
-
-static const struct drm_plane_funcs mdp5_cursor_plane_funcs = {
-		.update_plane = mdp5_update_cursor_plane_legacy,
-		.disable_plane = drm_atomic_helper_disable_plane,
-		.destroy = mdp5_plane_destroy,
-		.set_property = drm_atomic_helper_plane_set_property,
 		.atomic_set_property = mdp5_plane_atomic_set_property,
 		.atomic_get_property = mdp5_plane_atomic_get_property,
 		.reset = mdp5_plane_reset,
@@ -274,26 +249,28 @@ static int mdp5_plane_prepare_fb(struct drm_plane *plane,
 				 struct drm_plane_state *new_state)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_framebuffer *fb = new_state->fb;
 
 	if (!new_state->fb)
 		return 0;
 
 	DBG("%s: prepare: FB[%u]", plane->name, fb->base.id);
-	return msm_framebuffer_prepare(fb, mdp5_kms->id);
+	return msm_framebuffer_prepare(fb, kms->aspace);
 }
 
 static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 				  struct drm_plane_state *old_state)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_framebuffer *fb = old_state->fb;
 
 	if (!fb)
 		return;
 
 	DBG("%s: cleanup: FB[%u]", plane->name, fb->base.id);
-	msm_framebuffer_cleanup(fb, mdp5_kms->id);
+	msm_framebuffer_cleanup(fb, kms->aspace);
 }
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
@@ -370,14 +347,14 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			caps |= MDP_PIPE_CAP_SCALE;
 
 		rotation = drm_rotation_simplify(state->rotation,
-						 DRM_ROTATE_0 |
-						 DRM_REFLECT_X |
-						 DRM_REFLECT_Y);
+						 DRM_MODE_ROTATE_0 |
+						 DRM_MODE_REFLECT_X |
+						 DRM_MODE_REFLECT_Y);
 
-		if (rotation & DRM_REFLECT_X)
+		if (rotation & DRM_MODE_REFLECT_X)
 			caps |= MDP_PIPE_CAP_HFLIP;
 
-		if (rotation & DRM_REFLECT_Y)
+		if (rotation & DRM_MODE_REFLECT_Y)
 			caps |= MDP_PIPE_CAP_VFLIP;
 
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
@@ -416,31 +393,30 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			struct mdp5_hw_pipe *old_hwpipe = mdp5_state->hwpipe;
 			struct mdp5_hw_pipe *old_right_hwpipe =
 							  mdp5_state->r_hwpipe;
+			struct mdp5_hw_pipe *new_hwpipe = NULL;
+			struct mdp5_hw_pipe *new_right_hwpipe = NULL;
 
-			mdp5_state->hwpipe = mdp5_pipe_assign(state->state,
-					plane, caps, blkcfg);
-			if (IS_ERR(mdp5_state->hwpipe)) {
-				DBG("%s: failed to assign hwpipe!", plane->name);
-				return PTR_ERR(mdp5_state->hwpipe);
+			ret = mdp5_pipe_assign(state->state, plane, caps,
+					       blkcfg, &new_hwpipe,
+					       need_right_hwpipe ?
+					       &new_right_hwpipe : NULL);
+			if (ret) {
+				DBG("%s: failed to assign hwpipe(s)!",
+				    plane->name);
+				return ret;
 			}
 
-			if (need_right_hwpipe) {
-				mdp5_state->r_hwpipe =
-					mdp5_pipe_assign(state->state, plane,
-							 caps, blkcfg);
-				if (IS_ERR(mdp5_state->r_hwpipe)) {
-					DBG("%s: failed to assign right hwpipe",
-					    plane->name);
-					return PTR_ERR(mdp5_state->r_hwpipe);
-				}
-			} else {
+			mdp5_state->hwpipe = new_hwpipe;
+			if (need_right_hwpipe)
+				mdp5_state->r_hwpipe = new_right_hwpipe;
+			else
 				/*
 				 * set it to NULL so that the driver knows we
 				 * don't have a right hwpipe when committing a
 				 * new state
 				 */
 				mdp5_state->r_hwpipe = NULL;
-			}
+
 
 			mdp5_pipe_release(state->state, old_hwpipe);
 			mdp5_pipe_release(state->state, old_right_hwpipe);
@@ -489,17 +465,106 @@ static void mdp5_plane_atomic_update(struct drm_plane *plane,
 	}
 }
 
+static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
+					 struct drm_plane_state *state)
+{
+	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
+	struct drm_crtc_state *crtc_state;
+	struct drm_rect clip;
+	int min_scale, max_scale;
+	int ret;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
+							state->crtc);
+	if (WARN_ON(!crtc_state))
+		return -EINVAL;
+
+	if (!crtc_state->active)
+		return -EINVAL;
+
+	mdp5_state = to_mdp5_plane_state(state);
+
+	/* don't use fast path if we don't have a hwpipe allocated yet */
+	if (!mdp5_state->hwpipe)
+		return -EINVAL;
+
+	/* only allow changing of position(crtc x/y or src x/y) in fast path */
+	if (plane->state->crtc != state->crtc ||
+	    plane->state->src_w != state->src_w ||
+	    plane->state->src_h != state->src_h ||
+	    plane->state->crtc_w != state->crtc_w ||
+	    plane->state->crtc_h != state->crtc_h ||
+	    !plane->state->fb ||
+	    plane->state->fb != state->fb)
+		return -EINVAL;
+
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	min_scale = FRAC_16_16(1, 8);
+	max_scale = FRAC_16_16(8, 1);
+
+	ret = drm_plane_helper_check_state(state, &clip, min_scale,
+					   max_scale, true, true);
+	if (ret)
+		return ret;
+
+	/*
+	 * if the visibility of the plane changes (i.e, if the cursor is
+	 * clipped out completely, we can't take the async path because
+	 * we need to stage/unstage the plane from the Layer Mixer(s). We
+	 * also assign/unassign the hwpipe(s) tied to the plane. We avoid
+	 * taking the fast path for both these reasons.
+	 */
+	if (state->visible != plane->state->visible)
+		return -EINVAL;
+
+	return 0;
+}
+
+static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
+					   struct drm_plane_state *new_state)
+{
+	plane->state->src_x = new_state->src_x;
+	plane->state->src_y = new_state->src_y;
+	plane->state->crtc_x = new_state->crtc_x;
+	plane->state->crtc_y = new_state->crtc_y;
+
+	if (plane_enabled(new_state)) {
+		struct mdp5_ctl *ctl;
+		struct mdp5_pipeline *pipeline =
+					mdp5_crtc_get_pipeline(plane->crtc);
+		int ret;
+
+		ret = mdp5_plane_mode_set(plane, new_state->crtc, new_state->fb,
+				&new_state->src, &new_state->dst);
+		WARN_ON(ret < 0);
+
+		ctl = mdp5_crtc_get_ctl(new_state->crtc);
+
+		mdp5_ctl_commit(ctl, pipeline, mdp5_plane_get_flush(plane));
+	}
+
+	*to_mdp5_plane_state(plane->state) =
+		*to_mdp5_plane_state(new_state);
+}
+
 static const struct drm_plane_helper_funcs mdp5_plane_helper_funcs = {
 		.prepare_fb = mdp5_plane_prepare_fb,
 		.cleanup_fb = mdp5_plane_cleanup_fb,
 		.atomic_check = mdp5_plane_atomic_check,
 		.atomic_update = mdp5_plane_atomic_update,
+		.atomic_async_check = mdp5_plane_atomic_async_check,
+		.atomic_async_update = mdp5_plane_atomic_async_update,
 };
 
 static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
 			       enum mdp5_pipe pipe,
 			       struct drm_framebuffer *fb)
 {
+	struct msm_kms *kms = &mdp5_kms->base.base;
+
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_STRIDE_A(pipe),
 			MDP5_PIPE_SRC_STRIDE_A_P0(fb->pitches[0]) |
 			MDP5_PIPE_SRC_STRIDE_A_P1(fb->pitches[1]));
@@ -509,13 +574,13 @@ static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
 			MDP5_PIPE_SRC_STRIDE_B_P3(fb->pitches[3]));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC0_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 0));
+			msm_framebuffer_iova(fb, kms->aspace, 0));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC1_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 1));
+			msm_framebuffer_iova(fb, kms->aspace, 1));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC2_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 2));
+			msm_framebuffer_iova(fb, kms->aspace, 2));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC3_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 3));
+			msm_framebuffer_iova(fb, kms->aspace, 3));
 }
 
 /* Note: mdp5_plane->pipe_lock must be locked */
@@ -881,7 +946,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		struct drm_rect *src, struct drm_rect *dest)
 {
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct drm_plane_state *pstate = plane->state;
 	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(pstate)->hwpipe;
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
@@ -889,8 +953,8 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	struct mdp5_hw_pipe *right_hwpipe;
 	const struct mdp_format *format;
 	uint32_t nplanes, config = 0;
-	struct phase_step step = { 0 };
-	struct pixel_ext pe = { 0 };
+	struct phase_step step = { { 0 } };
+	struct pixel_ext pe = { { 0 } };
 	uint32_t hdecm = 0, vdecm = 0;
 	uint32_t pix_format;
 	unsigned int rotation;
@@ -902,7 +966,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	uint32_t src_img_w, src_img_h;
 	uint32_t src_x_r;
 	int crtc_x_r;
-	unsigned long flags;
 	int ret;
 
 	nplanes = fb->format->num_planes;
@@ -975,13 +1038,11 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	DBG("scale config = %x", config);
 
 	rotation = drm_rotation_simplify(pstate->rotation,
-					 DRM_ROTATE_0 |
-					 DRM_REFLECT_X |
-					 DRM_REFLECT_Y);
-	hflip = !!(rotation & DRM_REFLECT_X);
-	vflip = !!(rotation & DRM_REFLECT_Y);
-
-	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
+					 DRM_MODE_ROTATE_0 |
+					 DRM_MODE_REFLECT_X |
+					 DRM_MODE_REFLECT_Y);
+	hflip = !!(rotation & DRM_MODE_REFLECT_X);
+	vflip = !!(rotation & DRM_MODE_REFLECT_Y);
 
 	mdp5_hwpipe_mode_set(mdp5_kms, hwpipe, fb, &step, &pe,
 			     config, hdecm, vdecm, hflip, vflip,
@@ -995,89 +1056,9 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 				     src_img_w, src_img_h,
 				     src_x_r, src_y, src_w, src_h);
 
-	spin_unlock_irqrestore(&mdp5_plane->pipe_lock, flags);
-
 	plane->fb = fb;
 
 	return ret;
-}
-
-static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
-			struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			int crtc_x, int crtc_y,
-			unsigned int crtc_w, unsigned int crtc_h,
-			uint32_t src_x, uint32_t src_y,
-			uint32_t src_w, uint32_t src_h,
-			struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_plane_state *plane_state, *new_plane_state;
-	struct mdp5_plane_state *mdp5_pstate;
-	struct drm_crtc_state *crtc_state = crtc->state;
-	int ret;
-
-	if (!crtc_state->active || drm_atomic_crtc_needs_modeset(crtc_state))
-		goto slow;
-
-	plane_state = plane->state;
-	mdp5_pstate = to_mdp5_plane_state(plane_state);
-
-	/* don't use fast path if we don't have a hwpipe allocated yet */
-	if (!mdp5_pstate->hwpipe)
-		goto slow;
-
-	/* only allow changing of position(crtc x/y or src x/y) in fast path */
-	if (plane_state->crtc != crtc ||
-	    plane_state->src_w != src_w ||
-	    plane_state->src_h != src_h ||
-	    plane_state->crtc_w != crtc_w ||
-	    plane_state->crtc_h != crtc_h ||
-	    !plane_state->fb ||
-	    plane_state->fb != fb)
-		goto slow;
-
-	new_plane_state = mdp5_plane_duplicate_state(plane);
-	if (!new_plane_state)
-		return -ENOMEM;
-
-	new_plane_state->src_x = src_x;
-	new_plane_state->src_y = src_y;
-	new_plane_state->src_w = src_w;
-	new_plane_state->src_h = src_h;
-	new_plane_state->crtc_x = crtc_x;
-	new_plane_state->crtc_y = crtc_y;
-	new_plane_state->crtc_w = crtc_w;
-	new_plane_state->crtc_h = crtc_h;
-
-	ret = mdp5_plane_atomic_check_with_state(crtc_state, new_plane_state);
-	if (ret)
-		goto slow_free;
-
-	if (new_plane_state->visible) {
-		struct mdp5_ctl *ctl;
-		struct mdp5_pipeline *pipeline = mdp5_crtc_get_pipeline(crtc);
-
-		ret = mdp5_plane_mode_set(plane, crtc, fb,
-					  &new_plane_state->src,
-					  &new_plane_state->dst);
-		WARN_ON(ret < 0);
-
-		ctl = mdp5_crtc_get_ctl(crtc);
-
-		mdp5_ctl_commit(ctl, pipeline, mdp5_plane_get_flush(plane));
-	}
-
-	*to_mdp5_plane_state(plane_state) =
-		*to_mdp5_plane_state(new_plane_state);
-
-	mdp5_plane_destroy_state(plane, new_plane_state);
-
-	return 0;
-slow_free:
-	mdp5_plane_destroy_state(plane, new_plane_state);
-slow:
-	return drm_atomic_helper_update_plane(plane, crtc, fb,
-					      crtc_x, crtc_y, crtc_w, crtc_h,
-					      src_x, src_y, src_w, src_h, ctx);
 }
 
 /*
@@ -1139,18 +1120,9 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	mdp5_plane->nformats = mdp_get_formats(mdp5_plane->formats,
 		ARRAY_SIZE(mdp5_plane->formats), false);
 
-	spin_lock_init(&mdp5_plane->pipe_lock);
-
-	if (type == DRM_PLANE_TYPE_CURSOR)
-		ret = drm_universal_plane_init(dev, plane, 0xff,
-				&mdp5_cursor_plane_funcs,
-				mdp5_plane->formats, mdp5_plane->nformats,
-				type, NULL);
-	else
-		ret = drm_universal_plane_init(dev, plane, 0xff,
-				&mdp5_plane_funcs,
-				mdp5_plane->formats, mdp5_plane->nformats,
-				type, NULL);
+	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
+			mdp5_plane->formats, mdp5_plane->nformats,
+			NULL, type, NULL);
 	if (ret)
 		goto fail;
 

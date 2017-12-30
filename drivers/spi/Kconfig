@@ -1,10 +1,6 @@
 #
 # SPI driver configuration
 #
-# NOTE:  the reason this doesn't show SPI slave support is mostly that
-# nobody's needed a slave side API yet.  The master-role API is not
-# fully appropriate there, so it'd need some thought to do well.
-#
 menuconfig SPI
 	bool "SPI support"
 	depends on HAS_IOMEM
@@ -55,7 +51,6 @@ comment "SPI Master Controller Drivers"
 
 config SPI_ALTERA
 	tristate "Altera SPI Controller"
-	select SPI_BITBANG
 	help
 	  This is the driver for the Altera SPI Controller.
 
@@ -380,7 +375,7 @@ config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
 	select REGMAP_MMIO
 	depends on HAS_DMA
-	depends on SOC_VF610 || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
+	depends on SOC_VF610 || SOC_LS1021A || ARCH_LAYERSCAPE || M5441x || COMPILE_TEST
 	help
 	  This enables support for the Freescale DSPI controller in master
 	  mode. VF610 platform uses the controller.
@@ -392,6 +387,13 @@ config SPI_FSL_ESPI
 	  This enables using the Freescale eSPI controllers in master mode.
 	  From MPC8536, 85xx platform uses the controller, and all P10xx,
 	  P20xx, P30xx,P40xx, P50xx uses this controller.
+
+config SPI_MESON_SPICC
+	tristate "Amlogic Meson SPICC controller"
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This enables master mode support for the SPICC (SPI communication
+	  controller) available in Amlogic Meson SoCs.
 
 config SPI_MESON_SPIFC
 	tristate "Amlogic Meson SPIFC controller"
@@ -457,6 +459,7 @@ config SPI_OMAP24XX
 
 config SPI_TI_QSPI
 	tristate "DRA7xxx QSPI controller support"
+	depends on HAS_DMA
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  QSPI master controller for DRA7xxx used for flash devices.
@@ -510,8 +513,8 @@ config SPI_PPC4xx
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on (ARCH_PXA || PCI || ACPI)
-	select PXA_SSP if ARCH_PXA
+	depends on (ARCH_PXA || ARCH_MMP || PCI || ACPI)
+	select PXA_SSP if ARCH_PXA || ARCH_MMP
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
 	  controller. The driver can be configured to use any SSP port and
@@ -618,6 +621,23 @@ config SPI_SIRF
 	select SPI_BITBANG
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
+
+config SPI_SPRD_ADI
+	tristate "Spreadtrum ADI controller"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on HWSPINLOCK || (COMPILE_TEST && !HWSPINLOCK)
+	help
+	  ADI driver based on SPI for Spreadtrum SoCs.
+
+config SPI_STM32
+	tristate "STMicroelectronics STM32 SPI controller"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  SPI driver for STMicroelectonics STM32 SoCs.
+
+	  STM32 SPI controller supports DMA and PIO modes. When DMA
+	  is not available, the driver automatically falls back to
+	  PIO mode.
 
 config SPI_ST_SSC4
 	tristate "STMicroelectronics SPI SSC-based driver"
@@ -784,6 +804,30 @@ config SPI_TLE62X0
 
 endif # SPI_MASTER
 
-# (slave support would go here)
+#
+# SLAVE side ... listening to other SPI masters
+#
+
+config SPI_SLAVE
+	bool "SPI slave protocol handlers"
+	help
+	  If your system has a slave-capable SPI controller, you can enable
+	  slave protocol handlers.
+
+if SPI_SLAVE
+
+config SPI_SLAVE_TIME
+	tristate "SPI slave handler reporting boot up time"
+	help
+	  SPI slave handler responding with the time of reception of the last
+	  SPI message.
+
+config SPI_SLAVE_SYSTEM_CONTROL
+	tristate "SPI slave handler controlling system state"
+	help
+	  SPI slave handler to allow remote control of system reboot, power
+	  off, halt, and suspend.
+
+endif # SPI_SLAVE
 
 endif # SPI

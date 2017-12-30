@@ -51,22 +51,6 @@ static const struct digi_t dgnc_digi_init = {
 	.digi_term =	"ansi"		/* default terminal type */
 };
 
-/*
- * Define a local default termios struct. All ports will be created
- * with this termios initially.
- *
- * This defines a raw port at 9600 baud, 8 data bits, no parity,
- * 1 stop bit.
- */
-static const struct ktermios default_termios = {
-	.c_iflag =	(DEFAULT_IFLAGS),
-	.c_oflag =	(DEFAULT_OFLAGS),
-	.c_cflag =	(DEFAULT_CFLAGS),
-	.c_lflag =	(DEFAULT_LFLAGS),
-	.c_cc =		INIT_C_CC,
-	.c_line =	0,
-};
-
 static int dgnc_tty_open(struct tty_struct *tty, struct file *file);
 static void dgnc_tty_close(struct tty_struct *tty, struct file *file);
 static int dgnc_block_til_ready(struct tty_struct *tty, struct file *file,
@@ -129,6 +113,49 @@ static const struct tty_operations dgnc_tty_ops = {
 
 /* TTY Initialization/Cleanup Functions */
 
+static struct tty_driver *dgnc_tty_create(char *serial_name, uint maxports,
+					  int major, int minor)
+{
+	int rc;
+	struct tty_driver *drv;
+
+	drv = tty_alloc_driver(maxports,
+			       TTY_DRIVER_REAL_RAW |
+			       TTY_DRIVER_DYNAMIC_DEV |
+			       TTY_DRIVER_HARDWARE_BREAK);
+	if (IS_ERR(drv))
+		return drv;
+
+	drv->name = serial_name;
+	drv->name_base = 0;
+	drv->major = major;
+	drv->minor_start = minor;
+	drv->type = TTY_DRIVER_TYPE_SERIAL;
+	drv->subtype = SERIAL_TYPE_NORMAL;
+	drv->init_termios = tty_std_termios;
+	drv->init_termios.c_cflag = (B9600 | CS8 | CREAD | HUPCL | CLOCAL);
+	drv->init_termios.c_ispeed = 9600;
+	drv->init_termios.c_ospeed = 9600;
+	drv->driver_name = DRVSTR;
+	/*
+	 * Entry points for driver.  Called by the kernel from
+	 * tty_io.c and n_tty.c.
+	 */
+	tty_set_operations(drv, &dgnc_tty_ops);
+	rc = tty_register_driver(drv);
+	if (rc < 0) {
+		put_tty_driver(drv);
+		return ERR_PTR(rc);
+	}
+	return drv;
+}
+
+static void dgnc_tty_free(struct tty_driver *drv)
+{
+	tty_unregister_driver(drv);
+	put_tty_driver(drv);
+}
+
 /**
  * dgnc_tty_register() - Init the tty subsystem for this board.
  */
@@ -136,95 +163,36 @@ int dgnc_tty_register(struct dgnc_board *brd)
 {
 	int rc;
 
-	brd->serial_driver = tty_alloc_driver(brd->maxports,
-					      TTY_DRIVER_REAL_RAW |
-					      TTY_DRIVER_DYNAMIC_DEV |
-					      TTY_DRIVER_HARDWARE_BREAK);
-	if (IS_ERR(brd->serial_driver))
-		return PTR_ERR(brd->serial_driver);
-
 	snprintf(brd->serial_name, MAXTTYNAMELEN, "tty_dgnc_%d_",
 		 brd->boardnum);
 
-	brd->serial_driver->name = brd->serial_name;
-	brd->serial_driver->name_base = 0;
-	brd->serial_driver->major = 0;
-	brd->serial_driver->minor_start = 0;
-	brd->serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
-	brd->serial_driver->subtype = SERIAL_TYPE_NORMAL;
-	brd->serial_driver->init_termios = default_termios;
-	brd->serial_driver->driver_name = DRVSTR;
-
-	/*
-	 * Entry points for driver.  Called by the kernel from
-	 * tty_io.c and n_tty.c.
-	 */
-	tty_set_operations(brd->serial_driver, &dgnc_tty_ops);
-
-	rc = tty_register_driver(brd->serial_driver);
-	if (rc < 0) {
-		dev_dbg(&brd->pdev->dev,
-			"Can't register tty device (%d)\n", rc);
-		goto free_serial_driver;
-	}
-
-	/*
-	 * If we're doing transparent print, we have to do all of the above
-	 * again, separately so we don't get the LD confused about what major
-	 * we are when we get into the dgnc_tty_open() routine.
-	 */
-	brd->print_driver = tty_alloc_driver(brd->maxports,
-					     TTY_DRIVER_REAL_RAW |
-					     TTY_DRIVER_DYNAMIC_DEV |
-					     TTY_DRIVER_HARDWARE_BREAK);
-	if (IS_ERR(brd->print_driver)) {
-		rc = PTR_ERR(brd->print_driver);
-		goto unregister_serial_driver;
+	brd->serial_driver = dgnc_tty_create(brd->serial_name,
+					     brd->maxports, 0, 0);
+	if (IS_ERR(brd->serial_driver)) {
+		rc = PTR_ERR(brd->serial_driver);
+		dev_dbg(&brd->pdev->dev, "Can't register tty device (%d)\n",
+			rc);
+		return rc;
 	}
 
 	snprintf(brd->print_name, MAXTTYNAMELEN, "pr_dgnc_%d_", brd->boardnum);
-
-	brd->print_driver->name = brd->print_name;
-	brd->print_driver->name_base = 0;
-	brd->print_driver->major = brd->serial_driver->major;
-	brd->print_driver->minor_start = 0x80;
-	brd->print_driver->type = TTY_DRIVER_TYPE_SERIAL;
-	brd->print_driver->subtype = SERIAL_TYPE_NORMAL;
-	brd->print_driver->init_termios = default_termios;
-	brd->print_driver->driver_name = DRVSTR;
-
-	/*
-	 * Entry points for driver.  Called by the kernel from
-	 * tty_io.c and n_tty.c.
-	 */
-	tty_set_operations(brd->print_driver, &dgnc_tty_ops);
-
-	rc = tty_register_driver(brd->print_driver);
-	if (rc < 0) {
+	brd->print_driver = dgnc_tty_create(brd->print_name, brd->maxports,
+					    0x80,
+					    brd->serial_driver->major);
+	if (IS_ERR(brd->print_driver)) {
+		rc = PTR_ERR(brd->print_driver);
 		dev_dbg(&brd->pdev->dev,
-			"Can't register Transparent Print device(%d)\n",
-			rc);
-		goto free_print_driver;
+			"Can't register Transparent Print device(%d)\n", rc);
+		dgnc_tty_free(brd->serial_driver);
+		return rc;
 	}
-
 	return 0;
-
-free_print_driver:
-	put_tty_driver(brd->print_driver);
-unregister_serial_driver:
-	tty_unregister_driver(brd->serial_driver);
-free_serial_driver:
-	put_tty_driver(brd->serial_driver);
-
-	return rc;
 }
 
 void dgnc_tty_unregister(struct dgnc_board *brd)
 {
-	tty_unregister_driver(brd->print_driver);
-	tty_unregister_driver(brd->serial_driver);
-	put_tty_driver(brd->print_driver);
-	put_tty_driver(brd->serial_driver);
+	dgnc_tty_free(brd->print_driver);
+	dgnc_tty_free(brd->serial_driver);
 }
 
 /**

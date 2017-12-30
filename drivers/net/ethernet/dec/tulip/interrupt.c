@@ -102,10 +102,10 @@ int tulip_refill_rx(struct net_device *dev)
 
 #ifdef CONFIG_TULIP_NAPI
 
-void oom_timer(unsigned long data)
+void oom_timer(struct timer_list *t)
 {
-        struct net_device *dev = (struct net_device *)data;
-	struct tulip_private *tp = netdev_priv(dev);
+	struct tulip_private *tp = from_timer(tp, t, oom_timer);
+
 	napi_schedule(&tp->napi);
 }
 
@@ -218,9 +218,9 @@ int tulip_poll(struct napi_struct *napi, int budget)
                                                         pkt_len);
                                        skb_put(skb, pkt_len);
 #else
-                                       memcpy(skb_put(skb, pkt_len),
-                                              tp->rx_buffers[entry].skb->data,
-                                              pkt_len);
+                                       skb_put_data(skb,
+                                                    tp->rx_buffers[entry].skb->data,
+                                                    pkt_len);
 #endif
                                        pci_dma_sync_single_for_device(tp->pdev,
 								      tp->rx_buffers[entry].mapping,
@@ -444,9 +444,9 @@ static int tulip_rx(struct net_device *dev)
 						 pkt_len);
 				skb_put(skb, pkt_len);
 #else
-				memcpy(skb_put(skb, pkt_len),
-				       tp->rx_buffers[entry].skb->data,
-				       pkt_len);
+				skb_put_data(skb,
+					     tp->rx_buffers[entry].skb->data,
+					     pkt_len);
 #endif
 				pci_dma_sync_single_for_device(tp->pdev,
 							       tp->rx_buffers[entry].mapping,

@@ -795,12 +795,12 @@ static void _sc92031_rx_tasklet(struct net_device *dev)
 		}
 
 		if ((rx_ring_offset + pkt_size) > RX_BUF_LEN) {
-			memcpy(skb_put(skb, RX_BUF_LEN - rx_ring_offset),
-				rx_ring + rx_ring_offset, RX_BUF_LEN - rx_ring_offset);
-			memcpy(skb_put(skb, pkt_size - (RX_BUF_LEN - rx_ring_offset)),
-				rx_ring, pkt_size - (RX_BUF_LEN - rx_ring_offset));
+			skb_put_data(skb, rx_ring + rx_ring_offset,
+				     RX_BUF_LEN - rx_ring_offset);
+			skb_put_data(skb, rx_ring,
+				     pkt_size - (RX_BUF_LEN - rx_ring_offset));
 		} else {
-			memcpy(skb_put(skb, pkt_size), rx_ring + rx_ring_offset, pkt_size);
+			skb_put_data(skb, rx_ring + rx_ring_offset, pkt_size);
 		}
 
 		skb->protocol = eth_type_trans(skb, dev);

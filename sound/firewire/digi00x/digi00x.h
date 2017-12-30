@@ -121,7 +121,6 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 void amdtp_dot_reset(struct amdtp_stream *s);
 int amdtp_dot_add_pcm_hw_constraints(struct amdtp_stream *s,
 				     struct snd_pcm_runtime *runtime);
-void amdtp_dot_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format);
 void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
 			  struct snd_rawmidi_substream *midi);
 

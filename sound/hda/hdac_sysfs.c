@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sysfs support for HD-audio core device
  */
@@ -413,4 +414,51 @@ int hda_widget_sysfs_init(struct hdac_device *codec)
 void hda_widget_sysfs_exit(struct hdac_device *codec)
 {
 	widget_tree_free(codec);
+}
+
+int hda_widget_sysfs_reinit(struct hdac_device *codec,
+			    hda_nid_t start_nid, int num_nodes)
+{
+	struct hdac_widget_tree *tree;
+	hda_nid_t end_nid = start_nid + num_nodes;
+	hda_nid_t nid;
+	int i;
+
+	if (!codec->widgets)
+		return hda_widget_sysfs_init(codec);
+
+	tree = kmemdup(codec->widgets, sizeof(*tree), GFP_KERNEL);
+	if (!tree)
+		return -ENOMEM;
+
+	tree->nodes = kcalloc(num_nodes + 1, sizeof(*tree->nodes), GFP_KERNEL);
+	if (!tree->nodes) {
+		kfree(tree);
+		return -ENOMEM;
+	}
+
+	/* prune non-existing nodes */
+	for (i = 0, nid = codec->start_nid; i < codec->num_nodes; i++, nid++) {
+		if (nid < start_nid || nid >= end_nid)
+			free_widget_node(codec->widgets->nodes[i],
+					 &widget_node_group);
+	}
+
+	/* add new nodes */
+	for (i = 0, nid = start_nid; i < num_nodes; i++, nid++) {
+		if (nid < codec->start_nid || nid >= codec->end_nid)
+			add_widget_node(tree->root, nid, &widget_node_group,
+					&tree->nodes[i]);
+		else
+			tree->nodes[i] =
+				codec->widgets->nodes[nid - codec->start_nid];
+	}
+
+	/* replace with the new tree */
+	kfree(codec->widgets->nodes);
+	kfree(codec->widgets);
+	codec->widgets = tree;
+
+	kobject_uevent(tree->root, KOBJ_CHANGE);
+	return 0;
 }

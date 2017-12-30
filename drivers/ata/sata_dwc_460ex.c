@@ -248,6 +248,7 @@ static int sata_dwc_dma_init_old(struct platform_device *pdev,
 		return -ENOMEM;
 
 	hsdev->dma->dev = &pdev->dev;
+	hsdev->dma->id = pdev->id;
 
 	/* Get SATA DMA interrupt number */
 	hsdev->dma->irq = irq_of_parse_and_map(np, 1);
@@ -1285,7 +1286,6 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	if (err)
 		dev_err(&ofdev->dev, "failed to activate host");
 
-	dev_set_drvdata(&ofdev->dev, host);
 	return 0;
 
 error_out:

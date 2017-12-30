@@ -37,6 +37,10 @@
 
 #include <linux/pm_runtime.h>
 
+#ifdef CONFIG_DRM_AMD_DC
+#include "amdgpu_dm_irq.h"
+#endif
+
 #define AMDGPU_WAIT_IDLE_TIMEOUT 200
 
 /*
@@ -83,7 +87,8 @@ static void amdgpu_irq_reset_work_func(struct work_struct *work)
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
 						  reset_work);
 
-	amdgpu_gpu_reset(adev);
+	if (!amdgpu_sriov_vf(adev))
+		amdgpu_gpu_reset(adev);
 }
 
 /* Disable *all* interrupts */
@@ -219,10 +224,6 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	int r = 0;
 
 	spin_lock_init(&adev->irq.lock);
-	r = drm_vblank_init(adev->ddev, adev->mode_info.num_crtc);
-	if (r) {
-		return r;
-	}
 
 	/* enable msi */
 	adev->irq.msi_enabled = false;
@@ -235,7 +236,21 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 		}
 	}
 
-	INIT_WORK(&adev->hotplug_work, amdgpu_hotplug_work_func);
+	if (!amdgpu_device_has_dc_support(adev)) {
+		if (!adev->enable_virtual_display)
+			/* Disable vblank irqs aggressively for power-saving */
+			/* XXX: can this be enabled for DC? */
+			adev->ddev->vblank_disable_immediate = true;
+
+		r = drm_vblank_init(adev->ddev, adev->mode_info.num_crtc);
+		if (r)
+			return r;
+
+		/* pre DCE11 */
+		INIT_WORK(&adev->hotplug_work,
+				amdgpu_hotplug_work_func);
+	}
+
 	INIT_WORK(&adev->reset_work, amdgpu_irq_reset_work_func);
 
 	adev->irq.installed = true;
@@ -262,7 +277,6 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 {
 	unsigned i, j;
 
-	drm_vblank_cleanup(adev->ddev);
 	if (adev->irq.installed) {
 		drm_irq_uninstall(adev->ddev);
 		adev->irq.installed = false;

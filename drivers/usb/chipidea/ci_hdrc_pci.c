@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ci_hdrc_pci.c - MIPS USB IP core family device controller
  *
  * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
  *
  * Author: David Lopo
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -170,5 +167,4 @@ module_pci_driver(ci_hdrc_pci_driver);
 MODULE_AUTHOR("MIPS - David Lopo <dlopo@chipidea.mips.com>");
 MODULE_DESCRIPTION("MIPS CI13XXX USB Peripheral Controller");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("June 2008");
 MODULE_ALIAS("platform:ci13xxx_pci");

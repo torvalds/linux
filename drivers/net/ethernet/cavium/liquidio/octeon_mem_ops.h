@@ -66,7 +66,7 @@ octeon_pci_read_core_mem(struct octeon_device *oct,
 void
 octeon_pci_write_core_mem(struct octeon_device *oct,
 			  u64 coreaddr,
-			  u8 *buf,
+			  const u8 *buf,
 			  u32 len);
 
 #endif

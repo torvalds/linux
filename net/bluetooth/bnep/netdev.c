@@ -75,16 +75,16 @@ static void bnep_net_set_mc_list(struct net_device *dev)
 		u8 start[ETH_ALEN] = { 0x01 };
 
 		/* Request all addresses */
-		memcpy(__skb_put(skb, ETH_ALEN), start, ETH_ALEN);
-		memcpy(__skb_put(skb, ETH_ALEN), dev->broadcast, ETH_ALEN);
+		__skb_put_data(skb, start, ETH_ALEN);
+		__skb_put_data(skb, dev->broadcast, ETH_ALEN);
 		r->len = htons(ETH_ALEN * 2);
 	} else {
 		struct netdev_hw_addr *ha;
 		int i, len = skb->len;
 
 		if (dev->flags & IFF_BROADCAST) {
-			memcpy(__skb_put(skb, ETH_ALEN), dev->broadcast, ETH_ALEN);
-			memcpy(__skb_put(skb, ETH_ALEN), dev->broadcast, ETH_ALEN);
+			__skb_put_data(skb, dev->broadcast, ETH_ALEN);
+			__skb_put_data(skb, dev->broadcast, ETH_ALEN);
 		}
 
 		/* FIXME: We should group addresses here. */
@@ -93,8 +93,8 @@ static void bnep_net_set_mc_list(struct net_device *dev)
 		netdev_for_each_mc_addr(ha, dev) {
 			if (i == BNEP_MAX_MULTICAST_FILTERS)
 				break;
-			memcpy(__skb_put(skb, ETH_ALEN), ha->addr, ETH_ALEN);
-			memcpy(__skb_put(skb, ETH_ALEN), ha->addr, ETH_ALEN);
+			__skb_put_data(skb, ha->addr, ETH_ALEN);
+			__skb_put_data(skb, ha->addr, ETH_ALEN);
 
 			i++;
 		}

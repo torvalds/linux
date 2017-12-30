@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVBIOS_M0209_H__
 #define __NVBIOS_M0209_H__
 u32 nvbios_M0209Te(struct nvkm_bios *,

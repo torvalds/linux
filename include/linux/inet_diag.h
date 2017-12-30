@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _INET_DIAG_H_
 #define _INET_DIAG_H_ 1
 
@@ -24,6 +25,13 @@ struct inet_diag_handler {
 	void		(*idiag_get_info)(struct sock *sk,
 					  struct inet_diag_msg *r,
 					  void *info);
+
+	int		(*idiag_get_aux)(struct sock *sk,
+					 bool net_admin,
+					 struct sk_buff *skb);
+
+	size_t		(*idiag_get_aux_size)(struct sock *sk,
+					      bool net_admin);
 
 	int		(*destroy)(struct sk_buff *in_skb,
 				   const struct inet_diag_req_v2 *req);

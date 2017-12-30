@@ -632,6 +632,7 @@ static ssize_t fnic_reset_stats_write(struct file *file,
 			sizeof(struct io_path_stats) - sizeof(u64));
 		memset(fw_stats_p+1, 0,
 			sizeof(struct fw_stats) - sizeof(u64));
+		getnstimeofday(&stats->stats_timestamps.last_reset_time);
 	}
 
 	(*ppos)++;

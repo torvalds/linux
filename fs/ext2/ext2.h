@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1992, 1993, 1994, 1995
  * Remy Card (card@masi.ibp.fr)
@@ -113,7 +114,8 @@ struct ext2_sb_info {
 	 * of the mount options.
 	 */
 	spinlock_t s_lock;
-	struct mb_cache *s_mb_cache;
+	struct mb_cache *s_ea_block_cache;
+	struct dax_device *s_daxdev;
 };
 
 static inline spinlock_t *

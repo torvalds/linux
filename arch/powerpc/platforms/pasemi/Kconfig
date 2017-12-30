@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_PASEMI
 	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN
 	bool "PA Semi SoC-based platforms"

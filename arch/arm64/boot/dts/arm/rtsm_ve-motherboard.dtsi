@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARM Ltd. Fast Models
  *
@@ -60,14 +61,14 @@
 			#size-cells = <1>;
 			ranges = <0 3 0 0x200000>;
 
-			v2m_sysreg: sysreg@010000 {
+			v2m_sysreg: sysreg@10000 {
 				compatible = "arm,vexpress-sysreg";
 				reg = <0x010000 0x1000>;
 				gpio-controller;
 				#gpio-cells = <2>;
 			};
 
-			v2m_sysctl: sysctl@020000 {
+			v2m_sysctl: sysctl@20000 {
 				compatible = "arm,sp810", "arm,primecell";
 				reg = <0x020000 0x1000>;
 				clocks = <&v2m_refclk32khz>, <&v2m_refclk1mhz>, <&v2m_clk24mhz>;
@@ -78,7 +79,7 @@
 				assigned-clock-parents = <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>, <&v2m_refclk1mhz>;
 			};
 
-			aaci@040000 {
+			aaci@40000 {
 				compatible = "arm,pl041", "arm,primecell";
 				reg = <0x040000 0x1000>;
 				interrupts = <11>;
@@ -86,7 +87,7 @@
 				clock-names = "apb_pclk";
 			};
 
-			mmci@050000 {
+			mmci@50000 {
 				compatible = "arm,pl180", "arm,primecell";
 				reg = <0x050000 0x1000>;
 				interrupts = <9 10>;
@@ -98,7 +99,7 @@
 				clock-names = "mclk", "apb_pclk";
 			};
 
-			kmi@060000 {
+			kmi@60000 {
 				compatible = "arm,pl050", "arm,primecell";
 				reg = <0x060000 0x1000>;
 				interrupts = <12>;
@@ -106,7 +107,7 @@
 				clock-names = "KMIREFCLK", "apb_pclk";
 			};
 
-			kmi@070000 {
+			kmi@70000 {
 				compatible = "arm,pl050", "arm,primecell";
 				reg = <0x070000 0x1000>;
 				interrupts = <13>;
@@ -114,7 +115,7 @@
 				clock-names = "KMIREFCLK", "apb_pclk";
 			};
 
-			v2m_serial0: uart@090000 {
+			v2m_serial0: uart@90000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x090000 0x1000>;
 				interrupts = <5>;
@@ -122,7 +123,7 @@
 				clock-names = "uartclk", "apb_pclk";
 			};
 
-			v2m_serial1: uart@0a0000 {
+			v2m_serial1: uart@a0000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x0a0000 0x1000>;
 				interrupts = <6>;
@@ -130,7 +131,7 @@
 				clock-names = "uartclk", "apb_pclk";
 			};
 
-			v2m_serial2: uart@0b0000 {
+			v2m_serial2: uart@b0000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x0b0000 0x1000>;
 				interrupts = <7>;
@@ -138,7 +139,7 @@
 				clock-names = "uartclk", "apb_pclk";
 			};
 
-			v2m_serial3: uart@0c0000 {
+			v2m_serial3: uart@c0000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x0c0000 0x1000>;
 				interrupts = <8>;
@@ -146,7 +147,7 @@
 				clock-names = "uartclk", "apb_pclk";
 			};
 
-			wdt@0f0000 {
+			wdt@f0000 {
 				compatible = "arm,sp805", "arm,primecell";
 				reg = <0x0f0000 0x1000>;
 				interrupts = <0>;
@@ -219,7 +220,7 @@
 				};
 			};
 
-			virtio_block@0130000 {
+			virtio-block@130000 {
 				compatible = "virtio,mmio";
 				reg = <0x130000 0x200>;
 				interrupts = <42>;

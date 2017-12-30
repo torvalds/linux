@@ -159,7 +159,10 @@ struct of_drconf_cell {
 #define OV5_PFO_HW_842		0x1140	/* PFO Compression Accelerator */
 #define OV5_PFO_HW_ENCR		0x1120	/* PFO Encryption Accelerator */
 #define OV5_SUB_PROCESSORS	0x1501	/* 1,2,or 4 Sub-Processors supported */
-#define OV5_XIVE_EXPLOIT	0x1701	/* XIVE exploitation supported */
+#define OV5_XIVE_SUPPORT	0x17C0	/* XIVE Exploitation Support Mask */
+#define OV5_XIVE_LEGACY		0x1700	/* XIVE legacy mode Only */
+#define OV5_XIVE_EXPLOIT	0x1740	/* XIVE exploitation mode Only */
+#define OV5_XIVE_EITHER		0x1780	/* XIVE legacy or exploitation mode */
 /* MMU Base Architecture */
 #define OV5_MMU_SUPPORT		0x18C0	/* MMU Mode Support Mask */
 #define OV5_MMU_HASH		0x1800	/* Hash MMU Only */

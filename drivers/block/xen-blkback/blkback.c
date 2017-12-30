@@ -705,9 +705,9 @@ static unsigned int xen_blkbk_unmap_prepare(
 				    GNTMAP_host_map, pages[i]->handle);
 		pages[i]->handle = BLKBACK_INVALID_HANDLE;
 		invcount++;
-       }
+	}
 
-       return invcount;
+	return invcount;
 }
 
 static void xen_blkbk_unmap_and_respond_callback(int result, struct gntab_unmap_queue_data *data)
@@ -1066,20 +1066,17 @@ static void xen_blk_drain_io(struct xen_blkif_ring *ring)
 	atomic_set(&blkif->drain, 0);
 }
 
-/*
- * Completion callback on the bio's. Called as bh->b_end_io()
- */
-
-static void __end_block_io_op(struct pending_req *pending_req, int error)
+static void __end_block_io_op(struct pending_req *pending_req,
+		blk_status_t error)
 {
 	/* An error fails the entire request. */
-	if ((pending_req->operation == BLKIF_OP_FLUSH_DISKCACHE) &&
-	    (error == -EOPNOTSUPP)) {
+	if (pending_req->operation == BLKIF_OP_FLUSH_DISKCACHE &&
+	    error == BLK_STS_NOTSUPP) {
 		pr_debug("flush diskcache op failed, not supported\n");
 		xen_blkbk_flush_diskcache(XBT_NIL, pending_req->ring->blkif->be, 0);
 		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
-	} else if ((pending_req->operation == BLKIF_OP_WRITE_BARRIER) &&
-		    (error == -EOPNOTSUPP)) {
+	} else if (pending_req->operation == BLKIF_OP_WRITE_BARRIER &&
+		   error == BLK_STS_NOTSUPP) {
 		pr_debug("write barrier op failed, not supported\n");
 		xen_blkbk_barrier(XBT_NIL, pending_req->ring->blkif->be, 0);
 		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
@@ -1103,7 +1100,7 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
  */
 static void end_block_io_op(struct bio *bio)
 {
-	__end_block_io_op(bio->bi_private, bio->bi_error);
+	__end_block_io_op(bio->bi_private, bio->bi_status);
 	bio_put(bio);
 }
 
@@ -1254,6 +1251,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 		break;
 	case BLKIF_OP_WRITE_BARRIER:
 		drain = true;
+		/* fall through */
 	case BLKIF_OP_FLUSH_DISKCACHE:
 		ring->st_f_req++;
 		operation = REQ_OP_WRITE;
@@ -1365,7 +1363,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 				goto fail_put_bio;
 
 			biolist[nbio++] = bio;
-			bio->bi_bdev    = preq.bdev;
+			bio_set_dev(bio, preq.bdev);
 			bio->bi_private = pending_req;
 			bio->bi_end_io  = end_block_io_op;
 			bio->bi_iter.bi_sector  = preq.sector_number;
@@ -1384,7 +1382,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 			goto fail_put_bio;
 
 		biolist[nbio++] = bio;
-		bio->bi_bdev    = preq.bdev;
+		bio_set_dev(bio, preq.bdev);
 		bio->bi_private = pending_req;
 		bio->bi_end_io  = end_block_io_op;
 		bio_set_op_attrs(bio, operation, operation_flags);
@@ -1420,7 +1418,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	for (i = 0; i < nbio; i++)
 		bio_put(biolist[i]);
 	atomic_set(&pending_req->pendcnt, 1);
-	__end_block_io_op(pending_req, -EINVAL);
+	__end_block_io_op(pending_req, BLK_STS_RESOURCE);
 	msleep(1); /* back off a bit */
 	return -EIO;
 }

@@ -136,7 +136,7 @@ struct snd_interwave {
 static int isa_registered;
 static int pnp_registered;
 
-static struct pnp_card_device_id snd_interwave_pnpids[] = {
+static const struct pnp_card_device_id snd_interwave_pnpids[] = {
 #ifndef SNDRV_STB
 	/* Gravis UltraSound Plug & Play */
 	{ .id = "GRV0001", .devs = { { .id = "GRV0000" } } },

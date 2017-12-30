@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <drm/drmP.h>
 #include <drm/drm_dp_mst_helper.h>
@@ -300,9 +301,7 @@ static void radeon_dp_register_mst_connector(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	drm_modeset_lock_all(dev);
 	radeon_fb_add_connector(rdev, connector);
-	drm_modeset_unlock_all(dev);
 
 	drm_connector_register(connector);
 }
@@ -315,13 +314,8 @@ static void radeon_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	struct radeon_device *rdev = dev->dev_private;
 
 	drm_connector_unregister(connector);
-	/* need to nuke the connector */
-	drm_modeset_lock_all(dev);
-	/* dpms off */
 	radeon_fb_remove_connector(rdev, connector);
-
 	drm_connector_cleanup(connector);
-	drm_modeset_unlock_all(dev);
 
 	kfree(connector);
 	DRM_DEBUG_KMS("\n");

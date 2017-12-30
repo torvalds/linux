@@ -88,7 +88,7 @@ static int ir_rc6_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct rc6_dec *data = &dev->raw->rc6;
 	u32 scancode;
 	u8 toggle;
-	enum rc_type protocol;
+	enum rc_proto protocol;
 
 	if (!is_timing_event(ev)) {
 		if (ev.reset)
@@ -229,7 +229,7 @@ again:
 		case RC6_MODE_0:
 			scancode = data->body;
 			toggle = data->toggle;
-			protocol = RC_TYPE_RC6_0;
+			protocol = RC_PROTO_RC6_0;
 			IR_dprintk(1, "RC6(0) scancode 0x%04x (toggle: %u)\n",
 				   scancode, toggle);
 			break;
@@ -244,20 +244,20 @@ again:
 			scancode = data->body;
 			switch (data->count) {
 			case 20:
-				protocol = RC_TYPE_RC6_6A_20;
+				protocol = RC_PROTO_RC6_6A_20;
 				toggle = 0;
 				break;
 			case 24:
-				protocol = RC_TYPE_RC6_6A_24;
+				protocol = RC_PROTO_RC6_6A_24;
 				toggle = 0;
 				break;
 			case 32:
 				if ((scancode & RC6_6A_LCC_MASK) == RC6_6A_MCE_CC) {
-					protocol = RC_TYPE_RC6_MCE;
+					protocol = RC_PROTO_RC6_MCE;
 					toggle = !!(scancode & RC6_6A_MCE_TOGGLE_MASK);
 					scancode &= ~RC6_6A_MCE_TOGGLE_MASK;
 				} else {
-					protocol = RC_TYPE_RC6_6A_32;
+					protocol = RC_PROTO_RC6_6A_32;
 					toggle = 0;
 				}
 				break;
@@ -322,13 +322,13 @@ static const struct ir_raw_timings_manchester ir_rc6_timings[4] = {
  *		encoding. In this case all @max events will have been written.
  *		-EINVAL if the scancode is ambiguous or invalid.
  */
-static int ir_rc6_encode(enum rc_type protocol, u32 scancode,
+static int ir_rc6_encode(enum rc_proto protocol, u32 scancode,
 			 struct ir_raw_event *events, unsigned int max)
 {
 	int ret;
 	struct ir_raw_event *e = events;
 
-	if (protocol == RC_TYPE_RC6_0) {
+	if (protocol == RC_PROTO_RC6_0) {
 		/* Modulate the preamble */
 		ret = ir_raw_gen_manchester(&e, max, &ir_rc6_timings[0], 0, 0);
 		if (ret < 0)
@@ -358,14 +358,14 @@ static int ir_rc6_encode(enum rc_type protocol, u32 scancode,
 		int bits;
 
 		switch (protocol) {
-		case RC_TYPE_RC6_MCE:
-		case RC_TYPE_RC6_6A_32:
+		case RC_PROTO_RC6_MCE:
+		case RC_PROTO_RC6_6A_32:
 			bits = 32;
 			break;
-		case RC_TYPE_RC6_6A_24:
+		case RC_PROTO_RC6_6A_24:
 			bits = 24;
 			break;
-		case RC_TYPE_RC6_6A_20:
+		case RC_PROTO_RC6_6A_20:
 			bits = 20;
 			break;
 		default:
@@ -403,9 +403,9 @@ static int ir_rc6_encode(enum rc_type protocol, u32 scancode,
 }
 
 static struct ir_raw_handler rc6_handler = {
-	.protocols	= RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 |
-			  RC_BIT_RC6_6A_24 | RC_BIT_RC6_6A_32 |
-			  RC_BIT_RC6_MCE,
+	.protocols	= RC_PROTO_BIT_RC6_0 | RC_PROTO_BIT_RC6_6A_20 |
+			  RC_PROTO_BIT_RC6_6A_24 | RC_PROTO_BIT_RC6_6A_32 |
+			  RC_PROTO_BIT_RC6_MCE,
 	.decode		= ir_rc6_decode,
 	.encode		= ir_rc6_encode,
 };

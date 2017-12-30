@@ -125,13 +125,13 @@ static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst,
 					     struct sk_buff *skb,
 					     const void *daddr);
 static int dn_route_input(struct sk_buff *);
-static void dn_run_flush(unsigned long dummy);
+static void dn_run_flush(struct timer_list *unused);
 
 static struct dn_rt_hash_bucket *dn_rt_hash_table;
 static unsigned int dn_rt_hash_mask;
 
 static struct timer_list dn_route_timer;
-static DEFINE_TIMER(dn_rt_flush_timer, dn_run_flush, 0, 0);
+static DEFINE_TIMER(dn_rt_flush_timer, dn_run_flush);
 int decnet_dst_gc_interval = 2;
 
 static struct dst_ops dn_dst_ops = {
@@ -183,12 +183,7 @@ static __inline__ unsigned int dn_hash(__le16 src, __le16 dst)
 	return dn_rt_hash_mask & (unsigned int)tmp;
 }
 
-static inline void dnrt_free(struct dn_route *rt)
-{
-	call_rcu_bh(&rt->dst.rcu_head, dst_rcu_free);
-}
-
-static void dn_dst_check_expire(unsigned long dummy)
+static void dn_dst_check_expire(struct timer_list *unused)
 {
 	int i;
 	struct dn_route *rt;
@@ -202,14 +197,15 @@ static void dn_dst_check_expire(unsigned long dummy)
 		spin_lock(&dn_rt_hash_table[i].lock);
 		while ((rt = rcu_dereference_protected(*rtp,
 						lockdep_is_held(&dn_rt_hash_table[i].lock))) != NULL) {
-			if (atomic_read(&rt->dst.__refcnt) ||
-					(now - rt->dst.lastuse) < expire) {
+			if (atomic_read(&rt->dst.__refcnt) > 1 ||
+			    (now - rt->dst.lastuse) < expire) {
 				rtp = &rt->dst.dn_next;
 				continue;
 			}
 			*rtp = rt->dst.dn_next;
 			rt->dst.dn_next = NULL;
-			dnrt_free(rt);
+			dst_dev_put(&rt->dst);
+			dst_release(&rt->dst);
 		}
 		spin_unlock(&dn_rt_hash_table[i].lock);
 
@@ -235,14 +231,15 @@ static int dn_dst_gc(struct dst_ops *ops)
 
 		while ((rt = rcu_dereference_protected(*rtp,
 						lockdep_is_held(&dn_rt_hash_table[i].lock))) != NULL) {
-			if (atomic_read(&rt->dst.__refcnt) ||
-					(now - rt->dst.lastuse) < expire) {
+			if (atomic_read(&rt->dst.__refcnt) > 1 ||
+			    (now - rt->dst.lastuse) < expire) {
 				rtp = &rt->dst.dn_next;
 				continue;
 			}
 			*rtp = rt->dst.dn_next;
 			rt->dst.dn_next = NULL;
-			dnrt_free(rt);
+			dst_dev_put(&rt->dst);
+			dst_release(&rt->dst);
 			break;
 		}
 		spin_unlock_bh(&dn_rt_hash_table[i].lock);
@@ -341,10 +338,10 @@ static int dn_insert_route(struct dn_route *rt, unsigned int hash, struct dn_rou
 					   dn_rt_hash_table[hash].chain);
 			rcu_assign_pointer(dn_rt_hash_table[hash].chain, rth);
 
-			dst_use(&rth->dst, now);
+			dst_hold_and_use(&rth->dst, now);
 			spin_unlock_bh(&dn_rt_hash_table[hash].lock);
 
-			dst_free(&rt->dst);
+			dst_release_immediate(&rt->dst);
 			*rp = rth;
 			return 0;
 		}
@@ -354,13 +351,13 @@ static int dn_insert_route(struct dn_route *rt, unsigned int hash, struct dn_rou
 	rcu_assign_pointer(rt->dst.dn_next, dn_rt_hash_table[hash].chain);
 	rcu_assign_pointer(dn_rt_hash_table[hash].chain, rt);
 
-	dst_use(&rt->dst, now);
+	dst_hold_and_use(&rt->dst, now);
 	spin_unlock_bh(&dn_rt_hash_table[hash].lock);
 	*rp = rt;
 	return 0;
 }
 
-static void dn_run_flush(unsigned long dummy)
+static void dn_run_flush(struct timer_list *unused)
 {
 	int i;
 	struct dn_route *rt, *next;
@@ -374,7 +371,8 @@ static void dn_run_flush(unsigned long dummy)
 		for(; rt; rt = next) {
 			next = rcu_dereference_raw(rt->dst.dn_next);
 			RCU_INIT_POINTER(rt->dst.dn_next, NULL);
-			dnrt_free(rt);
+			dst_dev_put(&rt->dst);
+			dst_release(&rt->dst);
 		}
 
 nothing_to_declare:
@@ -1215,6 +1213,7 @@ make_route:
 		goto e_neighbour;
 
 	hash = dn_hash(rt->fld.saddr, rt->fld.daddr);
+	/* dn_insert_route() increments dst->__refcnt */
 	dn_insert_route(rt, hash, (struct dn_route **)pprt);
 
 done:
@@ -1237,7 +1236,7 @@ e_nobufs:
 	err = -ENOBUFS;
 	goto done;
 e_neighbour:
-	dst_free(&rt->dst);
+	dst_release_immediate(&rt->dst);
 	goto e_nobufs;
 }
 
@@ -1259,7 +1258,7 @@ static int __dn_route_output_key(struct dst_entry **pprt, const struct flowidn *
 			    (flp->flowidn_mark == rt->fld.flowidn_mark) &&
 			    dn_is_output_route(rt) &&
 			    (rt->fld.flowidn_oif == flp->flowidn_oif)) {
-				dst_use(&rt->dst, jiffies);
+				dst_hold_and_use(&rt->dst, jiffies);
 				rcu_read_unlock_bh();
 				*pprt = &rt->dst;
 				return 0;
@@ -1445,7 +1444,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	}
 
 make_route:
-	rt = dst_alloc(&dn_dst_ops, out_dev, 0, DST_OBSOLETE_NONE, DST_HOST);
+	rt = dst_alloc(&dn_dst_ops, out_dev, 1, DST_OBSOLETE_NONE, DST_HOST);
 	if (rt == NULL)
 		goto e_nobufs;
 
@@ -1491,6 +1490,7 @@ make_route:
 		goto e_neighbour;
 
 	hash = dn_hash(rt->fld.saddr, rt->fld.daddr);
+	/* dn_insert_route() increments dst->__refcnt */
 	dn_insert_route(rt, hash, &rt);
 	skb_dst_set(skb, &rt->dst);
 
@@ -1514,7 +1514,7 @@ e_nobufs:
 	goto done;
 
 e_neighbour:
-	dst_free(&rt->dst);
+	dst_release_immediate(&rt->dst);
 	goto done;
 }
 
@@ -1535,7 +1535,7 @@ static int dn_route_input(struct sk_buff *skb)
 		    (rt->fld.flowidn_oif == 0) &&
 		    (rt->fld.flowidn_mark == skb->mark) &&
 		    (rt->fld.flowidn_iif == cb->iif)) {
-			dst_use(&rt->dst, jiffies);
+			dst_hold_and_use(&rt->dst, jiffies);
 			rcu_read_unlock();
 			skb_dst_set(skb, (struct dst_entry *)rt);
 			return 0;
@@ -1875,7 +1875,7 @@ void __init dn_route_init(void)
 		kmem_cache_create("dn_dst_cache", sizeof(struct dn_route), 0,
 				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 	dst_entries_init(&dn_dst_ops);
-	setup_timer(&dn_route_timer, dn_dst_check_expire, 0);
+	timer_setup(&dn_route_timer, dn_dst_check_expire, 0);
 	dn_route_timer.expires = jiffies + decnet_dst_gc_interval * HZ;
 	add_timer(&dn_route_timer);
 
@@ -1922,10 +1922,10 @@ void __init dn_route_init(void)
 
 #ifdef CONFIG_DECNET_ROUTER
 	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
-		      dn_fib_dump, NULL);
+		      dn_fib_dump, 0);
 #else
 	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
-		      dn_cache_dump, NULL);
+		      dn_cache_dump, 0);
 #endif
 }
 

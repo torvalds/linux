@@ -31,7 +31,6 @@ Example for full FPGA configuration:
 		cell-index = <1>;
 		interrupts = <92>;
 		clocks = <&coreclk 0>;
-		status = "okay";
 
 		fpga_mgr_spi: fpga-mgr@0 {
 			compatible = "xlnx,fpga-slave-serial";

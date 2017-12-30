@@ -45,7 +45,7 @@ static int snappercl15_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops snappercl15_ops = {
+static const struct snd_soc_ops snappercl15_ops = {
 	.hw_params	= snappercl15_hw_params,
 };
 

@@ -34,6 +34,19 @@ Optional properties:
 - fsl,err006687-workaround-present: If present indicates that the system has
   the hardware workaround for ERR006687 applied and does not need a software
   workaround.
+ -interrupt-names:  names of the interrupts listed in interrupts property in
+  the same order. The defaults if not specified are
+  __Number of interrupts__   __Default__
+	1			"int0"
+	2			"int0", "pps"
+	3			"int0", "int1", "int2"
+	4			"int0", "int1", "int2", "pps"
+  The order may be changed as long as they correspond to the interrupts
+  property. Currently, only i.mx7 uses "int1" and "int2". They correspond to
+  tx/rx queues 1 and 2. "int0" will be used for queue 0 and ENET_MII interrupts.
+  For imx6sx, "int0" handles all 3 queues and ENET_MII. "pps" is for the pulse
+  per second interrupt associated with 1588 precision time protocol(PTP).
+
 
 Optional subnodes:
 - mdio : specifies the mdio bus in the FEC, used as a container for phy nodes

@@ -89,8 +89,8 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 	offset = uml_reserved - uml_physmem;
 	map_size = len - offset;
 	if(map_size <= 0) {
-		printf("Too few physical memory! Needed=%d, given=%d\n",
-		       offset, len);
+		os_warn("Too few physical memory! Needed=%lu, given=%lu\n",
+			offset, len);
 		exit(1);
 	}
 
@@ -99,9 +99,9 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 	err = os_map_memory((void *) uml_reserved, physmem_fd, offset,
 			    map_size, 1, 1, 1);
 	if (err < 0) {
-		printf("setup_physmem - mapping %ld bytes of memory at 0x%p "
-		       "failed - errno = %d\n", map_size,
-		       (void *) uml_reserved, err);
+		os_warn("setup_physmem - mapping %ld bytes of memory at 0x%p "
+			"failed - errno = %d\n", map_size,
+			(void *) uml_reserved, err);
 		exit(1);
 	}
 

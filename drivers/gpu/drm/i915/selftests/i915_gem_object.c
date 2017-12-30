@@ -251,14 +251,6 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 			return PTR_ERR(io);
 		}
 
-		err = i915_vma_get_fence(vma);
-		if (err) {
-			pr_err("Failed to get fence for partial view: offset=%lu\n",
-			       page);
-			i915_vma_unpin_iomap(vma);
-			return err;
-		}
-
 		iowrite32(page, io + n * PAGE_SIZE/sizeof(*io));
 		i915_vma_unpin_iomap(vma);
 
@@ -266,7 +258,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		if (offset >= obj->base.size)
 			continue;
 
-		i915_gem_object_flush_gtt_write_domain(obj);
+		flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 		p = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 		cpu = kmap(p) + offset_in_page(offset);
@@ -545,7 +537,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		}
 
 		mutex_lock(&i915->drm.struct_mutex);
+		intel_runtime_pm_get(i915);
 		err = make_obj_busy(obj);
+		intel_runtime_pm_put(i915);
 		mutex_unlock(&i915->drm.struct_mutex);
 		if (err) {
 			pr_err("[loop %d] Failed to busy the object\n", loop);

@@ -92,13 +92,13 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 
 	siglen -= sizeof(*hdr);
 
-	if (siglen != __be16_to_cpu(hdr->sig_size))
+	if (siglen != be16_to_cpu(hdr->sig_size))
 		return -EBADMSG;
 
 	if (hdr->hash_algo >= HASH_ALGO__LAST)
 		return -ENOPKG;
 
-	key = request_asymmetric_key(keyring, __be32_to_cpu(hdr->keyid));
+	key = request_asymmetric_key(keyring, be32_to_cpu(hdr->keyid));
 	if (IS_ERR(key))
 		return PTR_ERR(key);
 

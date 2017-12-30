@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __UNIX_DIAG_H__
 #define __UNIX_DIAG_H__
 

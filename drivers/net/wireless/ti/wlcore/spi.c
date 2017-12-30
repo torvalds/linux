@@ -70,10 +70,10 @@
 #define WSPI_MAX_CHUNK_SIZE    4092
 
 /*
- * wl18xx driver aggregation buffer size is (13 * PAGE_SIZE) compared to
- * (4 * PAGE_SIZE) for wl12xx, so use the larger buffer needed for wl18xx
+ * wl18xx driver aggregation buffer size is (13 * 4K) compared to
+ * (4 * 4K) for wl12xx, so use the larger buffer needed for wl18xx
  */
-#define SPI_AGGR_BUFFER_SIZE (13 * PAGE_SIZE)
+#define SPI_AGGR_BUFFER_SIZE (13 * SZ_4K)
 
 /* Maximum number of SPI write chunks */
 #define WSPI_MAX_NUM_OF_CHUNKS \
@@ -92,6 +92,7 @@ static const struct wilink_family_data wl128x_data = {
 static const struct wilink_family_data wl18xx_data = {
 	.name = "wl18xx",
 	.cfg_name = "ti-connectivity/wl18xx-conf.bin",
+	.nvs_name = "ti-connectivity/wl1271-nvs.bin",
 };
 
 struct wl12xx_spi_glue {
@@ -366,17 +367,14 @@ static int __wl12xx_spi_raw_write(struct device *child, int addr,
 static int __must_check wl12xx_spi_raw_write(struct device *child, int addr,
 					     void *buf, size_t len, bool fixed)
 {
-	int ret;
-
 	/* The ELP wakeup write may fail the first time due to internal
 	 * hardware latency. It is safer to send the wakeup command twice to
 	 * avoid unexpected failures.
 	 */
 	if (addr == HW_ACCESS_ELP_CTRL_REG)
-		ret = __wl12xx_spi_raw_write(child, addr, buf, len, fixed);
-	ret = __wl12xx_spi_raw_write(child, addr, buf, len, fixed);
+		__wl12xx_spi_raw_write(child, addr, buf, len, fixed);
 
-	return ret;
+	return __wl12xx_spi_raw_write(child, addr, buf, len, fixed);
 }
 
 /**
@@ -433,6 +431,7 @@ static const struct of_device_id wlcore_spi_of_match_table[] = {
 	{ .compatible = "ti,wl1273", .data = &wl127x_data},
 	{ .compatible = "ti,wl1281", .data = &wl128x_data},
 	{ .compatible = "ti,wl1283", .data = &wl128x_data},
+	{ .compatible = "ti,wl1285", .data = &wl128x_data},
 	{ .compatible = "ti,wl1801", .data = &wl18xx_data},
 	{ .compatible = "ti,wl1805", .data = &wl18xx_data},
 	{ .compatible = "ti,wl1807", .data = &wl18xx_data},

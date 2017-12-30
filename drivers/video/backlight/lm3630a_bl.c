@@ -31,7 +31,8 @@
 #define REG_FAULT	0x0B
 #define REG_PWM_OUTLOW	0x12
 #define REG_PWM_OUTHIGH	0x13
-#define REG_MAX		0x1F
+#define REG_FILTER_STRENGTH	0x50
+#define REG_MAX		0x50
 
 #define INT_DEBOUNCE_MSEC	10
 struct lm3630a_chip {
@@ -80,7 +81,7 @@ static int lm3630a_chip_init(struct lm3630a_chip *pchip)
 
 	usleep_range(1000, 2000);
 	/* set Filter Strength Register */
-	rval = lm3630a_write(pchip, 0x50, 0x03);
+	rval = lm3630a_write(pchip, REG_FILTER_STRENGTH, 0x03);
 	/* set Cofig. register */
 	rval |= lm3630a_update(pchip, REG_CONFIG, 0x07, pdata->pwm_ctrl);
 	/* set boost control */

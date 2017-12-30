@@ -78,7 +78,7 @@ static int process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	u16 slid;
 	int err;
 
-	slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
+	slid = in_wc ? ib_lid_cpu16(in_wc->slid) : be16_to_cpu(IB_LID_PERMISSIVE);
 
 	if (in_mad->mad_hdr.method == IB_MGMT_METHOD_TRAP && slid == 0)
 		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
@@ -204,7 +204,7 @@ static int process_pma_cmd(struct ib_device *ibdev, u8 port_num,
 	int err;
 	void *out_cnt;
 
-	/* Decalring support of extended counters */
+	/* Declaring support of extended counters */
 	if (in_mad->mad_hdr.attr_id == IB_PMA_CLASS_PORT_INFO) {
 		struct ib_class_port_info cpi = {};
 
@@ -218,7 +218,7 @@ static int process_pma_cmd(struct ib_device *ibdev, u8 port_num,
 			(struct ib_pma_portcounters_ext *)(out_mad->data + 40);
 		int sz = MLX5_ST_SZ_BYTES(query_vport_counter_out);
 
-		out_cnt = mlx5_vzalloc(sz);
+		out_cnt = kvzalloc(sz, GFP_KERNEL);
 		if (!out_cnt)
 			return IB_MAD_RESULT_FAILURE;
 
@@ -231,7 +231,7 @@ static int process_pma_cmd(struct ib_device *ibdev, u8 port_num,
 			(struct ib_pma_portcounters *)(out_mad->data + 40);
 		int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 
-		out_cnt = mlx5_vzalloc(sz);
+		out_cnt = kvzalloc(sz, GFP_KERNEL);
 		if (!out_cnt)
 			return IB_MAD_RESULT_FAILURE;
 

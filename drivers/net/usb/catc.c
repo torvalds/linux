@@ -611,9 +611,9 @@ static void catc_stats_done(struct catc *catc, struct ctrl_queue *q)
 	catc->stats_vals[index >> 1] = data;
 }
 
-static void catc_stats_timer(unsigned long data)
+static void catc_stats_timer(struct timer_list *t)
 {
-	struct catc *catc = (void *) data;
+	struct catc *catc = from_timer(catc, t, timer);
 	int i;
 
 	for (i = 0; i < 8; i++)
@@ -805,9 +805,7 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	spin_lock_init(&catc->tx_lock);
 	spin_lock_init(&catc->ctrl_lock);
 
-	init_timer(&catc->timer);
-	catc->timer.data = (long) catc;
-	catc->timer.function = catc_stats_timer;
+	timer_setup(&catc->timer, catc_stats_timer, 0);
 
 	catc->ctrl_urb = usb_alloc_urb(0, GFP_KERNEL);
 	catc->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -961,7 +959,7 @@ static void catc_disconnect(struct usb_interface *intf)
  * Module functions and tables.
  */
 
-static struct usb_device_id catc_id_table [] = {
+static const struct usb_device_id catc_id_table[] = {
 	{ USB_DEVICE(0x0423, 0xa) },	/* CATC Netmate, Belkin F5U011 */
 	{ USB_DEVICE(0x0423, 0xc) },	/* CATC Netmate II, Belkin F5U111 */
 	{ USB_DEVICE(0x08d1, 0x1) },	/* smartBridges smartNIC */

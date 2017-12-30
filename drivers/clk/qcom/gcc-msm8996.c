@@ -2730,6 +2730,32 @@ static struct clk_fixed_factor ufs_rx_cfg_clk_src = {
 	},
 };
 
+static struct clk_branch gcc_hlos1_vote_lpass_core_smmu_clk = {
+	.halt_reg = 0x7d010,
+	.halt_check = BRANCH_HALT_VOTED,
+	.clkr = {
+		.enable_reg = 0x7d010,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "hlos1_vote_lpass_core_smmu_clk",
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_hlos1_vote_lpass_adsp_smmu_clk = {
+	.halt_reg = 0x7d014,
+	.halt_check = BRANCH_HALT_VOTED,
+	.clkr = {
+		.enable_reg = 0x7d014,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "hlos1_vote_lpass_adsp_smmu_clk",
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch gcc_ufs_rx_cfg_clk = {
 	.halt_reg = 0x75014,
 	.clkr = {
@@ -3307,6 +3333,8 @@ static struct clk_regmap *gcc_msm8996_clocks[] = {
 	[GCC_UFS_AHB_CLK] = &gcc_ufs_ahb_clk.clkr,
 	[GCC_UFS_TX_CFG_CLK] = &gcc_ufs_tx_cfg_clk.clkr,
 	[GCC_UFS_RX_CFG_CLK] = &gcc_ufs_rx_cfg_clk.clkr,
+	[GCC_HLOS1_VOTE_LPASS_CORE_SMMU_CLK] = &gcc_hlos1_vote_lpass_core_smmu_clk.clkr,
+	[GCC_HLOS1_VOTE_LPASS_ADSP_SMMU_CLK] = &gcc_hlos1_vote_lpass_adsp_smmu_clk.clkr,
 	[GCC_UFS_TX_SYMBOL_0_CLK] = &gcc_ufs_tx_symbol_0_clk.clkr,
 	[GCC_UFS_RX_SYMBOL_0_CLK] = &gcc_ufs_rx_symbol_0_clk.clkr,
 	[GCC_UFS_RX_SYMBOL_1_CLK] = &gcc_ufs_rx_symbol_1_clk.clkr,

@@ -24,6 +24,8 @@
 #include "dvb_frontend.h"
 #include "af9013.h"
 #include <linux/firmware.h>
+#include <linux/math64.h>
+#include <linux/regmap.h>
 
 #define AF9013_FIRMWARE "dvb-fe-af9013.fw"
 

@@ -70,7 +70,7 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 		    qla2x00_gid_list_size(ha),
 		    &gid_list_dma, GFP_KERNEL);
 		if (!gid_list) {
-			ql_dbg(ql_dbg_user, vha, 0x705c,
+			ql_dbg(ql_dbg_user, vha, 0x7018,
 			    "DMA allocation failed for %u\n",
 			     qla2x00_gid_list_size(ha));
 			return 0;
@@ -164,26 +164,56 @@ static int
 qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 {
 	struct scsi_qla_host *vha = s->private;
+	struct qla_qpair *qpair = vha->hw->base_qpair;
+	uint64_t qla_core_sbt_cmd, core_qla_que_buf, qla_core_ret_ctio,
+		core_qla_snd_status, qla_core_ret_sta_ctio, core_qla_free_cmd,
+		num_q_full_sent, num_alloc_iocb_failed, num_term_xchg_sent;
+	u16 i;
+
+	qla_core_sbt_cmd = qpair->tgt_counters.qla_core_sbt_cmd;
+	core_qla_que_buf = qpair->tgt_counters.core_qla_que_buf;
+	qla_core_ret_ctio = qpair->tgt_counters.qla_core_ret_ctio;
+	core_qla_snd_status = qpair->tgt_counters.core_qla_snd_status;
+	qla_core_ret_sta_ctio = qpair->tgt_counters.qla_core_ret_sta_ctio;
+	core_qla_free_cmd = qpair->tgt_counters.core_qla_free_cmd;
+	num_q_full_sent = qpair->tgt_counters.num_q_full_sent;
+	num_alloc_iocb_failed = qpair->tgt_counters.num_alloc_iocb_failed;
+	num_term_xchg_sent = qpair->tgt_counters.num_term_xchg_sent;
+
+	for (i = 0; i < vha->hw->max_qpairs; i++) {
+		qpair = vha->hw->queue_pair_map[i];
+		qla_core_sbt_cmd += qpair->tgt_counters.qla_core_sbt_cmd;
+		core_qla_que_buf += qpair->tgt_counters.core_qla_que_buf;
+		qla_core_ret_ctio += qpair->tgt_counters.qla_core_ret_ctio;
+		core_qla_snd_status += qpair->tgt_counters.core_qla_snd_status;
+		qla_core_ret_sta_ctio +=
+		    qpair->tgt_counters.qla_core_ret_sta_ctio;
+		core_qla_free_cmd += qpair->tgt_counters.core_qla_free_cmd;
+		num_q_full_sent += qpair->tgt_counters.num_q_full_sent;
+		num_alloc_iocb_failed +=
+		    qpair->tgt_counters.num_alloc_iocb_failed;
+		num_term_xchg_sent += qpair->tgt_counters.num_term_xchg_sent;
+	}
 
 	seq_puts(s, "Target Counters\n");
 	seq_printf(s, "qla_core_sbt_cmd = %lld\n",
-		vha->tgt_counters.qla_core_sbt_cmd);
+		qla_core_sbt_cmd);
 	seq_printf(s, "qla_core_ret_sta_ctio = %lld\n",
-		vha->tgt_counters.qla_core_ret_sta_ctio);
+		qla_core_ret_sta_ctio);
 	seq_printf(s, "qla_core_ret_ctio = %lld\n",
-		vha->tgt_counters.qla_core_ret_ctio);
+		qla_core_ret_ctio);
 	seq_printf(s, "core_qla_que_buf = %lld\n",
-		vha->tgt_counters.core_qla_que_buf);
+		core_qla_que_buf);
 	seq_printf(s, "core_qla_snd_status = %lld\n",
-		vha->tgt_counters.core_qla_snd_status);
+		core_qla_snd_status);
 	seq_printf(s, "core_qla_free_cmd = %lld\n",
-		vha->tgt_counters.core_qla_free_cmd);
+		core_qla_free_cmd);
 	seq_printf(s, "num alloc iocb failed = %lld\n",
-		vha->tgt_counters.num_alloc_iocb_failed);
+		num_alloc_iocb_failed);
 	seq_printf(s, "num term exchange sent = %lld\n",
-		vha->tgt_counters.num_term_xchg_sent);
+		num_term_xchg_sent);
 	seq_printf(s, "num Q full sent = %lld\n",
-		vha->tgt_counters.num_q_full_sent);
+		num_q_full_sent);
 
 	/* DIF stats */
 	seq_printf(s, "DIF Inp Bytes = %lld\n",
@@ -314,6 +344,81 @@ static const struct file_operations dfs_fce_ops = {
 	.release	= qla2x00_dfs_fce_release,
 };
 
+static int
+qla_dfs_naqp_show(struct seq_file *s, void *unused)
+{
+	struct scsi_qla_host *vha = s->private;
+	struct qla_hw_data *ha = vha->hw;
+
+	seq_printf(s, "%d\n", ha->tgt.num_act_qpairs);
+	return 0;
+}
+
+static int
+qla_dfs_naqp_open(struct inode *inode, struct file *file)
+{
+	struct scsi_qla_host *vha = inode->i_private;
+
+	return single_open(file, qla_dfs_naqp_show, vha);
+}
+
+static ssize_t
+qla_dfs_naqp_write(struct file *file, const char __user *buffer,
+    size_t count, loff_t *pos)
+{
+	struct seq_file *s = file->private_data;
+	struct scsi_qla_host *vha = s->private;
+	struct qla_hw_data *ha = vha->hw;
+	char *buf;
+	int rc = 0;
+	unsigned long num_act_qp;
+
+	if (!(IS_QLA27XX(ha) || IS_QLA83XX(ha))) {
+		pr_err("host%ld: this adapter does not support Multi Q.",
+		    vha->host_no);
+		return -EINVAL;
+	}
+
+	if (!vha->flags.qpairs_available) {
+		pr_err("host%ld: Driver is not setup with Multi Q.",
+		    vha->host_no);
+		return -EINVAL;
+	}
+	buf = memdup_user_nul(buffer, count);
+	if (IS_ERR(buf)) {
+		pr_err("host%ld: fail to copy user buffer.",
+		    vha->host_no);
+		return PTR_ERR(buf);
+	}
+
+	num_act_qp = simple_strtoul(buf, NULL, 0);
+
+	if (num_act_qp >= vha->hw->max_qpairs) {
+		pr_err("User set invalid number of qpairs %lu. Max = %d",
+		    num_act_qp, vha->hw->max_qpairs);
+		rc = -EINVAL;
+		goto out_free;
+	}
+
+	if (num_act_qp != ha->tgt.num_act_qpairs) {
+		ha->tgt.num_act_qpairs = num_act_qp;
+		qlt_clr_qp_table(vha);
+	}
+	rc = count;
+out_free:
+	kfree(buf);
+	return rc;
+}
+
+static const struct file_operations dfs_naqp_ops = {
+	.open		= qla_dfs_naqp_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= qla_dfs_naqp_write,
+};
+
+
 int
 qla2x00_dfs_setup(scsi_qla_host_t *vha)
 {
@@ -370,7 +475,7 @@ create_nodes:
 	ha->tgt.dfs_tgt_port_database = debugfs_create_file("tgt_port_database",
 	    S_IRUSR,  ha->dfs_dir, vha, &dfs_tgt_port_database_ops);
 	if (!ha->tgt.dfs_tgt_port_database) {
-		ql_log(ql_log_warn, vha, 0xffff,
+		ql_log(ql_log_warn, vha, 0xd03f,
 		    "Unable to create debugFS tgt_port_database node.\n");
 		goto out;
 	}
@@ -386,11 +491,20 @@ create_nodes:
 	ha->tgt.dfs_tgt_sess = debugfs_create_file("tgt_sess",
 		S_IRUSR, ha->dfs_dir, vha, &dfs_tgt_sess_ops);
 	if (!ha->tgt.dfs_tgt_sess) {
-		ql_log(ql_log_warn, vha, 0xffff,
-			"Unable to create debugFS tgt_sess node.\n");
+		ql_log(ql_log_warn, vha, 0xd040,
+		    "Unable to create debugFS tgt_sess node.\n");
 		goto out;
 	}
 
+	if (IS_QLA27XX(ha) || IS_QLA83XX(ha)) {
+		ha->tgt.dfs_naqp = debugfs_create_file("naqp",
+		    0400, ha->dfs_dir, vha, &dfs_naqp_ops);
+		if (!ha->tgt.dfs_naqp) {
+			ql_log(ql_log_warn, vha, 0xd011,
+			    "Unable to create debugFS naqp node.\n");
+			goto out;
+		}
+	}
 out:
 	return 0;
 }
@@ -399,6 +513,11 @@ int
 qla2x00_dfs_remove(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+
+	if (ha->tgt.dfs_naqp) {
+		debugfs_remove(ha->tgt.dfs_naqp);
+		ha->tgt.dfs_naqp = NULL;
+	}
 
 	if (ha->tgt.dfs_tgt_sess) {
 		debugfs_remove(ha->tgt.dfs_tgt_sess);

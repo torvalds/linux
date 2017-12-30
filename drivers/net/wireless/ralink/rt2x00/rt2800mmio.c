@@ -109,7 +109,7 @@ void rt2800mmio_fill_rxdone(struct queue_entry *entry,
 	__le32 *rxd = entry_priv->desc;
 	u32 word;
 
-	rt2x00_desc_read(rxd, 3, &word);
+	word = rt2x00_desc_read(rxd, 3);
 
 	if (rt2x00_get_field32(word, RXD_W3_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
@@ -136,10 +136,19 @@ void rt2800mmio_fill_rxdone(struct queue_entry *entry,
 		 */
 		rxdesc->flags |= RX_FLAG_MMIC_STRIPPED;
 
-		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS)
+		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS) {
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
-		else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC)
+		} else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC) {
+			/*
+			 * In order to check the Michael Mic, the packet must have
+			 * been decrypted.  Mac80211 doesnt check the MMIC failure 
+			 * flag to initiate MMIC countermeasures if the decoded flag
+			 * has not been set.
+			 */
+			rxdesc->flags |= RX_FLAG_DECRYPTED;
+
 			rxdesc->flags |= RX_FLAG_MMIC_ERROR;
+		}
 	}
 
 	if (rt2x00_get_field32(word, RXD_W3_MY_BSS))
@@ -175,7 +184,7 @@ static bool rt2800mmio_txdone_entry_check(struct queue_entry *entry, u32 status)
 	wcid = rt2x00_get_field32(status, TX_STA_FIFO_WCID);
 
 	txwi = rt2800_drv_get_txwi(entry);
-	rt2x00_desc_read(txwi, 1, &word);
+	word = rt2x00_desc_read(txwi, 1);
 	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
 
 	return (tx_wcid == wcid);
@@ -331,7 +340,7 @@ static inline void rt2800mmio_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 	 * access needs locking.
 	 */
 	spin_lock_irq(&rt2x00dev->irqmask_lock);
-	rt2x00mmio_register_read(rt2x00dev, INT_MASK_CSR, &reg);
+	reg = rt2x00mmio_register_read(rt2x00dev, INT_MASK_CSR);
 	rt2x00_set_field32(&reg, irq_field, 1);
 	rt2x00mmio_register_write(rt2x00dev, INT_MASK_CSR, reg);
 	spin_unlock_irq(&rt2x00dev->irqmask_lock);
@@ -376,12 +385,12 @@ void rt2800mmio_tbtt_tasklet(unsigned long data)
 		 * interval every 64 beacons by 64us to mitigate this effect.
 		 */
 		if (drv_data->tbtt_tick == (BCN_TBTT_OFFSET - 2)) {
-			rt2x00mmio_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+			reg = rt2x00mmio_register_read(rt2x00dev, BCN_TIME_CFG);
 			rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_INTERVAL,
 					   (rt2x00dev->beacon_int * 16) - 1);
 			rt2x00mmio_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 		} else if (drv_data->tbtt_tick == (BCN_TBTT_OFFSET - 1)) {
-			rt2x00mmio_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+			reg = rt2x00mmio_register_read(rt2x00dev, BCN_TIME_CFG);
 			rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_INTERVAL,
 					   (rt2x00dev->beacon_int * 16));
 			rt2x00mmio_register_write(rt2x00dev, BCN_TIME_CFG, reg);
@@ -439,7 +448,7 @@ static void rt2800mmio_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 	 * need to lock the kfifo.
 	 */
 	for (i = 0; i < rt2x00dev->tx->limit; i++) {
-		rt2x00mmio_register_read(rt2x00dev, TX_STA_FIFO, &status);
+		status = rt2x00mmio_register_read(rt2x00dev, TX_STA_FIFO);
 
 		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))
 			break;
@@ -460,7 +469,7 @@ irqreturn_t rt2800mmio_interrupt(int irq, void *dev_instance)
 	u32 reg, mask;
 
 	/* Read status and ACK all interrupts */
-	rt2x00mmio_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
+	reg = rt2x00mmio_register_read(rt2x00dev, INT_SOURCE_CSR);
 	rt2x00mmio_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
 
 	if (!reg)
@@ -501,7 +510,7 @@ irqreturn_t rt2800mmio_interrupt(int irq, void *dev_instance)
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
 	spin_lock(&rt2x00dev->irqmask_lock);
-	rt2x00mmio_register_read(rt2x00dev, INT_MASK_CSR, &reg);
+	reg = rt2x00mmio_register_read(rt2x00dev, INT_MASK_CSR);
 	reg &= mask;
 	rt2x00mmio_register_write(rt2x00dev, INT_MASK_CSR, reg);
 	spin_unlock(&rt2x00dev->irqmask_lock);
@@ -521,7 +530,7 @@ void rt2800mmio_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	 * should clear the register to assure a clean state.
 	 */
 	if (state == STATE_RADIO_IRQ_ON) {
-		rt2x00mmio_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
+		reg = rt2x00mmio_register_read(rt2x00dev, INT_SOURCE_CSR);
 		rt2x00mmio_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
 	}
 
@@ -560,18 +569,18 @@ void rt2800mmio_start_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2x00mmio_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		reg = rt2x00mmio_register_read(rt2x00dev, MAC_SYS_CTRL);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
 		rt2x00mmio_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2x00mmio_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		reg = rt2x00mmio_register_read(rt2x00dev, BCN_TIME_CFG);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
 		rt2x00mmio_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
-		rt2x00mmio_register_read(rt2x00dev, INT_TIMER_EN, &reg);
+		reg = rt2x00mmio_register_read(rt2x00dev, INT_TIMER_EN);
 		rt2x00_set_field32(&reg, INT_TIMER_EN_PRE_TBTT_TIMER, 1);
 		rt2x00mmio_register_write(rt2x00dev, INT_TIMER_EN, reg);
 		break;
@@ -613,18 +622,18 @@ void rt2800mmio_stop_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2x00mmio_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		reg = rt2x00mmio_register_read(rt2x00dev, MAC_SYS_CTRL);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
 		rt2x00mmio_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2x00mmio_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		reg = rt2x00mmio_register_read(rt2x00dev, BCN_TIME_CFG);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
 		rt2x00mmio_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
-		rt2x00mmio_register_read(rt2x00dev, INT_TIMER_EN, &reg);
+		reg = rt2x00mmio_register_read(rt2x00dev, INT_TIMER_EN);
 		rt2x00_set_field32(&reg, INT_TIMER_EN_PRE_TBTT_TIMER, 0);
 		rt2x00mmio_register_write(rt2x00dev, INT_TIMER_EN, reg);
 
@@ -696,11 +705,11 @@ bool rt2800mmio_get_entry_state(struct queue_entry *entry)
 	u32 word;
 
 	if (entry->queue->qid == QID_RX) {
-		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 1);
 
 		return (!rt2x00_get_field32(word, RXD_W1_DMA_DONE));
 	} else {
-		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 1);
 
 		return (!rt2x00_get_field32(word, TXD_W1_DMA_DONE));
 	}
@@ -715,11 +724,11 @@ void rt2800mmio_clear_entry(struct queue_entry *entry)
 	u32 word;
 
 	if (entry->queue->qid == QID_RX) {
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 0);
 		rt2x00_set_field32(&word, RXD_W0_SDP0, skbdesc->skb_dma);
 		rt2x00_desc_write(entry_priv->desc, 0, word);
 
-		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 1);
 		rt2x00_set_field32(&word, RXD_W1_DMA_DONE, 0);
 		rt2x00_desc_write(entry_priv->desc, 1, word);
 
@@ -730,7 +739,7 @@ void rt2800mmio_clear_entry(struct queue_entry *entry)
 		rt2x00mmio_register_write(rt2x00dev, RX_CRX_IDX,
 					  entry->entry_idx);
 	} else {
-		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		word = rt2x00_desc_read(entry_priv->desc, 1);
 		rt2x00_set_field32(&word, TXD_W1_DMA_DONE, 1);
 		rt2x00_desc_write(entry_priv->desc, 1, word);
 	}
@@ -810,7 +819,7 @@ int rt2800mmio_init_registers(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Reset DMA indexes
 	 */
-	rt2x00mmio_register_read(rt2x00dev, WPDMA_RST_IDX, &reg);
+	reg = rt2x00mmio_register_read(rt2x00dev, WPDMA_RST_IDX);
 	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, 1);
 	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, 1);
 	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, 1);
@@ -831,7 +840,7 @@ int rt2800mmio_init_registers(struct rt2x00_dev *rt2x00dev)
 	     rt2x00_rt(rt2x00dev, RT5390) ||
 	     rt2x00_rt(rt2x00dev, RT5392) ||
 	     rt2x00_rt(rt2x00dev, RT5592))) {
-		rt2x00mmio_register_read(rt2x00dev, AUX_CTRL, &reg);
+		reg = rt2x00mmio_register_read(rt2x00dev, AUX_CTRL);
 		rt2x00_set_field32(&reg, AUX_CTRL_FORCE_PCIE_CLK, 1);
 		rt2x00_set_field32(&reg, AUX_CTRL_WAKE_PCIE_EN, 1);
 		rt2x00mmio_register_write(rt2x00dev, AUX_CTRL, reg);

@@ -607,7 +607,7 @@ fb: psubq Pq,Qq | vpsubq Vx,Hx,Wx (66),(v1)
 fc: paddb Pq,Qq | vpaddb Vx,Hx,Wx (66),(v1)
 fd: paddw Pq,Qq | vpaddw Vx,Hx,Wx (66),(v1)
 fe: paddd Pq,Qq | vpaddd Vx,Hx,Wx (66),(v1)
-ff:
+ff: UD0
 EndTable
 
 Table: 3-byte opcode 1 (0x0f 0x38)
@@ -717,7 +717,7 @@ AVXcode: 2
 7e: vpermt2d/q Vx,Hx,Wx (66),(ev)
 7f: vpermt2ps/d Vx,Hx,Wx (66),(ev)
 80: INVEPT Gy,Mdq (66)
-81: INVPID Gy,Mdq (66)
+81: INVVPID Gy,Mdq (66)
 82: INVPCID Gy,Mdq (66)
 83: vpmultishiftqb Vx,Hx,Wx (66),(ev)
 88: vexpandps/d Vpd,Wpd (66),(ev)
@@ -896,7 +896,7 @@ EndTable
 
 GrpTable: Grp3_1
 0: TEST Eb,Ib
-1:
+1: TEST Eb,Ib
 2: NOT Eb
 3: NEG Eb
 4: MUL AL,Eb
@@ -970,6 +970,15 @@ GrpTable: Grp9
 EndTable
 
 GrpTable: Grp10
+# all are UD1
+0: UD1
+1: UD1
+2: UD1
+3: UD1
+4: UD1
+5: UD1
+6: UD1
+7: UD1
 EndTable
 
 # Grp11A and Grp11B are expressed as Grp11 in Intel SDM
@@ -1009,7 +1018,7 @@ GrpTable: Grp15
 1: fxstor | RDGSBASE Ry (F3),(11B)
 2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
-4: XSAVE
+4: XSAVE | ptwrite Ey (F3),(11B)
 5: XRSTOR | lfence (11B)
 6: XSAVEOPT | clwb (66) | mfence (11B)
 7: clflush | clflushopt (66) | sfence (11B)

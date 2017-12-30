@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
@@ -124,7 +125,7 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
 struct dasd_ccw_req *dasd_default_erp_postaction(struct dasd_ccw_req *cqr)
 {
 	int success;
-	unsigned long long startclk, stopclk;
+	unsigned long startclk, stopclk;
 	struct dasd_device *startdev;
 
 	BUG_ON(cqr->refers == NULL || cqr->function == NULL);

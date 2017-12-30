@@ -645,16 +645,13 @@ EXPORT_SYMBOL_GPL(cpdma_ctlr_destroy);
 int cpdma_ctlr_int_ctrl(struct cpdma_ctlr *ctlr, bool enable)
 {
 	unsigned long flags;
-	int i, reg;
+	int i;
 
 	spin_lock_irqsave(&ctlr->lock, flags);
 	if (ctlr->state != CPDMA_STATE_ACTIVE) {
 		spin_unlock_irqrestore(&ctlr->lock, flags);
 		return -EINVAL;
 	}
-
-	reg = enable ? CPDMA_DMAINTMASKSET : CPDMA_DMAINTMASKCLEAR;
-	dma_reg_write(ctlr, reg, CPDMA_DMAINT_HOSTERR);
 
 	for (i = 0; i < ARRAY_SIZE(ctlr->channels); i++) {
 		if (ctlr->channels[i])

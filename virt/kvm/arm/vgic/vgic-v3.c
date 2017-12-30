@@ -21,6 +21,11 @@
 
 #include "vgic.h"
 
+static bool group0_trap;
+static bool group1_trap;
+static bool common_trap;
+static bool gicv4_enable;
+
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
@@ -40,6 +45,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 	struct vgic_v3_cpu_if *cpuif = &vgic_cpu->vgic_v3;
 	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	int lr;
+	unsigned long flags;
 
 	cpuif->vgic_hcr &= ~ICH_HCR_UIE;
 
@@ -62,7 +68,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		if (!irq)	/* An LPI could have been unmapped. */
 			continue;
 
-		spin_lock(&irq->irq_lock);
+		spin_lock_irqsave(&irq->irq_lock, flags);
 
 		/* Always preserve the active bit */
 		irq->active = !!(val & ICH_LR_ACTIVE_BIT);
@@ -90,7 +96,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 				irq->pending_latch = false;
 		}
 
-		spin_unlock(&irq->irq_lock);
+		spin_unlock_irqrestore(&irq->irq_lock, flags);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
 
@@ -258,6 +264,12 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 
 	/* Get the show on the road... */
 	vgic_v3->vgic_hcr = ICH_HCR_EN;
+	if (group0_trap)
+		vgic_v3->vgic_hcr |= ICH_HCR_TALL0;
+	if (group1_trap)
+		vgic_v3->vgic_hcr |= ICH_HCR_TALL1;
+	if (common_trap)
+		vgic_v3->vgic_hcr |= ICH_HCR_TC;
 }
 
 int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq)
@@ -268,6 +280,7 @@ int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq)
 	bool status;
 	u8 val;
 	int ret;
+	unsigned long flags;
 
 retry:
 	vcpu = irq->target_vcpu;
@@ -286,13 +299,13 @@ retry:
 
 	status = val & (1 << bit_nr);
 
-	spin_lock(&irq->irq_lock);
+	spin_lock_irqsave(&irq->irq_lock, flags);
 	if (irq->target_vcpu != vcpu) {
-		spin_unlock(&irq->irq_lock);
+		spin_unlock_irqrestore(&irq->irq_lock, flags);
 		goto retry;
 	}
 	irq->pending_latch = status;
-	vgic_queue_irq_unlock(vcpu->kvm, irq);
+	vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
 
 	if (status) {
 		/* clear consumed data */
@@ -314,13 +327,13 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 	int last_byte_offset = -1;
 	struct vgic_irq *irq;
 	int ret;
+	u8 val;
 
 	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
 		int byte_offset, bit_nr;
 		struct kvm_vcpu *vcpu;
 		gpa_t pendbase, ptr;
 		bool stored;
-		u8 val;
 
 		vcpu = irq->target_vcpu;
 		if (!vcpu)
@@ -429,6 +442,32 @@ out:
 	return ret;
 }
 
+DEFINE_STATIC_KEY_FALSE(vgic_v3_cpuif_trap);
+
+static int __init early_group0_trap_cfg(char *buf)
+{
+	return strtobool(buf, &group0_trap);
+}
+early_param("kvm-arm.vgic_v3_group0_trap", early_group0_trap_cfg);
+
+static int __init early_group1_trap_cfg(char *buf)
+{
+	return strtobool(buf, &group1_trap);
+}
+early_param("kvm-arm.vgic_v3_group1_trap", early_group1_trap_cfg);
+
+static int __init early_common_trap_cfg(char *buf)
+{
+	return strtobool(buf, &common_trap);
+}
+early_param("kvm-arm.vgic_v3_common_trap", early_common_trap_cfg);
+
+static int __init early_gicv4_enable(char *buf)
+{
+	return strtobool(buf, &gicv4_enable);
+}
+early_param("kvm-arm.vgic_v4_enable", early_gicv4_enable);
+
 /**
  * vgic_v3_probe - probe for a GICv3 compatible interrupt controller in DT
  * @node:	pointer to the DT node
@@ -447,6 +486,13 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	kvm_vgic_global_state.nr_lr = (ich_vtr_el2 & 0xf) + 1;
 	kvm_vgic_global_state.can_emulate_gicv2 = false;
 	kvm_vgic_global_state.ich_vtr_el2 = ich_vtr_el2;
+
+	/* GICv4 support? */
+	if (info->has_v4) {
+		kvm_vgic_global_state.has_gicv4 = gicv4_enable;
+		kvm_info("GICv4 support %sabled\n",
+			 gicv4_enable ? "en" : "dis");
+	}
 
 	if (!info->vcpu.start) {
 		kvm_info("GICv3: no GICV resource entry\n");
@@ -479,6 +525,21 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 
 	if (kvm_vgic_global_state.vcpu_base == 0)
 		kvm_info("disabling GICv2 emulation\n");
+
+#ifdef CONFIG_ARM64
+	if (cpus_have_const_cap(ARM64_WORKAROUND_CAVIUM_30115)) {
+		group0_trap = true;
+		group1_trap = true;
+	}
+#endif
+
+	if (group0_trap || group1_trap || common_trap) {
+		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s], reduced performance)\n",
+			 group0_trap ? "G0" : "",
+			 group1_trap ? "G1" : "",
+			 common_trap ? "C"  : "");
+		static_branch_enable(&vgic_v3_cpuif_trap);
+	}
 
 	kvm_vgic_global_state.vctrl_base = NULL;
 	kvm_vgic_global_state.type = VGIC_V3;

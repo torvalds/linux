@@ -532,10 +532,6 @@ failed:
 		clk_disable_unprepare(fbdev->lcdclk);
 		clk_put(fbdev->lcdclk);
 	}
-	if (fbdev->fb_mem) {
-		dma_free_noncoherent(&dev->dev, fbdev->fb_len, fbdev->fb_mem,
-				     fbdev->fb_phys);
-	}
 	if (fbdev->info.cmap.len != 0) {
 		fb_dealloc_cmap(&fbdev->info.cmap);
 	}

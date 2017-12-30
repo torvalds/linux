@@ -21,7 +21,8 @@
 #include <linux/platform_device.h>
 
 #include "sst-dsp.h"
-#include "sst-acpi.h"
+#include <sound/soc-acpi.h>
+#include <sound/soc-acpi-intel-match.h>
 
 #define SST_LPT_DSP_DMA_ADDR_OFFSET	0x0F0000
 #define SST_WPT_DSP_DMA_ADDR_OFFSET	0x0FE000
@@ -30,7 +31,7 @@
 /* Descriptor for setting up SST platform data */
 struct sst_acpi_desc {
 	const char *drv_name;
-	struct sst_acpi_mach *machines;
+	struct snd_soc_acpi_mach *machines;
 	/* Platform resource indexes. Must set to -1 if not used */
 	int resindex_lpe_base;
 	int resindex_pcicfg_base;
@@ -49,7 +50,7 @@ struct sst_acpi_priv {
 	struct platform_device *pdev_pcm;
 	struct sst_pdata sst_pdata;
 	struct sst_acpi_desc *desc;
-	struct sst_acpi_mach *mach;
+	struct snd_soc_acpi_mach *mach;
 };
 
 static void sst_acpi_fw_cb(const struct firmware *fw, void *context)
@@ -59,7 +60,7 @@ static void sst_acpi_fw_cb(const struct firmware *fw, void *context)
 	struct sst_acpi_priv *sst_acpi = platform_get_drvdata(pdev);
 	struct sst_pdata *sst_pdata = &sst_acpi->sst_pdata;
 	struct sst_acpi_desc *desc = sst_acpi->desc;
-	struct sst_acpi_mach *mach = sst_acpi->mach;
+	struct snd_soc_acpi_mach *mach = sst_acpi->mach;
 
 	sst_pdata->fw = fw;
 	if (!fw) {
@@ -85,7 +86,7 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct sst_acpi_priv *sst_acpi;
 	struct sst_pdata *sst_pdata;
-	struct sst_acpi_mach *mach;
+	struct snd_soc_acpi_mach *mach;
 	struct sst_acpi_desc *desc;
 	struct resource *mmio;
 	int ret = 0;
@@ -99,7 +100,7 @@ static int sst_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	desc = (struct sst_acpi_desc *)id->driver_data;
-	mach = sst_acpi_find_machine(desc->machines);
+	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (mach == NULL) {
 		dev_err(dev, "No matching ASoC machine driver found\n");
 		return -ENODEV;
@@ -179,14 +180,9 @@ static int sst_acpi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct sst_acpi_mach haswell_machines[] = {
-	{ "INT33CA", "haswell-audio", "intel/IntcSST1.bin", NULL, NULL, NULL },
-	{}
-};
-
 static struct sst_acpi_desc sst_acpi_haswell_desc = {
 	.drv_name = "haswell-pcm-audio",
-	.machines = haswell_machines,
+	.machines = snd_soc_acpi_intel_haswell_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
 	.resindex_fw_base = -1,
@@ -197,15 +193,9 @@ static struct sst_acpi_desc sst_acpi_haswell_desc = {
 	.dma_size = SST_LPT_DSP_DMA_SIZE,
 };
 
-static struct sst_acpi_mach broadwell_machines[] = {
-	{ "INT343A", "broadwell-audio", "intel/IntcSST2.bin", NULL, NULL, NULL },
-	{ "RT5677CE", "bdw-rt5677", "intel/IntcSST2.bin", NULL, NULL, NULL },
-	{}
-};
-
 static struct sst_acpi_desc sst_acpi_broadwell_desc = {
 	.drv_name = "haswell-pcm-audio",
-	.machines = broadwell_machines,
+	.machines = snd_soc_acpi_intel_broadwell_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
 	.resindex_fw_base = -1,
@@ -217,15 +207,9 @@ static struct sst_acpi_desc sst_acpi_broadwell_desc = {
 };
 
 #if !IS_ENABLED(CONFIG_SND_SST_IPC_ACPI)
-static struct sst_acpi_mach baytrail_machines[] = {
-	{ "10EC5640", "byt-rt5640", "intel/fw_sst_0f28.bin-48kHz_i2s_master", NULL, NULL, NULL },
-	{ "193C9890", "byt-max98090", "intel/fw_sst_0f28.bin-48kHz_i2s_master", NULL, NULL, NULL },
-	{}
-};
-
 static struct sst_acpi_desc sst_acpi_baytrail_desc = {
 	.drv_name = "baytrail-pcm-audio",
-	.machines = baytrail_machines,
+	.machines = snd_soc_acpi_intel_baytrail_legacy_machines,
 	.resindex_lpe_base = 0,
 	.resindex_pcicfg_base = 1,
 	.resindex_fw_base = 2,

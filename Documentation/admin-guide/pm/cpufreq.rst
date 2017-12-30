@@ -237,6 +237,14 @@ are the following:
 	This attribute is not present if the scaling driver in use does not
 	support it.
 
+``cpuinfo_cur_freq``
+	Current frequency of the CPUs belonging to this policy as obtained from
+	the hardware (in KHz).
+
+	This is expected to be the frequency the hardware actually runs at.
+	If that frequency cannot be determined, this attribute should not
+	be present.
+
 ``cpuinfo_max_freq``
 	Maximum possible operating frequency the CPUs belonging to this policy
 	can run at (in kHz).
@@ -269,16 +277,16 @@ are the following:
 ``scaling_cur_freq``
 	Current frequency of all of the CPUs belonging to this policy (in kHz).
 
-	For the majority of scaling drivers, this is the frequency of the last
-	P-state requested by the driver from the hardware using the scaling
+	In the majority of cases, this is the frequency of the last P-state
+	requested by the scaling driver from the hardware using the scaling
 	interface provided by it, which may or may not reflect the frequency
 	the CPU is actually running at (due to hardware design and other
 	limitations).
 
-	Some scaling drivers (e.g. |intel_pstate|) attempt to provide
-	information more precisely reflecting the current CPU frequency through
-	this attribute, but that still may not be the exact current CPU
-	frequency as seen by the hardware at the moment.
+	Some architectures (e.g. ``x86``) may attempt to provide information
+	more precisely reflecting the current CPU frequency through this
+	attribute, but that still may not be the exact current CPU frequency as
+	seen by the hardware at the moment.
 
 ``scaling_driver``
 	The scaling driver currently in use.
@@ -470,14 +478,6 @@ This governor exposes the following tunables:
 	represented by it to be 750 times as high as the transition latency::
 
 	# echo `$(($(cat cpuinfo_transition_latency) * 750 / 1000)) > ondemand/sampling_rate
-
-
-``min_sampling_rate``
-	The minimum value of ``sampling_rate``.
-
-	Equal to 10000 (10 ms) if :c:macro:`CONFIG_NO_HZ_COMMON` and
-	:c:data:`tick_nohz_active` are both set or to 20 times the value of
-	:c:data:`jiffies` in microseconds otherwise.
 
 ``up_threshold``
 	If the estimated CPU load is above this value (in percent), the governor

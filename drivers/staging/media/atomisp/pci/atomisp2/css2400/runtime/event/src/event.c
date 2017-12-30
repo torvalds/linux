@@ -13,7 +13,7 @@
  * more details.
  */
 #else
-/**
+/*
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
 
@@ -52,7 +52,7 @@ more details.
 
 #include "ia_css_queue.h"	/* host_sp_enqueue_XXX */
 #include "ia_css_event.h"	/* ia_css_event_encode */
-/**
+/*
  * @brief Encode the information into the software-event.
  * Refer to "sw_event_public.h" for details.
  */

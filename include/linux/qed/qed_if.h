@@ -156,6 +156,23 @@ struct qed_dcbx_get {
 	struct qed_dcbx_admin_params local;
 };
 
+enum qed_nvm_images {
+	QED_NVM_IMAGE_ISCSI_CFG,
+	QED_NVM_IMAGE_FCOE_CFG,
+};
+
+struct qed_link_eee_params {
+	u32 tx_lpi_timer;
+#define QED_EEE_1G_ADV		BIT(0)
+#define QED_EEE_10G_ADV		BIT(1)
+
+	/* Capabilities are represented using QED_EEE_*_ADV values */
+	u8 adv_caps;
+	u8 lp_adv_caps;
+	bool enable;
+	bool tx_lpi_enable;
+};
+
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
 	QED_LED_MODE_ON,
@@ -167,8 +184,9 @@ enum qed_led_mode {
 
 #define DIRECT_REG_RD(reg_addr) readl((void __iomem *)(reg_addr))
 
-#define QED_COALESCE_MAX 0xFF
+#define QED_COALESCE_MAX 0x1FF
 #define QED_DEFAULT_RX_USECS 12
+#define QED_DEFAULT_TX_USECS 48
 
 /* forward */
 struct qed_dev;
@@ -179,6 +197,10 @@ struct qed_eth_pf_params {
 	 * to update_pf_params routine invoked before slowpath start
 	 */
 	u16 num_cons;
+
+	/* per-VF number of CIDs */
+	u8 num_vf_cons;
+#define ETH_PF_PARAMS_VF_CONS_DEFAULT	(32)
 
 	/* To enable arfs, previous to HW-init a positive number needs to be
 	 * set [as filters require allocated searcher ILT memory].
@@ -328,6 +350,14 @@ struct qed_dev_info {
 
 	/* MFW version */
 	u32		mfw_rev;
+#define QED_MFW_VERSION_0_MASK		0x000000FF
+#define QED_MFW_VERSION_0_OFFSET	0
+#define QED_MFW_VERSION_1_MASK		0x0000FF00
+#define QED_MFW_VERSION_1_OFFSET	8
+#define QED_MFW_VERSION_2_MASK		0x00FF0000
+#define QED_MFW_VERSION_2_OFFSET	16
+#define QED_MFW_VERSION_3_MASK		0xFF000000
+#define QED_MFW_VERSION_3_OFFSET	24
 
 	u32		flash_size;
 	u8		mf_mode;
@@ -337,12 +367,23 @@ struct qed_dev_info {
 
 	bool wol_support;
 
+	/* MBI version */
+	u32 mbi_version;
+#define QED_MBI_VERSION_0_MASK		0x000000FF
+#define QED_MBI_VERSION_0_OFFSET	0
+#define QED_MBI_VERSION_1_MASK		0x0000FF00
+#define QED_MBI_VERSION_1_OFFSET	8
+#define QED_MBI_VERSION_2_MASK		0x00FF0000
+#define QED_MBI_VERSION_2_OFFSET	16
+
 	enum qed_dev_type dev_type;
 
 	/* Output parameters for qede */
 	bool		vxlan_enable;
 	bool		gre_enable;
 	bool		geneve_enable;
+
+	u8		abs_pf_id;
 };
 
 enum qed_sb_type {
@@ -380,6 +421,7 @@ struct qed_link_params {
 #define QED_LINK_OVERRIDE_SPEED_FORCED_SPEED    BIT(2)
 #define QED_LINK_OVERRIDE_PAUSE_CONFIG          BIT(3)
 #define QED_LINK_OVERRIDE_LOOPBACK_MODE         BIT(4)
+#define QED_LINK_OVERRIDE_EEE_CONFIG            BIT(5)
 	u32	override_flags;
 	bool	autoneg;
 	u32	adv_speeds;
@@ -394,6 +436,7 @@ struct qed_link_params {
 #define QED_LINK_LOOPBACK_EXT                   BIT(3)
 #define QED_LINK_LOOPBACK_MAC                   BIT(4)
 	u32	loopback_mode;
+	struct qed_link_eee_params eee;
 };
 
 struct qed_link_output {
@@ -409,6 +452,12 @@ struct qed_link_output {
 	u8	port;                   /* In PORT defs */
 	bool	autoneg;
 	u32	pause_config;
+
+	/* EEE - capability & param */
+	bool eee_supported;
+	bool eee_active;
+	u8 sup_caps;
+	struct qed_link_eee_params eee;
 };
 
 struct qed_probe_params {
@@ -503,9 +552,7 @@ struct qed_common_ops {
 	int		(*set_power_state)(struct qed_dev *cdev,
 					   pci_power_t state);
 
-	void		(*set_id)(struct qed_dev *cdev,
-				  char name[],
-				  char ver_str[]);
+	void (*set_name) (struct qed_dev *cdev, char name[]);
 
 	/* Client drivers need to make this call before slowpath_start.
 	 * PF params required for the call before slowpath_start is
@@ -608,20 +655,24 @@ struct qed_common_ops {
 				       enum qed_chain_cnt_type cnt_type,
 				       u32 num_elems,
 				       size_t elem_size,
-				       struct qed_chain *p_chain);
+				       struct qed_chain *p_chain,
+				       struct qed_chain_ext_pbl *ext_pbl);
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);
 
 /**
- * @brief get_coalesce - Get coalesce parameters in usec
+ * @brief nvm_get_image - reads an entire image from nvram
  *
  * @param cdev
- * @param rx_coal - Rx coalesce value in usec
- * @param tx_coal - Tx coalesce value in usec
+ * @param type - type of the request nvram image
+ * @param buf - preallocated buffer to fill with the image
+ * @param len - length of the allocated buffer
  *
+ * @return 0 on success, error otherwise
  */
-	void (*get_coalesce)(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal);
+	int (*nvm_get_image)(struct qed_dev *cdev,
+			     enum qed_nvm_images type, u8 *buf, u16 len);
 
 /**
  * @brief set_coalesce - Configure Rx coalesce value in usec
@@ -634,8 +685,8 @@ struct qed_common_ops {
  *
  * @return 0 on success, error otherwise.
  */
-	int (*set_coalesce)(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
-			    u16 qid, u16 sb_id);
+	int (*set_coalesce)(struct qed_dev *cdev,
+			    u16 rx_coal, u16 tx_coal, void *handle);
 
 /**
  * @brief set_led - Configure LED mode
@@ -700,11 +751,13 @@ struct qed_common_ops {
 	(((value) >> (name ## _SHIFT)) & name ## _MASK)
 
 /* Debug print definitions */
-#define DP_ERR(cdev, fmt, ...)						     \
-		pr_err("[%s:%d(%s)]" fmt,				     \
-		       __func__, __LINE__,				     \
-		       DP_NAME(cdev) ? DP_NAME(cdev) : "",		     \
-		       ## __VA_ARGS__)					     \
+#define DP_ERR(cdev, fmt, ...)					\
+	do {							\
+		pr_err("[%s:%d(%s)]" fmt,			\
+		       __func__, __LINE__,			\
+		       DP_NAME(cdev) ? DP_NAME(cdev) : "",	\
+		       ## __VA_ARGS__);				\
+	} while (0)
 
 #define DP_NOTICE(cdev, fmt, ...)				      \
 	do {							      \
@@ -869,9 +922,15 @@ struct qed_eth_stats {
 #define TX_PI(tc)       (RX_PI + 1 + tc)
 
 struct qed_sb_cnt_info {
-	int	sb_cnt;
-	int	sb_iov_cnt;
-	int	sb_free_blk;
+	/* Original, current, and free SBs for PF */
+	int orig;
+	int cnt;
+	int free_cnt;
+
+	/* Original, current and free SBS for child VFs */
+	int iov_orig;
+	int iov_cnt;
+	int free_cnt_iov;
 };
 
 static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)

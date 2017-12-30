@@ -1,4 +1,3 @@
-#ifdef CONFIG_DEBUG_FS
 /*
  * Copyright(c) 2015-2017 Intel Corporation.
  *
@@ -72,13 +71,13 @@ static ssize_t hfi1_seq_read(
 	loff_t *ppos)
 {
 	struct dentry *d = file->f_path.dentry;
-	int srcu_idx;
 	ssize_t r;
 
-	r = debugfs_use_file_start(d, &srcu_idx);
-	if (likely(!r))
-		r = seq_read(file, buf, size, ppos);
-	debugfs_use_file_finish(srcu_idx);
+	r = debugfs_file_get(d);
+	if (unlikely(r))
+		return r;
+	r = seq_read(file, buf, size, ppos);
+	debugfs_file_put(d);
 	return r;
 }
 
@@ -88,13 +87,13 @@ static loff_t hfi1_seq_lseek(
 	int whence)
 {
 	struct dentry *d = file->f_path.dentry;
-	int srcu_idx;
 	loff_t r;
 
-	r = debugfs_use_file_start(d, &srcu_idx);
-	if (likely(!r))
-		r = seq_lseek(file, offset, whence);
-	debugfs_use_file_finish(srcu_idx);
+	r = debugfs_file_get(d);
+	if (unlikely(r))
+		return r;
+	r = seq_lseek(file, offset, whence);
+	debugfs_file_put(d);
 	return r;
 }
 
@@ -166,6 +165,17 @@ static void _opcode_stats_seq_stop(struct seq_file *s, void *v)
 {
 }
 
+static int opcode_stats_show(struct seq_file *s, u8 i, u64 packets, u64 bytes)
+{
+	if (!packets && !bytes)
+		return SEQ_SKIP;
+	seq_printf(s, "%02x %llu/%llu\n", i,
+		   (unsigned long long)packets,
+		   (unsigned long long)bytes);
+
+	return 0;
+}
+
 static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 {
 	loff_t *spos = v;
@@ -173,25 +183,58 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 	u64 n_packets = 0, n_bytes = 0;
 	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	struct hfi1_ctxtdata *rcd;
 
 	for (j = 0; j < dd->first_dyn_alloc_ctxt; j++) {
-		if (!dd->rcd[j])
-			continue;
-		n_packets += dd->rcd[j]->opstats->stats[i].n_packets;
-		n_bytes += dd->rcd[j]->opstats->stats[i].n_bytes;
+		rcd = hfi1_rcd_get_by_index(dd, j);
+		if (rcd) {
+			n_packets += rcd->opstats->stats[i].n_packets;
+			n_bytes += rcd->opstats->stats[i].n_bytes;
+		}
+		hfi1_rcd_put(rcd);
 	}
-	if (!n_packets && !n_bytes)
-		return SEQ_SKIP;
-	seq_printf(s, "%02llx %llu/%llu\n", i,
-		   (unsigned long long)n_packets,
-		   (unsigned long long)n_bytes);
-
-	return 0;
+	return opcode_stats_show(s, i, n_packets, n_bytes);
 }
 
 DEBUGFS_SEQ_FILE_OPS(opcode_stats);
 DEBUGFS_SEQ_FILE_OPEN(opcode_stats)
 DEBUGFS_FILE_OPS(opcode_stats);
+
+static void *_tx_opcode_stats_seq_start(struct seq_file *s, loff_t *pos)
+{
+	return _opcode_stats_seq_start(s, pos);
+}
+
+static void *_tx_opcode_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	return _opcode_stats_seq_next(s, v, pos);
+}
+
+static void _tx_opcode_stats_seq_stop(struct seq_file *s, void *v)
+{
+}
+
+static int _tx_opcode_stats_seq_show(struct seq_file *s, void *v)
+{
+	loff_t *spos = v;
+	loff_t i = *spos;
+	int j;
+	u64 n_packets = 0, n_bytes = 0;
+	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
+	struct hfi1_devdata *dd = dd_from_dev(ibd);
+
+	for_each_possible_cpu(j) {
+		struct hfi1_opcode_stats_perctx *s =
+			per_cpu_ptr(dd->tx_opstats, j);
+		n_packets += s->stats[i].n_packets;
+		n_bytes += s->stats[i].n_bytes;
+	}
+	return opcode_stats_show(s, i, n_packets, n_bytes);
+}
+
+DEBUGFS_SEQ_FILE_OPS(tx_opcode_stats);
+DEBUGFS_SEQ_FILE_OPEN(tx_opcode_stats)
+DEBUGFS_FILE_OPS(tx_opcode_stats);
 
 static void *_ctx_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -231,6 +274,7 @@ static int _ctx_stats_seq_show(struct seq_file *s, void *v)
 	u64 n_packets = 0;
 	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	struct hfi1_ctxtdata *rcd;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(s, "Ctx:npkts\n");
@@ -240,11 +284,14 @@ static int _ctx_stats_seq_show(struct seq_file *s, void *v)
 	spos = v;
 	i = *spos;
 
-	if (!dd->rcd[i])
+	rcd = hfi1_rcd_get_by_index_safe(dd, i);
+	if (!rcd)
 		return SEQ_SKIP;
 
-	for (j = 0; j < ARRAY_SIZE(dd->rcd[i]->opstats->stats); j++)
-		n_packets += dd->rcd[i]->opstats->stats[j].n_packets;
+	for (j = 0; j < ARRAY_SIZE(rcd->opstats->stats); j++)
+		n_packets += rcd->opstats->stats[j].n_packets;
+
+	hfi1_rcd_put(rcd);
 
 	if (!n_packets)
 		return SEQ_SKIP;
@@ -260,10 +307,10 @@ DEBUGFS_FILE_OPS(ctx_stats);
 static void *_qp_stats_seq_start(struct seq_file *s, loff_t *pos)
 	__acquires(RCU)
 {
-	struct qp_iter *iter;
+	struct rvt_qp_iter *iter;
 	loff_t n = *pos;
 
-	iter = qp_iter_init(s->private);
+	iter = rvt_qp_iter_init(s->private, 0, NULL);
 
 	/* stop calls rcu_read_unlock */
 	rcu_read_lock();
@@ -272,7 +319,7 @@ static void *_qp_stats_seq_start(struct seq_file *s, loff_t *pos)
 		return NULL;
 
 	do {
-		if (qp_iter_next(iter)) {
+		if (rvt_qp_iter_next(iter)) {
 			kfree(iter);
 			return NULL;
 		}
@@ -285,11 +332,11 @@ static void *_qp_stats_seq_next(struct seq_file *s, void *iter_ptr,
 				loff_t *pos)
 	__must_hold(RCU)
 {
-	struct qp_iter *iter = iter_ptr;
+	struct rvt_qp_iter *iter = iter_ptr;
 
 	(*pos)++;
 
-	if (qp_iter_next(iter)) {
+	if (rvt_qp_iter_next(iter)) {
 		kfree(iter);
 		return NULL;
 	}
@@ -305,7 +352,7 @@ static void _qp_stats_seq_stop(struct seq_file *s, void *iter_ptr)
 
 static int _qp_stats_seq_show(struct seq_file *s, void *iter_ptr)
 {
-	struct qp_iter *iter = iter_ptr;
+	struct rvt_qp_iter *iter = iter_ptr;
 
 	if (!iter)
 		return 0;
@@ -360,6 +407,52 @@ static int _sdes_seq_show(struct seq_file *s, void *v)
 DEBUGFS_SEQ_FILE_OPS(sdes);
 DEBUGFS_SEQ_FILE_OPEN(sdes)
 DEBUGFS_FILE_OPS(sdes);
+
+static void *_rcds_seq_start(struct seq_file *s, loff_t *pos)
+{
+	struct hfi1_ibdev *ibd;
+	struct hfi1_devdata *dd;
+
+	ibd = (struct hfi1_ibdev *)s->private;
+	dd = dd_from_dev(ibd);
+	if (!dd->rcd || *pos >= dd->n_krcv_queues)
+		return NULL;
+	return pos;
+}
+
+static void *_rcds_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
+	struct hfi1_devdata *dd = dd_from_dev(ibd);
+
+	++*pos;
+	if (!dd->rcd || *pos >= dd->n_krcv_queues)
+		return NULL;
+	return pos;
+}
+
+static void _rcds_seq_stop(struct seq_file *s, void *v)
+{
+}
+
+static int _rcds_seq_show(struct seq_file *s, void *v)
+{
+	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
+	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	struct hfi1_ctxtdata *rcd;
+	loff_t *spos = v;
+	loff_t i = *spos;
+
+	rcd = hfi1_rcd_get_by_index_safe(dd, i);
+	if (rcd)
+		seqfile_dump_rcd(s, rcd);
+	hfi1_rcd_put(rcd);
+	return 0;
+}
+
+DEBUGFS_SEQ_FILE_OPS(rcds);
+DEBUGFS_SEQ_FILE_OPEN(rcds)
+DEBUGFS_FILE_OPS(rcds);
 
 /* read the per-device counters */
 static ssize_t dev_counters_read(struct file *file, char __user *buf,
@@ -1098,12 +1191,15 @@ static int _fault_stats_seq_show(struct seq_file *s, void *v)
 	u64 n_packets = 0, n_bytes = 0;
 	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	struct hfi1_ctxtdata *rcd;
 
 	for (j = 0; j < dd->first_dyn_alloc_ctxt; j++) {
-		if (!dd->rcd[j])
-			continue;
-		n_packets += dd->rcd[j]->opstats->stats[i].n_packets;
-		n_bytes += dd->rcd[j]->opstats->stats[i].n_bytes;
+		rcd = hfi1_rcd_get_by_index(dd, j);
+		if (rcd) {
+			n_packets += rcd->opstats->stats[i].n_packets;
+			n_bytes += rcd->opstats->stats[i].n_bytes;
+		}
+		hfi1_rcd_put(rcd);
 	}
 	if (!n_packets && !n_bytes)
 		return SEQ_SKIP;
@@ -1308,9 +1404,11 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 		return;
 	}
 	DEBUGFS_SEQ_FILE_CREATE(opcode_stats, ibd->hfi1_ibdev_dbg, ibd);
+	DEBUGFS_SEQ_FILE_CREATE(tx_opcode_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(ctx_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(qp_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(sdes, ibd->hfi1_ibdev_dbg, ibd);
+	DEBUGFS_SEQ_FILE_CREATE(rcds, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(sdma_cpu_list, ibd->hfi1_ibdev_dbg, ibd);
 	/* dev counter files */
 	for (i = 0; i < ARRAY_SIZE(cntr_ops); i++)
@@ -1478,5 +1576,3 @@ void hfi1_dbg_exit(void)
 	debugfs_remove_recursive(hfi1_dbg_root);
 	hfi1_dbg_root = NULL;
 }
-
-#endif

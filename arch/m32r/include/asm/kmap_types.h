@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __M32R_KMAP_TYPES_H
 #define __M32R_KMAP_TYPES_H
 

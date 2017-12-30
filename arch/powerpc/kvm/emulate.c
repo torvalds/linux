@@ -39,7 +39,7 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 	unsigned long dec_nsec;
 	unsigned long long dec_time;
 
-	pr_debug("mtDEC: %x\n", vcpu->arch.dec);
+	pr_debug("mtDEC: %lx\n", vcpu->arch.dec);
 	hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -109,7 +109,7 @@ static int kvmppc_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_TBWU: break;
 
 	case SPRN_DEC:
-		vcpu->arch.dec = spr_val;
+		vcpu->arch.dec = (u32) spr_val;
 		kvmppc_emulate_dec(vcpu);
 		break;
 

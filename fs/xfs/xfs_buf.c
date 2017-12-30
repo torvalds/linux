@@ -42,6 +42,8 @@
 #include "xfs_mount.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
+#include "xfs_errortag.h"
+#include "xfs_error.h"
 
 static kmem_zone_t *xfs_buf_zone;
 
@@ -1194,7 +1196,7 @@ xfs_buf_ioerror_alert(
 {
 	xfs_alert(bp->b_target->bt_mount,
 "metadata I/O error: block 0x%llx (\"%s\") error %d numblks %d",
-		(__uint64_t)XFS_BUF_ADDR(bp), func, -bp->b_error, bp->b_length);
+		(uint64_t)XFS_BUF_ADDR(bp), func, -bp->b_error, bp->b_length);
 }
 
 int
@@ -1227,8 +1229,11 @@ xfs_buf_bio_end_io(
 	 * don't overwrite existing errors - otherwise we can lose errors on
 	 * buffers that require multiple bios to complete.
 	 */
-	if (bio->bi_error)
-		cmpxchg(&bp->b_io_error, 0, bio->bi_error);
+	if (bio->bi_status) {
+		int error = blk_status_to_errno(bio->bi_status);
+
+		cmpxchg(&bp->b_io_error, 0, error);
+	}
 
 	if (!bp->b_error && xfs_buf_is_vmapped(bp) && (bp->b_flags & XBF_READ))
 		invalidate_kernel_vmap_range(bp->b_addr, xfs_buf_vmap_len(bp));
@@ -1255,8 +1260,6 @@ xfs_buf_ioapply_map(
 	int		size;
 	int		offset;
 
-	total_nr_pages = bp->b_page_count;
-
 	/* skip the pages in the buffer before the start offset */
 	page_index = 0;
 	offset = *buf_offset;
@@ -1278,7 +1281,7 @@ next_chunk:
 	nr_pages = min(total_nr_pages, BIO_MAX_PAGES);
 
 	bio = bio_alloc(GFP_NOIO, nr_pages);
-	bio->bi_bdev = bp->b_target->bt_bdev;
+	bio_set_dev(bio, bp->b_target->bt_bdev);
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_end_io = xfs_buf_bio_end_io;
 	bio->bi_private = bp;
@@ -1799,7 +1802,8 @@ xfs_setsize_buftarg_early(
 xfs_buftarg_t *
 xfs_alloc_buftarg(
 	struct xfs_mount	*mp,
-	struct block_device	*bdev)
+	struct block_device	*bdev,
+	struct dax_device	*dax_dev)
 {
 	xfs_buftarg_t		*btp;
 
@@ -1808,24 +1812,30 @@ xfs_alloc_buftarg(
 	btp->bt_mount = mp;
 	btp->bt_dev =  bdev->bd_dev;
 	btp->bt_bdev = bdev;
+	btp->bt_daxdev = dax_dev;
 
 	if (xfs_setsize_buftarg_early(btp, bdev))
-		goto error;
+		goto error_free;
 
 	if (list_lru_init(&btp->bt_lru))
-		goto error;
+		goto error_free;
 
 	if (percpu_counter_init(&btp->bt_io_count, 0, GFP_KERNEL))
-		goto error;
+		goto error_lru;
 
 	btp->bt_shrinker.count_objects = xfs_buftarg_shrink_count;
 	btp->bt_shrinker.scan_objects = xfs_buftarg_shrink_scan;
 	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
 	btp->bt_shrinker.flags = SHRINKER_NUMA_AWARE;
-	register_shrinker(&btp->bt_shrinker);
+	if (register_shrinker(&btp->bt_shrinker))
+		goto error_pcpu;
 	return btp;
 
-error:
+error_pcpu:
+	percpu_counter_destroy(&btp->bt_io_count);
+error_lru:
+	list_lru_destroy(&btp->bt_lru);
+error_free:
 	kmem_free(btp);
 	return NULL;
 }
@@ -2047,6 +2057,66 @@ xfs_buf_delwri_submit(
 	return error;
 }
 
+/*
+ * Push a single buffer on a delwri queue.
+ *
+ * The purpose of this function is to submit a single buffer of a delwri queue
+ * and return with the buffer still on the original queue. The waiting delwri
+ * buffer submission infrastructure guarantees transfer of the delwri queue
+ * buffer reference to a temporary wait list. We reuse this infrastructure to
+ * transfer the buffer back to the original queue.
+ *
+ * Note the buffer transitions from the queued state, to the submitted and wait
+ * listed state and back to the queued state during this call. The buffer
+ * locking and queue management logic between _delwri_pushbuf() and
+ * _delwri_queue() guarantee that the buffer cannot be queued to another list
+ * before returning.
+ */
+int
+xfs_buf_delwri_pushbuf(
+	struct xfs_buf		*bp,
+	struct list_head	*buffer_list)
+{
+	LIST_HEAD		(submit_list);
+	int			error;
+
+	ASSERT(bp->b_flags & _XBF_DELWRI_Q);
+
+	trace_xfs_buf_delwri_pushbuf(bp, _RET_IP_);
+
+	/*
+	 * Isolate the buffer to a new local list so we can submit it for I/O
+	 * independently from the rest of the original list.
+	 */
+	xfs_buf_lock(bp);
+	list_move(&bp->b_list, &submit_list);
+	xfs_buf_unlock(bp);
+
+	/*
+	 * Delwri submission clears the DELWRI_Q buffer flag and returns with
+	 * the buffer on the wait list with an associated reference. Rather than
+	 * bounce the buffer from a local wait list back to the original list
+	 * after I/O completion, reuse the original list as the wait list.
+	 */
+	xfs_buf_delwri_submit_buffers(&submit_list, buffer_list);
+
+	/*
+	 * The buffer is now under I/O and wait listed as during typical delwri
+	 * submission. Lock the buffer to wait for I/O completion. Rather than
+	 * remove the buffer from the wait list and release the reference, we
+	 * want to return with the buffer queued to the original list. The
+	 * buffer already sits on the original list with a wait list reference,
+	 * however. If we let the queue inherit that wait list reference, all we
+	 * need to do is reset the DELWRI_Q flag.
+	 */
+	xfs_buf_lock(bp);
+	error = bp->b_error;
+	bp->b_flags |= _XBF_DELWRI_Q;
+	xfs_buf_unlock(bp);
+
+	return error;
+}
+
 int __init
 xfs_buf_init(void)
 {
@@ -2065,4 +2135,18 @@ void
 xfs_buf_terminate(void)
 {
 	kmem_zone_destroy(xfs_buf_zone);
+}
+
+void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
+{
+	/*
+	 * Set the lru reference count to 0 based on the error injection tag.
+	 * This allows userspace to disrupt buffer caching for debug/testing
+	 * purposes.
+	 */
+	if (XFS_TEST_ERROR(false, bp->b_target->bt_mount,
+			   XFS_ERRTAG_BUF_LRU_REF))
+		lru_ref = 0;
+
+	atomic_set(&bp->b_lru_ref, lru_ref);
 }

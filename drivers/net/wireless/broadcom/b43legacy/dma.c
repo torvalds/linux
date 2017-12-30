@@ -1072,7 +1072,7 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 			goto out_unmap_hdr;
 		}
 
-		memcpy(skb_put(bounce_skb, skb->len), skb->data, skb->len);
+		skb_put_data(bounce_skb, skb->data, skb->len);
 		memcpy(bounce_skb->cb, skb->cb, sizeof(skb->cb));
 		bounce_skb->dev = skb->dev;
 		skb_set_queue_mapping(bounce_skb, skb_get_queue_mapping(skb));

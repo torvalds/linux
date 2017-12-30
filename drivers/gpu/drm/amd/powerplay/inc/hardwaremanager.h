@@ -164,9 +164,14 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_EnablePlatformPowerManagement,         /* indicates that Platform Power Management feature is supported */
 	PHM_PlatformCaps_SurpriseRemoval,                       /* indicates that surprise removal feature is requested */
 	PHM_PlatformCaps_NewCACVoltage,                         /* indicates new CAC voltage table support */
+	PHM_PlatformCaps_DiDtSupport,                           /* for dI/dT feature */
 	PHM_PlatformCaps_DBRamping,                             /* for dI/dT feature */
 	PHM_PlatformCaps_TDRamping,                             /* for dI/dT feature */
 	PHM_PlatformCaps_TCPRamping,                            /* for dI/dT feature */
+	PHM_PlatformCaps_DBRRamping,                            /* for dI/dT feature */
+	PHM_PlatformCaps_DiDtEDCEnable,                         /* for dI/dT feature */
+	PHM_PlatformCaps_GCEDC,                                 /* for dI/dT feature */
+	PHM_PlatformCaps_PSM,                                   /* for dI/dT feature */
 	PHM_PlatformCaps_EnableSMU7ThermalManagement,           /* SMC will manage thermal events */
 	PHM_PlatformCaps_FPS,                                   /* FPS support */
 	PHM_PlatformCaps_ACP,                                   /* ACP support */
@@ -278,6 +283,8 @@ static inline bool phm_cap_enabled(const uint32_t *caps, enum phm_platform_caps 
 		  (1UL << (c & (PHM_MAX_NUM_CAPS_BITS_PER_FIELD - 1)))));
 }
 
+#define PP_CAP(c) phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, (c))
+
 #define PP_PCIEGenInvalid  0xffff
 enum PP_PCIEGen {
     PP_PCIEGen1 = 0,                /* PCIE 1.0 - Transfer rate of 2.5 GT/s */
@@ -290,7 +297,7 @@ typedef enum PP_PCIEGen PP_PCIEGen;
 #define PP_Min_PCIEGen     PP_PCIEGen1
 #define PP_Max_PCIEGen     PP_PCIEGen3
 #define PP_Min_PCIELane    1
-#define PP_Max_PCIELane    32
+#define PP_Max_PCIELane    16
 
 enum phm_clock_Type {
 	PHM_DispClock = 1,
@@ -368,8 +375,6 @@ struct phm_odn_clock_levels {
 
 extern int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr);
 extern int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr);
-extern int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate);
-extern int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate);
 extern int phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
 extern int phm_setup_asic(struct pp_hwmgr *hwmgr);
 extern int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr);

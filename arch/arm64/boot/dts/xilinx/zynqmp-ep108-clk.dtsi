@@ -11,7 +11,7 @@
  * the License, or (at your option) any later version.
  */
 
-&amba {
+/ {
 	misc_clk: misc_clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -29,10 +29,58 @@
 		#clock-cells = <0>;
 		clock-frequency = <75000000>;
 	};
+
+	clk100: clk100 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+	};
+
+	clk600: clk600 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <600000000>;
+	};
 };
 
 &can0 {
 	clocks = <&misc_clk &misc_clk>;
+};
+
+&can1 {
+	clocks = <&misc_clk &misc_clk>;
+};
+
+&fpd_dma_chan1 {
+	clocks = <&clk600>, <&clk100>;
+};
+
+&fpd_dma_chan2 {
+	clocks = <&clk600>, <&clk100>;
+};
+
+&fpd_dma_chan3 {
+	clocks = <&clk600>, <&clk100>;
+};
+
+&fpd_dma_chan4 {
+	clocks = <&clk600>, <&clk100>;
+};
+
+&fpd_dma_chan5 {
+	clocks = <&clk600>, <&clk100>;
+};
+
+&fpd_dma_chan6 {
+	clocks = <&clk600>, <&clk100>;
+};
+
+&fpd_dma_chan7 {
+	clocks = <&clk600>, <&clk100>;
+};
+
+&fpd_dma_chan8 {
+	clocks = <&clk600>, <&clk100>;
 };
 
 &gem0 {

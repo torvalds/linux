@@ -1479,7 +1479,7 @@ static void pm3fb_remove(struct pci_dev *dev)
 	}
 }
 
-static struct pci_device_id pm3fb_id_table[] = {
+static const struct pci_device_id pm3fb_id_table[] = {
 	{ PCI_VENDOR_ID_3DLABS, 0x0a,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0, }

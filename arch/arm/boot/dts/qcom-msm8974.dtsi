@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8974.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
+#include <dt-bindings/reset/qcom,gcc-msm8974.h>
 #include <dt-bindings/gpio/gpio.h>
 #include "skeleton.dtsi"
 
@@ -16,27 +18,27 @@
 		#size-cells = <1>;
 		ranges;
 
-		mpss@08000000 {
+		mpss@8000000 {
 			reg = <0x08000000 0x5100000>;
 			no-map;
 		};
 
-		mba@00d100000 {
+		mba@d100000 {
 			reg = <0x0d100000 0x100000>;
 			no-map;
 		};
 
-		reserved@0d200000 {
+		reserved@d200000 {
 			reg = <0x0d200000 0xa00000>;
 			no-map;
 		};
 
-		adsp_region: adsp@0dc00000 {
+		adsp_region: adsp@dc00000 {
 			reg = <0x0dc00000 0x1900000>;
 			no-map;
 		};
 
-		venus@0f500000 {
+		venus@f500000 {
 			reg = <0x0f500000 0x500000>;
 			no-map;
 		};
@@ -46,17 +48,17 @@
 			no-map;
 		};
 
-		tz@0fc00000 {
+		tz@fc00000 {
 			reg = <0x0fc00000 0x160000>;
 			no-map;
 		};
 
-		rfsa@0fd60000 {
+		rfsa@fd60000 {
 			reg = <0x0fd60000 0x20000>;
 			no-map;
 		};
 
-		rmtfs@0fd80000 {
+		rmtfs@fd80000 {
 			reg = <0x0fd80000 0x180000>;
 			no-map;
 		};
@@ -551,6 +553,11 @@
 			reg = <0xfc400000 0x4000>;
 		};
 
+		tcsr: syscon@fd4a0000 {
+			compatible = "syscon";
+			reg = <0xfd4a0000 0x10000>;
+		};
+
 		tcsr_mutex_block: syscon@fd484000 {
 			compatible = "syscon";
 			reg = <0xfd484000 0x2000>;
@@ -607,6 +614,20 @@
 			status = "disabled";
 		};
 
+		sdhci@f9864900 {
+			compatible = "qcom,sdhci-msm-v4";
+			reg = <0xf9864900 0x11c>, <0xf9864000 0x800>;
+			reg-names = "hc_mem", "core_mem";
+			interrupts = <GIC_SPI 127 IRQ_TYPE_NONE>,
+				     <GIC_SPI 224 IRQ_TYPE_NONE>;
+			interrupt-names = "hc_irq", "pwr_irq";
+			clocks = <&gcc GCC_SDCC3_APPS_CLK>,
+				 <&gcc GCC_SDCC3_AHB_CLK>,
+				 <&xo_board>;
+			clock-names = "core", "iface", "xo";
+			status = "disabled";
+		};
+
 		sdhci@f98a4900 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0xf98a4900 0x11c>, <0xf98a4000 0x800>;
@@ -618,6 +639,50 @@
 				 <&xo_board>;
 			clock-names = "core", "iface", "xo";
 			status = "disabled";
+		};
+
+		otg: usb@f9a55000 {
+			compatible = "qcom,ci-hdrc";
+			reg = <0xf9a55000 0x200>,
+			      <0xf9a55200 0x200>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_USB_HS_AHB_CLK>,
+				 <&gcc GCC_USB_HS_SYSTEM_CLK>;
+			clock-names = "iface", "core";
+			assigned-clocks = <&gcc GCC_USB_HS_SYSTEM_CLK>;
+			assigned-clock-rates = <75000000>;
+			resets = <&gcc GCC_USB_HS_BCR>;
+			reset-names = "core";
+			phy_type = "ulpi";
+			dr_mode = "otg";
+			ahb-burst-config = <0>;
+			phy-names = "usb-phy";
+			status = "disabled";
+			#reset-cells = <1>;
+
+			ulpi {
+				usb_hs1_phy: phy@a {
+					compatible = "qcom,usb-hs-phy-msm8974",
+						     "qcom,usb-hs-phy";
+					#phy-cells = <0>;
+					clocks = <&xo_board>, <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
+					clock-names = "ref", "sleep";
+					resets = <&gcc GCC_USB2A_PHY_BCR>, <&otg 0>;
+					reset-names = "phy", "por";
+					status = "disabled";
+				};
+
+				usb_hs2_phy: phy@b {
+					compatible = "qcom,usb-hs-phy-msm8974",
+						     "qcom,usb-hs-phy";
+					#phy-cells = <0>;
+					clocks = <&xo_board>, <&gcc GCC_USB2B_PHY_SLEEP_CLK>;
+					clock-names = "ref", "sleep";
+					resets = <&gcc GCC_USB2B_PHY_BCR>, <&otg 1>;
+					reset-names = "phy", "por";
+					status = "disabled";
+				};
+			};
 		};
 
 		rng@f9bff000 {
@@ -729,7 +794,7 @@
 		};
 
 		replicator@fc31c000 {
-			compatible = "qcom,coresight-replicator1x", "arm,primecell";
+			compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
 			reg = <0xfc31c000 0x1000>;
 
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
@@ -1021,7 +1086,6 @@
 					pm8941_s1: s1 {};
 					pm8941_s2: s2 {};
 					pm8941_s3: s3 {};
-					pm8941_5v: s4 {};
 
 					pm8941_l1: l1 {};
 					pm8941_l2: l2 {};
@@ -1051,9 +1115,6 @@
 					pm8941_lvs1: lvs1 {};
 					pm8941_lvs2: lvs2 {};
 					pm8941_lvs3: lvs3 {};
-
-					pm8941_5vs1: 5vs1 {};
-					pm8941_5vs2: 5vs2 {};
 				};
 			};
 		};

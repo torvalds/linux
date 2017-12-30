@@ -139,7 +139,7 @@ static int da311_register_mask_write(struct i2c_client *client, u16 addr,
 /* Init sequence taken from the android driver */
 static int da311_reset(struct i2c_client *client)
 {
-	const struct {
+	static const struct {
 		u16 addr;
 		u8 mask;
 		u8 data;
@@ -212,7 +212,6 @@ static int da311_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info da311_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= da311_read_raw,
 };
 

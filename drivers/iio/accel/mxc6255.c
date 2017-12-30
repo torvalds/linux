@@ -78,7 +78,6 @@ static int mxc6255_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info mxc6255_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= mxc6255_read_raw,
 };
 

@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Mediatek 8250 driver.
  *
  * Copyright (c) 2014 MundoReader S.L.
  * Author: Matthias Brugger <matthias.bgg@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -61,7 +52,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * registers to their default values.
 	 */
 	baud = uart_get_baud_rate(port, termios, old,
-				  port->uartclk / 16 / 0xffff,
+				  port->uartclk / 16 / UART_DIV_MAX,
 				  port->uartclk);
 
 	if (baud <= 115200) {
@@ -171,10 +162,7 @@ static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 	}
 
 	data->bus_clk = devm_clk_get(&pdev->dev, "bus");
-	if (IS_ERR(data->bus_clk))
-		return PTR_ERR(data->bus_clk);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(data->bus_clk);
 }
 
 static int mtk8250_probe(struct platform_device *pdev)

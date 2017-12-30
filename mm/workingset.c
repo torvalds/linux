@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Workingset detection
  *
@@ -288,12 +289,10 @@ bool workingset_refault(void *shadow)
 	 */
 	refault_distance = (refault - eviction) & EVICTION_MASK;
 
-	inc_node_state(pgdat, WORKINGSET_REFAULT);
-	inc_memcg_state(memcg, WORKINGSET_REFAULT);
+	inc_lruvec_state(lruvec, WORKINGSET_REFAULT);
 
 	if (refault_distance <= active_file) {
-		inc_node_state(pgdat, WORKINGSET_ACTIVATE);
-		inc_memcg_state(memcg, WORKINGSET_ACTIVATE);
+		inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
 		rcu_read_unlock();
 		return true;
 	}
@@ -341,14 +340,8 @@ out:
 
 static struct list_lru shadow_nodes;
 
-void workingset_update_node(struct radix_tree_node *node, void *private)
+void workingset_update_node(struct radix_tree_node *node)
 {
-	struct address_space *mapping = private;
-
-	/* Only regular page cache has shadow entries */
-	if (dax_mapping(mapping) || shmem_mapping(mapping))
-		return;
-
 	/*
 	 * Track non-empty nodes that contain only shadow entries;
 	 * unlink those that contain pages or are being freed.
@@ -474,10 +467,9 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	}
 	if (WARN_ON_ONCE(node->exceptional))
 		goto out_invalid;
-	inc_node_state(page_pgdat(virt_to_page(node)), WORKINGSET_NODERECLAIM);
-	inc_memcg_page_state(virt_to_page(node), WORKINGSET_NODERECLAIM);
+	inc_lruvec_page_state(virt_to_page(node), WORKINGSET_NODERECLAIM);
 	__radix_tree_delete_node(&mapping->page_tree, node,
-				 workingset_update_node, mapping);
+				 workingset_lookup_update(mapping));
 
 out_invalid:
 	spin_unlock(&mapping->tree_lock);

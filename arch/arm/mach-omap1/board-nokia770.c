@@ -103,7 +103,7 @@ static struct mipid_platform_data nokia770_mipid_platform_data = {
 	.shutdown = mipid_shutdown,
 };
 
-static struct omap_lcd_config nokia770_lcd_config __initdata = {
+static const struct omap_lcd_config nokia770_lcd_config __initconst = {
 	.ctrl_name	= "hwa742",
 };
 
@@ -233,10 +233,10 @@ static struct platform_device nokia770_cbus_device = {
 
 static struct i2c_board_info nokia770_i2c_board_info_2[] __initdata = {
 	{
-		I2C_BOARD_INFO("retu-mfd", 0x01),
+		I2C_BOARD_INFO("retu", 0x01),
 	},
 	{
-		I2C_BOARD_INFO("tahvo-mfd", 0x02),
+		I2C_BOARD_INFO("tahvo", 0x02),
 	},
 };
 

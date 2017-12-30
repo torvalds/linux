@@ -271,10 +271,10 @@ rt_mutex_waiter_equal(struct rt_mutex_waiter *left,
 static void
 rt_mutex_enqueue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
 {
-	struct rb_node **link = &lock->waiters.rb_node;
+	struct rb_node **link = &lock->waiters.rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct rt_mutex_waiter *entry;
-	int leftmost = 1;
+	bool leftmost = true;
 
 	while (*link) {
 		parent = *link;
@@ -283,15 +283,12 @@ rt_mutex_enqueue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
 			link = &parent->rb_left;
 		} else {
 			link = &parent->rb_right;
-			leftmost = 0;
+			leftmost = false;
 		}
 	}
 
-	if (leftmost)
-		lock->waiters_leftmost = &waiter->tree_entry;
-
 	rb_link_node(&waiter->tree_entry, parent, link);
-	rb_insert_color(&waiter->tree_entry, &lock->waiters);
+	rb_insert_color_cached(&waiter->tree_entry, &lock->waiters, leftmost);
 }
 
 static void
@@ -300,20 +297,17 @@ rt_mutex_dequeue(struct rt_mutex *lock, struct rt_mutex_waiter *waiter)
 	if (RB_EMPTY_NODE(&waiter->tree_entry))
 		return;
 
-	if (lock->waiters_leftmost == &waiter->tree_entry)
-		lock->waiters_leftmost = rb_next(&waiter->tree_entry);
-
-	rb_erase(&waiter->tree_entry, &lock->waiters);
+	rb_erase_cached(&waiter->tree_entry, &lock->waiters);
 	RB_CLEAR_NODE(&waiter->tree_entry);
 }
 
 static void
 rt_mutex_enqueue_pi(struct task_struct *task, struct rt_mutex_waiter *waiter)
 {
-	struct rb_node **link = &task->pi_waiters.rb_node;
+	struct rb_node **link = &task->pi_waiters.rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct rt_mutex_waiter *entry;
-	int leftmost = 1;
+	bool leftmost = true;
 
 	while (*link) {
 		parent = *link;
@@ -322,15 +316,12 @@ rt_mutex_enqueue_pi(struct task_struct *task, struct rt_mutex_waiter *waiter)
 			link = &parent->rb_left;
 		} else {
 			link = &parent->rb_right;
-			leftmost = 0;
+			leftmost = false;
 		}
 	}
 
-	if (leftmost)
-		task->pi_waiters_leftmost = &waiter->pi_tree_entry;
-
 	rb_link_node(&waiter->pi_tree_entry, parent, link);
-	rb_insert_color(&waiter->pi_tree_entry, &task->pi_waiters);
+	rb_insert_color_cached(&waiter->pi_tree_entry, &task->pi_waiters, leftmost);
 }
 
 static void
@@ -339,10 +330,7 @@ rt_mutex_dequeue_pi(struct task_struct *task, struct rt_mutex_waiter *waiter)
 	if (RB_EMPTY_NODE(&waiter->pi_tree_entry))
 		return;
 
-	if (task->pi_waiters_leftmost == &waiter->pi_tree_entry)
-		task->pi_waiters_leftmost = rb_next(&waiter->pi_tree_entry);
-
-	rb_erase(&waiter->pi_tree_entry, &task->pi_waiters);
+	rb_erase_cached(&waiter->pi_tree_entry, &task->pi_waiters);
 	RB_CLEAR_NODE(&waiter->pi_tree_entry);
 }
 
@@ -963,7 +951,6 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 		return -EDEADLK;
 
 	raw_spin_lock(&task->pi_lock);
-	rt_mutex_adjust_prio(task);
 	waiter->task = task;
 	waiter->lock = lock;
 	waiter->prio = task->prio;
@@ -1481,6 +1468,7 @@ void __sched rt_mutex_lock(struct rt_mutex *lock)
 {
 	might_sleep();
 
+	mutex_acquire(&lock->dep_map, 0, 0, _RET_IP_);
 	rt_mutex_fastlock(lock, TASK_UNINTERRUPTIBLE, rt_mutex_slowlock);
 }
 EXPORT_SYMBOL_GPL(rt_mutex_lock);
@@ -1496,9 +1484,16 @@ EXPORT_SYMBOL_GPL(rt_mutex_lock);
  */
 int __sched rt_mutex_lock_interruptible(struct rt_mutex *lock)
 {
+	int ret;
+
 	might_sleep();
 
-	return rt_mutex_fastlock(lock, TASK_INTERRUPTIBLE, rt_mutex_slowlock);
+	mutex_acquire(&lock->dep_map, 0, 0, _RET_IP_);
+	ret = rt_mutex_fastlock(lock, TASK_INTERRUPTIBLE, rt_mutex_slowlock);
+	if (ret)
+		mutex_release(&lock->dep_map, 1, _RET_IP_);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(rt_mutex_lock_interruptible);
 
@@ -1526,11 +1521,18 @@ int __sched rt_mutex_futex_trylock(struct rt_mutex *lock)
 int
 rt_mutex_timed_lock(struct rt_mutex *lock, struct hrtimer_sleeper *timeout)
 {
+	int ret;
+
 	might_sleep();
 
-	return rt_mutex_timed_fastlock(lock, TASK_INTERRUPTIBLE, timeout,
+	mutex_acquire(&lock->dep_map, 0, 0, _RET_IP_);
+	ret = rt_mutex_timed_fastlock(lock, TASK_INTERRUPTIBLE, timeout,
 				       RT_MUTEX_MIN_CHAINWALK,
 				       rt_mutex_slowlock);
+	if (ret)
+		mutex_release(&lock->dep_map, 1, _RET_IP_);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(rt_mutex_timed_lock);
 
@@ -1547,10 +1549,16 @@ EXPORT_SYMBOL_GPL(rt_mutex_timed_lock);
  */
 int __sched rt_mutex_trylock(struct rt_mutex *lock)
 {
+	int ret;
+
 	if (WARN_ON_ONCE(in_irq() || in_nmi() || in_serving_softirq()))
 		return 0;
 
-	return rt_mutex_fasttrylock(lock, rt_mutex_slowtrylock);
+	ret = rt_mutex_fasttrylock(lock, rt_mutex_slowtrylock);
+	if (ret)
+		mutex_acquire(&lock->dep_map, 0, 1, _RET_IP_);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(rt_mutex_trylock);
 
@@ -1561,6 +1569,7 @@ EXPORT_SYMBOL_GPL(rt_mutex_trylock);
  */
 void __sched rt_mutex_unlock(struct rt_mutex *lock)
 {
+	mutex_release(&lock->dep_map, 1, _RET_IP_);
 	rt_mutex_fastunlock(lock, rt_mutex_slowunlock);
 }
 EXPORT_SYMBOL_GPL(rt_mutex_unlock);
@@ -1620,7 +1629,6 @@ void rt_mutex_destroy(struct rt_mutex *lock)
 	lock->magic = NULL;
 #endif
 }
-
 EXPORT_SYMBOL_GPL(rt_mutex_destroy);
 
 /**
@@ -1632,14 +1640,15 @@ EXPORT_SYMBOL_GPL(rt_mutex_destroy);
  *
  * Initializing of a locked rt lock is not allowed
  */
-void __rt_mutex_init(struct rt_mutex *lock, const char *name)
+void __rt_mutex_init(struct rt_mutex *lock, const char *name,
+		     struct lock_class_key *key)
 {
 	lock->owner = NULL;
 	raw_spin_lock_init(&lock->wait_lock);
-	lock->waiters = RB_ROOT;
-	lock->waiters_leftmost = NULL;
+	lock->waiters = RB_ROOT_CACHED;
 
-	debug_rt_mutex_init(lock, name);
+	if (name && key)
+		debug_rt_mutex_init(lock, name, key);
 }
 EXPORT_SYMBOL_GPL(__rt_mutex_init);
 
@@ -1660,7 +1669,7 @@ EXPORT_SYMBOL_GPL(__rt_mutex_init);
 void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
 				struct task_struct *proxy_owner)
 {
-	__rt_mutex_init(lock, NULL);
+	__rt_mutex_init(lock, NULL, NULL);
 	debug_rt_mutex_proxy_lock(lock, proxy_owner);
 	rt_mutex_set_owner(lock, proxy_owner);
 }

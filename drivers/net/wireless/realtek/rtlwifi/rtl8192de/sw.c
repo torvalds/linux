@@ -40,6 +40,7 @@
 
 static void rtl92d_init_aspm_vars(struct ieee80211_hw *hw)
 {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
 	/*close ASPM for AMD defaultly */
@@ -79,7 +80,7 @@ static void rtl92d_init_aspm_vars(struct ieee80211_hw *hw)
 	 * 1 - Support ASPM,
 	 * 2 - According to chipset.
 	 */
-	rtlpci->const_support_pciaspm = 1;
+	rtlpci->const_support_pciaspm = rtlpriv->cfg->mod_params->aspm_support;
 }
 
 static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
@@ -183,6 +184,8 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 				      rtl_fw_cb);
 	if (err) {
 		pr_err("Failed to request firmware!\n");
+		vfree(rtlpriv->rtlhal.pfirmware);
+		rtlpriv->rtlhal.pfirmware = NULL;
 		return 1;
 	}
 
@@ -252,6 +255,7 @@ static struct rtl_mod_params rtl92de_mod_params = {
 	.inactiveps = true,
 	.swctrl_lps = true,
 	.fwctrl_lps = false,
+	.aspm_support = 1,
 	.debug_level = 0,
 	.debug_mask = 0,
 };
@@ -347,7 +351,7 @@ static const struct rtl_hal_cfg rtl92de_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] = DESC_RATEMCS15,
 };
 
-static struct pci_device_id rtl92de_pci_ids[] = {
+static const struct pci_device_id rtl92de_pci_ids[] = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8193, rtl92de_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x002B, rtl92de_hal_cfg)},
 	{},
@@ -367,11 +371,13 @@ module_param_named(debug_level, rtl92de_mod_params.debug_level, int, 0644);
 module_param_named(ips, rtl92de_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl92de_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl92de_mod_params.fwctrl_lps, bool, 0444);
+module_param_named(aspm, rtl92de_mod_params.aspm_support, int, 0444);
 module_param_named(debug_mask, rtl92de_mod_params.debug_mask, ullong, 0644);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
 MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 1)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 0)\n");
+MODULE_PARM_DESC(aspm, "Set to 1 to enable ASPM (default 1)\n");
 MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
 MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
 

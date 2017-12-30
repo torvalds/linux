@@ -157,7 +157,7 @@ static void snd_ff_remove(struct fw_unit *unit)
 	}
 }
 
-static struct snd_ff_spec spec_ff400 = {
+static const struct snd_ff_spec spec_ff400 = {
 	.name = "Fireface400",
 	.pcm_capture_channels = {18, 14, 10},
 	.pcm_playback_channels = {18, 14, 10},

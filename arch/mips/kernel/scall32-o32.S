@@ -190,12 +190,6 @@ illegal_syscall:
 	sll	t1, t0, 2
 	beqz	v0, einval
 	lw	t2, sys_call_table(t1)		# syscall routine
-	sw	a0, PT_R2(sp)			# call routine directly on restart
-
-	/* Some syscalls like execve get their arguments from struct pt_regs
-	   and claim zero arguments in the syscall table. Thus we have to
-	   assume the worst case and shuffle around all potential arguments.
-	   If you want performance, don't use indirect syscalls. */
 
 	move	a0, a1				# shift argument registers
 	move	a1, a2
@@ -207,11 +201,6 @@ illegal_syscall:
 	sw	t4, 16(sp)
 	sw	t5, 20(sp)
 	sw	t6, 24(sp)
-	sw	a0, PT_R4(sp)			# .. and push back a0 - a3, some
-	sw	a1, PT_R5(sp)			# syscalls expect them there
-	sw	a2, PT_R6(sp)
-	sw	a3, PT_R7(sp)
-	sw	a3, PT_R26(sp)			# update a3 for syscall restarting
 	jr	t2
 	/* Unreached */
 
@@ -371,7 +360,7 @@ EXPORT(sys_call_table)
 	PTR	sys_writev
 	PTR	sys_cacheflush
 	PTR	sys_cachectl
-	PTR	sys_sysmips
+	PTR	__sys_sysmips
 	PTR	sys_ni_syscall			/* 4150 */
 	PTR	sys_getsid
 	PTR	sys_fdatasync

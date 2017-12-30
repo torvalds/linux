@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/file.c
  *
@@ -29,21 +30,6 @@ unsigned int sysctl_nr_open_min = BITS_PER_LONG;
 #define __const_min(x, y) ((x) < (y) ? (x) : (y))
 unsigned int sysctl_nr_open_max =
 	__const_min(INT_MAX, ~(size_t)0/sizeof(void *)) & -BITS_PER_LONG;
-
-static void *alloc_fdmem(size_t size)
-{
-	/*
-	 * Very large allocations can stress page reclaim, so fall back to
-	 * vmalloc() if the allocation size will be considered "large" by the VM.
-	 */
-	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-		void *data = kmalloc(size, GFP_KERNEL_ACCOUNT |
-				     __GFP_NOWARN | __GFP_NORETRY);
-		if (data != NULL)
-			return data;
-	}
-	return __vmalloc(size, GFP_KERNEL_ACCOUNT, PAGE_KERNEL);
-}
 
 static void __free_fdtable(struct fdtable *fdt)
 {
@@ -131,13 +117,14 @@ static struct fdtable * alloc_fdtable(unsigned int nr)
 	if (!fdt)
 		goto out;
 	fdt->max_fds = nr;
-	data = alloc_fdmem(nr * sizeof(struct file *));
+	data = kvmalloc_array(nr, sizeof(struct file *), GFP_KERNEL_ACCOUNT);
 	if (!data)
 		goto out_fdt;
 	fdt->fd = data;
 
-	data = alloc_fdmem(max_t(size_t,
-				 2 * nr / BITS_PER_BYTE + BITBIT_SIZE(nr), L1_CACHE_BYTES));
+	data = kvmalloc(max_t(size_t,
+				 2 * nr / BITS_PER_BYTE + BITBIT_SIZE(nr), L1_CACHE_BYTES),
+				 GFP_KERNEL_ACCOUNT);
 	if (!data)
 		goto out_arr;
 	fdt->open_fds = data;
@@ -606,13 +593,16 @@ void __fd_install(struct files_struct *files, unsigned int fd,
 {
 	struct fdtable *fdt;
 
-	might_sleep();
 	rcu_read_lock_sched();
 
-	while (unlikely(files->resize_in_progress)) {
+	if (unlikely(files->resize_in_progress)) {
 		rcu_read_unlock_sched();
-		wait_event(files->resize_wait, !files->resize_in_progress);
-		rcu_read_lock_sched();
+		spin_lock(&files->file_lock);
+		fdt = files_fdtable(files);
+		BUG_ON(fdt->fd[fd] != NULL);
+		rcu_assign_pointer(fdt->fd[fd], file);
+		spin_unlock(&files->file_lock);
+		return;
 	}
 	/* coupled with smp_wmb() in expand_fdtable() */
 	smp_rmb();
@@ -645,7 +635,6 @@ int __close_fd(struct files_struct *files, unsigned fd)
 	if (!file)
 		goto out_unlock;
 	rcu_assign_pointer(fdt->fd[fd], NULL);
-	__clear_close_on_exec(fd, fdt);
 	__put_unused_fd(files, fd);
 	spin_unlock(&files->file_lock);
 	return filp_close(file, files);

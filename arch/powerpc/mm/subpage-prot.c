@@ -36,7 +36,7 @@ void subpage_prot_free(struct mm_struct *mm)
 		}
 	}
 	addr = 0;
-	for (i = 0; i < 2; ++i) {
+	for (i = 0; i < (TASK_SIZE_USER64 >> 43); ++i) {
 		p = spt->protptrs[i];
 		if (!p)
 			continue;

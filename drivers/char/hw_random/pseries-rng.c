@@ -72,7 +72,7 @@ static int pseries_rng_remove(struct vio_dev *dev)
 	return 0;
 }
 
-static struct vio_device_id pseries_rng_driver_ids[] = {
+static const struct vio_device_id pseries_rng_driver_ids[] = {
 	{ "ibm,random-v1", "ibm,random"},
 	{ "", "" }
 };

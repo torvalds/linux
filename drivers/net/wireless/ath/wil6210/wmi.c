@@ -37,6 +37,8 @@ module_param(led_id, byte, 0444);
 MODULE_PARM_DESC(led_id,
 		 " 60G device led enablement. Set the led ID (0-2) to enable");
 
+#define WIL_WAIT_FOR_SUSPEND_RESUME_COMP 200
+
 /**
  * WMI event receiving - theory of operations
  *
@@ -157,7 +159,7 @@ void __iomem *wmi_buffer(struct wil6210_priv *wil, __le32 ptr_)
 		return NULL;
 
 	off = HOSTADDR(ptr);
-	if (off > WIL6210_MEM_SIZE - 4)
+	if (off > wil->bar_size - 4)
 		return NULL;
 
 	return wil->csr + off;
@@ -177,7 +179,7 @@ void __iomem *wmi_addr(struct wil6210_priv *wil, u32 ptr)
 		return NULL;
 
 	off = HOSTADDR(ptr);
-	if (off > WIL6210_MEM_SIZE - 4)
+	if (off > wil->bar_size - 4)
 		return NULL;
 
 	return wil->csr + off;
@@ -231,6 +233,16 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	if (!test_bit(wil_status_fwready, wil->status)) {
 		wil_err(wil, "WMI: cannot send command while FW not ready\n");
 		return -EAGAIN;
+	}
+
+	/* Allow sending only suspend / resume commands during susepnd flow */
+	if ((test_bit(wil_status_suspending, wil->status) ||
+	     test_bit(wil_status_suspended, wil->status) ||
+	     test_bit(wil_status_resuming, wil->status)) &&
+	     ((cmdid != WMI_TRAFFIC_SUSPEND_CMDID) &&
+	      (cmdid != WMI_TRAFFIC_RESUME_CMDID))) {
+		wil_err(wil, "WMI: reject send_command during suspend\n");
+		return -EINVAL;
 	}
 
 	if (!head) {
@@ -332,6 +344,11 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 	strlcpy(wdev->wiphy->fw_version, wil->fw_version,
 		sizeof(wdev->wiphy->fw_version));
 
+	if (len > offsetof(struct wmi_ready_event, rfc_read_calib_result)) {
+		wil_dbg_wmi(wil, "rfc calibration result %d\n",
+			    evt->rfc_read_calib_result);
+		wil->fw_calib_result = evt->rfc_read_calib_result;
+	}
 	wil_set_recovery_state(wil, fw_recovery_idle);
 	set_bit(wil_status_fwready, wil->status);
 	/* let the reset sequence continue */
@@ -369,12 +386,15 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 	ch_no = data->info.channel + 1;
 	freq = ieee80211_channel_to_frequency(ch_no, NL80211_BAND_60GHZ);
 	channel = ieee80211_get_channel(wiphy, freq);
-	signal = data->info.sqi;
+	if (test_bit(WMI_FW_CAPABILITY_RSSI_REPORTING, wil->fw_capabilities))
+		signal = 100 * data->info.rssi;
+	else
+		signal = data->info.sqi;
 	d_status = le16_to_cpu(data->info.status);
 	fc = rx_mgmt_frame->frame_control;
 
-	wil_dbg_wmi(wil, "MGMT Rx: channel %d MCS %d SNR %d SQI %d%%\n",
-		    data->info.channel, data->info.mcs, data->info.snr,
+	wil_dbg_wmi(wil, "MGMT Rx: channel %d MCS %d RSSI %d SQI %d%%\n",
+		    data->info.channel, data->info.mcs, data->info.rssi,
 		    data->info.sqi);
 	wil_dbg_wmi(wil, "status 0x%04x len %d fc 0x%04x\n", d_status, d_len,
 		    le16_to_cpu(fc));
@@ -677,11 +697,11 @@ static void wmi_evt_eapol_rx(struct wil6210_priv *wil, int id,
 		return;
 	}
 
-	eth = (struct ethhdr *)skb_put(skb, ETH_HLEN);
+	eth = skb_put(skb, ETH_HLEN);
 	ether_addr_copy(eth->h_dest, ndev->dev_addr);
 	ether_addr_copy(eth->h_source, evt->src_mac);
 	eth->h_proto = cpu_to_be16(ETH_P_PAE);
-	memcpy(skb_put(skb, eapol_len), evt->eapol, eapol_len);
+	skb_put_data(skb, evt->eapol, eapol_len);
 	skb->protocol = eth_type_trans(skb, ndev);
 	if (likely(netif_rx_ni(skb) == NET_RX_SUCCESS)) {
 		ndev->stats.rx_packets++;
@@ -862,6 +882,11 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 		return;
 	}
 
+	if (test_bit(wil_status_suspended, wil->status)) {
+		wil_err(wil, "suspended. cannot handle WMI event\n");
+		return;
+	}
+
 	for (n = 0;; n++) {
 		u16 len;
 		bool q;
@@ -914,12 +939,26 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 			struct wmi_cmd_hdr *wmi = &evt->event.wmi;
 			u16 id = le16_to_cpu(wmi->command_id);
 			u32 tstamp = le32_to_cpu(wmi->fw_timestamp);
+			if (test_bit(wil_status_resuming, wil->status)) {
+				if (id == WMI_TRAFFIC_RESUME_EVENTID)
+					clear_bit(wil_status_resuming,
+						  wil->status);
+				else
+					wil_err(wil,
+						"WMI evt %d while resuming\n",
+						id);
+			}
 			spin_lock_irqsave(&wil->wmi_ev_lock, flags);
 			if (wil->reply_id && wil->reply_id == id) {
 				if (wil->reply_buf) {
 					memcpy(wil->reply_buf, wmi,
 					       min(len, wil->reply_size));
 					immed_reply = true;
+				}
+				if (id == WMI_TRAFFIC_SUSPEND_EVENTID) {
+					wil_dbg_wmi(wil,
+						    "set suspend_resp_rcvd\n");
+					wil->suspend_resp_rcvd = true;
 				}
 			}
 			spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
@@ -1762,6 +1801,85 @@ void wmi_event_flush(struct wil6210_priv *wil)
 	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
 }
 
+int wmi_suspend(struct wil6210_priv *wil)
+{
+	int rc;
+	struct wmi_traffic_suspend_cmd cmd = {
+		.wakeup_trigger = wil->wakeup_trigger,
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_traffic_suspend_event evt;
+	} __packed reply;
+	u32 suspend_to = WIL_WAIT_FOR_SUSPEND_RESUME_COMP;
+
+	wil->suspend_resp_rcvd = false;
+	wil->suspend_resp_comp = false;
+
+	reply.evt.status = WMI_TRAFFIC_SUSPEND_REJECTED;
+
+	rc = wmi_call(wil, WMI_TRAFFIC_SUSPEND_CMDID, &cmd, sizeof(cmd),
+		      WMI_TRAFFIC_SUSPEND_EVENTID, &reply, sizeof(reply),
+		      suspend_to);
+	if (rc) {
+		wil_err(wil, "wmi_call for suspend req failed, rc=%d\n", rc);
+		if (rc == -ETIME)
+			/* wmi_call TO */
+			wil->suspend_stats.rejected_by_device++;
+		else
+			wil->suspend_stats.rejected_by_host++;
+		goto out;
+	}
+
+	wil_dbg_wmi(wil, "waiting for suspend_response_completed\n");
+
+	rc = wait_event_interruptible_timeout(wil->wq,
+					      wil->suspend_resp_comp,
+					      msecs_to_jiffies(suspend_to));
+	if (rc == 0) {
+		wil_err(wil, "TO waiting for suspend_response_completed\n");
+		if (wil->suspend_resp_rcvd)
+			/* Device responded but we TO due to another reason */
+			wil->suspend_stats.rejected_by_host++;
+		else
+			wil->suspend_stats.rejected_by_device++;
+		rc = -EBUSY;
+		goto out;
+	}
+
+	wil_dbg_wmi(wil, "suspend_response_completed rcvd\n");
+	if (reply.evt.status == WMI_TRAFFIC_SUSPEND_REJECTED) {
+		wil_dbg_pm(wil, "device rejected the suspend\n");
+		wil->suspend_stats.rejected_by_device++;
+	}
+	rc = reply.evt.status;
+
+out:
+	wil->suspend_resp_rcvd = false;
+	wil->suspend_resp_comp = false;
+
+	return rc;
+}
+
+int wmi_resume(struct wil6210_priv *wil)
+{
+	int rc;
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_traffic_resume_event evt;
+	} __packed reply;
+
+	reply.evt.status = WMI_TRAFFIC_RESUME_FAILED;
+
+	rc = wmi_call(wil, WMI_TRAFFIC_RESUME_CMDID, NULL, 0,
+		      WMI_TRAFFIC_RESUME_EVENTID, &reply, sizeof(reply),
+		      WIL_WAIT_FOR_SUSPEND_RESUME_COMP);
+	if (rc)
+		return rc;
+
+	return reply.evt.status;
+}
+
 static bool wmi_evt_call_handler(struct wil6210_priv *wil, int id,
 				 void *d, int len)
 {
@@ -1850,4 +1968,37 @@ void wmi_event_worker(struct work_struct *work)
 		kfree(evt);
 	}
 	wil_dbg_wmi(wil, "event_worker: Finished\n");
+}
+
+bool wil_is_wmi_idle(struct wil6210_priv *wil)
+{
+	ulong flags;
+	struct wil6210_mbox_ring *r = &wil->mbox_ctl.rx;
+	bool rc = false;
+
+	spin_lock_irqsave(&wil->wmi_ev_lock, flags);
+
+	/* Check if there are pending WMI events in the events queue */
+	if (!list_empty(&wil->pending_wmi_ev)) {
+		wil_dbg_pm(wil, "Pending WMI events in queue\n");
+		goto out;
+	}
+
+	/* Check if there is a pending WMI call */
+	if (wil->reply_id) {
+		wil_dbg_pm(wil, "Pending WMI call\n");
+		goto out;
+	}
+
+	/* Check if there are pending RX events in mbox */
+	r->head = wil_r(wil, RGF_MBOX +
+			offsetof(struct wil6210_mbox_ctl, rx.head));
+	if (r->tail != r->head)
+		wil_dbg_pm(wil, "Pending WMI mbox events\n");
+	else
+		rc = true;
+
+out:
+	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
+	return rc;
 }

@@ -66,10 +66,10 @@ static struct rc_map_table technisat_usb2[] = {
 
 static struct rc_map_list technisat_usb2_map = {
 	.map = {
-		.scan    = technisat_usb2,
-		.size    = ARRAY_SIZE(technisat_usb2),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_TECHNISAT_USB2,
+		.scan     = technisat_usb2,
+		.size     = ARRAY_SIZE(technisat_usb2),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_TECHNISAT_USB2,
 	}
 };
 

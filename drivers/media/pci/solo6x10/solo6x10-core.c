@@ -511,6 +511,7 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	default:
 		dev_warn(&pdev->dev, "Invalid chip_id 0x%02x, assuming 4 ch\n",
 			 chip_id);
+		/* fall through */
 	case 5:
 		solo_dev->nr_chans = 4;
 		solo_dev->nr_ext = 1;

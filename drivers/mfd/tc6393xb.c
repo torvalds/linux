@@ -797,7 +797,9 @@ static int tc6393xb_resume(struct platform_device *dev)
 	int ret;
 	int i;
 
-	clk_prepare_enable(tc6393xb->clk);
+	ret = clk_prepare_enable(tc6393xb->clk);
+	if (ret)
+		return ret;
 
 	ret = tcpd->resume(dev);
 	if (ret)

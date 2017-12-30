@@ -11,6 +11,8 @@ Required properties for pwm-tacho node:
 
 - #size-cells : should be 1.
 
+- #cooling-cells: should be 2.
+
 - reg : address and length of the register set for the device.
 
 - pinctrl-names : a pinctrl state named "default" must be defined.
@@ -28,11 +30,16 @@ fan subnode format:
 Under fan subnode there can upto 8 child nodes, with each child node
 representing a fan. If there are 8 fans each fan can have one PWM port and
 one/two Fan tach inputs.
+For PWM port can be configured cooling-levels to create cooling device.
+Cooling device could be bound to a thermal zone for the thermal control.
 
 Required properties for each child node:
 - reg : should specify PWM source port.
 	integer value in the range 0 to 7 with 0 indicating PWM port A and
 	7 indicating PWM port H.
+
+- cooling-levels: PWM duty cycle values in a range from 0 to 255
+                  which correspond to thermal cooling states.
 
 - aspeed,fan-tach-ch : should specify the Fan tach input channel.
                 integer value in the range 0 through 15, with 0 indicating
@@ -50,6 +57,7 @@ pwm_tacho_fixed_clk: fixedclk {
 pwm_tacho: pwmtachocontroller@1e786000 {
 	#address-cells = <1>;
 	#size-cells = <1>;
+	#cooling-cells = <2>;
 	reg = <0x1E786000 0x1000>;
 	compatible = "aspeed,ast2500-pwm-tacho";
 	clocks = <&pwm_tacho_fixed_clk>;
@@ -58,6 +66,7 @@ pwm_tacho: pwmtachocontroller@1e786000 {
 
 	fan@0 {
 		reg = <0x00>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
 		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
 	};
 

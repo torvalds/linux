@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  file.c
  *
@@ -23,7 +24,7 @@
 
 static int ncp_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	return filemap_write_and_wait_range(file->f_mapping, start, end);
+	return file_write_and_wait_range(file, start, end);
 }
 
 /*

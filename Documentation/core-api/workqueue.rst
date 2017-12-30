@@ -39,8 +39,8 @@ up.
 Although MT wq wasted a lot of resource, the level of concurrency
 provided was unsatisfactory.  The limitation was common to both ST and
 MT wq albeit less severe on MT.  Each wq maintained its own separate
-worker pool.  A MT wq could provide only one execution context per CPU
-while a ST wq one for the whole system.  Work items had to compete for
+worker pool.  An MT wq could provide only one execution context per CPU
+while an ST wq one for the whole system.  Work items had to compete for
 those very limited execution contexts leading to various problems
 including proneness to deadlocks around the single execution context.
 
@@ -151,7 +151,7 @@ Application Programming Interface (API)
 
 ``alloc_workqueue()`` allocates a wq.  The original
 ``create_*workqueue()`` functions are deprecated and scheduled for
-removal.  ``alloc_workqueue()`` takes three arguments - @``name``,
+removal.  ``alloc_workqueue()`` takes three arguments - ``@name``,
 ``@flags`` and ``@max_active``.  ``@name`` is the name of the wq and
 also used as the name of the rescuer thread if there is one.
 
@@ -197,7 +197,7 @@ resources, scheduled and executed.
   served by worker threads with elevated nice level.
 
   Note that normal and highpri worker-pools don't interact with
-  each other.  Each maintain its separate pool of workers and
+  each other.  Each maintains its separate pool of workers and
   implements concurrency management among its workers.
 
 ``WQ_CPU_INTENSIVE``
@@ -243,10 +243,14 @@ throttling the number of active work items, specifying '0' is
 recommended.
 
 Some users depend on the strict execution ordering of ST wq.  The
-combination of ``@max_active`` of 1 and ``WQ_UNBOUND`` is used to
-achieve this behavior.  Work items on such wq are always queued to the
-unbound worker-pools and only one work item can be active at any given
+combination of ``@max_active`` of 1 and ``WQ_UNBOUND`` used to
+achieve this behavior.  Work items on such wq were always queued to the
+unbound worker-pools and only one work item could be active at any given
 time thus achieving the same ordering property as ST wq.
+
+In the current implementation the above configuration only guarantees
+ST behavior within a given NUMA node. Instead ``alloc_ordered_queue()`` should
+be used to achieve system-wide ST behavior.
 
 
 Example Execution Scenarios

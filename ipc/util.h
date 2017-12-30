@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/ipc/util.h
  * Copyright (C) 1999 Christoph Rohland
@@ -12,11 +13,12 @@
 
 #include <linux/unistd.h>
 #include <linux/err.h>
+#include <linux/ipc_namespace.h>
 
 #define SEQ_MULTIPLIER	(IPCMNI)
 
-void sem_init(void);
-void msg_init(void);
+int sem_init(void);
+int msg_init(void);
 void shm_init(void);
 
 struct ipc_namespace;
@@ -30,29 +32,22 @@ static inline void mq_put_mnt(struct ipc_namespace *ns) { }
 #endif
 
 #ifdef CONFIG_SYSVIPC
-void sem_init_ns(struct ipc_namespace *ns);
-void msg_init_ns(struct ipc_namespace *ns);
-void shm_init_ns(struct ipc_namespace *ns);
+int sem_init_ns(struct ipc_namespace *ns);
+int msg_init_ns(struct ipc_namespace *ns);
+int shm_init_ns(struct ipc_namespace *ns);
 
 void sem_exit_ns(struct ipc_namespace *ns);
 void msg_exit_ns(struct ipc_namespace *ns);
 void shm_exit_ns(struct ipc_namespace *ns);
 #else
-static inline void sem_init_ns(struct ipc_namespace *ns) { }
-static inline void msg_init_ns(struct ipc_namespace *ns) { }
-static inline void shm_init_ns(struct ipc_namespace *ns) { }
+static inline int sem_init_ns(struct ipc_namespace *ns) { return 0; }
+static inline int msg_init_ns(struct ipc_namespace *ns) { return 0; }
+static inline int shm_init_ns(struct ipc_namespace *ns) { return 0; }
 
 static inline void sem_exit_ns(struct ipc_namespace *ns) { }
 static inline void msg_exit_ns(struct ipc_namespace *ns) { }
 static inline void shm_exit_ns(struct ipc_namespace *ns) { }
 #endif
-
-struct ipc_rcu {
-	struct rcu_head rcu;
-	atomic_t refcount;
-} ____cacheline_aligned_in_smp;
-
-#define ipc_rcu_to_struct(p)  ((void *)(p+1))
 
 /*
  * Structure that holds the parameters needed by the ipc operations
@@ -86,7 +81,7 @@ struct ipc_ops {
 struct seq_file;
 struct ipc_ids;
 
-void ipc_init_ids(struct ipc_ids *);
+int ipc_init_ids(struct ipc_ids *);
 #ifdef CONFIG_PROC_FS
 void __init ipc_init_proc_interface(const char *path, const char *header,
 		int ids, int (*show)(struct seq_file *, void *));
@@ -105,31 +100,44 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 /* must be called with ids->rwsem acquired for writing */
 int ipc_addid(struct ipc_ids *, struct kern_ipc_perm *, int);
 
-/* must be called with ids->rwsem acquired for reading */
-int ipc_get_maxid(struct ipc_ids *);
-
 /* must be called with both locks acquired. */
 void ipc_rmid(struct ipc_ids *, struct kern_ipc_perm *);
+
+/* must be called with both locks acquired. */
+void ipc_set_key_private(struct ipc_ids *, struct kern_ipc_perm *);
 
 /* must be called with ipcp locked */
 int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
 
-/* for rare, potentially huge allocations.
- * both function can sleep
+/**
+ * ipc_get_maxid - get the last assigned id
+ * @ids: ipc identifier set
+ *
+ * Called with ipc_ids.rwsem held for reading.
  */
-void *ipc_alloc(int size);
-void ipc_free(void *ptr);
+static inline int ipc_get_maxid(struct ipc_ids *ids)
+{
+	if (ids->in_use == 0)
+		return -1;
+
+	if (ids->in_use == IPCMNI)
+		return IPCMNI - 1;
+
+	return ids->max_id;
+}
 
 /*
  * For allocation that need to be freed by RCU.
  * Objects are reference counted, they start with reference count 1.
  * getref increases the refcount, the putref call that reduces the recount
  * to 0 schedules the rcu destruction. Caller must guarantee locking.
+ *
+ * refcount is initialized by ipc_addid(), before that point call_rcu()
+ * must be used.
  */
-void *ipc_rcu_alloc(int size);
-int ipc_rcu_getref(void *ptr);
-void ipc_rcu_putref(void *ptr, void (*func)(struct rcu_head *head));
-void ipc_rcu_free(struct rcu_head *head);
+int ipc_rcu_getref(struct kern_ipc_perm *ptr);
+void ipc_rcu_putref(struct kern_ipc_perm *ptr,
+			void (*func)(struct rcu_head *head));
 
 struct kern_ipc_perm *ipc_lock(struct ipc_ids *, int);
 struct kern_ipc_perm *ipc_obtain_object_idr(struct ipc_ids *ids, int id);
@@ -152,11 +160,6 @@ extern void free_msg(struct msg_msg *msg);
 extern struct msg_msg *load_msg(const void __user *src, size_t len);
 extern struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst);
 extern int store_msg(void __user *dest, struct msg_msg *msg, size_t len);
-
-static inline int ipc_buildid(int id, int seq)
-{
-	return SEQ_MULTIPLIER * seq + id;
-}
 
 static inline int ipc_checkid(struct kern_ipc_perm *ipcp, int uid)
 {
@@ -202,4 +205,34 @@ int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
 			const struct ipc_ops *ops, struct ipc_params *params);
 void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 		void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+struct compat_ipc_perm {
+	key_t key;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
+	__compat_uid_t cuid;
+	__compat_gid_t cgid;
+	compat_mode_t mode;
+	unsigned short seq;
+};
+
+void to_compat_ipc_perm(struct compat_ipc_perm *, struct ipc64_perm *);
+void to_compat_ipc64_perm(struct compat_ipc64_perm *, struct ipc64_perm *);
+int get_compat_ipc_perm(struct ipc64_perm *, struct compat_ipc_perm __user *);
+int get_compat_ipc64_perm(struct ipc64_perm *,
+			  struct compat_ipc64_perm __user *);
+
+static inline int compat_ipc_parse_version(int *cmd)
+{
+#ifdef	CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
+	int version = *cmd & IPC_64;
+	*cmd &= ~IPC_64;
+	return version;
+#else
+	return IPC_64;
+#endif
+}
+#endif
 #endif

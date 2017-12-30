@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -42,10 +43,11 @@ void sm750_hw_de_init(struct lynx_accel *accel)
 	/* dpr1c */
 	reg =  0x3;
 
-	clr = DE_STRETCH_FORMAT_PATTERN_XY | DE_STRETCH_FORMAT_PATTERN_Y_MASK |
-		DE_STRETCH_FORMAT_PATTERN_X_MASK |
-		DE_STRETCH_FORMAT_ADDRESSING_MASK |
-		DE_STRETCH_FORMAT_SOURCE_HEIGHT_MASK;
+	clr = DE_STRETCH_FORMAT_PATTERN_XY |
+	      DE_STRETCH_FORMAT_PATTERN_Y_MASK |
+	      DE_STRETCH_FORMAT_PATTERN_X_MASK |
+	      DE_STRETCH_FORMAT_ADDRESSING_MASK |
+	      DE_STRETCH_FORMAT_SOURCE_HEIGHT_MASK;
 
 	/* DE_STRETCH bpp format need be initialized in setMode routine */
 	write_dpr(accel, DE_STRETCH_FORMAT,
@@ -84,9 +86,9 @@ void sm750_hw_set2dformat(struct lynx_accel *accel, int fmt)
 }
 
 int sm750_hw_fillrect(struct lynx_accel *accel,
-				u32 base, u32 pitch, u32 Bpp,
-				u32 x, u32 y, u32 width, u32 height,
-				u32 color, u32 rop)
+		      u32 base, u32 pitch, u32 Bpp,
+		      u32 x, u32 y, u32 width, u32 height,
+		      u32 color, u32 rop)
 {
 	u32 deCtrl;
 

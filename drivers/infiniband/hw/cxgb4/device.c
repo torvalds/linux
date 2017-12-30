@@ -44,7 +44,6 @@
 MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("Chelsio T4/T5 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 
 static int allow_db_fc_on_t5;
 module_param(allow_db_fc_on_t5, int, 0644);
@@ -65,14 +64,9 @@ module_param(c4iw_wr_log_size_order, int, 0444);
 MODULE_PARM_DESC(c4iw_wr_log_size_order,
 		 "Number of entries (log2) in the work request timing log.");
 
-struct uld_ctx {
-	struct list_head entry;
-	struct cxgb4_lld_info lldi;
-	struct c4iw_dev *dev;
-};
-
 static LIST_HEAD(uld_ctx_list);
 static DEFINE_MUTEX(dev_mutex);
+struct workqueue_struct *reg_workq;
 
 #define DB_FC_RESUME_SIZE 64
 #define DB_FC_RESUME_DELAY 1
@@ -812,8 +806,8 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 
 	rdev->qpmask = rdev->lldi.udb_density - 1;
 	rdev->cqmask = rdev->lldi.ucq_density - 1;
-	pr_debug("%s dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u\n",
-		 __func__, pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
+	pr_debug("dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u\n",
+		 pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
 		 rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
 		 rdev->lldi.vr->pbl.start,
 		 rdev->lldi.vr->pbl.size, rdev->lldi.vr->rq.start,
@@ -913,7 +907,7 @@ static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 	c4iw_destroy_resource(&rdev->resource);
 }
 
-static void c4iw_dealloc(struct uld_ctx *ctx)
+void c4iw_dealloc(struct uld_ctx *ctx)
 {
 	c4iw_rdev_close(&ctx->dev->rdev);
 	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->cqidr));
@@ -936,7 +930,7 @@ static void c4iw_dealloc(struct uld_ctx *ctx)
 
 static void c4iw_remove(struct uld_ctx *ctx)
 {
-	pr_debug("%s c4iw_dev %p\n", __func__,  ctx->dev);
+	pr_debug("c4iw_dev %p\n", ctx->dev);
 	c4iw_unregister_device(ctx->dev);
 	c4iw_dealloc(ctx);
 }
@@ -970,8 +964,8 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	devp->rdev.lldi = *infop;
 
 	/* init various hw-queue params based on lld info */
-	pr_debug("%s: Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
-		 __func__, devp->rdev.lldi.sge_ingpadboundary,
+	pr_debug("Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
+		 devp->rdev.lldi.sge_ingpadboundary,
 		 devp->rdev.lldi.sge_egrstatuspagesize);
 
 	devp->rdev.hw_queue.t4_eq_status_entries =
@@ -1070,8 +1064,8 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 	}
 	ctx->lldi = *infop;
 
-	pr_debug("%s found device %s nchan %u nrxq %u ntxq %u nports %u\n",
-		 __func__, pci_name(ctx->lldi.pdev),
+	pr_debug("found device %s nchan %u nrxq %u ntxq %u nports %u\n",
+		 pci_name(ctx->lldi.pdev),
 		 ctx->lldi.nchan, ctx->lldi.nrxq,
 		 ctx->lldi.ntxq, ctx->lldi.nports);
 
@@ -1103,8 +1097,8 @@ static inline struct sk_buff *copy_gl_to_skb_pkt(const struct pkt_gl *gl,
 	if (unlikely(!skb))
 		return NULL;
 
-	 __skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req) +
-		   sizeof(struct rss_header) - pktshift);
+	__skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req) +
+		  sizeof(struct rss_header) - pktshift);
 
 	/*
 	 * This skb will contain:
@@ -1204,13 +1198,11 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 {
 	struct uld_ctx *ctx = handle;
 
-	pr_debug("%s new_state %u\n", __func__, new_state);
+	pr_debug("new_state %u\n", new_state);
 	switch (new_state) {
 	case CXGB4_STATE_UP:
 		pr_info("%s: Up\n", pci_name(ctx->lldi.pdev));
 		if (!ctx->dev) {
-			int ret;
-
 			ctx->dev = c4iw_alloc(&ctx->lldi);
 			if (IS_ERR(ctx->dev)) {
 				pr_err("%s: initialization failed: %ld\n",
@@ -1219,12 +1211,9 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 				ctx->dev = NULL;
 				break;
 			}
-			ret = c4iw_register_device(ctx->dev);
-			if (ret) {
-				pr_err("%s: RDMA registration failed: %d\n",
-				       pci_name(ctx->lldi.pdev), ret);
-				c4iw_dealloc(ctx);
-			}
+
+			INIT_WORK(&ctx->reg_work, c4iw_register_device);
+			queue_work(reg_workq, &ctx->reg_work);
 		}
 		break;
 	case CXGB4_STATE_DOWN:
@@ -1519,6 +1508,27 @@ static struct cxgb4_uld_info c4iw_uld_info = {
 	.control = c4iw_uld_control,
 };
 
+void _c4iw_free_wr_wait(struct kref *kref)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = container_of(kref, struct c4iw_wr_wait, kref);
+	pr_debug("Free wr_wait %p\n", wr_waitp);
+	kfree(wr_waitp);
+}
+
+struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp)
+{
+	struct c4iw_wr_wait *wr_waitp;
+
+	wr_waitp = kzalloc(sizeof(*wr_waitp), gfp);
+	if (wr_waitp) {
+		kref_init(&wr_waitp->kref);
+		pr_debug("wr_wait %p\n", wr_waitp);
+	}
+	return wr_waitp;
+}
+
 static int __init c4iw_init_module(void)
 {
 	int err;
@@ -1530,6 +1540,12 @@ static int __init c4iw_init_module(void)
 	c4iw_debugfs_root = debugfs_create_dir(DRV_NAME, NULL);
 	if (!c4iw_debugfs_root)
 		pr_warn("could not create debugfs entry, continuing\n");
+
+	reg_workq = create_singlethread_workqueue("Register_iWARP_device");
+	if (!reg_workq) {
+		pr_err("Failed creating workqueue to register iwarp device\n");
+		return -ENOMEM;
+	}
 
 	cxgb4_register_uld(CXGB4_ULD_RDMA, &c4iw_uld_info);
 
@@ -1547,6 +1563,8 @@ static void __exit c4iw_exit_module(void)
 		kfree(ctx);
 	}
 	mutex_unlock(&dev_mutex);
+	flush_workqueue(reg_workq);
+	destroy_workqueue(reg_workq);
 	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
 	c4iw_cm_term();
 	debugfs_remove_recursive(c4iw_debugfs_root);

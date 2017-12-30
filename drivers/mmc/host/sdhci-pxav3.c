@@ -337,7 +337,7 @@ static const struct sdhci_ops pxav3_sdhci_ops = {
 	.set_uhs_signaling = pxav3_set_uhs_signaling,
 };
 
-static struct sdhci_pltfm_data sdhci_pxav3_pdata = {
+static const struct sdhci_pltfm_data sdhci_pxav3_pdata = {
 	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK
 		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC
 		| SDHCI_QUIRK_32BIT_ADMA_SIZE

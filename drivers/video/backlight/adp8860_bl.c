@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
-#include <linux/i2c/adp8860.h>
+#include <linux/platform_data/adp8860.h>
 #define ADP8860_EXT_FEATURES
 #define ADP8860_USE_LEDS
 

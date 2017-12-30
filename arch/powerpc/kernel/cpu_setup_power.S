@@ -102,6 +102,7 @@ _GLOBAL(__setup_cpu_power9)
 	li	r0,0
 	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
+	mtspr	SPRN_PID,r0
 	mfspr	r3,SPRN_LPCR
 	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE  | LPCR_HEIC)
 	or	r3, r3, r4
@@ -126,6 +127,7 @@ _GLOBAL(__restore_cpu_power9)
 	li	r0,0
 	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
+	mtspr	SPRN_PID,r0
 	mfspr   r3,SPRN_LPCR
 	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE | LPCR_HEIC)
 	or	r3, r3, r4
@@ -218,13 +220,20 @@ __init_tlb_power8:
 	ptesync
 1:	blr
 
+/*
+ * Flush the TLB in hash mode. Hash must flush with RIC=2 once for process
+ * and one for partition scope to clear process and partition table entries.
+ */
 __init_tlb_power9:
-	li	r6,POWER9_TLB_SETS_HASH
+	li	r6,POWER9_TLB_SETS_HASH - 1
 	mtctr	r6
 	li	r7,0xc00	/* IS field = 0b11 */
+	li	r8,0
 	ptesync
-2:	tlbiel	r7
-	addi	r7,r7,0x1000
+	PPC_TLBIEL(7, 8, 2, 1, 0)
+	PPC_TLBIEL(7, 8, 2, 0, 0)
+2:	addi	r7,r7,0x1000
+	PPC_TLBIEL(7, 8, 0, 0, 0)
 	bdnz	2b
 	ptesync
 1:	blr

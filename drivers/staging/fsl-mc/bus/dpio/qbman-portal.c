@@ -136,18 +136,18 @@ static inline u32 qbman_set_swp_cfg(u8 max_fill, u8 wn,	u8 est, u8 rpm, u8 dcm,
 				    u8 epm, int sd, int sp, int se,
 				    int dp, int de, int ep)
 {
-	return cpu_to_le32 (max_fill << SWP_CFG_DQRR_MF_SHIFT |
-			    est << SWP_CFG_EST_SHIFT |
-			    wn << SWP_CFG_WN_SHIFT |
-			    rpm << SWP_CFG_RPM_SHIFT |
-			    dcm << SWP_CFG_DCM_SHIFT |
-			    epm << SWP_CFG_EPM_SHIFT |
-			    sd << SWP_CFG_SD_SHIFT |
-			    sp << SWP_CFG_SP_SHIFT |
-			    se << SWP_CFG_SE_SHIFT |
-			    dp << SWP_CFG_DP_SHIFT |
-			    de << SWP_CFG_DE_SHIFT |
-			    ep << SWP_CFG_EP_SHIFT);
+	return (max_fill << SWP_CFG_DQRR_MF_SHIFT |
+		est << SWP_CFG_EST_SHIFT |
+		wn << SWP_CFG_WN_SHIFT |
+		rpm << SWP_CFG_RPM_SHIFT |
+		dcm << SWP_CFG_DCM_SHIFT |
+		epm << SWP_CFG_EPM_SHIFT |
+		sd << SWP_CFG_SD_SHIFT |
+		sp << SWP_CFG_SP_SHIFT |
+		se << SWP_CFG_SE_SHIFT |
+		dp << SWP_CFG_DP_SHIFT |
+		de << SWP_CFG_DE_SHIFT |
+		ep << SWP_CFG_EP_SHIFT);
 }
 
 /**

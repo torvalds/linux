@@ -21,6 +21,7 @@
 #include <linux/percpu-refcount.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/uuid.h>
 #include <linux/nvme.h>
 #include <linux/configfs.h>
 #include <linux/rcupdate.h>
@@ -46,6 +47,7 @@ struct nvmet_ns {
 	u32			blksize_shift;
 	loff_t			size;
 	u8			nguid[16];
+	uuid_t			uuid;
 
 	bool			enabled;
 	struct nvmet_subsys	*subsys;
@@ -72,6 +74,7 @@ struct nvmet_sq {
 	struct percpu_ref	ref;
 	u16			qid;
 	u16			size;
+	u32			sqhd;
 	struct completion	free_done;
 	struct completion	confirm_done;
 };
@@ -110,10 +113,10 @@ struct nvmet_ctrl {
 
 	struct mutex		lock;
 	u64			cap;
-	u64			serial;
 	u32			cc;
 	u32			csts;
 
+	uuid_t			hostid;
 	u16			cntlid;
 	u32			kato;
 
@@ -150,6 +153,7 @@ struct nvmet_subsys {
 	u16			max_qid;
 
 	u64			ver;
+	u64			serial;
 	char			*subsysnqn;
 
 	struct config_group	group;
@@ -219,7 +223,10 @@ struct nvmet_req {
 	struct bio		inline_bio;
 	struct bio_vec		inline_bvec[NVMET_MAX_INLINE_BIOVEC];
 	int			sg_cnt;
+	/* data length as parsed from the command: */
 	size_t			data_len;
+	/* data length as parsed from the SGL descriptor: */
+	size_t			transfer_len;
 
 	struct nvmet_port	*port;
 
@@ -262,6 +269,7 @@ u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req);
 bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 		struct nvmet_sq *sq, struct nvmet_fabrics_ops *ops);
 void nvmet_req_uninit(struct nvmet_req *req);
+void nvmet_req_execute(struct nvmet_req *req);
 void nvmet_req_complete(struct nvmet_req *req, u16 status);
 
 void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
@@ -310,7 +318,7 @@ u16 nvmet_copy_from_sgl(struct nvmet_req *req, off_t off, void *buf,
 u32 nvmet_get_log_page_len(struct nvme_command *cmd);
 
 #define NVMET_QUEUE_SIZE	1024
-#define NVMET_NR_QUEUES		64
+#define NVMET_NR_QUEUES		128
 #define NVMET_MAX_CMD		NVMET_QUEUE_SIZE
 #define NVMET_KAS		10
 #define NVMET_DISC_KATO		120

@@ -20,5 +20,4 @@ sdhci1: sdhci@10014000 {
 	dma-names = "rx-tx";
 	bus-width = <4>;
 	cd-gpios = <&gpio3 29>;
-	status = "okay";
 };

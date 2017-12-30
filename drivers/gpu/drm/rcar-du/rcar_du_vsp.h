@@ -43,6 +43,7 @@ static inline struct rcar_du_vsp_plane *to_rcar_vsp_plane(struct drm_plane *p)
  * struct rcar_du_vsp_plane_state - Driver-specific plane state
  * @state: base DRM plane state
  * @format: information about the pixel format used by the plane
+ * @sg_tables: scatter-gather tables for the frame buffer memory
  * @alpha: value of the plane alpha property
  * @zpos: value of the plane zpos property
  */
@@ -50,6 +51,7 @@ struct rcar_du_vsp_plane_state {
 	struct drm_plane_state state;
 
 	const struct rcar_du_format_info *format;
+	struct sg_table sg_tables[3];
 
 	unsigned int alpha;
 	unsigned int zpos;
@@ -62,13 +64,19 @@ to_rcar_vsp_plane_state(struct drm_plane_state *state)
 }
 
 #ifdef CONFIG_DRM_RCAR_VSP
-int rcar_du_vsp_init(struct rcar_du_vsp *vsp);
+int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
+		     unsigned int crtcs);
 void rcar_du_vsp_enable(struct rcar_du_crtc *crtc);
 void rcar_du_vsp_disable(struct rcar_du_crtc *crtc);
 void rcar_du_vsp_atomic_begin(struct rcar_du_crtc *crtc);
 void rcar_du_vsp_atomic_flush(struct rcar_du_crtc *crtc);
 #else
-static inline int rcar_du_vsp_init(struct rcar_du_vsp *vsp) { return -ENXIO; };
+static inline int rcar_du_vsp_init(struct rcar_du_vsp *vsp,
+				   struct device_node *np,
+				   unsigned int crtcs)
+{
+	return -ENXIO;
+}
 static inline void rcar_du_vsp_enable(struct rcar_du_crtc *crtc) { };
 static inline void rcar_du_vsp_disable(struct rcar_du_crtc *crtc) { };
 static inline void rcar_du_vsp_atomic_begin(struct rcar_du_crtc *crtc) { };

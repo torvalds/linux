@@ -559,9 +559,7 @@ The <tt>rcu_access_pointer()</tt> on line&nbsp;6 is similar to
 	For <tt>remove_gp_synchronous()</tt>, as long as all modifications
 	to <tt>gp</tt> are carried out while holding <tt>gp_lock</tt>,
 	the above optimizations are harmless.
-	However,
-	with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt>,
-	<tt>sparse</tt> will complain if you
+	However, <tt>sparse</tt> will complain if you
 	define <tt>gp</tt> with <tt>__rcu</tt> and then
 	access it without using
 	either <tt>rcu_access_pointer()</tt> or <tt>rcu_dereference()</tt>.
@@ -1849,7 +1847,8 @@ mass storage, or user patience, whichever comes first.
 If the nesting is not visible to the compiler, as is the case with
 mutually recursive functions each in its own translation unit,
 stack overflow will result.
-If the nesting takes the form of loops, either the control variable
+If the nesting takes the form of loops, perhaps in the guise of tail
+recursion, either the control variable
 will overflow or (in the Linux kernel) you will get an RCU CPU stall warning.
 Nevertheless, this class of RCU implementations is one
 of the most composable constructs in existence.
@@ -1977,9 +1976,8 @@ guard against mishaps and misuse:
 	and <tt>rcu_dereference()</tt>, perhaps (incorrectly)
 	substituting a simple assignment.
 	To catch this sort of error, a given RCU-protected pointer may be
-	tagged with <tt>__rcu</tt>, after which running sparse
-	with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt> will complain
-	about simple-assignment accesses to that pointer.
+	tagged with <tt>__rcu</tt>, after which sparse
+	will complain about simple-assignment accesses to that pointer.
 	Arnd Bergmann made me aware of this requirement, and also
 	supplied the needed
 	<a href="https://lwn.net/Articles/376011/">patch series</a>.
@@ -2036,7 +2034,7 @@ guard against mishaps and misuse:
 	some other synchronization mechanism, for example, reference
 	counting.
 <li>	In kernels built with <tt>CONFIG_RCU_TRACE=y</tt>, RCU-related
-	information is provided via both debugfs and event tracing.
+	information is provided via event tracing.
 <li>	Open-coded use of <tt>rcu_assign_pointer()</tt> and
 	<tt>rcu_dereference()</tt> to create typical linked
 	data structures can be surprisingly error-prone.
@@ -2082,6 +2080,8 @@ Some of the relevant points of interest are as follows:
 <li>	<a href="#Scheduler and RCU">Scheduler and RCU</a>.
 <li>	<a href="#Tracing and RCU">Tracing and RCU</a>.
 <li>	<a href="#Energy Efficiency">Energy Efficiency</a>.
+<li>	<a href="#Scheduling-Clock Interrupts and RCU">
+	Scheduling-Clock Interrupts and RCU</a>.
 <li>	<a href="#Memory Efficiency">Memory Efficiency</a>.
 <li>	<a href="#Performance, Scalability, Response Time, and Reliability">
 	Performance, Scalability, Response Time, and Reliability</a>.
@@ -2519,11 +2519,7 @@ It is similarly socially unacceptable to interrupt an
 <tt>nohz_full</tt> CPU running in userspace.
 RCU must therefore track <tt>nohz_full</tt> userspace
 execution.
-And in
-<a href="https://lwn.net/Articles/558284/"><tt>CONFIG_NO_HZ_FULL_SYSIDLE=y</tt></a>
-kernels, RCU must separately track idle CPUs on the one hand and
-CPUs that are either idle or executing in userspace on the other.
-In both cases, RCU must be able to sample state at two points in
+RCU must therefore be able to sample state at two points in
 time, and be able to determine whether or not some other CPU spent
 any time idle and/or executing in userspace.
 
@@ -2537,6 +2533,134 @@ As noted earlier,
 I learned of many of these requirements via angry phone calls:
 Flaming me on the Linux-kernel mailing list was apparently not
 sufficient to fully vent their ire at RCU's energy-efficiency bugs!
+
+<h3><a name="Scheduling-Clock Interrupts and RCU">
+Scheduling-Clock Interrupts and RCU</a></h3>
+
+<p>
+The kernel transitions between in-kernel non-idle execution, userspace
+execution, and the idle loop.
+Depending on kernel configuration, RCU handles these states differently:
+
+<table border=3>
+<tr><th><tt>HZ</tt> Kconfig</th>
+	<th>In-Kernel</th>
+		<th>Usermode</th>
+			<th>Idle</th></tr>
+<tr><th align="left"><tt>HZ_PERIODIC</tt></th>
+	<td>Can rely on scheduling-clock interrupt.</td>
+		<td>Can rely on scheduling-clock interrupt and its
+		    detection of interrupt from usermode.</td>
+			<td>Can rely on RCU's dyntick-idle detection.</td></tr>
+<tr><th align="left"><tt>NO_HZ_IDLE</tt></th>
+	<td>Can rely on scheduling-clock interrupt.</td>
+		<td>Can rely on scheduling-clock interrupt and its
+		    detection of interrupt from usermode.</td>
+			<td>Can rely on RCU's dyntick-idle detection.</td></tr>
+<tr><th align="left"><tt>NO_HZ_FULL</tt></th>
+	<td>Can only sometimes rely on scheduling-clock interrupt.
+	    In other cases, it is necessary to bound kernel execution
+	    times and/or use IPIs.</td>
+		<td>Can rely on RCU's dyntick-idle detection.</td>
+			<td>Can rely on RCU's dyntick-idle detection.</td></tr>
+</table>
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Why can't <tt>NO_HZ_FULL</tt> in-kernel execution rely on the
+	scheduling-clock interrupt, just like <tt>HZ_PERIODIC</tt>
+	and <tt>NO_HZ_IDLE</tt> do?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Because, as a performance optimization, <tt>NO_HZ_FULL</tt>
+	does not necessarily re-enable the scheduling-clock interrupt
+	on entry to each and every system call.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
+<p>
+However, RCU must be reliably informed as to whether any given
+CPU is currently in the idle loop, and, for <tt>NO_HZ_FULL</tt>,
+also whether that CPU is executing in usermode, as discussed
+<a href="#Energy Efficiency">earlier</a>.
+It also requires that the scheduling-clock interrupt be enabled when
+RCU needs it to be:
+
+<ol>
+<li>	If a CPU is either idle or executing in usermode, and RCU believes
+	it is non-idle, the scheduling-clock tick had better be running.
+	Otherwise, you will get RCU CPU stall warnings.  Or at best,
+	very long (11-second) grace periods, with a pointless IPI waking
+	the CPU from time to time.
+<li>	If a CPU is in a portion of the kernel that executes RCU read-side
+	critical sections, and RCU believes this CPU to be idle, you will get
+	random memory corruption.  <b>DON'T DO THIS!!!</b>
+
+	<br>This is one reason to test with lockdep, which will complain
+	about this sort of thing.
+<li>	If a CPU is in a portion of the kernel that is absolutely
+	positively no-joking guaranteed to never execute any RCU read-side
+	critical sections, and RCU believes this CPU to to be idle,
+	no problem.  This sort of thing is used by some architectures
+	for light-weight exception handlers, which can then avoid the
+	overhead of <tt>rcu_irq_enter()</tt> and <tt>rcu_irq_exit()</tt>
+	at exception entry and exit, respectively.
+	Some go further and avoid the entireties of <tt>irq_enter()</tt>
+	and <tt>irq_exit()</tt>.
+
+	<br>Just make very sure you are running some of your tests with
+	<tt>CONFIG_PROVE_RCU=y</tt>, just in case one of your code paths
+	was in fact joking about not doing RCU read-side critical sections.
+<li>	If a CPU is executing in the kernel with the scheduling-clock
+	interrupt disabled and RCU believes this CPU to be non-idle,
+	and if the CPU goes idle (from an RCU perspective) every few
+	jiffies, no problem.  It is usually OK for there to be the
+	occasional gap between idle periods of up to a second or so.
+
+	<br>If the gap grows too long, you get RCU CPU stall warnings.
+<li>	If a CPU is either idle or executing in usermode, and RCU believes
+	it to be idle, of course no problem.
+<li>	If a CPU is executing in the kernel, the kernel code
+	path is passing through quiescent states at a reasonable
+	frequency (preferably about once per few jiffies, but the
+	occasional excursion to a second or so is usually OK) and the
+	scheduling-clock interrupt is enabled, of course no problem.
+
+	<br>If the gap between a successive pair of quiescent states grows
+	too long, you get RCU CPU stall warnings.
+</ol>
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	But what if my driver has a hardware interrupt handler
+	that can run for many seconds?
+	I cannot invoke <tt>schedule()</tt> from an hardware
+	interrupt handler, after all!
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	One approach is to do <tt>rcu_irq_exit();rcu_irq_enter();</tt>
+	every so often.
+	But given that long-running interrupt handlers can cause
+	other problems, not least for response time, shouldn't you
+	work to keep your interrupt handler's runtime within reasonable
+	bounds?
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
+<p>
+But as long as RCU is properly informed of kernel state transitions between
+in-kernel execution, usermode execution, and idle, and as long as the
+scheduling-clock interrupt is enabled when RCU needs it to be, you
+can rest assured that the bugs you encounter will be in some other
+part of RCU or some other part of the kernel!
 
 <h3><a name="Memory Efficiency">Memory Efficiency</a></h3>
 
@@ -2934,6 +3058,20 @@ though this is not necessarily a good idea.
 The reason that this is possible is that SRCU is insensitive
 to whether or not a CPU is online, which means that <tt>srcu_barrier()</tt>
 need not exclude CPU-hotplug operations.
+
+<p>
+SRCU also differs from other RCU flavors in that SRCU's expedited and
+non-expedited grace periods are implemented by the same mechanism.
+This means that in the current SRCU implementation, expediting a
+future grace period has the side effect of expediting all prior
+grace periods that have not yet completed.
+(But please note that this is a property of the current implementation,
+not necessarily of future implementations.)
+In addition, if SRCU has been idle for longer than the interval
+specified by the <tt>srcutree.exp_holdoff</tt> kernel boot parameter
+(25&nbsp;microseconds by default),
+and if a <tt>synchronize_srcu()</tt> invocation ends this idle period,
+that invocation will be automatically expedited.
 
 <p>
 As of v4.12, SRCU's callbacks are maintained per-CPU, eliminating

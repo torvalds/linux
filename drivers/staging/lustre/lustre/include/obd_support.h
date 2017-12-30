@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -36,9 +37,9 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "lustre_compat.h"
-#include "lprocfs_status.h"
+#include <linux/libcfs/libcfs.h>
+#include <lustre_compat.h>
+#include <lprocfs_status.h>
 
 /* global variables */
 extern unsigned int obd_debug_peer_on_timeout;

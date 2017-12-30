@@ -676,7 +676,7 @@ no_irq:
 	 * otherwise continue and add devices using mfd helpers.
 	 */
 	if (node) {
-		ret = of_platform_populate(node, NULL, NULL, &i2c->dev);
+		ret = devm_of_platform_populate(&i2c->dev);
 		if (ret < 0) {
 			goto err_irq;
 		} else if (pdata->pm_off && !pm_power_off) {

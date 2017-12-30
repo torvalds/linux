@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX__AIO_H
 #define __LINUX__AIO_H
 

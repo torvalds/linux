@@ -107,7 +107,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 
-			uart0: serial@0300 {
+			uart0: serial@300 {
 				compatible = "ns16550a";
 				reg = <0x0300 0x100>;
 				interrupt-parent = <&gic>;
@@ -138,10 +138,12 @@
 
 				ehci_port1: port@1 {
 					reg = <1>;
+					#trigger-source-cells = <0>;
 				};
 
 				ehci_port2: port@2 {
 					reg = <2>;
+					#trigger-source-cells = <0>;
 				};
 			};
 
@@ -158,10 +160,12 @@
 
 				ohci_port1: port@1 {
 					reg = <1>;
+					#trigger-source-cells = <0>;
 				};
 
 				ohci_port2: port@2 {
 					reg = <2>;
+					#trigger-source-cells = <0>;
 				};
 			};
 		};

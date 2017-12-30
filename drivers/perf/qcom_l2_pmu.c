@@ -92,6 +92,21 @@
 
 #define reg_idx(reg, i)         (((i) * IA_L2_REG_OFFSET) + reg##_BASE)
 
+/*
+ * Events
+ */
+#define L2_EVENT_CYCLES                    0xfe
+#define L2_EVENT_DCACHE_OPS                0x400
+#define L2_EVENT_ICACHE_OPS                0x401
+#define L2_EVENT_TLBI                      0x402
+#define L2_EVENT_BARRIERS                  0x403
+#define L2_EVENT_TOTAL_READS               0x405
+#define L2_EVENT_TOTAL_WRITES              0x406
+#define L2_EVENT_TOTAL_REQUESTS            0x407
+#define L2_EVENT_LDREX                     0x420
+#define L2_EVENT_STREX                     0x421
+#define L2_EVENT_CLREX                     0x422
+
 static DEFINE_RAW_SPINLOCK(l2_access_lock);
 
 /**
@@ -546,6 +561,7 @@ static int l2_cache_event_init(struct perf_event *event)
 	}
 
 	if ((event != event->group_leader) &&
+	    !is_software_event(event->group_leader) &&
 	    (L2_EVT_GROUP(event->group_leader->attr.config) ==
 	     L2_EVT_GROUP(event->attr.config))) {
 		dev_dbg_ratelimited(&l2cache_pmu->pdev->dev,
@@ -558,6 +574,7 @@ static int l2_cache_event_init(struct perf_event *event)
 	list_for_each_entry(sibling, &event->group_leader->sibling_list,
 			    group_entry) {
 		if ((sibling != event) &&
+		    !is_software_event(sibling) &&
 		    (L2_EVT_GROUP(sibling->attr.config) ==
 		     L2_EVT_GROUP(event->attr.config))) {
 			dev_dbg_ratelimited(&l2cache_pmu->pdev->dev,
@@ -698,9 +715,12 @@ static struct attribute_group l2_cache_pmu_cpumask_group = {
 /* CCG format for perf RAW codes. */
 PMU_FORMAT_ATTR(l2_code,   "config:4-11");
 PMU_FORMAT_ATTR(l2_group,  "config:0-3");
+PMU_FORMAT_ATTR(event,     "config:0-11");
+
 static struct attribute *l2_cache_pmu_formats[] = {
 	&format_attr_l2_code.attr,
 	&format_attr_l2_group.attr,
+	&format_attr_event.attr,
 	NULL,
 };
 
@@ -709,9 +729,45 @@ static struct attribute_group l2_cache_pmu_format_group = {
 	.attrs = l2_cache_pmu_formats,
 };
 
+static ssize_t l2cache_pmu_event_show(struct device *dev,
+				      struct device_attribute *attr, char *page)
+{
+	struct perf_pmu_events_attr *pmu_attr;
+
+	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
+	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+}
+
+#define L2CACHE_EVENT_ATTR(_name, _id)					     \
+	(&((struct perf_pmu_events_attr[]) {				     \
+		{ .attr = __ATTR(_name, 0444, l2cache_pmu_event_show, NULL), \
+		  .id = _id, }						     \
+	})[0].attr.attr)
+
+static struct attribute *l2_cache_pmu_events[] = {
+	L2CACHE_EVENT_ATTR(cycles, L2_EVENT_CYCLES),
+	L2CACHE_EVENT_ATTR(dcache-ops, L2_EVENT_DCACHE_OPS),
+	L2CACHE_EVENT_ATTR(icache-ops, L2_EVENT_ICACHE_OPS),
+	L2CACHE_EVENT_ATTR(tlbi, L2_EVENT_TLBI),
+	L2CACHE_EVENT_ATTR(barriers, L2_EVENT_BARRIERS),
+	L2CACHE_EVENT_ATTR(total-reads, L2_EVENT_TOTAL_READS),
+	L2CACHE_EVENT_ATTR(total-writes, L2_EVENT_TOTAL_WRITES),
+	L2CACHE_EVENT_ATTR(total-requests, L2_EVENT_TOTAL_REQUESTS),
+	L2CACHE_EVENT_ATTR(ldrex, L2_EVENT_LDREX),
+	L2CACHE_EVENT_ATTR(strex, L2_EVENT_STREX),
+	L2CACHE_EVENT_ATTR(clrex, L2_EVENT_CLREX),
+	NULL
+};
+
+static struct attribute_group l2_cache_pmu_events_group = {
+	.name = "events",
+	.attrs = l2_cache_pmu_events,
+};
+
 static const struct attribute_group *l2_cache_pmu_attr_grps[] = {
 	&l2_cache_pmu_format_group,
 	&l2_cache_pmu_cpumask_group,
+	&l2_cache_pmu_events_group,
 	NULL,
 };
 

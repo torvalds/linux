@@ -2384,20 +2384,17 @@ lpfc_sli4_bsg_link_diag_test(struct bsg_job *job)
 		goto job_error;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!pmboxq) {
-		rc = -ENOMEM;
+	if (!pmboxq)
 		goto link_diag_test_exit;
-	}
 
 	req_len = (sizeof(struct lpfc_mbx_set_link_diag_state) -
 		   sizeof(struct lpfc_sli4_cfg_mhdr));
 	alloc_len = lpfc_sli4_config(phba, pmboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
 				     LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_STATE,
 				     req_len, LPFC_SLI4_MBX_EMBED);
-	if (alloc_len != req_len) {
-		rc = -ENOMEM;
+	if (alloc_len != req_len)
 		goto link_diag_test_exit;
-	}
+
 	run_link_diag_test = &pmboxq->u.mqe.un.link_diag_test;
 	bf_set(lpfc_mbx_run_diag_test_link_num, &run_link_diag_test->u.req,
 	       phba->sli4_hba.lnk_info.lnk_no);
@@ -2914,7 +2911,7 @@ static int lpfcdiag_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
 		}
 	}
 
-	if (!cmdiocbq || !rxbmp || !rxbpl || !rxbuffer) {
+	if (!cmdiocbq || !rxbmp || !rxbpl || !rxbuffer || !pring) {
 		ret_val = -ENOMEM;
 		goto err_post_rxbufs_exit;
 	}
@@ -5424,6 +5421,8 @@ lpfc_bsg_timeout(struct bsg_job *job)
 	struct lpfc_iocbq *check_iocb, *next_iocb;
 
 	pring = lpfc_phba_elsring(phba);
+	if (unlikely(!pring))
+		return -EIO;
 
 	/* if job's driver data is NULL, the command completed or is in the
 	 * the process of completing.  In this case, return status to request

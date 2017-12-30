@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MBX_FB_H
 #define __MBX_FB_H
 

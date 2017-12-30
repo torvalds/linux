@@ -131,31 +131,6 @@ static inline int drm_scdc_writeb(struct i2c_adapter *adapter, u8 offset,
 
 bool drm_scdc_get_scrambling_status(struct i2c_adapter *adapter);
 
-/**
- * drm_scdc_set_scrambling - enable scrambling
- * @adapter: I2C adapter for DDC channel
- * @enable: bool to indicate if scrambling is to be enabled/disabled
- *
- * Writes the TMDS config register over SCDC channel, and:
- * enables scrambling when enable = 1
- * disables scrambling when enable = 0
- *
- * Returns:
- * True if scrambling is set/reset successfully, false otherwise.
- */
 bool drm_scdc_set_scrambling(struct i2c_adapter *adapter, bool enable);
-
-/**
- * drm_scdc_set_high_tmds_clock_ratio - set TMDS clock ratio
- * @adapter: I2C adapter for DDC channel
- * @set: ret or reset the high clock ratio
- *
- * Writes to the TMDS config register over SCDC channel, and:
- * sets TMDS clock ratio to 1/40 when set = 1
- * sets TMDS clock ratio to 1/10 when set = 0
- *
- * Returns:
- * True if write is successful, false otherwise.
- */
 bool drm_scdc_set_high_tmds_clock_ratio(struct i2c_adapter *adapter, bool set);
 #endif

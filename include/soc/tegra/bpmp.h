@@ -15,6 +15,7 @@
 #define __SOC_TEGRA_BPMP_H
 
 #include <linux/mailbox_client.h>
+#include <linux/pm_domain.h>
 #include <linux/reset-controller.h>
 #include <linux/semaphore.h>
 #include <linux/types.h>
@@ -91,10 +92,13 @@ struct tegra_bpmp {
 	unsigned int num_clocks;
 
 	struct reset_controller_dev rstc;
-};
 
-struct tegra_bpmp *tegra_bpmp_get(struct device *dev);
-void tegra_bpmp_put(struct tegra_bpmp *bpmp);
+	struct genpd_onecell_data genpd;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_mirror;
+#endif
+};
 
 struct tegra_bpmp_message {
 	unsigned int mrq;
@@ -107,18 +111,60 @@ struct tegra_bpmp_message {
 	struct {
 		void *data;
 		size_t size;
+		int ret;
 	} rx;
 };
 
+#if IS_ENABLED(CONFIG_TEGRA_BPMP)
+struct tegra_bpmp *tegra_bpmp_get(struct device *dev);
+void tegra_bpmp_put(struct tegra_bpmp *bpmp);
 int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 			       struct tegra_bpmp_message *msg);
 int tegra_bpmp_transfer(struct tegra_bpmp *bpmp,
 			struct tegra_bpmp_message *msg);
+void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel, int code,
+			   const void *data, size_t size);
 
 int tegra_bpmp_request_mrq(struct tegra_bpmp *bpmp, unsigned int mrq,
 			   tegra_bpmp_mrq_handler_t handler, void *data);
 void tegra_bpmp_free_mrq(struct tegra_bpmp *bpmp, unsigned int mrq,
 			 void *data);
+#else
+static inline struct tegra_bpmp *tegra_bpmp_get(struct device *dev)
+{
+	return ERR_PTR(-ENOTSUPP);
+}
+static inline void tegra_bpmp_put(struct tegra_bpmp *bpmp)
+{
+}
+static inline int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
+					     struct tegra_bpmp_message *msg)
+{
+	return -ENOTSUPP;
+}
+static inline int tegra_bpmp_transfer(struct tegra_bpmp *bpmp,
+				      struct tegra_bpmp_message *msg)
+{
+	return -ENOTSUPP;
+}
+static inline void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel,
+					 int code, const void *data,
+					 size_t size)
+{
+}
+
+static inline int tegra_bpmp_request_mrq(struct tegra_bpmp *bpmp,
+					 unsigned int mrq,
+					 tegra_bpmp_mrq_handler_t handler,
+					 void *data)
+{
+	return -ENOTSUPP;
+}
+static inline void tegra_bpmp_free_mrq(struct tegra_bpmp *bpmp,
+				       unsigned int mrq, void *data)
+{
+}
+#endif
 
 #if IS_ENABLED(CONFIG_CLK_TEGRA_BPMP)
 int tegra_bpmp_init_clocks(struct tegra_bpmp *bpmp);
@@ -137,5 +183,24 @@ static inline int tegra_bpmp_init_resets(struct tegra_bpmp *bpmp)
 	return 0;
 }
 #endif
+
+#if IS_ENABLED(CONFIG_SOC_TEGRA_POWERGATE_BPMP)
+int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp);
+#else
+static inline int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp)
+{
+	return 0;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp);
+#else
+static inline int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
+{
+	return 0;
+}
+#endif
+
 
 #endif /* __SOC_TEGRA_BPMP_H */

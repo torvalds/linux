@@ -15,7 +15,7 @@
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
-#include "reboot-mode.h"
+#include <linux/reboot-mode.h>
 
 struct syscon_reboot_mode {
 	struct regmap *map;

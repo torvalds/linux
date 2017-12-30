@@ -50,7 +50,7 @@ struct radeon_mn {
 
 	/* objects protected by lock */
 	struct mutex		lock;
-	struct rb_root		objects;
+	struct rb_root_cached	objects;
 };
 
 struct radeon_mn_node {
@@ -75,8 +75,8 @@ static void radeon_mn_destroy(struct work_struct *work)
 	mutex_lock(&rdev->mn_lock);
 	mutex_lock(&rmn->lock);
 	hash_del(&rmn->node);
-	rbtree_postorder_for_each_entry_safe(node, next_node, &rmn->objects,
-					     it.rb) {
+	rbtree_postorder_for_each_entry_safe(node, next_node,
+					     &rmn->objects.rb_root, it.rb) {
 
 		interval_tree_remove(&node->it, &rmn->objects);
 		list_for_each_entry_safe(bo, next_bo, &node->bos, mn_list) {
@@ -205,7 +205,7 @@ static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)
 	rmn->mm = mm;
 	rmn->mn.ops = &radeon_mn_ops;
 	mutex_init(&rmn->lock);
-	rmn->objects = RB_ROOT;
+	rmn->objects = RB_ROOT_CACHED;
 	
 	r = __mmu_notifier_register(&rmn->mn, mm);
 	if (r)

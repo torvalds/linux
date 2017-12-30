@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -46,14 +47,13 @@
 
 #include <linux/fs.h>
 #include <linux/dcache.h>
-#include "lustre_intent.h"
-#include "lustre_handles.h"
-#include "../../include/linux/libcfs/libcfs.h"
-#include "obd_class.h"
-#include "lustre/lustre_idl.h"
-#include "lustre_lib.h"
-#include "lustre_dlm.h"
-#include "lustre_export.h"
+#include <lustre_intent.h>
+#include <lustre_handles.h>
+#include <linux/libcfs/libcfs.h>
+#include <obd_class.h>
+#include <lustre_lib.h>
+#include <lustre_dlm.h>
+#include <lustre_export.h>
 
 struct ptlrpc_client;
 struct obd_export;

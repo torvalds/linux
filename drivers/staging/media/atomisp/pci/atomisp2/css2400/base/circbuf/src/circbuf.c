@@ -21,7 +21,7 @@
  * Forward declarations.
  *
  **********************************************************************/
-/**
+/*
  * @brief Read the oldest element from the circular buffer.
  * Read the oldest element WITHOUT checking whehter the
  * circular buffer is empty or not. The oldest element is
@@ -34,7 +34,7 @@
 static inline ia_css_circbuf_elem_t
 ia_css_circbuf_read(ia_css_circbuf_t *cb);
 
-/**
+/*
  * @brief Shift a chunk of elements in the circular buffer.
  * A chunk of elements (i.e. the ones from the "start" position
  * to the "chunk_src" position) are shifted in the circular buffer,
@@ -48,7 +48,7 @@ static inline void ia_css_circbuf_shift_chunk(ia_css_circbuf_t *cb,
 						   uint32_t chunk_src,
 						   uint32_t chunk_dest);
 
-/**
+/*
  * @brief Get the "val" field in the element.
  *
  * @param elem The pointer to the element.
@@ -63,7 +63,7 @@ ia_css_circbuf_elem_get_val(ia_css_circbuf_elem_t *elem);
  * Non-inline functions.
  *
  **********************************************************************/
-/**
+/*
  * @brief Create the circular buffer.
  * Refer to "ia_css_circbuf.h" for details.
  */
@@ -88,7 +88,7 @@ ia_css_circbuf_create(ia_css_circbuf_t *cb,
 	cb->elems = elems;
 }
 
-/**
+/*
  * @brief Destroy the circular buffer.
  * Refer to "ia_css_circbuf.h" for details.
  */
@@ -99,7 +99,7 @@ void ia_css_circbuf_destroy(ia_css_circbuf_t *cb)
 	cb->elems = NULL;
 }
 
-/**
+/*
  * @brief Pop a value out of the circular buffer.
  * Refer to "ia_css_circbuf.h" for details.
  */
@@ -116,7 +116,7 @@ uint32_t ia_css_circbuf_pop(ia_css_circbuf_t *cb)
 	return ret;
 }
 
-/**
+/*
  * @brief Extract a value out of the circular buffer.
  * Refer to "ia_css_circbuf.h" for details.
  */
@@ -166,7 +166,7 @@ uint32_t ia_css_circbuf_extract(ia_css_circbuf_t *cb, int offset)
 	return val;
 }
 
-/**
+/*
  * @brief Peek an element from the circular buffer.
  * Refer to "ia_css_circbuf.h" for details.
  */
@@ -180,7 +180,7 @@ uint32_t ia_css_circbuf_peek(ia_css_circbuf_t *cb, int offset)
 	return cb->elems[pos].val;
 }
 
-/**
+/*
  * @brief Get the value of an element from the circular buffer.
  * Refer to "ia_css_circbuf.h" for details.
  */
@@ -194,7 +194,7 @@ uint32_t ia_css_circbuf_peek_from_start(ia_css_circbuf_t *cb, int offset)
 	return cb->elems[pos].val;
 }
 
-/** @brief increase size of a circular buffer.
+/* @brief increase size of a circular buffer.
  * Use 'CAUTION' before using this function. This was added to
  * support / fix issue with increasing size for tagger only
  * Please refer to "ia_css_circbuf.h" for details.
@@ -252,7 +252,7 @@ bool ia_css_circbuf_increase_size(
  * Inline functions.
  *
  ****************************************************************/
-/**
+/*
  * @brief Get the "val" field in the element.
  * Refer to "Forward declarations" for details.
  */
@@ -262,7 +262,7 @@ ia_css_circbuf_elem_get_val(ia_css_circbuf_elem_t *elem)
 	return elem->val;
 }
 
-/**
+/*
  * @brief Read the oldest element from the circular buffer.
  * Refer to "Forward declarations" for details.
  */
@@ -282,7 +282,7 @@ ia_css_circbuf_read(ia_css_circbuf_t *cb)
 	return elem;
 }
 
-/**
+/*
  * @brief Shift a chunk of elements in the circular buffer.
  * Refer to "Forward declarations" for details.
  */

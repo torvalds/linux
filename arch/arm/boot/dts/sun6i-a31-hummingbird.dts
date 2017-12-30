@@ -62,6 +62,17 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
 	vga-connector {
 		compatible = "vga-connector";
 
@@ -162,6 +173,16 @@
 	};
 };
 
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins_a>;
@@ -253,6 +274,10 @@
 
 #include "axp22x.dtsi"
 
+&ac_power_supply {
+	status = "okay";
+};
+
 &reg_aldo1 {
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
@@ -319,7 +344,6 @@
 &tcon0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&lcd0_rgb888_pins>;
-	status = "okay";
 };
 
 &tcon0_out {
@@ -342,11 +366,6 @@
 
 &usb_power_supply {
 	status = "okay";
-};
-
-&usb1_vbus_pin_a {
-	/* different pin from sunxi-common-regulators */
-	pins = "PH24";
 };
 
 &usbphy {

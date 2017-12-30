@@ -96,8 +96,8 @@ typedef enum mstat_status{
 
 #define rtw_mstat_update(flag, status, sz) do {} while (0)
 #define rtw_mstat_dump(sel) do {} while (0)
-u8*_rtw_zmalloc(u32 sz);
-u8*_rtw_malloc(u32 sz);
+void *_rtw_zmalloc(u32 sz);
+void *_rtw_malloc(u32 sz);
 void _kfree(u8 *pbuf, u32 sz);
 
 struct sk_buff *_rtw_skb_alloc(u32 sz);
@@ -117,8 +117,6 @@ int _rtw_netif_rx(_nic_hdl ndev, struct sk_buff *skb);
 #define rtw_netif_rx(ndev, skb) _rtw_netif_rx(ndev, skb)
 
 extern void _rtw_init_queue(struct __queue	*pqueue);
-
-extern void rtw_init_timer(_timer *ptimer, void *padapter, void *pfunc);
 
 static __inline void thread_enter(char *name)
 {
@@ -169,10 +167,10 @@ __inline static u32 _RND8(u32 sz)
 }
 
 #ifndef MAC_FMT
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_FMT "%pM"
 #endif
 #ifndef MAC_ARG
-#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
+#define MAC_ARG(x) (x)
 #endif
 
 

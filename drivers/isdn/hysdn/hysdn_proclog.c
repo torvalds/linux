@@ -44,7 +44,6 @@ struct procdata {
 	char log_name[15];	/* log filename */
 	struct log_data *log_head, *log_tail;	/* head and tail for queue */
 	int if_used;		/* open count for interface */
-	int volatile del_lock;	/* lock for delete operations */
 	unsigned char logtmp[LOG_MAX_LINELEN];
 	wait_queue_head_t rd_queue;
 };
@@ -102,7 +101,6 @@ put_log_buffer(hysdn_card *card, char *cp)
 {
 	struct log_data *ib;
 	struct procdata *pd = card->proclog;
-	int i;
 	unsigned long flags;
 
 	if (!pd)
@@ -126,21 +124,21 @@ put_log_buffer(hysdn_card *card, char *cp)
 	else
 		pd->log_tail->next = ib;	/* follows existing messages */
 	pd->log_tail = ib;	/* new tail */
-	i = pd->del_lock++;	/* get lock state */
-	spin_unlock_irqrestore(&card->hysdn_lock, flags);
 
 	/* delete old entrys */
-	if (!i)
-		while (pd->log_head->next) {
-			if ((pd->log_head->usage_cnt <= 0) &&
-			    (pd->log_head->next->usage_cnt <= 0)) {
-				ib = pd->log_head;
-				pd->log_head = pd->log_head->next;
-				kfree(ib);
-			} else
-				break;
-		}		/* pd->log_head->next */
-	pd->del_lock--;		/* release lock level */
+	while (pd->log_head->next) {
+		if ((pd->log_head->usage_cnt <= 0) &&
+		    (pd->log_head->next->usage_cnt <= 0)) {
+			ib = pd->log_head;
+			pd->log_head = pd->log_head->next;
+			kfree(ib);
+		} else {
+			break;
+		}
+	}		/* pd->log_head->next */
+
+	spin_unlock_irqrestore(&card->hysdn_lock, flags);
+
 	wake_up_interruptible(&(pd->rd_queue));		/* announce new entry */
 }				/* put_log_buffer */
 

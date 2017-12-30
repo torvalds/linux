@@ -130,8 +130,8 @@ int __init spiderpci_iowa_init(struct iowa_bus *bus, void *data)
 	struct resource r;
 	unsigned long offset = (unsigned long)data;
 
-	pr_debug("SPIDERPCI-IOWA:Bus initialize for spider(%s)\n",
-		 np->full_name);
+	pr_debug("SPIDERPCI-IOWA:Bus initialize for spider(%pOF)\n",
+		 np);
 
 	priv = kzalloc(sizeof(struct spiderpci_iowa_private), GFP_KERNEL);
 	if (!priv) {

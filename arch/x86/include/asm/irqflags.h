@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _X86_IRQFLAGS_H_
 #define _X86_IRQFLAGS_H_
 
@@ -141,6 +142,9 @@ static inline notrace unsigned long arch_local_irq_save(void)
 	swapgs;					\
 	sysretl
 
+#ifdef CONFIG_DEBUG_ENTRY
+#define SAVE_FLAGS(x)		pushfq; popq %rax
+#endif
 #else
 #define INTERRUPT_RETURN		iret
 #define ENABLE_INTERRUPTS_SYSEXIT	sti; sysexit

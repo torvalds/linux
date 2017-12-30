@@ -22,7 +22,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/timer.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <media/cec.h>
 
@@ -36,6 +35,7 @@
 #define CEC_STATUS_TX_TRANSFERRING	(1 << 1)
 #define CEC_STATUS_TX_DONE		(1 << 2)
 #define CEC_STATUS_TX_ERROR		(1 << 3)
+#define CEC_STATUS_TX_NACK		(1 << 4)
 #define CEC_STATUS_TX_BYTES		(0xFF << 8)
 #define CEC_STATUS_RX_RUNNING		(1 << 16)
 #define CEC_STATUS_RX_RECEIVING		(1 << 17)
@@ -56,6 +56,7 @@ enum cec_state {
 	STATE_IDLE,
 	STATE_BUSY,
 	STATE_DONE,
+	STATE_NACK,
 	STATE_ERROR
 };
 

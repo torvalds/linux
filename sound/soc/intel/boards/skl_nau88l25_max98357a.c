@@ -54,20 +54,6 @@ enum {
 	SKL_DPCM_AUDIO_HDMI3_PB,
 };
 
-static inline struct snd_soc_dai *skl_get_codec_dai(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	list_for_each_entry(rtd, &card->rtd_list, list) {
-
-		if (!strncmp(rtd->codec_dai->name, SKL_NUVOTON_CODEC_DAI,
-			     strlen(SKL_NUVOTON_CODEC_DAI)))
-			return rtd->codec_dai;
-	}
-
-	return NULL;
-}
-
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int  event)
 {
@@ -76,7 +62,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dai *codec_dai;
 	int ret;
 
-	codec_dai = skl_get_codec_dai(card);
+	codec_dai = snd_soc_card_get_codec_dai(card, SKL_NUVOTON_CODEC_DAI);
 	if (!codec_dai) {
 		dev_err(card->dev, "Codec dai not found; Unable to set platform clock\n");
 		return -EIO;
@@ -266,21 +252,21 @@ static int skylake_nau8825_fe_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
 	48000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_rates = {
+static const struct snd_pcm_hw_constraint_list constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list  = rates,
 	.mask = 0,
 };
 
-static unsigned int channels[] = {
+static const unsigned int channels[] = {
 	2,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_channels = {
+static const struct snd_pcm_hw_constraint_list constraints_channels = {
 	.count = ARRAY_SIZE(channels),
 	.list = channels,
 	.mask = 0,
@@ -348,11 +334,11 @@ static int skylake_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static unsigned int channels_dmic[] = {
+static const unsigned int channels_dmic[] = {
 	2, 4,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
+static const struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
 	.count = ARRAY_SIZE(channels_dmic),
 	.list = channels_dmic,
 	.mask = 0,
@@ -384,11 +370,11 @@ static const struct snd_soc_ops skylake_dmic_ops = {
 	.startup = skylake_dmic_startup,
 };
 
-static unsigned int rates_16000[] = {
+static const unsigned int rates_16000[] = {
 	16000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_16000 = {
+static const struct snd_pcm_hw_constraint_list constraints_16000 = {
 	.count = ARRAY_SIZE(rates_16000),
 	.list  = rates_16000,
 };

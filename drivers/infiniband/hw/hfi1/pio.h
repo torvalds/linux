@@ -54,12 +54,6 @@
 #define SC_USER   3	/* must be the last one: it may take all left */
 #define SC_MAX    4	/* count of send context types */
 
-/*
- * SC_VNIC types are allocated (dynamically) from the user context pool,
- * (SC_USER) and used by kernel driver as kernel contexts (SC_KERNEL).
- */
-#define SC_VNIC   SC_MAX
-
 /* invalid send context index */
 #define INVALID_SCI 0xff
 

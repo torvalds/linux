@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ___ASM_SPARC_CACHEFLUSH_H
 #define ___ASM_SPARC_CACHEFLUSH_H
 

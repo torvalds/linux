@@ -341,13 +341,13 @@ static int __init irqcrossbar_init(struct device_node *node,
 	int err;
 
 	if (!parent) {
-		pr_err("%s: no parent, giving up\n", node->full_name);
+		pr_err("%pOF: no parent, giving up\n", node);
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%s: unable to obtain parent domain\n", node->full_name);
+		pr_err("%pOF: unable to obtain parent domain\n", node);
 		return -ENXIO;
 	}
 
@@ -360,7 +360,7 @@ static int __init irqcrossbar_init(struct device_node *node,
 					  node, &crossbar_domain_ops,
 					  NULL);
 	if (!domain) {
-		pr_err("%s: failed to allocated domain\n", node->full_name);
+		pr_err("%pOF: failed to allocated domain\n", node);
 		return -ENOMEM;
 	}
 

@@ -190,40 +190,36 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
  * rt2x00usb_register_read - Read 32bit register word
  * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
  * @offset: Register offset
- * @value: Pointer to where register contents should be stored
  *
  * This function is a simple wrapper for 32bit register access
  * through rt2x00usb_vendor_request_buff().
  */
-static inline void rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
-					   const unsigned int offset,
-					   u32 *value)
+static inline u32 rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
+					  const unsigned int offset)
 {
 	__le32 reg = 0;
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
 				      &reg, sizeof(reg));
-	*value = le32_to_cpu(reg);
+	return le32_to_cpu(reg);
 }
 
 /**
  * rt2x00usb_register_read_lock - Read 32bit register word
  * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
  * @offset: Register offset
- * @value: Pointer to where register contents should be stored
  *
  * This function is a simple wrapper for 32bit register access
  * through rt2x00usb_vendor_req_buff_lock().
  */
-static inline void rt2x00usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
-						const unsigned int offset,
-						u32 *value)
+static inline u32 rt2x00usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
+					       const unsigned int offset)
 {
 	__le32 reg = 0;
 	rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_READ,
 				       USB_VENDOR_REQUEST_IN, offset,
 				       &reg, sizeof(reg), REGISTER_TIMEOUT);
-	*value = le32_to_cpu(reg);
+	return le32_to_cpu(reg);
 }
 
 /**

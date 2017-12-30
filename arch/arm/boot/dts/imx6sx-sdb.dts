@@ -18,7 +18,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	pmic: pfuze100@08 {
+	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze200";
 		reg = <0x08>;
 
@@ -127,4 +127,12 @@
 		spi-max-frequency = <29000000>;
 		reg = <1>;
 	};
+};
+
+&reg_arm {
+	vin-supply = <&sw1a_reg>;
+};
+
+&reg_soc {
+	vin-supply = <&sw1a_reg>;
 };

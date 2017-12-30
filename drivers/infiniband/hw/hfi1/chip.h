@@ -204,6 +204,7 @@
 #define PLS_OFFLINE_READY_TO_QUIET_LT	   0x92
 #define PLS_OFFLINE_REPORT_FAILURE		   0x93
 #define PLS_OFFLINE_READY_TO_QUIET_BCC	   0x94
+#define PLS_OFFLINE_QUIET_DURATION	   0x95
 #define PLS_POLLING				   0x20
 #define PLS_POLLING_QUIET			   0x20
 #define PLS_POLLING_ACTIVE			   0x21
@@ -384,6 +385,7 @@
 #define VERIFY_CAP_LOCAL_FABRIC	     0x08
 #define VERIFY_CAP_LOCAL_LINK_WIDTH  0x09
 #define LOCAL_DEVICE_ID		     0x0a
+#define RESERVED_REGISTERS	     0x0b
 #define LOCAL_LNI_INFO		     0x0c
 #define REMOTE_LNI_INFO              0x0d
 #define MISC_STATUS		     0x0e
@@ -506,6 +508,9 @@
 #define DOWN_REMOTE_REASON_SHIFT 16
 #define DOWN_REMOTE_REASON_MASK  0xff
 
+#define HOST_INTERFACE_VERSION_SHIFT 16
+#define HOST_INTERFACE_VERSION_MASK  0xff
+
 /* verify capability PHY power management bits */
 #define PWRM_BER_CONTROL	0x1
 #define PWRM_BANDWIDTH_CONTROL	0x2
@@ -555,7 +560,7 @@ enum {
 /* timeouts */
 #define LINK_RESTART_DELAY 1000		/* link restart delay, in ms */
 #define TIMEOUT_8051_START 5000         /* 8051 start timeout, in ms */
-#define DC8051_COMMAND_TIMEOUT 20000	/* DC8051 command timeout, in ms */
+#define DC8051_COMMAND_TIMEOUT 1000	/* DC8051 command timeout, in ms */
 #define FREEZE_STATUS_TIMEOUT 20	/* wait for freeze indicators, in ms */
 #define VL_STATUS_CLEAR_TIMEOUT 5000	/* per-VL status clear, in ms */
 #define CCE_STATUS_TIMEOUT 10		/* time to clear CCE Status, in ms */
@@ -577,6 +582,9 @@ enum {
 #define LOOPBACK_SERDES 1
 #define LOOPBACK_LCB	2
 #define LOOPBACK_CABLE	3	/* external cable */
+
+/* set up serdes bit in MISC_CONFIG_BITS */
+#define LOOPBACK_SERDES_CONFIG_BIT_MASK_SHIFT 0
 
 /* read and write hardware registers */
 u64 read_csr(const struct hfi1_devdata *dd, u32 offset);
@@ -605,11 +613,11 @@ int read_lcb_csr(struct hfi1_devdata *dd, u32 offset, u64 *data);
 int write_lcb_csr(struct hfi1_devdata *dd, u32 offset, u64 data);
 
 void __iomem *get_csr_addr(
-	struct hfi1_devdata *dd,
+	const struct hfi1_devdata *dd,
 	u32 offset);
 
 static inline void __iomem *get_kctxt_csr_addr(
-	struct hfi1_devdata *dd,
+	const struct hfi1_devdata *dd,
 	int ctxt,
 	u32 offset0)
 {
@@ -644,7 +652,6 @@ u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
 #define NUM_PCIE_SERDES 16	/* number of PCIe serdes on the SBus */
 extern const u8 pcie_serdes_broadcast[];
 extern const u8 pcie_pcs_addrs[2][NUM_PCIE_SERDES];
-extern uint platform_config_load;
 
 /* SBus commands */
 #define RESET_SBUS_RECEIVER 0x20
@@ -704,7 +711,9 @@ int read_8051_data(struct hfi1_devdata *dd, u32 addr, u32 len, u64 *result);
 /* chip.c */
 void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
 		      u8 *ver_patch);
+int write_host_interface_version(struct hfi1_devdata *dd, u8 version);
 void read_guid(struct hfi1_devdata *dd);
+int release_and_wait_ready_8051_firmware(struct hfi1_devdata *dd);
 int wait_fm_ready(struct hfi1_devdata *dd, u32 mstimeout);
 void set_link_down_reason(struct hfi1_pportdata *ppd, u8 lcl_reason,
 			  u8 neigh_reason, u8 rem_reason);
@@ -718,7 +727,7 @@ void handle_link_downgrade(struct work_struct *work);
 void handle_link_bounce(struct work_struct *work);
 void handle_start_link(struct work_struct *work);
 void handle_sma_message(struct work_struct *work);
-void reset_qsfp(struct hfi1_pportdata *ppd);
+int reset_qsfp(struct hfi1_pportdata *ppd);
 void qsfp_event(struct work_struct *work);
 void start_freeze_handling(struct hfi1_pportdata *ppd, int flags);
 int send_idle_sma(struct hfi1_devdata *dd, u64 message);
@@ -743,11 +752,10 @@ int is_ax(struct hfi1_devdata *dd);
 int is_bx(struct hfi1_devdata *dd);
 u32 read_physical_state(struct hfi1_devdata *dd);
 u32 chip_to_opa_pstate(struct hfi1_devdata *dd, u32 chip_pstate);
-u32 get_logical_state(struct hfi1_pportdata *ppd);
 const char *opa_lstate_name(u32 lstate);
 const char *opa_pstate_name(u32 pstate);
-u32 driver_physical_state(struct hfi1_pportdata *ppd);
-u32 driver_logical_state(struct hfi1_pportdata *ppd);
+u32 driver_pstate(struct hfi1_pportdata *ppd);
+u32 driver_lstate(struct hfi1_pportdata *ppd);
 
 int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok);
 int release_lcb_access(struct hfi1_devdata *dd, int sleep_ok);
@@ -1347,21 +1355,21 @@ enum {
 u64 get_all_cpu_total(u64 __percpu *cntr);
 void hfi1_start_cleanup(struct hfi1_devdata *dd);
 void hfi1_clear_tids(struct hfi1_ctxtdata *rcd);
-struct ib_header *hfi1_get_msgheader(
-				struct hfi1_devdata *dd, __le32 *rhf_addr);
 void hfi1_init_ctxt(struct send_context *sc);
 void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		  u32 type, unsigned long pa, u16 order);
 void hfi1_quiet_serdes(struct hfi1_pportdata *ppd);
-void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt);
+void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
+		  struct hfi1_ctxtdata *rcd);
 u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp);
 u32 hfi1_read_portcntrs(struct hfi1_pportdata *ppd, char **namep, u64 **cntrp);
-u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd);
 int hfi1_get_ib_cfg(struct hfi1_pportdata *ppd, int which);
 int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val);
-int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt, u16 jkey);
-int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt);
-int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt, u16 pkey);
+int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd,
+		       u16 jkey);
+int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt);
+int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt,
+		       u16 pkey);
 int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt);
 void hfi1_read_link_quality(struct hfi1_devdata *dd, u8 *link_quality);
 void hfi1_init_vnic_rsm(struct hfi1_devdata *dd);

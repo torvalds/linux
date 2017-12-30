@@ -248,14 +248,15 @@ static void ucma_copy_conn_event(struct rdma_ucm_conn_param *dst,
 	dst->qp_num = src->qp_num;
 }
 
-static void ucma_copy_ud_event(struct rdma_ucm_ud_param *dst,
+static void ucma_copy_ud_event(struct ib_device *device,
+			       struct rdma_ucm_ud_param *dst,
 			       struct rdma_ud_param *src)
 {
 	if (src->private_data_len)
 		memcpy(dst->private_data, src->private_data,
 		       src->private_data_len);
 	dst->private_data_len = src->private_data_len;
-	ib_copy_ah_attr_to_user(&dst->ah_attr, &src->ah_attr);
+	ib_copy_ah_attr_to_user(device, &dst->ah_attr, &src->ah_attr);
 	dst->qp_num = src->qp_num;
 	dst->qkey = src->qkey;
 }
@@ -335,7 +336,8 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	uevent->resp.event = event->event;
 	uevent->resp.status = event->status;
 	if (cm_id->qp_type == IB_QPT_UD)
-		ucma_copy_ud_event(&uevent->resp.param.ud, &event->param.ud);
+		ucma_copy_ud_event(cm_id->device, &uevent->resp.param.ud,
+				   &event->param.ud);
 	else
 		ucma_copy_conn_event(&uevent->resp.param.conn,
 				     &event->param.conn);
@@ -1157,7 +1159,7 @@ static ssize_t ucma_init_qp_attr(struct ucma_file *file,
 	if (ret)
 		goto out;
 
-	ib_copy_qp_attr_to_user(&resp, &qp_attr);
+	ib_copy_qp_attr_to_user(ctx->cm_id->device, &resp, &qp_attr);
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
 			 &resp, sizeof(resp)))
 		ret = -EFAULT;

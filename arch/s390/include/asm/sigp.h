@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __S390_ASM_SIGP_H
 #define __S390_ASM_SIGP_H
 
@@ -59,7 +60,7 @@ static inline int __pcpu_sigp(u16 addr, u8 order, unsigned long parm,
 	int cc;
 
 	cc = ____pcpu_sigp(addr, order, parm, &_status);
-	if (status && cc == 1)
+	if (status && cc == SIGP_CC_STATUS_STORED)
 		*status = _status;
 	return cc;
 }

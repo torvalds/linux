@@ -1150,7 +1150,7 @@ static int snd_via8233_capture_prepare(struct snd_pcm_substream *substream)
 /*
  * pcm hardware definition, identical for both playback and capture
  */
-static struct snd_pcm_hardware snd_via82xx_hw =
+static const struct snd_pcm_hardware snd_via82xx_hw =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1286,10 +1286,10 @@ static int snd_via8233_multi_open(struct snd_pcm_substream *substream)
 	/* channels constraint for VIA8233A
 	 * 3 and 5 channels are not supported
 	 */
-	static unsigned int channels[] = {
+	static const unsigned int channels[] = {
 		1, 2, 4, 6
 	};
-	static struct snd_pcm_hw_constraint_list hw_constraints_channels = {
+	static const struct snd_pcm_hw_constraint_list hw_constraints_channels = {
 		.count = ARRAY_SIZE(channels),
 		.list = channels,
 		.mask = 0,

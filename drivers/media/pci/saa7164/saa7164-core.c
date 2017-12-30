@@ -1490,7 +1490,7 @@ static void saa7164_finidev(struct pci_dev *pci_dev)
 	kfree(dev);
 }
 
-static struct pci_device_id saa7164_pci_tbl[] = {
+static const struct pci_device_id saa7164_pci_tbl[] = {
 	{
 		/* SAA7164 */
 		.vendor       = 0x1131,

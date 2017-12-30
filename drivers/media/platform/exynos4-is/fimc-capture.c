@@ -146,6 +146,7 @@ static int fimc_stop_capture(struct fimc_dev *fimc, bool suspend)
 
 /**
  * fimc_capture_config_update - apply the camera interface configuration
+ * @ctx: FIMC capture context
  *
  * To be called from within the interrupt handler with fimc.slock
  * spinlock held. It updates the camera pixel crop, rotation and
@@ -858,6 +859,7 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
  * fimc_get_sensor_frame_desc - query the sensor for media bus frame parameters
  * @sensor: pointer to the sensor subdev
  * @plane_fmt: provides plane sizes corresponding to the frame layout entries
+ * @num_planes: number of planes
  * @try: true to set the frame parameters, false to query only
  *
  * This function is used by this driver only for compressed/blob data formats.
@@ -1101,6 +1103,7 @@ static int fimc_cap_g_input(struct file *file, void *priv, unsigned int *i)
 /**
  * fimc_pipeline_validate - check for formats inconsistencies
  *                          between source and sink pad of each link
+ * @fimc:	the FIMC device this context applies to
  *
  * Return 0 if all formats match or -EPIPE otherwise.
  */
@@ -1270,13 +1273,14 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 	struct fimc_frame *f = &ctx->s_frame;
 
-	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
+		/* fall through */
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 		s->r.left = 0;
@@ -1287,6 +1291,7 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 
 	case V4L2_SEL_TGT_COMPOSE:
 		f = &ctx->d_frame;
+		/* fall through */
 	case V4L2_SEL_TGT_CROP:
 		s->r.left = f->offs_h;
 		s->r.top = f->offs_v;
@@ -1320,7 +1325,7 @@ static int fimc_cap_s_selection(struct file *file, void *fh,
 	struct fimc_frame *f;
 	unsigned long flags;
 
-	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	if (s->target == V4L2_SEL_TGT_COMPOSE)
@@ -1610,6 +1615,7 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
+		/* fall through */
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		r->width = f->o_width;
 		r->height = f->o_height;

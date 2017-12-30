@@ -31,7 +31,7 @@
  * Yamaha GO 44 and GO 46. Yamaha and Terratec had cooperated for these models.
  */
 
-static enum snd_bebob_clock_type clk_src_types[] = {
+static const enum snd_bebob_clock_type clk_src_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* S/PDIF */
 };

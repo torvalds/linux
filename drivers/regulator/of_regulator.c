@@ -90,6 +90,25 @@ static void of_get_regulation_constraints(struct device_node *np,
 	if (!ret)
 		constraints->settling_time = pval;
 
+	ret = of_property_read_u32(np, "regulator-settling-time-up-us", &pval);
+	if (!ret)
+		constraints->settling_time_up = pval;
+	if (constraints->settling_time_up && constraints->settling_time) {
+		pr_warn("%s: ambiguous configuration for settling time, ignoring 'regulator-settling-time-up-us'\n",
+			np->name);
+		constraints->settling_time_up = 0;
+	}
+
+	ret = of_property_read_u32(np, "regulator-settling-time-down-us",
+				   &pval);
+	if (!ret)
+		constraints->settling_time_down = pval;
+	if (constraints->settling_time_down && constraints->settling_time) {
+		pr_warn("%s: ambiguous configuration for settling time, ignoring 'regulator-settling-time-down-us'\n",
+			np->name);
+		constraints->settling_time_down = 0;
+	}
+
 	ret = of_property_read_u32(np, "regulator-enable-ramp-delay", &pval);
 	if (!ret)
 		constraints->enable_time = pval;
@@ -131,7 +150,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 			suspend_state = &constraints->state_disk;
 			break;
 		case PM_SUSPEND_ON:
-		case PM_SUSPEND_FREEZE:
+		case PM_SUSPEND_TO_IDLE:
 		case PM_SUSPEND_STANDBY:
 		default:
 			continue;
@@ -314,7 +333,7 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		search = of_get_child_by_name(dev->of_node,
 					      desc->regulators_node);
 	else
-		search = dev->of_node;
+		search = of_node_get(dev->of_node);
 
 	if (!search) {
 		dev_dbg(dev, "Failed to find regulator container node '%s'\n",

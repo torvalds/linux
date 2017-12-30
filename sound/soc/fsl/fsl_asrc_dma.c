@@ -20,7 +20,7 @@
 
 #define FSL_ASRC_DMABUF_SIZE	(256 * 1024)
 
-static struct snd_pcm_hardware snd_imx_hardware = {
+static const struct snd_pcm_hardware snd_imx_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP |
@@ -279,10 +279,8 @@ static int fsl_asrc_dma_startup(struct snd_pcm_substream *substream)
 	struct fsl_asrc_pair *pair;
 
 	pair = kzalloc(sizeof(struct fsl_asrc_pair), GFP_KERNEL);
-	if (!pair) {
-		dev_err(dev, "failed to allocate pair\n");
+	if (!pair)
 		return -ENOMEM;
-	}
 
 	pair->asrc_priv = asrc_priv;
 

@@ -2043,7 +2043,7 @@ static int __init swab_apm_power_in_minutes(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id __initdata apm_dmi_table[] = {
+static const struct dmi_system_id apm_dmi_table[] __initconst = {
 	{
 		print_if_true,
 		KERN_WARNING "IBM T23 - BIOS 1.03b+ and controller firmware 1.02+ may be needed for Linux APM.",

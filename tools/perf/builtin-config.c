@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * builtin-config.c
  *
@@ -13,6 +14,7 @@
 #include "util/util.h"
 #include "util/debug.h"
 #include "util/config.h"
+#include <linux/string.h>
 
 static bool use_system_config, use_user_config;
 
@@ -33,8 +35,7 @@ static struct option config_options[] = {
 	OPT_END()
 };
 
-static int set_config(struct perf_config_set *set, const char *file_name,
-		      const char *var, const char *value)
+static int set_config(struct perf_config_set *set, const char *file_name)
 {
 	struct perf_config_section *section = NULL;
 	struct perf_config_item *item = NULL;
@@ -48,7 +49,6 @@ static int set_config(struct perf_config_set *set, const char *file_name,
 	if (!fp)
 		return -1;
 
-	perf_config_set__collect(set, file_name, var, value);
 	fprintf(fp, "%s\n", first_line);
 
 	/* overwrite configvariables */
@@ -58,7 +58,7 @@ static int set_config(struct perf_config_set *set, const char *file_name,
 		fprintf(fp, "[%s]\n", section->name);
 
 		perf_config_items__for_each_entry(&section->items, item) {
-			if (!use_system_config && section->from_system_config)
+			if (!use_system_config && item->from_system_config)
 				continue;
 			if (item->value)
 				fprintf(fp, "\t%s = %s\n",
@@ -79,7 +79,7 @@ static int show_spec_config(struct perf_config_set *set, const char *var)
 		return -1;
 
 	perf_config_items__for_each_entry(&set->sections, section) {
-		if (prefixcmp(var, section->name) != 0)
+		if (!strstarts(var, section->name))
 			continue;
 
 		perf_config_items__for_each_entry(&section->items, item) {
@@ -156,10 +156,11 @@ static int parse_config_arg(char *arg, char **var, char **value)
 
 int cmd_config(int argc, const char **argv)
 {
-	int i, ret = 0;
+	int i, ret = -1;
 	struct perf_config_set *set;
 	char *user_config = mkpath("%s/.perfconfig", getenv("HOME"));
 	const char *config_filename;
+	bool changed = false;
 
 	argc = parse_options(argc, argv, config_options, config_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
@@ -186,10 +187,8 @@ int cmd_config(int argc, const char **argv)
 	 * because of reinitializing with options config file location.
 	 */
 	set = perf_config_set__new();
-	if (!set) {
-		ret = -1;
+	if (!set)
 		goto out_err;
-	}
 
 	switch (actions) {
 	case ACTION_LIST:
@@ -197,41 +196,65 @@ int cmd_config(int argc, const char **argv)
 			pr_err("Error: takes no arguments\n");
 			parse_options_usage(config_usage, config_options, "l", 1);
 		} else {
-			ret = show_config(set);
-			if (ret < 0)
+			if (show_config(set) < 0) {
 				pr_err("Nothing configured, "
 				       "please check your %s \n", config_filename);
+				goto out_err;
+			}
 		}
 		break;
 	default:
-		if (argc) {
-			for (i = 0; argv[i]; i++) {
-				char *var, *value;
-				char *arg = strdup(argv[i]);
-
-				if (!arg) {
-					pr_err("%s: strdup failed\n", __func__);
-					ret = -1;
-					break;
-				}
-
-				if (parse_config_arg(arg, &var, &value) < 0) {
-					free(arg);
-					ret = -1;
-					break;
-				}
-
-				if (value == NULL)
-					ret = show_spec_config(set, var);
-				else
-					ret = set_config(set, config_filename, var, value);
-				free(arg);
-			}
-		} else
+		if (!argc) {
 			usage_with_options(config_usage, config_options);
+			break;
+		}
+
+		for (i = 0; argv[i]; i++) {
+			char *var, *value;
+			char *arg = strdup(argv[i]);
+
+			if (!arg) {
+				pr_err("%s: strdup failed\n", __func__);
+				goto out_err;
+			}
+
+			if (parse_config_arg(arg, &var, &value) < 0) {
+				free(arg);
+				goto out_err;
+			}
+
+			if (value == NULL) {
+				if (show_spec_config(set, var) < 0) {
+					pr_err("%s is not configured: %s\n",
+					       var, config_filename);
+					free(arg);
+					goto out_err;
+				}
+			} else {
+				if (perf_config_set__collect(set, config_filename,
+							     var, value) < 0) {
+					pr_err("Failed to add '%s=%s'\n",
+					       var, value);
+					free(arg);
+					goto out_err;
+				}
+				changed = true;
+			}
+			free(arg);
+		}
+
+		if (!changed)
+			break;
+
+		if (set_config(set, config_filename) < 0) {
+			pr_err("Failed to set the configs on %s\n",
+			       config_filename);
+			goto out_err;
+		}
 	}
 
-	perf_config_set__delete(set);
+	ret = 0;
 out_err:
+	perf_config_set__delete(set);
 	return ret;
 }

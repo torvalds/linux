@@ -944,7 +944,6 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 		goto err_rel_gpio;
 	}
 
-	platform_set_drvdata(pdev, drv_data);
 	drv_data->pdev = pdev;
 	drv_data->ide_base = ide_base;
 	drv_data->udma_in_phys = mem_res->start + IDEUDMADATAIN;

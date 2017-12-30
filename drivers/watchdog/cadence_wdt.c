@@ -52,12 +52,12 @@
 static int wdt_timeout;
 static int nowayout = WATCHDOG_NOWAYOUT;
 
-module_param(wdt_timeout, int, 0);
+module_param(wdt_timeout, int, 0644);
 MODULE_PARM_DESC(wdt_timeout,
 		 "Watchdog time in seconds. (default="
 		 __MODULE_STRING(CDNS_WDT_DEFAULT_TIMEOUT) ")");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, int, 0644);
 MODULE_PARM_DESC(nowayout,
 		 "Watchdog cannot be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
@@ -368,7 +368,7 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, wdt);
 
-	dev_dbg(&pdev->dev, "Xilinx Watchdog Timer at %p with timeout %ds%s\n",
+	dev_info(&pdev->dev, "Xilinx Watchdog Timer at %p with timeout %ds%s\n",
 		 wdt->regs, cdns_wdt_device->timeout,
 		 nowayout ? ", nowayout" : "");
 
@@ -458,7 +458,7 @@ static int __maybe_unused cdns_wdt_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(cdns_wdt_pm_ops, cdns_wdt_suspend, cdns_wdt_resume);
 
-static struct of_device_id cdns_wdt_of_match[] = {
+static const struct of_device_id cdns_wdt_of_match[] = {
 	{ .compatible = "cdns,wdt-r1p2", },
 	{ /* end of table */ }
 };

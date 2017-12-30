@@ -110,11 +110,6 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 			       struct drm_device *dev,
 			       struct drm_mode_create_dumb *args);
 
-/* map memory region for drm framebuffer to user space. */
-int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
-				   struct drm_device *dev, uint32_t handle,
-				   uint64_t *offset);
-
 /* page fault handler and mmap fault address(virtual) to physical memory. */
 int exynos_drm_gem_fault(struct vm_fault *vmf);
 
@@ -122,6 +117,8 @@ int exynos_drm_gem_fault(struct vm_fault *vmf);
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* low-level interface prime helpers */
+struct drm_gem_object *exynos_drm_gem_prime_import(struct drm_device *dev,
+					    struct dma_buf *dma_buf);
 struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
 exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,

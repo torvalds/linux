@@ -203,6 +203,37 @@ struct ti_dt_clk {
 		.node_name = name,	\
 	}
 
+/* CLKCTRL type definitions */
+struct omap_clkctrl_div_data {
+	const int *dividers;
+	int max_div;
+};
+
+struct omap_clkctrl_bit_data {
+	u8 bit;
+	u8 type;
+	const char * const *parents;
+	const void *data;
+};
+
+struct omap_clkctrl_reg_data {
+	u16 offset;
+	const struct omap_clkctrl_bit_data *bit_data;
+	u16 flags;
+	const char *parent;
+};
+
+struct omap_clkctrl_data {
+	u32 addr;
+	const struct omap_clkctrl_reg_data *regs;
+};
+
+extern const struct omap_clkctrl_data omap4_clkctrl_data[];
+
+#define CLKF_SW_SUP	BIT(0)
+#define CLKF_HW_SUP	BIT(1)
+#define CLKF_NO_IDLEST	BIT(2)
+
 typedef void (*ti_of_clk_init_cb_t)(struct clk_hw *, struct device_node *);
 
 struct clk *ti_clk_register_gate(struct ti_clk *setup);

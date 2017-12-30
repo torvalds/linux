@@ -175,9 +175,11 @@ struct mac_device_info *dwmac100_setup(void __iomem *ioaddr, int *synopsys_id)
 	mac->mac = &dwmac100_ops;
 	mac->dma = &dwmac100_dma_ops;
 
-	mac->link.port = MAC_CONTROL_PS;
 	mac->link.duplex = MAC_CONTROL_F;
-	mac->link.speed = 0;
+	mac->link.speed10 = 0;
+	mac->link.speed100 = 0;
+	mac->link.speed1000 = 0;
+	mac->link.speed_mask = MAC_CONTROL_PS;
 	mac->mii.addr = MAC_MII_ADDR;
 	mac->mii.data = MAC_MII_DATA;
 	mac->mii.addr_shift = 11;

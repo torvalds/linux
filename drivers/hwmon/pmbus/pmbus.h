@@ -341,7 +341,7 @@ enum pmbus_sensor_classes {
 #define PMBUS_HAVE_STATUS_VMON	BIT(19)
 
 enum pmbus_data_format { linear = 0, direct, vid };
-enum vrm_version { vr11 = 0, vr12 };
+enum vrm_version { vr11 = 0, vr12, vr13 };
 
 struct pmbus_driver_info {
 	int pages;		/* Total number of pages */
@@ -404,9 +404,9 @@ extern const struct regulator_ops pmbus_regulator_ops;
 /* Function declarations */
 
 void pmbus_clear_cache(struct i2c_client *client);
-int pmbus_set_page(struct i2c_client *client, u8 page);
-int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg);
-int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg, u16 word);
+int pmbus_set_page(struct i2c_client *client, int page);
+int pmbus_read_word_data(struct i2c_client *client, int page, u8 reg);
+int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg, u16 word);
 int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg);
 int pmbus_write_byte(struct i2c_client *client, int page, u8 value);
 int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg,

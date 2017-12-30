@@ -398,9 +398,8 @@ static const char *vgacon_startup(void)
 #endif
 	}
 
-	/* boot_params.screen_info initialized? */
-	if ((screen_info.orig_video_mode  == 0) &&
-	    (screen_info.orig_video_lines == 0) &&
+	/* boot_params.screen_info reasonably initialized? */
+	if ((screen_info.orig_video_lines == 0) ||
 	    (screen_info.orig_video_cols  == 0))
 		goto no_vga;
 

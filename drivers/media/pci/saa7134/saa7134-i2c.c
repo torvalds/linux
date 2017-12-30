@@ -339,13 +339,13 @@ static const struct i2c_algorithm saa7134_algo = {
 	.functionality = functionality,
 };
 
-static struct i2c_adapter saa7134_adap_template = {
+static const struct i2c_adapter saa7134_adap_template = {
 	.owner         = THIS_MODULE,
 	.name          = "saa7134",
 	.algo          = &saa7134_algo,
 };
 
-static struct i2c_client saa7134_client_template = {
+static const struct i2c_client saa7134_client_template = {
 	.name	= "saa7134 internal",
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/sysv/inode.c
  *
@@ -62,7 +63,7 @@ static int sysv_remount(struct super_block *sb, int *flags, char *data)
 
 	sync_filesystem(sb);
 	if (sbi->s_forced_ro)
-		*flags |= MS_RDONLY;
+		*flags |= SB_RDONLY;
 	return 0;
 }
 
@@ -70,7 +71,7 @@ static void sysv_put_super(struct super_block *sb)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		/* XXX ext2 also updates the state here */
 		mark_buffer_dirty(sbi->s_bh1);
 		if (sbi->s_bh1 != sbi->s_bh2)

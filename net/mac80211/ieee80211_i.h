@@ -643,6 +643,8 @@ struct ieee80211_if_mesh {
 	unsigned long wrkq_flags;
 	unsigned long mbss_changed;
 
+	bool userspace_handles_dfs;
+
 	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
 	size_t mesh_id_len;
 	/* Active Path Selection Protocol Identifier */
@@ -1029,17 +1031,6 @@ ieee80211_vif_get_shift(struct ieee80211_vif *vif)
 	return shift;
 }
 
-struct ieee80211_rx_agg {
-	u8 addr[ETH_ALEN];
-	u16 tid;
-};
-
-enum sdata_queue_type {
-	IEEE80211_SDATA_QUEUE_TYPE_FRAME	= 0,
-	IEEE80211_SDATA_QUEUE_RX_AGG_START	= 3,
-	IEEE80211_SDATA_QUEUE_RX_AGG_STOP	= 4,
-};
-
 enum {
 	IEEE80211_RX_MSG	= 1,
 	IEEE80211_TX_STATUS_MSG	= 2,
@@ -1066,6 +1057,7 @@ struct tpt_led_trigger {
 	const struct ieee80211_tpt_blink *blink_table;
 	unsigned int blink_table_len;
 	struct timer_list timer;
+	struct ieee80211_local *local;
 	unsigned long prev_traffic;
 	unsigned long tx_bytes, rx_bytes;
 	unsigned int active, want;
@@ -1432,6 +1424,7 @@ struct ieee80211_csa_ie {
 	u8 count;
 	u8 ttl;
 	u16 pre_value;
+	u16 reason_code;
 };
 
 /* Parsed Information Elements */
@@ -1768,6 +1761,10 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 				     u8 dialog_token, u16 timeout,
 				     u16 start_seq_num, u16 ba_policy, u16 tid,
 				     u16 buf_size, bool tx, bool auto_seq);
+void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
+				      u8 dialog_token, u16 timeout,
+				      u16 start_seq_num, u16 ba_policy, u16 tid,
+				      u16 buf_size, bool tx, bool auto_seq);
 void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 					 enum ieee80211_agg_stop_reason reason);
 void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
@@ -1936,7 +1933,7 @@ static inline int ieee80211_ac_from_tid(int tid)
 
 void ieee80211_dynamic_ps_enable_work(struct work_struct *work);
 void ieee80211_dynamic_ps_disable_work(struct work_struct *work);
-void ieee80211_dynamic_ps_timer(unsigned long data);
+void ieee80211_dynamic_ps_timer(struct timer_list *t);
 void ieee80211_send_nullfunc(struct ieee80211_local *local,
 			     struct ieee80211_sub_if_data *sdata,
 			     bool powersave);
@@ -2013,6 +2010,8 @@ void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
 			struct txq_info *txq, int tid);
 void ieee80211_txq_purge(struct ieee80211_local *local,
 			 struct txq_info *txqi);
+void ieee80211_txq_remove_vlan(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata);
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
 			 const u8 *extra, size_t extra_len, const u8 *bssid,
@@ -2057,6 +2056,8 @@ u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			       const struct cfg80211_chan_def *chandef,
 			       u16 prot_mode, bool rifs_mode);
+void ieee80211_ie_build_wide_bw_cs(u8 *pos,
+				   const struct cfg80211_chan_def *chandef);
 u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 			       u32 cap);
 u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,

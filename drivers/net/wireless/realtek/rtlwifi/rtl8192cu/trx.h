@@ -385,8 +385,6 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 			   struct ieee80211_rx_status *rx_status,
 			   u8 *p_desc, struct sk_buff *skb);
 void  rtl8192cu_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb);
-void rtl8192c_rx_segregate_hdl(struct ieee80211_hw *, struct sk_buff *,
-			       struct sk_buff_head *);
 void rtl8192c_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff  *skb);
 int rtl8192c_tx_post_hdl(struct ieee80211_hw *hw, struct urb *urb,
 			 struct sk_buff *skb);
@@ -404,6 +402,5 @@ void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 * pDesc,
 void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 			     u8 *pdesc, bool b_firstseg,
 			     bool b_lastseg, struct sk_buff *skb);
-bool rtl92cu_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb);
 
 #endif

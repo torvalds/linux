@@ -1,0 +1,5 @@
+* coding style does not fully comply with the kernel style guide.
+* still TODOs, annotated in the code
+* currently the code introduces new IOCTLs. I'm afraid this is a bad idea.
+  -> Replace this with another interface, hints are welcome!
+* Some missing data (marked with ###) needs to be added in the documentation

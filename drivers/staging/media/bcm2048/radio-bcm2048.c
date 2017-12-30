@@ -48,7 +48,6 @@
 /* driver definitions */
 #define BCM2048_DRIVER_AUTHOR	"Eero Nurkkala <ext-eero.nurkkala@nokia.com>"
 #define BCM2048_DRIVER_NAME	BCM2048_NAME
-#define BCM2048_DRIVER_VERSION	KERNEL_VERSION(0, 0, 1)
 #define BCM2048_DRIVER_CARD	"Broadcom bcm2048 FM Radio Receiver"
 #define BCM2048_DRIVER_DESC	"I2C driver for BCM2048 FM Radio Receiver"
 
@@ -1965,7 +1964,7 @@ static ssize_t bcm2048_##prop##_write(struct device *dev,		\
 	return err < 0 ? err : count;					\
 }
 
-#define property_read(prop, size, mask)					\
+#define property_read(prop, mask)					\
 static ssize_t bcm2048_##prop##_read(struct device *dev,		\
 					struct device_attribute *attr,	\
 					char *buf)			\
@@ -2000,9 +1999,9 @@ static ssize_t bcm2048_##prop##_read(struct device *dev,		\
 	return sprintf(buf, mask "\n", value);				\
 }
 
-#define DEFINE_SYSFS_PROPERTY(prop, signal, size, mask, check)		\
-property_write(prop, signal size, mask, check)				\
-property_read(prop, size, mask)
+#define DEFINE_SYSFS_PROPERTY(prop, prop_type, mask, check)		\
+property_write(prop, prop_type, mask, check)				\
+property_read(prop, mask)						\
 
 #define property_str_read(prop, size)					\
 static ssize_t bcm2048_##prop##_read(struct device *dev,		\
@@ -2028,39 +2027,39 @@ static ssize_t bcm2048_##prop##_read(struct device *dev,		\
 	return count;							\
 }
 
-DEFINE_SYSFS_PROPERTY(power_state, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(mute, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(audio_route, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(dac_output, unsigned, int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(power_state, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(mute, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(audio_route, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(dac_output, unsigned int, "%u", 0)
 
-DEFINE_SYSFS_PROPERTY(fm_hi_lo_injection, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(fm_frequency, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(fm_af_frequency, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(fm_deemphasis, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(fm_rds_mask, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(fm_best_tune_mode, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(fm_search_rssi_threshold, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(fm_search_mode_direction, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(fm_search_tune_mode, unsigned, int, "%u", value > 3)
+DEFINE_SYSFS_PROPERTY(fm_hi_lo_injection, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(fm_frequency, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(fm_af_frequency, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(fm_deemphasis, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(fm_rds_mask, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(fm_best_tune_mode, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(fm_search_rssi_threshold, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(fm_search_mode_direction, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(fm_search_tune_mode, unsigned int, "%u", value > 3)
 
-DEFINE_SYSFS_PROPERTY(rds, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(rds_b_block_mask, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(rds_b_block_match, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(rds_pi_mask, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(rds_pi_match, unsigned, int, "%u", 0)
-DEFINE_SYSFS_PROPERTY(rds_wline, unsigned, int, "%u", 0)
-property_read(rds_pi, unsigned int, "%x")
+DEFINE_SYSFS_PROPERTY(rds, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(rds_b_block_mask, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(rds_b_block_match, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(rds_pi_mask, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(rds_pi_match, unsigned int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(rds_wline, unsigned int, "%u", 0)
+property_read(rds_pi, "%x")
 property_str_read(rds_rt, (BCM2048_MAX_RDS_RT + 1))
 property_str_read(rds_ps, (BCM2048_MAX_RDS_PS + 1))
 
-property_read(fm_rds_flags, unsigned int, "%u")
+property_read(fm_rds_flags, "%u")
 property_str_read(rds_data, BCM2048_MAX_RDS_RADIO_TEXT * 5)
 
-property_read(region_bottom_frequency, unsigned int, "%u")
-property_read(region_top_frequency, unsigned int, "%u")
+property_read(region_bottom_frequency, "%u")
+property_read(region_top_frequency, "%u")
 property_signed_read(fm_carrier_error, int, "%d")
 property_signed_read(fm_rssi, int, "%d")
-DEFINE_SYSFS_PROPERTY(region, unsigned, int, "%u", 0)
+DEFINE_SYSFS_PROPERTY(region, unsigned int, "%u", 0)
 
 static struct device_attribute attrs[] = {
 	__ATTR(power_state, 0644, bcm2048_power_state_read,
@@ -2565,7 +2564,7 @@ static const struct v4l2_ioctl_ops bcm2048_ioctl_ops = {
 /*
  * bcm2048_viddev_template - video device interface
  */
-static struct video_device bcm2048_viddev_template = {
+static const struct video_device bcm2048_viddev_template = {
 	.fops			= &bcm2048_fops,
 	.name			= BCM2048_DRIVER_NAME,
 	.release		= video_device_release_empty,

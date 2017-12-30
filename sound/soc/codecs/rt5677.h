@@ -12,7 +12,6 @@
 #ifndef __RT5677_H__
 #define __RT5677_H__
 
-#include <sound/rt5677.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
 
@@ -1759,6 +1758,35 @@ enum {
 	RT5677_I2S2_SOURCE = (0x1 << 16),
 	RT5677_I2S3_SOURCE = (0x1 << 17),
 	RT5677_I2S4_SOURCE = (0x1 << 18),
+};
+
+enum rt5677_dmic2_clk {
+	RT5677_DMIC_CLK1 = 0,
+	RT5677_DMIC_CLK2 = 1,
+};
+
+struct rt5677_platform_data {
+	/* IN1/IN2/LOUT1/LOUT2/LOUT3 can optionally be differential */
+	bool in1_diff;
+	bool in2_diff;
+	bool lout1_diff;
+	bool lout2_diff;
+	bool lout3_diff;
+	/* DMIC2 clock source selection */
+	enum rt5677_dmic2_clk dmic2_clk_pin;
+
+	/* configures GPIO, 0 - floating, 1 - pulldown, 2 - pullup */
+	u8 gpio_config[6];
+
+	/* jd1 can select 0 ~ 3 as OFF, GPIO1, GPIO2 and GPIO3 respectively */
+	unsigned int jd1_gpio;
+	/* jd2 and jd3 can select 0 ~ 3 as
+		OFF, GPIO4, GPIO5 and GPIO6 respectively */
+	unsigned int jd2_gpio;
+	unsigned int jd3_gpio;
+
+	/* Set MICBIAS1 VDD 1v8 or 3v3 */
+	bool micbias1_vdd_3v3;
 };
 
 struct rt5677_priv {

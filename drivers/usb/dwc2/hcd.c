@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * hcd.c - DesignWare HS OTG Controller host-mode routines
  *
@@ -213,6 +214,11 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		usbcfg &= ~(GUSBCFG_PHYIF16 | GUSBCFG_DDRSEL);
 		if (hsotg->params.phy_ulpi_ddr)
 			usbcfg |= GUSBCFG_DDRSEL;
+
+		/* Set external VBUS indicator as needed. */
+		if (hsotg->params.oc_disable)
+			usbcfg |= (GUSBCFG_ULPI_INT_VBUS_IND |
+				   GUSBCFG_INDICATORPASSTHROUGH);
 		break;
 	case DWC2_PHY_TYPE_PARAM_UTMI:
 		/* UTMI+ interface */
@@ -3277,7 +3283,6 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		dwc2_core_init(hsotg, false);
 		dwc2_enable_global_interrupts(hsotg);
 		spin_lock_irqsave(&hsotg->lock, flags);
-		dwc2_hsotg_disconnect(hsotg);
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 		dwc2_hsotg_core_connect(hsotg);
@@ -3296,8 +3301,12 @@ host:
 		if (count > 250)
 			dev_err(hsotg->dev,
 				"Connection id status change timed out\n");
-		hsotg->op_state = OTG_STATE_A_HOST;
 
+		spin_lock_irqsave(&hsotg->lock, flags);
+		dwc2_hsotg_disconnect(hsotg);
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+
+		hsotg->op_state = OTG_STATE_A_HOST;
 		/* Initialize the Core for Host mode */
 		dwc2_core_init(hsotg, false);
 		dwc2_enable_global_interrupts(hsotg);
@@ -3305,9 +3314,9 @@ host:
 	}
 }
 
-static void dwc2_wakeup_detected(unsigned long data)
+static void dwc2_wakeup_detected(struct timer_list *t)
 {
-	struct dwc2_hsotg *hsotg = (struct dwc2_hsotg *)data;
+	struct dwc2_hsotg *hsotg = from_timer(hsotg, t, wkp_timer);
 	u32 hprt0;
 
 	dev_dbg(hsotg->dev, "%s()\n", __func__);
@@ -4388,6 +4397,9 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 
+	if (dwc2_is_device_mode(hsotg))
+		goto unlock;
+
 	if (hsotg->lx_state != DWC2_L0)
 		goto unlock;
 
@@ -4445,6 +4457,9 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 	int ret = 0;
 
 	spin_lock_irqsave(&hsotg->lock, flags);
+
+	if (dwc2_is_device_mode(hsotg))
+		goto unlock;
 
 	if (hsotg->lx_state != DWC2_L2)
 		goto unlock;
@@ -5140,8 +5155,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 	}
 	INIT_WORK(&hsotg->wf_otg, dwc2_conn_id_status_change);
 
-	setup_timer(&hsotg->wkp_timer, dwc2_wakeup_detected,
-		    (unsigned long)hsotg);
+	timer_setup(&hsotg->wkp_timer, dwc2_wakeup_detected, 0);
 
 	/* Initialize the non-periodic schedule */
 	INIT_LIST_HEAD(&hsotg->non_periodic_sched_inactive);

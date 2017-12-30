@@ -177,8 +177,6 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 #define BLK_PLUS_PRIV(sz_of_priv) \
 	(BLK_HDR_LEN + ALIGN((sz_of_priv), V3_ALIGNMENT))
 
-#define PGV_FROM_VMALLOC 1
-
 #define BLOCK_STATUS(x)	((x)->hdr.bh1.block_status)
 #define BLOCK_NUM_PKTS(x)	((x)->hdr.bh1.num_pkts)
 #define BLOCK_O2FP(x)		((x)->hdr.bh1.offset_to_first_pkt)
@@ -188,7 +186,6 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 #define BLOCK_PRIV(x)		((void *)((char *)(x) + BLOCK_O2PRIV(x)))
 
 struct packet_sock;
-static int tpacket_snd(struct packet_sock *po, struct msghdr *msg);
 static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		       struct packet_type *pt, struct net_device *orig_dev);
 
@@ -196,8 +193,7 @@ static void *packet_previous_frame(struct packet_sock *po,
 		struct packet_ring_buffer *rb,
 		int status);
 static void packet_increment_head(struct packet_ring_buffer *buff);
-static int prb_curr_blk_in_use(struct tpacket_kbdq_core *,
-			struct tpacket_block_desc *);
+static int prb_curr_blk_in_use(struct tpacket_block_desc *);
 static void *prb_dispatch_next_block(struct tpacket_kbdq_core *,
 			struct packet_sock *);
 static void prb_retire_current_block(struct tpacket_kbdq_core *,
@@ -205,17 +201,15 @@ static void prb_retire_current_block(struct tpacket_kbdq_core *,
 static int prb_queue_frozen(struct tpacket_kbdq_core *);
 static void prb_open_block(struct tpacket_kbdq_core *,
 		struct tpacket_block_desc *);
-static void prb_retire_rx_blk_timer_expired(unsigned long);
+static void prb_retire_rx_blk_timer_expired(struct timer_list *);
 static void _prb_refresh_rx_retire_blk_timer(struct tpacket_kbdq_core *);
-static void prb_init_blk_timer(struct packet_sock *,
-		struct tpacket_kbdq_core *,
-		void (*func) (unsigned long));
 static void prb_fill_rxhash(struct tpacket_kbdq_core *, struct tpacket3_hdr *);
 static void prb_clear_rxhash(struct tpacket_kbdq_core *,
 		struct tpacket3_hdr *);
 static void prb_fill_vlan_info(struct tpacket_kbdq_core *,
 		struct tpacket3_hdr *);
 static void packet_flush_mclist(struct sock *sk);
+static void packet_pick_tx_queue(struct net_device *dev, struct sk_buff *skb);
 
 struct packet_skb_cb {
 	union {
@@ -262,6 +256,7 @@ static int packet_direct_xmit(struct sk_buff *skb)
 	if (skb != orig_skb)
 		goto drop;
 
+	packet_pick_tx_queue(dev, skb);
 	txq = skb_get_tx_queue(dev, skb);
 
 	local_bh_disable();
@@ -542,22 +537,14 @@ static void prb_shutdown_retire_blk_timer(struct packet_sock *po,
 	prb_del_retire_blk_timer(pkc);
 }
 
-static void prb_init_blk_timer(struct packet_sock *po,
-		struct tpacket_kbdq_core *pkc,
-		void (*func) (unsigned long))
-{
-	init_timer(&pkc->retire_blk_timer);
-	pkc->retire_blk_timer.data = (long)po;
-	pkc->retire_blk_timer.function = func;
-	pkc->retire_blk_timer.expires = jiffies;
-}
-
 static void prb_setup_retire_blk_timer(struct packet_sock *po)
 {
 	struct tpacket_kbdq_core *pkc;
 
 	pkc = GET_PBDQC_FROM_RB(&po->rx_ring);
-	prb_init_blk_timer(po, pkc, prb_retire_rx_blk_timer_expired);
+	timer_setup(&pkc->retire_blk_timer, prb_retire_rx_blk_timer_expired,
+		    0);
+	pkc->retire_blk_timer.expires = jiffies;
 }
 
 static int prb_calc_retire_blk_tmo(struct packet_sock *po,
@@ -675,9 +662,10 @@ static void _prb_refresh_rx_retire_blk_timer(struct tpacket_kbdq_core *pkc)
  * prb_calc_retire_blk_tmo() calculates the tmo.
  *
  */
-static void prb_retire_rx_blk_timer_expired(unsigned long data)
+static void prb_retire_rx_blk_timer_expired(struct timer_list *t)
 {
-	struct packet_sock *po = (struct packet_sock *)data;
+	struct packet_sock *po =
+		from_timer(po, t, rx_ring.prb_bdqc.retire_blk_timer);
 	struct tpacket_kbdq_core *pkc = GET_PBDQC_FROM_RB(&po->rx_ring);
 	unsigned int frozen;
 	struct tpacket_block_desc *pbd;
@@ -721,7 +709,7 @@ static void prb_retire_rx_blk_timer_expired(unsigned long data)
 			/* Case 1. Queue was frozen because user-space was
 			 *	   lagging behind.
 			 */
-			if (prb_curr_blk_in_use(pkc, pbd)) {
+			if (prb_curr_blk_in_use(pbd)) {
 				/*
 				 * Ok, user-space is still behind.
 				 * So just refresh the timer.
@@ -972,8 +960,7 @@ static void prb_retire_current_block(struct tpacket_kbdq_core *pkc,
 	}
 }
 
-static int prb_curr_blk_in_use(struct tpacket_kbdq_core *pkc,
-				      struct tpacket_block_desc *pbd)
+static int prb_curr_blk_in_use(struct tpacket_block_desc *pbd)
 {
 	return TP_STATUS_USER & BLOCK_STATUS(pbd);
 }
@@ -1064,7 +1051,7 @@ static void *__packet_lookup_frame_in_block(struct packet_sock *po,
 		 * Check if that last block which caused the queue to freeze,
 		 * is still in_use by user-space.
 		 */
-		if (prb_curr_blk_in_use(pkc, pbd)) {
+		if (prb_curr_blk_in_use(pbd)) {
 			/* Can't record this packet */
 			return NULL;
 		} else {
@@ -1320,7 +1307,7 @@ static void packet_sock_destruct(struct sock *sk)
 	skb_queue_purge(&sk->sk_error_queue);
 
 	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
-	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(refcount_read(&sk->sk_wmem_alloc));
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		pr_err("Attempt to release alive packet socket: %p\n", sk);
@@ -1687,10 +1674,6 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 
 	mutex_lock(&fanout_mutex);
 
-	err = -EINVAL;
-	if (!po->running)
-		goto out;
-
 	err = -EALREADY;
 	if (po->fanout)
 		goto out;
@@ -1704,7 +1687,6 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 		atomic_long_set(&rollover->num, 0);
 		atomic_long_set(&rollover->num_huge, 0);
 		atomic_long_set(&rollover->num_failed, 0);
-		po->rollover = rollover;
 	}
 
 	if (type_flags & PACKET_FANOUT_FLAG_UNIQUEID) {
@@ -1742,7 +1724,7 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 		match->flags = flags;
 		INIT_LIST_HEAD(&match->list);
 		spin_lock_init(&match->lock);
-		atomic_set(&match->sk_ref, 0);
+		refcount_set(&match->sk_ref, 0);
 		fanout_init_data(match);
 		match->prot_hook.type = po->prot_hook.type;
 		match->prot_hook.dev = po->prot_hook.dev;
@@ -1752,23 +1734,32 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 		list_add(&match->list, &fanout_list);
 	}
 	err = -EINVAL;
-	if (match->type == type &&
+
+	spin_lock(&po->bind_lock);
+	if (po->running &&
+	    match->type == type &&
 	    match->prot_hook.type == po->prot_hook.type &&
 	    match->prot_hook.dev == po->prot_hook.dev) {
 		err = -ENOSPC;
-		if (atomic_read(&match->sk_ref) < PACKET_FANOUT_MAX) {
+		if (refcount_read(&match->sk_ref) < PACKET_FANOUT_MAX) {
 			__dev_remove_pack(&po->prot_hook);
 			po->fanout = match;
-			atomic_inc(&match->sk_ref);
+			po->rollover = rollover;
+			rollover = NULL;
+			refcount_set(&match->sk_ref, refcount_read(&match->sk_ref) + 1);
 			__fanout_link(sk, po);
 			err = 0;
 		}
 	}
-out:
-	if (err && rollover) {
-		kfree(rollover);
-		po->rollover = NULL;
+	spin_unlock(&po->bind_lock);
+
+	if (err && !refcount_read(&match->sk_ref)) {
+		list_del(&match->list);
+		kfree(match);
 	}
+
+out:
+	kfree(rollover);
 	mutex_unlock(&fanout_mutex);
 	return err;
 }
@@ -1788,13 +1779,10 @@ static struct packet_fanout *fanout_release(struct sock *sk)
 	if (f) {
 		po->fanout = NULL;
 
-		if (atomic_dec_and_test(&f->sk_ref))
+		if (refcount_dec_and_test(&f->sk_ref))
 			list_del(&f->list);
 		else
 			f = NULL;
-
-		if (po->rollover)
-			kfree_rcu(po->rollover, rcu);
 	}
 	mutex_unlock(&fanout_mutex);
 
@@ -2192,6 +2180,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct timespec ts;
 	__u32 ts_status;
 	bool is_drop_n_account = false;
+	bool do_vnet = false;
 
 	/* struct tpacket{2,3}_hdr is aligned to a multiple of TPACKET_ALIGNMENT.
 	 * We may add members to them until current aligned size without forcing
@@ -2242,8 +2231,10 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		netoff = TPACKET_ALIGN(po->tp_hdrlen +
 				       (maclen < 16 ? 16 : maclen)) +
 				       po->tp_reserve;
-		if (po->has_vnet_hdr)
+		if (po->has_vnet_hdr) {
 			netoff += sizeof(struct virtio_net_hdr);
+			do_vnet = true;
+		}
 		macoff = netoff - maclen;
 	}
 	if (po->tp_version <= TPACKET_V2) {
@@ -2260,8 +2251,10 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 					skb_set_owner_r(copy_skb, sk);
 			}
 			snaplen = po->rx_ring.frame_size - macoff;
-			if ((int)snaplen < 0)
+			if ((int)snaplen < 0) {
 				snaplen = 0;
+				do_vnet = false;
+			}
 		}
 	} else if (unlikely(macoff + snaplen >
 			    GET_PBDQC_FROM_RB(&po->rx_ring)->max_frame_len)) {
@@ -2274,6 +2267,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		if (unlikely((int)snaplen < 0)) {
 			snaplen = 0;
 			macoff = GET_PBDQC_FROM_RB(&po->rx_ring)->max_frame_len;
+			do_vnet = false;
 		}
 	}
 	spin_lock(&sk->sk_receive_queue.lock);
@@ -2299,7 +2293,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 	spin_unlock(&sk->sk_receive_queue.lock);
 
-	if (po->has_vnet_hdr) {
+	if (do_vnet) {
 		if (virtio_net_hdr_from_skb(skb, h.raw + macoff -
 					    sizeof(struct virtio_net_hdr),
 					    vio_le(), true)) {
@@ -2526,7 +2520,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb->data_len = to_write;
 	skb->len += to_write;
 	skb->truesize += to_write;
-	atomic_add(to_write, &po->sk.sk_wmem_alloc);
+	refcount_add(to_write, &po->sk.sk_wmem_alloc);
 
 	while (likely(to_write)) {
 		nr_frags = skb_shinfo(skb)->nr_frags;
@@ -2750,8 +2744,6 @@ tpacket_error:
 			goto tpacket_error;
 		}
 
-		packet_pick_tx_queue(dev, skb);
-
 		skb->destructor = tpacket_destruct_skb;
 		__packet_set_status(po, ph, TP_STATUS_SENDING);
 		packet_inc_pending(&po->tx_ring);
@@ -2833,6 +2825,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	struct virtio_net_hdr vnet_hdr = { 0 };
 	int offset = 0;
 	struct packet_sock *po = pkt_sk(sk);
+	bool has_vnet_hdr = false;
 	int hlen, tlen, linear;
 	int extra_len = 0;
 
@@ -2876,6 +2869,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		err = packet_snd_vnet_parse(msg, &len, &vnet_hdr);
 		if (err)
 			goto out_unlock;
+		has_vnet_hdr = true;
 	}
 
 	if (unlikely(sock_flag(sk, SOCK_NOFCS))) {
@@ -2934,9 +2928,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	skb->priority = sk->sk_priority;
 	skb->mark = sockc.mark;
 
-	packet_pick_tx_queue(dev, skb);
-
-	if (po->has_vnet_hdr) {
+	if (has_vnet_hdr) {
 		err = virtio_net_hdr_to_skb(skb, &vnet_hdr, vio_le());
 		if (err)
 			goto out_free;
@@ -3030,6 +3022,7 @@ static int packet_release(struct socket *sock)
 	synchronize_net();
 
 	if (f) {
+		kfree(po->rollover);
 		fanout_release_data(f);
 		kfree(f);
 	}
@@ -3064,12 +3057,14 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 	int ret = 0;
 	bool unlisted = false;
 
-	if (po->fanout)
-		return -EINVAL;
-
 	lock_sock(sk);
 	spin_lock(&po->bind_lock);
 	rcu_read_lock();
+
+	if (po->fanout) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
 	if (name) {
 		dev = dev_get_by_name_rcu(sock_net(sk), name);
@@ -3096,6 +3091,10 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 	if (need_rehook) {
 		if (po->running) {
 			rcu_read_unlock();
+			/* prevents packet_notifier() from calling
+			 * register_prot_hook()
+			 */
+			po->num = 0;
 			__unregister_prot_hook(sk, true);
 			rcu_read_lock();
 			dev_curr = po->prot_hook.dev;
@@ -3104,6 +3103,7 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 								 dev->ifindex);
 		}
 
+		BUG_ON(po->running);
 		po->num = proto;
 		po->prot_hook.type = proto;
 
@@ -3705,14 +3705,19 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 
 		if (optlen != sizeof(val))
 			return -EINVAL;
-		if (po->rx_ring.pg_vec || po->tx_ring.pg_vec)
-			return -EBUSY;
 		if (copy_from_user(&val, optval, sizeof(val)))
 			return -EFAULT;
 		if (val > INT_MAX)
 			return -EINVAL;
-		po->tp_reserve = val;
-		return 0;
+		lock_sock(sk);
+		if (po->rx_ring.pg_vec || po->tx_ring.pg_vec) {
+			ret = -EBUSY;
+		} else {
+			po->tp_reserve = val;
+			ret = 0;
+		}
+		release_sock(sk);
+		return ret;
 	}
 	case PACKET_LOSS:
 	{
@@ -4334,7 +4339,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 		register_prot_hook(sk);
 	}
 	spin_unlock(&po->bind_lock);
-	if (closing && (po->tp_version > TPACKET_V2)) {
+	if (pg_vec && (po->tp_version > TPACKET_V2)) {
 		/* Because we don't support block-based V3 on tx-ring */
 		if (!tx_ring)
 			prb_shutdown_retire_blk_timer(po, rb_queue);
@@ -4498,7 +4503,7 @@ static int packet_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq,
 			   "%pK %-6d %-4d %04x   %-5d %1d %-6u %-6u %-6lu\n",
 			   s,
-			   atomic_read(&s->sk_refcnt),
+			   refcount_read(&s->sk_refcnt),
 			   s->sk_type,
 			   ntohs(po->num),
 			   po->ifindex,
@@ -4548,6 +4553,7 @@ static int __net_init packet_net_init(struct net *net)
 static void __net_exit packet_net_exit(struct net *net)
 {
 	remove_proc_entry("packet", net->proc_net);
+	WARN_ON_ONCE(!hlist_empty(&net->packet.sklist));
 }
 
 static struct pernet_operations packet_net_ops = {

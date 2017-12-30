@@ -169,50 +169,82 @@ static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_info *dev  = platform_get_drvdata(dev_id);
 	u32 interrupt_status;
-	int err = 0;
 
 	spin_lock(&dev->lock);
 	interrupt_status = CRYPTO_READ(dev, RK_CRYPTO_INTSTS);
 	CRYPTO_WRITE(dev, RK_CRYPTO_INTSTS, interrupt_status);
+
 	if (interrupt_status & 0x0a) {
 		dev_warn(dev->dev, "DMA Error\n");
-		err = -EFAULT;
-	} else if (interrupt_status & 0x05) {
-		err = dev->update(dev);
+		dev->err = -EFAULT;
 	}
-	if (err)
-		dev->complete(dev, err);
+	tasklet_schedule(&dev->done_task);
+
 	spin_unlock(&dev->lock);
 	return IRQ_HANDLED;
 }
 
-static void rk_crypto_tasklet_cb(unsigned long data)
+static int rk_crypto_enqueue(struct rk_crypto_info *dev,
+			      struct crypto_async_request *async_req)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&dev->lock, flags);
+	ret = crypto_enqueue_request(&dev->queue, async_req);
+	if (dev->busy) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		return ret;
+	}
+	dev->busy = true;
+	spin_unlock_irqrestore(&dev->lock, flags);
+	tasklet_schedule(&dev->queue_task);
+
+	return ret;
+}
+
+static void rk_crypto_queue_task_cb(unsigned long data)
 {
 	struct rk_crypto_info *dev = (struct rk_crypto_info *)data;
 	struct crypto_async_request *async_req, *backlog;
 	unsigned long flags;
 	int err = 0;
 
+	dev->err = 0;
 	spin_lock_irqsave(&dev->lock, flags);
 	backlog   = crypto_get_backlog(&dev->queue);
 	async_req = crypto_dequeue_request(&dev->queue);
-	spin_unlock_irqrestore(&dev->lock, flags);
+
 	if (!async_req) {
-		dev_err(dev->dev, "async_req is NULL !!\n");
+		dev->busy = false;
+		spin_unlock_irqrestore(&dev->lock, flags);
 		return;
 	}
+	spin_unlock_irqrestore(&dev->lock, flags);
+
 	if (backlog) {
 		backlog->complete(backlog, -EINPROGRESS);
 		backlog = NULL;
 	}
 
-	if (crypto_tfm_alg_type(async_req->tfm) == CRYPTO_ALG_TYPE_ABLKCIPHER)
-		dev->ablk_req = ablkcipher_request_cast(async_req);
-	else
-		dev->ahash_req = ahash_request_cast(async_req);
+	dev->async_req = async_req;
 	err = dev->start(dev);
 	if (err)
-		dev->complete(dev, err);
+		dev->complete(dev->async_req, err);
+}
+
+static void rk_crypto_done_task_cb(unsigned long data)
+{
+	struct rk_crypto_info *dev = (struct rk_crypto_info *)data;
+
+	if (dev->err) {
+		dev->complete(dev->async_req, dev->err);
+		return;
+	}
+
+	dev->err = dev->update(dev);
+	if (dev->err)
+		dev->complete(dev->async_req, dev->err);
 }
 
 static struct rk_crypto_tmp *rk_cipher_algs[] = {
@@ -361,14 +393,18 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	crypto_info->dev = &pdev->dev;
 	platform_set_drvdata(pdev, crypto_info);
 
-	tasklet_init(&crypto_info->crypto_tasklet,
-		     rk_crypto_tasklet_cb, (unsigned long)crypto_info);
+	tasklet_init(&crypto_info->queue_task,
+		     rk_crypto_queue_task_cb, (unsigned long)crypto_info);
+	tasklet_init(&crypto_info->done_task,
+		     rk_crypto_done_task_cb, (unsigned long)crypto_info);
 	crypto_init_queue(&crypto_info->queue, 50);
 
 	crypto_info->enable_clk = rk_crypto_enable_clk;
 	crypto_info->disable_clk = rk_crypto_disable_clk;
 	crypto_info->load_data = rk_load_data;
 	crypto_info->unload_data = rk_unload_data;
+	crypto_info->enqueue = rk_crypto_enqueue;
+	crypto_info->busy = false;
 
 	err = rk_crypto_register(crypto_info);
 	if (err) {
@@ -380,7 +416,8 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	return 0;
 
 err_register_alg:
-	tasklet_kill(&crypto_info->crypto_tasklet);
+	tasklet_kill(&crypto_info->queue_task);
+	tasklet_kill(&crypto_info->done_task);
 err_crypto:
 	return err;
 }
@@ -390,7 +427,8 @@ static int rk_crypto_remove(struct platform_device *pdev)
 	struct rk_crypto_info *crypto_tmp = platform_get_drvdata(pdev);
 
 	rk_crypto_unregister();
-	tasklet_kill(&crypto_tmp->crypto_tasklet);
+	tasklet_kill(&crypto_tmp->done_task);
+	tasklet_kill(&crypto_tmp->queue_task);
 	return 0;
 }
 

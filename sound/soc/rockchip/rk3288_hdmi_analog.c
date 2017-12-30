@@ -147,7 +147,7 @@ static int rk_init(struct snd_soc_pcm_runtime *runtime)
 	return 0;
 }
 
-static struct snd_soc_ops rk_ops = {
+static const struct snd_soc_ops rk_ops = {
 	.hw_params = rk_hw_params,
 };
 
@@ -271,8 +271,6 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 			"Soc register card failed %d\n", ret);
 		return ret;
 	}
-
-	platform_set_drvdata(pdev, card);
 
 	return ret;
 }

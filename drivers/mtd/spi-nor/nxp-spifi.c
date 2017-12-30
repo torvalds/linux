@@ -240,13 +240,12 @@ static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
 
 static int nxp_spifi_setup_memory_cmd(struct nxp_spifi *spifi)
 {
-	switch (spifi->nor.flash_read) {
-	case SPI_NOR_NORMAL:
-	case SPI_NOR_FAST:
+	switch (spifi->nor.read_proto) {
+	case SNOR_PROTO_1_1_1:
 		spifi->mcmd = SPIFI_CMD_FIELDFORM_ALL_SERIAL;
 		break;
-	case SPI_NOR_DUAL:
-	case SPI_NOR_QUAD:
+	case SNOR_PROTO_1_1_2:
+	case SNOR_PROTO_1_1_4:
 		spifi->mcmd = SPIFI_CMD_FIELDFORM_QUAD_DUAL_DATA;
 		break;
 	default:
@@ -274,7 +273,11 @@ static void nxp_spifi_dummy_id_read(struct spi_nor *nor)
 static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 				 struct device_node *np)
 {
-	enum read_mode flash_read;
+	struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_PP,
+	};
 	u32 ctrl, property;
 	u16 mode = 0;
 	int ret;
@@ -308,13 +311,12 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 
 	if (mode & SPI_RX_DUAL) {
 		ctrl |= SPIFI_CTRL_DUAL;
-		flash_read = SPI_NOR_DUAL;
+		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_2;
 	} else if (mode & SPI_RX_QUAD) {
 		ctrl &= ~SPIFI_CTRL_DUAL;
-		flash_read = SPI_NOR_QUAD;
+		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_4;
 	} else {
 		ctrl |= SPIFI_CTRL_DUAL;
-		flash_read = SPI_NOR_NORMAL;
 	}
 
 	switch (mode & (SPI_CPHA | SPI_CPOL)) {
@@ -351,7 +353,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 	 */
 	nxp_spifi_dummy_id_read(&spifi->nor);
 
-	ret = spi_nor_scan(&spifi->nor, NULL, flash_read);
+	ret = spi_nor_scan(&spifi->nor, NULL, &hwcaps);
 	if (ret) {
 		dev_err(spifi->dev, "device scan failed\n");
 		return ret;

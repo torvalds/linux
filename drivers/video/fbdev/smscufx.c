@@ -122,7 +122,7 @@ static const u32 smscufx_info_flags = FBINFO_DEFAULT | FBINFO_READS_FAST |
 	FBINFO_VIRTFB |	FBINFO_HWACCEL_IMAGEBLIT | FBINFO_HWACCEL_FILLRECT |
 	FBINFO_HWACCEL_COPYAREA | FBINFO_MISC_ALWAYS_SETPAR;
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x0424, 0x9d00),},
 	{USB_DEVICE(0x0424, 0x9d01),},
 	{},

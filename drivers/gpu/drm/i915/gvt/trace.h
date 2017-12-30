@@ -224,58 +224,138 @@ TRACE_EVENT(oos_sync,
 	TP_printk("%s", __entry->buf)
 );
 
-#define MAX_CMD_STR_LEN	256
 TRACE_EVENT(gvt_command,
-		TP_PROTO(u8 vm_id, u8 ring_id, u32 ip_gma, u32 *cmd_va, u32 cmd_len, bool ring_buffer_cmd, cycles_t cost_pre_cmd_handler, cycles_t cost_cmd_handler),
+	TP_PROTO(u8 vgpu_id, u8 ring_id, u32 ip_gma, u32 *cmd_va, u32 cmd_len,
+		 u32 buf_type),
 
-		TP_ARGS(vm_id, ring_id, ip_gma, cmd_va, cmd_len, ring_buffer_cmd, cost_pre_cmd_handler, cost_cmd_handler),
+	TP_ARGS(vgpu_id, ring_id, ip_gma, cmd_va, cmd_len, buf_type),
 
-		TP_STRUCT__entry(
-			__field(u8, vm_id)
-			__field(u8, ring_id)
-			__field(int, i)
-			__array(char, tmp_buf, MAX_CMD_STR_LEN)
-			__array(char, cmd_str, MAX_CMD_STR_LEN)
-			),
+	TP_STRUCT__entry(
+		__field(u8, vgpu_id)
+		__field(u8, ring_id)
+		__field(u32, ip_gma)
+		__field(u32, buf_type)
+		__field(u32, cmd_len)
+		__dynamic_array(u32, raw_cmd, cmd_len)
+	),
 
-		TP_fast_assign(
-			__entry->vm_id = vm_id;
-			__entry->ring_id = ring_id;
-			__entry->cmd_str[0] = '\0';
-			snprintf(__entry->tmp_buf, MAX_CMD_STR_LEN, "VM(%d) Ring(%d): %s ip(%08x) pre handler cost (%llu), handler cost (%llu) ", vm_id, ring_id, ring_buffer_cmd ? "RB":"BB", ip_gma, cost_pre_cmd_handler, cost_cmd_handler);
-			strcat(__entry->cmd_str, __entry->tmp_buf);
-			entry->i = 0;
-			while (cmd_len > 0) {
-				if (cmd_len >= 8) {
-					snprintf(__entry->tmp_buf, MAX_CMD_STR_LEN, "%08x %08x %08x %08x %08x %08x %08x %08x ",
-						cmd_va[__entry->i], cmd_va[__entry->i+1], cmd_va[__entry->i+2], cmd_va[__entry->i+3],
-						cmd_va[__entry->i+4], cmd_va[__entry->i+5], cmd_va[__entry->i+6], cmd_va[__entry->i+7]);
-					__entry->i += 8;
-					cmd_len -= 8;
-					strcat(__entry->cmd_str, __entry->tmp_buf);
-				} else if (cmd_len >= 4) {
-					snprintf(__entry->tmp_buf, MAX_CMD_STR_LEN, "%08x %08x %08x %08x ",
-						cmd_va[__entry->i], cmd_va[__entry->i+1], cmd_va[__entry->i+2], cmd_va[__entry->i+3]);
-					__entry->i += 4;
-					cmd_len -= 4;
-					strcat(__entry->cmd_str, __entry->tmp_buf);
-				} else if (cmd_len >= 2) {
-					snprintf(__entry->tmp_buf, MAX_CMD_STR_LEN, "%08x %08x ", cmd_va[__entry->i], cmd_va[__entry->i+1]);
-					__entry->i += 2;
-					cmd_len -= 2;
-					strcat(__entry->cmd_str, __entry->tmp_buf);
-				} else if (cmd_len == 1) {
-					snprintf(__entry->tmp_buf, MAX_CMD_STR_LEN, "%08x ", cmd_va[__entry->i]);
-					__entry->i += 1;
-					cmd_len -= 1;
-					strcat(__entry->cmd_str, __entry->tmp_buf);
-				}
-			}
-			strcat(__entry->cmd_str, "\n");
-		),
+	TP_fast_assign(
+		__entry->vgpu_id = vgpu_id;
+		__entry->ring_id = ring_id;
+		__entry->ip_gma = ip_gma;
+		__entry->buf_type = buf_type;
+		__entry->cmd_len = cmd_len;
+		memcpy(__get_dynamic_array(raw_cmd), cmd_va, cmd_len * sizeof(*cmd_va));
+	),
 
-		TP_printk("%s", __entry->cmd_str)
+
+	TP_printk("vgpu%d ring %d: buf_type %u, ip_gma %08x, raw cmd %s",
+		__entry->vgpu_id,
+		__entry->ring_id,
+		__entry->buf_type,
+		__entry->ip_gma,
+		__print_array(__get_dynamic_array(raw_cmd), __entry->cmd_len, 4))
 );
+
+#define GVT_TEMP_STR_LEN 10
+TRACE_EVENT(write_ir,
+	TP_PROTO(int id, char *reg_name, unsigned int reg, unsigned int new_val,
+		 unsigned int old_val, bool changed),
+
+	TP_ARGS(id, reg_name, reg, new_val, old_val, changed),
+
+	TP_STRUCT__entry(
+		__field(int, id)
+		__array(char, buf, GVT_TEMP_STR_LEN)
+		__field(unsigned int, reg)
+		__field(unsigned int, new_val)
+		__field(unsigned int, old_val)
+		__field(bool, changed)
+	),
+
+	TP_fast_assign(
+		__entry->id = id;
+		snprintf(__entry->buf, GVT_TEMP_STR_LEN, "%s", reg_name);
+		__entry->reg = reg;
+		__entry->new_val = new_val;
+		__entry->old_val = old_val;
+		__entry->changed = changed;
+	),
+
+	TP_printk("VM%u write [%s] %x, new %08x, old %08x, changed %08x\n",
+		  __entry->id, __entry->buf, __entry->reg, __entry->new_val,
+		  __entry->old_val, __entry->changed)
+);
+
+TRACE_EVENT(propagate_event,
+	TP_PROTO(int id, const char *irq_name, int bit),
+
+	TP_ARGS(id, irq_name, bit),
+
+	TP_STRUCT__entry(
+		__field(int, id)
+		__array(char, buf, GVT_TEMP_STR_LEN)
+		__field(int, bit)
+	),
+
+	TP_fast_assign(
+		__entry->id = id;
+		snprintf(__entry->buf, GVT_TEMP_STR_LEN, "%s", irq_name);
+		__entry->bit = bit;
+	),
+
+	TP_printk("Set bit (%d) for (%s) for vgpu (%d)\n",
+		  __entry->bit, __entry->buf, __entry->id)
+);
+
+TRACE_EVENT(inject_msi,
+	TP_PROTO(int id, unsigned int address, unsigned int data),
+
+	TP_ARGS(id, address, data),
+
+	TP_STRUCT__entry(
+		__field(int, id)
+		__field(unsigned int, address)
+		__field(unsigned int, data)
+	),
+
+	TP_fast_assign(
+		__entry->id = id;
+		__entry->address = address;
+		__entry->data = data;
+	),
+
+	TP_printk("vgpu%d:inject msi address %x data %x\n",
+		  __entry->id, __entry->address, __entry->data)
+);
+
+TRACE_EVENT(render_mmio,
+	TP_PROTO(int id, char *action, unsigned int reg,
+		 unsigned int old_val, unsigned int new_val),
+
+	TP_ARGS(id, action, reg, new_val, old_val),
+
+	TP_STRUCT__entry(
+		__field(int, id)
+		__array(char, buf, GVT_TEMP_STR_LEN)
+		__field(unsigned int, reg)
+		__field(unsigned int, old_val)
+		__field(unsigned int, new_val)
+	),
+
+	TP_fast_assign(
+		__entry->id = id;
+		snprintf(__entry->buf, GVT_TEMP_STR_LEN, "%s", action);
+		__entry->reg = reg;
+		__entry->old_val = old_val;
+		__entry->new_val = new_val;
+	),
+
+	TP_printk("VM%u %s reg %x, old %08x new %08x\n",
+		  __entry->id, __entry->buf, __entry->reg,
+		  __entry->old_val, __entry->new_val)
+);
+
 #endif /* _GVT_TRACE_H_ */
 
 /* This part must be out of protection */

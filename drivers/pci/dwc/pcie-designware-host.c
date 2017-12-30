@@ -1,5 +1,5 @@
 /*
- * Synopsys Designware PCIe host controller driver
+ * Synopsys DesignWare PCIe host controller driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -71,9 +71,9 @@ irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 		while ((pos = find_next_bit((unsigned long *) &val, 32,
 					    pos)) != 32) {
 			irq = irq_find_mapping(pp->irq_domain, i * 32 + pos);
+			generic_handle_irq(irq);
 			dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS + i * 12,
 					    4, 1 << pos);
-			generic_handle_irq(irq);
 			pos++;
 		}
 	}
@@ -280,9 +280,9 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	struct device_node *np = dev->of_node;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct pci_bus *bus, *child;
+	struct pci_host_bridge *bridge;
 	struct resource *cfg_res;
 	int i, ret;
-	LIST_HEAD(res);
 	struct resource_entry *win, *tmp;
 
 	cfg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
@@ -295,16 +295,21 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		dev_err(dev, "missing *config* reg space\n");
 	}
 
-	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &res, &pp->io_base);
+	bridge = pci_alloc_host_bridge(0);
+	if (!bridge)
+		return -ENOMEM;
+
+	ret = of_pci_get_host_bridge_resources(np, 0, 0xff,
+					&bridge->windows, &pp->io_base);
 	if (ret)
 		return ret;
 
-	ret = devm_request_pci_bus_resources(dev, &res);
+	ret = devm_request_pci_bus_resources(dev, &bridge->windows);
 	if (ret)
 		goto error;
 
 	/* Get the I/O and memory ranges from DT */
-	resource_list_for_each_entry_safe(win, tmp, &res) {
+	resource_list_for_each_entry_safe(win, tmp, &bridge->windows) {
 		switch (resource_type(win->res)) {
 		case IORESOURCE_IO:
 			ret = pci_remap_iospace(win->res, pp->io_base);
@@ -396,30 +401,33 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		}
 	}
 
-	if (pp->ops->host_init)
-		pp->ops->host_init(pp);
+	if (pp->ops->host_init) {
+		ret = pp->ops->host_init(pp);
+		if (ret)
+			goto error;
+	}
 
 	pp->root_bus_nr = pp->busn->start;
+
+	bridge->dev.parent = dev;
+	bridge->sysdata = pp;
+	bridge->busnr = pp->root_bus_nr;
+	bridge->ops = &dw_pcie_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		bus = pci_scan_root_bus_msi(dev, pp->root_bus_nr,
-					    &dw_pcie_ops, pp, &res,
-					    &dw_pcie_msi_chip);
+		bridge->msi = &dw_pcie_msi_chip;
 		dw_pcie_msi_chip.dev = dev;
-	} else
-		bus = pci_scan_root_bus(dev, pp->root_bus_nr, &dw_pcie_ops,
-					pp, &res);
-	if (!bus) {
-		ret = -ENOMEM;
-		goto error;
 	}
+
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret)
+		goto error;
+
+	bus = bridge->bus;
 
 	if (pp->ops->scan_bus)
 		pp->ops->scan_bus(pp);
-
-#ifdef CONFIG_ARM
-	/* support old dtbs that incorrectly describe IRQs */
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
-#endif
 
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
@@ -431,7 +439,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	return 0;
 
 error:
-	pci_free_resource_list(&res);
+	pci_free_host_bridge(bridge);
 	return ret;
 }
 
@@ -589,10 +597,12 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_1, 0x00000000);
 
 	/* setup interrupt pins */
+	dw_pcie_dbi_ro_wr_en(pci);
 	val = dw_pcie_readl_dbi(pci, PCI_INTERRUPT_LINE);
 	val &= 0xffff00ff;
 	val |= 0x00000100;
 	dw_pcie_writel_dbi(pci, PCI_INTERRUPT_LINE, val);
+	dw_pcie_dbi_ro_wr_dis(pci);
 
 	/* setup bus numbers */
 	val = dw_pcie_readl_dbi(pci, PCI_PRIMARY_BUS);
@@ -629,8 +639,12 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 
 	dw_pcie_wr_own_conf(pp, PCI_BASE_ADDRESS_0, 4, 0);
 
+	/* Enable write permission for the DBI read-only register */
+	dw_pcie_dbi_ro_wr_en(pci);
 	/* program correct class for RC */
 	dw_pcie_wr_own_conf(pp, PCI_CLASS_DEVICE, 2, PCI_CLASS_BRIDGE_PCI);
+	/* Better disable write permission right after the update */
+	dw_pcie_dbi_ro_wr_dis(pci);
 
 	dw_pcie_rd_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, &val);
 	val |= PORT_LOGIC_SPEED_CHANGE;

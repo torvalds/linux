@@ -28,6 +28,5 @@ chosen {
 		allwinner,pipeline = "de_be0-lcd0-hdmi";
 		clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
 			 <&ahb_gates 44>;
-		status = "disabled";
 	};
 };

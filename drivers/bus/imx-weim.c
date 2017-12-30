@@ -156,8 +156,8 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 
 		ret = weim_timing_setup(child, base, devtype);
 		if (ret)
-			dev_warn(&pdev->dev, "%s set timing failed.\n",
-				child->full_name);
+			dev_warn(&pdev->dev, "%pOF set timing failed.\n",
+				child);
 		else
 			have_child = 1;
 	}
@@ -166,8 +166,8 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 		ret = of_platform_default_populate(pdev->dev.of_node,
 						   NULL, &pdev->dev);
 	if (ret)
-		dev_err(&pdev->dev, "%s fail to create devices.\n",
-			pdev->dev.of_node->full_name);
+		dev_err(&pdev->dev, "%pOF fail to create devices.\n",
+			pdev->dev.of_node);
 	return ret;
 }
 

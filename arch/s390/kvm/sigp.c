@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * handling interprocessor communication
  *
  * Copyright IBM Corp. 2008, 2013
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -155,29 +152,26 @@ static int __sigp_stop_and_store_status(struct kvm_vcpu *vcpu,
 	return rc;
 }
 
-static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
+static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter,
+			   u64 *status_reg)
 {
-	int rc;
 	unsigned int i;
 	struct kvm_vcpu *v;
+	bool all_stopped = true;
 
-	switch (parameter & 0xff) {
-	case 0:
-		rc = SIGP_CC_NOT_OPERATIONAL;
-		break;
-	case 1:
-	case 2:
-		kvm_for_each_vcpu(i, v, vcpu->kvm) {
-			v->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
-			kvm_clear_async_pf_completion_queue(v);
-		}
-
-		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
-		break;
-	default:
-		rc = -EOPNOTSUPP;
+	kvm_for_each_vcpu(i, v, vcpu->kvm) {
+		if (v == vcpu)
+			continue;
+		if (!is_vcpu_stopped(v))
+			all_stopped = false;
 	}
-	return rc;
+
+	*status_reg &= 0xffffffff00000000UL;
+
+	/* Reject set arch order, with czam we're always in z/Arch mode. */
+	*status_reg |= (all_stopped ? SIGP_STATUS_INVALID_PARAMETER :
+					SIGP_STATUS_INCORRECT_STATE);
+	return SIGP_CC_STATUS_STORED;
 }
 
 static int __sigp_set_prefix(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
@@ -446,7 +440,8 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	switch (order_code) {
 	case SIGP_SET_ARCHITECTURE:
 		vcpu->stat.instruction_sigp_arch++;
-		rc = __sigp_set_arch(vcpu, parameter);
+		rc = __sigp_set_arch(vcpu, parameter,
+				     &vcpu->run->s.regs.gprs[r1]);
 		break;
 	default:
 		rc = handle_sigp_dst(vcpu, order_code, cpu_addr,

@@ -8,19 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2016-02-10 17:07:21)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2015-09-18 12:07:28)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  36965 bytes, from 2016-11-26 23:01:08)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  27887 bytes, from 2015-10-22 16:34:52)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2015-10-22 16:35:02)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2015-05-20 20:03:07)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  41472 bytes, from 2016-01-22 18:18:18)
-- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  37411 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  33004 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  41799 bytes, from 2017-06-16 12:32:42)
+- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2017-05-17 13:21:27)
 
-Copyright (C) 2013-2016 by the following authors:
+Copyright (C) 2013-2017 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -110,6 +110,32 @@ static inline uint32_t HDMI_ACR_PKT_CTRL_N_MULTIPLIER(uint32_t val)
 #define HDMI_INFOFRAME_CTRL0_AUDIO_INFO_CONT			0x00000020
 #define HDMI_INFOFRAME_CTRL0_AUDIO_INFO_SOURCE			0x00000040
 #define HDMI_INFOFRAME_CTRL0_AUDIO_INFO_UPDATE			0x00000080
+
+#define REG_HDMI_INFOFRAME_CTRL1				0x00000030
+#define HDMI_INFOFRAME_CTRL1_AVI_INFO_LINE__MASK		0x0000003f
+#define HDMI_INFOFRAME_CTRL1_AVI_INFO_LINE__SHIFT		0
+static inline uint32_t HDMI_INFOFRAME_CTRL1_AVI_INFO_LINE(uint32_t val)
+{
+	return ((val) << HDMI_INFOFRAME_CTRL1_AVI_INFO_LINE__SHIFT) & HDMI_INFOFRAME_CTRL1_AVI_INFO_LINE__MASK;
+}
+#define HDMI_INFOFRAME_CTRL1_AUDIO_INFO_LINE__MASK		0x00003f00
+#define HDMI_INFOFRAME_CTRL1_AUDIO_INFO_LINE__SHIFT		8
+static inline uint32_t HDMI_INFOFRAME_CTRL1_AUDIO_INFO_LINE(uint32_t val)
+{
+	return ((val) << HDMI_INFOFRAME_CTRL1_AUDIO_INFO_LINE__SHIFT) & HDMI_INFOFRAME_CTRL1_AUDIO_INFO_LINE__MASK;
+}
+#define HDMI_INFOFRAME_CTRL1_MPEG_INFO_LINE__MASK		0x003f0000
+#define HDMI_INFOFRAME_CTRL1_MPEG_INFO_LINE__SHIFT		16
+static inline uint32_t HDMI_INFOFRAME_CTRL1_MPEG_INFO_LINE(uint32_t val)
+{
+	return ((val) << HDMI_INFOFRAME_CTRL1_MPEG_INFO_LINE__SHIFT) & HDMI_INFOFRAME_CTRL1_MPEG_INFO_LINE__MASK;
+}
+#define HDMI_INFOFRAME_CTRL1_VENSPEC_INFO_LINE__MASK		0x3f000000
+#define HDMI_INFOFRAME_CTRL1_VENSPEC_INFO_LINE__SHIFT		24
+static inline uint32_t HDMI_INFOFRAME_CTRL1_VENSPEC_INFO_LINE(uint32_t val)
+{
+	return ((val) << HDMI_INFOFRAME_CTRL1_VENSPEC_INFO_LINE__SHIFT) & HDMI_INFOFRAME_CTRL1_VENSPEC_INFO_LINE__MASK;
+}
 
 #define REG_HDMI_GEN_PKT_CTRL					0x00000034
 #define HDMI_GEN_PKT_CTRL_GENERIC0_SEND				0x00000001
@@ -463,7 +489,7 @@ static inline uint32_t HDMI_DDC_REF_REFTIMER(uint32_t val)
 #define REG_HDMI_CEC_RD_FILTER					0x000002b0
 
 #define REG_HDMI_ACTIVE_HSYNC					0x000002b4
-#define HDMI_ACTIVE_HSYNC_START__MASK				0x00000fff
+#define HDMI_ACTIVE_HSYNC_START__MASK				0x00001fff
 #define HDMI_ACTIVE_HSYNC_START__SHIFT				0
 static inline uint32_t HDMI_ACTIVE_HSYNC_START(uint32_t val)
 {
@@ -477,13 +503,13 @@ static inline uint32_t HDMI_ACTIVE_HSYNC_END(uint32_t val)
 }
 
 #define REG_HDMI_ACTIVE_VSYNC					0x000002b8
-#define HDMI_ACTIVE_VSYNC_START__MASK				0x00000fff
+#define HDMI_ACTIVE_VSYNC_START__MASK				0x00001fff
 #define HDMI_ACTIVE_VSYNC_START__SHIFT				0
 static inline uint32_t HDMI_ACTIVE_VSYNC_START(uint32_t val)
 {
 	return ((val) << HDMI_ACTIVE_VSYNC_START__SHIFT) & HDMI_ACTIVE_VSYNC_START__MASK;
 }
-#define HDMI_ACTIVE_VSYNC_END__MASK				0x0fff0000
+#define HDMI_ACTIVE_VSYNC_END__MASK				0x1fff0000
 #define HDMI_ACTIVE_VSYNC_END__SHIFT				16
 static inline uint32_t HDMI_ACTIVE_VSYNC_END(uint32_t val)
 {
@@ -491,13 +517,13 @@ static inline uint32_t HDMI_ACTIVE_VSYNC_END(uint32_t val)
 }
 
 #define REG_HDMI_VSYNC_ACTIVE_F2				0x000002bc
-#define HDMI_VSYNC_ACTIVE_F2_START__MASK			0x00000fff
+#define HDMI_VSYNC_ACTIVE_F2_START__MASK			0x00001fff
 #define HDMI_VSYNC_ACTIVE_F2_START__SHIFT			0
 static inline uint32_t HDMI_VSYNC_ACTIVE_F2_START(uint32_t val)
 {
 	return ((val) << HDMI_VSYNC_ACTIVE_F2_START__SHIFT) & HDMI_VSYNC_ACTIVE_F2_START__MASK;
 }
-#define HDMI_VSYNC_ACTIVE_F2_END__MASK				0x0fff0000
+#define HDMI_VSYNC_ACTIVE_F2_END__MASK				0x1fff0000
 #define HDMI_VSYNC_ACTIVE_F2_END__SHIFT				16
 static inline uint32_t HDMI_VSYNC_ACTIVE_F2_END(uint32_t val)
 {
@@ -505,13 +531,13 @@ static inline uint32_t HDMI_VSYNC_ACTIVE_F2_END(uint32_t val)
 }
 
 #define REG_HDMI_TOTAL						0x000002c0
-#define HDMI_TOTAL_H_TOTAL__MASK				0x00000fff
+#define HDMI_TOTAL_H_TOTAL__MASK				0x00001fff
 #define HDMI_TOTAL_H_TOTAL__SHIFT				0
 static inline uint32_t HDMI_TOTAL_H_TOTAL(uint32_t val)
 {
 	return ((val) << HDMI_TOTAL_H_TOTAL__SHIFT) & HDMI_TOTAL_H_TOTAL__MASK;
 }
-#define HDMI_TOTAL_V_TOTAL__MASK				0x0fff0000
+#define HDMI_TOTAL_V_TOTAL__MASK				0x1fff0000
 #define HDMI_TOTAL_V_TOTAL__SHIFT				16
 static inline uint32_t HDMI_TOTAL_V_TOTAL(uint32_t val)
 {
@@ -519,7 +545,7 @@ static inline uint32_t HDMI_TOTAL_V_TOTAL(uint32_t val)
 }
 
 #define REG_HDMI_VSYNC_TOTAL_F2					0x000002c4
-#define HDMI_VSYNC_TOTAL_F2_V_TOTAL__MASK			0x00000fff
+#define HDMI_VSYNC_TOTAL_F2_V_TOTAL__MASK			0x00001fff
 #define HDMI_VSYNC_TOTAL_F2_V_TOTAL__SHIFT			0
 static inline uint32_t HDMI_VSYNC_TOTAL_F2_V_TOTAL(uint32_t val)
 {

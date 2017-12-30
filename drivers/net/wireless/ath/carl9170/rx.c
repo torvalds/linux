@@ -481,7 +481,7 @@ static struct sk_buff *carl9170_rx_copy_data(u8 *buf, int len)
 	skb = dev_alloc_skb(len + reserved);
 	if (likely(skb)) {
 		skb_reserve(skb, reserved);
-		memcpy(skb_put(skb, len), buf, len);
+		skb_put_data(skb, buf, len);
 	}
 
 	return skb;
@@ -916,7 +916,7 @@ static void carl9170_rx_stream(struct ar9170 *ar, void *buf, unsigned int len)
 				}
 			}
 
-			memcpy(skb_put(ar->rx_failover, tlen), tbuf, tlen);
+			skb_put_data(ar->rx_failover, tbuf, tlen);
 			ar->rx_failover_missing -= tlen;
 
 			if (ar->rx_failover_missing <= 0) {
@@ -958,7 +958,7 @@ static void carl9170_rx_stream(struct ar9170 *ar, void *buf, unsigned int len)
 			 * the rx - descriptor comes round again.
 			 */
 
-			memcpy(skb_put(ar->rx_failover, tlen), tbuf, tlen);
+			skb_put_data(ar->rx_failover, tbuf, tlen);
 			ar->rx_failover_missing = clen - tlen;
 			return;
 		}

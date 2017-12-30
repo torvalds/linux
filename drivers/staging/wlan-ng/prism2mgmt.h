@@ -109,7 +109,7 @@ int prism2mgmt_get_grpaddr_index(u32 did);
 void prism2sta_processing_defer(struct work_struct *data);
 
 void prism2sta_commsqual_defer(struct work_struct *data);
-void prism2sta_commsqual_timer(unsigned long data);
+void prism2sta_commsqual_timer(struct timer_list *t);
 
 /* Interface callback functions, passing data back up to the cfg80211 layer */
 void prism2_connect_result(struct wlandevice *wlandev, u8 failed);

@@ -176,7 +176,7 @@ skip_key_lookup:
 		return cand;
 
 	t = rcu_dereference(itn->collect_md_tun);
-	if (t)
+	if (t && t->dev->flags & IFF_UP)
 		return t;
 
 	if (itn->fb_tunnel_dev && itn->fb_tunnel_dev->flags & IFF_UP)
@@ -349,8 +349,8 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 	dev->needed_headroom = t_hlen + hlen;
 	mtu -= (dev->hard_header_len + t_hlen);
 
-	if (mtu < 68)
-		mtu = 68;
+	if (mtu < IPV4_MIN_MTU)
+		mtu = IPV4_MIN_MTU;
 
 	return mtu;
 }
@@ -618,8 +618,8 @@ void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev, u8 proto)
 		ip_rt_put(rt);
 		goto tx_dropped;
 	}
-	iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, proto, key->tos,
-		      key->ttl, df, !net_eq(tunnel->net, dev_net(dev)));
+	iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, proto, tos, ttl,
+		      df, !net_eq(tunnel->net, dev_net(dev)));
 	return;
 tx_error:
 	dev->stats.tx_errors++;
@@ -1061,16 +1061,22 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head,
 	}
 }
 
-void ip_tunnel_delete_net(struct ip_tunnel_net *itn, struct rtnl_link_ops *ops)
+void ip_tunnel_delete_nets(struct list_head *net_list, unsigned int id,
+			   struct rtnl_link_ops *ops)
 {
+	struct ip_tunnel_net *itn;
+	struct net *net;
 	LIST_HEAD(list);
 
 	rtnl_lock();
-	ip_tunnel_destroy(itn, &list, ops);
+	list_for_each_entry(net, net_list, exit_list) {
+		itn = net_generic(net, id);
+		ip_tunnel_destroy(itn, &list, ops);
+	}
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
 }
-EXPORT_SYMBOL_GPL(ip_tunnel_delete_net);
+EXPORT_SYMBOL_GPL(ip_tunnel_delete_nets);
 
 int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		      struct ip_tunnel_parm *p, __u32 fwmark)

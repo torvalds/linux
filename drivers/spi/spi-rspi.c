@@ -377,8 +377,8 @@ static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
 	/* Sets SPCMD */
 	rspi_write16(rspi, rspi->spcmd, RSPI_SPCMD0);
 
-	/* Enables SPI function in master mode */
-	rspi_write8(rspi, SPCR_SPE | SPCR_MSTR, RSPI_SPCR);
+	/* Sets RSPI mode */
+	rspi_write8(rspi, SPCR_MSTR, RSPI_SPCR);
 
 	return 0;
 }
@@ -1221,7 +1221,6 @@ static int rspi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct rspi_data *rspi;
 	int ret;
-	const struct of_device_id *of_id;
 	const struct rspi_plat_data *rspi_pd;
 	const struct spi_ops *ops;
 
@@ -1229,9 +1228,8 @@ static int rspi_probe(struct platform_device *pdev)
 	if (master == NULL)
 		return -ENOMEM;
 
-	of_id = of_match_device(rspi_of_match, &pdev->dev);
-	if (of_id) {
-		ops = of_id->data;
+	ops = of_device_get_match_data(&pdev->dev);
+	if (ops) {
 		ret = rspi_parse_dt(&pdev->dev, master);
 		if (ret)
 			goto error1;

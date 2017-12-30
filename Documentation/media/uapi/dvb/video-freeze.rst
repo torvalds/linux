@@ -44,14 +44,14 @@ Arguments
 Description
 -----------
 
-This ioctl is for DVB devices only. To control a V4L2 decoder use the
+This ioctl is for Digital TV devices only. To control a V4L2 decoder use the
 V4L2 :ref:`VIDIOC_DECODER_CMD` instead.
 
 This ioctl call suspends the live video stream being played. Decoding
 and playing are frozen. It is then possible to restart the decoding and
 playing process of the video stream using the VIDEO_CONTINUE command.
 If VIDEO_SOURCE_MEMORY is selected in the ioctl call
-VIDEO_SELECT_SOURCE, the DVB subsystem will not decode any more data
+VIDEO_SELECT_SOURCE, the Digital TV subsystem will not decode any more data
 until the ioctl call VIDEO_CONTINUE or VIDEO_PLAY is performed.
 
 

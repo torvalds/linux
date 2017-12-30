@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/media-device.h>
 #include <media/drv-intf/exynos-fimc.h>
 
@@ -60,6 +60,7 @@ static void __setup_sensor_notification(struct fimc_md *fmd,
 
 /**
  * fimc_pipeline_prepare - update pipeline information with subdevice pointers
+ * @p: fimc pipeline
  * @me: media entity terminating the pipeline
  *
  * Caller holds the graph mutex.
@@ -151,8 +152,8 @@ static int __subdev_set_power(struct v4l2_subdev *sd, int on)
 
 /**
  * fimc_pipeline_s_power - change power state of all pipeline subdevs
- * @fimc: fimc device terminating the pipeline
- * @state: true to power on, false to power off
+ * @p: fimc device terminating the pipeline
+ * @on: true to power on, false to power off
  *
  * Needs to be called with the graph mutex held.
  */
@@ -219,6 +220,7 @@ static int __fimc_pipeline_enable(struct exynos_media_pipeline *ep,
 /**
  * __fimc_pipeline_open - update the pipeline information, enable power
  *                        of all pipeline subdevs and the sensor clock
+ * @ep: fimc device terminating the pipeline
  * @me: media entity to start graph walk with
  * @prepare: true to walk the current pipeline and acquire all subdevs
  *
@@ -252,7 +254,7 @@ static int __fimc_pipeline_open(struct exynos_media_pipeline *ep,
 
 /**
  * __fimc_pipeline_close - disable the sensor clock and pipeline power
- * @fimc: fimc device terminating the pipeline
+ * @ep: fimc device terminating the pipeline
  *
  * Disable power of all subdevs and turn the external sensor clock off.
  */
@@ -281,7 +283,7 @@ static int __fimc_pipeline_close(struct exynos_media_pipeline *ep)
 
 /**
  * __fimc_pipeline_s_stream - call s_stream() on pipeline subdevs
- * @pipeline: video pipeline structure
+ * @ep: video pipeline structure
  * @on: passed as the s_stream() callback argument
  */
 static int __fimc_pipeline_s_stream(struct exynos_media_pipeline *ep, bool on)
@@ -388,7 +390,7 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 {
 	struct fimc_source_info *pd = &fmd->sensor[index].pdata;
 	struct device_node *rem, *ep, *np;
-	struct v4l2_of_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint;
 	int ret;
 
 	/* Assume here a port node can have only one endpoint node. */
@@ -396,7 +398,7 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	if (!ep)
 		return 0;
 
-	ret = v4l2_of_parse_endpoint(ep, &endpoint);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &endpoint);
 	if (ret) {
 		of_node_put(ep);
 		return ret;
@@ -412,8 +414,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	rem = of_graph_get_remote_port_parent(ep);
 	of_node_put(ep);
 	if (rem == NULL) {
-		v4l2_info(&fmd->v4l2_dev, "Remote device at %s not found\n",
-							ep->full_name);
+		v4l2_info(&fmd->v4l2_dev, "Remote device at %pOF not found\n",
+							ep);
 		return 0;
 	}
 
@@ -430,8 +432,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 		 */
 		pd->sensor_bus_type = FIMC_BUS_TYPE_MIPI_CSI2;
 	} else {
-		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %s\n",
-			 endpoint.base.port, rem->full_name);
+		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %pOF\n",
+			 endpoint.base.port, rem);
 	}
 	/*
 	 * For FIMC-IS handled sensors, that are placed under i2c-isp device
@@ -453,8 +455,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 		return -EINVAL;
 	}
 
-	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_OF;
-	fmd->sensor[index].asd.match.of.node = rem;
+	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+	fmd->sensor[index].asd.match.fwnode.fwnode = of_fwnode_handle(rem);
 	fmd->async_subdevs[index] = &fmd->sensor[index].asd;
 
 	fmd->num_sensors++;
@@ -902,6 +904,7 @@ static int __fimc_md_create_fimc_is_links(struct fimc_md *fmd)
 
 /**
  * fimc_md_create_links - create default links between registered entities
+ * @fmd: fimc media device
  *
  * Parallel interface sensor entities are connected directly to FIMC capture
  * entities. The sensors using MIPI CSIS bus are connected through immutable
@@ -1361,7 +1364,8 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	/* Find platform data for this sensor subdev */
 	for (i = 0; i < ARRAY_SIZE(fmd->sensor); i++)
-		if (fmd->sensor[i].asd.match.of.node == subdev->dev->of_node)
+		if (fmd->sensor[i].asd.match.fwnode.fwnode ==
+		    of_fwnode_handle(subdev->dev->of_node))
 			si = &fmd->sensor[i];
 
 	if (si == NULL)
@@ -1403,6 +1407,11 @@ unlock:
 
 	return media_device_register(&fmd->media_dev);
 }
+
+static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
+	.bound = subdev_notifier_bound,
+	.complete = subdev_notifier_complete,
+};
 
 static int fimc_md_probe(struct platform_device *pdev)
 {
@@ -1478,8 +1487,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 	if (fmd->num_sensors > 0) {
 		fmd->subdev_notifier.subdevs = fmd->async_subdevs;
 		fmd->subdev_notifier.num_subdevs = fmd->num_sensors;
-		fmd->subdev_notifier.bound = subdev_notifier_bound;
-		fmd->subdev_notifier.complete = subdev_notifier_complete;
+		fmd->subdev_notifier.ops = &subdev_notifier_ops;
 		fmd->num_sensors = 0;
 
 		ret = v4l2_async_notifier_register(&fmd->v4l2_dev,

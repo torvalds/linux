@@ -8,7 +8,9 @@
 Part III - Remote Controller API
 ################################
 
-.. class:: toc-title
+.. only:: html
+
+   .. class:: toc-title
 
         Table of Contents
 

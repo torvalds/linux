@@ -464,7 +464,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
 	pos += IEEE80211_CCMP_HDR_LEN;
 	ccmp_special_blocks(skb, pn, b_0, aad);
 	return ieee80211_aes_ccm_encrypt(key->u.ccmp.tfm, b_0, aad, pos, len,
-					 skb_put(skb, mic_len), mic_len);
+					 skb_put(skb, mic_len));
 }
 
 
@@ -543,7 +543,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx,
 				    key->u.ccmp.tfm, b_0, aad,
 				    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN,
 				    data_len,
-				    skb->data + skb->len - mic_len, mic_len))
+				    skb->data + skb->len - mic_len))
 				return RX_DROP_UNUSABLE;
 		}
 
@@ -949,7 +949,7 @@ ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
 	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
 		return TX_DROP;
 
-	mmie = (struct ieee80211_mmie *) skb_put(skb, sizeof(*mmie));
+	mmie = skb_put(skb, sizeof(*mmie));
 	mmie->element_id = WLAN_EID_MMIE;
 	mmie->length = sizeof(*mmie) - 2;
 	mmie->key_id = cpu_to_le16(key->conf.keyidx);
@@ -993,7 +993,7 @@ ieee80211_crypto_aes_cmac_256_encrypt(struct ieee80211_tx_data *tx)
 	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
 		return TX_DROP;
 
-	mmie = (struct ieee80211_mmie_16 *)skb_put(skb, sizeof(*mmie));
+	mmie = skb_put(skb, sizeof(*mmie));
 	mmie->element_id = WLAN_EID_MMIE;
 	mmie->length = sizeof(*mmie) - 2;
 	mmie->key_id = cpu_to_le16(key->conf.keyidx);
@@ -1138,7 +1138,7 @@ ieee80211_crypto_aes_gmac_encrypt(struct ieee80211_tx_data *tx)
 	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
 		return TX_DROP;
 
-	mmie = (struct ieee80211_mmie_16 *)skb_put(skb, sizeof(*mmie));
+	mmie = skb_put(skb, sizeof(*mmie));
 	mmie->element_id = WLAN_EID_MMIE;
 	mmie->length = sizeof(*mmie) - 2;
 	mmie->key_id = cpu_to_le16(key->conf.keyidx);

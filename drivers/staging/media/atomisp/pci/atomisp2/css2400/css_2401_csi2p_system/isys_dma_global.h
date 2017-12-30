@@ -46,7 +46,7 @@ struct isys2401_dma_port_cfg_s {
 	uint32_t cropping;
 	uint32_t width;
  };
-/** end of DMA Port */
+/* end of DMA Port */
 
 /************************************************
  *
@@ -79,7 +79,7 @@ struct isys2401_dma_cfg_s {
 	isys2401_dma_extension	extension;
 	uint32_t		height;
 };
-/** end of DMA Device */
+/* end of DMA Device */
 
 /* isys2401_dma_channel limits per DMA ID */
 extern const isys2401_dma_channel N_ISYS2401_DMA_CHANNEL_PROCS[N_ISYS2401_DMA_ID];

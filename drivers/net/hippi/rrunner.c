@@ -962,8 +962,8 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 								    pkt_len,
 								    PCI_DMA_FROMDEVICE);
 
-					memcpy(skb_put(skb, pkt_len),
-					       rx_skb->data, pkt_len);
+					skb_put_data(skb, rx_skb->data,
+						     pkt_len);
 
 					pci_dma_sync_single_for_device(rrpriv->pci_dev,
 								       desc->addr.addrlo,
@@ -1146,10 +1146,10 @@ static inline void rr_raz_rx(struct rr_private *rrpriv,
 	}
 }
 
-static void rr_timer(unsigned long data)
+static void rr_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct rr_private *rrpriv = netdev_priv(dev);
+	struct rr_private *rrpriv = from_timer(rrpriv, t, timer);
+	struct net_device *dev = pci_get_drvdata(rrpriv->pci_dev);
 	struct rr_regs __iomem *regs = rrpriv->regs;
 	unsigned long flags;
 
@@ -1229,10 +1229,8 @@ static int rr_open(struct net_device *dev)
 
 	/* Set the timer to switch to check for link beat and perhaps switch
 	   to an alternate media type. */
-	init_timer(&rrpriv->timer);
+	timer_setup(&rrpriv->timer, rr_timer, 0);
 	rrpriv->timer.expires = RUN_AT(5*HZ);           /* 5 sec. watchdog */
-	rrpriv->timer.data = (unsigned long)dev;
-	rrpriv->timer.function = rr_timer;               /* timer handler */
 	add_timer(&rrpriv->timer);
 
 	netif_start_queue(dev);
@@ -1381,8 +1379,8 @@ static int rr_close(struct net_device *dev)
 			    rrpriv->info_dma);
 	rrpriv->info = NULL;
 
-	free_irq(pdev->irq, dev);
 	spin_unlock_irqrestore(&rrpriv->lock, flags);
+	free_irq(pdev->irq, dev);
 
 	return 0;
 }
@@ -1422,7 +1420,7 @@ static netdev_tx_t rr_start_xmit(struct sk_buff *skb,
 		skb = new_skb;
 	}
 
-	ifield = (u32 *)skb_push(skb, 8);
+	ifield = skb_push(skb, 8);
 
 	ifield[0] = 0;
 	ifield[1] = hcb->ifield;

@@ -114,14 +114,14 @@ static void async_run_entry_fn(struct work_struct *work)
 	ktime_t uninitialized_var(calltime), delta, rettime;
 
 	/* 1) run (and print duration) */
-	if (initcall_debug && system_state == SYSTEM_BOOTING) {
+	if (initcall_debug && system_state < SYSTEM_RUNNING) {
 		pr_debug("calling  %lli_%pF @ %i\n",
 			(long long)entry->cookie,
 			entry->func, task_pid_nr(current));
 		calltime = ktime_get();
 	}
 	entry->func(entry->data, entry->cookie);
-	if (initcall_debug && system_state == SYSTEM_BOOTING) {
+	if (initcall_debug && system_state < SYSTEM_RUNNING) {
 		rettime = ktime_get();
 		delta = ktime_sub(rettime, calltime);
 		pr_debug("initcall %lli_%pF returned 0 after %lld usecs\n",
@@ -284,14 +284,14 @@ void async_synchronize_cookie_domain(async_cookie_t cookie, struct async_domain 
 {
 	ktime_t uninitialized_var(starttime), delta, endtime;
 
-	if (initcall_debug && system_state == SYSTEM_BOOTING) {
+	if (initcall_debug && system_state < SYSTEM_RUNNING) {
 		pr_debug("async_waiting @ %i\n", task_pid_nr(current));
 		starttime = ktime_get();
 	}
 
 	wait_event(async_done, lowest_in_progress(domain) >= cookie);
 
-	if (initcall_debug && system_state == SYSTEM_BOOTING) {
+	if (initcall_debug && system_state < SYSTEM_RUNNING) {
 		endtime = ktime_get();
 		delta = ktime_sub(endtime, starttime);
 

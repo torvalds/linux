@@ -237,6 +237,18 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 	stop_machine(mtrr_rendezvous_handler, &data, cpu_online_mask);
 }
 
+static void set_mtrr_cpuslocked(unsigned int reg, unsigned long base,
+				unsigned long size, mtrr_type type)
+{
+	struct set_mtrr_data data = { .smp_reg = reg,
+				      .smp_base = base,
+				      .smp_size = size,
+				      .smp_type = type
+				    };
+
+	stop_machine_cpuslocked(mtrr_rendezvous_handler, &data, cpu_online_mask);
+}
+
 static void set_mtrr_from_inactive_cpu(unsigned int reg, unsigned long base,
 				      unsigned long size, mtrr_type type)
 {
@@ -370,7 +382,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	/* Search for an empty MTRR */
 	i = mtrr_if->get_free_region(base, size, replace);
 	if (i >= 0) {
-		set_mtrr(i, base, size, type);
+		set_mtrr_cpuslocked(i, base, size, type);
 		if (likely(replace < 0)) {
 			mtrr_usage_table[i] = 1;
 		} else {
@@ -378,7 +390,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 			if (increment)
 				mtrr_usage_table[i]++;
 			if (unlikely(replace != i)) {
-				set_mtrr(replace, 0, 0, 0);
+				set_mtrr_cpuslocked(replace, 0, 0, 0);
 				mtrr_usage_table[replace] = 0;
 			}
 		}
@@ -506,7 +518,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 		goto out;
 	}
 	if (--mtrr_usage_table[reg] < 1)
-		set_mtrr(reg, 0, 0, 0);
+		set_mtrr_cpuslocked(reg, 0, 0, 0);
 	error = reg;
  out:
 	mutex_unlock(&mtrr_mutex);
@@ -807,10 +819,8 @@ void mtrr_save_state(void)
 	if (!mtrr_enabled())
 		return;
 
-	get_online_cpus();
 	first_cpu = cpumask_first(cpu_online_mask);
 	smp_call_function_single(first_cpu, mtrr_save_fixed_ranges, NULL, 1);
-	put_online_cpus();
 }
 
 void set_mtrr_aps_delayed_init(void)

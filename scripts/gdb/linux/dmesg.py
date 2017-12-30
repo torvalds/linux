@@ -12,6 +12,7 @@
 #
 
 import gdb
+import sys
 
 from linux import utils
 
@@ -24,7 +25,7 @@ class LxDmesg(gdb.Command):
 
     def invoke(self, arg, from_tty):
         log_buf_addr = int(str(gdb.parse_and_eval(
-            "'printk.c'::log_buf")).split()[0], 16)
+            "(void *)'printk.c'::log_buf")).split()[0], 16)
         log_first_idx = int(gdb.parse_and_eval("'printk.c'::log_first_idx"))
         log_next_idx = int(gdb.parse_and_eval("'printk.c'::log_next_idx"))
         log_buf_len = int(gdb.parse_and_eval("'printk.c'::log_buf_len"))
@@ -52,13 +53,19 @@ class LxDmesg(gdb.Command):
                 continue
 
             text_len = utils.read_u16(log_buf[pos + 10:pos + 12])
-            text = log_buf[pos + 16:pos + 16 + text_len].decode()
+            text = log_buf[pos + 16:pos + 16 + text_len].decode(
+                encoding='utf8', errors='replace')
             time_stamp = utils.read_u64(log_buf[pos:pos + 8])
 
             for line in text.splitlines():
-                gdb.write("[{time:12.6f}] {line}\n".format(
+                msg = u"[{time:12.6f}] {line}\n".format(
                     time=time_stamp / 1000000000.0,
-                    line=line))
+                    line=line)
+                # With python2 gdb.write will attempt to convert unicode to
+                # ascii and might fail so pass an utf8-encoded str instead.
+                if sys.hexversion < 0x03000000:
+                    msg = msg.encode(encoding='utf8', errors='replace')
+                gdb.write(msg)
 
             pos += length
 

@@ -81,7 +81,7 @@ static int get_binary_runtime_size(struct ima_template_entry *entry)
 	size += sizeof(u32);	/* pcr */
 	size += sizeof(entry->digest);
 	size += sizeof(int);	/* template name size field */
-	size += strlen(entry->template_desc->name) + 1;
+	size += strlen(entry->template_desc->name);
 	size += sizeof(entry->template_data_len);
 	size += entry->template_data_len;
 	return size;

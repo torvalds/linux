@@ -1,6 +1,6 @@
 /*
- * da9062-regulator.c - REGULATOR device driver for DA9062
- * Copyright (C) 2015  Dialog Semiconductor Ltd.
+ * Regulator device driver for DA9061 and DA9062.
+ * Copyright (C) 2015-2017  Dialog Semiconductor
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,17 @@
 #include <linux/mfd/da9062/registers.h>
 
 /* Regulator IDs */
+enum {
+	DA9061_ID_BUCK1,
+	DA9061_ID_BUCK2,
+	DA9061_ID_BUCK3,
+	DA9061_ID_LDO1,
+	DA9061_ID_LDO2,
+	DA9061_ID_LDO3,
+	DA9061_ID_LDO4,
+	DA9061_MAX_REGULATORS,
+};
+
 enum {
 	DA9062_ID_BUCK1,
 	DA9062_ID_BUCK2,
@@ -88,15 +99,21 @@ enum {
 
 /* Regulator operations */
 
-/* Current limits array (in uA) BUCK1 and BUCK3.
-   Entry indexes corresponds to register values. */
+/* Current limits array (in uA)
+ * - DA9061_ID_[BUCK1|BUCK3]
+ * - DA9062_ID_[BUCK1|BUCK2|BUCK4]
+ * Entry indexes corresponds to register values.
+ */
 static const int da9062_buck_a_limits[] = {
 	 500000,  600000,  700000,  800000,  900000, 1000000, 1100000, 1200000,
 	1300000, 1400000, 1500000, 1600000, 1700000, 1800000, 1900000, 2000000
 };
 
-/* Current limits array (in uA) for BUCK2.
-   Entry indexes corresponds to register values. */
+/* Current limits array (in uA)
+ * - DA9061_ID_BUCK2
+ * - DA9062_ID_BUCK3
+ * Entry indexes corresponds to register values.
+ */
 static const int da9062_buck_b_limits[] = {
 	1500000, 1600000, 1700000, 1800000, 1900000, 2000000, 2100000, 2200000,
 	2300000, 2400000, 2500000, 2600000, 2700000, 2800000, 2900000, 3000000
@@ -405,8 +422,254 @@ static const struct regulator_ops da9062_ldo_ops = {
 	.set_suspend_mode	= da9062_ldo_set_suspend_mode,
 };
 
-/* Regulator information */
-static const struct da9062_regulator_info local_regulator_info[] = {
+/* DA9061 Regulator information */
+static const struct da9062_regulator_info local_da9061_regulator_info[] = {
+	{
+		.desc.id = DA9061_ID_BUCK1,
+		.desc.name = "DA9061 BUCK1",
+		.desc.of_match = of_match_ptr("buck1"),
+		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.ops = &da9062_buck_ops,
+		.desc.min_uV = (300) * 1000,
+		.desc.uV_step = (10) * 1000,
+		.desc.n_voltages = ((1570) - (300))/(10) + 1,
+		.current_limits = da9062_buck_a_limits,
+		.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.enable_reg = DA9062AA_BUCK1_CONT,
+		.desc.enable_mask = DA9062AA_BUCK1_EN_MASK,
+		.desc.vsel_reg = DA9062AA_VBUCK1_A,
+		.desc.vsel_mask = DA9062AA_VBUCK1_A_MASK,
+		.desc.linear_min_sel = 0,
+		.sleep = REG_FIELD(DA9062AA_VBUCK1_A,
+			__builtin_ffs((int)DA9062AA_BUCK1_SL_A_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK1_SL_A_MASK)) - 1),
+		.suspend_sleep = REG_FIELD(DA9062AA_VBUCK1_B,
+			__builtin_ffs((int)DA9062AA_BUCK1_SL_B_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK1_SL_B_MASK)) - 1),
+		.suspend_vsel_reg = DA9062AA_VBUCK1_B,
+		.mode = REG_FIELD(DA9062AA_BUCK1_CFG,
+			__builtin_ffs((int)DA9062AA_BUCK1_MODE_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK1_MODE_MASK)) - 1),
+		.suspend = REG_FIELD(DA9062AA_DVC_1,
+			__builtin_ffs((int)DA9062AA_VBUCK1_SEL_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_VBUCK1_SEL_MASK)) - 1),
+		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_C,
+			__builtin_ffs((int)DA9062AA_BUCK1_ILIM_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK1_ILIM_MASK)) - 1),
+	},
+	{
+		.desc.id = DA9061_ID_BUCK2,
+		.desc.name = "DA9061 BUCK2",
+		.desc.of_match = of_match_ptr("buck2"),
+		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.ops = &da9062_buck_ops,
+		.desc.min_uV = (800) * 1000,
+		.desc.uV_step = (20) * 1000,
+		.desc.n_voltages = ((3340) - (800))/(20) + 1,
+		.current_limits = da9062_buck_b_limits,
+		.n_current_limits = ARRAY_SIZE(da9062_buck_b_limits),
+		.desc.enable_reg = DA9062AA_BUCK3_CONT,
+		.desc.enable_mask = DA9062AA_BUCK3_EN_MASK,
+		.desc.vsel_reg = DA9062AA_VBUCK3_A,
+		.desc.vsel_mask = DA9062AA_VBUCK3_A_MASK,
+		.desc.linear_min_sel = 0,
+		.sleep = REG_FIELD(DA9062AA_VBUCK3_A,
+			__builtin_ffs((int)DA9062AA_BUCK3_SL_A_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK3_SL_A_MASK)) - 1),
+		.suspend_sleep = REG_FIELD(DA9062AA_VBUCK3_B,
+			__builtin_ffs((int)DA9062AA_BUCK3_SL_B_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK3_SL_B_MASK)) - 1),
+		.suspend_vsel_reg = DA9062AA_VBUCK3_B,
+		.mode = REG_FIELD(DA9062AA_BUCK3_CFG,
+			__builtin_ffs((int)DA9062AA_BUCK3_MODE_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK3_MODE_MASK)) - 1),
+		.suspend = REG_FIELD(DA9062AA_DVC_1,
+			__builtin_ffs((int)DA9062AA_VBUCK3_SEL_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_VBUCK3_SEL_MASK)) - 1),
+		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_A,
+			__builtin_ffs((int)DA9062AA_BUCK3_ILIM_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK3_ILIM_MASK)) - 1),
+	},
+	{
+		.desc.id = DA9061_ID_BUCK3,
+		.desc.name = "DA9061 BUCK3",
+		.desc.of_match = of_match_ptr("buck3"),
+		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.ops = &da9062_buck_ops,
+		.desc.min_uV = (530) * 1000,
+		.desc.uV_step = (10) * 1000,
+		.desc.n_voltages = ((1800) - (530))/(10) + 1,
+		.current_limits = da9062_buck_a_limits,
+		.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.enable_reg = DA9062AA_BUCK4_CONT,
+		.desc.enable_mask = DA9062AA_BUCK4_EN_MASK,
+		.desc.vsel_reg = DA9062AA_VBUCK4_A,
+		.desc.vsel_mask = DA9062AA_VBUCK4_A_MASK,
+		.desc.linear_min_sel = 0,
+		.sleep = REG_FIELD(DA9062AA_VBUCK4_A,
+			__builtin_ffs((int)DA9062AA_BUCK4_SL_A_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK4_SL_A_MASK)) - 1),
+		.suspend_sleep = REG_FIELD(DA9062AA_VBUCK4_B,
+			__builtin_ffs((int)DA9062AA_BUCK4_SL_B_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK4_SL_B_MASK)) - 1),
+		.suspend_vsel_reg = DA9062AA_VBUCK4_B,
+		.mode = REG_FIELD(DA9062AA_BUCK4_CFG,
+			__builtin_ffs((int)DA9062AA_BUCK4_MODE_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK4_MODE_MASK)) - 1),
+		.suspend = REG_FIELD(DA9062AA_DVC_1,
+			__builtin_ffs((int)DA9062AA_VBUCK4_SEL_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_VBUCK4_SEL_MASK)) - 1),
+		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_B,
+			__builtin_ffs((int)DA9062AA_BUCK4_ILIM_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_BUCK4_ILIM_MASK)) - 1),
+	},
+	{
+		.desc.id = DA9061_ID_LDO1,
+		.desc.name = "DA9061 LDO1",
+		.desc.of_match = of_match_ptr("ldo1"),
+		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.ops = &da9062_ldo_ops,
+		.desc.min_uV = (900) * 1000,
+		.desc.uV_step = (50) * 1000,
+		.desc.n_voltages = ((3600) - (900))/(50) + 1,
+		.desc.enable_reg = DA9062AA_LDO1_CONT,
+		.desc.enable_mask = DA9062AA_LDO1_EN_MASK,
+		.desc.vsel_reg = DA9062AA_VLDO1_A,
+		.desc.vsel_mask = DA9062AA_VLDO1_A_MASK,
+		.desc.linear_min_sel = 0,
+		.sleep = REG_FIELD(DA9062AA_VLDO1_A,
+			__builtin_ffs((int)DA9062AA_LDO1_SL_A_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO1_SL_A_MASK)) - 1),
+		.suspend_sleep = REG_FIELD(DA9062AA_VLDO1_B,
+			__builtin_ffs((int)DA9062AA_LDO1_SL_B_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO1_SL_B_MASK)) - 1),
+		.suspend_vsel_reg = DA9062AA_VLDO1_B,
+		.suspend = REG_FIELD(DA9062AA_DVC_1,
+			__builtin_ffs((int)DA9062AA_VLDO1_SEL_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_VLDO1_SEL_MASK)) - 1),
+		.oc_event = REG_FIELD(DA9062AA_STATUS_D,
+			__builtin_ffs((int)DA9062AA_LDO1_ILIM_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO1_ILIM_MASK)) - 1),
+	},
+	{
+		.desc.id = DA9061_ID_LDO2,
+		.desc.name = "DA9061 LDO2",
+		.desc.of_match = of_match_ptr("ldo2"),
+		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.ops = &da9062_ldo_ops,
+		.desc.min_uV = (900) * 1000,
+		.desc.uV_step = (50) * 1000,
+		.desc.n_voltages = ((3600) - (600))/(50) + 1,
+		.desc.enable_reg = DA9062AA_LDO2_CONT,
+		.desc.enable_mask = DA9062AA_LDO2_EN_MASK,
+		.desc.vsel_reg = DA9062AA_VLDO2_A,
+		.desc.vsel_mask = DA9062AA_VLDO2_A_MASK,
+		.desc.linear_min_sel = 0,
+		.sleep = REG_FIELD(DA9062AA_VLDO2_A,
+			__builtin_ffs((int)DA9062AA_LDO2_SL_A_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO2_SL_A_MASK)) - 1),
+		.suspend_sleep = REG_FIELD(DA9062AA_VLDO2_B,
+			__builtin_ffs((int)DA9062AA_LDO2_SL_B_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO2_SL_B_MASK)) - 1),
+		.suspend_vsel_reg = DA9062AA_VLDO2_B,
+		.suspend = REG_FIELD(DA9062AA_DVC_1,
+			__builtin_ffs((int)DA9062AA_VLDO2_SEL_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_VLDO2_SEL_MASK)) - 1),
+		.oc_event = REG_FIELD(DA9062AA_STATUS_D,
+			__builtin_ffs((int)DA9062AA_LDO2_ILIM_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO2_ILIM_MASK)) - 1),
+	},
+	{
+		.desc.id = DA9061_ID_LDO3,
+		.desc.name = "DA9061 LDO3",
+		.desc.of_match = of_match_ptr("ldo3"),
+		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.ops = &da9062_ldo_ops,
+		.desc.min_uV = (900) * 1000,
+		.desc.uV_step = (50) * 1000,
+		.desc.n_voltages = ((3600) - (900))/(50) + 1,
+		.desc.enable_reg = DA9062AA_LDO3_CONT,
+		.desc.enable_mask = DA9062AA_LDO3_EN_MASK,
+		.desc.vsel_reg = DA9062AA_VLDO3_A,
+		.desc.vsel_mask = DA9062AA_VLDO3_A_MASK,
+		.desc.linear_min_sel = 0,
+		.sleep = REG_FIELD(DA9062AA_VLDO3_A,
+			__builtin_ffs((int)DA9062AA_LDO3_SL_A_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO3_SL_A_MASK)) - 1),
+		.suspend_sleep = REG_FIELD(DA9062AA_VLDO3_B,
+			__builtin_ffs((int)DA9062AA_LDO3_SL_B_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO3_SL_B_MASK)) - 1),
+		.suspend_vsel_reg = DA9062AA_VLDO3_B,
+		.suspend = REG_FIELD(DA9062AA_DVC_1,
+			__builtin_ffs((int)DA9062AA_VLDO3_SEL_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_VLDO3_SEL_MASK)) - 1),
+		.oc_event = REG_FIELD(DA9062AA_STATUS_D,
+			__builtin_ffs((int)DA9062AA_LDO3_ILIM_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO3_ILIM_MASK)) - 1),
+	},
+	{
+		.desc.id = DA9061_ID_LDO4,
+		.desc.name = "DA9061 LDO4",
+		.desc.of_match = of_match_ptr("ldo4"),
+		.desc.regulators_node = of_match_ptr("regulators"),
+		.desc.ops = &da9062_ldo_ops,
+		.desc.min_uV = (900) * 1000,
+		.desc.uV_step = (50) * 1000,
+		.desc.n_voltages = ((3600) - (900))/(50) + 1,
+		.desc.enable_reg = DA9062AA_LDO4_CONT,
+		.desc.enable_mask = DA9062AA_LDO4_EN_MASK,
+		.desc.vsel_reg = DA9062AA_VLDO4_A,
+		.desc.vsel_mask = DA9062AA_VLDO4_A_MASK,
+		.desc.linear_min_sel = 0,
+		.sleep = REG_FIELD(DA9062AA_VLDO4_A,
+			__builtin_ffs((int)DA9062AA_LDO4_SL_A_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO4_SL_A_MASK)) - 1),
+		.suspend_sleep = REG_FIELD(DA9062AA_VLDO4_B,
+			__builtin_ffs((int)DA9062AA_LDO4_SL_B_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO4_SL_B_MASK)) - 1),
+		.suspend_vsel_reg = DA9062AA_VLDO4_B,
+		.suspend = REG_FIELD(DA9062AA_DVC_1,
+			__builtin_ffs((int)DA9062AA_VLDO4_SEL_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_VLDO4_SEL_MASK)) - 1),
+		.oc_event = REG_FIELD(DA9062AA_STATUS_D,
+			__builtin_ffs((int)DA9062AA_LDO4_ILIM_MASK) - 1,
+			sizeof(unsigned int) * 8 -
+			__builtin_clz((DA9062AA_LDO4_ILIM_MASK)) - 1),
+	},
+};
+
+/* DA9062 Regulator information */
+static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 	{
 		.desc.id = DA9062_ID_BUCK1,
 		.desc.name = "DA9062 BUCK1",
@@ -727,17 +990,33 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 	struct da9062_regulators *regulators;
 	struct da9062_regulator *regl;
 	struct regulator_config config = { };
+	const struct da9062_regulator_info *rinfo;
 	int irq, n, ret;
 	size_t size;
+	int max_regulators;
+
+	switch (chip->chip_type) {
+	case COMPAT_TYPE_DA9061:
+		max_regulators = DA9061_MAX_REGULATORS;
+		rinfo = local_da9061_regulator_info;
+		break;
+	case COMPAT_TYPE_DA9062:
+		max_regulators = DA9062_MAX_REGULATORS;
+		rinfo = local_da9062_regulator_info;
+		break;
+	default:
+		dev_err(chip->dev, "Unrecognised chip type\n");
+		return -ENODEV;
+	}
 
 	/* Allocate memory required by usable regulators */
 	size = sizeof(struct da9062_regulators) +
-		DA9062_MAX_REGULATORS * sizeof(struct da9062_regulator);
+		max_regulators * sizeof(struct da9062_regulator);
 	regulators = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
 	if (!regulators)
 		return -ENOMEM;
 
-	regulators->n_regulators = DA9062_MAX_REGULATORS;
+	regulators->n_regulators = max_regulators;
 	platform_set_drvdata(pdev, regulators);
 
 	n = 0;
@@ -745,7 +1024,7 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 		/* Initialise regulator structure */
 		regl = &regulators->regulator[n];
 		regl->hw = chip;
-		regl->info = &local_regulator_info[n];
+		regl->info = &rinfo[n];
 		regl->desc = regl->info->desc;
 		regl->desc.type = REGULATOR_VOLTAGE;
 		regl->desc.owner = THIS_MODULE;
@@ -836,6 +1115,6 @@ module_exit(da9062_regulator_cleanup);
 
 /* Module information */
 MODULE_AUTHOR("S Twiss <stwiss.opensource@diasemi.com>");
-MODULE_DESCRIPTION("REGULATOR device driver for Dialog DA9062");
+MODULE_DESCRIPTION("REGULATOR device driver for Dialog DA9062 and DA9061");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:da9062-regulators");

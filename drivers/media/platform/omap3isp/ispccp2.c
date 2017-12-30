@@ -213,14 +213,17 @@ static int ccp2_phyif_config(struct isp_ccp2_device *ccp2,
 	struct isp_device *isp = to_isp_device(ccp2);
 	u32 val;
 
-	/* CCP2B mode */
 	val = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCP2, ISPCCP2_CTRL) |
-			    ISPCCP2_CTRL_IO_OUT_SEL | ISPCCP2_CTRL_MODE;
+			    ISPCCP2_CTRL_MODE;
 	/* Data/strobe physical layer */
 	BIT_SET(val, ISPCCP2_CTRL_PHY_SEL_SHIFT, ISPCCP2_CTRL_PHY_SEL_MASK,
 		buscfg->phy_layer);
+	BIT_SET(val, ISPCCP2_CTRL_IO_OUT_SEL_SHIFT,
+		ISPCCP2_CTRL_IO_OUT_SEL_MASK, buscfg->ccp2_mode);
 	BIT_SET(val, ISPCCP2_CTRL_INV_SHIFT, ISPCCP2_CTRL_INV_MASK,
 		buscfg->strobe_clk_pol);
+	BIT_SET(val, ISPCCP2_CTRL_VP_CLK_POL_SHIFT,
+		ISPCCP2_CTRL_VP_CLK_POL_MASK, buscfg->vp_clk_pol);
 	isp_reg_writel(isp, val, OMAP3_ISP_IOMEM_CCP2, ISPCCP2_CTRL);
 
 	val = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCP2, ISPCCP2_CTRL);
@@ -347,6 +350,7 @@ static void ccp2_lcx_config(struct isp_ccp2_device *ccp2,
  */
 static int ccp2_if_configure(struct isp_ccp2_device *ccp2)
 {
+	struct isp_pipeline *pipe = to_isp_pipeline(&ccp2->subdev.entity);
 	const struct isp_bus_cfg *buscfg;
 	struct v4l2_mbus_framefmt *format;
 	struct media_pad *pad;
@@ -358,7 +362,7 @@ static int ccp2_if_configure(struct isp_ccp2_device *ccp2)
 
 	pad = media_entity_remote_pad(&ccp2->pads[CCP2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
-	buscfg = sensor->host_priv;
+	buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
 
 	ret = ccp2_phyif_config(ccp2, &buscfg->bus.ccp2);
 	if (ret < 0)
@@ -838,7 +842,7 @@ static int ccp2_s_stream(struct v4l2_subdev *sd, int enable)
 	switch (enable) {
 	case ISP_PIPELINE_STREAM_CONTINUOUS:
 		if (ccp2->phy) {
-			ret = omap3isp_csiphy_acquire(ccp2->phy);
+			ret = omap3isp_csiphy_acquire(ccp2->phy, &sd->entity);
 			if (ret < 0)
 				return ret;
 		}
@@ -1137,10 +1141,16 @@ int omap3isp_ccp2_init(struct isp_device *isp)
 	if (isp->revision == ISP_REVISION_2_0) {
 		ccp2->vdds_csib = devm_regulator_get(isp->dev, "vdds_csib");
 		if (IS_ERR(ccp2->vdds_csib)) {
+			if (PTR_ERR(ccp2->vdds_csib) == -EPROBE_DEFER) {
+				dev_dbg(isp->dev,
+					"Can't get regulator vdds_csib, deferring probing\n");
+				return -EPROBE_DEFER;
+			}
 			dev_dbg(isp->dev,
 				"Could not get regulator vdds_csib\n");
 			ccp2->vdds_csib = NULL;
 		}
+		ccp2->phy = &isp->isp_csiphy2;
 	} else if (isp->revision == ISP_REVISION_15_0) {
 		ccp2->phy = &isp->isp_csiphy1;
 	}

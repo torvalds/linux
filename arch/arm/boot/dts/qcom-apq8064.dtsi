@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "skeleton.dtsi"
@@ -197,7 +198,7 @@
 			clock-frequency = <27000000>;
 		};
 
-		sleep_clk {
+		sleep_clk: sleep_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
@@ -590,6 +591,7 @@
 				clocks = <&gcc GSBI6_QUP_CLK>,
 					 <&gcc GSBI6_H_CLK>;
 				clock-names = "core", "iface";
+				status = "disabled";
 			};
 		};
 
@@ -884,81 +886,97 @@
 			};
 		};
 
-		usb1_phy: phy@12500000 {
-			compatible	= "qcom,usb-otg-ci";
-			reg		= <0x12500000 0x400>;
-			interrupts	= <GIC_SPI 100 IRQ_TYPE_NONE>;
-			status		= "disabled";
-
-			clocks		= <&gcc USB_HS1_XCVR_CLK>,
-					  <&gcc USB_HS1_H_CLK>;
-			clock-names	= "core", "iface";
-
-			resets		= <&gcc USB_HS1_RESET>;
-			reset-names	= "link";
-		};
-
-		usb3_phy: phy@12520000 {
-			compatible	= "qcom,usb-otg-ci";
-			reg		= <0x12520000 0x400>;
-			interrupts	= <GIC_SPI 188 IRQ_TYPE_NONE>;
-			status		= "disabled";
-			dr_mode		= "host";
-
-			clocks		= <&gcc USB_HS3_XCVR_CLK>,
-					  <&gcc USB_HS3_H_CLK>;
-			clock-names	= "core", "iface";
-
-			resets		= <&gcc USB_HS3_RESET>;
-			reset-names	= "link";
-		};
-
-		usb4_phy: phy@12530000 {
-			compatible	= "qcom,usb-otg-ci";
-			reg		= <0x12530000 0x400>;
-			interrupts	= <GIC_SPI 215 IRQ_TYPE_NONE>;
-			status		= "disabled";
-			dr_mode		= "host";
-
-			clocks		= <&gcc USB_HS4_XCVR_CLK>,
-					  <&gcc USB_HS4_H_CLK>;
-			clock-names	= "core", "iface";
-
-			resets		= <&gcc USB_HS4_RESET>;
-			reset-names	= "link";
-		};
-
-		gadget1: gadget@12500000 {
-			compatible	= "qcom,ci-hdrc";
-			reg		= <0x12500000 0x400>;
-			status		= "disabled";
-			dr_mode		= "peripheral";
-			interrupts	= <GIC_SPI 100 IRQ_TYPE_NONE>;
-			usb-phy		= <&usb1_phy>;
-		};
-
 		usb1: usb@12500000 {
-			compatible	= "qcom,ehci-host";
-			reg		= <0x12500000 0x400>;
-			interrupts	= <GIC_SPI 100 IRQ_TYPE_NONE>;
-			status		= "disabled";
-			usb-phy		= <&usb1_phy>;
+			compatible = "qcom,ci-hdrc";
+			reg = <0x12500000 0x200>,
+			      <0x12500200 0x200>;
+			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc USB_HS1_XCVR_CLK>, <&gcc USB_HS1_H_CLK>;
+			clock-names = "core", "iface";
+			assigned-clocks = <&gcc USB_HS1_XCVR_CLK>;
+			assigned-clock-rates = <60000000>;
+			resets = <&gcc USB_HS1_RESET>;
+			reset-names = "core";
+			phy_type = "ulpi";
+			ahb-burst-config = <0>;
+			phys = <&usb_hs1_phy>;
+			phy-names = "usb-phy";
+			status = "disabled";
+			#reset-cells = <1>;
+
+			ulpi {
+				usb_hs1_phy: phy {
+					compatible = "qcom,usb-hs-phy-apq8064",
+						     "qcom,usb-hs-phy";
+					clocks = <&sleep_clk>, <&cxo_board>;
+					clock-names = "sleep", "ref";
+					resets = <&usb1 0>;
+					reset-names = "por";
+					#phy-cells = <0>;
+				};
+			};
 		};
 
 		usb3: usb@12520000 {
-			compatible	= "qcom,ehci-host";
-			reg		= <0x12520000 0x400>;
-			interrupts	= <GIC_SPI 188 IRQ_TYPE_NONE>;
-			status		= "disabled";
-			usb-phy		= <&usb3_phy>;
+			compatible = "qcom,ci-hdrc";
+			reg = <0x12520000 0x200>,
+			      <0x12520200 0x200>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc USB_HS3_XCVR_CLK>, <&gcc USB_HS3_H_CLK>;
+			clock-names = "core", "iface";
+			assigned-clocks = <&gcc USB_HS3_XCVR_CLK>;
+			assigned-clock-rates = <60000000>;
+			resets = <&gcc USB_HS3_RESET>;
+			reset-names = "core";
+			phy_type = "ulpi";
+			ahb-burst-config = <0>;
+			phys = <&usb_hs3_phy>;
+			phy-names = "usb-phy";
+			status = "disabled";
+			#reset-cells = <1>;
+
+			ulpi {
+				usb_hs3_phy: phy {
+					compatible = "qcom,usb-hs-phy-apq8064",
+						     "qcom,usb-hs-phy";
+					#phy-cells = <0>;
+					clocks = <&sleep_clk>, <&cxo_board>;
+					clock-names = "sleep", "ref";
+					resets = <&usb3 0>;
+					reset-names = "por";
+				};
+			};
 		};
 
 		usb4: usb@12530000 {
-			compatible	= "qcom,ehci-host";
-			reg		= <0x12530000 0x400>;
-			interrupts	= <GIC_SPI 215 IRQ_TYPE_NONE>;
-			status		= "disabled";
-			usb-phy		= <&usb4_phy>;
+			compatible = "qcom,ci-hdrc";
+			reg = <0x12530000 0x200>,
+			      <0x12530200 0x200>;
+			interrupts = <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc USB_HS4_XCVR_CLK>, <&gcc USB_HS4_H_CLK>;
+			clock-names = "core", "iface";
+			assigned-clocks = <&gcc USB_HS4_XCVR_CLK>;
+			assigned-clock-rates = <60000000>;
+			resets = <&gcc USB_HS4_RESET>;
+			reset-names = "core";
+			phy_type = "ulpi";
+			ahb-burst-config = <0>;
+			phys = <&usb_hs4_phy>;
+			phy-names = "usb-phy";
+			status = "disabled";
+			#reset-cells = <1>;
+
+			ulpi {
+				usb_hs4_phy: phy {
+					compatible = "qcom,usb-hs-phy-apq8064",
+						     "qcom,usb-hs-phy";
+					#phy-cells = <0>;
+					clocks = <&sleep_clk>, <&cxo_board>;
+					clock-names = "sleep", "ref";
+					resets = <&usb4 0>;
+					reset-names = "por";
+				};
+			};
 		};
 
 		sata_phy0: phy@1b400000 {
@@ -1247,6 +1265,7 @@
 		dsi0_phy: dsi-phy@4700200 {
 			compatible = "qcom,dsi-phy-28nm-8960";
 			#clock-cells = <1>;
+			#phy-cells = <0>;
 
 			reg = <0x04700200 0x100>,
 				<0x04700300 0x200>,
@@ -1401,6 +1420,7 @@
 
 			clocks = <&mmcc HDMI_S_AHB_CLK>;
 			clock-names = "slave_iface_clk";
+			#phy-cells = <0>;
 		};
 
 		mdp: mdp@5100000 {

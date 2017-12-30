@@ -138,7 +138,7 @@ Example:
 		};
 
 		/* MIPI CSI-2 bus IF sensor */
-		s5c73m3: sensor@0x1a {
+		s5c73m3: sensor@1a {
 			compatible = "samsung,s5c73m3";
 			reg = <0x1a>;
 			vddio-supply = <...>;
@@ -166,7 +166,6 @@ Example:
 		clock-output-names = "cam_a_clkout", "cam_b_clkout";
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_port_a_clk_active>;
-		status = "okay";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -189,7 +188,6 @@ Example:
 			compatible = "samsung,exynos4210-fimc";
 			reg = <0x11800000 0x1000>;
 			interrupts = <0 85 0>;
-			status = "okay";
 		};
 
 		csis_0: csis@11880000 {

@@ -5,4 +5,6 @@ libperf-y += perf_regs.o
 
 libperf-$(CONFIG_DWARF) += dwarf-regs.o
 libperf-$(CONFIG_DWARF) += skip-callchain-idx.o
+
 libperf-$(CONFIG_LIBUNWIND) += unwind-libunwind.o
+libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o

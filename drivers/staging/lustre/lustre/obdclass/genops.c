@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -36,9 +37,9 @@
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
-#include "../include/obd_class.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre_kernelcomm.h"
+#include <obd_class.h>
+#include <lprocfs_status.h>
+#include <lustre_kernelcomm.h>
 
 spinlock_t obd_types_lock;
 

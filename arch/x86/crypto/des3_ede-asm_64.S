@@ -64,12 +64,12 @@
 #define RW2bh %ch
 
 #define RT0 %r15
-#define RT1 %rbp
+#define RT1 %rsi
 #define RT2 %r14
 #define RT3 %rdx
 
 #define RT0d %r15d
-#define RT1d %ebp
+#define RT1d %esi
 #define RT2d %r14d
 #define RT3d %edx
 
@@ -177,12 +177,13 @@ ENTRY(des3_ede_x86_64_crypt_blk)
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
-	pushq %rbp;
 	pushq %rbx;
 	pushq %r12;
 	pushq %r13;
 	pushq %r14;
 	pushq %r15;
+
+	pushq %rsi; /* dst */
 
 	read_block(%rdx, RL0, RR0);
 	initial_permutation(RL0, RR0);
@@ -241,6 +242,8 @@ ENTRY(des3_ede_x86_64_crypt_blk)
 	round1(32+15, RL0, RR0, dummy2);
 
 	final_permutation(RR0, RL0);
+
+	popq %rsi /* dst */
 	write_block(%rsi, RR0, RL0);
 
 	popq %r15;
@@ -248,7 +251,6 @@ ENTRY(des3_ede_x86_64_crypt_blk)
 	popq %r13;
 	popq %r12;
 	popq %rbx;
-	popq %rbp;
 
 	ret;
 ENDPROC(des3_ede_x86_64_crypt_blk)
@@ -432,12 +434,13 @@ ENTRY(des3_ede_x86_64_crypt_blk_3way)
 	 *	%rdx: src (3 blocks)
 	 */
 
-	pushq %rbp;
 	pushq %rbx;
 	pushq %r12;
 	pushq %r13;
 	pushq %r14;
 	pushq %r15;
+
+	pushq %rsi /* dst */
 
 	/* load input */
 	movl 0 * 4(%rdx), RL0d;
@@ -520,6 +523,7 @@ ENTRY(des3_ede_x86_64_crypt_blk_3way)
 	bswapl RR2d;
 	bswapl RL2d;
 
+	popq %rsi /* dst */
 	movl RR0d, 0 * 4(%rsi);
 	movl RL0d, 1 * 4(%rsi);
 	movl RR1d, 2 * 4(%rsi);
@@ -532,7 +536,6 @@ ENTRY(des3_ede_x86_64_crypt_blk_3way)
 	popq %r13;
 	popq %r12;
 	popq %rbx;
-	popq %rbp;
 
 	ret;
 ENDPROC(des3_ede_x86_64_crypt_blk_3way)

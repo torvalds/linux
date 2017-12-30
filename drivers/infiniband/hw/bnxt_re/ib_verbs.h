@@ -59,7 +59,6 @@ struct bnxt_re_pd {
 	struct bnxt_re_dev	*rdev;
 	struct ib_pd		ib_pd;
 	struct bnxt_qplib_pd	qplib_pd;
-	struct bnxt_qplib_dpi	dpi;
 	struct bnxt_re_fence_data fence;
 };
 
@@ -127,7 +126,7 @@ struct bnxt_re_mw {
 struct bnxt_re_ucontext {
 	struct bnxt_re_dev	*rdev;
 	struct ib_ucontext	ib_uctx;
-	struct bnxt_qplib_dpi	*dpi;
+	struct bnxt_qplib_dpi	dpi;
 	void			*shpg;
 	spinlock_t		sh_lock;	/* protect shpg */
 };
@@ -142,9 +141,6 @@ int bnxt_re_modify_device(struct ib_device *ibdev,
 			  struct ib_device_modify *device_modify);
 int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 		       struct ib_port_attr *port_attr);
-int bnxt_re_modify_port(struct ib_device *ibdev, u8 port_num,
-			int port_modify_mask,
-			struct ib_port_modify *port_modify);
 int bnxt_re_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 			       struct ib_port_immutable *immutable);
 int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,

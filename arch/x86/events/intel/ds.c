@@ -1,17 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 
+#include <asm/cpu_entry_area.h>
 #include <asm/perf_event.h>
 #include <asm/insn.h>
 
 #include "../perf_event.h"
 
+/* Waste a full page so it can be mapped into the cpu_entry_area */
+DEFINE_PER_CPU_PAGE_ALIGNED(struct debug_store, cpu_debug_store);
+
 /* The size of a BTS record in bytes: */
 #define BTS_RECORD_SIZE		24
 
-#define BTS_BUFFER_SIZE		(PAGE_SIZE << 4)
-#define PEBS_BUFFER_SIZE	(PAGE_SIZE << 4)
 #define PEBS_FIXUP_SIZE		PAGE_SIZE
 
 /*
@@ -49,34 +52,47 @@ union intel_x86_pebs_dse {
  */
 #define P(a, b) PERF_MEM_S(a, b)
 #define OP_LH (P(OP, LOAD) | P(LVL, HIT))
+#define LEVEL(x) P(LVLNUM, x)
+#define REM P(REMOTE, REMOTE)
 #define SNOOP_NONE_MISS (P(SNOOP, NONE) | P(SNOOP, MISS))
 
 /* Version for Sandy Bridge and later */
 static u64 pebs_data_source[] = {
-	P(OP, LOAD) | P(LVL, MISS) | P(LVL, L3) | P(SNOOP, NA),/* 0x00:ukn L3 */
-	OP_LH | P(LVL, L1)  | P(SNOOP, NONE),	/* 0x01: L1 local */
-	OP_LH | P(LVL, LFB) | P(SNOOP, NONE),	/* 0x02: LFB hit */
-	OP_LH | P(LVL, L2)  | P(SNOOP, NONE),	/* 0x03: L2 hit */
-	OP_LH | P(LVL, L3)  | P(SNOOP, NONE),	/* 0x04: L3 hit */
-	OP_LH | P(LVL, L3)  | P(SNOOP, MISS),	/* 0x05: L3 hit, snoop miss */
-	OP_LH | P(LVL, L3)  | P(SNOOP, HIT),	/* 0x06: L3 hit, snoop hit */
-	OP_LH | P(LVL, L3)  | P(SNOOP, HITM),	/* 0x07: L3 hit, snoop hitm */
-	OP_LH | P(LVL, REM_CCE1) | P(SNOOP, HIT),  /* 0x08: L3 miss snoop hit */
-	OP_LH | P(LVL, REM_CCE1) | P(SNOOP, HITM), /* 0x09: L3 miss snoop hitm*/
-	OP_LH | P(LVL, LOC_RAM)  | P(SNOOP, HIT),  /* 0x0a: L3 miss, shared */
-	OP_LH | P(LVL, REM_RAM1) | P(SNOOP, HIT),  /* 0x0b: L3 miss, shared */
-	OP_LH | P(LVL, LOC_RAM)  | SNOOP_NONE_MISS,/* 0x0c: L3 miss, excl */
-	OP_LH | P(LVL, REM_RAM1) | SNOOP_NONE_MISS,/* 0x0d: L3 miss, excl */
-	OP_LH | P(LVL, IO)  | P(SNOOP, NONE), /* 0x0e: I/O */
-	OP_LH | P(LVL, UNC) | P(SNOOP, NONE), /* 0x0f: uncached */
+	P(OP, LOAD) | P(LVL, MISS) | LEVEL(L3) | P(SNOOP, NA),/* 0x00:ukn L3 */
+	OP_LH | P(LVL, L1)  | LEVEL(L1) | P(SNOOP, NONE),  /* 0x01: L1 local */
+	OP_LH | P(LVL, LFB) | LEVEL(LFB) | P(SNOOP, NONE), /* 0x02: LFB hit */
+	OP_LH | P(LVL, L2)  | LEVEL(L2) | P(SNOOP, NONE),  /* 0x03: L2 hit */
+	OP_LH | P(LVL, L3)  | LEVEL(L3) | P(SNOOP, NONE),  /* 0x04: L3 hit */
+	OP_LH | P(LVL, L3)  | LEVEL(L3) | P(SNOOP, MISS),  /* 0x05: L3 hit, snoop miss */
+	OP_LH | P(LVL, L3)  | LEVEL(L3) | P(SNOOP, HIT),   /* 0x06: L3 hit, snoop hit */
+	OP_LH | P(LVL, L3)  | LEVEL(L3) | P(SNOOP, HITM),  /* 0x07: L3 hit, snoop hitm */
+	OP_LH | P(LVL, REM_CCE1) | REM | LEVEL(L3) | P(SNOOP, HIT),  /* 0x08: L3 miss snoop hit */
+	OP_LH | P(LVL, REM_CCE1) | REM | LEVEL(L3) | P(SNOOP, HITM), /* 0x09: L3 miss snoop hitm*/
+	OP_LH | P(LVL, LOC_RAM)  | LEVEL(RAM) | P(SNOOP, HIT),       /* 0x0a: L3 miss, shared */
+	OP_LH | P(LVL, REM_RAM1) | REM | LEVEL(L3) | P(SNOOP, HIT),  /* 0x0b: L3 miss, shared */
+	OP_LH | P(LVL, LOC_RAM)  | LEVEL(RAM) | SNOOP_NONE_MISS,     /* 0x0c: L3 miss, excl */
+	OP_LH | P(LVL, REM_RAM1) | LEVEL(RAM) | REM | SNOOP_NONE_MISS, /* 0x0d: L3 miss, excl */
+	OP_LH | P(LVL, IO)  | LEVEL(NA) | P(SNOOP, NONE), /* 0x0e: I/O */
+	OP_LH | P(LVL, UNC) | LEVEL(NA) | P(SNOOP, NONE), /* 0x0f: uncached */
 };
 
 /* Patch up minor differences in the bits */
 void __init intel_pmu_pebs_data_source_nhm(void)
 {
-	pebs_data_source[0x05] = OP_LH | P(LVL, L3)  | P(SNOOP, HIT);
-	pebs_data_source[0x06] = OP_LH | P(LVL, L3)  | P(SNOOP, HITM);
-	pebs_data_source[0x07] = OP_LH | P(LVL, L3)  | P(SNOOP, HITM);
+	pebs_data_source[0x05] = OP_LH | P(LVL, L3) | LEVEL(L3) | P(SNOOP, HIT);
+	pebs_data_source[0x06] = OP_LH | P(LVL, L3) | LEVEL(L3) | P(SNOOP, HITM);
+	pebs_data_source[0x07] = OP_LH | P(LVL, L3) | LEVEL(L3) | P(SNOOP, HITM);
+}
+
+void __init intel_pmu_pebs_data_source_skl(bool pmem)
+{
+	u64 pmem_or_l4 = pmem ? LEVEL(PMEM) : LEVEL(L4);
+
+	pebs_data_source[0x08] = OP_LH | pmem_or_l4 | P(SNOOP, HIT);
+	pebs_data_source[0x09] = OP_LH | pmem_or_l4 | REM | P(SNOOP, HIT);
+	pebs_data_source[0x0b] = OP_LH | LEVEL(RAM) | REM | P(SNOOP, NONE);
+	pebs_data_source[0x0c] = OP_LH | LEVEL(ANY_CACHE) | REM | P(SNOOPX, FWD);
+	pebs_data_source[0x0d] = OP_LH | LEVEL(ANY_CACHE) | REM | P(SNOOP, HITM);
 }
 
 static u64 precise_store_data(u64 status)
@@ -149,8 +165,6 @@ static u64 load_latency_data(u64 status)
 {
 	union intel_x86_pebs_dse dse;
 	u64 val;
-	int model = boot_cpu_data.x86_model;
-	int fam = boot_cpu_data.x86;
 
 	dse.val = status;
 
@@ -162,8 +176,7 @@ static u64 load_latency_data(u64 status)
 	/*
 	 * Nehalem models do not support TLB, Lock infos
 	 */
-	if (fam == 0x6 && (model == 26 || model == 30
-	    || model == 31 || model == 46)) {
+	if (x86_pmu.pebs_no_tlb) {
 		val |= P(TLB, NA) | P(LOCK, NA);
 		return val;
 	}
@@ -268,17 +281,52 @@ void fini_debug_store_on_cpu(int cpu)
 
 static DEFINE_PER_CPU(void *, insn_buffer);
 
+static void ds_update_cea(void *cea, void *addr, size_t size, pgprot_t prot)
+{
+	phys_addr_t pa;
+	size_t msz = 0;
+
+	pa = virt_to_phys(addr);
+	for (; msz < size; msz += PAGE_SIZE, pa += PAGE_SIZE, cea += PAGE_SIZE)
+		cea_set_pte(cea, pa, prot);
+}
+
+static void ds_clear_cea(void *cea, size_t size)
+{
+	size_t msz = 0;
+
+	for (; msz < size; msz += PAGE_SIZE, cea += PAGE_SIZE)
+		cea_set_pte(cea, 0, PAGE_NONE);
+}
+
+static void *dsalloc_pages(size_t size, gfp_t flags, int cpu)
+{
+	unsigned int order = get_order(size);
+	int node = cpu_to_node(cpu);
+	struct page *page;
+
+	page = __alloc_pages_node(node, flags | __GFP_ZERO, order);
+	return page ? page_address(page) : NULL;
+}
+
+static void dsfree_pages(const void *buffer, size_t size)
+{
+	if (buffer)
+		free_pages((unsigned long)buffer, get_order(size));
+}
+
 static int alloc_pebs_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-	int node = cpu_to_node(cpu);
-	int max;
-	void *buffer, *ibuffer;
+	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
+	struct debug_store *ds = hwev->ds;
+	size_t bsiz = x86_pmu.pebs_buffer_size;
+	int max, node = cpu_to_node(cpu);
+	void *buffer, *ibuffer, *cea;
 
 	if (!x86_pmu.pebs)
 		return 0;
 
-	buffer = kzalloc_node(x86_pmu.pebs_buffer_size, GFP_KERNEL, node);
+	buffer = dsalloc_pages(bsiz, GFP_KERNEL, cpu);
 	if (unlikely(!buffer))
 		return -ENOMEM;
 
@@ -289,25 +337,27 @@ static int alloc_pebs_buffer(int cpu)
 	if (x86_pmu.intel_cap.pebs_format < 2) {
 		ibuffer = kzalloc_node(PEBS_FIXUP_SIZE, GFP_KERNEL, node);
 		if (!ibuffer) {
-			kfree(buffer);
+			dsfree_pages(buffer, bsiz);
 			return -ENOMEM;
 		}
 		per_cpu(insn_buffer, cpu) = ibuffer;
 	}
-
-	max = x86_pmu.pebs_buffer_size / x86_pmu.pebs_record_size;
-
-	ds->pebs_buffer_base = (u64)(unsigned long)buffer;
+	hwev->ds_pebs_vaddr = buffer;
+	/* Update the cpu entry area mapping */
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.pebs_buffer;
+	ds->pebs_buffer_base = (unsigned long) cea;
+	ds_update_cea(cea, buffer, bsiz, PAGE_KERNEL);
 	ds->pebs_index = ds->pebs_buffer_base;
-	ds->pebs_absolute_maximum = ds->pebs_buffer_base +
-		max * x86_pmu.pebs_record_size;
-
+	max = x86_pmu.pebs_record_size * (bsiz / x86_pmu.pebs_record_size);
+	ds->pebs_absolute_maximum = ds->pebs_buffer_base + max;
 	return 0;
 }
 
 static void release_pebs_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
+	struct debug_store *ds = hwev->ds;
+	void *cea;
 
 	if (!ds || !x86_pmu.pebs)
 		return;
@@ -315,73 +365,70 @@ static void release_pebs_buffer(int cpu)
 	kfree(per_cpu(insn_buffer, cpu));
 	per_cpu(insn_buffer, cpu) = NULL;
 
-	kfree((void *)(unsigned long)ds->pebs_buffer_base);
+	/* Clear the fixmap */
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.pebs_buffer;
+	ds_clear_cea(cea, x86_pmu.pebs_buffer_size);
 	ds->pebs_buffer_base = 0;
+	dsfree_pages(hwev->ds_pebs_vaddr, x86_pmu.pebs_buffer_size);
+	hwev->ds_pebs_vaddr = NULL;
 }
 
 static int alloc_bts_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-	int node = cpu_to_node(cpu);
-	int max, thresh;
-	void *buffer;
+	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
+	struct debug_store *ds = hwev->ds;
+	void *buffer, *cea;
+	int max;
 
 	if (!x86_pmu.bts)
 		return 0;
 
-	buffer = kzalloc_node(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_NOWARN, node);
+	buffer = dsalloc_pages(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_NOWARN, cpu);
 	if (unlikely(!buffer)) {
 		WARN_ONCE(1, "%s: BTS buffer allocation failure\n", __func__);
 		return -ENOMEM;
 	}
-
-	max = BTS_BUFFER_SIZE / BTS_RECORD_SIZE;
-	thresh = max / 16;
-
-	ds->bts_buffer_base = (u64)(unsigned long)buffer;
+	hwev->ds_bts_vaddr = buffer;
+	/* Update the fixmap */
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.bts_buffer;
+	ds->bts_buffer_base = (unsigned long) cea;
+	ds_update_cea(cea, buffer, BTS_BUFFER_SIZE, PAGE_KERNEL);
 	ds->bts_index = ds->bts_buffer_base;
-	ds->bts_absolute_maximum = ds->bts_buffer_base +
-		max * BTS_RECORD_SIZE;
-	ds->bts_interrupt_threshold = ds->bts_absolute_maximum -
-		thresh * BTS_RECORD_SIZE;
-
+	max = BTS_RECORD_SIZE * (BTS_BUFFER_SIZE / BTS_RECORD_SIZE);
+	ds->bts_absolute_maximum = ds->bts_buffer_base + max;
+	ds->bts_interrupt_threshold = ds->bts_absolute_maximum - (max / 16);
 	return 0;
 }
 
 static void release_bts_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
+	struct debug_store *ds = hwev->ds;
+	void *cea;
 
 	if (!ds || !x86_pmu.bts)
 		return;
 
-	kfree((void *)(unsigned long)ds->bts_buffer_base);
+	/* Clear the fixmap */
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.bts_buffer;
+	ds_clear_cea(cea, BTS_BUFFER_SIZE);
 	ds->bts_buffer_base = 0;
+	dsfree_pages(hwev->ds_bts_vaddr, BTS_BUFFER_SIZE);
+	hwev->ds_bts_vaddr = NULL;
 }
 
 static int alloc_ds_buffer(int cpu)
 {
-	int node = cpu_to_node(cpu);
-	struct debug_store *ds;
+	struct debug_store *ds = &get_cpu_entry_area(cpu)->cpu_debug_store;
 
-	ds = kzalloc_node(sizeof(*ds), GFP_KERNEL, node);
-	if (unlikely(!ds))
-		return -ENOMEM;
-
+	memset(ds, 0, sizeof(*ds));
 	per_cpu(cpu_hw_events, cpu).ds = ds;
-
 	return 0;
 }
 
 static void release_ds_buffer(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-
-	if (!ds)
-		return;
-
 	per_cpu(cpu_hw_events, cpu).ds = NULL;
-	kfree(ds);
 }
 
 void release_ds_buffers(void)
@@ -606,12 +653,6 @@ static inline void intel_pmu_drain_pebs_buffer(void)
 	x86_pmu.drain_pebs(&regs);
 }
 
-void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
-{
-	if (!sched_in)
-		intel_pmu_drain_pebs_buffer();
-}
-
 /*
  * PEBS
  */
@@ -648,6 +689,12 @@ struct event_constraint intel_slm_pebs_event_constraints[] = {
 struct event_constraint intel_glm_pebs_event_constraints[] = {
 	/* Allow all events as PEBS with no flags */
 	INTEL_ALL_EVENT_CONSTRAINT(0, 0x1),
+	EVENT_CONSTRAINT_END
+};
+
+struct event_constraint intel_glp_pebs_event_constraints[] = {
+	/* Allow all events as PEBS with no flags */
+	INTEL_ALL_EVENT_CONSTRAINT(0, 0xf),
 	EVENT_CONSTRAINT_END
 };
 
@@ -816,6 +863,14 @@ static inline bool pebs_needs_sched_cb(struct cpu_hw_events *cpuc)
 	return cpuc->n_pebs && (cpuc->n_pebs == cpuc->n_large_pebs);
 }
 
+void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	if (!sched_in && pebs_needs_sched_cb(cpuc))
+		intel_pmu_drain_pebs_buffer();
+}
+
 static inline void pebs_update_threshold(struct cpu_hw_events *cpuc)
 {
 	struct debug_store *ds = cpuc->ds;
@@ -889,6 +944,8 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 	if (hwc->flags & PERF_X86_EVENT_AUTO_RELOAD) {
 		ds->pebs_event_reset[hwc->idx] =
 			(u64)(-hwc->sample_period) & x86_pmu.cntval_mask;
+	} else {
+		ds->pebs_event_reset[hwc->idx] = 0;
 	}
 }
 
@@ -1165,7 +1222,7 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	else
 		regs->flags &= ~PERF_EFLAGS_EXACT;
 
-	if ((sample_type & PERF_SAMPLE_ADDR) &&
+	if ((sample_type & (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR)) &&
 	    x86_pmu.intel_cap.pebs_format >= 1)
 		data->addr = pebs->dla;
 

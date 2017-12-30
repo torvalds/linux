@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <net/genetlink.h>
 #include <net/gue.h>
+#include <net/fou.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/udp.h>
@@ -449,6 +450,7 @@ out_unlock:
 out:
 	NAPI_GRO_CB(skb)->flush |= flush;
 	skb_gro_remcsum_cleanup(skb, &grc);
+	skb->remcsum_offload = 0;
 
 	return pp;
 }
@@ -859,25 +861,6 @@ size_t gue_encap_hlen(struct ip_tunnel_encap *e)
 }
 EXPORT_SYMBOL(gue_encap_hlen);
 
-static void fou_build_udp(struct sk_buff *skb, struct ip_tunnel_encap *e,
-			  struct flowi4 *fl4, u8 *protocol, __be16 sport)
-{
-	struct udphdr *uh;
-
-	skb_push(skb, sizeof(struct udphdr));
-	skb_reset_transport_header(skb);
-
-	uh = udp_hdr(skb);
-
-	uh->dest = e->dport;
-	uh->source = sport;
-	uh->len = htons(skb->len);
-	udp_set_csum(!(e->flags & TUNNEL_ENCAP_FLAG_CSUM), skb,
-		     fl4->saddr, fl4->daddr, skb->len);
-
-	*protocol = IPPROTO_UDP;
-}
-
 int __fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 		       u8 *protocol, __be16 *sport, int type)
 {
@@ -893,24 +876,6 @@ int __fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	return 0;
 }
 EXPORT_SYMBOL(__fou_build_header);
-
-int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
-		     u8 *protocol, struct flowi4 *fl4)
-{
-	int type = e->flags & TUNNEL_ENCAP_FLAG_CSUM ? SKB_GSO_UDP_TUNNEL_CSUM :
-						       SKB_GSO_UDP_TUNNEL;
-	__be16 sport;
-	int err;
-
-	err = __fou_build_header(skb, e, protocol, &sport, type);
-	if (err)
-		return err;
-
-	fou_build_udp(skb, e, fl4, protocol, sport);
-
-	return 0;
-}
-EXPORT_SYMBOL(fou_build_header);
 
 int __gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 		       u8 *protocol, __be16 *sport, int type)
@@ -985,8 +950,46 @@ int __gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 }
 EXPORT_SYMBOL(__gue_build_header);
 
-int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
-		     u8 *protocol, struct flowi4 *fl4)
+#ifdef CONFIG_NET_FOU_IP_TUNNELS
+
+static void fou_build_udp(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			  struct flowi4 *fl4, u8 *protocol, __be16 sport)
+{
+	struct udphdr *uh;
+
+	skb_push(skb, sizeof(struct udphdr));
+	skb_reset_transport_header(skb);
+
+	uh = udp_hdr(skb);
+
+	uh->dest = e->dport;
+	uh->source = sport;
+	uh->len = htons(skb->len);
+	udp_set_csum(!(e->flags & TUNNEL_ENCAP_FLAG_CSUM), skb,
+		     fl4->saddr, fl4->daddr, skb->len);
+
+	*protocol = IPPROTO_UDP;
+}
+
+static int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			    u8 *protocol, struct flowi4 *fl4)
+{
+	int type = e->flags & TUNNEL_ENCAP_FLAG_CSUM ? SKB_GSO_UDP_TUNNEL_CSUM :
+						       SKB_GSO_UDP_TUNNEL;
+	__be16 sport;
+	int err;
+
+	err = __fou_build_header(skb, e, protocol, &sport, type);
+	if (err)
+		return err;
+
+	fou_build_udp(skb, e, fl4, protocol, sport);
+
+	return 0;
+}
+
+static int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			    u8 *protocol, struct flowi4 *fl4)
 {
 	int type = e->flags & TUNNEL_ENCAP_FLAG_CSUM ? SKB_GSO_UDP_TUNNEL_CSUM :
 						       SKB_GSO_UDP_TUNNEL;
@@ -1001,9 +1004,7 @@ int gue_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 
 	return 0;
 }
-EXPORT_SYMBOL(gue_build_header);
 
-#ifdef CONFIG_NET_FOU_IP_TUNNELS
 
 static const struct ip_tunnel_encap_ops fou_iptun_ops = {
 	.encap_hlen = fou_encap_hlen,

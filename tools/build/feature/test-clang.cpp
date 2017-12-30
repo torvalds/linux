@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "clang/Basic/VirtualFileSystem.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"

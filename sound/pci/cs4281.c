@@ -847,7 +847,7 @@ static snd_pcm_uframes_t snd_cs4281_pointer(struct snd_pcm_substream *substream)
 	       snd_cs4281_peekBA0(chip, dma->regDCC) - 1;
 }
 
-static struct snd_pcm_hardware snd_cs4281_playback =
+static const struct snd_pcm_hardware snd_cs4281_playback =
 {
 	.info =			SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |
@@ -872,7 +872,7 @@ static struct snd_pcm_hardware snd_cs4281_playback =
 	.fifo_size =		CS4281_FIFO_SIZE,
 };
 
-static struct snd_pcm_hardware snd_cs4281_capture =
+static const struct snd_pcm_hardware snd_cs4281_capture =
 {
 	.info =			SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |
@@ -1296,7 +1296,7 @@ static void snd_cs4281_free_gameport(struct cs4281 *chip)
 #else
 static inline int snd_cs4281_create_gameport(struct cs4281 *chip) { return -ENOSYS; }
 static inline void snd_cs4281_free_gameport(struct cs4281 *chip) { }
-#endif /* CONFIG_GAMEPORT || (MODULE && CONFIG_GAMEPORT_MODULE) */
+#endif /* IS_REACHABLE(CONFIG_GAMEPORT) */
 
 static int snd_cs4281_free(struct cs4281 *chip)
 {

@@ -381,6 +381,7 @@ unsigned int acpi_dev_get_irq_type(int triggering, int polarity)
 	case ACPI_ACTIVE_BOTH:
 		if (triggering == ACPI_EDGE_SENSITIVE)
 			return IRQ_TYPE_EDGE_BOTH;
+		/* fall through */
 	default:
 		return IRQ_TYPE_NONE;
 	}
@@ -573,6 +574,35 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
 	return AE_OK;
 }
 
+static int __acpi_dev_get_resources(struct acpi_device *adev,
+				    struct list_head *list,
+				    int (*preproc)(struct acpi_resource *, void *),
+				    void *preproc_data, char *method)
+{
+	struct res_proc_context c;
+	acpi_status status;
+
+	if (!adev || !adev->handle || !list_empty(list))
+		return -EINVAL;
+
+	if (!acpi_has_method(adev->handle, method))
+		return 0;
+
+	c.list = list;
+	c.preproc = preproc;
+	c.preproc_data = preproc_data;
+	c.count = 0;
+	c.error = 0;
+	status = acpi_walk_resources(adev->handle, method,
+				     acpi_dev_process_resource, &c);
+	if (ACPI_FAILURE(status)) {
+		acpi_dev_free_resource_list(list);
+		return c.error ? c.error : -EIO;
+	}
+
+	return c.count;
+}
+
 /**
  * acpi_dev_get_resources - Get current resources of a device.
  * @adev: ACPI device node to get the resources for.
@@ -601,30 +631,45 @@ int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
 			   int (*preproc)(struct acpi_resource *, void *),
 			   void *preproc_data)
 {
-	struct res_proc_context c;
-	acpi_status status;
-
-	if (!adev || !adev->handle || !list_empty(list))
-		return -EINVAL;
-
-	if (!acpi_has_method(adev->handle, METHOD_NAME__CRS))
-		return 0;
-
-	c.list = list;
-	c.preproc = preproc;
-	c.preproc_data = preproc_data;
-	c.count = 0;
-	c.error = 0;
-	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
-				     acpi_dev_process_resource, &c);
-	if (ACPI_FAILURE(status)) {
-		acpi_dev_free_resource_list(list);
-		return c.error ? c.error : -EIO;
-	}
-
-	return c.count;
+	return __acpi_dev_get_resources(adev, list, preproc, preproc_data,
+					METHOD_NAME__CRS);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_get_resources);
+
+static int is_memory(struct acpi_resource *ares, void *not_used)
+{
+	struct resource_win win;
+	struct resource *res = &win.res;
+
+	memset(&win, 0, sizeof(win));
+
+	return !(acpi_dev_resource_memory(ares, res)
+	       || acpi_dev_resource_address_space(ares, &win)
+	       || acpi_dev_resource_ext_address_space(ares, &win));
+}
+
+/**
+ * acpi_dev_get_dma_resources - Get current DMA resources of a device.
+ * @adev: ACPI device node to get the resources for.
+ * @list: Head of the resultant list of resources (must be empty).
+ *
+ * Evaluate the _DMA method for the given device node and process its
+ * output.
+ *
+ * The resultant struct resource objects are put on the list pointed to
+ * by @list, that must be empty initially, as members of struct
+ * resource_entry objects.  Callers of this routine should use
+ * %acpi_dev_free_resource_list() to free that list.
+ *
+ * The number of resources in the output list is returned on success,
+ * an error code reflecting the error condition is returned otherwise.
+ */
+int acpi_dev_get_dma_resources(struct acpi_device *adev, struct list_head *list)
+{
+	return __acpi_dev_get_resources(adev, list, is_memory, NULL,
+					METHOD_NAME__DMA);
+}
+EXPORT_SYMBOL_GPL(acpi_dev_get_dma_resources);
 
 /**
  * acpi_dev_filter_resource_type - Filter ACPI resource according to resource

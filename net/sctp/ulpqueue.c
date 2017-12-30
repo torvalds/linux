@@ -265,7 +265,8 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		sctp_ulpq_clear_pd(ulpq);
 
 	if (queue == &sk->sk_receive_queue && !sp->data_ready_signalled) {
-		sp->data_ready_signalled = 1;
+		if (!sock_owned_by_user(sk))
+			sp->data_ready_signalled = 1;
 		sk->sk_data_ready(sk);
 	}
 	return 1;
@@ -764,7 +765,7 @@ static void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 	__u16 sid, csid, cssn;
 
 	sid = event->stream;
-	stream  = ulpq->asoc->stream;
+	stream  = &ulpq->asoc->stream;
 
 	event_list = (struct sk_buff_head *) sctp_event2skb(event)->prev;
 
@@ -858,7 +859,7 @@ static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
 	/* Note: The stream ID must be verified before this routine.  */
 	sid = event->stream;
 	ssn = event->ssn;
-	stream  = ulpq->asoc->stream;
+	stream  = &ulpq->asoc->stream;
 
 	/* Is this the expected SSN for this stream ID?  */
 	if (ssn != sctp_ssn_peek(stream, in, sid)) {
@@ -893,7 +894,7 @@ static void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 	struct sk_buff_head *lobby = &ulpq->lobby;
 	__u16 csid, cssn;
 
-	stream = ulpq->asoc->stream;
+	stream = &ulpq->asoc->stream;
 
 	/* We are holding the chunks by stream, by SSN.  */
 	skb_queue_head_init(&temp);
@@ -958,7 +959,7 @@ void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn)
 	struct sctp_stream *stream;
 
 	/* Note: The stream ID must be verified before this routine.  */
-	stream  = ulpq->asoc->stream;
+	stream  = &ulpq->asoc->stream;
 
 	/* Is this an old SSN?  If so ignore. */
 	if (SSN_lt(ssn, sctp_ssn_peek(stream, in, sid)))
@@ -1083,29 +1084,21 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		      gfp_t gfp)
 {
-	struct sctp_association *asoc;
-	__u16 needed, freed;
+	struct sctp_association *asoc = ulpq->asoc;
+	__u32 freed = 0;
+	__u16 needed;
 
-	asoc = ulpq->asoc;
-
-	if (chunk) {
-		needed = ntohs(chunk->chunk_hdr->length);
-		needed -= sizeof(sctp_data_chunk_t);
-	} else
-		needed = SCTP_DEFAULT_MAXWINDOW;
-
-	freed = 0;
+	needed = ntohs(chunk->chunk_hdr->length) -
+		 sizeof(struct sctp_data_chunk);
 
 	if (skb_queue_empty(&asoc->base.sk->sk_receive_queue)) {
 		freed = sctp_ulpq_renege_order(ulpq, needed);
-		if (freed < needed) {
+		if (freed < needed)
 			freed += sctp_ulpq_renege_frags(ulpq, needed - freed);
-		}
 	}
 	/* If able to free enough room, accept this chunk. */
-	if (chunk && (freed >= needed)) {
-		int retval;
-		retval = sctp_ulpq_tail_data(ulpq, chunk, gfp);
+	if (freed >= needed) {
+		int retval = sctp_ulpq_tail_data(ulpq, chunk, gfp);
 		/*
 		 * Enter partial delivery if chunk has not been
 		 * delivered; otherwise, drain the reassembly queue.

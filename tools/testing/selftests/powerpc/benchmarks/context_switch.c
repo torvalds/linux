@@ -10,6 +10,7 @@
  */
 
 #define _GNU_SOURCE
+#include <errno.h>
 #include <sched.h>
 #include <string.h>
 #include <stdio.h>
@@ -75,6 +76,7 @@ static void touch(void)
 
 static void start_thread_on(void *(*fn)(void *), void *arg, unsigned long cpu)
 {
+	int rc;
 	pthread_t tid;
 	cpu_set_t cpuset;
 	pthread_attr_t attr;
@@ -82,14 +84,23 @@ static void start_thread_on(void *(*fn)(void *), void *arg, unsigned long cpu)
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
 
-	pthread_attr_init(&attr);
+	rc = pthread_attr_init(&attr);
+	if (rc) {
+		errno = rc;
+		perror("pthread_attr_init");
+		exit(1);
+	}
 
-	if (pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset)) {
+	rc = pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+	if (rc)	{
+		errno = rc;
 		perror("pthread_attr_setaffinity_np");
 		exit(1);
 	}
 
-	if (pthread_create(&tid, &attr, fn, arg)) {
+	rc = pthread_create(&tid, &attr, fn, arg);
+	if (rc) {
+		errno = rc;
 		perror("pthread_create");
 		exit(1);
 	}
@@ -258,9 +269,14 @@ static unsigned long xchg(unsigned long *p, unsigned long val)
 	return __atomic_exchange_n(p, val, __ATOMIC_SEQ_CST);
 }
 
+static int processes;
+
 static int mutex_lock(unsigned long *m)
 {
 	int c;
+	int flags = FUTEX_WAIT;
+	if (!processes)
+		flags |= FUTEX_PRIVATE_FLAG;
 
 	c = cmpxchg(m, 0, 1);
 	if (!c)
@@ -270,7 +286,7 @@ static int mutex_lock(unsigned long *m)
 		c = xchg(m, 2);
 
 	while (c) {
-		sys_futex(m, FUTEX_WAIT, 2, NULL, NULL, 0);
+		sys_futex(m, flags, 2, NULL, NULL, 0);
 		c = xchg(m, 2);
 	}
 
@@ -279,12 +295,16 @@ static int mutex_lock(unsigned long *m)
 
 static int mutex_unlock(unsigned long *m)
 {
+	int flags = FUTEX_WAKE;
+	if (!processes)
+		flags |= FUTEX_PRIVATE_FLAG;
+
 	if (*m == 2)
 		*m = 0;
 	else if (xchg(m, 0) == 1)
 		return 0;
 
-	sys_futex(m, FUTEX_WAKE, 1, NULL, NULL, 0);
+	sys_futex(m, flags, 1, NULL, NULL, 0);
 
 	return 0;
 }
@@ -293,26 +313,32 @@ static unsigned long *m1, *m2;
 
 static void futex_setup(int cpu1, int cpu2)
 {
-	int shmid;
-	void *shmaddr;
+	if (!processes) {
+		static unsigned long _m1, _m2;
+		m1 = &_m1;
+		m2 = &_m2;
+	} else {
+		int shmid;
+		void *shmaddr;
 
-	shmid = shmget(IPC_PRIVATE, getpagesize(), SHM_R | SHM_W);
-	if (shmid < 0) {
-		perror("shmget");
-		exit(1);
-	}
+		shmid = shmget(IPC_PRIVATE, getpagesize(), SHM_R | SHM_W);
+		if (shmid < 0) {
+			perror("shmget");
+			exit(1);
+		}
 
-	shmaddr = shmat(shmid, NULL, 0);
-	if (shmaddr == (char *)-1) {
-		perror("shmat");
+		shmaddr = shmat(shmid, NULL, 0);
+		if (shmaddr == (char *)-1) {
+			perror("shmat");
+			shmctl(shmid, IPC_RMID, NULL);
+			exit(1);
+		}
+
 		shmctl(shmid, IPC_RMID, NULL);
-		exit(1);
+
+		m1 = shmaddr;
+		m2 = shmaddr + sizeof(*m1);
 	}
-
-	shmctl(shmid, IPC_RMID, NULL);
-
-	m1 = shmaddr;
-	m2 = shmaddr + sizeof(*m1);
 
 	*m1 = 0;
 	*m2 = 0;
@@ -351,8 +377,6 @@ static struct actions futex_actions = {
 	.thread1 = futex_thread1,
 	.thread2 = futex_thread2,
 };
-
-static int processes;
 
 static struct option options[] = {
 	{ "test", required_argument, 0, 't' },

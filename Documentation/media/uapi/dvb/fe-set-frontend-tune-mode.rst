@@ -30,7 +30,7 @@ Arguments
 
     -  0 - normal tune mode
 
-    -  FE_TUNE_MODE_ONESHOT - When set, this flag will disable any
+    -  ``FE_TUNE_MODE_ONESHOT`` - When set, this flag will disable any
        zigzagging or other "normal" tuning behaviour. Additionally,
        there will be no automatic monitoring of the lock status, and
        hence no frontend events will be generated. If a frontend device
@@ -42,12 +42,16 @@ Description
 ===========
 
 Allow setting tuner mode flags to the frontend, between 0 (normal) or
-FE_TUNE_MODE_ONESHOT mode
+``FE_TUNE_MODE_ONESHOT`` mode
 
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
+On success 0 is returned.
+
+On error -1 is returned, and the ``errno`` variable is set
+appropriately.
+
+Generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

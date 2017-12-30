@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -94,7 +95,7 @@ struct neigh_table dn_neigh_table = {
 			[NEIGH_VAR_BASE_REACHABLE_TIME] = 30 * HZ,
 			[NEIGH_VAR_DELAY_PROBE_TIME] = 5 * HZ,
 			[NEIGH_VAR_GC_STALETIME] = 60 * HZ,
-			[NEIGH_VAR_QUEUE_LEN_BYTES] = 64*1024,
+			[NEIGH_VAR_QUEUE_LEN_BYTES] = SK_WMEM_MAX,
 			[NEIGH_VAR_PROXY_QLEN] = 0,
 			[NEIGH_VAR_ANYCAST_DELAY] = 0,
 			[NEIGH_VAR_PROXY_DELAY] = 0,
@@ -559,7 +560,7 @@ static inline void dn_neigh_format_entry(struct seq_file *seq,
 		   (dn->flags&DN_NDFLAG_R2) ? "2" : "-",
 		   (dn->flags&DN_NDFLAG_P3) ? "3" : "-",
 		   dn->n.nud_state,
-		   atomic_read(&dn->n.refcnt),
+		   refcount_read(&dn->n.refcnt),
 		   dn->blksize,
 		   (dn->n.dev) ? dn->n.dev->name : "?");
 	read_unlock(&n->lock);

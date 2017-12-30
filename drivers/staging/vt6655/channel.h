@@ -21,8 +21,8 @@
 
 #include "card.h"
 
-void vnt_init_bands(struct vnt_private *);
+void vnt_init_bands(struct vnt_private *priv);
 
-bool set_channel(struct vnt_private *, struct ieee80211_channel *);
+bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch);
 
 #endif /* _CHANNEL_H_ */

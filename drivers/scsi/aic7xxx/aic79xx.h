@@ -1046,8 +1046,6 @@ typedef enum {
 
 typedef uint8_t ahd_mode_state;
 
-typedef void ahd_callback_t (void *);
-
 struct ahd_completion
 {
 	uint16_t	tag;
@@ -1122,8 +1120,7 @@ struct ahd_softc {
 	/*
 	 * Timer handles for timer driven callbacks.
 	 */
-	ahd_timer_t		  reset_timer;
-	ahd_timer_t		  stat_timer;
+	struct timer_list	stat_timer;
 
 	/*
 	 * Statistics.

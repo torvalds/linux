@@ -57,10 +57,20 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_mad.h>
 #include <rdma/rdmavt_mr.h>
 #include <rdma/rdmavt_qp.h>
 
 #define RVT_MAX_PKEY_VALUES 16
+
+#define RVT_MAX_TRAP_LEN 100 /* Limit pending trap list */
+#define RVT_MAX_TRAP_LISTS 5 /*((IB_NOTICE_TYPE_INFO & 0x0F) + 1)*/
+#define RVT_TRAP_TIMEOUT 4096 /* 4.096 usec */
+
+struct trap_list {
+	u32 list_len;
+	struct list_head list;
+};
 
 struct rvt_ibport {
 	struct rvt_qp __rcu *qp[2];
@@ -75,12 +85,13 @@ struct rvt_ibport {
 	__be64 mkey;
 	u64 tid;
 	u32 port_cap_flags;
+	u16 port_cap3_flags;
 	u32 pma_sample_start;
 	u32 pma_sample_interval;
 	__be16 pma_counter_select[5];
 	u16 pma_tag;
 	u16 mkey_lease_period;
-	u16 sm_lid;
+	u32 sm_lid;
 	u8 sm_sl;
 	u8 mkeyprot;
 	u8 subnet_timeout;
@@ -127,6 +138,13 @@ struct rvt_ibport {
 	u16 *pkey_table;
 
 	struct rvt_ah *sm_ah;
+
+	/*
+	 * Keep a list of traps that have not been repressed.  They will be
+	 * resent based on trap_timer.
+	 */
+	struct trap_list trap_lists[RVT_MAX_TRAP_LISTS];
+	struct timer_list trap_timer;
 };
 
 #define RVT_CQN_MAX 16 /* maximum length of cq name */
@@ -229,8 +247,7 @@ struct rvt_driver_provided {
 	 * ERR_PTR(err).  The driver is free to return NULL or a valid
 	 * pointer.
 	 */
-	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-				gfp_t gfp);
+	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 
 	/*
 	 * Free the driver's private qp structure.
@@ -319,7 +336,7 @@ struct rvt_driver_provided {
 
 	/* Let the driver pick the next queue pair number*/
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-			 enum ib_qp_type type, u8 port_num, gfp_t gfp);
+			 enum ib_qp_type type, u8 port_num);
 
 	/* Determine if its safe or allowed to modify the qp */
 	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
@@ -515,7 +532,8 @@ int rvt_invalidate_rkey(struct rvt_qp *qp, u32 rkey);
 int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		u32 len, u64 vaddr, u32 rkey, int acc);
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
-		struct rvt_sge *isge, struct ib_sge *sge, int acc);
+		struct rvt_sge *isge, struct rvt_sge *last_sge,
+		struct ib_sge *sge, int acc);
 struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid,
 				 u16 lid);
 

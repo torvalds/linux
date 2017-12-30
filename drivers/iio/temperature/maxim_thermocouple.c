@@ -208,7 +208,6 @@ static int maxim_thermocouple_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info maxim_thermocouple_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = maxim_thermocouple_read_raw,
 };
 
@@ -267,6 +266,7 @@ static int maxim_thermocouple_remove(struct spi_device *spi)
 static const struct spi_device_id maxim_thermocouple_id[] = {
 	{"max6675", MAX6675},
 	{"max31855", MAX31855},
+	{"max31856", MAX31855},
 	{},
 };
 MODULE_DEVICE_TABLE(spi, maxim_thermocouple_id);

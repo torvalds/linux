@@ -21,7 +21,6 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/compiler.h>
 #include <linux/sched/task_stack.h>
 #include <linux/smp.h>
@@ -36,6 +35,7 @@
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/mips_mt.h>
+#include <asm/mips-cps.h>
 
 static void __init smvp_copy_vpe_config(void)
 {
@@ -83,7 +83,7 @@ static unsigned int __init smvp_vpe_init(unsigned int tc, unsigned int mvpconf0,
 	if (tc != 0)
 		smvp_copy_vpe_config();
 
-	cpu_data[ncpu].vpe_id = tc;
+	cpu_set_vpe_id(&cpu_data[ncpu], tc);
 
 	return ncpu;
 }
@@ -118,14 +118,12 @@ static void __init smvp_tc_init(unsigned int tc, unsigned int mvpconf0)
 
 static void vsmp_init_secondary(void)
 {
-#ifdef CONFIG_MIPS_GIC
 	/* This is Malta specific: IPI,performance and timer interrupts */
-	if (gic_present)
+	if (mips_gic_present())
 		change_c0_status(ST0_IM, STATUSF_IP2 | STATUSF_IP3 |
 					 STATUSF_IP4 | STATUSF_IP5 |
 					 STATUSF_IP6 | STATUSF_IP7);
 	else
-#endif
 		change_c0_status(ST0_IM, STATUSF_IP0 | STATUSF_IP1 |
 					 STATUSF_IP6 | STATUSF_IP7);
 }
@@ -152,7 +150,7 @@ static void vsmp_smp_finish(void)
  * (unsigned long)idle->thread_info the gp
  * assumes a 1:1 mapping of TC => VPE
  */
-static void vsmp_boot_secondary(int cpu, struct task_struct *idle)
+static int vsmp_boot_secondary(int cpu, struct task_struct *idle)
 {
 	struct thread_info *gp = task_thread_info(idle);
 	dvpe();
@@ -184,6 +182,8 @@ static void vsmp_boot_secondary(int cpu, struct task_struct *idle)
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
 
 	evpe(EVPE_ENABLE);
+
+	return 0;
 }
 
 /*
@@ -239,7 +239,7 @@ static void __init vsmp_prepare_cpus(unsigned int max_cpus)
 	mips_mt_set_cpuoptions();
 }
 
-struct plat_smp_ops vsmp_smp_ops = {
+const struct plat_smp_ops vsmp_smp_ops = {
 	.send_ipi_single	= mips_smp_send_ipi_single,
 	.send_ipi_mask		= mips_smp_send_ipi_mask,
 	.init_secondary		= vsmp_init_secondary,

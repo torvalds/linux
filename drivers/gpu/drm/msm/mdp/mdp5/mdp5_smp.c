@@ -28,6 +28,13 @@ struct mdp5_smp {
 
 	int blk_cnt;
 	int blk_size;
+
+	/* register cache */
+	u32 alloc_w[22];
+	u32 alloc_r[22];
+	u32 pipe_reqprio_fifo_wm0[SSPP_MAX];
+	u32 pipe_reqprio_fifo_wm1[SSPP_MAX];
+	u32 pipe_reqprio_fifo_wm2[SSPP_MAX];
 };
 
 static inline
@@ -98,16 +105,15 @@ static int smp_request_block(struct mdp5_smp *smp,
 static void set_fifo_thresholds(struct mdp5_smp *smp,
 		enum mdp5_pipe pipe, int nblks)
 {
-	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	u32 smp_entries_per_blk = smp->blk_size / (128 / BITS_PER_BYTE);
 	u32 val;
 
 	/* 1/4 of SMP pool that is being fetched */
 	val = (nblks * smp_entries_per_blk) / 4;
 
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_REQPRIO_FIFO_WM_0(pipe), val * 1);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_REQPRIO_FIFO_WM_1(pipe), val * 2);
-	mdp5_write(mdp5_kms, REG_MDP5_PIPE_REQPRIO_FIFO_WM_2(pipe), val * 3);
+	smp->pipe_reqprio_fifo_wm0[pipe] = val * 1;
+	smp->pipe_reqprio_fifo_wm1[pipe] = val * 2;
+	smp->pipe_reqprio_fifo_wm2[pipe] = val * 3;
 }
 
 /*
@@ -222,7 +228,6 @@ void mdp5_smp_release(struct mdp5_smp *smp, struct mdp5_smp_state *state,
 static unsigned update_smp_state(struct mdp5_smp *smp,
 		u32 cid, mdp5_smp_state_t *assigned)
 {
-	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	int cnt = smp->blk_cnt;
 	unsigned nblks = 0;
 	u32 blk, val;
@@ -231,7 +236,7 @@ static unsigned update_smp_state(struct mdp5_smp *smp,
 		int idx = blk / 3;
 		int fld = blk % 3;
 
-		val = mdp5_read(mdp5_kms, REG_MDP5_SMP_ALLOC_W_REG(idx));
+		val = smp->alloc_w[idx];
 
 		switch (fld) {
 		case 0:
@@ -248,13 +253,46 @@ static unsigned update_smp_state(struct mdp5_smp *smp,
 			break;
 		}
 
-		mdp5_write(mdp5_kms, REG_MDP5_SMP_ALLOC_W_REG(idx), val);
-		mdp5_write(mdp5_kms, REG_MDP5_SMP_ALLOC_R_REG(idx), val);
+		smp->alloc_w[idx] = val;
+		smp->alloc_r[idx] = val;
 
 		nblks++;
 	}
 
 	return nblks;
+}
+
+static void write_smp_alloc_regs(struct mdp5_smp *smp)
+{
+	struct mdp5_kms *mdp5_kms = get_kms(smp);
+	int i, num_regs;
+
+	num_regs = smp->blk_cnt / 3 + 1;
+
+	for (i = 0; i < num_regs; i++) {
+		mdp5_write(mdp5_kms, REG_MDP5_SMP_ALLOC_W_REG(i),
+			   smp->alloc_w[i]);
+		mdp5_write(mdp5_kms, REG_MDP5_SMP_ALLOC_R_REG(i),
+			   smp->alloc_r[i]);
+	}
+}
+
+static void write_smp_fifo_regs(struct mdp5_smp *smp)
+{
+	struct mdp5_kms *mdp5_kms = get_kms(smp);
+	int i;
+
+	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
+		struct mdp5_hw_pipe *hwpipe = mdp5_kms->hwpipes[i];
+		enum mdp5_pipe pipe = hwpipe->pipe;
+
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_REQPRIO_FIFO_WM_0(pipe),
+			   smp->pipe_reqprio_fifo_wm0[pipe]);
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_REQPRIO_FIFO_WM_1(pipe),
+			   smp->pipe_reqprio_fifo_wm1[pipe]);
+		mdp5_write(mdp5_kms, REG_MDP5_PIPE_REQPRIO_FIFO_WM_2(pipe),
+			   smp->pipe_reqprio_fifo_wm2[pipe]);
+	}
 }
 
 void mdp5_smp_prepare_commit(struct mdp5_smp *smp, struct mdp5_smp_state *state)
@@ -277,6 +315,9 @@ void mdp5_smp_prepare_commit(struct mdp5_smp *smp, struct mdp5_smp_state *state)
 		set_fifo_thresholds(smp, pipe, nblks);
 	}
 
+	write_smp_alloc_regs(smp);
+	write_smp_fifo_regs(smp);
+
 	state->assigned = 0;
 }
 
@@ -288,6 +329,8 @@ void mdp5_smp_complete_commit(struct mdp5_smp *smp, struct mdp5_smp_state *state
 		DBG("release %s", pipe2name(pipe));
 		set_fifo_thresholds(smp, pipe, 0);
 	}
+
+	write_smp_fifo_regs(smp);
 
 	state->released = 0;
 }

@@ -40,7 +40,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <dt-bindings/pinctrl/stm32h7-pinfunc.h>
+#include <dt-bindings/pinctrl/stm32-pinfunc.h>
 
 / {
 	soc {
@@ -55,7 +55,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x0 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOA_CK>;
 				st,bank-name = "GPIOA";
 			};
 
@@ -63,7 +63,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x400 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOB_CK>;
 				st,bank-name = "GPIOB";
 			};
 
@@ -71,7 +71,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x800 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOC_CK>;
 				st,bank-name = "GPIOC";
 			};
 
@@ -79,7 +79,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0xc00 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOD_CK>;
 				st,bank-name = "GPIOD";
 			};
 
@@ -87,7 +87,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x1000 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOE_CK>;
 				st,bank-name = "GPIOE";
 			};
 
@@ -95,7 +95,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x1400 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOF_CK>;
 				st,bank-name = "GPIOF";
 			};
 
@@ -103,7 +103,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x1800 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOG_CK>;
 				st,bank-name = "GPIOG";
 			};
 
@@ -111,7 +111,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x1c00 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOH_CK>;
 				st,bank-name = "GPIOH";
 			};
 
@@ -119,7 +119,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x2000 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOI_CK>;
 				st,bank-name = "GPIOI";
 			};
 
@@ -127,7 +127,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x2400 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOJ_CK>;
 				st,bank-name = "GPIOJ";
 			};
 
@@ -135,19 +135,32 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x2800 0x400>;
-				clocks = <&timer_clk>;
+				clocks = <&rcc GPIOK_CK>;
 				st,bank-name = "GPIOK";
 			};
 
 			usart1_pins: usart1@0 {
 				pins1 {
-					pinmux = <STM32H7_PB14_FUNC_USART1_TX>;
+					pinmux = <STM32_PINMUX('B', 14, AF4)>; /* USART1_TX */
 					bias-disable;
 					drive-push-pull;
 					slew-rate = <0>;
 				};
 				pins2 {
-					pinmux = <STM32H7_PB15_FUNC_USART1_RX>;
+					pinmux = <STM32_PINMUX('B', 15, AF4)>; /* USART1_RX */
+					bias-disable;
+				};
+			};
+
+			usart2_pins: usart2@0 {
+				pins1 {
+					pinmux = <STM32_PINMUX('D', 5, AF7)>; /* USART2_TX */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+				pins2 {
+					pinmux = <STM32_PINMUX('D', 6, AF7)>; /* USART2_RX */
 					bias-disable;
 				};
 			};

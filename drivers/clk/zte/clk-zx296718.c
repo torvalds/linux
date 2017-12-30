@@ -451,7 +451,7 @@ static struct zx_clk_fixed_factor top_ffactor_clk[] = {
 	FFACTOR(0, "emmc_mux_div2",	"emmc_mux", 1, 2, CLK_SET_RATE_PARENT),
 };
 
-static struct clk_div_table noc_div_table[] = {
+static const struct clk_div_table noc_div_table[] = {
 	{ .val = 1, .div = 2, },
 	{ .val = 3, .div = 4, },
 };
@@ -644,7 +644,7 @@ static int __init top_clocks_init(struct device_node *np)
 	return 0;
 }
 
-static struct clk_div_table common_even_div_table[] = {
+static const struct clk_div_table common_even_div_table[] = {
 	{ .val = 0, .div = 1, },
 	{ .val = 1, .div = 2, },
 	{ .val = 3, .div = 4, },
@@ -656,7 +656,7 @@ static struct clk_div_table common_even_div_table[] = {
 	{ .val = 15, .div = 16, },
 };
 
-static struct clk_div_table common_div_table[] = {
+static const struct clk_div_table common_div_table[] = {
 	{ .val = 0, .div = 1, },
 	{ .val = 1, .div = 2, },
 	{ .val = 2, .div = 3, },
@@ -932,10 +932,10 @@ PNAME(audio_timer_p) = {
 };
 
 static struct zx_clk_mux audio_mux_clk[] = {
-	MUX(0, "i2s0_wclk_mux", audio_wclk_common_p, AUDIO_I2S0_CLK, 0, 1),
-	MUX(0, "i2s1_wclk_mux", audio_wclk_common_p, AUDIO_I2S1_CLK, 0, 1),
-	MUX(0, "i2s2_wclk_mux", audio_wclk_common_p, AUDIO_I2S2_CLK, 0, 1),
-	MUX(0, "i2s3_wclk_mux", audio_wclk_common_p, AUDIO_I2S3_CLK, 0, 1),
+	MUX(I2S0_WCLK_MUX, "i2s0_wclk_mux", audio_wclk_common_p, AUDIO_I2S0_CLK, 0, 1),
+	MUX(I2S1_WCLK_MUX, "i2s1_wclk_mux", audio_wclk_common_p, AUDIO_I2S1_CLK, 0, 1),
+	MUX(I2S2_WCLK_MUX, "i2s2_wclk_mux", audio_wclk_common_p, AUDIO_I2S2_CLK, 0, 1),
+	MUX(I2S3_WCLK_MUX, "i2s3_wclk_mux", audio_wclk_common_p, AUDIO_I2S3_CLK, 0, 1),
 	MUX(0, "i2c0_wclk_mux", audio_wclk_common_p, AUDIO_I2C0_CLK, 0, 1),
 	MUX(0, "spdif0_wclk_mux", audio_wclk_common_p, AUDIO_SPDIF0_CLK, 0, 1),
 	MUX(0, "spdif1_wclk_mux", audio_wclk_common_p, AUDIO_SPDIF1_CLK, 0, 1),

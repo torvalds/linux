@@ -585,7 +585,7 @@ static int ax_bb_get_data(struct mdiobb_ctrl *ctrl)
 	return reg_memr & AX_MEMR_MDI ? 1 : 0;
 }
 
-static struct mdiobb_ops bb_ops = {
+static const struct mdiobb_ops bb_ops = {
 	.owner = THIS_MODULE,
 	.set_mdc = ax_bb_mdc,
 	.set_mdio_dir = ax_bb_dir,
@@ -722,6 +722,12 @@ static int ax_init_dev(struct net_device *dev)
 	if ((ax->plat->flags & AXFLG_MAC_FROMPLATFORM) &&
 	    ax->plat->mac_addr)
 		memcpy(dev->dev_addr, ax->plat->mac_addr, ETH_ALEN);
+
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		eth_hw_addr_random(dev);
+		dev_info(&dev->dev, "Using random MAC address: %pM\n",
+			 dev->dev_addr);
+	}
 
 	ax_reset_8390(dev);
 

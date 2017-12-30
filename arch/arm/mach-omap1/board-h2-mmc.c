@@ -14,7 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/gpio-omap.h>
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
 #include "board-h2.h"
 #include "mmc.h"

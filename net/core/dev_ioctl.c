@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kmod.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -28,6 +29,7 @@ static int dev_ifname(struct net *net, struct ifreq __user *arg)
 
 	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
 		return -EFAULT;
+	ifr.ifr_name[IFNAMSIZ-1] = 0;
 
 	error = netdev_get_name(net, ifr.ifr_name, ifr.ifr_ifindex);
 	if (error)
@@ -225,6 +227,7 @@ static int net_hwtstamp_validate(struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		rx_filter_valid = 1;
 		break;
 	}
@@ -261,6 +264,8 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 		return dev_set_mtu(dev, ifr->ifr_mtu);
 
 	case SIOCSIFHWADDR:
+		if (dev->addr_len > sizeof(struct sockaddr))
+			return -EINVAL;
 		return dev_set_mac_address(dev, &ifr->ifr_hwaddr);
 
 	case SIOCSIFHWBROADCAST:
@@ -299,7 +304,18 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 	case SIOCSIFTXQLEN:
 		if (ifr->ifr_qlen < 0)
 			return -EINVAL;
-		dev->tx_queue_len = ifr->ifr_qlen;
+		if (dev->tx_queue_len ^ ifr->ifr_qlen) {
+			unsigned int orig_len = dev->tx_queue_len;
+
+			dev->tx_queue_len = ifr->ifr_qlen;
+			err = call_netdevice_notifiers(
+					NETDEV_CHANGE_TX_QUEUE_LEN, dev);
+			err = notifier_to_errno(err);
+			if (err) {
+				dev->tx_queue_len = orig_len;
+				return err;
+			}
+		}
 		return 0;
 
 	case SIOCSIFNAME:
@@ -422,6 +438,8 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 
 		if (copy_from_user(&iwr, arg, sizeof(iwr)))
 			return -EFAULT;
+
+		iwr.ifr_name[sizeof(iwr.ifr_name) - 1] = 0;
 
 		return wext_handle_ioctl(net, &iwr, cmd, arg);
 	}

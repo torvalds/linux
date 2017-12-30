@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/sys_sio.c
  *
@@ -144,7 +145,7 @@ sio_fixup_irq_levels(unsigned int level_bits)
 	outb((level_bits >> 8) & 0xff, 0x4d1);
 }
 
-static inline int __init
+static inline int
 noname_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	/*
@@ -165,7 +166,7 @@ noname_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	 * that they use the default INTA line, if they are interrupt
 	 * driven at all).
 	 */
-	static char irq_tab[][5] __initdata = {
+	static char irq_tab[][5] = {
 		/*INT A   B   C   D */
 		{ 3,  3,  3,  3,  3}, /* idsel  6 (53c810) */ 
 		{-1, -1, -1, -1, -1}, /* idsel  7 (SIO: PCI/ISA bridge) */
@@ -183,10 +184,10 @@ noname_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq >= 0 ? tmp : -1;
 }
 
-static inline int __init
+static inline int
 p2k_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	static char irq_tab[][5] __initdata = {
+	static char irq_tab[][5] = {
 		/*INT A   B   C   D */
 		{ 0,  0, -1, -1, -1}, /* idsel  6 (53c810) */
 		{-1, -1, -1, -1, -1}, /* idsel  7 (SIO: PCI/ISA bridge) */

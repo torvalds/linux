@@ -26,7 +26,7 @@ MODULE_AUTHOR("Ondrej Zary <linux@rainbow-software.org>");
 MODULE_DESCRIPTION("C-Media CMI8328");
 MODULE_LICENSE("GPL");
 
-#if defined(CONFIG_GAMEPORT) || defined(CONFIG_GAMEPORT_MODULE)
+#if IS_ENABLED(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
 #endif
 

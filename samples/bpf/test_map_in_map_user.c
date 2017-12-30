@@ -32,6 +32,20 @@ static const char * const test_names[] = {
 
 #define NR_TESTS (sizeof(test_names) / sizeof(*test_names))
 
+static void check_map_id(int inner_map_fd, int map_in_map_fd, uint32_t key)
+{
+	struct bpf_map_info info = {};
+	uint32_t info_len = sizeof(info);
+	int ret, id;
+
+	ret = bpf_obj_get_info_by_fd(inner_map_fd, &info, &info_len);
+	assert(!ret);
+
+	ret = bpf_map_lookup_elem(map_in_map_fd, &key, &id);
+	assert(!ret);
+	assert(id == info.id);
+}
+
 static void populate_map(uint32_t port_key, int magic_result)
 {
 	int ret;
@@ -45,12 +59,15 @@ static void populate_map(uint32_t port_key, int magic_result)
 
 	ret = bpf_map_update_elem(A_OF_PORT_A, &port_key, &PORT_A, BPF_ANY);
 	assert(!ret);
+	check_map_id(PORT_A, A_OF_PORT_A, port_key);
 
 	ret = bpf_map_update_elem(H_OF_PORT_A, &port_key, &PORT_A, BPF_NOEXIST);
 	assert(!ret);
+	check_map_id(PORT_A, H_OF_PORT_A, port_key);
 
 	ret = bpf_map_update_elem(H_OF_PORT_H, &port_key, &PORT_H, BPF_NOEXIST);
 	assert(!ret);
+	check_map_id(PORT_H, H_OF_PORT_H, port_key);
 }
 
 static void test_map_in_map(void)

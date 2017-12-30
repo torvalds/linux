@@ -81,7 +81,7 @@ MODULE_LICENSE("GPL");
 #define LASI710_CLOCK	40
 #define LASI_SCSI_CORE_OFFSET 0x100
 
-static struct parisc_device_id lasi700_ids[] = {
+static const struct parisc_device_id lasi700_ids[] __initconst = {
 	LASI700_ID_TABLE,
 	LASI710_ID_TABLE,
 	{ 0 }
@@ -164,11 +164,11 @@ lasi700_driver_remove(struct parisc_device *dev)
 	return 0;
 }
 
-static struct parisc_driver lasi700_driver = {
+static struct parisc_driver lasi700_driver __refdata = {
 	.name =		"lasi_scsi",
 	.id_table =	lasi700_ids,
 	.probe =	lasi700_probe,
-	.remove =	lasi700_driver_remove,
+	.remove =	__exit_p(lasi700_driver_remove),
 };
 
 static int __init

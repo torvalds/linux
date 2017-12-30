@@ -203,7 +203,7 @@ g84_therm_fini(struct nvkm_therm *therm)
 	nvkm_wr32(device, 0x1100, 0x10000); /* PBUS */
 }
 
-static void
+void
 g84_therm_init(struct nvkm_therm *therm)
 {
 	g84_sensor_setup(therm);

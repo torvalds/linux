@@ -173,7 +173,7 @@ static void fdomain_release(struct pcmcia_device *link)
 
 static int fdomain_resume(struct pcmcia_device *link)
 {
-	fdomain_16x0_bus_reset(NULL);
+	fdomain_16x0_host_reset(NULL);
 
 	return 0;
 }

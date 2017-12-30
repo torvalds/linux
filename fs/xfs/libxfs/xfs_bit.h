@@ -25,47 +25,47 @@
 /*
  * masks with n high/low bits set, 64-bit values
  */
-static inline __uint64_t xfs_mask64hi(int n)
+static inline uint64_t xfs_mask64hi(int n)
 {
-	return (__uint64_t)-1 << (64 - (n));
+	return (uint64_t)-1 << (64 - (n));
 }
-static inline __uint32_t xfs_mask32lo(int n)
+static inline uint32_t xfs_mask32lo(int n)
 {
-	return ((__uint32_t)1 << (n)) - 1;
+	return ((uint32_t)1 << (n)) - 1;
 }
-static inline __uint64_t xfs_mask64lo(int n)
+static inline uint64_t xfs_mask64lo(int n)
 {
-	return ((__uint64_t)1 << (n)) - 1;
+	return ((uint64_t)1 << (n)) - 1;
 }
 
 /* Get high bit set out of 32-bit argument, -1 if none set */
-static inline int xfs_highbit32(__uint32_t v)
+static inline int xfs_highbit32(uint32_t v)
 {
 	return fls(v) - 1;
 }
 
 /* Get high bit set out of 64-bit argument, -1 if none set */
-static inline int xfs_highbit64(__uint64_t v)
+static inline int xfs_highbit64(uint64_t v)
 {
 	return fls64(v) - 1;
 }
 
 /* Get low bit set out of 32-bit argument, -1 if none set */
-static inline int xfs_lowbit32(__uint32_t v)
+static inline int xfs_lowbit32(uint32_t v)
 {
 	return ffs(v) - 1;
 }
 
 /* Get low bit set out of 64-bit argument, -1 if none set */
-static inline int xfs_lowbit64(__uint64_t v)
+static inline int xfs_lowbit64(uint64_t v)
 {
-	__uint32_t	w = (__uint32_t)v;
+	uint32_t	w = (uint32_t)v;
 	int		n = 0;
 
 	if (w) {	/* lower bits */
 		n = ffs(w);
 	} else {	/* upper bits */
-		w = (__uint32_t)(v >> 32);
+		w = (uint32_t)(v >> 32);
 		if (w) {
 			n = ffs(w);
 			if (n)

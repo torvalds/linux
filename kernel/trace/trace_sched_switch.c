@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * trace context switch
  *
@@ -12,27 +13,38 @@
 
 #include "trace.h"
 
-static int			sched_ref;
+#define RECORD_CMDLINE	1
+#define RECORD_TGID	2
+
+static int		sched_cmdline_ref;
+static int		sched_tgid_ref;
 static DEFINE_MUTEX(sched_register_mutex);
 
 static void
 probe_sched_switch(void *ignore, bool preempt,
 		   struct task_struct *prev, struct task_struct *next)
 {
-	if (unlikely(!sched_ref))
-		return;
+	int flags;
 
-	tracing_record_cmdline(prev);
-	tracing_record_cmdline(next);
+	flags = (RECORD_TGID * !!sched_tgid_ref) +
+		(RECORD_CMDLINE * !!sched_cmdline_ref);
+
+	if (!flags)
+		return;
+	tracing_record_taskinfo_sched_switch(prev, next, flags);
 }
 
 static void
 probe_sched_wakeup(void *ignore, struct task_struct *wakee)
 {
-	if (unlikely(!sched_ref))
-		return;
+	int flags;
 
-	tracing_record_cmdline(current);
+	flags = (RECORD_TGID * !!sched_tgid_ref) +
+		(RECORD_CMDLINE * !!sched_cmdline_ref);
+
+	if (!flags)
+		return;
+	tracing_record_taskinfo(current, flags);
 }
 
 static int tracing_sched_register(void)
@@ -75,28 +87,61 @@ static void tracing_sched_unregister(void)
 	unregister_trace_sched_wakeup(probe_sched_wakeup, NULL);
 }
 
-static void tracing_start_sched_switch(void)
+static void tracing_start_sched_switch(int ops)
 {
+	bool sched_register = (!sched_cmdline_ref && !sched_tgid_ref);
 	mutex_lock(&sched_register_mutex);
-	if (!(sched_ref++))
+
+	switch (ops) {
+	case RECORD_CMDLINE:
+		sched_cmdline_ref++;
+		break;
+
+	case RECORD_TGID:
+		sched_tgid_ref++;
+		break;
+	}
+
+	if (sched_register && (sched_cmdline_ref || sched_tgid_ref))
 		tracing_sched_register();
 	mutex_unlock(&sched_register_mutex);
 }
 
-static void tracing_stop_sched_switch(void)
+static void tracing_stop_sched_switch(int ops)
 {
 	mutex_lock(&sched_register_mutex);
-	if (!(--sched_ref))
+
+	switch (ops) {
+	case RECORD_CMDLINE:
+		sched_cmdline_ref--;
+		break;
+
+	case RECORD_TGID:
+		sched_tgid_ref--;
+		break;
+	}
+
+	if (!sched_cmdline_ref && !sched_tgid_ref)
 		tracing_sched_unregister();
 	mutex_unlock(&sched_register_mutex);
 }
 
 void tracing_start_cmdline_record(void)
 {
-	tracing_start_sched_switch();
+	tracing_start_sched_switch(RECORD_CMDLINE);
 }
 
 void tracing_stop_cmdline_record(void)
 {
-	tracing_stop_sched_switch();
+	tracing_stop_sched_switch(RECORD_CMDLINE);
+}
+
+void tracing_start_tgid_record(void)
+{
+	tracing_start_sched_switch(RECORD_TGID);
+}
+
+void tracing_stop_tgid_record(void)
+{
+	tracing_stop_sched_switch(RECORD_TGID);
 }

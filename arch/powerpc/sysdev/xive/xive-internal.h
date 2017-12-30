@@ -47,6 +47,7 @@ struct xive_ops {
 	void	(*update_pending)(struct xive_cpu *xc);
 	void	(*eoi)(u32 hw_irq);
 	void	(*sync_source)(u32 hw_irq);
+	u64	(*esb_rw)(u32 hw_irq, u32 offset, u64 data, bool write);
 #ifdef CONFIG_SMP
 	int	(*get_ipi)(unsigned int cpu, struct xive_cpu *xc);
 	void	(*put_ipi)(unsigned int cpu, struct xive_cpu *xc);
@@ -56,6 +57,12 @@ struct xive_ops {
 
 bool xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 offset,
 		    u8 max_prio);
+__be32 *xive_queue_page_alloc(unsigned int cpu, u32 queue_shift);
+
+static inline u32 xive_alloc_order(u32 queue_shift)
+{
+	return (queue_shift > PAGE_SHIFT) ? (queue_shift - PAGE_SHIFT) : 0;
+}
 
 extern bool xive_cmdline_disabled;
 

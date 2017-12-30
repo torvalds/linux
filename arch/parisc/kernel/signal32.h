@@ -79,8 +79,6 @@ struct compat_rt_sigframe {
 #define FUNCTIONCALLFRAME32     48
 #define PARISC_RT_SIGFRAME_SIZE32 (((sizeof(struct compat_rt_sigframe) + FUNCTIONCALLFRAME32) + SIGFRAME32) & -SIGFRAME32)
 
-void sigset_32to64(sigset_t *s64, compat_sigset_t *s32);
-void sigset_64to32(compat_sigset_t *s32, sigset_t *s64);
 long restore_sigcontext32(struct compat_sigcontext __user *sc, 
 		struct compat_regfile __user *rf,
 		struct pt_regs *regs);

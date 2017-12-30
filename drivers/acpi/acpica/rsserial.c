@@ -147,6 +147,82 @@ struct acpi_rsconvert_info acpi_rs_convert_gpio[18] = {
 
 /*******************************************************************************
  *
+ * acpi_rs_convert_pinfunction
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_pin_function[13] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_PIN_FUNCTION,
+	 ACPI_RS_SIZE(struct acpi_resource_pin_function),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_pin_function)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_PIN_FUNCTION,
+	 sizeof(struct aml_resource_pin_function),
+	 0},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_function.revision_id),
+	 AML_OFFSET(pin_function.revision_id),
+	 1},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_function.sharable),
+	 AML_OFFSET(pin_function.flags),
+	 0},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_function.pin_config),
+	 AML_OFFSET(pin_function.pin_config),
+	 1},
+
+	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.pin_function.function_number),
+	 AML_OFFSET(pin_function.function_number),
+	 2},
+
+	/* Pin Table */
+
+	/*
+	 * It is OK to use GPIO operations here because none of them refer GPIO
+	 * structures directly but instead use offsets given here.
+	 */
+
+	{ACPI_RSC_COUNT_GPIO_PIN,
+	 ACPI_RS_OFFSET(data.pin_function.pin_table_length),
+	 AML_OFFSET(pin_function.pin_table_offset),
+	 AML_OFFSET(pin_function.res_source_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_PIN, ACPI_RS_OFFSET(data.pin_function.pin_table),
+	 AML_OFFSET(pin_function.pin_table_offset),
+	 0},
+
+	/* Resource Source */
+
+	{ACPI_RSC_MOVE8,
+	 ACPI_RS_OFFSET(data.pin_function.resource_source.index),
+	 AML_OFFSET(pin_function.res_source_index),
+	 1},
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_function.resource_source.string_length),
+	 AML_OFFSET(pin_function.res_source_offset),
+	 AML_OFFSET(pin_function.vendor_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_function.resource_source.string_ptr),
+	 AML_OFFSET(pin_function.res_source_offset),
+	 0},
+
+	/* Vendor Data */
+
+	{ACPI_RSC_COUNT_GPIO_VEN,
+	 ACPI_RS_OFFSET(data.pin_function.vendor_length),
+	 AML_OFFSET(pin_function.vendor_length),
+	 1},
+
+	{ACPI_RSC_MOVE_GPIO_RES, ACPI_RS_OFFSET(data.pin_function.vendor_data),
+	 AML_OFFSET(pin_function.vendor_offset),
+	 0},
+};
+
+/*******************************************************************************
+ *
  * acpi_rs_convert_i2c_serial_bus
  *
  ******************************************************************************/
@@ -457,4 +533,301 @@ struct acpi_rsconvert_info acpi_rs_convert_uart_serial_bus[23] = {
 	 ACPI_RS_OFFSET(data.uart_serial_bus.default_baud_rate),
 	 AML_OFFSET(uart_serial_bus.default_baud_rate),
 	 1},
+};
+
+/*******************************************************************************
+ *
+ * acpi_rs_convert_pin_config
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_pin_config[14] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_PIN_CONFIG,
+	 ACPI_RS_SIZE(struct acpi_resource_pin_config),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_pin_config)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_PIN_CONFIG,
+	 sizeof(struct aml_resource_pin_config),
+	 0},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_config.revision_id),
+	 AML_OFFSET(pin_config.revision_id),
+	 1},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_config.sharable),
+	 AML_OFFSET(pin_config.flags),
+	 0},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_config.producer_consumer),
+	 AML_OFFSET(pin_config.flags),
+	 1},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_config.pin_config_type),
+	 AML_OFFSET(pin_config.pin_config_type),
+	 1},
+
+	{ACPI_RSC_MOVE32, ACPI_RS_OFFSET(data.pin_config.pin_config_value),
+	 AML_OFFSET(pin_config.pin_config_value),
+	 1},
+
+	/* Pin Table */
+
+	/*
+	 * It is OK to use GPIO operations here because none of them refer GPIO
+	 * structures directly but instead use offsets given here.
+	 */
+
+	{ACPI_RSC_COUNT_GPIO_PIN,
+	 ACPI_RS_OFFSET(data.pin_config.pin_table_length),
+	 AML_OFFSET(pin_config.pin_table_offset),
+	 AML_OFFSET(pin_config.res_source_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_PIN, ACPI_RS_OFFSET(data.pin_config.pin_table),
+	 AML_OFFSET(pin_config.pin_table_offset),
+	 0},
+
+	/* Resource Source */
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_config.resource_source.index),
+	 AML_OFFSET(pin_config.res_source_index),
+	 1},
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_config.resource_source.string_length),
+	 AML_OFFSET(pin_config.res_source_offset),
+	 AML_OFFSET(pin_config.vendor_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_config.resource_source.string_ptr),
+	 AML_OFFSET(pin_config.res_source_offset),
+	 0},
+
+	/* Vendor Data */
+
+	{ACPI_RSC_COUNT_GPIO_VEN, ACPI_RS_OFFSET(data.pin_config.vendor_length),
+	 AML_OFFSET(pin_config.vendor_length),
+	 1},
+
+	{ACPI_RSC_MOVE_GPIO_RES, ACPI_RS_OFFSET(data.pin_config.vendor_data),
+	 AML_OFFSET(pin_config.vendor_offset),
+	 0},
+};
+
+/*******************************************************************************
+ *
+ * acpi_rs_convert_pin_group
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_pin_group[10] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_PIN_GROUP,
+	 ACPI_RS_SIZE(struct acpi_resource_pin_group),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_pin_group)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_PIN_GROUP,
+	 sizeof(struct aml_resource_pin_group),
+	 0},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_group.revision_id),
+	 AML_OFFSET(pin_group.revision_id),
+	 1},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_group.producer_consumer),
+	 AML_OFFSET(pin_group.flags),
+	 0},
+
+	/* Pin Table */
+
+	/*
+	 * It is OK to use GPIO operations here because none of them refer GPIO
+	 * structures directly but instead use offsets given here.
+	 */
+
+	{ACPI_RSC_COUNT_GPIO_PIN,
+	 ACPI_RS_OFFSET(data.pin_group.pin_table_length),
+	 AML_OFFSET(pin_group.pin_table_offset),
+	 AML_OFFSET(pin_group.label_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_PIN, ACPI_RS_OFFSET(data.pin_group.pin_table),
+	 AML_OFFSET(pin_group.pin_table_offset),
+	 0},
+
+	/* Resource Label */
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group.resource_label.string_length),
+	 AML_OFFSET(pin_group.label_offset),
+	 AML_OFFSET(pin_group.vendor_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group.resource_label.string_ptr),
+	 AML_OFFSET(pin_group.label_offset),
+	 0},
+
+	/* Vendor Data */
+
+	{ACPI_RSC_COUNT_GPIO_VEN, ACPI_RS_OFFSET(data.pin_group.vendor_length),
+	 AML_OFFSET(pin_group.vendor_length),
+	 1},
+
+	{ACPI_RSC_MOVE_GPIO_RES, ACPI_RS_OFFSET(data.pin_group.vendor_data),
+	 AML_OFFSET(pin_group.vendor_offset),
+	 0},
+};
+
+/*******************************************************************************
+ *
+ * acpi_rs_convert_pin_group_function
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_pin_group_function[13] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION,
+	 ACPI_RS_SIZE(struct acpi_resource_pin_group_function),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_pin_group_function)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_PIN_GROUP_FUNCTION,
+	 sizeof(struct aml_resource_pin_group_function),
+	 0},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_group_function.revision_id),
+	 AML_OFFSET(pin_group_function.revision_id),
+	 1},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_group_function.sharable),
+	 AML_OFFSET(pin_group_function.flags),
+	 0},
+
+	{ACPI_RSC_1BITFLAG,
+	 ACPI_RS_OFFSET(data.pin_group_function.producer_consumer),
+	 AML_OFFSET(pin_group_function.flags),
+	 1},
+
+	{ACPI_RSC_MOVE16,
+	 ACPI_RS_OFFSET(data.pin_group_function.function_number),
+	 AML_OFFSET(pin_group_function.function_number),
+	 1},
+
+	/* Resource Source */
+
+	{ACPI_RSC_MOVE8,
+	 ACPI_RS_OFFSET(data.pin_group_function.resource_source.index),
+	 AML_OFFSET(pin_group_function.res_source_index),
+	 1},
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_function.resource_source.string_length),
+	 AML_OFFSET(pin_group_function.res_source_offset),
+	 AML_OFFSET(pin_group_function.res_source_label_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_function.resource_source.string_ptr),
+	 AML_OFFSET(pin_group_function.res_source_offset),
+	 0},
+
+	/* Resource Source Label */
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_function.resource_source_label.
+			string_length),
+	 AML_OFFSET(pin_group_function.res_source_label_offset),
+	 AML_OFFSET(pin_group_function.vendor_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_function.resource_source_label.
+			string_ptr),
+	 AML_OFFSET(pin_group_function.res_source_label_offset),
+	 0},
+
+	/* Vendor Data */
+
+	{ACPI_RSC_COUNT_GPIO_VEN,
+	 ACPI_RS_OFFSET(data.pin_group_function.vendor_length),
+	 AML_OFFSET(pin_group_function.vendor_length),
+	 1},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_function.vendor_data),
+	 AML_OFFSET(pin_group_function.vendor_offset),
+	 0},
+};
+
+/*******************************************************************************
+ *
+ * acpi_rs_convert_pin_group_config
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_pin_group_config[14] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG,
+	 ACPI_RS_SIZE(struct acpi_resource_pin_group_config),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_pin_group_config)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_PIN_GROUP_CONFIG,
+	 sizeof(struct aml_resource_pin_group_config),
+	 0},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_group_config.revision_id),
+	 AML_OFFSET(pin_group_config.revision_id),
+	 1},
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.pin_group_config.sharable),
+	 AML_OFFSET(pin_group_config.flags),
+	 0},
+
+	{ACPI_RSC_1BITFLAG,
+	 ACPI_RS_OFFSET(data.pin_group_config.producer_consumer),
+	 AML_OFFSET(pin_group_config.flags),
+	 1},
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.pin_group_config.pin_config_type),
+	 AML_OFFSET(pin_group_config.pin_config_type),
+	 1},
+
+	{ACPI_RSC_MOVE32,
+	 ACPI_RS_OFFSET(data.pin_group_config.pin_config_value),
+	 AML_OFFSET(pin_group_config.pin_config_value),
+	 1},
+
+	/* Resource Source */
+
+	{ACPI_RSC_MOVE8,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source.index),
+	 AML_OFFSET(pin_group_config.res_source_index),
+	 1},
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source.string_length),
+	 AML_OFFSET(pin_group_config.res_source_offset),
+	 AML_OFFSET(pin_group_config.res_source_label_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source.string_ptr),
+	 AML_OFFSET(pin_group_config.res_source_offset),
+	 0},
+
+	/* Resource Source Label */
+
+	{ACPI_RSC_COUNT_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source_label.
+			string_length),
+	 AML_OFFSET(pin_group_config.res_source_label_offset),
+	 AML_OFFSET(pin_group_config.vendor_offset)},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.resource_source_label.string_ptr),
+	 AML_OFFSET(pin_group_config.res_source_label_offset),
+	 0},
+
+	/* Vendor Data */
+
+	{ACPI_RSC_COUNT_GPIO_VEN,
+	 ACPI_RS_OFFSET(data.pin_group_config.vendor_length),
+	 AML_OFFSET(pin_group_config.vendor_length),
+	 1},
+
+	{ACPI_RSC_MOVE_GPIO_RES,
+	 ACPI_RS_OFFSET(data.pin_group_config.vendor_data),
+	 AML_OFFSET(pin_group_config.vendor_offset),
+	 0},
 };

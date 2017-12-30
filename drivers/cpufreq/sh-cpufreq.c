@@ -137,8 +137,6 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 			(clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
 	}
 
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-
 	dev_info(dev, "CPU Frequencies - Minimum %u.%03u MHz, "
 	       "Maximum %u.%03u MHz.\n",
 	       policy->min / 1000, policy->min % 1000,
@@ -159,6 +157,7 @@ static int sh_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver sh_cpufreq_driver = {
 	.name		= "sh",
+	.flags		= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
 	.get		= sh_cpufreq_get,
 	.target		= sh_cpufreq_target,
 	.verify		= sh_cpufreq_verify,

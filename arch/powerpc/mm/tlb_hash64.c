@@ -29,6 +29,8 @@
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/bug.h>
+#include <asm/pte-walk.h>
+
 
 #include <trace/events/thp.h>
 
@@ -93,12 +95,10 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 
 	/*
 	 * Check if we have an active batch on this CPU. If not, just
-	 * flush now and return. For now, we don global invalidates
-	 * in that case, might be worth testing the mm cpu mask though
-	 * and decide to use local invalidates instead...
+	 * flush now and return.
 	 */
 	if (!batch->active) {
-		flush_hash_page(vpn, rpte, psize, ssize, 0);
+		flush_hash_page(vpn, rpte, psize, ssize, mm_is_thread_local(mm));
 		put_cpu_var(ppc64_tlb_batch);
 		return;
 	}
@@ -140,13 +140,10 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
  */
 void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 {
-	const struct cpumask *tmp;
-	int i, local = 0;
+	int i, local;
 
 	i = batch->index;
-	tmp = cpumask_of(smp_processor_id());
-	if (cpumask_equal(mm_cpumask(batch->mm), tmp))
-		local = 1;
+	local = mm_is_thread_local(batch->mm);
 	if (i == 1)
 		flush_hash_page(batch->vpn[0], batch->pte[0],
 				batch->psize, batch->ssize, local);
@@ -209,8 +206,8 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 	local_irq_save(flags);
 	arch_enter_lazy_mmu_mode();
 	for (; start < end; start += PAGE_SIZE) {
-		pte_t *ptep = find_linux_pte_or_hugepte(mm->pgd, start, &is_thp,
-							&hugepage_shift);
+		pte_t *ptep = find_current_mm_pte(mm->pgd, start, &is_thp,
+						  &hugepage_shift);
 		unsigned long pte;
 
 		if (ptep == NULL)

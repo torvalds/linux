@@ -181,7 +181,8 @@ err_unlock_dev:
 struct nfp_resource *
 nfp_resource_acquire(struct nfp_cpp *cpp, const char *name)
 {
-	unsigned long warn_at = jiffies + 15 * HZ;
+	unsigned long warn_at = jiffies + NFP_MUTEX_WAIT_FIRST_WARN * HZ;
+	unsigned long err_at = jiffies + NFP_MUTEX_WAIT_ERROR * HZ;
 	struct nfp_cpp_mutex *dev_mutex;
 	struct nfp_resource *res;
 	int err;
@@ -214,9 +215,14 @@ nfp_resource_acquire(struct nfp_cpp *cpp, const char *name)
 		}
 
 		if (time_is_before_eq_jiffies(warn_at)) {
-			warn_at = jiffies + 60 * HZ;
+			warn_at = jiffies + NFP_MUTEX_WAIT_NEXT_WARN * HZ;
 			nfp_warn(cpp, "Warning: waiting for NFP resource %s\n",
 				 name);
+		}
+		if (time_is_before_eq_jiffies(err_at)) {
+			nfp_err(cpp, "Error: resource %s timed out\n", name);
+			err = -EBUSY;
+			goto err_free;
 		}
 	}
 
@@ -241,6 +247,51 @@ void nfp_resource_release(struct nfp_resource *res)
 	nfp_cpp_mutex_unlock(res->mutex);
 	nfp_cpp_mutex_free(res->mutex);
 	kfree(res);
+}
+
+/**
+ * nfp_resource_wait() - Wait for resource to appear
+ * @cpp:	NFP CPP handle
+ * @name:	Name of the resource
+ * @secs:	Number of seconds to wait
+ *
+ * Wait for resource to appear in the resource table, grab and release
+ * its lock.  The wait is jiffies-based, don't expect fine granularity.
+ *
+ * Return: 0 on success, errno otherwise.
+ */
+int nfp_resource_wait(struct nfp_cpp *cpp, const char *name, unsigned int secs)
+{
+	unsigned long warn_at = jiffies + NFP_MUTEX_WAIT_FIRST_WARN * HZ;
+	unsigned long err_at = jiffies + secs * HZ;
+	struct nfp_resource *res;
+
+	while (true) {
+		res = nfp_resource_acquire(cpp, name);
+		if (!IS_ERR(res)) {
+			nfp_resource_release(res);
+			return 0;
+		}
+
+		if (PTR_ERR(res) != -ENOENT) {
+			nfp_err(cpp, "error waiting for resource %s: %ld\n",
+				name, PTR_ERR(res));
+			return PTR_ERR(res);
+		}
+		if (time_is_before_eq_jiffies(err_at)) {
+			nfp_err(cpp, "timeout waiting for resource %s\n", name);
+			return -ETIMEDOUT;
+		}
+		if (time_is_before_eq_jiffies(warn_at)) {
+			warn_at = jiffies + NFP_MUTEX_WAIT_NEXT_WARN * HZ;
+			nfp_info(cpp, "waiting for NFP resource %s\n", name);
+		}
+		if (msleep_interruptible(10)) {
+			nfp_err(cpp, "wait for resource %s interrupted\n",
+				name);
+			return -ERESTARTSYS;
+		}
+	}
 }
 
 /**

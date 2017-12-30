@@ -212,7 +212,7 @@ static u32 mantis_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm mantis_algo = {
+static const struct i2c_algorithm mantis_algo = {
 	.master_xfer		= mantis_i2c_xfer,
 	.functionality		= mantis_i2c_func,
 };

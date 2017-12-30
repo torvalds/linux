@@ -31,6 +31,7 @@
 #include <linux/atomic.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <linux/gpio/driver.h>
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
@@ -199,6 +200,10 @@ struct solo_dev {
 	u32			irq_mask;
 	u32			motion_mask;
 	struct v4l2_device	v4l2_dev;
+#ifdef CONFIG_GPIOLIB
+	/* GPIO */
+	struct gpio_chip	gpio_dev;
+#endif
 
 	/* tw28xx accounting */
 	u8			tw2865, tw2864, tw2815;

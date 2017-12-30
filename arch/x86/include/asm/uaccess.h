@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_UACCESS_H
 #define _ASM_X86_UACCESS_H
 /*
@@ -26,7 +27,12 @@
 
 #define get_ds()	(KERNEL_DS)
 #define get_fs()	(current->thread.addr_limit)
-#define set_fs(x)	(current->thread.addr_limit = (x))
+static inline void set_fs(mm_segment_t fs)
+{
+	current->thread.addr_limit = fs;
+	/* On user-mode return, check fs is correct */
+	set_thread_flag(TIF_FSCHECK);
+}
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
@@ -161,11 +167,11 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 ({									\
 	int __ret_gu;							\
 	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
-	register void *__sp asm(_ASM_SP);				\
 	__chk_user_ptr(ptr);						\
 	might_fault();							\
 	asm volatile("call __get_user_%P4"				\
-		     : "=a" (__ret_gu), "=r" (__val_gu), "+r" (__sp)	\
+		     : "=a" (__ret_gu), "=r" (__val_gu),		\
+			ASM_CALL_CONSTRAINT				\
 		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
 	(x) = (__force __typeof__(*(ptr))) __val_gu;			\
 	__builtin_expect(__ret_gu, 0);					\
@@ -332,7 +338,7 @@ do {									\
 		     _ASM_EXTABLE(1b, 4b)				\
 		     _ASM_EXTABLE(2b, 4b)				\
 		     : "=r" (retval), "=&A"(x)				\
-		     : "m" (__m(__ptr)), "m" __m(((u32 *)(__ptr)) + 1),	\
+		     : "m" (__m(__ptr)), "m" __m(((u32 __user *)(__ptr)) + 1),	\
 		       "i" (errret), "0" (retval));			\
 })
 
@@ -535,9 +541,6 @@ struct __large_struct { unsigned long buf[100]; };
 #define __put_user(x, ptr)						\
 	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
-#define __get_user_unaligned __get_user
-#define __put_user_unaligned __put_user
-
 /*
  * {get|put}_user_try and catch
  *
@@ -565,7 +568,6 @@ copy_from_user_nmi(void *to, const void __user *from, unsigned long n);
 extern __must_check long
 strncpy_from_user(char *dst, const char __user *src, long count);
 
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
 unsigned long __must_check clear_user(void __user *mem, unsigned long len);

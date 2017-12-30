@@ -20,6 +20,9 @@ enum qed_dbg_features {
 	DBG_FEATURE_NUM
 };
 
+/* Forward Declaration */
+struct qed_dev;
+
 int qed_dbg_grc(struct qed_dev *cdev, void *buffer, u32 *num_dumped_bytes);
 int qed_dbg_grc_size(struct qed_dev *cdev);
 int qed_dbg_idle_chk(struct qed_dev *cdev, void *buffer,

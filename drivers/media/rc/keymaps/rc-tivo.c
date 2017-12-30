@@ -75,10 +75,10 @@ static struct rc_map_table tivo[] = {
 
 static struct rc_map_list tivo_map = {
 	.map = {
-		.scan    = tivo,
-		.size    = ARRAY_SIZE(tivo),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_TIVO,
+		.scan     = tivo,
+		.size     = ARRAY_SIZE(tivo),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_TIVO,
 	}
 };
 

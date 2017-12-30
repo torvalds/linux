@@ -55,7 +55,7 @@ struct em28xx_ir_poll_result {
 	unsigned int toggle_bit:1;
 	unsigned int read_count:7;
 
-	enum rc_type protocol;
+	enum rc_proto protocol;
 	u32 scancode;
 };
 
@@ -70,11 +70,12 @@ struct em28xx_IR {
 	struct delayed_work work;
 	unsigned int full_code:1;
 	unsigned int last_readcount;
-	u64 rc_type;
+	u64 rc_proto;
 
 	struct i2c_client *i2c_client;
 
-	int  (*get_key_i2c)(struct i2c_client *ir, enum rc_type *protocol, u32 *scancode);
+	int  (*get_key_i2c)(struct i2c_client *ir, enum rc_proto *protocol,
+			    u32 *scancode);
 	int  (*get_key)(struct em28xx_IR *, struct em28xx_ir_poll_result *);
 };
 
@@ -83,7 +84,7 @@ struct em28xx_IR {
  **********************************************************/
 
 static int em28xx_get_key_terratec(struct i2c_client *i2c_dev,
-				   enum rc_type *protocol, u32 *scancode)
+				   enum rc_proto *protocol, u32 *scancode)
 {
 	unsigned char b;
 
@@ -101,13 +102,13 @@ static int em28xx_get_key_terratec(struct i2c_client *i2c_dev,
 		/* keep old data */
 		return 1;
 
-	*protocol = RC_TYPE_UNKNOWN;
+	*protocol = RC_PROTO_UNKNOWN;
 	*scancode = b;
 	return 1;
 }
 
 static int em28xx_get_key_em_haup(struct i2c_client *i2c_dev,
-				  enum rc_type *protocol, u32 *scancode)
+				  enum rc_proto *protocol, u32 *scancode)
 {
 	unsigned char buf[2];
 	int size;
@@ -131,13 +132,14 @@ static int em28xx_get_key_em_haup(struct i2c_client *i2c_dev,
 	 * So, the code translation is not complete. Yet, it is enough to
 	 * work with the provided RC5 IR.
 	 */
-	*protocol = RC_TYPE_RC5;
+	*protocol = RC_PROTO_RC5;
 	*scancode = (bitrev8(buf[1]) & 0x1f) << 8 | bitrev8(buf[0]) >> 2;
 	return 1;
 }
 
 static int em28xx_get_key_pinnacle_usb_grey(struct i2c_client *i2c_dev,
-					    enum rc_type *protocol, u32 *scancode)
+					    enum rc_proto *protocol,
+					    u32 *scancode)
 {
 	unsigned char buf[3];
 
@@ -149,13 +151,14 @@ static int em28xx_get_key_pinnacle_usb_grey(struct i2c_client *i2c_dev,
 	if (buf[0] != 0x00)
 		return 0;
 
-	*protocol = RC_TYPE_UNKNOWN;
+	*protocol = RC_PROTO_UNKNOWN;
 	*scancode = buf[2] & 0x3f;
 	return 1;
 }
 
 static int em28xx_get_key_winfast_usbii_deluxe(struct i2c_client *i2c_dev,
-					       enum rc_type *protocol, u32 *scancode)
+					       enum rc_proto *protocol,
+					       u32 *scancode)
 {
 	unsigned char subaddr, keydetect, key;
 
@@ -175,7 +178,7 @@ static int em28xx_get_key_winfast_usbii_deluxe(struct i2c_client *i2c_dev,
 	if (key == 0x00)
 		return 0;
 
-	*protocol = RC_TYPE_UNKNOWN;
+	*protocol = RC_PROTO_UNKNOWN;
 	*scancode = key;
 	return 1;
 }
@@ -207,19 +210,19 @@ static int default_polling_getkey(struct em28xx_IR *ir,
 	poll_result->read_count = (msg[0] & 0x7f);
 
 	/* Remote Control Address/Data (Regs 0x46/0x47) */
-	switch (ir->rc_type) {
-	case RC_BIT_RC5:
-		poll_result->protocol = RC_TYPE_RC5;
+	switch (ir->rc_proto) {
+	case RC_PROTO_BIT_RC5:
+		poll_result->protocol = RC_PROTO_RC5;
 		poll_result->scancode = RC_SCANCODE_RC5(msg[1], msg[2]);
 		break;
 
-	case RC_BIT_NEC:
-		poll_result->protocol = RC_TYPE_NEC;
+	case RC_PROTO_BIT_NEC:
+		poll_result->protocol = RC_PROTO_NEC;
 		poll_result->scancode = RC_SCANCODE_NEC(msg[1], msg[2]);
 		break;
 
 	default:
-		poll_result->protocol = RC_TYPE_UNKNOWN;
+		poll_result->protocol = RC_PROTO_UNKNOWN;
 		poll_result->scancode = msg[1] << 8 | msg[2];
 		break;
 	}
@@ -252,37 +255,37 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 	 * Remote Control Address (Reg 0x52)
 	 * Remote Control Data (Reg 0x53-0x55)
 	 */
-	switch (ir->rc_type) {
-	case RC_BIT_RC5:
-		poll_result->protocol = RC_TYPE_RC5;
+	switch (ir->rc_proto) {
+	case RC_PROTO_BIT_RC5:
+		poll_result->protocol = RC_PROTO_RC5;
 		poll_result->scancode = RC_SCANCODE_RC5(msg[1], msg[2]);
 		break;
 
-	case RC_BIT_NEC:
+	case RC_PROTO_BIT_NEC:
 		poll_result->scancode = msg[1] << 8 | msg[2];
 		if ((msg[3] ^ msg[4]) != 0xff) {	/* 32 bits NEC */
-			poll_result->protocol = RC_TYPE_NEC32;
+			poll_result->protocol = RC_PROTO_NEC32;
 			poll_result->scancode = RC_SCANCODE_NEC32((msg[1] << 24) |
 								  (msg[2] << 16) |
 								  (msg[3] << 8)  |
 								  (msg[4]));
 		} else if ((msg[1] ^ msg[2]) != 0xff) {	/* 24 bits NEC */
-			poll_result->protocol = RC_TYPE_NECX;
+			poll_result->protocol = RC_PROTO_NECX;
 			poll_result->scancode = RC_SCANCODE_NECX(msg[1] << 8 |
 								 msg[2], msg[3]);
 		} else {				/* Normal NEC */
-			poll_result->protocol = RC_TYPE_NEC;
+			poll_result->protocol = RC_PROTO_NEC;
 			poll_result->scancode = RC_SCANCODE_NEC(msg[1], msg[3]);
 		}
 		break;
 
-	case RC_BIT_RC6_0:
-		poll_result->protocol = RC_TYPE_RC6_0;
+	case RC_PROTO_BIT_RC6_0:
+		poll_result->protocol = RC_PROTO_RC6_0;
 		poll_result->scancode = RC_SCANCODE_RC6_0(msg[1], msg[2]);
 		break;
 
 	default:
-		poll_result->protocol = RC_TYPE_UNKNOWN;
+		poll_result->protocol = RC_PROTO_UNKNOWN;
 		poll_result->scancode = (msg[1] << 24) | (msg[2] << 16) |
 					(msg[3] << 8)  | msg[4];
 		break;
@@ -298,7 +301,7 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 static int em28xx_i2c_ir_handle_key(struct em28xx_IR *ir)
 {
 	static u32 scancode;
-	enum rc_type protocol;
+	enum rc_proto protocol;
 	int rc;
 
 	rc = ir->get_key_i2c(ir->i2c_client, &protocol, &scancode);
@@ -338,7 +341,7 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 				   poll_result.toggle_bit);
 		else
 			rc_keydown(ir->rc,
-				   RC_TYPE_UNKNOWN,
+				   RC_PROTO_UNKNOWN,
 				   poll_result.scancode & 0xff,
 				   poll_result.toggle_bit);
 
@@ -383,70 +386,71 @@ static void em28xx_ir_stop(struct rc_dev *rc)
 	cancel_delayed_work_sync(&ir->work);
 }
 
-static int em2860_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
+static int em2860_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_proto)
 {
 	struct em28xx_IR *ir = rc_dev->priv;
 	struct em28xx *dev = ir->dev;
 
 	/* Adjust xclk based on IR table for RC5/NEC tables */
-	if (*rc_type & RC_BIT_RC5) {
+	if (*rc_proto & RC_PROTO_BIT_RC5) {
 		dev->board.xclk |= EM28XX_XCLK_IR_RC5_MODE;
 		ir->full_code = 1;
-		*rc_type = RC_BIT_RC5;
-	} else if (*rc_type & RC_BIT_NEC) {
+		*rc_proto = RC_PROTO_BIT_RC5;
+	} else if (*rc_proto & RC_PROTO_BIT_NEC) {
 		dev->board.xclk &= ~EM28XX_XCLK_IR_RC5_MODE;
 		ir->full_code = 1;
-		*rc_type = RC_BIT_NEC;
-	} else if (*rc_type & RC_BIT_UNKNOWN) {
-		*rc_type = RC_BIT_UNKNOWN;
+		*rc_proto = RC_PROTO_BIT_NEC;
+	} else if (*rc_proto & RC_PROTO_BIT_UNKNOWN) {
+		*rc_proto = RC_PROTO_BIT_UNKNOWN;
 	} else {
-		*rc_type = ir->rc_type;
+		*rc_proto = ir->rc_proto;
 		return -EINVAL;
 	}
 	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
 			      EM28XX_XCLK_IR_RC5_MODE);
 
-	ir->rc_type = *rc_type;
+	ir->rc_proto = *rc_proto;
 
 	return 0;
 }
 
-static int em2874_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
+static int em2874_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_proto)
 {
 	struct em28xx_IR *ir = rc_dev->priv;
 	struct em28xx *dev = ir->dev;
 	u8 ir_config = EM2874_IR_RC5;
 
 	/* Adjust xclk and set type based on IR table for RC5/NEC/RC6 tables */
-	if (*rc_type & RC_BIT_RC5) {
+	if (*rc_proto & RC_PROTO_BIT_RC5) {
 		dev->board.xclk |= EM28XX_XCLK_IR_RC5_MODE;
 		ir->full_code = 1;
-		*rc_type = RC_BIT_RC5;
-	} else if (*rc_type & RC_BIT_NEC) {
+		*rc_proto = RC_PROTO_BIT_RC5;
+	} else if (*rc_proto & RC_PROTO_BIT_NEC) {
 		dev->board.xclk &= ~EM28XX_XCLK_IR_RC5_MODE;
 		ir_config = EM2874_IR_NEC | EM2874_IR_NEC_NO_PARITY;
 		ir->full_code = 1;
-		*rc_type = RC_BIT_NEC;
-	} else if (*rc_type & RC_BIT_RC6_0) {
+		*rc_proto = RC_PROTO_BIT_NEC;
+	} else if (*rc_proto & RC_PROTO_BIT_RC6_0) {
 		dev->board.xclk |= EM28XX_XCLK_IR_RC5_MODE;
 		ir_config = EM2874_IR_RC6_MODE_0;
 		ir->full_code = 1;
-		*rc_type = RC_BIT_RC6_0;
-	} else if (*rc_type & RC_BIT_UNKNOWN) {
-		*rc_type = RC_BIT_UNKNOWN;
+		*rc_proto = RC_PROTO_BIT_RC6_0;
+	} else if (*rc_proto & RC_PROTO_BIT_UNKNOWN) {
+		*rc_proto = RC_PROTO_BIT_UNKNOWN;
 	} else {
-		*rc_type = ir->rc_type;
+		*rc_proto = ir->rc_proto;
 		return -EINVAL;
 	}
 	em28xx_write_regs(dev, EM2874_R50_IR_CONFIG, &ir_config, 1);
 	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
 			      EM28XX_XCLK_IR_RC5_MODE);
 
-	ir->rc_type = *rc_type;
+	ir->rc_proto = *rc_proto;
 
 	return 0;
 }
-static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
+
+static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_proto)
 {
 	struct em28xx_IR *ir = rc_dev->priv;
 	struct em28xx *dev = ir->dev;
@@ -455,12 +459,12 @@ static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
 	switch (dev->chip_id) {
 	case CHIP_ID_EM2860:
 	case CHIP_ID_EM2883:
-		return em2860_ir_change_protocol(rc_dev, rc_type);
+		return em2860_ir_change_protocol(rc_dev, rc_proto);
 	case CHIP_ID_EM2884:
 	case CHIP_ID_EM2874:
 	case CHIP_ID_EM28174:
 	case CHIP_ID_EM28178:
-		return em2874_ir_change_protocol(rc_dev, rc_type);
+		return em2874_ir_change_protocol(rc_dev, rc_proto);
 	default:
 		dev_err(&ir->dev->intf->dev,
 			"Unrecognized em28xx chip id 0x%02x: IR not supported\n",
@@ -686,7 +690,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	struct em28xx_IR *ir;
 	struct rc_dev *rc;
 	int err = -ENOMEM;
-	u64 rc_type;
+	u64 rc_proto;
 	u16 i2c_rc_dev_addr = 0;
 
 	if (dev->is_audio_only) {
@@ -749,7 +753,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
 			rc->map_name = RC_MAP_HAUPPAUGE;
 			ir->get_key_i2c = em28xx_get_key_em_haup;
-			rc->allowed_protocols = RC_BIT_RC5;
+			rc->allowed_protocols = RC_PROTO_BIT_RC5;
 			break;
 		case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
 			rc->map_name = RC_MAP_WINFAST_USBII_DELUXE;
@@ -771,7 +775,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 		switch (dev->chip_id) {
 		case CHIP_ID_EM2860:
 		case CHIP_ID_EM2883:
-			rc->allowed_protocols = RC_BIT_RC5 | RC_BIT_NEC;
+			rc->allowed_protocols = RC_PROTO_BIT_RC5 |
+						RC_PROTO_BIT_NEC;
 			ir->get_key = default_polling_getkey;
 			break;
 		case CHIP_ID_EM2884:
@@ -779,8 +784,9 @@ static int em28xx_ir_init(struct em28xx *dev)
 		case CHIP_ID_EM28174:
 		case CHIP_ID_EM28178:
 			ir->get_key = em2874_polling_getkey;
-			rc->allowed_protocols = RC_BIT_RC5 | RC_BIT_NEC |
-				RC_BIT_NECX | RC_BIT_NEC32 | RC_BIT_RC6_0;
+			rc->allowed_protocols = RC_PROTO_BIT_RC5 |
+				RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX |
+				RC_PROTO_BIT_NEC32 | RC_PROTO_BIT_RC6_0;
 			break;
 		default:
 			err = -ENODEV;
@@ -791,8 +797,8 @@ static int em28xx_ir_init(struct em28xx *dev)
 		rc->map_name = dev->board.ir_codes;
 
 		/* By default, keep protocol field untouched */
-		rc_type = RC_BIT_UNKNOWN;
-		err = em28xx_ir_change_protocol(rc, &rc_type);
+		rc_proto = RC_PROTO_BIT_UNKNOWN;
+		err = em28xx_ir_change_protocol(rc, &rc_proto);
 		if (err)
 			goto error;
 	}
@@ -807,7 +813,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	usb_make_path(udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	rc->input_name = ir->name;
+	rc->device_name = ir->name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_USB;
 	rc->input_id.version = 1;
@@ -821,7 +827,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	if (err)
 		goto error;
 
-	dev_info(&dev->intf->dev, "Input extension successfully initalized\n");
+	dev_info(&dev->intf->dev, "Input extension successfully initialized\n");
 
 	return 0;
 

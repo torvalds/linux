@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -35,8 +31,6 @@
 #include <media/media-entity.h>
 
 #include "../include/linux/atomisp_platform.h"
-
-#define GC0310_NAME		"gc0310"
 
 /* Defines for register writes and register array processing */
 #define I2C_MSG_LENGTH		1
@@ -194,11 +188,6 @@ struct gc0310_write_buffer {
 struct gc0310_write_ctrl {
 	int index;
 	struct gc0310_write_buffer buffer;
-};
-
-static const struct i2c_device_id gc0310_id[] = {
-	{GC0310_NAME, 0},
-	{}
 };
 
 /*
@@ -454,6 +443,6 @@ struct gc0310_resolution gc0310_res_video[] = {
 #define N_RES_VIDEO (ARRAY_SIZE(gc0310_res_video))
 
 static struct gc0310_resolution *gc0310_res = gc0310_res_preview;
-static int N_RES = N_RES_PREVIEW;
+static unsigned long N_RES = N_RES_PREVIEW;
 #endif
 

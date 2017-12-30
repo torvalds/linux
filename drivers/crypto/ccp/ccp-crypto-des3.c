@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) DES3 crypto API support
  *
- * Copyright (C) 2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2016,2017 Advanced Micro Devices, Inc.
  *
  * Author: Gary R Hook <ghook@amd.com>
  *

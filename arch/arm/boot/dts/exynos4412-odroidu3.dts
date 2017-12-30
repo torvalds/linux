@@ -78,6 +78,10 @@
 	regulator-max-microvolt = <3300000>;
 };
 
+&hdmicec {
+	needs-hpd;
+};
+
 /* VDDQ for MSHC (eMMC card) */
 &ldo22_reg {
 	regulator-name = "LDO22_VDDQ_MMC4_2.8V";

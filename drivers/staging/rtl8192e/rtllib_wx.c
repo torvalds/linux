@@ -595,7 +595,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		ret = -EINVAL;
 		goto done;
 	}
-	netdev_info(dev, "alg name:%s\n", alg);
+	netdev_dbg(dev, "alg name:%s\n", alg);
 
 	ops = lib80211_get_crypto_ops(alg);
 	if (ops == NULL) {
@@ -694,8 +694,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
 		deauth = true;
-		/* leave break out intentionly */
-
+		/* fall through */
 	case IW_MLME_DISASSOC:
 		if (deauth)
 			netdev_info(ieee->dev, "disauth packet !\n");

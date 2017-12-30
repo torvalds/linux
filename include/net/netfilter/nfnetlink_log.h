@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _KER_NFNETLINK_LOG_H
 #define _KER_NFNETLINK_LOG_H
 

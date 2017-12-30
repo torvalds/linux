@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-alink-dtu-m.o \
 			rc-anysee.o \
 			rc-apac-viewcomp.o \
+			rc-astrometa-t2hybrid.o \
 			rc-asus-pc39.o \
 			rc-asus-ps3-100.o \
 			rc-ati-tv-wonder-hd-600.o \
@@ -47,6 +49,8 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-geekbox.o \
 			rc-genius-tvgo-a11mce.o \
 			rc-gotview7135.o \
+			rc-hisi-poplar.o \
+			rc-hisi-tv-demo.o \
 			rc-imon-mce.o \
 			rc-imon-pad.o \
 			rc-iodata-bctv7e.o \
@@ -88,6 +92,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-reddo.o \
 			rc-snapstream-firefly.o \
 			rc-streamzap.o \
+			rc-tango.o \
 			rc-tbs-nec.o \
 			rc-technisat-ts35.o \
 			rc-technisat-usb2.o \
@@ -109,4 +114,5 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-videomate-tv-pvr.o \
 			rc-winfast.o \
 			rc-winfast-usbii-deluxe.o \
-			rc-su3000.o
+			rc-su3000.o \
+			rc-zx-irdec.o

@@ -92,6 +92,19 @@ enum mlx5e_link_mode {
 	MLX5E_LINK_MODES_NUMBER,
 };
 
+enum mlx5e_connector_type {
+	MLX5E_PORT_UNKNOWN	= 0,
+	MLX5E_PORT_NONE			= 1,
+	MLX5E_PORT_TP			= 2,
+	MLX5E_PORT_AUI			= 3,
+	MLX5E_PORT_BNC			= 4,
+	MLX5E_PORT_MII			= 5,
+	MLX5E_PORT_FIBRE		= 6,
+	MLX5E_PORT_DA			= 7,
+	MLX5E_PORT_OTHER		= 8,
+	MLX5E_CONNECTOR_TYPE_NUMBER,
+};
+
 #define MLX5E_PROT_MASK(link_mode) (1 << link_mode)
 
 #define PORT_MODULE_EVENT_MODULE_STATUS_MASK 0xF
@@ -144,6 +157,8 @@ int mlx5_set_port_prio_tc(struct mlx5_core_dev *mdev, u8 *prio_tc);
 int mlx5_query_port_prio_tc(struct mlx5_core_dev *mdev,
 			    u8 prio, u8 *tc);
 int mlx5_set_port_tc_group(struct mlx5_core_dev *mdev, u8 *tc_group);
+int mlx5_query_port_tc_group(struct mlx5_core_dev *mdev,
+			     u8 tc, u8 *tc_group);
 int mlx5_set_port_tc_bw_alloc(struct mlx5_core_dev *mdev, u8 *tc_bw);
 int mlx5_query_port_tc_bw_alloc(struct mlx5_core_dev *mdev,
 				u8 tc, u8 *bw_pct);
@@ -164,4 +179,9 @@ int mlx5_query_module_eeprom(struct mlx5_core_dev *dev,
 
 int mlx5_query_port_dcbx_param(struct mlx5_core_dev *mdev, u32 *out);
 int mlx5_set_port_dcbx_param(struct mlx5_core_dev *mdev, u32 *in);
+
+int mlx5_set_trust_state(struct mlx5_core_dev *mdev, u8 trust_state);
+int mlx5_query_trust_state(struct mlx5_core_dev *mdev, u8 *trust_state);
+int mlx5_set_dscp2prio(struct mlx5_core_dev *mdev, u8 dscp, u8 prio);
+int mlx5_query_dscp2prio(struct mlx5_core_dev *mdev, u8 *dscp2prio);
 #endif /* __MLX5_PORT_H__ */

@@ -283,7 +283,8 @@ int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 
 static int linux_wlan_txq_task(void *vp)
 {
-	int ret, txq_count;
+	int ret;
+	u32 txq_count;
 	struct wilc_vif *vif;
 	struct wilc *wl;
 	struct net_device *dev = vp;
@@ -812,7 +813,7 @@ _fail_wilc_wlan_:
 		wilc_wlan_cleanup(dev);
 _fail_locks_:
 		wlan_deinit_locks(dev);
-		netdev_err(dev, "WLAN Iinitialization FAILED\n");
+		netdev_err(dev, "WLAN initialization FAILED\n");
 	} else {
 		netdev_dbg(dev, "wilc1000 already initialized\n");
 	}
@@ -858,34 +859,15 @@ static int wilc_mac_open(struct net_device *ndev)
 
 	for (i = 0; i < wl->vif_num; i++) {
 		if (ndev == wl->vif[i]->ndev) {
-			if (vif->iftype == AP_MODE) {
-				wilc_set_wfi_drv_handler(vif,
-							 wilc_get_vif_idx(vif),
-							 0);
-			} else if (!wilc_wlan_get_num_conn_ifcs(wl)) {
-				wilc_set_wfi_drv_handler(vif,
-							 wilc_get_vif_idx(vif),
-							 wl->open_ifcs);
-			} else {
-				if (memcmp(wl->vif[i ^ 1]->bssid,
-					   wl->vif[i ^ 1]->src_addr, 6))
-					wilc_set_wfi_drv_handler(vif,
-							 wilc_get_vif_idx(vif),
-							 0);
-				else
-					wilc_set_wfi_drv_handler(vif,
-							 wilc_get_vif_idx(vif),
-							 1);
-			}
+			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
+						 vif->iftype, vif->ifc_id);
 			wilc_set_operation_mode(vif, vif->iftype);
-
-			wilc_get_mac_address(vif, mac_add);
-			netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
-			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
-
 			break;
 		}
 	}
+			wilc_get_mac_address(vif, mac_add);
+			netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
+			memcpy(wl->vif[i]->src_addr, mac_add, ETH_ALEN);
 
 	memcpy(ndev->dev_addr, wl->vif[i]->src_addr, ETH_ALEN);
 
@@ -1160,7 +1142,7 @@ void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset)
 
 		skb->dev = wilc_netdev;
 
-		memcpy(skb_put(skb, frame_len), buff_to_send, frame_len);
+		skb_put_data(skb, buff_to_send, frame_len);
 
 		skb->protocol = eth_type_trans(skb, wilc_netdev);
 		vif->netstats.rx_packets++;
@@ -1246,11 +1228,13 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 		vif = netdev_priv(ndev);
 		memset(vif, 0, sizeof(struct wilc_vif));
 
-		if (i == 0)
+		if (i == 0) {
 			strcpy(ndev->name, "wlan%d");
-		else
+			vif->ifc_id = 1;
+		} else {
 			strcpy(ndev->name, "p2p%d");
-
+			vif->ifc_id = 0;
+		}
 		vif->wilc = *wilc;
 		vif->ndev = ndev;
 		wl->vif[i] = vif;

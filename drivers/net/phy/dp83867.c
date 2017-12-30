@@ -91,6 +91,7 @@ struct dp83867_private {
 	int fifo_depth;
 	int io_impedance;
 	int port_mirroring;
+	bool rxctrl_strap_quirk;
 };
 
 static int dp83867_ack_interrupt(struct phy_device *phydev)
@@ -164,6 +165,9 @@ static int dp83867_of_init(struct phy_device *phydev)
 	else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
 		dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN;
 
+	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_node,
+					"ti,dp83867-rxctrl-strap-quirk");
+
 	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
 				   &dp83867->rx_id_delay);
 	if (ret &&
@@ -212,6 +216,13 @@ static int dp83867_config_init(struct phy_device *phydev)
 			return ret;
 	} else {
 		dp83867 = (struct dp83867_private *)phydev->priv;
+	}
+
+	/* RX_DV/RX_CTRL strapped in mode 1 or mode 2 workaround */
+	if (dp83867->rxctrl_strap_quirk) {
+		val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4);
+		val &= ~BIT(7);
+		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4, val);
 	}
 
 	if (phy_interface_is_rgmii(phydev)) {

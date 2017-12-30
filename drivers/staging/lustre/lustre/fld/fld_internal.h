@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -56,11 +57,11 @@
 #ifndef __FLD_INTERNAL_H
 #define __FLD_INTERNAL_H
 
-#include "../include/lustre/lustre_idl.h"
+#include <uapi/linux/lustre/lustre_idl.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/lustre_req_layout.h"
-#include "../include/lustre_fld.h"
+#include <linux/libcfs/libcfs.h>
+#include <lustre_req_layout.h>
+#include <lustre_fld.h>
 
 struct fld_stats {
 	__u64   fst_count;

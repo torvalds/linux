@@ -92,7 +92,7 @@ static const struct iw_handler_def ray_handler_def;
 /***** Prototypes for raylink functions **************************************/
 static void authenticate(ray_dev_t *local);
 static int build_auth_frame(ray_dev_t *local, UCHAR *dest, int auth_type);
-static void authenticate_timeout(u_long);
+static void authenticate_timeout(struct timer_list *t);
 static int get_free_ccs(ray_dev_t *local);
 static int get_free_tx_ccs(ray_dev_t *local);
 static void init_startup_params(ray_dev_t *local);
@@ -102,7 +102,7 @@ static int ray_init(struct net_device *dev);
 static int interrupt_ecf(ray_dev_t *local, int ccs);
 static void ray_reset(struct net_device *dev);
 static void ray_update_parm(struct net_device *dev, UCHAR objid, UCHAR *value, int len);
-static void verify_dl_startup(u_long);
+static void verify_dl_startup(struct timer_list *t);
 
 /* Prototypes for interrpt time functions **********************************/
 static irqreturn_t ray_interrupt(int reg, void *dev_id);
@@ -120,9 +120,8 @@ static void associate(ray_dev_t *local);
 
 /* Card command functions */
 static int dl_startup_params(struct net_device *dev);
-static void join_net(u_long local);
-static void start_net(u_long local);
-/* void start_net(ray_dev_t *local); */
+static void join_net(struct timer_list *t);
+static void start_net(struct timer_list *t);
 
 /*===========================================================================*/
 /* Parameters that can be set with 'insmod' */
@@ -247,7 +246,10 @@ static const UCHAR b4_default_startup_parms[] = {
 	0x04, 0x08,		/* Noise gain, limit offset */
 	0x28, 0x28,		/* det rssi, med busy offsets */
 	7,			/* det sync thresh */
-	0, 2, 2			/* test mode, min, max */
+	0, 2, 2,		/* test mode, min, max */
+	0,			/* rx/tx delay */
+	0, 0, 0, 0, 0, 0,	/* current BSS id */
+	0			/* hop set */
 };
 
 /*===========================================================================*/
@@ -320,7 +322,7 @@ static int ray_probe(struct pcmcia_device *p_dev)
 	dev_dbg(&p_dev->dev, "ray_cs ray_attach calling ether_setup.)\n");
 	netif_stop_queue(dev);
 
-	init_timer(&local->timer);
+	timer_setup(&local->timer, NULL, 0);
 
 	this_device = p_dev;
 	return ray_config(p_dev);
@@ -567,7 +569,6 @@ static int dl_startup_params(struct net_device *dev)
 	local->card_status = CARD_DL_PARAM;
 	/* Start kernel timer to wait for dl startup to complete. */
 	local->timer.expires = jiffies + HZ / 2;
-	local->timer.data = (long)local;
 	local->timer.function = verify_dl_startup;
 	add_timer(&local->timer);
 	dev_dbg(&link->dev,
@@ -597,7 +598,7 @@ static void init_startup_params(ray_dev_t *local)
 	 *    a_beacon_period = hops    a_beacon_period = KuS
 	 *//* 64ms = 010000 */
 	if (local->fw_ver == 0x55) {
-		memcpy((UCHAR *) &local->sparm.b4, b4_default_startup_parms,
+		memcpy(&local->sparm.b4, b4_default_startup_parms,
 		       sizeof(struct b4_startup_params));
 		/* Translate sane kus input values to old build 4/5 format */
 		/* i = hop time in uS truncated to 3 bytes */
@@ -638,9 +639,9 @@ static void init_startup_params(ray_dev_t *local)
 } /* init_startup_params */
 
 /*===========================================================================*/
-static void verify_dl_startup(u_long data)
+static void verify_dl_startup(struct timer_list *t)
 {
-	ray_dev_t *local = (ray_dev_t *) data;
+	ray_dev_t *local = from_timer(local, t, timer);
 	struct ccs __iomem *pccs = ccs_base(local) + local->dl_param_ccs;
 	UCHAR status;
 	struct pcmcia_device *link = local->finder;
@@ -673,16 +674,16 @@ static void verify_dl_startup(u_long data)
 		return;
 	}
 	if (local->sparm.b4.a_network_type == ADHOC)
-		start_net((u_long) local);
+		start_net(&local->timer);
 	else
-		join_net((u_long) local);
+		join_net(&local->timer);
 } /* end verify_dl_startup */
 
 /*===========================================================================*/
 /* Command card to start a network */
-static void start_net(u_long data)
+static void start_net(struct timer_list *t)
 {
-	ray_dev_t *local = (ray_dev_t *) data;
+	ray_dev_t *local = from_timer(local, t, timer);
 	struct ccs __iomem *pccs;
 	int ccsindex;
 	struct pcmcia_device *link = local->finder;
@@ -707,9 +708,9 @@ static void start_net(u_long data)
 
 /*===========================================================================*/
 /* Command card to join a network */
-static void join_net(u_long data)
+static void join_net(struct timer_list *t)
 {
-	ray_dev_t *local = (ray_dev_t *) data;
+	ray_dev_t *local = from_timer(local, t, timer);
 
 	struct ccs __iomem *pccs;
 	int ccsindex;
@@ -1636,13 +1637,13 @@ static int get_free_ccs(ray_dev_t *local)
 } /* get_free_ccs */
 
 /*===========================================================================*/
-static void authenticate_timeout(u_long data)
+static void authenticate_timeout(struct timer_list *t)
 {
-	ray_dev_t *local = (ray_dev_t *) data;
+	ray_dev_t *local = from_timer(local, t, timer);
 	del_timer(&local->timer);
 	printk(KERN_INFO "ray_cs Authentication with access point failed"
 	       " - timeout\n");
-	join_net((u_long) local);
+	join_net(&local->timer);
 }
 
 /*===========================================================================*/
@@ -1942,7 +1943,6 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 
 				del_timer(&local->timer);
 				local->timer.expires = jiffies + HZ * 5;
-				local->timer.data = (long)local;
 				if (status == CCS_START_NETWORK) {
 					dev_dbg(&link->dev,
 					      "ray_cs interrupt network \"%s\" start failed\n",
@@ -1964,7 +1964,7 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 			} else {
 				dev_dbg(&link->dev, "ray_cs association failed,\n");
 				local->card_status = CARD_ASSOC_FAILED;
-				join_net((u_long) local);
+				join_net(&local->timer);
 			}
 			break;
 		case CCS_TX_REQUEST:
@@ -2422,7 +2422,6 @@ static void authenticate(ray_dev_t *local)
 		local->timer.function = authenticate_timeout;
 	}
 	local->timer.expires = jiffies + HZ * 2;
-	local->timer.data = (long)local;
 	add_timer(&local->timer);
 	local->authentication_state = AWAITING_RESPONSE;
 } /* end authenticate */
@@ -2465,7 +2464,7 @@ static void rx_authenticate(ray_dev_t *local, struct rcs __iomem *prcs,
 				} else {
 					pr_debug("Authentication refused\n");
 					local->card_status = CARD_AUTH_REFUSED;
-					join_net((u_long) local);
+					join_net(&local->timer);
 					local->authentication_state =
 					    UNAUTHENTICATED;
 				}
@@ -2503,7 +2502,6 @@ static void associate(ray_dev_t *local)
 
 		del_timer(&local->timer);
 		local->timer.expires = jiffies + HZ * 2;
-		local->timer.data = (long)local;
 		local->timer.function = join_net;
 		add_timer(&local->timer);
 		local->card_status = CARD_ASSOC_FAILED;

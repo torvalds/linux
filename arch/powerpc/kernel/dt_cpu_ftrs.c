@@ -94,9 +94,6 @@ static void (*init_pmu_registers)(void);
 
 static void cpufeatures_flush_tlb(void)
 {
-	unsigned long rb;
-	unsigned int i, num_sets;
-
 	/*
 	 * This is a temporary measure to keep equivalent TLB flush as the
 	 * cputable based setup code.
@@ -105,24 +102,15 @@ static void cpufeatures_flush_tlb(void)
 	case PVR_POWER8:
 	case PVR_POWER8E:
 	case PVR_POWER8NVL:
-		num_sets = POWER8_TLB_SETS;
+		__flush_tlb_power8(TLB_INVAL_SCOPE_GLOBAL);
 		break;
 	case PVR_POWER9:
-		num_sets = POWER9_TLB_SETS_HASH;
+		__flush_tlb_power9(TLB_INVAL_SCOPE_GLOBAL);
 		break;
 	default:
-		num_sets = 1;
 		pr_err("unknown CPU version for boot TLB flush\n");
 		break;
 	}
-
-	asm volatile("ptesync" : : : "memory");
-	rb = TLBIEL_INVAL_SET;
-	for (i = 0; i < num_sets; i++) {
-		asm volatile("tlbiel %0" : : "r" (rb));
-		rb += 1 << TLBIEL_INVAL_SET_SHIFT;
-	}
-	asm volatile("ptesync" : : : "memory");
 }
 
 static void __restore_cpu_cpufeatures(void)
@@ -646,7 +634,7 @@ static struct dt_cpu_feature_match __initdata
 	{"no-execute", feat_enable, 0},
 	{"strong-access-ordering", feat_enable, CPU_FTR_SAO},
 	{"cache-inhibited-large-page", feat_enable_large_ci, 0},
-	{"coprocessor-icswx", feat_enable, CPU_FTR_ICSWX},
+	{"coprocessor-icswx", feat_enable, 0},
 	{"hypervisor-virtualization-interrupt", feat_enable_hvi, 0},
 	{"program-priority-register", feat_enable, CPU_FTR_HAS_PPR},
 	{"wait", feat_enable, 0},
@@ -747,6 +735,8 @@ static __init void cpufeatures_cpu_quirks(void)
 	 */
 	if ((version & 0xffffff00) == 0x004e0100)
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD1;
+	else if ((version & 0xffffefff) == 0x004e0201)
+		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
 }
 
 static void __init cpufeatures_setup_finished(void)

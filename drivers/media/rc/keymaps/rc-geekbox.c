@@ -31,10 +31,10 @@ static struct rc_map_table geekbox[] = {
 
 static struct rc_map_list geekbox_map = {
 	.map = {
-		.scan    = geekbox,
-		.size    = ARRAY_SIZE(geekbox),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_GEEKBOX,
+		.scan     = geekbox,
+		.size     = ARRAY_SIZE(geekbox),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_GEEKBOX,
 	}
 };
 

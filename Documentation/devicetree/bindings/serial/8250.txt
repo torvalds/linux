@@ -14,12 +14,16 @@ Required properties:
 	  tegra132, or tegra210.
 	- "nxp,lpc3220-uart"
 	- "ralink,rt2880-uart"
+	- For MediaTek BTIF, must contain '"mediatek,<chip>-btif",
+	  "mediatek,mtk-btif"' where <chip> is mt7622, mt7623.
 	- "altr,16550-FIFO32"
 	- "altr,16550-FIFO64"
 	- "altr,16550-FIFO128"
 	- "fsl,16550-FIFO64"
 	- "fsl,ns16550"
 	- "ti,da830-uart"
+	- "aspeed,ast2400-vuart"
+	- "aspeed,ast2500-vuart"
 	- "serial" if the port type is unknown.
 - reg : offset and length of the register set for the device.
 - interrupts : should contain uart interrupt.
@@ -45,6 +49,7 @@ Optional properties:
   property.
 - tx-threshold: Specify the TX FIFO low water indication for parts with
   programmable TX FIFO thresholds.
+- resets : phandle + reset specifier pairs
 
 Note:
 * fsl,ns16550:

@@ -122,7 +122,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	pmic: pfuze3000@08 {
+	pmic: pfuze3000@8 {
 		compatible = "fsl,pfuze3000";
 		reg = <0x08>;
 
@@ -226,7 +226,7 @@
 	pinctrl-0 = <&pinctrl_i2c4>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		#sound-dai-cells = <0>;
 		reg = <0x0a>;
 		compatible = "fsl,sgtl5000";
@@ -295,6 +295,7 @@
 	assigned-clocks = <&clks IMX7D_USDHC3_ROOT_CLK>;
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
+	no-1-8-v;
 	fsl,tuning-step = <2>;
 	non-removable;
 	status = "okay";
@@ -442,7 +443,7 @@
 &iomuxc_lpsr {
 	pinctrl_wdog: wdoggrp {
 		fsl,pins = <
-			MX7D_PAD_LPSR_GPIO1_IO00__WDOD1_WDOG_B	0x74
+			MX7D_PAD_LPSR_GPIO1_IO00__WDOG1_WDOG_B	0x74
 		>;
 	};
 };

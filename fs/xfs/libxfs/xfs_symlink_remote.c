@@ -114,7 +114,7 @@ xfs_symlink_verify(
 	if (bp->b_bn != be64_to_cpu(dsl->sl_blkno))
 		return false;
 	if (be32_to_cpu(dsl->sl_offset) +
-				be32_to_cpu(dsl->sl_bytes) >= MAXPATHLEN)
+				be32_to_cpu(dsl->sl_bytes) >= XFS_SYMLINK_MAXLEN)
 		return false;
 	if (dsl->sl_owner == 0)
 		return false;

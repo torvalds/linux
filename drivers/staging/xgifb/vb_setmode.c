@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/delay.h>
 #include "XGIfb.h"
 
@@ -5046,7 +5047,7 @@ unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 				  unsigned short ModeIdIndex,
 				  struct vb_device_info *pVBInfo)
 {
-	const u8 LCDARefreshIndex[] = {
+	static const u8 LCDARefreshIndex[] = {
 		0x00, 0x00, 0x03, 0x01, 0x01, 0x01, 0x01, 0x00 };
 
 	unsigned short RefreshRateTableIndex, i, index, temp;
@@ -5479,8 +5480,9 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 						   ModeIdIndex))
 				return 0;
 
-		pVBInfo->ModeType = XGI330_EModeIDTable[ModeIdIndex].
-						Ext_ModeFlag & ModeTypeMask;
+		pVBInfo->ModeType =
+			XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag
+			& ModeTypeMask;
 
 		pVBInfo->SetFlag = 0;
 		pVBInfo->VBInfo = DisableCRT2Display;

@@ -55,6 +55,8 @@ struct smp_ops_t {
 	int   (*cpu_bootable)(unsigned int nr);
 };
 
+extern void smp_flush_nmi_ipi(u64 delay_us);
+extern int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us);
 extern void smp_send_debugger_break(void);
 extern void start_secondary_resume(void);
 extern void smp_generic_give_timebase(void);
@@ -95,6 +97,7 @@ static inline void set_hard_smp_processor_id(int cpu, int phys)
 #endif
 
 DECLARE_PER_CPU(cpumask_var_t, cpu_sibling_map);
+DECLARE_PER_CPU(cpumask_var_t, cpu_l2_cache_map);
 DECLARE_PER_CPU(cpumask_var_t, cpu_core_map);
 
 static inline struct cpumask *cpu_sibling_mask(int cpu)
@@ -105,6 +108,11 @@ static inline struct cpumask *cpu_sibling_mask(int cpu)
 static inline struct cpumask *cpu_core_mask(int cpu)
 {
 	return per_cpu(cpu_core_map, cpu);
+}
+
+static inline struct cpumask *cpu_l2_cache_mask(int cpu)
+{
+	return per_cpu(cpu_l2_cache_map, cpu);
 }
 
 extern int cpu_to_core_id(int cpu);

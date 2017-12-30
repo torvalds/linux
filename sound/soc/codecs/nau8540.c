@@ -735,7 +735,7 @@ static int __maybe_unused nau8540_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver nau8540_codec_driver = {
+static const struct snd_soc_codec_driver nau8540_codec_driver = {
 	.set_sysclk = nau8540_set_sysclk,
 	.set_pll = nau8540_set_pll,
 	.suspend = nau8540_suspend,

@@ -161,12 +161,17 @@ static const struct of_device_id dt_match[] = {
 	{}
 };
 
+static const struct dev_pm_ops dsi_pm_ops = {
+	SET_RUNTIME_PM_OPS(msm_dsi_runtime_suspend, msm_dsi_runtime_resume, NULL)
+};
+
 static struct platform_driver dsi_driver = {
 	.probe = dsi_dev_probe,
 	.remove = dsi_dev_remove,
 	.driver = {
 		.name = "msm_dsi",
 		.of_match_table = dt_match,
+		.pm = &dsi_pm_ops,
 	},
 };
 

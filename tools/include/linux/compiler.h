@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _TOOLS_LINUX_COMPILER_H_
 #define _TOOLS_LINUX_COMPILER_H_
 
@@ -15,6 +16,10 @@
 
 #ifndef __always_inline
 # define __always_inline	inline __attribute__((always_inline))
+#endif
+
+#ifndef noinline
+#define noinline
 #endif
 
 /* Are two types/vars the same type (ignoring qualifiers)? */
@@ -45,6 +50,10 @@
 # define __maybe_unused		__attribute__((unused))
 #endif
 
+#ifndef __used
+# define __used		__attribute__((__unused__))
+#endif
+
 #ifndef __packed
 # define __packed		__attribute__((__packed__))
 #endif
@@ -65,9 +74,15 @@
 # define unlikely(x)		__builtin_expect(!!(x), 0)
 #endif
 
-#define uninitialized_var(x) x = *(&(x))
+#ifndef __init
+# define __init
+#endif
 
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+#ifndef noinline
+# define noinline
+#endif
+
+#define uninitialized_var(x) x = *(&(x))
 
 #include <linux/types.h>
 
@@ -118,20 +133,19 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 /*
  * Prevent the compiler from merging or refetching reads or writes. The
  * compiler is also forbidden from reordering successive instances of
- * READ_ONCE, WRITE_ONCE and ACCESS_ONCE (see below), but only when the
- * compiler is aware of some particular ordering.  One way to make the
- * compiler aware of ordering is to put the two invocations of READ_ONCE,
- * WRITE_ONCE or ACCESS_ONCE() in different C statements.
+ * READ_ONCE and WRITE_ONCE, but only when the compiler is aware of some
+ * particular ordering. One way to make the compiler aware of ordering is to
+ * put the two invocations of READ_ONCE or WRITE_ONCE in different C
+ * statements.
  *
- * In contrast to ACCESS_ONCE these two macros will also work on aggregate
- * data types like structs or unions. If the size of the accessed data
- * type exceeds the word size of the machine (e.g., 32 bits or 64 bits)
- * READ_ONCE() and WRITE_ONCE()  will fall back to memcpy and print a
- * compile-time warning.
+ * These two macros will also work on aggregate data types like structs or
+ * unions. If the size of the accessed data type exceeds the word size of
+ * the machine (e.g., 32 bits or 64 bits) READ_ONCE() and WRITE_ONCE() will
+ * fall back to memcpy and print a compile-time warning.
  *
  * Their two major use cases are: (1) Mediating communication between
  * process-level code and irq/NMI handlers, all running on the same CPU,
- * and (2) Ensuring that the compiler does not  fold, spindle, or otherwise
+ * and (2) Ensuring that the compiler does not fold, spindle, or otherwise
  * mutilate accesses that either do not require ordering or that interact
  * with an explicit memory barrier or atomic instruction that provides the
  * required ordering.

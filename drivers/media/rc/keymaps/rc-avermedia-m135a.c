@@ -43,7 +43,8 @@ static struct rc_map_table avermedia_m135a[] = {
 	{ 0x0213, KEY_RIGHT },		/* -> or L */
 	{ 0x0212, KEY_LEFT },		/* <- or R */
 
-	{ 0x0217, KEY_SLEEP },		/* Capturar Imagem or Snapshot */
+	{ 0x0215, KEY_MENU },
+	{ 0x0217, KEY_CAMERA },		/* Capturar Imagem or Snapshot */
 	{ 0x0210, KEY_SHUFFLE },	/* Amostra or 16 chan prev */
 
 	{ 0x0303, KEY_CHANNELUP },
@@ -124,10 +125,10 @@ static struct rc_map_table avermedia_m135a[] = {
 
 static struct rc_map_list avermedia_m135a_map = {
 	.map = {
-		.scan    = avermedia_m135a,
-		.size    = ARRAY_SIZE(avermedia_m135a),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_AVERMEDIA_M135A,
+		.scan     = avermedia_m135a,
+		.size     = ARRAY_SIZE(avermedia_m135a),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_AVERMEDIA_M135A,
 	}
 };
 

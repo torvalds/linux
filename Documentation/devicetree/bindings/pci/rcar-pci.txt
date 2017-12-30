@@ -1,4 +1,4 @@
-* Renesas RCar PCIe interface
+* Renesas R-Car PCIe interface
 
 Required properties:
 compatible: "renesas,pcie-r8a7779" for the R8A7779 SoC;
@@ -14,7 +14,7 @@ compatible: "renesas,pcie-r8a7779" for the R8A7779 SoC;
 	    SoC-specific version corresponding to the platform first
 	    followed by the generic version.
 
-- reg: base address and length of the pcie controller registers.
+- reg: base address and length of the PCIe controller registers.
 - #address-cells: set to <3>
 - #size-cells: set to <2>
 - bus-range: PCI bus numbers covered
@@ -25,15 +25,14 @@ compatible: "renesas,pcie-r8a7779" for the R8A7779 SoC;
 	source for hardware related interrupts (e.g. link speed change).
 - #interrupt-cells: set to <1>
 - interrupt-map-mask and interrupt-map: standard PCI properties
-	to define the mapping of the PCIe interface to interrupt
-	numbers.
+	to define the mapping of the PCIe interface to interrupt numbers.
 - clocks: from common clock binding: clock specifiers for the PCIe controller
 	and PCIe bus clocks.
 - clock-names: from common clock binding: should be "pcie" and "pcie_bus".
 
 Example:
 
-SoC specific DT Entry:
+SoC-specific DT Entry:
 
 	pcie: pcie@fe000000 {
 		compatible = "renesas,pcie-r8a7791", "renesas,pcie-rcar-gen2";
@@ -54,5 +53,4 @@ SoC specific DT Entry:
 		interrupt-map = <0 0 0 0 &gic 0 116 4>;
 		clocks = <&mstp3_clks R8A7791_CLK_PCIE>, <&pcie_bus_clk>;
 		clock-names = "pcie", "pcie_bus";
-		status = "disabled";
 	};

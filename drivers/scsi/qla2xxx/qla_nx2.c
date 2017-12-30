@@ -1572,7 +1572,7 @@ qla8044_read_reset_template(struct scsi_qla_host *vha)
 	/* Copy rest of the template */
 	if (qla8044_read_flash_data(vha, p_buff, addr, tmplt_hdr_def_size)) {
 		ql_log(ql_log_fatal, vha, 0xb0bd,
-		    "%s: Failed to read reset tempelate\n", __func__);
+		    "%s: Failed to read reset template\n", __func__);
 		goto exit_read_template_error;
 	}
 

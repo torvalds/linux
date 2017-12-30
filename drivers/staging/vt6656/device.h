@@ -83,7 +83,7 @@
 #define CONFIG_PATH			"/etc/vntconfiguration.dat"
 
 #define MAX_UINTS			8
-#define OPTION_DEFAULT			{ [0 ... MAX_UINTS-1] = -1}
+#define OPTION_DEFAULT			{ [0 ... MAX_UINTS - 1] = -1}
 
 #define DUPLICATE_RX_CACHE_LENGTH       5
 

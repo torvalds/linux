@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/fs/nfs/callback.h
  *
@@ -114,8 +115,7 @@ struct cb_sequenceres {
 	uint32_t			csr_target_highestslotid;
 };
 
-extern __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
-				       struct cb_sequenceres *res,
+extern __be32 nfs4_callback_sequence(void *argp, void *resp,
 				       struct cb_process_state *cps);
 
 #define RCA4_TYPE_MASK_RDATA_DLG	0
@@ -134,15 +134,13 @@ struct cb_recallanyargs {
 	uint32_t	craa_type_mask;
 };
 
-extern __be32 nfs4_callback_recallany(struct cb_recallanyargs *args,
-					void *dummy,
+extern __be32 nfs4_callback_recallany(void *argp, void *resp,
 					struct cb_process_state *cps);
 
 struct cb_recallslotargs {
 	uint32_t	crsa_target_highest_slotid;
 };
-extern __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args,
-					 void *dummy,
+extern __be32 nfs4_callback_recallslot(void *argp, void *resp,
 					 struct cb_process_state *cps);
 
 struct cb_layoutrecallargs {
@@ -159,9 +157,8 @@ struct cb_layoutrecallargs {
 	};
 };
 
-extern __be32 nfs4_callback_layoutrecall(
-	struct cb_layoutrecallargs *args,
-	void *dummy, struct cb_process_state *cps);
+extern __be32 nfs4_callback_layoutrecall(void *argp, void *resp,
+		struct cb_process_state *cps);
 
 struct cb_devicenotifyitem {
 	uint32_t		cbd_notify_type;
@@ -175,9 +172,8 @@ struct cb_devicenotifyargs {
 	struct cb_devicenotifyitem	 *devs;
 };
 
-extern __be32 nfs4_callback_devicenotify(
-	struct cb_devicenotifyargs *args,
-	void *dummy, struct cb_process_state *cps);
+extern __be32 nfs4_callback_devicenotify(void *argp, void *resp,
+		struct cb_process_state *cps);
 
 struct cb_notify_lock_args {
 	struct nfs_fh			cbnl_fh;
@@ -185,15 +181,13 @@ struct cb_notify_lock_args {
 	bool				cbnl_valid;
 };
 
-extern __be32 nfs4_callback_notify_lock(struct cb_notify_lock_args *args,
-					 void *dummy,
+extern __be32 nfs4_callback_notify_lock(void *argp, void *resp,
 					 struct cb_process_state *cps);
 #endif /* CONFIG_NFS_V4_1 */
 extern int check_gss_callback_principal(struct nfs_client *, struct svc_rqst *);
-extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
-				    struct cb_getattrres *res,
+extern __be32 nfs4_callback_getattr(void *argp, void *resp,
 				    struct cb_process_state *cps);
-extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
+extern __be32 nfs4_callback_recall(void *argp, void *resp,
 				   struct cb_process_state *cps);
 #if IS_ENABLED(CONFIG_NFS_V4)
 extern int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt);

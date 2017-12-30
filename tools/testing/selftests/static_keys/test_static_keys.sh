@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Runs static keys kernel module tests
 
 if /sbin/modprobe -q test_static_key_base; then

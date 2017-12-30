@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (c) 2011 Bryan Schumaker <bjschuma@netapp.com>
 #

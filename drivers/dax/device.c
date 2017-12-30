@@ -222,7 +222,8 @@ __weak phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
 		unsigned long size)
 {
 	struct resource *res;
-	phys_addr_t phys;
+	/* gcc-4.6.3-nolibc for i386 complains that this is uninitialized */
+	phys_addr_t uninitialized_var(phys);
 	int i;
 
 	for (i = 0; i < dev_dax->num_resources; i++) {
@@ -427,9 +428,21 @@ static int dev_dax_fault(struct vm_fault *vmf)
 	return dev_dax_huge_fault(vmf, PE_SIZE_PTE);
 }
 
+static int dev_dax_split(struct vm_area_struct *vma, unsigned long addr)
+{
+	struct file *filp = vma->vm_file;
+	struct dev_dax *dev_dax = filp->private_data;
+	struct dax_region *dax_region = dev_dax->region;
+
+	if (!IS_ALIGNED(addr, dax_region->align))
+		return -EINVAL;
+	return 0;
+}
+
 static const struct vm_operations_struct dax_vm_ops = {
 	.fault = dev_dax_fault,
 	.huge_fault = dev_dax_huge_fault,
+	.split = dev_dax_split,
 };
 
 static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
@@ -499,6 +512,7 @@ static int dax_open(struct inode *inode, struct file *filp)
 	inode->i_mapping = __dax_inode->i_mapping;
 	inode->i_mapping->host = __dax_inode;
 	filp->f_mapping = inode->i_mapping;
+	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
 	filp->private_data = dev_dax;
 	inode->i_flags = S_DAX;
 
@@ -528,7 +542,8 @@ static void dev_dax_release(struct device *dev)
 	struct dax_region *dax_region = dev_dax->region;
 	struct dax_device *dax_dev = dev_dax->dax_dev;
 
-	ida_simple_remove(&dax_region->ida, dev_dax->id);
+	if (dev_dax->id >= 0)
+		ida_simple_remove(&dax_region->ida, dev_dax->id);
 	dax_region_put(dax_region);
 	put_dax(dax_dev);
 	kfree(dev_dax);
@@ -558,7 +573,7 @@ static void unregister_dev_dax(void *dev)
 }
 
 struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
-		struct resource *res, int count)
+		int id, struct resource *res, int count)
 {
 	struct device *parent = dax_region->dev;
 	struct dax_device *dax_dev;
@@ -566,7 +581,10 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	struct inode *inode;
 	struct device *dev;
 	struct cdev *cdev;
-	int rc = 0, i;
+	int rc, i;
+
+	if (!count)
+		return ERR_PTR(-EINVAL);
 
 	dev_dax = kzalloc(sizeof(*dev_dax) + sizeof(*res) * count, GFP_KERNEL);
 	if (!dev_dax)
@@ -586,10 +604,16 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	if (i < count)
 		goto err_id;
 
-	dev_dax->id = ida_simple_get(&dax_region->ida, 0, 0, GFP_KERNEL);
-	if (dev_dax->id < 0) {
-		rc = dev_dax->id;
-		goto err_id;
+	if (id < 0) {
+		id = ida_simple_get(&dax_region->ida, 0, 0, GFP_KERNEL);
+		dev_dax->id = id;
+		if (id < 0) {
+			rc = id;
+			goto err_id;
+		}
+	} else {
+		/* region provider owns @id lifetime */
+		dev_dax->id = -1;
 	}
 
 	/*
@@ -597,8 +621,10 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	 * device outside of mmap of the resulting character device.
 	 */
 	dax_dev = alloc_dax(dev_dax, NULL, NULL);
-	if (!dax_dev)
+	if (!dax_dev) {
+		rc = -ENOMEM;
 		goto err_dax;
+	}
 
 	/* from here on we're committed to teardown via dax_dev_release() */
 	dev = &dev_dax->dev;
@@ -619,7 +645,7 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	dev->parent = parent;
 	dev->groups = dax_attribute_groups;
 	dev->release = dev_dax_release;
-	dev_set_name(dev, "dax%d.%d", dax_region->id, dev_dax->id);
+	dev_set_name(dev, "dax%d.%d", dax_region->id, id);
 
 	rc = cdev_device_add(cdev, dev);
 	if (rc) {
@@ -635,7 +661,8 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	return dev_dax;
 
  err_dax:
-	ida_simple_remove(&dax_region->ida, dev_dax->id);
+	if (dev_dax->id >= 0)
+		ida_simple_remove(&dax_region->ida, dev_dax->id);
  err_id:
 	kfree(dev_dax);
 

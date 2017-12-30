@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 2017
  *    Author(s): Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
@@ -13,7 +14,8 @@
 #define ESSA_SET_POT_VOLATILE		4
 #define ESSA_SET_STABLE_RESIDENT	5
 #define ESSA_SET_STABLE_IF_RESIDENT	6
+#define ESSA_SET_STABLE_NODAT		7
 
-#define ESSA_MAX	ESSA_SET_STABLE_IF_RESIDENT
+#define ESSA_MAX	ESSA_SET_STABLE_NODAT
 
 #endif

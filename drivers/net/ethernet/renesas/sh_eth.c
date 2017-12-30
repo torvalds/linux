@@ -594,7 +594,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
 };
 
 /* There is CPU dependent code */
-static void sh_eth_set_rate_r8a777x(struct net_device *ndev)
+static void sh_eth_set_rate_rcar(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -608,10 +608,10 @@ static void sh_eth_set_rate_r8a777x(struct net_device *ndev)
 	}
 }
 
-/* R8A7778/9 */
-static struct sh_eth_cpu_data r8a777x_data = {
+/* R-Car Gen1 */
+static struct sh_eth_cpu_data rcar_gen1_data = {
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate_r8a777x,
+	.set_rate	= sh_eth_set_rate_rcar,
 
 	.register_type	= SH_ETH_REG_FAST_RCAR,
 
@@ -635,10 +635,10 @@ static struct sh_eth_cpu_data r8a777x_data = {
 	.hw_swap	= 1,
 };
 
-/* R8A7790/1 */
-static struct sh_eth_cpu_data r8a779x_data = {
+/* R-Car Gen2 and RZ/G1 */
+static struct sh_eth_cpu_data rcar_gen2_data = {
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate_r8a777x,
+	.set_rate	= sh_eth_set_rate_rcar,
 
 	.register_type	= SH_ETH_REG_FAST_RCAR,
 
@@ -1149,7 +1149,8 @@ static int sh_eth_tx_free(struct net_device *ndev, bool sent_only)
 			   entry, le32_to_cpu(txdesc->status));
 		/* Free the original skb. */
 		if (mdp->tx_skbuff[entry]) {
-			dma_unmap_single(&ndev->dev, le32_to_cpu(txdesc->addr),
+			dma_unmap_single(&mdp->pdev->dev,
+					 le32_to_cpu(txdesc->addr),
 					 le32_to_cpu(txdesc->len) >> 16,
 					 DMA_TO_DEVICE);
 			dev_kfree_skb_irq(mdp->tx_skbuff[entry]);
@@ -1179,14 +1180,14 @@ static void sh_eth_ring_free(struct net_device *ndev)
 			if (mdp->rx_skbuff[i]) {
 				struct sh_eth_rxdesc *rxdesc = &mdp->rx_ring[i];
 
-				dma_unmap_single(&ndev->dev,
+				dma_unmap_single(&mdp->pdev->dev,
 						 le32_to_cpu(rxdesc->addr),
 						 ALIGN(mdp->rx_buf_sz, 32),
 						 DMA_FROM_DEVICE);
 			}
 		}
 		ringsize = sizeof(struct sh_eth_rxdesc) * mdp->num_rx_ring;
-		dma_free_coherent(NULL, ringsize, mdp->rx_ring,
+		dma_free_coherent(&mdp->pdev->dev, ringsize, mdp->rx_ring,
 				  mdp->rx_desc_dma);
 		mdp->rx_ring = NULL;
 	}
@@ -1203,7 +1204,7 @@ static void sh_eth_ring_free(struct net_device *ndev)
 		sh_eth_tx_free(ndev, false);
 
 		ringsize = sizeof(struct sh_eth_txdesc) * mdp->num_tx_ring;
-		dma_free_coherent(NULL, ringsize, mdp->tx_ring,
+		dma_free_coherent(&mdp->pdev->dev, ringsize, mdp->tx_ring,
 				  mdp->tx_desc_dma);
 		mdp->tx_ring = NULL;
 	}
@@ -1245,9 +1246,9 @@ static void sh_eth_ring_format(struct net_device *ndev)
 
 		/* The size of the buffer is a multiple of 32 bytes. */
 		buf_len = ALIGN(mdp->rx_buf_sz, 32);
-		dma_addr = dma_map_single(&ndev->dev, skb->data, buf_len,
+		dma_addr = dma_map_single(&mdp->pdev->dev, skb->data, buf_len,
 					  DMA_FROM_DEVICE);
-		if (dma_mapping_error(&ndev->dev, dma_addr)) {
+		if (dma_mapping_error(&mdp->pdev->dev, dma_addr)) {
 			kfree_skb(skb);
 			break;
 		}
@@ -1323,8 +1324,8 @@ static int sh_eth_ring_init(struct net_device *ndev)
 
 	/* Allocate all Rx descriptors. */
 	rx_ringsize = sizeof(struct sh_eth_rxdesc) * mdp->num_rx_ring;
-	mdp->rx_ring = dma_alloc_coherent(NULL, rx_ringsize, &mdp->rx_desc_dma,
-					  GFP_KERNEL);
+	mdp->rx_ring = dma_alloc_coherent(&mdp->pdev->dev, rx_ringsize,
+					  &mdp->rx_desc_dma, GFP_KERNEL);
 	if (!mdp->rx_ring)
 		goto ring_free;
 
@@ -1332,8 +1333,8 @@ static int sh_eth_ring_init(struct net_device *ndev)
 
 	/* Allocate all Tx descriptors. */
 	tx_ringsize = sizeof(struct sh_eth_txdesc) * mdp->num_tx_ring;
-	mdp->tx_ring = dma_alloc_coherent(NULL, tx_ringsize, &mdp->tx_desc_dma,
-					  GFP_KERNEL);
+	mdp->tx_ring = dma_alloc_coherent(&mdp->pdev->dev, tx_ringsize,
+					  &mdp->tx_desc_dma, GFP_KERNEL);
 	if (!mdp->tx_ring)
 		goto ring_free;
 	return 0;
@@ -1527,7 +1528,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			mdp->rx_skbuff[entry] = NULL;
 			if (mdp->cd->rpadir)
 				skb_reserve(skb, NET_IP_ALIGN);
-			dma_unmap_single(&ndev->dev, dma_addr,
+			dma_unmap_single(&mdp->pdev->dev, dma_addr,
 					 ALIGN(mdp->rx_buf_sz, 32),
 					 DMA_FROM_DEVICE);
 			skb_put(skb, pkt_len);
@@ -1555,9 +1556,9 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			if (skb == NULL)
 				break;	/* Better luck next round. */
 			sh_eth_set_receive_align(skb);
-			dma_addr = dma_map_single(&ndev->dev, skb->data,
+			dma_addr = dma_map_single(&mdp->pdev->dev, skb->data,
 						  buf_len, DMA_FROM_DEVICE);
-			if (dma_mapping_error(&ndev->dev, dma_addr)) {
+			if (dma_mapping_error(&mdp->pdev->dev, dma_addr)) {
 				kfree_skb(skb);
 				break;
 			}
@@ -1891,6 +1892,16 @@ static int sh_eth_phy_init(struct net_device *ndev)
 		return PTR_ERR(phydev);
 	}
 
+	/* mask with MAC supported features */
+	if (mdp->cd->register_type != SH_ETH_REG_GIGABIT) {
+		int err = phy_set_max_speed(phydev, SPEED_100);
+		if (err) {
+			netdev_err(ndev, "failed to limit PHY to 100 Mbit/s\n");
+			phy_disconnect(phydev);
+			return err;
+		}
+	}
+
 	phy_attached_info(phydev);
 
 	return 0;
@@ -1915,16 +1926,15 @@ static int sh_eth_get_link_ksettings(struct net_device *ndev,
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
-	int ret;
 
 	if (!ndev->phydev)
 		return -ENODEV;
 
 	spin_lock_irqsave(&mdp->lock, flags);
-	ret = phy_ethtool_ksettings_get(ndev->phydev, cmd);
+	phy_ethtool_ksettings_get(ndev->phydev, cmd);
 	spin_unlock_irqrestore(&mdp->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static int sh_eth_set_link_ksettings(struct net_device *ndev,
@@ -2442,9 +2452,9 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* soft swap. */
 	if (!mdp->cd->hw_swap)
 		sh_eth_soft_swap(PTR_ALIGN(skb->data, 4), skb->len + 2);
-	dma_addr = dma_map_single(&ndev->dev, skb->data, skb->len,
+	dma_addr = dma_map_single(&mdp->pdev->dev, skb->data, skb->len,
 				  DMA_TO_DEVICE);
-	if (dma_mapping_error(&ndev->dev, dma_addr)) {
+	if (dma_mapping_error(&mdp->pdev->dev, dma_addr)) {
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -2556,6 +2566,17 @@ static int sh_eth_do_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 		return -ENODEV;
 
 	return phy_mii_ioctl(phydev, rq, cmd);
+}
+
+static int sh_eth_change_mtu(struct net_device *ndev, int new_mtu)
+{
+	if (netif_running(ndev))
+		return -EBUSY;
+
+	ndev->mtu = new_mtu;
+	netdev_update_features(ndev);
+
+	return 0;
 }
 
 /* For TSU_POSTn. Please refer to the manual about this (strange) bitfields */
@@ -3029,6 +3050,7 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_set_rx_mode	= sh_eth_set_rx_mode,
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
+	.ndo_change_mtu		= sh_eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
@@ -3043,6 +3065,7 @@ static const struct net_device_ops sh_eth_netdev_ops_tsu = {
 	.ndo_vlan_rx_kill_vid	= sh_eth_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
+	.ndo_change_mtu		= sh_eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
@@ -3074,15 +3097,17 @@ static struct sh_eth_plat_data *sh_eth_parse_dt(struct device *dev)
 
 static const struct of_device_id sh_eth_match_table[] = {
 	{ .compatible = "renesas,gether-r8a7740", .data = &r8a7740_data },
-	{ .compatible = "renesas,ether-r8a7743", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7745", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7778", .data = &r8a777x_data },
-	{ .compatible = "renesas,ether-r8a7779", .data = &r8a777x_data },
-	{ .compatible = "renesas,ether-r8a7790", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7791", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7793", .data = &r8a779x_data },
-	{ .compatible = "renesas,ether-r8a7794", .data = &r8a779x_data },
+	{ .compatible = "renesas,ether-r8a7743", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7745", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7778", .data = &rcar_gen1_data },
+	{ .compatible = "renesas,ether-r8a7779", .data = &rcar_gen1_data },
+	{ .compatible = "renesas,ether-r8a7790", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7791", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7793", .data = &rcar_gen2_data },
+	{ .compatible = "renesas,ether-r8a7794", .data = &rcar_gen2_data },
 	{ .compatible = "renesas,ether-r7s72100", .data = &r7s72100_data },
+	{ .compatible = "renesas,rcar-gen1-ether", .data = &rcar_gen1_data },
+	{ .compatible = "renesas,rcar-gen2-ether", .data = &rcar_gen2_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sh_eth_match_table);
@@ -3170,6 +3195,13 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		goto out_release;
 	}
 	sh_eth_set_default_cpu_data(mdp->cd);
+
+	/* User's manual states max MTU should be 2048 but due to the
+	 * alignment calculations in sh_eth_ring_init() the practical
+	 * MTU is a bit less. Maybe this can be optimized some more.
+	 */
+	ndev->max_mtu = 2000 - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN);
+	ndev->min_mtu = ETH_MIN_MTU;
 
 	/* set function */
 	if (mdp->cd->tsu)
@@ -3383,7 +3415,7 @@ static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 #define SH_ETH_PM_OPS NULL
 #endif
 
-static struct platform_device_id sh_eth_id_table[] = {
+static const struct platform_device_id sh_eth_id_table[] = {
 	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
 	{ "sh771x-ether", (kernel_ulong_t)&sh771x_data },
 	{ "sh7724-ether", (kernel_ulong_t)&sh7724_data },

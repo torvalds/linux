@@ -719,18 +719,18 @@ static int snd_cmipci_hw_free(struct snd_pcm_substream *substream)
 /*
  */
 
-static unsigned int hw_channels[] = {1, 2, 4, 6, 8};
-static struct snd_pcm_hw_constraint_list hw_constraints_channels_4 = {
+static const unsigned int hw_channels[] = {1, 2, 4, 6, 8};
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels_4 = {
 	.count = 3,
 	.list = hw_channels,
 	.mask = 0,
 };
-static struct snd_pcm_hw_constraint_list hw_constraints_channels_6 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels_6 = {
 	.count = 4,
 	.list = hw_channels,
 	.mask = 0,
 };
-static struct snd_pcm_hw_constraint_list hw_constraints_channels_8 = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels_8 = {
 	.count = 5,
 	.list = hw_channels,
 	.mask = 0,
@@ -1477,7 +1477,7 @@ static irqreturn_t snd_cmipci_interrupt(int irq, void *dev_id)
  */
 
 /* playback on channel A */
-static struct snd_pcm_hardware snd_cmipci_playback =
+static const struct snd_pcm_hardware snd_cmipci_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
@@ -1497,7 +1497,7 @@ static struct snd_pcm_hardware snd_cmipci_playback =
 };
 
 /* capture on channel B */
-static struct snd_pcm_hardware snd_cmipci_capture =
+static const struct snd_pcm_hardware snd_cmipci_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
@@ -1517,7 +1517,7 @@ static struct snd_pcm_hardware snd_cmipci_capture =
 };
 
 /* playback on channel B - stereo 16bit only? */
-static struct snd_pcm_hardware snd_cmipci_playback2 =
+static const struct snd_pcm_hardware snd_cmipci_playback2 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
@@ -1537,7 +1537,7 @@ static struct snd_pcm_hardware snd_cmipci_playback2 =
 };
 
 /* spdif playback on channel A */
-static struct snd_pcm_hardware snd_cmipci_playback_spdif =
+static const struct snd_pcm_hardware snd_cmipci_playback_spdif =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
@@ -1557,7 +1557,7 @@ static struct snd_pcm_hardware snd_cmipci_playback_spdif =
 };
 
 /* spdif playback on channel A (32bit, IEC958 subframes) */
-static struct snd_pcm_hardware snd_cmipci_playback_iec958_subframe =
+static const struct snd_pcm_hardware snd_cmipci_playback_iec958_subframe =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
@@ -1577,7 +1577,7 @@ static struct snd_pcm_hardware snd_cmipci_playback_iec958_subframe =
 };
 
 /* spdif capture on channel B */
-static struct snd_pcm_hardware snd_cmipci_capture_spdif =
+static const struct snd_pcm_hardware snd_cmipci_capture_spdif =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
@@ -1597,9 +1597,9 @@ static struct snd_pcm_hardware snd_cmipci_capture_spdif =
 	.fifo_size =		0,
 };
 
-static unsigned int rate_constraints[] = { 5512, 8000, 11025, 16000, 22050,
+static const unsigned int rate_constraints[] = { 5512, 8000, 11025, 16000, 22050,
 			32000, 44100, 48000, 88200, 96000, 128000 };
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 		.count = ARRAY_SIZE(rate_constraints),
 		.list = rate_constraints,
 		.mask = 0,
@@ -3295,20 +3295,23 @@ static int snd_cmipci_probe(struct pci_dev *pci,
 		break;
 	}
 
-	if ((err = snd_cmipci_create(card, pci, dev, &cm)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_cmipci_create(card, pci, dev, &cm);
+	if (err < 0)
+		goto free_card;
+
 	card->private_data = cm;
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_card_register(card);
+	if (err < 0)
+		goto free_card;
+
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
 
+free_card:
+	snd_card_free(card);
+	return err;
 }
 
 static void snd_cmipci_remove(struct pci_dev *pci)

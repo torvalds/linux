@@ -56,7 +56,7 @@ u8 rtw_do_join(struct adapter *padapter)
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("rtw_do_join(): site survey if scanned_queue is empty\n."));
 			/*  submit site_survey_cmd */
 			ret = rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
-			if (_SUCCESS != ret) {
+			if (ret != _SUCCESS) {
 				pmlmepriv->to_join = false;
 				RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("rtw_do_join(): site survey return error\n."));
 			}
@@ -110,7 +110,7 @@ u8 rtw_do_join(struct adapter *padapter)
 				if (!pmlmepriv->LinkDetectInfo.bBusyTraffic ||
 				    pmlmepriv->to_roaming > 0) {
 					ret = rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
-					if (_SUCCESS != ret) {
+					if (ret != _SUCCESS) {
 						pmlmepriv->to_join = false;
 						RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("do_join(): site survey return error\n."));
 					}
@@ -621,7 +621,7 @@ int rtw_set_country(struct adapter *adapter, const char *country_code)
 
 	DBG_88E("%s country_code:%s\n", __func__, country_code);
 	for (i = 0; i < ARRAY_SIZE(channel_table); i++) {
-		if (0 == strcmp(channel_table[i].name, country_code)) {
+		if (strcmp(channel_table[i].name, country_code) == 0) {
 			channel_plan = channel_table[i].channel_plan;
 			break;
 		}

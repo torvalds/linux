@@ -31,19 +31,20 @@ static inline void led_toggle(void)
 }
 
 static struct timer_list led_blink_timer;
+static unsigned long led_blink_timer_timeout;
 
-static void led_blink(unsigned long timeout)
+static void led_blink(struct timer_list *unused)
 {
+	unsigned long timeout = led_blink_timer_timeout;
+
 	led_toggle();
 
 	/* reschedule */
 	if (!timeout) { /* blink according to load */
 		led_blink_timer.expires = jiffies +
 			((1 + (avenrun[0] >> FSHIFT)) * HZ);
-		led_blink_timer.data = 0;
 	} else { /* blink at user specified interval */
 		led_blink_timer.expires = jiffies + (timeout * HZ);
-		led_blink_timer.data = timeout;
 	}
 	add_timer(&led_blink_timer);
 }
@@ -88,9 +89,11 @@ static ssize_t led_proc_write(struct file *file, const char __user *buffer,
 	} else if (!strcmp(buf, "toggle")) {
 		led_toggle();
 	} else if ((*buf > '0') && (*buf <= '9')) {
-		led_blink(simple_strtoul(buf, NULL, 10));
+		led_blink_timer_timeout = simple_strtoul(buf, NULL, 10);
+		led_blink(&led_blink_timer);
 	} else if (!strcmp(buf, "load")) {
-		led_blink(0);
+		led_blink_timer_timeout = 0;
+		led_blink(&led_blink_timer);
 	} else {
 		auxio_set_led(AUXIO_LED_OFF);
 	}
@@ -115,8 +118,7 @@ static struct proc_dir_entry *led;
 
 static int __init led_init(void)
 {
-	init_timer(&led_blink_timer);
-	led_blink_timer.function = led_blink;
+	timer_setup(&led_blink_timer, led_blink, 0);
 
 	led = proc_create("led", 0, NULL, &led_proc_fops);
 	if (!led)

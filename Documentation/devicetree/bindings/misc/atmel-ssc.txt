@@ -47,5 +47,4 @@ ssc0: ssc@f0010000 {
       dma-names = "tx", "rx";
       pinctrl-names = "default";
       pinctrl-0 = <&pinctrl_ssc0_tx &pinctrl_ssc0_rx>;
-      status = "disabled";
 };

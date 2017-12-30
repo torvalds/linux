@@ -1390,10 +1390,7 @@ static struct pci_driver cx25821_pci_driver = {
 
 static int __init cx25821_init(void)
 {
-	pr_info("driver version %d.%d.%d loaded\n",
-		(CX25821_VERSION_CODE >> 16) & 0xff,
-		(CX25821_VERSION_CODE >> 8) & 0xff,
-		CX25821_VERSION_CODE & 0xff);
+	pr_info("driver loaded\n");
 	return pci_register_driver(&cx25821_pci_driver);
 }
 

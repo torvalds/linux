@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DRM_GEM_CMA_HELPER_H__
 #define __DRM_GEM_CMA_HELPER_H__
 
@@ -26,6 +27,13 @@ to_drm_gem_cma_obj(struct drm_gem_object *gem_obj)
 	return container_of(gem_obj, struct drm_gem_cma_object, base);
 }
 
+#ifndef CONFIG_MMU
+#define DRM_GEM_CMA_UNMAPPED_AREA_FOPS \
+	.get_unmapped_area	= drm_gem_cma_get_unmapped_area,
+#else
+#define DRM_GEM_CMA_UNMAPPED_AREA_FOPS
+#endif
+
 /**
  * DEFINE_DRM_GEM_CMA_FOPS() - macro to generate file operations for CMA drivers
  * @name: name for the generated structure
@@ -50,6 +58,7 @@ to_drm_gem_cma_obj(struct drm_gem_object *gem_obj)
 		.read		= drm_read,\
 		.llseek		= noop_llseek,\
 		.mmap		= drm_gem_cma_mmap,\
+		DRM_GEM_CMA_UNMAPPED_AREA_FOPS \
 	}
 
 /* free GEM object */
@@ -64,11 +73,6 @@ int drm_gem_cma_dumb_create_internal(struct drm_file *file_priv,
 int drm_gem_cma_dumb_create(struct drm_file *file_priv,
 			    struct drm_device *drm,
 			    struct drm_mode_create_dumb *args);
-
-/* map memory region for DRM framebuffer to user space */
-int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
-				struct drm_device *drm, u32 handle,
-				u64 *offset);
 
 /* set vm_flags and we can change the VM attribute to other one at here */
 int drm_gem_cma_mmap(struct file *filp, struct vm_area_struct *vma);
@@ -85,15 +89,6 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 					    unsigned long len,
 					    unsigned long pgoff,
 					    unsigned long flags);
-#else
-static inline unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
-							  unsigned long addr,
-							  unsigned long len,
-							  unsigned long pgoff,
-							  unsigned long flags)
-{
-	return -EINVAL;
-}
 #endif
 
 #ifdef CONFIG_DEBUG_FS

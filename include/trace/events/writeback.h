@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM writeback
 
@@ -136,7 +137,7 @@ DEFINE_EVENT(writeback_dirty_inode_template, writeback_dirty_inode,
 
 static inline unsigned int __trace_wb_assign_cgroup(struct bdi_writeback *wb)
 {
-	return wb->memcg_css->cgroup->kn->ino;
+	return wb->memcg_css->cgroup->kn->id.ino;
 }
 
 static inline unsigned int __trace_wbc_assign_cgroup(struct writeback_control *wbc)
@@ -286,7 +287,6 @@ DEFINE_EVENT(writeback_class, name, \
 	TP_PROTO(struct bdi_writeback *wb), \
 	TP_ARGS(wb))
 
-DEFINE_WRITEBACK_EVENT(writeback_nowork);
 DEFINE_WRITEBACK_EVENT(writeback_wake_background);
 
 TRACE_EVENT(writeback_bdi_register,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -208,7 +209,8 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 			 */
 			unlock_page(vmpage);
 
-			CDEBUG(D_MMAP, "Race on page_mkwrite %p/%lu, page has been written out, retry.\n",
+			CDEBUG(D_MMAP,
+			       "Race on page_mkwrite %p/%lu, page has been written out, retry.\n",
 			       vmpage, vmpage->index);
 
 			*retry = true;
@@ -378,7 +380,7 @@ static int ll_page_mkwrite(struct vm_fault *vmf)
 		if (!printed && ++count > 16) {
 			const struct dentry *de = vma->vm_file->f_path.dentry;
 
-			CWARN("app(%s): the page %lu of file "DFID" is under heavy contention\n",
+			CWARN("app(%s): the page %lu of file " DFID " is under heavy contention\n",
 			      current->comm, vmf->pgoff,
 			      PFID(ll_inode2fid(de->d_inode)));
 			printed = true;

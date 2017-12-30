@@ -343,9 +343,9 @@ static const struct pinctrl_pin_desc mrfld_pins[] = {
 
 static const unsigned int mrfld_sdio_pins[] = { 50, 51, 52, 53, 54, 55, 56 };
 static const unsigned int mrfld_spi5_pins[] = { 90, 91, 92, 93, 94, 95, 96 };
-static const unsigned int mrfld_uart0_pins[] = { 124, 125, 126, 127 };
-static const unsigned int mrfld_uart1_pins[] = { 128, 129, 130, 131 };
-static const unsigned int mrfld_uart2_pins[] = { 132, 133, 134, 135 };
+static const unsigned int mrfld_uart0_pins[] = { 115, 116, 117, 118 };
+static const unsigned int mrfld_uart1_pins[] = { 119, 120, 121, 122 };
+static const unsigned int mrfld_uart2_pins[] = { 123, 124, 125, 126 };
 static const unsigned int mrfld_pwm0_pins[] = { 144 };
 static const unsigned int mrfld_pwm1_pins[] = { 145 };
 static const unsigned int mrfld_pwm2_pins[] = { 132 };

@@ -190,7 +190,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 	u8 shift_sz = 0, rx_report_sz = 0;
 
 
-	padapter = (struct adapter *)priv;
+	padapter = priv;
 	pHalData = GET_HAL_DATA(padapter);
 	precvpriv = &padapter->recvpriv;
 

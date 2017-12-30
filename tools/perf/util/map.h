@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_MAP_H
 #define __PERF_MAP_H
 
@@ -9,6 +10,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <linux/types.h>
+#include "rwsem.h"
 
 enum map_type {
 	MAP__FUNCTION = 0,
@@ -61,7 +63,7 @@ struct kmap {
 
 struct maps {
 	struct rb_root	 entries;
-	pthread_rwlock_t lock;
+	struct rw_semaphore lock;
 };
 
 struct map_groups {
@@ -141,7 +143,7 @@ struct thread;
 void map__init(struct map *map, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso);
 struct map *map__new(struct machine *machine, u64 start, u64 len,
-		     u64 pgoff, u32 pid, u32 d_maj, u32 d_min, u64 ino,
+		     u64 pgoff, u32 d_maj, u32 d_min, u64 ino,
 		     u64 ino_gen, u32 prot, u32 flags,
 		     char *filename, enum map_type type, struct thread *thread);
 struct map *map__new2(u64 start, struct dso *dso, enum map_type type);

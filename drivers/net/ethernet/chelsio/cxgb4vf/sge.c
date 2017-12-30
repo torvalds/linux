@@ -2058,9 +2058,9 @@ irq_handler_t t4vf_intr_handler(struct adapter *adapter)
  *	when out of memory a queue can become empty.  We schedule NAPI to do
  *	the actual refill.
  */
-static void sge_rx_timer_cb(unsigned long data)
+static void sge_rx_timer_cb(struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
+	struct adapter *adapter = from_timer(adapter, t, sge.rx_timer);
 	struct sge *s = &adapter->sge;
 	unsigned int i;
 
@@ -2117,9 +2117,9 @@ static void sge_rx_timer_cb(unsigned long data)
  *	when no new packets are being submitted.  This is essential for pktgen,
  *	at least.
  */
-static void sge_tx_timer_cb(unsigned long data)
+static void sge_tx_timer_cb(struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
+	struct adapter *adapter = from_timer(adapter, t, sge.tx_timer);
 	struct sge *s = &adapter->sge;
 	unsigned int i, budget;
 
@@ -2205,6 +2205,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	struct port_info *pi = netdev_priv(dev);
 	struct fw_iq_cmd cmd, rpl;
 	int ret, iqandst, flsz = 0;
+	int relaxed = !(adapter->flags & ROOT_NO_RELAXED_ORDERING);
 
 	/*
 	 * If we're using MSI interrupts and we're not initializing the
@@ -2300,6 +2301,8 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 			cpu_to_be32(
 				FW_IQ_CMD_FL0HOSTFCMODE_V(SGE_HOSTFCMODE_NONE) |
 				FW_IQ_CMD_FL0PACKEN_F |
+				FW_IQ_CMD_FL0FETCHRO_V(relaxed) |
+				FW_IQ_CMD_FL0DATARO_V(relaxed) |
 				FW_IQ_CMD_FL0PADEN_F);
 
 		/* In T6, for egress queue type FL there is internal overhead
@@ -2673,8 +2676,8 @@ int t4vf_sge_init(struct adapter *adapter)
 	/*
 	 * Set up tasklet timers.
 	 */
-	setup_timer(&s->rx_timer, sge_rx_timer_cb, (unsigned long)adapter);
-	setup_timer(&s->tx_timer, sge_tx_timer_cb, (unsigned long)adapter);
+	timer_setup(&s->rx_timer, sge_rx_timer_cb, 0);
+	timer_setup(&s->tx_timer, sge_tx_timer_cb, 0);
 
 	/*
 	 * Initialize Forwarded Interrupt Queue lock.

@@ -141,7 +141,6 @@ err_out:
 
 static const struct iio_info ams_iaqcore_info = {
 	.read_raw	= ams_iaqcore_read_raw,
-	.driver_module	= THIS_MODULE,
 };
 
 static int ams_iaqcore_probe(struct i2c_client *client,

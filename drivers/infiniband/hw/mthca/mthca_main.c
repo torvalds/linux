@@ -49,7 +49,6 @@
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox InfiniBand HCA low-level driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 
@@ -474,11 +473,11 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 		goto err_unmap_eqp;
 	}
 
-       mdev->cq_table.table = mthca_alloc_icm_table(mdev, init_hca->cqc_base,
-						    dev_lim->cqc_entry_sz,
-						    mdev->limits.num_cqs,
-						    mdev->limits.reserved_cqs,
-						    0, 0);
+	mdev->cq_table.table = mthca_alloc_icm_table(mdev, init_hca->cqc_base,
+						     dev_lim->cqc_entry_sz,
+						     mdev->limits.num_cqs,
+						     mdev->limits.reserved_cqs,
+						     0, 0);
 	if (!mdev->cq_table.table) {
 		mthca_err(mdev, "Failed to map CQ context memory, aborting.\n");
 		err = -ENOMEM;
@@ -1162,7 +1161,7 @@ static void mthca_remove_one(struct pci_dev *pdev)
 	mutex_unlock(&mthca_device_mutex);
 }
 
-static struct pci_device_id mthca_pci_table[] = {
+static const struct pci_device_id mthca_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_TAVOR),
 	  .driver_data = TAVOR },
 	{ PCI_DEVICE(PCI_VENDOR_ID_TOPSPIN, PCI_DEVICE_ID_MELLANOX_TAVOR),

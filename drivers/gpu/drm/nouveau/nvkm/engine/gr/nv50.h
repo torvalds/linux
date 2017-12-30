@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NV50_GR_H__
 #define __NV50_GR_H__
 #define nv50_gr(p) container_of((p), struct nv50_gr, base)
@@ -19,6 +20,7 @@ u64 nv50_gr_units(struct nvkm_gr *);
 int g84_gr_tlb_flush(struct nvkm_gr *);
 
 #define nv50_gr_chan(p) container_of((p), struct nv50_gr_chan, object)
+#include <core/object.h>
 
 struct nv50_gr_chan {
 	struct nvkm_object object;

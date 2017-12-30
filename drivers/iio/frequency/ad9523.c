@@ -738,7 +738,6 @@ static const struct iio_info ad9523_info = {
 	.write_raw = &ad9523_write_raw,
 	.debugfs_reg_access = &ad9523_reg_access,
 	.attrs = &ad9523_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad9523_setup(struct iio_dev *indio_dev)

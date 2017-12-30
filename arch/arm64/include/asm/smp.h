@@ -148,7 +148,7 @@ static inline void cpu_panic_kernel(void)
  */
 bool cpus_are_stuck_in_kernel(void);
 
-extern void smp_send_crash_stop(void);
+extern void crash_smp_send_stop(void);
 extern bool smp_crash_stop_failed(void);
 
 #endif /* ifndef __ASSEMBLY__ */

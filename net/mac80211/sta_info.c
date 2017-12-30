@@ -20,6 +20,7 @@
 #include <linux/timer.h>
 #include <linux/rtnetlink.h>
 
+#include <net/codel.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
@@ -328,10 +329,12 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		sta->mesh = kzalloc(sizeof(*sta->mesh), gfp);
 		if (!sta->mesh)
 			goto free;
+		sta->mesh->plink_sta = sta;
 		spin_lock_init(&sta->mesh->plink_lock);
 		if (ieee80211_vif_is_mesh(&sdata->vif) &&
 		    !sdata->u.mesh.user_mpm)
-			init_timer(&sta->mesh->plink_timer);
+			timer_setup(&sta->mesh->plink_timer, mesh_plink_timer,
+				    0);
 		sta->mesh->nonpeer_pm = NL80211_MESH_POWER_ACTIVE;
 	}
 #endif
@@ -376,14 +379,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	if (sta_prepare_rate_control(local, sta, gfp))
 		goto free_txq;
 
-	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
-		/*
-		 * timer_to_tid must be initialized with identity mapping
-		 * to enable session_timer's data differentiation. See
-		 * sta_rx_agg_session_timer_expired for usage.
-		 */
-		sta->timer_to_tid[i] = i;
-	}
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		skb_queue_head_init(&sta->ps_tx_buf[i]);
 		skb_queue_head_init(&sta->tx_filtered[i]);
@@ -424,6 +419,11 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sta->sta.max_rc_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_BA;
+
+	sta->cparams.ce_threshold = CODEL_DISABLED_THRESHOLD;
+	sta->cparams.target = MS2TIME(20);
+	sta->cparams.interval = MS2TIME(100);
+	sta->cparams.ecn = true;
 
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
 
@@ -509,6 +509,31 @@ static int sta_info_insert_drv_state(struct ieee80211_local *local,
 	return err;
 }
 
+static void
+ieee80211_recalc_p2p_go_ps_allowed(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	bool allow_p2p_go_ps = sdata->vif.p2p;
+	struct sta_info *sta;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (sdata != sta->sdata ||
+		    !test_sta_flag(sta, WLAN_STA_ASSOC))
+			continue;
+		if (!sta->sta.support_p2p_ps) {
+			allow_p2p_go_ps = false;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (allow_p2p_go_ps != sdata->vif.bss_conf.allow_p2p_go_ps) {
+		sdata->vif.bss_conf.allow_p2p_go_ps = allow_p2p_go_ps;
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_P2P_PS);
+	}
+}
+
 /*
  * should be called with sta_mtx locked
  * this function replaces the mutex lock
@@ -555,6 +580,13 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		goto out_remove;
 
 	set_sta_flag(sta, WLAN_STA_INSERTED);
+
+	if (sta->sta_state >= IEEE80211_STA_ASSOC) {
+		ieee80211_recalc_min_chandef(sta->sdata);
+		if (!sta->sta.support_p2p_ps)
+			ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
+	}
+
 	/* accept BA sessions now */
 	clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
@@ -1024,9 +1056,9 @@ int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
-static void sta_info_cleanup(unsigned long data)
+static void sta_info_cleanup(struct timer_list *t)
 {
-	struct ieee80211_local *local = (struct ieee80211_local *) data;
+	struct ieee80211_local *local = from_timer(local, t, sta_cleanup);
 	struct sta_info *sta;
 	bool timer_needed = false;
 
@@ -1058,8 +1090,7 @@ int sta_info_init(struct ieee80211_local *local)
 	mutex_init(&local->sta_mtx);
 	INIT_LIST_HEAD(&local->sta_list);
 
-	setup_timer(&local->sta_cleanup, sta_info_cleanup,
-		    (unsigned long)local);
+	timer_setup(&local->sta_cleanup, sta_info_cleanup, 0);
 	return 0;
 }
 
@@ -1306,7 +1337,7 @@ static void ieee80211_send_null_response(struct sta_info *sta, int tid,
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	nullfunc = (void *) skb_put(skb, size);
+	nullfunc = skb_put(skb, size);
 	nullfunc->frame_control = fc;
 	nullfunc->duration_id = 0;
 	memcpy(nullfunc->addr1, sta->sta.addr, ETH_ALEN);
@@ -1782,31 +1813,6 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 }
 EXPORT_SYMBOL(ieee80211_sta_set_buffered);
 
-static void
-ieee80211_recalc_p2p_go_ps_allowed(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_local *local = sdata->local;
-	bool allow_p2p_go_ps = sdata->vif.p2p;
-	struct sta_info *sta;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sta, &local->sta_list, list) {
-		if (sdata != sta->sdata ||
-		    !test_sta_flag(sta, WLAN_STA_ASSOC))
-			continue;
-		if (!sta->sta.support_p2p_ps) {
-			allow_p2p_go_ps = false;
-			break;
-		}
-	}
-	rcu_read_unlock();
-
-	if (allow_p2p_go_ps != sdata->vif.bss_conf.allow_p2p_go_ps) {
-		sdata->vif.bss_conf.allow_p2p_go_ps = allow_p2p_go_ps;
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_P2P_PS);
-	}
-}
-
 int sta_info_move_state(struct sta_info *sta,
 			enum ieee80211_sta_state new_state)
 {
@@ -2002,7 +2008,7 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u16 rate,
 
 static int sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
 {
-	u16 rate = ACCESS_ONCE(sta_get_last_rx_stats(sta)->last_rate);
+	u16 rate = READ_ONCE(sta_get_last_rx_stats(sta)->last_rate);
 
 	if (rate == STA_STATS_RATE_INVALID)
 		return -EINVAL;
@@ -2309,4 +2315,28 @@ unsigned long ieee80211_sta_last_active(struct sta_info *sta)
 	if (time_after(stats->last_rx, sta->status_stats.last_ack))
 		return stats->last_rx;
 	return sta->status_stats.last_ack;
+}
+
+static void sta_update_codel_params(struct sta_info *sta, u32 thr)
+{
+	if (!sta->sdata->local->ops->wake_tx_queue)
+		return;
+
+	if (thr && thr < STA_SLOW_THRESHOLD * sta->local->num_sta) {
+		sta->cparams.target = MS2TIME(50);
+		sta->cparams.interval = MS2TIME(300);
+		sta->cparams.ecn = false;
+	} else {
+		sta->cparams.target = MS2TIME(20);
+		sta->cparams.interval = MS2TIME(100);
+		sta->cparams.ecn = true;
+	}
+}
+
+void ieee80211_sta_set_expected_throughput(struct ieee80211_sta *pubsta,
+					   u32 thr)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	sta_update_codel_params(sta, thr);
 }

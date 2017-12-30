@@ -179,6 +179,10 @@ Shadow pages contain the following information:
     shadow page; it is also used to go back from a struct kvm_mmu_page
     to a memslot, through the kvm_memslots_for_spte_role macro and
     __gfn_to_memslot.
+  role.ad_disabled:
+    Is 1 if the MMU instance cannot use A/D bits.  EPT did not have A/D
+    bits before Haswell; shadow EPT page tables also cannot use A/D bits
+    if the L1 hypervisor does not enable them.
   gfn:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.

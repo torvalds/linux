@@ -61,7 +61,7 @@ static int ap_is_existing_file(char *pathname);
 
 static int ap_is_existing_file(char *pathname)
 {
-#ifndef _GNU_EFI
+#if !defined(_GNU_EFI) && !defined(_EDK2_EFI)
 	struct stat stat_info;
 
 	if (!stat(pathname, &stat_info)) {

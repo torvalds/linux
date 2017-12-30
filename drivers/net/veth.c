@@ -329,7 +329,8 @@ static void veth_setup(struct net_device *dev)
  * netlink interface
  */
 
-static int veth_validate(struct nlattr *tb[], struct nlattr *data[])
+static int veth_validate(struct nlattr *tb[], struct nlattr *data[],
+			 struct netlink_ext_ack *extack)
 {
 	if (tb[IFLA_ADDRESS]) {
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
@@ -347,7 +348,8 @@ static int veth_validate(struct nlattr *tb[], struct nlattr *data[])
 static struct rtnl_link_ops veth_link_ops;
 
 static int veth_newlink(struct net *src_net, struct net_device *dev,
-			 struct nlattr *tb[], struct nlattr *data[])
+			struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
 {
 	int err;
 	struct net_device *peer;
@@ -373,7 +375,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		if (err < 0)
 			return err;
 
-		err = veth_validate(peer_tb, NULL);
+		err = veth_validate(peer_tb, NULL, extack);
 		if (err < 0)
 			return err;
 

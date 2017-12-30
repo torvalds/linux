@@ -12,9 +12,9 @@
  * Devices: [Advantech] PCI-1730 (adv_pci_dio), PCI-1733,
  *   PCI-1734, PCI-1735U, PCI-1736UP, PCI-1739U, PCI-1750,
  *   PCI-1751, PCI-1752, PCI-1753, PCI-1753+PCI-1753E,
- *   PCI-1754, PCI-1756, PCI-1762
+ *   PCI-1754, PCI-1756, PCI-1761, PCI-1762
  * Author: Michal Dobes <dobes@tesnet.cz>
- * Updated: Mon, 09 Jan 2012 12:40:46 +0000
+ * Updated: Fri, 25 Aug 2017 07:23:06 +0300
  * Status: untested
  *
  * Configuration Options: not applicable, uses PCI auto config
@@ -50,6 +50,11 @@
 /* PCI-1752, PCI-1756 special registers */
 #define PCI1752_CFC_REG		0x12	/* R/W: channel freeze function */
 
+/* PCI-1761 interrupt control registers */
+#define PCI1761_INT_EN_REG	0x03	/* R/W: enable/disable interrupts */
+#define PCI1761_INT_RF_REG	0x04	/* R/W: falling/rising edge */
+#define PCI1761_INT_CLR_REG	0x05	/* R/W: clear interrupts */
+
 /* PCI-1762 interrupt control registers */
 #define PCI1762_INT_REG		0x06	/* R/W: status/control */
 
@@ -72,6 +77,7 @@ enum pci_dio_boardid {
 	TYPE_PCI1753E,
 	TYPE_PCI1754,
 	TYPE_PCI1756,
+	TYPE_PCI1761,
 	TYPE_PCI1762
 };
 
@@ -180,6 +186,13 @@ static const struct dio_boardtype boardtypes[] = {
 		.sdo[1]		= { 32, 0x04, },	/* DO 0-31 */
 		.id_reg		= 0x10,
 		.is_16bit	= 1,
+	},
+	[TYPE_PCI1761] = {
+		.name		= "pci1761",
+		.nsubdevs	= 3,
+		.sdi[1]		= { 8, 0x01 },		/* ISO DI 0-7 */
+		.sdo[1]		= { 8, 0x00 },		/* RELAY DO 0-7 */
+		.id_reg		= 0x02,
 	},
 	[TYPE_PCI1762] = {
 		.name		= "pci1762",
@@ -308,6 +321,14 @@ static int pci_dio_reset(struct comedi_device *dev, unsigned long cardtype)
 			outw(0x08, dev->iobase + PCI1754_INT_REG(2));
 			outw(0x08, dev->iobase + PCI1754_INT_REG(3));
 		}
+		break;
+	case TYPE_PCI1761:
+		/* disable interrupts */
+		outb(0, dev->iobase + PCI1761_INT_EN_REG);
+		/* clear interrupts */
+		outb(0xff, dev->iobase + PCI1761_INT_CLR_REG);
+		/* set rising edge trigger */
+		outb(0, dev->iobase + PCI1761_INT_RF_REG);
 		break;
 	case TYPE_PCI1762:
 		outw(0x0101, dev->iobase + PCI1762_INT_REG);
@@ -496,6 +517,7 @@ static const struct pci_device_id adv_pci_dio_pci_table[] = {
 	{ PCI_VDEVICE(ADVANTECH, 0x1753), TYPE_PCI1753 },
 	{ PCI_VDEVICE(ADVANTECH, 0x1754), TYPE_PCI1754 },
 	{ PCI_VDEVICE(ADVANTECH, 0x1756), TYPE_PCI1756 },
+	{ PCI_VDEVICE(ADVANTECH, 0x1761), TYPE_PCI1761 },
 	{ PCI_VDEVICE(ADVANTECH, 0x1762), TYPE_PCI1762 },
 	{ 0 }
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <asm/smp.h>
 
 #include <xen/events.h>
@@ -12,7 +13,8 @@ static void __init xen_hvm_smp_prepare_boot_cpu(void)
 	native_smp_prepare_boot_cpu();
 
 	/*
-	 * Setup vcpu_info for boot CPU.
+	 * Setup vcpu_info for boot CPU. Secondary CPUs get their vcpu_info
+	 * in xen_cpu_up_prepare_hvm().
 	 */
 	xen_vcpu_setup(0);
 
@@ -27,10 +29,20 @@ static void __init xen_hvm_smp_prepare_boot_cpu(void)
 
 static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 {
+	int cpu;
+
 	native_smp_prepare_cpus(max_cpus);
 	WARN_ON(xen_smp_intr_init(0));
 
 	xen_init_lock_cpu(0);
+
+	for_each_possible_cpu(cpu) {
+		if (cpu == 0)
+			continue;
+
+		/* Set default vcpu_id to make sure that we don't use cpu-0's */
+		per_cpu(xen_vcpu_id, cpu) = XEN_VCPU_ID_INVALID;
+	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -60,4 +72,5 @@ void __init xen_hvm_smp_init(void)
 	smp_ops.send_call_func_ipi = xen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi;
 	smp_ops.smp_prepare_boot_cpu = xen_hvm_smp_prepare_boot_cpu;
+	smp_ops.smp_cpus_done = xen_smp_cpus_done;
 }

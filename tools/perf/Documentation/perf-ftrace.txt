@@ -48,6 +48,39 @@ OPTIONS
 	Ranges of CPUs are specified with -: 0-2.
 	Default is to trace on all online CPUs.
 
+-T::
+--trace-funcs=::
+	Only trace functions given by the argument.  Multiple functions
+	can be given by using this option more than once.  The function
+	argument also can be a glob pattern.  It will be passed to
+	'set_ftrace_filter' in tracefs.
+
+-N::
+--notrace-funcs=::
+	Do not trace functions given by the argument.  Like -T option,
+	this can be used more than once to specify multiple functions
+	(or glob patterns).  It will be passed to 'set_ftrace_notrace'
+	in tracefs.
+
+-G::
+--graph-funcs=::
+	Set graph filter on the given function (or a glob pattern).
+	This is useful for the function_graph tracer only and enables
+	tracing for functions executed from the given function.
+	This can be used more than once to specify multiple functions.
+	It will be passed to 'set_graph_function' in tracefs.
+
+-g::
+--nograph-funcs=::
+	Set graph notrace filter on the given function (or a glob pattern).
+	Like -G option, this is useful for the function_graph tracer only
+	and disables tracing for function executed from the given function.
+	This can be used more than once to specify multiple functions.
+	It will be passed to 'set_graph_notrace' in tracefs.
+
+-D::
+--graph-depth=::
+	Set max depth for function graph tracer to follow
 
 SEE ALSO
 --------

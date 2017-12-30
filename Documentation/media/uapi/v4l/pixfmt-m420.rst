@@ -66,7 +66,7 @@ Each cell is one byte.
       - Cr\ :sub:`11`
 
 
-**Color Sample Location..**
+**Color Sample Location:**
 
 
 

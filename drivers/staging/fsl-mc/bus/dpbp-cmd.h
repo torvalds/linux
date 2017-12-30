@@ -40,7 +40,7 @@
 #define DPBP_CMD_BASE_VERSION			1
 #define DPBP_CMD_ID_OFFSET			4
 
-#define DPBP_CMD(id)	((id << DPBP_CMD_ID_OFFSET) | DPBP_CMD_BASE_VERSION)
+#define DPBP_CMD(id)	(((id) << DPBP_CMD_ID_OFFSET) | DPBP_CMD_BASE_VERSION)
 
 /* Command IDs */
 #define DPBP_CMDID_CLOSE		DPBP_CMD(0x800)

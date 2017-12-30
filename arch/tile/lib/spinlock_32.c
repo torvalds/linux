@@ -62,29 +62,6 @@ int arch_spin_trylock(arch_spinlock_t *lock)
 }
 EXPORT_SYMBOL(arch_spin_trylock);
 
-void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	u32 iterations = 0;
-	int curr = READ_ONCE(lock->current_ticket);
-	int next = READ_ONCE(lock->next_ticket);
-
-	/* Return immediately if unlocked. */
-	if (next == curr)
-		return;
-
-	/* Wait until the current locker has released the lock. */
-	do {
-		delay_backoff(iterations++);
-	} while (READ_ONCE(lock->current_ticket) == curr);
-
-	/*
-	 * The TILE architecture doesn't do read speculation; therefore
-	 * a control dependency guarantees a LOAD->{LOAD,STORE} order.
-	 */
-	barrier();
-}
-EXPORT_SYMBOL(arch_spin_unlock_wait);
-
 /*
  * The low byte is always reserved to be the marker for a "tns" operation
  * since the low bit is set to "1" by a tns.  The next seven bits are

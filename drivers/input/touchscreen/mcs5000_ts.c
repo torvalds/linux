@@ -15,10 +15,10 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/i2c/mcs.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/irq.h>
+#include <linux/platform_data/mcs.h>
 #include <linux/slab.h>
 
 /* Registers */

@@ -86,7 +86,7 @@ static int socfpga_clk_prepare(struct clk_hw *hwclk)
 			}
 		}
 
-		hs_timing = SYSMGR_SDMMC_CTRL_SET(clk_phase[0], clk_phase[1]);
+		hs_timing = SYSMGR_SDMMC_CTRL_SET_AS10(clk_phase[0], clk_phase[1]);
 		if (!IS_ERR(socfpgaclk->sys_mgr_base_addr))
 			regmap_write(socfpgaclk->sys_mgr_base_addr,
 				     SYSMGR_SDMMCGRP_CTRL_OFFSET, hs_timing);

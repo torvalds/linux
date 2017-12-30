@@ -79,7 +79,7 @@ static int dma40_memcpy_channels[] = {
 };
 
 /* Default configuration for physcial memcpy */
-static struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
+static const struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 	.mode = STEDMA40_MODE_PHYSICAL,
 	.dir = DMA_MEM_TO_MEM,
 
@@ -93,7 +93,7 @@ static struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 };
 
 /* Default configuration for logical memcpy */
-static struct stedma40_chan_cfg dma40_memcpy_conf_log = {
+static const struct stedma40_chan_cfg dma40_memcpy_conf_log = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = DMA_MEM_TO_MEM,
 
@@ -2485,19 +2485,6 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 }
 
 static struct dma_async_tx_descriptor *
-d40_prep_memcpy_sg(struct dma_chan *chan,
-		   struct scatterlist *dst_sg, unsigned int dst_nents,
-		   struct scatterlist *src_sg, unsigned int src_nents,
-		   unsigned long dma_flags)
-{
-	if (dst_nents != src_nents)
-		return NULL;
-
-	return d40_prep_sg(chan, src_sg, dst_sg, src_nents,
-			   DMA_MEM_TO_MEM, dma_flags);
-}
-
-static struct dma_async_tx_descriptor *
 d40_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		  unsigned int sg_len, enum dma_transfer_direction direction,
 		  unsigned long dma_flags, void *context)
@@ -2528,10 +2515,7 @@ dma40_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 		dma_addr += period_len;
 	}
 
-	sg[periods].offset = 0;
-	sg_dma_len(&sg[periods]) = 0;
-	sg[periods].page_link =
-		((unsigned long)sg | 0x01) & ~0x02;
+	sg_chain(sg, periods + 1, sg);
 
 	txd = d40_prep_sg(chan, sg, sg, periods, direction,
 			  DMA_PREP_INTERRUPT);
@@ -2824,9 +2808,6 @@ static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 		dev->copy_align = DMAENGINE_ALIGN_4_BYTES;
 	}
 
-	if (dma_has_cap(DMA_SG, dev->cap_mask))
-		dev->device_prep_dma_sg = d40_prep_memcpy_sg;
-
 	if (dma_has_cap(DMA_CYCLIC, dev->cap_mask))
 		dev->device_prep_dma_cyclic = dma40_prep_dma_cyclic;
 
@@ -2868,7 +2849,6 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 
 	dma_cap_zero(base->dma_memcpy.cap_mask);
 	dma_cap_set(DMA_MEMCPY, base->dma_memcpy.cap_mask);
-	dma_cap_set(DMA_SG, base->dma_memcpy.cap_mask);
 
 	d40_ops_init(base, &base->dma_memcpy);
 
@@ -2886,7 +2866,6 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 	dma_cap_zero(base->dma_both.cap_mask);
 	dma_cap_set(DMA_SLAVE, base->dma_both.cap_mask);
 	dma_cap_set(DMA_MEMCPY, base->dma_both.cap_mask);
-	dma_cap_set(DMA_SG, base->dma_both.cap_mask);
 	dma_cap_set(DMA_CYCLIC, base->dma_slave.cap_mask);
 
 	d40_ops_init(base, &base->dma_both);

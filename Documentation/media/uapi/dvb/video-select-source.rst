@@ -50,7 +50,7 @@ Arguments
 Description
 -----------
 
-This ioctl is for DVB devices only. This ioctl was also supported by the
+This ioctl is for Digital TV devices only. This ioctl was also supported by the
 V4L2 ivtv driver, but that has been replaced by the ivtv-specific
 ``IVTV_IOC_PASSTHROUGH_MODE`` ioctl.
 

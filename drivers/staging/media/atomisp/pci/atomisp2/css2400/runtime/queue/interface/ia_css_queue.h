@@ -51,7 +51,7 @@ typedef struct ia_css_queue ia_css_queue_t;
 /*****************************************************************************
  * Queue Public APIs
  *****************************************************************************/
-/** @brief Initialize a local queue instance.
+/* @brief Initialize a local queue instance.
  *
  * @param[out] qhandle. Handle to queue instance for use with API
  * @param[in]  desc.   Descriptor with queue properties filled-in
@@ -63,7 +63,7 @@ extern int ia_css_queue_local_init(
 			ia_css_queue_t *qhandle,
 			ia_css_queue_local_t *desc);
 
-/** @brief Initialize a remote queue instance
+/* @brief Initialize a remote queue instance
  *
  * @param[out] qhandle. Handle to queue instance for use with API
  * @param[in]  desc.   Descriptor with queue properties filled-in
@@ -74,7 +74,7 @@ extern int ia_css_queue_remote_init(
 			ia_css_queue_t *qhandle,
 			ia_css_queue_remote_t *desc);
 
-/** @brief Uninitialize a queue instance
+/* @brief Uninitialize a queue instance
  *
  * @param[in]  qhandle. Handle to queue instance
  * @return     0 - Successful uninit.
@@ -83,7 +83,7 @@ extern int ia_css_queue_remote_init(
 extern int ia_css_queue_uninit(
 			ia_css_queue_t *qhandle);
 
-/** @brief Enqueue an item in the queue instance
+/* @brief Enqueue an item in the queue instance
  *
  * @param[in]  qhandle. Handle to queue instance
  * @param[in]  item.    Object to be enqueued.
@@ -96,7 +96,7 @@ extern int ia_css_queue_enqueue(
 			ia_css_queue_t *qhandle,
 			uint32_t item);
 
-/** @brief Dequeue an item from the queue instance
+/* @brief Dequeue an item from the queue instance
  *
  * @param[in]  qhandle. Handle to queue instance
  * @param[out] item.    Object to be dequeued into this item.
@@ -110,7 +110,7 @@ extern int ia_css_queue_dequeue(
 			ia_css_queue_t *qhandle,
 			uint32_t *item);
 
-/** @brief Check if the queue is empty
+/* @brief Check if the queue is empty
  *
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  is_empty  True if empty, False if not.
@@ -123,7 +123,7 @@ extern int ia_css_queue_is_empty(
 			ia_css_queue_t *qhandle,
 			bool *is_empty);
 
-/** @brief Check if the queue is full
+/* @brief Check if the queue is full
  *
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  is_full   True if Full, False if not.
@@ -136,7 +136,7 @@ extern int ia_css_queue_is_full(
 			ia_css_queue_t *qhandle,
 			bool *is_full);
 
-/** @brief Get used space in the queue
+/* @brief Get used space in the queue
  *
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  size      Number of available elements in the queue
@@ -148,7 +148,7 @@ extern int ia_css_queue_get_used_space(
 			ia_css_queue_t *qhandle,
 			uint32_t *size);
 
-/** @brief Get free space in the queue
+/* @brief Get free space in the queue
  *
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  size      Number of free elements in the queue
@@ -160,7 +160,7 @@ extern int ia_css_queue_get_free_space(
 			ia_css_queue_t *qhandle,
 			uint32_t *size);
 
-/** @brief Peek at an element in the queue
+/* @brief Peek at an element in the queue
  *
  * @param[in]  qhandle.  Handle to queue instance
  * @param[in]  offset   Offset of element to peek,
@@ -175,7 +175,7 @@ extern int ia_css_queue_peek(
 		uint32_t offset,
 		uint32_t *element);
 
-/** @brief Get the usable size for the queue
+/* @brief Get the usable size for the queue
  *
  * @param[in]  qhandle. Handle to queue instance
  * @param[out] size     Size value to be returned here.

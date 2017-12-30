@@ -415,7 +415,7 @@ sil164_encoder_init(struct i2c_client *client,
 	return 0;
 }
 
-static struct i2c_device_id sil164_ids[] = {
+static const struct i2c_device_id sil164_ids[] = {
 	{ "sil164", 0 },
 	{ }
 };

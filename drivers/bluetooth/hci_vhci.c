@@ -146,8 +146,8 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 
 	hci_skb_pkt_type(skb) = HCI_VENDOR_PKT;
 
-	*skb_put(skb, 1) = 0xff;
-	*skb_put(skb, 1) = opcode;
+	skb_put_u8(skb, 0xff);
+	skb_put_u8(skb, opcode);
 	put_unaligned_le16(hdev->id, skb_put(skb, 2));
 	skb_queue_tail(&data->readq, skb);
 

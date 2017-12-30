@@ -82,6 +82,7 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 		 * PIIX4 models.
 		 */
 		errata.piix4.throttle = 1;
+		/* fall through*/
 
 	case 2:		/* PIIX4E */
 	case 3:		/* PIIX4M */
@@ -670,7 +671,7 @@ err:
 
 }
 
-void __init acpi_processor_check_duplicates(void)
+static void __init acpi_processor_check_duplicates(void)
 {
 	/* check the correctness for all processors in ACPI namespace */
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,

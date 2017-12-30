@@ -175,7 +175,7 @@ static int ocfs2_lock_allocators_move_extents(struct inode *inode,
 	unsigned int max_recs_needed = 2 * extents_to_split + clusters_to_move;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	num_free_extents = ocfs2_num_free_extents(osb, et);
+	num_free_extents = ocfs2_num_free_extents(et);
 	if (num_free_extents < 0) {
 		ret = num_free_extents;
 		mlog_errno(ret);

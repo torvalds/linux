@@ -47,5 +47,4 @@ mcbsp0: mcbsp@1d10000 {
 	dmas = <&edma0 3 1
 		&edma0 2 1>;
 	dma-names = "tx", "rx";
-	status = "okay";
 };

@@ -83,6 +83,7 @@ struct frad_local
 
    /* fields that are used by the Sangoma SDLA cards */
    struct timer_list timer;
+   struct net_device *dev;
    int               type;		/* adapter type */
    int               state;		/* state of the S502/8 control latch */
    int               buffer;		/* current buffer for S508 firmware */

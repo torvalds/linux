@@ -3,9 +3,9 @@
  * Authors: Salvatore Benedetto <salvatore.benedetto@intel.com>
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
+ * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
+ * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -28,7 +28,7 @@ static inline const u8 *ecdh_unpack_data(void *dst, const void *src, size_t sz)
 	return src + sz;
 }
 
-int crypto_ecdh_key_len(const struct ecdh *params)
+unsigned int crypto_ecdh_key_len(const struct ecdh *params)
 {
 	return ECDH_KPP_SECRET_MIN_SIZE + params->key_size;
 }

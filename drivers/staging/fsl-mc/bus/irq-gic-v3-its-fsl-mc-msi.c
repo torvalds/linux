@@ -11,12 +11,10 @@
 
 #include <linux/of_device.h>
 #include <linux/of_address.h>
-#include <linux/irqchip/arm-gic-v3.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include "../include/mc-bus.h"
 #include "fsl-mc-private.h"
 
 static struct irq_chip its_msi_irq_chip = {
@@ -47,7 +45,9 @@ static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 	 * NOTE: This device id corresponds to the IOMMU stream ID
 	 * associated with the DPRC object (ICID).
 	 */
+#ifdef GENERIC_MSI_DOMAIN_OPS
 	info->scratchpad[0].ul = mc_bus_dev->icid;
+#endif
 	msi_info = msi_get_domain_info(msi_domain->parent);
 	return msi_info->ops->msi_prepare(msi_domain->parent, dev, nvec, info);
 }
@@ -80,8 +80,7 @@ int __init its_fsl_mc_msi_init(void)
 
 		parent = irq_find_matching_host(np, DOMAIN_BUS_NEXUS);
 		if (!parent || !msi_get_domain_info(parent)) {
-			pr_err("%s: unable to locate ITS domain\n",
-			       np->full_name);
+			pr_err("%pOF: unable to locate ITS domain\n", np);
 			continue;
 		}
 
@@ -90,15 +89,14 @@ int __init its_fsl_mc_msi_init(void)
 						 &its_fsl_mc_msi_domain_info,
 						 parent);
 		if (!mc_msi_domain) {
-			pr_err("%s: unable to create fsl-mc domain\n",
-			       np->full_name);
+			pr_err("%pOF: unable to create fsl-mc domain\n", np);
 			continue;
 		}
 
 		WARN_ON(mc_msi_domain->host_data !=
 			&its_fsl_mc_msi_domain_info);
 
-		pr_info("fsl-mc MSI: %s domain created\n", np->full_name);
+		pr_info("fsl-mc MSI: %pOF domain created\n", np);
 	}
 
 	return 0;

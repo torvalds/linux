@@ -123,10 +123,10 @@ int tulip_debug = TULIP_DEBUG;
 int tulip_debug = 1;
 #endif
 
-static void tulip_timer(unsigned long data)
+static void tulip_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct tulip_private *tp = netdev_priv(dev);
+	struct tulip_private *tp = from_timer(tp, t, timer);
+	struct net_device *dev = tp->dev;
 
 	if (netif_running(dev))
 		schedule_work(&tp->media_work);
@@ -138,7 +138,7 @@ static void tulip_timer(unsigned long data)
  * It is indexed via the values in 'enum chips'
  */
 
-struct tulip_chip_table tulip_tbl[] = {
+const struct tulip_chip_table tulip_tbl[] = {
   { }, /* placeholder for array, slot unused currently */
   { }, /* placeholder for array, slot unused currently */
 
@@ -505,7 +505,7 @@ media_picked:
 	tp->timer.expires = RUN_AT(next_tick);
 	add_timer(&tp->timer);
 #ifdef CONFIG_TULIP_NAPI
-	setup_timer(&tp->oom_timer, oom_timer, (unsigned long)dev);
+	timer_setup(&tp->oom_timer, oom_timer, 0);
 #endif
 }
 
@@ -780,8 +780,7 @@ static void tulip_down (struct net_device *dev)
 
 	spin_unlock_irqrestore (&tp->lock, flags);
 
-	setup_timer(&tp->timer, tulip_tbl[tp->chip_id].media_timer,
-		    (unsigned long)dev);
+	timer_setup(&tp->timer, tulip_tbl[tp->chip_id].media_timer, 0);
 
 	dev->if_port = tp->saved_if_port;
 
@@ -1303,7 +1302,6 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		0x00, 'L', 'i', 'n', 'u', 'x'
 	};
 	static int last_irq;
-	static int multiport_cnt;	/* For four-port boards w/one EEPROM */
 	int i, irq;
 	unsigned short sum;
 	unsigned char *ee_data;
@@ -1471,8 +1469,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->csr0 = csr0;
 	spin_lock_init(&tp->lock);
 	spin_lock_init(&tp->mii_lock);
-	setup_timer(&tp->timer, tulip_tbl[tp->chip_id].media_timer,
-		    (unsigned long)dev);
+	timer_setup(&tp->timer, tulip_tbl[tp->chip_id].media_timer, 0);
 
 	INIT_WORK(&tp->media_work, tulip_tbl[tp->chip_id].media_task);
 
@@ -1557,7 +1554,6 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		} else if (ee_data[0] == 0xff  &&  ee_data[1] == 0xff &&
 				   ee_data[2] == 0) {
 			sa_offset = 2;		/* Grrr, damn Matrox boards. */
-			multiport_cnt = 4;
 		}
 #ifdef CONFIG_MIPS_COBALT
                if ((pdev->bus->number == 0) &&

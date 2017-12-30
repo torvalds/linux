@@ -679,8 +679,7 @@ static void __init berlin2_clock_setup(struct device_node *np)
 		if (!IS_ERR(hws[n]))
 			continue;
 
-		pr_err("%s: Unable to register leaf clock %d\n",
-		       np->full_name, n);
+		pr_err("%pOF: Unable to register leaf clock %d\n", np, n);
 		goto bg2_fail;
 	}
 

@@ -2,9 +2,10 @@ config MICROBLAZE
 	def_bool y
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
-	select CLKSRC_OF
+	select TIMER_OF
 	select CLONE_BACKWARDS3
 	select COMMON_CLK
 	select GENERIC_ATOMIC64
@@ -34,6 +35,22 @@ config MICROBLAZE
 	select TRACING_SUPPORT
 	select VIRT_TO_BUS
 	select CPU_NO_EFFICIENT_FFS
+
+# Endianness selection
+choice
+	prompt "Endianness selection"
+	default CPU_LITTLE_ENDIAN
+	help
+	  microblaze architectures can be configured for either little or
+	  big endian formats. Be sure to select the appropriate mode.
+
+config CPU_BIG_ENDIAN
+	bool "Big endian"
+
+config CPU_LITTLE_ENDIAN
+	bool "Little endian"
+
+endchoice
 
 config SWAP
 	def_bool n

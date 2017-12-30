@@ -11,18 +11,6 @@
 
 #include <linux/auto_fs4.h>
 #include <linux/auto_dev-ioctl.h>
-#include <linux/mutex.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
-#include <linux/completion.h>
-
-/* This is the range of ioctl() numbers we claim as ours */
-#define AUTOFS_IOC_FIRST     AUTOFS_IOC_READY
-#define AUTOFS_IOC_COUNT     32
-
-#define AUTOFS_DEV_IOCTL_IOC_FIRST	(AUTOFS_DEV_IOCTL_VERSION)
-#define AUTOFS_DEV_IOCTL_IOC_COUNT \
-	(AUTOFS_DEV_IOCTL_ISMOUNTPOINT_CMD - AUTOFS_DEV_IOCTL_VERSION_CMD)
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -32,8 +20,20 @@
 #include <linux/sched.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <asm/current.h>
 #include <linux/uaccess.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
+#include <linux/list.h>
+#include <linux/completion.h>
+#include <asm/current.h>
+
+/* This is the range of ioctl() numbers we claim as ours */
+#define AUTOFS_IOC_FIRST     AUTOFS_IOC_READY
+#define AUTOFS_IOC_COUNT     32
+
+#define AUTOFS_DEV_IOCTL_IOC_FIRST	(AUTOFS_DEV_IOCTL_VERSION)
+#define AUTOFS_DEV_IOCTL_IOC_COUNT \
+	(AUTOFS_DEV_IOCTL_ISMOUNTPOINT_CMD - AUTOFS_DEV_IOCTL_VERSION_CMD)
 
 #ifdef pr_fmt
 #undef pr_fmt

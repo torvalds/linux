@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 tm6000-y := tm6000-cards.o \
 		   tm6000-core.o  \
 		   tm6000-i2c.o   \

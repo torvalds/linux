@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config ARCH_VT8500
 	bool
 	select GPIOLIB

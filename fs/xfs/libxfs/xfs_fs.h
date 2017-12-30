@@ -302,10 +302,10 @@ typedef struct xfs_bstat {
  * and using two 16bit values to hold new 32bit projid was choosen
  * to retain compatibility with "old" filesystems).
  */
-static inline __uint32_t
+static inline uint32_t
 bstat_get_projid(struct xfs_bstat *bs)
 {
-	return (__uint32_t)bs->bs_projid_hi << 16 | bs->bs_projid_lo;
+	return (uint32_t)bs->bs_projid_hi << 16 | bs->bs_projid_lo;
 }
 
 /*
@@ -446,19 +446,15 @@ typedef struct xfs_handle {
 } xfs_handle_t;
 #define ha_fsid ha_u._ha_fsid
 
-#define XFS_HSIZE(handle)	(((char *) &(handle).ha_fid.fid_pad	 \
-				 - (char *) &(handle))			  \
-				 + (handle).ha_fid.fid_len)
-
 /*
  * Structure passed to XFS_IOC_SWAPEXT
  */
 typedef struct xfs_swapext
 {
-	__int64_t	sx_version;	/* version */
+	int64_t		sx_version;	/* version */
 #define XFS_SX_VERSION		0
-	__int64_t	sx_fdtarget;	/* fd of target file */
-	__int64_t	sx_fdtmp;	/* fd of tmp file */
+	int64_t		sx_fdtarget;	/* fd of target file */
+	int64_t		sx_fdtmp;	/* fd of tmp file */
 	xfs_off_t	sx_offset;	/* offset into file */
 	xfs_off_t	sx_length;	/* leng from offset */
 	char		sx_pad[16];	/* pad space, unused */
@@ -471,6 +467,82 @@ typedef struct xfs_swapext
 #define XFS_FSOP_GOING_FLAGS_DEFAULT		0x0	/* going down */
 #define XFS_FSOP_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but not data */
 #define XFS_FSOP_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
+
+/* metadata scrubbing */
+struct xfs_scrub_metadata {
+	__u32 sm_type;		/* What to check? */
+	__u32 sm_flags;		/* flags; see below. */
+	__u64 sm_ino;		/* inode number. */
+	__u32 sm_gen;		/* inode generation. */
+	__u32 sm_agno;		/* ag number. */
+	__u64 sm_reserved[5];	/* pad to 64 bytes */
+};
+
+/*
+ * Metadata types and flags for scrub operation.
+ */
+
+/* Scrub subcommands. */
+#define XFS_SCRUB_TYPE_PROBE	0	/* presence test ioctl */
+#define XFS_SCRUB_TYPE_SB	1	/* superblock */
+#define XFS_SCRUB_TYPE_AGF	2	/* AG free header */
+#define XFS_SCRUB_TYPE_AGFL	3	/* AG free list */
+#define XFS_SCRUB_TYPE_AGI	4	/* AG inode header */
+#define XFS_SCRUB_TYPE_BNOBT	5	/* freesp by block btree */
+#define XFS_SCRUB_TYPE_CNTBT	6	/* freesp by length btree */
+#define XFS_SCRUB_TYPE_INOBT	7	/* inode btree */
+#define XFS_SCRUB_TYPE_FINOBT	8	/* free inode btree */
+#define XFS_SCRUB_TYPE_RMAPBT	9	/* reverse mapping btree */
+#define XFS_SCRUB_TYPE_REFCNTBT	10	/* reference count btree */
+#define XFS_SCRUB_TYPE_INODE	11	/* inode record */
+#define XFS_SCRUB_TYPE_BMBTD	12	/* data fork block mapping */
+#define XFS_SCRUB_TYPE_BMBTA	13	/* attr fork block mapping */
+#define XFS_SCRUB_TYPE_BMBTC	14	/* CoW fork block mapping */
+#define XFS_SCRUB_TYPE_DIR	15	/* directory */
+#define XFS_SCRUB_TYPE_XATTR	16	/* extended attribute */
+#define XFS_SCRUB_TYPE_SYMLINK	17	/* symbolic link */
+#define XFS_SCRUB_TYPE_PARENT	18	/* parent pointers */
+#define XFS_SCRUB_TYPE_RTBITMAP	19	/* realtime bitmap */
+#define XFS_SCRUB_TYPE_RTSUM	20	/* realtime summary */
+#define XFS_SCRUB_TYPE_UQUOTA	21	/* user quotas */
+#define XFS_SCRUB_TYPE_GQUOTA	22	/* group quotas */
+#define XFS_SCRUB_TYPE_PQUOTA	23	/* project quotas */
+
+/* Number of scrub subcommands. */
+#define XFS_SCRUB_TYPE_NR	24
+
+/* i: Repair this metadata. */
+#define XFS_SCRUB_IFLAG_REPAIR		(1 << 0)
+
+/* o: Metadata object needs repair. */
+#define XFS_SCRUB_OFLAG_CORRUPT		(1 << 1)
+
+/*
+ * o: Metadata object could be optimized.  It's not corrupt, but
+ *    we could improve on it somehow.
+ */
+#define XFS_SCRUB_OFLAG_PREEN		(1 << 2)
+
+/* o: Cross-referencing failed. */
+#define XFS_SCRUB_OFLAG_XFAIL		(1 << 3)
+
+/* o: Metadata object disagrees with cross-referenced metadata. */
+#define XFS_SCRUB_OFLAG_XCORRUPT	(1 << 4)
+
+/* o: Scan was not complete. */
+#define XFS_SCRUB_OFLAG_INCOMPLETE	(1 << 5)
+
+/* o: Metadata object looked funny but isn't corrupt. */
+#define XFS_SCRUB_OFLAG_WARNING		(1 << 6)
+
+#define XFS_SCRUB_FLAGS_IN	(XFS_SCRUB_IFLAG_REPAIR)
+#define XFS_SCRUB_FLAGS_OUT	(XFS_SCRUB_OFLAG_CORRUPT | \
+				 XFS_SCRUB_OFLAG_PREEN | \
+				 XFS_SCRUB_OFLAG_XFAIL | \
+				 XFS_SCRUB_OFLAG_XCORRUPT | \
+				 XFS_SCRUB_OFLAG_INCOMPLETE | \
+				 XFS_SCRUB_OFLAG_WARNING)
+#define XFS_SCRUB_FLAGS_ALL	(XFS_SCRUB_FLAGS_IN | XFS_SCRUB_FLAGS_OUT)
 
 /*
  * ioctl limits
@@ -515,6 +587,7 @@ typedef struct xfs_swapext
 #define XFS_IOC_ZERO_RANGE	_IOW ('X', 57, struct xfs_flock64)
 #define XFS_IOC_FREE_EOFBLOCKS	_IOR ('X', 58, struct xfs_fs_eofblocks)
 /*	XFS_IOC_GETFSMAP ------ hoisted 59         */
+#define XFS_IOC_SCRUB_METADATA	_IOWR('X', 60, struct xfs_scrub_metadata)
 
 /*
  * ioctl commands that replace IRIX syssgi()'s
@@ -546,7 +619,7 @@ typedef struct xfs_swapext
 #define XFS_IOC_ATTRLIST_BY_HANDLE   _IOW ('X', 122, struct xfs_fsop_attrlist_handlereq)
 #define XFS_IOC_ATTRMULTI_BY_HANDLE  _IOW ('X', 123, struct xfs_fsop_attrmulti_handlereq)
 #define XFS_IOC_FSGEOMETRY	     _IOR ('X', 124, struct xfs_fsop_geom)
-#define XFS_IOC_GOINGDOWN	     _IOR ('X', 125, __uint32_t)
+#define XFS_IOC_GOINGDOWN	     _IOR ('X', 125, uint32_t)
 /*	XFS_IOC_GETFSUUID ---------- deprecated 140	 */
 
 

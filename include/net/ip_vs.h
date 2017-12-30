@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* IP Virtual Server
  * data structure and functionality definitions
  */
@@ -983,12 +984,12 @@ static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
 
 static inline int sysctl_sync_period(struct netns_ipvs *ipvs)
 {
-	return ACCESS_ONCE(ipvs->sysctl_sync_threshold[1]);
+	return READ_ONCE(ipvs->sysctl_sync_threshold[1]);
 }
 
 static inline unsigned int sysctl_sync_refresh_period(struct netns_ipvs *ipvs)
 {
-	return ACCESS_ONCE(ipvs->sysctl_sync_refresh_period);
+	return READ_ONCE(ipvs->sysctl_sync_refresh_period);
 }
 
 static inline int sysctl_sync_retries(struct netns_ipvs *ipvs)
@@ -1013,7 +1014,7 @@ static inline int sysctl_sloppy_sctp(struct netns_ipvs *ipvs)
 
 static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
 {
-	return ACCESS_ONCE(ipvs->sysctl_sync_ports);
+	return READ_ONCE(ipvs->sysctl_sync_ports);
 }
 
 static inline int sysctl_sync_persist_mode(struct netns_ipvs *ipvs)

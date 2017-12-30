@@ -1,20 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_gadget_ep0.c - MediaTek USB3 DRD peripheral driver ep0 handling
  *
  * Copyright (c) 2016 MediaTek Inc.
  *
  * Author:  Chunfeng.Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
+
+#include <linux/usb/composite.h>
 
 #include "mtu3.h"
 
@@ -150,6 +143,7 @@ static void ep0_stall_set(struct mtu3_ep *mep0, bool set, u32 pktrdy)
 		csr = (csr & ~EP0_SENDSTALL) | EP0_SENTSTALL;
 	mtu3_writel(mtu->mac_base, U3D_EP0CSR, csr);
 
+	mtu->delayed_status = false;
 	mtu->ep0_state = MU3D_EP0_STATE_SETUP;
 
 	dev_dbg(mtu->dev, "ep0: %s STALL, ep0_state: %s\n",
@@ -209,8 +203,8 @@ ep0_get_status(struct mtu3 *mtu, const struct usb_ctrlrequest *setup)
 	case USB_RECIP_DEVICE:
 		result[0] = mtu->is_self_powered << USB_DEVICE_SELF_POWERED;
 		result[0] |= mtu->may_wakeup << USB_DEVICE_REMOTE_WAKEUP;
-		/* superspeed only */
-		if (mtu->g.speed == USB_SPEED_SUPER) {
+
+		if (mtu->g.speed >= USB_SPEED_SUPER) {
 			result[0] |= mtu->u1_enable << USB_DEV_STAT_U1_ENABLED;
 			result[0] |= mtu->u2_enable << USB_DEV_STAT_U2_ENABLED;
 		}
@@ -326,8 +320,8 @@ static int ep0_handle_feature_dev(struct mtu3 *mtu,
 		handled = handle_test_mode(mtu, setup);
 		break;
 	case USB_DEVICE_U1_ENABLE:
-		if (mtu->g.speed != USB_SPEED_SUPER ||
-			mtu->g.state != USB_STATE_CONFIGURED)
+		if (mtu->g.speed < USB_SPEED_SUPER ||
+		    mtu->g.state != USB_STATE_CONFIGURED)
 			break;
 
 		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
@@ -341,8 +335,8 @@ static int ep0_handle_feature_dev(struct mtu3 *mtu,
 		handled = 1;
 		break;
 	case USB_DEVICE_U2_ENABLE:
-		if (mtu->g.speed != USB_SPEED_SUPER ||
-			mtu->g.state != USB_STATE_CONFIGURED)
+		if (mtu->g.speed < USB_SPEED_SUPER ||
+		    mtu->g.state != USB_STATE_CONFIGURED)
 			break;
 
 		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
@@ -381,8 +375,8 @@ static int ep0_handle_feature(struct mtu3 *mtu,
 		break;
 	case USB_RECIP_INTERFACE:
 		/* superspeed only */
-		if ((value == USB_INTRF_FUNC_SUSPEND)
-			&& (mtu->g.speed == USB_SPEED_SUPER)) {
+		if (value == USB_INTRF_FUNC_SUSPEND &&
+		    mtu->g.speed >= USB_SPEED_SUPER) {
 			/*
 			 * forward the request because function drivers
 			 * should handle it
@@ -656,6 +650,9 @@ stall:
 finish:
 	if (mtu->test_mode) {
 		;	/* nothing to do */
+	} else if (handled == USB_GADGET_DELAYED_STATUS) {
+		/* handle the delay STATUS phase till receive ep_queue on ep0 */
+		mtu->delayed_status = true;
 	} else if (le16_to_cpu(setup.wLength) == 0) { /* no data stage */
 
 		mtu3_writel(mbase, U3D_EP0CSR,
@@ -775,9 +772,6 @@ static int ep0_queue(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	dev_dbg(mtu->dev, "%s %s (ep0_state: %s), len#%d\n", __func__,
 		mep->name, decode_ep0_state(mtu), mreq->request.length);
 
-	if (!list_empty(&mep->req_list))
-		return -EBUSY;
-
 	switch (mtu->ep0_state) {
 	case MU3D_EP0_STATE_SETUP:
 	case MU3D_EP0_STATE_RX:	/* control-OUT data */
@@ -788,6 +782,20 @@ static int ep0_queue(struct mtu3_ep *mep, struct mtu3_request *mreq)
 			decode_ep0_state(mtu));
 		return -EINVAL;
 	}
+
+	if (mtu->delayed_status) {
+		u32 csr;
+
+		mtu->delayed_status = false;
+		csr = mtu3_readl(mtu->mac_base, U3D_EP0CSR) & EP0_W1C_BITS;
+		csr |= EP0_SETUPPKTRDY | EP0_DATAEND;
+		mtu3_writel(mtu->mac_base, U3D_EP0CSR, csr);
+		/* needn't giveback the request for handling delay STATUS */
+		return 0;
+	}
+
+	if (!list_empty(&mep->req_list))
+		return -EBUSY;
 
 	list_add_tail(&mreq->list, &mep->req_list);
 

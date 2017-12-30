@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "sched.h"
 
 #include <linux/proc_fs.h>
@@ -71,7 +72,6 @@ static inline struct autogroup *autogroup_create(void)
 		goto out_fail;
 
 	tg = sched_create_group(&root_task_group);
-
 	if (IS_ERR(tg))
 		goto out_free;
 
@@ -101,7 +101,7 @@ out_free:
 out_fail:
 	if (printk_ratelimit()) {
 		printk(KERN_WARNING "autogroup_create: %s failure.\n",
-			ag ? "sched_create_group()" : "kmalloc()");
+			ag ? "sched_create_group()" : "kzalloc()");
 	}
 
 	return autogroup_kref_get(&autogroup_default);

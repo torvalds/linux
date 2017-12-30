@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,6 +104,8 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 	if (!trans->dev_cmd_pool)
 		return NULL;
 
+	WARN_ON(!ops->wait_txq_empty && !ops->wait_tx_queues_empty);
+
 	return trans;
 }
 
@@ -115,7 +119,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	int ret;
 
 	if (unlikely(!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-		     test_bit(STATUS_RFKILL, &trans->status)))
+		     test_bit(STATUS_RFKILL_OPMODE, &trans->status)))
 		return -ERFKILL;
 
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
@@ -140,6 +144,9 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_release(&trans->sync_cmd_lockdep_map);
+
+	if (WARN_ON((cmd->flags & CMD_WANT_SKB) && !ret && !cmd->resp_pkt))
+		return -EIO;
 
 	return ret;
 }
@@ -200,3 +207,17 @@ int iwl_cmd_groups_verify_sorted(const struct iwl_trans_config *trans)
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_cmd_groups_verify_sorted);
+
+void iwl_trans_ref(struct iwl_trans *trans)
+{
+	if (trans->ops->ref)
+		trans->ops->ref(trans);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_ref);
+
+void iwl_trans_unref(struct iwl_trans *trans)
+{
+	if (trans->ops->unref)
+		trans->ops->unref(trans);
+}
+IWL_EXPORT_SYMBOL(iwl_trans_unref);

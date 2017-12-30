@@ -392,6 +392,9 @@ config PPC_EARLY_DEBUG_EHV_BC_HANDLE
 config GOLDFISH_TTY
 	tristate "Goldfish TTY Driver"
 	depends on GOLDFISH
+	select SERIAL_CORE
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Console and system TTY driver for the Goldfish virtual platform.
 
@@ -455,4 +458,9 @@ config MIPS_EJTAG_FDC_KGDB_CHAN
 	help
 	  FDC channel number to use for KGDB.
 
+config VCC
+	tristate "Sun Virtual Console Concentrator"
+	depends on SUN_LDOMS
+	help
+	  Support for Sun logical domain consoles.
 endif # TTY

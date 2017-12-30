@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BUG_H
 #define _ASM_POWERPC_BUG_H
 #ifdef __KERNEL__
@@ -18,7 +19,7 @@
 #include <asm/asm-offsets.h>
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 .macro EMIT_BUG_ENTRY addr,file,line,flags
-	 .section __bug_table,"a"
+	 .section __bug_table,"aw"
 5001:	 PPC_LONG \addr, 5002f
 	 .short \line, \flags
 	 .org 5001b+BUG_ENTRY_SIZE
@@ -29,7 +30,7 @@
 .endm
 #else
 .macro EMIT_BUG_ENTRY addr,file,line,flags
-	 .section __bug_table,"a"
+	 .section __bug_table,"aw"
 5001:	 PPC_LONG \addr
 	 .short \flags
 	 .org 5001b+BUG_ENTRY_SIZE
@@ -42,14 +43,14 @@
    sizeof(struct bug_entry), respectively */
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #define _EMIT_BUG_ENTRY				\
-	".section __bug_table,\"a\"\n"		\
+	".section __bug_table,\"aw\"\n"		\
 	"2:\t" PPC_LONG "1b, %0\n"		\
 	"\t.short %1, %2\n"			\
 	".org 2b+%3\n"				\
 	".previous\n"
 #else
 #define _EMIT_BUG_ENTRY				\
-	".section __bug_table,\"a\"\n"		\
+	".section __bug_table,\"aw\"\n"		\
 	"2:\t" PPC_LONG "1b\n"			\
 	"\t.short %2\n"				\
 	".org 2b+%3\n"				\
@@ -133,6 +134,7 @@ extern int do_page_fault(struct pt_regs *, unsigned long, unsigned long);
 extern void bad_page_fault(struct pt_regs *, unsigned long, int);
 extern void _exception(int, struct pt_regs *, int, unsigned long);
 extern void die(const char *, struct pt_regs *, long);
+extern bool die_will_crash(void);
 
 #endif /* !__ASSEMBLY__ */
 

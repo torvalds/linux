@@ -300,15 +300,15 @@ out:
 int __init phonet_netlink_register(void)
 {
 	int err = __rtnl_register(PF_PHONET, RTM_NEWADDR, addr_doit,
-				  NULL, NULL);
+				  NULL, 0);
 	if (err)
 		return err;
 
 	/* Further __rtnl_register() cannot fail */
-	__rtnl_register(PF_PHONET, RTM_DELADDR, addr_doit, NULL, NULL);
-	__rtnl_register(PF_PHONET, RTM_GETADDR, NULL, getaddr_dumpit, NULL);
-	__rtnl_register(PF_PHONET, RTM_NEWROUTE, route_doit, NULL, NULL);
-	__rtnl_register(PF_PHONET, RTM_DELROUTE, route_doit, NULL, NULL);
-	__rtnl_register(PF_PHONET, RTM_GETROUTE, NULL, route_dumpit, NULL);
+	__rtnl_register(PF_PHONET, RTM_DELADDR, addr_doit, NULL, 0);
+	__rtnl_register(PF_PHONET, RTM_GETADDR, NULL, getaddr_dumpit, 0);
+	__rtnl_register(PF_PHONET, RTM_NEWROUTE, route_doit, NULL, 0);
+	__rtnl_register(PF_PHONET, RTM_DELROUTE, route_doit, NULL, 0);
+	__rtnl_register(PF_PHONET, RTM_GETROUTE, NULL, route_dumpit, 0);
 	return 0;
 }

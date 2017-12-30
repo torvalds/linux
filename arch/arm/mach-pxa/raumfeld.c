@@ -377,7 +377,7 @@ static struct gpiod_lookup_table raumfeld_rotary_gpios_table = {
 	},
 };
 
-static struct property_entry raumfeld_rotary_properties[] = {
+static const struct property_entry raumfeld_rotary_properties[] __initconst = {
 	PROPERTY_ENTRY_INTEGER("rotary-encoder,steps-per-period", u32, 24),
 	PROPERTY_ENTRY_INTEGER("linux,axis",			  u32, REL_X),
 	PROPERTY_ENTRY_INTEGER("rotary-encoder,relative_axis",	  u32, 1),

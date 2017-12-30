@@ -348,7 +348,7 @@ static irqreturn_t aaci_irq(int irq, void *devid)
 /*
  * ALSA support.
  */
-static struct snd_pcm_hardware aaci_hw_info = {
+static const struct snd_pcm_hardware aaci_hw_info = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_INTERLEAVED |
@@ -635,7 +635,7 @@ static int aaci_pcm_playback_trigger(struct snd_pcm_substream *substream, int cm
 	return ret;
 }
 
-static struct snd_pcm_ops aaci_playback_ops = {
+static const struct snd_pcm_ops aaci_playback_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -738,7 +738,7 @@ static int aaci_pcm_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops aaci_capture_ops = {
+static const struct snd_pcm_ops aaci_capture_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -786,7 +786,7 @@ static SIMPLE_DEV_PM_OPS(aaci_dev_pm_ops, aaci_suspend, aaci_resume);
 #endif
 
 
-static struct ac97_pcm ac97_defs[] = {
+static const struct ac97_pcm ac97_defs[] = {
 	[0] = {	/* Front PCM */
 		.exclusive = 1,
 		.r = {

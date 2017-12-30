@@ -75,7 +75,7 @@ static unsigned long ccu_nkm_recalc_rate(struct clk_hw *hw,
 					unsigned long parent_rate)
 {
 	struct ccu_nkm *nkm = hw_to_ccu_nkm(hw);
-	unsigned long n, m, k;
+	unsigned long n, m, k, rate;
 	u32 reg;
 
 	reg = readl(nkm->common.base + nkm->common.reg);
@@ -98,11 +98,17 @@ static unsigned long ccu_nkm_recalc_rate(struct clk_hw *hw,
 	if (!m)
 		m++;
 
-	return parent_rate * n  * k / m;
+	rate = parent_rate * n  * k / m;
+
+	if (nkm->common.features & CCU_FEATURE_FIXED_POSTDIV)
+		rate /= nkm->fixed_post_div;
+
+	return rate;
 }
 
 static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
-					unsigned long parent_rate,
+					struct clk_hw *hw,
+					unsigned long *parent_rate,
 					unsigned long rate,
 					void *data)
 {
@@ -116,9 +122,17 @@ static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
 	_nkm.min_m = 1;
 	_nkm.max_m = nkm->m.max ?: 1 << nkm->m.width;
 
-	ccu_nkm_find_best(parent_rate, rate, &_nkm);
+	if (nkm->common.features & CCU_FEATURE_FIXED_POSTDIV)
+		rate *= nkm->fixed_post_div;
 
-	return parent_rate * _nkm.n * _nkm.k / _nkm.m;
+	ccu_nkm_find_best(*parent_rate, rate, &_nkm);
+
+	rate = *parent_rate * _nkm.n * _nkm.k / _nkm.m;
+
+	if (nkm->common.features & CCU_FEATURE_FIXED_POSTDIV)
+		rate /= nkm->fixed_post_div;
+
+	return rate;
 }
 
 static int ccu_nkm_determine_rate(struct clk_hw *hw,
@@ -137,6 +151,9 @@ static int ccu_nkm_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct _ccu_nkm _nkm;
 	unsigned long flags;
 	u32 reg;
+
+	if (nkm->common.features & CCU_FEATURE_FIXED_POSTDIV)
+		rate *= nkm->fixed_post_div;
 
 	_nkm.min_n = nkm->n.min ?: 1;
 	_nkm.max_n = nkm->n.max ?: 1 << nkm->n.width;

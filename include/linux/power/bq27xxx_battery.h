@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_BQ27X00_BATTERY_H__
 #define __LINUX_BQ27X00_BATTERY_H__
 
@@ -6,6 +7,7 @@ enum bq27xxx_chip {
 	BQ27010, /* bq27010, bq27210 */
 	BQ2750X, /* bq27500 deprecated alias */
 	BQ2751X, /* bq27510, bq27520 deprecated alias */
+	BQ2752X,
 	BQ27500, /* bq27500/1 */
 	BQ27510G1, /* bq27510G1 */
 	BQ27510G2, /* bq27510G2 */
@@ -15,31 +17,24 @@ enum bq27xxx_chip {
 	BQ27520G3, /* bq27520G3 */
 	BQ27520G4, /* bq27520G4 */
 	BQ27530, /* bq27530, bq27531 */
+	BQ27531,
 	BQ27541, /* bq27541, bq27542, bq27546, bq27742 */
+	BQ27542,
+	BQ27546,
+	BQ27742,
 	BQ27545, /* bq27545 */
 	BQ27421, /* bq27421, bq27425, bq27441, bq27621 */
-};
-
-/**
- * struct bq27xxx_plaform_data - Platform data for bq27xxx devices
- * @name: Name of the battery.
- * @chip: Chip class number of this device.
- * @read: HDQ read callback.
- *	This function should provide access to the HDQ bus the battery is
- *	connected to.
- *	The first parameter is a pointer to the battery device, the second the
- *	register to be read. The return value should either be the content of
- *	the passed register or an error value.
- */
-struct bq27xxx_platform_data {
-	const char *name;
-	enum bq27xxx_chip chip;
-	int (*read)(struct device *dev, unsigned int);
+	BQ27425,
+	BQ27441,
+	BQ27621,
 };
 
 struct bq27xxx_device_info;
 struct bq27xxx_access_methods {
 	int (*read)(struct bq27xxx_device_info *di, u8 reg, bool single);
+	int (*write)(struct bq27xxx_device_info *di, u8 reg, int value, bool single);
+	int (*read_bulk)(struct bq27xxx_device_info *di, u8 reg, u8 *data, int len);
+	int (*write_bulk)(struct bq27xxx_device_info *di, u8 reg, u8 *data, int len);
 };
 
 struct bq27xxx_reg_cache {
@@ -60,7 +55,10 @@ struct bq27xxx_device_info {
 	struct device *dev;
 	int id;
 	enum bq27xxx_chip chip;
+	u32 opts;
 	const char *name;
+	struct bq27xxx_dm_reg *dm_regs;
+	u32 unseal_key;
 	struct bq27xxx_access_methods bus;
 	struct bq27xxx_reg_cache cache;
 	int charge_design_full;

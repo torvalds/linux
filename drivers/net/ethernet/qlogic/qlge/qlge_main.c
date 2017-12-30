@@ -1092,8 +1092,7 @@ static int ql_get_next_chunk(struct ql_adapter *qdev, struct rx_ring *rx_ring,
 {
 	if (!rx_ring->pg_chunk.page) {
 		u64 map;
-		rx_ring->pg_chunk.page = alloc_pages(__GFP_COLD | __GFP_COMP |
-						GFP_ATOMIC,
+		rx_ring->pg_chunk.page = alloc_pages(__GFP_COMP | GFP_ATOMIC,
 						qdev->lbq_buf_order);
 		if (unlikely(!rx_ring->pg_chunk.page)) {
 			netif_err(qdev, drv, qdev->ndev,
@@ -1577,7 +1576,7 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 		rx_ring->rx_dropped++;
 		goto err_out;
 	}
-	memcpy(skb_put(skb, hlen), addr, hlen);
+	skb_put_data(skb, addr, hlen);
 	netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
 		     "%d bytes of headers and data in large. Chain page to new skb and pull tail.\n",
 		     length);
@@ -1654,7 +1653,7 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 				    dma_unmap_len(sbq_desc, maplen),
 				    PCI_DMA_FROMDEVICE);
 
-	memcpy(skb_put(new_skb, length), skb->data, length);
+	skb_put_data(new_skb, skb->data, length);
 
 	pci_dma_sync_single_for_device(qdev->pdev,
 				       dma_unmap_addr(sbq_desc, mapaddr),
@@ -1817,8 +1816,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 						    dma_unmap_len
 						    (sbq_desc, maplen),
 						    PCI_DMA_FROMDEVICE);
-			memcpy(skb_put(skb, length),
-			       sbq_desc->p.skb->data, length);
+			skb_put_data(skb, sbq_desc->p.skb->data, length);
 			pci_dma_sync_single_for_device(qdev->pdev,
 						       dma_unmap_addr
 						       (sbq_desc,
@@ -4726,9 +4724,9 @@ static const struct net_device_ops qlge_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= qlge_vlan_rx_kill_vid,
 };
 
-static void ql_timer(unsigned long data)
+static void ql_timer(struct timer_list *t)
 {
-	struct ql_adapter *qdev = (struct ql_adapter *)data;
+	struct ql_adapter *qdev = from_timer(qdev, t, timer);
 	u32 var = 0;
 
 	var = ql_read32(qdev, STS);
@@ -4807,11 +4805,8 @@ static int qlge_probe(struct pci_dev *pdev,
 	/* Start up the timer to trigger EEH if
 	 * the bus goes dead
 	 */
-	init_timer_deferrable(&qdev->timer);
-	qdev->timer.data = (unsigned long)qdev;
-	qdev->timer.function = ql_timer;
-	qdev->timer.expires = jiffies + (5*HZ);
-	add_timer(&qdev->timer);
+	timer_setup(&qdev->timer, ql_timer, TIMER_DEFERRABLE);
+	mod_timer(&qdev->timer, jiffies + (5*HZ));
 	ql_link_off(qdev);
 	ql_display_dev_info(ndev);
 	atomic_set(&qdev->lb_count, 0);

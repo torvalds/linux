@@ -1069,7 +1069,8 @@ int wl12xx_cmd_build_null_data(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		ptr = NULL;
 	} else {
 		skb = ieee80211_nullfunc_get(wl->hw,
-					     wl12xx_wlvif_to_vif(wlvif));
+					     wl12xx_wlvif_to_vif(wlvif),
+					     false);
 		if (!skb)
 			goto out;
 		size = skb->len;
@@ -1096,7 +1097,7 @@ int wl12xx_cmd_build_klv_null_data(struct wl1271 *wl,
 	struct sk_buff *skb = NULL;
 	int ret = -ENOMEM;
 
-	skb = ieee80211_nullfunc_get(wl->hw, vif);
+	skb = ieee80211_nullfunc_get(wl->hw, vif, false);
 	if (!skb)
 		goto out;
 
@@ -1156,9 +1157,9 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		goto out;
 	}
 	if (ie0_len)
-		memcpy(skb_put(skb, ie0_len), ie0, ie0_len);
+		skb_put_data(skb, ie0, ie0_len);
 	if (ie1_len)
-		memcpy(skb_put(skb, ie1_len), ie1, ie1_len);
+		skb_put_data(skb, ie1, ie1_len);
 
 	if (sched_scan &&
 	    (wl->quirks & WLCORE_QUIRK_DUAL_PROBE_TMPL)) {
@@ -1233,8 +1234,7 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	skb_reserve(skb, sizeof(*hdr) + WL1271_EXTRA_SPACE_MAX);
 
-	tmpl = (struct wl12xx_arp_rsp_template *)skb_put(skb, sizeof(*tmpl));
-	memset(tmpl, 0, sizeof(*tmpl));
+	tmpl = skb_put_zero(skb, sizeof(*tmpl));
 
 	/* llc layer */
 	memcpy(tmpl->llc_hdr, rfc1042_header, sizeof(rfc1042_header));
@@ -1283,7 +1283,7 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		memset(skb_push(skb, sizeof(__le16)), 0, sizeof(__le16));
 
 	/* mac80211 header */
-	hdr = (struct ieee80211_hdr_3addr *)skb_push(skb, sizeof(*hdr));
+	hdr = skb_push(skb, sizeof(*hdr));
 	memset(hdr, 0, sizeof(*hdr));
 	fc = IEEE80211_FTYPE_DATA | IEEE80211_FCTL_TODS;
 	if (wlvif->sta.qos)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Sysctl operations for Coda filesystem
  * Original version: (C) 1996 P. Braam and M. Callahan

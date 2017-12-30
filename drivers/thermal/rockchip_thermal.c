@@ -242,6 +242,45 @@ struct tsadc_table {
 	int temp;
 };
 
+static const struct tsadc_table rv1108_table[] = {
+	{0, -40000},
+	{374, -40000},
+	{382, -35000},
+	{389, -30000},
+	{397, -25000},
+	{405, -20000},
+	{413, -15000},
+	{421, -10000},
+	{429, -5000},
+	{436, 0},
+	{444, 5000},
+	{452, 10000},
+	{460, 15000},
+	{468, 20000},
+	{476, 25000},
+	{483, 30000},
+	{491, 35000},
+	{499, 40000},
+	{507, 45000},
+	{515, 50000},
+	{523, 55000},
+	{531, 60000},
+	{539, 65000},
+	{547, 70000},
+	{555, 75000},
+	{562, 80000},
+	{570, 85000},
+	{578, 90000},
+	{586, 95000},
+	{594, 100000},
+	{602, 105000},
+	{610, 110000},
+	{618, 115000},
+	{626, 120000},
+	{634, 125000},
+	{TSADCV2_DATA_MASK, 125000},
+};
+
 static const struct tsadc_table rk3228_code_table[] = {
 	{0, -40000},
 	{588, -40000},
@@ -318,6 +357,44 @@ static const struct tsadc_table rk3288_code_table[] = {
 	{3437, 120000},
 	{3421, 125000},
 	{0, 125000},
+};
+
+static const struct tsadc_table rk3328_code_table[] = {
+	{0, -40000},
+	{296, -40000},
+	{304, -35000},
+	{313, -30000},
+	{331, -20000},
+	{340, -15000},
+	{349, -10000},
+	{359, -5000},
+	{368, 0},
+	{378, 5000},
+	{388, 10000},
+	{398, 15000},
+	{408, 20000},
+	{418, 25000},
+	{429, 30000},
+	{440, 35000},
+	{451, 40000},
+	{462, 45000},
+	{473, 50000},
+	{485, 55000},
+	{496, 60000},
+	{508, 65000},
+	{521, 70000},
+	{533, 75000},
+	{546, 80000},
+	{559, 85000},
+	{572, 90000},
+	{586, 95000},
+	{600, 100000},
+	{614, 105000},
+	{629, 110000},
+	{644, 115000},
+	{659, 120000},
+	{675, 125000},
+	{TSADCV2_DATA_MASK, 125000},
 };
 
 static const struct tsadc_table rk3368_code_table[] = {
@@ -741,6 +818,30 @@ static void rk_tsadcv2_tshut_mode(int chn, void __iomem *regs,
 	writel_relaxed(val, regs + TSADCV2_INT_EN);
 }
 
+static const struct rockchip_tsadc_chip rv1108_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_num = 1, /* one channel for tsadc */
+
+	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
+	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
+	.tshut_temp = 95000,
+
+	.initialize = rk_tsadcv2_initialize,
+	.irq_ack = rk_tsadcv3_irq_ack,
+	.control = rk_tsadcv3_control,
+	.get_temp = rk_tsadcv2_get_temp,
+	.set_alarm_temp = rk_tsadcv2_alarm_temp,
+	.set_tshut_temp = rk_tsadcv2_tshut_temp,
+	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+
+	.table = {
+		.id = rv1108_table,
+		.length = ARRAY_SIZE(rv1108_table),
+		.data_mask = TSADCV2_DATA_MASK,
+		.mode = ADC_INCREMENT,
+	},
+};
+
 static const struct rockchip_tsadc_chip rk3228_tsadc_data = {
 	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
 	.chn_num = 1, /* one channel for tsadc */
@@ -787,6 +888,29 @@ static const struct rockchip_tsadc_chip rk3288_tsadc_data = {
 		.length = ARRAY_SIZE(rk3288_code_table),
 		.data_mask = TSADCV2_DATA_MASK,
 		.mode = ADC_DECREMENT,
+	},
+};
+
+static const struct rockchip_tsadc_chip rk3328_tsadc_data = {
+	.chn_id[SENSOR_CPU] = 0, /* cpu sensor is channel 0 */
+	.chn_num = 1, /* one channels for tsadc */
+
+	.tshut_mode = TSHUT_MODE_CRU, /* default TSHUT via CRU */
+	.tshut_temp = 95000,
+
+	.initialize = rk_tsadcv2_initialize,
+	.irq_ack = rk_tsadcv3_irq_ack,
+	.control = rk_tsadcv3_control,
+	.get_temp = rk_tsadcv2_get_temp,
+	.set_alarm_temp = rk_tsadcv2_alarm_temp,
+	.set_tshut_temp = rk_tsadcv2_tshut_temp,
+	.set_tshut_mode = rk_tsadcv2_tshut_mode,
+
+	.table = {
+		.id = rk3328_code_table,
+		.length = ARRAY_SIZE(rk3328_code_table),
+		.data_mask = TSADCV2_DATA_MASK,
+		.mode = ADC_INCREMENT,
 	},
 };
 
@@ -867,12 +991,20 @@ static const struct rockchip_tsadc_chip rk3399_tsadc_data = {
 
 static const struct of_device_id of_rockchip_thermal_match[] = {
 	{
+		.compatible = "rockchip,rv1108-tsadc",
+		.data = (void *)&rv1108_tsadc_data,
+	},
+	{
 		.compatible = "rockchip,rk3228-tsadc",
 		.data = (void *)&rk3228_tsadc_data,
 	},
 	{
 		.compatible = "rockchip,rk3288-tsadc",
 		.data = (void *)&rk3288_tsadc_data,
+	},
+	{
+		.compatible = "rockchip,rk3328-tsadc",
+		.data = (void *)&rk3328_tsadc_data,
 	},
 	{
 		.compatible = "rockchip,rk3366-tsadc",

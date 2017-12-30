@@ -221,16 +221,19 @@ void tracing_map_array_free(struct tracing_map_array *a)
 	if (!a)
 		return;
 
-	if (!a->pages) {
-		kfree(a);
-		return;
-	}
+	if (!a->pages)
+		goto free;
 
 	for (i = 0; i < a->n_pages; i++) {
 		if (!a->pages[i])
 			break;
 		free_page((unsigned long)a->pages[i]);
 	}
+
+	kfree(a->pages);
+
+ free:
+	kfree(a);
 }
 
 struct tracing_map_array *tracing_map_array_alloc(unsigned int n_elts,
@@ -425,7 +428,8 @@ __tracing_map_insert(struct tracing_map *map, void *key, bool lookup_only)
 
 		if (test_key && test_key == key_hash && entry->val &&
 		    keys_match(key, entry->val->key, map->key_size)) {
-			atomic64_inc(&map->hits);
+			if (!lookup_only)
+				atomic64_inc(&map->hits);
 			return entry->val;
 		}
 

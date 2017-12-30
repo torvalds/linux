@@ -160,6 +160,18 @@ config FUNCTION_GRAPH_TRACER
 	  address on the current task structure into a stack of calls.
 
 
+config PREEMPTIRQ_EVENTS
+	bool "Enable trace events for preempt and irq disable/enable"
+	select TRACE_IRQFLAGS
+	depends on DEBUG_PREEMPT || !PROVE_LOCKING
+	depends on TRACING
+	default n
+	help
+	  Enable tracing of disable and enable events for preemption and irqs.
+	  For tracing preempt disable/enable events, DEBUG_PREEMPT must be
+	  enabled. For tracing irq disable/enable events, PROVE_LOCKING must
+	  be disabled.
+
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
 	default n
@@ -224,7 +236,7 @@ config HWLAT_TRACER
 	select GENERIC_TRACER
 	help
 	 This tracer, when enabled will create one or more kernel threads,
-	 depening on what the cpumask file is set to, which each thread
+	 depending on what the cpumask file is set to, which each thread
 	 spinning in a loop looking for interruptions caused by
 	 something other than the kernel. For example, if a
 	 System Management Interrupt (SMI) takes a noticeable amount of
@@ -239,7 +251,7 @@ config HWLAT_TRACER
 				     iteration
 
 	 A kernel thread is created that will spin with interrupts disabled
-	 for "width" microseconds in every "widow" cycle. It will not spin
+	 for "width" microseconds in every "window" cycle. It will not spin
 	 for "window - width" microseconds, where the system can
 	 continue to operate.
 
@@ -667,30 +679,30 @@ config RING_BUFFER_STARTUP_TEST
 
 	 If unsure, say N
 
-config TRACE_ENUM_MAP_FILE
-       bool "Show enum mappings for trace events"
+config TRACE_EVAL_MAP_FILE
+       bool "Show eval mappings for trace events"
        depends on TRACING
        help
-        The "print fmt" of the trace events will show the enum names instead
-	of their values. This can cause problems for user space tools that
-	use this string to parse the raw data as user space does not know
+	The "print fmt" of the trace events will show the enum/sizeof names
+	instead	of their values. This can cause problems for user space tools
+	that use this string to parse the raw data as user space does not know
 	how to convert the string to its value.
 
 	To fix this, there's a special macro in the kernel that can be used
-	to convert the enum into its value. If this macro is used, then the
-	print fmt strings will have the enums converted to their values.
+	to convert an enum/sizeof into its value. If this macro is used, then
+	the print fmt strings will be converted to their values.
 
 	If something does not get converted properly, this option can be
-	used to show what enums the kernel tried to convert.
+	used to show what enums/sizeof the kernel tried to convert.
 
-	This option is for debugging the enum conversions. A file is created
-	in the tracing directory called "enum_map" that will show the enum
+	This option is for debugging the conversions. A file is created
+	in the tracing directory called "eval_map" that will show the
 	names matched with their values and what trace event system they
 	belong too.
 
 	Normally, the mapping of the strings to values will be freed after
 	boot up or module load. With this option, they will not be freed, as
-	they are needed for the "enum_map" file. Enabling this option will
+	they are needed for the "eval_map" file. Enabling this option will
 	increase the memory footprint of the running kernel.
 
 	If unsure, say N

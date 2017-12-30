@@ -1416,7 +1416,7 @@ static int vidioc_log_status(struct file *file, void *priv)
 	return 0;
 }
 
-static struct v4l2_file_operations mpeg_fops = {
+static const struct v4l2_file_operations mpeg_fops = {
 	.owner	       = THIS_MODULE,
 	.open           = v4l2_fh_open,
 	.release        = vb2_fop_release,

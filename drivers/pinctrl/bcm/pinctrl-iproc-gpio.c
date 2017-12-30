@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 Broadcom Corporation
+ * Copyright (C) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -9,7 +9,9 @@
  * kind, whether express or implied; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ */
+
+/*
  * This file contains the Broadcom Iproc GPIO driver that supports 3
  * GPIO controllers on Iproc including the ASIU GPIO controller, the
  * chipCommonG GPIO controller, and the always-on GPIO controller. Basic
@@ -170,7 +172,7 @@ static void iproc_gpio_irq_handler(struct irq_desc *desc)
 
 		for_each_set_bit(bit, &val, NGPIOS_PER_BANK) {
 			unsigned pin = NGPIOS_PER_BANK * i + bit;
-			int child_irq = irq_find_mapping(gc->irqdomain, pin);
+			int child_irq = irq_find_mapping(gc->irq.domain, pin);
 
 			/*
 			 * Clear the interrupt before invoking the
@@ -309,7 +311,7 @@ static int iproc_gpio_request(struct gpio_chip *gc, unsigned offset)
 	if (!chip->pinmux_is_supported)
 		return 0;
 
-	return pinctrl_request_gpio(gpio);
+	return pinctrl_gpio_request(gpio);
 }
 
 static void iproc_gpio_free(struct gpio_chip *gc, unsigned offset)
@@ -320,7 +322,7 @@ static void iproc_gpio_free(struct gpio_chip *gc, unsigned offset)
 	if (!chip->pinmux_is_supported)
 		return;
 
-	pinctrl_free_gpio(gpio);
+	pinctrl_gpio_free(gpio);
 }
 
 static int iproc_gpio_direction_input(struct gpio_chip *gc, unsigned gpio)

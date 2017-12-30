@@ -168,6 +168,7 @@ max_comp_streams  RW    the number of possible concurrent compress operations
 comp_algorithm    RW    show and change the compression algorithm
 compact           WO    trigger memory compaction
 debug_stat        RO    this file is used for zram debugging purposes
+backing_dev	  RW	set up backend storage for zram to write out
 
 
 User space is advised to use the following files to read the device statistics.
@@ -230,6 +231,16 @@ line of text and contains the following stats separated by whitespace:
 	This frees all the memory allocated for the given device and
 	resets the disksize to zero. You must set the disksize again
 	before reusing the device.
+
+* Optional Feature
+
+= writeback
+
+With incompressible pages, there is no memory saving with zram.
+Instead, with CONFIG_ZRAM_WRITEBACK, zram can write incompressible page
+to backing storage rather than keeping it in memory.
+User should set up backing device via /sys/block/zramX/backing_dev
+before disksize setting.
 
 Nitin Gupta
 ngupta@vflare.org

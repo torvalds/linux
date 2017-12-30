@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
 ** asm/bootinfo-mac.h -- Macintosh-specific boot information definitions
 */

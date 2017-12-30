@@ -165,7 +165,7 @@ irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu)
 	struct irq_data *data = irq_get_irq_data(irq);
 	struct cpumask *ipimask = data ? irq_data_get_affinity_mask(data) : NULL;
 
-	if (!data || !ipimask || cpu > nr_cpu_ids)
+	if (!data || !ipimask || cpu >= nr_cpu_ids)
 		return INVALID_HWIRQ;
 
 	if (!cpumask_test_cpu(cpu, ipimask))
@@ -195,7 +195,7 @@ static int ipi_send_verify(struct irq_chip *chip, struct irq_data *data,
 	if (!chip->ipi_send_single && !chip->ipi_send_mask)
 		return -EINVAL;
 
-	if (cpu > nr_cpu_ids)
+	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
 	if (dest) {

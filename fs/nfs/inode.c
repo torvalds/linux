@@ -85,9 +85,9 @@ int nfs_wait_bit_killable(struct wait_bit_key *key, int mode)
 }
 EXPORT_SYMBOL_GPL(nfs_wait_bit_killable);
 
-int nfs_wait_atomic_killable(atomic_t *p)
+int nfs_wait_atomic_killable(atomic_t *p, unsigned int mode)
 {
-	return nfs_wait_killable(TASK_KILLABLE);
+	return nfs_wait_killable(mode);
 }
 
 /**
@@ -386,6 +386,28 @@ void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
 #endif
 EXPORT_SYMBOL_GPL(nfs_setsecurity);
 
+/* Search for inode identified by fh, fileid and i_mode in inode cache. */
+struct inode *
+nfs_ilookup(struct super_block *sb, struct nfs_fattr *fattr, struct nfs_fh *fh)
+{
+	struct nfs_find_desc desc = {
+		.fh	= fh,
+		.fattr	= fattr,
+	};
+	struct inode *inode;
+	unsigned long hash;
+
+	if (!(fattr->valid & NFS_ATTR_FATTR_FILEID) ||
+	    !(fattr->valid & NFS_ATTR_FATTR_TYPE))
+		return NULL;
+
+	hash = nfs_fattr_to_ino_t(fattr);
+	inode = ilookup5(sb, hash, nfs_find_actor, &desc);
+
+	dprintk("%s: returning %p\n", __func__, inode);
+	return inode;
+}
+
 /*
  * This is our front-end to iget that looks up inodes by file handle
  * instead of inode number.
@@ -525,8 +547,14 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 		nfs_fscache_init_inode(inode);
 
 		unlock_new_inode(inode);
-	} else
-		nfs_refresh_inode(inode, fattr);
+	} else {
+		int err = nfs_refresh_inode(inode, fattr);
+		if (err < 0) {
+			iput(inode);
+			inode = ERR_PTR(err);
+			goto out_no_inode;
+		}
+	}
 	dprintk("NFS: nfs_fhget(%s/%Lu fh_crc=0x%08x ct=%d)\n",
 		inode->i_sb->s_id,
 		(unsigned long long)NFS_FILEID(inode),
@@ -724,7 +752,7 @@ int nfs_getattr(const struct path *path, struct kstat *stat,
 	 * Note that we only have to check the vfsmount flags here:
 	 *  - NFS always sets S_NOATIME by so checking it would give a
 	 *    bogus result
-	 *  - NFS never sets MS_NOATIME or MS_NODIRATIME so there is
+	 *  - NFS never sets SB_NOATIME or SB_NODIRATIME so there is
 	 *    no point in checking those.
 	 */
 	if ((path->mnt->mnt_flags & MNT_NOATIME) ||
@@ -755,7 +783,7 @@ EXPORT_SYMBOL_GPL(nfs_getattr);
 
 static void nfs_init_lock_context(struct nfs_lock_context *l_ctx)
 {
-	atomic_set(&l_ctx->count, 1);
+	refcount_set(&l_ctx->count, 1);
 	l_ctx->lockowner = current->files;
 	INIT_LIST_HEAD(&l_ctx->list);
 	atomic_set(&l_ctx->io_count, 0);
@@ -769,7 +797,7 @@ static struct nfs_lock_context *__nfs_find_lock_context(struct nfs_open_context 
 	do {
 		if (pos->lockowner != current->files)
 			continue;
-		atomic_inc(&pos->count);
+		refcount_inc(&pos->count);
 		return pos;
 	} while ((pos = list_entry(pos->list.next, typeof(*pos), list)) != head);
 	return NULL;
@@ -808,7 +836,7 @@ void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
 	struct nfs_open_context *ctx = l_ctx->open_context;
 	struct inode *inode = d_inode(ctx->dentry);
 
-	if (!atomic_dec_and_lock(&l_ctx->count, &inode->i_lock))
+	if (!refcount_dec_and_lock(&l_ctx->count, &inode->i_lock))
 		return;
 	list_del(&l_ctx->list);
 	spin_unlock(&inode->i_lock);
@@ -885,7 +913,7 @@ EXPORT_SYMBOL_GPL(alloc_nfs_open_context);
 struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 {
 	if (ctx != NULL)
-		atomic_inc(&ctx->lock_context.count);
+		refcount_inc(&ctx->lock_context.count);
 	return ctx;
 }
 EXPORT_SYMBOL_GPL(get_nfs_open_context);
@@ -896,11 +924,11 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 	struct super_block *sb = ctx->dentry->d_sb;
 
 	if (!list_empty(&ctx->list)) {
-		if (!atomic_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
+		if (!refcount_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
 			return;
 		list_del(&ctx->list);
 		spin_unlock(&inode->i_lock);
-	} else if (!atomic_dec_and_test(&ctx->lock_context.count))
+	} else if (!refcount_dec_and_test(&ctx->lock_context.count))
 		return;
 	if (inode != NULL)
 		NFS_PROTO(inode)->close_context(ctx, is_sync);
@@ -1257,7 +1285,6 @@ static bool nfs_file_has_buffered_writers(struct nfs_inode *nfsi)
 
 static unsigned long nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
 	unsigned long ret = 0;
 
 	if ((fattr->valid & NFS_ATTR_FATTR_PRECHANGE)
@@ -1287,7 +1314,7 @@ static unsigned long nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr 
 	if ((fattr->valid & NFS_ATTR_FATTR_PRESIZE)
 			&& (fattr->valid & NFS_ATTR_FATTR_SIZE)
 			&& i_size_read(inode) == nfs_size_to_loff_t(fattr->pre_size)
-			&& nfsi->nrequests == 0) {
+			&& !nfs_have_writebacks(inode)) {
 		i_size_write(inode, nfs_size_to_loff_t(fattr->size));
 		ret |= NFS_INO_INVALID_ATTR;
 	}
@@ -1315,9 +1342,9 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 		return 0;
 	/* Has the inode gone and changed behind our back? */
 	if ((fattr->valid & NFS_ATTR_FATTR_FILEID) && nfsi->fileid != fattr->fileid)
-		return -EIO;
+		return -ESTALE;
 	if ((fattr->valid & NFS_ATTR_FATTR_TYPE) && (inode->i_mode & S_IFMT) != (fattr->mode & S_IFMT))
-		return -EIO;
+		return -ESTALE;
 
 	if (!nfs_file_has_buffered_writers(nfsi)) {
 		/* Verify a few of the more important attributes */
@@ -1795,7 +1822,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		if (new_isize != cur_isize) {
 			/* Do we perhaps have any outstanding writes, or has
 			 * the file grown beyond our last write? */
-			if (nfsi->nrequests == 0 || new_isize > cur_isize) {
+			if (!nfs_have_writebacks(inode) || new_isize > cur_isize) {
 				i_size_write(inode, new_isize);
 				if (!have_writers)
 					invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
@@ -1984,10 +2011,11 @@ static void init_once(void *foo)
 	INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
 	INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
 	INIT_LIST_HEAD(&nfsi->commit_info.list);
-	nfsi->nrequests = 0;
-	nfsi->commit_info.ncommit = 0;
+	atomic_long_set(&nfsi->nrequests, 0);
+	atomic_long_set(&nfsi->commit_info.ncommit, 0);
 	atomic_set(&nfsi->commit_info.rpcs_out, 0);
 	init_rwsem(&nfsi->rmdir_sem);
+	mutex_init(&nfsi->commit_mutex);
 	nfs4_init_once(nfsi);
 }
 
@@ -2056,8 +2084,12 @@ static int nfs_net_init(struct net *net)
 
 static void nfs_net_exit(struct net *net)
 {
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
 	nfs_fs_proc_net_exit(net);
 	nfs_cleanup_cb_ident_idr(net);
+	WARN_ON_ONCE(!list_empty(&nn->nfs_client_list));
+	WARN_ON_ONCE(!list_empty(&nn->nfs_volume_list));
 }
 
 static struct pernet_operations nfs_net_ops = {

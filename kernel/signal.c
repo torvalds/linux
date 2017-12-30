@@ -39,6 +39,7 @@
 #include <linux/compat.h>
 #include <linux/cn_proc.h>
 #include <linux/compiler.h>
+#include <linux/posix-timers.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
@@ -77,7 +78,7 @@ static int sig_task_ignored(struct task_struct *t, int sig, bool force)
 	handler = sig_handler(t, sig);
 
 	if (unlikely(t->signal->flags & SIGNAL_UNKILLABLE) &&
-			handler == SIG_DFL && !force)
+	    handler == SIG_DFL && !(force && sig_kernel_only(sig)))
 		return 1;
 
 	return sig_handler_ignored(handler, sig);
@@ -93,13 +94,15 @@ static int sig_ignored(struct task_struct *t, int sig, bool force)
 	if (sigismember(&t->blocked, sig) || sigismember(&t->real_blocked, sig))
 		return 0;
 
-	if (!sig_task_ignored(t, sig, force))
+	/*
+	 * Tracers may want to know about even ignored signal unless it
+	 * is SIGKILL which can't be reported anyway but can be ignored
+	 * by SIGNAL_UNKILLABLE task.
+	 */
+	if (t->ptrace && sig != SIGKILL)
 		return 0;
 
-	/*
-	 * Tracers may want to know about even ignored signals.
-	 */
-	return !t->ptrace;
+	return sig_task_ignored(t, sig, force);
 }
 
 /*
@@ -637,7 +640,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		 * about to disable them again anyway.
 		 */
 		spin_unlock(&tsk->sighand->siglock);
-		do_schedule_next_timer(info);
+		posixtimer_rearm(info);
 		spin_lock(&tsk->sighand->siglock);
 	}
 #endif
@@ -928,9 +931,9 @@ static void complete_signal(int sig, struct task_struct *p, int group)
 	 * then start taking the whole group down immediately.
 	 */
 	if (sig_fatal(p, sig) &&
-	    !(signal->flags & (SIGNAL_UNKILLABLE | SIGNAL_GROUP_EXIT)) &&
+	    !(signal->flags & SIGNAL_GROUP_EXIT) &&
 	    !sigismember(&t->real_blocked, sig) &&
-	    (sig == SIGKILL || !t->ptrace)) {
+	    (sig == SIGKILL || !p->ptrace)) {
 		/*
 		 * This signal will be fatal to the whole group.
 		 */
@@ -1035,8 +1038,7 @@ static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	else
 		override_rlimit = 0;
 
-	q = __sigqueue_alloc(sig, t, GFP_ATOMIC | __GFP_NOTRACK_FALSE_POSITIVE,
-		override_rlimit);
+	q = __sigqueue_alloc(sig, t, GFP_ATOMIC, override_rlimit);
 	if (q) {
 		list_add_tail(&q->list, &pending->list);
 		switch ((unsigned long) info) {
@@ -1193,7 +1195,11 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 			recalc_sigpending_and_wake(t);
 		}
 	}
-	if (action->sa.sa_handler == SIG_DFL)
+	/*
+	 * Don't clear SIGNAL_UNKILLABLE for traced tasks, users won't expect
+	 * debugging to leave init killable.
+	 */
+	if (action->sa.sa_handler == SIG_DFL && !t->ptrace)
 		t->signal->flags &= ~SIGNAL_UNKILLABLE;
 	ret = specific_send_sig_info(sig, info, t);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
@@ -1400,6 +1406,10 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
 		rcu_read_unlock();
 		return ret;
 	}
+
+	/* -INT_MIN is undefined.  Exclude this case to avoid a UBSAN warning */
+	if (pid == INT_MIN)
+		return -ESRCH;
 
 	read_lock(&tasklist_lock);
 	if (pid != -1) {
@@ -2100,7 +2110,6 @@ static void do_jobctl_trap(void)
 
 static int ptrace_signal(int signr, siginfo_t *info)
 {
-	ptrace_signal_deliver();
 	/*
 	 * We do not check sig_kernel_stop(signr) but set this marker
 	 * unconditionally because we do not know whether debugger will
@@ -2592,7 +2601,6 @@ SYSCALL_DEFINE4(rt_sigprocmask, int, how, sigset_t __user *, nset,
 COMPAT_SYSCALL_DEFINE4(rt_sigprocmask, int, how, compat_sigset_t __user *, nset,
 		compat_sigset_t __user *, oset, compat_size_t, sigsetsize)
 {
-#ifdef __BIG_ENDIAN
 	sigset_t old_set = current->blocked;
 
 	/* XXX: Don't preclude handling different sized sigset_t's.  */
@@ -2600,38 +2608,22 @@ COMPAT_SYSCALL_DEFINE4(rt_sigprocmask, int, how, compat_sigset_t __user *, nset,
 		return -EINVAL;
 
 	if (nset) {
-		compat_sigset_t new32;
 		sigset_t new_set;
 		int error;
-		if (copy_from_user(&new32, nset, sizeof(compat_sigset_t)))
+		if (get_compat_sigset(&new_set, nset))
 			return -EFAULT;
-
-		sigset_from_compat(&new_set, &new32);
 		sigdelsetmask(&new_set, sigmask(SIGKILL)|sigmask(SIGSTOP));
 
 		error = sigprocmask(how, &new_set, NULL);
 		if (error)
 			return error;
 	}
-	if (oset) {
-		compat_sigset_t old32;
-		sigset_to_compat(&old32, &old_set);
-		if (copy_to_user(oset, &old32, sizeof(compat_sigset_t)))
-			return -EFAULT;
-	}
-	return 0;
-#else
-	return sys_rt_sigprocmask(how, (sigset_t __user *)nset,
-				  (sigset_t __user *)oset, sigsetsize);
-#endif
+	return oset ? put_compat_sigset(oset, &old_set, sizeof(*oset)) : 0;
 }
 #endif
 
-static int do_sigpending(void *set, unsigned long sigsetsize)
+static int do_sigpending(sigset_t *set)
 {
-	if (sigsetsize > sizeof(sigset_t))
-		return -EINVAL;
-
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(set, &current->pending.signal,
 		  &current->signal->shared_pending.signal);
@@ -2651,7 +2643,12 @@ static int do_sigpending(void *set, unsigned long sigsetsize)
 SYSCALL_DEFINE2(rt_sigpending, sigset_t __user *, uset, size_t, sigsetsize)
 {
 	sigset_t set;
-	int err = do_sigpending(&set, sigsetsize);
+	int err;
+
+	if (sigsetsize > sizeof(*uset))
+		return -EINVAL;
+
+	err = do_sigpending(&set);
 	if (!err && copy_to_user(uset, &set, sigsetsize))
 		err = -EFAULT;
 	return err;
@@ -2661,22 +2658,63 @@ SYSCALL_DEFINE2(rt_sigpending, sigset_t __user *, uset, size_t, sigsetsize)
 COMPAT_SYSCALL_DEFINE2(rt_sigpending, compat_sigset_t __user *, uset,
 		compat_size_t, sigsetsize)
 {
-#ifdef __BIG_ENDIAN
 	sigset_t set;
-	int err = do_sigpending(&set, sigsetsize);
-	if (!err) {
-		compat_sigset_t set32;
-		sigset_to_compat(&set32, &set);
-		/* we can get here only if sigsetsize <= sizeof(set) */
-		if (copy_to_user(uset, &set32, sigsetsize))
-			err = -EFAULT;
-	}
+	int err;
+
+	if (sigsetsize > sizeof(*uset))
+		return -EINVAL;
+
+	err = do_sigpending(&set);
+	if (!err)
+		err = put_compat_sigset(uset, &set, sigsetsize);
 	return err;
-#else
-	return sys_rt_sigpending((sigset_t __user *)uset, sigsetsize);
-#endif
 }
 #endif
+
+enum siginfo_layout siginfo_layout(int sig, int si_code)
+{
+	enum siginfo_layout layout = SIL_KILL;
+	if ((si_code > SI_USER) && (si_code < SI_KERNEL)) {
+		static const struct {
+			unsigned char limit, layout;
+		} filter[] = {
+			[SIGILL]  = { NSIGILL,  SIL_FAULT },
+			[SIGFPE]  = { NSIGFPE,  SIL_FAULT },
+			[SIGSEGV] = { NSIGSEGV, SIL_FAULT },
+			[SIGBUS]  = { NSIGBUS,  SIL_FAULT },
+			[SIGTRAP] = { NSIGTRAP, SIL_FAULT },
+#if defined(SIGEMT) && defined(NSIGEMT)
+			[SIGEMT]  = { NSIGEMT,  SIL_FAULT },
+#endif
+			[SIGCHLD] = { NSIGCHLD, SIL_CHLD },
+			[SIGPOLL] = { NSIGPOLL, SIL_POLL },
+#ifdef __ARCH_SIGSYS
+			[SIGSYS]  = { NSIGSYS,  SIL_SYS },
+#endif
+		};
+		if ((sig < ARRAY_SIZE(filter)) && (si_code <= filter[sig].limit))
+			layout = filter[sig].layout;
+		else if (si_code <= NSIGPOLL)
+			layout = SIL_POLL;
+	} else {
+		if (si_code == SI_TIMER)
+			layout = SIL_TIMER;
+		else if (si_code == SI_SIGIO)
+			layout = SIL_POLL;
+		else if (si_code < 0)
+			layout = SIL_RT;
+		/* Tests to support buggy kernel ABIs */
+#ifdef TRAP_FIXME
+		if ((sig == SIGTRAP) && (si_code == TRAP_FIXME))
+			layout = SIL_FAULT;
+#endif
+#ifdef FPE_FIXME
+		if ((sig == SIGFPE) && (si_code == FPE_FIXME))
+			layout = SIL_FAULT;
+#endif
+	}
+	return layout;
+}
 
 #ifndef HAVE_ARCH_COPY_SIGINFO_TO_USER
 
@@ -2700,22 +2738,20 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 	 */
 	err = __put_user(from->si_signo, &to->si_signo);
 	err |= __put_user(from->si_errno, &to->si_errno);
-	err |= __put_user((short)from->si_code, &to->si_code);
-	switch (from->si_code & __SI_MASK) {
-	case __SI_KILL:
+	err |= __put_user(from->si_code, &to->si_code);
+	switch (siginfo_layout(from->si_signo, from->si_code)) {
+	case SIL_KILL:
 		err |= __put_user(from->si_pid, &to->si_pid);
 		err |= __put_user(from->si_uid, &to->si_uid);
 		break;
-	case __SI_TIMER:
-		 err |= __put_user(from->si_tid, &to->si_tid);
-		 err |= __put_user(from->si_overrun, &to->si_overrun);
-		 err |= __put_user(from->si_ptr, &to->si_ptr);
+	case SIL_TIMER:
+		/* Unreached SI_TIMER is negative */
 		break;
-	case __SI_POLL:
+	case SIL_POLL:
 		err |= __put_user(from->si_band, &to->si_band);
 		err |= __put_user(from->si_fd, &to->si_fd);
 		break;
-	case __SI_FAULT:
+	case SIL_FAULT:
 		err |= __put_user(from->si_addr, &to->si_addr);
 #ifdef __ARCH_SI_TRAPNO
 		err |= __put_user(from->si_trapno, &to->si_trapno);
@@ -2740,30 +2776,25 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 			err |= __put_user(from->si_pkey, &to->si_pkey);
 #endif
 		break;
-	case __SI_CHLD:
+	case SIL_CHLD:
 		err |= __put_user(from->si_pid, &to->si_pid);
 		err |= __put_user(from->si_uid, &to->si_uid);
 		err |= __put_user(from->si_status, &to->si_status);
 		err |= __put_user(from->si_utime, &to->si_utime);
 		err |= __put_user(from->si_stime, &to->si_stime);
 		break;
-	case __SI_RT: /* This is not generated by the kernel as of now. */
-	case __SI_MESGQ: /* But this is */
+	case SIL_RT:
 		err |= __put_user(from->si_pid, &to->si_pid);
 		err |= __put_user(from->si_uid, &to->si_uid);
 		err |= __put_user(from->si_ptr, &to->si_ptr);
 		break;
 #ifdef __ARCH_SIGSYS
-	case __SI_SYS:
+	case SIL_SYS:
 		err |= __put_user(from->si_call_addr, &to->si_call_addr);
 		err |= __put_user(from->si_syscall, &to->si_syscall);
 		err |= __put_user(from->si_arch, &to->si_arch);
 		break;
 #endif
-	default: /* this is just in case for now ... */
-		err |= __put_user(from->si_pid, &to->si_pid);
-		err |= __put_user(from->si_uid, &to->si_uid);
-		break;
 	}
 	return err;
 }
@@ -2776,7 +2807,7 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
  *  @info: if non-null, the signal's siginfo is returned here
  *  @ts: upper bound on process time suspension
  */
-int do_sigtimedwait(const sigset_t *which, siginfo_t *info,
+static int do_sigtimedwait(const sigset_t *which, siginfo_t *info,
 		    const struct timespec *ts)
 {
 	ktime_t *to = NULL, timeout = KTIME_MAX;
@@ -2864,6 +2895,38 @@ SYSCALL_DEFINE4(rt_sigtimedwait, const sigset_t __user *, uthese,
 
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE4(rt_sigtimedwait, compat_sigset_t __user *, uthese,
+		struct compat_siginfo __user *, uinfo,
+		struct compat_timespec __user *, uts, compat_size_t, sigsetsize)
+{
+	sigset_t s;
+	struct timespec t;
+	siginfo_t info;
+	long ret;
+
+	if (sigsetsize != sizeof(sigset_t))
+		return -EINVAL;
+
+	if (get_compat_sigset(&s, uthese))
+		return -EFAULT;
+
+	if (uts) {
+		if (compat_get_timespec(&t, uts))
+			return -EFAULT;
+	}
+
+	ret = do_sigtimedwait(&s, &info, uts ? &t : NULL);
+
+	if (ret > 0 && uinfo) {
+		if (copy_siginfo_to_user32(uinfo, &info))
+			ret = -EFAULT;
+	}
+
+	return ret;
+}
+#endif
 
 /**
  *  sys_kill - send a signal to a process
@@ -3121,78 +3184,68 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 }
 
 static int
-do_sigaltstack (const stack_t __user *uss, stack_t __user *uoss, unsigned long sp)
+do_sigaltstack (const stack_t *ss, stack_t *oss, unsigned long sp)
 {
-	stack_t oss;
-	int error;
+	struct task_struct *t = current;
 
-	oss.ss_sp = (void __user *) current->sas_ss_sp;
-	oss.ss_size = current->sas_ss_size;
-	oss.ss_flags = sas_ss_flags(sp) |
-		(current->sas_ss_flags & SS_FLAG_BITS);
+	if (oss) {
+		memset(oss, 0, sizeof(stack_t));
+		oss->ss_sp = (void __user *) t->sas_ss_sp;
+		oss->ss_size = t->sas_ss_size;
+		oss->ss_flags = sas_ss_flags(sp) |
+			(current->sas_ss_flags & SS_FLAG_BITS);
+	}
 
-	if (uss) {
-		void __user *ss_sp;
-		size_t ss_size;
-		unsigned ss_flags;
+	if (ss) {
+		void __user *ss_sp = ss->ss_sp;
+		size_t ss_size = ss->ss_size;
+		unsigned ss_flags = ss->ss_flags;
 		int ss_mode;
 
-		error = -EFAULT;
-		if (!access_ok(VERIFY_READ, uss, sizeof(*uss)))
-			goto out;
-		error = __get_user(ss_sp, &uss->ss_sp) |
-			__get_user(ss_flags, &uss->ss_flags) |
-			__get_user(ss_size, &uss->ss_size);
-		if (error)
-			goto out;
-
-		error = -EPERM;
-		if (on_sig_stack(sp))
-			goto out;
+		if (unlikely(on_sig_stack(sp)))
+			return -EPERM;
 
 		ss_mode = ss_flags & ~SS_FLAG_BITS;
-		error = -EINVAL;
-		if (ss_mode != SS_DISABLE && ss_mode != SS_ONSTACK &&
-				ss_mode != 0)
-			goto out;
+		if (unlikely(ss_mode != SS_DISABLE && ss_mode != SS_ONSTACK &&
+				ss_mode != 0))
+			return -EINVAL;
 
 		if (ss_mode == SS_DISABLE) {
 			ss_size = 0;
 			ss_sp = NULL;
 		} else {
-			error = -ENOMEM;
-			if (ss_size < MINSIGSTKSZ)
-				goto out;
+			if (unlikely(ss_size < MINSIGSTKSZ))
+				return -ENOMEM;
 		}
 
-		current->sas_ss_sp = (unsigned long) ss_sp;
-		current->sas_ss_size = ss_size;
-		current->sas_ss_flags = ss_flags;
+		t->sas_ss_sp = (unsigned long) ss_sp;
+		t->sas_ss_size = ss_size;
+		t->sas_ss_flags = ss_flags;
 	}
-
-	error = 0;
-	if (uoss) {
-		error = -EFAULT;
-		if (!access_ok(VERIFY_WRITE, uoss, sizeof(*uoss)))
-			goto out;
-		error = __put_user(oss.ss_sp, &uoss->ss_sp) |
-			__put_user(oss.ss_size, &uoss->ss_size) |
-			__put_user(oss.ss_flags, &uoss->ss_flags);
-	}
-
-out:
-	return error;
+	return 0;
 }
+
 SYSCALL_DEFINE2(sigaltstack,const stack_t __user *,uss, stack_t __user *,uoss)
 {
-	return do_sigaltstack(uss, uoss, current_user_stack_pointer());
+	stack_t new, old;
+	int err;
+	if (uss && copy_from_user(&new, uss, sizeof(stack_t)))
+		return -EFAULT;
+	err = do_sigaltstack(uss ? &new : NULL, uoss ? &old : NULL,
+			      current_user_stack_pointer());
+	if (!err && uoss && copy_to_user(uoss, &old, sizeof(stack_t)))
+		err = -EFAULT;
+	return err;
 }
 
 int restore_altstack(const stack_t __user *uss)
 {
-	int err = do_sigaltstack(uss, NULL, current_user_stack_pointer());
+	stack_t new;
+	if (copy_from_user(&new, uss, sizeof(stack_t)))
+		return -EFAULT;
+	(void)do_sigaltstack(&new, NULL, current_user_stack_pointer());
 	/* squash all but EFAULT for now */
-	return err == -EFAULT ? err : 0;
+	return 0;
 }
 
 int __save_altstack(stack_t __user *uss, unsigned long sp)
@@ -3215,29 +3268,24 @@ COMPAT_SYSCALL_DEFINE2(sigaltstack,
 {
 	stack_t uss, uoss;
 	int ret;
-	mm_segment_t seg;
 
 	if (uss_ptr) {
 		compat_stack_t uss32;
-
-		memset(&uss, 0, sizeof(stack_t));
 		if (copy_from_user(&uss32, uss_ptr, sizeof(compat_stack_t)))
 			return -EFAULT;
 		uss.ss_sp = compat_ptr(uss32.ss_sp);
 		uss.ss_flags = uss32.ss_flags;
 		uss.ss_size = uss32.ss_size;
 	}
-	seg = get_fs();
-	set_fs(KERNEL_DS);
-	ret = do_sigaltstack((stack_t __force __user *) (uss_ptr ? &uss : NULL),
-			     (stack_t __force __user *) &uoss,
+	ret = do_sigaltstack(uss_ptr ? &uss : NULL, &uoss,
 			     compat_user_stack_pointer());
-	set_fs(seg);
 	if (ret >= 0 && uoss_ptr)  {
-		if (!access_ok(VERIFY_WRITE, uoss_ptr, sizeof(compat_stack_t)) ||
-		    __put_user(ptr_to_compat(uoss.ss_sp), &uoss_ptr->ss_sp) ||
-		    __put_user(uoss.ss_flags, &uoss_ptr->ss_flags) ||
-		    __put_user(uoss.ss_size, &uoss_ptr->ss_size))
+		compat_stack_t old;
+		memset(&old, 0, sizeof(old));
+		old.ss_sp = ptr_to_compat(uoss.ss_sp);
+		old.ss_flags = uoss.ss_flags;
+		old.ss_size = uoss.ss_size;
+		if (copy_to_user(uoss_ptr, &old, sizeof(compat_stack_t)))
 			ret = -EFAULT;
 	}
 	return ret;
@@ -3276,6 +3324,17 @@ SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
 {
 	return sys_rt_sigpending((sigset_t __user *)set, sizeof(old_sigset_t)); 
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set32)
+{
+	sigset_t set;
+	int err = do_sigpending(&set);
+	if (!err)
+		err = put_user(set.sig[0], set32);
+	return err;
+}
+#endif
 
 #endif
 
@@ -3371,7 +3430,6 @@ COMPAT_SYSCALL_DEFINE4(rt_sigaction, int, sig,
 		compat_size_t, sigsetsize)
 {
 	struct k_sigaction new_ka, old_ka;
-	compat_sigset_t mask;
 #ifdef __ARCH_HAS_SA_RESTORER
 	compat_uptr_t restorer;
 #endif
@@ -3389,19 +3447,18 @@ COMPAT_SYSCALL_DEFINE4(rt_sigaction, int, sig,
 		ret |= get_user(restorer, &act->sa_restorer);
 		new_ka.sa.sa_restorer = compat_ptr(restorer);
 #endif
-		ret |= copy_from_user(&mask, &act->sa_mask, sizeof(mask));
+		ret |= get_compat_sigset(&new_ka.sa.sa_mask, &act->sa_mask);
 		ret |= get_user(new_ka.sa.sa_flags, &act->sa_flags);
 		if (ret)
 			return -EFAULT;
-		sigset_from_compat(&new_ka.sa.sa_mask, &mask);
 	}
 
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 	if (!ret && oact) {
-		sigset_to_compat(&mask, &old_ka.sa.sa_mask);
 		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), 
 			       &oact->sa_handler);
-		ret |= copy_to_user(&oact->sa_mask, &mask, sizeof(mask));
+		ret |= put_compat_sigset(&oact->sa_mask, &old_ka.sa.sa_mask,
+					 sizeof(oact->sa_mask));
 		ret |= put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 #ifdef __ARCH_HAS_SA_RESTORER
 		ret |= put_user(ptr_to_compat(old_ka.sa.sa_restorer),
@@ -3581,22 +3638,15 @@ SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
 #ifdef CONFIG_COMPAT
 COMPAT_SYSCALL_DEFINE2(rt_sigsuspend, compat_sigset_t __user *, unewset, compat_size_t, sigsetsize)
 {
-#ifdef __BIG_ENDIAN
 	sigset_t newset;
-	compat_sigset_t newset32;
 
 	/* XXX: Don't preclude handling different sized sigset_t's.  */
 	if (sigsetsize != sizeof(sigset_t))
 		return -EINVAL;
 
-	if (copy_from_user(&newset32, unewset, sizeof(compat_sigset_t)))
+	if (get_compat_sigset(&newset, unewset))
 		return -EFAULT;
-	sigset_from_compat(&newset, &newset32);
 	return sigsuspend(&newset);
-#else
-	/* on little-endian bitmaps don't care about granularity */
-	return sys_rt_sigsuspend((sigset_t __user *)unewset, sigsetsize);
-#endif
 }
 #endif
 

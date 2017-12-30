@@ -421,6 +421,9 @@ static void svc_data_ready(struct sock *sk)
 		dprintk("svc: socket %p(inet %p), busy=%d\n",
 			svsk, sk,
 			test_bit(XPT_BUSY, &svsk->sk_xprt.xpt_flags));
+
+		/* Refer to svc_setup_socket() for details. */
+		rmb();
 		svsk->sk_odata(sk);
 		if (!test_and_set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags))
 			svc_xprt_enqueue(&svsk->sk_xprt);
@@ -437,6 +440,9 @@ static void svc_write_space(struct sock *sk)
 	if (svsk) {
 		dprintk("svc: socket %p(inet %p), write_space busy=%d\n",
 			svsk, sk, test_bit(XPT_BUSY, &svsk->sk_xprt.xpt_flags));
+
+		/* Refer to svc_setup_socket() for details. */
+		rmb();
 		svsk->sk_owspace(sk);
 		svc_xprt_enqueue(&svsk->sk_xprt);
 	}
@@ -687,7 +693,7 @@ static struct svc_xprt *svc_udp_create(struct svc_serv *serv,
 	return svc_create_socket(serv, IPPROTO_UDP, net, sa, salen, flags);
 }
 
-static struct svc_xprt_ops svc_udp_ops = {
+static const struct svc_xprt_ops svc_udp_ops = {
 	.xpo_create = svc_udp_create,
 	.xpo_recvfrom = svc_udp_recvfrom,
 	.xpo_sendto = svc_udp_sendto,
@@ -760,8 +766,12 @@ static void svc_tcp_listen_data_ready(struct sock *sk)
 	dprintk("svc: socket %p TCP (listen) state change %d\n",
 		sk, sk->sk_state);
 
-	if (svsk)
+	if (svsk) {
+		/* Refer to svc_setup_socket() for details. */
+		rmb();
 		svsk->sk_odata(sk);
+	}
+
 	/*
 	 * This callback may called twice when a new connection
 	 * is established as a child socket inherits everything
@@ -794,6 +804,8 @@ static void svc_tcp_state_change(struct sock *sk)
 	if (!svsk)
 		printk("svc: socket %p: no user data\n", sk);
 	else {
+		/* Refer to svc_setup_socket() for details. */
+		rmb();
 		svsk->sk_ostate(sk);
 		if (sk->sk_state != TCP_ESTABLISHED) {
 			set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
@@ -1001,7 +1013,7 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 
 	if (!bc_xprt)
 		return -EAGAIN;
-	spin_lock_bh(&bc_xprt->transport_lock);
+	spin_lock(&bc_xprt->recv_lock);
 	req = xprt_lookup_rqst(bc_xprt, xid);
 	if (!req)
 		goto unlock_notfound;
@@ -1019,7 +1031,7 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	memcpy(dst->iov_base, src->iov_base, src->iov_len);
 	xprt_complete_rqst(req->rq_task, rqstp->rq_arg.len);
 	rqstp->rq_arg.len = 0;
-	spin_unlock_bh(&bc_xprt->transport_lock);
+	spin_unlock(&bc_xprt->recv_lock);
 	return 0;
 unlock_notfound:
 	printk(KERN_NOTICE
@@ -1028,7 +1040,7 @@ unlock_notfound:
 		__func__, ntohl(calldir),
 		bc_xprt, ntohl(xid));
 unlock_eagain:
-	spin_unlock_bh(&bc_xprt->transport_lock);
+	spin_unlock(&bc_xprt->recv_lock);
 	return -EAGAIN;
 }
 
@@ -1229,7 +1241,7 @@ static void svc_bc_tcp_sock_detach(struct svc_xprt *xprt)
 {
 }
 
-static struct svc_xprt_ops svc_tcp_bc_ops = {
+static const struct svc_xprt_ops svc_tcp_bc_ops = {
 	.xpo_create = svc_bc_tcp_create,
 	.xpo_detach = svc_bc_tcp_sock_detach,
 	.xpo_free = svc_bc_sock_free,
@@ -1263,7 +1275,7 @@ static void svc_cleanup_bc_xprt_sock(void)
 }
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
-static struct svc_xprt_ops svc_tcp_ops = {
+static const struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_create = svc_tcp_create,
 	.xpo_recvfrom = svc_tcp_recvfrom,
 	.xpo_sendto = svc_tcp_sendto,
@@ -1381,12 +1393,18 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 		return ERR_PTR(err);
 	}
 
-	inet->sk_user_data = svsk;
 	svsk->sk_sock = sock;
 	svsk->sk_sk = inet;
 	svsk->sk_ostate = inet->sk_state_change;
 	svsk->sk_odata = inet->sk_data_ready;
 	svsk->sk_owspace = inet->sk_write_space;
+	/*
+	 * This barrier is necessary in order to prevent race condition
+	 * with svc_data_ready(), svc_listen_data_ready() and others
+	 * when calling callbacks above.
+	 */
+	wmb();
+	inet->sk_user_data = svsk;
 
 	/* Initialize the socket */
 	if (sock->type == SOCK_DGRAM)

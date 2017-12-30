@@ -36,7 +36,6 @@
 #define DRV_NAME "ucc_hdlc"
 
 #define TDM_PPPOHT_SLIC_MAXIN
-#define BROKEN_FRAME_INFO
 
 static struct ucc_tdm_info utdm_primary_info = {
 	.uf_info = {
@@ -99,6 +98,13 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 		uf_info->tsa = 1;
 		uf_info->ctsp = 1;
 	}
+
+	/* This sets HPM register in CMXUCR register which configures a
+	 * open drain connected HDLC bus
+	 */
+	if (priv->hdlc_bus)
+		uf_info->brkpt_support = 1;
+
 	uf_info->uccm_mask = ((UCC_HDLC_UCCE_RXB | UCC_HDLC_UCCE_RXF |
 				UCC_HDLC_UCCE_TXB) << 16);
 
@@ -114,6 +120,9 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	/* Loopback mode */
 	if (priv->loopback) {
 		dev_info(priv->dev, "Loopback Mode\n");
+		/* use the same clock when work in loopback */
+		qe_setbrg(ut_info->uf_info.rx_clock, 20000000, 1);
+
 		gumr = ioread32be(&priv->uf_regs->gumr);
 		gumr |= (UCC_FAST_GUMR_LOOPBACK | UCC_FAST_GUMR_CDS |
 			 UCC_FAST_GUMR_TCI);
@@ -133,11 +142,33 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	/* Set UPSMR normal mode (need fixed)*/
 	iowrite32be(0, &priv->uf_regs->upsmr);
 
+	/* hdlc_bus mode */
+	if (priv->hdlc_bus) {
+		u32 upsmr;
+
+		dev_info(priv->dev, "HDLC bus Mode\n");
+		upsmr = ioread32be(&priv->uf_regs->upsmr);
+
+		/* bus mode and retransmit enable, with collision window
+		 * set to 8 bytes
+		 */
+		upsmr |= UCC_HDLC_UPSMR_RTE | UCC_HDLC_UPSMR_BUS |
+				UCC_HDLC_UPSMR_CW8;
+		iowrite32be(upsmr, &priv->uf_regs->upsmr);
+
+		/* explicitly disable CDS & CTSP */
+		gumr = ioread32be(&priv->uf_regs->gumr);
+		gumr &= ~(UCC_FAST_GUMR_CDS | UCC_FAST_GUMR_CTSP);
+		/* set automatic sync to explicitly ignore CD signal */
+		gumr |= UCC_FAST_GUMR_SYNL_AUTO;
+		iowrite32be(gumr, &priv->uf_regs->gumr);
+	}
+
 	priv->rx_ring_size = RX_BD_RING_LEN;
 	priv->tx_ring_size = TX_BD_RING_LEN;
 	/* Alloc Rx BD */
 	priv->rx_bd_base = dma_alloc_coherent(priv->dev,
-			RX_BD_RING_LEN * sizeof(struct qe_bd *),
+			RX_BD_RING_LEN * sizeof(struct qe_bd),
 			&priv->dma_rx_bd, GFP_KERNEL);
 
 	if (!priv->rx_bd_base) {
@@ -148,7 +179,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 
 	/* Alloc Tx BD */
 	priv->tx_bd_base = dma_alloc_coherent(priv->dev,
-			TX_BD_RING_LEN * sizeof(struct qe_bd *),
+			TX_BD_RING_LEN * sizeof(struct qe_bd),
 			&priv->dma_tx_bd, GFP_KERNEL);
 
 	if (!priv->tx_bd_base) {
@@ -158,7 +189,7 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 	}
 
 	/* Alloc parameter ram for ucc hdlc */
-	priv->ucc_pram_offset = qe_muram_alloc(sizeof(priv->ucc_pram),
+	priv->ucc_pram_offset = qe_muram_alloc(sizeof(struct ucc_hdlc_param),
 				ALIGNMENT_OF_UCC_HDLC_PRAM);
 
 	if (priv->ucc_pram_offset < 0) {
@@ -295,11 +326,11 @@ free_ucc_pram:
 	qe_muram_free(priv->ucc_pram_offset);
 free_tx_bd:
 	dma_free_coherent(priv->dev,
-			  TX_BD_RING_LEN * sizeof(struct qe_bd *),
+			  TX_BD_RING_LEN * sizeof(struct qe_bd),
 			  priv->tx_bd_base, priv->dma_tx_bd);
 free_rx_bd:
 	dma_free_coherent(priv->dev,
-			  RX_BD_RING_LEN * sizeof(struct qe_bd *),
+			  RX_BD_RING_LEN * sizeof(struct qe_bd),
 			  priv->rx_bd_base, priv->dma_rx_bd);
 free_uccf:
 	ucc_fast_free(priv->uccf);
@@ -314,8 +345,6 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 	struct qe_bd __iomem *bd;
 	u16 bd_status;
 	unsigned long flags;
-	u8 *send_buf;
-	int i;
 	u16 *proto_head;
 
 	switch (dev->type) {
@@ -351,16 +380,6 @@ static netdev_tx_t ucc_hdlc_tx(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 		return -ENOMEM;
-	}
-
-	pr_info("Tx data skb->len:%d ", skb->len);
-	send_buf = (u8 *)skb->data;
-	pr_info("\nTransmitted data:\n");
-	for (i = 0; i < 16; i++) {
-		if (i == skb->len)
-			pr_info("++++");
-		else
-		pr_info("%02x\n", send_buf[i]);
 	}
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -423,7 +442,6 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 		skb = priv->tx_skbuff[priv->skb_dirtytx];
 		if (!skb)
 			break;
-		pr_info("TxBD: %x\n", bd_status);
 		dev->stats.tx_packets++;
 		memset(priv->tx_buffer +
 		       (be32_to_cpu(bd->buf) - priv->dma_tx_addr),
@@ -454,14 +472,12 @@ static int hdlc_tx_done(struct ucc_hdlc_private *priv)
 static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 {
 	struct net_device *dev = priv->ndev;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	struct qe_bd *bd;
 	u16 bd_status;
 	u16 length, howmany = 0;
 	u8 *bdbuffer;
-	int i;
-	static int entry;
 
 	bd = priv->currx_bd;
 	bd_status = ioread16be(&bd->status);
@@ -471,9 +487,6 @@ static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 		if (bd_status & R_OV_S)
 			dev->stats.rx_over_errors++;
 		if (bd_status & R_CR_S) {
-#ifdef BROKEN_FRAME_INFO
-			pr_info("Broken Frame with RxBD: %x\n", bd_status);
-#endif
 			dev->stats.rx_crc_errors++;
 			dev->stats.rx_dropped++;
 			goto recycle;
@@ -481,17 +494,6 @@ static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 		bdbuffer = priv->rx_buffer +
 			(priv->currx_bdnum * MAX_RX_BUF_LENGTH);
 		length = ioread16be(&bd->length);
-
-		pr_info("Received data length:%d", length);
-		pr_info("while entry times:%d", entry++);
-
-		pr_info("\nReceived data:\n");
-		for (i = 0; (i < 16); i++) {
-			if (i == length)
-				pr_info("++++");
-			else
-			pr_info("%02x\n", bdbuffer[i]);
-		}
 
 		switch (dev->type) {
 		case ARPHRD_RAWHDLC:
@@ -531,7 +533,6 @@ static int hdlc_rx_done(struct ucc_hdlc_private *priv, int rx_work_limit)
 		howmany++;
 		if (hdlc->proto)
 			skb->protocol = hdlc_type_trans(skb, dev);
-		pr_info("skb->protocol:%x\n", skb->protocol);
 		netif_receive_skb(skb);
 
 recycle:
@@ -566,7 +567,7 @@ static int ucc_hdlc_poll(struct napi_struct *napi, int budget)
 
 	/* Tx event processing */
 	spin_lock(&priv->lock);
-		hdlc_tx_done(priv);
+	hdlc_tx_done(priv);
 	spin_unlock(&priv->lock);
 
 	howmany = 0;
@@ -597,7 +598,6 @@ static irqreturn_t ucc_hdlc_irq_handler(int irq, void *dev_id)
 	uccm = ioread32be(uccf->p_uccm);
 	ucce &= uccm;
 	iowrite32be(ucce, uccf->p_ucce);
-	pr_info("irq ucce:%x\n", ucce);
 	if (!ucce)
 		return IRQ_NONE;
 
@@ -688,7 +688,7 @@ static void uhdlc_memclean(struct ucc_hdlc_private *priv)
 
 	if (priv->rx_bd_base) {
 		dma_free_coherent(priv->dev,
-				  RX_BD_RING_LEN * sizeof(struct qe_bd *),
+				  RX_BD_RING_LEN * sizeof(struct qe_bd),
 				  priv->rx_bd_base, priv->dma_rx_bd);
 
 		priv->rx_bd_base = NULL;
@@ -697,7 +697,7 @@ static void uhdlc_memclean(struct ucc_hdlc_private *priv)
 
 	if (priv->tx_bd_base) {
 		dma_free_coherent(priv->dev,
-				  TX_BD_RING_LEN * sizeof(struct qe_bd *),
+				  TX_BD_RING_LEN * sizeof(struct qe_bd),
 				  priv->tx_bd_base, priv->dma_tx_bd);
 
 		priv->tx_bd_base = NULL;
@@ -855,7 +855,6 @@ static int uhdlc_suspend(struct device *dev)
 	/* save power */
 	ucc_fast_disable(priv->uccf, COMM_DIR_RX | COMM_DIR_TX);
 
-	dev_dbg(dev, "ucc hdlc suspend\n");
 	return 0;
 }
 
@@ -1001,7 +1000,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct ucc_hdlc_private *uhdlc_priv = NULL;
 	struct ucc_tdm_info *ut_info;
-	struct ucc_tdm *utdm;
+	struct ucc_tdm *utdm = NULL;
 	struct resource res;
 	struct net_device *dev;
 	hdlc_device *hdlc;
@@ -1054,10 +1053,6 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* use the same clock when work in loopback */
-	if (ut_info->uf_info.rx_clock == ut_info->uf_info.tx_clock)
-		qe_setbrg(ut_info->uf_info.rx_clock, 20000000, 1);
-
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret)
 		return -EINVAL;
@@ -1079,6 +1074,9 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 
 	if (of_get_property(np, "fsl,ucc-internal-loopback", NULL))
 		uhdlc_priv->loopback = 1;
+
+	if (of_get_property(np, "fsl,hdlc-bus", NULL))
+		uhdlc_priv->hdlc_bus = 1;
 
 	if (uhdlc_priv->tsa == 1) {
 		utdm = kzalloc(sizeof(*utdm), GFP_KERNEL);

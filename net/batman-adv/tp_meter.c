@@ -27,6 +27,7 @@
 #include <linux/etherdevice.h>
 #include <linux/fs.h>
 #include <linux/if_ether.h>
+#include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
@@ -481,15 +482,15 @@ static void batadv_tp_reset_sender_timer(struct batadv_tp_vars *tp_vars)
 
 /**
  * batadv_tp_sender_timeout - timer that fires in case of packet loss
- * @arg: address of the related tp_vars
+ * @t: address to timer_list inside tp_vars
  *
  * If fired it means that there was packet loss.
  * Switch to Slow Start, set the ss_threshold to half of the current cwnd and
  * reset the cwnd to 3*MSS
  */
-static void batadv_tp_sender_timeout(unsigned long arg)
+static void batadv_tp_sender_timeout(struct timer_list *t)
 {
-	struct batadv_tp_vars *tp_vars = (struct batadv_tp_vars *)arg;
+	struct batadv_tp_vars *tp_vars = from_timer(tp_vars, t, timer);
 	struct batadv_priv *bat_priv = tp_vars->bat_priv;
 
 	if (atomic_read(&tp_vars->sending) == 0)
@@ -594,7 +595,7 @@ static int batadv_tp_send_msg(struct batadv_tp_vars *tp_vars, const u8 *src,
 		return BATADV_TP_REASON_MEMORY_ERROR;
 
 	skb_reserve(skb, ETH_HLEN);
-	icmp = (struct batadv_icmp_tp_packet *)skb_put(skb, sizeof(*icmp));
+	icmp = skb_put(skb, sizeof(*icmp));
 
 	/* fill the icmp header */
 	ether_addr_copy(icmp->dst, orig_node->orig);
@@ -611,7 +612,7 @@ static int batadv_tp_send_msg(struct batadv_tp_vars *tp_vars, const u8 *src,
 	icmp->timestamp = htonl(timestamp);
 
 	data_len = len - sizeof(*icmp);
-	data = (u8 *)skb_put(skb, data_len);
+	data = skb_put(skb, data_len);
 	batadv_tp_fill_prerandom(tp_vars, data, data_len);
 
 	r = batadv_send_skb_to_orig(skb, orig_node, NULL);
@@ -1019,8 +1020,7 @@ void batadv_tp_start(struct batadv_priv *bat_priv, const u8 *dst,
 	atomic64_set(&tp_vars->tot_sent, 0);
 
 	kref_get(&tp_vars->refcount);
-	setup_timer(&tp_vars->timer, batadv_tp_sender_timeout,
-		    (unsigned long)tp_vars);
+	timer_setup(&tp_vars->timer, batadv_tp_sender_timeout, 0);
 
 	tp_vars->bat_priv = bat_priv;
 	tp_vars->start_time = jiffies;
@@ -1106,11 +1106,11 @@ static void batadv_tp_reset_receiver_timer(struct batadv_tp_vars *tp_vars)
 /**
  * batadv_tp_receiver_shutdown - stop a tp meter receiver when timeout is
  *  reached without received ack
- * @arg: address of the related tp_vars
+ * @t: address to timer_list inside tp_vars
  */
-static void batadv_tp_receiver_shutdown(unsigned long arg)
+static void batadv_tp_receiver_shutdown(struct timer_list *t)
 {
-	struct batadv_tp_vars *tp_vars = (struct batadv_tp_vars *)arg;
+	struct batadv_tp_vars *tp_vars = from_timer(tp_vars, t, timer);
 	struct batadv_tp_unacked *un, *safe;
 	struct batadv_priv *bat_priv;
 
@@ -1189,7 +1189,7 @@ static int batadv_tp_send_ack(struct batadv_priv *bat_priv, const u8 *dst,
 	}
 
 	skb_reserve(skb, ETH_HLEN);
-	icmp = (struct batadv_icmp_tp_packet *)skb_put(skb, sizeof(*icmp));
+	icmp = skb_put(skb, sizeof(*icmp));
 	icmp->packet_type = BATADV_ICMP;
 	icmp->version = BATADV_COMPAT_VERSION;
 	icmp->ttl = BATADV_TTL;
@@ -1205,7 +1205,7 @@ static int batadv_tp_send_ack(struct batadv_priv *bat_priv, const u8 *dst,
 
 	/* send the ack */
 	r = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (unlikely(r < 0) || (r == NET_XMIT_DROP)) {
+	if (unlikely(r < 0) || r == NET_XMIT_DROP) {
 		ret = BATADV_TP_REASON_DST_UNREACHABLE;
 		goto out;
 	}
@@ -1372,8 +1372,7 @@ batadv_tp_init_recv(struct batadv_priv *bat_priv,
 	hlist_add_head_rcu(&tp_vars->list, &bat_priv->tp_list);
 
 	kref_get(&tp_vars->refcount);
-	setup_timer(&tp_vars->timer, batadv_tp_receiver_shutdown,
-		    (unsigned long)tp_vars);
+	timer_setup(&tp_vars->timer, batadv_tp_receiver_shutdown, 0);
 
 	batadv_tp_reset_receiver_timer(tp_vars);
 
@@ -1497,7 +1496,7 @@ void batadv_tp_meter_recv(struct batadv_priv *bat_priv, struct sk_buff *skb)
 /**
  * batadv_tp_meter_init - initialize global tp_meter structures
  */
-void batadv_tp_meter_init(void)
+void __init batadv_tp_meter_init(void)
 {
 	get_random_bytes(batadv_tp_prerandom, sizeof(batadv_tp_prerandom));
 }

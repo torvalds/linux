@@ -5,6 +5,7 @@ The Mediatek's Pin controller is used to control SoC pins.
 Required properties:
 - compatible: value should be one of the following.
 	"mediatek,mt2701-pinctrl", compatible with mt2701 pinctrl.
+	"mediatek,mt2712-pinctrl", compatible with mt2712 pinctrl.
 	"mediatek,mt6397-pinctrl", compatible with mt6397 pinctrl.
 	"mediatek,mt7623-pinctrl", compatible with mt7623 pinctrl.
 	"mediatek,mt8127-pinctrl", compatible with mt8127 pinctrl.
@@ -85,7 +86,7 @@ Examples:
 		reg = <0 0x1020C020 0 0x1000>;
 	};
 
-	pinctrl@01c20800 {
+	pinctrl@1c20800 {
 		compatible = "mediatek,mt8135-pinctrl";
 		reg = <0 0x1000B000 0 0x1000>;
 		mediatek,pctl-regmap = <&syscfg_pctl_a &syscfg_pctl_b>;

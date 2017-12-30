@@ -384,7 +384,7 @@ static void esb2rom_remove_one(struct pci_dev *pdev)
 	esb2rom_cleanup(window);
 }
 
-static struct pci_device_id esb2rom_pci_tbl[] = {
+static const struct pci_device_id esb2rom_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_0,
 	  PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_0,
@@ -414,7 +414,7 @@ static struct pci_driver esb2rom_driver = {
 static int __init init_esb2rom(void)
 {
 	struct pci_dev *pdev;
-	struct pci_device_id *id;
+	const struct pci_device_id *id;
 	int retVal;
 
 	pdev = NULL;

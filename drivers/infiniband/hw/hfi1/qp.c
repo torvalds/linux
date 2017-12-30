@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -68,16 +68,11 @@ static int iowait_sleep(
 	struct sdma_engine *sde,
 	struct iowait *wait,
 	struct sdma_txreq *stx,
-	unsigned seq);
+	unsigned int seq,
+	bool pkts_sent);
 static void iowait_wakeup(struct iowait *wait, int reason);
 static void iowait_sdma_drained(struct iowait *wait);
 static void qp_pio_drain(struct rvt_qp *qp);
-
-static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
-			      struct rvt_qpn_map *map, unsigned off)
-{
-	return (map - qpt->map) * RVT_BITS_PER_PAGE + off;
-}
 
 const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 [IB_WR_RDMA_WRITE] = {
@@ -237,6 +232,31 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 	return 0;
 }
 
+/*
+ * qp_set_16b - Set the hdr_type based on whether the slid or the
+ * dlid in the connection is extended. Only applicable for RC and UC
+ * QPs. UD QPs determine this on the fly from the ah in the wqe
+ */
+static inline void qp_set_16b(struct rvt_qp *qp)
+{
+	struct hfi1_pportdata *ppd;
+	struct hfi1_ibport *ibp;
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	/* Update ah_attr to account for extended LIDs */
+	hfi1_update_ah_attr(qp->ibqp.device, &qp->remote_ah_attr);
+
+	/* Create 32 bit LIDs */
+	hfi1_make_opa_lid(&qp->remote_ah_attr);
+
+	if (!(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH))
+		return;
+
+	ibp = to_iport(qp->ibqp.device, qp->port_num);
+	ppd = ppd_from_ibp(ibp);
+	priv->hdr_type = hfi1_get_hdr_type(ppd->lid, &qp->remote_ah_attr);
+}
+
 void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata)
 {
@@ -247,6 +267,7 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		priv->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
 		priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
 		priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
+		qp_set_16b(qp);
 	}
 
 	if (attr_mask & IB_QP_PATH_MIG_STATE &&
@@ -256,6 +277,7 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		priv->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
 		priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
 		priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
+		qp_set_16b(qp);
 	}
 }
 
@@ -377,7 +399,8 @@ static int iowait_sleep(
 	struct sdma_engine *sde,
 	struct iowait *wait,
 	struct sdma_txreq *stx,
-	unsigned seq)
+	uint seq,
+	bool pkts_sent)
 {
 	struct verbs_txreq *tx = container_of(stx, struct verbs_txreq, txreq);
 	struct rvt_qp *qp;
@@ -408,7 +431,8 @@ static int iowait_sleep(
 
 			ibp->rvp.n_dmawait++;
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
-			list_add_tail(&priv->s_iowait.list, &sde->dmawait);
+			iowait_queue(pkts_sent, &priv->s_iowait,
+				     &sde->dmawait);
 			priv->s_iowait.lock = &dev->iowait_lock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_DMA_DESC);
 			rvt_get_qp(qp);
@@ -506,82 +530,6 @@ struct send_context *qp_to_send_context(struct rvt_qp *qp, u8 sc5)
 					  sc5);
 }
 
-struct qp_iter {
-	struct hfi1_ibdev *dev;
-	struct rvt_qp *qp;
-	int specials;
-	int n;
-};
-
-struct qp_iter *qp_iter_init(struct hfi1_ibdev *dev)
-{
-	struct qp_iter *iter;
-
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter)
-		return NULL;
-
-	iter->dev = dev;
-	iter->specials = dev->rdi.ibdev.phys_port_cnt * 2;
-
-	return iter;
-}
-
-int qp_iter_next(struct qp_iter *iter)
-{
-	struct hfi1_ibdev *dev = iter->dev;
-	int n = iter->n;
-	int ret = 1;
-	struct rvt_qp *pqp = iter->qp;
-	struct rvt_qp *qp;
-
-	/*
-	 * The approach is to consider the special qps
-	 * as an additional table entries before the
-	 * real hash table.  Since the qp code sets
-	 * the qp->next hash link to NULL, this works just fine.
-	 *
-	 * iter->specials is 2 * # ports
-	 *
-	 * n = 0..iter->specials is the special qp indices
-	 *
-	 * n = iter->specials..dev->rdi.qp_dev->qp_table_size+iter->specials are
-	 * the potential hash bucket entries
-	 *
-	 */
-	for (; n <  dev->rdi.qp_dev->qp_table_size + iter->specials; n++) {
-		if (pqp) {
-			qp = rcu_dereference(pqp->next);
-		} else {
-			if (n < iter->specials) {
-				struct hfi1_pportdata *ppd;
-				struct hfi1_ibport *ibp;
-				int pidx;
-
-				pidx = n % dev->rdi.ibdev.phys_port_cnt;
-				ppd = &dd_from_dev(dev)->pport[pidx];
-				ibp = &ppd->ibport_data;
-
-				if (!(n & 1))
-					qp = rcu_dereference(ibp->rvp.qp[0]);
-				else
-					qp = rcu_dereference(ibp->rvp.qp[1]);
-			} else {
-				qp = rcu_dereference(
-					dev->rdi.qp_dev->qp_table[
-						(n - iter->specials)]);
-			}
-		}
-		pqp = qp;
-		if (qp) {
-			iter->qp = qp;
-			iter->n = n;
-			return 0;
-		}
-	}
-	return ret;
-}
-
 static const char * const qp_type_str[] = {
 	"SMI", "GSI", "RC", "UC", "UD",
 };
@@ -595,19 +543,27 @@ static int qp_idle(struct rvt_qp *qp)
 		qp->s_tail == qp->s_head;
 }
 
-void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
+/**
+ * qp_iter_print - print the qp information to seq_file
+ * @s: the seq_file to emit the qp information on
+ * @iter: the iterator for the qp hash list
+ */
+void qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter)
 {
 	struct rvt_swqe *wqe;
 	struct rvt_qp *qp = iter->qp;
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct sdma_engine *sde;
 	struct send_context *send_context;
+	struct rvt_ack_entry *e = NULL;
 
 	sde = qp_to_sdma_engine(qp, priv->s_sc);
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 	send_context = qp_to_send_context(qp, priv->s_sc);
+	if (qp->s_ack_queue)
+		e = &qp->s_ack_queue[qp->s_tail_ack_queue];
 	seq_printf(s,
-		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x (%u %u %u %u %u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d\n",
+		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x S(%u %u %u %u %u %u %u) R(%u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d OS %x %x E %x %x %x\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -630,6 +586,10 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->s_last, qp->s_acked, qp->s_cur,
 		   qp->s_tail, qp->s_head, qp->s_size,
 		   qp->s_avail,
+		   /* ack_queue ring pointers, size */
+		   qp->s_tail_ack_queue, qp->r_head_ack_queue,
+		   rvt_max_atomic(&to_idev(qp->ibqp.device)->rdi),
+		   /* remote QP info  */
 		   qp->remote_qpn,
 		   rdma_ah_get_dlid(&qp->remote_ah_attr),
 		   rdma_ah_get_sl(&qp->remote_ah_attr),
@@ -644,21 +604,26 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   send_context ? send_context->sw_index : 0,
 		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->head,
 		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->tail,
-		   qp->pid);
+		   qp->pid,
+		   qp->s_state,
+		   qp->s_ack_state,
+		   /* ack queue information */
+		   e ? e->opcode : 0,
+		   e ? e->psn : 0,
+		   e ? e->lpsn : 0);
 }
 
-void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-		    gfp_t gfp)
+void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv;
 
-	priv = kzalloc_node(sizeof(*priv), gfp, rdi->dparms.node);
+	priv = kzalloc_node(sizeof(*priv), GFP_KERNEL, rdi->dparms.node);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
 	priv->owner = qp;
 
-	priv->s_ahg = kzalloc_node(sizeof(*priv->s_ahg), gfp,
+	priv->s_ahg = kzalloc_node(sizeof(*priv->s_ahg), GFP_KERNEL,
 				   rdi->dparms.node);
 	if (!priv->s_ahg) {
 		kfree(priv);
@@ -751,6 +716,7 @@ void hfi1_migrate_qp(struct rvt_qp *qp)
 	qp->s_flags |= RVT_S_AHG_CLEAR;
 	priv->s_sc = ah_to_sc(qp->ibqp.device, &qp->remote_ah_attr);
 	priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
+	qp_set_16b(qp);
 
 	ev.device = qp->ibqp.device;
 	ev.element.qp = &qp->ibqp;
@@ -833,6 +799,45 @@ void notify_error_qp(struct rvt_qp *qp)
 }
 
 /**
+ * hfi1_qp_iter_cb - callback for iterator
+ * @qp - the qp
+ * @v - the sl in low bits of v
+ *
+ * This is called from the iterator callback to work
+ * on an individual qp.
+ */
+static void hfi1_qp_iter_cb(struct rvt_qp *qp, u64 v)
+{
+	int lastwqe;
+	struct ib_event ev;
+	struct hfi1_ibport *ibp =
+		to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	u8 sl = (u8)v;
+
+	if (qp->port_num != ppd->port ||
+	    (qp->ibqp.qp_type != IB_QPT_UC &&
+	     qp->ibqp.qp_type != IB_QPT_RC) ||
+	    rdma_ah_get_sl(&qp->remote_ah_attr) != sl ||
+	    !(ib_rvt_state_ops[qp->state] & RVT_POST_SEND_OK))
+		return;
+
+	spin_lock_irq(&qp->r_lock);
+	spin_lock(&qp->s_hlock);
+	spin_lock(&qp->s_lock);
+	lastwqe = rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+	spin_unlock(&qp->s_lock);
+	spin_unlock(&qp->s_hlock);
+	spin_unlock_irq(&qp->r_lock);
+	if (lastwqe) {
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+	}
+}
+
+/**
  * hfi1_error_port_qps - put a port's RC/UC qps into error state
  * @ibp: the ibport.
  * @sl: the service level.
@@ -843,44 +848,8 @@ void notify_error_qp(struct rvt_qp *qp)
  */
 void hfi1_error_port_qps(struct hfi1_ibport *ibp, u8 sl)
 {
-	struct rvt_qp *qp = NULL;
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_ibdev *dev = &ppd->dd->verbs_dev;
-	int n;
-	int lastwqe;
-	struct ib_event ev;
 
-	rcu_read_lock();
-
-	/* Deal only with RC/UC qps that use the given SL. */
-	for (n = 0; n < dev->rdi.qp_dev->qp_table_size; n++) {
-		for (qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]); qp;
-			qp = rcu_dereference(qp->next)) {
-			if (qp->port_num == ppd->port &&
-			    (qp->ibqp.qp_type == IB_QPT_UC ||
-			     qp->ibqp.qp_type == IB_QPT_RC) &&
-			    rdma_ah_get_sl(&qp->remote_ah_attr) == sl &&
-			    (ib_rvt_state_ops[qp->state] &
-			     RVT_POST_SEND_OK)) {
-				spin_lock_irq(&qp->r_lock);
-				spin_lock(&qp->s_hlock);
-				spin_lock(&qp->s_lock);
-				lastwqe = rvt_error_qp(qp,
-						       IB_WC_WR_FLUSH_ERR);
-				spin_unlock(&qp->s_lock);
-				spin_unlock(&qp->s_hlock);
-				spin_unlock_irq(&qp->r_lock);
-				if (lastwqe) {
-					ev.device = qp->ibqp.device;
-					ev.element.qp = &qp->ibqp;
-					ev.event =
-						IB_EVENT_QP_LAST_WQE_REACHED;
-					qp->ibqp.event_handler(&ev,
-						qp->ibqp.qp_context);
-				}
-			}
-		}
-	}
-
-	rcu_read_unlock();
+	rvt_qp_iter(&dev->rdi, sl, hfi1_qp_iter_cb);
 }

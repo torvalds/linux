@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * etrap.S: Preparing for entry into the kernel on Sparc V9.
  *
@@ -38,7 +39,11 @@ etrap_syscall:	TRAP_LOAD_THREAD_REG(%g6, %g1)
 		or	%g1, %g3, %g1
 		bne,pn	%xcc, 1f
 		 sub	%sp, STACKFRAME_SZ+TRACEREG_SZ-STACK_BIAS, %g2
-		wrpr	%g0, 7, %cleanwin
+661:		wrpr	%g0, 7, %cleanwin
+		.section .fast_win_ctrl_1insn_patch, "ax"
+		.word	661b
+		.word	0x85880000	! allclean
+		.previous
 
 		sethi	%hi(TASK_REGOFF), %g2
 		sethi	%hi(TSTATE_PEF), %g3
@@ -88,16 +93,30 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 
 		bne,pn	%xcc, 3f
 		 mov	PRIMARY_CONTEXT, %l4
-		rdpr	%canrestore, %g3
+661:		rdpr	%canrestore, %g3
+		.section .fast_win_ctrl_1insn_patch, "ax"
+		.word	661b
+		nop
+		.previous
+
 		rdpr	%wstate, %g2
-		wrpr	%g0, 0, %canrestore
+661:		wrpr	%g0, 0, %canrestore
+		.section .fast_win_ctrl_1insn_patch, "ax"
+		.word	661b
+		nop
+		.previous
 		sll	%g2, 3, %g2
 
 		/* Set TI_SYS_FPDEPTH to 1 and clear TI_SYS_NOERROR.  */
 		mov	1, %l5
 		sth	%l5, [%l6 + TI_SYS_NOERROR]
 
-		wrpr	%g3, 0, %otherwin
+661:		wrpr	%g3, 0, %otherwin
+		.section .fast_win_ctrl_1insn_patch, "ax"
+		.word	661b
+		.word	0x87880000	! otherw
+		.previous
+
 		wrpr	%g2, 0, %wstate
 		sethi	%hi(sparc64_kern_pri_context), %g2
 		ldx	[%g2 + %lo(sparc64_kern_pri_context)], %g3

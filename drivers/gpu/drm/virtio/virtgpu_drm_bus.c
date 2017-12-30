@@ -56,7 +56,6 @@ int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev)
 	dev = drm_dev_alloc(driver, &vdev->dev);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
-	dev->virtdev = vdev;
 	vdev->priv = dev;
 
 	if (strcmp(vdev->dev.parent->bus->name, "pci") == 0) {
