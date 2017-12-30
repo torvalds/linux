@@ -345,15 +345,17 @@ static inline void invalidate_user_asid(u16 asid)
  */
 static inline void __native_flush_tlb(void)
 {
-	invalidate_user_asid(this_cpu_read(cpu_tlbstate.loaded_mm_asid));
 	/*
-	 * If current->mm == NULL then we borrow a mm which may change
-	 * during a task switch and therefore we must not be preempted
-	 * while we write CR3 back:
+	 * Preemption or interrupts must be disabled to protect the access
+	 * to the per CPU variable and to prevent being preempted between
+	 * read_cr3() and write_cr3().
 	 */
-	preempt_disable();
+	WARN_ON_ONCE(preemptible());
+
+	invalidate_user_asid(this_cpu_read(cpu_tlbstate.loaded_mm_asid));
+
+	/* If current->mm == NULL then the read_cr3() "borrows" an mm */
 	native_write_cr3(__native_read_cr3());
-	preempt_enable();
 }
 
 /*
