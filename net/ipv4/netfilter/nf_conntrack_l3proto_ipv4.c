@@ -154,11 +154,6 @@ static unsigned int ipv4_conntrack_local(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
-	/* root is playing with raw sockets. */
-	if (skb->len < sizeof(struct iphdr) ||
-	    ip_hdrlen(skb) < sizeof(struct iphdr))
-		return NF_ACCEPT;
-
 	if (ip_is_fragment(ip_hdr(skb))) /* IP_NODEFRAG setsockopt set */
 		return NF_ACCEPT;
 

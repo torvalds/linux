@@ -28,20 +28,6 @@ static unsigned int nft_do_chain_ipv6(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-static unsigned int nft_ipv6_output(void *priv,
-				    struct sk_buff *skb,
-				    const struct nf_hook_state *state)
-{
-	if (unlikely(skb->len < sizeof(struct ipv6hdr))) {
-		if (net_ratelimit())
-			pr_info("nf_tables_ipv6: ignoring short SOCK_RAW "
-				"packet\n");
-		return NF_ACCEPT;
-	}
-
-	return nft_do_chain_ipv6(priv, skb, state);
-}
-
 static struct nft_af_info nft_af_ipv6 __read_mostly = {
 	.family		= NFPROTO_IPV6,
 	.nhooks		= NF_INET_NUMHOOKS,
@@ -88,7 +74,7 @@ static const struct nf_chain_type filter_ipv6 = {
 			  (1 << NF_INET_POST_ROUTING),
 	.hooks		= {
 		[NF_INET_LOCAL_IN]	= nft_do_chain_ipv6,
-		[NF_INET_LOCAL_OUT]	= nft_ipv6_output,
+		[NF_INET_LOCAL_OUT]	= nft_do_chain_ipv6,
 		[NF_INET_FORWARD]	= nft_do_chain_ipv6,
 		[NF_INET_PRE_ROUTING]	= nft_do_chain_ipv6,
 		[NF_INET_POST_ROUTING]	= nft_do_chain_ipv6,

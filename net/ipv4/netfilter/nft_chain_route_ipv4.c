@@ -33,11 +33,6 @@ static unsigned int nf_route_table_hook(void *priv,
 	const struct iphdr *iph;
 	int err;
 
-	/* root is playing with raw sockets. */
-	if (skb->len < sizeof(struct iphdr) ||
-	    ip_hdrlen(skb) < sizeof(struct iphdr))
-		return NF_ACCEPT;
-
 	nft_set_pktinfo(&pkt, skb, state);
 	nft_set_pktinfo_ipv4(&pkt, skb);
 

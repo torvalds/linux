@@ -38,38 +38,6 @@ static unsigned int nft_do_chain_inet(void *priv, struct sk_buff *skb,
 	return nft_do_chain(&pkt, priv);
 }
 
-static unsigned int nft_inet_output(void *priv, struct sk_buff *skb,
-				    const struct nf_hook_state *state)
-{
-	struct nft_pktinfo pkt;
-
-	nft_set_pktinfo(&pkt, skb, state);
-
-	switch (state->pf) {
-	case NFPROTO_IPV4:
-		if (unlikely(skb->len < sizeof(struct iphdr) ||
-			     ip_hdr(skb)->ihl < sizeof(struct iphdr) / 4)) {
-			if (net_ratelimit())
-				pr_info("ignoring short SOCK_RAW packet\n");
-			return NF_ACCEPT;
-		}
-		nft_set_pktinfo_ipv4(&pkt, skb);
-		break;
-	case NFPROTO_IPV6:
-	        if (unlikely(skb->len < sizeof(struct ipv6hdr))) {
-			if (net_ratelimit())
-				pr_info("ignoring short SOCK_RAW packet\n");
-			return NF_ACCEPT;
-		}
-		nft_set_pktinfo_ipv6(&pkt, skb);
-		break;
-	default:
-		break;
-	}
-
-	return nft_do_chain(&pkt, priv);
-}
-
 static struct nft_af_info nft_af_inet __read_mostly = {
 	.family		= NFPROTO_INET,
 	.nhooks		= NF_INET_NUMHOOKS,
@@ -116,7 +84,7 @@ static const struct nf_chain_type filter_inet = {
 			  (1 << NF_INET_POST_ROUTING),
 	.hooks		= {
 		[NF_INET_LOCAL_IN]	= nft_do_chain_inet,
-		[NF_INET_LOCAL_OUT]	= nft_inet_output,
+		[NF_INET_LOCAL_OUT]	= nft_do_chain_inet,
 		[NF_INET_FORWARD]	= nft_do_chain_inet,
 		[NF_INET_PRE_ROUTING]	= nft_do_chain_inet,
 		[NF_INET_POST_ROUTING]	= nft_do_chain_inet,
