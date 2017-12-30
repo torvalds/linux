@@ -1782,14 +1782,11 @@ int xhci_alloc_erst(struct xhci_hcd *xhci,
 	struct xhci_erst_entry *entry;
 
 	size = sizeof(struct xhci_erst_entry) * evt_ring->num_segs;
-	erst->entries = dma_alloc_coherent(xhci_to_hcd(xhci)->self.sysdev,
-					   size,
-					   &erst->erst_dma_addr,
-					   flags);
+	erst->entries = dma_zalloc_coherent(xhci_to_hcd(xhci)->self.sysdev,
+					    size, &erst->erst_dma_addr, flags);
 	if (!erst->entries)
 		return -ENOMEM;
 
-	memset(erst->entries, 0, size);
 	erst->num_entries = evt_ring->num_segs;
 
 	seg = evt_ring->first_seg;
