@@ -1,0 +1,27 @@
+CryptoDev
+
+http://forum.banana-pi.org/t/is-it-possible-to-have-the-crypto-extensions-working/4034/2
+
+
+1. How to build the cryptodev driver
+
+  1) Downloadd it from here : http://cryptodev-linux.org/download.html
+  2) decompress it on host PC in which there is BPI R2 BSP 
+  3) Run below command to compile it
+    cd cryptodev-linux-1.9
+    make KERNEL_DIR=/work/BPI-R2-bsp_bk/linux-mt/ CROSS_COMPILE=arm-linux-gnueabi- ARCH=arm
+  4) Copy the cryptodev.ko to board and load it
+    insmod cryptodev.ko
+
+After this step, we will a device /dev/crypto
+
+2. How to validate if it works
+
+  1) Decompresss cryptodev-linux-1.9.tar.gz to R2 board
+  2) Build the test tool
+    cd cryptodev-linux-1.9/tests
+    make (if it fails, please install  libssl-dev first)
+  3) Run command ./speed to test the performance
+
+
+or simply run build.sh in this folder...you got cryptodev.ko and cryptodev_test.tar.gz (test-applications) in this folder
