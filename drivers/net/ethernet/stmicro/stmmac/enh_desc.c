@@ -428,7 +428,7 @@ static void enh_desc_display_ring(void *head, unsigned int size, bool rx)
 		u64 x;
 
 		x = *(u64 *)ep;
-		pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
+		pr_info("%03d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
 			i, (unsigned int)virt_to_phys(ep),
 			(unsigned int)x, (unsigned int)(x >> 32),
 			ep->basic.des2, ep->basic.des3);
