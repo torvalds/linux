@@ -81,15 +81,13 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 
 	fw_debug->buffer_len = sizeof(struct bfa_trc_mod_s);
 
-	fw_debug->debug_buffer = vmalloc(fw_debug->buffer_len);
+	fw_debug->debug_buffer = vzalloc(fw_debug->buffer_len);
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to allocate fwtrc buffer\n",
 				bfad->inst_no);
 		return -ENOMEM;
 	}
-
-	memset(fw_debug->debug_buffer, 0, fw_debug->buffer_len);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	rc = bfa_ioc_debug_fwtrc(&bfad->bfa.ioc,
@@ -125,15 +123,13 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 
 	fw_debug->buffer_len = sizeof(struct bfa_trc_mod_s);
 
-	fw_debug->debug_buffer = vmalloc(fw_debug->buffer_len);
+	fw_debug->debug_buffer = vzalloc(fw_debug->buffer_len);
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to allocate fwsave buffer\n",
 				bfad->inst_no);
 		return -ENOMEM;
 	}
-
-	memset(fw_debug->debug_buffer, 0, fw_debug->buffer_len);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	rc = bfa_ioc_debug_fwsave(&bfad->bfa.ioc,
