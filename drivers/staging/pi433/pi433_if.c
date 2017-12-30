@@ -48,7 +48,7 @@
 #include <linux/wait.h>
 #include <linux/spi/spi.h>
 #ifdef CONFIG_COMPAT
-#include <asm/compat.h>
+#include <linux/compat.h>
 #endif
 
 #include "pi433_if.h"
