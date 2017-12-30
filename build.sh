@@ -11,7 +11,7 @@ if [[ -z "$(which mkimage)" ]];then echo "please install u-boot-tools";exit 1;fi
 if [[ -d drivers ]];
 then
   action=$1
-
+  LANG=C
   #git pull
   #git reset --hard v4.14
   CFLAGS=-j$(grep ^processor /proc/cpuinfo  | wc -l)
