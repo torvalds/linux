@@ -278,12 +278,11 @@ static int bnxt_hwrm_set_dcbx_app(struct bnxt *bp, struct dcb_app *app,
 
 	n = IEEE_8021QAZ_MAX_TCS;
 	data_len = sizeof(*data) + sizeof(*fw_app) * n;
-	data = dma_alloc_coherent(&bp->pdev->dev, data_len, &mapping,
-				  GFP_KERNEL);
+	data = dma_zalloc_coherent(&bp->pdev->dev, data_len, &mapping,
+				   GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	memset(data, 0, data_len);
 	bnxt_hwrm_cmd_hdr_init(bp, &get, HWRM_FW_GET_STRUCTURED_DATA, -1, -1);
 	get.dest_data_addr = cpu_to_le64(mapping);
 	get.structure_id = cpu_to_le16(STRUCT_HDR_STRUCT_ID_DCBX_APP);
