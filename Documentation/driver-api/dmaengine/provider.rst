@@ -111,20 +111,20 @@ The first thing you need to do in your driver is to allocate this
 structure. Any of the usual memory allocators will do, but you'll also
 need to initialize a few fields in there:
 
-- channels: should be initialized as a list using the
+- ``channels``: should be initialized as a list using the
   INIT_LIST_HEAD macro for example
 
-- src_addr_widths:
+- ``src_addr_widths``:
   should contain a bitmask of the supported source transfer width
 
-- dst_addr_widths:
+- ``dst_addr_widths``:
   should contain a bitmask of the supported destination transfer width
 
-- directions:
+- ``directions``:
   should contain a bitmask of the supported slave directions
   (i.e. excluding mem2mem transfers)
 
-- residue_granularity:
+- ``residue_granularity``:
   granularity of the transfer residue reported to dma_set_residue.
   This can be either:
 
@@ -139,7 +139,7 @@ need to initialize a few fields in there:
   - Burst:
     your device is able to report which burst have been transferred
 
-- dev: should hold the pointer to the ``struct device`` associated
+- ``dev``: should hold the pointer to the ``struct device`` associated
   to your current driver instance.
 
 Supported transaction types
