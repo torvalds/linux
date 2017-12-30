@@ -1055,11 +1055,10 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 		u32 size;
 
 		size = min_t(u32, sz_left, p_blk->real_size_in_page);
-		p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-					    size, &p_phys, GFP_KERNEL);
+		p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev, size,
+					     &p_phys, GFP_KERNEL);
 		if (!p_virt)
 			return -ENOMEM;
-		memset(p_virt, 0, size);
 
 		ilt_shadow[line].p_phys = p_phys;
 		ilt_shadow[line].p_virt = p_virt;
@@ -2308,14 +2307,13 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		goto out0;
 	}
 
-	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-				    p_blk->real_size_in_page,
-				    &p_phys, GFP_KERNEL);
+	p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev,
+				     p_blk->real_size_in_page, &p_phys,
+				     GFP_KERNEL);
 	if (!p_virt) {
 		rc = -ENOMEM;
 		goto out1;
 	}
-	memset(p_virt, 0, p_blk->real_size_in_page);
 
 	/* configuration of refTagMask to 0xF is required for RoCE DIF MR only,
 	 * to compensate for a HW bug, but it is configured even if DIF is not

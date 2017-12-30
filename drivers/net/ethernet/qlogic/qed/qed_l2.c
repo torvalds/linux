@@ -223,10 +223,9 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	struct qed_queue_cid *p_cid;
 	int rc;
 
-	p_cid = vmalloc(sizeof(*p_cid));
+	p_cid = vzalloc(sizeof(*p_cid));
 	if (!p_cid)
 		return NULL;
-	memset(p_cid, 0, sizeof(*p_cid));
 
 	p_cid->opaque_fid = opaque_fid;
 	p_cid->cid = cid;
