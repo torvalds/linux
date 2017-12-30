@@ -125,26 +125,22 @@ need to initialize a few fields in there:
   (i.e. excluding mem2mem transfers)
 
 - residue_granularity:
+  granularity of the transfer residue reported to dma_set_residue.
+  This can be either:
 
-  - Granularity of the transfer residue reported to dma_set_residue.
-    This can be either:
+  - Descriptor:
+    your device doesn't support any kind of residue
+    reporting. The framework will only know that a particular
+    transaction descriptor is done.
 
-  - Descriptor
+  - Segment:
+    your device is able to report which chunks have been transferred
 
-    - Your device doesn't support any kind of residue
-      reporting. The framework will only know that a particular
-      transaction descriptor is done.
+  - Burst:
+    your device is able to report which burst have been transferred
 
-      - Segment
-
-        - Your device is able to report which chunks have been transferred
-
-      - Burst
-
-        - Your device is able to report which burst have been transferred
-
-  - dev: should hold the pointer to the ``struct device`` associated
-    to your current driver instance.
+- dev: should hold the pointer to the ``struct device`` associated
+  to your current driver instance.
 
 Supported transaction types
 ---------------------------
