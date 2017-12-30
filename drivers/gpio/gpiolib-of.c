@@ -56,6 +56,42 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 	return gpiochip_get_desc(chip, ret);
 }
 
+static void of_gpio_flags_quirks(struct device_node *np,
+				 enum of_gpio_flags *flags)
+{
+	/*
+	 * Some GPIO fixed regulator quirks.
+	 * Note that active low is the default.
+	 */
+	if (IS_ENABLED(CONFIG_REGULATOR) &&
+	    (of_device_is_compatible(np, "reg-fixed-voltage") ||
+	     of_device_is_compatible(np, "regulator-gpio"))) {
+		/*
+		 * The regulator GPIO handles are specified such that the
+		 * presence or absence of "enable-active-high" solely controls
+		 * the polarity of the GPIO line. Any phandle flags must
+		 * be actively ignored.
+		 */
+		if (*flags & OF_GPIO_ACTIVE_LOW) {
+			pr_warn("%s GPIO handle specifies active low - ignored\n",
+				of_node_full_name(np));
+			*flags &= ~OF_GPIO_ACTIVE_LOW;
+		}
+		if (!of_property_read_bool(np, "enable-active-high"))
+			*flags |= OF_GPIO_ACTIVE_LOW;
+	}
+	/*
+	 * Legacy open drain handling for fixed voltage regulators.
+	 */
+	if (IS_ENABLED(CONFIG_REGULATOR) &&
+	    of_device_is_compatible(np, "reg-fixed-voltage") &&
+	    of_property_read_bool(np, "gpio-open-drain")) {
+		*flags |= (OF_GPIO_SINGLE_ENDED | OF_GPIO_OPEN_DRAIN);
+		pr_info("%s uses legacy open drain flag - update the DTS if you can\n",
+			of_node_full_name(np));
+	}
+}
+
 /**
  * of_get_named_gpiod_flags() - Get a GPIO descriptor and flags for GPIO API
  * @np:		device node to get GPIO from
@@ -92,6 +128,8 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 	desc = of_xlate_and_get_gpiod_flags(chip, &gpiospec, flags);
 	if (IS_ERR(desc))
 		goto out;
+
+	of_gpio_flags_quirks(np, flags);
 
 	pr_debug("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
 		 __func__, propname, np, index,
