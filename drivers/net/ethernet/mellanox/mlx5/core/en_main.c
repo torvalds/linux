@@ -96,14 +96,19 @@ bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 
 static u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params)
 {
-	if (!params->xdp_prog) {
-		u16 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
-		u16 rq_headroom = MLX5_RX_HEADROOM + NET_IP_ALIGN;
+	u16 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
+	u16 linear_rq_headroom = params->xdp_prog ?
+		XDP_PACKET_HEADROOM : MLX5_RX_HEADROOM;
+	u32 frag_sz;
 
-		return MLX5_SKB_FRAG_SZ(rq_headroom + hw_mtu);
-	}
+	linear_rq_headroom += NET_IP_ALIGN;
 
-	return PAGE_SIZE;
+	frag_sz = MLX5_SKB_FRAG_SZ(linear_rq_headroom + hw_mtu);
+
+	if (params->xdp_prog && frag_sz < PAGE_SIZE)
+		frag_sz = PAGE_SIZE;
+
+	return frag_sz;
 }
 
 static u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params)
@@ -3707,6 +3712,14 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 	new_channels.params = *params;
 	new_channels.params.sw_mtu = new_mtu;
 
+	if (params->xdp_prog &&
+	    !mlx5e_rx_is_linear_skb(priv->mdev, &new_channels.params)) {
+		netdev_err(netdev, "MTU(%d) > %d is not allowed while XDP enabled\n",
+			   new_mtu, MLX5E_XDP_MAX_MTU);
+		err = -EINVAL;
+		goto out;
+	}
+
 	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
 		u8 ppw_old = mlx5e_mpwqe_log_pkts_per_wqe(params);
 		u8 ppw_new = mlx5e_mpwqe_log_pkts_per_wqe(&new_channels.params);
@@ -4094,9 +4107,10 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 	queue_work(priv->wq, &priv->tx_timeout_work);
 }
 
-static int mlx5e_xdp_allowed(struct mlx5e_priv *priv)
+static int mlx5e_xdp_allowed(struct mlx5e_priv *priv, struct bpf_prog *prog)
 {
 	struct net_device *netdev = priv->netdev;
+	struct mlx5e_channels new_channels = {};
 
 	if (priv->channels.params.lro_en) {
 		netdev_warn(netdev, "can't set XDP while LRO is on, disable LRO first\n");
@@ -4105,6 +4119,15 @@ static int mlx5e_xdp_allowed(struct mlx5e_priv *priv)
 
 	if (MLX5_IPSEC_DEV(priv->mdev)) {
 		netdev_warn(netdev, "can't set XDP with IPSec offload\n");
+		return -EINVAL;
+	}
+
+	new_channels.params = priv->channels.params;
+	new_channels.params.xdp_prog = prog;
+
+	if (!mlx5e_rx_is_linear_skb(priv->mdev, &new_channels.params)) {
+		netdev_warn(netdev, "XDP is not allowed with MTU(%d) > %d\n",
+			    new_channels.params.sw_mtu, MLX5E_XDP_MAX_MTU);
 		return -EINVAL;
 	}
 
@@ -4122,7 +4145,7 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 	mutex_lock(&priv->state_lock);
 
 	if (prog) {
-		err = mlx5e_xdp_allowed(priv);
+		err = mlx5e_xdp_allowed(priv, prog);
 		if (err)
 			goto unlock;
 	}
