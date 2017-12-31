@@ -93,7 +93,7 @@
 
 struct slim_ctrl_buf {
 	void		*base;
-	phys_addr_t	phy;
+	dma_addr_t	phy;
 	spinlock_t	lock;
 	int		head;
 	int		tail;
