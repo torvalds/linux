@@ -80,19 +80,19 @@ static struct lockdep_map cpuhp_state_down_map =
 	STATIC_LOCKDEP_MAP_INIT("cpuhp_state-down", &cpuhp_state_down_map);
 
 
-static void inline cpuhp_lock_acquire(bool bringup)
+static inline void cpuhp_lock_acquire(bool bringup)
 {
 	lock_map_acquire(bringup ? &cpuhp_state_up_map : &cpuhp_state_down_map);
 }
 
-static void inline cpuhp_lock_release(bool bringup)
+static inline void cpuhp_lock_release(bool bringup)
 {
 	lock_map_release(bringup ? &cpuhp_state_up_map : &cpuhp_state_down_map);
 }
 #else
 
-static void inline cpuhp_lock_acquire(bool bringup) { }
-static void inline cpuhp_lock_release(bool bringup) { }
+static inline void cpuhp_lock_acquire(bool bringup) { }
+static inline void cpuhp_lock_release(bool bringup) { }
 
 #endif
 
