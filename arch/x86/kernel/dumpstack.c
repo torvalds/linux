@@ -76,12 +76,23 @@ void show_iret_regs(struct pt_regs *regs)
 		regs->sp, regs->flags);
 }
 
-static void show_regs_safe(struct stack_info *info, struct pt_regs *regs)
+static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
+				  bool partial)
 {
-	if (on_stack(info, regs, sizeof(*regs)))
+	/*
+	 * These on_stack() checks aren't strictly necessary: the unwind code
+	 * has already validated the 'regs' pointer.  The checks are done for
+	 * ordering reasons: if the registers are on the next stack, we don't
+	 * want to print them out yet.  Otherwise they'll be shown as part of
+	 * the wrong stack.  Later, when show_trace_log_lvl() switches to the
+	 * next stack, this function will be called again with the same regs so
+	 * they can be printed in the right context.
+	 */
+	if (!partial && on_stack(info, regs, sizeof(*regs))) {
 		__show_regs(regs, 0);
-	else if (on_stack(info, (void *)regs + IRET_FRAME_OFFSET,
-			  IRET_FRAME_SIZE)) {
+
+	} else if (partial && on_stack(info, (void *)regs + IRET_FRAME_OFFSET,
+				       IRET_FRAME_SIZE)) {
 		/*
 		 * When an interrupt or exception occurs in entry code, the
 		 * full pt_regs might not have been saved yet.  In that case
@@ -98,6 +109,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	struct stack_info stack_info = {0};
 	unsigned long visit_mask = 0;
 	int graph_idx = 0;
+	bool partial;
 
 	printk("%sCall Trace:\n", log_lvl);
 
@@ -140,7 +152,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			printk("%s <%s>\n", log_lvl, stack_name);
 
 		if (regs)
-			show_regs_safe(&stack_info, regs);
+			show_regs_if_on_stack(&stack_info, regs, partial);
 
 		/*
 		 * Scan the stack, printing any text addresses we find.  At the
@@ -164,7 +176,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 
 			/*
 			 * Don't print regs->ip again if it was already printed
-			 * by show_regs_safe() below.
+			 * by show_regs_if_on_stack().
 			 */
 			if (regs && stack == &regs->ip)
 				goto next;
@@ -199,9 +211,9 @@ next:
 			unwind_next_frame(&state);
 
 			/* if the frame has entry regs, print them */
-			regs = unwind_get_entry_regs(&state);
+			regs = unwind_get_entry_regs(&state, &partial);
 			if (regs)
-				show_regs_safe(&stack_info, regs);
+				show_regs_if_on_stack(&stack_info, regs, partial);
 		}
 
 		if (stack_name)
