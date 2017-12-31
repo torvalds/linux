@@ -328,11 +328,15 @@
 			not play well with APC CPU idle - disable it if you have
 			APC and your system crashes randomly.
 
-	apic=		[APIC,X86-32] Advanced Programmable Interrupt Controller
+	apic=		[APIC,X86] Advanced Programmable Interrupt Controller
 			Change the output verbosity whilst booting
 			Format: { quiet (default) | verbose | debug }
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
+			For X86-32, this can also be used to specify an APIC
+			driver name.
+			Format: apic=driver_name
+			Examples: apic=bigsmp
 
 	apic_extnmi=	[APIC,X86] External NMI delivery setting
 			Format: { bsp (default) | all | none }
