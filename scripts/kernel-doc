@@ -1140,6 +1140,44 @@ sub dump_struct($$) {
     }
 }
 
+
+sub show_warnings($$) {
+	my $functype = shift;
+	my $name = shift;
+
+	return 1 if ($output_selection == OUTPUT_ALL);
+
+	if ($output_selection == OUTPUT_EXPORTED) {
+		if (defined($function_table{$name})) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+        if ($output_selection == OUTPUT_INTERNAL) {
+		if (!($functype eq "function" && defined($function_table{$name}))) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+	if ($output_selection == OUTPUT_INCLUDE) {
+		if (defined($function_table{$name})) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+	if ($output_selection == OUTPUT_EXCLUDE) {
+		if (!defined($function_table{$name})) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+	die("Please add the new output type at show_warnings()");
+}
+
 sub dump_enum($$) {
     my $x = shift;
     my $file = shift;
@@ -1160,11 +1198,7 @@ sub dump_enum($$) {
 	    push @parameterlist, $arg;
 	    if (!$parameterdescs{$arg}) {
 		$parameterdescs{$arg} = $undescribed;
-	        if (($output_selection == OUTPUT_ALL) ||
-		    ($output_selection == OUTPUT_INCLUDE &&
-		     defined($function_table{$declaration_name})) ||
-		    ($output_selection == OUTPUT_EXCLUDE &&
-		     !defined($function_table{$declaration_name}))) {
+	        if (show_warnings("enum", $declaration_name)) {
 			print STDERR "${file}:$.: warning: Enum value '$arg' not described in enum '$declaration_name'\n";
 		}
 	    }
@@ -1173,11 +1207,7 @@ sub dump_enum($$) {
 
 	while (my ($k, $v) = each %parameterdescs) {
 	    if (!exists($_members{$k})) {
-	        if (($output_selection == OUTPUT_ALL) ||
-		    ($output_selection == OUTPUT_INCLUDE &&
-		     defined($function_table{$declaration_name})) ||
-		    ($output_selection == OUTPUT_EXCLUDE &&
-		     !defined($function_table{$declaration_name}))) {
+	        if (show_warnings("enum", $declaration_name)) {
 		     print STDERR "${file}:$.: warning: Excess enum value '$k' description in '$declaration_name'\n";
 		}
 	    }
@@ -1385,11 +1415,7 @@ sub push_parameter($$$$) {
 	if (!defined $parameterdescs{$param} && $param !~ /^#/) {
 		$parameterdescs{$param} = $undescribed;
 
-	        if (($output_selection == OUTPUT_ALL) ||
-		    ($output_selection == OUTPUT_INCLUDE &&
-		     defined($function_table{$declaration_name})) ||
-		    ($output_selection == OUTPUT_EXCLUDE &&
-		     !defined($function_table{$declaration_name}))) {
+	        if (show_warnings($type, $declaration_name)) {
 			print STDERR
 			      "${file}:$.: warning: Function parameter or member '$param' not described in '$declaration_name'\n";
 			++$warnings;
