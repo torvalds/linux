@@ -604,12 +604,11 @@ static struct qedr_pbl *qedr_alloc_pbl_tbl(struct qedr_dev *dev,
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < pbl_info->num_pbls; i++) {
-		va = dma_alloc_coherent(&pdev->dev, pbl_info->pbl_size,
-					&pa, flags);
+		va = dma_zalloc_coherent(&pdev->dev, pbl_info->pbl_size,
+					 &pa, flags);
 		if (!va)
 			goto err;
 
-		memset(va, 0, pbl_info->pbl_size);
 		pbl_table[i].va = va;
 		pbl_table[i].pa = pa;
 	}
