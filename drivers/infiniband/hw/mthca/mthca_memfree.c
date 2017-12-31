@@ -623,13 +623,12 @@ int mthca_alloc_db(struct mthca_dev *dev, enum mthca_db_type type,
 	page = dev->db_tab->page + end;
 
 alloc:
-	page->db_rec = dma_alloc_coherent(&dev->pdev->dev, MTHCA_ICM_PAGE_SIZE,
-					  &page->mapping, GFP_KERNEL);
+	page->db_rec = dma_zalloc_coherent(&dev->pdev->dev, MTHCA_ICM_PAGE_SIZE,
+					   &page->mapping, GFP_KERNEL);
 	if (!page->db_rec) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset(page->db_rec, 0, MTHCA_ICM_PAGE_SIZE);
 
 	ret = mthca_MAP_ICM_page(dev, page->mapping,
 				 mthca_uarc_virt(dev, &dev->driver_uar, i));
