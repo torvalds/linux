@@ -1805,12 +1805,14 @@ nv50_head_lut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((push = evo_wait(core, 7))) {
 		if (core->base.user.oclass < G82_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
-			evo_data(push, 0xc0000000);
+			evo_data(push, asyh->base.depth == 8 ?
+				 0x80000000 : 0xc0000000);
 			evo_data(push, asyh->lut.offset >> 8);
 		} else
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
-			evo_data(push, 0xc0000000);
+			evo_data(push, asyh->base.depth == 8 ?
+				 0x80000000 : 0xc0000000);
 			evo_data(push, asyh->lut.offset >> 8);
 			evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
 			evo_data(push, asyh->lut.handle);
