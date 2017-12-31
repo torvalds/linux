@@ -421,7 +421,13 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 	 */
 	error = map_ldt_struct(mm, new_ldt, old_ldt ? !old_ldt->slot : 0);
 	if (error) {
-		free_ldt_struct(old_ldt);
+		/*
+		 * This only can fail for the first LDT setup. If an LDT is
+		 * already installed then the PTE page is already
+		 * populated. Mop up a half populated page table.
+		 */
+		free_ldt_pgtables(mm);
+		free_ldt_struct(new_ldt);
 		goto out_unlock;
 	}
 
