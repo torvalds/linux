@@ -210,7 +210,7 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	elf_vrreg_t __user *tm_v_regs = sigcontext_vmx_regs(tm_sc);
 #endif
 	struct pt_regs *regs = tsk->thread.regs;
-	unsigned long msr = tsk->thread.ckpt_regs.msr;
+	unsigned long msr = tsk->thread.regs->msr;
 	long err = 0;
 
 	BUG_ON(tsk != current);
@@ -218,6 +218,12 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	BUG_ON(!MSR_TM_ACTIVE(regs->msr));
 
 	WARN_ON(tm_suspend_disabled);
+
+	/* Restore checkpointed FP, VEC, and VSX bits from ckpt_regs as
+	 * it contains the correct FP, VEC, VSX state after we treclaimed
+	 * the transaction and giveup_all() was called on reclaiming.
+	 */
+	msr |= tsk->thread.ckpt_regs.msr & (MSR_FP | MSR_VEC | MSR_VSX);
 
 	/* Remove TM bits from thread's MSR.  The MSR in the sigcontext
 	 * just indicates to userland that we were doing a transaction, but we
