@@ -24,9 +24,10 @@
  * Retransmit terminal ACK or ABORT of the previous call.
  */
 static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
-				       struct sk_buff *skb)
+				       struct sk_buff *skb,
+				       unsigned int channel)
 {
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	struct rxrpc_skb_priv *sp = skb ? rxrpc_skb(skb) : NULL;
 	struct rxrpc_channel *chan;
 	struct msghdr msg;
 	struct kvec iov;
@@ -48,7 +49,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 
 	_enter("%d", conn->debug_id);
 
-	chan = &conn->channels[sp->hdr.cid & RXRPC_CHANNELMASK];
+	chan = &conn->channels[channel];
 
 	/* If the last call got moved on whilst we were waiting to run, just
 	 * ignore this packet.
@@ -56,7 +57,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	call_id = READ_ONCE(chan->last_call);
 	/* Sync with __rxrpc_disconnect_call() */
 	smp_rmb();
-	if (call_id != sp->hdr.callNumber)
+	if (skb && call_id != sp->hdr.callNumber)
 		return;
 
 	msg.msg_name	= &conn->params.peer->srx.transport;
@@ -65,9 +66,9 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
 
-	pkt.whdr.epoch		= htonl(sp->hdr.epoch);
-	pkt.whdr.cid		= htonl(sp->hdr.cid);
-	pkt.whdr.callNumber	= htonl(sp->hdr.callNumber);
+	pkt.whdr.epoch		= htonl(conn->proto.epoch);
+	pkt.whdr.cid		= htonl(conn->proto.cid);
+	pkt.whdr.callNumber	= htonl(call_id);
 	pkt.whdr.seq		= 0;
 	pkt.whdr.type		= chan->last_type;
 	pkt.whdr.flags		= conn->out_clientflag;
@@ -87,11 +88,11 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		mtu = conn->params.peer->if_mtu;
 		mtu -= conn->params.peer->hdrsize;
 		pkt.ack.bufferSpace	= 0;
-		pkt.ack.maxSkew		= htons(skb->priority);
-		pkt.ack.firstPacket	= htonl(chan->last_seq);
-		pkt.ack.previousPacket	= htonl(chan->last_seq - 1);
-		pkt.ack.serial		= htonl(sp->hdr.serial);
-		pkt.ack.reason		= RXRPC_ACK_DUPLICATE;
+		pkt.ack.maxSkew		= htons(skb ? skb->priority : 0);
+		pkt.ack.firstPacket	= htonl(chan->last_seq + 1);
+		pkt.ack.previousPacket	= htonl(chan->last_seq);
+		pkt.ack.serial		= htonl(skb ? sp->hdr.serial : 0);
+		pkt.ack.reason		= skb ? RXRPC_ACK_DUPLICATE : RXRPC_ACK_IDLE;
 		pkt.ack.nAcks		= 0;
 		pkt.info.rxMTU		= htonl(rxrpc_rx_mtu);
 		pkt.info.maxMTU		= htonl(mtu);
@@ -272,7 +273,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_DATA:
 	case RXRPC_PACKET_TYPE_ACK:
-		rxrpc_conn_retransmit_call(conn, skb);
+		rxrpc_conn_retransmit_call(conn, skb,
+					   sp->hdr.cid & RXRPC_CHANNELMASK);
 		return 0;
 
 	case RXRPC_PACKET_TYPE_BUSY:
@@ -379,6 +381,48 @@ abort:
 }
 
 /*
+ * Process delayed final ACKs that we haven't subsumed into a subsequent call.
+ */
+static void rxrpc_process_delayed_final_acks(struct rxrpc_connection *conn)
+{
+	unsigned long j = jiffies, next_j;
+	unsigned int channel;
+	bool set;
+
+again:
+	next_j = j + LONG_MAX;
+	set = false;
+	for (channel = 0; channel < RXRPC_MAXCALLS; channel++) {
+		struct rxrpc_channel *chan = &conn->channels[channel];
+		unsigned long ack_at;
+
+		if (!test_bit(RXRPC_CONN_FINAL_ACK_0 + channel, &conn->flags))
+			continue;
+
+		smp_rmb(); /* vs rxrpc_disconnect_client_call */
+		ack_at = READ_ONCE(chan->final_ack_at);
+
+		if (time_before(j, ack_at)) {
+			if (time_before(ack_at, next_j)) {
+				next_j = ack_at;
+				set = true;
+			}
+			continue;
+		}
+
+		if (test_and_clear_bit(RXRPC_CONN_FINAL_ACK_0 + channel,
+				       &conn->flags))
+			rxrpc_conn_retransmit_call(conn, NULL, channel);
+	}
+
+	j = jiffies;
+	if (time_before_eq(next_j, j))
+		goto again;
+	if (set)
+		rxrpc_reduce_conn_timer(conn, next_j);
+}
+
+/*
  * connection-level event processor
  */
 void rxrpc_process_connection(struct work_struct *work)
@@ -393,6 +437,10 @@ void rxrpc_process_connection(struct work_struct *work)
 
 	if (test_and_clear_bit(RXRPC_CONN_EV_CHALLENGE, &conn->events))
 		rxrpc_secure_connection(conn);
+
+	/* Process delayed ACKs whose time has come. */
+	if (conn->flags & RXRPC_CONN_FINAL_ACK_MASK)
+		rxrpc_process_delayed_final_acks(conn);
 
 	/* go through the conn-level event packets, releasing the ref on this
 	 * connection that each one has when we've finished with it */

@@ -282,6 +282,7 @@ static void clean_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num)
 static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 				    int type, unsigned int resolution)
 {
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_vgpu_port *port = intel_vgpu_port(vgpu, port_num);
 
 	if (WARN_ON(resolution >= GVT_EDID_NUM))
@@ -307,6 +308,7 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 	port->type = type;
 
 	emulate_monitor_status_change(vgpu);
+	vgpu_vreg(vgpu, PIPECONF(PIPE_A)) |= PIPECONF_ENABLE;
 	return 0;
 }
 

@@ -1256,10 +1256,10 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 		return -EINVAL;
 
 	if (sdp->sd_args.ar_spectator)
-		*flags |= MS_RDONLY;
+		*flags |= SB_RDONLY;
 
-	if ((sb->s_flags ^ *flags) & MS_RDONLY) {
-		if (*flags & MS_RDONLY)
+	if ((sb->s_flags ^ *flags) & SB_RDONLY) {
+		if (*flags & SB_RDONLY)
 			error = gfs2_make_fs_ro(sdp);
 		else
 			error = gfs2_make_fs_rw(sdp);
@@ -1269,9 +1269,9 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	sdp->sd_args = args;
 	if (sdp->sd_args.ar_posix_acl)
-		sb->s_flags |= MS_POSIXACL;
+		sb->s_flags |= SB_POSIXACL;
 	else
-		sb->s_flags &= ~MS_POSIXACL;
+		sb->s_flags &= ~SB_POSIXACL;
 	if (sdp->sd_args.ar_nobarrier)
 		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 	else

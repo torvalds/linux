@@ -1569,16 +1569,22 @@ void arch_release_task_struct(struct task_struct *t)
  */
 int set_thread_tidr(struct task_struct *t)
 {
+	int rc;
+
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
 		return -EINVAL;
 
 	if (t != current)
 		return -EINVAL;
 
-	t->thread.tidr = assign_thread_tidr();
-	if (t->thread.tidr < 0)
-		return t->thread.tidr;
+	if (t->thread.tidr)
+		return 0;
 
+	rc = assign_thread_tidr();
+	if (rc < 0)
+		return rc;
+
+	t->thread.tidr = rc;
 	mtspr(SPRN_TIDR, t->thread.tidr);
 
 	return 0;

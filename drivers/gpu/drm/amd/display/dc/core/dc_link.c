@@ -480,22 +480,6 @@ static void detect_dp(
 		sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 		detect_dp_sink_caps(link);
 
-		/* DP active dongles */
-		if (is_dp_active_dongle(link)) {
-			link->type = dc_connection_active_dongle;
-			if (!link->dpcd_caps.sink_count.bits.SINK_COUNT) {
-				/*
-				 * active dongle unplug processing for short irq
-				 */
-				link_disconnect_sink(link);
-				return;
-			}
-
-			if (link->dpcd_caps.dongle_type !=
-			DISPLAY_DONGLE_DP_HDMI_CONVERTER) {
-				*converter_disable_audio = true;
-			}
-		}
 		if (is_mst_supported(link)) {
 			sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
 			link->type = dc_connection_mst_branch;
@@ -534,6 +518,22 @@ static void detect_dp(
 				link->type = dc_connection_single;
 				sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 			}
+		}
+
+		if (link->type != dc_connection_mst_branch &&
+			is_dp_active_dongle(link)) {
+			/* DP active dongles */
+			link->type = dc_connection_active_dongle;
+			if (!link->dpcd_caps.sink_count.bits.SINK_COUNT) {
+				/*
+				 * active dongle unplug processing for short irq
+				 */
+				link_disconnect_sink(link);
+				return;
+			}
+
+			if (link->dpcd_caps.dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+				*converter_disable_audio = true;
 		}
 	} else {
 		/* DP passive dongles */
@@ -1801,12 +1801,75 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 		link->link_enc->funcs->disable_output(link->link_enc, signal, link);
 }
 
+bool dp_active_dongle_validate_timing(
+		const struct dc_crtc_timing *timing,
+		const struct dc_dongle_caps *dongle_caps)
+{
+	unsigned int required_pix_clk = timing->pix_clk_khz;
+
+	if (dongle_caps->dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER ||
+		dongle_caps->extendedCapValid == false)
+		return true;
+
+	/* Check Pixel Encoding */
+	switch (timing->pixel_encoding) {
+	case PIXEL_ENCODING_RGB:
+	case PIXEL_ENCODING_YCBCR444:
+		break;
+	case PIXEL_ENCODING_YCBCR422:
+		if (!dongle_caps->is_dp_hdmi_ycbcr422_pass_through)
+			return false;
+		break;
+	case PIXEL_ENCODING_YCBCR420:
+		if (!dongle_caps->is_dp_hdmi_ycbcr420_pass_through)
+			return false;
+		break;
+	default:
+		/* Invalid Pixel Encoding*/
+		return false;
+	}
+
+
+	/* Check Color Depth and Pixel Clock */
+	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		required_pix_clk /= 2;
+
+	switch (timing->display_color_depth) {
+	case COLOR_DEPTH_666:
+	case COLOR_DEPTH_888:
+		/*888 and 666 should always be supported*/
+		break;
+	case COLOR_DEPTH_101010:
+		if (dongle_caps->dp_hdmi_max_bpc < 10)
+			return false;
+		required_pix_clk = required_pix_clk * 10 / 8;
+		break;
+	case COLOR_DEPTH_121212:
+		if (dongle_caps->dp_hdmi_max_bpc < 12)
+			return false;
+		required_pix_clk = required_pix_clk * 12 / 8;
+		break;
+
+	case COLOR_DEPTH_141414:
+	case COLOR_DEPTH_161616:
+	default:
+		/* These color depths are currently not supported */
+		return false;
+	}
+
+	if (required_pix_clk > dongle_caps->dp_hdmi_max_pixel_clk)
+		return false;
+
+	return true;
+}
+
 enum dc_status dc_link_validate_mode_timing(
 		const struct dc_stream_state *stream,
 		struct dc_link *link,
 		const struct dc_crtc_timing *timing)
 {
 	uint32_t max_pix_clk = stream->sink->dongle_max_pix_clk;
+	struct dc_dongle_caps *dongle_caps = &link->link_status.dpcd_caps->dongle_caps;
 
 	/* A hack to avoid failing any modes for EDID override feature on
 	 * topology change such as lower quality cable for DP or different dongle
@@ -1814,8 +1877,13 @@ enum dc_status dc_link_validate_mode_timing(
 	if (link->remote_sinks[0])
 		return DC_OK;
 
+	/* Passive Dongle */
 	if (0 != max_pix_clk && timing->pix_clk_khz > max_pix_clk)
-		return DC_EXCEED_DONGLE_MAX_CLK;
+		return DC_EXCEED_DONGLE_CAP;
+
+	/* Active Dongle*/
+	if (!dp_active_dongle_validate_timing(timing, dongle_caps))
+		return DC_EXCEED_DONGLE_CAP;
 
 	switch (stream->signal) {
 	case SIGNAL_TYPE_EDP:

@@ -569,7 +569,7 @@ static int unix_gid_show(struct seq_file *m,
 	return 0;
 }
 
-static struct cache_detail unix_gid_cache_template = {
+static const struct cache_detail unix_gid_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= GID_HASHMAX,
 	.name		= "auth.unix.gid",
@@ -862,7 +862,7 @@ struct auth_ops svcauth_unix = {
 	.set_client	= svcauth_unix_set_client,
 };
 
-static struct cache_detail ip_map_cache_template = {
+static const struct cache_detail ip_map_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= IP_HASHMAX,
 	.name		= "auth.unix.ip",

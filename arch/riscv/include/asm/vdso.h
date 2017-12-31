@@ -38,4 +38,8 @@ struct vdso_data {
 	(void __user *)((unsigned long)(base) + __vdso_##name);			\
 })
 
+#ifdef CONFIG_SMP
+asmlinkage long sys_riscv_flush_icache(uintptr_t, uintptr_t, uintptr_t);
+#endif
+
 #endif /* _ASM_RISCV_VDSO_H */

@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/scatterlist.h>
+#include <linux/swiotlb.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
@@ -3651,22 +3652,29 @@ int sdhci_setup_host(struct sdhci_host *host)
 	spin_lock_init(&host->lock);
 
 	/*
-	 * Maximum number of segments. Depends on if the hardware
-	 * can do scatter/gather or not.
-	 */
-	if (host->flags & SDHCI_USE_ADMA)
-		mmc->max_segs = SDHCI_MAX_SEGS;
-	else if (host->flags & SDHCI_USE_SDMA)
-		mmc->max_segs = 1;
-	else /* PIO */
-		mmc->max_segs = SDHCI_MAX_SEGS;
-
-	/*
 	 * Maximum number of sectors in one transfer. Limited by SDMA boundary
 	 * size (512KiB). Note some tuning modes impose a 4MiB limit, but this
 	 * is less anyway.
 	 */
 	mmc->max_req_size = 524288;
+
+	/*
+	 * Maximum number of segments. Depends on if the hardware
+	 * can do scatter/gather or not.
+	 */
+	if (host->flags & SDHCI_USE_ADMA) {
+		mmc->max_segs = SDHCI_MAX_SEGS;
+	} else if (host->flags & SDHCI_USE_SDMA) {
+		mmc->max_segs = 1;
+		if (swiotlb_max_segment()) {
+			unsigned int max_req_size = (1 << IO_TLB_SHIFT) *
+						IO_TLB_SEGSIZE;
+			mmc->max_req_size = min(mmc->max_req_size,
+						max_req_size);
+		}
+	} else { /* PIO */
+		mmc->max_segs = SDHCI_MAX_SEGS;
+	}
 
 	/*
 	 * Maximum segment size. Could be one segment with the maximum number

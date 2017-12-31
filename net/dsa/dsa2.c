@@ -51,9 +51,7 @@ static struct dsa_switch_tree *dsa_tree_alloc(int index)
 	INIT_LIST_HEAD(&dst->list);
 	list_add_tail(&dsa_tree_list, &dst->list);
 
-	/* Initialize the reference counter to the number of switches, not 1 */
 	kref_init(&dst->refcount);
-	refcount_set(&dst->refcount.refcount, 0);
 
 	return dst;
 }
@@ -64,20 +62,23 @@ static void dsa_tree_free(struct dsa_switch_tree *dst)
 	kfree(dst);
 }
 
+static struct dsa_switch_tree *dsa_tree_get(struct dsa_switch_tree *dst)
+{
+	if (dst)
+		kref_get(&dst->refcount);
+
+	return dst;
+}
+
 static struct dsa_switch_tree *dsa_tree_touch(int index)
 {
 	struct dsa_switch_tree *dst;
 
 	dst = dsa_tree_find(index);
-	if (!dst)
-		dst = dsa_tree_alloc(index);
-
-	return dst;
-}
-
-static void dsa_tree_get(struct dsa_switch_tree *dst)
-{
-	kref_get(&dst->refcount);
+	if (dst)
+		return dsa_tree_get(dst);
+	else
+		return dsa_tree_alloc(index);
 }
 
 static void dsa_tree_release(struct kref *ref)
@@ -91,7 +92,8 @@ static void dsa_tree_release(struct kref *ref)
 
 static void dsa_tree_put(struct dsa_switch_tree *dst)
 {
-	kref_put(&dst->refcount, dsa_tree_release);
+	if (dst)
+		kref_put(&dst->refcount, dsa_tree_release);
 }
 
 static bool dsa_port_is_dsa(struct dsa_port *port)
@@ -765,6 +767,7 @@ int dsa_register_switch(struct dsa_switch *ds)
 
 	mutex_lock(&dsa2_mutex);
 	err = dsa_switch_probe(ds);
+	dsa_tree_put(ds->dst);
 	mutex_unlock(&dsa2_mutex);
 
 	return err;

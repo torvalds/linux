@@ -7401,7 +7401,6 @@ static int i40e_configure_clsflower(struct i40e_vsi *vsi,
 		dev_err(&pf->pdev->dev,
 			"Failed to add cloud filter, err %s\n",
 			i40e_stat_str(&pf->hw, err));
-		err = i40e_aq_rc_to_posix(err, pf->hw.aq.asq_last_status);
 		goto err;
 	}
 

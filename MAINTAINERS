@@ -6174,7 +6174,6 @@ M:	Jean Delvare <jdelvare@suse.com>
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 W:	http://hwmon.wiki.kernel.org/
-T:	quilt http://jdelvare.nerim.net/devel/linux/jdelvare-hwmon/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
 F:	Documentation/hwmon/
@@ -9331,9 +9330,9 @@ F:	drivers/gpu/drm/mxsfb/
 F:	Documentation/devicetree/bindings/display/mxsfb-drm.txt
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
-M:	Hyong-Youb Kim <hykim@myri.com>
+M:	Chris Lee <christopher.lee@cspi.com>
 L:	netdev@vger.kernel.org
-W:	https://www.myricom.com/support/downloads/myri10ge.html
+W:	https://www.cspi.com/ethernet-products/support/downloads/
 S:	Supported
 F:	drivers/net/ethernet/myricom/myri10ge/
 

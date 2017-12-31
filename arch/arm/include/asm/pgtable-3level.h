@@ -221,7 +221,6 @@ static inline pte_t pte_mkspecial(pte_t pte)
 }
 #define	__HAVE_ARCH_PTE_SPECIAL
 
-#define __HAVE_ARCH_PMD_WRITE
 #define pmd_write(pmd)		(pmd_isclear((pmd), L_PMD_SECT_RDONLY))
 #define pmd_dirty(pmd)		(pmd_isset((pmd), L_PMD_SECT_DIRTY))
 #define pud_page(pud)		pmd_page(__pmd(pud_val(pud)))

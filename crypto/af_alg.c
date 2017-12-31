@@ -1021,6 +1021,18 @@ unlock:
 EXPORT_SYMBOL_GPL(af_alg_sendpage);
 
 /**
+ * af_alg_free_resources - release resources required for crypto request
+ */
+void af_alg_free_resources(struct af_alg_async_req *areq)
+{
+	struct sock *sk = areq->sk;
+
+	af_alg_free_areq_sgls(areq);
+	sock_kfree_s(sk, areq, areq->areqlen);
+}
+EXPORT_SYMBOL_GPL(af_alg_free_resources);
+
+/**
  * af_alg_async_cb - AIO callback handler
  *
  * This handler cleans up the struct af_alg_async_req upon completion of the
@@ -1036,18 +1048,13 @@ void af_alg_async_cb(struct crypto_async_request *_req, int err)
 	struct kiocb *iocb = areq->iocb;
 	unsigned int resultlen;
 
-	lock_sock(sk);
-
 	/* Buffer size written by crypto operation. */
 	resultlen = areq->outlen;
 
-	af_alg_free_areq_sgls(areq);
-	sock_kfree_s(sk, areq, areq->areqlen);
-	__sock_put(sk);
+	af_alg_free_resources(areq);
+	sock_put(sk);
 
 	iocb->ki_complete(iocb, err ? err : resultlen, 0);
-
-	release_sock(sk);
 }
 EXPORT_SYMBOL_GPL(af_alg_async_cb);
 

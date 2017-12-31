@@ -496,6 +496,12 @@ static int prepare_execlist_workload(struct intel_vgpu_workload *workload)
 		goto err_unpin_mm;
 	}
 
+	ret = intel_gvt_generate_request(workload);
+	if (ret) {
+		gvt_vgpu_err("fail to generate request\n");
+		goto err_unpin_mm;
+	}
+
 	ret = prepare_shadow_batch_buffer(workload);
 	if (ret) {
 		gvt_vgpu_err("fail to prepare_shadow_batch_buffer\n");

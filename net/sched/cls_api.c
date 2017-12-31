@@ -336,7 +336,8 @@ static void tcf_block_put_final(struct work_struct *work)
 	struct tcf_chain *chain, *tmp;
 
 	rtnl_lock();
-	/* Only chain 0 should be still here. */
+
+	/* At this point, all the chains should have refcnt == 1. */
 	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
 		tcf_chain_put(chain);
 	rtnl_unlock();
@@ -344,15 +345,21 @@ static void tcf_block_put_final(struct work_struct *work)
 }
 
 /* XXX: Standalone actions are not allowed to jump to any chain, and bound
- * actions should be all removed after flushing. However, filters are now
- * destroyed in tc filter workqueue with RTNL lock, they can not race here.
+ * actions should be all removed after flushing.
  */
 void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 		       struct tcf_block_ext_info *ei)
 {
-	struct tcf_chain *chain, *tmp;
+	struct tcf_chain *chain;
 
-	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
+	/* Hold a refcnt for all chains, except 0, so that they don't disappear
+	 * while we are iterating.
+	 */
+	list_for_each_entry(chain, &block->chain_list, list)
+		if (chain->index)
+			tcf_chain_hold(chain);
+
+	list_for_each_entry(chain, &block->chain_list, list)
 		tcf_chain_flush(chain);
 
 	tcf_block_offload_unbind(block, q, ei);

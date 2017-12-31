@@ -130,7 +130,7 @@ static void fuse_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
-	if (inode->i_sb->s_flags & MS_ACTIVE) {
+	if (inode->i_sb->s_flags & SB_ACTIVE) {
 		struct fuse_conn *fc = get_fuse_conn(inode);
 		struct fuse_inode *fi = get_fuse_inode(inode);
 		fuse_queue_forget(fc, fi->forget, fi->nodeid, fi->nlookup);
@@ -141,7 +141,7 @@ static void fuse_evict_inode(struct inode *inode)
 static int fuse_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	if (*flags & MS_MANDLOCK)
+	if (*flags & SB_MANDLOCK)
 		return -EINVAL;
 
 	return 0;
@@ -1056,10 +1056,10 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	int is_bdev = sb->s_bdev != NULL;
 
 	err = -EINVAL;
-	if (sb->s_flags & MS_MANDLOCK)
+	if (sb->s_flags & SB_MANDLOCK)
 		goto err;
 
-	sb->s_flags &= ~(MS_NOSEC | SB_I_VERSION);
+	sb->s_flags &= ~(SB_NOSEC | SB_I_VERSION);
 
 	if (!parse_fuse_opt(data, &d, is_bdev))
 		goto err;
@@ -1109,9 +1109,9 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		goto err_dev_free;
 
 	/* Handle umasking inside the fuse code */
-	if (sb->s_flags & MS_POSIXACL)
+	if (sb->s_flags & SB_POSIXACL)
 		fc->dont_mask = 1;
-	sb->s_flags |= MS_POSIXACL;
+	sb->s_flags |= SB_POSIXACL;
 
 	fc->default_permissions = d.default_permissions;
 	fc->allow_other = d.allow_other;

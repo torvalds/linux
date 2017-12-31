@@ -18,7 +18,7 @@
 
 typedef unsigned long cycles_t;
 
-static inline cycles_t get_cycles(void)
+static inline cycles_t get_cycles_inline(void)
 {
 	cycles_t n;
 
@@ -27,6 +27,7 @@ static inline cycles_t get_cycles(void)
 		: "=r" (n));
 	return n;
 }
+#define get_cycles get_cycles_inline
 
 #ifdef CONFIG_64BIT
 static inline uint64_t get_cycles64(void)
