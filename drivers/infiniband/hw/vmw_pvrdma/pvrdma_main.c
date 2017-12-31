@@ -882,8 +882,8 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "device version %d, driver version %d\n",
 		 dev->dsr_version, PVRDMA_VERSION);
 
-	dev->dsr = dma_alloc_coherent(&pdev->dev, sizeof(*dev->dsr),
-				      &dev->dsrbase, GFP_KERNEL);
+	dev->dsr = dma_zalloc_coherent(&pdev->dev, sizeof(*dev->dsr),
+				       &dev->dsrbase, GFP_KERNEL);
 	if (!dev->dsr) {
 		dev_err(&pdev->dev, "failed to allocate shared region\n");
 		ret = -ENOMEM;
@@ -891,7 +891,6 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Setup the shared region */
-	memset(dev->dsr, 0, sizeof(*dev->dsr));
 	dev->dsr->driver_version = PVRDMA_VERSION;
 	dev->dsr->gos_info.gos_bits = sizeof(void *) == 4 ?
 		PVRDMA_GOS_BITS_32 :
