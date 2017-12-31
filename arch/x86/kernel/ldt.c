@@ -426,7 +426,8 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 		 * already installed then the PTE page is already
 		 * populated. Mop up a half populated page table.
 		 */
-		free_ldt_pgtables(mm);
+		if (!WARN_ON_ONCE(old_ldt))
+			free_ldt_pgtables(mm);
 		free_ldt_struct(new_ldt);
 		goto out_unlock;
 	}
