@@ -2498,10 +2498,10 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (result)
 		goto release_pools;
 
-	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_RESETTING);
 	dev_info(dev->ctrl.device, "pci function %s\n", dev_name(&pdev->dev));
 
-	queue_work(nvme_wq, &dev->ctrl.reset_work);
+	nvme_reset_ctrl(&dev->ctrl);
+
 	return 0;
 
  release_pools:
