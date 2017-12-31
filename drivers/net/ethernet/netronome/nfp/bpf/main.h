@@ -238,7 +238,7 @@ struct nfp_bpf_vnic {
 
 int nfp_bpf_jit(struct nfp_prog *prog);
 
-extern const struct bpf_ext_analyzer_ops nfp_bpf_analyzer_ops;
+extern const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops;
 
 struct netdev_bpf;
 struct nfp_app;

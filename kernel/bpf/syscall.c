@@ -905,9 +905,13 @@ static int bpf_prog_alloc_id(struct bpf_prog *prog)
 	return id > 0 ? 0 : id;
 }
 
-static void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock)
+void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock)
 {
-	/* cBPF to eBPF migrations are currently not in the idr store. */
+	/* cBPF to eBPF migrations are currently not in the idr store.
+	 * Offloaded programs are removed from the store when their device
+	 * disappears - even if someone grabs an fd to them they are unusable,
+	 * simply waiting for refcnt to drop to be freed.
+	 */
 	if (!prog->aux->id)
 		return;
 
@@ -917,6 +921,7 @@ static void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock)
 		__acquire(&prog_idr_lock);
 
 	idr_remove(&prog_idr, prog->aux->id);
+	prog->aux->id = 0;
 
 	if (do_idr_lock)
 		spin_unlock_bh(&prog_idr_lock);
@@ -1157,6 +1162,8 @@ static int bpf_prog_load(union bpf_attr *attr)
 	if (!prog)
 		return -ENOMEM;
 
+	prog->aux->offload_requested = !!attr->prog_ifindex;
+
 	err = security_bpf_prog_alloc(prog->aux);
 	if (err)
 		goto free_prog_nouncharge;
@@ -1178,7 +1185,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 	atomic_set(&prog->aux->refcnt, 1);
 	prog->gpl_compatible = is_gpl ? 1 : 0;
 
-	if (attr->prog_ifindex) {
+	if (bpf_prog_is_dev_bound(prog->aux)) {
 		err = bpf_prog_offload_init(prog, attr);
 		if (err)
 			goto free_prog;
@@ -1698,6 +1705,12 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 		kfree(insns_sanitized);
 		if (fault)
 			return -EFAULT;
+	}
+
+	if (bpf_prog_is_dev_bound(prog->aux)) {
+		err = bpf_prog_offload_info_fill(&info, prog);
+		if (err)
+			return err;
 	}
 
 done:

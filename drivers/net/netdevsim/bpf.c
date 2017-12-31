@@ -66,7 +66,7 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 	return 0;
 }
 
-static const struct bpf_ext_analyzer_ops nsim_bpf_analyzer_ops = {
+static const struct bpf_prog_offload_ops nsim_bpf_analyzer_ops = {
 	.insn_hook = nsim_bpf_verify_insn,
 };
 
