@@ -4026,6 +4026,9 @@ mlx5_ib_get_vector_affinity(struct ib_device *ibdev, int comp_vector)
 
 static void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 {
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	cleanup_srcu_struct(&dev->mr_srcu);
+#endif
 	kfree(dev->port);
 }
 
@@ -4062,6 +4065,17 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.num_comp_vectors    =
 		dev->mdev->priv.eq_table.num_comp_vectors;
 	dev->ib_dev.dev.parent		= &mdev->pdev->dev;
+
+	mutex_init(&dev->flow_db.lock);
+	mutex_init(&dev->cap_mask_mutex);
+	INIT_LIST_HEAD(&dev->qp_list);
+	spin_lock_init(&dev->reset_flow_resource_lock);
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	err = init_srcu_struct(&dev->mr_srcu);
+	if (err)
+		goto err_free_port;
+#endif
 
 	return 0;
 
@@ -4198,11 +4212,6 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	if (err)
 		return err;
 
-	mutex_init(&dev->flow_db.lock);
-	mutex_init(&dev->cap_mask_mutex);
-	INIT_LIST_HEAD(&dev->qp_list);
-	spin_lock_init(&dev->reset_flow_resource_lock);
-
 	if ((MLX5_CAP_GEN(dev->mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
 	    MLX5_CAP_GEN(dev->mdev, disable_local_lb))
 		mutex_init(&dev->lb_mutex);
@@ -4272,11 +4281,6 @@ static int mlx5_ib_stage_odp_init(struct mlx5_ib_dev *dev)
 	mlx5_ib_internal_fill_odp_caps(dev);
 
 	return mlx5_ib_odp_init_one(dev);
-}
-
-static void mlx5_ib_stage_odp_cleanup(struct mlx5_ib_dev *dev)
-{
-	mlx5_ib_odp_remove_one(dev);
 }
 
 static int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
@@ -4451,7 +4455,7 @@ static const struct mlx5_ib_profile pf_profile = {
 		     mlx5_ib_stage_dev_res_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_ODP,
 		     mlx5_ib_stage_odp_init,
-		     mlx5_ib_stage_odp_cleanup),
+		     NULL),
 	STAGE_CREATE(MLX5_IB_STAGE_COUNTERS,
 		     mlx5_ib_stage_counters_init,
 		     mlx5_ib_stage_counters_cleanup),
