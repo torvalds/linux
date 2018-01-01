@@ -771,7 +771,7 @@ static __init void rdt_quirks(void)
 			cache_alloc_hsw_probe();
 		break;
 	case INTEL_FAM6_SKYLAKE_X:
-		if (boot_cpu_data.x86_mask <= 4)
+		if (boot_cpu_data.x86_stepping <= 4)
 			set_rdt_options("!cmt,!mbmtotal,!mbmlocal,!l3cat");
 	}
 }
