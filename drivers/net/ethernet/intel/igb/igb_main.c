@@ -3214,8 +3214,6 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 	/* if allocation failed then we do not support SR-IOV */
 	if (!adapter->vf_data) {
 		adapter->vfs_allocated_count = 0;
-		dev_err(&pdev->dev,
-			"Unable to allocate memory for VF Data Storage\n");
 		err = -ENOMEM;
 		goto out;
 	}
