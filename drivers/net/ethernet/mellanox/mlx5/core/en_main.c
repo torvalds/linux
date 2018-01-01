@@ -2994,8 +2994,8 @@ static int mlx5e_setup_tc_block(struct net_device *dev,
 }
 #endif
 
-int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
-		   void *type_data)
+static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			  void *type_data)
 {
 	switch (type) {
 #ifdef CONFIG_MLX5_ESWITCH
