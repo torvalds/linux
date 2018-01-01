@@ -715,6 +715,36 @@ struct mlx5_ib_delay_drop {
 	struct mlx5_ib_dbg_delay_drop *dbg;
 };
 
+enum mlx5_ib_stages {
+	MLX5_IB_STAGE_INIT,
+	MLX5_IB_STAGE_CAPS,
+	MLX5_IB_STAGE_ROCE,
+	MLX5_IB_STAGE_DEVICE_RESOURCES,
+	MLX5_IB_STAGE_ODP,
+	MLX5_IB_STAGE_COUNTERS,
+	MLX5_IB_STAGE_CONG_DEBUGFS,
+	MLX5_IB_STAGE_UAR,
+	MLX5_IB_STAGE_BFREG,
+	MLX5_IB_STAGE_IB_REG,
+	MLX5_IB_STAGE_UMR_RESOURCES,
+	MLX5_IB_STAGE_DELAY_DROP,
+	MLX5_IB_STAGE_CLASS_ATTR,
+	MLX5_IB_STAGE_LOOPBACK,
+	MLX5_IB_STAGE_MAX,
+};
+
+struct mlx5_ib_stage {
+	int (*init)(struct mlx5_ib_dev *dev);
+	void (*cleanup)(struct mlx5_ib_dev *dev);
+};
+
+#define STAGE_CREATE(_stage, _init, _cleanup) \
+	.stage[_stage] = {.init = _init, .cleanup = _cleanup}
+
+struct mlx5_ib_profile {
+	struct mlx5_ib_stage stage[MLX5_IB_STAGE_MAX];
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
@@ -753,6 +783,7 @@ struct mlx5_ib_dev {
 	struct mlx5_sq_bfreg	fp_bfreg;
 	struct mlx5_ib_delay_drop	delay_drop;
 	struct mlx5_ib_dbg_cc_params	*dbg_cc_params;
+	const struct mlx5_ib_profile	*profile;
 
 	/* protect the user_td */
 	struct mutex		lb_mutex;
