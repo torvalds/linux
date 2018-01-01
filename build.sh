@@ -8,6 +8,34 @@ fi
 if [[ -z "$(which arm-linux-gnueabihf-gcc)" ]];then echo "please install gcc-arm-linux-gnueabihf";exit 1;fi
 if [[ -z "$(which mkimage)" ]];then echo "please install u-boot-tools";exit 1;fi
 
+function prepare_SD
+{
+  SD=../SD
+  cd $(dirname $0)
+  mkdir -p ../SD
+  echo "cleanup..."
+  rm -r $SD/BPI-BOOT/
+  rm -r $SD/BPI-ROOT/
+  mkdir -p $SD/BPI-BOOT/bananapi/bpi-r2/linux/
+  mkdir -p $SD/BPI-ROOT/lib/modules
+  mkdir -p $SD/BPI-ROOT/etc/firmware
+  mkdir -p $SD/BPI-ROOT/usr/bin
+  mkdir -p $SD/BPI-ROOT/system/etc/firmware
+  echo "copy..."
+  cp ./uImage $SD/BPI-BOOT/bananapi/bpi-r2/linux/uImage
+  cp -r ../mod/lib/modules $SD/BPI-ROOT/lib/
+
+  cp utils/wmt/config/* $SD/BPI-ROOT/system/etc/firmware/
+  cp utils/wmt/src/{wmt_loader,wmt_loopback,stp_uart_launcher} $SD/BPI-ROOT/usr/bin/
+  cp -r utils/wmt/firmware/* $SD/BPI-ROOT/etc/firmware/
+
+  if [[ -n "$(grep 'CONFIG_MT76=' .config)" ]];then
+    echo "MT76 set, including the firmware-files...";
+    mkdir $SD/BPI-ROOT/lib/firmware/
+    cp drivers/net/wireless/mediatek/mt76/firmware/* $SD/BPI-ROOT/lib/firmware/
+  fi
+}
+
 if [[ -d drivers ]];
 then
   action=$1
@@ -65,29 +93,7 @@ then
       read -n1 -p "choice [12]:" choice
       echo
       if [[ "$choice" == "1" ]]; then
-        mkdir -p ../SD
-        echo "cleanup..."
-        rm -r ../SD/BPI-BOOT/
-        rm -r ../SD/BPI-ROOT/
-        mkdir -p ../SD/BPI-BOOT/bananapi/bpi-r2/linux/
-        mkdir -p ../SD/BPI-ROOT/lib/modules
-        mkdir -p ../SD/BPI-ROOT/etc/firmware
-        mkdir -p ../SD/BPI-ROOT/usr/bin
-        mkdir -p ../SD/BPI-ROOT/system/etc/firmware
-        echo "copy..."
-        cp ./uImage ../SD/BPI-BOOT/bananapi/bpi-r2/linux/uImage
-        cp -r ../mod/lib/modules ../SD/BPI-ROOT/lib/
-
-        cp utils/wmt/config/* ../SD/BPI-ROOT/system/etc/firmware/
-        cp utils/wmt/src/{wmt_loader,wmt_loopback,stp_uart_launcher} ../SD/BPI-ROOT/usr/bin/
-        cp -r utils/wmt/firmware/* ../SD/BPI-ROOT/etc/firmware/
-
-        if [[ -n "$(grep 'CONFIG_MT76=' .config)" ]];then
-          echo "MT76 set,don't forget the firmware-files...";
-          mkdir ../SD/BPI-ROOT/lib/firmware/
-          cp drivers/net/wireless/mediatek/mt76/firmware/* ../SD/BPI-ROOT/lib/firmware/
-        fi
-
+        prepare_SD
         echo "pack..."
         kernver=$(make kernelversion)
         gitbranch=$(git rev-parse --abbrev-ref HEAD)
