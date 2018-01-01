@@ -392,7 +392,7 @@ static int st_lsm6dsx_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 
 	st_lsm6dsx_sensor_disable(sensor);
 
-	*val = (s16)data;
+	*val = (s16)le16_to_cpu(data);
 
 	return IIO_VAL_INT;
 }
