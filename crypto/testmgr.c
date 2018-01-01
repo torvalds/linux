@@ -185,7 +185,7 @@ static int ahash_partial_update(struct ahash_request **preq,
 	char *state;
 	struct ahash_request *req;
 	int statesize, ret = -EINVAL;
-	const char guard[] = { 0x00, 0xba, 0xad, 0x00 };
+	static const unsigned char guard[] = { 0x00, 0xba, 0xad, 0x00 };
 
 	req = *preq;
 	statesize = crypto_ahash_statesize(
