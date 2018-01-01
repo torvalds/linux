@@ -705,10 +705,10 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	/* data buffer needs space for channel data and timestap */
 	unsigned short data[4 + sizeof(s64)/sizeof(short)];
 	int bit, ret, i = 0;
-	s64 time_a, time_b;
+	s64 time;
 	unsigned int alert;
 
-	time_a = iio_get_time_ns(indio_dev);
+	time = iio_get_time_ns(indio_dev);
 
 	/*
 	 * Because the timer thread and the chip conversion clock
@@ -754,11 +754,9 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 		data[i++] = val;
 	}
 
-	time_b = iio_get_time_ns(indio_dev);
+	iio_push_to_buffers_with_timestamp(indio_dev, data, time);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data, time_a);
-
-	return (unsigned long)(time_b - time_a) / 1000;
+	return 0;
 };
 
 static int ina2xx_capture_thread(void *data)
@@ -766,7 +764,9 @@ static int ina2xx_capture_thread(void *data)
 	struct iio_dev *indio_dev = data;
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
 	int sampling_us = SAMPLING_PERIOD(chip);
-	int buffer_us, delay_us;
+	int ret;
+	struct timespec64 next, now, delta;
+	s64 delay_us;
 
 	/*
 	 * Poll a bit faster than the chip internal Fs, in case
@@ -775,15 +775,28 @@ static int ina2xx_capture_thread(void *data)
 	if (!chip->allow_async_readout)
 		sampling_us -= 200;
 
-	do {
-		buffer_us = ina2xx_work_buffer(indio_dev);
-		if (buffer_us < 0)
-			return buffer_us;
+	ktime_get_ts64(&next);
 
-		if (sampling_us > buffer_us) {
-			delay_us = sampling_us - buffer_us;
-			usleep_range(delay_us, (delay_us * 3) >> 1);
-		}
+	do {
+		ret = ina2xx_work_buffer(indio_dev);
+		if (ret < 0)
+			return ret;
+
+		ktime_get_ts64(&now);
+
+		/*
+		 * Advance the timestamp for the next poll by one sampling
+		 * interval, and sleep for the remainder (next - now)
+		 * In case "next" has already passed, the interval is added
+		 * multiple times, i.e. samples are dropped.
+		 */
+		do {
+			timespec64_add_ns(&next, 1000 * sampling_us);
+			delta = timespec64_sub(next, now);
+			delay_us = div_s64(timespec64_to_ns(&delta), 1000);
+		} while (delay_us <= 0);
+
+		usleep_range(delay_us, (delay_us * 3) >> 1);
 
 	} while (!kthread_should_stop());
 
