@@ -13,8 +13,8 @@
 /*
  * SC2731 regulator lock register
  */
-#define SC2731_PWR_WR_PROT_VALUE	0xf0c
-#define SC2731_WR_UNLOCK		0x6e7f
+#define SC2731_PWR_WR_PROT		0xf0c
+#define SC2731_WR_UNLOCK_VALUE		0x6e7f
 
 /*
  * SC2731 enable register
@@ -203,8 +203,8 @@ static struct regulator_desc regulators[] = {
 
 static int sc2731_regulator_unlock(struct regmap *regmap)
 {
-	return regmap_write(regmap, SC2731_PWR_WR_PROT_VALUE,
-			    SC2731_WR_UNLOCK);
+	return regmap_write(regmap, SC2731_PWR_WR_PROT,
+			    SC2731_WR_UNLOCK_VALUE);
 }
 
 static int sc2731_regulator_probe(struct platform_device *pdev)
