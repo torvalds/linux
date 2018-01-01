@@ -130,6 +130,7 @@ struct st_lsm6dsx_sensor {
  * @irq: Device interrupt line (I2C or SPI).
  * @lock: Mutex to protect read and write operations.
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
+ * @conf_lock: Mutex to prevent concurrent FIFO configuration update.
  * @fifo_mode: FIFO operating mode supported by the device.
  * @enable_mask: Enabled sensor bitmask.
  * @sip: Total number of samples (acc/gyro) in a given pattern.
@@ -144,6 +145,7 @@ struct st_lsm6dsx_hw {
 
 	struct mutex lock;
 	struct mutex fifo_lock;
+	struct mutex conf_lock;
 
 	enum st_lsm6dsx_fifo_mode fifo_mode;
 	u8 enable_mask;

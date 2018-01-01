@@ -528,7 +528,12 @@ static int st_lsm6dsx_set_watermark(struct iio_dev *iio_dev, unsigned int val)
 	if (val < 1 || val > hw->settings->max_fifo_size)
 		return -EINVAL;
 
+	mutex_lock(&hw->conf_lock);
+
 	err = st_lsm6dsx_update_watermark(sensor, val);
+
+	mutex_unlock(&hw->conf_lock);
+
 	if (err < 0)
 		return err;
 
@@ -739,6 +744,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 
 	mutex_init(&hw->lock);
 	mutex_init(&hw->fifo_lock);
+	mutex_init(&hw->conf_lock);
 
 	hw->dev = dev;
 	hw->irq = irq;

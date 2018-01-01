@@ -325,38 +325,40 @@ static int st_lsm6dsx_update_fifo(struct iio_dev *iio_dev, bool enable)
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	int err;
 
+	mutex_lock(&hw->conf_lock);
+
 	if (hw->fifo_mode != ST_LSM6DSX_FIFO_BYPASS) {
 		err = st_lsm6dsx_flush_fifo(hw);
 		if (err < 0)
-			return err;
+			goto out;
 	}
 
 	if (enable) {
 		err = st_lsm6dsx_sensor_enable(sensor);
 		if (err < 0)
-			return err;
+			goto out;
 	} else {
 		err = st_lsm6dsx_sensor_disable(sensor);
 		if (err < 0)
-			return err;
+			goto out;
 	}
 
 	err = st_lsm6dsx_set_fifo_odr(sensor, enable);
 	if (err < 0)
-		return err;
+		goto out;
 
 	err = st_lsm6dsx_update_decimators(hw);
 	if (err < 0)
-		return err;
+		goto out;
 
 	err = st_lsm6dsx_update_watermark(sensor, sensor->watermark);
 	if (err < 0)
-		return err;
+		goto out;
 
 	if (hw->enable_mask) {
 		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
 		if (err < 0)
-			return err;
+			goto out;
 
 		/*
 		 * store enable buffer timestamp as reference to compute
@@ -365,7 +367,10 @@ static int st_lsm6dsx_update_fifo(struct iio_dev *iio_dev, bool enable)
 		sensor->ts = iio_get_time_ns(iio_dev);
 	}
 
-	return 0;
+out:
+	mutex_unlock(&hw->conf_lock);
+
+	return err;
 }
 
 static irqreturn_t st_lsm6dsx_handler_irq(int irq, void *private)
