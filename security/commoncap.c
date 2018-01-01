@@ -348,21 +348,18 @@ static __u32 sansflags(__u32 m)
 	return m & ~VFS_CAP_FLAGS_EFFECTIVE;
 }
 
-static bool is_v2header(size_t size, __le32 magic)
+static bool is_v2header(size_t size, const struct vfs_cap_data *cap)
 {
-	__u32 m = le32_to_cpu(magic);
 	if (size != XATTR_CAPS_SZ_2)
 		return false;
-	return sansflags(m) == VFS_CAP_REVISION_2;
+	return sansflags(le32_to_cpu(cap->magic_etc)) == VFS_CAP_REVISION_2;
 }
 
-static bool is_v3header(size_t size, __le32 magic)
+static bool is_v3header(size_t size, const struct vfs_cap_data *cap)
 {
-	__u32 m = le32_to_cpu(magic);
-
 	if (size != XATTR_CAPS_SZ_3)
 		return false;
-	return sansflags(m) == VFS_CAP_REVISION_3;
+	return sansflags(le32_to_cpu(cap->magic_etc)) == VFS_CAP_REVISION_3;
 }
 
 /*
@@ -405,7 +402,7 @@ int cap_inode_getsecurity(struct inode *inode, const char *name, void **buffer,
 
 	fs_ns = inode->i_sb->s_user_ns;
 	cap = (struct vfs_cap_data *) tmpbuf;
-	if (is_v2header((size_t) ret, cap->magic_etc)) {
+	if (is_v2header((size_t) ret, cap)) {
 		/* If this is sizeof(vfs_cap_data) then we're ok with the
 		 * on-disk value, so return that.  */
 		if (alloc)
@@ -413,7 +410,7 @@ int cap_inode_getsecurity(struct inode *inode, const char *name, void **buffer,
 		else
 			kfree(tmpbuf);
 		return ret;
-	} else if (!is_v3header((size_t) ret, cap->magic_etc)) {
+	} else if (!is_v3header((size_t) ret, cap)) {
 		kfree(tmpbuf);
 		return -EINVAL;
 	}
@@ -470,9 +467,9 @@ static kuid_t rootid_from_xattr(const void *value, size_t size,
 	return make_kuid(task_ns, rootid);
 }
 
-static bool validheader(size_t size, __le32 magic)
+static bool validheader(size_t size, const struct vfs_cap_data *cap)
 {
-	return is_v2header(size, magic) || is_v3header(size, magic);
+	return is_v2header(size, cap) || is_v3header(size, cap);
 }
 
 /*
@@ -495,7 +492,7 @@ int cap_convert_nscap(struct dentry *dentry, void **ivalue, size_t size)
 
 	if (!*ivalue)
 		return -EINVAL;
-	if (!validheader(size, cap->magic_etc))
+	if (!validheader(size, cap))
 		return -EINVAL;
 	if (!capable_wrt_inode_uidgid(inode, CAP_SETFCAP))
 		return -EPERM;
