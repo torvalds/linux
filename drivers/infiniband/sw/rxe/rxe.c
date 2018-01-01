@@ -77,12 +77,6 @@ void rxe_release(struct kref *kref)
 	ib_dealloc_device(&rxe->ib_dev);
 }
 
-void rxe_dev_put(struct rxe_dev *rxe)
-{
-	kref_put(&rxe->ref_cnt, rxe_release);
-}
-EXPORT_SYMBOL_GPL(rxe_dev_put);
-
 /* initialize rxe device parameters */
 static int rxe_init_device_param(struct rxe_dev *rxe)
 {
