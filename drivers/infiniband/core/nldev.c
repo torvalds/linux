@@ -54,14 +54,23 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_DEV_NODE_TYPE] = { .type = NLA_U8 },
 };
 
-static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
+static int fill_nldev_handle(struct sk_buff *msg, struct ib_device *device)
 {
-	char fw[IB_FW_VERSION_NAME_MAX];
-
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_DEV_INDEX, device->index))
 		return -EMSGSIZE;
 	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_NAME, device->name))
 		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
+{
+	char fw[IB_FW_VERSION_NAME_MAX];
+
+	if (fill_nldev_handle(msg, device))
+		return -EMSGSIZE;
+
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, rdma_end_port(device)))
 		return -EMSGSIZE;
 
@@ -92,10 +101,9 @@ static int fill_port_info(struct sk_buff *msg,
 	struct ib_port_attr attr;
 	int ret;
 
-	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_DEV_INDEX, device->index))
+	if (fill_nldev_handle(msg, device))
 		return -EMSGSIZE;
-	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DEV_NAME, device->name))
-		return -EMSGSIZE;
+
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, port))
 		return -EMSGSIZE;
 
