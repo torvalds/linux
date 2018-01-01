@@ -4180,11 +4180,6 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 			(1ull << IB_USER_VERBS_CMD_DEALLOC_MW);
 	}
 
-	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt)) {
-		dev->ib_dev.get_hw_stats	= mlx5_ib_get_hw_stats;
-		dev->ib_dev.alloc_hw_stats	= mlx5_ib_alloc_hw_stats;
-	}
-
 	if (MLX5_CAP_GEN(mdev, xrc)) {
 		dev->ib_dev.alloc_xrcd = mlx5_ib_alloc_xrcd;
 		dev->ib_dev.dealloc_xrcd = mlx5_ib_dealloc_xrcd;
@@ -4282,8 +4277,12 @@ static void mlx5_ib_stage_odp_cleanup(struct mlx5_ib_dev *dev)
 
 static int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
 {
-	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
-		return  mlx5_ib_alloc_counters(dev);
+	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt)) {
+		dev->ib_dev.get_hw_stats	= mlx5_ib_get_hw_stats;
+		dev->ib_dev.alloc_hw_stats	= mlx5_ib_alloc_hw_stats;
+
+		return mlx5_ib_alloc_counters(dev);
+	}
 
 	return 0;
 }
