@@ -10394,10 +10394,9 @@ static int i40e_init_interrupt_scheme(struct i40e_pf *pf)
 	/* set up vector assignment tracking */
 	size = sizeof(struct i40e_lump_tracking) + (sizeof(u16) * vectors);
 	pf->irq_pile = kzalloc(size, GFP_KERNEL);
-	if (!pf->irq_pile) {
-		dev_err(&pf->pdev->dev, "error allocating irq_pile memory\n");
+	if (!pf->irq_pile)
 		return -ENOMEM;
-	}
+
 	pf->irq_pile->num_entries = vectors;
 	pf->irq_pile->search_hint = 0;
 
