@@ -111,7 +111,8 @@ static void f2fs_write_end_io(struct bio *bio)
 
 		if (unlikely(bio->bi_status)) {
 			mapping_set_error(page->mapping, -EIO);
-			f2fs_stop_checkpoint(sbi, true);
+			if (type == F2FS_WB_CP_DATA)
+				f2fs_stop_checkpoint(sbi, true);
 		}
 		dec_page_count(sbi, type);
 		clear_cold_data(page);
