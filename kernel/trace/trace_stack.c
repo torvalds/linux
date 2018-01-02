@@ -209,6 +209,10 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	if (__this_cpu_read(disable_stack_tracer) != 1)
 		goto out;
 
+	/* If rcu is not watching, then save stack trace can fail */
+	if (!rcu_is_watching())
+		goto out;
+
 	ip += MCOUNT_INSN_SIZE;
 
 	check_stack(ip, &stack);

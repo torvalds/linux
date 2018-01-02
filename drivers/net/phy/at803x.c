@@ -239,13 +239,9 @@ static int at803x_resume(struct phy_device *phydev)
 {
 	int value;
 
-	mutex_lock(&phydev->lock);
-
 	value = phy_read(phydev, MII_BMCR);
 	value &= ~(BMCR_PDOWN | BMCR_ISOLATE);
 	phy_write(phydev, MII_BMCR, value);
-
-	mutex_unlock(&phydev->lock);
 
 	return 0;
 }

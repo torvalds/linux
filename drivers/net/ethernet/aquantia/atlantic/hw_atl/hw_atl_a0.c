@@ -18,9 +18,20 @@
 #include "hw_atl_a0_internal.h"
 
 static int hw_atl_a0_get_hw_caps(struct aq_hw_s *self,
-				 struct aq_hw_caps_s *aq_hw_caps)
+				 struct aq_hw_caps_s *aq_hw_caps,
+				 unsigned short device,
+				 unsigned short subsystem_device)
 {
 	memcpy(aq_hw_caps, &hw_atl_a0_hw_caps_, sizeof(*aq_hw_caps));
+
+	if (device == HW_ATL_DEVICE_ID_D108 && subsystem_device == 0x0001)
+		aq_hw_caps->link_speed_msk &= ~HW_ATL_A0_RATE_10G;
+
+	if (device == HW_ATL_DEVICE_ID_D109 && subsystem_device == 0x0001) {
+		aq_hw_caps->link_speed_msk &= ~HW_ATL_A0_RATE_10G;
+		aq_hw_caps->link_speed_msk &= ~HW_ATL_A0_RATE_5G;
+	}
+
 	return 0;
 }
 
@@ -332,6 +343,10 @@ static int hw_atl_a0_hw_init(struct aq_hw_s *self,
 	hw_atl_a0_hw_qos_set(self);
 	hw_atl_a0_hw_rss_set(self, &aq_nic_cfg->aq_rss);
 	hw_atl_a0_hw_rss_hash_set(self, &aq_nic_cfg->aq_rss);
+
+	/* Reset link status and read out initial hardware counters */
+	self->aq_link_status.mbps = 0;
+	hw_atl_utils_update_stats(self);
 
 	err = aq_hw_err_from_flags(self);
 	if (err < 0)
