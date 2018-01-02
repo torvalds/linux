@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/clock/px30-cru.h>
+#include <dt-bindings/display/media-bus-format.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -67,6 +68,12 @@
 			     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	};
+
+	display_subsystem: display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vopb_out>, <&vopl_out>;
+		status = "disabled";
 	};
 
 	psci {
@@ -549,7 +556,38 @@
 			<300000000>, <300000000>,
 			<150000000>, <150000000>,
 			<75000000>, <416000000>;
+	};
+
+	lvds: lvds@ff2e0000 {
+		compatible = "rockchip,px30-lvds";
+		reg = <0x0 0xff2e0000 0x0 0x100>, <0x0 0xff2e0100 0x0 0x100>;
+		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
+		clocks = <&cru PCLK_MIPIDSIPHY>, <&cru PCLK_MIPI_DSI>;
+		clock-names = "pclk_lvds", "pclk_lvds_ctl";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			lvds_in: port@0 {
+				reg = <0>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				lvds_in_vopb: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vopb_out_lvds>;
+				};
+				lvds_in_vopl: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_lvds>;
+				};
+			};
 		};
+	};
 
 	sdmmc: dwmmc@ff370000 {
 		compatible = "rockchip,px30-dw-mshc", "rockchip,rk3288-dw-mshc";
@@ -583,6 +621,72 @@
 		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	vopb: vop@ff460000 {
+		compatible = "rockchip,px30-vop-big";
+		reg = <0x0 0xff460000 0x0 0x1fc>, <0x0 0xff460a00 0x0 0x400>;
+		reg-names = "regs", "gamma_lut";
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOPM>, <&cru DCLK_VOPM>,
+			 <&cru HCLK_VOPM>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		iommus = <&vopb_mmu>;
+		status = "disabled";
+
+		vopb_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vopb_out_lvds: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&lvds_in_vopb>;
+			};
+		};
+	};
+
+	vopb_mmu: iommu@ff460f00 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff460f00 0x0 0x100>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vopb_mmu";
+		clocks = <&cru ACLK_VOPM>, <&cru HCLK_VOPM>;
+		clock-names = "aclk", "hclk";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	vopl: vop@ff470000 {
+		compatible = "rockchip,px30-vop-lit";
+		reg = <0x0 0xff470000 0x0 0x1fc>, <0x0 0xff470a00 0x0 0x400>;
+		reg-names = "regs", "gamma_lut";
+		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOPS>, <&cru DCLK_VOPS>,
+			 <&cru HCLK_VOPS>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		iommus = <&vopl_mmu>;
+		status = "disabled";
+
+		vopl_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vopl_out_lvds: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&lvds_in_vopl>;
+			};
+		};
+	};
+
+	vopl_mmu: iommu@ff470f00 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff470f00 0x0 0x100>;
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vopl_mmu";
+		clocks = <&cru ACLK_VOPS>, <&cru HCLK_VOPS>;
+		clock-names = "aclk", "hclk";
+		#iommu-cells = <0>;
 		status = "disabled";
 	};
 
