@@ -1469,9 +1469,20 @@ static u8 gtiir[] = {
 	[VECS] = 3,
 };
 
-static int gen8_init_common_ring(struct intel_engine_cs *engine)
+static void enable_execlists(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
+
+	I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
+	I915_WRITE(RING_MODE_GEN7(engine),
+		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
+	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
+		   engine->status_page.ggtt_offset);
+	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
+}
+
+static int gen8_init_common_ring(struct intel_engine_cs *engine)
+{
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	int ret;
 
@@ -1482,13 +1493,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	intel_engine_reset_breadcrumbs(engine);
 	intel_engine_init_hangcheck(engine);
 
-	I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
-	I915_WRITE(RING_MODE_GEN7(engine),
-		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
-	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
-		   engine->status_page.ggtt_offset);
-	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
-
+	enable_execlists(engine);
 	DRM_DEBUG_DRIVER("Execlists enabled for %s\n", engine->name);
 
 	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
@@ -1915,6 +1920,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	intel_engine_cleanup_common(engine);
 
 	lrc_destroy_wa_ctx(engine);
+
 	engine->i915 = NULL;
 	dev_priv->engine[engine->id] = NULL;
 	kfree(engine);
