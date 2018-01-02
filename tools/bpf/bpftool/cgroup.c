@@ -41,7 +41,7 @@ static enum bpf_attach_type parse_attach_type(const char *str)
 	return __MAX_BPF_ATTACH_TYPE;
 }
 
-static int list_bpf_prog(int id, const char *attach_type_str,
+static int show_bpf_prog(int id, const char *attach_type_str,
 			 const char *attach_flags_str)
 {
 	struct bpf_prog_info info = {};
@@ -77,7 +77,7 @@ static int list_bpf_prog(int id, const char *attach_type_str,
 	return 0;
 }
 
-static int list_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type)
+static int show_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type)
 {
 	__u32 prog_ids[1024] = {0};
 	char *attach_flags_str;
@@ -111,23 +111,23 @@ static int list_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type)
 	}
 
 	for (iter = 0; iter < prog_cnt; iter++)
-		list_bpf_prog(prog_ids[iter], attach_type_strings[type],
+		show_bpf_prog(prog_ids[iter], attach_type_strings[type],
 			      attach_flags_str);
 
 	return 0;
 }
 
-static int do_list(int argc, char **argv)
+static int do_show(int argc, char **argv)
 {
 	enum bpf_attach_type type;
 	int cgroup_fd;
 	int ret = -1;
 
 	if (argc < 1) {
-		p_err("too few parameters for cgroup list\n");
+		p_err("too few parameters for cgroup show\n");
 		goto exit;
 	} else if (argc > 1) {
-		p_err("too many parameters for cgroup list\n");
+		p_err("too many parameters for cgroup show\n");
 		goto exit;
 	}
 
@@ -147,10 +147,10 @@ static int do_list(int argc, char **argv)
 		/*
 		 * Not all attach types may be supported, so it's expected,
 		 * that some requests will fail.
-		 * If we were able to get the list for at least one
+		 * If we were able to get the show for at least one
 		 * attach type, let's return 0.
 		 */
-		if (list_attached_bpf_progs(cgroup_fd, type) == 0)
+		if (show_attached_bpf_progs(cgroup_fd, type) == 0)
 			ret = 0;
 	}
 
@@ -294,7 +294,7 @@ static int do_help(int argc, char **argv)
 }
 
 static const struct cmd cmds[] = {
-	{ "list",	do_list },
+	{ "list",	do_show },
 	{ "attach",	do_attach },
 	{ "detach",	do_detach },
 	{ "help",	do_help },
