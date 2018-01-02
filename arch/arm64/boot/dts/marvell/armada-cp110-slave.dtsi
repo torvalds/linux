@@ -325,8 +325,8 @@
 				 * this controller is only usable on the CPM
 				 * for A7K and on the CPS for A8K.
 				 */
-				compatible = "marvell,armada370-nand",
-					     "marvell,armada-8k-nand";
+				compatible = "marvell,armada-8k-nand",
+					     "marvell,armada370-nand";
 				reg = <0x720000 0x54>;
 				#address-cells = <1>;
 				#size-cells = <1>;
