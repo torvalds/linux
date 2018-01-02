@@ -689,7 +689,7 @@
 			<&cru SRST_VDEC_NIU_A>, <&cru SRST_VDEC_NIU_H>,
 			<&cru SRST_VDEC_CABAC>, <&cru SRST_VDEC_CORE>;
 		reset-names = "video_a", "video_h", "niu_a", "niu_h",
-			"cabac", "video";
+			"video_cabac", "video_core";
 		rockchip,grf = <&grf>;
 		iommus = <&rkvdec_mmu>;
 		allocator = <1>;
