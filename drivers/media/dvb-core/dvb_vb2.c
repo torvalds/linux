@@ -421,8 +421,8 @@ int dvb_vb2_mmap(struct dvb_vb2_ctx *ctx, struct vm_area_struct *vma)
 	return 0;
 }
 
-unsigned int dvb_vb2_poll(struct dvb_vb2_ctx *ctx, struct file *file,
-			  poll_table *wait)
+__poll_t dvb_vb2_poll(struct dvb_vb2_ctx *ctx, struct file *file,
+		      poll_table *wait)
 {
 	dprintk(3, "[%s]\n", ctx->name);
 	return vb2_core_poll(&ctx->vb_q, file, wait);

@@ -116,9 +116,9 @@ static inline int dvb_vb2_release(struct dvb_vb2_ctx *ctx)
 #define dvb_vb2_is_streaming(ctx) (0)
 #define dvb_vb2_fill_buffer(ctx, file, wait) (0)
 
-static inline unsigned int dvb_vb2_poll(struct dvb_vb2_ctx *ctx,
-					struct file *file,
-					poll_table *wait)
+static inline __poll_t dvb_vb2_poll(struct dvb_vb2_ctx *ctx,
+				    struct file *file,
+				    poll_table *wait)
 {
 	return 0;
 }
@@ -169,8 +169,8 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
  *
  * Implements poll syscall() logic.
  */
-unsigned int dvb_vb2_poll(struct dvb_vb2_ctx *ctx, struct file *file,
-			  poll_table *wait);
+__poll_t dvb_vb2_poll(struct dvb_vb2_ctx *ctx, struct file *file,
+		      poll_table *wait);
 #endif
 
 /**
