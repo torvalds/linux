@@ -471,7 +471,7 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 
 	if (phy_interface_is_rgmii(phydev)) {
 		err = m88e1121_config_aneg_rgmii_delays(phydev);
-		if (err)
+		if (err < 0)
 			return err;
 	}
 
@@ -664,19 +664,14 @@ static int m88e1116r_config_init(struct phy_device *phydev)
 
 static int m88e3016_config_init(struct phy_device *phydev)
 {
-	int reg;
+	int ret;
 
 	/* Enable Scrambler and Auto-Crossover */
-	reg = phy_read(phydev, MII_88E3016_PHY_SPEC_CTRL);
-	if (reg < 0)
-		return reg;
-
-	reg &= ~MII_88E3016_DISABLE_SCRAMBLER;
-	reg |= MII_88E3016_AUTO_MDIX_CROSSOVER;
-
-	reg = phy_write(phydev, MII_88E3016_PHY_SPEC_CTRL, reg);
-	if (reg < 0)
-		return reg;
+	ret = phy_modify(phydev, MII_88E3016_PHY_SPEC_CTRL,
+			 ~MII_88E3016_DISABLE_SCRAMBLER,
+			 MII_88E3016_AUTO_MDIX_CROSSOVER);
+	if (ret < 0)
+		return ret;
 
 	return marvell_config_init(phydev);
 }
@@ -685,42 +680,34 @@ static int m88e1111_config_init_hwcfg_mode(struct phy_device *phydev,
 					   u16 mode,
 					   int fibre_copper_auto)
 {
-	int temp;
-
-	temp = phy_read(phydev, MII_M1111_PHY_EXT_SR);
-	if (temp < 0)
-		return temp;
-
-	temp &= ~(MII_M1111_HWCFG_MODE_MASK |
-		  MII_M1111_HWCFG_FIBER_COPPER_AUTO |
-		  MII_M1111_HWCFG_FIBER_COPPER_RES);
-	temp |= mode;
-
 	if (fibre_copper_auto)
-		temp |= MII_M1111_HWCFG_FIBER_COPPER_AUTO;
+		mode |= MII_M1111_HWCFG_FIBER_COPPER_AUTO;
 
-	return phy_write(phydev, MII_M1111_PHY_EXT_SR, temp);
+	return phy_modify(phydev, MII_M1111_PHY_EXT_SR,
+			  (u16)~(MII_M1111_HWCFG_MODE_MASK |
+				 MII_M1111_HWCFG_FIBER_COPPER_AUTO |
+				 MII_M1111_HWCFG_FIBER_COPPER_RES),
+			  mode);
 }
 
 static int m88e1111_config_init_rgmii_delays(struct phy_device *phydev)
 {
-	int temp;
-
-	temp = phy_read(phydev, MII_M1111_PHY_EXT_CR);
-	if (temp < 0)
-		return temp;
+	int delay;
 
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) {
-		temp |= (MII_M1111_RGMII_RX_DELAY | MII_M1111_RGMII_TX_DELAY);
+		delay = MII_M1111_RGMII_RX_DELAY | MII_M1111_RGMII_TX_DELAY;
 	} else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) {
-		temp &= ~MII_M1111_RGMII_TX_DELAY;
-		temp |= MII_M1111_RGMII_RX_DELAY;
+		delay = MII_M1111_RGMII_RX_DELAY;
 	} else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID) {
-		temp &= ~MII_M1111_RGMII_RX_DELAY;
-		temp |= MII_M1111_RGMII_TX_DELAY;
+		delay = MII_M1111_RGMII_TX_DELAY;
+	} else {
+		delay = 0;
 	}
 
-	return phy_write(phydev, MII_M1111_PHY_EXT_CR, temp);
+	return phy_modify(phydev, MII_M1111_PHY_EXT_CR,
+			  (u16)~(MII_M1111_RGMII_RX_DELAY |
+				 MII_M1111_RGMII_TX_DELAY),
+			  delay);
 }
 
 static int m88e1111_config_init_rgmii(struct phy_device *phydev)
@@ -766,7 +753,7 @@ static int m88e1111_config_init_rtbi(struct phy_device *phydev)
 	int err;
 
 	err = m88e1111_config_init_rgmii_delays(phydev);
-	if (err)
+	if (err < 0)
 		return err;
 
 	err = m88e1111_config_init_hwcfg_mode(
@@ -793,7 +780,7 @@ static int m88e1111_config_init(struct phy_device *phydev)
 
 	if (phy_interface_is_rgmii(phydev)) {
 		err = m88e1111_config_init_rgmii(phydev);
-		if (err)
+		if (err < 0)
 			return err;
 	}
 
@@ -834,7 +821,6 @@ static int m88e1121_config_init(struct phy_device *phydev)
 static int m88e1510_config_init(struct phy_device *phydev)
 {
 	int err;
-	int temp;
 
 	/* SGMII-to-Copper mode initialization */
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
@@ -846,16 +832,15 @@ static int m88e1510_config_init(struct phy_device *phydev)
 			return err;
 
 		/* In reg 20, write MODE[2:0] = 0x1 (SGMII to Copper) */
-		temp = phy_read(phydev, MII_88E1510_GEN_CTRL_REG_1);
-		temp &= ~MII_88E1510_GEN_CTRL_REG_1_MODE_MASK;
-		temp |= MII_88E1510_GEN_CTRL_REG_1_MODE_SGMII;
-		err = phy_write(phydev, MII_88E1510_GEN_CTRL_REG_1, temp);
+		err = phy_modify(phydev, MII_88E1510_GEN_CTRL_REG_1,
+				 ~MII_88E1510_GEN_CTRL_REG_1_MODE_MASK,
+				 MII_88E1510_GEN_CTRL_REG_1_MODE_SGMII);
 		if (err < 0)
 			return err;
 
 		/* PHY reset is necessary after changing MODE[2:0] */
-		temp |= MII_88E1510_GEN_CTRL_REG_1_RESET;
-		err = phy_write(phydev, MII_88E1510_GEN_CTRL_REG_1, temp);
+		err = phy_modify(phydev, MII_88E1510_GEN_CTRL_REG_1, 0,
+				 MII_88E1510_GEN_CTRL_REG_1_RESET);
 		if (err < 0)
 			return err;
 
@@ -961,7 +946,6 @@ static int m88e1149_config_init(struct phy_device *phydev)
 
 static int m88e1145_config_init_rgmii(struct phy_device *phydev)
 {
-	int temp;
 	int err;
 
 	err = m88e1111_config_init_rgmii_delays(phydev);
@@ -973,15 +957,9 @@ static int m88e1145_config_init_rgmii(struct phy_device *phydev)
 		if (err < 0)
 			return err;
 
-		temp = phy_read(phydev, 0x1e);
-		if (temp < 0)
-			return temp;
-
-		temp &= 0xf03f;
-		temp |= 2 << 9;	/* 36 ohm */
-		temp |= 2 << 6;	/* 39 ohm */
-
-		err = phy_write(phydev, 0x1e, temp);
+		err = phy_modify(phydev, 0x1e, 0xf03f,
+				 2 << 9 | /* 36 ohm */
+				 2 << 6); /* 39 ohm */
 		if (err < 0)
 			return err;
 
