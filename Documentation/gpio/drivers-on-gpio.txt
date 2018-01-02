@@ -28,11 +28,6 @@ hardware descriptions such as device tree or ACPI:
 - gpio-beeper: drivers/input/misc/gpio-beeper.c is used to provide a beep from
   an external speaker connected to a GPIO line.
 
-- gpio-tilt-polled: drivers/input/misc/gpio_tilt_polled.c provides tilt
-  detection switches using GPIO, which is useful for your homebrewn pinball
-  machine if for nothing else. It can detect different tilt angles of the
-  monitored object.
-
 - extcon-gpio: drivers/extcon/extcon-gpio.c is used when you need to read an
   external connector status, such as a headset line for an audio driver or an
   HDMI connector. It will provide a better userspace sysfs interface than GPIO.
