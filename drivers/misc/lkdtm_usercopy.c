@@ -119,6 +119,8 @@ static void do_usercopy_heap_size(bool to_user)
 {
 	unsigned long user_addr;
 	unsigned char *one, *two;
+	void __user *test_user_addr;
+	void *test_kern_addr;
 	size_t size = unconst + 1024;
 
 	one = kmalloc(size, GFP_KERNEL);
@@ -139,27 +141,30 @@ static void do_usercopy_heap_size(bool to_user)
 	memset(one, 'A', size);
 	memset(two, 'B', size);
 
+	test_user_addr = (void __user *)(user_addr + 16);
+	test_kern_addr = one + 16;
+
 	if (to_user) {
 		pr_info("attempting good copy_to_user of correct size\n");
-		if (copy_to_user((void __user *)user_addr, one, size)) {
+		if (copy_to_user(test_user_addr, test_kern_addr, size / 2)) {
 			pr_warn("copy_to_user failed unexpectedly?!\n");
 			goto free_user;
 		}
 
 		pr_info("attempting bad copy_to_user of too large size\n");
-		if (copy_to_user((void __user *)user_addr, one, 2 * size)) {
+		if (copy_to_user(test_user_addr, test_kern_addr, size)) {
 			pr_warn("copy_to_user failed, but lacked Oops\n");
 			goto free_user;
 		}
 	} else {
 		pr_info("attempting good copy_from_user of correct size\n");
-		if (copy_from_user(one, (void __user *)user_addr, size)) {
+		if (copy_from_user(test_kern_addr, test_user_addr, size / 2)) {
 			pr_warn("copy_from_user failed unexpectedly?!\n");
 			goto free_user;
 		}
 
 		pr_info("attempting bad copy_from_user of too large size\n");
-		if (copy_from_user(one, (void __user *)user_addr, 2 * size)) {
+		if (copy_from_user(test_kern_addr, test_user_addr, size)) {
 			pr_warn("copy_from_user failed, but lacked Oops\n");
 			goto free_user;
 		}
