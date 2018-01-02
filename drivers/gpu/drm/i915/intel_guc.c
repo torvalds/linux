@@ -23,6 +23,7 @@
  */
 
 #include "intel_guc.h"
+#include "intel_guc_ads.h"
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
 
@@ -163,10 +164,25 @@ int intel_guc_init(struct intel_guc *guc)
 		return ret;
 	GEM_BUG_ON(!guc->shared_data);
 
+	ret = intel_guc_log_create(guc);
+	if (ret)
+		goto err_shared;
+
+	ret = intel_guc_ads_create(guc);
+	if (ret)
+		goto err_log;
+	GEM_BUG_ON(!guc->ads_vma);
+
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(dev_priv);
 
 	return 0;
+
+err_log:
+	intel_guc_log_destroy(guc);
+err_shared:
+	guc_shared_data_destroy(guc);
+	return ret;
 }
 
 void intel_guc_fini(struct intel_guc *guc)
@@ -174,6 +190,8 @@ void intel_guc_fini(struct intel_guc *guc)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
 	i915_ggtt_disable_guc(dev_priv);
+	intel_guc_ads_destroy(guc);
+	intel_guc_log_destroy(guc);
 	guc_shared_data_destroy(guc);
 }
 
