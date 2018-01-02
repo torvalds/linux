@@ -448,9 +448,7 @@ int device_init_wakeup(struct device *dev, bool enable)
 		device_set_wakeup_capable(dev, true);
 		ret = device_wakeup_enable(dev);
 	} else {
-		if (dev->power.can_wakeup)
-			device_wakeup_disable(dev);
-
+		device_wakeup_disable(dev);
 		device_set_wakeup_capable(dev, false);
 	}
 
