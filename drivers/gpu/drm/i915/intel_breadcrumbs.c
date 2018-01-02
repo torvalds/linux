@@ -396,6 +396,8 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	bool first, armed;
 	u32 seqno;
 
+	GEM_BUG_ON(!wait->seqno);
+
 	/* Insert the request into the retirement ordered list
 	 * of waiters by walking the rbtree. If we are the oldest
 	 * seqno in the tree (the first to be retired), then
