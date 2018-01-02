@@ -13,8 +13,34 @@
 #include <asm/pgtable.h>
 #include <linux/uaccess.h>
 
-static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
-static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
+static struct signal_struct init_signals = {
+	.nr_threads	= 1,
+	.thread_head	= LIST_HEAD_INIT(init_task.thread_node),
+	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(init_signals.wait_chldexit),
+	.shared_pending	= {
+		.list = LIST_HEAD_INIT(init_signals.shared_pending.list),
+		.signal =  {{0}}
+	},
+	.rlim		= INIT_RLIMITS,
+	.cred_guard_mutex = __MUTEX_INITIALIZER(init_signals.cred_guard_mutex),
+#ifdef CONFIG_POSIX_TIMERS
+	.posix_timers = LIST_HEAD_INIT(init_signals.posix_timers),
+	.cputimer	= {
+		.cputime_atomic	= INIT_CPUTIME_ATOMIC,
+		.running	= false,
+		.checking_timer = false,
+	},
+#endif
+	INIT_CPU_TIMERS(init_signals)
+	INIT_PREV_CPUTIME(init_signals)
+};
+
+static struct sighand_struct init_sighand = {
+	.count		= ATOMIC_INIT(1),
+	.action		= { { { .sa_handler = SIG_DFL, } }, },
+	.siglock	= __SPIN_LOCK_UNLOCKED(init_sighand.siglock),
+	.signalfd_wqh	= __WAIT_QUEUE_HEAD_INITIALIZER(init_sighand.signalfd_wqh),
+};
 
 /*
  * Set up the first task table, touch at your own risk!. Base=0,
