@@ -3676,6 +3676,14 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		},
 		.driver_data = (void *)&jd_mode3_platform_data,
 	},
+	{
+		.ident = "Teclast X80 Pro",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TECLAST"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X80 Pro"),
+		},
+		.driver_data = (void *)&jd_mode3_platform_data,
+	},
 	{ }
 };
 
