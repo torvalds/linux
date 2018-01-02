@@ -47,12 +47,9 @@
 
 #include "mdio-boardinfo.h"
 
-int mdiobus_register_device(struct mdio_device *mdiodev)
+static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 {
 	struct gpio_desc *gpiod = NULL;
-
-	if (mdiodev->bus->mdio_map[mdiodev->addr])
-		return -EBUSY;
 
 	/* Deassert the optional reset signal */
 	if (mdiodev->dev.of_node)
@@ -68,6 +65,22 @@ int mdiobus_register_device(struct mdio_device *mdiodev)
 
 	/* Assert the reset signal again */
 	mdio_device_reset(mdiodev, 1);
+
+	return 0;
+}
+
+int mdiobus_register_device(struct mdio_device *mdiodev)
+{
+	int err;
+
+	if (mdiodev->bus->mdio_map[mdiodev->addr])
+		return -EBUSY;
+
+	if (mdiodev->flags & MDIO_DEVICE_FLAG_PHY) {
+		err = mdiobus_register_gpiod(mdiodev);
+		if (err)
+			return err;
+	}
 
 	mdiodev->bus->mdio_map[mdiodev->addr] = mdiodev;
 
