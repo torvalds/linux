@@ -2626,11 +2626,13 @@ static int __init apic_set_verbosity(char *arg)
 		apic_verbosity = APIC_DEBUG;
 	else if (strcmp("verbose", arg) == 0)
 		apic_verbosity = APIC_VERBOSE;
+#ifdef CONFIG_X86_64
 	else {
 		pr_warning("APIC Verbosity level %s not recognised"
 			" use apic=verbose or apic=debug\n", arg);
 		return -EINVAL;
 	}
+#endif
 
 	return 0;
 }

@@ -361,7 +361,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	 *
 	 * No need for ist_enter here because we don't use RCU.
 	 */
-	if (((long)regs->sp >> PGDIR_SHIFT) == ESPFIX_PGD_ENTRY &&
+	if (((long)regs->sp >> P4D_SHIFT) == ESPFIX_PGD_ENTRY &&
 		regs->cs == __KERNEL_CS &&
 		regs->ip == (unsigned long)native_irq_return_iret)
 	{

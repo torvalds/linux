@@ -1137,6 +1137,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create phy: %s\n",
 				child_np->name);
+			pm_runtime_disable(dev);
 			return PTR_ERR(phy);
 		}
 
@@ -1146,6 +1147,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(phy_provider)) {
 		dev_err(dev, "Failed to register phy provider\n");
+		pm_runtime_disable(dev);
 		return PTR_ERR(phy_provider);
 	}
 
