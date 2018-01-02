@@ -801,10 +801,10 @@ static int fsl_qspi_nor_setup_last(struct fsl_qspi *q)
 }
 
 static const struct of_device_id fsl_qspi_dt_ids[] = {
-	{ .compatible = "fsl,vf610-qspi", .data = (void *)&vybrid_data, },
-	{ .compatible = "fsl,imx6sx-qspi", .data = (void *)&imx6sx_data, },
-	{ .compatible = "fsl,imx7d-qspi", .data = (void *)&imx7d_data, },
-	{ .compatible = "fsl,imx6ul-qspi", .data = (void *)&imx6ul_data, },
+	{ .compatible = "fsl,vf610-qspi", .data = &vybrid_data, },
+	{ .compatible = "fsl,imx6sx-qspi", .data = &imx6sx_data, },
+	{ .compatible = "fsl,imx7d-qspi", .data = &imx7d_data, },
+	{ .compatible = "fsl,imx6ul-qspi", .data = &imx6ul_data, },
 	{ .compatible = "fsl,ls1021a-qspi", .data = (void *)&ls1021a_data, },
 	{ /* sentinel */ }
 };
