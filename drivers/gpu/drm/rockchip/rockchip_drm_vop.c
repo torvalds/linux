@@ -167,6 +167,7 @@ struct vop_plane_state {
 	int color_space;
 	unsigned int csc_mode;
 	bool enable;
+	int global_alpha;
 };
 
 struct vop_win {
@@ -1539,7 +1540,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	const uint32_t *r2y_table = vop_plane_state->r2y_table;
 	int ymirror, xmirror;
 	uint32_t val;
-	bool rb_swap;
+	bool rb_swap, global_alpha_en;
 
 	/*
 	 * can't update plane when vop is disabled.
@@ -1594,15 +1595,26 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	rb_swap = has_rb_swapped(fb->pixel_format);
 	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
-	if (is_alpha_support(fb->pixel_format) &&
+	global_alpha_en = (vop_plane_state->global_alpha == 0xff) ? 0 : 1;
+	if ((is_alpha_support(fb->pixel_format) || global_alpha_en) &&
 	    (s->dsp_layer_sel & 0x3) != win->win_id) {
+		int src_bland_m0;
+
+		if (is_alpha_support(fb->pixel_format) && global_alpha_en)
+			src_bland_m0 = ALPHA_PER_PIX_GLOBAL;
+		else if (is_alpha_support(fb->pixel_format))
+			src_bland_m0 = ALPHA_PER_PIX;
+		else
+			src_bland_m0 = ALPHA_GLOBAL;
+
 		VOP_WIN_SET(vop, win, dst_alpha_ctl,
 			    DST_FACTOR_M0(ALPHA_SRC_INVERSE));
 		val = SRC_ALPHA_EN(1) | SRC_COLOR_M0(ALPHA_SRC_PRE_MUL) |
 			SRC_ALPHA_M0(ALPHA_STRAIGHT) |
-			SRC_BLEND_M0(ALPHA_PER_PIX) |
+			SRC_BLEND_M0(src_bland_m0) |
 			SRC_ALPHA_CAL_M0(ALPHA_NO_SATURATION) |
-			SRC_FACTOR_M0(ALPHA_ONE);
+			SRC_FACTOR_M0(global_alpha_en ?
+				      ALPHA_SRC_GLOBAL : ALPHA_ONE);
 		VOP_WIN_SET(vop, win, src_alpha_ctl, val);
 		VOP_WIN_SET(vop, win, alpha_mode, 1);
 		VOP_WIN_SET(vop, win, alpha_en, 1);
@@ -1610,6 +1622,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		VOP_WIN_SET(vop, win, src_alpha_ctl, SRC_ALPHA_EN(0));
 		VOP_WIN_SET(vop, win, alpha_en, 0);
 	}
+	VOP_WIN_SET(vop, win, global_alpha_val, vop_plane_state->global_alpha);
 
 	VOP_WIN_SET(vop, win, csc_mode, vop_plane_state->csc_mode);
 	if (win->csc) {
@@ -1648,6 +1661,7 @@ void vop_atomic_plane_reset(struct drm_plane *plane)
 		return;
 
 	vop_plane_state->zpos = win->win_id;
+	vop_plane_state->global_alpha = 0xff;
 	plane->state = &vop_plane_state->base;
 	plane->state->plane = plane;
 }
@@ -1718,6 +1732,11 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 		return 0;
 	}
 
+	if (property == private->global_alpha_prop) {
+		plane_state->global_alpha = val;
+		return 0;
+	}
+
 	DRM_ERROR("failed to set vop plane property\n");
 	return -EINVAL;
 }
@@ -1748,6 +1767,11 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == private->color_space_prop) {
 		*val = plane_state->color_space;
+		return 0;
+	}
+
+	if (property == private->global_alpha_prop) {
+		*val = plane_state->global_alpha;
 		return 0;
 	}
 
@@ -3510,6 +3534,9 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	drm_object_attach_property(&win->base.base, private->eotf_prop, 0);
 	drm_object_attach_property(&win->base.base,
 				   private->color_space_prop, 0);
+	if (VOP_WIN_SUPPORT(vop, win, global_alpha_val))
+		drm_object_attach_property(&win->base.base,
+					   private->global_alpha_prop, 0xff);
 
 	return 0;
 }
