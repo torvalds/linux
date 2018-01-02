@@ -4261,7 +4261,6 @@ void process_cpuid()
 				case INTEL_FAM6_KABYLAKE_DESKTOP:	/* KBL */
 					crystal_hz = 24000000;	/* 24.0 MHz */
 					break;
-				case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 				case INTEL_FAM6_ATOM_DENVERTON:	/* DNV */
 					crystal_hz = 25000000;	/* 25.0 MHz */
 					break;
