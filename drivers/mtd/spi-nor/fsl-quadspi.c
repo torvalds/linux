@@ -661,7 +661,7 @@ static void fsl_qspi_set_map_addr(struct fsl_qspi *q)
  * causes the controller to clear the buffer, and use the sequence pointed
  * by the QUADSPI_BFGENCR[SEQID] to initiate a read from the flash.
  */
-static void fsl_qspi_init_abh_read(struct fsl_qspi *q)
+static void fsl_qspi_init_ahb_read(struct fsl_qspi *q)
 {
 	void __iomem *base = q->iobase;
 	int seqid;
@@ -795,7 +795,7 @@ static int fsl_qspi_nor_setup_last(struct fsl_qspi *q)
 	fsl_qspi_init_lut(q);
 
 	/* Init for AHB read */
-	fsl_qspi_init_abh_read(q);
+	fsl_qspi_init_ahb_read(q);
 
 	return 0;
 }
