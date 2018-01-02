@@ -280,7 +280,7 @@ thread mode, the following conditions must be met.
   exempt from this requirement.
 
 Topology-wise, a cgroup can be in an invalid state.  Please consider
-the following toplogy::
+the following topology::
 
   A (threaded domain) - B (threaded) - C (domain, just created)
 
@@ -1064,10 +1064,10 @@ PAGE_SIZE multiple when read back.
 		reached the limit and allocation was about to fail.
 
 		Depending on context result could be invocation of OOM
-		killer and retrying allocation or failing alloction.
+		killer and retrying allocation or failing allocation.
 
 		Failed allocation in its turn could be returned into
-		userspace as -ENOMEM or siletly ignored in cases like
+		userspace as -ENOMEM or silently ignored in cases like
 		disk readahead.  For now OOM in memory cgroup kills
 		tasks iff shortage has happened inside page fault.
 
@@ -1192,7 +1192,7 @@ PAGE_SIZE multiple when read back.
 	cgroups.  The default is "max".
 
 	Swap usage hard limit.  If a cgroup's swap usage reaches this
-	limit, anonymous meomry of the cgroup will not be swapped out.
+	limit, anonymous memory of the cgroup will not be swapped out.
 
 
 Usage Guidelines
