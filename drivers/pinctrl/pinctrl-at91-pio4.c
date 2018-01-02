@@ -910,7 +910,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	int i, ret;
 	struct resource	*res;
 	struct atmel_pioctrl *atmel_pioctrl;
-	struct atmel_pioctrl_data *atmel_pioctrl_data;
+	const struct atmel_pioctrl_data *atmel_pioctrl_data;
 
 	atmel_pioctrl = devm_kzalloc(dev, sizeof(*atmel_pioctrl), GFP_KERNEL);
 	if (!atmel_pioctrl)
@@ -924,7 +924,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		dev_err(dev, "unknown compatible string\n");
 		return -ENODEV;
 	}
-	atmel_pioctrl_data = (struct atmel_pioctrl_data *)match->data;
+	atmel_pioctrl_data = match->data;
 	atmel_pioctrl->nbanks = atmel_pioctrl_data->nbanks;
 	atmel_pioctrl->npins = atmel_pioctrl->nbanks * ATMEL_PIO_NPINS_PER_BANK;
 
