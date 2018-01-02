@@ -3628,6 +3628,8 @@ static const struct rt5645_platform_data gpd_win_platform_data = {
 	.jd_mode = 3,
 	.inv_jd1_1 = true,
 	.long_name = "gpd-win-pocket-rt5645",
+	/* The GPD pocket has a diff. mic, for the win this does not matter. */
+	.in2_diff = true,
 };
 
 static const struct dmi_system_id dmi_platform_gpd_win[] = {
