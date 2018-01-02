@@ -2523,7 +2523,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nojitter	[IA-64] Disables jitter checking for ITC timers.
 
-	nokaiser	[X86-64] Disable KAISER isolation of kernel from user.
+	nopti		[X86-64] Disable KAISER isolation of kernel from user.
 
 	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
 
