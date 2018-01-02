@@ -274,14 +274,12 @@ static int hilse_match(hil_mlc *mlc, int unused)
 /* An LCV used to prevent runaway loops, forces 5 second sleep when reset. */
 static int hilse_init_lcv(hil_mlc *mlc, int unused)
 {
-	struct timeval tv;
+	time64_t now = ktime_get_seconds();
 
-	do_gettimeofday(&tv);
-
-	if (mlc->lcv && (tv.tv_sec - mlc->lcv_tv.tv_sec) < 5)
+	if (mlc->lcv && (now - mlc->lcv_time) < 5)
 		return -1;
 
-	mlc->lcv_tv = tv;
+	mlc->lcv_time = now;
 	mlc->lcv = 0;
 
 	return 0;

@@ -149,7 +149,7 @@ struct hil_mlc {
 
 	int			ddi;	/* Last operational device id */
 	int			lcv;	/* LCV to throttle loops */
-	struct timeval		lcv_tv; /* Time loop was started */
+	time64_t		lcv_time; /* Time loop was started */
 
 	int			di_map[7]; /* Maps below items to live devs */
 	struct hil_mlc_devinfo	di[HIL_MLC_DEVMEM];
