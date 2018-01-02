@@ -1646,13 +1646,20 @@ static __le64 *arm_smmu_get_step_for_sid(struct arm_smmu_device *smmu, u32 sid)
 
 static void arm_smmu_install_ste_for_dev(struct iommu_fwspec *fwspec)
 {
-	int i;
+	int i, j;
 	struct arm_smmu_master_data *master = fwspec->iommu_priv;
 	struct arm_smmu_device *smmu = master->smmu;
 
 	for (i = 0; i < fwspec->num_ids; ++i) {
 		u32 sid = fwspec->ids[i];
 		__le64 *step = arm_smmu_get_step_for_sid(smmu, sid);
+
+		/* Bridged PCI devices may end up with duplicated IDs */
+		for (j = 0; j < i; j++)
+			if (fwspec->ids[j] == sid)
+				break;
+		if (j < i)
+			continue;
 
 		arm_smmu_write_strtab_ent(smmu, sid, step, &master->ste);
 	}
