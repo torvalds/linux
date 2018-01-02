@@ -861,7 +861,7 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s show   [MAP]\n"
+		"Usage: %s %s { show | list }   [MAP]\n"
 		"       %s %s dump    MAP\n"
 		"       %s %s update  MAP  key BYTES value VALUE [UPDATE_FLAGS]\n"
 		"       %s %s lookup  MAP  key BYTES\n"
@@ -885,6 +885,7 @@ static int do_help(int argc, char **argv)
 
 static const struct cmd cmds[] = {
 	{ "show",	do_show },
+	{ "list",	do_show },
 	{ "help",	do_help },
 	{ "dump",	do_dump },
 	{ "update",	do_update },

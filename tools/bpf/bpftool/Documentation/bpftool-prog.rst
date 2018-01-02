@@ -15,12 +15,12 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **show** | **dump xlated** | **dump jited** | **pin** | **load** | **help** }
+	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load** | **help** }
 
 MAP COMMANDS
 =============
 
-|	**bpftool** **prog show** [*PROG*]
+|	**bpftool** **prog { show | list }** [*PROG*]
 |	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
@@ -31,7 +31,7 @@ MAP COMMANDS
 
 DESCRIPTION
 ===========
-	**bpftool prog show** [*PROG*]
+	**bpftool prog { show | list }** [*PROG*]
 		  Show information about loaded programs.  If *PROG* is
 		  specified show information only about given program, otherwise
 		  list all programs currently loaded on the system.

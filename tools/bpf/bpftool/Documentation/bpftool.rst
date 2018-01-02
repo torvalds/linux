@@ -22,13 +22,13 @@ SYNOPSIS
 	| { **-j** | **--json** } [{ **-p** | **--pretty** }] }
 
 	*MAP-COMMANDS* :=
-	{ **show** | **dump** | **update** | **lookup** | **getnext** | **delete**
+	{ **show** | **list** | **dump** | **update** | **lookup** | **getnext** | **delete**
 	| **pin** | **help** }
 
-	*PROG-COMMANDS* := { **show** | **dump jited** | **dump xlated** | **pin**
+	*PROG-COMMANDS* := { **show** | **list** | **dump jited** | **dump xlated** | **pin**
 	| **load** | **help** }
 
-	*CGROUP-COMMANDS* := { **list** | **attach** | **detach** | **help** }
+	*CGROUP-COMMANDS* := { **show** | **list** | **attach** | **detach** | **help** }
 
 DESCRIPTION
 ===========

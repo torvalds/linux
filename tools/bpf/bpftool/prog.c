@@ -836,7 +836,7 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s show [PROG]\n"
+		"Usage: %s %s { show | list } [PROG]\n"
 		"       %s %s dump xlated PROG [{ file FILE | opcodes }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
@@ -854,6 +854,7 @@ static int do_help(int argc, char **argv)
 
 static const struct cmd cmds[] = {
 	{ "show",	do_show },
+	{ "list",	do_show },
 	{ "help",	do_help },
 	{ "dump",	do_dump },
 	{ "pin",	do_pin },

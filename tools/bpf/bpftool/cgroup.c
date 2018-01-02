@@ -277,7 +277,7 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s list CGROUP\n"
+		"Usage: %s %s { show | list } CGROUP\n"
 		"       %s %s attach CGROUP ATTACH_TYPE PROG [ATTACH_FLAGS]\n"
 		"       %s %s detach CGROUP ATTACH_TYPE PROG\n"
 		"       %s %s help\n"
@@ -294,6 +294,7 @@ static int do_help(int argc, char **argv)
 }
 
 static const struct cmd cmds[] = {
+	{ "show",	do_show },
 	{ "list",	do_show },
 	{ "attach",	do_attach },
 	{ "detach",	do_detach },
