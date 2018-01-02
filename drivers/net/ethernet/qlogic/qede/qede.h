@@ -52,9 +52,9 @@
 #include <linux/qed/qed_eth_if.h>
 
 #define QEDE_MAJOR_VERSION		8
-#define QEDE_MINOR_VERSION		10
-#define QEDE_REVISION_VERSION		10
-#define QEDE_ENGINEERING_VERSION	21
+#define QEDE_MINOR_VERSION		33
+#define QEDE_REVISION_VERSION		0
+#define QEDE_ENGINEERING_VERSION	20
 #define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
 		__stringify(QEDE_MINOR_VERSION) "."		\
 		__stringify(QEDE_REVISION_VERSION) "."		\

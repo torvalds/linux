@@ -13,7 +13,7 @@
 #include "qedi_fw_scsi.h"
 
 struct iscsi_task_params {
-	struct iscsi_task_context *context;
+	struct e4_iscsi_task_context *context;
 	struct iscsi_wqe	  *sqe;
 	u32			  tx_io_size;
 	u32			  rx_io_size;

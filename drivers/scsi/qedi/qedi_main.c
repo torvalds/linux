@@ -60,7 +60,7 @@ static int qedi_iscsi_event_cb(void *context, u8 fw_event_code, void *fw_handle)
 {
 	struct qedi_ctx *qedi;
 	struct qedi_endpoint *qedi_ep;
-	struct async_data *data;
+	struct iscsi_eqe_data *data;
 	int rval = 0;
 
 	if (!context || !fw_handle) {
@@ -72,18 +72,18 @@ static int qedi_iscsi_event_cb(void *context, u8 fw_event_code, void *fw_handle)
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
 		  "Recv Event %d fw_handle %p\n", fw_event_code, fw_handle);
 
-	data = (struct async_data *)fw_handle;
+	data = (struct iscsi_eqe_data *)fw_handle;
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
-		  "cid=0x%x tid=0x%x err-code=0x%x fw-dbg-param=0x%x\n",
-		   data->cid, data->itid, data->error_code,
-		   data->fw_debug_param);
+		  "icid=0x%x conn_id=0x%x err-code=0x%x error-pdu-opcode-reserved=0x%x\n",
+		   data->icid, data->conn_id, data->error_code,
+		   data->error_pdu_opcode_reserved);
 
-	qedi_ep = qedi->ep_tbl[data->cid];
+	qedi_ep = qedi->ep_tbl[data->icid];
 
 	if (!qedi_ep) {
 		QEDI_WARN(&qedi->dbg_ctx,
 			  "Cannot process event, ep already disconnected, cid=0x%x\n",
-			   data->cid);
+			   data->icid);
 		WARN_ON(1);
 		return -ENODEV;
 	}
@@ -339,12 +339,12 @@ static int qedi_init_uio(struct qedi_ctx *qedi)
 static int qedi_alloc_and_init_sb(struct qedi_ctx *qedi,
 				  struct qed_sb_info *sb_info, u16 sb_id)
 {
-	struct status_block *sb_virt;
+	struct status_block_e4 *sb_virt;
 	dma_addr_t sb_phys;
 	int ret;
 
 	sb_virt = dma_alloc_coherent(&qedi->pdev->dev,
-				     sizeof(struct status_block), &sb_phys,
+				     sizeof(struct status_block_e4), &sb_phys,
 				     GFP_KERNEL);
 	if (!sb_virt) {
 		QEDI_ERR(&qedi->dbg_ctx,
@@ -858,7 +858,6 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 
 	qedi->pf_params.iscsi_pf_params.gl_rq_pi = QEDI_PROTO_CQ_PROD_IDX;
 	qedi->pf_params.iscsi_pf_params.gl_cmd_pi = 1;
-	qedi->pf_params.iscsi_pf_params.ooo_enable = 1;
 
 err_alloc_mem:
 	return rval;
@@ -961,7 +960,7 @@ static bool qedi_process_completions(struct qedi_fastpath *fp)
 {
 	struct qedi_ctx *qedi = fp->qedi;
 	struct qed_sb_info *sb_info = fp->sb_info;
-	struct status_block *sb = sb_info->sb_virt;
+	struct status_block_e4 *sb = sb_info->sb_virt;
 	struct qedi_percpu_s *p = NULL;
 	struct global_queue *que;
 	u16 prod_idx;
@@ -1015,7 +1014,7 @@ static bool qedi_fp_has_work(struct qedi_fastpath *fp)
 	struct qedi_ctx *qedi = fp->qedi;
 	struct global_queue *que;
 	struct qed_sb_info *sb_info = fp->sb_info;
-	struct status_block *sb = sb_info->sb_virt;
+	struct status_block_e4 *sb = sb_info->sb_virt;
 	u16 prod_idx;
 
 	barrier();
@@ -1262,8 +1261,10 @@ static int qedi_alloc_bdq(struct qedi_ctx *qedi)
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN,
 			  "pbl [0x%p] pbl->address hi [0x%llx] lo [0x%llx], idx [%d]\n",
 			  pbl, pbl->address.hi, pbl->address.lo, i);
-		pbl->opaque.hi = 0;
-		pbl->opaque.lo = cpu_to_le32(QEDI_U64_LO(i));
+		pbl->opaque.iscsi_opaque.reserved_zero[0] = 0;
+		pbl->opaque.iscsi_opaque.reserved_zero[1] = 0;
+		pbl->opaque.iscsi_opaque.reserved_zero[2] = 0;
+		pbl->opaque.iscsi_opaque.opaque = cpu_to_le16(i);
 		pbl++;
 	}
 

@@ -19,7 +19,7 @@ static int qedf_initiate_els(struct qedf_rport *fcport, unsigned int op,
 	struct qedf_ioreq *els_req;
 	struct qedf_mp_req *mp_req;
 	struct fc_frame_header *fc_hdr;
-	struct fcoe_task_context *task;
+	struct e4_fcoe_task_context *task;
 	int rc = 0;
 	uint32_t did, sid;
 	uint16_t xid;
