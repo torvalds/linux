@@ -762,6 +762,7 @@ static inline int __phy_write(struct phy_device *phydev, u32 regnum, u16 val)
 }
 
 int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set);
+int phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set);
 
 /**
  * phy_interrupt_is_valid - Convenience function for testing a given PHY irq

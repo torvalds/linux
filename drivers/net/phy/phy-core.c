@@ -349,6 +349,29 @@ int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 }
 EXPORT_SYMBOL_GPL(__phy_modify);
 
+/**
+ * phy_modify - Convenience function for modifying a given PHY register
+ * @phydev: the phy_device struct
+ * @regnum: register number to write
+ * @mask: bit mask of bits to clear
+ * @set: new value of bits set in mask to write to @regnum
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ */
+int phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
+{
+	int ret;
+
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	ret = __phy_modify(phydev, regnum, mask, set);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_modify);
+
 static int __phy_read_page(struct phy_device *phydev)
 {
 	return phydev->drv->read_page(phydev);
