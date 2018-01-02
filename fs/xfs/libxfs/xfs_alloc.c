@@ -702,7 +702,7 @@ xfs_alloc_ag_vextent(
 	ASSERT(args->agbno % args->alignment == 0);
 
 	/* if not file data, insert new block into the reverse map btree */
-	if (args->oinfo.oi_owner != XFS_RMAP_OWN_UNKNOWN) {
+	if (!xfs_rmap_should_skip_owner_update(&args->oinfo)) {
 		error = xfs_rmap_alloc(args->tp, args->agbp, args->agno,
 				       args->agbno, args->len, &args->oinfo);
 		if (error)
@@ -1682,7 +1682,7 @@ xfs_free_ag_extent(
 	bno_cur = cnt_cur = NULL;
 	mp = tp->t_mountp;
 
-	if (oinfo->oi_owner != XFS_RMAP_OWN_UNKNOWN) {
+	if (!xfs_rmap_should_skip_owner_update(oinfo)) {
 		error = xfs_rmap_free(tp, agbp, agno, bno, len, oinfo);
 		if (error)
 			goto error0;

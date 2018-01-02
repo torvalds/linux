@@ -164,8 +164,8 @@ static void qeth_l3_convert_addr_to_bits(u8 *addr, u8 *bits, int len)
 	}
 }
 
-int qeth_l3_is_addr_covered_by_ipato(struct qeth_card *card,
-						struct qeth_ipaddr *addr)
+static bool qeth_l3_is_addr_covered_by_ipato(struct qeth_card *card,
+					     struct qeth_ipaddr *addr)
 {
 	struct qeth_ipato_entry *ipatoe;
 	u8 addr_bits[128] = {0, };
@@ -173,6 +173,8 @@ int qeth_l3_is_addr_covered_by_ipato(struct qeth_card *card,
 	int rc = 0;
 
 	if (!card->ipato.enabled)
+		return 0;
+	if (addr->type != QETH_IP_TYPE_NORMAL)
 		return 0;
 
 	qeth_l3_convert_addr_to_bits((u8 *) &addr->u, addr_bits,
@@ -290,8 +292,7 @@ int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 		memcpy(addr, tmp_addr, sizeof(struct qeth_ipaddr));
 		addr->ref_counter = 1;
 
-		if (addr->type == QETH_IP_TYPE_NORMAL  &&
-				qeth_l3_is_addr_covered_by_ipato(card, addr)) {
+		if (qeth_l3_is_addr_covered_by_ipato(card, addr)) {
 			QETH_CARD_TEXT(card, 2, "tkovaddr");
 			addr->set_flags |= QETH_IPA_SETIP_TAKEOVER_FLAG;
 		}
@@ -605,6 +606,27 @@ int qeth_l3_setrouting_v6(struct qeth_card *card)
 /*
  * IP address takeover related functions
  */
+
+/**
+ * qeth_l3_update_ipato() - Update 'takeover' property, for all NORMAL IPs.
+ *
+ * Caller must hold ip_lock.
+ */
+void qeth_l3_update_ipato(struct qeth_card *card)
+{
+	struct qeth_ipaddr *addr;
+	unsigned int i;
+
+	hash_for_each(card->ip_htable, i, addr, hnode) {
+		if (addr->type != QETH_IP_TYPE_NORMAL)
+			continue;
+		if (qeth_l3_is_addr_covered_by_ipato(card, addr))
+			addr->set_flags |= QETH_IPA_SETIP_TAKEOVER_FLAG;
+		else
+			addr->set_flags &= ~QETH_IPA_SETIP_TAKEOVER_FLAG;
+	}
+}
+
 static void qeth_l3_clear_ipato_list(struct qeth_card *card)
 {
 	struct qeth_ipato_entry *ipatoe, *tmp;
@@ -616,6 +638,7 @@ static void qeth_l3_clear_ipato_list(struct qeth_card *card)
 		kfree(ipatoe);
 	}
 
+	qeth_l3_update_ipato(card);
 	spin_unlock_bh(&card->ip_lock);
 }
 
@@ -640,8 +663,10 @@ int qeth_l3_add_ipato_entry(struct qeth_card *card,
 		}
 	}
 
-	if (!rc)
+	if (!rc) {
 		list_add_tail(&new->entry, &card->ipato.entries);
+		qeth_l3_update_ipato(card);
+	}
 
 	spin_unlock_bh(&card->ip_lock);
 
@@ -664,6 +689,7 @@ void qeth_l3_del_ipato_entry(struct qeth_card *card,
 			    (proto == QETH_PROT_IPV4)? 4:16) &&
 		    (ipatoe->mask_bits == mask_bits)) {
 			list_del(&ipatoe->entry);
+			qeth_l3_update_ipato(card);
 			kfree(ipatoe);
 		}
 	}

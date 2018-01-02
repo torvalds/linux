@@ -523,21 +523,23 @@ static int do_show(int argc, char **argv)
 				break;
 			p_err("can't get next map: %s%s", strerror(errno),
 			      errno == EINVAL ? " -- kernel too old?" : "");
-			return -1;
+			break;
 		}
 
 		fd = bpf_map_get_fd_by_id(id);
 		if (fd < 0) {
+			if (errno == ENOENT)
+				continue;
 			p_err("can't get map by id (%u): %s",
 			      id, strerror(errno));
-			return -1;
+			break;
 		}
 
 		err = bpf_obj_get_info_by_fd(fd, &info, &len);
 		if (err) {
 			p_err("can't get map info: %s", strerror(errno));
 			close(fd);
-			return -1;
+			break;
 		}
 
 		if (json_output)
