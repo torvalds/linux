@@ -692,26 +692,25 @@ static void dcn10_init_hw(struct dc *dc)
 		}
 
 		enable_power_gating_plane(dc->hwseq, true);
-		return;
-	}
-	/* end of FPGA. Below if real ASIC */
+	} else {
 
-	if (!dcb->funcs->is_accelerated_mode(dcb)) {
-		bios_golden_init(dc);
-		disable_vga(dc->hwseq);
-	}
+		if (!dcb->funcs->is_accelerated_mode(dcb)) {
+			bios_golden_init(dc);
+			disable_vga(dc->hwseq);
+		}
 
-	for (i = 0; i < dc->link_count; i++) {
-		/* Power up AND update implementation according to the
-		 * required signal (which may be different from the
-		 * default signal on connector).
-		 */
-		struct dc_link *link = dc->links[i];
+		for (i = 0; i < dc->link_count; i++) {
+			/* Power up AND update implementation according to the
+			 * required signal (which may be different from the
+			 * default signal on connector).
+			 */
+			struct dc_link *link = dc->links[i];
 
-		if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
-			dc->hwss.edp_power_control(link, true);
+			if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
+				dc->hwss.edp_power_control(link, true);
 
-		link->link_enc->funcs->hw_init(link->link_enc);
+			link->link_enc->funcs->hw_init(link->link_enc);
+		}
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -778,6 +777,10 @@ static void dcn10_init_hw(struct dc *dc)
 
 		tg->funcs->tg_init(tg);
 	}
+
+	/* end of FPGA. Below if real ASIC */
+	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
+		return;
 
 	for (i = 0; i < dc->res_pool->audio_count; i++) {
 		struct audio *audio = dc->res_pool->audios[i];
