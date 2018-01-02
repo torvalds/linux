@@ -45,7 +45,7 @@ int __efi_capsule_setup_info(struct capsule_info *cap_info)
 	pages_needed = ALIGN(cap_info->total_size, PAGE_SIZE) / PAGE_SIZE;
 
 	if (pages_needed == 0) {
-		pr_err("invalid capsule size");
+		pr_err("invalid capsule size\n");
 		return -EINVAL;
 	}
 
