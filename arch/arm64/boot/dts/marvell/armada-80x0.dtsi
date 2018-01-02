@@ -46,19 +46,19 @@
 
 / {
 	aliases {
-		gpio1 = &cps_gpio1;
-		gpio2 = &cpm_gpio2;
-		spi1 = &cpm_spi0;
-		spi2 = &cpm_spi1;
-		spi3 = &cps_spi0;
-		spi4 = &cps_spi1;
+		gpio1 = &cp1_gpio1;
+		gpio2 = &cp0_gpio2;
+		spi1 = &cp0_spi0;
+		spi2 = &cp0_spi1;
+		spi3 = &cp1_spi0;
+		spi4 = &cp1_spi1;
 	};
 };
 
 /*
  * Instantiate the master CP110
  */
-#define CP110_NAME		cpm
+#define CP110_NAME		cp0
 #define CP110_BASE		f2000000
 #define CP110_PCIE_IO_BASE	0xf9000000
 #define CP110_PCIE_MEM_BASE	0xf6000000
@@ -79,7 +79,7 @@
 /*
  * Instantiate the slave CP110
  */
-#define CP110_NAME		cps
+#define CP110_NAME		cp1
 #define CP110_BASE		f4000000
 #define CP110_PCIE_IO_BASE	0xfd000000
 #define CP110_PCIE_MEM_BASE	0xfa000000
@@ -98,23 +98,23 @@
 #undef CP110_PCIE2_BASE
 
 /* The 80x0 has two CP blocks, but uses only one block from each. */
-&cps_gpio1 {
+&cp1_gpio1 {
 	status = "okay";
 };
 
-&cpm_gpio2 {
+&cp0_gpio2 {
 	status = "okay";
 };
 
-&cpm_syscon0 {
-	cpm_pinctrl: pinctrl {
-		compatible = "marvell,armada-8k-cpm-pinctrl";
+&cp0_syscon0 {
+	cp0_pinctrl: pinctrl {
+		compatible = "marvell,armada-8k-cp0-pinctrl";
 	};
 };
 
-&cps_syscon0 {
-	cps_pinctrl: pinctrl {
-		compatible = "marvell,armada-8k-cps-pinctrl";
+&cp1_syscon0 {
+	cp1_pinctrl: pinctrl {
+		compatible = "marvell,armada-8k-cp1-pinctrl";
 
 		nand_pins: nand-pins {
 			marvell,pins =
@@ -135,7 +135,7 @@
 	};
 };
 
-&cps_crypto {
+&cp1_crypto {
 	/*
 	 * The cryptographic engine found on the cp110
 	 * master is enabled by default at the SoC

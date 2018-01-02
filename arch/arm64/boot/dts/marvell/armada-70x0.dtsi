@@ -46,17 +46,17 @@
 
 / {
 	aliases {
-		gpio1 = &cpm_gpio1;
-		gpio2 = &cpm_gpio2;
-		spi1 = &cpm_spi0;
-		spi2 = &cpm_spi1;
+		gpio1 = &cp0_gpio1;
+		gpio2 = &cp0_gpio2;
+		spi1 = &cp0_spi0;
+		spi2 = &cp0_spi1;
 	};
 };
 
 /*
  * Instantiate the CP110
  */
-#define CP110_NAME		cpm
+#define CP110_NAME		cp0
 #define CP110_BASE		f2000000
 #define CP110_PCIE_IO_BASE	0xf9000000
 #define CP110_PCIE_MEM_BASE	0xf6000000
@@ -74,16 +74,16 @@
 #undef CP110_PCIE1_BASE
 #undef CP110_PCIE2_BASE
 
-&cpm_gpio1 {
+&cp0_gpio1 {
 	status = "okay";
 };
 
-&cpm_gpio2 {
+&cp0_gpio2 {
 	status = "okay";
 };
 
-&cpm_syscon0 {
-	cpm_pinctrl: pinctrl {
+&cp0_syscon0 {
+	cp0_pinctrl: pinctrl {
 		compatible = "marvell,armada-7k-pinctrl";
 
 		nand_pins: nand-pins {
