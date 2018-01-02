@@ -155,7 +155,8 @@ void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_add
 	add_memory_region(start, size, BOOT_MEM_RAM);
 }
 
-bool __init memory_region_available(phys_addr_t start, phys_addr_t size)
+static bool __init __maybe_unused memory_region_available(phys_addr_t start,
+							  phys_addr_t size)
 {
 	int i;
 	bool in_ram = false, free = true;
