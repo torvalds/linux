@@ -1496,9 +1496,6 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	execlists->csb_head = -1;
 	execlists->active = 0;
 
-	execlists->elsp =
-		dev_priv->regs + i915_mmio_reg_offset(RING_ELSP(engine));
-
 	/* After a GPU reset, we may have requests to replay */
 	if (execlists->first)
 		tasklet_schedule(&execlists->tasklet);
@@ -2006,6 +2003,9 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	ret = intel_engine_init_common(engine);
 	if (ret)
 		goto error;
+
+	engine->execlists.elsp =
+		engine->i915->regs + i915_mmio_reg_offset(RING_ELSP(engine));
 
 	return 0;
 
