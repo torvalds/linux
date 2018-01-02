@@ -298,7 +298,7 @@ static void test_mb_aead_speed(const char *algo, int enc, int secs,
 	for (i = 0; i < num_mb; ++i)
 		if (testmgr_alloc_buf(data[i].xoutbuf)) {
 			while (i--)
-				testmgr_free_buf(data[i].axbuf);
+				testmgr_free_buf(data[i].xoutbuf);
 			goto out_free_axbuf;
 		}
 
