@@ -205,6 +205,9 @@ struct sm_nsec_ctx {
 	u32 irq_spsr;
 	u32 irq_sp;
 	u32 irq_lr;
+	u32 fiq_spsr;
+	u32 fiq_sp;
+	u32 fiq_lr;
 	u32 svc_spsr;
 	u32 svc_sp;
 	u32 svc_lr;
