@@ -1011,7 +1011,8 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	stack.signaler = &request->priotree;
 	list_add(&stack.dfs_link, &dfs);
 
-	/* Recursively bump all dependent priorities to match the new request.
+	/*
+	 * Recursively bump all dependent priorities to match the new request.
 	 *
 	 * A naive approach would be to use recursion:
 	 * static void update_priorities(struct i915_priotree *pt, prio) {
@@ -1031,12 +1032,15 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	list_for_each_entry_safe(dep, p, &dfs, dfs_link) {
 		struct i915_priotree *pt = dep->signaler;
 
-		/* Within an engine, there can be no cycle, but we may
+		/*
+		 * Within an engine, there can be no cycle, but we may
 		 * refer to the same dependency chain multiple times
 		 * (redundant dependencies are not eliminated) and across
 		 * engines.
 		 */
 		list_for_each_entry(p, &pt->signalers_list, signal_link) {
+			GEM_BUG_ON(p == dep); /* no cycles! */
+
 			if (i915_priotree_signaled(p->signaler))
 				continue;
 
@@ -1048,7 +1052,8 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 		list_safe_reset_next(dep, p, dfs_link);
 	}
 
-	/* If we didn't need to bump any existing priorities, and we haven't
+	/*
+	 * If we didn't need to bump any existing priorities, and we haven't
 	 * yet submitted this request (i.e. there is no potential race with
 	 * execlists_submit_request()), we can set our own priority and skip
 	 * acquiring the engine locks.
