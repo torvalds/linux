@@ -146,7 +146,7 @@ static void *slim_alloc_rxbuf(struct qcom_slim_ctrl *ctrl)
 	return ctrl->rx.base + (idx * ctrl->rx.sl_sz);
 }
 
-void slim_ack_txn(struct qcom_slim_ctrl *ctrl, int err)
+static void slim_ack_txn(struct qcom_slim_ctrl *ctrl, int err)
 {
 	struct completion *comp;
 	unsigned long flags;
@@ -299,8 +299,9 @@ static int qcom_clk_pause_wakeup(struct slim_controller *sctrl)
 	return 0;
 }
 
-void *slim_alloc_txbuf(struct qcom_slim_ctrl *ctrl, struct slim_msg_txn *txn,
-		       struct completion *done)
+static void *slim_alloc_txbuf(struct qcom_slim_ctrl *ctrl,
+			      struct slim_msg_txn *txn,
+			      struct completion *done)
 {
 	unsigned long flags;
 	int idx;
