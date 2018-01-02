@@ -895,20 +895,38 @@ error:
  * However, if we didn't have a callback promise outstanding, or it was
  * outstanding on a different server, then it won't break it either...
  */
-static int afs_dir_remove_link(struct dentry *dentry, struct key *key)
+static int afs_dir_remove_link(struct dentry *dentry, struct key *key,
+			       unsigned long d_version_before,
+			       unsigned long d_version_after)
 {
+	bool dir_valid;
 	int ret = 0;
+
+	/* There were no intervening changes on the server if the version
+	 * number we got back was incremented by exactly 1.
+	 */
+	dir_valid = (d_version_after == d_version_before + 1);
 
 	if (d_really_is_positive(dentry)) {
 		struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 
-		if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
-			kdebug("AFS_VNODE_DELETED");
-		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
-
-		ret = afs_validate(vnode, key);
-		if (ret == -ESTALE)
+		if (dir_valid) {
+			drop_nlink(&vnode->vfs_inode);
+			if (vnode->vfs_inode.i_nlink == 0) {
+				set_bit(AFS_VNODE_DELETED, &vnode->flags);
+				clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+			}
 			ret = 0;
+		} else {
+			clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+
+			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
+				kdebug("AFS_VNODE_DELETED");
+
+			ret = afs_validate(vnode, key);
+			if (ret == -ESTALE)
+				ret = 0;
+		}
 		_debug("nlink %d [val %d]", vnode->vfs_inode.i_nlink, ret);
 	}
 
@@ -923,6 +941,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	struct afs_fs_cursor fc;
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
 	struct key *key;
+	unsigned long d_version = (unsigned long)dentry->d_fsdata;
 	int ret;
 
 	_enter("{%x:%u},{%pd}",
@@ -955,7 +974,9 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret == 0)
-			ret = afs_dir_remove_link(dentry, key);
+			ret = afs_dir_remove_link(
+				dentry, key, d_version,
+				(unsigned long)dvnode->status.data_version);
 	}
 
 error_key:
