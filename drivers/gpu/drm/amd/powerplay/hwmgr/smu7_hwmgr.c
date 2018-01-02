@@ -91,7 +91,6 @@ enum DPM_EVENT_SRC {
 	DPM_EVENT_SRC_DIGITAL_OR_EXTERNAL = 4
 };
 
-static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable);
 static const unsigned long PhwVIslands_Magic = (unsigned long)(PHM_VIslands_Magic);
 static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask);
@@ -1347,6 +1346,58 @@ static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = smu7_pcie_performance_request(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"pcie performance request failed!", result = tmp_result);
+
+	return 0;
+}
+
+static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
+{
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
+
+	if (smu_data == NULL)
+		return -EINVAL;
+
+	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
+		return 0;
+
+	if (enable) {
+		if (!PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+				CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON)) {
+			PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
+					hwmgr, PPSMC_MSG_EnableAvfs),
+					"Failed to enable AVFS!",
+					return -EINVAL);
+		}
+	} else if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
+			CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON)) {
+		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
+				hwmgr, PPSMC_MSG_DisableAvfs),
+				"Failed to disable AVFS!",
+				return -EINVAL);
+	}
+
+	return 0;
+}
+
+static int smu7_update_avfs(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+
+	if (smu_data == NULL)
+		return -EINVAL;
+
+	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
+		return 0;
+
+	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {
+		smu7_avfs_control(hwmgr, false);
+	} else if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_SCLK) {
+		smu7_avfs_control(hwmgr, false);
+		smu7_avfs_control(hwmgr, true);
+	} else {
+		smu7_avfs_control(hwmgr, true);
+	}
 
 	return 0;
 }
@@ -3842,6 +3893,11 @@ static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 			"Failed to populate and upload SCLK MCLK DPM levels!",
 			result = tmp_result);
 
+	tmp_result = smu7_update_avfs(hwmgr);
+	PP_ASSERT_WITH_CODE((0 == tmp_result),
+			"Failed to update avfs voltages!",
+			result = tmp_result);
+
 	tmp_result = smu7_generate_dpm_level_enable_mask(hwmgr, input);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to generate DPM level enabled mask!",
@@ -4624,33 +4680,6 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 	}
 
 	return result;
-}
-
-static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
-{
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
-
-	if (smu_data == NULL)
-		return -EINVAL;
-
-	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
-		return 0;
-
-	if (enable) {
-		if (!PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
-				CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))
-			PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
-					hwmgr, PPSMC_MSG_EnableAvfs),
-					"Failed to enable AVFS!",
-					return -EINVAL);
-	} else if (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
-			CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))
-		PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(
-				hwmgr, PPSMC_MSG_DisableAvfs),
-				"Failed to disable AVFS!",
-				return -EINVAL);
-
-	return 0;
 }
 
 static int smu7_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
