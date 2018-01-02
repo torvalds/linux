@@ -1493,18 +1493,6 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
 
-	/*
-	 * Clear any pending interrupt state.
-	 *
-	 * We do it twice out of paranoia that some of the IIR are double
-	 * buffered, and if we only reset it once there may still be
-	 * an interrupt pending.
-	 */
-	I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
-		   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
-	I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
-		   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
-	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 	execlists->csb_head = -1;
 	execlists->active = 0;
 
@@ -1551,6 +1539,24 @@ static int gen9_init_render_ring(struct intel_engine_cs *engine)
 	return init_workarounds_ring(engine);
 }
 
+static void reset_irq(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+
+	/*
+	 * Clear any pending interrupt state.
+	 *
+	 * We do it twice out of paranoia that some of the IIR are double
+	 * buffered, and if we only reset it once there may still be
+	 * an interrupt pending.
+	 */
+	I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
+		   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
+	I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
+		   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
+	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
+}
+
 static void reset_common_ring(struct intel_engine_cs *engine,
 			      struct drm_i915_gem_request *request)
 {
@@ -1560,6 +1566,9 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 
 	GEM_TRACE("%s seqno=%x\n",
 		  engine->name, request ? request->global_seqno : 0);
+
+	reset_irq(engine);
+
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 
 	/*
