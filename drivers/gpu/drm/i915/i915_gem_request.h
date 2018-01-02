@@ -245,18 +245,6 @@ i915_gem_request_put(struct drm_i915_gem_request *req)
 	dma_fence_put(&req->fence);
 }
 
-static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
-					   struct drm_i915_gem_request *src)
-{
-	if (src)
-		i915_gem_request_get(src);
-
-	if (*pdst)
-		i915_gem_request_put(*pdst);
-
-	*pdst = src;
-}
-
 /**
  * i915_gem_request_global_seqno - report the current global seqno
  * @request - the request
