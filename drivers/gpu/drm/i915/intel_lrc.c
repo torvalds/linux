@@ -1029,7 +1029,7 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	 * end result is a topological list of requests in reverse order, the
 	 * last element in the list is the request we must execute first.
 	 */
-	list_for_each_entry_safe(dep, p, &dfs, dfs_link) {
+	list_for_each_entry(dep, &dfs, dfs_link) {
 		struct i915_priotree *pt = dep->signaler;
 
 		/*
@@ -1048,8 +1048,6 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 			if (prio > READ_ONCE(p->signaler->priority))
 				list_move_tail(&p->dfs_link, &dfs);
 		}
-
-		list_safe_reset_next(dep, p, dfs_link);
 	}
 
 	/*
