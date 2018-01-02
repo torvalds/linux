@@ -170,8 +170,9 @@ static int slim_val_inf_sanity(struct slim_controller *ctrl,
 		break;
 	}
 reterr:
-	dev_err(ctrl->dev, "Sanity check failed:msg:offset:0x%x, mc:%d\n",
-		msg->start_offset, mc);
+	if (msg)
+		dev_err(ctrl->dev, "Sanity check failed:msg:offset:0x%x, mc:%d\n",
+			msg->start_offset, mc);
 	return -EINVAL;
 }
 
