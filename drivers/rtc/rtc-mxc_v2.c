@@ -365,7 +365,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit mxc_rtc_remove(struct platform_device *pdev)
+static int mxc_rtc_remove(struct platform_device *pdev)
 {
 	struct mxc_rtc_data *pdata = platform_get_drvdata(pdev);
 
