@@ -49,6 +49,7 @@
 #include "cgs_linux.h"
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
+#include "pp_thermal.h"
 
 #define VOLTAGE_SCALE  4
 #define VOLTAGE_VID_OFFSET_SCALE1   625
@@ -4988,6 +4989,20 @@ static int vega10_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega10_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
+		struct PP_TemperatureRange *thermal_data)
+{
+	struct phm_ppt_v2_information *table_info =
+			(struct phm_ppt_v2_information *)hwmgr->pptable;
+
+	memcpy(thermal_data, &SMU7ThermalWithDelayPolicy[0], sizeof(struct PP_TemperatureRange));
+
+	thermal_data->max = table_info->tdp_table->usSoftwareShutdownTemp *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return 0;
+}
+
 static int vega10_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
 		const void *info)
 {
@@ -5074,6 +5089,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.set_mclk_od = vega10_set_mclk_od,
 	.avfs_control = vega10_avfs_enable,
 	.notify_cac_buffer_info = vega10_notify_cac_buffer_info,
+	.get_thermal_temperature_range = vega10_get_thermal_temperature_range,
 	.register_internal_thermal_interrupt = vega10_register_thermal_interrupt,
 	.start_thermal_controller = vega10_start_thermal_controller,
 };
