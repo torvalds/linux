@@ -717,7 +717,10 @@ static void vpu_reset(struct vpu_subdev_data *data)
 	mutex_lock(&pservice->reset_lock);
 	_vpu_reset(data);
 	mutex_unlock(&pservice->reset_lock);
-	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
+	if (data->mmu_dev && test_bit(MMU_PAGEFAULT, &data->state)) {
+		clear_bit(MMU_ACTIVATED, &data->state);
+		clear_bit(MMU_PAGEFAULT, &data->state);
+	} else if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 		clear_bit(MMU_ACTIVATED, &data->state);
 		if (atomic_read(&pservice->enabled)) {
 			/* Need to reset iommu */
@@ -2174,7 +2177,7 @@ static void vcodec_power_off_default(struct vpu_service_info *pservice)
 		clk_disable_unprepare(pservice->clk_core);
 	if (pservice->clk_cabac)
 		clk_disable_unprepare(pservice->clk_cabac);
-	pm_runtime_get_sync(pservice->dev);
+	pm_runtime_put(pservice->dev);
 }
 
 static void vcodec_power_off_rk322x(struct vpu_service_info *pservice)
@@ -2439,12 +2442,14 @@ _vcodec_sys_fault_hdl(struct device *dev, unsigned long iova, int status)
 		struct vpu_reg *reg = pservice->reg_codec;
 		struct vcodec_mem_region *mem = NULL, *n = NULL;
 		int i = 0;
-		unsigned long tmp_iova = mem->iova;
 
-		dev_err(dev, "vcodec, fault addr 0x%08lx\n", iova);
+		dev_err(dev, "vcodec, fault addr 0x%08lx status %x\n", iova,
+			status);
 		if (!list_empty(&reg->mem_region_list)) {
 			list_for_each_entry_safe(mem, n, &reg->mem_region_list,
 						 reg_lnk) {
+				unsigned long tmp_iova = mem->iova;
+
 				dev_err(dev, "vcodec, reg[%02u] mem region [%02d] 0x%lx %lx\n",
 					mem->reg_idx, i, tmp_iova, mem->len);
 				i++;
@@ -2471,9 +2476,9 @@ _vcodec_sys_fault_hdl(struct device *dev, unsigned long iova, int status)
 		 * defeat workaround, invalidate address generated when rk322x
 		 * vdec pre-fetch colmv data.
 		 */
-		if (IOMMU_GET_BUS_ID(status) == 2 && data->pa_hdl) {
+		if (IOMMU_GET_BUS_ID(status) == 2 && data->pa_hdl >= 0) {
 			/* avoid another page fault occur after page fault */
-			if (data->pa_iova)
+			if (data->pa_iova != -1)
 				vcodec_iommu_unmap_iommu_with_iova(data->iommu_info,
 								   session,
 								   data->pa_hdl);
@@ -2487,7 +2492,7 @@ _vcodec_sys_fault_hdl(struct device *dev, unsigned long iova, int status)
 							 data->pa_iova,
 							 IOMMU_PAGE_SIZE);
 		} else {
-			_vpu_reset(data);
+			vpu_reset(data);
 		}
 	}
 
@@ -2778,7 +2783,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 
 	vcodec_iommu_map_iommu(data->iommu_info, session,
 			       data->pa_hdl, NULL, NULL);
-	data->pa_iova = 0;
+	data->pa_iova = -1;
 	vcodec_exit_mode(data);
 
 	hw_info = data->hw_info;
@@ -3551,11 +3556,11 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 			vpu_err("error: dec isr with no task waiting\n");
 		} else {
 			if (test_bit(MMU_PAGEFAULT, &data->state) &&
-			    data->pa_iova) {
+			    data->pa_iova != -1) {
 				vcodec_iommu_unmap_iommu_with_iova(data->iommu_info,
 								   session,
 								   data->pa_hdl);
-				data->pa_iova = 0;
+				data->pa_iova = -1;
 				clear_bit(MMU_PAGEFAULT, &data->state);
 			}
 			reg_from_run_to_done(data, pservice->reg_codec);

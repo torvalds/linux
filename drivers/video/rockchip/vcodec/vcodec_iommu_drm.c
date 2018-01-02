@@ -309,15 +309,10 @@ vcodec_drm_map_iommu_with_iova(struct vcodec_iommu_session_info *session_info,
 
 	drm_buffer->iova_out = iova;
 
-	iommu_map_sg(drm_info->domain,
-		     iova,
-		     drm_buffer->copy_sgt->sgl,
-		     drm_buffer->copy_sgt->nents,
-		     IOMMU_READ | IOMMU_WRITE);
-
-	return vcodec_finalise_sg(drm_buffer->copy_sgt->sgl,
-				  drm_buffer->copy_sgt->nents,
-				  iova);
+	return iommu_map(drm_info->domain,
+			 iova,
+			 sg_phys(drm_buffer->copy_sgt->sgl),
+			 size, IOMMU_READ | IOMMU_WRITE);
 }
 
 static void*
@@ -836,11 +831,11 @@ static int vcodec_drm_alloc(struct vcodec_iommu_session_info *session_info,
 	while (size_remaining > 0) {
 		gfp_t gfp_flags = (GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN |
 				   __GFP_NORETRY) & ~__GFP_DIRECT_RECLAIM;
-		page = alloc_pages(gfp_flags | __GFP_COMP, 8);
+		page = alloc_pages(gfp_flags | __GFP_COMP, 1);
 		if (!page)
 			goto free_pages;
 
-		size_remaining -= PAGE_SIZE << compound_order(page);
+		size_remaining -= PAGE_SIZE;
 		list_add_tail(&page->lru, &pages);
 		i++;
 	}
@@ -854,7 +849,7 @@ static int vcodec_drm_alloc(struct vcodec_iommu_session_info *session_info,
 
 	sg = table->sgl;
 	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
-		sg_set_page(sg, page, PAGE_SIZE << compound_order(page), 0);
+		sg_set_page(sg, page, PAGE_SIZE, 0);
 		sg = sg_next(sg);
 		list_del(&page->lru);
 	}
