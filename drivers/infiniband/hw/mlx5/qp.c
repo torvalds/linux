@@ -2115,20 +2115,108 @@ static const char *ib_qp_type_str(enum ib_qp_type type)
 		return "IB_QPT_RAW_PACKET";
 	case MLX5_IB_QPT_REG_UMR:
 		return "MLX5_IB_QPT_REG_UMR";
+	case IB_QPT_DRIVER:
+		return "IB_QPT_DRIVER";
 	case IB_QPT_MAX:
 	default:
 		return "Invalid QP type";
 	}
 }
 
+static struct ib_qp *mlx5_ib_create_dct(struct ib_pd *pd,
+					struct ib_qp_init_attr *attr,
+					struct mlx5_ib_create_qp *ucmd)
+{
+	struct mlx5_ib_dev *dev;
+	struct mlx5_ib_qp *qp;
+	int err = 0;
+	u32 uidx = MLX5_IB_DEFAULT_UIDX;
+	void *dctc;
+
+	if (!attr->srq || !attr->recv_cq)
+		return ERR_PTR(-EINVAL);
+
+	dev = to_mdev(pd->device);
+
+	err = get_qp_user_index(to_mucontext(pd->uobject->context),
+				ucmd, sizeof(*ucmd), &uidx);
+	if (err)
+		return ERR_PTR(err);
+
+	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
+	if (!qp)
+		return ERR_PTR(-ENOMEM);
+
+	qp->dct.in = kzalloc(MLX5_ST_SZ_BYTES(create_dct_in), GFP_KERNEL);
+	if (!qp->dct.in) {
+		err = -ENOMEM;
+		goto err_free;
+	}
+
+	dctc = MLX5_ADDR_OF(create_dct_in, qp->dct.in, dct_context_entry);
+	qp->driver_qp_type = MLX5_IB_QPT_DCT;
+	MLX5_SET(dctc, dctc, pd, to_mpd(pd)->pdn);
+	MLX5_SET(dctc, dctc, srqn_xrqn, to_msrq(attr->srq)->msrq.srqn);
+	MLX5_SET(dctc, dctc, cqn, to_mcq(attr->recv_cq)->mcq.cqn);
+	MLX5_SET64(dctc, dctc, dc_access_key, ucmd->access_key);
+	MLX5_SET(dctc, dctc, user_index, uidx);
+
+	qp->state = IB_QPS_RESET;
+
+	return &qp->ibqp;
+err_free:
+	kfree(qp);
+	return ERR_PTR(err);
+}
+
+static int set_mlx_qp_type(struct mlx5_ib_dev *dev,
+			   struct ib_qp_init_attr *init_attr,
+			   struct mlx5_ib_create_qp *ucmd,
+			   struct ib_udata *udata)
+{
+	enum { MLX_QP_FLAGS = MLX5_QP_FLAG_TYPE_DCT | MLX5_QP_FLAG_TYPE_DCI };
+	int err;
+
+	if (!udata)
+		return -EINVAL;
+
+	if (udata->inlen < sizeof(*ucmd)) {
+		mlx5_ib_dbg(dev, "create_qp user command is smaller than expected\n");
+		return -EINVAL;
+	}
+	err = ib_copy_from_udata(ucmd, udata, sizeof(*ucmd));
+	if (err)
+		return err;
+
+	if ((ucmd->flags & MLX_QP_FLAGS) == MLX5_QP_FLAG_TYPE_DCI) {
+		init_attr->qp_type = MLX5_IB_QPT_DCI;
+	} else {
+		if ((ucmd->flags & MLX_QP_FLAGS) == MLX5_QP_FLAG_TYPE_DCT) {
+			init_attr->qp_type = MLX5_IB_QPT_DCT;
+		} else {
+			mlx5_ib_dbg(dev, "Invalid QP flags\n");
+			return -EINVAL;
+		}
+	}
+
+	if (!MLX5_CAP_GEN(dev->mdev, dct)) {
+		mlx5_ib_dbg(dev, "DC transport is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
-				struct ib_qp_init_attr *init_attr,
+				struct ib_qp_init_attr *verbs_init_attr,
 				struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev;
 	struct mlx5_ib_qp *qp;
 	u16 xrcdn = 0;
 	int err;
+	struct ib_qp_init_attr mlx_init_attr;
+	struct ib_qp_init_attr *init_attr = verbs_init_attr;
 
 	if (pd) {
 		dev = to_mdev(pd->device);
@@ -2151,6 +2239,16 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 			return ERR_PTR(-EINVAL);
 		}
 		dev = to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
+	}
+
+	if (init_attr->qp_type == IB_QPT_DRIVER) {
+		struct mlx5_ib_create_qp ucmd;
+
+		init_attr = &mlx_init_attr;
+		memcpy(init_attr, verbs_init_attr, sizeof(*verbs_init_attr));
+		err = set_mlx_qp_type(dev, init_attr, &ucmd, udata);
+		if (err)
+			return ERR_PTR(err);
 	}
 
 	switch (init_attr->qp_type) {
@@ -2213,6 +2311,9 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		/* Don't support raw QPs */
 		return ERR_PTR(-EINVAL);
 	}
+
+	if (verbs_init_attr->qp_type == IB_QPT_DRIVER)
+		qp->qp_sub_type = init_attr->qp_type;
 
 	return &qp->ibqp;
 }

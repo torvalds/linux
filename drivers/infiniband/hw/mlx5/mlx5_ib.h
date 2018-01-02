@@ -206,6 +206,8 @@ struct mlx5_ib_flow_db {
  * creates the actual hardware QP.
  */
 #define MLX5_IB_QPT_HW_GSI	IB_QPT_RESERVED2
+#define MLX5_IB_QPT_DCI		IB_QPT_RESERVED3
+#define MLX5_IB_QPT_DCT		IB_QPT_RESERVED4
 #define MLX5_IB_WR_UMR		IB_WR_RESERVED1
 
 #define MLX5_IB_UMR_OCTOWORD	       16
@@ -366,12 +368,18 @@ struct mlx5_bf {
 	struct mlx5_sq_bfreg   *bfreg;
 };
 
+struct mlx5_ib_dct {
+	struct mlx5_core_dct    mdct;
+	u32                     *in;
+};
+
 struct mlx5_ib_qp {
 	struct ib_qp		ibqp;
 	union {
 		struct mlx5_ib_qp_trans trans_qp;
 		struct mlx5_ib_raw_packet_qp raw_packet_qp;
 		struct mlx5_ib_rss_qp rss_qp;
+		struct mlx5_ib_dct dct;
 	};
 	struct mlx5_buf		buf;
 
@@ -410,6 +418,8 @@ struct mlx5_ib_qp {
 	u32			rate_limit;
 	u32                     underlay_qpn;
 	bool			tunnel_offload_en;
+	/* storage for qp sub type when core qp type is IB_QPT_DRIVER */
+	enum ib_qp_type		qp_sub_type;
 };
 
 struct mlx5_ib_cq_buf {
