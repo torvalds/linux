@@ -1037,7 +1037,7 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 		 * engines.
 		 */
 		list_for_each_entry(p, &pt->signalers_list, signal_link) {
-			if (i915_gem_request_completed(pt_to_request(p->signaler)))
+			if (i915_priotree_signaled(p->signaler))
 				continue;
 
 			GEM_BUG_ON(p->signaler->priority < pt->priority);

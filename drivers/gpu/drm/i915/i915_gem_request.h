@@ -329,6 +329,14 @@ i915_gem_request_completed(const struct drm_i915_gem_request *req)
 	return __i915_gem_request_completed(req, seqno);
 }
 
+static inline bool i915_priotree_signaled(const struct i915_priotree *pt)
+{
+	const struct drm_i915_gem_request *rq =
+		container_of(pt, const struct drm_i915_gem_request, priotree);
+
+	return i915_gem_request_completed(rq);
+}
+
 /* We treat requests as fences. This is not be to confused with our
  * "fence registers" but pipeline synchronisation objects ala GL_ARB_sync.
  * We use the fences to synchronize access from the CPU with activity on the
