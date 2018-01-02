@@ -44,7 +44,7 @@
  * Device Tree file for Marvell Armada CP110 Slave.
  */
 
-#define ICU_GRP_NSR 0x0
+#include <dt-bindings/interrupt-controller/mvebu-icu.h>
 
 / {
 	cp110-slave {
