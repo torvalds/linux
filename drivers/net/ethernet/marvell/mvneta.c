@@ -189,6 +189,7 @@
 #define MVNETA_GMAC_CTRL_0                       0x2c00
 #define      MVNETA_GMAC_MAX_RX_SIZE_SHIFT       2
 #define      MVNETA_GMAC_MAX_RX_SIZE_MASK        0x7ffc
+#define      MVNETA_GMAC0_PORT_1000BASE_X        BIT(1)
 #define      MVNETA_GMAC0_PORT_ENABLE            BIT(0)
 #define MVNETA_GMAC_CTRL_2                       0x2c08
 #define      MVNETA_GMAC2_INBAND_AN_ENABLE       BIT(0)
@@ -210,9 +211,13 @@
 #define      MVNETA_GMAC_FORCE_LINK_DOWN         BIT(0)
 #define      MVNETA_GMAC_FORCE_LINK_PASS         BIT(1)
 #define      MVNETA_GMAC_INBAND_AN_ENABLE        BIT(2)
+#define      MVNETA_GMAC_AN_BYPASS_ENABLE        BIT(3)
+#define      MVNETA_GMAC_INBAND_RESTART_AN       BIT(4)
 #define      MVNETA_GMAC_CONFIG_MII_SPEED        BIT(5)
 #define      MVNETA_GMAC_CONFIG_GMII_SPEED       BIT(6)
 #define      MVNETA_GMAC_AN_SPEED_EN             BIT(7)
+#define      MVNETA_GMAC_CONFIG_FLOW_CTRL        BIT(8)
+#define      MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL    BIT(9)
 #define      MVNETA_GMAC_AN_FLOW_CTRL_EN         BIT(11)
 #define      MVNETA_GMAC_CONFIG_FULL_DUPLEX      BIT(12)
 #define      MVNETA_GMAC_AN_DUPLEX_EN            BIT(13)
@@ -3192,10 +3197,11 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
-	/* We only support QSGMII, SGMII and RGMII modes */
+	/* We only support QSGMII, SGMII, 802.3z and RGMII modes */
 	if (state->interface != PHY_INTERFACE_MODE_NA &&
 	    state->interface != PHY_INTERFACE_MODE_QSGMII &&
 	    state->interface != PHY_INTERFACE_MODE_SGMII &&
+	    !phy_interface_mode_is_8023z(state->interface) &&
 	    !phy_interface_mode_is_rgmii(state->interface)) {
 		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
 		return;
@@ -3208,10 +3214,14 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 	/* Half-duplex at speeds higher than 100Mbit is unsupported */
 	phylink_set(mask, 1000baseT_Full);
 	phylink_set(mask, 1000baseX_Full);
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
+
+	if (!phy_interface_mode_is_8023z(state->interface)) {
+		/* 10M and 100M are only supported in non-802.3z mode */
+		phylink_set(mask, 10baseT_Half);
+		phylink_set(mask, 10baseT_Full);
+		phylink_set(mask, 100baseT_Half);
+		phylink_set(mask, 100baseT_Full);
+	}
 
 	bitmap_and(supported, supported, mask,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
@@ -3243,14 +3253,27 @@ static int mvneta_mac_link_state(struct net_device *ndev,
 	return 1;
 }
 
+static void mvneta_mac_an_restart(struct net_device *ndev)
+{
+	struct mvneta_port *pp = netdev_priv(ndev);
+	u32 gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+
+	mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
+		    gmac_an | MVNETA_GMAC_INBAND_RESTART_AN);
+	mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
+		    gmac_an & ~MVNETA_GMAC_INBAND_RESTART_AN);
+}
+
 static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 	const struct phylink_link_state *state)
 {
 	struct mvneta_port *pp = netdev_priv(ndev);
+	u32 new_ctrl0, gmac_ctrl0 = mvreg_read(pp, MVNETA_GMAC_CTRL_0);
 	u32 new_ctrl2, gmac_ctrl2 = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
 	u32 new_clk, gmac_clk = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
 	u32 new_an, gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 
+	new_ctrl0 = gmac_ctrl0 & ~MVNETA_GMAC0_PORT_1000BASE_X;
 	new_ctrl2 = gmac_ctrl2 & ~(MVNETA_GMAC2_INBAND_AN_ENABLE |
 				   MVNETA_GMAC2_PORT_RESET);
 	new_clk = gmac_clk & ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
@@ -3259,6 +3282,8 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 			     MVNETA_GMAC_CONFIG_MII_SPEED |
 			     MVNETA_GMAC_CONFIG_GMII_SPEED |
 			     MVNETA_GMAC_AN_SPEED_EN |
+			     MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL |
+			     MVNETA_GMAC_CONFIG_FLOW_CTRL |
 			     MVNETA_GMAC_AN_FLOW_CTRL_EN |
 			     MVNETA_GMAC_CONFIG_FULL_DUPLEX |
 			     MVNETA_GMAC_AN_DUPLEX_EN);
@@ -3269,7 +3294,8 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 	new_ctrl2 |= MVNETA_GMAC2_PORT_RGMII;
 
 	if (state->interface == PHY_INTERFACE_MODE_QSGMII ||
-	    state->interface == PHY_INTERFACE_MODE_SGMII)
+	    state->interface == PHY_INTERFACE_MODE_SGMII ||
+	    phy_interface_mode_is_8023z(state->interface))
 		new_ctrl2 |= MVNETA_GMAC2_PCS_ENABLE;
 
 	if (!phylink_autoneg_inband(mode)) {
@@ -3281,7 +3307,7 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 			new_an |= MVNETA_GMAC_CONFIG_GMII_SPEED;
 		else if (state->speed == SPEED_100)
 			new_an |= MVNETA_GMAC_CONFIG_MII_SPEED;
-	} else {
+	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
 		/* SGMII mode receives the state from the PHY */
 		new_ctrl2 |= MVNETA_GMAC2_INBAND_AN_ENABLE;
 		new_clk |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
@@ -3290,18 +3316,31 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 			 MVNETA_GMAC_INBAND_AN_ENABLE |
 			 MVNETA_GMAC_AN_SPEED_EN |
 			 MVNETA_GMAC_AN_DUPLEX_EN;
+	} else {
+		/* 802.3z negotiation - only 1000base-X */
+		new_ctrl0 |= MVNETA_GMAC0_PORT_1000BASE_X;
+		new_clk |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
+		new_an = (new_an & ~(MVNETA_GMAC_FORCE_LINK_DOWN |
+				     MVNETA_GMAC_FORCE_LINK_PASS)) |
+			 MVNETA_GMAC_INBAND_AN_ENABLE |
+			 MVNETA_GMAC_CONFIG_GMII_SPEED |
+			 /* The MAC only supports FD mode */
+			 MVNETA_GMAC_CONFIG_FULL_DUPLEX;
 	}
 
 	/* Armada 370 documentation says we can only change the port mode
 	 * and in-band enable when the link is down, so force it down
 	 * while making these changes. We also do this for GMAC_CTRL2 */
-	if ((new_ctrl2 ^ gmac_ctrl2) & MVNETA_GMAC2_INBAND_AN_ENABLE ||
+	if ((new_ctrl0 ^ gmac_ctrl0) & MVNETA_GMAC0_PORT_1000BASE_X ||
+	    (new_ctrl2 ^ gmac_ctrl2) & MVNETA_GMAC2_INBAND_AN_ENABLE ||
 	    (new_an  ^ gmac_an) & MVNETA_GMAC_INBAND_AN_ENABLE) {
 		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
 			    (gmac_an & ~MVNETA_GMAC_FORCE_LINK_PASS) |
 			    MVNETA_GMAC_FORCE_LINK_DOWN);
 	}
 
+	if (new_ctrl0 != gmac_ctrl0)
+		mvreg_write(pp, MVNETA_GMAC_CTRL_0, new_ctrl0);
 	if (new_ctrl2 != gmac_ctrl2)
 		mvreg_write(pp, MVNETA_GMAC_CTRL_2, new_ctrl2);
 	if (new_clk != gmac_clk)
@@ -3350,6 +3389,7 @@ static void mvneta_mac_link_up(struct net_device *ndev, unsigned int mode,
 static const struct phylink_mac_ops mvneta_phylink_ops = {
 	.validate = mvneta_validate,
 	.mac_link_state = mvneta_mac_link_state,
+	.mac_an_restart = mvneta_mac_an_restart,
 	.mac_config = mvneta_mac_config,
 	.mac_link_down = mvneta_mac_link_down,
 	.mac_link_up = mvneta_mac_link_up,
@@ -4096,7 +4136,8 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 
 	if (phy_mode == PHY_INTERFACE_MODE_QSGMII)
 		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_QSGMII_SERDES_PROTO);
-	else if (phy_mode == PHY_INTERFACE_MODE_SGMII)
+	else if (phy_mode == PHY_INTERFACE_MODE_SGMII ||
+		 phy_mode == PHY_INTERFACE_MODE_1000BASEX)
 		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_SGMII_SERDES_PROTO);
 	else if (!phy_interface_mode_is_rgmii(phy_mode))
 		return -EINVAL;
