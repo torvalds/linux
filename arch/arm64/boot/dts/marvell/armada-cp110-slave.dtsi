@@ -321,7 +321,7 @@
 
 			cps_nand: nand@720000 {
 				/*
-				 * Due to the limiation of the pin available
+				 * Due to the limitation of the pins available
 				 * this controller is only usable on the CPM
 				 * for A7K and on the CPS for A8K.
 				 */
