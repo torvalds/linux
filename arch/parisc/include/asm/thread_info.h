@@ -25,9 +25,6 @@ struct thread_info {
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
 
-#define init_thread_info        (init_thread_union.thread_info)
-#define init_stack              (init_thread_union.stack)
-
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *)mfctl(30))
 

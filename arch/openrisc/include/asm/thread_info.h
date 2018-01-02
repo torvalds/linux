@@ -79,8 +79,6 @@ struct thread_info {
 	.ksp            = 0,                            \
 }
 
-#define init_thread_info	(init_thread_union.thread_info)
-
 /* how to get the thread information struct from C */
 register struct thread_info *current_thread_info_reg asm("r10");
 #define current_thread_info()   (current_thread_info_reg)
