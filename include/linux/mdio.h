@@ -262,6 +262,9 @@ static inline u16 ethtool_adv_to_mmd_eee_adv_t(u32 adv)
 	return reg;
 }
 
+int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
+int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
+
 int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
 int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum);
 int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
