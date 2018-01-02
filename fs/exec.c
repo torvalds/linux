@@ -1350,9 +1350,14 @@ void setup_new_exec(struct linux_binprm * bprm)
 
 	current->sas_ss_sp = current->sas_ss_size = 0;
 
-	/* Figure out dumpability. */
+	/*
+	 * Figure out dumpability. Note that this checking only of current
+	 * is wrong, but userspace depends on it. This should be testing
+	 * bprm->secureexec instead.
+	 */
 	if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP ||
-	    bprm->secureexec)
+	    !(uid_eq(current_euid(), current_uid()) &&
+	      gid_eq(current_egid(), current_gid())))
 		set_dumpable(current->mm, suid_dumpable);
 	else
 		set_dumpable(current->mm, SUID_DUMP_USER);
