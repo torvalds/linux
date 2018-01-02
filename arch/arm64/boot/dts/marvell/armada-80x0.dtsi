@@ -44,9 +44,6 @@
  * Device Tree file for the Armada 80x0 SoC family
  */
 
-#include "armada-cp110-master.dtsi"
-#include "armada-cp110-slave.dtsi"
-
 / {
 	aliases {
 		gpio1 = &cps_gpio1;
@@ -57,6 +54,48 @@
 		spi4 = &cps_spi1;
 	};
 };
+
+/*
+ * Instantiate the master CP110
+ */
+#define CP110_NAME		cpm
+#define CP110_BASE		f2000000
+#define CP110_PCIE_IO_BASE	0xf9000000
+#define CP110_PCIE_MEM_BASE	0xf6000000
+#define CP110_PCIE0_BASE	f2600000
+#define CP110_PCIE1_BASE	f2620000
+#define CP110_PCIE2_BASE	f2640000
+
+#include "armada-cp110.dtsi"
+
+#undef CP110_NAME
+#undef CP110_BASE
+#undef CP110_PCIE_IO_BASE
+#undef CP110_PCIE_MEM_BASE
+#undef CP110_PCIE0_BASE
+#undef CP110_PCIE1_BASE
+#undef CP110_PCIE2_BASE
+
+/*
+ * Instantiate the slave CP110
+ */
+#define CP110_NAME		cps
+#define CP110_BASE		f4000000
+#define CP110_PCIE_IO_BASE	0xfd000000
+#define CP110_PCIE_MEM_BASE	0xfa000000
+#define CP110_PCIE0_BASE	f4600000
+#define CP110_PCIE1_BASE	f4620000
+#define CP110_PCIE2_BASE	f4640000
+
+#include "armada-cp110.dtsi"
+
+#undef CP110_NAME
+#undef CP110_BASE
+#undef CP110_PCIE_IO_BASE
+#undef CP110_PCIE_MEM_BASE
+#undef CP110_PCIE0_BASE
+#undef CP110_PCIE1_BASE
+#undef CP110_PCIE2_BASE
 
 /* The 80x0 has two CP blocks, but uses only one block from each. */
 &cps_gpio1 {
@@ -94,4 +133,15 @@
 			marvell,function = "nf";
 		};
 	};
+};
+
+&cps_crypto {
+	/*
+	 * The cryptographic engine found on the cp110
+	 * master is enabled by default at the SoC
+	 * level. Because it is not possible as of now
+	 * to enable two cryptographic engines in
+	 * parallel, disable this one by default.
+	 */
+	status = "disabled";
 };
