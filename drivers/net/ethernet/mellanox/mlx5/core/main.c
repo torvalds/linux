@@ -552,6 +552,9 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 			 cache_line_128byte,
 			 cache_line_size() == 128 ? 1 : 0);
 
+	if (MLX5_CAP_GEN_MAX(dev, dct))
+		MLX5_SET(cmd_hca_cap, set_hca_cap, dct, 1);
+
 	err = set_caps(dev, set_ctx, set_sz,
 		       MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
 
