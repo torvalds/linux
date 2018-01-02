@@ -247,6 +247,22 @@ static const struct silead_ts_dmi_data trekstor_primebook_c13_data = {
 	.properties	= trekstor_primebook_c13_props,
 };
 
+static const struct property_entry teclast_x98plus2_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 2048),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1686-teclast_x98plus2.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct silead_ts_dmi_data teclast_x98plus2_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= teclast_x98plus2_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -386,6 +402,14 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Primebook C13"),
+		},
+	},
+	{
+		/* Teclast X98 Plus II */
+		.driver_data = (void *)&teclast_x98plus2_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TECLAST"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X98 Plus II"),
 		},
 	},
 	{ },
