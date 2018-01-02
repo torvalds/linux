@@ -26,6 +26,31 @@ MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
 MODULE_DESCRIPTION("PS/2 driver library");
 MODULE_LICENSE("GPL");
 
+static int ps2_do_sendbyte(struct ps2dev *ps2dev, u8 byte, unsigned int timeout)
+{
+	int error;
+
+	serio_pause_rx(ps2dev->serio);
+	ps2dev->nak = 1;
+	ps2dev->flags |= PS2_FLAG_ACK;
+	serio_continue_rx(ps2dev->serio);
+
+	error = serio_write(ps2dev->serio, byte);
+	if (error)
+		dev_dbg(&ps2dev->serio->dev,
+			"failed to write %#02x: %d\n", byte, error);
+	else
+		wait_event_timeout(ps2dev->wait,
+				   !(ps2dev->flags & PS2_FLAG_ACK),
+				   msecs_to_jiffies(timeout));
+
+	serio_pause_rx(ps2dev->serio);
+	ps2dev->flags &= ~PS2_FLAG_ACK;
+	serio_continue_rx(ps2dev->serio);
+
+	return -ps2dev->nak;
+}
+
 /*
  * ps2_sendbyte() sends a byte to the device and waits for acknowledge.
  * It doesn't handle retransmission, though it could - because if there
@@ -36,21 +61,12 @@ MODULE_LICENSE("GPL");
 
 int ps2_sendbyte(struct ps2dev *ps2dev, u8 byte, unsigned int timeout)
 {
-	serio_pause_rx(ps2dev->serio);
-	ps2dev->nak = 1;
-	ps2dev->flags |= PS2_FLAG_ACK;
-	serio_continue_rx(ps2dev->serio);
+	int retval;
 
-	if (serio_write(ps2dev->serio, byte) == 0)
-		wait_event_timeout(ps2dev->wait,
-				   !(ps2dev->flags & PS2_FLAG_ACK),
-				   msecs_to_jiffies(timeout));
+	retval = ps2_do_sendbyte(ps2dev, byte, timeout);
+	dev_dbg(&ps2dev->serio->dev, "%02x - %x\n", byte, ps2dev->nak);
 
-	serio_pause_rx(ps2dev->serio);
-	ps2dev->flags &= ~PS2_FLAG_ACK;
-	serio_continue_rx(ps2dev->serio);
-
-	return -ps2dev->nak;
+	return retval;
 }
 EXPORT_SYMBOL(ps2_sendbyte);
 
@@ -186,6 +202,7 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 	unsigned int receive = (command >> 8) & 0xf;
 	int rc = -1;
 	int i;
+	u8 send_param[16];
 
 	if (receive > sizeof(ps2dev->cmdbuf)) {
 		WARN_ON(1);
@@ -196,6 +213,8 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 		WARN_ON(1);
 		return -1;
 	}
+
+	memcpy(send_param, param, send);
 
 	serio_pause_rx(ps2dev->serio);
 	ps2dev->flags = command == PS2_CMD_GETID ? PS2_FLAG_WAITID : 0;
@@ -210,14 +229,14 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 	 * ACKing the reset command, and so it can take a long
 	 * time before the ACK arrives.
 	 */
-	if (ps2_sendbyte(ps2dev, command & 0xff,
-			 command == PS2_CMD_RESET_BAT ? 1000 : 200)) {
+	if (ps2_do_sendbyte(ps2dev, command & 0xff,
+			    command == PS2_CMD_RESET_BAT ? 1000 : 200)) {
 		serio_pause_rx(ps2dev->serio);
 		goto out_reset_flags;
 	}
 
 	for (i = 0; i < send; i++) {
-		if (ps2_sendbyte(ps2dev, param[i], 200)) {
+		if (ps2_do_sendbyte(ps2dev, param[i], 200)) {
 			serio_pause_rx(ps2dev->serio);
 			goto out_reset_flags;
 		}
@@ -252,6 +271,12 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
  out_reset_flags:
 	ps2dev->flags = 0;
 	serio_continue_rx(ps2dev->serio);
+
+	dev_dbg(&ps2dev->serio->dev,
+		"%02x [%*ph] - %x/%08lx [%*ph]\n",
+		command & 0xff, send, send_param,
+		ps2dev->nak, ps2dev->flags,
+		receive, param ?: send_param);
 
 	return rc;
 }
@@ -296,6 +321,7 @@ int ps2_sliced_command(struct ps2dev *ps2dev, u8 command)
 	}
 
 out:
+	dev_dbg(&ps2dev->serio->dev, "%02x - %d\n", command, retval);
 	ps2_end_command(ps2dev);
 	return retval;
 }
