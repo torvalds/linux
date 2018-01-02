@@ -34,7 +34,7 @@ config SECURITY
 config KAISER
 	bool "Remove the kernel mapping in user mode"
 	default y
-	depends on X86_64 && SMP && !PARAVIRT
+	depends on X86_64 && SMP
 	help
 	  This enforces a strict kernel and user space isolation, in order
 	  to close hardware side channels on kernel address information.
