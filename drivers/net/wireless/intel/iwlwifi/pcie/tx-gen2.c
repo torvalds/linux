@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,6 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,7 +86,8 @@ void iwl_pcie_gen2_tx_stop(struct iwl_trans *trans)
 /*
  * iwl_pcie_txq_update_byte_tbl - Set up entry in Tx byte-count array
  */
-static void iwl_pcie_gen2_update_byte_tbl(struct iwl_txq *txq, u16 byte_cnt,
+static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans_pcie *trans_pcie,
+					  struct iwl_txq *txq, u16 byte_cnt,
 					  int num_tbs)
 {
 	struct iwlagn_scd_bc_tbl *scd_bc_tbl = txq->bc_tbl.addr;
@@ -93,7 +96,8 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_txq *txq, u16 byte_cnt,
 	u16 len = byte_cnt;
 	__le16 bc_ent;
 
-	len = DIV_ROUND_UP(len, 4);
+	if (trans_pcie->bc_table_dword)
+		len = DIV_ROUND_UP(len, 4);
 
 	if (WARN_ON(len > 0xFFF || idx >= txq->n_window))
 		return;
@@ -526,7 +530,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	}
 
 	/* Set up entry for this TFD in Tx byte-count array */
-	iwl_pcie_gen2_update_byte_tbl(txq, le16_to_cpu(tx_cmd->len),
+	iwl_pcie_gen2_update_byte_tbl(trans_pcie, txq, le16_to_cpu(tx_cmd->len),
 				      iwl_pcie_gen2_get_num_tbs(trans, tfd));
 
 	/* start timer if queue currently empty */

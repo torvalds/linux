@@ -708,7 +708,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
 
 	trans->wide_cmd_header = true;
-	trans_cfg.bc_table_dword = true;
+	trans_cfg.bc_table_dword =
+		mvm->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560;
 
 	trans_cfg.command_groups = iwl_mvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_mvm_groups);
