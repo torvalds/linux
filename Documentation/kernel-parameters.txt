@@ -3056,6 +3056,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
+	pti=		[X86_64]
+			Control KAISER user/kernel address space isolation:
+			on - enable
+			off - disable
+			auto - default setting
+
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in
 			default number.
