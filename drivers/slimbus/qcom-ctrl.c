@@ -13,7 +13,6 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include "slimbus.h"
 
@@ -93,7 +92,6 @@
 
 struct slim_ctrl_buf {
 	void		*base;
-	dma_addr_t	phy;
 	spinlock_t	lock;
 	int		head;
 	int		tail;
@@ -579,17 +577,15 @@ static int qcom_slim_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_rclk_enable_failed;
 
-	ctrl->tx.base = dmam_alloc_coherent(&pdev->dev,
-					   (ctrl->tx.sl_sz * ctrl->tx.n),
-					   &ctrl->tx.phy, GFP_KERNEL);
+	ctrl->tx.base = devm_kcalloc(&pdev->dev, ctrl->tx.n, ctrl->tx.sl_sz,
+				     GFP_KERNEL);
 	if (!ctrl->tx.base) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	ctrl->rx.base = dmam_alloc_coherent(&pdev->dev,
-					   (ctrl->rx.sl_sz * ctrl->rx.n),
-					   &ctrl->rx.phy, GFP_KERNEL);
+	ctrl->rx.base = devm_kcalloc(&pdev->dev,ctrl->rx.n, ctrl->rx.sl_sz,
+				     GFP_KERNEL);
 	if (!ctrl->rx.base) {
 		ret = -ENOMEM;
 		goto err;
