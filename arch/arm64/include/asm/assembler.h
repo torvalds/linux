@@ -493,19 +493,6 @@ alternative_endif
 	.endm
 
 /*
- * Errata workaround post TTBRx_EL1 update.
- */
-	.macro	post_ttbr_update_workaround
-#ifdef CONFIG_CAVIUM_ERRATUM_27456
-alternative_if ARM64_WORKAROUND_CAVIUM_27456
-	ic	iallu
-	dsb	nsh
-	isb
-alternative_else_nop_endif
-#endif
-	.endm
-
-/*
  * Arrange a physical address in a TTBR register, taking care of 52-bit
  * addresses.
  *

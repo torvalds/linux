@@ -146,8 +146,7 @@ ENTRY(cpu_do_switch_mm)
 	phys_to_ttbr x0, x2
 	msr	ttbr0_el1, x2			// now update TTBR0
 	isb
-	post_ttbr_update_workaround
-	ret
+	b	post_ttbr_update_workaround	// Back to C code...
 ENDPROC(cpu_do_switch_mm)
 
 	.pushsection ".idmap.text", "ax"
