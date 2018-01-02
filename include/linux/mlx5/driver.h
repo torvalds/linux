@@ -154,6 +154,13 @@ enum mlx5_dcbx_oper_mode {
 	MLX5E_DCBX_PARAM_VER_OPER_AUTO  = 0x3,
 };
 
+enum mlx5_dct_atomic_mode {
+	MLX5_ATOMIC_MODE_DCT_OFF        = 20,
+	MLX5_ATOMIC_MODE_DCT_NONE       = 0 << MLX5_ATOMIC_MODE_DCT_OFF,
+	MLX5_ATOMIC_MODE_DCT_IB_COMP    = 1 << MLX5_ATOMIC_MODE_DCT_OFF,
+	MLX5_ATOMIC_MODE_DCT_CX         = 2 << MLX5_ATOMIC_MODE_DCT_OFF,
+};
+
 enum {
 	MLX5_ATOMIC_OPS_CMP_SWAP	= 1 << 0,
 	MLX5_ATOMIC_OPS_FETCH_ADD	= 1 << 1,
@@ -432,6 +439,7 @@ enum mlx5_res_type {
 	MLX5_RES_SRQ	= 3,
 	MLX5_RES_XSRQ	= 4,
 	MLX5_RES_XRQ	= 5,
+	MLX5_RES_DCT	= MLX5_EVENT_QUEUE_TYPE_DCT,
 };
 
 struct mlx5_core_rsc_common {
