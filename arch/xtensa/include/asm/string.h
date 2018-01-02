@@ -53,7 +53,7 @@ static inline char *strncpy(char *__dest, const char *__src, size_t __n)
 		"bne	%1, %5, 1b\n"
 		"2:"
 		: "=r" (__dest), "=r" (__src), "=&r" (__dummy)
-		: "0" (__dest), "1" (__src), "r" (__src+__n)
+		: "0" (__dest), "1" (__src), "r" ((uintptr_t)__src+__n)
 		: "memory");
 
 	return __xdest;
@@ -101,7 +101,7 @@ static inline int strncmp(const char *__cs, const char *__ct, size_t __n)
 		"2:\n\t"
 		"sub	%2, %2, %3"
 		: "=r" (__cs), "=r" (__ct), "=&r" (__res), "=&r" (__dummy)
-		: "0" (__cs), "1" (__ct), "r" (__cs+__n));
+		: "0" (__cs), "1" (__ct), "r" ((uintptr_t)__cs+__n));
 
 	return __res;
 }
