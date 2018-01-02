@@ -2422,11 +2422,21 @@ int cudbg_collect_up_cim_indirect(struct cudbg_init *pdbg_init,
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
+	u32 local_offset, local_range;
 	struct ireg_buf *up_cim;
+	u32 size, j, iter;
+	u32 instance = 0;
 	int i, rc, n;
-	u32 size;
 
-	n = sizeof(t5_up_cim_reg_array) / (IREG_NUM_ELEM * sizeof(u32));
+	if (is_t5(padap->params.chip))
+		n = sizeof(t5_up_cim_reg_array) /
+		    ((IREG_NUM_ELEM + 1) * sizeof(u32));
+	else if (is_t6(padap->params.chip))
+		n = sizeof(t6_up_cim_reg_array) /
+		    ((IREG_NUM_ELEM + 1) * sizeof(u32));
+	else
+		return CUDBG_STATUS_NOT_IMPLEMENTED;
+
 	size = sizeof(struct ireg_buf) * n;
 	rc = cudbg_get_buff(dbg_buff, size, &temp_buff);
 	if (rc)
@@ -2444,6 +2454,7 @@ int cudbg_collect_up_cim_indirect(struct cudbg_init *pdbg_init,
 						t5_up_cim_reg_array[i][2];
 			up_cim_reg->ireg_offset_range =
 						t5_up_cim_reg_array[i][3];
+			instance = t5_up_cim_reg_array[i][4];
 		} else if (is_t6(padap->params.chip)) {
 			up_cim_reg->ireg_addr = t6_up_cim_reg_array[i][0];
 			up_cim_reg->ireg_data = t6_up_cim_reg_array[i][1];
@@ -2451,13 +2462,35 @@ int cudbg_collect_up_cim_indirect(struct cudbg_init *pdbg_init,
 						t6_up_cim_reg_array[i][2];
 			up_cim_reg->ireg_offset_range =
 						t6_up_cim_reg_array[i][3];
+			instance = t6_up_cim_reg_array[i][4];
 		}
 
-		rc = t4_cim_read(padap, up_cim_reg->ireg_local_offset,
-				 up_cim_reg->ireg_offset_range, buff);
-		if (rc) {
-			cudbg_put_buff(&temp_buff, dbg_buff);
-			return rc;
+		switch (instance) {
+		case NUM_CIM_CTL_TSCH_CHANNEL_INSTANCES:
+			iter = up_cim_reg->ireg_offset_range;
+			local_offset = 0x120;
+			local_range = 1;
+			break;
+		case NUM_CIM_CTL_TSCH_CHANNEL_TSCH_CLASS_INSTANCES:
+			iter = up_cim_reg->ireg_offset_range;
+			local_offset = 0x10;
+			local_range = 1;
+			break;
+		default:
+			iter = 1;
+			local_offset = 0;
+			local_range = up_cim_reg->ireg_offset_range;
+			break;
+		}
+
+		for (j = 0; j < iter; j++, buff++) {
+			rc = t4_cim_read(padap,
+					 up_cim_reg->ireg_local_offset +
+					 (j * local_offset), local_range, buff);
+			if (rc) {
+				cudbg_put_buff(&temp_buff, dbg_buff);
+				return rc;
+			}
 		}
 		up_cim++;
 	}

@@ -45,6 +45,9 @@
 #define PF_BASE(idx) (PF0_BASE + (idx) * PF_STRIDE)
 #define PF_REG(idx, reg) (PF_BASE(idx) + (reg))
 
+#define NUM_CIM_CTL_TSCH_CHANNEL_INSTANCES 4
+#define NUM_CIM_CTL_TSCH_CHANNEL_TSCH_CLASS_INSTANCES 16
+
 #define MYPORT_BASE 0x1c000
 #define MYPORT_REG(reg_addr) (MYPORT_BASE + (reg_addr))
 

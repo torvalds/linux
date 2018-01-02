@@ -274,7 +274,13 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		len = sizeof(struct cudbg_ulptx_la);
 		break;
 	case CUDBG_UP_CIM_INDIRECT:
-		n = sizeof(t5_up_cim_reg_array) / (IREG_NUM_ELEM * sizeof(u32));
+		n = 0;
+		if (is_t5(adap->params.chip))
+			n = sizeof(t5_up_cim_reg_array) /
+			    ((IREG_NUM_ELEM + 1) * sizeof(u32));
+		else if (is_t6(adap->params.chip))
+			n = sizeof(t6_up_cim_reg_array) /
+			    ((IREG_NUM_ELEM + 1) * sizeof(u32));
 		len = sizeof(struct ireg_buf) * n;
 		break;
 	case CUDBG_PBT_TABLE:
