@@ -608,7 +608,7 @@ static int __init efi_load_efivars(void)
 		return 0;
 
 	pdev = platform_device_register_simple("efivars", 0, NULL, 0);
-	return IS_ERR(pdev) ? PTR_ERR(pdev) : 0;
+	return PTR_ERR_OR_ZERO(pdev);
 }
 device_initcall(efi_load_efivars);
 #endif
