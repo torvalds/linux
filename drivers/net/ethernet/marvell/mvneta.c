@@ -2704,8 +2704,7 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 		mvreg_write(pp, MVNETA_INTR_MISC_CAUSE, 0);
 
 		if (cause_misc & (MVNETA_CAUSE_PHY_STATUS_CHANGE |
-				  MVNETA_CAUSE_LINK_CHANGE |
-				  MVNETA_CAUSE_PSC_SYNC_CHANGE))
+				  MVNETA_CAUSE_LINK_CHANGE))
 			mvneta_link_change(pp);
 	}
 
@@ -3044,8 +3043,7 @@ static void mvneta_start_dev(struct mvneta_port *pp)
 
 	mvreg_write(pp, MVNETA_INTR_MISC_MASK,
 		    MVNETA_CAUSE_PHY_STATUS_CHANGE |
-		    MVNETA_CAUSE_LINK_CHANGE |
-		    MVNETA_CAUSE_PSC_SYNC_CHANGE);
+		    MVNETA_CAUSE_LINK_CHANGE);
 
 	phylink_start(pp->phylink);
 	netif_tx_start_all_queues(pp->dev);
@@ -3570,8 +3568,7 @@ static int mvneta_cpu_online(unsigned int cpu, struct hlist_node *node)
 	on_each_cpu(mvneta_percpu_unmask_interrupt, pp, true);
 	mvreg_write(pp, MVNETA_INTR_MISC_MASK,
 		    MVNETA_CAUSE_PHY_STATUS_CHANGE |
-		    MVNETA_CAUSE_LINK_CHANGE |
-		    MVNETA_CAUSE_PSC_SYNC_CHANGE);
+		    MVNETA_CAUSE_LINK_CHANGE);
 	netif_tx_start_all_queues(pp->dev);
 	spin_unlock(&pp->lock);
 	return 0;
@@ -3612,8 +3609,7 @@ static int mvneta_cpu_dead(unsigned int cpu, struct hlist_node *node)
 	on_each_cpu(mvneta_percpu_unmask_interrupt, pp, true);
 	mvreg_write(pp, MVNETA_INTR_MISC_MASK,
 		    MVNETA_CAUSE_PHY_STATUS_CHANGE |
-		    MVNETA_CAUSE_LINK_CHANGE |
-		    MVNETA_CAUSE_PSC_SYNC_CHANGE);
+		    MVNETA_CAUSE_LINK_CHANGE);
 	netif_tx_start_all_queues(pp->dev);
 	return 0;
 }
