@@ -988,7 +988,10 @@ i915_next_seqno_set(void *data, u64 val)
 	if (ret)
 		return ret;
 
+	intel_runtime_pm_get(dev_priv);
 	ret = i915_gem_set_global_seqno(dev, val);
+	intel_runtime_pm_put(dev_priv);
+
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
