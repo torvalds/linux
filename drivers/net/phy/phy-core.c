@@ -323,3 +323,28 @@ int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 	return ret;
 }
 EXPORT_SYMBOL(phy_write_mmd);
+
+/**
+ * __phy_modify() - Convenience function for modifying a PHY register
+ * @phydev: a pointer to a &struct phy_device
+ * @regnum: register number
+ * @mask: bit mask of bits to clear
+ * @set: bit mask of bits to set
+ *
+ * Unlocked helper function which allows a PHY register to be modified as
+ * new register value = (old register value & mask) | set
+ */
+int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
+{
+	int ret, res;
+
+	ret = __phy_read(phydev, regnum);
+	if (ret >= 0) {
+		res = __phy_write(phydev, regnum, (ret & ~mask) | set);
+		if (res < 0)
+			ret = res;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__phy_modify);
