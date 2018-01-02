@@ -362,6 +362,11 @@ struct mlx5_ib_create_ah_resp {
 	__u8	reserved[6];
 };
 
+struct mlx5_ib_modify_qp_resp {
+	__u32	response_length;
+	__u32	dctn;
+};
+
 struct mlx5_ib_create_wq_resp {
 	__u32	response_length;
 	__u32	reserved;
