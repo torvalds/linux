@@ -44,15 +44,13 @@ the user. The registration APIs returns the cooling device pointer.
 2. Power models
 
 The power API registration functions provide a simple power model for
-CPUs.  The current power is calculated as dynamic + (optionally)
-static power.  This power model requires that the operating-points of
+CPUs.  The current power is calculated as dynamic power (static power isn't
+supported currently).  This power model requires that the operating-points of
 the CPUs are registered using the kernel's opp library and the
 `cpufreq_frequency_table` is assigned to the `struct device` of the
 cpu.  If you are using CONFIG_CPUFREQ_DT then the
 `cpufreq_frequency_table` should already be assigned to the cpu
 device.
-
-2.1 Dynamic power
 
 The dynamic power consumption of a processor depends on many factors.
 For a given processor implementation the primary factors are:
@@ -92,79 +90,3 @@ mW/MHz/uVolt^2.  Typical values for mobile CPUs might lie in range
 from 100 to 500.  For reference, the approximate values for the SoC in
 ARM's Juno Development Platform are 530 for the Cortex-A57 cluster and
 140 for the Cortex-A53 cluster.
-
-
-2.2 Static power
-
-Static leakage power consumption depends on a number of factors.  For a
-given circuit implementation the primary factors are:
-
-- Time the circuit spends in each 'power state'
-- Temperature
-- Operating voltage
-- Process grade
-
-The time the circuit spends in each 'power state' for a given
-evaluation period at first order means OFF or ON.  However,
-'retention' states can also be supported that reduce power during
-inactive periods without loss of context.
-
-Note: The visibility of state entries to the OS can vary, according to
-platform specifics, and this can then impact the accuracy of a model
-based on OS state information alone.  It might be possible in some
-cases to extract more accurate information from system resources.
-
-The temperature, operating voltage and process 'grade' (slow to fast)
-of the circuit are all significant factors in static leakage power
-consumption.  All of these have complex relationships to static power.
-
-Circuit implementation specific factors include the chosen silicon
-process as well as the type, number and size of transistors in both
-the logic gates and any RAM elements included.
-
-The static power consumption modelling must take into account the
-power managed regions that are implemented.  Taking the example of an
-ARM processor cluster, the modelling would take into account whether
-each CPU can be powered OFF separately or if only a single power
-region is implemented for the complete cluster.
-
-In one view, there are others, a static power consumption model can
-then start from a set of reference values for each power managed
-region (e.g. CPU, Cluster/L2) in each state (e.g. ON, OFF) at an
-arbitrary process grade, voltage and temperature point.  These values
-are then scaled for all of the following: the time in each state, the
-process grade, the current temperature and the operating voltage.
-However, since both implementation specific and complex relationships
-dominate the estimate, the appropriate interface to the model from the
-cpu cooling device is to provide a function callback that calculates
-the static power in this platform.  When registering the cpu cooling
-device pass a function pointer that follows the `get_static_t`
-prototype:
-
-    int plat_get_static(cpumask_t *cpumask, int interval,
-                        unsigned long voltage, u32 &power);
-
-`cpumask` is the cpumask of the cpus involved in the calculation.
-`voltage` is the voltage at which they are operating.  The function
-should calculate the average static power for the last `interval`
-milliseconds.  It returns 0 on success, -E* on error.  If it
-succeeds, it should store the static power in `power`.  Reading the
-temperature of the cpus described by `cpumask` is left for
-plat_get_static() to do as the platform knows best which thermal
-sensor is closest to the cpu.
-
-If `plat_static_func` is NULL, static power is considered to be
-negligible for this platform and only dynamic power is considered.
-
-The platform specific callback can then use any combination of tables
-and/or equations to permute the estimated value.  Process grade
-information is not passed to the model since access to such data, from
-on-chip measurement capability or manufacture time data, is platform
-specific.
-
-Note: the significance of static power for CPUs in comparison to
-dynamic power is highly dependent on implementation.  Given the
-potential complexity in implementation, the importance and accuracy of
-its inclusion when using cpu cooling devices should be assessed on a
-case by case basis.
-
