@@ -124,16 +124,24 @@ EXPORT_SYMBOL(ib_wc_status_msg);
 __attribute_const__ int ib_rate_to_mult(enum ib_rate rate)
 {
 	switch (rate) {
-	case IB_RATE_2_5_GBPS: return  1;
-	case IB_RATE_5_GBPS:   return  2;
-	case IB_RATE_10_GBPS:  return  4;
-	case IB_RATE_20_GBPS:  return  8;
-	case IB_RATE_30_GBPS:  return 12;
-	case IB_RATE_40_GBPS:  return 16;
-	case IB_RATE_60_GBPS:  return 24;
-	case IB_RATE_80_GBPS:  return 32;
-	case IB_RATE_120_GBPS: return 48;
-	default:	       return -1;
+	case IB_RATE_2_5_GBPS: return   1;
+	case IB_RATE_5_GBPS:   return   2;
+	case IB_RATE_10_GBPS:  return   4;
+	case IB_RATE_20_GBPS:  return   8;
+	case IB_RATE_30_GBPS:  return  12;
+	case IB_RATE_40_GBPS:  return  16;
+	case IB_RATE_60_GBPS:  return  24;
+	case IB_RATE_80_GBPS:  return  32;
+	case IB_RATE_120_GBPS: return  48;
+	case IB_RATE_14_GBPS:  return   6;
+	case IB_RATE_56_GBPS:  return  22;
+	case IB_RATE_112_GBPS: return  45;
+	case IB_RATE_168_GBPS: return  67;
+	case IB_RATE_25_GBPS:  return  10;
+	case IB_RATE_100_GBPS: return  40;
+	case IB_RATE_200_GBPS: return  80;
+	case IB_RATE_300_GBPS: return 120;
+	default:	       return  -1;
 	}
 }
 EXPORT_SYMBOL(ib_rate_to_mult);
@@ -141,16 +149,24 @@ EXPORT_SYMBOL(ib_rate_to_mult);
 __attribute_const__ enum ib_rate mult_to_ib_rate(int mult)
 {
 	switch (mult) {
-	case 1:  return IB_RATE_2_5_GBPS;
-	case 2:  return IB_RATE_5_GBPS;
-	case 4:  return IB_RATE_10_GBPS;
-	case 8:  return IB_RATE_20_GBPS;
-	case 12: return IB_RATE_30_GBPS;
-	case 16: return IB_RATE_40_GBPS;
-	case 24: return IB_RATE_60_GBPS;
-	case 32: return IB_RATE_80_GBPS;
-	case 48: return IB_RATE_120_GBPS;
-	default: return IB_RATE_PORT_CURRENT;
+	case 1:   return IB_RATE_2_5_GBPS;
+	case 2:   return IB_RATE_5_GBPS;
+	case 4:   return IB_RATE_10_GBPS;
+	case 8:   return IB_RATE_20_GBPS;
+	case 12:  return IB_RATE_30_GBPS;
+	case 16:  return IB_RATE_40_GBPS;
+	case 24:  return IB_RATE_60_GBPS;
+	case 32:  return IB_RATE_80_GBPS;
+	case 48:  return IB_RATE_120_GBPS;
+	case 6:   return IB_RATE_14_GBPS;
+	case 22:  return IB_RATE_56_GBPS;
+	case 45:  return IB_RATE_112_GBPS;
+	case 67:  return IB_RATE_168_GBPS;
+	case 10:  return IB_RATE_25_GBPS;
+	case 40:  return IB_RATE_100_GBPS;
+	case 80:  return IB_RATE_200_GBPS;
+	case 120: return IB_RATE_300_GBPS;
+	default:  return IB_RATE_PORT_CURRENT;
 	}
 }
 EXPORT_SYMBOL(mult_to_ib_rate);
