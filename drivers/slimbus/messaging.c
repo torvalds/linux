@@ -98,7 +98,7 @@ int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 	if (need_tid) {
 		spin_lock_irqsave(&ctrl->txn_lock, flags);
 		tid = idr_alloc(&ctrl->tid_idr, txn, 0,
-				SLIM_MAX_TIDS, GFP_KERNEL);
+				SLIM_MAX_TIDS, GFP_ATOMIC);
 		txn->tid = tid;
 
 		if (!txn->msg->comp)
