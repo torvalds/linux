@@ -494,6 +494,8 @@ struct cper_sec_pcie {
 /* Reset to default packing */
 #pragma pack()
 
+extern const char * const cper_proc_error_type_strs[4];
+
 u64 cper_next_record_id(void);
 const char *cper_severity_str(unsigned int);
 const char *cper_mem_err_type_str(unsigned int);
@@ -503,5 +505,7 @@ void cper_mem_err_pack(const struct cper_sec_mem_err *,
 		       struct cper_mem_err_compact *);
 const char *cper_mem_err_unpack(struct trace_seq *,
 				struct cper_mem_err_compact *);
+void cper_print_proc_arm(const char *pfx,
+			 const struct cper_sec_proc_arm *proc);
 
 #endif
