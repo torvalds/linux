@@ -16,7 +16,6 @@
 static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
 static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
 
-
 /*
  * Set up the first task table, touch at your own risk!. Base=0,
  * limit=0x1fffff (=2MB)
@@ -26,20 +25,23 @@ struct task_struct init_task
 	__init_task_data
 #endif
 = {
-	INIT_TASK_TI(init_task)
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	.thread_info	= INIT_THREAD_INFO(init_task),
+	.stack_refcount	= ATOMIC_INIT(1),
+#endif
 	.state		= 0,
 	.stack		= init_stack,
 	.usage		= ATOMIC_INIT(2),
 	.flags		= PF_KTHREAD,
-	.prio		= MAX_PRIO-20,
-	.static_prio	= MAX_PRIO-20,
-	.normal_prio	= MAX_PRIO-20,
+	.prio		= MAX_PRIO - 20,
+	.static_prio	= MAX_PRIO - 20,
+	.normal_prio	= MAX_PRIO - 20,
 	.policy		= SCHED_NORMAL,
 	.cpus_allowed	= CPU_MASK_ALL,
 	.nr_cpus_allowed= NR_CPUS,
 	.mm		= NULL,
 	.active_mm	= &init_mm,
-	.restart_block = {
+	.restart_block	= {
 		.fn = do_no_restart_syscall,
 	},
 	.se		= {
@@ -50,8 +52,12 @@ struct task_struct init_task
 		.time_slice	= RR_TIMESLICE,
 	},
 	.tasks		= LIST_HEAD_INIT(init_task.tasks),
-	INIT_PUSHABLE_TASKS(init_task)
-	INIT_CGROUP_SCHED(init_task)
+#ifdef CONFIG_SMP
+	.pushable_tasks	= PLIST_NODE_INIT(init_task.pushable_tasks, MAX_PRIO),
+#endif
+#ifdef CONFIG_CGROUP_SCHED
+	.sched_task_group = &root_task_group,
+#endif
 	.ptraced	= LIST_HEAD_INIT(init_task.ptraced),
 	.ptrace_entry	= LIST_HEAD_INIT(init_task.ptrace_entry),
 	.real_parent	= &init_task,
@@ -85,24 +91,65 @@ struct task_struct init_task
 	},
 	.thread_group	= LIST_HEAD_INIT(init_task.thread_group),
 	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
-	INIT_IDS
-	INIT_PERF_EVENTS(init_task)
-	INIT_TRACE_IRQFLAGS
-	INIT_LOCKDEP
-	INIT_FTRACE_GRAPH
-	INIT_TRACE_RECURSION
-	INIT_TASK_RCU_PREEMPT(init_task)
-	INIT_TASK_RCU_TASKS(init_task)
-	INIT_CPUSET_SEQ(init_task)
-	INIT_RT_MUTEXES(init_task)
+#ifdef CONFIG_AUDITSYSCALL
+	.loginuid	= INVALID_UID,
+	.sessionid	= (unsigned int)-1,
+#endif
+#ifdef CONFIG_PERF_EVENTS
+	.perf_event_mutex = __MUTEX_INITIALIZER(init_task.perf_event_mutex),
+	.perf_event_list = LIST_HEAD_INIT(init_task.perf_event_list),
+#endif
+#ifdef CONFIG_PREEMPT_RCU
+	.rcu_read_lock_nesting = 0,
+	.rcu_read_unlock_special.s = 0,
+	.rcu_node_entry = LIST_HEAD_INIT(init_task.rcu_node_entry),
+	.rcu_blocked_node = NULL,
+#endif
+#ifdef CONFIG_TASKS_RCU
+	.rcu_tasks_holdout = false,
+	.rcu_tasks_holdout_list = LIST_HEAD_INIT(init_task.rcu_tasks_holdout_list),
+	.rcu_tasks_idle_cpu = -1,
+#endif
+#ifdef CONFIG_CPUSETS
+	.mems_allowed_seq = SEQCNT_ZERO(init_task.mems_allowed_seq),
+#endif
+#ifdef CONFIG_RT_MUTEXES
+	.pi_waiters	= RB_ROOT_CACHED,
+	.pi_top_task	= NULL,
+#endif
 	INIT_PREV_CPUTIME(init_task)
-	INIT_VTIME(init_task)
-	INIT_NUMA_BALANCING(init_task)
-	INIT_KASAN(init_task)
-	INIT_LIVEPATCH(init_task)
-	INIT_TASK_SECURITY
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
+	.vtime.seqcount	= SEQCNT_ZERO(init_task.vtime_seqcount),
+	.vtime.starttime = 0,
+	.vtime.state	= VTIME_SYS,
+#endif
+#ifdef CONFIG_NUMA_BALANCING
+	.numa_preferred_nid = -1,
+	.numa_group	= NULL,
+	.numa_faults	= NULL,
+#endif
+#ifdef CONFIG_KASAN
+	.kasan_depth	= 1,
+#endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	.softirqs_enabled = 1,
+#endif
+#ifdef CONFIG_LOCKDEP
+	.lockdep_recursion = 0,
+#endif
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	.ret_stack	= NULL,
+#endif
+#if defined(CONFIG_TRACING) && defined(CONFIG_PREEMPT)
+	.trace_recursion = 0,
+#endif
+#ifdef CONFIG_LIVEPATCH
+	.patch_state	= KLP_UNDEFINED,
+#endif
+#ifdef CONFIG_SECURITY
+	.security	= NULL,
+#endif
 };
-
 EXPORT_SYMBOL(init_task);
 
 /*

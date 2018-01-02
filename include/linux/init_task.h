@@ -21,22 +21,8 @@
 
 #include <asm/thread_info.h>
 
-#ifdef CONFIG_SMP
-# define INIT_PUSHABLE_TASKS(tsk)					\
-	.pushable_tasks = PLIST_NODE_INIT(tsk.pushable_tasks, MAX_PRIO),
-#else
-# define INIT_PUSHABLE_TASKS(tsk)
-#endif
-
 extern struct files_struct init_files;
 extern struct fs_struct init_fs;
-
-#ifdef CONFIG_CPUSETS
-#define INIT_CPUSET_SEQ(tsk)							\
-	.mems_allowed_seq = SEQCNT_ZERO(tsk.mems_allowed_seq),
-#else
-#define INIT_CPUSET_SEQ(tsk)
-#endif
 
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 #define INIT_PREV_CPUTIME(x)	.prev_cputime = {			\
@@ -117,106 +103,9 @@ extern struct group_info init_groups;
 	.pid = &init_struct_pid,				\
 }
 
-#ifdef CONFIG_AUDITSYSCALL
-#define INIT_IDS \
-	.loginuid = INVALID_UID, \
-	.sessionid = (unsigned int)-1,
-#else
-#define INIT_IDS
-#endif
-
-#ifdef CONFIG_PREEMPT_RCU
-#define INIT_TASK_RCU_PREEMPT(tsk)					\
-	.rcu_read_lock_nesting = 0,					\
-	.rcu_read_unlock_special.s = 0,					\
-	.rcu_node_entry = LIST_HEAD_INIT(tsk.rcu_node_entry),		\
-	.rcu_blocked_node = NULL,
-#else
-#define INIT_TASK_RCU_PREEMPT(tsk)
-#endif
-#ifdef CONFIG_TASKS_RCU
-#define INIT_TASK_RCU_TASKS(tsk)					\
-	.rcu_tasks_holdout = false,					\
-	.rcu_tasks_holdout_list =					\
-		LIST_HEAD_INIT(tsk.rcu_tasks_holdout_list),		\
-	.rcu_tasks_idle_cpu = -1,
-#else
-#define INIT_TASK_RCU_TASKS(tsk)
-#endif
-
 extern struct cred init_cred;
 
-#ifdef CONFIG_CGROUP_SCHED
-# define INIT_CGROUP_SCHED(tsk)						\
-	.sched_task_group = &root_task_group,
-#else
-# define INIT_CGROUP_SCHED(tsk)
-#endif
-
-#ifdef CONFIG_PERF_EVENTS
-# define INIT_PERF_EVENTS(tsk)						\
-	.perf_event_mutex = 						\
-		 __MUTEX_INITIALIZER(tsk.perf_event_mutex),		\
-	.perf_event_list = LIST_HEAD_INIT(tsk.perf_event_list),
-#else
-# define INIT_PERF_EVENTS(tsk)
-#endif
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-# define INIT_VTIME(tsk)						\
-	.vtime.seqcount = SEQCNT_ZERO(tsk.vtime.seqcount),		\
-	.vtime.starttime = 0,						\
-	.vtime.state = VTIME_SYS,
-#else
-# define INIT_VTIME(tsk)
-#endif
-
 #define INIT_TASK_COMM "swapper"
-
-#ifdef CONFIG_RT_MUTEXES
-# define INIT_RT_MUTEXES(tsk)						\
-	.pi_waiters = RB_ROOT_CACHED,					\
-	.pi_top_task = NULL,
-#else
-# define INIT_RT_MUTEXES(tsk)
-#endif
-
-#ifdef CONFIG_NUMA_BALANCING
-# define INIT_NUMA_BALANCING(tsk)					\
-	.numa_preferred_nid = -1,					\
-	.numa_group = NULL,						\
-	.numa_faults = NULL,
-#else
-# define INIT_NUMA_BALANCING(tsk)
-#endif
-
-#ifdef CONFIG_KASAN
-# define INIT_KASAN(tsk)						\
-	.kasan_depth = 1,
-#else
-# define INIT_KASAN(tsk)
-#endif
-
-#ifdef CONFIG_LIVEPATCH
-# define INIT_LIVEPATCH(tsk)						\
-	.patch_state = KLP_UNDEFINED,
-#else
-# define INIT_LIVEPATCH(tsk)
-#endif
-
-#ifdef CONFIG_THREAD_INFO_IN_TASK
-# define INIT_TASK_TI(tsk)			\
-	.thread_info = INIT_THREAD_INFO(tsk),	\
-	.stack_refcount = ATOMIC_INIT(1),
-#else
-# define INIT_TASK_TI(tsk)
-#endif
-
-#ifdef CONFIG_SECURITY
-#define INIT_TASK_SECURITY .security = NULL,
-#else
-#define INIT_TASK_SECURITY
-#endif
 
 /* Attach to the init_task data structure for proper alignment */
 #ifdef CONFIG_ARCH_TASK_STRUCT_ON_STACK
@@ -227,6 +116,5 @@ extern struct cred init_cred;
 
 /* Attach to the thread_info data structure for proper alignment */
 #define __init_thread_info __attribute__((__section__(".data..init_thread_info")))
-
 
 #endif
