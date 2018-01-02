@@ -51,6 +51,9 @@
 #include "pp_overdriver.h"
 #include "pp_thermal.h"
 
+#include "smuio/smuio_9_0_offset.h"
+#include "smuio/smuio_9_0_sh_mask.h"
+
 #define VOLTAGE_SCALE  4
 #define VOLTAGE_VID_OFFSET_SCALE1   625
 #define VOLTAGE_VID_OFFSET_SCALE2   100
@@ -3900,6 +3903,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
 	struct vega10_dpm_table *dpm_table = &data->dpm_table;
 	int ret = 0;
+	uint32_t reg, val_vid;
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
@@ -3946,6 +3950,15 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			ret = vega10_get_gpu_power(hwmgr, (struct pp_gpu_power *)value);
 		}
 		break;
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		reg = soc15_get_register_offset(SMUIO_HWID, 0,
+			mmSMUSVI0_PLANE0_CURRENTVID_BASE_IDX,
+			mmSMUSVI0_PLANE0_CURRENTVID);
+		val_vid = (cgs_read_register(hwmgr->device, reg) &
+			SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID_MASK) >>
+			SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID__SHIFT;
+		*((uint32_t *)value) = (uint32_t)convert_to_vddc((uint8_t)val_vid);
+		return 0;
 	default:
 		ret = -EINVAL;
 		break;

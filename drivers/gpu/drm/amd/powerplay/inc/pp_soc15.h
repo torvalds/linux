@@ -43,7 +43,8 @@ inline static uint32_t soc15_get_register_offset(
 		reg = DF_BASE.instance[inst].segment[segment] + offset;
 	else if (hw_id == GC_HWID)
 		reg = GC_BASE.instance[inst].segment[segment] + offset;
-
+	else if (hw_id == SMUIO_HWID)
+		reg = SMUIO_BASE.instance[inst].segment[segment] + offset;
 	return reg;
 }
 
