@@ -1113,9 +1113,6 @@ void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,
 
 void nft_trace_notify(struct nft_traceinfo *info);
 
-#define nft_dereference(p)					\
-	nfnl_dereference(p, NFNL_SUBSYS_NFTABLES)
-
 #define MODULE_ALIAS_NFT_FAMILY(family)	\
 	MODULE_ALIAS("nft-afinfo-" __stringify(family))
 

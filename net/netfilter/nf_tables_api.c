@@ -1222,13 +1222,13 @@ static struct nft_stats __percpu *nft_stats_alloc(const struct nlattr *attr)
 static void nft_chain_stats_replace(struct nft_base_chain *chain,
 				    struct nft_stats __percpu *newstats)
 {
+	struct nft_stats __percpu *oldstats;
+
 	if (newstats == NULL)
 		return;
 
 	if (chain->stats) {
-		struct nft_stats __percpu *oldstats =
-				nft_dereference(chain->stats);
-
+		oldstats = nfnl_dereference(chain->stats, NFNL_SUBSYS_NFTABLES);
 		rcu_assign_pointer(chain->stats, newstats);
 		synchronize_rcu();
 		free_percpu(oldstats);
