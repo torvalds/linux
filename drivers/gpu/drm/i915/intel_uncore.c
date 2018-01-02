@@ -1936,8 +1936,7 @@ int intel_reset_guc(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (!HAS_GUC(dev_priv))
-		return -EINVAL;
+	GEM_BUG_ON(!HAS_GUC(dev_priv));
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 	ret = gen6_hw_domain_reset(dev_priv, GEN9_GRDOM_GUC);
