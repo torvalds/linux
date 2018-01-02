@@ -98,5 +98,25 @@ request is made for a page in an old zpool, it is uncompressed using its
 original compressor.  Once all pages are removed from an old zpool, the zpool
 and its compressor are freed.
 
+Some of the pages in zswap are same-value filled pages (i.e. contents of the
+page have same value or repetitive pattern). These pages include zero-filled
+pages and they are handled differently. During store operation, a page is
+checked if it is a same-value filled page before compressing it. If true, the
+compressed length of the page is set to zero and the pattern or same-filled
+value is stored.
+
+Same-value filled pages identification feature is enabled by default and can be
+disabled at boot time by setting the "same_filled_pages_enabled" attribute to 0,
+e.g. zswap.same_filled_pages_enabled=0. It can also be enabled and disabled at
+runtime using the sysfs "same_filled_pages_enabled" attribute, e.g.
+
+echo 1 > /sys/module/zswap/parameters/same_filled_pages_enabled
+
+When zswap same-filled page identification is disabled at runtime, it will stop
+checking for the same-value filled pages during store operation. However, the
+existing pages which are marked as same-value filled pages remain stored
+unchanged in zswap until they are either loaded or invalidated.
+
 A debugfs interface is provided for various statistic about pool size, number
-of pages stored, and various counters for the reasons pages are rejected.
+of pages stored, same-value filled pages and various counters for the reasons
+pages are rejected.

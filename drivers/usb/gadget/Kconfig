@@ -508,8 +508,8 @@ choice
 	  controller, and the relevant drivers for each function declared
 	  by the device.
 
-endchoice
-
 source "drivers/usb/gadget/legacy/Kconfig"
+
+endchoice
 
 endif # USB_GADGET

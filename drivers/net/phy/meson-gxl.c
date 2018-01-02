@@ -22,6 +22,7 @@
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <linux/netdevice.h>
+#include <linux/bitfield.h>
 
 static int meson_gxl_config_init(struct phy_device *phydev)
 {
@@ -50,6 +51,77 @@ static int meson_gxl_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+/* This function is provided to cope with the possible failures of this phy
+ * during aneg process. When aneg fails, the PHY reports that aneg is done
+ * but the value found in MII_LPA is wrong:
+ *  - Early failures: MII_LPA is just 0x0001. if MII_EXPANSION reports that
+ *    the link partner (LP) supports aneg but the LP never acked our base
+ *    code word, it is likely that we never sent it to begin with.
+ *  - Late failures: MII_LPA is filled with a value which seems to make sense
+ *    but it actually is not what the LP is advertising. It seems that we
+ *    can detect this using a magic bit in the WOL bank (reg 12 - bit 12).
+ *    If this particular bit is not set when aneg is reported being done,
+ *    it means MII_LPA is likely to be wrong.
+ *
+ * In both case, forcing a restart of the aneg process solve the problem.
+ * When this failure happens, the first retry is usually successful but,
+ * in some cases, it may take up to 6 retries to get a decent result
+ */
+static int meson_gxl_read_status(struct phy_device *phydev)
+{
+	int ret, wol, lpa, exp;
+
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		ret = genphy_aneg_done(phydev);
+		if (ret < 0)
+			return ret;
+		else if (!ret)
+			goto read_status_continue;
+
+		/* Need to access WOL bank, make sure the access is open */
+		ret = phy_write(phydev, 0x14, 0x0000);
+		if (ret)
+			return ret;
+		ret = phy_write(phydev, 0x14, 0x0400);
+		if (ret)
+			return ret;
+		ret = phy_write(phydev, 0x14, 0x0000);
+		if (ret)
+			return ret;
+		ret = phy_write(phydev, 0x14, 0x0400);
+		if (ret)
+			return ret;
+
+		/* Request LPI_STATUS WOL register */
+		ret = phy_write(phydev, 0x14, 0x8D80);
+		if (ret)
+			return ret;
+
+		/* Read LPI_STATUS value */
+		wol = phy_read(phydev, 0x15);
+		if (wol < 0)
+			return wol;
+
+		lpa = phy_read(phydev, MII_LPA);
+		if (lpa < 0)
+			return lpa;
+
+		exp = phy_read(phydev, MII_EXPANSION);
+		if (exp < 0)
+			return exp;
+
+		if (!(wol & BIT(12)) ||
+		    ((exp & EXPANSION_NWAY) && !(lpa & LPA_LPACK))) {
+			/* Looks like aneg failed after all */
+			phydev_dbg(phydev, "LPA corruption - aneg restart\n");
+			return genphy_restart_aneg(phydev);
+		}
+	}
+
+read_status_continue:
+	return genphy_read_status(phydev);
+}
+
 static struct phy_driver meson_gxl_phy[] = {
 	{
 		.phy_id		= 0x01814400,
@@ -60,7 +132,7 @@ static struct phy_driver meson_gxl_phy[] = {
 		.config_init	= meson_gxl_config_init,
 		.config_aneg	= genphy_config_aneg,
 		.aneg_done      = genphy_aneg_done,
-		.read_status	= genphy_read_status,
+		.read_status	= meson_gxl_read_status,
 		.suspend        = genphy_suspend,
 		.resume         = genphy_resume,
 	},

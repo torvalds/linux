@@ -13,7 +13,6 @@ Required properties:
                  at25df321a
                  at25df641
                  at26df081a
-                 en25s64
                  mr25h128
                  mr25h256
                  mr25h10
@@ -33,7 +32,6 @@ Required properties:
                  s25fl008k
                  s25fl064k
                  sst25vf040b
-                 sst25wf040b
                  m25p40
                  m25p80
                  m25p16

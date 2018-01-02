@@ -1408,11 +1408,7 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	dprintk("RPC:       %s: reply %p completes request %p (xid 0x%08x)\n",
 		__func__, rep, req, be32_to_cpu(rep->rr_xid));
 
-	if (list_empty(&req->rl_registered) &&
-	    !test_bit(RPCRDMA_REQ_F_TX_RESOURCES, &req->rl_flags))
-		rpcrdma_complete_rqst(rep);
-	else
-		queue_work(rpcrdma_receive_wq, &rep->rr_work);
+	queue_work_on(req->rl_cpu, rpcrdma_receive_wq, &rep->rr_work);
 	return;
 
 out_badstatus:

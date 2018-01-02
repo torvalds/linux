@@ -212,6 +212,7 @@ struct irq_data {
  *				  mask. Applies only to affinity managed irqs.
  * IRQD_SINGLE_TARGET		- IRQ allows only a single affinity target
  * IRQD_DEFAULT_TRIGGER_SET	- Expected trigger already been set
+ * IRQD_CAN_RESERVE		- Can use reservation mode
  */
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
@@ -233,6 +234,7 @@ enum {
 	IRQD_MANAGED_SHUTDOWN		= (1 << 23),
 	IRQD_SINGLE_TARGET		= (1 << 24),
 	IRQD_DEFAULT_TRIGGER_SET	= (1 << 25),
+	IRQD_CAN_RESERVE		= (1 << 26),
 };
 
 #define __irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
@@ -375,6 +377,21 @@ static inline bool irqd_is_started(struct irq_data *d)
 static inline bool irqd_is_managed_and_shutdown(struct irq_data *d)
 {
 	return __irqd_to_state(d) & IRQD_MANAGED_SHUTDOWN;
+}
+
+static inline void irqd_set_can_reserve(struct irq_data *d)
+{
+	__irqd_to_state(d) |= IRQD_CAN_RESERVE;
+}
+
+static inline void irqd_clr_can_reserve(struct irq_data *d)
+{
+	__irqd_to_state(d) &= ~IRQD_CAN_RESERVE;
+}
+
+static inline bool irqd_can_reserve(struct irq_data *d)
+{
+	return __irqd_to_state(d) & IRQD_CAN_RESERVE;
 }
 
 #undef __irqd_to_state

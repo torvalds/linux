@@ -253,18 +253,18 @@ static int emac_open(struct net_device *netdev)
 		return ret;
 	}
 
-	ret = emac_mac_up(adpt);
+	ret = adpt->phy.open(adpt);
 	if (ret) {
 		emac_mac_rx_tx_rings_free_all(adpt);
 		free_irq(irq->irq, irq);
 		return ret;
 	}
 
-	ret = adpt->phy.open(adpt);
+	ret = emac_mac_up(adpt);
 	if (ret) {
-		emac_mac_down(adpt);
 		emac_mac_rx_tx_rings_free_all(adpt);
 		free_irq(irq->irq, irq);
+		adpt->phy.close(adpt);
 		return ret;
 	}
 

@@ -386,6 +386,9 @@ int ib_open_shared_qp_security(struct ib_qp *qp, struct ib_device *dev)
 	if (ret)
 		return ret;
 
+	if (!qp->qp_sec)
+		return 0;
+
 	mutex_lock(&real_qp->qp_sec->mutex);
 	ret = check_qp_port_pkey_settings(real_qp->qp_sec->ports_pkeys,
 					  qp->qp_sec);
@@ -739,8 +742,11 @@ int ib_mad_enforce_security(struct ib_mad_agent_private *map, u16 pkey_index)
 	if (!rdma_protocol_ib(map->agent.device, map->agent.port_num))
 		return 0;
 
-	if (map->agent.qp->qp_type == IB_QPT_SMI && !map->agent.smp_allowed)
-		return -EACCES;
+	if (map->agent.qp->qp_type == IB_QPT_SMI) {
+		if (!map->agent.smp_allowed)
+			return -EACCES;
+		return 0;
+	}
 
 	return ib_security_pkey_access(map->agent.device,
 				       map->agent.port_num,

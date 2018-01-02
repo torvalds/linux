@@ -191,6 +191,24 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 
 	INIT_LIST_HEAD(&s->s_mounts);
 	s->s_user_ns = get_user_ns(user_ns);
+	init_rwsem(&s->s_umount);
+	lockdep_set_class(&s->s_umount, &type->s_umount_key);
+	/*
+	 * sget() can have s_umount recursion.
+	 *
+	 * When it cannot find a suitable sb, it allocates a new
+	 * one (this one), and tries again to find a suitable old
+	 * one.
+	 *
+	 * In case that succeeds, it will acquire the s_umount
+	 * lock of the old one. Since these are clearly distrinct
+	 * locks, and this object isn't exposed yet, there's no
+	 * risk of deadlocks.
+	 *
+	 * Annotate this by putting this lock in a different
+	 * subclass.
+	 */
+	down_write_nested(&s->s_umount, SINGLE_DEPTH_NESTING);
 
 	if (security_sb_alloc(s))
 		goto fail;
@@ -218,25 +236,6 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 		goto fail;
 	if (list_lru_init_memcg(&s->s_inode_lru))
 		goto fail;
-
-	init_rwsem(&s->s_umount);
-	lockdep_set_class(&s->s_umount, &type->s_umount_key);
-	/*
-	 * sget() can have s_umount recursion.
-	 *
-	 * When it cannot find a suitable sb, it allocates a new
-	 * one (this one), and tries again to find a suitable old
-	 * one.
-	 *
-	 * In case that succeeds, it will acquire the s_umount
-	 * lock of the old one. Since these are clearly distrinct
-	 * locks, and this object isn't exposed yet, there's no
-	 * risk of deadlocks.
-	 *
-	 * Annotate this by putting this lock in a different
-	 * subclass.
-	 */
-	down_write_nested(&s->s_umount, SINGLE_DEPTH_NESTING);
 	s->s_count = 1;
 	atomic_set(&s->s_active, 1);
 	mutex_init(&s->s_vfs_rename_mutex);
