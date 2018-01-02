@@ -3251,7 +3251,8 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 	u32 new_clk, gmac_clk = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
 	u32 new_an, gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 
-	new_ctrl2 = gmac_ctrl2 & ~MVNETA_GMAC2_INBAND_AN_ENABLE;
+	new_ctrl2 = gmac_ctrl2 & ~(MVNETA_GMAC2_INBAND_AN_ENABLE |
+				   MVNETA_GMAC2_PORT_RESET);
 	new_clk = gmac_clk & ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
 	new_an = gmac_an & ~(MVNETA_GMAC_INBAND_AN_ENABLE |
 			     MVNETA_GMAC_INBAND_RESTART_AN |
@@ -3261,6 +3262,15 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 			     MVNETA_GMAC_AN_FLOW_CTRL_EN |
 			     MVNETA_GMAC_CONFIG_FULL_DUPLEX |
 			     MVNETA_GMAC_AN_DUPLEX_EN);
+
+	/* Even though it might look weird, when we're configured in
+	 * SGMII or QSGMII mode, the RGMII bit needs to be set.
+	 */
+	new_ctrl2 |= MVNETA_GMAC2_PORT_RGMII;
+
+	if (state->interface == PHY_INTERFACE_MODE_QSGMII ||
+	    state->interface == PHY_INTERFACE_MODE_SGMII)
+		new_ctrl2 |= MVNETA_GMAC2_PCS_ENABLE;
 
 	if (!phylink_autoneg_inband(mode)) {
 		/* Phy or fixed speed */
@@ -3298,6 +3308,12 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, new_clk);
 	if (new_an != gmac_an)
 		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, new_an);
+
+	if (gmac_ctrl2 & MVNETA_GMAC2_PORT_RESET) {
+		while ((mvreg_read(pp, MVNETA_GMAC_CTRL_2) &
+			MVNETA_GMAC2_PORT_RESET) != 0)
+			continue;
+	}
 }
 
 static void mvneta_mac_link_down(struct net_device *ndev, unsigned int mode)
@@ -4075,42 +4091,15 @@ static void mvneta_conf_mbus_windows(struct mvneta_port *pp,
 /* Power up the port */
 static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 {
-	u32 ctrl;
-
 	/* MAC Cause register should be cleared */
 	mvreg_write(pp, MVNETA_UNIT_INTR_CAUSE, 0);
 
-	ctrl = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-
-	/* Even though it might look weird, when we're configured in
-	 * SGMII or QSGMII mode, the RGMII bit needs to be set.
-	 */
-	switch(phy_mode) {
-	case PHY_INTERFACE_MODE_QSGMII:
+	if (phy_mode == PHY_INTERFACE_MODE_QSGMII)
 		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_QSGMII_SERDES_PROTO);
-		ctrl |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
-		break;
-	case PHY_INTERFACE_MODE_SGMII:
+	else if (phy_mode == PHY_INTERFACE_MODE_SGMII)
 		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_SGMII_SERDES_PROTO);
-		ctrl |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
-		break;
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		ctrl |= MVNETA_GMAC2_PORT_RGMII;
-		break;
-	default:
+	else if (!phy_interface_mode_is_rgmii(phy_mode))
 		return -EINVAL;
-	}
-
-	/* Cancel Port Reset */
-	ctrl &= ~MVNETA_GMAC2_PORT_RESET;
-	mvreg_write(pp, MVNETA_GMAC_CTRL_2, ctrl);
-
-	while ((mvreg_read(pp, MVNETA_GMAC_CTRL_2) &
-		MVNETA_GMAC2_PORT_RESET) != 0)
-		continue;
 
 	return 0;
 }
