@@ -30,7 +30,7 @@
 #define	MIN_RAID456_JOURNAL_SPACE (4*2048)
 
 /* Global list of all raid sets */
-LIST_HEAD(raid_sets);
+static LIST_HEAD(raid_sets);
 
 static bool devices_handle_discard_safely = false;
 
