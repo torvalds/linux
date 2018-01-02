@@ -117,7 +117,7 @@ static int ps2pp_cmd(struct psmouse *psmouse, u8 *param, u8 command)
 {
 	int error;
 
-	error = psmouse_sliced_command(psmouse, command);
+	error = ps2_sliced_command(&psmouse->ps2dev, command);
 	if (error)
 		return error;
 

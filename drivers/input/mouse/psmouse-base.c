@@ -432,32 +432,6 @@ static irqreturn_t psmouse_interrupt(struct serio *serio,
 }
 
 /*
- * psmouse_sliced_command() sends an extended PS/2 command to the mouse
- * using sliced syntax, understood by advanced devices, such as Logitech
- * or Synaptics touchpads. The command is encoded as:
- * 0xE6 0xE8 rr 0xE8 ss 0xE8 tt 0xE8 uu where (rr*64)+(ss*16)+(tt*4)+uu
- * is the command.
- */
-int psmouse_sliced_command(struct psmouse *psmouse, u8 command)
-{
-	int i;
-	int error;
-
-	error = ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_SETSCALE11);
-	if (error)
-		return error;
-
-	for (i = 6; i >= 0; i -= 2) {
-		u8 d = (command >> i) & 3;
-		error = ps2_command(&psmouse->ps2dev, &d, PSMOUSE_CMD_SETRES);
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
-/*
  * psmouse_reset() resets the mouse into power-on state.
  */
 int psmouse_reset(struct psmouse *psmouse)

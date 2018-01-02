@@ -84,7 +84,7 @@ static int synaptics_mode_cmd(struct psmouse *psmouse, u8 mode)
 	u8 param[1];
 	int error;
 
-	error = psmouse_sliced_command(psmouse, mode);
+	error = ps2_sliced_command(&psmouse->ps2dev, mode);
 	if (error)
 		return error;
 
@@ -190,7 +190,7 @@ static int synaptics_send_cmd(struct psmouse *psmouse, u8 cmd, u8 *param)
 {
 	int error;
 
-	error = psmouse_sliced_command(psmouse, cmd);
+	error = ps2_sliced_command(&psmouse->ps2dev, cmd);
 	if (error)
 		return error;
 
@@ -547,7 +547,7 @@ static int synaptics_set_advanced_gesture_mode(struct psmouse *psmouse)
 	static u8 param = 0xc8;
 	int error;
 
-	error = psmouse_sliced_command(psmouse, SYN_QUE_MODEL);
+	error = ps2_sliced_command(&psmouse->ps2dev, SYN_QUE_MODEL);
 	if (error)
 		return error;
 
@@ -614,7 +614,7 @@ static int synaptics_pt_write(struct serio *serio, u8 c)
 	u8 rate_param = SYN_PS_CLIENT_CMD; /* indicates that we want pass-through port */
 	int error;
 
-	error = psmouse_sliced_command(parent, c);
+	error = ps2_sliced_command(&parent->ps2dev, c);
 	if (error)
 		return error;
 

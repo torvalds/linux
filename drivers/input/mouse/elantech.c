@@ -35,7 +35,7 @@
 static int synaptics_send_cmd(struct psmouse *psmouse, unsigned char c,
 				unsigned char *param)
 {
-	if (psmouse_sliced_command(psmouse, c) ||
+	if (ps2_sliced_command(&psmouse->ps2dev, c) ||
 	    ps2_command(&psmouse->ps2dev, param, PSMOUSE_CMD_GETINFO)) {
 		psmouse_err(psmouse, "%s query 0x%02x failed.\n", __func__, c);
 		return -1;
@@ -107,8 +107,8 @@ static int elantech_read_reg(struct psmouse *psmouse, unsigned char reg,
 
 	switch (etd->hw_version) {
 	case 1:
-		if (psmouse_sliced_command(psmouse, ETP_REGISTER_READ) ||
-		    psmouse_sliced_command(psmouse, reg) ||
+		if (ps2_sliced_command(&psmouse->ps2dev, ETP_REGISTER_READ) ||
+		    ps2_sliced_command(&psmouse->ps2dev, reg) ||
 		    ps2_command(&psmouse->ps2dev, param, PSMOUSE_CMD_GETINFO)) {
 			rc = -1;
 		}
@@ -162,9 +162,9 @@ static int elantech_write_reg(struct psmouse *psmouse, unsigned char reg,
 
 	switch (etd->hw_version) {
 	case 1:
-		if (psmouse_sliced_command(psmouse, ETP_REGISTER_WRITE) ||
-		    psmouse_sliced_command(psmouse, reg) ||
-		    psmouse_sliced_command(psmouse, val) ||
+		if (ps2_sliced_command(&psmouse->ps2dev, ETP_REGISTER_WRITE) ||
+		    ps2_sliced_command(&psmouse->ps2dev, reg) ||
+		    ps2_sliced_command(&psmouse->ps2dev, val) ||
 		    ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_SETSCALE11)) {
 			rc = -1;
 		}

@@ -270,6 +270,38 @@ int ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 EXPORT_SYMBOL(ps2_command);
 
 /*
+ * ps2_sliced_command() sends an extended PS/2 command to the mouse
+ * using sliced syntax, understood by advanced devices, such as Logitech
+ * or Synaptics touchpads. The command is encoded as:
+ * 0xE6 0xE8 rr 0xE8 ss 0xE8 tt 0xE8 uu where (rr*64)+(ss*16)+(tt*4)+uu
+ * is the command.
+ */
+
+int ps2_sliced_command(struct ps2dev *ps2dev, u8 command)
+{
+	int i;
+	int retval;
+
+	ps2_begin_command(ps2dev);
+
+	retval = __ps2_command(ps2dev, NULL, PS2_CMD_SETSCALE11);
+	if (retval)
+		goto out;
+
+	for (i = 6; i >= 0; i -= 2) {
+		u8 d = (command >> i) & 3;
+		retval = __ps2_command(ps2dev, &d, PS2_CMD_SETRES);
+		if (retval)
+			break;
+	}
+
+out:
+	ps2_end_command(ps2dev);
+	return retval;
+}
+EXPORT_SYMBOL(ps2_sliced_command);
+
+/*
  * ps2_init() initializes ps2dev structure
  */
 
