@@ -1,7 +1,6 @@
 # User exported sparc header files
 
 
-generic-y += clkdev.h
 generic-y += div64.h
 generic-y += emergency-restart.h
 generic-y += exec.h
