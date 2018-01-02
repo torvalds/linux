@@ -264,6 +264,9 @@ void __init kaiser_check_boottime_disable(void)
 	char arg[5];
 	int ret;
 
+	if (boot_cpu_has(X86_FEATURE_XENPV))
+		goto silent_disable;
+
 	ret = cmdline_find_option(boot_command_line, "pti", arg, sizeof(arg));
 	if (ret > 0) {
 		if (!strncmp(arg, "on", 2))
@@ -291,6 +294,8 @@ enable:
 
 disable:
 	pr_info("Kernel/User page tables isolation: disabled\n");
+
+silent_disable:
 	kaiser_enabled = 0;
 	setup_clear_cpu_cap(X86_FEATURE_KAISER);
 }
