@@ -241,7 +241,7 @@
 
 			};
 
-			watchdog: watchdog@600000 {
+			watchdog: watchdog@610000 {
 				compatible = "arm,sbsa-gwdt";
 				reg = <0x610000 0x1000>, <0x600000 0x1000>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
