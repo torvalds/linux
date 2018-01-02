@@ -3251,36 +3251,72 @@ static int mvneta_set_mac_addr(struct net_device *dev, void *addr)
 	return 0;
 }
 
+static void mvneta_mac_config(struct net_device *ndev)
+{
+	struct mvneta_port *pp = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
+	u32 val;
+
+	if ((pp->speed != phydev->speed) ||
+	    (pp->duplex != phydev->duplex)) {
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~(MVNETA_GMAC_CONFIG_MII_SPEED |
+			 MVNETA_GMAC_CONFIG_GMII_SPEED |
+			 MVNETA_GMAC_CONFIG_FULL_DUPLEX);
+
+		if (phydev->duplex)
+			val |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+
+		if (phydev->speed == SPEED_1000)
+			val |= MVNETA_GMAC_CONFIG_GMII_SPEED;
+		else if (phydev->speed == SPEED_100)
+			val |= MVNETA_GMAC_CONFIG_MII_SPEED;
+
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+
+		pp->duplex = phydev->duplex;
+		pp->speed  = phydev->speed;
+	}
+}
+
+static void mvneta_mac_link_down(struct net_device *ndev, bool autoneg)
+{
+	struct mvneta_port *pp = netdev_priv(ndev);
+	u32 val;
+
+	if (!autoneg) {
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~MVNETA_GMAC_FORCE_LINK_PASS;
+		val |= MVNETA_GMAC_FORCE_LINK_DOWN;
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+	}
+
+	mvneta_port_down(pp);
+}
+
+static void mvneta_mac_link_up(struct net_device *ndev, bool autoneg)
+{
+	struct mvneta_port *pp = netdev_priv(ndev);
+	u32 val;
+
+	if (!autoneg) {
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~MVNETA_GMAC_FORCE_LINK_DOWN;
+		val |= MVNETA_GMAC_FORCE_LINK_PASS;
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+	}
+
+	mvneta_port_up(pp);
+}
+
 static void mvneta_adjust_link(struct net_device *ndev)
 {
 	struct mvneta_port *pp = netdev_priv(ndev);
 	struct phy_device *phydev = ndev->phydev;
 	int status_change = 0;
 
-	if (phydev->link) {
-		if ((pp->speed != phydev->speed) ||
-		    (pp->duplex != phydev->duplex)) {
-			u32 val;
-
-			val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-			val &= ~(MVNETA_GMAC_CONFIG_MII_SPEED |
-				 MVNETA_GMAC_CONFIG_GMII_SPEED |
-				 MVNETA_GMAC_CONFIG_FULL_DUPLEX);
-
-			if (phydev->duplex)
-				val |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
-
-			if (phydev->speed == SPEED_1000)
-				val |= MVNETA_GMAC_CONFIG_GMII_SPEED;
-			else if (phydev->speed == SPEED_100)
-				val |= MVNETA_GMAC_CONFIG_MII_SPEED;
-
-			mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
-
-			pp->duplex = phydev->duplex;
-			pp->speed  = phydev->speed;
-		}
-	}
+	if (phydev->link)
+		mvneta_mac_config(ndev);
 
 	if (phydev->link != pp->link) {
 		if (!phydev->link) {
@@ -3293,27 +3329,10 @@ static void mvneta_adjust_link(struct net_device *ndev)
 	}
 
 	if (status_change) {
-		if (phydev->link) {
-			if (!pp->use_inband_status) {
-				u32 val = mvreg_read(pp,
-						  MVNETA_GMAC_AUTONEG_CONFIG);
-				val &= ~MVNETA_GMAC_FORCE_LINK_DOWN;
-				val |= MVNETA_GMAC_FORCE_LINK_PASS;
-				mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
-					    val);
-			}
-			mvneta_port_up(pp);
-		} else {
-			if (!pp->use_inband_status) {
-				u32 val = mvreg_read(pp,
-						  MVNETA_GMAC_AUTONEG_CONFIG);
-				val &= ~MVNETA_GMAC_FORCE_LINK_PASS;
-				val |= MVNETA_GMAC_FORCE_LINK_DOWN;
-				mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
-					    val);
-			}
-			mvneta_port_down(pp);
-		}
+		if (phydev->link)
+			mvneta_mac_link_down(ndev, pp->use_inband_status);
+		else
+			mvneta_mac_link_up(ndev, pp->use_inband_status);
 		phy_print_status(phydev);
 	}
 }
