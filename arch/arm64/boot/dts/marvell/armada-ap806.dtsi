@@ -286,9 +286,9 @@
 				};
 			};
 
-			ap_thermal: thermal@6f808C {
+			ap_thermal: thermal@6f808c {
 				compatible = "marvell,armada-ap806-thermal";
-				reg = <0x6f808C 0x4>,
+				reg = <0x6f808c 0x4>,
 				      <0x6f8084 0x8>;
 			};
 		};
