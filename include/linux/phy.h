@@ -690,6 +690,8 @@ phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
 size_t phy_speeds(unsigned int *speeds, size_t size,
 		  unsigned long *mask, size_t maxbit);
 
+void phy_resolve_aneg_linkmode(struct phy_device *phydev);
+
 /**
  * phy_read_mmd - Convenience function for reading a register
  * from an MMD on a given PHY.
@@ -901,6 +903,7 @@ int genphy_c45_read_lpa(struct phy_device *phydev);
 int genphy_c45_read_pma(struct phy_device *phydev);
 int genphy_c45_pma_setup_forced(struct phy_device *phydev);
 int genphy_c45_an_disable_aneg(struct phy_device *phydev);
+int genphy_c45_read_mdix(struct phy_device *phydev);
 
 static inline int phy_read_status(struct phy_device *phydev)
 {
