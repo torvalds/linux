@@ -77,7 +77,7 @@ Example:
 		reg = <0x1a>;
 
 		interrupt-parent = <&gpio6>;
-		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 
 		VDD-supply = <&reg_audio>;
 		VDDMIC-supply = <&reg_audio>;

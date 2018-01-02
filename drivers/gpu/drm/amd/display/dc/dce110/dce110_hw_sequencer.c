@@ -2866,16 +2866,19 @@ static void dce110_apply_ctx_for_surface(
 		int num_planes,
 		struct dc_state *context)
 {
-	int i, be_idx;
+	int i;
 
 	if (num_planes == 0)
 		return;
 
-	be_idx = -1;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		if (stream == context->res_ctx.pipe_ctx[i].stream) {
-			be_idx = context->res_ctx.pipe_ctx[i].stream_res.tg->inst;
-			break;
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (stream == pipe_ctx->stream) {
+			if (!pipe_ctx->top_pipe &&
+				(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
+				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
 		}
 	}
 
@@ -2895,8 +2898,21 @@ static void dce110_apply_ctx_for_surface(
 					context->stream_count);
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
+
+		dc->hwss.update_plane_addr(dc, pipe_ctx);
+
 		program_surface_visibility(dc, pipe_ctx);
 
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if ((stream == pipe_ctx->stream) &&
+			(!pipe_ctx->top_pipe) &&
+			(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
+			dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
 	}
 }
 

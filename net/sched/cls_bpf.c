@@ -42,7 +42,6 @@ struct cls_bpf_prog {
 	struct list_head link;
 	struct tcf_result res;
 	bool exts_integrated;
-	bool offloaded;
 	u32 gen_flags;
 	struct tcf_exts exts;
 	u32 handle;
@@ -148,33 +147,37 @@ static bool cls_bpf_is_ebpf(const struct cls_bpf_prog *prog)
 }
 
 static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
-			       enum tc_clsbpf_command cmd)
+			       struct cls_bpf_prog *oldprog)
 {
-	bool addorrep = cmd == TC_CLSBPF_ADD || cmd == TC_CLSBPF_REPLACE;
 	struct tcf_block *block = tp->chain->block;
-	bool skip_sw = tc_skip_sw(prog->gen_flags);
 	struct tc_cls_bpf_offload cls_bpf = {};
+	struct cls_bpf_prog *obj;
+	bool skip_sw;
 	int err;
 
+	skip_sw = prog && tc_skip_sw(prog->gen_flags);
+	obj = prog ?: oldprog;
+
 	tc_cls_common_offload_init(&cls_bpf.common, tp);
-	cls_bpf.command = cmd;
-	cls_bpf.exts = &prog->exts;
-	cls_bpf.prog = prog->filter;
-	cls_bpf.name = prog->bpf_name;
-	cls_bpf.exts_integrated = prog->exts_integrated;
-	cls_bpf.gen_flags = prog->gen_flags;
+	cls_bpf.command = TC_CLSBPF_OFFLOAD;
+	cls_bpf.exts = &obj->exts;
+	cls_bpf.prog = prog ? prog->filter : NULL;
+	cls_bpf.oldprog = oldprog ? oldprog->filter : NULL;
+	cls_bpf.name = obj->bpf_name;
+	cls_bpf.exts_integrated = obj->exts_integrated;
+	cls_bpf.gen_flags = obj->gen_flags;
 
 	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSBPF, &cls_bpf, skip_sw);
-	if (addorrep) {
+	if (prog) {
 		if (err < 0) {
-			cls_bpf_offload_cmd(tp, prog, TC_CLSBPF_DESTROY);
+			cls_bpf_offload_cmd(tp, oldprog, prog);
 			return err;
 		} else if (err > 0) {
 			prog->gen_flags |= TCA_CLS_FLAGS_IN_HW;
 		}
 	}
 
-	if (addorrep && skip_sw && !(prog->gen_flags & TCA_CLS_FLAGS_IN_HW))
+	if (prog && skip_sw && !(prog->gen_flags & TCA_CLS_FLAGS_IN_HW))
 		return -EINVAL;
 
 	return 0;
@@ -183,38 +186,17 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 static int cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 			   struct cls_bpf_prog *oldprog)
 {
-	struct cls_bpf_prog *obj = prog;
-	enum tc_clsbpf_command cmd;
-	bool skip_sw;
-	int ret;
+	if (prog && oldprog && prog->gen_flags != oldprog->gen_flags)
+		return -EINVAL;
 
-	skip_sw = tc_skip_sw(prog->gen_flags) ||
-		(oldprog && tc_skip_sw(oldprog->gen_flags));
+	if (prog && tc_skip_hw(prog->gen_flags))
+		prog = NULL;
+	if (oldprog && tc_skip_hw(oldprog->gen_flags))
+		oldprog = NULL;
+	if (!prog && !oldprog)
+		return 0;
 
-	if (oldprog && oldprog->offloaded) {
-		if (!tc_skip_hw(prog->gen_flags)) {
-			cmd = TC_CLSBPF_REPLACE;
-		} else if (!tc_skip_sw(prog->gen_flags)) {
-			obj = oldprog;
-			cmd = TC_CLSBPF_DESTROY;
-		} else {
-			return -EINVAL;
-		}
-	} else {
-		if (tc_skip_hw(prog->gen_flags))
-			return skip_sw ? -EINVAL : 0;
-		cmd = TC_CLSBPF_ADD;
-	}
-
-	ret = cls_bpf_offload_cmd(tp, obj, cmd);
-	if (ret)
-		return ret;
-
-	obj->offloaded = true;
-	if (oldprog)
-		oldprog->offloaded = false;
-
-	return 0;
+	return cls_bpf_offload_cmd(tp, prog, oldprog);
 }
 
 static void cls_bpf_stop_offload(struct tcf_proto *tp,
@@ -222,25 +204,26 @@ static void cls_bpf_stop_offload(struct tcf_proto *tp,
 {
 	int err;
 
-	if (!prog->offloaded)
-		return;
-
-	err = cls_bpf_offload_cmd(tp, prog, TC_CLSBPF_DESTROY);
-	if (err) {
+	err = cls_bpf_offload_cmd(tp, NULL, prog);
+	if (err)
 		pr_err("Stopping hardware offload failed: %d\n", err);
-		return;
-	}
-
-	prog->offloaded = false;
 }
 
 static void cls_bpf_offload_update_stats(struct tcf_proto *tp,
 					 struct cls_bpf_prog *prog)
 {
-	if (!prog->offloaded)
-		return;
+	struct tcf_block *block = tp->chain->block;
+	struct tc_cls_bpf_offload cls_bpf = {};
 
-	cls_bpf_offload_cmd(tp, prog, TC_CLSBPF_STATS);
+	tc_cls_common_offload_init(&cls_bpf.common, tp);
+	cls_bpf.command = TC_CLSBPF_STATS;
+	cls_bpf.exts = &prog->exts;
+	cls_bpf.prog = prog->filter;
+	cls_bpf.name = prog->bpf_name;
+	cls_bpf.exts_integrated = prog->exts_integrated;
+	cls_bpf.gen_flags = prog->gen_flags;
+
+	tc_setup_cb_call(block, NULL, TC_SETUP_CLSBPF, &cls_bpf, false);
 }
 
 static int cls_bpf_init(struct tcf_proto *tp)
