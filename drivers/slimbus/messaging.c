@@ -38,6 +38,7 @@ void slim_msg_response(struct slim_controller *ctrl, u8 *reply, u8 tid, u8 len)
 	if (msg == NULL || msg->rbuf == NULL) {
 		dev_err(ctrl->dev, "Got response to invalid TID:%d, len:%d\n",
 				tid, len);
+		spin_unlock_irqrestore(&ctrl->txn_lock, flags);
 		return;
 	}
 
