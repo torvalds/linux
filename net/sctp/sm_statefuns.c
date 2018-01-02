@@ -59,6 +59,9 @@
 #include <net/sctp/sm.h>
 #include <net/sctp/structs.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/sctp.h>
+
 static struct sctp_packet *sctp_abort_pkt_new(
 					struct net *net,
 					const struct sctp_endpoint *ep,
@@ -3218,6 +3221,8 @@ enum sctp_disposition sctp_sf_eat_sack_6_2(struct net *net,
 	struct sctp_chunk *chunk = arg;
 	struct sctp_sackhdr *sackh;
 	__u32 ctsn;
+
+	trace_sctp_probe(ep, asoc, chunk);
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
