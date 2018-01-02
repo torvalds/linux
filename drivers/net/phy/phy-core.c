@@ -236,13 +236,14 @@ static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 			     u16 regnum)
 {
 	/* Write the desired MMD Devad */
-	bus->write(bus, phy_addr, MII_MMD_CTRL, devad);
+	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL, devad);
 
 	/* Write the desired MMD register address */
-	bus->write(bus, phy_addr, MII_MMD_DATA, regnum);
+	__mdiobus_write(bus, phy_addr, MII_MMD_DATA, regnum);
 
 	/* Select the Function : DATA with no post increment */
-	bus->write(bus, phy_addr, MII_MMD_CTRL, devad | MII_MMD_CTRL_NOINCR);
+	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL,
+			devad | MII_MMD_CTRL_NOINCR);
 }
 
 /**
@@ -275,7 +276,7 @@ int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 		mmd_phy_indirect(bus, phy_addr, devad, regnum);
 
 		/* Read the content of the MMD's selected register */
-		val = bus->read(bus, phy_addr, MII_MMD_DATA);
+		val = __mdiobus_read(bus, phy_addr, MII_MMD_DATA);
 		mutex_unlock(&bus->mdio_lock);
 	}
 	return val;
@@ -314,7 +315,7 @@ int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 		mmd_phy_indirect(bus, phy_addr, devad, regnum);
 
 		/* Write the data into MMD's selected register */
-		bus->write(bus, phy_addr, MII_MMD_DATA, val);
+		__mdiobus_write(bus, phy_addr, MII_MMD_DATA, val);
 		mutex_unlock(&bus->mdio_lock);
 
 		ret = 0;
