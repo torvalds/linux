@@ -813,12 +813,12 @@ static int do_load(int argc, char **argv)
 		usage();
 
 	if (bpf_prog_load(argv[0], BPF_PROG_TYPE_UNSPEC, &obj, &prog_fd)) {
-		p_err("failed to load program\n");
+		p_err("failed to load program");
 		return -1;
 	}
 
 	if (do_pin_fd(prog_fd, argv[1])) {
-		p_err("failed to pin program\n");
+		p_err("failed to pin program");
 		return -1;
 	}
 

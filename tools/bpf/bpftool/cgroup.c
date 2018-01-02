@@ -124,16 +124,16 @@ static int do_show(int argc, char **argv)
 	int ret = -1;
 
 	if (argc < 1) {
-		p_err("too few parameters for cgroup show\n");
+		p_err("too few parameters for cgroup show");
 		goto exit;
 	} else if (argc > 1) {
-		p_err("too many parameters for cgroup show\n");
+		p_err("too many parameters for cgroup show");
 		goto exit;
 	}
 
 	cgroup_fd = open(argv[0], O_RDONLY);
 	if (cgroup_fd < 0) {
-		p_err("can't open cgroup %s\n", argv[1]);
+		p_err("can't open cgroup %s", argv[1]);
 		goto exit;
 	}
 
@@ -171,19 +171,19 @@ static int do_attach(int argc, char **argv)
 	int i;
 
 	if (argc < 4) {
-		p_err("too few parameters for cgroup attach\n");
+		p_err("too few parameters for cgroup attach");
 		goto exit;
 	}
 
 	cgroup_fd = open(argv[0], O_RDONLY);
 	if (cgroup_fd < 0) {
-		p_err("can't open cgroup %s\n", argv[1]);
+		p_err("can't open cgroup %s", argv[1]);
 		goto exit;
 	}
 
 	attach_type = parse_attach_type(argv[1]);
 	if (attach_type == __MAX_BPF_ATTACH_TYPE) {
-		p_err("invalid attach type\n");
+		p_err("invalid attach type");
 		goto exit_cgroup;
 	}
 
@@ -199,7 +199,7 @@ static int do_attach(int argc, char **argv)
 		} else if (is_prefix(argv[i], "override")) {
 			attach_flags |= BPF_F_ALLOW_OVERRIDE;
 		} else {
-			p_err("unknown option: %s\n", argv[i]);
+			p_err("unknown option: %s", argv[i]);
 			goto exit_cgroup;
 		}
 	}
@@ -229,13 +229,13 @@ static int do_detach(int argc, char **argv)
 	int ret = -1;
 
 	if (argc < 4) {
-		p_err("too few parameters for cgroup detach\n");
+		p_err("too few parameters for cgroup detach");
 		goto exit;
 	}
 
 	cgroup_fd = open(argv[0], O_RDONLY);
 	if (cgroup_fd < 0) {
-		p_err("can't open cgroup %s\n", argv[1]);
+		p_err("can't open cgroup %s", argv[1]);
 		goto exit;
 	}
 
