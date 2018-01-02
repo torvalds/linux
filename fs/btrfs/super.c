@@ -1397,8 +1397,7 @@ static inline int is_subvolume_inode(struct inode *inode)
 }
 
 static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
-				   int flags, const char *device_name,
-				   char *data, struct vfsmount *mnt)
+				   const char *device_name, struct vfsmount *mnt)
 {
 	struct dentry *root;
 	int ret;
@@ -1693,8 +1692,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	}
 
 	/* mount_subvol() will free subvol_name and mnt_root */
-	root = mount_subvol(subvol_name, subvol_objectid, flags, device_name,
-			data, mnt_root);
+	root = mount_subvol(subvol_name, subvol_objectid, device_name, mnt_root);
 
 out:
 	return root;
