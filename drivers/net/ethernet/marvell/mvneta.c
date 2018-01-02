@@ -244,6 +244,12 @@
 #define MVNETA_TXQ_TOKEN_SIZE_REG(q)             (0x3e40 + ((q) << 2))
 #define      MVNETA_TXQ_TOKEN_SIZE_MAX           0x7fffffff
 
+#define MVNETA_LPI_CTRL_0                        0x2cc0
+#define MVNETA_LPI_CTRL_1                        0x2cc4
+#define      MVNETA_LPI_REQUEST_ENABLE           BIT(0)
+#define MVNETA_LPI_CTRL_2                        0x2cc8
+#define MVNETA_LPI_STATUS                        0x2ccc
+
 #define MVNETA_CAUSE_TXQ_SENT_DESC_ALL_MASK	 0xff
 
 /* Descriptor ring Macros */
@@ -320,6 +326,11 @@
 #define MVNETA_RX_GET_BM_POOL_ID(rxd) \
 	(((rxd)->status & MVNETA_RXD_BM_POOL_MASK) >> MVNETA_RXD_BM_POOL_SHIFT)
 
+enum {
+	ETHTOOL_STAT_EEE_WAKEUP,
+	ETHTOOL_MAX_STATS,
+};
+
 struct mvneta_statistic {
 	unsigned short offset;
 	unsigned short type;
@@ -328,6 +339,7 @@ struct mvneta_statistic {
 
 #define T_REG_32	32
 #define T_REG_64	64
+#define T_SW		1
 
 static const struct mvneta_statistic mvneta_statistics[] = {
 	{ 0x3000, T_REG_64, "good_octets_received", },
@@ -362,6 +374,7 @@ static const struct mvneta_statistic mvneta_statistics[] = {
 	{ 0x304c, T_REG_32, "broadcast_frames_sent", },
 	{ 0x3054, T_REG_32, "fc_sent", },
 	{ 0x300c, T_REG_32, "internal_mac_transmit_err", },
+	{ ETHTOOL_STAT_EEE_WAKEUP, T_SW, "eee_wakeup_errors", },
 };
 
 struct mvneta_pcpu_stats {
@@ -423,6 +436,10 @@ struct mvneta_port {
 	struct mvneta_bm_pool *pool_long;
 	struct mvneta_bm_pool *pool_short;
 	int bm_win_id;
+
+	bool eee_enabled;
+	bool eee_active;
+	bool tx_lpi_enabled;
 
 	u64 ethtool_stats[ARRAY_SIZE(mvneta_statistics)];
 
@@ -3369,6 +3386,18 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 	}
 }
 
+static void mvneta_set_eee(struct mvneta_port *pp, bool enable)
+{
+	u32 lpi_ctl1;
+
+	lpi_ctl1 = mvreg_read(pp, MVNETA_LPI_CTRL_1);
+	if (enable)
+		lpi_ctl1 |= MVNETA_LPI_REQUEST_ENABLE;
+	else
+		lpi_ctl1 &= ~MVNETA_LPI_REQUEST_ENABLE;
+	mvreg_write(pp, MVNETA_LPI_CTRL_1, lpi_ctl1);
+}
+
 static void mvneta_mac_link_down(struct net_device *ndev, unsigned int mode)
 {
 	struct mvneta_port *pp = netdev_priv(ndev);
@@ -3382,6 +3411,9 @@ static void mvneta_mac_link_down(struct net_device *ndev, unsigned int mode)
 		val |= MVNETA_GMAC_FORCE_LINK_DOWN;
 		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
 	}
+
+	pp->eee_active = false;
+	mvneta_set_eee(pp, false);
 }
 
 static void mvneta_mac_link_up(struct net_device *ndev, unsigned int mode,
@@ -3398,6 +3430,11 @@ static void mvneta_mac_link_up(struct net_device *ndev, unsigned int mode,
 	}
 
 	mvneta_port_up(pp);
+
+	if (phy && pp->eee_enabled) {
+		pp->eee_active = phy_init_eee(phy, 0) >= 0;
+		mvneta_set_eee(pp, pp->eee_active && pp->tx_lpi_enabled);
+	}
 }
 
 static const struct phylink_mac_ops mvneta_phylink_ops = {
@@ -3859,26 +3896,35 @@ static void mvneta_ethtool_update_stats(struct mvneta_port *pp)
 {
 	const struct mvneta_statistic *s;
 	void __iomem *base = pp->base;
-	u32 high, low, val;
-	u64 val64;
+	u32 high, low;
+	u64 val;
 	int i;
 
 	for (i = 0, s = mvneta_statistics;
 	     s < mvneta_statistics + ARRAY_SIZE(mvneta_statistics);
 	     s++, i++) {
+		val = 0;
+
 		switch (s->type) {
 		case T_REG_32:
 			val = readl_relaxed(base + s->offset);
-			pp->ethtool_stats[i] += val;
 			break;
 		case T_REG_64:
 			/* Docs say to read low 32-bit then high */
 			low = readl_relaxed(base + s->offset);
 			high = readl_relaxed(base + s->offset + 4);
-			val64 = (u64)high << 32 | low;
-			pp->ethtool_stats[i] += val64;
+			val = (u64)high << 32 | low;
+			break;
+		case T_SW:
+			switch (s->offset) {
+			case ETHTOOL_STAT_EEE_WAKEUP:
+				val = phylink_get_eee_err(pp->phylink);
+				break;
+			}
 			break;
 		}
+
+		pp->ethtool_stats[i] += val;
 	}
 }
 
@@ -4031,6 +4077,47 @@ static int mvneta_ethtool_set_wol(struct net_device *dev,
 	return ret;
 }
 
+static int mvneta_ethtool_get_eee(struct net_device *dev,
+				  struct ethtool_eee *eee)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
+	u32 lpi_ctl0;
+
+	lpi_ctl0 = mvreg_read(pp, MVNETA_LPI_CTRL_0);
+
+	eee->eee_enabled = pp->eee_enabled;
+	eee->eee_active = pp->eee_active;
+	eee->tx_lpi_enabled = pp->tx_lpi_enabled;
+	eee->tx_lpi_timer = (lpi_ctl0) >> 8; // * scale;
+
+	return phylink_ethtool_get_eee(pp->phylink, eee);
+}
+
+static int mvneta_ethtool_set_eee(struct net_device *dev,
+				  struct ethtool_eee *eee)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
+	u32 lpi_ctl0;
+
+	/* The Armada 37x documents do not give limits for this other than
+	 * it being an 8-bit register. */
+	if (eee->tx_lpi_enabled &&
+	    (eee->tx_lpi_timer < 0 || eee->tx_lpi_timer > 255))
+		return -EINVAL;
+
+	lpi_ctl0 = mvreg_read(pp, MVNETA_LPI_CTRL_0);
+	lpi_ctl0 &= ~(0xff << 8);
+	lpi_ctl0 |= eee->tx_lpi_timer << 8;
+	mvreg_write(pp, MVNETA_LPI_CTRL_0, lpi_ctl0);
+
+	pp->eee_enabled = eee->eee_enabled;
+	pp->tx_lpi_enabled = eee->tx_lpi_enabled;
+
+	mvneta_set_eee(pp, eee->tx_lpi_enabled && eee->eee_enabled);
+
+	return phylink_ethtool_set_eee(pp->phylink, eee);
+}
+
 static const struct net_device_ops mvneta_netdev_ops = {
 	.ndo_open            = mvneta_open,
 	.ndo_stop            = mvneta_stop,
@@ -4064,6 +4151,8 @@ static const struct ethtool_ops mvneta_eth_tool_ops = {
 	.set_link_ksettings = mvneta_ethtool_set_link_ksettings,
 	.get_wol        = mvneta_ethtool_get_wol,
 	.set_wol        = mvneta_ethtool_set_wol,
+	.get_eee	= mvneta_ethtool_get_eee,
+	.set_eee	= mvneta_ethtool_set_eee,
 };
 
 /* Initialize hw */
