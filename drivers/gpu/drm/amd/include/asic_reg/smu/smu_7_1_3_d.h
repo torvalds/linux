@@ -1246,5 +1246,6 @@
 #define ixGC_CAC_OVRD_CU                                                        0xe7
 #define ixCURRENT_PG_STATUS                                                     0xc020029c
 #define ixCURRENT_PG_STATUS_APU                                                 0xd020029c
+#define ixPWR_SVI2_STATUS                                                       0xC0200294
 
 #endif /* SMU_7_1_3_D_H */
