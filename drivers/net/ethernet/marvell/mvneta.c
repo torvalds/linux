@@ -3211,6 +3211,8 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 	phylink_set(mask, Autoneg);
 	phylink_set_port_modes(mask);
 
+	/* Asymmetric pause is unsupported */
+	phylink_set(mask, Pause);
 	/* Half-duplex at speeds higher than 100Mbit is unsupported */
 	phylink_set(mask, 1000baseT_Full);
 	phylink_set(mask, 1000baseX_Full);
@@ -3249,6 +3251,10 @@ static int mvneta_mac_link_state(struct net_device *ndev,
 	state->duplex = !!(gmac_stat & MVNETA_GMAC_FULL_DUPLEX);
 
 	state->pause = 0;
+	if (gmac_stat & MVNETA_GMAC_RX_FLOW_CTRL_ENABLE)
+		state->pause |= MLO_PAUSE_RX;
+	if (gmac_stat & MVNETA_GMAC_TX_FLOW_CTRL_ENABLE)
+		state->pause |= MLO_PAUSE_TX;
 
 	return 1;
 }
@@ -3298,6 +3304,11 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 	    phy_interface_mode_is_8023z(state->interface))
 		new_ctrl2 |= MVNETA_GMAC2_PCS_ENABLE;
 
+	if (phylink_test(state->advertising, Pause))
+		new_an |= MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL;
+	if (state->pause & MLO_PAUSE_TXRX_MASK)
+		new_an |= MVNETA_GMAC_CONFIG_FLOW_CTRL;
+
 	if (!phylink_autoneg_inband(mode)) {
 		/* Phy or fixed speed */
 		if (state->duplex)
@@ -3326,6 +3337,9 @@ static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
 			 MVNETA_GMAC_CONFIG_GMII_SPEED |
 			 /* The MAC only supports FD mode */
 			 MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+
+		if (state->pause & MLO_PAUSE_AN && state->an_enabled)
+			new_an |= MVNETA_GMAC_AN_FLOW_CTRL_EN;
 	}
 
 	/* Armada 370 documentation says we can only change the port mode
@@ -3813,6 +3827,22 @@ static int mvneta_ethtool_set_ringparam(struct net_device *dev,
 	return 0;
 }
 
+static void mvneta_ethtool_get_pauseparam(struct net_device *dev,
+					  struct ethtool_pauseparam *pause)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
+
+	phylink_ethtool_get_pauseparam(pp->phylink, pause);
+}
+
+static int mvneta_ethtool_set_pauseparam(struct net_device *dev,
+					 struct ethtool_pauseparam *pause)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
+
+	return phylink_ethtool_set_pauseparam(pp->phylink, pause);
+}
+
 static void mvneta_ethtool_get_strings(struct net_device *netdev, u32 sset,
 				       u8 *data)
 {
@@ -4021,6 +4051,8 @@ static const struct ethtool_ops mvneta_eth_tool_ops = {
 	.get_drvinfo    = mvneta_ethtool_get_drvinfo,
 	.get_ringparam  = mvneta_ethtool_get_ringparam,
 	.set_ringparam	= mvneta_ethtool_set_ringparam,
+	.get_pauseparam	= mvneta_ethtool_get_pauseparam,
+	.set_pauseparam	= mvneta_ethtool_set_pauseparam,
 	.get_strings	= mvneta_ethtool_get_strings,
 	.get_ethtool_stats = mvneta_ethtool_get_stats,
 	.get_sset_count	= mvneta_ethtool_get_sset_count,
