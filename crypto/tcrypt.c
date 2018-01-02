@@ -328,7 +328,7 @@ static void test_mb_aead_speed(const char *algo, int enc, int secs,
 		b_size = aead_sizes;
 		do {
 			if (*b_size + authsize > XBUFSIZE * PAGE_SIZE) {
-				pr_err("template (%u) too big for bufufer (%lu)\n",
+				pr_err("template (%u) too big for buffer (%lu)\n",
 				       authsize + *b_size,
 				       XBUFSIZE * PAGE_SIZE);
 				goto out;
@@ -1269,7 +1269,7 @@ static void test_mb_skcipher_speed(const char *algo, int enc, int secs,
 		b_size = block_sizes;
 		do {
 			if (*b_size > XBUFSIZE * PAGE_SIZE) {
-				pr_err("template (%u) too big for bufufer (%lu)\n",
+				pr_err("template (%u) too big for buffer (%lu)\n",
 				       *b_size, XBUFSIZE * PAGE_SIZE);
 				goto out;
 			}
