@@ -190,7 +190,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	}
 
 	if (count != expect) {
-		pr_debug("BPF filter result incorrect\n");
+		pr_debug("BPF filter result incorrect, expected %d, got %d samples\n", expect, count);
 		goto out_delete_evlist;
 	}
 
