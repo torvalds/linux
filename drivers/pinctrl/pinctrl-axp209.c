@@ -414,7 +414,7 @@ static int axp20x_pctl_probe(struct platform_device *pdev)
 	pctl->chip.direction_input	= axp20x_gpio_input;
 	pctl->chip.direction_output	= axp20x_gpio_output;
 
-	pctl->desc = (struct axp20x_pctrl_desc *)of_device_get_match_data(dev);
+	pctl->desc = of_device_get_match_data(dev);
 
 	pctl->chip.ngpio		= pctl->desc->npins;
 
