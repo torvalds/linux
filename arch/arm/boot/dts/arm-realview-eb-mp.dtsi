@@ -150,11 +150,6 @@
 	interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&charlcd {
-	interrupt-parent = <&intc>;
-	interrupts = <0  IRQ_TYPE_LEVEL_HIGH>;
-};
-
 &serial0 {
 	interrupt-parent = <&intc>;
 	interrupts = <0 4 IRQ_TYPE_LEVEL_HIGH>;
