@@ -50,6 +50,8 @@
 	aliases {
 		gpio1 = &cpm_gpio1;
 		gpio2 = &cpm_gpio2;
+		spi1 = &cpm_spi0;
+		spi2 = &cpm_spi1;
 	};
 };
 

@@ -58,6 +58,7 @@
 		serial0 = &uart0;
 		serial1 = &uart1;
 		gpio0 = &ap_gpio;
+		spi0 = &spi0;
 	};
 
 	psci {
@@ -203,7 +204,6 @@
 				reg = <0x510600 0x50>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				cell-index = <0>;
 				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&ap_clk 3>;
 				status = "disabled";

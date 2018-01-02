@@ -283,7 +283,6 @@
 				reg = <0x700600 0x50>;
 				#address-cells = <0x1>;
 				#size-cells = <0x0>;
-				cell-index = <1>;
 				clocks = <&cpm_clk 1 21>;
 				status = "disabled";
 			};
@@ -293,7 +292,6 @@
 				reg = <0x700680 0x50>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				cell-index = <2>;
 				clocks = <&cpm_clk 1 21>;
 				status = "disabled";
 			};
