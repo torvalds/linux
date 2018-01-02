@@ -28,7 +28,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/phy.h>
-#include <linux/phy_fixed.h>
+#include <linux/phylink.h>
 #include <linux/platform_device.h>
 #include <linux/skbuff.h>
 #include <net/hwbm.h>
@@ -204,6 +204,8 @@
 #define      MVNETA_GMAC_TX_FLOW_CTRL_ENABLE     BIT(5)
 #define      MVNETA_GMAC_RX_FLOW_CTRL_ACTIVE     BIT(6)
 #define      MVNETA_GMAC_TX_FLOW_CTRL_ACTIVE     BIT(7)
+#define      MVNETA_GMAC_AN_COMPLETE             BIT(11)
+#define      MVNETA_GMAC_SYNC_OK                 BIT(14)
 #define MVNETA_GMAC_AUTONEG_CONFIG               0x2c0c
 #define      MVNETA_GMAC_FORCE_LINK_DOWN         BIT(0)
 #define      MVNETA_GMAC_FORCE_LINK_PASS         BIT(1)
@@ -407,14 +409,10 @@ struct mvneta_port {
 	u16 tx_ring_size;
 	u16 rx_ring_size;
 
-	struct mii_bus *mii_bus;
 	phy_interface_t phy_interface;
-	struct device_node *phy_node;
-	unsigned int link;
-	unsigned int duplex;
-	unsigned int speed;
+	struct device_node *dn;
 	unsigned int tx_csum_limit;
-	unsigned int use_inband_status:1;
+	struct phylink *phylink;
 
 	struct mvneta_bm *bm_priv;
 	struct mvneta_bm_pool *pool_long;
@@ -1214,10 +1212,6 @@ static void mvneta_port_disable(struct mvneta_port *pp)
 	val &= ~MVNETA_GMAC0_PORT_ENABLE;
 	mvreg_write(pp, MVNETA_GMAC_CTRL_0, val);
 
-	pp->link = 0;
-	pp->duplex = -1;
-	pp->speed = 0;
-
 	udelay(200);
 }
 
@@ -1275,44 +1269,6 @@ static void mvneta_set_other_mcast_table(struct mvneta_port *pp, int queue)
 
 	for (offset = 0; offset <= 0xfc; offset += 4)
 		mvreg_write(pp, MVNETA_DA_FILT_OTH_MCAST + offset, val);
-}
-
-static void mvneta_set_autoneg(struct mvneta_port *pp, int enable)
-{
-	u32 val;
-
-	if (enable) {
-		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-		val &= ~(MVNETA_GMAC_FORCE_LINK_PASS |
-			 MVNETA_GMAC_FORCE_LINK_DOWN |
-			 MVNETA_GMAC_AN_FLOW_CTRL_EN);
-		val |= MVNETA_GMAC_INBAND_AN_ENABLE |
-		       MVNETA_GMAC_AN_SPEED_EN |
-		       MVNETA_GMAC_AN_DUPLEX_EN;
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
-
-		val = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
-		val |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
-		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, val);
-
-		val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-		val |= MVNETA_GMAC2_INBAND_AN_ENABLE;
-		mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
-	} else {
-		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-		val &= ~(MVNETA_GMAC_INBAND_AN_ENABLE |
-		       MVNETA_GMAC_AN_SPEED_EN |
-		       MVNETA_GMAC_AN_DUPLEX_EN);
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
-
-		val = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
-		val &= ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
-		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, val);
-
-		val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-		val &= ~MVNETA_GMAC2_INBAND_AN_ENABLE;
-		mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
-	}
 }
 
 static void mvneta_percpu_unmask_interrupt(void *arg)
@@ -1467,7 +1423,6 @@ static void mvneta_defaults_set(struct mvneta_port *pp)
 	val &= ~MVNETA_PHY_POLLING_ENABLE;
 	mvreg_write(pp, MVNETA_UNIT_CONTROL, val);
 
-	mvneta_set_autoneg(pp, pp->use_inband_status);
 	mvneta_set_ucast_table(pp, -1);
 	mvneta_set_special_mcast_table(pp, -1);
 	mvneta_set_other_mcast_table(pp, -1);
@@ -2692,26 +2647,11 @@ static irqreturn_t mvneta_percpu_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int mvneta_fixed_link_update(struct mvneta_port *pp,
-				    struct phy_device *phy)
+static void mvneta_link_change(struct mvneta_port *pp)
 {
-	struct fixed_phy_status status;
-	struct fixed_phy_status changed = {};
 	u32 gmac_stat = mvreg_read(pp, MVNETA_GMAC_STATUS);
 
-	status.link = !!(gmac_stat & MVNETA_GMAC_LINK_UP);
-	if (gmac_stat & MVNETA_GMAC_SPEED_1000)
-		status.speed = SPEED_1000;
-	else if (gmac_stat & MVNETA_GMAC_SPEED_100)
-		status.speed = SPEED_100;
-	else
-		status.speed = SPEED_10;
-	status.duplex = !!(gmac_stat & MVNETA_GMAC_FULL_DUPLEX);
-	changed.link = 1;
-	changed.speed = 1;
-	changed.duplex = 1;
-	fixed_phy_update_state(phy, &status, &changed);
-	return 0;
+	phylink_mac_change(pp->phylink, !!(gmac_stat & MVNETA_GMAC_LINK_UP));
 }
 
 /* NAPI handler
@@ -2727,7 +2667,6 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 	u32 cause_rx_tx;
 	int rx_queue;
 	struct mvneta_port *pp = netdev_priv(napi->dev);
-	struct net_device *ndev = pp->dev;
 	struct mvneta_pcpu_port *port = this_cpu_ptr(pp->ports);
 
 	if (!netif_running(pp->dev)) {
@@ -2741,12 +2680,11 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 		u32 cause_misc = mvreg_read(pp, MVNETA_INTR_MISC_CAUSE);
 
 		mvreg_write(pp, MVNETA_INTR_MISC_CAUSE, 0);
-		if (pp->use_inband_status && (cause_misc &
-				(MVNETA_CAUSE_PHY_STATUS_CHANGE |
-				 MVNETA_CAUSE_LINK_CHANGE |
-				 MVNETA_CAUSE_PSC_SYNC_CHANGE))) {
-			mvneta_fixed_link_update(pp, ndev->phydev);
-		}
+
+		if (cause_misc & (MVNETA_CAUSE_PHY_STATUS_CHANGE |
+				  MVNETA_CAUSE_LINK_CHANGE |
+				  MVNETA_CAUSE_PSC_SYNC_CHANGE))
+			mvneta_link_change(pp);
 	}
 
 	/* Release Tx descriptors */
@@ -3060,7 +2998,6 @@ static int mvneta_setup_txqs(struct mvneta_port *pp)
 static void mvneta_start_dev(struct mvneta_port *pp)
 {
 	int cpu;
-	struct net_device *ndev = pp->dev;
 
 	mvneta_max_rx_size_set(pp, pp->pkt_size);
 	mvneta_txq_max_tx_size_set(pp, pp->pkt_size);
@@ -3088,16 +3025,15 @@ static void mvneta_start_dev(struct mvneta_port *pp)
 		    MVNETA_CAUSE_LINK_CHANGE |
 		    MVNETA_CAUSE_PSC_SYNC_CHANGE);
 
-	phy_start(ndev->phydev);
+	phylink_start(pp->phylink);
 	netif_tx_start_all_queues(pp->dev);
 }
 
 static void mvneta_stop_dev(struct mvneta_port *pp)
 {
 	unsigned int cpu;
-	struct net_device *ndev = pp->dev;
 
-	phy_stop(ndev->phydev);
+	phylink_stop(pp->phylink);
 
 	if (!pp->neta_armada3700) {
 		for_each_online_cpu(cpu) {
@@ -3251,55 +3187,141 @@ static int mvneta_set_mac_addr(struct net_device *dev, void *addr)
 	return 0;
 }
 
-static void mvneta_mac_config(struct net_device *ndev)
+static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
+			    struct phylink_link_state *state)
 {
-	struct mvneta_port *pp = netdev_priv(ndev);
-	struct phy_device *phydev = ndev->phydev;
-	u32 val;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
-	if ((pp->speed != phydev->speed) ||
-	    (pp->duplex != phydev->duplex)) {
-		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-		val &= ~(MVNETA_GMAC_CONFIG_MII_SPEED |
-			 MVNETA_GMAC_CONFIG_GMII_SPEED |
-			 MVNETA_GMAC_CONFIG_FULL_DUPLEX);
-
-		if (phydev->duplex)
-			val |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
-
-		if (phydev->speed == SPEED_1000)
-			val |= MVNETA_GMAC_CONFIG_GMII_SPEED;
-		else if (phydev->speed == SPEED_100)
-			val |= MVNETA_GMAC_CONFIG_MII_SPEED;
-
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
-
-		pp->duplex = phydev->duplex;
-		pp->speed  = phydev->speed;
+	/* We only support QSGMII, SGMII and RGMII modes */
+	if (state->interface != PHY_INTERFACE_MODE_NA &&
+	    state->interface != PHY_INTERFACE_MODE_QSGMII &&
+	    state->interface != PHY_INTERFACE_MODE_SGMII &&
+	    !phy_interface_mode_is_rgmii(state->interface)) {
+		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		return;
 	}
+
+	/* Allow all the expected bits */
+	phylink_set(mask, Autoneg);
+	phylink_set_port_modes(mask);
+
+	/* Half-duplex at speeds higher than 100Mbit is unsupported */
+	phylink_set(mask, 1000baseT_Full);
+	phylink_set(mask, 1000baseX_Full);
+	phylink_set(mask, 10baseT_Half);
+	phylink_set(mask, 10baseT_Full);
+	phylink_set(mask, 100baseT_Half);
+	phylink_set(mask, 100baseT_Full);
+
+	bitmap_and(supported, supported, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static void mvneta_mac_link_down(struct net_device *ndev, bool autoneg)
+static int mvneta_mac_link_state(struct net_device *ndev,
+				 struct phylink_link_state *state)
+{
+	struct mvneta_port *pp = netdev_priv(ndev);
+	u32 gmac_stat;
+
+	gmac_stat = mvreg_read(pp, MVNETA_GMAC_STATUS);
+
+	if (gmac_stat & MVNETA_GMAC_SPEED_1000)
+		state->speed = SPEED_1000;
+	else if (gmac_stat & MVNETA_GMAC_SPEED_100)
+		state->speed = SPEED_100;
+	else
+		state->speed = SPEED_10;
+
+	state->an_complete = !!(gmac_stat & MVNETA_GMAC_AN_COMPLETE);
+	state->link = !!(gmac_stat & MVNETA_GMAC_LINK_UP);
+	state->duplex = !!(gmac_stat & MVNETA_GMAC_FULL_DUPLEX);
+
+	state->pause = 0;
+
+	return 1;
+}
+
+static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
+	const struct phylink_link_state *state)
+{
+	struct mvneta_port *pp = netdev_priv(ndev);
+	u32 new_ctrl2, gmac_ctrl2 = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+	u32 new_clk, gmac_clk = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
+	u32 new_an, gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+
+	new_ctrl2 = gmac_ctrl2 & ~MVNETA_GMAC2_INBAND_AN_ENABLE;
+	new_clk = gmac_clk & ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
+	new_an = gmac_an & ~(MVNETA_GMAC_INBAND_AN_ENABLE |
+			     MVNETA_GMAC_INBAND_RESTART_AN |
+			     MVNETA_GMAC_CONFIG_MII_SPEED |
+			     MVNETA_GMAC_CONFIG_GMII_SPEED |
+			     MVNETA_GMAC_AN_SPEED_EN |
+			     MVNETA_GMAC_AN_FLOW_CTRL_EN |
+			     MVNETA_GMAC_CONFIG_FULL_DUPLEX |
+			     MVNETA_GMAC_AN_DUPLEX_EN);
+
+	if (!phylink_autoneg_inband(mode)) {
+		/* Phy or fixed speed */
+		if (state->duplex)
+			new_an |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+
+		if (state->speed == SPEED_1000)
+			new_an |= MVNETA_GMAC_CONFIG_GMII_SPEED;
+		else if (state->speed == SPEED_100)
+			new_an |= MVNETA_GMAC_CONFIG_MII_SPEED;
+	} else {
+		/* SGMII mode receives the state from the PHY */
+		new_ctrl2 |= MVNETA_GMAC2_INBAND_AN_ENABLE;
+		new_clk |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
+		new_an = (new_an & ~(MVNETA_GMAC_FORCE_LINK_DOWN |
+				     MVNETA_GMAC_FORCE_LINK_PASS)) |
+			 MVNETA_GMAC_INBAND_AN_ENABLE |
+			 MVNETA_GMAC_AN_SPEED_EN |
+			 MVNETA_GMAC_AN_DUPLEX_EN;
+	}
+
+	/* Armada 370 documentation says we can only change the port mode
+	 * and in-band enable when the link is down, so force it down
+	 * while making these changes. We also do this for GMAC_CTRL2 */
+	if ((new_ctrl2 ^ gmac_ctrl2) & MVNETA_GMAC2_INBAND_AN_ENABLE ||
+	    (new_an  ^ gmac_an) & MVNETA_GMAC_INBAND_AN_ENABLE) {
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
+			    (gmac_an & ~MVNETA_GMAC_FORCE_LINK_PASS) |
+			    MVNETA_GMAC_FORCE_LINK_DOWN);
+	}
+
+	if (new_ctrl2 != gmac_ctrl2)
+		mvreg_write(pp, MVNETA_GMAC_CTRL_2, new_ctrl2);
+	if (new_clk != gmac_clk)
+		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, new_clk);
+	if (new_an != gmac_an)
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, new_an);
+}
+
+static void mvneta_mac_link_down(struct net_device *ndev, unsigned int mode)
 {
 	struct mvneta_port *pp = netdev_priv(ndev);
 	u32 val;
 
-	if (!autoneg) {
+	mvneta_port_down(pp);
+
+	if (!phylink_autoneg_inband(mode)) {
 		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 		val &= ~MVNETA_GMAC_FORCE_LINK_PASS;
 		val |= MVNETA_GMAC_FORCE_LINK_DOWN;
 		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
 	}
-
-	mvneta_port_down(pp);
 }
 
-static void mvneta_mac_link_up(struct net_device *ndev, bool autoneg)
+static void mvneta_mac_link_up(struct net_device *ndev, unsigned int mode,
+			       struct phy_device *phy)
 {
 	struct mvneta_port *pp = netdev_priv(ndev);
 	u32 val;
 
-	if (!autoneg) {
+	if (!phylink_autoneg_inband(mode)) {
 		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 		val &= ~MVNETA_GMAC_FORCE_LINK_DOWN;
 		val |= MVNETA_GMAC_FORCE_LINK_PASS;
@@ -3309,64 +3331,31 @@ static void mvneta_mac_link_up(struct net_device *ndev, bool autoneg)
 	mvneta_port_up(pp);
 }
 
-static void mvneta_adjust_link(struct net_device *ndev)
-{
-	struct mvneta_port *pp = netdev_priv(ndev);
-	struct phy_device *phydev = ndev->phydev;
-	int status_change = 0;
-
-	if (phydev->link)
-		mvneta_mac_config(ndev);
-
-	if (phydev->link != pp->link) {
-		if (!phydev->link) {
-			pp->duplex = -1;
-			pp->speed = 0;
-		}
-
-		pp->link = phydev->link;
-		status_change = 1;
-	}
-
-	if (status_change) {
-		if (phydev->link)
-			mvneta_mac_link_down(ndev, pp->use_inband_status);
-		else
-			mvneta_mac_link_up(ndev, pp->use_inband_status);
-		phy_print_status(phydev);
-	}
-}
+static const struct phylink_mac_ops mvneta_phylink_ops = {
+	.validate = mvneta_validate,
+	.mac_link_state = mvneta_mac_link_state,
+	.mac_config = mvneta_mac_config,
+	.mac_link_down = mvneta_mac_link_down,
+	.mac_link_up = mvneta_mac_link_up,
+};
 
 static int mvneta_mdio_probe(struct mvneta_port *pp)
 {
-	struct phy_device *phy_dev;
 	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
+	int err = phylink_of_phy_connect(pp->phylink, pp->dn, 0);
 
-	phy_dev = of_phy_connect(pp->dev, pp->phy_node, mvneta_adjust_link, 0,
-				 pp->phy_interface);
-	if (!phy_dev) {
-		netdev_err(pp->dev, "could not find the PHY\n");
-		return -ENODEV;
-	}
+	if (err)
+		netdev_err(pp->dev, "could not attach PHY: %d\n", err);
 
-	phy_ethtool_get_wol(phy_dev, &wol);
+	phylink_ethtool_get_wol(pp->phylink, &wol);
 	device_set_wakeup_capable(&pp->dev->dev, !!wol.supported);
 
-	phy_dev->supported &= PHY_GBIT_FEATURES;
-	phy_dev->advertising = phy_dev->supported;
-
-	pp->link    = 0;
-	pp->duplex  = 0;
-	pp->speed   = 0;
-
-	return 0;
+	return err;
 }
 
 static void mvneta_mdio_remove(struct mvneta_port *pp)
 {
-	struct net_device *ndev = pp->dev;
-
-	phy_disconnect(ndev->phydev);
+	phylink_disconnect_phy(pp->phylink);
 }
 
 /* Electing a CPU must be done in an atomic way: it should be done
@@ -3645,10 +3634,9 @@ static int mvneta_stop(struct net_device *dev)
 
 static int mvneta_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	if (!dev->phydev)
-		return -ENOTSUPP;
+	struct mvneta_port *pp = netdev_priv(dev);
 
-	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+	return phylink_mii_ioctl(pp->phylink, ifr, cmd);
 }
 
 /* Ethtool methods */
@@ -3659,44 +3647,25 @@ mvneta_ethtool_set_link_ksettings(struct net_device *ndev,
 				  const struct ethtool_link_ksettings *cmd)
 {
 	struct mvneta_port *pp = netdev_priv(ndev);
-	struct phy_device *phydev = ndev->phydev;
 
-	if (!phydev)
-		return -ENODEV;
+	return phylink_ethtool_ksettings_set(pp->phylink, cmd);
+}
 
-	if ((cmd->base.autoneg == AUTONEG_ENABLE) != pp->use_inband_status) {
-		u32 val;
+/* Get link ksettings for ethtools */
+static int
+mvneta_ethtool_get_link_ksettings(struct net_device *ndev,
+				  struct ethtool_link_ksettings *cmd)
+{
+	struct mvneta_port *pp = netdev_priv(ndev);
 
-		mvneta_set_autoneg(pp, cmd->base.autoneg == AUTONEG_ENABLE);
+	return phylink_ethtool_ksettings_get(pp->phylink, cmd);
+}
 
-		if (cmd->base.autoneg == AUTONEG_DISABLE) {
-			val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
-			val &= ~(MVNETA_GMAC_CONFIG_MII_SPEED |
-				 MVNETA_GMAC_CONFIG_GMII_SPEED |
-				 MVNETA_GMAC_CONFIG_FULL_DUPLEX);
+static int mvneta_ethtool_nway_reset(struct net_device *dev)
+{
+	struct mvneta_port *pp = netdev_priv(dev);
 
-			if (phydev->duplex)
-				val |= MVNETA_GMAC_CONFIG_FULL_DUPLEX;
-
-			if (phydev->speed == SPEED_1000)
-				val |= MVNETA_GMAC_CONFIG_GMII_SPEED;
-			else if (phydev->speed == SPEED_100)
-				val |= MVNETA_GMAC_CONFIG_MII_SPEED;
-
-			mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
-		}
-
-		pp->use_inband_status = (cmd->base.autoneg == AUTONEG_ENABLE);
-		netdev_info(pp->dev, "autoneg status set to %i\n",
-			    pp->use_inband_status);
-
-		if (netif_running(ndev)) {
-			mvneta_port_down(pp);
-			mvneta_port_up(pp);
-		}
-	}
-
-	return phy_ethtool_ksettings_set(ndev->phydev, cmd);
+	return phylink_ethtool_nway_reset(pp->phylink);
 }
 
 /* Set interrupt coalescing for ethtools */
@@ -3958,22 +3927,18 @@ static int mvneta_ethtool_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 static void mvneta_ethtool_get_wol(struct net_device *dev,
 				   struct ethtool_wolinfo *wol)
 {
-	wol->supported = 0;
-	wol->wolopts = 0;
+	struct mvneta_port *pp = netdev_priv(dev);
 
-	if (dev->phydev)
-		phy_ethtool_get_wol(dev->phydev, wol);
+	phylink_ethtool_get_wol(pp->phylink, wol);
 }
 
 static int mvneta_ethtool_set_wol(struct net_device *dev,
 				  struct ethtool_wolinfo *wol)
 {
+	struct mvneta_port *pp = netdev_priv(dev);
 	int ret;
 
-	if (!dev->phydev)
-		return -EOPNOTSUPP;
-
-	ret = phy_ethtool_set_wol(dev->phydev, wol);
+	ret = phylink_ethtool_set_wol(pp->phylink, wol);
 	if (!ret)
 		device_set_wakeup_enable(&dev->dev, !!wol->wolopts);
 
@@ -3993,7 +3958,7 @@ static const struct net_device_ops mvneta_netdev_ops = {
 };
 
 static const struct ethtool_ops mvneta_eth_tool_ops = {
-	.nway_reset	= phy_ethtool_nway_reset,
+	.nway_reset	= mvneta_ethtool_nway_reset,
 	.get_link       = ethtool_op_get_link,
 	.set_coalesce   = mvneta_ethtool_set_coalesce,
 	.get_coalesce   = mvneta_ethtool_get_coalesce,
@@ -4007,7 +3972,7 @@ static const struct ethtool_ops mvneta_eth_tool_ops = {
 	.get_rxnfc	= mvneta_ethtool_get_rxnfc,
 	.get_rxfh	= mvneta_ethtool_get_rxfh,
 	.set_rxfh	= mvneta_ethtool_set_rxfh,
-	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.get_link_ksettings = mvneta_ethtool_get_link_ksettings,
 	.set_link_ksettings = mvneta_ethtool_set_link_ksettings,
 	.get_wol        = mvneta_ethtool_get_wol,
 	.set_wol        = mvneta_ethtool_set_wol,
@@ -4155,14 +4120,13 @@ static int mvneta_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct device_node *dn = pdev->dev.of_node;
-	struct device_node *phy_node;
 	struct device_node *bm_node;
 	struct mvneta_port *pp;
 	struct net_device *dev;
+	struct phylink *phylink;
 	const char *dt_mac_addr;
 	char hw_mac_addr[ETH_ALEN];
 	const char *mac_from;
-	const char *managed;
 	int tx_csum_limit;
 	int phy_mode;
 	int err;
@@ -4178,31 +4142,18 @@ static int mvneta_probe(struct platform_device *pdev)
 		goto err_free_netdev;
 	}
 
-	phy_node = of_parse_phandle(dn, "phy", 0);
-	if (!phy_node) {
-		if (!of_phy_is_fixed_link(dn)) {
-			dev_err(&pdev->dev, "no PHY specified\n");
-			err = -ENODEV;
-			goto err_free_irq;
-		}
-
-		err = of_phy_register_fixed_link(dn);
-		if (err < 0) {
-			dev_err(&pdev->dev, "cannot register fixed PHY\n");
-			goto err_free_irq;
-		}
-
-		/* In the case of a fixed PHY, the DT node associated
-		 * to the PHY is the Ethernet MAC DT node.
-		 */
-		phy_node = of_node_get(dn);
-	}
-
 	phy_mode = of_get_phy_mode(dn);
 	if (phy_mode < 0) {
 		dev_err(&pdev->dev, "incorrect phy-mode\n");
 		err = -EINVAL;
-		goto err_put_phy_node;
+		goto err_free_irq;
+	}
+
+	phylink = phylink_create(dev, pdev->dev.fwnode, phy_mode,
+				 &mvneta_phylink_ops);
+	if (IS_ERR(phylink)) {
+		err = PTR_ERR(phylink);
+		goto err_free_irq;
 	}
 
 	dev->tx_queue_len = MVNETA_MAX_TXD;
@@ -4213,12 +4164,9 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp = netdev_priv(dev);
 	spin_lock_init(&pp->lock);
-	pp->phy_node = phy_node;
+	pp->phylink = phylink;
 	pp->phy_interface = phy_mode;
-
-	err = of_property_read_string(dn, "managed", &managed);
-	pp->use_inband_status = (err == 0 &&
-				 strcmp(managed, "in-band-status") == 0);
+	pp->dn = dn;
 
 	pp->rxq_def = rxq_def;
 
@@ -4240,7 +4188,7 @@ static int mvneta_probe(struct platform_device *pdev)
 		pp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pp->clk)) {
 		err = PTR_ERR(pp->clk);
-		goto err_put_phy_node;
+		goto err_free_phylink;
 	}
 
 	clk_prepare_enable(pp->clk);
@@ -4377,14 +4325,6 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pp->dev);
 
-	if (pp->use_inband_status) {
-		struct phy_device *phy = of_phy_find_device(dn);
-
-		mvneta_fixed_link_update(pp, phy);
-
-		put_device(&phy->mdio.dev);
-	}
-
 	return 0;
 
 err_netdev:
@@ -4401,10 +4341,9 @@ err_free_ports:
 err_clk:
 	clk_disable_unprepare(pp->clk_bus);
 	clk_disable_unprepare(pp->clk);
-err_put_phy_node:
-	of_node_put(phy_node);
-	if (of_phy_is_fixed_link(dn))
-		of_phy_deregister_fixed_link(dn);
+err_free_phylink:
+	if (pp->phylink)
+		phylink_destroy(pp->phylink);
 err_free_irq:
 	irq_dispose_mapping(dev->irq);
 err_free_netdev:
@@ -4416,7 +4355,6 @@ err_free_netdev:
 static int mvneta_remove(struct platform_device *pdev)
 {
 	struct net_device  *dev = platform_get_drvdata(pdev);
-	struct device_node *dn = pdev->dev.of_node;
 	struct mvneta_port *pp = netdev_priv(dev);
 
 	unregister_netdev(dev);
@@ -4424,10 +4362,8 @@ static int mvneta_remove(struct platform_device *pdev)
 	clk_disable_unprepare(pp->clk);
 	free_percpu(pp->ports);
 	free_percpu(pp->stats);
-	if (of_phy_is_fixed_link(dn))
-		of_phy_deregister_fixed_link(dn);
 	irq_dispose_mapping(dev->irq);
-	of_node_put(pp->phy_node);
+	phylink_destroy(pp->phylink);
 	free_netdev(dev);
 
 	if (pp->bm_priv) {
@@ -4480,9 +4416,6 @@ static int mvneta_resume(struct device *device)
 		dev_err(device, "can't power up port\n");
 		return err;
 	}
-
-	if (pp->use_inband_status)
-		mvneta_fixed_link_update(pp, dev->phydev);
 
 	netif_device_attach(dev);
 	rtnl_lock();
