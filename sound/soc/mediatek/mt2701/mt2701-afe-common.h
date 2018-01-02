@@ -16,6 +16,7 @@
 
 #ifndef _MT_2701_AFE_COMMON_H_
 #define _MT_2701_AFE_COMMON_H_
+
 #include <sound/soc.h>
 #include <linux/clk.h>
 #include <linux/regmap.h>
@@ -25,16 +26,7 @@
 #define MT2701_STREAM_DIR_NUM (SNDRV_PCM_STREAM_LAST + 1)
 #define MT2701_PLL_DOMAIN_0_RATE	98304000
 #define MT2701_PLL_DOMAIN_1_RATE	90316800
-#define MT2701_AUD_AUD_MUX1_DIV_RATE (MT2701_PLL_DOMAIN_0_RATE / 2)
-#define MT2701_AUD_AUD_MUX2_DIV_RATE (MT2701_PLL_DOMAIN_1_RATE / 2)
-
-enum {
-	MT2701_I2S_1,
-	MT2701_I2S_2,
-	MT2701_I2S_3,
-	MT2701_I2S_4,
-	MT2701_I2S_NUM,
-};
+#define MT2701_I2S_NUM	4
 
 enum {
 	MT2701_MEMIF_DL1,
@@ -62,8 +54,7 @@ enum {
 };
 
 enum {
-	MT2701_IRQ_ASYS_START,
-	MT2701_IRQ_ASYS_IRQ1 = MT2701_IRQ_ASYS_START,
+	MT2701_IRQ_ASYS_IRQ1,
 	MT2701_IRQ_ASYS_IRQ2,
 	MT2701_IRQ_ASYS_IRQ3,
 	MT2701_IRQ_ASYS_END,
@@ -100,9 +91,6 @@ static const unsigned int mt2701_afe_backup_list[] = {
 	AFE_MEMIF_PBUF_SIZE,
 };
 
-struct snd_pcm_substream;
-struct mtk_base_irq_data;
-
 struct mt2701_i2s_data {
 	int i2s_ctrl_reg;
 	int i2s_asrc_fs_shift;
@@ -120,7 +108,7 @@ struct mt2701_i2s_path {
 	int mclk_rate;
 	int on[I2S_DIR_NUM];
 	int occupied[I2S_DIR_NUM];
-	const struct mt2701_i2s_data *i2s_data[2];
+	const struct mt2701_i2s_data *i2s_data[I2S_DIR_NUM];
 	struct clk *hop_ck[I2S_DIR_NUM];
 	struct clk *sel_ck;
 	struct clk *div_ck;
