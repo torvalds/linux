@@ -387,7 +387,7 @@ static void init_transmitter_control(struct bios_parser *bp)
 		bp->cmd_tbl.transmitter_control = transmitter_control_v1_6;
 		break;
 	default:
-		dm_error("Don't have transmitter_control for v%d\n", crev);
+		dm_output_to_console("Don't have transmitter_control for v%d\n", crev);
 		bp->cmd_tbl.transmitter_control = NULL;
 		break;
 	}
@@ -911,7 +911,7 @@ static void init_set_pixel_clock(struct bios_parser *bp)
 		bp->cmd_tbl.set_pixel_clock = set_pixel_clock_v7;
 		break;
 	default:
-		dm_error("Don't have set_pixel_clock for v%d\n",
+		dm_output_to_console("Don't have set_pixel_clock for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(SetPixelClock));
 		bp->cmd_tbl.set_pixel_clock = NULL;
 		break;
@@ -1230,7 +1230,7 @@ static void init_enable_spread_spectrum_on_ppll(struct bios_parser *bp)
 				enable_spread_spectrum_on_ppll_v3;
 		break;
 	default:
-		dm_error("Don't have enable_spread_spectrum_on_ppll for v%d\n",
+		dm_output_to_console("Don't have enable_spread_spectrum_on_ppll for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(EnableSpreadSpectrumOnPPLL));
 		bp->cmd_tbl.enable_spread_spectrum_on_ppll = NULL;
 		break;
@@ -1427,7 +1427,7 @@ static void init_adjust_display_pll(struct bios_parser *bp)
 		bp->cmd_tbl.adjust_display_pll = adjust_display_pll_v3;
 		break;
 	default:
-		dm_error("Don't have adjust_display_pll for v%d\n",
+		dm_output_to_console("Don't have adjust_display_pll for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(AdjustDisplayPll));
 		bp->cmd_tbl.adjust_display_pll = NULL;
 		break;
@@ -1702,7 +1702,7 @@ static void init_set_crtc_timing(struct bios_parser *bp)
 					set_crtc_using_dtd_timing_v3;
 			break;
 		default:
-			dm_error("Don't have set_crtc_timing for dtd v%d\n",
+			dm_output_to_console("Don't have set_crtc_timing for dtd v%d\n",
 				 dtd_version);
 			bp->cmd_tbl.set_crtc_timing = NULL;
 			break;
@@ -1713,7 +1713,7 @@ static void init_set_crtc_timing(struct bios_parser *bp)
 			bp->cmd_tbl.set_crtc_timing = set_crtc_timing_v1;
 			break;
 		default:
-			dm_error("Don't have set_crtc_timing for v%d\n",
+			dm_output_to_console("Don't have set_crtc_timing for v%d\n",
 				 BIOS_CMD_TABLE_PARA_REVISION(SetCRTC_Timing));
 			bp->cmd_tbl.set_crtc_timing = NULL;
 			break;
@@ -1901,7 +1901,7 @@ static void init_select_crtc_source(struct bios_parser *bp)
 		bp->cmd_tbl.select_crtc_source = select_crtc_source_v3;
 		break;
 	default:
-		dm_error("Don't select_crtc_source enable_crtc for v%d\n",
+		dm_output_to_console("Don't select_crtc_source enable_crtc for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(SelectCRTC_Source));
 		bp->cmd_tbl.select_crtc_source = NULL;
 		break;
@@ -2010,7 +2010,7 @@ static void init_enable_crtc(struct bios_parser *bp)
 		bp->cmd_tbl.enable_crtc = enable_crtc_v1;
 		break;
 	default:
-		dm_error("Don't have enable_crtc for v%d\n",
+		dm_output_to_console("Don't have enable_crtc for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(EnableCRTC));
 		bp->cmd_tbl.enable_crtc = NULL;
 		break;
@@ -2118,7 +2118,7 @@ static void init_program_clock(struct bios_parser *bp)
 		bp->cmd_tbl.program_clock = program_clock_v6;
 		break;
 	default:
-		dm_error("Don't have program_clock for v%d\n",
+		dm_output_to_console("Don't have program_clock for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(SetPixelClock));
 		bp->cmd_tbl.program_clock = NULL;
 		break;
@@ -2341,7 +2341,7 @@ static void init_enable_disp_power_gating(
 				enable_disp_power_gating_v2_1;
 		break;
 	default:
-		dm_error("Don't enable_disp_power_gating enable_crtc for v%d\n",
+		dm_output_to_console("Don't enable_disp_power_gating enable_crtc for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(EnableDispPowerGating));
 		bp->cmd_tbl.enable_disp_power_gating = NULL;
 		break;
@@ -2390,7 +2390,7 @@ static void init_set_dce_clock(struct bios_parser *bp)
 		bp->cmd_tbl.set_dce_clock = set_dce_clock_v2_1;
 		break;
 	default:
-		dm_error("Don't have set_dce_clock for v%d\n",
+		dm_output_to_console("Don't have set_dce_clock for v%d\n",
 			 BIOS_CMD_TABLE_PARA_REVISION(SetDCEClock));
 		bp->cmd_tbl.set_dce_clock = NULL;
 		break;
