@@ -15,7 +15,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -140,7 +139,6 @@ static DEFINE_SPINLOCK(sun9i_a80_gt_lock);
 static void __init sun9i_a80_gt_setup(struct device_node *node)
 {
 	void __iomem *reg;
-	struct clk *gt;
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(reg)) {
@@ -149,12 +147,9 @@ static void __init sun9i_a80_gt_setup(struct device_node *node)
 		return;
 	}
 
-	gt = sunxi_factors_register(node, &sun9i_a80_gt_data,
-				    &sun9i_a80_gt_lock, reg);
-
 	/* The GT bus clock needs to be always enabled */
-	__clk_get(gt);
-	clk_prepare_enable(gt);
+	sunxi_factors_register_critical(node, &sun9i_a80_gt_data,
+					&sun9i_a80_gt_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_gt, "allwinner,sun9i-a80-gt-clk", sun9i_a80_gt_setup);
 
