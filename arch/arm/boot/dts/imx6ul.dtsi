@@ -86,15 +86,10 @@
 				 <&clks IMX6UL_CA7_SECONDARY_SEL>,
 				 <&clks IMX6UL_CLK_STEP>,
 				 <&clks IMX6UL_CLK_PLL1_SW>,
-				 <&clks IMX6UL_CLK_PLL1_SYS>,
-				 <&clks IMX6UL_PLL1_BYPASS>,
-				 <&clks IMX6UL_CLK_PLL1>,
-				 <&clks IMX6UL_PLL1_BYPASS_SRC>,
-				 <&clks IMX6UL_CLK_OSC>;
+				 <&clks IMX6UL_CLK_PLL1_SYS>;
 			clock-names = "arm", "pll2_bus",  "pll2_pfd2_396m",
 				      "secondary_sel", "step", "pll1_sw",
-				      "pll1_sys", "pll1_bypass", "pll1",
-				      "pll1_bypass_src", "osc";
+				      "pll1_sys";
 			arm-supply = <&reg_arm>;
 			soc-supply = <&reg_soc>;
 		};
