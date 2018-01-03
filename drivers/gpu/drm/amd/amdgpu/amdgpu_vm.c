@@ -1685,7 +1685,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 		if (resv == vm->root.base.bo->tbo.resv)
 			clear = false;
 		/* Try to reserve the BO to avoid clearing its ptes */
-		else if (reservation_object_trylock(resv))
+		else if (!amdgpu_vm_debug && reservation_object_trylock(resv))
 			clear = false;
 		/* Somebody else is using the BO right now */
 		else
