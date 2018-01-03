@@ -163,7 +163,9 @@ acpi_debug_print(u32 requested_debug_level,
 {
 	acpi_thread_id thread_id;
 	va_list args;
+#ifdef ACPI_APPLICATION
 	int fill_count;
+#endif
 
 	/* Check if debug output enabled */
 

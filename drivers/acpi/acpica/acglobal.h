@@ -46,7 +46,7 @@
 
 /*****************************************************************************
  *
- * Globals related to the ACPI tables
+ * Globals related to the incoming ACPI tables
  *
  ****************************************************************************/
 
@@ -87,7 +87,7 @@ ACPI_GLOBAL(u8, acpi_gbl_integer_nybble_width);
 
 /*****************************************************************************
  *
- * Mutual exclusion within ACPICA subsystem
+ * Mutual exclusion within the ACPICA subsystem
  *
  ****************************************************************************/
 
@@ -167,7 +167,7 @@ ACPI_GLOBAL(u8, acpi_gbl_next_owner_id_offset);
 
 ACPI_INIT_GLOBAL(u8, acpi_gbl_namespace_initialized, FALSE);
 
-/* Misc */
+/* Miscellaneous */
 
 ACPI_GLOBAL(u32, acpi_gbl_original_mode);
 ACPI_GLOBAL(u32, acpi_gbl_ns_lookup_count);
@@ -191,10 +191,9 @@ extern const char acpi_gbl_lower_hex_digits[];
 extern const char acpi_gbl_upper_hex_digits[];
 extern const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES];
 
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
-
 /* Lists for tracking memory allocations (debug only) */
 
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
 ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_global_list);
 ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_ns_node_list);
 ACPI_GLOBAL(u8, acpi_gbl_display_final_mem_stats);
@@ -203,7 +202,7 @@ ACPI_GLOBAL(u8, acpi_gbl_disable_mem_tracking);
 
 /*****************************************************************************
  *
- * Namespace globals
+ * ACPI Namespace
  *
  ****************************************************************************/
 
@@ -234,15 +233,20 @@ ACPI_INIT_GLOBAL(u32, acpi_gbl_nesting_level, 0);
 
 /*****************************************************************************
  *
- * Interpreter globals
+ * Interpreter/Parser globals
  *
  ****************************************************************************/
-
-ACPI_GLOBAL(struct acpi_thread_state *, acpi_gbl_current_walk_list);
 
 /* Control method single step flag */
 
 ACPI_GLOBAL(u8, acpi_gbl_cm_single_step);
+ACPI_GLOBAL(struct acpi_thread_state *, acpi_gbl_current_walk_list);
+ACPI_INIT_GLOBAL(union acpi_parse_object, *acpi_gbl_current_scope, NULL);
+
+/* ASL/ASL+ converter */
+
+ACPI_INIT_GLOBAL(u8, gbl_capture_comments, FALSE);
+ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_last_list_head, NULL);
 
 /*****************************************************************************
  *
@@ -252,7 +256,6 @@ ACPI_GLOBAL(u8, acpi_gbl_cm_single_step);
 
 extern struct acpi_bit_register_info
     acpi_gbl_bit_register_info[ACPI_NUM_BITREG];
-
 ACPI_GLOBAL(u8, acpi_gbl_sleep_type_a);
 ACPI_GLOBAL(u8, acpi_gbl_sleep_type_b);
 
@@ -263,7 +266,6 @@ ACPI_GLOBAL(u8, acpi_gbl_sleep_type_b);
  ****************************************************************************/
 
 #if (!ACPI_REDUCED_HARDWARE)
-
 ACPI_GLOBAL(u8, acpi_gbl_all_gpes_initialized);
 ACPI_GLOBAL(struct acpi_gpe_xrupt_info *, acpi_gbl_gpe_xrupt_list_head);
 ACPI_GLOBAL(struct acpi_gpe_block_info *,
@@ -272,10 +274,8 @@ ACPI_GLOBAL(acpi_gbl_event_handler, acpi_gbl_global_event_handler);
 ACPI_GLOBAL(void *, acpi_gbl_global_event_handler_context);
 ACPI_GLOBAL(struct acpi_fixed_event_handler,
 	    acpi_gbl_fixed_event_handlers[ACPI_NUM_FIXED_EVENTS]);
-
 extern struct acpi_fixed_event_info
     acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS];
-
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
 /*****************************************************************************
@@ -291,14 +291,14 @@ ACPI_GLOBAL(u32, acpi_gpe_count);
 ACPI_GLOBAL(u32, acpi_sci_count);
 ACPI_GLOBAL(u32, acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS]);
 
-/* Support for dynamic control method tracing mechanism */
+/* Dynamic control method tracing mechanism */
 
 ACPI_GLOBAL(u32, acpi_gbl_original_dbg_level);
 ACPI_GLOBAL(u32, acpi_gbl_original_dbg_layer);
 
 /*****************************************************************************
  *
- * Debugger and Disassembler globals
+ * Debugger and Disassembler
  *
  ****************************************************************************/
 
@@ -326,7 +326,6 @@ ACPI_GLOBAL(struct acpi_external_file *, acpi_gbl_external_file_list);
 #endif
 
 #ifdef ACPI_DEBUGGER
-
 ACPI_INIT_GLOBAL(u8, acpi_gbl_abort_method, FALSE);
 ACPI_INIT_GLOBAL(acpi_thread_id, acpi_gbl_db_thread_id, ACPI_INVALID_THREAD_ID);
 
@@ -340,7 +339,6 @@ ACPI_GLOBAL(u32, acpi_gbl_db_console_debug_level);
 ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_db_scope_node);
 ACPI_GLOBAL(u8, acpi_gbl_db_terminate_loop);
 ACPI_GLOBAL(u8, acpi_gbl_db_threads_terminated);
-
 ACPI_GLOBAL(char *, acpi_gbl_db_args[ACPI_DEBUGGER_MAX_ARGS]);
 ACPI_GLOBAL(acpi_object_type, acpi_gbl_db_arg_types[ACPI_DEBUGGER_MAX_ARGS]);
 
@@ -350,32 +348,33 @@ ACPI_GLOBAL(char, acpi_gbl_db_parsed_buf[ACPI_DB_LINE_BUFFER_SIZE]);
 ACPI_GLOBAL(char, acpi_gbl_db_scope_buf[ACPI_DB_LINE_BUFFER_SIZE]);
 ACPI_GLOBAL(char, acpi_gbl_db_debug_filename[ACPI_DB_LINE_BUFFER_SIZE]);
 
-/*
- * Statistic globals
- */
+/* Statistics globals */
+
 ACPI_GLOBAL(u16, acpi_gbl_obj_type_count[ACPI_TOTAL_TYPES]);
 ACPI_GLOBAL(u16, acpi_gbl_node_type_count[ACPI_TOTAL_TYPES]);
 ACPI_GLOBAL(u16, acpi_gbl_obj_type_count_misc);
 ACPI_GLOBAL(u16, acpi_gbl_node_type_count_misc);
 ACPI_GLOBAL(u32, acpi_gbl_num_nodes);
 ACPI_GLOBAL(u32, acpi_gbl_num_objects);
-
 #endif				/* ACPI_DEBUGGER */
 
 #if defined (ACPI_DISASSEMBLER) || defined (ACPI_ASL_COMPILER)
-
 ACPI_GLOBAL(const char, *acpi_gbl_pld_panel_list[]);
 ACPI_GLOBAL(const char, *acpi_gbl_pld_vertical_position_list[]);
 ACPI_GLOBAL(const char, *acpi_gbl_pld_horizontal_position_list[]);
 ACPI_GLOBAL(const char, *acpi_gbl_pld_shape_list[]);
-
 ACPI_INIT_GLOBAL(u8, acpi_gbl_disasm_flag, FALSE);
-
 #endif
 
-/*
- * Meant for the -ca option.
- */
+/*****************************************************************************
+ *
+ * ACPICA application-specific globals
+ *
+ ****************************************************************************/
+
+/* ASL-to-ASL+ conversion utility (implemented within the iASL compiler) */
+
+#ifdef ACPI_ASL_COMPILER
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_inline_comment, NULL);
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_end_node_comment, NULL);
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_open_brace_comment, NULL);
@@ -386,23 +385,18 @@ ACPI_INIT_GLOBAL(char *, acpi_gbl_current_filename, NULL);
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_parent_filename, NULL);
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_include_filename, NULL);
 
-ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_last_list_head, NULL);
-
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_def_blk_comment_list_head,
 		 NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_def_blk_comment_list_tail,
 		 NULL);
-
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_reg_comment_list_head,
 		 NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_reg_comment_list_tail,
 		 NULL);
-
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_inc_comment_list_head,
 		 NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_inc_comment_list_tail,
 		 NULL);
-
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_end_blk_comment_list_head,
 		 NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_end_blk_comment_list_tail,
@@ -410,30 +404,18 @@ ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_end_blk_comment_list_tail,
 
 ACPI_INIT_GLOBAL(struct acpi_comment_addr_node,
 		 *acpi_gbl_comment_addr_list_head, NULL);
-
-ACPI_INIT_GLOBAL(union acpi_parse_object, *acpi_gbl_current_scope, NULL);
-
 ACPI_INIT_GLOBAL(struct acpi_file_node, *acpi_gbl_file_tree_root, NULL);
 
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_reg_comment_cache);
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_comment_addr_cache);
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_file_cache);
 
-ACPI_INIT_GLOBAL(u8, gbl_capture_comments, FALSE);
-
 ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_asl_conversion, FALSE);
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_conv_debug_file, NULL);
-
 ACPI_GLOBAL(char, acpi_gbl_table_sig[4]);
-
-/*****************************************************************************
- *
- * Application globals
- *
- ****************************************************************************/
+#endif
 
 #ifdef ACPI_APPLICATION
-
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_output_file, NULL);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_timeout, FALSE);
@@ -442,16 +424,6 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_timeout, FALSE);
 
 ACPI_GLOBAL(acpi_spinlock, acpi_gbl_print_lock);	/* For print buffer */
 ACPI_GLOBAL(char, acpi_gbl_print_buffer[1024]);
-
 #endif				/* ACPI_APPLICATION */
-
-/*****************************************************************************
- *
- * Info/help support
- *
- ****************************************************************************/
-
-extern const struct ah_predefined_name asl_predefined_info[];
-extern const struct ah_device_id asl_device_ids[];
 
 #endif				/* __ACGLOBAL_H__ */
