@@ -2529,7 +2529,6 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	mutex_lock(&dev_priv->psr.lock);
 	seq_printf(m, "Sink_Support: %s\n", yesno(dev_priv->psr.sink_support));
-	seq_printf(m, "Source_OK: %s\n", yesno(dev_priv->psr.source_ok));
 	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
 	seq_printf(m, "Active: %s\n", yesno(dev_priv->psr.active));
 	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",

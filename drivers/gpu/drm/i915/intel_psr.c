@@ -522,8 +522,6 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	}
 
 	dev_priv->psr.psr2_support = crtc_state->has_psr2;
-	dev_priv->psr.source_ok = true;
-
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 
 	dev_priv->psr.setup_vsc(intel_dp, crtc_state);

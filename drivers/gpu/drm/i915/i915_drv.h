@@ -754,7 +754,6 @@ struct i915_drrs {
 struct i915_psr {
 	struct mutex lock;
 	bool sink_support;
-	bool source_ok;
 	struct intel_dp *enabled;
 	bool active;
 	struct delayed_work work;
