@@ -129,7 +129,7 @@ struct cxlflash_cfg {
 	int lr_port;
 	atomic_t scan_host_needed;
 
-	struct cxl_afu *cxl_afu;
+	void *afu_cookie;
 
 	atomic_t recovery_threads;
 	struct mutex ctx_recovery_mutex;
@@ -203,7 +203,7 @@ struct hwq {
 	 * fields after this point
 	 */
 	struct afu *afu;
-	struct cxl_context *ctx;
+	void *ctx_cookie;
 	struct cxl_ioctl_start_work work;
 	struct sisl_host_map __iomem *host_map;		/* MC host map */
 	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */

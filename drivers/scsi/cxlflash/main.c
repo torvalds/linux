@@ -739,7 +739,7 @@ static void term_intr(struct cxlflash_cfg *cfg, enum undo_level level,
 
 	hwq = get_hwq(afu, index);
 
-	if (!hwq->ctx) {
+	if (!hwq->ctx_cookie) {
 		dev_err(dev, "%s: returning with NULL MC\n", __func__);
 		return;
 	}
@@ -748,13 +748,13 @@ static void term_intr(struct cxlflash_cfg *cfg, enum undo_level level,
 	case UNMAP_THREE:
 		/* SISL_MSI_ASYNC_ERROR is setup only for the primary HWQ */
 		if (index == PRIMARY_HWQ)
-			cxl_unmap_afu_irq(hwq->ctx, 3, hwq);
+			cxl_unmap_afu_irq(hwq->ctx_cookie, 3, hwq);
 	case UNMAP_TWO:
-		cxl_unmap_afu_irq(hwq->ctx, 2, hwq);
+		cxl_unmap_afu_irq(hwq->ctx_cookie, 2, hwq);
 	case UNMAP_ONE:
-		cxl_unmap_afu_irq(hwq->ctx, 1, hwq);
+		cxl_unmap_afu_irq(hwq->ctx_cookie, 1, hwq);
 	case FREE_IRQ:
-		cxl_free_afu_irqs(hwq->ctx);
+		cxl_free_afu_irqs(hwq->ctx_cookie);
 		/* fall through */
 	case UNDO_NOOP:
 		/* No action required */
@@ -783,15 +783,15 @@ static void term_mc(struct cxlflash_cfg *cfg, u32 index)
 
 	hwq = get_hwq(afu, index);
 
-	if (!hwq->ctx) {
+	if (!hwq->ctx_cookie) {
 		dev_err(dev, "%s: returning with NULL MC\n", __func__);
 		return;
 	}
 
-	WARN_ON(cxl_stop_context(hwq->ctx));
+	WARN_ON(cxl_stop_context(hwq->ctx_cookie));
 	if (index != PRIMARY_HWQ)
-		WARN_ON(cxl_release_context(hwq->ctx));
-	hwq->ctx = NULL;
+		WARN_ON(cxl_release_context(hwq->ctx_cookie));
+	hwq->ctx_cookie = NULL;
 
 	spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
 	flush_pending_cmds(hwq);
@@ -1611,7 +1611,7 @@ static int start_context(struct cxlflash_cfg *cfg, u32 index)
 	struct hwq *hwq = get_hwq(cfg->afu, index);
 	int rc = 0;
 
-	rc = cxl_start_context(hwq->ctx,
+	rc = cxl_start_context(hwq->ctx_cookie,
 			       hwq->work.work_element_descriptor,
 			       NULL);
 
@@ -1748,7 +1748,7 @@ static void init_pcr(struct cxlflash_cfg *cfg)
 	for (i = 0; i < afu->num_hwqs; i++) {
 		hwq = get_hwq(afu, i);
 
-		hwq->ctx_hndl = (u16) cxl_process_element(hwq->ctx);
+		hwq->ctx_hndl = (u16) cxl_process_element(hwq->ctx_cookie);
 		hwq->host_map = &afu->afu_map->hosts[hwq->ctx_hndl].host;
 		hwq->ctrl_map = &afu->afu_map->ctrls[hwq->ctx_hndl].ctrl;
 
@@ -1926,7 +1926,7 @@ static enum undo_level init_intr(struct cxlflash_cfg *cfg,
 				 struct hwq *hwq)
 {
 	struct device *dev = &cfg->dev->dev;
-	struct cxl_context *ctx = hwq->ctx;
+	void *ctx = hwq->ctx_cookie;
 	int rc = 0;
 	enum undo_level level = UNDO_NOOP;
 	bool is_primary_hwq = (hwq->index == PRIMARY_HWQ);
@@ -1980,7 +1980,7 @@ out:
  */
 static int init_mc(struct cxlflash_cfg *cfg, u32 index)
 {
-	struct cxl_context *ctx;
+	void *ctx;
 	struct device *dev = &cfg->dev->dev;
 	struct hwq *hwq = get_hwq(cfg->afu, index);
 	int rc = 0;
@@ -1999,8 +1999,8 @@ static int init_mc(struct cxlflash_cfg *cfg, u32 index)
 		goto err1;
 	}
 
-	WARN_ON(hwq->ctx);
-	hwq->ctx = ctx;
+	WARN_ON(hwq->ctx_cookie);
+	hwq->ctx_cookie = ctx;
 
 	/* Set it up as a master with the CXL */
 	cxl_set_master(ctx);
@@ -2040,7 +2040,7 @@ err2:
 	if (index != PRIMARY_HWQ)
 		cxl_release_context(ctx);
 err1:
-	hwq->ctx = NULL;
+	hwq->ctx_cookie = NULL;
 	goto out;
 }
 
@@ -2095,7 +2095,7 @@ static int init_afu(struct cxlflash_cfg *cfg)
 	struct hwq *hwq;
 	int i;
 
-	cxl_perst_reloads_same_image(cfg->cxl_afu, true);
+	cxl_perst_reloads_same_image(cfg->afu_cookie, true);
 
 	afu->num_hwqs = afu->desired_hwqs;
 	for (i = 0; i < afu->num_hwqs; i++) {
@@ -2109,7 +2109,7 @@ static int init_afu(struct cxlflash_cfg *cfg)
 
 	/* Map the entire MMIO space of the AFU using the first context */
 	hwq = get_hwq(afu, PRIMARY_HWQ);
-	afu->afu_map = cxl_psa_map(hwq->ctx);
+	afu->afu_map = cxl_psa_map(hwq->ctx_cookie);
 	if (!afu->afu_map) {
 		dev_err(dev, "%s: cxl_psa_map failed\n", __func__);
 		rc = -ENOMEM;
@@ -3702,7 +3702,7 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, cfg);
 
-	cfg->cxl_afu = cxl_pci_to_afu(pdev);
+	cfg->afu_cookie = cxl_pci_to_afu(pdev);
 
 	rc = init_pci(cfg);
 	if (rc) {

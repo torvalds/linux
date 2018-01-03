@@ -810,14 +810,13 @@ err:
  * init_context() - initializes a previously allocated context
  * @ctxi:	Previously allocated context
  * @cfg:	Internal structure associated with the host.
- * @ctx:	Previously obtained CXL context reference.
+ * @ctx:	Previously obtained context cookie.
  * @ctxid:	Previously obtained process element associated with CXL context.
  * @file:	Previously obtained file associated with CXL context.
  * @perms:	User-specified permissions.
  */
 static void init_context(struct ctx_info *ctxi, struct cxlflash_cfg *cfg,
-			 struct cxl_context *ctx, int ctxid, struct file *file,
-			 u32 perms)
+			 void *ctx, int ctxid, struct file *file, u32 perms)
 {
 	struct afu *afu = cfg->afu;
 
@@ -976,7 +975,7 @@ static int cxlflash_disk_detach(struct scsi_device *sdev,
  */
 static int cxlflash_cxl_release(struct inode *inode, struct file *file)
 {
-	struct cxl_context *ctx = cxl_fops_get_context(file);
+	void *ctx = cxl_fops_get_context(file);
 	struct cxlflash_cfg *cfg = container_of(file->f_op, struct cxlflash_cfg,
 						cxl_fops);
 	struct device *dev = &cfg->dev->dev;
@@ -1089,7 +1088,7 @@ static int cxlflash_mmap_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct file *file = vma->vm_file;
-	struct cxl_context *ctx = cxl_fops_get_context(file);
+	void *ctx = cxl_fops_get_context(file);
 	struct cxlflash_cfg *cfg = container_of(file->f_op, struct cxlflash_cfg,
 						cxl_fops);
 	struct device *dev = &cfg->dev->dev;
@@ -1162,7 +1161,7 @@ static const struct vm_operations_struct cxlflash_mmap_vmops = {
  */
 static int cxlflash_cxl_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct cxl_context *ctx = cxl_fops_get_context(file);
+	void *ctx = cxl_fops_get_context(file);
 	struct cxlflash_cfg *cfg = container_of(file->f_op, struct cxlflash_cfg,
 						cxl_fops);
 	struct device *dev = &cfg->dev->dev;
@@ -1317,7 +1316,7 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	u64 rctxid = 0UL;
 	struct file *file = NULL;
 
-	struct cxl_context *ctx = NULL;
+	void *ctx = NULL;
 
 	int fd = -1;
 
@@ -1529,7 +1528,7 @@ static int recover_context(struct cxlflash_cfg *cfg,
 	int fd = -1;
 	int ctxid = -1;
 	struct file *file;
-	struct cxl_context *ctx;
+	void *ctx;
 	struct afu *afu = cfg->afu;
 
 	ctx = cxl_dev_context_init(cfg->dev);
