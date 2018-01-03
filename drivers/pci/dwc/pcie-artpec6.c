@@ -485,8 +485,8 @@ static int artpec6_add_pcie_ep(struct artpec6_pcie *artpec6_pcie,
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi2");
 	pci->dbi_base2 = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(pci->dbi_base2))
-		return PTR_ERR(pci->dbi_base2);
+	if (!pci->dbi_base2)
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
 	if (!res)
