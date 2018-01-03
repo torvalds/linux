@@ -25,6 +25,8 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 
+#include "backend.h"
+
 extern const struct file_operations cxlflash_cxl_fops;
 
 #define MAX_CONTEXT	CXLFLASH_MAX_CONTEXT	/* num contexts per afu */
@@ -114,6 +116,7 @@ enum cxlflash_hwq_mode {
 struct cxlflash_cfg {
 	struct afu *afu;
 
+	const struct cxlflash_backend_ops *ops;
 	struct pci_dev *dev;
 	struct pci_device_id *dev_id;
 	struct Scsi_Host *host;

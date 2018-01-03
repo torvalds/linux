@@ -978,9 +978,9 @@ static int cxlflash_disk_detach(struct scsi_device *sdev,
  */
 static int cxlflash_cxl_release(struct inode *inode, struct file *file)
 {
-	void *ctx = cxl_fops_get_context(file);
 	struct cxlflash_cfg *cfg = container_of(file->f_op, struct cxlflash_cfg,
 						cxl_fops);
+	void *ctx = cfg->ops->fops_get_context(file);
 	struct device *dev = &cfg->dev->dev;
 	struct ctx_info *ctxi = NULL;
 	struct dk_cxlflash_detach detach = { { 0 }, 0 };
@@ -988,7 +988,7 @@ static int cxlflash_cxl_release(struct inode *inode, struct file *file)
 	enum ctx_ctrl ctrl = CTX_CTRL_ERR_FALLBACK | CTX_CTRL_FILE;
 	int ctxid;
 
-	ctxid = cxl_process_element(ctx);
+	ctxid = cfg->ops->process_element(ctx);
 	if (unlikely(ctxid < 0)) {
 		dev_err(dev, "%s: Context %p was closed ctxid=%d\n",
 			__func__, ctx, ctxid);
@@ -1016,7 +1016,7 @@ static int cxlflash_cxl_release(struct inode *inode, struct file *file)
 	list_for_each_entry_safe(lun_access, t, &ctxi->luns, list)
 		_cxlflash_disk_detach(lun_access->sdev, ctxi, &detach);
 out_release:
-	cxl_fd_release(inode, file);
+	cfg->ops->fd_release(inode, file);
 out:
 	dev_dbg(dev, "%s: returning\n", __func__);
 	return 0;
@@ -1091,9 +1091,9 @@ static int cxlflash_mmap_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct file *file = vma->vm_file;
-	void *ctx = cxl_fops_get_context(file);
 	struct cxlflash_cfg *cfg = container_of(file->f_op, struct cxlflash_cfg,
 						cxl_fops);
+	void *ctx = cfg->ops->fops_get_context(file);
 	struct device *dev = &cfg->dev->dev;
 	struct ctx_info *ctxi = NULL;
 	struct page *err_page = NULL;
@@ -1101,7 +1101,7 @@ static int cxlflash_mmap_fault(struct vm_fault *vmf)
 	int rc = 0;
 	int ctxid;
 
-	ctxid = cxl_process_element(ctx);
+	ctxid = cfg->ops->process_element(ctx);
 	if (unlikely(ctxid < 0)) {
 		dev_err(dev, "%s: Context %p was closed ctxid=%d\n",
 			__func__, ctx, ctxid);
@@ -1164,16 +1164,16 @@ static const struct vm_operations_struct cxlflash_mmap_vmops = {
  */
 static int cxlflash_cxl_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	void *ctx = cxl_fops_get_context(file);
 	struct cxlflash_cfg *cfg = container_of(file->f_op, struct cxlflash_cfg,
 						cxl_fops);
+	void *ctx = cfg->ops->fops_get_context(file);
 	struct device *dev = &cfg->dev->dev;
 	struct ctx_info *ctxi = NULL;
 	enum ctx_ctrl ctrl = CTX_CTRL_ERR_FALLBACK | CTX_CTRL_FILE;
 	int ctxid;
 	int rc = 0;
 
-	ctxid = cxl_process_element(ctx);
+	ctxid = cfg->ops->process_element(ctx);
 	if (unlikely(ctxid < 0)) {
 		dev_err(dev, "%s: Context %p was closed ctxid=%d\n",
 			__func__, ctx, ctxid);
@@ -1190,7 +1190,7 @@ static int cxlflash_cxl_mmap(struct file *file, struct vm_area_struct *vma)
 
 	dev_dbg(dev, "%s: mmap for context %d\n", __func__, ctxid);
 
-	rc = cxl_fd_mmap(file, vma);
+	rc = cfg->ops->fd_mmap(file, vma);
 	if (likely(!rc)) {
 		/* Insert ourself in the mmap fault handler path */
 		ctxi->cxl_mmap_vmops = vma->vm_ops;
@@ -1309,7 +1309,6 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	struct afu *afu = cfg->afu;
 	struct llun_info *lli = sdev->hostdata;
 	struct glun_info *gli = lli->parent;
-	struct cxl_ioctl_start_work work = { 0 };
 	struct ctx_info *ctxi = NULL;
 	struct lun_access *lun_access = NULL;
 	int rc = 0;
@@ -1397,7 +1396,7 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 		goto err;
 	}
 
-	ctx = cxl_dev_context_init(cfg->dev);
+	ctx = cfg->ops->dev_context_init(cfg->dev, cfg->afu_cookie);
 	if (IS_ERR_OR_NULL(ctx)) {
 		dev_err(dev, "%s: Could not initialize context %p\n",
 			__func__, ctx);
@@ -1405,24 +1404,21 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 		goto err;
 	}
 
-	work.num_interrupts = irqs;
-	work.flags = CXL_START_WORK_NUM_IRQS;
-
-	rc = cxl_start_work(ctx, &work);
+	rc = cfg->ops->start_work(ctx, irqs);
 	if (unlikely(rc)) {
 		dev_dbg(dev, "%s: Could not start context rc=%d\n",
 			__func__, rc);
 		goto err;
 	}
 
-	ctxid = cxl_process_element(ctx);
+	ctxid = cfg->ops->process_element(ctx);
 	if (unlikely((ctxid >= MAX_CONTEXT) || (ctxid < 0))) {
 		dev_err(dev, "%s: ctxid=%d invalid\n", __func__, ctxid);
 		rc = -EPERM;
 		goto err;
 	}
 
-	file = cxl_get_fd(ctx, &cfg->cxl_fops, &fd);
+	file = cfg->ops->get_fd(ctx, &cfg->cxl_fops, &fd);
 	if (unlikely(fd < 0)) {
 		rc = -ENODEV;
 		dev_err(dev, "%s: Could not get file descriptor\n", __func__);
@@ -1481,8 +1477,8 @@ out:
 err:
 	/* Cleanup CXL context; okay to 'stop' even if it was not started */
 	if (!IS_ERR_OR_NULL(ctx)) {
-		cxl_stop_context(ctx);
-		cxl_release_context(ctx);
+		cfg->ops->stop_context(ctx);
+		cfg->ops->release_context(ctx);
 		ctx = NULL;
 	}
 
@@ -1533,9 +1529,8 @@ static int recover_context(struct cxlflash_cfg *cfg,
 	struct file *file;
 	void *ctx;
 	struct afu *afu = cfg->afu;
-	struct cxl_ioctl_start_work work = { 0 };
 
-	ctx = cxl_dev_context_init(cfg->dev);
+	ctx = cfg->ops->dev_context_init(cfg->dev, cfg->afu_cookie);
 	if (IS_ERR_OR_NULL(ctx)) {
 		dev_err(dev, "%s: Could not initialize context %p\n",
 			__func__, ctx);
@@ -1543,24 +1538,21 @@ static int recover_context(struct cxlflash_cfg *cfg,
 		goto out;
 	}
 
-	work.num_interrupts = ctxi->irqs;
-	work.flags = CXL_START_WORK_NUM_IRQS;
-
-	rc = cxl_start_work(ctx, &work);
+	rc = cfg->ops->start_work(ctx, ctxi->irqs);
 	if (unlikely(rc)) {
 		dev_dbg(dev, "%s: Could not start context rc=%d\n",
 			__func__, rc);
 		goto err1;
 	}
 
-	ctxid = cxl_process_element(ctx);
+	ctxid = cfg->ops->process_element(ctx);
 	if (unlikely((ctxid >= MAX_CONTEXT) || (ctxid < 0))) {
 		dev_err(dev, "%s: ctxid=%d invalid\n", __func__, ctxid);
 		rc = -EPERM;
 		goto err2;
 	}
 
-	file = cxl_get_fd(ctx, &cfg->cxl_fops, &fd);
+	file = cfg->ops->get_fd(ctx, &cfg->cxl_fops, &fd);
 	if (unlikely(fd < 0)) {
 		rc = -ENODEV;
 		dev_err(dev, "%s: Could not get file descriptor\n", __func__);
@@ -1607,9 +1599,9 @@ err3:
 	fput(file);
 	put_unused_fd(fd);
 err2:
-	cxl_stop_context(ctx);
+	cfg->ops->stop_context(ctx);
 err1:
-	cxl_release_context(ctx);
+	cfg->ops->release_context(ctx);
 	goto out;
 }
 
