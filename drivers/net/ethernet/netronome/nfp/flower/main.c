@@ -110,7 +110,6 @@ nfp_flower_repr_netdev_open(struct nfp_app *app, struct nfp_repr *repr)
 	if (err)
 		return err;
 
-	netif_carrier_on(repr->netdev);
 	netif_tx_wake_all_queues(repr->netdev);
 
 	return 0;
@@ -119,7 +118,6 @@ nfp_flower_repr_netdev_open(struct nfp_app *app, struct nfp_repr *repr)
 static int
 nfp_flower_repr_netdev_stop(struct nfp_app *app, struct nfp_repr *repr)
 {
-	netif_carrier_off(repr->netdev);
 	netif_tx_disable(repr->netdev);
 
 	return nfp_flower_cmsg_portmod(repr, false);

@@ -336,6 +336,8 @@ struct net_device *nfp_repr_alloc(struct nfp_app *app)
 	if (!netdev)
 		return NULL;
 
+	netif_carrier_off(netdev);
+
 	repr = netdev_priv(netdev);
 	repr->netdev = netdev;
 	repr->app = app;
