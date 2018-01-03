@@ -210,7 +210,7 @@ acpi_debug_print(u32 requested_debug_level,
 	}
 
 	acpi_os_printf("[%02ld] %*s",
-		       acpi_gbl_nesting_level, acpi_gbl_nesting_level, " ");
+		       acpi_gbl_nesting_level, acpi_gbl_nesting_level + 1, " ");
 	acpi_os_printf("%s%*s: ",
 		       acpi_ut_trim_function_name(function_name), fill_count,
 		       " ");
