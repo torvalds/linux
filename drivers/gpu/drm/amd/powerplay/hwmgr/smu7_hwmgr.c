@@ -3317,7 +3317,7 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			    void *value, int *size)
 {
 	uint32_t sclk, mclk, activity_percent;
-	uint32_t offset;
+	uint32_t offset, val_vid;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	/* size must be at least 4 bytes for all sensors */
@@ -3365,6 +3365,16 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			return -EINVAL;
 		*size = sizeof(struct pp_gpu_power);
 		return smu7_get_gpu_power(hwmgr, (struct pp_gpu_power *)value);
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		if ((data->vr_config & 0xff) == 0x2)
+			val_vid = PHM_READ_INDIRECT_FIELD(hwmgr->device,
+					CGS_IND_REG__SMC, PWR_SVI2_STATUS, PLANE2_VID);
+		else
+			val_vid = PHM_READ_INDIRECT_FIELD(hwmgr->device,
+					CGS_IND_REG__SMC, PWR_SVI2_STATUS, PLANE1_VID);
+
+		*((uint32_t *)value) = (uint32_t)convert_to_vddc(val_vid);
+		return 0;
 	default:
 		return -EINVAL;
 	}

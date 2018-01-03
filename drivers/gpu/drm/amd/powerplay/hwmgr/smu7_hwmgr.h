@@ -305,6 +305,7 @@ struct smu7_hwmgr {
 	uint32_t                              frame_time_x2;
 	uint16_t                              mem_latency_high;
 	uint16_t                              mem_latency_low;
+	uint32_t                              vr_config;
 };
 
 /* To convert to Q8.8 format for firmware */

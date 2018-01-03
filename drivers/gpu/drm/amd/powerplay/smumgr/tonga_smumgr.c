@@ -2434,7 +2434,7 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = tonga_populate_vr_config(hwmgr, table);
 	PP_ASSERT_WITH_CODE(!result,
 		"Failed to populate VRConfig setting !", return result);
-
+	data->vr_config = table->VRConfig;
 	table->ThermGpio  = 17;
 	table->SclkStepSize = 0x4000;
 
@@ -2501,7 +2501,6 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	for (i = 0; i < SMU72_MAX_ENTRIES_SMIO; i++)
 		table->Smio[i] = PP_HOST_TO_SMC_UL(table->Smio[i]);
-
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SystemFlags);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->VRConfig);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMask1);

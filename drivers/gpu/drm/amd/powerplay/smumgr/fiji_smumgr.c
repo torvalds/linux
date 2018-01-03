@@ -2141,7 +2141,7 @@ static int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = fiji_populate_vr_config(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to populate VRConfig setting!", return result);
-
+	data->vr_config = table->VRConfig;
 	table->ThermGpio = 17;
 	table->SclkStepSize = 0x4000;
 
