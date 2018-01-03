@@ -61,6 +61,13 @@
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
+	aliases {
+		ethernet0 = &cp0_eth0;
+		ethernet1 = &cp0_eth2;
+		ethernet2 = &cp1_eth0;
+		ethernet3 = &cp1_eth1;
+	};
+
 	cp0_reg_usb3_0_vbus: cp0-usb3-0-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "cp0-usb3h0-vbus";
