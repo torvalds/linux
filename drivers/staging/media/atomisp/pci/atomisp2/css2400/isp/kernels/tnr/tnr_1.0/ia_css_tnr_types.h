@@ -15,11 +15,11 @@
 #ifndef __IA_CSS_TNR_TYPES_H
 #define __IA_CSS_TNR_TYPES_H
 
-/** @file
+/* @file
 * CSS-API header file for Temporal Noise Reduction (TNR) parameters.
 */
 
-/** Temporal Noise Reduction (TNR) configuration.
+/* Temporal Noise Reduction (TNR) configuration.
  *
  *  When difference between current frame and previous frame is less than or
  *  equal to threshold, TNR works and current frame is mixed
@@ -36,18 +36,18 @@
 
 
 struct ia_css_tnr_config {
-	ia_css_u0_16 gain; /**< Interpolation ratio of current frame
+	ia_css_u0_16 gain; /** Interpolation ratio of current frame
 			        and previous frame.
 				gain=0.0 -> previous frame is outputted.
 				gain=1.0 -> current frame is outputted.
 				u0.16, [0,65535],
 			default 32768(0.5), ineffective 65535(almost 1.0) */
-	ia_css_u0_16 threshold_y; /**< Threshold to enable interpolation of Y.
+	ia_css_u0_16 threshold_y; /** Threshold to enable interpolation of Y.
 				If difference between current frame and
 				previous frame is greater than threshold_y,
 				TNR for Y is disabled.
 				u0.16, [0,65535], default/ineffective 0 */
-	ia_css_u0_16 threshold_uv; /**< Threshold to enable interpolation of
+	ia_css_u0_16 threshold_uv; /** Threshold to enable interpolation of
 				U/V.
 				If difference between current frame and
 				previous frame is greater than threshold_uv,

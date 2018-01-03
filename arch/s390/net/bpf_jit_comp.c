@@ -55,8 +55,7 @@ struct bpf_jit {
 #define SEEN_LITERAL	8	/* code uses literals */
 #define SEEN_FUNC	16	/* calls C functions */
 #define SEEN_TAIL_CALL	32	/* code uses tail calls */
-#define SEEN_SKB_CHANGE	64	/* code changes skb data */
-#define SEEN_REG_AX	128	/* code uses constant blinding */
+#define SEEN_REG_AX	64	/* code uses constant blinding */
 #define SEEN_STACK	(SEEN_FUNC | SEEN_MEM | SEEN_SKB)
 
 /*
@@ -448,12 +447,12 @@ static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
 			EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0,
 				      REG_15, 152);
 	}
-	if (jit->seen & SEEN_SKB)
+	if (jit->seen & SEEN_SKB) {
 		emit_load_skb_data_hlen(jit);
-	if (jit->seen & SEEN_SKB_CHANGE)
 		/* stg %b1,ST_OFF_SKBP(%r0,%r15) */
 		EMIT6_DISP_LH(0xe3000000, 0x0024, BPF_REG_1, REG_0, REG_15,
 			      STK_OFF_SKBP);
+	}
 }
 
 /*
@@ -983,8 +982,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		EMIT2(0x0d00, REG_14, REG_W1);
 		/* lgr %b0,%r2: load return value into %b0 */
 		EMIT4(0xb9040000, BPF_REG_0, REG_2);
-		if (bpf_helper_changes_pkt_data((void *)func)) {
-			jit->seen |= SEEN_SKB_CHANGE;
+		if ((jit->seen & SEEN_SKB) &&
+		    bpf_helper_changes_pkt_data((void *)func)) {
 			/* lg %b1,ST_OFF_SKBP(%r15) */
 			EMIT6_DISP_LH(0xe3000000, 0x0004, BPF_REG_1, REG_0,
 				      REG_15, STK_OFF_SKBP);

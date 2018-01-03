@@ -24,7 +24,7 @@
  */
 #define NUM_YUV_LS 2
 
-/** YUV load/store */
+/* YUV load/store */
 struct sh_css_isp_yuv_ls_isp_config {
 	unsigned base_address[NUM_YUV_LS];
 	unsigned width[NUM_YUV_LS];

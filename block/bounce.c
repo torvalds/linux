@@ -200,6 +200,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	unsigned i = 0;
 	bool bounce = false;
 	int sectors = 0;
+	bool passthrough = bio_is_passthrough(*bio_orig);
 
 	bio_for_each_segment(from, *bio_orig, iter) {
 		if (i++ < BIO_MAX_PAGES)
@@ -210,13 +211,14 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 	if (!bounce)
 		return;
 
-	if (sectors < bio_sectors(*bio_orig)) {
+	if (!passthrough && sectors < bio_sectors(*bio_orig)) {
 		bio = bio_split(*bio_orig, sectors, GFP_NOIO, bounce_bio_split);
 		bio_chain(bio, *bio_orig);
 		generic_make_request(*bio_orig);
 		*bio_orig = bio;
 	}
-	bio = bio_clone_bioset(*bio_orig, GFP_NOIO, bounce_bio_set);
+	bio = bio_clone_bioset(*bio_orig, GFP_NOIO, passthrough ? NULL :
+			bounce_bio_set);
 
 	bio_for_each_segment_all(to, bio, i) {
 		struct page *page = to->bv_page;

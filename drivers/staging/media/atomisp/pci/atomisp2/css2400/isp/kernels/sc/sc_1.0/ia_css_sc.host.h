@@ -32,7 +32,7 @@ ia_css_sc_dump(
 	unsigned level);
 
 #ifdef ISP2401
-/** @brief Configure the shading correction.
+/* @brief Configure the shading correction.
  * @param[out]	to	Parameters used in the shading correction kernel in the isp.
  * @param[in]	from	Parameters passed from the host.
  * @param[in]	size	Size of the sh_css_isp_sc_isp_config structure.
@@ -45,7 +45,7 @@ ia_css_sc_config(
 	const struct ia_css_sc_configuration *from,
 	unsigned size);
 
-/** @brief Configure the shading correction.
+/* @brief Configure the shading correction.
  * @param[in]	binary	The binary, which has the shading correction.
  * @param[in]	internal_frame_origin_x_bqs_on_sctbl
  *			X coordinate (in bqs) of the origin of the internal frame on the shading table.

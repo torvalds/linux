@@ -6,7 +6,7 @@ RM ?= rm -f
 
 # Make the path relative to DESTDIR, not prefix
 ifndef DESTDIR
-prefix?=$(HOME)
+prefix ?= /usr/local
 endif
 mandir ?= $(prefix)/share/man
 man8dir = $(mandir)/man8

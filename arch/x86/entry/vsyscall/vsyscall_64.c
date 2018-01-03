@@ -37,6 +37,7 @@
 #include <asm/unistd.h>
 #include <asm/fixmap.h>
 #include <asm/traps.h>
+#include <asm/paravirt.h>
 
 #define CREATE_TRACE_POINTS
 #include "vsyscall_trace.h"
@@ -137,6 +138,10 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	 */
 
 	WARN_ON_ONCE(address != regs->ip);
+
+	/* This should be unreachable in NATIVE mode. */
+	if (WARN_ON(vsyscall_mode == NATIVE))
+		return false;
 
 	if (vsyscall_mode == NONE) {
 		warn_bad_vsyscall(KERN_INFO, regs,
@@ -329,16 +334,47 @@ int in_gate_area_no_mm(unsigned long addr)
 	return vsyscall_mode != NONE && (addr & PAGE_MASK) == VSYSCALL_ADDR;
 }
 
+/*
+ * The VSYSCALL page is the only user-accessible page in the kernel address
+ * range.  Normally, the kernel page tables can have _PAGE_USER clear, but
+ * the tables covering VSYSCALL_ADDR need _PAGE_USER set if vsyscalls
+ * are enabled.
+ *
+ * Some day we may create a "minimal" vsyscall mode in which we emulate
+ * vsyscalls but leave the page not present.  If so, we skip calling
+ * this.
+ */
+void __init set_vsyscall_pgtable_user_bits(pgd_t *root)
+{
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+
+	pgd = pgd_offset_pgd(root, VSYSCALL_ADDR);
+	set_pgd(pgd, __pgd(pgd_val(*pgd) | _PAGE_USER));
+	p4d = p4d_offset(pgd, VSYSCALL_ADDR);
+#if CONFIG_PGTABLE_LEVELS >= 5
+	p4d->p4d |= _PAGE_USER;
+#endif
+	pud = pud_offset(p4d, VSYSCALL_ADDR);
+	set_pud(pud, __pud(pud_val(*pud) | _PAGE_USER));
+	pmd = pmd_offset(pud, VSYSCALL_ADDR);
+	set_pmd(pmd, __pmd(pmd_val(*pmd) | _PAGE_USER));
+}
+
 void __init map_vsyscall(void)
 {
 	extern char __vsyscall_page;
 	unsigned long physaddr_vsyscall = __pa_symbol(&__vsyscall_page);
 
-	if (vsyscall_mode != NONE)
+	if (vsyscall_mode != NONE) {
 		__set_fixmap(VSYSCALL_PAGE, physaddr_vsyscall,
 			     vsyscall_mode == NATIVE
 			     ? PAGE_KERNEL_VSYSCALL
 			     : PAGE_KERNEL_VVAR);
+		set_vsyscall_pgtable_user_bits(swapper_pg_dir);
+	}
 
 	BUILD_BUG_ON((unsigned long)__fix_to_virt(VSYSCALL_PAGE) !=
 		     (unsigned long)VSYSCALL_ADDR);

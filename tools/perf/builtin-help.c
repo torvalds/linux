@@ -284,7 +284,7 @@ static int perf_help_config(const char *var, const char *value, void *cb)
 		add_man_viewer(value);
 		return 0;
 	}
-	if (!strstarts(var, "man."))
+	if (strstarts(var, "man."))
 		return add_man_viewer_info(var, value);
 
 	return 0;
@@ -314,7 +314,7 @@ static const char *cmd_to_page(const char *perf_cmd)
 
 	if (!perf_cmd)
 		return "perf";
-	else if (!strstarts(perf_cmd, "perf"))
+	else if (strstarts(perf_cmd, "perf"))
 		return perf_cmd;
 
 	return asprintf(&s, "perf-%s", perf_cmd) < 0 ? NULL : s;

@@ -50,6 +50,7 @@
 #include <asm/setup.h>
 #include <asm/set_memory.h>
 #include <asm/page_types.h>
+#include <asm/cpu_entry_area.h>
 #include <asm/init.h>
 
 #include "mm_internal.h"
@@ -766,6 +767,7 @@ void __init mem_init(void)
 	mem_init_print_info(NULL);
 	printk(KERN_INFO "virtual kernel memory layout:\n"
 		"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+		"  cpu_entry : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 #ifdef CONFIG_HIGHMEM
 		"    pkmap   : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 #endif
@@ -776,6 +778,10 @@ void __init mem_init(void)
 		"      .text : 0x%08lx - 0x%08lx   (%4ld kB)\n",
 		FIXADDR_START, FIXADDR_TOP,
 		(FIXADDR_TOP - FIXADDR_START) >> 10,
+
+		CPU_ENTRY_AREA_BASE,
+		CPU_ENTRY_AREA_BASE + CPU_ENTRY_AREA_MAP_SIZE,
+		CPU_ENTRY_AREA_MAP_SIZE >> 10,
 
 #ifdef CONFIG_HIGHMEM
 		PKMAP_BASE, PKMAP_BASE+LAST_PKMAP*PAGE_SIZE,

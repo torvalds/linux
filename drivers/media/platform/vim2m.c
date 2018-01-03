@@ -343,7 +343,7 @@ static void schedule_irq(struct vim2m_dev *dev, int msec_timeout)
  * mem2mem callbacks
  */
 
-/**
+/*
  * job_ready() - check whether an instance is ready to be scheduled to run
  */
 static int job_ready(void *priv)

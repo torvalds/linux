@@ -37,6 +37,8 @@ static unsigned int aq_itr_rx;
 module_param_named(aq_itr_rx, aq_itr_rx, uint, 0644);
 MODULE_PARM_DESC(aq_itr_rx, "RX interrupt throttle rate");
 
+static void aq_nic_update_ndev_stats(struct aq_nic_s *self);
+
 static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 {
 	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
@@ -166,11 +168,8 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 static void aq_nic_service_timer_cb(struct timer_list *t)
 {
 	struct aq_nic_s *self = from_timer(self, t, service_timer);
-	struct net_device *ndev = aq_nic_get_ndev(self);
+	int ctimer = AQ_CFG_SERVICE_TIMER_INTERVAL;
 	int err = 0;
-	unsigned int i = 0U;
-	struct aq_ring_stats_rx_s stats_rx;
-	struct aq_ring_stats_tx_s stats_tx;
 
 	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		goto err_exit;
@@ -182,23 +181,14 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 	if (self->aq_hw_ops.hw_update_stats)
 		self->aq_hw_ops.hw_update_stats(self->aq_hw);
 
-	memset(&stats_rx, 0U, sizeof(struct aq_ring_stats_rx_s));
-	memset(&stats_tx, 0U, sizeof(struct aq_ring_stats_tx_s));
-	for (i = AQ_DIMOF(self->aq_vec); i--;) {
-		if (self->aq_vec[i])
-			aq_vec_add_stats(self->aq_vec[i], &stats_rx, &stats_tx);
-	}
+	aq_nic_update_ndev_stats(self);
 
-	ndev->stats.rx_packets = stats_rx.packets;
-	ndev->stats.rx_bytes = stats_rx.bytes;
-	ndev->stats.rx_errors = stats_rx.errors;
-	ndev->stats.tx_packets = stats_tx.packets;
-	ndev->stats.tx_bytes = stats_tx.bytes;
-	ndev->stats.tx_errors = stats_tx.errors;
+	/* If no link - use faster timer rate to detect link up asap */
+	if (!netif_carrier_ok(self->ndev))
+		ctimer = max(ctimer / 2, 1);
 
 err_exit:
-	mod_timer(&self->service_timer,
-		  jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
+	mod_timer(&self->service_timer, jiffies + ctimer);
 }
 
 static void aq_nic_polling_timer_cb(struct timer_list *t)
@@ -222,7 +212,7 @@ static struct net_device *aq_nic_ndev_alloc(void)
 
 struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 				   const struct ethtool_ops *et_ops,
-				   struct device *dev,
+				   struct pci_dev *pdev,
 				   struct aq_pci_func_s *aq_pci_func,
 				   unsigned int port,
 				   const struct aq_hw_ops *aq_hw_ops)
@@ -242,7 +232,7 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 	ndev->netdev_ops = ndev_ops;
 	ndev->ethtool_ops = et_ops;
 
-	SET_NETDEV_DEV(ndev, dev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	ndev->if_port = port;
 	self->ndev = ndev;
@@ -254,7 +244,8 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 
 	self->aq_hw = self->aq_hw_ops.create(aq_pci_func, self->port,
 						&self->aq_hw_ops);
-	err = self->aq_hw_ops.get_hw_caps(self->aq_hw, &self->aq_hw_caps);
+	err = self->aq_hw_ops.get_hw_caps(self->aq_hw, &self->aq_hw_caps,
+					  pdev->device, pdev->subsystem_device);
 	if (err < 0)
 		goto err_exit;
 
@@ -749,16 +740,40 @@ int aq_nic_get_regs_count(struct aq_nic_s *self)
 
 void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 {
-	struct aq_vec_s *aq_vec = NULL;
 	unsigned int i = 0U;
 	unsigned int count = 0U;
-	int err = 0;
+	struct aq_vec_s *aq_vec = NULL;
+	struct aq_stats_s *stats = self->aq_hw_ops.hw_get_hw_stats(self->aq_hw);
 
-	err = self->aq_hw_ops.hw_get_hw_stats(self->aq_hw, data, &count);
-	if (err < 0)
+	if (!stats)
 		goto err_exit;
 
-	data += count;
+	data[i] = stats->uprc + stats->mprc + stats->bprc;
+	data[++i] = stats->uprc;
+	data[++i] = stats->mprc;
+	data[++i] = stats->bprc;
+	data[++i] = stats->erpt;
+	data[++i] = stats->uptc + stats->mptc + stats->bptc;
+	data[++i] = stats->uptc;
+	data[++i] = stats->mptc;
+	data[++i] = stats->bptc;
+	data[++i] = stats->ubrc;
+	data[++i] = stats->ubtc;
+	data[++i] = stats->mbrc;
+	data[++i] = stats->mbtc;
+	data[++i] = stats->bbrc;
+	data[++i] = stats->bbtc;
+	data[++i] = stats->ubrc + stats->mbrc + stats->bbrc;
+	data[++i] = stats->ubtc + stats->mbtc + stats->bbtc;
+	data[++i] = stats->dma_pkt_rc;
+	data[++i] = stats->dma_pkt_tc;
+	data[++i] = stats->dma_oct_rc;
+	data[++i] = stats->dma_oct_tc;
+	data[++i] = stats->dpc;
+
+	i++;
+
+	data += i;
 	count = 0U;
 
 	for (i = 0U, aq_vec = self->aq_vec[0];
@@ -768,7 +783,20 @@ void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 	}
 
 err_exit:;
-	(void)err;
+}
+
+static void aq_nic_update_ndev_stats(struct aq_nic_s *self)
+{
+	struct net_device *ndev = self->ndev;
+	struct aq_stats_s *stats = self->aq_hw_ops.hw_get_hw_stats(self->aq_hw);
+
+	ndev->stats.rx_packets = stats->uprc + stats->mprc + stats->bprc;
+	ndev->stats.rx_bytes = stats->ubrc + stats->mbrc + stats->bbrc;
+	ndev->stats.rx_errors = stats->erpr;
+	ndev->stats.tx_packets = stats->uptc + stats->mptc + stats->bptc;
+	ndev->stats.tx_bytes = stats->ubtc + stats->mbtc + stats->bbtc;
+	ndev->stats.tx_errors = stats->erpt;
+	ndev->stats.multicast = stats->mprc;
 }
 
 void aq_nic_get_link_ksettings(struct aq_nic_s *self,

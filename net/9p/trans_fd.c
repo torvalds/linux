@@ -839,7 +839,6 @@ static int p9_socket_open(struct p9_client *client, struct socket *csocket)
 	if (IS_ERR(file)) {
 		pr_err("%s (%d): failed to map fd\n",
 		       __func__, task_pid_nr(current));
-		sock_release(csocket);
 		kfree(p);
 		return PTR_ERR(file);
 	}
