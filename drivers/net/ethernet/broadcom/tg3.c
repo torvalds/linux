@@ -3227,7 +3227,7 @@ static int tg3_nvram_read_using_eeprom(struct tg3 *tp,
 	return 0;
 }
 
-#define NVRAM_CMD_TIMEOUT 5000
+#define NVRAM_CMD_TIMEOUT 10000
 
 static int tg3_nvram_exec_cmd(struct tg3 *tp, u32 nvram_cmd)
 {
@@ -14789,7 +14789,7 @@ static void tg3_get_5717_nvram_info(struct tg3 *tp)
 
 static void tg3_get_5720_nvram_info(struct tg3 *tp)
 {
-	u32 nvcfg1, nvmpinstrp;
+	u32 nvcfg1, nvmpinstrp, nv_status;
 
 	nvcfg1 = tr32(NVRAM_CFG1);
 	nvmpinstrp = nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK;
@@ -14801,6 +14801,23 @@ static void tg3_get_5720_nvram_info(struct tg3 *tp)
 		}
 
 		switch (nvmpinstrp) {
+		case FLASH_5762_MX25L_100:
+		case FLASH_5762_MX25L_200:
+		case FLASH_5762_MX25L_400:
+		case FLASH_5762_MX25L_800:
+		case FLASH_5762_MX25L_160_320:
+			tp->nvram_pagesize = 4096;
+			tp->nvram_jedecnum = JEDEC_MACRONIX;
+			tg3_flag_set(tp, NVRAM_BUFFERED);
+			tg3_flag_set(tp, NO_NVRAM_ADDR_TRANS);
+			tg3_flag_set(tp, FLASH);
+			nv_status = tr32(NVRAM_AUTOSENSE_STATUS);
+			tp->nvram_size =
+				(1 << (nv_status >> AUTOSENSE_DEVID &
+						AUTOSENSE_DEVID_MASK)
+					<< AUTOSENSE_SIZE_IN_MB);
+			return;
+
 		case FLASH_5762_EEPROM_HD:
 			nvmpinstrp = FLASH_5720_EEPROM_HD;
 			break;
