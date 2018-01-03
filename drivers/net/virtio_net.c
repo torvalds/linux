@@ -31,6 +31,7 @@
 #include <linux/average.h>
 #include <linux/filter.h>
 #include <net/route.h>
+#include <net/xdp.h>
 
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
@@ -115,6 +116,8 @@ struct receive_queue {
 
 	/* Name of this receive queue: input.$index */
 	char name[40];
+
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct virtnet_info {
@@ -559,6 +562,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 		xdp.data = xdp.data_hard_start + xdp_headroom;
 		xdp_set_data_meta_invalid(&xdp);
 		xdp.data_end = xdp.data + len;
+		xdp.rxq = &rq->xdp_rxq;
 		orig_data = xdp.data;
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
@@ -692,6 +696,8 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		xdp.data = data + vi->hdr_len;
 		xdp_set_data_meta_invalid(&xdp);
 		xdp.data_end = xdp.data + (len - vi->hdr_len);
+		xdp.rxq = &rq->xdp_rxq;
+
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
 		if (act != XDP_PASS)
@@ -1225,13 +1231,18 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 static int virtnet_open(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
-	int i;
+	int i, err;
 
 	for (i = 0; i < vi->max_queue_pairs; i++) {
 		if (i < vi->curr_queue_pairs)
 			/* Make sure we have some buffers: if oom use wq. */
 			if (!try_fill_recv(vi, &vi->rq[i], GFP_KERNEL))
 				schedule_delayed_work(&vi->refill, 0);
+
+		err = xdp_rxq_info_reg(&vi->rq[i].xdp_rxq, dev, i);
+		if (err < 0)
+			return err;
+
 		virtnet_napi_enable(vi->rq[i].vq, &vi->rq[i].napi);
 		virtnet_napi_tx_enable(vi, vi->sq[i].vq, &vi->sq[i].napi);
 	}
@@ -1560,6 +1571,7 @@ static int virtnet_close(struct net_device *dev)
 	cancel_delayed_work_sync(&vi->refill);
 
 	for (i = 0; i < vi->max_queue_pairs; i++) {
+		xdp_rxq_info_unreg(&vi->rq[i].xdp_rxq);
 		napi_disable(&vi->rq[i].napi);
 		virtnet_napi_tx_disable(&vi->sq[i].napi);
 	}
