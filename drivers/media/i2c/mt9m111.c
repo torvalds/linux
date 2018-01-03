@@ -215,6 +215,9 @@ struct mt9m111 {
 	int power_count;
 	const struct mt9m111_datafmt *fmt;
 	int lastpage;	/* PageMap cache value */
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_pad pad;
+#endif
 };
 
 /* Find a data format by a pixel code */
@@ -971,6 +974,14 @@ static int mt9m111_probe(struct i2c_client *client,
 		goto out_clkput;
 	}
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	mt9m111->pad.flags = MEDIA_PAD_FL_SOURCE;
+	mt9m111->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&mt9m111->subdev.entity, 1, &mt9m111->pad);
+	if (ret < 0)
+		goto out_hdlfree;
+#endif
+
 	/* Second stage probe - when a capture adapter is there */
 	mt9m111->rect.left	= MT9M111_MIN_DARK_COLS;
 	mt9m111->rect.top	= MT9M111_MIN_DARK_ROWS;
@@ -982,16 +993,20 @@ static int mt9m111_probe(struct i2c_client *client,
 
 	ret = mt9m111_video_probe(client);
 	if (ret < 0)
-		goto out_hdlfree;
+		goto out_entityclean;
 
 	mt9m111->subdev.dev = &client->dev;
 	ret = v4l2_async_register_subdev(&mt9m111->subdev);
 	if (ret < 0)
-		goto out_hdlfree;
+		goto out_entityclean;
 
 	return 0;
 
+out_entityclean:
+#ifdef CONFIG_MEDIA_CONTROLLER
+	media_entity_cleanup(&mt9m111->subdev.entity);
 out_hdlfree:
+#endif
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
 out_clkput:
 	v4l2_clk_put(mt9m111->clk);
@@ -1004,6 +1019,9 @@ static int mt9m111_remove(struct i2c_client *client)
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	v4l2_async_unregister_subdev(&mt9m111->subdev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+	media_entity_cleanup(&mt9m111->subdev.entity);
+#endif
 	v4l2_clk_put(mt9m111->clk);
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
 
