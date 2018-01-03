@@ -81,7 +81,6 @@ static void __dma_rx_complete(void *param)
 
 	p->port.icount.rx += count;
 	dma->rx_index = cur_index;
-	tty_flip_buffer_push(tty_port);
 }
 
 #else
@@ -112,7 +111,7 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 	struct uart_8250_dma		*dma = p->dma;
 	struct circ_buf			*xmit = &p->port.state->xmit;
 	struct dma_async_tx_descriptor	*desc;
-	int ret;
+	int ret = 0;
 
 	if (uart_tx_stopped(&p->port) || dma->tx_running ||
 	    uart_circ_empty(xmit))
@@ -120,8 +119,10 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 
 	dma->tx_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 #ifdef CONFIG_ARCH_ROCKCHIP
-	if (dma->tx_size < MAX_TX_BYTES)
+	if (dma->tx_size < MAX_TX_BYTES) {
+		ret = -EBUSY;
 		goto err;
+	}
 #endif
 	desc = dmaengine_prep_slave_single(dma->txchan,
 					   dma->tx_addr + xmit->tail,
@@ -159,7 +160,7 @@ err:
 
 int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 {
-	unsigned int rfl, i = 0;
+	unsigned int rfl, i = 0, fcr = 0;
 	unsigned char buf[MAX_FIFO_SIZE];
 	struct uart_port	*port = &p->port;
 	struct tty_port		*tty_port = &p->port.state->port;
@@ -169,16 +170,30 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 
 	rfl = serial_port_in(port, UART_RFL_16550A);
 
-	while (i < rfl)
-		buf[i++] = serial_port_in(port, UART_RX);
+	if (rfl > (p->port.fifosize / 2 - 4)) {
+		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_T_TRIG_10 | UART_FCR_R_TRIG_01;
+		serial_port_out(port, UART_FCR, fcr);
+	} else {
+		while (i < rfl)
+			buf[i++] = serial_port_in(port, UART_RX);
+	}
 
-	if (i > 0) {
-		__dma_rx_complete(p);
+	__dma_rx_complete(p);
+
+	if (i == 0) {
+		rfl = serial_port_in(port, UART_RFL_16550A);
+		if (rfl == 0) {
+			__dma_rx_complete(p);
+			tty_flip_buffer_push(tty_port);
+		}
+	} else {
 		tty_insert_flip_string(tty_port, buf, i);
 		p->port.icount.rx += i;
 		tty_flip_buffer_push(tty_port);
 	}
 
+	if (fcr)
+		serial_port_out(port, UART_FCR, p->fcr);
 	return 0;
 }
 
