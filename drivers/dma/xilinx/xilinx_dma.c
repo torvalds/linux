@@ -1611,7 +1611,7 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 {
 	struct xilinx_dma_chan *chan = to_xilinx_chan(dchan);
 	struct xilinx_dma_tx_descriptor *desc;
-	struct xilinx_vdma_tx_segment *segment, *prev = NULL;
+	struct xilinx_vdma_tx_segment *segment;
 	struct xilinx_vdma_desc_hw *hw;
 
 	if (!is_slave_direction(xt->dir))
@@ -1664,8 +1664,6 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 
 	/* Insert the segment into the descriptor segments list. */
 	list_add_tail(&segment->node, &desc->segments);
-
-	prev = segment;
 
 	/* Link the last hardware descriptor with the first. */
 	segment = list_first_entry(&desc->segments,
