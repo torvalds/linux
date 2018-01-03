@@ -431,7 +431,7 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 
 		trace_xprtrdma_write_chunk(rqst->rq_task, mr, nsegs);
 		r_xprt->rx_stats.write_chunk_count++;
-		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
+		r_xprt->rx_stats.total_rdma_request += mr->mr_length;
 		nchunks++;
 		nsegs -= mr->mr_nents;
 	} while (nsegs);
@@ -489,7 +489,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 
 		trace_xprtrdma_reply_chunk(rqst->rq_task, mr, nsegs);
 		r_xprt->rx_stats.reply_chunk_count++;
-		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
+		r_xprt->rx_stats.total_rdma_request += mr->mr_length;
 		nchunks++;
 		nsegs -= mr->mr_nents;
 	} while (nsegs);
