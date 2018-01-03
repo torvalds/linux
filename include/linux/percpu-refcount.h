@@ -139,11 +139,11 @@ static inline bool __ref_is_percpu(struct percpu_ref *ref,
 	 * when using it as a pointer, __PERCPU_REF_ATOMIC may be set in
 	 * between contaminating the pointer value, meaning that
 	 * READ_ONCE() is required when fetching it.
+	 *
+	 * The smp_read_barrier_depends() implied by READ_ONCE() pairs
+	 * with smp_store_release() in __percpu_ref_switch_to_percpu().
 	 */
 	percpu_ptr = READ_ONCE(ref->percpu_count_ptr);
-
-	/* paired with smp_store_release() in __percpu_ref_switch_to_percpu() */
-	smp_read_barrier_depends();
 
 	/*
 	 * Theoretically, the following could test just ATOMIC; however,

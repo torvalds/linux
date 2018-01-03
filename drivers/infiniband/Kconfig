@@ -4,6 +4,7 @@ menuconfig INFINIBAND
 	depends on NET
 	depends on INET
 	depends on m || IPV6 != m
+	depends on !ALPHA
 	select IRQ_POLL
 	---help---
 	  Core support for InfiniBand (IB).  Make sure to also select

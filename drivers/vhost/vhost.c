@@ -1877,12 +1877,7 @@ static unsigned next_desc(struct vhost_virtqueue *vq, struct vring_desc *desc)
 		return -1U;
 
 	/* Check they're not leading us off end of descriptors. */
-	next = vhost16_to_cpu(vq, desc->next);
-	/* Make sure compiler knows to grab that: we don't want it changing! */
-	/* We will use the result as an index in an array, so most
-	 * architectures only need a compiler barrier here. */
-	read_barrier_depends();
-
+	next = vhost16_to_cpu(vq, READ_ONCE(desc->next));
 	return next;
 }
 

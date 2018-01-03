@@ -8193,6 +8193,7 @@ F:	arch/*/include/asm/rwsem.h
 F:	include/linux/seqlock.h
 F:	lib/locking*.[ch]
 F:	kernel/locking/
+X:	kernel/locking/locktorture.c
 
 LOGICAL DISK MANAGER SUPPORT (LDM, Windows 2000/XP/Vista Dynamic Disks)
 M:	"Richard Russon (FlatCap)" <ldm@flatcap.org>
@@ -11450,15 +11451,6 @@ L:	linux-wireless@vger.kernel.org
 S:	Orphan
 F:	drivers/net/wireless/ray*
 
-RCUTORTURE MODULE
-M:	Josh Triplett <josh@joshtriplett.org>
-M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-L:	linux-kernel@vger.kernel.org
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
-F:	Documentation/RCU/torture.txt
-F:	kernel/rcu/rcutorture.c
-
 RCUTORTURE TEST FRAMEWORK
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 M:	Josh Triplett <josh@joshtriplett.org>
@@ -13766,6 +13758,18 @@ M:	Herton Ronaldo Krzesinski <herton@canonical.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/topstar-laptop.c
+
+TORTURE-TEST MODULES
+M:	Davidlohr Bueso <dave@stgolabs.net>
+M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+M:	Josh Triplett <josh@joshtriplett.org>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
+F:	Documentation/RCU/torture.txt
+F:	kernel/torture.c
+F:	kernel/rcu/rcutorture.c
+F:	kernel/locking/locktorture.c
 
 TOSHIBA ACPI EXTRAS DRIVER
 M:	Azael Avalos <coproscefalo@gmail.com>
