@@ -377,10 +377,21 @@ nfp_reprs_clean_and_free_by_type(struct nfp_app *app,
 				 enum nfp_repr_type type)
 {
 	struct nfp_reprs *reprs;
+	int i;
 
-	reprs = nfp_app_reprs_set(app, type, NULL);
+	reprs = rcu_dereference_protected(app->reprs[type],
+					  lockdep_is_held(&app->pf->lock));
 	if (!reprs)
 		return;
+
+	/* Preclean must happen before we remove the reprs reference from the
+	 * app below.
+	 */
+	for (i = 0; i < reprs->num_reprs; i++)
+		if (reprs->reprs[i])
+			nfp_app_repr_preclean(app, reprs->reprs[i]);
+
+	reprs = nfp_app_reprs_set(app, type, NULL);
 
 	synchronize_rcu();
 	nfp_reprs_clean_and_free(reprs);
@@ -420,8 +431,10 @@ int nfp_reprs_resync_phys_ports(struct nfp_app *app)
 			continue;
 
 		repr = netdev_priv(old_reprs->reprs[i]);
-		if (repr->port->type == NFP_PORT_INVALID)
+		if (repr->port->type == NFP_PORT_INVALID) {
+			nfp_app_repr_preclean(app, old_reprs->reprs[i]);
 			continue;
+		}
 
 		reprs->reprs[i] = old_reprs->reprs[i];
 	}
@@ -438,7 +451,6 @@ int nfp_reprs_resync_phys_ports(struct nfp_app *app)
 		if (repr->port->type != NFP_PORT_INVALID)
 			continue;
 
-		nfp_app_repr_stop(app, repr);
 		nfp_repr_clean(repr);
 	}
 
