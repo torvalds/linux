@@ -294,7 +294,7 @@ void xprt_rdma_bc_free_rqst(struct rpc_rqst *rqst)
 
 /**
  * rpcrdma_bc_receive_call - Handle a backward direction call
- * @xprt: transport receiving the call
+ * @r_xprt: transport receiving the call
  * @rep: receive buffer containing the call
  *
  * Operational assumptions:

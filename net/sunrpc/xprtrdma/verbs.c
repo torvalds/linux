@@ -1584,7 +1584,7 @@ out_map:
 /**
  * rpcrdma_ep_post_extra_recv - Post buffers for incoming backchannel requests
  * @r_xprt: transport associated with these backchannel resources
- * @min_reqs: minimum number of incoming requests expected
+ * @count: minimum number of incoming requests expected
  *
  * Returns zero if all requested buffers were posted, or a negative errno.
  */
