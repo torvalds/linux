@@ -130,8 +130,9 @@ struct acpi_exception_info {
 #define AE_HEX_OVERFLOW                 EXCEP_ENV (0x0020)
 #define AE_DECIMAL_OVERFLOW             EXCEP_ENV (0x0021)
 #define AE_OCTAL_OVERFLOW               EXCEP_ENV (0x0022)
+#define AE_END_OF_TABLE                 EXCEP_ENV (0x0023)
 
-#define AE_CODE_ENV_MAX                 0x0022
+#define AE_CODE_ENV_MAX                 0x0023
 
 /*
  * Programmer exceptions
@@ -275,7 +276,8 @@ static const struct acpi_exception_info acpi_gbl_exception_names_env[] = {
 	EXCEP_TXT("AE_DECIMAL_OVERFLOW",
 		  "Overflow during ASCII decimal-to-binary conversion"),
 	EXCEP_TXT("AE_OCTAL_OVERFLOW",
-		  "Overflow during ASCII octal-to-binary conversion")
+		  "Overflow during ASCII octal-to-binary conversion"),
+	EXCEP_TXT("AE_END_OF_TABLE", "Reached the end of table")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_pgm[] = {
