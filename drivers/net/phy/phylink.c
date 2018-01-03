@@ -1578,7 +1578,7 @@ static int phylink_sfp_module_insert(void *upstream,
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support) = { 0, };
 	struct phylink_link_state config;
 	phy_interface_t iface;
-	int mode, ret = 0;
+	int ret = 0;
 	bool changed;
 	u8 port;
 
@@ -1593,7 +1593,6 @@ static int phylink_sfp_module_insert(void *upstream,
 	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_2500BASEX:
 	case PHY_INTERFACE_MODE_10GKR:
-		mode = MLO_AN_INBAND;
 		break;
 	default:
 		return -EINVAL;
@@ -1611,13 +1610,15 @@ static int phylink_sfp_module_insert(void *upstream,
 	ret = phylink_validate(pl, support, &config);
 	if (ret) {
 		netdev_err(pl->netdev, "validation of %s/%s with support %*pb failed: %d\n",
-			   phylink_an_mode_str(mode), phy_modes(config.interface),
+			   phylink_an_mode_str(MLO_AN_INBAND),
+			   phy_modes(config.interface),
 			   __ETHTOOL_LINK_MODE_MASK_NBITS, support, ret);
 		return ret;
 	}
 
 	netdev_dbg(pl->netdev, "requesting link mode %s/%s with support %*pb\n",
-		   phylink_an_mode_str(mode), phy_modes(config.interface),
+		   phylink_an_mode_str(MLO_AN_INBAND),
+		   phy_modes(config.interface),
 		   __ETHTOOL_LINK_MODE_MASK_NBITS, support);
 
 	if (phy_interface_mode_is_8023z(iface) && pl->phydev)
@@ -1630,15 +1631,15 @@ static int phylink_sfp_module_insert(void *upstream,
 		linkmode_copy(pl->link_config.advertising, config.advertising);
 	}
 
-	if (pl->link_an_mode != mode ||
+	if (pl->link_an_mode != MLO_AN_INBAND ||
 	    pl->link_config.interface != config.interface) {
 		pl->link_config.interface = config.interface;
-		pl->link_an_mode = mode;
+		pl->link_an_mode = MLO_AN_INBAND;
 
 		changed = true;
 
 		netdev_info(pl->netdev, "switched to %s/%s link mode\n",
-			    phylink_an_mode_str(mode),
+			    phylink_an_mode_str(MLO_AN_INBAND),
 			    phy_modes(config.interface));
 	}
 

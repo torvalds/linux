@@ -466,11 +466,6 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 {
 	/* SFP module inserted - read I2C data */
 	struct sfp_eeprom_id id;
-	char vendor[17];
-	char part[17];
-	char sn[17];
-	char date[9];
-	char rev[5];
 	u8 check;
 	int err;
 
@@ -506,19 +501,12 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 
 	sfp->id = id;
 
-	memcpy(vendor, sfp->id.base.vendor_name, 16);
-	vendor[16] = '\0';
-	memcpy(part, sfp->id.base.vendor_pn, 16);
-	part[16] = '\0';
-	memcpy(rev, sfp->id.base.vendor_rev, 4);
-	rev[4] = '\0';
-	memcpy(sn, sfp->id.ext.vendor_sn, 16);
-	sn[16] = '\0';
-	memcpy(date, sfp->id.ext.datecode, 8);
-	date[8] = '\0';
-
-	dev_info(sfp->dev, "module %s %s rev %s sn %s dc %s\n",
-		 vendor, part, rev, sn, date);
+	dev_info(sfp->dev, "module %.*s %.*s rev %.*s sn %.*s dc %.*s\n",
+		 (int)sizeof(id.base.vendor_name), id.base.vendor_name,
+		 (int)sizeof(id.base.vendor_pn), id.base.vendor_pn,
+		 (int)sizeof(id.base.vendor_rev), id.base.vendor_rev,
+		 (int)sizeof(id.ext.vendor_sn), id.ext.vendor_sn,
+		 (int)sizeof(id.ext.datecode), id.ext.datecode);
 
 	/* Check whether we support this module */
 	if (!sfp->type->module_supported(&sfp->id)) {

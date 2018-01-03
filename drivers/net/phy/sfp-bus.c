@@ -57,21 +57,19 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	case SFP_CONNECTOR_MT_RJ:
 	case SFP_CONNECTOR_MU:
 	case SFP_CONNECTOR_OPTICAL_PIGTAIL:
-		if (support)
-			phylink_set(support, FIBRE);
 		port = PORT_FIBRE;
 		break;
 
 	case SFP_CONNECTOR_RJ45:
-		if (support)
-			phylink_set(support, TP);
 		port = PORT_TP;
+		break;
+
+	case SFP_CONNECTOR_COPPER_PIGTAIL:
+		port = PORT_DA;
 		break;
 
 	case SFP_CONNECTOR_UNSPEC:
 		if (id->base.e1000_base_t) {
-			if (support)
-				phylink_set(support, TP);
 			port = PORT_TP;
 			break;
 		}
@@ -80,7 +78,6 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	case SFP_CONNECTOR_MPO_1X12:
 	case SFP_CONNECTOR_MPO_2X16:
 	case SFP_CONNECTOR_HSSDC_II:
-	case SFP_CONNECTOR_COPPER_PIGTAIL:
 	case SFP_CONNECTOR_NOSEPARATE:
 	case SFP_CONNECTOR_MXC_2X16:
 		port = PORT_OTHER;
@@ -90,6 +87,18 @@ int sfp_parse_port(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 			 id->base.connector);
 		port = PORT_OTHER;
 		break;
+	}
+
+	if (support) {
+		switch (port) {
+		case PORT_FIBRE:
+			phylink_set(support, FIBRE);
+			break;
+
+		case PORT_TP:
+			phylink_set(support, TP);
+			break;
+		}
 	}
 
 	return port;
@@ -143,6 +152,11 @@ phy_interface_t sfp_parse_interface(struct sfp_bus *bus,
 		break;
 
 	default:
+		if (id->base.e1000_base_cx) {
+			iface = PHY_INTERFACE_MODE_1000BASEX;
+			break;
+		}
+
 		iface = PHY_INTERFACE_MODE_NA;
 		dev_err(bus->sfp_dev,
 			"SFP module encoding does not support 8b10b nor 64b66b\n");
@@ -165,9 +179,25 @@ EXPORT_SYMBOL_GPL(sfp_parse_interface);
 void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		       unsigned long *support)
 {
+	unsigned int br_min, br_nom, br_max;
+
 	phylink_set(support, Autoneg);
 	phylink_set(support, Pause);
 	phylink_set(support, Asym_Pause);
+
+	/* Decode the bitrate information to MBd */
+	br_min = br_nom = br_max = 0;
+	if (id->base.br_nominal) {
+		if (id->base.br_nominal != 255) {
+			br_nom = id->base.br_nominal * 100;
+			br_min = br_nom + id->base.br_nominal * id->ext.br_min;
+			br_max = br_nom + id->base.br_nominal * id->ext.br_max;
+		} else if (id->ext.br_max) {
+			br_nom = 250 * id->ext.br_max;
+			br_max = br_nom + br_nom * id->ext.br_min / 100;
+			br_min = br_nom - br_nom * id->ext.br_min / 100;
+		}
+	}
 
 	/* Set ethtool support from the compliance fields. */
 	if (id->base.e10g_base_sr)
@@ -185,6 +215,34 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	if (id->base.e1000_base_t) {
 		phylink_set(support, 1000baseT_Half);
 		phylink_set(support, 1000baseT_Full);
+	}
+
+	/* 1000Base-PX or 1000Base-BX10 */
+	if ((id->base.e_base_px || id->base.e_base_bx10) &&
+	    br_min <= 1300 && br_max >= 1200)
+		phylink_set(support, 1000baseX_Full);
+
+	/* For active or passive cables, select the link modes
+	 * based on the bit rates and the cable compliance bytes.
+	 */
+	if ((id->base.sfp_ct_passive || id->base.sfp_ct_active) && br_nom) {
+		/* This may look odd, but some manufacturers use 12000MBd */
+		if (br_min <= 12000 && br_max >= 10300)
+			phylink_set(support, 10000baseCR_Full);
+		if (br_min <= 3200 && br_max >= 3100)
+			phylink_set(support, 2500baseX_Full);
+		if (br_min <= 1300 && br_max >= 1200)
+			phylink_set(support, 1000baseX_Full);
+	}
+	if (id->base.sfp_ct_passive) {
+		if (id->base.passive.sff8431_app_e)
+			phylink_set(support, 10000baseCR_Full);
+	}
+	if (id->base.sfp_ct_active) {
+		if (id->base.active.sff8431_app_e ||
+		    id->base.active.sff8431_lim) {
+			phylink_set(support, 10000baseCR_Full);
+		}
 	}
 
 	switch (id->base.extended_cc) {
@@ -219,35 +277,6 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 			phylink_set(support, 2500baseX_Full);
 		if (id->base.br_nominal >= 12)
 			phylink_set(support, 1000baseX_Full);
-	}
-
-	switch (id->base.connector) {
-	case SFP_CONNECTOR_SC:
-	case SFP_CONNECTOR_FIBERJACK:
-	case SFP_CONNECTOR_LC:
-	case SFP_CONNECTOR_MT_RJ:
-	case SFP_CONNECTOR_MU:
-	case SFP_CONNECTOR_OPTICAL_PIGTAIL:
-		break;
-
-	case SFP_CONNECTOR_UNSPEC:
-		if (id->base.e1000_base_t)
-			break;
-
-	case SFP_CONNECTOR_SG: /* guess */
-	case SFP_CONNECTOR_MPO_1X12:
-	case SFP_CONNECTOR_MPO_2X16:
-	case SFP_CONNECTOR_HSSDC_II:
-	case SFP_CONNECTOR_COPPER_PIGTAIL:
-	case SFP_CONNECTOR_NOSEPARATE:
-	case SFP_CONNECTOR_MXC_2X16:
-	default:
-		/* a guess at the supported link modes */
-		dev_warn(bus->sfp_dev,
-			 "Guessing link modes, please report...\n");
-		phylink_set(support, 1000baseT_Half);
-		phylink_set(support, 1000baseT_Full);
-		break;
 	}
 }
 EXPORT_SYMBOL_GPL(sfp_parse_support);

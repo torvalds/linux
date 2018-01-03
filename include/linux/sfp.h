@@ -165,7 +165,41 @@ struct sfp_eeprom_base {
 	char vendor_rev[4];
 	union {
 		__be16 optical_wavelength;
-		u8 cable_spec;
+		__be16 cable_compliance;
+		struct {
+#if defined __BIG_ENDIAN_BITFIELD
+			u8 reserved60_2:6;
+			u8 fc_pi_4_app_h:1;
+			u8 sff8431_app_e:1;
+			u8 reserved61:8;
+#elif defined __LITTLE_ENDIAN_BITFIELD
+			u8 sff8431_app_e:1;
+			u8 fc_pi_4_app_h:1;
+			u8 reserved60_2:6;
+			u8 reserved61:8;
+#else
+#error Unknown Endian
+#endif
+		} __packed passive;
+		struct {
+#if defined __BIG_ENDIAN_BITFIELD
+			u8 reserved60_4:4;
+			u8 fc_pi_4_lim:1;
+			u8 sff8431_lim:1;
+			u8 fc_pi_4_app_h:1;
+			u8 sff8431_app_e:1;
+			u8 reserved61:8;
+#elif defined __LITTLE_ENDIAN_BITFIELD
+			u8 sff8431_app_e:1;
+			u8 fc_pi_4_app_h:1;
+			u8 sff8431_lim:1;
+			u8 fc_pi_4_lim:1;
+			u8 reserved60_4:4;
+			u8 reserved61:8;
+#else
+#error Unknown Endian
+#endif
+		} __packed active;
 	} __packed;
 	u8 reserved62;
 	u8 cc_base;
