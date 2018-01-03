@@ -764,6 +764,11 @@ static void xilinx_dma_free_chan_resources(struct dma_chan *dchan)
 		INIT_LIST_HEAD(&chan->free_seg_list);
 		spin_unlock_irqrestore(&chan->lock, flags);
 
+		/* Free memory that is allocated for BD */
+		dma_free_coherent(chan->dev, sizeof(*chan->seg_v) *
+				  XILINX_DMA_NUM_DESCS, chan->seg_v,
+				  chan->seg_p);
+
 		/* Free Memory that is allocated for cyclic DMA Mode */
 		dma_free_coherent(chan->dev, sizeof(*chan->cyclic_seg_v),
 				  chan->cyclic_seg_v, chan->cyclic_seg_p);
