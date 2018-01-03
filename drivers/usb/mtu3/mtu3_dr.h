@@ -18,8 +18,7 @@ int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
 				struct device_node *dn);
 int ssusb_host_enable(struct ssusb_mtk *ssusb);
 int ssusb_host_disable(struct ssusb_mtk *ssusb, bool suspend);
-int ssusb_wakeup_enable(struct ssusb_mtk *ssusb);
-void ssusb_wakeup_disable(struct ssusb_mtk *ssusb);
+void ssusb_wakeup_set(struct ssusb_mtk *ssusb, bool enable);
 
 #else
 
