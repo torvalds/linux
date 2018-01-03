@@ -112,7 +112,7 @@ static
 struct drm_connector *find_connector_by_bridge(struct drm_device *drm_dev,
 					       struct device_node *node)
 {
-	struct device_node *np_encoder, *np_connector;
+	struct device_node *np_encoder, *np_connector = NULL;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector = NULL;
 	struct device_node *port, *endpoint;
