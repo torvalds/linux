@@ -32,6 +32,7 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/lockdep.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
@@ -102,6 +103,52 @@ nfp_flower_repr_get(struct nfp_app *app, u32 port_id)
 }
 
 static int
+nfp_flower_reprs_reify(struct nfp_app *app, enum nfp_repr_type type,
+		       bool exists)
+{
+	struct nfp_reprs *reprs;
+	int i, err, count = 0;
+
+	reprs = rcu_dereference_protected(app->reprs[type],
+					  lockdep_is_held(&app->pf->lock));
+	if (!reprs)
+		return 0;
+
+	for (i = 0; i < reprs->num_reprs; i++)
+		if (reprs->reprs[i]) {
+			struct nfp_repr *repr = netdev_priv(reprs->reprs[i]);
+
+			err = nfp_flower_cmsg_portreify(repr, exists);
+			if (err)
+				return err;
+			count++;
+		}
+
+	return count;
+}
+
+static int
+nfp_flower_wait_repr_reify(struct nfp_app *app, atomic_t *replies, int tot_repl)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	int err;
+
+	if (!tot_repl)
+		return 0;
+
+	lockdep_assert_held(&app->pf->lock);
+	err = wait_event_interruptible_timeout(priv->reify_wait_queue,
+					       atomic_read(replies) >= tot_repl,
+					       msecs_to_jiffies(10));
+	if (err <= 0) {
+		nfp_warn(app->cpp, "Not all reprs responded to reify\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int
 nfp_flower_repr_netdev_open(struct nfp_app *app, struct nfp_repr *repr)
 {
 	int err;
@@ -138,6 +185,24 @@ nfp_flower_repr_netdev_clean(struct nfp_app *app, struct net_device *netdev)
 				     netdev_priv(netdev));
 }
 
+static void
+nfp_flower_repr_netdev_preclean(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_repr *repr = netdev_priv(netdev);
+	struct nfp_flower_priv *priv = app->priv;
+	atomic_t *replies = &priv->reify_replies;
+	int err;
+
+	atomic_set(replies, 0);
+	err = nfp_flower_cmsg_portreify(repr, false);
+	if (err) {
+		nfp_warn(app->cpp, "Failed to notify firmware about repr destruction\n");
+		return;
+	}
+
+	nfp_flower_wait_repr_reify(app, replies, 1);
+}
+
 static void nfp_flower_sriov_disable(struct nfp_app *app)
 {
 	struct nfp_flower_priv *priv = app->priv;
@@ -155,10 +220,11 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 {
 	u8 nfp_pcie = nfp_cppcore_pcie_unit(app->pf->cpp);
 	struct nfp_flower_priv *priv = app->priv;
+	atomic_t *replies = &priv->reify_replies;
 	enum nfp_port_type port_type;
 	struct nfp_reprs *reprs;
+	int i, err, reify_cnt;
 	const u8 queue = 0;
-	int i, err;
 
 	port_type = repr_type == NFP_REPR_TYPE_PF ? NFP_PORT_PF_PORT :
 						    NFP_PORT_VF_PORT;
@@ -209,7 +275,21 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 
 	nfp_app_reprs_set(app, repr_type, reprs);
 
+	atomic_set(replies, 0);
+	reify_cnt = nfp_flower_reprs_reify(app, repr_type, true);
+	if (reify_cnt < 0) {
+		err = reify_cnt;
+		nfp_warn(app->cpp, "Failed to notify firmware about repr creation\n");
+		goto err_reprs_remove;
+	}
+
+	err = nfp_flower_wait_repr_reify(app, replies, reify_cnt);
+	if (err)
+		goto err_reprs_remove;
+
 	return 0;
+err_reprs_remove:
+	reprs = nfp_app_reprs_set(app, repr_type, NULL);
 err_reprs_clean:
 	nfp_reprs_clean_and_free(reprs);
 	return err;
@@ -231,10 +311,11 @@ static int
 nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 {
 	struct nfp_eth_table *eth_tbl = app->pf->eth_tbl;
+	atomic_t *replies = &priv->reify_replies;
 	struct sk_buff *ctrl_skb;
 	struct nfp_reprs *reprs;
+	int err, reify_cnt;
 	unsigned int i;
-	int err;
 
 	ctrl_skb = nfp_flower_cmsg_mac_repr_start(app, eth_tbl->count);
 	if (!ctrl_skb)
@@ -291,16 +372,30 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 
 	nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, reprs);
 
-	/* The MAC_REPR control message should be sent after the MAC
+	/* The REIFY/MAC_REPR control messages should be sent after the MAC
 	 * representors are registered using nfp_app_reprs_set().  This is
 	 * because the firmware may respond with control messages for the
 	 * MAC representors, f.e. to provide the driver with information
 	 * about their state, and without registration the driver will drop
 	 * any such messages.
 	 */
+	atomic_set(replies, 0);
+	reify_cnt = nfp_flower_reprs_reify(app, NFP_REPR_TYPE_PHYS_PORT, true);
+	if (reify_cnt < 0) {
+		err = reify_cnt;
+		nfp_warn(app->cpp, "Failed to notify firmware about repr creation\n");
+		goto err_reprs_remove;
+	}
+
+	err = nfp_flower_wait_repr_reify(app, replies, reify_cnt);
+	if (err)
+		goto err_reprs_remove;
+
 	nfp_ctrl_tx(app->ctrl, ctrl_skb);
 
 	return 0;
+err_reprs_remove:
+	reprs = nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, NULL);
 err_reprs_clean:
 	nfp_reprs_clean_and_free(reprs);
 err_free_ctrl_skb:
@@ -417,6 +512,7 @@ static int nfp_flower_init(struct nfp_app *app)
 	app_priv->app = app;
 	skb_queue_head_init(&app_priv->cmsg_skbs);
 	INIT_WORK(&app_priv->cmsg_work, nfp_flower_cmsg_process_rx);
+	init_waitqueue_head(&app_priv->reify_wait_queue);
 
 	err = nfp_flower_metadata_init(app);
 	if (err)
@@ -474,6 +570,7 @@ const struct nfp_app_type app_flower = {
 	.vnic_clean	= nfp_flower_vnic_clean,
 
 	.repr_init	= nfp_flower_repr_netdev_init,
+	.repr_preclean	= nfp_flower_repr_netdev_preclean,
 	.repr_clean	= nfp_flower_repr_netdev_clean,
 
 	.repr_open	= nfp_flower_repr_netdev_open,
