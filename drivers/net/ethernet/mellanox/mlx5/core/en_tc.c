@@ -1546,11 +1546,11 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 				   struct neighbour **out_n,
 				   int *out_ttl)
 {
-	struct mlx5e_rep_priv *uplink_rpriv;
 	struct neighbour *n = NULL;
 	struct dst_entry *dst;
 
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
+	struct mlx5e_rep_priv *uplink_rpriv;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	int ret;
 
