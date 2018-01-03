@@ -770,7 +770,7 @@ static void __rpc_execute(struct rpc_task *task)
 			if (do_action == NULL)
 				break;
 		}
-		trace_rpc_task_run_action(task->tk_client, task, task->tk_action);
+		trace_rpc_task_run_action(task->tk_client, task, do_action);
 		do_action(task);
 
 		/*
