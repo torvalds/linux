@@ -51,7 +51,6 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name,
 {
 	struct dm_crtc_state *crtc_state = to_dm_crtc_state(crtc->state);
 	struct dc_stream_state *stream_state = crtc_state->stream;
-	bool ret;
 
 	enum amdgpu_dm_pipe_crc_source source = dm_parse_crc_source(src_name);
 
@@ -62,22 +61,25 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name,
 	}
 
 	if (source == AMDGPU_DM_PIPE_CRC_SOURCE_AUTO) {
-		ret = dc_stream_configure_crc(stream_state->ctx->dc,
-					      stream_state,
-					      true, true);
+		if (dc_stream_configure_crc(stream_state->ctx->dc,
+					    stream_state,
+					    true, true))
+			crtc_state->crc_enabled = true;
+		else
+			return -EINVAL;
 	} else {
-		ret = dc_stream_configure_crc(stream_state->ctx->dc,
-					      stream_state,
-					      false, false);
+		if (dc_stream_configure_crc(stream_state->ctx->dc,
+					    stream_state,
+					    false, false))
+			crtc_state->crc_enabled = false;
+		else
+			return -EINVAL;
 	}
 
-	if (ret) {
-		*values_cnt = 3;
-		/* Reset crc_skipped flag on dm state */
-		crtc_state->crc_first_skipped = false;
-		return 0;
-	}
-	return -EINVAL;
+	*values_cnt = 3;
+	/* Reset crc_skipped flag on dm state */
+	crtc_state->crc_first_skipped = false;
+	return 0;
 }
 
 /**
@@ -92,6 +94,10 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 	struct dm_crtc_state *crtc_state = to_dm_crtc_state(crtc->state);
 	struct dc_stream_state *stream_state = crtc_state->stream;
 	uint32_t crcs[3];
+
+	/* Early return if CRC capture is not enabled. */
+	if (!crtc_state->crc_enabled)
+		return;
 
 	/*
 	 * Since flipping and crc enablement happen asynchronously, we - more
