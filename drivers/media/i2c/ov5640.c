@@ -1547,24 +1547,58 @@ static void ov5640_reset(struct ov5640_dev *sensor)
 	usleep_range(5000, 10000);
 }
 
+static int ov5640_set_power_on(struct ov5640_dev *sensor)
+{
+	struct i2c_client *client = sensor->i2c_client;
+	int ret;
+
+	ret = clk_prepare_enable(sensor->xclk);
+	if (ret) {
+		dev_err(&client->dev, "%s: failed to enable clock\n",
+			__func__);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(OV5640_NUM_SUPPLIES,
+				    sensor->supplies);
+	if (ret) {
+		dev_err(&client->dev, "%s: failed to enable regulators\n",
+			__func__);
+		goto xclk_off;
+	}
+
+	ov5640_reset(sensor);
+	ov5640_power(sensor, true);
+
+	ret = ov5640_init_slave_id(sensor);
+	if (ret)
+		goto power_off;
+
+	return 0;
+
+power_off:
+	ov5640_power(sensor, false);
+	regulator_bulk_disable(OV5640_NUM_SUPPLIES, sensor->supplies);
+xclk_off:
+	clk_disable_unprepare(sensor->xclk);
+	return ret;
+}
+
+static void ov5640_set_power_off(struct ov5640_dev *sensor)
+{
+	ov5640_power(sensor, false);
+	regulator_bulk_disable(OV5640_NUM_SUPPLIES, sensor->supplies);
+	clk_disable_unprepare(sensor->xclk);
+}
+
 static int ov5640_set_power(struct ov5640_dev *sensor, bool on)
 {
 	int ret = 0;
 
 	if (on) {
-		clk_prepare_enable(sensor->xclk);
-
-		ret = regulator_bulk_enable(OV5640_NUM_SUPPLIES,
-					    sensor->supplies);
+		ret = ov5640_set_power_on(sensor);
 		if (ret)
-			goto xclk_off;
-
-		ov5640_reset(sensor);
-		ov5640_power(sensor, true);
-
-		ret = ov5640_init_slave_id(sensor);
-		if (ret)
-			goto power_off;
+			return ret;
 
 		ret = ov5640_restore_mode(sensor);
 		if (ret)
@@ -1586,10 +1620,7 @@ static int ov5640_set_power(struct ov5640_dev *sensor, bool on)
 	}
 
 power_off:
-	ov5640_power(sensor, false);
-	regulator_bulk_disable(OV5640_NUM_SUPPLIES, sensor->supplies);
-xclk_off:
-	clk_disable_unprepare(sensor->xclk);
+	ov5640_set_power_off(sensor);
 	return ret;
 }
 
@@ -2202,6 +2233,34 @@ static int ov5640_get_regulators(struct ov5640_dev *sensor)
 				       sensor->supplies);
 }
 
+static int ov5640_check_chip_id(struct ov5640_dev *sensor)
+{
+	struct i2c_client *client = sensor->i2c_client;
+	int ret = 0;
+	u16 chip_id;
+
+	ret = ov5640_set_power_on(sensor);
+	if (ret)
+		return ret;
+
+	ret = ov5640_read_reg16(sensor, OV5640_REG_CHIP_ID, &chip_id);
+	if (ret) {
+		dev_err(&client->dev, "%s: failed to read chip identifier\n",
+			__func__);
+		goto power_off;
+	}
+
+	if (chip_id != 0x5640) {
+		dev_err(&client->dev, "%s: wrong chip identifier, expected 0x5640, got 0x%x\n",
+			__func__, chip_id);
+		ret = -ENXIO;
+	}
+
+power_off:
+	ov5640_set_power_off(sensor);
+	return ret;
+}
+
 static int ov5640_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -2283,6 +2342,10 @@ static int ov5640_probe(struct i2c_client *client,
 		return ret;
 
 	mutex_init(&sensor->lock);
+
+	ret = ov5640_check_chip_id(sensor);
+	if (ret)
+		goto entity_cleanup;
 
 	ret = ov5640_init_controls(sensor);
 	if (ret)
