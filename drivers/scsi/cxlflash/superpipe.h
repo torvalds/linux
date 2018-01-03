@@ -96,7 +96,6 @@ struct ctx_info {
 	struct llun_info **rht_lun;       /* Mapping of RHT entries to LUNs */
 	u8 *rht_needs_ws;	/* User-desired write-same function per RHTE */
 
-	struct cxl_ioctl_start_work work;
 	u64 ctxid;
 	u64 irqs; /* Number of interrupts requested for context */
 	pid_t pid;

@@ -204,7 +204,6 @@ struct hwq {
 	 */
 	struct afu *afu;
 	void *ctx_cookie;
-	struct cxl_ioctl_start_work work;
 	struct sisl_host_map __iomem *host_map;		/* MC host map */
 	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
 	ctx_hndl_t ctx_hndl;	/* master's context handle */

@@ -1611,9 +1611,7 @@ static int start_context(struct cxlflash_cfg *cfg, u32 index)
 	struct hwq *hwq = get_hwq(cfg->afu, index);
 	int rc = 0;
 
-	rc = cxl_start_context(hwq->ctx_cookie,
-			       hwq->work.work_element_descriptor,
-			       NULL);
+	rc = cxl_start_context(hwq->ctx_cookie, 0, NULL);
 
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
 	return rc;

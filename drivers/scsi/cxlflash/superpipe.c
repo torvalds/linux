@@ -1309,7 +1309,7 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	struct afu *afu = cfg->afu;
 	struct llun_info *lli = sdev->hostdata;
 	struct glun_info *gli = lli->parent;
-	struct cxl_ioctl_start_work *work;
+	struct cxl_ioctl_start_work work = { 0 };
 	struct ctx_info *ctxi = NULL;
 	struct lun_access *lun_access = NULL;
 	int rc = 0;
@@ -1405,11 +1405,10 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 		goto err;
 	}
 
-	work = &ctxi->work;
-	work->num_interrupts = irqs;
-	work->flags = CXL_START_WORK_NUM_IRQS;
+	work.num_interrupts = irqs;
+	work.flags = CXL_START_WORK_NUM_IRQS;
 
-	rc = cxl_start_work(ctx, work);
+	rc = cxl_start_work(ctx, &work);
 	if (unlikely(rc)) {
 		dev_dbg(dev, "%s: Could not start context rc=%d\n",
 			__func__, rc);
@@ -1534,6 +1533,7 @@ static int recover_context(struct cxlflash_cfg *cfg,
 	struct file *file;
 	void *ctx;
 	struct afu *afu = cfg->afu;
+	struct cxl_ioctl_start_work work = { 0 };
 
 	ctx = cxl_dev_context_init(cfg->dev);
 	if (IS_ERR_OR_NULL(ctx)) {
@@ -1543,7 +1543,10 @@ static int recover_context(struct cxlflash_cfg *cfg,
 		goto out;
 	}
 
-	rc = cxl_start_work(ctx, &ctxi->work);
+	work.num_interrupts = ctxi->irqs;
+	work.flags = CXL_START_WORK_NUM_IRQS;
+
+	rc = cxl_start_work(ctx, &work);
 	if (unlikely(rc)) {
 		dev_dbg(dev, "%s: Could not start context rc=%d\n",
 			__func__, rc);
