@@ -2521,14 +2521,19 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	u32 stat[3];
 	enum pipe pipe;
 	bool enabled = false;
+	bool sink_support;
 
 	if (!HAS_PSR(dev_priv))
 		return -ENODEV;
 
+	sink_support = dev_priv->psr.sink_support;
+	seq_printf(m, "Sink_Support: %s\n", yesno(sink_support));
+	if (!sink_support)
+		return 0;
+
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->psr.lock);
-	seq_printf(m, "Sink_Support: %s\n", yesno(dev_priv->psr.sink_support));
 	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
 	seq_printf(m, "Active: %s\n", yesno(dev_priv->psr.active));
 	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
