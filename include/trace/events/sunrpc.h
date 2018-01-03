@@ -32,7 +32,7 @@ DECLARE_EVENT_CLASS(rpc_task_status,
 		__entry->status = task->tk_status;
 	),
 
-	TP_printk("task:%u@%u, status %d",
+	TP_printk("task:%u@%u status=%d",
 		__entry->task_id, __entry->client_id,
 		__entry->status)
 );
@@ -66,7 +66,7 @@ TRACE_EVENT(rpc_connect_status,
 		__entry->status = status;
 	),
 
-	TP_printk("task:%u@%u, status %d",
+	TP_printk("task:%u@%u status=%d",
 		__entry->task_id, __entry->client_id,
 		__entry->status)
 );
