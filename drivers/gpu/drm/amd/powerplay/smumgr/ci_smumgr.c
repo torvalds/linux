@@ -860,10 +860,13 @@ static int ci_populate_smc_vddc_table(struct pp_hwmgr *hwmgr,
 		PP_ASSERT_WITH_CODE(0 == result, "do not populate SMC VDDC voltage table", return -EINVAL);
 
 		/* GPIO voltage control */
-		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->voltage_control)
-			table->VddcLevel[count].Smio |= data->vddc_voltage_table.entries[count].smio_low;
-		else
+		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->voltage_control) {
+			table->VddcLevel[count].Smio = (uint8_t) count;
+			table->Smio[count] |= data->vddc_voltage_table.entries[count].smio_low;
+			table->SmioMaskVddcVid |= data->vddc_voltage_table.entries[count].smio_low;
+		} else {
 			table->VddcLevel[count].Smio = 0;
+		}
 	}
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->VddcLevelCount);
@@ -885,10 +888,13 @@ static int ci_populate_smc_vdd_ci_table(struct pp_hwmgr *hwmgr,
 				&(data->vddci_voltage_table.entries[count]),
 				&(table->VddciLevel[count]));
 		PP_ASSERT_WITH_CODE(result == 0, "do not populate SMC VDDCI voltage table", return -EINVAL);
-		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control)
-			table->VddciLevel[count].Smio |= data->vddci_voltage_table.entries[count].smio_low;
-		else
-			table->VddciLevel[count].Smio |= 0;
+		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
+			table->VddciLevel[count].Smio = (uint8_t) count;
+			table->Smio[count] |= data->vddci_voltage_table.entries[count].smio_low;
+			table->SmioMaskVddciVid |= data->vddci_voltage_table.entries[count].smio_low;
+		} else {
+			table->VddciLevel[count].Smio = 0;
+		}
 	}
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->VddciLevelCount);
@@ -910,10 +916,13 @@ static int ci_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 				&(data->mvdd_voltage_table.entries[count]),
 				&table->MvddLevel[count]);
 		PP_ASSERT_WITH_CODE(result == 0, "do not populate SMC mvdd voltage table", return -EINVAL);
-		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control)
-			table->MvddLevel[count].Smio |= data->mvdd_voltage_table.entries[count].smio_low;
-		else
-			table->MvddLevel[count].Smio |= 0;
+		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
+			table->MvddLevel[count].Smio = (uint8_t) count;
+			table->Smio[count] |= data->mvdd_voltage_table.entries[count].smio_low;
+			table->SmioMaskMvddVid |= data->mvdd_voltage_table.entries[count].smio_low;
+		} else {
+			table->MvddLevel[count].Smio = 0;
+		}
 	}
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->MvddLevelCount);
