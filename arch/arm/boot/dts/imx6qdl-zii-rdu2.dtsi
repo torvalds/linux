@@ -805,6 +805,10 @@
 	};
 };
 
+&wdog1 {
+	status = "disabled";
+};
+
 &iomuxc {
 	pinctrl_accel: accelgrp {
 		fsl,pins = <
