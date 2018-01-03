@@ -372,6 +372,8 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
 	adap->dev.of_node = pdev->dev.of_node;
 
+	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_SMART_PREPARE);
+
 	/* The code below assumes runtime PM to be disabled. */
 	WARN_ON(pm_runtime_enabled(&pdev->dev));
 
@@ -435,7 +437,13 @@ MODULE_DEVICE_TABLE(of, dw_i2c_of_match);
 #ifdef CONFIG_PM_SLEEP
 static int dw_i2c_plat_prepare(struct device *dev)
 {
-	return pm_runtime_suspended(dev);
+	/*
+	 * If the ACPI companion device object is present for this device, it
+	 * may be accessed during suspend and resume of other devices via I2C
+	 * operation regions, so tell the PM core and middle layers to avoid
+	 * skipping system suspend/resume callbacks for it in that case.
+	 */
+	return !has_acpi_companion(dev);
 }
 
 static void dw_i2c_plat_complete(struct device *dev)
