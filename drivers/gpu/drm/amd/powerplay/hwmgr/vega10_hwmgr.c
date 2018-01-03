@@ -4489,7 +4489,6 @@ static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
-	int i;
 
 	if (hwmgr->request_dpm_level & (AMD_DPM_FORCED_LEVEL_AUTO |
 				AMD_DPM_FORCED_LEVEL_LOW |
@@ -4498,17 +4497,8 @@ static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 
 	switch (type) {
 	case PP_SCLK:
-		for (i = 0; i < 32; i++) {
-			if (mask & (1 << i))
-				break;
-		}
-		data->smc_state_table.gfx_boot_level = i;
-
-		for (i = 31; i >= 0; i--) {
-			if (mask & (1 << i))
-				break;
-		}
-		data->smc_state_table.gfx_max_level = i;
+		data->smc_state_table.gfx_boot_level = mask ? (ffs(mask) - 1) : 0;
+		data->smc_state_table.gfx_max_level = mask ? (fls(mask) - 1) : 0;
 
 		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
 			"Failed to upload boot level to lowest!",
@@ -4520,17 +4510,8 @@ static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 		break;
 
 	case PP_MCLK:
-		for (i = 0; i < 32; i++) {
-			if (mask & (1 << i))
-				break;
-		}
-		data->smc_state_table.mem_boot_level = i;
-
-		for (i = 31; i >= 0; i--) {
-			if (mask & (1 << i))
-				break;
-		}
-		data->smc_state_table.mem_max_level = i;
+		data->smc_state_table.mem_boot_level = mask ? (ffs(mask) - 1) : 0;
+		data->smc_state_table.mem_max_level = mask ? (fls(mask) - 1) : 0;
 
 		PP_ASSERT_WITH_CODE(!vega10_upload_dpm_bootup_level(hwmgr),
 			"Failed to upload boot level to lowest!",
