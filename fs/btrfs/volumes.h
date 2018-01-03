@@ -131,7 +131,7 @@ struct btrfs_device {
 	struct completion flush_wait;
 
 	/* per-device scrub information */
-	struct scrub_ctx *scrub_device;
+	struct scrub_ctx *scrub_ctx;
 
 	struct btrfs_work work;
 	struct rcu_head rcu;
