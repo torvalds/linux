@@ -775,7 +775,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 			goto create_lp_qp_failed;
 		}
 
-		ret = hr_dev->hw->modify_qp(&hr_qp->ibqp, &attr, attr_mask,
+		ret = hr_dev->hw->modify_qp(&hr_qp->ibqp, &attr, IB_QP_DEST_QPN,
 					    IB_QPS_INIT, IB_QPS_RTR);
 		if (ret) {
 			dev_err(dev, "modify qp failed(%d)!\n", ret);
