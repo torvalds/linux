@@ -521,10 +521,6 @@ static struct dentry *ovl_workdir_create(struct ovl_fs *ofs,
 	bool retried = false;
 	bool locked = false;
 
-	err = mnt_want_write(mnt);
-	if (err)
-		goto out_err;
-
 	inode_lock_nested(dir, I_MUTEX_PARENT);
 	locked = true;
 
@@ -589,7 +585,6 @@ retry:
 		goto out_err;
 	}
 out_unlock:
-	mnt_drop_write(mnt);
 	if (locked)
 		inode_unlock(dir);
 
@@ -930,12 +925,17 @@ out:
 
 static int ovl_make_workdir(struct ovl_fs *ofs, struct path *workpath)
 {
+	struct vfsmount *mnt = ofs->upper_mnt;
 	struct dentry *temp;
 	int err;
 
+	err = mnt_want_write(mnt);
+	if (err)
+		return err;
+
 	ofs->workdir = ovl_workdir_create(ofs, OVL_WORKDIR_NAME, false);
 	if (!ofs->workdir)
-		return 0;
+		goto out;
 
 	/*
 	 * Upper should support d_type, else whiteouts are visible.  Given
@@ -945,7 +945,7 @@ static int ovl_make_workdir(struct ovl_fs *ofs, struct path *workpath)
 	 */
 	err = ovl_check_d_type_supported(workpath);
 	if (err < 0)
-		return err;
+		goto out;
 
 	/*
 	 * We allowed this configuration and don't want to break users over
@@ -969,6 +969,7 @@ static int ovl_make_workdir(struct ovl_fs *ofs, struct path *workpath)
 	if (err) {
 		ofs->noxattr = true;
 		pr_warn("overlayfs: upper fs does not support xattr.\n");
+		err = 0;
 	} else {
 		vfs_removexattr(ofs->workdir, OVL_XATTR_OPAQUE);
 	}
@@ -980,7 +981,9 @@ static int ovl_make_workdir(struct ovl_fs *ofs, struct path *workpath)
 		pr_warn("overlayfs: upper fs does not support file handles, falling back to index=off.\n");
 	}
 
-	return 0;
+out:
+	mnt_drop_write(mnt);
+	return err;
 }
 
 static int ovl_get_workdir(struct ovl_fs *ofs, struct path *upperpath)
@@ -1027,7 +1030,12 @@ out:
 static int ovl_get_indexdir(struct ovl_fs *ofs, struct ovl_entry *oe,
 			    struct path *upperpath)
 {
+	struct vfsmount *mnt = ofs->upper_mnt;
 	int err;
+
+	err = mnt_want_write(mnt);
+	if (err)
+		return err;
 
 	/* Verify lower root is upper root origin */
 	err = ovl_verify_origin(upperpath->dentry, oe->lowerstack[0].dentry,
@@ -1056,6 +1064,7 @@ static int ovl_get_indexdir(struct ovl_fs *ofs, struct ovl_entry *oe,
 		pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
 
 out:
+	mnt_drop_write(mnt);
 	return err;
 }
 
