@@ -584,6 +584,27 @@ static int ovl_find_layer(struct ovl_fs *ofs, struct ovl_path *path)
 	return i;
 }
 
+/* Fix missing 'origin' xattr */
+static int ovl_fix_origin(struct dentry *dentry, struct dentry *lower,
+			  struct dentry *upper)
+{
+	int err;
+
+	if (ovl_check_origin_xattr(upper))
+		return 0;
+
+	err = ovl_want_write(dentry);
+	if (err)
+		return err;
+
+	err = ovl_set_origin(dentry, lower, upper);
+	if (!err)
+		err = ovl_set_impure(dentry->d_parent, upper->d_parent);
+
+	ovl_drop_write(dentry);
+	return err;
+}
+
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags)
 {
@@ -673,6 +694,18 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 		if (!this)
 			continue;
+
+		/*
+		 * If no origin fh is stored in upper of a merge dir, store fh
+		 * of lower dir and set upper parent "impure".
+		 */
+		if (upperdentry && !ctr && !ofs->noxattr) {
+			err = ovl_fix_origin(dentry, this, upperdentry);
+			if (err) {
+				dput(this);
+				goto out_put;
+			}
+		}
 
 		stack[ctr].dentry = this;
 		stack[ctr].layer = lower.layer;

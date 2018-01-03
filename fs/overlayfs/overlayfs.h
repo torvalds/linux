@@ -322,3 +322,5 @@ int ovl_copy_up_flags(struct dentry *dentry, int flags);
 int ovl_copy_xattr(struct dentry *old, struct dentry *new);
 int ovl_set_attr(struct dentry *upper, struct kstat *stat);
 struct ovl_fh *ovl_encode_fh(struct dentry *lower, bool is_upper);
+int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
+		   struct dentry *upper);
