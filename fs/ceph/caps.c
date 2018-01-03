@@ -3438,7 +3438,14 @@ retry:
 	 */
 
 	issued = cap->issued;
-	WARN_ON(issued != cap->implemented);
+	if (issued != cap->implemented)
+		pr_err_ratelimited("handle_cap_export: issued != implemented: "
+				"ino (%llx.%llx) mds%d seq %d mseq %d "
+				"issued %s implemented %s\n",
+				ceph_vinop(inode), mds, cap->seq, cap->mseq,
+				ceph_cap_string(issued),
+				ceph_cap_string(cap->implemented));
+
 
 	tcap = __get_cap_for_mds(ci, target);
 	if (tcap) {
@@ -3584,12 +3591,13 @@ retry:
 		if ((ph->flags & CEPH_CAP_FLAG_AUTH) &&
 		    (ocap->seq != le32_to_cpu(ph->seq) ||
 		     ocap->mseq != le32_to_cpu(ph->mseq))) {
-			pr_err("handle_cap_import: mismatched seq/mseq: "
-			       "ino (%llx.%llx) mds%d seq %d mseq %d "
-			       "importer mds%d has peer seq %d mseq %d\n",
-			       ceph_vinop(inode), peer, ocap->seq,
-			       ocap->mseq, mds, le32_to_cpu(ph->seq),
-			       le32_to_cpu(ph->mseq));
+			pr_err_ratelimited("handle_cap_import: "
+					"mismatched seq/mseq: ino (%llx.%llx) "
+					"mds%d seq %d mseq %d importer mds%d "
+					"has peer seq %d mseq %d\n",
+					ceph_vinop(inode), peer, ocap->seq,
+					ocap->mseq, mds, le32_to_cpu(ph->seq),
+					le32_to_cpu(ph->mseq));
 		}
 		__ceph_remove_cap(ocap, (ph->flags & CEPH_CAP_FLAG_RELEASE));
 	}
