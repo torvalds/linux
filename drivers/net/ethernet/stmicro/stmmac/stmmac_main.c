@@ -272,7 +272,13 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 {
 	char *phy_bus_name = priv->plat->phy_bus_name;
 	unsigned long flags;
+	int interface = priv->plat->interface;
 	bool ret = false;
+
+	if ((interface != PHY_INTERFACE_MODE_MII) &&
+	    (interface != PHY_INTERFACE_MODE_GMII) &&
+	    !phy_interface_mode_is_rgmii(interface))
+		goto out;
 
 	/* Using PCS we cannot dial with the phy registers at this stage
 	 * so we do not support extra feature like EEE.
