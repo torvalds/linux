@@ -264,4 +264,10 @@
 
 #endif /* __GLIBC__ */
 
+/* Definitions for if_ether.h */
+/* allow libcs like musl to deactivate this, glibc does not implement this. */
+#ifndef __UAPI_DEF_ETHHDR
+#define __UAPI_DEF_ETHHDR		1
+#endif
+
 #endif /* _UAPI_LIBC_COMPAT_H */
