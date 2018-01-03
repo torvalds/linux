@@ -1954,10 +1954,15 @@ static int crypt_setkey(struct crypt_config *cc)
 	/* Ignore extra keys (which are used for IV etc) */
 	subkey_size = crypt_subkey_size(cc);
 
-	if (crypt_integrity_hmac(cc))
+	if (crypt_integrity_hmac(cc)) {
+		if (subkey_size < cc->key_mac_size)
+			return -EINVAL;
+
 		crypt_copy_authenckey(cc->authenc_key, cc->key,
 				      subkey_size - cc->key_mac_size,
 				      cc->key_mac_size);
+	}
+
 	for (i = 0; i < cc->tfms_count; i++) {
 		if (crypt_integrity_hmac(cc))
 			r = crypto_aead_setkey(cc->cipher_tfm.tfms_aead[i],
