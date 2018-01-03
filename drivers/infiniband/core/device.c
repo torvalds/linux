@@ -446,7 +446,6 @@ int ib_register_device(struct ib_device *device,
 	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
 	struct device *parent = device->dev.parent;
 
-	WARN_ON_ONCE(!parent);
 	WARN_ON_ONCE(device->dma_device);
 	if (device->dev.dma_ops) {
 		/*
@@ -455,16 +454,25 @@ int ib_register_device(struct ib_device *device,
 		 * into device->dev.
 		 */
 		device->dma_device = &device->dev;
-		if (!device->dev.dma_mask)
-			device->dev.dma_mask = parent->dma_mask;
-		if (!device->dev.coherent_dma_mask)
-			device->dev.coherent_dma_mask =
-				parent->coherent_dma_mask;
+		if (!device->dev.dma_mask) {
+			if (parent)
+				device->dev.dma_mask = parent->dma_mask;
+			else
+				WARN_ON_ONCE(true);
+		}
+		if (!device->dev.coherent_dma_mask) {
+			if (parent)
+				device->dev.coherent_dma_mask =
+					parent->coherent_dma_mask;
+			else
+				WARN_ON_ONCE(true);
+		}
 	} else {
 		/*
 		 * The caller did not provide custom DMA operations. Use the
 		 * DMA mapping operations of the parent device.
 		 */
+		WARN_ON_ONCE(!parent);
 		device->dma_device = parent;
 	}
 
