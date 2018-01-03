@@ -42,6 +42,7 @@ struct pp_atomctrl_voltage_table;
 #define VOLTAGE_SCALE 4
 
 uint8_t convert_to_vid(uint16_t vddc);
+uint16_t convert_to_vddc(uint8_t vid);
 
 enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */

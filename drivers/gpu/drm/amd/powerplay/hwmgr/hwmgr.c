@@ -60,6 +60,11 @@ uint8_t convert_to_vid(uint16_t vddc)
 	return (uint8_t) ((6200 - (vddc * VOLTAGE_SCALE)) / 25);
 }
 
+uint16_t convert_to_vddc(uint8_t vid)
+{
+	return (uint16_t) ((6200 - (vid * 25)) / VOLTAGE_SCALE);
+}
+
 static int phm_get_pci_bus_devfn(struct pp_hwmgr *hwmgr,
 		struct cgs_system_info *sys_info)
 {
