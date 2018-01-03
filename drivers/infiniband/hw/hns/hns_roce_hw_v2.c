@@ -1931,6 +1931,36 @@ static int hns_roce_v2_qp_modify(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
+static void set_access_flags(struct hns_roce_qp *hr_qp,
+			     struct hns_roce_v2_qp_context *context,
+			     struct hns_roce_v2_qp_context *qpc_mask,
+			     const struct ib_qp_attr *attr, int attr_mask)
+{
+	u8 dest_rd_atomic;
+	u32 access_flags;
+
+	dest_rd_atomic = !!(attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) ?
+			 attr->max_dest_rd_atomic : hr_qp->resp_depth;
+
+	access_flags = !!(attr_mask & IB_QP_ACCESS_FLAGS) ?
+		       attr->qp_access_flags : hr_qp->atomic_rd_en;
+
+	if (!dest_rd_atomic)
+		access_flags &= IB_ACCESS_REMOTE_WRITE;
+
+	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RRE_S,
+		     !!(access_flags & IB_ACCESS_REMOTE_READ));
+	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RRE_S, 0);
+
+	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RWE_S,
+		     !!(access_flags & IB_ACCESS_REMOTE_WRITE));
+	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RWE_S, 0);
+
+	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S,
+		     !!(access_flags & IB_ACCESS_REMOTE_ATOMIC));
+	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S, 0);
+}
+
 static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 				    const struct ib_qp_attr *attr,
 				    struct hns_roce_v2_qp_context *context,
@@ -2015,18 +2045,6 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 		     0);
 	roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_CNP_TX_FLAG_S, 0);
 	roce_set_bit(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_CE_FLAG_S, 0);
-
-	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RRE_S,
-		     !!(attr->qp_access_flags & IB_ACCESS_REMOTE_READ));
-	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RRE_S, 0);
-
-	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RWE_S,
-		     !!(attr->qp_access_flags & IB_ACCESS_REMOTE_WRITE));
-	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RWE_S, 0);
-
-	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S,
-		     !!(attr->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC));
-	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_ATE_S, 0);
 
 	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 1);
 	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 0);
@@ -2907,6 +2925,9 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		goto out;
 	}
 
+	if (attr_mask & (IB_QP_ACCESS_FLAGS | IB_QP_MAX_DEST_RD_ATOMIC))
+		set_access_flags(hr_qp, context, qpc_mask, attr, attr_mask);
+
 	/* Every status migrate must change state */
 	roce_set_field(context->byte_60_qpst_mapid, V2_QPC_BYTE_60_QP_ST_M,
 		       V2_QPC_BYTE_60_QP_ST_S, new_state);
@@ -2922,6 +2943,9 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	}
 
 	hr_qp->state = new_state;
+
+	if (attr_mask & IB_QP_ACCESS_FLAGS)
+		hr_qp->atomic_rd_en = attr->qp_access_flags;
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
 		hr_qp->resp_depth = attr->max_dest_rd_atomic;

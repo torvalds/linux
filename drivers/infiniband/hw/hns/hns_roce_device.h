@@ -483,6 +483,7 @@ struct hns_roce_qp {
 	u8			resp_depth;
 	u8			state;
 	u32			access_flags;
+	u32                     atomic_rd_en;
 	u32			pkey_index;
 	void			(*event)(struct hns_roce_qp *,
 					 enum hns_roce_event);
