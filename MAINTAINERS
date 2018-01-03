@@ -10137,7 +10137,7 @@ F:	drivers/irqchip/irq-ompic.c
 F:	drivers/irqchip/irq-or1k-*
 
 OPENVSWITCH
-M:	Pravin Shelar <pshelar@nicira.com>
+M:	Pravin B Shelar <pshelar@ovn.org>
 L:	netdev@vger.kernel.org
 L:	dev@openvswitch.org
 W:	http://openvswitch.org
