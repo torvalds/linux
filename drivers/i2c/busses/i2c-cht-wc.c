@@ -379,7 +379,7 @@ static int cht_wc_i2c_adap_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id cht_wc_i2c_adap_id_table[] = {
+static const struct platform_device_id cht_wc_i2c_adap_id_table[] = {
 	{ .name = "cht_wcove_ext_chgr" },
 	{},
 };

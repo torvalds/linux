@@ -44,10 +44,10 @@
 set -o errexit
 set -o nounset
 
-READELF="${CROSS_COMPILE}readelf"
-ADDR2LINE="${CROSS_COMPILE}addr2line"
-SIZE="${CROSS_COMPILE}size"
-NM="${CROSS_COMPILE}nm"
+READELF="${CROSS_COMPILE:-}readelf"
+ADDR2LINE="${CROSS_COMPILE:-}addr2line"
+SIZE="${CROSS_COMPILE:-}size"
+NM="${CROSS_COMPILE:-}nm"
 
 command -v awk >/dev/null 2>&1 || die "awk isn't installed"
 command -v ${READELF} >/dev/null 2>&1 || die "readelf isn't installed"

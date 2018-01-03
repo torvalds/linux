@@ -103,10 +103,13 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	io.addr_source_cleanup = ipmi_pci_cleanup;
 	io.addr_source_data = pdev;
 
-	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO)
+	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO) {
 		io.addr_type = IPMI_IO_ADDR_SPACE;
-	else
+		io.io_setup = ipmi_si_port_setup;
+	} else {
 		io.addr_type = IPMI_MEM_ADDR_SPACE;
+		io.io_setup = ipmi_si_mem_setup;
+	}
 	io.addr_data = pci_resource_start(pdev, 0);
 
 	io.regspacing = ipmi_pci_probe_regspacing(&io);

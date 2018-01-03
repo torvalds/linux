@@ -11,8 +11,10 @@
 #define VER_H
 
 #define NIC_MAJOR_DRIVER_VERSION           1
-#define NIC_MINOR_DRIVER_VERSION           5
-#define NIC_BUILD_DRIVER_VERSION           345
+#define NIC_MINOR_DRIVER_VERSION           6
+#define NIC_BUILD_DRIVER_VERSION           13
 #define NIC_REVISION_DRIVER_VERSION        0
+
+#define AQ_CFG_DRV_VERSION_SUFFIX "-kern"
 
 #endif /* VER_H */

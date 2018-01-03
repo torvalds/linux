@@ -537,6 +537,7 @@ struct dwc2_core_params {
  *                       2 - Internal DMA
  * @power_optimized     Are power optimizations enabled?
  * @num_dev_ep          Number of device endpoints available
+ * @num_dev_in_eps      Number of device IN endpoints available
  * @num_dev_perio_in_ep Number of device periodic IN endpoints
  *                      available
  * @dev_token_q_depth   Device Mode IN Token Sequence Learning Queue
@@ -565,6 +566,7 @@ struct dwc2_core_params {
  *                       2 - 8 or 16 bits
  * @snpsid:             Value from SNPSID register
  * @dev_ep_dirs:        Direction of device endpoints (GHWCFG1)
+ * @g_tx_fifo_size[]	Power-on values of TxFIFO sizes
  */
 struct dwc2_hw_params {
 	unsigned op_mode:3;
@@ -586,12 +588,14 @@ struct dwc2_hw_params {
 	unsigned fs_phy_type:2;
 	unsigned i2c_enable:1;
 	unsigned num_dev_ep:4;
+	unsigned num_dev_in_eps : 4;
 	unsigned num_dev_perio_in_ep:4;
 	unsigned total_fifo_size:16;
 	unsigned power_optimized:1;
 	unsigned utmi_phy_data_width:2;
 	u32 snpsid;
 	u32 dev_ep_dirs;
+	u32 g_tx_fifo_size[MAX_EPS_CHANNELS];
 };
 
 /* Size of control and EP0 buffers */

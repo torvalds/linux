@@ -35,13 +35,13 @@ static inline u64 mb_per_tick(int mbps)
 struct nullb_cmd {
 	struct list_head list;
 	struct llist_node ll_list;
-	call_single_data_t csd;
+	struct __call_single_data csd;
 	struct request *rq;
 	struct bio *bio;
 	unsigned int tag;
+	blk_status_t error;
 	struct nullb_queue *nq;
 	struct hrtimer timer;
-	blk_status_t error;
 };
 
 struct nullb_queue {
