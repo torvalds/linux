@@ -106,7 +106,7 @@ static inline void native_pud_clear(pud_t *pud)
 	native_set_pud(pud, native_make_pud(0));
 }
 
-#ifdef CONFIG_KAISER
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
 extern pgd_t kaiser_set_shadow_pgd(pgd_t *pgdp, pgd_t pgd);
 
 static inline pgd_t *native_get_shadow_pgd(pgd_t *pgdp)
@@ -127,7 +127,7 @@ static inline pgd_t *native_get_shadow_pgd(pgd_t *pgdp)
 	BUILD_BUG_ON(1);
 	return NULL;
 }
-#endif /* CONFIG_KAISER */
+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
 
 static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {

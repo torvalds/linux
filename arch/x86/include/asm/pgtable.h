@@ -18,7 +18,7 @@
 #ifndef __ASSEMBLY__
 #include <asm/x86_init.h>
 
-#ifdef CONFIG_KAISER
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
 extern int kaiser_enabled;
 #else
 #define kaiser_enabled 0
@@ -872,7 +872,7 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {
 	memcpy(dst, src, count * sizeof(pgd_t));
-#ifdef CONFIG_KAISER
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
 	if (kaiser_enabled) {
 		/* Clone the shadow pgd part as well */
 		memcpy(native_get_shadow_pgd(dst),

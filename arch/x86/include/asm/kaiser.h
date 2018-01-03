@@ -20,7 +20,7 @@
 #define KAISER_SHADOW_PGD_OFFSET 0x1000
 
 #ifdef __ASSEMBLY__
-#ifdef CONFIG_KAISER
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
 
 .macro _SWITCH_TO_KERNEL_CR3 reg
 movq %cr3, \reg
@@ -69,7 +69,7 @@ movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
 8:
 .endm
 
-#else /* CONFIG_KAISER */
+#else /* CONFIG_PAGE_TABLE_ISOLATION */
 
 .macro SWITCH_KERNEL_CR3
 .endm
@@ -78,11 +78,11 @@ movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
 .macro SWITCH_KERNEL_CR3_NO_STACK
 .endm
 
-#endif /* CONFIG_KAISER */
+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
 
 #else /* __ASSEMBLY__ */
 
-#ifdef CONFIG_KAISER
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
 /*
  * Upon kernel/user mode switch, it may happen that the address
  * space has to be switched before the registers have been
@@ -100,10 +100,10 @@ extern void __init kaiser_check_boottime_disable(void);
 #else
 #define kaiser_enabled	0
 static inline void __init kaiser_check_boottime_disable(void) {}
-#endif /* CONFIG_KAISER */
+#endif /* CONFIG_PAGE_TABLE_ISOLATION */
 
 /*
- * Kaiser function prototypes are needed even when CONFIG_KAISER is not set,
+ * Kaiser function prototypes are needed even when CONFIG_PAGE_TABLE_ISOLATION is not set,
  * so as to build with tests on kaiser_enabled instead of #ifdefs.
  */
 

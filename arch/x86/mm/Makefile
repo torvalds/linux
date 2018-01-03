@@ -32,4 +32,4 @@ obj-$(CONFIG_ACPI_NUMA)		+= srat.o
 obj-$(CONFIG_NUMA_EMU)		+= numa_emulation.o
 
 obj-$(CONFIG_X86_INTEL_MPX)	+= mpx.o
-obj-$(CONFIG_KAISER)		+= kaiser.o
+obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= kaiser.o

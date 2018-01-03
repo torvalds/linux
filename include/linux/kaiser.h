@@ -1,7 +1,7 @@
 #ifndef _LINUX_KAISER_H
 #define _LINUX_KAISER_H
 
-#ifdef CONFIG_KAISER
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
 #include <asm/kaiser.h>
 
 static inline int kaiser_map_thread_stack(void *stack)
@@ -24,7 +24,7 @@ static inline void kaiser_unmap_thread_stack(void *stack)
 #else
 
 /*
- * These stubs are used whenever CONFIG_KAISER is off, which
+ * These stubs are used whenever CONFIG_PAGE_TABLE_ISOLATION is off, which
  * includes architectures that support KAISER, but have it disabled.
  */
 
@@ -48,5 +48,5 @@ static inline void kaiser_unmap_thread_stack(void *stack)
 {
 }
 
-#endif /* !CONFIG_KAISER */
+#endif /* !CONFIG_PAGE_TABLE_ISOLATION */
 #endif /* _LINUX_KAISER_H */
