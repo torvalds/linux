@@ -695,6 +695,9 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 	if ((s->bus_format == MEDIA_BUS_FMT_RGB666_1X18) &&
 	    (lvds->output == DISPLAY_OUTPUT_RGB))
 		s->output_mode = ROCKCHIP_OUT_MODE_P666;
+	else if ((s->bus_format == MEDIA_BUS_FMT_RGB565_1X16) &&
+		 (lvds->output == DISPLAY_OUTPUT_RGB))
+		s->output_mode = ROCKCHIP_OUT_MODE_P565;
 	else
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
 	s->tv_state = &conn_state->tv;
