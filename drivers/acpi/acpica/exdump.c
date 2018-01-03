@@ -904,7 +904,7 @@ void
 acpi_ex_dump_operands(union acpi_operand_object **operands,
 		      const char *opcode_name, u32 num_operands)
 {
-	ACPI_FUNCTION_NAME(ex_dump_operands);
+	ACPI_FUNCTION_TRACE(ex_dump_operands);
 
 	if (!opcode_name) {
 		opcode_name = "UNKNOWN";
@@ -928,7 +928,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "**** End operand dump for [%s]\n", opcode_name));
-	return;
+	return_VOID;
 }
 
 /*******************************************************************************

@@ -163,6 +163,7 @@ acpi_debug_print(u32 requested_debug_level,
 {
 	acpi_thread_id thread_id;
 	va_list args;
+	int fill_count;
 
 	/* Check if debug output enabled */
 
@@ -202,10 +203,21 @@ acpi_debug_print(u32 requested_debug_level,
 		acpi_os_printf("[%u] ", (u32)thread_id);
 	}
 
-	acpi_os_printf("[%02ld] ", acpi_gbl_nesting_level);
-#endif
+	fill_count = 48 - acpi_gbl_nesting_level -
+	    strlen(acpi_ut_trim_function_name(function_name));
+	if (fill_count < 0) {
+		fill_count = 0;
+	}
 
+	acpi_os_printf("[%02ld] %*s",
+		       acpi_gbl_nesting_level, acpi_gbl_nesting_level, " ");
+	acpi_os_printf("%s%*s: ",
+		       acpi_ut_trim_function_name(function_name), fill_count,
+		       " ");
+
+#else
 	acpi_os_printf("%-22.22s: ", acpi_ut_trim_function_name(function_name));
+#endif
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
