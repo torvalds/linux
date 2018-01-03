@@ -617,10 +617,11 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	u32 length;
 	u32 index;
 
-	ACPI_FUNCTION_NAME(ex_dump_operand)
+	ACPI_FUNCTION_NAME(ex_dump_operand);
 
-	    /* Check if debug output enabled */
-	    if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_EXEC, _COMPONENT)) {
+	/* Check if debug output enabled */
+
+	if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_EXEC, _COMPONENT)) {
 		return;
 	}
 
