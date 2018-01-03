@@ -3436,9 +3436,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			if (netif_msg_rx_status(priv)) {
 				netdev_dbg(priv->dev, "\tdesc: %p [entry %d] buff=0x%x\n",
 					   p, entry, des);
-				if (frame_len > ETH_FRAME_LEN)
-					netdev_dbg(priv->dev, "frame size %d, COE: %d\n",
-						   frame_len, status);
+				netdev_dbg(priv->dev, "frame size %d, COE: %d\n",
+					   frame_len, status);
 			}
 
 			/* The zero-copy is always used for all the sizes
