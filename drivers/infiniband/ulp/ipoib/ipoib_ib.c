@@ -644,7 +644,7 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 
 	if (netif_queue_stopped(dev))
 		if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
-				     IB_CQ_REPORT_MISSED_EVENTS))
+				     IB_CQ_REPORT_MISSED_EVENTS) < 0)
 			ipoib_warn(priv, "request notify on send CQ failed\n");
 
 	rc = post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
