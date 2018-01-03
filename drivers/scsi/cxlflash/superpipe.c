@@ -814,15 +814,18 @@ err:
  * @ctxid:	Previously obtained process element associated with CXL context.
  * @file:	Previously obtained file associated with CXL context.
  * @perms:	User-specified permissions.
+ * @irqs:	User-specified number of interrupts.
  */
 static void init_context(struct ctx_info *ctxi, struct cxlflash_cfg *cfg,
-			 void *ctx, int ctxid, struct file *file, u32 perms)
+			 void *ctx, int ctxid, struct file *file, u32 perms,
+			 u64 irqs)
 {
 	struct afu *afu = cfg->afu;
 
 	ctxi->rht_perms = perms;
 	ctxi->ctrl_map = &afu->afu_map->ctrls[ctxid].ctrl;
 	ctxi->ctxid = ENCODE_CTXID(ctxi, ctxid);
+	ctxi->irqs = irqs;
 	ctxi->pid = task_tgid_nr(current); /* tgid = pid */
 	ctxi->ctx = ctx;
 	ctxi->cfg = cfg;
@@ -1312,6 +1315,7 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	int rc = 0;
 	u32 perms;
 	int ctxid = -1;
+	u64 irqs = attach->num_interrupts;
 	u64 flags = 0UL;
 	u64 rctxid = 0UL;
 	struct file *file = NULL;
@@ -1320,9 +1324,9 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 
 	int fd = -1;
 
-	if (attach->num_interrupts > 4) {
+	if (irqs > 4) {
 		dev_dbg(dev, "%s: Cannot support this many interrupts %llu\n",
-			__func__, attach->num_interrupts);
+			__func__, irqs);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -1402,7 +1406,7 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	}
 
 	work = &ctxi->work;
-	work->num_interrupts = attach->num_interrupts;
+	work->num_interrupts = irqs;
 	work->flags = CXL_START_WORK_NUM_IRQS;
 
 	rc = cxl_start_work(ctx, work);
@@ -1430,7 +1434,7 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	perms = SISL_RHT_PERM(attach->hdr.flags + 1);
 
 	/* Context mutex is locked upon return */
-	init_context(ctxi, cfg, ctx, ctxid, file, perms);
+	init_context(ctxi, cfg, ctx, ctxid, file, perms, irqs);
 
 	rc = afu_attach(cfg, ctxi);
 	if (unlikely(rc)) {

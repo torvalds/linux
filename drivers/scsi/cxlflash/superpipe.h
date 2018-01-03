@@ -98,6 +98,7 @@ struct ctx_info {
 
 	struct cxl_ioctl_start_work work;
 	u64 ctxid;
+	u64 irqs; /* Number of interrupts requested for context */
 	pid_t pid;
 	bool initialized;
 	bool unavail;
