@@ -2207,7 +2207,9 @@ void recover_inline_xattr(struct inode *inode, struct page *page)
 	f2fs_bug_on(F2FS_I_SB(inode), IS_ERR(ipage));
 
 	ri = F2FS_INODE(page);
-	if (!(ri->i_inline & F2FS_INLINE_XATTR)) {
+	if (ri->i_inline & F2FS_INLINE_XATTR) {
+		set_inode_flag(inode, FI_INLINE_XATTR);
+	} else {
 		clear_inode_flag(inode, FI_INLINE_XATTR);
 		goto update_inode;
 	}
