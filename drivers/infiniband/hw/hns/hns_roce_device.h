@@ -178,6 +178,7 @@ enum {
 enum {
 	HNS_ROCE_CAP_FLAG_REREG_MR		= BIT(0),
 	HNS_ROCE_CAP_FLAG_ROCE_V1_V2		= BIT(1),
+	HNS_ROCE_CAP_FLAG_RQ_INLINE		= BIT(2)
 };
 
 enum hns_roce_mtt_type {
@@ -446,6 +447,21 @@ struct hns_roce_cmd_mailbox {
 
 struct hns_roce_dev;
 
+struct hns_roce_rinl_sge {
+	void			*addr;
+	u32			len;
+};
+
+struct hns_roce_rinl_wqe {
+	struct hns_roce_rinl_sge *sg_list;
+	u32			 sge_cnt;
+};
+
+struct hns_roce_rinl_buf {
+	struct hns_roce_rinl_wqe *wqe_list;
+	u32			 wqe_cnt;
+};
+
 struct hns_roce_qp {
 	struct ib_qp		ibqp;
 	struct hns_roce_buf	hr_buf;
@@ -477,6 +493,8 @@ struct hns_roce_qp {
 
 	struct hns_roce_sge	sge;
 	u32			next_sge;
+
+	struct hns_roce_rinl_buf rq_inl_buf;
 };
 
 struct hns_roce_sqp {
