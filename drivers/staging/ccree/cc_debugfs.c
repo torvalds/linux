@@ -37,7 +37,7 @@ struct cc_debugfs_ctx {
  */
 static struct dentry *cc_debugfs_dir;
 
-struct debugfs_reg32 debug_regs[] = {
+static struct debugfs_reg32 debug_regs[] = {
 	CC_DEBUG_REG(HOST_SIGNATURE),
 	CC_DEBUG_REG(HOST_IRR),
 	CC_DEBUG_REG(HOST_POWER_DOWN_EN),
