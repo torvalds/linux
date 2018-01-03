@@ -765,6 +765,12 @@ static void qede_free_fp_array(struct qede_dev *edev)
 			fp = &edev->fp_array[i];
 
 			kfree(fp->sb_info);
+			/* Handle mem alloc failure case where qede_init_fp
+			 * didn't register xdp_rxq_info yet.
+			 * Implicit only (fp->type & QEDE_FASTPATH_RX)
+			 */
+			if (fp->rxq && xdp_rxq_info_is_reg(&fp->rxq->xdp_rxq))
+				xdp_rxq_info_unreg(&fp->rxq->xdp_rxq);
 			kfree(fp->rxq);
 			kfree(fp->xdp_tx);
 			kfree(fp->txq);
@@ -1493,6 +1499,10 @@ static void qede_init_fp(struct qede_dev *edev)
 			else
 				fp->rxq->data_direction = DMA_FROM_DEVICE;
 			fp->rxq->dev = &edev->pdev->dev;
+
+			/* Driver have no error path from here */
+			WARN_ON(xdp_rxq_info_reg(&fp->rxq->xdp_rxq, edev->ndev,
+						 fp->rxq->rxq_id) < 0);
 		}
 
 		if (fp->type & QEDE_FASTPATH_TX) {

@@ -65,3 +65,9 @@ void xdp_rxq_info_unused(struct xdp_rxq_info *xdp_rxq)
 	xdp_rxq->reg_state = REG_STATE_UNUSED;
 }
 EXPORT_SYMBOL_GPL(xdp_rxq_info_unused);
+
+bool xdp_rxq_info_is_reg(struct xdp_rxq_info *xdp_rxq)
+{
+	return (xdp_rxq->reg_state == REG_STATE_REGISTERED);
+}
+EXPORT_SYMBOL_GPL(xdp_rxq_info_is_reg);
