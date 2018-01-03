@@ -634,6 +634,9 @@ struct phy_driver {
 	int (*write_mmd)(struct phy_device *dev, int devnum, u16 regnum,
 			 u16 val);
 
+	int (*read_page)(struct phy_device *dev);
+	int (*write_page)(struct phy_device *dev, int page);
+
 	/* Get the size and type of the eeprom contained within a plug-in
 	 * module */
 	int (*module_info)(struct phy_device *dev,
@@ -718,6 +721,18 @@ static inline int phy_read(struct phy_device *phydev, u32 regnum)
 }
 
 /**
+ * __phy_read - convenience function for reading a given PHY register
+ * @phydev: the phy_device struct
+ * @regnum: register number to read
+ *
+ * The caller must have taken the MDIO bus lock.
+ */
+static inline int __phy_read(struct phy_device *phydev, u32 regnum)
+{
+	return __mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, regnum);
+}
+
+/**
  * phy_write - Convenience function for writing a given PHY register
  * @phydev: the phy_device struct
  * @regnum: register number to write
@@ -731,6 +746,23 @@ static inline int phy_write(struct phy_device *phydev, u32 regnum, u16 val)
 {
 	return mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, regnum, val);
 }
+
+/**
+ * __phy_write - Convenience function for writing a given PHY register
+ * @phydev: the phy_device struct
+ * @regnum: register number to write
+ * @val: value to write to @regnum
+ *
+ * The caller must have taken the MDIO bus lock.
+ */
+static inline int __phy_write(struct phy_device *phydev, u32 regnum, u16 val)
+{
+	return __mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, regnum,
+			       val);
+}
+
+int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set);
+int phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set);
 
 /**
  * phy_interrupt_is_valid - Convenience function for testing a given PHY irq
@@ -809,6 +841,14 @@ static inline bool phy_is_pseudo_fixed_link(struct phy_device *phydev)
  * Same rules as for phy_write();
  */
 int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
+
+int phy_save_page(struct phy_device *phydev);
+int phy_select_page(struct phy_device *phydev, int page);
+int phy_restore_page(struct phy_device *phydev, int oldpage, int ret);
+int phy_read_paged(struct phy_device *phydev, int page, u32 regnum);
+int phy_write_paged(struct phy_device *phydev, int page, u32 regnum, u16 val);
+int phy_modify_paged(struct phy_device *phydev, int page, u32 regnum,
+		     u16 mask, u16 set);
 
 struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 				     bool is_c45,

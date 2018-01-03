@@ -215,34 +215,22 @@ static int at803x_suspend(struct phy_device *phydev)
 	int value;
 	int wol_enabled;
 
-	mutex_lock(&phydev->lock);
-
 	value = phy_read(phydev, AT803X_INTR_ENABLE);
 	wol_enabled = value & AT803X_INTR_ENABLE_WOL;
 
-	value = phy_read(phydev, MII_BMCR);
-
 	if (wol_enabled)
-		value |= BMCR_ISOLATE;
+		value = BMCR_ISOLATE;
 	else
-		value |= BMCR_PDOWN;
+		value = BMCR_PDOWN;
 
-	phy_write(phydev, MII_BMCR, value);
-
-	mutex_unlock(&phydev->lock);
+	phy_modify(phydev, MII_BMCR, 0, value);
 
 	return 0;
 }
 
 static int at803x_resume(struct phy_device *phydev)
 {
-	int value;
-
-	value = phy_read(phydev, MII_BMCR);
-	value &= ~(BMCR_PDOWN | BMCR_ISOLATE);
-	phy_write(phydev, MII_BMCR, value);
-
-	return 0;
+	return phy_modify(phydev, MII_BMCR, ~(BMCR_PDOWN | BMCR_ISOLATE), 0);
 }
 
 static int at803x_probe(struct phy_device *phydev)
