@@ -3282,8 +3282,7 @@ out_napi_del:
 
 out_release:
 	/* net_dev free */
-	if (ndev)
-		free_netdev(ndev);
+	free_netdev(ndev);
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
