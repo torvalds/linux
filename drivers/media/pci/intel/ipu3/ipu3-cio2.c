@@ -1961,7 +1961,7 @@ static void cio2_fbpt_rearrange(struct cio2_device *cio2, struct cio2_queue *q)
 		cio2_fbpt_entry_enable(cio2, q->fbpt + i * CIO2_MAX_LOPS);
 }
 
-static int cio2_suspend(struct device *dev)
+static int __maybe_unused cio2_suspend(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
@@ -1987,7 +1987,7 @@ static int cio2_suspend(struct device *dev)
 	return 0;
 }
 
-static int cio2_resume(struct device *dev)
+static int __maybe_unused cio2_resume(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
