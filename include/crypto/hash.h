@@ -210,7 +210,6 @@ struct crypto_ahash {
 		      unsigned int keylen);
 
 	unsigned int reqsize;
-	bool has_setkey;
 	struct crypto_tfm base;
 };
 
@@ -410,11 +409,6 @@ static inline void *ahash_request_ctx(struct ahash_request *req)
 int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 			unsigned int keylen);
 
-static inline bool crypto_ahash_has_setkey(struct crypto_ahash *tfm)
-{
-	return tfm->has_setkey;
-}
-
 /**
  * crypto_ahash_finup() - update and finalize message digest
  * @req: reference to the ahash_request handle that holds all information
@@ -487,7 +481,12 @@ static inline int crypto_ahash_export(struct ahash_request *req, void *out)
  */
 static inline int crypto_ahash_import(struct ahash_request *req, const void *in)
 {
-	return crypto_ahash_reqtfm(req)->import(req, in);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+
+	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
+
+	return tfm->import(req, in);
 }
 
 /**
@@ -503,7 +502,12 @@ static inline int crypto_ahash_import(struct ahash_request *req, const void *in)
  */
 static inline int crypto_ahash_init(struct ahash_request *req)
 {
-	return crypto_ahash_reqtfm(req)->init(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+
+	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
+
+	return tfm->init(req);
 }
 
 /**
@@ -855,7 +859,12 @@ static inline int crypto_shash_export(struct shash_desc *desc, void *out)
  */
 static inline int crypto_shash_import(struct shash_desc *desc, const void *in)
 {
-	return crypto_shash_alg(desc->tfm)->import(desc, in);
+	struct crypto_shash *tfm = desc->tfm;
+
+	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
+
+	return crypto_shash_alg(tfm)->import(desc, in);
 }
 
 /**
@@ -871,7 +880,12 @@ static inline int crypto_shash_import(struct shash_desc *desc, const void *in)
  */
 static inline int crypto_shash_init(struct shash_desc *desc)
 {
-	return crypto_shash_alg(desc->tfm)->init(desc);
+	struct crypto_shash *tfm = desc->tfm;
+
+	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
+
+	return crypto_shash_alg(tfm)->init(desc);
 }
 
 /**
