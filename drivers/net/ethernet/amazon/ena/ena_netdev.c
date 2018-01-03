@@ -75,6 +75,9 @@ static struct workqueue_struct *ena_wq;
 MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static int ena_rss_init_default(struct ena_adapter *adapter);
+static void check_for_admin_com_state(struct ena_adapter *adapter);
+static void ena_destroy_device(struct ena_adapter *adapter);
+static int ena_restore_device(struct ena_adapter *adapter);
 
 static void ena_tx_timeout(struct net_device *dev)
 {
@@ -1884,6 +1887,17 @@ static int ena_close(struct net_device *netdev)
 	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		ena_down(adapter);
 
+	/* Check for device status and issue reset if needed*/
+	check_for_admin_com_state(adapter);
+	if (unlikely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
+		netif_err(adapter, ifdown, adapter->netdev,
+			  "Destroy failure, restarting device\n");
+		ena_dump_stats_to_dmesg(adapter);
+		/* rtnl lock already obtained in dev_ioctl() layer */
+		ena_destroy_device(adapter);
+		ena_restore_device(adapter);
+	}
+
 	return 0;
 }
 
@@ -2544,11 +2558,12 @@ static void ena_destroy_device(struct ena_adapter *adapter)
 
 	ena_com_set_admin_running_state(ena_dev, false);
 
-	ena_close(netdev);
+	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
+		ena_down(adapter);
 
 	/* Before releasing the ENA resources, a device reset is required.
 	 * (to prevent the device from accessing them).
-	 * In case the reset flag is set and the device is up, ena_close
+	 * In case the reset flag is set and the device is up, ena_down()
 	 * already perform the reset, so it can be skipped.
 	 */
 	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up))
