@@ -53,6 +53,7 @@
 #include <linux/dca.h>
 #endif
 
+#include <net/xdp.h>
 #include <net/busy_poll.h>
 
 /* common prefix used by pr_<> macros */
@@ -371,6 +372,7 @@ struct ixgbe_ring {
 		struct ixgbe_tx_queue_stats tx_stats;
 		struct ixgbe_rx_queue_stats rx_stats;
 	};
+	struct xdp_rxq_info xdp_rxq;
 } ____cacheline_internodealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
