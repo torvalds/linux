@@ -483,10 +483,11 @@ static int sensor_reset_rate(struct i2c_client *client, int rate)
 	struct sensor_private_data *sensor = (struct sensor_private_data *) i2c_get_clientdata(client);
 	int result = 0;
 
-	if ((rate < 5) || (rate > 250)) {
-		dev_err(&client->dev, "sensor rate %d out of rang\n", rate);
-		return -1;
-	}
+	if (rate < 5)
+		rate = 5;
+	else if (rate > 200)
+		rate = 200;
+
 	dev_info(&client->dev, "set sensor poll time to %dms\n", rate);
 
 	/* work queue is always slow, we need more quickly to match hal rate */
