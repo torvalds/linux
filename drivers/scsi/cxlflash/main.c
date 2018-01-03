@@ -1992,7 +1992,7 @@ static int init_mc(struct cxlflash_cfg *cfg, u32 index)
 		ctx = cxl_get_context(cfg->dev);
 	else
 		ctx = cxl_dev_context_init(cfg->dev);
-	if (unlikely(!ctx)) {
+	if (IS_ERR_OR_NULL(ctx)) {
 		rc = -ENOMEM;
 		goto err1;
 	}
