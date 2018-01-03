@@ -1353,7 +1353,7 @@
 
 					be1_out_tcon0: endpoint@0 {
 						reg = <0>;
-						remote-endpoint = <&tcon1_in_be0>;
+						remote-endpoint = <&tcon0_in_be1>;
 					};
 
 					be1_out_tcon1: endpoint@1 {
