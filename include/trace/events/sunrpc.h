@@ -390,6 +390,10 @@ DECLARE_EVENT_CLASS(rpc_xprt_event,
 			__entry->status)
 );
 
+DEFINE_EVENT(rpc_xprt_event, xprt_timer,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+	TP_ARGS(xprt, xid, status));
+
 DEFINE_EVENT(rpc_xprt_event, xprt_lookup_rqst,
 	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
 	TP_ARGS(xprt, xid, status));

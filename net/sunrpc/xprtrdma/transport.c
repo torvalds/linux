@@ -516,8 +516,6 @@ xprt_rdma_set_port(struct rpc_xprt *xprt, u16 port)
 static void
 xprt_rdma_timer(struct rpc_xprt *xprt, struct rpc_task *task)
 {
-	dprintk("RPC: %5u %s: xprt = %p\n", task->tk_pid, __func__, xprt);
-
 	xprt_force_disconnect(xprt);
 }
 
