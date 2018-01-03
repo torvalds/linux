@@ -61,6 +61,12 @@
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
+	aliases {
+		ethernet0 = &cpm_eth0;
+		ethernet1 = &cpm_eth1;
+		ethernet2 = &cpm_eth2;
+	};
+
 	cpm_reg_usb3_0_vbus: cpm-usb3-0-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb3h0-vbus";

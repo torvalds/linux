@@ -62,6 +62,12 @@
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
+	aliases {
+		ethernet0 = &cpm_eth0;
+		ethernet1 = &cps_eth0;
+		ethernet2 = &cps_eth1;
+	};
+
 	/* Regulator labels correspond with schematics */
 	v_3_3: regulator-3-3v {
 		compatible = "regulator-fixed";
