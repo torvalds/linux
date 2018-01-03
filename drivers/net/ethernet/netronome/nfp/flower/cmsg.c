@@ -125,6 +125,27 @@ int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok)
 	return 0;
 }
 
+int nfp_flower_cmsg_portreify(struct nfp_repr *repr, bool exists)
+{
+	struct nfp_flower_cmsg_portreify *msg;
+	struct sk_buff *skb;
+
+	skb = nfp_flower_cmsg_alloc(repr->app, sizeof(*msg),
+				    NFP_FLOWER_CMSG_TYPE_PORT_REIFY,
+				    GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	msg = nfp_flower_cmsg_get_data(skb);
+	msg->portnum = cpu_to_be32(repr->dst->u.port_info.port_id);
+	msg->reserved = 0;
+	msg->info = cpu_to_be16(exists);
+
+	nfp_ctrl_tx(repr->app->ctrl, skb);
+
+	return 0;
+}
+
 static void
 nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 {
@@ -161,6 +182,28 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 }
 
 static void
+nfp_flower_cmsg_portreify_rx(struct nfp_app *app, struct sk_buff *skb)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_flower_cmsg_portreify *msg;
+	bool exists;
+
+	msg = nfp_flower_cmsg_get_data(skb);
+
+	rcu_read_lock();
+	exists = !!nfp_app_repr_get(app, be32_to_cpu(msg->portnum));
+	rcu_read_unlock();
+	if (!exists) {
+		nfp_flower_cmsg_warn(app, "ctrl msg for unknown port 0x%08x\n",
+				     be32_to_cpu(msg->portnum));
+		return;
+	}
+
+	atomic_inc(&priv->reify_replies);
+	wake_up_interruptible(&priv->reify_wait_queue);
+}
+
+static void
 nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 {
 	struct nfp_flower_cmsg_hdr *cmsg_hdr;
@@ -176,6 +219,9 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 
 	type = cmsg_hdr->type;
 	switch (type) {
+	case NFP_FLOWER_CMSG_TYPE_PORT_REIFY:
+		nfp_flower_cmsg_portreify_rx(app, skb);
+		break;
 	case NFP_FLOWER_CMSG_TYPE_PORT_MOD:
 		nfp_flower_cmsg_portmod_rx(app, skb);
 		break;

@@ -350,6 +350,7 @@ struct nfp_flower_cmsg_hdr {
 enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_FLOW_ADD =		0,
 	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
+	NFP_FLOWER_CMSG_TYPE_PORT_REIFY =	6,
 	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,
 	NFP_FLOWER_CMSG_TYPE_NO_NEIGH =		10,
@@ -385,6 +386,15 @@ struct nfp_flower_cmsg_portmod {
 };
 
 #define NFP_FLOWER_CMSG_PORTMOD_INFO_LINK	BIT(0)
+
+/* NFP_FLOWER_CMSG_TYPE_PORT_REIFY */
+struct nfp_flower_cmsg_portreify {
+	__be32 portnum;
+	u16 reserved;
+	__be16 info;
+};
+
+#define NFP_FLOWER_CMSG_PORTREIFY_INFO_EXIST	BIT(0)
 
 enum nfp_flower_cmsg_port_type {
 	NFP_FLOWER_CMSG_PORT_TYPE_UNSPEC =	0x0,
@@ -444,6 +454,7 @@ nfp_flower_cmsg_mac_repr_add(struct sk_buff *skb, unsigned int idx,
 			     unsigned int nbi, unsigned int nbi_port,
 			     unsigned int phys_port);
 int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok);
+int nfp_flower_cmsg_portreify(struct nfp_repr *repr, bool exists);
 void nfp_flower_cmsg_process_rx(struct work_struct *work);
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb);
 struct sk_buff *

@@ -102,6 +102,9 @@ struct nfp_fl_stats_id {
  * @nfp_mac_off_count:	Number of MACs in address list
  * @nfp_tun_mac_nb:	Notifier to monitor link state
  * @nfp_tun_neigh_nb:	Notifier to monitor neighbour state
+ * @reify_replies:	atomically stores the number of replies received
+ *			from firmware for repr reify
+ * @reify_wait_queue:	wait queue for repr reify response counting
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -127,6 +130,8 @@ struct nfp_flower_priv {
 	int nfp_mac_off_count;
 	struct notifier_block nfp_tun_mac_nb;
 	struct notifier_block nfp_tun_neigh_nb;
+	atomic_t reify_replies;
+	wait_queue_head_t reify_wait_queue;
 };
 
 struct nfp_fl_key_ls {
