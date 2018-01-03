@@ -1941,6 +1941,37 @@ static int ci_start_smc(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int ci_populate_vr_config(struct pp_hwmgr *hwmgr, SMU7_Discrete_DpmTable *table)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	uint16_t config;
+
+	config = VR_SVI2_PLANE_1;
+	table->VRConfig |= (config<<VRCONF_VDDGFX_SHIFT);
+
+	if (SMU7_VOLTAGE_CONTROL_BY_SVID2 == data->voltage_control) {
+		config = VR_SVI2_PLANE_2;
+		table->VRConfig |= config;
+	} else {
+		pr_info("VDDCshould be on SVI2 controller!");
+	}
+
+	if (SMU7_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control) {
+		config = VR_SVI2_PLANE_2;
+		table->VRConfig |= (config<<VRCONF_VDDCI_SHIFT);
+	} else if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
+		config = VR_SMIO_PATTERN_1;
+		table->VRConfig |= (config<<VRCONF_VDDCI_SHIFT);
+	}
+
+	if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
+		config = VR_SMIO_PATTERN_2;
+		table->VRConfig |= (config<<VRCONF_MVDD_SHIFT);
+	}
+
+	return 0;
+}
+
 static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
@@ -2064,6 +2095,11 @@ static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->PCIeBootLinkLevel = (uint8_t)data->dpm_table.pcie_speed_table.count;
 	table->PCIeGenInterval = 1;
 
+	result = ci_populate_vr_config(hwmgr, table);
+	PP_ASSERT_WITH_CODE(0 == result,
+			"Failed to populate VRConfig setting!", return result);
+	data->vr_config = table->VRConfig;
+
 	ci_populate_smc_svi2_config(hwmgr, table);
 
 	for (i = 0; i < SMU7_MAX_ENTRIES_SMIO; i++)
@@ -2084,6 +2120,7 @@ static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->AcDcGpio = SMU7_UNUSED_GPIO_PIN;
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SystemFlags);
+	CONVERT_FROM_HOST_TO_SMC_UL(table->VRConfig);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMaskVddcVid);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMaskVddcPhase);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMaskVddciVid);
