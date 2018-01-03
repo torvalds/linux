@@ -76,7 +76,8 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		return -EOPNOTSUPP;
 	}
 
-	if (unlikely(qp->state != IB_QPS_RTS && qp->state != IB_QPS_SQD)) {
+	if (unlikely(qp->state == IB_QPS_RESET || qp->state == IB_QPS_INIT ||
+		     qp->state == IB_QPS_RTR)) {
 		dev_err(dev, "Post WQE fail, QP state %d err!\n", qp->state);
 		*bad_wr = wr;
 		return -EINVAL;
