@@ -95,6 +95,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98925 if I2C
 	select SND_SOC_MAX98926 if I2C
 	select SND_SOC_MAX98927 if I2C
+	select SND_SOC_MAX98373 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9860 if I2C
 	select SND_SOC_MAX9768 if I2C
@@ -621,6 +622,10 @@ config SND_SOC_MAX98926
 
 config SND_SOC_MAX98927
 	tristate "Maxim Integrated MAX98927 Speaker Amplifier"
+	depends on I2C
+
+config SND_SOC_MAX98373
+	tristate "Maxim Integrated MAX98373 Speaker Amplifier"
 	depends on I2C
 
 config SND_SOC_MAX9850
