@@ -245,7 +245,7 @@ ACPI_INIT_GLOBAL(union acpi_parse_object, *acpi_gbl_current_scope, NULL);
 
 /* ASL/ASL+ converter */
 
-ACPI_INIT_GLOBAL(u8, gbl_capture_comments, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_capture_comments, FALSE);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_last_list_head, NULL);
 
 /*****************************************************************************

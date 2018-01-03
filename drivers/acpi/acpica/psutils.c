@@ -161,7 +161,7 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode, u8 *aml)
 			acpi_gbl_current_scope = op;
 		}
 
-		if (gbl_capture_comments) {
+		if (acpi_gbl_capture_comments) {
 			ASL_CV_TRANSFER_COMMENTS(op);
 		}
 	}
