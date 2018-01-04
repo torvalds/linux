@@ -1944,7 +1944,8 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 
 	in_flight = tcp_packets_in_flight(tp);
 
-	BUG_ON(tcp_skb_pcount(skb) <= 1 || (tp->snd_cwnd <= in_flight));
+	BUG_ON(tcp_skb_pcount(skb) <= 1);
+	BUG_ON(tp->snd_cwnd <= in_flight);
 
 	send_win = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
 
