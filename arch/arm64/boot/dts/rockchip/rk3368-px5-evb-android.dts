@@ -65,7 +65,7 @@
 			rockchip,baudrate = <115200>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart4_xfer>;
-			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	firmware {
