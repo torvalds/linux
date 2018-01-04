@@ -811,6 +811,8 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 	verify_dma(gpu, &debug);
 
 	seq_puts(m, "\tfeatures\n");
+	seq_printf(m, "\t major_features: 0x%08x\n",
+		   gpu->identity.features);
 	seq_printf(m, "\t minor_features0: 0x%08x\n",
 		   gpu->identity.minor_features0);
 	seq_printf(m, "\t minor_features1: 0x%08x\n",
