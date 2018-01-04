@@ -116,7 +116,7 @@ struct v4l2_decode_vbi_line {
  * @V4L2_SUBDEV_IO_PIN_OUTPUT: set it if pin is an output.
  * @V4L2_SUBDEV_IO_PIN_INPUT: set it if pin is an input.
  * @V4L2_SUBDEV_IO_PIN_SET_VALUE: to set the output value via
- * 				  &struct v4l2_subdev_io_pin_config->value.
+ *				  &struct v4l2_subdev_io_pin_config->value.
  * @V4L2_SUBDEV_IO_PIN_ACTIVE_LOW: pin active is bit 0.
  *				   Otherwise, ACTIVE HIGH is assumed.
  */
@@ -253,14 +253,14 @@ struct v4l2_subdev_core_ops {
  *
  * .. note::
  *
- * 	On devices that have both AM/FM and TV, it is up to the driver
+ *	On devices that have both AM/FM and TV, it is up to the driver
  *	to explicitly call s_radio when the tuner should be switched to
  *	radio mode, before handling other &struct v4l2_subdev_tuner_ops
  *	that would require it. An example of such usage is::
  *
  *	  static void s_frequency(void *priv, const struct v4l2_frequency *f)
  *	  {
- * 		...
+ *		...
  *		if (f.type == V4L2_TUNER_RADIO)
  *			v4l2_device_call_all(v4l2_dev, 0, tuner, s_radio);
  *		...
@@ -333,7 +333,7 @@ enum v4l2_mbus_frame_desc_flags {
  *
  * @flags:	bitmask flags, as defined by &enum v4l2_mbus_frame_desc_flags.
  * @pixelcode:	media bus pixel code, valid if @flags
- * 		%FRAME_DESC_FL_BLOB is not set.
+ *		%FRAME_DESC_FL_BLOB is not set.
  * @length:	number of octets per frame, valid if @flags
  *		%V4L2_MBUS_FRAME_DESC_FL_LEN_MAX is set.
  */

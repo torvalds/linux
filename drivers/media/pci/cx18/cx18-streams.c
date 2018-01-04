@@ -116,7 +116,7 @@ static int cx18_prepare_buffer(struct videobuf_queue *q,
 	unsigned int width, unsigned int height,
 	enum v4l2_field field)
 {
-        struct cx18 *cx = s->cx;
+	struct cx18 *cx = s->cx;
 	int rc = 0;
 
 	/* check settings */

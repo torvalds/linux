@@ -786,7 +786,7 @@ exit:
  * @ca: CA instance.
  * @slot: Slot to write to.
  * @buf: The data in this buffer is treated as a complete link-level packet to
- * 	 be written.
+ *	 be written.
  * @bytes_write: Size of ebuf.
  *
  * return: Number of bytes written, or < 0 on error.

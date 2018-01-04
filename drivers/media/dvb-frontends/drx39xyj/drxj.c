@@ -11727,7 +11727,7 @@ eof:
  *		- In case of UCODE_UPLOAD: I2C error.
  *		- In case of UCODE_VERIFY: I2C error or image on device
  *		  is not equal to image provided to this control function.
- * 	-EINVAL:
+ *	-EINVAL:
  *		- Invalid arguments.
  *		- Provided image is corrupt
  */

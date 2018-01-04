@@ -26,7 +26,7 @@ config LIRC
 	   IR transmitting (aka "blasting") and for the lirc daemon.
 
 menuconfig RC_DECODERS
-        bool "Remote controller decoders"
+	bool "Remote controller decoders"
 	depends on RC_CORE
 	default y
 
@@ -452,9 +452,9 @@ config IR_SERIAL_TRANSMITTER
 	   Serial Port Transmitter support
 
 config IR_SIR
-        tristate "Built-in SIR IrDA port"
-        depends on RC_CORE
-        ---help---
+	tristate "Built-in SIR IrDA port"
+	depends on RC_CORE
+	---help---
 	   Say Y if you want to use a IrDA SIR port Transceivers.
 
 	   To compile this driver as a module, choose M here: the module will

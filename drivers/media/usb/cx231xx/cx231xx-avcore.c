@@ -105,7 +105,7 @@ void uninitGPIO(struct cx231xx *dev)
 
 /******************************************************************************
  *                    A F E - B L O C K    C O N T R O L   functions          *
- * 				[ANALOG FRONT END]			      *
+ *				[ANALOG FRONT END]			      *
  ******************************************************************************/
 static int afe_write_byte(struct cx231xx *dev, u16 saddr, u8 data)
 {

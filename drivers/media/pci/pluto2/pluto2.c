@@ -4,7 +4,7 @@
  * Copyright (C) 2005 Andreas Oberritter <obi@linuxtv.org>
  *
  * based on pluto2.c 1.10 - http://instinct-wp8.no-ip.org/pluto/
- * 	by Dany Salman <salmandany@yahoo.fr>
+ *	by Dany Salman <salmandany@yahoo.fr>
  *	Copyright (c) 2004 TDF
  *
  * This program is free software; you can redistribute it and/or modify

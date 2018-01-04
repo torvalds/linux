@@ -127,7 +127,7 @@ struct v4l2_subdev_ops;
  * @client_type:  name of the chip that's on the adapter.
  * @addr: I2C address. If zero, it will use @probe_addrs
  * @probe_addrs: array with a list of address. The last entry at such
- * 	array should be %I2C_CLIENT_END.
+ *	array should be %I2C_CLIENT_END.
  *
  * returns a &struct v4l2_subdev pointer.
  */
@@ -146,7 +146,7 @@ struct i2c_board_info;
  * @info: pointer to struct i2c_board_info used to replace the irq,
  *	 platform_data and addr arguments.
  * @probe_addrs: array with a list of address. The last entry at such
- * 	array should be %I2C_CLIENT_END.
+ *	array should be %I2C_CLIENT_END.
  *
  * returns a &struct v4l2_subdev pointer.
  */

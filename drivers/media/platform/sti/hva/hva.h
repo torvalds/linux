@@ -245,7 +245,7 @@ struct hva_enc;
  * @dbg:             context debug info
  */
 struct hva_ctx {
-	struct hva_dev		        *hva_dev;
+	struct hva_dev			*hva_dev;
 	struct v4l2_fh			fh;
 	struct v4l2_ctrl_handler	ctrl_handler;
 	struct hva_controls		ctrls;

@@ -28,7 +28,7 @@ struct v4l2_async_notifier;
  *	in order to identify a match
  *
  * @V4L2_ASYNC_MATCH_CUSTOM: Match will use the logic provided by &struct
- * 	v4l2_async_subdev.match ops
+ *	v4l2_async_subdev.match ops
  * @V4L2_ASYNC_MATCH_DEVNAME: Match will use the device name
  * @V4L2_ASYNC_MATCH_I2C: Match will check for I2C adapter ID and address
  * @V4L2_ASYNC_MATCH_FWNODE: Match will use firmware node
@@ -55,7 +55,7 @@ enum v4l2_async_match_type {
  *		string containing the device name to be matched.
  *		Used if @match_type is %V4L2_ASYNC_MATCH_DEVNAME.
  * @match.i2c:	embedded struct with I2C parameters to be matched.
- * 		Both @match.i2c.adapter_id and @match.i2c.address
+ *		Both @match.i2c.adapter_id and @match.i2c.address
  *		should be matched.
  *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
  * @match.i2c.adapter_id:
@@ -188,7 +188,7 @@ void v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier);
 
 /**
  * v4l2_async_register_subdev - registers a sub-device to the asynchronous
- * 	subdevice framework
+ *	subdevice framework
  *
  * @sd: pointer to &struct v4l2_subdev
  */
@@ -218,7 +218,7 @@ int __must_check v4l2_async_register_subdev_sensor_common(
 
 /**
  * v4l2_async_unregister_subdev - unregisters a sub-device to the asynchronous
- * 	subdevice framework
+ *	subdevice framework
  *
  * @sd: pointer to &struct v4l2_subdev
  */

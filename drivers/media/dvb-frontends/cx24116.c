@@ -963,7 +963,7 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 
 	/* Validate length */
 	if (d->msg_len > sizeof(d->msg))
-                return -EINVAL;
+		return -EINVAL;
 
 	/* Dump DiSEqC message */
 	if (debug) {

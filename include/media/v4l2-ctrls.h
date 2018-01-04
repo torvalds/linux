@@ -1146,7 +1146,7 @@ int v4l2_s_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 
 /**
  * v4l2_ctrl_subdev_subscribe_event - Helper function to implement
- * 	as a &struct v4l2_subdev_core_ops subscribe_event function
+ *	as a &struct v4l2_subdev_core_ops subscribe_event function
  *	that just subscribes control events.
  *
  * @sd: pointer to &struct v4l2_subdev

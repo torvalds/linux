@@ -2057,7 +2057,7 @@ static void mb86a20s_release(struct dvb_frontend *fe)
 
 static int mb86a20s_get_frontend_algo(struct dvb_frontend *fe)
 {
-        return DVBFE_ALGO_HW;
+	return DVBFE_ALGO_HW;
 }
 
 static const struct dvb_frontend_ops mb86a20s_ops;

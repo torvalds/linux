@@ -32,7 +32,7 @@ int gspca_expo_autogain(
 	int i, steps, retval = 0;
 
 	if (v4l2_ctrl_g_ctrl(gspca_dev->autogain) == 0)
-	        return 0;
+		return 0;
 
 	orig_gain = gain = v4l2_ctrl_g_ctrl(gspca_dev->gain);
 	orig_exposure = exposure = v4l2_ctrl_g_ctrl(gspca_dev->exposure);
@@ -75,11 +75,11 @@ int gspca_expo_autogain(
 	}
 
 	if (gain != orig_gain) {
-	        v4l2_ctrl_s_ctrl(gspca_dev->gain, gain);
+		v4l2_ctrl_s_ctrl(gspca_dev->gain, gain);
 		retval = 1;
 	}
 	if (exposure != orig_exposure) {
-	        v4l2_ctrl_s_ctrl(gspca_dev->exposure, exposure);
+		v4l2_ctrl_s_ctrl(gspca_dev->exposure, exposure);
 		retval = 1;
 	}
 
@@ -112,7 +112,7 @@ int gspca_coarse_grained_expo_autogain(
 	int steps, retval = 0;
 
 	if (v4l2_ctrl_g_ctrl(gspca_dev->autogain) == 0)
-	        return 0;
+		return 0;
 
 	orig_gain = gain = v4l2_ctrl_g_ctrl(gspca_dev->gain);
 	orig_exposure = exposure = v4l2_ctrl_g_ctrl(gspca_dev->exposure);
@@ -158,11 +158,11 @@ int gspca_coarse_grained_expo_autogain(
 	}
 
 	if (gain != orig_gain) {
-	        v4l2_ctrl_s_ctrl(gspca_dev->gain, gain);
+		v4l2_ctrl_s_ctrl(gspca_dev->gain, gain);
 		retval = 1;
 	}
 	if (exposure != orig_exposure) {
-	        v4l2_ctrl_s_ctrl(gspca_dev->exposure, exposure);
+		v4l2_ctrl_s_ctrl(gspca_dev->exposure, exposure);
 		retval = 1;
 	}
 

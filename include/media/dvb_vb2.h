@@ -213,7 +213,7 @@ int dvb_vb2_reqbufs(struct dvb_vb2_ctx *ctx, struct dmx_requestbuffers *req);
  * @b:		&struct dmx_buffer passed from userspace in
  *		order to handle &DMX_QUERYBUF.
  *
- * 
+ *
  */
 int dvb_vb2_querybuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b);
 

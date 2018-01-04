@@ -41,8 +41,8 @@ config VIDEO_TUNER
 
 # Used by drivers that need v4l2-mem2mem.ko
 config V4L2_MEM2MEM_DEV
-        tristate
-        depends on VIDEOBUF2_CORE
+	tristate
+	depends on VIDEOBUF2_CORE
 
 # Used by LED subsystem flash drivers
 config V4L2_FLASH_LED_CLASS

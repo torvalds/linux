@@ -184,7 +184,7 @@ int v4l2_event_subdev_unsubscribe(struct v4l2_subdev *sd,
 				  struct v4l2_event_subscription *sub);
 /**
  * v4l2_src_change_event_subscribe - helper function that calls
- * 	v4l2_event_subscribe() if the event is %V4L2_EVENT_SOURCE_CHANGE.
+ *	v4l2_event_subscribe() if the event is %V4L2_EVENT_SOURCE_CHANGE.
  *
  * @fh: pointer to struct v4l2_fh
  * @sub: pointer to &struct v4l2_event_subscription

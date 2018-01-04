@@ -1791,7 +1791,7 @@ static int smiapp_set_format_source(struct v4l2_subdev *subdev,
 	if (csi_format->compressed == old_csi_format->compressed)
 		return 0;
 
-	valid_link_freqs = 
+	valid_link_freqs =
 		&sensor->valid_link_freqs[sensor->csi_format->compressed
 					  - sensor->compressed_min_bpp];
 

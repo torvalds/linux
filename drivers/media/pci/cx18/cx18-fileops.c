@@ -633,7 +633,7 @@ unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 
 		if (v4l2_event_pending(&id->fh))
 			res |= POLLPRI;
-                if (eof && videobuf_poll == POLLERR)
+		if (eof && videobuf_poll == POLLERR)
 			return res | POLLHUP;
 		return res | videobuf_poll;
 	}

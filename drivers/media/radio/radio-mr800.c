@@ -31,22 +31,22 @@
  * http://www.spinics.net/lists/linux-usb-devel/msg10109.html
  *
  * Version 0.01:	First working version.
- * 			It's required to blacklist AverMedia USB Radio
- * 			in usbhid/hid-quirks.c
+ *			It's required to blacklist AverMedia USB Radio
+ *			in usbhid/hid-quirks.c
  * Version 0.10:	A lot of cleanups and fixes: unpluging the device,
- * 			few mutex locks were added, codinstyle issues, etc.
- * 			Added stereo support. Thanks to
- * 			Douglas Schilling Landgraf <dougsland@gmail.com> and
- * 			David Ellingsworth <david@identd.dyndns.org>
- * 			for discussion, help and support.
+ *			few mutex locks were added, codinstyle issues, etc.
+ *			Added stereo support. Thanks to
+ *			Douglas Schilling Landgraf <dougsland@gmail.com> and
+ *			David Ellingsworth <david@identd.dyndns.org>
+ *			for discussion, help and support.
  * Version 0.11:	Converted to v4l2_device.
  *
  * Many things to do:
- * 	- Correct power management of device (suspend & resume)
- * 	- Add code for scanning and smooth tuning
- * 	- Add code for sensitivity value
- * 	- Correct mistakes
- * 	- In Japan another FREQ_MIN and FREQ_MAX
+ *	- Correct power management of device (suspend & resume)
+ *	- Add code for scanning and smooth tuning
+ *	- Add code for sensitivity value
+ *	- Correct mistakes
+ *	- In Japan another FREQ_MIN and FREQ_MAX
  */
 
 /* kernel includes */

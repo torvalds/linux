@@ -66,7 +66,7 @@ struct v4l2_ctrl_handler;
  * enum v4l2_video_device_flags - Flags used by &struct video_device
  *
  * @V4L2_FL_REGISTERED:
- * 	indicates that a &struct video_device is registered.
+ *	indicates that a &struct video_device is registered.
  *	Drivers can clear this flag if they want to block all future
  *	device access. It is cleared by video_unregister_device.
  * @V4L2_FL_USES_V4L2_FH:
@@ -198,7 +198,7 @@ struct v4l2_file_operations {
 
 /*
  * Newer version of video_device, handled by videodev2.c
- * 	This version moves redundant code from video device code to
+ *	This version moves redundant code from video device code to
  *	the common handler
  */
 
@@ -317,7 +317,7 @@ struct video_device
  * @vdev: struct video_device to register
  * @type: type of device to register, as defined by &enum vfl_devnode_type
  * @nr:   which device node number is desired:
- * 	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
+ *	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  * @warn_if_nr_in_use: warn if the desired device node number
  *        was already in use and another number was chosen instead.
  * @owner: module that owns the video device node
@@ -351,13 +351,13 @@ int __must_check __video_register_device(struct video_device *vdev,
  * @vdev: struct video_device to register
  * @type: type of device to register, as defined by &enum vfl_devnode_type
  * @nr:   which device node number is desired:
- * 	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
+ *	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  *
  * Internally, it calls __video_register_device(). Please see its
  * documentation for more details.
  *
  * .. note::
- * 	if video_register_device fails, the release() callback of
+ *	if video_register_device fails, the release() callback of
  *	&struct video_device structure is *not* called, so the caller
  *	is responsible for freeing any data. Usually that means that
  *	you video_device_release() should be called on failure.
@@ -375,7 +375,7 @@ static inline int __must_check video_register_device(struct video_device *vdev,
  * @vdev: struct video_device to register
  * @type: type of device to register, as defined by &enum vfl_devnode_type
  * @nr:   which device node number is desired:
- * 	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
+ *	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  *
  * This function is identical to video_register_device() except that no
  * warning is issued if the desired device node number was already in use.
@@ -384,7 +384,7 @@ static inline int __must_check video_register_device(struct video_device *vdev,
  * documentation for more details.
  *
  * .. note::
- * 	if video_register_device fails, the release() callback of
+ *	if video_register_device fails, the release() callback of
  *	&struct video_device structure is *not* called, so the caller
  *	is responsible for freeing any data. Usually that means that
  *	you video_device_release() should be called on failure.
@@ -423,7 +423,7 @@ void video_device_release(struct video_device *vdev);
 
 /**
  * video_device_release_empty - helper function to implement the
- * 	video_device->release\(\) callback.
+ *	video_device->release\(\) callback.
  *
  * @vdev: pointer to &struct video_device
  *

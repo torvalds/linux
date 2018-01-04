@@ -66,7 +66,7 @@ extern struct cpuinfo_m32r	boot_cpu_data;
  *	Note that M32700UT does not support CIF mode, but QVGA is
  *	supported by M32700UT hardware using VGA mode of AR LSI.
  *
- * 	Supported: VGA  (Normal mode, Interlace mode)
+ *	Supported: VGA  (Normal mode, Interlace mode)
  *		   QVGA (Always Interlace mode of VGA)
  *
  */
@@ -590,7 +590,7 @@ static void ar_interrupt(int irq, void *dev)
 
 /*
  * ar_initialize()
- * 	ar_initialize() is called by video_register_device() and
+ *	ar_initialize() is called by video_register_device() and
  *	initializes AR LSI and peripherals.
  *
  *	-1 is returned in all failures.

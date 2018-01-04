@@ -2065,10 +2065,10 @@ static void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
 
 	/* Assuming TV */
 	/* Calculate the PLL frequency word based on the adjusted ifHz */
-        pll_freq = div_u64((u64)ifHz * 268435456, 50000000);
-        pll_freq_word = (u32)pll_freq;
+	pll_freq = div_u64((u64)ifHz * 268435456, 50000000);
+	pll_freq_word = (u32)pll_freq;
 
-        cx25840_write4(client, DIF_PLL_FREQ_WORD,  pll_freq_word);
+	cx25840_write4(client, DIF_PLL_FREQ_WORD,  pll_freq_word);
 
 	/* Round down to the nearest 100KHz */
 	ifHz = (ifHz / 100000) * 100000;

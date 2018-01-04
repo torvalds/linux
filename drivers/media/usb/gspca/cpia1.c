@@ -543,7 +543,7 @@ static int do_command(struct gspca_dev *gspca_dev, u16 command,
 			input_report_key(gspca_dev->input_dev, KEY_CAMERA, a);
 			input_sync(gspca_dev->input_dev);
 #endif
-	        	sd->params.qx3.button = a;
+			sd->params.qx3.button = a;
 		}
 		if (sd->params.qx3.button) {
 			/* button pressed - unlock the latch */

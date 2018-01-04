@@ -170,7 +170,7 @@ static inline int cx23888_ir_and_or4(struct cx23885_dev *dev, u32 addr,
  * Rx and Tx Clock Divider register computations
  *
  * Note the largest clock divider value of 0xffff corresponds to:
- * 	(0xffff + 1) * 1000 / 108/2 MHz = 1,213,629.629... ns
+ *	(0xffff + 1) * 1000 / 108/2 MHz = 1,213,629.629... ns
  * which fits in 21 bits, so we'll use unsigned int for time arguments.
  */
 static inline u16 count_to_clock_divider(unsigned int d)
@@ -226,7 +226,7 @@ static inline unsigned int clock_divider_to_freq(unsigned int divider,
  * Low Pass Filter register calculations
  *
  * Note the largest count value of 0xffff corresponds to:
- * 	0xffff * 1000 / 108/2 MHz = 1,213,611.11... ns
+ *	0xffff * 1000 / 108/2 MHz = 1,213,611.11... ns
  * which fits in 21 bits, so we'll use unsigned int for time arguments.
  */
 static inline u16 count_to_lpf_count(unsigned int d)

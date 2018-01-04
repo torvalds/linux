@@ -193,7 +193,7 @@ struct dvb_device {
  * @module:	initialized with THIS_MODULE at the caller
  * @device:	pointer to struct device that corresponds to the device driver
  * @adapter_nums: Array with a list of the numbers for @dvb_register_adapter;
- * 		to select among them. Typically, initialized with:
+ *		to select among them. Typically, initialized with:
  *		DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nums)
  */
 int dvb_register_adapter(struct dvb_adapter *adap, const char *name,
@@ -259,7 +259,7 @@ void dvb_unregister_device(struct dvb_device *dvbdev);
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 /**
  * dvb_create_media_graph - Creates media graph for the Digital TV part of the
- * 				device.
+ *				device.
  *
  * @adap:			pointer to &struct dvb_adapter
  * @create_rf_connector:	if true, it creates the RF connector too

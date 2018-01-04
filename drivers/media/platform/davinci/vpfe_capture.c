@@ -26,8 +26,8 @@
  *
  *
  *    decoder(TVP5146/		YUV/
- * 	     MT9T001)   -->  Raw Bayer RGB ---> MUX -> VPFE (CCDC/ISIF)
- *    				data input              |      |
+ *	     MT9T001)   -->  Raw Bayer RGB ---> MUX -> VPFE (CCDC/ISIF)
+ *				data input              |      |
  *							V      |
  *						      SDRAM    |
  *							       V
@@ -47,7 +47,7 @@
  *    block such as IPIPE (on DM355 only).
  *
  *    Features supported
- *  		- MMAP IO
+ *		- MMAP IO
  *		- Capture using TVP5146 over BT.656
  *		- support for interfacing decoders using sub device model
  *		- Work with DM355 or DM6446 CCDC to do Raw Bayer RGB/YUV
