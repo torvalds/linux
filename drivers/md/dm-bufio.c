@@ -1716,7 +1716,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 			if (!DM_BUFIO_CACHE_NAME(c)) {
 				r = -ENOMEM;
 				mutex_unlock(&dm_bufio_clients_lock);
-				goto bad_cache;
+				goto bad;
 			}
 		}
 
@@ -1727,7 +1727,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 			if (!DM_BUFIO_CACHE(c)) {
 				r = -ENOMEM;
 				mutex_unlock(&dm_bufio_clients_lock);
-				goto bad_cache;
+				goto bad;
 			}
 		}
 	}
@@ -1738,7 +1738,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 
 		if (!b) {
 			r = -ENOMEM;
-			goto bad_buffer;
+			goto bad;
 		}
 		__free_buffer_wake(b);
 	}
@@ -1749,7 +1749,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	c->shrinker.batch = 0;
 	r = register_shrinker(&c->shrinker);
 	if (r)
-		goto bad_shrinker;
+		goto bad;
 
 	mutex_lock(&dm_bufio_clients_lock);
 	dm_bufio_client_count++;
@@ -1759,9 +1759,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 
 	return c;
 
-bad_shrinker:
-bad_buffer:
-bad_cache:
+bad:
 	while (!list_empty(&c->reserved_buffers)) {
 		struct dm_buffer *b = list_entry(c->reserved_buffers.next,
 						 struct dm_buffer, lru_list);
