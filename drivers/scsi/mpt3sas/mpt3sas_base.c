@@ -908,14 +908,18 @@ static u8
 _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 {
 	int i;
+	u16 ctl_smid = ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT + 1;
 	u8 cb_idx = 0xFF;
 
 	if (smid < ioc->hi_priority_smid) {
 		struct scsiio_tracker *st;
 
-		st = mpt3sas_get_st_from_smid(ioc, smid);
-		if (st)
-			cb_idx = st->cb_idx;
+		if (smid < ctl_smid) {
+			st = mpt3sas_get_st_from_smid(ioc, smid);
+			if (st)
+				cb_idx = st->cb_idx;
+		} else if (smid == ctl_smid)
+			cb_idx = ioc->ctl_cb_idx;
 	} else if (smid < ioc->internal_smid) {
 		i = smid - ioc->hi_priority_smid;
 		cb_idx = ioc->hpr_lookup[i].cb_idx;
@@ -2922,7 +2926,9 @@ mpt3sas_base_free_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 		ioc->scsi_lookup[i].cb_idx = 0xFF;
 		ioc->scsi_lookup[i].scmd = NULL;
 		ioc->scsi_lookup[i].direct_io = 0;
-		list_add(&ioc->scsi_lookup[i].tracker_list, &ioc->free_list);
+		if (i < ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT)
+			list_add(&ioc->scsi_lookup[i].tracker_list,
+				 &ioc->free_list);
 		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
 		_base_recovery_check(ioc);
@@ -5787,8 +5793,9 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 		ioc->scsi_lookup[i].smid = smid;
 		ioc->scsi_lookup[i].scmd = NULL;
 		ioc->scsi_lookup[i].direct_io = 0;
-		list_add_tail(&ioc->scsi_lookup[i].tracker_list,
-		    &ioc->free_list);
+		if (i < ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT)
+			list_add_tail(&ioc->scsi_lookup[i].tracker_list,
+				      &ioc->free_list);
 	}
 
 	/* hi-priority queue */
