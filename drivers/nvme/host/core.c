@@ -1228,16 +1228,27 @@ static int nvme_open(struct block_device *bdev, fmode_t mode)
 #ifdef CONFIG_NVME_MULTIPATH
 	/* should never be called due to GENHD_FL_HIDDEN */
 	if (WARN_ON_ONCE(ns->head->disk))
-		return -ENXIO;
+		goto fail;
 #endif
 	if (!kref_get_unless_zero(&ns->kref))
-		return -ENXIO;
+		goto fail;
+	if (!try_module_get(ns->ctrl->ops->module))
+		goto fail_put_ns;
+
 	return 0;
+
+fail_put_ns:
+	nvme_put_ns(ns);
+fail:
+	return -ENXIO;
 }
 
 static void nvme_release(struct gendisk *disk, fmode_t mode)
 {
-	nvme_put_ns(disk->private_data);
+	struct nvme_ns *ns = disk->private_data;
+
+	module_put(ns->ctrl->ops->module);
+	nvme_put_ns(ns);
 }
 
 static int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
