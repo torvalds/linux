@@ -2723,12 +2723,8 @@ static int clk_debug_register(struct clk_core *core)
 
 	mutex_lock(&clk_debug_lock);
 	hlist_add_head(&core->debug_node, &clk_debug_list);
-
-	if (!inited)
-		goto unlock;
-
-	ret = clk_debug_create_one(core, rootdir);
-unlock:
+	if (inited)
+		ret = clk_debug_create_one(core, rootdir);
 	mutex_unlock(&clk_debug_lock);
 
 	return ret;
