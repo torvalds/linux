@@ -180,35 +180,22 @@ out:
 
 static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 {
-	struct of_phandle_args oirq;
-	int ret;
 	int i;
 
 	for (i=0; i < 3; i++) {
-		ret = of_irq_parse_one(np, i, &oirq);
-		if (ret) {
-			pr_debug("spu_new: failed to get irq %d\n", i);
+		spu->irqs[i] = irq_of_parse_and_map(np, i);
+		if (!spu->irqs[i])
 			goto err;
-		}
-		ret = -EINVAL;
-		pr_debug("  irq %d no 0x%x on %pOF\n", i, oirq.args[0],
-			 oirq.np);
-		spu->irqs[i] = irq_create_of_mapping(&oirq);
-		if (!spu->irqs[i]) {
-			pr_debug("spu_new: failed to map it !\n");
-			goto err;
-		}
 	}
 	return 0;
 
 err:
-	pr_debug("failed to map irq %x for spu %s\n", *oirq.args,
-		spu->name);
+	pr_debug("failed to map irq %x for spu %s\n", i, spu->name);
 	for (; i >= 0; i--) {
 		if (spu->irqs[i])
 			irq_dispose_mapping(spu->irqs[i]);
 	}
-	return ret;
+	return -EINVAL;
 }
 
 static int spu_map_resource(struct spu *spu, int nr,
