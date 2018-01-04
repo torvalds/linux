@@ -47,7 +47,7 @@ config SND_SOC_INTEL_SST_FIRMWARE
 	# when these platforms are enabled
 
 config SND_SOC_INTEL_HASWELL
-	tristate "Intel ASoC SST driver for Haswell/Broadwell"
+	tristate "Haswell/Broadwell Platforms"
 	depends on SND_DMA_SGBUF
 	depends on DMADEVICES && ACPI
 	select SND_SOC_INTEL_SST
@@ -60,7 +60,7 @@ config SND_SOC_INTEL_HASWELL
 	  typically used for Chromebooks. This is a recommended option.
 
 config SND_SOC_INTEL_BAYTRAIL
-	tristate "Intel ASoC SST driver for Baytrail (legacy)"
+	tristate "Baytrail (legacy) Platforms"
 	depends on DMADEVICES && ACPI
 	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_SST_ACPI
@@ -73,7 +73,7 @@ config SND_SOC_INTEL_BAYTRAIL
 	  not recommended, use SND_SST_ATOM_HIFI2_PLATFORM instead.
 
 config SND_SST_ATOM_HIFI2_PLATFORM_PCI
-	tristate "Intel ASoC SST driver for PCI HiFi2 platforms (Medfield, Merrifield)"
+	tristate "PCI HiFi2 (Medfield, Merrifield) Platforms"
 	depends on X86 && PCI
 	select SND_SST_IPC_PCI
 	select SND_SOC_COMPRESS
@@ -87,7 +87,7 @@ config SND_SST_ATOM_HIFI2_PLATFORM_PCI
 	  is not in the standard firmware tree
 
 config SND_SST_ATOM_HIFI2_PLATFORM
-	tristate "Intel ASoC SST driver for ACPI HiFi2 platforms (Baytrail, Cherrytrail)"
+	tristate "ACPI HiFi2 (Baytrail, Cherrytrail) Platforms"
 	depends on X86 && ACPI
 	select SND_SST_IPC_ACPI
 	select SND_SOC_COMPRESS
@@ -99,7 +99,7 @@ config SND_SST_ATOM_HIFI2_PLATFORM
 	  recommended option
 
 config SND_SOC_INTEL_SKYLAKE
-	tristate "Intel ASoC SST driver for SKL/BXT/KBL/GLK/CNL"
+	tristate "SKL/BXT/KBL/GLK/CNL... Platforms"
 	depends on PCI && ACPI
 	select SND_HDA_EXT_CORE
 	select SND_HDA_DSP_LOADER
