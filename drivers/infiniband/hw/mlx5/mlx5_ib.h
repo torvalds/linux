@@ -652,6 +652,7 @@ struct mlx5_ib_counters {
 	u32 num_q_counters;
 	u32 num_cong_counters;
 	u16 set_id;
+	bool set_id_valid;
 };
 
 struct mlx5_ib_multiport_info;
