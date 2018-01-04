@@ -498,8 +498,6 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	int state;
 
-	sock_rps_record_flow(sk);
-
 	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	state = inet_sk_state_load(sk);
