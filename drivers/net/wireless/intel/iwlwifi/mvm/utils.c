@@ -728,13 +728,14 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,
 		.sta_id = sta_id,
 		.tid = tid,
 	};
-	int queue;
+	int queue, size = IWL_DEFAULT_QUEUE_SIZE;
 
-	if (cmd.tid == IWL_MAX_TID_COUNT)
+	if (cmd.tid == IWL_MAX_TID_COUNT) {
 		cmd.tid = IWL_MGMT_TID;
+		size = IWL_MGMT_QUEUE_SIZE;
+	}
 	queue = iwl_trans_txq_alloc(mvm->trans, (void *)&cmd,
-				    SCD_QUEUE_CFG, IWL_DEFAULT_QUEUE_SIZE,
-				    timeout);
+				    SCD_QUEUE_CFG, size, timeout);
 
 	if (queue < 0) {
 		IWL_DEBUG_TX_QUEUES(mvm,
