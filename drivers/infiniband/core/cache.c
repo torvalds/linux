@@ -821,12 +821,7 @@ static int gid_table_setup_one(struct ib_device *ib_dev)
 	if (err)
 		return err;
 
-	err = roce_rescan_device(ib_dev);
-
-	if (err) {
-		gid_table_cleanup_one(ib_dev);
-		gid_table_release_one(ib_dev);
-	}
+	roce_rescan_device(ib_dev);
 
 	return err;
 }
