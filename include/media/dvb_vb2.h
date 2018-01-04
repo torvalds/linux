@@ -103,7 +103,7 @@ struct dvb_vb2_ctx {
 	char	name[DVB_VB2_NAME_MAX + 1];
 };
 
-#ifndef DVB_MMAP
+#ifndef CONFIG_DVB_MMAP
 static inline int dvb_vb2_init(struct dvb_vb2_ctx *ctx,
 			       const char *name, int non_blocking)
 {
