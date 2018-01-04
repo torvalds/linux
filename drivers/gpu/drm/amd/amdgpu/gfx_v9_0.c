@@ -87,6 +87,13 @@ MODULE_FIRMWARE("amdgpu/picasso_mec.bin");
 MODULE_FIRMWARE("amdgpu/picasso_mec2.bin");
 MODULE_FIRMWARE("amdgpu/picasso_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/raven2_ce.bin");
+MODULE_FIRMWARE("amdgpu/raven2_pfp.bin");
+MODULE_FIRMWARE("amdgpu/raven2_me.bin");
+MODULE_FIRMWARE("amdgpu/raven2_mec.bin");
+MODULE_FIRMWARE("amdgpu/raven2_mec2.bin");
+MODULE_FIRMWARE("amdgpu/raven2_rlc.bin");
+
 static const struct soc15_reg_golden golden_settings_gc_9_0[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000400),
@@ -573,7 +580,10 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "vega20";
 		break;
 	case CHIP_RAVEN:
-		chip_name = "raven";
+		if (adev->rev_id >= 8)
+			chip_name = "raven2";
+		else
+			chip_name = "raven";
 		break;
 	case CHIP_PICASSO:
 		chip_name = "picasso";
