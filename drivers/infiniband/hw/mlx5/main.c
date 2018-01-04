@@ -475,7 +475,7 @@ static int set_roce_addr(struct mlx5_ib_dev *dev, u8 port_num,
 
 	return mlx5_core_roce_gid_set(dev->mdev, index, roce_version,
 				      roce_l3_type, gid->raw, mac, vlan,
-				      vlan_id);
+				      vlan_id, port_num);
 }
 
 static int mlx5_ib_add_gid(struct ib_device *device, u8 port_num,

@@ -888,7 +888,8 @@ struct mlx5_fpga_conn *mlx5_fpga_conn_create(struct mlx5_fpga_device *fdev,
 	err = mlx5_core_roce_gid_set(fdev->mdev, conn->qp.sgid_index,
 				     MLX5_ROCE_VERSION_2,
 				     MLX5_ROCE_L3_TYPE_IPV6,
-				     remote_ip, remote_mac, true, 0);
+				     remote_ip, remote_mac, true, 0,
+				     MLX5_FPGA_PORT_NUM);
 	if (err) {
 		mlx5_fpga_err(fdev, "Failed to set SGID: %d\n", err);
 		ret = ERR_PTR(err);
@@ -954,7 +955,7 @@ err_cq:
 	mlx5_fpga_conn_destroy_cq(conn);
 err_gid:
 	mlx5_core_roce_gid_set(fdev->mdev, conn->qp.sgid_index, 0, 0, NULL,
-			       NULL, false, 0);
+			       NULL, false, 0, MLX5_FPGA_PORT_NUM);
 err_rsvd_gid:
 	mlx5_core_reserved_gid_free(fdev->mdev, conn->qp.sgid_index);
 err:
@@ -982,7 +983,7 @@ void mlx5_fpga_conn_destroy(struct mlx5_fpga_conn *conn)
 	mlx5_fpga_conn_destroy_cq(conn);
 
 	mlx5_core_roce_gid_set(conn->fdev->mdev, conn->qp.sgid_index, 0, 0,
-			       NULL, NULL, false, 0);
+			       NULL, NULL, false, 0, MLX5_FPGA_PORT_NUM);
 	mlx5_core_reserved_gid_free(conn->fdev->mdev, conn->qp.sgid_index);
 	kfree(conn);
 }

@@ -1112,7 +1112,7 @@ void mlx5_free_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg);
 unsigned int mlx5_core_reserved_gids_count(struct mlx5_core_dev *dev);
 int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
 			   u8 roce_version, u8 roce_l3_type, const u8 *gid,
-			   const u8 *mac, bool vlan, u16 vlan_id);
+			   const u8 *mac, bool vlan, u16 vlan_id, u8 port_num);
 
 static inline int fw_initializing(struct mlx5_core_dev *dev)
 {
