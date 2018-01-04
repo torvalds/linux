@@ -4820,7 +4820,7 @@ wl_cfg80211_set_mfp(struct bcm_cfg80211 *cfg,
 		mfp, wpa2_ie, rsn_cap[0], rsn_cap[1], fw_support));
 
 	if (fw_support == false) {
-		if (mfp) {
+		if (mfp == WL_MFP_REQUIRED) {
 			/* if mfp > 0, mfp capability set in wpa ie, but
 			 * FW indicated error for mfp. Propagate the error up.
 			 */
