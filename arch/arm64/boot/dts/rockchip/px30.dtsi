@@ -316,7 +316,7 @@
 		reg = <0x0 0xff180000 0x0 0x1000>;
 		clocks =  <&cru SCLK_I2C0>, <&cru PCLK_I2C0>;
 		clock-names = "i2c", "pclk";
-		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c0_xfer>;
 		#address-cells = <1>;
@@ -329,7 +329,7 @@
 		reg = <0x0 0xff190000 0x0 0x1000>;
 		clocks = <&cru SCLK_I2C1>, <&cru PCLK_I2C1>;
 		clock-names = "i2c", "pclk";
-		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c1_xfer>;
 		#address-cells = <1>;
@@ -342,7 +342,7 @@
 		reg = <0x0 0xff1a0000 0x0 0x1000>;
 		clocks = <&cru SCLK_I2C2>, <&cru PCLK_I2C2>;
 		clock-names = "i2c", "pclk";
-		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c2_xfer>;
 		#address-cells = <1>;
@@ -355,7 +355,7 @@
 		reg = <0x0 0xff1b0000 0x0 0x1000>;
 		clocks = <&cru SCLK_I2C3>, <&cru PCLK_I2C3>;
 		clock-names = "i2c", "pclk";
-		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c3_xfer>;
 		#address-cells = <1>;
