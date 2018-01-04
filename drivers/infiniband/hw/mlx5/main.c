@@ -4254,6 +4254,8 @@ static void mlx5_ib_unbind_slave_port(struct mlx5_ib_dev *ibdev,
 	int err;
 	int i;
 
+	mlx5_ib_cleanup_cong_debugfs(ibdev, port_num);
+
 	spin_lock(&port->mp.mpi_lock);
 	if (!mpi->ibdev) {
 		spin_unlock(&port->mp.mpi_lock);
@@ -4330,6 +4332,10 @@ static bool mlx5_ib_bind_slave_port(struct mlx5_ib_dev *ibdev,
 			    port_num + 1);
 		goto unbind;
 	}
+
+	err = mlx5_ib_init_cong_debugfs(ibdev, port_num);
+	if (err)
+		goto unbind;
 
 	return true;
 
@@ -4748,12 +4754,14 @@ static void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev)
 
 static int mlx5_ib_stage_cong_debugfs_init(struct mlx5_ib_dev *dev)
 {
-	return mlx5_ib_init_cong_debugfs(dev);
+	return mlx5_ib_init_cong_debugfs(dev,
+					 mlx5_core_native_port_num(dev->mdev) - 1);
 }
 
 static void mlx5_ib_stage_cong_debugfs_cleanup(struct mlx5_ib_dev *dev)
 {
-	mlx5_ib_cleanup_cong_debugfs(dev);
+	mlx5_ib_cleanup_cong_debugfs(dev,
+				     mlx5_core_native_port_num(dev->mdev) - 1);
 }
 
 static int mlx5_ib_stage_uar_init(struct mlx5_ib_dev *dev)

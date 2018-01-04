@@ -665,6 +665,7 @@ struct mlx5_ib_multiport {
 struct mlx5_ib_port {
 	struct mlx5_ib_counters cnts;
 	struct mlx5_ib_multiport mp;
+	struct mlx5_ib_dbg_cc_params	*dbg_cc_params;
 };
 
 struct mlx5_roce {
@@ -684,6 +685,7 @@ struct mlx5_ib_dbg_param {
 	int			offset;
 	struct mlx5_ib_dev	*dev;
 	struct dentry		*dentry;
+	u8			port_num;
 };
 
 enum mlx5_ib_dbg_cc_types {
@@ -813,7 +815,6 @@ struct mlx5_ib_dev {
 	struct mlx5_sq_bfreg	bfreg;
 	struct mlx5_sq_bfreg	fp_bfreg;
 	struct mlx5_ib_delay_drop	delay_drop;
-	struct mlx5_ib_dbg_cc_params	*dbg_cc_params;
 	const struct mlx5_ib_profile	*profile;
 
 	/* protect the user_td */
@@ -1071,8 +1072,8 @@ __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
 int mlx5_get_roce_gid_type(struct mlx5_ib_dev *dev, u8 port_num,
 			   int index, enum ib_gid_type *gid_type);
 
-void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev);
-int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev);
+void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
+int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
 
 /* GSI QP helper functions */
 struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
