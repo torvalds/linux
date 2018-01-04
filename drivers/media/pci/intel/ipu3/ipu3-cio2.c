@@ -785,7 +785,8 @@ static irqreturn_t cio2_irq(int irq, void *cio2_ptr)
 
 /**************** Videobuf2 interface ****************/
 
-static void cio2_vb2_return_all_buffers(struct cio2_queue *q)
+static void cio2_vb2_return_all_buffers(struct cio2_queue *q,
+					enum vb2_buffer_state state)
 {
 	unsigned int i;
 
@@ -793,7 +794,7 @@ static void cio2_vb2_return_all_buffers(struct cio2_queue *q)
 		if (q->bufs[i]) {
 			atomic_dec(&q->bufs_queued);
 			vb2_buffer_done(&q->bufs[i]->vbb.vb2_buf,
-					VB2_BUF_STATE_ERROR);
+					state);
 		}
 	}
 }
@@ -1019,7 +1020,7 @@ fail_hw:
 	media_pipeline_stop(&q->vdev.entity);
 fail_pipeline:
 	dev_dbg(&cio2->pci_dev->dev, "failed to start streaming (%d)\n", r);
-	cio2_vb2_return_all_buffers(q);
+	cio2_vb2_return_all_buffers(q, VB2_BUF_STATE_QUEUED);
 	pm_runtime_put(&cio2->pci_dev->dev);
 
 	return r;
@@ -1035,7 +1036,7 @@ static void cio2_vb2_stop_streaming(struct vb2_queue *vq)
 			"failed to stop sensor streaming\n");
 
 	cio2_hw_exit(cio2, q);
-	cio2_vb2_return_all_buffers(q);
+	cio2_vb2_return_all_buffers(q, VB2_BUF_STATE_ERROR);
 	media_pipeline_stop(&q->vdev.entity);
 	pm_runtime_put(&cio2->pci_dev->dev);
 	cio2->streaming = false;
