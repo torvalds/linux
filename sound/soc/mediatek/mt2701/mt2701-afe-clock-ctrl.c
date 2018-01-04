@@ -18,8 +18,11 @@
 #include "mt2701-afe-clock-ctrl.h"
 
 static const char *const base_clks[] = {
+	[MT2701_INFRA_SYS_AUDIO] = "infra_sys_audio_clk",
 	[MT2701_TOP_AUD_MCLK_SRC0] = "top_audio_mux1_sel",
 	[MT2701_TOP_AUD_MCLK_SRC1] = "top_audio_mux2_sel",
+	[MT2701_TOP_AUD_A1SYS] = "top_audio_a1sys_hp",
+	[MT2701_TOP_AUD_A2SYS] = "top_audio_a2sys_hp",
 	[MT2701_AUDSYS_AFE] = "audio_afe_pd",
 	[MT2701_AUDSYS_AFE_CONN] = "audio_afe_conn_pd",
 	[MT2701_AUDSYS_A1SYS] = "audio_a1sys_pd",
@@ -169,9 +172,25 @@ static int mt2701_afe_enable_audsys(struct mtk_base_afe *afe)
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int ret;
 
-	ret = clk_prepare_enable(afe_priv->base_ck[MT2701_AUDSYS_AFE]);
+	/* Enable infra clock gate */
+	ret = clk_prepare_enable(afe_priv->base_ck[MT2701_INFRA_SYS_AUDIO]);
 	if (ret)
 		return ret;
+
+	/* Enable top a1sys clock gate */
+	ret = clk_prepare_enable(afe_priv->base_ck[MT2701_TOP_AUD_A1SYS]);
+	if (ret)
+		goto err_a1sys;
+
+	/* Enable top a2sys clock gate */
+	ret = clk_prepare_enable(afe_priv->base_ck[MT2701_TOP_AUD_A2SYS]);
+	if (ret)
+		goto err_a2sys;
+
+	/* Internal clock gates */
+	ret = clk_prepare_enable(afe_priv->base_ck[MT2701_AUDSYS_AFE]);
+	if (ret)
+		goto err_afe;
 
 	ret = clk_prepare_enable(afe_priv->base_ck[MT2701_AUDSYS_A1SYS]);
 	if (ret)
@@ -193,6 +212,12 @@ err_audio_a2sys:
 	clk_disable_unprepare(afe_priv->base_ck[MT2701_AUDSYS_A1SYS]);
 err_audio_a1sys:
 	clk_disable_unprepare(afe_priv->base_ck[MT2701_AUDSYS_AFE]);
+err_afe:
+	clk_disable_unprepare(afe_priv->base_ck[MT2701_TOP_AUD_A2SYS]);
+err_a2sys:
+	clk_disable_unprepare(afe_priv->base_ck[MT2701_TOP_AUD_A1SYS]);
+err_a1sys:
+	clk_disable_unprepare(afe_priv->base_ck[MT2701_INFRA_SYS_AUDIO]);
 
 	return ret;
 }
@@ -205,6 +230,9 @@ static void mt2701_afe_disable_audsys(struct mtk_base_afe *afe)
 	clk_disable_unprepare(afe_priv->base_ck[MT2701_AUDSYS_A2SYS]);
 	clk_disable_unprepare(afe_priv->base_ck[MT2701_AUDSYS_A1SYS]);
 	clk_disable_unprepare(afe_priv->base_ck[MT2701_AUDSYS_AFE]);
+	clk_disable_unprepare(afe_priv->base_ck[MT2701_TOP_AUD_A1SYS]);
+	clk_disable_unprepare(afe_priv->base_ck[MT2701_TOP_AUD_A2SYS]);
+	clk_disable_unprepare(afe_priv->base_ck[MT2701_INFRA_SYS_AUDIO]);
 }
 
 int mt2701_afe_enable_clock(struct mtk_base_afe *afe)
