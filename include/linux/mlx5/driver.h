@@ -1234,6 +1234,11 @@ static inline bool mlx5_rl_is_supported(struct mlx5_core_dev *dev)
 	return !!(dev->priv.rl_table.max_size);
 }
 
+static inline int mlx5_core_native_port_num(struct mlx5_core_dev *dev)
+{
+	return 1;
+}
+
 enum {
 	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
 };

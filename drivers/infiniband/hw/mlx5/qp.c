@@ -2962,8 +2962,9 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		    (ibqp->qp_type == IB_QPT_XRC_INI) ||
 		    (ibqp->qp_type == IB_QPT_XRC_TGT)) {
 			if (mlx5_lag_is_active(dev->mdev)) {
+				u8 p = mlx5_core_native_port_num(dev->mdev);
 				tx_affinity = (unsigned int)atomic_add_return(1,
-						&dev->roce.next_port) %
+						&dev->roce[p].next_port) %
 						MLX5_MAX_PORTS + 1;
 				context->flags |= cpu_to_be32(tx_affinity << 24);
 			}

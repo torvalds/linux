@@ -667,6 +667,8 @@ struct mlx5_roce {
 	struct notifier_block	nb;
 	atomic_t		next_port;
 	enum ib_port_state last_port_state;
+	struct mlx5_ib_dev	*dev;
+	u8			native_port_num;
 };
 
 struct mlx5_ib_dbg_param {
@@ -757,7 +759,7 @@ struct mlx5_ib_profile {
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
-	struct mlx5_roce		roce;
+	struct mlx5_roce		roce[MLX5_MAX_PORTS];
 	int				num_ports;
 	/* serialize update of capability mask
 	 */
