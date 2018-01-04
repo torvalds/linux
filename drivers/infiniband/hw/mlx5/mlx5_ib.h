@@ -654,8 +654,17 @@ struct mlx5_ib_counters {
 	u16 set_id;
 };
 
+struct mlx5_ib_multiport_info;
+
+struct mlx5_ib_multiport {
+	struct mlx5_ib_multiport_info *mpi;
+	/* To be held when accessing the multiport info */
+	spinlock_t mpi_lock;
+};
+
 struct mlx5_ib_port {
 	struct mlx5_ib_counters cnts;
+	struct mlx5_ib_multiport mp;
 };
 
 struct mlx5_roce {
@@ -756,6 +765,17 @@ struct mlx5_ib_profile {
 	struct mlx5_ib_stage stage[MLX5_IB_STAGE_MAX];
 };
 
+struct mlx5_ib_multiport_info {
+	struct list_head list;
+	struct mlx5_ib_dev *ibdev;
+	struct mlx5_core_dev *mdev;
+	struct completion unref_comp;
+	u64 sys_image_guid;
+	u32 mdev_refcnt;
+	bool is_master;
+	bool unaffiliate;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
@@ -800,6 +820,8 @@ struct mlx5_ib_dev {
 	struct mutex		lb_mutex;
 	u32			user_td;
 	u8			umr_fence;
+	struct list_head	ib_dev_list;
+	u64			sys_image_guid;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -1071,6 +1093,12 @@ int mlx5_ib_generate_wc(struct ib_cq *ibcq, struct ib_wc *wc);
 
 void mlx5_ib_free_bfreg(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi,
 			int bfregn);
+struct mlx5_ib_dev *mlx5_ib_get_ibdev_from_mpi(struct mlx5_ib_multiport_info *mpi);
+struct mlx5_core_dev *mlx5_ib_get_native_port_mdev(struct mlx5_ib_dev *dev,
+						   u8 ib_port_num,
+						   u8 *native_port_num);
+void mlx5_ib_put_native_port_mdev(struct mlx5_ib_dev *dev,
+				  u8 port_num);
 
 static inline void init_query_mad(struct ib_smp *mad)
 {

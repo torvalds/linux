@@ -1121,3 +1121,61 @@ ex:
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_core_modify_hca_vport_context);
+
+int mlx5_nic_vport_affiliate_multiport(struct mlx5_core_dev *master_mdev,
+				       struct mlx5_core_dev *port_mdev)
+{
+	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
+	void *in;
+	int err;
+
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	err = mlx5_nic_vport_enable_roce(port_mdev);
+	if (err)
+		goto free;
+
+	MLX5_SET(modify_nic_vport_context_in, in, field_select.affiliation, 1);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.affiliated_vhca_id,
+		 MLX5_CAP_GEN(master_mdev, vhca_id));
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.affiliation_criteria,
+		 MLX5_CAP_GEN(port_mdev, affiliate_nic_vport_criteria));
+
+	err = mlx5_modify_nic_vport_context(port_mdev, in, inlen);
+	if (err)
+		mlx5_nic_vport_disable_roce(port_mdev);
+
+free:
+	kvfree(in);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_nic_vport_affiliate_multiport);
+
+int mlx5_nic_vport_unaffiliate_multiport(struct mlx5_core_dev *port_mdev)
+{
+	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
+	void *in;
+	int err;
+
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_nic_vport_context_in, in, field_select.affiliation, 1);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.affiliated_vhca_id, 0);
+	MLX5_SET(modify_nic_vport_context_in, in,
+		 nic_vport_context.affiliation_criteria, 0);
+
+	err = mlx5_modify_nic_vport_context(port_mdev, in, inlen);
+	if (!err)
+		mlx5_nic_vport_disable_roce(port_mdev);
+
+	kvfree(in);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_nic_vport_unaffiliate_multiport);

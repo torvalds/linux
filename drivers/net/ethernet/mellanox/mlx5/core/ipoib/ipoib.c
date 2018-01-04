@@ -187,7 +187,7 @@ int mlx5i_create_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp
 		 MLX5_QP_ENHANCED_ULP_STATELESS_MODE);
 
 	addr_path = MLX5_ADDR_OF(qpc, qpc, primary_address_path);
-	MLX5_SET(ads, addr_path, port, 1);
+	MLX5_SET(ads, addr_path, vhca_port_num, 1);
 	MLX5_SET(ads, addr_path, grh, 1);
 
 	ret = mlx5_core_create_qp(mdev, qp, in, inlen);

@@ -3850,4 +3850,12 @@ ib_get_vector_affinity(struct ib_device *device, int comp_vector)
 
 }
 
+/**
+ * rdma_roce_rescan_device - Rescan all of the network devices in the system
+ * and add their gids, as needed, to the relevant RoCE devices.
+ *
+ * @device:         the rdma device
+ */
+void rdma_roce_rescan_device(struct ib_device *ibdev);
+
 #endif /* IB_VERBS_H */

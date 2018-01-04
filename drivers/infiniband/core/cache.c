@@ -821,7 +821,7 @@ static int gid_table_setup_one(struct ib_device *ib_dev)
 	if (err)
 		return err;
 
-	roce_rescan_device(ib_dev);
+	rdma_roce_rescan_device(ib_dev);
 
 	return err;
 }

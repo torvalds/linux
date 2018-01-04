@@ -502,7 +502,7 @@ struct mlx5_ifc_ads_bits {
 	u8         dei_cfi[0x1];
 	u8         eth_prio[0x3];
 	u8         sl[0x4];
-	u8         port[0x8];
+	u8         vhca_port_num[0x8];
 	u8         rmac_47_32[0x10];
 
 	u8         rmac_31_0[0x20];
@@ -794,7 +794,10 @@ enum {
 };
 
 struct mlx5_ifc_cmd_hca_cap_bits {
-	u8         reserved_at_0[0x80];
+	u8         reserved_at_0[0x30];
+	u8         vhca_id[0x10];
+
+	u8         reserved_at_40[0x40];
 
 	u8         log_max_srq_sz[0x8];
 	u8         log_max_qp_sz[0x8];
@@ -1066,8 +1069,11 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_5f8[0x3];
 	u8         log_max_xrq[0x5];
 
-	u8         reserved_at_600[0x1e];
-	u8	   sw_owner_id;
+	u8	   affiliate_nic_vport_criteria[0x8];
+	u8	   native_port_num[0x8];
+	u8	   num_vhca_ports[0x8];
+	u8	   reserved_at_618[0x6];
+	u8	   sw_owner_id[0x1];
 	u8	   reserved_at_61f[0x1e1];
 };
 
@@ -2617,7 +2623,12 @@ struct mlx5_ifc_nic_vport_context_bits {
 	u8         event_on_mc_address_change[0x1];
 	u8         event_on_uc_address_change[0x1];
 
-	u8         reserved_at_40[0xf0];
+	u8         reserved_at_40[0xc];
+
+	u8	   affiliation_criteria[0x4];
+	u8	   affiliated_vhca_id[0x10];
+
+	u8	   reserved_at_60[0xd0];
 
 	u8         mtu[0x10];
 
@@ -3260,7 +3271,8 @@ struct mlx5_ifc_set_roce_address_in_bits {
 	u8         op_mod[0x10];
 
 	u8         roce_address_index[0x10];
-	u8         reserved_at_50[0x10];
+	u8         reserved_at_50[0xc];
+	u8	   vhca_port_num[0x4];
 
 	u8         reserved_at_60[0x20];
 
@@ -3880,7 +3892,8 @@ struct mlx5_ifc_query_roce_address_in_bits {
 	u8         op_mod[0x10];
 
 	u8         roce_address_index[0x10];
-	u8         reserved_at_50[0x10];
+	u8         reserved_at_50[0xc];
+	u8	   vhca_port_num[0x4];
 
 	u8         reserved_at_60[0x20];
 };
@@ -5312,7 +5325,9 @@ struct mlx5_ifc_modify_nic_vport_context_out_bits {
 };
 
 struct mlx5_ifc_modify_nic_vport_field_select_bits {
-	u8         reserved_at_0[0x14];
+	u8         reserved_at_0[0x12];
+	u8	   affiliation[0x1];
+	u8	   reserved_at_e[0x1];
 	u8         disable_uc_local_lb[0x1];
 	u8         disable_mc_local_lb[0x1];
 	u8         node_guid[0x1];

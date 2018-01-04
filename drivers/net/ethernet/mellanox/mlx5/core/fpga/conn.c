@@ -688,7 +688,7 @@ static inline int mlx5_fpga_conn_init_qp(struct mlx5_fpga_conn *conn)
 	MLX5_SET(qpc, qpc, st, MLX5_QP_ST_RC);
 	MLX5_SET(qpc, qpc, pm_state, MLX5_QP_PM_MIGRATED);
 	MLX5_SET(qpc, qpc, primary_address_path.pkey_index, MLX5_FPGA_PKEY_INDEX);
-	MLX5_SET(qpc, qpc, primary_address_path.port, MLX5_FPGA_PORT_NUM);
+	MLX5_SET(qpc, qpc, primary_address_path.vhca_port_num, MLX5_FPGA_PORT_NUM);
 	MLX5_SET(qpc, qpc, pd, conn->fdev->conn_res.pdn);
 	MLX5_SET(qpc, qpc, cqn_snd, conn->cq.mcq.cqn);
 	MLX5_SET(qpc, qpc, cqn_rcv, conn->cq.mcq.cqn);
@@ -727,7 +727,7 @@ static inline int mlx5_fpga_conn_rtr_qp(struct mlx5_fpga_conn *conn)
 	MLX5_SET(qpc, qpc, next_rcv_psn,
 		 MLX5_GET(fpga_qpc, conn->fpga_qpc, next_send_psn));
 	MLX5_SET(qpc, qpc, primary_address_path.pkey_index, MLX5_FPGA_PKEY_INDEX);
-	MLX5_SET(qpc, qpc, primary_address_path.port, MLX5_FPGA_PORT_NUM);
+	MLX5_SET(qpc, qpc, primary_address_path.vhca_port_num, MLX5_FPGA_PORT_NUM);
 	ether_addr_copy(MLX5_ADDR_OF(qpc, qpc, primary_address_path.rmac_47_32),
 			MLX5_ADDR_OF(fpga_qpc, conn->fpga_qpc, fpga_mac_47_32));
 	MLX5_SET(qpc, qpc, primary_address_path.udp_sport,
