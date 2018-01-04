@@ -10,11 +10,13 @@
  * Since the driver does not declare any device ids, you must allocate
  * id and bind the device to the driver yourself.  For example:
  *
+ * Associate Network GUID with UIO device
  * # echo "f8615163-df3e-46c5-913f-f2d2f965ed0e" \
- *    > /sys/bus/vmbus/drivers/uio_hv_generic
- * # echo -n vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3 \
+ *    > /sys/bus/vmbus/drivers/uio_hv_generic/new_id
+ * Then rebind
+ * # echo -n "ed963694-e847-4b2a-85af-bc9cfc11d6f3" \
  *    > /sys/bus/vmbus/drivers/hv_netvsc/unbind
- * # echo -n vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3 \
+ * # echo -n "ed963694-e847-4b2a-85af-bc9cfc11d6f3" \
  *    > /sys/bus/vmbus/drivers/uio_hv_generic/bind
  */
 
