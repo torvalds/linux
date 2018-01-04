@@ -865,7 +865,7 @@ static int lan9303_check_device(struct lan9303 *chip)
 	if ((reg >> 16) != LAN9303_CHIP_ID) {
 		dev_err(chip->dev, "expecting LAN9303 chip, but found: %X\n",
 			reg >> 16);
-		return ret;
+		return -ENODEV;
 	}
 
 	/* The default state of the LAN9303 device is to forward packets between
