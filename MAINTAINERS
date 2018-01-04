@@ -62,7 +62,15 @@ trivial patch so apply some common sense.
 
 7.	When sending security related changes or reports to a maintainer
 	please Cc: security@kernel.org, especially if the maintainer
-	does not respond.
+	does not respond. Please keep in mind that the security team is
+	a small set of people who can be efficient only when working on
+	verified bugs. Please only Cc: this list when you have identified
+	that the bug would present a short-term risk to other users if it
+	were publicly disclosed. For example, reports of address leaks do
+	not represent an immediate threat and are better handled publicly,
+	and ideally, should come with a patch proposal. Please do not send
+	automated reports to this list either. Such bugs will be handled
+	better and faster in the usual public places.
 
 8.	Happy hacking.
 
