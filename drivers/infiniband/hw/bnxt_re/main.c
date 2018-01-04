@@ -417,7 +417,7 @@ static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 		return ERR_PTR(-EINVAL);
 
 	if (!(en_dev->flags & BNXT_EN_FLAG_ROCE_CAP)) {
-		dev_dbg(&pdev->dev,
+		dev_info(&pdev->dev,
 			"%s: probe error: RoCE is not supported on this device",
 			ROCE_DRV_MODULE_NAME);
 		return ERR_PTR(-ENODEV);
