@@ -19,7 +19,7 @@ TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test
 TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o test_tcp_estats.o test_obj_id.o \
 	test_pkt_md_access.o test_xdp_redirect.o test_xdp_meta.o sockmap_parse_prog.o     \
 	sockmap_verdict_prog.o dev_cgroup.o sample_ret0.o test_tracepoint.o \
-	test_l4lb_noinline.o test_xdp_noinline.o
+	test_l4lb_noinline.o test_xdp_noinline.o test_stacktrace_map.o
 
 TEST_PROGS := test_kmod.sh test_xdp_redirect.sh test_xdp_meta.sh \
 	test_offload.py
