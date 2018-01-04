@@ -145,5 +145,4 @@
 #define ASYS_I2S_CON_WIDE_MODE_SET(x)	((x) << 1)
 #define ASYS_I2S_IN_PHASE_FIX		(0x1 << 31)
 
-#define AFE_END_ADDR 0x15e0
 #endif

@@ -17,6 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/pm_runtime.h>
@@ -1368,14 +1369,6 @@ static const struct mt2701_i2s_data mt2701_i2s_data[MT2701_I2S_NUM][2] = {
 	},
 };
 
-static const struct regmap_config mt2701_afe_regmap_config = {
-	.reg_bits = 32,
-	.reg_stride = 4,
-	.val_bits = 32,
-	.max_register = AFE_END_ADDR,
-	.cache_type = REGCACHE_NONE,
-};
-
 static irqreturn_t mt2701_asys_isr(int irq_id, void *dev)
 {
 	int id;
@@ -1414,9 +1407,9 @@ static int mt2701_afe_runtime_resume(struct device *dev)
 
 static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 {
+	struct snd_soc_component *component;
 	struct mtk_base_afe *afe;
 	struct mt2701_afe_private *afe_priv;
-	struct resource *res;
 	struct device *dev;
 	int i, irq_id, ret;
 
@@ -1446,17 +1439,11 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	afe->base_addr = devm_ioremap_resource(&pdev->dev, res);
-
-	if (IS_ERR(afe->base_addr))
-		return PTR_ERR(afe->base_addr);
-
-	afe->regmap = devm_regmap_init_mmio(&pdev->dev, afe->base_addr,
-		&mt2701_afe_regmap_config);
-	if (IS_ERR(afe->regmap))
-		return PTR_ERR(afe->regmap);
+	afe->regmap = syscon_node_to_regmap(dev->parent->of_node);
+	if (!afe->regmap) {
+		dev_err(dev, "could not get regmap from parent\n");
+		return -ENODEV;
+	}
 
 	mutex_init(&afe->irq_alloc_lock);
 
@@ -1490,6 +1477,12 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 			= &mt2701_i2s_data[i][I2S_IN];
 	}
 
+	component = kzalloc(sizeof(*component), GFP_KERNEL);
+	if (!component)
+		return -ENOMEM;
+
+	component->regmap = afe->regmap;
+
 	afe->mtk_afe_hardware = &mt2701_afe_hardware;
 	afe->memif_fs = mt2701_memif_fs;
 	afe->irq_fs = mt2701_irq_fs;
@@ -1502,7 +1495,7 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	ret = mt2701_init_clock(afe);
 	if (ret) {
 		dev_err(dev, "init clock error\n");
-		return ret;
+		goto err_init_clock;
 	}
 
 	platform_set_drvdata(pdev, afe);
@@ -1521,10 +1514,10 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 		goto err_platform;
 	}
 
-	ret = snd_soc_register_component(&pdev->dev,
-					 &mt2701_afe_pcm_dai_component,
-					 mt2701_afe_pcm_dais,
-					 ARRAY_SIZE(mt2701_afe_pcm_dais));
+	ret = snd_soc_add_component(dev, component,
+				    &mt2701_afe_pcm_dai_component,
+				    mt2701_afe_pcm_dais,
+				    ARRAY_SIZE(mt2701_afe_pcm_dais));
 	if (ret) {
 		dev_warn(dev, "err_dai_component\n");
 		goto err_dai_component;
@@ -1538,6 +1531,8 @@ err_platform:
 	pm_runtime_put_sync(dev);
 err_pm_disable:
 	pm_runtime_disable(dev);
+err_init_clock:
+	kfree(component);
 
 	return ret;
 }
