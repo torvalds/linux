@@ -115,20 +115,18 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 	if (sb_rdonly(sb))
 		return;
 
-	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
-		sb->s_flags |= SB_RDONLY;
-		btrfs_info(fs_info, "forced readonly");
-		/*
-		 * Note that a running device replace operation is not
-		 * canceled here although there is no way to update
-		 * the progress. It would add the risk of a deadlock,
-		 * therefore the canceling is omitted. The only penalty
-		 * is that some I/O remains active until the procedure
-		 * completes. The next time when the filesystem is
-		 * mounted writeable again, the device replace
-		 * operation continues.
-		 */
-	}
+	sb->s_flags |= SB_RDONLY;
+	btrfs_info(fs_info, "forced readonly");
+	/*
+	 * Note that a running device replace operation is not
+	 * canceled here although there is no way to update
+	 * the progress. It would add the risk of a deadlock,
+	 * therefore the canceling is omitted. The only penalty
+	 * is that some I/O remains active until the procedure
+	 * completes. The next time when the filesystem is
+	 * mounted writeable again, the device replace
+	 * operation continues.
+	 */
 }
 
 /*
