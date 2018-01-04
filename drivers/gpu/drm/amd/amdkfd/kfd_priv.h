@@ -158,6 +158,7 @@ struct kfd_device_info {
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
 	bool supports_cwsr;
+	bool needs_pci_atomics;
 };
 
 struct kfd_mem_obj {
