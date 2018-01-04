@@ -87,7 +87,8 @@ int tcf_block_get(struct tcf_block **p_block,
 
 static inline
 int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
-		      struct tcf_block_ext_info *ei)
+		      struct tcf_block_ext_info *ei,
+		      struct netlink_ext_ack *extack)
 {
 	return 0;
 }
