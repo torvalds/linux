@@ -1512,7 +1512,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	mutex_init(&context->db_page_mutex);
 
 	resp.tot_bfregs = req.total_num_bfregs;
-	resp.num_ports = MLX5_CAP_GEN(dev->mdev, num_ports);
+	resp.num_ports = dev->num_ports;
 
 	if (field_avail(typeof(resp), cqe_version, udata->outlen))
 		resp.response_length += sizeof(resp.cqe_version);
@@ -2774,7 +2774,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 		return ERR_PTR(-ENOMEM);
 
 	if (domain != IB_FLOW_DOMAIN_USER ||
-	    flow_attr->port > MLX5_CAP_GEN(dev->mdev, num_ports) ||
+	    flow_attr->port > dev->num_ports ||
 	    (flow_attr->flags & ~IB_FLOW_ATTR_FLAGS_DONT_TRAP))
 		return ERR_PTR(-EINVAL);
 
@@ -3122,7 +3122,7 @@ static int set_has_smi_cap(struct mlx5_ib_dev *dev)
 	int err;
 	int port;
 
-	for (port = 1; port <= MLX5_CAP_GEN(dev->mdev, num_ports); port++) {
+	for (port = 1; port <= dev->num_ports; port++) {
 		dev->mdev->port_caps[port - 1].has_smi = false;
 		if (MLX5_CAP_GEN(dev->mdev, port_type) ==
 		    MLX5_CAP_PORT_TYPE_IB) {
@@ -3149,7 +3149,7 @@ static void get_ext_port_caps(struct mlx5_ib_dev *dev)
 {
 	int port;
 
-	for (port = 1; port <= MLX5_CAP_GEN(dev->mdev, num_ports); port++)
+	for (port = 1; port <= dev->num_ports; port++)
 		mlx5_query_ext_port_caps(dev, port);
 }
 
@@ -3179,7 +3179,7 @@ static int get_port_caps(struct mlx5_ib_dev *dev)
 		goto out;
 	}
 
-	for (port = 1; port <= MLX5_CAP_GEN(dev->mdev, num_ports); port++) {
+	for (port = 1; port <= dev->num_ports; port++) {
 		memset(pprops, 0, sizeof(*pprops));
 		err = mlx5_ib_query_port(&dev->ib_dev, port, pprops);
 		if (err) {
@@ -4061,7 +4061,7 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	const char *name;
 	int err;
 
-	dev->port = kcalloc(MLX5_CAP_GEN(mdev, num_ports), sizeof(*dev->port),
+	dev->port = kcalloc(dev->num_ports, sizeof(*dev->port),
 			    GFP_KERNEL);
 	if (!dev->port)
 		return -ENOMEM;
@@ -4083,8 +4083,7 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.owner		= THIS_MODULE;
 	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
-	dev->num_ports		= MLX5_CAP_GEN(mdev, num_ports);
-	dev->ib_dev.phys_port_cnt     = dev->num_ports;
+	dev->ib_dev.phys_port_cnt	= dev->num_ports;
 	dev->ib_dev.num_comp_vectors    =
 		dev->mdev->priv.eq_table.num_comp_vectors;
 	dev->ib_dev.dev.parent		= &mdev->pdev->dev;
@@ -4443,6 +4442,7 @@ static void *__mlx5_ib_add(struct mlx5_core_dev *mdev,
 		return NULL;
 
 	dev->mdev = mdev;
+	dev->num_ports = MLX5_CAP_GEN(mdev, num_ports);
 
 	for (i = 0; i < MLX5_IB_STAGE_MAX; i++) {
 		if (profile->stage[i].init) {
