@@ -599,8 +599,13 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 				     MLX5_CAP_GEN(priv->mdev, log_max_hairpin_wq_data_sz));
 	params.log_data_size = max_t(u8, params.log_data_size,
 				     MLX5_CAP_GEN(priv->mdev, log_min_hairpin_wq_data_sz));
-	params.q_counter = priv->q_counter;
 
+	params.log_num_packets = params.log_data_size -
+				 MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(priv->mdev);
+	params.log_num_packets = min_t(u8, params.log_num_packets,
+				       MLX5_CAP_GEN(priv->mdev, log_max_hairpin_num_packets));
+
+	params.q_counter = priv->q_counter;
 	/* set hairpin pair per each 50Gbs share of the link */
 	mlx5e_get_max_linkspeed(priv->mdev, &link_speed);
 	link_speed = max_t(u32, link_speed, 50000);
@@ -614,9 +619,9 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 		goto create_hairpin_err;
 	}
 
-	netdev_dbg(priv->netdev, "add hairpin: tirn %x rqn %x peer %s sqn %x prio %d log data size %d\n",
+	netdev_dbg(priv->netdev, "add hairpin: tirn %x rqn %x peer %s sqn %x prio %d (log) data %d packets %d\n",
 		   hp->tirn, hp->pair->rqn[0], hp->pair->peer_mdev->priv.name,
-		   hp->pair->sqn[0], match_prio, params.log_data_size);
+		   hp->pair->sqn[0], match_prio, params.log_data_size, params.log_num_packets);
 
 	hpe->hp = hp;
 	hash_add(priv->fs.tc.hairpin_tbl, &hpe->hairpin_hlist,
