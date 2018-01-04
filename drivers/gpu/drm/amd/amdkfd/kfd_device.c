@@ -340,7 +340,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		 kfd->pdev->device);
 
 	pr_debug("Starting kfd with the following scheduling policy %d\n",
-		sched_policy);
+		kfd->dqm->sched_policy);
 
 	goto out;
 

@@ -180,6 +180,7 @@ struct device_queue_manager {
 	unsigned int		*fence_addr;
 	struct kfd_mem_obj	*fence_mem;
 	bool			active_runlist;
+	int			sched_policy;
 };
 
 void device_queue_manager_init_cik(

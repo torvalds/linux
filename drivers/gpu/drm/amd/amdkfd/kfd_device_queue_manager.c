@@ -385,7 +385,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	prev_active = q->properties.is_active;
 
 	/* Make sure the queue is unmapped before updating the MQD */
-	if (sched_policy != KFD_SCHED_POLICY_NO_HWS) {
+	if (dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) {
 		retval = unmap_queues_cpsch(dqm,
 				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
 		if (retval) {
@@ -417,7 +417,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	else if (!q->properties.is_active && prev_active)
 		dqm->queue_count--;
 
-	if (sched_policy != KFD_SCHED_POLICY_NO_HWS)
+	if (dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS)
 		retval = map_queues_cpsch(dqm);
 	else if (q->properties.is_active &&
 		 (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
@@ -1097,7 +1097,7 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 			alternate_aperture_base,
 			alternate_aperture_size);
 
-	if ((sched_policy == KFD_SCHED_POLICY_NO_HWS) && (qpd->vmid != 0))
+	if ((dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS) && (qpd->vmid != 0))
 		program_sh_mem_settings(dqm, qpd);
 
 	pr_debug("sh_mem_config: 0x%x, ape1_base: 0x%x, ape1_limit: 0x%x\n",
@@ -1242,8 +1242,24 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	if (!dqm)
 		return NULL;
 
+	switch (dev->device_info->asic_family) {
+	/* HWS is not available on Hawaii. */
+	case CHIP_HAWAII:
+	/* HWS depends on CWSR for timely dequeue. CWSR is not
+	 * available on Tonga.
+	 *
+	 * FIXME: This argument also applies to Kaveri.
+	 */
+	case CHIP_TONGA:
+		dqm->sched_policy = KFD_SCHED_POLICY_NO_HWS;
+		break;
+	default:
+		dqm->sched_policy = sched_policy;
+		break;
+	}
+
 	dqm->dev = dev;
-	switch (sched_policy) {
+	switch (dqm->sched_policy) {
 	case KFD_SCHED_POLICY_HWS:
 	case KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION:
 		/* initialize dqm for cp scheduling */
@@ -1280,7 +1296,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.process_termination = process_termination_nocpsch;
 		break;
 	default:
-		pr_err("Invalid scheduling policy %d\n", sched_policy);
+		pr_err("Invalid scheduling policy %d\n", dqm->sched_policy);
 		goto out_free;
 	}
 
