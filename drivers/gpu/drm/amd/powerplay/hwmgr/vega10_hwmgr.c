@@ -1384,11 +1384,9 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 		data->odn_dpm_table.odn_core_clock_dpm_levels.
 		number_of_performance_levels = data->dpm_table.gfx_table.count;
 		for (i = 0; i < data->dpm_table.gfx_table.count; i++) {
-			data->odn_dpm_table.odn_core_clock_dpm_levels.
-			performance_level_entries[i].clock =
+			data->odn_dpm_table.odn_core_clock_dpm_levels.entries[i].clock =
 					data->dpm_table.gfx_table.dpm_levels[i].value;
-			data->odn_dpm_table.odn_core_clock_dpm_levels.
-			performance_level_entries[i].enabled = true;
+			data->odn_dpm_table.odn_core_clock_dpm_levels.entries[i].enabled = true;
 		}
 
 		data->odn_dpm_table.vdd_dependency_on_sclk.count =
@@ -1407,11 +1405,9 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 		data->odn_dpm_table.odn_memory_clock_dpm_levels.
 		number_of_performance_levels = data->dpm_table.mem_table.count;
 		for (i = 0; i < data->dpm_table.mem_table.count; i++) {
-			data->odn_dpm_table.odn_memory_clock_dpm_levels.
-			performance_level_entries[i].clock =
+			data->odn_dpm_table.odn_memory_clock_dpm_levels.entries[i].clock =
 					data->dpm_table.mem_table.dpm_levels[i].value;
-			data->odn_dpm_table.odn_memory_clock_dpm_levels.
-			performance_level_entries[i].enabled = true;
+			data->odn_dpm_table.odn_memory_clock_dpm_levels.entries[i].enabled = true;
 		}
 
 		data->odn_dpm_table.vdd_dependency_on_mclk.count = dep_mclk_table->count;
@@ -3349,11 +3345,9 @@ static int vega10_populate_and_upload_sclk_mclk_dpm_levels(
 					dpm_count < dpm_table->gfx_table.count;
 					dpm_count++) {
 				dpm_table->gfx_table.dpm_levels[dpm_count].enabled =
-						data->odn_dpm_table.odn_core_clock_dpm_levels.
-						performance_level_entries[dpm_count].enabled;
+					data->odn_dpm_table.odn_core_clock_dpm_levels.entries[dpm_count].enabled;
 				dpm_table->gfx_table.dpm_levels[dpm_count].value =
-						data->odn_dpm_table.odn_core_clock_dpm_levels.
-						performance_level_entries[dpm_count].clock;
+					data->odn_dpm_table.odn_core_clock_dpm_levels.entries[dpm_count].clock;
 			}
 		}
 
@@ -3363,11 +3357,9 @@ static int vega10_populate_and_upload_sclk_mclk_dpm_levels(
 					dpm_count < dpm_table->mem_table.count;
 					dpm_count++) {
 				dpm_table->mem_table.dpm_levels[dpm_count].enabled =
-						data->odn_dpm_table.odn_memory_clock_dpm_levels.
-						performance_level_entries[dpm_count].enabled;
+					data->odn_dpm_table.odn_memory_clock_dpm_levels.entries[dpm_count].enabled;
 				dpm_table->mem_table.dpm_levels[dpm_count].value =
-						data->odn_dpm_table.odn_memory_clock_dpm_levels.
-						performance_level_entries[dpm_count].clock;
+					data->odn_dpm_table.odn_memory_clock_dpm_levels.entries[dpm_count].clock;
 			}
 		}
 

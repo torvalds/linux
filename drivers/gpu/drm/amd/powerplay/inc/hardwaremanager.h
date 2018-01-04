@@ -370,7 +370,7 @@ struct phm_odn_clock_levels {
 	uint32_t flags;
 	uint32_t number_of_performance_levels;
 	/* variable-sized array, specify by ulNumberOfPerformanceLevels. */
-	struct phm_odn_performance_level performance_level_entries[8];
+	struct phm_odn_performance_level entries[8];
 };
 
 extern int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr);
