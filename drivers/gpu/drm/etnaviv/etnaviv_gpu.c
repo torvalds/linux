@@ -31,6 +31,10 @@
 #include "state_hi.xml.h"
 #include "cmdstream.xml.h"
 
+#ifndef PHYS_OFFSET
+#define PHYS_OFFSET 0
+#endif
+
 static const struct platform_device_id gpu_ids[] = {
 	{ .name = "etnaviv-gpu,2d" },
 	{ },
