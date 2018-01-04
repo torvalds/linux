@@ -838,8 +838,9 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 		container_of(vb, struct cio2_buffer, vbb.vb2_buf);
 	static const unsigned int entries_per_page =
 		CIO2_PAGE_SIZE / sizeof(u32);
-	unsigned int pages = DIV_ROUND_UP(vb->planes[0].length, CIO2_PAGE_SIZE);
-	unsigned int lops = DIV_ROUND_UP(pages + 1, entries_per_page);
+	unsigned int pages = DIV_ROUND_UP(vb->planes[0].length,
+					  CIO2_PAGE_SIZE) + 1;
+	unsigned int lops = DIV_ROUND_UP(pages, entries_per_page);
 	struct sg_table *sg;
 	struct sg_page_iter sg_iter;
 	int i, j;
@@ -869,6 +870,8 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 
 	i = j = 0;
 	for_each_sg_page(sg->sgl, &sg_iter, sg->nents, 0) {
+		if (!pages--)
+			break;
 		b->lop[i][j] = sg_page_iter_dma_address(&sg_iter) >> PAGE_SHIFT;
 		j++;
 		if (j == entries_per_page) {
