@@ -564,7 +564,10 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 #define fb_memcpy_fromfb sbus_memcpy_fromio
 #define fb_memcpy_tofb sbus_memcpy_toio
 
-#elif defined(__i386__) || defined(__alpha__) || defined(__x86_64__) || defined(__hppa__) || defined(__sh__) || defined(__powerpc__) || defined(__avr32__) || defined(__bfin__) || defined(__arm__)
+#elif defined(__i386__) || defined(__alpha__) || defined(__x86_64__) ||	\
+	defined(__hppa__) || defined(__sh__) || defined(__powerpc__) ||	\
+	defined(__avr32__) || defined(__bfin__) || defined(__arm__) ||	\
+	defined(__aarch64__)
 
 #define fb_readb __raw_readb
 #define fb_readw __raw_readw
