@@ -211,7 +211,7 @@ static int tda10023_set_symbolrate (struct tda10023_state* state, u32 sr)
 
 		BDRX=1<<(24+NDEC);
 		BDRX*=sr;
-		do_div(BDRX, state->sysclk); 	/* BDRX/=SYSCLK; */
+		do_div(BDRX, state->sysclk);	/* BDRX/=SYSCLK; */
 
 		BDR=(s32)BDRX;
 	}

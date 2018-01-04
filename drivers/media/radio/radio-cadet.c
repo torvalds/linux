@@ -30,7 +30,7 @@
  *		Changed API to V4L2
  */
 
-#include <linux/module.h>	/* Modules 			*/
+#include <linux/module.h>	/* Modules			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
@@ -503,7 +503,7 @@ static unsigned int cadet_poll(struct file *file, struct poll_table_struct *wait
 static const struct v4l2_file_operations cadet_fops = {
 	.owner		= THIS_MODULE,
 	.open		= cadet_open,
-	.release       	= cadet_release,
+	.release	= cadet_release,
 	.read		= cadet_read,
 	.unlocked_ioctl	= video_ioctl2,
 	.poll		= cadet_poll,

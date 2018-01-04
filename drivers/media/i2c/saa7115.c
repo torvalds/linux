@@ -748,7 +748,7 @@ static int saa711x_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	u32 acni;
 	u32 hz;
 	u64 f;
-	u8 acc = 0; 	/* reg 0x3a, audio clock control */
+	u8 acc = 0;	/* reg 0x3a, audio clock control */
 
 	/* Checks for chips that don't have audio clock (saa7111, saa7113) */
 	if (!saa711x_has_reg(state->ident, R_30_AUD_MAST_CLK_CYCLES_PER_FIELD))

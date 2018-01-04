@@ -793,24 +793,24 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 
 static struct saa7146_standard standard[] = {
 	{
-		.name	= "PAL-BG", 	.id	= V4L2_STD_PAL_BG,
-		.v_offset	= 0x17,	.v_field 	= 288,
-		.h_offset	= 0x14,	.h_pixels 	= 680,
+		.name	= "PAL-BG",	.id	= V4L2_STD_PAL_BG,
+		.v_offset	= 0x17,	.v_field	= 288,
+		.h_offset	= 0x14,	.h_pixels	= 680,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}, {
-		.name	= "PAL-I", 	.id	= V4L2_STD_PAL_I,
-		.v_offset	= 0x17,	.v_field 	= 288,
-		.h_offset	= 0x14,	.h_pixels 	= 680,
+		.name	= "PAL-I",	.id	= V4L2_STD_PAL_I,
+		.v_offset	= 0x17,	.v_field	= 288,
+		.h_offset	= 0x14,	.h_pixels	= 680,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}, {
-		.name	= "NTSC", 	.id	= V4L2_STD_NTSC,
-		.v_offset	= 0x16,	.v_field 	= 240,
-		.h_offset	= 0x06,	.h_pixels 	= 708,
+		.name	= "NTSC",	.id	= V4L2_STD_NTSC,
+		.v_offset	= 0x16,	.v_field	= 240,
+		.h_offset	= 0x06,	.h_pixels	= 708,
 		.v_max_out	= 480,	.h_max_out	= 640,
 	}, {
-		.name	= "SECAM", 	.id	= V4L2_STD_SECAM,
-		.v_offset	= 0x14,	.v_field 	= 288,
-		.h_offset	= 0x14,	.h_pixels 	= 720,
+		.name	= "SECAM",	.id	= V4L2_STD_SECAM,
+		.v_offset	= 0x14,	.v_field	= 288,
+		.h_offset	= 0x14,	.h_pixels	= 720,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}
 };

@@ -2168,7 +2168,7 @@ int cx231xx_tuner_post_channel_change(struct cx231xx *dev)
 }
 
 /******************************************************************************
- *        	    I 2 S - B L O C K    C O N T R O L   functions            *
+ *		    I 2 S - B L O C K    C O N T R O L   functions            *
  ******************************************************************************/
 int cx231xx_i2s_blk_initialize(struct cx231xx *dev)
 {

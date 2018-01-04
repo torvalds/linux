@@ -52,7 +52,7 @@ extern int av7110_debug;
 enum {AV_PES_STREAM, PS_STREAM, TS_STREAM, PES_STREAM};
 
 enum av7110_video_mode {
-	AV7110_VIDEO_MODE_PAL 	= 0,
+	AV7110_VIDEO_MODE_PAL	= 0,
 	AV7110_VIDEO_MODE_NTSC	= 1
 };
 

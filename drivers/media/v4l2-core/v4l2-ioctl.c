@@ -46,37 +46,37 @@ struct std_descr {
 };
 
 static const struct std_descr standards[] = {
-	{ V4L2_STD_NTSC, 	"NTSC"      },
-	{ V4L2_STD_NTSC_M, 	"NTSC-M"    },
-	{ V4L2_STD_NTSC_M_JP, 	"NTSC-M-JP" },
+	{ V4L2_STD_NTSC,	"NTSC"      },
+	{ V4L2_STD_NTSC_M,	"NTSC-M"    },
+	{ V4L2_STD_NTSC_M_JP,	"NTSC-M-JP" },
 	{ V4L2_STD_NTSC_M_KR,	"NTSC-M-KR" },
-	{ V4L2_STD_NTSC_443, 	"NTSC-443"  },
-	{ V4L2_STD_PAL, 	"PAL"       },
-	{ V4L2_STD_PAL_BG, 	"PAL-BG"    },
-	{ V4L2_STD_PAL_B, 	"PAL-B"     },
-	{ V4L2_STD_PAL_B1, 	"PAL-B1"    },
-	{ V4L2_STD_PAL_G, 	"PAL-G"     },
-	{ V4L2_STD_PAL_H, 	"PAL-H"     },
-	{ V4L2_STD_PAL_I, 	"PAL-I"     },
-	{ V4L2_STD_PAL_DK, 	"PAL-DK"    },
-	{ V4L2_STD_PAL_D, 	"PAL-D"     },
-	{ V4L2_STD_PAL_D1, 	"PAL-D1"    },
-	{ V4L2_STD_PAL_K, 	"PAL-K"     },
-	{ V4L2_STD_PAL_M, 	"PAL-M"     },
-	{ V4L2_STD_PAL_N, 	"PAL-N"     },
-	{ V4L2_STD_PAL_Nc, 	"PAL-Nc"    },
-	{ V4L2_STD_PAL_60, 	"PAL-60"    },
-	{ V4L2_STD_SECAM, 	"SECAM"     },
-	{ V4L2_STD_SECAM_B, 	"SECAM-B"   },
-	{ V4L2_STD_SECAM_G, 	"SECAM-G"   },
-	{ V4L2_STD_SECAM_H, 	"SECAM-H"   },
-	{ V4L2_STD_SECAM_DK, 	"SECAM-DK"  },
-	{ V4L2_STD_SECAM_D, 	"SECAM-D"   },
-	{ V4L2_STD_SECAM_K, 	"SECAM-K"   },
-	{ V4L2_STD_SECAM_K1, 	"SECAM-K1"  },
-	{ V4L2_STD_SECAM_L, 	"SECAM-L"   },
-	{ V4L2_STD_SECAM_LC, 	"SECAM-Lc"  },
-	{ 0, 			"Unknown"   }
+	{ V4L2_STD_NTSC_443,	"NTSC-443"  },
+	{ V4L2_STD_PAL,		"PAL"       },
+	{ V4L2_STD_PAL_BG,	"PAL-BG"    },
+	{ V4L2_STD_PAL_B,	"PAL-B"     },
+	{ V4L2_STD_PAL_B1,	"PAL-B1"    },
+	{ V4L2_STD_PAL_G,	"PAL-G"     },
+	{ V4L2_STD_PAL_H,	"PAL-H"     },
+	{ V4L2_STD_PAL_I,	"PAL-I"     },
+	{ V4L2_STD_PAL_DK,	"PAL-DK"    },
+	{ V4L2_STD_PAL_D,	"PAL-D"     },
+	{ V4L2_STD_PAL_D1,	"PAL-D1"    },
+	{ V4L2_STD_PAL_K,	"PAL-K"     },
+	{ V4L2_STD_PAL_M,	"PAL-M"     },
+	{ V4L2_STD_PAL_N,	"PAL-N"     },
+	{ V4L2_STD_PAL_Nc,	"PAL-Nc"    },
+	{ V4L2_STD_PAL_60,	"PAL-60"    },
+	{ V4L2_STD_SECAM,	"SECAM"     },
+	{ V4L2_STD_SECAM_B,	"SECAM-B"   },
+	{ V4L2_STD_SECAM_G,	"SECAM-G"   },
+	{ V4L2_STD_SECAM_H,	"SECAM-H"   },
+	{ V4L2_STD_SECAM_DK,	"SECAM-DK"  },
+	{ V4L2_STD_SECAM_D,	"SECAM-D"   },
+	{ V4L2_STD_SECAM_K,	"SECAM-K"   },
+	{ V4L2_STD_SECAM_K1,	"SECAM-K1"  },
+	{ V4L2_STD_SECAM_L,	"SECAM-L"   },
+	{ V4L2_STD_SECAM_LC,	"SECAM-Lc"  },
+	{ 0,			"Unknown"   }
 };
 
 /* video4linux standard ID conversion to standard name
@@ -2544,7 +2544,7 @@ struct v4l2_ioctl_info {
 #define INFO_FL_CLEAR(v4l2_struct, field)			\
 	((offsetof(struct v4l2_struct, field) +			\
 	  sizeof(((struct v4l2_struct *)0)->field)) << 16)
-#define INFO_FL_CLEAR_MASK 	(_IOC_SIZEMASK << 16)
+#define INFO_FL_CLEAR_MASK	(_IOC_SIZEMASK << 16)
 
 #define IOCTL_INFO_STD(_ioctl, _vidioc, _debug, _flags)			\
 	[_IOC_NR(_ioctl)] = {						\

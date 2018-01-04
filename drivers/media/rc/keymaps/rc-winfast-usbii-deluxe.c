@@ -37,7 +37,7 @@ static struct rc_map_table winfast_usbii_deluxe[] = {
 	{ 0x60, KEY_CHANNELDOWN},	/* CHANNELDOWN */
 	{ 0x61, KEY_LAST},		/* LAST CHANNEL (RECALL) */
 
-	{ 0x72, KEY_VIDEO}, 		/* INPUT MODES (TV/FM) */
+	{ 0x72, KEY_VIDEO},		/* INPUT MODES (TV/FM) */
 
 	{ 0x70, KEY_POWER2},		/* TV ON/OFF */
 

@@ -48,7 +48,7 @@ struct xc2028_ctrl {
 
 struct xc2028_config {
 	struct i2c_adapter *i2c_adap;
-	u8 		   i2c_addr;
+	u8		   i2c_addr;
 	struct xc2028_ctrl *ctrl;
 };
 

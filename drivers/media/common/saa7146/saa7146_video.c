@@ -1001,9 +1001,9 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_try_fmt_vid_overlay  = vidioc_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_overlay    = vidioc_s_fmt_vid_overlay,
 
-	.vidioc_overlay 	     = vidioc_overlay,
-	.vidioc_g_fbuf  	     = vidioc_g_fbuf,
-	.vidioc_s_fbuf  	     = vidioc_s_fbuf,
+	.vidioc_overlay		     = vidioc_overlay,
+	.vidioc_g_fbuf		     = vidioc_g_fbuf,
+	.vidioc_s_fbuf		     = vidioc_s_fbuf,
 	.vidioc_reqbufs              = vidioc_reqbufs,
 	.vidioc_querybuf             = vidioc_querybuf,
 	.vidioc_qbuf                 = vidioc_qbuf,
@@ -1012,7 +1012,7 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_s_std                = vidioc_s_std,
 	.vidioc_streamon             = vidioc_streamon,
 	.vidioc_streamoff            = vidioc_streamoff,
-	.vidioc_g_parm 		     = vidioc_g_parm,
+	.vidioc_g_parm		     = vidioc_g_parm,
 	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
 };

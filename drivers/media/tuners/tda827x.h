@@ -36,7 +36,7 @@ struct tda827x_config
 
 	/* interface to tda829x driver */
 	enum tda8290_lna config;
-	int 	     switch_addr;
+	int	     switch_addr;
 
 	void (*agcf)(struct dvb_frontend *fe);
 };

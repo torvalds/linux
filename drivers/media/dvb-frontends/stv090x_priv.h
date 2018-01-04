@@ -231,7 +231,7 @@ struct stv090x_tab {
 };
 
 struct stv090x_internal {
-	struct i2c_adapter 	*i2c_adap;
+	struct i2c_adapter	*i2c_adap;
 	u8			i2c_addr;
 
 	struct mutex		demod_lock; /* Lock access to shared register */

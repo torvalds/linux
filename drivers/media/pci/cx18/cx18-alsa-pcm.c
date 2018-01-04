@@ -41,7 +41,7 @@ MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
 #define dprintk(fmt, arg...) do {					\
 	    if (pcm_debug)						\
 		printk(KERN_INFO "cx18-alsa-pcm %s: " fmt,		\
-				  __func__, ##arg); 			\
+				  __func__, ##arg);			\
 	} while (0)
 
 static const struct snd_pcm_hardware snd_cx18_hw_capture = {

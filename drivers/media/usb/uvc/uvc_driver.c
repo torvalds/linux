@@ -963,11 +963,11 @@ static int uvc_parse_vendor_control(struct uvc_device *dev,
 		 *	Size of this descriptor, in bytes: 24+p+n*2
 		 * ----------------------------------------------------------
 		 * 23+p+n	bmControlsType	N	Bitmap
-		 * 	Individual bits in the set are defined:
-		 * 	0: Absolute
-		 * 	1: Relative
+		 *	Individual bits in the set are defined:
+		 *	0: Absolute
+		 *	1: Relative
 		 *
-		 * 	This bitset is mapped exactly the same as bmControls.
+		 *	This bitset is mapped exactly the same as bmControls.
 		 * ----------------------------------------------------------
 		 * 23+p+n*2	bReserved	1	Boolean
 		 * ----------------------------------------------------------
@@ -2481,7 +2481,7 @@ static const struct usb_device_id uvc_ids[] = {
 	  .bInterfaceClass	= USB_CLASS_VIDEO,
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
-	  .driver_info 		= (kernel_ulong_t)&uvc_quirk_probe_def },
+	  .driver_info		= (kernel_ulong_t)&uvc_quirk_probe_def },
 	/* Dell SP2008WFP Monitor */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -2490,7 +2490,7 @@ static const struct usb_device_id uvc_ids[] = {
 	  .bInterfaceClass	= USB_CLASS_VIDEO,
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
-	  .driver_info 		= (kernel_ulong_t)&uvc_quirk_probe_def },
+	  .driver_info		= (kernel_ulong_t)&uvc_quirk_probe_def },
 	/* Dell Alienware X51 */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -2526,7 +2526,7 @@ static const struct usb_device_id uvc_ids[] = {
 	  .bInterfaceClass	= USB_CLASS_VIDEO,
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
-	  .driver_info 		= UVC_QUIRK_INFO(UVC_QUIRK_PROBE_MINMAX
+	  .driver_info		= UVC_QUIRK_INFO(UVC_QUIRK_PROBE_MINMAX
 					| UVC_QUIRK_BUILTIN_ISIGHT) },
 	/* Apple Built-In iSight via iBridge */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE

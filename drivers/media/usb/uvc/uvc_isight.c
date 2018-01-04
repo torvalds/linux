@@ -27,11 +27,11 @@
  *
  * Offset   Size (bytes)	Description
  * ------------------------------------------------------------------
- * 0x00 	1   	Header length
- * 0x01 	1   	Flags (UVC-compliant)
- * 0x02 	4   	Always equal to '11223344'
- * 0x06 	8   	Always equal to 'deadbeefdeadface'
- * 0x0e 	16  	Unknown
+ * 0x00	1	Header length
+ * 0x01	1	Flags (UVC-compliant)
+ * 0x02	4	Always equal to '11223344'
+ * 0x06	8	Always equal to 'deadbeefdeadface'
+ * 0x0e	16	Unknown
  *
  * The header can be prefixed by an optional, unknown-purpose byte.
  */

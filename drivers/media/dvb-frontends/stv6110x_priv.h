@@ -48,11 +48,11 @@
 
 #define STV6110x_SETFIELD(mask, bitf, val)				\
 	(mask = (mask & (~(((1 << STV6110x_WIDTH_##bitf) - 1) <<	\
-				  STV6110x_OFFST_##bitf))) | 		\
+				  STV6110x_OFFST_##bitf))) |		\
 			  (val << STV6110x_OFFST_##bitf))
 
 #define STV6110x_GETFIELD(bitf, val)					\
-	((val >> STV6110x_OFFST_##bitf) & 				\
+	((val >> STV6110x_OFFST_##bitf) &				\
 	((1 << STV6110x_WIDTH_##bitf) - 1))
 
 #define MAKEWORD16(a, b)			(((a) << 8) | (b))
@@ -68,7 +68,7 @@
 struct stv6110x_state {
 	struct i2c_adapter		*i2c;
 	const struct stv6110x_config	*config;
-	u8 				regs[8];
+	u8				regs[8];
 
 	const struct stv6110x_devctl	*devctl;
 };

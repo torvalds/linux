@@ -1246,7 +1246,7 @@ static struct platform_driver fimc_driver = {
 	.driver = {
 		.of_match_table = fimc_of_match,
 		.name		= FIMC_DRIVER_NAME,
-		.pm     	= &fimc_pm_ops,
+		.pm		= &fimc_pm_ops,
 	}
 };
 

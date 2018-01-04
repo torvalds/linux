@@ -1583,15 +1583,15 @@ static enum dvbfe_algo stb0899_frontend_algo(struct dvb_frontend *fe)
 static const struct dvb_frontend_ops stb0899_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
-		.name 			= "STB0899 Multistandard",
+		.name			= "STB0899 Multistandard",
 		.frequency_min		= 950000,
-		.frequency_max 		= 2150000,
+		.frequency_max		= 2150000,
 		.frequency_stepsize	= 0,
 		.frequency_tolerance	= 0,
-		.symbol_rate_min 	=  5000000,
-		.symbol_rate_max 	= 45000000,
+		.symbol_rate_min	=  5000000,
+		.symbol_rate_max	= 45000000,
 
-		.caps 			= FE_CAN_INVERSION_AUTO	|
+		.caps			= FE_CAN_INVERSION_AUTO	|
 					  FE_CAN_FEC_AUTO	|
 					  FE_CAN_2G_MODULATION	|
 					  FE_CAN_QPSK

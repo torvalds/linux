@@ -87,7 +87,7 @@ struct firmware_properties {
 	v4l2_std_id	std_req;
 	__u16		int_freq;
 	unsigned int	scode_table;
-	int 		scode_nr;
+	int		scode_nr;
 };
 
 enum xc2028_state {
@@ -137,7 +137,7 @@ struct xc2028_data {
 				       ibuf, isize);			\
 	if (isize != _rc)						\
 		tuner_err("i2c input error: rc = %d (should be %d)\n",	\
-			   _rc, (int)isize); 				\
+			   _rc, (int)isize);				\
 	if (priv->ctrl.msleep)						\
 		msleep(priv->ctrl.msleep);				\
 	_rc;								\
@@ -172,7 +172,7 @@ static int xc2028_get_reg(struct xc2028_data *priv, u16 reg, u16 *val)
 	return 0;
 }
 
-#define dump_firm_type(t) 	dump_firm_type_and_int_freq(t, 0)
+#define dump_firm_type(t)	dump_firm_type_and_int_freq(t, 0)
 static void dump_firm_type_and_int_freq(unsigned int type, u16 int_freq)
 {
 	if (type & BASE)

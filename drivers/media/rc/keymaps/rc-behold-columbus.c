@@ -30,12 +30,12 @@ static struct rc_map_table behold_columbus[] = {
 
 	/*  0x01    0x02    0x03  0x0D    *
 	 *   1       2       3   Stereo   *
-	 *                        	  *
+	 *				  *
 	 *  0x04    0x05    0x06  0x19    *
 	 *   4       5       6   Snapshot *
-	 *                        	  *
+	 *				  *
 	 *  0x07    0x08    0x09  0x10    *
-	 *   7       8       9    Zoom 	  *
+	 *   7       8       9    Zoom	  *
 	 *                                */
 	{ 0x01, KEY_1 },
 	{ 0x02, KEY_2 },

@@ -412,12 +412,12 @@ static struct regval_list ov7670_fmt_yuv422[] = {
 	{ REG_COM1, 0 },	/* CCIR601 */
 	{ REG_COM15, COM15_R00FF },
 	{ REG_COM9, 0x48 }, /* 32x gain ceiling; 0x8 is reserved bit */
-	{ 0x4f, 0x80 }, 	/* "matrix coefficient 1" */
-	{ 0x50, 0x80 }, 	/* "matrix coefficient 2" */
+	{ 0x4f, 0x80 },		/* "matrix coefficient 1" */
+	{ 0x50, 0x80 },		/* "matrix coefficient 2" */
 	{ 0x51, 0    },		/* vb */
-	{ 0x52, 0x22 }, 	/* "matrix coefficient 4" */
-	{ 0x53, 0x5e }, 	/* "matrix coefficient 5" */
-	{ 0x54, 0x80 }, 	/* "matrix coefficient 6" */
+	{ 0x52, 0x22 },		/* "matrix coefficient 4" */
+	{ 0x53, 0x5e },		/* "matrix coefficient 5" */
+	{ 0x54, 0x80 },		/* "matrix coefficient 6" */
 	{ REG_COM13, COM13_GAMMA|COM13_UVSAT },
 	{ 0xff, 0xff },
 };
@@ -427,13 +427,13 @@ static struct regval_list ov7670_fmt_rgb565[] = {
 	{ REG_RGB444, 0 },	/* No RGB444 please */
 	{ REG_COM1, 0x0 },	/* CCIR601 */
 	{ REG_COM15, COM15_RGB565 },
-	{ REG_COM9, 0x38 }, 	/* 16x gain ceiling; 0x8 is reserved bit */
-	{ 0x4f, 0xb3 }, 	/* "matrix coefficient 1" */
-	{ 0x50, 0xb3 }, 	/* "matrix coefficient 2" */
+	{ REG_COM9, 0x38 },	/* 16x gain ceiling; 0x8 is reserved bit */
+	{ 0x4f, 0xb3 },		/* "matrix coefficient 1" */
+	{ 0x50, 0xb3 },		/* "matrix coefficient 2" */
 	{ 0x51, 0    },		/* vb */
-	{ 0x52, 0x3d }, 	/* "matrix coefficient 4" */
-	{ 0x53, 0xa7 }, 	/* "matrix coefficient 5" */
-	{ 0x54, 0xe4 }, 	/* "matrix coefficient 6" */
+	{ 0x52, 0x3d },		/* "matrix coefficient 4" */
+	{ 0x53, 0xa7 },		/* "matrix coefficient 5" */
+	{ 0x54, 0xe4 },		/* "matrix coefficient 6" */
 	{ REG_COM13, COM13_GAMMA|COM13_UVSAT },
 	{ 0xff, 0xff },
 };
@@ -443,13 +443,13 @@ static struct regval_list ov7670_fmt_rgb444[] = {
 	{ REG_RGB444, R444_ENABLE },	/* Enable xxxxrrrr ggggbbbb */
 	{ REG_COM1, 0x0 },	/* CCIR601 */
 	{ REG_COM15, COM15_R01FE|COM15_RGB565 }, /* Data range needed? */
-	{ REG_COM9, 0x38 }, 	/* 16x gain ceiling; 0x8 is reserved bit */
-	{ 0x4f, 0xb3 }, 	/* "matrix coefficient 1" */
-	{ 0x50, 0xb3 }, 	/* "matrix coefficient 2" */
+	{ REG_COM9, 0x38 },	/* 16x gain ceiling; 0x8 is reserved bit */
+	{ 0x4f, 0xb3 },		/* "matrix coefficient 1" */
+	{ 0x50, 0xb3 },		/* "matrix coefficient 2" */
 	{ 0x51, 0    },		/* vb */
-	{ 0x52, 0x3d }, 	/* "matrix coefficient 4" */
-	{ 0x53, 0xa7 }, 	/* "matrix coefficient 5" */
-	{ 0x54, 0xe4 }, 	/* "matrix coefficient 6" */
+	{ 0x52, 0x3d },		/* "matrix coefficient 4" */
+	{ 0x53, 0xa7 },		/* "matrix coefficient 5" */
+	{ 0x54, 0xe4 },		/* "matrix coefficient 6" */
 	{ REG_COM13, COM13_GAMMA|COM13_UVSAT|0x2 },  /* Magic rsvd bit */
 	{ 0xff, 0xff },
 };
@@ -667,7 +667,7 @@ static struct ov7670_format_struct {
 	{
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
-		.regs 		= ov7670_fmt_yuv422,
+		.regs		= ov7670_fmt_yuv422,
 		.cmatrix	= { 128, -128, 0, -34, -94, 128 },
 	},
 	{
@@ -685,7 +685,7 @@ static struct ov7670_format_struct {
 	{
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
-		.regs 		= ov7670_fmt_raw,
+		.regs		= ov7670_fmt_raw,
 		.cmatrix	= { 0, 0, 0, 0, 0, 0 },
 	},
 };

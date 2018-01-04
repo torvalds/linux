@@ -1677,10 +1677,10 @@ static u16 MXL5005_TunerConfig(struct dvb_frontend *fe,
 	u8	AGC_Mode,	/* AGC Mode - Dual AGC: 0, Single AGC: 1 */
 	u16	TOP,		/* 0: Dual AGC; Value: take over point */
 	u16	IF_OUT_LOAD,	/* IF Out Load Resistor (200 / 300 Ohms) */
-	u8	CLOCK_OUT, 	/* 0: turn off clk out; 1: turn on clock out */
+	u8	CLOCK_OUT,	/* 0: turn off clk out; 1: turn on clock out */
 	u8	DIV_OUT,	/* 0: Div-1; 1: Div-4 */
-	u8	CAPSELECT, 	/* 0: disable On-Chip pulling cap; 1: enable */
-	u8	EN_RSSI, 	/* 0: disable RSSI; 1: enable RSSI */
+	u8	CAPSELECT,	/* 0: disable On-Chip pulling cap; 1: enable */
+	u8	EN_RSSI,	/* 0: disable RSSI; 1: enable RSSI */
 
 	/* Modulation Type; */
 	/* 0 - Default;	1 - DVB-T; 2 - ATSC; 3 - QAM; 4 - Analog Cable */

@@ -1263,7 +1263,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 static int set_v4lstd(struct i2c_client *client)
 {
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
-	u8 fmt = 0; 	/* zero is autodetect */
+	u8 fmt = 0;	/* zero is autodetect */
 	u8 pal_m = 0;
 
 	/* First tests should be against specific std */

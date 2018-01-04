@@ -134,7 +134,7 @@ struct CHIPSTATE {
 	/* thread */
 	struct task_struct   *thread;
 	struct timer_list    wt;
-	int 		     audmode;
+	int		     audmode;
 };
 
 static inline struct CHIPSTATE *to_state(struct v4l2_subdev *sd)

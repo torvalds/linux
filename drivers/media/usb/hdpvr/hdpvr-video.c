@@ -941,18 +941,18 @@ static int hdpvr_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
 		return 0;
-/* 	case V4L2_CID_MPEG_VIDEO_B_FRAMES: */
-/* 		if (ctrl->value == 0 && !(opt->gop_mode & 0x2)) { */
-/* 			opt->gop_mode |= 0x2; */
-/* 			hdpvr_config_call(dev, CTRL_GOP_MODE_VALUE, */
-/* 					  opt->gop_mode); */
-/* 		} */
-/* 		if (ctrl->value == 128 && opt->gop_mode & 0x2) { */
-/* 			opt->gop_mode &= ~0x2; */
-/* 			hdpvr_config_call(dev, CTRL_GOP_MODE_VALUE, */
-/* 					  opt->gop_mode); */
-/* 		} */
-/* 		break; */
+/*	case V4L2_CID_MPEG_VIDEO_B_FRAMES: */
+/*		if (ctrl->value == 0 && !(opt->gop_mode & 0x2)) { */
+/*			opt->gop_mode |= 0x2; */
+/*			hdpvr_config_call(dev, CTRL_GOP_MODE_VALUE, */
+/*					  opt->gop_mode); */
+/*		} */
+/*		if (ctrl->value == 128 && opt->gop_mode & 0x2) { */
+/*			opt->gop_mode &= ~0x2; */
+/*			hdpvr_config_call(dev, CTRL_GOP_MODE_VALUE, */
+/*					  opt->gop_mode); */
+/*		} */
+/*		break; */
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE: {
 		uint peak_bitrate = dev->video_bitrate_peak->val / 100000;
 		uint bitrate = dev->video_bitrate->val / 100000;
@@ -1154,7 +1154,7 @@ static void hdpvr_device_release(struct video_device *vdev)
 static const struct video_device hdpvr_video_template = {
 	.fops			= &hdpvr_fops,
 	.release		= hdpvr_device_release,
-	.ioctl_ops 		= &hdpvr_ioctl_ops,
+	.ioctl_ops		= &hdpvr_ioctl_ops,
 	.tvnorms		= V4L2_STD_ALL,
 };
 

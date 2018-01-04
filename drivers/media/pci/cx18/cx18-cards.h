@@ -29,20 +29,20 @@
 
 /* video inputs */
 #define	CX18_CARD_INPUT_VID_TUNER	1
-#define	CX18_CARD_INPUT_SVIDEO1 	2
-#define	CX18_CARD_INPUT_SVIDEO2 	3
-#define	CX18_CARD_INPUT_COMPOSITE1 	4
-#define	CX18_CARD_INPUT_COMPOSITE2 	5
-#define	CX18_CARD_INPUT_COMPONENT1 	6
+#define	CX18_CARD_INPUT_SVIDEO1		2
+#define	CX18_CARD_INPUT_SVIDEO2		3
+#define	CX18_CARD_INPUT_COMPOSITE1	4
+#define	CX18_CARD_INPUT_COMPOSITE2	5
+#define	CX18_CARD_INPUT_COMPONENT1	6
 
 /* audio inputs */
 #define	CX18_CARD_INPUT_AUD_TUNER	1
-#define	CX18_CARD_INPUT_LINE_IN1 	2
-#define	CX18_CARD_INPUT_LINE_IN2 	3
+#define	CX18_CARD_INPUT_LINE_IN1	2
+#define	CX18_CARD_INPUT_LINE_IN2	3
 
 #define CX18_CARD_MAX_VIDEO_INPUTS 6
 #define CX18_CARD_MAX_AUDIO_INPUTS 3
-#define CX18_CARD_MAX_TUNERS  	   2
+#define CX18_CARD_MAX_TUNERS	   2
 
 /* V4L2 capability aliases */
 #define CX18_CAP_ENCODER (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER | \
@@ -51,7 +51,7 @@
 			  V4L2_CAP_SLICED_VBI_CAPTURE)
 
 struct cx18_card_video_input {
-	u8  video_type; 	/* video input type */
+	u8  video_type;		/* video input type */
 	u8  audio_index;	/* index in cx18_card_audio_input array */
 	u32 video_input;	/* hardware video input */
 };
@@ -74,7 +74,7 @@ struct cx18_card_pci_info {
 /* The mask is the set of bits used by the operation */
 
 struct cx18_gpio_init { /* set initial GPIO DIR and OUT values */
-	u32 direction; 	/* DIR setting. Leave to 0 if no init is needed */
+	u32 direction;	/* DIR setting. Leave to 0 if no init is needed */
 	u32 initial_value;
 };
 
@@ -86,16 +86,16 @@ struct cx18_gpio_i2c_slave_reset {
 	u32 ir_reset_mask;  /* GPIO to reset the Zilog Z8F0811 IR contoller */
 };
 
-struct cx18_gpio_audio_input { 	/* select tuner/line in input */
-	u32 mask; 		/* leave to 0 if not supported */
+struct cx18_gpio_audio_input {	/* select tuner/line in input */
+	u32 mask;		/* leave to 0 if not supported */
 	u32 tuner;
 	u32 linein;
 	u32 radio;
 };
 
 struct cx18_card_tuner {
-	v4l2_std_id std; 	/* standard for which the tuner is suitable */
-	int 	    tuner; 	/* tuner ID (from tuner.h) */
+	v4l2_std_id std;	/* standard for which the tuner is suitable */
+	int	    tuner;	/* tuner ID (from tuner.h) */
 };
 
 struct cx18_card_tuner_i2c {
@@ -128,8 +128,8 @@ struct cx18_card {
 	struct cx18_card_audio_input radio_input;
 
 	/* GPIO card-specific settings */
-	u8 xceive_pin; 		/* XCeive tuner GPIO reset pin */
-	struct cx18_gpio_init 		 gpio_init;
+	u8 xceive_pin;		/* XCeive tuner GPIO reset pin */
+	struct cx18_gpio_init		 gpio_init;
 	struct cx18_gpio_i2c_slave_reset gpio_i2c_slave_reset;
 	struct cx18_gpio_audio_input    gpio_audio_input;
 

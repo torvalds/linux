@@ -165,7 +165,7 @@
 #define BTTV_BOARD_PV_M4900                0x8b
 #define BTTV_BOARD_OSPREY440               0x8c
 #define BTTV_BOARD_ASOUND_SKYEYE	   0x8d
-#define BTTV_BOARD_SABRENT_TVFM   	   0x8e
+#define BTTV_BOARD_SABRENT_TVFM		   0x8e
 #define BTTV_BOARD_HAUPPAUGE_IMPACTVCB     0x8f
 #define BTTV_BOARD_MACHTV_MAGICTV          0x90
 #define BTTV_BOARD_SSAI_SECURITY	   0x91
@@ -265,7 +265,7 @@ extern struct tvcard bttv_tvcards[];
  * that they are changed to octal.  One should not use hex number, macros, or
  * anything else with this macro.  Just use plain integers from 0 to 3.
  */
-#define _MUXSELf(a)      	0##a << 30
+#define _MUXSELf(a)		0##a << 30
 #define _MUXSELe(a, b...)	0##a << 28 | _MUXSELf(b)
 #define _MUXSELd(a, b...)	0##a << 26 | _MUXSELe(b)
 #define _MUXSELc(a, b...)	0##a << 24 | _MUXSELd(b)

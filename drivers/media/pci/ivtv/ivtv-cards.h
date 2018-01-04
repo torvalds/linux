@@ -22,26 +22,26 @@
 #define IVTV_CARDS_H
 
 /* Supported cards */
-#define IVTV_CARD_PVR_250 	      0	/* WinTV PVR 250 */
-#define IVTV_CARD_PVR_350 	      1	/* encoder, decoder, tv-out */
-#define IVTV_CARD_PVR_150 	      2	/* WinTV PVR 150 and PVR 500 (really just two
+#define IVTV_CARD_PVR_250	      0	/* WinTV PVR 250 */
+#define IVTV_CARD_PVR_350	      1	/* encoder, decoder, tv-out */
+#define IVTV_CARD_PVR_150	      2	/* WinTV PVR 150 and PVR 500 (really just two
 					   PVR150s on one PCI board) */
-#define IVTV_CARD_M179    	      3	/* AVerMedia M179 (encoder only) */
-#define IVTV_CARD_MPG600  	      4	/* Kuroutoshikou ITVC16-STVLP/YUAN MPG600, encoder only */
-#define IVTV_CARD_MPG160  	      5	/* Kuroutoshikou ITVC15-STVLP/YUAN MPG160
+#define IVTV_CARD_M179		      3	/* AVerMedia M179 (encoder only) */
+#define IVTV_CARD_MPG600	      4	/* Kuroutoshikou ITVC16-STVLP/YUAN MPG600, encoder only */
+#define IVTV_CARD_MPG160	      5	/* Kuroutoshikou ITVC15-STVLP/YUAN MPG160
 					   cx23415 based, but does not have tv-out */
-#define IVTV_CARD_PG600 	      6	/* YUAN PG600/DIAMONDMM PVR-550 based on the CX Falcon 2 */
-#define IVTV_CARD_AVC2410 	      7	/* Adaptec AVC-2410 */
-#define IVTV_CARD_AVC2010 	      8	/* Adaptec AVD-2010 (No Tuner) */
-#define IVTV_CARD_TG5000TV   	      9 /* NAGASE TRANSGEAR 5000TV, encoder only */
+#define IVTV_CARD_PG600		      6	/* YUAN PG600/DIAMONDMM PVR-550 based on the CX Falcon 2 */
+#define IVTV_CARD_AVC2410	      7	/* Adaptec AVC-2410 */
+#define IVTV_CARD_AVC2010	      8	/* Adaptec AVD-2010 (No Tuner) */
+#define IVTV_CARD_TG5000TV	      9 /* NAGASE TRANSGEAR 5000TV, encoder only */
 #define IVTV_CARD_VA2000MAX_SNT6     10 /* VA2000MAX-STN6 */
-#define IVTV_CARD_CX23416GYC 	     11 /* Kuroutoshikou CX23416GYC-STVLP (Yuan MPG600GR OEM) */
-#define IVTV_CARD_GV_MVPRX   	     12 /* I/O Data GV-MVP/RX, RX2, RX2W */
-#define IVTV_CARD_GV_MVPRX2E 	     13 /* I/O Data GV-MVP/RX2E */
+#define IVTV_CARD_CX23416GYC	     11 /* Kuroutoshikou CX23416GYC-STVLP (Yuan MPG600GR OEM) */
+#define IVTV_CARD_GV_MVPRX	     12 /* I/O Data GV-MVP/RX, RX2, RX2W */
+#define IVTV_CARD_GV_MVPRX2E	     13 /* I/O Data GV-MVP/RX2E */
 #define IVTV_CARD_GOTVIEW_PCI_DVD    14	/* GotView PCI DVD */
 #define IVTV_CARD_GOTVIEW_PCI_DVD2   15	/* GotView PCI DVD2 */
 #define IVTV_CARD_YUAN_MPC622        16	/* Yuan MPC622 miniPCI */
-#define IVTV_CARD_DCTMTVP1 	     17 /* DIGITAL COWBOY DCT-MTVP1 */
+#define IVTV_CARD_DCTMTVP1	     17 /* DIGITAL COWBOY DCT-MTVP1 */
 #define IVTV_CARD_PG600V2	     18 /* Yuan PG600V2/GotView PCI DVD Lite */
 #define IVTV_CARD_CLUB3D	     19 /* Club3D ZAP-TV1x01 */
 #define IVTV_CARD_AVERTV_MCE116	     20 /* AVerTV MCE 116 Plus */
@@ -52,7 +52,7 @@
 #define IVTV_CARD_BUFFALO_MV5L       25 /* Buffalo PC-MV5L/PCI card */
 #define IVTV_CARD_AVER_ULTRA1500MCE  26 /* AVerMedia UltraTV 1500 MCE */
 #define IVTV_CARD_KIKYOU             27 /* Sony VAIO Giga Pocket (ENX Kikyou) */
-#define IVTV_CARD_LAST 		     27
+#define IVTV_CARD_LAST		     27
 
 /* Variants of existing cards but with the same PCI IDs. The driver
    detects these based on other device information.
@@ -61,7 +61,7 @@
    must be adjusted accordingly. */
 
 /* PVR-350 V1 (uses saa7114) */
-#define IVTV_CARD_PVR_350_V1 	     (IVTV_CARD_LAST+1)
+#define IVTV_CARD_PVR_350_V1	     (IVTV_CARD_LAST+1)
 /* 2 variants of Kuroutoshikou CX23416GYC-STVLP (Yuan MPG600GR OEM) */
 #define IVTV_CARD_CX23416GYC_NOGR    (IVTV_CARD_LAST+2)
 #define IVTV_CARD_CX23416GYC_NOGRYCS (IVTV_CARD_LAST+3)
@@ -72,22 +72,22 @@
 #define PCI_DEVICE_ID_IVTV16 0x0016
 
 /* subsystem vendor ID */
-#define IVTV_PCI_ID_HAUPPAUGE 		0x0070
-#define IVTV_PCI_ID_HAUPPAUGE_ALT1 	0x0270
-#define IVTV_PCI_ID_HAUPPAUGE_ALT2 	0x4070
-#define IVTV_PCI_ID_ADAPTEC 		0x9005
-#define IVTV_PCI_ID_ASUSTEK 		0x1043
-#define IVTV_PCI_ID_AVERMEDIA 		0x1461
+#define IVTV_PCI_ID_HAUPPAUGE		0x0070
+#define IVTV_PCI_ID_HAUPPAUGE_ALT1	0x0270
+#define IVTV_PCI_ID_HAUPPAUGE_ALT2	0x4070
+#define IVTV_PCI_ID_ADAPTEC		0x9005
+#define IVTV_PCI_ID_ASUSTEK		0x1043
+#define IVTV_PCI_ID_AVERMEDIA		0x1461
 #define IVTV_PCI_ID_YUAN1		0x12ab
-#define IVTV_PCI_ID_YUAN2 		0xff01
-#define IVTV_PCI_ID_YUAN3 		0xffab
-#define IVTV_PCI_ID_YUAN4 		0xfbab
-#define IVTV_PCI_ID_DIAMONDMM 		0xff92
-#define IVTV_PCI_ID_IODATA 		0x10fc
-#define IVTV_PCI_ID_MELCO 		0x1154
+#define IVTV_PCI_ID_YUAN2		0xff01
+#define IVTV_PCI_ID_YUAN3		0xffab
+#define IVTV_PCI_ID_YUAN4		0xfbab
+#define IVTV_PCI_ID_DIAMONDMM		0xff92
+#define IVTV_PCI_ID_IODATA		0x10fc
+#define IVTV_PCI_ID_MELCO		0x1154
 #define IVTV_PCI_ID_GOTVIEW1		0xffac
-#define IVTV_PCI_ID_GOTVIEW2 		0xffad
-#define IVTV_PCI_ID_SONY 		0x104d
+#define IVTV_PCI_ID_GOTVIEW2		0xffad
+#define IVTV_PCI_ID_SONY		0x104d
 
 /* hardware flags, no gaps allowed */
 #define IVTV_HW_CX25840			(1 << 0)
@@ -122,20 +122,20 @@
 
 /* video inputs */
 #define	IVTV_CARD_INPUT_VID_TUNER	1
-#define	IVTV_CARD_INPUT_SVIDEO1 	2
-#define	IVTV_CARD_INPUT_SVIDEO2 	3
-#define	IVTV_CARD_INPUT_COMPOSITE1 	4
-#define	IVTV_CARD_INPUT_COMPOSITE2 	5
-#define	IVTV_CARD_INPUT_COMPOSITE3 	6
+#define	IVTV_CARD_INPUT_SVIDEO1		2
+#define	IVTV_CARD_INPUT_SVIDEO2		3
+#define	IVTV_CARD_INPUT_COMPOSITE1	4
+#define	IVTV_CARD_INPUT_COMPOSITE2	5
+#define	IVTV_CARD_INPUT_COMPOSITE3	6
 
 /* audio inputs */
 #define	IVTV_CARD_INPUT_AUD_TUNER	1
-#define	IVTV_CARD_INPUT_LINE_IN1 	2
-#define	IVTV_CARD_INPUT_LINE_IN2 	3
+#define	IVTV_CARD_INPUT_LINE_IN1	2
+#define	IVTV_CARD_INPUT_LINE_IN2	3
 
 #define IVTV_CARD_MAX_VIDEO_INPUTS 6
 #define IVTV_CARD_MAX_AUDIO_INPUTS 3
-#define IVTV_CARD_MAX_TUNERS  	   3
+#define IVTV_CARD_MAX_TUNERS	   3
 
 /* SAA71XX HW inputs */
 #define IVTV_SAA71XX_COMPOSITE0 0
@@ -172,7 +172,7 @@
 			  V4L2_CAP_SLICED_VBI_OUTPUT | V4L2_CAP_VIDEO_OUTPUT_OVERLAY)
 
 struct ivtv_card_video_input {
-	u8  video_type; 	/* video input type */
+	u8  video_type;		/* video input type */
 	u8  audio_index;	/* index in ivtv_card_audio_input array */
 	u16 video_input;	/* hardware video input */
 };
@@ -199,55 +199,55 @@ struct ivtv_card_pci_info {
 
 /* The mask is the set of bits used by the operation */
 
-struct ivtv_gpio_init { 	/* set initial GPIO DIR and OUT values */
-	u16 direction; 		/* DIR setting. Leave to 0 if no init is needed */
+struct ivtv_gpio_init {		/* set initial GPIO DIR and OUT values */
+	u16 direction;		/* DIR setting. Leave to 0 if no init is needed */
 	u16 initial_value;
 };
 
-struct ivtv_gpio_video_input { 	/* select tuner/line in input */
-	u16 mask; 		/* leave to 0 if not supported */
+struct ivtv_gpio_video_input {	/* select tuner/line in input */
+	u16 mask;		/* leave to 0 if not supported */
 	u16 tuner;
 	u16 composite;
 	u16 svideo;
 };
 
-struct ivtv_gpio_audio_input { 	/* select tuner/line in input */
-	u16 mask; 		/* leave to 0 if not supported */
+struct ivtv_gpio_audio_input {	/* select tuner/line in input */
+	u16 mask;		/* leave to 0 if not supported */
 	u16 tuner;
 	u16 linein;
 	u16 radio;
 };
 
 struct ivtv_gpio_audio_mute {
-	u16 mask; 		/* leave to 0 if not supported */
+	u16 mask;		/* leave to 0 if not supported */
 	u16 mute;		/* set this value to mute, 0 to unmute */
 };
 
 struct ivtv_gpio_audio_mode {
-	u16 mask; 		/* leave to 0 if not supported */
-	u16 mono; 		/* set audio to mono */
-	u16 stereo; 		/* set audio to stereo */
+	u16 mask;		/* leave to 0 if not supported */
+	u16 mono;		/* set audio to mono */
+	u16 stereo;		/* set audio to stereo */
 	u16 lang1;		/* set audio to the first language */
 	u16 lang2;		/* set audio to the second language */
-	u16 both; 		/* both languages are output */
+	u16 both;		/* both languages are output */
 };
 
 struct ivtv_gpio_audio_freq {
-	u16 mask; 		/* leave to 0 if not supported */
+	u16 mask;		/* leave to 0 if not supported */
 	u16 f32000;
 	u16 f44100;
 	u16 f48000;
 };
 
 struct ivtv_gpio_audio_detect {
-	u16 mask; 		/* leave to 0 if not supported */
-	u16 stereo; 		/* if the input matches this value then
+	u16 mask;		/* leave to 0 if not supported */
+	u16 stereo;		/* if the input matches this value then
 				   stereo is detected */
 };
 
 struct ivtv_card_tuner {
-	v4l2_std_id std; 	/* standard for which the tuner is suitable */
-	int 	    tuner; 	/* tuner ID (from tuner.h) */
+	v4l2_std_id std;	/* standard for which the tuner is suitable */
+	int	    tuner;	/* tuner ID (from tuner.h) */
 };
 
 struct ivtv_card_tuner_i2c {
@@ -272,17 +272,17 @@ struct ivtv_card {
 	struct ivtv_card_audio_input radio_input;
 	int nof_outputs;
 	const struct ivtv_card_output *video_outputs;
-	u8 gr_config; 		/* config byte for the ghost reduction device */
-	u8 xceive_pin; 		/* XCeive tuner GPIO reset pin */
+	u8 gr_config;		/* config byte for the ghost reduction device */
+	u8 xceive_pin;		/* XCeive tuner GPIO reset pin */
 
 	/* GPIO card-specific settings */
-	struct ivtv_gpio_init 		gpio_init;
+	struct ivtv_gpio_init		gpio_init;
 	struct ivtv_gpio_video_input	gpio_video_input;
-	struct ivtv_gpio_audio_input 	gpio_audio_input;
-	struct ivtv_gpio_audio_mute 	gpio_audio_mute;
-	struct ivtv_gpio_audio_mode 	gpio_audio_mode;
-	struct ivtv_gpio_audio_freq 	gpio_audio_freq;
-	struct ivtv_gpio_audio_detect 	gpio_audio_detect;
+	struct ivtv_gpio_audio_input	gpio_audio_input;
+	struct ivtv_gpio_audio_mute	gpio_audio_mute;
+	struct ivtv_gpio_audio_mode	gpio_audio_mode;
+	struct ivtv_gpio_audio_freq	gpio_audio_freq;
+	struct ivtv_gpio_audio_detect	gpio_audio_detect;
 
 	struct ivtv_card_tuner tuners[IVTV_CARD_MAX_TUNERS];
 	struct ivtv_card_tuner_i2c *i2c;

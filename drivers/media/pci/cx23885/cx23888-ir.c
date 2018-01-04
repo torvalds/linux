@@ -29,7 +29,7 @@ static unsigned int ir_888_debug;
 module_param(ir_888_debug, int, 0644);
 MODULE_PARM_DESC(ir_888_debug, "enable debug messages [CX23888 IR controller]");
 
-#define CX23888_IR_REG_BASE 	0x170000
+#define CX23888_IR_REG_BASE	0x170000
 /*
  * These CX23888 register offsets have a straightforward one to one mapping
  * to the CX23885 register offsets of 0x200 through 0x218

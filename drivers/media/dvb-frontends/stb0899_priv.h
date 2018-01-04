@@ -252,7 +252,7 @@ extern int stb0899_write_s2reg(struct stb0899_state *state,
 extern int stb0899_i2c_gate_ctrl(struct dvb_frontend *fe, int enable);
 
 
-#define STB0899_READ_S2REG(DEVICE, REG) 	(_stb0899_read_s2reg(state, DEVICE, STB0899_BASE_##REG, STB0899_OFF0_##REG))
+#define STB0899_READ_S2REG(DEVICE, REG)		(_stb0899_read_s2reg(state, DEVICE, STB0899_BASE_##REG, STB0899_OFF0_##REG))
 //#define STB0899_WRITE_S2REG(DEVICE, REG, DATA)	(_stb0899_write_s2reg(state, DEVICE, STB0899_BASE_##REG, STB0899_OFF0_##REG, DATA))
 
 /* stb0899_algo.c	*/

@@ -18,9 +18,9 @@
 #define _UPD64031A_H_
 
 /* Ghost reduction modes */
-#define UPD64031A_GR_ON 	0
-#define UPD64031A_GR_OFF 	1
-#define UPD64031A_GR_THROUGH 	3
+#define UPD64031A_GR_ON		0
+#define UPD64031A_GR_OFF	1
+#define UPD64031A_GR_THROUGH	3
 
 /* Direct 3D/YCS Connection */
 #define UPD64031A_3DYCS_DISABLE   (0 << 2)

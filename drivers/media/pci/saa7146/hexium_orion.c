@@ -188,19 +188,19 @@ static struct {
 
 static struct saa7146_standard hexium_standards[] = {
 	{
-		.name	= "PAL", 	.id	= V4L2_STD_PAL,
-		.v_offset	= 16,	.v_field 	= 288,
-		.h_offset	= 1,	.h_pixels 	= 680,
+		.name	= "PAL",	.id	= V4L2_STD_PAL,
+		.v_offset	= 16,	.v_field	= 288,
+		.h_offset	= 1,	.h_pixels	= 680,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}, {
-		.name	= "NTSC", 	.id	= V4L2_STD_NTSC,
-		.v_offset	= 16,	.v_field 	= 240,
-		.h_offset	= 1,	.h_pixels 	= 640,
+		.name	= "NTSC",	.id	= V4L2_STD_NTSC,
+		.v_offset	= 16,	.v_field	= 240,
+		.h_offset	= 1,	.h_pixels	= 640,
 		.v_max_out	= 480,	.h_max_out	= 640,
 	}, {
-		.name	= "SECAM", 	.id	= V4L2_STD_SECAM,
-		.v_offset	= 16,	.v_field 	= 288,
-		.h_offset	= 1,	.h_pixels 	= 720,
+		.name	= "SECAM",	.id	= V4L2_STD_SECAM,
+		.v_offset	= 16,	.v_field	= 288,
+		.h_offset	= 1,	.h_pixels	= 720,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}
 };

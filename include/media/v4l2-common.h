@@ -50,7 +50,7 @@
 /* These three macros assume that the debug level is set with a module
    parameter called 'debug'. */
 #define v4l_dbg(level, debug, client, fmt, arg...)			     \
-	do { 								     \
+	do {								     \
 		if (debug >= (level))					     \
 			v4l_client_printk(KERN_DEBUG, client, fmt , ## arg); \
 	} while (0)
@@ -80,9 +80,9 @@
 /* These three macros assume that the debug level is set with a module
    parameter called 'debug'. */
 #define v4l2_dbg(level, debug, dev, fmt, arg...)			\
-	do { 								\
+	do {								\
 		if (debug >= (level))					\
-			v4l2_printk(KERN_DEBUG, dev, fmt , ## arg); 	\
+			v4l2_printk(KERN_DEBUG, dev, fmt , ## arg);	\
 	} while (0)
 
 /**
@@ -266,7 +266,7 @@ struct v4l2_priv_tun_config {
 };
 #define TUNER_SET_CONFIG           _IOW('d', 92, struct v4l2_priv_tun_config)
 
-#define VIDIOC_INT_RESET            	_IOW ('d', 102, u32)
+#define VIDIOC_INT_RESET		_IOW ('d', 102, u32)
 
 /* ------------------------------------------------------------------------- */
 

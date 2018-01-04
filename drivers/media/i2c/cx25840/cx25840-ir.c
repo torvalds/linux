@@ -28,7 +28,7 @@ static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable integrated IR debug messages");
 
-#define CX25840_IR_REG_BASE 	0x200
+#define CX25840_IR_REG_BASE	0x200
 
 #define CX25840_IR_CNTRL_REG	0x200
 #define CNTRL_WIN_3_3	0x00000000

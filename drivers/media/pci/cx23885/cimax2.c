@@ -54,7 +54,7 @@
 #define NETUP_CI_CTL		0x04
 #define NETUP_CI_RD		1
 
-#define NETUP_IRQ_DETAM 	0x1
+#define NETUP_IRQ_DETAM		0x1
 #define NETUP_IRQ_IRQAM		0x4
 
 static unsigned int ci_dbg;
