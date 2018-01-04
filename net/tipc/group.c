@@ -355,12 +355,10 @@ void tipc_group_update_member(struct tipc_member *m, int len)
 
 	/* Sort member into small_window members' list */
 	list_for_each_entry_safe(_m, tmp, &grp->small_win, small_win) {
-		if (m->window > _m->window)
-			continue;
-		list_add_tail(&m->small_win, &_m->small_win);
-		return;
+		if (_m->window > m->window)
+			break;
 	}
-	list_add_tail(&m->small_win, &grp->small_win);
+	list_add_tail(&m->small_win, &_m->small_win);
 }
 
 void tipc_group_update_bc_members(struct tipc_group *grp, int len, bool ack)
@@ -837,10 +835,7 @@ void tipc_group_member_evt(struct tipc_group *grp,
 		m->instance = instance;
 		TIPC_SKB_CB(skb)->orig_member = m->instance;
 		tipc_group_proto_xmit(grp, m, GRP_JOIN_MSG, xmitq);
-		if (m->window < ADV_IDLE)
-			tipc_group_update_member(m, 0);
-		else
-			list_del_init(&m->small_win);
+		tipc_group_update_member(m, 0);
 	} else if (event == TIPC_WITHDRAWN) {
 		if (!m)
 			goto drop;
