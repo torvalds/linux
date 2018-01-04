@@ -56,24 +56,6 @@ struct hv_uio_private_data {
 	struct hv_device *device;
 };
 
-static int
-hv_uio_mmap(struct uio_info *info, struct vm_area_struct *vma)
-{
-	int mi;
-
-	if (vma->vm_pgoff >= MAX_UIO_MAPS)
-		return -EINVAL;
-
-	if (info->mem[vma->vm_pgoff].size == 0)
-		return -EINVAL;
-
-	mi = (int)vma->vm_pgoff;
-
-	return remap_pfn_range(vma, vma->vm_start,
-			info->mem[mi].addr >> PAGE_SHIFT,
-			vma->vm_end - vma->vm_start, vma->vm_page_prot);
-}
-
 /*
  * This is the irqcontrol callback to be registered to uio_info.
  * It can be used to disable/enable interrupt from user space processes.
@@ -133,26 +115,25 @@ hv_uio_probe(struct hv_device *dev,
 	pdata->info.name = "uio_hv_generic";
 	pdata->info.version = DRIVER_VERSION;
 	pdata->info.irqcontrol = hv_uio_irqcontrol;
-	pdata->info.mmap = hv_uio_mmap;
 	pdata->info.irq = UIO_IRQ_CUSTOM;
 
 	/* mem resources */
 	pdata->info.mem[TXRX_RING_MAP].name = "txrx_rings";
 	pdata->info.mem[TXRX_RING_MAP].addr
-		= virt_to_phys(dev->channel->ringbuffer_pages);
+		= (phys_addr_t)dev->channel->ringbuffer_pages;
 	pdata->info.mem[TXRX_RING_MAP].size
-		= dev->channel->ringbuffer_pagecount * PAGE_SIZE;
+		= dev->channel->ringbuffer_pagecount << PAGE_SHIFT;
 	pdata->info.mem[TXRX_RING_MAP].memtype = UIO_MEM_LOGICAL;
 
 	pdata->info.mem[INT_PAGE_MAP].name = "int_page";
-	pdata->info.mem[INT_PAGE_MAP].addr =
-		virt_to_phys(vmbus_connection.int_page);
+	pdata->info.mem[INT_PAGE_MAP].addr
+		= (phys_addr_t)vmbus_connection.int_page;
 	pdata->info.mem[INT_PAGE_MAP].size = PAGE_SIZE;
 	pdata->info.mem[INT_PAGE_MAP].memtype = UIO_MEM_LOGICAL;
 
-	pdata->info.mem[MON_PAGE_MAP].name = "monitor_pages";
-	pdata->info.mem[MON_PAGE_MAP].addr =
-		virt_to_phys(vmbus_connection.monitor_pages[1]);
+	pdata->info.mem[MON_PAGE_MAP].name = "monitor_page";
+	pdata->info.mem[MON_PAGE_MAP].addr
+		= (phys_addr_t)vmbus_connection.monitor_pages[1];
 	pdata->info.mem[MON_PAGE_MAP].size = PAGE_SIZE;
 	pdata->info.mem[MON_PAGE_MAP].memtype = UIO_MEM_LOGICAL;
 
