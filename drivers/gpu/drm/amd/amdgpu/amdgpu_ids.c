@@ -278,7 +278,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		else
 			goto no_flush_needed;
 
-	};
+	}
 
 	/* Still no ID to use? Then use the idle one found earlier */
 	id = idle;
