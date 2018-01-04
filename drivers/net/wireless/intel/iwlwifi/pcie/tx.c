@@ -495,6 +495,9 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 	if (WARN_ON(txq->entries || txq->tfds))
 		return -EINVAL;
 
+	if (trans->cfg->use_tfh)
+		tfd_sz = trans_pcie->tfd_size * slots_num;
+
 	timer_setup(&txq->stuck_timer, iwl_pcie_txq_stuck_timer, 0);
 	txq->trans_pcie = trans_pcie;
 

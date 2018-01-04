@@ -993,7 +993,7 @@ static void iwl_pcie_gen2_txq_free_memory(struct iwl_trans *trans,
 	/* De-alloc circular buffer of TFDs */
 	if (txq->tfds) {
 		dma_free_coherent(dev,
-				  trans_pcie->tfd_size * TFD_QUEUE_SIZE_MAX,
+				  trans_pcie->tfd_size * txq->n_window,
 				  txq->tfds, txq->dma_addr);
 		dma_free_coherent(dev,
 				  sizeof(*txq->first_tb_bufs) * txq->n_window,
