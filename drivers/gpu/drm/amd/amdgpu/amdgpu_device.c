@@ -121,6 +121,32 @@ uint32_t amdgpu_mm_rreg(struct amdgpu_device *adev, uint32_t reg,
 	return ret;
 }
 
+/*
+ * MMIO register read with bytes helper functions
+ * @offset:bytes offset from MMIO start
+ *
+*/
+
+uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset) {
+	if (offset < adev->rmmio_size)
+		return (readb(adev->rmmio + offset));
+	BUG();
+}
+
+/*
+ * MMIO register write with bytes helper functions
+ * @offset:bytes offset from MMIO start
+ * @value: the value want to be written to the register
+ *
+*/
+void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value) {
+	if (offset < adev->rmmio_size)
+		writeb(value, adev->rmmio + offset);
+	else
+		BUG();
+}
+
+
 void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 		    uint32_t acc_flags)
 {
