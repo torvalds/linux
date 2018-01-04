@@ -1308,6 +1308,17 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	case CHIP_KAVERI:
 		device_queue_manager_init_cik(&dqm->asic_ops);
 		break;
+
+	case CHIP_HAWAII:
+		device_queue_manager_init_cik_hawaii(&dqm->asic_ops);
+		break;
+
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+		device_queue_manager_init_vi_tonga(&dqm->asic_ops);
+		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",
 		     dev->device_info->asic_family);
