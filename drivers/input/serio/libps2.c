@@ -34,7 +34,7 @@ MODULE_LICENSE("GPL");
  * ps2_sendbyte() can only be called from a process context.
  */
 
-int ps2_sendbyte(struct ps2dev *ps2dev, unsigned char byte, int timeout)
+int ps2_sendbyte(struct ps2dev *ps2dev, u8 byte, unsigned int timeout)
 {
 	serio_pause_rx(ps2dev->serio);
 	ps2dev->nak = 1;
@@ -75,7 +75,7 @@ EXPORT_SYMBOL(ps2_end_command);
  * and discards them.
  */
 
-void ps2_drain(struct ps2dev *ps2dev, int maxbytes, int timeout)
+void ps2_drain(struct ps2dev *ps2dev, size_t maxbytes, unsigned int timeout)
 {
 	if (maxbytes > sizeof(ps2dev->cmdbuf)) {
 		WARN_ON(1);
@@ -102,9 +102,9 @@ EXPORT_SYMBOL(ps2_drain);
  * known keyboard IDs.
  */
 
-int ps2_is_keyboard_id(char id_byte)
+bool ps2_is_keyboard_id(u8 id_byte)
 {
-	static const char keyboard_ids[] = {
+	static const u8 keyboard_ids[] = {
 		0xab,	/* Regular keyboards		*/
 		0xac,	/* NCD Sun keyboard		*/
 		0x2b,	/* Trust keyboard, translated	*/
@@ -123,7 +123,8 @@ EXPORT_SYMBOL(ps2_is_keyboard_id);
  * completion.
  */
 
-static int ps2_adjust_timeout(struct ps2dev *ps2dev, int command, int timeout)
+static int ps2_adjust_timeout(struct ps2dev *ps2dev,
+			      unsigned int command, unsigned int timeout)
 {
 	switch (command) {
 	case PS2_CMD_RESET_BAT:
@@ -178,11 +179,11 @@ static int ps2_adjust_timeout(struct ps2dev *ps2dev, int command, int timeout)
  * ps2_command() can only be called from a process context
  */
 
-int __ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
+int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 {
-	int timeout;
-	int send = (command >> 12) & 0xf;
-	int receive = (command >> 8) & 0xf;
+	unsigned int timeout;
+	unsigned int send = (command >> 12) & 0xf;
+	unsigned int receive = (command >> 8) & 0xf;
 	int rc = -1;
 	int i;
 
@@ -256,7 +257,7 @@ int __ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 }
 EXPORT_SYMBOL(__ps2_command);
 
-int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
+int ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 {
 	int rc;
 
@@ -286,7 +287,7 @@ EXPORT_SYMBOL(ps2_init);
  * to properly process ACK/NAK of a command from a PS/2 device.
  */
 
-int ps2_handle_ack(struct ps2dev *ps2dev, unsigned char data)
+bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 {
 	switch (data) {
 	case PS2_RET_ACK:
@@ -318,7 +319,7 @@ int ps2_handle_ack(struct ps2dev *ps2dev, unsigned char data)
 		}
 		/* Fall through */
 	default:
-		return 0;
+		return false;
 	}
 
 	if (!ps2dev->nak) {
@@ -333,7 +334,7 @@ int ps2_handle_ack(struct ps2dev *ps2dev, unsigned char data)
 	if (data != PS2_RET_ACK)
 		ps2_handle_response(ps2dev, data);
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(ps2_handle_ack);
 
@@ -343,7 +344,7 @@ EXPORT_SYMBOL(ps2_handle_ack);
  * waiting for completion of the command.
  */
 
-int ps2_handle_response(struct ps2dev *ps2dev, unsigned char data)
+bool ps2_handle_response(struct ps2dev *ps2dev, u8 data)
 {
 	if (ps2dev->cmdcnt)
 		ps2dev->cmdbuf[--ps2dev->cmdcnt] = data;
@@ -359,7 +360,7 @@ int ps2_handle_response(struct ps2dev *ps2dev, unsigned char data)
 		wake_up(&ps2dev->wait);
 	}
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(ps2_handle_response);
 

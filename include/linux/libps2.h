@@ -10,6 +10,9 @@
  * the Free Software Foundation.
  */
 
+#include <linux/mutex.h>
+#include <linux/types.h>
+#include <linux/wait.h>
 
 #define PS2_CMD_GETID		0x02f2
 #define PS2_CMD_RESET_BAT	0x02ff
@@ -36,21 +39,21 @@ struct ps2dev {
 	wait_queue_head_t wait;
 
 	unsigned long flags;
-	unsigned char cmdbuf[8];
-	unsigned char cmdcnt;
-	unsigned char nak;
+	u8 cmdbuf[8];
+	u8 cmdcnt;
+	u8 nak;
 };
 
 void ps2_init(struct ps2dev *ps2dev, struct serio *serio);
-int ps2_sendbyte(struct ps2dev *ps2dev, unsigned char byte, int timeout);
-void ps2_drain(struct ps2dev *ps2dev, int maxbytes, int timeout);
+int ps2_sendbyte(struct ps2dev *ps2dev, u8 byte, unsigned int timeout);
+void ps2_drain(struct ps2dev *ps2dev, size_t maxbytes, unsigned int timeout);
 void ps2_begin_command(struct ps2dev *ps2dev);
 void ps2_end_command(struct ps2dev *ps2dev);
-int __ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command);
-int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command);
-int ps2_handle_ack(struct ps2dev *ps2dev, unsigned char data);
-int ps2_handle_response(struct ps2dev *ps2dev, unsigned char data);
+int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command);
+int ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command);
+bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data);
+bool ps2_handle_response(struct ps2dev *ps2dev, u8 data);
 void ps2_cmd_aborted(struct ps2dev *ps2dev);
-int ps2_is_keyboard_id(char id);
+bool ps2_is_keyboard_id(u8 id);
 
 #endif /* _LIBPS2_H */
