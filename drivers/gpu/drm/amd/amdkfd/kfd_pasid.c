@@ -59,7 +59,7 @@ unsigned int kfd_pasid_alloc(void)
 		struct kfd_dev *dev = NULL;
 		unsigned int i = 0;
 
-		while ((dev = kfd_topology_enum_kfd_devices(i)) != NULL) {
+		while ((kfd_topology_enum_kfd_devices(i, &dev)) == 0) {
 			if (dev && dev->kfd2kgd) {
 				kfd2kgd = dev->kfd2kgd;
 				break;

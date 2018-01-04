@@ -275,14 +275,34 @@ void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 	kfree(mem);
 }
 
-uint64_t get_vmem_size(struct kgd_dev *kgd)
+void get_local_mem_info(struct kgd_dev *kgd,
+			struct kfd_local_mem_info *mem_info)
 {
-	struct amdgpu_device *adev =
-		(struct amdgpu_device *)kgd;
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	uint64_t address_mask = adev->dev->dma_mask ? ~*adev->dev->dma_mask :
+					     ~((1ULL << 32) - 1);
+	resource_size_t aper_limit = adev->mc.aper_base + adev->mc.aper_size;
 
-	BUG_ON(kgd == NULL);
+	memset(mem_info, 0, sizeof(*mem_info));
+	if (!(adev->mc.aper_base & address_mask || aper_limit & address_mask)) {
+		mem_info->local_mem_size_public = adev->mc.visible_vram_size;
+		mem_info->local_mem_size_private = adev->mc.real_vram_size -
+				adev->mc.visible_vram_size;
+	} else {
+		mem_info->local_mem_size_public = 0;
+		mem_info->local_mem_size_private = adev->mc.real_vram_size;
+	}
+	mem_info->vram_width = adev->mc.vram_width;
 
-	return adev->mc.real_vram_size;
+	pr_debug("Address base: 0x%llx limit 0x%llx public 0x%llx private 0x%llx\n",
+			adev->mc.aper_base, aper_limit,
+			mem_info->local_mem_size_public,
+			mem_info->local_mem_size_private);
+
+	if (amdgpu_sriov_vf(adev))
+		mem_info->mem_clk_max = adev->clock.default_mclk / 100;
+	else
+		mem_info->mem_clk_max = amdgpu_dpm_get_mclk(adev, false) / 100;
 }
 
 uint64_t get_gpu_clock_counter(struct kgd_dev *kgd)
@@ -298,6 +318,39 @@ uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
-	/* The sclk is in quantas of 10kHz */
-	return adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk / 100;
+	/* the sclk is in quantas of 10kHz */
+	if (amdgpu_sriov_vf(adev))
+		return adev->clock.default_sclk / 100;
+
+	return amdgpu_dpm_get_sclk(adev, false) / 100;
+}
+
+void get_cu_info(struct kgd_dev *kgd, struct kfd_cu_info *cu_info)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	struct amdgpu_cu_info acu_info = adev->gfx.cu_info;
+
+	memset(cu_info, 0, sizeof(*cu_info));
+	if (sizeof(cu_info->cu_bitmap) != sizeof(acu_info.bitmap))
+		return;
+
+	cu_info->cu_active_number = acu_info.number;
+	cu_info->cu_ao_mask = acu_info.ao_cu_mask;
+	memcpy(&cu_info->cu_bitmap[0], &acu_info.bitmap[0],
+	       sizeof(acu_info.bitmap));
+	cu_info->num_shader_engines = adev->gfx.config.max_shader_engines;
+	cu_info->num_shader_arrays_per_engine = adev->gfx.config.max_sh_per_se;
+	cu_info->num_cu_per_sh = adev->gfx.config.max_cu_per_sh;
+	cu_info->simd_per_cu = acu_info.simd_per_cu;
+	cu_info->max_waves_per_simd = acu_info.max_waves_per_simd;
+	cu_info->wave_front_size = acu_info.wave_front_size;
+	cu_info->max_scratch_slots_per_cu = acu_info.max_scratch_slots_per_cu;
+	cu_info->lds_size = acu_info.lds_size;
+}
+
+uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	return amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 }

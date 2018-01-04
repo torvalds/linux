@@ -178,10 +178,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		return retval;
 
 	if (list_empty(&pdd->qpd.queues_list) &&
-	    list_empty(&pdd->qpd.priv_queue_list)) {
-		pdd->qpd.pqm = pqm;
+	    list_empty(&pdd->qpd.priv_queue_list))
 		dev->dqm->ops.register_process(dev->dqm, &pdd->qpd);
-	}
 
 	pqn = kzalloc(sizeof(*pqn), GFP_KERNEL);
 	if (!pqn) {
@@ -203,8 +201,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		pqn->q = q;
 		pqn->kq = NULL;
-		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd,
-						&q->properties.vmid);
+		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd);
 		pr_debug("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
 		break;
@@ -224,8 +221,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		pqn->q = q;
 		pqn->kq = NULL;
-		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd,
-						&q->properties.vmid);
+		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd);
 		pr_debug("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
 		break;
@@ -315,6 +311,10 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	if (pqn->q) {
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
+		if (retval) {
+			pr_debug("Destroy queue failed, returned %d\n", retval);
+			goto err_destroy_queue;
+		}
 		uninit_queue(pqn->q);
 	}
 
@@ -326,6 +326,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	    list_empty(&pdd->qpd.priv_queue_list))
 		dqm->ops.unregister_process(dqm, &pdd->qpd);
 
+err_destroy_queue:
 	return retval;
 }
 
@@ -367,4 +368,67 @@ struct kernel_queue *pqm_get_kernel_queue(
 	return NULL;
 }
 
+#if defined(CONFIG_DEBUG_FS)
 
+int pqm_debugfs_mqds(struct seq_file *m, void *data)
+{
+	struct process_queue_manager *pqm = data;
+	struct process_queue_node *pqn;
+	struct queue *q;
+	enum KFD_MQD_TYPE mqd_type;
+	struct mqd_manager *mqd_manager;
+	int r = 0;
+
+	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
+		if (pqn->q) {
+			q = pqn->q;
+			switch (q->properties.type) {
+			case KFD_QUEUE_TYPE_SDMA:
+				seq_printf(m, "  SDMA queue on device %x\n",
+					   q->device->id);
+				mqd_type = KFD_MQD_TYPE_SDMA;
+				break;
+			case KFD_QUEUE_TYPE_COMPUTE:
+				seq_printf(m, "  Compute queue on device %x\n",
+					   q->device->id);
+				mqd_type = KFD_MQD_TYPE_CP;
+				break;
+			default:
+				seq_printf(m,
+				"  Bad user queue type %d on device %x\n",
+					   q->properties.type, q->device->id);
+				continue;
+			}
+			mqd_manager = q->device->dqm->ops.get_mqd_manager(
+				q->device->dqm, mqd_type);
+		} else if (pqn->kq) {
+			q = pqn->kq->queue;
+			mqd_manager = pqn->kq->mqd;
+			switch (q->properties.type) {
+			case KFD_QUEUE_TYPE_DIQ:
+				seq_printf(m, "  DIQ on device %x\n",
+					   pqn->kq->dev->id);
+				mqd_type = KFD_MQD_TYPE_HIQ;
+				break;
+			default:
+				seq_printf(m,
+				"  Bad kernel queue type %d on device %x\n",
+					   q->properties.type,
+					   pqn->kq->dev->id);
+				continue;
+			}
+		} else {
+			seq_printf(m,
+		"  Weird: Queue node with neither kernel nor user queue\n");
+			continue;
+		}
+
+		r = mqd_manager->debugfs_show_mqd(m, q->mqd);
+		if (r != 0)
+			break;
+	}
+
+	return r;
+}
+
+#endif

@@ -48,6 +48,8 @@
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 
+#define NUM_SIMD_PER_CU 0x4 /* missing from the gfx_7 IP headers */
+
 #define GFX7_NUM_GFX_RINGS     1
 #define GFX7_MEC_HPD_SIZE      2048
 
@@ -5277,6 +5279,11 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
+	cu_info->simd_per_cu = NUM_SIMD_PER_CU;
+	cu_info->max_waves_per_simd = 10;
+	cu_info->max_scratch_slots_per_cu = 32;
+	cu_info->wave_front_size = 64;
+	cu_info->lds_size = 64;
 }
 
 const struct amdgpu_ip_block_version gfx_v7_0_ip_block =
