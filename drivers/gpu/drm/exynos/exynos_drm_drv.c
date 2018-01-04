@@ -29,7 +29,6 @@
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
 #include "exynos_drm_g2d.h"
-#include "exynos_drm_ipp.h"
 #include "exynos_drm_iommu.h"
 
 #define DRIVER_NAME	"exynos"
@@ -108,14 +107,6 @@ static const struct drm_ioctl_desc exynos_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_SET_CMDLIST, exynos_g2d_set_cmdlist_ioctl,
 			DRM_AUTH | DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC, exynos_g2d_exec_ioctl,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_PROPERTY, exynos_drm_ipp_get_property,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_SET_PROPERTY, exynos_drm_ipp_set_property,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_QUEUE_BUF, exynos_drm_ipp_queue_buf,
-			DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_CMD_CTRL, exynos_drm_ipp_cmd_ctrl,
 			DRM_AUTH | DRM_RENDER_ALLOW),
 };
 
@@ -256,9 +247,6 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRV_PTR(rotator_driver, CONFIG_DRM_EXYNOS_ROTATOR),
 	}, {
 		DRV_PTR(gsc_driver, CONFIG_DRM_EXYNOS_GSC),
-	}, {
-		DRV_PTR(ipp_driver, CONFIG_DRM_EXYNOS_IPP),
-		DRM_VIRTUAL_DEVICE
 	}, {
 		&exynos_drm_platform_driver,
 		DRM_VIRTUAL_DEVICE

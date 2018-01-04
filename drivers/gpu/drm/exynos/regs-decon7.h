@@ -1,5 +1,4 @@
-/* include/video/exynos7_decon.h
- *
+/*
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Ajay Kumar <ajaykumar.rs@samsung.com>
  *
@@ -8,6 +7,9 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+
+#ifndef EXYNOS_REGS_DECON7_H
+#define EXYNOS_REGS_DECON7_H
 
 /* VIDCON0 */
 #define VIDCON0					0x00
@@ -347,3 +349,5 @@
 
 #define DECON_UPDATE_SLAVE_SYNC			(1 << 4)
 #define DECON_UPDATE_STANDALONE_F		(1 << 0)
+
+#endif /* EXYNOS_REGS_DECON7_H */
