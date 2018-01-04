@@ -227,14 +227,21 @@ int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
 */
 int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 {
+	int ret = 0;
 	struct PP_TemperatureRange range = {TEMP_RANGE_MIN, TEMP_RANGE_MAX};
+
+	if (hwmgr->hwmgr_func->get_thermal_temperature_range)
+		hwmgr->hwmgr_func->get_thermal_temperature_range(
+				hwmgr, &range);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ThermalController)
 			&& hwmgr->hwmgr_func->start_thermal_controller != NULL)
-		return hwmgr->hwmgr_func->start_thermal_controller(hwmgr, &range);
+		ret = hwmgr->hwmgr_func->start_thermal_controller(hwmgr, &range);
 
-	return 0;
+	cgs_set_temperature_range(hwmgr->device, range.min, range.max);
+
+	return ret;
 }
 
 
