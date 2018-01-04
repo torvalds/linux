@@ -10,6 +10,7 @@
  * the Free Software Foundation.
  */
 
+#include <linux/bitops.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -23,11 +24,11 @@
 #define PS2_RET_NAK		0xfe
 #define PS2_RET_ERR		0xfc
 
-#define PS2_FLAG_ACK		1	/* Waiting for ACK/NAK */
-#define PS2_FLAG_CMD		2	/* Waiting for command to finish */
-#define PS2_FLAG_CMD1		4	/* Waiting for the first byte of command response */
-#define PS2_FLAG_WAITID		8	/* Command execiting is GET ID */
-#define PS2_FLAG_NAK		16	/* Last transmission was NAKed */
+#define PS2_FLAG_ACK		BIT(0)	/* Waiting for ACK/NAK */
+#define PS2_FLAG_CMD		BIT(1)	/* Waiting for a command to finish */
+#define PS2_FLAG_CMD1		BIT(2)	/* Waiting for the first byte of command response */
+#define PS2_FLAG_WAITID		BIT(3)	/* Command executing is GET ID */
+#define PS2_FLAG_NAK		BIT(4)	/* Last transmission was NAKed */
 
 struct ps2dev {
 	struct serio *serio;
