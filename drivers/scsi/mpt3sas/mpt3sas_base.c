@@ -2898,9 +2898,9 @@ _base_recovery_check(struct MPT3SAS_ADAPTER *ioc)
 	 * See _wait_for_commands_to_complete() call with regards to this code.
 	 */
 	if (ioc->shost_recovery && ioc->pending_io_count) {
-		if (ioc->pending_io_count == 1)
+		ioc->pending_io_count = atomic_read(&ioc->shost->host_busy);
+		if (ioc->pending_io_count == 0)
 			wake_up(&ioc->reset_wq);
-		ioc->pending_io_count--;
 	}
 }
 
@@ -6310,15 +6310,13 @@ _base_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase)
  * _wait_for_commands_to_complete - reset controller
  * @ioc: Pointer to MPT_ADAPTER structure
  *
- * This function waiting(3s) for all pending commands to complete
+ * This function is waiting 10s for all pending commands to complete
  * prior to putting controller in reset.
  */
 static void
 _wait_for_commands_to_complete(struct MPT3SAS_ADAPTER *ioc)
 {
 	u32 ioc_state;
-	unsigned long flags;
-	u16 i;
 
 	ioc->pending_io_count = 0;
 
@@ -6327,11 +6325,7 @@ _wait_for_commands_to_complete(struct MPT3SAS_ADAPTER *ioc)
 		return;
 
 	/* pending command count */
-	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
-	for (i = 0; i < ioc->scsiio_depth; i++)
-		if (ioc->scsi_lookup[i].cb_idx != 0xFF)
-			ioc->pending_io_count++;
-	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+	ioc->pending_io_count = atomic_read(&ioc->shost->host_busy);
 
 	if (!ioc->pending_io_count)
 		return;
