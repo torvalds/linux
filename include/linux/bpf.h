@@ -554,7 +554,7 @@ static inline bool bpf_prog_is_dev_bound(struct bpf_prog_aux *aux)
 }
 #endif /* CONFIG_NET && CONFIG_BPF_SYSCALL */
 
-#if defined(CONFIG_STREAM_PARSER) && defined(CONFIG_BPF_SYSCALL)
+#if defined(CONFIG_STREAM_PARSER) && defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_INET)
 struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key);
 int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type);
 #else
