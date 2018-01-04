@@ -63,6 +63,7 @@ MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/picasso_gpu_info.bin");
+MODULE_FIRMWARE("amdgpu/raven2_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 
@@ -1334,7 +1335,10 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		chip_name = "vega12";
 		break;
 	case CHIP_RAVEN:
-		chip_name = "raven";
+		if (adev->rev_id >= 8)
+			chip_name = "raven2";
+		else
+			chip_name = "raven";
 		break;
 	case CHIP_PICASSO:
 		chip_name = "picasso";
