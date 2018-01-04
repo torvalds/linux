@@ -1725,6 +1725,7 @@ static void update_dchubp_dpp(
 	}
 
 	if (plane_state->update_flags.bits.full_update ||
+		plane_state->update_flags.bits.pixel_format_change ||
 		plane_state->update_flags.bits.horizontal_mirror_change ||
 		plane_state->update_flags.bits.rotation_change ||
 		plane_state->update_flags.bits.swizzle_change ||

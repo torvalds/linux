@@ -1066,6 +1066,9 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	if (u->plane_info->rotation != u->surface->rotation)
 		update_flags->bits.rotation_change = 1;
 
+	if (u->plane_info->format != u->surface->format)
+		update_flags->bits.pixel_format_change = 1;
+
 	if (u->plane_info->stereo_format != u->surface->stereo_format)
 		update_flags->bits.stereo_format_change = 1;
 
