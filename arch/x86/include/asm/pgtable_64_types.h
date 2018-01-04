@@ -75,7 +75,13 @@ typedef struct { pteval_t pte; } pte_t;
 #define PGDIR_SIZE	(_AC(1, UL) << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
 
-/* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
+/*
+ * See Documentation/x86/x86_64/mm.txt for a description of the memory map.
+ *
+ * Be very careful vs. KASLR when changing anything here. The KASLR address
+ * range must not overlap with anything except the KASAN shadow area, which
+ * is correct as KASAN disables KASLR.
+ */
 #define MAXMEM			_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
 
 #ifdef CONFIG_X86_5LEVEL

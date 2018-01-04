@@ -12,6 +12,7 @@ ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
 ... unused hole ...
 ffffec0000000000 - fffffbffffffffff (=44 bits) kasan shadow memory (16TB)
 ... unused hole ...
+				    vaddr_end for KASLR
 fffffe0000000000 - fffffe7fffffffff (=39 bits) cpu_entry_area mapping
 fffffe8000000000 - fffffeffffffffff (=39 bits) LDT remap for PTI
 ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
@@ -37,6 +38,7 @@ ffd4000000000000 - ffd5ffffffffffff (=49 bits) virtual memory map (512TB)
 ... unused hole ...
 ffdf000000000000 - fffffc0000000000 (=53 bits) kasan shadow memory (8PB)
 ... unused hole ...
+				    vaddr_end for KASLR
 fffffe0000000000 - fffffe7fffffffff (=39 bits) cpu_entry_area mapping
 ... unused hole ...
 ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
@@ -71,3 +73,7 @@ during EFI runtime calls.
 Note that if CONFIG_RANDOMIZE_MEMORY is enabled, the direct mapping of all
 physical memory, vmalloc/ioremap space and virtual memory map are randomized.
 Their order is preserved but their base will be offset early at boot time.
+
+Be very careful vs. KASLR when changing anything here. The KASLR address
+range must not overlap with anything except the KASAN shadow area, which is
+correct as KASAN disables KASLR.
