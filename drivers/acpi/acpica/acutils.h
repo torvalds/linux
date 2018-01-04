@@ -638,8 +638,10 @@ void ut_convert_backslashes(char *pathname);
 
 void acpi_ut_repair_name(char *name);
 
-#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION) || defined (ACPI_DEBUG_OUTPUT)
 u8 acpi_ut_safe_strcpy(char *dest, acpi_size dest_size, char *source);
+
+void acpi_ut_safe_strncpy(char *dest, char *source, acpi_size dest_size);
 
 u8 acpi_ut_safe_strcat(char *dest, acpi_size dest_size, char *source);
 
