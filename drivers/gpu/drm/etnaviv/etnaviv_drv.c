@@ -172,7 +172,7 @@ static int etnaviv_mmu_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 
 static void etnaviv_buffer_dump(struct etnaviv_gpu *gpu, struct seq_file *m)
 {
-	struct etnaviv_cmdbuf *buf = gpu->buffer;
+	struct etnaviv_cmdbuf *buf = &gpu->buffer;
 	u32 size = buf->size;
 	u32 *ptr = buf->vaddr;
 	u32 i;
@@ -459,9 +459,6 @@ static int etnaviv_ioctl_pm_query_dom(struct drm_device *dev, void *data,
 	struct drm_etnaviv_pm_domain *args = data;
 	struct etnaviv_gpu *gpu;
 
-	/* reject as long as the feature isn't stable */
-	return -EINVAL;
-
 	if (args->pipe >= ETNA_MAX_PIPES)
 		return -EINVAL;
 
@@ -478,9 +475,6 @@ static int etnaviv_ioctl_pm_query_sig(struct drm_device *dev, void *data,
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct drm_etnaviv_pm_signal *args = data;
 	struct etnaviv_gpu *gpu;
-
-	/* reject as long as the feature isn't stable */
-	return -EINVAL;
 
 	if (args->pipe >= ETNA_MAX_PIPES)
 		return -EINVAL;
@@ -556,7 +550,7 @@ static struct drm_driver etnaviv_drm_driver = {
 	.desc               = "etnaviv DRM",
 	.date               = "20151214",
 	.major              = 1,
-	.minor              = 1,
+	.minor              = 2,
 };
 
 /*
@@ -580,12 +574,6 @@ static int etnaviv_bind(struct device *dev)
 	}
 	drm->dev_private = priv;
 
-	priv->wq = alloc_ordered_workqueue("etnaviv", 0);
-	if (!priv->wq) {
-		ret = -ENOMEM;
-		goto out_wq;
-	}
-
 	mutex_init(&priv->gem_lock);
 	INIT_LIST_HEAD(&priv->gem_list);
 	priv->num_gpus = 0;
@@ -607,9 +595,6 @@ static int etnaviv_bind(struct device *dev)
 out_register:
 	component_unbind_all(dev, drm);
 out_bind:
-	flush_workqueue(priv->wq);
-	destroy_workqueue(priv->wq);
-out_wq:
 	kfree(priv);
 out_unref:
 	drm_dev_unref(drm);
@@ -623,9 +608,6 @@ static void etnaviv_unbind(struct device *dev)
 	struct etnaviv_drm_private *priv = drm->dev_private;
 
 	drm_dev_unregister(drm);
-
-	flush_workqueue(priv->wq);
-	destroy_workqueue(priv->wq);
 
 	component_unbind_all(dev, drm);
 

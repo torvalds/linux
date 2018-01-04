@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 
+#include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 
 struct etnaviv_gem_submit;
@@ -89,7 +90,7 @@ struct etnaviv_chip_identity {
 
 struct etnaviv_event {
 	struct dma_fence *fence;
-	struct etnaviv_cmdbuf *cmdbuf;
+	struct etnaviv_gem_submit *submit;
 
 	void (*sync_point)(struct etnaviv_gpu *gpu, struct etnaviv_event *event);
 };
@@ -106,10 +107,10 @@ struct etnaviv_gpu {
 	struct mutex lock;
 	struct etnaviv_chip_identity identity;
 	struct etnaviv_file_private *lastctx;
-	bool switch_context;
+	struct workqueue_struct *wq;
 
 	/* 'ring'-buffer: */
-	struct etnaviv_cmdbuf *buffer;
+	struct etnaviv_cmdbuf buffer;
 	int exec_state;
 
 	/* bus base address of memory  */
@@ -122,7 +123,7 @@ struct etnaviv_gpu {
 	spinlock_t event_spinlock;
 
 	/* list of currently in-flight command buffers */
-	struct list_head active_cmd_list;
+	struct list_head active_submit_list;
 
 	u32 idle_mask;
 
@@ -202,7 +203,7 @@ int etnaviv_gpu_wait_fence_interruptible(struct etnaviv_gpu *gpu,
 int etnaviv_gpu_wait_obj_inactive(struct etnaviv_gpu *gpu,
 	struct etnaviv_gem_object *etnaviv_obj, struct timespec *timeout);
 int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
-	struct etnaviv_gem_submit *submit, struct etnaviv_cmdbuf *cmdbuf);
+	struct etnaviv_gem_submit *submit);
 int etnaviv_gpu_pm_get_sync(struct etnaviv_gpu *gpu);
 void etnaviv_gpu_pm_put(struct etnaviv_gpu *gpu);
 int etnaviv_gpu_wait_idle(struct etnaviv_gpu *gpu, unsigned int timeout_ms);
