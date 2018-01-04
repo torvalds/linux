@@ -176,8 +176,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			/* If interface is set while binding, indices
 			 * must coincide.
 			 */
-			if (sk->sk_bound_dev_if &&
-			    sk->sk_bound_dev_if != usin->sin6_scope_id)
+			if (!sk_dev_equal_l3scope(sk, usin->sin6_scope_id))
 				return -EINVAL;
 
 			sk->sk_bound_dev_if = usin->sin6_scope_id;
