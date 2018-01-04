@@ -2850,6 +2850,11 @@ static void nfp_net_set_rx_mode(struct net_device *netdev)
 
 	new_ctrl = nn->dp.ctrl;
 
+	if (!netdev_mc_empty(netdev) || netdev->flags & IFF_ALLMULTI)
+		new_ctrl |= nn->cap & NFP_NET_CFG_CTRL_L2MC;
+	else
+		new_ctrl &= ~NFP_NET_CFG_CTRL_L2MC;
+
 	if (netdev->flags & IFF_PROMISC) {
 		if (nn->cap & NFP_NET_CFG_CTRL_PROMISC)
 			new_ctrl |= NFP_NET_CFG_CTRL_PROMISC;
@@ -3787,8 +3792,6 @@ int nfp_net_init(struct nfp_net *nn)
 	/* Allow L2 Broadcast and Multicast through by default, if supported */
 	if (nn->cap & NFP_NET_CFG_CTRL_L2BC)
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_L2BC;
-	if (nn->cap & NFP_NET_CFG_CTRL_L2MC)
-		nn->dp.ctrl |= NFP_NET_CFG_CTRL_L2MC;
 
 	/* Allow IRQ moderation, if supported */
 	if (nn->cap & NFP_NET_CFG_CTRL_IRQMOD) {
