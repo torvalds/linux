@@ -2335,9 +2335,10 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages)
 {
 	do {
-		if (dma_map_sg(&obj->base.dev->pdev->dev,
-			       pages->sgl, pages->nents,
-			       PCI_DMA_BIDIRECTIONAL))
+		if (dma_map_sg_attrs(&obj->base.dev->pdev->dev,
+				     pages->sgl, pages->nents,
+				     PCI_DMA_BIDIRECTIONAL,
+				     DMA_ATTR_NO_WARN))
 			return 0;
 
 		/* If the DMA remap fails, one cause can be that we have
