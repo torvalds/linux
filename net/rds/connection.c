@@ -366,7 +366,7 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 	 * to the conn hash, so we never trigger a reconnect on this
 	 * conn - the reconnect is always triggered by the active peer. */
 	cancel_delayed_work_sync(&cp->cp_conn_w);
-	if (conn->c_destroy_in_prog)
+	if (test_bit(RDS_DESTROY_PENDING, &cp->cp_flags))
 		return;
 	rcu_read_lock();
 	if (!hlist_unhashed(&conn->c_hash_node)) {
@@ -383,6 +383,8 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 static void rds_conn_path_destroy(struct rds_conn_path *cp)
 {
 	struct rds_message *rm, *rtmp;
+
+	set_bit(RDS_DESTROY_PENDING, &cp->cp_flags);
 
 	if (!cp->cp_transport_data)
 		return;
@@ -426,7 +428,6 @@ void rds_conn_destroy(struct rds_connection *conn)
 		 "%pI4\n", conn, &conn->c_laddr,
 		 &conn->c_faddr);
 
-	conn->c_destroy_in_prog = 1;
 	/* Ensure conn will not be scheduled for reconnect */
 	spin_lock_irq(&rds_conn_lock);
 	hlist_del_init_rcu(&conn->c_hash_node);
@@ -685,7 +686,7 @@ void rds_conn_path_drop(struct rds_conn_path *cp, bool destroy)
 {
 	atomic_set(&cp->cp_state, RDS_CONN_ERROR);
 
-	if (!destroy && cp->cp_conn->c_destroy_in_prog)
+	if (!destroy && test_bit(RDS_DESTROY_PENDING, &cp->cp_flags))
 		return;
 
 	queue_work(rds_wq, &cp->cp_down_w);
