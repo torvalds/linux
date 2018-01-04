@@ -327,7 +327,7 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 	}
 
 	/* If all IP and L4 fields are wildcarded then this is an L2 flow */
-	if (is_wildcard(&l3_mask, sizeof(l3_mask)) &&
+	if (is_wildcard(l3_mask, sizeof(*l3_mask)) &&
 	    is_wildcard(&flow->l4_mask, sizeof(flow->l4_mask))) {
 		flow_flags |= CFA_FLOW_ALLOC_REQ_FLAGS_FLOWTYPE_L2;
 	} else {
