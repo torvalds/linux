@@ -1067,12 +1067,12 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 		return -ENOMEM;
 	}
 
-	ret = iwl_pcie_txq_alloc(trans, txq, TFD_TX_CMD_SLOTS, false);
+	ret = iwl_pcie_txq_alloc(trans, txq, size, false);
 	if (ret) {
 		IWL_ERR(trans, "Tx queue alloc failed\n");
 		goto error;
 	}
-	ret = iwl_pcie_txq_init(trans, txq, TFD_TX_CMD_SLOTS, false);
+	ret = iwl_pcie_txq_init(trans, txq, size, false);
 	if (ret) {
 		IWL_ERR(trans, "Tx queue init failed\n");
 		goto error;
@@ -1082,7 +1082,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 
 	cmd->tfdq_addr = cpu_to_le64(txq->dma_addr);
 	cmd->byte_cnt_addr = cpu_to_le64(txq->bc_tbl.dma);
-	cmd->cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(TFD_TX_CMD_SLOTS));
+	cmd->cb_size = cpu_to_le32(TFD_QUEUE_CB_SIZE(size));
 
 	ret = iwl_trans_send_cmd(trans, &hcmd);
 	if (ret)
