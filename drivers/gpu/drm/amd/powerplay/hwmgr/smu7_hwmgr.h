@@ -173,9 +173,23 @@ struct smu7_pcie_perf_range {
 	uint16_t  min;
 };
 
+struct smu7_odn_clock_voltage_dependency_table {
+	uint32_t count;
+	phm_ppt_v1_clock_voltage_dependency_record entries[MAX_REGULAR_DPM_NUMBER];
+};
+
+struct smu7_odn_dpm_table {
+	struct phm_odn_clock_levels		odn_core_clock_dpm_levels;
+	struct phm_odn_clock_levels		odn_memory_clock_dpm_levels;
+	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_sclk;
+	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_mclk;
+	uint32_t					odn_mclk_min_limit;
+};
+
 struct smu7_hwmgr {
 	struct smu7_dpm_table			dpm_table;
 	struct smu7_dpm_table			golden_dpm_table;
+	struct smu7_odn_dpm_table		odn_dpm_table;
 
 	uint32_t						voting_rights_clients[8];
 	uint32_t						static_screen_threshold_unit;
