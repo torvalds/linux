@@ -819,7 +819,7 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr);
 int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 				 struct iwl_tx_queue_cfg_cmd *cmd,
-				 int cmd_id,
+				 int cmd_id, int size,
 				 unsigned int timeout);
 void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue);
 int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,

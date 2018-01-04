@@ -554,7 +554,7 @@ struct iwl_trans_ops {
 	/* 22000 functions */
 	int (*txq_alloc)(struct iwl_trans *trans,
 			 struct iwl_tx_queue_cfg_cmd *cmd,
-			 int cmd_id,
+			 int cmd_id, int size,
 			 unsigned int queue_wdg_timeout);
 	void (*txq_free)(struct iwl_trans *trans, int queue);
 
@@ -952,8 +952,8 @@ iwl_trans_txq_free(struct iwl_trans *trans, int queue)
 static inline int
 iwl_trans_txq_alloc(struct iwl_trans *trans,
 		    struct iwl_tx_queue_cfg_cmd *cmd,
-		    int cmd_id,
-		    unsigned int queue_wdg_timeout)
+		    int cmd_id, int size,
+		    unsigned int wdg_timeout)
 {
 	might_sleep();
 
@@ -965,7 +965,7 @@ iwl_trans_txq_alloc(struct iwl_trans *trans,
 		return -EIO;
 	}
 
-	return trans->ops->txq_alloc(trans, cmd, cmd_id, queue_wdg_timeout);
+	return trans->ops->txq_alloc(trans, cmd, cmd_id, size, wdg_timeout);
 }
 
 static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,

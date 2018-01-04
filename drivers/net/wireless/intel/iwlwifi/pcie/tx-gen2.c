@@ -1041,7 +1041,7 @@ static void iwl_pcie_gen2_txq_free(struct iwl_trans *trans, int txq_id)
 
 int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 				 struct iwl_tx_queue_cfg_cmd *cmd,
-				 int cmd_id,
+				 int cmd_id, int size,
 				 unsigned int timeout)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
