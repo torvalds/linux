@@ -78,10 +78,15 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_KAVERI:
+	case CHIP_HAWAII:
 		kfd2kgd = amdgpu_amdkfd_gfx_7_get_functions();
 		break;
 #endif
 	case CHIP_CARRIZO:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
 		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
 		break;
 	default:
