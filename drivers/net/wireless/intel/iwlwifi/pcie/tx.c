@@ -953,8 +953,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
 
-		slots_num = cmd_queue ? trans_pcie->tx_cmd_queue_size :
-			TFD_TX_CMD_SLOTS;
+		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		trans_pcie->txq[txq_id] = &trans_pcie->txq_memory[txq_id];
 		ret = iwl_pcie_txq_alloc(trans, trans_pcie->txq[txq_id],
 					 slots_num, cmd_queue);
@@ -973,29 +972,12 @@ error:
 	return ret;
 }
 
-void iwl_pcie_set_tx_cmd_queue_size(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	int queue_size = TFD_CMD_SLOTS;
-
-	if (trans->cfg->tx_cmd_queue_size)
-		queue_size = trans->cfg->tx_cmd_queue_size;
-
-	if (WARN_ON(!(is_power_of_2(queue_size) &&
-		      TFD_QUEUE_CB_SIZE(queue_size) > 0)))
-		trans_pcie->tx_cmd_queue_size = TFD_CMD_SLOTS;
-	else
-		trans_pcie->tx_cmd_queue_size = queue_size;
-}
-
 int iwl_pcie_tx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 	int txq_id, slots_num;
 	bool alloc = false;
-
-	iwl_pcie_set_tx_cmd_queue_size(trans);
 
 	if (!trans_pcie->txq_memory) {
 		ret = iwl_pcie_tx_alloc(trans);
@@ -1020,8 +1002,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
 
-		slots_num = cmd_queue ? trans_pcie->tx_cmd_queue_size :
-			TFD_TX_CMD_SLOTS;
+		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_pcie_txq_init(trans, trans_pcie->txq[txq_id],
 					slots_num, cmd_queue);
 		if (ret) {

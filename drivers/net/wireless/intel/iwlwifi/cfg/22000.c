@@ -137,7 +137,6 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.gen2 = true,							\
 	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true,						\
-	.tx_cmd_queue_size = 32,					\
 	.min_umac_error_event_table = 0x400000
 
 const struct iwl_cfg iwl22000_2ac_cfg_hr = {
