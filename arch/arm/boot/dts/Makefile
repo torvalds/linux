@@ -541,6 +541,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-fennec.dtb \
 	rk3288-firefly-beta.dtb \
 	rk3288-firefly-reload.dtb \
+	rk3288-firefly-reload-linux.dtb \
 	rk3288-firefly-rk808.dtb \
 	rk3288-firefly.dtb \
 	rk3288-miniarm.dtb \
