@@ -365,6 +365,11 @@ static void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq)
 	mlx5_wq_ll_update_db_record(wq);
 }
 
+static inline u16 mlx5e_icosq_wrap_cnt(struct mlx5e_icosq *sq)
+{
+	return sq->pc >> MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
+}
+
 static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 {
 	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
@@ -372,7 +377,6 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	struct mlx5e_icosq *sq = &rq->channel->icosq;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_umr_wqe *umr_wqe;
-	int cpy = offsetof(struct mlx5e_umr_wqe, inline_mtts);
 	u16 xlt_offset = ix << (MLX5E_LOG_ALIGNED_MPWQE_PPW - 1);
 	int err;
 	u16 pi;
@@ -385,7 +389,10 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	}
 
 	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, cpy);
+	if (unlikely(mlx5e_icosq_wrap_cnt(sq) < 2))
+		memcpy(umr_wqe, &rq->mpwqe.umr_wqe,
+		       offsetof(struct mlx5e_umr_wqe, inline_mtts));
+
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++, dma_info++) {
 		err = mlx5e_page_alloc_mapped(rq, dma_info);
 		if (unlikely(err))
