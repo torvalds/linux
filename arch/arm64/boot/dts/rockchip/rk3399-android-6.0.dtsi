@@ -177,7 +177,7 @@
 		status = "disabled";
 		compatible = "rockchip,rk3399-cdn-dp-fb";
 		reg = <0x0 0xfec00000 0x0 0x100000>;
-		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru SCLK_DP_CORE>, <&cru PCLK_DP_CTRL>,
 			 <&cru SCLK_SPDIF_REC_DPTX>, <&cru PCLK_VIO_GRF>;
 		clock-names = "core-clk", "pclk", "spdif", "grf";
