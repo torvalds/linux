@@ -185,6 +185,12 @@ static const struct soc15_reg_golden golden_settings_sdma_rv1[] =
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG_READ, 0x0018773f, 0x00000002)
 };
 
+static const struct soc15_reg_golden golden_settings_sdma_rv2[] =
+{
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG, 0x0018773f, 0x00003001),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG_READ, 0x0018773f, 0x00003001)
+};
+
 static u32 sdma_v4_0_get_reg_offset(struct amdgpu_device *adev,
 		u32 instance, u32 offset)
 {
@@ -225,11 +231,16 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_RAVEN:
 	case CHIP_PICASSO:
 		soc15_program_register_sequence(adev,
-						 golden_settings_sdma_4_1,
-						 ARRAY_SIZE(golden_settings_sdma_4_1));
-		soc15_program_register_sequence(adev,
-						 golden_settings_sdma_rv1,
-						 ARRAY_SIZE(golden_settings_sdma_rv1));
+						golden_settings_sdma_4_1,
+						ARRAY_SIZE(golden_settings_sdma_4_1));
+		if (adev->rev_id >= 8)
+			soc15_program_register_sequence(adev,
+							golden_settings_sdma_rv2,
+							ARRAY_SIZE(golden_settings_sdma_rv2));
+		else
+			soc15_program_register_sequence(adev,
+							golden_settings_sdma_rv1,
+							ARRAY_SIZE(golden_settings_sdma_rv1));
 		break;
 	default:
 		break;
