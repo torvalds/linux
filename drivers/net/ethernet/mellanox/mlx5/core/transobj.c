@@ -413,6 +413,7 @@ static int mlx5_hairpin_create_rq(struct mlx5_core_dev *mdev,
 	MLX5_SET(rqc, rqc, counter_set_id, params->q_counter);
 
 	MLX5_SET(wq, wq, log_hairpin_data_sz, params->log_data_size);
+	MLX5_SET(wq, wq, log_hairpin_num_packets, params->log_num_packets);
 
 	return mlx5_core_create_rq(mdev, in, MLX5_ST_SZ_BYTES(create_rq_in), rqn);
 }
@@ -430,6 +431,7 @@ static int mlx5_hairpin_create_sq(struct mlx5_core_dev *mdev,
 	MLX5_SET(sqc, sqc, state, MLX5_SQC_STATE_RST);
 
 	MLX5_SET(wq, wq, log_hairpin_data_sz, params->log_data_size);
+	MLX5_SET(wq, wq, log_hairpin_num_packets, params->log_num_packets);
 
 	return mlx5_core_create_sq(mdev, in, MLX5_ST_SZ_BYTES(create_sq_in), sqn);
 }

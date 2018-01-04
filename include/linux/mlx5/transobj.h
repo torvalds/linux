@@ -77,6 +77,7 @@ void mlx5_core_destroy_rqt(struct mlx5_core_dev *dev, u32 rqtn);
 
 struct mlx5_hairpin_params {
 	u8  log_data_size;
+	u8  log_num_packets;
 	u16 q_counter;
 	int num_channels;
 };
