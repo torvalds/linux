@@ -1278,6 +1278,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		struct dc_state *context)
 {
 	int i, j;
+	struct pipe_ctx *top_pipe_to_program = NULL;
 
 	if (update_type == UPDATE_TYPE_FULL) {
 		dc->hwss.set_bandwidth(dc, context, false);
@@ -1297,13 +1298,17 @@ static void commit_planes_for_stream(struct dc *dc,
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-		if (update_type == UPDATE_TYPE_FAST || !pipe_ctx->plane_state)
-			continue;
-
 		if (!pipe_ctx->top_pipe &&
-		    pipe_ctx->stream &&
-		    pipe_ctx->stream == stream) {
-			struct dc_stream_status *stream_status =
+			pipe_ctx->stream &&
+			pipe_ctx->stream == stream) {
+			struct dc_stream_status *stream_status = NULL;
+
+			top_pipe_to_program = pipe_ctx;
+
+			if (update_type == UPDATE_TYPE_FAST || !pipe_ctx->plane_state)
+				continue;
+
+			stream_status =
 					stream_get_status(context, pipe_ctx->stream);
 
 			dc->hwss.apply_ctx_for_surface(
@@ -1314,22 +1319,32 @@ static void commit_planes_for_stream(struct dc *dc,
 	if (update_type == UPDATE_TYPE_FULL)
 		context_timing_trace(dc, &context->res_ctx);
 
-	/* Perform requested Updates */
-	for (i = 0; i < surface_count; i++) {
-		struct dc_plane_state *plane_state = srf_updates[i].surface;
+	/* Lock the top pipe while updating plane addrs, since freesync requires
+	 *  plane addr update event triggers to be synchronized.
+	 *  top_pipe_to_program is expected to never be NULL
+	 */
+	if (update_type == UPDATE_TYPE_FAST) {
+		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, true);
 
-		for (j = 0; j < dc->res_pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+		/* Perform requested Updates */
+		for (i = 0; i < surface_count; i++) {
+			struct dc_plane_state *plane_state = srf_updates[i].surface;
 
-			if (pipe_ctx->stream != stream)
-				continue;
+			for (j = 0; j < dc->res_pool->pipe_count; j++) {
+				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-			if (pipe_ctx->plane_state != plane_state)
-				continue;
+				if (pipe_ctx->stream != stream)
+					continue;
 
-			if (update_type == UPDATE_TYPE_FAST && srf_updates[i].flip_addr)
+				if (pipe_ctx->plane_state != plane_state)
+					continue;
+
+				if (srf_updates[i].flip_addr)
 					dc->hwss.update_plane_addr(dc, pipe_ctx);
+			}
 		}
+
+		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
 	}
 
 	if (stream && stream_update && update_type > UPDATE_TYPE_FAST)
