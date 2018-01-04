@@ -1066,7 +1066,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_5f8[0x3];
 	u8         log_max_xrq[0x5];
 
-	u8         reserved_at_600[0x200];
+	u8         reserved_at_600[0x1e];
+	u8	   sw_owner_id;
+	u8	   reserved_at_61f[0x1e1];
 };
 
 enum mlx5_flow_destination_type {
@@ -5531,6 +5533,7 @@ struct mlx5_ifc_init_hca_in_bits {
 	u8         op_mod[0x10];
 
 	u8         reserved_at_40[0x40];
+	u8	   sw_owner_id[4][0x20];
 };
 
 struct mlx5_ifc_init2rtr_qp_out_bits {
