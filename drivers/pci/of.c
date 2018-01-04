@@ -480,7 +480,7 @@ int of_pci_map_rid(struct device_node *np, u32 rid,
  * PCI tree until an device-node is found, at which point it will finish
  * resolving using the OF tree walking.
  */
-int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq)
+static int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq)
 {
 	struct device_node *dn, *ppnode;
 	struct pci_dev *ppdev;
@@ -574,7 +574,6 @@ err:
 	}
 	return rc;
 }
-EXPORT_SYMBOL_GPL(of_irq_parse_pci);
 
 /**
  * of_irq_parse_and_map_pci() - Decode a PCI IRQ from the device tree and map to a VIRQ
