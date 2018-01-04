@@ -19,13 +19,13 @@
 
 #ifdef HAVE_LIBBPF_SUPPORT
 
-static int epoll_wait_loop(void)
+static int epoll_pwait_loop(void)
 {
 	int i;
 
 	/* Should fail NR_ITERS times */
 	for (i = 0; i < NR_ITERS; i++)
-		epoll_wait(-(i + 1), NULL, 0, 0);
+		epoll_pwait(-(i + 1), NULL, 0, 0, NULL);
 	return 0;
 }
 
@@ -68,7 +68,7 @@ static struct {
 		.name		  = "[basic_bpf_test]",
 		.msg_compile_fail = "fix 'perf test LLVM' first",
 		.msg_load_fail	  = "load bpf object failed",
-		.target_func	  = &epoll_wait_loop,
+		.target_func	  = &epoll_pwait_loop,
 		.expect_result	  = (NR_ITERS + 1) / 2,
 	},
 	{
@@ -77,7 +77,7 @@ static struct {
 		.name		  = "[bpf_pinning]",
 		.msg_compile_fail = "fix kbuild first",
 		.msg_load_fail	  = "check your vmlinux setting?",
-		.target_func	  = &epoll_wait_loop,
+		.target_func	  = &epoll_pwait_loop,
 		.expect_result	  = (NR_ITERS + 1) / 2,
 		.pin 		  = true,
 	},
