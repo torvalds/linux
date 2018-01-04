@@ -196,7 +196,7 @@ handle_syscall:
 	addi s2, s2, 0x4
 	REG_S s2, PT_SEPC(sp)
 	/* System calls run with interrupts enabled */
-	csrs sstatus, SR_IE
+	csrs sstatus, SR_SIE
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
 	andi t0, t0, _TIF_SYSCALL_TRACE
@@ -224,8 +224,8 @@ ret_from_syscall:
 
 ret_from_exception:
 	REG_L s0, PT_SSTATUS(sp)
-	csrc sstatus, SR_IE
-	andi s0, s0, SR_PS
+	csrc sstatus, SR_SIE
+	andi s0, s0, SR_SPP
 	bnez s0, restore_all
 
 resume_userspace:
@@ -255,7 +255,7 @@ work_pending:
 	bnez s1, work_resched
 work_notifysig:
 	/* Handle pending signals and notify-resume requests */
-	csrs sstatus, SR_IE /* Enable interrupts for do_notify_resume() */
+	csrs sstatus, SR_SIE /* Enable interrupts for do_notify_resume() */
 	move a0, sp /* pt_regs */
 	move a1, s0 /* current_thread_info->flags */
 	tail do_notify_resume
