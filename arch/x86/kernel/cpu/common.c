@@ -1032,6 +1032,9 @@ static void generic_identify(struct cpuinfo_x86 *c)
 
 	get_cpu_vendor(c);
 
+	if (c->x86_vendor == X86_VENDOR_INTEL)
+		pr_warn("Intel inside!");
+
 	get_cpu_cap(c);
 
 	if (c->cpuid_level >= 0x00000001) {
