@@ -522,6 +522,7 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	struct vpu_service_info *pservice = data->pservice;
 	struct vpu_subdev_data *subdata, *n;
 
+	mutex_lock(&pservice->reset_lock);
 	/*
 	 * For the RK3228H, it is not necessary to write a register to
 	 * switch vpu combo mode, it is unsafe to write the grf.
@@ -574,12 +575,15 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 
 static void vcodec_exit_mode(struct vpu_subdev_data *data)
 {
+	struct vpu_service_info *pservice = data->pservice;
+
 	/*
 	 * In case of VPU Combo, it require HW switch its running mode
 	 * before the other HW component start work. set current HW running
 	 * mode to none, can ensure HW switch to its reqired mode properly.
 	 */
 	data->pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
+	mutex_unlock(&pservice->reset_lock);
 }
 
 static int vpu_get_clk(struct vpu_service_info *pservice)
@@ -716,12 +720,9 @@ static void vpu_reset(struct vpu_subdev_data *data)
 
 	mutex_lock(&pservice->reset_lock);
 	_vpu_reset(data);
-	mutex_unlock(&pservice->reset_lock);
-	if (data->mmu_dev && test_bit(MMU_PAGEFAULT, &data->state)) {
+	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 		clear_bit(MMU_ACTIVATED, &data->state);
 		clear_bit(MMU_PAGEFAULT, &data->state);
-	} else if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
-		clear_bit(MMU_ACTIVATED, &data->state);
 		if (atomic_read(&pservice->enabled)) {
 			/* Need to reset iommu */
 			vcodec_iommu_detach(data->iommu_info);
@@ -730,6 +731,8 @@ static void vpu_reset(struct vpu_subdev_data *data)
 			BUG_ON(!atomic_read(&pservice->enabled));
 		}
 	}
+
+	mutex_unlock(&pservice->reset_lock);
 
 	atomic_set(&pservice->reset_request, 0);
 	dev_info(pservice->dev, "reset done\n");
@@ -801,12 +804,14 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 
 	udelay(5);
 
+	mutex_lock(&pservice->reset_lock);
 	list_for_each_entry_safe(data, n, &pservice->subdev_list, lnk_service) {
 		if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 			clear_bit(MMU_ACTIVATED, &data->state);
 			vcodec_iommu_detach(data->iommu_info);
 		}
 	}
+	mutex_unlock(&pservice->reset_lock);
 	pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
 	if (pservice->hw_ops->power_off)
 		pservice->hw_ops->power_off(pservice);
@@ -985,7 +990,7 @@ static int fill_scaling_list_pps(struct vpu_subdev_data *data,
 
 	if (scaling_fd > 0) {
 		int i = 0;
-		dma_addr_t tmp = vcodec_fd_to_iova(data, reg->session, reg,
+		u32 tmp = vcodec_fd_to_iova(data, reg->session, reg,
 						   scaling_fd);
 
 		if (IS_ERR_VALUE(tmp))
@@ -1081,8 +1086,10 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data,
 				pps_info_count = 64;
 				pps_info_size = 80;
 				scaling_offset = 74;
+				offset = 0;
 			} break;
 			default: {
+				offset = 0;
 				pps_info_count = 0;
 				pps_info_size = 0;
 				scaling_offset = 0;
@@ -2492,7 +2499,7 @@ _vcodec_sys_fault_hdl(struct device *dev, unsigned long iova, int status)
 							 data->pa_iova,
 							 IOMMU_PAGE_SIZE);
 		} else {
-			vpu_reset(data);
+			clear_bit(MMU_PAGEFAULT, &data->state);
 		}
 	}
 
