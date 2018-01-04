@@ -935,6 +935,9 @@ int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_CAC);
 	}
 
+	if (hwmgr->feature_mask & PP_OVERDRIVE_MASK)
+		hwmgr->od_enabled = true;
+
 	return 0;
 }
 

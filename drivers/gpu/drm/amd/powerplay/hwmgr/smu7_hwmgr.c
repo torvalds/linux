@@ -3572,8 +3572,7 @@ static int smu7_populate_and_upload_sclk_mclk_dpm_levels(
 		dpm_table->sclk_table.dpm_levels
 		[dpm_table->sclk_table.count - 1].value = sclk;
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_OD6PlusinACSupport) ||
-		    phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_OD6PlusinDCSupport)) {
+		if (hwmgr->od_enabled) {
 		/* Need to do calculation based on the golden DPM table
 		 * as the Heatmap GPU Clock axis is also based on the default values
 		 */
@@ -3618,8 +3617,7 @@ static int smu7_populate_and_upload_sclk_mclk_dpm_levels(
 		dpm_table->mclk_table.dpm_levels
 			[dpm_table->mclk_table.count - 1].value = mclk;
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_OD6PlusinACSupport) ||
-		    phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_OD6PlusinDCSupport)) {
+		if (hwmgr->od_enabled) {
 
 			PP_ASSERT_WITH_CODE(
 					(golden_dpm_table->mclk_table.dpm_levels
