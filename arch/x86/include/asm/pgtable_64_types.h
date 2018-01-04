@@ -88,7 +88,7 @@ typedef struct { pteval_t pte; } pte_t;
 # define VMALLOC_SIZE_TB	_AC(32, UL)
 # define __VMALLOC_BASE		_AC(0xffffc90000000000, UL)
 # define __VMEMMAP_BASE		_AC(0xffffea0000000000, UL)
-# define LDT_PGD_ENTRY		_AC(-4, UL)
+# define LDT_PGD_ENTRY		_AC(-3, UL)
 # define LDT_BASE_ADDR		(LDT_PGD_ENTRY << PGDIR_SHIFT)
 #endif
 
@@ -110,7 +110,7 @@ typedef struct { pteval_t pte; } pte_t;
 #define ESPFIX_PGD_ENTRY	_AC(-2, UL)
 #define ESPFIX_BASE_ADDR	(ESPFIX_PGD_ENTRY << P4D_SHIFT)
 
-#define CPU_ENTRY_AREA_PGD	_AC(-3, UL)
+#define CPU_ENTRY_AREA_PGD	_AC(-4, UL)
 #define CPU_ENTRY_AREA_BASE	(CPU_ENTRY_AREA_PGD << P4D_SHIFT)
 
 #define EFI_VA_START		( -4 * (_AC(1, UL) << 30))
