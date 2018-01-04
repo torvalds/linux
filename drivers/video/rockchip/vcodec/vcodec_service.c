@@ -2321,9 +2321,14 @@ static void rkvdec_set_clk(struct vpu_service_info *pservice,
 		div = vcodec_old_rate / vcodec_rate;
 		if (div > 4)
 			div = 4;
-		clk_set_rate(pservice->aclk_vcodec, vcodec_old_rate / div);
-		clk_set_rate(pservice->clk_core, core_old_rate / div);
-		clk_set_rate(pservice->clk_cabac, cabac_old_rate / div);
+		if (div) {
+			clk_set_rate(pservice->aclk_vcodec,
+				     vcodec_old_rate / div);
+			clk_set_rate(pservice->clk_core,
+				     core_old_rate / div);
+			clk_set_rate(pservice->clk_cabac,
+				     cabac_old_rate / div);
+		}
 		break;
 	}
 
@@ -2506,6 +2511,25 @@ int vcodec_iovmm_fault_hdl(struct device *dev,
 	return _vcodec_sys_fault_hdl(dev, fault_addr, status);
 }
 
+static void vcodec_reduce_freq_rk322x(struct vpu_service_info *pservice)
+{
+	if (list_empty(&pservice->running)) {
+		unsigned long rate = clk_get_rate(pservice->aclk_vcodec);
+
+		if (pservice->aclk_vcodec)
+			set_div_clk(pservice->aclk_vcodec, 32);
+
+		atomic_set(&pservice->freq_status, rate / 32);
+	}
+}
+
+static void vcodec_reduce_freq_rk3328(struct vpu_service_info *pservice)
+{
+	if (list_empty(&pservice->running))
+		rkvdec_set_clk(pservice, 100 * MHZ, 100 * MHZ, 100 * MHZ,
+			       EVENT_ADJUST);
+}
+
 static int vcodec_spec_init_rk3328(struct vpu_service_info *pservice)
 {
 	/* todo */
@@ -2542,7 +2566,7 @@ static struct vcodec_hw_ops hw_ops_rk3328_rkvdec = {
 	.power_off = vcodec_power_off_rk3328,
 	.get_freq = vcodec_get_reg_freq_default,
 	.set_freq = vcodec_set_freq_rk3328,
-	.reduce_freq = NULL,
+	.reduce_freq = vcodec_reduce_freq_rk3328,
 };
 
 static struct vcodec_hw_var rk3328_rkvdec_var = {
@@ -2613,6 +2637,8 @@ static void vcodec_set_hw_ops(struct vpu_service_info *pservice)
 			pservice->hw_ops->power_off = vcodec_power_off_rk322x;
 			pservice->hw_ops->get_freq = NULL;
 			pservice->hw_ops->set_freq = vcodec_set_freq_rk322x;
+			pservice->hw_ops->reduce_freq =
+						vcodec_reduce_freq_rk322x;
 		} else if (of_machine_is_compatible("rockchip,rk3126") ||
 				of_machine_is_compatible("rockchip,rk3128")) {
 			pservice->hw_ops->power_on = vcodec_power_on_rk312x;
