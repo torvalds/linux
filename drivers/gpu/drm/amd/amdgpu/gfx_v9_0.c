@@ -187,6 +187,29 @@ static const struct soc15_reg_golden golden_settings_gc_9_1_rv1[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x01bd9f33, 0x00000800)
 };
 
+static const struct soc15_reg_golden golden_settings_gc_9_1_rv2[] =
+{
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_DCC_CONFIG, 0xff7fffff, 0x04000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL, 0xfffdf3cf, 0x00014104),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_2, 0xff7fffff, 0x0a000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPC_UTCL1_CNTL, 0x7f0fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPF_UTCL1_CNTL, 0xff8fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPG_UTCL1_CNTL, 0x7f8fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0xffff77ff, 0x26013041),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG_READ, 0xffff77ff, 0x26013041),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmIA_UTCL1_CNTL, 0x3f8fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE_1, 0xffffffff, 0x04040000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_GPM_UTCL1_CNTL_0, 0xff0fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_GPM_UTCL1_CNTL_1, 0xff0fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_GPM_UTCL1_CNTL_2, 0xff0fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_PREWALKER_UTCL1_CNTL, 0xff0fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRLC_SPM_UTCL1_CNTL, 0xff0fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_LO, 0xffffffff, 0x00000010),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x01bd9f33, 0x01000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmWD_UTCL1_CNTL, 0x3f8fffff, 0x08000080),
+};
+
 static const struct soc15_reg_golden golden_settings_gc_9_x_common[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGRBM_CAM_INDEX, 0xffffffff, 0x00000000),
@@ -255,6 +278,7 @@ static const u32 GFX_RLC_SRM_INDEX_CNTL_DATA_OFFSETS[] =
 #define VEGA12_GB_ADDR_CONFIG_GOLDEN 0x24104041
 #define RAVEN_GB_ADDR_CONFIG_GOLDEN 0x24000042
 #define PICASSO_GB_ADDR_CONFIG_GOLDEN 0x24000042
+#define RAVEN2_GB_ADDR_CONFIG_GOLDEN 0x26013041
 
 static void gfx_v9_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v9_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -294,6 +318,17 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 						ARRAY_SIZE(golden_settings_gc_9_0_vg20));
 		break;
 	case CHIP_RAVEN:
+		soc15_program_register_sequence(adev, golden_settings_gc_9_1,
+						ARRAY_SIZE(golden_settings_gc_9_1));
+		if (adev->rev_id >= 8)
+			soc15_program_register_sequence(adev,
+							golden_settings_gc_9_1_rv2,
+							ARRAY_SIZE(golden_settings_gc_9_1_rv2));
+		else
+			soc15_program_register_sequence(adev,
+							golden_settings_gc_9_1_rv1,
+							ARRAY_SIZE(golden_settings_gc_9_1_rv1));
+		break;
 	case CHIP_PICASSO:
 		soc15_program_register_sequence(adev,
 						 golden_settings_gc_9_1,
@@ -1288,7 +1323,10 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
 		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
-		gb_addr_config = RAVEN_GB_ADDR_CONFIG_GOLDEN;
+		if (adev->rev_id >= 8)
+			gb_addr_config = RAVEN2_GB_ADDR_CONFIG_GOLDEN;
+		else
+			gb_addr_config = RAVEN_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	case CHIP_PICASSO:
 		adev->gfx.config.max_hw_contexts = 8;
