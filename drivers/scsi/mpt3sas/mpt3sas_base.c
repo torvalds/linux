@@ -889,12 +889,19 @@ _base_async_event(struct MPT3SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 }
 
 struct scsiio_tracker *
-mpt3sas_get_st_from_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid)
+_get_st_from_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 {
+	struct scsi_cmnd *cmd;
+
 	if (WARN_ON(!smid) ||
 	    WARN_ON(smid >= ioc->hi_priority_smid))
 		return NULL;
-	return &ioc->scsi_lookup[smid - 1];
+
+	cmd = mpt3sas_scsih_scsi_lookup_get(ioc, smid);
+	if (cmd)
+		return scsi_cmd_priv(cmd);
+
+	return NULL;
 }
 
 /**
@@ -915,7 +922,7 @@ _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 		struct scsiio_tracker *st;
 
 		if (smid < ctl_smid) {
-			st = mpt3sas_get_st_from_smid(ioc, smid);
+			st = _get_st_from_smid(ioc, smid);
 			if (st)
 				cb_idx = st->cb_idx;
 		} else if (smid == ctl_smid)
@@ -1302,15 +1309,16 @@ _base_add_sg_single_64(void *paddr, u32 flags_length, dma_addr_t dma_addr)
 /**
  * _base_get_chain_buffer_tracker - obtain chain tracker
  * @ioc: per adapter object
- * @smid: smid associated to an IO request
+ * @scmd: SCSI commands of the IO request
  *
  * Returns chain tracker(from ioc->free_chain_list)
  */
 static struct chain_tracker *
-_base_get_chain_buffer_tracker(struct MPT3SAS_ADAPTER *ioc, u16 smid)
+_base_get_chain_buffer_tracker(struct MPT3SAS_ADAPTER *ioc,
+			       struct scsi_cmnd *scmd)
 {
 	struct chain_tracker *chain_req;
-	struct scsiio_tracker *st;
+	struct scsiio_tracker *st = scsi_cmd_priv(scmd);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
@@ -1323,9 +1331,7 @@ _base_get_chain_buffer_tracker(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 	chain_req = list_entry(ioc->free_chain_list.next,
 	    struct chain_tracker, tracker_list);
 	list_del_init(&chain_req->tracker_list);
-	st = mpt3sas_get_st_from_smid(ioc, smid);
-	if (st)
-		list_add_tail(&chain_req->tracker_list, &st->chain_list);
+	list_add_tail(&chain_req->tracker_list, &st->chain_list);
 	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 	return chain_req;
 }
@@ -1940,7 +1946,7 @@ _base_build_sg_scmd(struct MPT3SAS_ADAPTER *ioc,
 
 	/* initializing the chain flags and pointers */
 	chain_flags = MPI2_SGE_FLAGS_CHAIN_ELEMENT << MPI2_SGE_FLAGS_SHIFT;
-	chain_req = _base_get_chain_buffer_tracker(ioc, smid);
+	chain_req = _base_get_chain_buffer_tracker(ioc, scmd);
 	if (!chain_req)
 		return -1;
 	chain = chain_req->chain_buffer;
@@ -1980,7 +1986,7 @@ _base_build_sg_scmd(struct MPT3SAS_ADAPTER *ioc,
 			sges_in_segment--;
 		}
 
-		chain_req = _base_get_chain_buffer_tracker(ioc, smid);
+		chain_req = _base_get_chain_buffer_tracker(ioc, scmd);
 		if (!chain_req)
 			return -1;
 		chain = chain_req->chain_buffer;
@@ -2083,7 +2089,7 @@ _base_build_sg_scmd_ieee(struct MPT3SAS_ADAPTER *ioc,
 	}
 
 	/* initializing the pointers */
-	chain_req = _base_get_chain_buffer_tracker(ioc, smid);
+	chain_req = _base_get_chain_buffer_tracker(ioc, scmd);
 	if (!chain_req)
 		return -1;
 	chain = chain_req->chain_buffer;
@@ -2114,7 +2120,7 @@ _base_build_sg_scmd_ieee(struct MPT3SAS_ADAPTER *ioc,
 			sges_in_segment--;
 		}
 
-		chain_req = _base_get_chain_buffer_tracker(ioc, smid);
+		chain_req = _base_get_chain_buffer_tracker(ioc, scmd);
 		if (!chain_req)
 			return -1;
 		chain = chain_req->chain_buffer;
@@ -2759,7 +2765,7 @@ mpt3sas_base_get_sense_buffer_dma(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 void *
 mpt3sas_base_get_pcie_sgl(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 {
-	return (void *)(ioc->scsi_lookup[smid - 1].pcie_sg_list.pcie_sgl);
+	return (void *)(ioc->pcie_sg_lookup[smid - 1].pcie_sgl);
 }
 
 /**
@@ -2772,7 +2778,7 @@ mpt3sas_base_get_pcie_sgl(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 dma_addr_t
 mpt3sas_base_get_pcie_sgl_dma(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 {
-	return ioc->scsi_lookup[smid - 1].pcie_sg_list.pcie_sgl_dma;
+	return ioc->pcie_sg_lookup[smid - 1].pcie_sgl_dma;
 }
 
 /**
@@ -2839,26 +2845,15 @@ u16
 mpt3sas_base_get_smid_scsiio(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx,
 	struct scsi_cmnd *scmd)
 {
-	unsigned long flags;
-	struct scsiio_tracker *request;
+	struct scsiio_tracker *request = scsi_cmd_priv(scmd);
+	unsigned int tag = scmd->request->tag;
 	u16 smid;
 
-	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
-	if (list_empty(&ioc->free_list)) {
-		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
-		pr_err(MPT3SAS_FMT "%s: smid not available\n",
-		    ioc->name, __func__);
-		return 0;
-	}
-
-	request = list_entry(ioc->free_list.next,
-	    struct scsiio_tracker, tracker_list);
-	request->scmd = scmd;
+	smid = tag + 1;
 	request->cb_idx = cb_idx;
-	smid = request->smid;
 	request->msix_io = _base_get_msix_index(ioc);
-	list_del(&request->tracker_list);
-	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+	request->smid = smid;
+	INIT_LIST_HEAD(&request->chain_list);
 	return smid;
 }
 
@@ -2904,6 +2899,22 @@ _base_recovery_check(struct MPT3SAS_ADAPTER *ioc)
 	}
 }
 
+void mpt3sas_base_clear_st(struct MPT3SAS_ADAPTER *ioc,
+			   struct scsiio_tracker *st)
+{
+	if (WARN_ON(st->smid == 0))
+		return;
+	st->cb_idx = 0xFF;
+	st->direct_io = 0;
+	if (!list_empty(&st->chain_list)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+		list_splice_init(&st->chain_list, &ioc->free_chain_list);
+		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+	}
+}
+
 /**
  * mpt3sas_base_free_smid - put smid back on free_list
  * @ioc: per adapter object
@@ -2917,23 +2928,21 @@ mpt3sas_base_free_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	if (smid < ioc->hi_priority_smid) {
-		/* scsiio queue */
-		i = smid - 1;
-		list_splice_init(&ioc->scsi_lookup[i].chain_list,
-				 &ioc->free_chain_list);
-		ioc->scsi_lookup[i].cb_idx = 0xFF;
-		ioc->scsi_lookup[i].scmd = NULL;
-		ioc->scsi_lookup[i].direct_io = 0;
-		if (i < ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT)
-			list_add(&ioc->scsi_lookup[i].tracker_list,
-				 &ioc->free_list);
-		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+		struct scsiio_tracker *st;
 
+		st = _get_st_from_smid(ioc, smid);
+		if (!st) {
+			_base_recovery_check(ioc);
+			return;
+		}
+		mpt3sas_base_clear_st(ioc, st);
 		_base_recovery_check(ioc);
 		return;
-	} else if (smid < ioc->internal_smid) {
+	}
+
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	if (smid < ioc->internal_smid) {
 		/* hi-priority */
 		i = smid - ioc->hi_priority_smid;
 		ioc->hpr_lookup[i].cb_idx = 0xFF;
@@ -3806,10 +3815,9 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 
 	if (ioc->pcie_sgl_dma_pool) {
 		for (i = 0; i < ioc->scsiio_depth; i++) {
-			if (ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl)
-				dma_pool_free(ioc->pcie_sgl_dma_pool,
-				ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl,
-				ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl_dma);
+			dma_pool_free(ioc->pcie_sgl_dma_pool,
+					ioc->pcie_sg_lookup[i].pcie_sgl,
+					ioc->pcie_sg_lookup[i].pcie_sgl_dma);
 		}
 		if (ioc->pcie_sgl_dma_pool)
 			dma_pool_destroy(ioc->pcie_sgl_dma_pool);
@@ -3823,10 +3831,6 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		    ioc->config_page, ioc->config_page_dma);
 	}
 
-	if (ioc->scsi_lookup) {
-		free_pages((ulong)ioc->scsi_lookup, ioc->scsi_lookup_pages);
-		ioc->scsi_lookup = NULL;
-	}
 	kfree(ioc->hpr_lookup);
 	kfree(ioc->internal_lookup);
 	if (ioc->chain_lookup) {
@@ -4127,16 +4131,6 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	    ioc->name, (unsigned long long) ioc->request_dma));
 	total_sz += sz;
 
-	sz = ioc->scsiio_depth * sizeof(struct scsiio_tracker);
-	ioc->scsi_lookup_pages = get_order(sz);
-	ioc->scsi_lookup = (struct scsiio_tracker *)__get_free_pages(
-	    GFP_KERNEL, ioc->scsi_lookup_pages);
-	if (!ioc->scsi_lookup) {
-		pr_err(MPT3SAS_FMT "scsi_lookup: get_free_pages failed, sz(%d)\n",
-			ioc->name, (int)sz);
-		goto out;
-	}
-
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT "scsiio(0x%p): depth(%d)\n",
 		ioc->name, ioc->request, ioc->scsiio_depth));
 
@@ -4219,6 +4213,13 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		nvme_blocks_needed /= (ioc->page_size - NVME_PRP_SIZE);
 		nvme_blocks_needed++;
 
+		sz = sizeof(struct pcie_sg_list) * ioc->scsiio_depth;
+		ioc->pcie_sg_lookup = kzalloc(sz, GFP_KERNEL);
+		if (!ioc->pcie_sg_lookup) {
+			pr_info(MPT3SAS_FMT
+			    "PCIe SGL lookup: kzalloc failed\n", ioc->name);
+			goto out;
+		}
 		sz = nvme_blocks_needed * ioc->page_size;
 		ioc->pcie_sgl_dma_pool =
 			dma_pool_create("PCIe SGL pool", &ioc->pdev->dev, sz, 16, 0);
@@ -4229,11 +4230,10 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 			goto out;
 		}
 		for (i = 0; i < ioc->scsiio_depth; i++) {
-			ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl =
-					dma_pool_alloc(ioc->pcie_sgl_dma_pool,
-					GFP_KERNEL,
-				&ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl_dma);
-			if (!ioc->scsi_lookup[i].pcie_sg_list.pcie_sgl) {
+			ioc->pcie_sg_lookup[i].pcie_sgl = dma_pool_alloc(
+				ioc->pcie_sgl_dma_pool, GFP_KERNEL,
+				&ioc->pcie_sg_lookup[i].pcie_sgl_dma);
+			if (!ioc->pcie_sg_lookup[i].pcie_sgl) {
 				pr_info(MPT3SAS_FMT
 				    "PCIe SGL pool: dma_pool_alloc failed\n",
 				    ioc->name);
@@ -5783,20 +5783,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 		kfree(delayed_event_ack);
 	}
 
-	/* initialize the scsi lookup free list */
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
-	INIT_LIST_HEAD(&ioc->free_list);
-	smid = 1;
-	for (i = 0; i < ioc->scsiio_depth; i++, smid++) {
-		INIT_LIST_HEAD(&ioc->scsi_lookup[i].chain_list);
-		ioc->scsi_lookup[i].cb_idx = 0xFF;
-		ioc->scsi_lookup[i].smid = smid;
-		ioc->scsi_lookup[i].scmd = NULL;
-		ioc->scsi_lookup[i].direct_io = 0;
-		if (i < ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT)
-			list_add_tail(&ioc->scsi_lookup[i].tracker_list,
-				      &ioc->free_list);
-	}
 
 	/* hi-priority queue */
 	INIT_LIST_HEAD(&ioc->hpr_free_list);
