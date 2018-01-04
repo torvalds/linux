@@ -1056,13 +1056,12 @@ int auok190x_common_probe(struct platform_device *pdev,
 	/* videomemory handling */
 
 	videomemorysize = roundup((panel->w * panel->h) * 2, PAGE_SIZE);
-	videomemory = vmalloc(videomemorysize);
+	videomemory = vzalloc(videomemorysize);
 	if (!videomemory) {
 		ret = -ENOMEM;
 		goto err_irq;
 	}
 
-	memset(videomemory, 0, videomemorysize);
 	info->screen_base = (char *)videomemory;
 	info->fix.smem_len = videomemorysize;
 
