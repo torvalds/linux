@@ -7,7 +7,7 @@
  * published by the Free Software Foundation.
  */
 #include <drm/drmP.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_fb.h"
@@ -32,11 +32,6 @@ struct armada_ovl_plane_properties {
 
 struct armada_ovl_plane {
 	struct armada_plane base;
-	struct drm_framebuffer *old_fb;
-	struct {
-		struct armada_plane_work work;
-		struct armada_regs regs[13];
-	} vbl;
 	struct armada_ovl_plane_properties prop;
 };
 #define drm_to_armada_ovl_plane(p) \
@@ -67,27 +62,123 @@ armada_ovl_update_attr(struct armada_ovl_plane_properties *prop,
 	spin_unlock_irq(&dcrtc->irq_lock);
 }
 
-static void armada_ovl_retire_fb(struct armada_ovl_plane *dplane,
-	struct drm_framebuffer *fb)
-{
-	struct drm_framebuffer *old_fb;
-
-	old_fb = xchg(&dplane->old_fb, fb);
-
-	if (old_fb)
-		armada_drm_queue_unref_work(dplane->base.base.dev, old_fb);
-}
-
 /* === Plane support === */
 static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
-	struct armada_plane *plane, struct armada_plane_work *work)
+	struct armada_plane_work *work)
 {
-	struct armada_ovl_plane *dplane = container_of(plane, struct armada_ovl_plane, base);
+	unsigned long flags;
 
-	trace_armada_ovl_plane_work(&dcrtc->crtc, &plane->base);
+	trace_armada_ovl_plane_work(&dcrtc->crtc, work->plane);
 
-	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
-	armada_ovl_retire_fb(dplane, NULL);
+	spin_lock_irqsave(&dcrtc->irq_lock, flags);
+	armada_drm_crtc_update_regs(dcrtc, work->regs);
+	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
+}
+
+static void armada_ovl_plane_update_state(struct drm_plane_state *state,
+	struct armada_regs *regs)
+{
+	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(state->plane);
+	struct armada_framebuffer *dfb = drm_fb_to_armada_fb(state->fb);
+	const struct drm_format_info *format;
+	unsigned int idx = 0;
+	bool fb_changed;
+	u32 val, ctrl0;
+	u16 src_x, src_y;
+
+	ctrl0 = CFG_DMA_FMT(dfb->fmt) | CFG_DMA_MOD(dfb->mod) | CFG_CBSH_ENA;
+	if (state->visible)
+		ctrl0 |= CFG_DMA_ENA;
+	if (drm_rect_width(&state->src) >> 16 != drm_rect_width(&state->dst))
+		ctrl0 |= CFG_DMA_HSMOOTH;
+
+	/*
+	 * Shifting a YUV packed format image by one pixel causes the U/V
+	 * planes to swap.  Compensate for it by also toggling the UV swap.
+	 */
+	format = dfb->fb.format;
+	if (format->num_planes == 1 && state->src.x1 >> 16 & (format->hsub - 1))
+		ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
+
+	if (~dplane->base.state.ctrl0 & ctrl0 & CFG_DMA_ENA) {
+		/* Power up the Y/U/V FIFOs on ENA 0->1 transitions */
+		armada_reg_queue_mod(regs, idx,
+				     0, CFG_PDWN16x66 | CFG_PDWN32x66,
+				     LCD_SPU_SRAM_PARA1);
+	}
+
+	fb_changed = dplane->base.base.fb != &dfb->fb ||
+		     dplane->base.state.src_x != state->src.x1 >> 16 ||
+	             dplane->base.state.src_y != state->src.y1 >> 16;
+
+	dplane->base.state.vsync_update = fb_changed;
+
+	/* FIXME: overlay on an interlaced display */
+	if (fb_changed) {
+		u32 addrs[3];
+
+		dplane->base.state.src_y = src_y = state->src.y1 >> 16;
+		dplane->base.state.src_x = src_x = state->src.x1 >> 16;
+
+		armada_drm_plane_calc_addrs(addrs, &dfb->fb, src_x, src_y);
+
+		armada_reg_queue_set(regs, idx, addrs[0],
+				     LCD_SPU_DMA_START_ADDR_Y0);
+		armada_reg_queue_set(regs, idx, addrs[1],
+				     LCD_SPU_DMA_START_ADDR_U0);
+		armada_reg_queue_set(regs, idx, addrs[2],
+				     LCD_SPU_DMA_START_ADDR_V0);
+		armada_reg_queue_set(regs, idx, addrs[0],
+				     LCD_SPU_DMA_START_ADDR_Y1);
+		armada_reg_queue_set(regs, idx, addrs[1],
+				     LCD_SPU_DMA_START_ADDR_U1);
+		armada_reg_queue_set(regs, idx, addrs[2],
+				     LCD_SPU_DMA_START_ADDR_V1);
+
+		val = dfb->fb.pitches[0] << 16 | dfb->fb.pitches[0];
+		armada_reg_queue_set(regs, idx, val,
+				     LCD_SPU_DMA_PITCH_YC);
+		val = dfb->fb.pitches[1] << 16 | dfb->fb.pitches[2];
+		armada_reg_queue_set(regs, idx, val,
+				     LCD_SPU_DMA_PITCH_UV);
+	}
+
+	val = (drm_rect_height(&state->src) & 0xffff0000) |
+	       drm_rect_width(&state->src) >> 16;
+	if (dplane->base.state.src_hw != val) {
+		dplane->base.state.src_hw = val;
+		armada_reg_queue_set(regs, idx, val,
+				     LCD_SPU_DMA_HPXL_VLN);
+	}
+
+	val = drm_rect_height(&state->dst) << 16 | drm_rect_width(&state->dst);
+	if (dplane->base.state.dst_hw != val) {
+		dplane->base.state.dst_hw = val;
+		armada_reg_queue_set(regs, idx, val,
+				     LCD_SPU_DZM_HPXL_VLN);
+	}
+
+	val = state->dst.y1 << 16 | state->dst.x1;
+	if (dplane->base.state.dst_yx != val) {
+		dplane->base.state.dst_yx = val;
+		armada_reg_queue_set(regs, idx, val,
+				     LCD_SPU_DMA_OVSA_HPXL_VLN);
+	}
+
+	if (dplane->base.state.ctrl0 != ctrl0) {
+		dplane->base.state.ctrl0 = ctrl0;
+		armada_reg_queue_mod(regs, idx, ctrl0,
+			CFG_CBSH_ENA | CFG_DMAFORMAT | CFG_DMA_FTOGGLE |
+			CFG_DMA_HSMOOTH | CFG_DMA_TSTMODE |
+			CFG_DMA_MOD(CFG_SWAPRB | CFG_SWAPUV | CFG_SWAPYU |
+			CFG_YUV2RGB) | CFG_DMA_ENA,
+			LCD_SPU_DMA_CTRL0);
+		dplane->base.state.vsync_update = true;
+	}
+
+	dplane->base.state.changed = idx != 0;
+
+	armada_reg_queue_end(regs, idx);
 }
 
 static int
@@ -99,186 +190,76 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct drm_rect src = {
-		.x1 = src_x,
-		.y1 = src_y,
-		.x2 = src_x + src_w,
-		.y2 = src_y + src_h,
-	};
-	struct drm_rect dest = {
-		.x1 = crtc_x,
-		.y1 = crtc_y,
-		.x2 = crtc_x + crtc_w,
-		.y2 = crtc_y + crtc_h,
+	struct armada_plane_work *work;
+	struct drm_plane_state state = {
+		.plane = plane,
+		.crtc = crtc,
+		.fb = fb,
+		.src_x = src_x,
+		.src_y = src_y,
+		.src_w = src_w,
+		.src_h = src_h,
+		.crtc_x = crtc_x,
+		.crtc_y = crtc_y,
+		.crtc_w = crtc_w,
+		.crtc_h = crtc_h,
+		.rotation = DRM_MODE_ROTATE_0,
 	};
 	const struct drm_rect clip = {
 		.x2 = crtc->mode.hdisplay,
 		.y2 = crtc->mode.vdisplay,
 	};
-	uint32_t val, ctrl0;
-	unsigned idx = 0;
-	bool visible;
 	int ret;
 
 	trace_armada_ovl_plane_update(plane, crtc, fb,
 				 crtc_x, crtc_y, crtc_w, crtc_h,
 				 src_x, src_y, src_w, src_h);
 
-	ret = drm_plane_helper_check_update(plane, crtc, fb, &src, &dest, &clip,
-					    DRM_MODE_ROTATE_0,
-					    0, INT_MAX, true, false, &visible);
+	ret = drm_atomic_helper_check_plane_state(&state, crtc->state, &clip, 0,
+						  INT_MAX, true, false);
 	if (ret)
 		return ret;
 
-	ctrl0 = CFG_DMA_FMT(drm_fb_to_armada_fb(fb)->fmt) |
-		CFG_DMA_MOD(drm_fb_to_armada_fb(fb)->mod) |
-		CFG_CBSH_ENA | CFG_DMA_HSMOOTH | CFG_DMA_ENA;
+	work = &dplane->base.works[dplane->base.next_work];
 
-	/* Does the position/size result in nothing to display? */
-	if (!visible)
-		ctrl0 &= ~CFG_DMA_ENA;
+	if (plane->fb != fb) {
+		/*
+		 * Take a reference on the new framebuffer - we want to
+		 * hold on to it while the hardware is displaying it.
+		 */
+		drm_framebuffer_reference(fb);
+
+		work->old_fb = plane->fb;
+	} else {
+		work->old_fb = NULL;
+	}
+
+	armada_ovl_plane_update_state(&state, work->regs);
+
+	if (!dplane->base.state.changed)
+		return 0;
+
+	/* Wait for pending work to complete */
+	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
+		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
+
+	/* Just updating the position/size? */
+	if (!dplane->base.state.vsync_update) {
+		armada_ovl_plane_work(dcrtc, work);
+		return 0;
+	}
 
 	if (!dcrtc->plane) {
 		dcrtc->plane = plane;
 		armada_ovl_update_attr(&dplane->prop, dcrtc);
 	}
 
-	/* FIXME: overlay on an interlaced display */
-	/* Just updating the position/size? */
-	if (plane->fb == fb && dplane->base.state.ctrl0 == ctrl0) {
-		val = (drm_rect_height(&src) & 0xffff0000) |
-		      drm_rect_width(&src) >> 16;
-		dplane->base.state.src_hw = val;
-		writel_relaxed(val, dcrtc->base + LCD_SPU_DMA_HPXL_VLN);
+	/* Queue it for update on the next interrupt if we are enabled */
+	ret = armada_drm_plane_work_queue(dcrtc, work);
+	if (ret)
+		DRM_ERROR("failed to queue plane work: %d\n", ret);
 
-		val = drm_rect_height(&dest) << 16 | drm_rect_width(&dest);
-		dplane->base.state.dst_hw = val;
-		writel_relaxed(val, dcrtc->base + LCD_SPU_DZM_HPXL_VLN);
-
-		val = dest.y1 << 16 | dest.x1;
-		dplane->base.state.dst_yx = val;
-		writel_relaxed(val, dcrtc->base + LCD_SPU_DMA_OVSA_HPXL_VLN);
-
-		return 0;
-	} else if (~dplane->base.state.ctrl0 & ctrl0 & CFG_DMA_ENA) {
-		/* Power up the Y/U/V FIFOs on ENA 0->1 transitions */
-		armada_updatel(0, CFG_PDWN16x66 | CFG_PDWN32x66,
-			       dcrtc->base + LCD_SPU_SRAM_PARA1);
-	}
-
-	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
-		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
-
-	if (plane->fb != fb) {
-		u32 addrs[3], pixel_format;
-		int num_planes, hsub;
-
-		/*
-		 * Take a reference on the new framebuffer - we want to
-		 * hold on to it while the hardware is displaying it.
-		 */
-		drm_framebuffer_get(fb);
-
-		if (plane->fb)
-			armada_ovl_retire_fb(dplane, plane->fb);
-
-		src_y = src.y1 >> 16;
-		src_x = src.x1 >> 16;
-
-		armada_drm_plane_calc_addrs(addrs, fb, src_x, src_y);
-
-		pixel_format = fb->format->format;
-		hsub = drm_format_horz_chroma_subsampling(pixel_format);
-		num_planes = fb->format->num_planes;
-
-		/*
-		 * Annoyingly, shifting a YUYV-format image by one pixel
-		 * causes the U/V planes to toggle.  Toggle the UV swap.
-		 * (Unfortunately, this causes momentary colour flickering.)
-		 */
-		if (src_x & (hsub - 1) && num_planes == 1)
-			ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
-
-		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[0],
-				     LCD_SPU_DMA_START_ADDR_Y0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[1],
-				     LCD_SPU_DMA_START_ADDR_U0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[2],
-				     LCD_SPU_DMA_START_ADDR_V0);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[0],
-				     LCD_SPU_DMA_START_ADDR_Y1);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[1],
-				     LCD_SPU_DMA_START_ADDR_U1);
-		armada_reg_queue_set(dplane->vbl.regs, idx, addrs[2],
-				     LCD_SPU_DMA_START_ADDR_V1);
-
-		val = fb->pitches[0] << 16 | fb->pitches[0];
-		armada_reg_queue_set(dplane->vbl.regs, idx, val,
-				     LCD_SPU_DMA_PITCH_YC);
-		val = fb->pitches[1] << 16 | fb->pitches[2];
-		armada_reg_queue_set(dplane->vbl.regs, idx, val,
-				     LCD_SPU_DMA_PITCH_UV);
-	}
-
-	val = (drm_rect_height(&src) & 0xffff0000) | drm_rect_width(&src) >> 16;
-	if (dplane->base.state.src_hw != val) {
-		dplane->base.state.src_hw = val;
-		armada_reg_queue_set(dplane->vbl.regs, idx, val,
-				     LCD_SPU_DMA_HPXL_VLN);
-	}
-
-	val = drm_rect_height(&dest) << 16 | drm_rect_width(&dest);
-	if (dplane->base.state.dst_hw != val) {
-		dplane->base.state.dst_hw = val;
-		armada_reg_queue_set(dplane->vbl.regs, idx, val,
-				     LCD_SPU_DZM_HPXL_VLN);
-	}
-
-	val = dest.y1 << 16 | dest.x1;
-	if (dplane->base.state.dst_yx != val) {
-		dplane->base.state.dst_yx = val;
-		armada_reg_queue_set(dplane->vbl.regs, idx, val,
-				     LCD_SPU_DMA_OVSA_HPXL_VLN);
-	}
-
-	if (dplane->base.state.ctrl0 != ctrl0) {
-		dplane->base.state.ctrl0 = ctrl0;
-		armada_reg_queue_mod(dplane->vbl.regs, idx, ctrl0,
-			CFG_CBSH_ENA | CFG_DMAFORMAT | CFG_DMA_FTOGGLE |
-			CFG_DMA_HSMOOTH | CFG_DMA_TSTMODE |
-			CFG_DMA_MOD(CFG_SWAPRB | CFG_SWAPUV | CFG_SWAPYU |
-			CFG_YUV2RGB) | CFG_DMA_ENA,
-			LCD_SPU_DMA_CTRL0);
-	}
-	if (idx) {
-		armada_reg_queue_end(dplane->vbl.regs, idx);
-		armada_drm_plane_work_queue(dcrtc, &dplane->base,
-					    &dplane->vbl.work);
-	}
-	return 0;
-}
-
-static int armada_ovl_plane_disable(struct drm_plane *plane,
-				    struct drm_modeset_acquire_ctx *ctx)
-{
-	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
-	struct drm_framebuffer *fb;
-	struct armada_crtc *dcrtc;
-
-	if (!dplane->base.base.crtc)
-		return 0;
-
-	dcrtc = drm_to_armada_crtc(dplane->base.base.crtc);
-
-	armada_drm_plane_work_cancel(dcrtc, &dplane->base);
-	armada_drm_crtc_plane_disable(dcrtc, plane);
-
-	dcrtc->plane = NULL;
-	dplane->base.state.ctrl0 = 0;
-
-	fb = xchg(&dplane->old_fb, NULL);
-	if (fb)
-		drm_framebuffer_put(fb);
+	dplane->base.next_work = !dplane->base.next_work;
 
 	return 0;
 }
@@ -362,7 +343,7 @@ static int armada_ovl_plane_set_property(struct drm_plane *plane,
 
 static const struct drm_plane_funcs armada_ovl_plane_funcs = {
 	.update_plane	= armada_ovl_plane_update,
-	.disable_plane	= armada_ovl_plane_disable,
+	.disable_plane	= armada_drm_plane_disable,
 	.destroy	= armada_ovl_plane_destroy,
 	.set_property	= armada_ovl_plane_set_property,
 };
@@ -454,7 +435,8 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 		return ret;
 	}
 
-	dplane->vbl.work.fn = armada_ovl_plane_work;
+	dplane->base.works[0].fn = armada_ovl_plane_work;
+	dplane->base.works[1].fn = armada_ovl_plane_work;
 
 	ret = drm_universal_plane_init(dev, &dplane->base.base, crtcs,
 				       &armada_ovl_plane_funcs,
