@@ -151,6 +151,8 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 
 	m->cp_hqd_pq_rptr_report_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
 	m->cp_hqd_pq_rptr_report_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
+	m->cp_hqd_pq_wptr_poll_addr_lo = lower_32_bits((uint64_t)q->write_ptr);
+	m->cp_hqd_pq_wptr_poll_addr_hi = upper_32_bits((uint64_t)q->write_ptr);
 
 	m->cp_hqd_pq_doorbell_control =
 		q->doorbell_off <<
@@ -206,6 +208,12 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q)
 {
 	return __update_mqd(mm, mqd, q, MTYPE_CC, 1);
+}
+
+static int update_mqd_tonga(struct mqd_manager *mm, void *mqd,
+			struct queue_properties *q)
+{
+	return __update_mqd(mm, mqd, q, MTYPE_UC, 0);
 }
 
 static int destroy_mqd(struct mqd_manager *mm, void *mqd,
@@ -430,5 +438,18 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		return NULL;
 	}
 
+	return mqd;
+}
+
+struct mqd_manager *mqd_manager_init_vi_tonga(enum KFD_MQD_TYPE type,
+			struct kfd_dev *dev)
+{
+	struct mqd_manager *mqd;
+
+	mqd = mqd_manager_init_vi(type, dev);
+	if (!mqd)
+		return NULL;
+	if ((type == KFD_MQD_TYPE_CP) || (type == KFD_MQD_TYPE_COMPUTE))
+		mqd->update_mqd = update_mqd_tonga;
 	return mqd;
 }
