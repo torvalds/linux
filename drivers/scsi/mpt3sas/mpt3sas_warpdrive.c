@@ -270,7 +270,9 @@ out_error:
 inline u8
 mpt3sas_scsi_direct_io_get(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 {
-	return ioc->scsi_lookup[smid - 1].direct_io;
+	struct scsiio_tracker *st = mpt3sas_get_st_from_smid(ioc, smid);
+
+	return st ? st->direct_io : 0;
 }
 
 /**

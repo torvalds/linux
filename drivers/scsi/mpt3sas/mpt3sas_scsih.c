@@ -2779,7 +2779,7 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, uint channel,
 	}
 
 	if (type == MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK)
-		scsi_lookup = &ioc->scsi_lookup[smid_task - 1];
+		scsi_lookup = mpt3sas_get_st_from_smid(ioc, smid_task);
 
 	dtmprintk(ioc, pr_info(MPT3SAS_FMT
 		"sending tm: handle(0x%04x), task_type(0x%02x), smid(%d)\n",
@@ -2797,7 +2797,8 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, uint channel,
 	mpt3sas_scsih_set_tm_flag(ioc, handle);
 	init_completion(&ioc->tm_cmds.done);
 	if ((type == MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK) &&
-			(scsi_lookup->msix_io < ioc->reply_queue_count))
+	    scsi_lookup &&
+	    (scsi_lookup->msix_io < ioc->reply_queue_count))
 		msix_task = scsi_lookup->msix_io;
 	else
 		msix_task = 0;
@@ -2838,7 +2839,7 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, uint channel,
 	switch (type) {
 	case MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK:
 		rc = SUCCESS;
-		if (scsi_lookup->scmd == NULL)
+		if (scsi_lookup && scsi_lookup->scmd == NULL)
 			break;
 		rc = FAILED;
 		break;
