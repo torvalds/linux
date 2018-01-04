@@ -1775,6 +1775,10 @@ static void rk818_charger_shutdown(struct platform_device *pdev)
 		cancel_delayed_work_sync(&cg->discnt_work);
 	}
 
+	rk818_cg_set_otg_state(cg, USB_OTG_POWER_OFF);
+	disable_irq(cg->plugin_irq);
+	disable_irq(cg->plugout_irq);
+
 	cancel_delayed_work_sync(&cg->usb_work);
 	cancel_delayed_work_sync(&cg->dc_work);
 	cancel_delayed_work_sync(&cg->finish_sig_work);
@@ -1802,7 +1806,6 @@ static void rk818_charger_shutdown(struct platform_device *pdev)
 
 	rk818_bat_temp_notifier_unregister(&cg->temp_nb);
 
-	rk818_cg_set_otg_state(cg, USB_OTG_POWER_OFF);
 	rk818_cg_set_finish_sig(cg, CHRG_FINISH_ANA_SIGNAL);
 
 	CG_INFO("shutdown: ac=%d usb=%d dc=%d otg=%d\n",
