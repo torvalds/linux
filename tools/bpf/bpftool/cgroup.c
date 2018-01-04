@@ -41,7 +41,7 @@ static enum bpf_attach_type parse_attach_type(const char *str)
 	return __MAX_BPF_ATTACH_TYPE;
 }
 
-static int list_bpf_prog(int id, const char *attach_type_str,
+static int show_bpf_prog(int id, const char *attach_type_str,
 			 const char *attach_flags_str)
 {
 	struct bpf_prog_info info = {};
@@ -77,7 +77,7 @@ static int list_bpf_prog(int id, const char *attach_type_str,
 	return 0;
 }
 
-static int list_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type)
+static int show_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type)
 {
 	__u32 prog_ids[1024] = {0};
 	char *attach_flags_str;
@@ -111,29 +111,29 @@ static int list_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type)
 	}
 
 	for (iter = 0; iter < prog_cnt; iter++)
-		list_bpf_prog(prog_ids[iter], attach_type_strings[type],
+		show_bpf_prog(prog_ids[iter], attach_type_strings[type],
 			      attach_flags_str);
 
 	return 0;
 }
 
-static int do_list(int argc, char **argv)
+static int do_show(int argc, char **argv)
 {
 	enum bpf_attach_type type;
 	int cgroup_fd;
 	int ret = -1;
 
 	if (argc < 1) {
-		p_err("too few parameters for cgroup list\n");
+		p_err("too few parameters for cgroup show");
 		goto exit;
 	} else if (argc > 1) {
-		p_err("too many parameters for cgroup list\n");
+		p_err("too many parameters for cgroup show");
 		goto exit;
 	}
 
 	cgroup_fd = open(argv[0], O_RDONLY);
 	if (cgroup_fd < 0) {
-		p_err("can't open cgroup %s\n", argv[1]);
+		p_err("can't open cgroup %s", argv[1]);
 		goto exit;
 	}
 
@@ -147,10 +147,10 @@ static int do_list(int argc, char **argv)
 		/*
 		 * Not all attach types may be supported, so it's expected,
 		 * that some requests will fail.
-		 * If we were able to get the list for at least one
+		 * If we were able to get the show for at least one
 		 * attach type, let's return 0.
 		 */
-		if (list_attached_bpf_progs(cgroup_fd, type) == 0)
+		if (show_attached_bpf_progs(cgroup_fd, type) == 0)
 			ret = 0;
 	}
 
@@ -171,19 +171,19 @@ static int do_attach(int argc, char **argv)
 	int i;
 
 	if (argc < 4) {
-		p_err("too few parameters for cgroup attach\n");
+		p_err("too few parameters for cgroup attach");
 		goto exit;
 	}
 
 	cgroup_fd = open(argv[0], O_RDONLY);
 	if (cgroup_fd < 0) {
-		p_err("can't open cgroup %s\n", argv[1]);
+		p_err("can't open cgroup %s", argv[1]);
 		goto exit;
 	}
 
 	attach_type = parse_attach_type(argv[1]);
 	if (attach_type == __MAX_BPF_ATTACH_TYPE) {
-		p_err("invalid attach type\n");
+		p_err("invalid attach type");
 		goto exit_cgroup;
 	}
 
@@ -199,7 +199,7 @@ static int do_attach(int argc, char **argv)
 		} else if (is_prefix(argv[i], "override")) {
 			attach_flags |= BPF_F_ALLOW_OVERRIDE;
 		} else {
-			p_err("unknown option: %s\n", argv[i]);
+			p_err("unknown option: %s", argv[i]);
 			goto exit_cgroup;
 		}
 	}
@@ -229,13 +229,13 @@ static int do_detach(int argc, char **argv)
 	int ret = -1;
 
 	if (argc < 4) {
-		p_err("too few parameters for cgroup detach\n");
+		p_err("too few parameters for cgroup detach");
 		goto exit;
 	}
 
 	cgroup_fd = open(argv[0], O_RDONLY);
 	if (cgroup_fd < 0) {
-		p_err("can't open cgroup %s\n", argv[1]);
+		p_err("can't open cgroup %s", argv[1]);
 		goto exit;
 	}
 
@@ -277,7 +277,7 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s list CGROUP\n"
+		"Usage: %s %s { show | list } CGROUP\n"
 		"       %s %s attach CGROUP ATTACH_TYPE PROG [ATTACH_FLAGS]\n"
 		"       %s %s detach CGROUP ATTACH_TYPE PROG\n"
 		"       %s %s help\n"
@@ -294,7 +294,8 @@ static int do_help(int argc, char **argv)
 }
 
 static const struct cmd cmds[] = {
-	{ "list",	do_list },
+	{ "show",	do_show },
+	{ "list",	do_show },
 	{ "attach",	do_attach },
 	{ "detach",	do_detach },
 	{ "help",	do_help },

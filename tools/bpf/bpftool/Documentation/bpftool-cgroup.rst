@@ -15,12 +15,12 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **list** | **attach** | **detach** | **help** }
+	{ **show** | **list** | **attach** | **detach** | **help** }
 
 MAP COMMANDS
 =============
 
-|	**bpftool** **cgroup list** *CGROUP*
+|	**bpftool** **cgroup { show | list }** *CGROUP*
 |	**bpftool** **cgroup attach** *CGROUP* *ATTACH_TYPE* *PROG* [*ATTACH_FLAGS*]
 |	**bpftool** **cgroup detach** *CGROUP* *ATTACH_TYPE* *PROG*
 |	**bpftool** **cgroup help**
@@ -31,7 +31,7 @@ MAP COMMANDS
 
 DESCRIPTION
 ===========
-	**bpftool cgroup list** *CGROUP*
+	**bpftool cgroup { show | list }** *CGROUP*
 		  List all programs attached to the cgroup *CGROUP*.
 
 		  Output will start with program ID followed by attach type,
