@@ -414,7 +414,8 @@ pgd_t kaiser_set_shadow_pgd(pgd_t *pgdp, pgd_t pgd)
 			 * get out to userspace running on the kernel CR3,
 			 * userspace will crash instead of running.
 			 */
-			pgd.pgd |= _PAGE_NX;
+			if (__supported_pte_mask & _PAGE_NX)
+				pgd.pgd |= _PAGE_NX;
 		}
 	} else if (!pgd.pgd) {
 		/*
