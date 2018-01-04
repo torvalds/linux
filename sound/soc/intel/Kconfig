@@ -16,16 +16,27 @@ if SND_SOC_INTEL_SST_TOPLEVEL
 
 config SND_SST_IPC
 	tristate
+	# This option controls the IPC core for HiFi2 platforms
 
 config SND_SST_IPC_PCI
 	tristate
 	select SND_SST_IPC
+	# This option controls the PCI-based IPC for HiFi2 platforms
+	#  (Medfield, Merrifield).
 
 config SND_SST_IPC_ACPI
 	tristate
 	select SND_SST_IPC
 	select SND_SOC_INTEL_SST
 	select IOSF_MBI
+	# This option controls the ACPI-based IPC for HiFi2 platforms
+	# (Baytrail, Cherrytrail)
+
+config SND_SOC_INTEL_SST_ACPI
+	tristate
+	# This option controls ACPI-based probing on
+	# Haswell/Broadwell/Baytrail legacy and will be set
+	# when these platforms are enabled
 
 config SND_SOC_INTEL_SST
 	tristate
@@ -34,9 +45,9 @@ config SND_SOC_INTEL_SST
 config SND_SOC_INTEL_SST_FIRMWARE
 	tristate
 	select DW_DMAC_CORE
-
-config SND_SOC_INTEL_SST_ACPI
-	tristate
+	# This option controls firmware download on
+	# Haswell/Broadwell/Baytrail legacy and will be set
+	# when these platforms are enabled
 
 config SND_SOC_INTEL_HASWELL
 	tristate "Intel ASoC SST driver for Haswell/Broadwell"
