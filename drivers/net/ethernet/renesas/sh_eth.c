@@ -3254,8 +3254,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		ndev->features = NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
-	/* initialize first or needed device */
-	if (!devno || pd->needs_init) {
+	/* Need to init only the first port of the two sharing a TSU */
+	if (devno % 2 == 0) {
 		if (mdp->cd->chip_reset)
 			mdp->cd->chip_reset(ndev);
 
