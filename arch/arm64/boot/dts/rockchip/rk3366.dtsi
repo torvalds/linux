@@ -841,7 +841,7 @@
 	rktimer: rktimer@ff810000 {
 		compatible = "rockchip,rk3288-timer";
 		reg = <0x0 0xff810000 0x0 0x1000>;
-		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_TIMER0>, <&cru SCLK_TIMER0>;
 		clock-names = "pclk", "timer";
 	};
@@ -922,7 +922,7 @@
 	vopl_mmu: iommu@ff8f0f00 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff8f0f00 0x0 0x100>;
-		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vopl_mmu";
 		clocks = <&cru ACLK_VOP_LITE>, <&cru HCLK_VOP_LITE>;
 		clock-names = "aclk", "hclk";
@@ -1005,7 +1005,7 @@
 	vopb_mmu: iommu@ff932400 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff932400 0x0 0x100>;
-		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vop_mmu";
 		clocks = <&cru ACLK_VOP_FULL>, <&cru HCLK_VOP_FULL>;
 		clock-names = "aclk", "hclk";

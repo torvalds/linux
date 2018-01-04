@@ -61,7 +61,7 @@
 		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2_t1_xfer>;
-		interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH 0>;   /* signal irq */
+		interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;   /* signal irq */
 	};
 
 	backlight: backlight {
