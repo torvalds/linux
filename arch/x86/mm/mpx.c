@@ -118,14 +118,11 @@ bad_opcode:
  * anything it wants in to the instructions.  We can not
  * trust anything about it.  They might not be valid
  * instructions or might encode invalid registers, etc...
- *
- * The caller is expected to kfree() the returned siginfo_t.
  */
-siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
+int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs)
 {
 	const struct mpx_bndreg_state *bndregs;
 	const struct mpx_bndreg *bndreg;
-	siginfo_t *info = NULL;
 	struct insn insn;
 	uint8_t bndregno;
 	int err;
@@ -153,11 +150,6 @@ siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 	/* now go select the individual register in the set of 4 */
 	bndreg = &bndregs->bndreg[bndregno];
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		err = -ENOMEM;
-		goto err_out;
-	}
 	/*
 	 * The registers are always 64-bit, but the upper 32
 	 * bits are ignored in 32-bit mode.  Also, note that the
@@ -168,27 +160,23 @@ siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 	 * complains when casting from integers to different-size
 	 * pointers.
 	 */
-	info->si_lower = (void __user *)(unsigned long)bndreg->lower_bound;
-	info->si_upper = (void __user *)(unsigned long)~bndreg->upper_bound;
-	info->si_addr_lsb = 0;
-	info->si_signo = SIGSEGV;
-	info->si_errno = 0;
-	info->si_code = SEGV_BNDERR;
-	info->si_addr = insn_get_addr_ref(&insn, regs);
+	info->lower = (void __user *)(unsigned long)bndreg->lower_bound;
+	info->upper = (void __user *)(unsigned long)~bndreg->upper_bound;
+	info->addr  = insn_get_addr_ref(&insn, regs);
+
 	/*
 	 * We were not able to extract an address from the instruction,
 	 * probably because there was something invalid in it.
 	 */
-	if (info->si_addr == (void __user *)-1) {
+	if (info->addr == (void __user *)-1) {
 		err = -EINVAL;
 		goto err_out;
 	}
-	trace_mpx_bounds_register_exception(info->si_addr, bndreg);
-	return info;
+	trace_mpx_bounds_register_exception(info->addr, bndreg);
+	return 0;
 err_out:
 	/* info might be NULL, but kfree() handles that */
-	kfree(info);
-	return ERR_PTR(err);
+	return err;
 }
 
 static __user void *mpx_get_bounds_dir(void)

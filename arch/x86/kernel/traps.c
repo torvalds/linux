@@ -455,7 +455,6 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 {
 	const struct mpx_bndcsr *bndcsr;
-	siginfo_t *info;
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
@@ -493,8 +492,11 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 			goto exit_trap;
 		break; /* Success, it was handled */
 	case 1: /* Bound violation. */
-		info = mpx_generate_siginfo(regs);
-		if (IS_ERR(info)) {
+	{
+		struct mpx_fault_info mpx;
+		struct siginfo info;
+
+		if (mpx_fault_info(&mpx, regs)) {
 			/*
 			 * We failed to decode the MPX instruction.  Act as if
 			 * the exception was not caused by MPX.
@@ -508,9 +510,16 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		 * allows and application to possibly handle the
 		 * #BR exception itself.
 		 */
-		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, info);
-		kfree(info);
+		clear_siginfo(&info);
+		info.si_signo = SIGSEGV;
+		info.si_errno = 0;
+		info.si_code  = SEGV_BNDERR;
+		info.si_addr  = mpx.addr;
+		info.si_lower = mpx.lower;
+		info.si_upper = mpx.upper;
+		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, &info);
 		break;
+	}
 	case 0: /* No exception caused by Intel MPX operations. */
 		goto exit_trap;
 	default:
