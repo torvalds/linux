@@ -373,7 +373,10 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 {
 	struct uvc_streaming_control probe;
 	struct v4l2_fract timeperframe;
-	uint32_t interval;
+	struct uvc_format *format;
+	struct uvc_frame *frame;
+	__u32 interval, maxd;
+	unsigned int i;
 	int ret;
 
 	if (parm->type != stream->type)
@@ -396,9 +399,33 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 		return -EBUSY;
 	}
 
+	format = stream->cur_format;
+	frame = stream->cur_frame;
 	probe = stream->ctrl;
-	probe.dwFrameInterval =
-		uvc_try_frame_interval(stream->cur_frame, interval);
+	probe.dwFrameInterval = uvc_try_frame_interval(frame, interval);
+	maxd = abs((__s32)probe.dwFrameInterval - interval);
+
+	/* Try frames with matching size to find the best frame interval. */
+	for (i = 0; i < format->nframes && maxd != 0; i++) {
+		__u32 d, ival;
+
+		if (&format->frame[i] == stream->cur_frame)
+			continue;
+
+		if (format->frame[i].wWidth != stream->cur_frame->wWidth ||
+		    format->frame[i].wHeight != stream->cur_frame->wHeight)
+			continue;
+
+		ival = uvc_try_frame_interval(&format->frame[i], interval);
+		d = abs((__s32)ival - interval);
+		if (d >= maxd)
+			continue;
+
+		frame = &format->frame[i];
+		probe.bFrameIndex = frame->bFrameIndex;
+		probe.dwFrameInterval = ival;
+		maxd = d;
+	}
 
 	/* Probe the device with the new settings. */
 	ret = uvc_probe_video(stream, &probe);
@@ -408,6 +435,7 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 	}
 
 	stream->ctrl = probe;
+	stream->cur_frame = frame;
 	mutex_unlock(&stream->mutex);
 
 	/* Return the actual frame period. */
@@ -1146,7 +1174,8 @@ static int uvc_ioctl_enum_framesizes(struct file *file, void *fh,
 	struct uvc_streaming *stream = handle->stream;
 	struct uvc_format *format = NULL;
 	struct uvc_frame *frame;
-	int i;
+	unsigned int index;
+	unsigned int i;
 
 	/* Look for the given pixel format */
 	for (i = 0; i < stream->nformats; i++) {
@@ -1158,10 +1187,20 @@ static int uvc_ioctl_enum_framesizes(struct file *file, void *fh,
 	if (format == NULL)
 		return -EINVAL;
 
-	if (fsize->index >= format->nframes)
+	/* Skip duplicate frame sizes */
+	for (i = 0, index = 0; i < format->nframes; i++) {
+		if (i && frame->wWidth == format->frame[i].wWidth &&
+		    frame->wHeight == format->frame[i].wHeight)
+			continue;
+		frame = &format->frame[i];
+		if (index == fsize->index)
+			break;
+		index++;
+	}
+
+	if (i == format->nframes)
 		return -EINVAL;
 
-	frame = &format->frame[fsize->index];
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 	fsize->discrete.width = frame->wWidth;
 	fsize->discrete.height = frame->wHeight;
@@ -1175,7 +1214,9 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 	struct uvc_streaming *stream = handle->stream;
 	struct uvc_format *format = NULL;
 	struct uvc_frame *frame = NULL;
-	int i;
+	unsigned int nintervals;
+	unsigned int index;
+	unsigned int i;
 
 	/* Look for the given pixel format and frame size */
 	for (i = 0; i < stream->nformats; i++) {
@@ -1187,30 +1228,28 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 	if (format == NULL)
 		return -EINVAL;
 
+	index = fival->index;
 	for (i = 0; i < format->nframes; i++) {
 		if (format->frame[i].wWidth == fival->width &&
 		    format->frame[i].wHeight == fival->height) {
 			frame = &format->frame[i];
-			break;
+			nintervals = frame->bFrameIntervalType ?: 1;
+			if (index < nintervals)
+				break;
+			index -= nintervals;
 		}
 	}
-	if (frame == NULL)
+	if (i == format->nframes)
 		return -EINVAL;
 
 	if (frame->bFrameIntervalType) {
-		if (fival->index >= frame->bFrameIntervalType)
-			return -EINVAL;
-
 		fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 		fival->discrete.numerator =
-			frame->dwFrameInterval[fival->index];
+			frame->dwFrameInterval[index];
 		fival->discrete.denominator = 10000000;
 		uvc_simplify_fraction(&fival->discrete.numerator,
 			&fival->discrete.denominator, 8, 333);
 	} else {
-		if (fival->index)
-			return -EINVAL;
-
 		fival->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 		fival->stepwise.min.numerator = frame->dwFrameInterval[0];
 		fival->stepwise.min.denominator = 10000000;
