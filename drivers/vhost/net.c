@@ -175,6 +175,17 @@ static void vhost_net_buf_unproduce(struct vhost_net_virtqueue *nvq)
 	}
 }
 
+static int vhost_net_buf_peek_len(void *ptr)
+{
+	if (tun_is_xdp_buff(ptr)) {
+		struct xdp_buff *xdp = tun_ptr_to_xdp(ptr);
+
+		return xdp->data_end - xdp->data;
+	}
+
+	return __skb_array_len_with_tag(ptr);
+}
+
 static int vhost_net_buf_peek(struct vhost_net_virtqueue *nvq)
 {
 	struct vhost_net_buf *rxq = &nvq->rxq;
@@ -186,7 +197,7 @@ static int vhost_net_buf_peek(struct vhost_net_virtqueue *nvq)
 		return 0;
 
 out:
-	return __skb_array_len_with_tag(vhost_net_buf_get_ptr(rxq));
+	return vhost_net_buf_peek_len(vhost_net_buf_get_ptr(rxq));
 }
 
 static void vhost_net_buf_init(struct vhost_net_buf *rxq)
