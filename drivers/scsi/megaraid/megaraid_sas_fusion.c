@@ -3957,6 +3957,8 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	u16 smid;
 	bool refire_cmd = 0;
+	u8 result;
+	u32 opcode = 0;
 
 	fusion = instance->ctrl_context;
 
@@ -3967,29 +3969,47 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 		cmd_fusion = fusion->cmd_list[j];
 		cmd_mfi = instance->cmd_list[cmd_fusion->sync_cmd_idx];
 		smid = le16_to_cpu(cmd_mfi->context.smid);
+		result = REFIRE_CMD;
 
 		if (!smid)
 			continue;
 
-		/* Do not refire shutdown command */
-		if (le32_to_cpu(cmd_mfi->frame->dcmd.opcode) ==
-			MR_DCMD_CTRL_SHUTDOWN) {
-			cmd_mfi->frame->dcmd.cmd_status = MFI_STAT_OK;
-			megasas_complete_cmd(instance, cmd_mfi, DID_OK);
-			continue;
+		req_desc = megasas_get_request_descriptor(instance, smid - 1);
+
+		switch (cmd_mfi->frame->hdr.cmd) {
+		case MFI_CMD_DCMD:
+			opcode = le32_to_cpu(cmd_mfi->frame->dcmd.opcode);
+			 /* Do not refire shutdown command */
+			if (opcode == MR_DCMD_CTRL_SHUTDOWN) {
+				cmd_mfi->frame->dcmd.cmd_status = MFI_STAT_OK;
+				result = COMPLETE_CMD;
+				break;
+			}
+
+			refire_cmd = ((opcode != MR_DCMD_LD_MAP_GET_INFO)) &&
+				      (opcode != MR_DCMD_SYSTEM_PD_MAP_GET_INFO) &&
+				      !(cmd_mfi->flags & DRV_DCMD_SKIP_REFIRE);
+
+			if (!refire_cmd)
+				result = RETURN_CMD;
+
+			break;
+
+		default:
+			break;
 		}
 
-		req_desc = megasas_get_request_descriptor
-					(instance, smid - 1);
-		refire_cmd = req_desc && ((cmd_mfi->frame->dcmd.opcode !=
-				cpu_to_le32(MR_DCMD_LD_MAP_GET_INFO)) &&
-				 (cmd_mfi->frame->dcmd.opcode !=
-				cpu_to_le32(MR_DCMD_SYSTEM_PD_MAP_GET_INFO)))
-				&& !(cmd_mfi->flags & DRV_DCMD_SKIP_REFIRE);
-		if (refire_cmd)
+		switch (result) {
+		case REFIRE_CMD:
 			megasas_fire_cmd_fusion(instance, req_desc);
-		else
+			break;
+		case RETURN_CMD:
 			megasas_return_cmd(instance, cmd_mfi);
+			break;
+		case COMPLETE_CMD:
+			megasas_complete_cmd(instance, cmd_mfi, DID_OK);
+			break;
+		}
 	}
 }
 
@@ -4629,8 +4649,6 @@ transition_to_ready:
 					continue;
 			}
 
-			megasas_refire_mgmt_cmd(instance);
-
 			if (megasas_get_ctrl_info(instance)) {
 				dev_info(&instance->pdev->dev,
 					"Failed from %s %d\n",
@@ -4639,6 +4657,9 @@ transition_to_ready:
 				retval = FAILED;
 				goto out;
 			}
+
+			megasas_refire_mgmt_cmd(instance);
+
 			/* Reset load balance info */
 			if (fusion->load_balance_info)
 				memset(fusion->load_balance_info, 0,

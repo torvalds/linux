@@ -4694,10 +4694,12 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 				 sizeof(struct megasas_ctrl_info));
 
 	if ((instance->adapter_type != MFI_SERIES) &&
-	    !instance->mask_interrupts)
+	    !instance->mask_interrupts) {
 		ret = megasas_issue_blocked_cmd(instance, cmd, MFI_IO_TIMEOUT_SECS);
-	else
+	} else {
 		ret = megasas_issue_polled(instance, cmd);
+		cmd->flags |= DRV_DCMD_SKIP_REFIRE;
+	}
 
 	switch (ret) {
 	case DCMD_SUCCESS:
