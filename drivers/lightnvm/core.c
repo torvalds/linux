@@ -751,53 +751,6 @@ int nvm_get_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr ppa,
 }
 EXPORT_SYMBOL(nvm_get_tgt_bb_tbl);
 
-static int nvm_init_slc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
-{
-	struct nvm_geo *geo = &dev->geo;
-	int i;
-
-	dev->lps_per_blk = geo->pgs_per_blk;
-	dev->lptbl = kcalloc(dev->lps_per_blk, sizeof(int), GFP_KERNEL);
-	if (!dev->lptbl)
-		return -ENOMEM;
-
-	/* Just a linear array */
-	for (i = 0; i < dev->lps_per_blk; i++)
-		dev->lptbl[i] = i;
-
-	return 0;
-}
-
-static int nvm_init_mlc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
-{
-	int i, p;
-	struct nvm_id_lp_mlc *mlc = &grp->lptbl.mlc;
-
-	if (!mlc->num_pairs)
-		return 0;
-
-	dev->lps_per_blk = mlc->num_pairs;
-	dev->lptbl = kcalloc(dev->lps_per_blk, sizeof(int), GFP_KERNEL);
-	if (!dev->lptbl)
-		return -ENOMEM;
-
-	/* The lower page table encoding consists of a list of bytes, where each
-	 * has a lower and an upper half. The first half byte maintains the
-	 * increment value and every value after is an offset added to the
-	 * previous incrementation value
-	 */
-	dev->lptbl[0] = mlc->pairs[0] & 0xF;
-	for (i = 1; i < dev->lps_per_blk; i++) {
-		p = mlc->pairs[i >> 1];
-		if (i & 0x1) /* upper */
-			dev->lptbl[i] = dev->lptbl[i - 1] + ((p & 0xF0) >> 4);
-		else /* lower */
-			dev->lptbl[i] = dev->lptbl[i - 1] + (p & 0xF);
-	}
-
-	return 0;
-}
-
 static int nvm_core_init(struct nvm_dev *dev)
 {
 	struct nvm_id *id = &dev->identity;
@@ -846,25 +799,6 @@ static int nvm_core_init(struct nvm_dev *dev)
 	if (!dev->lun_map)
 		return -ENOMEM;
 
-	switch (grp->fmtype) {
-	case NVM_ID_FMTYPE_SLC:
-		if (nvm_init_slc_tbl(dev, grp)) {
-			ret = -ENOMEM;
-			goto err_fmtype;
-		}
-		break;
-	case NVM_ID_FMTYPE_MLC:
-		if (nvm_init_mlc_tbl(dev, grp)) {
-			ret = -ENOMEM;
-			goto err_fmtype;
-		}
-		break;
-	default:
-		pr_err("nvm: flash type not supported\n");
-		ret = -EINVAL;
-		goto err_fmtype;
-	}
-
 	INIT_LIST_HEAD(&dev->area_list);
 	INIT_LIST_HEAD(&dev->targets);
 	mutex_init(&dev->mlock);
@@ -890,7 +824,6 @@ static void nvm_free(struct nvm_dev *dev)
 		dev->ops->destroy_dma_pool(dev->dma_pool);
 
 	nvm_unregister_map(dev);
-	kfree(dev->lptbl);
 	kfree(dev->lun_map);
 	kfree(dev);
 }

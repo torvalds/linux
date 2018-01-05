@@ -246,20 +246,6 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 
 	dst->cpar = le16_to_cpu(src->cpar);
 
-	if (dst->fmtype == NVM_ID_FMTYPE_MLC) {
-		memcpy(dst->lptbl.id, src->lptbl.id, 8);
-		dst->lptbl.mlc.num_pairs =
-				le16_to_cpu(src->lptbl.mlc.num_pairs);
-
-		if (dst->lptbl.mlc.num_pairs > NVME_NVM_LP_MLC_PAIRS) {
-			pr_err("nvm: number of MLC pairs not supported\n");
-			return -EINVAL;
-		}
-
-		memcpy(dst->lptbl.mlc.pairs, src->lptbl.mlc.pairs,
-					dst->lptbl.mlc.num_pairs);
-	}
-
 	return 0;
 }
 

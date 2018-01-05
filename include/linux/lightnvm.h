@@ -174,8 +174,6 @@ struct nvm_id_group {
 	u32	mpos;
 	u32	mccap;
 	u16	cpar;
-
-	struct nvm_id_lp_tbl lptbl;
 };
 
 struct nvm_addr_format {
@@ -312,10 +310,6 @@ struct nvm_dev {
 
 	/* Device information */
 	struct nvm_geo geo;
-
-	  /* lower page table */
-	int lps_per_blk;
-	int *lptbl;
 
 	unsigned long total_secs;
 
