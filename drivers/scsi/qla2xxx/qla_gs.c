@@ -3982,7 +3982,7 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 		(struct ct_sns_req *)sp->u.iocb_cmd.u.ctarg.req;
 	struct ct_sns_gpnft_rsp *ct_rsp =
 		(struct ct_sns_gpnft_rsp *)sp->u.iocb_cmd.u.ctarg.rsp;
-	struct ct_sns_gpn_ft_data *d = &ct_rsp->entries[0];
+	struct ct_sns_gpn_ft_data *d;
 	struct fab_scan_rp *rp;
 	int i, j, k;
 	u16 cmd = be16_to_cpu(ct_req->command);
