@@ -257,10 +257,25 @@ static void release_memory_resource(struct resource *resource)
 	kfree(resource);
 }
 
+/*
+ * Host memory not allocated to dom0. We can use this range for hotplug-based
+ * ballooning.
+ *
+ * It's a type-less resource. Setting IORESOURCE_MEM will make resource
+ * management algorithms (arch_remove_reservations()) look into guest e820,
+ * which we don't want.
+ */
+static struct resource hostmem_resource = {
+	.name   = "Host RAM",
+};
+
+void __attribute__((weak)) __init arch_xen_balloon_init(struct resource *res)
+{}
+
 static struct resource *additional_memory_resource(phys_addr_t size)
 {
-	struct resource *res;
-	int ret;
+	struct resource *res, *res_hostmem;
+	int ret = -ENOMEM;
 
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
@@ -269,13 +284,42 @@ static struct resource *additional_memory_resource(phys_addr_t size)
 	res->name = "System RAM";
 	res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 
-	ret = allocate_resource(&iomem_resource, res,
-				size, 0, -1,
-				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
-	if (ret < 0) {
-		pr_err("Cannot allocate new System RAM resource\n");
-		kfree(res);
-		return NULL;
+	res_hostmem = kzalloc(sizeof(*res), GFP_KERNEL);
+	if (res_hostmem) {
+		/* Try to grab a range from hostmem */
+		res_hostmem->name = "Host memory";
+		ret = allocate_resource(&hostmem_resource, res_hostmem,
+					size, 0, -1,
+					PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
+	}
+
+	if (!ret) {
+		/*
+		 * Insert this resource into iomem. Because hostmem_resource
+		 * tracks portion of guest e820 marked as UNUSABLE noone else
+		 * should try to use it.
+		 */
+		res->start = res_hostmem->start;
+		res->end = res_hostmem->end;
+		ret = insert_resource(&iomem_resource, res);
+		if (ret < 0) {
+			pr_err("Can't insert iomem_resource [%llx - %llx]\n",
+				res->start, res->end);
+			release_memory_resource(res_hostmem);
+			res_hostmem = NULL;
+			res->start = res->end = 0;
+		}
+	}
+
+	if (ret) {
+		ret = allocate_resource(&iomem_resource, res,
+					size, 0, -1,
+					PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
+		if (ret < 0) {
+			pr_err("Cannot allocate new System RAM resource\n");
+			kfree(res);
+			return NULL;
+		}
 	}
 
 #ifdef CONFIG_SPARSEMEM
@@ -287,6 +331,7 @@ static struct resource *additional_memory_resource(phys_addr_t size)
 			pr_err("New System RAM resource outside addressable RAM (%lu > %lu)\n",
 			       pfn, limit);
 			release_memory_resource(res);
+			release_memory_resource(res_hostmem);
 			return NULL;
 		}
 	}
@@ -765,6 +810,8 @@ static int __init balloon_init(void)
 	set_online_page_callback(&xen_online_page);
 	register_memory_notifier(&xen_memory_nb);
 	register_sysctl_table(xen_root);
+
+	arch_xen_balloon_init(&hostmem_resource);
 #endif
 
 #ifdef CONFIG_XEN_PV
