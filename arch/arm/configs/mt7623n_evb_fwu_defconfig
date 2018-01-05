@@ -283,3 +283,7 @@ CONFIG_PWM_MEDIATEK=m
 #Temperature sensor driver for mediatek SoCs
 CONFIG_THERMAL=m
 CONFIG_MTK_THERMAL=m
+
+#HDMI
+CONFIG_DRM=m
+CONFIG_DRM_MEDIATEK=m

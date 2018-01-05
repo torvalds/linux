@@ -14,8 +14,8 @@ function prepare_SD
   cd $(dirname $0)
   mkdir -p ../SD
   echo "cleanup..."
-  rm -r $SD/BPI-BOOT/
-  rm -r $SD/BPI-ROOT/
+  rm -r $SD/BPI-BOOT/ 2>/dev/null
+  rm -r $SD/BPI-ROOT/ 2>/dev/null
   mkdir -p $SD/BPI-BOOT/bananapi/bpi-r2/linux/
   mkdir -p $SD/BPI-ROOT/lib/modules
   mkdir -p $SD/BPI-ROOT/etc/firmware
@@ -45,7 +45,7 @@ then
   CFLAGS=-j$(grep ^processor /proc/cpuinfo  | wc -l)
   export INSTALL_MOD_PATH=$(dirname $(pwd))/mod/;export ARCH=arm;export CROSS_COMPILE=arm-linux-gnueabihf-
   if [[ ! -z ${#INSTALL_MOD_PATH}  ]]; then
-    rm -r $INSTALL_MOD_PATH/lib/modules
+    rm -r $INSTALL_MOD_PATH/lib/modules 2>/dev/null
     #echo $INSTALL_MOD_PATH
   fi
 
