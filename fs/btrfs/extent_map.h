@@ -91,4 +91,6 @@ int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len, u64 gen
 void clear_em_logging(struct extent_map_tree *tree, struct extent_map *em);
 struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 					 u64 start, u64 len);
+int btrfs_add_extent_mapping(struct extent_map_tree *em_tree,
+			     struct extent_map **em_in, u64 start, u64 len);
 #endif
