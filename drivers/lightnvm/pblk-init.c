@@ -355,6 +355,8 @@ static void pblk_core_free(struct pblk *pblk)
 	mempool_destroy(pblk->e_rq_pool);
 	mempool_destroy(pblk->w_rq_pool);
 
+	pblk_rwb_free(pblk);
+
 	pblk_free_global_caches(pblk);
 }
 
@@ -931,7 +933,6 @@ static void pblk_tear_down(struct pblk *pblk)
 	pblk_pipeline_stop(pblk);
 	pblk_writer_stop(pblk);
 	pblk_rb_sync_l2p(&pblk->rwb);
-	pblk_rwb_free(pblk);
 	pblk_rl_free(&pblk->rl);
 
 	pr_debug("pblk: consistent tear down\n");
