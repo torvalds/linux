@@ -369,6 +369,11 @@ config TOUCHSCREEN_GSL3673
 	help
 	  gsl3673 touchpad driver for evb
 
+config TOUCHSCREEN_GSL3673_800X1280
+	tristate "gsl3673 touchpad driver for rk3326 board"
+	help
+	  gsl3673 touchpad driver for rk3326 board
+
 config TOUCHSCREEN_GT9XX
 	tristate "Goodix gt9xx support for rockchip platform"
 	depends on I2C && ARCH_ROCKCHIP
