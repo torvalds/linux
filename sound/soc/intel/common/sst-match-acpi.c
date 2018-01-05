@@ -83,11 +83,9 @@ struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines)
 
 	for (mach = machines; mach->id[0]; mach++) {
 		if (sst_acpi_check_hid(mach->id) == true) {
-			if (mach->machine_quirk == NULL)
-				return mach;
-
-			if (mach->machine_quirk(mach) != NULL)
-				return mach;
+			if (mach->machine_quirk)
+				mach = mach->machine_quirk(mach);
+			return mach;
 		}
 	}
 	return NULL;
