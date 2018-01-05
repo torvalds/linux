@@ -1320,7 +1320,7 @@ megasas_get_map_info(struct megasas_instance *instance)
 
 	fusion->fast_path_io = 0;
 	if (!megasas_get_ld_map_info(instance)) {
-		if (MR_ValidateMapInfo(instance)) {
+		if (MR_ValidateMapInfo(instance, instance->map_id)) {
 			fusion->fast_path_io = 1;
 			return 0;
 		}

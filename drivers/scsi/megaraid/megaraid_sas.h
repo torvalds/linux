@@ -230,7 +230,7 @@ enum MFI_CMD_OP {
 /*
  * Global functions
  */
-extern u8 MR_ValidateMapInfo(struct megasas_instance *instance);
+extern u8 MR_ValidateMapInfo(struct megasas_instance *instance, u64 map_id);
 
 
 /*

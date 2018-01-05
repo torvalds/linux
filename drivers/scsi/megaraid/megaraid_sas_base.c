@@ -3331,10 +3331,10 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			&& (cmd->frame->dcmd.mbox.b[1] == 1)) {
 			fusion->fast_path_io = 0;
 			spin_lock_irqsave(instance->host->host_lock, flags);
+			status = cmd->frame->hdr.cmd_status;
 			instance->map_update_cmd = NULL;
-			if (cmd->frame->hdr.cmd_status != 0) {
-				if (cmd->frame->hdr.cmd_status !=
-				    MFI_STAT_NOT_FOUND)
+			if (status != MFI_STAT_OK) {
+				if (status != MFI_STAT_NOT_FOUND)
 					dev_warn(&instance->pdev->dev, "map syncfailed, status = 0x%x\n",
 					       cmd->frame->hdr.cmd_status);
 				else {
@@ -3344,8 +3344,8 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 						flags);
 					break;
 				}
-			} else
-				instance->map_id++;
+			}
+
 			megasas_return_cmd(instance, cmd);
 
 			/*
@@ -3353,10 +3353,14 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			 * Validate Map will set proper value.
 			 * Meanwhile all IOs will go as LD IO.
 			 */
-			if (MR_ValidateMapInfo(instance))
+			if (status == MFI_STAT_OK &&
+			    (MR_ValidateMapInfo(instance, (instance->map_id + 1)))) {
+				instance->map_id++;
 				fusion->fast_path_io = 1;
-			else
+			} else {
 				fusion->fast_path_io = 0;
+			}
+
 			megasas_sync_map_info(instance);
 			spin_unlock_irqrestore(instance->host->host_lock,
 					       flags);
@@ -5432,7 +5436,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		ctrl_info->adapterOperations2.supportUnevenSpans;
 	if (instance->UnevenSpanSupport) {
 		struct fusion_context *fusion = instance->ctrl_context;
-		if (MR_ValidateMapInfo(instance))
+		if (MR_ValidateMapInfo(instance, instance->map_id))
 			fusion->fast_path_io = 1;
 		else
 			fusion->fast_path_io = 0;
