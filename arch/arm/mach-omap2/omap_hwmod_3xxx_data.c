@@ -1190,10 +1190,6 @@ static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod = {
 };
 
 /* SR common */
-static struct omap_hwmod_sysc_fields omap34xx_sr_sysc_fields = {
-	.clkact_shift	= 20,
-};
-
 static struct omap_hwmod_class_sysconfig omap34xx_sr_sysc = {
 	.sysc_offs	= 0x24,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_NO_CACHE),
@@ -1204,11 +1200,6 @@ static struct omap_hwmod_class omap34xx_smartreflex_hwmod_class = {
 	.name = "smartreflex",
 	.sysc = &omap34xx_sr_sysc,
 	.rev  = 1,
-};
-
-static struct omap_hwmod_sysc_fields omap36xx_sr_sysc_fields = {
-	.sidle_shift	= 24,
-	.enwkup_shift	= 26,
 };
 
 static struct omap_hwmod_class_sysconfig omap36xx_sr_sysc = {
@@ -2732,12 +2723,6 @@ static struct omap_hwmod_ocp_if omap3xxx_l3_main__gpmc = {
 };
 
 /* l4_core -> SHAM2 (SHA1/MD5) (similar to omap24xx) */
-static struct omap_hwmod_sysc_fields omap3_sham_sysc_fields = {
-	.sidle_shift	= 4,
-	.srst_shift	= 1,
-	.autoidle_shift	= 0,
-};
-
 static struct omap_hwmod_class_sysconfig omap3_sham_sysc = {
 	.rev_offs	= 0x5c,
 	.sysc_offs	= 0x60,
@@ -2778,12 +2763,6 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__sham = {
 };
 
 /* l4_core -> AES */
-static struct omap_hwmod_sysc_fields omap3xxx_aes_sysc_fields = {
-	.sidle_shift	= 6,
-	.srst_shift	= 1,
-	.autoidle_shift	= 0,
-};
-
 static struct omap_hwmod_class_sysconfig omap3_aes_sysc = {
 	.rev_offs	= 0x44,
 	.sysc_offs	= 0x48,

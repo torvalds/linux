@@ -383,7 +383,7 @@
 		};
 
 		target-module@48076000 {
-			compatible = "ti,sysc-omap4";
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "slimbus2";
 			reg = <0x48076000 0x4>,
 			      <0x48076010 0x4>;
@@ -456,7 +456,7 @@
 		};
 
 		target-module@4a0db000 {
-			compatible = "ti,sysc-sr";
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
 			ti,hwmods = "smartreflex_iva";
 			reg = <0x4a0db000 0x4>,
 			      <0x4a0db008 0x4>;
@@ -473,7 +473,7 @@
 		};
 
 		target-module@4a0dd000 {
-			compatible = "ti,sysc-sr";
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
 			ti,hwmods = "smartreflex_core";
 			reg = <0x4a0dd000 0x4>,
 			      <0x4a0dd008 0x4>;
@@ -490,7 +490,7 @@
 		};
 
 		target-module@4a0d9000 {
-			compatible = "ti,sysc-sr";
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
 			ti,hwmods = "smartreflex_mpu";
 			reg = <0x4a0d9000 0x4>,
 			      <0x4a0d9008 0x4>;
@@ -710,7 +710,7 @@
 		};
 
 		target-module@52000000 {
-			compatible = "ti,sysc-omap4";
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "iss";
 			reg = <0x52000000 0x4>,
 			      <0x52000010 0x4>;
@@ -817,7 +817,7 @@
 		};
 
 		target-module@40128000 {
-			compatible = "ti,sysc-mcasp";
+			compatible = "ti,sysc-mcasp", "ti,sysc";
 			ti,hwmods = "mcasp";
 			reg = <0x40128004 0x4>;
 			reg-names = "sysc";
@@ -835,7 +835,7 @@
 		};
 
 		target-module@4012c000 {
-			compatible = "ti,sysc-omap4";
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "slimbus1";
 			reg = <0x4012c000 0x4>,
 			      <0x4012c010 0x4>;
@@ -849,7 +849,7 @@
 		};
 
 		target-module@401f1000 {
-			compatible = "ti,sysc-omap4";
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "aess";
 			reg = <0x401f1000 0x4>,
 			      <0x401f1010 0x4>;
@@ -955,7 +955,7 @@
 		};
 
 		target-module@4a10a000 {
-			compatible = "ti,sysc-omap4";
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "fdif";
 			reg = <0x4a10a000 0x4>,
 			      <0x4a10a010 0x4>;
@@ -1182,7 +1182,7 @@
 		};
 
 		target-module@56000000 {
-			compatible = "ti,sysc-omap4";
+			compatible = "ti,sysc-omap4", "ti,sysc";
 			ti,hwmods = "gpu";
 			reg = <0x5601fc00 0x4>,
 			      <0x5601fc10 0x4>;

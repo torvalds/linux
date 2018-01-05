@@ -1498,7 +1498,7 @@
 		};
 
 		target-module@4a0dd000 {
-			compatible = "ti,sysc-omap4-sr";
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
 			ti,hwmods = "smartreflex_core";
 			reg = <0x4a0dd000 0x4>,
 			      <0x4a0dd008 0x4>;
@@ -1511,7 +1511,7 @@
 		};
 
 		target-module@4a0d9000 {
-			compatible = "ti,sysc-omap4-sr";
+			compatible = "ti,sysc-omap4-sr", "ti,sysc";
 			ti,hwmods = "smartreflex_mpu";
 			reg = <0x4a0d9000 0x4>,
 			      <0x4a0d9008 0x4>;

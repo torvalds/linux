@@ -1658,10 +1658,6 @@ static struct omap_hwmod omap44xx_mailbox_hwmod = {
  */
 
 /* The IP is not compliant to type1 / type2 scheme */
-static struct omap_hwmod_sysc_fields omap_hwmod_sysc_type_mcasp = {
-	.sidle_shift	= 0,
-};
-
 static struct omap_hwmod_class_sysconfig omap44xx_mcasp_sysc = {
 	.sysc_offs	= 0x0004,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE,
@@ -2403,17 +2399,12 @@ static struct omap_hwmod omap44xx_slimbus2_hwmod = {
  */
 
 /* The IP is not compliant to type1 / type2 scheme */
-static struct omap_hwmod_sysc_fields omap_hwmod_sysc_type_smartreflex = {
-	.sidle_shift	= 24,
-	.enwkup_shift	= 26,
-};
-
 static struct omap_hwmod_class_sysconfig omap44xx_smartreflex_sysc = {
 	.sysc_offs	= 0x0038,
 	.sysc_flags	= (SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
 			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type_smartreflex,
+	.sysc_fields	= &omap36xx_sr_sysc_fields,
 };
 
 static struct omap_hwmod_class omap44xx_smartreflex_hwmod_class = {
@@ -2844,12 +2835,6 @@ static struct omap_hwmod omap44xx_uart4_hwmod = {
  */
 
 /* The IP is not compliant to type1 / type2 scheme */
-static struct omap_hwmod_sysc_fields omap_hwmod_sysc_type_usb_host_fs = {
-	.midle_shift	= 4,
-	.sidle_shift	= 2,
-	.srst_shift	= 1,
-};
-
 static struct omap_hwmod_class_sysconfig omap44xx_usb_host_fs_sysc = {
 	.rev_offs	= 0x0000,
 	.sysc_offs	= 0x0210,
