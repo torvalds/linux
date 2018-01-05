@@ -793,7 +793,7 @@ struct fe_priv {
 	/* rx specific fields.
 	 * Locking: Within irq hander or disable_irq+spin_lock(&np->lock);
 	 */
-	union ring_type get_rx, put_rx, first_rx, last_rx;
+	union ring_type get_rx, put_rx, last_rx;
 	struct nv_skb_map *get_rx_ctx, *put_rx_ctx;
 	struct nv_skb_map *first_rx_ctx, *last_rx_ctx;
 	struct nv_skb_map *rx_skb;
@@ -1812,7 +1812,7 @@ static int nv_alloc_rx(struct net_device *dev)
 	struct ring_desc *less_rx;
 
 	less_rx = np->get_rx.orig;
-	if (less_rx-- == np->first_rx.orig)
+	if (less_rx-- == np->rx_ring.orig)
 		less_rx = np->last_rx.orig;
 
 	while (np->put_rx.orig != less_rx) {
@@ -1833,7 +1833,7 @@ static int nv_alloc_rx(struct net_device *dev)
 			wmb();
 			np->put_rx.orig->flaglen = cpu_to_le32(np->rx_buf_sz | NV_RX_AVAIL);
 			if (unlikely(np->put_rx.orig++ == np->last_rx.orig))
-				np->put_rx.orig = np->first_rx.orig;
+				np->put_rx.orig = np->rx_ring.orig;
 			if (unlikely(np->put_rx_ctx++ == np->last_rx_ctx))
 				np->put_rx_ctx = np->first_rx_ctx;
 		} else {
@@ -1853,7 +1853,7 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 	struct ring_desc_ex *less_rx;
 
 	less_rx = np->get_rx.ex;
-	if (less_rx-- == np->first_rx.ex)
+	if (less_rx-- == np->rx_ring.ex)
 		less_rx = np->last_rx.ex;
 
 	while (np->put_rx.ex != less_rx) {
@@ -1875,7 +1875,7 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 			wmb();
 			np->put_rx.ex->flaglen = cpu_to_le32(np->rx_buf_sz | NV_RX2_AVAIL);
 			if (unlikely(np->put_rx.ex++ == np->last_rx.ex))
-				np->put_rx.ex = np->first_rx.ex;
+				np->put_rx.ex = np->rx_ring.ex;
 			if (unlikely(np->put_rx_ctx++ == np->last_rx_ctx))
 				np->put_rx_ctx = np->first_rx_ctx;
 		} else {
@@ -1903,7 +1903,8 @@ static void nv_init_rx(struct net_device *dev)
 	struct fe_priv *np = netdev_priv(dev);
 	int i;
 
-	np->get_rx = np->put_rx = np->first_rx = np->rx_ring;
+	np->get_rx = np->rx_ring;
+	np->put_rx = np->rx_ring;
 
 	if (!nv_optimized(np))
 		np->last_rx.orig = &np->rx_ring.orig[np->rx_ring_size-1];
@@ -2911,7 +2912,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 		u64_stats_update_end(&np->swstats_rx_syncp);
 next_pkt:
 		if (unlikely(np->get_rx.orig++ == np->last_rx.orig))
-			np->get_rx.orig = np->first_rx.orig;
+			np->get_rx.orig = np->rx_ring.orig;
 		if (unlikely(np->get_rx_ctx++ == np->last_rx_ctx))
 			np->get_rx_ctx = np->first_rx_ctx;
 
@@ -3000,7 +3001,7 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 		}
 next_pkt:
 		if (unlikely(np->get_rx.ex++ == np->last_rx.ex))
-			np->get_rx.ex = np->first_rx.ex;
+			np->get_rx.ex = np->rx_ring.ex;
 		if (unlikely(np->get_rx_ctx++ == np->last_rx_ctx))
 			np->get_rx_ctx = np->first_rx_ctx;
 
