@@ -71,14 +71,6 @@ struct fscrypt_operations {
 	unsigned (*max_namelen)(struct inode *);
 };
 
-static inline bool fscrypt_dummy_context_enabled(struct inode *inode)
-{
-	if (inode->i_sb->s_cop->dummy_context &&
-				inode->i_sb->s_cop->dummy_context(inode))
-		return true;
-	return false;
-}
-
 static inline bool fscrypt_valid_enc_modes(u32 contents_mode,
 					u32 filenames_mode)
 {
