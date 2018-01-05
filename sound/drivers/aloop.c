@@ -39,6 +39,7 @@
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/info.h>
 #include <sound/initval.h>
 
@@ -622,14 +623,12 @@ static int rule_format(struct snd_pcm_hw_params *params,
 {
 
 	struct snd_pcm_hardware *hw = rule->private;
-	struct snd_mask *maskp = hw_param_mask(params, rule->var);
+	struct snd_mask m;
 
-	maskp->bits[0] &= (u_int32_t)hw->formats;
-	maskp->bits[1] &= (u_int32_t)(hw->formats >> 32);
-	memset(maskp->bits + 2, 0, (SNDRV_MASK_MAX-64) / 8); /* clear rest */
-	if (! maskp->bits[0] && ! maskp->bits[1])
-		return -EINVAL;
-	return 0;
+	snd_mask_none(&m);
+	m.bits[0] = (u_int32_t)hw->formats;
+	m.bits[1] = (u_int32_t)(hw->formats >> 32);
+	return snd_mask_refine(hw_param_mask(params, rule->var), &m);
 }
 
 static int rule_rate(struct snd_pcm_hw_params *params,
