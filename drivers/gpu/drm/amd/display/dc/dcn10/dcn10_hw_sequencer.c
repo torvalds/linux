@@ -133,7 +133,7 @@ void dcn10_log_hw_state(struct dc *dc)
 		DTN_INFO("[%d]:\t %xh \t %xh \t %d \t %d \t "
 				"%xh \t %xh \t %xh \t "
 				"%d \t %d \t %d \t %xh \t",
-				i,
+				hubp->inst,
 				s.pixel_format,
 				s.inuse_addr_hi,
 				s.viewport_width,
@@ -155,7 +155,7 @@ void dcn10_log_hw_state(struct dc *dc)
 	DTN_INFO("OTG:\t v_bs \t v_be \t v_ss \t v_se \t vpol \t vmax \t vmin \t "
 			"h_bs \t h_be \t h_ss \t h_se \t hpol \t htot \t vtot \t underflow\n");
 
-	for (i = 0; i < pool->res_cap->num_timing_generator; i++) {
+	for (i = 0; i < pool->timing_generator_count; i++) {
 		struct timing_generator *tg = pool->timing_generators[i];
 		struct dcn_otg_state s = {0};
 
@@ -168,7 +168,7 @@ void dcn10_log_hw_state(struct dc *dc)
 		DTN_INFO("[%d]:\t %d \t %d \t %d \t %d \t "
 				"%d \t %d \t %d \t %d \t %d \t %d \t "
 				"%d \t %d \t %d \t %d \t %d \t ",
-				i,
+				tg->inst,
 				s.v_blank_start,
 				s.v_blank_end,
 				s.v_sync_a_start,

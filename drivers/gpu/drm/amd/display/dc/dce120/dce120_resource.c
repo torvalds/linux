@@ -831,6 +831,7 @@ static bool construct(
 
 	/* TODO: Fill more data from GreenlandAsicCapability.cpp */
 	pool->base.pipe_count = res_cap.num_timing_generator;
+	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 
 	dc->caps.max_downscale_ratio = 200;
