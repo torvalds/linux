@@ -367,17 +367,17 @@ static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
 	flush_point = (pos == 0) ? (rb->nr_entries - 1) : (pos - 1);
 	entry = &rb->entries[flush_point];
 
+	pblk_rb_sync_init(rb, NULL);
+
 	/* Protect flush points */
 	smp_store_release(&rb->flush_point, flush_point);
 
-	if (!bio)
-		return 0;
+	if (bio)
+		bio_list_add(&entry->w_ctx.bios, bio);
 
-	spin_lock_irq(&rb->s_lock);
-	bio_list_add(&entry->w_ctx.bios, bio);
-	spin_unlock_irq(&rb->s_lock);
+	pblk_rb_sync_end(rb, NULL);
 
-	return 1;
+	return bio ? 1 : 0;
 }
 
 static int __pblk_rb_may_write(struct pblk_rb *rb, unsigned int nr_entries,
