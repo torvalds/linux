@@ -65,7 +65,7 @@ struct sockaddr_l2tpip6 {
  * TUNNEL_MODIFY	- CONN_ID, udpcsum
  * TUNNEL_GETSTATS	- CONN_ID, (stats)
  * TUNNEL_GET		- CONN_ID, (...)
- * SESSION_CREATE	- SESSION_ID, PW_TYPE, offset, data_seq, cookie, peer_cookie, offset, l2spec
+ * SESSION_CREATE	- SESSION_ID, PW_TYPE, data_seq, cookie, peer_cookie, l2spec
  * SESSION_DELETE	- SESSION_ID
  * SESSION_MODIFY	- SESSION_ID, data_seq
  * SESSION_GET		- SESSION_ID, (...)

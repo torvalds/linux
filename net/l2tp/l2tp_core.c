@@ -662,10 +662,9 @@ discard:
  * |x|S|x|x|x|x|x|x|              Sequence Number                  |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
- * Cookie value, sublayer format and offset (pad) are negotiated with
- * the peer when the session is set up. Unlike L2TPv2, we do not need
- * to parse the packet header to determine if optional fields are
- * present.
+ * Cookie value and sublayer format are negotiated with the peer when
+ * the session is set up. Unlike L2TPv2, we do not need to parse the
+ * packet header to determine if optional fields are present.
  *
  * Caller must already have parsed the frame and determined that it is
  * a data (not control) frame before coming here. Fields up to the
