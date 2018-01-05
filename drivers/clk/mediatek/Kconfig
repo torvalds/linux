@@ -6,6 +6,7 @@ menu "Clock driver for MediaTek SoC"
 
 config COMMON_CLK_MEDIATEK
 	bool
+	select RESET_CONTROLLER
 	---help---
 	  MediaTek SoCs' clock support.
 
