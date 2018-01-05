@@ -526,22 +526,12 @@ void pblk_gc_should_start(struct pblk *pblk)
 	}
 }
 
-/*
- * If flush_wq == 1 then no lock should be held by the caller since
- * flush_workqueue can sleep
- */
-static void pblk_gc_stop(struct pblk *pblk, int flush_wq)
-{
-	pblk->gc.gc_active = 0;
-	pr_debug("pblk: gc stop\n");
-}
-
 void pblk_gc_should_stop(struct pblk *pblk)
 {
 	struct pblk_gc *gc = &pblk->gc;
 
 	if (gc->gc_active && !gc->gc_forced)
-		pblk_gc_stop(pblk, 0);
+		gc->gc_active = 0;
 }
 
 void pblk_gc_should_kick(struct pblk *pblk)
@@ -667,7 +657,7 @@ void pblk_gc_exit(struct pblk *pblk)
 
 	gc->gc_enabled = 0;
 	del_timer_sync(&gc->gc_timer);
-	pblk_gc_stop(pblk, 1);
+	gc->gc_active = 0;
 
 	if (gc->gc_ts)
 		kthread_stop(gc->gc_ts);
