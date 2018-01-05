@@ -4620,7 +4620,6 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 {
 	struct bio *bio;
 	struct btrfs_device *dev;
-	int ret;
 
 	dev = sctx->wr_tgtdev;
 	if (!dev)
@@ -4635,16 +4634,14 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 	bio->bi_iter.bi_sector = physical_for_dev_replace >> 9;
 	bio_set_dev(bio, dev->bdev);
 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC;
-	ret = bio_add_page(bio, page, PAGE_SIZE, 0);
-	if (ret != PAGE_SIZE) {
-leave_with_eio:
+	/* bio_add_page won't fail on a freshly allocated bio */
+	bio_add_page(bio, page, PAGE_SIZE, 0);
+
+	if (btrfsic_submit_bio_wait(bio)) {
 		bio_put(bio);
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_WRITE_ERRS);
 		return -EIO;
 	}
-
-	if (btrfsic_submit_bio_wait(bio))
-		goto leave_with_eio;
 
 	bio_put(bio);
 	return 0;
