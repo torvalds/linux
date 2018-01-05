@@ -3166,6 +3166,93 @@ static void alc256_shutup(struct hda_codec *codec)
 	snd_hda_shutup_pins(codec);
 }
 
+static void alc225_init(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t hp_pin = spec->gen.autocfg.hp_pins[0];
+	bool hp1_pin_sense, hp2_pin_sense;
+
+	if (!hp_pin)
+		return;
+
+	msleep(30);
+
+	hp1_pin_sense = snd_hda_jack_detect(codec, hp_pin);
+	hp2_pin_sense = snd_hda_jack_detect(codec, 0x16);
+
+	if (hp1_pin_sense || hp2_pin_sense)
+		msleep(2);
+
+	alc_update_coefex_idx(codec, 0x57, 0x04, 0x0007, 0x1); /* Low power */
+
+	if (hp1_pin_sense)
+		snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+	if (hp2_pin_sense)
+		snd_hda_codec_write(codec, 0x16, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+
+	if (hp1_pin_sense || hp2_pin_sense)
+		msleep(85);
+
+	if (hp1_pin_sense)
+		snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+	if (hp2_pin_sense)
+		snd_hda_codec_write(codec, 0x16, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+
+	if (hp1_pin_sense || hp2_pin_sense)
+		msleep(100);
+
+	alc_update_coef_idx(codec, 0x4a, 3 << 10, 0);
+	alc_update_coefex_idx(codec, 0x57, 0x04, 0x0007, 0x4); /* Hight power */
+}
+
+static void alc225_shutup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t hp_pin = spec->gen.autocfg.hp_pins[0];
+	bool hp1_pin_sense, hp2_pin_sense;
+
+	if (!hp_pin) {
+		alc269_shutup(codec);
+		return;
+	}
+
+	/* 3k pull low control for Headset jack. */
+	alc_update_coef_idx(codec, 0x4a, 0, 3 << 10);
+
+	hp1_pin_sense = snd_hda_jack_detect(codec, hp_pin);
+	hp2_pin_sense = snd_hda_jack_detect(codec, 0x16);
+
+	if (hp1_pin_sense || hp2_pin_sense)
+		msleep(2);
+
+	if (hp1_pin_sense)
+		snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+	if (hp2_pin_sense)
+		snd_hda_codec_write(codec, 0x16, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+
+	if (hp1_pin_sense || hp2_pin_sense)
+		msleep(85);
+
+	if (hp1_pin_sense)
+		snd_hda_codec_write(codec, hp_pin, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
+	if (hp2_pin_sense)
+		snd_hda_codec_write(codec, 0x16, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
+
+	if (hp1_pin_sense || hp2_pin_sense)
+		msleep(100);
+
+	alc_auto_setup_eapd(codec, false);
+	snd_hda_shutup_pins(codec);
+}
+
 static void alc_default_init(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -4569,6 +4656,12 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 	case 0x10ec0225:
 	case 0x10ec0295:
 	case 0x10ec0299:
+		snd_hda_codec_write(codec, 0x21, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+		msleep(80);
+		snd_hda_codec_write(codec, 0x21, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
+
 		alc_process_coef_fw(codec, alc225_pre_hsmode);
 		alc_update_coef_idx(codec, 0x67, 0xf000, 0x1000);
 		val = alc_read_coef_idx(codec, 0x45);
@@ -4588,6 +4681,12 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		alc_update_coef_idx(codec, 0x4a, 7<<6, 7<<6);
 		alc_update_coef_idx(codec, 0x4a, 3<<4, 3<<4);
 		alc_update_coef_idx(codec, 0x67, 0xf000, 0x3000);
+
+		snd_hda_codec_write(codec, 0x21, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+		msleep(80);
+		snd_hda_codec_write(codec, 0x21, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
 		break;
 	case 0x10ec0867:
 		is_ctia = true;
@@ -6925,6 +7024,8 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0295:
 	case 0x10ec0299:
 		spec->codec_variant = ALC269_TYPE_ALC225;
+		spec->shutup = alc225_shutup;
+		spec->init_hook = alc225_init;
 		spec->gen.mixer_nid = 0; /* no loopback on ALC225, ALC295 and ALC299 */
 		break;
 	case 0x10ec0234:
