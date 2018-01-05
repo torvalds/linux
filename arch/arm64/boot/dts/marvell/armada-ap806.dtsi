@@ -285,6 +285,12 @@
 					gpio-ranges = <&ap_pinctrl 0 0 20>;
 				};
 			};
+
+			ap_thermal: thermal@6f808C {
+				compatible = "marvell,armada-ap806-thermal";
+				reg = <0x6f808C 0x4>,
+				      <0x6f8084 0x8>;
+			};
 		};
 	};
 };

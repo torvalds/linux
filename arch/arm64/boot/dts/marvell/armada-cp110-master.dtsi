@@ -182,6 +182,12 @@
 				interrupts = <ICU_GRP_NSR 77 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
+			cpm_thermal: thermal@400078 {
+				compatible = "marvell,armada-cp110-thermal";
+				reg = <0x400078 0x4>,
+				      <0x400070 0x8>;
+			};
+
 			cpm_syscon0: system-controller@440000 {
 				compatible = "syscon", "simple-mfd";
 				reg = <0x440000 0x2000>;

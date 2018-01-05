@@ -72,5 +72,22 @@
 &cps_syscon0 {
 	cps_pinctrl: pinctrl {
 		compatible = "marvell,armada-8k-cps-pinctrl";
+
+		nand_pins: nand-pins {
+			marvell,pins =
+			"mpp0", "mpp1", "mpp2", "mpp3",
+			"mpp4", "mpp5", "mpp6", "mpp7",
+			"mpp8", "mpp9", "mpp10", "mpp11",
+			"mpp15", "mpp16", "mpp17", "mpp18",
+			"mpp19", "mpp20", "mpp21", "mpp22",
+			"mpp23", "mpp24", "mpp25", "mpp26",
+			"mpp27";
+			marvell,function = "dev";
+		};
+
+		nand_rb: nand-rb {
+			marvell,pins = "mpp13", "mpp12";
+			marvell,function = "nf";
+		};
 	};
 };
