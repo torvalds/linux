@@ -373,6 +373,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-aristainetos2_7.dtb \
 	imx6dl-colibri-eval-v3.dtb \
 	imx6dl-cubox-i.dtb \
+	imx6dl-cubox-i-emmc-som-v15.dtb \
+	imx6dl-cubox-i-som-v15.dtb \
 	imx6dl-dfi-fs700-m60.dtb \
 	imx6dl-gw51xx.dtb \
 	imx6dl-gw52xx.dtb \
@@ -385,6 +387,11 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-gw5903.dtb \
 	imx6dl-gw5904.dtb \
 	imx6dl-hummingboard.dtb \
+	imx6dl-hummingboard-emmc-som-v15.dtb \
+	imx6dl-hummingboard-som-v15.dtb \
+	imx6dl-hummingboard2.dtb \
+	imx6dl-hummingboard2-emmc-som-v15.dtb \
+	imx6dl-hummingboard2-som-v15.dtb \
 	imx6dl-icore.dtb \
 	imx6dl-icore-rqs.dtb \
 	imx6dl-nit6xlite.dtb \
@@ -397,6 +404,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-sabresd.dtb \
 	imx6dl-savageboard.dtb \
 	imx6dl-ts4900.dtb \
+	imx6dl-ts7970.dtb \
 	imx6dl-tx6dl-comtft.dtb \
 	imx6dl-tx6s-8034.dtb \
 	imx6dl-tx6s-8034-mb7.dtb \
@@ -422,6 +430,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-b850v3.dtb \
 	imx6q-cm-fx6.dtb \
 	imx6q-cubox-i.dtb \
+	imx6q-cubox-i-emmc-som-v15.dtb \
+	imx6q-cubox-i-som-v15.dtb \
 	imx6q-dfi-fs700-m60.dtb \
 	imx6q-display5-tianma-tm070-1280x768.dtb \
 	imx6q-dmo-edmqmx6.dtb \
@@ -440,6 +450,11 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-gw5904.dtb \
 	imx6q-h100.dtb \
 	imx6q-hummingboard.dtb \
+	imx6q-hummingboard-emmc-som-v15.dtb \
+	imx6q-hummingboard-som-v15.dtb \
+	imx6q-hummingboard2.dtb \
+	imx6q-hummingboard2-emmc-som-v15.dtb \
+	imx6q-hummingboard2-som-v15.dtb \
 	imx6q-icore.dtb \
 	imx6q-icore-ofcap10.dtb \
 	imx6q-icore-ofcap12.dtb \
@@ -460,6 +475,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-sbc6x.dtb \
 	imx6q-tbs2910.dtb \
 	imx6q-ts4900.dtb \
+	imx6q-ts7970.dtb \
 	imx6q-tx6q-1010.dtb \
 	imx6q-tx6q-1010-comtft.dtb \
 	imx6q-tx6q-1020.dtb \
@@ -471,6 +487,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-tx6q-11x0-mb7.dtb \
 	imx6q-udoo.dtb \
 	imx6q-utilite-pro.dtb \
+	imx6q-var-dt6customboard.dtb \
 	imx6q-wandboard.dtb \
 	imx6q-wandboard-revb1.dtb \
 	imx6q-wandboard-revd1.dtb \
@@ -512,15 +529,17 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ull-14x14-evk.dtb
 dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-cl-som-imx7.dtb \
+	imx7d-colibri-emmc-eval-v3.dtb \
 	imx7d-colibri-eval-v3.dtb \
 	imx7d-nitrogen7.dtb \
-	imx7d-pico.dtb \
+	imx7d-pico-pi.dtb \
 	imx7d-sbc-imx7.dtb \
 	imx7d-sdb.dtb \
 	imx7d-sdb-sht11.dtb \
 	imx7s-colibri-eval-v3.dtb \
 	imx7s-warp.dtb
 dtb-$(CONFIG_SOC_LS1021A) += \
+	ls1021a-moxa-uc-8410a.dtb \
 	ls1021a-qds.dtb \
 	ls1021a-twr.dtb
 dtb-$(CONFIG_SOC_VF610) += \
@@ -559,6 +578,7 @@ dtb-$(CONFIG_ARCH_MXS) += \
 	imx28-m28cu3.dtb \
 	imx28-m28evk.dtb \
 	imx28-sps1.dtb \
+	imx28-ts4600.dtb \
 	imx28-tx28.dtb
 dtb-$(CONFIG_ARCH_NOMADIK) += \
 	ste-nomadik-s8815.dtb \

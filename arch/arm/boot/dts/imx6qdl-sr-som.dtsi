@@ -1,9 +1,6 @@
 /*
  * Copyright (C) 2013,2014 Russell King
  *
- * This describes the hookup for an AR8035 to the iMX6 on the SolidRun
- * MicroSOM.
- *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
  * licensing only applies to this file, and not this project as a
@@ -41,6 +38,18 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	vcc_3v3: regulator-vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-name = "vcc_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_microsom_enet_ar8035>;
@@ -51,7 +60,7 @@
 };
 
 &iomuxc {
-	enet {
+	microsom {
 		pinctrl_microsom_enet_ar8035: microsom-enet-ar8035 {
 			fsl,pins = <
 				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b8b0
@@ -59,10 +68,10 @@
 				/* AR8035 reset */
 				MX6QDL_PAD_KEY_ROW4__GPIO4_IO15		0x130b0
 				/* AR8035 interrupt */
-				MX6QDL_PAD_DI0_PIN2__GPIO4_IO18		0x80000000
+				MX6QDL_PAD_DI0_PIN2__GPIO4_IO18		0x1b0b0
 				/* GPIO16 -> AR8035 25MHz */
-				MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0xc0000000
-				MX6QDL_PAD_RGMII_TXC__RGMII_TXC		0x80000000
+				MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0b0
+				MX6QDL_PAD_RGMII_TXC__RGMII_TXC		0x13030
 				MX6QDL_PAD_RGMII_TD0__RGMII_TD0		0x1b030
 				MX6QDL_PAD_RGMII_TD1__RGMII_TD1		0x1b030
 				MX6QDL_PAD_RGMII_TD2__RGMII_TD2		0x1b030
@@ -95,5 +104,18 @@
 				MX6QDL_PAD_ENET_RXD1__GPIO1_IO26	0x03000
 			>;
 		};
+
+		pinctrl_microsom_uart1: microsom-uart1 {
+			fsl,pins = <
+				MX6QDL_PAD_CSI0_DAT10__UART1_TX_DATA	0x1b0b1
+				MX6QDL_PAD_CSI0_DAT11__UART1_RX_DATA	0x1b0b1
+			>;
+		};
 	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_microsom_uart1>;
+	status = "okay";
 };
