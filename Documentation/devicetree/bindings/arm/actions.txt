@@ -26,6 +26,21 @@ Root node property compatible must contain, depending on board:
  - LeMaker Guitar Base Board rev. B: "lemaker,guitar-bb-rev-b", "lemaker,guitar"
 
 
+S700 SoC
+========
+
+Required root node properties:
+
+- compatible :  must contain "actions,s700"
+
+
+Boards:
+
+Root node property compatible must contain, depending on board:
+
+ - Cubietech CubieBoard7: "cubietech,cubieboard7"
+
+
 S900 SoC
 ========
 
