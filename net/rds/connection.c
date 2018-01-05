@@ -366,8 +366,6 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 	 * to the conn hash, so we never trigger a reconnect on this
 	 * conn - the reconnect is always triggered by the active peer. */
 	cancel_delayed_work_sync(&cp->cp_conn_w);
-	if (conn->c_destroy_in_prog)
-		return;
 	rcu_read_lock();
 	if (!hlist_unhashed(&conn->c_hash_node)) {
 		rcu_read_unlock();
@@ -384,10 +382,13 @@ static void rds_conn_path_destroy(struct rds_conn_path *cp)
 {
 	struct rds_message *rm, *rtmp;
 
+	set_bit(RDS_DESTROY_PENDING, &cp->cp_flags);
+
 	if (!cp->cp_transport_data)
 		return;
 
 	/* make sure lingering queued work won't try to ref the conn */
+	synchronize_rcu();
 	cancel_delayed_work_sync(&cp->cp_send_w);
 	cancel_delayed_work_sync(&cp->cp_recv_w);
 
@@ -404,6 +405,11 @@ static void rds_conn_path_destroy(struct rds_conn_path *cp)
 	}
 	if (cp->cp_xmit_rm)
 		rds_message_put(cp->cp_xmit_rm);
+
+	WARN_ON(delayed_work_pending(&cp->cp_send_w));
+	WARN_ON(delayed_work_pending(&cp->cp_recv_w));
+	WARN_ON(delayed_work_pending(&cp->cp_conn_w));
+	WARN_ON(work_pending(&cp->cp_down_w));
 
 	cp->cp_conn->c_trans->conn_free(cp->cp_transport_data);
 }
@@ -426,7 +432,6 @@ void rds_conn_destroy(struct rds_connection *conn)
 		 "%pI4\n", conn, &conn->c_laddr,
 		 &conn->c_faddr);
 
-	conn->c_destroy_in_prog = 1;
 	/* Ensure conn will not be scheduled for reconnect */
 	spin_lock_irq(&rds_conn_lock);
 	hlist_del_init_rcu(&conn->c_hash_node);
@@ -685,10 +690,13 @@ void rds_conn_path_drop(struct rds_conn_path *cp, bool destroy)
 {
 	atomic_set(&cp->cp_state, RDS_CONN_ERROR);
 
-	if (!destroy && cp->cp_conn->c_destroy_in_prog)
+	rcu_read_lock();
+	if (!destroy && test_bit(RDS_DESTROY_PENDING, &cp->cp_flags)) {
+		rcu_read_unlock();
 		return;
-
+	}
 	queue_work(rds_wq, &cp->cp_down_w);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(rds_conn_path_drop);
 
@@ -705,9 +713,15 @@ EXPORT_SYMBOL_GPL(rds_conn_drop);
  */
 void rds_conn_path_connect_if_down(struct rds_conn_path *cp)
 {
+	rcu_read_lock();
+	if (test_bit(RDS_DESTROY_PENDING, &cp->cp_flags)) {
+		rcu_read_unlock();
+		return;
+	}
 	if (rds_conn_path_state(cp) == RDS_CONN_DOWN &&
 	    !test_and_set_bit(RDS_RECONNECT_PENDING, &cp->cp_flags))
 		queue_delayed_work(rds_wq, &cp->cp_conn_w, 0);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(rds_conn_path_connect_if_down);
 
