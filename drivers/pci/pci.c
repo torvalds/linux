@@ -3066,6 +3066,81 @@ int pci_rebar_set_size(struct pci_dev *pdev, int bar, int size)
 }
 
 /**
+ * pci_enable_atomic_ops_to_root - enable AtomicOp requests to root port
+ * @dev: the PCI device
+ * @cap_mask: mask of desired AtomicOp sizes, including one or more of:
+ *	PCI_EXP_DEVCAP2_ATOMIC_COMP32
+ *	PCI_EXP_DEVCAP2_ATOMIC_COMP64
+ *	PCI_EXP_DEVCAP2_ATOMIC_COMP128
+ *
+ * Return 0 if all upstream bridges support AtomicOp routing, egress
+ * blocking is disabled on all upstream ports, and the root port supports
+ * the requested completion capabilities (32-bit, 64-bit and/or 128-bit
+ * AtomicOp completion), or negative otherwise.
+ */
+int pci_enable_atomic_ops_to_root(struct pci_dev *dev, u32 cap_mask)
+{
+	struct pci_bus *bus = dev->bus;
+	struct pci_dev *bridge;
+	u32 cap, ctl2;
+
+	if (!pci_is_pcie(dev))
+		return -EINVAL;
+
+	/*
+	 * Per PCIe r4.0, sec 6.15, endpoints and root ports may be
+	 * AtomicOp requesters.  For now, we only support endpoints as
+	 * requesters and root ports as completers.  No endpoints as
+	 * completers, and no peer-to-peer.
+	 */
+
+	switch (pci_pcie_type(dev)) {
+	case PCI_EXP_TYPE_ENDPOINT:
+	case PCI_EXP_TYPE_LEG_END:
+	case PCI_EXP_TYPE_RC_END:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	while (bus->parent) {
+		bridge = bus->self;
+
+		pcie_capability_read_dword(bridge, PCI_EXP_DEVCAP2, &cap);
+
+		switch (pci_pcie_type(bridge)) {
+		/* Ensure switch ports support AtomicOp routing */
+		case PCI_EXP_TYPE_UPSTREAM:
+		case PCI_EXP_TYPE_DOWNSTREAM:
+			if (!(cap & PCI_EXP_DEVCAP2_ATOMIC_ROUTE))
+				return -EINVAL;
+			break;
+
+		/* Ensure root port supports all the sizes we care about */
+		case PCI_EXP_TYPE_ROOT_PORT:
+			if ((cap & cap_mask) != cap_mask)
+				return -EINVAL;
+			break;
+		}
+
+		/* Ensure upstream ports don't block AtomicOps on egress */
+		if (!bridge->has_secondary_link) {
+			pcie_capability_read_dword(bridge, PCI_EXP_DEVCTL2,
+						   &ctl2);
+			if (ctl2 & PCI_EXP_DEVCTL2_ATOMIC_EGRESS_BLOCK)
+				return -EINVAL;
+		}
+
+		bus = bus->parent;
+	}
+
+	pcie_capability_set_word(dev, PCI_EXP_DEVCTL2,
+				 PCI_EXP_DEVCTL2_ATOMIC_REQ);
+	return 0;
+}
+EXPORT_SYMBOL(pci_enable_atomic_ops_to_root);
+
+/**
  * pci_swizzle_interrupt_pin - swizzle INTx for device behind bridge
  * @dev: the PCI device
  * @pin: the INTx pin (1=INTA, 2=INTB, 3=INTC, 4=INTD)
