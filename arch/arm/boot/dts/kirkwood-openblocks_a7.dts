@@ -53,7 +53,8 @@
 		};
 
 		pinctrl: pin-controller@10000 {
-			pinctrl-0 = <&pmx_dip_switches &pmx_gpio_header>;
+			pinctrl-0 = <&pmx_dip_switches &pmx_gpio_header
+				     &pmx_gpio_header_gpo>;
 			pinctrl-names = "default";
 
 			pmx_uart0: pmx-uart0 {
@@ -85,9 +86,14 @@
 			 * ground.
 			 */
 			pmx_gpio_header: pmx-gpio-header {
-				marvell,pins = "mpp17", "mpp7", "mpp29", "mpp28",
+				marvell,pins = "mpp17", "mpp29", "mpp28",
 					       "mpp35", "mpp34", "mpp40";
 				marvell,function = "gpio";
+			};
+
+			pmx_gpio_header_gpo: pxm-gpio-header-gpo {
+				marvell,pins = "mpp7";
+				marvell,function = "gpo";
 			};
 
 			pmx_gpio_init: pmx-init {
