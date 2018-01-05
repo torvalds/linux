@@ -21,13 +21,28 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 				    struct pblk_c_ctx *c_ctx)
 {
 	struct bio *original_bio;
+	struct pblk_rb *rwb = &pblk->rwb;
 	unsigned long ret;
 	int i;
 
 	for (i = 0; i < c_ctx->nr_valid; i++) {
 		struct pblk_w_ctx *w_ctx;
+		int pos = c_ctx->sentry + i;
+		int flags;
 
-		w_ctx = pblk_rb_w_ctx(&pblk->rwb, c_ctx->sentry + i);
+		w_ctx = pblk_rb_w_ctx(rwb, pos);
+		flags = READ_ONCE(w_ctx->flags);
+
+		if (flags & PBLK_FLUSH_ENTRY) {
+			flags &= ~PBLK_FLUSH_ENTRY;
+			/* Release flags on context. Protect from writes */
+			smp_store_release(&w_ctx->flags, flags);
+
+#ifdef CONFIG_NVM_DEBUG
+			atomic_dec(&rwb->inflight_flush_point);
+#endif
+		}
+
 		while ((original_bio = bio_list_pop(&w_ctx->bios)))
 			bio_endio(original_bio);
 	}

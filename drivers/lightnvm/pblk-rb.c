@@ -353,16 +353,16 @@ static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
 				  unsigned int pos)
 {
 	struct pblk_rb_entry *entry;
-	unsigned int subm, flush_point;
+	unsigned int sync, flush_point;
 
-	subm = READ_ONCE(rb->subm);
+	sync = READ_ONCE(rb->sync);
+
+	if (pos == sync)
+		return 0;
 
 #ifdef CONFIG_NVM_DEBUG
 	atomic_inc(&rb->inflight_flush_point);
 #endif
-
-	if (pos == subm)
-		return 0;
 
 	flush_point = (pos == 0) ? (rb->nr_entries - 1) : (pos - 1);
 	entry = &rb->entries[flush_point];
@@ -606,22 +606,6 @@ try:
 			return NVM_IO_ERR;
 		}
 
-		if (flags & PBLK_FLUSH_ENTRY) {
-			unsigned int flush_point;
-
-			flush_point = READ_ONCE(rb->flush_point);
-			if (flush_point == pos) {
-				/* Protect flush points */
-				smp_store_release(&rb->flush_point,
-							EMPTY_ENTRY);
-			}
-
-			flags &= ~PBLK_FLUSH_ENTRY;
-#ifdef CONFIG_NVM_DEBUG
-			atomic_dec(&rb->inflight_flush_point);
-#endif
-		}
-
 		flags &= ~PBLK_WRITTEN_DATA;
 		flags |= PBLK_SUBMITTED_ENTRY;
 
@@ -731,15 +715,24 @@ void pblk_rb_sync_end(struct pblk_rb *rb, unsigned long *flags)
 
 unsigned int pblk_rb_sync_advance(struct pblk_rb *rb, unsigned int nr_entries)
 {
-	unsigned int sync;
-	unsigned int i;
-
+	unsigned int sync, flush_point;
 	lockdep_assert_held(&rb->s_lock);
 
 	sync = READ_ONCE(rb->sync);
+	flush_point = READ_ONCE(rb->flush_point);
 
-	for (i = 0; i < nr_entries; i++)
-		sync = (sync + 1) & (rb->nr_entries - 1);
+	if (flush_point != EMPTY_ENTRY) {
+		unsigned int secs_to_flush;
+
+		secs_to_flush = pblk_rb_ring_count(flush_point, sync,
+					rb->nr_entries);
+		if (secs_to_flush < nr_entries) {
+			/* Protect flush points */
+			smp_store_release(&rb->flush_point, EMPTY_ENTRY);
+		}
+	}
+
+	sync = (sync + nr_entries) & (rb->nr_entries - 1);
 
 	/* Protect from counts */
 	smp_store_release(&rb->sync, sync);
@@ -747,22 +740,27 @@ unsigned int pblk_rb_sync_advance(struct pblk_rb *rb, unsigned int nr_entries)
 	return sync;
 }
 
+/* Calculate how many sectors to submit up to the current flush point. */
 unsigned int pblk_rb_flush_point_count(struct pblk_rb *rb)
 {
-	unsigned int subm, flush_point;
-	unsigned int count;
+	unsigned int subm, sync, flush_point;
+	unsigned int submitted, to_flush;
 
 	/* Protect flush points */
 	flush_point = smp_load_acquire(&rb->flush_point);
 	if (flush_point == EMPTY_ENTRY)
 		return 0;
 
+	/* Protect syncs */
+	sync = smp_load_acquire(&rb->sync);
+
 	subm = READ_ONCE(rb->subm);
+	submitted = pblk_rb_ring_count(subm, sync, rb->nr_entries);
 
 	/* The sync point itself counts as a sector to sync */
-	count = pblk_rb_ring_count(flush_point, subm, rb->nr_entries) + 1;
+	to_flush = pblk_rb_ring_count(flush_point, sync, rb->nr_entries) + 1;
 
-	return count;
+	return (submitted < to_flush) ? (to_flush - submitted) : 0;
 }
 
 /*
