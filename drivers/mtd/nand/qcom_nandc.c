@@ -2639,6 +2639,9 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 
 	nand_set_flash_node(chip, dn);
 	mtd->name = devm_kasprintf(dev, GFP_KERNEL, "qcom_nand.%d", host->cs);
+	if (!mtd->name)
+		return -ENOMEM;
+
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = dev;
 
