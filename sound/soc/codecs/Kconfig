@@ -162,6 +162,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
+	select SND_SOC_TSCS42XX if I2C
 	select SND_SOC_TS3A227E if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_TWL6040 if TWL6040_CORE
@@ -962,6 +963,13 @@ config SND_SOC_TLV320DAC33
 config SND_SOC_TS3A227E
 	tristate "TI Headset/Mic detect and keypress chip"
 	depends on I2C
+
+config SND_SOC_TSCS42XX
+	tristate "Tempo Semiconductor TSCS42xx CODEC"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Add support for Tempo Semiconductor's TSCS42xx audio CODEC.
 
 config SND_SOC_TWL4030
 	select MFD_TWL4030_AUDIO
