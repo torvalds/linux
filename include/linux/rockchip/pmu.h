@@ -135,6 +135,8 @@ struct rockchip_pmu_operations {
 };
 
 int rockchip_pmu_idle_request(struct device *dev, bool idle);
+int rockchip_save_qos(struct device *dev);
+int rockchip_restore_qos(struct device *dev);
 extern struct rockchip_pmu_operations rockchip_pmu_ops;
 
 #endif
