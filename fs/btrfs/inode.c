@@ -7153,19 +7153,12 @@ insert:
 		 * existing will always be non-NULL, since there must be
 		 * extent causing the -EEXIST.
 		 */
-		if (existing->start == em->start &&
-		    extent_map_end(existing) >= extent_map_end(em) &&
-		    em->block_start == existing->block_start) {
-			/*
-			 * The existing extent map already encompasses the
-			 * entire extent map we tried to add.
-			 */
+		if (start >= existing->start &&
+		    start < extent_map_end(existing)) {
 			free_extent_map(em);
 			em = existing;
 			err = 0;
-
-		} else if (start >= extent_map_end(existing) ||
-		    start <= existing->start) {
+		} else {
 			/*
 			 * The existing extent map is the one nearest to
 			 * the [start, start + len) range which overlaps
@@ -7177,10 +7170,6 @@ insert:
 				free_extent_map(em);
 				em = NULL;
 			}
-		} else {
-			free_extent_map(em);
-			em = existing;
-			err = 0;
 		}
 	}
 	write_unlock(&em_tree->lock);
