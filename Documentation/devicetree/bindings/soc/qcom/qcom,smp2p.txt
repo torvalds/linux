@@ -17,8 +17,14 @@ processor ID) and a string identifier.
 	Value type: <prop-encoded-array>
 	Definition: one entry specifying the smp2p notification interrupt
 
-- qcom,ipc:
+- mboxes:
 	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: reference to the associated doorbell in APCS, as described
+		    in mailbox/mailbox.txt
+
+- qcom,ipc:
+	Usage: required, unless mboxes is specified
 	Value type: <prop-encoded-array>
 	Definition: three entries specifying the outgoing ipc bit used for
 		    signaling the remote end of the smp2p edge:
