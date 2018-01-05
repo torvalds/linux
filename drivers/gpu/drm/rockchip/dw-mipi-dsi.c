@@ -248,6 +248,7 @@
 #define THS_ZERO_PROGRAM_EN	BIT(6)
 
 enum soc_type {
+	PX30,
 	RK3126,
 	RK3288,
 	RK3366,
@@ -1568,6 +1569,22 @@ static int dw_mipi_dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const u32 px30_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0434,  7,  7),
+	[DPICOLORM]		= GRF_REG_FIELD(0x0434,  3,  3),
+	[DPISHUTDN]		= GRF_REG_FIELD(0x0434,  2,  2),
+	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x0438,  7, 10),
+	[FORCERXMODE]		= GRF_REG_FIELD(0x0438,  6,  6),
+	[TURNDISABLE]		= GRF_REG_FIELD(0x0438,  5,  5),
+	[VOPSEL]		= GRF_REG_FIELD(0x0438,  0,  0),
+};
+
+static const struct dw_mipi_dsi_plat_data px30_socdata = {
+	.dsi0_grf_reg_fields = px30_dsi_grf_reg_fields,
+	.max_bit_rate_per_lane = 1000000000UL,
+	.soc_type = PX30,
+};
+
 static const u32 rk3128_dsi_grf_reg_fields[MAX_FIELDS] = {
 	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x0150, 10, 13),
 	[FORCERXMODE]		= GRF_REG_FIELD(0x0150,  9,  9),
@@ -1680,6 +1697,7 @@ static const struct dw_mipi_dsi_plat_data rk3399_socdata = {
 };
 
 static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
+	{ .compatible = "rockchip,px30-mipi-dsi", .data = &px30_socdata, },
 	{ .compatible = "rockchip,rk3128-mipi-dsi", .data = &rk3128_socdata, },
 	{ .compatible = "rockchip,rk3288-mipi-dsi", .data = &rk3288_socdata, },
 	{ .compatible = "rockchip,rk3366-mipi-dsi", .data = &rk3366_socdata, },
