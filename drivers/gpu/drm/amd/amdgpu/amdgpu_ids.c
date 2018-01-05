@@ -40,6 +40,12 @@
  */
 static DEFINE_IDA(amdgpu_pasid_ida);
 
+/* Helper to free pasid from a fence callback */
+struct amdgpu_pasid_cb {
+	struct dma_fence_cb cb;
+	unsigned int pasid;
+};
+
 /**
  * amdgpu_pasid_alloc - Allocate a PASID
  * @bits: Maximum width of the PASID in bits, must be at least 1
@@ -73,6 +79,82 @@ int amdgpu_pasid_alloc(unsigned int bits)
 void amdgpu_pasid_free(unsigned int pasid)
 {
 	ida_simple_remove(&amdgpu_pasid_ida, pasid);
+}
+
+static void amdgpu_pasid_free_cb(struct dma_fence *fence,
+				 struct dma_fence_cb *_cb)
+{
+	struct amdgpu_pasid_cb *cb =
+		container_of(_cb, struct amdgpu_pasid_cb, cb);
+
+	amdgpu_pasid_free(cb->pasid);
+	dma_fence_put(fence);
+	kfree(cb);
+}
+
+/**
+ * amdgpu_pasid_free_delayed - free pasid when fences signal
+ *
+ * @resv: reservation object with the fences to wait for
+ * @pasid: pasid to free
+ *
+ * Free the pasid only after all the fences in resv are signaled.
+ */
+void amdgpu_pasid_free_delayed(struct reservation_object *resv,
+			       unsigned int pasid)
+{
+	struct dma_fence *fence, **fences;
+	struct amdgpu_pasid_cb *cb;
+	unsigned count;
+	int r;
+
+	r = reservation_object_get_fences_rcu(resv, NULL, &count, &fences);
+	if (r)
+		goto fallback;
+
+	if (count == 0) {
+		amdgpu_pasid_free(pasid);
+		return;
+	}
+
+	if (count == 1) {
+		fence = fences[0];
+		kfree(fences);
+	} else {
+		uint64_t context = dma_fence_context_alloc(1);
+		struct dma_fence_array *array;
+
+		array = dma_fence_array_create(count, fences, context,
+					       1, false);
+		if (!array) {
+			kfree(fences);
+			goto fallback;
+		}
+		fence = &array->base;
+	}
+
+	cb = kmalloc(sizeof(*cb), GFP_KERNEL);
+	if (!cb) {
+		/* Last resort when we are OOM */
+		dma_fence_wait(fence, false);
+		dma_fence_put(fence);
+		amdgpu_pasid_free(pasid);
+	} else {
+		cb->pasid = pasid;
+		if (dma_fence_add_callback(fence, &cb->cb,
+					   amdgpu_pasid_free_cb))
+			amdgpu_pasid_free_cb(fence, &cb->cb);
+	}
+
+	return;
+
+fallback:
+	/* Not enough memory for the delayed delete, as last resort
+	 * block for all the fences to complete.
+	 */
+	reservation_object_wait_timeout_rcu(resv, true, false,
+					    MAX_SCHEDULE_TIMEOUT);
+	amdgpu_pasid_free(pasid);
 }
 
 /*
