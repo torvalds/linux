@@ -47,6 +47,7 @@ struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
 	unsigned int		bi_flags;	/* status, command, etc */
+	unsigned short		bi_write_hint;
 	int			bi_error;
 	unsigned long		bi_rw;		/* bottom bits READ/WRITE,
 						 * top bits priority

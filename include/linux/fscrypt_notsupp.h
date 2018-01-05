@@ -13,6 +13,16 @@
 #ifndef _LINUX_FSCRYPT_NOTSUPP_H
 #define _LINUX_FSCRYPT_NOTSUPP_H
 
+static inline bool fscrypt_has_encryption_key(const struct inode *inode)
+{
+	return false;
+}
+
+static inline bool fscrypt_dummy_context_enabled(struct inode *inode)
+{
+	return false;
+}
+
 /* crypto.c */
 static inline struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *inode,
 						  gfp_t gfp_flags)
@@ -42,6 +52,11 @@ static inline int fscrypt_decrypt_page(const struct inode *inode,
 	return -EOPNOTSUPP;
 }
 
+static inline struct page *fscrypt_control_page(struct page *page)
+{
+	WARN_ON_ONCE(1);
+	return ERR_PTR(-EINVAL);
+}
 
 static inline void fscrypt_restore_control_page(struct page *page)
 {
@@ -115,16 +130,8 @@ static inline void fscrypt_free_filename(struct fscrypt_name *fname)
 	return;
 }
 
-static inline u32 fscrypt_fname_encrypted_size(const struct inode *inode,
-					       u32 ilen)
-{
-	/* never happens */
-	WARN_ON(1);
-	return 0;
-}
-
 static inline int fscrypt_fname_alloc_buffer(const struct inode *inode,
-					     u32 ilen,
+					     u32 max_encrypted_len,
 					     struct fscrypt_str *crypto_str)
 {
 	return -EOPNOTSUPP;
@@ -138,13 +145,6 @@ static inline void fscrypt_fname_free_buffer(struct fscrypt_str *crypto_str)
 static inline int fscrypt_fname_disk_to_usr(struct inode *inode,
 					    u32 hash, u32 minor_hash,
 					    const struct fscrypt_str *iname,
-					    struct fscrypt_str *oname)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int fscrypt_fname_usr_to_disk(struct inode *inode,
-					    const struct qstr *iname,
 					    struct fscrypt_str *oname)
 {
 	return -EOPNOTSUPP;
@@ -205,6 +205,29 @@ static inline int __fscrypt_prepare_lookup(struct inode *dir,
 					   struct dentry *dentry)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int __fscrypt_prepare_symlink(struct inode *dir,
+					    unsigned int len,
+					    unsigned int max_len,
+					    struct fscrypt_str *disk_link)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int __fscrypt_encrypt_symlink(struct inode *inode,
+					    const char *target,
+					    unsigned int len,
+					    struct fscrypt_str *disk_link)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void *fscrypt_get_symlink(struct inode *inode,
+					      const void *caddr,
+					      unsigned int max_size)
+{
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 #endif	/* _LINUX_FSCRYPT_NOTSUPP_H */
