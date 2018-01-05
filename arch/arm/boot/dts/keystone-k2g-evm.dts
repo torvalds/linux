@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for K2G EVM
  *
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 /dts-v1/;
 
@@ -45,22 +37,6 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 	};
-
-	ecap0_pins: ecap0_pins {
-		pinctrl-single,pins = <
-			K2G_CORE_IOPAD(0x1374) (BUFFER_CLASS_B | MUX_MODE4)	/* pr1_mdio_data.ecap0_in_apwm0_out */
-		>;
-	};
-
-	spi1_pins: pinmux_spi1_pins {
-		pinctrl-single,pins = <
-			K2G_CORE_IOPAD(0x11a4) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_scs0.spi1_scs0 */
-			K2G_CORE_IOPAD(0x11ac) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_clk.spi1_clk */
-			K2G_CORE_IOPAD(0x11b0) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_miso.spi1_miso */
-			K2G_CORE_IOPAD(0x11b4) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_mosi.spi1_mosi */
-		>;
-	};
-
 };
 
 &k2g_pinctrl {
@@ -105,6 +81,39 @@
 		>;
 	};
 
+	ecap0_pins: ecap0_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x1374) (BUFFER_CLASS_B | MUX_MODE4)	/* pr1_mdio_data.ecap0_in_apwm0_out */
+		>;
+	};
+
+	spi1_pins: pinmux_spi1_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x11a4) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_scs0.spi1_scs0 */
+			K2G_CORE_IOPAD(0x11ac) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_clk.spi1_clk */
+			K2G_CORE_IOPAD(0x11b0) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_miso.spi1_miso */
+			K2G_CORE_IOPAD(0x11b4) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)	/* spi1_mosi.spi1_mosi */
+		>;
+	};
+
+	qspi_pins: pinmux_qspi_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x1204) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_clk.qspi_clk */
+			K2G_CORE_IOPAD(0x1208) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_rclk.qspi_rclk */
+			K2G_CORE_IOPAD(0x120c) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_d0.qspi_d0 */
+			K2G_CORE_IOPAD(0x1210) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_d1.qspi_d1 */
+			K2G_CORE_IOPAD(0x1214) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_d2.qspi_d2 */
+			K2G_CORE_IOPAD(0x1218) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_d3.qspi_d3 */
+			K2G_CORE_IOPAD(0x121c) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0) /* qspi_csn0.qspi_csn0 */
+		>;
+	};
+
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x11ec) (BUFFER_CLASS_B | PULL_DISABLE | MUX_MODE0)      /* uart2_rxd.uart2_rxd */
+			K2G_CORE_IOPAD(0x11f0) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE0)      /* uart2_txd.uart2_txd */
+		>;
+	};
 };
 
 &uart0 {
@@ -129,6 +138,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vcc3v3_dcin_reg>; /* VCC3V3_EMMC is connected to VCC3V3_DCIN */
+	ti,non-removable;
 	status = "okay";
 };
 
@@ -204,4 +214,57 @@
 			reg = <0x100000 0xf00000>;
 		};
 	};
+};
+
+&qspi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi_pins>;
+	cdns,rclk-en;
+
+	flash0: m25p80@0 {
+		compatible = "s25fl512s", "jedec,spi-nor";
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <96000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		cdns,read-delay = <5>;
+		cdns,tshsl-ns = <500>;
+		cdns,tsd2d-ns = <500>;
+		cdns,tchsh-ns = <119>;
+		cdns,tslch-ns = <119>;
+
+		partition@0 {
+			label = "QSPI.u-boot-spl-os";
+			reg = <0x00000000 0x00100000>;
+		};
+		partition@1 {
+			label = "QSPI.u-boot-env";
+			reg = <0x00100000 0x00040000>;
+		};
+		partition@2 {
+			label = "QSPI.skern";
+			reg = <0x00140000 0x0040000>;
+		};
+		partition@3 {
+			label = "QSPI.pmmc-firmware";
+			reg = <0x00180000 0x0040000>;
+		};
+		partition@4 {
+			label = "QSPI.kernel";
+			reg = <0x001C0000 0x0800000>;
+		};
+		partition@5 {
+			label = "QSPI.file-system";
+			reg = <0x009C0000 0x3640000>;
+		};
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+	status = "okay";
 };
