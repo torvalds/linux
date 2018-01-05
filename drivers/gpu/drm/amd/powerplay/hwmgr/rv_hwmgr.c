@@ -451,6 +451,9 @@ static int rv_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
 
+	hwmgr->pstate_sclk = RAVEN_UMD_PSTATE_GFXCLK;
+	hwmgr->pstate_mclk = RAVEN_UMD_PSTATE_FCLK;
+
 	return result;
 }
 

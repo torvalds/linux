@@ -1189,6 +1189,8 @@ static int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 
 	cz_hwmgr->sclk_dpm.soft_min_clk = table->entries[0].clk;
 	cz_hwmgr->sclk_dpm.hard_min_clk = table->entries[0].clk;
+	hwmgr->pstate_sclk = table->entries[0].clk;
+	hwmgr->pstate_mclk = 0;
 
 	level = cz_get_max_sclk_level(hwmgr) - 1;
 

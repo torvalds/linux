@@ -753,6 +753,8 @@ struct pp_hwmgr {
 	enum amd_pp_profile_type current_power_profile;
 	bool en_umd_pstate;
 	uint32_t power_profile_mode;
+	uint32_t pstate_sclk;
+	uint32_t pstate_mclk;
 };
 
 struct cgs_irq_src_funcs {
