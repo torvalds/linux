@@ -17,21 +17,23 @@ Further, syscon nodes that map platform-specific registers used for general
 system control is required:
 
     - compatible: "brcm,bcm<chip_id>-sun-top-ctrl", "syscon"
-    - compatible: "brcm,bcm<chip_id>-hif-cpubiuctrl", "syscon"
+    - compatible: "brcm,bcm<chip_id>-cpu-biu-ctrl",
+		  "brcm,brcmstb-cpu-biu-ctrl",
+		  "syscon"
     - compatible: "brcm,bcm<chip_id>-hif-continuation", "syscon"
 
-hif-cpubiuctrl node
+cpu-biu-ctrl node
 -------------------
-SoCs with Broadcom Brahma15 ARM-based CPUs have a specific Bus Interface Unit
-(BIU) block which controls and interfaces the CPU complex to the different
-Memory Controller Ports (MCP), one per memory controller (MEMC). This BIU block
-offers a feature called Write Pairing which consists in collapsing two adjacent
-cache lines into a single (bursted) write transaction towards the memory
-controller (MEMC) to maximize write bandwidth.
+SoCs with Broadcom Brahma15 ARM-based and Brahma53 ARM64-based CPUs have a
+specific Bus Interface Unit (BIU) block which controls and interfaces the CPU
+complex to the different Memory Controller Ports (MCP), one per memory
+controller (MEMC). This BIU block offers a feature called Write Pairing which
+consists in collapsing two adjacent cache lines into a single (bursted) write
+transaction towards the memory controller (MEMC) to maximize write bandwidth.
 
 Required properties:
 
-    - compatible: must be "brcm,bcm7445-hif-cpubiuctrl", "syscon"
+    - compatible: must be "brcm,bcm7445-cpu-biu-ctrl", "brcm,brcmstb-cpu-biu-ctrl", "syscon"
 
 Optional properties:
 
@@ -52,7 +54,7 @@ example:
         };
 
         hif_cpubiuctrl: syscon@3e2400 {
-            compatible = "brcm,bcm7445-hif-cpubiuctrl", "syscon";
+            compatible = "brcm,bcm7445-cpu-biu-ctrl", "brcm,brcmstb-cpu-biu-ctrl", "syscon";
             reg = <0x3e2400 0x5b4>;
             brcm,write-pairing;
         };

@@ -13,12 +13,6 @@ static inline u32 BRCM_REV(u32 reg)
 }
 
 /*
- * Bus Interface Unit control register setup, must happen early during boot,
- * before SMP is brought up, called by machine entry point.
- */
-void brcmstb_biuctrl_init(void);
-
-/*
  * Helper functions for getting family or product id from the
  * SoC driver.
  */
