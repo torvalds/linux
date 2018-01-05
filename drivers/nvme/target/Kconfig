@@ -29,6 +29,7 @@ config NVME_TARGET_RDMA
 	tristate "NVMe over Fabrics RDMA target support"
 	depends on INFINIBAND
 	depends on NVME_TARGET
+	select SGL_ALLOC
 	help
 	  This enables the NVMe RDMA target support, which allows exporting NVMe
 	  devices over RDMA.
