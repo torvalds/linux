@@ -471,6 +471,7 @@ struct compat_vpu_request {
 #define VPU_TIMEOUT_DELAY		(2 * HZ) /* 2s */
 
 static void *vcodec_get_drv_data(struct platform_device *pdev);
+static void vcodec_reduce_freq_rk3328(struct vpu_service_info *pservice);
 
 static void vpu_service_power_on(struct vpu_subdev_data *data,
 				 struct vpu_service_info *pservice);
@@ -682,7 +683,6 @@ static void rkvdec_dvfs_set_clk(struct vpu_service_info *pservice,
 static void _vpu_reset(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
-	int ret = 0;
 
 	dev_info(pservice->dev, "resetting...\n");
 	WARN_ON(pservice->reg_codec != NULL);
@@ -693,10 +693,11 @@ static void _vpu_reset(struct vpu_subdev_data *data)
 	pservice->reg_resev = NULL;
 
 #ifdef CONFIG_RESET_CONTROLLER
-	ret = rockchip_pmu_idle_request(pservice->dev, true);
-	if (ret < 0) {
+	/* rk3328 need to use sip_smc_vpu_reset to reset vpu */
+	if (pservice->hw_ops->reduce_freq == vcodec_reduce_freq_rk3328) {
 		sip_smc_vpu_reset(0, 0, 0);
 	} else {
+		rockchip_pmu_idle_request(pservice->dev, true);
 		if (pservice->hw_ops->reduce_freq)
 			pservice->hw_ops->reduce_freq(pservice);
 
