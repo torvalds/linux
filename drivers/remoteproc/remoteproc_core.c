@@ -739,6 +739,9 @@ static int rproc_handle_resources(struct rproc *rproc,
 	rproc_handle_resource_t handler;
 	int ret = 0, i;
 
+	if (!rproc->table_ptr)
+		return 0;
+
 	for (i = 0; i < rproc->table_ptr->num; i++) {
 		int offset = rproc->table_ptr->offset[i];
 		struct fw_rsc_hdr *hdr = (void *)rproc->table_ptr + offset;
