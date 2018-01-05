@@ -5387,7 +5387,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		}
 		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i) {
 			fusion->stream_detect_by_ld[i] =
-				kmalloc(sizeof(struct LD_STREAM_DETECT),
+				kzalloc(sizeof(struct LD_STREAM_DETECT),
 				GFP_KERNEL);
 			if (!fusion->stream_detect_by_ld[i]) {
 				dev_err(&instance->pdev->dev,

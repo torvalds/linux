@@ -1603,7 +1603,7 @@ static int megasas_alloc_ioc_init_frame(struct megasas_instance *instance)
 
 	fusion = instance->ctrl_context;
 
-	cmd = kmalloc(sizeof(struct megasas_cmd), GFP_KERNEL);
+	cmd = kzalloc(sizeof(struct megasas_cmd), GFP_KERNEL);
 
 	if (!cmd) {
 		dev_err(&instance->pdev->dev, "Failed from func: %s line: %d\n",
