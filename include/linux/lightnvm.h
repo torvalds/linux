@@ -233,7 +233,6 @@ struct nvm_rq {
 	void *meta_list;
 	dma_addr_t dma_meta_list;
 
-	struct completion *wait;
 	nvm_end_io_fn *end_io;
 
 	uint8_t opcode;
