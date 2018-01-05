@@ -2664,16 +2664,6 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	praid_context = &io_request->RaidContext;
 
 	if (instance->adapter_type == VENTURA_SERIES) {
-		spin_lock_irqsave(&instance->stream_lock, spinlock_flags);
-		megasas_stream_detect(instance, cmd, &io_info);
-		spin_unlock_irqrestore(&instance->stream_lock, spinlock_flags);
-		/* In ventura if stream detected for a read and it is read ahead
-		 *  capable make this IO as LDIO
-		 */
-		if (is_stream_detected(&io_request->RaidContext.raid_context_g35) &&
-		    io_info.isRead && io_info.ra_capable)
-			fp_possible = false;
-
 		/* FP for Optimal raid level 1.
 		 * All large RAID-1 writes (> 32 KiB, both WT and WB modes)
 		 * are built by the driver as LD I/Os.
@@ -2697,6 +2687,20 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 					atomic_set(&mrdev_priv->r1_ldio_hint,
 						   instance->r1_ldio_hint_default);
 			}
+		}
+
+		if (!fp_possible ||
+		    (io_info.isRead && io_info.ra_capable)) {
+			spin_lock_irqsave(&instance->stream_lock,
+					  spinlock_flags);
+			megasas_stream_detect(instance, cmd, &io_info);
+			spin_unlock_irqrestore(&instance->stream_lock,
+					       spinlock_flags);
+			/* In ventura if stream detected for a read and it is
+			 * read ahead capable make this IO as LDIO
+			 */
+			if (is_stream_detected(&io_request->RaidContext.raid_context_g35))
+				fp_possible = false;
 		}
 
 		/* If raid is NULL, set CPU affinity to default CPU0 */
