@@ -200,7 +200,7 @@ config MTK_COMBO_COMM_APO
 
 config MTK_COMBO_BT
 	tristate "MediaTek Combo Chip BT driver"
-	depends on MTK_COMBO
+	depends on BT && MTK_COMBO
 	select MTK_BTIF
 	help
 	  MTK BT /dev/stpbt driver for Bluedroid
