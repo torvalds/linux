@@ -247,6 +247,8 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	if (ret)
 		goto out_start_err;
 
+	clear_bit(HNS3_NIC_STATE_DOWN, &priv->state);
+
 	return 0;
 
 out_start_err:
@@ -285,6 +287,9 @@ static void hns3_nic_net_down(struct net_device *netdev)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	const struct hnae3_ae_ops *ops;
 	int i;
+
+	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
+		return;
 
 	/* stop ae_dev */
 	ops = priv->ae_handle->ae_algo->ops;
@@ -1134,6 +1139,9 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 	u64 rx_bytes = 0;
 	u64 tx_pkts = 0;
 	u64 rx_pkts = 0;
+
+	if (test_bit(HNS3_NIC_STATE_DOWN, &priv->state))
+		return;
 
 	handle->ae_algo->ops->update_stats(handle, &netdev->stats);
 
