@@ -327,7 +327,7 @@ static int ir_rc6_encode(enum rc_proto protocol, u32 scancode,
 		/* Modulate the header (Start Bit & Mode-0) */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
 					    &ir_rc6_timings[0],
-					    RC6_HEADER_NBITS + 1, (1 << 3));
+					    RC6_HEADER_NBITS, (1 << 3));
 		if (ret < 0)
 			return ret;
 
@@ -365,7 +365,7 @@ static int ir_rc6_encode(enum rc_proto protocol, u32 scancode,
 		/* Modulate the header (Start Bit & Header-version 6 */
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
 					    &ir_rc6_timings[0],
-					    RC6_HEADER_NBITS + 1, (1 << 3 | 6));
+					    RC6_HEADER_NBITS, (1 << 3 | 6));
 		if (ret < 0)
 			return ret;
 

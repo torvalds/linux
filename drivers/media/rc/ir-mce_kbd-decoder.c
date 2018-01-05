@@ -452,11 +452,11 @@ static int ir_mce_kbd_encode(enum rc_proto protocol, u32 scancode,
 	if (protocol == RC_PROTO_MCIR2_KBD) {
 		raw = scancode |
 		      ((u64)MCIR2_KEYBOARD_HEADER << MCIR2_KEYBOARD_NBITS);
-		len = MCIR2_KEYBOARD_NBITS + MCIR2_HEADER_NBITS + 1;
+		len = MCIR2_KEYBOARD_NBITS + MCIR2_HEADER_NBITS;
 	} else {
 		raw = scancode |
 		      ((u64)MCIR2_MOUSE_HEADER << MCIR2_MOUSE_NBITS);
-		len = MCIR2_MOUSE_NBITS + MCIR2_HEADER_NBITS + 1;
+		len = MCIR2_MOUSE_NBITS + MCIR2_HEADER_NBITS;
 	}
 
 	ret = ir_raw_gen_manchester(&e, max, &ir_mce_kbd_timings, len, raw);
