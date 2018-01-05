@@ -172,7 +172,6 @@ static void blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 	WRITE_ONCE(hctx->dispatch_from, ctx);
 }
 
-/* return true if hw queue need to be run again */
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
