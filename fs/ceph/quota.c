@@ -135,7 +135,9 @@ bool ceph_quota_is_same_realm(struct inode *old, struct inode *new)
 
 enum quota_check_op {
 	QUOTA_CHECK_MAX_FILES_OP,	/* check quota max_files limit */
-	QUOTA_CHECK_MAX_BYTES_OP	/* check quota max_files limit */
+	QUOTA_CHECK_MAX_BYTES_OP,	/* check quota max_files limit */
+	QUOTA_CHECK_MAX_BYTES_APPROACHING_OP	/* check if quota max_files
+						   limit is approaching */
 };
 
 /*
@@ -184,6 +186,20 @@ static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
 			break;
 		case QUOTA_CHECK_MAX_BYTES_OP:
 			exceeded = (max && (rvalue + delta > max));
+			break;
+		case QUOTA_CHECK_MAX_BYTES_APPROACHING_OP:
+			if (max) {
+				if (rvalue >= max)
+					exceeded = true;
+				else {
+					/*
+					 * when we're writing more that 1/16th
+					 * of the available space
+					 */
+					exceeded =
+						(((max - rvalue) >> 4) < delta);
+				}
+			}
 			break;
 		default:
 			/* Shouldn't happen */
@@ -237,4 +253,24 @@ bool ceph_quota_is_max_bytes_exceeded(struct inode *inode, loff_t newsize)
 		return false;
 
 	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_BYTES_OP, (newsize - size));
+}
+
+/*
+ * ceph_quota_is_max_bytes_approaching - check if we're reaching max_bytes
+ * @inode:	inode being written
+ * @newsize:	new size if write succeeds
+ *
+ * This function returns true if the new file size @newsize will be consuming
+ * more than 1/16th of the available quota space; it returns false otherwise.
+ */
+bool ceph_quota_is_max_bytes_approaching(struct inode *inode, loff_t newsize)
+{
+	loff_t size = ceph_inode(inode)->i_reported_size;
+
+	/* return immediately if we're decreasing file size */
+	if (newsize <= size)
+		return false;
+
+	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_BYTES_APPROACHING_OP,
+				    (newsize - size));
 }
