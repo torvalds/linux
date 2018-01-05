@@ -907,7 +907,7 @@ static inline int pblk_pad_distance(struct pblk *pblk)
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 
-	return NVM_MEM_PAGE_WRITE * geo->nr_luns * geo->sec_per_pl;
+	return NVM_MEM_PAGE_WRITE * geo->all_luns * geo->sec_per_pl;
 }
 
 static inline int pblk_dev_ppa_to_line(struct ppa_addr p)
@@ -1212,10 +1212,10 @@ static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 
 		if (!ppa->c.is_cached &&
 				ppa->g.ch < geo->nr_chnls &&
-				ppa->g.lun < geo->luns_per_chnl &&
+				ppa->g.lun < geo->nr_luns &&
 				ppa->g.pl < geo->nr_planes &&
-				ppa->g.blk < geo->blks_per_lun &&
-				ppa->g.pg < geo->pgs_per_blk &&
+				ppa->g.blk < geo->nr_chks &&
+				ppa->g.pg < geo->ws_per_chk &&
 				ppa->g.sec < geo->sec_per_pg)
 			continue;
 

@@ -28,7 +28,7 @@ static ssize_t pblk_sysfs_luns_show(struct pblk *pblk, char *page)
 	ssize_t sz = 0;
 	int i;
 
-	for (i = 0; i < geo->nr_luns; i++) {
+	for (i = 0; i < geo->all_luns; i++) {
 		int active = 1;
 
 		rlun = &pblk->luns[i];
@@ -238,7 +238,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 
 	sz = snprintf(page, PAGE_SIZE - sz,
 		"line: nluns:%d, nblks:%d, nsecs:%d\n",
-		geo->nr_luns, lm->blk_per_line, lm->sec_per_line);
+		geo->all_luns, lm->blk_per_line, lm->sec_per_line);
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 		"lines:d:%d,l:%d-f:%d,m:%d/%d,c:%d,b:%d,co:%d(d:%d,l:%d)t:%d\n",
@@ -287,7 +287,7 @@ static ssize_t pblk_sysfs_lines_info(struct pblk *pblk, char *page)
 				"blk_line:%d, sec_line:%d, sec_blk:%d\n",
 					lm->blk_per_line,
 					lm->sec_per_line,
-					geo->sec_per_blk);
+					geo->sec_per_chk);
 
 	return sz;
 }

@@ -169,8 +169,8 @@ static int pblk_set_ppaf(struct pblk *pblk)
 	}
 	ppaf.ch_len = power_len;
 
-	power_len = get_count_order(geo->luns_per_chnl);
-	if (1 << power_len != geo->luns_per_chnl) {
+	power_len = get_count_order(geo->nr_luns);
+	if (1 << power_len != geo->nr_luns) {
 		pr_err("pblk: supports only power-of-two LUN config.\n");
 		return -EINVAL;
 	}
@@ -254,7 +254,7 @@ static int pblk_core_init(struct pblk *pblk)
 	struct nvm_geo *geo = &dev->geo;
 
 	pblk->pgs_in_buffer = NVM_MEM_PAGE_WRITE * geo->sec_per_pg *
-						geo->nr_planes * geo->nr_luns;
+						geo->nr_planes * geo->all_luns;
 
 	if (pblk_init_global_caches(pblk))
 		return -ENOMEM;
@@ -270,21 +270,22 @@ static int pblk_core_init(struct pblk *pblk)
 	if (!pblk->gen_ws_pool)
 		goto free_page_bio_pool;
 
-	pblk->rec_pool = mempool_create_slab_pool(geo->nr_luns, pblk_rec_cache);
+	pblk->rec_pool = mempool_create_slab_pool(geo->all_luns,
+							pblk_rec_cache);
 	if (!pblk->rec_pool)
 		goto free_gen_ws_pool;
 
-	pblk->r_rq_pool = mempool_create_slab_pool(geo->nr_luns,
+	pblk->r_rq_pool = mempool_create_slab_pool(geo->all_luns,
 							pblk_g_rq_cache);
 	if (!pblk->r_rq_pool)
 		goto free_rec_pool;
 
-	pblk->e_rq_pool = mempool_create_slab_pool(geo->nr_luns,
+	pblk->e_rq_pool = mempool_create_slab_pool(geo->all_luns,
 							pblk_g_rq_cache);
 	if (!pblk->e_rq_pool)
 		goto free_r_rq_pool;
 
-	pblk->w_rq_pool = mempool_create_slab_pool(geo->nr_luns,
+	pblk->w_rq_pool = mempool_create_slab_pool(geo->all_luns,
 							pblk_w_rq_cache);
 	if (!pblk->w_rq_pool)
 		goto free_e_rq_pool;
@@ -409,7 +410,7 @@ static int pblk_bb_discovery(struct nvm_tgt_dev *dev, struct pblk_lun *rlun)
 	u8 *blks;
 	int nr_blks, ret;
 
-	nr_blks = geo->blks_per_lun * geo->plane_mode;
+	nr_blks = geo->nr_chks * geo->plane_mode;
 	blks = kmalloc(nr_blks, GFP_KERNEL);
 	if (!blks)
 		return -ENOMEM;
@@ -482,20 +483,21 @@ static int pblk_luns_init(struct pblk *pblk, struct ppa_addr *luns)
 	int i, ret;
 
 	/* TODO: Implement unbalanced LUN support */
-	if (geo->luns_per_chnl < 0) {
+	if (geo->nr_luns < 0) {
 		pr_err("pblk: unbalanced LUN config.\n");
 		return -EINVAL;
 	}
 
-	pblk->luns = kcalloc(geo->nr_luns, sizeof(struct pblk_lun), GFP_KERNEL);
+	pblk->luns = kcalloc(geo->all_luns, sizeof(struct pblk_lun),
+								GFP_KERNEL);
 	if (!pblk->luns)
 		return -ENOMEM;
 
-	for (i = 0; i < geo->nr_luns; i++) {
+	for (i = 0; i < geo->all_luns; i++) {
 		/* Stripe across channels */
 		int ch = i % geo->nr_chnls;
 		int lun_raw = i / geo->nr_chnls;
-		int lunid = lun_raw + ch * geo->luns_per_chnl;
+		int lunid = lun_raw + ch * geo->nr_luns;
 
 		rlun = &pblk->luns[i];
 		rlun->bppa = luns[lunid];
@@ -590,8 +592,8 @@ static void pblk_set_provision(struct pblk *pblk, long nr_free_blks)
 	 * on user capacity consider only provisioned blocks
 	 */
 	pblk->rl.total_blocks = nr_free_blks;
-	pblk->rl.nr_secs = nr_free_blks * geo->sec_per_blk;
-	pblk->capacity = provisioned * geo->sec_per_blk;
+	pblk->rl.nr_secs = nr_free_blks * geo->sec_per_chk;
+	pblk->capacity = provisioned * geo->sec_per_chk;
 	atomic_set(&pblk->rl.free_blocks, nr_free_blks);
 }
 
@@ -683,7 +685,7 @@ static int pblk_lines_init(struct pblk *pblk)
 	int i, ret;
 
 	pblk->min_write_pgs = geo->sec_per_pl * (geo->sec_size / PAGE_SIZE);
-	max_write_ppas = pblk->min_write_pgs * geo->nr_luns;
+	max_write_ppas = pblk->min_write_pgs * geo->all_luns;
 	pblk->max_write_pgs = (max_write_ppas < nvm_max_phys_sects(dev)) ?
 				max_write_ppas : nvm_max_phys_sects(dev);
 	pblk_set_sec_per_write(pblk, pblk->min_write_pgs);
@@ -693,26 +695,26 @@ static int pblk_lines_init(struct pblk *pblk)
 		return -EINVAL;
 	}
 
-	div_u64_rem(geo->sec_per_blk, pblk->min_write_pgs, &mod);
+	div_u64_rem(geo->sec_per_chk, pblk->min_write_pgs, &mod);
 	if (mod) {
 		pr_err("pblk: bad configuration of sectors/pages\n");
 		return -EINVAL;
 	}
 
-	l_mg->nr_lines = geo->blks_per_lun;
+	l_mg->nr_lines = geo->nr_chks;
 	l_mg->log_line = l_mg->data_line = NULL;
 	l_mg->l_seq_nr = l_mg->d_seq_nr = 0;
 	l_mg->nr_free_lines = 0;
 	bitmap_zero(&l_mg->meta_bitmap, PBLK_DATA_LINES);
 
-	lm->sec_per_line = geo->sec_per_blk * geo->nr_luns;
-	lm->blk_per_line = geo->nr_luns;
-	lm->blk_bitmap_len = BITS_TO_LONGS(geo->nr_luns) * sizeof(long);
+	lm->sec_per_line = geo->sec_per_chk * geo->all_luns;
+	lm->blk_per_line = geo->all_luns;
+	lm->blk_bitmap_len = BITS_TO_LONGS(geo->all_luns) * sizeof(long);
 	lm->sec_bitmap_len = BITS_TO_LONGS(lm->sec_per_line) * sizeof(long);
-	lm->lun_bitmap_len = BITS_TO_LONGS(geo->nr_luns) * sizeof(long);
+	lm->lun_bitmap_len = BITS_TO_LONGS(geo->all_luns) * sizeof(long);
 	lm->mid_thrs = lm->sec_per_line / 2;
 	lm->high_thrs = lm->sec_per_line / 4;
-	lm->meta_distance = (geo->nr_luns / 2) * pblk->min_write_pgs;
+	lm->meta_distance = (geo->all_luns / 2) * pblk->min_write_pgs;
 
 	/* Calculate necessary pages for smeta. See comment over struct
 	 * line_smeta definition
@@ -742,12 +744,12 @@ add_emeta_page:
 		goto add_emeta_page;
 	}
 
-	lm->emeta_bb = geo->nr_luns > i ? geo->nr_luns - i : 0;
+	lm->emeta_bb = geo->all_luns > i ? geo->all_luns - i : 0;
 
 	lm->min_blk_line = 1;
-	if (geo->nr_luns > 1)
+	if (geo->all_luns > 1)
 		lm->min_blk_line += DIV_ROUND_UP(lm->smeta_sec +
-					lm->emeta_sec[0], geo->sec_per_blk);
+					lm->emeta_sec[0], geo->sec_per_chk);
 
 	if (lm->min_blk_line > lm->blk_per_line) {
 		pr_err("pblk: config. not supported. Min. LUN in line:%d\n",
@@ -772,7 +774,7 @@ add_emeta_page:
 		goto fail_free_bb_template;
 	}
 
-	bb_distance = (geo->nr_luns) * geo->sec_per_pl;
+	bb_distance = (geo->all_luns) * geo->sec_per_pl;
 	for (i = 0; i < lm->sec_per_line; i += bb_distance)
 		bitmap_set(l_mg->bb_template, i, geo->sec_per_pl);
 
@@ -844,7 +846,7 @@ add_emeta_page:
 	pblk_set_provision(pblk, nr_free_blks);
 
 	/* Cleanup per-LUN bad block lists - managed within lines on run-time */
-	for (i = 0; i < geo->nr_luns; i++)
+	for (i = 0; i < geo->all_luns; i++)
 		kfree(pblk->luns[i].bb_list);
 
 	return 0;
@@ -858,7 +860,7 @@ fail_free_bb_template:
 fail_free_meta:
 	pblk_line_meta_free(pblk);
 fail:
-	for (i = 0; i < geo->nr_luns; i++)
+	for (i = 0; i < geo->all_luns; i++)
 		kfree(pblk->luns[i].bb_list);
 
 	return ret;
@@ -1041,13 +1043,13 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 
 	blk_queue_write_cache(tqueue, true, false);
 
-	tqueue->limits.discard_granularity = geo->pgs_per_blk * geo->pfpg_size;
+	tqueue->limits.discard_granularity = geo->sec_per_chk * geo->sec_size;
 	tqueue->limits.discard_alignment = 0;
 	blk_queue_max_discard_sectors(tqueue, UINT_MAX >> 9);
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, tqueue);
 
 	pr_info("pblk init: luns:%u, lines:%d, secs:%llu, buf entries:%u\n",
-			geo->nr_luns, pblk->l_mg.nr_lines,
+			geo->all_luns, pblk->l_mg.nr_lines,
 			(unsigned long long)pblk->rl.nr_secs,
 			pblk->rwb.nr_entries);
 

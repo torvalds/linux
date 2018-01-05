@@ -979,7 +979,7 @@ static int pblk_line_init_metadata(struct pblk *pblk, struct pblk_line *line,
 
 	/* Start metadata */
 	smeta_buf->seq_nr = cpu_to_le64(line->seq_nr);
-	smeta_buf->window_wr_lun = cpu_to_le32(geo->nr_luns);
+	smeta_buf->window_wr_lun = cpu_to_le32(geo->all_luns);
 
 	/* Fill metadata among lines */
 	if (cur) {
@@ -1032,7 +1032,7 @@ static int pblk_line_init_bb(struct pblk *pblk, struct pblk_line *line,
 							lm->sec_per_line);
 		bitmap_or(line->map_bitmap, line->map_bitmap, l_mg->bb_aux,
 							lm->sec_per_line);
-		line->sec_in_line -= geo->sec_per_blk;
+		line->sec_in_line -= geo->sec_per_chk;
 		if (bit >= lm->emeta_bb)
 			nr_bb++;
 	}
@@ -1746,7 +1746,7 @@ void pblk_up_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_lun *rlun;
-	int nr_luns = geo->nr_luns;
+	int nr_luns = geo->all_luns;
 	int bit = -1;
 
 	while ((bit = find_next_bit(lun_bitmap, nr_luns, bit + 1)) < nr_luns) {

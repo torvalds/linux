@@ -98,7 +98,7 @@ static void nvm_remove_tgt_dev(struct nvm_tgt_dev *tgt_dev, int clear)
 		if (clear) {
 			for (j = 0; j < ch_map->nr_luns; j++) {
 				int lun = j + lun_offs[j];
-				int lunid = (ch * dev->geo.luns_per_chnl) + lun;
+				int lunid = (ch * dev->geo.nr_luns) + lun;
 
 				WARN_ON(!test_and_clear_bit(lunid,
 							dev->lun_map));
@@ -124,10 +124,10 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 	struct ppa_addr *luns;
 	int nr_luns = lun_end - lun_begin + 1;
 	int luns_left = nr_luns;
-	int nr_chnls = nr_luns / dev->geo.luns_per_chnl;
-	int nr_chnls_mod = nr_luns % dev->geo.luns_per_chnl;
-	int bch = lun_begin / dev->geo.luns_per_chnl;
-	int blun = lun_begin % dev->geo.luns_per_chnl;
+	int nr_chnls = nr_luns / dev->geo.nr_luns;
+	int nr_chnls_mod = nr_luns % dev->geo.nr_luns;
+	int bch = lun_begin / dev->geo.nr_luns;
+	int blun = lun_begin % dev->geo.nr_luns;
 	int lunid = 0;
 	int lun_balanced = 1;
 	int prev_nr_luns;
@@ -148,15 +148,15 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 	if (!luns)
 		goto err_luns;
 
-	prev_nr_luns = (luns_left > dev->geo.luns_per_chnl) ?
-					dev->geo.luns_per_chnl : luns_left;
+	prev_nr_luns = (luns_left > dev->geo.nr_luns) ?
+					dev->geo.nr_luns : luns_left;
 	for (i = 0; i < nr_chnls; i++) {
 		struct nvm_ch_map *ch_rmap = &dev_rmap->chnls[i + bch];
 		int *lun_roffs = ch_rmap->lun_offs;
 		struct nvm_ch_map *ch_map = &dev_map->chnls[i];
 		int *lun_offs;
-		int luns_in_chnl = (luns_left > dev->geo.luns_per_chnl) ?
-					dev->geo.luns_per_chnl : luns_left;
+		int luns_in_chnl = (luns_left > dev->geo.nr_luns) ?
+					dev->geo.nr_luns : luns_left;
 
 		if (lun_balanced && prev_nr_luns != luns_in_chnl)
 			lun_balanced = 0;
@@ -193,8 +193,8 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 	memcpy(&tgt_dev->geo, &dev->geo, sizeof(struct nvm_geo));
 	/* Target device only owns a portion of the physical device */
 	tgt_dev->geo.nr_chnls = nr_chnls;
-	tgt_dev->geo.nr_luns = nr_luns;
-	tgt_dev->geo.luns_per_chnl = (lun_balanced) ? prev_nr_luns : -1;
+	tgt_dev->geo.all_luns = nr_luns;
+	tgt_dev->geo.nr_luns = (lun_balanced) ? prev_nr_luns : -1;
 	tgt_dev->total_secs = nr_luns * tgt_dev->geo.sec_per_lun;
 	tgt_dev->q = dev->q;
 	tgt_dev->map = dev_map;
@@ -414,7 +414,7 @@ static int nvm_register_map(struct nvm_dev *dev)
 	for (i = 0; i < dev->geo.nr_chnls; i++) {
 		struct nvm_ch_map *ch_rmap;
 		int *lun_roffs;
-		int luns_in_chnl = dev->geo.luns_per_chnl;
+		int luns_in_chnl = dev->geo.nr_luns;
 
 		ch_rmap = &rmap->chnls[i];
 
@@ -717,10 +717,10 @@ int nvm_bb_tbl_fold(struct nvm_dev *dev, u8 *blks, int nr_blks)
 	struct nvm_geo *geo = &dev->geo;
 	int blk, offset, pl, blktype;
 
-	if (nr_blks != geo->blks_per_lun * geo->plane_mode)
+	if (nr_blks != geo->nr_chks * geo->plane_mode)
 		return -EINVAL;
 
-	for (blk = 0; blk < geo->blks_per_lun; blk++) {
+	for (blk = 0; blk < geo->nr_chks; blk++) {
 		offset = blk * geo->plane_mode;
 		blktype = blks[offset];
 
@@ -736,7 +736,7 @@ int nvm_bb_tbl_fold(struct nvm_dev *dev, u8 *blks, int nr_blks)
 		blks[blk] = blktype;
 	}
 
-	return geo->blks_per_lun;
+	return geo->nr_chks;
 }
 EXPORT_SYMBOL(nvm_bb_tbl_fold);
 
@@ -758,43 +758,40 @@ static int nvm_core_init(struct nvm_dev *dev)
 	struct nvm_geo *geo = &dev->geo;
 	int ret;
 
-	/* Whole device values */
-	geo->nr_chnls = grp->num_ch;
-	geo->luns_per_chnl = grp->num_lun;
-
-	/* Generic device values */
-	geo->pgs_per_blk = grp->num_pg;
-	geo->blks_per_lun = grp->num_blk;
-	geo->nr_planes = grp->num_pln;
-	geo->fpg_size = grp->fpg_sz;
-	geo->pfpg_size = grp->fpg_sz * grp->num_pln;
-	geo->sec_size = grp->csecs;
-	geo->oob_size = grp->sos;
-	geo->sec_per_pg = grp->fpg_sz / grp->csecs;
-	geo->mccap = grp->mccap;
 	memcpy(&geo->ppaf, &id->ppaf, sizeof(struct nvm_addr_format));
-
-	geo->plane_mode = NVM_PLANE_SINGLE;
-	geo->max_rq_size = dev->ops->max_phys_sect * geo->sec_size;
-
-	if (grp->mpos & 0x020202)
-		geo->plane_mode = NVM_PLANE_DOUBLE;
-	if (grp->mpos & 0x040404)
-		geo->plane_mode = NVM_PLANE_QUAD;
 
 	if (grp->mtype != 0) {
 		pr_err("nvm: memory type not supported\n");
 		return -EINVAL;
 	}
 
-	/* calculated values */
-	geo->sec_per_pl = geo->sec_per_pg * geo->nr_planes;
-	geo->sec_per_blk = geo->sec_per_pl * geo->pgs_per_blk;
-	geo->sec_per_lun = geo->sec_per_blk * geo->blks_per_lun;
-	geo->nr_luns = geo->luns_per_chnl * geo->nr_chnls;
+	/* Whole device values */
+	geo->nr_chnls = grp->num_ch;
+	geo->nr_luns = grp->num_lun;
 
-	dev->total_secs = geo->nr_luns * geo->sec_per_lun;
-	dev->lun_map = kcalloc(BITS_TO_LONGS(geo->nr_luns),
+	/* Generic device geometry values */
+	geo->ws_min = grp->ws_min;
+	geo->ws_opt = grp->ws_opt;
+	geo->ws_seq = grp->ws_seq;
+	geo->ws_per_chk = grp->ws_per_chk;
+	geo->nr_chks = grp->num_chk;
+	geo->sec_size = grp->csecs;
+	geo->oob_size = grp->sos;
+	geo->mccap = grp->mccap;
+	geo->max_rq_size = dev->ops->max_phys_sect * geo->sec_size;
+
+	geo->sec_per_chk = grp->clba;
+	geo->sec_per_lun = geo->sec_per_chk * geo->nr_chks;
+	geo->all_luns = geo->nr_luns * geo->nr_chnls;
+
+	/* 1.2 spec device geometry values */
+	geo->plane_mode = 1 << geo->ws_seq;
+	geo->nr_planes = geo->ws_opt / geo->ws_min;
+	geo->sec_per_pg = geo->ws_min;
+	geo->sec_per_pl = geo->sec_per_pg * geo->nr_planes;
+
+	dev->total_secs = geo->all_luns * geo->sec_per_lun;
+	dev->lun_map = kcalloc(BITS_TO_LONGS(geo->all_luns),
 					sizeof(unsigned long), GFP_KERNEL);
 	if (!dev->lun_map)
 		return -ENOMEM;
@@ -854,8 +851,8 @@ static int nvm_init(struct nvm_dev *dev)
 
 	pr_info("nvm: registered %s [%u/%u/%u/%u/%u/%u]\n",
 			dev->name, geo->sec_per_pg, geo->nr_planes,
-			geo->pgs_per_blk, geo->blks_per_lun,
-			geo->nr_luns, geo->nr_chnls);
+			geo->ws_per_chk, geo->nr_chks,
+			geo->all_luns, geo->nr_chnls);
 	return 0;
 err:
 	pr_err("nvm: failed to initialize nvm\n");
@@ -946,12 +943,12 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 
 	if (s->lun_begin == -1 && s->lun_end == -1) {
 		s->lun_begin = 0;
-		s->lun_end = dev->geo.nr_luns - 1;
+		s->lun_end = dev->geo.all_luns - 1;
 	}
 
-	if (s->lun_begin > s->lun_end || s->lun_end >= dev->geo.nr_luns) {
+	if (s->lun_begin > s->lun_end || s->lun_end >= dev->geo.all_luns) {
 		pr_err("nvm: lun out of bound (%u:%u > %u)\n",
-			s->lun_begin, s->lun_end, dev->geo.nr_luns - 1);
+			s->lun_begin, s->lun_end, dev->geo.all_luns - 1);
 		return -EINVAL;
 	}
 

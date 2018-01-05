@@ -159,12 +159,16 @@ struct nvm_id_group {
 	u8	fmtype;
 	u8	num_ch;
 	u8	num_lun;
-	u8	num_pln;
-	u16	num_blk;
-	u16	num_pg;
-	u16	fpg_sz;
+	u16	num_chk;
+	u16	clba;
 	u16	csecs;
 	u16	sos;
+
+	u16	ws_min;
+	u16	ws_opt;
+	u16	ws_seq;
+	u16	ws_per_chk;
+
 	u32	trdt;
 	u32	trdm;
 	u32	tprt;
@@ -174,6 +178,11 @@ struct nvm_id_group {
 	u32	mpos;
 	u32	mccap;
 	u16	cpar;
+
+	/* 1.2 compatibility */
+	u8	num_pln;
+	u16	num_pg;
+	u16	fpg_sz;
 };
 
 struct nvm_addr_format {
@@ -259,31 +268,36 @@ enum {
 	NVM_BLK_ST_BAD =	0x8,	/* Bad block */
 };
 
+
 /* Device generic information */
 struct nvm_geo {
+	/* generic geometry */
 	int nr_chnls;
-	int nr_luns;
-	int luns_per_chnl; /* -1 if channels are not symmetric */
-	int nr_planes;
-	int sec_per_pg; /* only sectors for a single page */
-	int pgs_per_blk;
-	int blks_per_lun;
-	int fpg_size;
-	int pfpg_size; /* size of buffer if all pages are to be read */
+	int all_luns; /* across channels */
+	int nr_luns; /* per channel */
+	int nr_chks; /* per lun */
+
 	int sec_size;
 	int oob_size;
 	int mccap;
+
+	int sec_per_chk;
+	int sec_per_lun;
+
+	int ws_min;
+	int ws_opt;
+	int ws_seq;
+	int ws_per_chk;
+
+	int max_rq_size;
+
 	struct nvm_addr_format ppaf;
 
-	/* Calculated/Cached values. These do not reflect the actual usable
-	 * blocks at run-time.
-	 */
-	int max_rq_size;
+	/* Legacy 1.2 specific geometry */
 	int plane_mode; /* drive device in single, double or quad mode */
-
+	int nr_planes;
+	int sec_per_pg; /* only sectors for a single page */
 	int sec_per_pl; /* all sectors across planes */
-	int sec_per_blk;
-	int sec_per_lun;
 };
 
 /* sub-device structure */

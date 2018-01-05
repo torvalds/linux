@@ -188,7 +188,7 @@ static int pblk_calc_sec_in_line(struct pblk *pblk, struct pblk_line *line)
 	int nr_bb = bitmap_weight(line->blk_bitmap, lm->blk_per_line);
 
 	return lm->sec_per_line - lm->smeta_sec - lm->emeta_sec[0] -
-				nr_bb * geo->sec_per_blk;
+				nr_bb * geo->sec_per_chk;
 }
 
 struct pblk_recov_alloc {
