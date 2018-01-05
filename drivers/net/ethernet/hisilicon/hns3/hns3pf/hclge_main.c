@@ -645,7 +645,6 @@ static void hclge_update_netstat(struct hclge_hw_stats *hw_stats,
 
 	net_stats->rx_errors = hw_stats->mac_stats.mac_rx_oversize_pkt_num;
 	net_stats->rx_errors += hw_stats->mac_stats.mac_rx_undersize_pkt_num;
-	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_err_pkt;
 	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_no_eof_pkt;
 	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_no_sof_pkt;
 	net_stats->rx_errors += hw_stats->mac_stats.mac_rx_fcs_err_pkt_num;
