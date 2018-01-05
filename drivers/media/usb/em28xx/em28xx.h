@@ -166,7 +166,7 @@
 #define EM28XX_STOP_AUDIO       0
 
 /* maximum number of em28xx boards */
-#define EM28XX_MAXBOARDS 4 /*FIXME: should be bigger */
+#define EM28XX_MAXBOARDS DVB_MAX_ADAPTERS /* All adapters could be em28xx */
 
 /* maximum number of frames that can be queued */
 #define EM28XX_NUM_FRAMES 5
