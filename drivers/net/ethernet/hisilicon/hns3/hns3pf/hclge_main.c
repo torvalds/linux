@@ -332,30 +332,30 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 	{"mac_rx_1519_max_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_oct_pkt_num)},
 
-	{"mac_trans_fragment_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_fragment_pkt_num)},
-	{"mac_trans_undermin_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_undermin_pkt_num)},
-	{"mac_trans_jabber_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_jabber_pkt_num)},
-	{"mac_trans_err_all_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_err_all_pkt_num)},
-	{"mac_trans_from_app_good_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_from_app_good_pkt_num)},
-	{"mac_trans_from_app_bad_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_from_app_bad_pkt_num)},
-	{"mac_rcv_fragment_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_fragment_pkt_num)},
-	{"mac_rcv_undermin_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_undermin_pkt_num)},
-	{"mac_rcv_jabber_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_jabber_pkt_num)},
-	{"mac_rcv_fcs_err_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_fcs_err_pkt_num)},
-	{"mac_rcv_send_app_good_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_send_app_good_pkt_num)},
-	{"mac_rcv_send_app_bad_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_send_app_bad_pkt_num)}
+	{"mac_tx_fragment_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_fragment_pkt_num)},
+	{"mac_tx_undermin_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_undermin_pkt_num)},
+	{"mac_tx_jabber_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_jabber_pkt_num)},
+	{"mac_tx_err_all_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_err_all_pkt_num)},
+	{"mac_tx_from_app_good_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_from_app_good_pkt_num)},
+	{"mac_tx_from_app_bad_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_from_app_bad_pkt_num)},
+	{"mac_rx_fragment_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_fragment_pkt_num)},
+	{"mac_rx_undermin_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_undermin_pkt_num)},
+	{"mac_rx_jabber_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_jabber_pkt_num)},
+	{"mac_rx_fcs_err_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_fcs_err_pkt_num)},
+	{"mac_rx_send_app_good_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_good_pkt_num)},
+	{"mac_rx_send_app_bad_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_bad_pkt_num)}
 };
 
 static int hclge_64_bit_update_stats(struct hclge_dev *hdev)
@@ -587,7 +587,7 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_tqp *tqp = container_of(handle->kinfo.tqp[i],
 			struct hclge_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rcb_q%d_tx_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "txq#%d_pktnum_rcd",
 			 tqp->index);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -595,7 +595,7 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_tqp *tqp = container_of(kinfo->tqp[i],
 			struct hclge_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rcb_q%d_rx_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "rxq#%d_pktnum_rcd",
 			 tqp->index);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -648,12 +648,12 @@ static void hclge_update_netstat(struct hclge_hw_stats *hw_stats,
 	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_err_pkt;
 	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_no_eof_pkt;
 	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_no_sof_pkt;
-	net_stats->rx_errors += hw_stats->mac_stats.mac_rcv_fcs_err_pkt_num;
+	net_stats->rx_errors += hw_stats->mac_stats.mac_rx_fcs_err_pkt_num;
 
 	net_stats->multicast = hw_stats->mac_stats.mac_tx_multi_pkt_num;
 	net_stats->multicast += hw_stats->mac_stats.mac_rx_multi_pkt_num;
 
-	net_stats->rx_crc_errors = hw_stats->mac_stats.mac_rcv_fcs_err_pkt_num;
+	net_stats->rx_crc_errors = hw_stats->mac_stats.mac_rx_fcs_err_pkt_num;
 	net_stats->rx_length_errors =
 		hw_stats->mac_stats.mac_rx_undersize_pkt_num;
 	net_stats->rx_length_errors +=

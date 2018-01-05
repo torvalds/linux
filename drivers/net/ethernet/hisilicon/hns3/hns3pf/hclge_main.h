@@ -408,18 +408,18 @@ struct hclge_mac_stats {
 	u64 mac_rx_1024_1518_oct_pkt_num;
 	u64 mac_rx_1519_max_oct_pkt_num;
 
-	u64 mac_trans_fragment_pkt_num;
-	u64 mac_trans_undermin_pkt_num;
-	u64 mac_trans_jabber_pkt_num;
-	u64 mac_trans_err_all_pkt_num;
-	u64 mac_trans_from_app_good_pkt_num;
-	u64 mac_trans_from_app_bad_pkt_num;
-	u64 mac_rcv_fragment_pkt_num;
-	u64 mac_rcv_undermin_pkt_num;
-	u64 mac_rcv_jabber_pkt_num;
-	u64 mac_rcv_fcs_err_pkt_num;
-	u64 mac_rcv_send_app_good_pkt_num;
-	u64 mac_rcv_send_app_bad_pkt_num;
+	u64 mac_tx_fragment_pkt_num;
+	u64 mac_tx_undermin_pkt_num;
+	u64 mac_tx_jabber_pkt_num;
+	u64 mac_tx_err_all_pkt_num;
+	u64 mac_tx_from_app_good_pkt_num;
+	u64 mac_tx_from_app_bad_pkt_num;
+	u64 mac_rx_fragment_pkt_num;
+	u64 mac_rx_undermin_pkt_num;
+	u64 mac_rx_jabber_pkt_num;
+	u64 mac_rx_fcs_err_pkt_num;
+	u64 mac_rx_send_app_good_pkt_num;
+	u64 mac_rx_send_app_bad_pkt_num;
 };
 
 struct hclge_hw_stats {

@@ -28,13 +28,13 @@ struct hns3_stats {
 
 static const struct hns3_stats hns3_txq_stats[] = {
 	/* Tx per-queue statistics */
-	HNS3_TQP_STAT("tx_io_err_cnt", io_err_cnt),
-	HNS3_TQP_STAT("tx_sw_err_cnt", sw_err_cnt),
-	HNS3_TQP_STAT("tx_seg_pkt_cnt", seg_pkt_cnt),
-	HNS3_TQP_STAT("tx_pkts", tx_pkts),
-	HNS3_TQP_STAT("tx_bytes", tx_bytes),
-	HNS3_TQP_STAT("tx_err_cnt", tx_err_cnt),
-	HNS3_TQP_STAT("tx_restart_queue", restart_queue),
+	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
+	HNS3_TQP_STAT("tx_dropped", sw_err_cnt),
+	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
+	HNS3_TQP_STAT("packets", tx_pkts),
+	HNS3_TQP_STAT("bytes", tx_bytes),
+	HNS3_TQP_STAT("errors", tx_err_cnt),
+	HNS3_TQP_STAT("tx_wake", restart_queue),
 	HNS3_TQP_STAT("tx_busy", tx_busy),
 };
 
@@ -42,18 +42,18 @@ static const struct hns3_stats hns3_txq_stats[] = {
 
 static const struct hns3_stats hns3_rxq_stats[] = {
 	/* Rx per-queue statistics */
-	HNS3_TQP_STAT("rx_io_err_cnt", io_err_cnt),
-	HNS3_TQP_STAT("rx_sw_err_cnt", sw_err_cnt),
-	HNS3_TQP_STAT("rx_seg_pkt_cnt", seg_pkt_cnt),
-	HNS3_TQP_STAT("rx_pkts", rx_pkts),
-	HNS3_TQP_STAT("rx_bytes", rx_bytes),
-	HNS3_TQP_STAT("rx_err_cnt", rx_err_cnt),
-	HNS3_TQP_STAT("rx_reuse_pg_cnt", reuse_pg_cnt),
-	HNS3_TQP_STAT("rx_err_pkt_len", err_pkt_len),
-	HNS3_TQP_STAT("rx_non_vld_descs", non_vld_descs),
-	HNS3_TQP_STAT("rx_err_bd_num", err_bd_num),
-	HNS3_TQP_STAT("rx_l2_err", l2_err),
-	HNS3_TQP_STAT("rx_l3l4_csum_err", l3l4_csum_err),
+	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
+	HNS3_TQP_STAT("rx_dropped", sw_err_cnt),
+	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
+	HNS3_TQP_STAT("packets", rx_pkts),
+	HNS3_TQP_STAT("bytes", rx_bytes),
+	HNS3_TQP_STAT("errors", rx_err_cnt),
+	HNS3_TQP_STAT("reuse_pg_cnt", reuse_pg_cnt),
+	HNS3_TQP_STAT("err_pkt_len", err_pkt_len),
+	HNS3_TQP_STAT("non_vld_descs", non_vld_descs),
+	HNS3_TQP_STAT("err_bd_num", err_bd_num),
+	HNS3_TQP_STAT("l2_err", l2_err),
+	HNS3_TQP_STAT("l3l4_csum_err", l3l4_csum_err),
 };
 
 #define HNS3_RXQ_STATS_COUNT ARRAY_SIZE(hns3_rxq_stats)
@@ -389,9 +389,9 @@ static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 }
 
 static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
-				 u32 stat_count, u32 num_tqps)
+		u32 stat_count, u32 num_tqps, const char *prefix)
 {
-#define MAX_PREFIX_SIZE (8 + 4)
+#define MAX_PREFIX_SIZE (6 + 4)
 	u32 size_left;
 	u32 i, j;
 	u32 n1;
@@ -401,7 +401,8 @@ static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
 			data[ETH_GSTRING_LEN - 1] = '\0';
 
 			/* first, prepend the prefix string */
-			n1 = snprintf(data, MAX_PREFIX_SIZE, "rcb_q%d_", i);
+			n1 = snprintf(data, MAX_PREFIX_SIZE, "%s#%d_",
+				      prefix, i);
 			n1 = min_t(uint, n1, MAX_PREFIX_SIZE - 1);
 			size_left = (ETH_GSTRING_LEN - 1) - n1;
 
@@ -417,14 +418,16 @@ static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
 static u8 *hns3_get_strings_tqps(struct hnae3_handle *handle, u8 *data)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
+	const char tx_prefix[] = "txq";
+	const char rx_prefix[] = "rxq";
 
 	/* get strings for Tx */
 	data = hns3_update_strings(data, hns3_txq_stats, HNS3_TXQ_STATS_COUNT,
-				   kinfo->num_tqps);
+				   kinfo->num_tqps, tx_prefix);
 
 	/* get strings for Rx */
 	data = hns3_update_strings(data, hns3_rxq_stats, HNS3_RXQ_STATS_COUNT,
-				   kinfo->num_tqps);
+				   kinfo->num_tqps, rx_prefix);
 
 	return data;
 }
