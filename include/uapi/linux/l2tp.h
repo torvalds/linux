@@ -94,7 +94,7 @@ enum {
 	L2TP_ATTR_NONE,			/* no data */
 	L2TP_ATTR_PW_TYPE,		/* u16, enum l2tp_pwtype */
 	L2TP_ATTR_ENCAP_TYPE,		/* u16, enum l2tp_encap_type */
-	L2TP_ATTR_OFFSET,		/* u16 */
+	L2TP_ATTR_OFFSET,		/* u16 (not used) */
 	L2TP_ATTR_DATA_SEQ,		/* u16 */
 	L2TP_ATTR_L2SPEC_TYPE,		/* u8, enum l2tp_l2spec_type */
 	L2TP_ATTR_L2SPEC_LEN,		/* u8, enum l2tp_l2spec_type */
@@ -127,7 +127,6 @@ enum {
 	L2TP_ATTR_UDP_ZERO_CSUM6_TX,	/* flag */
 	L2TP_ATTR_UDP_ZERO_CSUM6_RX,	/* flag */
 	L2TP_ATTR_PAD,
-	L2TP_ATTR_PEER_OFFSET,		/* u16 */
 	__L2TP_ATTR_MAX,
 };
 

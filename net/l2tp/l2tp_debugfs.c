@@ -180,8 +180,7 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 		   session->lns_mode ? "LNS" : "LAC",
 		   session->debug,
 		   jiffies_to_msecs(session->reorder_timeout));
-	seq_printf(m, "   offset %hu peer_offset %hu l2specific %hu/%hu\n",
-		   session->offset, session->peer_offset,
+	seq_printf(m, "   offset 0 l2specific %hu/%hu\n",
 		   session->l2specific_type, session->l2specific_len);
 	if (session->cookie_len) {
 		seq_printf(m, "   cookie %02x%02x%02x%02x",
@@ -229,8 +228,7 @@ static int l2tp_dfs_seq_show(struct seq_file *m, void *v)
 		seq_puts(m, " debug tx-pkts/bytes/errs rx-pkts/bytes/errs\n");
 		seq_puts(m, "  SESSION ID, peer ID, PWTYPE\n");
 		seq_puts(m, "   refcnt cnt\n");
-		seq_puts(m, "   offset OFFSET peer_offset OFFSET");
-		seq_puts(m, " l2specific TYPE/LEN\n");
+		seq_puts(m, "   offset OFFSET l2specific TYPE/LEN\n");
 		seq_puts(m, "   [ cookie ]\n");
 		seq_puts(m, "   [ peer cookie ]\n");
 		seq_puts(m, "   config mtu/mru/rcvseq/sendseq/dataseq/lns debug reorderto\n");
