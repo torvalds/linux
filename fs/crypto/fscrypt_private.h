@@ -108,6 +108,10 @@ extern int fscrypt_do_page_crypto(const struct inode *inode,
 extern struct page *fscrypt_alloc_bounce_page(struct fscrypt_ctx *ctx,
 					      gfp_t gfp_flags);
 
+/* fname.c */
+extern int fname_encrypt(struct inode *inode,
+			 const struct qstr *iname, struct fscrypt_str *oname);
+
 /* keyinfo.c */
 extern void __exit fscrypt_essiv_cleanup(void);
 
