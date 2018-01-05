@@ -63,3 +63,83 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 
 	iput(inode);
 }
+
+enum quota_check_op {
+	QUOTA_CHECK_MAX_FILES_OP	/* check quota max_files limit */
+};
+
+/*
+ * check_quota_exceeded() will walk up the snaprealm hierarchy and, for each
+ * realm, it will execute quota check operation defined by the 'op' parameter.
+ * The snaprealm walk is interrupted if the quota check detects that the quota
+ * is exceeded or if the root inode is reached.
+ */
+static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
+				 loff_t delta)
+{
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
+	struct ceph_inode_info *ci;
+	struct ceph_snap_realm *realm, *next;
+	struct ceph_vino vino;
+	struct inode *in;
+	u64 max, rvalue;
+	bool is_root;
+	bool exceeded = false;
+
+	down_read(&mdsc->snap_rwsem);
+	realm = ceph_inode(inode)->i_snap_realm;
+	ceph_get_snap_realm(mdsc, realm);
+	while (realm) {
+		vino.ino = realm->ino;
+		vino.snap = CEPH_NOSNAP;
+		in = ceph_find_inode(inode->i_sb, vino);
+		if (!in) {
+			pr_warn("Failed to find inode for %llu\n", vino.ino);
+			break;
+		}
+		ci = ceph_inode(in);
+		spin_lock(&ci->i_ceph_lock);
+		if (op == QUOTA_CHECK_MAX_FILES_OP) {
+			max = ci->i_max_files;
+			rvalue = ci->i_rfiles + ci->i_rsubdirs;
+		}
+		is_root = (ci->i_vino.ino == CEPH_INO_ROOT);
+		spin_unlock(&ci->i_ceph_lock);
+		switch (op) {
+		case QUOTA_CHECK_MAX_FILES_OP:
+			exceeded = (max && (rvalue >= max));
+			break;
+		default:
+			/* Shouldn't happen */
+			pr_warn("Invalid quota check op (%d)\n", op);
+			exceeded = true; /* Just break the loop */
+		}
+		iput(in);
+
+		if (is_root || exceeded)
+			break;
+		next = realm->parent;
+		ceph_get_snap_realm(mdsc, next);
+		ceph_put_snap_realm(mdsc, realm);
+		realm = next;
+	}
+	ceph_put_snap_realm(mdsc, realm);
+	up_read(&mdsc->snap_rwsem);
+
+	return exceeded;
+}
+
+/*
+ * ceph_quota_is_max_files_exceeded - check if we can create a new file
+ * @inode:	directory where a new file is being created
+ *
+ * This functions returns true is max_files quota allows a new file to be
+ * created.  It is necessary to walk through the snaprealm hierarchy (until the
+ * FS root) to check all realms with quotas set.
+ */
+bool ceph_quota_is_max_files_exceeded(struct inode *inode)
+{
+	WARN_ON(!S_ISDIR(inode->i_mode));
+
+	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_FILES_OP, 0);
+}

@@ -1077,5 +1077,6 @@ extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
 extern void ceph_handle_quota(struct ceph_mds_client *mdsc,
 			      struct ceph_mds_session *session,
 			      struct ceph_msg *msg);
+extern bool ceph_quota_is_max_files_exceeded(struct inode *inode);
 
 #endif /* _FS_CEPH_SUPER_H */
