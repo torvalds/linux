@@ -1986,9 +1986,10 @@ N:	stm32
 F:	drivers/clocksource/armv7m_systick.c
 
 ARM/TANGO ARCHITECTURE
-M:	Marc Gonzalez <marc_gonzalez@sigmadesigns.com>
+M:	Marc Gonzalez <marc.w.gonzalez@free.fr>
+M:	Mans Rullgard <mans@mansr.com>
 L:	linux-arm-kernel@lists.infradead.org
-S:	Maintained
+S:	Odd Fixes
 N:	tango
 
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
