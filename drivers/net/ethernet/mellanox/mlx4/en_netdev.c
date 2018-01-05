@@ -2172,8 +2172,9 @@ static int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 
 		if (mlx4_en_create_rx_ring(priv, &priv->rx_ring[i],
 					   prof->rx_ring_size, priv->stride,
-					   node))
+					   node, i))
 			goto err;
+
 	}
 
 #ifdef CONFIG_RFS_ACCEL

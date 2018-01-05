@@ -262,7 +262,7 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
 
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring **pring,
-			   u32 size, u16 stride, int node)
+			   u32 size, u16 stride, int node, int queue_index)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_rx_ring *ring;
@@ -286,6 +286,9 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	ring->log_stride = ffs(ring->stride) - 1;
 	ring->buf_size = ring->size * ring->stride + TXBB_SIZE;
 
+	if (xdp_rxq_info_reg(&ring->xdp_rxq, priv->dev, queue_index) < 0)
+		goto err_ring;
+
 	tmp = size * roundup_pow_of_two(MLX4_EN_MAX_RX_FRAGS *
 					sizeof(struct mlx4_en_rx_alloc));
 	ring->rx_info = vzalloc_node(tmp, node);
@@ -293,7 +296,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 		ring->rx_info = vzalloc(tmp);
 		if (!ring->rx_info) {
 			err = -ENOMEM;
-			goto err_ring;
+			goto err_xdp_info;
 		}
 	}
 
@@ -317,6 +320,8 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 err_info:
 	vfree(ring->rx_info);
 	ring->rx_info = NULL;
+err_xdp_info:
+	xdp_rxq_info_unreg(&ring->xdp_rxq);
 err_ring:
 	kfree(ring);
 	*pring = NULL;
@@ -440,6 +445,7 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 					lockdep_is_held(&mdev->state_lock));
 	if (old_prog)
 		bpf_prog_put(old_prog);
+	xdp_rxq_info_unreg(&ring->xdp_rxq);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
 	vfree(ring->rx_info);
 	ring->rx_info = NULL;
@@ -652,6 +658,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	int cq_ring = cq->ring;
 	bool doorbell_pending;
 	struct mlx4_cqe *cqe;
+	struct xdp_buff xdp;
 	int polled = 0;
 	int index;
 
@@ -666,6 +673,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	/* Protect accesses to: ring->xdp_prog, priv->mac_hash list */
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(ring->xdp_prog);
+	xdp.rxq = &ring->xdp_rxq;
 	doorbell_pending = 0;
 
 	/* We assume a 1:1 mapping between CQEs and Rx descriptors, so Rx
@@ -750,7 +758,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		 * read bytes but not past the end of the frag.
 		 */
 		if (xdp_prog) {
-			struct xdp_buff xdp;
 			dma_addr_t dma;
 			void *orig_data;
 			u32 act;

@@ -20,6 +20,7 @@
 #include <linux/set_memory.h>
 #include <linux/kallsyms.h>
 
+#include <net/xdp.h>
 #include <net/sch_generic.h>
 
 #include <uapi/linux/filter.h>
@@ -503,6 +504,7 @@ struct xdp_buff {
 	void *data_end;
 	void *data_meta;
 	void *data_hard_start;
+	struct xdp_rxq_info *rxq;
 };
 
 /* Compute the linear packet data range [data, data_end) which

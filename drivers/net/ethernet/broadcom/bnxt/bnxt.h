@@ -23,6 +23,7 @@
 #include <net/devlink.h>
 #include <net/dst_metadata.h>
 #include <net/switchdev.h>
+#include <net/xdp.h>
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -664,6 +665,7 @@ struct bnxt_rx_ring_info {
 
 	struct bnxt_ring_struct	rx_ring_struct;
 	struct bnxt_ring_struct	rx_agg_ring_struct;
+	struct xdp_rxq_info	xdp_rxq;
 };
 
 struct bnxt_cp_ring_info {

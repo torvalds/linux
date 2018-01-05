@@ -12,6 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/iommu.h>
 #include <linux/bpf.h>
+#include <net/xdp.h>
 #include "q_struct.h"
 
 #define MAX_QUEUE_SET			128
@@ -255,6 +256,7 @@ struct rcv_queue {
 	u8		start_qs_rbdr_idx; /* RBDR idx in the above QS */
 	u8		caching;
 	struct		rx_tx_queue_stats stats;
+	struct xdp_rxq_info xdp_rxq;
 } ____cacheline_aligned_in_smp;
 
 struct cmp_queue {

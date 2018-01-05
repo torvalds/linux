@@ -521,7 +521,7 @@ static void nicvf_unmap_page(struct nicvf *nic, struct page *page, u64 dma_addr)
 
 static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 				struct cqe_rx_t *cqe_rx, struct snd_queue *sq,
-				struct sk_buff **skb)
+				struct rcv_queue *rq, struct sk_buff **skb)
 {
 	struct xdp_buff xdp;
 	struct page *page;
@@ -545,6 +545,7 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 	xdp.data = (void *)cpu_addr;
 	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = xdp.data + len;
+	xdp.rxq = &rq->xdp_rxq;
 	orig_data = xdp.data;
 
 	rcu_read_lock();
@@ -698,7 +699,8 @@ static inline void nicvf_set_rxhash(struct net_device *netdev,
 
 static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 				  struct napi_struct *napi,
-				  struct cqe_rx_t *cqe_rx, struct snd_queue *sq)
+				  struct cqe_rx_t *cqe_rx,
+				  struct snd_queue *sq, struct rcv_queue *rq)
 {
 	struct sk_buff *skb = NULL;
 	struct nicvf *nic = netdev_priv(netdev);
@@ -724,7 +726,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	/* For XDP, ignore pkts spanning multiple pages */
 	if (nic->xdp_prog && (cqe_rx->rb_cnt == 1)) {
 		/* Packet consumed by XDP */
-		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx, sq, &skb))
+		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx, sq, rq, &skb))
 			return;
 	} else {
 		skb = nicvf_get_rcv_skb(snic, cqe_rx,
@@ -781,6 +783,7 @@ static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 	struct cqe_rx_t *cq_desc;
 	struct netdev_queue *txq;
 	struct snd_queue *sq = &qs->sq[cq_idx];
+	struct rcv_queue *rq = &qs->rq[cq_idx];
 	unsigned int tx_pkts = 0, tx_bytes = 0, txq_idx;
 
 	spin_lock_bh(&cq->lock);
@@ -811,7 +814,7 @@ loop:
 
 		switch (cq_desc->cqe_type) {
 		case CQE_TYPE_RX:
-			nicvf_rcv_pkt_handler(netdev, napi, cq_desc, sq);
+			nicvf_rcv_pkt_handler(netdev, napi, cq_desc, sq, rq);
 			work_done++;
 		break;
 		case CQE_TYPE_SEND:

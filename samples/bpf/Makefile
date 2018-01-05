@@ -41,6 +41,7 @@ hostprogs-y += xdp_redirect
 hostprogs-y += xdp_redirect_map
 hostprogs-y += xdp_redirect_cpu
 hostprogs-y += xdp_monitor
+hostprogs-y += xdp_rxq_info
 hostprogs-y += syscall_tp
 
 # Libbpf dependencies
@@ -90,6 +91,7 @@ xdp_redirect-objs := bpf_load.o $(LIBBPF) xdp_redirect_user.o
 xdp_redirect_map-objs := bpf_load.o $(LIBBPF) xdp_redirect_map_user.o
 xdp_redirect_cpu-objs := bpf_load.o $(LIBBPF) xdp_redirect_cpu_user.o
 xdp_monitor-objs := bpf_load.o $(LIBBPF) xdp_monitor_user.o
+xdp_rxq_info-objs := bpf_load.o $(LIBBPF) xdp_rxq_info_user.o
 syscall_tp-objs := bpf_load.o $(LIBBPF) syscall_tp_user.o
 
 # Tell kbuild to always build the programs
@@ -139,6 +141,7 @@ always += xdp_redirect_kern.o
 always += xdp_redirect_map_kern.o
 always += xdp_redirect_cpu_kern.o
 always += xdp_monitor_kern.o
+always += xdp_rxq_info_kern.o
 always += syscall_tp_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
@@ -182,6 +185,7 @@ HOSTLOADLIBES_xdp_redirect += -lelf
 HOSTLOADLIBES_xdp_redirect_map += -lelf
 HOSTLOADLIBES_xdp_redirect_cpu += -lelf
 HOSTLOADLIBES_xdp_monitor += -lelf
+HOSTLOADLIBES_xdp_rxq_info += -lelf
 HOSTLOADLIBES_syscall_tp += -lelf
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:

@@ -1585,6 +1585,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			 */
 			rx_rings[i].desc = NULL;
 			rx_rings[i].rx_bi = NULL;
+			/* Clear cloned XDP RX-queue info before setup call */
+			memset(&rx_rings[i].xdp_rxq, 0, sizeof(rx_rings[i].xdp_rxq));
 			/* this is to allow wr32 to have something to write to
 			 * during early allocation of Rx buffers
 			 */
