@@ -181,6 +181,7 @@ static DECLARE_WAIT_QUEUE_HEAD(megasas_poll_wait);
 static u32 support_poll_for_event;
 u32 megasas_dbg_lvl;
 static u32 support_device_change;
+static bool support_nvme_encapsulation;
 
 /* define lock for aen poll */
 spinlock_t poll_aen_lock;
@@ -3334,6 +3335,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 
 	case MFI_CMD_SMP:
 	case MFI_CMD_STP:
+	case MFI_CMD_NVME:
 		megasas_complete_int_cmd(instance, cmd);
 		break;
 
@@ -4721,6 +4723,8 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 			ci->adapterOperations3.useSeqNumJbodFP;
 		instance->support_morethan256jbod =
 			ci->adapter_operations4.support_pd_map_target_id;
+		instance->support_nvme_passthru =
+			ci->adapter_operations4.support_nvme_passthru;
 
 		/*Check whether controller is iMR or MR */
 		instance->is_imr = (ci->memory_size ? 0 : 1);
@@ -4737,6 +4741,8 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 			instance->disableOnlineCtrlReset ? "Disabled" : "Enabled");
 		dev_info(&instance->pdev->dev, "Secure JBOD support\t: %s\n",
 			instance->secure_jbod_support ? "Yes" : "No");
+		dev_info(&instance->pdev->dev, "NVMe passthru support\t: %s\n",
+			 instance->support_nvme_passthru ? "Yes" : "No");
 		break;
 
 	case DCMD_TIMEOUT:
@@ -7110,7 +7116,9 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 		return -EINVAL;
 	}
 
-	if (ioc->frame.hdr.cmd >= MFI_CMD_OP_COUNT) {
+	if ((ioc->frame.hdr.cmd >= MFI_CMD_OP_COUNT) ||
+	    ((ioc->frame.hdr.cmd == MFI_CMD_NVME) &&
+	    !instance->support_nvme_passthru)) {
 		dev_err(&instance->pdev->dev,
 			"Received invalid ioctl command 0x%x\n",
 			ioc->frame.hdr.cmd);
@@ -7580,6 +7588,14 @@ static ssize_t dbg_lvl_store(struct device_driver *dd, const char *buf,
 }
 static DRIVER_ATTR_RW(dbg_lvl);
 
+static ssize_t
+support_nvme_encapsulation_show(struct device_driver *dd, char *buf)
+{
+	return sprintf(buf, "%u\n", support_nvme_encapsulation);
+}
+
+static DRIVER_ATTR_RO(support_nvme_encapsulation);
+
 static inline void megasas_remove_scsi_device(struct scsi_device *sdev)
 {
 	sdev_printk(KERN_INFO, sdev, "SCSI device is removed\n");
@@ -7768,6 +7784,7 @@ static int __init megasas_init(void)
 
 	support_poll_for_event = 2;
 	support_device_change = 1;
+	support_nvme_encapsulation = true;
 
 	memset(&megasas_mgmt_info, 0, sizeof(megasas_mgmt_info));
 
@@ -7817,7 +7834,16 @@ static int __init megasas_init(void)
 	if (rval)
 		goto err_dcf_support_device_change;
 
+	rval = driver_create_file(&megasas_pci_driver.driver,
+				  &driver_attr_support_nvme_encapsulation);
+	if (rval)
+		goto err_dcf_support_nvme_encapsulation;
+
 	return rval;
+
+err_dcf_support_nvme_encapsulation:
+	driver_remove_file(&megasas_pci_driver.driver,
+			   &driver_attr_support_device_change);
 
 err_dcf_support_device_change:
 	driver_remove_file(&megasas_pci_driver.driver,
@@ -7851,6 +7877,8 @@ static void __exit megasas_exit(void)
 	driver_remove_file(&megasas_pci_driver.driver,
 			   &driver_attr_release_date);
 	driver_remove_file(&megasas_pci_driver.driver, &driver_attr_version);
+	driver_remove_file(&megasas_pci_driver.driver,
+			   &driver_attr_support_nvme_encapsulation);
 
 	pci_unregister_driver(&megasas_pci_driver);
 	unregister_chrdev(megasas_mgmt_majorno, "megaraid_sas_ioctl");

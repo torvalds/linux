@@ -1079,6 +1079,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	drv_ops->mfi_capabilities.support_qd_throttling = 1;
 	drv_ops->mfi_capabilities.support_pd_map_target_id = 1;
+	drv_ops->mfi_capabilities.support_nvme_passthru = 1;
 
 	if (instance->consistent_mask_64bit)
 		drv_ops->mfi_capabilities.support_64bit_mode = 1;
@@ -3993,7 +3994,13 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 				result = RETURN_CMD;
 
 			break;
+		case MFI_CMD_NVME:
+			if (!instance->support_nvme_passthru) {
+				cmd_mfi->frame->hdr.cmd_status = MFI_STAT_INVALID_CMD;
+				result = COMPLETE_CMD;
+			}
 
+			break;
 		default:
 			break;
 		}
