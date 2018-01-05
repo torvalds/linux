@@ -406,8 +406,12 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 		 */
 		return;
 
-	/* Update transports view of the MTU */
-	sctp_transport_update_pmtu(t, pmtu);
+	/* Update transports view of the MTU. Return if no update was needed.
+	 * If an update wasn't needed/possible, it also doesn't make sense to
+	 * try to retransmit now.
+	 */
+	if (!sctp_transport_update_pmtu(t, pmtu))
+		return;
 
 	/* Update association pmtu. */
 	sctp_assoc_sync_pmtu(asoc);
