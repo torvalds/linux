@@ -598,6 +598,28 @@ static int lgdt3306a_set_qam(struct lgdt3306a_state *state, int modulation)
 	if (lg_chkerr(ret))
 		goto fail;
 
+	/* 5.1 V0.36 SRDCHKALWAYS : For better QAM detection */
+	ret = lgdt3306a_read_reg(state, 0x000a, &val);
+	val &= 0xfd;
+	val |= 0x02;
+	ret = lgdt3306a_write_reg(state, 0x000a, val);
+	if (lg_chkerr(ret))
+		goto fail;
+
+	/* 5.2 V0.36 Control of "no signal" detector function */
+	ret = lgdt3306a_read_reg(state, 0x2849, &val);
+	val &= 0xdf;
+	ret = lgdt3306a_write_reg(state, 0x2849, val);
+	if (lg_chkerr(ret))
+		goto fail;
+
+	/* 5.3 Fix for Blonder Tongue HDE-2H-QAM and AQM modulators */
+	ret = lgdt3306a_read_reg(state, 0x302b, &val);
+	val &= 0x7f;  /* SELFSYNCFINDEN_CQS=0; disable auto reset */
+	ret = lgdt3306a_write_reg(state, 0x302b, val);
+	if (lg_chkerr(ret))
+		goto fail;
+
 	/* 6. Reset */
 	ret = lgdt3306a_soft_reset(state);
 	if (lg_chkerr(ret))
