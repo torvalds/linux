@@ -493,8 +493,6 @@ void pinmux_disable_setting(const struct pinctrl_setting *setting)
 			continue;
 		}
 		if (desc->mux_setting == &(setting->data.mux)) {
-			desc->mux_setting = NULL;
-			/* And release the pin */
 			pin_free(pctldev, pins[i], NULL);
 		} else {
 			const char *gname;
