@@ -238,4 +238,11 @@ static inline int __fscrypt_encrypt_symlink(struct inode *inode,
 	return -EOPNOTSUPP;
 }
 
+static inline void *fscrypt_get_symlink(struct inode *inode,
+					      const void *caddr,
+					      unsigned int max_size)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
 #endif	/* _LINUX_FSCRYPT_NOTSUPP_H */

@@ -210,5 +210,7 @@ extern int __fscrypt_prepare_symlink(struct inode *dir, unsigned int len,
 extern int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
 				     unsigned int len,
 				     struct fscrypt_str *disk_link);
+extern void *fscrypt_get_symlink(struct inode *inode, const void *caddr,
+				       unsigned int max_size);
 
 #endif	/* _LINUX_FSCRYPT_SUPP_H */
