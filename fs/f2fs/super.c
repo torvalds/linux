@@ -108,6 +108,8 @@ enum {
 	Opt_noinline_data,
 	Opt_data_flush,
 	Opt_reserve_root,
+	Opt_resgid,
+	Opt_resuid,
 	Opt_mode,
 	Opt_io_size_bits,
 	Opt_fault_injection,
@@ -159,6 +161,8 @@ static match_table_t f2fs_tokens = {
 	{Opt_noinline_data, "noinline_data"},
 	{Opt_data_flush, "data_flush"},
 	{Opt_reserve_root, "reserve_root=%u"},
+	{Opt_resgid, "resgid=%u"},
+	{Opt_resuid, "resuid=%u"},
 	{Opt_mode, "mode=%s"},
 	{Opt_io_size_bits, "io_bits=%u"},
 	{Opt_fault_injection, "fault_injection=%u"},
@@ -204,6 +208,15 @@ static inline void limit_reserve_root(struct f2fs_sb_info *sbi)
 			"Reduce reserved blocks for root = %u",
 				sbi->root_reserved_blocks);
 	}
+	if (!test_opt(sbi, RESERVE_ROOT) &&
+		(!uid_eq(sbi->s_resuid,
+				make_kuid(&init_user_ns, F2FS_DEF_RESUID)) ||
+		!gid_eq(sbi->s_resgid,
+				make_kgid(&init_user_ns, F2FS_DEF_RESGID))))
+		f2fs_msg(sbi->sb, KERN_INFO,
+			"Ignore s_resuid=%u, s_resgid=%u w/o reserve_root",
+				from_kuid_munged(&init_user_ns, sbi->s_resuid),
+				from_kgid_munged(&init_user_ns, sbi->s_resgid));
 }
 
 static void init_once(void *foo)
@@ -336,6 +349,8 @@ static int parse_options(struct super_block *sb, char *options)
 	substring_t args[MAX_OPT_ARGS];
 	char *p, *name;
 	int arg = 0;
+	kuid_t uid;
+	kgid_t gid;
 #ifdef CONFIG_QUOTA
 	int ret;
 #endif
@@ -514,6 +529,28 @@ static int parse_options(struct super_block *sb, char *options)
 				sbi->root_reserved_blocks = arg;
 				set_opt(sbi, RESERVE_ROOT);
 			}
+			break;
+		case Opt_resuid:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			uid = make_kuid(current_user_ns(), arg);
+			if (!uid_valid(uid)) {
+				f2fs_msg(sb, KERN_ERR,
+					"Invalid uid value %d", arg);
+				return -EINVAL;
+			}
+			sbi->s_resuid = uid;
+			break;
+		case Opt_resgid:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			gid = make_kgid(current_user_ns(), arg);
+			if (!gid_valid(gid)) {
+				f2fs_msg(sb, KERN_ERR,
+					"Invalid gid value %d", arg);
+				return -EINVAL;
+			}
+			sbi->s_resgid = gid;
 			break;
 		case Opt_mode:
 			name = match_strdup(&args[0]);
@@ -1166,8 +1203,10 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, "lfs");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 	if (test_opt(sbi, RESERVE_ROOT))
-		seq_printf(seq, ",reserve_root=%u",
-				sbi->root_reserved_blocks);
+		seq_printf(seq, ",reserve_root=%u,resuid=%u,resgid=%u",
+				sbi->root_reserved_blocks,
+				from_kuid_munged(&init_user_ns, sbi->s_resuid),
+				from_kgid_munged(&init_user_ns, sbi->s_resgid));
 	if (F2FS_IO_SIZE_BITS(sbi))
 		seq_printf(seq, ",io_size=%uKB", F2FS_IO_SIZE_KB(sbi));
 #ifdef CONFIG_F2FS_FAULT_INJECTION
@@ -2454,6 +2493,9 @@ try_onemore:
 
 	sb->s_fs_info = sbi;
 	sbi->raw_super = raw_super;
+
+	sbi->s_resuid = make_kuid(&init_user_ns, F2FS_DEF_RESUID);
+	sbi->s_resgid = make_kgid(&init_user_ns, F2FS_DEF_RESGID);
 
 	/* precompute checksum seed for metadata */
 	if (f2fs_sb_has_inode_chksum(sb))
