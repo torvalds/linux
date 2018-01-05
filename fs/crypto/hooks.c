@@ -110,3 +110,93 @@ int __fscrypt_prepare_lookup(struct inode *dir, struct dentry *dentry)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__fscrypt_prepare_lookup);
+
+int __fscrypt_prepare_symlink(struct inode *dir, unsigned int len,
+			      unsigned int max_len,
+			      struct fscrypt_str *disk_link)
+{
+	int err;
+
+	/*
+	 * To calculate the size of the encrypted symlink target we need to know
+	 * the amount of NUL padding, which is determined by the flags set in
+	 * the encryption policy which will be inherited from the directory.
+	 * The easiest way to get access to this is to just load the directory's
+	 * fscrypt_info, since we'll need it to create the dir_entry anyway.
+	 *
+	 * Note: in test_dummy_encryption mode, @dir may be unencrypted.
+	 */
+	err = fscrypt_get_encryption_info(dir);
+	if (err)
+		return err;
+	if (!fscrypt_has_encryption_key(dir))
+		return -ENOKEY;
+
+	/*
+	 * Calculate the size of the encrypted symlink and verify it won't
+	 * exceed max_len.  Note that for historical reasons, encrypted symlink
+	 * targets are prefixed with the ciphertext length, despite this
+	 * actually being redundant with i_size.  This decreases by 2 bytes the
+	 * longest symlink target we can accept.
+	 *
+	 * We could recover 1 byte by not counting a null terminator, but
+	 * counting it (even though it is meaningless for ciphertext) is simpler
+	 * for now since filesystems will assume it is there and subtract it.
+	 */
+	if (sizeof(struct fscrypt_symlink_data) + len > max_len)
+		return -ENAMETOOLONG;
+	disk_link->len = min_t(unsigned int,
+			       sizeof(struct fscrypt_symlink_data) +
+					fscrypt_fname_encrypted_size(dir, len),
+			       max_len);
+	disk_link->name = NULL;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__fscrypt_prepare_symlink);
+
+int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
+			      unsigned int len, struct fscrypt_str *disk_link)
+{
+	int err;
+	struct qstr iname = { .name = target, .len = len };
+	struct fscrypt_symlink_data *sd;
+	unsigned int ciphertext_len;
+	struct fscrypt_str oname;
+
+	err = fscrypt_require_key(inode);
+	if (err)
+		return err;
+
+	if (disk_link->name) {
+		/* filesystem-provided buffer */
+		sd = (struct fscrypt_symlink_data *)disk_link->name;
+	} else {
+		sd = kmalloc(disk_link->len, GFP_NOFS);
+		if (!sd)
+			return -ENOMEM;
+	}
+	ciphertext_len = disk_link->len - sizeof(*sd);
+	sd->len = cpu_to_le16(ciphertext_len);
+
+	oname.name = sd->encrypted_path;
+	oname.len = ciphertext_len;
+	err = fname_encrypt(inode, &iname, &oname);
+	if (err) {
+		if (!disk_link->name)
+			kfree(sd);
+		return err;
+	}
+	BUG_ON(oname.len != ciphertext_len);
+
+	/*
+	 * Null-terminating the ciphertext doesn't make sense, but we still
+	 * count the null terminator in the length, so we might as well
+	 * initialize it just in case the filesystem writes it out.
+	 */
+	sd->encrypted_path[ciphertext_len] = '\0';
+
+	if (!disk_link->name)
+		disk_link->name = (unsigned char *)sd;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__fscrypt_encrypt_symlink);
