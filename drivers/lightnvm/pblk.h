@@ -54,6 +54,8 @@
 /* Static pool sizes */
 #define PBLK_GEN_WS_POOL_SIZE (2)
 
+#define PBLK_DEFAULT_OP (11)
+
 enum {
 	PBLK_READ		= READ,
 	PBLK_WRITE		= WRITE,/* Write from write buffer */

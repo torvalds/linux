@@ -218,6 +218,10 @@ struct nvm_target {
 
 #define ADDR_EMPTY (~0ULL)
 
+#define NVM_TARGET_DEFAULT_OP (101)
+#define NVM_TARGET_MIN_OP (3)
+#define NVM_TARGET_MAX_OP (80)
+
 #define NVM_VERSION_MAJOR 1
 #define NVM_VERSION_MINOR 0
 #define NVM_VERSION_PATCH 0
@@ -290,6 +294,8 @@ struct nvm_geo {
 	int ws_per_chk;
 
 	int max_rq_size;
+
+	int op;
 
 	struct nvm_addr_format ppaf;
 
