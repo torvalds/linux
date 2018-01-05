@@ -93,6 +93,8 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <2>;
 			#cooling-cells = <2>; /* min followed by max */
+
+			vbb-supply = <&abb_mpu>;
 		};
 	};
 
@@ -102,15 +104,25 @@
 
 		opp_nom-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <1060000 850000 1150000>;
+			opp-microvolt = <1060000 850000 1150000>,
+					<1060000 850000 1150000>;
 			opp-supported-hw = <0xFF 0x01>;
 			opp-suspend;
 		};
 
 		opp_od-1176000000 {
 			opp-hz = /bits/ 64 <1176000000>;
-			opp-microvolt = <1160000 885000 1160000>;
+			opp-microvolt = <1160000 885000 1160000>,
+					<1160000 885000 1160000>;
+
 			opp-supported-hw = <0xFF 0x02>;
+		};
+
+		opp_high@1500000000 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <1210000 950000 1250000>,
+					<1210000 950000 1250000>;
+			opp-supported-hw = <0xFF 0x04>;
 		};
 	};
 
@@ -304,7 +316,6 @@
 			 * node and enable pcie1_ep mode.
 			 */
 			pcie1_rc: pcie@51000000 {
-				compatible = "ti,dra7-pcie";
 				reg = <0x51000000 0x2000>, <0x51002000 0x14c>, <0x1000 0x2000>;
 				reg-names = "rc_dbics", "ti_conf", "config";
 				interrupts = <0 232 0x4>, <0 233 0x4>;
@@ -334,7 +345,6 @@
 			};
 
 			pcie1_ep: pcie_ep@51000000 {
-				compatible = "ti,dra7-pcie-ep";
 				reg = <0x51000000 0x28>, <0x51002000 0x14c>, <0x51001000 0x28>, <0x1000 0x10000000>;
 				reg-names = "ep_dbics", "ti_conf", "ep_dbics2", "addr_space";
 				interrupts = <0 232 0x4>;
@@ -356,8 +366,7 @@
 			ranges = <0x51800000 0x51800000 0x3000
 				  0x0	     0x30000000 0x10000000>;
 			status = "disabled";
-			pcie@51800000 {
-				compatible = "ti,dra7-pcie";
+			pcie2_rc: pcie@51800000 {
 				reg = <0x51800000 0x2000>, <0x51802000 0x14c>, <0x1000 0x2000>;
 				reg-names = "rc_dbics", "ti_conf", "config";
 				interrupts = <0 355 0x4>, <0 356 0x4>;
@@ -1386,7 +1395,7 @@
 			ranges;
 			reg = <0x4a090000 0x20>;
 			ti,hwmods = "ocp2scp3";
-			sata_phy: phy@4A096000 {
+			sata_phy: phy@4a096000 {
 				compatible = "ti,phy-pipe3-sata";
 				reg = <0x4A096000 0x80>, /* phy_rx */
 				      <0x4A096400 0x64>, /* phy_tx */
@@ -2077,6 +2086,19 @@
 			clocks = <&l3_iclk_div>;
 			clock-names = "fck";
 		};
+
+		opp_supply_mpu: opp-supply@4a003b20 {
+			compatible = "ti,omap5-opp-supply";
+			reg = <0x4a003b20 0xc>;
+			ti,efuse-settings = <
+			/* uV   offset */
+			1060000 0x0
+			1160000 0x4
+			1210000 0x8
+			>;
+			ti,absolute-max-voltage-uv = <1500000>;
+		};
+
 	};
 
 	thermal_zones: thermal-zones {

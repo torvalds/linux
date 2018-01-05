@@ -329,7 +329,7 @@
 			status = "disabled";
 		};
 
-		mailbox: mailbox@480C8000 {
+		mailbox: mailbox@480c8000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x480C8000 0x200>;
 			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
@@ -944,7 +944,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		mcasp1: mcasp@4803C000 {
+		mcasp1: mcasp@4803c000 {
 			compatible = "ti,am33xx-mcasp-audio";
 			ti,hwmods = "mcasp1";
 			reg = <0x4803C000 0x2000>,

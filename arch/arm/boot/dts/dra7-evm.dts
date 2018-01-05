@@ -361,7 +361,7 @@
 };
 
 &cpu0 {
-	cpu0-supply = <&smps123_reg>;
+	vdd-supply = <&smps123_reg>;
 };
 
 &omap_dwc3_2 {

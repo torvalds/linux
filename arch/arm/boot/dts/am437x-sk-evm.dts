@@ -35,7 +35,7 @@
 		clock-frequency = <32768>;
 	};
 
-	backlight {
+	lcd_bl: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&ecap0 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 51 53 56 62 75 101 152 255>;
@@ -131,6 +131,8 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_pins>;
+
+		backlight = <&lcd_bl>;
 
 		enable-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 

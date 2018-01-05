@@ -388,7 +388,7 @@
 };
 
 &cpu0 {
-	cpu0-supply = <&smps12_reg>;
+	vdd-supply = <&smps12_reg>;
 	voltage-tolerance = <1>;
 };
 

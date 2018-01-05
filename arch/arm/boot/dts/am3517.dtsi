@@ -26,7 +26,7 @@
 			interrupt-names = "mc";
 		};
 
-		davinci_emac: ethernet@0x5c000000 {
+		davinci_emac: ethernet@5c000000 {
 			compatible = "ti,am3517-emac";
 			ti,hwmods = "davinci_emac";
 			status = "disabled";
@@ -41,7 +41,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 		};
 
-		davinci_mdio: ethernet@0x5c030000 {
+		davinci_mdio: ethernet@5c030000 {
 			compatible = "ti,davinci_mdio";
 			ti,hwmods = "davinci_mdio";
 			status = "disabled";

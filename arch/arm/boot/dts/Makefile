@@ -688,6 +688,7 @@ dtb-$(CONFIG_SOC_DRA7XX) += \
 	am57xx-sbc-am57x.dtb \
 	am572x-idk.dtb \
 	am571x-idk.dtb \
+	am574x-idk.dtb \
 	dra7-evm.dtb \
 	dra72-evm.dtb \
 	dra72-evm-revc.dtb \
