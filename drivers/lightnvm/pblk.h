@@ -1047,10 +1047,7 @@ static inline void pblk_ppa_set_empty(struct ppa_addr *ppa_addr)
 
 static inline bool pblk_ppa_comp(struct ppa_addr lppa, struct ppa_addr rppa)
 {
-	if (lppa.ppa == rppa.ppa)
-		return true;
-
-	return false;
+	return (lppa.ppa == rppa.ppa);
 }
 
 static inline int pblk_addr_in_cache(struct ppa_addr ppa)
