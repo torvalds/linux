@@ -119,24 +119,10 @@ static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
 }
 
 #if __FS_HAS_ENCRYPTION
-
-static inline struct page *fscrypt_control_page(struct page *page)
-{
-	return ((struct fscrypt_ctx *)page_private(page))->w.control_page;
-}
-
 #include <linux/fscrypt_supp.h>
-
-#else /* !__FS_HAS_ENCRYPTION */
-
-static inline struct page *fscrypt_control_page(struct page *page)
-{
-	WARN_ON_ONCE(1);
-	return ERR_PTR(-EINVAL);
-}
-
+#else
 #include <linux/fscrypt_notsupp.h>
-#endif /* __FS_HAS_ENCRYPTION */
+#endif
 
 /**
  * fscrypt_require_key - require an inode's encryption key
