@@ -77,3 +77,11 @@ ENTRY(__psci_hyp_bp_inval_start)
 	ldp	x0, x1, [sp, #(16 * 8)]
 	add	sp, sp, #(8 * 18)
 ENTRY(__psci_hyp_bp_inval_end)
+
+ENTRY(__qcom_hyp_sanitize_link_stack_start)
+	stp     x29, x30, [sp, #-16]!
+	.rept	16
+	bl	. + 4
+	.endr
+	ldp	x29, x30, [sp], #16
+ENTRY(__qcom_hyp_sanitize_link_stack_end)
