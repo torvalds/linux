@@ -562,17 +562,24 @@ int btrfs_add_extent_mapping(struct extent_map_tree *em_tree,
 			*em_in = existing;
 			ret = 0;
 		} else {
+			u64 orig_start = em->start;
+			u64 orig_len = em->len;
+
 			/*
 			 * The existing extent map is the one nearest to
 			 * the [start, start + len) range which overlaps
 			 */
 			ret = merge_extent_mapping(em_tree, existing,
 						   em, start);
-			free_extent_map(existing);
 			if (ret) {
 				free_extent_map(em);
 				*em_in = NULL;
+				WARN_ONCE(ret,
+"unexpected error %d: merge existing(start %llu len %llu) with em(start %llu len %llu)\n",
+					  ret, existing->start, existing->len,
+					  orig_start, orig_len);
 			}
+			free_extent_map(existing);
 		}
 	}
 
