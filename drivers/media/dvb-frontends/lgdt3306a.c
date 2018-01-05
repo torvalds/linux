@@ -2177,6 +2177,7 @@ static int lgdt3306a_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, fe->demodulator_priv);
 	state = fe->demodulator_priv;
+	state->frontend.ops.release = NULL;
 
 	/* create mux i2c adapter for tuner */
 	state->muxc = i2c_mux_alloc(client->adapter, &client->dev,
