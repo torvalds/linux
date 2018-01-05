@@ -1784,10 +1784,10 @@ static void rk818_charger_shutdown(struct platform_device *pdev)
 	cancel_delayed_work_sync(&cg->finish_sig_work);
 	cancel_delayed_work_sync(&cg->irq_work);
 	cancel_delayed_work_sync(&cg->ts2_vol_work);
-	destroy_workqueue(cg->ts2_wq);
-	destroy_workqueue(cg->usb_charger_wq);
-	destroy_workqueue(cg->dc_charger_wq);
-	destroy_workqueue(cg->finish_sig_wq);
+	flush_workqueue(cg->ts2_wq);
+	flush_workqueue(cg->usb_charger_wq);
+	flush_workqueue(cg->dc_charger_wq);
+	flush_workqueue(cg->finish_sig_wq);
 
 	if (cg->pdata->extcon) {
 		extcon_unregister_notifier(cg->cable_edev, EXTCON_CHG_USB_SDP,
