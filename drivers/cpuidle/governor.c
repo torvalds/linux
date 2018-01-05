@@ -36,13 +36,14 @@ static struct cpuidle_governor * __cpuidle_find_governor(const char *str)
 /**
  * cpuidle_switch_governor - changes the governor
  * @gov: the new target governor
- *
- * NOTE: "gov" can be NULL to specify disabled
  * Must be called with cpuidle_lock acquired.
  */
 int cpuidle_switch_governor(struct cpuidle_governor *gov)
 {
 	struct cpuidle_device *dev;
+
+	if (!gov)
+		return -EINVAL;
 
 	if (gov == cpuidle_curr_governor)
 		return 0;
