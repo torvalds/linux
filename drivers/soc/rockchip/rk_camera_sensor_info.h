@@ -40,6 +40,7 @@
 #define RK29_CAM_SENSOR_GC0307  gc0307
 #define RK29_CAM_SENSOR_GC0308  gc0308
 #define RK29_CAM_SENSOR_GC0309  gc0309
+#define RK29_CAM_SENSOR_GC0312  gc0312
 #define RK29_CAM_SENSOR_GC2015  gc2015
 #define RK29_CAM_SENSOR_GC0328  gc0328
 #define RK29_CAM_SENSOR_GC0329  gc0329
@@ -87,6 +88,7 @@
 #define RK29_CAM_SENSOR_NAME_GC0307  "gc0307"
 #define RK29_CAM_SENSOR_NAME_GC0308  "gc0308"
 #define RK29_CAM_SENSOR_NAME_GC0309  "gc0309"
+#define RK29_CAM_SENSOR_NAME_GC0312  "gc0312"
 #define RK29_CAM_SENSOR_NAME_GC2015  "gc2015"
 #define RK29_CAM_SENSOR_NAME_GC0328  "gc0328"
 #define RK29_CAM_SENSOR_NAME_GC2035  "gc2035"
@@ -151,6 +153,7 @@
 #define gc0328_FULL_RESOLUTION     0x30000
 #define gc0307_FULL_RESOLUTION     0x30000
 #define gc0309_FULL_RESOLUTION     0x30000
+#define gc0312_FULL_RESOLUTION     0x30000
 #define gc2015_FULL_RESOLUTION     0x200000
 #define siv120b_FULL_RESOLUTION     0x30000
 #define siv121d_FULL_RESOLUTION     0x30000
@@ -215,6 +218,7 @@
 #define gc0328_I2C_ADDR             0x42
 #define gc0308_I2C_ADDR             0x42
 #define gc0309_I2C_ADDR             0x42
+#define gc0312_I2C_ADDR             0x42
 #define gc0329_I2C_ADDR             0x62
 #define gc2015_I2C_ADDR             0x60
 #define gc2035_I2C_ADDR             0x78
@@ -281,6 +285,7 @@
 #define gc0328_PWRDN_ACTIVE             0x01
 #define gc0309_PWRDN_ACTIVE             0x01
 #define gc0329_PWRDN_ACTIVE             0x01
+#define gc0312_PWRDN_ACTIVE             0x01
 #define gc2015_PWRDN_ACTIVE             0x01
 #define gc2035_PWRDN_ACTIVE             0x01
 
@@ -358,6 +363,7 @@
 #define gc0328_PWRSEQ                   sensor_PWRSEQ_DEFAULT
 #define gc0309_PWRSEQ                   sensor_PWRSEQ_DEFAULT
 #define gc0329_PWRSEQ                   sensor_PWRSEQ_DEFAULT
+#define gc0312_PWRSEQ                   sensor_PWRSEQ_DEFAULT
 #define gc2015_PWRSEQ                   sensor_PWRSEQ_DEFAULT
 #define gc2035_PWRSEQ                   sensor_PWRSEQ_DEFAULT
 
