@@ -1943,6 +1943,56 @@ static int rt5650_hp_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int rt5645_set_micbias1_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *k, int  event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		snd_soc_update_bits(codec, RT5645_GEN_CTRL2,
+			RT5645_MICBIAS1_POW_CTRL_SEL_MASK,
+			RT5645_MICBIAS1_POW_CTRL_SEL_M);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, RT5645_GEN_CTRL2,
+			RT5645_MICBIAS1_POW_CTRL_SEL_MASK,
+			RT5645_MICBIAS1_POW_CTRL_SEL_A);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int rt5645_set_micbias2_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *k, int  event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		snd_soc_update_bits(codec, RT5645_GEN_CTRL2,
+			RT5645_MICBIAS2_POW_CTRL_SEL_MASK,
+			RT5645_MICBIAS2_POW_CTRL_SEL_M);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, RT5645_GEN_CTRL2,
+			RT5645_MICBIAS2_POW_CTRL_SEL_MASK,
+			RT5645_MICBIAS2_POW_CTRL_SEL_A);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget rt5645_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("LDO2", RT5645_PWR_MIXER,
 		RT5645_PWR_LDO2_BIT, 0, NULL, 0),
@@ -1980,10 +2030,12 @@ static const struct snd_soc_dapm_widget rt5645_dapm_widgets[] = {
 
 	/* Input Side */
 	/* micbias */
-	SND_SOC_DAPM_MICBIAS("micbias1", RT5645_PWR_ANLG2,
-			RT5645_PWR_MB1_BIT, 0),
-	SND_SOC_DAPM_MICBIAS("micbias2", RT5645_PWR_ANLG2,
-			RT5645_PWR_MB2_BIT, 0),
+	SND_SOC_DAPM_SUPPLY("micbias1", RT5645_PWR_ANLG2,
+			RT5645_PWR_MB1_BIT, 0, rt5645_set_micbias1_event,
+			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY("micbias2", RT5645_PWR_ANLG2,
+			RT5645_PWR_MB2_BIT, 0, rt5645_set_micbias2_event,
+			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	/* Input Lines */
 	SND_SOC_DAPM_INPUT("DMIC L1"),
 	SND_SOC_DAPM_INPUT("DMIC R1"),
@@ -3394,6 +3446,9 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 		snd_soc_dapm_sync(dapm);
 	}
 
+	if (rt5645->pdata.long_name)
+		codec->component.card->long_name = rt5645->pdata.long_name;
+
 	rt5645->eq_param = devm_kzalloc(codec->dev,
 		RT5645_HWEQ_NUM * sizeof(struct rt5645_eq_param_s), GFP_KERNEL);
 
@@ -3570,38 +3625,10 @@ static const struct acpi_device_id rt5645_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
 #endif
 
-static const struct rt5645_platform_data general_platform_data = {
+static const struct rt5645_platform_data intel_braswell_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC1_DISABLE,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
-};
-
-static const struct dmi_system_id dmi_platform_intel_braswell[] = {
-	{
-		.ident = "Intel Strago",
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Strago"),
-		},
-	},
-	{
-		.ident = "Google Chrome",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
-		},
-	},
-	{
-		.ident = "Google Setzer",
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
-		},
-	},
-	{
-		.ident = "Microsoft Surface 3",
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Surface 3"),
-		},
-	},
-	{ }
 };
 
 static const struct rt5645_platform_data buddy_platform_data = {
@@ -3611,22 +3638,61 @@ static const struct rt5645_platform_data buddy_platform_data = {
 	.level_trigger_irq = true,
 };
 
-static const struct dmi_system_id dmi_platform_intel_broadwell[] = {
+static const struct rt5645_platform_data gpd_win_platform_data = {
+	.jd_mode = 3,
+	.inv_jd1_1 = true,
+	.long_name = "gpd-win-pocket-rt5645",
+	/* The GPD pocket has a diff. mic, for the win this does not matter. */
+	.in2_diff = true,
+};
+
+static const struct rt5645_platform_data asus_t100ha_platform_data = {
+	.dmic1_data_pin = RT5645_DMIC_DATA_IN2N,
+	.dmic2_data_pin = RT5645_DMIC2_DISABLE,
+	.jd_mode = 3,
+	.inv_jd1_1 = true,
+};
+
+static const struct rt5645_platform_data jd_mode3_platform_data = {
+	.jd_mode = 3,
+};
+
+static const struct dmi_system_id dmi_platform_data[] = {
 	{
 		.ident = "Chrome Buddy",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Buddy"),
 		},
+		.driver_data = (void *)&buddy_platform_data,
 	},
-	{ }
-};
-
-static const struct rt5645_platform_data gpd_win_platform_data = {
-	.jd_mode = 3,
-	.inv_jd1_1 = true,
-};
-
-static const struct dmi_system_id dmi_platform_gpd_win[] = {
+	{
+		.ident = "Intel Strago",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Strago"),
+		},
+		.driver_data = (void *)&intel_braswell_platform_data,
+	},
+	{
+		.ident = "Google Chrome",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+		},
+		.driver_data = (void *)&intel_braswell_platform_data,
+	},
+	{
+		.ident = "Google Setzer",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
+		},
+		.driver_data = (void *)&intel_braswell_platform_data,
+	},
+	{
+		.ident = "Microsoft Surface 3",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Surface 3"),
+		},
+		.driver_data = (void *)&intel_braswell_platform_data,
+	},
 	{
 		/*
 		 * Match for the GPDwin which unfortunately uses somewhat
@@ -3637,60 +3703,41 @@ static const struct dmi_system_id dmi_platform_gpd_win[] = {
 		 * the same default product_name. Also the GPDwin is the
 		 * only device to have both board_ and product_name not set.
 		 */
-		.ident = "GPD Win",
+		.ident = "GPD Win / Pocket",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
 			DMI_MATCH(DMI_BOARD_NAME, "Default string"),
 			DMI_MATCH(DMI_BOARD_SERIAL, "Default string"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Default string"),
 		},
+		.driver_data = (void *)&gpd_win_platform_data,
 	},
-	{}
-};
-
-static const struct rt5645_platform_data general_platform_data2 = {
-	.dmic1_data_pin = RT5645_DMIC_DATA_IN2N,
-	.dmic2_data_pin = RT5645_DMIC2_DISABLE,
-	.jd_mode = 3,
-	.inv_jd1_1 = true,
-};
-
-static const struct dmi_system_id dmi_platform_asus_t100ha[] = {
 	{
 		.ident = "ASUS T100HAN",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "T100HAN"),
 		},
+		.driver_data = (void *)&asus_t100ha_platform_data,
 	},
-	{ }
-};
-
-static const struct rt5645_platform_data minix_z83_4_platform_data = {
-	.jd_mode = 3,
-};
-
-static const struct dmi_system_id dmi_platform_minix_z83_4[] = {
 	{
 		.ident = "MINIX Z83-4",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MINIX"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
 		},
+		.driver_data = (void *)&jd_mode3_platform_data,
+	},
+	{
+		.ident = "Teclast X80 Pro",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TECLAST"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X80 Pro"),
+		},
+		.driver_data = (void *)&jd_mode3_platform_data,
 	},
 	{ }
 };
-
-static bool rt5645_check_dp(struct device *dev)
-{
-	if (device_property_present(dev, "realtek,in2-differential") ||
-		device_property_present(dev, "realtek,dmic1-data-pin") ||
-		device_property_present(dev, "realtek,dmic2-data-pin") ||
-		device_property_present(dev, "realtek,jd-mode"))
-		return true;
-
-	return false;
-}
 
 static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
 {
@@ -3710,6 +3757,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
 	struct rt5645_platform_data *pdata = dev_get_platdata(&i2c->dev);
+	const struct dmi_system_id *dmi_data;
 	struct rt5645_priv *rt5645;
 	int ret, i;
 	unsigned int val;
@@ -3723,20 +3771,16 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	rt5645->i2c = i2c;
 	i2c_set_clientdata(i2c, rt5645);
 
+	dmi_data = dmi_first_match(dmi_platform_data);
+	if (dmi_data) {
+		dev_info(&i2c->dev, "Detected %s platform\n", dmi_data->ident);
+		pdata = dmi_data->driver_data;
+	}
+
 	if (pdata)
 		rt5645->pdata = *pdata;
-	else if (dmi_check_system(dmi_platform_intel_broadwell))
-		rt5645->pdata = buddy_platform_data;
-	else if (rt5645_check_dp(&i2c->dev))
+	else
 		rt5645_parse_dt(rt5645, &i2c->dev);
-	else if (dmi_check_system(dmi_platform_intel_braswell))
-		rt5645->pdata = general_platform_data;
-	else if (dmi_check_system(dmi_platform_gpd_win))
-		rt5645->pdata = gpd_win_platform_data;
-	else if (dmi_check_system(dmi_platform_asus_t100ha))
-		rt5645->pdata = general_platform_data2;
-	else if (dmi_check_system(dmi_platform_minix_z83_4))
-		rt5645->pdata = minix_z83_4_platform_data;
 
 	if (quirk != -1) {
 		rt5645->pdata.in2_diff = QUIRK_IN2_DIFF(quirk);
