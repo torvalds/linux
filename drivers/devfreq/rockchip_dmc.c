@@ -636,7 +636,6 @@ struct rockchip_dmcfreq {
 	bool is_dualview;
 
 	struct thermal_cooling_device *devfreq_cooling;
-	u32 dynamic_coefficient;
 	u32 static_coefficient;
 	s32 ts[4];
 	struct thermal_zone_device *ddr_tz;
@@ -2228,8 +2227,8 @@ static struct devfreq_governor devfreq_dmc_ondemand = {
 static unsigned long model_static_power(struct devfreq *devfreq,
 					unsigned long voltage)
 {
-	struct rockchip_dmcfreq *dmcfreq = rk_dmcfreq;
-	struct device *dev = dmcfreq->dev;
+	struct device *dev = devfreq->dev.parent;
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 
 	int temperature;
 	unsigned long temp;
@@ -2268,34 +2267,16 @@ static unsigned long model_static_power(struct devfreq *devfreq,
 		* temp_scaling_factor) / 1000000;
 }
 
-static unsigned long model_dynamic_power(struct devfreq *devfreq,
-					 unsigned long freq,
-					 unsigned long voltage)
-{
-	/*
-	 * The inputs: freq (f) is in Hz, and voltage (v) in mV.
-	 * The coefficient (c) is in mW/(MHz mV mV).
-	 *
-	 * This function calculates the dynamic power after this formula:
-	 * Pdyn (mW) = c (mW/(MHz*mV*mV)) * v (mV) * v (mV) * f (MHz)
-	 */
-	struct rockchip_dmcfreq *dmcfreq = rk_dmcfreq;
-
-	const unsigned long v2 = (voltage * voltage) / 1000;	/* m*(V*V) */
-	const unsigned long f_mhz = freq / 1000000;	/* MHz */
-
-	return (dmcfreq->dynamic_coefficient * v2 * f_mhz) / 1000000;	/* mW */
-}
-
-static struct devfreq_cooling_power ddr_power_model_simple_ops = {
+static struct devfreq_cooling_power ddr_cooling_power_data = {
 	.get_static_power = model_static_power,
-	.get_dynamic_power = model_dynamic_power,
+	.dyn_power_coeff = 120,
 };
 
 static int ddr_power_model_simple_init(struct rockchip_dmcfreq *dmcfreq)
 {
 	struct device_node *power_model_node;
 	const char *tz_name;
+	u32 temp;
 
 	power_model_node = of_get_child_by_name(dmcfreq->dev->of_node,
 						"ddr_power_model");
@@ -2326,11 +2307,12 @@ static int ddr_power_model_simple_init(struct rockchip_dmcfreq *dmcfreq)
 		return -EINVAL;
 	}
 	if (of_property_read_u32(power_model_node, "dynamic-power-coefficient",
-				 &dmcfreq->dynamic_coefficient)) {
+				 &temp)) {
 		dev_err(dmcfreq->dev,
 			"dynamic-power-coefficient not available\n");
 		return -EINVAL;
 	}
+	ddr_cooling_power_data.dyn_power_coeff = (unsigned long)temp;
 
 	if (of_property_read_u32_array
 	    (power_model_node, "ts", (u32 *)dmcfreq->ts, 4)) {
@@ -2495,7 +2477,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		data->devfreq_cooling =
 		    of_devfreq_cooling_register_power(data->dev->of_node,
 						      data->devfreq,
-						      &ddr_power_model_simple_ops);
+						      &ddr_cooling_power_data);
 		if (IS_ERR_OR_NULL(data->devfreq_cooling)) {
 			ret = PTR_ERR(data->devfreq_cooling);
 			dev_err(data->dev,
