@@ -149,7 +149,7 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 		struct ppa_addr ppa;
 		int pos;
 
-		ppa = addr_to_pblk_ppa(pblk, i, line->id);
+		ppa = addr_to_gen_ppa(pblk, i, line->id);
 		pos = pblk_ppa_to_pos(geo, ppa);
 
 		/* Do not update bad blocks */
@@ -263,12 +263,12 @@ next_read_rq:
 		int pos;
 
 		ppa = addr_to_gen_ppa(pblk, r_ptr_int, line->id);
-		pos = pblk_dev_ppa_to_pos(geo, ppa);
+		pos = pblk_ppa_to_pos(geo, ppa);
 
 		while (test_bit(pos, line->blk_bitmap)) {
 			r_ptr_int += pblk->min_write_pgs;
 			ppa = addr_to_gen_ppa(pblk, r_ptr_int, line->id);
-			pos = pblk_dev_ppa_to_pos(geo, ppa);
+			pos = pblk_ppa_to_pos(geo, ppa);
 		}
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++, r_ptr_int++)
@@ -411,12 +411,12 @@ next_pad_rq:
 		int pos;
 
 		w_ptr = pblk_alloc_page(pblk, line, pblk->min_write_pgs);
-		ppa = addr_to_pblk_ppa(pblk, w_ptr, line->id);
+		ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
 		pos = pblk_ppa_to_pos(geo, ppa);
 
 		while (test_bit(pos, line->blk_bitmap)) {
 			w_ptr += pblk->min_write_pgs;
-			ppa = addr_to_pblk_ppa(pblk, w_ptr, line->id);
+			ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
 			pos = pblk_ppa_to_pos(geo, ppa);
 		}
 
@@ -541,12 +541,12 @@ next_rq:
 
 		w_ptr = pblk_alloc_page(pblk, line, pblk->min_write_pgs);
 		ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
-		pos = pblk_dev_ppa_to_pos(geo, ppa);
+		pos = pblk_ppa_to_pos(geo, ppa);
 
 		while (test_bit(pos, line->blk_bitmap)) {
 			w_ptr += pblk->min_write_pgs;
 			ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
-			pos = pblk_dev_ppa_to_pos(geo, ppa);
+			pos = pblk_ppa_to_pos(geo, ppa);
 		}
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++, w_ptr++)
@@ -672,12 +672,12 @@ next_rq:
 
 		paddr = pblk_alloc_page(pblk, line, pblk->min_write_pgs);
 		ppa = addr_to_gen_ppa(pblk, paddr, line->id);
-		pos = pblk_dev_ppa_to_pos(geo, ppa);
+		pos = pblk_ppa_to_pos(geo, ppa);
 
 		while (test_bit(pos, line->blk_bitmap)) {
 			paddr += pblk->min_write_pgs;
 			ppa = addr_to_gen_ppa(pblk, paddr, line->id);
-			pos = pblk_dev_ppa_to_pos(geo, ppa);
+			pos = pblk_ppa_to_pos(geo, ppa);
 		}
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++, paddr++)
@@ -817,7 +817,7 @@ static u64 pblk_line_emeta_start(struct pblk *pblk, struct pblk_line *line)
 
 	while (emeta_secs) {
 		emeta_start--;
-		ppa = addr_to_pblk_ppa(pblk, emeta_start, line->id);
+		ppa = addr_to_gen_ppa(pblk, emeta_start, line->id);
 		pos = pblk_ppa_to_pos(geo, ppa);
 		if (!test_bit(pos, line->blk_bitmap))
 			emeta_secs--;

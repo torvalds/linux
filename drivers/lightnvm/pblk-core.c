@@ -32,8 +32,8 @@ static void pblk_line_mark_bb(struct work_struct *work)
 		struct pblk_line *line;
 		int pos;
 
-		line = &pblk->lines[pblk_dev_ppa_to_line(*ppa)];
-		pos = pblk_dev_ppa_to_pos(&dev->geo, *ppa);
+		line = &pblk->lines[pblk_ppa_to_line(*ppa)];
+		pos = pblk_ppa_to_pos(&dev->geo, *ppa);
 
 		pr_err("pblk: failed to mark bb, line:%d, pos:%d\n",
 				line->id, pos);
@@ -48,7 +48,7 @@ static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	int pos = pblk_dev_ppa_to_pos(geo, *ppa);
+	int pos = pblk_ppa_to_pos(geo, *ppa);
 
 	pr_debug("pblk: erase failed: line:%d, pos:%d\n", line->id, pos);
 	atomic_long_inc(&pblk->erase_failed);
@@ -66,7 +66,7 @@ static void __pblk_end_io_erase(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	struct pblk_line *line;
 
-	line = &pblk->lines[pblk_dev_ppa_to_line(rqd->ppa_addr)];
+	line = &pblk->lines[pblk_ppa_to_line(rqd->ppa_addr)];
 	atomic_dec(&line->left_seblks);
 
 	if (rqd->error) {
@@ -144,7 +144,7 @@ void pblk_map_invalidate(struct pblk *pblk, struct ppa_addr ppa)
 	BUG_ON(pblk_ppa_empty(ppa));
 #endif
 
-	line_id = pblk_tgt_ppa_to_line(ppa);
+	line_id = pblk_ppa_to_line(ppa);
 	line = &pblk->lines[line_id];
 	paddr = pblk_dev_ppa_to_line_addr(pblk, ppa);
 
@@ -650,7 +650,7 @@ next_rq:
 	} else {
 		for (i = 0; i < rqd.nr_ppas; ) {
 			struct ppa_addr ppa = addr_to_gen_ppa(pblk, paddr, id);
-			int pos = pblk_dev_ppa_to_pos(geo, ppa);
+			int pos = pblk_ppa_to_pos(geo, ppa);
 			int read_type = PBLK_READ_RANDOM;
 
 			if (pblk_io_aligned(pblk, rq_ppas))
@@ -668,7 +668,7 @@ next_rq:
 				}
 
 				ppa = addr_to_gen_ppa(pblk, paddr, id);
-				pos = pblk_dev_ppa_to_pos(geo, ppa);
+				pos = pblk_ppa_to_pos(geo, ppa);
 			}
 
 			if (pblk_boundary_paddr_checks(pblk, paddr + min)) {
@@ -854,8 +854,8 @@ static int pblk_blk_erase_sync(struct pblk *pblk, struct ppa_addr ppa)
 		struct nvm_geo *geo = &dev->geo;
 
 		pr_err("pblk: could not sync erase line:%d,blk:%d\n",
-					pblk_dev_ppa_to_line(ppa),
-					pblk_dev_ppa_to_pos(geo, ppa));
+					pblk_ppa_to_line(ppa),
+					pblk_ppa_to_pos(geo, ppa));
 
 		rqd.error = ret;
 		goto out;
@@ -1561,8 +1561,8 @@ int pblk_blk_erase_async(struct pblk *pblk, struct ppa_addr ppa)
 		struct nvm_geo *geo = &dev->geo;
 
 		pr_err("pblk: could not async erase line:%d,blk:%d\n",
-					pblk_dev_ppa_to_line(ppa),
-					pblk_dev_ppa_to_pos(geo, ppa));
+					pblk_ppa_to_line(ppa),
+					pblk_ppa_to_pos(geo, ppa));
 	}
 
 	return err;
@@ -1884,7 +1884,7 @@ void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
 
 		/* If the L2P entry maps to a line, the reference is valid */
 		if (!pblk_ppa_empty(ppa) && !pblk_addr_in_cache(ppa)) {
-			int line_id = pblk_dev_ppa_to_line(ppa);
+			int line_id = pblk_ppa_to_line(ppa);
 			struct pblk_line *line = &pblk->lines[line_id];
 
 			kref_get(&line->ref);
