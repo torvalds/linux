@@ -808,7 +808,7 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 void pblk_submit_rec(struct work_struct *work);
 struct pblk_line *pblk_recov_l2p(struct pblk *pblk);
 int pblk_recov_pad(struct pblk *pblk);
-__le64 *pblk_recov_get_lba_list(struct pblk *pblk, struct line_emeta *emeta);
+int pblk_recov_check_emeta(struct pblk *pblk, struct line_emeta *emeta);
 int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 			struct pblk_rec_ctx *recovery, u64 *comp_bits,
 			unsigned int comp);

@@ -111,18 +111,18 @@ int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 	return 0;
 }
 
-__le64 *pblk_recov_get_lba_list(struct pblk *pblk, struct line_emeta *emeta_buf)
+int pblk_recov_check_emeta(struct pblk *pblk, struct line_emeta *emeta_buf)
 {
 	u32 crc;
 
 	crc = pblk_calc_emeta_crc(pblk, emeta_buf);
 	if (le32_to_cpu(emeta_buf->crc) != crc)
-		return NULL;
+		return 1;
 
 	if (le32_to_cpu(emeta_buf->header.identifier) != PBLK_MAGIC)
-		return NULL;
+		return 1;
 
-	return emeta_to_lbas(pblk, emeta_buf);
+	return 0;
 }
 
 static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
@@ -137,7 +137,7 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 	u64 nr_valid_lbas, nr_lbas = 0;
 	u64 i;
 
-	lba_list = pblk_recov_get_lba_list(pblk, emeta_buf);
+	lba_list = emeta_to_lbas(pblk, emeta_buf);
 	if (!lba_list)
 		return 1;
 
@@ -934,6 +934,11 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 		memset(line->emeta->buf, 0, lm->emeta_len[0]);
 
 		if (pblk_line_read_emeta(pblk, line, line->emeta->buf)) {
+			pblk_recov_l2p_from_oob(pblk, line);
+			goto next;
+		}
+
+		if (pblk_recov_check_emeta(pblk, line->emeta->buf)) {
 			pblk_recov_l2p_from_oob(pblk, line);
 			goto next;
 		}

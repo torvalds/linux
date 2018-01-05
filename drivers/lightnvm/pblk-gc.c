@@ -169,7 +169,14 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 	 * the line untouched. TODO: Implement a recovery routine that scans and
 	 * moves all sectors on the line.
 	 */
-	lba_list = pblk_recov_get_lba_list(pblk, emeta_buf);
+
+	ret = pblk_recov_check_emeta(pblk, emeta_buf);
+	if (ret) {
+		pr_err("pblk: inconsistent emeta (line %d)\n", line->id);
+		goto fail_free_emeta;
+	}
+
+	lba_list = emeta_to_lbas(pblk, emeta_buf);
 	if (!lba_list) {
 		pr_err("pblk: could not interpret emeta (line %d)\n", line->id);
 		goto fail_free_emeta;
