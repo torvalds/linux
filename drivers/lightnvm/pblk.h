@@ -252,9 +252,6 @@ struct pblk_rl {
 	unsigned int high;	/* Upper threshold for rate limiter (free run -
 				 * user I/O rate limiter
 				 */
-	unsigned int low;	/* Lower threshold for rate limiter (user I/O
-				 * rate limiter - stall)
-				 */
 	unsigned int high_pw;	/* High rounded up as a power of 2 */
 
 #define PBLK_USER_HIGH_THRS 8	/* Begin write limit at 12% available blks */
@@ -288,7 +285,9 @@ struct pblk_rl {
 
 	unsigned long long nr_secs;
 	unsigned long total_blocks;
-	atomic_t free_blocks;
+
+	atomic_t free_blocks;		/* Total number of free blocks (+ OP) */
+	atomic_t free_user_blocks;	/* Number of user free blocks (no OP) */
 };
 
 #define PBLK_LINE_EMPTY (~0U)
@@ -579,7 +578,9 @@ struct pblk {
 			    */
 
 	sector_t capacity; /* Device capacity when bad blocks are subtracted */
-	int over_pct;      /* Percentage of device used for over-provisioning */
+
+	int op;      /* Percentage of device used for over-provisioning */
+	int op_blks; /* Number of blocks used for over-provisioning */
 
 	/* pblk provisioning values. Used by rate limiter */
 	struct pblk_rl rl;
@@ -839,6 +840,7 @@ void pblk_rl_free(struct pblk_rl *rl);
 void pblk_rl_update_rates(struct pblk_rl *rl);
 int pblk_rl_high_thrs(struct pblk_rl *rl);
 unsigned long pblk_rl_nr_free_blks(struct pblk_rl *rl);
+unsigned long pblk_rl_nr_user_free_blks(struct pblk_rl *rl);
 int pblk_rl_user_may_insert(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_inserted(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_user_in(struct pblk_rl *rl, int nr_entries);
@@ -847,7 +849,8 @@ void pblk_rl_gc_in(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_out(struct pblk_rl *rl, int nr_user, int nr_gc);
 int pblk_rl_max_io(struct pblk_rl *rl);
 void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line);
-void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line);
+void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line,
+			    bool used);
 int pblk_rl_is_limit(struct pblk_rl *rl);
 
 /*

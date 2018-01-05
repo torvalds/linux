@@ -579,22 +579,34 @@ static unsigned int calc_emeta_len(struct pblk *pblk)
 static void pblk_set_provision(struct pblk *pblk, long nr_free_blks)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_line_meta *lm = &pblk->lm;
 	struct nvm_geo *geo = &dev->geo;
 	sector_t provisioned;
+	int sec_meta, blk_meta;
 
-	pblk->over_pct = 20;
+	pblk->op = 20;
 
 	provisioned = nr_free_blks;
-	provisioned *= (100 - pblk->over_pct);
+	provisioned *= (100 - pblk->op);
 	sector_div(provisioned, 100);
+
+	pblk->op_blks = nr_free_blks - provisioned;
 
 	/* Internally pblk manages all free blocks, but all calculations based
 	 * on user capacity consider only provisioned blocks
 	 */
 	pblk->rl.total_blocks = nr_free_blks;
 	pblk->rl.nr_secs = nr_free_blks * geo->sec_per_chk;
-	pblk->capacity = provisioned * geo->sec_per_chk;
+
+	/* Consider sectors used for metadata */
+	sec_meta = (lm->smeta_sec + lm->emeta_sec[0]) * l_mg->nr_free_lines;
+	blk_meta = DIV_ROUND_UP(sec_meta, geo->sec_per_chk);
+
+	pblk->capacity = (provisioned - blk_meta) * geo->sec_per_chk;
+
 	atomic_set(&pblk->rl.free_blocks, nr_free_blks);
+	atomic_set(&pblk->rl.free_user_blocks, nr_free_blks);
 }
 
 static int pblk_lines_alloc_metadata(struct pblk *pblk)

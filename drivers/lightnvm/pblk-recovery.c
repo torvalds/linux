@@ -989,10 +989,8 @@ next:
 	}
 	spin_unlock(&l_mg->free_lock);
 
-	if (is_next) {
+	if (is_next)
 		pblk_line_erase(pblk, l_mg->data_next);
-		pblk_rl_free_lines_dec(&pblk->rl, l_mg->data_next);
-	}
 
 out:
 	if (found_lines != recovered_lines)
