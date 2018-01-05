@@ -7305,9 +7305,6 @@ static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 	struct megasas_iocpacket *ioc;
 	struct megasas_instance *instance;
 	int error;
-	int i;
-	unsigned long flags;
-	u32 wait_time = MEGASAS_RESET_WAIT_TIME;
 
 	ioc = memdup_user(user_ioc, sizeof(*ioc));
 	if (IS_ERR(ioc))
@@ -7318,10 +7315,6 @@ static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 		error = -ENODEV;
 		goto out_kfree_ioc;
 	}
-
-	/* Adjust ioctl wait time for VF mode */
-	if (instance->requestorId)
-		wait_time = MEGASAS_ROUTINE_WAIT_TIME_VF;
 
 	/* Block ioctls in VF mode */
 	if (instance->requestorId && !allow_vf_ioctls) {
@@ -7345,32 +7338,10 @@ static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 		goto out_kfree_ioc;
 	}
 
-	for (i = 0; i < wait_time; i++) {
-
-		spin_lock_irqsave(&instance->hba_lock, flags);
-		if (atomic_read(&instance->adprecovery) == MEGASAS_HBA_OPERATIONAL) {
-			spin_unlock_irqrestore(&instance->hba_lock, flags);
-			break;
-		}
-		spin_unlock_irqrestore(&instance->hba_lock, flags);
-
-		if (!(i % MEGASAS_RESET_NOTICE_INTERVAL)) {
-			dev_notice(&instance->pdev->dev, "waiting"
-				"for controller reset to finish\n");
-		}
-
-		msleep(1000);
-	}
-
-	spin_lock_irqsave(&instance->hba_lock, flags);
-	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
-		spin_unlock_irqrestore(&instance->hba_lock, flags);
-
-		dev_err(&instance->pdev->dev, "timed out while waiting for HBA to recover\n");
+	if  (megasas_wait_for_adapter_operational(instance)) {
 		error = -ENODEV;
 		goto out_up;
 	}
-	spin_unlock_irqrestore(&instance->hba_lock, flags);
 
 	error = megasas_mgmt_fw_ioctl(instance, user_ioc, ioc);
 out_up:
@@ -7386,9 +7357,6 @@ static int megasas_mgmt_ioctl_aen(struct file *file, unsigned long arg)
 	struct megasas_instance *instance;
 	struct megasas_aen aen;
 	int error;
-	int i;
-	unsigned long flags;
-	u32 wait_time = MEGASAS_RESET_WAIT_TIME;
 
 	if (file->private_data != file) {
 		printk(KERN_DEBUG "megasas: fasync_helper was not "
@@ -7412,32 +7380,8 @@ static int megasas_mgmt_ioctl_aen(struct file *file, unsigned long arg)
 		return -ENODEV;
 	}
 
-	for (i = 0; i < wait_time; i++) {
-
-		spin_lock_irqsave(&instance->hba_lock, flags);
-		if (atomic_read(&instance->adprecovery) == MEGASAS_HBA_OPERATIONAL) {
-			spin_unlock_irqrestore(&instance->hba_lock,
-						flags);
-			break;
-		}
-
-		spin_unlock_irqrestore(&instance->hba_lock, flags);
-
-		if (!(i % MEGASAS_RESET_NOTICE_INTERVAL)) {
-			dev_notice(&instance->pdev->dev, "waiting for"
-				"controller reset to finish\n");
-		}
-
-		msleep(1000);
-	}
-
-	spin_lock_irqsave(&instance->hba_lock, flags);
-	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
-		spin_unlock_irqrestore(&instance->hba_lock, flags);
-		dev_err(&instance->pdev->dev, "timed out while waiting for HBA to recover\n");
+	if  (megasas_wait_for_adapter_operational(instance))
 		return -ENODEV;
-	}
-	spin_unlock_irqrestore(&instance->hba_lock, flags);
 
 	mutex_lock(&instance->reset_mutex);
 	error = megasas_register_aen(instance, aen.seq_num,
