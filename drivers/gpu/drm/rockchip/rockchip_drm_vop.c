@@ -1011,6 +1011,17 @@ static int vop_csc_atomic_check(struct drm_crtc *crtc,
 				   &vop_plane_state->r2y_en,
 				   &vop_plane_state->csc_mode);
 
+		/*
+		 * This is update for IC design not reasonable, when enable
+		 * hdr2sdr on rk3328, vop can't support per-pixel alpha * global
+		 * alpha,so we must back to gpu, but gpu can't support hdr2sdr,
+		 * gpu output hdr UI, vop will do:
+		 * UI(rgbx) -> yuv -> rgb ->hdr2sdr -> overlay -> output.
+		 */
+		if (s->hdr.hdr2sdr_en &&
+		    vop_plane_state->eotf == SMPTE_ST2084 &&
+		    !is_yuv_support(pstate->fb->pixel_format))
+			vop_plane_state->r2y_en = true;
 		if (win->feature & WIN_FEATURE_PRE_OVERLAY)
 			vop_plane_state->r2r_en =
 				s->hdr.sdr2hdr_state.rgb2rgb_pre_conv_en;
@@ -2821,7 +2832,7 @@ static void vop_update_hdr(struct drm_crtc *crtc,
 	if (s->hdr.hdr2sdr_en) {
 		vop_load_hdr2sdr_table(vop);
 		/* This is ic design bug, when in hdr2sdr mode, the overlay mode
-		 * is rgb deomain, so the win0 is do yuv2rgb, but in this case,
+		 * is rgb domain, so the win0 is do yuv2rgb, but in this case,
 		 * we must close win0 y2r.
 		 */
 		VOP_CTRL_SET(vop, hdr2sdr_en_win0_csc, 0);
