@@ -1285,6 +1285,7 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 	if (priv == NULL)
 		return -ENOMEM;
 
+	snd_soc_codec_init_regmap(codec, wm8400->regmap);
 	snd_soc_codec_set_drvdata(codec, priv);
 	priv->wm8400 = wm8400;
 
@@ -1325,17 +1326,9 @@ static int  wm8400_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct regmap *wm8400_get_regmap(struct device *dev)
-{
-	struct wm8400 *wm8400 = dev_get_platdata(dev);
-
-	return wm8400->regmap;
-}
-
 static const struct snd_soc_codec_driver soc_codec_dev_wm8400 = {
 	.probe =	wm8400_codec_probe,
 	.remove =	wm8400_codec_remove,
-	.get_regmap =	wm8400_get_regmap,
 	.set_bias_level = wm8400_set_bias_level,
 	.suspend_bias_off = true,
 

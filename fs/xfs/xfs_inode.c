@@ -1487,6 +1487,24 @@ xfs_link(
 	return error;
 }
 
+/* Clear the reflink flag and the cowblocks tag if possible. */
+static void
+xfs_itruncate_clear_reflink_flags(
+	struct xfs_inode	*ip)
+{
+	struct xfs_ifork	*dfork;
+	struct xfs_ifork	*cfork;
+
+	if (!xfs_is_reflink_inode(ip))
+		return;
+	dfork = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+	cfork = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	if (dfork->if_bytes == 0 && cfork->if_bytes == 0)
+		ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
+	if (cfork->if_bytes == 0)
+		xfs_inode_clear_cowblocks_tag(ip);
+}
+
 /*
  * Free up the underlying blocks past new_size.  The new size must be smaller
  * than the current size.  This routine can be used both for the attribute and
@@ -1583,15 +1601,7 @@ xfs_itruncate_extents(
 	if (error)
 		goto out;
 
-	/*
-	 * Clear the reflink flag if there are no data fork blocks and
-	 * there are no extents staged in the cow fork.
-	 */
-	if (xfs_is_reflink_inode(ip) && ip->i_cnextents == 0) {
-		if (ip->i_d.di_nblocks == 0)
-			ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
-		xfs_inode_clear_cowblocks_tag(ip);
-	}
+	xfs_itruncate_clear_reflink_flags(ip);
 
 	/*
 	 * Always re-log the inode so that our permanent transaction can keep

@@ -35,7 +35,12 @@ struct thread_info {
 
 /* thread information allocation */
 
+#ifdef CONFIG_IRQSTACKS
+#define THREAD_SIZE_ORDER	2 /* PA-RISC requires at least 16k stack */
+#else
 #define THREAD_SIZE_ORDER	3 /* PA-RISC requires at least 32k stack */
+#endif
+
 /* Be sure to hunt all references to this down when you change the size of
  * the kernel stack */
 #define THREAD_SIZE             (PAGE_SIZE << THREAD_SIZE_ORDER)

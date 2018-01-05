@@ -454,6 +454,8 @@ retry:
 	if (error)
 		goto out_bmap_cancel;
 
+	xfs_inode_set_cowblocks_tag(ip);
+
 	/* Finish up. */
 	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
@@ -490,8 +492,9 @@ xfs_reflink_find_cow_mapping(
 	struct xfs_iext_cursor		icur;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
-	ASSERT(xfs_is_reflink_inode(ip));
 
+	if (!xfs_is_reflink_inode(ip))
+		return false;
 	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
 	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &icur, &got))
 		return false;
@@ -610,6 +613,9 @@ xfs_reflink_cancel_cow_blocks(
 
 			/* Remove the mapping from the CoW fork. */
 			xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
+		} else {
+			/* Didn't do anything, push cursor back. */
+			xfs_iext_prev(ifp, &icur);
 		}
 next_extent:
 		if (!xfs_iext_get_extent(ifp, &icur, &got))
@@ -725,7 +731,7 @@ xfs_reflink_end_cow(
 			(unsigned int)(end_fsb - offset_fsb),
 			XFS_DATA_FORK);
 	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_write,
-			resblks, 0, 0, &tp);
+			resblks, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		goto out;
 
@@ -1290,6 +1296,17 @@ xfs_reflink_remap_range(
 		goto out_unlock;
 
 	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
+
+	/*
+	 * Clear out post-eof preallocations because we don't have page cache
+	 * backing the delayed allocations and they'll never get freed on
+	 * their own.
+	 */
+	if (xfs_can_free_eofblocks(dest, true)) {
+		ret = xfs_free_eofblocks(dest);
+		if (ret)
+			goto out_unlock;
+	}
 
 	/* Set flags and remap blocks. */
 	ret = xfs_reflink_set_inode_flag(src, dest);

@@ -1378,6 +1378,8 @@ void vmbus_device_unregister(struct hv_device *device_obj)
 	pr_debug("child device %s unregistered\n",
 		dev_name(&device_obj->device));
 
+	kset_unregister(device_obj->channels_kset);
+
 	/*
 	 * Kick off the process of unregistering the device.
 	 * This will call vmbus_remove() and eventually vmbus_device_release()
