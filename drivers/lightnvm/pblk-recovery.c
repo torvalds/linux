@@ -288,7 +288,7 @@ next_read_rq:
 	/* At this point, the read should not fail. If it does, it is a problem
 	 * we cannot recover from here. Need FTL log.
 	 */
-	if (rqd->error) {
+	if (rqd->error && rqd->error != NVM_RSP_WARN_HIGHECC) {
 		pr_err("pblk: L2P recovery failed (%d)\n", rqd->error);
 		return -EINTR;
 	}
