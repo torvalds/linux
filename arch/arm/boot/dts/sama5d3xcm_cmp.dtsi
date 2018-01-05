@@ -69,6 +69,18 @@
 				cs-gpios = <&pioD 13 0>, <0>, <0>, <0>;
 			};
 
+			tcb0: timer@f0010000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>;
+				};
+
+				timer@1 {
+					compatible = "atmel,tcb-timer";
+					reg = <1>;
+				};
+			};
+
 			macb0: ethernet@f0028000 {
 				phy-mode = "rgmii";
 				#address-cells = <1>;

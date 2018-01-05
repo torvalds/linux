@@ -34,6 +34,18 @@
 
 	ahb {
 		apb {
+			tcb0: timer@fffa0000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			usb1: gadget@fffa4000 {
 				atmel,vbus-gpio = <&pioC 6 GPIO_ACTIVE_HIGH>;
 				status = "okay";
