@@ -6925,6 +6925,51 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	return ret;
 }
 
+int btrfs_add_extent_mapping(struct extent_map_tree *em_tree,
+			     struct extent_map **em_in, u64 start, u64 len)
+{
+	int ret;
+	struct extent_map *em = *em_in;
+
+	ret = add_extent_mapping(em_tree, em, 0);
+	/* it is possible that someone inserted the extent into the tree
+	 * while we had the lock dropped.  It is also possible that
+	 * an overlapping map exists in the tree
+	 */
+	if (ret == -EEXIST) {
+		struct extent_map *existing;
+
+		ret = 0;
+
+		existing = search_extent_mapping(em_tree, start, len);
+		/*
+		 * existing will always be non-NULL, since there must be
+		 * extent causing the -EEXIST.
+		 */
+		if (start >= existing->start &&
+		    start < extent_map_end(existing)) {
+			free_extent_map(em);
+			*em_in = existing;
+			ret = 0;
+		} else {
+			/*
+			 * The existing extent map is the one nearest to
+			 * the [start, start + len) range which overlaps
+			 */
+			ret = merge_extent_mapping(em_tree, existing,
+						   em, start);
+			free_extent_map(existing);
+			if (ret) {
+				free_extent_map(em);
+				*em_in = NULL;
+			}
+		}
+	}
+
+	ASSERT(ret == 0 || ret == -EEXIST);
+	return ret;
+}
+
 /*
  * a bit scary, this does extent mapping from logical file offset to the disk.
  * the ugly parts come from merging extents from the disk with the in-ram
@@ -7138,40 +7183,7 @@ insert:
 
 	err = 0;
 	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
-	/* it is possible that someone inserted the extent into the tree
-	 * while we had the lock dropped.  It is also possible that
-	 * an overlapping map exists in the tree
-	 */
-	if (ret == -EEXIST) {
-		struct extent_map *existing;
-
-		ret = 0;
-
-		existing = search_extent_mapping(em_tree, start, len);
-		/*
-		 * existing will always be non-NULL, since there must be
-		 * extent causing the -EEXIST.
-		 */
-		if (start >= existing->start &&
-		    start < extent_map_end(existing)) {
-			free_extent_map(em);
-			em = existing;
-			err = 0;
-		} else {
-			/*
-			 * The existing extent map is the one nearest to
-			 * the [start, start + len) range which overlaps
-			 */
-			err = merge_extent_mapping(em_tree, existing,
-						   em, start);
-			free_extent_map(existing);
-			if (err) {
-				free_extent_map(em);
-				em = NULL;
-			}
-		}
-	}
+	err = btrfs_add_extent_mapping(em_tree, &em, start, len);
 	write_unlock(&em_tree->lock);
 out:
 
