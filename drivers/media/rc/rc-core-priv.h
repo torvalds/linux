@@ -166,17 +166,17 @@ static inline void init_ir_raw_event_duration(struct ir_raw_event *ev,
 
 /**
  * struct ir_raw_timings_manchester - Manchester coding timings
- * @leader:		duration of leader pulse (if any) 0 if continuing
- *			existing signal (see @pulse_space_start)
- * @pulse_space_start:	1 for starting with pulse (0 for starting with space)
+ * @leader_pulse:	duration of leader pulse (if any) 0 if continuing
+ *			existing signal
+ * @leader_space:	duration of leader space (if any)
  * @clock:		duration of each pulse/space in ns
  * @invert:		if set clock logic is inverted
  *			(0 = space + pulse, 1 = pulse + space)
  * @trailer_space:	duration of trailer space in ns
  */
 struct ir_raw_timings_manchester {
-	unsigned int leader;
-	unsigned int pulse_space_start:1;
+	unsigned int leader_pulse;
+	unsigned int leader_space;
 	unsigned int clock;
 	unsigned int invert:1;
 	unsigned int trailer_space;

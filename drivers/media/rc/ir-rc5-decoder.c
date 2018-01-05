@@ -173,16 +173,14 @@ out:
 }
 
 static const struct ir_raw_timings_manchester ir_rc5_timings = {
-	.leader			= RC5_UNIT,
-	.pulse_space_start	= 0,
+	.leader_pulse		= RC5_UNIT,
 	.clock			= RC5_UNIT,
 	.trailer_space		= RC5_UNIT * 10,
 };
 
 static const struct ir_raw_timings_manchester ir_rc5x_timings[2] = {
 	{
-		.leader			= RC5_UNIT,
-		.pulse_space_start	= 0,
+		.leader_pulse		= RC5_UNIT,
 		.clock			= RC5_UNIT,
 		.trailer_space		= RC5X_SPACE,
 	},
@@ -193,8 +191,7 @@ static const struct ir_raw_timings_manchester ir_rc5x_timings[2] = {
 };
 
 static const struct ir_raw_timings_manchester ir_rc5_sz_timings = {
-	.leader				= RC5_UNIT,
-	.pulse_space_start		= 0,
+	.leader_pulse			= RC5_UNIT,
 	.clock				= RC5_UNIT,
 	.trailer_space			= RC5_UNIT * 10,
 };

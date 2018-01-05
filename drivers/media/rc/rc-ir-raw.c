@@ -246,17 +246,15 @@ int ir_raw_gen_manchester(struct ir_raw_event **ev, unsigned int max,
 
 	i = BIT_ULL(n - 1);
 
-	if (timings->leader) {
+	if (timings->leader_pulse) {
 		if (!max--)
 			return ret;
-		if (timings->pulse_space_start) {
-			init_ir_raw_event_duration((*ev)++, 1, timings->leader);
-
+		init_ir_raw_event_duration((*ev), 1, timings->leader_pulse);
+		if (timings->leader_space) {
 			if (!max--)
 				return ret;
-			init_ir_raw_event_duration((*ev), 0, timings->leader);
-		} else {
-			init_ir_raw_event_duration((*ev), 1, timings->leader);
+			init_ir_raw_event_duration(++(*ev), 0,
+						   timings->leader_space);
 		}
 		i >>= 1;
 	} else {
