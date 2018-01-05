@@ -31,25 +31,8 @@
 
 enum nvme_nvm_admin_opcode {
 	nvme_nvm_admin_identity		= 0xe2,
-	nvme_nvm_admin_get_l2p_tbl	= 0xea,
 	nvme_nvm_admin_get_bb_tbl	= 0xf2,
 	nvme_nvm_admin_set_bb_tbl	= 0xf1,
-};
-
-struct nvme_nvm_hb_rw {
-	__u8			opcode;
-	__u8			flags;
-	__u16			command_id;
-	__le32			nsid;
-	__u64			rsvd2;
-	__le64			metadata;
-	__le64			prp1;
-	__le64			prp2;
-	__le64			spba;
-	__le16			length;
-	__le16			control;
-	__le32			dsmgmt;
-	__le64			slba;
 };
 
 struct nvme_nvm_ph_rw {
@@ -78,19 +61,6 @@ struct nvme_nvm_identity {
 	__le64			prp2;
 	__le32			chnl_off;
 	__u32			rsvd11[5];
-};
-
-struct nvme_nvm_l2ptbl {
-	__u8			opcode;
-	__u8			flags;
-	__u16			command_id;
-	__le32			nsid;
-	__le32			cdw2[4];
-	__le64			prp1;
-	__le64			prp2;
-	__le64			slba;
-	__le32			nlb;
-	__le16			cdw14[6];
 };
 
 struct nvme_nvm_getbbtbl {
@@ -139,9 +109,7 @@ struct nvme_nvm_command {
 	union {
 		struct nvme_common_command common;
 		struct nvme_nvm_identity identity;
-		struct nvme_nvm_hb_rw hb_rw;
 		struct nvme_nvm_ph_rw ph_rw;
-		struct nvme_nvm_l2ptbl l2p;
 		struct nvme_nvm_getbbtbl get_bb;
 		struct nvme_nvm_setbbtbl set_bb;
 		struct nvme_nvm_erase_blk erase;
@@ -234,11 +202,9 @@ struct nvme_nvm_bb_tbl {
 static inline void _nvme_nvm_check_size(void)
 {
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_identity) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_hb_rw) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_ph_rw) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_getbbtbl) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_setbbtbl) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_l2ptbl) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_erase_blk) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_id_group) != 960);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_addr_format) != 16);
@@ -332,62 +298,6 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
-				nvm_l2p_update_fn *update_l2p, void *priv)
-{
-	struct nvme_ns *ns = nvmdev->q->queuedata;
-	struct nvme_nvm_command c = {};
-	u32 len = queue_max_hw_sectors(ns->ctrl->admin_q) << 9;
-	u32 nlb_pr_rq = len / sizeof(u64);
-	u64 cmd_slba = slba;
-	void *entries;
-	int ret = 0;
-
-	c.l2p.opcode = nvme_nvm_admin_get_l2p_tbl;
-	c.l2p.nsid = cpu_to_le32(ns->head->ns_id);
-	entries = kmalloc(len, GFP_KERNEL);
-	if (!entries)
-		return -ENOMEM;
-
-	while (nlb) {
-		u32 cmd_nlb = min(nlb_pr_rq, nlb);
-		u64 elba = slba + cmd_nlb;
-
-		c.l2p.slba = cpu_to_le64(cmd_slba);
-		c.l2p.nlb = cpu_to_le32(cmd_nlb);
-
-		ret = nvme_submit_sync_cmd(ns->ctrl->admin_q,
-				(struct nvme_command *)&c, entries, len);
-		if (ret) {
-			dev_err(ns->ctrl->device,
-				"L2P table transfer failed (%d)\n", ret);
-			ret = -EIO;
-			goto out;
-		}
-
-		if (unlikely(elba > nvmdev->total_secs)) {
-			pr_err("nvm: L2P data from device is out of bounds!\n");
-			ret = -EINVAL;
-			goto out;
-		}
-
-		/* Transform physical address to target address space */
-		nvm_part_to_tgt(nvmdev, entries, cmd_nlb);
-
-		if (update_l2p(cmd_slba, cmd_nlb, entries, priv)) {
-			ret = -EINTR;
-			goto out;
-		}
-
-		cmd_slba += cmd_nlb;
-		nlb -= cmd_nlb;
-	}
-
-out:
-	kfree(entries);
-	return ret;
-}
-
 static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 								u8 *blks)
 {
@@ -474,10 +384,6 @@ static inline void nvme_nvm_rqtocmd(struct nvm_rq *rqd, struct nvme_ns *ns,
 	c->ph_rw.metadata = cpu_to_le64(rqd->dma_meta_list);
 	c->ph_rw.control = cpu_to_le16(rqd->flags);
 	c->ph_rw.length = cpu_to_le16(rqd->nr_ppas - 1);
-
-	if (rqd->opcode == NVM_OP_HBWRITE || rqd->opcode == NVM_OP_HBREAD)
-		c->hb_rw.slba = cpu_to_le64(nvme_block_nr(ns,
-					rqd->bio->bi_iter.bi_sector));
 }
 
 static void nvme_nvm_end_io(struct request *rq, blk_status_t status)
@@ -596,8 +502,6 @@ static void nvme_nvm_dev_dma_free(void *pool, void *addr,
 
 static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.identity		= nvme_nvm_identity,
-
-	.get_l2p_tbl		= nvme_nvm_get_l2p_tbl,
 
 	.get_bb_tbl		= nvme_nvm_get_bb_tbl,
 	.set_bb_tbl		= nvme_nvm_set_bb_tbl,

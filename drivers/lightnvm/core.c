@@ -45,12 +45,6 @@ struct nvm_dev_map {
 	int nr_chnls;
 };
 
-struct nvm_area {
-	struct list_head list;
-	sector_t begin;
-	sector_t end;	/* end is excluded */
-};
-
 static struct nvm_target *nvm_find_target(struct nvm_dev *dev, const char *name)
 {
 	struct nvm_target *tgt;
@@ -524,35 +518,6 @@ static void nvm_rq_dev_to_tgt(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	nvm_ppa_dev_to_tgt(tgt_dev, rqd->ppa_list, rqd->nr_ppas);
 }
 
-void nvm_part_to_tgt(struct nvm_dev *dev, sector_t *entries,
-		     int len)
-{
-	struct nvm_geo *geo = &dev->geo;
-	struct nvm_dev_map *dev_rmap = dev->rmap;
-	u64 i;
-
-	for (i = 0; i < len; i++) {
-		struct nvm_ch_map *ch_rmap;
-		int *lun_roffs;
-		struct ppa_addr gaddr;
-		u64 pba = le64_to_cpu(entries[i]);
-		u64 diff;
-
-		if (!pba)
-			continue;
-
-		gaddr = linear_to_generic_addr(geo, pba);
-		ch_rmap = &dev_rmap->chnls[gaddr.g.ch];
-		lun_roffs = ch_rmap->lun_offs;
-
-		diff = ((ch_rmap->ch_off * geo->luns_per_chnl) +
-				(lun_roffs[gaddr.g.lun])) * geo->sec_per_lun;
-
-		entries[i] -= cpu_to_le64(diff);
-	}
-}
-EXPORT_SYMBOL(nvm_part_to_tgt);
-
 int nvm_register_tgt_type(struct nvm_tgt_type *tt)
 {
 	int ret = 0;
@@ -725,112 +690,6 @@ int nvm_submit_io_sync(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	return ret;
 }
 EXPORT_SYMBOL(nvm_submit_io_sync);
-
-int nvm_erase_sync(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
-								int nr_ppas)
-{
-	struct nvm_geo *geo = &tgt_dev->geo;
-	struct nvm_rq rqd;
-	int ret;
-
-	memset(&rqd, 0, sizeof(struct nvm_rq));
-
-	rqd.opcode = NVM_OP_ERASE;
-	rqd.flags = geo->plane_mode >> 1;
-
-	ret = nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas);
-	if (ret)
-		return ret;
-
-	ret = nvm_submit_io_sync(tgt_dev, &rqd);
-	if (ret) {
-		pr_err("rrpr: erase I/O submission failed: %d\n", ret);
-		goto free_ppa_list;
-	}
-
-free_ppa_list:
-	nvm_free_rqd_ppalist(tgt_dev, &rqd);
-
-	return ret;
-}
-EXPORT_SYMBOL(nvm_erase_sync);
-
-int nvm_get_l2p_tbl(struct nvm_tgt_dev *tgt_dev, u64 slba, u32 nlb,
-		    nvm_l2p_update_fn *update_l2p, void *priv)
-{
-	struct nvm_dev *dev = tgt_dev->parent;
-
-	if (!dev->ops->get_l2p_tbl)
-		return 0;
-
-	return dev->ops->get_l2p_tbl(dev, slba, nlb, update_l2p, priv);
-}
-EXPORT_SYMBOL(nvm_get_l2p_tbl);
-
-int nvm_get_area(struct nvm_tgt_dev *tgt_dev, sector_t *lba, sector_t len)
-{
-	struct nvm_dev *dev = tgt_dev->parent;
-	struct nvm_geo *geo = &dev->geo;
-	struct nvm_area *area, *prev, *next;
-	sector_t begin = 0;
-	sector_t max_sectors = (geo->sec_size * dev->total_secs) >> 9;
-
-	if (len > max_sectors)
-		return -EINVAL;
-
-	area = kmalloc(sizeof(struct nvm_area), GFP_KERNEL);
-	if (!area)
-		return -ENOMEM;
-
-	prev = NULL;
-
-	spin_lock(&dev->lock);
-	list_for_each_entry(next, &dev->area_list, list) {
-		if (begin + len > next->begin) {
-			begin = next->end;
-			prev = next;
-			continue;
-		}
-		break;
-	}
-
-	if ((begin + len) > max_sectors) {
-		spin_unlock(&dev->lock);
-		kfree(area);
-		return -EINVAL;
-	}
-
-	area->begin = *lba = begin;
-	area->end = begin + len;
-
-	if (prev) /* insert into sorted order */
-		list_add(&area->list, &prev->list);
-	else
-		list_add(&area->list, &dev->area_list);
-	spin_unlock(&dev->lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(nvm_get_area);
-
-void nvm_put_area(struct nvm_tgt_dev *tgt_dev, sector_t begin)
-{
-	struct nvm_dev *dev = tgt_dev->parent;
-	struct nvm_area *area;
-
-	spin_lock(&dev->lock);
-	list_for_each_entry(area, &dev->area_list, list) {
-		if (area->begin != begin)
-			continue;
-
-		list_del(&area->list);
-		spin_unlock(&dev->lock);
-		kfree(area);
-		return;
-	}
-	spin_unlock(&dev->lock);
-}
-EXPORT_SYMBOL(nvm_put_area);
 
 void nvm_end_io(struct nvm_rq *rqd)
 {
