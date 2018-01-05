@@ -424,7 +424,7 @@ static int ir_mce_kbd_unregister(struct rc_dev *dev)
 }
 
 static const struct ir_raw_timings_manchester ir_mce_kbd_timings = {
-	.leader		= MCIR2_PREFIX_PULSE,
+	.leader_pulse	= MCIR2_PREFIX_PULSE,
 	.invert		= 1,
 	.clock		= MCIR2_UNIT,
 	.trailer_space	= MCIR2_UNIT * 10,
