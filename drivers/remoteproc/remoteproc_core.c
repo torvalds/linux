@@ -1000,6 +1000,9 @@ static int rproc_stop(struct rproc *rproc)
 	/* remove any subdevices for the remote processor */
 	rproc_remove_subdevices(rproc);
 
+	/* the installed resource table is no longer accessible */
+	rproc->table_ptr = rproc->cached_table;
+
 	/* power off the remote processor */
 	ret = rproc->ops->stop(rproc);
 	if (ret) {
