@@ -49,41 +49,13 @@ const char *snd_soc_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN])
 }
 EXPORT_SYMBOL_GPL(snd_soc_acpi_find_name_from_hid);
 
-static acpi_status snd_soc_acpi_mach_match(acpi_handle handle, u32 level,
-				       void *context, void **ret)
-{
-	unsigned long long sta;
-	acpi_status status;
-
-	*(bool *)context = true;
-	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
-	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_PRESENT))
-		*(bool *)context = false;
-
-	return AE_OK;
-}
-
-bool snd_soc_acpi_check_hid(const u8 hid[ACPI_ID_LEN])
-{
-	acpi_status status;
-	bool found = false;
-
-	status = acpi_get_devices(hid, snd_soc_acpi_mach_match, &found, NULL);
-
-	if (ACPI_FAILURE(status))
-		return false;
-
-	return found;
-}
-EXPORT_SYMBOL_GPL(snd_soc_acpi_check_hid);
-
 struct snd_soc_acpi_mach *
 snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines)
 {
 	struct snd_soc_acpi_mach *mach;
 
 	for (mach = machines; mach->id[0]; mach++) {
-		if (snd_soc_acpi_check_hid(mach->id) == true) {
+		if (acpi_dev_present(mach->id, NULL, -1)) {
 			if (mach->machine_quirk)
 				mach = mach->machine_quirk(mach);
 			return mach;
@@ -161,7 +133,7 @@ struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
 		return mach;
 
 	for (i = 0; i < codec_list->num_codecs; i++) {
-		if (snd_soc_acpi_check_hid(codec_list->codecs[i]) != true)
+		if (!acpi_dev_present(codec_list->codecs[i], NULL, -1))
 			return NULL;
 	}
 
