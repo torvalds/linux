@@ -140,6 +140,9 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return -EINVAL;
 	}
 
+	printk(KERN_NOTICE "[mtk_pwm_config] period_ns: %d, duty_ns: %d",period_ns,duty_ns);
+	printk(KERN_NOTICE "[mtk_pwm_config] resolution: %d, clkdiv: %d",resolution,clkdiv);
+
 	mtk_pwm_writel(pc, pwm->hwpwm, PWMCON, BIT(15) | clkdiv);
 	if (pwm->hwpwm > 2) { //for PWM4 and PWM5
 		mtk_pwm_writel(pc, pwm->hwpwm, PWM45DWIDTH, period_ns / resolution);
