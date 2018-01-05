@@ -1017,7 +1017,7 @@ int cl_global_init(void)
 {
 	int result;
 
-	cl_envs = kzalloc(sizeof(*cl_envs) * num_possible_cpus(), GFP_KERNEL);
+	cl_envs = kcalloc(num_possible_cpus(), sizeof(*cl_envs), GFP_KERNEL);
 	if (!cl_envs) {
 		result = -ENOMEM;
 		goto out;
