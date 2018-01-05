@@ -510,13 +510,13 @@ locks: ...... ...... ...... ...... ...... [...... ...... ...... ...... ......]
  */
 	lu_site_stats_print(&site->cs_lu, m);
 	cache_stats_print(&site->cs_pages, m, 1);
-	seq_printf(m, " [");
+	seq_puts(m, " [");
 	for (i = 0; i < ARRAY_SIZE(site->cs_pages_state); ++i)
 		seq_printf(m, "%s: %u ", pstate[i],
 			   atomic_read(&site->cs_pages_state[i]));
-	seq_printf(m, "]\n");
+	seq_puts(m, "]\n");
 	cache_stats_print(&cl_env_stats, m, 0);
-	seq_printf(m, "\n");
+	seq_puts(m, "\n");
 	return 0;
 }
 EXPORT_SYMBOL(cl_site_stats_print);
