@@ -609,7 +609,7 @@ static void __init aspeed_cc_init(struct device_node *np)
 	int i;
 
 	scu_base = of_iomap(np, 0);
-	if (IS_ERR(scu_base))
+	if (!scu_base)
 		return;
 
 	aspeed_clk_data = kzalloc(sizeof(*aspeed_clk_data) +
