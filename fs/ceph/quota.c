@@ -21,6 +21,11 @@
 #include "super.h"
 #include "mds_client.h"
 
+static inline bool ceph_has_quota(struct ceph_inode_info *ci)
+{
+	return (ci && (ci->i_max_files || ci->i_max_bytes));
+}
+
 void ceph_handle_quota(struct ceph_mds_client *mdsc,
 		       struct ceph_mds_session *session,
 		       struct ceph_msg *msg)
@@ -62,6 +67,70 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 	spin_unlock(&ci->i_ceph_lock);
 
 	iput(inode);
+}
+
+/*
+ * This function walks through the snaprealm for an inode and returns the
+ * ceph_snap_realm for the first snaprealm that has quotas set (either max_files
+ * or max_bytes).  If the root is reached, return the root ceph_snap_realm
+ * instead.
+ *
+ * Note that the caller is responsible for calling ceph_put_snap_realm() on the
+ * returned realm.
+ */
+static struct ceph_snap_realm *get_quota_realm(struct ceph_mds_client *mdsc,
+					       struct inode *inode)
+{
+	struct ceph_inode_info *ci = NULL;
+	struct ceph_snap_realm *realm, *next;
+	struct ceph_vino vino;
+	struct inode *in;
+
+	realm = ceph_inode(inode)->i_snap_realm;
+	ceph_get_snap_realm(mdsc, realm);
+	while (realm) {
+		vino.ino = realm->ino;
+		vino.snap = CEPH_NOSNAP;
+		in = ceph_find_inode(inode->i_sb, vino);
+		if (!in) {
+			pr_warn("Failed to find inode for %llu\n", vino.ino);
+			break;
+		}
+		ci = ceph_inode(in);
+		if (ceph_has_quota(ci) || (ci->i_vino.ino == CEPH_INO_ROOT)) {
+			iput(in);
+			return realm;
+		}
+		iput(in);
+		next = realm->parent;
+		ceph_get_snap_realm(mdsc, next);
+		ceph_put_snap_realm(mdsc, realm);
+		realm = next;
+	}
+	if (realm)
+		ceph_put_snap_realm(mdsc, realm);
+
+	return NULL;
+}
+
+bool ceph_quota_is_same_realm(struct inode *old, struct inode *new)
+{
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(old)->mdsc;
+	struct ceph_snap_realm *old_realm, *new_realm;
+	bool is_same;
+
+	down_read(&mdsc->snap_rwsem);
+	old_realm = get_quota_realm(mdsc, old);
+	new_realm = get_quota_realm(mdsc, new);
+	is_same = (old_realm == new_realm);
+	up_read(&mdsc->snap_rwsem);
+
+	if (old_realm)
+		ceph_put_snap_realm(mdsc, old_realm);
+	if (new_realm)
+		ceph_put_snap_realm(mdsc, new_realm);
+
+	return is_same;
 }
 
 enum quota_check_op {
