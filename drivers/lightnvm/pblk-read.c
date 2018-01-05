@@ -158,8 +158,12 @@ static void pblk_end_user_read(struct bio *bio)
 static void __pblk_end_io_read(struct pblk *pblk, struct nvm_rq *rqd,
 			       bool put_line)
 {
+	struct nvm_tgt_dev *dev = pblk->dev;
 	struct pblk_g_ctx *r_ctx = nvm_rq_to_pdu(rqd);
 	struct bio *bio = rqd->bio;
+	unsigned long start_time = r_ctx->start_time;
+
+	generic_end_io_acct(dev->q, READ, &pblk->disk->part0, start_time);
 
 	if (rqd->error)
 		pblk_log_read_err(pblk, rqd);
@@ -193,9 +197,9 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 	__pblk_end_io_read(pblk, rqd, true);
 }
 
-static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
-				      unsigned int bio_init_idx,
-				      unsigned long *read_bitmap)
+static int pblk_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
+				 unsigned int bio_init_idx,
+				 unsigned long *read_bitmap)
 {
 	struct bio *new_bio, *bio = rqd->bio;
 	struct pblk_sec_meta *meta_list = rqd->meta_list;
@@ -306,6 +310,8 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 	return NVM_IO_OK;
 
 err:
+	pr_err("pblk: failed to perform partial read\n");
+
 	/* Free allocated pages in new bio */
 	pblk_bio_free_pages(pblk, bio, 0, new_bio->bi_vcnt);
 	__pblk_end_io_read(pblk, rqd, false);
@@ -357,6 +363,7 @@ retry:
 int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
+	struct request_queue *q = dev->q;
 	sector_t blba = pblk_get_lba(bio);
 	unsigned int nr_secs = pblk_get_secs(bio);
 	struct pblk_g_ctx *r_ctx;
@@ -372,6 +379,8 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 		return NVM_IO_ERR;
 	}
 
+	generic_start_io_acct(q, READ, bio_sectors(bio), &pblk->disk->part0);
+
 	bitmap_zero(&read_bitmap, nr_secs);
 
 	rqd = pblk_alloc_rqd(pblk, PBLK_READ);
@@ -383,6 +392,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	rqd->end_io = pblk_end_io_read;
 
 	r_ctx = nvm_rq_to_pdu(rqd);
+	r_ctx->start_time = jiffies;
 	r_ctx->lba = blba;
 
 	/* Save the index for this bio's start. This is needed in case
@@ -422,7 +432,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 		int_bio = bio_clone_fast(bio, GFP_KERNEL, pblk_bio_set);
 		if (!int_bio) {
 			pr_err("pblk: could not clone read bio\n");
-			return NVM_IO_ERR;
+			goto fail_end_io;
 		}
 
 		rqd->bio = int_bio;
@@ -433,7 +443,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 			pr_err("pblk: read IO submission failed\n");
 			if (int_bio)
 				bio_put(int_bio);
-			return ret;
+			goto fail_end_io;
 		}
 
 		return NVM_IO_OK;
@@ -442,16 +452,13 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	/* The read bio request could be partially filled by the write buffer,
 	 * but there are some holes that need to be read from the drive.
 	 */
-	ret = pblk_fill_partial_read_bio(pblk, rqd, bio_init_idx, &read_bitmap);
-	if (ret) {
-		pr_err("pblk: failed to perform partial read\n");
-		return ret;
-	}
-
-	return NVM_IO_OK;
+	return pblk_partial_read_bio(pblk, rqd, bio_init_idx, &read_bitmap);
 
 fail_rqd_free:
 	pblk_free_rqd(pblk, rqd, PBLK_READ);
+	return ret;
+fail_end_io:
+	__pblk_end_io_read(pblk, rqd, false);
 	return ret;
 }
 

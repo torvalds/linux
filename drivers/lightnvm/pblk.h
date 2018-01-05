@@ -113,6 +113,7 @@ struct pblk_c_ctx {
 /* read context */
 struct pblk_g_ctx {
 	void *private;
+	unsigned long start_time;
 	u64 lba;
 };
 
