@@ -15,17 +15,15 @@
 
 struct hns3_stats {
 	char stats_string[ETH_GSTRING_LEN];
-	int stats_size;
 	int stats_offset;
 };
 
 /* tqp related stats */
 #define HNS3_TQP_STAT(_string, _member)	{			\
 	.stats_string = _string,				\
-	.stats_size = FIELD_SIZEOF(struct ring_stats, _member),	\
 	.stats_offset = offsetof(struct hns3_enet_ring, stats) +\
 			offsetof(struct ring_stats, _member),   \
-}								\
+}
 
 static const struct hns3_stats hns3_txq_stats[] = {
 	/* Tx per-queue statistics */
