@@ -6874,7 +6874,7 @@ static int merge_extent_mapping(struct extent_map_tree *em_tree,
 	if (em->block_start < EXTENT_MAP_LAST_BYTE &&
 	    !test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
 		em->block_start += start_diff;
-		em->block_len -= start_diff;
+		em->block_len = em->len;
 	}
 	return add_extent_mapping(em_tree, em, 0);
 }
