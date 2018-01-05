@@ -331,11 +331,13 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  *
  * Return: true when x is a predecessor of y, false otherwise
  */
-#define batadv_seq_before(x, y) ({typeof(x)_d1 = (x); \
-				 typeof(y)_d2 = (y); \
-				 typeof(x)_dummy = (_d1 - _d2); \
-				 (void)(&_d1 == &_d2); \
-				 _dummy > batadv_smallest_signed_int(_dummy); })
+#define batadv_seq_before(x, y) ({ \
+	typeof(x)_d1 = (x); \
+	typeof(y)_d2 = (y); \
+	typeof(x)_dummy = (_d1 - _d2); \
+	(void)(&_d1 == &_d2); \
+	_dummy > batadv_smallest_signed_int(_dummy); \
+})
 
 /**
  * batadv_seq_after() - Checks if a sequence number x is a successor of y
