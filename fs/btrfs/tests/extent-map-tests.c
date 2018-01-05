@@ -255,6 +255,94 @@ static void test_case_3(struct extent_map_tree *em_tree)
 	__test_case_3(em_tree, (12 * 1024ULL));
 }
 
+static void __test_case_4(struct extent_map_tree *em_tree, u64 start)
+{
+	struct extent_map *em;
+	u64 len = SZ_4K;
+	int ret;
+
+	em = alloc_extent_map();
+	if (!em)
+		/* Skip this test on error. */
+		return;
+
+	/* Add [0K, 8K) */
+	em->start = 0;
+	em->len = SZ_8K;
+	em->block_start = 0;
+	em->block_len = SZ_8K;
+	ret = add_extent_mapping(em_tree, em, 0);
+	ASSERT(ret == 0);
+	free_extent_map(em);
+
+	em = alloc_extent_map();
+	if (!em)
+		goto out;
+
+	/* Add [8K, 24K) */
+	em->start = SZ_8K;
+	em->len = 24 * 1024ULL;
+	em->block_start = SZ_16K; /* avoid merging */
+	em->block_len = 24 * 1024ULL;
+	ret = add_extent_mapping(em_tree, em, 0);
+	ASSERT(ret == 0);
+	free_extent_map(em);
+
+	em = alloc_extent_map();
+	if (!em)
+		goto out;
+	/* Add [0K, 32K) */
+	em->start = 0;
+	em->len = SZ_32K;
+	em->block_start = 0;
+	em->block_len = SZ_32K;
+	ret = btrfs_add_extent_mapping(em_tree, &em, start, len);
+	if (ret)
+		test_msg("case4 [0x%llx 0x%llx): ret %d\n",
+			 start, len, ret);
+	if (em &&
+	    (start < em->start || start + len > extent_map_end(em)))
+		test_msg(
+"case4 [0x%llx 0x%llx): ret %d, added wrong em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)\n",
+			 start, len, ret, em->start, em->len, em->block_start,
+			 em->block_len);
+	free_extent_map(em);
+out:
+	/* free memory */
+	free_extent_map_tree(em_tree);
+}
+
+/*
+ * Test scenario:
+ *
+ * Suppose that no extent map has been loaded into memory yet.
+ * There is a file extent [0, 32K), two jobs are running concurrently
+ * against it, t1 is doing dio write to [8K, 32K) and t2 is doing dio
+ * read from [0, 4K) or [4K, 8K).
+ *
+ * t1 goes ahead of t2 and splits em [0, 32K) to em [0K, 8K) and [8K 32K).
+ *
+ *         t1                                t2
+ *  btrfs_get_blocks_direct()	       btrfs_get_blocks_direct()
+ *   -> btrfs_get_extent()              -> btrfs_get_extent()
+ *       -> lookup_extent_mapping()
+ *       -> add_extent_mapping()            -> lookup_extent_mapping()
+ *          # load [0, 32K)
+ *   -> btrfs_new_extent_direct()
+ *       -> btrfs_drop_extent_cache()
+ *          # split [0, 32K)
+ *       -> add_extent_mapping()
+ *          # add [8K, 32K)
+ *                                          -> add_extent_mapping()
+ *                                             # handle -EEXIST when adding
+ *                                             # [0, 32K)
+ */
+static void test_case_4(struct extent_map_tree *em_tree)
+{
+	__test_case_4(em_tree, 0);
+	__test_case_4(em_tree, SZ_4K);
+}
+
 int btrfs_test_extent_map()
 {
 	struct extent_map_tree *em_tree;
@@ -271,6 +359,7 @@ int btrfs_test_extent_map()
 	test_case_1(em_tree);
 	test_case_2(em_tree);
 	test_case_3(em_tree);
+	test_case_4(em_tree);
 
 	kfree(em_tree);
 	return 0;
