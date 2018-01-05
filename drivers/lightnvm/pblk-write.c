@@ -439,7 +439,7 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 	struct pblk_line *meta_line;
 	int err;
 
-	ppa_set_empty(&erase_ppa);
+	pblk_ppa_set_empty(&erase_ppa);
 
 	/* Assign lbas to ppas and populate request structure */
 	err = pblk_setup_w_rq(pblk, rqd, &erase_ppa);
@@ -457,7 +457,7 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 		return NVM_IO_ERR;
 	}
 
-	if (!ppa_empty(erase_ppa)) {
+	if (!pblk_ppa_empty(erase_ppa)) {
 		/* Submit erase for next data line */
 		if (pblk_blk_erase_async(pblk, erase_ppa)) {
 			struct pblk_line *e_line = pblk_line_get_erase(pblk);
