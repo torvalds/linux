@@ -79,6 +79,15 @@
 			charge_logo,mode = "center";
 			connect = <&vopb_out_lvds>;
 		};
+
+		route_dsi: route-dsi {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vopb_out_dsi>;
+		};
 	};
 };
 
