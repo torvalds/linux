@@ -56,6 +56,30 @@ static struct nvm_target *nvm_find_target(struct nvm_dev *dev, const char *name)
 	return NULL;
 }
 
+static bool nvm_target_exists(const char *name)
+{
+	struct nvm_dev *dev;
+	struct nvm_target *tgt;
+	bool ret = false;
+
+	down_write(&nvm_lock);
+	list_for_each_entry(dev, &nvm_devices, devices) {
+		mutex_lock(&dev->mlock);
+		list_for_each_entry(tgt, &dev->targets, list) {
+			if (!strcmp(name, tgt->disk->disk_name)) {
+				ret = true;
+				mutex_unlock(&dev->mlock);
+				goto out;
+			}
+		}
+		mutex_unlock(&dev->mlock);
+	}
+
+out:
+	up_write(&nvm_lock);
+	return ret;
+}
+
 static int nvm_reserve_luns(struct nvm_dev *dev, int lun_begin, int lun_end)
 {
 	int i;
@@ -259,14 +283,11 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dev->mlock);
-	t = nvm_find_target(dev, create->tgtname);
-	if (t) {
-		pr_err("nvm: target name already exists.\n");
-		mutex_unlock(&dev->mlock);
+	if (nvm_target_exists(create->tgtname)) {
+		pr_err("nvm: target name already exists (%s)\n",
+							create->tgtname);
 		return -EINVAL;
 	}
-	mutex_unlock(&dev->mlock);
 
 	ret = nvm_reserve_luns(dev, s->lun_begin, s->lun_end);
 	if (ret)
