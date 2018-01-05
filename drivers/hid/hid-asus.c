@@ -129,6 +129,15 @@ static const struct asus_touchpad_info asus_t100ha_tp = {
 	.max_contacts = 5,
 };
 
+static const struct asus_touchpad_info asus_t200ta_tp = {
+	.max_x = 3120,
+	.max_y = 1716,
+	.res_x = 30, /* units/mm */
+	.res_y = 28, /* units/mm */
+	.contact_size = 5,
+	.max_contacts = 5,
+};
+
 static const struct asus_touchpad_info asus_t100chi_tp = {
 	.max_x = 2640,
 	.max_y = 1320,
@@ -617,11 +626,14 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		if (intf->altsetting->desc.bInterfaceNumber == T100_TPAD_INTF) {
 			drvdata->quirks = QUIRK_SKIP_INPUT_MAPPING;
 			/*
-			 * The T100HA uses the same USB-ids as the T100TAF,
-			 * but has different max_x / max_y values.
+			 * The T100HA uses the same USB-ids as the T100TAF and
+			 * the T200TA uses the same USB-ids as the T100TA, while
+			 * both have different max x/y values as the T100TA[F].
 			 */
 			if (dmi_match(DMI_PRODUCT_NAME, "T100HAN"))
 				drvdata->tp = &asus_t100ha_tp;
+			else if (dmi_match(DMI_PRODUCT_NAME, "T200TA"))
+				drvdata->tp = &asus_t200ta_tp;
 			else
 				drvdata->tp = &asus_t100ta_tp;
 		}
