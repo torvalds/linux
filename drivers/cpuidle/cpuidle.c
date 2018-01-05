@@ -189,6 +189,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 			return -EBUSY;
 		}
 		target_state = &drv->states[index];
+		broadcast = false;
 	}
 
 	/* Take note of the planned idle state. */
