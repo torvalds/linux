@@ -64,7 +64,7 @@ enum mbr_state {
 struct tipc_member {
 	struct rb_node tree_node;
 	struct list_head list;
-	struct list_head congested;
+	struct list_head small_win;
 	struct sk_buff *event_msg;
 	struct sk_buff_head deferredq;
 	struct tipc_group *group;
@@ -82,7 +82,7 @@ struct tipc_member {
 
 struct tipc_group {
 	struct rb_root members;
-	struct list_head congested;
+	struct list_head small_win;
 	struct list_head pending;
 	struct list_head active;
 	struct list_head reclaiming;
@@ -136,12 +136,12 @@ u16 tipc_group_bc_snd_nxt(struct tipc_group *grp)
 	return grp->bc_snd_nxt;
 }
 
-static bool tipc_group_is_enabled(struct tipc_member *m)
+static bool tipc_group_is_receiver(struct tipc_member *m)
 {
 	return m->state != MBR_QUARANTINED && m->state != MBR_LEAVING;
 }
 
-static bool tipc_group_is_receiver(struct tipc_member *m)
+static bool tipc_group_is_sender(struct tipc_member *m)
 {
 	return m && m->state >= MBR_JOINED;
 }
@@ -168,7 +168,7 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 	if (!grp)
 		return NULL;
 	tipc_nlist_init(&grp->dests, tipc_own_addr(net));
-	INIT_LIST_HEAD(&grp->congested);
+	INIT_LIST_HEAD(&grp->small_win);
 	INIT_LIST_HEAD(&grp->active);
 	INIT_LIST_HEAD(&grp->pending);
 	INIT_LIST_HEAD(&grp->reclaiming);
@@ -232,7 +232,7 @@ static struct tipc_member *tipc_group_find_dest(struct tipc_group *grp,
 	struct tipc_member *m;
 
 	m = tipc_group_find_member(grp, node, port);
-	if (m && tipc_group_is_enabled(m))
+	if (m && tipc_group_is_receiver(m))
 		return m;
 	return NULL;
 }
@@ -285,7 +285,7 @@ static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
 	if (!m)
 		return NULL;
 	INIT_LIST_HEAD(&m->list);
-	INIT_LIST_HEAD(&m->congested);
+	INIT_LIST_HEAD(&m->small_win);
 	__skb_queue_head_init(&m->deferredq);
 	m->group = grp;
 	m->node = node;
@@ -314,7 +314,7 @@ static void tipc_group_delete_member(struct tipc_group *grp,
 		grp->bc_ackers--;
 
 	list_del_init(&m->list);
-	list_del_init(&m->congested);
+	list_del_init(&m->small_win);
 	tipc_group_decr_active(grp, m);
 
 	/* If last member on a node, remove node from dest list */
@@ -343,7 +343,7 @@ void tipc_group_update_member(struct tipc_member *m, int len)
 	struct tipc_group *grp = m->group;
 	struct tipc_member *_m, *tmp;
 
-	if (!tipc_group_is_enabled(m))
+	if (!tipc_group_is_receiver(m))
 		return;
 
 	m->window -= len;
@@ -351,16 +351,14 @@ void tipc_group_update_member(struct tipc_member *m, int len)
 	if (m->window >= ADV_IDLE)
 		return;
 
-	list_del_init(&m->congested);
+	list_del_init(&m->small_win);
 
-	/* Sort member into congested members' list */
-	list_for_each_entry_safe(_m, tmp, &grp->congested, congested) {
-		if (m->window > _m->window)
-			continue;
-		list_add_tail(&m->congested, &_m->congested);
-		return;
+	/* Sort member into small_window members' list */
+	list_for_each_entry_safe(_m, tmp, &grp->small_win, small_win) {
+		if (_m->window > m->window)
+			break;
 	}
-	list_add_tail(&m->congested, &grp->congested);
+	list_add_tail(&m->small_win, &_m->small_win);
 }
 
 void tipc_group_update_bc_members(struct tipc_group *grp, int len, bool ack)
@@ -372,7 +370,7 @@ void tipc_group_update_bc_members(struct tipc_group *grp, int len, bool ack)
 
 	for (n = rb_first(&grp->members); n; n = rb_next(n)) {
 		m = container_of(n, struct tipc_member, tree_node);
-		if (tipc_group_is_enabled(m)) {
+		if (tipc_group_is_receiver(m)) {
 			tipc_group_update_member(m, len);
 			m->bc_acked = prev;
 			ackers++;
@@ -427,10 +425,10 @@ bool tipc_group_bc_cong(struct tipc_group *grp, int len)
 	if (grp->bc_ackers)
 		return true;
 
-	if (list_empty(&grp->congested))
+	if (list_empty(&grp->small_win))
 		return false;
 
-	m = list_first_entry(&grp->congested, struct tipc_member, congested);
+	m = list_first_entry(&grp->small_win, struct tipc_member, small_win);
 	if (m->window >= len)
 		return false;
 
@@ -485,7 +483,7 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 		goto drop;
 
 	m = tipc_group_find_member(grp, node, port);
-	if (!tipc_group_is_receiver(m))
+	if (!tipc_group_is_sender(m))
 		goto drop;
 
 	if (less(msg_grp_bc_seqno(hdr), m->bc_rcv_nxt))
@@ -691,7 +689,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 			msg_set_grp_bc_seqno(ehdr, m->bc_syncpt);
 			__skb_queue_tail(inputq, m->event_msg);
 		}
-		list_del_init(&m->congested);
+		list_del_init(&m->small_win);
 		tipc_group_update_member(m, 0);
 		return;
 	case GRP_LEAVE_MSG:
@@ -699,7 +697,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 			return;
 		m->bc_syncpt = msg_grp_bc_syncpt(hdr);
 		list_del_init(&m->list);
-		list_del_init(&m->congested);
+		list_del_init(&m->small_win);
 		*usr_wakeup = true;
 
 		/* Wait until WITHDRAW event is received */
@@ -719,7 +717,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 		m->window += msg_adv_win(hdr);
 		*usr_wakeup = m->usr_pending;
 		m->usr_pending = false;
-		list_del_init(&m->congested);
+		list_del_init(&m->small_win);
 		return;
 	case GRP_ACK_MSG:
 		if (!m)
@@ -837,10 +835,7 @@ void tipc_group_member_evt(struct tipc_group *grp,
 		m->instance = instance;
 		TIPC_SKB_CB(skb)->orig_member = m->instance;
 		tipc_group_proto_xmit(grp, m, GRP_JOIN_MSG, xmitq);
-		if (m->window < ADV_IDLE)
-			tipc_group_update_member(m, 0);
-		else
-			list_del_init(&m->congested);
+		tipc_group_update_member(m, 0);
 	} else if (event == TIPC_WITHDRAWN) {
 		if (!m)
 			goto drop;
@@ -873,7 +868,7 @@ void tipc_group_member_evt(struct tipc_group *grp,
 			__skb_queue_tail(inputq, skb);
 		}
 		list_del_init(&m->list);
-		list_del_init(&m->congested);
+		list_del_init(&m->small_win);
 	}
 	*sk_rcvbuf = tipc_group_rcvbuf_limit(grp);
 	return;
