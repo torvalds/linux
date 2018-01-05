@@ -279,8 +279,8 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_broad_pkt_num)},
 	{"mac_tx_undersize_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_undersize_pkt_num)},
-	{"mac_tx_overrsize_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_overrsize_pkt_num)},
+	{"mac_tx_oversize_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_oversize_pkt_num)},
 	{"mac_tx_64_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_64_oct_pkt_num)},
 	{"mac_tx_65_127_oct_pkt_num",
@@ -315,8 +315,8 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_broad_pkt_num)},
 	{"mac_rx_undersize_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_undersize_pkt_num)},
-	{"mac_rx_overrsize_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_overrsize_pkt_num)},
+	{"mac_rx_oversize_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_oversize_pkt_num)},
 	{"mac_rx_64_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_64_oct_pkt_num)},
 	{"mac_rx_65_127_oct_pkt_num",
@@ -643,7 +643,7 @@ static void hclge_update_netstat(struct hclge_hw_stats *hw_stats,
 	net_stats->rx_dropped += hw_stats->all_32_bit_stats.ppp_key_drop_num;
 	net_stats->rx_dropped += hw_stats->all_32_bit_stats.ssu_key_drop_num;
 
-	net_stats->rx_errors = hw_stats->mac_stats.mac_rx_overrsize_pkt_num;
+	net_stats->rx_errors = hw_stats->mac_stats.mac_rx_oversize_pkt_num;
 	net_stats->rx_errors += hw_stats->mac_stats.mac_rx_undersize_pkt_num;
 	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_err_pkt;
 	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_no_eof_pkt;
@@ -657,9 +657,9 @@ static void hclge_update_netstat(struct hclge_hw_stats *hw_stats,
 	net_stats->rx_length_errors =
 		hw_stats->mac_stats.mac_rx_undersize_pkt_num;
 	net_stats->rx_length_errors +=
-		hw_stats->mac_stats.mac_rx_overrsize_pkt_num;
+		hw_stats->mac_stats.mac_rx_oversize_pkt_num;
 	net_stats->rx_over_errors =
-		hw_stats->mac_stats.mac_rx_overrsize_pkt_num;
+		hw_stats->mac_stats.mac_rx_oversize_pkt_num;
 }
 
 static void hclge_update_stats_for_all(struct hclge_dev *hdev)

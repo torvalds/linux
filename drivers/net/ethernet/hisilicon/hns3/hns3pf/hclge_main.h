@@ -381,7 +381,7 @@ struct hclge_mac_stats {
 	u64 mac_tx_multi_pkt_num;
 	u64 mac_tx_broad_pkt_num;
 	u64 mac_tx_undersize_pkt_num;
-	u64 mac_tx_overrsize_pkt_num;
+	u64 mac_tx_oversize_pkt_num;
 	u64 mac_tx_64_oct_pkt_num;
 	u64 mac_tx_65_127_oct_pkt_num;
 	u64 mac_tx_128_255_oct_pkt_num;
@@ -399,7 +399,7 @@ struct hclge_mac_stats {
 	u64 mac_rx_multi_pkt_num;
 	u64 mac_rx_broad_pkt_num;
 	u64 mac_rx_undersize_pkt_num;
-	u64 mac_rx_overrsize_pkt_num;
+	u64 mac_rx_oversize_pkt_num;
 	u64 mac_rx_64_oct_pkt_num;
 	u64 mac_rx_65_127_oct_pkt_num;
 	u64 mac_rx_128_255_oct_pkt_num;
