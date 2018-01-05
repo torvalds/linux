@@ -883,14 +883,18 @@ fail:
 
 static int pblk_writer_init(struct pblk *pblk)
 {
-	timer_setup(&pblk->wtimer, pblk_write_timer_fn, 0);
-	mod_timer(&pblk->wtimer, jiffies + msecs_to_jiffies(100));
-
 	pblk->writer_ts = kthread_create(pblk_write_ts, pblk, "pblk-writer-t");
 	if (IS_ERR(pblk->writer_ts)) {
-		pr_err("pblk: could not allocate writer kthread\n");
-		return PTR_ERR(pblk->writer_ts);
+		int err = PTR_ERR(pblk->writer_ts);
+
+		if (err != -EINTR)
+			pr_err("pblk: could not allocate writer kthread (%d)\n",
+					err);
+		return err;
 	}
+
+	timer_setup(&pblk->wtimer, pblk_write_timer_fn, 0);
+	mod_timer(&pblk->wtimer, jiffies + msecs_to_jiffies(100));
 
 	return 0;
 }
@@ -1042,7 +1046,8 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 
 	ret = pblk_writer_init(pblk);
 	if (ret) {
-		pr_err("pblk: could not initialize write thread\n");
+		if (ret != -EINTR)
+			pr_err("pblk: could not initialize write thread\n");
 		goto fail_free_lines;
 	}
 
