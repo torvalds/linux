@@ -1288,7 +1288,7 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 	pci_set_master(pdev);
 	hw = &hdev->hw;
 	hw->hdev = hdev;
-	hw->io_base = pci_iomap(pdev, 2, 0);;
+	hw->io_base = pci_iomap(pdev, 2, 0);
 	if (!hw->io_base) {
 		dev_err(&pdev->dev, "can't map configuration register space\n");
 		ret = -ENOMEM;
