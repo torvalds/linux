@@ -220,21 +220,25 @@ static const struct block_device_operations nvm_fops = {
 	.owner		= THIS_MODULE,
 };
 
-static struct nvm_tgt_type *nvm_find_target_type(const char *name, int lock)
+static struct nvm_tgt_type *__nvm_find_target_type(const char *name)
 {
-	struct nvm_tgt_type *tmp, *tt = NULL;
+	struct nvm_tgt_type *tt;
 
-	if (lock)
-		down_write(&nvm_tgtt_lock);
+	list_for_each_entry(tt, &nvm_tgt_types, list)
+		if (!strcmp(name, tt->name))
+			return tt;
 
-	list_for_each_entry(tmp, &nvm_tgt_types, list)
-		if (!strcmp(name, tmp->name)) {
-			tt = tmp;
-			break;
-		}
+	return NULL;
+}
 
-	if (lock)
-		up_write(&nvm_tgtt_lock);
+static struct nvm_tgt_type *nvm_find_target_type(const char *name)
+{
+	struct nvm_tgt_type *tt;
+
+	down_write(&nvm_tgtt_lock);
+	tt = __nvm_find_target_type(name);
+	up_write(&nvm_tgtt_lock);
+
 	return tt;
 }
 
@@ -249,7 +253,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	void *targetdata;
 	int ret;
 
-	tt = nvm_find_target_type(create->tgttype, 1);
+	tt = nvm_find_target_type(create->tgttype);
 	if (!tt) {
 		pr_err("nvm: target type %s not found\n", create->tgttype);
 		return -EINVAL;
@@ -523,7 +527,7 @@ int nvm_register_tgt_type(struct nvm_tgt_type *tt)
 	int ret = 0;
 
 	down_write(&nvm_tgtt_lock);
-	if (nvm_find_target_type(tt->name, 0))
+	if (__nvm_find_target_type(tt->name))
 		ret = -EEXIST;
 	else
 		list_add(&tt->list, &nvm_tgt_types);
