@@ -112,6 +112,7 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_RST_HANDLING,
 	HCLGE_STATE_MBX_SERVICE_SCHED,
 	HCLGE_STATE_MBX_HANDLING,
+	HCLGE_STATE_STATISTICS_UPDATING,
 	HCLGE_STATE_MAX
 };
 
@@ -422,10 +423,12 @@ struct hclge_mac_stats {
 	u64 mac_rx_send_app_bad_pkt_num;
 };
 
+#define HCLGE_STATS_TIMER_INTERVAL	(60 * 5)
 struct hclge_hw_stats {
 	struct hclge_mac_stats      mac_stats;
 	struct hclge_64_bit_stats   all_64_bit_stats;
 	struct hclge_32_bit_stats   all_32_bit_stats;
+	u32 stats_timer;
 };
 
 struct hclge_vlan_type_cfg {

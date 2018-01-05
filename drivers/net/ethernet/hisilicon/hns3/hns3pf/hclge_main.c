@@ -698,6 +698,9 @@ static void hclge_update_stats(struct hnae3_handle *handle,
 	struct hclge_hw_stats *hw_stats = &hdev->hw_stats;
 	int status;
 
+	if (test_and_set_bit(HCLGE_STATE_STATISTICS_UPDATING, &hdev->state))
+		return;
+
 	status = hclge_mac_update_stats(hdev);
 	if (status)
 		dev_err(&hdev->pdev->dev,
@@ -723,6 +726,8 @@ static void hclge_update_stats(struct hnae3_handle *handle,
 			status);
 
 	hclge_update_netstat(hw_stats, net_stats);
+
+	clear_bit(HCLGE_STATE_STATISTICS_UPDATING, &hdev->state);
 }
 
 static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
@@ -2380,6 +2385,7 @@ static void hclge_service_timer(struct timer_list *t)
 	struct hclge_dev *hdev = from_timer(hdev, t, service_timer);
 
 	mod_timer(&hdev->service_timer, jiffies + HZ);
+	hdev->hw_stats.stats_timer++;
 	hclge_task_schedule(hdev);
 }
 
@@ -2779,9 +2785,13 @@ static void hclge_service_task(struct work_struct *work)
 	struct hclge_dev *hdev =
 		container_of(work, struct hclge_dev, service_task);
 
+	if (hdev->hw_stats.stats_timer >= HCLGE_STATS_TIMER_INTERVAL) {
+		hclge_update_stats_for_all(hdev);
+		hdev->hw_stats.stats_timer = 0;
+	}
+
 	hclge_update_speed_duplex(hdev);
 	hclge_update_link_status(hdev);
-	hclge_update_stats_for_all(hdev);
 	hclge_service_complete(hdev);
 }
 

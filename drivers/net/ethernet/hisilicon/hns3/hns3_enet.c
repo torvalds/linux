@@ -1126,6 +1126,7 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
+	struct hnae3_handle *handle = priv->ae_handle;
 	struct hns3_enet_ring *ring;
 	unsigned int start;
 	unsigned int idx;
@@ -1133,6 +1134,8 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 	u64 rx_bytes = 0;
 	u64 tx_pkts = 0;
 	u64 rx_pkts = 0;
+
+	handle->ae_algo->ops->update_stats(handle, &netdev->stats);
 
 	for (idx = 0; idx < queue_num; idx++) {
 		/* fetch the tx stats */
