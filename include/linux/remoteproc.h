@@ -410,6 +410,7 @@ enum rproc_crash_type {
  * @max_notifyid: largest allocated notify id.
  * @table_ptr: pointer to the resource table in effect
  * @cached_table: copy of the resource table
+ * @table_sz: size of @cached_table
  * @has_iommu: flag to indicate if remote processor is behind an MMU
  */
 struct rproc {
@@ -440,6 +441,7 @@ struct rproc {
 	int max_notifyid;
 	struct resource_table *table_ptr;
 	struct resource_table *cached_table;
+	size_t table_sz;
 	bool has_iommu;
 	bool auto_boot;
 };
