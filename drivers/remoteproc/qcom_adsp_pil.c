@@ -177,7 +177,6 @@ static const struct rproc_ops adsp_ops = {
 	.start = adsp_start,
 	.stop = adsp_stop,
 	.da_to_va = adsp_da_to_va,
-	.find_rsc_table = qcom_mdt_find_rsc_table,
 	.load = adsp_load,
 };
 

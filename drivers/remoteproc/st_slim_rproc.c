@@ -200,28 +200,10 @@ static void *slim_rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 	return va;
 }
 
-/*
- * Firmware handler operations: sanity, boot address, load ...
- */
-
-static struct resource_table empty_rsc_tbl = {
-	.ver = 1,
-	.num = 0,
-};
-
-static struct resource_table *slim_rproc_find_rsc_table(struct rproc *rproc,
-					       const struct firmware *fw,
-					       int *tablesz)
-{
-	*tablesz = sizeof(empty_rsc_tbl);
-	return &empty_rsc_tbl;
-}
-
 static const struct rproc_ops slim_rproc_ops = {
 	.start		= slim_rproc_start,
 	.stop		= slim_rproc_stop,
 	.da_to_va       = slim_rproc_da_to_va,
-	.find_rsc_table = slim_rproc_find_rsc_table,
 	.get_boot_addr	= rproc_elf_get_boot_addr,
 	.load		= rproc_elf_load_segments,
 	.sanity_check	= rproc_elf_sanity_check,

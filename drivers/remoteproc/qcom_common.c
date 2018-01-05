@@ -32,25 +32,6 @@
 
 static BLOCKING_NOTIFIER_HEAD(ssr_notifiers);
 
-/**
- * qcom_mdt_find_rsc_table() - provide dummy resource table for remoteproc
- * @rproc:	remoteproc handle
- * @fw:		firmware header
- * @tablesz:	outgoing size of the table
- *
- * Returns a dummy table.
- */
-struct resource_table *qcom_mdt_find_rsc_table(struct rproc *rproc,
-					       const struct firmware *fw,
-					       int *tablesz)
-{
-	static struct resource_table table = { .ver = 1, };
-
-	*tablesz = sizeof(table);
-	return &table;
-}
-EXPORT_SYMBOL_GPL(qcom_mdt_find_rsc_table);
-
 static int glink_subdev_probe(struct rproc_subdev *subdev)
 {
 	struct qcom_rproc_glink *glink = to_glink_subdev(subdev);

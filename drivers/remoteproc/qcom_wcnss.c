@@ -308,7 +308,6 @@ static const struct rproc_ops wcnss_ops = {
 	.start = wcnss_start,
 	.stop = wcnss_stop,
 	.da_to_va = wcnss_da_to_va,
-	.find_rsc_table = qcom_mdt_find_rsc_table,
 	.load = wcnss_load,
 };
 

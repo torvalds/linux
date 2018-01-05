@@ -303,16 +303,6 @@ static void q6v5_clk_disable(struct device *dev,
 		clk_disable_unprepare(clks[i]);
 }
 
-static struct resource_table *q6v5_find_rsc_table(struct rproc *rproc,
-						  const struct firmware *fw,
-						  int *tablesz)
-{
-	static struct resource_table table = { .ver = 1, };
-
-	*tablesz = sizeof(table);
-	return &table;
-}
-
 static int q6v5_xfer_mem_ownership(struct q6v5 *qproc, int *current_perm,
 				   bool remote_owner, phys_addr_t addr,
 				   size_t size)
@@ -926,7 +916,6 @@ static const struct rproc_ops q6v5_ops = {
 	.start = q6v5_start,
 	.stop = q6v5_stop,
 	.da_to_va = q6v5_da_to_va,
-	.find_rsc_table = q6v5_find_rsc_table,
 	.load = q6v5_load,
 };
 
