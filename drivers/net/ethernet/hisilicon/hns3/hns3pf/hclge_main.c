@@ -36,6 +36,7 @@
 static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 				     enum hclge_mta_dmac_sel_type mta_mac_sel,
 				     bool enable);
+static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
 
@@ -2208,8 +2209,11 @@ static int hclge_set_default_mac_vlan_mask(struct hclge_dev *hdev,
 
 static int hclge_mac_init(struct hclge_dev *hdev)
 {
+	struct hnae3_handle *handle = &hdev->vport[0].nic;
+	struct net_device *netdev = handle->kinfo.netdev;
 	struct hclge_mac *mac = &hdev->hw.mac;
 	u8 mac_mask[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	int mtu;
 	int ret;
 
 	ret = hclge_cfg_mac_speed_dup(hdev, hdev->hw.mac.speed, HCLGE_MAC_FULL);
@@ -2243,11 +2247,25 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	}
 
 	ret = hclge_set_default_mac_vlan_mask(hdev, true, mac_mask);
-	if (ret)
+	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"set default mac_vlan_mask fail ret=%d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	if (netdev)
+		mtu = netdev->mtu;
+	else
+		mtu = ETH_DATA_LEN;
+
+	ret = hclge_set_mtu(handle, mtu);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"set mtu failed ret=%d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void hclge_mbx_task_schedule(struct hclge_dev *hdev)
