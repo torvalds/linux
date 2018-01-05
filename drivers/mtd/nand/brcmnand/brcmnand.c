@@ -2237,6 +2237,9 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	nand_set_controller_data(chip, host);
 	mtd->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "brcmnand.%d",
 				   host->cs);
+	if (!mtd->name)
+		return -ENOMEM;
+
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
 
