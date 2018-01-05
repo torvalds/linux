@@ -217,6 +217,9 @@
 /* max. number of button state polling addresses */
 #define EM28XX_NUM_BUTTON_ADDRESSES_MAX		5
 
+#define PRIMARY_TS	0
+#define SECONDARY_TS	1
+
 enum em28xx_mode {
 	EM28XX_SUSPEND,
 	EM28XX_ANALOG_MODE,
@@ -457,6 +460,7 @@ struct em28xx_board {
 	unsigned int mts_firmware:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
+	unsigned int has_dual_ts:1;
 	unsigned int is_webcam:1;
 	unsigned int valid:1;
 	unsigned int has_ir_i2c:1;
@@ -621,6 +625,7 @@ struct em28xx {
 	unsigned int is_audio_only:1;
 	enum em28xx_int_audio_type int_audio_type;
 	enum em28xx_usb_audio_type usb_audio_type;
+	unsigned char name[32];
 
 	struct em28xx_board board;
 
@@ -682,6 +687,8 @@ struct em28xx {
 	u8 ifnum;		/* number of the assigned usb interface */
 	u8 analog_ep_isoc;	/* address of isoc endpoint for analog */
 	u8 analog_ep_bulk;	/* address of bulk endpoint for analog */
+	u8 dvb_ep_isoc_ts2;	/* address of isoc endpoint for DVB TS2*/
+	u8 dvb_ep_bulk_ts2;	/* address of bulk endpoint for DVB TS2*/
 	u8 dvb_ep_isoc;		/* address of isoc endpoint for DVB */
 	u8 dvb_ep_bulk;		/* address of bulk endpoint for DVB */
 	int alt;		/* alternate setting */
@@ -694,6 +701,8 @@ struct em28xx {
 						   transfers for analog      */
 	int dvb_alt_isoc;	/* alternate setting for DVB isoc transfers */
 	unsigned int dvb_max_pkt_size_isoc;	/* isoc max packet size of the
+						   selected DVB ep at dvb_alt */
+	unsigned int dvb_max_pkt_size_isoc_ts2;	/* isoc max packet size of the
 						   selected DVB ep at dvb_alt */
 	unsigned int dvb_xfer_bulk:1;		/* use bulk instead of isoc
 						   transfers for DVB          */
@@ -726,6 +735,9 @@ struct em28xx {
 	struct media_entity input_ent[MAX_EM28XX_INPUT];
 	struct media_pad input_pad[MAX_EM28XX_INPUT];
 #endif
+
+	struct em28xx	*dev_next;
+	int ts;
 };
 
 #define kref_to_dev(d) container_of(d, struct em28xx, ref)
