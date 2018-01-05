@@ -742,7 +742,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 		cmd_op = NVM_OP_PWRITE;
 		flags = pblk_set_progr_mode(pblk, PBLK_WRITE);
 		lba_list = emeta_to_lbas(pblk, line->emeta->buf);
-	} else if (dir == PBLK_READ) {
+	} else if (dir == PBLK_READ_RECOV || dir == PBLK_READ) {
 		bio_op = REQ_OP_READ;
 		cmd_op = NVM_OP_PREAD;
 		flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
@@ -802,7 +802,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	if (rqd.error) {
 		if (dir == PBLK_WRITE)
 			pblk_log_write_err(pblk, &rqd);
-		else
+		else if (dir == PBLK_READ)
 			pblk_log_read_err(pblk, &rqd);
 	}
 
@@ -816,7 +816,7 @@ int pblk_line_read_smeta(struct pblk *pblk, struct pblk_line *line)
 {
 	u64 bpaddr = pblk_line_smeta_start(pblk, line);
 
-	return pblk_line_submit_smeta_io(pblk, line, bpaddr, PBLK_READ);
+	return pblk_line_submit_smeta_io(pblk, line, bpaddr, PBLK_READ_RECOV);
 }
 
 int pblk_line_read_emeta(struct pblk *pblk, struct pblk_line *line,

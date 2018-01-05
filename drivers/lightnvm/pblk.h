@@ -60,6 +60,7 @@ enum {
 	PBLK_READ		= READ,
 	PBLK_WRITE		= WRITE,/* Write from write buffer */
 	PBLK_WRITE_INT,			/* Internal write - no write buffer */
+	PBLK_READ_RECOV,		/* Recovery read - errors allowed */
 	PBLK_ERASE,
 };
 
