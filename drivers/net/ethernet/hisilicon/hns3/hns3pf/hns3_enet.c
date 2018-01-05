@@ -1313,6 +1313,8 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 		return ret;
 	}
 
+	netdev->mtu = new_mtu;
+
 	/* if the netdev was running earlier, bring it up again */
 	if (if_running && hns3_nic_net_open(netdev))
 		ret = -EINVAL;
