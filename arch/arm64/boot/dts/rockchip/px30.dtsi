@@ -558,6 +558,21 @@
 			<75000000>, <416000000>;
 	};
 
+	mipi_dphy: mipi-dphy@ff2e0000 {
+		compatible = "rockchip,px30-mipi-dphy";
+		reg = <0x0 0xff2e0000 0x0 0x10000>;
+		clocks = <&cru SCLK_MIPIDSIPHY_REF>, <&cru PCLK_MIPIDSIPHY>;
+		clock-names = "ref", "pclk";
+		clock-output-names = "mipi_dphy_pll";
+		#clock-cells = <0>;
+		resets = <&cru SRST_MIPIDSIPHY_P>;
+		reset-names = "apb";
+		power-domains = <&power PX30_PD_VO>;
+		#phy-cells = <0>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
 	lvds: lvds@ff2e0000 {
 		compatible = "rockchip,px30-lvds";
 		reg = <0x0 0xff2e0000 0x0 0x100>, <0x0 0xff2e0100 0x0 0x100>;
