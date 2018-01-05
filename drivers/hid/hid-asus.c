@@ -715,9 +715,10 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "Fixing up Asus notebook report descriptor\n");
 		rdesc[55] = 0xdd;
 	}
-	/* For the T100TA keyboard dock */
+	/* For the T100TA/T200TA keyboard dock */
 	if (drvdata->quirks & QUIRK_T100_KEYBOARD &&
-		 *rsize == 76 && rdesc[73] == 0x81 && rdesc[74] == 0x01) {
+		 (*rsize == 76 || *rsize == 101) &&
+		 rdesc[73] == 0x81 && rdesc[74] == 0x01) {
 		hid_info(hdev, "Fixing up Asus T100 keyb report descriptor\n");
 		rdesc[74] &= ~HID_MAIN_ITEM_CONSTANT;
 	}
