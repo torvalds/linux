@@ -2188,7 +2188,6 @@ struct megasas_instance {
 	struct megasas_evt_detail *evt_detail;
 	dma_addr_t evt_detail_h;
 	struct megasas_cmd *aen_cmd;
-	struct mutex hba_mutex;
 	struct semaphore ioctl_sem;
 
 	struct Scsi_Host *host;

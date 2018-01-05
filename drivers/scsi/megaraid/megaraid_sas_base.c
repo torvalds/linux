@@ -1952,7 +1952,7 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 		}
 	}
 
-	mutex_lock(&instance->hba_mutex);
+	mutex_lock(&instance->reset_mutex);
 	/* Send DCMD to Firmware and cache the information */
 	if ((instance->pd_info) && !MEGASAS_IS_LOGICAL(sdev))
 		megasas_get_pd_info(instance, sdev);
@@ -1966,7 +1966,7 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 	is_target_prop = (ret_target_prop == DCMD_SUCCESS) ? true : false;
 	megasas_set_static_target_properties(sdev, is_target_prop);
 
-	mutex_unlock(&instance->hba_mutex);
+	mutex_unlock(&instance->reset_mutex);
 
 	/* This sdev property may change post OCR */
 	megasas_set_dynamic_target_properties(sdev);
@@ -6350,7 +6350,6 @@ static inline void megasas_init_ctrl_params(struct megasas_instance *instance)
 	spin_lock_init(&instance->stream_lock);
 	spin_lock_init(&instance->completion_lock);
 
-	mutex_init(&instance->hba_mutex);
 	mutex_init(&instance->reset_mutex);
 
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
