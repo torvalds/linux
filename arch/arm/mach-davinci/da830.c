@@ -1194,7 +1194,7 @@ static struct davinci_timer_info da830_timer_info = {
 	.clocksource_id	= T0_BOT,
 };
 
-static struct davinci_soc_info davinci_soc_info_da830 = {
+static const struct davinci_soc_info davinci_soc_info_da830 = {
 	.io_desc		= da830_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da830_io_desc),
 	.jtag_id_reg		= DA8XX_SYSCFG0_BASE + DA8XX_JTAG_ID_REG,
