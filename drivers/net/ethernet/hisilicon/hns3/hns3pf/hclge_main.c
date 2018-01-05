@@ -4241,6 +4241,17 @@ static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 	return 0;
 }
 
+#define HCLGE_FILTER_TYPE_VF		0
+#define HCLGE_FILTER_TYPE_PORT		1
+
+static void hclge_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF, enable);
+}
+
 int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 			     bool is_kill, u16 vlan, u8 qos, __be16 proto)
 {
@@ -4469,8 +4480,6 @@ static int hclge_set_vlan_protocol_type(struct hclge_dev *hdev)
 
 static int hclge_init_vlan_config(struct hclge_dev *hdev)
 {
-#define HCLGE_FILTER_TYPE_VF		0
-#define HCLGE_FILTER_TYPE_PORT		1
 #define HCLGE_DEF_VLAN_TYPE		0x8100
 
 	struct hnae3_handle *handle;
@@ -5482,6 +5491,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_sset_count = hclge_get_sset_count,
 	.get_fw_version = hclge_get_fw_version,
 	.get_mdix_mode = hclge_get_mdix_mode,
+	.enable_vlan_filter = hclge_enable_vlan_filter,
 	.set_vlan_filter = hclge_set_port_vlan_filter,
 	.set_vf_vlan_filter = hclge_set_vf_vlan_filter,
 	.enable_hw_strip_rxvtag = hclge_en_hw_strip_rxvtag,
