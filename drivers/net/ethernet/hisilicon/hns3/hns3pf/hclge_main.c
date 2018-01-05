@@ -295,8 +295,24 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_512_1023_oct_pkt_num)},
 	{"mac_tx_1024_1518_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1024_1518_oct_pkt_num)},
-	{"mac_tx_1519_max_oct_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_oct_pkt_num)},
+	{"mac_tx_1519_2047_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_2047_oct_pkt_num)},
+	{"mac_tx_2048_4095_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_2048_4095_oct_pkt_num)},
+	{"mac_tx_4096_8191_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_4096_8191_oct_pkt_num)},
+	{"mac_tx_8192_12287_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_8192_12287_oct_pkt_num)},
+	{"mac_tx_8192_9216_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_8192_9216_oct_pkt_num)},
+	{"mac_tx_9217_12287_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_9217_12287_oct_pkt_num)},
+	{"mac_tx_12288_16383_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_12288_16383_oct_pkt_num)},
+	{"mac_tx_1519_max_good_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_good_oct_pkt_num)},
+	{"mac_tx_1519_max_bad_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_bad_oct_pkt_num)},
 	{"mac_rx_total_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_total_pkt_num)},
 	{"mac_rx_total_oct_num",
@@ -331,8 +347,24 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_512_1023_oct_pkt_num)},
 	{"mac_rx_1024_1518_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1024_1518_oct_pkt_num)},
-	{"mac_rx_1519_max_oct_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_oct_pkt_num)},
+	{"mac_rx_1519_2047_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_2047_oct_pkt_num)},
+	{"mac_rx_2048_4095_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_2048_4095_oct_pkt_num)},
+	{"mac_rx_4096_8191_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_4096_8191_oct_pkt_num)},
+	{"mac_rx_8192_12287_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_8192_12287_oct_pkt_num)},
+	{"mac_rx_8192_9216_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_8192_9216_oct_pkt_num)},
+	{"mac_rx_9217_12287_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_9217_12287_oct_pkt_num)},
+	{"mac_rx_12288_16383_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_12288_16383_oct_pkt_num)},
+	{"mac_rx_1519_max_good_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_good_oct_pkt_num)},
+	{"mac_rx_1519_max_bad_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_bad_oct_pkt_num)},
 
 	{"mac_tx_fragment_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_fragment_pkt_num)},
@@ -465,7 +497,7 @@ static int hclge_32_bit_update_stats(struct hclge_dev *hdev)
 
 static int hclge_mac_update_stats(struct hclge_dev *hdev)
 {
-#define HCLGE_MAC_CMD_NUM 17
+#define HCLGE_MAC_CMD_NUM 21
 #define HCLGE_RTN_DATA_NUM 4
 
 	u64 *data = (u64 *)(&hdev->hw_stats.mac_stats);
