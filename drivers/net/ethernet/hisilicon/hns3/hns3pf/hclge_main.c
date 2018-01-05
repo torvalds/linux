@@ -17,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/if_vlan.h>
 #include <net/rtnetlink.h>
 #include "hclge_cmd.h"
 #include "hclge_dcb.h"
@@ -4560,22 +4561,29 @@ static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 	struct hclge_config_max_frm_size_cmd *req;
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_desc desc;
+	int max_frm_size;
 	int ret;
 
-	if ((new_mtu < HCLGE_MAC_MIN_MTU) || (new_mtu > HCLGE_MAC_MAX_MTU))
+	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+
+	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
+	    max_frm_size > HCLGE_MAC_MAX_FRAME)
 		return -EINVAL;
 
-	hdev->mps = new_mtu;
+	max_frm_size = max(max_frm_size, HCLGE_MAC_DEFAULT_FRAME);
+
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAX_FRM_SIZE, false);
 
 	req = (struct hclge_config_max_frm_size_cmd *)desc.data;
-	req->max_frm_size = cpu_to_le16(new_mtu);
+	req->max_frm_size = cpu_to_le16(max_frm_size);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev, "set mtu fail, ret =%d.\n", ret);
 		return ret;
 	}
+
+	hdev->mps = max_frm_size;
 
 	return 0;
 }
