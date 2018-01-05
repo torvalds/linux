@@ -1704,7 +1704,8 @@ static struct eeh_ops pnv_eeh_ops = {
 	.read_config            = pnv_eeh_read_config,
 	.write_config           = pnv_eeh_write_config,
 	.next_error		= pnv_eeh_next_error,
-	.restore_config		= pnv_eeh_restore_config
+	.restore_config		= pnv_eeh_restore_config,
+	.notify_resume		= NULL
 };
 
 #ifdef CONFIG_PCI_IOV
