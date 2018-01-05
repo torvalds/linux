@@ -277,8 +277,7 @@ void rtw_wifi_gpio_wlan_ctrl(int onoff)
 }
 #endif //ANDROID_2X
 
-#elif defined(CONFIG_PLATFORM_ARM_RK3066) 
-#include <mach/iomux.h>
+#elif defined(CONFIG_PLATFORM_ARM_RK3066)
 
 #define GPIO_WIFI_IRQ		RK30_PIN2_PC2
 extern unsigned int oob_irq;
