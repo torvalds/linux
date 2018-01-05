@@ -737,6 +737,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			   delivered even if we can't queue.  Failure to
 			   queue in this case _should_ be reported; we fall
 			   back to SIGIO in that case. --sct */
+			clear_siginfo(&si);
 			si.si_signo = signum;
 			si.si_errno = 0;
 		        si.si_code  = reason;
