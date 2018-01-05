@@ -879,6 +879,8 @@ static int axg_clkc_probe(struct platform_device *pdev)
 
 	/*  Generic clocks and PLLs */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
 	clk_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!clk_base) {
 		dev_err(&pdev->dev, "Unable to map clk base\n");
