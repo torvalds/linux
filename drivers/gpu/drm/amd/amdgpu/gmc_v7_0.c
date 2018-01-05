@@ -432,9 +432,6 @@ static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
 static void gmc_v7_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
 					uint32_t vmid)
 {
-	/* flush hdp cache */
-	WREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0);
-
 	/* bits 0-15 are the VM contexts0-15 */
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
 }

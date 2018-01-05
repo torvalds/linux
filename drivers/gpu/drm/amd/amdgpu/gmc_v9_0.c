@@ -330,9 +330,6 @@ static void gmc_v9_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
 	const unsigned eng = 17;
 	unsigned i, j;
 
-	/* flush hdp cache */
-	adev->nbio_funcs->hdp_flush(adev);
-
 	spin_lock(&adev->mc.invalidate_lock);
 
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
