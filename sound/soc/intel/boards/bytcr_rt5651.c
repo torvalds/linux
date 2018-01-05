@@ -269,6 +269,15 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 	{
 		.callback = byt_rt5651_quirk_cb,
 		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ADI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Turbot"),
+		},
+		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
+					BYT_RT5651_IN3_MAP),
+	},
+	{
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "KIANO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "KIANO SlimNote 14.2"),
 		},
