@@ -1156,8 +1156,10 @@ static int vector_net_open(struct net_device *dev)
 	struct vector_device *vdevice;
 
 	spin_lock_irqsave(&vp->lock, flags);
-	if (vp->opened)
+	if (vp->opened) {
+		spin_unlock_irqrestore(&vp->lock, flags);
 		return -ENXIO;
+	}
 	vp->opened = true;
 	spin_unlock_irqrestore(&vp->lock, flags);
 
