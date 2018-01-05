@@ -668,7 +668,7 @@ static int m88e3016_config_init(struct phy_device *phydev)
 
 	/* Enable Scrambler and Auto-Crossover */
 	ret = phy_modify(phydev, MII_88E3016_PHY_SPEC_CTRL,
-			 ~MII_88E3016_DISABLE_SCRAMBLER,
+			 MII_88E3016_DISABLE_SCRAMBLER,
 			 MII_88E3016_AUTO_MDIX_CROSSOVER);
 	if (ret < 0)
 		return ret;
@@ -684,9 +684,9 @@ static int m88e1111_config_init_hwcfg_mode(struct phy_device *phydev,
 		mode |= MII_M1111_HWCFG_FIBER_COPPER_AUTO;
 
 	return phy_modify(phydev, MII_M1111_PHY_EXT_SR,
-			  (u16)~(MII_M1111_HWCFG_MODE_MASK |
-				 MII_M1111_HWCFG_FIBER_COPPER_AUTO |
-				 MII_M1111_HWCFG_FIBER_COPPER_RES),
+			  MII_M1111_HWCFG_MODE_MASK |
+			  MII_M1111_HWCFG_FIBER_COPPER_AUTO |
+			  MII_M1111_HWCFG_FIBER_COPPER_RES,
 			  mode);
 }
 
@@ -705,8 +705,7 @@ static int m88e1111_config_init_rgmii_delays(struct phy_device *phydev)
 	}
 
 	return phy_modify(phydev, MII_M1111_PHY_EXT_CR,
-			  (u16)~(MII_M1111_RGMII_RX_DELAY |
-				 MII_M1111_RGMII_TX_DELAY),
+			  MII_M1111_RGMII_RX_DELAY | MII_M1111_RGMII_TX_DELAY,
 			  delay);
 }
 
@@ -833,7 +832,7 @@ static int m88e1510_config_init(struct phy_device *phydev)
 
 		/* In reg 20, write MODE[2:0] = 0x1 (SGMII to Copper) */
 		err = phy_modify(phydev, MII_88E1510_GEN_CTRL_REG_1,
-				 ~MII_88E1510_GEN_CTRL_REG_1_MODE_MASK,
+				 MII_88E1510_GEN_CTRL_REG_1_MODE_MASK,
 				 MII_88E1510_GEN_CTRL_REG_1_MODE_SGMII);
 		if (err < 0)
 			return err;
@@ -957,7 +956,7 @@ static int m88e1145_config_init_rgmii(struct phy_device *phydev)
 		if (err < 0)
 			return err;
 
-		err = phy_modify(phydev, 0x1e, 0xf03f,
+		err = phy_modify(phydev, 0x1e, 0x0fc0,
 				 2 << 9 | /* 36 ohm */
 				 2 << 6); /* 39 ohm */
 		if (err < 0)
@@ -1379,7 +1378,7 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 
 		/* Setup LED[2] as interrupt pin (active low) */
 		err = __phy_modify(phydev, MII_88E1318S_PHY_LED_TCR,
-				   (u16)~MII_88E1318S_PHY_LED_TCR_FORCE_INT,
+				   MII_88E1318S_PHY_LED_TCR_FORCE_INT,
 				   MII_88E1318S_PHY_LED_TCR_INTn_ENABLE |
 				   MII_88E1318S_PHY_LED_TCR_INT_ACTIVE_LOW);
 		if (err < 0)
@@ -1419,7 +1418,7 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 
 		/* Clear WOL status and disable magic packet matching */
 		err = __phy_modify(phydev, MII_88E1318S_PHY_WOL_CTRL,
-				   (u16)~MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE,
+				   MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE,
 				   MII_88E1318S_PHY_WOL_CTRL_CLEAR_WOL_STATUS);
 		if (err < 0)
 			goto error;

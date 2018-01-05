@@ -332,7 +332,7 @@ EXPORT_SYMBOL(phy_write_mmd);
  * @set: bit mask of bits to set
  *
  * Unlocked helper function which allows a PHY register to be modified as
- * new register value = (old register value & mask) | set
+ * new register value = (old register value & ~mask) | set
  */
 int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 {

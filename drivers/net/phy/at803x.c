@@ -230,7 +230,7 @@ static int at803x_suspend(struct phy_device *phydev)
 
 static int at803x_resume(struct phy_device *phydev)
 {
-	return phy_modify(phydev, MII_BMCR, ~(BMCR_PDOWN | BMCR_ISOLATE), 0);
+	return phy_modify(phydev, MII_BMCR, BMCR_PDOWN | BMCR_ISOLATE, 0);
 }
 
 static int at803x_probe(struct phy_device *phydev)
