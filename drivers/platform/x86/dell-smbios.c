@@ -65,10 +65,10 @@ static struct smbios_call call_whitelist[] = {
 
 /* calls that are explicitly blacklisted */
 static struct smbios_call call_blacklist[] = {
-	{0x0000, 01, 07}, /* manufacturing use */
-	{0x0000, 06, 05}, /* manufacturing use */
-	{0x0000, 11, 03}, /* write once */
-	{0x0000, 11, 07}, /* write once */
+	{0x0000,  1,  7}, /* manufacturing use */
+	{0x0000,  6,  5}, /* manufacturing use */
+	{0x0000, 11,  3}, /* write once */
+	{0x0000, 11,  7}, /* write once */
 	{0x0000, 11, 11}, /* write once */
 	{0x0000, 19, -1}, /* diagnostics */
 	/* handled by kernel: dell-laptop */
