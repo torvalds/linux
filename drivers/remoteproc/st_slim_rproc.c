@@ -200,12 +200,6 @@ static void *slim_rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 	return va;
 }
 
-static const struct rproc_ops slim_rproc_ops = {
-	.start		= slim_rproc_start,
-	.stop		= slim_rproc_stop,
-	.da_to_va       = slim_rproc_da_to_va,
-};
-
 /*
  * Firmware handler operations: sanity, boot address, load ...
  */
@@ -223,8 +217,14 @@ static struct resource_table *slim_rproc_find_rsc_table(struct rproc *rproc,
 	return &empty_rsc_tbl;
 }
 
-static struct rproc_fw_ops slim_rproc_fw_ops = {
+static const struct rproc_ops slim_rproc_ops = {
+	.start		= slim_rproc_start,
+	.stop		= slim_rproc_stop,
+	.da_to_va       = slim_rproc_da_to_va,
 	.find_rsc_table = slim_rproc_find_rsc_table,
+	.get_boot_addr	= rproc_elf_get_boot_addr,
+	.load		= rproc_elf_load_segments,
+	.sanity_check	= rproc_elf_sanity_check,
 };
 
 /**
@@ -249,7 +249,6 @@ struct st_slim_rproc *st_slim_rproc_alloc(struct platform_device *pdev,
 	struct rproc *rproc;
 	struct resource *res;
 	int err, i;
-	const struct rproc_fw_ops *elf_ops;
 
 	if (!fw_name)
 		return ERR_PTR(-EINVAL);
@@ -266,13 +265,6 @@ struct st_slim_rproc *st_slim_rproc_alloc(struct platform_device *pdev,
 
 	slim_rproc = rproc->priv;
 	slim_rproc->rproc = rproc;
-
-	elf_ops = rproc->fw_ops;
-	/* Use some generic elf ops */
-	slim_rproc_fw_ops.load = elf_ops->load;
-	slim_rproc_fw_ops.sanity_check = elf_ops->sanity_check;
-
-	rproc->fw_ops = &slim_rproc_fw_ops;
 
 	/* get imem and dmem */
 	for (i = 0; i < ARRAY_SIZE(mem_names); i++) {

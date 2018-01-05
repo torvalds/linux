@@ -342,11 +342,6 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 	return 0;
 }
 
-static const struct rproc_fw_ops q6v5_fw_ops = {
-	.find_rsc_table = q6v5_find_rsc_table,
-	.load = q6v5_load,
-};
-
 static int q6v5_rmb_pbl_wait(struct q6v5 *qproc, int ms)
 {
 	unsigned long timeout;
@@ -931,6 +926,8 @@ static const struct rproc_ops q6v5_ops = {
 	.start = q6v5_start,
 	.stop = q6v5_stop,
 	.da_to_va = q6v5_da_to_va,
+	.find_rsc_table = q6v5_find_rsc_table,
+	.load = q6v5_load,
 };
 
 static irqreturn_t q6v5_wdog_interrupt(int irq, void *dev)
@@ -1149,8 +1146,6 @@ static int q6v5_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate rproc\n");
 		return -ENOMEM;
 	}
-
-	rproc->fw_ops = &q6v5_fw_ops;
 
 	qproc = (struct q6v5 *)rproc->priv;
 	qproc->dev = &pdev->dev;
