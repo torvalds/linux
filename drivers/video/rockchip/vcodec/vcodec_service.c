@@ -622,7 +622,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 		pservice->clk_core = devm_clk_get(dev, "clk_core");
 		if (IS_ERR(pservice->clk_core)) {
 			dev_err(dev, "failed on clk_get clk_core\n");
-			return -1;
+			pservice->clk_core = NULL;
 		} else {
 			pservice->clk_core_default_rate =
 				clk_get_rate(pservice->clk_core);
