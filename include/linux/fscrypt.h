@@ -125,11 +125,6 @@ static inline struct page *fscrypt_control_page(struct page *page)
 	return ((struct fscrypt_ctx *)page_private(page))->w.control_page;
 }
 
-static inline bool fscrypt_has_encryption_key(const struct inode *inode)
-{
-	return (inode->i_crypt_info != NULL);
-}
-
 #include <linux/fscrypt_supp.h>
 
 #else /* !__FS_HAS_ENCRYPTION */
@@ -138,11 +133,6 @@ static inline struct page *fscrypt_control_page(struct page *page)
 {
 	WARN_ON_ONCE(1);
 	return ERR_PTR(-EINVAL);
-}
-
-static inline bool fscrypt_has_encryption_key(const struct inode *inode)
-{
-	return 0;
 }
 
 #include <linux/fscrypt_notsupp.h>
