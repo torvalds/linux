@@ -166,7 +166,7 @@ struct pblk_rb {
 					 * the last submitted entry that has
 					 * been successfully persisted to media
 					 */
-	unsigned int sync_point;	/* Sync point - last entry that must be
+	unsigned int flush_point;	/* Sync point - last entry that must be
 					 * flushed to the media. Used with
 					 * REQ_FLUSH and REQ_FUA
 					 */
@@ -189,7 +189,7 @@ struct pblk_rb {
 	spinlock_t s_lock;		/* Sync lock */
 
 #ifdef CONFIG_NVM_DEBUG
-	atomic_t inflight_sync_point;	/* Not served REQ_FLUSH | REQ_FUA */
+	atomic_t inflight_flush_point;	/* Not served REQ_FLUSH | REQ_FUA */
 #endif
 };
 
@@ -687,7 +687,7 @@ unsigned int pblk_rb_sync_advance(struct pblk_rb *rb, unsigned int nr_entries);
 struct pblk_rb_entry *pblk_rb_sync_scan_entry(struct pblk_rb *rb,
 					      struct ppa_addr *ppa);
 void pblk_rb_sync_end(struct pblk_rb *rb, unsigned long *flags);
-unsigned int pblk_rb_sync_point_count(struct pblk_rb *rb);
+unsigned int pblk_rb_flush_point_count(struct pblk_rb *rb);
 
 unsigned int pblk_rb_read_count(struct pblk_rb *rb);
 unsigned int pblk_rb_sync_count(struct pblk_rb *rb);

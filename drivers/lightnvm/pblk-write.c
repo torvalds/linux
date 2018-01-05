@@ -508,7 +508,7 @@ static int pblk_submit_write(struct pblk *pblk)
 	if (!secs_avail)
 		return 1;
 
-	secs_to_flush = pblk_rb_sync_point_count(&pblk->rwb);
+	secs_to_flush = pblk_rb_flush_point_count(&pblk->rwb);
 	if (!secs_to_flush && secs_avail < pblk->min_write_pgs)
 		return 1;
 

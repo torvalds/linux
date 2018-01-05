@@ -54,7 +54,7 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 	rb->seg_size = (1 << power_seg_sz);
 	rb->nr_entries = (1 << power_size);
 	rb->mem = rb->subm = rb->sync = rb->l2p_update = 0;
-	rb->sync_point = EMPTY_ENTRY;
+	rb->flush_point = EMPTY_ENTRY;
 
 	spin_lock_init(&rb->w_lock);
 	spin_lock_init(&rb->s_lock);
@@ -112,7 +112,7 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 	up_write(&pblk_rb_lock);
 
 #ifdef CONFIG_NVM_DEBUG
-	atomic_set(&rb->inflight_sync_point, 0);
+	atomic_set(&rb->inflight_flush_point, 0);
 #endif
 
 	/*
@@ -349,26 +349,26 @@ void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
 	smp_store_release(&entry->w_ctx.flags, flags);
 }
 
-static int pblk_rb_sync_point_set(struct pblk_rb *rb, struct bio *bio,
+static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
 				  unsigned int pos)
 {
 	struct pblk_rb_entry *entry;
-	unsigned int subm, sync_point;
+	unsigned int subm, flush_point;
 
 	subm = READ_ONCE(rb->subm);
 
 #ifdef CONFIG_NVM_DEBUG
-	atomic_inc(&rb->inflight_sync_point);
+	atomic_inc(&rb->inflight_flush_point);
 #endif
 
 	if (pos == subm)
 		return 0;
 
-	sync_point = (pos == 0) ? (rb->nr_entries - 1) : (pos - 1);
-	entry = &rb->entries[sync_point];
+	flush_point = (pos == 0) ? (rb->nr_entries - 1) : (pos - 1);
+	entry = &rb->entries[flush_point];
 
-	/* Protect syncs */
-	smp_store_release(&rb->sync_point, sync_point);
+	/* Protect flush points */
+	smp_store_release(&rb->flush_point, flush_point);
 
 	if (!bio)
 		return 0;
@@ -416,7 +416,7 @@ void pblk_rb_flush(struct pblk_rb *rb)
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	unsigned int mem = READ_ONCE(rb->mem);
 
-	if (pblk_rb_sync_point_set(rb, NULL, mem))
+	if (pblk_rb_flush_point_set(rb, NULL, mem))
 		return;
 
 	pblk_write_should_kick(pblk);
@@ -440,7 +440,7 @@ static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
 #ifdef CONFIG_NVM_DEBUG
 		atomic_long_inc(&pblk->nr_flush);
 #endif
-		if (pblk_rb_sync_point_set(&pblk->rwb, bio, mem))
+		if (pblk_rb_flush_point_set(&pblk->rwb, bio, mem))
 			*io_ret = NVM_IO_OK;
 	}
 
@@ -607,17 +607,18 @@ try:
 		}
 
 		if (flags & PBLK_FLUSH_ENTRY) {
-			unsigned int sync_point;
+			unsigned int flush_point;
 
-			sync_point = READ_ONCE(rb->sync_point);
-			if (sync_point == pos) {
-				/* Protect syncs */
-				smp_store_release(&rb->sync_point, EMPTY_ENTRY);
+			flush_point = READ_ONCE(rb->flush_point);
+			if (flush_point == pos) {
+				/* Protect flush points */
+				smp_store_release(&rb->flush_point,
+							EMPTY_ENTRY);
 			}
 
 			flags &= ~PBLK_FLUSH_ENTRY;
 #ifdef CONFIG_NVM_DEBUG
-			atomic_dec(&rb->inflight_sync_point);
+			atomic_dec(&rb->inflight_flush_point);
 #endif
 		}
 
@@ -746,20 +747,20 @@ unsigned int pblk_rb_sync_advance(struct pblk_rb *rb, unsigned int nr_entries)
 	return sync;
 }
 
-unsigned int pblk_rb_sync_point_count(struct pblk_rb *rb)
+unsigned int pblk_rb_flush_point_count(struct pblk_rb *rb)
 {
-	unsigned int subm, sync_point;
+	unsigned int subm, flush_point;
 	unsigned int count;
 
-	/* Protect syncs */
-	sync_point = smp_load_acquire(&rb->sync_point);
-	if (sync_point == EMPTY_ENTRY)
+	/* Protect flush points */
+	flush_point = smp_load_acquire(&rb->flush_point);
+	if (flush_point == EMPTY_ENTRY)
 		return 0;
 
 	subm = READ_ONCE(rb->subm);
 
 	/* The sync point itself counts as a sector to sync */
-	count = pblk_rb_ring_count(sync_point, subm, rb->nr_entries) + 1;
+	count = pblk_rb_ring_count(flush_point, subm, rb->nr_entries) + 1;
 
 	return count;
 }
@@ -801,7 +802,7 @@ int pblk_rb_tear_down_check(struct pblk_rb *rb)
 
 	if ((rb->mem == rb->subm) && (rb->subm == rb->sync) &&
 				(rb->sync == rb->l2p_update) &&
-				(rb->sync_point == EMPTY_ENTRY)) {
+				(rb->flush_point == EMPTY_ENTRY)) {
 		goto out;
 	}
 
@@ -848,7 +849,7 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf)
 		queued_entries++;
 	spin_unlock_irq(&rb->s_lock);
 
-	if (rb->sync_point != EMPTY_ENTRY)
+	if (rb->flush_point != EMPTY_ENTRY)
 		offset = scnprintf(buf, PAGE_SIZE,
 			"%u\t%u\t%u\t%u\t%u\t%u\t%u - %u/%u/%u - %d\n",
 			rb->nr_entries,
@@ -857,14 +858,14 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf)
 			rb->sync,
 			rb->l2p_update,
 #ifdef CONFIG_NVM_DEBUG
-			atomic_read(&rb->inflight_sync_point),
+			atomic_read(&rb->inflight_flush_point),
 #else
 			0,
 #endif
-			rb->sync_point,
+			rb->flush_point,
 			pblk_rb_read_count(rb),
 			pblk_rb_space(rb),
-			pblk_rb_sync_point_count(rb),
+			pblk_rb_flush_point_count(rb),
 			queued_entries);
 	else
 		offset = scnprintf(buf, PAGE_SIZE,
@@ -875,13 +876,13 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf)
 			rb->sync,
 			rb->l2p_update,
 #ifdef CONFIG_NVM_DEBUG
-			atomic_read(&rb->inflight_sync_point),
+			atomic_read(&rb->inflight_flush_point),
 #else
 			0,
 #endif
 			pblk_rb_read_count(rb),
 			pblk_rb_space(rb),
-			pblk_rb_sync_point_count(rb),
+			pblk_rb_flush_point_count(rb),
 			queued_entries);
 
 	return offset;
