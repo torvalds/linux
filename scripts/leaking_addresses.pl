@@ -142,10 +142,10 @@ if (!is_supported_architecture()) {
 	foreach(@SUPPORTED_ARCHITECTURES) {
 		printf "\t%s\n", $_;
 	}
+	printf("\n");
 
-	my $archname = $Config{archname};
-	printf "\n\$ perl -MConfig -e \'print \"\$Config{archname}\\n\"\'\n";
-	printf "%s\n", $archname;
+	my $archname = `uname -m`;
+	printf("Machine hardware name (`uname -m`): %s\n", $archname);
 
 	exit(129);
 }
@@ -172,7 +172,7 @@ sub is_supported_architecture
 
 sub is_x86_64
 {
-	my $archname = $Config{archname};
+	my $archname = `uname -m`;
 
 	if ($archname =~ m/x86_64/) {
 		return 1;
@@ -182,9 +182,9 @@ sub is_x86_64
 
 sub is_ppc64
 {
-	my $archname = $Config{archname};
+	my $archname = `uname -m`;
 
-	if ($archname =~ m/powerpc/ and $archname =~ m/64/) {
+	if ($archname =~ m/ppc64/) {
 		return 1;
 	}
 	return 0;
