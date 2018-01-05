@@ -291,22 +291,19 @@ EXPORT_SYMBOL_GPL(device_wakeup_enable);
  *
  * Call under the device's power.lock lock.
  */
-int device_wakeup_attach_irq(struct device *dev,
+void device_wakeup_attach_irq(struct device *dev,
 			     struct wake_irq *wakeirq)
 {
 	struct wakeup_source *ws;
 
 	ws = dev->power.wakeup;
-	if (!ws) {
-		dev_err(dev, "forgot to call device_init_wakeup?\n");
-		return -EINVAL;
-	}
+	if (!ws)
+		return;
 
 	if (ws->wakeirq)
-		return -EEXIST;
+		dev_err(dev, "Leftover wakeup IRQ found, overriding\n");
 
 	ws->wakeirq = wakeirq;
-	return 0;
 }
 
 /**
