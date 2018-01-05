@@ -248,6 +248,41 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		  __entry->refs, __entry->compress_type)
 );
 
+TRACE_EVENT(btrfs_handle_em_exist,
+
+	TP_PROTO(const struct extent_map *existing, const struct extent_map *map, u64 start, u64 len),
+
+	TP_ARGS(existing, map, start, len),
+
+	TP_STRUCT__entry(
+		__field(	u64,  e_start		)
+		__field(	u64,  e_len		)
+		__field(	u64,  map_start		)
+		__field(	u64,  map_len		)
+		__field(	u64,  start		)
+		__field(	u64,  len		)
+	),
+
+	TP_fast_assign(
+		__entry->e_start	= existing->start;
+		__entry->e_len		= existing->len;
+		__entry->map_start	= map->start;
+		__entry->map_len	= map->len;
+		__entry->start		= start;
+		__entry->len		= len;
+	),
+
+	TP_printk("start=%llu len=%llu "
+		  "existing(start=%llu len=%llu) "
+		  "em(start=%llu len=%llu)",
+		  (unsigned long long)__entry->start,
+		  (unsigned long long)__entry->len,
+		  (unsigned long long)__entry->e_start,
+		  (unsigned long long)__entry->e_len,
+		  (unsigned long long)__entry->map_start,
+		  (unsigned long long)__entry->map_len)
+);
+
 /* file extent item */
 DECLARE_EVENT_CLASS(btrfs__file_extent_item_regular,
 
