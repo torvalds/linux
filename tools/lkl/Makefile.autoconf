@@ -2,8 +2,9 @@ POSIX_HOSTS=elf64-x86-64 elf32-i386 elf64-x86-64-freebsd elf32-littlearm elf64-l
 NT_HOSTS=pe-i386 pe-x86-64
 
 define set_autoconf_var
-  $(file >> $(OUTPUT)/include/autoconf.h,#define LKL_HOST_CONFIG_$(1) $(2))
-  $(file >> $(OUTPUT)/tests/autoconf.sh,LKL_HOST_CONFIG_$(1)=$(2))
+  $(shell echo "#define LKL_HOST_CONFIG_$(1) $(2)" \
+	  >> $(OUTPUT)/include/autoconf.h)
+  $(shell echo "LKL_HOST_CONFIG_$(1)=$(2)" >> $(OUTPUT)/tests/autoconf.sh)
   export LKL_HOST_CONFIG_$(1)=$(2)
 endef
 
@@ -85,7 +86,10 @@ define do_autoconf
   $(if $(filter $(LD_FMT),$(NT_HOSTS)),$(call nt_host,$(LD_FMT)))
 endef
 
+export do_autoconf
+
+
 $(OUTPUT)Makefile.conf: Makefile.autoconf
-	$(file > $(OUTPUT)/include/autoconf.h)
-	$(file > $(OUTPUT)/tests/autoconf.sh)
-	$(file > $(OUTPUT)/Makefile.conf,$(call do_autoconf))
+	$(shell echo -n "" > $(OUTPUT)/include/autoconf.h)
+	$(shell echo -n "" > $(OUTPUT)/tests/autoconf.sh)
+	@echo "$$do_autoconf" > $(OUTPUT)/Makefile.conf
