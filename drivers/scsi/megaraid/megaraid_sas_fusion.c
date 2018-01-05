@@ -1048,7 +1048,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 						(tv.tv_usec / 1000));
 
 	init_frame = (struct megasas_init_frame *)cmd->frame;
-	memset(init_frame, 0, MEGAMFI_FRAME_SIZE);
+	memset(init_frame, 0, IOC_INIT_FRAME_SIZE);
 
 	frame_hdr = &cmd->frame->hdr;
 	frame_hdr->cmd_status = 0xFF;
