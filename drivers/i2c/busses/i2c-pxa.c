@@ -36,7 +36,7 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <asm/irq.h>
 
