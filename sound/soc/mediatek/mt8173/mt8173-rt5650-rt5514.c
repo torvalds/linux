@@ -37,8 +37,6 @@ static const struct snd_soc_dapm_route mt8173_rt5650_rt5514_routes[] = {
 	{"Sub DMIC1R", NULL, "Int Mic"},
 	{"Headphone", NULL, "HPOL"},
 	{"Headphone", NULL, "HPOR"},
-	{"Headset Mic", NULL, "micbias1"},
-	{"Headset Mic", NULL, "micbias2"},
 	{"IN1P", NULL, "Headset Mic"},
 	{"IN1N", NULL, "Headset Mic"},
 };
