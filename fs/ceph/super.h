@@ -310,6 +310,9 @@ struct ceph_inode_info {
 	u64 i_rbytes, i_rfiles, i_rsubdirs;
 	u64 i_files, i_subdirs;
 
+	/* quotas */
+	u64 i_max_bytes, i_max_files;
+
 	struct rb_root i_fragtree;
 	int i_fragtree_nsplits;
 	struct mutex i_fragtree_mutex;
@@ -1069,5 +1072,10 @@ extern int ceph_locks_to_pagelist(struct ceph_filelock *flocks,
 /* debugfs.c */
 extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);
 extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
+
+/* quota.c */
+extern void ceph_handle_quota(struct ceph_mds_client *mdsc,
+			      struct ceph_mds_session *session,
+			      struct ceph_msg *msg);
 
 #endif /* _FS_CEPH_SUPER_H */

@@ -80,6 +80,7 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_CLIENT_REPLY: return "client_reply";
 	case CEPH_MSG_CLIENT_CAPS: return "client_caps";
 	case CEPH_MSG_CLIENT_CAPRELEASE: return "client_cap_release";
+	case CEPH_MSG_CLIENT_QUOTA: return "client_quota";
 	case CEPH_MSG_CLIENT_SNAP: return "client_snap";
 	case CEPH_MSG_CLIENT_LEASE: return "client_lease";
 	case CEPH_MSG_POOLOP_REPLY: return "poolop_reply";
