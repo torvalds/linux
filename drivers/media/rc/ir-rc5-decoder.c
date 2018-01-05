@@ -225,9 +225,9 @@ static int ir_rc5_encode(enum rc_proto protocol, u32 scancode,
 		/* encode data */
 		data = !commandx << 12 | system << 6 | command;
 
-		/* Modulate the data */
+		/* First bit is encoded by leader_pulse */
 		ret = ir_raw_gen_manchester(&e, max, &ir_rc5_timings,
-					    RC5_NBITS, data);
+					    RC5_NBITS - 1, data);
 		if (ret < 0)
 			return ret;
 	} else if (protocol == RC_PROTO_RC5X_20) {
@@ -240,10 +240,11 @@ static int ir_rc5_encode(enum rc_proto protocol, u32 scancode,
 		/* encode data */
 		data = commandx << 18 | system << 12 | command << 6 | xdata;
 
-		/* Modulate the data */
+		/* First bit is encoded by leader_pulse */
 		pre_space_data = data >> (RC5X_NBITS - CHECK_RC5X_NBITS);
 		ret = ir_raw_gen_manchester(&e, max, &ir_rc5x_timings[0],
-					    CHECK_RC5X_NBITS, pre_space_data);
+					    CHECK_RC5X_NBITS - 1,
+					    pre_space_data);
 		if (ret < 0)
 			return ret;
 		ret = ir_raw_gen_manchester(&e, max - (e - events),
@@ -254,8 +255,10 @@ static int ir_rc5_encode(enum rc_proto protocol, u32 scancode,
 			return ret;
 	} else if (protocol == RC_PROTO_RC5_SZ) {
 		/* RC5-SZ scancode is raw enough for Manchester as it is */
+		/* First bit is encoded by leader_pulse */
 		ret = ir_raw_gen_manchester(&e, max, &ir_rc5_sz_timings,
-					    RC5_SZ_NBITS, scancode & 0x2fff);
+					    RC5_SZ_NBITS - 1,
+					    scancode & 0x2fff);
 		if (ret < 0)
 			return ret;
 	} else {
