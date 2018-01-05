@@ -1296,6 +1296,7 @@ int phylink_mii_ioctl(struct phylink *pl, struct ifreq *ifr, int cmd)
 		switch (cmd) {
 		case SIOCGMIIPHY:
 			mii->phy_id = pl->phydev->mdio.addr;
+			/* fall through */
 
 		case SIOCGMIIREG:
 			ret = phylink_phy_read(pl, mii->phy_id, mii->reg_num);
@@ -1318,6 +1319,7 @@ int phylink_mii_ioctl(struct phylink *pl, struct ifreq *ifr, int cmd)
 		switch (cmd) {
 		case SIOCGMIIPHY:
 			mii->phy_id = 0;
+			/* fall through */
 
 		case SIOCGMIIREG:
 			ret = phylink_mii_read(pl, mii->phy_id, mii->reg_num);
