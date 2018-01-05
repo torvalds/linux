@@ -1378,6 +1378,11 @@ retry_snap:
 
 	pos = iocb->ki_pos;
 	count = iov_iter_count(from);
+	if (ceph_quota_is_max_bytes_exceeded(inode, pos + count)) {
+		err = -EDQUOT;
+		goto out;
+	}
+
 	err = file_remove_privs(file);
 	if (err)
 		goto out;
@@ -1705,6 +1710,12 @@ static long ceph_fallocate(struct file *file, int mode,
 
 	if (ceph_snap(inode) != CEPH_NOSNAP) {
 		ret = -EROFS;
+		goto unlock;
+	}
+
+	if (!(mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE)) &&
+	    ceph_quota_is_max_bytes_exceeded(inode, offset + length)) {
+		ret = -EDQUOT;
 		goto unlock;
 	}
 

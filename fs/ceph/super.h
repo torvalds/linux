@@ -1079,5 +1079,7 @@ extern void ceph_handle_quota(struct ceph_mds_client *mdsc,
 			      struct ceph_msg *msg);
 extern bool ceph_quota_is_max_files_exceeded(struct inode *inode);
 extern bool ceph_quota_is_same_realm(struct inode *old, struct inode *new);
+extern bool ceph_quota_is_max_bytes_exceeded(struct inode *inode,
+					     loff_t newlen);
 
 #endif /* _FS_CEPH_SUPER_H */

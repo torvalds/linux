@@ -134,7 +134,8 @@ bool ceph_quota_is_same_realm(struct inode *old, struct inode *new)
 }
 
 enum quota_check_op {
-	QUOTA_CHECK_MAX_FILES_OP	/* check quota max_files limit */
+	QUOTA_CHECK_MAX_FILES_OP,	/* check quota max_files limit */
+	QUOTA_CHECK_MAX_BYTES_OP	/* check quota max_files limit */
 };
 
 /*
@@ -171,12 +172,18 @@ static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
 		if (op == QUOTA_CHECK_MAX_FILES_OP) {
 			max = ci->i_max_files;
 			rvalue = ci->i_rfiles + ci->i_rsubdirs;
+		} else {
+			max = ci->i_max_bytes;
+			rvalue = ci->i_rbytes;
 		}
 		is_root = (ci->i_vino.ino == CEPH_INO_ROOT);
 		spin_unlock(&ci->i_ceph_lock);
 		switch (op) {
 		case QUOTA_CHECK_MAX_FILES_OP:
 			exceeded = (max && (rvalue >= max));
+			break;
+		case QUOTA_CHECK_MAX_BYTES_OP:
+			exceeded = (max && (rvalue + delta > max));
 			break;
 		default:
 			/* Shouldn't happen */
@@ -211,4 +218,23 @@ bool ceph_quota_is_max_files_exceeded(struct inode *inode)
 	WARN_ON(!S_ISDIR(inode->i_mode));
 
 	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_FILES_OP, 0);
+}
+
+/*
+ * ceph_quota_is_max_bytes_exceeded - check if we can write to a file
+ * @inode:	inode being written
+ * @newsize:	new size if write succeeds
+ *
+ * This functions returns true is max_bytes quota allows a file size to reach
+ * @newsize; it returns false otherwise.
+ */
+bool ceph_quota_is_max_bytes_exceeded(struct inode *inode, loff_t newsize)
+{
+	loff_t size = i_size_read(inode);
+
+	/* return immediately if we're decreasing file size */
+	if (newsize <= size)
+		return false;
+
+	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_BYTES_OP, (newsize - size));
 }
