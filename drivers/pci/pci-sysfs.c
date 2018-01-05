@@ -278,6 +278,16 @@ static ssize_t subordinate_bus_number_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(subordinate_bus_number);
 
+static ssize_t ari_enabled_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+
+	return sprintf(buf, "%u\n", pci_ari_enabled(pci_dev->bus));
+}
+static DEVICE_ATTR_RO(ari_enabled);
+
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -786,6 +796,7 @@ static struct attribute *pci_dev_attrs[] = {
 	&dev_attr_devspec.attr,
 #endif
 	&dev_attr_driver_override.attr,
+	&dev_attr_ari_enabled.attr,
 	NULL,
 };
 
