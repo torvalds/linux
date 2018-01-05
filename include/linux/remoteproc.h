@@ -419,7 +419,7 @@ struct rproc {
 	const char *name;
 	char *firmware;
 	void *priv;
-	const struct rproc_ops *ops;
+	struct rproc_ops *ops;
 	struct device dev;
 	const struct rproc_fw_ops *fw_ops;
 	atomic_t power;
