@@ -288,6 +288,7 @@ struct dpaa2_eth_channel {
 	int ch_id;
 	int dpio_id;
 	struct napi_struct napi;
+	struct dpaa2_io *dpio;
 	struct dpaa2_io_store *store;
 	struct dpaa2_eth_priv *priv;
 	int buf_count;
