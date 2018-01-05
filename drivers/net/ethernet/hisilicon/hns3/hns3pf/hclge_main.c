@@ -4225,6 +4225,7 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p)
 	const unsigned char *new_addr = (const unsigned char *)p;
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+	int ret;
 
 	/* mac addr check */
 	if (is_zero_ether_addr(new_addr) ||
@@ -4236,14 +4237,39 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p)
 		return -EINVAL;
 	}
 
-	hclge_rm_uc_addr(handle, hdev->hw.mac.mac_addr);
+	ret = hclge_rm_uc_addr(handle, hdev->hw.mac.mac_addr);
+	if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "remove old uc mac address fail, ret =%d.\n",
+			 ret);
 
-	if (!hclge_add_uc_addr(handle, new_addr)) {
-		ether_addr_copy(hdev->hw.mac.mac_addr, new_addr);
-		return 0;
+	ret = hclge_add_uc_addr(handle, new_addr);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"add uc mac address fail, ret =%d.\n",
+			ret);
+
+		ret = hclge_add_uc_addr(handle, hdev->hw.mac.mac_addr);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"restore uc mac address fail, ret =%d.\n",
+				ret);
+		}
+
+		return -EIO;
 	}
 
-	return -EIO;
+	ret = hclge_mac_pause_addr_cfg(hdev, new_addr);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"configure mac pause address fail, ret =%d.\n",
+			ret);
+		return -EIO;
+	}
+
+	ether_addr_copy(hdev->hw.mac.mac_addr, new_addr);
+
+	return 0;
 }
 
 static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
