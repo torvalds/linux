@@ -4707,22 +4707,19 @@ static void hclge_set_flowctrl_adv(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 
 static int hclge_cfg_pauseparam(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 {
-	enum hclge_fc_mode fc_mode;
 	int ret;
 
 	if (rx_en && tx_en)
-		fc_mode = HCLGE_FC_FULL;
+		hdev->fc_mode_last_time = HCLGE_FC_FULL;
 	else if (rx_en && !tx_en)
-		fc_mode = HCLGE_FC_RX_PAUSE;
+		hdev->fc_mode_last_time = HCLGE_FC_RX_PAUSE;
 	else if (!rx_en && tx_en)
-		fc_mode = HCLGE_FC_TX_PAUSE;
+		hdev->fc_mode_last_time = HCLGE_FC_TX_PAUSE;
 	else
-		fc_mode = HCLGE_FC_NONE;
+		hdev->fc_mode_last_time = HCLGE_FC_NONE;
 
-	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC) {
-		hdev->fc_mode_last_time = fc_mode;
+	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC)
 		return 0;
-	}
 
 	ret = hclge_mac_pause_en_cfg(hdev, tx_en, rx_en);
 	if (ret) {
@@ -4731,7 +4728,7 @@ static int hclge_cfg_pauseparam(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 		return ret;
 	}
 
-	hdev->tm_info.fc_mode = fc_mode;
+	hdev->tm_info.fc_mode = hdev->fc_mode_last_time;
 
 	return 0;
 }
