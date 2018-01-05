@@ -217,7 +217,7 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 		     struct amdgpu_job *job),
 	    TP_ARGS(vm, ring, job),
 	    TP_STRUCT__entry(
-			     __field(struct amdgpu_vm *, vm)
+			     __field(u32, pasid)
 			     __field(u32, ring)
 			     __field(u32, vmid)
 			     __field(u32, vm_hub)
@@ -226,15 +226,15 @@ TRACE_EVENT(amdgpu_vm_grab_id,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->vm = vm;
+			   __entry->pasid = vm->pasid;
 			   __entry->ring = ring->idx;
 			   __entry->vmid = job->vmid;
 			   __entry->vm_hub = ring->funcs->vmhub,
 			   __entry->pd_addr = job->vm_pd_addr;
 			   __entry->needs_flush = job->vm_needs_flush;
 			   ),
-	    TP_printk("vm=%p, ring=%u, id=%u, hub=%u, pd_addr=%010Lx needs_flush=%u",
-		      __entry->vm, __entry->ring, __entry->vmid,
+	    TP_printk("pasid=%d, ring=%u, id=%u, hub=%u, pd_addr=%010Lx needs_flush=%u",
+		      __entry->pasid, __entry->ring, __entry->vmid,
 		      __entry->vm_hub, __entry->pd_addr, __entry->needs_flush)
 );
 
