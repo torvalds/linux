@@ -42,6 +42,8 @@ struct armada_plane_work {
 };
 
 struct armada_plane_state {
+	u16 src_x;
+	u16 src_y;
 	u32 src_hw;
 	u32 dst_hw;
 	u32 dst_yx;
