@@ -51,10 +51,6 @@
 
 #define NR_PHY_IN_LOG (PBLK_EXPOSED_PAGE_SIZE / PBLK_SECTOR)
 
-#define pblk_for_each_lun(pblk, rlun, i) \
-		for ((i) = 0, rlun = &(pblk)->luns[0]; \
-			(i) < (pblk)->nr_luns; (i)++, rlun = &(pblk)->luns[(i)])
-
 /* Static pool sizes */
 #define PBLK_GEN_WS_POOL_SIZE (2)
 
