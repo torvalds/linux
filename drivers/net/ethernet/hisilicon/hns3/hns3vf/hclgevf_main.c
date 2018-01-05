@@ -49,7 +49,7 @@ static int hclgevf_tqps_update_stats(struct hnae3_handle *handle)
 			return status;
 		}
 		tqp->tqp_stats.rcb_rx_ring_pktnum_rcd +=
-			le32_to_cpu(desc.data[4]);
+			le32_to_cpu(desc.data[1]);
 
 		hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_QUERY_TX_STATUS,
 					     true);
@@ -63,7 +63,7 @@ static int hclgevf_tqps_update_stats(struct hnae3_handle *handle)
 			return status;
 		}
 		tqp->tqp_stats.rcb_tx_ring_pktnum_rcd +=
-			le32_to_cpu(desc.data[4]);
+			le32_to_cpu(desc.data[1]);
 	}
 
 	return 0;

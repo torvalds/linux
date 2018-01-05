@@ -525,7 +525,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 			return ret;
 		}
 		tqp->tqp_stats.rcb_rx_ring_pktnum_rcd +=
-			le32_to_cpu(desc[0].data[4]);
+			le32_to_cpu(desc[0].data[1]);
 	}
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
@@ -545,7 +545,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 			return ret;
 		}
 		tqp->tqp_stats.rcb_tx_ring_pktnum_rcd +=
-			le32_to_cpu(desc[0].data[4]);
+			le32_to_cpu(desc[0].data[1]);
 	}
 
 	return 0;
