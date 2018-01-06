@@ -318,7 +318,6 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->acked_features = 0;
 	vq->log_base = NULL;
 	vq->error_ctx = NULL;
-	vq->error = NULL;
 	vq->kick = NULL;
 	vq->call_ctx = NULL;
 	vq->log_ctx = NULL;
@@ -616,8 +615,6 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 	for (i = 0; i < dev->nvqs; ++i) {
 		if (dev->vqs[i]->error_ctx)
 			eventfd_ctx_put(dev->vqs[i]->error_ctx);
-		if (dev->vqs[i]->error)
-			fput(dev->vqs[i]->error);
 		if (dev->vqs[i]->kick)
 			fput(dev->vqs[i]->kick);
 		if (dev->vqs[i]->call_ctx)
@@ -1499,19 +1496,12 @@ long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 			r = -EFAULT;
 			break;
 		}
-		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-		if (IS_ERR(eventfp)) {
-			r = PTR_ERR(eventfp);
+		ctx = f.fd == -1 ? NULL : eventfd_ctx_fdget(f.fd);
+		if (IS_ERR(ctx)) {
+			r = PTR_ERR(ctx);
 			break;
 		}
-		if (eventfp != vq->error) {
-			filep = vq->error;
-			vq->error = eventfp;
-			ctx = vq->error_ctx;
-			vq->error_ctx = eventfp ?
-				eventfd_ctx_fileget(eventfp) : NULL;
-		} else
-			filep = eventfp;
+		swap(ctx, vq->error_ctx);
 		break;
 	case VHOST_SET_VRING_ENDIAN:
 		r = vhost_set_vring_endian(vq, argp);

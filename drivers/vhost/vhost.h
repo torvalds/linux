@@ -92,7 +92,6 @@ struct vhost_virtqueue {
 	struct vring_used __user *used;
 	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];
 	struct file *kick;
-	struct file *error;
 	struct eventfd_ctx *call_ctx;
 	struct eventfd_ctx *error_ctx;
 	struct eventfd_ctx *log_ctx;
