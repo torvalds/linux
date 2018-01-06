@@ -247,7 +247,6 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 	struct st_lsm6dsx_sensor *acc_sensor, *gyro_sensor;
 	s64 acc_ts, acc_delta_ts, gyro_ts, gyro_delta_ts;
 	u8 iio_buff[ALIGN(ST_LSM6DSX_SAMPLE_SIZE, sizeof(s64)) + sizeof(s64)];
-	u8 buff[pattern_len];
 	__le16 fifo_status;
 
 	err = regmap_bulk_read(hw->regmap,
@@ -280,7 +279,7 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 				samples);
 
 	for (read_len = 0; read_len < fifo_len; read_len += pattern_len) {
-		err = st_lsm6dsx_read_block(hw, buff, sizeof(buff));
+		err = st_lsm6dsx_read_block(hw, hw->buff, pattern_len);
 		if (err < 0)
 			return err;
 
@@ -305,7 +304,7 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 
 		while (acc_sip > 0 || gyro_sip > 0) {
 			if (gyro_sip-- > 0) {
-				memcpy(iio_buff, &buff[offset],
+				memcpy(iio_buff, &hw->buff[offset],
 				       ST_LSM6DSX_SAMPLE_SIZE);
 				iio_push_to_buffers_with_timestamp(
 					hw->iio_devs[ST_LSM6DSX_ID_GYRO],
@@ -315,7 +314,7 @@ static int st_lsm6dsx_read_fifo(struct st_lsm6dsx_hw *hw)
 			}
 
 			if (acc_sip-- > 0) {
-				memcpy(iio_buff, &buff[offset],
+				memcpy(iio_buff, &hw->buff[offset],
 				       ST_LSM6DSX_SAMPLE_SIZE);
 				iio_push_to_buffers_with_timestamp(
 					hw->iio_devs[ST_LSM6DSX_ID_ACC],

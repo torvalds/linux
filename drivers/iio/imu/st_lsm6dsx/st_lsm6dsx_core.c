@@ -722,6 +722,10 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 	mutex_init(&hw->fifo_lock);
 	mutex_init(&hw->conf_lock);
 
+	hw->buff = devm_kzalloc(dev, ST_LSM6DSX_BUFF_SIZE, GFP_KERNEL);
+	if (!hw->buff)
+		return -ENOMEM;
+
 	hw->dev = dev;
 	hw->irq = irq;
 	hw->regmap = regmap;
