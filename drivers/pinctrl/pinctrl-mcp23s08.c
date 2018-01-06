@@ -748,13 +748,12 @@ static void mcp23s08_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		if (!label)
 			continue;
 
-		seq_printf(s, " gpio-%-3d P%c.%d (%-12s) %s %s %s",
-			chip->base + t, bank, t, label,
-			(iodir & mask) ? "in " : "out",
-			(gpio & mask) ? "hi" : "lo",
-			(gppu & mask) ? "up" : "  ");
+		seq_printf(s, " gpio-%-3d P%c.%d (%-12s) %s %s %s\n",
+			   chip->base + t, bank, t, label,
+			   (iodir & mask) ? "in " : "out",
+			   (gpio & mask) ? "hi" : "lo",
+			   (gppu & mask) ? "up" : "  ");
 		/* NOTE:  ignoring the irq-related registers */
-		seq_puts(s, "\n");
 	}
 done:
 	mutex_unlock(&mcp->lock);
