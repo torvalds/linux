@@ -267,9 +267,8 @@ deadline_next_request(struct deadline_data *dd, int data_dir)
  * deadline_dispatch_requests selects the best request according to
  * read/write expire, fifo_batch, etc
  */
-static struct request *__dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
+static struct request *__dd_dispatch_request(struct deadline_data *dd)
 {
-	struct deadline_data *dd = hctx->queue->elevator->elevator_data;
 	struct request *rq, *next_rq;
 	bool reads, writes;
 	int data_dir;
@@ -372,13 +371,19 @@ done:
 	return rq;
 }
 
+/*
+ * One confusing aspect here is that we get called for a specific
+ * hardware queue, but we return a request that may not be for a
+ * different hardware queue. This is because mq-deadline has shared
+ * state for all hardware queues, in terms of sorting, FIFOs, etc.
+ */
 static struct request *dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
 {
 	struct deadline_data *dd = hctx->queue->elevator->elevator_data;
 	struct request *rq;
 
 	spin_lock(&dd->lock);
-	rq = __dd_dispatch_request(hctx);
+	rq = __dd_dispatch_request(dd);
 	spin_unlock(&dd->lock);
 
 	return rq;
