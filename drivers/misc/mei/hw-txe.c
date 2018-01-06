@@ -1128,7 +1128,7 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id)
 		/* Read from TXE */
 		rets = mei_irq_read_handler(dev, &cmpl_list, &slots);
 		if (rets &&
-		    (dev->dev_state != MEI_DEV_RESETTING ||
+		    (dev->dev_state != MEI_DEV_RESETTING &&
 		     dev->dev_state != MEI_DEV_POWER_DOWN)) {
 			dev_err(dev->dev,
 				"mei_irq_read_handler ret = %d.\n", rets);
