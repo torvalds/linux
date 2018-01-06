@@ -255,7 +255,7 @@ static u32 imx_pinconf_decode_generic_config(struct imx_pinctrl *ipctl,
 					      unsigned int num_configs)
 {
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
-	struct imx_cfg_params_decode *decode;
+	const struct imx_cfg_params_decode *decode;
 	enum pin_config_param param;
 	u32 raw_config = 0;
 	u32 param_val;

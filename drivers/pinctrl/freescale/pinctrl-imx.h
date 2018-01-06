@@ -71,7 +71,7 @@ struct imx_pinctrl_soc_info {
 	bool generic_pinconf;
 	const struct pinconf_generic_params *custom_params;
 	unsigned int num_custom_params;
-	struct imx_cfg_params_decode *decodes;
+	const struct imx_cfg_params_decode *decodes;
 	unsigned int num_decodes;
 	void (*fixup)(unsigned long *configs, unsigned int num_configs,
 		      u32 *raw_config);

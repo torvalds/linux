@@ -266,7 +266,7 @@ static const struct pinctrl_pin_desc imx7ulp_pinctrl_pads[] = {
 #define BP_MUX_MODE		8
 #define BM_PULL_ENABLED		BIT(1)
 
-struct imx_cfg_params_decode imx7ulp_cfg_decodes[] = {
+static const struct imx_cfg_params_decode imx7ulp_cfg_decodes[] = {
 	IMX_CFG_PARAMS_DECODE(PIN_CONFIG_DRIVE_STRENGTH, 		BIT(6), 6),
 	IMX_CFG_PARAMS_DECODE(PIN_CONFIG_DRIVE_PUSH_PULL,		BIT(5), 5),
 	IMX_CFG_PARAMS_DECODE(PIN_CONFIG_SLEW_RATE,			BIT(2), 2),
