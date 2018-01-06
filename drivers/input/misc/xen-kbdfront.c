@@ -326,8 +326,6 @@ static int xenkbd_probe(struct xenbus_device *dev,
 				     0, width, 0, 0);
 		input_set_abs_params(mtouch, ABS_MT_POSITION_Y,
 				     0, height, 0, 0);
-		input_set_abs_params(mtouch, ABS_MT_PRESSURE,
-				     0, 255, 0, 0);
 
 		ret = input_mt_init_slots(mtouch, num_cont, INPUT_MT_DIRECT);
 		if (ret) {
