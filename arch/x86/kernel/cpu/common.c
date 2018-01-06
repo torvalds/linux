@@ -834,6 +834,9 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	/* Assume for now that ALL x86 CPUs are insecure */
 	setup_force_cpu_bug(X86_BUG_CPU_MELTDOWN);
 
+	setup_force_cpu_bug(X86_BUG_SPECTRE_V1);
+	setup_force_cpu_bug(X86_BUG_SPECTRE_V2);
+
 	fpu__init_system(c);
 }
 
