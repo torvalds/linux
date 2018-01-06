@@ -395,6 +395,21 @@ enum rproc_crash_type {
 };
 
 /**
+ * struct rproc_dump_segment - segment info from ELF header
+ * @node:	list node related to the rproc segment list
+ * @da:		device address of the segment
+ * @size:	size of the segment
+ */
+struct rproc_dump_segment {
+	struct list_head node;
+
+	dma_addr_t da;
+	size_t size;
+
+	loff_t offset;
+};
+
+/**
  * struct rproc - represents a physical remote processor device
  * @node: list node of this rproc object
  * @domain: iommu domain
@@ -424,6 +439,7 @@ enum rproc_crash_type {
  * @cached_table: copy of the resource table
  * @table_sz: size of @cached_table
  * @has_iommu: flag to indicate if remote processor is behind an MMU
+ * @dump_segments: list of segments in the firmware
  */
 struct rproc {
 	struct list_head node;
@@ -455,6 +471,7 @@ struct rproc {
 	size_t table_sz;
 	bool has_iommu;
 	bool auto_boot;
+	struct list_head dump_segments;
 };
 
 /**
@@ -534,6 +551,7 @@ void rproc_free(struct rproc *rproc);
 int rproc_boot(struct rproc *rproc);
 void rproc_shutdown(struct rproc *rproc);
 void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type);
+int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size);
 
 static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 {

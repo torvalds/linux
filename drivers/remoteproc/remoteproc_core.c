@@ -33,6 +33,7 @@
 #include <linux/firmware.h>
 #include <linux/string.h>
 #include <linux/debugfs.h>
+#include <linux/devcoredump.h>
 #include <linux/remoteproc.h>
 #include <linux/iommu.h>
 #include <linux/idr.h>
@@ -802,6 +803,20 @@ static void rproc_remove_subdevices(struct rproc *rproc)
 }
 
 /**
+ * rproc_coredump_cleanup() - clean up dump_segments list
+ * @rproc: the remote processor handle
+ */
+static void rproc_coredump_cleanup(struct rproc *rproc)
+{
+	struct rproc_dump_segment *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &rproc->dump_segments, node) {
+		list_del(&entry->node);
+		kfree(entry);
+	}
+}
+
+/**
  * rproc_resource_cleanup() - clean up and free all acquired resources
  * @rproc: rproc handle
  *
@@ -848,6 +863,8 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 	/* clean up remote vdev entries */
 	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node)
 		kref_put(&rvdev->refcount, rproc_vdev_release);
+
+	rproc_coredump_cleanup(rproc);
 }
 
 static int rproc_start(struct rproc *rproc, const struct firmware *fw)
@@ -1018,6 +1035,113 @@ static int rproc_stop(struct rproc *rproc)
 }
 
 /**
+ * rproc_coredump_add_segment() - add segment of device memory to coredump
+ * @rproc:	handle of a remote processor
+ * @da:		device address
+ * @size:	size of segment
+ *
+ * Add device memory to the list of segments to be included in a coredump for
+ * the remoteproc.
+ *
+ * Return: 0 on success, negative errno on error.
+ */
+int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size)
+{
+	struct rproc_dump_segment *segment;
+
+	segment = kzalloc(sizeof(*segment), GFP_KERNEL);
+	if (!segment)
+		return -ENOMEM;
+
+	segment->da = da;
+	segment->size = size;
+
+	list_add_tail(&segment->node, &rproc->dump_segments);
+
+	return 0;
+}
+EXPORT_SYMBOL(rproc_coredump_add_segment);
+
+/**
+ * rproc_coredump() - perform coredump
+ * @rproc:	rproc handle
+ *
+ * This function will generate an ELF header for the registered segments
+ * and create a devcoredump device associated with rproc.
+ */
+static void rproc_coredump(struct rproc *rproc)
+{
+	struct rproc_dump_segment *segment;
+	struct elf32_phdr *phdr;
+	struct elf32_hdr *ehdr;
+	size_t data_size;
+	size_t offset;
+	void *data;
+	void *ptr;
+	int phnum = 0;
+
+	if (list_empty(&rproc->dump_segments))
+		return;
+
+	data_size = sizeof(*ehdr);
+	list_for_each_entry(segment, &rproc->dump_segments, node) {
+		data_size += sizeof(*phdr) + segment->size;
+
+		phnum++;
+	}
+
+	data = vmalloc(data_size);
+	if (!data)
+		return;
+
+	ehdr = data;
+
+	memset(ehdr, 0, sizeof(*ehdr));
+	memcpy(ehdr->e_ident, ELFMAG, SELFMAG);
+	ehdr->e_ident[EI_CLASS] = ELFCLASS32;
+	ehdr->e_ident[EI_DATA] = ELFDATA2LSB;
+	ehdr->e_ident[EI_VERSION] = EV_CURRENT;
+	ehdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
+	ehdr->e_type = ET_CORE;
+	ehdr->e_machine = EM_NONE;
+	ehdr->e_version = EV_CURRENT;
+	ehdr->e_entry = rproc->bootaddr;
+	ehdr->e_phoff = sizeof(*ehdr);
+	ehdr->e_ehsize = sizeof(*ehdr);
+	ehdr->e_phentsize = sizeof(*phdr);
+	ehdr->e_phnum = phnum;
+
+	phdr = data + ehdr->e_phoff;
+	offset = ehdr->e_phoff + sizeof(*phdr) * ehdr->e_phnum;
+	list_for_each_entry(segment, &rproc->dump_segments, node) {
+		memset(phdr, 0, sizeof(*phdr));
+		phdr->p_type = PT_LOAD;
+		phdr->p_offset = offset;
+		phdr->p_vaddr = segment->da;
+		phdr->p_paddr = segment->da;
+		phdr->p_filesz = segment->size;
+		phdr->p_memsz = segment->size;
+		phdr->p_flags = PF_R | PF_W | PF_X;
+		phdr->p_align = 0;
+
+		ptr = rproc_da_to_va(rproc, segment->da, segment->size);
+		if (!ptr) {
+			dev_err(&rproc->dev,
+				"invalid coredump segment (%pad, %zu)\n",
+				&segment->da, segment->size);
+			memset(data + offset, 0xff, segment->size);
+		} else {
+			memcpy(data + offset, ptr, segment->size);
+		}
+
+		offset += phdr->p_filesz;
+		phdr++;
+	}
+
+	dev_coredumpv(&rproc->dev, data, data_size, GFP_KERNEL);
+}
+
+/**
  * rproc_trigger_recovery() - recover a remoteproc
  * @rproc: the remote processor
  *
@@ -1042,6 +1166,9 @@ int rproc_trigger_recovery(struct rproc *rproc)
 	ret = rproc_stop(rproc);
 	if (ret)
 		goto unlock_mutex;
+
+	/* generate coredump */
+	rproc_coredump(rproc);
 
 	/* load firmware */
 	ret = request_firmware(&firmware_p, rproc->firmware, dev);
@@ -1443,6 +1570,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	INIT_LIST_HEAD(&rproc->traces);
 	INIT_LIST_HEAD(&rproc->rvdevs);
 	INIT_LIST_HEAD(&rproc->subdevs);
+	INIT_LIST_HEAD(&rproc->dump_segments);
 
 	INIT_WORK(&rproc->crash_handler, rproc_crash_handler_work);
 
