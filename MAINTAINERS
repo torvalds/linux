@@ -2621,24 +2621,22 @@ F:	fs/bfs/
 F:	include/uapi/linux/bfs_fs.h
 
 BLACKFIN ARCHITECTURE
-M:	Steven Miao <realmz6@gmail.com>
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 T:	git git://git.code.sf.net/p/adi-linux/code
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	arch/blackfin/
 
 BLACKFIN EMAC DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/net/ethernet/adi/
 
 BLACKFIN MEDIA DRIVER
-M:	Scott Jiang <scott.jiang.linux@gmail.com>
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org/
-S:	Supported
+S:	Orphan
 F:	drivers/media/platform/blackfin/
 F:	drivers/media/i2c/adv7183*
 F:	drivers/media/i2c/vs6624*
@@ -2646,25 +2644,25 @@ F:	drivers/media/i2c/vs6624*
 BLACKFIN RTC DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/rtc/rtc-bfin.c
 
 BLACKFIN SDH DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/mmc/host/bfin_sdh.c
 
 BLACKFIN SERIAL DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/tty/serial/bfin_uart.c
 
 BLACKFIN WATCHDOG DRIVER
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
-S:	Supported
+S:	Orphan
 F:	drivers/watchdog/bfin_wdt.c
 
 BLINKM RGB LED DRIVER
@@ -5151,15 +5149,15 @@ F:	sound/usb/misc/ua101.c
 EFI TEST DRIVER
 L:	linux-efi@vger.kernel.org
 M:	Ivan Hu <ivan.hu@canonical.com>
-M:	Matt Fleming <matt@codeblueprint.co.uk>
+M:	Ard Biesheuvel <ard.biesheuvel@linaro.org>
 S:	Maintained
 F:	drivers/firmware/efi/test/
 
 EFI VARIABLE FILESYSTEM
 M:	Matthew Garrett <matthew.garrett@nebula.com>
 M:	Jeremy Kerr <jk@ozlabs.org>
-M:	Matt Fleming <matt@codeblueprint.co.uk>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
+M:	Ard Biesheuvel <ard.biesheuvel@linaro.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/efi/efi.git
 L:	linux-efi@vger.kernel.org
 S:	Maintained
 F:	fs/efivarfs/
@@ -5320,7 +5318,6 @@ S:	Supported
 F:	security/integrity/evm/
 
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
-M:	Matt Fleming <matt@codeblueprint.co.uk>
 M:	Ard Biesheuvel <ard.biesheuvel@linaro.org>
 L:	linux-efi@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/efi/efi.git
@@ -13493,6 +13490,7 @@ M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Yehezkel Bernat <yehezkel.bernat@intel.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/westeri/thunderbolt.git
 S:	Maintained
+F:	Documentation/admin-guide/thunderbolt.rst
 F:	drivers/thunderbolt/
 F:	include/linux/thunderbolt.h
 

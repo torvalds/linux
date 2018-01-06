@@ -34,25 +34,14 @@
 #define TB_SHIFT 40
 
 /*
- * Virtual address start and end range for randomization. The end changes base
- * on configuration to have the highest amount of space for randomization.
- * It increases the possible random position for each randomized region.
+ * Virtual address start and end range for randomization.
  *
- * You need to add an if/def entry if you introduce a new memory region
- * compatible with KASLR. Your entry must be in logical order with memory
- * layout. For example, ESPFIX is before EFI because its virtual address is
- * before. You also need to add a BUILD_BUG_ON() in kernel_randomize_memory() to
- * ensure that this order is correct and won't be changed.
+ * The end address could depend on more configuration options to make the
+ * highest amount of space for randomization available, but that's too hard
+ * to keep straight and caused issues already.
  */
 static const unsigned long vaddr_start = __PAGE_OFFSET_BASE;
-
-#if defined(CONFIG_X86_ESPFIX64)
-static const unsigned long vaddr_end = ESPFIX_BASE_ADDR;
-#elif defined(CONFIG_EFI)
-static const unsigned long vaddr_end = EFI_VA_END;
-#else
-static const unsigned long vaddr_end = __START_KERNEL_map;
-#endif
+static const unsigned long vaddr_end = CPU_ENTRY_AREA_BASE;
 
 /* Default values */
 unsigned long page_offset_base = __PAGE_OFFSET_BASE;
@@ -101,15 +90,12 @@ void __init kernel_randomize_memory(void)
 	unsigned long remain_entropy;
 
 	/*
-	 * All these BUILD_BUG_ON checks ensures the memory layout is
-	 * consistent with the vaddr_start/vaddr_end variables.
+	 * These BUILD_BUG_ON checks ensure the memory layout is consistent
+	 * with the vaddr_start/vaddr_end variables. These checks are very
+	 * limited....
 	 */
 	BUILD_BUG_ON(vaddr_start >= vaddr_end);
-	BUILD_BUG_ON(IS_ENABLED(CONFIG_X86_ESPFIX64) &&
-		     vaddr_end >= EFI_VA_END);
-	BUILD_BUG_ON((IS_ENABLED(CONFIG_X86_ESPFIX64) ||
-		      IS_ENABLED(CONFIG_EFI)) &&
-		     vaddr_end >= __START_KERNEL_map);
+	BUILD_BUG_ON(vaddr_end != CPU_ENTRY_AREA_BASE);
 	BUILD_BUG_ON(vaddr_end > __START_KERNEL_map);
 
 	if (!kaslr_memory_enabled())
