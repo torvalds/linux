@@ -88,11 +88,10 @@ int rproc_load_segments(struct rproc *rproc, const struct firmware *fw)
 	return -EINVAL;
 }
 
-static inline int rproc_load_rsc_table(struct rproc *rproc,
-				       const struct firmware *fw)
+static inline int rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
-	if (rproc->ops->load_rsc_table)
-		return rproc->ops->load_rsc_table(rproc, fw);
+	if (rproc->ops->parse_fw)
+		return rproc->ops->parse_fw(rproc, fw);
 
 	return 0;
 }

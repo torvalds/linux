@@ -944,8 +944,8 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	rproc->bootaddr = rproc_get_boot_addr(rproc, fw);
 
-	/* load resource table */
-	ret = rproc_load_rsc_table(rproc, fw);
+	/* Load resource table, core dump segment list etc from the firmware */
+	ret = rproc_parse_fw(rproc, fw);
 	if (ret)
 		goto disable_iommu;
 
@@ -1555,7 +1555,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	/* Default to ELF loader if no load function is specified */
 	if (!rproc->ops->load) {
 		rproc->ops->load = rproc_elf_load_segments;
-		rproc->ops->load_rsc_table = rproc_elf_load_rsc_table;
+		rproc->ops->parse_fw = rproc_elf_load_rsc_table;
 		rproc->ops->find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table;
 		rproc->ops->sanity_check = rproc_elf_sanity_check;
 		rproc->ops->get_boot_addr = rproc_elf_get_boot_addr;
