@@ -357,6 +357,17 @@ config PINCTRL_RK805
 	help
 	  This selects the pinctrl driver for RK805.
 
+config PINCTRL_OCELOT
+	bool "Pinctrl driver for the Microsemi Ocelot SoCs"
+	default y
+	depends on OF
+	depends on MSCC_OCELOT || COMPILE_TEST
+	select GPIOLIB
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select REGMAP_MMIO
+
 source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"
 source "drivers/pinctrl/berlin/Kconfig"
