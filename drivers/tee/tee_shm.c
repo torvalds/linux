@@ -283,7 +283,7 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
 	if (rc > 0)
 		shm->num_pages = rc;
 	if (rc != num_pages) {
-		if (rc > 0)
+		if (rc >= 0)
 			rc = -ENOMEM;
 		ret = ERR_PTR(rc);
 		goto err;
