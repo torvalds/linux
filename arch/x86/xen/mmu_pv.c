@@ -1339,20 +1339,18 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 {
 	struct {
 		struct mmuext_op op;
-#ifdef CONFIG_SMP
-		DECLARE_BITMAP(mask, num_processors);
-#else
 		DECLARE_BITMAP(mask, NR_CPUS);
-#endif
 	} *args;
 	struct multicall_space mcs;
+	const size_t mc_entry_size = sizeof(args->op) +
+		sizeof(args->mask[0]) * BITS_TO_LONGS(num_possible_cpus());
 
 	trace_xen_mmu_flush_tlb_others(cpus, info->mm, info->start, info->end);
 
 	if (cpumask_empty(cpus))
 		return;		/* nothing to do */
 
-	mcs = xen_mc_entry(sizeof(*args));
+	mcs = xen_mc_entry(mc_entry_size);
 	args = mcs.args;
 	args->op.arg2.vcpumask = to_cpumask(args->mask);
 
