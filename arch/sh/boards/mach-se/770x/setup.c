@@ -124,10 +124,15 @@ static struct sh_eth_plat_data sh_eth_plat = {
 static struct resource sh_eth0_resources[] = {
 	[0] = {
 		.start = SH_ETH0_BASE,
-		.end = SH_ETH0_BASE + 0x1B8,
+		.end = SH_ETH0_BASE + 0x1B8 - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
+		.start = SH_TSU_BASE,
+		.end = SH_TSU_BASE + 0x200 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
 		.start = SH_ETH0_IRQ,
 		.end = SH_ETH0_IRQ,
 		.flags = IORESOURCE_IRQ,
@@ -147,10 +152,15 @@ static struct platform_device sh_eth0_device = {
 static struct resource sh_eth1_resources[] = {
 	[0] = {
 		.start = SH_ETH1_BASE,
-		.end = SH_ETH1_BASE + 0x1B8,
+		.end = SH_ETH1_BASE + 0x1B8 - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
+		.start = SH_TSU_BASE,
+		.end = SH_TSU_BASE + 0x200 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
 		.start = SH_ETH1_IRQ,
 		.end = SH_ETH1_IRQ,
 		.flags = IORESOURCE_IRQ,
