@@ -26,11 +26,11 @@
 #define EFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_NONBLOCK)
 #define EFD_FLAGS_SET (EFD_SHARED_FCNTL_FLAGS | EFD_SEMAPHORE)
 
+struct eventfd_ctx;
 struct file;
 
 #ifdef CONFIG_EVENTFD
 
-struct eventfd_ctx *eventfd_ctx_get(struct eventfd_ctx *ctx);
 void eventfd_ctx_put(struct eventfd_ctx *ctx);
 struct file *eventfd_fget(int fd);
 struct eventfd_ctx *eventfd_ctx_fdget(int fd);

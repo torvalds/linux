@@ -80,24 +80,11 @@ static void eventfd_free(struct kref *kref)
 }
 
 /**
- * eventfd_ctx_get - Acquires a reference to the internal eventfd context.
- * @ctx: [in] Pointer to the eventfd context.
- *
- * Returns: In case of success, returns a pointer to the eventfd context.
- */
-struct eventfd_ctx *eventfd_ctx_get(struct eventfd_ctx *ctx)
-{
-	kref_get(&ctx->kref);
-	return ctx;
-}
-EXPORT_SYMBOL_GPL(eventfd_ctx_get);
-
-/**
  * eventfd_ctx_put - Releases a reference to the internal eventfd context.
  * @ctx: [in] Pointer to eventfd context.
  *
  * The eventfd context reference must have been previously acquired either
- * with eventfd_ctx_get() or eventfd_ctx_fdget().
+ * with eventfd_ctx_fdget() or eventfd_ctx_fileget().
  */
 void eventfd_ctx_put(struct eventfd_ctx *ctx)
 {
@@ -382,10 +369,14 @@ EXPORT_SYMBOL_GPL(eventfd_ctx_fdget);
  */
 struct eventfd_ctx *eventfd_ctx_fileget(struct file *file)
 {
+	struct eventfd_ctx *ctx;
+
 	if (file->f_op != &eventfd_fops)
 		return ERR_PTR(-EINVAL);
 
-	return eventfd_ctx_get(file->private_data);
+	ctx = file->private_data;
+	kref_get(&ctx->kref);
+	return ctx;
 }
 EXPORT_SYMBOL_GPL(eventfd_ctx_fileget);
 
