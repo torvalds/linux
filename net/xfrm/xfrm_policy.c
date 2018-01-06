@@ -975,8 +975,6 @@ int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
 	}
 	if (!cnt)
 		err = -ESRCH;
-	else
-		xfrm_policy_cache_flush();
 out:
 	spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
 	return err;
@@ -1737,6 +1735,8 @@ void xfrm_policy_cache_flush(void)
 	struct xfrm_dst *old;
 	bool found = 0;
 	int cpu;
+
+	might_sleep();
 
 	local_bh_disable();
 	rcu_read_lock();
