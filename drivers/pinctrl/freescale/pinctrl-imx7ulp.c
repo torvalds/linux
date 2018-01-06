@@ -307,11 +307,10 @@ static int imx7ulp_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 					  unsigned offset, bool input)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg;
 	u32 reg;
 
-	pin_reg = &info->pin_regs[offset];
+	pin_reg = &ipctl->pin_regs[offset];
 	if (pin_reg->mux_reg == -1)
 		return -EINVAL;
 
