@@ -1206,6 +1206,8 @@ static int dvb_register(struct cx23885_tsport *port)
 	struct si2157_config si2157_config;
 	struct ts2020_config ts2020_config;
 	struct m88ds3103_platform_data m88ds3103_pdata;
+	struct m88rs6000t_config m88rs6000t_config = {};
+	struct a8293_platform_data a8293_pdata = {};
 	struct i2c_board_info info;
 	struct i2c_adapter *adapter;
 	struct i2c_client *client_demod = NULL, *client_tuner = NULL;
@@ -2229,9 +2231,10 @@ static int dvb_register(struct cx23885_tsport *port)
 		}
 		port->i2c_client_tuner = client_tuner;
 		break;
-	case CX23885_BOARD_HAUPPAUGE_HVR5525: {
-		struct m88rs6000t_config m88rs6000t_config;
-		struct a8293_platform_data a8293_pdata = {};
+	case CX23885_BOARD_HAUPPAUGE_STARBURST2:
+	case CX23885_BOARD_HAUPPAUGE_HVR5525:
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
 
 		switch (port->nr) {
 
@@ -2240,7 +2243,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			/* attach frontend */
 			fe0->dvb.frontend = dvb_attach(m88ds3103_attach,
 					&hauppauge_hvr5525_m88ds3103_config,
-					&dev->i2c_bus[0].i2c_adap, &adapter);
+					&i2c_bus->i2c_adap, &adapter);
 			if (fe0->dvb.frontend == NULL)
 				break;
 
@@ -2251,7 +2254,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			info.addr = 0x0b;
 			info.platform_data = &a8293_pdata;
 			request_module("a8293");
-			client_sec = i2c_new_device(&dev->i2c_bus[0].i2c_adap, &info);
+			client_sec = i2c_new_device(&i2c_bus->i2c_adap, &info);
 			if (!client_sec || !client_sec->dev.driver)
 				goto frontend_detach;
 			if (!try_module_get(client_sec->dev.driver->owner)) {
@@ -2293,7 +2296,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			info.addr = 0x64;
 			info.platform_data = &si2168_config;
 			request_module("%s", info.type);
-			client_demod = i2c_new_device(&dev->i2c_bus[0].i2c_adap, &info);
+			client_demod = i2c_new_device(&i2c_bus->i2c_adap, &info);
 			if (!client_demod || !client_demod->dev.driver)
 				goto frontend_detach;
 			if (!try_module_get(client_demod->dev.driver->owner)) {
@@ -2311,7 +2314,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			info.addr = 0x60;
 			info.platform_data = &si2157_config;
 			request_module("%s", info.type);
-			client_tuner = i2c_new_device(&dev->i2c_bus[1].i2c_adap, &info);
+			client_tuner = i2c_new_device(&i2c_bus2->i2c_adap, &info);
 			if (!client_tuner || !client_tuner->dev.driver) {
 				module_put(client_demod->dev.driver->owner);
 				i2c_unregister_device(client_demod);
@@ -2329,7 +2332,6 @@ static int dvb_register(struct cx23885_tsport *port)
 			break;
 		}
 		break;
-	}
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
 		switch (port->nr) {
 		/* port b - Terrestrial/cable */
