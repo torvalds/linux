@@ -56,7 +56,7 @@
  * rvt_cq_enter - add a new entry to the completion queue
  * @cq: completion queue
  * @entry: work completion entry to add
- * @sig: true if @entry is solicited
+ * @solicited: true if @entry is solicited
  *
  * This may be called with qp->s_lock held.
  */
