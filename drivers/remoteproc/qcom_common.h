@@ -30,6 +30,8 @@ struct qcom_rproc_ssr {
 void qcom_add_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink);
 void qcom_remove_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink);
 
+int qcom_register_dump_segments(struct rproc *rproc, const struct firmware *fw);
+
 void qcom_add_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd);
 void qcom_remove_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd);
 
