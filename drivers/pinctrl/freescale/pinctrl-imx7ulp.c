@@ -324,7 +324,7 @@ static int imx7ulp_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct imx_pinctrl_soc_info imx7ulp_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx7ulp_pinctrl_info = {
 	.pins = imx7ulp_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx7ulp_pinctrl_pads),
 	.flags = ZERO_OFFSET_VALID | SHARE_MUX_CONF_REG,
