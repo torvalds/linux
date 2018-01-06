@@ -87,8 +87,9 @@ then
     if [[ $ret == 0 ]];
     then
       kernver=$(make kernelversion)
+      gitbranch=$(git rev-parse --abbrev-ref HEAD)
       cat arch/arm/boot/zImage arch/arm/boot/dts/mt7623n-bananapi-bpi-r2.dtb > arch/arm/boot/zImage-dtb
-      mkimage -A arm -O linux -T kernel -C none -a 80008000 -e 80008000 -n "Linux Kernel $kernver" -d arch/arm/boot/zImage-dtb ./uImage
+      mkimage -A arm -O linux -T kernel -C none -a 80008000 -e 80008000 -n "Linux Kernel $kernver-$gitbranch" -d arch/arm/boot/zImage-dtb ./uImage
       echo "==========================================="
       echo -e "1) pack\n2) install to SD-Card"
       read -n1 -p "choice [12]:" choice
@@ -96,7 +97,6 @@ then
       if [[ "$choice" == "1" ]]; then
         prepare_SD
         echo "pack..."
-        gitbranch=$(git rev-parse --abbrev-ref HEAD)
         olddir=$(pwd)
         cd ../SD
         fname=bpi-r2_${kernver}_${gitbranch}.tar.gz
