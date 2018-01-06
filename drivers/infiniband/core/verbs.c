@@ -1807,11 +1807,11 @@ EXPORT_SYMBOL(ib_dealloc_xrcd);
  * ib_create_wq - Creates a WQ associated with the specified protection
  * domain.
  * @pd: The protection domain associated with the WQ.
- * @wq_init_attr: A list of initial attributes required to create the
+ * @wq_attr: A list of initial attributes required to create the
  * WQ. If WQ creation succeeds, then the attributes are updated to
  * the actual capabilities of the created WQ.
  *
- * wq_init_attr->max_wr and wq_init_attr->max_sge determine
+ * wq_attr->max_wr and wq_attr->max_sge determine
  * the requested size of the WQ, and set to the actual values allocated
  * on return.
  * If ib_create_wq() succeeds, then max_wr and max_sge will always be
