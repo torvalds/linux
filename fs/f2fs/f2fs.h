@@ -1576,10 +1576,15 @@ static inline bool f2fs_has_xattr_block(unsigned int ofs)
 	return ofs == XATTR_NODE_OFFSET;
 }
 
-static inline bool __allow_reserved_blocks(struct f2fs_sb_info *sbi)
+static inline bool __allow_reserved_blocks(struct f2fs_sb_info *sbi,
+					struct inode *inode)
 {
+	if (!inode)
+		return true;
 	if (!test_opt(sbi, RESERVE_ROOT))
 		return false;
+	if (IS_NOQUOTA(inode))
+		return true;
 	if (capable(CAP_SYS_RESOURCE))
 		return true;
 	if (uid_eq(sbi->s_resuid, current_fsuid()))
@@ -1620,7 +1625,7 @@ static inline int inc_valid_block_count(struct f2fs_sb_info *sbi,
 	avail_user_block_count = sbi->user_block_count -
 					sbi->current_reserved_blocks;
 
-	if (!__allow_reserved_blocks(sbi))
+	if (!__allow_reserved_blocks(sbi, inode))
 		avail_user_block_count -= sbi->root_reserved_blocks;
 
 	if (unlikely(sbi->total_valid_block_count > avail_user_block_count)) {
@@ -1821,7 +1826,7 @@ static inline int inc_valid_node_count(struct f2fs_sb_info *sbi,
 	valid_block_count = sbi->total_valid_block_count +
 					sbi->current_reserved_blocks + 1;
 
-	if (!__allow_reserved_blocks(sbi))
+	if (!__allow_reserved_blocks(sbi, inode))
 		valid_block_count += sbi->root_reserved_blocks;
 
 	if (unlikely(valid_block_count > sbi->user_block_count)) {
