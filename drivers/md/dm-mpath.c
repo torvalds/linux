@@ -248,6 +248,7 @@ static void free_multipath(struct multipath *m)
 
 	kfree(m->hw_handler_name);
 	kfree(m->hw_handler_params);
+	mutex_destroy(&m->work_mutex);
 	kfree(m);
 }
 

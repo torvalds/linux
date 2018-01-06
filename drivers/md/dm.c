@@ -1789,6 +1789,10 @@ static void cleanup_mapped_device(struct mapped_device *md)
 		md->bdev = NULL;
 	}
 
+	mutex_destroy(&md->suspend_lock);
+	mutex_destroy(&md->type_lock);
+	mutex_destroy(&md->table_devices_lock);
+
 	dm_mq_cleanup_mapped_device(md);
 }
 

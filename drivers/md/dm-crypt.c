@@ -2192,6 +2192,8 @@ static void crypt_dtr(struct dm_target *ti)
 	kzfree(cc->cipher_auth);
 	kzfree(cc->authenc_key);
 
+	mutex_destroy(&cc->bio_alloc_lock);
+
 	/* Must zero key material before freeing */
 	kzfree(cc);
 }

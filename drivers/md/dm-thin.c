@@ -492,6 +492,11 @@ static void pool_table_init(void)
 	INIT_LIST_HEAD(&dm_thin_pool_table.pools);
 }
 
+static void pool_table_exit(void)
+{
+	mutex_destroy(&dm_thin_pool_table.mutex);
+}
+
 static void __pool_table_insert(struct pool *pool)
 {
 	BUG_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
@@ -4387,6 +4392,8 @@ static void dm_thin_exit(void)
 	dm_unregister_target(&pool_target);
 
 	kmem_cache_destroy(_new_mapping_cache);
+
+	pool_table_exit();
 }
 
 module_init(dm_thin_init);
