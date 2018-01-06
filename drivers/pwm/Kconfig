@@ -209,10 +209,10 @@ config PWM_IMX
 	  will be called pwm-imx.
 
 config PWM_JZ4740
-	tristate "Ingenic JZ4740 PWM support"
-	depends on MACH_JZ4740
+	tristate "Ingenic JZ47xx PWM support"
+	depends on MACH_INGENIC
 	help
-	  Generic PWM framework driver for Ingenic JZ4740 based
+	  Generic PWM framework driver for Ingenic JZ47xx based
 	  machines.
 
 	  To compile this driver as a module, choose M here: the module
