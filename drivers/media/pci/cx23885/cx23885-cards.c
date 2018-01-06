@@ -771,8 +771,18 @@ struct cx23885_board cx23885_boards[] = {
 		.portb        = CX23885_MPEG_DVB,
 		.portc        = CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885] = {
+		.name       = "Hauppauge WinTV-QuadHD-DVB(885)",
+		.portb        = CX23885_MPEG_DVB,
+		.portc        = CX23885_MPEG_DVB,
+	},
 	[CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC] = {
 		.name        = "Hauppauge WinTV-QuadHD-ATSC",
+		.portb        = CX23885_MPEG_DVB,
+		.portc        = CX23885_MPEG_DVB,
+	},
+	[CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885] = {
+		.name       = "Hauppauge WinTV-QuadHD-ATSC(885)",
 		.portb        = CX23885_MPEG_DVB,
 		.portc        = CX23885_MPEG_DVB,
 	},
@@ -1311,25 +1321,25 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	case 161111:
 		/* WinTV-HVR-1265 K4 (PCIe, Analog/ATSC/QAM-B) */
 		break;
-	case 166100:
+	case 166100: /* 888 version, hybrid */
+	case 166200: /* 885 version, DVB only */
 		/* WinTV-QuadHD (DVB) Tuner Pair 1 (PCIe, IR, half height,
 		   DVB-T/T2/C, DVB-T/T2/C */
 		break;
-	case 166101:
+	case 166101: /* 888 version, hybrid */
+	case 166201: /* 885 version, DVB only */
 		/* WinTV-QuadHD (DVB) Tuner Pair 2 (PCIe, IR, half height,
 		   DVB-T/T2/C, DVB-T/T2/C */
 		break;
-	case 165100:
-		/*
-		 * WinTV-QuadHD (ATSC) Tuner Pair 1 (PCIe, IR, half height,
-		 * ATSC, ATSC
-		 */
+	case 165100: /* 888 version, hybrid */
+	case 165200: /* 885 version, digital only */
+		/* WinTV-QuadHD (ATSC) Tuner Pair 1 (PCIe, IR, half height,
+		 * ATSC/QAM-B, ATSC/QAM-B */
 		break;
-	case 165101:
-		/*
-		 * WinTV-QuadHD (DVB) Tuner Pair 2 (PCIe, IR, half height,
-		 * ATSC, ATSC
-		 */
+	case 165101: /* 888 version, hybrid */
+	case 165201: /* 885 version, digital only */
+		/* WinTV-QuadHD (ATSC) Tuner Pair 2 (PCIe, IR, half height,
+		 * ATSC/QAM-B, ATSC/QAM-B */
 		break;
 	default:
 		pr_warn("%s: warning: unknown hauppauge model #%d\n",
@@ -1835,6 +1845,8 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		 */
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885:
 		/*
 		 * GPIO-08 TER1_RESN
 		 * GPIO-09 TER2_RESN
@@ -2094,7 +2106,9 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
 	case CX23885_BOARD_HAUPPAUGE_STARBURST2:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885:
 		if (dev->i2c_bus[0].i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xc0);
 		break;
@@ -2243,7 +2257,9 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885:
 		ts1->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
@@ -2301,6 +2317,8 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255_22111:
 	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
 	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_MYGICA_X8506:

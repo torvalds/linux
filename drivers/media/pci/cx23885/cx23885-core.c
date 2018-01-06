@@ -869,6 +869,14 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		cx23885_card_list(dev);
 	}
 
+	if (dev->pci->device == 0x8852) {
+		/* no DIF on cx23885, so no analog tuner support possible */
+		if (dev->board == CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC)
+			dev->board = CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885;
+		else if (dev->board == CX23885_BOARD_HAUPPAUGE_QUADHD_DVB)
+			dev->board = CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885;
+	}
+
 	/* If the user specific a clk freq override, apply it */
 	if (cx23885_boards[dev->board].clk_freq > 0)
 		dev->clk_freq = cx23885_boards[dev->board].clk_freq;

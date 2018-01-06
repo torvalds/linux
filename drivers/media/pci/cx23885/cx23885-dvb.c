@@ -2333,6 +2333,9 @@ static int dvb_register(struct cx23885_tsport *port)
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885:
+		pr_info("%s(): board=%d port=%d\n", __func__,
+			dev->board, port->nr);
 		switch (port->nr) {
 		/* port b - Terrestrial/cable */
 		case 1:
@@ -2430,6 +2433,9 @@ static int dvb_register(struct cx23885_tsport *port)
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885:
+		pr_info("%s(): board=%d port=%d\n", __func__,
+			dev->board, port->nr);
 		switch (port->nr) {
 		/* port b - Terrestrial/cable */
 		case 1:
