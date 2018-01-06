@@ -82,7 +82,9 @@ static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
 
 	return qcom_mdt_load(adsp->dev, fw, rproc->firmware, adsp->pas_id,
-			     adsp->mem_region, adsp->mem_phys, adsp->mem_size);
+			     adsp->mem_region, adsp->mem_phys, adsp->mem_size,
+			     &adsp->mem_reloc);
+
 }
 
 static int adsp_start(struct rproc *rproc)
