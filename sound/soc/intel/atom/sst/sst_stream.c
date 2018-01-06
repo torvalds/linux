@@ -223,7 +223,7 @@ out:
 	return ret;
 }
 
-/*
+/**
  * sst_pause_stream - Send msg for a pausing stream
  * @str_id:	 stream ID
  *
@@ -261,7 +261,7 @@ int sst_pause_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 		}
 	} else {
 		retval = -EBADRQC;
-		dev_dbg(sst_drv_ctx->dev, "SST DBG:BADRQC for stream\n ");
+		dev_dbg(sst_drv_ctx->dev, "SST DBG:BADRQC for stream\n");
 	}
 
 	return retval;
@@ -284,7 +284,7 @@ int sst_resume_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 	if (!str_info)
 		return -EINVAL;
 	if (str_info->status == STREAM_RUNNING)
-			return 0;
+		return 0;
 	if (str_info->status == STREAM_PAUSED) {
 		retval = sst_prepare_and_post_msg(sst_drv_ctx, str_info->task_id,
 				IPC_CMD, IPC_IA_RESUME_STREAM_MRFLD,
