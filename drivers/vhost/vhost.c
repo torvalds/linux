@@ -321,7 +321,6 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->error = NULL;
 	vq->kick = NULL;
 	vq->call_ctx = NULL;
-	vq->call = NULL;
 	vq->log_ctx = NULL;
 	vhost_reset_is_le(vq);
 	vhost_disable_cross_endian(vq);
@@ -623,8 +622,6 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 			fput(dev->vqs[i]->kick);
 		if (dev->vqs[i]->call_ctx)
 			eventfd_ctx_put(dev->vqs[i]->call_ctx);
-		if (dev->vqs[i]->call)
-			fput(dev->vqs[i]->call);
 		vhost_vq_reset(dev, dev->vqs[i]);
 	}
 	vhost_dev_free_iovecs(dev);
@@ -1490,19 +1487,12 @@ long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 			r = -EFAULT;
 			break;
 		}
-		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-		if (IS_ERR(eventfp)) {
-			r = PTR_ERR(eventfp);
+		ctx = f.fd == -1 ? NULL : eventfd_ctx_fdget(f.fd);
+		if (IS_ERR(ctx)) {
+			r = PTR_ERR(ctx);
 			break;
 		}
-		if (eventfp != vq->call) {
-			filep = vq->call;
-			ctx = vq->call_ctx;
-			vq->call = eventfp;
-			vq->call_ctx = eventfp ?
-				eventfd_ctx_fileget(eventfp) : NULL;
-		} else
-			filep = eventfp;
+		swap(ctx, vq->call_ctx);
 		break;
 	case VHOST_SET_VRING_ERR:
 		if (copy_from_user(&f, argp, sizeof f)) {
@@ -1549,7 +1539,7 @@ long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 	if (pollstop && vq->handle_kick)
 		vhost_poll_stop(&vq->poll);
 
-	if (ctx)
+	if (!IS_ERR_OR_NULL(ctx))
 		eventfd_ctx_put(ctx);
 	if (filep)
 		fput(filep);
