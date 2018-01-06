@@ -418,10 +418,8 @@ static int ark3116_ioctl(struct tty_struct *tty,
 			return -EFAULT;
 
 		return 0;
-	case TIOCSSERIAL:
-		if (copy_from_user(&serstruct, user_arg, sizeof(serstruct)))
-			return -EFAULT;
-		return 0;
+	default:
+		break;
 	}
 
 	return -ENOIOCTLCMD;
