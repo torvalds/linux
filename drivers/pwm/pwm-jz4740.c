@@ -71,9 +71,15 @@ static void jz4740_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	uint32_t ctrl = jz4740_timer_get_ctrl(pwm->hwpwm);
 
+	/* Disable PWM output.
+	 * In TCU2 mode (channel 1/2 on JZ4750+), this must be done before the
+	 * counter is stopped, while in TCU1 mode the order does not matter.
+	 */
 	ctrl &= ~JZ_TIMER_CTRL_PWM_ENABLE;
-	jz4740_timer_disable(pwm->hwpwm);
 	jz4740_timer_set_ctrl(pwm->hwpwm, ctrl);
+
+	/* Stop counter */
+	jz4740_timer_disable(pwm->hwpwm);
 }
 
 static int jz4740_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
