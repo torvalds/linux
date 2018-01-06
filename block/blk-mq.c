@@ -1285,7 +1285,30 @@ EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
 
 bool blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 {
-	if (blk_mq_hctx_has_pending(hctx)) {
+	int srcu_idx;
+	bool need_run;
+
+	/*
+	 * When queue is quiesced, we may be switching io scheduler, or
+	 * updating nr_hw_queues, or other things, and we can't run queue
+	 * any more, even __blk_mq_hctx_has_pending() can't be called safely.
+	 *
+	 * And queue will be rerun in blk_mq_unquiesce_queue() if it is
+	 * quiesced.
+	 */
+	if (!(hctx->flags & BLK_MQ_F_BLOCKING)) {
+		rcu_read_lock();
+		need_run = !blk_queue_quiesced(hctx->queue) &&
+			blk_mq_hctx_has_pending(hctx);
+		rcu_read_unlock();
+	} else {
+		srcu_idx = srcu_read_lock(hctx->queue_rq_srcu);
+		need_run = !blk_queue_quiesced(hctx->queue) &&
+			blk_mq_hctx_has_pending(hctx);
+		srcu_read_unlock(hctx->queue_rq_srcu, srcu_idx);
+	}
+
+	if (need_run) {
 		__blk_mq_delay_run_hw_queue(hctx, async, 0);
 		return true;
 	}
@@ -2710,6 +2733,7 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		return -EINVAL;
 
 	blk_mq_freeze_queue(q);
+	blk_mq_quiesce_queue(q);
 
 	ret = 0;
 	queue_for_each_hw_ctx(q, hctx, i) {
@@ -2733,6 +2757,7 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	if (!ret)
 		q->nr_requests = nr;
 
+	blk_mq_unquiesce_queue(q);
 	blk_mq_unfreeze_queue(q);
 
 	return ret;
