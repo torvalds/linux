@@ -70,7 +70,13 @@ do_steps: &do_steps
       command: |
         mkdir -p ~/junit
         make -C tools/lkl run-tests tests="--junit-dir ~/junit"
+        # convert valgrind test results
+        if [[ -n "$VALGRIND" ]]; then
+          cd ./tools/lkl/ && find ./ -type f -name "valgrind-*.xml" \
+             -exec ./tests/valgrind2xunit.py {} \;
+        fi
         find ./tools/lkl/ -type f -name "*.xml" -exec mv {} ~/junit/ \;
+      no_output_timeout: "30m"
   - store_test_results:
       path: ~/junit
   - store_artifacts:
@@ -80,7 +86,7 @@ do_steps: &do_steps
 jobs:
   x86_64:
    docker:
-     - image: lkldocker/circleci-x86_64:0.3
+     - image: lkldocker/circleci-x86_64:0.5
    environment:
      CROSS_COMPILE: ""
      MKARG: "dpdk=yes"
@@ -113,7 +119,7 @@ jobs:
 
   x86_64_valgrind:
    docker:
-     - image: lkldocker/circleci-x86_64:0.3
+     - image: lkldocker/circleci-x86_64:0.5
    environment:
      CROSS_COMPILE: ""
      MKARG: "dpdk=yes"
