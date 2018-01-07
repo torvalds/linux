@@ -2746,6 +2746,9 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 	rt->rt6i_flags = cfg->fc_flags;
 
 install_route:
+	if (!(rt->rt6i_flags & (RTF_LOCAL | RTF_ANYCAST)) &&
+	    !netif_carrier_ok(dev))
+		rt->rt6i_nh_flags |= RTNH_F_LINKDOWN;
 	rt->dst.dev = dev;
 	rt->rt6i_idev = idev;
 	rt->rt6i_table = table;
