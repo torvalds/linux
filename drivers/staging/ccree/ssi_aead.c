@@ -531,7 +531,7 @@ cc_get_plain_hmac_key(struct crypto_aead *tfm, const u8 *key,
 		idx++;
 	}
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 0);
+	rc = cc_send_sync_request(ctx->drvdata, &cc_req, desc, idx);
 	if (rc)
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 
@@ -630,7 +630,7 @@ cc_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 	/* STAT_PHASE_3: Submit sequence to HW */
 
 	if (seq_len > 0) { /* For CCM there is no sequence to setup the key */
-		rc = send_request(ctx->drvdata, &cc_req, desc, seq_len, 0);
+		rc = cc_send_sync_request(ctx->drvdata, &cc_req, desc, seq_len);
 		if (rc) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 			goto setkey_error;
@@ -2039,7 +2039,7 @@ static int cc_proc_aead(struct aead_request *req,
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, seq_len, 1);
+	rc = cc_send_request(ctx->drvdata, &cc_req, desc, seq_len, &req->base);
 
 	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);

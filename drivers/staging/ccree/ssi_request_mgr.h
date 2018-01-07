@@ -23,10 +23,15 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata);
  *	  If "false": this function adds a dummy descriptor completion
  *	  and waits upon completion signal.
  *
- * \return int Returns -EINPROGRESS if "is_dout=true"; "0" if "is_dout=false"
+ * \return int Returns -EINPROGRESS or error
  */
-int send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
-		 struct cc_hw_desc *desc, unsigned int len, bool is_dout);
+int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
+		    struct cc_hw_desc *desc, unsigned int len,
+		    struct crypto_async_request *req);
+
+int cc_send_sync_request(struct cc_drvdata *drvdata,
+			 struct cc_crypto_req *cc_req, struct cc_hw_desc *desc,
+			 unsigned int len);
 
 int send_request_init(struct cc_drvdata *drvdata, struct cc_hw_desc *desc,
 		      unsigned int len);

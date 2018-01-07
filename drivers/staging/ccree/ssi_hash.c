@@ -532,7 +532,7 @@ static int cc_hash_digest(struct ahash_request *req)
 	cc_set_endianity(ctx->hash_mode, &desc[idx]);
 	idx++;
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 1);
+	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
 	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, src, true);
@@ -620,7 +620,7 @@ static int cc_hash_update(struct ahash_request *req)
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE1);
 	idx++;
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 1);
+	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
 	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, src, true);
@@ -741,7 +741,7 @@ static int cc_hash_finup(struct ahash_request *req)
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	idx++;
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 1);
+	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
 	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, src, true);
@@ -873,7 +873,7 @@ static int cc_hash_final(struct ahash_request *req)
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	idx++;
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 1);
+	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
 	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, src, true);
@@ -1014,7 +1014,7 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 		idx++;
 	}
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 0);
+	rc = cc_send_sync_request(ctx->drvdata, &cc_req, desc, idx);
 	if (rc) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		goto out;
@@ -1071,7 +1071,7 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 		idx++;
 	}
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 0);
+	rc = cc_send_sync_request(ctx->drvdata, &cc_req, desc, idx);
 
 out:
 	if (rc)
@@ -1154,7 +1154,7 @@ static int cc_xcbc_setkey(struct crypto_ahash *ahash,
 			       CC_AES_128_BIT_KEY_SIZE, NS_BIT, 0);
 	idx++;
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 0);
+	rc = cc_send_sync_request(ctx->drvdata, &cc_req, desc, idx);
 
 	if (rc)
 		crypto_ahash_set_flags(ahash, CRYPTO_TFM_RES_BAD_KEY_LEN);
@@ -1355,7 +1355,7 @@ static int cc_mac_update(struct ahash_request *req)
 	cc_req.user_cb = (void *)cc_update_complete;
 	cc_req.user_arg = (void *)req;
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 1);
+	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
 	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
@@ -1468,7 +1468,7 @@ static int cc_mac_final(struct ahash_request *req)
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	idx++;
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 1);
+	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
 	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
@@ -1541,7 +1541,7 @@ static int cc_mac_finup(struct ahash_request *req)
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	idx++;
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 1);
+	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
 	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
@@ -1615,7 +1615,7 @@ static int cc_mac_digest(struct ahash_request *req)
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	idx++;
 
-	rc = send_request(ctx->drvdata, &cc_req, desc, idx, 1);
+	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
 	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);

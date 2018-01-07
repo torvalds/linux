@@ -717,7 +717,8 @@ static int cc_cipher_process(struct ablkcipher_request *req,
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
 
-	rc = send_request(ctx_p->drvdata, &cc_req, desc, seq_len, 1);
+	rc = cc_send_request(ctx_p->drvdata, &cc_req, desc, seq_len,
+			     &req->base);
 	if (rc != -EINPROGRESS) {
 		/* Failed to send the request or request completed
 		 * synchronously
