@@ -11,7 +11,11 @@
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
 
-/* The protocol traced by sock_set_state */
+#define family_names			\
+		EM(AF_INET)				\
+		EMe(AF_INET6)
+
+/* The protocol traced by inet_sock_set_state */
 #define inet_protocol_names		\
 		EM(IPPROTO_TCP)			\
 		EM(IPPROTO_DCCP)		\
@@ -37,6 +41,7 @@
 #define EM(a)       TRACE_DEFINE_ENUM(a);
 #define EMe(a)      TRACE_DEFINE_ENUM(a);
 
+family_names
 inet_protocol_names
 tcp_state_names
 
@@ -44,6 +49,9 @@ tcp_state_names
 #undef EMe
 #define EM(a)       { a, #a },
 #define EMe(a)      { a, #a }
+
+#define show_family_name(val)			\
+	__print_symbolic(val, family_names)
 
 #define show_inet_protocol_name(val)    \
 	__print_symbolic(val, inet_protocol_names)
@@ -118,6 +126,7 @@ TRACE_EVENT(inet_sock_set_state,
 		__field(int, newstate)
 		__field(__u16, sport)
 		__field(__u16, dport)
+		__field(__u16, family)
 		__field(__u8, protocol)
 		__array(__u8, saddr, 4)
 		__array(__u8, daddr, 4)
@@ -134,6 +143,7 @@ TRACE_EVENT(inet_sock_set_state,
 		__entry->oldstate = oldstate;
 		__entry->newstate = newstate;
 
+		__entry->family = sk->sk_family;
 		__entry->protocol = sk->sk_protocol;
 		__entry->sport = ntohs(inet->inet_sport);
 		__entry->dport = ntohs(inet->inet_dport);
@@ -160,7 +170,8 @@ TRACE_EVENT(inet_sock_set_state,
 		}
 	),
 
-	TP_printk("protocol=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c oldstate=%s newstate=%s",
+	TP_printk("family=%s protocol=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c oldstate=%s newstate=%s",
+			show_family_name(__entry->family),
 			show_inet_protocol_name(__entry->protocol),
 			__entry->sport, __entry->dport,
 			__entry->saddr, __entry->daddr,
