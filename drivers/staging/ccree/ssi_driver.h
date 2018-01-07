@@ -27,8 +27,7 @@
 
 /* Registers definitions from shared/hw/ree_include */
 #include "dx_host.h"
-#include "dx_reg_common.h"
-#define CC_SUPPORT_SHA CC_DEV_SHA_MAX
+#define CC_DEV_SHA_MAX 512
 #include "cc_crypto_ctx.h"
 #include "cc_hw_queue_defs.h"
 #include "ssi_sram_mgr.h"
@@ -43,6 +42,8 @@ extern bool cc_dump_bytes;
 
 /* Maximum DMA mask supported by IP */
 #define DMA_BIT_MASK_LEN 48
+
+#define CC_DEV_SIGNATURE 0xDCC71200UL
 
 #define CC_AXI_IRQ_MASK ((1 << CC_AXIM_CFG_BRESPMASK_BIT_SHIFT) | \
 			  (1 << CC_AXIM_CFG_RRESPMASK_BIT_SHIFT) | \
