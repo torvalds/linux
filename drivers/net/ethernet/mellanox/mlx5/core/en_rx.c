@@ -495,8 +495,8 @@ static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
 	mlx5_cqwq_pop(&cq->wq);
 
 	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_REQ)) {
-		WARN_ONCE(true, "mlx5e: Bad OP in ICOSQ CQE: 0x%x\n",
-			  cqe->op_own);
+		netdev_WARN_ONCE(cq->channel->netdev,
+				 "Bad OP in ICOSQ CQE: 0x%x\n", cqe->op_own);
 		return;
 	}
 
@@ -506,9 +506,8 @@ static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
 	}
 
 	if (unlikely(icowi->opcode != MLX5_OPCODE_NOP))
-		WARN_ONCE(true,
-			  "mlx5e: Bad OPCODE in ICOSQ WQE info: 0x%x\n",
-			  icowi->opcode);
+		netdev_WARN_ONCE(cq->channel->netdev,
+				 "Bad OPCODE in ICOSQ WQE info: 0x%x\n", icowi->opcode);
 }
 
 static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
