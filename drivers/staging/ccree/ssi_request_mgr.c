@@ -166,7 +166,7 @@ static void enqueue_seq(struct cc_drvdata *drvdata, struct cc_hw_desc seq[],
 			unsigned int seq_len)
 {
 	int i, w;
-	void * __iomem reg = drvdata->cc_base + CC_REG(DSCRPTR_QUEUE_WORD0);
+	void __iomem *reg = drvdata->cc_base + CC_REG(DSCRPTR_QUEUE_WORD0);
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	/*
