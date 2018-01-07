@@ -23,7 +23,6 @@ struct cc_hash_handle {
 	cc_sram_addr_t digest_len_sram_addr; /* const value in SRAM*/
 	cc_sram_addr_t larval_digest_sram_addr;   /* const value in SRAM */
 	struct list_head hash_list;
-	struct completion init_comp;
 };
 
 static const u32 digest_len_init[] = {
