@@ -41,10 +41,10 @@ static const u32 sha256_init[] = {
 #if (CC_DEV_SHA_MAX > 256)
 static const u32 digest_len_sha512_init[] = {
 	0x00000080, 0x00000000, 0x00000000, 0x00000000 };
-static const u64 sha384_init[] = {
+static u64 sha384_init[] = {
 	SHA384_H7, SHA384_H6, SHA384_H5, SHA384_H4,
 	SHA384_H3, SHA384_H2, SHA384_H1, SHA384_H0 };
-static const u64 sha512_init[] = {
+static u64 sha512_init[] = {
 	SHA512_H7, SHA512_H6, SHA512_H5, SHA512_H4,
 	SHA512_H3, SHA512_H2, SHA512_H1, SHA512_H0 };
 #endif
@@ -54,6 +54,8 @@ static void cc_setup_xcbc(struct ahash_request *areq, struct cc_hw_desc desc[],
 
 static void cc_setup_cmac(struct ahash_request *areq, struct cc_hw_desc desc[],
 			  unsigned int *seq_size);
+
+static const void *cc_larval_digest(struct device *dev, u32 mode);
 
 struct cc_hash_alg {
 	struct list_head entry;
@@ -126,10 +128,6 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 		      struct cc_hash_ctx *ctx, gfp_t flags)
 {
 	bool is_hmac = ctx->is_hmac;
-	cc_sram_addr_t larval_digest_addr =
-		cc_larval_digest_addr(ctx->drvdata, ctx->hash_mode);
-	struct cc_crypto_req cc_req = {};
-	struct cc_hw_desc desc;
 	int rc = -ENOMEM;
 
 	state->buff0 = kzalloc(CC_MAX_HASH_BLCK_SIZE, flags);
@@ -203,9 +201,6 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 			       HASH_LEN_SIZE);
 #endif
 		}
-		dma_sync_single_for_device(dev, state->digest_buff_dma_addr,
-					   ctx->inter_digestsize,
-					   DMA_BIDIRECTIONAL);
 
 		if (ctx->hash_mode != DRV_HASH_NULL) {
 			dma_sync_single_for_cpu(dev,
@@ -216,21 +211,14 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 			       ctx->opad_tmp_keys_buff, ctx->inter_digestsize);
 		}
 	} else { /*hash*/
-		/* Copy the initial digests if hash flow. The SRAM contains the
-		 * initial digests in the expected order for all SHA*
-		 */
-		hw_desc_init(&desc);
-		set_din_sram(&desc, larval_digest_addr, ctx->inter_digestsize);
-		set_dout_dlli(&desc, state->digest_buff_dma_addr,
-			      ctx->inter_digestsize, NS_BIT, 0);
-		set_flow_mode(&desc, BYPASS);
+		/* Copy the initial digests if hash flow. */
+		const void *larval = cc_larval_digest(dev, ctx->hash_mode);
 
-		rc = send_request(ctx->drvdata, &cc_req, &desc, 1, 0);
-		if (rc) {
-			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
-			goto fail4;
-		}
+		memcpy(state->digest_buff, larval, ctx->inter_digestsize);
 	}
+
+	dma_sync_single_for_device(dev, state->digest_buff_dma_addr,
+				   ctx->inter_digestsize, DMA_BIDIRECTIONAL);
 
 	if (ctx->hw_mode != DRV_CIPHER_XCBC_MAC) {
 		state->digest_bytes_len_dma_addr =
@@ -2003,11 +1991,7 @@ int cc_init_hash_sram(struct cc_drvdata *drvdata)
 	cc_sram_addr_t sram_buff_ofs = hash_handle->digest_len_sram_addr;
 	unsigned int larval_seq_len = 0;
 	struct cc_hw_desc larval_seq[CC_DIGEST_SIZE_MAX / sizeof(u32)];
-	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = 0;
-#if (CC_DEV_SHA_MAX > 256)
-	int i;
-#endif
 
 	/* Copy-to-sram digest-len */
 	cc_set_sram_desc(digest_len_init, sram_buff_ofs,
@@ -2074,47 +2058,47 @@ int cc_init_hash_sram(struct cc_drvdata *drvdata)
 	larval_seq_len = 0;
 
 #if (CC_DEV_SHA_MAX > 256)
-	/* We are forced to swap each double-word larval before copying to
-	 * sram
-	 */
-	for (i = 0; i < ARRAY_SIZE(sha384_init); i++) {
-		const u32 const0 = ((u32 *)((u64 *)&sha384_init[i]))[1];
-		const u32 const1 = ((u32 *)((u64 *)&sha384_init[i]))[0];
-
-		cc_set_sram_desc(&const0, sram_buff_ofs, 1, larval_seq,
-				 &larval_seq_len);
-		sram_buff_ofs += sizeof(u32);
-		cc_set_sram_desc(&const1, sram_buff_ofs, 1, larval_seq,
-				 &larval_seq_len);
-		sram_buff_ofs += sizeof(u32);
-	}
+	cc_set_sram_desc((u32 *)sha384_init, sram_buff_ofs,
+			 (ARRAY_SIZE(sha384_init) * 2), larval_seq,
+			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (rc) {
-		dev_err(dev, "send_request() failed (rc = %d)\n", rc);
+	if (rc)
 		goto init_digest_const_err;
-	}
+	sram_buff_ofs += sizeof(sha384_init);
 	larval_seq_len = 0;
 
-	for (i = 0; i < ARRAY_SIZE(sha512_init); i++) {
-		const u32 const0 = ((u32 *)((u64 *)&sha512_init[i]))[1];
-		const u32 const1 = ((u32 *)((u64 *)&sha512_init[i]))[0];
-
-		cc_set_sram_desc(&const0, sram_buff_ofs, 1, larval_seq,
-				 &larval_seq_len);
-		sram_buff_ofs += sizeof(u32);
-		cc_set_sram_desc(&const1, sram_buff_ofs, 1, larval_seq,
-				 &larval_seq_len);
-		sram_buff_ofs += sizeof(u32);
-	}
+	cc_set_sram_desc((u32 *)sha512_init, sram_buff_ofs,
+			 (ARRAY_SIZE(sha512_init) * 2), larval_seq,
+			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (rc) {
-		dev_err(dev, "send_request() failed (rc = %d)\n", rc);
+	if (rc)
 		goto init_digest_const_err;
-	}
 #endif
 
 init_digest_const_err:
 	return rc;
+}
+
+static void __init cc_swap_dwords(u32 *buf, unsigned long size)
+{
+	int i;
+	u32 tmp;
+
+	for (i = 0; i < size; i += 2) {
+		tmp = buf[i];
+		buf[i] = buf[i + 1];
+		buf[i + 1] = tmp;
+	}
+}
+
+/*
+ * Due to the way the HW works we need to swap every
+ * double word in the SHA384 and SHA512 larval hashes
+ */
+void __init cc_hash_global_init(void)
+{
+	cc_swap_dwords((u32 *)&sha384_init, (ARRAY_SIZE(sha384_init) * 2));
+	cc_swap_dwords((u32 *)&sha512_init, (ARRAY_SIZE(sha512_init) * 2));
 }
 
 int cc_hash_alloc(struct cc_drvdata *drvdata)
@@ -2371,6 +2355,29 @@ static void cc_set_desc(struct ahash_req_ctx *areq_ctx,
 		set_din_not_last_indication(&desc[(idx - 1)]);
 	/* return updated desc sequence size */
 	*seq_size = idx;
+}
+
+static const void *cc_larval_digest(struct device *dev, u32 mode)
+{
+	switch (mode) {
+	case DRV_HASH_MD5:
+		return md5_init;
+	case DRV_HASH_SHA1:
+		return sha1_init;
+	case DRV_HASH_SHA224:
+		return sha224_init;
+	case DRV_HASH_SHA256:
+		return sha256_init;
+#if (CC_DEV_SHA_MAX > 256)
+	case DRV_HASH_SHA384:
+		return sha384_init;
+	case DRV_HASH_SHA512:
+		return sha512_init;
+#endif
+	default:
+		dev_err(dev, "Invalid hash mode (%d)\n", mode);
+		return md5_init;
+	}
 }
 
 /*!
