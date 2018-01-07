@@ -957,6 +957,17 @@ enum nft_ct_attributes {
 };
 #define NFTA_CT_MAX		(__NFTA_CT_MAX - 1)
 
+/**
+ * enum nft_flow_attributes - ct offload expression attributes
+ * @NFTA_FLOW_TABLE_NAME: flow table name (NLA_STRING)
+ */
+enum nft_offload_attributes {
+	NFTA_FLOW_UNSPEC,
+	NFTA_FLOW_TABLE_NAME,
+	__NFTA_FLOW_MAX,
+};
+#define NFTA_FLOW_MAX		(__NFTA_FLOW_MAX - 1)
+
 enum nft_limit_type {
 	NFT_LIMIT_PKTS,
 	NFT_LIMIT_PKT_BYTES

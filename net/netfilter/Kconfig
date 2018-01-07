@@ -505,6 +505,13 @@ config NFT_CT
 	  This option adds the "ct" expression that you can use to match
 	  connection tracking information such as the flow state.
 
+config NFT_FLOW_OFFLOAD
+	depends on NF_CONNTRACK
+	tristate "Netfilter nf_tables hardware flow offload module"
+	help
+	  This option adds the "flow_offload" expression that you can use to
+	  choose what flows are placed into the hardware.
+
 config NFT_SET_RBTREE
 	tristate "Netfilter nf_tables rbtree set module"
 	help
