@@ -67,7 +67,6 @@ struct rmnet_map_header {
 #define RMNET_MAP_NO_PAD_BYTES        0
 #define RMNET_MAP_ADD_PAD_BYTES       1
 
-u8 rmnet_map_demultiplex(struct sk_buff *skb);
 struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb);
 struct rmnet_map_header *rmnet_map_add_map_header(struct sk_buff *skb,
 						  int hdrlen, int pad);
