@@ -1082,15 +1082,12 @@ static int snmp_parse_mangle(unsigned char *msg,
 /*
  * SNMP translation routine.
  */
-static int snmp_translate(struct nf_conn *ct,
-			  enum ip_conntrack_info ctinfo,
-			  struct sk_buff *skb)
+static int snmp_translate(struct nf_conn *ct, int dir, struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	struct udphdr *udph = (struct udphdr *)((__be32 *)iph + iph->ihl);
 	u_int16_t udplen = ntohs(udph->len);
 	u_int16_t paylen = udplen - sizeof(struct udphdr);
-	int dir = CTINFO2DIR(ctinfo);
 	struct oct1_map map;
 
 	/*
@@ -1155,7 +1152,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 		return NF_DROP;
 
 	spin_lock_bh(&snmp_lock);
-	ret = snmp_translate(ct, ctinfo, skb);
+	ret = snmp_translate(ct, dir, skb);
 	spin_unlock_bh(&snmp_lock);
 	return ret;
 }
