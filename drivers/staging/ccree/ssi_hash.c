@@ -132,29 +132,27 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 	struct cc_hw_desc desc;
 	int rc = -ENOMEM;
 
-	state->buff0 = kzalloc(CC_MAX_HASH_BLCK_SIZE, GFP_KERNEL | GFP_DMA);
+	state->buff0 = kzalloc(CC_MAX_HASH_BLCK_SIZE, GFP_KERNEL);
 	if (!state->buff0)
 		goto fail0;
 
-	state->buff1 = kzalloc(CC_MAX_HASH_BLCK_SIZE, GFP_KERNEL | GFP_DMA);
+	state->buff1 = kzalloc(CC_MAX_HASH_BLCK_SIZE, GFP_KERNEL);
 	if (!state->buff1)
 		goto fail_buff0;
 
 	state->digest_result_buff = kzalloc(CC_MAX_HASH_DIGEST_SIZE,
-					    GFP_KERNEL | GFP_DMA);
+					    GFP_KERNEL);
 	if (!state->digest_result_buff)
 		goto fail_buff1;
 
-	state->digest_buff = kzalloc(ctx->inter_digestsize,
-				     GFP_KERNEL | GFP_DMA);
+	state->digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL);
 	if (!state->digest_buff)
 		goto fail_digest_result_buff;
 
 	dev_dbg(dev, "Allocated digest-buffer in context ctx->digest_buff=@%p\n",
 		state->digest_buff);
 	if (ctx->hw_mode != DRV_CIPHER_XCBC_MAC) {
-		state->digest_bytes_len = kzalloc(HASH_LEN_SIZE,
-						  GFP_KERNEL | GFP_DMA);
+		state->digest_bytes_len = kzalloc(HASH_LEN_SIZE, GFP_KERNEL);
 		if (!state->digest_bytes_len)
 			goto fail1;
 
@@ -164,8 +162,7 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 		state->digest_bytes_len = NULL;
 	}
 
-	state->opad_digest_buff = kzalloc(ctx->inter_digestsize,
-					  GFP_KERNEL | GFP_DMA);
+	state->opad_digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL);
 	if (!state->opad_digest_buff)
 		goto fail2;
 
