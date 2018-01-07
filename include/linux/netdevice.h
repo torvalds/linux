@@ -4409,8 +4409,8 @@ do {								\
 	WARN(1, "netdevice: %s%s\n" format, netdev_name(dev),	\
 	     netdev_reg_state(dev), ##args)
 
-#define netdev_WARN_ONCE(dev, condition, format, arg...)		\
-	WARN_ONCE(1, "netdevice: %s%s\n" format, netdev_name(dev)	\
+#define netdev_WARN_ONCE(dev, format, args...)				\
+	WARN_ONCE(1, "netdevice: %s%s\n" format, netdev_name(dev),	\
 		  netdev_reg_state(dev), ##args)
 
 /* netif printk helpers, similar to netdev_printk */
