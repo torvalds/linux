@@ -175,12 +175,9 @@ int cc_ivgen_init(struct cc_drvdata *drvdata)
 	int rc;
 
 	/* Allocate "this" context */
-	drvdata->ivgen_handle = kzalloc(sizeof(*drvdata->ivgen_handle),
-					GFP_KERNEL);
-	if (!drvdata->ivgen_handle)
+	ivgen_ctx = kzalloc(sizeof(*ivgen_ctx), GFP_KERNEL);
+	if (!ivgen_ctx)
 		return -ENOMEM;
-
-	ivgen_ctx = drvdata->ivgen_handle;
 
 	/* Allocate pool's header for initial enc. key/IV */
 	ivgen_ctx->pool_meta = dma_alloc_coherent(device, CC_IVPOOL_META_SIZE,
@@ -199,6 +196,8 @@ int cc_ivgen_init(struct cc_drvdata *drvdata)
 		rc = -ENOMEM;
 		goto out;
 	}
+
+	drvdata->ivgen_handle = ivgen_ctx;
 
 	return cc_init_iv_sram(drvdata);
 

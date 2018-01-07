@@ -32,12 +32,15 @@ void cc_sram_mgr_fini(struct cc_drvdata *drvdata)
  */
 int cc_sram_mgr_init(struct cc_drvdata *drvdata)
 {
-	/* Allocate "this" context */
-	drvdata->sram_mgr_handle = kzalloc(sizeof(*drvdata->sram_mgr_handle),
-					   GFP_KERNEL);
+	struct cc_sram_ctx *ctx;
 
-	if (!drvdata->sram_mgr_handle)
+	/* Allocate "this" context */
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+
+	if (!ctx)
 		return -ENOMEM;
+
+	drvdata->sram_mgr_handle = ctx;
 
 	return 0;
 }
