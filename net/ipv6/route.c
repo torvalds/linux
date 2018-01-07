@@ -474,6 +474,8 @@ static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
 			if (route_choosen == 0) {
 				struct inet6_dev *idev = sibling->rt6i_idev;
 
+				if (sibling->rt6i_nh_flags & RTNH_F_DEAD)
+					break;
 				if (sibling->rt6i_nh_flags & RTNH_F_LINKDOWN &&
 				    idev->cnf.ignore_routes_with_linkdown)
 					break;
@@ -499,11 +501,14 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 	struct rt6_info *local = NULL;
 	struct rt6_info *sprt;
 
-	if (!oif && ipv6_addr_any(saddr))
-		goto out;
+	if (!oif && ipv6_addr_any(saddr) && !(rt->rt6i_nh_flags & RTNH_F_DEAD))
+		return rt;
 
 	for (sprt = rt; sprt; sprt = rcu_dereference(sprt->rt6_next)) {
 		struct net_device *dev = sprt->dst.dev;
+
+		if (sprt->rt6i_nh_flags & RTNH_F_DEAD)
+			continue;
 
 		if (oif) {
 			if (dev->ifindex == oif)
@@ -533,8 +538,8 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 		if (flags & RT6_LOOKUP_F_IFACE)
 			return net->ipv6.ip6_null_entry;
 	}
-out:
-	return rt;
+
+	return rt->rt6i_nh_flags & RTNH_F_DEAD ? net->ipv6.ip6_null_entry : rt;
 }
 
 #ifdef CONFIG_IPV6_ROUTER_PREF
@@ -679,6 +684,9 @@ static struct rt6_info *find_match(struct rt6_info *rt, int oif, int strict,
 	int m;
 	bool match_do_rr = false;
 	struct inet6_dev *idev = rt->rt6i_idev;
+
+	if (rt->rt6i_nh_flags & RTNH_F_DEAD)
+		goto out;
 
 	if (idev->cnf.ignore_routes_with_linkdown &&
 	    rt->rt6i_nh_flags & RTNH_F_LINKDOWN &&
@@ -2153,6 +2161,8 @@ static struct rt6_info *__ip6_route_redirect(struct net *net,
 	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 restart:
 	for_each_fib6_node_rt_rcu(fn) {
+		if (rt->rt6i_nh_flags & RTNH_F_DEAD)
+			continue;
 		if (rt6_check_expired(rt))
 			continue;
 		if (rt->dst.error)
