@@ -4039,7 +4039,7 @@ static size_t rt6_nlmsg_size(struct rt6_info *rt)
 static int rt6_nexthop_info(struct sk_buff *skb, struct rt6_info *rt,
 			    unsigned int *flags, bool skip_oif)
 {
-	if (!netif_running(rt->dst.dev) || !netif_carrier_ok(rt->dst.dev)) {
+	if (rt->rt6i_nh_flags & RTNH_F_LINKDOWN) {
 		*flags |= RTNH_F_LINKDOWN;
 		if (rt->rt6i_idev->cnf.ignore_routes_with_linkdown)
 			*flags |= RTNH_F_DEAD;
