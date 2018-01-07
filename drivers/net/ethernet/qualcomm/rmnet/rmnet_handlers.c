@@ -143,10 +143,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	if (!map_header)
 		goto fail;
 
-	if (mux_id == 0xff)
-		map_header->mux_id = 0;
-	else
-		map_header->mux_id = mux_id;
+	map_header->mux_id = mux_id;
 
 	skb->protocol = htons(ETH_P_MAP);
 
