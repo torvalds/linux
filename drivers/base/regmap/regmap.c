@@ -769,7 +769,9 @@ struct regmap *__regmap_init(struct device *dev,
 	INIT_LIST_HEAD(&map->async_free);
 	init_waitqueue_head(&map->async_waitq);
 
-	if (config->read_flag_mask || config->write_flag_mask) {
+	if (config->read_flag_mask ||
+	    config->write_flag_mask ||
+	    config->zero_flag_mask) {
 		map->read_flag_mask = config->read_flag_mask;
 		map->write_flag_mask = config->write_flag_mask;
 	} else if (bus) {

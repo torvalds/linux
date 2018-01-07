@@ -296,7 +296,10 @@ typedef void (*regmap_unlock)(void *);
  *                  a read.
  * @write_flag_mask: Mask to be set in the top bytes of the register when doing
  *                   a write. If both read_flag_mask and write_flag_mask are
- *                   empty the regmap_bus default masks are used.
+ *                   empty and zero_flag_mask is not set the regmap_bus default
+ *                   masks are used.
+ * @zero_flag_mask: If set, read_flag_mask and write_flag_mask are used even
+ *                   if they are both empty.
  * @use_single_rw: If set, converts the bulk read and write operations into
  *		    a series of single read and write operations. This is useful
  *		    for device that does not support bulk read and write.
@@ -355,6 +358,7 @@ struct regmap_config {
 
 	unsigned long read_flag_mask;
 	unsigned long write_flag_mask;
+	bool zero_flag_mask;
 
 	bool use_single_rw;
 	bool can_multi_write;
