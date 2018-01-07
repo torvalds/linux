@@ -46,8 +46,8 @@
 #define TVMEMSIZE	4
 
 /*
-* Used by test_cipher_speed()
-*/
+ * Used by test_cipher_speed()
+ */
 #define ENCRYPT 1
 #define DECRYPT 0
 
