@@ -970,13 +970,6 @@ int sctp_asconf_mgmt(struct sctp_sock *sp, struct sctp_sockaddr_entry *addrw)
  * This is used for tunneling the sctp_bindx() request through sctp_setsockopt()
  * from userspace.
  *
- * We don't use copy_from_user() for optimization: we first do the
- * sanity checks (buffer size -fast- and access check-healthy
- * pointer); if all of those succeed, then we can alloc the memory
- * (expensive operation) needed to copy the data to kernel. Then we do
- * the copying without checking the user space area
- * (__copy_from_user()).
- *
  * On exit there is no need to do sockfd_put(), sys_setsockopt() does
  * it.
  *
@@ -1006,25 +999,15 @@ static int sctp_setsockopt_bindx(struct sock *sk,
 	if (unlikely(addrs_size <= 0))
 		return -EINVAL;
 
-	/* Check the user passed a healthy pointer.  */
-	if (unlikely(!access_ok(VERIFY_READ, addrs, addrs_size)))
-		return -EFAULT;
-
-	/* Alloc space for the address array in kernel memory.  */
-	kaddrs = kmalloc(addrs_size, GFP_USER | __GFP_NOWARN);
-	if (unlikely(!kaddrs))
-		return -ENOMEM;
-
-	if (__copy_from_user(kaddrs, addrs, addrs_size)) {
-		kfree(kaddrs);
-		return -EFAULT;
-	}
+	kaddrs = vmemdup_user(addrs, addrs_size);
+	if (unlikely(IS_ERR(kaddrs)))
+		return PTR_ERR(kaddrs);
 
 	/* Walk through the addrs buffer and count the number of addresses. */
 	addr_buf = kaddrs;
 	while (walk_size < addrs_size) {
 		if (walk_size + sizeof(sa_family_t) > addrs_size) {
-			kfree(kaddrs);
+			kvfree(kaddrs);
 			return -EINVAL;
 		}
 
@@ -1035,7 +1018,7 @@ static int sctp_setsockopt_bindx(struct sock *sk,
 		 * causes the address buffer to overflow return EINVAL.
 		 */
 		if (!af || (walk_size + af->sockaddr_len) > addrs_size) {
-			kfree(kaddrs);
+			kvfree(kaddrs);
 			return -EINVAL;
 		}
 		addrcnt++;
@@ -1065,7 +1048,7 @@ static int sctp_setsockopt_bindx(struct sock *sk,
 	}
 
 out:
-	kfree(kaddrs);
+	kvfree(kaddrs);
 
 	return err;
 }
@@ -1323,13 +1306,6 @@ out_free:
  * land and invoking either sctp_connectx(). This is used for tunneling
  * the sctp_connectx() request through sctp_setsockopt() from userspace.
  *
- * We don't use copy_from_user() for optimization: we first do the
- * sanity checks (buffer size -fast- and access check-healthy
- * pointer); if all of those succeed, then we can alloc the memory
- * (expensive operation) needed to copy the data to kernel. Then we do
- * the copying without checking the user space area
- * (__copy_from_user()).
- *
  * On exit there is no need to do sockfd_put(), sys_setsockopt() does
  * it.
  *
@@ -1345,7 +1321,6 @@ static int __sctp_setsockopt_connectx(struct sock *sk,
 				      sctp_assoc_t *assoc_id)
 {
 	struct sockaddr *kaddrs;
-	gfp_t gfp = GFP_KERNEL;
 	int err = 0;
 
 	pr_debug("%s: sk:%p addrs:%p addrs_size:%d\n",
@@ -1354,24 +1329,12 @@ static int __sctp_setsockopt_connectx(struct sock *sk,
 	if (unlikely(addrs_size <= 0))
 		return -EINVAL;
 
-	/* Check the user passed a healthy pointer.  */
-	if (unlikely(!access_ok(VERIFY_READ, addrs, addrs_size)))
-		return -EFAULT;
+	kaddrs = vmemdup_user(addrs, addrs_size);
+	if (unlikely(IS_ERR(kaddrs)))
+		return PTR_ERR(kaddrs);
 
-	/* Alloc space for the address array in kernel memory.  */
-	if (sk->sk_socket->file)
-		gfp = GFP_USER | __GFP_NOWARN;
-	kaddrs = kmalloc(addrs_size, gfp);
-	if (unlikely(!kaddrs))
-		return -ENOMEM;
-
-	if (__copy_from_user(kaddrs, addrs, addrs_size)) {
-		err = -EFAULT;
-	} else {
-		err = __sctp_connect(sk, kaddrs, addrs_size, assoc_id);
-	}
-
-	kfree(kaddrs);
+	err = __sctp_connect(sk, kaddrs, addrs_size, assoc_id);
+	kvfree(kaddrs);
 
 	return err;
 }
