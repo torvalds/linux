@@ -94,7 +94,7 @@ static unsigned int cc_get_sgl_nents(struct device *dev,
 {
 	unsigned int nents = 0;
 
-	while (nbytes) {
+	while (nbytes && sg_list) {
 		if (sg_list->length) {
 			nents++;
 			/* get the number of bytes in the last entry */
