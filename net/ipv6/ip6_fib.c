@@ -1887,7 +1887,7 @@ static int fib6_clean_node(struct fib6_walker *w)
 
 	for_each_fib6_walker_rt(w) {
 		res = c->func(rt, c->arg);
-		if (res < 0) {
+		if (res == -1) {
 			w->leaf = rt;
 			res = fib6_del(rt, &info);
 			if (res) {
@@ -1900,6 +1900,12 @@ static int fib6_clean_node(struct fib6_walker *w)
 				continue;
 			}
 			return 0;
+		} else if (res == -2) {
+			if (WARN_ON(!rt->rt6i_nsiblings))
+				continue;
+			rt = list_last_entry(&rt->rt6i_siblings,
+					     struct rt6_info, rt6i_siblings);
+			continue;
 		}
 		WARN_ON(res != 0);
 	}
@@ -1911,7 +1917,8 @@ static int fib6_clean_node(struct fib6_walker *w)
  *	Convenient frontend to tree walker.
  *
  *	func is called on each route.
- *		It may return -1 -> delete this route.
+ *		It may return -2 -> skip multipath route.
+ *			      -1 -> delete this route.
  *		              0  -> continue walking
  */
 
