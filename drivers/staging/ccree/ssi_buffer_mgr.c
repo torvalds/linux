@@ -465,7 +465,8 @@ void cc_unmap_blkcipher_request(struct device *dev, void *ctx,
 				 DMA_TO_DEVICE);
 	}
 	/* Release pool */
-	if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
+	if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI &&
+	    req_ctx->mlli_params.mlli_virt_addr) {
 		dma_pool_free(req_ctx->mlli_params.curr_pool,
 			      req_ctx->mlli_params.mlli_virt_addr,
 			      req_ctx->mlli_params.mlli_dma_addr);
