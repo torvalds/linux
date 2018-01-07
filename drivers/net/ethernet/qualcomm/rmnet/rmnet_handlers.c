@@ -69,8 +69,7 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	u16 len;
 
 	if (RMNET_MAP_GET_CD_BIT(skb)) {
-		if (port->ingress_data_format
-		    & RMNET_INGRESS_FORMAT_MAP_COMMANDS)
+		if (port->data_format & RMNET_INGRESS_FORMAT_MAP_COMMANDS)
 			return rmnet_map_command(skb, port);
 
 		goto free_skb;
@@ -114,7 +113,7 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 		skb_push(skb, ETH_HLEN);
 	}
 
-	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_DEAGGREGATION) {
+	if (port->data_format & RMNET_INGRESS_FORMAT_DEAGGREGATION) {
 		while ((skbn = rmnet_map_deaggregate(skb)) != NULL)
 			__rmnet_map_ingress_handler(skbn, port);
 
