@@ -32,7 +32,6 @@ struct cc_req_mgr_handle {
 	struct cc_hw_desc compl_desc;
 	u8 *dummy_comp_buff;
 	dma_addr_t dummy_comp_buff_dma;
-	struct cc_hw_desc monitor_desc;
 
 #ifdef COMP_IN_WQ
 	struct workqueue_struct *workq;
