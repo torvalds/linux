@@ -657,6 +657,14 @@ endif # NF_TABLES_NETDEV
 
 endif # NF_TABLES
 
+config NF_FLOW_TABLE_INET
+	select NF_FLOW_TABLE
+	tristate "Netfilter flow table mixed IPv4/IPv6 module"
+	help
+          This option adds the flow table mixed IPv4/IPv6 support.
+
+	  To compile it as a module, choose M here.
+
 config NF_FLOW_TABLE
 	tristate "Netfilter flow table module"
 	help

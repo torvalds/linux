@@ -196,7 +196,7 @@ static bool nf_flow_exceeds_mtu(struct sk_buff *skb, const struct rt6_info *rt)
 	return false;
 }
 
-static unsigned int
+unsigned int
 nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 			  const struct nf_hook_state *state)
 {
@@ -248,6 +248,7 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 
 	return NF_STOLEN;
 }
+EXPORT_SYMBOL_GPL(nf_flow_offload_ipv6_hook);
 
 static struct nf_flowtable_type flowtable_ipv6 = {
 	.family		= NFPROTO_IPV6,
