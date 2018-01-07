@@ -1102,8 +1102,8 @@ void fib6_force_start_gc(struct net *net)
 			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
 
-static void fib6_update_sernum_upto_root(struct rt6_info *rt,
-					 int sernum)
+static void __fib6_update_sernum_upto_root(struct rt6_info *rt,
+					   int sernum)
 {
 	struct fib6_node *fn = rcu_dereference_protected(rt->rt6i_node,
 				lockdep_is_held(&rt->rt6i_table->tb6_lock));
@@ -1115,6 +1115,11 @@ static void fib6_update_sernum_upto_root(struct rt6_info *rt,
 		fn = rcu_dereference_protected(fn->parent,
 				lockdep_is_held(&rt->rt6i_table->tb6_lock));
 	}
+}
+
+void fib6_update_sernum_upto_root(struct net *net, struct rt6_info *rt)
+{
+	__fib6_update_sernum_upto_root(rt, fib6_new_sernum(net));
 }
 
 /*
@@ -1230,7 +1235,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 
 	err = fib6_add_rt2node(fn, rt, info, mxc, extack);
 	if (!err) {
-		fib6_update_sernum_upto_root(rt, sernum);
+		__fib6_update_sernum_upto_root(rt, sernum);
 		fib6_start_gc(info->nl_net, rt);
 	}
 
