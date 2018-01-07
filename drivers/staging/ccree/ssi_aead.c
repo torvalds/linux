@@ -211,18 +211,20 @@ init_failed:
 	return -ENOMEM;
 }
 
-static void cc_aead_complete(struct device *dev, void *cc_req)
+static void cc_aead_complete(struct device *dev, void *cc_req, int err)
 {
 	struct aead_request *areq = (struct aead_request *)cc_req;
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(areq);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(cc_req);
 	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	int err = 0;
 
 	cc_unmap_aead_request(dev, areq);
 
 	/* Restore ordinary iv pointer */
 	areq->iv = areq_ctx->backup_iv;
+
+	if (err)
+		goto done;
 
 	if (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) {
 		if (memcmp(areq_ctx->mac_buf, areq_ctx->icv_virt_addr,
@@ -258,7 +260,7 @@ static void cc_aead_complete(struct device *dev, void *cc_req)
 				       CCM_BLOCK_IV_OFFSET, CCM_BLOCK_IV_SIZE);
 		}
 	}
-
+done:
 	aead_request_complete(areq, err);
 }
 
@@ -2041,7 +2043,7 @@ static int cc_proc_aead(struct aead_request *req,
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, seq_len, &req->base);
 
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_aead_request(dev, req);
 	}
@@ -2063,7 +2065,7 @@ static int cc_aead_encrypt(struct aead_request *req)
 	areq_ctx->plaintext_authenticate_only = false;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
-	if (rc != -EINPROGRESS)
+	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
 
 	return rc;
@@ -2092,7 +2094,7 @@ static int cc_rfc4309_ccm_encrypt(struct aead_request *req)
 	cc_proc_rfc4309_ccm(req);
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
-	if (rc != -EINPROGRESS)
+	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
 out:
 	return rc;
@@ -2111,7 +2113,7 @@ static int cc_aead_decrypt(struct aead_request *req)
 	areq_ctx->plaintext_authenticate_only = false;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_DECRYPT);
-	if (rc != -EINPROGRESS)
+	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
 
 	return rc;
@@ -2138,7 +2140,7 @@ static int cc_rfc4309_ccm_decrypt(struct aead_request *req)
 	cc_proc_rfc4309_ccm(req);
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_DECRYPT);
-	if (rc != -EINPROGRESS)
+	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
 
 out:
@@ -2257,7 +2259,7 @@ static int cc_rfc4106_gcm_encrypt(struct aead_request *req)
 	areq_ctx->is_gcm4543 = true;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
-	if (rc != -EINPROGRESS)
+	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
 out:
 	return rc;
@@ -2281,7 +2283,7 @@ static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 	areq_ctx->is_gcm4543 = true;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
-	if (rc != -EINPROGRESS)
+	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
 
 	return rc;
@@ -2312,7 +2314,7 @@ static int cc_rfc4106_gcm_decrypt(struct aead_request *req)
 	areq_ctx->is_gcm4543 = true;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_DECRYPT);
-	if (rc != -EINPROGRESS)
+	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
 out:
 	return rc;
@@ -2336,7 +2338,7 @@ static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 	areq_ctx->is_gcm4543 = true;
 
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_DECRYPT);
-	if (rc != -EINPROGRESS)
+	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
 
 	return rc;

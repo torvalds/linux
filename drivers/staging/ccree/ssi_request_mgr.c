@@ -14,6 +14,8 @@
 #include "ssi_pm.h"
 
 #define CC_MAX_POLL_ITER	10
+/* The highest descriptor count in used */
+#define CC_MAX_DESC_SEQ_LEN	23
 
 struct cc_req_mgr_handle {
 	/* Request manager resources */
@@ -33,6 +35,11 @@ struct cc_req_mgr_handle {
 	u8 *dummy_comp_buff;
 	dma_addr_t dummy_comp_buff_dma;
 
+	/* backlog queue */
+	struct list_head backlog;
+	unsigned int bl_len;
+	spinlock_t bl_lock; /* protect backlog queue */
+
 #ifdef COMP_IN_WQ
 	struct workqueue_struct *workq;
 	struct delayed_work compwork;
@@ -42,6 +49,14 @@ struct cc_req_mgr_handle {
 #if defined(CONFIG_PM)
 	bool is_runtime_suspended;
 #endif
+};
+
+struct cc_bl_item {
+	struct cc_crypto_req creq;
+	struct cc_hw_desc desc[CC_MAX_DESC_SEQ_LEN];
+	unsigned int len;
+	struct list_head list;
+	bool notif;
 };
 
 static void comp_handler(unsigned long devarg);
@@ -93,6 +108,9 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata)
 	drvdata->request_mgr_handle = req_mgr_h;
 
 	spin_lock_init(&req_mgr_h->hw_lock);
+	spin_lock_init(&req_mgr_h->bl_lock);
+	INIT_LIST_HEAD(&req_mgr_h->backlog);
+
 #ifdef COMP_IN_WQ
 	dev_dbg(dev, "Initializing completion workqueue\n");
 	req_mgr_h->workq = create_singlethread_workqueue("arm_cc7x_wq");
@@ -177,7 +195,8 @@ static void enqueue_seq(struct cc_drvdata *drvdata, struct cc_hw_desc seq[],
  * \param dev
  * \param dx_compl_h The completion event to signal
  */
-static void request_mgr_complete(struct device *dev, void *dx_compl_h)
+static void request_mgr_complete(struct device *dev, void *dx_compl_h,
+				 int dummy)
 {
 	struct completion *this_compl = dx_compl_h;
 
@@ -322,6 +341,84 @@ static int cc_do_send_request(struct cc_drvdata *drvdata,
 	return -EINPROGRESS;
 }
 
+static void cc_enqueue_backlog(struct cc_drvdata *drvdata,
+			       struct cc_bl_item *bli)
+{
+	struct cc_req_mgr_handle *mgr = drvdata->request_mgr_handle;
+
+	spin_lock_bh(&mgr->bl_lock);
+	list_add_tail(&bli->list, &mgr->backlog);
+	++mgr->bl_len;
+	spin_unlock_bh(&mgr->bl_lock);
+	tasklet_schedule(&mgr->comptask);
+}
+
+static void cc_proc_backlog(struct cc_drvdata *drvdata)
+{
+	struct cc_req_mgr_handle *mgr = drvdata->request_mgr_handle;
+	struct cc_bl_item *bli;
+	struct cc_crypto_req *creq;
+	struct crypto_async_request *req;
+	bool ivgen;
+	unsigned int total_len;
+	struct device *dev = drvdata_to_dev(drvdata);
+	int rc;
+
+	spin_lock(&mgr->bl_lock);
+
+	while (mgr->bl_len) {
+		bli = list_first_entry(&mgr->backlog, struct cc_bl_item, list);
+		spin_unlock(&mgr->bl_lock);
+
+		creq = &bli->creq;
+		req = (struct crypto_async_request *)creq->user_arg;
+
+		/*
+		 * Notify the request we're moving out of the backlog
+		 * but only if we haven't done so already.
+		 */
+		if (!bli->notif) {
+			req->complete(req, -EINPROGRESS);
+			bli->notif = true;
+		}
+
+		ivgen = !!creq->ivgen_dma_addr_len;
+		total_len = bli->len + (ivgen ? CC_IVPOOL_SEQ_LEN : 0);
+
+		spin_lock(&mgr->hw_lock);
+
+		rc = cc_queues_status(drvdata, mgr, total_len);
+		if (rc) {
+			/*
+			 * There is still not room in the FIFO for
+			 * this request. Bail out. We'll return here
+			 * on the next completion irq.
+			 */
+			spin_unlock(&mgr->hw_lock);
+			return;
+		}
+
+		rc = cc_do_send_request(drvdata, &bli->creq, bli->desc,
+					bli->len, false, ivgen);
+
+		spin_unlock(&mgr->hw_lock);
+
+		if (rc != -EINPROGRESS) {
+#if defined(CONFIG_PM)
+			cc_pm_put_suspend(dev);
+#endif
+			creq->user_cb(dev, req, rc);
+		}
+
+		/* Remove ourselves from the backlog list */
+		spin_lock(&mgr->bl_lock);
+		list_del(&bli->list);
+		--mgr->bl_len;
+	}
+
+	spin_unlock(&mgr->bl_lock);
+}
+
 int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 		    struct cc_hw_desc *desc, unsigned int len,
 		    struct crypto_async_request *req)
@@ -331,6 +428,9 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 	bool ivgen = !!cc_req->ivgen_dma_addr_len;
 	unsigned int total_len = len + (ivgen ? CC_IVPOOL_SEQ_LEN : 0);
 	struct device *dev = drvdata_to_dev(drvdata);
+	bool backlog_ok = req->flags & CRYPTO_TFM_REQ_MAY_BACKLOG;
+	gfp_t flags = cc_gfp_flags(req);
+	struct cc_bl_item *bli;
 
 #if defined(CONFIG_PM)
 	rc = cc_pm_get(dev);
@@ -342,17 +442,35 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 	spin_lock_bh(&mgr->hw_lock);
 	rc = cc_queues_status(drvdata, mgr, total_len);
 
+#ifdef CC_DEBUG_FORCE_BACKLOG
+	if (backlog_ok)
+		rc = -ENOSPC;
+#endif /* CC_DEBUG_FORCE_BACKLOG */
+
+	if (rc == -ENOSPC && backlog_ok) {
+		spin_unlock_bh(&mgr->hw_lock);
+
+		bli = kmalloc(sizeof(*bli), flags);
+		if (!bli) {
+#if defined(CONFIG_PM)
+			cc_pm_put_suspend(dev);
+#endif
+			return -ENOMEM;
+		}
+
+		memcpy(&bli->creq, cc_req, sizeof(*cc_req));
+		memcpy(&bli->desc, desc, len * sizeof(*desc));
+		bli->len = len;
+		bli->notif = false;
+		cc_enqueue_backlog(drvdata, bli);
+		return -EBUSY;
+	}
+
 	if (!rc)
 		rc = cc_do_send_request(drvdata, cc_req, desc, len, false,
 					ivgen);
 
 	spin_unlock_bh(&mgr->hw_lock);
-
-#if defined(CONFIG_PM)
-	if (rc != -EINPROGRESS)
-		cc_pm_put_suspend(dev);
-#endif
-
 	return rc;
 }
 
@@ -501,7 +619,7 @@ static void proc_completions(struct cc_drvdata *drvdata)
 		cc_req = &request_mgr_handle->req_queue[*tail];
 
 		if (cc_req->user_cb)
-			cc_req->user_cb(dev, cc_req->user_arg);
+			cc_req->user_cb(dev, cc_req->user_arg, 0);
 		*tail = (*tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 		dev_dbg(dev, "Dequeue request tail=%u\n", *tail);
 		dev_dbg(dev, "Request completed. axi_completed=%d\n",
@@ -566,6 +684,8 @@ static void comp_handler(unsigned long devarg)
 	 */
 	cc_iowrite(drvdata, CC_REG(HOST_IMR),
 		   cc_ioread(drvdata, CC_REG(HOST_IMR)) & ~irq);
+
+	cc_proc_backlog(drvdata);
 }
 
 /*

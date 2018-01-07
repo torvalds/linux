@@ -81,7 +81,7 @@ extern bool cc_dump_bytes;
 
 #define CC_MAX_IVGEN_DMA_ADDRESSES	3
 struct cc_crypto_req {
-	void (*user_cb)(struct device *dev, void *req);
+	void (*user_cb)(struct device *dev, void *req, int err);
 	void *user_arg;
 	dma_addr_t ivgen_dma_addr[CC_MAX_IVGEN_DMA_ADDRESSES];
 	/* For the first 'ivgen_dma_addr_len' addresses of this array,

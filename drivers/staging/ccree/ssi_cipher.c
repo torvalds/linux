@@ -52,7 +52,7 @@ struct cc_cipher_ctx {
 	struct crypto_shash *shash_tfm;
 };
 
-static void cc_cipher_complete(struct device *dev, void *cc_req);
+static void cc_cipher_complete(struct device *dev, void *cc_req, int err);
 
 static int validate_keys_sizes(struct cc_cipher_ctx *ctx_p, u32 size)
 {
@@ -590,7 +590,7 @@ static void cc_setup_cipher_data(struct crypto_tfm *tfm,
 	}
 }
 
-static void cc_cipher_complete(struct device *dev, void *cc_req)
+static void cc_cipher_complete(struct device *dev, void *cc_req, int err)
 {
 	struct ablkcipher_request *areq = (struct ablkcipher_request *)cc_req;
 	struct scatterlist *dst = areq->dst;
@@ -598,7 +598,6 @@ static void cc_cipher_complete(struct device *dev, void *cc_req)
 	struct blkcipher_req_ctx *req_ctx = ablkcipher_request_ctx(areq);
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
 	unsigned int ivsize = crypto_ablkcipher_ivsize(tfm);
-	int completion_error = 0;
 	struct ablkcipher_request *req = (struct ablkcipher_request *)areq;
 
 	cc_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
@@ -614,13 +613,13 @@ static void cc_cipher_complete(struct device *dev, void *cc_req)
 	if (req_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT)  {
 		memcpy(req->info, req_ctx->backup_info, ivsize);
 		kfree(req_ctx->backup_info);
-	} else {
+	} else if (!err) {
 		scatterwalk_map_and_copy(req->info, req->dst,
 					 (req->nbytes - ivsize),
 					 ivsize, 0);
 	}
 
-	ablkcipher_request_complete(areq, completion_error);
+	ablkcipher_request_complete(areq, err);
 }
 
 static int cc_cipher_process(struct ablkcipher_request *req,
@@ -719,7 +718,7 @@ static int cc_cipher_process(struct ablkcipher_request *req,
 
 	rc = cc_send_request(ctx_p->drvdata, &cc_req, desc, seq_len,
 			     &req->base);
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		/* Failed to send the request or request completed
 		 * synchronously
 		 */
@@ -730,7 +729,7 @@ exit_process:
 	if (cts_restore_flag)
 		ctx_p->cipher_mode = DRV_CIPHER_CBC_CTS;
 
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		kfree(req_ctx->backup_info);
 		kfree(req_ctx->iv);
 	}

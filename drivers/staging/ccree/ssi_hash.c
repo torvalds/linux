@@ -342,7 +342,7 @@ static void cc_unmap_result(struct device *dev, struct ahash_req_ctx *state,
 	state->digest_result_dma_addr = 0;
 }
 
-static void cc_update_complete(struct device *dev, void *cc_req)
+static void cc_update_complete(struct device *dev, void *cc_req, int err)
 {
 	struct ahash_request *req = (struct ahash_request *)cc_req;
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
@@ -350,10 +350,10 @@ static void cc_update_complete(struct device *dev, void *cc_req)
 	dev_dbg(dev, "req=%pK\n", req);
 
 	cc_unmap_hash_request(dev, state, req->src, false);
-	req->base.complete(&req->base, 0);
+	req->base.complete(&req->base, err);
 }
 
-static void cc_digest_complete(struct device *dev, void *cc_req)
+static void cc_digest_complete(struct device *dev, void *cc_req, int err)
 {
 	struct ahash_request *req = (struct ahash_request *)cc_req;
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
@@ -366,10 +366,10 @@ static void cc_digest_complete(struct device *dev, void *cc_req)
 	cc_unmap_hash_request(dev, state, req->src, false);
 	cc_unmap_result(dev, state, digestsize, req->result);
 	cc_unmap_req(dev, state, ctx);
-	req->base.complete(&req->base, 0);
+	req->base.complete(&req->base, err);
 }
 
-static void cc_hash_complete(struct device *dev, void *cc_req)
+static void cc_hash_complete(struct device *dev, void *cc_req, int err)
 {
 	struct ahash_request *req = (struct ahash_request *)cc_req;
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
@@ -382,7 +382,7 @@ static void cc_hash_complete(struct device *dev, void *cc_req)
 	cc_unmap_hash_request(dev, state, req->src, false);
 	cc_unmap_result(dev, state, digestsize, req->result);
 	cc_unmap_req(dev, state, ctx);
-	req->base.complete(&req->base, 0);
+	req->base.complete(&req->base, err);
 }
 
 static int cc_hash_digest(struct ahash_request *req)
@@ -533,7 +533,7 @@ static int cc_hash_digest(struct ahash_request *req)
 	idx++;
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, src, true);
 		cc_unmap_result(dev, state, digestsize, result);
@@ -621,7 +621,7 @@ static int cc_hash_update(struct ahash_request *req)
 	idx++;
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, src, true);
 	}
@@ -742,7 +742,7 @@ static int cc_hash_finup(struct ahash_request *req)
 	idx++;
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, src, true);
 		cc_unmap_result(dev, state, digestsize, result);
@@ -874,7 +874,7 @@ static int cc_hash_final(struct ahash_request *req)
 	idx++;
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, src, true);
 		cc_unmap_result(dev, state, digestsize, result);
@@ -1356,7 +1356,7 @@ static int cc_mac_update(struct ahash_request *req)
 	cc_req.user_arg = (void *)req;
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
 	}
@@ -1469,7 +1469,7 @@ static int cc_mac_final(struct ahash_request *req)
 	idx++;
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
 		cc_unmap_result(dev, state, digestsize, req->result);
@@ -1542,7 +1542,7 @@ static int cc_mac_finup(struct ahash_request *req)
 	idx++;
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
 		cc_unmap_result(dev, state, digestsize, req->result);
@@ -1616,7 +1616,7 @@ static int cc_mac_digest(struct ahash_request *req)
 	idx++;
 
 	rc = cc_send_request(ctx->drvdata, &cc_req, desc, idx, &req->base);
-	if (rc != -EINPROGRESS) {
+	if (rc != -EINPROGRESS && rc != -EBUSY) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
 		cc_unmap_result(dev, state, digestsize, req->result);
