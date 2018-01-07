@@ -378,7 +378,7 @@ static inline int ip6_forward_finish(struct net *net, struct sock *sk,
 	return dst_output(net, sk, skb);
 }
 
-static unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
+unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
 {
 	unsigned int mtu;
 	struct inet6_dev *idev;
@@ -398,6 +398,7 @@ static unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
 
 	return mtu;
 }
+EXPORT_SYMBOL_GPL(ip6_dst_mtu_forward);
 
 static bool ip6_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
 {
