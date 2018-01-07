@@ -527,7 +527,7 @@ bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 	if (!rq->mpwqe.umr_in_progress)
 		mlx5e_alloc_rx_mpwqe(rq, wq->head);
 
-	return true;
+	return false;
 }
 
 static void mlx5e_lro_update_tcp_hdr(struct mlx5_cqe64 *cqe, struct tcphdr *tcp)
