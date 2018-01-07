@@ -32,9 +32,6 @@ struct rmnet_map_header *rmnet_map_add_map_header(struct sk_buff *skb,
 	u32 padding, map_datalen;
 	u8 *padbytes;
 
-	if (skb_headroom(skb) < sizeof(struct rmnet_map_header))
-		return NULL;
-
 	map_datalen = skb->len - hdrlen;
 	map_header = (struct rmnet_map_header *)
 			skb_push(skb, sizeof(struct rmnet_map_header));
