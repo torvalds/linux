@@ -47,6 +47,22 @@ struct rmnet_map_header {
 	u16 pkt_len;
 }  __aligned(1);
 
+struct rmnet_map_dl_csum_trailer {
+	u8  reserved1;
+	u8  valid:1;
+	u8  reserved2:7;
+	u16 csum_start_offset;
+	u16 csum_length;
+	__be16 csum_value;
+} __aligned(1);
+
+struct rmnet_map_ul_csum_header {
+	__be16 csum_start_offset;
+	u16 csum_insert_offset:14;
+	u16 udp_ip4_ind:1;
+	u16 csum_enabled:1;
+} __aligned(1);
+
 #define RMNET_MAP_GET_MUX_ID(Y) (((struct rmnet_map_header *) \
 				 (Y)->data)->mux_id)
 #define RMNET_MAP_GET_CD_BIT(Y) (((struct rmnet_map_header *) \
