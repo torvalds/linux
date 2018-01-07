@@ -89,5 +89,7 @@ struct rmnet_map_header *rmnet_map_add_map_header(struct sk_buff *skb,
 						  int hdrlen, int pad);
 void rmnet_map_command(struct sk_buff *skb, struct rmnet_port *port);
 int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len);
+void rmnet_map_checksum_uplink_packet(struct sk_buff *skb,
+				      struct net_device *orig_dev);
 
 #endif /* _RMNET_MAP_H_ */

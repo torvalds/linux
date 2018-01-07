@@ -189,6 +189,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		return -EBUSY;
 
 	rmnet_dev->hw_features = NETIF_F_RXCSUM;
+	rmnet_dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {

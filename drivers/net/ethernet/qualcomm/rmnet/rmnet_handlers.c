@@ -141,10 +141,18 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	additional_header_len = 0;
 	required_headroom = sizeof(struct rmnet_map_header);
 
+	if (port->data_format & RMNET_EGRESS_FORMAT_MAP_CKSUMV4) {
+		additional_header_len = sizeof(struct rmnet_map_ul_csum_header);
+		required_headroom += additional_header_len;
+	}
+
 	if (skb_headroom(skb) < required_headroom) {
 		if (pskb_expand_head(skb, required_headroom, 0, GFP_KERNEL))
 			goto fail;
 	}
+
+	if (port->data_format & RMNET_EGRESS_FORMAT_MAP_CKSUMV4)
+		rmnet_map_checksum_uplink_packet(skb, orig_dev);
 
 	map_header = rmnet_map_add_map_header(skb, additional_header_len, 0);
 	if (!map_header)

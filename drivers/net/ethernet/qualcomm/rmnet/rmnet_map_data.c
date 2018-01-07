@@ -171,6 +171,86 @@ rmnet_map_ipv6_dl_csum_trailer(struct sk_buff *skb,
 }
 #endif
 
+static void rmnet_map_complement_ipv4_txporthdr_csum_field(void *iphdr)
+{
+	struct iphdr *ip4h = (struct iphdr *)iphdr;
+	void *txphdr;
+	u16 *csum;
+
+	txphdr = iphdr + ip4h->ihl * 4;
+
+	if (ip4h->protocol == IPPROTO_TCP || ip4h->protocol == IPPROTO_UDP) {
+		csum = (u16 *)rmnet_map_get_csum_field(ip4h->protocol, txphdr);
+		*csum = ~(*csum);
+	}
+}
+
+static void
+rmnet_map_ipv4_ul_csum_header(void *iphdr,
+			      struct rmnet_map_ul_csum_header *ul_header,
+			      struct sk_buff *skb)
+{
+	struct iphdr *ip4h = (struct iphdr *)iphdr;
+	__be16 *hdr = (__be16 *)ul_header, offset;
+
+	offset = htons((__force u16)(skb_transport_header(skb) -
+				     (unsigned char *)iphdr));
+	ul_header->csum_start_offset = offset;
+	ul_header->csum_insert_offset = skb->csum_offset;
+	ul_header->csum_enabled = 1;
+	if (ip4h->protocol == IPPROTO_UDP)
+		ul_header->udp_ip4_ind = 1;
+	else
+		ul_header->udp_ip4_ind = 0;
+
+	/* Changing remaining fields to network order */
+	hdr++;
+	*hdr = htons((__force u16)*hdr);
+
+	skb->ip_summed = CHECKSUM_NONE;
+
+	rmnet_map_complement_ipv4_txporthdr_csum_field(iphdr);
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+static void rmnet_map_complement_ipv6_txporthdr_csum_field(void *ip6hdr)
+{
+	struct ipv6hdr *ip6h = (struct ipv6hdr *)ip6hdr;
+	void *txphdr;
+	u16 *csum;
+
+	txphdr = ip6hdr + sizeof(struct ipv6hdr);
+
+	if (ip6h->nexthdr == IPPROTO_TCP || ip6h->nexthdr == IPPROTO_UDP) {
+		csum = (u16 *)rmnet_map_get_csum_field(ip6h->nexthdr, txphdr);
+		*csum = ~(*csum);
+	}
+}
+
+static void
+rmnet_map_ipv6_ul_csum_header(void *ip6hdr,
+			      struct rmnet_map_ul_csum_header *ul_header,
+			      struct sk_buff *skb)
+{
+	__be16 *hdr = (__be16 *)ul_header, offset;
+
+	offset = htons((__force u16)(skb_transport_header(skb) -
+				     (unsigned char *)ip6hdr));
+	ul_header->csum_start_offset = offset;
+	ul_header->csum_insert_offset = skb->csum_offset;
+	ul_header->csum_enabled = 1;
+	ul_header->udp_ip4_ind = 0;
+
+	/* Changing remaining fields to network order */
+	hdr++;
+	*hdr = htons((__force u16)*hdr);
+
+	skb->ip_summed = CHECKSUM_NONE;
+
+	rmnet_map_complement_ipv6_txporthdr_csum_field(ip6hdr);
+}
+#endif
+
 /* Adds MAP header to front of skb->data
  * Padding is calculated and set appropriately in MAP header. Mux ID is
  * initialized to 0.
@@ -280,4 +360,44 @@ int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len)
 #endif
 
 	return 0;
+}
+
+/* Generates UL checksum meta info header for IPv4 and IPv6 over TCP and UDP
+ * packets that are supported for UL checksum offload.
+ */
+void rmnet_map_checksum_uplink_packet(struct sk_buff *skb,
+				      struct net_device *orig_dev)
+{
+	struct rmnet_map_ul_csum_header *ul_header;
+	void *iphdr;
+
+	ul_header = (struct rmnet_map_ul_csum_header *)
+		    skb_push(skb, sizeof(struct rmnet_map_ul_csum_header));
+
+	if (unlikely(!(orig_dev->features &
+		     (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM))))
+		goto sw_csum;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		iphdr = (char *)ul_header +
+			sizeof(struct rmnet_map_ul_csum_header);
+
+		if (skb->protocol == htons(ETH_P_IP)) {
+			rmnet_map_ipv4_ul_csum_header(iphdr, ul_header, skb);
+			return;
+		} else if (skb->protocol == htons(ETH_P_IPV6)) {
+#if IS_ENABLED(CONFIG_IPV6)
+			rmnet_map_ipv6_ul_csum_header(iphdr, ul_header, skb);
+			return;
+#else
+			goto sw_csum;
+#endif
+		}
+	}
+
+sw_csum:
+	ul_header->csum_start_offset = 0;
+	ul_header->csum_insert_offset = 0;
+	ul_header->csum_enabled = 0;
+	ul_header->udp_ip4_ind = 0;
 }
