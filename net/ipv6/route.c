@@ -3470,10 +3470,9 @@ static int fib6_ifdown(struct rt6_info *rt, void *arg)
 	const struct arg_dev_net *adn = arg;
 	const struct net_device *dev = adn->dev;
 
-	if ((rt->dst.dev == dev || !dev) &&
+	if (rt->dst.dev == dev &&
 	    rt != adn->net->ipv6.ip6_null_entry &&
-	    (rt->rt6i_nsiblings == 0 ||
-	     (dev && netdev_unregistering(dev)) ||
+	    (rt->rt6i_nsiblings == 0 || netdev_unregistering(dev) ||
 	     !rt->rt6i_idev->cnf.ignore_routes_with_linkdown))
 		return -1;
 
@@ -3488,8 +3487,7 @@ void rt6_ifdown(struct net *net, struct net_device *dev)
 	};
 
 	fib6_clean_all(net, fib6_ifdown, &adn);
-	if (dev)
-		rt6_uncached_list_flush_dev(net, dev);
+	rt6_uncached_list_flush_dev(net, dev);
 }
 
 struct rt6_mtu_change_arg {

@@ -2103,7 +2103,6 @@ static void fib6_net_exit(struct net *net)
 {
 	unsigned int i;
 
-	rt6_ifdown(net, NULL);
 	del_timer_sync(&net->ipv6.ip6_fib_timer);
 
 	for (i = 0; i < FIB6_TABLE_HASHSZ; i++) {
