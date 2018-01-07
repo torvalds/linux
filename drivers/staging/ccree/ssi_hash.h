@@ -39,13 +39,13 @@ struct aeshash_state {
 
 /* ahash state */
 struct ahash_req_ctx {
-	u8 *buffers[2];
-	u8 *digest_result_buff;
-	struct async_gen_req_ctx gen_ctx;
+	u8 buffers[2][CC_MAX_HASH_BLCK_SIZE] ____cacheline_aligned;
+	u8 digest_result_buff[CC_MAX_HASH_DIGEST_SIZE] ____cacheline_aligned;
+	u8 digest_buff[CC_MAX_HASH_DIGEST_SIZE] ____cacheline_aligned;
+	u8 opad_digest_buff[CC_MAX_HASH_DIGEST_SIZE] ____cacheline_aligned;
+	u8 digest_bytes_len[HASH_LEN_SIZE] ____cacheline_aligned;
+	struct async_gen_req_ctx gen_ctx ____cacheline_aligned;
 	enum cc_req_dma_buf_type data_dma_buf_type;
-	u8 *digest_buff;
-	u8 *opad_digest_buff;
-	u8 *digest_bytes_len;
 	dma_addr_t opad_digest_dma_addr;
 	dma_addr_t digest_buff_dma_addr;
 	dma_addr_t digest_bytes_len_dma_addr;
