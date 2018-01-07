@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/netdev_features.h>
 #include <linux/if_arp.h>
+#include <net/sock.h>
 #include "rmnet_private.h"
 #include "rmnet_config.h"
 #include "rmnet_vnd.h"
@@ -203,6 +204,8 @@ void rmnet_egress_handler(struct sk_buff *skb)
 	struct rmnet_port *port;
 	struct rmnet_priv *priv;
 	u8 mux_id;
+
+	sk_pacing_shift_update(skb->sk, 8);
 
 	orig_dev = skb->dev;
 	priv = netdev_priv(orig_dev);
