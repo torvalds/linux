@@ -598,9 +598,6 @@ static void proc_completions(struct cc_drvdata *drvdata)
 						drvdata->request_mgr_handle;
 	unsigned int *tail = &request_mgr_handle->req_queue_tail;
 	unsigned int *head = &request_mgr_handle->req_queue_head;
-#if defined(CONFIG_PM)
-	int rc = 0;
-#endif
 
 	while (request_mgr_handle->axi_completed) {
 		request_mgr_handle->axi_completed--;
@@ -625,10 +622,7 @@ static void proc_completions(struct cc_drvdata *drvdata)
 		dev_dbg(dev, "Request completed. axi_completed=%d\n",
 			request_mgr_handle->axi_completed);
 #if defined(CONFIG_PM)
-		rc = cc_pm_put_suspend(dev);
-		if (rc)
-			dev_err(dev, "Failed to set runtime suspension %d\n",
-				rc);
+		cc_pm_put_suspend(dev);
 #endif
 	}
 }
