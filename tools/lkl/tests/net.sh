@@ -58,6 +58,10 @@ setup_backend()
     "loopback")
         ;;
     "pipe")
+        if [ -n "$VALGRIND" ]; then
+            echo "pipe test with valgrind takes so long: skip"
+            return $TEST_SKIP
+        fi
         if [ -z $(lkl_test_cmd which mkfifo) ]; then
             echo "no mkfifo command"
             return $TEST_SKIP
