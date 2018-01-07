@@ -901,6 +901,9 @@ static unsigned int early_drop_list(struct net *net,
 	hlist_nulls_for_each_entry_rcu(h, n, head, hnnode) {
 		tmp = nf_ct_tuplehash_to_ctrack(h);
 
+		if (test_bit(IPS_OFFLOAD_BIT, &tmp->status))
+			continue;
+
 		if (nf_ct_is_expired(tmp)) {
 			nf_ct_gc_expired(tmp);
 			continue;
@@ -975,6 +978,18 @@ static bool gc_worker_can_early_drop(const struct nf_conn *ct)
 	return false;
 }
 
+#define	DAY	(86400 * HZ)
+
+/* Set an arbitrary timeout large enough not to ever expire, this save
+ * us a check for the IPS_OFFLOAD_BIT from the packet path via
+ * nf_ct_is_expired().
+ */
+static void nf_ct_offload_timeout(struct nf_conn *ct)
+{
+	if (nf_ct_expires(ct) < DAY / 2)
+		ct->timeout = nfct_time_stamp + DAY;
+}
+
 static void gc_worker(struct work_struct *work)
 {
 	unsigned int min_interval = max(HZ / GC_MAX_BUCKETS_DIV, 1u);
@@ -1011,6 +1026,11 @@ static void gc_worker(struct work_struct *work)
 			tmp = nf_ct_tuplehash_to_ctrack(h);
 
 			scanned++;
+			if (test_bit(IPS_OFFLOAD_BIT, &tmp->status)) {
+				nf_ct_offload_timeout(tmp);
+				continue;
+			}
+
 			if (nf_ct_is_expired(tmp)) {
 				nf_ct_gc_expired(tmp);
 				expired_count++;

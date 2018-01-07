@@ -305,6 +305,9 @@ static bool tcp_invert_tuple(struct nf_conntrack_tuple *tuple,
 /* Print out the private part of the conntrack. */
 static void tcp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
+	if (test_bit(IPS_OFFLOAD_BIT, &ct->status))
+		return;
+
 	seq_printf(s, "%s ", tcp_conntrack_names[ct->proto.tcp.state]);
 }
 #endif
