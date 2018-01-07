@@ -457,6 +457,10 @@ include::itrace.txt[]
 	will be printed. Each entry is function name or file/line. Enabled by
 	default, disable with --no-inline.
 
+--stats::
+	Display overall events statistics without any further processing.
+	(like the one at the end of the perf report -D command)
+
 include::callchain-overhead-calculation.txt[]
 
 SEE ALSO

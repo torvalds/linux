@@ -62,6 +62,7 @@ struct report {
 	bool			show_threads;
 	bool			inverted_callchain;
 	bool			mem_mode;
+	bool			stats_mode;
 	bool			header;
 	bool			header_only;
 	bool			nonany_branch_mode;
@@ -588,6 +589,20 @@ static void report__output_resort(struct report *rep)
 	ui_progress__finish();
 }
 
+static void stats_setup(struct report *rep)
+{
+	memset(&rep->tool, 0, sizeof(rep->tool));
+	rep->tool.no_warn = true;
+}
+
+static int stats_print(struct report *rep)
+{
+	struct perf_session *session = rep->session;
+
+	perf_session__fprintf_nr_events(session, stdout);
+	return 0;
+}
+
 static int __cmd_report(struct report *rep)
 {
 	int ret;
@@ -619,11 +634,17 @@ static int __cmd_report(struct report *rep)
 		return ret;
 	}
 
+	if (rep->stats_mode)
+		stats_setup(rep);
+
 	ret = perf_session__process_events(session);
 	if (ret) {
 		ui__error("failed to process sample\n");
 		return ret;
 	}
+
+	if (rep->stats_mode)
+		return stats_print(rep);
 
 	report__warn_kptr_restrict(rep);
 
@@ -781,6 +802,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any message"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN(0, "stats", &report.stats_mode, "Display event stats"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
@@ -1042,6 +1064,8 @@ repeat:
 		report.tool.show_feat_hdr = SHOW_FEAT_HEADER;
 	if (report.show_full_info)
 		report.tool.show_feat_hdr = SHOW_FEAT_HEADER_FULL_INFO;
+	if (report.stats_mode)
+		use_browser = 0;
 
 	if (strcmp(input_name, "-") != 0)
 		setup_browser(true);
@@ -1064,7 +1088,7 @@ repeat:
 			ret = 0;
 			goto error;
 		}
-	} else if (use_browser == 0 && !quiet) {
+	} else if (use_browser == 0 && !quiet && !report.stats_mode) {
 		fputs("# To display the perf.data header info, please use --header/--header-only options.\n#\n",
 		      stdout);
 	}
