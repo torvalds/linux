@@ -82,7 +82,7 @@ struct rxe_dev *get_rxe_by_name(const char *name)
 }
 
 
-struct rxe_recv_sockets recv_sockets;
+static struct rxe_recv_sockets recv_sockets;
 
 struct device *rxe_dma_device(struct rxe_dev *rxe)
 {
