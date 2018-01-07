@@ -143,6 +143,7 @@ enum {
 	MLX5_CMD_OP_MODIFY_HCA_VPORT_CONTEXT      = 0x763,
 	MLX5_CMD_OP_QUERY_HCA_VPORT_GID           = 0x764,
 	MLX5_CMD_OP_QUERY_HCA_VPORT_PKEY          = 0x765,
+	MLX5_CMD_OP_QUERY_VNIC_ENV                = 0x76f,
 	MLX5_CMD_OP_QUERY_VPORT_COUNTER           = 0x770,
 	MLX5_CMD_OP_ALLOC_Q_COUNTER               = 0x771,
 	MLX5_CMD_OP_DEALLOC_Q_COUNTER             = 0x772,
@@ -875,7 +876,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         vhca_group_manager[0x1];
 	u8         ib_virt[0x1];
 	u8         eth_virt[0x1];
-	u8         reserved_at_1a4[0x1];
+	u8         vnic_env_queue_counters[0x1];
 	u8         ets[0x1];
 	u8         nic_flow_table[0x1];
 	u8         eswitch_flow_table[0x1];
@@ -2386,6 +2387,24 @@ struct mlx5_ifc_xrc_srqc_bits {
 	u8         reserved_at_180[0x80];
 };
 
+struct mlx5_ifc_vnic_diagnostic_statistics_bits {
+	u8         counter_error_queues[0x20];
+
+	u8         total_error_queues[0x20];
+
+	u8         send_queue_priority_update_flow[0x20];
+
+	u8         reserved_at_60[0x20];
+
+	u8         nic_receive_steering_discard[0x40];
+
+	u8         receive_discard_vport_down[0x40];
+
+	u8         transmit_discard_vport_down[0x40];
+
+	u8         reserved_at_140[0xec0];
+};
+
 struct mlx5_ifc_traffic_counter_bits {
 	u8         packets[0x40];
 
@@ -3648,6 +3667,35 @@ enum {
 };
 
 struct mlx5_ifc_query_vport_state_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         other_vport[0x1];
+	u8         reserved_at_41[0xf];
+	u8         vport_number[0x10];
+
+	u8         reserved_at_60[0x20];
+};
+
+struct mlx5_ifc_query_vnic_env_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x40];
+
+	struct mlx5_ifc_vnic_diagnostic_statistics_bits vport_env;
+};
+
+enum {
+	MLX5_QUERY_VNIC_ENV_IN_OP_MOD_VPORT_DIAG_STATISTICS  = 0x0,
+};
+
+struct mlx5_ifc_query_vnic_env_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_at_10[0x10];
 
