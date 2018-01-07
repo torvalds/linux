@@ -3473,8 +3473,10 @@ static int fib6_ifdown(struct rt6_info *rt, void *arg)
 	if (rt->dst.dev == dev &&
 	    rt != adn->net->ipv6.ip6_null_entry &&
 	    (rt->rt6i_nsiblings == 0 || netdev_unregistering(dev) ||
-	     !rt->rt6i_idev->cnf.ignore_routes_with_linkdown))
+	     !rt->rt6i_idev->cnf.ignore_routes_with_linkdown)) {
+		rt->rt6i_nh_flags |= (RTNH_F_DEAD | RTNH_F_LINKDOWN);
 		return -1;
+	}
 
 	return 0;
 }
