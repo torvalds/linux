@@ -626,7 +626,7 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 		root = root->parent;
 
 	pci_bus_for_each_resource(root, res, i) {
-		if (res && res->flags & IORESOURCE_MEM_64 &&
+		if (res && res->flags & (IORESOURCE_MEM | IORESOURCE_MEM_64) &&
 		    res->start > 0x100000000ull)
 			break;
 	}
