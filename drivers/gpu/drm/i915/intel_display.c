@@ -12544,11 +12544,15 @@ static int intel_atomic_commit(struct drm_device *dev,
 	INIT_WORK(&state->commit_work, intel_atomic_commit_work);
 
 	i915_sw_fence_commit(&intel_state->commit_ready);
-	if (nonblock)
+	if (nonblock && intel_state->modeset) {
+		queue_work(dev_priv->modeset_wq, &state->commit_work);
+	} else if (nonblock) {
 		queue_work(system_unbound_wq, &state->commit_work);
-	else
+	} else {
+		if (intel_state->modeset)
+			flush_workqueue(dev_priv->modeset_wq);
 		intel_atomic_commit_tail(state);
-
+	}
 
 	return 0;
 }
@@ -14462,6 +14466,8 @@ int intel_modeset_init(struct drm_device *dev)
 	enum pipe pipe;
 	struct intel_crtc *crtc;
 
+	dev_priv->modeset_wq = alloc_ordered_workqueue("i915_modeset", 0);
+
 	drm_mode_config_init(dev);
 
 	dev->mode_config.min_width = 0;
@@ -15270,6 +15276,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	intel_cleanup_gt_powersave(dev_priv);
 
 	intel_teardown_gmbus(dev_priv);
+
+	destroy_workqueue(dev_priv->modeset_wq);
 }
 
 void intel_connector_attach_encoder(struct intel_connector *connector,
