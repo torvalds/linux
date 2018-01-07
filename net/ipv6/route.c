@@ -1353,7 +1353,9 @@ out:
 
 	/* Update fn->fn_sernum to invalidate all cached dst */
 	if (!err) {
+		spin_lock_bh(&ort->rt6i_table->tb6_lock);
 		fib6_update_sernum(ort);
+		spin_unlock_bh(&ort->rt6i_table->tb6_lock);
 		fib6_force_start_gc(net);
 	}
 

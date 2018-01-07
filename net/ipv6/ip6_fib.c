@@ -107,16 +107,13 @@ enum {
 
 void fib6_update_sernum(struct rt6_info *rt)
 {
-	struct fib6_table *table = rt->rt6i_table;
 	struct net *net = dev_net(rt->dst.dev);
 	struct fib6_node *fn;
 
-	spin_lock_bh(&table->tb6_lock);
 	fn = rcu_dereference_protected(rt->rt6i_node,
-			lockdep_is_held(&table->tb6_lock));
+			lockdep_is_held(&rt->rt6i_table->tb6_lock));
 	if (fn)
 		fn->fn_sernum = fib6_new_sernum(net);
-	spin_unlock_bh(&table->tb6_lock);
 }
 
 /*
