@@ -260,10 +260,152 @@ fib_down_test()
 	fib_down_multipath_test
 }
 
+fib_carrier_local_test()
+{
+	ret=0
+
+	# Local routes should not be affected when carrier changes.
+	netns_create "testns"
+
+	ip netns exec testns ip link add dummy0 type dummy
+	ip netns exec testns ip link set dev dummy0 up
+
+	ip netns exec testns ip link set dev dummy0 carrier on
+
+	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
+	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+
+	ip netns exec testns ip route get fibmatch 198.51.100.1 &> /dev/null
+	check_err $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 &> /dev/null
+	check_err $?
+
+	ip netns exec testns ip route get fibmatch 198.51.100.1 | \
+		grep -q "linkdown"
+	check_fail $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 | \
+		grep -q "linkdown"
+	check_fail $?
+
+	ip netns exec testns ip link set dev dummy0 carrier off
+
+	ip netns exec testns ip route get fibmatch 198.51.100.1 &> /dev/null
+	check_err $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 &> /dev/null
+	check_err $?
+
+	ip netns exec testns ip route get fibmatch 198.51.100.1 | \
+		grep -q "linkdown"
+	check_fail $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::1 | \
+		grep -q "linkdown"
+	check_fail $?
+
+	ip netns exec testns ip address add 192.0.2.1/24 dev dummy0
+	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy0
+
+	ip netns exec testns ip route get fibmatch 192.0.2.1 &> /dev/null
+	check_err $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::1 &> /dev/null
+	check_err $?
+
+	ip netns exec testns ip route get fibmatch 192.0.2.1 | \
+		grep -q "linkdown"
+	check_fail $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::1 | \
+		grep -q "linkdown"
+	check_fail $?
+
+	ip netns exec testns ip link del dev dummy0
+
+	ip netns del testns
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: local route carrier test"
+		return 1
+	fi
+	echo "PASS: local route carrier test"
+}
+
+fib_carrier_unicast_test()
+{
+	ret=0
+
+	netns_create "testns"
+
+	ip netns exec testns ip link add dummy0 type dummy
+	ip netns exec testns ip link set dev dummy0 up
+
+	ip netns exec testns ip link set dev dummy0 carrier on
+
+	ip netns exec testns ip address add 198.51.100.1/24 dev dummy0
+	ip netns exec testns ip -6 address add 2001:db8:1::1/64 dev dummy0
+
+	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
+	check_err $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	check_err $?
+
+	ip netns exec testns ip route get fibmatch 198.51.100.2 | \
+		grep -q "linkdown"
+	check_fail $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 | \
+		grep -q "linkdown"
+	check_fail $?
+
+	ip netns exec testns ip link set dev dummy0 carrier off
+
+	ip netns exec testns ip route get fibmatch 198.51.100.2 &> /dev/null
+	check_err $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 &> /dev/null
+	check_err $?
+
+	ip netns exec testns ip route get fibmatch 198.51.100.2 | \
+		grep -q "linkdown"
+	check_err $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:1::2 | \
+		grep -q "linkdown"
+	check_err $?
+
+	ip netns exec testns ip address add 192.0.2.1/24 dev dummy0
+	ip netns exec testns ip -6 address add 2001:db8:2::1/64 dev dummy0
+
+	ip netns exec testns ip route get fibmatch 192.0.2.2 &> /dev/null
+	check_err $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::2 &> /dev/null
+	check_err $?
+
+	ip netns exec testns ip route get fibmatch 192.0.2.2 | \
+		grep -q "linkdown"
+	check_err $?
+	ip netns exec testns ip -6 route get fibmatch 2001:db8:2::2 | \
+		grep -q "linkdown"
+	check_err $?
+
+	ip netns exec testns ip link del dev dummy0
+
+	ip netns del testns
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: unicast route carrier test"
+		return 1
+	fi
+	echo "PASS: unicast route carrier test"
+}
+
+fib_carrier_test()
+{
+	echo "Running netdev carrier change tests"
+
+	fib_carrier_local_test
+	fib_carrier_unicast_test
+}
+
 fib_test()
 {
 	fib_unreg_test
 	fib_down_test
+	fib_carrier_test
 }
 
 if [ "$(id -u)" -ne 0 ];then
