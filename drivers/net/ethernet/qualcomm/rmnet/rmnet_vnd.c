@@ -188,6 +188,8 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	if (rmnet_get_endpoint(port, id))
 		return -EBUSY;
 
+	rmnet_dev->hw_features = NETIF_F_RXCSUM;
+
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
 		ep->egress_dev = rmnet_dev;

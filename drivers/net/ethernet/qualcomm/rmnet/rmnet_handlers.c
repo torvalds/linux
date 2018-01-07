@@ -66,8 +66,8 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 			    struct rmnet_port *port)
 {
 	struct rmnet_endpoint *ep;
+	u16 len, pad;
 	u8 mux_id;
-	u16 len;
 
 	if (RMNET_MAP_GET_CD_BIT(skb)) {
 		if (port->data_format & RMNET_INGRESS_FORMAT_MAP_COMMANDS)
@@ -77,7 +77,8 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 	}
 
 	mux_id = RMNET_MAP_GET_MUX_ID(skb);
-	len = RMNET_MAP_GET_LENGTH(skb) - RMNET_MAP_GET_PAD(skb);
+	pad = RMNET_MAP_GET_PAD(skb);
+	len = RMNET_MAP_GET_LENGTH(skb) - pad;
 
 	if (mux_id >= RMNET_MAX_LOGICAL_EP)
 		goto free_skb;
@@ -90,8 +91,14 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 
 	/* Subtract MAP header */
 	skb_pull(skb, sizeof(struct rmnet_map_header));
-	skb_trim(skb, len);
 	rmnet_set_skb_proto(skb);
+
+	if (port->data_format & RMNET_INGRESS_FORMAT_MAP_CKSUMV4) {
+		if (!rmnet_map_checksum_downlink_packet(skb, len + pad))
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+
+	skb_trim(skb, len);
 	rmnet_deliver_skb(skb);
 	return;
 
@@ -115,7 +122,7 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 	}
 
 	if (port->data_format & RMNET_INGRESS_FORMAT_DEAGGREGATION) {
-		while ((skbn = rmnet_map_deaggregate(skb)) != NULL)
+		while ((skbn = rmnet_map_deaggregate(skb, port)) != NULL)
 			__rmnet_map_ingress_handler(skbn, port);
 
 		consume_skb(skb);
