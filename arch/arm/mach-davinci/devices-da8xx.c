@@ -370,19 +370,6 @@ static struct platform_device da8xx_wdt_device = {
 	.resource	= da8xx_watchdog_resources,
 };
 
-void da8xx_restart(enum reboot_mode mode, const char *cmd)
-{
-	struct device *dev;
-
-	dev = bus_find_device_by_name(&platform_bus_type, NULL, "davinci-wdt");
-	if (!dev) {
-		pr_err("%s: failed to find watchdog device\n", __func__);
-		return;
-	}
-
-	davinci_watchdog_reset(to_platform_device(dev));
-}
-
 int __init da8xx_register_watchdog(void)
 {
 	return platform_device_register(&da8xx_wdt_device);

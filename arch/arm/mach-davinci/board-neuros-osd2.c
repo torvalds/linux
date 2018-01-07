@@ -231,5 +231,4 @@ MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
 	.init_machine = davinci_ntosd2_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= davinci_restart,
 MACHINE_END

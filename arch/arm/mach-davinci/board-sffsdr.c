@@ -154,5 +154,4 @@ MACHINE_START(SFFSDR, "Lyrtech SFFSDR")
 	.init_machine = davinci_sffsdr_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
-	.restart	= davinci_restart,
 MACHINE_END

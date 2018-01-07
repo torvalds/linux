@@ -100,7 +100,6 @@ DT_MACHINE_START(DA850_DT, "Generic DA850/OMAP-L138/AM18x")
 	.init_machine	= da850_init_machine,
 	.dt_compat	= da850_boards_compat,
 	.init_late	= davinci_init_late,
-	.restart	= da8xx_restart,
 MACHINE_END
 
 #endif
