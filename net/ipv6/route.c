@@ -2344,7 +2344,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	rt->rt6i_idev     = idev;
 	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 0);
 
-	/* Add this dst into uncached_list so that rt6_ifdown() can
+	/* Add this dst into uncached_list so that rt6_disable_ip() can
 	 * do proper release of the net_device
 	 */
 	rt6_uncached_list_add(rt);
@@ -3461,7 +3461,10 @@ void rt6_clean_tohost(struct net *net, struct in6_addr *gateway)
 
 struct arg_netdev_event {
 	const struct net_device *dev;
-	unsigned int nh_flags;
+	union {
+		unsigned int nh_flags;
+		unsigned long event;
+	};
 };
 
 static int fib6_ifup(struct rt6_info *rt, void *p_arg)
@@ -3488,19 +3491,15 @@ void rt6_sync_up(struct net_device *dev, unsigned int nh_flags)
 	fib6_clean_all(dev_net(dev), fib6_ifup, &arg);
 }
 
-struct arg_dev_net {
-	struct net_device *dev;
-	struct net *net;
-};
-
 /* called with write lock held for table with rt */
-static int fib6_ifdown(struct rt6_info *rt, void *arg)
+static int fib6_ifdown(struct rt6_info *rt, void *p_arg)
 {
-	const struct arg_dev_net *adn = arg;
-	const struct net_device *dev = adn->dev;
+	const struct arg_netdev_event *arg = p_arg;
+	const struct net_device *dev = arg->dev;
+	const struct net *net = dev_net(dev);
 
 	if (rt->dst.dev == dev &&
-	    rt != adn->net->ipv6.ip6_null_entry &&
+	    rt != net->ipv6.ip6_null_entry &&
 	    (rt->rt6i_nsiblings == 0 || netdev_unregistering(dev) ||
 	     !rt->rt6i_idev->cnf.ignore_routes_with_linkdown)) {
 		rt->rt6i_nh_flags |= (RTNH_F_DEAD | RTNH_F_LINKDOWN);
@@ -3510,15 +3509,21 @@ static int fib6_ifdown(struct rt6_info *rt, void *arg)
 	return 0;
 }
 
-void rt6_ifdown(struct net *net, struct net_device *dev)
+static void rt6_sync_down_dev(struct net_device *dev, unsigned long event)
 {
-	struct arg_dev_net adn = {
+	struct arg_netdev_event arg = {
 		.dev = dev,
-		.net = net,
+		.event = event,
 	};
 
-	fib6_clean_all(net, fib6_ifdown, &adn);
-	rt6_uncached_list_flush_dev(net, dev);
+	fib6_clean_all(dev_net(dev), fib6_ifdown, &arg);
+}
+
+void rt6_disable_ip(struct net_device *dev, unsigned long event)
+{
+	rt6_sync_down_dev(dev, event);
+	rt6_uncached_list_flush_dev(dev_net(dev), dev);
+	neigh_ifdown(&nd_tbl, dev);
 }
 
 struct rt6_mtu_change_arg {

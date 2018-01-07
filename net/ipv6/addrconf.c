@@ -3580,6 +3580,7 @@ static bool addr_is_local(const struct in6_addr *addr)
 
 static int addrconf_ifdown(struct net_device *dev, int how)
 {
+	unsigned long event = how ? NETDEV_UNREGISTER : NETDEV_DOWN;
 	struct net *net = dev_net(dev);
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa, *tmp;
@@ -3589,8 +3590,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	ASSERT_RTNL();
 
-	rt6_ifdown(net, dev);
-	neigh_ifdown(&nd_tbl, dev);
+	rt6_disable_ip(dev, event);
 
 	idev = __in6_dev_get(dev);
 	if (!idev)

@@ -165,11 +165,11 @@ struct rt6_rtnl_dump_arg {
 };
 
 int rt6_dump_route(struct rt6_info *rt, void *p_arg);
-void rt6_ifdown(struct net *net, struct net_device *dev);
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
 void rt6_sync_up(struct net_device *dev, unsigned int nh_flags);
+void rt6_disable_ip(struct net_device *dev, unsigned long event);
 
 static inline const struct rt6_info *skb_rt6_info(const struct sk_buff *skb)
 {
