@@ -3459,6 +3459,35 @@ void rt6_clean_tohost(struct net *net, struct in6_addr *gateway)
 	fib6_clean_all(net, fib6_clean_tohost, gateway);
 }
 
+struct arg_netdev_event {
+	const struct net_device *dev;
+	unsigned int nh_flags;
+};
+
+static int fib6_ifup(struct rt6_info *rt, void *p_arg)
+{
+	const struct arg_netdev_event *arg = p_arg;
+	const struct net *net = dev_net(arg->dev);
+
+	if (rt != net->ipv6.ip6_null_entry && rt->dst.dev == arg->dev)
+		rt->rt6i_nh_flags &= ~arg->nh_flags;
+
+	return 0;
+}
+
+void rt6_sync_up(struct net_device *dev, unsigned int nh_flags)
+{
+	struct arg_netdev_event arg = {
+		.dev = dev,
+		.nh_flags = nh_flags,
+	};
+
+	if (nh_flags & RTNH_F_DEAD && netif_carrier_ok(dev))
+		arg.nh_flags |= RTNH_F_LINKDOWN;
+
+	fib6_clean_all(dev_net(dev), fib6_ifup, &arg);
+}
+
 struct arg_dev_net {
 	struct net_device *dev;
 	struct net *net;

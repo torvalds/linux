@@ -3484,6 +3484,9 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			if (run_pending)
 				addrconf_dad_run(idev);
 
+			/* Device has an address by now */
+			rt6_sync_up(dev, RTNH_F_DEAD);
+
 			/*
 			 * If the MTU changed during the interface down,
 			 * when the interface up, the changed MTU must be
