@@ -1391,10 +1391,8 @@ int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
 	struct device *dev = drvdata_to_dev(drvdata);
-	u8 *curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
-			areq_ctx->buff0;
-	u32 *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
-			&areq_ctx->buff0_cnt;
+	u8 *curr_buff = cc_hash_buf(areq_ctx);
+	u32 *curr_buff_cnt = cc_hash_buf_cnt(areq_ctx);
 	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
 	struct buffer_array sg_data;
 	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
@@ -1472,14 +1470,10 @@ int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
 	struct device *dev = drvdata_to_dev(drvdata);
-	u8 *curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
-			areq_ctx->buff0;
-	u32 *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
-			&areq_ctx->buff0_cnt;
-	u8 *next_buff = areq_ctx->buff_index ? areq_ctx->buff0 :
-			areq_ctx->buff1;
-	u32 *next_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff0_cnt :
-			&areq_ctx->buff1_cnt;
+	u8 *curr_buff = cc_hash_buf(areq_ctx);
+	u32 *curr_buff_cnt = cc_hash_buf_cnt(areq_ctx);
+	u8 *next_buff = cc_next_buf(areq_ctx);
+	u32 *next_buff_cnt = cc_next_buf_cnt(areq_ctx);
 	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
 	unsigned int update_data_len;
 	u32 total_in_len = nbytes + *curr_buff_cnt;
@@ -1585,8 +1579,7 @@ void cc_unmap_hash_request(struct device *dev, void *ctx,
 			   struct scatterlist *src, bool do_revert)
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
-	u32 *prev_len = areq_ctx->buff_index ?  &areq_ctx->buff0_cnt :
-						&areq_ctx->buff1_cnt;
+	u32 *prev_len = cc_next_buf_cnt(areq_ctx);
 
 	/*In case a pool was set, a table was
 	 *allocated and should be released

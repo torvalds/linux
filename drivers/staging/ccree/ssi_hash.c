@@ -129,12 +129,12 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 	bool is_hmac = ctx->is_hmac;
 	int rc = -ENOMEM;
 
-	state->buff0 = kzalloc(CC_MAX_HASH_BLCK_SIZE, flags);
-	if (!state->buff0)
+	state->buffers[0] = kzalloc(CC_MAX_HASH_BLCK_SIZE, flags);
+	if (!state->buffers[0])
 		goto fail0;
 
-	state->buff1 = kzalloc(CC_MAX_HASH_BLCK_SIZE, flags);
-	if (!state->buff1)
+	state->buffers[1] = kzalloc(CC_MAX_HASH_BLCK_SIZE, flags);
+	if (!state->buffers[1])
 		goto fail_buff0;
 
 	state->digest_result_buff = kzalloc(CC_MAX_HASH_DIGEST_SIZE, flags);
@@ -252,8 +252,8 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 	} else {
 		state->opad_digest_dma_addr = 0;
 	}
-	state->buff0_cnt = 0;
-	state->buff1_cnt = 0;
+	state->buf_cnt[0] = 0;
+	state->buf_cnt[1] = 0;
 	state->buff_index = 0;
 	state->mlli_params.curr_pool = NULL;
 
@@ -281,11 +281,11 @@ fail_digest_result_buff:
 	kfree(state->digest_result_buff);
 	state->digest_result_buff = NULL;
 fail_buff1:
-	kfree(state->buff1);
-	state->buff1 = NULL;
+	kfree(state->buffers[1]);
+	state->buffers[1] = NULL;
 fail_buff0:
-	kfree(state->buff0);
-	state->buff0 = NULL;
+	kfree(state->buffers[0]);
+	state->buffers[0] = NULL;
 fail0:
 	return rc;
 }
@@ -319,8 +319,8 @@ static void cc_unmap_req(struct device *dev, struct ahash_req_ctx *state,
 	kfree(state->digest_bytes_len);
 	kfree(state->digest_buff);
 	kfree(state->digest_result_buff);
-	kfree(state->buff1);
-	kfree(state->buff0);
+	kfree(state->buffers[1]);
+	kfree(state->buffers[0]);
 }
 
 static void cc_unmap_result(struct device *dev, struct ahash_req_ctx *state,
@@ -1375,8 +1375,7 @@ static int cc_mac_final(struct ahash_request *req)
 	u32 key_size, key_len;
 	u32 digestsize = crypto_ahash_digestsize(tfm);
 	gfp_t flags = cc_gfp_flags(&req->base);
-	u32 rem_cnt = state->buff_index ? state->buff1_cnt :
-			state->buff0_cnt;
+	u32 rem_cnt = *cc_hash_buf_cnt(state);
 
 	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
 		key_size = CC_AES_128_BIT_KEY_SIZE;
@@ -1630,9 +1629,8 @@ static int cc_hash_export(struct ahash_request *req, void *out)
 	struct cc_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
-	u8 *curr_buff = state->buff_index ? state->buff1 : state->buff0;
-	u32 curr_buff_cnt = state->buff_index ? state->buff1_cnt :
-				state->buff0_cnt;
+	u8 *curr_buff = cc_hash_buf(state);
+	u32 curr_buff_cnt = *cc_hash_buf_cnt(state);
 	const u32 tmp = CC_EXPORT_MAGIC;
 
 	memcpy(out, &tmp, sizeof(u32));
@@ -1715,8 +1713,8 @@ static int cc_hash_import(struct ahash_request *req, const void *in)
 	}
 	in += sizeof(u32);
 
-	state->buff0_cnt = tmp;
-	memcpy(state->buff0, in, state->buff0_cnt);
+	state->buf_cnt[0] = tmp;
+	memcpy(state->buffers[0], in, tmp);
 
 out:
 	return rc;

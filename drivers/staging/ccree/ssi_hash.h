@@ -39,8 +39,7 @@ struct aeshash_state {
 
 /* ahash state */
 struct ahash_req_ctx {
-	u8 *buff0;
-	u8 *buff1;
+	u8 *buffers[2];
 	u8 *digest_result_buff;
 	struct async_gen_req_ctx gen_ctx;
 	enum cc_req_dma_buf_type data_dma_buf_type;
@@ -51,8 +50,7 @@ struct ahash_req_ctx {
 	dma_addr_t digest_buff_dma_addr;
 	dma_addr_t digest_bytes_len_dma_addr;
 	dma_addr_t digest_result_dma_addr;
-	u32 buff0_cnt;
-	u32 buff1_cnt;
+	u32 buf_cnt[2];
 	u32 buff_index;
 	u32 xcbc_count; /* count xcbc update operatations */
 	struct scatterlist buff_sg[2];
@@ -61,6 +59,26 @@ struct ahash_req_ctx {
 	u32 mlli_nents;
 	struct mlli_params mlli_params;
 };
+
+static inline u32 *cc_hash_buf_cnt(struct ahash_req_ctx *state)
+{
+	return &state->buf_cnt[state->buff_index];
+}
+
+static inline u8 *cc_hash_buf(struct ahash_req_ctx *state)
+{
+	return state->buffers[state->buff_index];
+}
+
+static inline u32 *cc_next_buf_cnt(struct ahash_req_ctx *state)
+{
+	return &state->buf_cnt[state->buff_index ^ 1];
+}
+
+static inline u8 *cc_next_buf(struct ahash_req_ctx *state)
+{
+	return state->buffers[state->buff_index ^ 1];
+}
 
 int cc_hash_alloc(struct cc_drvdata *drvdata);
 int cc_init_hash_sram(struct cc_drvdata *drvdata);
