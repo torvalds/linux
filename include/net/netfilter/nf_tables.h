@@ -9,6 +9,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/nf_tables.h>
 #include <linux/u64_stats_sync.h>
+#include <net/netfilter/nf_flow_table.h>
 #include <net/netlink.h>
 
 #define NFT_JUMP_STACK_SIZE	16
@@ -943,6 +944,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  *	@chains: chains in the table
  *	@sets: sets in the table
  *	@objects: stateful objects in the table
+ *	@flowtables: flow tables in the table
  *	@hgenerator: handle generator state
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
@@ -954,6 +956,7 @@ struct nft_table {
 	struct list_head		chains;
 	struct list_head		sets;
 	struct list_head		objects;
+	struct list_head		flowtables;
 	u64				hgenerator;
 	u32				use;
 	u16				flags:14,
@@ -1083,6 +1086,44 @@ struct nft_object_ops {
 
 int nft_register_obj(struct nft_object_type *obj_type);
 void nft_unregister_obj(struct nft_object_type *obj_type);
+
+/**
+ *	struct nft_flowtable - nf_tables flow table
+ *
+ *	@list: flow table list node in table list
+ * 	@table: the table the flow table is contained in
+ *	@name: name of this flow table
+ *	@hooknum: hook number
+ *	@priority: hook priority
+ *	@ops_len: number of hooks in array
+ *	@genmask: generation mask
+ *	@use: number of references to this flow table
+ *	@data: rhashtable and garbage collector
+ * 	@ops: array of hooks
+ */
+struct nft_flowtable {
+	struct list_head		list;
+	struct nft_table		*table;
+	char				*name;
+	int				hooknum;
+	int				priority;
+	int				ops_len;
+	u32				genmask:2,
+					use:30;
+	/* runtime data below here */
+	struct nf_hook_ops		*ops ____cacheline_aligned;
+	struct nf_flowtable		data;
+};
+
+struct nft_flowtable *nf_tables_flowtable_lookup(const struct nft_table *table,
+						 const struct nlattr *nla,
+						 u8 genmask);
+void nft_flow_table_iterate(struct net *net,
+			    void (*iter)(struct nf_flowtable *flowtable, void *data),
+			    void *data);
+
+void nft_register_flowtable_type(struct nf_flowtable_type *type);
+void nft_unregister_flowtable_type(struct nf_flowtable_type *type);
 
 /**
  *	struct nft_traceinfo - nft tracing information and state
@@ -1316,5 +1357,12 @@ struct nft_trans_obj {
 
 #define nft_trans_obj(trans)	\
 	(((struct nft_trans_obj *)trans->data)->obj)
+
+struct nft_trans_flowtable {
+	struct nft_flowtable		*flowtable;
+};
+
+#define nft_trans_flowtable(trans)	\
+	(((struct nft_trans_flowtable *)trans->data)->flowtable)
 
 #endif /* _NET_NF_TABLES_H */
