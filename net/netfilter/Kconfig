@@ -657,6 +657,13 @@ endif # NF_TABLES_NETDEV
 
 endif # NF_TABLES
 
+config NF_FLOW_TABLE
+	tristate "Netfilter flow table module"
+	help
+	  This option adds the flow table core infrastructure.
+
+	  To compile it as a module, choose M here.
+
 config NETFILTER_XTABLES
 	tristate "Netfilter Xtables support (required for ip_tables)"
 	default m if NETFILTER_ADVANCED=n
