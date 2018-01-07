@@ -81,12 +81,6 @@ struct oct1_map
 };
 
 
-/*****************************************************************************
- *
- * Basic ASN.1 decoding routines (gxsnmp author Dirk Wisse)
- *
- *****************************************************************************/
-
 /* Class */
 #define ASN1_UNI	0	/* Universal */
 #define ASN1_APL	1	/* Application */
@@ -490,12 +484,6 @@ static unsigned char asn1_oid_decode(struct asn1_ctx *ctx,
 	}
 	return 1;
 }
-
-/*****************************************************************************
- *
- * SNMP decoding routines (gxsnmp author Dirk Wisse)
- *
- *****************************************************************************/
 
 /* SNMP Versions */
 #define SNMP_V1				0
@@ -992,12 +980,6 @@ err_id_free:
 	return 0;
 }
 
-/*****************************************************************************
- *
- * Misc. routines
- *
- *****************************************************************************/
-
 /*
  * Parse and mangle SNMP message according to mapping.
  * (And this is the fucking 'basic' method).
@@ -1157,12 +1139,6 @@ static int snmp_parse_mangle(unsigned char *msg,
 	return 1;
 }
 
-/*****************************************************************************
- *
- * NAT routines.
- *
- *****************************************************************************/
-
 /*
  * SNMP translation routine.
  */
@@ -1258,12 +1234,6 @@ static struct nf_conntrack_helper snmp_trap_helper __read_mostly = {
 	.tuple.src.u.udp.port	= cpu_to_be16(SNMP_TRAP_PORT),
 	.tuple.dst.protonum	= IPPROTO_UDP,
 };
-
-/*****************************************************************************
- *
- * Module stuff.
- *
- *****************************************************************************/
 
 static int __init nf_nat_snmp_basic_init(void)
 {
