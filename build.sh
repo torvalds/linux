@@ -79,6 +79,7 @@ then
   then
  #   set -x
     exec 3> >(tee build.log)
+	export LOCALVERSION=
 #    make --debug && make modules_install
     make ${CFLAGS} 2>&3 && make modules_install 2>&3
     ret=$?
