@@ -3486,8 +3486,10 @@ static int fib6_ifup(struct rt6_info *rt, void *p_arg)
 	const struct arg_netdev_event *arg = p_arg;
 	const struct net *net = dev_net(arg->dev);
 
-	if (rt != net->ipv6.ip6_null_entry && rt->dst.dev == arg->dev)
+	if (rt != net->ipv6.ip6_null_entry && rt->dst.dev == arg->dev) {
 		rt->rt6i_nh_flags &= ~arg->nh_flags;
+		fib6_update_sernum_upto_root(dev_net(rt->dst.dev), rt);
+	}
 
 	return 0;
 }
@@ -3505,6 +3507,58 @@ void rt6_sync_up(struct net_device *dev, unsigned int nh_flags)
 	fib6_clean_all(dev_net(dev), fib6_ifup, &arg);
 }
 
+static bool rt6_multipath_uses_dev(const struct rt6_info *rt,
+				   const struct net_device *dev)
+{
+	struct rt6_info *iter;
+
+	if (rt->dst.dev == dev)
+		return true;
+	list_for_each_entry(iter, &rt->rt6i_siblings, rt6i_siblings)
+		if (iter->dst.dev == dev)
+			return true;
+
+	return false;
+}
+
+static void rt6_multipath_flush(struct rt6_info *rt)
+{
+	struct rt6_info *iter;
+
+	rt->should_flush = 1;
+	list_for_each_entry(iter, &rt->rt6i_siblings, rt6i_siblings)
+		iter->should_flush = 1;
+}
+
+static unsigned int rt6_multipath_dead_count(const struct rt6_info *rt,
+					     const struct net_device *down_dev)
+{
+	struct rt6_info *iter;
+	unsigned int dead = 0;
+
+	if (rt->dst.dev == down_dev || rt->rt6i_nh_flags & RTNH_F_DEAD)
+		dead++;
+	list_for_each_entry(iter, &rt->rt6i_siblings, rt6i_siblings)
+		if (iter->dst.dev == down_dev ||
+		    iter->rt6i_nh_flags & RTNH_F_DEAD)
+			dead++;
+
+	return dead;
+}
+
+static void rt6_multipath_nh_flags_set(struct rt6_info *rt,
+				       const struct net_device *dev,
+				       unsigned int nh_flags)
+{
+	struct rt6_info *iter;
+
+	if (rt->dst.dev == dev)
+		rt->rt6i_nh_flags |= nh_flags;
+	list_for_each_entry(iter, &rt->rt6i_siblings, rt6i_siblings)
+		if (iter->dst.dev == dev)
+			iter->rt6i_nh_flags |= nh_flags;
+}
+
 /* called with write lock held for table with rt */
 static int fib6_ifdown(struct rt6_info *rt, void *p_arg)
 {
@@ -3512,20 +3566,33 @@ static int fib6_ifdown(struct rt6_info *rt, void *p_arg)
 	const struct net_device *dev = arg->dev;
 	const struct net *net = dev_net(dev);
 
-	if (rt->dst.dev != dev || rt == net->ipv6.ip6_null_entry)
+	if (rt == net->ipv6.ip6_null_entry)
 		return 0;
 
 	switch (arg->event) {
 	case NETDEV_UNREGISTER:
-		return -1;
+		return rt->dst.dev == dev ? -1 : 0;
 	case NETDEV_DOWN:
-		if (rt->rt6i_nsiblings == 0 ||
-		    !rt->rt6i_idev->cnf.ignore_routes_with_linkdown)
+		if (rt->should_flush)
 			return -1;
-		rt->rt6i_nh_flags |= RTNH_F_DEAD;
-		/* fall through */
+		if (!rt->rt6i_nsiblings)
+			return rt->dst.dev == dev ? -1 : 0;
+		if (rt6_multipath_uses_dev(rt, dev)) {
+			unsigned int count;
+
+			count = rt6_multipath_dead_count(rt, dev);
+			if (rt->rt6i_nsiblings + 1 == count) {
+				rt6_multipath_flush(rt);
+				return -1;
+			}
+			rt6_multipath_nh_flags_set(rt, dev, RTNH_F_DEAD |
+						   RTNH_F_LINKDOWN);
+			fib6_update_sernum(rt);
+		}
+		return -2;
 	case NETDEV_CHANGE:
-		if (rt->rt6i_flags & (RTF_LOCAL | RTF_ANYCAST))
+		if (rt->dst.dev != dev ||
+		    rt->rt6i_flags & (RTF_LOCAL | RTF_ANYCAST))
 			break;
 		rt->rt6i_nh_flags |= RTNH_F_LINKDOWN;
 		break;
