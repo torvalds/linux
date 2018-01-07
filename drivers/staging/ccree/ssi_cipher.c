@@ -639,6 +639,7 @@ static int cc_cipher_process(struct ablkcipher_request *req,
 	struct cc_hw_desc desc[MAX_ABLKCIPHER_SEQ_LEN];
 	struct cc_crypto_req cc_req = {};
 	int rc, seq_len = 0, cts_restore_flag = 0;
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	dev_dbg(dev, "%s req=%p info=%p nbytes=%d\n",
 		((direction == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
@@ -662,7 +663,7 @@ static int cc_cipher_process(struct ablkcipher_request *req,
 	/* The IV we are handed may be allocted from the stack so
 	 * we must copy it to a DMAable buffer before use.
 	 */
-	req_ctx->iv = kmalloc(ivsize, GFP_KERNEL);
+	req_ctx->iv = kmalloc(ivsize, flags);
 	if (!req_ctx->iv) {
 		rc = -ENOMEM;
 		goto exit_process;
@@ -692,7 +693,7 @@ static int cc_cipher_process(struct ablkcipher_request *req,
 	/* STAT_PHASE_1: Map buffers */
 
 	rc = cc_map_blkcipher_request(ctx_p->drvdata, req_ctx, ivsize, nbytes,
-				      req_ctx->iv, src, dst);
+				      req_ctx->iv, src, dst, flags);
 	if (rc) {
 		dev_err(dev, "map_request() failed\n");
 		goto exit_process;
@@ -751,12 +752,13 @@ static int cc_cipher_decrypt(struct ablkcipher_request *req)
 	struct crypto_ablkcipher *ablk_tfm = crypto_ablkcipher_reqtfm(req);
 	struct blkcipher_req_ctx *req_ctx = ablkcipher_request_ctx(req);
 	unsigned int ivsize = crypto_ablkcipher_ivsize(ablk_tfm);
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	/*
 	 * Allocate and save the last IV sized bytes of the source, which will
 	 * be lost in case of in-place decryption and might be needed for CTS.
 	 */
-	req_ctx->backup_info = kmalloc(ivsize, GFP_KERNEL);
+	req_ctx->backup_info = kmalloc(ivsize, flags);
 	if (!req_ctx->backup_info)
 		return -ENOMEM;
 

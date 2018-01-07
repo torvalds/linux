@@ -217,7 +217,7 @@ static int cc_render_sg_to_mlli(struct device *dev, struct scatterlist *sgl,
 }
 
 static int cc_generate_mlli(struct device *dev, struct buffer_array *sg_data,
-			    struct mlli_params *mlli_params)
+			    struct mlli_params *mlli_params, gfp_t flags)
 {
 	u32 *mlli_p;
 	u32 total_nents = 0, prev_total_nents = 0;
@@ -227,7 +227,7 @@ static int cc_generate_mlli(struct device *dev, struct buffer_array *sg_data,
 
 	/* Allocate memory from the pointed pool */
 	mlli_params->mlli_virt_addr =
-		dma_pool_alloc(mlli_params->curr_pool, GFP_KERNEL,
+		dma_pool_alloc(mlli_params->curr_pool, flags,
 			       &mlli_params->mlli_dma_addr);
 	if (!mlli_params->mlli_virt_addr) {
 		dev_err(dev, "dma_pool_alloc() failed\n");
@@ -483,7 +483,7 @@ void cc_unmap_blkcipher_request(struct device *dev, void *ctx,
 int cc_map_blkcipher_request(struct cc_drvdata *drvdata, void *ctx,
 			     unsigned int ivsize, unsigned int nbytes,
 			     void *info, struct scatterlist *src,
-			     struct scatterlist *dst)
+			     struct scatterlist *dst, gfp_t flags)
 {
 	struct blkcipher_req_ctx *req_ctx = (struct blkcipher_req_ctx *)ctx;
 	struct mlli_params *mlli_params = &req_ctx->mlli_params;
@@ -558,7 +558,7 @@ int cc_map_blkcipher_request(struct cc_drvdata *drvdata, void *ctx,
 
 	if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
 		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
-		rc = cc_generate_mlli(dev, &sg_data, mlli_params);
+		rc = cc_generate_mlli(dev, &sg_data, mlli_params, flags);
 		if (rc)
 			goto ablkcipher_exit;
 	}
@@ -1200,6 +1200,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 	u32 mapped_nents = 0;
 	u32 dummy = 0; /*used for the assoc data fragments */
 	u32 size_to_map = 0;
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	mlli_params->curr_pool = NULL;
 	sg_data.num_of_buffers = 0;
@@ -1366,7 +1367,7 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 	if (areq_ctx->assoc_buff_type == CC_DMA_BUF_MLLI ||
 	    areq_ctx->data_buff_type == CC_DMA_BUF_MLLI) {
 		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
-		rc = cc_generate_mlli(dev, &sg_data, mlli_params);
+		rc = cc_generate_mlli(dev, &sg_data, mlli_params, flags);
 		if (rc)
 			goto aead_map_failure;
 
@@ -1385,7 +1386,7 @@ aead_map_failure:
 
 int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 			      struct scatterlist *src, unsigned int nbytes,
-			      bool do_update)
+			      bool do_update, gfp_t flags)
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
 	struct device *dev = drvdata_to_dev(drvdata);
@@ -1445,7 +1446,7 @@ int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 		/* add the src data to the sg_data */
 		cc_add_sg_entry(dev, &sg_data, areq_ctx->in_nents, src, nbytes,
 				0, true, &areq_ctx->mlli_nents);
-		if (cc_generate_mlli(dev, &sg_data, mlli_params))
+		if (cc_generate_mlli(dev, &sg_data, mlli_params, flags))
 			goto fail_unmap_din;
 	}
 	/* change the buffer index for the unmap function */
@@ -1466,7 +1467,7 @@ unmap_curr_buff:
 
 int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 			       struct scatterlist *src, unsigned int nbytes,
-			       unsigned int block_size)
+			       unsigned int block_size, gfp_t flags)
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
 	struct device *dev = drvdata_to_dev(drvdata);
@@ -1562,7 +1563,7 @@ int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 		cc_add_sg_entry(dev, &sg_data, areq_ctx->in_nents, src,
 				(update_data_len - *curr_buff_cnt), 0, true,
 				&areq_ctx->mlli_nents);
-		if (cc_generate_mlli(dev, &sg_data, mlli_params))
+		if (cc_generate_mlli(dev, &sg_data, mlli_params, flags))
 			goto fail_unmap_din;
 	}
 	areq_ctx->buff_index = (areq_ctx->buff_index ^ swap_index);

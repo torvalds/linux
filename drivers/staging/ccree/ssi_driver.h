@@ -184,5 +184,11 @@ static inline u32 cc_ioread(struct cc_drvdata *drvdata, u32 reg)
 	return ioread32(drvdata->cc_base + reg);
 }
 
+static inline gfp_t cc_gfp_flags(struct crypto_async_request *req)
+{
+	return (req->flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
+			GFP_KERNEL : GFP_ATOMIC;
+}
+
 #endif /*__CC_DRIVER_H__*/
 

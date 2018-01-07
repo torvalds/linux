@@ -123,7 +123,7 @@ static int cc_map_result(struct device *dev, struct ahash_req_ctx *state,
 }
 
 static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
-		      struct cc_hash_ctx *ctx)
+		      struct cc_hash_ctx *ctx, gfp_t flags)
 {
 	bool is_hmac = ctx->is_hmac;
 	cc_sram_addr_t larval_digest_addr =
@@ -132,27 +132,26 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 	struct cc_hw_desc desc;
 	int rc = -ENOMEM;
 
-	state->buff0 = kzalloc(CC_MAX_HASH_BLCK_SIZE, GFP_KERNEL);
+	state->buff0 = kzalloc(CC_MAX_HASH_BLCK_SIZE, flags);
 	if (!state->buff0)
 		goto fail0;
 
-	state->buff1 = kzalloc(CC_MAX_HASH_BLCK_SIZE, GFP_KERNEL);
+	state->buff1 = kzalloc(CC_MAX_HASH_BLCK_SIZE, flags);
 	if (!state->buff1)
 		goto fail_buff0;
 
-	state->digest_result_buff = kzalloc(CC_MAX_HASH_DIGEST_SIZE,
-					    GFP_KERNEL);
+	state->digest_result_buff = kzalloc(CC_MAX_HASH_DIGEST_SIZE, flags);
 	if (!state->digest_result_buff)
 		goto fail_buff1;
 
-	state->digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL);
+	state->digest_buff = kzalloc(ctx->inter_digestsize, flags);
 	if (!state->digest_buff)
 		goto fail_digest_result_buff;
 
 	dev_dbg(dev, "Allocated digest-buffer in context ctx->digest_buff=@%p\n",
 		state->digest_buff);
 	if (ctx->hw_mode != DRV_CIPHER_XCBC_MAC) {
-		state->digest_bytes_len = kzalloc(HASH_LEN_SIZE, GFP_KERNEL);
+		state->digest_bytes_len = kzalloc(HASH_LEN_SIZE, flags);
 		if (!state->digest_bytes_len)
 			goto fail1;
 
@@ -162,7 +161,7 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 		state->digest_bytes_len = NULL;
 	}
 
-	state->opad_digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL);
+	state->opad_digest_buff = kzalloc(ctx->inter_digestsize, flags);
 	if (!state->opad_digest_buff)
 		goto fail2;
 
@@ -415,11 +414,12 @@ static int cc_hash_digest(struct ahash_request *req)
 		cc_larval_digest_addr(ctx->drvdata, ctx->hash_mode);
 	int idx = 0;
 	int rc = 0;
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	dev_dbg(dev, "===== %s-digest (%d) ====\n", is_hmac ? "hmac" : "hash",
 		nbytes);
 
-	if (cc_map_req(dev, state, ctx)) {
+	if (cc_map_req(dev, state, ctx, flags)) {
 		dev_err(dev, "map_ahash_source() failed\n");
 		return -ENOMEM;
 	}
@@ -429,7 +429,8 @@ static int cc_hash_digest(struct ahash_request *req)
 		return -ENOMEM;
 	}
 
-	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1)) {
+	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1,
+				      flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -566,6 +567,7 @@ static int cc_hash_update(struct ahash_request *req)
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
 	u32 idx = 0;
 	int rc;
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	dev_dbg(dev, "===== %s-update (%d) ====\n", ctx->is_hmac ?
 		"hmac" : "hash", nbytes);
@@ -576,7 +578,7 @@ static int cc_hash_update(struct ahash_request *req)
 	}
 
 	rc = cc_map_hash_request_update(ctx->drvdata, state, src, nbytes,
-					block_size);
+					block_size, flags);
 	if (rc) {
 		if (rc == 1) {
 			dev_dbg(dev, " data size not require HW update %x\n",
@@ -653,11 +655,13 @@ static int cc_hash_finup(struct ahash_request *req)
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
 	int idx = 0;
 	int rc;
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	dev_dbg(dev, "===== %s-finup (%d) ====\n", is_hmac ? "hmac" : "hash",
 		nbytes);
 
-	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1)) {
+	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1,
+				      flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -773,11 +777,13 @@ static int cc_hash_final(struct ahash_request *req)
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
 	int idx = 0;
 	int rc;
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	dev_dbg(dev, "===== %s-final (%d) ====\n", is_hmac ? "hmac" : "hash",
 		nbytes);
 
-	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 0)) {
+	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 0,
+				      flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -894,11 +900,12 @@ static int cc_hash_init(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct cc_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	dev_dbg(dev, "===== init (%d) ====\n", req->nbytes);
 
 	state->xcbc_count = 0;
-	cc_map_req(dev, state, ctx);
+	cc_map_req(dev, state, ctx, flags);
 
 	return 0;
 }
@@ -1317,6 +1324,7 @@ static int cc_mac_update(struct ahash_request *req)
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
 	int rc;
 	u32 idx = 0;
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	if (req->nbytes == 0) {
 		/* no real updates required */
@@ -1326,7 +1334,7 @@ static int cc_mac_update(struct ahash_request *req)
 	state->xcbc_count++;
 
 	rc = cc_map_hash_request_update(ctx->drvdata, state, req->src,
-					req->nbytes, block_size);
+					req->nbytes, block_size, flags);
 	if (rc) {
 		if (rc == 1) {
 			dev_dbg(dev, " data size not require HW update %x\n",
@@ -1379,7 +1387,7 @@ static int cc_mac_final(struct ahash_request *req)
 	int rc = 0;
 	u32 key_size, key_len;
 	u32 digestsize = crypto_ahash_digestsize(tfm);
-
+	gfp_t flags = cc_gfp_flags(&req->base);
 	u32 rem_cnt = state->buff_index ? state->buff1_cnt :
 			state->buff0_cnt;
 
@@ -1395,7 +1403,7 @@ static int cc_mac_final(struct ahash_request *req)
 	dev_dbg(dev, "===== final  xcbc reminder (%d) ====\n", rem_cnt);
 
 	if (cc_map_hash_request_final(ctx->drvdata, state, req->src,
-				      req->nbytes, 0)) {
+				      req->nbytes, 0, flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -1493,6 +1501,7 @@ static int cc_mac_finup(struct ahash_request *req)
 	int rc = 0;
 	u32 key_len = 0;
 	u32 digestsize = crypto_ahash_digestsize(tfm);
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	dev_dbg(dev, "===== finup xcbc(%d) ====\n", req->nbytes);
 	if (state->xcbc_count > 0 && req->nbytes == 0) {
@@ -1501,7 +1510,7 @@ static int cc_mac_finup(struct ahash_request *req)
 	}
 
 	if (cc_map_hash_request_final(ctx->drvdata, state, req->src,
-				      req->nbytes, 1)) {
+				      req->nbytes, 1, flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -1565,10 +1574,11 @@ static int cc_mac_digest(struct ahash_request *req)
 	u32 key_len;
 	int idx = 0;
 	int rc;
+	gfp_t flags = cc_gfp_flags(&req->base);
 
 	dev_dbg(dev, "===== -digest mac (%d) ====\n",  req->nbytes);
 
-	if (cc_map_req(dev, state, ctx)) {
+	if (cc_map_req(dev, state, ctx, flags)) {
 		dev_err(dev, "map_ahash_source() failed\n");
 		return -ENOMEM;
 	}
@@ -1578,7 +1588,7 @@ static int cc_mac_digest(struct ahash_request *req)
 	}
 
 	if (cc_map_hash_request_final(ctx->drvdata, state, req->src,
-				      req->nbytes, 1)) {
+				      req->nbytes, 1, flags)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
