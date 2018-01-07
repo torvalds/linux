@@ -270,9 +270,6 @@ static unsigned long mb_cache_count(struct shrinker *shrink,
 	struct mb_cache *cache = container_of(shrink, struct mb_cache,
 					      c_shrink);
 
-	/* Unlikely, but not impossible */
-	if (unlikely(cache->c_entry_count < 0))
-		return 0;
 	return cache->c_entry_count;
 }
 
