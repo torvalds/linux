@@ -30,7 +30,6 @@
 #include "dx_reg_common.h"
 #define CC_SUPPORT_SHA CC_DEV_SHA_MAX
 #include "cc_crypto_ctx.h"
-#include "hash_defs.h"
 #include "cc_hw_queue_defs.h"
 #include "ssi_sram_mgr.h"
 

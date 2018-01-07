@@ -186,6 +186,19 @@ enum cc_hw_des_key_size {
 	END_OF_DES_KEYS = S32_MAX,
 };
 
+enum cc_hash_conf_pad {
+	HASH_PADDING_DISABLED = 0,
+	HASH_PADDING_ENABLED = 1,
+	HASH_DIGEST_RESULT_LITTLE_ENDIAN = 2,
+	HASH_CONFIG1_PADDING_RESERVE32 = S32_MAX,
+};
+
+enum cc_hash_cipher_pad {
+	DO_NOT_PAD = 0,
+	DO_PAD = 1,
+	HASH_CIPHER_DO_PADDING_RESERVE32 = S32_MAX,
+};
+
 /*****************************/
 /* Descriptor packing macros */
 /*****************************/
