@@ -3498,18 +3498,29 @@ static int fib6_ifdown(struct rt6_info *rt, void *p_arg)
 	const struct net_device *dev = arg->dev;
 	const struct net *net = dev_net(dev);
 
-	if (rt->dst.dev == dev &&
-	    rt != net->ipv6.ip6_null_entry &&
-	    (rt->rt6i_nsiblings == 0 || netdev_unregistering(dev) ||
-	     !rt->rt6i_idev->cnf.ignore_routes_with_linkdown)) {
-		rt->rt6i_nh_flags |= (RTNH_F_DEAD | RTNH_F_LINKDOWN);
+	if (rt->dst.dev != dev || rt == net->ipv6.ip6_null_entry)
+		return 0;
+
+	switch (arg->event) {
+	case NETDEV_UNREGISTER:
 		return -1;
+	case NETDEV_DOWN:
+		if (rt->rt6i_nsiblings == 0 ||
+		    !rt->rt6i_idev->cnf.ignore_routes_with_linkdown)
+			return -1;
+		rt->rt6i_nh_flags |= RTNH_F_DEAD;
+		/* fall through */
+	case NETDEV_CHANGE:
+		if (rt->rt6i_flags & (RTF_LOCAL | RTF_ANYCAST))
+			break;
+		rt->rt6i_nh_flags |= RTNH_F_LINKDOWN;
+		break;
 	}
 
 	return 0;
 }
 
-static void rt6_sync_down_dev(struct net_device *dev, unsigned long event)
+void rt6_sync_down_dev(struct net_device *dev, unsigned long event)
 {
 	struct arg_netdev_event arg = {
 		.dev = dev,
