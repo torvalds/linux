@@ -300,6 +300,9 @@ OPTIONS
 	Display context switch events i.e. events of type PERF_RECORD_SWITCH or
 	PERF_RECORD_SWITCH_CPU_WIDE.
 
+--show-lost-events
+	Display lost events i.e. events of type PERF_RECORD_LOST.
+
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
 	disable with --no-demangle.
