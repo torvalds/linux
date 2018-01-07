@@ -314,7 +314,7 @@ static int ext4_dax_huge_fault(struct vm_fault *vmf,
 	} else {
 		down_read(&EXT4_I(inode)->i_mmap_sem);
 	}
-	result = dax_iomap_fault(vmf, pe_size, &pfn, &ext4_iomap_ops);
+	result = dax_iomap_fault(vmf, pe_size, &pfn, NULL, &ext4_iomap_ops);
 	if (write) {
 		ext4_journal_stop(handle);
 		/* Handling synchronous page fault? */
