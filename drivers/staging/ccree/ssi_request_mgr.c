@@ -46,9 +46,7 @@ struct cc_req_mgr_handle {
 #else
 	struct tasklet_struct comptask;
 #endif
-#if defined(CONFIG_PM)
 	bool is_runtime_suspended;
-#endif
 };
 
 struct cc_bl_item {
@@ -404,9 +402,7 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 		spin_unlock(&mgr->hw_lock);
 
 		if (rc != -EINPROGRESS) {
-#if defined(CONFIG_PM)
 			cc_pm_put_suspend(dev);
-#endif
 			creq->user_cb(dev, req, rc);
 		}
 
@@ -432,13 +428,12 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 	gfp_t flags = cc_gfp_flags(req);
 	struct cc_bl_item *bli;
 
-#if defined(CONFIG_PM)
 	rc = cc_pm_get(dev);
 	if (rc) {
 		dev_err(dev, "ssi_power_mgr_runtime_get returned %x\n", rc);
 		return rc;
 	}
-#endif
+
 	spin_lock_bh(&mgr->hw_lock);
 	rc = cc_queues_status(drvdata, mgr, total_len);
 
@@ -452,9 +447,7 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 
 		bli = kmalloc(sizeof(*bli), flags);
 		if (!bli) {
-#if defined(CONFIG_PM)
 			cc_pm_put_suspend(dev);
-#endif
 			return -ENOMEM;
 		}
 
@@ -486,13 +479,12 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 	cc_req->user_cb = request_mgr_complete;
 	cc_req->user_arg = &cc_req->seq_compl;
 
-#if defined(CONFIG_PM)
 	rc = cc_pm_get(dev);
 	if (rc) {
 		dev_err(dev, "ssi_power_mgr_runtime_get returned %x\n", rc);
 		return rc;
 	}
-#endif
+
 	while (true) {
 		spin_lock_bh(&mgr->hw_lock);
 		rc = cc_queues_status(drvdata, mgr, len + 1);
@@ -502,9 +494,7 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 
 		spin_unlock_bh(&mgr->hw_lock);
 		if (rc != -EAGAIN) {
-#if defined(CONFIG_PM)
 			cc_pm_put_suspend(dev);
-#endif
 			return rc;
 		}
 		wait_for_completion_interruptible(&drvdata->hw_queue_avail);
@@ -515,9 +505,7 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 	spin_unlock_bh(&mgr->hw_lock);
 
 	if (rc != -EINPROGRESS) {
-#if defined(CONFIG_PM)
 		cc_pm_put_suspend(dev);
-#endif
 		return rc;
 	}
 
@@ -621,9 +609,7 @@ static void proc_completions(struct cc_drvdata *drvdata)
 		dev_dbg(dev, "Dequeue request tail=%u\n", *tail);
 		dev_dbg(dev, "Request completed. axi_completed=%d\n",
 			request_mgr_handle->axi_completed);
-#if defined(CONFIG_PM)
 		cc_pm_put_suspend(dev);
-#endif
 	}
 }
 
