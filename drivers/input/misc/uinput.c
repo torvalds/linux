@@ -90,8 +90,8 @@ static int uinput_dev_event(struct input_dev *dev,
 	udev->buff[udev->head].code = code;
 	udev->buff[udev->head].value = value;
 	ktime_get_ts64(&ts);
-	udev->buff[udev->head].time.tv_sec = ts.tv_sec;
-	udev->buff[udev->head].time.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+	udev->buff[udev->head].input_event_sec = ts.tv_sec;
+	udev->buff[udev->head].input_event_usec = ts.tv_nsec / NSEC_PER_USEC;
 	udev->head = (udev->head + 1) % UINPUT_BUFFER_SIZE;
 
 	wake_up_interruptible(&udev->waitq);
