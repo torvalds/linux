@@ -572,8 +572,7 @@ static const struct drm_plane_helper_funcs tegra_plane_helper_funcs = {
 	.atomic_update = tegra_plane_atomic_update,
 };
 
-static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
-						    struct tegra_dc *dc)
+static unsigned long tegra_plane_get_possible_crtcs(struct drm_device *drm)
 {
 	/*
 	 * Ideally this would use drm_crtc_mask(), but that would require the
@@ -587,7 +586,13 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 	 * of CRTCs that have been registered, and should therefore always be
 	 * the same as drm_crtc_index() after registration.
 	 */
-	unsigned long possible_crtcs = 1 << drm->mode_config.num_crtc;
+	return 1 << drm->mode_config.num_crtc;
+}
+
+static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
+						    struct tegra_dc *dc)
+{
+	unsigned long possible_crtcs = tegra_plane_get_possible_crtcs(drm);
 	enum drm_plane_type type = DRM_PLANE_TYPE_PRIMARY;
 	struct tegra_plane *plane;
 	unsigned int num_formats;
@@ -744,6 +749,7 @@ static const struct drm_plane_helper_funcs tegra_cursor_plane_helper_funcs = {
 static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 						      struct tegra_dc *dc)
 {
+	unsigned long possible_crtcs = tegra_plane_get_possible_crtcs(drm);
 	struct tegra_plane *plane;
 	unsigned int num_formats;
 	const u32 *formats;
@@ -766,7 +772,7 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 	num_formats = ARRAY_SIZE(tegra_cursor_plane_formats);
 	formats = tegra_cursor_plane_formats;
 
-	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
+	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_plane_funcs, formats,
 				       num_formats, NULL,
 				       DRM_PLANE_TYPE_CURSOR, NULL);
@@ -860,6 +866,7 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 						       struct tegra_dc *dc,
 						       unsigned int index)
 {
+	unsigned long possible_crtcs = tegra_plane_get_possible_crtcs(drm);
 	struct tegra_plane *plane;
 	unsigned int num_formats;
 	const u32 *formats;
@@ -876,7 +883,7 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	num_formats = dc->soc->num_overlay_formats;
 	formats = dc->soc->overlay_formats;
 
-	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
+	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_plane_funcs, formats,
 				       num_formats, NULL,
 				       DRM_PLANE_TYPE_OVERLAY, NULL);
