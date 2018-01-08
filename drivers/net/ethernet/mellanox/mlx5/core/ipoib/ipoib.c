@@ -86,6 +86,8 @@ void mlx5i_init(struct mlx5_core_dev *mdev,
 	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
 	mlx5i_build_nic_params(mdev, &priv->channels.params);
 
+	mlx5e_timestamp_init(priv);
+
 	/* netdev init */
 	netdev->hw_features    |= NETIF_F_SG;
 	netdev->hw_features    |= NETIF_F_IP_CSUM;
@@ -450,7 +452,6 @@ static int mlx5i_open(struct net_device *netdev)
 
 	mlx5e_refresh_tirs(epriv, false);
 	mlx5e_activate_priv_channels(epriv);
-	mlx5e_timestamp_set(epriv);
 
 	mutex_unlock(&epriv->state_lock);
 	return 0;

@@ -2669,7 +2669,7 @@ void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 		netif_carrier_on(netdev);
 }
 
-void mlx5e_timestamp_set(struct mlx5e_priv *priv)
+void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 {
 	priv->tstamp.tx_type   = HWTSTAMP_TX_OFF;
 	priv->tstamp.rx_filter = HWTSTAMP_FILTER_NONE;
@@ -2690,7 +2690,6 @@ int mlx5e_open_locked(struct net_device *netdev)
 	mlx5e_activate_priv_channels(priv);
 	if (priv->profile->update_carrier)
 		priv->profile->update_carrier(priv);
-	mlx5e_timestamp_set(priv);
 
 	if (priv->profile->update_stats)
 		queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
@@ -4146,6 +4145,8 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
 	INIT_WORK(&priv->tx_timeout_work, mlx5e_tx_timeout_work);
 	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
+
+	mlx5e_timestamp_init(priv);
 }
 
 static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
