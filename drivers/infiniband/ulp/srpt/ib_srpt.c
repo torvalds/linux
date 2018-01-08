@@ -325,7 +325,7 @@ static void srpt_get_ioc(struct srpt_port *sport, u32 slot,
 	if (sdev->use_srq)
 		send_queue_depth = sdev->srq_size;
 	else
-		send_queue_depth = min(SRPT_RQ_SIZE,
+		send_queue_depth = min(MAX_SRPT_RQ_SIZE,
 				       sdev->device->attrs.max_qp_wr);
 
 	memset(iocp, 0, sizeof(*iocp));
@@ -1693,7 +1693,7 @@ static int srpt_create_ch_ib(struct srpt_rdma_ch *ch)
 	struct srpt_port *sport = ch->sport;
 	struct srpt_device *sdev = sport->sdev;
 	const struct ib_device_attr *attrs = &sdev->device->attrs;
-	u32 srp_sq_size = sport->port_attrib.srp_sq_size;
+	int sq_size = sport->port_attrib.srp_sq_size;
 	int i, ret;
 
 	WARN_ON(ch->rq_size < 1);
@@ -1704,12 +1704,12 @@ static int srpt_create_ch_ib(struct srpt_rdma_ch *ch)
 		goto out;
 
 retry:
-	ch->cq = ib_alloc_cq(sdev->device, ch, ch->rq_size + srp_sq_size,
+	ch->cq = ib_alloc_cq(sdev->device, ch, ch->rq_size + sq_size,
 			0 /* XXX: spread CQs */, IB_POLL_WORKQUEUE);
 	if (IS_ERR(ch->cq)) {
 		ret = PTR_ERR(ch->cq);
 		pr_err("failed to create CQ cqe= %d ret= %d\n",
-		       ch->rq_size + srp_sq_size, ret);
+		       ch->rq_size + sq_size, ret);
 		goto out;
 	}
 
@@ -1727,8 +1727,8 @@ retry:
 	 * both both, as RDMA contexts will also post completions for the
 	 * RDMA READ case.
 	 */
-	qp_init->cap.max_send_wr = min(srp_sq_size / 2, attrs->max_qp_wr + 0U);
-	qp_init->cap.max_rdma_ctxs = srp_sq_size / 2;
+	qp_init->cap.max_send_wr = min(sq_size / 2, attrs->max_qp_wr);
+	qp_init->cap.max_rdma_ctxs = sq_size / 2;
 	qp_init->cap.max_send_sge = min(attrs->max_sge, SRPT_MAX_SG_PER_WQE);
 	qp_init->port_num = ch->sport->port;
 	if (sdev->use_srq) {
@@ -1742,8 +1742,8 @@ retry:
 	if (IS_ERR(ch->qp)) {
 		ret = PTR_ERR(ch->qp);
 		if (ret == -ENOMEM) {
-			srp_sq_size /= 2;
-			if (srp_sq_size >= MIN_SRPT_SQ_SIZE) {
+			sq_size /= 2;
+			if (sq_size >= MIN_SRPT_SQ_SIZE) {
 				ib_destroy_cq(ch->cq);
 				goto retry;
 			}
@@ -1950,7 +1950,7 @@ static void srpt_release_channel_work(struct work_struct *w)
 
 	srpt_free_ioctx_ring((struct srpt_ioctx **)ch->ioctx_ring,
 			     ch->sport->sdev, ch->rq_size,
-			     ch->rsp_size, DMA_TO_DEVICE);
+			     ch->max_rsp_size, DMA_TO_DEVICE);
 
 	srpt_free_ioctx_ring((struct srpt_ioctx **)ch->ioctx_recv_ring,
 			     sdev, ch->rq_size,
@@ -2098,16 +2098,16 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	 * depth to avoid that the initiator driver has to report QUEUE_FULL
 	 * to the SCSI mid-layer.
 	 */
-	ch->rq_size = min(SRPT_RQ_SIZE, sdev->device->attrs.max_qp_wr);
+	ch->rq_size = min(MAX_SRPT_RQ_SIZE, sdev->device->attrs.max_qp_wr);
 	spin_lock_init(&ch->spinlock);
 	ch->state = CH_CONNECTING;
 	INIT_LIST_HEAD(&ch->cmd_wait_list);
-	ch->rsp_size = ch->sport->port_attrib.srp_max_rsp_size;
+	ch->max_rsp_size = ch->sport->port_attrib.srp_max_rsp_size;
 
 	ch->ioctx_ring = (struct srpt_send_ioctx **)
 		srpt_alloc_ioctx_ring(ch->sport->sdev, ch->rq_size,
 				      sizeof(*ch->ioctx_ring[0]),
-				      ch->rsp_size, DMA_TO_DEVICE);
+				      ch->max_rsp_size, DMA_TO_DEVICE);
 	if (!ch->ioctx_ring)
 		goto free_ch;
 
@@ -2235,7 +2235,7 @@ free_recv_ring:
 free_ring:
 	srpt_free_ioctx_ring((struct srpt_ioctx **)ch->ioctx_ring,
 			     ch->sport->sdev, ch->rq_size,
-			     ch->rsp_size, DMA_TO_DEVICE);
+			     ch->max_rsp_size, DMA_TO_DEVICE);
 free_ch:
 	kfree(ch);
 
