@@ -522,8 +522,8 @@ static int sdw_program_device_num(struct sdw_bus *bus)
 		 * bits to avoid truncation due to size limit.
 		 */
 		addr = buf[5] | (buf[4] << 8) | (buf[3] << 16) |
-			(buf[2] << 24) | ((unsigned long long)buf[1] << 32) |
-			((unsigned long long)buf[0] << 40);
+			((u64)buf[2] << 24) | ((u64)buf[1] << 32) |
+			((u64)buf[0] << 40);
 
 		sdw_extract_slave_id(bus, addr, &id);
 
