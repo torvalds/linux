@@ -715,7 +715,7 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
-	struct tipc_group *grp = tsk->group;
+	struct tipc_group *grp;
 	u32 revents = 0;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
@@ -736,9 +736,9 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 			revents |= POLLIN | POLLRDNORM;
 		break;
 	case TIPC_OPEN:
-		if (!grp || tipc_group_size(grp))
-			if (!tsk->cong_link_cnt)
-				revents |= POLLOUT;
+		grp = tsk->group;
+		if ((!grp || tipc_group_is_open(grp)) && !tsk->cong_link_cnt)
+			revents |= POLLOUT;
 		if (!tipc_sk_type_connectionless(sk))
 			break;
 		if (skb_queue_empty(&sk->sk_receive_queue))
