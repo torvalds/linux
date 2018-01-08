@@ -243,16 +243,17 @@ static void ima_lsm_update_rules(void)
  * ima_match_rules - determine whether an inode matches the measure rule.
  * @rule: a pointer to a rule
  * @inode: a pointer to an inode
+ * @cred: a pointer to a credentials structure for user validation
+ * @secid: the secid of the task to be validated
  * @func: LIM hook identifier
  * @mask: requested action (MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
  *
  * Returns true on rule match, false on failure.
  */
 static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
+			    const struct cred *cred, u32 secid,
 			    enum ima_hooks func, int mask)
 {
-	struct task_struct *tsk = current;
-	const struct cred *cred = current_cred();
 	int i;
 
 	if ((rule->flags & IMA_FUNC) &&
@@ -287,7 +288,7 @@ static bool ima_match_rules(struct ima_rule_entry *rule, struct inode *inode,
 		return false;
 	for (i = 0; i < MAX_LSM_RULES; i++) {
 		int rc = 0;
-		u32 osid, sid;
+		u32 osid;
 		int retried = 0;
 
 		if (!rule->lsm[i].rule)
@@ -307,8 +308,7 @@ retry:
 		case LSM_SUBJ_USER:
 		case LSM_SUBJ_ROLE:
 		case LSM_SUBJ_TYPE:
-			security_task_getsecid(tsk, &sid);
-			rc = security_filter_rule_match(sid,
+			rc = security_filter_rule_match(secid,
 							rule->lsm[i].type,
 							Audit_equal,
 							rule->lsm[i].rule,
@@ -341,6 +341,8 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
 		return IMA_MMAP_APPRAISE;
 	case BPRM_CHECK:
 		return IMA_BPRM_APPRAISE;
+	case CREDS_CHECK:
+		return IMA_CREDS_APPRAISE;
 	case FILE_CHECK:
 	case POST_SETATTR:
 		return IMA_FILE_APPRAISE;
@@ -353,6 +355,9 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
 /**
  * ima_match_policy - decision based on LSM and other conditions
  * @inode: pointer to an inode for which the policy decision is being made
+ * @cred: pointer to a credentials structure for which the policy decision is
+ *        being made
+ * @secid: LSM secid of the task to be validated
  * @func: IMA hook identifier
  * @mask: requested action (MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
  * @pcr: set the pcr to extend
@@ -364,8 +369,8 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * list when walking it.  Reads are many orders of magnitude more numerous
  * than writes so ima_match_policy() is classical RCU candidate.
  */
-int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
-		     int flags, int *pcr)
+int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
+		     enum ima_hooks func, int mask, int flags, int *pcr)
 {
 	struct ima_rule_entry *entry;
 	int action = 0, actmask = flags | (flags << 1);
@@ -376,7 +381,7 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 		if (!(entry->action & actmask))
 			continue;
 
-		if (!ima_match_rules(entry, inode, func, mask))
+		if (!ima_match_rules(entry, inode, cred, secid, func, mask))
 			continue;
 
 		action |= entry->flags & IMA_ACTION_FLAGS;
@@ -713,6 +718,8 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 				entry->func = MMAP_CHECK;
 			else if (strcmp(args[0].from, "BPRM_CHECK") == 0)
 				entry->func = BPRM_CHECK;
+			else if (strcmp(args[0].from, "CREDS_CHECK") == 0)
+				entry->func = CREDS_CHECK;
 			else if (strcmp(args[0].from, "KEXEC_KERNEL_CHECK") ==
 				 0)
 				entry->func = KEXEC_KERNEL_CHECK;

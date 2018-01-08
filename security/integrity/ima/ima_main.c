@@ -167,8 +167,9 @@ void ima_file_free(struct file *file)
 	ima_check_last_writer(iint, inode, file);
 }
 
-static int process_measurement(struct file *file, char *buf, loff_t size,
-			       int mask, enum ima_hooks func, int opened)
+static int process_measurement(struct file *file, const struct cred *cred,
+			       u32 secid, char *buf, loff_t size, int mask,
+			       enum ima_hooks func, int opened)
 {
 	struct inode *inode = file_inode(file);
 	struct integrity_iint_cache *iint = NULL;
@@ -190,7 +191,7 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	 * bitmask based on the appraise/audit/measurement policy.
 	 * Included is the appraise submask.
 	 */
-	action = ima_get_action(inode, mask, func, &pcr);
+	action = ima_get_action(inode, cred, secid, mask, func, &pcr);
 	violation_check = ((func == FILE_CHECK || func == MMAP_CHECK) &&
 			   (ima_policy_flag & IMA_MEASURE));
 	if (!action && !violation_check)
@@ -324,9 +325,14 @@ out:
  */
 int ima_file_mmap(struct file *file, unsigned long prot)
 {
-	if (file && (prot & PROT_EXEC))
-		return process_measurement(file, NULL, 0, MAY_EXEC,
-					   MMAP_CHECK, 0);
+	u32 secid;
+
+	if (file && (prot & PROT_EXEC)) {
+		security_task_getsecid(current, &secid);
+		return process_measurement(file, current_cred(), secid, NULL,
+					   0, MAY_EXEC, MMAP_CHECK, 0);
+	}
+
 	return 0;
 }
 
@@ -345,8 +351,18 @@ int ima_file_mmap(struct file *file, unsigned long prot)
  */
 int ima_bprm_check(struct linux_binprm *bprm)
 {
-	return process_measurement(bprm->file, NULL, 0, MAY_EXEC,
-				   BPRM_CHECK, 0);
+	int ret;
+	u32 secid;
+
+	security_task_getsecid(current, &secid);
+	ret = process_measurement(bprm->file, current_cred(), secid, NULL, 0,
+				  MAY_EXEC, BPRM_CHECK, 0);
+	if (ret)
+		return ret;
+
+	security_cred_getsecid(bprm->cred, &secid);
+	return process_measurement(bprm->file, bprm->cred, secid, NULL, 0,
+				   MAY_EXEC, CREDS_CHECK, 0);
 }
 
 /**
@@ -361,7 +377,10 @@ int ima_bprm_check(struct linux_binprm *bprm)
  */
 int ima_file_check(struct file *file, int mask, int opened)
 {
-	return process_measurement(file, NULL, 0,
+	u32 secid;
+
+	security_task_getsecid(current, &secid);
+	return process_measurement(file, current_cred(), secid, NULL, 0,
 				   mask & (MAY_READ | MAY_WRITE | MAY_EXEC |
 					   MAY_APPEND), FILE_CHECK, opened);
 }
@@ -440,6 +459,7 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
 		       enum kernel_read_file_id read_id)
 {
 	enum ima_hooks func;
+	u32 secid;
 
 	if (!file && read_id == READING_FIRMWARE) {
 		if ((ima_appraise & IMA_APPRAISE_FIRMWARE) &&
@@ -462,7 +482,9 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
 	}
 
 	func = read_idmap[read_id] ?: FILE_CHECK;
-	return process_measurement(file, buf, size, MAY_READ, func, 0);
+	security_task_getsecid(current, &secid);
+	return process_measurement(file, current_cred(), secid, buf, size,
+				   MAY_READ, func, 0);
 }
 
 static int __init init_ima(void)

@@ -50,11 +50,14 @@ bool is_ima_appraise_enabled(void)
  */
 int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 {
+	u32 secid;
+
 	if (!ima_appraise)
 		return 0;
 
-	return ima_match_policy(inode, func, mask, IMA_APPRAISE | IMA_HASH,
-				NULL);
+	security_task_getsecid(current, &secid);
+	return ima_match_policy(inode, current_cred(), secid, func, mask,
+				IMA_APPRAISE | IMA_HASH, NULL);
 }
 
 static int ima_fix_xattr(struct dentry *dentry,
@@ -87,6 +90,8 @@ enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
 		return iint->ima_mmap_status;
 	case BPRM_CHECK:
 		return iint->ima_bprm_status;
+	case CREDS_CHECK:
+		return iint->ima_creds_status;
 	case FILE_CHECK:
 	case POST_SETATTR:
 		return iint->ima_file_status;
@@ -107,6 +112,8 @@ static void ima_set_cache_status(struct integrity_iint_cache *iint,
 	case BPRM_CHECK:
 		iint->ima_bprm_status = status;
 		break;
+	case CREDS_CHECK:
+		iint->ima_creds_status = status;
 	case FILE_CHECK:
 	case POST_SETATTR:
 		iint->ima_file_status = status;
@@ -127,6 +134,9 @@ static void ima_cache_flags(struct integrity_iint_cache *iint,
 		break;
 	case BPRM_CHECK:
 		iint->flags |= (IMA_BPRM_APPRAISED | IMA_APPRAISED);
+		break;
+	case CREDS_CHECK:
+		iint->flags |= (IMA_CREDS_APPRAISED | IMA_APPRAISED);
 		break;
 	case FILE_CHECK:
 	case POST_SETATTR:
