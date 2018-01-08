@@ -35,6 +35,8 @@
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_dir2_priv.h"
+#include "xfs_attr_leaf.h"
+#include "xfs_shared.h"
 
 kmem_zone_t *xfs_ifork_zone;
 
@@ -97,14 +99,6 @@ xfs_iformat_fork(
 	if (error)
 		return error;
 
-	/* Check inline dir contents. */
-	if (S_ISDIR(inode->i_mode) && dip->di_format == XFS_DINODE_FMT_LOCAL) {
-		if (xfs_dir2_sf_verify(ip)) {
-			xfs_idestroy_fork(ip, XFS_DATA_FORK);
-			return -EFSCORRUPTED;
-		}
-	}
-
 	if (xfs_is_reflink_inode(ip)) {
 		ASSERT(ip->i_cowfp == NULL);
 		xfs_ifork_init_cow(ip);
@@ -120,18 +114,6 @@ xfs_iformat_fork(
 	case XFS_DINODE_FMT_LOCAL:
 		atp = (xfs_attr_shortform_t *)XFS_DFORK_APTR(dip);
 		size = be16_to_cpu(atp->hdr.totsize);
-
-		if (unlikely(size < sizeof(struct xfs_attr_sf_hdr))) {
-			xfs_warn(ip->i_mount,
-				"corrupt inode %Lu (bad attr fork size %Ld).",
-				(unsigned long long) ip->i_ino,
-				(long long) size);
-			XFS_CORRUPTION_ERROR("xfs_iformat(8)",
-					     XFS_ERRLEVEL_LOW,
-					     ip->i_mount, dip);
-			error = -EFSCORRUPTED;
-			break;
-		}
 
 		error = xfs_iformat_local(ip, dip, XFS_ATTR_FORK, size);
 		break;
@@ -739,4 +721,46 @@ xfs_ifork_init_cow(
 	ip->i_cowfp->if_flags = XFS_IFEXTENTS;
 	ip->i_cformat = XFS_DINODE_FMT_EXTENTS;
 	ip->i_cnextents = 0;
+}
+
+/* Default fork content verifiers. */
+struct xfs_ifork_ops xfs_default_ifork_ops = {
+	.verify_attr	= xfs_attr_shortform_verify,
+	.verify_dir	= xfs_dir2_sf_verify,
+	.verify_symlink	= xfs_symlink_shortform_verify,
+};
+
+/* Verify the inline contents of the data fork of an inode. */
+xfs_failaddr_t
+xfs_ifork_verify_data(
+	struct xfs_inode	*ip,
+	struct xfs_ifork_ops	*ops)
+{
+	/* Non-local data fork, we're done. */
+	if (ip->i_d.di_format != XFS_DINODE_FMT_LOCAL)
+		return NULL;
+
+	/* Check the inline data fork if there is one. */
+	switch (VFS_I(ip)->i_mode & S_IFMT) {
+	case S_IFDIR:
+		return ops->verify_dir(ip);
+	case S_IFLNK:
+		return ops->verify_symlink(ip);
+	default:
+		return NULL;
+	}
+}
+
+/* Verify the inline contents of the attr fork of an inode. */
+xfs_failaddr_t
+xfs_ifork_verify_attr(
+	struct xfs_inode	*ip,
+	struct xfs_ifork_ops	*ops)
+{
+	/* There has to be an attr fork allocated if aformat is local. */
+	if (ip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL)
+		return NULL;
+	if (!XFS_IFORK_PTR(ip, XFS_ATTR_FORK))
+		return __this_address;
+	return ops->verify_attr(ip);
 }
