@@ -2517,8 +2517,8 @@ cma_iboe_set_path_rec_l2_fields(struct rdma_id_private *id_priv)
 	return ndev;
 }
 
-int rdma_set_ib_paths(struct rdma_cm_id *id,
-		      struct sa_path_rec *path_rec, int num_paths)
+int rdma_set_ib_path(struct rdma_cm_id *id,
+		     struct sa_path_rec *path_rec)
 {
 	struct rdma_id_private *id_priv;
 	int ret;
@@ -2528,20 +2528,20 @@ int rdma_set_ib_paths(struct rdma_cm_id *id,
 			   RDMA_CM_ROUTE_RESOLVED))
 		return -EINVAL;
 
-	id->route.path_rec = kmemdup(path_rec, sizeof *path_rec * num_paths,
+	id->route.path_rec = kmemdup(path_rec, sizeof(*path_rec),
 				     GFP_KERNEL);
 	if (!id->route.path_rec) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	id->route.num_paths = num_paths;
+	id->route.num_paths = 1;
 	return 0;
 err:
 	cma_comp_exch(id_priv, RDMA_CM_ROUTE_RESOLVED, RDMA_CM_ADDR_RESOLVED);
 	return ret;
 }
-EXPORT_SYMBOL(rdma_set_ib_paths);
+EXPORT_SYMBOL(rdma_set_ib_path);
 
 static int cma_resolve_iw_route(struct rdma_id_private *id_priv, int timeout_ms)
 {

@@ -1231,9 +1231,9 @@ static int ucma_set_ib_path(struct ucma_context *ctx,
 		struct sa_path_rec opa;
 
 		sa_convert_path_ib_to_opa(&opa, &sa_path);
-		ret = rdma_set_ib_paths(ctx->cm_id, &opa, 1);
+		ret = rdma_set_ib_path(ctx->cm_id, &opa);
 	} else {
-		ret = rdma_set_ib_paths(ctx->cm_id, &sa_path, 1);
+		ret = rdma_set_ib_path(ctx->cm_id, &sa_path);
 	}
 	if (ret)
 		return ret;
