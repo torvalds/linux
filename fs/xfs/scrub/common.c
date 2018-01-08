@@ -503,6 +503,7 @@ xfs_scrub_get_inode(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip_in)
 {
+	struct xfs_imap			imap;
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_inode		*ip = NULL;
 	int				error;
@@ -518,10 +519,33 @@ xfs_scrub_get_inode(
 		return -ENOENT;
 	error = xfs_iget(mp, NULL, sc->sm->sm_ino,
 			XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE, 0, &ip);
-	if (error == -ENOENT || error == -EINVAL) {
-		/* inode doesn't exist... */
-		return -ENOENT;
-	} else if (error) {
+	switch (error) {
+	case -ENOENT:
+		/* Inode doesn't exist, just bail out. */
+		return error;
+	case 0:
+		/* Got an inode, continue. */
+		break;
+	case -EINVAL:
+		/*
+		 * -EINVAL with IGET_UNTRUSTED could mean one of several
+		 * things: userspace gave us an inode number that doesn't
+		 * correspond to fs space, or doesn't have an inobt entry;
+		 * or it could simply mean that the inode buffer failed the
+		 * read verifiers.
+		 *
+		 * Try just the inode mapping lookup -- if it succeeds, then
+		 * the inode buffer verifier failed and something needs fixing.
+		 * Otherwise, we really couldn't find it so tell userspace
+		 * that it no longer exists.
+		 */
+		error = xfs_imap(sc->mp, sc->tp, sc->sm->sm_ino, &imap,
+				XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE);
+		if (error)
+			return -ENOENT;
+		error = -EFSCORRUPTED;
+		/* fall through */
+	default:
 		trace_xfs_scrub_op_error(sc,
 				XFS_INO_TO_AGNO(mp, sc->sm->sm_ino),
 				XFS_INO_TO_AGBNO(mp, sc->sm->sm_ino),
