@@ -357,6 +357,7 @@ struct snd_sof_dev {
 	wait_queue_head_t trace_sleep;
 	u32 host_offset;
 	bool dtrace_is_enabled;
+	bool dtrace_error;
 
 	void *private;			/* core does not touch this */
 };
