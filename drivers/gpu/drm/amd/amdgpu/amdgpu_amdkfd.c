@@ -294,8 +294,8 @@ void get_local_mem_info(struct kgd_dev *kgd,
 	}
 	mem_info->vram_width = adev->mc.vram_width;
 
-	pr_debug("Address base: 0x%llx limit 0x%llx public 0x%llx private 0x%llx\n",
-			adev->mc.aper_base, aper_limit,
+	pr_debug("Address base: %pap limit %pap public 0x%llx private 0x%llx\n",
+			&adev->mc.aper_base, &aper_limit,
 			mem_info->local_mem_size_public,
 			mem_info->local_mem_size_private);
 
