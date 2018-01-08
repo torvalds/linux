@@ -161,11 +161,11 @@ static __init void timer_of_base_exit(struct of_timer_base *of_base)
 static __init int timer_of_base_init(struct device_node *np,
 				     struct of_timer_base *of_base)
 {
-	const char *name = of_base->name ? of_base->name : np->full_name;
-
-	of_base->base = of_io_request_and_map(np, of_base->index, name);
+	of_base->base = of_base->name ?
+		of_io_request_and_map(np, of_base->index, of_base->name) :
+		of_iomap(np, of_base->index);
 	if (IS_ERR(of_base->base)) {
-		pr_err("Failed to iomap (%s)\n", name);
+		pr_err("Failed to iomap (%s)\n", of_base->name);
 		return PTR_ERR(of_base->base);
 	}
 
