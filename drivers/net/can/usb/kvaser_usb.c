@@ -137,6 +137,7 @@ static inline bool kvaser_is_usbcan(const struct usb_device_id *id)
 #define CMD_RESET_ERROR_COUNTER		49
 #define CMD_TX_ACKNOWLEDGE		50
 #define CMD_CAN_ERROR_EVENT		51
+#define CMD_FLUSH_QUEUE_REPLY		68
 
 #define CMD_LEAF_USB_THROTTLE		77
 #define CMD_LEAF_LOG_MESSAGE		106
@@ -1301,6 +1302,11 @@ static void kvaser_usb_handle_message(const struct kvaser_usb *dev,
 			goto warn;
 		break;
 
+	case CMD_FLUSH_QUEUE_REPLY:
+		if (dev->family != KVASER_LEAF)
+			goto warn;
+		break;
+
 	default:
 warn:		dev_warn(dev->udev->dev.parent,
 			 "Unhandled message (%d)\n", msg->id);
@@ -1609,7 +1615,8 @@ static int kvaser_usb_close(struct net_device *netdev)
 	if (err)
 		netdev_warn(netdev, "Cannot flush queue, error %d\n", err);
 
-	if (kvaser_usb_send_simple_msg(dev, CMD_RESET_CHIP, priv->channel))
+	err = kvaser_usb_send_simple_msg(dev, CMD_RESET_CHIP, priv->channel);
+	if (err)
 		netdev_warn(netdev, "Cannot reset card, error %d\n", err);
 
 	err = kvaser_usb_stop_chip(priv);

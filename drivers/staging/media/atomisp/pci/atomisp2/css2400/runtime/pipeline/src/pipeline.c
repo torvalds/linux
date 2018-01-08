@@ -603,7 +603,7 @@ static enum ia_css_err pipeline_stage_create(
 	/* Verify input parameters*/
 	if (!(stage_desc->in_frame) && !(stage_desc->firmware)
 	    && (stage_desc->binary) && !(stage_desc->binary->online)) {
-	    err = IA_CSS_ERR_INTERNAL_ERROR;
+		err = IA_CSS_ERR_INTERNAL_ERROR;
 		goto ERR;
 	}
 

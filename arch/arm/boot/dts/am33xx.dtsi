@@ -36,6 +36,8 @@
 		phy1 = &usb1_phy;
 		ethernet0 = &cpsw_emac0;
 		ethernet1 = &cpsw_emac1;
+		spi0 = &spi0;
+		spi1 = &spi1;
 	};
 
 	cpus {
@@ -128,9 +130,11 @@
 		};
 	};
 
-	pmu {
+	pmu@4b000000 {
 		compatible = "arm,cortex-a8-pmu";
 		interrupts = <3>;
+		reg = <0x4b000000 0x1000000>;
+		ti,hwmods = "debugss";
 	};
 
 	/*
@@ -925,6 +929,12 @@
 				#io-channel-cells = <1>;
 				compatible = "ti,am3359-adc";
 			};
+		};
+
+		emif: emif@4c000000 {
+			compatible = "ti,emif-am3352";
+			reg = <0x4c000000 0x1000000>;
+			ti,hwmods = "emif";
 		};
 
 		gpmc: gpmc@50000000 {

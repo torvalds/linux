@@ -116,7 +116,7 @@ bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6)
 	return false;
 }
 
-static void *ipvlan_get_L3_hdr(struct sk_buff *skb, int *type)
+static void *ipvlan_get_L3_hdr(struct ipvl_port *port, struct sk_buff *skb, int *type)
 {
 	void *lyr3h = NULL;
 
@@ -124,7 +124,7 @@ static void *ipvlan_get_L3_hdr(struct sk_buff *skb, int *type)
 	case htons(ETH_P_ARP): {
 		struct arphdr *arph;
 
-		if (unlikely(!pskb_may_pull(skb, sizeof(*arph))))
+		if (unlikely(!pskb_may_pull(skb, arp_hdr_len(port->dev))))
 			return NULL;
 
 		arph = arp_hdr(skb);
@@ -165,8 +165,26 @@ static void *ipvlan_get_L3_hdr(struct sk_buff *skb, int *type)
 		/* Only Neighbour Solicitation pkts need different treatment */
 		if (ipv6_addr_any(&ip6h->saddr) &&
 		    ip6h->nexthdr == NEXTHDR_ICMP) {
+			struct icmp6hdr	*icmph;
+
+			if (unlikely(!pskb_may_pull(skb, sizeof(*ip6h) + sizeof(*icmph))))
+				return NULL;
+
+			ip6h = ipv6_hdr(skb);
+			icmph = (struct icmp6hdr *)(ip6h + 1);
+
+			if (icmph->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION) {
+				/* Need to access the ipv6 address in body */
+				if (unlikely(!pskb_may_pull(skb, sizeof(*ip6h) + sizeof(*icmph)
+						+ sizeof(struct in6_addr))))
+					return NULL;
+
+				ip6h = ipv6_hdr(skb);
+				icmph = (struct icmp6hdr *)(ip6h + 1);
+			}
+
 			*type = IPVL_ICMPV6;
-			lyr3h = ip6h + 1;
+			lyr3h = icmph;
 		}
 		break;
 	}
@@ -409,7 +427,7 @@ static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 	struct dst_entry *dst;
 	int err, ret = NET_XMIT_DROP;
 	struct flowi6 fl6 = {
-		.flowi6_iif = dev->ifindex,
+		.flowi6_oif = dev->ifindex,
 		.daddr = ip6h->daddr,
 		.saddr = ip6h->saddr,
 		.flowi6_flags = FLOWI_FLAG_ANYSRC,
@@ -510,14 +528,20 @@ static int ipvlan_xmit_mode_l3(struct sk_buff *skb, struct net_device *dev)
 	struct ipvl_addr *addr;
 	int addr_type;
 
-	lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
+	lyr3h = ipvlan_get_L3_hdr(ipvlan->port, skb, &addr_type);
 	if (!lyr3h)
 		goto out;
 
-	addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
-	if (addr)
-		return ipvlan_rcv_frame(addr, &skb, true);
-
+	if (!ipvlan_is_vepa(ipvlan->port)) {
+		addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
+		if (addr) {
+			if (ipvlan_is_private(ipvlan->port)) {
+				consume_skb(skb);
+				return NET_XMIT_DROP;
+			}
+			return ipvlan_rcv_frame(addr, &skb, true);
+		}
+	}
 out:
 	ipvlan_skb_crossing_ns(skb, ipvlan->phy_dev);
 	return ipvlan_process_outbound(skb);
@@ -531,12 +555,18 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 	void *lyr3h;
 	int addr_type;
 
-	if (ether_addr_equal(eth->h_dest, eth->h_source)) {
-		lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
+	if (!ipvlan_is_vepa(ipvlan->port) &&
+	    ether_addr_equal(eth->h_dest, eth->h_source)) {
+		lyr3h = ipvlan_get_L3_hdr(ipvlan->port, skb, &addr_type);
 		if (lyr3h) {
 			addr = ipvlan_addr_lookup(ipvlan->port, lyr3h, addr_type, true);
-			if (addr)
+			if (addr) {
+				if (ipvlan_is_private(ipvlan->port)) {
+					consume_skb(skb);
+					return NET_XMIT_DROP;
+				}
 				return ipvlan_rcv_frame(addr, &skb, true);
+			}
 		}
 		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (!skb)
@@ -594,7 +624,7 @@ static bool ipvlan_external_frame(struct sk_buff *skb, struct ipvl_port *port)
 	int addr_type;
 
 	if (ether_addr_equal(eth->h_source, skb->dev->dev_addr)) {
-		lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
+		lyr3h = ipvlan_get_L3_hdr(port, skb, &addr_type);
 		if (!lyr3h)
 			return true;
 
@@ -615,7 +645,7 @@ static rx_handler_result_t ipvlan_handle_mode_l3(struct sk_buff **pskb,
 	struct sk_buff *skb = *pskb;
 	rx_handler_result_t ret = RX_HANDLER_PASS;
 
-	lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
+	lyr3h = ipvlan_get_L3_hdr(port, skb, &addr_type);
 	if (!lyr3h)
 		goto out;
 
@@ -654,7 +684,7 @@ static rx_handler_result_t ipvlan_handle_mode_l2(struct sk_buff **pskb,
 	} else {
 		struct ipvl_addr *addr;
 
-		lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
+		lyr3h = ipvlan_get_L3_hdr(port, skb, &addr_type);
 		if (!lyr3h)
 			return ret;
 
@@ -705,7 +735,7 @@ static struct ipvl_addr *ipvlan_skb_to_addr(struct sk_buff *skb,
 	if (!port || port->mode != IPVLAN_MODE_L3S)
 		goto out;
 
-	lyr3h = ipvlan_get_L3_hdr(skb, &addr_type);
+	lyr3h = ipvlan_get_L3_hdr(port, skb, &addr_type);
 	if (!lyr3h)
 		goto out;
 

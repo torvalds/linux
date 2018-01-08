@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CRYPTO_SHA256_GLUE_H
 #define _CRYPTO_SHA256_GLUE_H
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Purpose: Export the firmware instance and label associated with
  * a pci device to sysfs

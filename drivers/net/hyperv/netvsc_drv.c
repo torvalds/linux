@@ -203,7 +203,7 @@ static inline u32 netvsc_get_hash(
 	const struct net_device_context *ndc)
 {
 	struct flow_keys flow;
-	u32 hash;
+	u32 hash, pkt_proto = 0;
 	static u32 hashrnd __read_mostly;
 
 	net_get_random_once(&hashrnd, sizeof(hashrnd));
@@ -211,11 +211,25 @@ static inline u32 netvsc_get_hash(
 	if (!skb_flow_dissect_flow_keys(skb, &flow, 0))
 		return 0;
 
-	if (flow.basic.ip_proto == IPPROTO_TCP ||
-	    (flow.basic.ip_proto == IPPROTO_UDP &&
-	     ((flow.basic.n_proto == htons(ETH_P_IP) && ndc->udp4_l4_hash) ||
-	      (flow.basic.n_proto == htons(ETH_P_IPV6) &&
-	       ndc->udp6_l4_hash)))) {
+	switch (flow.basic.ip_proto) {
+	case IPPROTO_TCP:
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			pkt_proto = HV_TCP4_L4HASH;
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			pkt_proto = HV_TCP6_L4HASH;
+
+		break;
+
+	case IPPROTO_UDP:
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			pkt_proto = HV_UDP4_L4HASH;
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			pkt_proto = HV_UDP6_L4HASH;
+
+		break;
+	}
+
+	if (pkt_proto & ndc->l4_hash) {
 		return skb_get_hash(skb);
 	} else {
 		if (flow.basic.n_proto == htons(ETH_P_IP))
@@ -238,8 +252,8 @@ static inline int netvsc_get_tx_queue(struct net_device *ndev,
 	struct sock *sk = skb->sk;
 	int q_idx;
 
-	q_idx = ndc->tx_send_table[netvsc_get_hash(skb, ndc) &
-				   (VRSS_SEND_TAB_SIZE - 1)];
+	q_idx = ndc->tx_table[netvsc_get_hash(skb, ndc) &
+			      (VRSS_SEND_TAB_SIZE - 1)];
 
 	/* If queue index changed record the new value */
 	if (q_idx != old_idx &&
@@ -848,7 +862,9 @@ static int netvsc_set_channels(struct net_device *net,
 	device_info.num_chn = count;
 	device_info.ring_size = ring_size;
 	device_info.send_sections = nvdev->send_section_cnt;
+	device_info.send_section_size = nvdev->send_section_size;
 	device_info.recv_sections = nvdev->recv_section_cnt;
+	device_info.recv_section_size = nvdev->recv_section_size;
 
 	rndis_filter_device_remove(dev, nvdev);
 
@@ -896,8 +912,7 @@ static void netvsc_init_settings(struct net_device *dev)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
 
-	ndc->udp4_l4_hash = true;
-	ndc->udp6_l4_hash = true;
+	ndc->l4_hash = HV_DEFAULT_L4HASH;
 
 	ndc->speed = SPEED_UNKNOWN;
 	ndc->duplex = DUPLEX_FULL;
@@ -963,7 +978,9 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	device_info.ring_size = ring_size;
 	device_info.num_chn = nvdev->num_chn;
 	device_info.send_sections = nvdev->send_section_cnt;
+	device_info.send_section_size = nvdev->send_section_size;
 	device_info.recv_sections = nvdev->recv_section_cnt;
+	device_info.recv_section_size = nvdev->recv_section_size;
 
 	rndis_filter_device_remove(hdev, nvdev);
 
@@ -1122,6 +1139,8 @@ static const struct {
 	{ "tx_busy",	  offsetof(struct netvsc_ethtool_stats, tx_busy) },
 	{ "tx_send_full", offsetof(struct netvsc_ethtool_stats, tx_send_full) },
 	{ "rx_comp_busy", offsetof(struct netvsc_ethtool_stats, rx_comp_busy) },
+	{ "stop_queue", offsetof(struct netvsc_ethtool_stats, stop_queue) },
+	{ "wake_queue", offsetof(struct netvsc_ethtool_stats, wake_queue) },
 }, vf_stats[] = {
 	{ "vf_rx_packets", offsetof(struct netvsc_vf_pcpu_stats, rx_packets) },
 	{ "vf_rx_bytes",   offsetof(struct netvsc_vf_pcpu_stats, rx_bytes) },
@@ -1239,23 +1258,32 @@ static int
 netvsc_get_rss_hash_opts(struct net_device_context *ndc,
 			 struct ethtool_rxnfc *info)
 {
+	const u32 l4_flag = RXH_L4_B_0_1 | RXH_L4_B_2_3;
+
 	info->data = RXH_IP_SRC | RXH_IP_DST;
 
 	switch (info->flow_type) {
 	case TCP_V4_FLOW:
+		if (ndc->l4_hash & HV_TCP4_L4HASH)
+			info->data |= l4_flag;
+
+		break;
+
 	case TCP_V6_FLOW:
-		info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		if (ndc->l4_hash & HV_TCP6_L4HASH)
+			info->data |= l4_flag;
+
 		break;
 
 	case UDP_V4_FLOW:
-		if (ndc->udp4_l4_hash)
-			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		if (ndc->l4_hash & HV_UDP4_L4HASH)
+			info->data |= l4_flag;
 
 		break;
 
 	case UDP_V6_FLOW:
-		if (ndc->udp6_l4_hash)
-			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		if (ndc->l4_hash & HV_UDP6_L4HASH)
+			info->data |= l4_flag;
 
 		break;
 
@@ -1296,23 +1324,51 @@ static int netvsc_set_rss_hash_opts(struct net_device_context *ndc,
 {
 	if (info->data == (RXH_IP_SRC | RXH_IP_DST |
 			   RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-		if (info->flow_type == UDP_V4_FLOW)
-			ndc->udp4_l4_hash = true;
-		else if (info->flow_type == UDP_V6_FLOW)
-			ndc->udp6_l4_hash = true;
-		else
+		switch (info->flow_type) {
+		case TCP_V4_FLOW:
+			ndc->l4_hash |= HV_TCP4_L4HASH;
+			break;
+
+		case TCP_V6_FLOW:
+			ndc->l4_hash |= HV_TCP6_L4HASH;
+			break;
+
+		case UDP_V4_FLOW:
+			ndc->l4_hash |= HV_UDP4_L4HASH;
+			break;
+
+		case UDP_V6_FLOW:
+			ndc->l4_hash |= HV_UDP6_L4HASH;
+			break;
+
+		default:
 			return -EOPNOTSUPP;
+		}
 
 		return 0;
 	}
 
 	if (info->data == (RXH_IP_SRC | RXH_IP_DST)) {
-		if (info->flow_type == UDP_V4_FLOW)
-			ndc->udp4_l4_hash = false;
-		else if (info->flow_type == UDP_V6_FLOW)
-			ndc->udp6_l4_hash = false;
-		else
+		switch (info->flow_type) {
+		case TCP_V4_FLOW:
+			ndc->l4_hash &= ~HV_TCP4_L4HASH;
+			break;
+
+		case TCP_V6_FLOW:
+			ndc->l4_hash &= ~HV_TCP6_L4HASH;
+			break;
+
+		case UDP_V4_FLOW:
+			ndc->l4_hash &= ~HV_UDP4_L4HASH;
+			break;
+
+		case UDP_V6_FLOW:
+			ndc->l4_hash &= ~HV_UDP6_L4HASH;
+			break;
+
+		default:
 			return -EOPNOTSUPP;
+		}
 
 		return 0;
 	}
@@ -1378,7 +1434,7 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	rndis_dev = ndev->extension;
 	if (indir) {
 		for (i = 0; i < ITAB_NUM; i++)
-			indir[i] = rndis_dev->ind_table[i];
+			indir[i] = rndis_dev->rx_table[i];
 	}
 
 	if (key)
@@ -1408,7 +1464,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 				return -EINVAL;
 
 		for (i = 0; i < ITAB_NUM; i++)
-			rndis_dev->ind_table[i] = indir[i];
+			rndis_dev->rx_table[i] = indir[i];
 	}
 
 	if (!key) {
@@ -1485,7 +1541,9 @@ static int netvsc_set_ringparam(struct net_device *ndev,
 	device_info.num_chn = nvdev->num_chn;
 	device_info.ring_size = ring_size;
 	device_info.send_sections = new_tx;
+	device_info.send_section_size = nvdev->send_section_size;
 	device_info.recv_sections = new_rx;
+	device_info.recv_section_size = nvdev->recv_section_size;
 
 	netif_device_detach(ndev);
 	was_opened = rndis_filter_opened(nvdev);
@@ -1740,7 +1798,7 @@ static int netvsc_vf_join(struct net_device *vf_netdev,
 		goto rx_handler_failed;
 	}
 
-	ret = netdev_upper_dev_link(vf_netdev, ndev);
+	ret = netdev_upper_dev_link(vf_netdev, ndev, NULL);
 	if (ret != 0) {
 		netdev_err(vf_netdev,
 			   "can not set master device %s (err = %d)\n",
@@ -1929,12 +1987,20 @@ static int netvsc_probe(struct hv_device *dev,
 	/* We always need headroom for rndis header */
 	net->needed_headroom = RNDIS_AND_PPI_SIZE;
 
+	/* Initialize the number of queues to be 1, we may change it if more
+	 * channels are offered later.
+	 */
+	netif_set_real_num_tx_queues(net, 1);
+	netif_set_real_num_rx_queues(net, 1);
+
 	/* Notify the netvsc driver of the new device */
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
 	device_info.num_chn = VRSS_CHANNEL_DEFAULT;
 	device_info.send_sections = NETVSC_DEFAULT_TX;
+	device_info.send_section_size = NETVSC_SEND_SECTION_SIZE;
 	device_info.recv_sections = NETVSC_DEFAULT_RX;
+	device_info.recv_section_size = NETVSC_RECV_SECTION_SIZE;
 
 	nvdev = rndis_filter_device_add(dev, &device_info);
 	if (IS_ERR(nvdev)) {
@@ -1945,7 +2011,7 @@ static int netvsc_probe(struct hv_device *dev,
 
 	memcpy(net->dev_addr, device_info.mac_adr, ETH_ALEN);
 
-	/* hw_features computed in rndis_filter_device_add */
+	/* hw_features computed in rndis_netdev_set_hwcaps() */
 	net->features = net->hw_features |
 		NETIF_F_HIGHDMA | NETIF_F_SG |
 		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;

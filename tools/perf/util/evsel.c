@@ -271,12 +271,17 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
+static bool perf_event_can_profile_kernel(void)
+{
+	return geteuid() == 0 || perf_event_paranoid() == -1;
+}
+
 struct perf_evsel *perf_evsel__new_cycles(bool precise)
 {
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_HARDWARE,
 		.config	= PERF_COUNT_HW_CPU_CYCLES,
-		.exclude_kernel	= geteuid() != 0,
+		.exclude_kernel	= !perf_event_can_profile_kernel(),
 	};
 	struct perf_evsel *evsel;
 
@@ -678,7 +683,7 @@ void perf_evsel__config_callchain(struct perf_evsel *evsel,
 		if (!function) {
 			perf_evsel__set_sample_bit(evsel, REGS_USER);
 			perf_evsel__set_sample_bit(evsel, STACK_USER);
-			attr->sample_regs_user = PERF_REGS_MASK;
+			attr->sample_regs_user |= PERF_REGS_MASK;
 			attr->sample_stack_user = param->dump_size;
 			attr->exclude_callchain_user = 1;
 		} else {
@@ -929,6 +934,11 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	if (opts->sample_intr_regs) {
 		attr->sample_regs_intr = opts->sample_intr_regs;
 		perf_evsel__set_sample_bit(evsel, REGS_INTR);
+	}
+
+	if (opts->sample_user_regs) {
+		attr->sample_regs_user |= opts->sample_user_regs;
+		perf_evsel__set_sample_bit(evsel, REGS_USER);
 	}
 
 	if (target__has_cpu(&opts->target) || opts->sample_cpu)

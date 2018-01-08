@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __NX_CSBCPB_H__
 #define __NX_CSBCPB_H__

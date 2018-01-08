@@ -40,11 +40,12 @@ int ssi_power_mgr_runtime_suspend(struct device *dev)
 		(struct ssi_drvdata *)dev_get_drvdata(dev);
 	int rc;
 
-	SSI_LOG_DEBUG("set HOST_POWER_DOWN_EN\n");
-	WRITE_REGISTER(drvdata->cc_base + CC_REG_OFFSET(HOST_RGF, HOST_POWER_DOWN_EN), POWER_DOWN_ENABLE);
+	dev_dbg(dev, "set HOST_POWER_DOWN_EN\n");
+	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_ENABLE);
 	rc = ssi_request_mgr_runtime_suspend_queue(drvdata);
 	if (rc != 0) {
-		SSI_LOG_ERR("ssi_request_mgr_runtime_suspend_queue (%x)\n", rc);
+		dev_err(dev, "ssi_request_mgr_runtime_suspend_queue (%x)\n",
+			rc);
 		return rc;
 	}
 	fini_cc_regs(drvdata);
@@ -58,24 +59,24 @@ int ssi_power_mgr_runtime_resume(struct device *dev)
 	struct ssi_drvdata *drvdata =
 		(struct ssi_drvdata *)dev_get_drvdata(dev);
 
-	SSI_LOG_DEBUG("unset HOST_POWER_DOWN_EN\n");
-	WRITE_REGISTER(drvdata->cc_base + CC_REG_OFFSET(HOST_RGF, HOST_POWER_DOWN_EN), POWER_DOWN_DISABLE);
+	dev_dbg(dev, "unset HOST_POWER_DOWN_EN\n");
+	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_DISABLE);
 
 	rc = cc_clk_on(drvdata);
 	if (rc) {
-		SSI_LOG_ERR("failed getting clock back on. We're toast.\n");
+		dev_err(dev, "failed getting clock back on. We're toast.\n");
 		return rc;
 	}
 
 	rc = init_cc_regs(drvdata, false);
 	if (rc != 0) {
-		SSI_LOG_ERR("init_cc_regs (%x)\n", rc);
+		dev_err(dev, "init_cc_regs (%x)\n", rc);
 		return rc;
 	}
 
 	rc = ssi_request_mgr_runtime_resume_queue(drvdata);
 	if (rc != 0) {
-		SSI_LOG_ERR("ssi_request_mgr_runtime_resume_queue (%x)\n", rc);
+		dev_err(dev, "ssi_request_mgr_runtime_resume_queue (%x)\n", rc);
 		return rc;
 	}
 
@@ -109,7 +110,8 @@ int ssi_power_mgr_runtime_put_suspend(struct device *dev)
 		rc = pm_runtime_put_autosuspend(dev);
 	} else {
 		/* Something wrong happens*/
-		BUG();
+		dev_err(dev, "request to suspend already suspended queue");
+		rc = -EBUSY;
 	}
 	return rc;
 }
@@ -120,16 +122,17 @@ int ssi_power_mgr_init(struct ssi_drvdata *drvdata)
 {
 	int rc = 0;
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-	struct platform_device *plat_dev = drvdata->plat_dev;
+	struct device *dev = drvdata_to_dev(drvdata);
+
 	/* must be before the enabling to avoid resdundent suspending */
-	pm_runtime_set_autosuspend_delay(&plat_dev->dev, SSI_SUSPEND_TIMEOUT);
-	pm_runtime_use_autosuspend(&plat_dev->dev);
+	pm_runtime_set_autosuspend_delay(dev, SSI_SUSPEND_TIMEOUT);
+	pm_runtime_use_autosuspend(dev);
 	/* activate the PM module */
-	rc = pm_runtime_set_active(&plat_dev->dev);
+	rc = pm_runtime_set_active(dev);
 	if (rc != 0)
 		return rc;
 	/* enable the PM module*/
-	pm_runtime_enable(&plat_dev->dev);
+	pm_runtime_enable(dev);
 #endif
 	return rc;
 }
@@ -137,8 +140,6 @@ int ssi_power_mgr_init(struct ssi_drvdata *drvdata)
 void ssi_power_mgr_fini(struct ssi_drvdata *drvdata)
 {
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
-	struct platform_device *plat_dev = drvdata->plat_dev;
-
-	pm_runtime_disable(&plat_dev->dev);
+	pm_runtime_disable(drvdata_to_dev(drvdata));
 #endif
 }

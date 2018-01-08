@@ -571,10 +571,9 @@ static int acpi_data_get_property_array(const struct acpi_device_data *data,
  *     }
  * }
  *
- * Calling this function with index %2 return %-ENOENT and with index %3
- * returns the last entry. If the property does not contain any more values
- * %-ENODATA is returned. The NULL entry must be single integer and
- * preferably contain value %0.
+ * Calling this function with index %2 or index %3 return %-ENOENT. If the
+ * property does not contain any more values %-ENOENT is returned. The NULL
+ * entry must be single integer and preferably contain value %0.
  *
  * Return: %0 on success, negative error code on failure.
  */
@@ -590,11 +589,11 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 
 	data = acpi_device_data_of_node(fwnode);
 	if (!data)
-		return -EINVAL;
+		return -ENOENT;
 
 	ret = acpi_data_get_property(data, propname, ACPI_TYPE_ANY, &obj);
 	if (ret)
-		return ret;
+		return ret == -EINVAL ? -ENOENT : -EINVAL;
 
 	/*
 	 * The simplest case is when the value is a single reference.  Just
@@ -606,7 +605,7 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 
 		ret = acpi_bus_get_device(obj->reference.handle, &device);
 		if (ret)
-			return ret;
+			return ret == -ENODEV ? -EINVAL : ret;
 
 		args->adev = device;
 		args->nargs = 0;
@@ -622,8 +621,10 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 	 * The index argument is then used to determine which reference
 	 * the caller wants (along with the arguments).
 	 */
-	if (obj->type != ACPI_TYPE_PACKAGE || index >= obj->package.count)
-		return -EPROTO;
+	if (obj->type != ACPI_TYPE_PACKAGE)
+		return -EINVAL;
+	if (index >= obj->package.count)
+		return -ENOENT;
 
 	element = obj->package.elements;
 	end = element + obj->package.count;
@@ -635,7 +636,7 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 			ret = acpi_bus_get_device(element->reference.handle,
 						  &device);
 			if (ret)
-				return -ENODEV;
+				return -EINVAL;
 
 			nargs = 0;
 			element++;
@@ -649,11 +650,11 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 				else if (type == ACPI_TYPE_LOCAL_REFERENCE)
 					break;
 				else
-					return -EPROTO;
+					return -EINVAL;
 			}
 
 			if (nargs > MAX_ACPI_REFERENCE_ARGS)
-				return -EPROTO;
+				return -EINVAL;
 
 			if (idx == index) {
 				args->adev = device;
@@ -670,13 +671,13 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 				return -ENOENT;
 			element++;
 		} else {
-			return -EPROTO;
+			return -EINVAL;
 		}
 
 		idx++;
 	}
 
-	return -ENODATA;
+	return -ENOENT;
 }
 EXPORT_SYMBOL_GPL(__acpi_node_get_property_reference);
 
@@ -908,11 +909,12 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child)
 {
 	const struct acpi_device *adev = to_acpi_device_node(fwnode);
-	struct acpi_device *child_adev = NULL;
 	const struct list_head *head;
 	struct list_head *next;
 
 	if (!child || is_acpi_device_node(child)) {
+		struct acpi_device *child_adev;
+
 		if (adev)
 			head = &adev->children;
 		else
@@ -922,8 +924,8 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 			goto nondev;
 
 		if (child) {
-			child_adev = to_acpi_device_node(child);
-			next = child_adev->node.next;
+			adev = to_acpi_device_node(child);
+			next = adev->node.next;
 			if (next == head) {
 				child = NULL;
 				goto nondev;
@@ -941,8 +943,8 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 		const struct acpi_data_node *data = to_acpi_data_node(fwnode);
 		struct acpi_data_node *dn;
 
-		if (child_adev)
-			head = &child_adev->data.subnodes;
+		if (adev)
+			head = &adev->data.subnodes;
 		else if (data)
 			head = &data->data.subnodes;
 		else
@@ -1293,3 +1295,16 @@ static int acpi_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 DECLARE_ACPI_FWNODE_OPS(acpi_device_fwnode_ops);
 DECLARE_ACPI_FWNODE_OPS(acpi_data_fwnode_ops);
 const struct fwnode_operations acpi_static_fwnode_ops;
+
+bool is_acpi_device_node(const struct fwnode_handle *fwnode)
+{
+	return !IS_ERR_OR_NULL(fwnode) &&
+		fwnode->ops == &acpi_device_fwnode_ops;
+}
+EXPORT_SYMBOL(is_acpi_device_node);
+
+bool is_acpi_data_node(const struct fwnode_handle *fwnode)
+{
+	return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &acpi_data_fwnode_ops;
+}
+EXPORT_SYMBOL(is_acpi_data_node);

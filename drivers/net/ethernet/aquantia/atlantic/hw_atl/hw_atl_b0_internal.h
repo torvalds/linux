@@ -16,7 +16,7 @@
 
 #include "../aq_common.h"
 
-#define HW_ATL_B0_MTU_JUMBO (16000U)
+#define HW_ATL_B0_MTU_JUMBO  16352U
 #define HW_ATL_B0_MTU        1514U
 
 #define HW_ATL_B0_TX_RINGS 4U
@@ -138,6 +138,9 @@
 #define HW_ATL_B0_FLUSH() AQ_HW_READ_REG(self, 0x10)
 
 #define HW_ATL_B0_FW_VER_EXPECTED 0x01050006U
+
+#define HW_ATL_INTR_MODER_MAX  0x1FF
+#define HW_ATL_INTR_MODER_MIN  0xFF
 
 /* Hardware tx descriptor */
 struct __packed hw_atl_txd_s {

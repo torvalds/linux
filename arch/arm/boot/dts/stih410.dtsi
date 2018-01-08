@@ -282,7 +282,7 @@
 				 <&clk_s_c0_flexgen CLK_FLASH_PROMIP>;
 		};
 
-		sti-cec@094a087c {
+		sti-cec@94a087c {
 			compatible = "st,stih-cec";
 			reg = <0x94a087c 0x64>;
 			clocks = <&clk_sysin>;

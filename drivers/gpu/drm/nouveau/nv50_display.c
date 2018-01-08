@@ -318,7 +318,7 @@ nv50_chan_create(struct nvif_device *device, struct nvif_object *disp,
 				ret = nvif_object_init(disp, 0, oclass[0],
 						       data, size, &chan->user);
 				if (ret == 0)
-					nvif_object_map(&chan->user);
+					nvif_object_map(&chan->user, NULL, 0);
 				nvif_object_sclass_put(&sclass);
 				return ret;
 			}
@@ -424,7 +424,7 @@ nv50_dmac_ctxdma_new(struct nv50_dmac *dmac, struct nouveau_framebuffer *fb)
 {
 	struct nouveau_drm *drm = nouveau_drm(fb->base.dev);
 	struct nv50_dmac_ctxdma *ctxdma;
-	const u8    kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
+	const u8    kind = fb->nvbo->kind;
 	const u32 handle = 0xfb000000 | kind;
 	struct {
 		struct nv_dma_v0 base;
@@ -510,6 +510,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	int ret;
 
 	mutex_init(&dmac->lock);
+	INIT_LIST_HEAD(&dmac->ctxdma);
 
 	dmac->ptr = dma_alloc_coherent(nvxx_device(device)->dev, PAGE_SIZE,
 				       &dmac->handle, GFP_KERNEL);
@@ -556,7 +557,6 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	if (ret)
 		return ret;
 
-	INIT_LIST_HEAD(&dmac->ctxdma);
 	return ret;
 }
 
@@ -847,7 +847,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 
 	asyw->image.w = fb->base.width;
 	asyw->image.h = fb->base.height;
-	asyw->image.kind = (fb->nvbo->tile_flags & 0x0000ff00) >> 8;
+	asyw->image.kind = fb->nvbo->kind;
 
 	if (asyh->state.pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
 		asyw->interval = 0;
@@ -857,9 +857,9 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw,
 	if (asyw->image.kind) {
 		asyw->image.layout = 0;
 		if (drm->client.device.info.chipset >= 0xc0)
-			asyw->image.block = fb->nvbo->tile_mode >> 4;
+			asyw->image.block = fb->nvbo->mode >> 4;
 		else
-			asyw->image.block = fb->nvbo->tile_mode;
+			asyw->image.block = fb->nvbo->mode;
 		asyw->image.pitch = (fb->base.pitches[0] / 4) << 4;
 	} else {
 		asyw->image.layout = 1;
@@ -3265,10 +3265,13 @@ nv50_mstm = {
 void
 nv50_mstm_service(struct nv50_mstm *mstm)
 {
-	struct drm_dp_aux *aux = mstm->mgr.aux;
+	struct drm_dp_aux *aux = mstm ? mstm->mgr.aux : NULL;
 	bool handled = true;
 	int ret;
 	u8 esi[8] = {};
+
+	if (!aux)
+		return;
 
 	while (handled) {
 		ret = drm_dp_dpcd_read(aux, DP_SINK_COUNT_ESI, esi, 8);
@@ -4096,7 +4099,7 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
-	struct drm_plane_state *old_plane_state;
+	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	bool active = false;
@@ -4126,8 +4129,8 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 	if (ret)
 		goto err_cleanup;
 
-	for_each_old_plane_in_state(state, plane, old_plane_state, i) {
-		struct nv50_wndw_atom *asyw = nv50_wndw_atom(old_plane_state);
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		struct nv50_wndw_atom *asyw = nv50_wndw_atom(new_plane_state);
 		struct nv50_wndw *wndw = nv50_wndw(plane);
 
 		if (asyw->set.image) {

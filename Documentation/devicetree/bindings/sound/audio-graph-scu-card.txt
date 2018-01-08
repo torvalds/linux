@@ -43,7 +43,7 @@ Example 1. Sampling Rate Conversion
 		label = "sound-card";
 		prefix = "codec";
 		routing = "codec Playback", "DAI0 Playback",
-			"codec Playback", "DAI1 Playback";
+			  "DAI0 Capture",   "codec Capture";
 		convert-rate = <48000>;
 
 		dais = <&cpu_port>;
@@ -79,7 +79,8 @@ Example 2. 2 CPU 1 Codec (Mixing)
 		label = "sound-card";
 		prefix = "codec";
 		routing = "codec Playback", "DAI0 Playback",
-			"codec Playback", "DAI1 Playback";
+			  "codec Playback", "DAI1 Playback",
+			  "DAI0 Capture",   "codec Capture";
 		convert-rate = <48000>;
 
 		dais = <&cpu_port0

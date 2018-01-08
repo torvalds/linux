@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -289,6 +290,22 @@ int orangefs_permission(struct inode *inode, int mask)
 	return generic_permission(inode, mask);
 }
 
+int orangefs_update_time(struct inode *inode, struct timespec *time, int flags)
+{
+	struct iattr iattr;
+	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_update_time: %pU\n",
+	    get_khandle_from_ino(inode));
+	generic_update_time(inode, time, flags);
+	memset(&iattr, 0, sizeof iattr);
+        if (flags & S_ATIME)
+		iattr.ia_valid |= ATTR_ATIME;
+	if (flags & S_CTIME)
+		iattr.ia_valid |= ATTR_CTIME;
+	if (flags & S_MTIME)
+		iattr.ia_valid |= ATTR_MTIME;
+	return orangefs_inode_setattr(inode, &iattr);
+}
+
 /* ORANGEDS2 implementation of VFS inode operations for files */
 const struct inode_operations orangefs_file_inode_operations = {
 	.get_acl = orangefs_get_acl,
@@ -297,6 +314,7 @@ const struct inode_operations orangefs_file_inode_operations = {
 	.getattr = orangefs_getattr,
 	.listxattr = orangefs_listxattr,
 	.permission = orangefs_permission,
+	.update_time = orangefs_update_time,
 };
 
 static int orangefs_init_iops(struct inode *inode)

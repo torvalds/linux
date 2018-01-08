@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
 /*
  * Copyright (c) 1995-2001,2004 Silicon Graphics, Inc.  All Rights Reserved.
  *

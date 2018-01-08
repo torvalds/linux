@@ -1334,7 +1334,7 @@ static int bytes_str_to_int(const char *str)
  * This function returns zero in case of success and a negative error code in
  * case of error.
  */
-static int ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
+static int ubi_mtd_param_parse(const char *val, const struct kernel_param *kp)
 {
 	int i, len;
 	struct mtd_dev_param *p;

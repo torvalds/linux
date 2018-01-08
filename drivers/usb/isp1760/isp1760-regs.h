@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the NXP ISP1760 chip
  *
@@ -7,10 +8,6 @@
  * Contacts:
  *     Sebastian Siewior <bigeasy@linutronix.de>
  *     Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #ifndef _ISP1760_REGS_H_

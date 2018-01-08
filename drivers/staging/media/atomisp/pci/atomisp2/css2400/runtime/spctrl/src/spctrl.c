@@ -37,7 +37,7 @@ more details.
 #include "ia_css_spctrl.h"
 #include "ia_css_debug.h"
 
-typedef struct {
+struct spctrl_context_info {
 	struct ia_css_sp_init_dmem_cfg dmem_config;
 	uint32_t        spctrl_config_dmem_addr; /** location of dmem_cfg  in SP dmem */
 	uint32_t        spctrl_state_dmem_addr;
@@ -45,9 +45,9 @@ typedef struct {
 	hrt_vaddress    code_addr;          /* sp firmware location in host mem-DDR*/
 	uint32_t        code_size;
 	char           *program_name;       /* used in case of PLATFORM_SIM */
-} spctrl_context_info;
+};
 
-static spctrl_context_info spctrl_cofig_info[N_SP_ID];
+static struct spctrl_context_info spctrl_cofig_info[N_SP_ID];
 static bool spctrl_loaded[N_SP_ID] = {0};
 
 /* Load firmware */

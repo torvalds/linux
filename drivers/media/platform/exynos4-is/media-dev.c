@@ -1405,6 +1405,11 @@ unlock:
 	return media_device_register(&fmd->media_dev);
 }
 
+static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
+	.bound = subdev_notifier_bound,
+	.complete = subdev_notifier_complete,
+};
+
 static int fimc_md_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1479,8 +1484,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 	if (fmd->num_sensors > 0) {
 		fmd->subdev_notifier.subdevs = fmd->async_subdevs;
 		fmd->subdev_notifier.num_subdevs = fmd->num_sensors;
-		fmd->subdev_notifier.bound = subdev_notifier_bound;
-		fmd->subdev_notifier.complete = subdev_notifier_complete;
+		fmd->subdev_notifier.ops = &subdev_notifier_ops;
 		fmd->num_sensors = 0;
 
 		ret = v4l2_async_notifier_register(&fmd->v4l2_dev,

@@ -60,32 +60,34 @@ struct smu7_smumgr {
 };
 
 
-int smu7_copy_bytes_from_smc(struct pp_smumgr *smumgr, uint32_t smc_start_address,
+int smu7_copy_bytes_from_smc(struct pp_hwmgr *hwmgr, uint32_t smc_start_address,
 				uint32_t *dest, uint32_t byte_count, uint32_t limit);
-int smu7_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_address,
+int smu7_copy_bytes_to_smc(struct pp_hwmgr *hwmgr, uint32_t smc_start_address,
 			const uint8_t *src, uint32_t byte_count, uint32_t limit);
-int smu7_program_jump_on_start(struct pp_smumgr *smumgr);
-bool smu7_is_smc_ram_running(struct pp_smumgr *smumgr);
-int smu7_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg);
-int smu7_send_msg_to_smc_without_waiting(struct pp_smumgr *smumgr, uint16_t msg);
-int smu7_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr, uint16_t msg,
+int smu7_program_jump_on_start(struct pp_hwmgr *hwmgr);
+bool smu7_is_smc_ram_running(struct pp_hwmgr *hwmgr);
+int smu7_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg);
+int smu7_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr, uint16_t msg);
+int smu7_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr, uint16_t msg,
 						uint32_t parameter);
-int smu7_send_msg_to_smc_with_parameter_without_waiting(struct pp_smumgr *smumgr,
+int smu7_send_msg_to_smc_with_parameter_without_waiting(struct pp_hwmgr *hwmgr,
 						uint16_t msg, uint32_t parameter);
-int smu7_send_msg_to_smc_offset(struct pp_smumgr *smumgr);
-int smu7_wait_for_smc_inactive(struct pp_smumgr *smumgr);
+int smu7_send_msg_to_smc_offset(struct pp_hwmgr *hwmgr);
+int smu7_wait_for_smc_inactive(struct pp_hwmgr *hwmgr);
 
 enum cgs_ucode_id smu7_convert_fw_type_to_cgs(uint32_t fw_type);
-int smu7_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr,
+int smu7_read_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr,
 						uint32_t *value, uint32_t limit);
-int smu7_write_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr,
+int smu7_write_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr,
 						uint32_t value, uint32_t limit);
 
-int smu7_request_smu_load_fw(struct pp_smumgr *smumgr);
-int smu7_check_fw_load_finish(struct pp_smumgr *smumgr, uint32_t fw_type);
-int smu7_reload_firmware(struct pp_smumgr *smumgr);
-int smu7_upload_smu_firmware_image(struct pp_smumgr *smumgr);
-int smu7_init(struct pp_smumgr *smumgr);
-int smu7_smu_fini(struct pp_smumgr *smumgr);
+int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr);
+int smu7_check_fw_load_finish(struct pp_hwmgr *hwmgr, uint32_t fw_type);
+int smu7_reload_firmware(struct pp_hwmgr *hwmgr);
+int smu7_upload_smu_firmware_image(struct pp_hwmgr *hwmgr);
+int smu7_init(struct pp_hwmgr *hwmgr);
+int smu7_smu_fini(struct pp_hwmgr *hwmgr);
+
+int smu7_setup_pwr_virus(struct pp_hwmgr *hwmgr);
 
 #endif

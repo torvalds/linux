@@ -2227,7 +2227,7 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 	kfree(phba->nvmeio_trc);
 
 	/* Allocate new trace buffer and initialize */
-	phba->nvmeio_trc = kmalloc((sizeof(struct lpfc_debugfs_nvmeio_trc) *
+	phba->nvmeio_trc = kzalloc((sizeof(struct lpfc_debugfs_nvmeio_trc) *
 				    sz), GFP_KERNEL);
 	if (!phba->nvmeio_trc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -2235,8 +2235,6 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 				"nvmeio_trc buffer\n");
 		return -ENOMEM;
 	}
-	memset(phba->nvmeio_trc, 0,
-	       (sizeof(struct lpfc_debugfs_nvmeio_trc) * sz));
 	atomic_set(&phba->nvmeio_trc_cnt, 0);
 	phba->nvmeio_trc_on = 0;
 	phba->nvmeio_trc_output_idx = 0;
@@ -5457,7 +5455,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 			phba->nvmeio_trc_size = lpfc_debugfs_max_nvmeio_trc;
 
 			/* Allocate trace buffer and initialize */
-			phba->nvmeio_trc = kmalloc(
+			phba->nvmeio_trc = kzalloc(
 				(sizeof(struct lpfc_debugfs_nvmeio_trc) *
 				phba->nvmeio_trc_size), GFP_KERNEL);
 
@@ -5467,9 +5465,6 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 						"nvmeio_trc buffer\n");
 				goto nvmeio_off;
 			}
-			memset(phba->nvmeio_trc, 0,
-			       (sizeof(struct lpfc_debugfs_nvmeio_trc) *
-			       phba->nvmeio_trc_size));
 			phba->nvmeio_trc_on = 1;
 			phba->nvmeio_trc_output_idx = 0;
 			phba->nvmeio_trc = NULL;

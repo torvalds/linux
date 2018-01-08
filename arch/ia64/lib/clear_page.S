@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1999-2002 Hewlett-Packard Co
  *	Stephane Eranian <eranian@hpl.hp.com>

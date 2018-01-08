@@ -141,7 +141,7 @@ static void __init tangox_irq_init_chip(struct irq_chip_generic *gc,
 	for (i = 0; i < 2; i++) {
 		ct[i].chip.irq_ack = irq_gc_ack_set_bit;
 		ct[i].chip.irq_mask = irq_gc_mask_disable_reg;
-		ct[i].chip.irq_mask_ack = irq_gc_mask_disable_reg_and_ack;
+		ct[i].chip.irq_mask_ack = irq_gc_mask_disable_and_ack_set;
 		ct[i].chip.irq_unmask = irq_gc_unmask_enable_reg;
 		ct[i].chip.irq_set_type = tangox_irq_set_type;
 		ct[i].chip.name = gc->domain->name;

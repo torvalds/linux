@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _NFT_COMPAT_NFNETLINK_H_
 #define _NFT_COMPAT_NFNETLINK_H_
 

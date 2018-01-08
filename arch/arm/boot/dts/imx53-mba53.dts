@@ -30,7 +30,7 @@
 		power-supply = <&reg_backlight>;
 	};
 
-	disp1: display@disp1 {
+	disp1: disp1 {
 		compatible = "fsl,imx-parallel-display";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_disp1_1>;

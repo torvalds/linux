@@ -124,5 +124,6 @@ void
 nfp_reprs_clean_and_free_by_type(struct nfp_app *app,
 				 enum nfp_repr_type type);
 struct nfp_reprs *nfp_reprs_alloc(unsigned int num_reprs);
+int nfp_reprs_resync_phys_ports(struct nfp_app *app);
 
 #endif /* NFP_NET_REPR_H */

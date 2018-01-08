@@ -149,11 +149,23 @@ If you want to limit idle states at boot time, you can use "nohlt" or
 
 At the runtime you can disable idle states with below methods:
 
-Set latency request to /dev/cpu_dma_latency to disable all CPUs specific idle
-states (if latency = 0uS then disable all idle states):
-# echo "what_ever_latency_you_need_in_uS" > /dev/cpu_dma_latency
+It is possible to disable CPU idle states by way of the PM QoS
+subsystem, more specifically by using the "/dev/cpu_dma_latency"
+interface (see Documentation/power/pm_qos_interface.txt for more
+details).  As specified in the PM QoS documentation the requested
+parameter will stay in effect until the file descriptor is released.
+For example:
 
-Disable specific CPU's specific idle state:
+# exec 3<> /dev/cpu_dma_latency; echo 0 >&3
+...
+Do some work...
+...
+# exec 3<>-
+
+The same can also be done from an application program.
+
+Disable specific CPU's specific idle state from cpuidle sysfs (see
+Documentation/cpuidle/sysfs.txt):
 # echo 1 > /sys/devices/system/cpu/cpu$cpu/cpuidle/state$state/disable
 
 

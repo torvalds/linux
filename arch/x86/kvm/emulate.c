@@ -425,8 +425,10 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 	#op " %al \n\t" \
 	FOP_RET
 
-asm(".global kvm_fastop_exception \n"
-    "kvm_fastop_exception: xor %esi, %esi; ret");
+asm(".pushsection .fixup, \"ax\"\n"
+    ".global kvm_fastop_exception \n"
+    "kvm_fastop_exception: xor %esi, %esi; ret\n"
+    ".popsection");
 
 FOP_START(setcc)
 FOP_SETCC(seto)
@@ -2589,6 +2591,15 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	ctxt->ops->set_msr(ctxt, MSR_EFER, efer);
 
 	smbase = ctxt->ops->get_smbase(ctxt);
+
+	/*
+	 * Give pre_leave_smm() a chance to make ISA-specific changes to the
+	 * vCPU state (e.g. enter guest mode) before loading state from the SMM
+	 * state-save area.
+	 */
+	if (ctxt->ops->pre_leave_smm(ctxt, smbase))
+		return X86EMUL_UNHANDLEABLE;
+
 	if (emulator_has_longmode(ctxt))
 		ret = rsm_load_state_64(ctxt, smbase + 0x8000);
 	else
@@ -4102,10 +4113,12 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 		if (efer & EFER_LMA) {
 			u64 maxphyaddr;
-			u32 eax = 0x80000008;
+			u32 eax, ebx, ecx, edx;
 
-			if (ctxt->ops->get_cpuid(ctxt, &eax, NULL, NULL,
-						 NULL, false))
+			eax = 0x80000008;
+			ecx = 0;
+			if (ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx,
+						 &edx, false))
 				maxphyaddr = eax & 0xff;
 			else
 				maxphyaddr = 36;
@@ -5296,7 +5309,6 @@ static void fetch_possible_mmx_operand(struct x86_emulate_ctxt *ctxt,
 
 static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *))
 {
-	register void *__sp asm(_ASM_SP);
 	ulong flags = (ctxt->eflags & EFLAGS_MASK) | X86_EFLAGS_IF;
 
 	if (!(ctxt->d & ByteOp))
@@ -5304,7 +5316,7 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *))
 
 	asm("push %[flags]; popf; call *%[fastop]; pushf; pop %[flags]\n"
 	    : "+a"(ctxt->dst.val), "+d"(ctxt->src.val), [flags]"+D"(flags),
-	      [fastop]"+S"(fop), "+r"(__sp)
+	      [fastop]"+S"(fop), ASM_CALL_CONSTRAINT
 	    : "c"(ctxt->src2.val));
 
 	ctxt->eflags = (ctxt->eflags & ~EFLAGS_MASK) | (flags & EFLAGS_MASK);

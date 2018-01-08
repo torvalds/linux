@@ -328,12 +328,16 @@ static int v2_write_dquot(struct dquot *dquot)
 	if (!dquot->dq_off) {
 		alloc = true;
 		down_write(&dqopt->dqio_sem);
+	} else {
+		down_read(&dqopt->dqio_sem);
 	}
 	ret = qtree_write_dquot(
 			sb_dqinfo(dquot->dq_sb, dquot->dq_id.type)->dqi_priv,
 			dquot);
 	if (alloc)
 		up_write(&dqopt->dqio_sem);
+	else
+		up_read(&dqopt->dqio_sem);
 	return ret;
 }
 

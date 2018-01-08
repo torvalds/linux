@@ -38,7 +38,8 @@
 };
 
 &ethsc {
-	interrupts = <0 52 4>;
+	interrupt-parent = <&gpio>;
+	interrupts = <0 8>;
 };
 
 &serial0 {
@@ -58,5 +59,9 @@
 };
 
 &i2c3 {
+	status = "okay";
+};
+
+&nand {
 	status = "okay";
 };

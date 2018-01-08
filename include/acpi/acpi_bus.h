@@ -211,7 +211,7 @@ struct acpi_device_flags {
 	u32 of_compatible_ok:1;
 	u32 coherent_dma:1;
 	u32 cca_seen:1;
-	u32 spi_i2c_slave:1;
+	u32 serial_bus_slave:1;
 	u32 reserved:19;
 };
 
@@ -399,17 +399,12 @@ extern const struct fwnode_operations acpi_device_fwnode_ops;
 extern const struct fwnode_operations acpi_data_fwnode_ops;
 extern const struct fwnode_operations acpi_static_fwnode_ops;
 
+bool is_acpi_device_node(const struct fwnode_handle *fwnode);
+bool is_acpi_data_node(const struct fwnode_handle *fwnode);
+
 static inline bool is_acpi_node(const struct fwnode_handle *fwnode)
 {
-	return !IS_ERR_OR_NULL(fwnode) &&
-		(fwnode->ops == &acpi_device_fwnode_ops
-		 || fwnode->ops == &acpi_data_fwnode_ops);
-}
-
-static inline bool is_acpi_device_node(const struct fwnode_handle *fwnode)
-{
-	return !IS_ERR_OR_NULL(fwnode) &&
-		fwnode->ops == &acpi_device_fwnode_ops;
+	return (is_acpi_device_node(fwnode) || is_acpi_data_node(fwnode));
 }
 
 #define to_acpi_device_node(__fwnode)					\
@@ -421,11 +416,6 @@ static inline bool is_acpi_device_node(const struct fwnode_handle *fwnode)
 				     struct acpi_device, fwnode) :	\
 			NULL;						\
 	})
-
-static inline bool is_acpi_data_node(const struct fwnode_handle *fwnode)
-{
-	return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &acpi_data_fwnode_ops;
-}
 
 #define to_acpi_data_node(__fwnode)					\
 	({								\

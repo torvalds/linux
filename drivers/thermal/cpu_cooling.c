@@ -696,7 +696,7 @@ __cpufreq_cooling_register(struct device_node *np,
 	bool first;
 
 	if (IS_ERR_OR_NULL(policy)) {
-		pr_err("%s: cpufreq policy isn't valid: %p", __func__, policy);
+		pr_err("%s: cpufreq policy isn't valid: %p\n", __func__, policy);
 		return ERR_PTR(-EINVAL);
 	}
 

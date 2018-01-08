@@ -682,8 +682,7 @@
 		};
 
 		mmc0: mmc@11230000 {
-			compatible = "mediatek,mt8173-mmc",
-				     "mediatek,mt8135-mmc";
+			compatible = "mediatek,mt8173-mmc";
 			reg = <0 0x11230000 0 0x1000>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&pericfg CLK_PERI_MSDC30_0>,
@@ -693,8 +692,7 @@
 		};
 
 		mmc1: mmc@11240000 {
-			compatible = "mediatek,mt8173-mmc",
-				     "mediatek,mt8135-mmc";
+			compatible = "mediatek,mt8173-mmc";
 			reg = <0 0x11240000 0 0x1000>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&pericfg CLK_PERI_MSDC30_1>,
@@ -704,8 +702,7 @@
 		};
 
 		mmc2: mmc@11250000 {
-			compatible = "mediatek,mt8173-mmc",
-				     "mediatek,mt8135-mmc";
+			compatible = "mediatek,mt8173-mmc";
 			reg = <0 0x11250000 0 0x1000>;
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&pericfg CLK_PERI_MSDC30_2>,
@@ -715,8 +712,7 @@
 		};
 
 		mmc3: mmc@11260000 {
-			compatible = "mediatek,mt8173-mmc",
-				     "mediatek,mt8135-mmc";
+			compatible = "mediatek,mt8173-mmc";
 			reg = <0 0x11260000 0 0x1000>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&pericfg CLK_PERI_MSDC30_3>,

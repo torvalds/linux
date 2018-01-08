@@ -190,7 +190,7 @@ static int ti_cpufreq_setup_syscon_register(struct ti_cpufreq_data *opp_data)
 
 static const struct of_device_id ti_cpufreq_of_match[] = {
 	{ .compatible = "ti,am33xx", .data = &am3x_soc_data, },
-	{ .compatible = "ti,am4372", .data = &am4x_soc_data, },
+	{ .compatible = "ti,am43", .data = &am4x_soc_data, },
 	{ .compatible = "ti,dra7", .data = &dra7_soc_data },
 	{},
 };
@@ -205,6 +205,7 @@ static int ti_cpufreq_init(void)
 
 	np = of_find_node_by_path("/");
 	match = of_match_node(ti_cpufreq_of_match, np);
+	of_node_put(np);
 	if (!match)
 		return -ENODEV;
 
@@ -217,7 +218,8 @@ static int ti_cpufreq_init(void)
 	opp_data->cpu_dev = get_cpu_device(0);
 	if (!opp_data->cpu_dev) {
 		pr_err("%s: Failed to get device for CPU0\n", __func__);
-		return -ENODEV;
+		ret = ENODEV;
+		goto free_opp_data;
 	}
 
 	opp_data->opp_node = dev_pm_opp_of_get_opp_desc_node(opp_data->cpu_dev);
@@ -262,6 +264,8 @@ register_cpufreq_dt:
 
 fail_put_node:
 	of_node_put(opp_data->opp_node);
+free_opp_data:
+	kfree(opp_data);
 
 	return ret;
 }

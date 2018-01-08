@@ -25,7 +25,7 @@ Optional properties:
 
 Example:
 
-	ir@02006200 {
+	ir@2006200 {
 		compatible = "img,ir-rev1";
 		reg = <0x02006200 0x100>;
 		interrupts = <29 4>;

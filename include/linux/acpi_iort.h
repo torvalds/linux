@@ -49,8 +49,8 @@ static inline void acpi_configure_pmsi_domain(struct device *dev) { }
 /* IOMMU interface */
 static inline void iort_dma_setup(struct device *dev, u64 *dma_addr,
 				  u64 *size) { }
-static inline
-const struct iommu_ops *iort_iommu_configure(struct device *dev)
+static inline const struct iommu_ops *iort_iommu_configure(
+				      struct device *dev)
 { return NULL; }
 #endif
 

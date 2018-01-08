@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef	__BPQETHER_H
 #define	__BPQETHER_H
 

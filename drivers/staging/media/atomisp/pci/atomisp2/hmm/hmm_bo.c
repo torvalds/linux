@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 /*
@@ -58,7 +54,7 @@ static unsigned int nr_to_order_bottom(unsigned int nr)
 	return fls(nr) - 1;
 }
 
-struct hmm_buffer_object *__bo_alloc(struct kmem_cache *bo_cache)
+static struct hmm_buffer_object *__bo_alloc(struct kmem_cache *bo_cache)
 {
 	struct hmm_buffer_object *bo;
 
@@ -99,7 +95,7 @@ static int __bo_init(struct hmm_bo_device *bdev, struct hmm_buffer_object *bo,
 	return 0;
 }
 
-struct hmm_buffer_object *__bo_search_and_remove_from_free_rbtree(
+static struct hmm_buffer_object *__bo_search_and_remove_from_free_rbtree(
 				struct rb_node *node, unsigned int pgnr)
 {
 	struct hmm_buffer_object *this, *ret_bo, *temp_bo;
@@ -150,7 +146,7 @@ remove_bo_and_return:
 	return temp_bo;
 }
 
-struct hmm_buffer_object *__bo_search_by_addr(struct rb_root *root,
+static struct hmm_buffer_object *__bo_search_by_addr(struct rb_root *root,
 							ia_css_ptr start)
 {
 	struct rb_node *n = root->rb_node;
@@ -175,8 +171,8 @@ struct hmm_buffer_object *__bo_search_by_addr(struct rb_root *root,
 	return NULL;
 }
 
-struct hmm_buffer_object *__bo_search_by_addr_in_range(struct rb_root *root,
-					unsigned int start)
+static struct hmm_buffer_object *__bo_search_by_addr_in_range(
+		struct rb_root *root, unsigned int start)
 {
 	struct rb_node *n = root->rb_node;
 	struct hmm_buffer_object *bo;
@@ -258,7 +254,7 @@ static void __bo_insert_to_alloc_rbtree(struct rb_root *root,
 	rb_insert_color(&bo->node, root);
 }
 
-struct hmm_buffer_object *__bo_break_up(struct hmm_bo_device *bdev,
+static struct hmm_buffer_object *__bo_break_up(struct hmm_bo_device *bdev,
 					struct hmm_buffer_object *bo,
 					unsigned int pgnr)
 {
@@ -331,7 +327,7 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 	}
 }
 
-struct hmm_buffer_object *__bo_merge(struct hmm_buffer_object *bo,
+static struct hmm_buffer_object *__bo_merge(struct hmm_buffer_object *bo,
 					struct hmm_buffer_object *next_bo)
 {
 	struct hmm_bo_device *bdev;
@@ -725,12 +721,10 @@ static int alloc_private_pages(struct hmm_buffer_object *bo,
 
 	pgnr = bo->pgnr;
 
-	bo->page_obj = kmalloc(sizeof(struct hmm_page_object) * pgnr,
+	bo->page_obj = kmalloc_array(pgnr, sizeof(struct hmm_page_object),
 				GFP_KERNEL);
-	if (unlikely(!bo->page_obj)) {
-		dev_err(atomisp_dev, "out of memory for bo->page_obj\n");
+	if (unlikely(!bo->page_obj))
 		return -ENOMEM;
-	}
 
 	i = 0;
 	alloc_pgnr = 0;
@@ -990,16 +984,13 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 	struct vm_area_struct *vma;
 	struct page **pages;
 
-	pages = kmalloc(sizeof(struct page *) * bo->pgnr, GFP_KERNEL);
-	if (unlikely(!pages)) {
-		dev_err(atomisp_dev, "out of memory for pages...\n");
+	pages = kmalloc_array(bo->pgnr, sizeof(struct page *), GFP_KERNEL);
+	if (unlikely(!pages))
 		return -ENOMEM;
-	}
 
-	bo->page_obj = kmalloc(sizeof(struct hmm_page_object) * bo->pgnr,
+	bo->page_obj = kmalloc_array(bo->pgnr, sizeof(struct hmm_page_object),
 		GFP_KERNEL);
 	if (unlikely(!bo->page_obj)) {
-		dev_err(atomisp_dev, "out of memory for bo->page_obj...\n");
 		kfree(pages);
 		return -ENOMEM;
 	}
@@ -1029,10 +1020,8 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 	} else {
 		/*Handle frame buffer allocated in user space*/
 		mutex_unlock(&bo->mutex);
-		down_read(&current->mm->mmap_sem);
-		page_nr = get_user_pages((unsigned long)userptr,
-					 (int)(bo->pgnr), 1, pages, NULL);
-		up_read(&current->mm->mmap_sem);
+		page_nr = get_user_pages_fast((unsigned long)userptr,
+					 (int)(bo->pgnr), 1, pages);
 		mutex_lock(&bo->mutex);
 		bo->mem_type = HMM_BO_MEM_TYPE_USER;
 	}
@@ -1168,13 +1157,9 @@ status_err2:
 
 int hmm_bo_page_allocated(struct hmm_buffer_object *bo)
 {
-	int ret;
-
 	check_bo_null_return(bo, 0);
 
-	ret = bo->status & HMM_BO_PAGE_ALLOCED;
-
-	return ret;
+	return bo->status & HMM_BO_PAGE_ALLOCED;
 }
 
 /*
@@ -1363,10 +1348,9 @@ void *hmm_bo_vmap(struct hmm_buffer_object *bo, bool cached)
 		bo->status &= ~(HMM_BO_VMAPED | HMM_BO_VMAPED_CACHED);
 	}
 
-	pages = kmalloc(sizeof(*pages) * bo->pgnr, GFP_KERNEL);
+	pages = kmalloc_array(bo->pgnr, sizeof(*pages), GFP_KERNEL);
 	if (unlikely(!pages)) {
 		mutex_unlock(&bo->mutex);
-		dev_err(atomisp_dev, "out of memory for pages...\n");
 		return NULL;
 	}
 

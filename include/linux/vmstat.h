@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_VMSTAT_H
 #define _LINUX_VMSTAT_H
 
@@ -6,8 +7,18 @@
 #include <linux/mmzone.h>
 #include <linux/vm_event_item.h>
 #include <linux/atomic.h>
+#include <linux/static_key.h>
 
 extern int sysctl_stat_interval;
+
+#ifdef CONFIG_NUMA
+#define ENABLE_NUMA_STAT   1
+#define DISABLE_NUMA_STAT   0
+extern int sysctl_vm_numa_stat;
+DECLARE_STATIC_KEY_TRUE(vm_numa_stat_key);
+extern int sysctl_vm_numa_stat_handler(struct ctl_table *table,
+		int write, void __user *buffer, size_t *length, loff_t *ppos);
+#endif
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
 /*

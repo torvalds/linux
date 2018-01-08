@@ -530,8 +530,11 @@ void tipc_mon_prep(struct net *net, void *data, int *dlen,
 	u16 gen = mon->dom_gen;
 	u16 len;
 
-	if (!tipc_mon_is_active(net, mon))
+	/* Send invalid record if not active */
+	if (!tipc_mon_is_active(net, mon)) {
+		dom->len = 0;
 		return;
+	}
 
 	/* Send only a dummy record with ack if peer has acked our last sent */
 	if (likely(state->acked_gen == gen)) {
@@ -559,6 +562,12 @@ void tipc_mon_get_state(struct net *net, u32 addr,
 	struct tipc_monitor *mon = tipc_monitor(net, bearer_id);
 	struct tipc_peer *peer;
 
+	if (!tipc_mon_is_active(net, mon)) {
+		state->probing = false;
+		state->monitoring = true;
+		return;
+	}
+
 	/* Used cached state if table has not changed */
 	if (!state->probing &&
 	    (state->list_gen == mon->list_gen) &&
@@ -578,9 +587,9 @@ void tipc_mon_get_state(struct net *net, u32 addr,
 	read_unlock_bh(&mon->lock);
 }
 
-static void mon_timeout(unsigned long m)
+static void mon_timeout(struct timer_list *t)
 {
-	struct tipc_monitor *mon = (void *)m;
+	struct tipc_monitor *mon = from_timer(mon, t, timer);
 	struct tipc_peer *self;
 	int best_member_cnt = dom_size(mon->peer_cnt) - 1;
 
@@ -623,7 +632,7 @@ int tipc_mon_create(struct net *net, int bearer_id)
 	self->is_up = true;
 	self->is_head = true;
 	INIT_LIST_HEAD(&self->list);
-	setup_timer(&mon->timer, mon_timeout, (unsigned long)mon);
+	timer_setup(&mon->timer, mon_timeout, 0);
 	mon->timer_intv = msecs_to_jiffies(MON_TIMEOUT + (tn->random & 0xffff));
 	mod_timer(&mon->timer, jiffies + mon->timer_intv);
 	return 0;

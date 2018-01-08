@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Cavium Liquidio ethernet device driver
 #
@@ -17,7 +18,7 @@ liquidio-$(CONFIG_LIQUIDIO) += lio_ethtool.o \
 			octeon_droq.o      \
 			octeon_nic.o
 
-liquidio-objs := lio_main.o octeon_console.o $(liquidio-y)
+liquidio-objs := lio_main.o octeon_console.o lio_vf_rep.o $(liquidio-y)
 
 obj-$(CONFIG_LIQUIDIO_VF) += liquidio_vf.o
 

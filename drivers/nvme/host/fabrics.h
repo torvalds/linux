@@ -57,6 +57,7 @@ enum {
 	NVMF_OPT_HOST_TRADDR	= 1 << 10,
 	NVMF_OPT_CTRL_LOSS_TMO	= 1 << 11,
 	NVMF_OPT_HOST_ID	= 1 << 12,
+	NVMF_OPT_DUP_CONNECT	= 1 << 13,
 };
 
 /**
@@ -96,6 +97,7 @@ struct nvmf_ctrl_options {
 	unsigned int		nr_io_queues;
 	unsigned int		reconnect_delay;
 	bool			discovery_nqn;
+	bool			duplicate_connect;
 	unsigned int		kato;
 	struct nvmf_host	*host;
 	int			max_reconnects;
@@ -130,6 +132,18 @@ struct nvmf_transport_ops {
 	struct nvme_ctrl	*(*create_ctrl)(struct device *dev,
 					struct nvmf_ctrl_options *opts);
 };
+
+static inline bool
+nvmf_ctlr_matches_baseopts(struct nvme_ctrl *ctrl,
+			struct nvmf_ctrl_options *opts)
+{
+	if (strcmp(opts->subsysnqn, ctrl->opts->subsysnqn) ||
+	    strcmp(opts->host->nqn, ctrl->opts->host->nqn) ||
+	    memcmp(&opts->host->id, &ctrl->opts->host->id, sizeof(uuid_t)))
+		return false;
+
+	return true;
+}
 
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val);

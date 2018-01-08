@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_PARISC_PDC_H
 #define _UAPI_PARISC_PDC_H
 
@@ -15,6 +16,7 @@
 #define PDC_ERROR		 -3	/* Call could not complete without an error */
 #define PDC_NE_MOD		 -5	/* Module not found		*/
 #define PDC_NE_CELL_MOD		 -7	/* Cell module not found	*/
+#define PDC_NE_BOOTDEV		 -9	/* Cannot locate a console device or boot device */
 #define PDC_INVALID_ARG		-10	/* Called with an invalid argument */
 #define PDC_BUS_POW_WARN	-12	/* Call could not complete in allowed power budget */
 #define PDC_NOT_NARROW		-17	/* Narrow mode not supported	*/
@@ -339,9 +341,6 @@
 
 #if !defined(__ASSEMBLY__)
 
-#include <linux/types.h>
-
-
 /* flags of the device_path */
 #define	PF_AUTOBOOT	0x80
 #define	PF_AUTOSEARCH	0x40
@@ -417,9 +416,255 @@ struct zeropage {
 	int	pad430[116];
 
 	/* [0x600] processor dependent */
-	__u32	pad600[1];
-	__u32	proc_sti;		/* pointer to STI ROM */
-	__u32	pad608[126];
+	unsigned int pad600[1];
+	unsigned int proc_sti;		/* pointer to STI ROM */
+	unsigned int pad608[126];
+};
+
+struct pdc_chassis_info {       /* for PDC_CHASSIS_INFO */
+	unsigned long actcnt;   /* actual number of bytes returned */
+	unsigned long maxcnt;   /* maximum number of bytes that could be returned */
+};
+
+struct pdc_coproc_cfg {         /* for PDC_COPROC_CFG */
+        unsigned long ccr_functional;
+        unsigned long ccr_present;
+        unsigned long revision;
+        unsigned long model;
+};
+
+struct pdc_model {		/* for PDC_MODEL */
+	unsigned long hversion;
+	unsigned long sversion;
+	unsigned long hw_id;
+	unsigned long boot_id;
+	unsigned long sw_id;
+	unsigned long sw_cap;
+	unsigned long arch_rev;
+	unsigned long pot_key;
+	unsigned long curr_key;
+};
+
+struct pdc_cache_cf {		/* for PDC_CACHE  (I/D-caches) */
+    unsigned long
+#ifdef __LP64__
+		cc_padW:32,
+#endif
+		cc_alias: 4,	/* alias boundaries for virtual addresses   */
+		cc_block: 4,	/* to determine most efficient stride */
+		cc_line	: 3,	/* maximum amount written back as a result of store (multiple of 16 bytes) */
+		cc_shift: 2,	/* how much to shift cc_block left */
+		cc_wt	: 1,	/* 0 = WT-Dcache, 1 = WB-Dcache */
+		cc_sh	: 2,	/* 0 = separate I/D-cache, else shared I/D-cache */
+		cc_cst  : 3,	/* 0 = incoherent D-cache, 1=coherent D-cache */
+		cc_pad1 : 10,	/* reserved */
+		cc_hv   : 3;	/* hversion dependent */
+};
+
+struct pdc_tlb_cf {		/* for PDC_CACHE (I/D-TLB's) */
+    unsigned long tc_pad0:12,	/* reserved */
+#ifdef __LP64__
+		tc_padW:32,
+#endif
+		tc_sh	: 2,	/* 0 = separate I/D-TLB, else shared I/D-TLB */
+		tc_hv   : 1,	/* HV */
+		tc_page : 1,	/* 0 = 2K page-size-machine, 1 = 4k page size */
+		tc_cst  : 3,	/* 0 = incoherent operations, else coherent operations */
+		tc_aid  : 5,	/* ITLB: width of access ids of processor (encoded!) */
+		tc_sr   : 8;	/* ITLB: width of space-registers (encoded) */
+};
+
+struct pdc_cache_info {		/* main-PDC_CACHE-structure (caches & TLB's) */
+	/* I-cache */
+	unsigned long	ic_size;	/* size in bytes */
+	struct pdc_cache_cf ic_conf;	/* configuration */
+	unsigned long	ic_base;	/* base-addr */
+	unsigned long	ic_stride;
+	unsigned long	ic_count;
+	unsigned long	ic_loop;
+	/* D-cache */
+	unsigned long	dc_size;	/* size in bytes */
+	struct pdc_cache_cf dc_conf;	/* configuration */
+	unsigned long	dc_base;	/* base-addr */
+	unsigned long	dc_stride;
+	unsigned long	dc_count;
+	unsigned long	dc_loop;
+	/* Instruction-TLB */
+	unsigned long	it_size;	/* number of entries in I-TLB */
+	struct pdc_tlb_cf it_conf;	/* I-TLB-configuration */
+	unsigned long	it_sp_base;
+	unsigned long	it_sp_stride;
+	unsigned long	it_sp_count;
+	unsigned long	it_off_base;
+	unsigned long	it_off_stride;
+	unsigned long	it_off_count;
+	unsigned long	it_loop;
+	/* data-TLB */
+	unsigned long	dt_size;	/* number of entries in D-TLB */
+	struct pdc_tlb_cf dt_conf;	/* D-TLB-configuration */
+	unsigned long	dt_sp_base;
+	unsigned long	dt_sp_stride;
+	unsigned long	dt_sp_count;
+	unsigned long	dt_off_base;
+	unsigned long	dt_off_stride;
+	unsigned long	dt_off_count;
+	unsigned long	dt_loop;
+};
+
+/* Might need adjustment to work with 64-bit firmware */
+struct pdc_iodc {     /* PDC_IODC */
+	unsigned char   hversion_model;
+	unsigned char 	hversion;
+	unsigned char 	spa;
+	unsigned char 	type;
+	unsigned int	sversion_rev:4;
+	unsigned int	sversion_model:19;
+	unsigned int	sversion_opt:8;
+	unsigned char	rev;
+	unsigned char	dep;
+	unsigned char	features;
+	unsigned char	pad1;
+	unsigned int	checksum:16;
+	unsigned int	length:16;
+	unsigned int    pad[15];
+} __attribute__((aligned(8))) ;
+
+/* no BLTBs in pa2.0 processors */
+struct pdc_btlb_info_range {
+	unsigned char res00;
+	unsigned char num_i;
+	unsigned char num_d;
+	unsigned char num_comb;
+};
+
+struct pdc_btlb_info {	/* PDC_BLOCK_TLB, return of PDC_BTLB_INFO */
+	unsigned int min_size;	/* minimum size of BTLB in pages */
+	unsigned int max_size;	/* maximum size of BTLB in pages */
+	struct pdc_btlb_info_range fixed_range_info;
+	struct pdc_btlb_info_range variable_range_info;
+};
+
+struct pdc_mem_retinfo { /* PDC_MEM/PDC_MEM_MEMINFO (return info) */
+	unsigned long pdt_size;
+	unsigned long pdt_entries;
+	unsigned long pdt_status;
+	unsigned long first_dbe_loc;
+	unsigned long good_mem;
+};
+
+struct pdc_mem_read_pdt { /* PDC_MEM/PDC_MEM_READ_PDT (return info) */
+	unsigned long pdt_entries;
+};
+
+#ifdef __LP64__
+struct pdc_memory_table_raddr { /* PDC_MEM/PDC_MEM_TABLE (return info) */
+	unsigned long entries_returned;
+	unsigned long entries_total;
+};
+
+struct pdc_memory_table {       /* PDC_MEM/PDC_MEM_TABLE (arguments) */
+	unsigned long paddr;
+	unsigned int  pages;
+	unsigned int  reserved;
+};
+#endif /* __LP64__ */
+
+struct pdc_system_map_mod_info { /* PDC_SYSTEM_MAP/FIND_MODULE */
+	unsigned long mod_addr;
+	unsigned long mod_pgs;
+	unsigned long add_addrs;
+};
+
+struct pdc_system_map_addr_info { /* PDC_SYSTEM_MAP/FIND_ADDRESS */
+	unsigned long mod_addr;
+	unsigned long mod_pgs;
+};
+
+struct pdc_initiator { /* PDC_INITIATOR */
+	int host_id;
+	int factor;
+	int width;
+	int mode;
+};
+
+struct hardware_path {
+	char  flags;	/* see bit definitions below */
+	char  bc[6];	/* Bus Converter routing info to a specific */
+			/* I/O adaptor (< 0 means none, > 63 resvd) */
+	char  mod;	/* fixed field of specified module */
+};
+
+/*
+ * Device path specifications used by PDC.
+ */
+struct pdc_module_path {
+	struct hardware_path path;
+	unsigned int layers[6]; /* device-specific info (ctlr #, unit # ...) */
+};
+
+/* Only used on some pre-PA2.0 boxes */
+struct pdc_memory_map {		/* PDC_MEMORY_MAP */
+	unsigned long hpa;	/* mod's register set address */
+	unsigned long more_pgs;	/* number of additional I/O pgs */
+};
+
+struct pdc_tod {
+	unsigned long tod_sec;
+	unsigned long tod_usec;
+};
+
+/* architected results from PDC_PIM/transfer hpmc on a PA1.1 machine */
+
+struct pdc_hpmc_pim_11 { /* PDC_PIM */
+	unsigned int gr[32];
+	unsigned int cr[32];
+	unsigned int sr[8];
+	unsigned int iasq_back;
+	unsigned int iaoq_back;
+	unsigned int check_type;
+	unsigned int cpu_state;
+	unsigned int rsvd1;
+	unsigned int cache_check;
+	unsigned int tlb_check;
+	unsigned int bus_check;
+	unsigned int assists_check;
+	unsigned int rsvd2;
+	unsigned int assist_state;
+	unsigned int responder_addr;
+	unsigned int requestor_addr;
+	unsigned int path_info;
+	unsigned long long fr[32];
+};
+
+/*
+ * architected results from PDC_PIM/transfer hpmc on a PA2.0 machine
+ *
+ * Note that PDC_PIM doesn't care whether or not wide mode was enabled
+ * so the results are different on  PA1.1 vs. PA2.0 when in narrow mode.
+ *
+ * Note also that there are unarchitected results available, which
+ * are hversion dependent. Do a "ser pim 0 hpmc" after rebooting, since
+ * the firmware is probably the best way of printing hversion dependent
+ * data.
+ */
+
+struct pdc_hpmc_pim_20 { /* PDC_PIM */
+	unsigned long long gr[32];
+	unsigned long long cr[32];
+	unsigned long long sr[8];
+	unsigned long long iasq_back;
+	unsigned long long iaoq_back;
+	unsigned int check_type;
+	unsigned int cpu_state;
+	unsigned int cache_check;
+	unsigned int tlb_check;
+	unsigned int bus_check;
+	unsigned int assists_check;
+	unsigned int assist_state;
+	unsigned int path_info;
+	unsigned long long responder_addr;
+	unsigned long long requestor_addr;
+	unsigned long long fr[32];
 };
 
 #endif /* !defined(__ASSEMBLY__) */

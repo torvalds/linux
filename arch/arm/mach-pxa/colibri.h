@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _COLIBRI_H_
 #define _COLIBRI_H_
 

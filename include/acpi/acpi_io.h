@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ACPI_IO_H_
 #define _ACPI_IO_H_
 

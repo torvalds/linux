@@ -16,7 +16,7 @@ please check:
 	* dma/dma.txt
 
 Example:
-	spdif0: spdif0@0b004000 {
+	spdif0: spdif0@b004000 {
 		compatible = "zte,zx296702-spdif";
 		reg = <0x0b004000 0x1000>;
 		clocks = <&lsp0clk ZX296702_SPDIF0_DIV>;

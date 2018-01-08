@@ -202,7 +202,6 @@ static struct ratelimit_state printk_limits[] = {
 
 void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
-	struct super_block *sb = fs_info->sb;
 	char lvl[PRINTK_MAX_SINGLE_HEADER_LEN + 1] = "\0";
 	struct va_format vaf;
 	va_list args;
@@ -228,7 +227,8 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 	vaf.va = &args;
 
 	if (__ratelimit(ratelimit))
-		printk("%sBTRFS %s (device %s): %pV\n", lvl, type, sb->s_id, &vaf);
+		printk("%sBTRFS %s (device %s): %pV\n", lvl, type,
+			fs_info ? fs_info->sb->s_id : "<unknown>", &vaf);
 
 	va_end(args);
 }
@@ -292,7 +292,7 @@ void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 	vaf.va = &args;
 
 	errstr = btrfs_decode_error(errno);
-	if (fs_info && (fs_info->mount_opt & BTRFS_MOUNT_PANIC_ON_FATAL_ERROR))
+	if (fs_info && (btrfs_test_opt(fs_info, PANIC_ON_FATAL_ERROR)))
 		panic(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (errno=%d %s)\n",
 			s_id, function, line, &vaf, errno, errstr);
 
@@ -325,6 +325,9 @@ enum {
 	Opt_nologreplay, Opt_norecovery,
 #ifdef CONFIG_BTRFS_DEBUG
 	Opt_fragment_data, Opt_fragment_metadata, Opt_fragment_all,
+#endif
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+	Opt_ref_verify,
 #endif
 	Opt_err,
 };
@@ -386,6 +389,9 @@ static const match_table_t tokens = {
 	{Opt_fragment_data, "fragment=data"},
 	{Opt_fragment_metadata, "fragment=metadata"},
 	{Opt_fragment_all, "fragment=all"},
+#endif
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+	{Opt_ref_verify, "ref_verify"},
 #endif
 	{Opt_err, NULL},
 };
@@ -502,6 +508,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			    strncmp(args[0].from, "zlib", 4) == 0) {
 				compress_type = "zlib";
 				info->compress_type = BTRFS_COMPRESS_ZLIB;
+				info->compress_level =
+					btrfs_compress_str2level(args[0].from);
 				btrfs_set_opt(info->mount_opt, COMPRESS);
 				btrfs_clear_opt(info->mount_opt, NODATACOW);
 				btrfs_clear_opt(info->mount_opt, NODATASUM);
@@ -549,9 +557,9 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			      compress_force != saved_compress_force)) ||
 			    (!btrfs_test_opt(info, COMPRESS) &&
 			     no_compress == 1)) {
-				btrfs_info(info, "%s %s compression",
+				btrfs_info(info, "%s %s compression, level %d",
 					   (compress_force) ? "force" : "use",
-					   compress_type);
+					   compress_type, info->compress_level);
 			}
 			compress_force = false;
 			break;
@@ -823,6 +831,12 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_fragment_data:
 			btrfs_info(info, "fragmenting data");
 			btrfs_set_opt(info->mount_opt, FRAGMENT_DATA);
+			break;
+#endif
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+		case Opt_ref_verify:
+			btrfs_info(info, "doing ref verification");
+			btrfs_set_opt(info->mount_opt, REF_VERIFY);
 			break;
 #endif
 		case Opt_err:
@@ -1135,7 +1149,7 @@ static int btrfs_fill_super(struct super_block *sb,
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
 	sb->s_flags |= MS_POSIXACL;
 #endif
-	sb->s_flags |= MS_I_VERSION;
+	sb->s_flags |= SB_I_VERSION;
 	sb->s_iflags |= SB_I_CGROUPWB;
 
 	err = super_setup_bdi(sb);
@@ -1205,8 +1219,8 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 			 * happens. The pending operations are delayed to the
 			 * next commit after thawing.
 			 */
-			if (__sb_start_write(sb, SB_FREEZE_WRITE, false))
-				__sb_end_write(sb, SB_FREEZE_WRITE);
+			if (sb_start_write_trylock(sb))
+				sb_end_write(sb);
 			else
 				return 0;
 			trans = btrfs_start_transaction(root, 0);
@@ -1246,6 +1260,8 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 			seq_printf(seq, ",compress-force=%s", compress_type);
 		else
 			seq_printf(seq, ",compress=%s", compress_type);
+		if (info->compress_level)
+			seq_printf(seq, ":%d", info->compress_level);
 	}
 	if (btrfs_test_opt(info, NOSSD))
 		seq_puts(seq, ",nossd");
@@ -1305,6 +1321,8 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 	if (btrfs_test_opt(info, FRAGMENT_METADATA))
 		seq_puts(seq, ",fragment=metadata");
 #endif
+	if (btrfs_test_opt(info, REF_VERIFY))
+		seq_puts(seq, ",ref_verify");
 	seq_printf(seq, ",subvolid=%llu",
 		  BTRFS_I(d_inode(dentry))->root->root_key.objectid);
 	seq_puts(seq, ",subvol=");
@@ -2112,7 +2130,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 * succeed even if the Avail is zero. But this is better than the other
 	 * way around.
 	 */
-	thresh = 4 * 1024 * 1024;
+	thresh = SZ_4M;
 
 	if (!mixed && total_free_meta - thresh < block_rsv->size)
 		buf->f_bavail = 0;
@@ -2318,6 +2336,9 @@ static void btrfs_print_mod_info(void)
 #endif
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 			", integrity-checker=on"
+#endif
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+			", ref-verify=on"
 #endif
 			"\n",
 			btrfs_crc32c_impl());

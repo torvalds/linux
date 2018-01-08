@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_ASM_H
 #define _ASM_X86_ASM_H
 
@@ -11,10 +12,12 @@
 # define __ASM_FORM_COMMA(x) " " #x ","
 #endif
 
-#ifdef CONFIG_X86_32
+#ifndef __x86_64__
+/* 32 bit */
 # define __ASM_SEL(a,b) __ASM_FORM(a)
 # define __ASM_SEL_RAW(a,b) __ASM_FORM_RAW(a)
 #else
+/* 64 bit */
 # define __ASM_SEL(a,b) __ASM_FORM(b)
 # define __ASM_SEL_RAW(a,b) __ASM_FORM_RAW(b)
 #endif
@@ -130,6 +133,17 @@
 	_ASM_EXTABLE_HANDLE(from, to, ex_handler_refcount)
 
 /* For C file, we already have NOKPROBE_SYMBOL macro */
+#endif
+
+#ifndef __ASSEMBLY__
+/*
+ * This output constraint should be used for any inline asm which has a "call"
+ * instruction.  Otherwise the asm may be inserted before the frame pointer
+ * gets set up by the containing function.  If you forget to do this, objtool
+ * may print a "call without frame pointer save/setup" warning.
+ */
+register unsigned long current_stack_pointer asm(_ASM_SP);
+#define ASM_CALL_CONSTRAINT "+r" (current_stack_pointer)
 #endif
 
 #endif /* _ASM_X86_ASM_H */

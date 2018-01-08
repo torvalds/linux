@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -62,10 +63,12 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 	bh_unlock_sock(&smc->sk);
 }
 
-int smc_cdc_get_free_slot(struct smc_link *link,
+int smc_cdc_get_free_slot(struct smc_connection *conn,
 			  struct smc_wr_buf **wr_buf,
 			  struct smc_cdc_tx_pend **pend)
 {
+	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
+
 	return smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
 				       (struct smc_wr_tx_pend_priv **)pend);
 }
@@ -118,8 +121,7 @@ int smc_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 	struct smc_wr_buf *wr_buf;
 	int rc;
 
-	rc = smc_cdc_get_free_slot(&conn->lgr->lnk[SMC_SINGLE_LINK], &wr_buf,
-				   &pend);
+	rc = smc_cdc_get_free_slot(conn, &wr_buf, &pend);
 	if (rc)
 		return rc;
 

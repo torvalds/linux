@@ -2260,14 +2260,11 @@ static void halbtc8723b1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 
 		if (iot_peer != BTC_IOT_PEER_CISCO &&
 		    iot_peer != BTC_IOT_PEER_BROADCOM) {
-			if (bt_link_info->sco_exist)
-				halbtc8723b1ant_limited_rx(btcoexist,
-							   NORMAL_EXEC, false,
-							   false, 0x5);
-			else
-				halbtc8723b1ant_limited_rx(btcoexist,
-							   NORMAL_EXEC, false,
-							   false, 0x5);
+			bool sco_exist = bt_link_info->sco_exist;
+
+			halbtc8723b1ant_limited_rx(btcoexist,
+						   NORMAL_EXEC, sco_exist,
+						   false, 0x5);
 		} else {
 			if (bt_link_info->sco_exist) {
 				halbtc8723b1ant_limited_rx(btcoexist,

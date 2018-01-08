@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    DIAGNOSE X'2C4' instruction based HMC FTP services, useable on z/VM
  *

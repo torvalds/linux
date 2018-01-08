@@ -257,7 +257,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
 		gpiom1: gpio@20 {
-			compatible = "mcp,mcp23017";
+			compatible = "microchip,mcp23017";
 			gpio-controller;
 			#gpio-cells = <2>;
 			reg = <0x20>;

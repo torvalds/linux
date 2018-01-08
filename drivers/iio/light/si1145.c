@@ -989,14 +989,12 @@ static const struct attribute_group si114x_attribute_group = {
 static const struct iio_info si1132_info = {
 	.read_raw = si1145_read_raw,
 	.write_raw = si1145_write_raw,
-	.driver_module = THIS_MODULE,
 	.attrs = &si1132_attribute_group,
 };
 
 static const struct iio_info si114x_info = {
 	.read_raw = si1145_read_raw,
 	.write_raw = si1145_write_raw,
-	.driver_module = THIS_MODULE,
 	.attrs = &si114x_attribute_group,
 };
 
@@ -1237,7 +1235,6 @@ disable:
 }
 
 static const struct iio_trigger_ops si1145_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = si1145_trigger_set_state,
 };
 

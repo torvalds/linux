@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_MAGIC_H__
 #define __LINUX_MAGIC_H__
 
@@ -46,6 +47,7 @@
 #define OPENPROM_SUPER_MAGIC	0x9fa1
 #define QNX4_SUPER_MAGIC	0x002f		/* qnx4 fs detection */
 #define QNX6_SUPER_MAGIC	0x68191122	/* qnx6 fs detection */
+#define AFS_FS_MAGIC		0x6B414653
 
 #define REISERFS_SUPER_MAGIC	0x52654973	/* used by gcc */
 					/* used by file system utilities that

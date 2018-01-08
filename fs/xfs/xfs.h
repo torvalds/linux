@@ -19,7 +19,6 @@
 #define __XFS_H__
 
 #ifdef CONFIG_XFS_DEBUG
-#define STATIC
 #define DEBUG 1
 #define XFS_BUF_LOCK_TRACKING 1
 #endif

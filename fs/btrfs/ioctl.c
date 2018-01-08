@@ -86,6 +86,19 @@ struct btrfs_ioctl_received_subvol_args_32 {
 				struct btrfs_ioctl_received_subvol_args_32)
 #endif
 
+#if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
+struct btrfs_ioctl_send_args_32 {
+	__s64 send_fd;			/* in */
+	__u64 clone_sources_count;	/* in */
+	compat_uptr_t clone_sources;	/* in */
+	__u64 parent_root;		/* in */
+	__u64 flags;			/* in */
+	__u64 reserved[4];		/* in */
+} __attribute__ ((__packed__));
+
+#define BTRFS_IOC_SEND_32 _IOW(BTRFS_IOCTL_MAGIC, 38, \
+			       struct btrfs_ioctl_send_args_32)
+#endif
 
 static int btrfs_clone(struct inode *src, struct inode *inode,
 		       u64 off, u64 olen, u64 olen_aligned, u64 destoff,
@@ -609,23 +622,6 @@ fail_free:
 	return ret;
 }
 
-static void btrfs_wait_for_no_snapshotting_writes(struct btrfs_root *root)
-{
-	s64 writers;
-	DEFINE_WAIT(wait);
-
-	do {
-		prepare_to_wait(&root->subv_writers->wait, &wait,
-				TASK_UNINTERRUPTIBLE);
-
-		writers = percpu_counter_sum(&root->subv_writers->counter);
-		if (writers)
-			schedule();
-
-		finish_wait(&root->subv_writers->wait, &wait);
-	} while (writers);
-}
-
 static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 			   struct dentry *dentry,
 			   u64 *async_transid, bool readonly,
@@ -654,7 +650,9 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 
 	atomic_inc(&root->will_be_snapshotted);
 	smp_mb__after_atomic();
-	btrfs_wait_for_no_snapshotting_writes(root);
+	/* wait for no snapshot writes */
+	wait_event(root->subv_writers->wait,
+		   percpu_counter_sum(&root->subv_writers->counter) == 0);
 
 	ret = btrfs_start_delalloc_inodes(root, 0);
 	if (ret)
@@ -1219,6 +1217,7 @@ again:
 		unlock_page(pages[i]);
 		put_page(pages[i]);
 	}
+	btrfs_delalloc_release_extents(BTRFS_I(inode), page_cnt << PAGE_SHIFT);
 	extent_changeset_free(data_reserved);
 	return i_done;
 out:
@@ -1229,6 +1228,7 @@ out:
 	btrfs_delalloc_release_space(inode, data_reserved,
 			start_index << PAGE_SHIFT,
 			page_cnt << PAGE_SHIFT);
+	btrfs_delalloc_release_extents(BTRFS_I(inode), page_cnt << PAGE_SHIFT);
 	extent_changeset_free(data_reserved);
 	return ret;
 
@@ -1418,21 +1418,6 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		if (test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
 			     &BTRFS_I(inode)->runtime_flags))
 			filemap_flush(inode->i_mapping);
-	}
-
-	if (do_compress) {
-		/* the filemap_flush will queue IO into the worker threads, but
-		 * we have to make sure the IO is actually started and that
-		 * ordered extents get created before we return
-		 */
-		atomic_inc(&fs_info->async_submit_draining);
-		while (atomic_read(&fs_info->nr_async_submits) ||
-		       atomic_read(&fs_info->async_delalloc_pages)) {
-			wait_event(fs_info->async_submit_wait,
-				   (atomic_read(&fs_info->nr_async_submits) == 0 &&
-				    atomic_read(&fs_info->async_delalloc_pages) == 0));
-		}
-		atomic_dec(&fs_info->async_submit_draining);
 	}
 
 	if (range->compress_type == BTRFS_COMPRESS_LZO) {
@@ -1842,8 +1827,13 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 
 	ret = btrfs_update_root(trans, fs_info->tree_root,
 				&root->root_key, &root->root_item);
+	if (ret < 0) {
+		btrfs_end_transaction(trans);
+		goto out_reset;
+	}
 
-	btrfs_commit_transaction(trans);
+	ret = btrfs_commit_transaction(trans);
+
 out_reset:
 	if (ret)
 		btrfs_set_root_flags(&root->root_item, root_flags);
@@ -2179,7 +2169,7 @@ static noinline int btrfs_ioctl_tree_search_v2(struct file *file,
 
 	inode = file_inode(file);
 	ret = search_ioctl(inode, &args.key, &buf_size,
-			   (char *)(&uarg->buf[0]));
+			   (char __user *)(&uarg->buf[0]));
 	if (ret == 0 && copy_to_user(&uarg->key, &args.key, sizeof(args.key)))
 		ret = -EFAULT;
 	else if (ret == -EOVERFLOW &&
@@ -2773,9 +2763,9 @@ static long btrfs_ioctl_fs_info(struct btrfs_fs_info *fs_info,
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
 
-	fi_args->nodesize = fs_info->super_copy->nodesize;
-	fi_args->sectorsize = fs_info->super_copy->sectorsize;
-	fi_args->clone_alignment = fs_info->super_copy->sectorsize;
+	fi_args->nodesize = fs_info->nodesize;
+	fi_args->sectorsize = fs_info->sectorsize;
+	fi_args->clone_alignment = fs_info->sectorsize;
 
 	if (copy_to_user(arg, fi_args, sizeof(*fi_args)))
 		ret = -EFAULT;
@@ -3032,7 +3022,7 @@ static int btrfs_cmp_data_prepare(struct inode *src, u64 loff,
 out:
 	if (ret)
 		btrfs_cmp_data_free(cmp);
-	return 0;
+	return ret;
 }
 
 static int btrfs_cmp_data(u64 len, struct cmp_pages *cmp)
@@ -3706,7 +3696,7 @@ process_slot:
 				if (disko) {
 					inode_add_bytes(inode, datal);
 					ret = btrfs_inc_extent_ref(trans,
-							fs_info,
+							root,
 							disko, diskl, 0,
 							root->root_key.objectid,
 							btrfs_ino(BTRFS_I(inode)),
@@ -4061,6 +4051,10 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 		ret = PTR_ERR(new_root);
 		goto out;
 	}
+	if (!is_fstree(new_root->objectid)) {
+		ret = -ENOENT;
+		goto out;
+	}
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -4125,10 +4119,12 @@ static long btrfs_ioctl_space_info(struct btrfs_fs_info *fs_info,
 	struct btrfs_ioctl_space_info *dest_orig;
 	struct btrfs_ioctl_space_info __user *user_dest;
 	struct btrfs_space_info *info;
-	u64 types[] = {BTRFS_BLOCK_GROUP_DATA,
-		       BTRFS_BLOCK_GROUP_SYSTEM,
-		       BTRFS_BLOCK_GROUP_METADATA,
-		       BTRFS_BLOCK_GROUP_DATA | BTRFS_BLOCK_GROUP_METADATA};
+	static const u64 types[] = {
+		BTRFS_BLOCK_GROUP_DATA,
+		BTRFS_BLOCK_GROUP_SYSTEM,
+		BTRFS_BLOCK_GROUP_METADATA,
+		BTRFS_BLOCK_GROUP_DATA | BTRFS_BLOCK_GROUP_METADATA
+	};
 	int num_types = 4;
 	int alloc_size;
 	int ret = 0;
@@ -4500,8 +4496,8 @@ static long btrfs_ioctl_ino_to_path(struct btrfs_root *root, void __user *arg)
 		ipath->fspath->val[i] = rel_ptr;
 	}
 
-	ret = copy_to_user((void *)(unsigned long)ipa->fspath,
-			   (void *)(unsigned long)ipath->fspath, size);
+	ret = copy_to_user((void __user *)(unsigned long)ipa->fspath,
+			   ipath->fspath, size);
 	if (ret) {
 		ret = -EFAULT;
 		goto out;
@@ -4536,13 +4532,14 @@ static int build_ino_list(u64 inum, u64 offset, u64 root, void *ctx)
 }
 
 static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
-					void __user *arg)
+					void __user *arg, int version)
 {
 	int ret = 0;
 	int size;
 	struct btrfs_ioctl_logical_ino_args *loi;
 	struct btrfs_data_container *inodes = NULL;
 	struct btrfs_path *path = NULL;
+	bool ignore_offset;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -4551,13 +4548,30 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(loi))
 		return PTR_ERR(loi);
 
+	if (version == 1) {
+		ignore_offset = false;
+		size = min_t(u32, loi->size, SZ_64K);
+	} else {
+		/* All reserved bits must be 0 for now */
+		if (memchr_inv(loi->reserved, 0, sizeof(loi->reserved))) {
+			ret = -EINVAL;
+			goto out_loi;
+		}
+		/* Only accept flags we have defined so far */
+		if (loi->flags & ~(BTRFS_LOGICAL_INO_ARGS_IGNORE_OFFSET)) {
+			ret = -EINVAL;
+			goto out_loi;
+		}
+		ignore_offset = loi->flags & BTRFS_LOGICAL_INO_ARGS_IGNORE_OFFSET;
+		size = min_t(u32, loi->size, SZ_16M);
+	}
+
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	size = min_t(u32, loi->size, SZ_64K);
 	inodes = init_data_container(size);
 	if (IS_ERR(inodes)) {
 		ret = PTR_ERR(inodes);
@@ -4566,20 +4580,21 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 	}
 
 	ret = iterate_inodes_from_logical(loi->logical, fs_info, path,
-					  build_ino_list, inodes);
+					  build_ino_list, inodes, ignore_offset);
 	if (ret == -EINVAL)
 		ret = -ENOENT;
 	if (ret < 0)
 		goto out;
 
-	ret = copy_to_user((void *)(unsigned long)loi->inodes,
-			   (void *)(unsigned long)inodes, size);
+	ret = copy_to_user((void __user *)(unsigned long)loi->inodes, inodes,
+			   size);
 	if (ret)
 		ret = -EFAULT;
 
 out:
 	btrfs_free_path(path);
 	kvfree(inodes);
+out_loi:
 	kfree(loi);
 
 	return ret;
@@ -5156,15 +5171,11 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 					  root->root_key.objectid);
 		if (ret < 0 && ret != -EEXIST) {
 			btrfs_abort_transaction(trans, ret);
+			btrfs_end_transaction(trans);
 			goto out;
 		}
 	}
 	ret = btrfs_commit_transaction(trans);
-	if (ret < 0) {
-		btrfs_abort_transaction(trans, ret);
-		goto out;
-	}
-
 out:
 	up_write(&fs_info->subvol_sem);
 	mnt_drop_write_file(file);
@@ -5486,6 +5497,41 @@ out_drop_write:
 	return ret;
 }
 
+static int _btrfs_ioctl_send(struct file *file, void __user *argp, bool compat)
+{
+	struct btrfs_ioctl_send_args *arg;
+	int ret;
+
+	if (compat) {
+#if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
+		struct btrfs_ioctl_send_args_32 args32;
+
+		ret = copy_from_user(&args32, argp, sizeof(args32));
+		if (ret)
+			return -EFAULT;
+		arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+		if (!arg)
+			return -ENOMEM;
+		arg->send_fd = args32.send_fd;
+		arg->clone_sources_count = args32.clone_sources_count;
+		arg->clone_sources = compat_ptr(args32.clone_sources);
+		arg->parent_root = args32.parent_root;
+		arg->flags = args32.flags;
+		memcpy(arg->reserved, args32.reserved,
+		       sizeof(args32.reserved));
+#else
+		return -ENOTTY;
+#endif
+	} else {
+		arg = memdup_user(argp, sizeof(*arg));
+		if (IS_ERR(arg))
+			return PTR_ERR(arg);
+	}
+	ret = btrfs_ioctl_send(file, arg);
+	kfree(arg);
+	return ret;
+}
+
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
@@ -5550,7 +5596,9 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_INO_PATHS:
 		return btrfs_ioctl_ino_to_path(root, argp);
 	case BTRFS_IOC_LOGICAL_INO:
-		return btrfs_ioctl_logical_to_ino(fs_info, argp);
+		return btrfs_ioctl_logical_to_ino(fs_info, argp, 1);
+	case BTRFS_IOC_LOGICAL_INO_V2:
+		return btrfs_ioctl_logical_to_ino(fs_info, argp, 2);
 	case BTRFS_IOC_SPACE_INFO:
 		return btrfs_ioctl_space_info(fs_info, argp);
 	case BTRFS_IOC_SYNC: {
@@ -5591,7 +5639,11 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_set_received_subvol_32(file, argp);
 #endif
 	case BTRFS_IOC_SEND:
-		return btrfs_ioctl_send(file, argp);
+		return _btrfs_ioctl_send(file, argp, false);
+#if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
+	case BTRFS_IOC_SEND_32:
+		return _btrfs_ioctl_send(file, argp, true);
+#endif
 	case BTRFS_IOC_GET_DEV_STATS:
 		return btrfs_ioctl_get_dev_stats(fs_info, argp);
 	case BTRFS_IOC_QUOTA_CTL:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * f_mass_storage.c -- Mass Storage USB Composite Function
  *
@@ -307,8 +308,6 @@ struct fsg_common {
 	struct completion	thread_notifier;
 	struct task_struct	*thread_task;
 
-	/* Callback functions. */
-	const struct fsg_operations	*ops;
 	/* Gadget's private data. */
 	void			*private_data;
 
@@ -2438,6 +2437,7 @@ static void handle_exception(struct fsg_common *common)
 static int fsg_main_thread(void *common_)
 {
 	struct fsg_common	*common = common_;
+	int			i;
 
 	/*
 	 * Allow the thread to be killed by a signal, but set the signal mask
@@ -2476,21 +2476,16 @@ static int fsg_main_thread(void *common_)
 	common->thread_task = NULL;
 	spin_unlock_irq(&common->lock);
 
-	if (!common->ops || !common->ops->thread_exits
-	 || common->ops->thread_exits(common) < 0) {
-		int i;
+	/* Eject media from all LUNs */
 
-		down_write(&common->filesem);
-		for (i = 0; i < ARRAY_SIZE(common->luns); i++) {
-			struct fsg_lun *curlun = common->luns[i];
-			if (!curlun || !fsg_lun_is_open(curlun))
-				continue;
+	down_write(&common->filesem);
+	for (i = 0; i < ARRAY_SIZE(common->luns); i++) {
+		struct fsg_lun *curlun = common->luns[i];
 
+		if (curlun && fsg_lun_is_open(curlun))
 			fsg_lun_close(curlun);
-			curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
-		}
-		up_write(&common->filesem);
 	}
+	up_write(&common->filesem);
 
 	/* Let fsg_unbind() know the thread has exited */
 	complete_and_exit(&common->thread_notifier, 0);
@@ -2680,13 +2675,6 @@ void fsg_common_remove_luns(struct fsg_common *common)
 	_fsg_common_remove_luns(common, ARRAY_SIZE(common->luns));
 }
 EXPORT_SYMBOL_GPL(fsg_common_remove_luns);
-
-void fsg_common_set_ops(struct fsg_common *common,
-			const struct fsg_operations *ops)
-{
-	common->ops = ops;
-}
-EXPORT_SYMBOL_GPL(fsg_common_set_ops);
 
 void fsg_common_free_buffers(struct fsg_common *common)
 {
@@ -3153,7 +3141,7 @@ static struct configfs_attribute *fsg_lun_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type fsg_lun_type = {
+static const struct config_item_type fsg_lun_type = {
 	.ct_item_ops	= &fsg_lun_item_ops,
 	.ct_attrs	= fsg_lun_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -3344,7 +3332,7 @@ static struct configfs_group_operations fsg_group_ops = {
 	.drop_item	= fsg_lun_drop,
 };
 
-static struct config_item_type fsg_func_type = {
+static const struct config_item_type fsg_func_type = {
 	.ct_item_ops	= &fsg_item_ops,
 	.ct_group_ops	= &fsg_group_ops,
 	.ct_attrs	= fsg_attrs,

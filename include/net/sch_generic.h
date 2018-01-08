@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_SCHED_GENERIC_H
 #define __NET_SCHED_GENERIC_H
 
@@ -10,6 +11,7 @@
 #include <linux/dynamic_queue_limits.h>
 #include <linux/list.h>
 #include <linux/refcount.h>
+#include <linux/workqueue.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 
@@ -93,7 +95,6 @@ struct Qdisc {
 	unsigned long		state;
 	struct Qdisc            *next_sched;
 	struct sk_buff		*skb_bad_txq;
-	struct rcu_head		rcu_head;
 	int			padded;
 	refcount_t		refcnt;
 
@@ -260,9 +261,12 @@ struct qdisc_skb_cb {
 	unsigned char		data[QDISC_CB_PRIV_LEN];
 };
 
+typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);
+
 struct tcf_chain {
 	struct tcf_proto __rcu *filter_chain;
-	struct tcf_proto __rcu **p_filter_chain;
+	tcf_chain_head_change_t *chain_head_change;
+	void *chain_head_change_priv;
 	struct list_head list;
 	struct tcf_block *block;
 	u32 index; /* chain index */
@@ -271,6 +275,10 @@ struct tcf_chain {
 
 struct tcf_block {
 	struct list_head chain_list;
+	struct net *net;
+	struct Qdisc *q;
+	struct list_head cb_list;
+	struct work_struct work;
 };
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
@@ -358,9 +366,6 @@ static inline void sch_tree_unlock(const struct Qdisc *q)
 	spin_unlock_bh(qdisc_root_sleeping_lock(q));
 }
 
-#define tcf_tree_lock(tp)	sch_tree_lock((tp)->q)
-#define tcf_tree_unlock(tp)	sch_tree_unlock((tp)->q)
-
 extern struct Qdisc noop_qdisc;
 extern struct Qdisc_ops noop_qdisc_ops;
 extern struct Qdisc_ops pfifo_fast_ops;
@@ -408,6 +413,13 @@ qdisc_class_find(const struct Qdisc_class_hash *hash, u32 id)
 			return cl;
 	}
 	return NULL;
+}
+
+static inline int tc_classid_to_hwtc(struct net_device *dev, u32 classid)
+{
+	u32 hwtc = TC_H_MIN(classid) - TC_H_MIN_PRIORITY;
+
+	return (hwtc < netdev_get_num_tc(dev)) ? hwtc : -EINVAL;
 }
 
 int qdisc_class_hash_init(struct Qdisc_class_hash *);
@@ -892,5 +904,37 @@ static inline void psched_ratecfg_getrate(struct tc_ratespec *res,
 	res->overhead = r->overhead;
 	res->linklayer = (r->linklayer & TC_LINKLAYER_MASK);
 }
+
+/* Mini Qdisc serves for specific needs of ingress/clsact Qdisc.
+ * The fast path only needs to access filter list and to update stats
+ */
+struct mini_Qdisc {
+	struct tcf_proto *filter_list;
+	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
+	struct gnet_stats_queue	__percpu *cpu_qstats;
+	struct rcu_head rcu;
+};
+
+static inline void mini_qdisc_bstats_cpu_update(struct mini_Qdisc *miniq,
+						const struct sk_buff *skb)
+{
+	bstats_cpu_update(this_cpu_ptr(miniq->cpu_bstats), skb);
+}
+
+static inline void mini_qdisc_qstats_cpu_drop(struct mini_Qdisc *miniq)
+{
+	this_cpu_inc(miniq->cpu_qstats->drops);
+}
+
+struct mini_Qdisc_pair {
+	struct mini_Qdisc miniq1;
+	struct mini_Qdisc miniq2;
+	struct mini_Qdisc __rcu **p_miniq;
+};
+
+void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
+			  struct tcf_proto *tp_head);
+void mini_qdisc_pair_init(struct mini_Qdisc_pair *miniqp, struct Qdisc *qdisc,
+			  struct mini_Qdisc __rcu **p_miniq);
 
 #endif

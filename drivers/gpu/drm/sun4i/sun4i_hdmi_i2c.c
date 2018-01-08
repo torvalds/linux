@@ -25,8 +25,6 @@
 
 /* FIFO request bit is set when FIFO level is above RX_THRESHOLD during read */
 #define RX_THRESHOLD SUN4I_HDMI_DDC_FIFO_CTRL_RX_THRES_MAX
-/* FIFO request bit is set when FIFO level is below TX_THRESHOLD during write */
-#define TX_THRESHOLD 1
 
 static int fifo_transfer(struct sun4i_hdmi *hdmi, u8 *buf, int len, bool read)
 {
@@ -39,27 +37,36 @@ static int fifo_transfer(struct sun4i_hdmi *hdmi, u8 *buf, int len, bool read)
 			 SUN4I_HDMI_DDC_INT_STATUS_FIFO_REQUEST |
 			 SUN4I_HDMI_DDC_INT_STATUS_TRANSFER_COMPLETE;
 	u32 reg;
+	/*
+	 * If threshold is inclusive, then the FIFO may only have
+	 * RX_THRESHOLD number of bytes, instead of RX_THRESHOLD + 1.
+	 */
+	int read_len = RX_THRESHOLD +
+		(hdmi->variant->ddc_fifo_thres_incl ? 0 : 1);
 
-	/* Limit transfer length by FIFO threshold */
-	len = min_t(int, len, read ? (RX_THRESHOLD + 1) :
-			      (SUN4I_HDMI_DDC_FIFO_SIZE - TX_THRESHOLD + 1));
+	/*
+	 * Limit transfer length by FIFO threshold or FIFO size.
+	 * For TX the threshold is for an empty FIFO.
+	 */
+	len = min_t(int, len, read ? read_len : SUN4I_HDMI_DDC_FIFO_SIZE);
 
 	/* Wait until error, FIFO request bit set or transfer complete */
-	if (readl_poll_timeout(hdmi->base + SUN4I_HDMI_DDC_INT_STATUS_REG, reg,
-			       reg & mask, len * byte_time_ns, 100000))
+	if (regmap_field_read_poll_timeout(hdmi->field_ddc_int_status, reg,
+					   reg & mask, len * byte_time_ns,
+					   100000))
 		return -ETIMEDOUT;
 
 	if (reg & SUN4I_HDMI_DDC_INT_STATUS_ERROR_MASK)
 		return -EIO;
 
 	if (read)
-		readsb(hdmi->base + SUN4I_HDMI_DDC_FIFO_DATA_REG, buf, len);
+		readsb(hdmi->base + hdmi->variant->ddc_fifo_reg, buf, len);
 	else
-		writesb(hdmi->base + SUN4I_HDMI_DDC_FIFO_DATA_REG, buf, len);
+		writesb(hdmi->base + hdmi->variant->ddc_fifo_reg, buf, len);
 
-	/* Clear FIFO request bit */
-	writel(SUN4I_HDMI_DDC_INT_STATUS_FIFO_REQUEST,
-	       hdmi->base + SUN4I_HDMI_DDC_INT_STATUS_REG);
+	/* Clear FIFO request bit by forcing a write to that bit */
+	regmap_field_force_write(hdmi->field_ddc_int_status,
+				 SUN4I_HDMI_DDC_INT_STATUS_FIFO_REQUEST);
 
 	return len;
 }
@@ -70,50 +77,52 @@ static int xfer_msg(struct sun4i_hdmi *hdmi, struct i2c_msg *msg)
 	u32 reg;
 
 	/* Set FIFO direction */
-	reg = readl(hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
-	reg &= ~SUN4I_HDMI_DDC_CTRL_FIFO_DIR_MASK;
-	reg |= (msg->flags & I2C_M_RD) ?
-	       SUN4I_HDMI_DDC_CTRL_FIFO_DIR_READ :
-	       SUN4I_HDMI_DDC_CTRL_FIFO_DIR_WRITE;
-	writel(reg, hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
+	if (hdmi->variant->ddc_fifo_has_dir) {
+		reg = readl(hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
+		reg &= ~SUN4I_HDMI_DDC_CTRL_FIFO_DIR_MASK;
+		reg |= (msg->flags & I2C_M_RD) ?
+		       SUN4I_HDMI_DDC_CTRL_FIFO_DIR_READ :
+		       SUN4I_HDMI_DDC_CTRL_FIFO_DIR_WRITE;
+		writel(reg, hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
+	}
+
+	/* Clear address register (not cleared by soft reset) */
+	regmap_field_write(hdmi->field_ddc_addr_reg, 0);
 
 	/* Set I2C address */
-	writel(SUN4I_HDMI_DDC_ADDR_SLAVE(msg->addr),
-	       hdmi->base + SUN4I_HDMI_DDC_ADDR_REG);
+	regmap_field_write(hdmi->field_ddc_slave_addr, msg->addr);
 
-	/* Set FIFO RX/TX thresholds and clear FIFO */
-	reg = readl(hdmi->base + SUN4I_HDMI_DDC_FIFO_CTRL_REG);
-	reg |= SUN4I_HDMI_DDC_FIFO_CTRL_CLEAR;
-	reg &= ~SUN4I_HDMI_DDC_FIFO_CTRL_RX_THRES_MASK;
-	reg |= SUN4I_HDMI_DDC_FIFO_CTRL_RX_THRES(RX_THRESHOLD);
-	reg &= ~SUN4I_HDMI_DDC_FIFO_CTRL_TX_THRES_MASK;
-	reg |= SUN4I_HDMI_DDC_FIFO_CTRL_TX_THRES(TX_THRESHOLD);
-	writel(reg, hdmi->base + SUN4I_HDMI_DDC_FIFO_CTRL_REG);
-	if (readl_poll_timeout(hdmi->base + SUN4I_HDMI_DDC_FIFO_CTRL_REG,
-			       reg,
-			       !(reg & SUN4I_HDMI_DDC_FIFO_CTRL_CLEAR),
-			       100, 2000))
+	/*
+	 * Set FIFO RX/TX thresholds and clear FIFO
+	 *
+	 * If threshold is inclusive, we can set the TX threshold to
+	 * 0 instead of 1.
+	 */
+	regmap_field_write(hdmi->field_ddc_fifo_tx_thres,
+			   hdmi->variant->ddc_fifo_thres_incl ? 0 : 1);
+	regmap_field_write(hdmi->field_ddc_fifo_rx_thres, RX_THRESHOLD);
+	regmap_field_write(hdmi->field_ddc_fifo_clear, 1);
+	if (regmap_field_read_poll_timeout(hdmi->field_ddc_fifo_clear,
+					   reg, !reg, 100, 2000))
 		return -EIO;
 
 	/* Set transfer length */
-	writel(msg->len, hdmi->base + SUN4I_HDMI_DDC_BYTE_COUNT_REG);
+	regmap_field_write(hdmi->field_ddc_byte_count, msg->len);
 
 	/* Set command */
-	writel(msg->flags & I2C_M_RD ?
-	       SUN4I_HDMI_DDC_CMD_IMPLICIT_READ :
-	       SUN4I_HDMI_DDC_CMD_IMPLICIT_WRITE,
-	       hdmi->base + SUN4I_HDMI_DDC_CMD_REG);
+	regmap_field_write(hdmi->field_ddc_cmd,
+			   msg->flags & I2C_M_RD ?
+			   SUN4I_HDMI_DDC_CMD_IMPLICIT_READ :
+			   SUN4I_HDMI_DDC_CMD_IMPLICIT_WRITE);
 
-	/* Clear interrupt status bits */
-	writel(SUN4I_HDMI_DDC_INT_STATUS_ERROR_MASK |
-	       SUN4I_HDMI_DDC_INT_STATUS_FIFO_REQUEST |
-	       SUN4I_HDMI_DDC_INT_STATUS_TRANSFER_COMPLETE,
-	       hdmi->base + SUN4I_HDMI_DDC_INT_STATUS_REG);
+	/* Clear interrupt status bits by forcing a write */
+	regmap_field_force_write(hdmi->field_ddc_int_status,
+				 SUN4I_HDMI_DDC_INT_STATUS_ERROR_MASK |
+				 SUN4I_HDMI_DDC_INT_STATUS_FIFO_REQUEST |
+				 SUN4I_HDMI_DDC_INT_STATUS_TRANSFER_COMPLETE);
 
 	/* Start command */
-	reg = readl(hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
-	writel(reg | SUN4I_HDMI_DDC_CTRL_START_CMD,
-	       hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
+	regmap_field_write(hdmi->field_ddc_start, 1);
 
 	/* Transfer bytes */
 	for (i = 0; i < msg->len; i += len) {
@@ -124,14 +133,12 @@ static int xfer_msg(struct sun4i_hdmi *hdmi, struct i2c_msg *msg)
 	}
 
 	/* Wait for command to finish */
-	if (readl_poll_timeout(hdmi->base + SUN4I_HDMI_DDC_CTRL_REG,
-			       reg,
-			       !(reg & SUN4I_HDMI_DDC_CTRL_START_CMD),
-			       100, 100000))
+	if (regmap_field_read_poll_timeout(hdmi->field_ddc_start,
+					   reg, !reg, 100, 100000))
 		return -EIO;
 
 	/* Check for errors */
-	reg = readl(hdmi->base + SUN4I_HDMI_DDC_INT_STATUS_REG);
+	regmap_field_read(hdmi->field_ddc_int_status, &reg);
 	if ((reg & SUN4I_HDMI_DDC_INT_STATUS_ERROR_MASK) ||
 	    !(reg & SUN4I_HDMI_DDC_INT_STATUS_TRANSFER_COMPLETE)) {
 		return -EIO;
@@ -154,20 +161,21 @@ static int sun4i_hdmi_i2c_xfer(struct i2c_adapter *adap,
 			return -EINVAL;
 	}
 
-	/* Reset I2C controller */
-	writel(SUN4I_HDMI_DDC_CTRL_ENABLE | SUN4I_HDMI_DDC_CTRL_RESET,
-	       hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
-	if (readl_poll_timeout(hdmi->base + SUN4I_HDMI_DDC_CTRL_REG, reg,
-			       !(reg & SUN4I_HDMI_DDC_CTRL_RESET),
-			       100, 2000))
-		return -EIO;
-
-	writel(SUN4I_HDMI_DDC_LINE_CTRL_SDA_ENABLE |
-	       SUN4I_HDMI_DDC_LINE_CTRL_SCL_ENABLE,
-	       hdmi->base + SUN4I_HDMI_DDC_LINE_CTRL_REG);
-
+	/* DDC clock needs to be enabled for the module to work */
 	clk_prepare_enable(hdmi->ddc_clk);
 	clk_set_rate(hdmi->ddc_clk, 100000);
+
+	/* Reset I2C controller */
+	regmap_field_write(hdmi->field_ddc_en, 1);
+	regmap_field_write(hdmi->field_ddc_reset, 1);
+	if (regmap_field_read_poll_timeout(hdmi->field_ddc_reset,
+					   reg, !reg, 100, 2000)) {
+		clk_disable_unprepare(hdmi->ddc_clk);
+		return -EIO;
+	}
+
+	regmap_field_write(hdmi->field_ddc_sck_en, 1);
+	regmap_field_write(hdmi->field_ddc_sda_en, 1);
 
 	for (i = 0; i < num; i++) {
 		err = xfer_msg(hdmi, &msgs[i]);
@@ -191,12 +199,105 @@ static const struct i2c_algorithm sun4i_hdmi_i2c_algorithm = {
 	.functionality	= sun4i_hdmi_i2c_func,
 };
 
+static int sun4i_hdmi_init_regmap_fields(struct sun4i_hdmi *hdmi)
+{
+	hdmi->field_ddc_en =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_en);
+	if (IS_ERR(hdmi->field_ddc_en))
+		return PTR_ERR(hdmi->field_ddc_en);
+
+	hdmi->field_ddc_start =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_start);
+	if (IS_ERR(hdmi->field_ddc_start))
+		return PTR_ERR(hdmi->field_ddc_start);
+
+	hdmi->field_ddc_reset =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_reset);
+	if (IS_ERR(hdmi->field_ddc_reset))
+		return PTR_ERR(hdmi->field_ddc_reset);
+
+	hdmi->field_ddc_addr_reg =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_addr_reg);
+	if (IS_ERR(hdmi->field_ddc_addr_reg))
+		return PTR_ERR(hdmi->field_ddc_addr_reg);
+
+	hdmi->field_ddc_slave_addr =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_slave_addr);
+	if (IS_ERR(hdmi->field_ddc_slave_addr))
+		return PTR_ERR(hdmi->field_ddc_slave_addr);
+
+	hdmi->field_ddc_int_mask =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_int_mask);
+	if (IS_ERR(hdmi->field_ddc_int_mask))
+		return PTR_ERR(hdmi->field_ddc_int_mask);
+
+	hdmi->field_ddc_int_status =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_int_status);
+	if (IS_ERR(hdmi->field_ddc_int_status))
+		return PTR_ERR(hdmi->field_ddc_int_status);
+
+	hdmi->field_ddc_fifo_clear =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_fifo_clear);
+	if (IS_ERR(hdmi->field_ddc_fifo_clear))
+		return PTR_ERR(hdmi->field_ddc_fifo_clear);
+
+	hdmi->field_ddc_fifo_rx_thres =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_fifo_rx_thres);
+	if (IS_ERR(hdmi->field_ddc_fifo_rx_thres))
+		return PTR_ERR(hdmi->field_ddc_fifo_rx_thres);
+
+	hdmi->field_ddc_fifo_tx_thres =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_fifo_tx_thres);
+	if (IS_ERR(hdmi->field_ddc_fifo_tx_thres))
+		return PTR_ERR(hdmi->field_ddc_fifo_tx_thres);
+
+	hdmi->field_ddc_byte_count =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_byte_count);
+	if (IS_ERR(hdmi->field_ddc_byte_count))
+		return PTR_ERR(hdmi->field_ddc_byte_count);
+
+	hdmi->field_ddc_cmd =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_cmd);
+	if (IS_ERR(hdmi->field_ddc_cmd))
+		return PTR_ERR(hdmi->field_ddc_cmd);
+
+	hdmi->field_ddc_sda_en =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_sda_en);
+	if (IS_ERR(hdmi->field_ddc_sda_en))
+		return PTR_ERR(hdmi->field_ddc_sda_en);
+
+	hdmi->field_ddc_sck_en =
+		devm_regmap_field_alloc(hdmi->dev, hdmi->regmap,
+					hdmi->variant->field_ddc_sck_en);
+	if (IS_ERR(hdmi->field_ddc_sck_en))
+		return PTR_ERR(hdmi->field_ddc_sck_en);
+
+	return 0;
+}
+
 int sun4i_hdmi_i2c_create(struct device *dev, struct sun4i_hdmi *hdmi)
 {
 	struct i2c_adapter *adap;
 	int ret = 0;
 
-	ret = sun4i_ddc_create(hdmi, hdmi->tmds_clk);
+	ret = sun4i_ddc_create(hdmi, hdmi->ddc_parent_clk);
+	if (ret)
+		return ret;
+
+	ret = sun4i_hdmi_init_regmap_fields(hdmi);
 	if (ret)
 		return ret;
 

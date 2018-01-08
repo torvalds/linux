@@ -1,8 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef S390_DEVICE_H
 #define S390_DEVICE_H
 
 #include <asm/ccwdev.h>
 #include <linux/atomic.h>
+#include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/notifier.h>
 #include <linux/kernel_stat.h>
@@ -133,7 +135,9 @@ int ccw_device_notify(struct ccw_device *, int);
 void ccw_device_set_disconnected(struct ccw_device *cdev);
 void ccw_device_set_notoper(struct ccw_device *cdev);
 
+void ccw_device_timeout(struct timer_list *t);
 void ccw_device_set_timeout(struct ccw_device *, int);
+void ccw_device_schedule_recovery(void);
 
 /* Channel measurement facility related */
 void retry_set_schib(struct ccw_device *cdev);

@@ -38,40 +38,73 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 static int mt2060_readreg(struct mt2060_priv *priv, u8 reg, u8 *val)
 {
 	struct i2c_msg msg[2] = {
-		{ .addr = priv->cfg->i2c_address, .flags = 0,        .buf = &reg, .len = 1 },
-		{ .addr = priv->cfg->i2c_address, .flags = I2C_M_RD, .buf = val,  .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = 0, .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = I2C_M_RD, .len = 1 },
 	};
+	int rc = 0;
+	u8 *b;
+
+	b = kmalloc(2, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
+
+	b[0] = reg;
+	b[1] = 0;
+
+	msg[0].buf = b;
+	msg[1].buf = b + 1;
 
 	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
 		printk(KERN_WARNING "mt2060 I2C read failed\n");
-		return -EREMOTEIO;
+		rc = -EREMOTEIO;
 	}
-	return 0;
+	*val = b[1];
+	kfree(b);
+
+	return rc;
 }
 
 // Writes a single register
 static int mt2060_writereg(struct mt2060_priv *priv, u8 reg, u8 val)
 {
-	u8 buf[2] = { reg, val };
 	struct i2c_msg msg = {
-		.addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = 2
+		.addr = priv->cfg->i2c_address, .flags = 0, .len = 2
 	};
+	u8 *buf;
+	int rc = 0;
+
+	buf = kmalloc(2, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf[0] = reg;
+	buf[1] = val;
+
+	msg.buf = buf;
 
 	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
 		printk(KERN_WARNING "mt2060 I2C write failed\n");
-		return -EREMOTEIO;
+		rc = -EREMOTEIO;
 	}
-	return 0;
+	kfree(buf);
+	return rc;
 }
 
 // Writes a set of consecutive registers
 static int mt2060_writeregs(struct mt2060_priv *priv,u8 *buf, u8 len)
 {
 	int rem, val_len;
-	u8 xfer_buf[16];
+	u8 *xfer_buf;
+	int rc = 0;
 	struct i2c_msg msg = {
-		.addr = priv->cfg->i2c_address, .flags = 0, .buf = xfer_buf
+		.addr = priv->cfg->i2c_address, .flags = 0
 	};
+
+	xfer_buf = kmalloc(16, GFP_KERNEL);
+	if (!xfer_buf)
+		return -ENOMEM;
+
+	msg.buf = xfer_buf;
 
 	for (rem = len - 1; rem > 0; rem -= priv->i2c_max_regs) {
 		val_len = min_t(int, rem, priv->i2c_max_regs);
@@ -81,11 +114,13 @@ static int mt2060_writeregs(struct mt2060_priv *priv,u8 *buf, u8 len)
 
 		if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
 			printk(KERN_WARNING "mt2060 I2C write failed (len=%i)\n", val_len);
-			return -EREMOTEIO;
+			rc = -EREMOTEIO;
+			break;
 		}
 	}
 
-	return 0;
+	kfree(xfer_buf);
+	return rc;
 }
 
 // Initialisation sequences

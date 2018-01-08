@@ -1378,7 +1378,7 @@ int bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 				unsigned int count;
 
 				slaves = rcu_dereference(bond->slave_arr);
-				count = slaves ? ACCESS_ONCE(slaves->count) : 0;
+				count = slaves ? READ_ONCE(slaves->count) : 0;
 				if (likely(count))
 					tx_slave = slaves->arr[hash_index %
 							       count];

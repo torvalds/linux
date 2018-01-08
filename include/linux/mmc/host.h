@@ -255,6 +255,10 @@ struct mmc_supply {
 	struct regulator *vqmmc;	/* Optional Vccq supply */
 };
 
+struct mmc_ctx {
+	struct task_struct *task;
+};
+
 struct mmc_host {
 	struct device		*parent;
 	struct device		class_dev;
@@ -316,7 +320,7 @@ struct mmc_host {
 #define MMC_CAP_UHS_SDR50	(1 << 18)	/* Host supports UHS SDR50 mode */
 #define MMC_CAP_UHS_SDR104	(1 << 19)	/* Host supports UHS SDR104 mode */
 #define MMC_CAP_UHS_DDR50	(1 << 20)	/* Host supports UHS DDR50 mode */
-#define MMC_CAP_NO_BOUNCE_BUFF	(1 << 21)	/* Disable bounce buffers on host */
+/* (1 << 21) is free for reuse */
 #define MMC_CAP_DRIVER_TYPE_A	(1 << 23)	/* Host supports Driver Type A */
 #define MMC_CAP_DRIVER_TYPE_C	(1 << 24)	/* Host supports Driver Type C */
 #define MMC_CAP_DRIVER_TYPE_D	(1 << 25)	/* Host supports Driver Type D */
@@ -349,6 +353,8 @@ struct mmc_host {
 #define MMC_CAP2_NO_MMC		(1 << 22)	/* Do not send (e)MMC commands during initialization */
 #define MMC_CAP2_CQE		(1 << 23)	/* Has eMMC command queue engine */
 #define MMC_CAP2_CQE_DCMD	(1 << 24)	/* CQE can issue a direct command */
+
+	int			fixed_drv_type;	/* fixed driver type for non-removable media */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -388,8 +394,9 @@ struct mmc_host {
 	struct mmc_card		*card;		/* device attached to this host */
 
 	wait_queue_head_t	wq;
-	struct task_struct	*claimer;	/* task that has host claimed */
+	struct mmc_ctx		*claimer;	/* context that has host claimed */
 	int			claim_cnt;	/* "claim" nesting count */
+	struct mmc_ctx		default_ctx;	/* default context */
 
 	struct delayed_work	detect;
 	int			detect_change;	/* card detect flag */
@@ -468,6 +475,8 @@ int mmc_power_restore_host(struct mmc_host *host);
 void mmc_detect_change(struct mmc_host *, unsigned long delay);
 void mmc_request_done(struct mmc_host *, struct mmc_request *);
 void mmc_command_done(struct mmc_host *host, struct mmc_request *mrq);
+
+void mmc_cqe_request_done(struct mmc_host *host, struct mmc_request *mrq);
 
 static inline void mmc_signal_sdio_irq(struct mmc_host *host)
 {

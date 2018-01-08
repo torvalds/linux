@@ -89,6 +89,7 @@ static int start_cbsend(struct cardstate *);
 
 struct bas_cardstate {
 	struct usb_device	*udev;		/* USB device pointer */
+	struct cardstate	*cs;
 	struct usb_interface	*interface;	/* interface for this device */
 	unsigned char		minor;		/* starting minor number */
 
@@ -433,10 +434,10 @@ static void check_pending(struct bas_cardstate *ucs)
  * argument:
  *	controller state structure
  */
-static void cmd_in_timeout(unsigned long data)
+static void cmd_in_timeout(struct timer_list *t)
 {
-	struct cardstate *cs = (struct cardstate *) data;
-	struct bas_cardstate *ucs = cs->hw.bas;
+	struct bas_cardstate *ucs = from_timer(ucs, t, timer_cmd_in);
+	struct cardstate *cs = ucs->cs;
 	int rc;
 
 	if (!ucs->rcvbuf_size) {
@@ -639,10 +640,10 @@ static void int_in_work(struct work_struct *work)
  * argument:
  *	controller state structure
  */
-static void int_in_resubmit(unsigned long data)
+static void int_in_resubmit(struct timer_list *t)
 {
-	struct cardstate *cs = (struct cardstate *) data;
-	struct bas_cardstate *ucs = cs->hw.bas;
+	struct bas_cardstate *ucs = from_timer(ucs, t, timer_int_in);
+	struct cardstate *cs = ucs->cs;
 	int rc;
 
 	if (ucs->retry_int_in++ >= BAS_RETRY) {
@@ -1441,10 +1442,10 @@ error:
  * argument:
  *	controller state structure
  */
-static void req_timeout(unsigned long data)
+static void req_timeout(struct timer_list *t)
 {
-	struct cardstate *cs = (struct cardstate *) data;
-	struct bas_cardstate *ucs = cs->hw.bas;
+	struct bas_cardstate *ucs = from_timer(ucs, t, timer_ctrl);
+	struct cardstate *cs = ucs->cs;
 	int pending;
 	unsigned long flags;
 
@@ -1837,10 +1838,10 @@ static void write_command_callback(struct urb *urb)
  * argument:
  *	controller state structure
  */
-static void atrdy_timeout(unsigned long data)
+static void atrdy_timeout(struct timer_list *t)
 {
-	struct cardstate *cs = (struct cardstate *) data;
-	struct bas_cardstate *ucs = cs->hw.bas;
+	struct bas_cardstate *ucs = from_timer(ucs, t, timer_atrdy);
+	struct cardstate *cs = ucs->cs;
 
 	dev_warn(cs->dev, "timeout waiting for HD_READY_SEND_ATDATA\n");
 
@@ -2200,7 +2201,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 {
 	struct bas_cardstate *ucs;
 
-	cs->hw.bas = ucs = kmalloc(sizeof *ucs, GFP_KERNEL);
+	cs->hw.bas = ucs = kzalloc(sizeof(*ucs), GFP_KERNEL);
 	if (!ucs) {
 		pr_err("out of memory\n");
 		return -ENOMEM;
@@ -2212,19 +2213,12 @@ static int gigaset_initcshw(struct cardstate *cs)
 		return -ENOMEM;
 	}
 
-	ucs->urb_cmd_in = NULL;
-	ucs->urb_cmd_out = NULL;
-	ucs->rcvbuf = NULL;
-	ucs->rcvbuf_size = 0;
-
 	spin_lock_init(&ucs->lock);
-	ucs->pending = 0;
-
-	ucs->basstate = 0;
-	setup_timer(&ucs->timer_ctrl, req_timeout, (unsigned long) cs);
-	setup_timer(&ucs->timer_atrdy, atrdy_timeout, (unsigned long) cs);
-	setup_timer(&ucs->timer_cmd_in, cmd_in_timeout, (unsigned long) cs);
-	setup_timer(&ucs->timer_int_in, int_in_resubmit, (unsigned long) cs);
+	ucs->cs = cs;
+	timer_setup(&ucs->timer_ctrl, req_timeout, 0);
+	timer_setup(&ucs->timer_atrdy, atrdy_timeout, 0);
+	timer_setup(&ucs->timer_cmd_in, cmd_in_timeout, 0);
+	timer_setup(&ucs->timer_int_in, int_in_resubmit, 0);
 	init_waitqueue_head(&ucs->waitqueue);
 	INIT_WORK(&ucs->int_in_wq, int_in_work);
 

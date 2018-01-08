@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Definitions for MIBs
  *
@@ -190,7 +191,6 @@ enum
 	LINUX_MIB_TCPRENORECOVERY,		/* TCPRenoRecovery */
 	LINUX_MIB_TCPSACKRECOVERY,		/* TCPSackRecovery */
 	LINUX_MIB_TCPSACKRENEGING,		/* TCPSACKReneging */
-	LINUX_MIB_TCPFACKREORDER,		/* TCPFACKReorder */
 	LINUX_MIB_TCPSACKREORDER,		/* TCPSACKReorder */
 	LINUX_MIB_TCPRENOREORDER,		/* TCPRenoReorder */
 	LINUX_MIB_TCPTSREORDER,			/* TCPTSReorder */

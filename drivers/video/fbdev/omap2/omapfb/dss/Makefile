@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_FB_OMAP2_DSS_INIT) += omapdss-boot-init.o
 obj-$(CONFIG_FB_OMAP2_DSS) += omapdss.o
 # Core DSS files

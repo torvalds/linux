@@ -287,10 +287,18 @@ struct tp_params {
 	 * places we store their offsets here, or a -1 if the field isn't
 	 * present.
 	 */
-	int vlan_shift;
-	int vnic_shift;
+	int fcoe_shift;
 	int port_shift;
+	int vnic_shift;
+	int vlan_shift;
+	int tos_shift;
 	int protocol_shift;
+	int ethertype_shift;
+	int macmatch_shift;
+	int matchtype_shift;
+	int frag_shift;
+
+	u64 hash_filter_mask;
 };
 
 struct vpd_params {
@@ -358,6 +366,7 @@ struct adapter_params {
 	unsigned char crypto;		/* HW capability for crypto */
 
 	unsigned char bypass;
+	unsigned char hash_filter;
 
 	unsigned int ofldq_wr_cred;
 	bool ulptx_memwrite_dsgl;          /* use of T5 DSGL allowed */
@@ -367,6 +376,7 @@ struct adapter_params {
 	unsigned int max_ird_adapter;     /* Max read depth per adapter */
 	bool fr_nsmr_tpte_wr_support;	  /* FW support for FR_NSMR_TPTE_WR */
 	u8 fw_caps_support;		/* 32-bit Port Capabilities */
+	bool filter2_wr_support;	/* FW support for FILTER2_WR */
 
 	/* MPS Buffer Group Map[per Port].  Bit i is set if buffer group i is
 	 * used by the Port
@@ -549,6 +559,7 @@ enum {                                 /* adapter flags */
 	MASTER_PF          = (1 << 7),
 	FW_OFLD_CONN       = (1 << 9),
 	ROOT_NO_RELAXED_ORDERING = (1 << 10),
+	SHUTTING_DOWN	   = (1 << 11),
 };
 
 enum {
@@ -857,6 +868,7 @@ struct adapter {
 	unsigned int clipt_start;
 	unsigned int clipt_end;
 	struct clip_tbl *clipt;
+	struct smt_data *smt;
 	struct cxgb4_uld_info *uld;
 	void *uld_handle[CXGB4_ULD_MAX];
 	unsigned int num_uld;
@@ -904,6 +916,15 @@ struct adapter {
 	/* TC u32 offload */
 	struct cxgb4_tc_u32_table *tc_u32;
 	struct chcr_stats_debug chcr_stats;
+
+	/* TC flower offload */
+	struct rhashtable flower_tbl;
+	struct rhashtable_params flower_ht_params;
+	struct timer_list flower_stats_timer;
+	struct work_struct flower_stats_work;
+
+	/* Ethtool Dump */
+	struct ethtool_dump eth_dump;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1031,6 +1052,7 @@ struct ch_filter_specification {
 	 * matching that doesn't exist as a (value, mask) tuple.
 	 */
 	uint32_t type:1;        /* 0 => IPv4, 1 => IPv6 */
+	u32 hash:1;		/* 0 => wild-card, 1 => exact-match */
 
 	/* Packet dispatch information.  Ingress packets which match the
 	 * filter rules will be dropped, passed to the host or switched back
@@ -1055,9 +1077,18 @@ struct ch_filter_specification {
 	uint32_t newdmac:1;     /* rewrite destination MAC address */
 	uint32_t newsmac:1;     /* rewrite source MAC address */
 	uint32_t newvlan:2;     /* rewrite VLAN Tag */
+	uint32_t nat_mode:3;    /* specify NAT operation mode */
 	uint8_t dmac[ETH_ALEN]; /* new destination MAC address */
 	uint8_t smac[ETH_ALEN]; /* new source MAC address */
 	uint16_t vlan;          /* VLAN Tag to insert */
+
+	u8 nat_lip[16];		/* local IP to use after NAT'ing */
+	u8 nat_fip[16];		/* foreign IP to use after NAT'ing */
+	u16 nat_lport;		/* local port to use after NAT'ing */
+	u16 nat_fport;		/* foreign port to use after NAT'ing */
+
+	/* reservation for future additions */
+	u8 rsvd[24];
 
 	/* Filter rule value/mask pairs.
 	 */
@@ -1078,6 +1109,17 @@ enum {
 	VLAN_REWRITE
 };
 
+enum {
+	NAT_MODE_NONE = 0,	/* No NAT performed */
+	NAT_MODE_DIP,		/* NAT on Dst IP */
+	NAT_MODE_DIP_DP,	/* NAT on Dst IP, Dst Port */
+	NAT_MODE_DIP_DP_SIP,	/* NAT on Dst IP, Dst Port and Src IP */
+	NAT_MODE_DIP_DP_SP,	/* NAT on Dst IP, Dst Port and Src Port */
+	NAT_MODE_SIP_SP,	/* NAT on Src IP and Src Port */
+	NAT_MODE_DIP_SIP_SP,	/* NAT on Dst IP, Src IP and Src Port */
+	NAT_MODE_ALL		/* NAT on entire 4-tuple */
+};
+
 /* Host shadow copy of ingress filter entry.  This is in host native format
  * and doesn't match the ordering or bit order, etc. of the hardware of the
  * firmware command.  The use of bit-field structure elements is purely to
@@ -1090,9 +1132,9 @@ struct filter_entry {
 	u32 locked:1;           /* filter is administratively locked */
 
 	u32 pending:1;          /* filter action is pending firmware reply */
-	u32 smtidx:8;           /* Source MAC Table index for smac */
 	struct filter_ctx *ctx; /* Caller's completion hook */
 	struct l2t_entry *l2t;  /* Layer Two Table entry for dmac */
+	struct smt_entry *smt;  /* Source Mac Table entry for smac */
 	struct net_device *dev; /* Associated net device */
 	u32 tid;                /* This will store the actual tid */
 
@@ -1107,6 +1149,11 @@ struct filter_entry {
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
+}
+
+static inline int is_hashfilter(const struct adapter *adap)
+{
+	return adap->params.hash_filter;
 }
 
 static inline int is_pci_uld(const struct adapter *adap)
@@ -1312,6 +1359,12 @@ static inline unsigned int core_ticks_to_us(const struct adapter *adapter,
 		adapter->params.vpd.cclk);
 }
 
+static inline unsigned int dack_ticks_to_usec(const struct adapter *adap,
+					      unsigned int ticks)
+{
+	return (ticks << adap->params.tp.dack_re) / core_ticks_per_usec(adap);
+}
+
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask,
 		      u32 val);
 
@@ -1406,6 +1459,7 @@ static inline int t4_memory_write(struct adapter *adap, int mtype, u32 addr,
 unsigned int t4_get_regs_len(struct adapter *adapter);
 void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size);
 
+int t4_eeprom_ptov(unsigned int phys_addr, unsigned int fn, unsigned int sz);
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_get_vpd_params(struct adapter *adapter, struct vpd_params *p);
@@ -1451,7 +1505,7 @@ unsigned int qtimer_val(const struct adapter *adap,
 
 int t4_init_devlog_params(struct adapter *adapter);
 int t4_init_sge_params(struct adapter *adapter);
-int t4_init_tp_params(struct adapter *adap);
+int t4_init_tp_params(struct adapter *adap, bool sleep_ok);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_init_rss_mode(struct adapter *adap, int mbox);
 int t4_init_portinfo(struct port_info *pi, int mbox,
@@ -1465,14 +1519,15 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
 		     unsigned int flags, unsigned int defq);
 int t4_read_rss(struct adapter *adapter, u16 *entries);
-void t4_read_rss_key(struct adapter *adapter, u32 *key);
-void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx);
+void t4_read_rss_key(struct adapter *adapter, u32 *key, bool sleep_ok);
+void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx,
+		      bool sleep_ok);
 void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
-			   u32 *valp);
+			   u32 *valp, bool sleep_ok);
 void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
-			   u32 *vfl, u32 *vfh);
-u32 t4_read_rss_pf_map(struct adapter *adapter);
-u32 t4_read_rss_pf_mask(struct adapter *adapter);
+			   u32 *vfl, u32 *vfh, bool sleep_ok);
+u32 t4_read_rss_pf_map(struct adapter *adapter, bool sleep_ok);
+u32 t4_read_rss_pf_mask(struct adapter *adapter, bool sleep_ok);
 
 unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx);
 unsigned int t4_get_tp_ch_map(struct adapter *adapter, int pidx);
@@ -1503,14 +1558,18 @@ void t4_read_cong_tbl(struct adapter *adap, u16 incr[NMTUS][NCCTRL_WIN]);
 void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
 			    unsigned int mask, unsigned int val);
 void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr);
-void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st);
-void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st);
-void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st);
-void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st);
+void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st,
+			 bool sleep_ok);
+void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st,
+			 bool sleep_ok);
+void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st,
+			  bool sleep_ok);
+void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st,
+		      bool sleep_ok);
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
-			 struct tp_tcp_stats *v6);
+			 struct tp_tcp_stats *v6, bool sleep_ok);
 void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
-		       struct tp_fcoe_stats *st);
+		       struct tp_fcoe_stats *st, bool sleep_ok);
 void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 		  const unsigned short *alpha, const unsigned short *beta);
 
@@ -1608,6 +1667,13 @@ void t4_get_trace_filter(struct adapter *adapter, struct trace_params *tp,
 			 int filter_index, int *enabled);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 			 u32 addr, u32 val);
+void t4_read_pace_tbl(struct adapter *adap, unsigned int pace_vals[NTX_SCHED]);
+void t4_get_tx_sched(struct adapter *adap, unsigned int sched,
+		     unsigned int *kbps, unsigned int *ipg, bool sleep_ok);
+int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
+		   enum ctxt_type ctype, u32 *data);
+int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid,
+		      enum ctxt_type ctype, u32 *data);
 int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int class,
 		    int minrate, int maxrate, int weight, int pktsize);
@@ -1619,6 +1685,13 @@ void t4_idma_monitor(struct adapter *adapter,
 		     int hz, int ticks);
 int t4_set_vf_mac_acl(struct adapter *adapter, unsigned int vf,
 		      unsigned int naddr, u8 *addr);
+void t4_tp_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
+		    u32 start_index, bool sleep_ok);
+void t4_tp_tm_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
+		       u32 start_index, bool sleep_ok);
+void t4_tp_mib_read(struct adapter *adap, u32 *buff, u32 nregs,
+		    u32 start_index, bool sleep_ok);
+
 void t4_uld_mem_free(struct adapter *adap);
 int t4_uld_mem_alloc(struct adapter *adap);
 void t4_uld_clean_up(struct adapter *adap);

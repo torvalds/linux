@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
 /*
  * frontend.h
  *
@@ -830,7 +831,7 @@ struct dtv_fe_stats {
  * @cmd:	Digital TV command.
  * @reserved:	Not used.
  * @u:		Union with the values for the command.
- * @result:	Result of the command set (currently unused).
+ * @result:	Unused
  *
  * The @u union may have either one of the values below:
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Interface for controlling IO bandwidth on a request queue
  *
@@ -224,7 +225,7 @@ struct throtl_data
 	bool track_bio_latency;
 };
 
-static void throtl_pending_timer_fn(unsigned long arg);
+static void throtl_pending_timer_fn(struct timer_list *t);
 
 static inline struct throtl_grp *pd_to_tg(struct blkg_policy_data *pd)
 {
@@ -477,8 +478,7 @@ static void throtl_service_queue_init(struct throtl_service_queue *sq)
 	INIT_LIST_HEAD(&sq->queued[0]);
 	INIT_LIST_HEAD(&sq->queued[1]);
 	sq->pending_tree = RB_ROOT;
-	setup_timer(&sq->pending_timer, throtl_pending_timer_fn,
-		    (unsigned long)sq);
+	timer_setup(&sq->pending_timer, throtl_pending_timer_fn, 0);
 }
 
 static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
@@ -1248,9 +1248,9 @@ static bool throtl_can_upgrade(struct throtl_data *td,
  * the top-level service_tree is reached, throtl_data->dispatch_work is
  * kicked so that the ready bio's are issued.
  */
-static void throtl_pending_timer_fn(unsigned long arg)
+static void throtl_pending_timer_fn(struct timer_list *t)
 {
-	struct throtl_service_queue *sq = (void *)arg;
+	struct throtl_service_queue *sq = from_timer(sq, t, pending_timer);
 	struct throtl_grp *tg = sq_to_tg(sq);
 	struct throtl_data *td = sq_to_td(sq);
 	struct request_queue *q = td->queue;
@@ -1911,11 +1911,11 @@ static void throtl_upgrade_state(struct throtl_data *td)
 
 		tg->disptime = jiffies - 1;
 		throtl_select_dispatch(sq);
-		throtl_schedule_next_dispatch(sq, false);
+		throtl_schedule_next_dispatch(sq, true);
 	}
 	rcu_read_unlock();
 	throtl_select_dispatch(&td->service_queue);
-	throtl_schedule_next_dispatch(&td->service_queue, false);
+	throtl_schedule_next_dispatch(&td->service_queue, true);
 	queue_work(kthrotld_workqueue, &td->dispatch_work);
 }
 
@@ -2112,8 +2112,12 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
 {
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	if (bio->bi_css)
+	if (bio->bi_css) {
+		if (bio->bi_cg_private)
+			blkg_put(tg_to_blkg(bio->bi_cg_private));
 		bio->bi_cg_private = tg;
+		blkg_get(tg_to_blkg(tg));
+	}
 	blk_stat_set_issue(&bio->bi_issue_stat, bio_sectors(bio));
 #endif
 }
@@ -2283,8 +2287,10 @@ void blk_throtl_bio_endio(struct bio *bio)
 
 	start_time = blk_stat_time(&bio->bi_issue_stat) >> 10;
 	finish_time = __blk_stat_time(finish_time_ns) >> 10;
-	if (!start_time || finish_time <= start_time)
+	if (!start_time || finish_time <= start_time) {
+		blkg_put(tg_to_blkg(tg));
 		return;
+	}
 
 	lat = finish_time - start_time;
 	/* this is only for bio based driver */
@@ -2314,6 +2320,8 @@ void blk_throtl_bio_endio(struct bio *bio)
 		tg->bio_cnt /= 2;
 		tg->bad_bio_cnt /= 2;
 	}
+
+	blkg_put(tg_to_blkg(tg));
 }
 #endif
 

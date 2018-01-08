@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/net/sunrpc/xprtsock.c
  *
@@ -551,6 +552,7 @@ static int xs_local_send_request(struct rpc_task *task)
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
 			-status);
+		/* fall through */
 	case -EPIPE:
 		xs_close(xprt);
 		status = -ENOTCONN;
@@ -1610,6 +1612,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		xprt->connect_cookie++;
 		clear_bit(XPRT_CONNECTED, &xprt->state);
 		xs_tcp_force_close(xprt);
+		/* fall through */
 	case TCP_CLOSING:
 		/*
 		 * If the server closed down the connection, make sure that
@@ -2203,7 +2206,7 @@ static void xs_udp_setup_socket(struct work_struct *work)
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
 	struct rpc_xprt *xprt = &transport->xprt;
-	struct socket *sock = transport->sock;
+	struct socket *sock;
 	int status = -EIO;
 
 	sock = xs_create_sock(xprt, transport,
@@ -2367,6 +2370,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	switch (ret) {
 	case 0:
 		xs_set_srcport(transport, sock);
+		/* fall through */
 	case -EINPROGRESS:
 		/* SYN_SENT! */
 		if (xprt->reestablish_timeout < XS_TCP_INIT_REEST_TO)
@@ -2418,6 +2422,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	default:
 		printk("%s: connect returned unhandled error %d\n",
 			__func__, status);
+		/* fall through */
 	case -EADDRNOTAVAIL:
 		/* We're probably in TIME_WAIT. Get rid of existing socket,
 		 * and retry

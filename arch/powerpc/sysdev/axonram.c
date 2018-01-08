@@ -184,7 +184,7 @@ static int axon_ram_probe(struct platform_device *device)
 	static int axon_ram_bank_id = -1;
 	struct axon_ram_bank *bank;
 	struct resource resource;
-	int rc = 0;
+	int rc;
 
 	axon_ram_bank_id++;
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* ld script for sparc32/sparc64 kernel */
 
 #include <asm-generic/vmlinux.lds.h>

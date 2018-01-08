@@ -567,26 +567,26 @@ qat_uclo_check_image_compat(struct icp_qat_uof_encap_obj *encap_uof_obj,
 		       code_page->imp_expr_tab_offset);
 	if (uc_var_tab->entry_num || imp_var_tab->entry_num ||
 	    imp_expr_tab->entry_num) {
-		pr_err("QAT: UOF can't contain imported variable to be parsed");
+		pr_err("QAT: UOF can't contain imported variable to be parsed\n");
 		return -EINVAL;
 	}
 	neigh_reg_tab = (struct icp_qat_uof_objtable *)
 			(encap_uof_obj->beg_uof +
 			code_page->neigh_reg_tab_offset);
 	if (neigh_reg_tab->entry_num) {
-		pr_err("QAT: UOF can't contain shared control store feature");
+		pr_err("QAT: UOF can't contain shared control store feature\n");
 		return -EINVAL;
 	}
 	if (image->numpages > 1) {
-		pr_err("QAT: UOF can't contain multiple pages");
+		pr_err("QAT: UOF can't contain multiple pages\n");
 		return -EINVAL;
 	}
 	if (ICP_QAT_SHARED_USTORE_MODE(image->ae_mode)) {
-		pr_err("QAT: UOF can't use shared control store feature");
+		pr_err("QAT: UOF can't use shared control store feature\n");
 		return -EFAULT;
 	}
 	if (RELOADABLE_CTX_SHARED_MODE(image->ae_mode)) {
-		pr_err("QAT: UOF can't use reloadable feature");
+		pr_err("QAT: UOF can't use reloadable feature\n");
 		return -EFAULT;
 	}
 	return 0;
@@ -702,7 +702,7 @@ static int qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 		}
 	}
 	if (!mflag) {
-		pr_err("QAT: uimage uses AE not set");
+		pr_err("QAT: uimage uses AE not set\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -791,6 +791,7 @@ static int qat_uclo_init_reg(struct icp_qat_fw_loader_handle *handle,
 	case ICP_GPA_ABS:
 	case ICP_GPB_ABS:
 		ctx_mask = 0;
+		/* fall through */
 	case ICP_GPA_REL:
 	case ICP_GPB_REL:
 		return qat_hal_init_gpr(handle, ae, ctx_mask, reg_type,
@@ -800,6 +801,7 @@ static int qat_uclo_init_reg(struct icp_qat_fw_loader_handle *handle,
 	case ICP_SR_RD_ABS:
 	case ICP_DR_RD_ABS:
 		ctx_mask = 0;
+		/* fall through */
 	case ICP_SR_REL:
 	case ICP_DR_REL:
 	case ICP_SR_RD_REL:
@@ -809,6 +811,7 @@ static int qat_uclo_init_reg(struct icp_qat_fw_loader_handle *handle,
 	case ICP_SR_WR_ABS:
 	case ICP_DR_WR_ABS:
 		ctx_mask = 0;
+		/* fall through */
 	case ICP_SR_WR_REL:
 	case ICP_DR_WR_REL:
 		return qat_hal_init_wr_xfer(handle, ae, ctx_mask, reg_type,

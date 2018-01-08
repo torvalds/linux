@@ -345,9 +345,9 @@ void stmmac_disable_eee_mode(struct stmmac_priv *priv)
  *  if there is no data transfer and if we are not in LPI state,
  *  then MAC Transmitter can be moved to LPI state.
  */
-static void stmmac_eee_ctrl_timer(unsigned long arg)
+static void stmmac_eee_ctrl_timer(struct timer_list *t)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)arg;
+	struct stmmac_priv *priv = from_timer(priv, t, eee_ctrl_timer);
 
 	stmmac_enable_eee_mode(priv);
 	mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(eee_timer));
@@ -401,9 +401,8 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 		spin_lock_irqsave(&priv->lock, flags);
 		if (!priv->eee_active) {
 			priv->eee_active = 1;
-			setup_timer(&priv->eee_ctrl_timer,
-				    stmmac_eee_ctrl_timer,
-				    (unsigned long)priv);
+			timer_setup(&priv->eee_ctrl_timer,
+				    stmmac_eee_ctrl_timer, 0);
 			mod_timer(&priv->eee_ctrl_timer,
 				  STMMAC_LPI_T(eee_timer));
 
@@ -473,19 +472,18 @@ static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv, struct dma_desc *p,
 				   struct dma_desc *np, struct sk_buff *skb)
 {
 	struct skb_shared_hwtstamps *shhwtstamp = NULL;
+	struct dma_desc *desc = p;
 	u64 ns;
 
 	if (!priv->hwts_rx_en)
 		return;
+	/* For GMAC4, the valid timestamp is from CTX next desc. */
+	if (priv->plat->has_gmac4)
+		desc = np;
 
 	/* Check if timestamp is available */
-	if (priv->hw->desc->get_rx_timestamp_status(p, priv->adv_ts)) {
-		/* For GMAC4, the valid timestamp is from CTX next desc. */
-		if (priv->plat->has_gmac4)
-			ns = priv->hw->desc->get_timestamp(np, priv->adv_ts);
-		else
-			ns = priv->hw->desc->get_timestamp(p, priv->adv_ts);
-
+	if (priv->hw->desc->get_rx_timestamp_status(desc, priv->adv_ts)) {
+		ns = priv->hw->desc->get_timestamp(desc, priv->adv_ts);
 		netdev_dbg(priv->dev, "get valid RX hw timestamp %llu\n", ns);
 		shhwtstamp = skb_hwtstamps(skb);
 		memset(shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
@@ -1750,12 +1748,20 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 	u32 rx_channels_count = priv->plat->rx_queues_to_use;
 	u32 tx_channels_count = priv->plat->tx_queues_to_use;
 	int rxfifosz = priv->plat->rx_fifo_size;
+	int txfifosz = priv->plat->tx_fifo_size;
 	u32 txmode = 0;
 	u32 rxmode = 0;
 	u32 chan = 0;
+	u8 qmode = 0;
 
 	if (rxfifosz == 0)
 		rxfifosz = priv->dma_cap.rx_fifo_size;
+	if (txfifosz == 0)
+		txfifosz = priv->dma_cap.tx_fifo_size;
+
+	/* Adjust for real per queue fifo size */
+	rxfifosz /= rx_channels_count;
+	txfifosz /= tx_channels_count;
 
 	if (priv->plat->force_thresh_dma_mode) {
 		txmode = tc;
@@ -1778,12 +1784,19 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 
 	/* configure all channels */
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-		for (chan = 0; chan < rx_channels_count; chan++)
-			priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
-						   rxfifosz);
+		for (chan = 0; chan < rx_channels_count; chan++) {
+			qmode = priv->plat->rx_queues_cfg[chan].mode_to_use;
 
-		for (chan = 0; chan < tx_channels_count; chan++)
-			priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan);
+			priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
+						   rxfifosz, qmode);
+		}
+
+		for (chan = 0; chan < tx_channels_count; chan++) {
+			qmode = priv->plat->tx_queues_cfg[chan].mode_to_use;
+
+			priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan,
+						   txfifosz, qmode);
+		}
 	} else {
 		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
 					rxfifosz);
@@ -1800,12 +1813,13 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 {
 	struct stmmac_tx_queue *tx_q = &priv->tx_queue[queue];
 	unsigned int bytes_compl = 0, pkts_compl = 0;
-	unsigned int entry = tx_q->dirty_tx;
+	unsigned int entry;
 
 	netif_tx_lock(priv->dev);
 
 	priv->xstats.tx_clean++;
 
+	entry = tx_q->dirty_tx;
 	while (entry != tx_q->cur_tx) {
 		struct sk_buff *skb = tx_q->tx_skbuff[entry];
 		struct dma_desc *p;
@@ -1946,15 +1960,27 @@ static void stmmac_tx_err(struct stmmac_priv *priv, u32 chan)
 static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 					  u32 rxmode, u32 chan)
 {
+	u8 rxqmode = priv->plat->rx_queues_cfg[chan].mode_to_use;
+	u8 txqmode = priv->plat->tx_queues_cfg[chan].mode_to_use;
+	u32 rx_channels_count = priv->plat->rx_queues_to_use;
+	u32 tx_channels_count = priv->plat->tx_queues_to_use;
 	int rxfifosz = priv->plat->rx_fifo_size;
+	int txfifosz = priv->plat->tx_fifo_size;
 
 	if (rxfifosz == 0)
 		rxfifosz = priv->dma_cap.rx_fifo_size;
+	if (txfifosz == 0)
+		txfifosz = priv->dma_cap.tx_fifo_size;
+
+	/* Adjust for real per queue fifo size */
+	rxfifosz /= rx_channels_count;
+	txfifosz /= tx_channels_count;
 
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
 		priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
-					   rxfifosz);
-		priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan);
+					   rxfifosz, rxqmode);
+		priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan,
+					   txfifosz, txqmode);
 	} else {
 		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
 					rxfifosz);
@@ -2194,9 +2220,9 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
  * Description:
  * This is the timer handler to directly invoke the stmmac_tx_clean.
  */
-static void stmmac_tx_timer(unsigned long data)
+static void stmmac_tx_timer(struct timer_list *t)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)data;
+	struct stmmac_priv *priv = from_timer(priv, t, txtimer);
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
 	u32 queue;
 
@@ -2217,10 +2243,8 @@ static void stmmac_init_tx_coalesce(struct stmmac_priv *priv)
 {
 	priv->tx_coal_frames = STMMAC_TX_FRAMES;
 	priv->tx_coal_timer = STMMAC_COAL_TX_TIMER;
-	init_timer(&priv->txtimer);
+	timer_setup(&priv->txtimer, stmmac_tx_timer, 0);
 	priv->txtimer.expires = STMMAC_COAL_TIMER(priv->tx_coal_timer);
-	priv->txtimer.data = (unsigned long)priv;
-	priv->txtimer.function = stmmac_tx_timer;
 	add_timer(&priv->txtimer);
 }
 
@@ -3333,6 +3357,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 				 * them in stmmac_rx_refill() function so that
 				 * device can reuse it.
 				 */
+				dev_kfree_skb_any(rx_q->rx_skbuff[entry]);
 				rx_q->rx_skbuff[entry] = NULL;
 				dma_unmap_single(priv->device,
 						 rx_q->rx_skbuff_dma[entry],
@@ -3723,6 +3748,20 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return ret;
 }
 
+static int stmmac_set_mac_address(struct net_device *ndev, void *addr)
+{
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	int ret = 0;
+
+	ret = eth_mac_addr(ndev, addr);
+	if (ret)
+		return ret;
+
+	priv->hw->mac->set_umac_addr(priv->hw, ndev->dev_addr, 0);
+
+	return ret;
+}
+
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *stmmac_fs_dir;
 
@@ -3950,7 +3989,7 @@ static const struct net_device_ops stmmac_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = stmmac_poll_controller,
 #endif
-	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_set_mac_address = stmmac_set_mac_address,
 };
 
 /**

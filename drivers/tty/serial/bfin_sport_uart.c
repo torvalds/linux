@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Blackfin On-Chip Sport Emulated UART Driver
  *
  * Copyright 2006-2009 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
- *
- * Licensed under the GPL-2 or later.
  */
 
 /*
@@ -584,7 +583,7 @@ static void sport_set_termios(struct uart_port *port,
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
-struct uart_ops sport_uart_ops = {
+static const struct uart_ops sport_uart_ops = {
 	.tx_empty	= sport_tx_empty,
 	.set_mctrl	= sport_set_mctrl,
 	.get_mctrl	= sport_get_mctrl,

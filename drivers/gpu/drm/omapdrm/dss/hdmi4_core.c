@@ -208,9 +208,9 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg)
 	video_cfg->tclk_sel_clkmult = HDMI_FPLL10IDCK;
 }
 
-static void hdmi_core_powerdown_disable(struct hdmi_core_data *core)
+void hdmi4_core_powerdown_disable(struct hdmi_core_data *core)
 {
-	DSSDBG("Enter hdmi_core_powerdown_disable\n");
+	DSSDBG("Enter hdmi4_core_powerdown_disable\n");
 	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SYS_CTRL1, 0x1, 0, 0);
 }
 
@@ -334,9 +334,6 @@ void hdmi4_configure(struct hdmi_core_data *core,
 	 * set software reset in the core
 	 */
 	hdmi_core_swreset_assert(core);
-
-	/* power down off */
-	hdmi_core_powerdown_disable(core);
 
 	v_core_cfg.pkt_mode = HDMI_PACKETMODE24BITPERPIXEL;
 	v_core_cfg.hdmi_dvi = cfg->hdmi_dvi_mode;

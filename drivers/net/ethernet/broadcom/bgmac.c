@@ -15,6 +15,7 @@
 #include <linux/bcm47xx_nvram.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
+#include <net/dsa.h>
 #include "bgmac.h"
 
 static bool bgmac_wait_value(struct bgmac *bgmac, u16 reg, u32 mask,
@@ -127,6 +128,8 @@ bgmac_dma_tx_add_buf(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 	dma_desc->ctl1 = cpu_to_le32(ctl1);
 }
 
+#define ENET_BRCM_TAG_LEN	4
+
 static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 				    struct bgmac_dma_ring *ring,
 				    struct sk_buff *skb)
@@ -138,6 +141,18 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 	int nr_frags;
 	u32 flags;
 	int i;
+
+	/* The Ethernet switch we are interfaced with needs packets to be at
+	 * least 64 bytes (including FCS) otherwise they will be discarded when
+	 * they enter the switch port logic. When Broadcom tags are enabled, we
+	 * need to make sure that packets are at least 68 bytes
+	 * (including FCS and tag) because the length verification is done after
+	 * the Broadcom tag is stripped off the ingress packet.
+	 */
+	if (netdev_uses_dsa(net_dev)) {
+		if (skb_put_padto(skb, ETH_ZLEN + ENET_BRCM_TAG_LEN))
+			goto err_stats;
+	}
 
 	if (skb->len > BGMAC_DESC_CTL1_LEN) {
 		netdev_err(bgmac->net_dev, "Too long skb (%d)\n", skb->len);
@@ -225,6 +240,7 @@ err_dma_head:
 
 err_drop:
 	dev_kfree_skb(skb);
+err_stats:
 	net_dev->stats.tx_dropped++;
 	net_dev->stats.tx_errors++;
 	return NETDEV_TX_OK;

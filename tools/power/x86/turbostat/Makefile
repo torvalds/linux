@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 CC		= $(CROSS_COMPILE)gcc
 BUILD_OUTPUT	:= $(CURDIR)
 PREFIX		?= /usr

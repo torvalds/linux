@@ -316,6 +316,16 @@ config TOUCHSCREEN_EGALAX_SERIAL
 	  To compile this driver as a module, choose M here: the
 	  module will be called egalax_ts_serial.
 
+config TOUCHSCREEN_EXC3000
+	tristate "EETI EXC3000 multi-touch panel support"
+	depends on I2C
+	help
+	  Say Y here to enable support for I2C connected EETI
+	  EXC3000 multi-touch panels.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called exc3000.
+
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
@@ -343,6 +353,17 @@ config TOUCHSCREEN_GOODIX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called goodix.
+
+config TOUCHSCREEN_HIDEEP
+	tristate "HiDeep Touch IC"
+	depends on I2C
+	help
+	  Say Y here if you have a touchscreen using HiDeep.
+
+	  If unsure, say N.
+
+	  To compile this driver as a moudle, choose M here : the
+	  module will be called hideep_ts.
 
 config TOUCHSCREEN_ILI210X
 	tristate "Ilitek ILI210X based touchscreen"
@@ -382,6 +403,17 @@ config TOUCHSCREEN_S3C2410
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called s3c2410_ts.
+
+config TOUCHSCREEN_S6SY761
+	tristate "Samsung S6SY761 Touchscreen driver"
+	depends on I2C
+	help
+	  Say Y if you have the Samsung S6SY761 driver
+
+	  If unsure, say N
+
+	  To compile this driver as module, choose M here: the
+	  module will be called s6sy761.
 
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
@@ -727,7 +759,7 @@ config TOUCHSCREEN_WM831X
 
 config TOUCHSCREEN_WM97XX
 	tristate "Support for WM97xx AC97 touchscreen controllers"
-	depends on AC97_BUS
+	depends on AC97_BUS || AC97_BUS_NEW
 	help
 	  Say Y here if you have a Wolfson Microelectronics WM97xx
 	  touchscreen connected to your system. Note that this option
@@ -949,7 +981,7 @@ config TOUCHSCREEN_USB_NEXIO
 
 config TOUCHSCREEN_USB_EASYTOUCH
 	default y
-	bool "EasyTouch USB Touch controller device support" if EMBEDDED
+	bool "EasyTouch USB Touch controller device support" if EXPERT
 	depends on TOUCHSCREEN_USB_COMPOSITE
 	help
 	  Say Y here if you have an EasyTouch USB Touch controller.

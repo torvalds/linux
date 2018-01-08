@@ -2521,10 +2521,8 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	/* This function assumes that the caller has the main osb resource */
 
 	/* ocfs2_initializer_super have already created this workqueue */
-	if (osb->ocfs2_wq) {
-		flush_workqueue(osb->ocfs2_wq);
+	if (osb->ocfs2_wq)
 		destroy_workqueue(osb->ocfs2_wq);
-	}
 
 	ocfs2_free_slot_info(osb);
 

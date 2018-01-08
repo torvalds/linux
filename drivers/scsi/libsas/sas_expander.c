@@ -41,9 +41,10 @@ static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr);
 
 /* ---------- SMP task management ---------- */
 
-static void smp_task_timedout(unsigned long _task)
+static void smp_task_timedout(struct timer_list *t)
 {
-	struct sas_task *task = (void *) _task;
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;
 	unsigned long flags;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
@@ -91,7 +92,6 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		task->task_done = smp_task_done;
 
-		task->slow_task->timer.data = (unsigned long) task;
 		task->slow_task->timer.function = smp_task_timedout;
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);

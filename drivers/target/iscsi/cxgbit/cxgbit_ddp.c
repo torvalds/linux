@@ -275,6 +275,14 @@ void cxgbit_release_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 			struct cxgbit_device *cdev = csk->com.cdev;
 			struct cxgbi_ppm *ppm = cdev2ppm(cdev);
 
+			/* Abort the TCP conn if DDP is not complete to
+			 * avoid any possibility of DDP after freeing
+			 * the cmd.
+			 */
+			if (unlikely(cmd->write_data_done !=
+				     cmd->se_cmd.data_length))
+				cxgbit_abort_conn(csk);
+
 			cxgbi_ppm_ppod_release(ppm, ttinfo->idx);
 
 			dma_unmap_sg(&ppm->pdev->dev, ttinfo->sgl,

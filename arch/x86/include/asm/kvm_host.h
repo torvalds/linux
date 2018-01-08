@@ -1061,6 +1061,11 @@ struct kvm_x86_ops {
 	void (*cancel_hv_timer)(struct kvm_vcpu *vcpu);
 
 	void (*setup_mce)(struct kvm_vcpu *vcpu);
+
+	int (*smi_allowed)(struct kvm_vcpu *vcpu);
+	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
+	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, u64 smbase);
+	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_arch_async_pf {
@@ -1419,11 +1424,14 @@ static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 static inline int kvm_cpu_get_apicid(int mps_cpu)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
-	return __default_cpu_present_to_apicid(mps_cpu);
+	return default_cpu_present_to_apicid(mps_cpu);
 #else
 	WARN_ON_ONCE(1);
 	return BAD_APICID;
 #endif
 }
+
+#define put_smstate(type, buf, offset, val)                      \
+	*(type *)((buf) + (offset) - 0x7e00) = val
 
 #endif /* _ASM_X86_KVM_HOST_H */

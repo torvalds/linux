@@ -1124,10 +1124,14 @@ guest physical address space and must not conflict with any memory slot
 or any mmio address.  The guest may malfunction if it accesses this memory
 region.
 
+Setting the address to 0 will result in resetting the address to its default
+(0xfffbc000).
+
 This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
 because of a quirk in the virtualization implementation (see the internals
 documentation when it pops into existence).
 
+Fails if any VCPU has already been created.
 
 4.41 KVM_SET_BOOT_CPU_ID
 
@@ -4347,3 +4351,12 @@ This capability indicates that userspace can load HV_X64_MSR_VP_INDEX msr.  Its
 value is used to denote the target vcpu for a SynIC interrupt.  For
 compatibilty, KVM initializes this msr to KVM's internal vcpu index.  When this
 capability is absent, userspace can still query this msr's value.
+
+8.13 KVM_CAP_S390_AIS_MIGRATION
+
+Architectures: s390
+Parameters: none
+
+This capability indicates if the flic device will be able to get/set the
+AIS states for migration via the KVM_DEV_FLIC_AISM_ALL attribute and allows
+to discover this without having to create a flic device.

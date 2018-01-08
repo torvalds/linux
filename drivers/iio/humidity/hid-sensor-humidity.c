@@ -125,7 +125,6 @@ static int humidity_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info humidity_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &humidity_read_raw,
 	.write_raw = &humidity_write_raw,
 };

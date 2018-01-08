@@ -810,7 +810,7 @@ do {									\
 #define SITOREG(si, x)							\
 do {									\
 	if (cop1_64bit(xcp) && !hybrid_fprs()) {			\
-		unsigned i;						\
+		unsigned int i;						\
 		set_fpr32(&ctx->fpr[x], 0, si);				\
 		for (i = 1; i < ARRAY_SIZE(ctx->fpr[x].val32); i++)	\
 			set_fpr32(&ctx->fpr[x], i, 0);			\
@@ -823,7 +823,7 @@ do {									\
 
 #define SITOHREG(si, x)							\
 do {									\
-	unsigned i;							\
+	unsigned int i;							\
 	set_fpr32(&ctx->fpr[x], 1, si);					\
 	for (i = 2; i < ARRAY_SIZE(ctx->fpr[x].val32); i++)		\
 		set_fpr32(&ctx->fpr[x], i, 0);				\
@@ -834,7 +834,7 @@ do {									\
 
 #define DITOREG(di, x)							\
 do {									\
-	unsigned fpr, i;						\
+	unsigned int fpr, i;						\
 	fpr = (x) & ~(cop1_64bit(xcp) ^ 1);				\
 	set_fpr64(&ctx->fpr[fpr], 0, di);				\
 	for (i = 1; i < ARRAY_SIZE(ctx->fpr[x].val64); i++)		\
@@ -1465,7 +1465,7 @@ DEF3OP(nmsub, dp, ieee754dp_mul, ieee754dp_sub, ieee754dp_neg);
 static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	mips_instruction ir, void __user **fault_addr)
 {
-	unsigned rcsr = 0;	/* resulting csr */
+	unsigned int rcsr = 0;	/* resulting csr */
 
 	MIPS_FPU_EMU_INC_STATS(cp1xops);
 
@@ -1661,10 +1661,10 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	mips_instruction ir)
 {
 	int rfmt;		/* resulting format */
-	unsigned rcsr = 0;	/* resulting csr */
+	unsigned int rcsr = 0;	/* resulting csr */
 	unsigned int oldrm;
 	unsigned int cbit;
-	unsigned cond;
+	unsigned int cond;
 	union {
 		union ieee754dp d;
 		union ieee754sp s;
@@ -1795,7 +1795,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			SPFROMREG(fs, MIPSInst_FS(ir));
 			SPFROMREG(fd, MIPSInst_FD(ir));
 			rv.s = ieee754sp_maddf(fd, fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fmsubf_op: {
@@ -1809,7 +1809,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			SPFROMREG(fs, MIPSInst_FS(ir));
 			SPFROMREG(fd, MIPSInst_FD(ir));
 			rv.s = ieee754sp_msubf(fd, fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case frint_op: {
@@ -1834,7 +1834,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			SPFROMREG(fs, MIPSInst_FS(ir));
 			rv.w = ieee754sp_2008class(fs);
 			rfmt = w_fmt;
-			break;
+			goto copcsr;
 		}
 
 		case fmin_op: {
@@ -1847,7 +1847,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			SPFROMREG(ft, MIPSInst_FT(ir));
 			SPFROMREG(fs, MIPSInst_FS(ir));
 			rv.s = ieee754sp_fmin(fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fmina_op: {
@@ -1860,7 +1860,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			SPFROMREG(ft, MIPSInst_FT(ir));
 			SPFROMREG(fs, MIPSInst_FS(ir));
 			rv.s = ieee754sp_fmina(fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fmax_op: {
@@ -1873,7 +1873,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			SPFROMREG(ft, MIPSInst_FT(ir));
 			SPFROMREG(fs, MIPSInst_FS(ir));
 			rv.s = ieee754sp_fmax(fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fmaxa_op: {
@@ -1886,7 +1886,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			SPFROMREG(ft, MIPSInst_FT(ir));
 			SPFROMREG(fs, MIPSInst_FS(ir));
 			rv.s = ieee754sp_fmaxa(fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fabs_op:
@@ -2029,9 +2029,10 @@ copcsr:
 
 		default:
 			if (!NO_R6EMU && MIPSInst_FUNC(ir) >= fcmp_op) {
-				unsigned cmpop = MIPSInst_FUNC(ir) - fcmp_op;
+				unsigned int cmpop;
 				union ieee754sp fs, ft;
 
+				cmpop = MIPSInst_FUNC(ir) - fcmp_op;
 				SPFROMREG(fs, MIPSInst_FS(ir));
 				SPFROMREG(ft, MIPSInst_FT(ir));
 				rv.w = ieee754sp_cmp(fs, ft,
@@ -2165,7 +2166,7 @@ copcsr:
 			DPFROMREG(fs, MIPSInst_FS(ir));
 			DPFROMREG(fd, MIPSInst_FD(ir));
 			rv.d = ieee754dp_maddf(fd, fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fmsubf_op: {
@@ -2179,7 +2180,7 @@ copcsr:
 			DPFROMREG(fs, MIPSInst_FS(ir));
 			DPFROMREG(fd, MIPSInst_FD(ir));
 			rv.d = ieee754dp_msubf(fd, fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case frint_op: {
@@ -2204,7 +2205,7 @@ copcsr:
 			DPFROMREG(fs, MIPSInst_FS(ir));
 			rv.l = ieee754dp_2008class(fs);
 			rfmt = l_fmt;
-			break;
+			goto copcsr;
 		}
 
 		case fmin_op: {
@@ -2217,7 +2218,7 @@ copcsr:
 			DPFROMREG(ft, MIPSInst_FT(ir));
 			DPFROMREG(fs, MIPSInst_FS(ir));
 			rv.d = ieee754dp_fmin(fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fmina_op: {
@@ -2230,7 +2231,7 @@ copcsr:
 			DPFROMREG(ft, MIPSInst_FT(ir));
 			DPFROMREG(fs, MIPSInst_FS(ir));
 			rv.d = ieee754dp_fmina(fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fmax_op: {
@@ -2243,7 +2244,7 @@ copcsr:
 			DPFROMREG(ft, MIPSInst_FT(ir));
 			DPFROMREG(fs, MIPSInst_FS(ir));
 			rv.d = ieee754dp_fmax(fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fmaxa_op: {
@@ -2256,7 +2257,7 @@ copcsr:
 			DPFROMREG(ft, MIPSInst_FT(ir));
 			DPFROMREG(fs, MIPSInst_FS(ir));
 			rv.d = ieee754dp_fmaxa(fs, ft);
-			break;
+			goto copcsr;
 		}
 
 		case fabs_op:
@@ -2379,9 +2380,10 @@ dcopuop:
 
 		default:
 			if (!NO_R6EMU && MIPSInst_FUNC(ir) >= fcmp_op) {
-				unsigned cmpop = MIPSInst_FUNC(ir) - fcmp_op;
+				unsigned int cmpop;
 				union ieee754dp fs, ft;
 
+				cmpop = MIPSInst_FUNC(ir) - fcmp_op;
 				DPFROMREG(fs, MIPSInst_FS(ir));
 				DPFROMREG(ft, MIPSInst_FT(ir));
 				rv.w = ieee754dp_cmp(fs, ft,
@@ -2558,7 +2560,6 @@ dcopuop:
 					break;
 				default:
 					/* Reserved R6 ops */
-					pr_err("Reserved MIPS R6 CMP.condn.S operation\n");
 					return SIGILL;
 				}
 			}
@@ -2719,7 +2720,6 @@ dcopuop:
 					break;
 				default:
 					/* Reserved R6 ops */
-					pr_err("Reserved MIPS R6 CMP.condn.D operation\n");
 					return SIGILL;
 				}
 			}

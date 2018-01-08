@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Runs hardware independent tests for i915 (drivers/gpu/drm/i915)
 
 if ! /sbin/modprobe -q -r i915; then

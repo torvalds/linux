@@ -1696,11 +1696,7 @@ static int mtk_drm_hdmi_probe(struct platform_device *pdev)
 
 	hdmi->bridge.funcs = &mtk_hdmi_bridge_funcs;
 	hdmi->bridge.of_node = pdev->dev.of_node;
-	ret = drm_bridge_add(&hdmi->bridge);
-	if (ret) {
-		dev_err(dev, "failed to add bridge, ret = %d\n", ret);
-		return ret;
-	}
+	drm_bridge_add(&hdmi->bridge);
 
 	ret = mtk_hdmi_clk_enable_audio(hdmi);
 	if (ret) {

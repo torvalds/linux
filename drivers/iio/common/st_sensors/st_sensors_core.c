@@ -93,6 +93,9 @@ int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 	struct st_sensor_odr_avl odr_out = {0, 0};
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
+	if (!sdata->sensor_settings->odr.addr)
+		return 0;
+
 	err = st_sensors_match_odr(sdata->sensor_settings, odr, &odr_out);
 	if (err < 0)
 		goto st_sensors_match_odr_error;
@@ -221,11 +224,14 @@ EXPORT_SYMBOL(st_sensors_set_enable);
 int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	int err = 0;
 
-	return st_sensors_write_data_with_mask(indio_dev,
+	if (sdata->sensor_settings->enable_axis.addr)
+		err = st_sensors_write_data_with_mask(indio_dev,
 				sdata->sensor_settings->enable_axis.addr,
 				sdata->sensor_settings->enable_axis.mask,
 				axis_enable);
+	return err;
 }
 EXPORT_SYMBOL(st_sensors_set_axis_enable);
 
@@ -283,7 +289,8 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
 	/* Sensor does not support interrupts */
-	if (sdata->sensor_settings->drdy_irq.addr == 0) {
+	if (!sdata->sensor_settings->drdy_irq.int1.addr &&
+	    !sdata->sensor_settings->drdy_irq.int2.addr) {
 		if (pdata->drdy_int_pin)
 			dev_info(&indio_dev->dev,
 				 "DRDY on pin INT%d specified, but sensor "
@@ -294,7 +301,7 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 
 	switch (pdata->drdy_int_pin) {
 	case 1:
-		if (sdata->sensor_settings->drdy_irq.mask_int1 == 0) {
+		if (!sdata->sensor_settings->drdy_irq.int1.mask) {
 			dev_err(&indio_dev->dev,
 					"DRDY on INT1 not available.\n");
 			return -EINVAL;
@@ -302,7 +309,7 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 		sdata->drdy_int_pin = 1;
 		break;
 	case 2:
-		if (sdata->sensor_settings->drdy_irq.mask_int2 == 0) {
+		if (!sdata->sensor_settings->drdy_irq.int2.mask) {
 			dev_err(&indio_dev->dev,
 					"DRDY on INT2 not available.\n");
 			return -EINVAL;
@@ -315,7 +322,8 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	}
 
 	if (pdata->open_drain) {
-		if (!sdata->sensor_settings->drdy_irq.addr_od)
+		if (!sdata->sensor_settings->drdy_irq.int1.addr_od &&
+		    !sdata->sensor_settings->drdy_irq.int2.addr_od)
 			dev_err(&indio_dev->dev,
 				"open drain requested but unsupported.\n");
 		else
@@ -442,11 +450,21 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 	}
 
 	if (sdata->int_pin_open_drain) {
+		u8 addr, mask;
+
+		if (sdata->drdy_int_pin == 1) {
+			addr = sdata->sensor_settings->drdy_irq.int1.addr_od;
+			mask = sdata->sensor_settings->drdy_irq.int1.mask_od;
+		} else {
+			addr = sdata->sensor_settings->drdy_irq.int2.addr_od;
+			mask = sdata->sensor_settings->drdy_irq.int2.mask_od;
+		}
+
 		dev_info(&indio_dev->dev,
-			 "set interrupt line to open drain mode\n");
-		err = st_sensors_write_data_with_mask(indio_dev,
-				sdata->sensor_settings->drdy_irq.addr_od,
-				sdata->sensor_settings->drdy_irq.mask_od, 1);
+			 "set interrupt line to open drain mode on pin %d\n",
+			 sdata->drdy_int_pin);
+		err = st_sensors_write_data_with_mask(indio_dev, addr,
+						      mask, 1);
 		if (err < 0)
 			return err;
 	}
@@ -460,11 +478,21 @@ EXPORT_SYMBOL(st_sensors_init_sensor);
 int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 {
 	int err;
-	u8 drdy_mask;
+	u8 drdy_addr, drdy_mask;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	if (!sdata->sensor_settings->drdy_irq.addr)
+	if (!sdata->sensor_settings->drdy_irq.int1.addr &&
+	    !sdata->sensor_settings->drdy_irq.int2.addr) {
+		/*
+		 * there are some devices (e.g. LIS3MDL) where drdy line is
+		 * routed to a given pin and it is not possible to select a
+		 * different one. Take into account irq status register
+		 * to understand if irq trigger can be properly supported
+		 */
+		if (sdata->sensor_settings->drdy_irq.stat_drdy.addr)
+			sdata->hw_irq_trigger = enable;
 		return 0;
+	}
 
 	/* Enable/Disable the interrupt generator 1. */
 	if (sdata->sensor_settings->drdy_irq.ig1.en_addr > 0) {
@@ -476,18 +504,20 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 			goto st_accel_set_dataready_irq_error;
 	}
 
-	if (sdata->drdy_int_pin == 1)
-		drdy_mask = sdata->sensor_settings->drdy_irq.mask_int1;
-	else
-		drdy_mask = sdata->sensor_settings->drdy_irq.mask_int2;
+	if (sdata->drdy_int_pin == 1) {
+		drdy_addr = sdata->sensor_settings->drdy_irq.int1.addr;
+		drdy_mask = sdata->sensor_settings->drdy_irq.int1.mask;
+	} else {
+		drdy_addr = sdata->sensor_settings->drdy_irq.int2.addr;
+		drdy_mask = sdata->sensor_settings->drdy_irq.int2.mask;
+	}
 
 	/* Flag to the poll function that the hardware trigger is in use */
 	sdata->hw_irq_trigger = enable;
 
 	/* Enable/Disable the interrupt generator for data ready. */
-	err = st_sensors_write_data_with_mask(indio_dev,
-					sdata->sensor_settings->drdy_irq.addr,
-					drdy_mask, (int)enable);
+	err = st_sensors_write_data_with_mask(indio_dev, drdy_addr,
+					      drdy_mask, (int)enable);
 
 st_accel_set_dataready_irq_error:
 	return err;

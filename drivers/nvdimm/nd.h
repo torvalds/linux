@@ -34,12 +34,6 @@ enum {
 	NVDIMM_IO_ATOMIC = 1,
 };
 
-struct nd_poison {
-	u64 start;
-	u64 length;
-	struct list_head list;
-};
-
 struct nvdimm_drvdata {
 	struct device *dev;
 	int nslabel_size;
@@ -254,6 +248,7 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 		unsigned int len);
 void nvdimm_set_aliasing(struct device *dev);
 void nvdimm_set_locked(struct device *dev);
+void nvdimm_clear_locked(struct device *dev);
 struct nd_btt *to_nd_btt(struct device *dev);
 
 struct nd_gen_sb {

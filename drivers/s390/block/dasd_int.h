@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
@@ -95,14 +96,6 @@ do { \
 			    d_data); \
 } while(0)
 
-#define DBF_DEV_EXC(d_level, d_device, d_str, d_data...) \
-do { \
-	debug_sprintf_exception(d_device->debug_area, \
-				d_level, \
-				d_str "\n", \
-				d_data); \
-} while(0)
-
 #define DBF_EVENT(d_level, d_str, d_data...)\
 do { \
 	debug_sprintf_event(dasd_debug_area, \
@@ -120,14 +113,6 @@ do { \
 			    "0.%x.%04x " d_str "\n",			\
 			    __dev_id.ssid, __dev_id.devno, d_data);	\
 } while (0)
-
-#define DBF_EXC(d_level, d_str, d_data...)\
-do { \
-	debug_sprintf_exception(dasd_debug_area, \
-				d_level,\
-				d_str "\n", \
-				d_data); \
-} while(0)
 
 /* limit size for an errorstring */
 #define ERRORLENGTH 30

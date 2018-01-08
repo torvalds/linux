@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_SPARSEMEM_H
 #define _ASM_POWERPC_SPARSEMEM_H 1
 #ifdef __KERNEL__

@@ -91,7 +91,7 @@ void octeon_update_tx_completion_counters(void *buf, int reqtype,
 	*bytes_compl += skb->len;
 }
 
-void octeon_report_sent_bytes_to_bql(void *buf, int reqtype)
+int octeon_report_sent_bytes_to_bql(void *buf, int reqtype)
 {
 	struct octnet_buf_free_info *finfo;
 	struct sk_buff *skb;
@@ -112,11 +112,13 @@ void octeon_report_sent_bytes_to_bql(void *buf, int reqtype)
 		break;
 
 	default:
-		return;
+		return 0;
 	}
 
 	txq = netdev_get_tx_queue(skb->dev, skb_get_queue_mapping(skb));
 	netdev_tx_sent_queue(txq, skb->len);
+
+	return netif_xmit_stopped(txq);
 }
 
 void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
@@ -141,6 +143,7 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 	switch (nctrl->ncmd.s.cmd) {
 	case OCTNET_CMD_CHANGE_DEVFLAGS:
 	case OCTNET_CMD_SET_MULTI_LIST:
+	case OCTNET_CMD_SET_UC_LIST:
 		break;
 
 	case OCTNET_CMD_CHANGE_MACADDR:
@@ -464,7 +467,6 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 	if (netdev) {
 		struct lio *lio = GET_LIO(netdev);
 		struct octeon_device *oct = lio->oct_dev;
-		int packet_was_received;
 
 		/* Do not proceed if the interface is not in RUNNING state. */
 		if (!ifstate_check(lio, LIO_IFSTATE_RUNNING)) {
@@ -567,18 +569,10 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vtag);
 		}
 
-		packet_was_received = (napi_gro_receive(napi, skb) != GRO_DROP);
+		napi_gro_receive(napi, skb);
 
-		if (packet_was_received) {
-			droq->stats.rx_bytes_received += len;
-			droq->stats.rx_pkts_received++;
-		} else {
-			droq->stats.rx_dropped++;
-			netif_info(lio, rx_err, lio->netdev,
-				   "droq:%d  error rx_dropped:%llu\n",
-				   droq->q_no, droq->stats.rx_dropped);
-		}
-
+		droq->stats.rx_bytes_received += len;
+		droq->stats.rx_pkts_received++;
 	} else {
 		recv_buffer_free(skb);
 	}

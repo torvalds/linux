@@ -413,7 +413,7 @@ nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned offset)
 	u32 falling = nmk_chip->fimsc & BIT(offset);
 	u32 rising = nmk_chip->rimsc & BIT(offset);
 	int gpio = nmk_chip->chip.base + offset;
-	int irq = irq_find_mapping(nmk_chip->chip.irqdomain, offset);
+	int irq = irq_find_mapping(nmk_chip->chip.irq.domain, offset);
 	struct irq_data *d = irq_get_irq_data(irq);
 
 	if (!rising && !falling)
@@ -815,7 +815,7 @@ static void __nmk_gpio_irq_handler(struct irq_desc *desc, u32 status)
 	while (status) {
 		int bit = __ffs(status);
 
-		generic_handle_irq(irq_find_mapping(chip->irqdomain, bit));
+		generic_handle_irq(irq_find_mapping(chip->irq.domain, bit));
 		status &= ~BIT(bit);
 	}
 

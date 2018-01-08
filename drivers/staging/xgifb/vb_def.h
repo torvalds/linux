@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VB_DEF_
 #define _VB_DEF_
 #include "../../video/fbdev/sis/initdef.h"

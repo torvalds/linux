@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2014-2017 Oracle.  All rights reserved.
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -678,16 +679,14 @@ xprt_rdma_free(struct rpc_task *task)
 	struct rpc_rqst *rqst = task->tk_rqstp;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 
-	if (req->rl_backchannel)
+	if (test_bit(RPCRDMA_REQ_F_BACKCHANNEL, &req->rl_flags))
 		return;
 
 	dprintk("RPC:       %s: called on 0x%p\n", __func__, req->rl_reply);
 
-	if (!list_empty(&req->rl_registered))
-		ia->ri_ops->ro_unmap_safe(r_xprt, req, !RPC_IS_ASYNC(task));
-	rpcrdma_unmap_sges(ia, req);
+	if (test_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags))
+		rpcrdma_release_rqst(r_xprt, req);
 	rpcrdma_buffer_put(req);
 }
 
@@ -728,7 +727,8 @@ xprt_rdma_send_request(struct rpc_task *task)
 
 	/* On retransmit, remove any previously registered chunks */
 	if (unlikely(!list_empty(&req->rl_registered)))
-		r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req, false);
+		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt,
+						    &req->rl_registered);
 
 	rc = rpcrdma_marshal_req(r_xprt, rqst);
 	if (rc < 0)
@@ -742,6 +742,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 		goto drop_connection;
 	req->rl_connect_cookie = xprt->connect_cookie;
 
+	set_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags);
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
 		goto drop_connection;
 
@@ -789,11 +790,13 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   r_xprt->rx_stats.failed_marshal_count,
 		   r_xprt->rx_stats.bad_reply_count,
 		   r_xprt->rx_stats.nomsg_call_count);
-	seq_printf(seq, "%lu %lu %lu %lu\n",
+	seq_printf(seq, "%lu %lu %lu %lu %lu %lu\n",
 		   r_xprt->rx_stats.mrs_recovered,
 		   r_xprt->rx_stats.mrs_orphaned,
 		   r_xprt->rx_stats.mrs_allocated,
-		   r_xprt->rx_stats.local_inv_needed);
+		   r_xprt->rx_stats.local_inv_needed,
+		   r_xprt->rx_stats.empty_sendctx_q,
+		   r_xprt->rx_stats.reply_waits_for_send);
 }
 
 static int

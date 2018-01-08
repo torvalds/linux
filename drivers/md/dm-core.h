@@ -29,7 +29,6 @@ struct dm_kobject_holder {
  * DM targets must _not_ deference a mapped_device to directly access its members!
  */
 struct mapped_device {
-	struct srcu_struct io_barrier;
 	struct mutex suspend_lock;
 
 	/*
@@ -127,6 +126,8 @@ struct mapped_device {
 	struct blk_mq_tag_set *tag_set;
 	bool use_blk_mq:1;
 	bool init_tio_pdu:1;
+
+	struct srcu_struct io_barrier;
 };
 
 void dm_init_md_queue(struct mapped_device *md);
@@ -149,5 +150,6 @@ static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen
 
 extern atomic_t dm_global_event_nr;
 extern wait_queue_head_t dm_global_eventq;
+void dm_issue_global_event(void);
 
 #endif

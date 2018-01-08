@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_VIRTIO_BYTEORDER_H
 #define _LINUX_VIRTIO_BYTEORDER_H
 #include <linux/types.h>

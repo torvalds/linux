@@ -31,7 +31,7 @@
 		 */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <11289600>;
+		clock-frequency = <12288000>;
 	};
 
 	hdmi0-out {
@@ -157,6 +157,10 @@
 	};
 };
 
+&du {
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -250,8 +254,7 @@
 
 	avb_pins: avb {
 		mux {
-			groups = "avb_link", "avb_phy_int", "avb_mdc",
-				 "avb_mii";
+			groups = "avb_link", "avb_mdc", "avb_mii";
 			function = "avb";
 		};
 

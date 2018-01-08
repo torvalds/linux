@@ -178,7 +178,6 @@ static int stm32_lptim_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info stm32_lptim_cnt_iio_info = {
 	.read_raw = stm32_lptim_read_raw,
 	.write_raw = stm32_lptim_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const char *const stm32_lptim_quadrature_modes[] = {

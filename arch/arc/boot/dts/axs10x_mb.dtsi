@@ -16,6 +16,12 @@
 		ranges = <0x00000000 0x0 0xe0000000 0x10000000>;
 		interrupt-parent = <&mb_intc>;
 
+		creg_rst: reset-controller@11220 {
+			compatible = "snps,axs10x-reset";
+			#reset-cells = <1>;
+			reg = <0x11220 0x4>;
+		};
+
 		i2sclk: i2sclk@100a0 {
 			compatible = "snps,axs10x-i2s-pll-clock";
 			reg = <0x100a0 0x10>;
@@ -44,7 +50,14 @@
 
 			mmcclk: mmcclk {
 				compatible = "fixed-clock";
-				clock-frequency = <50000000>;
+				/*
+				 * DW sdio controller has external ciu clock divider
+				 * controlled via register in SDIO IP. It divides
+				 * sdio_ref_clk (which comes from CGU) by 16 for
+				 * default. So default mmcclk clock (which comes
+				 * to sdk_in) is 25000000 Hz.
+				 */
+				clock-frequency = <25000000>;
 				#clock-cells = <0>;
 			};
 
@@ -66,6 +79,8 @@
 			clocks = <&apbclk>;
 			clock-names = "stmmaceth";
 			max-speed = <100>;
+			resets = <&creg_rst 5>;
+			reset-names = "stmmaceth";
 		};
 
 		ehci@0x40000 {

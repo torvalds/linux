@@ -1847,7 +1847,6 @@ static int si_calculate_sclk_params(struct amdgpu_device *adev,
 
 static void si_thermal_start_smc_fan_control(struct amdgpu_device *adev);
 static void si_fan_ctrl_set_default_mode(struct amdgpu_device *adev);
-static void si_dpm_set_dpm_funcs(struct amdgpu_device *adev);
 static void si_dpm_set_irq_funcs(struct amdgpu_device *adev);
 
 static struct si_power_info *si_get_pi(struct amdgpu_device *adev)
@@ -3060,9 +3059,9 @@ static int si_get_vce_clock_voltage(struct amdgpu_device *adev,
 	return ret;
 }
 
-static bool si_dpm_vblank_too_short(struct amdgpu_device *adev)
+static bool si_dpm_vblank_too_short(void *handle)
 {
-
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 vblank_time = amdgpu_dpm_get_vblank_time(adev);
 	/* we never hit the non-gddr5 limit so disable it */
 	u32 switch_limit = adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5 ? 450 : 0;
@@ -3871,9 +3870,10 @@ static int si_restrict_performance_levels_before_switch(struct amdgpu_device *ad
 		0 : -EINVAL;
 }
 
-static int si_dpm_force_performance_level(struct amdgpu_device *adev,
+static int si_dpm_force_performance_level(void *handle,
 				   enum amd_dpm_forced_level level)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ps *rps = adev->pm.dpm.current_ps;
 	struct  si_ps *ps = si_get_ps(rps);
 	u32 levels = ps->performance_level_count;
@@ -6575,11 +6575,12 @@ static int si_fan_ctrl_stop_smc_fan_control(struct amdgpu_device *adev)
 	}
 }
 
-static int si_dpm_get_fan_speed_percent(struct amdgpu_device *adev,
+static int si_dpm_get_fan_speed_percent(void *handle,
 				      u32 *speed)
 {
 	u32 duty, duty100;
 	u64 tmp64;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->pm.no_fan)
 		return -ENOENT;
@@ -6600,9 +6601,10 @@ static int si_dpm_get_fan_speed_percent(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int si_dpm_set_fan_speed_percent(struct amdgpu_device *adev,
+static int si_dpm_set_fan_speed_percent(void *handle,
 				      u32 speed)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct si_power_info *si_pi = si_get_pi(adev);
 	u32 tmp;
 	u32 duty, duty100;
@@ -6633,8 +6635,10 @@ static int si_dpm_set_fan_speed_percent(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void si_dpm_set_fan_control_mode(struct amdgpu_device *adev, u32 mode)
+static void si_dpm_set_fan_control_mode(void *handle, u32 mode)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	if (mode) {
 		/* stop auto-manage */
 		if (adev->pm.dpm.fan.ucode_fan_control)
@@ -6649,8 +6653,9 @@ static void si_dpm_set_fan_control_mode(struct amdgpu_device *adev, u32 mode)
 	}
 }
 
-static u32 si_dpm_get_fan_control_mode(struct amdgpu_device *adev)
+static u32 si_dpm_get_fan_control_mode(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct si_power_info *si_pi = si_get_pi(adev);
 	u32 tmp;
 
@@ -6946,8 +6951,9 @@ static void si_dpm_disable(struct amdgpu_device *adev)
 	ni_update_current_ps(adev, boot_ps);
 }
 
-static int si_dpm_pre_set_power_state(struct amdgpu_device *adev)
+static int si_dpm_pre_set_power_state(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
 	struct amdgpu_ps requested_ps = *adev->pm.dpm.requested_ps;
 	struct amdgpu_ps *new_ps = &requested_ps;
@@ -6984,8 +6990,9 @@ static int si_power_control_set_level(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int si_dpm_set_power_state(struct amdgpu_device *adev)
+static int si_dpm_set_power_state(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
 	struct amdgpu_ps *new_ps = &eg_pi->requested_rps;
 	struct amdgpu_ps *old_ps = &eg_pi->current_rps;
@@ -7086,8 +7093,9 @@ static int si_dpm_set_power_state(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void si_dpm_post_set_power_state(struct amdgpu_device *adev)
+static void si_dpm_post_set_power_state(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
 	struct amdgpu_ps *new_ps = &eg_pi->requested_rps;
 
@@ -7103,8 +7111,10 @@ void si_dpm_reset_asic(struct amdgpu_device *adev)
 }
 #endif
 
-static void si_dpm_display_configuration_changed(struct amdgpu_device *adev)
+static void si_dpm_display_configuration_changed(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	si_program_display_gap(adev);
 }
 
@@ -7486,9 +7496,10 @@ static void si_dpm_fini(struct amdgpu_device *adev)
 	amdgpu_free_extended_power_table(adev);
 }
 
-static void si_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
+static void si_dpm_debugfs_print_current_performance_level(void *handle,
 						    struct seq_file *m)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
 	struct amdgpu_ps *rps = &eg_pi->current_rps;
 	struct  si_ps *ps = si_get_ps(rps);
@@ -7592,11 +7603,6 @@ static int si_dpm_late_init(void *handle)
 
 	if (!amdgpu_dpm)
 		return 0;
-
-	/* init the sysfs and debugfs files late */
-	ret = amdgpu_pm_sysfs_init(adev);
-	if (ret)
-		return ret;
 
 	ret = si_set_temperature_range(adev);
 	if (ret)
@@ -7753,7 +7759,6 @@ static int si_dpm_sw_fini(void *handle)
 	flush_work(&adev->pm.dpm.thermal.work);
 
 	mutex_lock(&adev->pm.mutex);
-	amdgpu_pm_sysfs_fini(adev);
 	si_dpm_fini(adev);
 	mutex_unlock(&adev->pm.mutex);
 
@@ -7860,10 +7865,11 @@ static int si_dpm_set_powergating_state(void *handle,
 }
 
 /* get temperature in millidegrees */
-static int si_dpm_get_temp(struct amdgpu_device *adev)
+static int si_dpm_get_temp(void *handle)
 {
 	u32 temp;
 	int actual_temp = 0;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	temp = (RREG32(CG_MULT_THERMAL_STATUS) & CTF_TEMP_MASK) >>
 		CTF_TEMP_SHIFT;
@@ -7878,8 +7884,9 @@ static int si_dpm_get_temp(struct amdgpu_device *adev)
 	return actual_temp;
 }
 
-static u32 si_dpm_get_sclk(struct amdgpu_device *adev, bool low)
+static u32 si_dpm_get_sclk(void *handle, bool low)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
 	struct  si_ps *requested_state = si_get_ps(&eg_pi->requested_rps);
 
@@ -7889,8 +7896,9 @@ static u32 si_dpm_get_sclk(struct amdgpu_device *adev, bool low)
 		return requested_state->performance_levels[requested_state->performance_level_count - 1].sclk;
 }
 
-static u32 si_dpm_get_mclk(struct amdgpu_device *adev, bool low)
+static u32 si_dpm_get_mclk(void *handle, bool low)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
 	struct  si_ps *requested_state = si_get_ps(&eg_pi->requested_rps);
 
@@ -7900,9 +7908,11 @@ static u32 si_dpm_get_mclk(struct amdgpu_device *adev, bool low)
 		return requested_state->performance_levels[requested_state->performance_level_count - 1].mclk;
 }
 
-static void si_dpm_print_power_state(struct amdgpu_device *adev,
-				     struct amdgpu_ps *rps)
+static void si_dpm_print_power_state(void *handle,
+				     void *current_ps)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_ps *rps = (struct amdgpu_ps *)current_ps;
 	struct  si_ps *ps = si_get_ps(rps);
 	struct rv7xx_pl *pl;
 	int i;
@@ -7927,7 +7937,6 @@ static int si_dpm_early_init(void *handle)
 
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	si_dpm_set_dpm_funcs(adev);
 	si_dpm_set_irq_funcs(adev);
 	return 0;
 }
@@ -7942,20 +7951,23 @@ static inline bool si_are_power_levels_equal(const struct rv7xx_pl  *si_cpl1,
 		  (si_cpl1->vddci == si_cpl2->vddci));
 }
 
-static int si_check_state_equal(struct amdgpu_device *adev,
-				struct amdgpu_ps *cps,
-				struct amdgpu_ps *rps,
+static int si_check_state_equal(void *handle,
+				void *current_ps,
+				void *request_ps,
 				bool *equal)
 {
 	struct si_ps *si_cps;
 	struct si_ps *si_rps;
 	int i;
+	struct amdgpu_ps *cps = (struct amdgpu_ps *)current_ps;
+	struct amdgpu_ps *rps = (struct amdgpu_ps *)request_ps;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev == NULL || cps == NULL || rps == NULL || equal == NULL)
 		return -EINVAL;
 
-	si_cps = si_get_ps(cps);
-	si_rps = si_get_ps(rps);
+	si_cps = si_get_ps((struct amdgpu_ps *)cps);
+	si_rps = si_get_ps((struct amdgpu_ps *)rps);
 
 	if (si_cps == NULL) {
 		printk("si_cps is NULL\n");
@@ -7983,9 +7995,10 @@ static int si_check_state_equal(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int si_dpm_read_sensor(struct amdgpu_device *adev, int idx,
+static int si_dpm_read_sensor(void *handle, int idx,
 			      void *value, int *size)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(adev);
 	struct amdgpu_ps *rps = &eg_pi->current_rps;
 	struct  si_ps *ps = si_get_ps(rps);
@@ -8041,7 +8054,7 @@ const struct amd_ip_funcs si_dpm_ip_funcs = {
 	.set_powergating_state = si_dpm_set_powergating_state,
 };
 
-static const struct amdgpu_dpm_funcs si_dpm_funcs = {
+const struct amd_pm_funcs si_dpm_funcs = {
 	.get_temperature = &si_dpm_get_temp,
 	.pre_set_power_state = &si_dpm_pre_set_power_state,
 	.set_power_state = &si_dpm_set_power_state,
@@ -8061,12 +8074,6 @@ static const struct amdgpu_dpm_funcs si_dpm_funcs = {
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 	.read_sensor = &si_dpm_read_sensor,
 };
-
-static void si_dpm_set_dpm_funcs(struct amdgpu_device *adev)
-{
-	if (adev->pm.funcs == NULL)
-		adev->pm.funcs = &si_dpm_funcs;
-}
 
 static const struct amdgpu_irq_src_funcs si_dpm_irq_funcs = {
 	.set = si_dpm_set_interrupt_state,

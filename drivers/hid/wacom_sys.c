@@ -196,6 +196,13 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 		kfree(data);
 		break;
 	}
+
+	if (hdev->vendor == USB_VENDOR_ID_WACOM &&
+	    hdev->product == 0x4200 /* Dell Canvas 27 */ &&
+	    field->application == HID_UP_MSVENDOR) {
+		wacom->wacom_wac.mode_report = field->report->id;
+		wacom->wacom_wac.mode_value = 2;
+	}
 }
 
 /*
@@ -668,8 +675,10 @@ static struct wacom_hdev_data *wacom_get_hdev_data(struct hid_device *hdev)
 
 	/* Try to find an already-probed interface from the same device */
 	list_for_each_entry(data, &wacom_udev_list, list) {
-		if (compare_device_paths(hdev, data->dev, '/'))
+		if (compare_device_paths(hdev, data->dev, '/')) {
+			kref_get(&data->kref);
 			return data;
+		}
 	}
 
 	/* Fallback to finding devices that appear to be "siblings" */
@@ -764,6 +773,9 @@ static int wacom_led_control(struct wacom *wacom)
 	int buf_size = 9;
 
 	if (!wacom->led.groups)
+		return -ENOTSUPP;
+
+	if (wacom->wacom_wac.features.type == REMOTE)
 		return -ENOTSUPP;
 
 	if (wacom->wacom_wac.pid) { /* wireless connected */

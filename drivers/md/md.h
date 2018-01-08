@@ -237,6 +237,12 @@ enum mddev_flags {
 				 */
 	MD_HAS_PPL,		/* The raid array has PPL feature set */
 	MD_HAS_MULTIPLE_PPLS,	/* The raid array has multiple PPLs feature set */
+	MD_ALLOW_SB_UPDATE,	/* md_check_recovery is allowed to update
+				 * the metadata without taking reconfig_mutex.
+				 */
+	MD_UPDATING_SB,		/* md_check_recovery is updating the metadata
+				 * without explicitly holding reconfig_mutex.
+				 */
 };
 
 enum mddev_sb_flags {
@@ -494,11 +500,6 @@ static inline void mddev_lock_nointr(struct mddev *mddev)
 	mutex_lock(&mddev->reconfig_mutex);
 }
 
-static inline int mddev_is_locked(struct mddev *mddev)
-{
-	return mutex_is_locked(&mddev->reconfig_mutex);
-}
-
 static inline int mddev_trylock(struct mddev *mddev)
 {
 	return mutex_trylock(&mddev->reconfig_mutex);
@@ -538,12 +539,11 @@ struct md_personality
 	int (*check_reshape) (struct mddev *mddev);
 	int (*start_reshape) (struct mddev *mddev);
 	void (*finish_reshape) (struct mddev *mddev);
-	/* quiesce moves between quiescence states
-	 * 0 - fully active
-	 * 1 - no new requests allowed
-	 * others - reserved
+	/* quiesce suspends or resumes internal processing.
+	 * 1 - stop new actions and wait for action io to complete
+	 * 0 - return to normal behaviour
 	 */
-	void (*quiesce) (struct mddev *mddev, int state);
+	void (*quiesce) (struct mddev *mddev, int quiesce);
 	/* takeover is used to transition an array from one
 	 * personality to another.  The new personality must be able
 	 * to handle the data in the current layout.
@@ -692,6 +692,7 @@ extern void md_stop_writes(struct mddev *mddev);
 extern int md_rdev_init(struct md_rdev *rdev);
 extern void md_rdev_clear(struct md_rdev *rdev);
 
+extern void md_handle_request(struct mddev *mddev, struct bio *bio);
 extern void mddev_suspend(struct mddev *mddev);
 extern void mddev_resume(struct mddev *mddev);
 extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,

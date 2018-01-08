@@ -157,10 +157,7 @@ static int of_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
 
 	err = of_iommu_xlate(info->dev, &iommu_spec);
 	of_node_put(iommu_spec.np);
-	if (err)
-		return err;
-
-	return info->np == pdev->bus->dev.of_node;
+	return err;
 }
 
 const struct iommu_ops *of_iommu_configure(struct device *dev,

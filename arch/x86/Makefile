@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Unified Makefile for i386 and x86_64
 
 # select defconfig based on actual architecture
@@ -156,11 +157,6 @@ ifdef CONFIG_X86_X32
         endif
 endif
 export CONFIG_X86_X32_ABI
-
-# Don't unroll struct assignments with kmemcheck enabled
-ifeq ($(CONFIG_KMEMCHECK),y)
-	KBUILD_CFLAGS += $(call cc-option,-fno-builtin-memcpy)
-endif
 
 #
 # If the function graph tracer is used with mcount instead of fentry,

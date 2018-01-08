@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015 Oracle.  All rights reserved.
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
@@ -305,28 +306,9 @@ out_reset:
 	}
 }
 
-/* Use a slow, safe mechanism to invalidate all memory regions
- * that were registered for "req".
- */
-static void
-fmr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
-		  bool sync)
-{
-	struct rpcrdma_mw *mw;
-
-	while (!list_empty(&req->rl_registered)) {
-		mw = rpcrdma_pop_mw(&req->rl_registered);
-		if (sync)
-			fmr_op_recover_mr(mw);
-		else
-			rpcrdma_defer_mr_recovery(mw);
-	}
-}
-
 const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
 	.ro_unmap_sync			= fmr_op_unmap_sync,
-	.ro_unmap_safe			= fmr_op_unmap_safe,
 	.ro_recover_mr			= fmr_op_recover_mr,
 	.ro_open			= fmr_op_open,
 	.ro_maxpages			= fmr_op_maxpages,

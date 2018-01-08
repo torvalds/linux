@@ -83,7 +83,7 @@ struct qed_ooo_info {
 	u16 cid_base;
 };
 
-#if IS_ENABLED(CONFIG_QED_ISCSI)
+#if IS_ENABLED(CONFIG_QED_OOO)
 void qed_ooo_save_history_entry(struct qed_hwfn *p_hwfn,
 				struct qed_ooo_info *p_ooo_info,
 				struct ooo_opaque *p_cqe);

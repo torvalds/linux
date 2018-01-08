@@ -48,14 +48,13 @@ struct bcm_sf2_hw_params {
 
 struct bcm_sf2_port_status {
 	unsigned int link;
-
-	struct ethtool_eee eee;
 };
 
 struct bcm_sf2_cfp_priv {
 	/* Mutex protecting concurrent accesses to the CFP registers */
 	struct mutex lock;
 	DECLARE_BITMAP(used, CFP_NUM_RULES);
+	DECLARE_BITMAP(unique, CFP_NUM_RULES);
 	unsigned int rules_cnt;
 };
 

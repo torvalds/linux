@@ -58,6 +58,7 @@ Output format selection (mutually exclusive):
   -man			Output troff manual page format. This is the default.
   -rst			Output reStructuredText format.
   -text			Output plain text format.
+  -none			Do not output documentation, only warnings.
 
 Output selection (mutually exclusive):
   -export		Only output documentation for symbols that have been
@@ -532,6 +533,8 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	$output_mode = "gnome";
 	@highlights = @highlights_gnome;
 	$blankline = $blankline_gnome;
+    } elsif ($cmd eq "-none") {
+	$output_mode = "none";
     } elsif ($cmd eq "-module") { # not needed for XML, inherits from calling document
 	$modulename = shift @ARGV;
     } elsif ($cmd eq "-function") { # to only output specific functions
@@ -2117,6 +2120,24 @@ sub output_blockhead_list(%) {
     }
 }
 
+
+## none mode output functions
+
+sub output_function_none(%) {
+}
+
+sub output_enum_none(%) {
+}
+
+sub output_typedef_none(%) {
+}
+
+sub output_struct_none(%) {
+}
+
+sub output_blockhead_none(%) {
+}
+
 ##
 # generic output function for all types (function, struct/union, typedef, enum);
 # calls the generated, variable output_ function name based on
@@ -2168,7 +2189,7 @@ sub dump_struct($$) {
     my $nested;
 
     if ($x =~ /(struct|union)\s+(\w+)\s*{(.*)}/) {
-	#my $decl_type = $1;
+	my $decl_type = $1;
 	$declaration_name = $2;
 	my $members = $3;
 
@@ -2182,8 +2203,6 @@ sub dump_struct($$) {
 	# strip comments:
 	$members =~ s/\/\*.*?\*\///gos;
 	$nested =~ s/\/\*.*?\*\///gos;
-	# strip kmemcheck_bitfield_{begin,end}.*;
-	$members =~ s/kmemcheck_bitfield_.*?;//gos;
 	# strip attributes
 	$members =~ s/__attribute__\s*\(\([a-z,_\*\s\(\)]*\)\)//i;
 	$members =~ s/__aligned\s*\([^;]*\)//gos;
@@ -2194,7 +2213,7 @@ sub dump_struct($$) {
 	$members =~ s/DECLARE_HASHTABLE\s*\(([^,)]+), ([^,)]+)\)/unsigned long $1\[1 << (($2) - 1)\]/gos;
 
 	create_parameterlist($members, ';', $file);
-	check_sections($file, $declaration_name, "struct", $sectcheck, $struct_actual, $nested);
+	check_sections($file, $declaration_name, $decl_type, $sectcheck, $struct_actual, $nested);
 
 	output_declaration($declaration_name,
 			   'struct',
@@ -2226,6 +2245,8 @@ sub dump_enum($$) {
     if ($x =~ /enum\s+(\w+)\s*{(.*)}/) {
 	$declaration_name = $1;
 	my $members = $2;
+	my %_members;
+
 	$members =~ s/\s+$//;
 
 	foreach my $arg (split ',', $members) {
@@ -2236,8 +2257,15 @@ sub dump_enum($$) {
 		print STDERR "${file}:$.: warning: Enum value '$arg' ".
 		    "not described in enum '$declaration_name'\n";
 	    }
-
+	    $_members{$arg} = 1;
 	}
+
+	while (my ($k, $v) = each %parameterdescs) {
+	    if (!exists($_members{$k})) {
+	     print STDERR "${file}:$.: warning: Excess enum value " .
+	                  "'$k' description in '$declaration_name'\n";
+	    }
+        }
 
 	output_declaration($declaration_name,
 			   'enum',
@@ -2506,7 +2534,7 @@ sub check_sections($$$$$$) {
 			} else {
 				if ($nested !~ m/\Q$sects[$sx]\E/) {
 				    print STDERR "${file}:$.: warning: " .
-					"Excess struct/union/enum/typedef member " .
+					"Excess $decl_type member " .
 					"'$sects[$sx]' " .
 					"description in '$decl_name'\n";
 				    ++$warnings;
@@ -3136,7 +3164,9 @@ sub process_file($) {
 	}
     }
     if ($initial_section_counter == $section_counter) {
-	print STDERR "${file}:1: warning: no structured comments found\n";
+	if ($output_mode ne "none") {
+	    print STDERR "${file}:1: warning: no structured comments found\n";
+	}
 	if (($output_selection == OUTPUT_INCLUDE) && ($show_not_found == 1)) {
 	    print STDERR "    Was looking for '$_'.\n" for keys %function_table;
 	}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <libunwind-aarch64.h>
 #include <stdlib.h>
 

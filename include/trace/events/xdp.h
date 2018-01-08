@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM xdp
 
@@ -136,13 +137,89 @@ DEFINE_EVENT_PRINT(xdp_redirect_template, xdp_redirect_map_err,
 		  __entry->map_id, __entry->map_index)
 );
 
+#define devmap_ifindex(fwd, map)				\
+	(!fwd ? 0 :						\
+	 (!map ? 0 :						\
+	  ((map->map_type == BPF_MAP_TYPE_DEVMAP) ?		\
+	   ((struct net_device *)fwd)->ifindex : 0)))
+
 #define _trace_xdp_redirect_map(dev, xdp, fwd, map, idx)		\
-	 trace_xdp_redirect_map(dev, xdp, fwd ? fwd->ifindex : 0,	\
+	 trace_xdp_redirect_map(dev, xdp, devmap_ifindex(fwd, map),	\
 				0, map, idx)
 
 #define _trace_xdp_redirect_map_err(dev, xdp, fwd, map, idx, err)	\
-	 trace_xdp_redirect_map_err(dev, xdp, fwd ? fwd->ifindex : 0,	\
+	 trace_xdp_redirect_map_err(dev, xdp, devmap_ifindex(fwd, map),	\
 				    err, map, idx)
+
+TRACE_EVENT(xdp_cpumap_kthread,
+
+	TP_PROTO(int map_id, unsigned int processed,  unsigned int drops,
+		 int sched),
+
+	TP_ARGS(map_id, processed, drops, sched),
+
+	TP_STRUCT__entry(
+		__field(int, map_id)
+		__field(u32, act)
+		__field(int, cpu)
+		__field(unsigned int, drops)
+		__field(unsigned int, processed)
+		__field(int, sched)
+	),
+
+	TP_fast_assign(
+		__entry->map_id		= map_id;
+		__entry->act		= XDP_REDIRECT;
+		__entry->cpu		= smp_processor_id();
+		__entry->drops		= drops;
+		__entry->processed	= processed;
+		__entry->sched	= sched;
+	),
+
+	TP_printk("kthread"
+		  " cpu=%d map_id=%d action=%s"
+		  " processed=%u drops=%u"
+		  " sched=%d",
+		  __entry->cpu, __entry->map_id,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->processed, __entry->drops,
+		  __entry->sched)
+);
+
+TRACE_EVENT(xdp_cpumap_enqueue,
+
+	TP_PROTO(int map_id, unsigned int processed,  unsigned int drops,
+		 int to_cpu),
+
+	TP_ARGS(map_id, processed, drops, to_cpu),
+
+	TP_STRUCT__entry(
+		__field(int, map_id)
+		__field(u32, act)
+		__field(int, cpu)
+		__field(unsigned int, drops)
+		__field(unsigned int, processed)
+		__field(int, to_cpu)
+	),
+
+	TP_fast_assign(
+		__entry->map_id		= map_id;
+		__entry->act		= XDP_REDIRECT;
+		__entry->cpu		= smp_processor_id();
+		__entry->drops		= drops;
+		__entry->processed	= processed;
+		__entry->to_cpu		= to_cpu;
+	),
+
+	TP_printk("enqueue"
+		  " cpu=%d map_id=%d action=%s"
+		  " processed=%u drops=%u"
+		  " to_cpu=%d",
+		  __entry->cpu, __entry->map_id,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->processed, __entry->drops,
+		  __entry->to_cpu)
+);
 
 #endif /* _TRACE_XDP_H */
 

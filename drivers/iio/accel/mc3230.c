@@ -107,7 +107,6 @@ static int mc3230_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info mc3230_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= mc3230_read_raw,
 };
 

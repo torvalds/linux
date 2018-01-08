@@ -267,6 +267,7 @@ static void rdt_get_cdp_l3_config(int type)
 	r->num_closid = r_l3->num_closid / 2;
 	r->cache.cbm_len = r_l3->cache.cbm_len;
 	r->default_ctrl = r_l3->default_ctrl;
+	r->cache.shareable_bits = r_l3->cache.shareable_bits;
 	r->data_width = (r->cache.cbm_len + 3) / 4;
 	r->alloc_capable = true;
 	/*

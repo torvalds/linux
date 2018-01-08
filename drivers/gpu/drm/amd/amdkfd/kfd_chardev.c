@@ -282,8 +282,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 			p->pasid,
 			dev->id);
 
-	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties,
-				0, q_properties.type, &queue_id);
+	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, &queue_id);
 	if (err != 0)
 		goto err_create_queue;
 
@@ -451,8 +450,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 		return -EINVAL;
 	}
 
-	mutex_lock(kfd_get_dbgmgr_mutex());
 	mutex_lock(&p->mutex);
+	mutex_lock(kfd_get_dbgmgr_mutex());
 
 	/*
 	 * make sure that we have pdd, if this the first queue created for
@@ -480,8 +479,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	}
 
 out:
-	mutex_unlock(&p->mutex);
 	mutex_unlock(kfd_get_dbgmgr_mutex());
+	mutex_unlock(&p->mutex);
 
 	return status;
 }
@@ -836,15 +835,12 @@ static int kfd_ioctl_wait_events(struct file *filp, struct kfd_process *p,
 				void *data)
 {
 	struct kfd_ioctl_wait_events_args *args = data;
-	enum kfd_event_wait_result wait_result;
 	int err;
 
 	err = kfd_wait_on_events(p, args->num_events,
 			(void __user *)args->events_ptr,
 			(args->wait_for_all != 0),
-			args->timeout, &wait_result);
-
-	args->wait_result = wait_result;
+			args->timeout, &args->wait_result);
 
 	return err;
 }
@@ -892,6 +888,8 @@ static int kfd_ioctl_get_tile_config(struct file *filep,
 	int err = 0;
 
 	dev = kfd_device_by_id(args->gpu_id);
+	if (!dev)
+		return -EINVAL;
 
 	dev->kfd2kgd->get_tile_config(dev->kgd, &config);
 

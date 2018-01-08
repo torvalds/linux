@@ -208,7 +208,6 @@ static int hp03_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info hp03_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= &hp03_read_raw,
 };
 

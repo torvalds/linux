@@ -53,6 +53,9 @@
 
 #include "core_priv.h"
 
+static int ib_resolve_eth_dmac(struct ib_device *device,
+			       struct rdma_ah_attr *ah_attr);
+
 static const char * const ib_events[] = {
 	[IB_EVENT_CQ_ERR]		= "CQ error",
 	[IB_EVENT_QP_FATAL]		= "QP fatal error",
@@ -302,11 +305,13 @@ EXPORT_SYMBOL(ib_dealloc_pd);
 
 /* Address handles */
 
-struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
+static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
+				     struct rdma_ah_attr *ah_attr,
+				     struct ib_udata *udata)
 {
 	struct ib_ah *ah;
 
-	ah = pd->device->create_ah(pd, ah_attr, NULL);
+	ah = pd->device->create_ah(pd, ah_attr, udata);
 
 	if (!IS_ERR(ah)) {
 		ah->device  = pd->device;
@@ -318,7 +323,41 @@ struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
 
 	return ah;
 }
+
+struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
+{
+	return _rdma_create_ah(pd, ah_attr, NULL);
+}
 EXPORT_SYMBOL(rdma_create_ah);
+
+/**
+ * rdma_create_user_ah - Creates an address handle for the
+ * given address vector.
+ * It resolves destination mac address for ah attribute of RoCE type.
+ * @pd: The protection domain associated with the address handle.
+ * @ah_attr: The attributes of the address vector.
+ * @udata: pointer to user's input output buffer information need by
+ *         provider driver.
+ *
+ * It returns 0 on success and returns appropriate error code on error.
+ * The address handle is used to reference a local or global destination
+ * in all UD QP post sends.
+ */
+struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
+				  struct rdma_ah_attr *ah_attr,
+				  struct ib_udata *udata)
+{
+	int err;
+
+	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
+		err = ib_resolve_eth_dmac(pd->device, ah_attr);
+		if (err)
+			return ERR_PTR(err);
+	}
+
+	return _rdma_create_ah(pd, ah_attr, udata);
+}
+EXPORT_SYMBOL(rdma_create_user_ah);
 
 int ib_get_rdma_header_version(const union rdma_network_hdr *hdr)
 {
@@ -1221,8 +1260,8 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
-int ib_resolve_eth_dmac(struct ib_device *device,
-			struct rdma_ah_attr *ah_attr)
+static int ib_resolve_eth_dmac(struct ib_device *device,
+			       struct rdma_ah_attr *ah_attr)
 {
 	int           ret = 0;
 	struct ib_global_route *grh;
@@ -1281,7 +1320,6 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 out:
 	return ret;
 }
-EXPORT_SYMBOL(ib_resolve_eth_dmac);
 
 /**
  * ib_modify_qp_with_udata - Modifies the attributes for the specified QP.
@@ -1512,12 +1550,12 @@ struct ib_cq *ib_create_cq(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_create_cq);
 
-int ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
+int rdma_set_cq_moderation(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
 	return cq->device->modify_cq ?
 		cq->device->modify_cq(cq, cq_count, cq_period) : -ENOSYS;
 }
-EXPORT_SYMBOL(ib_modify_cq);
+EXPORT_SYMBOL(rdma_set_cq_moderation);
 
 int ib_destroy_cq(struct ib_cq *cq)
 {
@@ -1646,7 +1684,7 @@ static bool is_valid_mcast_lid(struct ib_qp *qp, u16 lid)
 	 */
 	if (!ib_query_qp(qp, &attr, IB_QP_STATE | IB_QP_PORT, &init_attr)) {
 		if (attr.qp_state >= IB_QPS_INIT) {
-			if (qp->device->get_link_layer(qp->device, attr.port_num) !=
+			if (rdma_port_get_link_layer(qp->device, attr.port_num) !=
 			    IB_LINK_LAYER_INFINIBAND)
 				return true;
 			goto lid_check;
@@ -1655,7 +1693,7 @@ static bool is_valid_mcast_lid(struct ib_qp *qp, u16 lid)
 
 	/* Can't get a quick answer, iterate over all ports */
 	for (port = 0; port < qp->device->phys_port_cnt; port++)
-		if (qp->device->get_link_layer(qp->device, port) !=
+		if (rdma_port_get_link_layer(qp->device, port) !=
 		    IB_LINK_LAYER_INFINIBAND)
 			num_eth_ports++;
 

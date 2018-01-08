@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Generator for GIMPLE pass related boilerplate code/data
  *

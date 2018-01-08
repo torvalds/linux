@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_CPUFEATURE_H
 #define _ASM_X86_CPUFEATURE_H
 
@@ -125,11 +126,10 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define boot_cpu_has(bit)	cpu_has(&boot_cpu_data, bit)
 
 #define set_cpu_cap(c, bit)	set_bit(bit, (unsigned long *)((c)->x86_capability))
-#define clear_cpu_cap(c, bit)	clear_bit(bit, (unsigned long *)((c)->x86_capability))
-#define setup_clear_cpu_cap(bit) do { \
-	clear_cpu_cap(&boot_cpu_data, bit);	\
-	set_bit(bit, (unsigned long *)cpu_caps_cleared); \
-} while (0)
+
+extern void setup_clear_cpu_cap(unsigned int bit);
+extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
+
 #define setup_force_cpu_cap(bit) do { \
 	set_cpu_cap(&boot_cpu_data, bit);	\
 	set_bit(bit, (unsigned long *)cpu_caps_set);	\

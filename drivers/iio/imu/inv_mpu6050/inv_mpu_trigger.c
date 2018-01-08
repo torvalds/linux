@@ -114,7 +114,6 @@ static int inv_mpu_data_rdy_trigger_set_state(struct iio_trigger *trig,
 }
 
 static const struct iio_trigger_ops inv_mpu_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &inv_mpu_data_rdy_trigger_set_state,
 };
 

@@ -227,8 +227,8 @@ CEC_TX_STATUS_LOW_DRIVE:
 	retransmission.
 
 CEC_TX_STATUS_ERROR:
-	some unspecified error occurred: this can be one of
-	the previous two if the hardware cannot differentiate or something
+	some unspecified error occurred: this can be one of ARB_LOST
+	or LOW_DRIVE if the hardware cannot differentiate or something
 	else entirely.
 
 CEC_TX_STATUS_MAX_RETRIES:
@@ -237,6 +237,9 @@ CEC_TX_STATUS_MAX_RETRIES:
 	retrying messages. If set, then the framework assumes that it
 	doesn't have to make another attempt to transmit the message
 	since the hardware did that already.
+
+The hardware must be able to differentiate between OK, NACK and 'something
+else'.
 
 The \*_cnt arguments are the number of error conditions that were seen.
 This may be 0 if no information is available. Drivers that do not support

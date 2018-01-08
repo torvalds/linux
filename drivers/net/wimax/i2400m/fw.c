@@ -652,7 +652,7 @@ static int i2400m_download_chunk(struct i2400m *i2400m, const void *chunk,
 	struct device *dev = i2400m_dev(i2400m);
 	struct {
 		struct i2400m_bootrom_header cmd;
-		u8 cmd_payload[chunk_len];
+		u8 cmd_payload[];
 	} __packed *buf;
 	struct i2400m_bootrom_header ack;
 

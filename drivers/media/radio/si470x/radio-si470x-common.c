@@ -749,7 +749,7 @@ static const struct v4l2_ioctl_ops si470x_ioctl_ops = {
 /*
  * si470x_viddev_template - video device interface
  */
-struct video_device si470x_viddev_template = {
+const struct video_device si470x_viddev_template = {
 	.fops			= &si470x_fops,
 	.name			= DRIVER_NAME,
 	.release		= video_device_release_empty,

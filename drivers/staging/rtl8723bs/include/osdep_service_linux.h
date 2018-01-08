@@ -86,17 +86,7 @@ __inline static struct list_head	*get_list_head(struct __queue	*queue)
 
 
 #define LIST_CONTAINOR(ptr, type, member) \
-        ((type *)((char *)(ptr)-(__kernel_size_t)(&((type *)0)->member)))
-
-#define RTW_TIMER_HDL_ARGS void *FunctionContext
-
-__inline static void _init_timer(_timer *ptimer, _nic_hdl nic_hdl, void *pfunc, void* cntx)
-{
-	/* setup_timer(ptimer, pfunc, (u32)cntx); */
-	ptimer->function = pfunc;
-	ptimer->data = (unsigned long)cntx;
-	init_timer(ptimer);
-}
+	container_of(ptr, type, member)
 
 __inline static void _set_timer(_timer *ptimer, u32 delay_time)
 {
@@ -108,7 +98,6 @@ __inline static void _cancel_timer(_timer *ptimer, u8 *bcancelled)
 	del_timer_sync(ptimer);
 	*bcancelled =  true;/* true == 1; false == 0 */
 }
-
 
 __inline static void _init_workitem(_workitem *pwork, void *pfunc, void *cntx)
 {

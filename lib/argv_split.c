@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Helper function for splitting a string into an argv-like array.
  */

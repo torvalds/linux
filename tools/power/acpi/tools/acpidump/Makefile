@@ -39,6 +39,7 @@ TOOL_OBJS = \
 	utnonansi.o\
 	utprint.o\
 	utstring.o\
+	utstrsuppt.o\
 	utstrtoul64.o\
 	utxferror.o\
 	oslinuxtbl.o\

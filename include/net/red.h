@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_SCHED_RED_H
 #define __NET_SCHED_RED_H
 

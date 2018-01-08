@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  This code exports profiling data as debugfs files to userspace.
  *

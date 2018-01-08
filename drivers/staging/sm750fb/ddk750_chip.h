@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DDK750_CHIP_H__
 #define DDK750_CHIP_H__
 #define DEFAULT_INPUT_CLOCK 14318181 /* Default reference clock */
@@ -17,7 +18,7 @@ static inline u32 peek32(u32 addr)
 	return readl(addr + mmio750);
 }
 
-static inline void poke32(u32 data, u32 addr)
+static inline void poke32(u32 addr, u32 data)
 {
 	writel(data, addr + mmio750);
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * MPC8xx Communication Processor Module.
  * Copyright (c) 1997 Dan Malek (dmalek@jlc.net)

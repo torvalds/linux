@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VT_KERN_H
 #define _VT_KERN_H
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * include/uapi/linux/devlink.h - Network physical device Netlink interface
  * Copyright (c) 2016 Mellanox Technologies. All rights reserved.

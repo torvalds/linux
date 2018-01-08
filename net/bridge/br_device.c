@@ -39,6 +39,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 	const struct nf_br_ops *nf_ops;
 	const unsigned char *dest;
+	struct ethhdr *eth;
 	u16 vid = 0;
 
 	rcu_read_lock();
@@ -57,10 +58,29 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	BR_INPUT_SKB_CB(skb)->brdev = dev;
 
 	skb_reset_mac_header(skb);
+	eth = eth_hdr(skb);
 	skb_pull(skb, ETH_HLEN);
 
 	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid))
 		goto out;
+
+	if (IS_ENABLED(CONFIG_INET) &&
+	    (eth->h_proto == htons(ETH_P_ARP) ||
+	     eth->h_proto == htons(ETH_P_RARP)) &&
+	    br->neigh_suppress_enabled) {
+		br_do_proxy_suppress_arp(skb, br, vid, NULL);
+	} else if (IS_ENABLED(CONFIG_IPV6) &&
+		   skb->protocol == htons(ETH_P_IPV6) &&
+		   br->neigh_suppress_enabled &&
+		   pskb_may_pull(skb, sizeof(struct ipv6hdr) +
+				 sizeof(struct nd_msg)) &&
+		   ipv6_hdr(skb)->nexthdr == IPPROTO_ICMPV6) {
+			struct nd_msg *msg, _msg;
+
+			msg = br_is_nd_neigh_msg(skb, &_msg);
+			if (msg)
+				br_do_suppress_nd(skb, br, vid, NULL, msg);
+	}
 
 	dest = eth_hdr(skb)->h_dest;
 	if (is_broadcast_ether_addr(dest)) {
@@ -320,12 +340,13 @@ void br_netpoll_disable(struct net_bridge_port *p)
 
 #endif
 
-static int br_add_slave(struct net_device *dev, struct net_device *slave_dev)
+static int br_add_slave(struct net_device *dev, struct net_device *slave_dev,
+			struct netlink_ext_ack *extack)
 
 {
 	struct net_bridge *br = netdev_priv(dev);
 
-	return br_add_if(br, slave_dev);
+	return br_add_if(br, slave_dev, extack);
 }
 
 static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
@@ -400,7 +421,7 @@ void br_dev_setup(struct net_device *dev)
 	br->bridge_id.prio[0] = 0x80;
 	br->bridge_id.prio[1] = 0x00;
 
-	ether_addr_copy(br->group_addr, eth_reserved_addr_base);
+	ether_addr_copy(br->group_addr, eth_stp_addr);
 
 	br->stp_enabled = BR_NO_STP;
 	br->group_fwd_mask = BR_GROUPFWD_DEFAULT;

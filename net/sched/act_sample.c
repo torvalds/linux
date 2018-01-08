@@ -264,12 +264,13 @@ static int __init sample_init_module(void)
 
 static void __exit sample_cleanup_module(void)
 {
+	rcu_barrier();
 	tcf_unregister_action(&act_sample_ops, &sample_net_ops);
 }
 
 module_init(sample_init_module);
 module_exit(sample_cleanup_module);
 
-MODULE_AUTHOR("Yotam Gigi <yotamg@mellanox.com>");
+MODULE_AUTHOR("Yotam Gigi <yotam.gi@gmail.com>");
 MODULE_DESCRIPTION("Packet sampling action");
 MODULE_LICENSE("GPL v2");

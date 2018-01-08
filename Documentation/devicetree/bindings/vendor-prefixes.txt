@@ -3,8 +3,8 @@ Device tree binding vendor prefix registry.  Keep list in alphabetical order.
 This isn't an exhaustive list, but you should add new prefixes to it before
 using them to avoid name-space collisions.
 
-abcn	Abracon Corporation
 abilis	Abilis Systems
+abracon	Abracon Corporation
 actions	Actions Semiconductor Co., Ltd.
 active-semi	Active-Semi International Inc
 ad	Avionic Design GmbH
@@ -18,6 +18,7 @@ al	Annapurna Labs
 allwinner	Allwinner Technology Co., Ltd.
 alphascale	AlphaScale Integrated Circuits Systems, Inc.
 altr	Altera Corp.
+amarula	Amarula Solutions
 amazon	Amazon.com, Inc.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 amd	Advanced Micro Devices (AMD), Inc.
@@ -83,6 +84,7 @@ davicom	DAVICOM Semiconductor, Inc.
 delta	Delta Electronics, Inc.
 denx	Denx Software Engineering
 devantech	Devantech, Ltd.
+dh	DH electronics GmbH
 digi	Digi International Inc.
 digilent	Diglent, Inc.
 dioo	Dioo Microcircuit Co., Ltd
@@ -113,6 +115,7 @@ everspin	Everspin Technologies, Inc.
 exar	Exar Corporation
 excito	Excito
 ezchip	EZchip Semiconductor
+fairphone	Fairphone B.V.
 faraday	Faraday Technology Corporation
 fcs	Fairchild Semiconductor
 firefly	Firefly
@@ -137,6 +140,7 @@ gw	Gateworks Corporation
 hannstar	HannStar Display Corporation
 haoyu	Haoyu Microelectronic Co. Ltd.
 hardkernel	Hardkernel Co., Ltd
+hideep	HiDeep Inc.
 himax	Himax Technologies, Inc.
 hisilicon	Hisilicon Limited.
 hit	Hitachi Ltd.
@@ -197,6 +201,7 @@ mcube	mCube
 meas	Measurement Specialties
 mediatek	MediaTek Inc.
 megachips	MegaChips
+mele	Shenzhen MeLE Digital Technology Ltd.
 melexis	Melexis N.V.
 melfas	MELFAS Inc.
 mellanox	Mellanox Technologies
@@ -229,12 +234,14 @@ netlogic	Broadcom Corporation (formerly NetLogic Microsystems)
 netron-dy	Netron DY
 netxeon		Shenzhen Netxeon Technology CO., LTD
 nexbox	Nexbox
+nextthing	Next Thing Co.
 newhaven	Newhaven Display International
 ni	National Instruments
 nintendo	Nintendo
 nlt	NLT Technologies, Ltd.
 nokia	Nokia
 nordic	Nordic Semiconductor
+nutsboard	NutsBoard
 nuvoton	Nuvoton Technology Corporation
 nvd	New Vision Display
 nvidia	NVIDIA
@@ -245,9 +252,12 @@ olimex	OLIMEX Ltd.
 onion	Onion Corporation
 onnn	ON Semiconductor Corp.
 ontat	On Tat Industrial Company
+opalkelly	Opal Kelly Incorporated
 opencores	OpenCores.org
+openrisc	OpenRISC.io
 option	Option NV
 ORCL	Oracle Corporation
+orisetech	Orise Technology
 ortustech	Ortus Technology Co., Ltd.
 ovti	OmniVision Technologies
 oxsemi	Oxford Semiconductor, Ltd.
@@ -263,6 +273,7 @@ plathome	Plat'Home Co., Ltd.
 plda	PLDA
 poslab	Poslab Technology Co., Ltd.
 powervr	PowerVR (deprecated, use img)
+probox2	PROBOX2 (by W2COMP Co., Ltd.)
 pulsedlight	PulsedLight, Inc
 qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm Technologies, Inc
@@ -296,6 +307,7 @@ sensirion	Sensirion AG
 sff	Small Form Factor Committee
 sgx	SGX Sensortech
 sharp	Sharp Corporation
+shimafuji	Shimafuji Electric, Inc.
 si-en	Si-En Technology Ltd.
 sigma	Sigma Designs, Inc.
 sii	Seiko Instruments, Inc.
@@ -317,6 +329,7 @@ solomon        Solomon Systech Limited
 sony	Sony Corporation
 spansion	Spansion Inc.
 sprd	Spreadtrum Communications Inc.
+sst	Silicon Storage Technology, Inc.
 st	STMicroelectronics
 starry	Starry Electronic Technology (ShenZhen) Co., LTD
 startek	Startek
@@ -329,6 +342,7 @@ swir	Sierra Wireless
 syna	Synaptics Inc.
 synology	Synology, Inc.
 tbs	TBS Technologies
+tbs-biometrics	Touchless Biometric Systems AG
 tcg	Trusted Computing Group
 tcl	Toby Churchill Ltd.
 technexion	TechNexion
@@ -338,6 +352,7 @@ thine	THine Electronics, Inc.
 ti	Texas Instruments
 tianma	Tianma Micro-electronics Co., Ltd.
 tlm	Trusted Logic Mobility
+tmt	Tecon Microprocessor Technologies, LLC.
 topeet  Topeet
 toradex	Toradex AG
 toshiba	Toshiba Corporation
@@ -351,6 +366,7 @@ truly	Truly Semiconductors Limited
 tsd	Theobroma Systems Design und Consulting GmbH
 tyan	Tyan Computer Corporation
 ucrobotics	uCRobotics
+ubnt	Ubiquiti Networks
 udoo	Udoo
 uniwest	United Western Technologies Corp (UniWest)
 upisemi	uPI Semiconductor Corp.

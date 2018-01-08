@@ -2006,10 +2006,12 @@ static void kvmclock_sync_fn(struct work_struct *work)
 					KVMCLOCK_SYNC_PERIOD);
 }
 
-static int set_msr_mce(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+static int set_msr_mce(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	u64 mcg_cap = vcpu->arch.mcg_cap;
 	unsigned bank_num = mcg_cap & 0xff;
+	u32 msr = msr_info->index;
+	u64 data = msr_info->data;
 
 	switch (msr) {
 	case MSR_IA32_MCG_STATUS:
@@ -2033,6 +2035,9 @@ static int set_msr_mce(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 			 */
 			if ((offset & 0x3) == 0 &&
 			    data != 0 && (data | (1 << 10)) != ~(u64)0)
+				return -1;
+			if (!msr_info->host_initiated &&
+				(offset & 0x3) == 1 && data != 0)
 				return -1;
 			vcpu->arch.mce_banks[offset] = data;
 			break;
@@ -2283,7 +2288,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_MCG_CTL:
 	case MSR_IA32_MCG_STATUS:
 	case MSR_IA32_MC0_CTL ... MSR_IA32_MCx_CTL(KVM_MAX_MCE_BANKS) - 1:
-		return set_msr_mce(vcpu, msr, data);
+		return set_msr_mce(vcpu, msr_info);
 
 	case MSR_K7_PERFCTR0 ... MSR_K7_PERFCTR3:
 	case MSR_P6_PERFCTR0 ... MSR_P6_PERFCTR1:
@@ -4034,10 +4039,16 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	case KVM_SET_IDENTITY_MAP_ADDR: {
 		u64 ident_addr;
 
+		mutex_lock(&kvm->lock);
+		r = -EINVAL;
+		if (kvm->created_vcpus)
+			goto set_identity_unlock;
 		r = -EFAULT;
 		if (copy_from_user(&ident_addr, argp, sizeof ident_addr))
-			goto out;
+			goto set_identity_unlock;
 		r = kvm_vm_ioctl_set_identity_map_addr(kvm, ident_addr);
+set_identity_unlock:
+		mutex_unlock(&kvm->lock);
 		break;
 	}
 	case KVM_SET_NR_MMU_PAGES:
@@ -5275,6 +5286,11 @@ static void emulator_set_hflags(struct x86_emulate_ctxt *ctxt, unsigned emul_fla
 	kvm_set_hflags(emul_to_vcpu(ctxt), emul_flags);
 }
 
+static int emulator_pre_leave_smm(struct x86_emulate_ctxt *ctxt, u64 smbase)
+{
+	return kvm_x86_ops->pre_leave_smm(emul_to_vcpu(ctxt), smbase);
+}
+
 static const struct x86_emulate_ops emulate_ops = {
 	.read_gpr            = emulator_read_gpr,
 	.write_gpr           = emulator_write_gpr,
@@ -5316,6 +5332,7 @@ static const struct x86_emulate_ops emulate_ops = {
 	.set_nmi_mask        = emulator_set_nmi_mask,
 	.get_hflags          = emulator_get_hflags,
 	.set_hflags          = emulator_set_hflags,
+	.pre_leave_smm       = emulator_pre_leave_smm,
 };
 
 static void toggle_interruptibility(struct kvm_vcpu *vcpu, u32 mask)
@@ -6426,7 +6443,7 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 		}
 
 		kvm_x86_ops->queue_exception(vcpu);
-	} else if (vcpu->arch.smi_pending && !is_smm(vcpu)) {
+	} else if (vcpu->arch.smi_pending && !is_smm(vcpu) && kvm_x86_ops->smi_allowed(vcpu)) {
 		vcpu->arch.smi_pending = false;
 		enter_smm(vcpu);
 	} else if (vcpu->arch.nmi_pending && kvm_x86_ops->nmi_allowed(vcpu)) {
@@ -6472,9 +6489,6 @@ static void process_nmi(struct kvm_vcpu *vcpu)
 	vcpu->arch.nmi_pending = min(vcpu->arch.nmi_pending, limit);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
-
-#define put_smstate(type, buf, offset, val)			  \
-	*(type *)((buf) + (offset) - 0x7e00) = val
 
 static u32 enter_smm_get_segment_flags(struct kvm_segment *seg)
 {
@@ -6641,13 +6655,20 @@ static void enter_smm(struct kvm_vcpu *vcpu)
 	u32 cr0;
 
 	trace_kvm_enter_smm(vcpu->vcpu_id, vcpu->arch.smbase, true);
-	vcpu->arch.hflags |= HF_SMM_MASK;
 	memset(buf, 0, 512);
 	if (guest_cpuid_has(vcpu, X86_FEATURE_LM))
 		enter_smm_save_state_64(vcpu, buf);
 	else
 		enter_smm_save_state_32(vcpu, buf);
 
+	/*
+	 * Give pre_enter_smm() a chance to make ISA-specific changes to the
+	 * vCPU state (e.g. leave guest mode) after we've saved the state into
+	 * the SMM state-save area.
+	 */
+	kvm_x86_ops->pre_enter_smm(vcpu, buf);
+
+	vcpu->arch.hflags |= HF_SMM_MASK;
 	kvm_vcpu_write_guest(vcpu, vcpu->arch.smbase + 0xfe00, buf, sizeof(buf));
 
 	if (kvm_x86_ops->get_nmi_mask(vcpu))
@@ -6876,17 +6897,23 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		if (inject_pending_event(vcpu, req_int_win) != 0)
 			req_immediate_exit = true;
 		else {
-			/* Enable NMI/IRQ window open exits if needed.
+			/* Enable SMI/NMI/IRQ window open exits if needed.
 			 *
-			 * SMIs have two cases: 1) they can be nested, and
-			 * then there is nothing to do here because RSM will
-			 * cause a vmexit anyway; 2) or the SMI can be pending
-			 * because inject_pending_event has completed the
-			 * injection of an IRQ or NMI from the previous vmexit,
-			 * and then we request an immediate exit to inject the SMI.
+			 * SMIs have three cases:
+			 * 1) They can be nested, and then there is nothing to
+			 *    do here because RSM will cause a vmexit anyway.
+			 * 2) There is an ISA-specific reason why SMI cannot be
+			 *    injected, and the moment when this changes can be
+			 *    intercepted.
+			 * 3) Or the SMI can be pending because
+			 *    inject_pending_event has completed the injection
+			 *    of an IRQ or NMI from the previous vmexit, and
+			 *    then we request an immediate exit to inject the
+			 *    SMI.
 			 */
 			if (vcpu->arch.smi_pending && !is_smm(vcpu))
-				req_immediate_exit = true;
+				if (!kvm_x86_ops->enable_smi_window(vcpu))
+					req_immediate_exit = true;
 			if (vcpu->arch.nmi_pending)
 				kvm_x86_ops->enable_nmi_window(vcpu);
 			if (kvm_cpu_has_injectable_intr(vcpu) || req_int_win)
@@ -7225,7 +7252,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int r;
 	sigset_t sigsaved;
 
-	fpu__activate_curr(fpu);
+	fpu__initialize(fpu);
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
@@ -7798,17 +7825,39 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	kvm_async_pf_hash_reset(vcpu);
 	vcpu->arch.apf.halted = false;
 
+	if (kvm_mpx_supported()) {
+		void *mpx_state_buffer;
+
+		/*
+		 * To avoid have the INIT path from kvm_apic_has_events() that be
+		 * called with loaded FPU and does not let userspace fix the state.
+		 */
+		kvm_put_guest_fpu(vcpu);
+		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu.state.xsave,
+					XFEATURE_MASK_BNDREGS);
+		if (mpx_state_buffer)
+			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndreg_state));
+		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu.state.xsave,
+					XFEATURE_MASK_BNDCSR);
+		if (mpx_state_buffer)
+			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndcsr));
+	}
+
 	if (!init_event) {
 		kvm_pmu_reset(vcpu);
 		vcpu->arch.smbase = 0x30000;
 
 		vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
 		vcpu->arch.msr_misc_features_enables = 0;
+
+		vcpu->arch.xcr0 = XFEATURE_MASK_FP;
 	}
 
 	memset(vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
 	vcpu->arch.regs_avail = ~0;
 	vcpu->arch.regs_dirty = ~0;
+
+	vcpu->arch.ia32_xss = 0;
 
 	kvm_x86_ops->vcpu_reset(vcpu, init_event);
 }
@@ -7974,16 +8023,11 @@ EXPORT_SYMBOL_GPL(kvm_no_apic_vcpu);
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct page *page;
-	struct kvm *kvm;
 	int r;
 
-	BUG_ON(vcpu->kvm == NULL);
-	kvm = vcpu->kvm;
-
 	vcpu->arch.apicv_active = kvm_x86_ops->get_enable_apicv(vcpu);
-	vcpu->arch.pv.pv_unhalted = false;
 	vcpu->arch.emulate_ctxt.ops = &emulate_ops;
-	if (!irqchip_in_kernel(kvm) || kvm_vcpu_is_reset_bsp(vcpu))
+	if (!irqchip_in_kernel(vcpu->kvm) || kvm_vcpu_is_reset_bsp(vcpu))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 	else
 		vcpu->arch.mp_state = KVM_MP_STATE_UNINITIALIZED;
@@ -8001,7 +8045,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	if (r < 0)
 		goto fail_free_pio_data;
 
-	if (irqchip_in_kernel(kvm)) {
+	if (irqchip_in_kernel(vcpu->kvm)) {
 		r = kvm_create_lapic(vcpu);
 		if (r < 0)
 			goto fail_mmu_destroy;
@@ -8023,10 +8067,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 	fx_init(vcpu);
 
-	vcpu->arch.ia32_tsc_adjust_msr = 0x0;
-	vcpu->arch.pv_time_enabled = false;
-
-	vcpu->arch.guest_supported_xcr0 = 0;
 	vcpu->arch.guest_xstate_size = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
 
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);

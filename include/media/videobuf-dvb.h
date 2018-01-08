@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <dvbdev.h>
 #include <dmxdev.h>
 #include <dvb_demux.h>

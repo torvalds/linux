@@ -10,7 +10,7 @@ Required properties if not a sub-node of the PRCM node:
 - reg: must contain the registers location and length
 
 Example:
-prcm: prcm@01f01400 {
+prcm: prcm@1f01400 {
 	codec_analog: codec-analog {
 		compatible = "allwinner,sun8i-a23-codec-analog";
 	};

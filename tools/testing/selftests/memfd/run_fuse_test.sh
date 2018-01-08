@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 
 if test -d "./mnt" ; then
 	fusermount -u ./mnt

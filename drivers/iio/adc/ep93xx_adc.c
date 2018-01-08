@@ -150,7 +150,6 @@ static int ep93xx_read_raw(struct iio_dev *iiodev,
 }
 
 static const struct iio_info ep93xx_adc_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = ep93xx_read_raw,
 };
 

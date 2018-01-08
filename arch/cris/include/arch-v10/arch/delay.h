@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CRIS_ARCH_DELAY_H
 #define _CRIS_ARCH_DELAY_H
 

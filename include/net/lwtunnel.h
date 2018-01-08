@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_LWTUNNEL_H
 #define __NET_LWTUNNEL_H 1
 

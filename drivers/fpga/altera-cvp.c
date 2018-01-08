@@ -361,12 +361,12 @@ static const struct fpga_manager_ops altera_cvp_ops = {
 	.write_complete	= altera_cvp_write_complete,
 };
 
-static ssize_t show_chkcfg(struct device_driver *dev, char *buf)
+static ssize_t chkcfg_show(struct device_driver *dev, char *buf)
 {
 	return snprintf(buf, 3, "%d\n", altera_cvp_chkcfg);
 }
 
-static ssize_t store_chkcfg(struct device_driver *drv, const char *buf,
+static ssize_t chkcfg_store(struct device_driver *drv, const char *buf,
 			    size_t count)
 {
 	int ret;
@@ -378,7 +378,7 @@ static ssize_t store_chkcfg(struct device_driver *drv, const char *buf,
 	return count;
 }
 
-static DRIVER_ATTR(chkcfg, 0600, show_chkcfg, store_chkcfg);
+static DRIVER_ATTR_RW(chkcfg);
 
 static int altera_cvp_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *dev_id);

@@ -311,10 +311,10 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 
 		if (chunk->sent_count) {
 			chunk->asoc->abandoned_sent[SCTP_PR_INDEX(TTL)]++;
-			streamout->abandoned_sent[SCTP_PR_INDEX(TTL)]++;
+			streamout->ext->abandoned_sent[SCTP_PR_INDEX(TTL)]++;
 		} else {
 			chunk->asoc->abandoned_unsent[SCTP_PR_INDEX(TTL)]++;
-			streamout->abandoned_unsent[SCTP_PR_INDEX(TTL)]++;
+			streamout->ext->abandoned_unsent[SCTP_PR_INDEX(TTL)]++;
 		}
 		return 1;
 	} else if (SCTP_PR_RTX_ENABLED(chunk->sinfo.sinfo_flags) &&
@@ -323,7 +323,7 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 			&chunk->asoc->stream.out[chunk->sinfo.sinfo_stream];
 
 		chunk->asoc->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
-		streamout->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
+		streamout->ext->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
 		return 1;
 	} else if (!SCTP_PR_POLICY(chunk->sinfo.sinfo_flags) &&
 		   chunk->msg->expires_at &&

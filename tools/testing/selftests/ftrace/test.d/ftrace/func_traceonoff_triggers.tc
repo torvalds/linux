@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - test for function traceon/off triggers
 # flags: instance
 #
@@ -26,7 +27,7 @@ do_reset() {
 fail() { # mesg
     do_reset
     echo $1
-    exit $FAIL
+    exit_fail
 }
 
 SLEEP_TIME=".1"

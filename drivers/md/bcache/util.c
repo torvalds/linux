@@ -232,8 +232,14 @@ uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 
 	d->next += div_u64(done * NSEC_PER_SEC, d->rate);
 
-	if (time_before64(now + NSEC_PER_SEC, d->next))
-		d->next = now + NSEC_PER_SEC;
+	/* Bound the time.  Don't let us fall further than 2 seconds behind
+	 * (this prevents unnecessary backlog that would make it impossible
+	 * to catch up).  If we're ahead of the desired writeback rate,
+	 * don't let us sleep more than 2.5 seconds (so we can notice/respond
+	 * if the control system tells us to speed up!).
+	 */
+	if (time_before64(now + NSEC_PER_SEC * 5LLU / 2LLU, d->next))
+		d->next = now + NSEC_PER_SEC * 5LLU / 2LLU;
 
 	if (time_after64(now - NSEC_PER_SEC * 2, d->next))
 		d->next = now - NSEC_PER_SEC * 2;

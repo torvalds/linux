@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Cortina Systems Gemini OF physmap add-on
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>

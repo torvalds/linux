@@ -1289,6 +1289,7 @@ static const struct sunxi_pinctrl_desc sun4i_a10_pinctrl_data = {
 	.npins = ARRAY_SIZE(sun4i_a10_pins),
 	.irq_banks = 1,
 	.irq_read_needs_mux = true,
+	.disable_strict_mode = true,
 };
 
 static int sun4i_a10_pinctrl_probe(struct platform_device *pdev)

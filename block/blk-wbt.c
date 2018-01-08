@@ -261,7 +261,7 @@ static inline bool stat_sample_valid(struct blk_rq_stat *stat)
 
 static u64 rwb_sync_issue_lat(struct rq_wb *rwb)
 {
-	u64 now, issue = ACCESS_ONCE(rwb->sync_issue);
+	u64 now, issue = READ_ONCE(rwb->sync_issue);
 
 	if (!issue || !rwb->sync_cookie)
 		return 0;
@@ -654,7 +654,7 @@ void wbt_set_write_cache(struct rq_wb *rwb, bool write_cache_on)
 }
 
 /*
- * Disable wbt, if enabled by default. Only called from CFQ.
+ * Disable wbt, if enabled by default.
  */
 void wbt_disable_default(struct request_queue *q)
 {

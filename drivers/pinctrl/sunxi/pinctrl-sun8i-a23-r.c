@@ -93,6 +93,7 @@ static const struct sunxi_pinctrl_desc sun8i_a23_r_pinctrl_data = {
 	.npins = ARRAY_SIZE(sun8i_a23_r_pins),
 	.pin_base = PL_BASE,
 	.irq_banks = 1,
+	.disable_strict_mode = true,
 };
 
 static int sun8i_a23_r_pinctrl_probe(struct platform_device *pdev)

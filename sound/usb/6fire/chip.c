@@ -174,11 +174,9 @@ destroy_chip:
 static void usb6fire_chip_disconnect(struct usb_interface *intf)
 {
 	struct sfire_chip *chip;
-	struct snd_card *card;
 
 	chip = usb_get_intfdata(intf);
 	if (chip) { /* if !chip, fw upload has been performed */
-		card = chip->card;
 		chip->intf_count--;
 		if (!chip->intf_count) {
 			mutex_lock(&register_mutex);

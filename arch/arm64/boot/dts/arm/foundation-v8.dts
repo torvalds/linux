@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARM Ltd.
  *
@@ -5,17 +6,5 @@
  */
 
 #include "foundation-v8.dtsi"
-
-/ {
-	gic: interrupt-controller@2c001000 {
-		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
-		#interrupt-cells = <3>;
-		#address-cells = <2>;
-		interrupt-controller;
-		reg = <0x0 0x2c001000 0 0x1000>,
-		      <0x0 0x2c002000 0 0x2000>,
-		      <0x0 0x2c004000 0 0x2000>,
-		      <0x0 0x2c006000 0 0x2000>;
-		interrupts = <1 9 0xf04>;
-	};
-};
+#include "foundation-v8-gicv2.dtsi"
+#include "foundation-v8-spin-table.dtsi"

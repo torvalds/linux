@@ -529,6 +529,7 @@ int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 state)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	status = 0;
 	ret = iwl_mvm_send_cmd_pdu_status(mvm, WIDE_ID(PHY_OPS_GROUP,
 						       CTDP_CONFIG_CMD),
 					  sizeof(cmd), &cmd, &status);
@@ -630,7 +631,7 @@ static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
 
 	if (!iwl_mvm_firmware_running(mvm) ||
 	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR) {
-		ret = -EIO;
+		ret = -ENODATA;
 		goto out;
 	}
 

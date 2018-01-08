@@ -77,7 +77,7 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 	flush_tlb_mm(mm);
 }
 
-#elif defined(CONFIG_PPC_STD_MMU_64)
+#elif defined(CONFIG_PPC_BOOK3S_64)
 #include <asm/book3s/64/tlbflush.h>
 #else
 #error Unsupported MMU type

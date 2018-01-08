@@ -1650,7 +1650,7 @@ static int kcm_clone(struct socket *osock, struct kcm_clone *info,
 	}
 
 	newfile = sock_alloc_file(newsock, 0, osock->sk->sk_prot_creator->name);
-	if (unlikely(IS_ERR(newfile))) {
+	if (IS_ERR(newfile)) {
 		err = PTR_ERR(newfile);
 		goto out_sock_alloc_fail;
 	}

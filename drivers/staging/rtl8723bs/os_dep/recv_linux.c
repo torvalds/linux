@@ -356,8 +356,7 @@ _recv_indicatepkt_drop:
 
 void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)
 {
-	struct adapter *padapter = preorder_ctrl->padapter;
-
-	_init_timer(&(preorder_ctrl->reordering_ctrl_timer), padapter->pnetdev, rtw_reordering_ctrl_timeout_handler, preorder_ctrl);
+	timer_setup(&preorder_ctrl->reordering_ctrl_timer,
+		    rtw_reordering_ctrl_timeout_handler, 0);
 
 }

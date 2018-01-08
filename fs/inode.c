@@ -2090,7 +2090,7 @@ void inode_set_flags(struct inode *inode, unsigned int flags,
 
 	WARN_ON_ONCE(flags & ~mask);
 	do {
-		old_flags = ACCESS_ONCE(inode->i_flags);
+		old_flags = READ_ONCE(inode->i_flags);
 		new_flags = (old_flags & ~mask) | flags;
 	} while (unlikely(cmpxchg(&inode->i_flags, old_flags,
 				  new_flags) != old_flags));

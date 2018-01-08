@@ -168,6 +168,7 @@ extern int kvmppc_allocate_hpt(struct kvm_hpt_info *info, u32 order);
 extern void kvmppc_set_hpt(struct kvm *kvm, struct kvm_hpt_info *info);
 extern long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order);
 extern void kvmppc_free_hpt(struct kvm_hpt_info *info);
+extern void kvmppc_rmap_reset(struct kvm *kvm);
 extern long kvmppc_prepare_vrma(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem);
 extern void kvmppc_map_vrma(struct kvm_vcpu *vcpu,
@@ -177,6 +178,8 @@ extern long kvm_spapr_tce_attach_iommu_group(struct kvm *kvm, int tablefd,
 		struct iommu_group *grp);
 extern void kvm_spapr_tce_release_iommu_group(struct kvm *kvm,
 		struct iommu_group *grp);
+extern int kvmppc_switch_mmu_to_hpt(struct kvm *kvm);
+extern int kvmppc_switch_mmu_to_radix(struct kvm *kvm);
 
 extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				struct kvm_create_spapr_tce_64 *args);

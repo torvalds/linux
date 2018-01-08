@@ -111,6 +111,8 @@
 #define     MVEBU_COMPHY_CONF6_40B		BIT(18)
 #define MVEBU_COMPHY_SELECTOR			0x1140
 #define     MVEBU_COMPHY_SELECTOR_PHY(n)	((n) * 0x4)
+#define MVEBU_COMPHY_PIPE_SELECTOR		0x1144
+#define     MVEBU_COMPHY_PIPE_SELECTOR_PIPE(n)	((n) * 0x4)
 
 #define MVEBU_COMPHY_LANES	6
 #define MVEBU_COMPHY_PORTS	3
@@ -152,7 +154,6 @@ struct mvebu_comphy_priv {
 	void __iomem *base;
 	struct regmap *regmap;
 	struct device *dev;
-	int modes[MVEBU_COMPHY_LANES];
 };
 
 struct mvebu_comphy_lane {
@@ -468,12 +469,16 @@ static int mvebu_comphy_power_on(struct phy *phy)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 	struct mvebu_comphy_priv *priv = lane->priv;
-	int ret;
-	u32 mux, val;
+	int ret, mux;
+	u32 val;
 
 	mux = mvebu_comphy_get_mux(lane->id, lane->port, lane->mode);
 	if (mux < 0)
 		return -ENOTSUPP;
+
+	regmap_read(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, &val);
+	val &= ~(0xf << MVEBU_COMPHY_PIPE_SELECTOR_PIPE(lane->id));
+	regmap_write(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, val);
 
 	regmap_read(priv->regmap, MVEBU_COMPHY_SELECTOR, &val);
 	val &= ~(0xf << MVEBU_COMPHY_SELECTOR_PHY(lane->id));
@@ -526,6 +531,10 @@ static int mvebu_comphy_power_off(struct phy *phy)
 	val &= ~(0xf << MVEBU_COMPHY_SELECTOR_PHY(lane->id));
 	regmap_write(priv->regmap, MVEBU_COMPHY_SELECTOR, val);
 
+	regmap_read(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, &val);
+	val &= ~(0xf << MVEBU_COMPHY_PIPE_SELECTOR_PIPE(lane->id));
+	regmap_write(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, val);
+
 	return 0;
 }
 
@@ -576,8 +585,8 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->regmap);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!priv->base)
-		return -ENOMEM;
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
 		struct mvebu_comphy_lane *lane;

@@ -124,7 +124,6 @@ static int dmard06_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info dmard06_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= dmard06_read_raw,
 };
 

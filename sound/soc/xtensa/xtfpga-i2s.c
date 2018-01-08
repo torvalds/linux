@@ -165,7 +165,7 @@ static bool xtfpga_pcm_push_tx(struct xtfpga_i2s *i2s)
 	tx_substream = rcu_dereference(i2s->tx_substream);
 	tx_active = tx_substream && snd_pcm_running(tx_substream);
 	if (tx_active) {
-		unsigned tx_ptr = ACCESS_ONCE(i2s->tx_ptr);
+		unsigned tx_ptr = READ_ONCE(i2s->tx_ptr);
 		unsigned new_tx_ptr = i2s->tx_fn(i2s, tx_substream->runtime,
 						 tx_ptr);
 
@@ -437,7 +437,7 @@ static int xtfpga_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ACCESS_ONCE(i2s->tx_ptr) = 0;
+		WRITE_ONCE(i2s->tx_ptr, 0);
 		rcu_assign_pointer(i2s->tx_substream, substream);
 		xtfpga_pcm_refill_fifo(i2s);
 		break;
@@ -459,7 +459,7 @@ static snd_pcm_uframes_t xtfpga_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct xtfpga_i2s *i2s = runtime->private_data;
-	snd_pcm_uframes_t pos = ACCESS_ONCE(i2s->tx_ptr);
+	snd_pcm_uframes_t pos = READ_ONCE(i2s->tx_ptr);
 
 	return pos < runtime->buffer_size ? pos : 0;
 }

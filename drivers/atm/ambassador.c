@@ -293,7 +293,7 @@ static inline void __init show_version (void) {
   
 */
 
-static void do_housekeeping (unsigned long arg);
+static void do_housekeeping (struct timer_list *t);
 /********** globals **********/
 
 static unsigned short debug = 0;
@@ -1493,8 +1493,8 @@ static const struct atmdev_ops amb_ops = {
 };
 
 /********** housekeeping **********/
-static void do_housekeeping (unsigned long arg) {
-  amb_dev * dev = (amb_dev *) arg;
+static void do_housekeeping (struct timer_list *t) {
+  amb_dev * dev = from_timer(dev, t, housekeeping);
   
   // could collect device-specific (not driver/atm-linux) stats here
       
@@ -2267,8 +2267,7 @@ static int amb_probe(struct pci_dev *pci_dev,
 	dev->atm_dev->ci_range.vpi_bits = NUM_VPI_BITS;
 	dev->atm_dev->ci_range.vci_bits = NUM_VCI_BITS;
 
-	setup_timer(&dev->housekeeping, do_housekeeping,
-		    (unsigned long)dev);
+	timer_setup(&dev->housekeeping, do_housekeeping, 0);
 	mod_timer(&dev->housekeeping, jiffies);
 
 	// enable host interrupts

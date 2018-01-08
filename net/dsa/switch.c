@@ -121,7 +121,7 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 	if (ds->index == info->sw_index)
 		set_bit(info->port, group);
 	for (port = 0; port < ds->num_ports; port++)
-		if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+		if (dsa_is_dsa_port(ds, port))
 			set_bit(port, group);
 
 	if (switchdev_trans_ph_prepare(trans)) {
@@ -133,6 +133,8 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 			if (err)
 				return err;
 		}
+
+		return 0;
 	}
 
 	for_each_set_bit(port, group, ds->num_ports)
@@ -180,6 +182,8 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 			if (err)
 				return err;
 		}
+
+		return 0;
 	}
 
 	for_each_set_bit(port, members, ds->num_ports)

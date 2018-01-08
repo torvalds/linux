@@ -15,6 +15,9 @@
 /* FIXME: consumer API required for gpio_set_value() etc, get rid of this */
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <asm/gpio.h>
+#include <asm/irq_handler.h>
+#include <asm/portmux.h>
 
 #if ANOMALY_05000311 || ANOMALY_05000323
 enum {

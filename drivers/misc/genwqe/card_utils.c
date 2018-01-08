@@ -296,7 +296,7 @@ static int genwqe_sgl_size(int num_pages)
  * from user-space into the cached pages.
  */
 int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
-			  void __user *user_addr, size_t user_size)
+			  void __user *user_addr, size_t user_size, int write)
 {
 	int rc;
 	struct pci_dev *pci_dev = cd->pci_dev;
@@ -312,6 +312,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 
 	sgl->user_addr = user_addr;
 	sgl->user_size = user_size;
+	sgl->write = write;
 	sgl->sgl_size = genwqe_sgl_size(sgl->nr_pages);
 
 	if (get_order(sgl->sgl_size) > MAX_ORDER) {
@@ -476,14 +477,20 @@ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
 {
 	int rc = 0;
+	size_t offset;
+	unsigned long res;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if (sgl->fpage) {
-		if (copy_to_user(sgl->user_addr, sgl->fpage + sgl->fpage_offs,
-				 sgl->fpage_size)) {
-			dev_err(&pci_dev->dev, "[%s] err: copying fpage!\n",
-				__func__);
-			rc = -EFAULT;
+		if (sgl->write) {
+			res = copy_to_user(sgl->user_addr,
+				sgl->fpage + sgl->fpage_offs, sgl->fpage_size);
+			if (res) {
+				dev_err(&pci_dev->dev,
+					"[%s] err: copying fpage! (res=%lu)\n",
+					__func__, res);
+				rc = -EFAULT;
+			}
 		}
 		__genwqe_free_consistent(cd, PAGE_SIZE, sgl->fpage,
 					 sgl->fpage_dma_addr);
@@ -491,12 +498,16 @@ int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
 		sgl->fpage_dma_addr = 0;
 	}
 	if (sgl->lpage) {
-		if (copy_to_user(sgl->user_addr + sgl->user_size -
-				 sgl->lpage_size, sgl->lpage,
-				 sgl->lpage_size)) {
-			dev_err(&pci_dev->dev, "[%s] err: copying lpage!\n",
-				__func__);
-			rc = -EFAULT;
+		if (sgl->write) {
+			offset = sgl->user_size - sgl->lpage_size;
+			res = copy_to_user(sgl->user_addr + offset, sgl->lpage,
+					   sgl->lpage_size);
+			if (res) {
+				dev_err(&pci_dev->dev,
+					"[%s] err: copying lpage! (res=%lu)\n",
+					__func__, res);
+				rc = -EFAULT;
+			}
 		}
 		__genwqe_free_consistent(cd, PAGE_SIZE, sgl->lpage,
 					 sgl->lpage_dma_addr);
@@ -599,14 +610,14 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 	/* pin user pages in memory */
 	rc = get_user_pages_fast(data & PAGE_MASK, /* page aligned addr */
 				 m->nr_pages,
-				 1,		/* write by caller */
+				 m->write,		/* readable/writable */
 				 m->page_list);	/* ptrs to pages */
 	if (rc < 0)
 		goto fail_get_user_pages;
 
 	/* assumption: get_user_pages can be killed by signals. */
 	if (rc < m->nr_pages) {
-		free_user_pages(m->page_list, rc, 0);
+		free_user_pages(m->page_list, rc, m->write);
 		rc = -EFAULT;
 		goto fail_get_user_pages;
 	}
@@ -618,7 +629,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 	return 0;
 
  fail_free_user_pages:
-	free_user_pages(m->page_list, m->nr_pages, 0);
+	free_user_pages(m->page_list, m->nr_pages, m->write);
 
  fail_get_user_pages:
 	kfree(m->page_list);
@@ -651,7 +662,7 @@ int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
 		genwqe_unmap_pages(cd, m->dma_list, m->nr_pages);
 
 	if (m->page_list) {
-		free_user_pages(m->page_list, m->nr_pages, 1);
+		free_user_pages(m->page_list, m->nr_pages, m->write);
 
 		kfree(m->page_list);
 		m->page_list = NULL;

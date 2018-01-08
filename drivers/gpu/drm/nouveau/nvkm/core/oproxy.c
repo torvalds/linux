@@ -37,9 +37,17 @@ nvkm_oproxy_ntfy(struct nvkm_object *object, u32 mthd,
 }
 
 static int
-nvkm_oproxy_map(struct nvkm_object *object, u64 *addr, u32 *size)
+nvkm_oproxy_map(struct nvkm_object *object, void *argv, u32 argc,
+		enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
-	return nvkm_object_map(nvkm_oproxy(object)->object, addr, size);
+	struct nvkm_oproxy *oproxy = nvkm_oproxy(object);
+	return nvkm_object_map(oproxy->object, argv, argc, type, addr, size);
+}
+
+static int
+nvkm_oproxy_unmap(struct nvkm_object *object)
+{
+	return nvkm_object_unmap(nvkm_oproxy(object)->object);
 }
 
 static int
@@ -171,6 +179,7 @@ nvkm_oproxy_func = {
 	.mthd = nvkm_oproxy_mthd,
 	.ntfy = nvkm_oproxy_ntfy,
 	.map = nvkm_oproxy_map,
+	.unmap = nvkm_oproxy_unmap,
 	.rd08 = nvkm_oproxy_rd08,
 	.rd16 = nvkm_oproxy_rd16,
 	.rd32 = nvkm_oproxy_rd32,

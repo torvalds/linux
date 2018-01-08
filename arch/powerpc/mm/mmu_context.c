@@ -34,15 +34,6 @@ static inline void switch_mm_pgdir(struct task_struct *tsk,
 				   struct mm_struct *mm) { }
 #endif
 
-#ifdef CONFIG_PPC_BOOK3S_64
-static inline void inc_mm_active_cpus(struct mm_struct *mm)
-{
-	atomic_inc(&mm->context.active_cpus);
-}
-#else
-static inline void inc_mm_active_cpus(struct mm_struct *mm) { }
-#endif
-
 void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			struct task_struct *tsk)
 {

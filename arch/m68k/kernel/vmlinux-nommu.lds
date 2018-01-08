@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	vmlinux.lds.S -- master linker script for m68knommu arch
  *

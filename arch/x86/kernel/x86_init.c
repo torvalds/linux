@@ -28,6 +28,8 @@ void x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
 int __init iommu_init_noop(void) { return 0; }
 void iommu_shutdown_noop(void) { }
+bool __init bool_x86_init_noop(void) { return false; }
+void x86_op_int_noop(int cpu) { }
 
 /*
  * The platform setup functions are preset with the default functions
@@ -55,6 +57,7 @@ struct x86_init_ops x86_init __initdata = {
 		.pre_vector_init	= init_ISA_irqs,
 		.intr_init		= native_init_IRQ,
 		.trap_init		= x86_init_noop,
+		.intr_mode_init		= apic_intr_mode_init
 	},
 
 	.oem = {
@@ -81,6 +84,13 @@ struct x86_init_ops x86_init __initdata = {
 		.init_irq		= x86_default_pci_init_irq,
 		.fixup_irqs		= x86_default_pci_fixup_irqs,
 	},
+
+	.hyper = {
+		.init_platform		= x86_init_noop,
+		.guest_late_init	= x86_init_noop,
+		.x2apic_available	= bool_x86_init_noop,
+		.init_mem_mapping	= x86_init_noop,
+	},
 };
 
 struct x86_cpuinit_ops x86_cpuinit = {
@@ -101,6 +111,7 @@ struct x86_platform_ops x86_platform __ro_after_init = {
 	.get_nmi_reason			= default_get_nmi_reason,
 	.save_sched_clock_state 	= tsc_save_sched_clock_state,
 	.restore_sched_clock_state 	= tsc_restore_sched_clock_state,
+	.hyper.pin_vcpu			= x86_op_int_noop,
 };
 
 EXPORT_SYMBOL_GPL(x86_platform);

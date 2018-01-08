@@ -344,3 +344,4 @@ Version History
 	(wrong raid10_copies/raid10_format sequence)
 1.11.1  Add raid4/5/6 journal write-back support via journal_mode option
 1.12.1  fix for MD deadlock between mddev_suspend() and md_write_start() available
+1.13.0  Fix dev_health status at end of "recover" (was 'a', now 'A')

@@ -112,6 +112,7 @@ static inline bool dmar_rcu_check(void)
 
 extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
+extern void dmar_register_bus_notifier(void);
 extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
 				struct dmar_dev_scope **devices, u16 segment);
 extern void *dmar_alloc_dev_scope(void *start, void *end, int *cnt);

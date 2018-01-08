@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_PKT_SCHED_H
 #define __LINUX_PKT_SCHED_H
 
@@ -74,6 +75,7 @@ struct tc_estimator {
 #define TC_H_INGRESS    (0xFFFFFFF1U)
 #define TC_H_CLSACT	TC_H_INGRESS
 
+#define TC_H_MIN_PRIORITY	0xFFE0U
 #define TC_H_MIN_INGRESS	0xFFF2U
 #define TC_H_MIN_EGRESS		0xFFF3U
 
@@ -254,6 +256,7 @@ struct tc_red_qopt {
 #define TC_RED_ECN		1
 #define TC_RED_HARDDROP		2
 #define TC_RED_ADAPTATIVE	4
+#define TC_RED_OFFLOADED	8
 };
 
 struct tc_red_xstats {
@@ -534,6 +537,9 @@ enum {
 	TCA_NETEM_ECN,
 	TCA_NETEM_RATE64,
 	TCA_NETEM_PAD,
+	TCA_NETEM_LATENCY64,
+	TCA_NETEM_JITTER64,
+	TCA_NETEM_SLOT,
 	__TCA_NETEM_MAX,
 };
 
@@ -569,6 +575,13 @@ struct tc_netem_rate {
 	__s32	packet_overhead;
 	__u32	cell_size;
 	__s32	cell_overhead;
+};
+
+struct tc_netem_slot {
+	__s64   min_delay; /* nsec */
+	__s64   max_delay;
+	__s32   max_packets;
+	__s32   max_bytes;
 };
 
 enum {
@@ -625,6 +638,22 @@ enum {
 
 #define TC_MQPRIO_HW_OFFLOAD_MAX (__TC_MQPRIO_HW_OFFLOAD_MAX - 1)
 
+enum {
+	TC_MQPRIO_MODE_DCB,
+	TC_MQPRIO_MODE_CHANNEL,
+	__TC_MQPRIO_MODE_MAX
+};
+
+#define __TC_MQPRIO_MODE_MAX (__TC_MQPRIO_MODE_MAX - 1)
+
+enum {
+	TC_MQPRIO_SHAPER_DCB,
+	TC_MQPRIO_SHAPER_BW_RATE,	/* Add new shapers below */
+	__TC_MQPRIO_SHAPER_MAX
+};
+
+#define __TC_MQPRIO_SHAPER_MAX (__TC_MQPRIO_SHAPER_MAX - 1)
+
 struct tc_mqprio_qopt {
 	__u8	num_tc;
 	__u8	prio_tc_map[TC_QOPT_BITMASK + 1];
@@ -632,6 +661,22 @@ struct tc_mqprio_qopt {
 	__u16	count[TC_QOPT_MAX_QUEUE];
 	__u16	offset[TC_QOPT_MAX_QUEUE];
 };
+
+#define TC_MQPRIO_F_MODE		0x1
+#define TC_MQPRIO_F_SHAPER		0x2
+#define TC_MQPRIO_F_MIN_RATE		0x4
+#define TC_MQPRIO_F_MAX_RATE		0x8
+
+enum {
+	TCA_MQPRIO_UNSPEC,
+	TCA_MQPRIO_MODE,
+	TCA_MQPRIO_SHAPER,
+	TCA_MQPRIO_MIN_RATE64,
+	TCA_MQPRIO_MAX_RATE64,
+	__TCA_MQPRIO_MAX,
+};
+
+#define TCA_MQPRIO_MAX (__TCA_MQPRIO_MAX - 1)
 
 /* SFB */
 
@@ -871,4 +916,23 @@ struct tc_pie_xstats {
 	__u32 maxq;             /* maximum queue size */
 	__u32 ecn_mark;         /* packets marked with ecn*/
 };
+
+/* CBS */
+struct tc_cbs_qopt {
+	__u8 offload;
+	__u8 _pad[3];
+	__s32 hicredit;
+	__s32 locredit;
+	__s32 idleslope;
+	__s32 sendslope;
+};
+
+enum {
+	TCA_CBS_UNSPEC,
+	TCA_CBS_PARMS,
+	__TCA_CBS_MAX,
+};
+
+#define TCA_CBS_MAX (__TCA_CBS_MAX - 1)
+
 #endif

@@ -1,10 +1,18 @@
-/* Broadcom FlexRM Mailbox Driver
- *
+/*
  * Copyright (C) 2017 Broadcom
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation version 2.
+ *
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether express or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/*
+ * Broadcom FlexRM Mailbox Driver
  *
  * Each Broadcom FlexSparx4 offload engine is implemented as an
  * extension to Broadcom FlexRM ring manager. The FlexRM ring
@@ -1116,8 +1124,8 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 		err = flexrm_cmpl_desc_to_error(desc);
 		if (err < 0) {
 			dev_warn(ring->mbox->dev,
-				 "got completion desc=0x%lx with error %d",
-				 (unsigned long)desc, err);
+			"ring%d got completion desc=0x%lx with error %d\n",
+			ring->num, (unsigned long)desc, err);
 		}
 
 		/* Determine request id from completion descriptor */
@@ -1127,8 +1135,8 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 		msg = ring->requests[reqid];
 		if (!msg) {
 			dev_warn(ring->mbox->dev,
-				 "null msg pointer for completion desc=0x%lx",
-				 (unsigned long)desc);
+			"ring%d null msg pointer for completion desc=0x%lx\n",
+			ring->num, (unsigned long)desc);
 			continue;
 		}
 
@@ -1238,7 +1246,9 @@ static int flexrm_startup(struct mbox_chan *chan)
 	ring->bd_base = dma_pool_alloc(ring->mbox->bd_pool,
 				       GFP_KERNEL, &ring->bd_dma_base);
 	if (!ring->bd_base) {
-		dev_err(ring->mbox->dev, "can't allocate BD memory\n");
+		dev_err(ring->mbox->dev,
+			"can't allocate BD memory for ring%d\n",
+			ring->num);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1261,7 +1271,9 @@ static int flexrm_startup(struct mbox_chan *chan)
 	ring->cmpl_base = dma_pool_alloc(ring->mbox->cmpl_pool,
 					 GFP_KERNEL, &ring->cmpl_dma_base);
 	if (!ring->cmpl_base) {
-		dev_err(ring->mbox->dev, "can't allocate completion memory\n");
+		dev_err(ring->mbox->dev,
+			"can't allocate completion memory for ring%d\n",
+			ring->num);
 		ret = -ENOMEM;
 		goto fail_free_bd_memory;
 	}
@@ -1269,7 +1281,8 @@ static int flexrm_startup(struct mbox_chan *chan)
 
 	/* Request IRQ */
 	if (ring->irq == UINT_MAX) {
-		dev_err(ring->mbox->dev, "ring IRQ not available\n");
+		dev_err(ring->mbox->dev,
+			"ring%d IRQ not available\n", ring->num);
 		ret = -ENODEV;
 		goto fail_free_cmpl_memory;
 	}
@@ -1278,7 +1291,8 @@ static int flexrm_startup(struct mbox_chan *chan)
 				   flexrm_irq_thread,
 				   0, dev_name(ring->mbox->dev), ring);
 	if (ret) {
-		dev_err(ring->mbox->dev, "failed to request ring IRQ\n");
+		dev_err(ring->mbox->dev,
+			"failed to request ring%d IRQ\n", ring->num);
 		goto fail_free_cmpl_memory;
 	}
 	ring->irq_requested = true;
@@ -1291,7 +1305,9 @@ static int flexrm_startup(struct mbox_chan *chan)
 			&ring->irq_aff_hint);
 	ret = irq_set_affinity_hint(ring->irq, &ring->irq_aff_hint);
 	if (ret) {
-		dev_err(ring->mbox->dev, "failed to set IRQ affinity hint\n");
+		dev_err(ring->mbox->dev,
+			"failed to set IRQ affinity hint for ring%d\n",
+			ring->num);
 		goto fail_free_irq;
 	}
 
@@ -1365,8 +1381,8 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 	/* Disable/inactivate ring */
 	writel_relaxed(0x0, ring->regs + RING_CONTROL);
 
-	/* Flush ring with timeout of 1s */
-	timeout = 1000;
+	/* Set ring flush state */
+	timeout = 1000; /* timeout of 1s */
 	writel_relaxed(BIT(CONTROL_FLUSH_SHIFT),
 			ring->regs + RING_CONTROL);
 	do {
@@ -1374,7 +1390,23 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 		    FLUSH_DONE_MASK)
 			break;
 		mdelay(1);
-	} while (timeout--);
+	} while (--timeout);
+	if (!timeout)
+		dev_err(ring->mbox->dev,
+			"setting ring%d flush state timedout\n", ring->num);
+
+	/* Clear ring flush state */
+	timeout = 1000; /* timeout of 1s */
+	writel_relaxed(0x0, ring + RING_CONTROL);
+	do {
+		if (!(readl_relaxed(ring + RING_FLUSH_DONE) &
+		      FLUSH_DONE_MASK))
+			break;
+		mdelay(1);
+	} while (--timeout);
+	if (!timeout)
+		dev_err(ring->mbox->dev,
+			"clearing ring%d flush state timedout\n", ring->num);
 
 	/* Abort all in-flight requests */
 	for (reqid = 0; reqid < RING_MAX_REQ_COUNT; reqid++) {

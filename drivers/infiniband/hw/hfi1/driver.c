@@ -433,6 +433,12 @@ static inline void init_packet(struct hfi1_ctxtdata *rcd,
 	packet->numpkt = 0;
 }
 
+/* We support only two types - 9B and 16B for now */
+static const hfi1_handle_cnp hfi1_handle_cnp_tbl[2] = {
+	[HFI1_PKT_TYPE_9B] = &return_cnp,
+	[HFI1_PKT_TYPE_16B] = &return_cnp_16B
+};
+
 void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
@@ -866,7 +872,7 @@ static inline void set_nodma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 	 * interrupt handler for all statically allocated kernel contexts.
 	 */
 	if (ctxt >= dd->first_dyn_alloc_ctxt) {
-		rcd = hfi1_rcd_get_by_index(dd, ctxt);
+		rcd = hfi1_rcd_get_by_index_safe(dd, ctxt);
 		if (rcd) {
 			rcd->do_interrupt =
 				&handle_receive_interrupt_nodma_rtail;
@@ -895,7 +901,7 @@ static inline void set_dma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 	 * interrupt handler for all statically allocated kernel contexts.
 	 */
 	if (ctxt >= dd->first_dyn_alloc_ctxt) {
-		rcd = hfi1_rcd_get_by_index(dd, ctxt);
+		rcd = hfi1_rcd_get_by_index_safe(dd, ctxt);
 		if (rcd) {
 			rcd->do_interrupt =
 				&handle_receive_interrupt_dma_rtail;
@@ -923,10 +929,9 @@ void set_all_slowpath(struct hfi1_devdata *dd)
 		rcd = hfi1_rcd_get_by_index(dd, i);
 		if (!rcd)
 			continue;
-		if ((i < dd->first_dyn_alloc_ctxt) ||
-		    (rcd->sc && (rcd->sc->type == SC_KERNEL))) {
+		if (i < dd->first_dyn_alloc_ctxt || rcd->is_vnic)
 			rcd->do_interrupt = &handle_receive_interrupt;
-		}
+
 		hfi1_rcd_put(rcd);
 	}
 }
@@ -1252,9 +1257,9 @@ void shutdown_led_override(struct hfi1_pportdata *ppd)
 	write_csr(dd, DCC_CFG_LED_CNTRL, 0);
 }
 
-static void run_led_override(unsigned long opaque)
+static void run_led_override(struct timer_list *t)
 {
-	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)opaque;
+	struct hfi1_pportdata *ppd = from_timer(ppd, t, led_override_timer);
 	struct hfi1_devdata *dd = ppd->dd;
 	unsigned long timeout;
 	int phase_idx;
@@ -1298,8 +1303,7 @@ void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
 	 * timeout so the handler will be called soon to look at our request.
 	 */
 	if (!timer_pending(&ppd->led_override_timer)) {
-		setup_timer(&ppd->led_override_timer, run_led_override,
-			    (unsigned long)ppd);
+		timer_setup(&ppd->led_override_timer, run_led_override, 0);
 		ppd->led_override_timer.expires = jiffies + 1;
 		add_timer(&ppd->led_override_timer);
 		atomic_set(&ppd->led_override_timer_active, 1);

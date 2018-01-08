@@ -130,7 +130,7 @@ enum ia_css_debug_enable_param_dump {
  * @param[in]	fmt		printf like format string
  * @param[in]	args		arguments for the format string
  */
-STORAGE_CLASS_INLINE void
+static inline void
 ia_css_debug_vdtrace(unsigned int level, const char *fmt, va_list args)
 {
 	if (ia_css_debug_trace_level >= level)

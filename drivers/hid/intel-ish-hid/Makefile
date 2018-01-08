@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile - Intel ISH HID drivers
 # Copyright (c) 2014-2016, Intel Corporation.

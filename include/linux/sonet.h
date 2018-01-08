@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* sonet.h - SONET/SHD physical layer control */
 #ifndef LINUX_SONET_H
 #define LINUX_SONET_H

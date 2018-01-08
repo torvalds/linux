@@ -40,6 +40,8 @@
  * @node_name: FC WWNN for the port
  * @port_name: FC WWPN for the port
  * @port_role: What NVME roles are supported (see FC_PORT_ROLE_xxx)
+ * @dev_loss_tmo: maximum delay for reconnects to an association on
+ *             this device. Used only on a remoteport.
  *
  * Initialization values for dynamic port fields:
  * @port_id:      FC N_Port_ID currently assigned the port. Upper 8 bits must
@@ -50,6 +52,7 @@ struct nvme_fc_port_info {
 	u64			port_name;
 	u32			port_role;
 	u32			port_id;
+	u32			dev_loss_tmo;
 };
 
 
@@ -101,8 +104,6 @@ enum nvmefc_fcp_datadir {
 	NVMEFC_FCP_READ,
 };
 
-
-#define NVME_FC_MAX_SEGMENTS		256
 
 /**
  * struct nvmefc_fcp_req - Request structure passed from NVME-FC transport
@@ -202,6 +203,9 @@ enum nvme_fc_obj_state {
  *             The length of the buffer corresponds to the local_priv_sz
  *             value specified in the nvme_fc_port_template supplied by
  *             the LLDD.
+ * @dev_loss_tmo: maximum delay for reconnects to an association on
+ *             this device. To modify, lldd must call
+ *             nvme_fc_set_remoteport_devloss().
  *
  * Fields with dynamic values. Values may change base on link state. LLDD
  * may reference fields directly to change them. Initialized by the
@@ -259,10 +263,9 @@ struct nvme_fc_remote_port {
 	u32 port_role;
 	u64 node_name;
 	u64 port_name;
-
 	struct nvme_fc_local_port *localport;
-
 	void *private;
+	u32 dev_loss_tmo;
 
 	/* dynamic fields */
 	u32 port_id;
@@ -345,11 +348,6 @@ struct nvme_fc_remote_port {
  *       the request, the LLDD must still call the fcp request done routine
  *       indicating an FC transport Aborted status.
  *       Entrypoint is Mandatory.
- *
- * @defer_rcv:  Called by the transport to signal the LLLD that it has
- *       begun processing of a previously received NVME CMD IU. The LLDD
- *       is now free to re-use the rcv buffer associated with the
- *       nvmefc_tgt_fcp_req.
  *
  * @max_hw_queues:  indicates the maximum number of hw queues the LLDD
  *       supports for cpu affinitization.
@@ -451,6 +449,10 @@ int nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 
 int nvme_fc_unregister_remoteport(struct nvme_fc_remote_port *remoteport);
 
+void nvme_fc_rescan_remoteport(struct nvme_fc_remote_port *remoteport);
+
+int nvme_fc_set_remoteport_devloss(struct nvme_fc_remote_port *remoteport,
+			u32 dev_loss_tmo);
 
 
 /*
@@ -806,11 +808,19 @@ struct nvmet_fc_target_port {
  *       outstanding operation (if there was one) to complete, then will
  *       call the fcp_req_release() callback to return the command's
  *       exchange context back to the LLDD.
+ *       Entrypoint is Mandatory.
  *
  * @fcp_req_release:  Called by the transport to return a nvmefc_tgt_fcp_req
  *       to the LLDD after all operations on the fcp operation are complete.
  *       This may be due to the command completing or upon completion of
  *       abort cleanup.
+ *       Entrypoint is Mandatory.
+ *
+ * @defer_rcv:  Called by the transport to signal the LLLD that it has
+ *       begun processing of a previously received NVME CMD IU. The LLDD
+ *       is now free to re-use the rcv buffer associated with the
+ *       nvmefc_tgt_fcp_req.
+ *       Entrypoint is Optional.
  *
  * @max_hw_queues:  indicates the maximum number of hw queues the LLDD
  *       supports for cpu affinitization.

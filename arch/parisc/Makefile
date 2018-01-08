@@ -22,7 +22,7 @@ KBUILD_IMAGE := vmlinuz
 KBUILD_DEFCONFIG := default_defconfig
 
 NM		= sh $(srctree)/arch/parisc/nm
-CHECKFLAGS	+= -D__hppa__=1
+CHECKFLAGS	+= -D__hppa__=1 -mbig-endian
 LIBGCC		= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 export LIBGCC
 
@@ -129,8 +129,13 @@ Image: vmlinux
 bzImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
+ifdef CONFIG_PARISC_SELF_EXTRACT
 vmlinuz: bzImage
 	$(OBJCOPY) $(boot)/bzImage $@
+else
+vmlinuz: vmlinux
+	@gzip -cf -9 $< > $@
+endif
 
 install:
 	$(CONFIG_SHELL) $(src)/arch/parisc/install.sh \

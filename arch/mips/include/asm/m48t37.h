@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Registers for the SGS-Thomson M48T37 Timekeeper RAM chip
  */

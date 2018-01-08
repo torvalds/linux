@@ -9,6 +9,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modes.h>
 #include <drm/tinydrm/tinydrm.h>
 
@@ -50,7 +51,6 @@ static int tinydrm_connector_get_modes(struct drm_connector *connector)
 
 static const struct drm_connector_helper_funcs tinydrm_connector_hfuncs = {
 	.get_modes = tinydrm_connector_get_modes,
-	.best_encoder = drm_atomic_helper_best_encoder,
 };
 
 static enum drm_connector_status
@@ -144,7 +144,7 @@ EXPORT_SYMBOL(tinydrm_display_pipe_update);
  * @pipe: Simple display pipe
  * @plane_state: Plane state
  *
- * This function uses drm_fb_cma_prepare_fb() to check if the plane FB has an
+ * This function uses drm_gem_fb_prepare_fb() to check if the plane FB has an
  * dma-buf attached, extracts the exclusive fence and attaches it to plane
  * state for the atomic helper to wait on. Drivers can use this as their
  * &drm_simple_display_pipe_funcs->prepare_fb callback.
@@ -152,7 +152,7 @@ EXPORT_SYMBOL(tinydrm_display_pipe_update);
 int tinydrm_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 				    struct drm_plane_state *plane_state)
 {
-	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
+	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
 }
 EXPORT_SYMBOL(tinydrm_display_pipe_prepare_fb);
 

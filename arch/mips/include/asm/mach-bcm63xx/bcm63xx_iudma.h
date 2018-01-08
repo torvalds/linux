@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BCM63XX_IUDMA_H_
 #define BCM63XX_IUDMA_H_
 

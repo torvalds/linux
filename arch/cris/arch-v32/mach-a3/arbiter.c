@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Memory arbiter functions. Allocates bandwidth through the
  * arbiter and sets up arbiter breakpoints.

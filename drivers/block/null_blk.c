@@ -154,6 +154,10 @@ enum {
 	NULL_Q_MQ		= 2,
 };
 
+static int g_no_sched;
+module_param_named(no_sched, g_no_sched, int, S_IRUGO);
+MODULE_PARM_DESC(no_sched, "No io scheduler");
+
 static int g_submit_queues = 1;
 module_param_named(submit_queues, g_submit_queues, int, S_IRUGO);
 MODULE_PARM_DESC(submit_queues, "Number of submission queues");
@@ -476,7 +480,7 @@ static struct configfs_item_operations nullb_device_ops = {
 	.release	= nullb_device_release,
 };
 
-static struct config_item_type nullb_device_type = {
+static const struct config_item_type nullb_device_type = {
 	.ct_item_ops	= &nullb_device_ops,
 	.ct_attrs	= nullb_device_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -528,7 +532,7 @@ static struct configfs_group_operations nullb_group_ops = {
 	.drop_item	= nullb_group_drop_item,
 };
 
-static struct config_item_type nullb_group_type = {
+static const struct config_item_type nullb_group_type = {
 	.ct_group_ops	= &nullb_group_ops,
 	.ct_attrs	= nullb_group_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -1754,6 +1758,8 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	set->numa_node = nullb ? nullb->dev->home_node : g_home_node;
 	set->cmd_size	= sizeof(struct nullb_cmd);
 	set->flags = BLK_MQ_F_SHOULD_MERGE;
+	if (g_no_sched)
+		set->flags |= BLK_MQ_F_NO_SCHED;
 	set->driver_data = NULL;
 
 	if ((nullb && nullb->dev->blocking) || g_blocking)
@@ -1985,8 +1991,10 @@ static int __init null_init(void)
 
 	for (i = 0; i < nr_devices; i++) {
 		dev = null_alloc_dev();
-		if (!dev)
+		if (!dev) {
+			ret = -ENOMEM;
 			goto err_dev;
+		}
 		ret = null_add_dev(dev);
 		if (ret) {
 			null_free_dev(dev);

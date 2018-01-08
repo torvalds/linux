@@ -204,7 +204,7 @@ struct configfs_attribute *acpi_table_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type acpi_table_type = {
+static const struct config_item_type acpi_table_type = {
 	.ct_owner = THIS_MODULE,
 	.ct_bin_attrs = acpi_table_bin_attrs,
 	.ct_attrs = acpi_table_attrs,
@@ -237,12 +237,12 @@ struct configfs_group_operations acpi_table_group_ops = {
 	.drop_item = acpi_table_drop_item,
 };
 
-static struct config_item_type acpi_tables_type = {
+static const struct config_item_type acpi_tables_type = {
 	.ct_owner = THIS_MODULE,
 	.ct_group_ops = &acpi_table_group_ops,
 };
 
-static struct config_item_type acpi_root_group_type = {
+static const struct config_item_type acpi_root_group_type = {
 	.ct_owner = THIS_MODULE,
 };
 

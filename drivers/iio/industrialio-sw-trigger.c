@@ -19,9 +19,9 @@
 #include <linux/configfs.h>
 
 static struct config_group *iio_triggers_group;
-static struct config_item_type iio_trigger_type_group_type;
+static const struct config_item_type iio_trigger_type_group_type;
 
-static struct config_item_type iio_triggers_group_type = {
+static const struct config_item_type iio_triggers_group_type = {
 	.ct_owner = THIS_MODULE,
 };
 
@@ -156,7 +156,7 @@ static struct configfs_group_operations trigger_ops = {
 	.drop_item	= &trigger_drop_group,
 };
 
-static struct config_item_type iio_trigger_type_group_type = {
+static const struct config_item_type iio_trigger_type_group_type = {
 	.ct_group_ops = &trigger_ops,
 	.ct_owner       = THIS_MODULE,
 };

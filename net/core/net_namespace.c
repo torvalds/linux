@@ -234,6 +234,7 @@ int peernet2id_alloc(struct net *net, struct net *peer)
 		rtnl_net_notifyid(net, RTM_NEWNSID, id);
 	return id;
 }
+EXPORT_SYMBOL_GPL(peernet2id_alloc);
 
 /* This function returns, if assigned, the id of a peer netns. */
 int peernet2id(struct net *net, struct net *peer)

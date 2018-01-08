@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Re-map IO memory to kernel address space so that we can access it.
  * This is needed for high PCI addresses that aren't mapped in the
@@ -161,6 +162,7 @@ int ioremap_page_range(unsigned long addr,
 	unsigned long next;
 	int err;
 
+	might_sleep();
 	BUG_ON(addr >= end);
 
 	start = addr;

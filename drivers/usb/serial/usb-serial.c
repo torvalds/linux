@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB Serial Converter driver
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 1999 - 2012 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2000 Peter Berger (pberger@brimson.com)
  * Copyright (C) 2000 Al Borchers (borchers@steinerpoint.com)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
  *
  * This driver was originally based on the ACM driver by Armin Fuerst (which was
  * based on a driver by Brad Keryan)
@@ -1201,17 +1198,6 @@ static const struct tty_operations serial_ops = {
 
 struct tty_driver *usb_serial_tty_driver;
 
-/* Driver structure we register with the USB core */
-static struct usb_driver usb_serial_driver = {
-	.name =		"usbserial",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.suspend =	usb_serial_suspend,
-	.resume =	usb_serial_resume,
-	.no_dynamic_id =	1,
-	.supports_autosuspend =	1,
-};
-
 static int __init usb_serial_init(void)
 {
 	int result;
@@ -1247,13 +1233,6 @@ static int __init usb_serial_init(void)
 		goto exit_reg_driver;
 	}
 
-	/* register the USB driver */
-	result = usb_register(&usb_serial_driver);
-	if (result < 0) {
-		pr_err("%s - usb_register failed\n", __func__);
-		goto exit_tty;
-	}
-
 	/* register the generic driver, if we should */
 	result = usb_serial_generic_register();
 	if (result < 0) {
@@ -1264,9 +1243,6 @@ static int __init usb_serial_init(void)
 	return result;
 
 exit_generic:
-	usb_deregister(&usb_serial_driver);
-
-exit_tty:
 	tty_unregister_driver(usb_serial_tty_driver);
 
 exit_reg_driver:
@@ -1285,7 +1261,6 @@ static void __exit usb_serial_exit(void)
 
 	usb_serial_generic_deregister();
 
-	usb_deregister(&usb_serial_driver);
 	tty_unregister_driver(usb_serial_tty_driver);
 	put_tty_driver(usb_serial_tty_driver);
 	bus_unregister(&usb_serial_bus_type);
@@ -1460,4 +1435,4 @@ EXPORT_SYMBOL_GPL(usb_serial_deregister_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

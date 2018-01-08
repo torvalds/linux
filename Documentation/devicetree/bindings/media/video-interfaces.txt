@@ -55,6 +55,15 @@ divided into two separate ITU-R BT.656 8-bit busses.  In such case bus-width
 and data-shift properties can be used to assign physical data lines to each
 endpoint node (logical bus).
 
+Documenting bindings for devices
+--------------------------------
+
+All required and optional bindings the device supports shall be explicitly
+documented in device DT binding documentation. This also includes port and
+endpoint nodes for the device, including unit-addresses and reg properties where
+relevant.
+
+Please also see Documentation/devicetree/bindings/graph.txt .
 
 Required properties
 -------------------
@@ -66,6 +75,16 @@ are required in a relevant parent node:
  - #address-cells : number of cells required to define port/endpoint
 		    identifier, should be 1.
  - #size-cells    : should be zero.
+
+
+Optional properties
+-------------------
+
+- flash-leds: An array of phandles, each referring to a flash LED, a sub-node
+  of the LED driver device node.
+
+- lens-focus: A phandle to the node of the focus lens controller.
+
 
 Optional endpoint properties
 ----------------------------
@@ -99,7 +118,10 @@ Optional endpoint properties
   determines the logical lane number, while the value of an entry indicates
   physical lane, e.g. for 2-lane MIPI CSI-2 bus we could have
   "data-lanes = <1 2>;", assuming the clock lane is on hardware lane 0.
-  This property is valid for serial busses only (e.g. MIPI CSI-2).
+  If the hardware does not support lane reordering, monotonically
+  incremented values shall be used from 0 or 1 onwards, depending on
+  whether or not there is also a clock lane. This property is valid for
+  serial busses only (e.g. MIPI CSI-2).
 - clock-lanes: an array of physical clock lane indexes. Position of an entry
   determines the logical lane number, while the value of an entry indicates
   physical lane, e.g. for a MIPI CSI-2 bus we could have "clock-lanes = <0>;",

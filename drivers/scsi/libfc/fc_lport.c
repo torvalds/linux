@@ -2083,7 +2083,6 @@ int fc_lport_bsg_request(struct bsg_job *job)
 {
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
-	struct request *rsp = job->req->next_rq;
 	struct Scsi_Host *shost = fc_bsg_to_shost(job);
 	struct fc_lport *lport = shost_priv(shost);
 	struct fc_rport *rport;
@@ -2092,8 +2091,6 @@ int fc_lport_bsg_request(struct bsg_job *job)
 	u32 did, tov;
 
 	bsg_reply->reply_payload_rcv_len = 0;
-	if (rsp)
-		scsi_req(rsp)->resid_len = job->reply_payload.payload_len;
 
 	mutex_lock(&lport->lp_mutex);
 

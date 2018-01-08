@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_CSS_CHARS_H
 #define _ASM_CSS_CHARS_H
 

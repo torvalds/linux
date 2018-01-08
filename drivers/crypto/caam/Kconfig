@@ -1,6 +1,7 @@
 config CRYPTO_DEV_FSL_CAAM
 	tristate "Freescale CAAM-Multicore driver backend"
 	depends on FSL_SOC || ARCH_MXC || ARCH_LAYERSCAPE
+	select SOC_BUS
 	help
 	  Enables the driver module for Freescale's Cryptographic Accelerator
 	  and Assurance Module (CAAM), also known as the SEC version 4 (SEC4).
@@ -140,10 +141,6 @@ config CRYPTO_DEV_FSL_CAAM_RNG_API
 
 	  To compile this as a module, choose M here: the module
 	  will be called caamrng.
-
-config CRYPTO_DEV_FSL_CAAM_IMX
-	def_bool SOC_IMX6 || SOC_IMX7D
-	depends on CRYPTO_DEV_FSL_CAAM
 
 config CRYPTO_DEV_FSL_CAAM_DEBUG
 	bool "Enable debug output in CAAM driver"

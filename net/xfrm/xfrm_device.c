@@ -91,6 +91,7 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 	}
 
 	if (!dev->xfrmdev_ops || !dev->xfrmdev_ops->xdo_dev_state_add) {
+		xso->dev = NULL;
 		dev_put(dev);
 		return 0;
 	}

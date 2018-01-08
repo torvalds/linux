@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define RW_GC_CFG	0
 #define RW_GC_CCS	1
 #define RW_GC_SRS	2

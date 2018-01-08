@@ -363,6 +363,7 @@ static int dlpar_online_cpu(struct device_node *dn)
 			BUG_ON(get_cpu_current_state(cpu)
 					!= CPU_STATE_OFFLINE);
 			cpu_maps_update_done();
+			timed_topology_update(1);
 			rc = device_online(get_cpu_device(cpu));
 			if (rc)
 				goto out;
@@ -462,15 +463,19 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	}
 
 	dn = dlpar_configure_connector(cpu_to_be32(drc_index), parent);
-	of_node_put(parent);
 	if (!dn) {
 		pr_warn("Failed call to configure-connector, drc index: %x\n",
 			drc_index);
 		dlpar_release_drc(drc_index);
+		of_node_put(parent);
 		return -EINVAL;
 	}
 
 	rc = dlpar_attach_node(dn, parent);
+
+	/* Regardless we are done with parent now */
+	of_node_put(parent);
+
 	if (rc) {
 		saved_rc = rc;
 		pr_warn("Failed to attach node %s, rc: %d, drc index: %x\n",
@@ -529,6 +534,7 @@ static int dlpar_offline_cpu(struct device_node *dn)
 				set_preferred_offline_state(cpu,
 							    CPU_STATE_OFFLINE);
 				cpu_maps_update_done();
+				timed_topology_update(1);
 				rc = device_offline(get_cpu_device(cpu));
 				if (rc)
 					goto out;

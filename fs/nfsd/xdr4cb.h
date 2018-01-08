@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define NFS4_MAXTAGLEN		20
 
 #define NFS4_enc_cb_null_sz		0

@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Simple example:
 #  * pktgen sending with single thread and single interface

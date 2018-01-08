@@ -48,7 +48,6 @@ static const struct of_device_id whitelist[] __initconst = {
 
 	{ .compatible = "samsung,exynos3250", },
 	{ .compatible = "samsung,exynos4210", },
-	{ .compatible = "samsung,exynos4212", },
 	{ .compatible = "samsung,exynos5250", },
 #ifndef CONFIG_BL_SWITCHER
 	{ .compatible = "samsung,exynos5800", },
@@ -83,8 +82,6 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "rockchip,rk3368", },
 	{ .compatible = "rockchip,rk3399", },
 
-	{ .compatible = "socionext,uniphier-ld6b", },
-
 	{ .compatible = "st-ericsson,u8500", },
 	{ .compatible = "st-ericsson,u8540", },
 	{ .compatible = "st-ericsson,u9500", },
@@ -106,6 +103,22 @@ static const struct of_device_id whitelist[] __initconst = {
  * platforms using "operating-points-v2" property.
  */
 static const struct of_device_id blacklist[] __initconst = {
+	{ .compatible = "calxeda,highbank", },
+	{ .compatible = "calxeda,ecx-2000", },
+
+	{ .compatible = "marvell,armadaxp", },
+
+	{ .compatible = "nvidia,tegra124", },
+
+	{ .compatible = "st,stih407", },
+	{ .compatible = "st,stih410", },
+
+	{ .compatible = "sigma,tango4", },
+
+	{ .compatible = "ti,am33xx", },
+	{ .compatible = "ti,am43", },
+	{ .compatible = "ti,dra7", },
+
 	{ }
 };
 

@@ -126,14 +126,4 @@ config BT_DEBUGFS
 	  Provide extensive information about internal Bluetooth states
 	  in debugfs.
 
-config BT_LEGACY_IOCTL
-	bool "Enable legacy ioctl interfaces"
-	depends on BT && BT_BREDR
-	default y
-	help
-	  Enable support for legacy ioctl interfaces.  This is only needed
-	  for old and deprecated applications using direct ioctl calls for
-	  controller management.  Since Linux 3.4 all configuration and
-	  setup is done via mgmt interface and this is no longer needed.
-
 source "drivers/bluetooth/Kconfig"

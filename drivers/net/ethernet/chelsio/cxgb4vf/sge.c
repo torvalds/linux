@@ -2058,9 +2058,9 @@ irq_handler_t t4vf_intr_handler(struct adapter *adapter)
  *	when out of memory a queue can become empty.  We schedule NAPI to do
  *	the actual refill.
  */
-static void sge_rx_timer_cb(unsigned long data)
+static void sge_rx_timer_cb(struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
+	struct adapter *adapter = from_timer(adapter, t, sge.rx_timer);
 	struct sge *s = &adapter->sge;
 	unsigned int i;
 
@@ -2117,9 +2117,9 @@ static void sge_rx_timer_cb(unsigned long data)
  *	when no new packets are being submitted.  This is essential for pktgen,
  *	at least.
  */
-static void sge_tx_timer_cb(unsigned long data)
+static void sge_tx_timer_cb(struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
+	struct adapter *adapter = from_timer(adapter, t, sge.tx_timer);
 	struct sge *s = &adapter->sge;
 	unsigned int i, budget;
 
@@ -2676,8 +2676,8 @@ int t4vf_sge_init(struct adapter *adapter)
 	/*
 	 * Set up tasklet timers.
 	 */
-	setup_timer(&s->rx_timer, sge_rx_timer_cb, (unsigned long)adapter);
-	setup_timer(&s->tx_timer, sge_tx_timer_cb, (unsigned long)adapter);
+	timer_setup(&s->rx_timer, sge_rx_timer_cb, 0);
+	timer_setup(&s->tx_timer, sge_tx_timer_cb, 0);
 
 	/*
 	 * Initialize Forwarded Interrupt Queue lock.

@@ -670,9 +670,9 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	       priv->base + IFI_CANFD_FTIME);
 
 	/* Configure transmitter delay */
-	tdc = (dbt->brp * (dbt->phase_seg1 + 1)) & IFI_CANFD_TDELAY_MASK;
-	writel(IFI_CANFD_TDELAY_EN | IFI_CANFD_TDELAY_ABS | tdc,
-	       priv->base + IFI_CANFD_TDELAY);
+	tdc = dbt->brp * (dbt->prop_seg + dbt->phase_seg1);
+	tdc &= IFI_CANFD_TDELAY_MASK;
+	writel(IFI_CANFD_TDELAY_EN | tdc, priv->base + IFI_CANFD_TDELAY);
 }
 
 static void ifi_canfd_set_filter(struct net_device *ndev, const u32 id,

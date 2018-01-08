@@ -125,8 +125,8 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 	}
 	rate->count = tries;
 	rate->idx = rix >= 0x00 ? rix : 0x00;
-	if (((rtlpriv->rtlhal.hw_type == HARDWARE_TYPE_RTL8812AE) ||
-	     (rtlpriv->rtlhal.hw_type == HARDWARE_TYPE_RTL8822BE)) &&
+	if ((rtlpriv->rtlhal.hw_type == HARDWARE_TYPE_RTL8812AE ||
+	     rtlpriv->rtlhal.hw_type == HARDWARE_TYPE_RTL8822BE) &&
 	    wireless_mode == WIRELESS_MODE_AC_5G)
 		rate->idx |= 0x10;/*2NSS for 8812AE, 8822BE*/
 
@@ -138,7 +138,7 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 			if (sta && (sta->ht_cap.cap &
 				    IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 				rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
-			if (sta && (sta->vht_cap.vht_supported))
+			if (sta && sta->vht_cap.vht_supported)
 				rate->flags |= IEEE80211_TX_RC_80_MHZ_WIDTH;
 		} else {
 			if (mac->bw_80)
@@ -150,8 +150,8 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 		if (sgi_20 || sgi_40 || sgi_80)
 			rate->flags |= IEEE80211_TX_RC_SHORT_GI;
 		if (sta && sta->ht_cap.ht_supported &&
-		    ((wireless_mode == WIRELESS_MODE_N_5G) ||
-		     (wireless_mode == WIRELESS_MODE_N_24G)))
+		    (wireless_mode == WIRELESS_MODE_N_5G ||
+		     wireless_mode == WIRELESS_MODE_N_24G))
 			rate->flags |= IEEE80211_TX_RC_MCS;
 		if (sta && sta->vht_cap.vht_supported &&
 		    (wireless_mode == WIRELESS_MODE_AC_5G ||
@@ -232,7 +232,7 @@ static void rtl_tx_status(void *ppriv,
 	if (sta) {
 		/* Check if aggregation has to be enabled for this tid */
 		sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-		if ((sta->ht_cap.ht_supported) &&
+		if (sta->ht_cap.ht_supported &&
 		    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
 			if (ieee80211_is_data_qos(fc)) {
 				u8 tid = rtl_get_tid(skb);
@@ -281,10 +281,8 @@ static void *rtl_rate_alloc_sta(void *ppriv,
 	struct rtl_rate_priv *rate_priv;
 
 	rate_priv = kzalloc(sizeof(*rate_priv), gfp);
-	if (!rate_priv) {
-		pr_err("Unable to allocate private rc structure\n");
+	if (!rate_priv)
 		return NULL;
-	}
 
 	rtlpriv->rate_priv = rate_priv;
 

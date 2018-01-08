@@ -18,7 +18,6 @@
 
 #include <asm/cpufeature.h>             /* boot_cpu_has, ...            */
 #include <asm/mmu_context.h>            /* vma_pkey()                   */
-#include <asm/fpu/internal.h>           /* fpregs_active()              */
 
 int __execute_only_pkey(struct mm_struct *mm)
 {
@@ -45,7 +44,7 @@ int __execute_only_pkey(struct mm_struct *mm)
 	 */
 	preempt_disable();
 	if (!need_to_set_mm_pkey &&
-	    fpregs_active() &&
+	    current->thread.fpu.initialized &&
 	    !__pkru_allows_read(read_pkru(), execute_only_pkey)) {
 		preempt_enable();
 		return execute_only_pkey;

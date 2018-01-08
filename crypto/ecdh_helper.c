@@ -28,7 +28,7 @@ static inline const u8 *ecdh_unpack_data(void *dst, const void *src, size_t sz)
 	return src + sz;
 }
 
-int crypto_ecdh_key_len(const struct ecdh *params)
+unsigned int crypto_ecdh_key_len(const struct ecdh *params)
 {
 	return ECDH_KPP_SECRET_MIN_SIZE + params->key_size;
 }

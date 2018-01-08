@@ -34,7 +34,7 @@
 #define MAX_FIXED_DMIC_PARAMS_SIZE 727
 
 /* Maximum number of coefficients up down mixer module */
-#define UP_DOWN_MIXER_MAX_COEFF		6
+#define UP_DOWN_MIXER_MAX_COEFF		8
 
 #define MODULE_MAX_IN_PINS	8
 #define MODULE_MAX_OUT_PINS	8
@@ -161,6 +161,7 @@ struct skl_up_down_mixer_cfg {
 	u32 coeff_sel;
 	/* Pass the user coeff in this array */
 	s32 coeff[UP_DOWN_MIXER_MAX_COEFF];
+	u32 ch_map;
 } __packed;
 
 struct skl_algo_cfg {

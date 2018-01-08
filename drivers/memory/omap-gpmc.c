@@ -1075,11 +1075,33 @@ int gpmc_configure(int cmd, int wval)
 }
 EXPORT_SYMBOL(gpmc_configure);
 
-void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
+static bool gpmc_nand_writebuffer_empty(void)
+{
+	if (gpmc_read_reg(GPMC_STATUS) & GPMC_STATUS_EMPTYWRITEBUFFERSTATUS)
+		return true;
+
+	return false;
+}
+
+static struct gpmc_nand_ops nand_ops = {
+	.nand_writebuffer_empty = gpmc_nand_writebuffer_empty,
+};
+
+/**
+ * gpmc_omap_get_nand_ops - Get the GPMC NAND interface
+ * @regs: the GPMC NAND register map exclusive for NAND use.
+ * @cs: GPMC chip select number on which the NAND sits. The
+ *      register map returned will be specific to this chip select.
+ *
+ * Returns NULL on error e.g. invalid cs.
+ */
+struct gpmc_nand_ops *gpmc_omap_get_nand_ops(struct gpmc_nand_regs *reg, int cs)
 {
 	int i;
 
-	reg->gpmc_status = NULL;	/* deprecated */
+	if (cs >= gpmc_cs_num)
+		return NULL;
+
 	reg->gpmc_nand_command = gpmc_base + GPMC_CS0_OFFSET +
 				GPMC_CS_NAND_COMMAND + GPMC_CS_SIZE * cs;
 	reg->gpmc_nand_address = gpmc_base + GPMC_CS0_OFFSET +
@@ -1111,34 +1133,6 @@ void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
 		reg->gpmc_bch_result6[i] = gpmc_base + GPMC_ECC_BCH_RESULT_6 +
 					   i * GPMC_BCH_SIZE;
 	}
-}
-
-static bool gpmc_nand_writebuffer_empty(void)
-{
-	if (gpmc_read_reg(GPMC_STATUS) & GPMC_STATUS_EMPTYWRITEBUFFERSTATUS)
-		return true;
-
-	return false;
-}
-
-static struct gpmc_nand_ops nand_ops = {
-	.nand_writebuffer_empty = gpmc_nand_writebuffer_empty,
-};
-
-/**
- * gpmc_omap_get_nand_ops - Get the GPMC NAND interface
- * @regs: the GPMC NAND register map exclusive for NAND use.
- * @cs: GPMC chip select number on which the NAND sits. The
- *      register map returned will be specific to this chip select.
- *
- * Returns NULL on error e.g. invalid cs.
- */
-struct gpmc_nand_ops *gpmc_omap_get_nand_ops(struct gpmc_nand_regs *reg, int cs)
-{
-	if (cs >= gpmc_cs_num)
-		return NULL;
-
-	gpmc_update_nand_reg(reg, cs);
 
 	return &nand_ops;
 }

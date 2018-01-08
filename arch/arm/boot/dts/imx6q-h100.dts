@@ -185,7 +185,7 @@
 		reg = <0x68>;
 	};
 
-	sgtl5000: sgtl5000@0a {
+	sgtl5000: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		pinctrl-names = "default";
@@ -195,7 +195,7 @@
 		VDDIO-supply = <&reg_3p3v>;
 	};
 
-	tc358743: tc358743@0f {
+	tc358743: tc358743@f {
 		compatible = "toshiba,tc358743";
 		reg = <0x0f>;
 		pinctrl-names = "default";

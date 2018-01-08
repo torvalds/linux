@@ -90,7 +90,7 @@ static inline void free_lppacas(void) { }
 
 #endif /* CONFIG_PPC_BOOK3S */
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 
 /*
  * 3 persistent SLBs are registered here.  The buffer will be zero
@@ -135,11 +135,11 @@ static struct slb_shadow * __init init_slb_shadow(int cpu)
 	return s;
 }
 
-#else /* CONFIG_PPC_STD_MMU_64 */
+#else /* !CONFIG_PPC_BOOK3S_64 */
 
 static void __init allocate_slb_shadows(int nr_cpus, int limit) { }
 
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 /* The Paca is an array with one entry per processor.  Each contains an
  * lppaca, which contains the information shared between the
@@ -170,9 +170,9 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 	new_paca->kexec_state = KEXEC_STATE_NONE;
 	new_paca->__current = &init_task;
 	new_paca->data_offset = 0xfeeeeeeeeeeeeeeeULL;
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	new_paca->slb_shadow_ptr = init_slb_shadow(cpu);
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif
 
 #ifdef CONFIG_PPC_BOOK3E
 	/* For now -- if we have threads this will be adjusted later */
@@ -262,8 +262,8 @@ void copy_mm_to_paca(struct mm_struct *mm)
 
 	get_paca()->mm_ctx_id = context->id;
 #ifdef CONFIG_PPC_MM_SLICES
-	VM_BUG_ON(!mm->context.addr_limit);
-	get_paca()->addr_limit = mm->context.addr_limit;
+	VM_BUG_ON(!mm->context.slb_addr_limit);
+	get_paca()->mm_ctx_slb_addr_limit = mm->context.slb_addr_limit;
 	get_paca()->mm_ctx_low_slices_psize = context->low_slices_psize;
 	memcpy(&get_paca()->mm_ctx_high_slices_psize,
 	       &context->high_slices_psize, TASK_SLICE_ARRAY_SZ(mm));
@@ -271,7 +271,7 @@ void copy_mm_to_paca(struct mm_struct *mm)
 	get_paca()->mm_ctx_user_psize = context->user_psize;
 	get_paca()->mm_ctx_sllp = context->sllp;
 #endif
-#else /* CONFIG_PPC_BOOK3S */
+#else /* !CONFIG_PPC_BOOK3S */
 	return;
 #endif
 }

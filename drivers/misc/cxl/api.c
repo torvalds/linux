@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/sched/mm.h>
+#include <linux/mmu_context.h>
 
 #include "cxl.h"
 
@@ -331,9 +332,12 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 		/* ensure this mm_struct can't be freed */
 		cxl_context_mm_count_get(ctx);
 
-		/* decrement the use count */
-		if (ctx->mm)
+		if (ctx->mm) {
+			/* decrement the use count from above */
 			mmput(ctx->mm);
+			/* make TLBIs for this context global */
+			mm_context_add_copro(ctx->mm);
+		}
 	}
 
 	/*
@@ -342,13 +346,19 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 	 */
 	cxl_ctx_get();
 
+	/* See the comment in afu_ioctl_start_work() */
+	smp_mb();
+
 	if ((rc = cxl_ops->attach_process(ctx, kernel, wed, 0))) {
 		put_pid(ctx->pid);
 		ctx->pid = NULL;
 		cxl_adapter_context_put(ctx->afu->adapter);
 		cxl_ctx_put();
-		if (task)
+		if (task) {
 			cxl_context_mm_count_put(ctx);
+			if (ctx->mm)
+				mm_context_remove_copro(ctx->mm);
+		}
 		goto out;
 	}
 

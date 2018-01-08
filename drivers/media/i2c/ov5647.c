@@ -35,9 +35,18 @@
 
 #define SENSOR_NAME "ov5647"
 
-#define OV5647_SW_RESET		0x0103
-#define OV5647_REG_CHIPID_H	0x300A
-#define OV5647_REG_CHIPID_L	0x300B
+#define MIPI_CTRL00_CLOCK_LANE_GATE		BIT(5)
+#define MIPI_CTRL00_BUS_IDLE			BIT(2)
+#define MIPI_CTRL00_CLOCK_LANE_DISABLE		BIT(0)
+
+#define OV5647_SW_STANDBY		0x0100
+#define OV5647_SW_RESET			0x0103
+#define OV5647_REG_CHIPID_H		0x300A
+#define OV5647_REG_CHIPID_L		0x300B
+#define OV5640_REG_PAD_OUT		0x300D
+#define OV5647_REG_FRAME_OFF_NUMBER	0x4202
+#define OV5647_REG_MIPI_CTRL00		0x4800
+#define OV5647_REG_MIPI_CTRL14		0x4814
 
 #define REG_TERM 0xfffe
 #define VAL_TERM 0xfe
@@ -241,34 +250,43 @@ static int ov5647_set_virtual_channel(struct v4l2_subdev *sd, int channel)
 	u8 channel_id;
 	int ret;
 
-	ret = ov5647_read(sd, 0x4814, &channel_id);
+	ret = ov5647_read(sd, OV5647_REG_MIPI_CTRL14, &channel_id);
 	if (ret < 0)
 		return ret;
 
 	channel_id &= ~(3 << 6);
-	return ov5647_write(sd, 0x4814, channel_id | (channel << 6));
+	return ov5647_write(sd, OV5647_REG_MIPI_CTRL14, channel_id | (channel << 6));
 }
 
 static int ov5647_stream_on(struct v4l2_subdev *sd)
 {
 	int ret;
 
-	ret = ov5647_write(sd, 0x4202, 0x00);
+	ret = ov5647_write(sd, OV5647_REG_MIPI_CTRL00, MIPI_CTRL00_BUS_IDLE);
 	if (ret < 0)
 		return ret;
 
-	return ov5647_write(sd, 0x300D, 0x00);
+	ret = ov5647_write(sd, OV5647_REG_FRAME_OFF_NUMBER, 0x00);
+	if (ret < 0)
+		return ret;
+
+	return ov5647_write(sd, OV5640_REG_PAD_OUT, 0x00);
 }
 
 static int ov5647_stream_off(struct v4l2_subdev *sd)
 {
 	int ret;
 
-	ret = ov5647_write(sd, 0x4202, 0x0f);
+	ret = ov5647_write(sd, OV5647_REG_MIPI_CTRL00, MIPI_CTRL00_CLOCK_LANE_GATE
+			   | MIPI_CTRL00_BUS_IDLE | MIPI_CTRL00_CLOCK_LANE_DISABLE);
 	if (ret < 0)
 		return ret;
 
-	return ov5647_write(sd, 0x300D, 0x01);
+	ret = ov5647_write(sd, OV5647_REG_FRAME_OFF_NUMBER, 0x0f);
+	if (ret < 0)
+		return ret;
+
+	return ov5647_write(sd, OV5640_REG_PAD_OUT, 0x01);
 }
 
 static int set_sw_standby(struct v4l2_subdev *sd, bool standby)
@@ -276,7 +294,7 @@ static int set_sw_standby(struct v4l2_subdev *sd, bool standby)
 	int ret;
 	u8 rdval;
 
-	ret = ov5647_read(sd, 0x0100, &rdval);
+	ret = ov5647_read(sd, OV5647_SW_STANDBY, &rdval);
 	if (ret < 0)
 		return ret;
 
@@ -285,7 +303,7 @@ static int set_sw_standby(struct v4l2_subdev *sd, bool standby)
 	else
 		rdval |= 0x01;
 
-	return ov5647_write(sd, 0x0100, rdval);
+	return ov5647_write(sd, OV5647_SW_STANDBY, rdval);
 }
 
 static int __sensor_init(struct v4l2_subdev *sd)
@@ -294,7 +312,7 @@ static int __sensor_init(struct v4l2_subdev *sd)
 	u8 resetval, rdval;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	ret = ov5647_read(sd, 0x0100, &rdval);
+	ret = ov5647_read(sd, OV5647_SW_STANDBY, &rdval);
 	if (ret < 0)
 		return ret;
 
@@ -309,18 +327,21 @@ static int __sensor_init(struct v4l2_subdev *sd)
 	if (ret < 0)
 		return ret;
 
-	ret = ov5647_read(sd, 0x0100, &resetval);
+	ret = ov5647_read(sd, OV5647_SW_STANDBY, &resetval);
 	if (ret < 0)
 		return ret;
 
 	if (!(resetval & 0x01)) {
 		dev_err(&client->dev, "Device was in SW standby");
-		ret = ov5647_write(sd, 0x0100, 0x01);
+		ret = ov5647_write(sd, OV5647_SW_STANDBY, 0x01);
 		if (ret < 0)
 			return ret;
 	}
 
-	return ov5647_write(sd, 0x4800, 0x04);
+	/*
+	 * stream off to make the clock lane into LP-11 state.
+	 */
+	return ov5647_stream_off(sd);
 }
 
 static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)

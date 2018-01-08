@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Simple allocator for internal RAM in ETRAX FS
  *

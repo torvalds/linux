@@ -115,7 +115,7 @@ to non-secure vs secure interrupt line.
 		iommus = <&apps_iommu 4>;
 	};
 
-	gpu@01c00000 {
+	gpu@1c00000 {
 		...
 		iommus = <&gpu_iommu 1>, <&gpu_iommu 2>;
 	};

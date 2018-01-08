@@ -245,5 +245,5 @@ module_init(ir_sharp_decode_init);
 module_exit(ir_sharp_decode_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("James Hogan <james.hogan@imgtec.com>");
+MODULE_AUTHOR("James Hogan <jhogan@kernel.org>");
 MODULE_DESCRIPTION("Sharp IR protocol decoder");

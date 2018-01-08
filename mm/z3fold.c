@@ -250,6 +250,7 @@ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
 
 	WARN_ON(!list_empty(&zhdr->buddy));
 	set_bit(PAGE_STALE, &page->private);
+	clear_bit(NEEDS_COMPACTING, &page->private);
 	spin_lock(&pool->lock);
 	if (!list_empty(&page->lru))
 		list_del(&page->lru);
@@ -303,7 +304,6 @@ static void free_pages_work(struct work_struct *w)
 		list_del(&zhdr->buddy);
 		if (WARN_ON(!test_bit(PAGE_STALE, &page->private)))
 			continue;
-		clear_bit(NEEDS_COMPACTING, &page->private);
 		spin_unlock(&pool->stale_lock);
 		cancel_work_sync(&zhdr->work);
 		free_z3fold_page(page);
@@ -404,14 +404,18 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
 		WARN_ON(z3fold_page_trylock(zhdr));
 	else
 		z3fold_page_lock(zhdr);
-	if (test_bit(PAGE_STALE, &page->private) ||
-	    !test_and_clear_bit(NEEDS_COMPACTING, &page->private)) {
+	if (WARN_ON(!test_and_clear_bit(NEEDS_COMPACTING, &page->private))) {
 		z3fold_page_unlock(zhdr);
 		return;
 	}
 	spin_lock(&pool->lock);
 	list_del_init(&zhdr->buddy);
 	spin_unlock(&pool->lock);
+
+	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
+		atomic64_dec(&pool->pages_nr);
+		return;
+	}
 
 	z3fold_compact_page(zhdr);
 	unbuddied = get_cpu_ptr(pool->unbuddied);
@@ -624,10 +628,8 @@ lookup:
 	 * stale pages list. cancel_work_sync() can sleep so we must make
 	 * sure it won't be called in case we're in atomic context.
 	 */
-	if (zhdr && (can_sleep || !work_pending(&zhdr->work) ||
-	    !unlikely(work_busy(&zhdr->work)))) {
+	if (zhdr && (can_sleep || !work_pending(&zhdr->work))) {
 		list_del(&zhdr->buddy);
-		clear_bit(NEEDS_COMPACTING, &page->private);
 		spin_unlock(&pool->stale_lock);
 		if (can_sleep)
 			cancel_work_sync(&zhdr->work);
@@ -755,9 +757,11 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		list_del_init(&zhdr->buddy);
 		spin_unlock(&pool->lock);
 		zhdr->cpu = -1;
+		kref_get(&zhdr->refcount);
 		do_compact_page(zhdr, true);
 		return;
 	}
+	kref_get(&zhdr->refcount);
 	queue_work_on(zhdr->cpu, pool->compact_wq, &zhdr->work);
 	z3fold_page_unlock(zhdr);
 }
@@ -875,16 +879,18 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
 				goto next;
 		}
 next:
+		spin_lock(&pool->lock);
 		if (test_bit(PAGE_HEADLESS, &page->private)) {
 			if (ret == 0) {
+				spin_unlock(&pool->lock);
 				free_z3fold_page(page);
 				return 0;
 			}
 		} else if (kref_put(&zhdr->refcount, release_z3fold_page)) {
 			atomic64_dec(&pool->pages_nr);
+			spin_unlock(&pool->lock);
 			return 0;
 		}
-		spin_lock(&pool->lock);
 
 		/*
 		 * Add to the beginning of LRU.

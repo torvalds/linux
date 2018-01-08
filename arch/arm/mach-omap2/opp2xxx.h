@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * opp2xxx.h - macros for old-style OMAP2xxx "OPP" definitions
  *

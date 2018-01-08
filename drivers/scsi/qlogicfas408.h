@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* to be used by qlogicfas and qlogic_cs */
 #ifndef __QLOGICFAS408_H
 #define __QLOGICFAS408_H

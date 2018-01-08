@@ -215,31 +215,27 @@ void nbio_v6_1_get_clockgating_state(struct amdgpu_device *adev, u32 *flags)
 		*flags |= AMD_CG_SUPPORT_BIF_LS;
 }
 
-struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg;
-struct nbio_pcie_index_data nbio_v6_1_pcie_index_data;
+const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
+	.hdp_flush_req_offset = SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_GPU_HDP_FLUSH_REQ),
+	.hdp_flush_done_offset = SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_GPU_HDP_FLUSH_DONE),
+	.ref_and_mask_cp0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP0_MASK,
+	.ref_and_mask_cp1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP1_MASK,
+	.ref_and_mask_cp2 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP2_MASK,
+	.ref_and_mask_cp3 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP3_MASK,
+	.ref_and_mask_cp4 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP4_MASK,
+	.ref_and_mask_cp5 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP5_MASK,
+	.ref_and_mask_cp6 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP6_MASK,
+	.ref_and_mask_cp7 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP7_MASK,
+	.ref_and_mask_cp8 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP8_MASK,
+	.ref_and_mask_cp9 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP9_MASK,
+	.ref_and_mask_sdma0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA0_MASK,
+	.ref_and_mask_sdma1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA1_MASK
+};
 
-int nbio_v6_1_init(struct amdgpu_device *adev)
-{
-	nbio_v6_1_hdp_flush_reg.hdp_flush_req_offset = SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_GPU_HDP_FLUSH_REQ);
-	nbio_v6_1_hdp_flush_reg.hdp_flush_done_offset = SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_GPU_HDP_FLUSH_DONE);
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP0_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP1_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp2 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP2_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp3 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP3_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp4 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP4_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp5 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP5_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp6 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP6_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp7 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP7_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp8 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP8_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_cp9 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP9_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_sdma0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA0_MASK;
-	nbio_v6_1_hdp_flush_reg.ref_and_mask_sdma1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA1_MASK;
-
-	nbio_v6_1_pcie_index_data.index_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX);
-	nbio_v6_1_pcie_index_data.data_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA);
-
-	return 0;
-}
+const struct nbio_pcie_index_data nbio_v6_1_pcie_index_data = {
+	.index_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX),
+	.data_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA),
+};
 
 void nbio_v6_1_detect_hw_virt(struct amdgpu_device *adev)
 {

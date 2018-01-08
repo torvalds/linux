@@ -189,7 +189,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 			      " releasing it\n",
 			      intel_fb->base.width, intel_fb->base.height,
 			      sizes->fb_width, sizes->fb_height);
-		drm_framebuffer_unreference(&intel_fb->base);
+		drm_framebuffer_put(&intel_fb->base);
 		intel_fb = ifbdev->fb = NULL;
 	}
 	if (!intel_fb || WARN_ON(!intel_fb->obj)) {
@@ -206,6 +206,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	}
 
 	mutex_lock(&dev->struct_mutex);
+	intel_runtime_pm_get(dev_priv);
 
 	/* Pin the GGTT vma for our access via info->screen_base.
 	 * This also validates that any existing fb inherited from the
@@ -269,6 +270,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		      fb->width, fb->height, i915_ggtt_offset(vma));
 	ifbdev->vma = vma;
 
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 	vga_switcheroo_client_fb_set(pdev, info);
 	return 0;
@@ -276,6 +278,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 out_unpin:
 	intel_unpin_fb_vma(vma);
 out_unlock:
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
@@ -624,7 +627,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	ifbdev->preferred_bpp = fb->base.format->cpp[0] * 8;
 	ifbdev->fb = fb;
 
-	drm_framebuffer_reference(&ifbdev->fb->base);
+	drm_framebuffer_get(&ifbdev->fb->base);
 
 	/* Final pass to check if any active pipes don't have fbs */
 	for_each_crtc(dev, crtc) {

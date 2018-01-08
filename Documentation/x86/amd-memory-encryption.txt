@@ -1,4 +1,5 @@
-Secure Memory Encryption (SME) is a feature found on AMD processors.
+Secure Memory Encryption (SME) and Secure Encrypted Virtualization (SEV) are
+features found on AMD processors.
 
 SME provides the ability to mark individual pages of memory as encrypted using
 the standard x86 page tables.  A page that is marked encrypted will be
@@ -6,24 +7,38 @@ automatically decrypted when read from DRAM and encrypted when written to
 DRAM.  SME can therefore be used to protect the contents of DRAM from physical
 attacks on the system.
 
+SEV enables running encrypted virtual machines (VMs) in which the code and data
+of the guest VM are secured so that a decrypted version is available only
+within the VM itself. SEV guest VMs have the concept of private and shared
+memory. Private memory is encrypted with the guest-specific key, while shared
+memory may be encrypted with hypervisor key. When SME is enabled, the hypervisor
+key is the same key which is used in SME.
+
 A page is encrypted when a page table entry has the encryption bit set (see
 below on how to determine its position).  The encryption bit can also be
 specified in the cr3 register, allowing the PGD table to be encrypted. Each
 successive level of page tables can also be encrypted by setting the encryption
 bit in the page table entry that points to the next table. This allows the full
 page table hierarchy to be encrypted. Note, this means that just because the
-encryption bit is set in cr3, doesn't imply the full hierarchy is encyrpted.
+encryption bit is set in cr3, doesn't imply the full hierarchy is encrypted.
 Each page table entry in the hierarchy needs to have the encryption bit set to
 achieve that. So, theoretically, you could have the encryption bit set in cr3
 so that the PGD is encrypted, but not set the encryption bit in the PGD entry
 for a PUD which results in the PUD pointed to by that entry to not be
 encrypted.
 
-Support for SME can be determined through the CPUID instruction. The CPUID
-function 0x8000001f reports information related to SME:
+When SEV is enabled, instruction pages and guest page tables are always treated
+as private. All the DMA operations inside the guest must be performed on shared
+memory. Since the memory encryption bit is controlled by the guest OS when it
+is operating in 64-bit or 32-bit PAE mode, in all other modes the SEV hardware
+forces the memory encryption bit to 1.
+
+Support for SME and SEV can be determined through the CPUID instruction. The
+CPUID function 0x8000001f reports information related to SME:
 
 	0x8000001f[eax]:
 		Bit[0] indicates support for SME
+		Bit[1] indicates support for SEV
 	0x8000001f[ebx]:
 		Bits[5:0]  pagetable bit number used to activate memory
 			   encryption
@@ -38,6 +53,13 @@ determine if SME is enabled and/or to enable memory encryption:
 	0xc0010010:
 		Bit[23]   0 = memory encryption features are disabled
 			  1 = memory encryption features are enabled
+
+If SEV is supported, MSR 0xc0010131 (MSR_AMD64_SEV) can be used to determine if
+SEV is active:
+
+	0xc0010131:
+		Bit[0]	  0 = memory encryption is not active
+			  1 = memory encryption is active
 
 Linux relies on BIOS to set this bit if BIOS has determined that the reduction
 in the physical address space as a result of enabling memory encryption (see

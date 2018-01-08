@@ -1075,7 +1075,7 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	BUG_ON(cc->integrity_iv_size && cc->integrity_iv_size != cc->iv_size);
 
 	/* Reject unexpected unaligned bio. */
-	if (unlikely(bv_in.bv_offset & (cc->sector_size - 1)))
+	if (unlikely(bv_in.bv_len & (cc->sector_size - 1)))
 		return -EIO;
 
 	dmreq = dmreq_of_req(cc, req);
@@ -1168,7 +1168,7 @@ static int crypt_convert_block_skcipher(struct crypt_config *cc,
 	int r = 0;
 
 	/* Reject unexpected unaligned bio. */
-	if (unlikely(bv_in.bv_offset & (cc->sector_size - 1)))
+	if (unlikely(bv_in.bv_len & (cc->sector_size - 1)))
 		return -EIO;
 
 	dmreq = dmreq_of_req(cc, req);
@@ -2466,6 +2466,7 @@ static int crypt_ctr_cipher_old(struct dm_target *ti, char *cipher_in, char *key
 		kfree(cipher_api);
 		return ret;
 	}
+	kfree(cipher_api);
 
 	return 0;
 bad_mem:
@@ -2582,6 +2583,10 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 			    cc->sector_size > 4096 ||
 			    (cc->sector_size & (cc->sector_size - 1))) {
 				ti->error = "Invalid feature value for sector_size";
+				return -EINVAL;
+			}
+			if (ti->len & ((cc->sector_size >> SECTOR_SHIFT) - 1)) {
+				ti->error = "Device size is not multiple of sector_size feature";
 				return -EINVAL;
 			}
 			cc->sector_shift = __ffs(cc->sector_size) - SECTOR_SHIFT;

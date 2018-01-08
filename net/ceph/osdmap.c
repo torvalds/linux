@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/ceph/ceph_debug.h>
 
@@ -2445,19 +2446,34 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 
 	pg = lookup_pg_mapping(&osdmap->pg_upmap_items, pgid);
 	if (pg) {
-		for (i = 0; i < raw->size; i++) {
-			for (j = 0; j < pg->pg_upmap_items.len; j++) {
-				int from = pg->pg_upmap_items.from_to[j][0];
-				int to = pg->pg_upmap_items.from_to[j][1];
+		/*
+		 * Note: this approach does not allow a bidirectional swap,
+		 * e.g., [[1,2],[2,1]] applied to [0,1,2] -> [0,2,1].
+		 */
+		for (i = 0; i < pg->pg_upmap_items.len; i++) {
+			int from = pg->pg_upmap_items.from_to[i][0];
+			int to = pg->pg_upmap_items.from_to[i][1];
+			int pos = -1;
+			bool exists = false;
 
-				if (from == raw->osds[i]) {
-					if (!(to != CRUSH_ITEM_NONE &&
-					      to < osdmap->max_osd &&
-					      osdmap->osd_weight[to] == 0))
-						raw->osds[i] = to;
+			/* make sure replacement doesn't already appear */
+			for (j = 0; j < raw->size; j++) {
+				int osd = raw->osds[j];
+
+				if (osd == to) {
+					exists = true;
 					break;
 				}
+				/* ignore mapping if target is marked out */
+				if (osd == from && pos < 0 &&
+				    !(to != CRUSH_ITEM_NONE &&
+				      to < osdmap->max_osd &&
+				      osdmap->osd_weight[to] == 0)) {
+					pos = j;
+				}
 			}
+			if (!exists && pos >= 0)
+				raw->osds[pos] = to;
 		}
 	}
 }

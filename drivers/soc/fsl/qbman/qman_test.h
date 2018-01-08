@@ -30,7 +30,5 @@
 
 #include "qman_priv.h"
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 int qman_test_stash(void);
 int qman_test_api(void);

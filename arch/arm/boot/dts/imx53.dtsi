@@ -80,7 +80,7 @@
 		ports = <&ipu_di0>, <&ipu_di1>;
 	};
 
-	tzic: tz-interrupt-controller@0fffc000 {
+	tzic: tz-interrupt-controller@fffc000 {
 		compatible = "fsl,imx53-tzic", "fsl,tzic";
 		interrupt-controller;
 		#interrupt-cells = <1>;
@@ -299,14 +299,14 @@
 				reg = <0x53f00000 0x60>;
 			};
 
-			usbphy0: usbphy@0 {
+			usbphy0: usbphy-0 {
 				compatible = "usb-nop-xceiv";
 				clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
 				clock-names = "main_clk";
 				status = "okay";
 			};
 
-			usbphy1: usbphy@1 {
+			usbphy1: usbphy-1 {
 				compatible = "usb-nop-xceiv";
 				clocks = <&clks IMX5_CLK_USB_PHY2_GATE>;
 				clock-names = "main_clk";

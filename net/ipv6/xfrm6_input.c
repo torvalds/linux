@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xfrm6_input.c: based on net/ipv4/xfrm4_input.c
  *

@@ -433,8 +433,11 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
 	else
 		bg_thresh = (bg_ratio * available_memory) / PAGE_SIZE;
 
-	if (bg_thresh >= thresh)
+	if (unlikely(bg_thresh >= thresh)) {
+		pr_warn("vm direct limit must be set greater than background limit.\n");
 		bg_thresh = thresh / 2;
+	}
+
 	tsk = current;
 	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
 		bg_thresh += bg_thresh / 4 + global_wb_domain.dirty_limit / 32;
@@ -625,9 +628,9 @@ EXPORT_SYMBOL_GPL(wb_writeout_inc);
  * On idle system, we can be called long after we scheduled because we use
  * deferred timers so count with missed periods.
  */
-static void writeout_period(unsigned long t)
+static void writeout_period(struct timer_list *t)
 {
-	struct wb_domain *dom = (void *)t;
+	struct wb_domain *dom = from_timer(dom, t, period_timer);
 	int miss_periods = (jiffies - dom->period_time) /
 						 VM_COMPLETIONS_PERIOD_LEN;
 
@@ -650,8 +653,7 @@ int wb_domain_init(struct wb_domain *dom, gfp_t gfp)
 
 	spin_lock_init(&dom->lock);
 
-	setup_deferrable_timer(&dom->period_timer, writeout_period,
-			       (unsigned long)dom);
+	timer_setup(&dom->period_timer, writeout_period, TIMER_DEFERRABLE);
 
 	dom->dirty_limit_tstamp = jiffies;
 
@@ -1543,7 +1545,7 @@ static inline void wb_dirty_limits(struct dirty_throttle_control *dtc)
 	 * actually dirty; with m+n sitting in the percpu
 	 * deltas.
 	 */
-	if (dtc->wb_thresh < 2 * wb_stat_error(wb)) {
+	if (dtc->wb_thresh < 2 * wb_stat_error()) {
 		wb_reclaimable = wb_stat_sum(wb, WB_RECLAIMABLE);
 		dtc->wb_dirty = wb_reclaimable + wb_stat_sum(wb, WB_WRITEBACK);
 	} else {
@@ -1559,8 +1561,7 @@ static inline void wb_dirty_limits(struct dirty_throttle_control *dtc)
  * If we're over `background_thresh' then the writeback threads are woken to
  * perform some writeout.
  */
-static void balance_dirty_pages(struct address_space *mapping,
-				struct bdi_writeback *wb,
+static void balance_dirty_pages(struct bdi_writeback *wb,
 				unsigned long pages_dirtied)
 {
 	struct dirty_throttle_control gdtc_stor = { GDTC_INIT(wb) };
@@ -1802,7 +1803,7 @@ pause:
 		 * more page. However wb_dirty has accounting errors.  So use
 		 * the larger and more IO friendly wb_stat_error.
 		 */
-		if (sdtc->wb_dirty <= wb_stat_error(wb))
+		if (sdtc->wb_dirty <= wb_stat_error())
 			break;
 
 		if (fatal_signal_pending(current))
@@ -1910,7 +1911,7 @@ void balance_dirty_pages_ratelimited(struct address_space *mapping)
 	preempt_enable();
 
 	if (unlikely(current->nr_dirtied >= ratelimit))
-		balance_dirty_pages(mapping, wb, current->nr_dirtied);
+		balance_dirty_pages(wb, current->nr_dirtied);
 
 	wb_put(wb);
 }
@@ -1972,31 +1973,32 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
 int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 	void __user *buffer, size_t *length, loff_t *ppos)
 {
-	proc_dointvec(table, write, buffer, length, ppos);
-	return 0;
+	unsigned int old_interval = dirty_writeback_interval;
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, length, ppos);
+
+	/*
+	 * Writing 0 to dirty_writeback_interval will disable periodic writeback
+	 * and a different non-zero value will wakeup the writeback threads.
+	 * wb_wakeup_delayed() would be more appropriate, but it's a pain to
+	 * iterate over all bdis and wbs.
+	 * The reason we do this is to make the change take effect immediately.
+	 */
+	if (!ret && write && dirty_writeback_interval &&
+		dirty_writeback_interval != old_interval)
+		wakeup_flusher_threads(WB_REASON_PERIODIC);
+
+	return ret;
 }
 
 #ifdef CONFIG_BLOCK
-void laptop_mode_timer_fn(unsigned long data)
+void laptop_mode_timer_fn(struct timer_list *t)
 {
-	struct request_queue *q = (struct request_queue *)data;
-	int nr_pages = global_node_page_state(NR_FILE_DIRTY) +
-		global_node_page_state(NR_UNSTABLE_NFS);
-	struct bdi_writeback *wb;
+	struct backing_dev_info *backing_dev_info =
+		from_timer(backing_dev_info, t, laptop_mode_wb_timer);
 
-	/*
-	 * We want to write everything out, not just down to the dirty
-	 * threshold
-	 */
-	if (!bdi_has_dirty_io(q->backing_dev_info))
-		return;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(wb, &q->backing_dev_info->wb_list, bdi_node)
-		if (wb_has_dirty_io(wb))
-			wb_start_writeback(wb, nr_pages, true,
-					   WB_REASON_LAPTOP_TIMER);
-	rcu_read_unlock();
+	wakeup_flusher_threads_bdi(backing_dev_info, WB_REASON_LAPTOP_TIMER);
 }
 
 /*
@@ -2167,7 +2169,7 @@ int write_cache_pages(struct address_space *mapping,
 	int range_whole = 0;
 	int tag;
 
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 	if (wbc->range_cyclic) {
 		writeback_index = mapping->writeback_index; /* prev offset */
 		index = writeback_index;
@@ -2194,29 +2196,13 @@ retry:
 	while (!done && (index <= end)) {
 		int i;
 
-		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
-			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
+		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index, end,
+				tag);
 		if (nr_pages == 0)
 			break;
 
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
-
-			/*
-			 * At this point, the page may be truncated or
-			 * invalidated (changing page->mapping to NULL), or
-			 * even swizzled back from swapper_space to tmpfs file
-			 * mapping. However, page->index will not change
-			 * because we have a reference on the page.
-			 */
-			if (page->index > end) {
-				/*
-				 * can't be range_cyclic (1st pass) because
-				 * end == -1 in that case.
-				 */
-				done = 1;
-				break;
-			}
 
 			done_index = page->index;
 
@@ -2623,7 +2609,7 @@ EXPORT_SYMBOL(set_page_dirty_lock);
  * page without actually doing it through the VM. Can you say "ext3 is
  * horribly ugly"? Thought you could.
  */
-void cancel_dirty_page(struct page *page)
+void __cancel_dirty_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
@@ -2644,7 +2630,7 @@ void cancel_dirty_page(struct page *page)
 		ClearPageDirty(page);
 	}
 }
-EXPORT_SYMBOL(cancel_dirty_page);
+EXPORT_SYMBOL(__cancel_dirty_page);
 
 /*
  * Clear a page's dirty flag, while caring for dirty memory accounting.

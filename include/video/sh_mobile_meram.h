@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __VIDEO_SH_MOBILE_MERAM_H__
 #define __VIDEO_SH_MOBILE_MERAM_H__
 

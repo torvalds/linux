@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _X86_IRQFLAGS_H_
 #define _X86_IRQFLAGS_H_
 

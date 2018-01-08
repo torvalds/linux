@@ -486,7 +486,7 @@ static irqreturn_t max732x_irq_handler(int irq, void *devid)
 
 	do {
 		level = __ffs(pending);
-		handle_nested_irq(irq_find_mapping(chip->gpio_chip.irqdomain,
+		handle_nested_irq(irq_find_mapping(chip->gpio_chip.irq.domain,
 						   level));
 
 		pending &= ~(1 << level);

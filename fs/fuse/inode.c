@@ -31,7 +31,7 @@ static struct kmem_cache *fuse_inode_cachep;
 struct list_head fuse_conn_list;
 DEFINE_MUTEX(fuse_mutex);
 
-static int set_global_limit(const char *val, struct kernel_param *kp);
+static int set_global_limit(const char *val, const struct kernel_param *kp);
 
 unsigned max_user_bgreq;
 module_param_call(max_user_bgreq, set_global_limit, param_get_uint,
@@ -823,7 +823,7 @@ static void sanitize_global_limit(unsigned *limit)
 		*limit = (1 << 16) - 1;
 }
 
-static int set_global_limit(const char *val, struct kernel_param *kp)
+static int set_global_limit(const char *val, const struct kernel_param *kp)
 {
 	int rv;
 
@@ -1059,7 +1059,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (sb->s_flags & MS_MANDLOCK)
 		goto err;
 
-	sb->s_flags &= ~(MS_NOSEC | MS_I_VERSION);
+	sb->s_flags &= ~(MS_NOSEC | SB_I_VERSION);
 
 	if (!parse_fuse_opt(data, &d, is_bdev))
 		goto err;
@@ -1273,9 +1273,9 @@ static int __init fuse_fs_init(void)
 	int err;
 
 	fuse_inode_cachep = kmem_cache_create("fuse_inode",
-					      sizeof(struct fuse_inode), 0,
-					      SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
-					      fuse_inode_init_once);
+			sizeof(struct fuse_inode), 0,
+			SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT|SLAB_RECLAIM_ACCOUNT,
+			fuse_inode_init_once);
 	err = -ENOMEM;
 	if (!fuse_inode_cachep)
 		goto out;

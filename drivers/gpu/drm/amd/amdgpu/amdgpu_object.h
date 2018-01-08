@@ -35,6 +35,7 @@
 
 /* bo virtual addresses in a vm */
 struct amdgpu_bo_va_mapping {
+	struct amdgpu_bo_va		*bo_va;
 	struct list_head		list;
 	struct rb_node			rb;
 	uint64_t			start;
@@ -49,12 +50,17 @@ struct amdgpu_bo_va {
 	struct amdgpu_vm_bo_base	base;
 
 	/* protected by bo being reserved */
-	struct dma_fence	        *last_pt_update;
 	unsigned			ref_count;
+
+	/* all other members protected by the VM PD being reserved */
+	struct dma_fence	        *last_pt_update;
 
 	/* mappings for this bo_va */
 	struct list_head		invalids;
 	struct list_head		valids;
+
+	/* If the mappings are cleared or filled */
+	bool				cleared;
 };
 
 struct amdgpu_bo {
@@ -87,6 +93,11 @@ struct amdgpu_bo {
 		struct list_head	shadow_list;
 	};
 };
+
+static inline struct amdgpu_bo *ttm_to_amdgpu_bo(struct ttm_buffer_object *tbo)
+{
+	return container_of(tbo, struct amdgpu_bo, tbo);
+}
 
 /**
  * amdgpu_mem_type_to_domain - return domain corresponding to mem_type
@@ -182,6 +193,14 @@ static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
 	}
 }
 
+/**
+ * amdgpu_bo_explicit_sync - return whether the bo is explicitly synced
+ */
+static inline bool amdgpu_bo_explicit_sync(struct amdgpu_bo *bo)
+{
+	return bo->flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
+}
+
 int amdgpu_bo_create(struct amdgpu_device *adev,
 			    unsigned long size, int byte_align,
 			    bool kernel, u32 domain, u64 flags,
@@ -189,14 +208,6 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 			    struct reservation_object *resv,
 			    uint64_t init_value,
 			    struct amdgpu_bo **bo_ptr);
-int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
-				unsigned long size, int byte_align,
-				bool kernel, u32 domain, u64 flags,
-				struct sg_table *sg,
-				struct ttm_placement *placement,
-			        struct reservation_object *resv,
-				uint64_t init_value,
-				struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 			      unsigned long size, int align,
 			      u32 domain, struct amdgpu_bo **bo_ptr,

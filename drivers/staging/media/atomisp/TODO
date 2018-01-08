@@ -36,13 +36,23 @@
    there are any specific things that can be done to fold in support for
    multiple firmware versions.
 
+8. Switch to V4L2 async API to set up sensor, lens and flash devices.
+   Control those devices using V4L2 sub-device API without custom
+   extensions.
+
+9. Switch to standard V4L2 sub-device API for sensor and lens. In
+   particular, the user space API needs to support V4L2 controls as
+   defined in the V4L2 spec and references to atomisp must be removed from
+   these drivers.
+
+10. Use LED flash API for flash LED drivers such as LM3554 (which already
+    has a LED class driver).
+
+11. Switch from videobuf1 to videobuf2. Videobuf1 is being removed!
 
 Limitations:
 
-1. Currently the patch only support some camera sensors
-   gc2235/gc0310/0v2680/ov2722/ov5693/mt9m114...
-
-2. To test the patches, you also need the ISP firmware
+1. To test the patches, you also need the ISP firmware
 
    for BYT:/lib/firmware/shisp_2400b0_v21.bin
    for CHT:/lib/firmware/shisp_2401a0_v21.bin
@@ -51,14 +61,14 @@ Limitations:
    device but can also be extracted from the upgrade kit if you've managed
    to lose them somehow.
 
-3. Without a 3A libary the capture behaviour is not very good. To take a good
+2. Without a 3A libary the capture behaviour is not very good. To take a good
    picture, you need tune ISP parameters by IOCTL functions or use a 3A libary
    such as libxcam.
 
-4. The driver is intended to drive the PCI exposed versions of the device.
+3. The driver is intended to drive the PCI exposed versions of the device.
    It will not detect those devices enumerated via ACPI as a field of the
    i915 GPU driver.
 
-5. The driver supports only v2 of the IPU/Camera. It will not work with the
+4. The driver supports only v2 of the IPU/Camera. It will not work with the
    versions of the hardware in other SoCs.
 

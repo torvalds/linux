@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atmppp.h - RFC2364 PPPoATM */
 
 /* Written 2000 by Mitchell Blank Jr */

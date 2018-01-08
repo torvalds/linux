@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Watchdog support on powerpc systems.
  *
@@ -97,8 +98,7 @@ static void wd_lockup_ipi(struct pt_regs *regs)
 	else
 		dump_stack();
 
-	if (hardlockup_panic)
-		nmi_panic(regs, "Hard LOCKUP");
+	/* Do not panic from here because that can recurse into NMI IPI layer */
 }
 
 static void set_cpumask_stuck(const struct cpumask *cpumask, u64 tb)
@@ -134,15 +134,18 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 	pr_emerg("Watchdog CPU:%d detected Hard LOCKUP other CPUS:%*pbl\n",
 			cpu, cpumask_pr_args(&wd_smp_cpus_pending));
 
-	/*
-	 * Try to trigger the stuck CPUs.
-	 */
-	for_each_cpu(c, &wd_smp_cpus_pending) {
-		if (c == cpu)
-			continue;
-		smp_send_nmi_ipi(c, wd_lockup_ipi, 1000000);
+	if (!sysctl_hardlockup_all_cpu_backtrace) {
+		/*
+		 * Try to trigger the stuck CPUs, unless we are going to
+		 * get a backtrace on all of them anyway.
+		 */
+		for_each_cpu(c, &wd_smp_cpus_pending) {
+			if (c == cpu)
+				continue;
+			smp_send_nmi_ipi(c, wd_lockup_ipi, 1000000);
+		}
+		smp_flush_nmi_ipi(1000000);
 	}
-	smp_flush_nmi_ipi(1000000);
 
 	/* Take the stuck CPUs out of the watch group */
 	set_cpumask_stuck(&wd_smp_cpus_pending, tb);
@@ -261,9 +264,8 @@ static void wd_timer_reset(unsigned int cpu, struct timer_list *t)
 	add_timer_on(t, cpu);
 }
 
-static void wd_timer_fn(unsigned long data)
+static void wd_timer_fn(struct timer_list *t)
 {
-	struct timer_list *t = this_cpu_ptr(&wd_timer);
 	int cpu = smp_processor_id();
 
 	watchdog_timer_interrupt(cpu);
@@ -275,9 +277,12 @@ void arch_touch_nmi_watchdog(void)
 {
 	unsigned long ticks = tb_ticks_per_usec * wd_timer_period_ms * 1000;
 	int cpu = smp_processor_id();
+	u64 tb = get_tb();
 
-	if (get_tb() - per_cpu(wd_timer_tb, cpu) >= ticks)
-		watchdog_timer_interrupt(cpu);
+	if (tb - per_cpu(wd_timer_tb, cpu) >= ticks) {
+		per_cpu(wd_timer_tb, cpu) = tb;
+		wd_smp_clear_cpu_pending(cpu, tb);
+	}
 }
 EXPORT_SYMBOL(arch_touch_nmi_watchdog);
 
@@ -287,7 +292,7 @@ static void start_watchdog_timer_on(unsigned int cpu)
 
 	per_cpu(wd_timer_tb, cpu) = get_tb();
 
-	setup_pinned_timer(t, wd_timer_fn, 0);
+	timer_setup(t, wd_timer_fn, TIMER_PINNED);
 	wd_timer_reset(cpu, t);
 }
 
@@ -308,9 +313,6 @@ static int start_wd_on_cpu(unsigned int cpu)
 	}
 
 	if (!(watchdog_enabled & NMI_WATCHDOG_ENABLED))
-		return 0;
-
-	if (watchdog_suspended)
 		return 0;
 
 	if (!cpumask_test_cpu(cpu, &watchdog_cpumask))
@@ -358,36 +360,39 @@ static void watchdog_calc_timeouts(void)
 	wd_timer_period_ms = watchdog_thresh * 1000 * 2 / 5;
 }
 
-void watchdog_nmi_reconfigure(void)
+void watchdog_nmi_stop(void)
+{
+	int cpu;
+
+	for_each_cpu(cpu, &wd_cpus_enabled)
+		stop_wd_on_cpu(cpu);
+}
+
+void watchdog_nmi_start(void)
 {
 	int cpu;
 
 	watchdog_calc_timeouts();
-
-	for_each_cpu(cpu, &wd_cpus_enabled)
-		stop_wd_on_cpu(cpu);
-
 	for_each_cpu_and(cpu, cpu_online_mask, &watchdog_cpumask)
 		start_wd_on_cpu(cpu);
 }
 
 /*
- * This runs after lockup_detector_init() which sets up watchdog_cpumask.
+ * Invoked from core watchdog init.
  */
-static int __init powerpc_watchdog_init(void)
+int __init watchdog_nmi_probe(void)
 {
 	int err;
 
-	watchdog_calc_timeouts();
-
-	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "powerpc/watchdog:online",
-				start_wd_on_cpu, stop_wd_on_cpu);
-	if (err < 0)
+	err = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					"powerpc/watchdog:online",
+					start_wd_on_cpu, stop_wd_on_cpu);
+	if (err < 0) {
 		pr_warn("Watchdog could not be initialized");
-
+		return err;
+	}
 	return 0;
 }
-arch_initcall(powerpc_watchdog_init);
 
 static void handle_backtrace_ipi(struct pt_regs *regs)
 {

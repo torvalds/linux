@@ -2407,12 +2407,12 @@ static void sdhci_tasklet_finish(unsigned long param)
 		;
 }
 
-static void sdhci_timeout_timer(unsigned long data)
+static void sdhci_timeout_timer(struct timer_list *t)
 {
 	struct sdhci_host *host;
 	unsigned long flags;
 
-	host = (struct sdhci_host*)data;
+	host = from_timer(host, t, timer);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -2429,12 +2429,12 @@ static void sdhci_timeout_timer(unsigned long data)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static void sdhci_timeout_data_timer(unsigned long data)
+static void sdhci_timeout_data_timer(struct timer_list *t)
 {
 	struct sdhci_host *host;
 	unsigned long flags;
 
-	host = (struct sdhci_host *)data;
+	host = from_timer(host, t, data_timer);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -3238,7 +3238,7 @@ int sdhci_setup_host(struct sdhci_host *host)
 	 * available.
 	 */
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		return ret;
 
 	DBG("Version:   0x%08x | Present:  0x%08x\n",
@@ -3749,9 +3749,8 @@ int __sdhci_add_host(struct sdhci_host *host)
 	tasklet_init(&host->finish_tasklet,
 		sdhci_tasklet_finish, (unsigned long)host);
 
-	setup_timer(&host->timer, sdhci_timeout_timer, (unsigned long)host);
-	setup_timer(&host->data_timer, sdhci_timeout_data_timer,
-		    (unsigned long)host);
+	timer_setup(&host->timer, sdhci_timeout_timer, 0);
+	timer_setup(&host->data_timer, sdhci_timeout_data_timer, 0);
 
 	init_waitqueue_head(&host->buf_ready_int);
 

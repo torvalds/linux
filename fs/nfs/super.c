@@ -1332,7 +1332,7 @@ static int nfs_parse_mount_options(char *raw,
 			mnt->options |= NFS_OPTION_MIGRATION;
 			break;
 		case Opt_nomigration:
-			mnt->options &= NFS_OPTION_MIGRATION;
+			mnt->options &= ~NFS_OPTION_MIGRATION;
 			break;
 
 		/*
@@ -1456,18 +1456,21 @@ static int nfs_parse_mount_options(char *raw,
 			switch (token) {
 			case Opt_xprt_udp6:
 				protofamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_udp:
 				mnt->flags &= ~NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 				break;
 			case Opt_xprt_tcp6:
 				protofamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_tcp:
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 				break;
 			case Opt_xprt_rdma6:
 				protofamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_rdma:
 				/* vector side protocols to TCP */
 				mnt->flags |= NFS_MOUNT_TCP;
@@ -1494,11 +1497,13 @@ static int nfs_parse_mount_options(char *raw,
 			switch (token) {
 			case Opt_xprt_udp6:
 				mountfamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_udp:
 				mnt->mount_server.protocol = XPRT_TRANSPORT_UDP;
 				break;
 			case Opt_xprt_tcp6:
 				mountfamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_tcp:
 				mnt->mount_server.protocol = XPRT_TRANSPORT_TCP;
 				break;
@@ -1988,9 +1993,9 @@ static int nfs23_validate_mount_data(void *options,
 	args->version = NFS_DEFAULT_VERSION;
 	switch (data->version) {
 	case 1:
-		data->namlen = 0;
+		data->namlen = 0; /* fall through */
 	case 2:
-		data->bsize = 0;
+		data->bsize = 0; /* fall through */
 	case 3:
 		if (data->flags & NFS_MOUNT_VER3)
 			goto out_no_v3;
@@ -1998,11 +2003,14 @@ static int nfs23_validate_mount_data(void *options,
 		memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
 		/* Turn off security negotiation */
 		extra_flags |= NFS_MOUNT_SECFLAVOUR;
+		/* fall through */
 	case 4:
 		if (data->flags & NFS_MOUNT_SECFLAVOUR)
 			goto out_no_sec;
+		/* fall through */
 	case 5:
 		memset(data->context, 0, sizeof(data->context));
+		/* fall through */
 	case 6:
 		if (data->flags & NFS_MOUNT_VER3) {
 			if (data->root.size > NFS3_FHSIZE || data->root.size == 0)

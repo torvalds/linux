@@ -33,7 +33,7 @@ void _rtl_dbg_trace(struct rtl_priv *rtlpriv, u64 comp, int level,
 		    const char *fmt, ...)
 {
 	if (unlikely((comp & rtlpriv->cfg->mod_params->debug_mask) &&
-		     (level <= rtlpriv->cfg->mod_params->debug_level))) {
+		     level <= rtlpriv->cfg->mod_params->debug_level)) {
 		struct va_format vaf;
 		va_list args;
 
@@ -52,7 +52,7 @@ void _rtl_dbg_print(struct rtl_priv *rtlpriv, u64 comp, int level,
 		    const char *fmt, ...)
 {
 	if (unlikely((comp & rtlpriv->cfg->mod_params->debug_mask) &&
-		     (level <= rtlpriv->cfg->mod_params->debug_level))) {
+		     level <= rtlpriv->cfg->mod_params->debug_level)) {
 		struct va_format vaf;
 		va_list args;
 
@@ -127,10 +127,10 @@ static int rtl_debug_get_mac_page(struct seq_file *m, void *v)
 	return 0;
 }
 
-#define RTL_DEBUG_IMPL_MAC_SERIES(page, addr)		\
-struct rtl_debugfs_priv rtl_debug_priv_mac_ ##page = {	\
-	.cb_read = rtl_debug_get_mac_page,		\
-	.cb_data = addr,				\
+#define RTL_DEBUG_IMPL_MAC_SERIES(page, addr)			\
+static struct rtl_debugfs_priv rtl_debug_priv_mac_ ##page = {	\
+	.cb_read = rtl_debug_get_mac_page,			\
+	.cb_data = addr,					\
 }
 
 RTL_DEBUG_IMPL_MAC_SERIES(0, 0x0000);
@@ -169,10 +169,10 @@ static int rtl_debug_get_bb_page(struct seq_file *m, void *v)
 	return 0;
 }
 
-#define RTL_DEBUG_IMPL_BB_SERIES(page, addr)		\
-struct rtl_debugfs_priv rtl_debug_priv_bb_ ##page = {	\
-	.cb_read = rtl_debug_get_bb_page,		\
-	.cb_data = addr,				\
+#define RTL_DEBUG_IMPL_BB_SERIES(page, addr)			\
+static struct rtl_debugfs_priv rtl_debug_priv_bb_ ##page = {	\
+	.cb_read = rtl_debug_get_bb_page,			\
+	.cb_data = addr,					\
 }
 
 RTL_DEBUG_IMPL_BB_SERIES(8, 0x0800);
@@ -216,10 +216,10 @@ static int rtl_debug_get_reg_rf(struct seq_file *m, void *v)
 	return 0;
 }
 
-#define RTL_DEBUG_IMPL_RF_SERIES(page, addr)		\
-struct rtl_debugfs_priv rtl_debug_priv_rf_ ##page = {	\
-	.cb_read = rtl_debug_get_reg_rf,		\
-	.cb_data = addr,				\
+#define RTL_DEBUG_IMPL_RF_SERIES(page, addr)			\
+static struct rtl_debugfs_priv rtl_debug_priv_rf_ ##page = {	\
+	.cb_read = rtl_debug_get_reg_rf,			\
+	.cb_data = addr,					\
 }
 
 RTL_DEBUG_IMPL_RF_SERIES(a, RF90_PATH_A);
@@ -271,10 +271,10 @@ static int rtl_debug_get_cam_register(struct seq_file *m, void *v)
 	return 0;
 }
 
-#define RTL_DEBUG_IMPL_CAM_SERIES(page, addr)		\
-struct rtl_debugfs_priv rtl_debug_priv_cam_ ##page = {	\
-	.cb_read = rtl_debug_get_cam_register,		\
-	.cb_data = addr,				\
+#define RTL_DEBUG_IMPL_CAM_SERIES(page, addr)			\
+static struct rtl_debugfs_priv rtl_debug_priv_cam_ ##page = {	\
+	.cb_read = rtl_debug_get_cam_register,			\
+	.cb_data = addr,					\
 }
 
 RTL_DEBUG_IMPL_CAM_SERIES(1, 0);

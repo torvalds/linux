@@ -197,6 +197,8 @@ described below.
 			    "actions,s500-smp"
 			    "allwinner,sun6i-a31"
 			    "allwinner,sun8i-a23"
+			    "amlogic,meson8-smp"
+			    "amlogic,meson8b-smp"
 			    "arm,realview-smp"
 			    "brcm,bcm11351-cpu-method"
 			    "brcm,bcm23550"

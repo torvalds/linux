@@ -240,7 +240,7 @@ In order to report it upstream, you should identify the mailing list
 used for the development of the affected code. This can be done by using
 the ``get_maintainer.pl`` script.
 
-For example, if you find a bug at the gspca's conex.c file, you can get
+For example, if you find a bug at the gspca's sonixj.c file, you can get
 their maintainers with::
 
 	$ ./scripts/get_maintainer.pl -f drivers/media/usb/gspca/sonixj.c
@@ -257,7 +257,7 @@ Please notice that it will point to:
   Tejun and Bhaktipriya (in this specific case, none really envolved on the
   development of this file);
 - The driver maintainer (Hans Verkuil);
-- The subsystem maintainer (Mauro Carvalho Chehab)
+- The subsystem maintainer (Mauro Carvalho Chehab);
 - The driver and/or subsystem mailing list (linux-media@vger.kernel.org);
 - the Linux Kernel mailing list (linux-kernel@vger.kernel.org).
 
@@ -274,14 +274,14 @@ Fixing the bug
 --------------
 
 If you know programming, you could help us by not only reporting the bug,
-but also providing us with a solution. After all open source is about
+but also providing us with a solution. After all, open source is about
 sharing what you do and don't you want to be recognised for your genius?
 
 If you decide to take this way, once you have worked out a fix please submit
 it upstream.
 
 Please do read
-ref:`Documentation/process/submitting-patches.rst <submittingpatches>` though
+:ref:`Documentation/process/submitting-patches.rst <submittingpatches>` though
 to help your code get accepted.
 
 

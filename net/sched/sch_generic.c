@@ -288,9 +288,9 @@ unsigned long dev_trans_start(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_trans_start);
 
-static void dev_watchdog(unsigned long arg)
+static void dev_watchdog(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)arg;
+	struct net_device *dev = from_timer(dev, t, watchdog_timer);
 
 	netif_tx_lock(dev);
 	if (!qdisc_tx_is_noop(dev)) {
@@ -603,8 +603,14 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	struct Qdisc *sch;
 	unsigned int size = QDISC_ALIGN(sizeof(*sch)) + ops->priv_size;
 	int err = -ENOBUFS;
-	struct net_device *dev = dev_queue->dev;
+	struct net_device *dev;
 
+	if (!dev_queue) {
+		err = -EINVAL;
+		goto errout;
+	}
+
+	dev = dev_queue->dev;
 	p = kzalloc_node(size, GFP_KERNEL,
 			 netdev_queue_numa_node_read(dev_queue));
 
@@ -685,13 +691,12 @@ void qdisc_reset(struct Qdisc *qdisc)
 		qdisc->gso_skb = NULL;
 	}
 	qdisc->q.qlen = 0;
+	qdisc->qstats.backlog = 0;
 }
 EXPORT_SYMBOL(qdisc_reset);
 
-static void qdisc_rcu_free(struct rcu_head *head)
+static void qdisc_free(struct Qdisc *qdisc)
 {
-	struct Qdisc *qdisc = container_of(head, struct Qdisc, rcu_head);
-
 	if (qdisc_is_percpu_stats(qdisc)) {
 		free_percpu(qdisc->cpu_bstats);
 		free_percpu(qdisc->cpu_qstats);
@@ -724,11 +729,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 
 	kfree_skb_list(qdisc->gso_skb);
 	kfree_skb(qdisc->skb_bad_txq);
-	/*
-	 * gen_estimator est_timer() might access qdisc->q.lock,
-	 * wait a RCU grace period before freeing qdisc.
-	 */
-	call_rcu(&qdisc->rcu_head, qdisc_rcu_free);
+	qdisc_free(qdisc);
 }
 EXPORT_SYMBOL(qdisc_destroy);
 
@@ -959,7 +960,7 @@ void dev_init_scheduler(struct net_device *dev)
 	if (dev_ingress_queue(dev))
 		dev_init_scheduler_queue(dev, dev_ingress_queue(dev), &noop_qdisc);
 
-	setup_timer(&dev->watchdog_timer, dev_watchdog, (unsigned long)dev);
+	timer_setup(&dev->watchdog_timer, dev_watchdog, 0);
 }
 
 static void shutdown_scheduler_queue(struct net_device *dev,
@@ -1023,3 +1024,49 @@ void psched_ratecfg_precompute(struct psched_ratecfg *r,
 	}
 }
 EXPORT_SYMBOL(psched_ratecfg_precompute);
+
+static void mini_qdisc_rcu_func(struct rcu_head *head)
+{
+}
+
+void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
+			  struct tcf_proto *tp_head)
+{
+	struct mini_Qdisc *miniq_old = rtnl_dereference(*miniqp->p_miniq);
+	struct mini_Qdisc *miniq;
+
+	if (!tp_head) {
+		RCU_INIT_POINTER(*miniqp->p_miniq, NULL);
+		return;
+	}
+
+	miniq = !miniq_old || miniq_old == &miniqp->miniq2 ?
+		&miniqp->miniq1 : &miniqp->miniq2;
+
+	/* We need to make sure that readers won't see the miniq
+	 * we are about to modify. So wait until previous call_rcu_bh callback
+	 * is done.
+	 */
+	rcu_barrier_bh();
+	miniq->filter_list = tp_head;
+	rcu_assign_pointer(*miniqp->p_miniq, miniq);
+
+	if (miniq_old)
+		/* This is counterpart of the rcu barrier above. We need to
+		 * block potential new user of miniq_old until all readers
+		 * are not seeing it.
+		 */
+		call_rcu_bh(&miniq_old->rcu, mini_qdisc_rcu_func);
+}
+EXPORT_SYMBOL(mini_qdisc_pair_swap);
+
+void mini_qdisc_pair_init(struct mini_Qdisc_pair *miniqp, struct Qdisc *qdisc,
+			  struct mini_Qdisc __rcu **p_miniq)
+{
+	miniqp->miniq1.cpu_bstats = qdisc->cpu_bstats;
+	miniqp->miniq1.cpu_qstats = qdisc->cpu_qstats;
+	miniqp->miniq2.cpu_bstats = qdisc->cpu_bstats;
+	miniqp->miniq2.cpu_qstats = qdisc->cpu_qstats;
+	miniqp->p_miniq = p_miniq;
+}
+EXPORT_SYMBOL(mini_qdisc_pair_init);

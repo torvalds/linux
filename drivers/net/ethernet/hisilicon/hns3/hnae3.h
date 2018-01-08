@@ -28,6 +28,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dcbnl.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -49,7 +50,17 @@
 #define HNAE3_CLASS_NAME_SIZE 16
 
 #define HNAE3_DEV_INITED_B			0x0
-#define HNAE_DEV_SUPPORT_ROCE_B			0x1
+#define HNAE3_DEV_SUPPORT_ROCE_B		0x1
+#define HNAE3_DEV_SUPPORT_DCB_B			0x2
+
+#define HNAE3_DEV_SUPPORT_ROCE_DCB_BITS (BIT(HNAE3_DEV_SUPPORT_DCB_B) |\
+		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
+
+#define hnae3_dev_roce_supported(hdev) \
+	hnae_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_ROCE_B)
+
+#define hnae3_dev_dcb_supported(hdev) \
+	hnae_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_DCB_B)
 
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
@@ -99,6 +110,21 @@ enum hnae3_media_type {
 	HNAE3_MEDIA_TYPE_BACKPLANE,
 };
 
+enum hnae3_reset_notify_type {
+	HNAE3_UP_CLIENT,
+	HNAE3_DOWN_CLIENT,
+	HNAE3_INIT_CLIENT,
+	HNAE3_UNINIT_CLIENT,
+};
+
+enum hnae3_reset_type {
+	HNAE3_FUNC_RESET,
+	HNAE3_CORE_RESET,
+	HNAE3_GLOBAL_RESET,
+	HNAE3_IMP_RESET,
+	HNAE3_NONE_RESET,
+};
+
 struct hnae3_vector_info {
 	u8 __iomem *io_addr;
 	int vector;
@@ -121,6 +147,9 @@ struct hnae3_client_ops {
 	int (*init_instance)(struct hnae3_handle *handle);
 	void (*uninit_instance)(struct hnae3_handle *handle, bool reset);
 	void (*link_status_change)(struct hnae3_handle *handle, bool state);
+	int (*setup_tc)(struct hnae3_handle *handle, u8 tc);
+	int (*reset_notify)(struct hnae3_handle *handle,
+			    enum hnae3_reset_notify_type type);
 };
 
 #define HNAE3_CLIENT_NAME_LENGTH 16
@@ -327,6 +356,10 @@ struct hnae3_ae_ops {
 		       u8 *hfunc);
 	int (*set_rss)(struct hnae3_handle *handle, const u32 *indir,
 		       const u8 *key, const u8 hfunc);
+	int (*set_rss_tuple)(struct hnae3_handle *handle,
+			     struct ethtool_rxnfc *cmd);
+	int (*get_rss_tuple)(struct hnae3_handle *handle,
+			     struct ethtool_rxnfc *cmd);
 
 	int (*get_tc_size)(struct hnae3_handle *handle);
 
@@ -351,6 +384,23 @@ struct hnae3_ae_ops {
 			       u16 vlan_id, bool is_kill);
 	int (*set_vf_vlan_filter)(struct hnae3_handle *handle, int vfid,
 				  u16 vlan, u8 qos, __be16 proto);
+	void (*reset_event)(struct hnae3_handle *handle,
+			    enum hnae3_reset_type reset);
+};
+
+struct hnae3_dcb_ops {
+	/* IEEE 802.1Qaz std */
+	int (*ieee_getets)(struct hnae3_handle *, struct ieee_ets *);
+	int (*ieee_setets)(struct hnae3_handle *, struct ieee_ets *);
+	int (*ieee_getpfc)(struct hnae3_handle *, struct ieee_pfc *);
+	int (*ieee_setpfc)(struct hnae3_handle *, struct ieee_pfc *);
+
+	/* DCBX configuration */
+	u8   (*getdcbx)(struct hnae3_handle *);
+	u8   (*setdcbx)(struct hnae3_handle *, u8);
+
+	int (*map_update)(struct hnae3_handle *);
+	int (*setup_tc)(struct hnae3_handle *, u8, u8 *);
 };
 
 struct hnae3_ae_algo {
@@ -366,12 +416,12 @@ struct hnae3_ae_algo {
 struct hnae3_tc_info {
 	u16	tqp_offset;	/* TQP offset from base TQP */
 	u16	tqp_count;	/* Total TQPs */
-	u8	up;		/* user priority */
 	u8	tc;		/* TC index */
 	bool	enable;		/* If this TC is enable or not */
 };
 
 #define HNAE3_MAX_TC		8
+#define HNAE3_MAX_USER_PRIO	8
 struct hnae3_knic_private_info {
 	struct net_device *netdev; /* Set by KNIC client when init instance */
 	u16 rss_size;		   /* Allocated RSS queues */
@@ -379,10 +429,12 @@ struct hnae3_knic_private_info {
 	u16 num_desc;
 
 	u8 num_tc;		   /* Total number of enabled TCs */
+	u8 prio_tc[HNAE3_MAX_USER_PRIO];  /* TC indexed by prio */
 	struct hnae3_tc_info tc_info[HNAE3_MAX_TC]; /* Idx of array is HW TC */
 
 	u16 num_tqps;		  /* total number of TQPs in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs in this instance */
+	const struct hnae3_dcb_ops *dcb_ops;
 };
 
 struct hnae3_roce_private_info {

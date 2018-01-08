@@ -85,7 +85,7 @@ static struct pci_driver rtl8192_pci_driver = {
 
 static short _rtl92e_is_tx_queue_empty(struct net_device *dev);
 static void _rtl92e_watchdog_wq_cb(void *data);
-static void _rtl92e_watchdog_timer_cb(unsigned long data);
+static void _rtl92e_watchdog_timer_cb(struct timer_list *t);
 static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate);
 static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -766,12 +766,12 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 	priv->bfirst_init = false;
 
 	if (priv->polling_timer_on == 0)
-		rtl92e_check_rfctrl_gpio_timer((unsigned long)dev);
+		rtl92e_check_rfctrl_gpio_timer(&priv->gpio_polling_timer);
 
 	if (priv->rtllib->state != RTLLIB_LINKED)
 		rtllib_softmac_start_protocol(priv->rtllib, 0);
 	rtllib_reset_queue(priv->rtllib);
-	_rtl92e_watchdog_timer_cb((unsigned long)dev);
+	_rtl92e_watchdog_timer_cb(&priv->watch_dog_timer);
 
 	if (!netif_queue_stopped(dev))
 		netif_start_queue(dev);
@@ -1075,13 +1075,10 @@ static short _rtl92e_init(struct net_device *dev)
 
 	rtl92e_dm_init(dev);
 
-	setup_timer(&priv->watch_dog_timer,
-		    _rtl92e_watchdog_timer_cb,
-		    (unsigned long)dev);
+	timer_setup(&priv->watch_dog_timer, _rtl92e_watchdog_timer_cb, 0);
 
-	setup_timer(&priv->gpio_polling_timer,
-		    rtl92e_check_rfctrl_gpio_timer,
-		    (unsigned long)dev);
+	timer_setup(&priv->gpio_polling_timer, rtl92e_check_rfctrl_gpio_timer,
+		    0);
 
 	rtl92e_irq_disable(dev);
 	if (request_irq(dev->irq, _rtl92e_irq, IRQF_SHARED, dev->name, dev)) {
@@ -1531,9 +1528,9 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	RT_TRACE(COMP_TRACE, " <==RtUsbCheckForHangWorkItemCallback()\n");
 }
 
-static void _rtl92e_watchdog_timer_cb(unsigned long data)
+static void _rtl92e_watchdog_timer_cb(struct timer_list *t)
 {
-	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
+	struct r8192_priv *priv = from_timer(priv, t, watch_dog_timer);
 
 	schedule_delayed_work(&priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer, jiffies +
@@ -2535,7 +2532,7 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 	RT_TRACE(COMP_INIT, "dev name: %s\n", dev->name);
 
 	if (priv->polling_timer_on == 0)
-		rtl92e_check_rfctrl_gpio_timer((unsigned long)dev);
+		rtl92e_check_rfctrl_gpio_timer(&priv->gpio_polling_timer);
 
 	RT_TRACE(COMP_INIT, "Driver probe completed\n");
 	return 0;
@@ -2648,9 +2645,9 @@ bool rtl92e_disable_nic(struct net_device *dev)
 
 module_pci_driver(rtl8192_pci_driver);
 
-void rtl92e_check_rfctrl_gpio_timer(unsigned long data)
+void rtl92e_check_rfctrl_gpio_timer(struct timer_list *t)
 {
-	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
+	struct r8192_priv *priv = from_timer(priv, t, gpio_polling_timer);
 
 	priv->polling_timer_on = 1;
 

@@ -551,12 +551,15 @@ static const struct etnaviv_gem_ops etnaviv_gem_shmem_ops = {
 void etnaviv_gem_free_object(struct drm_gem_object *obj)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
+	struct etnaviv_drm_private *priv = obj->dev->dev_private;
 	struct etnaviv_vram_mapping *mapping, *tmp;
 
 	/* object should not be active */
 	WARN_ON(is_active(etnaviv_obj));
 
+	mutex_lock(&priv->gem_lock);
 	list_del(&etnaviv_obj->gem_node);
+	mutex_unlock(&priv->gem_lock);
 
 	list_for_each_entry_safe(mapping, tmp, &etnaviv_obj->vram_list,
 				 obj_node) {
@@ -701,25 +704,6 @@ int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	return ret;
 }
 
-struct drm_gem_object *etnaviv_gem_new(struct drm_device *dev,
-		u32 size, u32 flags)
-{
-	struct drm_gem_object *obj;
-	int ret;
-
-	obj = __etnaviv_gem_new(dev, size, flags);
-	if (IS_ERR(obj))
-		return obj;
-
-	ret = etnaviv_gem_obj_add(dev, obj);
-	if (ret < 0) {
-		drm_gem_object_put_unlocked(obj);
-		return ERR_PTR(ret);
-	}
-
-	return obj;
-}
-
 int etnaviv_gem_new_private(struct drm_device *dev, size_t size, u32 flags,
 	struct reservation_object *robj, const struct etnaviv_gem_ops *ops,
 	struct etnaviv_gem_object **res)
@@ -776,7 +760,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 	up_read(&mm->mmap_sem);
 
 	if (ret < 0) {
-		release_pages(pvec, pinned, 0);
+		release_pages(pvec, pinned);
 		kvfree(pvec);
 		return ERR_PTR(ret);
 	}
@@ -849,7 +833,7 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 		}
 	}
 
-	release_pages(pvec, pinned, 0);
+	release_pages(pvec, pinned);
 	kvfree(pvec);
 
 	work = kmalloc(sizeof(*work), GFP_KERNEL);
@@ -883,7 +867,7 @@ static void etnaviv_gem_userptr_release(struct etnaviv_gem_object *etnaviv_obj)
 	if (etnaviv_obj->pages) {
 		int npages = etnaviv_obj->base.size >> PAGE_SHIFT;
 
-		release_pages(etnaviv_obj->pages, npages, 0);
+		release_pages(etnaviv_obj->pages, npages);
 		kvfree(etnaviv_obj->pages);
 	}
 	put_task_struct(etnaviv_obj->userptr.task);

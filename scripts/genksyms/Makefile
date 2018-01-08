@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 hostprogs-y	:= genksyms
 always		:= $(hostprogs-y)

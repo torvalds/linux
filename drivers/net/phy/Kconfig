@@ -160,15 +160,6 @@ config MDIO_XGENE
 
 endif
 
-menuconfig PHYLIB
-	tristate "PHY Device support and infrastructure"
-	depends on NETDEVICES
-	select MDIO_DEVICE
-	help
-	  Ethernet controllers are usually attached to PHY
-	  devices.  This option provides infrastructure for
-	  managing PHY devices.
-
 config PHYLINK
 	tristate
 	depends on NETDEVICES
@@ -178,6 +169,15 @@ config PHYLINK
 	  PHYlink models the link between the PHY and MAC, allowing fixed
 	  configuration links, PHYs, and Serdes links with MAC level
 	  autonegotiation modes.
+
+menuconfig PHYLIB
+	tristate "PHY Device support and infrastructure"
+	depends on NETDEVICES
+	select MDIO_DEVICE
+	help
+	  Ethernet controllers are usually attached to PHY
+	  devices.  This option provides infrastructure for
+	  managing PHY devices.
 
 if PHYLIB
 
@@ -191,11 +191,14 @@ config LED_TRIGGER_PHY
 	  Adds support for a set of LED trigger events per-PHY.  Link
 	  state change will trigger the events, for consumption by an
 	  LED class driver.  There are triggers for each link speed currently
-	  supported by the phy, and are of the form:
+	  supported by the PHY and also a one common "link" trigger as a
+	  logical-or of all the link speed ones.
+	  All these triggers are named according to the following pattern:
 	      <mii bus id>:<phy>:<speed>
 
 	  Where speed is in the form:
-		<Speed in megabits>Mbps or <Speed in gigabits>Gbps
+		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
+		for any speed known to the PHY.
 
 
 comment "MII PHY device drivers"
@@ -276,6 +279,11 @@ config DAVICOM_PHY
 	tristate "Davicom PHYs"
 	---help---
 	  Currently supports dm9161e and dm9131
+
+config DP83822_PHY
+	tristate "Texas Instruments DP83822 PHY"
+	---help---
+	  Supports the DP83822 PHY.
 
 config DP83848_PHY
 	tristate "Texas Instruments DP83848 PHY"
@@ -365,6 +373,11 @@ config REALTEK_PHY
 	tristate "Realtek PHYs"
 	---help---
 	  Supports the Realtek 821x PHY.
+
+config RENESAS_PHY
+	tristate "Driver for Renesas PHYs"
+	---help---
+	  Supports the Renesas PHYs uPD60620 and uPD60620A.
 
 config ROCKCHIP_PHY
         tristate "Driver for Rockchip Ethernet PHYs"

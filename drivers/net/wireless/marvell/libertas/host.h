@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file function prototypes, data structure
  * and  definitions for all the host/station commands

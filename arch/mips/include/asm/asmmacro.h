@@ -19,6 +19,9 @@
 #include <asm/asmmacro-64.h>
 #endif
 
+/* preprocessor replaces the fp in ".set fp=64" with $30 otherwise */
+#undef fp
+
 /*
  * Helper macros for generating raw instruction encodings.
  */
@@ -105,6 +108,7 @@
 	.macro	fpu_save_16odd thread
 	.set	push
 	.set	mips64r2
+	.set	fp=64
 	SET_HARDFLOAT
 	sdc1	$f1,  THREAD_FPR1(\thread)
 	sdc1	$f3,  THREAD_FPR3(\thread)
@@ -126,8 +130,8 @@
 	.endm
 
 	.macro	fpu_save_double thread status tmp
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2) || \
-		defined(CONFIG_CPU_MIPS32_R6)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
+		defined(CONFIG_CPU_MIPSR6)
 	sll	\tmp, \status, 5
 	bgez	\tmp, 10f
 	fpu_save_16odd \thread
@@ -163,6 +167,7 @@
 	.macro	fpu_restore_16odd thread
 	.set	push
 	.set	mips64r2
+	.set	fp=64
 	SET_HARDFLOAT
 	ldc1	$f1,  THREAD_FPR1(\thread)
 	ldc1	$f3,  THREAD_FPR3(\thread)
@@ -184,8 +189,8 @@
 	.endm
 
 	.macro	fpu_restore_double thread status tmp
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2) || \
-		defined(CONFIG_CPU_MIPS32_R6)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
+		defined(CONFIG_CPU_MIPSR6)
 	sll	\tmp, \status, 5
 	bgez	\tmp, 10f				# 16 register mode?
 
@@ -234,9 +239,6 @@
 	.endm
 
 #ifdef TOOLCHAIN_SUPPORTS_MSA
-/* preprocessor replaces the fp in ".set fp=64" with $30 otherwise */
-#undef fp
-
 	.macro	_cfcmsa	rd, cs
 	.set	push
 	.set	mips32r2

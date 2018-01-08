@@ -32,19 +32,25 @@ config SND_SOC_ACPI_INTEL_MATCH
 config SND_SOC_INTEL_SST_TOPLEVEL
 	tristate "Intel ASoC SST drivers"
 	depends on X86 || COMPILE_TEST
-	depends on DMADEVICES
 	select SND_SOC_INTEL_MACH
 	select SND_SOC_INTEL_COMMON
+	help
+          Intel ASoC Audio Drivers. If you have a Intel machine that
+          has audio controller with a DSP and I2S or DMIC port, then
+          enable this option by saying Y or M
+          If unsure select "N".
 
 config SND_SOC_INTEL_HASWELL
 	tristate "Intel ASoC SST driver for Haswell/Broadwell"
 	depends on SND_SOC_INTEL_SST_TOPLEVEL && SND_DMA_SGBUF
+	depends on DMADEVICES
 	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_SST_FIRMWARE
 
 config SND_SOC_INTEL_BAYTRAIL
 	tristate "Intel ASoC SST driver for Baytrail (legacy)"
 	depends on SND_SOC_INTEL_SST_TOPLEVEL
+	depends on DMADEVICES
 	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_SST_FIRMWARE
 

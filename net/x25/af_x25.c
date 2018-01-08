@@ -374,9 +374,11 @@ static void __x25_destroy_socket(struct sock *);
 /*
  *	handler for deferred kills.
  */
-static void x25_destroy_timer(unsigned long data)
+static void x25_destroy_timer(struct timer_list *t)
 {
-	x25_destroy_socket_from_timer((struct sock *)data);
+	struct sock *sk = from_timer(sk, t, sk_timer);
+
+	x25_destroy_socket_from_timer(sk);
 }
 
 /*
@@ -414,7 +416,6 @@ static void __x25_destroy_socket(struct sock *sk)
 		/* Defer: outstanding buffers */
 		sk->sk_timer.expires  = jiffies + 10 * HZ;
 		sk->sk_timer.function = x25_destroy_timer;
-		sk->sk_timer.data = (unsigned long)sk;
 		add_timer(&sk->sk_timer);
 	} else {
 		/* drop last reference so sock_put will free */

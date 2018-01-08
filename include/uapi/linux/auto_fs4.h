@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * Copyright 1999-2000 Jeremy Fitzhardinge <jeremy@goop.org>
  *

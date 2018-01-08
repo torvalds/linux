@@ -55,7 +55,7 @@
 #include <unistd.h>
 
 #ifndef SO_EE_ORIGIN_ZEROCOPY
-#define SO_EE_ORIGIN_ZEROCOPY		SO_EE_ORIGIN_UPAGE
+#define SO_EE_ORIGIN_ZEROCOPY		5
 #endif
 
 #ifndef SO_ZEROCOPY

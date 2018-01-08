@@ -687,8 +687,10 @@ EXPORT_SYMBOL(_copy_from_iter_full_nocache);
 
 static inline bool page_copy_sane(struct page *page, size_t offset, size_t n)
 {
-	size_t v = n + offset;
-	if (likely(n <= v && v <= (PAGE_SIZE << compound_order(page))))
+	struct page *head = compound_head(page);
+	size_t v = n + offset + page_address(page) - page_address(head);
+
+	if (likely(n <= v && v <= (PAGE_SIZE << compound_order(head))))
 		return true;
 	WARN_ON(1);
 	return false;
@@ -1444,3 +1446,25 @@ int import_single_range(int rw, void __user *buf, size_t len,
 	return 0;
 }
 EXPORT_SYMBOL(import_single_range);
+
+int iov_iter_for_each_range(struct iov_iter *i, size_t bytes,
+			    int (*f)(struct kvec *vec, void *context),
+			    void *context)
+{
+	struct kvec w;
+	int err = -EINVAL;
+	if (!bytes)
+		return 0;
+
+	iterate_all_kinds(i, bytes, v, -EINVAL, ({
+		w.iov_base = kmap(v.bv_page) + v.bv_offset;
+		w.iov_len = v.bv_len;
+		err = f(&w, context);
+		kunmap(v.bv_page);
+		err;}), ({
+		w = v;
+		err = f(&w, context);})
+	)
+	return err;
+}
+EXPORT_SYMBOL(iov_iter_for_each_range);

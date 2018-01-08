@@ -55,10 +55,9 @@ struct rsi_ps_info {
 } __packed;
 
 char *str_psstate(enum ps_state state);
-void rsi_enable_ps(struct rsi_hw *adapter);
-void rsi_disable_ps(struct rsi_hw *adapter);
+void rsi_enable_ps(struct rsi_hw *adapter, struct ieee80211_vif *vif);
+void rsi_disable_ps(struct rsi_hw *adapter, struct ieee80211_vif *vif);
 int rsi_handle_ps_confirm(struct rsi_hw *adapter, u8 *msg);
 void rsi_default_ps_params(struct rsi_hw *hw);
-int rsi_send_ps_request(struct rsi_hw *adapter, bool enable);
-void rsi_conf_uapsd(struct rsi_hw *adapter);
+void rsi_conf_uapsd(struct rsi_hw *adapter, struct ieee80211_vif *vif);
 #endif

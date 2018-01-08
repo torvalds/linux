@@ -133,11 +133,11 @@
 			};
 		};
 
-		usb1: ohci@00600000 {
+		usb1: ohci@600000 {
 			status = "okay";
 		};
 
-		usb2: ehci@00700000 {
+		usb2: ehci@700000 {
 			status = "okay";
 		};
 

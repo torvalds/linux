@@ -216,9 +216,9 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		emem_sz = fwhdr.img_SRAM_size;
 		do {
 			memset(ptx_desc, 0, TXDESC_SIZE);
-			if (emem_sz >  MAX_DUMP_FWSZ) /* max=48k */
+			if (emem_sz >  MAX_DUMP_FWSZ) { /* max=48k */
 				dump_emem_sz = MAX_DUMP_FWSZ;
-			else {
+			} else {
 				dump_emem_sz = emem_sz;
 				ptx_desc->txdw0 |= cpu_to_le32(BIT(28));
 			}

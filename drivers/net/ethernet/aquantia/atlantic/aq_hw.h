@@ -151,8 +151,7 @@ struct aq_hw_ops {
 				     [ETH_ALEN],
 				     u32 count);
 
-	int (*hw_interrupt_moderation_set)(struct aq_hw_s *self,
-					   bool itr_enabled);
+	int (*hw_interrupt_moderation_set)(struct aq_hw_s *self);
 
 	int (*hw_rss_set)(struct aq_hw_s *self,
 			  struct aq_rss_parameters *rss_params);
@@ -162,6 +161,8 @@ struct aq_hw_ops {
 
 	int (*hw_get_regs)(struct aq_hw_s *self,
 			   struct aq_hw_caps_s *aq_hw_caps, u32 *regs_buff);
+
+	int (*hw_update_stats)(struct aq_hw_s *self);
 
 	int (*hw_get_hw_stats)(struct aq_hw_s *self, u64 *data,
 			       unsigned int *p_count);

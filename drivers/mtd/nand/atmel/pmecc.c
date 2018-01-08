@@ -363,7 +363,7 @@ atmel_pmecc_create_user(struct atmel_pmecc *pmecc,
 	size += (req->ecc.strength + 1) * sizeof(u16);
 	/* Reserve space for mu, dmu and delta. */
 	size = ALIGN(size, sizeof(s32));
-	size += (req->ecc.strength + 1) * sizeof(s32);
+	size += (req->ecc.strength + 1) * sizeof(s32) * 3;
 
 	user = kzalloc(size, GFP_KERNEL);
 	if (!user)
@@ -765,6 +765,13 @@ void atmel_pmecc_get_generated_eccbytes(struct atmel_pmecc_user *user,
 }
 EXPORT_SYMBOL_GPL(atmel_pmecc_get_generated_eccbytes);
 
+void atmel_pmecc_reset(struct atmel_pmecc *pmecc)
+{
+	writel(PMECC_CTRL_RST, pmecc->regs.base + ATMEL_PMECC_CTRL);
+	writel(PMECC_CTRL_DISABLE, pmecc->regs.base + ATMEL_PMECC_CTRL);
+}
+EXPORT_SYMBOL_GPL(atmel_pmecc_reset);
+
 int atmel_pmecc_enable(struct atmel_pmecc_user *user, int op)
 {
 	struct atmel_pmecc *pmecc = user->pmecc;
@@ -797,10 +804,7 @@ EXPORT_SYMBOL_GPL(atmel_pmecc_enable);
 
 void atmel_pmecc_disable(struct atmel_pmecc_user *user)
 {
-	struct atmel_pmecc *pmecc = user->pmecc;
-
-	writel(PMECC_CTRL_RST, pmecc->regs.base + ATMEL_PMECC_CTRL);
-	writel(PMECC_CTRL_DISABLE, pmecc->regs.base + ATMEL_PMECC_CTRL);
+	atmel_pmecc_reset(user->pmecc);
 	mutex_unlock(&user->pmecc->lock);
 }
 EXPORT_SYMBOL_GPL(atmel_pmecc_disable);
@@ -855,10 +859,7 @@ static struct atmel_pmecc *atmel_pmecc_create(struct platform_device *pdev,
 
 	/* Disable all interrupts before registering the PMECC handler. */
 	writel(0xffffffff, pmecc->regs.base + ATMEL_PMECC_IDR);
-
-	/* Reset the ECC engine */
-	writel(PMECC_CTRL_RST, pmecc->regs.base + ATMEL_PMECC_CTRL);
-	writel(PMECC_CTRL_DISABLE, pmecc->regs.base + ATMEL_PMECC_CTRL);
+	atmel_pmecc_reset(pmecc);
 
 	return pmecc;
 }

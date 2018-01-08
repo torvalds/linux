@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <cstdio>
 #include "llvm/Config/llvm-config.h"
 

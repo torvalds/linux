@@ -69,6 +69,7 @@ struct fbcon_ops {
 	struct timer_list cursor_timer; /* Cursor timer */
 	struct fb_cursor cursor_state;
 	struct display *p;
+	struct fb_info *info;
         int    currcon;	                /* Current VC. */
 	int    cur_blink_jiffies;
 	int    cursor_flash;

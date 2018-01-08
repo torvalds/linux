@@ -522,6 +522,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 		.name = "Avoton SoC",
 		.iTCO_version = 3,
 		.gpio_version = AVOTON_GPIO,
+		.spi_type = INTEL_SPI_BYT,
 	},
 	[LPC_BAYTRAIL] = {
 		.name = "Bay Trail SoC",

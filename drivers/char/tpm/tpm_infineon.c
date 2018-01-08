@@ -191,7 +191,7 @@ static int wait(struct tpm_chip *chip, int wait_for_bit)
 		/* check the status-register if wait_for_bit is set */
 		if (status & 1 << wait_for_bit)
 			break;
-		msleep(TPM_MSLEEP_TIME);
+		tpm_msleep(TPM_MSLEEP_TIME);
 	}
 	if (i == TPM_MAX_TRIES) {	/* timeout occurs */
 		if (wait_for_bit == STAT_XFE)
@@ -226,7 +226,7 @@ static void tpm_wtx(struct tpm_chip *chip)
 	wait_and_send(chip, TPM_CTRL_WTX);
 	wait_and_send(chip, 0x00);
 	wait_and_send(chip, 0x00);
-	msleep(TPM_WTX_MSLEEP_TIME);
+	tpm_msleep(TPM_WTX_MSLEEP_TIME);
 }
 
 static void tpm_wtx_abort(struct tpm_chip *chip)
@@ -237,7 +237,7 @@ static void tpm_wtx_abort(struct tpm_chip *chip)
 	wait_and_send(chip, 0x00);
 	wait_and_send(chip, 0x00);
 	number_of_wtx = 0;
-	msleep(TPM_WTX_MSLEEP_TIME);
+	tpm_msleep(TPM_WTX_MSLEEP_TIME);
 }
 
 static int tpm_inf_recv(struct tpm_chip *chip, u8 * buf, size_t count)

@@ -131,17 +131,11 @@ static unsigned int ecdh_max_size(struct crypto_kpp *tfm)
 	return ctx->ndigits << (ECC_DIGITS_TO_BYTES_SHIFT + 1);
 }
 
-static void no_exit_tfm(struct crypto_kpp *tfm)
-{
-	return;
-}
-
 static struct kpp_alg ecdh = {
 	.set_secret = ecdh_set_secret,
 	.generate_public_key = ecdh_compute_value,
 	.compute_shared_secret = ecdh_compute_value,
 	.max_size = ecdh_max_size,
-	.exit = no_exit_tfm,
 	.base = {
 		.cra_name = "ecdh",
 		.cra_driver_name = "ecdh-generic",

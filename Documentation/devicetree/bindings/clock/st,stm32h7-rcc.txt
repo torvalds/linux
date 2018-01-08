@@ -32,7 +32,7 @@ Example:
 		compatible = "st,stm32h743-rcc", "st,stm32-rcc";
 		reg = <0x58024400 0x400>;
 		#reset-cells = <1>;
-		#clock-cells = <2>;
+		#clock-cells = <1>;
 		clocks = <&clk_hse>, <&clk_lse>, <&clk_i2s_ckin>;
 
 		st,syscfg = <&pwrcfg>;

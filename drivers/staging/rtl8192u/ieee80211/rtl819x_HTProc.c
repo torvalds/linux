@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 //As this function is mainly ported from Windows driver, so leave the name little changed. If any confusion caused, tell me. Created by WB. 2008.05.08
 #include "ieee80211.h"

@@ -1,15 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0
 
 subdir-ccflags-y += \
 		-I$(FULL_AMD_PATH)/powerplay/inc/  \
 		-I$(FULL_AMD_PATH)/include/asic_reg  \
 		-I$(FULL_AMD_PATH)/include  \
 		-I$(FULL_AMD_PATH)/powerplay/smumgr\
-		-I$(FULL_AMD_PATH)/powerplay/hwmgr \
-		-I$(FULL_AMD_PATH)/powerplay/eventmgr
+		-I$(FULL_AMD_PATH)/powerplay/hwmgr
 
 AMD_PP_PATH = ../powerplay
 
-PP_LIBS = smumgr hwmgr eventmgr
+PP_LIBS = smumgr hwmgr
 
 AMD_POWERPLAY = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/powerplay/,$(PP_LIBS)))
 

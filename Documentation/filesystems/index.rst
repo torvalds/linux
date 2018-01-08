@@ -315,3 +315,14 @@ exported for use by modules.
    :internal:
 
 .. kernel-doc:: fs/pipe.c
+
+Encryption API
+==============
+
+A library which filesystems can hook into to support transparent
+encryption of files and directories.
+
+.. toctree::
+    :maxdepth: 2
+
+    fscrypt

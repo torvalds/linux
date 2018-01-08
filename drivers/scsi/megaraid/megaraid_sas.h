@@ -35,8 +35,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.702.06.00-rc1"
-#define MEGASAS_RELDATE				"June 21, 2017"
+#define MEGASAS_VERSION				"07.703.05.00-rc1"
+#define MEGASAS_RELDATE				"October 5, 2017"
 
 /*
  * Device IDs
@@ -57,6 +57,7 @@
 #define PCI_DEVICE_ID_LSI_CUTLASS_52		0x0052
 #define PCI_DEVICE_ID_LSI_CUTLASS_53		0x0053
 #define PCI_DEVICE_ID_LSI_VENTURA		    0x0014
+#define PCI_DEVICE_ID_LSI_CRUSADER		    0x0015
 #define PCI_DEVICE_ID_LSI_HARPOON		    0x0016
 #define PCI_DEVICE_ID_LSI_TOMCAT		    0x0017
 #define PCI_DEVICE_ID_LSI_VENTURA_4PORT		0x001B
@@ -186,16 +187,19 @@
 /*
  * MFI command opcodes
  */
-#define MFI_CMD_INIT				0x00
-#define MFI_CMD_LD_READ				0x01
-#define MFI_CMD_LD_WRITE			0x02
-#define MFI_CMD_LD_SCSI_IO			0x03
-#define MFI_CMD_PD_SCSI_IO			0x04
-#define MFI_CMD_DCMD				0x05
-#define MFI_CMD_ABORT				0x06
-#define MFI_CMD_SMP				0x07
-#define MFI_CMD_STP				0x08
-#define MFI_CMD_INVALID				0xff
+enum MFI_CMD_OP {
+	MFI_CMD_INIT		= 0x0,
+	MFI_CMD_LD_READ		= 0x1,
+	MFI_CMD_LD_WRITE	= 0x2,
+	MFI_CMD_LD_SCSI_IO	= 0x3,
+	MFI_CMD_PD_SCSI_IO	= 0x4,
+	MFI_CMD_DCMD		= 0x5,
+	MFI_CMD_ABORT		= 0x6,
+	MFI_CMD_SMP		= 0x7,
+	MFI_CMD_STP		= 0x8,
+	MFI_CMD_OP_COUNT,
+	MFI_CMD_INVALID		= 0xff
+};
 
 #define MR_DCMD_CTRL_GET_INFO			0x01010000
 #define MR_DCMD_LD_GET_LIST			0x03010000
@@ -1504,6 +1508,15 @@ enum FW_BOOT_CONTEXT {
 
 #define MR_CAN_HANDLE_SYNC_CACHE_OFFSET		0X01000000
 
+#define MR_CAN_HANDLE_64_BIT_DMA_OFFSET		(1 << 25)
+
+enum MR_ADAPTER_TYPE {
+	MFI_SERIES = 1,
+	THUNDERBOLT_SERIES = 2,
+	INVADER_SERIES = 3,
+	VENTURA_SERIES = 4,
+};
+
 /*
 * register set for both 1068 and 1078 controllers
 * structure extended for 1078 registers
@@ -1617,7 +1630,8 @@ union megasas_sgl_frame {
 typedef union _MFI_CAPABILITIES {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-	u32     reserved:19;
+	u32     reserved:18;
+	u32     support_64bit_mode:1;
 	u32 support_pd_map_target_id:1;
 	u32     support_qd_throttling:1;
 	u32     support_fp_rlbypass:1;
@@ -1645,7 +1659,8 @@ typedef union _MFI_CAPABILITIES {
 	u32     support_fp_rlbypass:1;
 	u32     support_qd_throttling:1;
 	u32	support_pd_map_target_id:1;
-	u32     reserved:19;
+	u32     support_64bit_mode:1;
+	u32     reserved:18;
 #endif
 	} mfi_capabilities;
 	__le32		reg;
@@ -2114,6 +2129,19 @@ struct megasas_instance {
 
 	u32 *crash_dump_buf;
 	dma_addr_t crash_dump_h;
+
+	struct MR_PD_LIST *pd_list_buf;
+	dma_addr_t pd_list_buf_h;
+
+	struct megasas_ctrl_info *ctrl_info_buf;
+	dma_addr_t ctrl_info_buf_h;
+
+	struct MR_LD_LIST *ld_list_buf;
+	dma_addr_t ld_list_buf_h;
+
+	struct MR_LD_TARGETID_LIST *ld_targetid_list_buf;
+	dma_addr_t ld_targetid_list_buf_h;
+
 	void *crash_buf[MAX_CRASH_DUMP_SIZE];
 	unsigned int    fw_crash_buffer_size;
 	unsigned int    fw_crash_state;
@@ -2210,8 +2238,6 @@ struct megasas_instance {
 
 	/* Ptr to hba specific information */
 	void *ctrl_context;
-	u32 ctrl_context_pages;
-	struct megasas_ctrl_info *ctrl_info;
 	unsigned int msix_vectors;
 	struct megasas_irq_context irq_context[MEGASAS_MAX_MSIX_QUEUES];
 	u64 map_id;
@@ -2236,12 +2262,13 @@ struct megasas_instance {
 	bool dev_handle;
 	bool fw_sync_cache_support;
 	u32 mfi_frame_size;
-	bool is_ventura;
 	bool msix_combined;
 	u16 max_raid_mapsize;
 	/* preffered count to send as LDIO irrspective of FP capable.*/
 	u8  r1_ldio_hint_default;
 	u32 nvme_page_size;
+	u8 adapter_type;
+	bool consistent_mask_64bit;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
@@ -2488,4 +2515,7 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd);
 u32 mega_mod64(u64 dividend, u32 divisor);
 int megasas_alloc_fusion_context(struct megasas_instance *instance);
 void megasas_free_fusion_context(struct megasas_instance *instance);
+void megasas_set_dma_settings(struct megasas_instance *instance,
+			      struct megasas_dcmd_frame *dcmd,
+			      dma_addr_t dma_addr, u32 dma_len);
 #endif				/*LSI_MEGARAID_SAS_H */

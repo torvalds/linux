@@ -720,7 +720,7 @@ mvebu_mbus_default_setup_cpu_target(struct mvebu_mbus_state *mbus)
 			if (mbus->hw_io_coherency)
 				w->mbus_attr |= ATTR_HW_COHERENCY;
 			w->base = base & DDR_BASE_CS_LOW_MASK;
-			w->size = (size | ~DDR_SIZE_MASK) + 1;
+			w->size = (u64)(size | ~DDR_SIZE_MASK) + 1;
 		}
 	}
 	mvebu_mbus_dram_info.num_cs = cs;

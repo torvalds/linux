@@ -104,6 +104,7 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"tx_flow_control_xoff", IXGBE_STAT(stats.lxofftxc)},
 	{"rx_flow_control_xoff", IXGBE_STAT(stats.lxoffrxc)},
 	{"rx_csum_offload_errors", IXGBE_STAT(hw_csum_rx_error)},
+	{"alloc_rx_page", IXGBE_STAT(alloc_rx_page)},
 	{"alloc_rx_page_failed", IXGBE_STAT(alloc_rx_page_failed)},
 	{"alloc_rx_buff_failed", IXGBE_STAT(alloc_rx_buff_failed)},
 	{"rx_no_dma_resources", IXGBE_STAT(hw_rx_no_dma_resources)},
@@ -1048,7 +1049,7 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_ring *temp_ring;
-	int i, err = 0;
+	int i, j, err = 0;
 	u32 new_rx_count, new_tx_count;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
@@ -1085,8 +1086,8 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 	}
 
 	/* allocate temporary buffer to store rings in */
-	i = max_t(int, adapter->num_tx_queues, adapter->num_rx_queues);
-	i = max_t(int, i, adapter->num_xdp_queues);
+	i = max_t(int, adapter->num_tx_queues + adapter->num_xdp_queues,
+		  adapter->num_rx_queues);
 	temp_ring = vmalloc(i * sizeof(struct ixgbe_ring));
 
 	if (!temp_ring) {
@@ -1118,8 +1119,8 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 			}
 		}
 
-		for (i = 0; i < adapter->num_xdp_queues; i++) {
-			memcpy(&temp_ring[i], adapter->xdp_ring[i],
+		for (j = 0; j < adapter->num_xdp_queues; j++, i++) {
+			memcpy(&temp_ring[i], adapter->xdp_ring[j],
 			       sizeof(struct ixgbe_ring));
 
 			temp_ring[i].count = new_tx_count;
@@ -1139,10 +1140,10 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 			memcpy(adapter->tx_ring[i], &temp_ring[i],
 			       sizeof(struct ixgbe_ring));
 		}
-		for (i = 0; i < adapter->num_xdp_queues; i++) {
-			ixgbe_free_tx_resources(adapter->xdp_ring[i]);
+		for (j = 0; j < adapter->num_xdp_queues; j++, i++) {
+			ixgbe_free_tx_resources(adapter->xdp_ring[j]);
 
-			memcpy(adapter->xdp_ring[i], &temp_ring[i],
+			memcpy(adapter->xdp_ring[j], &temp_ring[i],
 			       sizeof(struct ixgbe_ring));
 		}
 
@@ -1916,8 +1917,6 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 				  unsigned int size)
 {
 	union ixgbe_adv_rx_desc *rx_desc;
-	struct ixgbe_rx_buffer *rx_buffer;
-	struct ixgbe_tx_buffer *tx_buffer;
 	u16 rx_ntc, tx_ntc, count = 0;
 
 	/* initialize next to clean and descriptor values */
@@ -1925,25 +1924,15 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 	tx_ntc = tx_ring->next_to_clean;
 	rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);
 
-	while (rx_desc->wb.upper.length) {
-		/* check Rx buffer */
-		rx_buffer = &rx_ring->rx_buffer_info[rx_ntc];
+	while (tx_ntc != tx_ring->next_to_use) {
+		union ixgbe_adv_tx_desc *tx_desc;
+		struct ixgbe_tx_buffer *tx_buffer;
 
-		/* sync Rx buffer for CPU read */
-		dma_sync_single_for_cpu(rx_ring->dev,
-					rx_buffer->dma,
-					ixgbe_rx_bufsz(rx_ring),
-					DMA_FROM_DEVICE);
+		tx_desc = IXGBE_TX_DESC(tx_ring, tx_ntc);
 
-		/* verify contents of skb */
-		if (ixgbe_check_lbtest_frame(rx_buffer, size))
-			count++;
-
-		/* sync Rx buffer for device write */
-		dma_sync_single_for_device(rx_ring->dev,
-					   rx_buffer->dma,
-					   ixgbe_rx_bufsz(rx_ring),
-					   DMA_FROM_DEVICE);
+		/* if DD is not set transmit has not completed */
+		if (!(tx_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)))
+			return count;
 
 		/* unmap buffer on Tx side */
 		tx_buffer = &tx_ring->tx_buffer_info[tx_ntc];
@@ -1958,13 +1947,40 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 				 DMA_TO_DEVICE);
 		dma_unmap_len_set(tx_buffer, len, 0);
 
-		/* increment Rx/Tx next to clean counters */
-		rx_ntc++;
-		if (rx_ntc == rx_ring->count)
-			rx_ntc = 0;
+		/* increment Tx next to clean counter */
 		tx_ntc++;
 		if (tx_ntc == tx_ring->count)
 			tx_ntc = 0;
+	}
+
+	while (rx_desc->wb.upper.length) {
+		struct ixgbe_rx_buffer *rx_buffer;
+
+		/* check Rx buffer */
+		rx_buffer = &rx_ring->rx_buffer_info[rx_ntc];
+
+		/* sync Rx buffer for CPU read */
+		dma_sync_single_for_cpu(rx_ring->dev,
+					rx_buffer->dma,
+					ixgbe_rx_bufsz(rx_ring),
+					DMA_FROM_DEVICE);
+
+		/* verify contents of skb */
+		if (ixgbe_check_lbtest_frame(rx_buffer, size))
+			count++;
+		else
+			break;
+
+		/* sync Rx buffer for device write */
+		dma_sync_single_for_device(rx_ring->dev,
+					   rx_buffer->dma,
+					   ixgbe_rx_bufsz(rx_ring),
+					   DMA_FROM_DEVICE);
+
+		/* increment Rx next to clean counter */
+		rx_ntc++;
+		if (rx_ntc == rx_ring->count)
+			rx_ntc = 0;
 
 		/* fetch next descriptor */
 		rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);

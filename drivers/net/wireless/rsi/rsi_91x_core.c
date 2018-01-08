@@ -95,6 +95,8 @@ static u32 rsi_get_num_pkts_dequeue(struct rsi_common *common, u8 q_num)
 	s16 txop = common->tx_qinfo[q_num].txop * 32;
 	__le16 r_txop;
 	struct ieee80211_rate rate;
+	struct ieee80211_hdr *wh;
+	struct ieee80211_vif *vif;
 
 	rate.bitrate = RSI_RATE_MCS0 * 5 * 10; /* Convert to Kbps */
 	if (q_num == VI_Q)
@@ -106,8 +108,10 @@ static u32 rsi_get_num_pkts_dequeue(struct rsi_common *common, u8 q_num)
 		return 0;
 
 	do {
+		wh = (struct ieee80211_hdr *)skb->data;
+		vif = rsi_get_vif(adapter, wh->addr2);
 		r_txop = ieee80211_generic_frame_duration(adapter->hw,
-							  adapter->vifs[0],
+							  vif,
 							  common->band,
 							  skb->len, &rate);
 		txop -= le16_to_cpu(r_txop);
@@ -272,6 +276,8 @@ void rsi_core_qos_processor(struct rsi_common *common)
 			rsi_dbg(DATA_TX_ZONE, "%s: No More Pkt\n", __func__);
 			break;
 		}
+		if (common->hibernate_resume)
+			break;
 
 		mutex_lock(&common->tx_lock);
 
@@ -334,6 +340,21 @@ struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr)
 	return NULL;
 }
 
+struct ieee80211_vif *rsi_get_vif(struct rsi_hw *adapter, u8 *mac)
+{
+	struct ieee80211_vif *vif;
+	int i;
+
+	for (i = 0; i < RSI_MAX_VIFS; i++) {
+		vif = adapter->vifs[i];
+		if (!vif)
+			continue;
+		if (!memcmp(vif->addr, mac, ETH_ALEN))
+			return vif;
+	}
+	return NULL;
+}
+
 /**
  * rsi_core_xmit() - This function transmits the packets received from mac80211
  * @common: Pointer to the driver private structure.
@@ -346,8 +367,8 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
-	struct ieee80211_hdr *wh;
-	struct ieee80211_vif *vif = adapter->vifs[0];
+	struct ieee80211_hdr *wh = NULL;
+	struct ieee80211_vif *vif;
 	u8 q_num, tid = 0;
 	struct rsi_sta *rsta = NULL;
 
@@ -360,12 +381,23 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		rsi_dbg(ERR_ZONE, "%s: FSM state not open\n", __func__);
 		goto xmit_fail;
 	}
+	if (common->wow_flags & RSI_WOW_ENABLED) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Blocking Tx_packets when WOWLAN is enabled\n",
+			__func__);
+		goto xmit_fail;
+	}
 
 	info = IEEE80211_SKB_CB(skb);
 	tx_params = (struct skb_info *)info->driver_data;
 	wh = (struct ieee80211_hdr *)&skb->data[0];
 	tx_params->sta_id = 0;
 
+	vif = rsi_get_vif(adapter, wh->addr2);
+	if (!vif)
+		goto xmit_fail;
+	tx_params->vif = vif;
+	tx_params->vap_id = ((struct vif_priv *)vif->drv_priv)->vap_id;
 	if ((ieee80211_is_mgmt(wh->frame_control)) ||
 	    (ieee80211_is_ctl(wh->frame_control)) ||
 	    (ieee80211_is_qos_nullfunc(wh->frame_control))) {
@@ -383,7 +415,8 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		q_num = skb->priority;
 		tx_params->tid = tid;
 
-		if ((vif->type == NL80211_IFTYPE_AP) &&
+		if (((vif->type == NL80211_IFTYPE_AP) ||
+		     (vif->type == NL80211_IFTYPE_P2P_GO)) &&
 		    (!is_broadcast_ether_addr(wh->addr1)) &&
 		    (!is_multicast_ether_addr(wh->addr1))) {
 			rsta = rsi_find_sta(common, wh->addr1);

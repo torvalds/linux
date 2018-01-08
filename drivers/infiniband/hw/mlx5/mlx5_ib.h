@@ -228,6 +228,7 @@ struct wr_list {
 
 enum mlx5_ib_rq_flags {
 	MLX5_IB_RQ_CVLAN_STRIPPING	= 1 << 0,
+	MLX5_IB_RQ_PCI_WRITE_END_PADDING	= 1 << 1,
 };
 
 struct mlx5_ib_wq {
@@ -254,7 +255,13 @@ struct mlx5_ib_wq {
 
 enum mlx5_ib_wq_flags {
 	MLX5_IB_WQ_FLAGS_DELAY_DROP = 0x1,
+	MLX5_IB_WQ_FLAGS_STRIDING_RQ = 0x2,
 };
+
+#define MLX5_MIN_SINGLE_WQE_LOG_NUM_STRIDES 9
+#define MLX5_MAX_SINGLE_WQE_LOG_NUM_STRIDES 16
+#define MLX5_MIN_SINGLE_STRIDE_LOG_NUM_BYTES 6
+#define MLX5_MAX_SINGLE_STRIDE_LOG_NUM_BYTES 13
 
 struct mlx5_ib_rwq {
 	struct ib_wq		ibwq;
@@ -264,6 +271,9 @@ struct mlx5_ib_rwq {
 	u32			log_rq_size;
 	u32			rq_page_offset;
 	u32			log_page_size;
+	u32			log_num_strides;
+	u32			two_byte_shift_en;
+	u32			single_stride_log_num_of_bytes;
 	struct ib_umem		*umem;
 	size_t			buf_size;
 	unsigned int		page_shift;
@@ -389,6 +399,7 @@ struct mlx5_ib_qp {
 	struct list_head	cq_send_list;
 	u32			rate_limit;
 	u32                     underlay_qpn;
+	bool			tunnel_offload_en;
 };
 
 struct mlx5_ib_cq_buf {
@@ -411,6 +422,8 @@ enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_RSS				= 1 << 8,
 	MLX5_IB_QP_CVLAN_STRIPPING		= 1 << 9,
 	MLX5_IB_QP_UNDERLAY			= 1 << 10,
+	MLX5_IB_QP_PCI_WRITE_END_PADDING	= 1 << 11,
+	MLX5_IB_QP_TUNNEL_OFFLOAD		= 1 << 12,
 };
 
 struct mlx5_umr_wr {
@@ -435,6 +448,10 @@ struct mlx5_shared_mr_info {
 	struct ib_umem		*umem;
 };
 
+enum mlx5_ib_cq_pr_flags {
+	MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD	= 1 << 0,
+};
+
 struct mlx5_ib_cq {
 	struct ib_cq		ibcq;
 	struct mlx5_core_cq	mcq;
@@ -457,6 +474,7 @@ struct mlx5_ib_cq {
 	struct list_head	wc_list;
 	enum ib_cq_notify_flags notify_flags;
 	struct work_struct	notify_work;
+	u16			private_flags; /* Use mlx5_ib_cq_pr_flags */
 };
 
 struct mlx5_ib_wc {

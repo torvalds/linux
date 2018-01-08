@@ -1187,12 +1187,11 @@ static void gmap_unshadow_pgt(struct gmap *sg, unsigned long raddr)
 static void __gmap_unshadow_sgt(struct gmap *sg, unsigned long raddr,
 				unsigned long *sgt)
 {
-	unsigned long asce, *pgt;
+	unsigned long *pgt;
 	struct page *page;
 	int i;
 
 	BUG_ON(!gmap_is_shadow(sg));
-	asce = (unsigned long) sgt | _ASCE_TYPE_SEGMENT;
 	for (i = 0; i < _CRST_ENTRIES; i++, raddr += _SEGMENT_SIZE) {
 		if (!(sgt[i] & _SEGMENT_ENTRY_ORIGIN))
 			continue;
@@ -1245,12 +1244,11 @@ static void gmap_unshadow_sgt(struct gmap *sg, unsigned long raddr)
 static void __gmap_unshadow_r3t(struct gmap *sg, unsigned long raddr,
 				unsigned long *r3t)
 {
-	unsigned long asce, *sgt;
+	unsigned long *sgt;
 	struct page *page;
 	int i;
 
 	BUG_ON(!gmap_is_shadow(sg));
-	asce = (unsigned long) r3t | _ASCE_TYPE_REGION3;
 	for (i = 0; i < _CRST_ENTRIES; i++, raddr += _REGION3_SIZE) {
 		if (!(r3t[i] & _REGION_ENTRY_ORIGIN))
 			continue;
@@ -1303,12 +1301,11 @@ static void gmap_unshadow_r3t(struct gmap *sg, unsigned long raddr)
 static void __gmap_unshadow_r2t(struct gmap *sg, unsigned long raddr,
 				unsigned long *r2t)
 {
-	unsigned long asce, *r3t;
+	unsigned long *r3t;
 	struct page *page;
 	int i;
 
 	BUG_ON(!gmap_is_shadow(sg));
-	asce = (unsigned long) r2t | _ASCE_TYPE_REGION2;
 	for (i = 0; i < _CRST_ENTRIES; i++, raddr += _REGION2_SIZE) {
 		if (!(r2t[i] & _REGION_ENTRY_ORIGIN))
 			continue;

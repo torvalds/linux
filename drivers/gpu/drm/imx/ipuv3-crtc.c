@@ -115,7 +115,7 @@ static void imx_drm_crtc_reset(struct drm_crtc *crtc)
 
 	if (crtc->state) {
 		if (crtc->state->mode_blob)
-			drm_property_unreference_blob(crtc->state->mode_blob);
+			drm_property_blob_put(crtc->state->mode_blob);
 
 		state = to_imx_crtc_state(crtc->state);
 		memset(state, 0, sizeof(*state));

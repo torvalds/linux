@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_TC_GACT_H
 #define __NET_TC_GACT_H
 
@@ -31,6 +32,11 @@ static inline bool __is_tcf_gact_act(const struct tc_action *a, int act,
 
 #endif
 	return false;
+}
+
+static inline bool is_tcf_gact_ok(const struct tc_action *a)
+{
+	return __is_tcf_gact_act(a, TC_ACT_OK, false);
 }
 
 static inline bool is_tcf_gact_shot(const struct tc_action *a)

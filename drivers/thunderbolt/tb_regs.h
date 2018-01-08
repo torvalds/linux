@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Thunderbolt Cactus Ridge driver - Port/Switch config area registers
  *
