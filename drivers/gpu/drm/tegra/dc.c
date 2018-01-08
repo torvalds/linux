@@ -937,20 +937,24 @@ static struct drm_plane *tegra_dc_add_shared_planes(struct drm_device *drm,
 static struct drm_plane *tegra_dc_add_planes(struct drm_device *drm,
 					     struct tegra_dc *dc)
 {
-	struct drm_plane *plane, *primary;
+	struct drm_plane *planes[2], *primary;
 	unsigned int i;
+	int err;
 
 	primary = tegra_primary_plane_create(drm, dc);
 	if (IS_ERR(primary))
 		return primary;
 
 	for (i = 0; i < 2; i++) {
-		plane = tegra_dc_overlay_plane_create(drm, dc, 1 + i);
-		if (IS_ERR(plane)) {
-			/* XXX tegra_plane_destroy() */
-			drm_plane_cleanup(primary);
-			kfree(primary);
-			return plane;
+		planes[i] = tegra_dc_overlay_plane_create(drm, dc, 1 + i);
+		if (IS_ERR(planes[i])) {
+			err = PTR_ERR(planes[i]);
+
+			while (i--)
+				tegra_plane_funcs.destroy(planes[i]);
+
+			tegra_plane_funcs.destroy(primary);
+			return ERR_PTR(err);
 		}
 	}
 
