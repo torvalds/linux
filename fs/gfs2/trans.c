@@ -117,7 +117,8 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	up_read(&sdp->sd_log_flush_lock);
 
 	if (sdp->sd_vfs->s_flags & SB_SYNCHRONOUS)
-		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL);
+		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
+			       GFS2_LFC_TRANS_END);
 	if (alloced)
 		sb_end_intwrite(sdp->sd_vfs);
 }

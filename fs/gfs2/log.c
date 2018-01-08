@@ -757,7 +757,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
  * gfs2_log_flush - flush incore transaction(s)
  * @sdp: the filesystem
  * @gl: The glock structure to flush.  If NULL, flush the whole incore log
- * @flags: The log header flags: GFS2_LOG_HEAD_FLUSH_*
+ * @flags: The log header flags: GFS2_LOG_HEAD_FLUSH_* and debug flags
  *
  */
 
@@ -773,7 +773,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 		up_write(&sdp->sd_log_flush_lock);
 		return;
 	}
-	trace_gfs2_log_flush(sdp, 1);
+	trace_gfs2_log_flush(sdp, 1, flags);
 
 	if (flags & GFS2_LOG_HEAD_FLUSH_SHUTDOWN)
 		clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
@@ -841,7 +841,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 			atomic_set(&sdp->sd_freeze_state, SFS_FROZEN);
 	}
 
-	trace_gfs2_log_flush(sdp, 0);
+	trace_gfs2_log_flush(sdp, 0, flags);
 	up_write(&sdp->sd_log_flush_lock);
 
 	kfree(tr);
@@ -937,7 +937,7 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 
 	sdp->sd_log_flush_head = sdp->sd_log_head;
 
-	log_write_header(sdp, GFS2_LOG_HEAD_UNMOUNT);
+	log_write_header(sdp, GFS2_LOG_HEAD_UNMOUNT | GFS2_LFC_SHUTDOWN);
 
 	gfs2_assert_warn(sdp, sdp->sd_log_head == sdp->sd_log_tail);
 	gfs2_assert_warn(sdp, list_empty(&sdp->sd_ail2_list));
@@ -993,7 +993,8 @@ int gfs2_logd(void *data)
 		did_flush = false;
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
 			gfs2_ail1_empty(sdp);
-			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL);
+			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
+				       GFS2_LFC_LOGD_JFLUSH_REQD);
 			did_flush = true;
 		}
 
@@ -1001,7 +1002,8 @@ int gfs2_logd(void *data)
 			gfs2_ail1_start(sdp);
 			gfs2_ail1_wait(sdp);
 			gfs2_ail1_empty(sdp);
-			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL);
+			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
+				       GFS2_LFC_LOGD_AIL_FLUSH_REQD);
 			did_flush = true;
 		}
 

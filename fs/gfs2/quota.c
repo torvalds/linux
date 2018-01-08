@@ -956,7 +956,7 @@ out:
 	inode_unlock(&ip->i_inode);
 	kfree(ghs);
 	gfs2_log_flush(ip->i_gl->gl_name.ln_sbd, ip->i_gl,
-		       GFS2_LOG_HEAD_FLUSH_NORMAL);
+		       GFS2_LOG_HEAD_FLUSH_NORMAL | GFS2_LFC_DO_SYNC);
 	return error;
 }
 
