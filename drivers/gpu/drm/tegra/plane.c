@@ -276,6 +276,11 @@ bool tegra_plane_format_has_alpha(unsigned int format)
 
 int tegra_plane_format_get_alpha(unsigned int opaque, unsigned int *alpha)
 {
+	if (tegra_plane_format_is_yuv(opaque, NULL)) {
+		*alpha = opaque;
+		return 0;
+	}
+
 	switch (opaque) {
 	case WIN_COLOR_DEPTH_B5G5R5X1:
 		*alpha = WIN_COLOR_DEPTH_B5G5R5A1;
