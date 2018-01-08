@@ -44,8 +44,10 @@ struct tipc_msg;
 
 struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 				     struct tipc_group_req *mreq);
+void tipc_group_join(struct net *net, struct tipc_group *grp, int *sk_rcv_buf);
 void tipc_group_delete(struct net *net, struct tipc_group *grp);
-void tipc_group_add_member(struct tipc_group *grp, u32 node, u32 port);
+void tipc_group_add_member(struct tipc_group *grp, u32 node,
+			   u32 port, u32 instance);
 struct tipc_nlist *tipc_group_dests(struct tipc_group *grp);
 void tipc_group_self(struct tipc_group *grp, struct tipc_name_seq *seq,
 		     int *scope);

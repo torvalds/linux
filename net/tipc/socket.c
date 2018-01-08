@@ -2757,10 +2757,10 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 		tipc_group_delete(net, grp);
 		tsk->group = NULL;
 	}
-
-	/* Eliminate any risk that a broadcast overtakes the sent JOIN */
+	/* Eliminate any risk that a broadcast overtakes sent JOINs */
 	tsk->mc_method.rcast = true;
 	tsk->mc_method.mandatory = true;
+	tipc_group_join(net, grp, &tsk->sk.sk_rcvbuf);
 	return rc;
 }
 

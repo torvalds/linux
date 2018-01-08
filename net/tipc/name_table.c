@@ -732,7 +732,7 @@ void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 		list_for_each_entry(p, &info->zone_list, zone_list) {
 			if (!tipc_in_scope(domain, p->node))
 				continue;
-			tipc_group_add_member(grp, p->node, p->ref);
+			tipc_group_add_member(grp, p->node, p->ref, p->lower);
 		}
 	}
 	spin_unlock_bh(&seq->lock);

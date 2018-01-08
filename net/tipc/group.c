@@ -49,7 +49,6 @@
 #define ADV_ACTIVE (ADV_UNIT * 12)
 
 enum mbr_state {
-	MBR_DISCOVERED,
 	MBR_JOINING,
 	MBR_PUBLISHED,
 	MBR_JOINED,
@@ -141,7 +140,7 @@ static bool tipc_group_is_receiver(struct tipc_member *m)
 
 static bool tipc_group_is_sender(struct tipc_member *m)
 {
-	return m && m->state >= MBR_JOINED;
+	return m && m->state != MBR_JOINING && m->state != MBR_PUBLISHED;
 }
 
 u32 tipc_group_exclude(struct tipc_group *grp)
@@ -182,6 +181,21 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 		return grp;
 	kfree(grp);
 	return NULL;
+}
+
+void tipc_group_join(struct net *net, struct tipc_group *grp, int *sk_rcvbuf)
+{
+	struct rb_root *tree = &grp->members;
+	struct tipc_member *m, *tmp;
+	struct sk_buff_head xmitq;
+
+	skb_queue_head_init(&xmitq);
+	rbtree_postorder_for_each_entry_safe(m, tmp, tree, tree_node) {
+		tipc_group_proto_xmit(grp, m, GRP_JOIN_MSG, &xmitq);
+		tipc_group_update_member(m, 0);
+	}
+	tipc_node_distr_xmit(net, &xmitq);
+	*sk_rcvbuf = tipc_group_rcvbuf_limit(grp);
 }
 
 void tipc_group_delete(struct net *net, struct tipc_group *grp)
@@ -274,7 +288,7 @@ static void tipc_group_add_to_tree(struct tipc_group *grp,
 
 static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
 						    u32 node, u32 port,
-						    int state)
+						    u32 instance, int state)
 {
 	struct tipc_member *m;
 
@@ -287,6 +301,7 @@ static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
 	m->group = grp;
 	m->node = node;
 	m->port = port;
+	m->instance = instance;
 	m->bc_acked = grp->bc_snd_nxt - 1;
 	grp->member_cnt++;
 	tipc_group_add_to_tree(grp, m);
@@ -295,9 +310,10 @@ static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
 	return m;
 }
 
-void tipc_group_add_member(struct tipc_group *grp, u32 node, u32 port)
+void tipc_group_add_member(struct tipc_group *grp, u32 node,
+			   u32 port, u32 instance)
 {
-	tipc_group_create_member(grp, node, port, MBR_DISCOVERED);
+	tipc_group_create_member(grp, node, port, instance, MBR_PUBLISHED);
 }
 
 static void tipc_group_delete_member(struct tipc_group *grp,
@@ -623,7 +639,6 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 		tipc_group_proto_xmit(grp, pm, GRP_ADV_MSG, xmitq);
 		break;
 	case MBR_RECLAIMING:
-	case MBR_DISCOVERED:
 	case MBR_JOINING:
 	case MBR_LEAVING:
 	default:
@@ -721,26 +736,26 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 	case GRP_JOIN_MSG:
 		if (!m)
 			m = tipc_group_create_member(grp, node, port,
-						     MBR_JOINING);
+						     0, MBR_JOINING);
 		if (!m)
 			return;
 		m->bc_syncpt = msg_grp_bc_syncpt(hdr);
 		m->bc_rcv_nxt = m->bc_syncpt;
 		m->window += msg_adv_win(hdr);
 
-		/* Wait until PUBLISH event is received */
-		if (m->state == MBR_DISCOVERED) {
-			m->state = MBR_JOINING;
-		} else if (m->state == MBR_PUBLISHED) {
-			m->state = MBR_JOINED;
-			*usr_wakeup = true;
-			m->usr_pending = false;
-			tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
-			tipc_group_create_event(grp, m, TIPC_PUBLISHED,
-						m->bc_syncpt, inputq);
-		}
+		/* Wait until PUBLISH event is received if necessary */
+		if (m->state != MBR_PUBLISHED)
+			return;
+
+		/* Member can be taken into service */
+		m->state = MBR_JOINED;
+		*usr_wakeup = true;
+		m->usr_pending = false;
 		list_del_init(&m->small_win);
 		tipc_group_update_member(m, 0);
+		tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
+		tipc_group_create_event(grp, m, TIPC_PUBLISHED,
+					m->bc_syncpt, inputq);
 		return;
 	case GRP_LEAVE_MSG:
 		if (!m)
@@ -844,30 +859,36 @@ void tipc_group_member_evt(struct tipc_group *grp,
 
 	m = tipc_group_find_member(grp, node, port);
 
-	if (event == TIPC_PUBLISHED) {
-		if (!m)
-			m = tipc_group_create_member(grp, node, port,
-						     MBR_DISCOVERED);
-		if (!m)
-			return;
-
-		m->instance = instance;
-
-		/* Hold back event if JOIN message not yet received */
-		if (m->state == MBR_DISCOVERED) {
-			m->state = MBR_PUBLISHED;
-		} else {
-			tipc_group_create_event(grp, m, TIPC_PUBLISHED,
-						m->bc_syncpt, inputq);
-			m->state = MBR_JOINED;
-			*usr_wakeup = true;
-			m->usr_pending = false;
+	switch (event) {
+	case TIPC_PUBLISHED:
+		/* Send and wait for arrival of JOIN message if necessary */
+		if (!m) {
+			m = tipc_group_create_member(grp, node, port, instance,
+						     MBR_PUBLISHED);
+			if (!m)
+				break;
+			tipc_group_update_member(m, 0);
+			tipc_group_proto_xmit(grp, m, GRP_JOIN_MSG, xmitq);
+			break;
 		}
-		tipc_group_proto_xmit(grp, m, GRP_JOIN_MSG, xmitq);
+
+		if (m->state != MBR_JOINING)
+			break;
+
+		/* Member can be taken into service */
+		m->instance = instance;
+		m->state = MBR_JOINED;
+		*usr_wakeup = true;
+		m->usr_pending = false;
+		list_del_init(&m->small_win);
 		tipc_group_update_member(m, 0);
-	} else if (event == TIPC_WITHDRAWN) {
+		tipc_group_proto_xmit(grp, m, GRP_JOIN_MSG, xmitq);
+		tipc_group_create_event(grp, m, TIPC_PUBLISHED,
+					m->bc_syncpt, inputq);
+		break;
+	case TIPC_WITHDRAWN:
 		if (!m)
-			return;
+			break;
 
 		*usr_wakeup = true;
 		m->usr_pending = false;
@@ -880,6 +901,9 @@ void tipc_group_member_evt(struct tipc_group *grp,
 		if (!tipc_node_is_up(net, node))
 			tipc_group_create_event(grp, m, TIPC_WITHDRAWN,
 						m->bc_rcv_nxt, inputq);
+		break;
+	default:
+		break;
 	}
 	*sk_rcvbuf = tipc_group_rcvbuf_limit(grp);
 }
