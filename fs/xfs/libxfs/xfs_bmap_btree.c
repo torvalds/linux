@@ -470,11 +470,11 @@ xfs_bmbt_verify(
 	/* sibling pointer verification */
 	if (!block->bb_u.l.bb_leftsib ||
 	    (block->bb_u.l.bb_leftsib != cpu_to_be64(NULLFSBLOCK) &&
-	     !XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_u.l.bb_leftsib))))
+	     !xfs_verify_fsbno(mp, be64_to_cpu(block->bb_u.l.bb_leftsib))))
 		return false;
 	if (!block->bb_u.l.bb_rightsib ||
 	    (block->bb_u.l.bb_rightsib != cpu_to_be64(NULLFSBLOCK) &&
-	     !XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_u.l.bb_rightsib))))
+	     !xfs_verify_fsbno(mp, be64_to_cpu(block->bb_u.l.bb_rightsib))))
 		return false;
 
 	return true;

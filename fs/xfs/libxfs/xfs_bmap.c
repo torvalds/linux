@@ -400,7 +400,7 @@ xfs_bmap_check_leaf_extents(
 		pp = XFS_BMBT_PTR_ADDR(mp, block, 1, mp->m_bmap_dmxr[1]);
 		bno = be64_to_cpu(*pp);
 		XFS_WANT_CORRUPTED_GOTO(mp,
-					XFS_FSB_SANITY_CHECK(mp, bno), error0);
+					xfs_verify_fsbno(mp, bno), error0);
 		if (bp_release) {
 			bp_release = 0;
 			xfs_trans_brelse(NULL, bp);
@@ -1220,7 +1220,7 @@ xfs_iread_extents(
 		pp = XFS_BMBT_PTR_ADDR(mp, block, 1, mp->m_bmap_dmxr[1]);
 		bno = be64_to_cpu(*pp);
 		XFS_WANT_CORRUPTED_GOTO(mp,
-			XFS_FSB_SANITY_CHECK(mp, bno), out_brelse);
+			xfs_verify_fsbno(mp, bno), out_brelse);
 		xfs_trans_brelse(tp, bp);
 	}
 
