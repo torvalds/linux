@@ -794,70 +794,61 @@ static __init void map_mmr_high(int max_pnode)
 		pr_info("UV: MMR disabled\n");
 }
 
-/*
- * This commonality works because both 0 & 1 versions of the MMIOH OVERLAY
- * and REDIRECT MMR regs are exactly the same on UV3.
- */
-struct mmioh_config {
-	unsigned long overlay;
-	unsigned long redirect;
-	char *id;
-};
-
-static __initdata struct mmioh_config mmiohs[] = {
-	{
-		UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR,
-		UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR,
-		"MMIOH0"
-	},
-	{
-		UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR,
-		UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR,
-		"MMIOH1"
-	},
-};
-
-/* UV3 & UV4 have identical MMIOH overlay configs */
-static __init void map_mmioh_high_uv3(int index, int min_pnode, int max_pnode)
+/* UV3/4 have identical MMIOH overlay configs, UV4A is slightly different */
+static __init void map_mmioh_high_uv34(int index, int min_pnode, int max_pnode)
 {
-	union uvh_rh_gam_mmioh_overlay_config0_mmr_u overlay;
+	unsigned long overlay;
 	unsigned long mmr;
 	unsigned long base;
+	unsigned long nasid_mask;
 	unsigned long m_overlay;
 	int i, n, shift, m_io, max_io;
 	int nasid, lnasid, fi, li;
 	char *id;
 
-	id = mmiohs[index].id;
-	overlay.v = uv_read_local_mmr(mmiohs[index].overlay);
-	m_overlay = mmiohs[index].overlay;
-
-	pr_info("UV: %s overlay 0x%lx(@0x%lx) base:0x%x m_io:%d\n",
-		id, overlay.v, m_overlay, overlay.s3.base, overlay.s3.m_io);
-	if (!overlay.s3.enable) {
+	if (index == 0) {
+		id = "MMIOH0";
+		m_overlay = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR;
+		overlay = uv_read_local_mmr(m_overlay);
+		base = overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_BASE_MASK;
+		mmr = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR;
+		m_io = (overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_MASK)
+			>> UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT;
+		shift = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT;
+		n = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_DEPTH;
+		nasid_mask = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_MASK;
+	} else {
+		id = "MMIOH1";
+		m_overlay = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR;
+		overlay = uv_read_local_mmr(m_overlay);
+		base = overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_BASE_MASK;
+		mmr = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR;
+		m_io = (overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_MASK)
+			>> UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_SHFT;
+		shift = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_SHFT;
+		n = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_DEPTH;
+		nasid_mask = UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_MASK;
+	}
+	pr_info("UV: %s overlay 0x%lx base:0x%lx m_io:%d\n", id, overlay, base, m_io);
+	if (!(overlay & UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_ENABLE_MASK)) {
 		pr_info("UV: %s disabled\n", id);
 		return;
 	}
 
-	shift = UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_BASE_SHFT;
-	base = (unsigned long)overlay.s3.base;
-	m_io = overlay.s3.m_io;
-	mmr = mmiohs[index].redirect;
-	n = UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_DEPTH;
 	/* Convert to NASID: */
 	min_pnode *= 2;
 	max_pnode *= 2;
 	max_io = lnasid = fi = li = -1;
 
 	for (i = 0; i < n; i++) {
-		union uvh_rh_gam_mmioh_redirect_config0_mmr_u redirect;
 		unsigned long m_redirect = mmr + i * 8;
+		unsigned long redirect = uv_read_local_mmr(m_redirect);
 
-		redirect.v = uv_read_local_mmr(mmr + i * 8);
-		nasid = redirect.s3.nasid;
-		printk_once(KERN_INFO
-			"UV: %s redirect 0x%lx(@0x%lx) 0x%04x\n",
-			id, redirect.v, m_redirect, nasid);
+		nasid = redirect & nasid_mask;
+		if (i == 0)
+			pr_info("UV: %s redirect base 0x%lx(@0x%lx) 0x%04x\n",
+				id, redirect, m_redirect, nasid);
+
 		/* Invalid NASID: */
 		if (nasid < min_pnode || max_pnode < nasid)
 			nasid = -1;
@@ -905,8 +896,8 @@ static __init void map_mmioh_high(int min_pnode, int max_pnode)
 
 	if (is_uv3_hub() || is_uv4_hub()) {
 		/* Map both MMIOH regions: */
-		map_mmioh_high_uv3(0, min_pnode, max_pnode);
-		map_mmioh_high_uv3(1, min_pnode, max_pnode);
+		map_mmioh_high_uv34(0, min_pnode, max_pnode);
+		map_mmioh_high_uv34(1, min_pnode, max_pnode);
 		return;
 	}
 
