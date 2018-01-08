@@ -541,7 +541,20 @@
 	status = "okay";
 };
 
+&threshold {
+	temperature = <90000>; /* millicelsius */
+};
+
+&target {
+	temperature = <105000>; /* millicelsius */
+};
+
+&soc_crit {
+	temperature = <110000>; /* millicelsius */
+};
+
 &tsadc {
+	rockchip,hw-tshut-temp = <120000>;
 	status = "okay";
 };
 
