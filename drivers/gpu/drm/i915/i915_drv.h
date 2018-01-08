@@ -3644,6 +3644,7 @@ extern int intel_setup_gmbus(struct drm_i915_private *dev_priv);
 extern void intel_teardown_gmbus(struct drm_i915_private *dev_priv);
 extern bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 				     unsigned int pin);
+extern int intel_gmbus_output_aksv(struct i2c_adapter *adapter);
 
 extern struct i2c_adapter *
 intel_gmbus_get_adapter(struct drm_i915_private *dev_priv, unsigned int pin);

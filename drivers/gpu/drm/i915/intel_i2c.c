@@ -30,6 +30,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include <drm/drm_hdcp.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -507,7 +508,8 @@ gmbus_index_xfer(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
 }
 
 static int
-do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
+do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
+	      u32 gmbus0_source)
 {
 	struct intel_gmbus *bus = container_of(adapter,
 					       struct intel_gmbus,
@@ -524,7 +526,7 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 		pch_gmbus_clock_gating(dev_priv, false);
 
 retry:
-	I915_WRITE_FW(GMBUS0, bus->reg0);
+	I915_WRITE_FW(GMBUS0, gmbus0_source | bus->reg0);
 
 	for (; i < num; i += inc) {
 		inc = 1;
@@ -649,11 +651,50 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 		if (ret < 0)
 			bus->force_bit &= ~GMBUS_FORCE_BIT_RETRY;
 	} else {
-		ret = do_gmbus_xfer(adapter, msgs, num);
+		ret = do_gmbus_xfer(adapter, msgs, num, 0);
 		if (ret == -EAGAIN)
 			bus->force_bit |= GMBUS_FORCE_BIT_RETRY;
 	}
 
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+
+	return ret;
+}
+
+int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
+{
+	struct intel_gmbus *bus = container_of(adapter, struct intel_gmbus,
+					       adapter);
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	int ret;
+	u8 cmd = DRM_HDCP_DDC_AKSV;
+	u8 buf[DRM_HDCP_KSV_LEN] = { 0 };
+	struct i2c_msg msgs[] = {
+		{
+			.addr = DRM_HDCP_DDC_ADDR,
+			.flags = 0,
+			.len = sizeof(cmd),
+			.buf = &cmd,
+		},
+		{
+			.addr = DRM_HDCP_DDC_ADDR,
+			.flags = 0,
+			.len = sizeof(buf),
+			.buf = buf,
+		}
+	};
+
+	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	mutex_lock(&dev_priv->gmbus_mutex);
+
+	/*
+	 * In order to output Aksv to the receiver, use an indexed write to
+	 * pass the i2c command, and tell GMBUS to use the HW-provided value
+	 * instead of sourcing GMBUS3 for the data.
+	 */
+	ret = do_gmbus_xfer(adapter, msgs, ARRAY_SIZE(msgs), GMBUS_AKSV_SELECT);
+
+	mutex_unlock(&dev_priv->gmbus_mutex);
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
 
 	return ret;
