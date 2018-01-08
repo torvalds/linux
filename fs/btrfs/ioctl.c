@@ -2798,7 +2798,7 @@ static long btrfs_ioctl_dev_info(struct btrfs_fs_info *fs_info,
 		struct rcu_string *name;
 
 		name = rcu_dereference(dev->name);
-		strncpy(di_args->path, name->str, sizeof(di_args->path));
+		strncpy(di_args->path, name->str, sizeof(di_args->path) - 1);
 		di_args->path[sizeof(di_args->path) - 1] = 0;
 	} else {
 		di_args->path[0] = '\0';
