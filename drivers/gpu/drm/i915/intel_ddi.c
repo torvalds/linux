@@ -1615,6 +1615,35 @@ void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
 	I915_WRITE(reg, val);
 }
 
+int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
+				     bool enable)
+{
+	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	enum pipe pipe = 0;
+	int ret = 0;
+	uint32_t tmp;
+
+	if (WARN_ON(!intel_display_power_get_if_enabled(dev_priv,
+						intel_encoder->power_domain)))
+		return -ENXIO;
+
+	if (WARN_ON(!intel_encoder->get_hw_state(intel_encoder, &pipe))) {
+		ret = -EIO;
+		goto out;
+	}
+
+	tmp = I915_READ(TRANS_DDI_FUNC_CTL(pipe));
+	if (enable)
+		tmp |= TRANS_DDI_HDCP_SIGNALLING;
+	else
+		tmp &= ~TRANS_DDI_HDCP_SIGNALLING;
+	I915_WRITE(TRANS_DDI_FUNC_CTL(pipe), tmp);
+out:
+	intel_display_power_put(dev_priv, intel_encoder->power_domain);
+	return ret;
+}
+
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 {
 	struct drm_device *dev = intel_connector->base.dev;
