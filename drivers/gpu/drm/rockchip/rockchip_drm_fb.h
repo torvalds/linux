@@ -33,15 +33,21 @@ dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
 				    unsigned int plane);
 
 #ifdef CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ
-int rockchip_dmcfreq_vop_bandwidth_request(unsigned int bw_mbyte);
-void rockchip_dmcfreq_vop_bandwidth_update(unsigned int bw_mbyte);
+int rockchip_dmcfreq_vop_bandwidth_request(struct devfreq *devfreq,
+					   unsigned int bw_mbyte);
+void rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
+					   unsigned int bw_mbyte);
 #else
-static inline int rockchip_dmcfreq_vop_bandwidth_request(unsigned int bw_mbyte)
+static inline int
+rockchip_dmcfreq_vop_bandwidth_request(struct devfreq *devfreq,
+				       unsigned int bw_mbyte)
 {
 	return 0;
 }
 
-static inline void rockchip_dmcfreq_vop_bandwidth_update(unsigned int bw_mbyte)
+static inline void
+rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
+				      unsigned int bw_mbyte)
 {
 }
 #endif

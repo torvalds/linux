@@ -643,8 +643,6 @@ struct rockchip_dmcfreq {
 	int (*set_auto_self_refresh)(u32 en);
 };
 
-static struct rockchip_dmcfreq *rk_dmcfreq;
-
 /*
  * function: packaging de-skew setting to rk3328_ddr_dts_config_timing,
  *           rk3328_ddr_dts_config_timing will pass to trust firmware, and
@@ -2052,12 +2050,19 @@ static ssize_t rockchip_dmcfreq_status_store(struct device *dev,
 static DEVICE_ATTR(system_status, 0644, rockchip_dmcfreq_status_show,
 		   rockchip_dmcfreq_status_store);
 
-void rockchip_dmcfreq_vop_bandwidth_update(unsigned int bw_mbyte)
+void rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
+					   unsigned int bw_mbyte)
 {
-	struct rockchip_dmcfreq *dmcfreq = rk_dmcfreq;
+	struct device *dev;
+	struct rockchip_dmcfreq *dmcfreq;
 	unsigned long vop_last_rate, target = 0;
 	int i;
 
+	if (!devfreq)
+		return;
+
+	dev = devfreq->dev.parent;
+	dmcfreq = dev_get_drvdata(dev);
 	if (!dmcfreq || !dmcfreq->auto_freq_en || !dmcfreq->vop_bw_tbl)
 		return;
 
@@ -2078,11 +2083,19 @@ void rockchip_dmcfreq_vop_bandwidth_update(unsigned int bw_mbyte)
 		rockchip_dmcfreq_update_target(dmcfreq);
 }
 
-int rockchip_dmcfreq_vop_bandwidth_request(unsigned int bw_mbyte)
+int rockchip_dmcfreq_vop_bandwidth_request(struct devfreq *devfreq,
+					   unsigned int bw_mbyte)
 {
-	struct rockchip_dmcfreq *dmcfreq = rk_dmcfreq;
+	struct device *dev;
+	struct rockchip_dmcfreq *dmcfreq;
 	unsigned long target = 0;
 	int i;
+
+	if (!devfreq)
+		return 0;
+
+	dev = devfreq->dev.parent;
+	dmcfreq = dev_get_drvdata(dev);
 
 	if (!dmcfreq || !dmcfreq->auto_freq_en || !dmcfreq->vop_bw_tbl)
 		return 0;
@@ -2480,8 +2493,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to register system_status sysfs file\n");
 
 	rockchip_set_system_status(SYS_STATUS_NORMAL);
-
-	rk_dmcfreq = data;
 
 	ret = ddr_power_model_simple_init(data);
 

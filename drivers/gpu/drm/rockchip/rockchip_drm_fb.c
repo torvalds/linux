@@ -234,7 +234,15 @@ static int rockchip_drm_bandwidth_atomic_check(struct drm_device *dev,
 	/*
 	 * Check ddr frequency support here here.
 	 */
-	ret = rockchip_dmcfreq_vop_bandwidth_request(*bandwidth);
+	if (priv->dmc_support && !priv->devfreq) {
+		priv->devfreq = devfreq_get_devfreq_by_phandle(dev->dev, 0);
+		if (IS_ERR(priv->devfreq))
+			priv->devfreq = NULL;
+	}
+
+	if (priv->devfreq)
+		ret = rockchip_dmcfreq_vop_bandwidth_request(priv->devfreq,
+							     *bandwidth);
 
 	return ret;
 }
@@ -244,6 +252,7 @@ rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 {
 	struct drm_atomic_state *state = commit->state;
 	struct drm_device *dev = commit->dev;
+	struct rockchip_drm_private *prv = dev->dev_private;
 	size_t bandwidth = commit->bandwidth;
 
 	/*
@@ -273,7 +282,13 @@ rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 
 	rockchip_drm_backlight_update(dev);
 
-	rockchip_dmcfreq_vop_bandwidth_update(bandwidth);
+	if (prv->dmc_support && !prv->devfreq) {
+		prv->devfreq = devfreq_get_devfreq_by_phandle(dev->dev, 0);
+		if (IS_ERR(prv->devfreq))
+			prv->devfreq = NULL;
+	}
+	if (prv->devfreq)
+		rockchip_dmcfreq_vop_bandwidth_update(prv->devfreq, bandwidth);
 
 	drm_atomic_helper_commit_planes(dev, state, true);
 

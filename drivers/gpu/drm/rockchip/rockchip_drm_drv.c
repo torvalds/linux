@@ -20,6 +20,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_sync_helper.h>
 #include <drm/rockchip_drm.h>
+#include <linux/devfreq.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-iommu.h>
 #include <linux/genalloc.h>
@@ -1264,6 +1265,8 @@ static int rockchip_drm_bind(struct device *dev)
 	struct drm_device *drm_dev;
 	struct rockchip_drm_private *private;
 	int ret;
+	struct device_node *np = dev->of_node;
+	struct device_node *parent_np;
 
 	drm_dev = drm_dev_alloc(&rockchip_drm_driver, dev);
 	if (!drm_dev)
@@ -1285,6 +1288,27 @@ static int rockchip_drm_bind(struct device *dev)
 	INIT_WORK(&private->commit_work, rockchip_drm_atomic_work);
 
 	drm_dev->dev_private = private;
+
+	private->dmc_support = false;
+	private->devfreq = devfreq_get_devfreq_by_phandle(dev, 0);
+	if (IS_ERR(private->devfreq)) {
+		if (PTR_ERR(private->devfreq) == -EPROBE_DEFER) {
+			parent_np = of_parse_phandle(np, "devfreq", 0);
+			if (parent_np &&
+			    of_device_is_available(parent_np)) {
+				private->dmc_support = true;
+				dev_warn(dev, "defer getting devfreq\n");
+			} else {
+				dev_info(dev, "dmc is disabled\n");
+			}
+		} else {
+			dev_info(dev, "devfreq is not set\n");
+		}
+		private->devfreq = NULL;
+	} else {
+		private->dmc_support = true;
+		dev_info(dev, "devfreq is ready\n");
+	}
 
 	private->hdmi_pll.pll = devm_clk_get(dev, "hdmi-tmds-pll");
 	if (PTR_ERR(private->hdmi_pll.pll) == -ENOENT) {
