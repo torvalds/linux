@@ -879,77 +879,85 @@ xfs_sync_sb(
 
 int
 xfs_fs_geometry(
-	xfs_mount_t		*mp,
-	xfs_fsop_geom_t		*geo,
-	int			new_version)
+	struct xfs_sb		*sbp,
+	struct xfs_fsop_geom	*geo,
+	int			struct_version)
 {
+	memset(geo, 0, sizeof(struct xfs_fsop_geom));
 
-	memset(geo, 0, sizeof(*geo));
+	geo->blocksize = sbp->sb_blocksize;
+	geo->rtextsize = sbp->sb_rextsize;
+	geo->agblocks = sbp->sb_agblocks;
+	geo->agcount = sbp->sb_agcount;
+	geo->logblocks = sbp->sb_logblocks;
+	geo->sectsize = sbp->sb_sectsize;
+	geo->inodesize = sbp->sb_inodesize;
+	geo->imaxpct = sbp->sb_imax_pct;
+	geo->datablocks = sbp->sb_dblocks;
+	geo->rtblocks = sbp->sb_rblocks;
+	geo->rtextents = sbp->sb_rextents;
+	geo->logstart = sbp->sb_logstart;
+	BUILD_BUG_ON(sizeof(geo->uuid) != sizeof(sbp->sb_uuid));
+	memcpy(geo->uuid, &sbp->sb_uuid, sizeof(sbp->sb_uuid));
 
-	geo->blocksize = mp->m_sb.sb_blocksize;
-	geo->rtextsize = mp->m_sb.sb_rextsize;
-	geo->agblocks = mp->m_sb.sb_agblocks;
-	geo->agcount = mp->m_sb.sb_agcount;
-	geo->logblocks = mp->m_sb.sb_logblocks;
-	geo->sectsize = mp->m_sb.sb_sectsize;
-	geo->inodesize = mp->m_sb.sb_inodesize;
-	geo->imaxpct = mp->m_sb.sb_imax_pct;
-	geo->datablocks = mp->m_sb.sb_dblocks;
-	geo->rtblocks = mp->m_sb.sb_rblocks;
-	geo->rtextents = mp->m_sb.sb_rextents;
-	geo->logstart = mp->m_sb.sb_logstart;
-	ASSERT(sizeof(geo->uuid) == sizeof(mp->m_sb.sb_uuid));
-	memcpy(geo->uuid, &mp->m_sb.sb_uuid, sizeof(mp->m_sb.sb_uuid));
-	if (new_version >= 2) {
-		geo->sunit = mp->m_sb.sb_unit;
-		geo->swidth = mp->m_sb.sb_width;
-	}
-	if (new_version >= 3) {
-		geo->version = XFS_FSOP_GEOM_VERSION;
-		geo->flags = XFS_FSOP_GEOM_FLAGS_NLINK |
-			     XFS_FSOP_GEOM_FLAGS_DIRV2 |
-			(xfs_sb_version_hasattr(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_ATTR : 0) |
-			(xfs_sb_version_hasquota(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_QUOTA : 0) |
-			(xfs_sb_version_hasalign(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_IALIGN : 0) |
-			(xfs_sb_version_hasdalign(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_DALIGN : 0) |
-			(xfs_sb_version_hasextflgbit(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_EXTFLG : 0) |
-			(xfs_sb_version_hassector(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_SECTOR : 0) |
-			(xfs_sb_version_hasasciici(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_DIRV2CI : 0) |
-			(xfs_sb_version_haslazysbcount(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_LAZYSB : 0) |
-			(xfs_sb_version_hasattr2(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_ATTR2 : 0) |
-			(xfs_sb_version_hasprojid32bit(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_PROJID32 : 0) |
-			(xfs_sb_version_hascrc(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_V5SB : 0) |
-			(xfs_sb_version_hasftype(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_FTYPE : 0) |
-			(xfs_sb_version_hasfinobt(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_FINOBT : 0) |
-			(xfs_sb_version_hassparseinodes(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_SPINODES : 0) |
-			(xfs_sb_version_hasrmapbt(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_RMAPBT : 0) |
-			(xfs_sb_version_hasreflink(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_REFLINK : 0);
-		geo->logsectsize = xfs_sb_version_hassector(&mp->m_sb) ?
-				mp->m_sb.sb_logsectsize : BBSIZE;
-		geo->rtsectsize = mp->m_sb.sb_blocksize;
-		geo->dirblocksize = mp->m_dir_geo->blksize;
-	}
-	if (new_version >= 4) {
-		geo->flags |=
-			(xfs_sb_version_haslogv2(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_LOGV2 : 0);
-		geo->logsunit = mp->m_sb.sb_logsunit;
-	}
+	if (struct_version < 2)
+		return 0;
+
+	geo->sunit = sbp->sb_unit;
+	geo->swidth = sbp->sb_width;
+
+	if (struct_version < 3)
+		return 0;
+
+	geo->version = XFS_FSOP_GEOM_VERSION;
+	geo->flags = XFS_FSOP_GEOM_FLAGS_NLINK |
+		     XFS_FSOP_GEOM_FLAGS_DIRV2;
+	if (xfs_sb_version_hasattr(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_ATTR;
+	if (xfs_sb_version_hasquota(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_QUOTA;
+	if (xfs_sb_version_hasalign(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_IALIGN;
+	if (xfs_sb_version_hasdalign(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_DALIGN;
+	if (xfs_sb_version_hasextflgbit(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_EXTFLG;
+	if (xfs_sb_version_hassector(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_SECTOR;
+	if (xfs_sb_version_hasasciici(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_DIRV2CI;
+	if (xfs_sb_version_haslazysbcount(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_LAZYSB;
+	if (xfs_sb_version_hasattr2(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_ATTR2;
+	if (xfs_sb_version_hasprojid32bit(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_PROJID32;
+	if (xfs_sb_version_hascrc(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_V5SB;
+	if (xfs_sb_version_hasftype(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_FTYPE;
+	if (xfs_sb_version_hasfinobt(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_FINOBT;
+	if (xfs_sb_version_hassparseinodes(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_SPINODES;
+	if (xfs_sb_version_hasrmapbt(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_RMAPBT;
+	if (xfs_sb_version_hasreflink(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_REFLINK;
+	if (xfs_sb_version_hassector(sbp))
+		geo->logsectsize = sbp->sb_logsectsize;
+	else
+		geo->logsectsize = BBSIZE;
+	geo->rtsectsize = sbp->sb_blocksize;
+	geo->dirblocksize = xfs_dir2_dirblock_bytes(sbp);
+
+	if (struct_version < 3)
+		return 0;
+
+	if (xfs_sb_version_haslogv2(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_LOGV2;
+
+	geo->logsunit = sbp->sb_logsunit;
+
 	return 0;
 }

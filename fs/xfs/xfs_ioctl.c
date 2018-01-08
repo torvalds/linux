@@ -810,7 +810,7 @@ xfs_ioc_fsgeometry_v1(
 	xfs_fsop_geom_t         fsgeo;
 	int			error;
 
-	error = xfs_fs_geometry(mp, &fsgeo, 3);
+	error = xfs_fs_geometry(&mp->m_sb, &fsgeo, 3);
 	if (error)
 		return error;
 
@@ -832,7 +832,7 @@ xfs_ioc_fsgeometry(
 	xfs_fsop_geom_t		fsgeo;
 	int			error;
 
-	error = xfs_fs_geometry(mp, &fsgeo, 4);
+	error = xfs_fs_geometry(&mp->m_sb, &fsgeo, 4);
 	if (error)
 		return error;
 
