@@ -2010,17 +2010,9 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 
 	it_iu_len = be32_to_cpu(req->req_it_iu_len);
 
-	pr_info("Received SRP_LOGIN_REQ with i_port_id 0x%llx:0x%llx,"
-		" t_port_id 0x%llx:0x%llx and it_iu_len %d on port %d"
-		" (guid=0x%llx:0x%llx)\n",
-		be64_to_cpu(*(__be64 *)&req->initiator_port_id[0]),
-		be64_to_cpu(*(__be64 *)&req->initiator_port_id[8]),
-		be64_to_cpu(*(__be64 *)&req->target_port_id[0]),
-		be64_to_cpu(*(__be64 *)&req->target_port_id[8]),
-		it_iu_len,
-		param->port,
-		be64_to_cpu(*(__be64 *)&sdev->port[param->port - 1].gid.raw[0]),
-		be64_to_cpu(*(__be64 *)&sdev->port[param->port - 1].gid.raw[8]));
+	pr_info("Received SRP_LOGIN_REQ with i_port_id %pI6, t_port_id %pI6 and it_iu_len %d on port %d (guid=%pI6)\n",
+		req->initiator_port_id, req->target_port_id, it_iu_len,
+		param->port, &sport->gid);
 
 	rsp = kzalloc(sizeof(*rsp), GFP_KERNEL);
 	rej = kzalloc(sizeof(*rej), GFP_KERNEL);
