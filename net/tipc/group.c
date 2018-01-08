@@ -749,14 +749,8 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 		list_del_init(&m->list);
 		list_del_init(&m->small_win);
 		*usr_wakeup = true;
-
-		/* Wait until WITHDRAW event is received */
-		if (m->state != MBR_LEAVING) {
-			tipc_group_decr_active(grp, m);
-			m->state = MBR_LEAVING;
-			return;
-		}
-		/* Otherwise deliver member WITHDRAW event */
+		tipc_group_decr_active(grp, m);
+		m->state = MBR_LEAVING;
 		tipc_group_create_event(grp, m, TIPC_WITHDRAWN,
 					m->bc_syncpt, inputq);
 		return;
@@ -838,7 +832,6 @@ void tipc_group_member_evt(struct tipc_group *grp,
 	int event = evt->event;
 	struct tipc_member *m;
 	struct net *net;
-	bool node_up;
 	u32 self;
 
 	if (!grp)
@@ -878,30 +871,15 @@ void tipc_group_member_evt(struct tipc_group *grp,
 
 		*usr_wakeup = true;
 		m->usr_pending = false;
-		node_up = tipc_node_is_up(net, node);
-
-		if (node_up) {
-			/* Hold back event if a LEAVE msg should be expected */
-			if (m->state != MBR_LEAVING) {
-				tipc_group_decr_active(grp, m);
-				m->state = MBR_LEAVING;
-			} else {
-				tipc_group_create_event(grp, m, TIPC_WITHDRAWN,
-							m->bc_syncpt, inputq);
-			}
-		} else {
-			if (m->state != MBR_LEAVING) {
-				tipc_group_decr_active(grp, m);
-				m->state = MBR_LEAVING;
-				tipc_group_create_event(grp, m, TIPC_WITHDRAWN,
-							m->bc_rcv_nxt, inputq);
-			} else {
-				tipc_group_create_event(grp, m, TIPC_WITHDRAWN,
-							m->bc_syncpt, inputq);
-			}
-		}
+		tipc_group_decr_active(grp, m);
+		m->state = MBR_LEAVING;
 		list_del_init(&m->list);
 		list_del_init(&m->small_win);
+
+		/* Only send event if no LEAVE message can be expected */
+		if (!tipc_node_is_up(net, node))
+			tipc_group_create_event(grp, m, TIPC_WITHDRAWN,
+						m->bc_rcv_nxt, inputq);
 	}
 	*sk_rcvbuf = tipc_group_rcvbuf_limit(grp);
 }
