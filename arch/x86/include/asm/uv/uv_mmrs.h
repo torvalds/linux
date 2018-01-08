@@ -39,9 +39,11 @@
  *	#define UV2Hxxx	b
  *	#define UV3Hxxx	c
  *	#define UV4Hxxx	d
+ *	#define UV4AHxxx e
  *	#define UVHxxx	(is_uv1_hub() ? UV1Hxxx :
  *			(is_uv2_hub() ? UV2Hxxx :
  *			(is_uv3_hub() ? UV3Hxxx :
+ *			(is_uv4a_hub() ? UV4AHxxx :
  *					UV4Hxxx))
  *
  * If the MMR exists on all hub types > 1 but have different addresses, the
@@ -49,8 +51,10 @@
  *	#define UV2Hxxx	b
  *	#define UV3Hxxx	c
  *	#define UV4Hxxx	d
+ *	#define UV4AHxxx e
  *	#define UVHxxx	(is_uv2_hub() ? UV2Hxxx :
  *			(is_uv3_hub() ? UV3Hxxx :
+ *			(is_uv4a_hub() ? UV4AHxxx :
  *					UV4Hxxx))
  *
  *	union uvh_xxx {
@@ -63,6 +67,7 @@
  *		} s2;
  *		struct uv3h_xxx_s {	 # Full UV3 definition (*)
  *		} s3;
+ *		(NOTE: No struct uv4ah_xxx_s members exist)
  *		struct uv4h_xxx_s {	 # Full UV4 definition (*)
  *		} s4;
  *	};
@@ -2780,35 +2785,47 @@ union uvh_lb_bau_sb_activation_status_1_u {
 	/*is_uv4_hub*/ UV4H_LB_BAU_SB_DESCRIPTOR_BASE_32)
 
 #define UVH_LB_BAU_SB_DESCRIPTOR_BASE_PAGE_ADDRESS_SHFT	12
-#define UVH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT	49
-#define UVH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK	0x7ffe000000000000UL
 
+#define UV1H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT	49
 #define UV1H_LB_BAU_SB_DESCRIPTOR_BASE_PAGE_ADDRESS_MASK 0x000007fffffff000UL
+#define UV1H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK	0x7ffe000000000000UL
 
-
+#define UV2H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT	49
 #define UV2H_LB_BAU_SB_DESCRIPTOR_BASE_PAGE_ADDRESS_MASK 0x000007fffffff000UL
+#define UV2H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK	0x7ffe000000000000UL
 
+#define UV3H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT	49
 #define UV3H_LB_BAU_SB_DESCRIPTOR_BASE_PAGE_ADDRESS_MASK 0x000007fffffff000UL
+#define UV3H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK	0x7ffe000000000000UL
 
+#define UV4H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT	49
 #define UV4H_LB_BAU_SB_DESCRIPTOR_BASE_PAGE_ADDRESS_MASK 0x00003ffffffff000UL
+#define UV4H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK	0x7ffe000000000000UL
 
+#define UV4AH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT	53
+#define UV4AH_LB_BAU_SB_DESCRIPTOR_BASE_PAGE_ADDRESS_MASK 0x000ffffffffff000UL
+#define UV4AH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK	0xffe0000000000000UL
 
-union uvh_lb_bau_sb_descriptor_base_u {
-	unsigned long	v;
-	struct uvh_lb_bau_sb_descriptor_base_s {
-		unsigned long	rsvd_0_11:12;
-		unsigned long	rsvd_12_48:37;
-		unsigned long	node_id:14;			/* RW */
-		unsigned long	rsvd_63:1;
-	} s;
-	struct uv4h_lb_bau_sb_descriptor_base_s {
-		unsigned long	rsvd_0_11:12;
-		unsigned long	page_address:34;		/* RW */
-		unsigned long	rsvd_46_48:3;
-		unsigned long	node_id:14;			/* RW */
-		unsigned long	rsvd_63:1;
-	} s4;
-};
+#define UVH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT (			\
+	is_uv1_hub() ? UV1H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT :	\
+	is_uv2_hub() ? UV2H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT :	\
+	is_uv3_hub() ? UV3H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT :	\
+	is_uv4a_hub() ? UV4AH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT :	\
+	/*is_uv4_hub*/ UV4H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_SHFT)
+
+#define UVH_LB_BAU_SB_DESCRIPTOR_PAGE_ADDRESS_MASK (			\
+	is_uv1_hub() ? UV1H_LB_BAU_SB_DESCRIPTOR_PAGE_ADDRESS_MASK :	\
+	is_uv2_hub() ? UV2H_LB_BAU_SB_DESCRIPTOR_PAGE_ADDRESS_MASK :	\
+	is_uv3_hub() ? UV3H_LB_BAU_SB_DESCRIPTOR_PAGE_ADDRESS_MASK :	\
+	is_uv4a_hub() ? UV4AH_LB_BAU_SB_DESCRIPTOR_PAGE_ADDRESS_MASK :	\
+	/*is_uv4_hub*/ UV4H_LB_BAU_SB_DESCRIPTOR_PAGE_ADDRESS_MASK)
+
+#define UVH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK (			\
+	is_uv1_hub() ? UV1H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK :	\
+	is_uv2_hub() ? UV2H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK :	\
+	is_uv3_hub() ? UV3H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK :	\
+	is_uv4a_hub() ? UV4AH_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK :	\
+	/*is_uv4_hub*/ UV4H_LB_BAU_SB_DESCRIPTOR_BASE_NODE_ID_MASK)
 
 /* ========================================================================= */
 /*                               UVH_NODE_ID                                 */
