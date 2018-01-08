@@ -524,6 +524,15 @@ err:
 	ib_free_recv_mad(mad_wc);
 }
 
+static int srpt_format_guid(char *buf, unsigned int size, const __be64 *guid)
+{
+	const __be16 *g = (const __be16 *)guid;
+
+	return snprintf(buf, size, "%04x:%04x:%04x:%04x",
+			be16_to_cpu(g[0]), be16_to_cpu(g[1]),
+			be16_to_cpu(g[2]), be16_to_cpu(g[3]));
+}
+
 /**
  * srpt_refresh_port - configure a HCA port
  * @sport: SRPT HCA port.
@@ -539,7 +548,6 @@ static int srpt_refresh_port(struct srpt_port *sport)
 	struct ib_mad_reg_req reg_req;
 	struct ib_port_modify port_modify;
 	struct ib_port_attr port_attr;
-	__be16 *guid;
 	int ret;
 
 	memset(&port_modify, 0, sizeof(port_modify));
@@ -563,11 +571,8 @@ static int srpt_refresh_port(struct srpt_port *sport)
 		goto err_query_port;
 
 	sport->port_guid_wwn.priv = sport;
-	guid = (__be16 *)&sport->gid.global.interface_id;
-	snprintf(sport->port_guid, sizeof(sport->port_guid),
-		 "%04x:%04x:%04x:%04x",
-		 be16_to_cpu(guid[0]), be16_to_cpu(guid[1]),
-		 be16_to_cpu(guid[2]), be16_to_cpu(guid[3]));
+	srpt_format_guid(sport->port_guid, sizeof(sport->port_guid),
+			 &sport->gid.global.interface_id);
 	sport->port_gid_wwn.priv = sport;
 	snprintf(sport->port_gid, sizeof(sport->port_gid),
 		 "0x%016llx%016llx",
@@ -1998,7 +2003,6 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	struct srp_login_rej *rej;
 	struct ib_cm_rep_param *rep_param;
 	struct srpt_rdma_ch *ch, *tmp_ch;
-	__be16 *guid;
 	u32 it_iu_len;
 	int i, ret = 0;
 
@@ -2150,10 +2154,8 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 		goto destroy_ib;
 	}
 
-	guid = (__be16 *)&param->primary_path->dgid.global.interface_id;
-	snprintf(ch->ini_guid, sizeof(ch->ini_guid), "%04x:%04x:%04x:%04x",
-		 be16_to_cpu(guid[0]), be16_to_cpu(guid[1]),
-		 be16_to_cpu(guid[2]), be16_to_cpu(guid[3]));
+	srpt_format_guid(ch->ini_guid, sizeof(ch->ini_guid),
+			 &param->primary_path->dgid.global.interface_id);
 	snprintf(ch->sess_name, sizeof(ch->sess_name), "0x%016llx%016llx",
 			be64_to_cpu(*(__be64 *)ch->i_port_id),
 			be64_to_cpu(*(__be64 *)(ch->i_port_id + 8)));
