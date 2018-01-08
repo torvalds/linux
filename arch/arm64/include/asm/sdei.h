@@ -23,6 +23,12 @@ extern unsigned long sdei_exit_mode;
 asmlinkage void __sdei_asm_handler(unsigned long event_num, unsigned long arg,
 				   unsigned long pc, unsigned long pstate);
 
+/* and its CONFIG_UNMAP_KERNEL_AT_EL0 trampoline */
+asmlinkage void __sdei_asm_entry_trampoline(unsigned long event_num,
+						   unsigned long arg,
+						   unsigned long pc,
+						   unsigned long pstate);
+
 /*
  * The above entry point does the minimum to call C code. This function does
  * anything else, before calling the driver.

@@ -10,7 +10,9 @@
 
 #include <asm/alternative.h>
 #include <asm/kprobes.h>
+#include <asm/mmu.h>
 #include <asm/ptrace.h>
+#include <asm/sections.h>
 #include <asm/sysreg.h>
 #include <asm/vmap_stack.h>
 
@@ -124,7 +126,18 @@ unsigned long sdei_arch_get_entry_point(int conduit)
 	}
 
 	sdei_exit_mode = (conduit == CONDUIT_HVC) ? SDEI_EXIT_HVC : SDEI_EXIT_SMC;
-	return (unsigned long)__sdei_asm_handler;
+
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+	if (arm64_kernel_unmapped_at_el0()) {
+		unsigned long offset;
+
+		offset = (unsigned long)__sdei_asm_entry_trampoline -
+			 (unsigned long)__entry_tramp_text_start;
+		return TRAMP_VALIAS + offset;
+	} else
+#endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
+		return (unsigned long)__sdei_asm_handler;
+
 }
 
 /*
@@ -138,10 +151,13 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 {
 	u32 mode;
 	int i, err = 0;
-	const int clobbered_registers = 4;
+	int clobbered_registers = 4;
 	u64 elr = read_sysreg(elr_el1);
 	u32 kernel_mode = read_sysreg(CurrentEL) | 1;	/* +SPSel */
 	unsigned long vbar = read_sysreg(vbar_el1);
+
+	if (arm64_kernel_unmapped_at_el0())
+		clobbered_registers++;
 
 	/* Retrieve the missing registers values */
 	for (i = 0; i < clobbered_registers; i++) {

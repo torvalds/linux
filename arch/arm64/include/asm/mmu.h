@@ -17,7 +17,8 @@
 #define __ASM_MMU_H
 
 #define MMCF_AARCH32	0x1	/* mm context flag for AArch32 executables */
-#define USER_ASID_FLAG	(UL(1) << 48)
+#define USER_ASID_BIT	48
+#define USER_ASID_FLAG	(UL(1) << USER_ASID_BIT)
 #define TTBR_ASID_MASK	(UL(0xffff) << 48)
 
 #ifndef __ASSEMBLY__
