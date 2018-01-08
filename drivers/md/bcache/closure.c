@@ -8,6 +8,7 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/sched/debug.h>
 
 #include "closure.h"
 
@@ -107,7 +108,7 @@ static void closure_sync_fn(struct closure *cl)
 	wake_up_process(cl->s->task);
 }
 
-void __closure_sync(struct closure *cl)
+void __sched __closure_sync(struct closure *cl)
 {
 	struct closure_syncer s = { .task = current };
 
