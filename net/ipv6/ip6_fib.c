@@ -107,16 +107,13 @@ enum {
 
 void fib6_update_sernum(struct rt6_info *rt)
 {
-	struct fib6_table *table = rt->rt6i_table;
 	struct net *net = dev_net(rt->dst.dev);
 	struct fib6_node *fn;
 
-	spin_lock_bh(&table->tb6_lock);
 	fn = rcu_dereference_protected(rt->rt6i_node,
-			lockdep_is_held(&table->tb6_lock));
+			lockdep_is_held(&rt->rt6i_table->tb6_lock));
 	if (fn)
 		fn->fn_sernum = fib6_new_sernum(net);
-	spin_unlock_bh(&table->tb6_lock);
 }
 
 /*
@@ -1102,8 +1099,8 @@ void fib6_force_start_gc(struct net *net)
 			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
 }
 
-static void fib6_update_sernum_upto_root(struct rt6_info *rt,
-					 int sernum)
+static void __fib6_update_sernum_upto_root(struct rt6_info *rt,
+					   int sernum)
 {
 	struct fib6_node *fn = rcu_dereference_protected(rt->rt6i_node,
 				lockdep_is_held(&rt->rt6i_table->tb6_lock));
@@ -1115,6 +1112,11 @@ static void fib6_update_sernum_upto_root(struct rt6_info *rt,
 		fn = rcu_dereference_protected(fn->parent,
 				lockdep_is_held(&rt->rt6i_table->tb6_lock));
 	}
+}
+
+void fib6_update_sernum_upto_root(struct net *net, struct rt6_info *rt)
+{
+	__fib6_update_sernum_upto_root(rt, fib6_new_sernum(net));
 }
 
 /*
@@ -1230,7 +1232,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 
 	err = fib6_add_rt2node(fn, rt, info, mxc, extack);
 	if (!err) {
-		fib6_update_sernum_upto_root(rt, sernum);
+		__fib6_update_sernum_upto_root(rt, sernum);
 		fib6_start_gc(info->nl_net, rt);
 	}
 
@@ -1887,7 +1889,7 @@ static int fib6_clean_node(struct fib6_walker *w)
 
 	for_each_fib6_walker_rt(w) {
 		res = c->func(rt, c->arg);
-		if (res < 0) {
+		if (res == -1) {
 			w->leaf = rt;
 			res = fib6_del(rt, &info);
 			if (res) {
@@ -1900,6 +1902,12 @@ static int fib6_clean_node(struct fib6_walker *w)
 				continue;
 			}
 			return 0;
+		} else if (res == -2) {
+			if (WARN_ON(!rt->rt6i_nsiblings))
+				continue;
+			rt = list_last_entry(&rt->rt6i_siblings,
+					     struct rt6_info, rt6i_siblings);
+			continue;
 		}
 		WARN_ON(res != 0);
 	}
@@ -1911,7 +1919,8 @@ static int fib6_clean_node(struct fib6_walker *w)
  *	Convenient frontend to tree walker.
  *
  *	func is called on each route.
- *		It may return -1 -> delete this route.
+ *		It may return -2 -> skip multipath route.
+ *			      -1 -> delete this route.
  *		              0  -> continue walking
  */
 
@@ -2103,7 +2112,6 @@ static void fib6_net_exit(struct net *net)
 {
 	unsigned int i;
 
-	rt6_ifdown(net, NULL);
 	del_timer_sync(&net->ipv6.ip6_fib_timer);
 
 	for (i = 0; i < FIB6_TABLE_HASHSZ; i++) {

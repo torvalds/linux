@@ -173,7 +173,8 @@ struct rt6_info {
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
 	u8				exception_bucket_flushed:1,
-					unused:7;
+					should_flush:1,
+					unused:6;
 };
 
 #define for_each_fib6_node_rt_rcu(fn)					\
@@ -404,6 +405,7 @@ unsigned int fib6_tables_seq_read(struct net *net);
 int fib6_tables_dump(struct net *net, struct notifier_block *nb);
 
 void fib6_update_sernum(struct rt6_info *rt);
+void fib6_update_sernum_upto_root(struct net *net, struct rt6_info *rt);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 int fib6_rules_init(void);
