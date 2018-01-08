@@ -1045,7 +1045,7 @@ static void of_get_rk3328_timings(struct device *dev,
 		(struct rk3328_ddr_dts_config_timing *)(timing +
 							DTS_PAR_OFFSET / 4);
 
-	np_tim = of_parse_phandle(np, "rockchip,ddr_timing", 0);
+	np_tim = of_parse_phandle(np, "ddr_timing", 0);
 	if (!np_tim) {
 		ret = -EINVAL;
 		goto end;
