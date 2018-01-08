@@ -167,7 +167,7 @@ static void load_render_mocs(struct drm_i915_private *dev_priv)
 	};
 	int ring_id, i;
 
-	for (ring_id = 0; ring_id < I915_NUM_ENGINES; ring_id++) {
+	for (ring_id = 0; ring_id < ARRAY_SIZE(regs); ring_id++) {
 		offset.reg = regs[ring_id];
 		for (i = 0; i < 64; i++) {
 			gen9_render_mocs.control_table[ring_id][i] =
