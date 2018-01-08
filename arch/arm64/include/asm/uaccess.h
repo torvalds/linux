@@ -168,6 +168,18 @@ static inline bool uaccess_ttbr0_enable(void)
 }
 #endif
 
+static inline void __uaccess_disable_hw_pan(void)
+{
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,
+			CONFIG_ARM64_PAN));
+}
+
+static inline void __uaccess_enable_hw_pan(void)
+{
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
+			CONFIG_ARM64_PAN));
+}
+
 #define __uaccess_disable(alt)						\
 do {									\
 	if (!uaccess_ttbr0_disable())					\
