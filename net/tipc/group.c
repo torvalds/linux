@@ -49,7 +49,6 @@
 #define ADV_ACTIVE (ADV_UNIT * 12)
 
 enum mbr_state {
-	MBR_QUARANTINED,
 	MBR_DISCOVERED,
 	MBR_JOINING,
 	MBR_PUBLISHED,
@@ -138,7 +137,7 @@ u16 tipc_group_bc_snd_nxt(struct tipc_group *grp)
 
 static bool tipc_group_is_receiver(struct tipc_member *m)
 {
-	return m->state != MBR_QUARANTINED && m->state != MBR_LEAVING;
+	return m && m->state != MBR_JOINING && m->state != MBR_LEAVING;
 }
 
 static bool tipc_group_is_sender(struct tipc_member *m)
@@ -690,7 +689,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 	case GRP_JOIN_MSG:
 		if (!m)
 			m = tipc_group_create_member(grp, node, port,
-						     MBR_QUARANTINED);
+						     MBR_JOINING);
 		if (!m)
 			return;
 		m->bc_syncpt = msg_grp_bc_syncpt(hdr);
