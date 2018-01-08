@@ -232,7 +232,7 @@ static int set_param_str(const char *val, const struct kernel_param *kp)
 	char       valcp[16];
 	char       *s;
 
-	strncpy(valcp, val, 16);
+	strncpy(valcp, val, 15);
 	valcp[15] = '\0';
 
 	s = strstrip(valcp);
