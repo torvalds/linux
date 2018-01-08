@@ -1622,8 +1622,8 @@ static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			pr_err("req_lim = %d < 0\n", req_lim);
 		srpt_handle_new_iu(ch, ioctx, NULL);
 	} else {
-		pr_info("receiving failed for ioctx %p with status %d\n",
-			ioctx, wc->status);
+		pr_info_ratelimited("receiving failed for ioctx %p with status %d\n",
+				    ioctx, wc->status);
 	}
 }
 
