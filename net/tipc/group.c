@@ -87,7 +87,6 @@ struct tipc_group {
 	int subid;
 	u32 type;
 	u32 instance;
-	u32 domain;
 	u32 scope;
 	u32 portid;
 	u16 member_cnt;
@@ -158,6 +157,8 @@ int tipc_group_size(struct tipc_group *grp)
 struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 				     struct tipc_group_req *mreq)
 {
+	u32 filter = TIPC_SUB_PORTS | TIPC_SUB_NO_STATUS;
+	bool global = mreq->scope != TIPC_NODE_SCOPE;
 	struct tipc_group *grp;
 	u32 type = mreq->type;
 
@@ -171,15 +172,14 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 	grp->members = RB_ROOT;
 	grp->net = net;
 	grp->portid = portid;
-	grp->domain = addr_domain(net, mreq->scope);
 	grp->type = type;
 	grp->instance = mreq->instance;
 	grp->scope = mreq->scope;
 	grp->loopback = mreq->flags & TIPC_GROUP_LOOPBACK;
 	grp->events = mreq->flags & TIPC_GROUP_MEMBER_EVTS;
-	if (tipc_topsrv_kern_subscr(net, portid, type,
-				    TIPC_SUB_PORTS | TIPC_SUB_NO_STATUS,
-				    0, ~0, &grp->subid))
+	filter |= global ? TIPC_SUB_CLUSTER_SCOPE : TIPC_SUB_NODE_SCOPE;
+	if (tipc_topsrv_kern_subscr(net, portid, type, 0, ~0,
+				    filter, &grp->subid))
 		return grp;
 	kfree(grp);
 	return NULL;
@@ -730,6 +730,9 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 	u16 remitted, in_flight;
 
 	if (!grp)
+		return;
+
+	if (grp->scope == TIPC_NODE_SCOPE && node != tipc_own_addr(grp->net))
 		return;
 
 	m = tipc_group_find_member(grp, node, port);

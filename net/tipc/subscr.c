@@ -118,15 +118,19 @@ void tipc_subscrp_convert_seq(struct tipc_name_seq *in, int swap,
 
 void tipc_subscrp_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 				 u32 found_upper, u32 event, u32 port_ref,
-				 u32 node, int must)
+				 u32 node, u32 scope, int must)
 {
+	u32 filter = htohl(sub->evt.s.filter, sub->swap);
 	struct tipc_name_seq seq;
 
 	tipc_subscrp_convert_seq(&sub->evt.s.seq, sub->swap, &seq);
 	if (!tipc_subscrp_check_overlap(&seq, found_lower, found_upper))
 		return;
-	if (!must &&
-	    !(htohl(sub->evt.s.filter, sub->swap) & TIPC_SUB_PORTS))
+	if (!must && !(filter & TIPC_SUB_PORTS))
+		return;
+	if (filter & TIPC_SUB_CLUSTER_SCOPE && scope == TIPC_NODE_SCOPE)
+		return;
+	if (filter & TIPC_SUB_NODE_SCOPE && scope != TIPC_NODE_SCOPE)
 		return;
 
 	tipc_subscrp_send_event(sub, found_lower, found_upper, event, port_ref,

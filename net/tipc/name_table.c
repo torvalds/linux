@@ -328,7 +328,8 @@ static struct publication *tipc_nameseq_insert_publ(struct net *net,
 	list_for_each_entry_safe(s, st, &nseq->subscriptions, nameseq_list) {
 		tipc_subscrp_report_overlap(s, publ->lower, publ->upper,
 					    TIPC_PUBLISHED, publ->ref,
-					    publ->node, created_subseq);
+					    publ->node, publ->scope,
+					    created_subseq);
 	}
 	return publ;
 }
@@ -398,7 +399,8 @@ found:
 	list_for_each_entry_safe(s, st, &nseq->subscriptions, nameseq_list) {
 		tipc_subscrp_report_overlap(s, publ->lower, publ->upper,
 					    TIPC_WITHDRAWN, publ->ref,
-					    publ->node, removed_subseq);
+					    publ->node, publ->scope,
+					    removed_subseq);
 	}
 
 	return publ;
@@ -435,6 +437,7 @@ static void tipc_nameseq_subscribe(struct name_seq *nseq,
 							    sseq->upper,
 							    TIPC_PUBLISHED,
 							    crs->ref, crs->node,
+							    crs->scope,
 							    must_report);
 				must_report = 0;
 			}
@@ -598,7 +601,7 @@ not_found:
 	return ref;
 }
 
-bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
+bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 scope,
 			 struct list_head *dsts, int *dstcnt, u32 exclude,
 			 bool all)
 {
@@ -607,9 +610,6 @@ bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
 	struct name_info *info;
 	struct name_seq *seq;
 	struct sub_seq *sseq;
-
-	if (!tipc_in_scope(domain, self))
-		return false;
 
 	*dstcnt = 0;
 	rcu_read_lock();
@@ -621,7 +621,7 @@ bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
 	if (likely(sseq)) {
 		info = sseq->info;
 		list_for_each_entry(publ, &info->zone_list, zone_list) {
-			if (!tipc_in_scope(domain, publ->node))
+			if (publ->scope != scope)
 				continue;
 			if (publ->ref == exclude && publ->node == self)
 				continue;
@@ -639,13 +639,14 @@ exit:
 	return !list_empty(dsts);
 }
 
-int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
-			      u32 limit, struct list_head *dports)
+int tipc_nametbl_mc_lookup(struct net *net, u32 type, u32 lower, u32 upper,
+			   u32 scope, bool exact, struct list_head *dports)
 {
-	struct name_seq *seq;
-	struct sub_seq *sseq;
 	struct sub_seq *sseq_stop;
 	struct name_info *info;
+	struct publication *p;
+	struct name_seq *seq;
+	struct sub_seq *sseq;
 	int res = 0;
 
 	rcu_read_lock();
@@ -657,15 +658,12 @@ int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
 	sseq = seq->sseqs + nameseq_locate_subseq(seq, lower);
 	sseq_stop = seq->sseqs + seq->first_free;
 	for (; sseq != sseq_stop; sseq++) {
-		struct publication *publ;
-
 		if (sseq->lower > upper)
 			break;
-
 		info = sseq->info;
-		list_for_each_entry(publ, &info->node_list, node_list) {
-			if (publ->scope <= limit)
-				tipc_dest_push(dports, 0, publ->ref);
+		list_for_each_entry(p, &info->node_list, node_list) {
+			if (p->scope == scope || (!exact && p->scope < scope))
+				tipc_dest_push(dports, 0, p->ref);
 		}
 
 		if (info->cluster_list_size != info->node_list_size)
@@ -682,7 +680,7 @@ exit:
  * - Determines if any node local ports overlap
  */
 void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
-				   u32 upper, u32 domain,
+				   u32 upper, u32 scope,
 				   struct tipc_nlist *nodes)
 {
 	struct sub_seq *sseq, *stop;
@@ -701,7 +699,7 @@ void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
 	for (; sseq != stop && sseq->lower <= upper; sseq++) {
 		info = sseq->info;
 		list_for_each_entry(publ, &info->zone_list, zone_list) {
-			if (tipc_in_scope(domain, publ->node))
+			if (publ->scope == scope)
 				tipc_nlist_add(nodes, publ->node);
 		}
 	}
@@ -713,7 +711,7 @@ exit:
 /* tipc_nametbl_build_group - build list of communication group members
  */
 void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
-			      u32 type, u32 domain)
+			      u32 type, u32 scope)
 {
 	struct sub_seq *sseq, *stop;
 	struct name_info *info;
@@ -731,7 +729,7 @@ void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 	for (; sseq != stop; sseq++) {
 		info = sseq->info;
 		list_for_each_entry(p, &info->zone_list, zone_list) {
-			if (!tipc_in_scope(domain, p->node))
+			if (p->scope != scope)
 				continue;
 			tipc_group_add_member(grp, p->node, p->ref, p->lower);
 		}
