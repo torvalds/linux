@@ -7698,7 +7698,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 		break;
 	}
 	if (ds)
-		strncpy(evStr, ds, EVENT_DESCR_STR_SZ);
+		strlcpy(evStr, ds, EVENT_DESCR_STR_SZ);
 
 
 	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
