@@ -76,6 +76,9 @@ struct xfs_log_item_desc {
 int	xfs_log_calc_unit_res(struct xfs_mount *mp, int unit_bytes);
 int	xfs_log_calc_minimum_size(struct xfs_mount *);
 
+struct xfs_trans_res;
+void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
+				  struct xfs_trans_res *max_resp);
 
 /*
  * Values for t_flags.
