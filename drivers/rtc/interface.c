@@ -23,12 +23,61 @@
 static int rtc_timer_enqueue(struct rtc_device *rtc, struct rtc_timer *timer);
 static void rtc_timer_remove(struct rtc_device *rtc, struct rtc_timer *timer);
 
+static void rtc_add_offset(struct rtc_device *rtc, struct rtc_time *tm)
+{
+	time64_t secs;
+
+	if (!rtc->offset_secs)
+		return;
+
+	secs = rtc_tm_to_time64(tm);
+
+	/*
+	 * Since the reading time values from RTC device are always in the RTC
+	 * original valid range, but we need to skip the overlapped region
+	 * between expanded range and original range, which is no need to add
+	 * the offset.
+	 */
+	if ((rtc->start_secs > rtc->range_min && secs >= rtc->start_secs) ||
+	    (rtc->start_secs < rtc->range_min &&
+	     secs <= (rtc->start_secs + rtc->range_max - rtc->range_min)))
+		return;
+
+	rtc_time64_to_tm(secs + rtc->offset_secs, tm);
+}
+
+static void rtc_subtract_offset(struct rtc_device *rtc, struct rtc_time *tm)
+{
+	time64_t secs;
+
+	if (!rtc->offset_secs)
+		return;
+
+	secs = rtc_tm_to_time64(tm);
+
+	/*
+	 * If the setting time values are in the valid range of RTC hardware
+	 * device, then no need to subtract the offset when setting time to RTC
+	 * device. Otherwise we need to subtract the offset to make the time
+	 * values are valid for RTC hardware device.
+	 */
+	if (secs >= rtc->range_min && secs <= rtc->range_max)
+		return;
+
+	rtc_time64_to_tm(secs - rtc->offset_secs, tm);
+}
+
 static int rtc_valid_range(struct rtc_device *rtc, struct rtc_time *tm)
 {
 	if (rtc->range_min != rtc->range_max) {
 		time64_t time = rtc_tm_to_time64(tm);
+		time64_t range_min = rtc->set_start_time ? rtc->start_secs :
+			rtc->range_min;
+		time64_t range_max = rtc->set_start_time ?
+			(rtc->start_secs + rtc->range_max - rtc->range_min) :
+			rtc->range_max;
 
-		if (time < rtc->range_min || time > rtc->range_max)
+		if (time < range_min || time > range_max)
 			return -ERANGE;
 	}
 
@@ -50,6 +99,8 @@ static int __rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm)
 				err);
 			return err;
 		}
+
+		rtc_add_offset(rtc, tm);
 
 		err = rtc_valid_tm(tm);
 		if (err < 0)
@@ -85,6 +136,8 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 	err = rtc_valid_range(rtc, tm);
 	if (err)
 		return err;
+
+	rtc_subtract_offset(rtc, tm);
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
@@ -355,6 +408,8 @@ static int __rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	err = rtc_valid_tm(&alarm->time);
 	if (err)
 		return err;
+
+	rtc_subtract_offset(rtc, &alarm->time);
 	scheduled = rtc_tm_to_time64(&alarm->time);
 
 	/* Make sure we're not setting alarms in the past */
@@ -406,6 +461,8 @@ int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 		err = rtc_timer_enqueue(rtc, &rtc->aie_timer);
 
 	mutex_unlock(&rtc->ops_lock);
+
+	rtc_add_offset(rtc, &alarm->time);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_set_alarm);

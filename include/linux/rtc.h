@@ -152,6 +152,9 @@ struct rtc_device {
 
 	time64_t range_min;
 	timeu64_t range_max;
+	time64_t start_secs;
+	time64_t offset_secs;
+	bool set_start_time;
 
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	struct work_struct uie_task;
