@@ -2277,7 +2277,7 @@ static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
 
 		if (asoc && sctp_outq_is_empty(&asoc->outqueue)) {
 			event = sctp_ulpevent_make_sender_dry_event(asoc,
-					GFP_ATOMIC);
+					GFP_USER | __GFP_NOWARN);
 			if (!event)
 				return -ENOMEM;
 
