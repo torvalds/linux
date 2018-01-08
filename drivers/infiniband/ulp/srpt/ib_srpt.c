@@ -753,23 +753,6 @@ static void srpt_free_ioctx_ring(struct srpt_ioctx **ioctx_ring,
 }
 
 /**
- * srpt_get_cmd_state - get the state of a SCSI command
- * @ioctx: Send I/O context.
- */
-static enum srpt_command_state srpt_get_cmd_state(struct srpt_send_ioctx *ioctx)
-{
-	enum srpt_command_state state;
-	unsigned long flags;
-
-	BUG_ON(!ioctx);
-
-	spin_lock_irqsave(&ioctx->spinlock, flags);
-	state = ioctx->state;
-	spin_unlock_irqrestore(&ioctx->spinlock, flags);
-	return state;
-}
-
-/**
  * srpt_set_cmd_state - set the state of a SCSI command
  * @ioctx: Send I/O context.
  * @new: New I/O context state.
@@ -1303,7 +1286,7 @@ static void srpt_rdma_read_done(struct ib_cq *cq, struct ib_wc *wc)
 		target_execute_cmd(&ioctx->cmd);
 	else
 		pr_err("%s[%d]: wrong state = %d\n", __func__,
-		       __LINE__, srpt_get_cmd_state(ioctx));
+		       __LINE__, ioctx->state);
 }
 
 /**
@@ -2372,7 +2355,7 @@ static int srpt_write_pending_status(struct se_cmd *se_cmd)
 	struct srpt_send_ioctx *ioctx;
 
 	ioctx = container_of(se_cmd, struct srpt_send_ioctx, cmd);
-	return srpt_get_cmd_state(ioctx) == SRPT_STATE_NEED_DATA;
+	return ioctx->state == SRPT_STATE_NEED_DATA;
 }
 
 /*
@@ -2951,7 +2934,7 @@ static int srpt_get_tcm_cmd_state(struct se_cmd *se_cmd)
 	struct srpt_send_ioctx *ioctx;
 
 	ioctx = container_of(se_cmd, struct srpt_send_ioctx, cmd);
-	return srpt_get_cmd_state(ioctx);
+	return ioctx->state;
 }
 
 static int srpt_parse_guid(u64 *guid, const char *name)
