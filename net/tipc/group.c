@@ -85,7 +85,6 @@ struct tipc_group {
 	struct list_head small_win;
 	struct list_head pending;
 	struct list_head active;
-	struct list_head reclaiming;
 	struct tipc_nlist dests;
 	struct net *net;
 	int subid;
@@ -172,7 +171,6 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 	INIT_LIST_HEAD(&grp->small_win);
 	INIT_LIST_HEAD(&grp->active);
 	INIT_LIST_HEAD(&grp->pending);
-	INIT_LIST_HEAD(&grp->reclaiming);
 	grp->members = RB_ROOT;
 	grp->net = net;
 	grp->portid = portid;
@@ -575,7 +573,7 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 		if (!list_empty(active) && active_cnt >= reclaim_limit) {
 			rm = list_first_entry(active, struct tipc_member, list);
 			rm->state = MBR_RECLAIMING;
-			list_move_tail(&rm->list, &grp->reclaiming);
+			list_del_init(&rm->list);
 			tipc_group_proto_xmit(grp, rm, GRP_RECLAIM_MSG, xmitq);
 		}
 		/* If max active, become pending and wait for reclaimed space */
@@ -600,12 +598,12 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 		if (m->advertised > ADV_IDLE)
 			break;
 		m->state = MBR_JOINED;
+		grp->active_cnt--;
 		if (m->advertised < ADV_IDLE) {
 			pr_warn_ratelimited("Rcv unexpected msg after REMIT\n");
 			tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
 		}
-		grp->active_cnt--;
-		list_del_init(&m->list);
+
 		if (list_empty(&grp->pending))
 			return;
 
@@ -761,18 +759,14 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 			m->advertised = ADV_IDLE + in_flight;
 			return;
 		}
-		/* All messages preceding the REMIT have been read */
-		if (m->advertised <= remitted) {
-			m->state = MBR_JOINED;
-			in_flight = 0;
-		}
-		/* ..and the REMIT overtaken by more messages => re-advertise */
+		/* This should never happen */
 		if (m->advertised < remitted)
-			tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
+			pr_warn_ratelimited("Unexpected REMIT msg\n");
 
-		m->advertised = ADV_IDLE + in_flight;
+		/* All messages preceding the REMIT have been read */
+		m->state = MBR_JOINED;
 		grp->active_cnt--;
-		list_del_init(&m->list);
+		m->advertised = ADV_IDLE;
 
 		/* Set oldest pending member to active and advertise */
 		if (list_empty(&grp->pending))
