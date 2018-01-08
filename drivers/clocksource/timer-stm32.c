@@ -37,6 +37,9 @@
 
 #define TIM_EGR_UG	BIT(0)
 
+#define TIM_PSC_MAX	USHRT_MAX
+#define TIM_PSC_CLKRATE	10000
+
 static int stm32_clock_event_shutdown(struct clock_event_device *clkevt)
 {
 	struct timer_of *to = to_timer_of(clkevt);
@@ -116,7 +119,14 @@ static void __init stm32_clockevent_init(struct timer_of *to)
 		prescaler = 1;
 		to->clkevt.rating = 250;
 	} else {
-		prescaler = 1024;
+		prescaler = DIV_ROUND_CLOSEST(timer_of_rate(to),
+					      TIM_PSC_CLKRATE);
+		/*
+		 * The prescaler register is an u16, the variable
+		 * can't be greater than TIM_PSC_MAX, let's cap it in
+		 * this case.
+		 */
+		prescaler = prescaler < TIM_PSC_MAX ? prescaler : TIM_PSC_MAX;
 		to->clkevt.rating = 100;
 	}
 	writel_relaxed(0, timer_of_base(to) + TIM_ARR);
