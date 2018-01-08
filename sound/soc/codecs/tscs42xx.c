@@ -355,8 +355,8 @@ static int dapm_micb_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-int pll_event(struct snd_soc_dapm_widget *w,
-		   struct snd_kcontrol *kcontrol, int event)
+static int pll_event(struct snd_soc_dapm_widget *w,
+		     struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	int ret;
@@ -369,8 +369,8 @@ int pll_event(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
-int dac_event(struct snd_soc_dapm_widget *w,
-		   struct snd_kcontrol *kcontrol, int event)
+static int dac_event(struct snd_soc_dapm_widget *w,
+		     struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct tscs42xx *tscs42xx = snd_soc_codec_get_drvdata(codec);
