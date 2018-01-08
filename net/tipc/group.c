@@ -177,7 +177,9 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 	grp->scope = mreq->scope;
 	grp->loopback = mreq->flags & TIPC_GROUP_LOOPBACK;
 	grp->events = mreq->flags & TIPC_GROUP_MEMBER_EVTS;
-	if (tipc_topsrv_kern_subscr(net, portid, type, 0, ~0, &grp->subid))
+	if (tipc_topsrv_kern_subscr(net, portid, type,
+				    TIPC_SUB_PORTS | TIPC_SUB_NO_STATUS,
+				    0, ~0, &grp->subid))
 		return grp;
 	kfree(grp);
 	return NULL;

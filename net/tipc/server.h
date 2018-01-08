@@ -41,6 +41,7 @@
 #include <net/net_namespace.h>
 
 #define TIPC_SERVER_NAME_LEN	32
+#define TIPC_SUB_NO_STATUS      0x80
 
 /**
  * struct tipc_server - TIPC server structure
@@ -84,7 +85,7 @@ int tipc_conn_sendmsg(struct tipc_server *s, int conid,
 		      struct sockaddr_tipc *addr, void *data, size_t len);
 
 bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
-			     u32 lower, u32 upper, int *conid);
+			     u32 filter, u32 lower, u32 upper, int *conid);
 void tipc_topsrv_kern_unsubscr(struct net *net, int conid);
 
 /**

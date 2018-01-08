@@ -286,7 +286,8 @@ static struct tipc_subscription *tipc_subscrp_create(struct net *net,
 }
 
 static void tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
-				   struct tipc_subscriber *subscriber, int swap)
+				   struct tipc_subscriber *subscriber, int swap,
+				   bool status)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_subscription *sub = NULL;
@@ -299,7 +300,7 @@ static void tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
 	spin_lock_bh(&subscriber->lock);
 	list_add(&sub->subscrp_list, &subscriber->subscrp_list);
 	sub->subscriber = subscriber;
-	tipc_nametbl_subscribe(sub);
+	tipc_nametbl_subscribe(sub, status);
 	tipc_subscrb_get(subscriber);
 	spin_unlock_bh(&subscriber->lock);
 
@@ -323,6 +324,7 @@ static void tipc_subscrb_rcv_cb(struct net *net, int conid,
 {
 	struct tipc_subscriber *subscriber = usr_data;
 	struct tipc_subscr *s = (struct tipc_subscr *)buf;
+	bool status;
 	int swap;
 
 	/* Determine subscriber's endianness */
@@ -334,8 +336,8 @@ static void tipc_subscrb_rcv_cb(struct net *net, int conid,
 		s->filter &= ~htohl(TIPC_SUB_CANCEL, swap);
 		return tipc_subscrp_cancel(s, subscriber);
 	}
-
-	tipc_subscrp_subscribe(net, s, subscriber, swap);
+	status = !(s->filter & htohl(TIPC_SUB_NO_STATUS, swap));
+	tipc_subscrp_subscribe(net, s, subscriber, swap, status);
 }
 
 /* Handle one request to establish a new subscriber */
