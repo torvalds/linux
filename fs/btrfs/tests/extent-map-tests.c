@@ -343,7 +343,7 @@ static void test_case_4(struct extent_map_tree *em_tree)
 	__test_case_4(em_tree, SZ_4K);
 }
 
-int btrfs_test_extent_map()
+int btrfs_test_extent_map(void)
 {
 	struct extent_map_tree *em_tree;
 
