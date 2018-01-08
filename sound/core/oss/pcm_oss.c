@@ -1369,8 +1369,11 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 
 	if ((tmp = snd_pcm_oss_make_ready(substream)) < 0)
 		return tmp;
-	mutex_lock(&runtime->oss.params_lock);
 	while (bytes > 0) {
+		if (mutex_lock_interruptible(&runtime->oss.params_lock)) {
+			tmp = -ERESTARTSYS;
+			break;
+		}
 		if (bytes < runtime->oss.period_bytes || runtime->oss.buffer_used > 0) {
 			tmp = bytes;
 			if (tmp + runtime->oss.buffer_used > runtime->oss.period_bytes)
@@ -1414,18 +1417,18 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 			xfer += tmp;
 			if ((substream->f_flags & O_NONBLOCK) != 0 &&
 			    tmp != runtime->oss.period_bytes)
-				break;
+				tmp = -EAGAIN;
 		}
+ err:
+		mutex_unlock(&runtime->oss.params_lock);
+		if (tmp < 0)
+			break;
 		if (signal_pending(current)) {
 			tmp = -ERESTARTSYS;
-			goto err;
+			break;
 		}
+		tmp = 0;
 	}
-	mutex_unlock(&runtime->oss.params_lock);
-	return xfer;
-
- err:
-	mutex_unlock(&runtime->oss.params_lock);
 	return xfer > 0 ? (snd_pcm_sframes_t)xfer : tmp;
 }
 
@@ -1473,8 +1476,11 @@ static ssize_t snd_pcm_oss_read1(struct snd_pcm_substream *substream, char __use
 
 	if ((tmp = snd_pcm_oss_make_ready(substream)) < 0)
 		return tmp;
-	mutex_lock(&runtime->oss.params_lock);
 	while (bytes > 0) {
+		if (mutex_lock_interruptible(&runtime->oss.params_lock)) {
+			tmp = -ERESTARTSYS;
+			break;
+		}
 		if (bytes < runtime->oss.period_bytes || runtime->oss.buffer_used > 0) {
 			if (runtime->oss.buffer_used == 0) {
 				tmp = snd_pcm_oss_read2(substream, runtime->oss.buffer, runtime->oss.period_bytes, 1);
@@ -1505,16 +1511,16 @@ static ssize_t snd_pcm_oss_read1(struct snd_pcm_substream *substream, char __use
 			bytes -= tmp;
 			xfer += tmp;
 		}
+ err:
+		mutex_unlock(&runtime->oss.params_lock);
+		if (tmp < 0)
+			break;
 		if (signal_pending(current)) {
 			tmp = -ERESTARTSYS;
-			goto err;
+			break;
 		}
+		tmp = 0;
 	}
-	mutex_unlock(&runtime->oss.params_lock);
-	return xfer;
-
- err:
-	mutex_unlock(&runtime->oss.params_lock);
 	return xfer > 0 ? (snd_pcm_sframes_t)xfer : tmp;
 }
 
