@@ -569,24 +569,34 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 
 	switch (m->state) {
 	case MBR_JOINED:
-		/* Reclaim advertised space from least active member */
-		if (!list_empty(active) && active_cnt >= reclaim_limit) {
+		/* First, decide if member can go active */
+		if (active_cnt <= max_active) {
+			m->state = MBR_ACTIVE;
+			list_add_tail(&m->list, active);
+			grp->active_cnt++;
+			tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
+		} else {
+			m->state = MBR_PENDING;
+			list_add_tail(&m->list, &grp->pending);
+		}
+
+		if (active_cnt < reclaim_limit)
+			break;
+
+		/* Reclaim from oldest active member, if possible */
+		if (!list_empty(active)) {
 			rm = list_first_entry(active, struct tipc_member, list);
 			rm->state = MBR_RECLAIMING;
 			list_del_init(&rm->list);
 			tipc_group_proto_xmit(grp, rm, GRP_RECLAIM_MSG, xmitq);
-		}
-		/* If max active, become pending and wait for reclaimed space */
-		if (active_cnt >= max_active) {
-			m->state = MBR_PENDING;
-			list_add_tail(&m->list, &grp->pending);
 			break;
 		}
-		/* Otherwise become active */
-		m->state = MBR_ACTIVE;
-		list_add_tail(&m->list, &grp->active);
-		grp->active_cnt++;
-		/* Fall through */
+		/* Nobody to reclaim from; - revert oldest pending to JOINED */
+		pm = list_first_entry(&grp->pending, struct tipc_member, list);
+		list_del_init(&pm->list);
+		pm->state = MBR_JOINED;
+		tipc_group_proto_xmit(grp, pm, GRP_ADV_MSG, xmitq);
+		break;
 	case MBR_ACTIVE:
 		if (!list_is_last(&m->list, &grp->active))
 			list_move_tail(&m->list, &grp->active);
