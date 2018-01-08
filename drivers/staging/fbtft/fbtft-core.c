@@ -1369,8 +1369,7 @@ int fbtft_probe_common(struct fbtft_display *display,
 	/* write register functions */
 	if (display->regwidth == 8 && display->buswidth == 8) {
 		par->fbtftops.write_register = fbtft_write_reg8_bus8;
-	} else
-	if (display->regwidth == 8 && display->buswidth == 9 && par->spi) {
+	} else if (display->regwidth == 8 && display->buswidth == 9 && par->spi) {
 		par->fbtftops.write_register = fbtft_write_reg8_bus9;
 	} else if (display->regwidth == 16 && display->buswidth == 8) {
 		par->fbtftops.write_register = fbtft_write_reg16_bus8;
