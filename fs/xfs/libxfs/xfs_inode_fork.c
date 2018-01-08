@@ -99,10 +99,9 @@ xfs_iformat_fork(
 
 	/* Check inline dir contents. */
 	if (S_ISDIR(inode->i_mode) && dip->di_format == XFS_DINODE_FMT_LOCAL) {
-		error = xfs_dir2_sf_verify(ip);
-		if (error) {
+		if (xfs_dir2_sf_verify(ip)) {
 			xfs_idestroy_fork(ip, XFS_DATA_FORK);
-			return error;
+			return -EFSCORRUPTED;
 		}
 	}
 
