@@ -195,6 +195,7 @@ struct renesas_usbhs_driver_param {
 #define USBHS_TYPE_RCAR_GEN2		1
 #define USBHS_TYPE_RCAR_GEN3		2
 #define USBHS_TYPE_RCAR_GEN3_WITH_PLL	3
+#define USBHS_TYPE_RZA1			4
 
 /*
  * option:
