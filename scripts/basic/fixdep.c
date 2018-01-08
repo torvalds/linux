@@ -290,13 +290,11 @@ static void do_config_file(const char *filename)
 	map = malloc(st.st_size + 1);
 	if (!map) {
 		perror("fixdep: malloc");
-		close(fd);
-		return;
+		exit(2);
 	}
 	if (read(fd, map, st.st_size) != st.st_size) {
 		perror("fixdep: read");
-		close(fd);
-		return;
+		exit(2);
 	}
 	map[st.st_size] = '\0';
 	close(fd);
