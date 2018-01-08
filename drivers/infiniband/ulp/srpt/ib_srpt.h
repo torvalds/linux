@@ -207,7 +207,6 @@ struct srpt_send_ioctx {
 	spinlock_t		spinlock;
 	enum srpt_command_state	state;
 	struct se_cmd		cmd;
-	struct completion	tx_done;
 	u8			n_rdma;
 	u8			n_rw_ctx;
 	bool			queue_status_only;

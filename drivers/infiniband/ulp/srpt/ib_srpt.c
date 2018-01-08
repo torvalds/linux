@@ -1123,7 +1123,6 @@ static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 	ioctx->state = SRPT_STATE_NEW;
 	ioctx->n_rdma = 0;
 	ioctx->n_rw_ctx = 0;
-	init_completion(&ioctx->tx_done);
 	ioctx->queue_status_only = false;
 	/*
 	 * transport_init_se_cmd() does not initialize all fields, so do it
