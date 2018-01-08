@@ -235,7 +235,6 @@ xfs_scrub_bmap(
 	struct xfs_ifork		*ifp;
 	xfs_fileoff_t			endoff;
 	struct xfs_iext_cursor		icur;
-	bool				found;
 	int				error = 0;
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
@@ -314,9 +313,7 @@ xfs_scrub_bmap(
 	/* Scrub extent records. */
 	info.lastoff = 0;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
-	for (found = xfs_iext_lookup_extent(ip, ifp, 0, &icur, &irec);
-	     found != 0;
-	     found = xfs_iext_next_extent(ifp, &icur, &irec)) {
+	for_each_xfs_iext(ifp, &icur, &irec) {
 		if (xfs_scrub_should_terminate(sc, &error))
 			break;
 		if (isnullstartblock(irec.br_startblock))
