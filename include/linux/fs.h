@@ -2992,6 +2992,7 @@ enum {
 };
 
 void dio_end_io(struct bio *bio);
+void dio_warn_stale_pagecache(struct file *filp);
 
 ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 			     struct block_device *bdev, struct iov_iter *iter,
