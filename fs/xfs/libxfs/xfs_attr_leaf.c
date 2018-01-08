@@ -2249,7 +2249,8 @@ xfs_attr3_leaf_lookup_int(
 	leaf = bp->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(args->geo, &ichdr, leaf);
 	entries = xfs_attr3_leaf_entryp(leaf);
-	ASSERT(ichdr.count < args->geo->blksize / 8);
+	if (ichdr.count >= args->geo->blksize / 8)
+		return -EFSCORRUPTED;
 
 	/*
 	 * Binary search.  (note: small blocks will skip this loop)
@@ -2265,8 +2266,10 @@ xfs_attr3_leaf_lookup_int(
 		else
 			break;
 	}
-	ASSERT(probe >= 0 && (!ichdr.count || probe < ichdr.count));
-	ASSERT(span <= 4 || be32_to_cpu(entry->hashval) == hashval);
+	if (!(probe >= 0 && (!ichdr.count || probe < ichdr.count)))
+		return -EFSCORRUPTED;
+	if (!(span <= 4 || be32_to_cpu(entry->hashval) == hashval))
+		return -EFSCORRUPTED;
 
 	/*
 	 * Since we may have duplicate hashval's, find the first matching
