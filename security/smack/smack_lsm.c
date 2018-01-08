@@ -4369,6 +4369,10 @@ static int smack_key_permission(key_ref_t key_ref,
 	 */
 	if (tkp == NULL)
 		return -EACCES;
+
+	if (smack_privileged_cred(CAP_MAC_OVERRIDE, cred))
+		return 0;
+
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_KEY);
 	ad.a.u.key_struct.key = keyp->serial;
