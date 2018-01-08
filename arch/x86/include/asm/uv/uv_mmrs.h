@@ -3743,7 +3743,6 @@ union uvh_rh_gam_gru_overlay_config_mmr_u {
 	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR)
 
 
-
 #define UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_BASE_SHFT	26
 #define UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT	46
 #define UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_ENABLE_SHFT 63
@@ -3758,6 +3757,30 @@ union uvh_rh_gam_gru_overlay_config_mmr_u {
 #define UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_MASK	0x000fc00000000000UL
 #define UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_ENABLE_MASK 0x8000000000000000UL
 
+#define UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT 52
+#define UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_BASE_MASK 0x000ffffffc000000UL
+#define UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_MASK 0x03f0000000000000UL
+#define UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_ENABLE_MASK 0x8000000000000000UL
+
+#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT (		\
+	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT : \
+	is_uv4a_hub() ? UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT : \
+	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_SHFT)
+
+#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_BASE_MASK (		\
+	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_BASE_MASK : \
+	is_uv4a_hub() ? UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_BASE_MASK : \
+	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_BASE_MASK)
+
+#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_MASK (		\
+	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_MASK : \
+	is_uv4a_hub() ? UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_MASK : \
+	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_M_IO_MASK)
+
+#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_ENABLE_MASK (		\
+	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_ENABLE_MASK : \
+	is_uv4a_hub() ? UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_ENABLE_MASK : \
+	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG0_MMR_ENABLE_MASK)
 
 union uvh_rh_gam_mmioh_overlay_config0_mmr_u {
 	unsigned long	v;
@@ -3777,6 +3800,14 @@ union uvh_rh_gam_mmioh_overlay_config0_mmr_u {
 		unsigned long	rsvd_56_62:7;
 		unsigned long	enable:1;			/* RW */
 	} s4;
+	struct uv4ah_rh_gam_mmioh_overlay_config0_mmr_s {
+		unsigned long	rsvd_0_25:26;
+		unsigned long	base:26;			/* RW */
+		unsigned long	m_io:6;				/* RW */
+		unsigned long	n_io:4;
+		unsigned long	undef_62:1;			/* Undefined */
+		unsigned long	enable:1;			/* RW */
+	} s4a;
 };
 
 /* ========================================================================= */
@@ -3784,14 +3815,13 @@ union uvh_rh_gam_mmioh_overlay_config0_mmr_u {
 /* ========================================================================= */
 #define UV1H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR uv_undefined("UV1H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR")
 #define UV2H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR uv_undefined("UV2H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR")
-#define UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR 0x1604000UL
-#define UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR 0x484000UL
+#define UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR 0x1603000UL
+#define UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR 0x483000UL
 #define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR (				\
 	is_uv1_hub() ? UV1H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR :		\
 	is_uv2_hub() ? UV2H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR :		\
 	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR :		\
 	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR)
-
 
 
 #define UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_BASE_SHFT	26
@@ -3808,6 +3838,24 @@ union uvh_rh_gam_mmioh_overlay_config0_mmr_u {
 #define UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_MASK	0x000fc00000000000UL
 #define UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_ENABLE_MASK 0x8000000000000000UL
 
+#define UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_SHFT 52
+#define UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_BASE_MASK 0x000ffffffc000000UL
+#define UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_MASK 0x03f0000000000000UL
+
+#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_SHFT (		\
+	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_SHFT : \
+	is_uv4a_hub() ? UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_SHFT : \
+	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_SHFT)
+
+#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_BASE_MASK (		\
+	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_BASE_MASK : \
+	is_uv4a_hub() ? UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_BASE_MASK : \
+	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_BASE_MASK)
+
+#define UVH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_MASK (		\
+	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_MASK : \
+	is_uv4a_hub() ? UV4AH_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_MASK : \
+	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_OVERLAY_CONFIG1_MMR_M_IO_MASK)
 
 union uvh_rh_gam_mmioh_overlay_config1_mmr_u {
 	unsigned long	v;
@@ -3827,6 +3875,14 @@ union uvh_rh_gam_mmioh_overlay_config1_mmr_u {
 		unsigned long	rsvd_56_62:7;
 		unsigned long	enable:1;			/* RW */
 	} s4;
+	struct uv4ah_rh_gam_mmioh_overlay_config1_mmr_s {
+		unsigned long	rsvd_0_25:26;
+		unsigned long	base:26;			/* RW */
+		unsigned long	m_io:6;				/* RW */
+		unsigned long	n_io:4;
+		unsigned long	undef_62:1;			/* Undefined */
+		unsigned long	enable:1;			/* RW */
+	} s4a;
 };
 
 /* ========================================================================= */
@@ -3907,13 +3963,18 @@ union uvh_rh_gam_mmioh_overlay_config_mmr_u {
 	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_DEPTH)
 
 
-
 #define UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_SHFT 0
 #define UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_MASK 0x0000000000007fffUL
 
 #define UV4H_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_SHFT 0
 #define UV4H_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_MASK 0x0000000000007fffUL
 
+#define UV4AH_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_MASK 0x0000000000000fffUL
+
+#define UVH_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_MASK (		\
+	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_MASK : \
+	is_uv4a_hub() ? UV4AH_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_MASK : \
+	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_REDIRECT_CONFIG0_MMR_NASID_MASK)
 
 union uvh_rh_gam_mmioh_redirect_config0_mmr_u {
 	unsigned long	v;
@@ -3925,6 +3986,10 @@ union uvh_rh_gam_mmioh_redirect_config0_mmr_u {
 		unsigned long	nasid:15;			/* RW */
 		unsigned long	rsvd_15_63:49;
 	} s4;
+	struct uv4ah_rh_gam_mmioh_redirect_config0_mmr_s {
+		unsigned long	nasid:12;			/* RW */
+		unsigned long	rsvd_12_63:52;
+	} s4a;
 };
 
 /* ========================================================================= */
@@ -3951,13 +4016,18 @@ union uvh_rh_gam_mmioh_redirect_config0_mmr_u {
 	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_DEPTH)
 
 
-
 #define UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_SHFT 0
 #define UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_MASK 0x0000000000007fffUL
 
 #define UV4H_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_SHFT 0
 #define UV4H_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_MASK 0x0000000000007fffUL
 
+#define UV4AH_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_MASK 0x0000000000000fffUL
+
+#define UVH_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_MASK (		\
+	is_uv3_hub() ? UV3H_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_MASK : \
+	is_uv4a_hub() ? UV4AH_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_MASK : \
+	/*is_uv4_hub*/ UV4H_RH_GAM_MMIOH_REDIRECT_CONFIG1_MMR_NASID_MASK)
 
 union uvh_rh_gam_mmioh_redirect_config1_mmr_u {
 	unsigned long	v;
@@ -3969,6 +4039,10 @@ union uvh_rh_gam_mmioh_redirect_config1_mmr_u {
 		unsigned long	nasid:15;			/* RW */
 		unsigned long	rsvd_15_63:49;
 	} s4;
+	struct uv4ah_rh_gam_mmioh_redirect_config1_mmr_s {
+		unsigned long	nasid:12;			/* RW */
+		unsigned long	rsvd_12_63:52;
+	} s4a;
 };
 
 /* ========================================================================= */
