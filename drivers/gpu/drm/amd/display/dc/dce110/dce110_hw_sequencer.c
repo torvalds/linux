@@ -914,6 +914,7 @@ void hwss_edp_backlight_control(
 	/*todo: unhardcode*/
 	cntl.lanes_number = LANE_COUNT_FOUR;
 	cntl.hpd_sel = link->link_enc->hpd_source;
+	cntl.signal = SIGNAL_TYPE_EDP;
 
 	/* For eDP, the following delays might need to be considered
 	 * after link training completed:
@@ -1407,7 +1408,24 @@ static void disable_vga_and_power_gate_all_controllers(
 	}
 }
 
-static struct dc_link *get_link_for_eDP_not_in_use(
+static struct dc_link *get_link_for_edp(
+		struct dc *dc)
+{
+	int i;
+	struct dc_link *link = NULL;
+
+	/* check if there is an eDP panel not in use */
+	for (i = 0; i < dc->link_count; i++) {
+		if (dc->links[i]->local_sink &&
+			dc->links[i]->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
+			link = dc->links[i];
+			break;
+		}
+	}
+
+	return link;
+}
+static struct dc_link *get_link_for_edp_not_in_use(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -1441,16 +1459,19 @@ static struct dc_link *get_link_for_eDP_not_in_use(
  */
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
-	struct dc_link *eDP_link_to_turnoff = get_link_for_eDP_not_in_use(dc, context);
+	struct dc_link *edp_link_to_turnoff = get_link_for_edp_not_in_use(dc, context);
 
-	if (eDP_link_to_turnoff)
-		dc->hwss.edp_backlight_control(eDP_link_to_turnoff, false);
+	struct dc_link *edp_link = get_link_for_edp(dc);
+
+	if (edp_link)
+		/*we need turn off backlight before DP_blank and encoder powered down*/
+		dc->hwss.edp_backlight_control(edp_link, false);
 
 	power_down_all_hw_blocks(dc);
 	disable_vga_and_power_gate_all_controllers(dc);
 
-	if (eDP_link_to_turnoff)
-		dc->hwss.edp_power_control(eDP_link_to_turnoff, false);
+	if (edp_link_to_turnoff)
+		dc->hwss.edp_power_control(edp_link_to_turnoff, false);
 
 	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios);
 }
