@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
@@ -84,6 +85,13 @@ static int stm32_timer_of_bits_get(struct timer_of *to)
 static void __iomem *stm32_timer_cnt __read_mostly;
 
 static u64 notrace stm32_read_sched_clock(void)
+{
+	return readl_relaxed(stm32_timer_cnt);
+}
+
+static struct delay_timer stm32_timer_delay;
+
+static unsigned long stm32_read_delay(void)
 {
 	return readl_relaxed(stm32_timer_cnt);
 }
@@ -230,6 +238,11 @@ static int __init stm32_clocksource_init(struct timer_of *to)
 		stm32_timer_cnt = timer_of_base(to) + TIM_CNT;
 		sched_clock_register(stm32_read_sched_clock, bits, timer_of_rate(to));
 		pr_info("%s: STM32 sched_clock registered\n", name);
+
+		stm32_timer_delay.read_current_timer = stm32_read_delay;
+		stm32_timer_delay.freq = timer_of_rate(to);
+		register_current_timer_delay(&stm32_timer_delay);
+		pr_info("%s: STM32 delay timer registered\n", name);
 	}
 
 	return clocksource_mmio_init(timer_of_base(to) + TIM_CNT, name,
