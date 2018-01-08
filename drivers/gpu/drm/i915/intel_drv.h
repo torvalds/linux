@@ -41,20 +41,21 @@
 #include <drm/drm_atomic.h>
 
 /**
- * _wait_for - magic (register) wait macro
+ * __wait_for - magic wait macro
  *
- * Does the right thing for modeset paths when run under kdgb or similar atomic
- * contexts. Note that it's important that we check the condition again after
- * having timed out, since the timeout could be due to preemption or similar and
- * we've never had a chance to check the condition before the timeout.
+ * Macro to help avoid open coding check/wait/timeout patterns. Note that it's
+ * important that we check the condition again after having timed out, since the
+ * timeout could be due to preemption or similar and we've never had a chance to
+ * check the condition before the timeout.
  */
-#define _wait_for(COND, US, Wmin, Wmax) ({ \
+#define __wait_for(OP, COND, US, Wmin, Wmax) ({ \
 	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
 	long wait__ = (Wmin); /* recommended min for usleep is 10 us */	\
 	int ret__;							\
 	might_sleep();							\
 	for (;;) {							\
 		bool expired__ = time_after(jiffies, timeout__);	\
+		OP;							\
 		if (COND) {						\
 			ret__ = 0;					\
 			break;						\
@@ -70,7 +71,9 @@
 	ret__;								\
 })
 
-#define wait_for(COND, MS)	_wait_for((COND), (MS) * 1000, 10, 1000)
+#define _wait_for(COND, US, Wmin, Wmax)	__wait_for(, (COND), (US), (Wmin), \
+						   (Wmax))
+#define wait_for(COND, MS)		_wait_for((COND), (MS) * 1000, 10, 1000)
 
 /* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
 #if defined(CONFIG_DRM_I915_DEBUG) && defined(CONFIG_PREEMPT_COUNT)
