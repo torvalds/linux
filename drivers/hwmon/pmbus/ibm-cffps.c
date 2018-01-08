@@ -15,6 +15,7 @@
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/pmbus.h>
 
 #include "pmbus.h"
 
@@ -268,6 +269,10 @@ static struct pmbus_driver_info ibm_cffps_info = {
 	.read_word_data = ibm_cffps_read_word_data,
 };
 
+static struct pmbus_platform_data ibm_cffps_pdata = {
+	.flags = PMBUS_SKIP_STATUS_CHECK,
+};
+
 static int ibm_cffps_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
@@ -276,6 +281,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 	struct dentry *ibm_cffps_dir;
 	struct ibm_cffps *psu;
 
+	client->dev.platform_data = &ibm_cffps_pdata;
 	rc = pmbus_do_probe(client, id, &ibm_cffps_info);
 	if (rc)
 		return rc;
