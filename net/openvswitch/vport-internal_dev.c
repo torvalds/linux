@@ -16,7 +16,6 @@
  * 02110-1301, USA
  */
 
-#include <linux/hardirq.h>
 #include <linux/if_vlan.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
