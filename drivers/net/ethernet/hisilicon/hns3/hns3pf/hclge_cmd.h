@@ -556,8 +556,6 @@ struct hclge_config_auto_neg_cmd {
 	u8      rsv[20];
 };
 
-#define HCLGE_MAC_MIN_MTU		64
-#define HCLGE_MAC_MAX_MTU		9728
 #define HCLGE_MAC_UPLINK_PORT		0x100
 
 struct hclge_config_max_frm_size_cmd {

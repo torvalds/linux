@@ -101,6 +101,11 @@
 /* CMDQ register bits for RX event(=MBX event) */
 #define HCLGE_VECTOR0_RX_CMDQ_INT_B	1
 
+#define HCLGE_MAC_DEFAULT_FRAME \
+	(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN + ETH_DATA_LEN)
+#define HCLGE_MAC_MIN_FRAME		64
+#define HCLGE_MAC_MAX_FRAME		9728
+
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
 	HCLGE_STATE_DOWN,
@@ -112,6 +117,7 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_RST_HANDLING,
 	HCLGE_STATE_MBX_SERVICE_SCHED,
 	HCLGE_STATE_MBX_HANDLING,
+	HCLGE_STATE_STATISTICS_UPDATING,
 	HCLGE_STATE_MAX
 };
 
@@ -381,14 +387,23 @@ struct hclge_mac_stats {
 	u64 mac_tx_multi_pkt_num;
 	u64 mac_tx_broad_pkt_num;
 	u64 mac_tx_undersize_pkt_num;
-	u64 mac_tx_overrsize_pkt_num;
+	u64 mac_tx_oversize_pkt_num;
 	u64 mac_tx_64_oct_pkt_num;
 	u64 mac_tx_65_127_oct_pkt_num;
 	u64 mac_tx_128_255_oct_pkt_num;
 	u64 mac_tx_256_511_oct_pkt_num;
 	u64 mac_tx_512_1023_oct_pkt_num;
 	u64 mac_tx_1024_1518_oct_pkt_num;
-	u64 mac_tx_1519_max_oct_pkt_num;
+	u64 mac_tx_1519_2047_oct_pkt_num;
+	u64 mac_tx_2048_4095_oct_pkt_num;
+	u64 mac_tx_4096_8191_oct_pkt_num;
+	u64 mac_tx_8192_12287_oct_pkt_num; /* valid for GE MAC only */
+	u64 mac_tx_8192_9216_oct_pkt_num; /* valid for LGE & CGE MAC only */
+	u64 mac_tx_9217_12287_oct_pkt_num; /* valid for LGE & CGE MAC */
+	u64 mac_tx_12288_16383_oct_pkt_num;
+	u64 mac_tx_1519_max_good_oct_pkt_num;
+	u64 mac_tx_1519_max_bad_oct_pkt_num;
+
 	u64 mac_rx_total_pkt_num;
 	u64 mac_rx_total_oct_num;
 	u64 mac_rx_good_pkt_num;
@@ -399,33 +414,43 @@ struct hclge_mac_stats {
 	u64 mac_rx_multi_pkt_num;
 	u64 mac_rx_broad_pkt_num;
 	u64 mac_rx_undersize_pkt_num;
-	u64 mac_rx_overrsize_pkt_num;
+	u64 mac_rx_oversize_pkt_num;
 	u64 mac_rx_64_oct_pkt_num;
 	u64 mac_rx_65_127_oct_pkt_num;
 	u64 mac_rx_128_255_oct_pkt_num;
 	u64 mac_rx_256_511_oct_pkt_num;
 	u64 mac_rx_512_1023_oct_pkt_num;
 	u64 mac_rx_1024_1518_oct_pkt_num;
-	u64 mac_rx_1519_max_oct_pkt_num;
+	u64 mac_rx_1519_2047_oct_pkt_num;
+	u64 mac_rx_2048_4095_oct_pkt_num;
+	u64 mac_rx_4096_8191_oct_pkt_num;
+	u64 mac_rx_8192_12287_oct_pkt_num;/* valid for GE MAC only */
+	u64 mac_rx_8192_9216_oct_pkt_num; /* valid for LGE & CGE MAC only */
+	u64 mac_rx_9217_12287_oct_pkt_num; /* valid for LGE & CGE MAC only */
+	u64 mac_rx_12288_16383_oct_pkt_num;
+	u64 mac_rx_1519_max_good_oct_pkt_num;
+	u64 mac_rx_1519_max_bad_oct_pkt_num;
 
-	u64 mac_trans_fragment_pkt_num;
-	u64 mac_trans_undermin_pkt_num;
-	u64 mac_trans_jabber_pkt_num;
-	u64 mac_trans_err_all_pkt_num;
-	u64 mac_trans_from_app_good_pkt_num;
-	u64 mac_trans_from_app_bad_pkt_num;
-	u64 mac_rcv_fragment_pkt_num;
-	u64 mac_rcv_undermin_pkt_num;
-	u64 mac_rcv_jabber_pkt_num;
-	u64 mac_rcv_fcs_err_pkt_num;
-	u64 mac_rcv_send_app_good_pkt_num;
-	u64 mac_rcv_send_app_bad_pkt_num;
+	u64 mac_tx_fragment_pkt_num;
+	u64 mac_tx_undermin_pkt_num;
+	u64 mac_tx_jabber_pkt_num;
+	u64 mac_tx_err_all_pkt_num;
+	u64 mac_tx_from_app_good_pkt_num;
+	u64 mac_tx_from_app_bad_pkt_num;
+	u64 mac_rx_fragment_pkt_num;
+	u64 mac_rx_undermin_pkt_num;
+	u64 mac_rx_jabber_pkt_num;
+	u64 mac_rx_fcs_err_pkt_num;
+	u64 mac_rx_send_app_good_pkt_num;
+	u64 mac_rx_send_app_bad_pkt_num;
 };
 
+#define HCLGE_STATS_TIMER_INTERVAL	(60 * 5)
 struct hclge_hw_stats {
 	struct hclge_mac_stats      mac_stats;
 	struct hclge_64_bit_stats   all_64_bit_stats;
 	struct hclge_32_bit_stats   all_32_bit_stats;
+	u32 stats_timer;
 };
 
 struct hclge_vlan_type_cfg {

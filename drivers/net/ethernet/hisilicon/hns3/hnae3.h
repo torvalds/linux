@@ -274,6 +274,8 @@ struct hnae3_ae_dev {
  *   Get firmware version
  * get_mdix_mode()
  *   Get media typr of phy
+ * enable_vlan_filter()
+ *   Enable vlan filter
  * set_vlan_filter()
  *   Set vlan filter config of Ports
  * set_vf_vlan_filter()
@@ -382,6 +384,7 @@ struct hnae3_ae_ops {
 	void (*get_mdix_mode)(struct hnae3_handle *handle,
 			      u8 *tp_mdix_ctrl, u8 *tp_mdix);
 
+	void (*enable_vlan_filter)(struct hnae3_handle *handle, bool enable);
 	int (*set_vlan_filter)(struct hnae3_handle *handle, __be16 proto,
 			       u16 vlan_id, bool is_kill);
 	int (*set_vf_vlan_filter)(struct hnae3_handle *handle, int vfid,

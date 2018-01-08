@@ -17,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/if_vlan.h>
 #include <net/rtnetlink.h>
 #include "hclge_cmd.h"
 #include "hclge_dcb.h"
@@ -35,6 +36,7 @@
 static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 				     enum hclge_mta_dmac_sel_type mta_mac_sel,
 				     bool enable);
+static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
 
@@ -279,8 +281,8 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_broad_pkt_num)},
 	{"mac_tx_undersize_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_undersize_pkt_num)},
-	{"mac_tx_overrsize_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_overrsize_pkt_num)},
+	{"mac_tx_oversize_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_oversize_pkt_num)},
 	{"mac_tx_64_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_64_oct_pkt_num)},
 	{"mac_tx_65_127_oct_pkt_num",
@@ -293,8 +295,24 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_512_1023_oct_pkt_num)},
 	{"mac_tx_1024_1518_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1024_1518_oct_pkt_num)},
-	{"mac_tx_1519_max_oct_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_oct_pkt_num)},
+	{"mac_tx_1519_2047_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_2047_oct_pkt_num)},
+	{"mac_tx_2048_4095_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_2048_4095_oct_pkt_num)},
+	{"mac_tx_4096_8191_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_4096_8191_oct_pkt_num)},
+	{"mac_tx_8192_12287_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_8192_12287_oct_pkt_num)},
+	{"mac_tx_8192_9216_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_8192_9216_oct_pkt_num)},
+	{"mac_tx_9217_12287_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_9217_12287_oct_pkt_num)},
+	{"mac_tx_12288_16383_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_12288_16383_oct_pkt_num)},
+	{"mac_tx_1519_max_good_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_good_oct_pkt_num)},
+	{"mac_tx_1519_max_bad_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_bad_oct_pkt_num)},
 	{"mac_rx_total_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_total_pkt_num)},
 	{"mac_rx_total_oct_num",
@@ -315,8 +333,8 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_broad_pkt_num)},
 	{"mac_rx_undersize_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_undersize_pkt_num)},
-	{"mac_rx_overrsize_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_overrsize_pkt_num)},
+	{"mac_rx_oversize_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_oversize_pkt_num)},
 	{"mac_rx_64_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_64_oct_pkt_num)},
 	{"mac_rx_65_127_oct_pkt_num",
@@ -329,33 +347,49 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_512_1023_oct_pkt_num)},
 	{"mac_rx_1024_1518_oct_pkt_num",
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1024_1518_oct_pkt_num)},
-	{"mac_rx_1519_max_oct_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_oct_pkt_num)},
+	{"mac_rx_1519_2047_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_2047_oct_pkt_num)},
+	{"mac_rx_2048_4095_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_2048_4095_oct_pkt_num)},
+	{"mac_rx_4096_8191_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_4096_8191_oct_pkt_num)},
+	{"mac_rx_8192_12287_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_8192_12287_oct_pkt_num)},
+	{"mac_rx_8192_9216_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_8192_9216_oct_pkt_num)},
+	{"mac_rx_9217_12287_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_9217_12287_oct_pkt_num)},
+	{"mac_rx_12288_16383_oct_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_12288_16383_oct_pkt_num)},
+	{"mac_rx_1519_max_good_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_good_oct_pkt_num)},
+	{"mac_rx_1519_max_bad_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_bad_oct_pkt_num)},
 
-	{"mac_trans_fragment_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_fragment_pkt_num)},
-	{"mac_trans_undermin_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_undermin_pkt_num)},
-	{"mac_trans_jabber_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_jabber_pkt_num)},
-	{"mac_trans_err_all_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_err_all_pkt_num)},
-	{"mac_trans_from_app_good_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_from_app_good_pkt_num)},
-	{"mac_trans_from_app_bad_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_trans_from_app_bad_pkt_num)},
-	{"mac_rcv_fragment_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_fragment_pkt_num)},
-	{"mac_rcv_undermin_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_undermin_pkt_num)},
-	{"mac_rcv_jabber_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_jabber_pkt_num)},
-	{"mac_rcv_fcs_err_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_fcs_err_pkt_num)},
-	{"mac_rcv_send_app_good_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_send_app_good_pkt_num)},
-	{"mac_rcv_send_app_bad_pkt_num",
-		HCLGE_MAC_STATS_FIELD_OFF(mac_rcv_send_app_bad_pkt_num)}
+	{"mac_tx_fragment_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_fragment_pkt_num)},
+	{"mac_tx_undermin_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_undermin_pkt_num)},
+	{"mac_tx_jabber_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_jabber_pkt_num)},
+	{"mac_tx_err_all_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_err_all_pkt_num)},
+	{"mac_tx_from_app_good_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_from_app_good_pkt_num)},
+	{"mac_tx_from_app_bad_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_from_app_bad_pkt_num)},
+	{"mac_rx_fragment_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_fragment_pkt_num)},
+	{"mac_rx_undermin_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_undermin_pkt_num)},
+	{"mac_rx_jabber_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_jabber_pkt_num)},
+	{"mac_rx_fcs_err_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_fcs_err_pkt_num)},
+	{"mac_rx_send_app_good_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_good_pkt_num)},
+	{"mac_rx_send_app_bad_pkt_num",
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_bad_pkt_num)}
 };
 
 static int hclge_64_bit_update_stats(struct hclge_dev *hdev)
@@ -463,7 +497,7 @@ static int hclge_32_bit_update_stats(struct hclge_dev *hdev)
 
 static int hclge_mac_update_stats(struct hclge_dev *hdev)
 {
-#define HCLGE_MAC_CMD_NUM 17
+#define HCLGE_MAC_CMD_NUM 21
 #define HCLGE_RTN_DATA_NUM 4
 
 	u64 *data = (u64 *)(&hdev->hw_stats.mac_stats);
@@ -525,7 +559,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 			return ret;
 		}
 		tqp->tqp_stats.rcb_rx_ring_pktnum_rcd +=
-			le32_to_cpu(desc[0].data[4]);
+			le32_to_cpu(desc[0].data[1]);
 	}
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
@@ -545,7 +579,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 			return ret;
 		}
 		tqp->tqp_stats.rcb_tx_ring_pktnum_rcd +=
-			le32_to_cpu(desc[0].data[4]);
+			le32_to_cpu(desc[0].data[1]);
 	}
 
 	return 0;
@@ -587,7 +621,7 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_tqp *tqp = container_of(handle->kinfo.tqp[i],
 			struct hclge_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rcb_q%d_tx_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "txq#%d_pktnum_rcd",
 			 tqp->index);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -595,7 +629,7 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_tqp *tqp = container_of(kinfo->tqp[i],
 			struct hclge_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rcb_q%d_rx_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "rxq#%d_pktnum_rcd",
 			 tqp->index);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -643,23 +677,22 @@ static void hclge_update_netstat(struct hclge_hw_stats *hw_stats,
 	net_stats->rx_dropped += hw_stats->all_32_bit_stats.ppp_key_drop_num;
 	net_stats->rx_dropped += hw_stats->all_32_bit_stats.ssu_key_drop_num;
 
-	net_stats->rx_errors = hw_stats->mac_stats.mac_rx_overrsize_pkt_num;
+	net_stats->rx_errors = hw_stats->mac_stats.mac_rx_oversize_pkt_num;
 	net_stats->rx_errors += hw_stats->mac_stats.mac_rx_undersize_pkt_num;
-	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_err_pkt;
 	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_no_eof_pkt;
 	net_stats->rx_errors += hw_stats->all_32_bit_stats.igu_rx_no_sof_pkt;
-	net_stats->rx_errors += hw_stats->mac_stats.mac_rcv_fcs_err_pkt_num;
+	net_stats->rx_errors += hw_stats->mac_stats.mac_rx_fcs_err_pkt_num;
 
 	net_stats->multicast = hw_stats->mac_stats.mac_tx_multi_pkt_num;
 	net_stats->multicast += hw_stats->mac_stats.mac_rx_multi_pkt_num;
 
-	net_stats->rx_crc_errors = hw_stats->mac_stats.mac_rcv_fcs_err_pkt_num;
+	net_stats->rx_crc_errors = hw_stats->mac_stats.mac_rx_fcs_err_pkt_num;
 	net_stats->rx_length_errors =
 		hw_stats->mac_stats.mac_rx_undersize_pkt_num;
 	net_stats->rx_length_errors +=
-		hw_stats->mac_stats.mac_rx_overrsize_pkt_num;
+		hw_stats->mac_stats.mac_rx_oversize_pkt_num;
 	net_stats->rx_over_errors =
-		hw_stats->mac_stats.mac_rx_overrsize_pkt_num;
+		hw_stats->mac_stats.mac_rx_oversize_pkt_num;
 }
 
 static void hclge_update_stats_for_all(struct hclge_dev *hdev)
@@ -699,6 +732,9 @@ static void hclge_update_stats(struct hnae3_handle *handle,
 	struct hclge_hw_stats *hw_stats = &hdev->hw_stats;
 	int status;
 
+	if (test_and_set_bit(HCLGE_STATE_STATISTICS_UPDATING, &hdev->state))
+		return;
+
 	status = hclge_mac_update_stats(hdev);
 	if (status)
 		dev_err(&hdev->pdev->dev,
@@ -724,6 +760,8 @@ static void hclge_update_stats(struct hnae3_handle *handle,
 			status);
 
 	hclge_update_netstat(hw_stats, net_stats);
+
+	clear_bit(HCLGE_STATE_STATISTICS_UPDATING, &hdev->state);
 }
 
 static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
@@ -2203,8 +2241,11 @@ static int hclge_set_default_mac_vlan_mask(struct hclge_dev *hdev,
 
 static int hclge_mac_init(struct hclge_dev *hdev)
 {
+	struct hnae3_handle *handle = &hdev->vport[0].nic;
+	struct net_device *netdev = handle->kinfo.netdev;
 	struct hclge_mac *mac = &hdev->hw.mac;
 	u8 mac_mask[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	int mtu;
 	int ret;
 
 	ret = hclge_cfg_mac_speed_dup(hdev, hdev->hw.mac.speed, HCLGE_MAC_FULL);
@@ -2238,11 +2279,25 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	}
 
 	ret = hclge_set_default_mac_vlan_mask(hdev, true, mac_mask);
-	if (ret)
+	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"set default mac_vlan_mask fail ret=%d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	if (netdev)
+		mtu = netdev->mtu;
+	else
+		mtu = ETH_DATA_LEN;
+
+	ret = hclge_set_mtu(handle, mtu);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"set mtu failed ret=%d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void hclge_mbx_task_schedule(struct hclge_dev *hdev)
@@ -2381,6 +2436,7 @@ static void hclge_service_timer(struct timer_list *t)
 	struct hclge_dev *hdev = from_timer(hdev, t, service_timer);
 
 	mod_timer(&hdev->service_timer, jiffies + HZ);
+	hdev->hw_stats.stats_timer++;
 	hclge_task_schedule(hdev);
 }
 
@@ -2780,9 +2836,13 @@ static void hclge_service_task(struct work_struct *work)
 	struct hclge_dev *hdev =
 		container_of(work, struct hclge_dev, service_task);
 
+	if (hdev->hw_stats.stats_timer >= HCLGE_STATS_TIMER_INTERVAL) {
+		hclge_update_stats_for_all(hdev);
+		hdev->hw_stats.stats_timer = 0;
+	}
+
 	hclge_update_speed_duplex(hdev);
 	hclge_update_link_status(hdev);
-	hclge_update_stats_for_all(hdev);
 	hclge_service_complete(hdev);
 }
 
@@ -4197,6 +4257,7 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p)
 	const unsigned char *new_addr = (const unsigned char *)p;
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+	int ret;
 
 	/* mac addr check */
 	if (is_zero_ether_addr(new_addr) ||
@@ -4208,14 +4269,39 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p)
 		return -EINVAL;
 	}
 
-	hclge_rm_uc_addr(handle, hdev->hw.mac.mac_addr);
+	ret = hclge_rm_uc_addr(handle, hdev->hw.mac.mac_addr);
+	if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "remove old uc mac address fail, ret =%d.\n",
+			 ret);
 
-	if (!hclge_add_uc_addr(handle, new_addr)) {
-		ether_addr_copy(hdev->hw.mac.mac_addr, new_addr);
-		return 0;
+	ret = hclge_add_uc_addr(handle, new_addr);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"add uc mac address fail, ret =%d.\n",
+			ret);
+
+		ret = hclge_add_uc_addr(handle, hdev->hw.mac.mac_addr);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"restore uc mac address fail, ret =%d.\n",
+				ret);
+		}
+
+		return -EIO;
 	}
 
-	return -EIO;
+	ret = hclge_mac_pause_addr_cfg(hdev, new_addr);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"configure mac pause address fail, ret =%d.\n",
+			ret);
+		return -EIO;
+	}
+
+	ether_addr_copy(hdev->hw.mac.mac_addr, new_addr);
+
+	return 0;
 }
 
 static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
@@ -4239,6 +4325,17 @@ static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 	}
 
 	return 0;
+}
+
+#define HCLGE_FILTER_TYPE_VF		0
+#define HCLGE_FILTER_TYPE_PORT		1
+
+static void hclge_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF, enable);
 }
 
 int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
@@ -4469,8 +4566,6 @@ static int hclge_set_vlan_protocol_type(struct hclge_dev *hdev)
 
 static int hclge_init_vlan_config(struct hclge_dev *hdev)
 {
-#define HCLGE_FILTER_TYPE_VF		0
-#define HCLGE_FILTER_TYPE_PORT		1
 #define HCLGE_DEF_VLAN_TYPE		0x8100
 
 	struct hnae3_handle *handle;
@@ -4542,22 +4637,29 @@ static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 	struct hclge_config_max_frm_size_cmd *req;
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_desc desc;
+	int max_frm_size;
 	int ret;
 
-	if ((new_mtu < HCLGE_MAC_MIN_MTU) || (new_mtu > HCLGE_MAC_MAX_MTU))
+	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+
+	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
+	    max_frm_size > HCLGE_MAC_MAX_FRAME)
 		return -EINVAL;
 
-	hdev->mps = new_mtu;
+	max_frm_size = max(max_frm_size, HCLGE_MAC_DEFAULT_FRAME);
+
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_MAX_FRM_SIZE, false);
 
 	req = (struct hclge_config_max_frm_size_cmd *)desc.data;
-	req->max_frm_size = cpu_to_le16(new_mtu);
+	req->max_frm_size = cpu_to_le16(max_frm_size);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev, "set mtu fail, ret =%d.\n", ret);
 		return ret;
 	}
+
+	hdev->mps = max_frm_size;
 
 	return 0;
 }
@@ -4689,22 +4791,19 @@ static void hclge_set_flowctrl_adv(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 
 static int hclge_cfg_pauseparam(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 {
-	enum hclge_fc_mode fc_mode;
 	int ret;
 
 	if (rx_en && tx_en)
-		fc_mode = HCLGE_FC_FULL;
+		hdev->fc_mode_last_time = HCLGE_FC_FULL;
 	else if (rx_en && !tx_en)
-		fc_mode = HCLGE_FC_RX_PAUSE;
+		hdev->fc_mode_last_time = HCLGE_FC_RX_PAUSE;
 	else if (!rx_en && tx_en)
-		fc_mode = HCLGE_FC_TX_PAUSE;
+		hdev->fc_mode_last_time = HCLGE_FC_TX_PAUSE;
 	else
-		fc_mode = HCLGE_FC_NONE;
+		hdev->fc_mode_last_time = HCLGE_FC_NONE;
 
-	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC) {
-		hdev->fc_mode_last_time = fc_mode;
+	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC)
 		return 0;
-	}
 
 	ret = hclge_mac_pause_en_cfg(hdev, tx_en, rx_en);
 	if (ret) {
@@ -4713,7 +4812,7 @@ static int hclge_cfg_pauseparam(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 		return ret;
 	}
 
-	hdev->tm_info.fc_mode = fc_mode;
+	hdev->tm_info.fc_mode = hdev->fc_mode_last_time;
 
 	return 0;
 }
@@ -5482,6 +5581,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_sset_count = hclge_get_sset_count,
 	.get_fw_version = hclge_get_fw_version,
 	.get_mdix_mode = hclge_get_mdix_mode,
+	.enable_vlan_filter = hclge_enable_vlan_filter,
 	.set_vlan_filter = hclge_set_port_vlan_filter,
 	.set_vf_vlan_filter = hclge_set_vf_vlan_filter,
 	.enable_hw_strip_rxvtag = hclge_en_hw_strip_rxvtag,

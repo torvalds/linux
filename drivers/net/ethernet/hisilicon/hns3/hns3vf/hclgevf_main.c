@@ -49,7 +49,7 @@ static int hclgevf_tqps_update_stats(struct hnae3_handle *handle)
 			return status;
 		}
 		tqp->tqp_stats.rcb_rx_ring_pktnum_rcd +=
-			le32_to_cpu(desc.data[4]);
+			le32_to_cpu(desc.data[1]);
 
 		hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_QUERY_TX_STATUS,
 					     true);
@@ -63,7 +63,7 @@ static int hclgevf_tqps_update_stats(struct hnae3_handle *handle)
 			return status;
 		}
 		tqp->tqp_stats.rcb_tx_ring_pktnum_rcd +=
-			le32_to_cpu(desc.data[4]);
+			le32_to_cpu(desc.data[1]);
 	}
 
 	return 0;
@@ -105,7 +105,7 @@ static u8 *hclgevf_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < hdev->num_tqps; i++) {
 		struct hclgevf_tqp *tqp = container_of(handle->kinfo.tqp[i],
 			struct hclgevf_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rcb_q%d_tx_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "txq#%d_pktnum_rcd",
 			 tqp->index);
 		buff += ETH_GSTRING_LEN;
 	}
@@ -113,7 +113,7 @@ static u8 *hclgevf_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < hdev->num_tqps; i++) {
 		struct hclgevf_tqp *tqp = container_of(handle->kinfo.tqp[i],
 			struct hclgevf_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rcb_q%d_rx_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "rxq#%d_pktnum_rcd",
 			 tqp->index);
 		buff += ETH_GSTRING_LEN;
 	}
@@ -1288,7 +1288,7 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 	pci_set_master(pdev);
 	hw = &hdev->hw;
 	hw->hdev = hdev;
-	hw->io_base = pci_iomap(pdev, 2, 0);;
+	hw->io_base = pci_iomap(pdev, 2, 0);
 	if (!hw->io_base) {
 		dev_err(&pdev->dev, "can't map configuration register space\n");
 		ret = -ENOMEM;

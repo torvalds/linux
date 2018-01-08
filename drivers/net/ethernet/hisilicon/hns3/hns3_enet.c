@@ -247,6 +247,8 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	if (ret)
 		goto out_start_err;
 
+	clear_bit(HNS3_NIC_STATE_DOWN, &priv->state);
+
 	return 0;
 
 out_start_err:
@@ -285,6 +287,9 @@ static void hns3_nic_net_down(struct net_device *netdev)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	const struct hnae3_ae_ops *ops;
 	int i;
+
+	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
+		return;
 
 	/* stop ae_dev */
 	ops = priv->ae_handle->ae_algo->ops;
@@ -1101,6 +1106,11 @@ static int hns3_nic_set_features(struct net_device *netdev,
 		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
 	}
 
+	if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
+		h->ae_algo->ops->enable_vlan_filter(h, true);
+	else
+		h->ae_algo->ops->enable_vlan_filter(h, false);
+
 	changed = netdev->features ^ features;
 	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
 		if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -1121,6 +1131,7 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
+	struct hnae3_handle *handle = priv->ae_handle;
 	struct hns3_enet_ring *ring;
 	unsigned int start;
 	unsigned int idx;
@@ -1128,6 +1139,13 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 	u64 rx_bytes = 0;
 	u64 tx_pkts = 0;
 	u64 rx_pkts = 0;
+	u64 tx_drop = 0;
+	u64 rx_drop = 0;
+
+	if (test_bit(HNS3_NIC_STATE_DOWN, &priv->state))
+		return;
+
+	handle->ae_algo->ops->update_stats(handle, &netdev->stats);
 
 	for (idx = 0; idx < queue_num; idx++) {
 		/* fetch the tx stats */
@@ -1136,6 +1154,8 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			tx_bytes += ring->stats.tx_bytes;
 			tx_pkts += ring->stats.tx_pkts;
+			tx_drop += ring->stats.tx_busy;
+			tx_drop += ring->stats.sw_err_cnt;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
 		/* fetch the rx stats */
@@ -1144,6 +1164,9 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			rx_bytes += ring->stats.rx_bytes;
 			rx_pkts += ring->stats.rx_pkts;
+			rx_drop += ring->stats.non_vld_descs;
+			rx_drop += ring->stats.err_pkt_len;
+			rx_drop += ring->stats.l2_err;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 	}
 
@@ -1159,8 +1182,8 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 	stats->rx_missed_errors = netdev->stats.rx_missed_errors;
 
 	stats->tx_errors = netdev->stats.tx_errors;
-	stats->rx_dropped = netdev->stats.rx_dropped;
-	stats->tx_dropped = netdev->stats.tx_dropped;
+	stats->rx_dropped = rx_drop + netdev->stats.rx_dropped;
+	stats->tx_dropped = tx_drop + netdev->stats.tx_dropped;
 	stats->collisions = netdev->stats.collisions;
 	stats->rx_over_errors = netdev->stats.rx_over_errors;
 	stats->rx_frame_errors = netdev->stats.rx_frame_errors;
@@ -1390,6 +1413,8 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 		return ret;
 	}
 
+	netdev->mtu = new_mtu;
+
 	/* if the netdev was running earlier, bring it up again */
 	if (if_running && hns3_nic_net_open(netdev))
 		ret = -EINVAL;
@@ -1549,6 +1574,8 @@ static struct pci_driver hns3_driver = {
 /* set default feature to hns3 */
 static void hns3_set_default_feature(struct net_device *netdev)
 {
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
@@ -1577,12 +1604,15 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	netdev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_HW_VLAN_CTAG_FILTER |
-		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+		NETIF_F_HW_VLAN_CTAG_TX |
 		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_GSO_UDP_TUNNEL_CSUM;
+
+	if (!(h->flags & HNAE3_SUPPORT_VF))
+		netdev->hw_features |=
+			NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_RX;
 }
 
 static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
