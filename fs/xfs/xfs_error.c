@@ -348,15 +348,18 @@ xfs_corruption_error(
 void
 xfs_verifier_error(
 	struct xfs_buf		*bp,
-	int			error)
+	int			error,
+	xfs_failaddr_t		failaddr)
 {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	xfs_failaddr_t		fa;
 
-	__xfs_buf_ioerror(bp, error, __return_address);
+	fa = failaddr ? failaddr : __return_address;
+	__xfs_buf_ioerror(bp, error, fa);
 
 	xfs_alert(mp, "Metadata %s detected at %pS, %s block 0x%llx",
 		  bp->b_error == -EFSBADCRC ? "CRC error" : "corruption",
-		  __return_address, bp->b_ops->name, bp->b_bn);
+		  fa, bp->b_ops->name, bp->b_bn);
 
 	xfs_alert(mp, "Unmount and run xfs_repair");
 

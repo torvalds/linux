@@ -295,9 +295,11 @@ xfs_attr3_leaf_write_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 	struct xfs_attr3_leaf_hdr *hdr3 = bp->b_addr;
+	xfs_failaddr_t		fa;
 
-	if (xfs_attr3_leaf_verify(bp)) {
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+	fa = xfs_attr3_leaf_verify(bp);
+	if (fa) {
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
 	}
 
@@ -321,12 +323,16 @@ xfs_attr3_leaf_read_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	xfs_failaddr_t		fa;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	     !xfs_buf_verify_cksum(bp, XFS_ATTR3_LEAF_CRC_OFF))
-		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (xfs_attr3_leaf_verify(bp))
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
+	else {
+		fa = xfs_attr3_leaf_verify(bp);
+		if (fa)
+			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
+	}
 }
 
 const struct xfs_buf_ops xfs_attr3_leaf_buf_ops = {

@@ -184,9 +184,11 @@ xfs_da3_node_write_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 	struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
+	xfs_failaddr_t		fa;
 
-	if (xfs_da3_node_verify(bp)) {
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+	fa = xfs_da3_node_verify(bp);
+	if (fa) {
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
 	}
 
@@ -210,17 +212,20 @@ xfs_da3_node_read_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_da_blkinfo	*info = bp->b_addr;
+	xfs_failaddr_t		fa;
 
 	switch (be16_to_cpu(info->magic)) {
 		case XFS_DA3_NODE_MAGIC:
 			if (!xfs_buf_verify_cksum(bp, XFS_DA3_NODE_CRC_OFF)) {
-				xfs_verifier_error(bp, -EFSBADCRC);
+				xfs_verifier_error(bp, -EFSBADCRC,
+						__this_address);
 				break;
 			}
 			/* fall through */
 		case XFS_DA_NODE_MAGIC:
-			if (xfs_da3_node_verify(bp))
-				xfs_verifier_error(bp, -EFSCORRUPTED);
+			fa = xfs_da3_node_verify(bp);
+			if (fa)
+				xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 			return;
 		case XFS_ATTR_LEAF_MAGIC:
 		case XFS_ATTR3_LEAF_MAGIC:
@@ -233,7 +238,7 @@ xfs_da3_node_read_verify(
 			bp->b_ops->verify_read(bp);
 			return;
 		default:
-			xfs_verifier_error(bp, -EFSCORRUPTED);
+			xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 			break;
 	}
 }

@@ -641,7 +641,7 @@ xfs_sb_read_verify(
 
 out_error:
 	if (error == -EFSCORRUPTED || error == -EFSBADCRC)
-		xfs_verifier_error(bp, error);
+		xfs_verifier_error(bp, error, __this_address);
 	else if (error)
 		xfs_buf_ioerror(bp, error);
 }
@@ -677,7 +677,7 @@ xfs_sb_write_verify(
 
 	error = xfs_sb_verify(bp, false);
 	if (error) {
-		xfs_verifier_error(bp, error);
+		xfs_verifier_error(bp, error, __this_address);
 		return;
 	}
 

@@ -249,9 +249,9 @@ xfs_dquot_buf_read_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
 	if (!xfs_dquot_buf_verify_crc(mp, bp))
-		xfs_verifier_error(bp, -EFSBADCRC);
+		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
 	else if (!xfs_dquot_buf_verify(mp, bp, XFS_QMOPT_DOWARN))
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 }
 
 /*
@@ -285,7 +285,7 @@ xfs_dquot_buf_write_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
 	if (!xfs_dquot_buf_verify(mp, bp, XFS_QMOPT_DOWARN)) {
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 		return;
 	}
 }

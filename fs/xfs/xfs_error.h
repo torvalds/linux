@@ -25,7 +25,8 @@ extern void xfs_error_report(const char *tag, int level, struct xfs_mount *mp,
 extern void xfs_corruption_error(const char *tag, int level,
 			struct xfs_mount *mp, void *p, const char *filename,
 			int linenum, void *ra);
-extern void xfs_verifier_error(struct xfs_buf *bp, int error);
+extern void xfs_verifier_error(struct xfs_buf *bp, int error,
+			xfs_failaddr_t failaddr);
 
 #define	XFS_ERROR_REPORT(e, lvl, mp)	\
 	xfs_error_report(e, lvl, mp, __FILE__, __LINE__, __return_address)

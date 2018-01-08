@@ -122,6 +122,7 @@ xfs_attr3_rmt_read_verify(
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	char		*ptr;
+	xfs_failaddr_t	fa;
 	int		len;
 	xfs_daddr_t	bno;
 	int		blksize = mp->m_attr_geo->blksize;
@@ -137,12 +138,13 @@ xfs_attr3_rmt_read_verify(
 
 	while (len > 0) {
 		if (!xfs_verify_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF)) {
-			xfs_verifier_error(bp, -EFSBADCRC);
+			xfs_verifier_error(bp, -EFSBADCRC, __this_address);
 			return;
 		}
-		if (xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_verifier_error(bp, -EFSCORRUPTED);
-			return;
+		fa = xfs_attr3_rmt_verify(mp, ptr, blksize, bno);
+		if (fa) {
+			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
+			break;
 		}
 		len -= blksize;
 		ptr += blksize;
@@ -150,7 +152,7 @@ xfs_attr3_rmt_read_verify(
 	}
 
 	if (len != 0)
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 }
 
 static void
@@ -158,6 +160,7 @@ xfs_attr3_rmt_write_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
+	xfs_failaddr_t	fa;
 	int		blksize = mp->m_attr_geo->blksize;
 	char		*ptr;
 	int		len;
@@ -175,8 +178,9 @@ xfs_attr3_rmt_write_verify(
 	while (len > 0) {
 		struct xfs_attr3_rmt_hdr *rmt = (struct xfs_attr3_rmt_hdr *)ptr;
 
-		if (xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_verifier_error(bp, -EFSCORRUPTED);
+		fa = xfs_attr3_rmt_verify(mp, ptr, blksize, bno);
+		if (fa) {
+			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 			return;
 		}
 
@@ -185,7 +189,7 @@ xfs_attr3_rmt_write_verify(
 		 * xfs_attr3_rmt_hdr_set() for the explanation.
 		 */
 		if (rmt->rm_lsn != cpu_to_be64(NULLCOMMITLSN)) {
-			xfs_verifier_error(bp, -EFSCORRUPTED);
+			xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 			return;
 		}
 		xfs_update_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF);
@@ -196,7 +200,7 @@ xfs_attr3_rmt_write_verify(
 	}
 
 	if (len != 0)
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 }
 
 const struct xfs_buf_ops xfs_attr3_rmt_buf_ops = {

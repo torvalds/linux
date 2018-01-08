@@ -124,12 +124,16 @@ xfs_dir3_free_read_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	xfs_failaddr_t		fa;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    !xfs_buf_verify_cksum(bp, XFS_DIR3_FREE_CRC_OFF))
-		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (xfs_dir3_free_verify(bp))
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
+	else {
+		fa = xfs_dir3_free_verify(bp);
+		if (fa)
+			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
+	}
 }
 
 static void
@@ -139,9 +143,11 @@ xfs_dir3_free_write_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
+	xfs_failaddr_t		fa;
 
-	if (xfs_dir3_free_verify(bp)) {
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+	fa = xfs_dir3_free_verify(bp);
+	if (fa) {
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
 	}
 
@@ -161,7 +167,7 @@ const struct xfs_buf_ops xfs_dir3_free_buf_ops = {
 };
 
 /* Everything ok in the free block header? */
-static bool
+static xfs_failaddr_t
 xfs_dir3_free_header_check(
 	struct xfs_inode	*dp,
 	xfs_dablk_t		fbno,
@@ -205,6 +211,7 @@ __xfs_dir3_free_read(
 	xfs_daddr_t		mappedbno,
 	struct xfs_buf		**bpp)
 {
+	xfs_failaddr_t		fa;
 	int			err;
 
 	err = xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
@@ -213,8 +220,9 @@ __xfs_dir3_free_read(
 		return err;
 
 	/* Check things that we can't do in the verifier. */
-	if (xfs_dir3_free_header_check(dp, fbno, *bpp)) {
-		xfs_verifier_error(*bpp, -EFSCORRUPTED);
+	fa = xfs_dir3_free_header_check(dp, fbno, *bpp);
+	if (fa) {
+		xfs_verifier_error(*bpp, -EFSCORRUPTED, fa);
 		xfs_trans_brelse(tp, *bpp);
 		return -EFSCORRUPTED;
 	}

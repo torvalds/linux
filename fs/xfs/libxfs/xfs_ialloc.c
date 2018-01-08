@@ -2541,13 +2541,16 @@ xfs_agi_read_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
+	xfs_failaddr_t	fa;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    !xfs_buf_verify_cksum(bp, XFS_AGI_CRC_OFF))
-		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (XFS_TEST_ERROR(xfs_agi_verify(bp), mp,
-				XFS_ERRTAG_IALLOC_READ_AGI))
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
+	else {
+		fa = xfs_agi_verify(bp);
+		if (XFS_TEST_ERROR(fa, mp, XFS_ERRTAG_IALLOC_READ_AGI))
+			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
+	}
 }
 
 static void
@@ -2556,9 +2559,11 @@ xfs_agi_write_verify(
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+	xfs_failaddr_t		fa;
 
-	if (xfs_agi_verify(bp)) {
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+	fa = xfs_agi_verify(bp);
+	if (fa) {
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
 	}
 

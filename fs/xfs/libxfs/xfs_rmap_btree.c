@@ -348,10 +348,15 @@ static void
 xfs_rmapbt_read_verify(
 	struct xfs_buf	*bp)
 {
+	xfs_failaddr_t	fa;
+
 	if (!xfs_btree_sblock_verify_crc(bp))
-		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (xfs_rmapbt_verify(bp))
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
+	else {
+		fa = xfs_rmapbt_verify(bp);
+		if (fa)
+			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
+	}
 
 	if (bp->b_error)
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
@@ -361,9 +366,12 @@ static void
 xfs_rmapbt_write_verify(
 	struct xfs_buf	*bp)
 {
-	if (xfs_rmapbt_verify(bp)) {
+	xfs_failaddr_t	fa;
+
+	fa = xfs_rmapbt_verify(bp);
+	if (fa) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		xfs_verifier_error(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
 	}
 	xfs_btree_sblock_calc_crc(bp);

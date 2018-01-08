@@ -113,7 +113,7 @@ xfs_inode_buf_verify(
 				return;
 			}
 
-			xfs_verifier_error(bp, -EFSCORRUPTED);
+			xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 #ifdef DEBUG
 			xfs_alert(mp,
 				"bad inode magic/vsn daddr %lld #%d (magic=%x)",
