@@ -136,6 +136,10 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 				       clks[PLL2_PFD2_396M].clk);
 		clk_set_parent(clks[STEP].clk, clks[SECONDARY_SEL].clk);
 		clk_set_parent(clks[PLL1_SW].clk, clks[STEP].clk);
+		if (freq_hz > clk_get_rate(clks[PLL2_BUS].clk)) {
+			clk_set_rate(clks[PLL1_SYS].clk, new_freq * 1000);
+			clk_set_parent(clks[PLL1_SW].clk, clks[PLL1_SYS].clk);
+		}
 	} else {
 		clk_set_parent(clks[STEP].clk, clks[PLL2_PFD2_396M].clk);
 		clk_set_parent(clks[PLL1_SW].clk, clks[STEP].clk);
@@ -260,6 +264,43 @@ put_node:
 	of_node_put(np);
 }
 
+#define OCOTP_CFG3_6UL_SPEED_696MHZ	0x2
+
+static void imx6ul_opp_check_speed_grading(struct device *dev)
+{
+	struct device_node *np;
+	void __iomem *base;
+	u32 val;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6ul-ocotp");
+	if (!np)
+		return;
+
+	base = of_iomap(np, 0);
+	if (!base) {
+		dev_err(dev, "failed to map ocotp\n");
+		goto put_node;
+	}
+
+	/*
+	 * Speed GRADING[1:0] defines the max speed of ARM:
+	 * 2b'00: Reserved;
+	 * 2b'01: 528000000Hz;
+	 * 2b'10: 696000000Hz;
+	 * 2b'11: Reserved;
+	 * We need to set the max speed of ARM according to fuse map.
+	 */
+	val = readl_relaxed(base + OCOTP_CFG3);
+	val >>= OCOTP_CFG3_SPEED_SHIFT;
+	val &= 0x3;
+	if (val != OCOTP_CFG3_6UL_SPEED_696MHZ)
+		if (dev_pm_opp_disable(dev, 696000000))
+			dev_warn(dev, "failed to disable 696MHz OPP\n");
+	iounmap(base);
+put_node:
+	of_node_put(np);
+}
+
 static int imx6q_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
@@ -314,7 +355,10 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 		goto put_reg;
 	}
 
-	imx6q_opp_check_speed_grading(cpu_dev);
+	if (of_machine_is_compatible("fsl,imx6ul"))
+		imx6ul_opp_check_speed_grading(cpu_dev);
+	else
+		imx6q_opp_check_speed_grading(cpu_dev);
 
 	/* Because we have added the OPPs here, we must free them */
 	free_opp = true;
