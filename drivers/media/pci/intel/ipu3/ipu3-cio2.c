@@ -1850,7 +1850,7 @@ static void cio2_pci_remove(struct pci_dev *pci_dev)
 	mutex_destroy(&cio2->lock);
 }
 
-static int cio2_runtime_suspend(struct device *dev)
+static int __maybe_unused cio2_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
@@ -1868,7 +1868,7 @@ static int cio2_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int cio2_runtime_resume(struct device *dev)
+static int __maybe_unused cio2_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
