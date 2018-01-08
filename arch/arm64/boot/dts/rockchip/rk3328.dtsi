@@ -305,9 +305,11 @@
 			};
 			pd_video@RK3328_PD_VIDEO {
 				reg = <RK3328_PD_VIDEO>;
+				pm_qos = <&qos_rkvdec_r>, <&qos_rkvdec_w>;
 			};
 			pd_vpu@RK3328_PD_VPU {
 				reg = <RK3328_PD_VPU>;
+				pm_qos = <&qos_vpu>;
 			};
 		};
 
@@ -1345,6 +1347,21 @@
 			snps,tx-ipgap-linecheck-dis-quirk;
 			status = "disabled";
 		};
+	};
+
+	qos_rkvdec_r: qos@ff750000 {
+		compatible = "syscon";
+		reg = <0x0 0xff750000 0x0 0x20>;
+	};
+
+	qos_rkvdec_w: qos@ff750080 {
+		compatible = "syscon";
+		reg = <0x0 0xff750080 0x0 0x20>;
+	};
+
+	qos_vpu: qos@ff778000 {
+		compatible = "syscon";
+		reg = <0x0 0xff778000 0x0 0x20>;
 	};
 
 	dfi: dfi@ff790000 {
