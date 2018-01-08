@@ -30,7 +30,6 @@
 #include "tree-checker.h"
 #include "disk-io.h"
 #include "compression.h"
-#include "hash.h"
 
 /*
  * Error message should follow the following format:

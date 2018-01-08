@@ -40,6 +40,7 @@
 #include <linux/sizes.h>
 #include <linux/dynamic_debug.h>
 #include <linux/refcount.h>
+#include <linux/crc32c.h>
 #include "extent_io.h"
 #include "extent_map.h"
 #include "async-thread.h"
@@ -97,6 +98,7 @@ static const int btrfs_csum_sizes[] = { 4 };
 #define BTRFS_DIRTY_METADATA_THRESH	SZ_32M
 
 #define BTRFS_MAX_EXTENT_SIZE SZ_128M
+
 
 /*
  * Count how many BTRFS_MAX_EXTENT_SIZE cover the @size
@@ -2552,6 +2554,20 @@ BTRFS_SETGET_STACK_FUNCS(stack_dev_replace_cursor_right,
 #define btrfs_item_ptr_offset(leaf, slot) \
 	((unsigned long)(BTRFS_LEAF_DATA_OFFSET + \
 	btrfs_item_offset_nr(leaf, slot)))
+
+static inline u64 btrfs_name_hash(const char *name, int len)
+{
+       return crc32c((u32)~1, name, len);
+}
+
+/*
+ * Figure the key offset of an extended inode ref
+ */
+static inline u64 btrfs_extref_hash(u64 parent_objectid, const char *name,
+                                   int len)
+{
+       return (u64) crc32c(parent_objectid, name, len);
+}
 
 static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 {

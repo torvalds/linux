@@ -27,7 +27,7 @@
 #include <linux/ratelimit.h>
 #include <linux/percpu_counter.h>
 #include <linux/lockdep.h>
-#include "hash.h"
+#include <linux/crc32c.h>
 #include "tree-log.h"
 #include "disk-io.h"
 #include "print-tree.h"
@@ -1203,11 +1203,11 @@ static u64 hash_extent_data_ref(u64 root_objectid, u64 owner, u64 offset)
 	__le64 lenum;
 
 	lenum = cpu_to_le64(root_objectid);
-	high_crc = btrfs_crc32c(high_crc, &lenum, sizeof(lenum));
+	high_crc = crc32c(high_crc, &lenum, sizeof(lenum));
 	lenum = cpu_to_le64(owner);
-	low_crc = btrfs_crc32c(low_crc, &lenum, sizeof(lenum));
+	low_crc = crc32c(low_crc, &lenum, sizeof(lenum));
 	lenum = cpu_to_le64(offset);
-	low_crc = btrfs_crc32c(low_crc, &lenum, sizeof(lenum));
+	low_crc = crc32c(low_crc, &lenum, sizeof(lenum));
 
 	return ((u64)high_crc << 31) ^ (u64)low_crc;
 }
@@ -5944,7 +5944,7 @@ int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
 	 */
 	u64 num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 
-	trace_btrfs_space_reservation(fs_info, "orphan", btrfs_ino(inode), 
+	trace_btrfs_space_reservation(fs_info, "orphan", btrfs_ino(inode),
 			num_bytes, 1);
 	return btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 }

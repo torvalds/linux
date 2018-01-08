@@ -58,7 +58,6 @@
 #include "free-space-cache.h"
 #include "inode-map.h"
 #include "backref.h"
-#include "hash.h"
 #include "props.h"
 #include "qgroup.h"
 #include "dedupe.h"

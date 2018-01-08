@@ -31,10 +31,10 @@
 #include <linux/uuid.h>
 #include <linux/semaphore.h>
 #include <linux/error-injection.h>
+#include <linux/crc32c.h>
 #include <asm/unaligned.h>
 #include "ctree.h"
 #include "disk-io.h"
-#include "hash.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
 #include "volumes.h"
@@ -270,7 +270,7 @@ out:
 
 u32 btrfs_csum_data(const char *data, u32 seed, size_t len)
 {
-	return btrfs_crc32c(seed, data, len);
+	return crc32c(seed, data, len);
 }
 
 void btrfs_csum_final(u32 crc, u8 *result)

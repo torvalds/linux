@@ -27,10 +27,10 @@
 #include <linux/vmalloc.h>
 #include <linux/string.h>
 #include <linux/compat.h>
+#include <linux/crc32c.h>
 
 #include "send.h"
 #include "backref.h"
-#include "hash.h"
 #include "locking.h"
 #include "disk-io.h"
 #include "btrfs_inode.h"
@@ -695,7 +695,7 @@ static int send_cmd(struct send_ctx *sctx)
 	hdr->len = cpu_to_le32(sctx->send_size - sizeof(*hdr));
 	hdr->crc = 0;
 
-	crc = btrfs_crc32c(0, (unsigned char *)sctx->send_buf, sctx->send_size);
+	crc = crc32c(0, (unsigned char *)sctx->send_buf, sctx->send_size);
 	hdr->crc = cpu_to_le32(crc);
 
 	ret = write_buf(sctx->send_filp, sctx->send_buf, sctx->send_size,

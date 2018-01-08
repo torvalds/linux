@@ -19,8 +19,8 @@
 #include <linux/hashtable.h>
 #include "props.h"
 #include "btrfs_inode.h"
-#include "hash.h"
 #include "transaction.h"
+#include "ctree.h"
 #include "xattr.h"
 #include "compression.h"
 

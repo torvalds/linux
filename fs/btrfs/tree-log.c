@@ -21,12 +21,12 @@
 #include <linux/blkdev.h>
 #include <linux/list_sort.h>
 #include <linux/iversion.h>
+#include "ctree.h"
 #include "tree-log.h"
 #include "disk-io.h"
 #include "locking.h"
 #include "print-tree.h"
 #include "backref.h"
-#include "hash.h"
 #include "compression.h"
 #include "qgroup.h"
 #include "inode-map.h"
