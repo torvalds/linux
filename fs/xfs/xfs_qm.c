@@ -843,6 +843,7 @@ xfs_qm_reset_dqcounts(
 {
 	struct xfs_dqblk	*dqb;
 	int			j;
+	int			error;
 
 	trace_xfs_reset_dqcounts(bp, _RET_IP_);
 
@@ -866,8 +867,10 @@ xfs_qm_reset_dqcounts(
 		 * output any warnings because it's perfectly possible to
 		 * find uninitialised dquot blks. See comment in xfs_dqcheck.
 		 */
-		xfs_dqcheck(mp, ddq, id+j, type, XFS_QMOPT_DQREPAIR,
-			    "xfs_quotacheck");
+		error = xfs_dqcheck(mp, ddq, id+j, type, 0, "xfs_quotacheck");
+		if (error)
+			xfs_dquot_repair(mp, ddq, id + j, type);
+
 		/*
 		 * Reset type in case we are reusing group quota file for
 		 * project quotas or vice versa

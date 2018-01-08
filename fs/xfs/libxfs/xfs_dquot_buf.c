@@ -51,7 +51,6 @@ xfs_dqcheck(
 	uint		 flags,
 	const char	 *str)
 {
-	xfs_dqblk_t	 *d = (xfs_dqblk_t *)ddq;
 	int		errs = 0;
 
 	/*
@@ -139,17 +138,26 @@ xfs_dqcheck(
 		}
 	}
 
-	if (!errs || !(flags & XFS_QMOPT_DQREPAIR))
-		return errs;
+	return errs;
+}
 
-	if (flags & XFS_QMOPT_DOWARN)
-		xfs_notice(mp, "Re-initializing dquot ID 0x%x", id);
+/*
+ * Do some primitive error checking on ondisk dquot data structures.
+ */
+int
+xfs_dquot_repair(
+	struct xfs_mount	*mp,
+	struct xfs_disk_dquot	*ddq,
+	xfs_dqid_t		id,
+	uint			type)
+{
+	struct xfs_dqblk	*d = (struct xfs_dqblk *)ddq;
+
 
 	/*
 	 * Typically, a repair is only requested by quotacheck.
 	 */
 	ASSERT(id != -1);
-	ASSERT(flags & XFS_QMOPT_DQREPAIR);
 	memset(d, 0, sizeof(xfs_dqblk_t));
 
 	d->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
@@ -163,7 +171,7 @@ xfs_dqcheck(
 				 XFS_DQUOT_CRC_OFF);
 	}
 
-	return errs;
+	return 0;
 }
 
 STATIC bool
