@@ -671,8 +671,8 @@ static int sdw_handle_dp0_interrupt(struct sdw_slave *slave, u8 *slave_status)
 		status2 = sdw_read(slave, SDW_DP0_INT);
 		if (status2 < 0) {
 			dev_err(slave->bus->dev,
-				"SDW_DP0_INT read failed:%d", status);
-			return status;
+				"SDW_DP0_INT read failed:%d", status2);
+			return status2;
 		}
 		status &= status2;
 
@@ -741,10 +741,10 @@ static int sdw_handle_port_interrupt(struct sdw_slave *slave,
 
 		/* Read DPN interrupt again */
 		status2 = sdw_read(slave, addr);
-		if (status < 0) {
+		if (status2 < 0) {
 			dev_err(slave->bus->dev,
-					"SDW_DPN_INT read failed:%d", status);
-			return status;
+					"SDW_DPN_INT read failed:%d", status2);
+			return status2;
 		}
 		status &= status2;
 
