@@ -992,22 +992,27 @@ static int pp_dpm_read_sensor(void *handle, int idx,
 	int ret = 0;
 
 	ret = pp_check(pp_handle);
-
 	if (ret)
 		return ret;
 
+	if (value == NULL)
+		return -EINVAL;
+
 	hwmgr = pp_handle->hwmgr;
 
-	if (hwmgr->hwmgr_func->read_sensor == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK:
+		*((uint32_t *)value) = hwmgr->pstate_sclk;
 		return 0;
+	case AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK:
+		*((uint32_t *)value) = hwmgr->pstate_mclk;
+		return 0;
+	default:
+		mutex_lock(&pp_handle->pp_lock);
+		ret = hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value, size);
+		mutex_unlock(&pp_handle->pp_lock);
+		return ret;
 	}
-
-	mutex_lock(&pp_handle->pp_lock);
-	ret = hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value, size);
-	mutex_unlock(&pp_handle->pp_lock);
-
-	return ret;
 }
 
 static struct amd_vce_state*
