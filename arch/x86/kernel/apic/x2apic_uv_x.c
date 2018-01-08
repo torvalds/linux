@@ -768,6 +768,7 @@ static __init void map_gru_high(int max_pnode)
 		return;
 	}
 
+	/* Only UV3 has distributed GRU mode */
 	if (is_uv3_hub() && gru.s3.mode) {
 		map_gru_distributed(gru.v);
 		return;
@@ -817,17 +818,20 @@ static __initdata struct mmioh_config mmiohs[] = {
 /* UV3 & UV4 have identical MMIOH overlay configs */
 static __init void map_mmioh_high_uv3(int index, int min_pnode, int max_pnode)
 {
-	union uv3h_rh_gam_mmioh_overlay_config0_mmr_u overlay;
+	union uvh_rh_gam_mmioh_overlay_config0_mmr_u overlay;
 	unsigned long mmr;
 	unsigned long base;
+	unsigned long m_overlay;
 	int i, n, shift, m_io, max_io;
 	int nasid, lnasid, fi, li;
 	char *id;
 
 	id = mmiohs[index].id;
 	overlay.v = uv_read_local_mmr(mmiohs[index].overlay);
+	m_overlay = mmiohs[index].overlay;
 
-	pr_info("UV: %s overlay 0x%lx base:0x%x m_io:%d\n", id, overlay.v, overlay.s3.base, overlay.s3.m_io);
+	pr_info("UV: %s overlay 0x%lx(@0x%lx) base:0x%x m_io:%d\n",
+		id, overlay.v, m_overlay, overlay.s3.base, overlay.s3.m_io);
 	if (!overlay.s3.enable) {
 		pr_info("UV: %s disabled\n", id);
 		return;
@@ -844,10 +848,14 @@ static __init void map_mmioh_high_uv3(int index, int min_pnode, int max_pnode)
 	max_io = lnasid = fi = li = -1;
 
 	for (i = 0; i < n; i++) {
-		union uv3h_rh_gam_mmioh_redirect_config0_mmr_u redirect;
+		union uvh_rh_gam_mmioh_redirect_config0_mmr_u redirect;
+		unsigned long m_redirect = mmr + i * 8;
 
 		redirect.v = uv_read_local_mmr(mmr + i * 8);
 		nasid = redirect.s3.nasid;
+		printk_once(KERN_INFO
+			"UV: %s redirect 0x%lx(@0x%lx) 0x%04x\n",
+			id, redirect.v, m_redirect, nasid);
 		/* Invalid NASID: */
 		if (nasid < min_pnode || max_pnode < nasid)
 			nasid = -1;
