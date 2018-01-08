@@ -1293,6 +1293,12 @@ void dpp1_set_cursor_attributes(
 		struct dpp *dpp_base,
 		enum dc_cursor_color_format color_format);
 
+void dpp1_set_cursor_position(
+		struct dpp *dpp_base,
+		const struct dc_cursor_position *pos,
+		const struct dc_cursor_mi_param *param,
+		uint32_t width);
+
 bool dpp1_dscl_is_lb_conf_valid(
 		int ceil_vratio,
 		int num_partitions,
