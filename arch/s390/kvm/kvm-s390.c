@@ -2509,9 +2509,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 
 	vcpu->arch.sie_block->icpua = id;
 	spin_lock_init(&vcpu->arch.local_int.lock);
-	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
-	vcpu->arch.local_int.wq = &vcpu->wq;
-	vcpu->arch.local_int.cpuflags = &vcpu->arch.sie_block->cpuflags;
 	seqcount_init(&vcpu->arch.cputm_seqcount);
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);

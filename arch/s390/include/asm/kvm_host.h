@@ -515,9 +515,6 @@ struct kvm_s390_irq_payload {
 
 struct kvm_s390_local_interrupt {
 	spinlock_t lock;
-	struct kvm_s390_float_interrupt *float_int;
-	struct swait_queue_head *wq;
-	atomic_t *cpuflags;
 	DECLARE_BITMAP(sigp_emerg_pending, KVM_MAX_VCPUS);
 	struct kvm_s390_irq_payload irq;
 	unsigned long pending_irqs;
