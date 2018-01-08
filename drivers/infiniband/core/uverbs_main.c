@@ -69,7 +69,6 @@ enum {
 
 static struct class *uverbs_class;
 
-static DEFINE_SPINLOCK(map_lock);
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
 
 static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
@@ -1062,15 +1061,12 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	INIT_LIST_HEAD(&uverbs_dev->uverbs_file_list);
 	INIT_LIST_HEAD(&uverbs_dev->uverbs_events_file_list);
 
-	spin_lock(&map_lock);
 	devnum = find_first_zero_bit(dev_map, IB_UVERBS_MAX_DEVICES);
 	if (devnum >= IB_UVERBS_MAX_DEVICES) {
-		spin_unlock(&map_lock);
 		devnum = find_overflow_devnum();
 		if (devnum < 0)
 			goto err;
 
-		spin_lock(&map_lock);
 		uverbs_dev->devnum = devnum + IB_UVERBS_MAX_DEVICES;
 		base = devnum + overflow_maj;
 		set_bit(devnum, overflow_map);
@@ -1079,7 +1075,6 @@ static void ib_uverbs_add_one(struct ib_device *device)
 		base = devnum + IB_UVERBS_BASE_DEV;
 		set_bit(devnum, dev_map);
 	}
-	spin_unlock(&map_lock);
 
 	rcu_assign_pointer(uverbs_dev->ib_dev, device);
 	uverbs_dev->num_comp_vectors = device->num_comp_vectors;

@@ -129,7 +129,6 @@ static struct class *umad_class;
 
 static const dev_t base_dev = MKDEV(IB_UMAD_MAJOR, IB_UMAD_MINOR_BASE);
 
-static DEFINE_SPINLOCK(port_lock);
 static DECLARE_BITMAP(dev_map, IB_UMAD_MAX_PORTS);
 
 static void ib_umad_add_one(struct ib_device *device);
@@ -1172,15 +1171,12 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	int devnum;
 	dev_t base;
 
-	spin_lock(&port_lock);
 	devnum = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
 	if (devnum >= IB_UMAD_MAX_PORTS) {
-		spin_unlock(&port_lock);
 		devnum = find_overflow_devnum(device);
 		if (devnum < 0)
 			return -1;
 
-		spin_lock(&port_lock);
 		port->dev_num = devnum + IB_UMAD_MAX_PORTS;
 		base = devnum + overflow_maj;
 		set_bit(devnum, overflow_map);
@@ -1189,7 +1185,6 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 		base = devnum + base_dev;
 		set_bit(devnum, dev_map);
 	}
-	spin_unlock(&port_lock);
 
 	port->ib_dev   = device;
 	port->port_num = port_num;
