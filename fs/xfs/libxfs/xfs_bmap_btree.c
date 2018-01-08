@@ -467,14 +467,12 @@ xfs_bmbt_read_verify(
 	struct xfs_buf	*bp)
 {
 	if (!xfs_btree_lblock_verify_crc(bp))
-		xfs_buf_ioerror(bp, -EFSBADCRC);
+		xfs_verifier_error(bp, -EFSBADCRC);
 	else if (!xfs_bmbt_verify(bp))
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 
-	if (bp->b_error) {
+	if (bp->b_error)
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		xfs_verifier_error(bp);
-	}
 }
 
 static void
@@ -483,8 +481,7 @@ xfs_bmbt_write_verify(
 {
 	if (!xfs_bmbt_verify(bp)) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
 	}
 	xfs_btree_lblock_calc_crc(bp);

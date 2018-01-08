@@ -390,7 +390,7 @@ DEFINE_BUF_FLAGS_EVENT(xfs_buf_get);
 DEFINE_BUF_FLAGS_EVENT(xfs_buf_read);
 
 TRACE_EVENT(xfs_buf_ioerror,
-	TP_PROTO(struct xfs_buf *bp, int error, unsigned long caller_ip),
+	TP_PROTO(struct xfs_buf *bp, int error, xfs_failaddr_t caller_ip),
 	TP_ARGS(bp, error, caller_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -401,7 +401,7 @@ TRACE_EVENT(xfs_buf_ioerror,
 		__field(int, pincount)
 		__field(unsigned, lockval)
 		__field(int, error)
-		__field(unsigned long, caller_ip)
+		__field(xfs_failaddr_t, caller_ip)
 	),
 	TP_fast_assign(
 		__entry->dev = bp->b_target->bt_dev;
@@ -415,7 +415,7 @@ TRACE_EVENT(xfs_buf_ioerror,
 		__entry->caller_ip = caller_ip;
 	),
 	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
-		  "lock %d error %d flags %s caller %ps",
+		  "lock %d error %d flags %s caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->bno,
 		  __entry->buffer_length,

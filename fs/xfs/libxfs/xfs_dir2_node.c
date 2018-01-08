@@ -118,12 +118,9 @@ xfs_dir3_free_read_verify(
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    !xfs_buf_verify_cksum(bp, XFS_DIR3_FREE_CRC_OFF))
-		xfs_buf_ioerror(bp, -EFSBADCRC);
+		xfs_verifier_error(bp, -EFSBADCRC);
 	else if (!xfs_dir3_free_verify(bp))
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-
-	if (bp->b_error)
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 }
 
 static void
@@ -135,8 +132,7 @@ xfs_dir3_free_write_verify(
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
 	if (!xfs_dir3_free_verify(bp)) {
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
 	}
 
@@ -209,8 +205,7 @@ __xfs_dir3_free_read(
 
 	/* Check things that we can't do in the verifier. */
 	if (!xfs_dir3_free_header_check(dp, fbno, *bpp)) {
-		xfs_buf_ioerror(*bpp, -EFSCORRUPTED);
-		xfs_verifier_error(*bpp);
+		xfs_verifier_error(*bpp, -EFSCORRUPTED);
 		xfs_trans_brelse(tp, *bpp);
 		return -EFSCORRUPTED;
 	}

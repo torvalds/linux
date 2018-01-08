@@ -1180,13 +1180,14 @@ xfs_buf_ioend_async(
 }
 
 void
-xfs_buf_ioerror(
+__xfs_buf_ioerror(
 	xfs_buf_t		*bp,
-	int			error)
+	int			error,
+	xfs_failaddr_t		failaddr)
 {
 	ASSERT(error <= 0 && error >= -1000);
 	bp->b_error = error;
-	trace_xfs_buf_ioerror(bp, error, _RET_IP_);
+	trace_xfs_buf_ioerror(bp, error, failaddr);
 }
 
 void

@@ -137,22 +137,20 @@ xfs_attr3_rmt_read_verify(
 
 	while (len > 0) {
 		if (!xfs_verify_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF)) {
-			xfs_buf_ioerror(bp, -EFSBADCRC);
-			break;
+			xfs_verifier_error(bp, -EFSBADCRC);
+			return;
 		}
 		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_buf_ioerror(bp, -EFSCORRUPTED);
-			break;
+			xfs_verifier_error(bp, -EFSCORRUPTED);
+			return;
 		}
 		len -= blksize;
 		ptr += blksize;
 		bno += BTOBB(blksize);
 	}
 
-	if (bp->b_error)
-		xfs_verifier_error(bp);
-	else
-		ASSERT(len == 0);
+	if (len != 0)
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 }
 
 static void
@@ -178,8 +176,7 @@ xfs_attr3_rmt_write_verify(
 		struct xfs_attr3_rmt_hdr *rmt = (struct xfs_attr3_rmt_hdr *)ptr;
 
 		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_buf_ioerror(bp, -EFSCORRUPTED);
-			xfs_verifier_error(bp);
+			xfs_verifier_error(bp, -EFSCORRUPTED);
 			return;
 		}
 
@@ -188,8 +185,7 @@ xfs_attr3_rmt_write_verify(
 		 * xfs_attr3_rmt_hdr_set() for the explanation.
 		 */
 		if (rmt->rm_lsn != cpu_to_be64(NULLCOMMITLSN)) {
-			xfs_buf_ioerror(bp, -EFSCORRUPTED);
-			xfs_verifier_error(bp);
+			xfs_verifier_error(bp, -EFSCORRUPTED);
 			return;
 		}
 		xfs_update_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF);
@@ -198,7 +194,9 @@ xfs_attr3_rmt_write_verify(
 		ptr += blksize;
 		bno += BTOBB(blksize);
 	}
-	ASSERT(len == 0);
+
+	if (len != 0)
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 }
 
 const struct xfs_buf_ops xfs_attr3_rmt_buf_ops = {

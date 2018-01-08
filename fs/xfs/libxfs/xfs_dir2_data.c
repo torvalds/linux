@@ -267,8 +267,7 @@ xfs_dir3_data_reada_verify(
 		bp->b_ops->verify_read(bp);
 		return;
 	default:
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 		break;
 	}
 }
@@ -280,13 +279,10 @@ xfs_dir3_data_read_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
-	     !xfs_buf_verify_cksum(bp, XFS_DIR3_DATA_CRC_OFF))
-		 xfs_buf_ioerror(bp, -EFSBADCRC);
+	    !xfs_buf_verify_cksum(bp, XFS_DIR3_DATA_CRC_OFF))
+		xfs_verifier_error(bp, -EFSBADCRC);
 	else if (!xfs_dir3_data_verify(bp))
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-
-	if (bp->b_error)
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 }
 
 static void
@@ -298,8 +294,7 @@ xfs_dir3_data_write_verify(
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
 	if (!xfs_dir3_data_verify(bp)) {
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
 	}
 

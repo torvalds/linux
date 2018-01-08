@@ -347,9 +347,12 @@ xfs_corruption_error(
  */
 void
 xfs_verifier_error(
-	struct xfs_buf		*bp)
+	struct xfs_buf		*bp,
+	int			error)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
+
+	__xfs_buf_ioerror(bp, error, __return_address);
 
 	xfs_alert(mp, "Metadata %s detected at %pS, %s block 0x%llx",
 		  bp->b_error == -EFSBADCRC ? "CRC error" : "corruption",

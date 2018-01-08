@@ -567,12 +567,9 @@ xfs_agfl_read_verify(
 		return;
 
 	if (!xfs_buf_verify_cksum(bp, XFS_AGFL_CRC_OFF))
-		xfs_buf_ioerror(bp, -EFSBADCRC);
+		xfs_verifier_error(bp, -EFSBADCRC);
 	else if (!xfs_agfl_verify(bp))
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-
-	if (bp->b_error)
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 }
 
 static void
@@ -587,8 +584,7 @@ xfs_agfl_write_verify(
 		return;
 
 	if (!xfs_agfl_verify(bp)) {
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
 	}
 
@@ -2461,13 +2457,10 @@ xfs_agf_read_verify(
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	    !xfs_buf_verify_cksum(bp, XFS_AGF_CRC_OFF))
-		xfs_buf_ioerror(bp, -EFSBADCRC);
+		xfs_verifier_error(bp, -EFSBADCRC);
 	else if (XFS_TEST_ERROR(!xfs_agf_verify(mp, bp), mp,
 				XFS_ERRTAG_ALLOC_READ_AGF))
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-
-	if (bp->b_error)
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 }
 
 static void
@@ -2478,8 +2471,7 @@ xfs_agf_write_verify(
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
 	if (!xfs_agf_verify(mp, bp)) {
-		xfs_buf_ioerror(bp, -EFSCORRUPTED);
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
 	}
 

@@ -640,11 +640,10 @@ xfs_sb_read_verify(
 	error = xfs_sb_verify(bp, true);
 
 out_error:
-	if (error) {
+	if (error == -EFSCORRUPTED || error == -EFSBADCRC)
+		xfs_verifier_error(bp, error);
+	else if (error)
 		xfs_buf_ioerror(bp, error);
-		if (error == -EFSCORRUPTED || error == -EFSBADCRC)
-			xfs_verifier_error(bp);
-	}
 }
 
 /*
@@ -678,8 +677,7 @@ xfs_sb_write_verify(
 
 	error = xfs_sb_verify(bp, false);
 	if (error) {
-		xfs_buf_ioerror(bp, error);
-		xfs_verifier_error(bp);
+		xfs_verifier_error(bp, error);
 		return;
 	}
 
