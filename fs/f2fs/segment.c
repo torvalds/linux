@@ -1284,6 +1284,8 @@ static int __issue_discard_cmd(struct f2fs_sb_info *sbi,
 		pend_list = &dcc->pend_list[i];
 
 		mutex_lock(&dcc->cmd_lock);
+		if (list_empty(pend_list))
+			goto next;
 		f2fs_bug_on(sbi, !__check_rb_tree_consistence(sbi, &dcc->root));
 		blk_start_plug(&plug);
 		list_for_each_entry_safe(dc, tmp, pend_list, list) {
@@ -1302,6 +1304,7 @@ skip:
 				break;
 		}
 		blk_finish_plug(&plug);
+next:
 		mutex_unlock(&dcc->cmd_lock);
 
 		if (iter >= dpolicy->max_requests)
