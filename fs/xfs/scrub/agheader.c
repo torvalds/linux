@@ -126,6 +126,22 @@ xfs_scrub_superblock(
 	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
 		  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
 		  XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_sb_buf_ops);
+	/*
+	 * The superblock verifier can return several different error codes
+	 * if it thinks the superblock doesn't look right.  For a mount these
+	 * would all get bounced back to userspace, but if we're here then the
+	 * fs mounted successfully, which means that this secondary superblock
+	 * is simply incorrect.  Treat all these codes the same way we treat
+	 * any corruption.
+	 */
+	switch (error) {
+	case -EINVAL:	/* also -EWRONGFS */
+	case -ENOSYS:
+	case -EFBIG:
+		error = -EFSCORRUPTED;
+	default:
+		break;
+	}
 	if (!xfs_scrub_process_error(sc, agno, XFS_SB_BLOCK(mp), &error))
 		return error;
 
