@@ -24,7 +24,7 @@ static inline uint64_t  bcache_flash_devs_sectors_dirty(struct cache_set *c)
 
 	mutex_lock(&bch_register_lock);
 
-	for (i = 0; i < c->nr_uuids; i++) {
+	for (i = 0; i < c->devices_max_used; i++) {
 		struct bcache_device *d = c->devices[i];
 
 		if (!d || !UUID_FLASH_ONLY(&c->uuids[i]))

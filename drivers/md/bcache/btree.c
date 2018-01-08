@@ -1679,7 +1679,7 @@ static void bch_btree_gc_finish(struct cache_set *c)
 
 	/* don't reclaim buckets to which writeback keys point */
 	rcu_read_lock();
-	for (i = 0; i < c->nr_uuids; i++) {
+	for (i = 0; i < c->devices_max_used; i++) {
 		struct bcache_device *d = c->devices[i];
 		struct cached_dev *dc;
 		struct keybuf_key *w, *n;

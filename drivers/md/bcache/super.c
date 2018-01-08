@@ -721,6 +721,9 @@ static void bcache_device_attach(struct bcache_device *d, struct cache_set *c,
 	d->c = c;
 	c->devices[id] = d;
 
+	if (id >= c->devices_max_used)
+		c->devices_max_used = id + 1;
+
 	closure_get(&c->caching);
 }
 
@@ -1267,7 +1270,7 @@ static int flash_devs_run(struct cache_set *c)
 	struct uuid_entry *u;
 
 	for (u = c->uuids;
-	     u < c->uuids + c->nr_uuids && !ret;
+	     u < c->uuids + c->devices_max_used && !ret;
 	     u++)
 		if (UUID_FLASH_ONLY(u))
 			ret = flash_dev_run(c, u);
@@ -1433,7 +1436,7 @@ static void __cache_set_unregister(struct closure *cl)
 
 	mutex_lock(&bch_register_lock);
 
-	for (i = 0; i < c->nr_uuids; i++)
+	for (i = 0; i < c->devices_max_used; i++)
 		if (c->devices[i]) {
 			if (!UUID_FLASH_ONLY(&c->uuids[i]) &&
 			    test_bit(CACHE_SET_UNREGISTERING, &c->flags)) {
@@ -1496,7 +1499,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	c->bucket_bits		= ilog2(sb->bucket_size);
 	c->block_bits		= ilog2(sb->block_size);
 	c->nr_uuids		= bucket_bytes(c) / sizeof(struct uuid_entry);
-
+	c->devices_max_used	= 0;
 	c->btree_pages		= bucket_pages(c);
 	if (c->btree_pages > BTREE_MAX_PAGES)
 		c->btree_pages = max_t(int, c->btree_pages / 4,
