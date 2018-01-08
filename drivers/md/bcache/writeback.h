@@ -5,6 +5,9 @@
 #define CUTOFF_WRITEBACK	40
 #define CUTOFF_WRITEBACK_SYNC	70
 
+#define MAX_WRITEBACKS_IN_PASS  5
+#define MAX_WRITESIZE_IN_PASS   5000	/* *512b */
+
 static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 {
 	uint64_t i, ret = 0;

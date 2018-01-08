@@ -323,12 +323,6 @@ struct cached_dev {
 	struct bch_ratelimit	writeback_rate;
 	struct delayed_work	writeback_rate_update;
 
-	/*
-	 * Internal to the writeback code, so read_dirty() can keep track of
-	 * where it's at.
-	 */
-	sector_t		last_read;
-
 	/* Limit number of writeback bios in flight */
 	struct semaphore	in_flight;
 	struct task_struct	*writeback_thread;

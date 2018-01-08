@@ -251,8 +251,7 @@ void bch_debug_exit(void)
 
 int __init bch_debug_init(struct kobject *kobj)
 {
-	int ret = 0;
-
 	debug = debugfs_create_dir("bcache", NULL);
-	return ret;
+
+	return IS_ERR_OR_NULL(debug);
 }
