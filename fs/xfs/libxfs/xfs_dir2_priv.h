@@ -39,12 +39,18 @@ extern int xfs_dir2_leaf_to_block(struct xfs_da_args *args,
 
 /* xfs_dir2_data.c */
 #ifdef DEBUG
-#define	xfs_dir3_data_check(dp,bp) __xfs_dir3_data_check(dp, bp);
+#define	xfs_dir3_data_check(dp, bp) \
+do { \
+	if (!__xfs_dir3_data_check((dp), (bp))) { \
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, \
+				(bp)->b_target->bt_mount, (bp)->b_addr); \
+	} \
+} while (0)
 #else
 #define	xfs_dir3_data_check(dp,bp)
 #endif
 
-extern int __xfs_dir3_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
+extern bool __xfs_dir3_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
 extern int xfs_dir3_data_read(struct xfs_trans *tp, struct xfs_inode *dp,
 		xfs_dablk_t bno, xfs_daddr_t mapped_bno, struct xfs_buf **bpp);
 extern int xfs_dir3_data_readahead(struct xfs_inode *dp, xfs_dablk_t bno,
