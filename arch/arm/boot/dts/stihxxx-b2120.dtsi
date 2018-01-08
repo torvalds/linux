@@ -80,7 +80,7 @@
 			st,i2c-min-sda-pulse-width-us = <5>;
 		};
 
-		miphy28lp_phy: miphy28lp@9b22000 {
+		miphy28lp_phy: miphy28lp {
 
 			phy_port0: port@9b22000 {
 				st,osc-rdy;
@@ -126,7 +126,7 @@
 			clock-names	= "c8sectpfe";
 
 			/* tsin0 is TSA on NIMA */
-			tsin0: port@0 {
+			tsin0: port {
 				tsin-num	= <0>;
 				serial-not-parallel;
 				i2c-bus		= <&ssc2>;

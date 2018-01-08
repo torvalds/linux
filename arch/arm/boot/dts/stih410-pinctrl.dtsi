@@ -10,7 +10,7 @@
 / {
 
 	soc {
-		pin-controller-rear {
+		pin-controller-rear@922f080 {
 
 			usb0 {
 				pinctrl_usb0: usb2-0 {

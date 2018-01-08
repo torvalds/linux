@@ -18,7 +18,7 @@
 		linux,stdout-path = &sbc_serial0;
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0xc0000000>;
 	};
@@ -88,7 +88,7 @@
 			non-removable;
 		};
 
-		miphy28lp_phy: miphy28lp@9b22000 {
+		miphy28lp_phy: miphy28lp {
 
 			phy_port0: port@9b22000 {
 				st,osc-rdy;

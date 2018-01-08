@@ -19,7 +19,7 @@
 		linux,stdout-path = &uart1;
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x40000000>;
 	};
@@ -201,7 +201,7 @@
 			};
 		};
 
-		miphy28lp_phy: miphy28lp@9b22000 {
+		miphy28lp_phy: miphy28lp {
 
 			phy_port1: port@9b2a000 {
 				st,osc-force-ext;

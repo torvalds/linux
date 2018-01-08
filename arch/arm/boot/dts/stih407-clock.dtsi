@@ -83,7 +83,7 @@
 		 * Bootloader initialized system infrastructure clock for
 		 * serial devices.
 		 */
-		clk_ext2f_a9: clockgen-c0@13 {
+		clk_ext2f_a9: clockgen-c0 {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <200000000>;
@@ -260,7 +260,7 @@
 			clock-frequency = <0>;
 		};
 
-		clockgen-d2@x9106000 {
+		clockgen-d2@9106000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9106000 0x1000>;
 

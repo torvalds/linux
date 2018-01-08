@@ -235,7 +235,7 @@
 					 <&clk_s_d2_quadfs 1>;
 			};
 
-			sti-hqvdp@9c000000 {
+			sti-hqvdp@9c00000 {
 				compatible = "st,stih407-hqvdp";
 				reg = <0x9C00000 0x100000>;
 				clock-names = "hqvdp", "pix_main";

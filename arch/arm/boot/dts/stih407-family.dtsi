@@ -92,7 +92,7 @@
 		clocks = <&arm_periph_clk>;
 	};
 
-	l2: cache-controller {
+	l2: cache-controller@8762000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x08762000 0x1000>;
 		arm,data-latency = <3 3 3>;
@@ -389,7 +389,7 @@
 			reset-names = "global", "port";
 		};
 
-		miphy28lp_phy: miphy28lp@9b22000 {
+		miphy28lp_phy: miphy28lp {
 			compatible = "st,miphy28lp-phy";
 			st,syscfg = <&syscfg_core>;
 			#address-cells	= <1>;
@@ -803,7 +803,7 @@
 			status		= "okay";
 		};
 
-		st231_gp0: st231-gp0@0 {
+		st231_gp0: st231-gp0 {
 			compatible	= "st,st231-rproc";
 			memory-region	= <&gp0_reserved>;
 			resets		= <&softreset STIH407_ST231_GP0_SOFTRESET>;
@@ -816,7 +816,7 @@
 			mboxes = <&mailbox0 0 2>, <&mailbox2 0 1>, <&mailbox0 0 3>, <&mailbox2 0 0>;
 		};
 
-		st231_delta: st231-delta@0 {
+		st231_delta: st231-delta {
 			compatible	= "st,st231-rproc";
 			memory-region	= <&delta_reserved>;
 			resets		= <&softreset STIH407_ST231_DMU_SOFTRESET>;
