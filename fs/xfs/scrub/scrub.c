@@ -284,6 +284,55 @@ xfs_scrub_experimental_warning(
 "EXPERIMENTAL online scrub feature in use. Use at your own risk!");
 }
 
+static int
+xfs_scrub_validate_inputs(
+	struct xfs_mount		*mp,
+	struct xfs_scrub_metadata	*sm)
+{
+	int				error;
+	const struct xfs_scrub_meta_ops	*ops;
+
+	error = -EINVAL;
+	/* Check our inputs. */
+	sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
+	if (sm->sm_flags & ~XFS_SCRUB_FLAGS_IN)
+		goto out;
+	if (memchr_inv(sm->sm_reserved, 0, sizeof(sm->sm_reserved)))
+		goto out;
+
+	error = -ENOENT;
+	/* Do we know about this type of metadata? */
+	if (sm->sm_type >= XFS_SCRUB_TYPE_NR)
+		goto out;
+	ops = &meta_scrub_ops[sm->sm_type];
+	if (ops->setup == NULL || ops->scrub == NULL)
+		goto out;
+	/* Does this fs even support this type of metadata? */
+	if (ops->has && !ops->has(&mp->m_sb))
+		goto out;
+
+	error = -EOPNOTSUPP;
+	/*
+	 * We won't scrub any filesystem that doesn't have the ability
+	 * to record unwritten extents.  The option was made default in
+	 * 2003, removed from mkfs in 2007, and cannot be disabled in
+	 * v5, so if we find a filesystem without this flag it's either
+	 * really old or totally unsupported.  Avoid it either way.
+	 * We also don't support v1-v3 filesystems, which aren't
+	 * mountable.
+	 */
+	if (!xfs_sb_version_hasextflgbit(&mp->m_sb))
+		goto out;
+
+	/* We don't know how to repair anything yet. */
+	if (sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+		goto out;
+
+	error = 0;
+out:
+	return error;
+}
+
 /* Dispatch metadata scrubbing. */
 int
 xfs_scrub_metadata(
@@ -292,7 +341,6 @@ xfs_scrub_metadata(
 {
 	struct xfs_scrub_context	sc;
 	struct xfs_mount		*mp = ip->i_mount;
-	const struct xfs_scrub_meta_ops	*ops;
 	bool				try_harder = false;
 	int				error = 0;
 
@@ -309,43 +357,8 @@ xfs_scrub_metadata(
 	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
 		goto out;
 
-	/* Check our inputs. */
-	error = -EINVAL;
-	sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
-	if (sm->sm_flags & ~XFS_SCRUB_FLAGS_IN)
-		goto out;
-	if (memchr_inv(sm->sm_reserved, 0, sizeof(sm->sm_reserved)))
-		goto out;
-
-	/* Do we know about this type of metadata? */
-	error = -ENOENT;
-	if (sm->sm_type >= XFS_SCRUB_TYPE_NR)
-		goto out;
-	ops = &meta_scrub_ops[sm->sm_type];
-	if (ops->setup == NULL || ops->scrub == NULL)
-		goto out;
-
-	/*
-	 * We won't scrub any filesystem that doesn't have the ability
-	 * to record unwritten extents.  The option was made default in
-	 * 2003, removed from mkfs in 2007, and cannot be disabled in
-	 * v5, so if we find a filesystem without this flag it's either
-	 * really old or totally unsupported.  Avoid it either way.
-	 * We also don't support v1-v3 filesystems, which aren't
-	 * mountable.
-	 */
-	error = -EOPNOTSUPP;
-	if (!xfs_sb_version_hasextflgbit(&mp->m_sb))
-		goto out;
-
-	/* Does this fs even support this type of metadata? */
-	error = -ENOENT;
-	if (ops->has && !ops->has(&mp->m_sb))
-		goto out;
-
-	/* We don't know how to repair anything yet. */
-	error = -EOPNOTSUPP;
-	if (sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+	error = xfs_scrub_validate_inputs(mp, sm);
+	if (error)
 		goto out;
 
 	xfs_scrub_experimental_warning(mp);
@@ -355,7 +368,7 @@ retry_op:
 	memset(&sc, 0, sizeof(sc));
 	sc.mp = ip->i_mount;
 	sc.sm = sm;
-	sc.ops = ops;
+	sc.ops = &meta_scrub_ops[sm->sm_type];
 	sc.try_harder = try_harder;
 	sc.sa.agno = NULLAGNUMBER;
 	error = sc.ops->setup(&sc, ip);
