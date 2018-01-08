@@ -1793,18 +1793,9 @@ retry_locked:
 	    !tried_invalidate) {
 		dout("check_caps trying to invalidate on %p\n", inode);
 		if (try_nonblocking_invalidate(inode) < 0) {
-			if (revoking & (CEPH_CAP_FILE_CACHE|
-					CEPH_CAP_FILE_LAZYIO)) {
-				dout("check_caps queuing invalidate\n");
-				queue_invalidate = true;
-				ci->i_rdcache_revoking = ci->i_rdcache_gen;
-			} else {
-				dout("check_caps failed to invalidate pages\n");
-				/* we failed to invalidate pages.  check these
-				   caps again later. */
-				force_requeue = true;
-				__cap_set_timeouts(mdsc, ci);
-			}
+			dout("check_caps queuing invalidate\n");
+			queue_invalidate = true;
+			ci->i_rdcache_revoking = ci->i_rdcache_gen;
 		}
 		tried_invalidate = true;
 		goto retry_locked;
