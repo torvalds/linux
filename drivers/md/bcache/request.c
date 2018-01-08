@@ -568,6 +568,7 @@ static void cache_lookup(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, iop.cl);
 	struct bio *bio = &s->bio.bio;
+	struct cached_dev *dc;
 	int ret;
 
 	bch_btree_op_init(&s->op, -1);
@@ -578,6 +579,27 @@ static void cache_lookup(struct closure *cl)
 	if (ret == -EAGAIN) {
 		continue_at(cl, cache_lookup, bcache_wq);
 		return;
+	}
+
+	/*
+	 * We might meet err when searching the btree, If that happens, we will
+	 * get negative ret, in this scenario we should not recover data from
+	 * backing device (when cache device is dirty) because we don't know
+	 * whether bkeys the read request covered are all clean.
+	 *
+	 * And after that happened, s->iop.status is still its initial value
+	 * before we submit s->bio.bio
+	 */
+	if (ret < 0) {
+		BUG_ON(ret == -EINTR);
+		if (s->d && s->d->c &&
+				!UUID_FLASH_ONLY(&s->d->c->uuids[s->d->id])) {
+			dc = container_of(s->d, struct cached_dev, disk);
+			if (dc && atomic_read(&dc->has_dirty))
+				s->recoverable = false;
+		}
+		if (!s->iop.status)
+			s->iop.status = BLK_STS_IOERR;
 	}
 
 	closure_return(cl);
