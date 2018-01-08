@@ -414,38 +414,12 @@ xfs_calc_create_resv_modify(
 }
 
 /*
- * For create we can allocate some inodes giving:
- *    the agi and agf of the ag getting the new inodes: 2 * sectorsize
- *    the superblock for the nlink flag: sector size
- *    the inode chunk (allocation/init)
- *    the inode btree (record insertion)
- */
-STATIC uint
-xfs_calc_create_resv_alloc(
-	struct xfs_mount	*mp)
-{
-	return xfs_calc_buf_res(2, mp->m_sb.sb_sectsize) +
-		mp->m_sb.sb_sectsize +
-		xfs_calc_inode_chunk_res(mp, _ALLOC) +
-		xfs_calc_inobt_res(mp);
-}
-
-STATIC uint
-__xfs_calc_create_reservation(
-	struct xfs_mount	*mp)
-{
-	return XFS_DQUOT_LOGRES(mp) +
-		MAX(xfs_calc_create_resv_alloc(mp),
-		    xfs_calc_create_resv_modify(mp));
-}
-
-/*
  * For icreate we can allocate some inodes giving:
  *    the agi and agf of the ag getting the new inodes: 2 * sectorsize
  *    the superblock for the nlink flag: sector size
- *    the inode chunk (allocation, no init)
+ *    the inode chunk (allocation, optional init)
  *    the inobt (record insertion)
- *    the finobt (record insertion)
+ *    the finobt (optional, record insertion)
  */
 STATIC uint
 xfs_calc_icreate_resv_alloc(
@@ -467,26 +441,12 @@ xfs_calc_icreate_reservation(xfs_mount_t *mp)
 }
 
 STATIC uint
-xfs_calc_create_reservation(
-	struct xfs_mount	*mp)
-{
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		return xfs_calc_icreate_reservation(mp);
-	return __xfs_calc_create_reservation(mp);
-
-}
-
-STATIC uint
 xfs_calc_create_tmpfile_reservation(
 	struct xfs_mount        *mp)
 {
 	uint	res = XFS_DQUOT_LOGRES(mp);
 
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		res += xfs_calc_icreate_resv_alloc(mp);
-	else
-		res += xfs_calc_create_resv_alloc(mp);
-
+	res += xfs_calc_icreate_resv_alloc(mp);
 	return res + xfs_calc_iunlink_add_reservation(mp);
 }
 
@@ -497,7 +457,7 @@ STATIC uint
 xfs_calc_mkdir_reservation(
 	struct xfs_mount	*mp)
 {
-	return xfs_calc_create_reservation(mp);
+	return xfs_calc_icreate_reservation(mp);
 }
 
 
@@ -510,7 +470,7 @@ STATIC uint
 xfs_calc_symlink_reservation(
 	struct xfs_mount	*mp)
 {
-	return xfs_calc_create_reservation(mp) +
+	return xfs_calc_icreate_reservation(mp) +
 	       xfs_calc_buf_res(1, XFS_SYMLINK_MAXLEN);
 }
 
@@ -869,7 +829,7 @@ xfs_trans_resv_calc(
 	resp->tr_symlink.tr_logcount = XFS_SYMLINK_LOG_COUNT;
 	resp->tr_symlink.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
-	resp->tr_create.tr_logres = xfs_calc_create_reservation(mp);
+	resp->tr_create.tr_logres = xfs_calc_icreate_reservation(mp);
 	resp->tr_create.tr_logcount = XFS_CREATE_LOG_COUNT;
 	resp->tr_create.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
