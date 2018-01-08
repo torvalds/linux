@@ -243,10 +243,35 @@ xfs_da3_node_read_verify(
 	}
 }
 
+/* Verify the structure of a da3 block. */
+static xfs_failaddr_t
+xfs_da3_node_verify_struct(
+	struct xfs_buf		*bp)
+{
+	struct xfs_da_blkinfo	*info = bp->b_addr;
+
+	switch (be16_to_cpu(info->magic)) {
+	case XFS_DA3_NODE_MAGIC:
+	case XFS_DA_NODE_MAGIC:
+		return xfs_da3_node_verify(bp);
+	case XFS_ATTR_LEAF_MAGIC:
+	case XFS_ATTR3_LEAF_MAGIC:
+		bp->b_ops = &xfs_attr3_leaf_buf_ops;
+		return bp->b_ops->verify_struct(bp);
+	case XFS_DIR2_LEAFN_MAGIC:
+	case XFS_DIR3_LEAFN_MAGIC:
+		bp->b_ops = &xfs_dir3_leafn_buf_ops;
+		return bp->b_ops->verify_struct(bp);
+	default:
+		return __this_address;
+	}
+}
+
 const struct xfs_buf_ops xfs_da3_node_buf_ops = {
 	.name = "xfs_da3_node",
 	.verify_read = xfs_da3_node_read_verify,
 	.verify_write = xfs_da3_node_write_verify,
+	.verify_struct = xfs_da3_node_verify_struct,
 };
 
 int

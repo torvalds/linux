@@ -227,6 +227,13 @@ __write_verify(
 	xfs_buf_update_cksum(bp, XFS_DIR3_LEAF_CRC_OFF);
 }
 
+static xfs_failaddr_t
+xfs_dir3_leaf1_verify(
+	struct xfs_buf	*bp)
+{
+	return xfs_dir3_leaf_verify(bp, XFS_DIR2_LEAF1_MAGIC);
+}
+
 static void
 xfs_dir3_leaf1_read_verify(
 	struct xfs_buf	*bp)
@@ -239,6 +246,13 @@ xfs_dir3_leaf1_write_verify(
 	struct xfs_buf	*bp)
 {
 	__write_verify(bp, XFS_DIR2_LEAF1_MAGIC);
+}
+
+static xfs_failaddr_t
+xfs_dir3_leafn_verify(
+	struct xfs_buf	*bp)
+{
+	return xfs_dir3_leaf_verify(bp, XFS_DIR2_LEAFN_MAGIC);
 }
 
 static void
@@ -259,12 +273,14 @@ const struct xfs_buf_ops xfs_dir3_leaf1_buf_ops = {
 	.name = "xfs_dir3_leaf1",
 	.verify_read = xfs_dir3_leaf1_read_verify,
 	.verify_write = xfs_dir3_leaf1_write_verify,
+	.verify_struct = xfs_dir3_leaf1_verify,
 };
 
 const struct xfs_buf_ops xfs_dir3_leafn_buf_ops = {
 	.name = "xfs_dir3_leafn",
 	.verify_read = xfs_dir3_leafn_read_verify,
 	.verify_write = xfs_dir3_leafn_write_verify,
+	.verify_struct = xfs_dir3_leafn_verify,
 };
 
 int

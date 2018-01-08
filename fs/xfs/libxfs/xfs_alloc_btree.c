@@ -400,6 +400,7 @@ const struct xfs_buf_ops xfs_allocbt_buf_ops = {
 	.name = "xfs_allocbt",
 	.verify_read = xfs_allocbt_read_verify,
 	.verify_write = xfs_allocbt_write_verify,
+	.verify_struct = xfs_allocbt_verify,
 };
 
 

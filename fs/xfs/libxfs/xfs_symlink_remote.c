@@ -173,6 +173,7 @@ const struct xfs_buf_ops xfs_symlink_buf_ops = {
 	.name = "xfs_symlink",
 	.verify_read = xfs_symlink_read_verify,
 	.verify_write = xfs_symlink_write_verify,
+	.verify_struct = xfs_symlink_verify,
 };
 
 void

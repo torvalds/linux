@@ -242,6 +242,17 @@ xfs_dquot_buf_verify(
 	return true;
 }
 
+static xfs_failaddr_t
+xfs_dquot_buf_verify_struct(
+	struct xfs_buf	*bp)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+
+	if (!xfs_dquot_buf_verify(mp, bp, 0))
+		return __this_address;
+	return NULL;
+}
+
 static void
 xfs_dquot_buf_read_verify(
 	struct xfs_buf	*bp)
@@ -294,6 +305,7 @@ const struct xfs_buf_ops xfs_dquot_buf_ops = {
 	.name = "xfs_dquot",
 	.verify_read = xfs_dquot_buf_read_verify,
 	.verify_write = xfs_dquot_buf_write_verify,
+	.verify_struct = xfs_dquot_buf_verify_struct,
 };
 
 const struct xfs_buf_ops xfs_dquot_buf_ra_ops = {

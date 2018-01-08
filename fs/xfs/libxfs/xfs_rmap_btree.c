@@ -382,6 +382,7 @@ const struct xfs_buf_ops xfs_rmapbt_buf_ops = {
 	.name			= "xfs_rmapbt",
 	.verify_read		= xfs_rmapbt_read_verify,
 	.verify_write		= xfs_rmapbt_write_verify,
+	.verify_struct		= xfs_rmapbt_verify,
 };
 
 STATIC int

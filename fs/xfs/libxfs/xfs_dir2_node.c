@@ -164,6 +164,7 @@ const struct xfs_buf_ops xfs_dir3_free_buf_ops = {
 	.name = "xfs_dir3_free",
 	.verify_read = xfs_dir3_free_read_verify,
 	.verify_write = xfs_dir3_free_write_verify,
+	.verify_struct = xfs_dir3_free_verify,
 };
 
 /* Everything ok in the free block header? */

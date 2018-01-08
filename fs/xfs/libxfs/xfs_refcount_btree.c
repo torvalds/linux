@@ -290,6 +290,7 @@ const struct xfs_buf_ops xfs_refcountbt_buf_ops = {
 	.name			= "xfs_refcountbt",
 	.verify_read		= xfs_refcountbt_read_verify,
 	.verify_write		= xfs_refcountbt_write_verify,
+	.verify_struct		= xfs_refcountbt_verify,
 };
 
 STATIC int
