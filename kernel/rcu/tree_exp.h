@@ -626,7 +626,7 @@ static void _synchronize_rcu_expedited(struct rcu_state *rsp,
 		rew.rew_rsp = rsp;
 		rew.rew_s = s;
 		INIT_WORK_ONSTACK(&rew.rew_work, wait_rcu_exp_gp);
-		schedule_work(&rew.rew_work);
+		queue_work(rcu_gp_wq, &rew.rew_work);
 	}
 
 	/* Wait for expedited grace period to complete. */
