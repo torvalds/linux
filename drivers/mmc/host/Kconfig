@@ -321,7 +321,7 @@ config MMC_SDHCI_BCM_KONA
 config MMC_SDHCI_F_SDH30
 	tristate "SDHCI support for Fujitsu Semiconductor F_SDH30"
 	depends on MMC_SDHCI_PLTFM
-	depends on OF
+	depends on OF || ACPI
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  Needed by some Fujitsu SoC for MMC / SD / SDIO support.
