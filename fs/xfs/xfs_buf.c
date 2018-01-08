@@ -1381,7 +1381,8 @@ _xfs_buf_ioapply(
 				xfs_warn(mp,
 					"%s: no ops on block 0x%llx/0x%x",
 					__func__, bp->b_bn, bp->b_length);
-				xfs_hex_dump(bp->b_addr, 64);
+				xfs_hex_dump(bp->b_addr,
+						XFS_CORRUPTION_DUMP_LEN);
 				dump_stack();
 			}
 		}

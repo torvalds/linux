@@ -336,7 +336,7 @@ xfs_corruption_error(
 	xfs_failaddr_t		failaddr)
 {
 	if (level <= xfs_error_level)
-		xfs_hex_dump(p, 64);
+		xfs_hex_dump(p, XFS_CORRUPTION_DUMP_LEN);
 	xfs_error_report(tag, level, mp, filename, linenum, failaddr);
 	xfs_alert(mp, "Corruption detected. Unmount and run xfs_repair");
 }
@@ -364,8 +364,9 @@ xfs_verifier_error(
 	xfs_alert(mp, "Unmount and run xfs_repair");
 
 	if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
-		xfs_alert(mp, "First 64 bytes of corrupted metadata buffer:");
-		xfs_hex_dump(xfs_buf_offset(bp, 0), 64);
+		xfs_alert(mp, "First %d bytes of corrupted metadata buffer:",
+				XFS_CORRUPTION_DUMP_LEN);
+		xfs_hex_dump(xfs_buf_offset(bp, 0), XFS_CORRUPTION_DUMP_LEN);
 	}
 
 	if (xfs_error_level >= XFS_ERRLEVEL_HIGH)

@@ -39,6 +39,9 @@ extern void xfs_verifier_error(struct xfs_buf *bp, int error,
 #define XFS_ERRLEVEL_LOW	1
 #define XFS_ERRLEVEL_HIGH	5
 
+/* Dump 128 bytes of any corrupt buffer */
+#define XFS_CORRUPTION_DUMP_LEN		(128)
+
 /*
  * Macros to set EFSCORRUPTED & return/branch.
  */
