@@ -875,7 +875,8 @@ static void srpt_zerolength_write_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (srpt_set_ch_state(ch, CH_DISCONNECTED))
 			schedule_work(&ch->release_work);
 		else
-			WARN_ONCE(1, "%s-%d\n", ch->sess_name, ch->qp->qp_num);
+			pr_debug("%s-%d: already disconnected.\n",
+				 ch->sess_name, ch->qp->qp_num);
 	}
 }
 
