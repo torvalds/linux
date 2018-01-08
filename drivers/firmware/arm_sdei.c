@@ -908,6 +908,14 @@ static int sdei_get_conduit(struct platform_device *pdev)
 		}
 
 		pr_warn("invalid \"method\" property: %s\n", method);
+	} else if (IS_ENABLED(CONFIG_ACPI) && !acpi_disabled) {
+		if (acpi_psci_use_hvc()) {
+			sdei_firmware_call = &sdei_smccc_hvc;
+			return CONDUIT_HVC;
+		} else {
+			sdei_firmware_call = &sdei_smccc_smc;
+			return CONDUIT_SMC;
+		}
 	}
 
 	return CONDUIT_INVALID;
@@ -1021,14 +1029,45 @@ static bool __init sdei_present_dt(void)
 	return true;
 }
 
+static bool __init sdei_present_acpi(void)
+{
+	acpi_status status;
+	struct platform_device *pdev;
+	struct acpi_table_header *sdei_table_header;
+
+	if (acpi_disabled)
+		return false;
+
+	status = acpi_get_table(ACPI_SIG_SDEI, 0, &sdei_table_header);
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+		const char *msg = acpi_format_exception(status);
+
+		pr_info("Failed to get ACPI:SDEI table, %s\n", msg);
+	}
+	if (ACPI_FAILURE(status))
+		return false;
+
+	pdev = platform_device_register_simple(sdei_driver.driver.name, 0, NULL,
+					       0);
+	if (IS_ERR(pdev))
+		return false;
+
+	return true;
+}
+
 static int __init sdei_init(void)
 {
-	if (sdei_present_dt())
+	if (sdei_present_dt() || sdei_present_acpi())
 		platform_driver_register(&sdei_driver);
 
 	return 0;
 }
 
+/*
+ * On an ACPI system SDEI needs to be ready before HEST:GHES tries to register
+ * its events. ACPI is initialised from a subsys_initcall(), GHES is initialised
+ * by device_initcall(). We want to be called in the middle.
+ */
 subsys_initcall_sync(sdei_init);
 
 int sdei_event_handler(struct pt_regs *regs,
