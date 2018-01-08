@@ -380,7 +380,7 @@ xfs_log_dinode_to_disk(
 	}
 }
 
-bool
+xfs_failaddr_t
 xfs_dinode_verify(
 	struct xfs_mount	*mp,
 	xfs_ino_t		ino,
@@ -391,33 +391,33 @@ xfs_dinode_verify(
 	uint64_t		flags2;
 
 	if (dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC))
-		return false;
+		return __this_address;
 
 	/* don't allow invalid i_size */
 	if (be64_to_cpu(dip->di_size) & (1ULL << 63))
-		return false;
+		return __this_address;
 
 	mode = be16_to_cpu(dip->di_mode);
 	if (mode && xfs_mode_to_ftype(mode) == XFS_DIR3_FT_UNKNOWN)
-		return false;
+		return __this_address;
 
 	/* No zero-length symlinks/dirs. */
 	if ((S_ISLNK(mode) || S_ISDIR(mode)) && dip->di_size == 0)
-		return false;
+		return __this_address;
 
 	/* only version 3 or greater inodes are extensively verified here */
 	if (dip->di_version < 3)
-		return true;
+		return NULL;
 
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
-		return false;
+		return __this_address;
 	if (!xfs_verify_cksum((char *)dip, mp->m_sb.sb_inodesize,
 			      XFS_DINODE_CRC_OFF))
-		return false;
+		return __this_address;
 	if (be64_to_cpu(dip->di_ino) != ino)
-		return false;
+		return __this_address;
 	if (!uuid_equal(&dip->di_uuid, &mp->m_sb.sb_meta_uuid))
-		return false;
+		return __this_address;
 
 	flags = be16_to_cpu(dip->di_flags);
 	flags2 = be64_to_cpu(dip->di_flags2);
@@ -425,17 +425,17 @@ xfs_dinode_verify(
 	/* don't allow reflink/cowextsize if we don't have reflink */
 	if ((flags2 & (XFS_DIFLAG2_REFLINK | XFS_DIFLAG2_COWEXTSIZE)) &&
             !xfs_sb_version_hasreflink(&mp->m_sb))
-		return false;
+		return __this_address;
 
 	/* don't let reflink and realtime mix */
 	if ((flags2 & XFS_DIFLAG2_REFLINK) && (flags & XFS_DIFLAG_REALTIME))
-		return false;
+		return __this_address;
 
 	/* don't let reflink and dax mix */
 	if ((flags2 & XFS_DIFLAG2_REFLINK) && (flags2 & XFS_DIFLAG2_DAX))
-		return false;
+		return __this_address;
 
-	return true;
+	return NULL;
 }
 
 void
@@ -475,6 +475,7 @@ xfs_iread(
 {
 	xfs_buf_t	*bp;
 	xfs_dinode_t	*dip;
+	xfs_failaddr_t	fa;
 	int		error;
 
 	/*
@@ -506,9 +507,10 @@ xfs_iread(
 		return error;
 
 	/* even unallocated inodes are verified */
-	if (!xfs_dinode_verify(mp, ip->i_ino, dip)) {
-		xfs_alert(mp, "%s: validation failed for inode %lld",
-				__func__, ip->i_ino);
+	fa = xfs_dinode_verify(mp, ip->i_ino, dip);
+	if (fa) {
+		xfs_alert(mp, "%s: validation failed for inode %lld at %pS",
+				__func__, ip->i_ino, fa);
 
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, dip);
 		error = -EFSCORRUPTED;

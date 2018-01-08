@@ -65,7 +65,7 @@ xfs_attr3_rmt_blocks(
  * does CRC, location and bounds checking, the unpacking function checks the
  * attribute parameters and owner.
  */
-static bool
+static xfs_failaddr_t
 xfs_attr3_rmt_hdr_ok(
 	void			*ptr,
 	xfs_ino_t		ino,
@@ -76,19 +76,19 @@ xfs_attr3_rmt_hdr_ok(
 	struct xfs_attr3_rmt_hdr *rmt = ptr;
 
 	if (bno != be64_to_cpu(rmt->rm_blkno))
-		return false;
+		return __this_address;
 	if (offset != be32_to_cpu(rmt->rm_offset))
-		return false;
+		return __this_address;
 	if (size != be32_to_cpu(rmt->rm_bytes))
-		return false;
+		return __this_address;
 	if (ino != be64_to_cpu(rmt->rm_owner))
-		return false;
+		return __this_address;
 
 	/* ok */
-	return true;
+	return NULL;
 }
 
-static bool
+static xfs_failaddr_t
 xfs_attr3_rmt_verify(
 	struct xfs_mount	*mp,
 	void			*ptr,
@@ -98,22 +98,22 @@ xfs_attr3_rmt_verify(
 	struct xfs_attr3_rmt_hdr *rmt = ptr;
 
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
-		return false;
+		return __this_address;
 	if (rmt->rm_magic != cpu_to_be32(XFS_ATTR3_RMT_MAGIC))
-		return false;
+		return __this_address;
 	if (!uuid_equal(&rmt->rm_uuid, &mp->m_sb.sb_meta_uuid))
-		return false;
+		return __this_address;
 	if (be64_to_cpu(rmt->rm_blkno) != bno)
-		return false;
+		return __this_address;
 	if (be32_to_cpu(rmt->rm_bytes) > fsbsize - sizeof(*rmt))
-		return false;
+		return __this_address;
 	if (be32_to_cpu(rmt->rm_offset) +
 				be32_to_cpu(rmt->rm_bytes) > XFS_XATTR_SIZE_MAX)
-		return false;
+		return __this_address;
 	if (rmt->rm_owner == 0)
-		return false;
+		return __this_address;
 
-	return true;
+	return NULL;
 }
 
 static void
@@ -140,7 +140,7 @@ xfs_attr3_rmt_read_verify(
 			xfs_verifier_error(bp, -EFSBADCRC);
 			return;
 		}
-		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
+		if (xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
 			xfs_verifier_error(bp, -EFSCORRUPTED);
 			return;
 		}
@@ -175,7 +175,7 @@ xfs_attr3_rmt_write_verify(
 	while (len > 0) {
 		struct xfs_attr3_rmt_hdr *rmt = (struct xfs_attr3_rmt_hdr *)ptr;
 
-		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
+		if (xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
 			xfs_verifier_error(bp, -EFSCORRUPTED);
 			return;
 		}
@@ -267,7 +267,7 @@ xfs_attr_rmtval_copyout(
 		byte_cnt = min(*valuelen, byte_cnt);
 
 		if (xfs_sb_version_hascrc(&mp->m_sb)) {
-			if (!xfs_attr3_rmt_hdr_ok(src, ino, *offset,
+			if (xfs_attr3_rmt_hdr_ok(src, ino, *offset,
 						  byte_cnt, bno)) {
 				xfs_alert(mp,
 "remote attribute header mismatch bno/off/len/owner (0x%llx/0x%x/Ox%x/0x%llx)",

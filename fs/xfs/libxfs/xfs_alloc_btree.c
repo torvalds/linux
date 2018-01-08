@@ -307,13 +307,14 @@ xfs_cntbt_diff_two_keys(
 		be32_to_cpu(k2->alloc.ar_startblock);
 }
 
-static bool
+static xfs_failaddr_t
 xfs_allocbt_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
 	struct xfs_perag	*pag = bp->b_pag;
+	xfs_failaddr_t		fa;
 	unsigned int		level;
 
 	/*
@@ -331,29 +332,31 @@ xfs_allocbt_verify(
 	level = be16_to_cpu(block->bb_level);
 	switch (block->bb_magic) {
 	case cpu_to_be32(XFS_ABTB_CRC_MAGIC):
-		if (!xfs_btree_sblock_v5hdr_verify(bp))
-			return false;
+		fa = xfs_btree_sblock_v5hdr_verify(bp);
+		if (fa)
+			return fa;
 		/* fall through */
 	case cpu_to_be32(XFS_ABTB_MAGIC):
 		if (pag && pag->pagf_init) {
 			if (level >= pag->pagf_levels[XFS_BTNUM_BNOi])
-				return false;
+				return __this_address;
 		} else if (level >= mp->m_ag_maxlevels)
-			return false;
+			return __this_address;
 		break;
 	case cpu_to_be32(XFS_ABTC_CRC_MAGIC):
-		if (!xfs_btree_sblock_v5hdr_verify(bp))
-			return false;
+		fa = xfs_btree_sblock_v5hdr_verify(bp);
+		if (fa)
+			return fa;
 		/* fall through */
 	case cpu_to_be32(XFS_ABTC_MAGIC):
 		if (pag && pag->pagf_init) {
 			if (level >= pag->pagf_levels[XFS_BTNUM_CNTi])
-				return false;
+				return __this_address;
 		} else if (level >= mp->m_ag_maxlevels)
-			return false;
+			return __this_address;
 		break;
 	default:
-		return false;
+		return __this_address;
 	}
 
 	return xfs_btree_sblock_verify(bp, mp->m_alloc_mxr[level != 0]);
@@ -365,7 +368,7 @@ xfs_allocbt_read_verify(
 {
 	if (!xfs_btree_sblock_verify_crc(bp))
 		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (!xfs_allocbt_verify(bp))
+	else if (xfs_allocbt_verify(bp))
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
@@ -376,7 +379,7 @@ static void
 xfs_allocbt_write_verify(
 	struct xfs_buf	*bp)
 {
-	if (!xfs_allocbt_verify(bp)) {
+	if (xfs_allocbt_verify(bp)) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;

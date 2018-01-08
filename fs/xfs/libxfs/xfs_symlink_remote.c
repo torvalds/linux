@@ -98,7 +98,7 @@ xfs_symlink_hdr_ok(
 	return true;
 }
 
-static bool
+static xfs_failaddr_t
 xfs_symlink_verify(
 	struct xfs_buf		*bp)
 {
@@ -106,22 +106,22 @@ xfs_symlink_verify(
 	struct xfs_dsymlink_hdr	*dsl = bp->b_addr;
 
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
-		return false;
+		return __this_address;
 	if (dsl->sl_magic != cpu_to_be32(XFS_SYMLINK_MAGIC))
-		return false;
+		return __this_address;
 	if (!uuid_equal(&dsl->sl_uuid, &mp->m_sb.sb_meta_uuid))
-		return false;
+		return __this_address;
 	if (bp->b_bn != be64_to_cpu(dsl->sl_blkno))
-		return false;
+		return __this_address;
 	if (be32_to_cpu(dsl->sl_offset) +
 				be32_to_cpu(dsl->sl_bytes) >= XFS_SYMLINK_MAXLEN)
-		return false;
+		return __this_address;
 	if (dsl->sl_owner == 0)
-		return false;
+		return __this_address;
 	if (!xfs_log_check_lsn(mp, be64_to_cpu(dsl->sl_lsn)))
-		return false;
+		return __this_address;
 
-	return true;
+	return NULL;
 }
 
 static void
@@ -136,7 +136,7 @@ xfs_symlink_read_verify(
 
 	if (!xfs_buf_verify_cksum(bp, XFS_SYMLINK_CRC_OFF))
 		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (!xfs_symlink_verify(bp))
+	else if (xfs_symlink_verify(bp))
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 }
 
@@ -151,7 +151,7 @@ xfs_symlink_write_verify(
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return;
 
-	if (!xfs_symlink_verify(bp)) {
+	if (xfs_symlink_verify(bp)) {
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
 	}

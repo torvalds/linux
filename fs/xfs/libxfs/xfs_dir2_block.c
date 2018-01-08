@@ -58,7 +58,7 @@ xfs_dir_startup(void)
 	xfs_dir_hash_dotdot = xfs_da_hashname((unsigned char *)"..", 2);
 }
 
-static bool
+static xfs_failaddr_t
 xfs_dir3_block_verify(
 	struct xfs_buf		*bp)
 {
@@ -67,16 +67,16 @@ xfs_dir3_block_verify(
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		if (hdr3->magic != cpu_to_be32(XFS_DIR3_BLOCK_MAGIC))
-			return false;
+			return __this_address;
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
-			return false;
+			return __this_address;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
-			return false;
+			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
-			return false;
+			return __this_address;
 	} else {
 		if (hdr3->magic != cpu_to_be32(XFS_DIR2_BLOCK_MAGIC))
-			return false;
+			return __this_address;
 	}
 	return __xfs_dir3_data_check(NULL, bp);
 }
@@ -90,7 +90,7 @@ xfs_dir3_block_read_verify(
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	     !xfs_buf_verify_cksum(bp, XFS_DIR3_DATA_CRC_OFF))
 		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (!xfs_dir3_block_verify(bp))
+	else if (xfs_dir3_block_verify(bp))
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 }
 
@@ -102,7 +102,7 @@ xfs_dir3_block_write_verify(
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
-	if (!xfs_dir3_block_verify(bp)) {
+	if (xfs_dir3_block_verify(bp)) {
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
 	}

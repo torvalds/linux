@@ -128,7 +128,7 @@ xfs_da_state_free(xfs_da_state_t *state)
 	kmem_zone_free(xfs_da_state_zone, state);
 }
 
-static bool
+static xfs_failaddr_t
 xfs_da3_node_verify(
 	struct xfs_buf		*bp)
 {
@@ -145,24 +145,24 @@ xfs_da3_node_verify(
 		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
 		if (ichdr.magic != XFS_DA3_NODE_MAGIC)
-			return false;
+			return __this_address;
 
 		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid))
-			return false;
+			return __this_address;
 		if (be64_to_cpu(hdr3->info.blkno) != bp->b_bn)
-			return false;
+			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->info.lsn)))
-			return false;
+			return __this_address;
 	} else {
 		if (ichdr.magic != XFS_DA_NODE_MAGIC)
-			return false;
+			return __this_address;
 	}
 	if (ichdr.level == 0)
-		return false;
+		return __this_address;
 	if (ichdr.level > XFS_DA_NODE_MAXDEPTH)
-		return false;
+		return __this_address;
 	if (ichdr.count == 0)
-		return false;
+		return __this_address;
 
 	/*
 	 * we don't know if the node is for and attribute or directory tree,
@@ -170,11 +170,11 @@ xfs_da3_node_verify(
 	 */
 	if (ichdr.count > mp->m_dir_geo->node_ents &&
 	    ichdr.count > mp->m_attr_geo->node_ents)
-		return false;
+		return __this_address;
 
 	/* XXX: hash order check? */
 
-	return true;
+	return NULL;
 }
 
 static void
@@ -185,7 +185,7 @@ xfs_da3_node_write_verify(
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 	struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
-	if (!xfs_da3_node_verify(bp)) {
+	if (xfs_da3_node_verify(bp)) {
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
 	}
@@ -219,7 +219,7 @@ xfs_da3_node_read_verify(
 			}
 			/* fall through */
 		case XFS_DA_NODE_MAGIC:
-			if (!xfs_da3_node_verify(bp))
+			if (xfs_da3_node_verify(bp))
 				xfs_verifier_error(bp, -EFSCORRUPTED);
 			return;
 		case XFS_ATTR_LEAF_MAGIC:

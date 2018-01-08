@@ -250,12 +250,13 @@ xfs_inobt_diff_two_keys(
 			  be32_to_cpu(k2->inobt.ir_startino);
 }
 
-static int
+static xfs_failaddr_t
 xfs_inobt_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
+	xfs_failaddr_t		fa;
 	unsigned int		level;
 
 	/*
@@ -271,20 +272,21 @@ xfs_inobt_verify(
 	switch (block->bb_magic) {
 	case cpu_to_be32(XFS_IBT_CRC_MAGIC):
 	case cpu_to_be32(XFS_FIBT_CRC_MAGIC):
-		if (!xfs_btree_sblock_v5hdr_verify(bp))
-			return false;
+		fa = xfs_btree_sblock_v5hdr_verify(bp);
+		if (fa)
+			return fa;
 		/* fall through */
 	case cpu_to_be32(XFS_IBT_MAGIC):
 	case cpu_to_be32(XFS_FIBT_MAGIC):
 		break;
 	default:
-		return 0;
+		return NULL;
 	}
 
 	/* level verification */
 	level = be16_to_cpu(block->bb_level);
 	if (level >= mp->m_in_maxlevels)
-		return false;
+		return __this_address;
 
 	return xfs_btree_sblock_verify(bp, mp->m_inobt_mxr[level != 0]);
 }
@@ -295,7 +297,7 @@ xfs_inobt_read_verify(
 {
 	if (!xfs_btree_sblock_verify_crc(bp))
 		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (!xfs_inobt_verify(bp))
+	else if (xfs_inobt_verify(bp))
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
@@ -306,7 +308,7 @@ static void
 xfs_inobt_write_verify(
 	struct xfs_buf	*bp)
 {
-	if (!xfs_inobt_verify(bp)) {
+	if (xfs_inobt_verify(bp)) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;

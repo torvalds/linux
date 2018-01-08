@@ -39,18 +39,13 @@ extern int xfs_dir2_leaf_to_block(struct xfs_da_args *args,
 
 /* xfs_dir2_data.c */
 #ifdef DEBUG
-#define	xfs_dir3_data_check(dp, bp) \
-do { \
-	if (!__xfs_dir3_data_check((dp), (bp))) { \
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, \
-				(bp)->b_target->bt_mount, (bp)->b_addr); \
-	} \
-} while (0)
+extern void xfs_dir3_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
 #else
 #define	xfs_dir3_data_check(dp,bp)
 #endif
 
-extern bool __xfs_dir3_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
+extern xfs_failaddr_t __xfs_dir3_data_check(struct xfs_inode *dp,
+		struct xfs_buf *bp);
 extern int xfs_dir3_data_read(struct xfs_trans *tp, struct xfs_inode *dp,
 		xfs_dablk_t bno, xfs_daddr_t mapped_bno, struct xfs_buf **bpp);
 extern int xfs_dir3_data_readahead(struct xfs_inode *dp, xfs_dablk_t bno,
@@ -95,8 +90,9 @@ xfs_dir3_leaf_find_entry(struct xfs_dir3_icleaf_hdr *leafhdr,
 		int lowstale, int highstale, int *lfloglow, int *lfloghigh);
 extern int xfs_dir2_node_to_leaf(struct xfs_da_state *state);
 
-extern bool xfs_dir3_leaf_check_int(struct xfs_mount *mp, struct xfs_inode *dp,
-		struct xfs_dir3_icleaf_hdr *hdr, struct xfs_dir2_leaf *leaf);
+extern xfs_failaddr_t xfs_dir3_leaf_check_int(struct xfs_mount *mp,
+		struct xfs_inode *dp, struct xfs_dir3_icleaf_hdr *hdr,
+		struct xfs_dir2_leaf *leaf);
 
 /* xfs_dir2_node.c */
 extern int xfs_dir2_leaf_to_node(struct xfs_da_args *args,

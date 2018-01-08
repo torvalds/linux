@@ -50,13 +50,7 @@ static void xfs_dir3_leaf_log_tail(struct xfs_da_args *args,
  * Pop an assert if something is wrong.
  */
 #ifdef DEBUG
-#define	xfs_dir3_leaf_check(dp, bp) \
-do { \
-	if (!xfs_dir3_leaf1_check((dp), (bp))) \
-		ASSERT(0); \
-} while (0);
-
-STATIC bool
+static xfs_failaddr_t
 xfs_dir3_leaf1_check(
 	struct xfs_inode	*dp,
 	struct xfs_buf		*bp)
@@ -69,17 +63,32 @@ xfs_dir3_leaf1_check(
 	if (leafhdr.magic == XFS_DIR3_LEAF1_MAGIC) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
 		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
-			return false;
+			return __this_address;
 	} else if (leafhdr.magic != XFS_DIR2_LEAF1_MAGIC)
-		return false;
+		return __this_address;
 
 	return xfs_dir3_leaf_check_int(dp->i_mount, dp, &leafhdr, leaf);
+}
+
+static inline void
+xfs_dir3_leaf_check(
+	struct xfs_inode	*dp,
+	struct xfs_buf		*bp)
+{
+	xfs_failaddr_t		fa;
+
+	fa = xfs_dir3_leaf1_check(dp, bp);
+	if (!fa)
+		return;
+	xfs_corruption_error(__func__, XFS_ERRLEVEL_LOW, dp->i_mount,
+			bp->b_addr, __FILE__, __LINE__, fa);
+	ASSERT(0);
 }
 #else
 #define	xfs_dir3_leaf_check(dp, bp)
 #endif
 
-bool
+xfs_failaddr_t
 xfs_dir3_leaf_check_int(
 	struct xfs_mount	*mp,
 	struct xfs_inode	*dp,
@@ -114,27 +123,27 @@ xfs_dir3_leaf_check_int(
 	 * We can deduce a value for that from di_size.
 	 */
 	if (hdr->count > ops->leaf_max_ents(geo))
-		return false;
+		return __this_address;
 
 	/* Leaves and bests don't overlap in leaf format. */
 	if ((hdr->magic == XFS_DIR2_LEAF1_MAGIC ||
 	     hdr->magic == XFS_DIR3_LEAF1_MAGIC) &&
 	    (char *)&ents[hdr->count] > (char *)xfs_dir2_leaf_bests_p(ltp))
-		return false;
+		return __this_address;
 
 	/* Check hash value order, count stale entries.  */
 	for (i = stale = 0; i < hdr->count; i++) {
 		if (i + 1 < hdr->count) {
 			if (be32_to_cpu(ents[i].hashval) >
 					be32_to_cpu(ents[i + 1].hashval))
-				return false;
+				return __this_address;
 		}
 		if (ents[i].address == cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
 			stale++;
 	}
 	if (hdr->stale != stale)
-		return false;
-	return true;
+		return __this_address;
+	return NULL;
 }
 
 /*
@@ -142,7 +151,7 @@ xfs_dir3_leaf_check_int(
  * kernels we don't get assertion failures in xfs_dir3_leaf_hdr_from_disk() due
  * to incorrect magic numbers.
  */
-static bool
+static xfs_failaddr_t
 xfs_dir3_leaf_verify(
 	struct xfs_buf		*bp,
 	uint16_t		magic)
@@ -160,16 +169,16 @@ xfs_dir3_leaf_verify(
 							 : XFS_DIR3_LEAFN_MAGIC;
 
 		if (leaf3->info.hdr.magic != cpu_to_be16(magic3))
-			return false;
+			return __this_address;
 		if (!uuid_equal(&leaf3->info.uuid, &mp->m_sb.sb_meta_uuid))
-			return false;
+			return __this_address;
 		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
-			return false;
+			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(leaf3->info.lsn)))
-			return false;
+			return __this_address;
 	} else {
 		if (leaf->hdr.info.magic != cpu_to_be16(magic))
-			return false;
+			return __this_address;
 	}
 
 	return xfs_dir3_leaf_check_int(mp, NULL, NULL, leaf);
@@ -185,7 +194,7 @@ __read_verify(
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	     !xfs_buf_verify_cksum(bp, XFS_DIR3_LEAF_CRC_OFF))
 		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (!xfs_dir3_leaf_verify(bp, magic))
+	else if (xfs_dir3_leaf_verify(bp, magic))
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 }
 
@@ -198,7 +207,7 @@ __write_verify(
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 	struct xfs_dir3_leaf_hdr *hdr3 = bp->b_addr;
 
-	if (!xfs_dir3_leaf_verify(bp, magic)) {
+	if (xfs_dir3_leaf_verify(bp, magic)) {
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
 	}

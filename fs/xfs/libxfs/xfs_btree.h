@@ -492,10 +492,13 @@ static inline int xfs_btree_get_level(struct xfs_btree_block *block)
 #define XFS_BTREE_TRACE_ARGR(c, r)
 #define	XFS_BTREE_TRACE_CURSOR(c, t)
 
-bool xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
-bool xfs_btree_sblock_verify(struct xfs_buf *bp, unsigned int max_recs);
-bool xfs_btree_lblock_v5hdr_verify(struct xfs_buf *bp, uint64_t owner);
-bool xfs_btree_lblock_verify(struct xfs_buf *bp, unsigned int max_recs);
+xfs_failaddr_t xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
+xfs_failaddr_t xfs_btree_sblock_verify(struct xfs_buf *bp,
+		unsigned int max_recs);
+xfs_failaddr_t xfs_btree_lblock_v5hdr_verify(struct xfs_buf *bp,
+		uint64_t owner);
+xfs_failaddr_t xfs_btree_lblock_verify(struct xfs_buf *bp,
+		unsigned int max_recs);
 
 uint xfs_btree_compute_maxlevels(struct xfs_mount *mp, uint *limits,
 				 unsigned long len);

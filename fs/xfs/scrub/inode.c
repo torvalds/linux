@@ -556,7 +556,7 @@ xfs_scrub_inode_map_raw(
 	 */
 	bp->b_ops = &xfs_inode_buf_ops;
 	dip = xfs_buf_offset(bp, imap.im_boffset);
-	if (!xfs_dinode_verify(mp, ino, dip) ||
+	if (xfs_dinode_verify(mp, ino, dip) != NULL ||
 	    !xfs_dinode_good_version(mp, dip->di_version)) {
 		xfs_scrub_ino_set_corrupt(sc, ino, bp);
 		goto out_buf;

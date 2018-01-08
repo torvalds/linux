@@ -425,12 +425,13 @@ xfs_bmbt_diff_two_keys(
 			  be64_to_cpu(k2->bmbt.br_startoff);
 }
 
-static bool
+static xfs_failaddr_t
 xfs_bmbt_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
+	xfs_failaddr_t		fa;
 	unsigned int		level;
 
 	switch (block->bb_magic) {
@@ -439,13 +440,14 @@ xfs_bmbt_verify(
 		 * XXX: need a better way of verifying the owner here. Right now
 		 * just make sure there has been one set.
 		 */
-		if (!xfs_btree_lblock_v5hdr_verify(bp, XFS_RMAP_OWN_UNKNOWN))
-			return false;
+		fa = xfs_btree_lblock_v5hdr_verify(bp, XFS_RMAP_OWN_UNKNOWN);
+		if (fa)
+			return fa;
 		/* fall through */
 	case cpu_to_be32(XFS_BMAP_MAGIC):
 		break;
 	default:
-		return false;
+		return __this_address;
 	}
 
 	/*
@@ -457,7 +459,7 @@ xfs_bmbt_verify(
 	 */
 	level = be16_to_cpu(block->bb_level);
 	if (level > max(mp->m_bm_maxlevels[0], mp->m_bm_maxlevels[1]))
-		return false;
+		return __this_address;
 
 	return xfs_btree_lblock_verify(bp, mp->m_bmap_dmxr[level != 0]);
 }
@@ -468,7 +470,7 @@ xfs_bmbt_read_verify(
 {
 	if (!xfs_btree_lblock_verify_crc(bp))
 		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (!xfs_bmbt_verify(bp))
+	else if (xfs_bmbt_verify(bp))
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
@@ -479,7 +481,7 @@ static void
 xfs_bmbt_write_verify(
 	struct xfs_buf	*bp)
 {
-	if (!xfs_bmbt_verify(bp)) {
+	if (xfs_bmbt_verify(bp)) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;

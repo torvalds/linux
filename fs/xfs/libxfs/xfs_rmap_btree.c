@@ -303,13 +303,14 @@ xfs_rmapbt_diff_two_keys(
 	return 0;
 }
 
-static bool
+static xfs_failaddr_t
 xfs_rmapbt_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
 	struct xfs_perag	*pag = bp->b_pag;
+	xfs_failaddr_t		fa;
 	unsigned int		level;
 
 	/*
@@ -325,19 +326,20 @@ xfs_rmapbt_verify(
 	 * in this case.
 	 */
 	if (block->bb_magic != cpu_to_be32(XFS_RMAP_CRC_MAGIC))
-		return false;
+		return __this_address;
 
 	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
-		return false;
-	if (!xfs_btree_sblock_v5hdr_verify(bp))
-		return false;
+		return __this_address;
+	fa = xfs_btree_sblock_v5hdr_verify(bp);
+	if (fa)
+		return fa;
 
 	level = be16_to_cpu(block->bb_level);
 	if (pag && pag->pagf_init) {
 		if (level >= pag->pagf_levels[XFS_BTNUM_RMAPi])
-			return false;
+			return __this_address;
 	} else if (level >= mp->m_rmap_maxlevels)
-		return false;
+		return __this_address;
 
 	return xfs_btree_sblock_verify(bp, mp->m_rmap_mxr[level != 0]);
 }
@@ -348,7 +350,7 @@ xfs_rmapbt_read_verify(
 {
 	if (!xfs_btree_sblock_verify_crc(bp))
 		xfs_verifier_error(bp, -EFSBADCRC);
-	else if (!xfs_rmapbt_verify(bp))
+	else if (xfs_rmapbt_verify(bp))
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
@@ -359,7 +361,7 @@ static void
 xfs_rmapbt_write_verify(
 	struct xfs_buf	*bp)
 {
-	if (!xfs_rmapbt_verify(bp)) {
+	if (xfs_rmapbt_verify(bp)) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
 		xfs_verifier_error(bp, -EFSCORRUPTED);
 		return;
