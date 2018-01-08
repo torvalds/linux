@@ -1367,19 +1367,18 @@ int fbtft_probe_common(struct fbtft_display *display,
 	}
 
 	/* write register functions */
-	if (display->regwidth == 8 && display->buswidth == 8) {
+	if (display->regwidth == 8 && display->buswidth == 8)
 		par->fbtftops.write_register = fbtft_write_reg8_bus8;
-	} else if (display->regwidth == 8 && display->buswidth == 9 && par->spi) {
+	else if (display->regwidth == 8 && display->buswidth == 9 && par->spi)
 		par->fbtftops.write_register = fbtft_write_reg8_bus9;
-	} else if (display->regwidth == 16 && display->buswidth == 8) {
+	else if (display->regwidth == 16 && display->buswidth == 8)
 		par->fbtftops.write_register = fbtft_write_reg16_bus8;
-	} else if (display->regwidth == 16 && display->buswidth == 16) {
+	else if (display->regwidth == 16 && display->buswidth == 16)
 		par->fbtftops.write_register = fbtft_write_reg16_bus16;
-	} else {
+	else
 		dev_warn(dev,
 			"no default functions for regwidth=%d and buswidth=%d\n",
 			display->regwidth, display->buswidth);
-	}
 
 	/* write_vmem() functions */
 	if (display->buswidth == 8)
