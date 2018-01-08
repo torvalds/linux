@@ -23,7 +23,7 @@
 #include <linux/usb.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/rtsx_usb.h>
+#include <linux/rtsx_usb.h>
 
 static int polling_pipe = 1;
 module_param(polling_pipe, int, S_IRUGO | S_IWUSR);

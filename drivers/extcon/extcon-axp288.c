@@ -24,8 +24,6 @@
 #include <linux/notifier.h>
 #include <linux/extcon-provider.h>
 #include <linux/regmap.h>
-#include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
 #include <linux/mfd/axp20x.h>
 
 /* Power source status register */
@@ -79,11 +77,6 @@ enum axp288_extcon_reg {
 	AXP288_BC_DET_STAT_REG		= 0x2f,
 };
 
-enum axp288_mux_select {
-	EXTCON_GPIO_MUX_SEL_PMIC = 0,
-	EXTCON_GPIO_MUX_SEL_SOC,
-};
-
 enum axp288_extcon_irq {
 	VBUS_FALLING_IRQ = 0,
 	VBUS_RISING_IRQ,
@@ -104,10 +97,8 @@ struct axp288_extcon_info {
 	struct device *dev;
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *regmap_irqc;
-	struct gpio_desc *gpio_mux_cntl;
 	int irq[EXTCON_IRQ_END];
 	struct extcon_dev *edev;
-	struct notifier_block extcon_nb;
 	unsigned int previous_cable;
 };
 
@@ -197,15 +188,6 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 	}
 
 no_vbus:
-	/*
-	 * If VBUS is absent Connect D+/D- lines to PMIC for BC
-	 * detection. Else connect them to SOC for USB communication.
-	 */
-	if (info->gpio_mux_cntl)
-		gpiod_set_value(info->gpio_mux_cntl,
-			vbus_attach ? EXTCON_GPIO_MUX_SEL_SOC
-					: EXTCON_GPIO_MUX_SEL_PMIC);
-
 	extcon_set_state_sync(info->edev, info->previous_cable, false);
 	if (info->previous_cable == EXTCON_CHG_USB_SDP)
 		extcon_set_state_sync(info->edev, EXTCON_USB, false);
@@ -253,8 +235,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 {
 	struct axp288_extcon_info *info;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
-	struct axp288_extcon_pdata *pdata = pdev->dev.platform_data;
-	int ret, i, pirq, gpio;
+	int ret, i, pirq;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -264,8 +245,6 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
 	info->previous_cable = EXTCON_NONE;
-	if (pdata)
-		info->gpio_mux_cntl = pdata->gpio_mux_cntl;
 
 	platform_set_drvdata(pdev, info);
 
@@ -286,21 +265,11 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Set up gpio control for USB Mux */
-	if (info->gpio_mux_cntl) {
-		gpio = desc_to_gpio(info->gpio_mux_cntl);
-		ret = devm_gpio_request(&pdev->dev, gpio, "USB_MUX");
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"failed to request the gpio=%d\n", gpio);
-			return ret;
-		}
-		gpiod_direction_output(info->gpio_mux_cntl,
-						EXTCON_GPIO_MUX_SEL_PMIC);
-	}
-
 	for (i = 0; i < EXTCON_IRQ_END; i++) {
 		pirq = platform_get_irq(pdev, i);
+		if (pirq < 0)
+			return pirq;
+
 		info->irq[i] = regmap_irq_get_virq(info->regmap_irqc, pirq);
 		if (info->irq[i] < 0) {
 			dev_err(&pdev->dev,

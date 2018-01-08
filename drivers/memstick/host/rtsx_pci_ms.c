@@ -24,7 +24,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/memstick.h>
-#include <linux/mfd/rtsx_pci.h>
+#include <linux/rtsx_pci.h>
 #include <asm/unaligned.h>
 
 struct realtek_pci_ms {
