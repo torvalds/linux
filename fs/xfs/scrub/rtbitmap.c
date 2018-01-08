@@ -43,22 +43,14 @@ xfs_scrub_setup_rt(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip)
 {
-	struct xfs_mount		*mp = sc->mp;
-	int				error = 0;
-
-	/*
-	 * If userspace gave us an AG number or inode data, they don't
-	 * know what they're doing.  Get out.
-	 */
-	if (sc->sm->sm_agno || sc->sm->sm_ino || sc->sm->sm_gen)
-		return -EINVAL;
+	int				error;
 
 	error = xfs_scrub_setup_fs(sc, ip);
 	if (error)
 		return error;
 
 	sc->ilock_flags = XFS_ILOCK_EXCL | XFS_ILOCK_RTBITMAP;
-	sc->ip = mp->m_rbmip;
+	sc->ip = sc->mp->m_rbmip;
 	xfs_ilock(sc->ip, sc->ilock_flags);
 
 	return 0;

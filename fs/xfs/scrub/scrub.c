@@ -128,8 +128,6 @@ xfs_scrub_probe(
 {
 	int				error = 0;
 
-	if (sc->sm->sm_ino || sc->sm->sm_agno)
-		return -EINVAL;
 	if (xfs_scrub_should_terminate(sc, &error))
 		return error;
 
@@ -168,105 +166,129 @@ xfs_scrub_teardown(
 
 static const struct xfs_scrub_meta_ops meta_scrub_ops[] = {
 	[XFS_SCRUB_TYPE_PROBE] = {	/* ioctl presence test */
+		.type	= ST_NONE,
 		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_probe,
 	},
 	[XFS_SCRUB_TYPE_SB] = {		/* superblock */
-		.setup	= xfs_scrub_setup_ag_header,
+		.type	= ST_PERAG,
+		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_superblock,
 	},
 	[XFS_SCRUB_TYPE_AGF] = {	/* agf */
-		.setup	= xfs_scrub_setup_ag_header,
+		.type	= ST_PERAG,
+		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_agf,
 	},
 	[XFS_SCRUB_TYPE_AGFL]= {	/* agfl */
-		.setup	= xfs_scrub_setup_ag_header,
+		.type	= ST_PERAG,
+		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_agfl,
 	},
 	[XFS_SCRUB_TYPE_AGI] = {	/* agi */
-		.setup	= xfs_scrub_setup_ag_header,
+		.type	= ST_PERAG,
+		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_agi,
 	},
 	[XFS_SCRUB_TYPE_BNOBT] = {	/* bnobt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_allocbt,
 		.scrub	= xfs_scrub_bnobt,
 	},
 	[XFS_SCRUB_TYPE_CNTBT] = {	/* cntbt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_allocbt,
 		.scrub	= xfs_scrub_cntbt,
 	},
 	[XFS_SCRUB_TYPE_INOBT] = {	/* inobt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_iallocbt,
 		.scrub	= xfs_scrub_inobt,
 	},
 	[XFS_SCRUB_TYPE_FINOBT] = {	/* finobt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_iallocbt,
 		.scrub	= xfs_scrub_finobt,
 		.has	= xfs_sb_version_hasfinobt,
 	},
 	[XFS_SCRUB_TYPE_RMAPBT] = {	/* rmapbt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_rmapbt,
 		.scrub	= xfs_scrub_rmapbt,
 		.has	= xfs_sb_version_hasrmapbt,
 	},
 	[XFS_SCRUB_TYPE_REFCNTBT] = {	/* refcountbt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_refcountbt,
 		.scrub	= xfs_scrub_refcountbt,
 		.has	= xfs_sb_version_hasreflink,
 	},
 	[XFS_SCRUB_TYPE_INODE] = {	/* inode record */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_inode,
 		.scrub	= xfs_scrub_inode,
 	},
 	[XFS_SCRUB_TYPE_BMBTD] = {	/* inode data fork */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_inode_bmap,
 		.scrub	= xfs_scrub_bmap_data,
 	},
 	[XFS_SCRUB_TYPE_BMBTA] = {	/* inode attr fork */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_inode_bmap,
 		.scrub	= xfs_scrub_bmap_attr,
 	},
 	[XFS_SCRUB_TYPE_BMBTC] = {	/* inode CoW fork */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_inode_bmap,
 		.scrub	= xfs_scrub_bmap_cow,
 	},
 	[XFS_SCRUB_TYPE_DIR] = {	/* directory */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_directory,
 		.scrub	= xfs_scrub_directory,
 	},
 	[XFS_SCRUB_TYPE_XATTR] = {	/* extended attributes */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_xattr,
 		.scrub	= xfs_scrub_xattr,
 	},
 	[XFS_SCRUB_TYPE_SYMLINK] = {	/* symbolic link */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_symlink,
 		.scrub	= xfs_scrub_symlink,
 	},
 	[XFS_SCRUB_TYPE_PARENT] = {	/* parent pointers */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_parent,
 		.scrub	= xfs_scrub_parent,
 	},
 	[XFS_SCRUB_TYPE_RTBITMAP] = {	/* realtime bitmap */
+		.type	= ST_FS,
 		.setup	= xfs_scrub_setup_rt,
 		.scrub	= xfs_scrub_rtbitmap,
 		.has	= xfs_sb_version_hasrealtime,
 	},
 	[XFS_SCRUB_TYPE_RTSUM] = {	/* realtime summary */
+		.type	= ST_FS,
 		.setup	= xfs_scrub_setup_rt,
 		.scrub	= xfs_scrub_rtsummary,
 		.has	= xfs_sb_version_hasrealtime,
 	},
 	[XFS_SCRUB_TYPE_UQUOTA] = {	/* user quota */
-		.setup = xfs_scrub_setup_quota,
-		.scrub = xfs_scrub_quota,
+		.type	= ST_FS,
+		.setup	= xfs_scrub_setup_quota,
+		.scrub	= xfs_scrub_quota,
 	},
 	[XFS_SCRUB_TYPE_GQUOTA] = {	/* group quota */
-		.setup = xfs_scrub_setup_quota,
-		.scrub = xfs_scrub_quota,
+		.type	= ST_FS,
+		.setup	= xfs_scrub_setup_quota,
+		.scrub	= xfs_scrub_quota,
 	},
 	[XFS_SCRUB_TYPE_PQUOTA] = {	/* project quota */
-		.setup = xfs_scrub_setup_quota,
-		.scrub = xfs_scrub_quota,
+		.type	= ST_FS,
+		.setup	= xfs_scrub_setup_quota,
+		.scrub	= xfs_scrub_quota,
 	},
 };
 
@@ -297,6 +319,7 @@ xfs_scrub_validate_inputs(
 	sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
 	if (sm->sm_flags & ~XFS_SCRUB_FLAGS_IN)
 		goto out;
+	/* sm_reserved[] must be zero */
 	if (memchr_inv(sm->sm_reserved, 0, sizeof(sm->sm_reserved)))
 		goto out;
 
@@ -310,6 +333,27 @@ xfs_scrub_validate_inputs(
 	/* Does this fs even support this type of metadata? */
 	if (ops->has && !ops->has(&mp->m_sb))
 		goto out;
+
+	error = -EINVAL;
+	/* restricting fields must be appropriate for type */
+	switch (ops->type) {
+	case ST_NONE:
+	case ST_FS:
+		if (sm->sm_ino || sm->sm_gen || sm->sm_agno)
+			goto out;
+		break;
+	case ST_PERAG:
+		if (sm->sm_ino || sm->sm_gen ||
+		    sm->sm_agno >= mp->m_sb.sb_agcount)
+			goto out;
+		break;
+	case ST_INODE:
+		if (sm->sm_agno || (sm->sm_gen && !sm->sm_ino))
+			goto out;
+		break;
+	default:
+		goto out;
+	}
 
 	error = -EOPNOTSUPP;
 	/*

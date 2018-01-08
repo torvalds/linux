@@ -37,23 +37,6 @@
 #include "scrub/common.h"
 #include "scrub/trace.h"
 
-/*
- * Set up scrub to check all the static metadata in each AG.
- * This means the SB, AGF, AGI, and AGFL headers.
- */
-int
-xfs_scrub_setup_ag_header(
-	struct xfs_scrub_context	*sc,
-	struct xfs_inode		*ip)
-{
-	struct xfs_mount		*mp = sc->mp;
-
-	if (sc->sm->sm_agno >= mp->m_sb.sb_agcount ||
-	    sc->sm->sm_ino || sc->sm->sm_gen)
-		return -EINVAL;
-	return xfs_scrub_setup_fs(sc, ip);
-}
-
 /* Walk all the blocks in the AGFL. */
 int
 xfs_scrub_walk_agfl(

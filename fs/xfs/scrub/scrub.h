@@ -22,6 +22,14 @@
 
 struct xfs_scrub_context;
 
+/* Type info and names for the scrub types. */
+enum xfs_scrub_type {
+	ST_NONE = 1,	/* disabled */
+	ST_PERAG,	/* per-AG metadata */
+	ST_FS,		/* per-FS metadata */
+	ST_INODE,	/* per-inode metadata */
+};
+
 struct xfs_scrub_meta_ops {
 	/* Acquire whatever resources are needed for the operation. */
 	int		(*setup)(struct xfs_scrub_context *,
@@ -32,6 +40,9 @@ struct xfs_scrub_meta_ops {
 
 	/* Decide if we even have this piece of metadata. */
 	bool		(*has)(struct xfs_sb *);
+
+	/* type describing required/allowed inputs */
+	enum xfs_scrub_type	type;
 };
 
 /* Buffer pointers and btree cursors for an entire AG. */

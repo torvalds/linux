@@ -78,8 +78,6 @@ int xfs_scrub_checkpoint_log(struct xfs_mount *mp);
 
 /* Setup functions */
 int xfs_scrub_setup_fs(struct xfs_scrub_context *sc, struct xfs_inode *ip);
-int xfs_scrub_setup_ag_header(struct xfs_scrub_context *sc,
-			      struct xfs_inode *ip);
 int xfs_scrub_setup_ag_allocbt(struct xfs_scrub_context *sc,
 			       struct xfs_inode *ip);
 int xfs_scrub_setup_ag_iallocbt(struct xfs_scrub_context *sc,

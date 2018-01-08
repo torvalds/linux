@@ -472,7 +472,7 @@ xfs_scrub_setup_ag_btree(
 			return error;
 	}
 
-	error = xfs_scrub_setup_ag_header(sc, ip);
+	error = xfs_scrub_setup_fs(sc, ip);
 	if (error)
 		return error;
 
@@ -506,14 +506,6 @@ xfs_scrub_get_inode(
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_inode		*ip = NULL;
 	int				error;
-
-	/*
-	 * If userspace passed us an AG number or a generation number
-	 * without an inode number, they haven't got a clue so bail out
-	 * immediately.
-	 */
-	if (sc->sm->sm_agno || (sc->sm->sm_gen && !sc->sm->sm_ino))
-		return -EINVAL;
 
 	/* We want to scan the inode we already had opened. */
 	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
