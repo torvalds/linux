@@ -392,6 +392,14 @@ xfs_scrub_dinode(
 		break;
 	}
 
+	/* di_[amc]time.nsec */
+	if (be32_to_cpu(dip->di_atime.t_nsec) >= NSEC_PER_SEC)
+		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+	if (be32_to_cpu(dip->di_mtime.t_nsec) >= NSEC_PER_SEC)
+		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+	if (be32_to_cpu(dip->di_ctime.t_nsec) >= NSEC_PER_SEC)
+		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+
 	/*
 	 * di_size.  xfs_dinode_verify checks for things that screw up
 	 * the VFS such as the upper bit being set and zero-length
@@ -495,6 +503,8 @@ xfs_scrub_dinode(
 	}
 
 	if (dip->di_version >= 3) {
+		if (be32_to_cpu(dip->di_crtime.t_nsec) >= NSEC_PER_SEC)
+			xfs_scrub_ino_set_corrupt(sc, ino, bp);
 		xfs_scrub_inode_flags2(sc, bp, dip, ino, mode, flags, flags2);
 		xfs_scrub_inode_cowextsize(sc, bp, dip, ino, mode, flags,
 				flags2);
