@@ -61,7 +61,7 @@ static irqreturn_t hts221_trigger_handler_thread(int irq, void *private)
 	if (err < 0)
 		return IRQ_HANDLED;
 
-	/* 
+	/*
 	 * H_DA bit (humidity data available) is routed to DRDY line.
 	 * Humidity sample is computed after temperature one.
 	 * Here we can assume data channels are both available if H_DA bit
