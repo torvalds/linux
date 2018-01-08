@@ -442,15 +442,13 @@ static void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct sk_buff *skb)
 			vid = ntohs(((struct fip_vlan_desc *)desc)->fd_vlan);
 			shost_printk(KERN_INFO, fnic->lport->host,
 				  "process_vlan_resp: FIP VLAN %d\n", vid);
-			vlan = kmalloc(sizeof(*vlan),
-							GFP_ATOMIC);
+			vlan = kzalloc(sizeof(*vlan), GFP_ATOMIC);
 			if (!vlan) {
 				/* retry from timer */
 				spin_unlock_irqrestore(&fnic->vlans_lock,
 							flags);
 				goto out;
 			}
-			memset(vlan, 0, sizeof(struct fcoe_vlan));
 			vlan->vid = vid & 0x0fff;
 			vlan->state = FIP_VLAN_AVAIL;
 			list_add_tail(&vlan->list, &fnic->vlans);
