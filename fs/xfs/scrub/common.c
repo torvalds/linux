@@ -302,7 +302,7 @@ xfs_scrub_ag_read_headers(
 	error = xfs_alloc_read_agfl(mp, sc->tp, agno, agfl);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
 		goto out;
-
+	error = 0;
 out:
 	return error;
 }
