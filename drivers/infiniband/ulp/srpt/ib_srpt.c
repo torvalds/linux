@@ -764,15 +764,10 @@ static enum srpt_command_state srpt_set_cmd_state(struct srpt_send_ioctx *ioctx,
 						  enum srpt_command_state new)
 {
 	enum srpt_command_state previous;
-	unsigned long flags;
 
-	BUG_ON(!ioctx);
-
-	spin_lock_irqsave(&ioctx->spinlock, flags);
 	previous = ioctx->state;
 	if (previous != SRPT_STATE_DONE)
 		ioctx->state = new;
-	spin_unlock_irqrestore(&ioctx->spinlock, flags);
 
 	return previous;
 }
@@ -790,17 +785,15 @@ static bool srpt_test_and_set_cmd_state(struct srpt_send_ioctx *ioctx,
 					enum srpt_command_state new)
 {
 	enum srpt_command_state previous;
-	unsigned long flags;
 
 	WARN_ON(!ioctx);
 	WARN_ON(old == SRPT_STATE_DONE);
 	WARN_ON(new == SRPT_STATE_NEW);
 
-	spin_lock_irqsave(&ioctx->spinlock, flags);
 	previous = ioctx->state;
 	if (previous == old)
 		ioctx->state = new;
-	spin_unlock_irqrestore(&ioctx->spinlock, flags);
+
 	return previous == old;
 }
 
@@ -1170,7 +1163,6 @@ static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 		return ioctx;
 
 	BUG_ON(ioctx->ch != ch);
-	spin_lock_init(&ioctx->spinlock);
 	ioctx->state = SRPT_STATE_NEW;
 	ioctx->n_rdma = 0;
 	ioctx->n_rw_ctx = 0;
@@ -1192,7 +1184,6 @@ static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 {
 	enum srpt_command_state state;
-	unsigned long flags;
 
 	BUG_ON(!ioctx);
 
@@ -1201,7 +1192,6 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	 * the ib_srpt driver, change the state to the next state.
 	 */
 
-	spin_lock_irqsave(&ioctx->spinlock, flags);
 	state = ioctx->state;
 	switch (state) {
 	case SRPT_STATE_NEED_DATA:
@@ -1216,7 +1206,6 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 			  __func__, state);
 		break;
 	}
-	spin_unlock_irqrestore(&ioctx->spinlock, flags);
 
 	pr_debug("Aborting cmd with state %d -> %d and tag %lld\n", state,
 		 ioctx->state, ioctx->cmd.tag);
@@ -2431,13 +2420,11 @@ static void srpt_queue_response(struct se_cmd *cmd)
 	struct ib_send_wr send_wr, *first_wr = &send_wr, *bad_wr;
 	struct ib_sge sge;
 	enum srpt_command_state state;
-	unsigned long flags;
 	int resp_len, ret, i;
 	u8 srp_tm_status;
 
 	BUG_ON(!ch);
 
-	spin_lock_irqsave(&ioctx->spinlock, flags);
 	state = ioctx->state;
 	switch (state) {
 	case SRPT_STATE_NEW:
@@ -2452,7 +2439,6 @@ static void srpt_queue_response(struct se_cmd *cmd)
 			ch, ioctx->ioctx.index, ioctx->state);
 		break;
 	}
-	spin_unlock_irqrestore(&ioctx->spinlock, flags);
 
 	if (unlikely(WARN_ON_ONCE(state == SRPT_STATE_CMD_RSP_SENT)))
 		return;

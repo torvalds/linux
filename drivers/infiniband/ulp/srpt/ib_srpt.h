@@ -195,7 +195,6 @@ struct srpt_rw_ctx {
  * @rw_ctxs:     RDMA read/write contexts.
  * @rdma_cqe:    RDMA completion queue element.
  * @free_list:   Node in srpt_rdma_ch.free_list.
- * @spinlock:    Protects 'state'.
  * @state:       I/O context state.
  * @cmd:         Target core command data structure.
  * @sense_data:  SCSI sense data.
@@ -213,7 +212,6 @@ struct srpt_send_ioctx {
 
 	struct ib_cqe		rdma_cqe;
 	struct list_head	free_list;
-	spinlock_t		spinlock;
 	enum srpt_command_state	state;
 	struct se_cmd		cmd;
 	u8			n_rdma;
