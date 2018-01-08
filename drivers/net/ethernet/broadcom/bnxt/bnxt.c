@@ -2247,6 +2247,9 @@ static void bnxt_free_rx_rings(struct bnxt *bp)
 		if (rxr->xdp_prog)
 			bpf_prog_put(rxr->xdp_prog);
 
+		if (xdp_rxq_info_is_reg(&rxr->xdp_rxq))
+			xdp_rxq_info_unreg(&rxr->xdp_rxq);
+
 		kfree(rxr->rx_tpa);
 		rxr->rx_tpa = NULL;
 
@@ -2279,6 +2282,10 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 		struct bnxt_ring_struct *ring;
 
 		ring = &rxr->rx_ring_struct;
+
+		rc = xdp_rxq_info_reg(&rxr->xdp_rxq, bp->dev, i);
+		if (rc < 0)
+			return rc;
 
 		rc = bnxt_alloc_ring(bp, ring);
 		if (rc)
@@ -2834,6 +2841,9 @@ void bnxt_set_ring_params(struct bnxt *bp)
 	bp->cp_ring_mask = bp->cp_bit - 1;
 }
 
+/* Changing allocation mode of RX rings.
+ * TODO: Update when extending xdp_rxq_info to support allocation modes.
+ */
 int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode)
 {
 	if (page_mode) {

@@ -44,7 +44,9 @@
 #include <unistd.h>
 #include <linux/limits.h>
 #include <linux/magic.h>
+#include <net/if.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
 
@@ -411,4 +413,54 @@ void delete_pinned_obj_table(struct pinned_obj_table *tab)
 		free(obj->path);
 		free(obj);
 	}
+}
+
+static char *
+ifindex_to_name_ns(__u32 ifindex, __u32 ns_dev, __u32 ns_ino, char *buf)
+{
+	struct stat st;
+	int err;
+
+	err = stat("/proc/self/ns/net", &st);
+	if (err) {
+		p_err("Can't stat /proc/self: %s", strerror(errno));
+		return NULL;
+	}
+
+	if (st.st_dev != ns_dev || st.st_ino != ns_ino)
+		return NULL;
+
+	return if_indextoname(ifindex, buf);
+}
+
+void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
+{
+	char name[IF_NAMESIZE];
+
+	if (!ifindex)
+		return;
+
+	printf(" dev ");
+	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
+		printf("%s", name);
+	else
+		printf("ifindex %u ns_dev %llu ns_ino %llu",
+		       ifindex, ns_dev, ns_inode);
+}
+
+void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
+{
+	char name[IF_NAMESIZE];
+
+	if (!ifindex)
+		return;
+
+	jsonw_name(json_wtr, "dev");
+	jsonw_start_object(json_wtr);
+	jsonw_uint_field(json_wtr, "ifindex", ifindex);
+	jsonw_uint_field(json_wtr, "ns_dev", ns_dev);
+	jsonw_uint_field(json_wtr, "ns_inode", ns_inode);
+	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
+		jsonw_string_field(json_wtr, "ifname", name);
+	jsonw_end_object(json_wtr);
 }

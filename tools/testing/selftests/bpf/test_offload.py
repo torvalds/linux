@@ -18,6 +18,8 @@ import argparse
 import json
 import os
 import pprint
+import random
+import string
 import subprocess
 import time
 
@@ -27,6 +29,7 @@ bpf_test_dir = os.path.dirname(os.path.realpath(__file__))
 pp = pprint.PrettyPrinter()
 devs = [] # devices we created for clean up
 files = [] # files to be removed
+netns = [] # net namespaces to be removed
 
 def log_get_sec(level=0):
     return "*" * (log_level + level)
@@ -128,22 +131,25 @@ def rm(f):
     if f in files:
         files.remove(f)
 
-def tool(name, args, flags, JSON=True, fail=True):
+def tool(name, args, flags, JSON=True, ns="", fail=True):
     params = ""
     if JSON:
         params += "%s " % (flags["json"])
 
-    ret, out = cmd(name + " " + params + args, fail=fail)
+    if ns != "":
+        ns = "ip netns exec %s " % (ns)
+
+    ret, out = cmd(ns + name + " " + params + args, fail=fail)
     if JSON and len(out.strip()) != 0:
         return ret, json.loads(out)
     else:
         return ret, out
 
-def bpftool(args, JSON=True, fail=True):
-    return tool("bpftool", args, {"json":"-p"}, JSON=JSON, fail=fail)
+def bpftool(args, JSON=True, ns="", fail=True):
+    return tool("bpftool", args, {"json":"-p"}, JSON=JSON, ns=ns, fail=fail)
 
-def bpftool_prog_list(expected=None):
-    _, progs = bpftool("prog show", JSON=True, fail=True)
+def bpftool_prog_list(expected=None, ns=""):
+    _, progs = bpftool("prog show", JSON=True, ns=ns, fail=True)
     if expected is not None:
         if len(progs) != expected:
             fail(True, "%d BPF programs loaded, expected %d" %
@@ -158,13 +164,13 @@ def bpftool_prog_list_wait(expected=0, n_retry=20):
         time.sleep(0.05)
     raise Exception("Time out waiting for program counts to stabilize want %d, have %d" % (expected, nprogs))
 
-def ip(args, force=False, JSON=True, fail=True):
+def ip(args, force=False, JSON=True, ns="", fail=True):
     if force:
         args = "-force " + args
-    return tool("ip", args, {"json":"-j"}, JSON=JSON, fail=fail)
+    return tool("ip", args, {"json":"-j"}, JSON=JSON, ns=ns, fail=fail)
 
-def tc(args, JSON=True, fail=True):
-    return tool("tc", args, {"json":"-p"}, JSON=JSON, fail=fail)
+def tc(args, JSON=True, ns="", fail=True):
+    return tool("tc", args, {"json":"-p"}, JSON=JSON, ns=ns, fail=fail)
 
 def ethtool(dev, opt, args, fail=True):
     return cmd("ethtool %s %s %s" % (opt, dev["ifname"], args), fail=fail)
@@ -177,6 +183,15 @@ def bpf_pinned(name):
 
 def bpf_bytecode(bytecode):
     return "bytecode \"%s\"" % (bytecode)
+
+def mknetns(n_retry=10):
+    for i in range(n_retry):
+        name = ''.join([random.choice(string.ascii_letters) for i in range(8)])
+        ret, _ = ip("netns add %s" % (name), fail=False)
+        if ret == 0:
+            netns.append(name)
+            return name
+    return None
 
 class DebugfsDir:
     """
@@ -237,6 +252,8 @@ class NetdevSim:
         self.dev = self._netdevsim_create()
         devs.append(self)
 
+        self.ns = ""
+
         self.dfs_dir = '/sys/kernel/debug/netdevsim/%s' % (self.dev['ifname'])
         self.dfs_refresh()
 
@@ -257,7 +274,7 @@ class NetdevSim:
 
     def remove(self):
         devs.remove(self)
-        ip("link del dev %s" % (self.dev["ifname"]))
+        ip("link del dev %s" % (self.dev["ifname"]), ns=self.ns)
 
     def dfs_refresh(self):
         self.dfs = DebugfsDir(self.dfs_dir)
@@ -284,6 +301,11 @@ class NetdevSim:
                 return
             time.sleep(0.05)
         raise Exception("Time out waiting for program counts to stabilize want %d/%d, have %d bound, %d loaded" % (bound, total, nbound, nprogs))
+
+    def set_ns(self, ns):
+        name = "1" if ns == "" else ns
+        ip("link set dev %s netns %s" % (self.dev["ifname"], name), ns=self.ns)
+        self.ns = ns
 
     def set_mtu(self, mtu, fail=True):
         return ip("link set dev %s mtu %d" % (self.dev["ifname"], mtu),
@@ -372,6 +394,8 @@ def clean_up():
         dev.remove()
     for f in files:
         cmd("rm -f %s" % (f))
+    for ns in netns:
+        cmd("ip netns delete %s" % (ns))
 
 def pin_prog(file_name, idx=0):
     progs = bpftool_prog_list(expected=(idx + 1))
@@ -380,6 +404,35 @@ def pin_prog(file_name, idx=0):
     files.append(file_name)
 
     return file_name, bpf_pinned(file_name)
+
+def check_dev_info(other_ns, ns, pin_file=None, removed=False):
+    if removed:
+        bpftool_prog_list(expected=0)
+        ret, err = bpftool("prog show pin %s" % (pin_file), fail=False)
+        fail(ret == 0, "Showing prog with removed device did not fail")
+        fail(err["error"].find("No such device") == -1,
+             "Showing prog with removed device expected ENODEV, error is %s" %
+             (err["error"]))
+        return
+    progs = bpftool_prog_list(expected=int(not removed), ns=ns)
+    prog = progs[0]
+
+    fail("dev" not in prog.keys(), "Device parameters not reported")
+    dev = prog["dev"]
+    fail("ifindex" not in dev.keys(), "Device parameters not reported")
+    fail("ns_dev" not in dev.keys(), "Device parameters not reported")
+    fail("ns_inode" not in dev.keys(), "Device parameters not reported")
+
+    if not removed and not other_ns:
+        fail("ifname" not in dev.keys(), "Ifname not reported")
+        fail(dev["ifname"] != sim["ifname"],
+             "Ifname incorrect %s vs %s" % (dev["ifname"], sim["ifname"]))
+    else:
+        fail("ifname" in dev.keys(), "Ifname is reported for other ns")
+        if removed:
+            fail(dev["ifindex"] != 0, "Device perameters not zero on removed")
+            fail(dev["ns_dev"] != 0, "Device perameters not zero on removed")
+            fail(dev["ns_inode"] != 0, "Device perameters not zero on removed")
 
 # Parse command line
 parser = argparse.ArgumentParser()
@@ -416,6 +469,12 @@ for s in samples:
     ret, out = cmd("ls %s/%s" % (bpf_test_dir, s), fail=False)
     skip(ret != 0, "sample %s/%s not found, please compile it" %
          (bpf_test_dir, s))
+
+# Check if net namespaces seem to work
+ns = mknetns()
+skip(ns is None, "Could not create a net namespace")
+cmd("ip netns delete %s" % (ns))
+netns = []
 
 try:
     obj = bpf_obj("sample_ret0.o")
@@ -549,6 +608,8 @@ try:
     progs = bpftool_prog_list(expected=1)
     fail(ipl["xdp"]["prog"]["id"] != progs[0]["id"],
          "Loaded program has wrong ID")
+    fail("dev" in progs[0].keys(),
+         "Device parameters reported for non-offloaded program")
 
     start_test("Test XDP prog replace with bad flags...")
     ret, _ = sim.set_xdp(obj, "offload", force=True, fail=False)
@@ -672,6 +733,35 @@ try:
     delay_sec = delay_msec * 0.001
     fail(time_diff < delay_sec, "Removal process took %s, expected %s" %
          (time_diff, delay_sec))
+
+    # Remove all pinned files and reinstantiate the netdev
+    clean_up()
+    bpftool_prog_list_wait(expected=0)
+
+    sim = NetdevSim()
+    sim.set_ethtool_tc_offloads(True)
+    sim.set_xdp(obj, "offload")
+
+    start_test("Test bpftool bound info reporting (own ns)...")
+    check_dev_info(False, "")
+
+    start_test("Test bpftool bound info reporting (other ns)...")
+    ns = mknetns()
+    sim.set_ns(ns)
+    check_dev_info(True, "")
+
+    start_test("Test bpftool bound info reporting (remote ns)...")
+    check_dev_info(False, ns)
+
+    start_test("Test bpftool bound info reporting (back to own ns)...")
+    sim.set_ns("")
+    check_dev_info(False, "")
+
+    pin_file, _ = pin_prog("/sys/fs/bpf/tmp")
+    sim.remove()
+
+    start_test("Test bpftool bound info reporting (removed dev)...")
+    check_dev_info(True, "", pin_file=pin_file, removed=True)
 
     print("%s: OK" % (os.path.basename(__file__)))
 

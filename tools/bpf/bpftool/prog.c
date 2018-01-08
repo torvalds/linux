@@ -230,6 +230,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		     info->tag[0], info->tag[1], info->tag[2], info->tag[3],
 		     info->tag[4], info->tag[5], info->tag[6], info->tag[7]);
 
+	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
+
 	if (info->load_time) {
 		char buf[32];
 
@@ -287,6 +289,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
+	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
 	printf("\n");
 
 	if (info->load_time) {
@@ -810,12 +813,12 @@ static int do_load(int argc, char **argv)
 		usage();
 
 	if (bpf_prog_load(argv[0], BPF_PROG_TYPE_UNSPEC, &obj, &prog_fd)) {
-		p_err("failed to load program\n");
+		p_err("failed to load program");
 		return -1;
 	}
 
 	if (do_pin_fd(prog_fd, argv[1])) {
-		p_err("failed to pin program\n");
+		p_err("failed to pin program");
 		return -1;
 	}
 
@@ -833,7 +836,7 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s show [PROG]\n"
+		"Usage: %s %s { show | list } [PROG]\n"
 		"       %s %s dump xlated PROG [{ file FILE | opcodes }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
@@ -851,6 +854,7 @@ static int do_help(int argc, char **argv)
 
 static const struct cmd cmds[] = {
 	{ "show",	do_show },
+	{ "list",	do_show },
 	{ "help",	do_help },
 	{ "dump",	do_dump },
 	{ "pin",	do_pin },

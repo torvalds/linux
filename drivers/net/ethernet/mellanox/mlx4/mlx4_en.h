@@ -46,6 +46,7 @@
 #endif
 #include <linux/cpu_rmap.h>
 #include <linux/ptp_clock_kernel.h>
+#include <net/xdp.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/qp.h>
@@ -356,6 +357,7 @@ struct mlx4_en_rx_ring {
 	unsigned long dropped;
 	int hwtstamp_rx_filter;
 	cpumask_var_t affinity_mask;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct mlx4_en_cq {
@@ -720,7 +722,7 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev);
 void mlx4_en_recover_from_oom(struct mlx4_en_priv *priv);
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring **pring,
-			   u32 size, u16 stride, int node);
+			   u32 size, u16 stride, int node, int queue_index);
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_rx_ring **pring,
 			     u32 size, u16 stride);

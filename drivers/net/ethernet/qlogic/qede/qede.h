@@ -40,6 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/bpf.h>
+#include <net/xdp.h>
 #include <linux/qed/qede_rdma.h>
 #include <linux/io.h>
 #ifdef CONFIG_RFS_ACCEL
@@ -345,6 +346,7 @@ struct qede_rx_queue {
 	u64 xdp_no_pass;
 
 	void *handle;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 union db_prod {
