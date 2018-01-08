@@ -585,7 +585,7 @@ _xfs_buf_find(
 		 * returning a specific error on buffer lookup failures.
 		 */
 		xfs_alert(btp->bt_mount,
-			  "%s: Block out of range: block 0x%llx, EOFS 0x%llx ",
+			  "%s: daddr 0x%llx out of range, EOFS 0x%llx",
 			  __func__, cmap.bm_bn, eofs);
 		WARN_ON(1);
 		return NULL;
@@ -1196,8 +1196,9 @@ xfs_buf_ioerror_alert(
 	const char		*func)
 {
 	xfs_alert(bp->b_target->bt_mount,
-"metadata I/O error: block 0x%llx (\"%s\") error %d numblks %d",
-		(uint64_t)XFS_BUF_ADDR(bp), func, -bp->b_error, bp->b_length);
+"metadata I/O error in \"%s\" at daddr 0x%llx len %d error %d",
+			func, (uint64_t)XFS_BUF_ADDR(bp), bp->b_length,
+			-bp->b_error);
 }
 
 int
@@ -1379,7 +1380,7 @@ _xfs_buf_ioapply(
 			 */
 			if (xfs_sb_version_hascrc(&mp->m_sb)) {
 				xfs_warn(mp,
-					"%s: no ops on block 0x%llx/0x%x",
+					"%s: no buf ops on daddr 0x%llx len %d",
 					__func__, bp->b_bn, bp->b_length);
 				xfs_hex_dump(bp->b_addr,
 						XFS_CORRUPTION_DUMP_LEN);
@@ -1673,7 +1674,7 @@ xfs_wait_buftarg(
 			list_del_init(&bp->b_lru);
 			if (bp->b_flags & XBF_WRITE_FAIL) {
 				xfs_alert(btp->bt_mount,
-"Corruption Alert: Buffer at block 0x%llx had permanent write failures!",
+"Corruption Alert: Buffer at daddr 0x%llx had permanent write failures!",
 					(long long)bp->b_bn);
 				xfs_alert(btp->bt_mount,
 "Please run xfs_repair to determine the extent of the problem.");
