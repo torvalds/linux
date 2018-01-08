@@ -45,6 +45,7 @@
 #include <linux/fsmap.h>
 #include "xfs_fsmap.h"
 #include "scrub/xfs_scrub.h"
+#include "xfs_sb.h"
 
 #include <linux/capability.h>
 #include <linux/cred.h>
