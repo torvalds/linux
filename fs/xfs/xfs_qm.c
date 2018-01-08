@@ -291,8 +291,7 @@ xfs_qm_dqattach_one(
 	 * exist on disk and we didn't ask it to allocate; ESRCH if quotas got
 	 * turned off suddenly.
 	 */
-	error = xfs_qm_dqget(ip->i_mount, ip, id, type,
-			     doalloc | XFS_QMOPT_DOWARN, &dqp);
+	error = xfs_qm_dqget(ip->i_mount, ip, id, type, doalloc, &dqp);
 	if (error)
 		return error;
 
@@ -574,7 +573,7 @@ xfs_qm_set_defquota(
 	struct xfs_def_quota    *defq;
 	int			error;
 
-	error = xfs_qm_dqread(mp, 0, type, XFS_QMOPT_DOWARN, &dqp);
+	error = xfs_qm_dqread(mp, 0, type, 0, &dqp);
 
 	if (!error) {
 		xfs_disk_dquot_t        *ddqp = &dqp->q_core;
@@ -652,7 +651,7 @@ xfs_qm_init_quotainfo(
 			XFS_IS_UQUOTA_RUNNING(mp) ? XFS_DQ_USER :
 			 (XFS_IS_GQUOTA_RUNNING(mp) ? XFS_DQ_GROUP :
 			  XFS_DQ_PROJ),
-			XFS_QMOPT_DOWARN, &dqp);
+			0, &dqp);
 
 	if (!error) {
 		xfs_disk_dquot_t	*ddqp = &dqp->q_core;
@@ -843,7 +842,7 @@ xfs_qm_reset_dqcounts(
 {
 	struct xfs_dqblk	*dqb;
 	int			j;
-	int			error;
+	xfs_failaddr_t		fa;
 
 	trace_xfs_reset_dqcounts(bp, _RET_IP_);
 
@@ -865,10 +864,11 @@ xfs_qm_reset_dqcounts(
 		/*
 		 * Do a sanity check, and if needed, repair the dqblk. Don't
 		 * output any warnings because it's perfectly possible to
-		 * find uninitialised dquot blks. See comment in xfs_dqcheck.
+		 * find uninitialised dquot blks. See comment in
+		 * xfs_dquot_verify.
 		 */
-		error = xfs_dqcheck(mp, ddq, id+j, type, 0, "xfs_quotacheck");
-		if (error)
+		fa = xfs_dquot_verify(mp, ddq, id + j, type, 0);
+		if (fa)
 			xfs_dquot_repair(mp, ddq, id + j, type);
 
 		/*
@@ -1077,8 +1077,7 @@ xfs_qm_quotacheck_dqadjust(
 	struct xfs_dquot	*dqp;
 	int			error;
 
-	error = xfs_qm_dqget(mp, ip, id, type,
-			     XFS_QMOPT_DQALLOC | XFS_QMOPT_DOWARN, &dqp);
+	error = xfs_qm_dqget(mp, ip, id, type, XFS_QMOPT_DQALLOC, &dqp);
 	if (error) {
 		/*
 		 * Shouldn't be able to turn off quotas here.
@@ -1699,8 +1698,7 @@ xfs_qm_vop_dqalloc(
 			xfs_iunlock(ip, lockflags);
 			error = xfs_qm_dqget(mp, NULL, uid,
 						 XFS_DQ_USER,
-						 XFS_QMOPT_DQALLOC |
-						 XFS_QMOPT_DOWARN,
+						 XFS_QMOPT_DQALLOC,
 						 &uq);
 			if (error) {
 				ASSERT(error != -ENOENT);
@@ -1726,8 +1724,7 @@ xfs_qm_vop_dqalloc(
 			xfs_iunlock(ip, lockflags);
 			error = xfs_qm_dqget(mp, NULL, gid,
 						 XFS_DQ_GROUP,
-						 XFS_QMOPT_DQALLOC |
-						 XFS_QMOPT_DOWARN,
+						 XFS_QMOPT_DQALLOC,
 						 &gq);
 			if (error) {
 				ASSERT(error != -ENOENT);
@@ -1746,8 +1743,7 @@ xfs_qm_vop_dqalloc(
 			xfs_iunlock(ip, lockflags);
 			error = xfs_qm_dqget(mp, NULL, (xfs_dqid_t)prid,
 						 XFS_DQ_PROJ,
-						 XFS_QMOPT_DQALLOC |
-						 XFS_QMOPT_DOWARN,
+						 XFS_QMOPT_DQALLOC,
 						 &pq);
 			if (error) {
 				ASSERT(error != -ENOENT);
