@@ -14,7 +14,6 @@
 #include <linux/iio/sysfs.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <asm/unaligned.h>
 #include <linux/regmap.h>
 #include <linux/bitfield.h>
 
@@ -406,7 +405,7 @@ static int hts221_get_sensor_offset(struct hts221_hw *hw,
 
 static int hts221_read_oneshot(struct hts221_hw *hw, u8 addr, int *val)
 {
-	u8 data[HTS221_DATA_SIZE];
+	__le16 data;
 	int err;
 
 	err = hts221_set_enable(hw, true);
@@ -415,13 +414,13 @@ static int hts221_read_oneshot(struct hts221_hw *hw, u8 addr, int *val)
 
 	msleep(50);
 
-	err = regmap_bulk_read(hw->regmap, addr, data, sizeof(data));
+	err = regmap_bulk_read(hw->regmap, addr, &data, sizeof(data));
 	if (err < 0)
 		return err;
 
 	hts221_set_enable(hw, false);
 
-	*val = (s16)get_unaligned_le16(data);
+	*val = (s16)le16_to_cpu(data);
 
 	return IIO_VAL_INT;
 }
