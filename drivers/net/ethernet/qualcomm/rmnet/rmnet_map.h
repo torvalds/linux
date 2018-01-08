@@ -47,6 +47,22 @@ struct rmnet_map_header {
 	u16 pkt_len;
 }  __aligned(1);
 
+struct rmnet_map_dl_csum_trailer {
+	u8  reserved1;
+	u8  valid:1;
+	u8  reserved2:7;
+	u16 csum_start_offset;
+	u16 csum_length;
+	__be16 csum_value;
+} __aligned(1);
+
+struct rmnet_map_ul_csum_header {
+	__be16 csum_start_offset;
+	u16 csum_insert_offset:14;
+	u16 udp_ip4_ind:1;
+	u16 csum_enabled:1;
+} __aligned(1);
+
 #define RMNET_MAP_GET_MUX_ID(Y) (((struct rmnet_map_header *) \
 				 (Y)->data)->mux_id)
 #define RMNET_MAP_GET_CD_BIT(Y) (((struct rmnet_map_header *) \
@@ -67,10 +83,13 @@ struct rmnet_map_header {
 #define RMNET_MAP_NO_PAD_BYTES        0
 #define RMNET_MAP_ADD_PAD_BYTES       1
 
-u8 rmnet_map_demultiplex(struct sk_buff *skb);
-struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb);
+struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
+				      struct rmnet_port *port);
 struct rmnet_map_header *rmnet_map_add_map_header(struct sk_buff *skb,
 						  int hdrlen, int pad);
 void rmnet_map_command(struct sk_buff *skb, struct rmnet_port *port);
+int rmnet_map_checksum_downlink_packet(struct sk_buff *skb, u16 len);
+void rmnet_map_checksum_uplink_packet(struct sk_buff *skb,
+				      struct net_device *orig_dev);
 
 #endif /* _RMNET_MAP_H_ */

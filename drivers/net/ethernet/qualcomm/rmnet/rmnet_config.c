@@ -143,7 +143,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[],
 			 struct netlink_ext_ack *extack)
 {
-	int ingress_format = RMNET_INGRESS_FORMAT_DEAGGREGATION;
+	u32 data_format = RMNET_INGRESS_FORMAT_DEAGGREGATION;
 	struct net_device *real_dev;
 	int mode = RMNET_EPMODE_VND;
 	struct rmnet_endpoint *ep;
@@ -185,11 +185,11 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 		struct ifla_vlan_flags *flags;
 
 		flags = nla_data(data[IFLA_VLAN_FLAGS]);
-		ingress_format = flags->flags & flags->mask;
+		data_format = flags->flags & flags->mask;
 	}
 
-	netdev_dbg(dev, "data format [ingress 0x%08X]\n", ingress_format);
-	port->ingress_data_format = ingress_format;
+	netdev_dbg(dev, "data format [0x%08X]\n", data_format);
+	port->data_format = data_format;
 
 	return 0;
 
@@ -353,7 +353,7 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 		struct ifla_vlan_flags *flags;
 
 		flags = nla_data(data[IFLA_VLAN_FLAGS]);
-		port->ingress_data_format = flags->flags & flags->mask;
+		port->data_format = flags->flags & flags->mask;
 	}
 
 	return 0;
