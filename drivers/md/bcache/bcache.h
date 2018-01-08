@@ -320,6 +320,13 @@ struct cached_dev {
 	 */
 	atomic_t		has_dirty;
 
+	/*
+	 * Set to zero by things that touch the backing volume-- except
+	 * writeback.  Incremented by writeback.  Used to determine when to
+	 * accelerate idle writeback.
+	 */
+	atomic_t		backing_idle;
+
 	struct bch_ratelimit	writeback_rate;
 	struct delayed_work	writeback_rate_update;
 

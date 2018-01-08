@@ -356,6 +356,27 @@ static void read_dirty(struct cached_dev *dc)
 
 		delay = writeback_delay(dc, size);
 
+		/* If the control system would wait for at least half a
+		 * second, and there's been no reqs hitting the backing disk
+		 * for awhile: use an alternate mode where we have at most
+		 * one contiguous set of writebacks in flight at a time.  If
+		 * someone wants to do IO it will be quick, as it will only
+		 * have to contend with one operation in flight, and we'll
+		 * be round-tripping data to the backing disk as quickly as
+		 * it can accept it.
+		 */
+		if (delay >= HZ / 2) {
+			/* 3 means at least 1.5 seconds, up to 7.5 if we
+			 * have slowed way down.
+			 */
+			if (atomic_inc_return(&dc->backing_idle) >= 3) {
+				/* Wait for current I/Os to finish */
+				closure_sync(&cl);
+				/* And immediately launch a new set. */
+				delay = 0;
+			}
+		}
+
 		while (!kthread_should_stop() && delay) {
 			schedule_timeout_interruptible(delay);
 			delay = writeback_delay(dc, 0);
