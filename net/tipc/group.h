@@ -54,7 +54,7 @@ void tipc_group_filter_msg(struct tipc_group *grp,
 			   struct sk_buff_head *inputq,
 			   struct sk_buff_head *xmitq);
 void tipc_group_member_evt(struct tipc_group *grp, bool *wakeup,
-			   int *sk_rcvbuf, struct sk_buff *skb,
+			   int *sk_rcvbuf, struct tipc_msg *hdr,
 			   struct sk_buff_head *inputq,
 			   struct sk_buff_head *xmitq);
 void tipc_group_proto_rcv(struct tipc_group *grp, bool *wakeup,

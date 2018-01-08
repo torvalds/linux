@@ -1933,8 +1933,7 @@ static void tipc_sk_proto_rcv(struct sock *sk,
 		break;
 	case TOP_SRV:
 		tipc_group_member_evt(tsk->group, &wakeup, &sk->sk_rcvbuf,
-				      skb, inputq, xmitq);
-		skb = NULL;
+				      hdr, inputq, xmitq);
 		break;
 	default:
 		break;
