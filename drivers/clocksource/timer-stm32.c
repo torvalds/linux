@@ -85,7 +85,7 @@ static void __init stm32_clockevent_init(struct timer_of *to)
 	unsigned long max_delta;
 	int prescaler;
 
-	to->clkevt.name = "stm32_clockevent";
+	to->clkevt.name = to->np->full_name;
 	to->clkevt.features = CLOCK_EVT_FEAT_PERIODIC;
 	to->clkevt.set_state_shutdown = stm32_clock_event_shutdown;
 	to->clkevt.set_state_periodic = stm32_clock_event_set_periodic;
