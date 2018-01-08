@@ -132,44 +132,43 @@ xfs_calc_inode_res(
 }
 
 /*
- * The free inode btree is a conditional feature and the log reservation
- * requirements differ slightly from that of the traditional inode allocation
- * btree. The finobt tracks records for inode chunks with at least one free
- * inode. A record can be removed from the tree for an inode allocation
- * or free and thus the finobt reservation is unconditional across:
+ * Inode btree record insertion/removal modifies the inode btree and free space
+ * btrees (since the inobt does not use the agfl). This requires the following
+ * reservation:
  *
- * 	- inode allocation
- * 	- inode free
- * 	- inode chunk allocation
- *
- * The 'modify' param indicates to include the record modification scenario. The
- * 'alloc' param indicates to include the reservation for free space btree
- * modifications on behalf of finobt modifications. This is required only for
- * transactions that do not already account for free space btree modifications.
- *
- * the free inode btree: max depth * block size
+ * the inode btree: max depth * blocksize
  * the allocation btrees: 2 trees * (max depth - 1) * block size
- * the free inode btree entry: block size
+ *
+ * The caller must account for SB and AG header modifications, etc.
+ */
+STATIC uint
+xfs_calc_inobt_res(
+	struct xfs_mount	*mp)
+{
+	return xfs_calc_buf_res(mp->m_in_maxlevels, XFS_FSB_TO_B(mp, 1)) +
+		xfs_calc_buf_res(xfs_allocfree_log_count(mp, 1),
+				 XFS_FSB_TO_B(mp, 1));
+}
+
+/*
+ * The free inode btree is a conditional feature. The behavior differs slightly
+ * from that of the traditional inode btree in that the finobt tracks records
+ * for inode chunks with at least one free inode. A record can be removed from
+ * the tree during individual inode allocation. Therefore the finobt
+ * reservation is unconditional for both the inode chunk allocation and
+ * individual inode allocation (modify) cases.
+ *
+ * Behavior aside, the reservation for finobt modification is equivalent to the
+ * traditional inobt: cover a full finobt shape change plus block allocation.
  */
 STATIC uint
 xfs_calc_finobt_res(
-	struct xfs_mount	*mp,
-	int			alloc,
-	int			modify)
+	struct xfs_mount	*mp)
 {
-	uint res;
-
 	if (!xfs_sb_version_hasfinobt(&mp->m_sb))
 		return 0;
 
-	res = xfs_calc_buf_res(mp->m_in_maxlevels, XFS_FSB_TO_B(mp, 1));
-	if (alloc)
-		res += xfs_calc_buf_res(xfs_allocfree_log_count(mp, 1),
-					XFS_FSB_TO_B(mp, 1));
-	if (modify)
-		res += (uint)XFS_FSB_TO_B(mp, 1);
-
-	return res;
+	return xfs_calc_inobt_res(mp);
 }
 
 /*
@@ -373,7 +372,7 @@ xfs_calc_create_resv_modify(
 		xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
 		(uint)XFS_FSB_TO_B(mp, 1) +
 		xfs_calc_buf_res(XFS_DIROP_LOG_COUNT(mp), XFS_FSB_TO_B(mp, 1)) +
-		xfs_calc_finobt_res(mp, 1, 1);
+		xfs_calc_finobt_res(mp);
 }
 
 /*
@@ -381,8 +380,8 @@ xfs_calc_create_resv_modify(
  *    the agi and agf of the ag getting the new inodes: 2 * sectorsize
  *    the superblock for the nlink flag: sector size
  *    the inode blocks allocated: mp->m_ialloc_blks * blocksize
- *    the inode btree: max depth * blocksize
  *    the allocation btrees: 2 trees * (max depth - 1) * block size
+ *    the inode btree (record insertion)
  */
 STATIC uint
 xfs_calc_create_resv_alloc(
@@ -391,9 +390,9 @@ xfs_calc_create_resv_alloc(
 	return xfs_calc_buf_res(2, mp->m_sb.sb_sectsize) +
 		mp->m_sb.sb_sectsize +
 		xfs_calc_buf_res(mp->m_ialloc_blks, XFS_FSB_TO_B(mp, 1)) +
-		xfs_calc_buf_res(mp->m_in_maxlevels, XFS_FSB_TO_B(mp, 1)) +
 		xfs_calc_buf_res(xfs_allocfree_log_count(mp, 1),
-				 XFS_FSB_TO_B(mp, 1));
+				 XFS_FSB_TO_B(mp, 1)) +
+		xfs_calc_inobt_res(mp);
 }
 
 STATIC uint
@@ -409,8 +408,8 @@ __xfs_calc_create_reservation(
  * For icreate we can allocate some inodes giving:
  *    the agi and agf of the ag getting the new inodes: 2 * sectorsize
  *    the superblock for the nlink flag: sector size
- *    the inode btree: max depth * blocksize
  *    the allocation btrees: 2 trees * (max depth - 1) * block size
+ *    the inobt (record insertion)
  *    the finobt (record insertion)
  */
 STATIC uint
@@ -419,10 +418,10 @@ xfs_calc_icreate_resv_alloc(
 {
 	return xfs_calc_buf_res(2, mp->m_sb.sb_sectsize) +
 		mp->m_sb.sb_sectsize +
-		xfs_calc_buf_res(mp->m_in_maxlevels, XFS_FSB_TO_B(mp, 1)) +
 		xfs_calc_buf_res(xfs_allocfree_log_count(mp, 1),
 				 XFS_FSB_TO_B(mp, 1)) +
-		xfs_calc_finobt_res(mp, 0, 0);
+		xfs_calc_inobt_res(mp) +
+		xfs_calc_finobt_res(mp);
 }
 
 STATIC uint
@@ -487,9 +486,14 @@ xfs_calc_symlink_reservation(
  *    the super block free inode counter, AGF and AGFL: sector size
  *    the on disk inode (agi unlinked list removal)
  *    the inode chunk is marked stale (headers only)
- *    the inode btree: max depth * blocksize
- *    the allocation btrees: 2 trees * (max depth - 1) * block size
+ *    the inode btree
  *    the finobt (record insertion, removal or modification)
+ *
+ * Note that the allocfree res. for the inode chunk itself is not included
+ * because the extent free occurs after a transaction roll. We could take the
+ * maximum of the pre/post roll operations, but the pre-roll reservation already
+ * includes at least one allocfree res. for the inobt and is thus guaranteed to
+ * be larger.
  */
 STATIC uint
 xfs_calc_ifree_reservation(
@@ -500,10 +504,8 @@ xfs_calc_ifree_reservation(
 		xfs_calc_buf_res(3, mp->m_sb.sb_sectsize) +
 		xfs_calc_iunlink_remove_reservation(mp) +
 		xfs_calc_buf_res(mp->m_ialloc_blks, 0) +
-		xfs_calc_buf_res(mp->m_in_maxlevels, XFS_FSB_TO_B(mp, 1)) +
-		xfs_calc_buf_res(xfs_allocfree_log_count(mp, 1),
-				 XFS_FSB_TO_B(mp, 1)) +
-		xfs_calc_finobt_res(mp, 0, 1);
+		xfs_calc_inobt_res(mp) +
+		xfs_calc_finobt_res(mp);
 }
 
 /*
