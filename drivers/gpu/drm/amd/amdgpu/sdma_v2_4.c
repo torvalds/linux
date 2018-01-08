@@ -859,7 +859,8 @@ static void sdma_v2_4_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * using sDMA (VI).
  */
 static void sdma_v2_4_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					 unsigned vmid, uint64_t pd_addr)
+					 unsigned vmid, unsigned pasid,
+					 uint64_t pd_addr)
 {
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));

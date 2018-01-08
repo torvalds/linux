@@ -3684,7 +3684,8 @@ static void gfx_v9_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 }
 
 static void gfx_v9_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					unsigned vmid, uint64_t pd_addr)
+					unsigned vmid, unsigned pasid,
+					uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
 	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);

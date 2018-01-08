@@ -237,6 +237,7 @@ static int amdgpu_vmid_grab_reserved_locked(struct amdgpu_vm *vm,
 		id->last_flush = NULL;
 	}
 	job->vmid = id - id_mgr->ids;
+	job->pasid = vm->pasid;
 	trace_amdgpu_vm_grab_id(vm, ring, job);
 out:
 	return r;
@@ -388,6 +389,7 @@ no_flush_needed:
 	list_move_tail(&id->list, &id_mgr->ids_lru);
 
 	job->vmid = id - id_mgr->ids;
+	job->pasid = vm->pasid;
 	trace_amdgpu_vm_grab_id(vm, ring, job);
 
 error:

@@ -1056,8 +1056,9 @@ struct amdgpu_job {
 	void			*owner;
 	uint64_t		fence_ctx; /* the fence_context this job uses */
 	bool                    vm_needs_flush;
-	unsigned		vmid;
 	uint64_t		vm_pd_addr;
+	unsigned		vmid;
+	unsigned		pasid;
 	uint32_t		gds_base, gds_size;
 	uint32_t		gws_base, gws_size;
 	uint32_t		oa_base, oa_size;
@@ -1790,7 +1791,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_set_wptr(r) (r)->funcs->set_wptr((r))
 #define amdgpu_ring_emit_ib(r, ib, vmid, c) (r)->funcs->emit_ib((r), (ib), (vmid), (c))
 #define amdgpu_ring_emit_pipeline_sync(r) (r)->funcs->emit_pipeline_sync((r))
-#define amdgpu_ring_emit_vm_flush(r, vmid, addr) (r)->funcs->emit_vm_flush((r), (vmid), (addr))
+#define amdgpu_ring_emit_vm_flush(r, vmid, pasid, addr) (r)->funcs->emit_vm_flush((r), (vmid), (pasid), (addr))
 #define amdgpu_ring_emit_fence(r, addr, seq, flags) (r)->funcs->emit_fence((r), (addr), (seq), (flags))
 #define amdgpu_ring_emit_gds_switch(r, v, db, ds, wb, ws, ab, as) (r)->funcs->emit_gds_switch((r), (v), (db), (ds), (wb), (ws), (ab), (as))
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))

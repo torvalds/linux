@@ -965,7 +965,8 @@ static void vce_v4_0_ring_insert_end(struct amdgpu_ring *ring)
 }
 
 static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
-			 unsigned int vmid, uint64_t pd_addr)
+				   unsigned int vmid, unsigned pasid,
+				   uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
 	uint32_t req = ring->adev->gmc.gmc_funcs->get_invalidate_req(vmid);

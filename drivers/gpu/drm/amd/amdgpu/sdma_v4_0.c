@@ -1133,7 +1133,8 @@ static void sdma_v4_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * using sDMA (VEGA10).
  */
 static void sdma_v4_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					 unsigned vmid, uint64_t pd_addr)
+					 unsigned vmid, unsigned pasid,
+					 uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
 	uint32_t req = ring->adev->gmc.gmc_funcs->get_invalidate_req(vmid);
