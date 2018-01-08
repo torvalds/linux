@@ -1,0 +1,69 @@
+config SND_SOC_SOF_PCI
+	tristate
+
+config SND_SOC_SOF_ACPI
+	tristate
+
+config SND_SOC_SOF
+	tristate "Sound Open Firmware Support"
+	select SND_SOC_TOPOLOGY
+	select SND_SOC_COMPRESS
+	help
+          This adds support for Sound Open Firmware (SOF). SOF is a free and
+	  generic open source audio DSP firmware for multiple devices.
+          Say Y if you have such a device that is supported by SOF.
+          If unsure select "N".
+
+config SND_SOC_SOF_NOCODEC
+	tristate "SOF nocodec mode Support"
+	depends on SND_SOC_SOF
+	help
+          This adds support for a dummy/nocodec machine driver fallback
+	  option if no known codec is detected. This is typically only
+	  enabled for developers or devices where the sound card is
+	  controlled externally
+          Say Y if you need this nocodec fallback option
+          If unsure select "N".
+
+config SND_SOC_SOF_DEBUG
+	bool "SOF debugging features"
+	depends on SND_SOC_SOF
+	help
+	  This option can be used to enable or disable individual SOF firmware
+	  and driver debugging options.
+	  Say Y if you are debugging SOF FW or drivers.
+          If unsure select "N".
+
+config SND_SOC_SOF_FORCE_NOCODEC_MODE
+	bool "SOF force nocodec Mode"
+	depends on SND_SOC_SOF_NOCODEC
+	depends on SND_SOC_SOF_DEBUG
+	help
+          This forces SOF to use dummy/nocodec as machine driver, even
+	  though there is a codec detected on the real platform. This is
+	  typically only enabled for developers for debug purposes, before
+	  codec/machine driver is ready, or to exclude the impact of those
+	  drivers
+          Say Y if you need this force nocodec mode option
+          If unsure select "N".
+
+config SND_SOC_SOF_DEBUG_XRUN_STOP
+	bool "SOF stop on XRUN"
+	depends on SND_SOC_SOF_DEBUG
+	help
+	  This option forces PCMs to stop on any XRUN event. This is useful to
+	  preserve any trace data ond pipeline status prior to the XRUN.
+	  Say Y if you are debugging SOF FW pipeline XRUNs.
+          If unsure select "N".
+
+config SND_SOC_SOF_DEBUG_VERBOSE_IPC
+	bool "SOF verbose IPC logs"
+	depends on SND_SOC_SOF_DEBUG
+	help
+	  This option enables more verbose IPC logs, with command types in
+	  human-readable form instead of just 32-bit hex dumps. This is useful
+	  if you are trying to debug IPC with the DSP firmware.
+          If unsure select "N".
+
+source "sound/soc/sof/intel/Kconfig"
+source "sound/soc/sof/xtensa/Kconfig"
