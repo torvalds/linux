@@ -2566,7 +2566,8 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 		goto err2;
 	}
 
-	ndev = dev_get_by_index(&init_net, addr->dev_addr.bound_dev_if);
+	ndev = dev_get_by_index(addr->dev_addr.net,
+				addr->dev_addr.bound_dev_if);
 	if (!ndev) {
 		ret = -ENODEV;
 		goto err2;
@@ -2582,7 +2583,7 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 		gid_type = ib_network_to_gid_type(addr->dev_addr.network);
 	route->path_rec->rec_type = sa_conv_gid_to_pathrec_type(gid_type);
 
-	sa_path_set_ndev(route->path_rec, &init_net);
+	sa_path_set_ndev(route->path_rec, addr->dev_addr.net);
 	sa_path_set_ifindex(route->path_rec, ndev->ifindex);
 	sa_path_set_dmac(route->path_rec, addr->dev_addr.dst_dev_addr);
 
