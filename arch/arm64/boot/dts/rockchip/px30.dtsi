@@ -811,6 +811,21 @@
 		status = "disabled";
 	};
 
+	gpu: gpu@ff400000 {
+		compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
+		reg = <0x0 0xff400000 0x0 0x4000>;
+
+		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "GPU", "MMU", "JOB";
+
+		clocks = <&cru ACLK_GPU>;
+		clock-names = "clk_mali";
+
+		status = "disabled";
+	};
+
 	hevc: hevc_service@ff440000 {
 		compatible = "rockchip,hevc_sub";
 		iommu_enabled = <1>;
