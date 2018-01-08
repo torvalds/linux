@@ -18,17 +18,39 @@
 #include <trace/events/bcache.h>
 
 /* Rate limiting */
+static uint64_t __calc_target_rate(struct cached_dev *dc)
+{
+	struct cache_set *c = dc->disk.c;
+
+	/*
+	 * This is the size of the cache, minus the amount used for
+	 * flash-only devices
+	 */
+	uint64_t cache_sectors = c->nbuckets * c->sb.bucket_size -
+				bcache_flash_devs_sectors_dirty(c);
+
+	/*
+	 * Unfortunately there is no control of global dirty data.  If the
+	 * user states that they want 10% dirty data in the cache, and has,
+	 * e.g., 5 backing volumes of equal size, we try and ensure each
+	 * backing volume uses about 2% of the cache for dirty data.
+	 */
+	uint32_t bdev_share =
+		div64_u64(bdev_sectors(dc->bdev) << WRITEBACK_SHARE_SHIFT,
+				c->cached_dev_sectors);
+
+	uint64_t cache_dirty_target =
+		div_u64(cache_sectors * dc->writeback_percent, 100);
+
+	/* Ensure each backing dev gets at least one dirty share */
+	if (bdev_share < 1)
+		bdev_share = 1;
+
+	return (cache_dirty_target * bdev_share) >> WRITEBACK_SHARE_SHIFT;
+}
 
 static void __update_writeback_rate(struct cached_dev *dc)
 {
-	struct cache_set *c = dc->disk.c;
-	uint64_t cache_sectors = c->nbuckets * c->sb.bucket_size -
-				bcache_flash_devs_sectors_dirty(c);
-	uint64_t cache_dirty_target =
-		div_u64(cache_sectors * dc->writeback_percent, 100);
-	int64_t target = div64_u64(cache_dirty_target * bdev_sectors(dc->bdev),
-				   c->cached_dev_sectors);
-
 	/*
 	 * PI controller:
 	 * Figures out the amount that should be written per second.
@@ -49,6 +71,7 @@ static void __update_writeback_rate(struct cached_dev *dc)
 	 * This acts as a slow, long-term average that is not subject to
 	 * variations in usage like the p term.
 	 */
+	int64_t target = __calc_target_rate(dc);
 	int64_t dirty = bcache_dev_sectors_dirty(&dc->disk);
 	int64_t error = dirty - target;
 	int64_t proportional_scaled =

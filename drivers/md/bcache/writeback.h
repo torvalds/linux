@@ -8,6 +8,13 @@
 #define MAX_WRITEBACKS_IN_PASS  5
 #define MAX_WRITESIZE_IN_PASS   5000	/* *512b */
 
+/*
+ * 14 (16384ths) is chosen here as something that each backing device
+ * should be a reasonable fraction of the share, and not to blow up
+ * until individual backing devices are a petabyte.
+ */
+#define WRITEBACK_SHARE_SHIFT   14
+
 static inline uint64_t bcache_dev_sectors_dirty(struct bcache_device *d)
 {
 	uint64_t i, ret = 0;
