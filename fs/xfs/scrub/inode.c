@@ -64,7 +64,7 @@ xfs_scrub_setup_inode(
 		break;
 	case -EFSCORRUPTED:
 	case -EFSBADCRC:
-		return 0;
+		return xfs_scrub_trans_alloc(sc->sm, mp, &sc->tp);
 	default:
 		return error;
 	}
