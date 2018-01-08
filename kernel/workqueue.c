@@ -4032,7 +4032,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 	if (alloc_and_link_pwqs(wq) < 0)
 		goto err_free_wq;
 
-	if (init_rescuer(wq) < 0)
+	if (wq_online && init_rescuer(wq) < 0)
 		goto err_destroy;
 
 	if ((wq->flags & WQ_SYSFS) && workqueue_sysfs_register(wq))
@@ -5639,6 +5639,8 @@ int __init workqueue_init(void)
 	 * archs such as power and arm64.  As per-cpu pools created
 	 * previously could be missing node hint and unbound pools NUMA
 	 * affinity, fix them up.
+	 *
+	 * Also, while iterating workqueues, create rescuers if requested.
 	 */
 	wq_numa_init();
 
@@ -5650,8 +5652,12 @@ int __init workqueue_init(void)
 		}
 	}
 
-	list_for_each_entry(wq, &workqueues, list)
+	list_for_each_entry(wq, &workqueues, list) {
 		wq_update_unbound_numa(wq, smp_processor_id(), true);
+		WARN(init_rescuer(wq),
+		     "workqueue: failed to create early rescuer for %s",
+		     wq->name);
+	}
 
 	mutex_unlock(&wq_pool_mutex);
 
