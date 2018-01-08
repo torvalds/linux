@@ -137,6 +137,8 @@ static int __init early_get_pnodeid(void)
 	case UV3_HUB_PART_NUMBER_X:
 		uv_min_hub_revision_id += UV3_HUB_REVISION_BASE;
 		break;
+
+	/* Update: UV4A has only a modified revision to indicate HUB fixes */
 	case UV4_HUB_PART_NUMBER:
 		uv_min_hub_revision_id += UV4_HUB_REVISION_BASE - 1;
 		uv_cpuid.gnode_shift = 2; /* min partition is 4 sockets */

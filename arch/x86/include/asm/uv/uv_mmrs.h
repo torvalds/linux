@@ -99,6 +99,7 @@
 #define UV2_HUB_IS_SUPPORTED	1
 #define UV3_HUB_IS_SUPPORTED	1
 #define UV4_HUB_IS_SUPPORTED	1
+#define UV4A_HUB_IS_SUPPORTED	1
 
 /* Error function to catch undefined references */
 extern unsigned long uv_undefined(char *str);
