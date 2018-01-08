@@ -187,6 +187,7 @@
 #define X86_FEATURE_ARAT	( 7*32+ 1) /* Always Running APIC Timer */
 #define X86_FEATURE_CPB		( 7*32+ 2) /* AMD Core Performance Boost */
 #define X86_FEATURE_EPB		( 7*32+ 3) /* IA32_ENERGY_PERF_BIAS support */
+#define X86_FEATURE_INVPCID_SINGLE ( 7*32+ 4) /* Effectively INVPCID && CR4.PCIDE=1 */
 #define X86_FEATURE_PLN		( 7*32+ 5) /* Intel Power Limit Notification */
 #define X86_FEATURE_PTS		( 7*32+ 6) /* Intel Package Thermal Status */
 #define X86_FEATURE_DTHERM	( 7*32+ 7) /* Digital Thermal Sensor */
@@ -198,6 +199,9 @@
 #define X86_FEATURE_HWP_EPP	( 7*32+13) /* Intel HWP_EPP */
 #define X86_FEATURE_HWP_PKG_REQ ( 7*32+14) /* Intel HWP_PKG_REQ */
 #define X86_FEATURE_INTEL_PT	( 7*32+15) /* Intel Processor Trace */
+
+/* Because the ALTERNATIVE scheme is for members of the X86_FEATURE club... */
+#define X86_FEATURE_KAISER	( 7*32+31) /* CONFIG_PAGE_TABLE_ISOLATION w/o nokaiser */
 
 /* Virtualization flags: Linux defined, word 8 */
 #define X86_FEATURE_TPR_SHADOW  ( 8*32+ 0) /* Intel TPR Shadow */

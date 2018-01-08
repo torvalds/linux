@@ -131,6 +131,24 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
 	cr4_set_bits(mask);
 }
 
+/*
+ * Declare a couple of kaiser interfaces here for convenience,
+ * to avoid the need for asm/kaiser.h in unexpected places.
+ */
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+extern int kaiser_enabled;
+extern void kaiser_setup_pcid(void);
+extern void kaiser_flush_tlb_on_return_to_user(void);
+#else
+#define kaiser_enabled 0
+static inline void kaiser_setup_pcid(void)
+{
+}
+static inline void kaiser_flush_tlb_on_return_to_user(void)
+{
+}
+#endif
+
 static inline void __native_flush_tlb(void)
 {
 	/*
@@ -139,6 +157,8 @@ static inline void __native_flush_tlb(void)
 	 * back:
 	 */
 	preempt_disable();
+	if (kaiser_enabled)
+		kaiser_flush_tlb_on_return_to_user();
 	native_write_cr3(native_read_cr3());
 	preempt_enable();
 }
@@ -148,20 +168,27 @@ static inline void __native_flush_tlb_global_irq_disabled(void)
 	unsigned long cr4;
 
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	/* clear PGE */
-	native_write_cr4(cr4 & ~X86_CR4_PGE);
-	/* write old PGE again and flush TLBs */
-	native_write_cr4(cr4);
+	if (cr4 & X86_CR4_PGE) {
+		/* clear PGE and flush TLB of all entries */
+		native_write_cr4(cr4 & ~X86_CR4_PGE);
+		/* restore PGE as it was before */
+		native_write_cr4(cr4);
+	} else {
+		/* do it with cr3, letting kaiser flush user PCID */
+		__native_flush_tlb();
+	}
 }
 
 static inline void __native_flush_tlb_global(void)
 {
 	unsigned long flags;
 
-	if (static_cpu_has(X86_FEATURE_INVPCID)) {
+	if (this_cpu_has(X86_FEATURE_INVPCID)) {
 		/*
 		 * Using INVPCID is considerably faster than a pair of writes
 		 * to CR4 sandwiched inside an IRQ flag save/restore.
+		 *
+	 	 * Note, this works with CR4.PCIDE=0 or 1.
 		 */
 		invpcid_flush_all();
 		return;
@@ -173,24 +200,45 @@ static inline void __native_flush_tlb_global(void)
 	 * be called from deep inside debugging code.)
 	 */
 	raw_local_irq_save(flags);
-
 	__native_flush_tlb_global_irq_disabled();
-
 	raw_local_irq_restore(flags);
 }
 
 static inline void __native_flush_tlb_single(unsigned long addr)
 {
-	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
+	/*
+	 * SIMICS #GP's if you run INVPCID with type 2/3
+	 * and X86_CR4_PCIDE clear.  Shame!
+	 *
+	 * The ASIDs used below are hard-coded.  But, we must not
+	 * call invpcid(type=1/2) before CR4.PCIDE=1.  Just call
+	 * invlpg in the case we are called early.
+	 */
+
+	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE)) {
+		if (kaiser_enabled)
+			kaiser_flush_tlb_on_return_to_user();
+		asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
+		return;
+	}
+	/* Flush the address out of both PCIDs. */
+	/*
+	 * An optimization here might be to determine addresses
+	 * that are only kernel-mapped and only flush the kernel
+	 * ASID.  But, userspace flushes are probably much more
+	 * important performance-wise.
+	 *
+	 * Make sure to do only a single invpcid when KAISER is
+	 * disabled and we have only a single ASID.
+	 */
+	if (kaiser_enabled)
+		invpcid_flush_one(X86_CR3_PCID_ASID_USER, addr);
+	invpcid_flush_one(X86_CR3_PCID_ASID_KERN, addr);
 }
 
 static inline void __flush_tlb_all(void)
 {
-	if (cpu_has_pge)
-		__flush_tlb_global();
-	else
-		__flush_tlb();
-
+	__flush_tlb_global();
 	/*
 	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
 	 * we'd end up flushing kernel translations for the current ASID but
