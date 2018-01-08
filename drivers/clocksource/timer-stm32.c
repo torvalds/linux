@@ -101,7 +101,15 @@ static void stm32_clock_event_disable(struct timer_of *to)
 	writel_relaxed(0, timer_of_base(to) + TIM_DIER);
 }
 
-static void stm32_clock_event_enable(struct timer_of *to)
+/**
+ * stm32_timer_start - Start the counter without event
+ * @to: a timer_of structure pointer
+ *
+ * Start the timer in order to have the counter reset and start
+ * incrementing but disable interrupt event when there is a counter
+ * overflow. By default, the counter direction is used as upcounter.
+ */
+static void stm32_timer_start(struct timer_of *to)
 {
 	writel_relaxed(TIM_CR1_UDIS | TIM_CR1_CEN, timer_of_base(to) + TIM_CR1);
 }
@@ -137,7 +145,7 @@ static int stm32_clock_event_set_periodic(struct clock_event_device *clkevt)
 {
 	struct timer_of *to = to_timer_of(clkevt);
 
-	stm32_clock_event_enable(to);
+	stm32_timer_start(to);
 
 	return stm32_clock_event_set_next_event(timer_of_period(to), clkevt);
 }
@@ -146,7 +154,7 @@ static int stm32_clock_event_set_oneshot(struct clock_event_device *clkevt)
 {
 	struct timer_of *to = to_timer_of(clkevt);
 
-	stm32_clock_event_enable(to);
+	stm32_timer_start(to);
 
 	return 0;
 }
@@ -235,6 +243,13 @@ static int __init stm32_clocksource_init(struct timer_of *to)
 	 * sched_clock.
 	 */
 	if (bits == 32 && !stm32_timer_cnt) {
+
+		/*
+		 * Start immediately the counter as we will be using
+		 * it right after.
+		 */
+		stm32_timer_start(to);
+
 		stm32_timer_cnt = timer_of_base(to) + TIM_CNT;
 		sched_clock_register(stm32_read_sched_clock, bits, timer_of_rate(to));
 		pr_info("%s: STM32 sched_clock registered\n", name);
