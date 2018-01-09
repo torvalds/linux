@@ -248,8 +248,7 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 	int vddvibr_uV = 0;
 	int error;
 
-	of_node_get(twl6040_core_dev->of_node);
-	twl6040_core_node = of_find_node_by_name(twl6040_core_dev->of_node,
+	twl6040_core_node = of_get_child_by_name(twl6040_core_dev->of_node,
 						 "vibra");
 	if (!twl6040_core_node) {
 		dev_err(&pdev->dev, "parent of node is missing?\n");
