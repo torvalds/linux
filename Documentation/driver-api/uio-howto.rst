@@ -702,6 +702,8 @@ The vmbus device regions are mapped into uio device resources:
     0) Channel ring buffers: guest to host and host to guest
     1) Guest to host interrupt signalling pages
     2) Guest to host monitor page
+    3) Network receive buffer region
+    4) Network send buffer region
 
 Further information
 ===================
