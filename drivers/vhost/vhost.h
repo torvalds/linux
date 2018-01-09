@@ -20,10 +20,6 @@ typedef void (*vhost_work_fn_t)(struct vhost_work *work);
 struct vhost_work {
 	struct llist_node	  node;
 	vhost_work_fn_t		  fn;
-	wait_queue_head_t	  done;
-	int			  flushing;
-	unsigned		  queue_seq;
-	unsigned		  done_seq;
 	unsigned long		  flags;
 };
 
