@@ -746,9 +746,9 @@ static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
 	pm_runtime_put(dsi->dev);
 }
 
-void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
-				 struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
+static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
+					struct drm_display_mode *mode,
+					struct drm_display_mode *adjusted_mode)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
