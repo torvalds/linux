@@ -41,7 +41,12 @@ static inline void destroy_context(struct mm_struct *mm)
 
 static inline void set_pgdir(pgd_t *pgd)
 {
-	csr_write(sptbr, virt_to_pfn(pgd) | SPTBR_MODE);
+	/*
+	 * Use the old spbtr name instead of using the current satp
+	 * name to support binutils 2.29 which doesn't know about the
+	 * privileged ISA 1.10 yet.
+	 */
+	csr_write(sptbr, virt_to_pfn(next->pgd) | SATP_MODE);
 }
 
 /*

@@ -74,15 +74,15 @@ relocate:
 	sub a1, a1, a0
 	add ra, ra, a1
 
-	/* Point stvec to virtual address of intruction after sptbr write */
+	/* Point stvec to virtual address of intruction after satp write */
 	la a0, 1f
 	add a0, a0, a1
 	csrw stvec, a0
 
-	/* Compute sptbr for kernel page tables, but don't load it yet */
+	/* Compute satp for kernel page tables, but don't load it yet */
 	la a2, swapper_pg_dir
 	srl a2, a2, PAGE_SHIFT
-	li a1, SPTBR_MODE
+	li a1, SATP_MODE
 	or a2, a2, a1
 
 	/*
