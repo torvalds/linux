@@ -698,6 +698,10 @@ prevents the device from generating further interrupts until the bit is
 cleared. The userspace driver should clear this bit before blocking and
 waiting for more interrupts.
 
+When host rescinds a device, the interrupt file descriptor is marked down
+and any reads of the interrupt file descriptor will return -EIO. Similar
+to a closed socket or disconnected serial device.
+
 The vmbus device regions are mapped into uio device resources:
     0) Channel ring buffers: guest to host and host to guest
     1) Guest to host interrupt signalling pages

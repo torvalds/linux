@@ -103,6 +103,23 @@ static void hv_uio_channel_cb(void *context)
 	uio_event_notify(&pdata->info);
 }
 
+/*
+ * Callback from vmbus_event when channel is rescinded.
+ */
+static void hv_uio_rescind(struct vmbus_channel *channel)
+{
+	struct hv_device *hv_dev = channel->primary_channel->device_obj;
+	struct hv_uio_private_data *pdata = hv_get_drvdata(hv_dev);
+
+	/*
+	 * Turn off the interrupt file handle
+	 * Next read for event will return -EIO
+	 */
+	pdata->info.irq = 0;
+
+	/* Wake up reader */
+	uio_event_notify(&pdata->info);
+}
 
 static void
 hv_uio_cleanup(struct hv_device *dev, struct hv_uio_private_data *pdata)
@@ -217,6 +234,8 @@ hv_uio_probe(struct hv_device *dev,
 		dev_err(&dev->device, "hv_uio register failed\n");
 		goto fail_close;
 	}
+
+	vmbus_set_chn_rescind_callback(dev->channel, hv_uio_rescind);
 
 	hv_set_drvdata(dev, pdata);
 
