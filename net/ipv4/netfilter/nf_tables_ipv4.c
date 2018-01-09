@@ -30,11 +30,6 @@ static unsigned int nft_do_chain_ipv4(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-static struct nft_af_info nft_af_ipv4 __read_mostly = {
-	.family		= NFPROTO_IPV4,
-	.owner		= THIS_MODULE,
-};
-
 static const struct nf_chain_type filter_ipv4 = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
@@ -56,27 +51,12 @@ static const struct nf_chain_type filter_ipv4 = {
 
 static int __init nf_tables_ipv4_init(void)
 {
-	int ret;
-
-	ret = nft_register_afinfo(&nft_af_ipv4);
-	if (ret < 0)
-		return ret;
-
-	ret = nft_register_chain_type(&filter_ipv4);
-	if (ret < 0)
-		goto err_register_chain;
-
-	return 0;
-
-err_register_chain:
-	nft_unregister_afinfo(&nft_af_ipv4);
-	return ret;
+	return nft_register_chain_type(&filter_ipv4);
 }
 
 static void __exit nf_tables_ipv4_exit(void)
 {
 	nft_unregister_chain_type(&filter_ipv4);
-	nft_unregister_afinfo(&nft_af_ipv4);
 }
 
 module_init(nf_tables_ipv4_init);
@@ -84,4 +64,4 @@ module_exit(nf_tables_ipv4_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_FAMILY(AF_INET);
+MODULE_ALIAS_NFT_CHAIN(AF_INET, "filter");

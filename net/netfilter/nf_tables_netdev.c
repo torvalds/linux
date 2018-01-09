@@ -38,11 +38,6 @@ nft_do_chain_netdev(void *priv, struct sk_buff *skb,
 	return nft_do_chain(&pkt, priv);
 }
 
-static struct nft_af_info nft_af_netdev __read_mostly = {
-	.family		= NFPROTO_NETDEV,
-	.owner		= THIS_MODULE,
-};
-
 static const struct nf_chain_type nft_filter_chain_netdev = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
@@ -91,10 +86,10 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
 	list_for_each_entry(table, &ctx.net->nft.tables, list) {
-		if (table->afi->family != NFPROTO_NETDEV)
+		if (table->family != NFPROTO_NETDEV)
 			continue;
 
-		ctx.family = table->afi->family;
+		ctx.family = table->family;
 		ctx.table = table;
 		list_for_each_entry_safe(chain, nr, &table->chains, list) {
 			if (!nft_is_base_chain(chain))
@@ -117,12 +112,9 @@ static int __init nf_tables_netdev_init(void)
 {
 	int ret;
 
-	if (nft_register_afinfo(&nft_af_netdev) < 0)
-		return ret;
-
 	ret = nft_register_chain_type(&nft_filter_chain_netdev);
 	if (ret)
-		goto err_register_chain_type;
+		return ret;
 
 	ret = register_netdevice_notifier(&nf_tables_netdev_notifier);
 	if (ret)
@@ -132,8 +124,6 @@ static int __init nf_tables_netdev_init(void)
 
 err_register_netdevice_notifier:
 	nft_unregister_chain_type(&nft_filter_chain_netdev);
-err_register_chain_type:
-	nft_unregister_afinfo(&nft_af_netdev);
 
 	return ret;
 }
@@ -142,7 +132,6 @@ static void __exit nf_tables_netdev_exit(void)
 {
 	unregister_netdevice_notifier(&nf_tables_netdev_notifier);
 	nft_unregister_chain_type(&nft_filter_chain_netdev);
-	nft_unregister_afinfo(&nft_af_netdev);
 }
 
 module_init(nf_tables_netdev_init);
@@ -150,4 +139,4 @@ module_exit(nf_tables_netdev_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
-MODULE_ALIAS_NFT_FAMILY(5); /* NFPROTO_NETDEV */
+MODULE_ALIAS_NFT_CHAIN(5, "filter"); /* NFPROTO_NETDEV */

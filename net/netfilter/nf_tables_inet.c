@@ -38,11 +38,6 @@ static unsigned int nft_do_chain_inet(void *priv, struct sk_buff *skb,
 	return nft_do_chain(&pkt, priv);
 }
 
-static struct nft_af_info nft_af_inet __read_mostly = {
-	.family		= NFPROTO_INET,
-	.owner		= THIS_MODULE,
-};
-
 static const struct nf_chain_type filter_inet = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
@@ -64,26 +59,12 @@ static const struct nf_chain_type filter_inet = {
 
 static int __init nf_tables_inet_init(void)
 {
-	int ret;
-
-	if (nft_register_afinfo(&nft_af_inet) < 0)
-		return ret;
-
-	ret = nft_register_chain_type(&filter_inet);
-	if (ret < 0)
-		goto err_register_chain;
-
-	return ret;
-
-err_register_chain:
-	nft_unregister_afinfo(&nft_af_inet);
-	return ret;
+	return nft_register_chain_type(&filter_inet);
 }
 
 static void __exit nf_tables_inet_exit(void)
 {
 	nft_unregister_chain_type(&filter_inet);
-	nft_unregister_afinfo(&nft_af_inet);
 }
 
 module_init(nf_tables_inet_init);
@@ -91,4 +72,4 @@ module_exit(nf_tables_inet_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_FAMILY(1);
+MODULE_ALIAS_NFT_CHAIN(1, "filter");

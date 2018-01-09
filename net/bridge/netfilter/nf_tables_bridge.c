@@ -42,11 +42,6 @@ nft_do_chain_bridge(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-static struct nft_af_info nft_af_bridge __read_mostly = {
-	.family		= NFPROTO_BRIDGE,
-	.owner		= THIS_MODULE,
-};
-
 static const struct nf_chain_type filter_bridge = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
@@ -68,28 +63,12 @@ static const struct nf_chain_type filter_bridge = {
 
 static int __init nf_tables_bridge_init(void)
 {
-	int ret;
-
-	ret = nft_register_afinfo(&nft_af_bridge);
-	if (ret < 0)
-		return ret;
-
-	ret = nft_register_chain_type(&filter_bridge);
-	if (ret < 0)
-		goto err_register_chain;
-
-	return ret;
-
-err_register_chain:
-	nft_unregister_chain_type(&filter_bridge);
-
-	return ret;
+	return nft_register_chain_type(&filter_bridge);
 }
 
 static void __exit nf_tables_bridge_exit(void)
 {
 	nft_unregister_chain_type(&filter_bridge);
-	nft_unregister_afinfo(&nft_af_bridge);
 }
 
 module_init(nf_tables_bridge_init);
@@ -97,4 +76,4 @@ module_exit(nf_tables_bridge_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_FAMILY(AF_BRIDGE);
+MODULE_ALIAS_NFT_CHAIN(AF_BRIDGE, "filter");

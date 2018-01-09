@@ -27,11 +27,6 @@ nft_do_chain_arp(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-static struct nft_af_info nft_af_arp __read_mostly = {
-	.family		= NFPROTO_ARP,
-	.owner		= THIS_MODULE,
-};
-
 static const struct nf_chain_type filter_arp = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
@@ -47,28 +42,12 @@ static const struct nf_chain_type filter_arp = {
 
 static int __init nf_tables_arp_init(void)
 {
-	int ret;
-
-	ret = nft_register_afinfo(&nft_af_arp);
-	if (ret < 0)
-		return ret;
-
-	ret = nft_register_chain_type(&filter_arp);
-	if (ret < 0)
-		goto err_register_chain;
-
-	return 0;
-
-err_register_chain:
-	nft_unregister_chain_type(&filter_arp);
-
-	return ret;
+	return nft_register_chain_type(&filter_arp);
 }
 
 static void __exit nf_tables_arp_exit(void)
 {
 	nft_unregister_chain_type(&filter_arp);
-	nft_unregister_afinfo(&nft_af_arp);
 }
 
 module_init(nf_tables_arp_init);
@@ -76,4 +55,4 @@ module_exit(nf_tables_arp_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_FAMILY(3); /* NFPROTO_ARP */
+MODULE_ALIAS_NFT_CHAIN(3, "filter"); /* NFPROTO_ARP */
