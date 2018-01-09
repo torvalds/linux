@@ -596,6 +596,52 @@ static u32 read_reference_ts_freq(struct drm_i915_private *dev_priv)
 	return base_freq + frac_freq;
 }
 
+static u32 gen10_get_crystal_clock_freq(struct drm_i915_private *dev_priv,
+					u32 rpm_config_reg)
+{
+	u32 f19_2_mhz = 19200;
+	u32 f24_mhz = 24000;
+	u32 crystal_clock = (rpm_config_reg &
+			     GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
+			    GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
+
+	switch (crystal_clock) {
+	case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ:
+		return f19_2_mhz;
+	case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ:
+		return f24_mhz;
+	default:
+		MISSING_CASE(crystal_clock);
+		return 0;
+	}
+}
+
+static u32 gen11_get_crystal_clock_freq(struct drm_i915_private *dev_priv,
+					u32 rpm_config_reg)
+{
+	u32 f19_2_mhz = 19200;
+	u32 f24_mhz = 24000;
+	u32 f25_mhz = 25000;
+	u32 f38_4_mhz = 38400;
+	u32 crystal_clock = (rpm_config_reg &
+			     GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
+			    GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
+
+	switch (crystal_clock) {
+	case GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ:
+		return f24_mhz;
+	case GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ:
+		return f19_2_mhz;
+	case GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_38_4_MHZ:
+		return f38_4_mhz;
+	case GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_25_MHZ:
+		return f25_mhz;
+	default:
+		MISSING_CASE(crystal_clock);
+		return 0;
+	}
+}
+
 static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 {
 	u32 f12_5_mhz = 12500;
@@ -636,10 +682,9 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		}
 
 		return freq;
-	} else if (INTEL_GEN(dev_priv) <= 10) {
+	} else if (INTEL_GEN(dev_priv) <= 11) {
 		u32 ctc_reg = I915_READ(CTC_MODE);
 		u32 freq = 0;
-		u32 rpm_config_reg = 0;
 
 		/* First figure out the reference frequency. There are 2 ways
 		 * we can compute the frequency, either through the
@@ -649,20 +694,14 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		if ((ctc_reg & CTC_SOURCE_PARAMETER_MASK) == CTC_SOURCE_DIVIDE_LOGIC) {
 			freq = read_reference_ts_freq(dev_priv);
 		} else {
-			u32 crystal_clock;
+			u32 rpm_config_reg = I915_READ(RPM_CONFIG0);
 
-			rpm_config_reg = I915_READ(RPM_CONFIG0);
-			crystal_clock = (rpm_config_reg &
-					 GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
-				GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
-			switch (crystal_clock) {
-			case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ:
-				freq = f19_2_mhz;
-				break;
-			case GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ:
-				freq = f24_mhz;
-				break;
-			}
+			if (INTEL_GEN(dev_priv) <= 10)
+				freq = gen10_get_crystal_clock_freq(dev_priv,
+								rpm_config_reg);
+			else
+				freq = gen11_get_crystal_clock_freq(dev_priv,
+								rpm_config_reg);
 
 			/* Now figure out how the command stream's timestamp
 			 * register increments from this frequency (it might
