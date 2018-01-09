@@ -73,6 +73,14 @@ __xfs_dir3_data_check(
 	 */
 	ops = xfs_dir_get_ops(mp, dp);
 
+	/*
+	 * If this isn't a directory, or we don't get handed the dir ops,
+	 * something is seriously wrong.  Bail out.
+	 */
+	if ((dp && !S_ISDIR(VFS_I(dp)->i_mode)) ||
+	    ops != xfs_dir_get_ops(mp, NULL))
+		return __this_address;
+
 	hdr = bp->b_addr;
 	p = (char *)ops->data_entry_p(hdr);
 

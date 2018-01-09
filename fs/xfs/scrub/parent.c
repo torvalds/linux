@@ -171,7 +171,7 @@ xfs_scrub_parent_validate(
 	error = xfs_iget(mp, sc->tp, dnum, 0, 0, &dp);
 	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		goto out;
-	if (dp == sc->ip) {
+	if (dp == sc->ip || !S_ISDIR(VFS_I(dp)->i_mode)) {
 		xfs_scrub_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		goto out_rele;
 	}
