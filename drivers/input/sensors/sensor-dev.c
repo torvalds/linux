@@ -126,8 +126,8 @@ static ssize_t accel_calibration_show(struct class *class,
 
 #define ACCEL_CAPTURE_TIMES 20
 #define ACCEL_SENSITIVE 16384
-/* +-0.6 * 16384 / 9.8 */
-#define ACCEL_OFFSET_MAX 1000
+/* +-1 * 16384 / 9.8 */
+#define ACCEL_OFFSET_MAX 1600
 static int accel_do_calibration(struct sensor_private_data *sensor)
 {
 	int i;
