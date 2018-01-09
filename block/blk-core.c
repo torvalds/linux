@@ -126,6 +126,8 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->start_time = jiffies;
 	set_start_time_ns(rq);
 	rq->part = NULL;
+	seqcount_init(&rq->gstate_seq);
+	u64_stats_init(&rq->aborted_gstate_sync);
 }
 EXPORT_SYMBOL(blk_rq_init);
 

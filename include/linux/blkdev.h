@@ -27,6 +27,8 @@
 #include <linux/percpu-refcount.h>
 #include <linux/scatterlist.h>
 #include <linux/blkzoned.h>
+#include <linux/seqlock.h>
+#include <linux/u64_stats_sync.h>
 
 struct module;
 struct scsi_ioctl_command;
@@ -229,6 +231,27 @@ struct request {
 	unsigned int extra_len;	/* length of alignment and padding */
 
 	unsigned short write_hint;
+
+	/*
+	 * On blk-mq, the lower bits of ->gstate (generation number and
+	 * state) carry the MQ_RQ_* state value and the upper bits the
+	 * generation number which is monotonically incremented and used to
+	 * distinguish the reuse instances.
+	 *
+	 * ->gstate_seq allows updates to ->gstate and other fields
+	 * (currently ->deadline) during request start to be read
+	 * atomically from the timeout path, so that it can operate on a
+	 * coherent set of information.
+	 */
+	seqcount_t gstate_seq;
+	u64 gstate;
+
+	/*
+	 * ->aborted_gstate is used by the timeout to claim a specific
+	 * recycle instance of this request.  See blk_mq_timeout_work().
+	 */
+	struct u64_stats_sync aborted_gstate_sync;
+	u64 aborted_gstate;
 
 	unsigned long deadline;
 	struct list_head timeout_list;
