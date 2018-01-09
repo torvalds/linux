@@ -9199,7 +9199,13 @@ static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
 	if (!try_module_get(pmu->module))
 		return -ENODEV;
 
-	if (event->group_leader != event) {
+	/*
+	 * A number of pmu->event_init() methods iterate the sibling_list to,
+	 * for example, validate if the group fits on the PMU. Therefore,
+	 * if this is a sibling event, acquire the ctx->mutex to protect
+	 * the sibling_list.
+	 */
+	if (event->group_leader != event && pmu->task_ctx_nr != perf_sw_context) {
 		/*
 		 * This ctx->mutex can nest when we're called through
 		 * inheritance. See the perf_event_ctx_lock_nested() comment.
