@@ -305,7 +305,7 @@ int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 		return ret;
 
 	ret = pm_runtime_get_sync(slave->bus->dev);
-	if (!ret)
+	if (ret < 0)
 		return ret;
 
 	ret = sdw_transfer(slave->bus, &msg);
@@ -333,7 +333,7 @@ int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 		return ret;
 
 	ret = pm_runtime_get_sync(slave->bus->dev);
-	if (!ret)
+	if (ret < 0)
 		return ret;
 
 	ret = sdw_transfer(slave->bus, &msg);
