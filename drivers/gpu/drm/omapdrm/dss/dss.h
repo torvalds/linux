@@ -455,7 +455,8 @@ void dispc_wb_set_channel_in(struct dispc_device *dispc,
 			     enum dss_writeback_channel channel);
 int dispc_wb_setup(struct dispc_device *dispc,
 		   const struct omap_dss_writeback_info *wi,
-		   bool mem_to_mem, const struct videomode *vm);
+		   bool mem_to_mem, const struct videomode *vm,
+		   enum dss_writeback_channel channel_in);
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 static inline void dss_collect_irq_stats(u32 irqstatus, unsigned int *irq_arr)
