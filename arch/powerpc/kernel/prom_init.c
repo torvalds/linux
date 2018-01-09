@@ -1111,7 +1111,8 @@ static void __init prom_check_platform_support(void)
 		}
 	}
 
-	if (supported.radix_mmu && supported.radix_gtse) {
+	if (supported.radix_mmu && supported.radix_gtse &&
+	    IS_ENABLED(CONFIG_PPC_RADIX_MMU)) {
 		/* Radix preferred - but we require GTSE for now */
 		prom_debug("Asking for radix with GTSE\n");
 		ibm_architecture_vec.vec5.mmu = OV5_FEAT(OV5_MMU_RADIX);
