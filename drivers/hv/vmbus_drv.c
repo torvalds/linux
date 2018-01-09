@@ -1254,6 +1254,21 @@ static ssize_t channel_events_show(const struct vmbus_channel *channel, char *bu
 }
 static VMBUS_CHAN_ATTR(events, S_IRUGO, channel_events_show, NULL);
 
+static ssize_t subchannel_monitor_id_show(const struct vmbus_channel *channel,
+					  char *buf)
+{
+	return sprintf(buf, "%u\n", channel->offermsg.monitorid);
+}
+static VMBUS_CHAN_ATTR(monitor_id, S_IRUGO, subchannel_monitor_id_show, NULL);
+
+static ssize_t subchannel_id_show(const struct vmbus_channel *channel,
+				  char *buf)
+{
+	return sprintf(buf, "%u\n",
+		       channel->offermsg.offer.sub_channel_index);
+}
+static VMBUS_CHAN_ATTR_RO(subchannel_id);
+
 static struct attribute *vmbus_chan_attrs[] = {
 	&chan_attr_out_mask.attr,
 	&chan_attr_in_mask.attr,
@@ -1264,6 +1279,8 @@ static struct attribute *vmbus_chan_attrs[] = {
 	&chan_attr_latency.attr,
 	&chan_attr_interrupts.attr,
 	&chan_attr_events.attr,
+	&chan_attr_monitor_id.attr,
+	&chan_attr_subchannel_id.attr,
 	NULL
 };
 
