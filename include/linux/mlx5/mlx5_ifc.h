@@ -1023,8 +1023,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_wq_sz[0x5];
 
 	u8         nic_vport_change_event[0x1];
-	u8         disable_local_lb[0x1];
-	u8         reserved_at_3e2[0x9];
+	u8         disable_local_lb_uc[0x1];
+	u8         disable_local_lb_mc[0x1];
+	u8         reserved_at_3e3[0x8];
 	u8         log_max_vlan_list[0x5];
 	u8         reserved_at_3f0[0x3];
 	u8         log_max_current_mc_list[0x5];
