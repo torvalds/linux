@@ -6,7 +6,7 @@
 
 #include <linux/types.h>
 
-#include "dx_crys_kernel.h"
+#include "cc_kernel_regs.h"
 #include <linux/bitfield.h>
 
 /******************************************************************************

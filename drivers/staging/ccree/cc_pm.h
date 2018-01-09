@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
-/* \file ssi_pm.h
+/* \file cc_pm.h
  */
 
 #ifndef __CC_POWER_MGR_H__
 #define __CC_POWER_MGR_H__
 
-#include "ssi_driver.h"
+#include "cc_driver.h"
 
 #define CC_SUSPEND_TIMEOUT 3000
 

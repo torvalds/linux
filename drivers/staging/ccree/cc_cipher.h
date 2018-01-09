@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
-/* \file ssi_cipher.h
+/* \file cc_cipher.h
  * ARM CryptoCell Cipher Crypto API
  */
 
@@ -10,8 +10,8 @@
 
 #include <linux/kernel.h>
 #include <crypto/algapi.h>
-#include "ssi_driver.h"
-#include "ssi_buffer_mgr.h"
+#include "cc_driver.h"
+#include "cc_buffer_mgr.h"
 
 /* Crypto cipher flags */
 #define CC_CRYPTO_CIPHER_KEY_KFDE0	BIT(0)

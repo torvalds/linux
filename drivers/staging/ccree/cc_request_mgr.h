@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
-/* \file request_mgr.h
+/* \file cc_request_mgr.h
  * Request Manager
  */
 

@@ -15,12 +15,12 @@
 #include <crypto/des.h>
 #include <linux/rtnetlink.h>
 #include <linux/version.h>
-#include "ssi_driver.h"
-#include "ssi_buffer_mgr.h"
-#include "ssi_aead.h"
-#include "ssi_request_mgr.h"
-#include "ssi_hash.h"
-#include "ssi_sram_mgr.h"
+#include "cc_driver.h"
+#include "cc_buffer_mgr.h"
+#include "cc_aead.h"
+#include "cc_request_mgr.h"
+#include "cc_hash.h"
+#include "cc_sram_mgr.h"
 
 #define template_aead	template_u.aead
 

@@ -6,13 +6,13 @@
 #include <linux/interrupt.h>
 #include <crypto/ctr.h>
 #include <linux/pm_runtime.h>
-#include "ssi_driver.h"
-#include "ssi_buffer_mgr.h"
-#include "ssi_request_mgr.h"
-#include "ssi_sram_mgr.h"
-#include "ssi_ivgen.h"
-#include "ssi_hash.h"
-#include "ssi_pm.h"
+#include "cc_driver.h"
+#include "cc_buffer_mgr.h"
+#include "cc_request_mgr.h"
+#include "cc_sram_mgr.h"
+#include "cc_ivgen.h"
+#include "cc_hash.h"
+#include "cc_pm.h"
 
 #define POWER_DOWN_ENABLE 0x01
 #define POWER_DOWN_DISABLE 0x00

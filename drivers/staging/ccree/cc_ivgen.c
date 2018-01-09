@@ -3,11 +3,11 @@
 
 #include <linux/platform_device.h>
 #include <crypto/ctr.h>
-#include "ssi_driver.h"
-#include "ssi_ivgen.h"
-#include "ssi_request_mgr.h"
-#include "ssi_sram_mgr.h"
-#include "ssi_buffer_mgr.h"
+#include "cc_driver.h"
+#include "cc_ivgen.h"
+#include "cc_request_mgr.h"
+#include "cc_sram_mgr.h"
+#include "cc_buffer_mgr.h"
 
 /* The max. size of pool *MUST* be <= SRAM total size */
 #define CC_IVPOOL_SIZE 1024

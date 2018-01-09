@@ -10,11 +10,11 @@
 #include <crypto/md5.h>
 #include <crypto/internal/hash.h>
 
-#include "ssi_driver.h"
-#include "ssi_request_mgr.h"
-#include "ssi_buffer_mgr.h"
-#include "ssi_hash.h"
-#include "ssi_sram_mgr.h"
+#include "cc_driver.h"
+#include "cc_request_mgr.h"
+#include "cc_buffer_mgr.h"
+#include "cc_hash.h"
+#include "cc_sram_mgr.h"
 
 #define CC_MAX_HASH_SEQ_LEN 12
 #define CC_MAX_OPAD_KEYS_SIZE CC_MAX_HASH_BLCK_SIZE

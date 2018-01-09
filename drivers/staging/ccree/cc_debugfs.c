@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
 #include <linux/stringify.h>
-#include "ssi_driver.h"
+#include "cc_driver.h"
 #include "cc_crypto_ctx.h"
 
 struct cc_debugfs_ctx {

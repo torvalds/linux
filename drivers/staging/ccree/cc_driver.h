@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
-/* \file ssi_driver.h
+/* \file cc_driver.h
  * ARM CryptoCell Linux Crypto Driver
  */
 
@@ -26,11 +26,11 @@
 #include <linux/platform_device.h>
 
 /* Registers definitions from shared/hw/ree_include */
-#include "dx_host.h"
+#include "cc_host_regs.h"
 #define CC_DEV_SHA_MAX 512
 #include "cc_crypto_ctx.h"
 #include "cc_hw_queue_defs.h"
-#include "ssi_sram_mgr.h"
+#include "cc_sram_mgr.h"
 
 extern bool cc_dump_desc;
 extern bool cc_dump_bytes;

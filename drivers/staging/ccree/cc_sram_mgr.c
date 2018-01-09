@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
-#include "ssi_driver.h"
-#include "ssi_sram_mgr.h"
+#include "cc_driver.h"
+#include "cc_sram_mgr.h"
 
 /**
  * struct cc_sram_ctx -Internal RAM context manager

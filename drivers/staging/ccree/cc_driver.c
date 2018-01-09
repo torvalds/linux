@@ -46,17 +46,17 @@
 #include <linux/clk.h>
 #include <linux/of_address.h>
 
-#include "ssi_driver.h"
-#include "ssi_request_mgr.h"
-#include "ssi_buffer_mgr.h"
+#include "cc_driver.h"
+#include "cc_request_mgr.h"
+#include "cc_buffer_mgr.h"
 #include "cc_debugfs.h"
-#include "ssi_cipher.h"
-#include "ssi_aead.h"
-#include "ssi_hash.h"
-#include "ssi_ivgen.h"
-#include "ssi_sram_mgr.h"
-#include "ssi_pm.h"
-#include "ssi_fips.h"
+#include "cc_cipher.h"
+#include "cc_aead.h"
+#include "cc_hash.h"
+#include "cc_ivgen.h"
+#include "cc_sram_mgr.h"
+#include "cc_pm.h"
+#include "cc_fips.h"
 
 bool cc_dump_desc;
 module_param_named(dump_desc, cc_dump_desc, bool, 0600);

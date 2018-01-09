@@ -13,11 +13,11 @@
 #include <crypto/xts.h>
 #include <crypto/scatterwalk.h>
 
-#include "ssi_driver.h"
+#include "cc_driver.h"
 #include "cc_lli_defs.h"
-#include "ssi_buffer_mgr.h"
-#include "ssi_cipher.h"
-#include "ssi_request_mgr.h"
+#include "cc_buffer_mgr.h"
+#include "cc_cipher.h"
+#include "cc_request_mgr.h"
 
 #define MAX_ABLKCIPHER_SEQ_LEN 6
 

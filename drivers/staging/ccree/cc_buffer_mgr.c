@@ -13,11 +13,11 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include "ssi_buffer_mgr.h"
+#include "cc_buffer_mgr.h"
 #include "cc_lli_defs.h"
-#include "ssi_cipher.h"
-#include "ssi_hash.h"
-#include "ssi_aead.h"
+#include "cc_cipher.h"
+#include "cc_hash.h"
+#include "cc_aead.h"
 
 enum dma_buffer_type {
 	DMA_NULL_TYPE = -1,

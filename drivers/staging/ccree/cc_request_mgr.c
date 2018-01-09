@@ -7,11 +7,11 @@
 #include <linux/delay.h>
 #include <crypto/ctr.h>
 #include <linux/pm_runtime.h>
-#include "ssi_driver.h"
-#include "ssi_buffer_mgr.h"
-#include "ssi_request_mgr.h"
-#include "ssi_ivgen.h"
-#include "ssi_pm.h"
+#include "cc_driver.h"
+#include "cc_buffer_mgr.h"
+#include "cc_request_mgr.h"
+#include "cc_ivgen.h"
+#include "cc_pm.h"
 
 #define CC_MAX_POLL_ITER	10
 /* The highest descriptor count in used */

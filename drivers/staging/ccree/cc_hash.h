@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
-/* \file ssi_hash.h
+/* \file cc_hash.h
  * ARM CryptoCell Hash Crypto API
  */
 
 #ifndef __CC_HASH_H__
 #define __CC_HASH_H__
 
-#include "ssi_buffer_mgr.h"
+#include "cc_buffer_mgr.h"
 
 #define HMAC_IPAD_CONST	0x36363636
 #define HMAC_OPAD_CONST	0x5C5C5C5C
