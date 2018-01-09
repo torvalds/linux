@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_tables.h>
@@ -16,26 +17,31 @@
 #include <net/netfilter/nf_tables_ipv6.h>
 #include <net/ip.h>
 
-static void nft_inet_hook_ops_init(struct nf_hook_ops *ops, unsigned int n)
+static unsigned int nft_do_chain_inet(void *priv, struct sk_buff *skb,
+				      const struct nf_hook_state *state)
 {
-	struct nft_af_info *afi;
+	struct nft_pktinfo pkt;
 
-	if (n == 1)
-		afi = &nft_af_ipv4;
-	else
-		afi = &nft_af_ipv6;
+	nft_set_pktinfo(&pkt, skb, state);
 
-	ops->pf = afi->family;
-	if (afi->hooks[ops->hooknum])
-		ops->hook = afi->hooks[ops->hooknum];
+	switch (state->pf) {
+	case NFPROTO_IPV4:
+		nft_set_pktinfo_ipv4(&pkt, skb);
+		break;
+	case NFPROTO_IPV6:
+		nft_set_pktinfo_ipv6(&pkt, skb);
+		break;
+	default:
+		break;
+	}
+
+	return nft_do_chain(&pkt, priv);
 }
 
 static struct nft_af_info nft_af_inet __read_mostly = {
 	.family		= NFPROTO_INET,
 	.nhooks		= NF_INET_NUMHOOKS,
 	.owner		= THIS_MODULE,
-	.nops		= 2,
-	.hook_ops_init	= nft_inet_hook_ops_init,
 };
 
 static int __net_init nf_tables_inet_init_net(struct net *net)
@@ -76,6 +82,13 @@ static const struct nf_chain_type filter_inet = {
 			  (1 << NF_INET_FORWARD) |
 			  (1 << NF_INET_PRE_ROUTING) |
 			  (1 << NF_INET_POST_ROUTING),
+	.hooks		= {
+		[NF_INET_LOCAL_IN]	= nft_do_chain_inet,
+		[NF_INET_LOCAL_OUT]	= nft_do_chain_inet,
+		[NF_INET_FORWARD]	= nft_do_chain_inet,
+		[NF_INET_PRE_ROUTING]	= nft_do_chain_inet,
+		[NF_INET_POST_ROUTING]	= nft_do_chain_inet,
+        },
 };
 
 static int __init nf_tables_inet_init(void)

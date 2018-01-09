@@ -68,32 +68,7 @@ int ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ip6_route_me_harder);
 
-/*
- * Extra routing may needed on local out, as the QUEUE target never
- * returns control to the table.
- */
-
-struct ip6_rt_info {
-	struct in6_addr daddr;
-	struct in6_addr saddr;
-	u_int32_t mark;
-};
-
-static void nf_ip6_saveroute(const struct sk_buff *skb,
-			     struct nf_queue_entry *entry)
-{
-	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
-
-	if (entry->state.hook == NF_INET_LOCAL_OUT) {
-		const struct ipv6hdr *iph = ipv6_hdr(skb);
-
-		rt_info->daddr = iph->daddr;
-		rt_info->saddr = iph->saddr;
-		rt_info->mark = skb->mark;
-	}
-}
-
-static int nf_ip6_reroute(struct net *net, struct sk_buff *skb,
+static int nf_ip6_reroute(struct sk_buff *skb,
 			  const struct nf_queue_entry *entry)
 {
 	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
@@ -103,7 +78,7 @@ static int nf_ip6_reroute(struct net *net, struct sk_buff *skb,
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
 		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr) ||
 		    skb->mark != rt_info->mark)
-			return ip6_route_me_harder(net, skb);
+			return ip6_route_me_harder(entry->state.net, skb);
 	}
 	return 0;
 }
@@ -190,25 +165,19 @@ static __sum16 nf_ip6_checksum_partial(struct sk_buff *skb, unsigned int hook,
 };
 
 static const struct nf_ipv6_ops ipv6ops = {
-	.chk_addr	= ipv6_chk_addr,
-	.route_input    = ip6_route_input,
-	.fragment	= ip6_fragment
-};
-
-static const struct nf_afinfo nf_ip6_afinfo = {
-	.family			= AF_INET6,
+	.chk_addr		= ipv6_chk_addr,
+	.route_input    	= ip6_route_input,
+	.fragment		= ip6_fragment,
 	.checksum		= nf_ip6_checksum,
 	.checksum_partial	= nf_ip6_checksum_partial,
 	.route			= nf_ip6_route,
-	.saveroute		= nf_ip6_saveroute,
 	.reroute		= nf_ip6_reroute,
-	.route_key_size		= sizeof(struct ip6_rt_info),
 };
 
 int __init ipv6_netfilter_init(void)
 {
 	RCU_INIT_POINTER(nf_ipv6_ops, &ipv6ops);
-	return nf_register_afinfo(&nf_ip6_afinfo);
+	return 0;
 }
 
 /* This can be called from inet6_init() on errors, so it cannot
@@ -217,5 +186,4 @@ int __init ipv6_netfilter_init(void)
 void ipv6_netfilter_fini(void)
 {
 	RCU_INIT_POINTER(nf_ipv6_ops, NULL);
-	nf_unregister_afinfo(&nf_ip6_afinfo);
 }

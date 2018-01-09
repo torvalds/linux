@@ -21,7 +21,8 @@ nft_do_chain_arp(void *priv,
 {
 	struct nft_pktinfo pkt;
 
-	nft_set_pktinfo_unspec(&pkt, skb, state);
+	nft_set_pktinfo(&pkt, skb, state);
+	nft_set_pktinfo_unspec(&pkt, skb);
 
 	return nft_do_chain(&pkt, priv);
 }
@@ -30,12 +31,6 @@ static struct nft_af_info nft_af_arp __read_mostly = {
 	.family		= NFPROTO_ARP,
 	.nhooks		= NF_ARP_NUMHOOKS,
 	.owner		= THIS_MODULE,
-	.nops		= 1,
-	.hooks		= {
-		[NF_ARP_IN]		= nft_do_chain_arp,
-		[NF_ARP_OUT]		= nft_do_chain_arp,
-		[NF_ARP_FORWARD]	= nft_do_chain_arp,
-	},
 };
 
 static int nf_tables_arp_init_net(struct net *net)
@@ -73,6 +68,10 @@ static const struct nf_chain_type filter_arp = {
 	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_ARP_IN) |
 			  (1 << NF_ARP_OUT),
+	.hooks		= {
+		[NF_ARP_IN]		= nft_do_chain_arp,
+		[NF_ARP_OUT]		= nft_do_chain_arp,
+	},
 };
 
 static int __init nf_tables_arp_init(void)

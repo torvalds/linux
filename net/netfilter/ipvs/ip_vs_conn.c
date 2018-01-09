@@ -322,7 +322,7 @@ ip_vs_conn_fill_param_proto(struct netns_ipvs *ipvs,
 {
 	__be16 _ports[2], *pptr;
 
-	pptr = frag_safe_skb_hp(skb, iph->len, sizeof(_ports), _ports, iph);
+	pptr = frag_safe_skb_hp(skb, iph->len, sizeof(_ports), _ports);
 	if (pptr == NULL)
 		return 1;
 

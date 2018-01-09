@@ -48,7 +48,6 @@ static u_int32_t tcpmss_reverse_mtu(struct net *net,
 				    unsigned int family)
 {
 	struct flowi fl;
-	const struct nf_afinfo *ai;
 	struct rtable *rt = NULL;
 	u_int32_t mtu     = ~0U;
 
@@ -62,10 +61,8 @@ static u_int32_t tcpmss_reverse_mtu(struct net *net,
 		memset(fl6, 0, sizeof(*fl6));
 		fl6->daddr = ipv6_hdr(skb)->saddr;
 	}
-	ai = nf_get_afinfo(family);
-	if (ai != NULL)
-		ai->route(net, (struct dst_entry **)&rt, &fl, false);
 
+	nf_route(net, (struct dst_entry **)&rt, &fl, false, family);
 	if (rt != NULL) {
 		mtu = dst_mtu(&rt->dst);
 		dst_release(&rt->dst);

@@ -9,6 +9,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/nf_tables.h>
 #include <linux/u64_stats_sync.h>
+#include <net/netfilter/nf_flow_table.h>
 #include <net/netlink.h>
 
 #define NFT_JUMP_STACK_SIZE	16
@@ -54,21 +55,13 @@ static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
 	pkt->xt.state = state;
 }
 
-static inline void nft_set_pktinfo_proto_unspec(struct nft_pktinfo *pkt,
-						struct sk_buff *skb)
+static inline void nft_set_pktinfo_unspec(struct nft_pktinfo *pkt,
+					  struct sk_buff *skb)
 {
 	pkt->tprot_set = false;
 	pkt->tprot = 0;
 	pkt->xt.thoff = 0;
 	pkt->xt.fragoff = 0;
-}
-
-static inline void nft_set_pktinfo_unspec(struct nft_pktinfo *pkt,
-					  struct sk_buff *skb,
-					  const struct nf_hook_state *state)
-{
-	nft_set_pktinfo(pkt, skb, state);
-	nft_set_pktinfo_proto_unspec(pkt, skb);
 }
 
 /**
@@ -423,6 +416,11 @@ struct nft_set {
 	unsigned char			data[]
 		__attribute__((aligned(__alignof__(u64))));
 };
+
+static inline bool nft_set_is_anonymous(const struct nft_set *set)
+{
+	return set->flags & NFT_SET_ANONYMOUS;
+}
 
 static inline void *nft_set_priv(const struct nft_set *set)
 {
@@ -883,7 +881,7 @@ enum nft_chain_type {
  * 	@family: address family
  * 	@owner: module owner
  * 	@hook_mask: mask of valid hooks
- * 	@hooks: hookfn overrides
+ * 	@hooks: array of hook functions
  */
 struct nf_chain_type {
 	const char			*name;
@@ -905,8 +903,6 @@ struct nft_stats {
 	struct u64_stats_sync	syncp;
 };
 
-#define NFT_HOOK_OPS_MAX		2
-
 /**
  *	struct nft_base_chain - nf_tables base chain
  *
@@ -918,7 +914,7 @@ struct nft_stats {
  *	@dev_name: device name that this base chain is attached to (if any)
  */
 struct nft_base_chain {
-	struct nf_hook_ops		ops[NFT_HOOK_OPS_MAX];
+	struct nf_hook_ops		ops;
 	const struct nf_chain_type	*type;
 	u8				policy;
 	u8				flags;
@@ -948,6 +944,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  *	@chains: chains in the table
  *	@sets: sets in the table
  *	@objects: stateful objects in the table
+ *	@flowtables: flow tables in the table
  *	@hgenerator: handle generator state
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
@@ -959,6 +956,7 @@ struct nft_table {
 	struct list_head		chains;
 	struct list_head		sets;
 	struct list_head		objects;
+	struct list_head		flowtables;
 	u64				hgenerator;
 	u32				use;
 	u16				flags:14,
@@ -979,9 +977,6 @@ enum nft_af_flags {
  *	@owner: module owner
  *	@tables: used internally
  *	@flags: family flags
- *	@nops: number of hook ops in this family
- *	@hook_ops_init: initialization function for chain hook ops
- *	@hooks: hookfn overrides for packet validation
  */
 struct nft_af_info {
 	struct list_head		list;
@@ -990,10 +985,6 @@ struct nft_af_info {
 	struct module			*owner;
 	struct list_head		tables;
 	u32				flags;
-	unsigned int			nops;
-	void				(*hook_ops_init)(struct nf_hook_ops *,
-							 unsigned int);
-	nf_hookfn			*hooks[NF_MAX_HOOKS];
 };
 
 int nft_register_afinfo(struct net *, struct nft_af_info *);
@@ -1097,6 +1088,44 @@ int nft_register_obj(struct nft_object_type *obj_type);
 void nft_unregister_obj(struct nft_object_type *obj_type);
 
 /**
+ *	struct nft_flowtable - nf_tables flow table
+ *
+ *	@list: flow table list node in table list
+ * 	@table: the table the flow table is contained in
+ *	@name: name of this flow table
+ *	@hooknum: hook number
+ *	@priority: hook priority
+ *	@ops_len: number of hooks in array
+ *	@genmask: generation mask
+ *	@use: number of references to this flow table
+ *	@data: rhashtable and garbage collector
+ * 	@ops: array of hooks
+ */
+struct nft_flowtable {
+	struct list_head		list;
+	struct nft_table		*table;
+	char				*name;
+	int				hooknum;
+	int				priority;
+	int				ops_len;
+	u32				genmask:2,
+					use:30;
+	/* runtime data below here */
+	struct nf_hook_ops		*ops ____cacheline_aligned;
+	struct nf_flowtable		data;
+};
+
+struct nft_flowtable *nf_tables_flowtable_lookup(const struct nft_table *table,
+						 const struct nlattr *nla,
+						 u8 genmask);
+void nft_flow_table_iterate(struct net *net,
+			    void (*iter)(struct nf_flowtable *flowtable, void *data),
+			    void *data);
+
+void nft_register_flowtable_type(struct nf_flowtable_type *type);
+void nft_unregister_flowtable_type(struct nf_flowtable_type *type);
+
+/**
  *	struct nft_traceinfo - nft tracing information and state
  *
  *	@pkt: pktinfo currently processed
@@ -1124,9 +1153,6 @@ void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,
 		    const struct nft_chain *basechain);
 
 void nft_trace_notify(struct nft_traceinfo *info);
-
-#define nft_dereference(p)					\
-	nfnl_dereference(p, NFNL_SUBSYS_NFTABLES)
 
 #define MODULE_ALIAS_NFT_FAMILY(family)	\
 	MODULE_ALIAS("nft-afinfo-" __stringify(family))
@@ -1331,5 +1357,12 @@ struct nft_trans_obj {
 
 #define nft_trans_obj(trans)	\
 	(((struct nft_trans_obj *)trans->data)->obj)
+
+struct nft_trans_flowtable {
+	struct nft_flowtable		*flowtable;
+};
+
+#define nft_trans_flowtable(trans)	\
+	(((struct nft_trans_flowtable *)trans->data)->flowtable)
 
 #endif /* _NET_NF_TABLES_H */
