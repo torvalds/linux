@@ -2293,6 +2293,23 @@
 			};
 		};
 
+		testclk {
+			test_clkout0: test-clkout0 {
+				rockchip,pins =
+					<0 0 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			test_clkout1: test-clkout1 {
+				rockchip,pins =
+					<2 25 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			test_clkout2: test-clkout2 {
+				rockchip,pins =
+					<0 8 RK_FUNC_3 &pcfg_pull_none>;
+			};
+		};
+
 		tsadc {
 			otp_gpio: otp-gpio {
 				rockchip,pins = <1 6 RK_FUNC_GPIO &pcfg_pull_none>;
