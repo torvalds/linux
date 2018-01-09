@@ -1,17 +1,13 @@
-/*
- * Cryptographic API.
- *
- * Support for Samsung S5PV210 and Exynos HW acceleration.
- *
- * Copyright (C) 2011 NetUP Inc. All rights reserved.
- * Copyright (c) 2017 Samsung Electronics Co., Ltd. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * Hash part based on omap-sham.c driver.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Cryptographic API.
+//
+// Support for Samsung S5PV210 and Exynos HW acceleration.
+//
+// Copyright (C) 2011 NetUP Inc. All rights reserved.
+// Copyright (c) 2017 Samsung Electronics Co., Ltd. All rights reserved.
+//
+// Hash part based on omap-sham.c driver.
 
 #include <linux/clk.h>
 #include <linux/crypto.h>
