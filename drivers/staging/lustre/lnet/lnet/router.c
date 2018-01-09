@@ -884,8 +884,7 @@ lnet_destroy_rc_data(struct lnet_rc_data *rcd)
 		lnet_net_unlock(cpt);
 	}
 
-	if (rcd->rcd_pinginfo)
-		LIBCFS_FREE(rcd->rcd_pinginfo, LNET_PINGINFO_SIZE);
+	kfree(rcd->rcd_pinginfo);
 
 	kfree(rcd);
 }
@@ -908,7 +907,7 @@ lnet_create_rc_data_locked(struct lnet_peer *gateway)
 	LNetInvalidateMDHandle(&rcd->rcd_mdh);
 	INIT_LIST_HEAD(&rcd->rcd_list);
 
-	LIBCFS_ALLOC(pi, LNET_PINGINFO_SIZE);
+	pi = kzalloc(LNET_PINGINFO_SIZE, GFP_NOFS);
 	if (!pi)
 		goto out;
 
