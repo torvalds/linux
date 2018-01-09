@@ -113,7 +113,7 @@ srpc_free_bulk(struct srpc_bulk *bk)
 		__free_page(pg);
 	}
 
-	LIBCFS_FREE(bk, offsetof(struct srpc_bulk, bk_iovs[bk->bk_niov]));
+	kfree(bk);
 }
 
 struct srpc_bulk *
@@ -125,8 +125,8 @@ srpc_alloc_bulk(int cpt, unsigned int bulk_off, unsigned int bulk_npg,
 
 	LASSERT(bulk_npg > 0 && bulk_npg <= LNET_MAX_IOV);
 
-	LIBCFS_CPT_ALLOC(bk, lnet_cpt_table(), cpt,
-			 offsetof(struct srpc_bulk, bk_iovs[bulk_npg]));
+	bk = kzalloc_cpt(offsetof(struct srpc_bulk, bk_iovs[bulk_npg]),
+			 GFP_KERNEL, cpt);
 	if (!bk) {
 		CERROR("Can't allocate descriptor for %d pages\n", bulk_npg);
 		return NULL;
@@ -294,8 +294,7 @@ srpc_service_init(struct srpc_service *svc)
 		}
 
 		for (j = 0; j < nrpcs; j++) {
-			LIBCFS_CPT_ALLOC(rpc, lnet_cpt_table(),
-					 i, sizeof(*rpc));
+			rpc = kzalloc_cpt(sizeof(*rpc), GFP_NOFS, i);
 			if (!rpc) {
 				srpc_service_fini(svc);
 				return -ENOMEM;

@@ -1296,12 +1296,10 @@ rescan:
 void
 lnet_destroy_rtrbuf(struct lnet_rtrbuf *rb, int npages)
 {
-	int sz = offsetof(struct lnet_rtrbuf, rb_kiov[npages]);
-
 	while (--npages >= 0)
 		__free_page(rb->rb_kiov[npages].bv_page);
 
-	LIBCFS_FREE(rb, sz);
+	kfree(rb);
 }
 
 static struct lnet_rtrbuf *
@@ -1313,7 +1311,7 @@ lnet_new_rtrbuf(struct lnet_rtrbufpool *rbp, int cpt)
 	struct lnet_rtrbuf *rb;
 	int i;
 
-	LIBCFS_CPT_ALLOC(rb, lnet_cpt_table(), cpt, sz);
+	rb = kzalloc_cpt(sz, GFP_NOFS, cpt);
 	if (!rb)
 		return NULL;
 
@@ -1327,7 +1325,7 @@ lnet_new_rtrbuf(struct lnet_rtrbufpool *rbp, int cpt)
 			while (--i >= 0)
 				__free_page(rb->rb_kiov[i].bv_page);
 
-			LIBCFS_FREE(rb, sz);
+			kfree(rb);
 			return NULL;
 		}
 

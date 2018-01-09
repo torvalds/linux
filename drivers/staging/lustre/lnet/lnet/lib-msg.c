@@ -553,12 +553,8 @@ lnet_msg_container_cleanup(struct lnet_msg_container *container)
 	if (count > 0)
 		CERROR("%d active msg on exit\n", count);
 
-	if (container->msc_finalizers) {
-		LIBCFS_FREE(container->msc_finalizers,
-			    container->msc_nfinalizers *
-			    sizeof(*container->msc_finalizers));
-		container->msc_finalizers = NULL;
-	}
+	kvfree(container->msc_finalizers);
+	container->msc_finalizers = NULL;
 	container->msc_init = 0;
 }
 
@@ -573,9 +569,9 @@ lnet_msg_container_setup(struct lnet_msg_container *container, int cpt)
 	/* number of CPUs */
 	container->msc_nfinalizers = cfs_cpt_weight(lnet_cpt_table(), cpt);
 
-	LIBCFS_CPT_ALLOC(container->msc_finalizers, lnet_cpt_table(), cpt,
-			 container->msc_nfinalizers *
-			 sizeof(*container->msc_finalizers));
+	container->msc_finalizers = kvzalloc_cpt(container->msc_nfinalizers *
+						 sizeof(*container->msc_finalizers),
+						 GFP_KERNEL, cpt);
 
 	if (!container->msc_finalizers) {
 		CERROR("Failed to allocate message finalizers\n");

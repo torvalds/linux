@@ -126,6 +126,25 @@ do {								    \
 	kvfree(ptr);					  \
 } while (0)
 
+/*
+ * Use #define rather than inline, as lnet_cpt_table() might
+ * not be defined yet
+ */
+#define kmalloc_cpt(size, flags, cpt) \
+	kmalloc_node(size, flags,  cfs_cpt_spread_node(lnet_cpt_table(), cpt))
+
+#define kzalloc_cpt(size, flags, cpt) \
+	kmalloc_node(size, flags | __GFP_ZERO,				\
+		     cfs_cpt_spread_node(lnet_cpt_table(), cpt))
+
+#define kvmalloc_cpt(size, flags, cpt) \
+	kvmalloc_node(size, flags,					\
+		      cfs_cpt_spread_node(lnet_cpt_table(), cpt))
+
+#define kvzalloc_cpt(size, flags, cpt) \
+	kvmalloc_node(size, flags | __GFP_ZERO,				\
+		      cfs_cpt_spread_node(lnet_cpt_table(), cpt))
+
 /******************************************************************************/
 
 void libcfs_debug_dumplog(void);

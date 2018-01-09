@@ -404,11 +404,8 @@ lnet_res_container_cleanup(struct lnet_res_container *rec)
 		       count, lnet_res_type2str(rec->rec_type));
 	}
 
-	if (rec->rec_lh_hash) {
-		LIBCFS_FREE(rec->rec_lh_hash,
-			    LNET_LH_HASH_SIZE * sizeof(rec->rec_lh_hash[0]));
-		rec->rec_lh_hash = NULL;
-	}
+	kfree(rec->rec_lh_hash);
+	rec->rec_lh_hash = NULL;
 
 	rec->rec_type = 0; /* mark it as finalized */
 }
@@ -426,8 +423,8 @@ lnet_res_container_setup(struct lnet_res_container *rec, int cpt, int type)
 	rec->rec_lh_cookie = (cpt << LNET_COOKIE_TYPE_BITS) | type;
 
 	/* Arbitrary choice of hash table size */
-	LIBCFS_CPT_ALLOC(rec->rec_lh_hash, lnet_cpt_table(), cpt,
-			 LNET_LH_HASH_SIZE * sizeof(rec->rec_lh_hash[0]));
+	rec->rec_lh_hash = kvmalloc_cpt(LNET_LH_HASH_SIZE * sizeof(rec->rec_lh_hash[0]),
+					GFP_KERNEL, cpt);
 	if (!rec->rec_lh_hash) {
 		rc = -ENOMEM;
 		goto out;

@@ -108,7 +108,7 @@ ksocknal_create_peer(struct ksock_peer **peerp, struct lnet_ni *ni,
 	LASSERT(id.pid != LNET_PID_ANY);
 	LASSERT(!in_interrupt());
 
-	LIBCFS_CPT_ALLOC(peer, lnet_cpt_table(), cpt, sizeof(*peer));
+	peer = kzalloc_cpt(sizeof(*peer), GFP_NOFS, cpt);
 	if (!peer)
 		return -ENOMEM;
 
@@ -2257,13 +2257,8 @@ ksocknal_free_buffers(void)
 		struct ksock_sched_info *info;
 		int i;
 
-		cfs_percpt_for_each(info, i, ksocknal_data.ksnd_sched_info) {
-			if (info->ksi_scheds) {
-				LIBCFS_FREE(info->ksi_scheds,
-					    info->ksi_nthreads_max *
-					    sizeof(info->ksi_scheds[0]));
-			}
-		}
+		cfs_percpt_for_each(info, i, ksocknal_data.ksnd_sched_info)
+			kfree(info->ksi_scheds);
 		cfs_percpt_free(ksocknal_data.ksnd_sched_info);
 	}
 
@@ -2452,8 +2447,8 @@ ksocknal_base_startup(void)
 		info->ksi_nthreads_max = nthrs;
 		info->ksi_cpt = i;
 
-		LIBCFS_CPT_ALLOC(info->ksi_scheds, lnet_cpt_table(), i,
-				 info->ksi_nthreads_max * sizeof(*sched));
+		info->ksi_scheds = kzalloc_cpt(info->ksi_nthreads_max * sizeof(*sched),
+					       GFP_NOFS, i);
 		if (!info->ksi_scheds)
 			goto failed;
 

@@ -49,10 +49,8 @@ cfs_percpt_free(void *vars)
 
 	arr = container_of(vars, struct cfs_var_array, va_ptrs[0]);
 
-	for (i = 0; i < arr->va_count; i++) {
-		if (arr->va_ptrs[i])
-			LIBCFS_FREE(arr->va_ptrs[i], arr->va_size);
-	}
+	for (i = 0; i < arr->va_count; i++)
+		kfree(arr->va_ptrs[i]);
 
 	kvfree(arr);
 }
@@ -89,7 +87,8 @@ cfs_percpt_alloc(struct cfs_cpt_table *cptab, unsigned int size)
 	arr->va_cptab = cptab;
 
 	for (i = 0; i < count; i++) {
-		LIBCFS_CPT_ALLOC(arr->va_ptrs[i], cptab, i, size);
+		arr->va_ptrs[i] = kzalloc_node(size, GFP_KERNEL,
+					       cfs_cpt_spread_node(cptab, i));
 		if (!arr->va_ptrs[i]) {
 			cfs_percpt_free((void *)&arr->va_ptrs[0]);
 			return NULL;
