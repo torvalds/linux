@@ -1341,6 +1341,12 @@ static blk_qc_t null_queue_bio(struct request_queue *q, struct bio *bio)
 	return BLK_QC_T_NONE;
 }
 
+static enum blk_eh_timer_return null_rq_timed_out_fn(struct request *rq)
+{
+	pr_info("null: rq %p timed out\n", rq);
+	return BLK_EH_HANDLED;
+}
+
 static int null_rq_prep_fn(struct request_queue *q, struct request *req)
 {
 	struct nullb *nullb = q->queuedata;
@@ -1371,6 +1377,12 @@ static void null_request_fn(struct request_queue *q)
 	}
 }
 
+static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
+{
+	pr_info("null: rq %p timed out\n", rq);
+	return BLK_EH_HANDLED;
+}
+
 static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
@@ -1394,6 +1406,7 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
 	.complete	= null_softirq_done_fn,
+	.timeout	= null_timeout_rq,
 };
 
 static void cleanup_queue(struct nullb_queue *nq)
@@ -1654,6 +1667,7 @@ static int null_add_dev(struct nullb_device *dev)
 		if (rv)
 			goto out_cleanup_queues;
 
+		nullb->tag_set->timeout = 5 * HZ;
 		nullb->q = blk_mq_init_queue(nullb->tag_set);
 		if (IS_ERR(nullb->q)) {
 			rv = -ENOMEM;
@@ -1679,6 +1693,8 @@ static int null_add_dev(struct nullb_device *dev)
 		}
 		blk_queue_prep_rq(nullb->q, null_rq_prep_fn);
 		blk_queue_softirq_done(nullb->q, null_softirq_done_fn);
+		blk_queue_rq_timed_out(nullb->q, null_rq_timed_out_fn);
+		nullb->q->rq_timeout = 5 * HZ;
 		rv = init_driver_queues(nullb);
 		if (rv)
 			goto out_cleanup_blk_queue;
