@@ -616,15 +616,17 @@ out:
 
 int intel_hdcp_disable(struct intel_connector *connector)
 {
-	int ret;
+	int ret = 0;
 
 	if (!connector->hdcp_shim)
 		return -ENOENT;
 
 	mutex_lock(&connector->hdcp_mutex);
 
-	connector->hdcp_value = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
-	ret = _intel_hdcp_disable(connector);
+	if (connector->hdcp_value != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
+		connector->hdcp_value = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+		ret = _intel_hdcp_disable(connector);
+	}
 
 	mutex_unlock(&connector->hdcp_mutex);
 	cancel_delayed_work_sync(&connector->hdcp_check_work);
