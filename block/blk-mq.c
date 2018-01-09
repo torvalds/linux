@@ -584,11 +584,16 @@ static void hctx_lock(struct blk_mq_hw_ctx *hctx, int *srcu_idx)
 void blk_mq_complete_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, rq->mq_ctx->cpu);
+	int srcu_idx;
 
 	if (unlikely(blk_should_fake_timeout(q)))
 		return;
+
+	hctx_lock(hctx, &srcu_idx);
 	if (!blk_mark_rq_complete(rq))
 		__blk_mq_complete_request(rq);
+	hctx_unlock(hctx, srcu_idx);
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
