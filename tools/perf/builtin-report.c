@@ -52,6 +52,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <linux/mman.h>
 
 #define PTIME_RANGE_MAX	10
 
@@ -65,6 +66,7 @@ struct report {
 	bool			mem_mode;
 	bool			stats_mode;
 	bool			tasks_mode;
+	bool			mmaps_mode;
 	bool			header;
 	bool			header_only;
 	bool			nonany_branch_mode;
@@ -608,6 +610,10 @@ static int stats_print(struct report *rep)
 static void tasks_setup(struct report *rep)
 {
 	memset(&rep->tool, 0, sizeof(rep->tool));
+	if (rep->mmaps_mode) {
+		rep->tool.mmap = perf_event__process_mmap;
+		rep->tool.mmap2 = perf_event__process_mmap2;
+	}
 	rep->tool.comm = perf_event__process_comm;
 	rep->tool.exit = perf_event__process_exit;
 	rep->tool.fork = perf_event__process_fork;
@@ -642,14 +648,46 @@ static struct task *tasks_list(struct task *task, struct machine *machine)
 	return tasks_list(parent_task, machine);
 }
 
+static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
+{
+	size_t printed = 0;
+	struct rb_node *nd;
+
+	for (nd = rb_first(&maps->entries); nd; nd = rb_next(nd)) {
+		struct map *map = rb_entry(nd, struct map, rb_node);
+
+		printed += fprintf(fp, "%*s  %" PRIx64 "-%" PRIx64 " %c%c%c%c %08" PRIx64 " %" PRIu64 " %s\n",
+				   indent, "", map->start, map->end,
+				   map->prot & PROT_READ ? 'r' : '-',
+				   map->prot & PROT_WRITE ? 'w' : '-',
+				   map->prot & PROT_EXEC ? 'x' : '-',
+				   map->flags & MAP_SHARED ? 's' : 'p',
+				   map->pgoff,
+				   map->ino, map->dso->name);
+	}
+
+	return printed;
+}
+
+static int map_groups__fprintf_task(struct map_groups *mg, int indent, FILE *fp)
+{
+	int printed = 0, i;
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		printed += maps__fprintf_task(&mg->maps[i], indent, fp);
+	return printed;
+}
+
 static void task__print_level(struct task *task, FILE *fp, int level)
 {
 	struct thread *thread = task->thread;
 	struct task *child;
+	int comm_indent = fprintf(fp, "  %8d %8d %8d |%*s",
+				  thread->pid_, thread->tid, thread->ppid,
+				  level, "");
 
-	fprintf(fp, "  %8d %8d %8d |%*s%s\n",
-		thread->pid_, thread->tid, thread->ppid,
-		level, "", thread__comm_str(thread));
+	fprintf(fp, "%s\n", thread__comm_str(thread));
+
+	map_groups__fprintf_task(thread->mg, comm_indent, fp);
 
 	if (!list_empty(&task->children)) {
 		list_for_each_entry(child, &task->children, list)
@@ -930,6 +968,7 @@ int cmd_report(int argc, const char **argv)
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN(0, "stats", &report.stats_mode, "Display event stats"),
 	OPT_BOOLEAN(0, "tasks", &report.tasks_mode, "Display recorded tasks"),
+	OPT_BOOLEAN(0, "mmaps", &report.mmaps_mode, "Display recorded tasks memory maps"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
@@ -1077,6 +1116,9 @@ int cmd_report(int argc, const char **argv)
 		report.symbol_filter_str = argv[0];
 	}
 
+	if (report.mmaps_mode)
+		report.tasks_mode = true;
+
 	if (quiet)
 		perf_quiet_option();
 
@@ -1194,7 +1236,7 @@ repeat:
 	if (report.stats_mode || report.tasks_mode)
 		use_browser = 0;
 	if (report.stats_mode && report.tasks_mode) {
-		pr_err("Error: --tasks and --stats options cannot be used together\n");
+		pr_err("Error: --tasks and --mmaps can't be used together with --stats\n");
 		goto error;
 	}
 
