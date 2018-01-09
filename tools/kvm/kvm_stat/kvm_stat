@@ -1084,9 +1084,10 @@ class Tui(object):
         self.screen.clrtobot()
         stats = self.stats.get(self._display_guests)
         total = 0.
-        for key in stats.keys():
+        for key, values in stats.items():
             if key.find('(') is -1:
-                total += stats[key].value
+                total += values.value
+
         if self._sorting == SORT_DEFAULT:
             def sortkey((_k, v)):
                 # sort by (delta value, overall value)
@@ -1376,8 +1377,7 @@ def batch(stats):
         s = stats.get()
         time.sleep(1)
         s = stats.get()
-        for key in sorted(s.keys()):
-            values = s[key]
+        for key, values in sorted(s.items()):
             print('%-42s%10d%10d' % (key, values.value, values.delta))
     except KeyboardInterrupt:
         pass
@@ -1388,14 +1388,14 @@ def log(stats):
     keys = sorted(stats.get().keys())
 
     def banner():
-        for k in keys:
-            print(k, end=' ')
+        for key in keys:
+            print(key, end=' ')
         print()
 
     def statline():
         s = stats.get()
-        for k in keys:
-            print(' %9d' % s[k].delta, end=' ')
+        for key in keys:
+            print(' %9d' % s[key].delta, end=' ')
         print()
     line = 0
     banner_repeat = 20
