@@ -3772,6 +3772,13 @@ static u32 brcmf_sdio_buscore_read32(void *ctx, u32 addr)
 
 	val = brcmf_sdiod_readl(sdiodev, addr, NULL);
 
+	/*
+	 * this is a bit of special handling if reading the chipcommon chipid
+	 * register. The 4339 is a next-gen of the 4335. It uses the same
+	 * SDIO device id as 4335 and the chipid register returns 4335 as well.
+	 * It can be identified as 4339 by looking at the chip revision. It
+	 * is corrected here so the chip.c module has the right info.
+	 */
 	if (addr == CORE_CC_REG(SI_ENUM_BASE, chipid) &&
 	    (sdiodev->func1->device == SDIO_DEVICE_ID_BROADCOM_4339 ||
 	     sdiodev->func1->device == SDIO_DEVICE_ID_BROADCOM_4335_4339)) {
