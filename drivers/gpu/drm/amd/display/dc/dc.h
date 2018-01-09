@@ -212,6 +212,7 @@ struct dc_debug {
 	bool disable_stereo_support;
 	bool vsr_support;
 	bool performance_trace;
+	bool az_endpoint_mute_only;
 };
 struct dc_state;
 struct resource_pool;

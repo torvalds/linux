@@ -947,7 +947,11 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 			pipe_ctx->stream_res.stream_enc, true);
 	if (pipe_ctx->stream_res.audio) {
-		pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
+		if (option != KEEP_ACQUIRED_RESOURCE ||
+				!dc->debug.az_endpoint_mute_only) {
+			/*only disalbe az_endpoint if power down or free*/
+			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
+		}
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(

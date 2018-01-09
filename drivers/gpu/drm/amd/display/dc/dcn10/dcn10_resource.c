@@ -451,6 +451,7 @@ static const struct dc_debug debug_defaults_drv = {
 		.disable_stereo_support = true,
 		.vsr_support = true,
 		.performance_trace = false,
+		.az_endpoint_mute_only = true,
 };
 
 static const struct dc_debug debug_defaults_diags = {
