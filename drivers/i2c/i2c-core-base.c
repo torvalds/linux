@@ -147,6 +147,11 @@ static int get_sda_gpio_value(struct i2c_adapter *adap)
 	return gpiod_get_value_cansleep(adap->bus_recovery_info->sda_gpiod);
 }
 
+static void set_sda_gpio_value(struct i2c_adapter *adap, int val)
+{
+	gpiod_set_value_cansleep(adap->bus_recovery_info->sda_gpiod, val);
+}
+
 /*
  * We are generating clock pulses. ndelay() determines durating of clk pulses.
  * We will generate clock with rate 100 KHz and so duration of both clock levels
@@ -225,8 +230,12 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 	if (bri->scl_gpiod && bri->recover_bus == i2c_generic_scl_recovery) {
 		bri->get_scl = get_scl_gpio_value;
 		bri->set_scl = set_scl_gpio_value;
-		if (bri->sda_gpiod)
+		if (bri->sda_gpiod) {
 			bri->get_sda = get_sda_gpio_value;
+			/* FIXME: add proper flag instead of '0' once available */
+			if (gpiod_get_direction(bri->sda_gpiod) == 0)
+				bri->set_sda = set_sda_gpio_value;
+		}
 		return;
 	}
 
