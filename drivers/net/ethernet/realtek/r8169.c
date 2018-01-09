@@ -1675,31 +1675,22 @@ static void rtl_link_chg_patch(struct rtl8169_private *tp)
 	}
 }
 
-static void __rtl8169_check_link_status(struct net_device *dev,
-					struct rtl8169_private *tp,
-					void __iomem *ioaddr, bool pm)
+static void rtl8169_check_link_status(struct net_device *dev,
+				      struct rtl8169_private *tp,
+				      void __iomem *ioaddr)
 {
 	if (tp->link_ok(ioaddr)) {
 		rtl_link_chg_patch(tp);
 		/* This is to cancel a scheduled suspend if there's one. */
-		if (pm)
-			pm_request_resume(&tp->pci_dev->dev);
+		pm_request_resume(&tp->pci_dev->dev);
 		netif_carrier_on(dev);
 		if (net_ratelimit())
 			netif_info(tp, ifup, dev, "link up\n");
 	} else {
 		netif_carrier_off(dev);
 		netif_info(tp, ifdown, dev, "link down\n");
-		if (pm)
-			pm_schedule_suspend(&tp->pci_dev->dev, 5000);
+		pm_runtime_idle(&tp->pci_dev->dev);
 	}
-}
-
-static void rtl8169_check_link_status(struct net_device *dev,
-				      struct rtl8169_private *tp,
-				      void __iomem *ioaddr)
-{
-	__rtl8169_check_link_status(dev, tp, ioaddr, false);
 }
 
 #define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
@@ -7746,7 +7737,7 @@ static void rtl_slow_event_work(struct rtl8169_private *tp)
 		rtl8169_pcierr_interrupt(dev);
 
 	if (status & LinkChg)
-		__rtl8169_check_link_status(dev, tp, tp->mmio_addr, true);
+		rtl8169_check_link_status(dev, tp, tp->mmio_addr);
 
 	rtl_irq_enable_all(tp);
 }
@@ -7959,7 +7950,7 @@ static int rtl_open(struct net_device *dev)
 	rtl_unlock_work(tp);
 
 	tp->saved_wolopts = 0;
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	rtl8169_check_link_status(dev, tp, ioaddr);
 out:
@@ -8103,8 +8094,10 @@ static int rtl8169_runtime_suspend(struct device *device)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	if (!tp->TxDescArray)
+	if (!tp->TxDescArray) {
+		rtl_pll_power_down(tp);
 		return 0;
+	}
 
 	rtl_lock_work(tp);
 	tp->saved_wolopts = __rtl8169_get_wol(tp);
@@ -8146,9 +8139,11 @@ static int rtl8169_runtime_idle(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
 
-	return tp->TxDescArray ? -EBUSY : 0;
+	if (!netif_running(dev) || !netif_carrier_ok(dev))
+		pm_schedule_suspend(device, 10000);
+
+	return -EBUSY;
 }
 
 static const struct dev_pm_ops rtl8169_pm_ops = {
@@ -8195,9 +8190,6 @@ static void rtl_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = &pdev->dev;
-
-	pm_runtime_get_sync(d);
 
 	rtl8169_net_suspend(dev);
 
@@ -8215,8 +8207,6 @@ static void rtl_shutdown(struct pci_dev *pdev)
 		pci_wake_from_d3(pdev, true);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
-
-	pm_runtime_put_noidle(d);
 }
 
 static void rtl_remove_one(struct pci_dev *pdev)
@@ -8701,10 +8691,10 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rtl8168_driver_start(tp);
 	}
 
-	if (pci_dev_run_wake(pdev))
-		pm_runtime_put_noidle(&pdev->dev);
-
 	netif_carrier_off(dev);
+
+	if (pci_dev_run_wake(pdev))
+		pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 }
