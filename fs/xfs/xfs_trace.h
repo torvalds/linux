@@ -72,7 +72,7 @@ DECLARE_EVENT_CLASS(xfs_attr_list_class,
 		__entry->flags = ctx->flags;
 	),
 	TP_printk("dev %d:%d ino 0x%llx cursor h/b/o 0x%x/0x%x/%u dupcnt %u "
-		  "alist 0x%p size %u count %u firstu %u flags %d %s",
+		  "alist %p size %u count %u firstu %u flags %d %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		   __entry->ino,
 		   __entry->hashval,
@@ -200,7 +200,7 @@ TRACE_EVENT(xfs_attr_list_node_descend,
 		__entry->bt_before = be32_to_cpu(btree->before);
 	),
 	TP_printk("dev %d:%d ino 0x%llx cursor h/b/o 0x%x/0x%x/%u dupcnt %u "
-		  "alist 0x%p size %u count %u firstu %u flags %d %s "
+		  "alist %p size %u count %u firstu %u flags %d %s "
 		  "node hashval %u, node before %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		   __entry->ino,
@@ -251,7 +251,7 @@ DECLARE_EVENT_CLASS(xfs_bmap_class,
 		__entry->bmap_state = state;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d ino 0x%llx state %s cur 0x%p/%d "
+	TP_printk("dev %d:%d ino 0x%llx state %s cur %p/%d "
 		  "offset %lld block %lld count %lld flag %d caller %ps",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
@@ -460,7 +460,7 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 	),
 	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
 		  "lock %d flags %s recur %d refcount %d bliflags %s "
-		  "lidesc 0x%p liflags %s",
+		  "lidesc %p liflags %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->buf_bno,
 		  __entry->buf_len,
@@ -1028,7 +1028,7 @@ DECLARE_EVENT_CLASS(xfs_log_item_class,
 		__entry->flags = lip->li_flags;
 		__entry->lsn = lip->li_lsn;
 	),
-	TP_printk("dev %d:%d lip 0x%p lsn %d/%d type %s flags %s",
+	TP_printk("dev %d:%d lip %p lsn %d/%d type %s flags %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->lip,
 		  CYCLE_LSN(__entry->lsn), BLOCK_LSN(__entry->lsn),
@@ -1082,7 +1082,7 @@ DECLARE_EVENT_CLASS(xfs_ail_class,
 		__entry->old_lsn = old_lsn;
 		__entry->new_lsn = new_lsn;
 	),
-	TP_printk("dev %d:%d lip 0x%p old lsn %d/%d new lsn %d/%d type %s flags %s",
+	TP_printk("dev %d:%d lip %p old lsn %d/%d new lsn %d/%d type %s flags %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->lip,
 		  CYCLE_LSN(__entry->old_lsn), BLOCK_LSN(__entry->old_lsn),
@@ -2014,7 +2014,7 @@ DECLARE_EVENT_CLASS(xfs_log_recover_item_class,
 		__entry->count = item->ri_cnt;
 		__entry->total = item->ri_total;
 	),
-	TP_printk("dev %d:%d tid 0x%x lsn 0x%llx, pass %d, item 0x%p, "
+	TP_printk("dev %d:%d tid 0x%x lsn 0x%llx, pass %d, item %p, "
 		  "item type %s item region count/total %d/%d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->tid,
