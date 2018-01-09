@@ -1,0 +1,35 @@
+device-tree bindings for rockchip 2D raster graphic acceleration controller (RGA)
+
+RGA is a standalone 2D raster graphic acceleration unit. It accelerates 2D
+graphics operations, such as point/line drawing, image scaling, rotation,
+BitBLT, alpha blending and image blur/sharpness.
+
+Required properties:
+- compatible: value should be one of the following
+		"rockchip,rga2";
+		"rockchip,rk312x-rga";
+
+- interrupts: RGA interrupt specifier.
+
+- clocks: phandle to RGA sclk/hclk/aclk clocks
+
+- clock-names: should be "aclk", "hclk" and "sclk"
+
+- status: the dsi host status;
+	<disabled>: open the dsi host;
+	<okay>:close the dsi host;
+
+Optional Properties:
+- dma-coherent: When import dma_buf to rga driver, dma_map_sg will always do cpu cache sync, it cause low performance.Actually we don't want to do cpu cache sync on this context,So set rga device with dma-coherent to skip cpu cache sync.
+
+Example:
+SoC-specific DT entry:
+	rga: rga@ff680000 {
+		compatible = "rockchip,rga2";
+		reg = <0xff680000 0x10000>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA_CORE>;
+		clock-names = "aclk", "hclk", "sclk";
+		dma-coherent;
+		status = "disabled";
+	};
