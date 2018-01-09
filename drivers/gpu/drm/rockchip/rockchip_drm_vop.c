@@ -2322,8 +2322,10 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	 */
 	if (!is_yuv_output(s->bus_format))
 		val = 0;
-	else if (VOP_MAJOR(vop->version) == 3 &&
-		 VOP_MINOR(vop->version) >= 5)
+	else if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) == 8 &&
+		 s->hdr.pre_overlay)
+		val = 0;
+	else if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) >= 5)
 		val = 0x20010200;
 	else
 		val = 0x801080;
