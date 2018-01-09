@@ -49,6 +49,8 @@ static int bnxt_get_coalesce(struct net_device *dev,
 
 	memset(coal, 0, sizeof(*coal));
 
+	coal->use_adaptive_rx_coalesce = bp->flags & BNXT_FLAG_DIM;
+
 	hw_coal = &bp->rx_coal;
 	mult = hw_coal->bufs_per_record;
 	coal->rx_coalesce_usecs = hw_coal->coal_ticks;
@@ -77,6 +79,15 @@ static int bnxt_set_coalesce(struct net_device *dev,
 	int rc = 0;
 	u16 mult;
 
+	if (coal->use_adaptive_rx_coalesce) {
+		bp->flags |= BNXT_FLAG_DIM;
+	} else {
+		if (bp->flags & BNXT_FLAG_DIM) {
+			bp->flags &= ~(BNXT_FLAG_DIM);
+			goto reset_coalesce;
+		}
+	}
+
 	hw_coal = &bp->rx_coal;
 	mult = hw_coal->bufs_per_record;
 	hw_coal->coal_ticks = coal->rx_coalesce_usecs;
@@ -104,6 +115,7 @@ static int bnxt_set_coalesce(struct net_device *dev,
 		update_stats = true;
 	}
 
+reset_coalesce:
 	if (netif_running(dev)) {
 		if (update_stats) {
 			rc = bnxt_close_nic(bp, true, false);
