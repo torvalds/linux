@@ -904,9 +904,6 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	if (ooblen % DOC_LAYOUT_OOB_SIZE)
 		return -EINVAL;
 
-	if (from + len > mtd->size)
-		return -EINVAL;
-
 	ops->oobretlen = 0;
 	ops->retlen = 0;
 	ret = 0;
@@ -1440,8 +1437,6 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 		return -EINVAL;
 	if (len && ooblen &&
 	    (len / DOC_LAYOUT_PAGE_SIZE) != (ooblen / oobdelta))
-		return -EINVAL;
-	if (ofs + len > mtd->size)
 		return -EINVAL;
 
 	ops->oobretlen = 0;
