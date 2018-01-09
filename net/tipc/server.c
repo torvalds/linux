@@ -489,8 +489,8 @@ void tipc_conn_terminate(struct tipc_server *s, int conid)
 	}
 }
 
-bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
-			     u32 lower, u32 upper, int *conid)
+bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type, u32 lower,
+			     u32 upper, u32 filter, int *conid)
 {
 	struct tipc_subscriber *scbr;
 	struct tipc_subscr sub;
@@ -501,7 +501,7 @@ bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
 	sub.seq.lower = lower;
 	sub.seq.upper = upper;
 	sub.timeout = TIPC_WAIT_FOREVER;
-	sub.filter = TIPC_SUB_PORTS;
+	sub.filter = filter;
 	*(u32 *)&sub.usr_handle = port;
 
 	con = tipc_alloc_conn(tipc_topsrv(net));
