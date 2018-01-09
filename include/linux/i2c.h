@@ -545,12 +545,12 @@ struct i2c_timings {
  * @recover_bus: Recover routine. Either pass driver's recover_bus() routine, or
  *	i2c_generic_scl_recovery().
  * @get_scl: This gets current value of SCL line. Mandatory for generic SCL
- *      recovery. Used internally for generic GPIO recovery.
- * @set_scl: This sets/clears SCL line. Mandatory for generic SCL recovery. Used
- *      internally for generic GPIO recovery.
+ *      recovery. Populated internally for generic GPIO recovery.
+ * @set_scl: This sets/clears the SCL line. Mandatory for generic SCL recovery.
+ *      Populated internally for generic GPIO recovery.
  * @get_sda: This gets current value of SDA line. Optional for generic SCL
- *      recovery. Used internally, if sda_gpio is a valid GPIO, for generic GPIO
- *      recovery.
+ *      recovery. Populated internally, if sda_gpio is a valid GPIO, for generic
+ *      GPIO recovery.
  * @prepare_recovery: This will be called before starting recovery. Platform may
  *	configure padmux here for SDA/SCL line or something else they want.
  * @unprepare_recovery: This will be called after completing recovery. Platform
