@@ -360,18 +360,18 @@ static int dw_mipi_dsi_write(struct dw_mipi_dsi *dsi,
 {
 	const u8 *tx_buf = packet->payload;
 	int len = packet->payload_length, pld_data_bytes = sizeof(u32), ret;
-	u32 remainder;
+	__le32 word;
 	u32 val;
 
 	while (len) {
 		if (len < pld_data_bytes) {
-			remainder = 0;
-			memcpy(&remainder, tx_buf, len);
-			dsi_write(dsi, DSI_GEN_PLD_DATA, remainder);
+			word = 0;
+			memcpy(&word, tx_buf, len);
+			dsi_write(dsi, DSI_GEN_PLD_DATA, le32_to_cpu(word));
 			len = 0;
 		} else {
-			memcpy(&remainder, tx_buf, pld_data_bytes);
-			dsi_write(dsi, DSI_GEN_PLD_DATA, remainder);
+			memcpy(&word, tx_buf, pld_data_bytes);
+			dsi_write(dsi, DSI_GEN_PLD_DATA, le32_to_cpu(word));
 			tx_buf += pld_data_bytes;
 			len -= pld_data_bytes;
 		}
@@ -386,9 +386,9 @@ static int dw_mipi_dsi_write(struct dw_mipi_dsi *dsi,
 		}
 	}
 
-	remainder = 0;
-	memcpy(&remainder, packet->header, sizeof(packet->header));
-	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, remainder);
+	word = 0;
+	memcpy(&word, packet->header, sizeof(packet->header));
+	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, le32_to_cpu(word));
 }
 
 static ssize_t dw_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
