@@ -677,7 +677,7 @@ static void halbtc_display_wifi_status(struct btc_coexist *btcoexist,
 	u32 wifi_link_status = 0x0;
 	bool bt_hs_on = false, under_ips = false, under_lps = false;
 	bool low_power = false, dc_mode = false;
-	u8 wifi_chnl = 0, wifi_hs_chnl = 0, fw_ps_state;
+	u8 wifi_chnl = 0, wifi_hs_chnl = 0;
 	u8 ap_num = 0;
 
 	wifi_link_status = halbtc_get_wifi_link_status(btcoexist);
@@ -733,7 +733,6 @@ static void halbtc_display_wifi_status(struct btc_coexist *btcoexist,
 	dc_mode = true;	/*TODO*/
 	under_ips = rtlpriv->psc.inactive_pwrstate == ERFOFF ? 1 : 0;
 	under_lps = rtlpriv->psc.dot11_psmode == EACTIVE ? 0 : 1;
-	fw_ps_state = 0;
 	low_power = 0; /*TODO*/
 	seq_printf(m, "\n %-35s = %s%s%s%s",
 		   "Power Status",
