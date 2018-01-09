@@ -89,7 +89,12 @@ early_initcall(brcmstb_soc_device_early_init);
 static int __init brcmstb_soc_device_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
+	struct device_node *sun_top_ctrl;
 	struct soc_device *soc_dev;
+
+	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
+	if (!sun_top_ctrl)
+		return -ENODEV;
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
