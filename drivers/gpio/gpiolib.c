@@ -195,7 +195,7 @@ static int gpiochip_find_base(int ngpio)
  * gpiod_get_direction - return the current direction of a GPIO
  * @desc:	GPIO to get the direction of
  *
- * Return GPIOF_DIR_IN or GPIOF_DIR_OUT, or an error code in case of error.
+ * Returns 0 for output, 1 for input, or an error code in case of error.
  *
  * This function may sleep if gpiod_cansleep() is true.
  */
