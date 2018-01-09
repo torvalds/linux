@@ -149,6 +149,7 @@ struct rt6_info {
 	 */
 	struct list_head		rt6i_siblings;
 	unsigned int			rt6i_nsiblings;
+	atomic_t			rt6i_nh_upper_bound;
 
 	atomic_t			rt6i_ref;
 
