@@ -12732,6 +12732,7 @@ F:	include/sound/soc*
 SOUNDWIRE SUBSYSTEM
 M:	Vinod Koul <vinod.koul@intel.com>
 M:	Sanyog Kale <sanyog.r.kale@intel.com>
+R:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	Documentation/driver-api/soundwire/
