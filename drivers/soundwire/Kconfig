@@ -18,6 +18,7 @@ comment "SoundWire Devices"
 
 config SOUNDWIRE_BUS
 	tristate
+	select REGMAP_SOUNDWIRE
 
 config SOUNDWIRE_CADENCE
 	tristate
