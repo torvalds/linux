@@ -697,7 +697,6 @@ vmw_du_plane_duplicate_state(struct drm_plane *plane)
 	vps->pinned = 0;
 
 	/* Mapping is managed by prepare_fb/cleanup_fb */
-	memset(&vps->guest_map, 0, sizeof(vps->guest_map));
 	memset(&vps->host_map, 0, sizeof(vps->host_map));
 	vps->cpp = 0;
 
@@ -760,11 +759,6 @@ vmw_du_plane_destroy_state(struct drm_plane *plane,
 
 
 	/* Should have been freed by cleanup_fb */
-	if (vps->guest_map.virtual) {
-		DRM_ERROR("Guest mapping not freed\n");
-		ttm_bo_kunmap(&vps->guest_map);
-	}
-
 	if (vps->host_map.virtual) {
 		DRM_ERROR("Host mapping not freed\n");
 		ttm_bo_kunmap(&vps->host_map);
