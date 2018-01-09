@@ -1046,9 +1046,7 @@ static int mt9m111_remove(struct i2c_client *client)
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	v4l2_async_unregister_subdev(&mt9m111->subdev);
-#ifdef CONFIG_MEDIA_CONTROLLER
 	media_entity_cleanup(&mt9m111->subdev.entity);
-#endif
 	v4l2_clk_put(mt9m111->clk);
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
 

@@ -634,7 +634,11 @@ int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
  * This function must be called during the cleanup phase after unregistering
  * the entity (currently, it does nothing).
  */
-static inline void media_entity_cleanup(struct media_entity *entity) {};
+#if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
+static inline void media_entity_cleanup(struct media_entity *entity) {}
+#else
+#define media_entity_cleanup(entity) do { } while (false)
+#endif
 
 /**
  * media_create_pad_link() - creates a link between two entities.

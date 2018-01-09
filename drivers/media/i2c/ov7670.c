@@ -1846,9 +1846,7 @@ static int ov7670_probe(struct i2c_client *client,
 	return 0;
 
 entity_cleanup:
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&info->sd.entity);
-#endif
 hdl_free:
 	v4l2_ctrl_handler_free(&info->hdl);
 power_off:
@@ -1867,9 +1865,7 @@ static int ov7670_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&info->hdl);
 	clk_disable_unprepare(info->clk);
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&info->sd.entity);
-#endif
 	ov7670_s_power(sd, 0);
 	return 0;
 }
