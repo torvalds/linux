@@ -52,3 +52,13 @@ config TINYDRM_ST7586
 	  * LEGO MINDSTORMS EV3
 
 	  If M is selected the module will be called st7586.
+
+config TINYDRM_ST7735R
+	tristate "DRM support for Sitronix ST7735R display panels"
+	depends on DRM_TINYDRM && SPI
+	select TINYDRM_MIPI_DBI
+	help
+	  DRM driver Sitronix ST7735R with one of the following LCDs:
+	  * JD-T18003-T01 1.8" 128x160 TFT
+
+	  If M is selected the module will be called st7735r.
