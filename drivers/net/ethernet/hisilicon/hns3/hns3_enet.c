@@ -1126,8 +1126,8 @@ static int hns3_nic_set_features(struct net_device *netdev,
 	return 0;
 }
 
-static void
-hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
+static void hns3_nic_get_stats64(struct net_device *netdev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
