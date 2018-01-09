@@ -75,57 +75,6 @@ do {								    \
 	lbug_with_loc(&msgdata);					\
 } while (0)
 
-#define LIBCFS_ALLOC_POST(ptr, size)					    \
-do {									    \
-	if (unlikely(!(ptr))) {						    \
-		CERROR("LNET: out of memory at %s:%d (tried to alloc '"	    \
-		       #ptr "' = %d)\n", __FILE__, __LINE__, (int)(size));  \
-	} else {							    \
-		memset((ptr), 0, (size));				    \
-	}								    \
-} while (0)
-
-/**
- * default allocator
- */
-#define LIBCFS_ALLOC(ptr, size)						    \
-do {									    \
-	LASSERT(!in_interrupt());					    \
-	(ptr) = kvmalloc((size), GFP_NOFS);				    \
-	LIBCFS_ALLOC_POST((ptr), (size));				    \
-} while (0)
-
-/**
- * non-sleeping allocator
- */
-#define LIBCFS_ALLOC_ATOMIC(ptr, size)					\
-do {									\
-	(ptr) = kmalloc((size), GFP_ATOMIC);				\
-	LIBCFS_ALLOC_POST(ptr, size);					\
-} while (0)
-
-/**
- * allocate memory for specified CPU partition
- *   \a cptab != NULL, \a cpt is CPU partition id of \a cptab
- *   \a cptab == NULL, \a cpt is HW NUMA node id
- */
-#define LIBCFS_CPT_ALLOC(ptr, cptab, cpt, size)				    \
-do {									    \
-	LASSERT(!in_interrupt());					    \
-	(ptr) = kvmalloc_node((size), GFP_NOFS, cfs_cpt_spread_node(cptab, cpt)); \
-	LIBCFS_ALLOC_POST((ptr), (size));				    \
-} while (0)
-
-#define LIBCFS_FREE(ptr, size)					  \
-do {								    \
-	if (unlikely(!(ptr))) {						\
-		CERROR("LIBCFS: free NULL '" #ptr "' (%d bytes) at "    \
-		       "%s:%d\n", (int)(size), __FILE__, __LINE__);	\
-		break;						  \
-	}							       \
-	kvfree(ptr);					  \
-} while (0)
-
 /*
  * Use #define rather than inline, as lnet_cpt_table() might
  * not be defined yet
