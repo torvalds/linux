@@ -1660,7 +1660,7 @@ static int legacy_suspend(struct device *dev, pm_message_t state,
 	return error;
 }
 
-static void dpm_propagate_to_parent(struct device *dev)
+static void dpm_propagate_wakeup_to_parent(struct device *dev)
 {
 	struct device *parent = dev->parent;
 
@@ -1669,17 +1669,22 @@ static void dpm_propagate_to_parent(struct device *dev)
 
 	spin_lock_irq(&parent->power.lock);
 
-	parent->power.direct_complete = false;
 	if (dev->power.wakeup_path && !parent->power.ignore_children)
 		parent->power.wakeup_path = true;
 
 	spin_unlock_irq(&parent->power.lock);
 }
 
-static void dpm_clear_suppliers_direct_complete(struct device *dev)
+static void dpm_clear_superiors_direct_complete(struct device *dev)
 {
 	struct device_link *link;
 	int idx;
+
+	if (dev->parent) {
+		spin_lock_irq(&dev->parent->power.lock);
+		dev->parent->power.direct_complete = false;
+		spin_unlock_irq(&dev->parent->power.lock);
+	}
 
 	idx = device_links_read_lock();
 
@@ -1791,8 +1796,8 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 		if (device_may_wakeup(dev))
 			dev->power.wakeup_path = true;
 
-		dpm_propagate_to_parent(dev);
-		dpm_clear_suppliers_direct_complete(dev);
+		dpm_propagate_wakeup_to_parent(dev);
+		dpm_clear_superiors_direct_complete(dev);
 	}
 
 	device_unlock(dev);
