@@ -1500,10 +1500,13 @@ static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds,
 {
 	struct b53_device *dev = ds->priv;
 
-	/* Older models support a different tag format that we do not
-	 * support in net/dsa/tag_brcm.c yet.
+	/* Older models (5325, 5365) support a different tag format that we do
+	 * not support in net/dsa/tag_brcm.c yet. 539x and 531x5 require managed
+	 * mode to be turned on which means we need to specifically manage ARL
+	 * misses on multicast addresses (TBD).
 	 */
-	if (is5325(dev) || is5365(dev) || !b53_can_enable_brcm_tags(ds, port))
+	if (is5325(dev) || is5365(dev) || is539x(dev) || is531x5(dev) ||
+	    !b53_can_enable_brcm_tags(ds, port))
 		return DSA_TAG_PROTO_NONE;
 
 	/* Broadcom BCM58xx chips have a flow accelerator on Port 8

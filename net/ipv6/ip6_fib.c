@@ -1241,23 +1241,28 @@ out:
 		 * If fib6_add_1 has cleared the old leaf pointer in the
 		 * super-tree leaf node we have to find a new one for it.
 		 */
-		struct rt6_info *pn_leaf = rcu_dereference_protected(pn->leaf,
-					    lockdep_is_held(&table->tb6_lock));
-		if (pn != fn && pn_leaf == rt) {
-			pn_leaf = NULL;
-			RCU_INIT_POINTER(pn->leaf, NULL);
-			atomic_dec(&rt->rt6i_ref);
-		}
-		if (pn != fn && !pn_leaf && !(pn->fn_flags & RTN_RTINFO)) {
-			pn_leaf = fib6_find_prefix(info->nl_net, table, pn);
-#if RT6_DEBUG >= 2
-			if (!pn_leaf) {
-				WARN_ON(!pn_leaf);
-				pn_leaf = info->nl_net->ipv6.ip6_null_entry;
+		if (pn != fn) {
+			struct rt6_info *pn_leaf =
+				rcu_dereference_protected(pn->leaf,
+				    lockdep_is_held(&table->tb6_lock));
+			if (pn_leaf == rt) {
+				pn_leaf = NULL;
+				RCU_INIT_POINTER(pn->leaf, NULL);
+				atomic_dec(&rt->rt6i_ref);
 			}
+			if (!pn_leaf && !(pn->fn_flags & RTN_RTINFO)) {
+				pn_leaf = fib6_find_prefix(info->nl_net, table,
+							   pn);
+#if RT6_DEBUG >= 2
+				if (!pn_leaf) {
+					WARN_ON(!pn_leaf);
+					pn_leaf =
+					    info->nl_net->ipv6.ip6_null_entry;
+				}
 #endif
-			atomic_inc(&pn_leaf->rt6i_ref);
-			rcu_assign_pointer(pn->leaf, pn_leaf);
+				atomic_inc(&pn_leaf->rt6i_ref);
+				rcu_assign_pointer(pn->leaf, pn_leaf);
+			}
 		}
 #endif
 		goto failure;

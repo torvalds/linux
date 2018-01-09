@@ -1573,11 +1573,18 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 	else
 		netdev_info(netdev, "set new mac address %pM\n", addr->sa_data);
 
+	/* Copy the address first, so that we avoid a possible race with
+	 * .set_rx_mode(). If we copy after changing the address in the filter
+	 * list, we might open ourselves to a narrow race window where
+	 * .set_rx_mode could delete our dev_addr filter and prevent traffic
+	 * from passing.
+	 */
+	ether_addr_copy(netdev->dev_addr, addr->sa_data);
+
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
 	i40e_del_mac_filter(vsi, netdev->dev_addr);
 	i40e_add_mac_filter(vsi, addr->sa_data);
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
-	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 	if (vsi->type == I40E_VSI_MAIN) {
 		i40e_status ret;
 
@@ -1922,6 +1929,14 @@ static int i40e_addr_unsync(struct net_device *netdev, const u8 *addr)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
+
+	/* Under some circumstances, we might receive a request to delete
+	 * our own device address from our uc list. Because we store the
+	 * device address in the VSI's MAC/VLAN filter list, we need to ignore
+	 * such requests and not delete our device address from this list.
+	 */
+	if (ether_addr_equal(addr, netdev->dev_addr))
+		return 0;
 
 	i40e_del_mac_filter(vsi, addr);
 
@@ -6038,8 +6053,8 @@ static int i40e_validate_and_set_switch_mode(struct i40e_vsi *vsi)
 	/* Set Bit 7 to be valid */
 	mode = I40E_AQ_SET_SWITCH_BIT7_VALID;
 
-	/* Set L4type to both TCP and UDP support */
-	mode |= I40E_AQ_SET_SWITCH_L4_TYPE_BOTH;
+	/* Set L4type for TCP support */
+	mode |= I40E_AQ_SET_SWITCH_L4_TYPE_TCP;
 
 	/* Set cloud filter mode */
 	mode |= I40E_AQ_SET_SWITCH_MODE_NON_TUNNEL;
@@ -6969,18 +6984,18 @@ static int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
 	     is_valid_ether_addr(filter->src_mac)) ||
 	    (is_multicast_ether_addr(filter->dst_mac) &&
 	     is_multicast_ether_addr(filter->src_mac)))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
-	/* Make sure port is specified, otherwise bail out, for channel
-	 * specific cloud filter needs 'L4 port' to be non-zero
+	/* Big buffer cloud filter needs 'L4 port' to be non-zero. Also, UDP
+	 * ports are not supported via big buffer now.
 	 */
-	if (!filter->dst_port)
-		return -EINVAL;
+	if (!filter->dst_port || filter->ip_proto == IPPROTO_UDP)
+		return -EOPNOTSUPP;
 
 	/* adding filter using src_port/src_ip is not supported at this stage */
 	if (filter->src_port || filter->src_ipv4 ||
 	    !ipv6_addr_any(&filter->ip.v6.src_ip6))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	/* copy element needed to add cloud filter from filter */
 	i40e_set_cld_element(filter, &cld_filter.element);
@@ -6991,7 +7006,7 @@ static int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
 	    is_multicast_ether_addr(filter->src_mac)) {
 		/* MAC + IP : unsupported mode */
 		if (filter->dst_ipv4)
-			return -EINVAL;
+			return -EOPNOTSUPP;
 
 		/* since we validated that L4 port must be valid before
 		 * we get here, start with respective "flags" value
@@ -7356,7 +7371,7 @@ static int i40e_configure_clsflower(struct i40e_vsi *vsi,
 
 	if (tc < 0) {
 		dev_err(&vsi->back->pdev->dev, "Invalid traffic class\n");
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	if (test_bit(__I40E_RESET_RECOVERY_PENDING, pf->state) ||
