@@ -1244,6 +1244,16 @@ config GPIO_PCI_IDIO_16
 	  low). Input filter control is not supported by this driver, and the
 	  input filters are deactivated by this driver.
 
+config GPIO_PCIE_IDIO_24
+	tristate "ACCES PCIe-IDIO-24 GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  Enables GPIO support for the ACCES PCIe-IDIO-24 family (PCIe-IDIO-24,
+	  PCIe-IDI-24, PCIe-IDO-24, PCIe-IDIO-12). An interrupt is generated
+	  when any of the inputs change state (low to high or high to low).
+	  Input filter control is not supported by this driver, and the input
+	  filters are deactivated by this driver.
+
 config GPIO_RDC321X
 	tristate "RDC R-321x GPIO support"
 	select MFD_CORE
