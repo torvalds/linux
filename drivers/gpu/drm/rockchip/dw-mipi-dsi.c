@@ -1045,11 +1045,6 @@ static void dw_mipi_dsi_encoder_mode_set(struct drm_encoder *encoder,
 
 static void rockchip_dsi_pre_disable(struct dw_mipi_dsi *dsi)
 {
-	if (clk_prepare_enable(dsi->pclk)) {
-		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
-		return;
-	}
-
 	dw_mipi_dsi_set_mode(dsi, DSI_COMMAND_MODE);
 
 	if (dsi->slave)
@@ -1152,17 +1147,6 @@ static void rockchip_dsi_grf_config(struct dw_mipi_dsi *dsi, int vop_id)
 
 static void rockchip_dsi_pre_init(struct dw_mipi_dsi *dsi)
 {
-	if (clk_prepare_enable(dsi->pclk)) {
-		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
-		return;
-	}
-
-	/* MIPI DSI APB software reset request. */
-	reset_control_assert(dsi->rst);
-	udelay(10);
-	reset_control_deassert(dsi->rst);
-	udelay(10);
-
 	if (clk_prepare_enable(dsi->dphy.ref_clk)) {
 		dev_err(dsi->dev, "Failed to enable pllref_clk\n");
 		return;
@@ -1200,6 +1184,14 @@ static void rockchip_dsi_host_init(struct dw_mipi_dsi *dsi)
 static void rockchip_dsi_init(struct dw_mipi_dsi *dsi)
 {
 	clk_prepare_enable(dsi->h2p_clk);
+	clk_prepare_enable(dsi->pclk);
+
+	/* MIPI DSI APB software reset request. */
+	reset_control_assert(dsi->rst);
+	udelay(10);
+	reset_control_deassert(dsi->rst);
+	udelay(10);
+
 	rockchip_dsi_pre_init(dsi);
 	rockchip_dsi_host_init(dsi);
 	dw_mipi_dsi_phy_init(dsi);
@@ -1212,7 +1204,6 @@ static void rockchip_dsi_enable(struct dw_mipi_dsi *dsi)
 {
 	dw_mipi_dsi_set_mode(dsi, DSI_VIDEO_MODE);
 	clk_disable_unprepare(dsi->dphy.ref_clk);
-	clk_disable_unprepare(dsi->pclk);
 
 	if (dsi->slave)
 		rockchip_dsi_enable(dsi->slave);
