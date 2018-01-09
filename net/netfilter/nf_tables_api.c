@@ -26,6 +26,7 @@
 static LIST_HEAD(nf_tables_expressions);
 static LIST_HEAD(nf_tables_objects);
 static LIST_HEAD(nf_tables_flowtables);
+static LIST_HEAD(nf_tables_af_info);
 
 /**
  *	nft_register_afinfo - register nf_tables address family info
@@ -35,16 +36,14 @@ static LIST_HEAD(nf_tables_flowtables);
  *	Register the address family for use with nf_tables. Returns zero on
  *	success or a negative errno code otherwise.
  */
-int nft_register_afinfo(struct net *net, struct nft_af_info *afi)
+int nft_register_afinfo(struct nft_af_info *afi)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_add_tail_rcu(&afi->list, &net->nft.af_info);
+	list_add_tail_rcu(&afi->list, &nf_tables_af_info);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nft_register_afinfo);
-
-static void __nft_release_afinfo(struct net *net, struct nft_af_info *afi);
 
 /**
  *	nft_unregister_afinfo - unregister nf_tables address family info
@@ -53,10 +52,9 @@ static void __nft_release_afinfo(struct net *net, struct nft_af_info *afi);
  *
  *	Unregister the address family for use with nf_tables.
  */
-void nft_unregister_afinfo(struct net *net, struct nft_af_info *afi)
+void nft_unregister_afinfo(struct nft_af_info *afi)
 {
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	__nft_release_afinfo(net, afi);
 	list_del_rcu(&afi->list);
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 }
@@ -66,7 +64,7 @@ static struct nft_af_info *nft_afinfo_lookup(struct net *net, int family)
 {
 	struct nft_af_info *afi;
 
-	list_for_each_entry(afi, &net->nft.af_info, list) {
+	list_for_each_entry(afi, &nf_tables_af_info, list) {
 		if (afi->family == family)
 			return afi;
 	}
@@ -5042,15 +5040,12 @@ void nft_flow_table_iterate(struct net *net,
 			    void *data)
 {
 	struct nft_flowtable *flowtable;
-	const struct nft_af_info *afi;
 	const struct nft_table *table;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(afi, &net->nft.af_info, list) {
-		list_for_each_entry_rcu(table, &net->nft.tables, list) {
-			list_for_each_entry_rcu(flowtable, &table->flowtables, list) {
-				iter(&flowtable->data, data);
-			}
+	list_for_each_entry_rcu(table, &net->nft.tables, list) {
+		list_for_each_entry_rcu(flowtable, &table->flowtables, list) {
+			iter(&flowtable->data, data);
 		}
 	}
 	rcu_read_unlock();
@@ -6533,21 +6528,6 @@ int nft_data_dump(struct sk_buff *skb, int attr, const struct nft_data *data,
 }
 EXPORT_SYMBOL_GPL(nft_data_dump);
 
-static int __net_init nf_tables_init_net(struct net *net)
-{
-	INIT_LIST_HEAD(&net->nft.af_info);
-	INIT_LIST_HEAD(&net->nft.tables);
-	INIT_LIST_HEAD(&net->nft.commit_list);
-	net->nft.base_seq = 1;
-	return 0;
-}
-
-static void __net_exit nf_tables_exit_net(struct net *net)
-{
-	WARN_ON_ONCE(!list_empty(&net->nft.af_info));
-	WARN_ON_ONCE(!list_empty(&net->nft.commit_list));
-}
-
 int __nft_release_basechain(struct nft_ctx *ctx)
 {
 	struct nft_rule *rule, *nr;
@@ -6568,8 +6548,7 @@ int __nft_release_basechain(struct nft_ctx *ctx)
 }
 EXPORT_SYMBOL_GPL(__nft_release_basechain);
 
-/* Called by nft_unregister_afinfo() from __net_exit path, nfnl_lock is held. */
-static void __nft_release_afinfo(struct net *net, struct nft_af_info *afi)
+static void __nft_release_afinfo(struct net *net)
 {
 	struct nft_flowtable *flowtable, *nf;
 	struct nft_table *table, *nt;
@@ -6579,10 +6558,11 @@ static void __nft_release_afinfo(struct net *net, struct nft_af_info *afi)
 	struct nft_set *set, *ns;
 	struct nft_ctx ctx = {
 		.net	= net,
-		.family	= afi->family,
 	};
 
 	list_for_each_entry_safe(table, nt, &net->nft.tables, list) {
+		ctx.family = table->afi->family;
+
 		list_for_each_entry(chain, &table->chains, list)
 			nf_tables_unregister_hook(net, table, chain);
 		list_for_each_entry(flowtable, &table->flowtables, list)
@@ -6621,6 +6601,21 @@ static void __nft_release_afinfo(struct net *net, struct nft_af_info *afi)
 		list_del(&table->list);
 		nf_tables_table_destroy(&ctx);
 	}
+}
+
+static int __net_init nf_tables_init_net(struct net *net)
+{
+	INIT_LIST_HEAD(&net->nft.tables);
+	INIT_LIST_HEAD(&net->nft.commit_list);
+	net->nft.base_seq = 1;
+	return 0;
+}
+
+static void __net_exit nf_tables_exit_net(struct net *net)
+{
+	__nft_release_afinfo(net);
+	WARN_ON_ONCE(!list_empty(&net->nft.tables));
+	WARN_ON_ONCE(!list_empty(&net->nft.commit_list));
 }
 
 static struct pernet_operations nf_tables_net_ops = {

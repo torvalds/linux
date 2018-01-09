@@ -35,34 +35,6 @@ static struct nft_af_info nft_af_ipv4 __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
-static int nf_tables_ipv4_init_net(struct net *net)
-{
-	net->nft.ipv4 = kmalloc(sizeof(struct nft_af_info), GFP_KERNEL);
-	if (net->nft.ipv4 == NULL)
-		return -ENOMEM;
-
-	memcpy(net->nft.ipv4, &nft_af_ipv4, sizeof(nft_af_ipv4));
-
-	if (nft_register_afinfo(net, net->nft.ipv4) < 0)
-		goto err;
-
-	return 0;
-err:
-	kfree(net->nft.ipv4);
-	return -ENOMEM;
-}
-
-static void nf_tables_ipv4_exit_net(struct net *net)
-{
-	nft_unregister_afinfo(net, net->nft.ipv4);
-	kfree(net->nft.ipv4);
-}
-
-static struct pernet_operations nf_tables_ipv4_net_ops = {
-	.init	= nf_tables_ipv4_init_net,
-	.exit	= nf_tables_ipv4_exit_net,
-};
-
 static const struct nf_chain_type filter_ipv4 = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
@@ -86,21 +58,25 @@ static int __init nf_tables_ipv4_init(void)
 {
 	int ret;
 
-	ret = nft_register_chain_type(&filter_ipv4);
+	ret = nft_register_afinfo(&nft_af_ipv4);
 	if (ret < 0)
 		return ret;
 
-	ret = register_pernet_subsys(&nf_tables_ipv4_net_ops);
+	ret = nft_register_chain_type(&filter_ipv4);
 	if (ret < 0)
-		nft_unregister_chain_type(&filter_ipv4);
+		goto err_register_chain;
 
+	return 0;
+
+err_register_chain:
+	nft_unregister_afinfo(&nft_af_ipv4);
 	return ret;
 }
 
 static void __exit nf_tables_ipv4_exit(void)
 {
-	unregister_pernet_subsys(&nf_tables_ipv4_net_ops);
 	nft_unregister_chain_type(&filter_ipv4);
+	nft_unregister_afinfo(&nft_af_ipv4);
 }
 
 module_init(nf_tables_ipv4_init);

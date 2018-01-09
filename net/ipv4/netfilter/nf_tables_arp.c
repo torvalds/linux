@@ -32,34 +32,6 @@ static struct nft_af_info nft_af_arp __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
-static int nf_tables_arp_init_net(struct net *net)
-{
-	net->nft.arp = kmalloc(sizeof(struct nft_af_info), GFP_KERNEL);
-	if (net->nft.arp== NULL)
-		return -ENOMEM;
-
-	memcpy(net->nft.arp, &nft_af_arp, sizeof(nft_af_arp));
-
-	if (nft_register_afinfo(net, net->nft.arp) < 0)
-		goto err;
-
-	return 0;
-err:
-	kfree(net->nft.arp);
-	return -ENOMEM;
-}
-
-static void nf_tables_arp_exit_net(struct net *net)
-{
-	nft_unregister_afinfo(net, net->nft.arp);
-	kfree(net->nft.arp);
-}
-
-static struct pernet_operations nf_tables_arp_net_ops = {
-	.init   = nf_tables_arp_init_net,
-	.exit   = nf_tables_arp_exit_net,
-};
-
 static const struct nf_chain_type filter_arp = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
@@ -77,21 +49,26 @@ static int __init nf_tables_arp_init(void)
 {
 	int ret;
 
-	ret = nft_register_chain_type(&filter_arp);
+	ret = nft_register_afinfo(&nft_af_arp);
 	if (ret < 0)
 		return ret;
 
-	ret = register_pernet_subsys(&nf_tables_arp_net_ops);
+	ret = nft_register_chain_type(&filter_arp);
 	if (ret < 0)
-		nft_unregister_chain_type(&filter_arp);
+		goto err_register_chain;
+
+	return 0;
+
+err_register_chain:
+	nft_unregister_chain_type(&filter_arp);
 
 	return ret;
 }
 
 static void __exit nf_tables_arp_exit(void)
 {
-	unregister_pernet_subsys(&nf_tables_arp_net_ops);
 	nft_unregister_chain_type(&filter_arp);
+	nft_unregister_afinfo(&nft_af_arp);
 }
 
 module_init(nf_tables_arp_init);

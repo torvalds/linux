@@ -979,8 +979,8 @@ struct nft_af_info {
 	struct module			*owner;
 };
 
-int nft_register_afinfo(struct net *, struct nft_af_info *);
-void nft_unregister_afinfo(struct net *, struct nft_af_info *);
+int nft_register_afinfo(struct nft_af_info *);
+void nft_unregister_afinfo(struct nft_af_info *);
 
 int nft_register_chain_type(const struct nf_chain_type *);
 void nft_unregister_chain_type(const struct nf_chain_type *);

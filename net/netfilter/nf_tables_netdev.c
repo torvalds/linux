@@ -43,34 +43,6 @@ static struct nft_af_info nft_af_netdev __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
-static int nf_tables_netdev_init_net(struct net *net)
-{
-	net->nft.netdev = kmalloc(sizeof(struct nft_af_info), GFP_KERNEL);
-	if (net->nft.netdev == NULL)
-		return -ENOMEM;
-
-	memcpy(net->nft.netdev, &nft_af_netdev, sizeof(nft_af_netdev));
-
-	if (nft_register_afinfo(net, net->nft.netdev) < 0)
-		goto err;
-
-	return 0;
-err:
-	kfree(net->nft.netdev);
-	return -ENOMEM;
-}
-
-static void nf_tables_netdev_exit_net(struct net *net)
-{
-	nft_unregister_afinfo(net, net->nft.netdev);
-	kfree(net->nft.netdev);
-}
-
-static struct pernet_operations nf_tables_netdev_net_ops = {
-	.init	= nf_tables_netdev_init_net,
-	.exit	= nf_tables_netdev_exit_net,
-};
-
 static const struct nf_chain_type nft_filter_chain_netdev = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
@@ -145,32 +117,32 @@ static int __init nf_tables_netdev_init(void)
 {
 	int ret;
 
-	ret = nft_register_chain_type(&nft_filter_chain_netdev);
-	if (ret)
+	if (nft_register_afinfo(&nft_af_netdev) < 0)
 		return ret;
 
-	ret = register_pernet_subsys(&nf_tables_netdev_net_ops);
+	ret = nft_register_chain_type(&nft_filter_chain_netdev);
 	if (ret)
-		goto err1;
+		goto err_register_chain_type;
 
 	ret = register_netdevice_notifier(&nf_tables_netdev_notifier);
 	if (ret)
-		goto err2;
+		goto err_register_netdevice_notifier;
 
 	return 0;
 
-err2:
-	unregister_pernet_subsys(&nf_tables_netdev_net_ops);
-err1:
+err_register_netdevice_notifier:
 	nft_unregister_chain_type(&nft_filter_chain_netdev);
+err_register_chain_type:
+	nft_unregister_afinfo(&nft_af_netdev);
+
 	return ret;
 }
 
 static void __exit nf_tables_netdev_exit(void)
 {
 	unregister_netdevice_notifier(&nf_tables_netdev_notifier);
-	unregister_pernet_subsys(&nf_tables_netdev_net_ops);
 	nft_unregister_chain_type(&nft_filter_chain_netdev);
+	nft_unregister_afinfo(&nft_af_netdev);
 }
 
 module_init(nf_tables_netdev_init);
