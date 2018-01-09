@@ -412,9 +412,4 @@ static struct platform_driver intel_bxtwc_pmic_opregion_driver = {
 	},
 	.id_table = bxt_wc_opregion_id_table,
 };
-
-static int __init intel_bxtwc_pmic_opregion_driver_init(void)
-{
-	return platform_driver_register(&intel_bxtwc_pmic_opregion_driver);
-}
-device_initcall(intel_bxtwc_pmic_opregion_driver_init);
+builtin_platform_driver(intel_bxtwc_pmic_opregion_driver);
