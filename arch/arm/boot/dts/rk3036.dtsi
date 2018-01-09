@@ -298,6 +298,11 @@
 		status = "disabled";
 	};
 
+	qos_vpu: qos@1012e000 {
+		compatible = "syscon";
+		reg = <0x0 0x1012e000 0x0 0x20>;
+	};
+
 	gic: interrupt-controller@10139000 {
 		compatible = "arm,gic-400";
 		interrupt-controller;
@@ -461,6 +466,7 @@
 				clocks = <&cru ACLK_VCODEC>,
 					 <&cru HCLK_VCODEC>,
 					 <&cru ACLK_HEVC>;
+				pm_qos = <&qos_vpu>;
 			};
 
 		};
