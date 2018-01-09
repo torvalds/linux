@@ -109,7 +109,7 @@ struct amdgpu_iv_entry {
 	unsigned vmid_src;
 	uint64_t timestamp;
 	unsigned timestamp_src;
-	unsigned pas_id;
+	unsigned pasid;
 	unsigned pasid_src;
 	unsigned src_data[AMDGPU_IH_SRC_DATA_MAX_SIZE_DW];
 	const uint32_t *iv_entry;

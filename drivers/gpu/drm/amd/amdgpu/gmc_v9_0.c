@@ -263,10 +263,10 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 
 	if (printk_ratelimit()) {
 		dev_err(adev->dev,
-			"[%s] VMC page fault (src_id:%u ring:%u vmid:%u pas_id:%u)\n",
+			"[%s] VMC page fault (src_id:%u ring:%u vmid:%u pasid:%u)\n",
 			entry->vmid_src ? "mmhub" : "gfxhub",
 			entry->src_id, entry->ring_id, entry->vmid,
-			entry->pas_id);
+			entry->pasid);
 		dev_err(adev->dev, "  at page 0x%016llx from %d\n",
 			addr, entry->client_id);
 		if (!amdgpu_sriov_vf(adev))

@@ -86,7 +86,7 @@ TRACE_EVENT(amdgpu_iv,
 			     __field(unsigned, vmid_src)
 			     __field(uint64_t, timestamp)
 			     __field(unsigned, timestamp_src)
-			     __field(unsigned, pas_id)
+			     __field(unsigned, pasid)
 			     __array(unsigned, src_data, 4)
 			    ),
 	    TP_fast_assign(
@@ -97,16 +97,16 @@ TRACE_EVENT(amdgpu_iv,
 			   __entry->vmid_src = iv->vmid_src;
 			   __entry->timestamp = iv->timestamp;
 			   __entry->timestamp_src = iv->timestamp_src;
-			   __entry->pas_id = iv->pas_id;
+			   __entry->pasid = iv->pasid;
 			   __entry->src_data[0] = iv->src_data[0];
 			   __entry->src_data[1] = iv->src_data[1];
 			   __entry->src_data[2] = iv->src_data[2];
 			   __entry->src_data[3] = iv->src_data[3];
 			   ),
-	    TP_printk("client_id:%u src_id:%u ring:%u vmid:%u timestamp: %llu pas_id:%u src_data: %08x %08x %08x %08x\n",
+	    TP_printk("client_id:%u src_id:%u ring:%u vmid:%u timestamp: %llu pasid:%u src_data: %08x %08x %08x %08x\n",
 		      __entry->client_id, __entry->src_id,
 		      __entry->ring_id, __entry->vmid,
-		      __entry->timestamp, __entry->pas_id,
+		      __entry->timestamp, __entry->pasid,
 		      __entry->src_data[0], __entry->src_data[1],
 		      __entry->src_data[2], __entry->src_data[3])
 );
