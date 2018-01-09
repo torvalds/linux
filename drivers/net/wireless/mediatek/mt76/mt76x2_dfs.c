@@ -460,7 +460,8 @@ void mt76x2_dfs_init_params(struct mt76x2_dev *dev)
 {
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 
-	if (chandef->chan->flags & IEEE80211_CHAN_RADAR) {
+	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
+	    dev->dfs_pd.region != NL80211_DFS_UNSET) {
 		mt76x2_dfs_set_bbp_params(dev);
 		/* enable debug mode */
 		mt76x2_dfs_set_capture_mode_ctrl(dev, true);
