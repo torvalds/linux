@@ -4334,7 +4334,7 @@ T:	git git://git.infradead.org/users/hch/dma-mapping.git
 W:	http://git.infradead.org/users/hch/dma-mapping.git
 S:	Supported
 F:	lib/dma-debug.c
-F:	lib/dma-noop.c
+F:	lib/dma-direct.c
 F:	lib/dma-virt.c
 F:	drivers/base/dma-mapping.c
 F:	drivers/base/dma-coherent.c

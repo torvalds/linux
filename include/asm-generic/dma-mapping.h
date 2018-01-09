@@ -4,7 +4,7 @@
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-	return &dma_noop_ops;
+	return &dma_direct_ops;
 }
 
 #endif /* _ASM_GENERIC_DMA_MAPPING_H */

@@ -22,7 +22,7 @@
 #include "dma.h"
 
 /*
- *  dma_noop_ops is used if
+ *  dma_direct_ops is used if
  *   - MMU/MPU is off
  *   - cpu is v7m w/o cache support
  *   - device is coherent
@@ -39,7 +39,7 @@ static void *arm_nommu_dma_alloc(struct device *dev, size_t size,
 				 unsigned long attrs)
 
 {
-	const struct dma_map_ops *ops = &dma_noop_ops;
+	const struct dma_map_ops *ops = &dma_direct_ops;
 	void *ret;
 
 	/*
@@ -70,7 +70,7 @@ static void arm_nommu_dma_free(struct device *dev, size_t size,
 			       void *cpu_addr, dma_addr_t dma_addr,
 			       unsigned long attrs)
 {
-	const struct dma_map_ops *ops = &dma_noop_ops;
+	const struct dma_map_ops *ops = &dma_direct_ops;
 
 	if (attrs & DMA_ATTR_NON_CONSISTENT) {
 		ops->free(dev, size, cpu_addr, dma_addr, attrs);
@@ -213,7 +213,7 @@ EXPORT_SYMBOL(arm_nommu_dma_ops);
 
 static const struct dma_map_ops *arm_nommu_get_dma_map_ops(bool coherent)
 {
-	return coherent ? &dma_noop_ops : &arm_nommu_dma_ops;
+	return coherent ? &dma_direct_ops : &arm_nommu_dma_ops;
 }
 
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,

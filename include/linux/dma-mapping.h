@@ -136,7 +136,7 @@ struct dma_map_ops {
 	int is_phys;
 };
 
-extern const struct dma_map_ops dma_noop_ops;
+extern const struct dma_map_ops dma_direct_ops;
 extern const struct dma_map_ops dma_virt_ops;
 
 #define DMA_BIT_MASK(n)	(((n) == 64) ? ~0ULL : ((1ULL<<(n))-1))

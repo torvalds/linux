@@ -10,9 +10,8 @@
 #include <linux/scatterlist.h>
 #include <linux/pfn.h>
 
-static void *dma_noop_alloc(struct device *dev, size_t size,
-			    dma_addr_t *dma_handle, gfp_t gfp,
-			    unsigned long attrs)
+static void *dma_direct_alloc(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
 	void *ret;
 
@@ -23,24 +22,21 @@ static void *dma_noop_alloc(struct device *dev, size_t size,
 	return ret;
 }
 
-static void dma_noop_free(struct device *dev, size_t size,
-			  void *cpu_addr, dma_addr_t dma_addr,
-			  unsigned long attrs)
+static void dma_direct_free(struct device *dev, size_t size, void *cpu_addr,
+		dma_addr_t dma_addr, unsigned long attrs)
 {
 	free_pages((unsigned long)cpu_addr, get_order(size));
 }
 
-static dma_addr_t dma_noop_map_page(struct device *dev, struct page *page,
-				      unsigned long offset, size_t size,
-				      enum dma_data_direction dir,
-				      unsigned long attrs)
+static dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
+		unsigned long offset, size_t size, enum dma_data_direction dir,
+		unsigned long attrs)
 {
 	return page_to_phys(page) + offset - PFN_PHYS(dev->dma_pfn_offset);
 }
 
-static int dma_noop_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
-			     enum dma_data_direction dir,
-			     unsigned long attrs)
+static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
 	int i;
 	struct scatterlist *sg;
@@ -58,11 +54,10 @@ static int dma_noop_map_sg(struct device *dev, struct scatterlist *sgl, int nent
 	return nents;
 }
 
-const struct dma_map_ops dma_noop_ops = {
-	.alloc			= dma_noop_alloc,
-	.free			= dma_noop_free,
-	.map_page		= dma_noop_map_page,
-	.map_sg			= dma_noop_map_sg,
+const struct dma_map_ops dma_direct_ops = {
+	.alloc			= dma_direct_alloc,
+	.free			= dma_direct_free,
+	.map_page		= dma_direct_map_page,
+	.map_sg			= dma_direct_map_sg,
 };
-
-EXPORT_SYMBOL(dma_noop_ops);
+EXPORT_SYMBOL(dma_direct_ops);
