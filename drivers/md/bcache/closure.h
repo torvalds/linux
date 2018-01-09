@@ -127,10 +127,10 @@ enum closure_state {
 	 * annotate where references are being transferred.
 	 */
 
-	CLOSURE_BITS_START	= (1U << 27),
-	CLOSURE_DESTRUCTOR	= (1U << 27),
-	CLOSURE_WAITING		= (1U << 29),
-	CLOSURE_RUNNING		= (1U << 31),
+	CLOSURE_BITS_START	= (1U << 26),
+	CLOSURE_DESTRUCTOR	= (1U << 26),
+	CLOSURE_WAITING		= (1U << 28),
+	CLOSURE_RUNNING		= (1U << 30),
 };
 
 #define CLOSURE_GUARD_MASK					\
