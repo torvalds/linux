@@ -3930,7 +3930,7 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 		struct rdma_dev_addr *dev_addr =
 			&id_priv->id.route.addr.dev_addr;
 		struct net_device *ndev =
-			dev_get_by_index(&init_net, dev_addr->bound_dev_if);
+			dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
 		enum ib_gid_type gid_type =
 			id_priv->cma_dev->default_gid_type[id_priv->id.port_num -
 			rdma_start_port(id_priv->cma_dev->device)];
@@ -4120,7 +4120,7 @@ static int cma_iboe_join_multicast(struct rdma_id_private *id_priv,
 		mc->multicast.ib->rec.qkey = cpu_to_be32(RDMA_UDP_QKEY);
 
 	if (dev_addr->bound_dev_if)
-		ndev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
+		ndev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
 	if (!ndev) {
 		err = -ENODEV;
 		goto out2;
@@ -4238,7 +4238,7 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 					struct net_device *ndev = NULL;
 
 					if (dev_addr->bound_dev_if)
-						ndev = dev_get_by_index(&init_net,
+						ndev = dev_get_by_index(dev_addr->net,
 									dev_addr->bound_dev_if);
 					if (ndev) {
 						cma_igmp_send(ndev,
