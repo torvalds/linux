@@ -1412,9 +1412,11 @@ static struct pinctrl_desc mtk_desc = {
 static int mtk_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 {
 	struct mtk_pinctrl *hw = dev_get_drvdata(chip->parent);
-	int value;
+	int value, err;
 
-	mtk_hw_get_value(hw, gpio, PINCTRL_PIN_REG_DI, &value);
+	err = mtk_hw_get_value(hw, gpio, PINCTRL_PIN_REG_DI, &value);
+	if (err)
+		return err;
 
 	return !!value;
 }
