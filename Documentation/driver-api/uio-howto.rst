@@ -698,6 +698,11 @@ prevents the device from generating further interrupts until the bit is
 cleared. The userspace driver should clear this bit before blocking and
 waiting for more interrupts.
 
+The vmbus device regions are mapped into uio device resources:
+    0) Channel ring buffers: guest to host and host to guest
+    1) Guest to host interrupt signalling pages
+    2) Guest to host monitor page
+
 Further information
 ===================
 
