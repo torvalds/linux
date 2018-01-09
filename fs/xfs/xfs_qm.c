@@ -162,7 +162,7 @@ xfs_qm_dqpurge(
 		 */
 		error = xfs_qm_dqflush(dqp, &bp);
 		if (error) {
-			xfs_warn(mp, "%s: dquot %p flush failed",
+			xfs_warn(mp, "%s: dquot "PTR_FMT" flush failed",
 				__func__, dqp);
 		} else {
 			error = xfs_bwrite(bp);
@@ -480,7 +480,7 @@ xfs_qm_dquot_isolate(
 
 		error = xfs_qm_dqflush(dqp, &bp);
 		if (error) {
-			xfs_warn(dqp->q_mount, "%s: dquot %p flush failed",
+			xfs_warn(dqp->q_mount, "%s: dquot "PTR_FMT" flush failed",
 				 __func__, dqp);
 			goto out_unlock_dirty;
 		}

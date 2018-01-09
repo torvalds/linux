@@ -212,7 +212,7 @@ xfs_qm_dquot_logitem_push(
 
 	error = xfs_qm_dqflush(dqp, &bp);
 	if (error) {
-		xfs_warn(dqp->q_mount, "%s: push error %d on dqp %p",
+		xfs_warn(dqp->q_mount, "%s: push error %d on dqp "PTR_FMT,
 			__func__, error, dqp);
 	} else {
 		if (!xfs_buf_delwri_queue(bp, buffer_list))
