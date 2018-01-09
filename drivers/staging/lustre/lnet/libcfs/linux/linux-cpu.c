@@ -102,11 +102,7 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 	for (i = 0; cptab->ctb_parts && i < cptab->ctb_nparts; i++) {
 		struct cfs_cpu_partition *part = &cptab->ctb_parts[i];
 
-		if (part->cpt_nodemask) {
-			LIBCFS_FREE(part->cpt_nodemask,
-				    sizeof(*part->cpt_nodemask));
-		}
-
+		kfree(part->cpt_nodemask);
 		if (part->cpt_cpumask)
 			LIBCFS_FREE(part->cpt_cpumask, cpumask_size());
 	}
@@ -116,12 +112,11 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 			    cptab->ctb_nparts * sizeof(cptab->ctb_parts[0]));
 	}
 
-	if (cptab->ctb_nodemask)
-		LIBCFS_FREE(cptab->ctb_nodemask, sizeof(*cptab->ctb_nodemask));
+	kfree(cptab->ctb_nodemask);
 	if (cptab->ctb_cpumask)
 		LIBCFS_FREE(cptab->ctb_cpumask, cpumask_size());
 
-	LIBCFS_FREE(cptab, sizeof(*cptab));
+	kfree(cptab);
 }
 EXPORT_SYMBOL(cfs_cpt_table_free);
 
@@ -131,14 +126,15 @@ cfs_cpt_table_alloc(unsigned int ncpt)
 	struct cfs_cpt_table *cptab;
 	int i;
 
-	LIBCFS_ALLOC(cptab, sizeof(*cptab));
+	cptab = kzalloc(sizeof(*cptab), GFP_NOFS);
 	if (!cptab)
 		return NULL;
 
 	cptab->ctb_nparts = ncpt;
 
 	LIBCFS_ALLOC(cptab->ctb_cpumask, cpumask_size());
-	LIBCFS_ALLOC(cptab->ctb_nodemask, sizeof(*cptab->ctb_nodemask));
+	cptab->ctb_nodemask = kzalloc(sizeof(*cptab->ctb_nodemask),
+				      GFP_NOFS);
 
 	if (!cptab->ctb_cpumask || !cptab->ctb_nodemask)
 		goto failed;
@@ -159,7 +155,8 @@ cfs_cpt_table_alloc(unsigned int ncpt)
 		struct cfs_cpu_partition *part = &cptab->ctb_parts[i];
 
 		LIBCFS_ALLOC(part->cpt_cpumask, cpumask_size());
-		LIBCFS_ALLOC(part->cpt_nodemask, sizeof(*part->cpt_nodemask));
+		part->cpt_nodemask = kzalloc(sizeof(*part->cpt_nodemask),
+					     GFP_NOFS);
 		if (!part->cpt_cpumask || !part->cpt_nodemask)
 			goto failed;
 	}

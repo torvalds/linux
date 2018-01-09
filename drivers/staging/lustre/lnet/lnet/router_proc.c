@@ -91,13 +91,13 @@ static int __proc_lnet_stats(void *data, int write,
 
 	/* read */
 
-	LIBCFS_ALLOC(ctrs, sizeof(*ctrs));
+	ctrs = kzalloc(sizeof(*ctrs), GFP_NOFS);
 	if (!ctrs)
 		return -ENOMEM;
 
 	LIBCFS_ALLOC(tmpstr, tmpsiz);
 	if (!tmpstr) {
-		LIBCFS_FREE(ctrs, sizeof(*ctrs));
+		kfree(ctrs);
 		return -ENOMEM;
 	}
 
@@ -119,7 +119,7 @@ static int __proc_lnet_stats(void *data, int write,
 					      tmpstr + pos, "\n");
 
 	LIBCFS_FREE(tmpstr, tmpsiz);
-	LIBCFS_FREE(ctrs, sizeof(*ctrs));
+	kfree(ctrs);
 	return rc;
 }
 

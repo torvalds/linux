@@ -214,7 +214,7 @@ srpc_service_fini(struct srpc_service *svc)
 				buf = list_entry(q->next, struct srpc_buffer,
 						 buf_list);
 				list_del(&buf->buf_list);
-				LIBCFS_FREE(buf, sizeof(*buf));
+				kfree(buf);
 			}
 		}
 
@@ -225,7 +225,7 @@ srpc_service_fini(struct srpc_service *svc)
 					 struct srpc_server_rpc,
 					 srpc_list);
 			list_del(&rpc->srpc_list);
-			LIBCFS_FREE(rpc, sizeof(*rpc));
+			kfree(rpc);
 		}
 	}
 
@@ -508,7 +508,7 @@ __must_hold(&scd->scd_lock)
 	list_del(&buf->buf_list);
 	spin_unlock(&scd->scd_lock);
 
-	LIBCFS_FREE(buf, sizeof(*buf));
+	kfree(buf);
 
 	spin_lock(&scd->scd_lock);
 	return rc;
@@ -535,7 +535,7 @@ srpc_add_buffer(struct swi_workitem *wi)
 
 		spin_unlock(&scd->scd_lock);
 
-		LIBCFS_ALLOC(buf, sizeof(*buf));
+		buf = kzalloc(sizeof(*buf), GFP_NOFS);
 		if (!buf) {
 			CERROR("Failed to add new buf to service: %s\n",
 			       scd->scd_svc->sv_name);
@@ -547,7 +547,7 @@ srpc_add_buffer(struct swi_workitem *wi)
 		spin_lock(&scd->scd_lock);
 		if (scd->scd_svc->sv_shuttingdown) {
 			spin_unlock(&scd->scd_lock);
-			LIBCFS_FREE(buf, sizeof(*buf));
+			kfree(buf);
 
 			spin_lock(&scd->scd_lock);
 			rc = -ESHUTDOWN;
@@ -725,7 +725,7 @@ __must_hold(&scd->scd_lock)
 	}
 
 	spin_unlock(&scd->scd_lock);
-	LIBCFS_FREE(buf, sizeof(*buf));
+	kfree(buf);
 	spin_lock(&scd->scd_lock);
 }
 

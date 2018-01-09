@@ -66,7 +66,7 @@ ksocknal_create_route(__u32 ipaddr, int port)
 {
 	struct ksock_route *route;
 
-	LIBCFS_ALLOC(route, sizeof(*route));
+	route = kzalloc(sizeof(*route), GFP_NOFS);
 	if (!route)
 		return NULL;
 
@@ -93,7 +93,7 @@ ksocknal_destroy_route(struct ksock_route *route)
 	if (route->ksnr_peer)
 		ksocknal_peer_decref(route->ksnr_peer);
 
-	LIBCFS_FREE(route, sizeof(*route));
+	kfree(route);
 }
 
 static int
@@ -132,7 +132,7 @@ ksocknal_create_peer(struct ksock_peer **peerp, struct lnet_ni *ni,
 	if (net->ksnn_shutdown) {
 		spin_unlock_bh(&net->ksnn_lock);
 
-		LIBCFS_FREE(peer, sizeof(*peer));
+		kfree(peer);
 		CERROR("Can't create peer: network shutdown\n");
 		return -ESHUTDOWN;
 	}
@@ -160,7 +160,7 @@ ksocknal_destroy_peer(struct ksock_peer *peer)
 	LASSERT(list_empty(&peer->ksnp_tx_queue));
 	LASSERT(list_empty(&peer->ksnp_zc_req_list));
 
-	LIBCFS_FREE(peer, sizeof(*peer));
+	kfree(peer);
 
 	/*
 	 * NB a peer's connections and routes keep a reference on their peer
@@ -985,7 +985,7 @@ ksocknal_accept(struct lnet_ni *ni, struct socket *sock)
 	rc = lnet_sock_getaddr(sock, 1, &peer_ip, &peer_port);
 	LASSERT(!rc);		      /* we succeeded before */
 
-	LIBCFS_ALLOC(cr, sizeof(*cr));
+	cr = kzalloc(sizeof(*cr), GFP_NOFS);
 	if (!cr) {
 		LCONSOLE_ERROR_MSG(0x12f, "Dropping connection request from %pI4h: memory exhausted\n",
 				   &peer_ip);
@@ -1043,7 +1043,7 @@ ksocknal_create_conn(struct lnet_ni *ni, struct ksock_route *route,
 
 	LASSERT(active == (type != SOCKLND_CONN_NONE));
 
-	LIBCFS_ALLOC(conn, sizeof(*conn));
+	conn = kzalloc(sizeof(*conn), GFP_NOFS);
 	if (!conn) {
 		rc = -ENOMEM;
 		goto failed_0;
@@ -1419,7 +1419,7 @@ failed_1:
 		LIBCFS_FREE(hello, offsetof(struct ksock_hello_msg,
 					    kshm_ips[LNET_MAX_INTERFACES]));
 
-	LIBCFS_FREE(conn, sizeof(*conn));
+	kfree(conn);
 
 failed_0:
 	sock_release(sock);
@@ -1716,7 +1716,7 @@ ksocknal_destroy_conn(struct ksock_conn *conn)
 
 	ksocknal_peer_decref(conn->ksnc_peer);
 
-	LIBCFS_FREE(conn, sizeof(*conn));
+	kfree(conn);
 }
 
 int
@@ -2622,7 +2622,7 @@ ksocknal_shutdown(struct lnet_ni *ni)
 	}
 
 	list_del(&net->ksnn_list);
-	LIBCFS_FREE(net, sizeof(*net));
+	kfree(net);
 
 	ksocknal_data.ksnd_nnets--;
 	if (!ksocknal_data.ksnd_nnets)
@@ -2815,7 +2815,7 @@ ksocknal_startup(struct lnet_ni *ni)
 			return rc;
 	}
 
-	LIBCFS_ALLOC(net, sizeof(*net));
+	net = kzalloc(sizeof(*net), GFP_NOFS);
 	if (!net)
 		goto fail_0;
 
@@ -2877,7 +2877,7 @@ ksocknal_startup(struct lnet_ni *ni)
 	return 0;
 
  fail_1:
-	LIBCFS_FREE(net, sizeof(*net));
+	kfree(net);
  fail_0:
 	if (!ksocknal_data.ksnd_nnets)
 		ksocknal_base_shutdown();

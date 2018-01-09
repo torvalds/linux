@@ -51,7 +51,7 @@ cfs_cpt_table_alloc(unsigned int ncpt)
 		return NULL;
 	}
 
-	LIBCFS_ALLOC(cptab, sizeof(*cptab));
+	cptab = kzalloc(sizeof(*cptab), GFP_NOFS);
 	if (cptab) {
 		cptab->ctb_version = CFS_CPU_VERSION_MAGIC;
 		node_set(0, cptab->ctb_nodemask);
@@ -67,7 +67,7 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 {
 	LASSERT(cptab->ctb_version == CFS_CPU_VERSION_MAGIC);
 
-	LIBCFS_FREE(cptab, sizeof(*cptab));
+	kfree(cptab);
 }
 EXPORT_SYMBOL(cfs_cpt_table_free);
 

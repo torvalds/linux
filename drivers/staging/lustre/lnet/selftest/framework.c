@@ -143,7 +143,7 @@ sfw_register_test(struct srpc_service *service,
 		return -EEXIST;
 	}
 
-	LIBCFS_ALLOC(tsc, sizeof(struct sfw_test_case));
+	tsc = kzalloc(sizeof(struct sfw_test_case), GFP_NOFS);
 	if (!tsc)
 		return -ENOMEM;
 
@@ -344,7 +344,7 @@ sfw_bid2batch(struct lst_bid bid)
 	if (bat)
 		return bat;
 
-	LIBCFS_ALLOC(bat, sizeof(struct sfw_batch));
+	bat = kzalloc(sizeof(struct sfw_batch), GFP_NOFS);
 	if (!bat)
 		return NULL;
 
@@ -447,7 +447,7 @@ sfw_make_session(struct srpc_mksn_reqst *request, struct srpc_mksn_reply *reply)
 	}
 
 	/* brand new or create by force */
-	LIBCFS_ALLOC(sn, sizeof(struct sfw_session));
+	sn = kzalloc(sizeof(struct sfw_session), GFP_NOFS);
 	if (!sn) {
 		CERROR("dropping RPC mksn under memory pressure\n");
 		return -ENOMEM;
@@ -632,7 +632,7 @@ sfw_destroy_test_instance(struct sfw_test_instance *tsi)
 		tsu = list_entry(tsi->tsi_units.next,
 				 struct sfw_test_unit, tsu_list);
 		list_del(&tsu->tsu_list);
-		LIBCFS_FREE(tsu, sizeof(*tsu));
+		kfree(tsu);
 	}
 
 	while (!list_empty(&tsi->tsi_free_rpcs)) {
@@ -644,7 +644,7 @@ sfw_destroy_test_instance(struct sfw_test_instance *tsi)
 
 clean:
 	sfw_unload_test(tsi);
-	LIBCFS_FREE(tsi, sizeof(*tsi));
+	kfree(tsi);
 }
 
 static void
@@ -662,7 +662,7 @@ sfw_destroy_batch(struct sfw_batch *tsb)
 		sfw_destroy_test_instance(tsi);
 	}
 
-	LIBCFS_FREE(tsb, sizeof(struct sfw_batch));
+	kfree(tsb);
 }
 
 void
@@ -680,7 +680,7 @@ sfw_destroy_session(struct sfw_session *sn)
 		sfw_destroy_batch(batch);
 	}
 
-	LIBCFS_FREE(sn, sizeof(*sn));
+	kfree(sn);
 	atomic_dec(&sfw_data.fw_nzombies);
 }
 
@@ -740,7 +740,7 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 	int i;
 	int rc;
 
-	LIBCFS_ALLOC(tsi, sizeof(*tsi));
+	tsi = kzalloc(sizeof(*tsi), GFP_NOFS);
 	if (!tsi) {
 		CERROR("Can't allocate test instance for batch: %llu\n",
 		       tsb->bat_id.bat_id);
@@ -763,7 +763,7 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 
 	rc = sfw_load_test(tsi);
 	if (rc) {
-		LIBCFS_FREE(tsi, sizeof(*tsi));
+		kfree(tsi);
 		return rc;
 	}
 
@@ -795,7 +795,7 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 			sfw_unpack_id(id);
 
 		for (j = 0; j < tsi->tsi_concur; j++) {
-			LIBCFS_ALLOC(tsu, sizeof(struct sfw_test_unit));
+			tsu = kzalloc(sizeof(struct sfw_test_unit), GFP_NOFS);
 			if (!tsu) {
 				rc = -ENOMEM;
 				CERROR("Can't allocate tsu for %d\n",
@@ -1785,6 +1785,6 @@ sfw_shutdown(void)
 		srpc_wait_service_shutdown(tsc->tsc_srv_service);
 
 		list_del(&tsc->tsc_list);
-		LIBCFS_FREE(tsc, sizeof(*tsc));
+		kfree(tsc);
 	}
 }

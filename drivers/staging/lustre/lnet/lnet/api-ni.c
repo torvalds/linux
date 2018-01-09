@@ -1280,8 +1280,8 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 		lnd_tunables = (struct lnet_ioctl_config_lnd_tunables *)conf->cfg_bulk;
 
 	if (lnd_tunables) {
-		LIBCFS_ALLOC(ni->ni_lnd_tunables,
-			     sizeof(*ni->ni_lnd_tunables));
+		ni->ni_lnd_tunables = kzalloc(sizeof(*ni->ni_lnd_tunables),
+					      GFP_NOFS);
 		if (!ni->ni_lnd_tunables) {
 			mutex_unlock(&the_lnet.ln_lnd_mutex);
 			rc = -ENOMEM;

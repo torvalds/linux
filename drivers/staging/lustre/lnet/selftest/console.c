@@ -166,7 +166,7 @@ lstcon_ndlink_find(struct list_head *hash, struct lnet_process_id id,
 	if (rc)
 		return rc;
 
-	LIBCFS_ALLOC(ndl, sizeof(struct lstcon_ndlink));
+	ndl = kzalloc(sizeof(struct lstcon_ndlink), GFP_NOFS);
 	if (!ndl) {
 		lstcon_node_put(nd);
 		return -ENOMEM;
@@ -190,7 +190,7 @@ lstcon_ndlink_release(struct lstcon_ndlink *ndl)
 	list_del(&ndl->ndl_hlink); /* delete from hash */
 	lstcon_node_put(ndl->ndl_node);
 
-	LIBCFS_FREE(ndl, sizeof(*ndl));
+	kfree(ndl);
 }
 
 static int
@@ -807,7 +807,7 @@ lstcon_group_info(char *name, struct lstcon_ndlist_ent __user *gents_p,
 	}
 
 	/* non-verbose query */
-	LIBCFS_ALLOC(gentp, sizeof(struct lstcon_ndlist_ent));
+	gentp = kzalloc(sizeof(struct lstcon_ndlist_ent), GFP_NOFS);
 	if (!gentp) {
 		CERROR("Can't allocate ndlist_ent\n");
 		lstcon_group_decref(grp);
@@ -821,7 +821,7 @@ lstcon_group_info(char *name, struct lstcon_ndlist_ent __user *gents_p,
 	rc = copy_to_user(gents_p, gentp,
 			  sizeof(struct lstcon_ndlist_ent)) ? -EFAULT : 0;
 
-	LIBCFS_FREE(gentp, sizeof(struct lstcon_ndlist_ent));
+	kfree(gentp);
 
 	lstcon_group_decref(grp);
 
@@ -856,7 +856,7 @@ lstcon_batch_add(char *name)
 		return rc;
 	}
 
-	LIBCFS_ALLOC(bat, sizeof(struct lstcon_batch));
+	bat = kzalloc(sizeof(struct lstcon_batch), GFP_NOFS);
 	if (!bat) {
 		CERROR("Can't allocate descriptor for batch %s\n", name);
 		return -ENOMEM;
@@ -866,7 +866,7 @@ lstcon_batch_add(char *name)
 		     sizeof(struct list_head) * LST_NODE_HASHSIZE);
 	if (!bat->bat_cli_hash) {
 		CERROR("Can't allocate hash for batch %s\n", name);
-		LIBCFS_FREE(bat, sizeof(struct lstcon_batch));
+		kfree(bat);
 
 		return -ENOMEM;
 	}
@@ -876,7 +876,7 @@ lstcon_batch_add(char *name)
 	if (!bat->bat_srv_hash) {
 		CERROR("Can't allocate hash for batch %s\n", name);
 		LIBCFS_FREE(bat->bat_cli_hash, LST_NODE_HASHSIZE);
-		LIBCFS_FREE(bat, sizeof(struct lstcon_batch));
+		kfree(bat);
 
 		return -ENOMEM;
 	}
@@ -884,7 +884,7 @@ lstcon_batch_add(char *name)
 	if (strlen(name) > sizeof(bat->bat_name) - 1) {
 		LIBCFS_FREE(bat->bat_srv_hash, LST_NODE_HASHSIZE);
 		LIBCFS_FREE(bat->bat_cli_hash, LST_NODE_HASHSIZE);
-		LIBCFS_FREE(bat, sizeof(struct lstcon_batch));
+		kfree(bat);
 		return -E2BIG;
 	}
 	strncpy(bat->bat_name, name, sizeof(bat->bat_name));
@@ -971,7 +971,7 @@ lstcon_batch_info(char *name, struct lstcon_test_batch_ent __user *ent_up,
 	}
 
 	/* non-verbose query */
-	LIBCFS_ALLOC(entp, sizeof(struct lstcon_test_batch_ent));
+	entp = kzalloc(sizeof(struct lstcon_test_batch_ent), GFP_NOFS);
 	if (!entp)
 		return -ENOMEM;
 
@@ -993,7 +993,7 @@ lstcon_batch_info(char *name, struct lstcon_test_batch_ent __user *ent_up,
 	rc = copy_to_user(ent_up, entp,
 			  sizeof(struct lstcon_test_batch_ent)) ? -EFAULT : 0;
 
-	LIBCFS_FREE(entp, sizeof(struct lstcon_test_batch_ent));
+	kfree(entp);
 
 	return rc;
 }
@@ -1138,7 +1138,7 @@ lstcon_batch_destroy(struct lstcon_batch *bat)
 		    sizeof(struct list_head) * LST_NODE_HASHSIZE);
 	LIBCFS_FREE(bat->bat_srv_hash,
 		    sizeof(struct list_head) * LST_NODE_HASHSIZE);
-	LIBCFS_FREE(bat, sizeof(struct lstcon_batch));
+	kfree(bat);
 }
 
 static int
@@ -1790,7 +1790,7 @@ lstcon_session_info(struct lst_sid __user *sid_up, int __user *key_up,
 	if (console_session.ses_state != LST_SESSION_ACTIVE)
 		return -ESRCH;
 
-	LIBCFS_ALLOC(entp, sizeof(*entp));
+	entp = kzalloc(sizeof(*entp), GFP_NOFS);
 	if (!entp)
 		return -ENOMEM;
 
@@ -1807,7 +1807,7 @@ lstcon_session_info(struct lst_sid __user *sid_up, int __user *key_up,
 	    copy_to_user(name_up, console_session.ses_name, len))
 		rc = -EFAULT;
 
-	LIBCFS_FREE(entp, sizeof(*entp));
+	kfree(entp);
 
 	return rc;
 }

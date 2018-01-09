@@ -212,7 +212,7 @@ lnet_peer_tables_cleanup(struct lnet_ni *ni)
 
 	list_for_each_entry_safe(lp, temp, &deathrow, lp_hashlist) {
 		list_del(&lp->lp_hashlist);
-		LIBCFS_FREE(lp, sizeof(*lp));
+		kfree(lp);
 	}
 }
 

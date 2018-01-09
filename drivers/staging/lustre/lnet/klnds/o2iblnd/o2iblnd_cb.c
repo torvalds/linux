@@ -2124,7 +2124,7 @@ kiblnd_connreq_done(struct kib_conn *conn, int status)
 		 (conn->ibc_state == IBLND_CONN_PASSIVE_WAIT &&
 		 peer->ibp_accepting > 0));
 
-	LIBCFS_FREE(conn->ibc_connvars, sizeof(*conn->ibc_connvars));
+	kfree(conn->ibc_connvars);
 	conn->ibc_connvars = NULL;
 
 	if (status) {
@@ -3363,7 +3363,7 @@ kiblnd_connd(void *arg)
 
 			reconn += kiblnd_reconnect_peer(conn->ibc_peer);
 			kiblnd_peer_decref(conn->ibc_peer);
-			LIBCFS_FREE(conn, sizeof(*conn));
+			kfree(conn);
 
 			spin_lock_irqsave(lock, flags);
 		}

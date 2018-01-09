@@ -2117,7 +2117,7 @@ ksocknal_connd(void *arg)
 			ksocknal_create_conn(cr->ksncr_ni, NULL,
 					     cr->ksncr_sock, SOCKLND_CONN_NONE);
 			lnet_ni_decref(cr->ksncr_ni);
-			LIBCFS_FREE(cr, sizeof(*cr));
+			kfree(cr);
 
 			spin_lock_bh(connd_lock);
 		}

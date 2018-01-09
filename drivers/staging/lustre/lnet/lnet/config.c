@@ -106,8 +106,7 @@ lnet_ni_free(struct lnet_ni *ni)
 	if (ni->ni_cpts)
 		cfs_expr_list_values_free(ni->ni_cpts, ni->ni_ncpts);
 
-	if (ni->ni_lnd_tunables)
-		LIBCFS_FREE(ni->ni_lnd_tunables, sizeof(*ni->ni_lnd_tunables));
+	kfree(ni->ni_lnd_tunables);
 
 	for (i = 0; i < LNET_MAX_INTERFACES && ni->ni_interfaces[i]; i++) {
 		LIBCFS_FREE(ni->ni_interfaces[i],
@@ -118,7 +117,7 @@ lnet_ni_free(struct lnet_ni *ni)
 	if (ni->ni_net_ns)
 		put_net(ni->ni_net_ns);
 
-	LIBCFS_FREE(ni, sizeof(*ni));
+	kfree(ni);
 }
 
 struct lnet_ni *
@@ -135,7 +134,7 @@ lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist)
 		return NULL;
 	}
 
-	LIBCFS_ALLOC(ni, sizeof(*ni));
+	ni = kzalloc(sizeof(*ni), GFP_NOFS);
 	if (!ni) {
 		CERROR("Out of memory creating network %s\n",
 		       libcfs_net2str(net));

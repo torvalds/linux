@@ -57,7 +57,7 @@ lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 	/* NB: use lnet_net_lock(0) to serialize operations on test peers */
 	if (threshold) {
 		/* Adding a new entry */
-		LIBCFS_ALLOC(tp, sizeof(*tp));
+		tp = kzalloc(sizeof(*tp), GFP_NOFS);
 		if (!tp)
 			return -ENOMEM;
 
@@ -90,7 +90,7 @@ lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 
 	list_for_each_entry_safe(tp, temp, &cull, tp_list) {
 		list_del(&tp->tp_list);
-		LIBCFS_FREE(tp, sizeof(*tp));
+		kfree(tp);
 	}
 	return 0;
 }
@@ -149,7 +149,7 @@ fail_peer(lnet_nid_t nid, int outgoing)
 	list_for_each_entry_safe(tp, temp, &cull, tp_list) {
 		list_del(&tp->tp_list);
 
-		LIBCFS_FREE(tp, sizeof(*tp));
+		kfree(tp);
 	}
 
 	return fail;

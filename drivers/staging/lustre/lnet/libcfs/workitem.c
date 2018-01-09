@@ -328,7 +328,7 @@ cfs_wi_sched_destroy(struct cfs_wi_sched *sched)
 	spin_unlock(&cfs_wi_data.wi_glock);
 	LASSERT(!sched->ws_nscheduled);
 
-	LIBCFS_FREE(sched, sizeof(*sched));
+	kfree(sched);
 }
 EXPORT_SYMBOL(cfs_wi_sched_destroy);
 
@@ -344,12 +344,12 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 	LASSERT(!cptab || cpt == CFS_CPT_ANY ||
 		(cpt >= 0 && cpt < cfs_cpt_number(cptab)));
 
-	LIBCFS_ALLOC(sched, sizeof(*sched));
+	sched = kzalloc(sizeof(*sched), GFP_NOFS);
 	if (!sched)
 		return -ENOMEM;
 
 	if (strlen(name) > sizeof(sched->ws_name) - 1) {
-		LIBCFS_FREE(sched, sizeof(*sched));
+		kfree(sched);
 		return -E2BIG;
 	}
 	strncpy(sched->ws_name, name, sizeof(sched->ws_name));
@@ -458,7 +458,7 @@ cfs_wi_shutdown(void)
 	}
 	list_for_each_entry_safe(sched, temp, &cfs_wi_data.wi_scheds, ws_list) {
 		list_del(&sched->ws_list);
-		LIBCFS_FREE(sched, sizeof(*sched));
+		kfree(sched);
 	}
 
 	cfs_wi_data.wi_stopping = 0;
