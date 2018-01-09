@@ -1160,7 +1160,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_OUTPUT_ENABLE:
 		err = mtk_hw_get_value(hw, pin, PINCTRL_PIN_REG_DIR, &val);
 		if (err)
-			return -EINVAL;
+			return err;
 
 		/* HW takes input mode as zero; output mode as non-zero */
 		if ((val && param == PIN_CONFIG_INPUT_ENABLE) ||
@@ -1184,11 +1184,11 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		err = mtk_hw_get_value(hw, pin, PINCTRL_PIN_REG_E4, &val);
 		if (err)
-			return -EINVAL;
+			return err;
 
 		err = mtk_hw_get_value(hw, pin, PINCTRL_PIN_REG_E8, &val2);
 		if (err)
-			return -EINVAL;
+			return err;
 
 		/* 4mA when (e8, e4) = (0, 0); 8mA when (e8, e4) = (0, 1)
 		 * 12mA when (e8, e4) = (1, 0); 16mA when (e8, e4) = (1, 1)
@@ -1203,7 +1203,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 
 		err = mtk_hw_get_value(hw, pin, reg, &val);
 		if (err)
-			return -EINVAL;
+			return err;
 
 		ret = val;
 
