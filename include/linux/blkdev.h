@@ -257,7 +257,9 @@ struct request {
 	struct u64_stats_sync aborted_gstate_sync;
 	u64 aborted_gstate;
 
-	unsigned long deadline;
+	/* access through blk_rq_set_deadline, blk_rq_deadline */
+	unsigned long __deadline;
+
 	struct list_head timeout_list;
 
 	/*

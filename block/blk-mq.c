@@ -858,7 +858,7 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 	while (true) {
 		start = read_seqcount_begin(&rq->gstate_seq);
 		gstate = READ_ONCE(rq->gstate);
-		deadline = rq->deadline;
+		deadline = blk_rq_deadline(rq);
 		if (!read_seqcount_retry(&rq->gstate_seq, start))
 			break;
 		cond_resched();

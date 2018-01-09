@@ -237,6 +237,21 @@ static inline void req_set_nomerge(struct request_queue *q, struct request *req)
 }
 
 /*
+ * Steal a bit from this field for legacy IO path atomic IO marking. Note that
+ * setting the deadline clears the bottom bit, potentially clearing the
+ * completed bit. The user has to be OK with this (current ones are fine).
+ */
+static inline void blk_rq_set_deadline(struct request *rq, unsigned long time)
+{
+	rq->__deadline = time & ~0x1UL;
+}
+
+static inline unsigned long blk_rq_deadline(struct request *rq)
+{
+	return rq->__deadline & ~0x1UL;
+}
+
+/*
  * Internal io_context interface
  */
 void get_io_context(struct io_context *ioc);
