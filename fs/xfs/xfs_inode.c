@@ -3492,7 +3492,7 @@ xfs_inode_verify_forks(
 	fa = xfs_ifork_verify_data(ip, &xfs_default_ifork_ops);
 	if (fa) {
 		xfs_alert(ip->i_mount,
-				"%s: bad inode %llu inline data fork at %pF",
+				"%s: bad inode %llu inline data fork at %pS",
 				__func__, ip->i_ino, fa);
 		return false;
 	}
@@ -3500,7 +3500,7 @@ xfs_inode_verify_forks(
 	fa = xfs_ifork_verify_attr(ip, &xfs_default_ifork_ops);
 	if (fa) {
 		xfs_alert(ip->i_mount,
-				"%s: bad inode %llu inline attr fork at %pF",
+				"%s: bad inode %llu inline attr fork at %pS",
 				__func__, ip->i_ino, fa);
 		return false;
 	}
