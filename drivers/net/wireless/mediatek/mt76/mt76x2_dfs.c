@@ -490,3 +490,16 @@ void mt76x2_dfs_init_detector(struct mt76x2_dev *dev)
 		     (unsigned long)dev);
 }
 
+void mt76x2_dfs_set_domain(struct mt76x2_dev *dev,
+			   enum nl80211_dfs_regions region)
+{
+	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+
+	if (dfs_pd->region != region) {
+		tasklet_disable(&dfs_pd->dfs_tasklet);
+		dfs_pd->region = region;
+		mt76x2_dfs_init_params(dev);
+		tasklet_enable(&dfs_pd->dfs_tasklet);
+	}
+}
+

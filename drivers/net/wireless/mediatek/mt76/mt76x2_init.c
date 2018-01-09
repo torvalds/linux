@@ -652,7 +652,7 @@ static void mt76x2_regd_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct mt76x2_dev *dev = hw->priv;
 
-	dev->dfs_pd.region = request->dfs_region;
+	mt76x2_dfs_set_domain(dev, request->dfs_region);
 }
 
 #define CCK_RATE(_idx, _rate) {					\
