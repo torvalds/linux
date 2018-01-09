@@ -1322,8 +1322,8 @@ srpc_create_client_rpc(struct lnet_process_id peer, int service,
 {
 	struct srpc_client_rpc *rpc;
 
-	LIBCFS_ALLOC(rpc, offsetof(struct srpc_client_rpc,
-				   crpc_bulk.bk_iovs[nbulkiov]));
+	rpc = kzalloc(offsetof(struct srpc_client_rpc,
+			       crpc_bulk.bk_iovs[nbulkiov]), GFP_KERNEL);
 	if (!rpc)
 		return NULL;
 

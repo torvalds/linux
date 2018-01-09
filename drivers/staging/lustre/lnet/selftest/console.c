@@ -88,7 +88,7 @@ lstcon_node_find(struct lnet_process_id id, struct lstcon_node **ndpp,
 	if (!create)
 		return -ENOENT;
 
-	LIBCFS_ALLOC(*ndpp, sizeof(**ndpp) + sizeof(*ndl));
+	*ndpp = kzalloc(sizeof(**ndpp) + sizeof(*ndl), GFP_KERNEL);
 	if (!*ndpp)
 		return -ENOMEM;
 
@@ -133,7 +133,7 @@ lstcon_node_put(struct lstcon_node *nd)
 	list_del(&ndl->ndl_link);
 	list_del(&ndl->ndl_hlink);
 
-	LIBCFS_FREE(nd, sizeof(*nd) + sizeof(*ndl));
+	kfree(nd);
 }
 
 static int
@@ -199,16 +199,16 @@ lstcon_group_alloc(char *name, struct lstcon_group **grpp)
 	struct lstcon_group *grp;
 	int i;
 
-	LIBCFS_ALLOC(grp, offsetof(struct lstcon_group,
-				   grp_ndl_hash[LST_NODE_HASHSIZE]));
+	grp = kmalloc(offsetof(struct lstcon_group,
+			       grp_ndl_hash[LST_NODE_HASHSIZE]),
+		      GFP_KERNEL);
 	if (!grp)
 		return -ENOMEM;
 
 	grp->grp_ref = 1;
 	if (name) {
 		if (strlen(name) > sizeof(grp->grp_name) - 1) {
-			LIBCFS_FREE(grp, offsetof(struct lstcon_group,
-				    grp_ndl_hash[LST_NODE_HASHSIZE]));
+			kfree(grp);
 			return -E2BIG;
 		}
 		strncpy(grp->grp_name, name, sizeof(grp->grp_name));
@@ -263,8 +263,7 @@ lstcon_group_decref(struct lstcon_group *grp)
 	for (i = 0; i < LST_NODE_HASHSIZE; i++)
 		LASSERT(list_empty(&grp->grp_ndl_hash[i]));
 
-	LIBCFS_FREE(grp, offsetof(struct lstcon_group,
-				  grp_ndl_hash[LST_NODE_HASHSIZE]));
+	kfree(grp);
 }
 
 static int
@@ -862,8 +861,8 @@ lstcon_batch_add(char *name)
 		return -ENOMEM;
 	}
 
-	LIBCFS_ALLOC(bat->bat_cli_hash,
-		     sizeof(struct list_head) * LST_NODE_HASHSIZE);
+	bat->bat_cli_hash = kmalloc(sizeof(struct list_head) * LST_NODE_HASHSIZE,
+				    GFP_KERNEL);
 	if (!bat->bat_cli_hash) {
 		CERROR("Can't allocate hash for batch %s\n", name);
 		kfree(bat);
@@ -871,19 +870,19 @@ lstcon_batch_add(char *name)
 		return -ENOMEM;
 	}
 
-	LIBCFS_ALLOC(bat->bat_srv_hash,
-		     sizeof(struct list_head) * LST_NODE_HASHSIZE);
+	bat->bat_srv_hash = kmalloc(sizeof(struct list_head) * LST_NODE_HASHSIZE,
+				    GFP_KERNEL);
 	if (!bat->bat_srv_hash) {
 		CERROR("Can't allocate hash for batch %s\n", name);
-		LIBCFS_FREE(bat->bat_cli_hash, LST_NODE_HASHSIZE);
+		kfree(bat->bat_cli_hash);
 		kfree(bat);
 
 		return -ENOMEM;
 	}
 
 	if (strlen(name) > sizeof(bat->bat_name) - 1) {
-		LIBCFS_FREE(bat->bat_srv_hash, LST_NODE_HASHSIZE);
-		LIBCFS_FREE(bat->bat_cli_hash, LST_NODE_HASHSIZE);
+		kfree(bat->bat_srv_hash);
+		kfree(bat->bat_cli_hash);
 		kfree(bat);
 		return -E2BIG;
 	}
@@ -1107,8 +1106,7 @@ lstcon_batch_destroy(struct lstcon_batch *bat)
 		lstcon_group_decref(test->tes_src_grp);
 		lstcon_group_decref(test->tes_dst_grp);
 
-		LIBCFS_FREE(test, offsetof(struct lstcon_test,
-					   tes_param[test->tes_paramlen]));
+		kfree(test);
 	}
 
 	LASSERT(list_empty(&bat->bat_trans_list));
@@ -1134,10 +1132,8 @@ lstcon_batch_destroy(struct lstcon_batch *bat)
 		LASSERT(list_empty(&bat->bat_srv_hash[i]));
 	}
 
-	LIBCFS_FREE(bat->bat_cli_hash,
-		    sizeof(struct list_head) * LST_NODE_HASHSIZE);
-	LIBCFS_FREE(bat->bat_srv_hash,
-		    sizeof(struct list_head) * LST_NODE_HASHSIZE);
+	kfree(bat->bat_cli_hash);
+	kfree(bat->bat_srv_hash);
 	kfree(bat);
 }
 
@@ -1311,7 +1307,8 @@ lstcon_test_add(char *batch_name, int type, int loop,
 	if (dst_grp->grp_userland)
 		*retp = 1;
 
-	LIBCFS_ALLOC(test, offsetof(struct lstcon_test, tes_param[paramlen]));
+	test = kzalloc(offsetof(struct lstcon_test, tes_param[paramlen]),
+		       GFP_KERNEL);
 	if (!test) {
 		CERROR("Can't allocate test descriptor\n");
 		rc = -ENOMEM;
@@ -1357,8 +1354,7 @@ lstcon_test_add(char *batch_name, int type, int loop,
 	/*  hold groups so nobody can change them */
 	return rc;
 out:
-	if (test)
-		LIBCFS_FREE(test, offsetof(struct lstcon_test, tes_param[paramlen]));
+	kfree(test);
 
 	if (dst_grp)
 		lstcon_group_decref(dst_grp);
@@ -2027,8 +2023,8 @@ lstcon_console_init(void)
 	INIT_LIST_HEAD(&console_session.ses_bat_list);
 	INIT_LIST_HEAD(&console_session.ses_trans_list);
 
-	LIBCFS_ALLOC(console_session.ses_ndl_hash,
-		     sizeof(struct list_head) * LST_GLOBAL_HASHSIZE);
+	console_session.ses_ndl_hash =
+		kmalloc(sizeof(struct list_head) * LST_GLOBAL_HASHSIZE, GFP_KERNEL);
 	if (!console_session.ses_ndl_hash)
 		return -ENOMEM;
 
@@ -2041,8 +2037,7 @@ lstcon_console_init(void)
 	rc = srpc_add_service(&lstcon_acceptor_service);
 	LASSERT(rc != -EBUSY);
 	if (rc) {
-		LIBCFS_FREE(console_session.ses_ndl_hash,
-			    sizeof(struct list_head) * LST_GLOBAL_HASHSIZE);
+		kfree(console_session.ses_ndl_hash);
 		return rc;
 	}
 
@@ -2064,8 +2059,7 @@ out:
 	srpc_shutdown_service(&lstcon_acceptor_service);
 	srpc_remove_service(&lstcon_acceptor_service);
 
-	LIBCFS_FREE(console_session.ses_ndl_hash,
-		    sizeof(struct list_head) * LST_GLOBAL_HASHSIZE);
+	kfree(console_session.ses_ndl_hash);
 
 	srpc_wait_service_shutdown(&lstcon_acceptor_service);
 
@@ -2099,8 +2093,7 @@ lstcon_console_fini(void)
 	for (i = 0; i < LST_NODE_HASHSIZE; i++)
 		LASSERT(list_empty(&console_session.ses_ndl_hash[i]));
 
-	LIBCFS_FREE(console_session.ses_ndl_hash,
-		    sizeof(struct list_head) * LST_GLOBAL_HASHSIZE);
+	kfree(console_session.ses_ndl_hash);
 
 	srpc_wait_service_shutdown(&lstcon_acceptor_service);
 

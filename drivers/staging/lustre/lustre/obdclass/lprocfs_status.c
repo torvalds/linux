@@ -1137,7 +1137,8 @@ struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 		num_entry = num_possible_cpus();
 
 	/* alloc percpu pointers for all possible cpu slots */
-	LIBCFS_ALLOC(stats, offsetof(typeof(*stats), ls_percpu[num_entry]));
+	stats = kvzalloc(offsetof(typeof(*stats), ls_percpu[num_entry]),
+			 GFP_KERNEL);
 	if (!stats)
 		return NULL;
 
@@ -1146,8 +1147,9 @@ struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 	spin_lock_init(&stats->ls_lock);
 
 	/* alloc num of counter headers */
-	LIBCFS_ALLOC(stats->ls_cnt_header,
-		     stats->ls_num * sizeof(struct lprocfs_counter_header));
+	stats->ls_cnt_header = kvmalloc_array(stats->ls_num,
+					      sizeof(struct lprocfs_counter_header),
+					      GFP_KERNEL | __GFP_ZERO);
 	if (!stats->ls_cnt_header)
 		goto fail;
 
@@ -1193,10 +1195,8 @@ void lprocfs_free_stats(struct lprocfs_stats **statsh)
 	for (i = 0; i < num_entry; i++)
 		if (stats->ls_percpu[i])
 			LIBCFS_FREE(stats->ls_percpu[i], percpusize);
-	if (stats->ls_cnt_header)
-		LIBCFS_FREE(stats->ls_cnt_header, stats->ls_num *
-					sizeof(struct lprocfs_counter_header));
-	LIBCFS_FREE(stats, offsetof(typeof(*stats), ls_percpu[num_entry]));
+	kvfree(stats->ls_cnt_header);
+	kvfree(stats);
 }
 EXPORT_SYMBOL(lprocfs_free_stats);
 

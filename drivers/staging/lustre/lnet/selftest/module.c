@@ -72,9 +72,7 @@ lnet_selftest_exit(void)
 				continue;
 			cfs_wi_sched_destroy(lst_sched_test[i]);
 		}
-		LIBCFS_FREE(lst_sched_test,
-			    sizeof(lst_sched_test[0]) *
-			    cfs_cpt_number(lnet_cpt_table()));
+		kvfree(lst_sched_test);
 		lst_sched_test = NULL;
 		/* fall through */
 	case LST_INIT_WI_SERIAL:
@@ -103,7 +101,8 @@ lnet_selftest_init(void)
 	lst_init_step = LST_INIT_WI_SERIAL;
 
 	nscheds = cfs_cpt_number(lnet_cpt_table());
-	LIBCFS_ALLOC(lst_sched_test, sizeof(lst_sched_test[0]) * nscheds);
+	lst_sched_test = kvmalloc_array(nscheds, sizeof(lst_sched_test[0]),
+					GFP_KERNEL | __GFP_ZERO);
 	if (!lst_sched_test)
 		goto error;
 

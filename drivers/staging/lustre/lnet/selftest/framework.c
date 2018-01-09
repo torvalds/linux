@@ -639,7 +639,7 @@ sfw_destroy_test_instance(struct sfw_test_instance *tsi)
 		rpc = list_entry(tsi->tsi_free_rpcs.next,
 				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
-		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
+		kfree(rpc);
 	}
 
 clean:
@@ -1767,7 +1767,7 @@ sfw_shutdown(void)
 				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
 
-		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
+		kfree(rpc);
 	}
 
 	for (i = 0; ; i++) {

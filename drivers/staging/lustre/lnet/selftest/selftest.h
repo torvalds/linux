@@ -516,7 +516,7 @@ srpc_destroy_client_rpc(struct srpc_client_rpc *rpc)
 	LASSERT(!atomic_read(&rpc->crpc_refcount));
 
 	if (!rpc->crpc_fini)
-		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
+		kfree(rpc);
 	else
 		(*rpc->crpc_fini)(rpc);
 }
