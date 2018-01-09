@@ -93,11 +93,7 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 {
 	int i;
 
-	if (cptab->ctb_cpu2cpt) {
-		LIBCFS_FREE(cptab->ctb_cpu2cpt,
-			    num_possible_cpus() *
-			    sizeof(cptab->ctb_cpu2cpt[0]));
-	}
+	kvfree(cptab->ctb_cpu2cpt);
 
 	for (i = 0; cptab->ctb_parts && i < cptab->ctb_nparts; i++) {
 		struct cfs_cpu_partition *part = &cptab->ctb_parts[i];
@@ -106,10 +102,7 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 		free_cpumask_var(part->cpt_cpumask);
 	}
 
-	if (cptab->ctb_parts) {
-		LIBCFS_FREE(cptab->ctb_parts,
-			    cptab->ctb_nparts * sizeof(cptab->ctb_parts[0]));
-	}
+	kvfree(cptab->ctb_parts);
 
 	kfree(cptab->ctb_nodemask);
 	free_cpumask_var(cptab->ctb_cpumask);
@@ -136,15 +129,17 @@ cfs_cpt_table_alloc(unsigned int ncpt)
 	    !cptab->ctb_nodemask)
 		goto failed;
 
-	LIBCFS_ALLOC(cptab->ctb_cpu2cpt,
-		     num_possible_cpus() * sizeof(cptab->ctb_cpu2cpt[0]));
+	cptab->ctb_cpu2cpt = kvmalloc_array(num_possible_cpus(),
+					    sizeof(cptab->ctb_cpu2cpt[0]),
+					    GFP_KERNEL);
 	if (!cptab->ctb_cpu2cpt)
 		goto failed;
 
 	memset(cptab->ctb_cpu2cpt, -1,
 	       num_possible_cpus() * sizeof(cptab->ctb_cpu2cpt[0]));
 
-	LIBCFS_ALLOC(cptab->ctb_parts, ncpt * sizeof(cptab->ctb_parts[0]));
+	cptab->ctb_parts = kvmalloc_array(ncpt, sizeof(cptab->ctb_parts[0]),
+					  GFP_KERNEL);
 	if (!cptab->ctb_parts)
 		goto failed;
 

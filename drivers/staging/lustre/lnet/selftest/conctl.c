@@ -648,7 +648,7 @@ static int lst_test_add_ioctl(struct lstio_test_args *args)
 		return -EINVAL;
 
 	if (args->lstio_tes_param) {
-		LIBCFS_ALLOC(param, args->lstio_tes_param_len);
+		param = kmalloc(args->lstio_tes_param_len, GFP_KERNEL);
 		if (!param)
 			goto out;
 		if (copy_from_user(param, args->lstio_tes_param,
@@ -678,8 +678,7 @@ static int lst_test_add_ioctl(struct lstio_test_args *args)
 		rc = (copy_to_user(args->lstio_tes_retp, &ret,
 				   sizeof(ret))) ? -EFAULT : 0;
 out:
-	if (param)
-		LIBCFS_FREE(param, args->lstio_tes_param_len);
+	kfree(param);
 
 	return rc;
 }
@@ -702,13 +701,13 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 	if (data->ioc_plen1 > PAGE_SIZE)
 		return -EINVAL;
 
-	LIBCFS_ALLOC(buf, data->ioc_plen1);
+	buf = kmalloc(data->ioc_plen1, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	/* copy in parameter */
 	if (copy_from_user(buf, data->ioc_pbuf1, data->ioc_plen1)) {
-		LIBCFS_FREE(buf, data->ioc_plen1);
+		kfree(buf);
 		return -EFAULT;
 	}
 
@@ -798,7 +797,7 @@ lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 out:
 	mutex_unlock(&console_session.ses_mutex);
 
-	LIBCFS_FREE(buf, data->ioc_plen1);
+	kfree(buf);
 
 	return rc;
 }
