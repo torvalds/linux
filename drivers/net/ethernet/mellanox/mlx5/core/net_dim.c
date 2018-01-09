@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018, Broadcom Limited. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,11 +33,11 @@
 
 #include "en.h"
 
+#define MLX5E_PARAMS_AM_NUM_PROFILES 5
 /* Adaptive moderation profiles */
 #define MLX5E_AM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE 256
 #define MLX5E_RX_AM_DEF_PROFILE_CQE 1
 #define MLX5E_RX_AM_DEF_PROFILE_EQE 1
-#define MLX5E_PARAMS_AM_NUM_PROFILES 5
 
 /* All profiles sizes must be MLX5E_PARAMS_AM_NUM_PROFILES */
 #define MLX5_AM_EQE_PROFILES { \
@@ -61,7 +62,7 @@ profile[MLX5_CQ_PERIOD_NUM_MODES][MLX5E_PARAMS_AM_NUM_PROFILES] = {
 	MLX5_AM_CQE_PROFILES,
 };
 
-static inline struct mlx5e_cq_moder mlx5e_am_get_profile(u8 cq_period_mode, int ix)
+struct mlx5e_cq_moder mlx5e_am_get_profile(u8 cq_period_mode, int ix)
 {
 	struct mlx5e_cq_moder cq_moder;
 
@@ -81,7 +82,6 @@ struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode)
 
 	return mlx5e_am_get_profile(rx_cq_period_mode, default_profile_ix);
 }
-
 
 static bool mlx5e_am_on_top(struct mlx5e_rx_am *am)
 {
@@ -271,19 +271,6 @@ static void mlx5e_am_calc_stats(struct mlx5e_rx_am_sample *start,
 	curr_stats->bpms = DIV_ROUND_UP(nbytes * USEC_PER_MSEC, delta_us);
 	curr_stats->epms = DIV_ROUND_UP(MLX5E_AM_NEVENTS * USEC_PER_MSEC,
 					delta_us);
-}
-
-void mlx5e_rx_am_work(struct work_struct *work)
-{
-	struct mlx5e_rx_am *am = container_of(work, struct mlx5e_rx_am,
-					      work);
-	struct mlx5e_rq *rq = container_of(am, struct mlx5e_rq, am);
-	struct mlx5e_cq_moder cur_profile = profile[am->mode][am->profile_ix];
-
-	mlx5_core_modify_cq_moderation(rq->mdev, &rq->cq.mcq,
-				       cur_profile.usec, cur_profile.pkts);
-
-	am->state = MLX5E_AM_START_MEASURE;
 }
 
 void mlx5e_rx_am(struct mlx5e_rx_am *am,

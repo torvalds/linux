@@ -50,7 +50,7 @@
 #include "wq.h"
 #include "mlx5_core.h"
 #include "en_stats.h"
-#include "en_dim.h"
+#include "net_dim.h"
 
 #define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
 

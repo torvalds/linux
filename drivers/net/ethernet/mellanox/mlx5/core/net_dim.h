@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
- * Copyright (c) 2017-2018, Broadcom Limited
+ * Copyright (c) 2017-2018, Broadcom Limited.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -98,5 +98,6 @@ void mlx5e_rx_am(struct mlx5e_rx_am *am,
 		 u64 bytes);
 void mlx5e_rx_am_work(struct work_struct *work);
 struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode);
+struct mlx5e_cq_moder mlx5e_am_get_profile(u8 cq_period_mode, int ix);
 
 #endif /* MLX5_AM_H */
