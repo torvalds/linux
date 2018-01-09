@@ -1080,30 +1080,23 @@ class Tui(object):
         self.screen.move(row, 0)
         self.screen.clrtobot()
         stats = self.stats.get(self._display_guests)
-
-        def sortCurAvg(x):
-            # sort by current events if available
-            if stats[x][1]:
-                return (-stats[x][1], -stats[x][0])
-            else:
-                return (0, -stats[x][0])
-
-        def sortTotal(x):
-            # sort by totals
-            return (0, -stats[x][0])
         total = 0.
         for key in stats.keys():
             if key.find('(') is -1:
                 total += stats[key][0]
         if self._sorting == SORT_DEFAULT:
-            sortkey = sortCurAvg
+            def sortkey((_k, v)):
+                # sort by (delta value, overall value)
+                return (v[1], v[0])
         else:
-            sortkey = sortTotal
+            def sortkey((_k, v)):
+                # sort by overall value
+                return v[0]
+
         tavg = 0
-        for key in sorted(stats.keys(), key=sortkey):
+        for key, values in sorted(stats.items(), key=sortkey, reverse=True):
             if row >= self.screen.getmaxyx()[0] - 1:
                 break
-            values = stats[key]
             if not values[0] and not values[1]:
                 break
             if values[0] is not None:
