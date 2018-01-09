@@ -38,38 +38,6 @@
 static void sdhci_pci_hw_reset(struct sdhci_host *host);
 
 #ifdef CONFIG_PM_SLEEP
-static int __sdhci_pci_suspend_host(struct sdhci_pci_chip *chip)
-{
-	int i, ret;
-
-	for (i = 0; i < chip->num_slots; i++) {
-		struct sdhci_pci_slot *slot = chip->slots[i];
-		struct sdhci_host *host;
-
-		if (!slot)
-			continue;
-
-		host = slot->host;
-
-		if (chip->pm_retune && host->tuning_mode != SDHCI_TUNING_MODE_3)
-			mmc_retune_needed(host->mmc);
-
-		ret = sdhci_suspend_host(host);
-		if (ret)
-			goto err_pci_suspend;
-
-		if (host->mmc->pm_flags & MMC_PM_WAKE_SDIO_IRQ)
-			sdhci_enable_irq_wakeups(host);
-	}
-
-	return 0;
-
-err_pci_suspend:
-	while (--i >= 0)
-		sdhci_resume_host(chip->slots[i]->host);
-	return ret;
-}
-
 static int sdhci_pci_init_wakeup(struct sdhci_pci_chip *chip)
 {
 	mmc_pm_flag_t pm_flags = 0;
@@ -89,15 +57,33 @@ static int sdhci_pci_init_wakeup(struct sdhci_pci_chip *chip)
 
 static int sdhci_pci_suspend_host(struct sdhci_pci_chip *chip)
 {
-	int ret;
-
-	ret = __sdhci_pci_suspend_host(chip);
-	if (ret)
-		return ret;
+	int i, ret;
 
 	sdhci_pci_init_wakeup(chip);
 
+	for (i = 0; i < chip->num_slots; i++) {
+		struct sdhci_pci_slot *slot = chip->slots[i];
+		struct sdhci_host *host;
+
+		if (!slot)
+			continue;
+
+		host = slot->host;
+
+		if (chip->pm_retune && host->tuning_mode != SDHCI_TUNING_MODE_3)
+			mmc_retune_needed(host->mmc);
+
+		ret = sdhci_suspend_host(host);
+		if (ret)
+			goto err_pci_suspend;
+	}
+
 	return 0;
+
+err_pci_suspend:
+	while (--i >= 0)
+		sdhci_resume_host(chip->slots[i]->host);
+	return ret;
 }
 
 int sdhci_pci_resume_host(struct sdhci_pci_chip *chip)
@@ -1109,7 +1095,7 @@ static int jmicron_suspend(struct sdhci_pci_chip *chip)
 {
 	int i, ret;
 
-	ret = __sdhci_pci_suspend_host(chip);
+	ret = sdhci_pci_suspend_host(chip);
 	if (ret)
 		return ret;
 
@@ -1118,8 +1104,6 @@ static int jmicron_suspend(struct sdhci_pci_chip *chip)
 		for (i = 0; i < chip->num_slots; i++)
 			jmicron_enable_mmc(chip->slots[i]->host, 0);
 	}
-
-	sdhci_pci_init_wakeup(chip);
 
 	return 0;
 }
