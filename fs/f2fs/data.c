@@ -170,6 +170,7 @@ static bool __same_bdev(struct f2fs_sb_info *sbi,
  * Low-level block read/write IO operations.
  */
 static struct bio *__bio_alloc(struct f2fs_sb_info *sbi, block_t blk_addr,
+				struct writeback_control *wbc,
 				int npages, bool is_read)
 {
 	struct bio *bio;
@@ -179,6 +180,8 @@ static struct bio *__bio_alloc(struct f2fs_sb_info *sbi, block_t blk_addr,
 	f2fs_target_device(sbi, blk_addr, bio);
 	bio->bi_end_io = is_read ? f2fs_read_end_io : f2fs_write_end_io;
 	bio->bi_private = is_read ? NULL : sbi;
+	if (wbc)
+		wbc_init_bio(wbc, bio);
 
 	return bio;
 }
@@ -374,7 +377,8 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	f2fs_trace_ios(fio, 0);
 
 	/* Allocate a new bio */
-	bio = __bio_alloc(fio->sbi, fio->new_blkaddr, 1, is_read_io(fio->op));
+	bio = __bio_alloc(fio->sbi, fio->new_blkaddr, fio->io_wbc,
+				1, is_read_io(fio->op));
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
 		bio_put(bio);
@@ -436,7 +440,7 @@ alloc_new:
 			dec_page_count(sbi, WB_DATA_TYPE(bio_page));
 			goto out_fail;
 		}
-		io->bio = __bio_alloc(sbi, fio->new_blkaddr,
+		io->bio = __bio_alloc(sbi, fio->new_blkaddr, fio->io_wbc,
 						BIO_MAX_PAGES, false);
 		io->fio = *fio;
 	}
@@ -445,6 +449,9 @@ alloc_new:
 		__submit_merged_bio(io);
 		goto alloc_new;
 	}
+
+	if (fio->io_wbc)
+		wbc_account_io(fio->io_wbc, bio_page, PAGE_SIZE);
 
 	io->last_block_in_bio = fio->new_blkaddr;
 	f2fs_trace_ios(fio, 0);
@@ -1529,6 +1536,7 @@ static int __write_data_page(struct page *page, bool *submitted,
 		.submitted = false,
 		.need_lock = LOCK_RETRY,
 		.io_type = io_type,
+		.io_wbc = wbc,
 	};
 
 	trace_f2fs_writepage(page, DATA);

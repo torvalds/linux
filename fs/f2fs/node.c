@@ -1335,6 +1335,7 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 		.encrypted_page = NULL,
 		.submitted = false,
 		.io_type = io_type,
+		.io_wbc = wbc,
 	};
 
 	trace_f2fs_writepage(page, NODE);
