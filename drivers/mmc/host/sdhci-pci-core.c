@@ -50,9 +50,9 @@ static int sdhci_pci_init_wakeup(struct sdhci_pci_chip *chip)
 			pm_flags |= slot->host->mmc->pm_flags;
 	}
 
-	return device_init_wakeup(&chip->pdev->dev,
-				  (pm_flags & MMC_PM_KEEP_POWER) &&
-				  (pm_flags & MMC_PM_WAKE_SDIO_IRQ));
+	return device_set_wakeup_enable(&chip->pdev->dev,
+					(pm_flags & MMC_PM_KEEP_POWER) &&
+					(pm_flags & MMC_PM_WAKE_SDIO_IRQ));
 }
 
 static int sdhci_pci_suspend_host(struct sdhci_pci_chip *chip)
@@ -1682,9 +1682,12 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 		}
 	}
 
-	host->mmc->pm_caps = MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
+	host->mmc->pm_caps = MMC_PM_KEEP_POWER;
 	host->mmc->slotno = slotno;
 	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
+
+	if (device_can_wakeup(&pdev->dev))
+		host->mmc->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
 
 	if (slot->cd_idx >= 0) {
 		ret = mmc_gpiod_request_cd(host->mmc, NULL, slot->cd_idx,
