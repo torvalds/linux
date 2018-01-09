@@ -113,7 +113,7 @@ cfs_cpt_nodemask(struct cfs_cpt_table *cptab, int cpt)
 {
 	return &cptab->ctb_nodemask;
 }
-EXPORT_SYMBOL(cfs_cpt_cpumask);
+EXPORT_SYMBOL(cfs_cpt_nodemask);
 
 int
 cfs_cpt_set_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu)

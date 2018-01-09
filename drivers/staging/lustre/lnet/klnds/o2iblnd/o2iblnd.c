@@ -596,7 +596,7 @@ static void kiblnd_setup_mtu_locked(struct rdma_cm_id *cmid)
 
 static int kiblnd_get_completion_vector(struct kib_conn *conn, int cpt)
 {
-	cpumask_t *mask;
+	cpumask_var_t *mask;
 	int vectors;
 	int off;
 	int i;
@@ -611,8 +611,8 @@ static int kiblnd_get_completion_vector(struct kib_conn *conn, int cpt)
 		return 0;
 
 	/* hash NID to CPU id in this partition... */
-	off = do_div(nid, cpumask_weight(mask));
-	for_each_cpu(i, mask) {
+	off = do_div(nid, cpumask_weight(*mask));
+	for_each_cpu(i, *mask) {
 		if (!off--)
 			return i % vectors;
 	}
