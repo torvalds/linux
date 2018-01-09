@@ -31,32 +31,32 @@
  * SOFTWARE.
  */
 
-#ifndef MLX5_AM_H
-#define MLX5_AM_H
+#ifndef NET_DIM_H
+#define NET_DIM_H
 
-struct mlx5e_cq_moder {
+struct net_dim_cq_moder {
 	u16 usec;
 	u16 pkts;
 	u8 cq_period_mode;
 };
 
-struct mlx5e_rx_am_sample {
+struct net_dim_sample {
 	ktime_t time;
 	u32     pkt_ctr;
 	u32     byte_ctr;
 	u16     event_ctr;
 };
 
-struct mlx5e_rx_am_stats {
+struct net_dim_stats {
 	int ppms; /* packets per msec */
 	int bpms; /* bytes per msec */
 	int epms; /* events per msec */
 };
 
-struct mlx5e_rx_am { /* Adaptive Moderation */
+struct net_dim { /* Adaptive Moderation */
 	u8                                      state;
-	struct mlx5e_rx_am_stats                prev_stats;
-	struct mlx5e_rx_am_sample               start_sample;
+	struct net_dim_stats                    prev_stats;
+	struct net_dim_sample                   start_sample;
 	struct work_struct                      work;
 	u8                                      profile_ix;
 	u8                                      mode;
@@ -66,38 +66,43 @@ struct mlx5e_rx_am { /* Adaptive Moderation */
 	u8                                      tired;
 };
 
+enum {
+	NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE = 0x0,
+	NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE = 0x1,
+	NET_DIM_CQ_PERIOD_NUM_MODES
+};
+
 /* Adaptive moderation logic */
 enum {
-	MLX5E_AM_START_MEASURE,
-	MLX5E_AM_MEASURE_IN_PROGRESS,
-	MLX5E_AM_APPLY_NEW_PROFILE,
+	NET_DIM_START_MEASURE,
+	NET_DIM_MEASURE_IN_PROGRESS,
+	NET_DIM_APPLY_NEW_PROFILE,
 };
 
 enum {
-	MLX5E_AM_PARKING_ON_TOP,
-	MLX5E_AM_PARKING_TIRED,
-	MLX5E_AM_GOING_RIGHT,
-	MLX5E_AM_GOING_LEFT,
+	NET_DIM_PARKING_ON_TOP,
+	NET_DIM_PARKING_TIRED,
+	NET_DIM_GOING_RIGHT,
+	NET_DIM_GOING_LEFT,
 };
 
 enum {
-	MLX5E_AM_STATS_WORSE,
-	MLX5E_AM_STATS_SAME,
-	MLX5E_AM_STATS_BETTER,
+	NET_DIM_STATS_WORSE,
+	NET_DIM_STATS_SAME,
+	NET_DIM_STATS_BETTER,
 };
 
 enum {
-	MLX5E_AM_STEPPED,
-	MLX5E_AM_TOO_TIRED,
-	MLX5E_AM_ON_EDGE,
+	NET_DIM_STEPPED,
+	NET_DIM_TOO_TIRED,
+	NET_DIM_ON_EDGE,
 };
 
-void mlx5e_rx_am(struct mlx5e_rx_am *am,
-		 u16 event_ctr,
-		 u64 packets,
-		 u64 bytes);
-void mlx5e_rx_am_work(struct work_struct *work);
-struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode);
-struct mlx5e_cq_moder mlx5e_am_get_profile(u8 cq_period_mode, int ix);
+void net_dim(struct net_dim *dim,
+	     u16 event_ctr,
+	     u64 packets,
+	     u64 bytes);
+struct net_dim_cq_moder net_dim_get_def_profile(u8 rx_cq_period_mode);
+struct net_dim_cq_moder net_dim_get_profile(u8 cq_period_mode, int ix);
 
-#endif /* MLX5_AM_H */
+#endif /* NET_DIM_H */

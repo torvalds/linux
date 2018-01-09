@@ -33,22 +33,22 @@
 
 #include "en.h"
 
-#define MLX5E_PARAMS_AM_NUM_PROFILES 5
+#define NET_DIM_PARAMS_NUM_PROFILES 5
 /* Adaptive moderation profiles */
-#define MLX5E_AM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE 256
-#define MLX5E_RX_AM_DEF_PROFILE_CQE 1
-#define MLX5E_RX_AM_DEF_PROFILE_EQE 1
+#define NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE 256
+#define NET_DIM_DEF_PROFILE_CQE 1
+#define NET_DIM_DEF_PROFILE_EQE 1
 
-/* All profiles sizes must be MLX5E_PARAMS_AM_NUM_PROFILES */
-#define MLX5_AM_EQE_PROFILES { \
-	{1,   MLX5E_AM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
-	{8,   MLX5E_AM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
-	{64,  MLX5E_AM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
-	{128, MLX5E_AM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
-	{256, MLX5E_AM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
+/* All profiles sizes must be NET_PARAMS_DIM_NUM_PROFILES */
+#define NET_DIM_EQE_PROFILES { \
+	{1,   NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
+	{8,   NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
+	{64,  NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
+	{128, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
+	{256, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
 }
 
-#define MLX5_AM_CQE_PROFILES { \
+#define NET_DIM_CQE_PROFILES { \
 	{2,  256},             \
 	{8,  128},             \
 	{16, 64},              \
@@ -56,193 +56,193 @@
 	{64, 64}               \
 }
 
-static const struct mlx5e_cq_moder
-profile[MLX5_CQ_PERIOD_NUM_MODES][MLX5E_PARAMS_AM_NUM_PROFILES] = {
-	MLX5_AM_EQE_PROFILES,
-	MLX5_AM_CQE_PROFILES,
+static const struct net_dim_cq_moder
+profile[NET_DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
+	NET_DIM_EQE_PROFILES,
+	NET_DIM_CQE_PROFILES,
 };
 
-struct mlx5e_cq_moder mlx5e_am_get_profile(u8 cq_period_mode, int ix)
+struct net_dim_cq_moder net_dim_get_profile(u8 cq_period_mode, int ix)
 {
-	struct mlx5e_cq_moder cq_moder;
+	struct net_dim_cq_moder cq_moder;
 
 	cq_moder = profile[cq_period_mode][ix];
 	cq_moder.cq_period_mode = cq_period_mode;
 	return cq_moder;
 }
 
-struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode)
+struct net_dim_cq_moder net_dim_get_def_profile(u8 rx_cq_period_mode)
 {
 	int default_profile_ix;
 
-	if (rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
-		default_profile_ix = MLX5E_RX_AM_DEF_PROFILE_CQE;
-	else /* MLX5_CQ_PERIOD_MODE_START_FROM_EQE */
-		default_profile_ix = MLX5E_RX_AM_DEF_PROFILE_EQE;
+	if (rx_cq_period_mode == NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE)
+		default_profile_ix = NET_DIM_DEF_PROFILE_CQE;
+	else /* NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE */
+		default_profile_ix = NET_DIM_DEF_PROFILE_EQE;
 
-	return mlx5e_am_get_profile(rx_cq_period_mode, default_profile_ix);
+	return net_dim_get_profile(rx_cq_period_mode, default_profile_ix);
 }
 
-static bool mlx5e_am_on_top(struct mlx5e_rx_am *am)
+static bool net_dim_on_top(struct net_dim *dim)
 {
-	switch (am->tune_state) {
-	case MLX5E_AM_PARKING_ON_TOP:
-	case MLX5E_AM_PARKING_TIRED:
+	switch (dim->tune_state) {
+	case NET_DIM_PARKING_ON_TOP:
+	case NET_DIM_PARKING_TIRED:
 		return true;
-	case MLX5E_AM_GOING_RIGHT:
-		return (am->steps_left > 1) && (am->steps_right == 1);
-	default: /* MLX5E_AM_GOING_LEFT */
-		return (am->steps_right > 1) && (am->steps_left == 1);
+	case NET_DIM_GOING_RIGHT:
+		return (dim->steps_left > 1) && (dim->steps_right == 1);
+	default: /* NET_DIM_GOING_LEFT */
+		return (dim->steps_right > 1) && (dim->steps_left == 1);
 	}
 }
 
-static void mlx5e_am_turn(struct mlx5e_rx_am *am)
+static void net_dim_turn(struct net_dim *dim)
 {
-	switch (am->tune_state) {
-	case MLX5E_AM_PARKING_ON_TOP:
-	case MLX5E_AM_PARKING_TIRED:
+	switch (dim->tune_state) {
+	case NET_DIM_PARKING_ON_TOP:
+	case NET_DIM_PARKING_TIRED:
 		break;
-	case MLX5E_AM_GOING_RIGHT:
-		am->tune_state = MLX5E_AM_GOING_LEFT;
-		am->steps_left = 0;
+	case NET_DIM_GOING_RIGHT:
+		dim->tune_state = NET_DIM_GOING_LEFT;
+		dim->steps_left = 0;
 		break;
-	case MLX5E_AM_GOING_LEFT:
-		am->tune_state = MLX5E_AM_GOING_RIGHT;
-		am->steps_right = 0;
+	case NET_DIM_GOING_LEFT:
+		dim->tune_state = NET_DIM_GOING_RIGHT;
+		dim->steps_right = 0;
 		break;
 	}
 }
 
-static int mlx5e_am_step(struct mlx5e_rx_am *am)
+static int net_dim_step(struct net_dim *dim)
 {
-	if (am->tired == (MLX5E_PARAMS_AM_NUM_PROFILES * 2))
-		return MLX5E_AM_TOO_TIRED;
+	if (dim->tired == (NET_DIM_PARAMS_NUM_PROFILES * 2))
+		return NET_DIM_TOO_TIRED;
 
-	switch (am->tune_state) {
-	case MLX5E_AM_PARKING_ON_TOP:
-	case MLX5E_AM_PARKING_TIRED:
+	switch (dim->tune_state) {
+	case NET_DIM_PARKING_ON_TOP:
+	case NET_DIM_PARKING_TIRED:
 		break;
-	case MLX5E_AM_GOING_RIGHT:
-		if (am->profile_ix == (MLX5E_PARAMS_AM_NUM_PROFILES - 1))
-			return MLX5E_AM_ON_EDGE;
-		am->profile_ix++;
-		am->steps_right++;
+	case NET_DIM_GOING_RIGHT:
+		if (dim->profile_ix == (NET_DIM_PARAMS_NUM_PROFILES - 1))
+			return NET_DIM_ON_EDGE;
+		dim->profile_ix++;
+		dim->steps_right++;
 		break;
-	case MLX5E_AM_GOING_LEFT:
-		if (am->profile_ix == 0)
-			return MLX5E_AM_ON_EDGE;
-		am->profile_ix--;
-		am->steps_left++;
+	case NET_DIM_GOING_LEFT:
+		if (dim->profile_ix == 0)
+			return NET_DIM_ON_EDGE;
+		dim->profile_ix--;
+		dim->steps_left++;
 		break;
 	}
 
-	am->tired++;
-	return MLX5E_AM_STEPPED;
+	dim->tired++;
+	return NET_DIM_STEPPED;
 }
 
-static void mlx5e_am_park_on_top(struct mlx5e_rx_am *am)
+static void net_dim_park_on_top(struct net_dim *dim)
 {
-	am->steps_right  = 0;
-	am->steps_left   = 0;
-	am->tired        = 0;
-	am->tune_state   = MLX5E_AM_PARKING_ON_TOP;
+	dim->steps_right  = 0;
+	dim->steps_left   = 0;
+	dim->tired        = 0;
+	dim->tune_state   = NET_DIM_PARKING_ON_TOP;
 }
 
-static void mlx5e_am_park_tired(struct mlx5e_rx_am *am)
+static void net_dim_park_tired(struct net_dim *dim)
 {
-	am->steps_right  = 0;
-	am->steps_left   = 0;
-	am->tune_state   = MLX5E_AM_PARKING_TIRED;
+	dim->steps_right  = 0;
+	dim->steps_left   = 0;
+	dim->tune_state   = NET_DIM_PARKING_TIRED;
 }
 
-static void mlx5e_am_exit_parking(struct mlx5e_rx_am *am)
+static void net_dim_exit_parking(struct net_dim *dim)
 {
-	am->tune_state = am->profile_ix ? MLX5E_AM_GOING_LEFT :
-					  MLX5E_AM_GOING_RIGHT;
-	mlx5e_am_step(am);
+	dim->tune_state = dim->profile_ix ? NET_DIM_GOING_LEFT :
+					  NET_DIM_GOING_RIGHT;
+	net_dim_step(dim);
 }
 
 #define IS_SIGNIFICANT_DIFF(val, ref) \
 	(((100 * abs((val) - (ref))) / (ref)) > 10) /* more than 10% difference */
 
-static int mlx5e_am_stats_compare(struct mlx5e_rx_am_stats *curr,
-				  struct mlx5e_rx_am_stats *prev)
+static int net_dim_stats_compare(struct net_dim_stats *curr,
+				 struct net_dim_stats *prev)
 {
 	if (!prev->bpms)
-		return curr->bpms ? MLX5E_AM_STATS_BETTER :
-				    MLX5E_AM_STATS_SAME;
+		return curr->bpms ? NET_DIM_STATS_BETTER :
+				    NET_DIM_STATS_SAME;
 
 	if (IS_SIGNIFICANT_DIFF(curr->bpms, prev->bpms))
-		return (curr->bpms > prev->bpms) ? MLX5E_AM_STATS_BETTER :
-						   MLX5E_AM_STATS_WORSE;
+		return (curr->bpms > prev->bpms) ? NET_DIM_STATS_BETTER :
+						   NET_DIM_STATS_WORSE;
 
 	if (IS_SIGNIFICANT_DIFF(curr->ppms, prev->ppms))
-		return (curr->ppms > prev->ppms) ? MLX5E_AM_STATS_BETTER :
-						   MLX5E_AM_STATS_WORSE;
+		return (curr->ppms > prev->ppms) ? NET_DIM_STATS_BETTER :
+						   NET_DIM_STATS_WORSE;
 
 	if (IS_SIGNIFICANT_DIFF(curr->epms, prev->epms))
-		return (curr->epms < prev->epms) ? MLX5E_AM_STATS_BETTER :
-						   MLX5E_AM_STATS_WORSE;
+		return (curr->epms < prev->epms) ? NET_DIM_STATS_BETTER :
+						   NET_DIM_STATS_WORSE;
 
-	return MLX5E_AM_STATS_SAME;
+	return NET_DIM_STATS_SAME;
 }
 
-static bool mlx5e_am_decision(struct mlx5e_rx_am_stats *curr_stats,
-			      struct mlx5e_rx_am *am)
+static bool net_dim_decision(struct net_dim_stats *curr_stats,
+			     struct net_dim *dim)
 {
-	int prev_state = am->tune_state;
-	int prev_ix = am->profile_ix;
+	int prev_state = dim->tune_state;
+	int prev_ix = dim->profile_ix;
 	int stats_res;
 	int step_res;
 
-	switch (am->tune_state) {
-	case MLX5E_AM_PARKING_ON_TOP:
-		stats_res = mlx5e_am_stats_compare(curr_stats, &am->prev_stats);
-		if (stats_res != MLX5E_AM_STATS_SAME)
-			mlx5e_am_exit_parking(am);
+	switch (dim->tune_state) {
+	case NET_DIM_PARKING_ON_TOP:
+		stats_res = net_dim_stats_compare(curr_stats, &dim->prev_stats);
+		if (stats_res != NET_DIM_STATS_SAME)
+			net_dim_exit_parking(dim);
 		break;
 
-	case MLX5E_AM_PARKING_TIRED:
-		am->tired--;
-		if (!am->tired)
-			mlx5e_am_exit_parking(am);
+	case NET_DIM_PARKING_TIRED:
+		dim->tired--;
+		if (!dim->tired)
+			net_dim_exit_parking(dim);
 		break;
 
-	case MLX5E_AM_GOING_RIGHT:
-	case MLX5E_AM_GOING_LEFT:
-		stats_res = mlx5e_am_stats_compare(curr_stats, &am->prev_stats);
-		if (stats_res != MLX5E_AM_STATS_BETTER)
-			mlx5e_am_turn(am);
+	case NET_DIM_GOING_RIGHT:
+	case NET_DIM_GOING_LEFT:
+		stats_res = net_dim_stats_compare(curr_stats, &dim->prev_stats);
+		if (stats_res != NET_DIM_STATS_BETTER)
+			net_dim_turn(dim);
 
-		if (mlx5e_am_on_top(am)) {
-			mlx5e_am_park_on_top(am);
+		if (net_dim_on_top(dim)) {
+			net_dim_park_on_top(dim);
 			break;
 		}
 
-		step_res = mlx5e_am_step(am);
+		step_res = net_dim_step(dim);
 		switch (step_res) {
-		case MLX5E_AM_ON_EDGE:
-			mlx5e_am_park_on_top(am);
+		case NET_DIM_ON_EDGE:
+			net_dim_park_on_top(dim);
 			break;
-		case MLX5E_AM_TOO_TIRED:
-			mlx5e_am_park_tired(am);
+		case NET_DIM_TOO_TIRED:
+			net_dim_park_tired(dim);
 			break;
 		}
 
 		break;
 	}
 
-	if ((prev_state     != MLX5E_AM_PARKING_ON_TOP) ||
-	    (am->tune_state != MLX5E_AM_PARKING_ON_TOP))
-		am->prev_stats = *curr_stats;
+	if ((prev_state      != NET_DIM_PARKING_ON_TOP) ||
+	    (dim->tune_state != NET_DIM_PARKING_ON_TOP))
+		dim->prev_stats = *curr_stats;
 
-	return am->profile_ix != prev_ix;
+	return dim->profile_ix != prev_ix;
 }
 
-static void mlx5e_am_sample(u16 event_ctr,
-			    u64 packets,
-			    u64 bytes,
-			    struct mlx5e_rx_am_sample *s)
+static void net_dim_sample(u16 event_ctr,
+			   u64 packets,
+			   u64 bytes,
+			   struct net_dim_sample *s)
 {
 	s->time	     = ktime_get();
 	s->pkt_ctr   = packets;
@@ -250,13 +250,13 @@ static void mlx5e_am_sample(u16 event_ctr,
 	s->event_ctr = event_ctr;
 }
 
-#define MLX5E_AM_NEVENTS 64
+#define NET_DIM_NEVENTS 64
 #define BITS_PER_TYPE(type) (sizeof(type) * BITS_PER_BYTE)
 #define BIT_GAP(bits, end, start) ((((end) - (start)) + BIT_ULL(bits)) & (BIT_ULL(bits) - 1))
 
-static void mlx5e_am_calc_stats(struct mlx5e_rx_am_sample *start,
-				struct mlx5e_rx_am_sample *end,
-				struct mlx5e_rx_am_stats *curr_stats)
+static void net_dim_calc_stats(struct net_dim_sample *start,
+			       struct net_dim_sample *end,
+			       struct net_dim_stats *curr_stats)
 {
 	/* u32 holds up to 71 minutes, should be enough */
 	u32 delta_us = ktime_us_delta(end->time, start->time);
@@ -269,39 +269,39 @@ static void mlx5e_am_calc_stats(struct mlx5e_rx_am_sample *start,
 
 	curr_stats->ppms = DIV_ROUND_UP(npkts * USEC_PER_MSEC, delta_us);
 	curr_stats->bpms = DIV_ROUND_UP(nbytes * USEC_PER_MSEC, delta_us);
-	curr_stats->epms = DIV_ROUND_UP(MLX5E_AM_NEVENTS * USEC_PER_MSEC,
+	curr_stats->epms = DIV_ROUND_UP(NET_DIM_NEVENTS * USEC_PER_MSEC,
 					delta_us);
 }
 
-void mlx5e_rx_am(struct mlx5e_rx_am *am,
-		 u16 event_ctr,
-		 u64 packets,
-		 u64 bytes)
+void net_dim(struct net_dim *dim,
+	     u16 event_ctr,
+	     u64 packets,
+	     u64 bytes)
 {
-	struct mlx5e_rx_am_sample end_sample;
-	struct mlx5e_rx_am_stats curr_stats;
+	struct net_dim_sample end_sample;
+	struct net_dim_stats curr_stats;
 	u16 nevents;
 
-	switch (am->state) {
-	case MLX5E_AM_MEASURE_IN_PROGRESS:
+	switch (dim->state) {
+	case NET_DIM_MEASURE_IN_PROGRESS:
 		nevents = BIT_GAP(BITS_PER_TYPE(u16), event_ctr,
-				  am->start_sample.event_ctr);
-		if (nevents < MLX5E_AM_NEVENTS)
+				  dim->start_sample.event_ctr);
+		if (nevents < NET_DIM_NEVENTS)
 			break;
-		mlx5e_am_sample(event_ctr, packets, bytes, &end_sample);
-		mlx5e_am_calc_stats(&am->start_sample, &end_sample,
-				    &curr_stats);
-		if (mlx5e_am_decision(&curr_stats, am)) {
-			am->state = MLX5E_AM_APPLY_NEW_PROFILE;
-			schedule_work(&am->work);
+		net_dim_sample(event_ctr, packets, bytes, &end_sample);
+		net_dim_calc_stats(&dim->start_sample, &end_sample,
+				   &curr_stats);
+		if (net_dim_decision(&curr_stats, dim)) {
+			dim->state = NET_DIM_APPLY_NEW_PROFILE;
+			schedule_work(&dim->work);
 			break;
 		}
 		/* fall through */
-	case MLX5E_AM_START_MEASURE:
-		mlx5e_am_sample(event_ctr, packets, bytes, &am->start_sample);
-		am->state = MLX5E_AM_MEASURE_IN_PROGRESS;
+	case NET_DIM_START_MEASURE:
+		net_dim_sample(event_ctr, packets, bytes, &dim->start_sample);
+		dim->state = NET_DIM_MEASURE_IN_PROGRESS;
 		break;
-	case MLX5E_AM_APPLY_NEW_PROFILE:
+	case NET_DIM_APPLY_NEW_PROFILE:
 		break;
 	}
 }
