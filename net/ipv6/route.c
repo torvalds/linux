@@ -1833,10 +1833,10 @@ u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb)
 
 	if (skb) {
 		ip6_multipath_l3_keys(skb, &hash_keys);
-		return flow_hash_from_keys(&hash_keys);
+		return flow_hash_from_keys(&hash_keys) >> 1;
 	}
 
-	return get_hash_from_flowi6(fl6);
+	return get_hash_from_flowi6(fl6) >> 1;
 }
 
 void ip6_route_input(struct sk_buff *skb)
