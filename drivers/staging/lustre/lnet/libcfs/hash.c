@@ -864,12 +864,10 @@ cfs_hash_buckets_free(struct cfs_hash_bucket **buckets,
 {
 	int i;
 
-	for (i = prev_size; i < size; i++) {
-		if (buckets[i])
-			LIBCFS_FREE(buckets[i], bkt_size);
-	}
+	for (i = prev_size; i < size; i++)
+		kfree(buckets[i]);
 
-	LIBCFS_FREE(buckets, sizeof(buckets[0]) * size);
+	kvfree(buckets);
 }
 
 /*
@@ -889,7 +887,7 @@ cfs_hash_buckets_realloc(struct cfs_hash *hs, struct cfs_hash_bucket **old_bkts,
 	if (old_bkts && old_size == new_size)
 		return old_bkts;
 
-	LIBCFS_ALLOC(new_bkts, sizeof(new_bkts[0]) * new_size);
+	new_bkts = kvmalloc_array(new_size, sizeof(new_bkts[0]), GFP_KERNEL);
 	if (!new_bkts)
 		return NULL;
 
@@ -902,7 +900,7 @@ cfs_hash_buckets_realloc(struct cfs_hash *hs, struct cfs_hash_bucket **old_bkts,
 		struct hlist_head *hhead;
 		struct cfs_hash_bd bd;
 
-		LIBCFS_ALLOC(new_bkts[i], cfs_hash_bkt_size(hs));
+		new_bkts[i] = kzalloc(cfs_hash_bkt_size(hs), GFP_KERNEL);
 		if (!new_bkts[i]) {
 			cfs_hash_buckets_free(new_bkts, cfs_hash_bkt_size(hs),
 					      old_size, new_size);
@@ -1014,7 +1012,7 @@ cfs_hash_create(char *name, unsigned int cur_bits, unsigned int max_bits,
 
 	len = !(flags & CFS_HASH_BIGNAME) ?
 	      CFS_HASH_NAME_LEN : CFS_HASH_BIGNAME_LEN;
-	LIBCFS_ALLOC(hs, offsetof(struct cfs_hash, hs_name[len]));
+	hs = kzalloc(offsetof(struct cfs_hash, hs_name[len]), GFP_KERNEL);
 	if (!hs)
 		return NULL;
 
@@ -1046,7 +1044,7 @@ cfs_hash_create(char *name, unsigned int cur_bits, unsigned int max_bits,
 	if (hs->hs_buckets)
 		return hs;
 
-	LIBCFS_FREE(hs, offsetof(struct cfs_hash, hs_name[len]));
+	kfree(hs);
 	return NULL;
 }
 EXPORT_SYMBOL(cfs_hash_create);
@@ -1109,7 +1107,7 @@ cfs_hash_destroy(struct cfs_hash *hs)
 			      0, CFS_HASH_NBKT(hs));
 	i = cfs_hash_with_bigname(hs) ?
 	    CFS_HASH_BIGNAME_LEN : CFS_HASH_NAME_LEN;
-	LIBCFS_FREE(hs, offsetof(struct cfs_hash, hs_name[i]));
+	kfree(hs);
 }
 
 struct cfs_hash *cfs_hash_getref(struct cfs_hash *hs)

@@ -2576,11 +2576,7 @@ static void kiblnd_base_shutdown(void)
 		break;
 	}
 
-	if (kiblnd_data.kib_peers) {
-		LIBCFS_FREE(kiblnd_data.kib_peers,
-			    sizeof(struct list_head) *
-			    kiblnd_data.kib_peer_hash_size);
-	}
+	kvfree(kiblnd_data.kib_peers);
 
 	if (kiblnd_data.kib_scheds)
 		cfs_percpt_free(kiblnd_data.kib_scheds);
@@ -2672,8 +2668,9 @@ static int kiblnd_base_startup(void)
 	INIT_LIST_HEAD(&kiblnd_data.kib_failed_devs);
 
 	kiblnd_data.kib_peer_hash_size = IBLND_PEER_HASH_SIZE;
-	LIBCFS_ALLOC(kiblnd_data.kib_peers,
-		     sizeof(struct list_head) * kiblnd_data.kib_peer_hash_size);
+	kiblnd_data.kib_peers = kvmalloc_array(kiblnd_data.kib_peer_hash_size,
+					       sizeof(struct list_head),
+					       GFP_KERNEL);
 	if (!kiblnd_data.kib_peers)
 		goto failed;
 	for (i = 0; i < kiblnd_data.kib_peer_hash_size; i++)

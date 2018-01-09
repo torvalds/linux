@@ -169,7 +169,7 @@ lnet_ni_alloc(__u32 net, struct cfs_expr_list *el, struct list_head *nilist)
 
 		LASSERT(rc <= LNET_CPT_NUMBER);
 		if (rc == LNET_CPT_NUMBER) {
-			LIBCFS_FREE(ni->ni_cpts, rc * sizeof(ni->ni_cpts[0]));
+			cfs_expr_list_values_free(ni->ni_cpts, LNET_CPT_NUMBER);
 			ni->ni_cpts = NULL;
 		}
 

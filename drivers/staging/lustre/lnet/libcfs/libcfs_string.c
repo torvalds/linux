@@ -437,7 +437,7 @@ cfs_expr_list_values(struct cfs_expr_list *expr_list, int max, u32 **valpp)
 		return -EINVAL;
 	}
 
-	LIBCFS_ALLOC(val, sizeof(val[0]) * count);
+	val = kvmalloc_array(count, sizeof(val[0]), GFP_KERNEL | __GFP_ZERO);
 	if (!val)
 		return -ENOMEM;
 

@@ -130,10 +130,9 @@ cfs_array_free(void *vars)
 		if (!arr->va_ptrs[i])
 			continue;
 
-		LIBCFS_FREE(arr->va_ptrs[i], arr->va_size);
+		kvfree(arr->va_ptrs[i]);
 	}
-	LIBCFS_FREE(arr, offsetof(struct cfs_var_array,
-				  va_ptrs[arr->va_count]));
+	kvfree(arr);
 }
 EXPORT_SYMBOL(cfs_array_free);
 
@@ -148,7 +147,7 @@ cfs_array_alloc(int count, unsigned int size)
 	struct cfs_var_array *arr;
 	int i;
 
-	LIBCFS_ALLOC(arr, offsetof(struct cfs_var_array, va_ptrs[count]));
+	arr = kvmalloc(offsetof(struct cfs_var_array, va_ptrs[count]), GFP_KERNEL);
 	if (!arr)
 		return NULL;
 
@@ -156,7 +155,7 @@ cfs_array_alloc(int count, unsigned int size)
 	arr->va_size = size;
 
 	for (i = 0; i < count; i++) {
-		LIBCFS_ALLOC(arr->va_ptrs[i], size);
+		arr->va_ptrs[i] = kvzalloc(size, GFP_KERNEL);
 
 		if (!arr->va_ptrs[i]) {
 			cfs_array_free((void *)&arr->va_ptrs[0]);
