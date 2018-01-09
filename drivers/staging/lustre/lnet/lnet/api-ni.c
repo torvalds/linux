@@ -108,7 +108,8 @@ lnet_create_remote_nets_table(void)
 
 	LASSERT(!the_lnet.ln_remote_nets_hash);
 	LASSERT(the_lnet.ln_remote_nets_hbits > 0);
-	LIBCFS_ALLOC(hash, LNET_REMOTE_NETS_HASH_SIZE * sizeof(*hash));
+	hash = kvmalloc_array(LNET_REMOTE_NETS_HASH_SIZE, sizeof(*hash),
+			      GFP_KERNEL);
 	if (!hash) {
 		CERROR("Failed to create remote nets hash table\n");
 		return -ENOMEM;
@@ -131,9 +132,7 @@ lnet_destroy_remote_nets_table(void)
 	for (i = 0; i < LNET_REMOTE_NETS_HASH_SIZE; i++)
 		LASSERT(list_empty(&the_lnet.ln_remote_nets_hash[i]));
 
-	LIBCFS_FREE(the_lnet.ln_remote_nets_hash,
-		    LNET_REMOTE_NETS_HASH_SIZE *
-		    sizeof(the_lnet.ln_remote_nets_hash[0]));
+	kvfree(the_lnet.ln_remote_nets_hash);
 	the_lnet.ln_remote_nets_hash = NULL;
 }
 
@@ -831,7 +830,7 @@ lnet_ping_info_create(int num_ni)
 	unsigned int infosz;
 
 	infosz = offsetof(struct lnet_ping_info, pi_ni[num_ni]);
-	LIBCFS_ALLOC(ping_info, infosz);
+	ping_info = kvzalloc(infosz, GFP_KERNEL);
 	if (!ping_info) {
 		CERROR("Can't allocate ping info[%d]\n", num_ni);
 		return NULL;
@@ -864,9 +863,7 @@ lnet_get_ni_count(void)
 static inline void
 lnet_ping_info_free(struct lnet_ping_info *pinfo)
 {
-	LIBCFS_FREE(pinfo,
-		    offsetof(struct lnet_ping_info,
-			     pi_ni[pinfo->pi_nnis]));
+	kvfree(pinfo);
 }
 
 static void
@@ -2160,7 +2157,7 @@ static int lnet_ping(struct lnet_process_id id, int timeout_ms,
 	if (id.pid == LNET_PID_ANY)
 		id.pid = LNET_PID_LUSTRE;
 
-	LIBCFS_ALLOC(info, infosz);
+	info = kzalloc(infosz, GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -2310,6 +2307,6 @@ static int lnet_ping(struct lnet_process_id id, int timeout_ms,
 	LASSERT(!rc2);
 
  out_0:
-	LIBCFS_FREE(info, infosz);
+	kfree(info);
 	return rc;
 }

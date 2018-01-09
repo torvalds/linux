@@ -156,7 +156,7 @@ int libcfs_ioctl(unsigned long cmd, void __user *uparam)
 		break; }
 	}
 out:
-	LIBCFS_FREE(hdr, hdr->ioc_len);
+	kvfree(hdr);
 	return err;
 }
 
@@ -302,7 +302,7 @@ static int __proc_cpt_table(void *data, int write,
 	LASSERT(cfs_cpt_table);
 
 	while (1) {
-		LIBCFS_ALLOC(buf, len);
+		buf = kzalloc(len, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 
@@ -311,7 +311,7 @@ static int __proc_cpt_table(void *data, int write,
 			break;
 
 		if (rc == -EFBIG) {
-			LIBCFS_FREE(buf, len);
+			kfree(buf);
 			len <<= 1;
 			continue;
 		}
@@ -325,8 +325,7 @@ static int __proc_cpt_table(void *data, int write,
 
 	rc = cfs_trace_copyout_string(buffer, nob, buf + pos, NULL);
  out:
-	if (buf)
-		LIBCFS_FREE(buf, len);
+	kfree(buf);
 	return rc;
 }
 
