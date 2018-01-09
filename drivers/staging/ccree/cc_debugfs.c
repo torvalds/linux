@@ -6,6 +6,7 @@
 #include <linux/stringify.h>
 #include "cc_driver.h"
 #include "cc_crypto_ctx.h"
+#include "cc_debugfs.h"
 
 struct cc_debugfs_ctx {
 	struct dentry *dir;
