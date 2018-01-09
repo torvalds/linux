@@ -171,6 +171,7 @@ struct rt6_info {
 	u32				rt6i_metric;
 	u32				rt6i_pmtu;
 	/* more non-fragment space at head required */
+	int				rt6i_nh_weight;
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
 	u8				exception_bucket_flushed:1,
