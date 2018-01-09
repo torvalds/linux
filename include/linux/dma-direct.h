@@ -29,4 +29,13 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 	return addr + size - 1 <= *dev->dma_mask;
 }
 #endif /* !CONFIG_ARCH_HAS_PHYS_TO_DMA */
+
+#ifdef CONFIG_ARCH_HAS_DMA_MARK_CLEAN
+void dma_mark_clean(void *addr, size_t size);
+#else
+static inline void dma_mark_clean(void *addr, size_t size)
+{
+}
+#endif /* CONFIG_ARCH_HAS_DMA_MARK_CLEAN */
+
 #endif /* _LINUX_DMA_DIRECT_H */
