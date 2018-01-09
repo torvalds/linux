@@ -1085,7 +1085,7 @@ class Tui(object):
         stats = self.stats.get(self._display_guests)
         total = 0.
         for key, values in stats.items():
-            if key.find('(') is -1:
+            if key.find('(') == -1:
                 total += values.value
 
         if self._sorting == SORT_DEFAULT:
@@ -1110,7 +1110,7 @@ class Tui(object):
                 self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' %
                                    (key, values.value, values.value * 100 / total,
                                     cur))
-                if cur is not '' and key.find('(') is -1:
+                if cur != '' and key.find('(') == -1:
                     tavg += cur
             row += 1
         if row == 3:
