@@ -2478,17 +2478,21 @@ bool amdgpu_vm_pasid_fault_credit(struct amdgpu_device *adev,
 
 	spin_lock(&adev->vm_manager.pasid_lock);
 	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
-	spin_unlock(&adev->vm_manager.pasid_lock);
-	if (!vm)
+	if (!vm) {
 		/* VM not found, can't track fault credit */
+		spin_unlock(&adev->vm_manager.pasid_lock);
 		return true;
+	}
 
 	/* No lock needed. only accessed by IRQ handler */
-	if (!vm->fault_credit)
+	if (!vm->fault_credit) {
 		/* Too many faults in this VM */
+		spin_unlock(&adev->vm_manager.pasid_lock);
 		return false;
+	}
 
 	vm->fault_credit--;
+	spin_unlock(&adev->vm_manager.pasid_lock);
 	return true;
 }
 
