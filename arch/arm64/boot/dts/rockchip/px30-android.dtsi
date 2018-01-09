@@ -5,6 +5,44 @@
  */
 
 / {
+	chosen {
+		bootargs = "earlyprintk=uart8250,mmio32,0xff160000 swiotlb=1";
+	};
+
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,wake-irq = <0>;
+		/* If enable uart uses irq instead of fiq */
+		rockchip,irq-mode-enable = <0>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_LOW>;
+		status = "okay";
+	};
+
+	firmware {
+		android {
+			compatible = "android,firmware";
+			fstab {
+				compatible = "android,fstab";
+				system {
+					compatible = "android,system";
+					dev = "/dev/block/platform/ff390000.dwmmc/by-name/system";
+					type = "ext4";
+					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
+					fsmgr_flags = "wait,verify";
+				};
+				vendor {
+					compatible = "android,vendor";
+					dev = "/dev/block/platform/ff390000.dwmmc/by-name/vendor";
+					type = "ext4";
+					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
+					fsmgr_flags = "wait,verify";
+				};
+			};
+		};
+	};
+
 	lvds_panel: lvds-panel {
 		status = "disabled";
 		/* pinctrl-0 = <&lcd_cs>; */
