@@ -66,6 +66,32 @@ struct mlx5e_rx_am { /* Adaptive Moderation */
 	u8                                      tired;
 };
 
+/* Adaptive moderation logic */
+enum {
+	MLX5E_AM_START_MEASURE,
+	MLX5E_AM_MEASURE_IN_PROGRESS,
+	MLX5E_AM_APPLY_NEW_PROFILE,
+};
+
+enum {
+	MLX5E_AM_PARKING_ON_TOP,
+	MLX5E_AM_PARKING_TIRED,
+	MLX5E_AM_GOING_RIGHT,
+	MLX5E_AM_GOING_LEFT,
+};
+
+enum {
+	MLX5E_AM_STATS_WORSE,
+	MLX5E_AM_STATS_SAME,
+	MLX5E_AM_STATS_BETTER,
+};
+
+enum {
+	MLX5E_AM_STEPPED,
+	MLX5E_AM_TOO_TIRED,
+	MLX5E_AM_ON_EDGE,
+};
+
 void mlx5e_rx_am(struct mlx5e_rx_am *am,
 		 u16 event_ctr,
 		 u64 packets,

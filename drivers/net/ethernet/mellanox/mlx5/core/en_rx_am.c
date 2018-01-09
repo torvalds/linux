@@ -82,31 +82,6 @@ struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode)
 	return mlx5e_am_get_profile(rx_cq_period_mode, default_profile_ix);
 }
 
-/* Adaptive moderation logic */
-enum {
-	MLX5E_AM_START_MEASURE,
-	MLX5E_AM_MEASURE_IN_PROGRESS,
-	MLX5E_AM_APPLY_NEW_PROFILE,
-};
-
-enum {
-	MLX5E_AM_PARKING_ON_TOP,
-	MLX5E_AM_PARKING_TIRED,
-	MLX5E_AM_GOING_RIGHT,
-	MLX5E_AM_GOING_LEFT,
-};
-
-enum {
-	MLX5E_AM_STATS_WORSE,
-	MLX5E_AM_STATS_SAME,
-	MLX5E_AM_STATS_BETTER,
-};
-
-enum {
-	MLX5E_AM_STEPPED,
-	MLX5E_AM_TOO_TIRED,
-	MLX5E_AM_ON_EDGE,
-};
 
 static bool mlx5e_am_on_top(struct mlx5e_rx_am *am)
 {
