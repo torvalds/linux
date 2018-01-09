@@ -1693,13 +1693,22 @@ static int ethtool_get_ringparam(struct net_device *dev, void __user *useraddr)
 
 static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_ringparam ringparam;
+	struct ethtool_ringparam ringparam, max = { .cmd = ETHTOOL_GRINGPARAM };
 
-	if (!dev->ethtool_ops->set_ringparam)
+	if (!dev->ethtool_ops->set_ringparam || !dev->ethtool_ops->get_ringparam)
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&ringparam, useraddr, sizeof(ringparam)))
 		return -EFAULT;
+
+	dev->ethtool_ops->get_ringparam(dev, &max);
+
+	/* ensure new ring parameters are within the maximums */
+	if (ringparam.rx_pending > max.rx_max_pending ||
+	    ringparam.rx_mini_pending > max.rx_mini_max_pending ||
+	    ringparam.rx_jumbo_pending > max.rx_jumbo_max_pending ||
+	    ringparam.tx_pending > max.tx_max_pending)
+		return -EINVAL;
 
 	return dev->ethtool_ops->set_ringparam(dev, &ringparam);
 }
