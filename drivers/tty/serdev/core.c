@@ -19,6 +19,38 @@
 static bool is_registered;
 static DEFINE_IDA(ctrl_ida);
 
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	int len;
+
+	len = acpi_device_modalias(dev, buf, PAGE_SIZE - 1);
+	if (len != -ENODEV)
+		return len;
+
+	return of_device_modalias(dev, buf, PAGE_SIZE);
+}
+static DEVICE_ATTR_RO(modalias);
+
+static struct attribute *serdev_device_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(serdev_device);
+
+static int serdev_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	int rc;
+
+	/* TODO: platform modalias */
+
+	rc = acpi_device_uevent_modalias(dev, env);
+	if (rc != -ENODEV)
+		return rc;
+
+	return of_device_uevent_modalias(dev, env);
+}
+
 static void serdev_device_release(struct device *dev)
 {
 	struct serdev_device *serdev = to_serdev_device(dev);
@@ -26,6 +58,8 @@ static void serdev_device_release(struct device *dev)
 }
 
 static const struct device_type serdev_device_type = {
+	.groups		= serdev_device_groups,
+	.uevent		= serdev_device_uevent,
 	.release	= serdev_device_release,
 };
 
@@ -47,23 +81,6 @@ static int serdev_device_match(struct device *dev, struct device_driver *drv)
 		return 1;
 
 	return of_driver_match_device(dev, drv);
-}
-
-static int serdev_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	int rc;
-
-	/* TODO: platform modalias */
-
-	/* ACPI enumerated controllers do not have a modalias */
-	if (!dev->of_node && dev->type == &serdev_ctrl_type)
-		return 0;
-
-	rc = acpi_device_uevent_modalias(dev, env);
-	if (rc != -ENODEV)
-		return rc;
-
-	return of_device_uevent_modalias(dev, env);
 }
 
 /**
@@ -305,32 +322,11 @@ static int serdev_drv_remove(struct device *dev)
 	return 0;
 }
 
-static ssize_t modalias_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	int len;
-
-	len = acpi_device_modalias(dev, buf, PAGE_SIZE - 1);
-	if (len != -ENODEV)
-		return len;
-
-	return of_device_modalias(dev, buf, PAGE_SIZE);
-}
-DEVICE_ATTR_RO(modalias);
-
-static struct attribute *serdev_device_attrs[] = {
-	&dev_attr_modalias.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(serdev_device);
-
 static struct bus_type serdev_bus_type = {
 	.name		= "serial",
 	.match		= serdev_device_match,
 	.probe		= serdev_drv_probe,
 	.remove		= serdev_drv_remove,
-	.uevent		= serdev_uevent,
-	.dev_groups	= serdev_device_groups,
 };
 
 /**
