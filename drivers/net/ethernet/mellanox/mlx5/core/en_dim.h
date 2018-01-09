@@ -66,8 +66,10 @@ struct mlx5e_rx_am { /* Adaptive Moderation */
 	u8                                      tired;
 };
 
-struct mlx5e_rq;
-void mlx5e_rx_am(struct mlx5e_rq *rq);
+void mlx5e_rx_am(struct mlx5e_rx_am *am,
+		 u16 event_ctr,
+		 u64 packets,
+		 u64 bytes);
 void mlx5e_rx_am_work(struct work_struct *work);
 struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode);
 

@@ -264,13 +264,15 @@ static bool mlx5e_am_decision(struct mlx5e_rx_am_stats *curr_stats,
 	return am->profile_ix != prev_ix;
 }
 
-static void mlx5e_am_sample(struct mlx5e_rq *rq,
+static void mlx5e_am_sample(u16 event_ctr,
+			    u64 packets,
+			    u64 bytes,
 			    struct mlx5e_rx_am_sample *s)
 {
 	s->time	     = ktime_get();
-	s->pkt_ctr   = rq->stats.packets;
-	s->byte_ctr  = rq->stats.bytes;
-	s->event_ctr = rq->cq.event_ctr;
+	s->pkt_ctr   = packets;
+	s->byte_ctr  = bytes;
+	s->event_ctr = event_ctr;
 }
 
 #define MLX5E_AM_NEVENTS 64
@@ -309,20 +311,22 @@ void mlx5e_rx_am_work(struct work_struct *work)
 	am->state = MLX5E_AM_START_MEASURE;
 }
 
-void mlx5e_rx_am(struct mlx5e_rq *rq)
+void mlx5e_rx_am(struct mlx5e_rx_am *am,
+		 u16 event_ctr,
+		 u64 packets,
+		 u64 bytes)
 {
-	struct mlx5e_rx_am *am = &rq->am;
 	struct mlx5e_rx_am_sample end_sample;
 	struct mlx5e_rx_am_stats curr_stats;
 	u16 nevents;
 
 	switch (am->state) {
 	case MLX5E_AM_MEASURE_IN_PROGRESS:
-		nevents = BIT_GAP(BITS_PER_TYPE(u16), rq->cq.event_ctr,
+		nevents = BIT_GAP(BITS_PER_TYPE(u16), event_ctr,
 				  am->start_sample.event_ctr);
 		if (nevents < MLX5E_AM_NEVENTS)
 			break;
-		mlx5e_am_sample(rq, &end_sample);
+		mlx5e_am_sample(event_ctr, packets, bytes, &end_sample);
 		mlx5e_am_calc_stats(&am->start_sample, &end_sample,
 				    &curr_stats);
 		if (mlx5e_am_decision(&curr_stats, am)) {
@@ -332,7 +336,7 @@ void mlx5e_rx_am(struct mlx5e_rq *rq)
 		}
 		/* fall through */
 	case MLX5E_AM_START_MEASURE:
-		mlx5e_am_sample(rq, &am->start_sample);
+		mlx5e_am_sample(event_ctr, packets, bytes, &am->start_sample);
 		am->state = MLX5E_AM_MEASURE_IN_PROGRESS;
 		break;
 	case MLX5E_AM_APPLY_NEW_PROFILE:
