@@ -214,6 +214,7 @@ void blk_add_timer(struct request *req)
 		req->timeout = q->rq_timeout;
 
 	req->deadline = jiffies + req->timeout;
+	req->rq_flags &= ~RQF_MQ_TIMEOUT_EXPIRED;
 
 	/*
 	 * Only the non-mq case needs to add the request to a protected list.

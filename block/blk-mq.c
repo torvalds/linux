@@ -634,8 +634,7 @@ void blk_mq_complete_request(struct request *rq)
 	 * hctx_lock() covers both issue and completion paths.
 	 */
 	hctx_lock(hctx, &srcu_idx);
-	if (blk_mq_rq_aborted_gstate(rq) != rq->gstate &&
-	    !blk_mark_rq_complete(rq))
+	if (blk_mq_rq_aborted_gstate(rq) != rq->gstate)
 		__blk_mq_complete_request(rq);
 	hctx_unlock(hctx, srcu_idx);
 }
@@ -685,8 +684,6 @@ void blk_mq_start_request(struct request *rq)
 	preempt_enable();
 
 	set_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
-	if (test_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags))
-		clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
 
 	if (q->dma_drain_size && blk_rq_bytes(rq)) {
 		/*
@@ -837,6 +834,8 @@ static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 	if (!test_bit(REQ_ATOM_STARTED, &req->atomic_flags))
 		return;
 
+	req->rq_flags |= RQF_MQ_TIMEOUT_EXPIRED;
+
 	if (ops->timeout)
 		ret = ops->timeout(req, reserved);
 
@@ -852,7 +851,6 @@ static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 		 */
 		blk_mq_rq_update_aborted_gstate(req, 0);
 		blk_add_timer(req);
-		blk_clear_rq_complete(req);
 		break;
 	case BLK_EH_NOT_HANDLED:
 		break;
@@ -871,7 +869,8 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 
 	might_sleep();
 
-	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+	if ((rq->rq_flags & RQF_MQ_TIMEOUT_EXPIRED) ||
+	    !test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
 		return;
 
 	/* read coherent snapshots of @rq->state_gen and @rq->deadline */
@@ -906,8 +905,8 @@ static void blk_mq_terminate_expired(struct blk_mq_hw_ctx *hctx,
 	 * now guaranteed to see @rq->aborted_gstate and yield.  If
 	 * @rq->aborted_gstate still matches @rq->gstate, @rq is ours.
 	 */
-	if (READ_ONCE(rq->gstate) == rq->aborted_gstate &&
-	    !blk_mark_rq_complete(rq))
+	if (!(rq->rq_flags & RQF_MQ_TIMEOUT_EXPIRED) &&
+	    READ_ONCE(rq->gstate) == rq->aborted_gstate)
 		blk_mq_rq_timed_out(rq, reserved);
 }
 
