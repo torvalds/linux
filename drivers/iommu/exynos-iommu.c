@@ -1394,4 +1394,4 @@ err_reg_driver:
 }
 core_initcall(exynos_iommu_init);
 
-IOMMU_OF_DECLARE(exynos_iommu_of, "samsung,exynos-sysmmu", NULL);
+IOMMU_OF_DECLARE(exynos_iommu_of, "samsung,exynos-sysmmu");
