@@ -34,6 +34,7 @@ struct blk_mq_ctx {
 enum mq_rq_state {
 	MQ_RQ_IDLE		= 0,
 	MQ_RQ_IN_FLIGHT		= 1,
+	MQ_RQ_COMPLETE		= 2,
 
 	MQ_RQ_STATE_BITS	= 2,
 	MQ_RQ_STATE_MASK	= (1 << MQ_RQ_STATE_BITS) - 1,

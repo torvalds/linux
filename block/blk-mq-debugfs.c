@@ -271,7 +271,6 @@ static const char *const cmd_flag_name[] = {
 #define RQF_NAME(name) [ilog2((__force u32)RQF_##name)] = #name
 static const char *const rqf_name[] = {
 	RQF_NAME(SORTED),
-	RQF_NAME(STARTED),
 	RQF_NAME(QUEUED),
 	RQF_NAME(SOFTBARRIER),
 	RQF_NAME(FLUSH_SEQ),
@@ -295,7 +294,6 @@ static const char *const rqf_name[] = {
 #define RQAF_NAME(name) [REQ_ATOM_##name] = #name
 static const char *const rqaf_name[] = {
 	RQAF_NAME(COMPLETE),
-	RQAF_NAME(STARTED),
 	RQAF_NAME(POLL_SLEPT),
 };
 #undef RQAF_NAME
@@ -409,7 +407,7 @@ static void hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
 	const struct show_busy_params *params = data;
 
 	if (blk_mq_map_queue(rq->q, rq->mq_ctx->cpu) == params->hctx &&
-	    test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+	    blk_mq_rq_state(rq) != MQ_RQ_IDLE)
 		__blk_mq_debugfs_rq_show(params->m,
 					 list_entry_rq(&rq->queuelist));
 }

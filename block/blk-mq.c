@@ -483,7 +483,6 @@ void blk_mq_free_request(struct request *rq)
 		blk_put_rl(blk_rq_rl(rq));
 
 	blk_mq_rq_update_state(rq, MQ_RQ_IDLE);
-	clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
 	clear_bit(REQ_ATOM_POLL_SLEPT, &rq->atomic_flags);
 	if (rq->tag != -1)
 		blk_mq_put_tag(hctx, hctx->tags, ctx, rq->tag);
@@ -531,6 +530,7 @@ static void __blk_mq_complete_request(struct request *rq)
 	int cpu;
 
 	WARN_ON_ONCE(blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT);
+	blk_mq_rq_update_state(rq, MQ_RQ_COMPLETE);
 
 	if (rq->internal_tag != -1)
 		blk_mq_sched_completed_request(rq);
@@ -642,7 +642,7 @@ EXPORT_SYMBOL(blk_mq_complete_request);
 
 int blk_mq_request_started(struct request *rq)
 {
-	return test_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
+	return blk_mq_rq_state(rq) != MQ_RQ_IDLE;
 }
 EXPORT_SYMBOL_GPL(blk_mq_request_started);
 
@@ -661,7 +661,6 @@ void blk_mq_start_request(struct request *rq)
 	}
 
 	WARN_ON_ONCE(blk_mq_rq_state(rq) != MQ_RQ_IDLE);
-	WARN_ON_ONCE(test_bit(REQ_ATOM_STARTED, &rq->atomic_flags));
 
 	/*
 	 * Mark @rq in-flight which also advances the generation number,
@@ -683,8 +682,6 @@ void blk_mq_start_request(struct request *rq)
 	write_seqcount_end(&rq->gstate_seq);
 	preempt_enable();
 
-	set_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
-
 	if (q->dma_drain_size && blk_rq_bytes(rq)) {
 		/*
 		 * Make sure space for the drain appears.  We know we can do
@@ -697,13 +694,9 @@ void blk_mq_start_request(struct request *rq)
 EXPORT_SYMBOL(blk_mq_start_request);
 
 /*
- * When we reach here because queue is busy, REQ_ATOM_COMPLETE
- * flag isn't set yet, so there may be race with timeout handler,
- * but given rq->deadline is just set in .queue_rq() under
- * this situation, the race won't be possible in reality because
- * rq->timeout should be set as big enough to cover the window
- * between blk_mq_start_request() called from .queue_rq() and
- * clearing REQ_ATOM_STARTED here.
+ * When we reach here because queue is busy, it's safe to change the state
+ * to IDLE without checking @rq->aborted_gstate because we should still be
+ * holding the RCU read lock and thus protected against timeout.
  */
 static void __blk_mq_requeue_request(struct request *rq)
 {
@@ -715,7 +708,7 @@ static void __blk_mq_requeue_request(struct request *rq)
 	wbt_requeue(q->rq_wb, &rq->issue_stat);
 	blk_mq_sched_requeue_request(rq);
 
-	if (test_and_clear_bit(REQ_ATOM_STARTED, &rq->atomic_flags)) {
+	if (blk_mq_rq_state(rq) != MQ_RQ_IDLE) {
 		blk_mq_rq_update_state(rq, MQ_RQ_IDLE);
 		if (q->dma_drain_size && blk_rq_bytes(rq))
 			rq->nr_phys_segments--;
@@ -822,18 +815,6 @@ static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 	const struct blk_mq_ops *ops = req->q->mq_ops;
 	enum blk_eh_timer_return ret = BLK_EH_RESET_TIMER;
 
-	/*
-	 * We know that complete is set at this point. If STARTED isn't set
-	 * anymore, then the request isn't active and the "timeout" should
-	 * just be ignored. This can happen due to the bitflag ordering.
-	 * Timeout first checks if STARTED is set, and if it is, assumes
-	 * the request is active. But if we race with completion, then
-	 * both flags will get cleared. So check here again, and ignore
-	 * a timeout event with a request that isn't active.
-	 */
-	if (!test_bit(REQ_ATOM_STARTED, &req->atomic_flags))
-		return;
-
 	req->rq_flags |= RQF_MQ_TIMEOUT_EXPIRED;
 
 	if (ops->timeout)
@@ -869,8 +850,7 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 
 	might_sleep();
 
-	if ((rq->rq_flags & RQF_MQ_TIMEOUT_EXPIRED) ||
-	    !test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+	if (rq->rq_flags & RQF_MQ_TIMEOUT_EXPIRED)
 		return;
 
 	/* read coherent snapshots of @rq->state_gen and @rq->deadline */
@@ -3022,8 +3002,7 @@ static bool blk_mq_poll_hybrid_sleep(struct request_queue *q,
 
 	hrtimer_init_sleeper(&hs, current);
 	do {
-		if (test_bit(REQ_ATOM_STARTED, &rq->atomic_flags) &&
-		    blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT)
+		if (blk_mq_rq_state(rq) == MQ_RQ_COMPLETE)
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		hrtimer_start_expires(&hs.timer, mode);
