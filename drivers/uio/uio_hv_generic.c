@@ -124,6 +124,13 @@ hv_uio_probe(struct hv_device *dev,
 	if (ret)
 		goto fail;
 
+	/* Communicating with host has to be via shared memory not hypercall */
+	if (!dev->channel->offermsg.monitor_allocated) {
+		dev_err(&dev->device, "vmbus channel requires hypercall\n");
+		ret = -ENOTSUPP;
+		goto fail_close;
+	}
+
 	dev->channel->inbound.ring_buffer->interrupt_mask = 1;
 	set_channel_read_mode(dev->channel, HV_CALL_DIRECT);
 
