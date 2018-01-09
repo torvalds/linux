@@ -156,7 +156,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	struct device *dev = &plat_dev->dev;
 	struct device_node *np = dev->of_node;
 	u32 signature_val;
-	dma_addr_t dma_mask;
+	u64 dma_mask;
 	int rc = 0;
 
 	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
@@ -205,7 +205,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (!plat_dev->dev.dma_mask)
 		plat_dev->dev.dma_mask = &plat_dev->dev.coherent_dma_mask;
 
-	dma_mask = (dma_addr_t)(DMA_BIT_MASK(DMA_BIT_MASK_LEN));
+	dma_mask = DMA_BIT_MASK(DMA_BIT_MASK_LEN);
 	while (dma_mask > 0x7fffffffUL) {
 		if (dma_supported(&plat_dev->dev, dma_mask)) {
 			rc = dma_set_coherent_mask(&plat_dev->dev, dma_mask);
