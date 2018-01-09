@@ -2,9 +2,7 @@
 /* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
 #include <linux/kernel.h>
-#include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <crypto/ctr.h>
 #include <linux/pm_runtime.h>
 #include "cc_driver.h"
 #include "cc_buffer_mgr.h"

@@ -3,18 +3,11 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <crypto/algapi.h>
-#include <crypto/internal/skcipher.h>
-#include <crypto/internal/hash.h>
 #include <crypto/internal/aead.h>
-#include <crypto/sha.h>
-#include <crypto/ctr.h>
 #include <crypto/authenc.h>
-#include <crypto/aes.h>
 #include <crypto/des.h>
 #include <linux/rtnetlink.h>
-#include <linux/version.h>
 #include "cc_driver.h"
 #include "cc_buffer_mgr.h"
 #include "cc_aead.h"

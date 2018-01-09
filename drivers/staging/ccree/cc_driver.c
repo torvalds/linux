@@ -5,43 +5,12 @@
 #include <linux/module.h>
 
 #include <linux/crypto.h>
-#include <crypto/algapi.h>
-#include <crypto/aes.h>
-#include <crypto/sha.h>
-#include <crypto/aead.h>
-#include <crypto/authenc.h>
-#include <crypto/scatterwalk.h>
-#include <crypto/internal/skcipher.h>
-
-#include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
-#include <linux/random.h>
-#include <linux/ioport.h>
 #include <linux/interrupt.h>
-#include <linux/fcntl.h>
-#include <linux/poll.h>
-#include <linux/proc_fs.h>
-#include <linux/mutex.h>
-#include <linux/sysctl.h>
-#include <linux/fs.h>
-#include <linux/cdev.h>
 #include <linux/platform_device.h>
-#include <linux/mm.h>
-#include <linux/delay.h>
-#include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
-#include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/pm.h>
-
-/* cache.h required for L1_CACHE_ALIGN() and cache_line_size() */
-#include <linux/cache.h>
-#include <linux/io.h>
-#include <linux/uaccess.h>
-#include <linux/pagemap.h>
-#include <linux/sched.h>
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/of_address.h>

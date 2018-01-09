@@ -3,10 +3,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
 #include <crypto/md5.h>
 #include <crypto/internal/hash.h>
 

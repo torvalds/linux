@@ -1,17 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
 
-#include <linux/crypto.h>
-#include <linux/version.h>
-#include <crypto/algapi.h>
 #include <crypto/internal/aead.h>
-#include <crypto/hash.h>
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
 
 #include "cc_buffer_mgr.h"
 #include "cc_lli_defs.h"

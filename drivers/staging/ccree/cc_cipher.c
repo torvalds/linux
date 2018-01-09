@@ -3,12 +3,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/semaphore.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/skcipher.h>
-#include <crypto/aes.h>
-#include <crypto/ctr.h>
 #include <crypto/des.h>
 #include <crypto/xts.h>
 #include <crypto/scatterwalk.h>
