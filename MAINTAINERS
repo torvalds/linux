@@ -4942,6 +4942,11 @@ S:	Maintained
 F:	lib/dynamic_debug.c
 F:	include/linux/dynamic_debug.h
 
+DYNAMIC INTERRUPT MODERATION
+M:	Tal Gilboa <talgi@mellanox.com>
+S:	Maintained
+F:	include/linux/net_dim.h
+
 DZ DECSTATION DZ11 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained
