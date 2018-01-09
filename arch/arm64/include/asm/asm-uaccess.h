@@ -31,7 +31,7 @@ alternative_if_not ARM64_HAS_PAN
 alternative_else_nop_endif
 	.endm
 
-	.macro	uaccess_ttbr0_enable, tmp1, tmp2
+	.macro	uaccess_ttbr0_enable, tmp1, tmp2, tmp3
 alternative_if_not ARM64_HAS_PAN
 	save_and_disable_irq \tmp2		// avoid preemption
 	__uaccess_ttbr0_enable \tmp1
@@ -42,7 +42,7 @@ alternative_else_nop_endif
 	.macro	uaccess_ttbr0_disable, tmp1
 	.endm
 
-	.macro	uaccess_ttbr0_enable, tmp1, tmp2
+	.macro	uaccess_ttbr0_enable, tmp1, tmp2, tmp3
 	.endm
 #endif
 
