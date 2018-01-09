@@ -799,7 +799,7 @@ pi433_read(struct file *filp, char __user *buf, size_t size, loff_t *f_pos)
 
 static ssize_t
 pi433_write(struct file *filp, const char __user *buf,
-		size_t count, loff_t *f_pos)
+	    size_t count, loff_t *f_pos)
 {
 	struct pi433_instance	*instance;
 	struct pi433_device	*device;
@@ -870,17 +870,17 @@ pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case PI433_IOC_RD_TX_CFG:
 		if (copy_to_user(argp, &instance->tx_cfg,
-					sizeof(struct pi433_tx_cfg)))
+				 sizeof(struct pi433_tx_cfg)))
 			return -EFAULT;
 		break;
 	case PI433_IOC_WR_TX_CFG:
 		if (copy_from_user(&instance->tx_cfg, argp,
-					sizeof(struct pi433_tx_cfg)))
+				   sizeof(struct pi433_tx_cfg)))
 			return -EFAULT;
 		break;
 	case PI433_IOC_RD_RX_CFG:
 		if (copy_to_user(argp, &device->rx_cfg,
-					sizeof(struct pi433_rx_cfg)))
+				 sizeof(struct pi433_rx_cfg)))
 			return -EFAULT;
 		break;
 	case PI433_IOC_WR_RX_CFG:
@@ -893,7 +893,7 @@ pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		if (copy_from_user(&device->rx_cfg, argp,
-					sizeof(struct pi433_rx_cfg))) {
+				   sizeof(struct pi433_rx_cfg))) {
 			mutex_unlock(&device->rx_lock);
 			return -EFAULT;
 		}
