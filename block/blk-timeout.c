@@ -156,12 +156,17 @@ void blk_timeout_work(struct work_struct *work)
  */
 void blk_abort_request(struct request *req)
 {
-	if (blk_mark_rq_complete(req))
-		return;
-
 	if (req->q->mq_ops) {
-		blk_mq_rq_timed_out(req, false);
+		/*
+		 * All we need to ensure is that timeout scan takes place
+		 * immediately and that scan sees the new timeout value.
+		 * No need for fancy synchronizations.
+		 */
+		req->deadline = jiffies;
+		mod_timer(&req->q->timeout, 0);
 	} else {
+		if (blk_mark_rq_complete(req))
+			return;
 		blk_delete_timer(req);
 		blk_rq_timed_out(req);
 	}
