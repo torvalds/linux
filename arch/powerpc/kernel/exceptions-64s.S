@@ -596,6 +596,9 @@ EXC_COMMON_BEGIN(slb_miss_common)
 	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
 	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
 
+	andi.	r9,r11,MSR_PR	// Check for exception from userspace
+	cmpdi	cr4,r9,MSR_PR	// And save the result in CR4 for later
+
 	/*
 	 * Test MSR_RI before calling slb_allocate_realmode, because the
 	 * MSR in r11 gets clobbered. However we still want to allocate
@@ -622,9 +625,12 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 
 	/* All done -- return from exception. */
 
+	bne	cr4,1f		/* returning to kernel */
+
 .machine	push
 .machine	"power4"
 	mtcrf	0x80,r9
+	mtcrf	0x08,r9		/* MSR[PR] indication is in cr4 */
 	mtcrf	0x04,r9		/* MSR[RI] indication is in cr5 */
 	mtcrf	0x02,r9		/* I/D indication is in cr6 */
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
@@ -638,8 +644,29 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	ld	r11,PACA_EXSLB+EX_R11(r13)
 	ld	r12,PACA_EXSLB+EX_R12(r13)
 	ld	r13,PACA_EXSLB+EX_R13(r13)
-	rfid
+	RFI_TO_USER
 	b	.	/* prevent speculative execution */
+1:
+.machine	push
+.machine	"power4"
+	mtcrf	0x80,r9
+	mtcrf	0x08,r9		/* MSR[PR] indication is in cr4 */
+	mtcrf	0x04,r9		/* MSR[RI] indication is in cr5 */
+	mtcrf	0x02,r9		/* I/D indication is in cr6 */
+	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
+.machine	pop
+
+	RESTORE_CTR(r9, PACA_EXSLB)
+	RESTORE_PPR_PACA(PACA_EXSLB, r9)
+	mr	r3,r12
+	ld	r9,PACA_EXSLB+EX_R9(r13)
+	ld	r10,PACA_EXSLB+EX_R10(r13)
+	ld	r11,PACA_EXSLB+EX_R11(r13)
+	ld	r12,PACA_EXSLB+EX_R12(r13)
+	ld	r13,PACA_EXSLB+EX_R13(r13)
+	RFI_TO_KERNEL
+	b	.	/* prevent speculative execution */
+
 
 2:	std     r3,PACA_EXSLB+EX_DAR(r13)
 	mr	r3,r12
