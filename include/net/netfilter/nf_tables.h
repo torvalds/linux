@@ -143,22 +143,22 @@ static inline void nft_data_debug(const struct nft_data *data)
  *	struct nft_ctx - nf_tables rule/set context
  *
  *	@net: net namespace
- * 	@afi: address family info
  * 	@table: the table the chain is contained in
  * 	@chain: the chain the rule is contained in
  *	@nla: netlink attributes
  *	@portid: netlink portID of the original message
  *	@seq: netlink sequence number
+ *	@family: protocol family
  *	@report: notify via unicast netlink message
  */
 struct nft_ctx {
 	struct net			*net;
-	struct nft_af_info		*afi;
 	struct nft_table		*table;
 	struct nft_chain		*chain;
 	const struct nlattr * const 	*nla;
 	u32				portid;
 	u32				seq;
+	u8				family;
 	bool				report;
 };
 
@@ -949,6 +949,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt, void *priv);
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
  *	@genmask: generation mask
+ *	@afinfo: address family info
  *	@name: name of the table
  */
 struct nft_table {
@@ -961,6 +962,7 @@ struct nft_table {
 	u32				use;
 	u16				flags:14,
 					genmask:2;
+	struct nft_af_info		*afi;
 	char				*name;
 };
 
@@ -970,13 +972,11 @@ struct nft_table {
  *	@list: used internally
  *	@family: address family
  *	@owner: module owner
- *	@tables: used internally
  */
 struct nft_af_info {
 	struct list_head		list;
 	int				family;
 	struct module			*owner;
-	struct list_head		tables;
 };
 
 int nft_register_afinfo(struct net *, struct nft_af_info *);

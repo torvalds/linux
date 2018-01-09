@@ -151,7 +151,7 @@ static int nft_flow_offload_init(const struct nft_ctx *ctx,
 	priv->flowtable = flowtable;
 	flowtable->use++;
 
-	return nf_ct_netns_get(ctx->net, ctx->afi->family);
+	return nf_ct_netns_get(ctx->net, ctx->family);
 }
 
 static void nft_flow_offload_destroy(const struct nft_ctx *ctx,
@@ -160,7 +160,7 @@ static void nft_flow_offload_destroy(const struct nft_ctx *ctx,
 	struct nft_flow_offload *priv = nft_expr_priv(expr);
 
 	priv->flowtable->use--;
-	nf_ct_netns_put(ctx->net, ctx->afi->family);
+	nf_ct_netns_put(ctx->net, ctx->family);
 }
 
 static int nft_flow_offload_dump(struct sk_buff *skb, const struct nft_expr *expr)

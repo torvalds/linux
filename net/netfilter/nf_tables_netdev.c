@@ -107,7 +107,6 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 				  unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct nft_af_info *afi;
 	struct nft_table *table;
 	struct nft_chain *chain, *nr;
 	struct nft_ctx ctx = {
@@ -119,20 +118,18 @@ static int nf_tables_netdev_event(struct notifier_block *this,
 		return NOTIFY_DONE;
 
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_for_each_entry(afi, &dev_net(dev)->nft.af_info, list) {
-		ctx.afi = afi;
-		if (afi->family != NFPROTO_NETDEV)
+	list_for_each_entry(table, &ctx.net->nft.tables, list) {
+		if (table->afi->family != NFPROTO_NETDEV)
 			continue;
 
-		list_for_each_entry(table, &afi->tables, list) {
-			ctx.table = table;
-			list_for_each_entry_safe(chain, nr, &table->chains, list) {
-				if (!nft_is_base_chain(chain))
-					continue;
+		ctx.family = table->afi->family;
+		ctx.table = table;
+		list_for_each_entry_safe(chain, nr, &table->chains, list) {
+			if (!nft_is_base_chain(chain))
+				continue;
 
-				ctx.chain = chain;
-				nft_netdev_event(event, dev, &ctx);
-			}
+			ctx.chain = chain;
+			nft_netdev_event(event, dev, &ctx);
 		}
 	}
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);

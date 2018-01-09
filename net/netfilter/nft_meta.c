@@ -339,7 +339,7 @@ static int nft_meta_get_validate(const struct nft_ctx *ctx,
 	if (priv->key != NFT_META_SECPATH)
 		return 0;
 
-	switch (ctx->afi->family) {
+	switch (ctx->family) {
 	case NFPROTO_NETDEV:
 		hooks = 1 << NF_NETDEV_INGRESS;
 		break;
@@ -370,7 +370,7 @@ int nft_meta_set_validate(const struct nft_ctx *ctx,
 	if (priv->key != NFT_META_PKTTYPE)
 		return 0;
 
-	switch (ctx->afi->family) {
+	switch (ctx->family) {
 	case NFPROTO_BRIDGE:
 		hooks = 1 << NF_BR_PRE_ROUTING;
 		break;
