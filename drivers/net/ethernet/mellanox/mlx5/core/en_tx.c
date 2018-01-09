@@ -417,6 +417,18 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	return mlx5e_sq_xmit(sq, skb, wqe, pi);
 }
 
+static void mlx5e_dump_error_cqe(struct mlx5e_txqsq *sq,
+				 struct mlx5_err_cqe *err_cqe)
+{
+	u32 ci = mlx5_cqwq_get_ci(&sq->cq.wq);
+
+	netdev_err(sq->channel->netdev,
+		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
+		   sq->cq.mcq.cqn, ci, sq->sqn, err_cqe->syndrome,
+		   err_cqe->vendor_err_synd);
+	mlx5_dump_err_cqe(sq->cq.mdev, err_cqe);
+}
+
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 {
 	struct mlx5e_txqsq *sq;
@@ -455,6 +467,13 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		mlx5_cqwq_pop(&cq->wq);
 
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
+
+		if (unlikely(cqe->op_own >> 4 == MLX5_CQE_REQ_ERR)) {
+			if (!sq->stats.cqe_err)
+				mlx5e_dump_error_cqe(sq,
+						     (struct mlx5_err_cqe *)cqe);
+			sq->stats.cqe_err++;
+		}
 
 		do {
 			struct mlx5e_tx_wqe_info *wi;
