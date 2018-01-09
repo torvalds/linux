@@ -14,6 +14,9 @@ sha1-ce-y := sha1-ce-glue.o sha1-ce-core.o
 obj-$(CONFIG_CRYPTO_SHA2_ARM64_CE) += sha2-ce.o
 sha2-ce-y := sha2-ce-glue.o sha2-ce-core.o
 
+obj-$(CONFIG_CRYPTO_SHA512_ARM64_CE) += sha512-ce.o
+sha512-ce-y := sha512-ce-glue.o sha512-ce-core.o
+
 obj-$(CONFIG_CRYPTO_GHASH_ARM64_CE) += ghash-ce.o
 ghash-ce-y := ghash-ce-glue.o ghash-ce-core.o
 
