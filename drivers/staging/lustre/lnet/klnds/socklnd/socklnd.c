@@ -2282,7 +2282,7 @@ ksocknal_free_buffers(void)
 
 		list_for_each_entry_safe(tx, temp, &zlist, tx_list) {
 			list_del(&tx->tx_list);
-			LIBCFS_FREE(tx, tx->tx_desc_size);
+			kfree(tx);
 		}
 	} else {
 		spin_unlock(&ksocknal_data.ksnd_tx_lock);
