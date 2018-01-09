@@ -105,8 +105,8 @@ struct amdgpu_iv_entry {
 	unsigned client_id;
 	unsigned src_id;
 	unsigned ring_id;
-	unsigned vm_id;
-	unsigned vm_id_src;
+	unsigned vmid;
+	unsigned vmid_src;
 	uint64_t timestamp;
 	unsigned timestamp_src;
 	unsigned pas_id;

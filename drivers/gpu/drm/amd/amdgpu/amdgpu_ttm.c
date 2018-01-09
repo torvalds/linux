@@ -497,7 +497,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo, bool evict,
 		goto out_cleanup;
 	}
 
-	r = ttm_tt_bind(bo->ttm, &tmp_mem);
+	r = ttm_tt_bind(bo->ttm, &tmp_mem, ctx);
 	if (unlikely(r)) {
 		goto out_cleanup;
 	}
@@ -990,7 +990,8 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_bo_device *bdev,
 	return &gtt->ttm.ttm;
 }
 
-static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
+static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm,
+			struct ttm_operation_ctx *ctx)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
@@ -1018,11 +1019,11 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
-		return ttm_dma_populate(&gtt->ttm, adev->dev);
+		return ttm_dma_populate(&gtt->ttm, adev->dev, ctx);
 	}
 #endif
 
-	return ttm_populate_and_map_pages(adev->dev, &gtt->ttm);
+	return ttm_populate_and_map_pages(adev->dev, &gtt->ttm, ctx);
 }
 
 static void amdgpu_ttm_tt_unpopulate(struct ttm_tt *ttm)

@@ -833,13 +833,13 @@ static void vcn_v1_0_dec_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
  */
 static void vcn_v1_0_dec_ring_emit_ib(struct amdgpu_ring *ring,
 				  struct amdgpu_ib *ib,
-				  unsigned vm_id, bool ctx_switch)
+				  unsigned vmid, bool ctx_switch)
 {
 	struct amdgpu_device *adev = ring->adev;
 
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_IB_VMID), 0));
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_IB_64BIT_BAR_LOW), 0));
@@ -888,10 +888,10 @@ static void vcn_v1_0_dec_vm_reg_wait(struct amdgpu_ring *ring,
 }
 
 static void vcn_v1_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					unsigned vm_id, uint64_t pd_addr)
+					unsigned vmid, uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vmid);
 	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 	uint32_t data0, data1, mask;
@@ -899,15 +899,15 @@ static void vcn_v1_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_gart_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
 	pd_addr |= flags;
 
-	data0 = (hub->ctx0_ptb_addr_hi32 + vm_id * 2) << 2;
+	data0 = (hub->ctx0_ptb_addr_hi32 + vmid * 2) << 2;
 	data1 = upper_32_bits(pd_addr);
 	vcn_v1_0_dec_vm_reg_write(ring, data0, data1);
 
-	data0 = (hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2;
+	data0 = (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2;
 	data1 = lower_32_bits(pd_addr);
 	vcn_v1_0_dec_vm_reg_write(ring, data0, data1);
 
-	data0 = (hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2;
+	data0 = (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2;
 	data1 = lower_32_bits(pd_addr);
 	mask = 0xffffffff;
 	vcn_v1_0_dec_vm_reg_wait(ring, data0, data1, mask);
@@ -919,8 +919,8 @@ static void vcn_v1_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	/* wait for flush */
 	data0 = (hub->vm_inv_eng0_ack + eng) << 2;
-	data1 = 1 << vm_id;
-	mask =  1 << vm_id;
+	data1 = 1 << vmid;
+	mask =  1 << vmid;
 	vcn_v1_0_dec_vm_reg_wait(ring, data0, data1, mask);
 }
 
@@ -1011,20 +1011,20 @@ static void vcn_v1_0_enc_ring_insert_end(struct amdgpu_ring *ring)
  * Write enc ring commands to execute the indirect buffer
  */
 static void vcn_v1_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vm_id, bool ctx_switch)
+		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, VCN_ENC_CMD_IB);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
 static void vcn_v1_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
-			 unsigned int vm_id, uint64_t pd_addr)
+			 unsigned int vmid, uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vmid);
 	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 
@@ -1033,17 +1033,17 @@ static void vcn_v1_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WRITE);
 	amdgpu_ring_write(ring,
-			  (hub->ctx0_ptb_addr_hi32 + vm_id * 2) << 2);
+			  (hub->ctx0_ptb_addr_hi32 + vmid * 2) << 2);
 	amdgpu_ring_write(ring, upper_32_bits(pd_addr));
 
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WRITE);
 	amdgpu_ring_write(ring,
-			  (hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2);
+			  (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
 	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
 
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WAIT);
 	amdgpu_ring_write(ring,
-			  (hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2);
+			  (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
 	amdgpu_ring_write(ring, 0xffffffff);
 	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
 
@@ -1055,8 +1055,8 @@ static void vcn_v1_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	/* wait for flush */
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WAIT);
 	amdgpu_ring_write(ring, (hub->vm_inv_eng0_ack + eng) << 2);
-	amdgpu_ring_write(ring, 1 << vm_id);
-	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vmid);
+	amdgpu_ring_write(ring, 1 << vmid);
 }
 
 static int vcn_v1_0_set_interrupt_state(struct amdgpu_device *adev,

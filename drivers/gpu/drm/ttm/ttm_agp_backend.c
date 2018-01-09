@@ -133,12 +133,12 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_agp_tt_create);
 
-int ttm_agp_tt_populate(struct ttm_tt *ttm)
+int ttm_agp_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	return ttm_pool_populate(ttm);
+	return ttm_pool_populate(ttm, ctx);
 }
 EXPORT_SYMBOL(ttm_agp_tt_populate);
 

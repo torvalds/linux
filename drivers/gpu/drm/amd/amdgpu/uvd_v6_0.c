@@ -1028,10 +1028,10 @@ static int uvd_v6_0_ring_test_ring(struct amdgpu_ring *ring)
  */
 static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
 				  struct amdgpu_ib *ib,
-				  unsigned vm_id, bool ctx_switch)
+				  unsigned vmid, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, PACKET0(mmUVD_LMI_RBC_IB_VMID, 0));
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_LMI_RBC_IB_64BIT_BAR_LOW, 0));
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
@@ -1050,24 +1050,24 @@ static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
  * Write enc ring commands to execute the indirect buffer
  */
 static void uvd_v6_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vm_id, bool ctx_switch)
+		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_IB_VM);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
 static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					 unsigned vm_id, uint64_t pd_addr)
+					 unsigned vmid, uint64_t pd_addr)
 {
 	uint32_t reg;
 
-	if (vm_id < 8)
-		reg = mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id;
+	if (vmid < 8)
+		reg = mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid;
 	else
-		reg = mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vm_id - 8;
+		reg = mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8;
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
 	amdgpu_ring_write(ring, reg << 2);
@@ -1079,7 +1079,7 @@ static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST << 2);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0));
-	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vmid);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
 	amdgpu_ring_write(ring, 0x8);
 
@@ -1088,7 +1088,7 @@ static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0));
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GP_SCRATCH8, 0));
-	amdgpu_ring_write(ring, 1 << vm_id); /* mask */
+	amdgpu_ring_write(ring, 1 << vmid); /* mask */
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
 	amdgpu_ring_write(ring, 0xC);
 }
@@ -1127,14 +1127,14 @@ static void uvd_v6_0_enc_ring_insert_end(struct amdgpu_ring *ring)
 }
 
 static void uvd_v6_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
-        unsigned int vm_id, uint64_t pd_addr)
+        unsigned int vmid, uint64_t pd_addr)
 {
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_UPDATE_PTB);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, pd_addr >> 12);
 
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_FLUSH_TLB);
-	amdgpu_ring_write(ring, vm_id);
+	amdgpu_ring_write(ring, vmid);
 }
 
 static bool uvd_v6_0_is_idle(void *handle)

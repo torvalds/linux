@@ -351,7 +351,7 @@ struct amdgpu_gart_funcs {
 	/* get the pde for a given mc addr */
 	void (*get_vm_pde)(struct amdgpu_device *adev, int level,
 			   u64 *dst, u64 *flags);
-	uint32_t (*get_invalidate_req)(unsigned int vm_id);
+	uint32_t (*get_invalidate_req)(unsigned int vmid);
 };
 
 /* provided by the ih block */
@@ -1125,7 +1125,7 @@ struct amdgpu_job {
 	void			*owner;
 	uint64_t		fence_ctx; /* the fence_context this job uses */
 	bool                    vm_needs_flush;
-	unsigned		vm_id;
+	unsigned		vmid;
 	uint64_t		vm_pd_addr;
 	uint32_t		gds_base, gds_size;
 	uint32_t		gws_base, gws_size;
@@ -1850,7 +1850,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))
 #define amdgpu_ring_get_wptr(r) (r)->funcs->get_wptr((r))
 #define amdgpu_ring_set_wptr(r) (r)->funcs->set_wptr((r))
-#define amdgpu_ring_emit_ib(r, ib, vm_id, c) (r)->funcs->emit_ib((r), (ib), (vm_id), (c))
+#define amdgpu_ring_emit_ib(r, ib, vmid, c) (r)->funcs->emit_ib((r), (ib), (vmid), (c))
 #define amdgpu_ring_emit_pipeline_sync(r) (r)->funcs->emit_pipeline_sync((r))
 #define amdgpu_ring_emit_vm_flush(r, vmid, addr) (r)->funcs->emit_vm_flush((r), (vmid), (addr))
 #define amdgpu_ring_emit_fence(r, addr, seq, flags) (r)->funcs->emit_fence((r), (addr), (seq), (flags))

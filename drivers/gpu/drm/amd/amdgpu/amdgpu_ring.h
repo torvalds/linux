@@ -121,11 +121,11 @@ struct amdgpu_ring_funcs {
 	/* command emit functions */
 	void (*emit_ib)(struct amdgpu_ring *ring,
 			struct amdgpu_ib *ib,
-			unsigned vm_id, bool ctx_switch);
+			unsigned vmid, bool ctx_switch);
 	void (*emit_fence)(struct amdgpu_ring *ring, uint64_t addr,
 			   uint64_t seq, unsigned flags);
 	void (*emit_pipeline_sync)(struct amdgpu_ring *ring);
-	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vm_id,
+	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vmid,
 			      uint64_t pd_addr);
 	void (*emit_hdp_flush)(struct amdgpu_ring *ring);
 	void (*emit_hdp_invalidate)(struct amdgpu_ring *ring);

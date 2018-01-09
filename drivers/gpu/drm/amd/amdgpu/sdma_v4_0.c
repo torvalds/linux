@@ -330,15 +330,13 @@ static void sdma_v4_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  */
 static void sdma_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
 					struct amdgpu_ib *ib,
-					unsigned vm_id, bool ctx_switch)
+					unsigned vmid, bool ctx_switch)
 {
-	u32 vmid = vm_id & 0xf;
-
 	/* IB packet must end on a 8 DW boundary */
 	sdma_v4_0_ring_insert_nop(ring, (10 - (lower_32_bits(ring->wptr) & 7)) % 8);
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_INDIRECT) |
-			  SDMA_PKT_INDIRECT_HEADER_VMID(vmid));
+			  SDMA_PKT_INDIRECT_HEADER_VMID(vmid & 0xf));
 	/* base must be 32 byte aligned */
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr) & 0xffffffe0);
 	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
@@ -1135,10 +1133,10 @@ static void sdma_v4_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * using sDMA (VEGA10).
  */
 static void sdma_v4_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					 unsigned vm_id, uint64_t pd_addr)
+					 unsigned vmid, uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vmid);
 	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 
@@ -1147,12 +1145,12 @@ static void sdma_v4_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, hub->ctx0_ptb_addr_lo32 + vm_id * 2);
+	amdgpu_ring_write(ring, hub->ctx0_ptb_addr_lo32 + vmid * 2);
 	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, hub->ctx0_ptb_addr_hi32 + vm_id * 2);
+	amdgpu_ring_write(ring, hub->ctx0_ptb_addr_hi32 + vmid * 2);
 	amdgpu_ring_write(ring, upper_32_bits(pd_addr));
 
 	/* flush TLB */
@@ -1167,8 +1165,8 @@ static void sdma_v4_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3)); /* equal */
 	amdgpu_ring_write(ring, (hub->vm_inv_eng0_ack + eng) << 2);
 	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, 1 << vm_id); /* reference */
-	amdgpu_ring_write(ring, 1 << vm_id); /* mask */
+	amdgpu_ring_write(ring, 1 << vmid); /* reference */
+	amdgpu_ring_write(ring, 1 << vmid); /* mask */
 	amdgpu_ring_write(ring, SDMA_PKT_POLL_REGMEM_DW5_RETRY_COUNT(0xfff) |
 			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(10));
 }

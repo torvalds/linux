@@ -1058,7 +1058,7 @@ void ttm_page_alloc_fini(void)
 	_manager = NULL;
 }
 
-int ttm_pool_populate(struct ttm_tt *ttm)
+int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
 	unsigned i;
@@ -1076,7 +1076,7 @@ int ttm_pool_populate(struct ttm_tt *ttm)
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						PAGE_SIZE);
+						PAGE_SIZE, ctx);
 		if (unlikely(ret != 0)) {
 			ttm_pool_unpopulate(ttm);
 			return -ENOMEM;
@@ -1113,12 +1113,13 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_pool_unpopulate);
 
-int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt)
+int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt,
+					struct ttm_operation_ctx *ctx)
 {
 	unsigned i, j;
 	int r;
 
-	r = ttm_pool_populate(&tt->ttm);
+	r = ttm_pool_populate(&tt->ttm, ctx);
 	if (r)
 		return r;
 

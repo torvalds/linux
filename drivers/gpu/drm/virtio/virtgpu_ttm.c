@@ -324,12 +324,13 @@ static struct ttm_backend_func virtio_gpu_backend_func = {
 	.destroy = &virtio_gpu_ttm_backend_destroy,
 };
 
-static int virtio_gpu_ttm_tt_populate(struct ttm_tt *ttm)
+static int virtio_gpu_ttm_tt_populate(struct ttm_tt *ttm,
+		struct ttm_operation_ctx *ctx)
 {
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	return ttm_pool_populate(ttm);
+	return ttm_pool_populate(ttm, ctx);
 }
 
 static void virtio_gpu_ttm_tt_unpopulate(struct ttm_tt *ttm)
@@ -430,7 +431,6 @@ static struct ttm_bo_driver virtio_gpu_bo_driver = {
 	.verify_access = &virtio_gpu_verify_access,
 	.io_mem_reserve = &virtio_gpu_ttm_io_mem_reserve,
 	.io_mem_free = &virtio_gpu_ttm_io_mem_free,
-	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 	.move_notify = &virtio_gpu_bo_move_notify,
 	.swap_notify = &virtio_gpu_bo_swap_notify,
 };

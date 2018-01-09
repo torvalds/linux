@@ -221,9 +221,9 @@ static void cik_sdma_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  */
 static void cik_sdma_ring_emit_ib(struct amdgpu_ring *ring,
 				  struct amdgpu_ib *ib,
-				  unsigned vm_id, bool ctx_switch)
+				  unsigned vmid, bool ctx_switch)
 {
-	u32 extra_bits = vm_id & 0xf;
+	u32 extra_bits = vmid & 0xf;
 
 	/* IB packet must end on a 8 DW boundary */
 	cik_sdma_ring_insert_nop(ring, (12 - (lower_32_bits(ring->wptr) & 7)) % 8);
@@ -880,23 +880,23 @@ static void cik_sdma_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * using sDMA (CIK).
  */
 static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					unsigned vm_id, uint64_t pd_addr)
+					unsigned vmid, uint64_t pd_addr)
 {
 	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(0) |
 			  SDMA_POLL_REG_MEM_EXTRA_FUNC(0)); /* always */
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	if (vm_id < 8) {
-		amdgpu_ring_write(ring, (mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id));
+	if (vmid < 8) {
+		amdgpu_ring_write(ring, (mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid));
 	} else {
-		amdgpu_ring_write(ring, (mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vm_id - 8));
+		amdgpu_ring_write(ring, (mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8));
 	}
 	amdgpu_ring_write(ring, pd_addr >> 12);
 
 	/* flush TLB */
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST);
-	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vmid);
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0, extra_bits));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST << 2);
