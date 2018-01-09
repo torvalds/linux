@@ -747,21 +747,21 @@ static void gmc_v7_0_gart_fini(struct amdgpu_device *adev)
  *
  * Print human readable fault information (CIK).
  */
-static void gmc_v7_0_vm_decode_fault(struct amdgpu_device *adev,
-				     u32 status, u32 addr, u32 mc_client)
+static void gmc_v7_0_vm_decode_fault(struct amdgpu_device *adev, u32 status,
+				     u32 addr, u32 mc_client, unsigned pasid)
 {
-	u32 mc_id;
 	u32 vmid = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS, VMID);
 	u32 protections = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 					PROTECTIONS);
 	char block[5] = { mc_client >> 24, (mc_client >> 16) & 0xff,
 		(mc_client >> 8) & 0xff, mc_client & 0xff, 0 };
+	u32 mc_id;
 
 	mc_id = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			      MEMORY_CLIENT_ID);
 
-	dev_err(adev->dev, "VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
-	       protections, vmid, addr,
+	dev_err(adev->dev, "VM fault (0x%02x, vmid %d, pasid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
+	       protections, vmid, pasid, addr,
 	       REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			     MEMORY_CLIENT_RW) ?
 	       "write" : "read", block, mc_client, mc_id);
@@ -1256,7 +1256,8 @@ static int gmc_v7_0_process_interrupt(struct amdgpu_device *adev,
 			addr);
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 			status);
-		gmc_v7_0_vm_decode_fault(adev, status, addr, mc_client);
+		gmc_v7_0_vm_decode_fault(adev, status, addr, mc_client,
+					 entry->pasid);
 	}
 
 	return 0;
