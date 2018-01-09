@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <linux/net_dim.h>
 #include "en.h"
 
 void mlx5e_rx_dim_work(struct work_struct *work)
