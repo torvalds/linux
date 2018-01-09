@@ -1349,6 +1349,14 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 	return ret;
 }
 
+static bool is_qp_type_connected(const struct ib_qp *qp)
+{
+	return (qp->qp_type == IB_QPT_UC ||
+		qp->qp_type == IB_QPT_RC ||
+		qp->qp_type == IB_QPT_XRC_INI ||
+		qp->qp_type == IB_QPT_XRC_TGT);
+}
+
 /**
  * ib_modify_qp_with_udata - Modifies the attributes for the specified QP.
  * @ib_qp: The QP to modify.
@@ -1367,7 +1375,8 @@ int ib_modify_qp_with_udata(struct ib_qp *ib_qp, struct ib_qp_attr *attr,
 	int ret;
 
 	if (attr_mask & IB_QP_AV &&
-	    attr->ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE) {
+	    attr->ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE &&
+	    is_qp_type_connected(qp)) {
 		ret = ib_resolve_eth_dmac(qp->device, &attr->ah_attr);
 		if (ret)
 			return ret;
