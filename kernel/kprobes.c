@@ -1011,23 +1011,27 @@ err_ftrace:
 }
 
 /* Caller must lock kprobe_mutex */
-static void disarm_kprobe_ftrace(struct kprobe *p)
+static int disarm_kprobe_ftrace(struct kprobe *p)
 {
-	int ret;
+	int ret = 0;
+
+	if (kprobe_ftrace_enabled == 1) {
+		ret = unregister_ftrace_function(&kprobe_ftrace_ops);
+		if (WARN(ret < 0, "Failed to unregister kprobe-ftrace (%d)\n", ret))
+			return ret;
+	}
 
 	kprobe_ftrace_enabled--;
-	if (kprobe_ftrace_enabled == 0) {
-		ret = unregister_ftrace_function(&kprobe_ftrace_ops);
-		WARN(ret < 0, "Failed to init kprobe-ftrace (%d)\n", ret);
-	}
+
 	ret = ftrace_set_filter_ip(&kprobe_ftrace_ops,
 			   (unsigned long)p->addr, 1, 0);
 	WARN(ret < 0, "Failed to disarm kprobe-ftrace at %p (%d)\n", p->addr, ret);
+	return ret;
 }
 #else	/* !CONFIG_KPROBES_ON_FTRACE */
 #define prepare_kprobe(p)	arch_prepare_kprobe(p)
 #define arm_kprobe_ftrace(p)	(-ENODEV)
-#define disarm_kprobe_ftrace(p)	do {} while (0)
+#define disarm_kprobe_ftrace(p)	(-ENODEV)
 #endif
 
 /* Arm a kprobe with text_mutex */
@@ -1046,18 +1050,18 @@ static int arm_kprobe(struct kprobe *kp)
 }
 
 /* Disarm a kprobe with text_mutex */
-static void disarm_kprobe(struct kprobe *kp, bool reopt)
+static int disarm_kprobe(struct kprobe *kp, bool reopt)
 {
-	if (unlikely(kprobe_ftrace(kp))) {
-		disarm_kprobe_ftrace(kp);
-		return;
-	}
+	if (unlikely(kprobe_ftrace(kp)))
+		return disarm_kprobe_ftrace(kp);
 
 	cpus_read_lock();
 	mutex_lock(&text_mutex);
 	__disarm_kprobe(kp, reopt);
 	mutex_unlock(&text_mutex);
 	cpus_read_unlock();
+
+	return 0;
 }
 
 /*
@@ -1639,11 +1643,12 @@ static int aggr_kprobe_disabled(struct kprobe *ap)
 static struct kprobe *__disable_kprobe(struct kprobe *p)
 {
 	struct kprobe *orig_p;
+	int ret;
 
 	/* Get an original kprobe for return */
 	orig_p = __get_valid_kprobe(p);
 	if (unlikely(orig_p == NULL))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	if (!kprobe_disabled(p)) {
 		/* Disable probe if it is a child probe */
@@ -1657,8 +1662,13 @@ static struct kprobe *__disable_kprobe(struct kprobe *p)
 			 * should have already been disarmed, so
 			 * skip unneed disarming process.
 			 */
-			if (!kprobes_all_disarmed)
-				disarm_kprobe(orig_p, true);
+			if (!kprobes_all_disarmed) {
+				ret = disarm_kprobe(orig_p, true);
+				if (ret) {
+					p->flags &= ~KPROBE_FLAG_DISABLED;
+					return ERR_PTR(ret);
+				}
+			}
 			orig_p->flags |= KPROBE_FLAG_DISABLED;
 		}
 	}
@@ -1675,8 +1685,8 @@ static int __unregister_kprobe_top(struct kprobe *p)
 
 	/* Disable kprobe. This will disarm it if needed. */
 	ap = __disable_kprobe(p);
-	if (ap == NULL)
-		return -EINVAL;
+	if (IS_ERR(ap))
+		return PTR_ERR(ap);
 
 	if (ap == p)
 		/*
@@ -2109,12 +2119,14 @@ static void kill_kprobe(struct kprobe *p)
 int disable_kprobe(struct kprobe *kp)
 {
 	int ret = 0;
+	struct kprobe *p;
 
 	mutex_lock(&kprobe_mutex);
 
 	/* Disable this kprobe */
-	if (__disable_kprobe(kp) == NULL)
-		ret = -EINVAL;
+	p = __disable_kprobe(kp);
+	if (IS_ERR(p))
+		ret = PTR_ERR(p);
 
 	mutex_unlock(&kprobe_mutex);
 	return ret;
@@ -2486,34 +2498,50 @@ already_enabled:
 	return ret;
 }
 
-static void disarm_all_kprobes(void)
+static int disarm_all_kprobes(void)
 {
 	struct hlist_head *head;
 	struct kprobe *p;
-	unsigned int i;
+	unsigned int i, total = 0, errors = 0;
+	int err, ret = 0;
 
 	mutex_lock(&kprobe_mutex);
 
 	/* If kprobes are already disarmed, just return */
 	if (kprobes_all_disarmed) {
 		mutex_unlock(&kprobe_mutex);
-		return;
+		return 0;
 	}
 
 	kprobes_all_disarmed = true;
-	printk(KERN_INFO "Kprobes globally disabled\n");
 
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
+		/* Disarm all kprobes on a best-effort basis */
 		hlist_for_each_entry_rcu(p, head, hlist) {
-			if (!arch_trampoline_kprobe(p) && !kprobe_disabled(p))
-				disarm_kprobe(p, false);
+			if (!arch_trampoline_kprobe(p) && !kprobe_disabled(p)) {
+				err = disarm_kprobe(p, false);
+				if (err) {
+					errors++;
+					ret = err;
+				}
+				total++;
+			}
 		}
 	}
+
+	if (errors)
+		pr_warn("Kprobes globally disabled, but failed to disarm %d out of %d probes\n",
+			errors, total);
+	else
+		pr_info("Kprobes globally disabled\n");
+
 	mutex_unlock(&kprobe_mutex);
 
 	/* Wait for disarming all kprobes by optimizer */
 	wait_for_kprobe_optimizer();
+
+	return ret;
 }
 
 /*
@@ -2556,7 +2584,7 @@ static ssize_t write_enabled_file_bool(struct file *file,
 	case 'n':
 	case 'N':
 	case '0':
-		disarm_all_kprobes();
+		ret = disarm_all_kprobes();
 		break;
 	default:
 		return -EINVAL;
