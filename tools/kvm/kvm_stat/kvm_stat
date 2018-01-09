@@ -33,7 +33,7 @@ import resource
 import struct
 import re
 import subprocess
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 VMX_EXIT_REASONS = {
     'EXCEPTION_NMI':        0,
@@ -800,6 +800,9 @@ class DebugfsProvider(Provider):
         self.read(2)
 
 
+EventStat = namedtuple('EventStat', ['value', 'delta'])
+
+
 class Stats(object):
     """Manages the data providers and the data they provide.
 
@@ -867,10 +870,10 @@ class Stats(object):
         for provider in self.providers:
             new = provider.read(by_guest=by_guest)
             for key in new if by_guest else provider.fields:
-                oldval = self.values.get(key, (0, 0))[0]
+                oldval = self.values.get(key, EventStat(0, 0)).value
                 newval = new.get(key, 0)
                 newdelta = newval - oldval
-                self.values[key] = (newval, newdelta)
+                self.values[key] = EventStat(newval, newdelta)
         return self.values
 
     def toggle_display_guests(self, to_pid):
@@ -1083,28 +1086,28 @@ class Tui(object):
         total = 0.
         for key in stats.keys():
             if key.find('(') is -1:
-                total += stats[key][0]
+                total += stats[key].value
         if self._sorting == SORT_DEFAULT:
             def sortkey((_k, v)):
                 # sort by (delta value, overall value)
-                return (v[1], v[0])
+                return (v.delta, v.value)
         else:
             def sortkey((_k, v)):
                 # sort by overall value
-                return v[0]
+                return v.value
 
         tavg = 0
         for key, values in sorted(stats.items(), key=sortkey, reverse=True):
             if row >= self.screen.getmaxyx()[0] - 1:
                 break
-            if not values[0] and not values[1]:
+            if not values.value and not values.delta:
                 break
-            if values[0] is not None:
-                cur = int(round(values[1] / sleeptime)) if values[1] else ''
+            if values.value is not None:
+                cur = int(round(values.delta / sleeptime)) if values.delta else ''
                 if self._display_guests:
                     key = self.get_gname_from_pid(key)
                 self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' %
-                                   (key, values[0], values[0] * 100 / total,
+                                   (key, values.value, values.value * 100 / total,
                                     cur))
                 if cur is not '' and key.find('(') is -1:
                     tavg += cur
@@ -1375,7 +1378,7 @@ def batch(stats):
         s = stats.get()
         for key in sorted(s.keys()):
             values = s[key]
-            print('%-42s%10d%10d' % (key, values[0], values[1]))
+            print('%-42s%10d%10d' % (key, values.value, values.delta))
     except KeyboardInterrupt:
         pass
 
@@ -1392,7 +1395,7 @@ def log(stats):
     def statline():
         s = stats.get()
         for k in keys:
-            print(' %9d' % s[k][1], end=' ')
+            print(' %9d' % s[k].delta, end=' ')
         print()
     line = 0
     banner_repeat = 20
