@@ -1323,28 +1323,13 @@ static int ib_resolve_eth_dmac(struct ib_device *device,
 }
 
 /**
- * ib_modify_qp_with_udata - Modifies the attributes for the specified QP.
- * @ib_qp: The QP to modify.
- * @attr: On input, specifies the QP attributes to modify.  On output,
- *   the current values of selected QP attributes are returned.
- * @attr_mask: A bit-mask used to specify which attributes of the QP
- *   are being modified.
- * @udata: pointer to user's input output buffer information
- *   are being modified.
- * It returns 0 on success and returns appropriate error code on error.
+ * IB core internal function to perform QP attributes modification.
  */
-int ib_modify_qp_with_udata(struct ib_qp *ib_qp, struct ib_qp_attr *attr,
-			    int attr_mask, struct ib_udata *udata)
+static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
+			 int attr_mask, struct ib_udata *udata)
 {
-	struct ib_qp *qp = ib_qp->real_qp;
 	u8 port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
 	int ret;
-
-	if (attr_mask & IB_QP_AV) {
-		ret = ib_resolve_eth_dmac(qp->device, &attr->ah_attr);
-		if (ret)
-			return ret;
-	}
 
 	if (rdma_ib_or_roce(qp->device, port)) {
 		if (attr_mask & IB_QP_RQ_PSN && attr->rq_psn & ~0xffffff) {
@@ -1365,6 +1350,31 @@ int ib_modify_qp_with_udata(struct ib_qp *ib_qp, struct ib_qp_attr *attr,
 		qp->port = attr->port_num;
 
 	return ret;
+}
+
+/**
+ * ib_modify_qp_with_udata - Modifies the attributes for the specified QP.
+ * @ib_qp: The QP to modify.
+ * @attr: On input, specifies the QP attributes to modify.  On output,
+ *   the current values of selected QP attributes are returned.
+ * @attr_mask: A bit-mask used to specify which attributes of the QP
+ *   are being modified.
+ * @udata: pointer to user's input output buffer information
+ *   are being modified.
+ * It returns 0 on success and returns appropriate error code on error.
+ */
+int ib_modify_qp_with_udata(struct ib_qp *ib_qp, struct ib_qp_attr *attr,
+			    int attr_mask, struct ib_udata *udata)
+{
+	struct ib_qp *qp = ib_qp->real_qp;
+	int ret;
+
+	if (attr_mask & IB_QP_AV) {
+		ret = ib_resolve_eth_dmac(qp->device, &attr->ah_attr);
+		if (ret)
+			return ret;
+	}
+	return _ib_modify_qp(qp, attr, attr_mask, udata);
 }
 EXPORT_SYMBOL(ib_modify_qp_with_udata);
 
@@ -1427,7 +1437,7 @@ int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask)
 {
-	return ib_modify_qp_with_udata(qp, qp_attr, qp_attr_mask, NULL);
+	return _ib_modify_qp(qp->real_qp, qp_attr, qp_attr_mask, NULL);
 }
 EXPORT_SYMBOL(ib_modify_qp);
 
