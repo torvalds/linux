@@ -117,12 +117,14 @@ config SND_SOC_INTEL_SKYLAKE
 	  GeminiLake or CannonLake platform with the DSP enabled in the BIOS
 	  then enable this option by saying Y or m.
 
+endif ## SND_SOC_INTEL_SST_TOPLEVEL
+
+if SND_SOC_INTEL_SST_TOPLEVEL || SND_SOC_SOF_INTEL
 config SND_SOC_ACPI_INTEL_MATCH
 	tristate
 	select SND_SOC_ACPI if ACPI
 	# this option controls the compilation of ACPI matching tables and
 	# helpers and is not meant to be selected by the user.
-
 endif ## SND_SOC_INTEL_SST_TOPLEVEL
 
 # ASoC codec drivers
