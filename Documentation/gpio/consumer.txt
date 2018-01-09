@@ -184,7 +184,7 @@ A driver can also query the current direction of a GPIO:
 
 	int gpiod_get_direction(const struct gpio_desc *desc)
 
-This function will return either GPIOF_DIR_IN or GPIOF_DIR_OUT.
+This function returns 0 for output, 1 for input, or an error code in case of error.
 
 Be aware that there is no default direction for GPIOs. Therefore, **using a GPIO
 without setting its direction first is illegal and will result in undefined
