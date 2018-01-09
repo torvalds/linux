@@ -1089,8 +1089,8 @@ static int blk_mq_dispatch_wake(wait_queue_entry_t *wait, unsigned mode,
 
 /*
  * Mark us waiting for a tag. For shared tags, this involves hooking us into
- * the tag wakeups. For non-shared tags, we can simply mark us nedeing a
- * restart. For both caes, take care to check the condition again after
+ * the tag wakeups. For non-shared tags, we can simply mark us needing a
+ * restart. For both cases, take care to check the condition again after
  * marking us as waiting.
  */
 static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx **hctx,
