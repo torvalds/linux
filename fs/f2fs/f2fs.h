@@ -1025,6 +1025,7 @@ struct f2fs_io_info {
 	int need_lock;		/* indicate we need to lock cp_rwsem */
 	bool in_list;		/* indicate fio is in io_list */
 	enum iostat_type io_type;	/* io type */
+	struct writeback_control *io_wbc; /* writeback control */
 };
 
 #define is_read_io(rw) ((rw) == READ)
