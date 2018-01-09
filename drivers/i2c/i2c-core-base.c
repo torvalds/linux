@@ -199,6 +199,18 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 	if (bri->get_sda && !bri->get_sda(adap))
 		ret = -EBUSY;
 
+	/* If all went well, send STOP for a sane bus state. */
+	if (ret == 0 && bri->set_sda) {
+		bri->set_scl(adap, 0);
+		ndelay(RECOVERY_NDELAY / 2);
+		bri->set_sda(adap, 0);
+		ndelay(RECOVERY_NDELAY / 2);
+		bri->set_scl(adap, 1);
+		ndelay(RECOVERY_NDELAY / 2);
+		bri->set_sda(adap, 1);
+		ndelay(RECOVERY_NDELAY / 2);
+	}
+
 	if (bri->unprepare_recovery)
 		bri->unprepare_recovery(adap);
 
