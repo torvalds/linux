@@ -460,7 +460,6 @@ void mt76x2_dfs_init_params(struct mt76x2_dev *dev)
 {
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 
-	tasklet_kill(&dev->dfs_pd.dfs_tasklet);
 	if (chandef->chan->flags & IEEE80211_CHAN_RADAR) {
 		mt76x2_dfs_set_bbp_params(dev);
 		/* enable debug mode */
