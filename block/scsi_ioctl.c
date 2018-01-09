@@ -384,9 +384,10 @@ out_put_request:
 
 /**
  * sg_scsi_ioctl  --  handle deprecated SCSI_IOCTL_SEND_COMMAND ioctl
- * @file:	file this ioctl operates on (optional)
  * @q:		request queue to send scsi commands down
  * @disk:	gendisk to operate on (option)
+ * @mode:	mode used to open the file through which the ioctl has been
+ *		submitted
  * @sic:	userspace structure describing the command to perform
  *
  * Send down the scsi command described by @sic to the device below
@@ -415,10 +416,10 @@ out_put_request:
  *      Positive numbers returned are the compacted SCSI error codes (4
  *      bytes in one int) where the lowest byte is the SCSI status.
  */
-#define OMAX_SB_LEN 16          /* For backward compatibility */
 int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 		struct scsi_ioctl_command __user *sic)
 {
+	enum { OMAX_SB_LEN = 16 };	/* For backward compatibility */
 	struct request *rq;
 	struct scsi_request *req;
 	int err;
