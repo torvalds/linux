@@ -136,10 +136,6 @@
 					 GEN_SW_0P_TX_LP)
 
 #define DSI_GEN_HDR			0x6c
-/* TODO These 2 defines will be reworked thanks to mipi_dsi_create_packet() */
-#define GEN_HDATA(data)			(((data) & 0xffff) << 8)
-#define GEN_HTYPE(type)			(((type) & 0xff) << 0)
-
 #define DSI_GEN_PLD_DATA		0x70
 
 #define DSI_CMD_PKT_STATUS		0x74
@@ -359,44 +355,15 @@ static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 hdr_val)
 	return 0;
 }
 
-static int dw_mipi_dsi_dcs_short_write(struct dw_mipi_dsi *dsi,
-				       const struct mipi_dsi_msg *msg)
+static int dw_mipi_dsi_write(struct dw_mipi_dsi *dsi,
+			     const struct mipi_dsi_packet *packet)
 {
-	const u8 *tx_buf = msg->tx_buf;
-	u16 data = 0;
-	u32 val;
-
-	if (msg->tx_len > 0)
-		data |= tx_buf[0];
-	if (msg->tx_len > 1)
-		data |= tx_buf[1] << 8;
-
-	if (msg->tx_len > 2) {
-		dev_err(dsi->dev, "too long tx buf length %zu for short write\n",
-			msg->tx_len);
-		return -EINVAL;
-	}
-
-	val = GEN_HDATA(data) | GEN_HTYPE(msg->type);
-	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, val);
-}
-
-static int dw_mipi_dsi_dcs_long_write(struct dw_mipi_dsi *dsi,
-				      const struct mipi_dsi_msg *msg)
-{
-	const u8 *tx_buf = msg->tx_buf;
-	int len = msg->tx_len, pld_data_bytes = sizeof(u32), ret;
-	u32 hdr_val = GEN_HDATA(msg->tx_len) | GEN_HTYPE(msg->type);
+	const u8 *tx_buf = packet->payload;
+	int len = packet->payload_length, pld_data_bytes = sizeof(u32), ret;
 	u32 remainder;
 	u32 val;
 
-	if (msg->tx_len < 3) {
-		dev_err(dsi->dev, "wrong tx buf length %zu for long write\n",
-			msg->tx_len);
-		return -EINVAL;
-	}
-
-	while (DIV_ROUND_UP(len, pld_data_bytes)) {
+	while (len) {
 		if (len < pld_data_bytes) {
 			remainder = 0;
 			memcpy(&remainder, tx_buf, len);
@@ -419,40 +386,27 @@ static int dw_mipi_dsi_dcs_long_write(struct dw_mipi_dsi *dsi,
 		}
 	}
 
-	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, hdr_val);
+	remainder = 0;
+	memcpy(&remainder, packet->header, sizeof(packet->header));
+	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, remainder);
 }
 
 static ssize_t dw_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
 					 const struct mipi_dsi_msg *msg)
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
+	struct mipi_dsi_packet packet;
 	int ret;
 
-	/*
-	 * TODO dw drv improvements
-	 * use mipi_dsi_create_packet() instead of all following
-	 * functions and code (no switch cases, no
-	 * dw_mipi_dsi_dcs_short_write(), only the loop in long_write...)
-	 * and use packet.header...
-	 */
-	dw_mipi_message_config(dsi, msg);
-
-	switch (msg->type) {
-	case MIPI_DSI_DCS_SHORT_WRITE:
-	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
-	case MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE:
-		ret = dw_mipi_dsi_dcs_short_write(dsi, msg);
-		break;
-	case MIPI_DSI_DCS_LONG_WRITE:
-		ret = dw_mipi_dsi_dcs_long_write(dsi, msg);
-		break;
-	default:
-		dev_err(dsi->dev, "unsupported message type 0x%02x\n",
-			msg->type);
-		ret = -EINVAL;
+	ret = mipi_dsi_create_packet(&packet, msg);
+	if (ret) {
+		dev_err(dsi->dev, "failed to create packet: %d\n", ret);
+		return ret;
 	}
 
-	return ret;
+	dw_mipi_message_config(dsi, msg);
+
+	return dw_mipi_dsi_write(dsi, &packet);
 }
 
 static const struct mipi_dsi_host_ops dw_mipi_dsi_host_ops = {
