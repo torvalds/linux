@@ -78,6 +78,8 @@ static void hdmi_cec_received_msg(struct hdmi_core_data *core)
 
 			/* then read the message */
 			msg.len = cnt & 0xf;
+			if (msg.len > CEC_MAX_MSG_SIZE - 2)
+				msg.len = CEC_MAX_MSG_SIZE - 2;
 			msg.msg[0] = hdmi_read_reg(core->base,
 						   HDMI_CEC_RX_CMD_HEADER);
 			msg.msg[1] = hdmi_read_reg(core->base,
@@ -104,26 +106,6 @@ static void hdmi_cec_received_msg(struct hdmi_core_data *core)
 	}
 }
 
-static void hdmi_cec_transmit_fifo_empty(struct hdmi_core_data *core, u32 stat1)
-{
-	if (stat1 & 2) {
-		u32 dbg3 = hdmi_read_reg(core->base, HDMI_CEC_DBG_3);
-
-		cec_transmit_done(core->adap,
-				  CEC_TX_STATUS_NACK |
-				  CEC_TX_STATUS_MAX_RETRIES,
-				  0, (dbg3 >> 4) & 7, 0, 0);
-	} else if (stat1 & 1) {
-		cec_transmit_done(core->adap,
-				  CEC_TX_STATUS_ARB_LOST |
-				  CEC_TX_STATUS_MAX_RETRIES,
-				  0, 0, 0, 0);
-	} else if (stat1 == 0) {
-		cec_transmit_done(core->adap, CEC_TX_STATUS_OK,
-				  0, 0, 0, 0);
-	}
-}
-
 void hdmi4_cec_irq(struct hdmi_core_data *core)
 {
 	u32 stat0 = hdmi_read_reg(core->base, HDMI_CEC_INT_STATUS_0);
@@ -132,27 +114,21 @@ void hdmi4_cec_irq(struct hdmi_core_data *core)
 	hdmi_write_reg(core->base, HDMI_CEC_INT_STATUS_0, stat0);
 	hdmi_write_reg(core->base, HDMI_CEC_INT_STATUS_1, stat1);
 
-	if (stat0 & 0x40)
+	if (stat0 & 0x20) {
+		cec_transmit_done(core->adap, CEC_TX_STATUS_OK,
+				  0, 0, 0, 0);
 		REG_FLD_MOD(core->base, HDMI_CEC_DBG_3, 0x1, 7, 7);
-	else if (stat0 & 0x24)
-		hdmi_cec_transmit_fifo_empty(core, stat1);
-	if (stat1 & 2) {
+	} else if (stat1 & 0x02) {
 		u32 dbg3 = hdmi_read_reg(core->base, HDMI_CEC_DBG_3);
 
 		cec_transmit_done(core->adap,
 				  CEC_TX_STATUS_NACK |
 				  CEC_TX_STATUS_MAX_RETRIES,
 				  0, (dbg3 >> 4) & 7, 0, 0);
-	} else if (stat1 & 1) {
-		cec_transmit_done(core->adap,
-				  CEC_TX_STATUS_ARB_LOST |
-				  CEC_TX_STATUS_MAX_RETRIES,
-				  0, 0, 0, 0);
+		REG_FLD_MOD(core->base, HDMI_CEC_DBG_3, 0x1, 7, 7);
 	}
 	if (stat0 & 0x02)
 		hdmi_cec_received_msg(core);
-	if (stat1 & 0x3)
-		REG_FLD_MOD(core->base, HDMI_CEC_DBG_3, 0x1, 7, 7);
 }
 
 static bool hdmi_cec_clear_tx_fifo(struct cec_adapter *adap)
@@ -231,18 +207,14 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	/*
 	 * Enable CEC interrupts:
 	 * Transmit Buffer Full/Empty Change event
-	 * Transmitter FIFO Empty event
 	 * Receiver FIFO Not Empty event
 	 */
-	hdmi_write_reg(core->base, HDMI_CEC_INT_ENABLE_0, 0x26);
+	hdmi_write_reg(core->base, HDMI_CEC_INT_ENABLE_0, 0x22);
 	/*
 	 * Enable CEC interrupts:
-	 * RX FIFO Overrun Error event
-	 * Short Pulse Detected event
 	 * Frame Retransmit Count Exceeded event
-	 * Start Bit Irregularity event
 	 */
-	hdmi_write_reg(core->base, HDMI_CEC_INT_ENABLE_1, 0x0f);
+	hdmi_write_reg(core->base, HDMI_CEC_INT_ENABLE_1, 0x02);
 
 	/* cec calibration enable (self clearing) */
 	hdmi_write_reg(core->base, HDMI_CEC_SETUP, 0x03);

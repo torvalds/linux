@@ -1068,7 +1068,7 @@ struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_inc_not_zero);
 
-static bool bpf_prog_get_ok(struct bpf_prog *prog,
+bool bpf_prog_get_ok(struct bpf_prog *prog,
 			    enum bpf_prog_type *attach_type, bool attach_drv)
 {
 	/* not an attachment, just a refcount inc, always allow */

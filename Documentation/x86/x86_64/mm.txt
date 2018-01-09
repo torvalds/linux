@@ -12,7 +12,9 @@ ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
 ... unused hole ...
 ffffec0000000000 - fffffbffffffffff (=44 bits) kasan shadow memory (16TB)
 ... unused hole ...
-fffffe8000000000 - fffffeffffffffff (=39 bits) cpu_entry_area mapping
+				    vaddr_end for KASLR
+fffffe0000000000 - fffffe7fffffffff (=39 bits) cpu_entry_area mapping
+fffffe8000000000 - fffffeffffffffff (=39 bits) LDT remap for PTI
 ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
 ... unused hole ...
 ffffffef00000000 - fffffffeffffffff (=64 GB) EFI region mapping space
@@ -29,20 +31,22 @@ Virtual memory map with 5 level page tables:
 hole caused by [56:63] sign extension
 ff00000000000000 - ff0fffffffffffff (=52 bits) guard hole, reserved for hypervisor
 ff10000000000000 - ff8fffffffffffff (=55 bits) direct mapping of all phys. memory
-ff90000000000000 - ff91ffffffffffff (=49 bits) hole
-ff92000000000000 - ffd1ffffffffffff (=54 bits) vmalloc/ioremap space
+ff90000000000000 - ff9fffffffffffff (=52 bits) LDT remap for PTI
+ffa0000000000000 - ffd1ffffffffffff (=54 bits) vmalloc/ioremap space (12800 TB)
 ffd2000000000000 - ffd3ffffffffffff (=49 bits) hole
 ffd4000000000000 - ffd5ffffffffffff (=49 bits) virtual memory map (512TB)
 ... unused hole ...
 ffdf000000000000 - fffffc0000000000 (=53 bits) kasan shadow memory (8PB)
 ... unused hole ...
-fffffe8000000000 - fffffeffffffffff (=39 bits) cpu_entry_area mapping
+				    vaddr_end for KASLR
+fffffe0000000000 - fffffe7fffffffff (=39 bits) cpu_entry_area mapping
+... unused hole ...
 ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
 ... unused hole ...
 ffffffef00000000 - fffffffeffffffff (=64 GB) EFI region mapping space
 ... unused hole ...
 ffffffff80000000 - ffffffff9fffffff (=512 MB)  kernel text mapping, from phys 0
-ffffffffa0000000 - [fixmap start]   (~1526 MB) module mapping space
+ffffffffa0000000 - fffffffffeffffff (1520 MB) module mapping space
 [fixmap start]   - ffffffffff5fffff kernel-internal fixmap range
 ffffffffff600000 - ffffffffff600fff (=4 kB) legacy vsyscall ABI
 ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
@@ -66,9 +70,10 @@ memory window (this size is arbitrary, it can be raised later if needed).
 The mappings are not part of any other kernel PGD and are only available
 during EFI runtime calls.
 
-The module mapping space size changes based on the CONFIG requirements for the
-following fixmap section.
-
 Note that if CONFIG_RANDOMIZE_MEMORY is enabled, the direct mapping of all
 physical memory, vmalloc/ioremap space and virtual memory map are randomized.
 Their order is preserved but their base will be offset early at boot time.
+
+Be very careful vs. KASLR when changing anything here. The KASLR address
+range must not overlap with anything except the KASAN shadow area, which is
+correct as KASAN disables KASLR.

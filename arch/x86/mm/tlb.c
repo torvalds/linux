@@ -28,6 +28,38 @@
  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
  */
 
+/*
+ * We get here when we do something requiring a TLB invalidation
+ * but could not go invalidate all of the contexts.  We do the
+ * necessary invalidation by clearing out the 'ctx_id' which
+ * forces a TLB flush when the context is loaded.
+ */
+void clear_asid_other(void)
+{
+	u16 asid;
+
+	/*
+	 * This is only expected to be set if we have disabled
+	 * kernel _PAGE_GLOBAL pages.
+	 */
+	if (!static_cpu_has(X86_FEATURE_PTI)) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
+		/* Do not need to flush the current asid */
+		if (asid == this_cpu_read(cpu_tlbstate.loaded_mm_asid))
+			continue;
+		/*
+		 * Make sure the next time we go to switch to
+		 * this asid, we do a flush:
+		 */
+		this_cpu_write(cpu_tlbstate.ctxs[asid].ctx_id, 0);
+	}
+	this_cpu_write(cpu_tlbstate.invalidate_other, false);
+}
+
 atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
 
@@ -41,6 +73,9 @@ static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 		*need_flush = true;
 		return;
 	}
+
+	if (this_cpu_read(cpu_tlbstate.invalidate_other))
+		clear_asid_other();
 
 	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
 		if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
@@ -63,6 +98,25 @@ static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 		this_cpu_write(cpu_tlbstate.next_asid, 1);
 	}
 	*need_flush = true;
+}
+
+static void load_new_mm_cr3(pgd_t *pgdir, u16 new_asid, bool need_flush)
+{
+	unsigned long new_mm_cr3;
+
+	if (need_flush) {
+		invalidate_user_asid(new_asid);
+		new_mm_cr3 = build_cr3(pgdir, new_asid);
+	} else {
+		new_mm_cr3 = build_cr3_noflush(pgdir, new_asid);
+	}
+
+	/*
+	 * Caution: many callers of this function expect
+	 * that load_cr3() is serializing and orders TLB
+	 * fills with respect to the mm_cpumask writes.
+	 */
+	write_cr3(new_mm_cr3);
 }
 
 void leave_mm(int cpu)
@@ -195,7 +249,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		if (need_flush) {
 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
-			write_cr3(build_cr3(next->pgd, new_asid));
+			load_new_mm_cr3(next->pgd, new_asid, true);
 
 			/*
 			 * NB: This gets called via leave_mm() in the idle path
@@ -208,7 +262,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
 		} else {
 			/* The new ASID is already up to date. */
-			write_cr3(build_cr3_noflush(next->pgd, new_asid));
+			load_new_mm_cr3(next->pgd, new_asid, false);
 
 			/* See above wrt _rcuidle. */
 			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, 0);
