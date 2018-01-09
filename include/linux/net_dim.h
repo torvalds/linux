@@ -342,21 +342,18 @@ static inline void net_dim_calc_stats(struct net_dim_sample *start,
 }
 
 static inline void net_dim(struct net_dim *dim,
-			   u16 event_ctr,
-			   u64 packets,
-			   u64 bytes)
+			   struct net_dim_sample end_sample)
 {
-	struct net_dim_sample end_sample;
 	struct net_dim_stats curr_stats;
 	u16 nevents;
 
 	switch (dim->state) {
 	case NET_DIM_MEASURE_IN_PROGRESS:
-		nevents = BIT_GAP(BITS_PER_TYPE(u16), event_ctr,
+		nevents = BIT_GAP(BITS_PER_TYPE(u16),
+				  end_sample.event_ctr,
 				  dim->start_sample.event_ctr);
 		if (nevents < NET_DIM_NEVENTS)
 			break;
-		net_dim_sample(event_ctr, packets, bytes, &end_sample);
 		net_dim_calc_stats(&dim->start_sample, &end_sample,
 				   &curr_stats);
 		if (net_dim_decision(&curr_stats, dim)) {
@@ -366,7 +363,6 @@ static inline void net_dim(struct net_dim *dim,
 		}
 		/* fall through */
 	case NET_DIM_START_MEASURE:
-		net_dim_sample(event_ctr, packets, bytes, &dim->start_sample);
 		dim->state = NET_DIM_MEASURE_IN_PROGRESS;
 		break;
 	case NET_DIM_APPLY_NEW_PROFILE:
