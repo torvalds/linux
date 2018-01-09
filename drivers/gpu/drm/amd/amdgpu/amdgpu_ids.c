@@ -69,6 +69,9 @@ int amdgpu_pasid_alloc(unsigned int bits)
 			break;
 	}
 
+	if (pasid >= 0)
+		trace_amdgpu_pasid_allocated(pasid);
+
 	return pasid;
 }
 
@@ -78,6 +81,7 @@ int amdgpu_pasid_alloc(unsigned int bits)
  */
 void amdgpu_pasid_free(unsigned int pasid)
 {
+	trace_amdgpu_pasid_freed(pasid);
 	ida_simple_remove(&amdgpu_pasid_ida, pasid);
 }
 

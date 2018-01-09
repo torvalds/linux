@@ -378,6 +378,28 @@ TRACE_EVENT(amdgpu_vm_flush,
 		      __entry->vm_hub,__entry->pd_addr)
 );
 
+DECLARE_EVENT_CLASS(amdgpu_pasid,
+	    TP_PROTO(unsigned pasid),
+	    TP_ARGS(pasid),
+	    TP_STRUCT__entry(
+			     __field(unsigned, pasid)
+			     ),
+	    TP_fast_assign(
+			   __entry->pasid = pasid;
+			   ),
+	    TP_printk("pasid=%u", __entry->pasid)
+);
+
+DEFINE_EVENT(amdgpu_pasid, amdgpu_pasid_allocated,
+	    TP_PROTO(unsigned pasid),
+	    TP_ARGS(pasid)
+);
+
+DEFINE_EVENT(amdgpu_pasid, amdgpu_pasid_freed,
+	    TP_PROTO(unsigned pasid),
+	    TP_ARGS(pasid)
+);
+
 TRACE_EVENT(amdgpu_bo_list_set,
 	    TP_PROTO(struct amdgpu_bo_list *list, struct amdgpu_bo *bo),
 	    TP_ARGS(list, bo),
