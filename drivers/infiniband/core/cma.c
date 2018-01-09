@@ -612,11 +612,14 @@ static int cma_translate_addr(struct sockaddr *addr, struct rdma_dev_addr *dev_a
 
 static inline int cma_validate_port(struct ib_device *device, u8 port,
 				    enum ib_gid_type gid_type,
-				      union ib_gid *gid, int dev_type,
-				      int bound_if_index)
+				    union ib_gid *gid,
+				    struct rdma_id_private *id_priv)
 {
-	int ret = -ENODEV;
+	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
+	int bound_if_index = dev_addr->bound_dev_if;
+	int dev_type = dev_addr->dev_type;
 	struct net_device *ndev = NULL;
+	int ret = -ENODEV;
 
 	if ((dev_type == ARPHRD_INFINIBAND) && !rdma_protocol_ib(device, port))
 		return ret;
@@ -671,8 +674,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 					rdma_protocol_ib(cma_dev->device, port) ?
 					IB_GID_TYPE_IB :
 					listen_id_priv->gid_type, gidp,
-					dev_addr->dev_type,
-					dev_addr->bound_dev_if);
+					id_priv);
 		if (!ret) {
 			id_priv->id.port_num = port;
 			goto out;
@@ -693,8 +695,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 						rdma_protocol_ib(cma_dev->device, port) ?
 						IB_GID_TYPE_IB :
 						cma_dev->default_gid_type[port - 1],
-						gidp, dev_addr->dev_type,
-						dev_addr->bound_dev_if);
+						gidp, id_priv);
 			if (!ret) {
 				id_priv->id.port_num = port;
 				goto out;
