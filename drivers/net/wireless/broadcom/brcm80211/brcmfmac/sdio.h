@@ -21,9 +21,6 @@
 #include <linux/firmware.h>
 #include "firmware.h"
 
-/* Maximum number of I/O funcs */
-#define NUM_SDIO_FUNCS	3
-
 #define SDIOD_FBR_SIZE		0x100
 
 /* io_en */
@@ -173,8 +170,8 @@ struct brcmf_sdio;
 struct brcmf_sdiod_freezer;
 
 struct brcmf_sdio_dev {
-	struct sdio_func *func[NUM_SDIO_FUNCS];
-	u8 num_funcs;			/* Supported funcs on client */
+	struct sdio_func *func1;
+	struct sdio_func *func2;
 	u32 sbwad;			/* Save backplane window address */
 	struct brcmf_core *cc_core;	/* chipcommon core info struct */
 	struct brcmf_sdio *bus;
@@ -295,17 +292,17 @@ void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 /* SDIO device register access interface */
 /* Accessors for SDIO Function 0 */
 #define brcmf_sdiod_func0_rb(sdiodev, addr, r) \
-	sdio_f0_readb((sdiodev)->func[1], (addr), (r))
+	sdio_f0_readb((sdiodev)->func1, (addr), (r))
 
 #define brcmf_sdiod_func0_wb(sdiodev, addr, v, ret) \
-	sdio_f0_writeb((sdiodev)->func[1], (v), (addr), (ret))
+	sdio_f0_writeb((sdiodev)->func1, (v), (addr), (ret))
 
 /* Accessors for SDIO Function 1 */
 #define brcmf_sdiod_readb(sdiodev, addr, r) \
-	sdio_readb((sdiodev)->func[1], (addr), (r))
+	sdio_readb((sdiodev)->func1, (addr), (r))
 
 #define brcmf_sdiod_writeb(sdiodev, addr, v, ret) \
-	sdio_writeb((sdiodev)->func[1], (v), (addr), (ret))
+	sdio_writeb((sdiodev)->func1, (v), (addr), (ret))
 
 u32 brcmf_sdiod_readl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
 void brcmf_sdiod_writel(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
