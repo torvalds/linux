@@ -13,19 +13,19 @@ void cc_debugfs_fini(struct cc_drvdata *drvdata);
 
 #else
 
-int cc_debugfs_global_init(void)
+static inline int cc_debugfs_global_init(void)
 {
 	return 0;
 }
 
-void cc_debugfs_global_fini(void) {}
+static inline void cc_debugfs_global_fini(void) {}
 
-int cc_debugfs_init(struct cc_drvdata *drvdata)
+static inline int cc_debugfs_init(struct cc_drvdata *drvdata)
 {
 	return 0;
 }
 
-void cc_debugfs_fini(struct cc_drvdata *drvdata) {}
+static inline void cc_debugfs_fini(struct cc_drvdata *drvdata) {}
 
 #endif
 
