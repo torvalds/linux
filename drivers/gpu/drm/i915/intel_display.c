@@ -5661,8 +5661,8 @@ static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 	if (!crtc_state->base.active)
 		return 0;
 
-	mask = BIT(POWER_DOMAIN_PIPE(pipe));
-	mask |= BIT(POWER_DOMAIN_TRANSCODER(transcoder));
+	mask = BIT_ULL(POWER_DOMAIN_PIPE(pipe));
+	mask |= BIT_ULL(POWER_DOMAIN_TRANSCODER(transcoder));
 	if (crtc_state->pch_pfit.enabled ||
 	    crtc_state->pch_pfit.force_thru)
 		mask |= BIT_ULL(POWER_DOMAIN_PIPE_PANEL_FITTER(pipe));
@@ -5674,7 +5674,7 @@ static u64 get_crtc_power_domains(struct drm_crtc *crtc,
 	}
 
 	if (HAS_DDI(dev_priv) && crtc_state->has_audio)
-		mask |= BIT(POWER_DOMAIN_AUDIO);
+		mask |= BIT_ULL(POWER_DOMAIN_AUDIO);
 
 	if (crtc_state->shared_dpll)
 		mask |= BIT_ULL(POWER_DOMAIN_PLLS);
