@@ -2828,7 +2828,7 @@ static irqreturn_t sdhci_thread_irq(int irq, void *dev_id)
  * sdhci_disable_irq_wakeups() since it will be set by
  * sdhci_enable_card_detection() or sdhci_init().
  */
-void sdhci_enable_irq_wakeups(struct sdhci_host *host)
+static void sdhci_enable_irq_wakeups(struct sdhci_host *host)
 {
 	u8 val;
 	u8 mask = SDHCI_WAKE_ON_INSERT | SDHCI_WAKE_ON_REMOVE
@@ -2846,7 +2846,6 @@ void sdhci_enable_irq_wakeups(struct sdhci_host *host)
 	sdhci_writeb(host, val, SDHCI_WAKE_UP_CONTROL);
 	sdhci_writel(host, irq_val, SDHCI_INT_ENABLE);
 }
-EXPORT_SYMBOL_GPL(sdhci_enable_irq_wakeups);
 
 static void sdhci_disable_irq_wakeups(struct sdhci_host *host)
 {
