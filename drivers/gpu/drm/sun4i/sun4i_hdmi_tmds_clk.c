@@ -102,9 +102,12 @@ static int sun4i_tmds_determine_rate(struct clk_hw *hw,
 					goto out;
 				}
 
-				if (!best_parent || abs(rate - rounded / i) <
-				    abs(rate - best_parent / best_div)) {
+				if (!best_parent ||
+				    abs(rate - rounded / i / j) <
+				    abs(rate - best_parent / best_half /
+					best_div)) {
 					best_parent = rounded;
+					best_half = i;
 					best_div = j;
 				}
 			}
