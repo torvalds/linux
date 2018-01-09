@@ -102,11 +102,12 @@
 			status = "disabled";
 		};
 
-		sti-display-subsystem {
+		sti-display-subsystem@0 {
 			compatible = "st,sti-display-subsystem";
 			#address-cells = <1>;
 			#size-cells = <1>;
 
+			reg = <0 0>;
 			assigned-clocks	= <&clk_s_d2_quadfs 0>,
 					  <&clk_s_d2_quadfs 1>,
 					  <&clk_s_c0_pll1 0>,
