@@ -569,9 +569,11 @@ static void hctx_unlock(struct blk_mq_hw_ctx *hctx, int srcu_idx)
 
 static void hctx_lock(struct blk_mq_hw_ctx *hctx, int *srcu_idx)
 {
-	if (!(hctx->flags & BLK_MQ_F_BLOCKING))
+	if (!(hctx->flags & BLK_MQ_F_BLOCKING)) {
+		/* shut up gcc false positive */
+		*srcu_idx = 0;
 		rcu_read_lock();
-	else
+	} else
 		*srcu_idx = srcu_read_lock(hctx->srcu);
 }
 
