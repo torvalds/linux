@@ -8525,6 +8525,29 @@ fail_clear_files:
 	return ret;
 }
 
+static int
+perf_tracepoint_set_filter(struct perf_event *event, char *filter_str)
+{
+	struct perf_event_context *ctx = event->ctx;
+	int ret;
+
+	/*
+	 * Beware, here be dragons!!
+	 *
+	 * the tracepoint muck will deadlock against ctx->mutex, but the tracepoint
+	 * stuff does not actually need it. So temporarily drop ctx->mutex. As per
+	 * perf_event_ctx_lock() we already have a reference on ctx.
+	 *
+	 * This can result in event getting moved to a different ctx, but that
+	 * does not affect the tracepoint state.
+	 */
+	mutex_unlock(&ctx->mutex);
+	ret = ftrace_profile_set_filter(event, event->attr.config, filter_str);
+	mutex_lock(&ctx->mutex);
+
+	return ret;
+}
+
 static int perf_event_set_filter(struct perf_event *event, void __user *arg)
 {
 	char *filter_str;
@@ -8541,8 +8564,7 @@ static int perf_event_set_filter(struct perf_event *event, void __user *arg)
 
 	if (IS_ENABLED(CONFIG_EVENT_TRACING) &&
 	    event->attr.type == PERF_TYPE_TRACEPOINT)
-		ret = ftrace_profile_set_filter(event, event->attr.config,
-						filter_str);
+		ret = perf_tracepoint_set_filter(event, filter_str);
 	else if (has_addr_filter(event))
 		ret = perf_event_set_addr_filter(event, filter_str);
 
