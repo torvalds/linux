@@ -9007,6 +9007,17 @@ static int i40e_rebuild_channels(struct i40e_vsi *vsi)
 				 vsi->uplink_seid);
 			return ret;
 		}
+		/* Reconfigure TX queues using QTX_CTL register */
+		ret = i40e_channel_config_tx_ring(vsi->back, vsi, ch);
+		if (ret) {
+			dev_info(&vsi->back->pdev->dev,
+				 "failed to configure TX rings for channel %u\n",
+				 ch->seid);
+			return ret;
+		}
+		/* update 'next_base_queue' */
+		vsi->next_base_queue = vsi->next_base_queue +
+							ch->num_queue_pairs;
 		if (ch->max_tx_rate) {
 			u64 credits = ch->max_tx_rate;
 
