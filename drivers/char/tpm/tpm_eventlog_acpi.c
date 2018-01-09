@@ -25,9 +25,9 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/tpm_eventlog.h>
 
 #include "tpm.h"
-#include "tpm_eventlog.h"
 
 struct acpi_tcpa {
 	struct acpi_table_header hdr;
@@ -102,7 +102,7 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 	memcpy_fromio(log->bios_event_log, virt, len);
 
 	acpi_os_unmap_iomem(virt, len);
-	return 0;
+	return EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2;
 
 err:
 	kfree(log->bios_event_log);

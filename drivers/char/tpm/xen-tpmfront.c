@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <linux/freezer.h>
 #include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/interface/io/tpmif.h>
@@ -38,6 +39,66 @@ enum status_bits {
 	VTPM_STATUS_RESULT   = 0x4,
 	VTPM_STATUS_CANCELED = 0x8,
 };
+
+static bool wait_for_tpm_stat_cond(struct tpm_chip *chip, u8 mask,
+					bool check_cancel, bool *canceled)
+{
+	u8 status = chip->ops->status(chip);
+
+	*canceled = false;
+	if ((status & mask) == mask)
+		return true;
+	if (check_cancel && chip->ops->req_canceled(chip, status)) {
+		*canceled = true;
+		return true;
+	}
+	return false;
+}
+
+static int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask,
+		unsigned long timeout, wait_queue_head_t *queue,
+		bool check_cancel)
+{
+	unsigned long stop;
+	long rc;
+	u8 status;
+	bool canceled = false;
+
+	/* check current status */
+	status = chip->ops->status(chip);
+	if ((status & mask) == mask)
+		return 0;
+
+	stop = jiffies + timeout;
+
+	if (chip->flags & TPM_CHIP_FLAG_IRQ) {
+again:
+		timeout = stop - jiffies;
+		if ((long)timeout <= 0)
+			return -ETIME;
+		rc = wait_event_interruptible_timeout(*queue,
+			wait_for_tpm_stat_cond(chip, mask, check_cancel,
+					       &canceled),
+			timeout);
+		if (rc > 0) {
+			if (canceled)
+				return -ECANCELED;
+			return 0;
+		}
+		if (rc == -ERESTARTSYS && freezing(current)) {
+			clear_thread_flag(TIF_SIGPENDING);
+			goto again;
+		}
+	} else {
+		do {
+			tpm_msleep(TPM_TIMEOUT);
+			status = chip->ops->status(chip);
+			if ((status & mask) == mask)
+				return 0;
+		} while (time_before(jiffies, stop));
+	}
+	return -ETIME;
+}
 
 static u8 vtpm_status(struct tpm_chip *chip)
 {

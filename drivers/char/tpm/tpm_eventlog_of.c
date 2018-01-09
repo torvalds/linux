@@ -17,9 +17,9 @@
 
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/tpm_eventlog.h>
 
 #include "tpm.h"
-#include "tpm_eventlog.h"
 
 int tpm_read_log_of(struct tpm_chip *chip)
 {
@@ -76,5 +76,7 @@ int tpm_read_log_of(struct tpm_chip *chip)
 
 	memcpy(log->bios_event_log, __va(base), size);
 
-	return 0;
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return EFI_TCG2_EVENT_LOG_FORMAT_TCG_2;
+	return EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2;
 }

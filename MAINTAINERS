@@ -13809,9 +13809,10 @@ F:	drivers/platform/x86/toshiba-wmi.c
 TPM DEVICE DRIVER
 M:	Peter Huewe <peterhuewe@gmx.de>
 M:	Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>
-R:	Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+R:	Jason Gunthorpe <jgg@ziepe.ca>
 L:	linux-integrity@vger.kernel.org
 Q:	https://patchwork.kernel.org/project/linux-integrity/list/
+W:	https://kernsec.org/wiki/index.php/Linux_Kernel_Integrity
 T:	git git://git.infradead.org/users/jjs/linux-tpmdd.git
 S:	Maintained
 F:	drivers/char/tpm/
