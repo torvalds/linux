@@ -95,8 +95,7 @@ static void blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
 {
 	struct mq_inflight *mi = priv;
 
-	if (test_bit(REQ_ATOM_STARTED, &rq->atomic_flags) &&
-	    !test_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags)) {
+	if (blk_mq_rq_state(rq) == MQ_RQ_IN_FLIGHT) {
 		/*
 		 * index[0] counts the specific partition that was asked
 		 * for. index[1] counts the ones that are active on the
@@ -3024,7 +3023,8 @@ static bool blk_mq_poll_hybrid_sleep(struct request_queue *q,
 
 	hrtimer_init_sleeper(&hs, current);
 	do {
-		if (test_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags))
+		if (test_bit(REQ_ATOM_STARTED, &rq->atomic_flags) &&
+		    blk_mq_rq_state(rq) != MQ_RQ_IN_FLIGHT)
 			break;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		hrtimer_start_expires(&hs.timer, mode);
