@@ -2060,7 +2060,7 @@ static struct dvb_usb_device_properties cxusb_d680_dmb_properties = {
 
 	.rc.core = {
 		.rc_interval	= 100,
-		.rc_codes	= RC_MAP_D680_DMB,
+		.rc_codes	= RC_MAP_TOTAL_MEDIA_IN_HAND_02,
 		.module_name	= KBUILD_MODNAME,
 		.rc_query       = cxusb_d680_dmb_rc_query,
 		.allowed_protos = RC_PROTO_BIT_UNKNOWN,
