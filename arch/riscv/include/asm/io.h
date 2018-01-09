@@ -21,8 +21,6 @@
 
 #include <linux/types.h>
 
-#ifdef CONFIG_MMU
-
 extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 
 /*
@@ -35,8 +33,6 @@ extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 #define ioremap_wt(addr, size) ioremap((addr), (size))
 
 extern void iounmap(volatile void __iomem *addr);
-
-#endif /* CONFIG_MMU */
 
 /* Generic IO read/write.  These perform native-endian accesses. */
 #define __raw_writeb __raw_writeb
