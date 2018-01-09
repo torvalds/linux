@@ -1139,6 +1139,17 @@
 		status = "disabled";
 	};
 
+	rk_rga: rk_rga@ff480000 {
+		compatible = "rockchip,rga2";
+		//dev_mode = <1>;
+		reg = <0x0 0xff480000 0x0 0x1000>;
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA_CORE>;
+		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
+		power-domains = <&power PX30_PD_VO>;
+		status = "disabled";
+	};
+
 	qos_gmac: qos@ff518000 {
 		compatible = "syscon";
 		reg = <0x0 0xff518000 0x0 0x20>;
