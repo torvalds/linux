@@ -186,9 +186,10 @@ static inline void update_saved_ttbr0(struct task_struct *tsk,
 				      struct mm_struct *mm)
 {
 	if (system_uses_ttbr0_pan()) {
+		u64 ttbr;
 		BUG_ON(mm->pgd == swapper_pg_dir);
-		task_thread_info(tsk)->ttbr0 =
-			virt_to_phys(mm->pgd) | ASID(mm) << 48;
+		ttbr = virt_to_phys(mm->pgd) | ASID(mm) << 48;
+		WRITE_ONCE(task_thread_info(tsk)->ttbr0, ttbr);
 	}
 }
 #else
@@ -234,5 +235,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 #define activate_mm(prev,next)	switch_mm(prev, next, current)
+
+void post_ttbr_update_workaround(void);
 
 #endif

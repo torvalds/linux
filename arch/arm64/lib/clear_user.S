@@ -50,7 +50,7 @@ uao_user_alternative 9f, strh, sttrh, wzr, x0, 2
 	b.mi	5f
 uao_user_alternative 9f, strb, sttrb, wzr, x0, 0
 5:	mov	x0, #0
-	uaccess_disable_not_uao x2
+	uaccess_disable_not_uao x2, x3
 	ret
 ENDPROC(__clear_user)
 

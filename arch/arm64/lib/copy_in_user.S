@@ -68,7 +68,7 @@ ENTRY(__copy_in_user)
 	uaccess_enable_not_uao x3, x4, x5
 	add	end, x0, x2
 #include "copy_template.S"
-	uaccess_disable_not_uao x3
+	uaccess_disable_not_uao x3, x4
 	mov	x0, #0
 	ret
 ENDPROC(__copy_in_user)
