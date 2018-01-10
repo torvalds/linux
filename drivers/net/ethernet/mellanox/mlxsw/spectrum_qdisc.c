@@ -115,6 +115,13 @@ mlxsw_sp_qdisc_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 {
 	int err;
 
+	if (mlxsw_sp_qdisc->ops && mlxsw_sp_qdisc->ops->type != ops->type)
+		/* In case this location contained a different qdisc of the
+		 * same type we can override the old qdisc configuration.
+		 * Otherwise, we need to remove the old qdisc before setting the
+		 * new one.
+		 */
+		mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 	err = ops->check_params(mlxsw_sp_port, mlxsw_sp_qdisc, params);
 	if (err)
 		goto err_bad_param;
