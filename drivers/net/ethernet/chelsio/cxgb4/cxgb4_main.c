@@ -65,6 +65,7 @@
 #include <net/addrconf.h>
 #include <linux/uaccess.h>
 #include <linux/crash_dump.h>
+#include <net/udp_tunnel.h>
 
 #include "cxgb4.h"
 #include "cxgb4_filter.h"
@@ -2987,6 +2988,133 @@ static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	}
 }
 
+static void cxgb_del_udp_tunnel(struct net_device *netdev,
+				struct udp_tunnel_info *ti)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
+	u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
+	int ret = 0, i;
+
+	if (chip_ver < CHELSIO_T6)
+		return;
+
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		if (!adapter->vxlan_port_cnt ||
+		    adapter->vxlan_port != ti->port)
+			return; /* Invalid VxLAN destination port */
+
+		adapter->vxlan_port_cnt--;
+		if (adapter->vxlan_port_cnt)
+			return;
+
+		adapter->vxlan_port = 0;
+		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A, 0);
+		break;
+	default:
+		return;
+	}
+
+	/* Matchall mac entries can be deleted only after all tunnel ports
+	 * are brought down or removed.
+	 */
+	if (!adapter->rawf_cnt)
+		return;
+	for_each_port(adapter, i) {
+		pi = adap2pinfo(adapter, i);
+		ret = t4_free_raw_mac_filt(adapter, pi->viid,
+					   match_all_mac, match_all_mac,
+					   adapter->rawf_start +
+					    pi->port_id,
+					   1, pi->port_id, true);
+		if (ret < 0) {
+			netdev_info(netdev, "Failed to free mac filter entry, for port %d\n",
+				    i);
+			return;
+		}
+		atomic_dec(&adapter->mps_encap[adapter->rawf_start +
+			   pi->port_id].refcnt);
+	}
+}
+
+static void cxgb_add_udp_tunnel(struct net_device *netdev,
+				struct udp_tunnel_info *ti)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
+	u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
+	int i, ret;
+
+	if (chip_ver < CHELSIO_T6)
+		return;
+
+	switch (ti->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		/* For T6 fw reserves last 2 entries for
+		 * storing match all mac filter (config file entry).
+		 */
+		if (!adapter->rawf_cnt)
+			return;
+
+		/* Callback for adding vxlan port can be called with the same
+		 * port for both IPv4 and IPv6. We should not disable the
+		 * offloading when the same port for both protocols is added
+		 * and later one of them is removed.
+		 */
+		if (adapter->vxlan_port_cnt &&
+		    adapter->vxlan_port == ti->port) {
+			adapter->vxlan_port_cnt++;
+			return;
+		}
+
+		/* We will support only one VxLAN port */
+		if (adapter->vxlan_port_cnt) {
+			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
+				    be16_to_cpu(adapter->vxlan_port),
+				    be16_to_cpu(ti->port));
+			return;
+		}
+
+		adapter->vxlan_port = ti->port;
+		adapter->vxlan_port_cnt = 1;
+
+		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A,
+			     VXLAN_V(be16_to_cpu(ti->port)) | VXLAN_EN_F);
+		break;
+	default:
+		return;
+	}
+
+	/* Create a 'match all' mac filter entry for inner mac,
+	 * if raw mac interface is supported. Once the linux kernel provides
+	 * driver entry points for adding/deleting the inner mac addresses,
+	 * we will remove this 'match all' entry and fallback to adding
+	 * exact match filters.
+	 */
+	if (adapter->rawf_cnt) {
+		for_each_port(adapter, i) {
+			pi = adap2pinfo(adapter, i);
+
+			ret = t4_alloc_raw_mac_filt(adapter, pi->viid,
+						    match_all_mac,
+						    match_all_mac,
+						    adapter->rawf_start +
+						    pi->port_id,
+						    1, pi->port_id, true);
+			if (ret < 0) {
+				netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
+					    be16_to_cpu(ti->port));
+				cxgb_del_udp_tunnel(netdev, ti);
+				return;
+			}
+			atomic_inc(&adapter->mps_encap[ret].refcnt);
+		}
+	}
+}
+
 static netdev_features_t cxgb_fix_features(struct net_device *dev,
 					   netdev_features_t features)
 {
@@ -3018,6 +3146,8 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	.ndo_set_tx_maxrate   = cxgb_set_tx_maxrate,
 	.ndo_setup_tc         = cxgb_setup_tc,
+	.ndo_udp_tunnel_add   = cxgb_add_udp_tunnel,
+	.ndo_udp_tunnel_del   = cxgb_del_udp_tunnel,
 	.ndo_fix_features     = cxgb_fix_features,
 };
 
