@@ -86,7 +86,14 @@ EXPORT_SYMBOL_GPL(console_drivers);
 static struct lockdep_map console_lock_dep_map = {
 	.name = "console_lock"
 };
+static struct lockdep_map console_owner_dep_map = {
+	.name = "console_owner"
+};
 #endif
+
+static DEFINE_RAW_SPINLOCK(console_owner_lock);
+static struct task_struct *console_owner;
+static bool console_waiter;
 
 enum devkmsg_log_bits {
 	__DEVKMSG_LOG_BIT_ON = 0,
@@ -1753,8 +1760,56 @@ asmlinkage int vprintk_emit(int facility, int level,
 		 * semaphore.  The release will print out buffers and wake up
 		 * /dev/kmsg and syslog() users.
 		 */
-		if (console_trylock())
+		if (console_trylock()) {
 			console_unlock();
+		} else {
+			struct task_struct *owner = NULL;
+			bool waiter;
+			bool spin = false;
+
+			printk_safe_enter_irqsave(flags);
+
+			raw_spin_lock(&console_owner_lock);
+			owner = READ_ONCE(console_owner);
+			waiter = READ_ONCE(console_waiter);
+			if (!waiter && owner && owner != current) {
+				WRITE_ONCE(console_waiter, true);
+				spin = true;
+			}
+			raw_spin_unlock(&console_owner_lock);
+
+			/*
+			 * If there is an active printk() writing to the
+			 * consoles, instead of having it write our data too,
+			 * see if we can offload that load from the active
+			 * printer, and do some printing ourselves.
+			 * Go into a spin only if there isn't already a waiter
+			 * spinning, and there is an active printer, and
+			 * that active printer isn't us (recursive printk?).
+			 */
+			if (spin) {
+				/* We spin waiting for the owner to release us */
+				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+				/* Owner will clear console_waiter on hand off */
+				while (READ_ONCE(console_waiter))
+					cpu_relax();
+
+				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+				printk_safe_exit_irqrestore(flags);
+
+				/*
+				 * The owner passed the console lock to us.
+				 * Since we did not spin on console lock, annotate
+				 * this as a trylock. Otherwise lockdep will
+				 * complain.
+				 */
+				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
+				console_unlock();
+				printk_safe_enter_irqsave(flags);
+			}
+			printk_safe_exit_irqrestore(flags);
+
+		}
 	}
 
 	return printed_len;
@@ -2141,6 +2196,7 @@ void console_unlock(void)
 	static u64 seen_seq;
 	unsigned long flags;
 	bool wake_klogd = false;
+	bool waiter = false;
 	bool do_cond_resched, retry;
 
 	if (console_suspended) {
@@ -2229,14 +2285,64 @@ skip:
 		console_seq++;
 		raw_spin_unlock(&logbuf_lock);
 
+		/*
+		 * While actively printing out messages, if another printk()
+		 * were to occur on another CPU, it may wait for this one to
+		 * finish. This task can not be preempted if there is a
+		 * waiter waiting to take over.
+		 */
+		raw_spin_lock(&console_owner_lock);
+		console_owner = current;
+		raw_spin_unlock(&console_owner_lock);
+
+		/* The waiter may spin on us after setting console_owner */
+		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+
 		stop_critical_timings();	/* don't trace print latency */
 		call_console_drivers(ext_text, ext_len, text, len);
 		start_critical_timings();
+
+		raw_spin_lock(&console_owner_lock);
+		waiter = READ_ONCE(console_waiter);
+		console_owner = NULL;
+		raw_spin_unlock(&console_owner_lock);
+
+		/*
+		 * If there is a waiter waiting for us, then pass the
+		 * rest of the work load over to that waiter.
+		 */
+		if (waiter)
+			break;
+
+		/* There was no waiter, and nothing will spin on us here */
+		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+
 		printk_safe_exit_irqrestore(flags);
 
 		if (do_cond_resched)
 			cond_resched();
 	}
+
+	/*
+	 * If there is an active waiter waiting on the console_lock.
+	 * Pass off the printing to the waiter, and the waiter
+	 * will continue printing on its CPU, and when all writing
+	 * has finished, the last printer will wake up klogd.
+	 */
+	if (waiter) {
+		WRITE_ONCE(console_waiter, false);
+		/* The waiter is now free to continue */
+		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+		/*
+		 * Hand off console_lock to waiter. The waiter will perform
+		 * the up(). After this, the waiter is the console_lock owner.
+		 */
+		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
+		printk_safe_exit_irqrestore(flags);
+		/* Note, if waiter is set, logbuf_lock is not held */
+		return;
+	}
+
 	console_locked = 0;
 
 	/* Release the exclusive_console once it is used */
