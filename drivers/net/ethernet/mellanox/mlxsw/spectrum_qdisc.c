@@ -46,6 +46,15 @@ enum mlxsw_sp_qdisc_type {
 	MLXSW_SP_QDISC_RED,
 };
 
+struct mlxsw_sp_qdisc_ops {
+	int (*get_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
+			 struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			 struct tc_qopt_offload_stats *stats_ptr);
+	int (*get_xstats)(struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			  void *xstats_ptr);
+};
+
 struct mlxsw_sp_qdisc {
 	u32 handle;
 	enum mlxsw_sp_qdisc_type type;
@@ -59,6 +68,8 @@ struct mlxsw_sp_qdisc {
 		u64 drops;
 		u64 overlimits;
 	} stats_base;
+
+	struct mlxsw_sp_qdisc_ops *ops;
 };
 
 static bool
@@ -67,6 +78,34 @@ mlxsw_sp_qdisc_compare(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc, u32 handle,
 {
 	return mlxsw_sp_qdisc && mlxsw_sp_qdisc->handle == handle &&
 	       mlxsw_sp_qdisc->type == type;
+}
+
+static int
+mlxsw_sp_qdisc_get_stats(struct mlxsw_sp_port *mlxsw_sp_port,
+			 struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			 struct tc_qopt_offload_stats *stats_ptr)
+{
+	if (mlxsw_sp_qdisc && mlxsw_sp_qdisc->ops &&
+	    mlxsw_sp_qdisc->ops->get_stats)
+		return mlxsw_sp_qdisc->ops->get_stats(mlxsw_sp_port,
+						      mlxsw_sp_qdisc,
+						      stats_ptr);
+
+	return -EOPNOTSUPP;
+}
+
+static int
+mlxsw_sp_qdisc_get_xstats(struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			  void *xstats_ptr)
+{
+	if (mlxsw_sp_qdisc && mlxsw_sp_qdisc->ops &&
+	    mlxsw_sp_qdisc->ops->get_xstats)
+		return mlxsw_sp_qdisc->ops->get_xstats(mlxsw_sp_port,
+						      mlxsw_sp_qdisc,
+						      xstats_ptr);
+
+	return -EOPNOTSUPP;
 }
 
 static int
@@ -149,6 +188,7 @@ mlxsw_sp_qdisc_red_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 static int
 mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 			   struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			   struct mlxsw_sp_qdisc_ops *ops,
 			   struct tc_red_qopt_offload_params *p)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
@@ -187,6 +227,7 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 		goto err_config;
 
 	mlxsw_sp_qdisc->type = MLXSW_SP_QDISC_RED;
+	mlxsw_sp_qdisc->ops = ops;
 	if (mlxsw_sp_qdisc->handle != handle)
 		mlxsw_sp_setup_tc_qdisc_red_clean_stats(mlxsw_sp_port,
 							mlxsw_sp_qdisc);
@@ -204,11 +245,12 @@ err_config:
 static int
 mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
-			      struct red_stats *res)
+			      void *xstats_ptr)
 {
 	struct red_stats *xstats_base = &mlxsw_sp_qdisc->xstats_base.red;
 	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
 	struct mlxsw_sp_port_xstats *xstats;
+	struct red_stats *res = xstats_ptr;
 	int early_drops, marks, pdrops;
 
 	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
@@ -230,7 +272,7 @@ mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port,
 static int
 mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
-			     struct tc_qopt_offload_stats *res)
+			     struct tc_qopt_offload_stats *stats_ptr)
 {
 	u64 tx_bytes, tx_packets, overlimits, drops;
 	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
@@ -249,11 +291,12 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 	drops = xstats->wred_drop[tclass_num] + xstats->tail_drop[tclass_num] -
 		stats_base->drops;
 
-	_bstats_update(res->bstats, tx_bytes, tx_packets);
-	res->qstats->overlimits += overlimits;
-	res->qstats->drops += drops;
-	res->qstats->backlog += mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
-						xstats->backlog[tclass_num]);
+	_bstats_update(stats_ptr->bstats, tx_bytes, tx_packets);
+	stats_ptr->qstats->overlimits += overlimits;
+	stats_ptr->qstats->drops += drops;
+	stats_ptr->qstats->backlog +=
+			mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
+					     xstats->backlog[tclass_num]);
 
 	stats_base->drops +=  drops;
 	stats_base->overlimits += overlimits;
@@ -263,6 +306,11 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 #define MLXSW_SP_PORT_DEFAULT_TCLASS 0
+
+static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_red = {
+	.get_stats = mlxsw_sp_qdisc_get_red_stats,
+	.get_xstats = mlxsw_sp_qdisc_get_red_xstats,
+};
 
 int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct tc_red_qopt_offload *p)
@@ -276,7 +324,9 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (p->command == TC_RED_REPLACE)
 		return mlxsw_sp_qdisc_red_replace(mlxsw_sp_port, p->handle,
-						  mlxsw_sp_qdisc, &p->set);
+						  mlxsw_sp_qdisc,
+						  &mlxsw_sp_qdisc_ops_red,
+						  &p->set);
 
 	if (!mlxsw_sp_qdisc_compare(mlxsw_sp_qdisc, p->handle,
 				    MLXSW_SP_QDISC_RED))
@@ -287,13 +337,11 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 		return mlxsw_sp_qdisc_red_destroy(mlxsw_sp_port,
 						  mlxsw_sp_qdisc);
 	case TC_RED_XSTATS:
-		return mlxsw_sp_qdisc_get_red_xstats(mlxsw_sp_port,
-						     mlxsw_sp_qdisc,
-						     p->xstats);
+		return mlxsw_sp_qdisc_get_xstats(mlxsw_sp_port, mlxsw_sp_qdisc,
+						 p->xstats);
 	case TC_RED_STATS:
-		return mlxsw_sp_qdisc_get_red_stats(mlxsw_sp_port,
-						    mlxsw_sp_qdisc,
-						    &p->stats);
+		return mlxsw_sp_qdisc_get_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
+						&p->stats);
 	default:
 		return -EOPNOTSUPP;
 	}
