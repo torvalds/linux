@@ -1377,8 +1377,8 @@ int fbtft_probe_common(struct fbtft_display *display,
 		par->fbtftops.write_register = fbtft_write_reg16_bus16;
 	else
 		dev_warn(dev,
-			"no default functions for regwidth=%d and buswidth=%d\n",
-			display->regwidth, display->buswidth);
+			 "no default functions for regwidth=%d and buswidth=%d\n",
+			 display->regwidth, display->buswidth);
 
 	/* write_vmem() functions */
 	if (display->buswidth == 8)
