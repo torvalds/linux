@@ -1603,8 +1603,7 @@ static void iommu_flush_iotlb_psi(struct intel_iommu *iommu,
 	 * flush. However, device IOTLB doesn't need to be flushed in this case.
 	 */
 	if (!cap_caching_mode(iommu->cap) || !map)
-		iommu_flush_dev_iotlb(get_iommu_domain(iommu, did),
-				      addr, mask);
+		iommu_flush_dev_iotlb(domain, addr, mask);
 }
 
 static void iommu_flush_iova(struct iova_domain *iovad)
