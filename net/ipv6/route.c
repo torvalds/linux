@@ -455,7 +455,6 @@ static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
 					     int strict)
 {
 	struct rt6_info *sibling, *next_sibling;
-	int route_choosen;
 
 	/* We might have already computed the hash for ICMPv6 errors. In such
 	 * case it will always be non-zero. Otherwise now is the time to do it.
@@ -463,28 +462,19 @@ static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
 	if (!fl6->mp_hash)
 		fl6->mp_hash = rt6_multipath_hash(fl6, NULL);
 
-	route_choosen = fl6->mp_hash % (match->rt6i_nsiblings + 1);
-	/* Don't change the route, if route_choosen == 0
-	 * (siblings does not include ourself)
-	 */
-	if (route_choosen)
-		list_for_each_entry_safe(sibling, next_sibling,
-				&match->rt6i_siblings, rt6i_siblings) {
-			route_choosen--;
-			if (route_choosen == 0) {
-				struct inet6_dev *idev = sibling->rt6i_idev;
+	if (fl6->mp_hash <= atomic_read(&match->rt6i_nh_upper_bound))
+		return match;
 
-				if (sibling->rt6i_nh_flags & RTNH_F_DEAD)
-					break;
-				if (sibling->rt6i_nh_flags & RTNH_F_LINKDOWN &&
-				    idev->cnf.ignore_routes_with_linkdown)
-					break;
-				if (rt6_score_route(sibling, oif, strict) < 0)
-					break;
-				match = sibling;
-				break;
-			}
-		}
+	list_for_each_entry_safe(sibling, next_sibling, &match->rt6i_siblings,
+				 rt6i_siblings) {
+		if (fl6->mp_hash > atomic_read(&sibling->rt6i_nh_upper_bound))
+			continue;
+		if (rt6_score_route(sibling, oif, strict) < 0)
+			break;
+		match = sibling;
+		break;
+	}
+
 	return match;
 }
 
@@ -1833,10 +1823,10 @@ u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb)
 
 	if (skb) {
 		ip6_multipath_l3_keys(skb, &hash_keys);
-		return flow_hash_from_keys(&hash_keys);
+		return flow_hash_from_keys(&hash_keys) >> 1;
 	}
 
-	return get_hash_from_flowi6(fl6);
+	return get_hash_from_flowi6(fl6) >> 1;
 }
 
 void ip6_route_input(struct sk_buff *skb)
@@ -2604,6 +2594,7 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 #endif
 
 	rt->rt6i_metric = cfg->fc_metric;
+	rt->rt6i_nh_weight = 1;
 
 	/* We cannot add true routes via loopback here,
 	   they would result in kernel looping; promote them to reject routes
@@ -3481,6 +3472,99 @@ struct arg_netdev_event {
 	};
 };
 
+static struct rt6_info *rt6_multipath_first_sibling(const struct rt6_info *rt)
+{
+	struct rt6_info *iter;
+	struct fib6_node *fn;
+
+	fn = rcu_dereference_protected(rt->rt6i_node,
+			lockdep_is_held(&rt->rt6i_table->tb6_lock));
+	iter = rcu_dereference_protected(fn->leaf,
+			lockdep_is_held(&rt->rt6i_table->tb6_lock));
+	while (iter) {
+		if (iter->rt6i_metric == rt->rt6i_metric &&
+		    rt6_qualify_for_ecmp(iter))
+			return iter;
+		iter = rcu_dereference_protected(iter->rt6_next,
+				lockdep_is_held(&rt->rt6i_table->tb6_lock));
+	}
+
+	return NULL;
+}
+
+static bool rt6_is_dead(const struct rt6_info *rt)
+{
+	if (rt->rt6i_nh_flags & RTNH_F_DEAD ||
+	    (rt->rt6i_nh_flags & RTNH_F_LINKDOWN &&
+	     rt->rt6i_idev->cnf.ignore_routes_with_linkdown))
+		return true;
+
+	return false;
+}
+
+static int rt6_multipath_total_weight(const struct rt6_info *rt)
+{
+	struct rt6_info *iter;
+	int total = 0;
+
+	if (!rt6_is_dead(rt))
+		total += rt->rt6i_nh_weight;
+
+	list_for_each_entry(iter, &rt->rt6i_siblings, rt6i_siblings) {
+		if (!rt6_is_dead(iter))
+			total += iter->rt6i_nh_weight;
+	}
+
+	return total;
+}
+
+static void rt6_upper_bound_set(struct rt6_info *rt, int *weight, int total)
+{
+	int upper_bound = -1;
+
+	if (!rt6_is_dead(rt)) {
+		*weight += rt->rt6i_nh_weight;
+		upper_bound = DIV_ROUND_CLOSEST_ULL((u64) (*weight) << 31,
+						    total) - 1;
+	}
+	atomic_set(&rt->rt6i_nh_upper_bound, upper_bound);
+}
+
+static void rt6_multipath_upper_bound_set(struct rt6_info *rt, int total)
+{
+	struct rt6_info *iter;
+	int weight = 0;
+
+	rt6_upper_bound_set(rt, &weight, total);
+
+	list_for_each_entry(iter, &rt->rt6i_siblings, rt6i_siblings)
+		rt6_upper_bound_set(iter, &weight, total);
+}
+
+void rt6_multipath_rebalance(struct rt6_info *rt)
+{
+	struct rt6_info *first;
+	int total;
+
+	/* In case the entire multipath route was marked for flushing,
+	 * then there is no need to rebalance upon the removal of every
+	 * sibling route.
+	 */
+	if (!rt->rt6i_nsiblings || rt->should_flush)
+		return;
+
+	/* During lookup routes are evaluated in order, so we need to
+	 * make sure upper bounds are assigned from the first sibling
+	 * onwards.
+	 */
+	first = rt6_multipath_first_sibling(rt);
+	if (WARN_ON_ONCE(!first))
+		return;
+
+	total = rt6_multipath_total_weight(first);
+	rt6_multipath_upper_bound_set(first, total);
+}
+
 static int fib6_ifup(struct rt6_info *rt, void *p_arg)
 {
 	const struct arg_netdev_event *arg = p_arg;
@@ -3489,6 +3573,7 @@ static int fib6_ifup(struct rt6_info *rt, void *p_arg)
 	if (rt != net->ipv6.ip6_null_entry && rt->dst.dev == arg->dev) {
 		rt->rt6i_nh_flags &= ~arg->nh_flags;
 		fib6_update_sernum_upto_root(dev_net(rt->dst.dev), rt);
+		rt6_multipath_rebalance(rt);
 	}
 
 	return 0;
@@ -3588,6 +3673,7 @@ static int fib6_ifdown(struct rt6_info *rt, void *p_arg)
 			rt6_multipath_nh_flags_set(rt, dev, RTNH_F_DEAD |
 						   RTNH_F_LINKDOWN);
 			fib6_update_sernum(rt);
+			rt6_multipath_rebalance(rt);
 		}
 		return -2;
 	case NETDEV_CHANGE:
@@ -3595,6 +3681,7 @@ static int fib6_ifdown(struct rt6_info *rt, void *p_arg)
 		    rt->rt6i_flags & (RTF_LOCAL | RTF_ANYCAST))
 			break;
 		rt->rt6i_nh_flags |= RTNH_F_LINKDOWN;
+		rt6_multipath_rebalance(rt);
 		break;
 	}
 
@@ -3938,6 +4025,8 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 			goto cleanup;
 		}
 
+		rt->rt6i_nh_weight = rtnh->rtnh_hops + 1;
+
 		err = ip6_route_info_append(&rt6_nh_list, rt, &r_cfg);
 		if (err) {
 			dst_release_immediate(&rt->dst);
@@ -4160,7 +4249,7 @@ static int rt6_add_nexthop(struct sk_buff *skb, struct rt6_info *rt)
 	if (!rtnh)
 		goto nla_put_failure;
 
-	rtnh->rtnh_hops = 0;
+	rtnh->rtnh_hops = rt->rt6i_nh_weight - 1;
 	rtnh->rtnh_ifindex = rt->dst.dev ? rt->dst.dev->ifindex : 0;
 
 	if (rt6_nexthop_info(skb, rt, &flags, true) < 0)
