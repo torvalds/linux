@@ -226,18 +226,7 @@ struct rcu_data {
 					/* Grace period that needs help */
 					/*  from cond_resched(). */
 
-	/* 5) __rcu_pending() statistics. */
-	unsigned long n_rcu_pending;	/* rcu_pending() calls since boot. */
-	unsigned long n_rp_core_needs_qs;
-	unsigned long n_rp_report_qs;
-	unsigned long n_rp_cb_ready;
-	unsigned long n_rp_cpu_needs_gp;
-	unsigned long n_rp_gp_completed;
-	unsigned long n_rp_gp_started;
-	unsigned long n_rp_nocb_defer_wakeup;
-	unsigned long n_rp_need_nothing;
-
-	/* 6) _rcu_barrier(), OOM callbacks, and expediting. */
+	/* 5) _rcu_barrier(), OOM callbacks, and expediting. */
 	struct rcu_head barrier_head;
 #ifdef CONFIG_RCU_FAST_NO_HZ
 	struct rcu_head oom_head;
@@ -248,7 +237,7 @@ struct rcu_data {
 	atomic_long_t exp_workdone3;	/* # done by others #3. */
 	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
-	/* 7) Callback offloading. */
+	/* 6) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
 	struct rcu_head *nocb_head;	/* CBs waiting for kthread. */
 	struct rcu_head **nocb_tail;
@@ -275,7 +264,7 @@ struct rcu_data {
 					/* Leader CPU takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
-	/* 8) RCU CPU stall data. */
+	/* 7) RCU CPU stall data. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
 	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
 	struct irq_work rcu_iw;		/* Check for non-irq activity. */

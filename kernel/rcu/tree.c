@@ -3354,8 +3354,6 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 {
 	struct rcu_node *rnp = rdp->mynode;
 
-	rdp->n_rcu_pending++;
-
 	/* Check for CPU stalls, if enabled. */
 	check_cpu_stall(rsp, rdp);
 
@@ -3364,48 +3362,31 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 		return 0;
 
 	/* Is the RCU core waiting for a quiescent state from this CPU? */
-	if (rcu_scheduler_fully_active &&
-	    rdp->core_needs_qs && rdp->cpu_no_qs.b.norm &&
-	    rdp->rcu_qs_ctr_snap == __this_cpu_read(rcu_dynticks.rcu_qs_ctr)) {
-		rdp->n_rp_core_needs_qs++;
-	} else if (rdp->core_needs_qs && !rdp->cpu_no_qs.b.norm) {
-		rdp->n_rp_report_qs++;
+	if (rdp->core_needs_qs && !rdp->cpu_no_qs.b.norm)
 		return 1;
-	}
 
 	/* Does this CPU have callbacks ready to invoke? */
-	if (rcu_segcblist_ready_cbs(&rdp->cblist)) {
-		rdp->n_rp_cb_ready++;
+	if (rcu_segcblist_ready_cbs(&rdp->cblist))
 		return 1;
-	}
 
 	/* Has RCU gone idle with this CPU needing another grace period? */
-	if (cpu_needs_another_gp(rsp, rdp)) {
-		rdp->n_rp_cpu_needs_gp++;
+	if (cpu_needs_another_gp(rsp, rdp))
 		return 1;
-	}
 
 	/* Has another RCU grace period completed?  */
-	if (READ_ONCE(rnp->completed) != rdp->completed) { /* outside lock */
-		rdp->n_rp_gp_completed++;
+	if (READ_ONCE(rnp->completed) != rdp->completed) /* outside lock */
 		return 1;
-	}
 
 	/* Has a new RCU grace period started? */
 	if (READ_ONCE(rnp->gpnum) != rdp->gpnum ||
-	    unlikely(READ_ONCE(rdp->gpwrap))) { /* outside lock */
-		rdp->n_rp_gp_started++;
+	    unlikely(READ_ONCE(rdp->gpwrap))) /* outside lock */
 		return 1;
-	}
 
 	/* Does this CPU need a deferred NOCB wakeup? */
-	if (rcu_nocb_need_deferred_wakeup(rdp)) {
-		rdp->n_rp_nocb_defer_wakeup++;
+	if (rcu_nocb_need_deferred_wakeup(rdp))
 		return 1;
-	}
 
 	/* nothing to do */
-	rdp->n_rp_need_nothing++;
 	return 0;
 }
 
