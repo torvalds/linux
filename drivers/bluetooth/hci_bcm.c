@@ -300,8 +300,8 @@ static const struct bcm_set_sleep_mode default_sleep_params = {
 	/* Irrelevant USB flags */
 	.usb_auto_sleep = 0,
 	.usb_resume_timeout = 0,
+	.break_to_host = 0,
 	.pulsed_host_wake = 0,
-	.break_to_host = 0
 };
 
 static int bcm_setup_sleep(struct hci_uart *hu)
