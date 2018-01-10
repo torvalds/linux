@@ -1340,7 +1340,7 @@ struct fib {
 #define AAC_DEVTYPE_ARC_RAW		2
 #define AAC_DEVTYPE_NATIVE_RAW		3
 
-#define AAC_SAFW_RESCAN_DELAY  10
+#define AAC_SAFW_RESCAN_DELAY		(10 * HZ)
 
 struct aac_hba_map_info {
 	__le32	rmw_nexus;		/* nexus for native HBA devices */
