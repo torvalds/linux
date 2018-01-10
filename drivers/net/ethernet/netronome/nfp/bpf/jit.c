@@ -2110,18 +2110,6 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_JMP | BPF_EXIT] =		goto_out,
 };
 
-/* --- Misc code --- */
-static void br_set_offset(u64 *instr, u16 offset)
-{
-	u16 addr_lo, addr_hi;
-
-	addr_lo = offset & (OP_BR_ADDR_LO >> __bf_shf(OP_BR_ADDR_LO));
-	addr_hi = offset != addr_lo;
-	*instr &= ~(OP_BR_ADDR_HI | OP_BR_ADDR_LO);
-	*instr |= FIELD_PREP(OP_BR_ADDR_HI, addr_hi);
-	*instr |= FIELD_PREP(OP_BR_ADDR_LO, addr_lo);
-}
-
 /* --- Assembler logic --- */
 static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 {

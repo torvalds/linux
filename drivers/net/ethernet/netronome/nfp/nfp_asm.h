@@ -93,6 +93,10 @@ enum br_ctx_signal_state {
 	BR_CSS_NONE = 2,
 };
 
+u16 br_get_offset(u64 instr);
+void br_set_offset(u64 *instr, u16 offset);
+void br_add_offset(u64 *instr, u16 offset);
+
 #define OP_BBYTE_BASE		0x0c800000000ULL
 #define OP_BB_A_SRC		0x000000000ffULL
 #define OP_BB_BYTE		0x00000000300ULL
