@@ -1733,8 +1733,8 @@ static void tcp_update_recv_tstamps(struct sk_buff *skb,
 }
 
 /* Similar to __sock_recv_timestamp, but does not require an skb */
-void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
-			struct scm_timestamping *tss)
+static void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
+			       struct scm_timestamping *tss)
 {
 	struct timeval tv;
 	bool has_timestamping = false;
