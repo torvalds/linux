@@ -209,8 +209,6 @@ void intel_uc_fini_wq(struct drm_i915_private *dev_priv)
 	if (!USES_GUC(dev_priv))
 		return;
 
-	GEM_BUG_ON(!HAS_GUC(dev_priv));
-
 	intel_guc_fini_wq(&dev_priv->guc);
 }
 

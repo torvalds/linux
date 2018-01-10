@@ -5283,6 +5283,8 @@ err_unlock:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
+	intel_uc_fini_wq(dev_priv);
+
 	if (ret != -EIO)
 		i915_gem_cleanup_userptr(dev_priv);
 
