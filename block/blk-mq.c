@@ -1104,28 +1104,37 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx **hctx,
 				 struct request *rq)
 {
 	struct blk_mq_hw_ctx *this_hctx = *hctx;
-	bool shared_tags = (this_hctx->flags & BLK_MQ_F_TAG_SHARED) != 0;
 	struct sbq_wait_state *ws;
 	wait_queue_entry_t *wait;
 	bool ret;
 
-	if (!shared_tags) {
+	if (!(this_hctx->flags & BLK_MQ_F_TAG_SHARED)) {
 		if (!test_bit(BLK_MQ_S_SCHED_RESTART, &this_hctx->state))
 			set_bit(BLK_MQ_S_SCHED_RESTART, &this_hctx->state);
-	} else {
-		wait = &this_hctx->dispatch_wait;
-		if (!list_empty_careful(&wait->entry))
-			return false;
 
-		spin_lock(&this_hctx->lock);
-		if (!list_empty(&wait->entry)) {
-			spin_unlock(&this_hctx->lock);
-			return false;
-		}
-
-		ws = bt_wait_ptr(&this_hctx->tags->bitmap_tags, this_hctx);
-		add_wait_queue(&ws->wait, wait);
+		/*
+		 * It's possible that a tag was freed in the window between the
+		 * allocation failure and adding the hardware queue to the wait
+		 * queue.
+		 *
+		 * Don't clear RESTART here, someone else could have set it.
+		 * At most this will cost an extra queue run.
+		 */
+		return blk_mq_get_driver_tag(rq, hctx, false);
 	}
+
+	wait = &this_hctx->dispatch_wait;
+	if (!list_empty_careful(&wait->entry))
+		return false;
+
+	spin_lock(&this_hctx->lock);
+	if (!list_empty(&wait->entry)) {
+		spin_unlock(&this_hctx->lock);
+		return false;
+	}
+
+	ws = bt_wait_ptr(&this_hctx->tags->bitmap_tags, this_hctx);
+	add_wait_queue(&ws->wait, wait);
 
 	/*
 	 * It's possible that a tag was freed in the window between the
@@ -1133,29 +1142,21 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx **hctx,
 	 * queue.
 	 */
 	ret = blk_mq_get_driver_tag(rq, hctx, false);
-
-	if (!shared_tags) {
-		/*
-		 * Don't clear RESTART here, someone else could have set it.
-		 * At most this will cost an extra queue run.
-		 */
-		return ret;
-	} else {
-		if (!ret) {
-			spin_unlock(&this_hctx->lock);
-			return false;
-		}
-
-		/*
-		 * We got a tag, remove ourselves from the wait queue to ensure
-		 * someone else gets the wakeup.
-		 */
-		spin_lock_irq(&ws->wait.lock);
-		list_del_init(&wait->entry);
-		spin_unlock_irq(&ws->wait.lock);
+	if (!ret) {
 		spin_unlock(&this_hctx->lock);
-		return true;
+		return false;
 	}
+
+	/*
+	 * We got a tag, remove ourselves from the wait queue to ensure
+	 * someone else gets the wakeup.
+	 */
+	spin_lock_irq(&ws->wait.lock);
+	list_del_init(&wait->entry);
+	spin_unlock_irq(&ws->wait.lock);
+	spin_unlock(&this_hctx->lock);
+
+	return true;
 }
 
 bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
