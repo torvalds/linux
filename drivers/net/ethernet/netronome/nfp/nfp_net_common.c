@@ -2253,7 +2253,8 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
 	struct nfp_net_r_vector *r_vec = rx_ring->r_vec;
 	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
 
-	xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
+	if (dp->netdev)
+		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 	kfree(rx_ring->rxbufs);
 
 	if (rx_ring->rxds)
@@ -2279,9 +2280,12 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 {
 	int sz, err;
 
-	err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, dp->netdev, rx_ring->idx);
-	if (err < 0)
-		return err;
+	if (dp->netdev) {
+		err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, dp->netdev,
+				       rx_ring->idx);
+		if (err < 0)
+			return err;
+	}
 
 	rx_ring->cnt = dp->rxd_cnt;
 	rx_ring->size = sizeof(*rx_ring->rxds) * rx_ring->cnt;
