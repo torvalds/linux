@@ -261,6 +261,37 @@ static int percent_comma_split(struct perf_time_interval *ptime_buf, int num,
 	return i;
 }
 
+static int one_percent_convert(struct perf_time_interval *ptime_buf,
+			       const char *ostr, u64 start, u64 end, char *c)
+{
+	char *str;
+	int len = strlen(ostr), ret;
+
+	/*
+	 * c points to '%'.
+	 * '%' should be the last character
+	 */
+	if (ostr + len - 1 != c)
+		return -1;
+
+	/*
+	 * Construct a string like "xx%/1"
+	 */
+	str = malloc(len + 3);
+	if (str == NULL)
+		return -ENOMEM;
+
+	memcpy(str, ostr, len);
+	strcpy(str + len, "/1");
+
+	ret = percent_slash_split(str, ptime_buf, start, end);
+	if (ret == 0)
+		ret = 1;
+
+	free(str);
+	return ret;
+}
+
 int perf_time__percent_parse_str(struct perf_time_interval *ptime_buf, int num,
 				 const char *ostr, u64 start, u64 end)
 {
@@ -270,6 +301,7 @@ int perf_time__percent_parse_str(struct perf_time_interval *ptime_buf, int num,
 	 * ostr example:
 	 * 10%/2,10%/3: select the second 10% slice and the third 10% slice
 	 * 0%-10%,30%-40%: multiple time range
+	 * 50%: just one percent
 	 */
 
 	memset(ptime_buf, 0, sizeof(*ptime_buf) * num);
@@ -285,6 +317,10 @@ int perf_time__percent_parse_str(struct perf_time_interval *ptime_buf, int num,
 		return percent_comma_split(ptime_buf, num, ostr, start,
 					   end, percent_dash_split);
 	}
+
+	c = strchr(ostr, '%');
+	if (c)
+		return one_percent_convert(ptime_buf, ostr, start, end, c);
 
 	return -1;
 }
