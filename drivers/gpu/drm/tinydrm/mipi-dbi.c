@@ -414,7 +414,7 @@ void mipi_dbi_hw_reset(struct mipi_dbi *mipi)
 		return;
 
 	gpiod_set_value_cansleep(mipi->reset, 0);
-	msleep(20);
+	usleep_range(20, 1000);
 	gpiod_set_value_cansleep(mipi->reset, 1);
 	msleep(120);
 }
