@@ -1880,36 +1880,38 @@ int tipc_nl_node_get_link(struct sk_buff *skb, struct genl_info *info)
 
 	if (strcmp(name, tipc_bclink_name) == 0) {
 		err = tipc_nl_add_bc_link(net, &msg);
-		if (err) {
-			nlmsg_free(msg.skb);
-			return err;
-		}
+		if (err)
+			goto err_free;
 	} else {
 		int bearer_id;
 		struct tipc_node *node;
 		struct tipc_link *link;
 
 		node = tipc_node_find_by_name(net, name, &bearer_id);
-		if (!node)
-			return -EINVAL;
+		if (!node) {
+			err = -EINVAL;
+			goto err_free;
+		}
 
 		tipc_node_read_lock(node);
 		link = node->links[bearer_id].link;
 		if (!link) {
 			tipc_node_read_unlock(node);
-			nlmsg_free(msg.skb);
-			return -EINVAL;
+			err = -EINVAL;
+			goto err_free;
 		}
 
 		err = __tipc_nl_add_link(net, &msg, link, 0);
 		tipc_node_read_unlock(node);
-		if (err) {
-			nlmsg_free(msg.skb);
-			return err;
-		}
+		if (err)
+			goto err_free;
 	}
 
 	return genlmsg_reply(msg.skb, info);
+
+err_free:
+	nlmsg_free(msg.skb);
+	return err;
 }
 
 int tipc_nl_node_reset_link_stats(struct sk_buff *skb, struct genl_info *info)
