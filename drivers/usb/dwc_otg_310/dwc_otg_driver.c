@@ -419,9 +419,11 @@ void dwc_otg_force_device(dwc_otg_core_if_t *core_if)
 static ssize_t force_usb_mode_show(struct device_driver *drv, char *buf)
 {
 	dwc_otg_device_t *otg_dev = g_otgdev;
-	dwc_otg_core_if_t *core_if = otg_dev->core_if;
 
-	return sprintf(buf, "%d\n", core_if->usb_mode);
+	if (!otg_dev)
+		return -EINVAL;
+
+	return sprintf(buf, "%d\n", otg_dev->core_if->usb_mode);
 }
 
 static ssize_t force_usb_mode_store(struct device_driver *drv, const char *buf,
@@ -511,8 +513,11 @@ static ssize_t dwc_otg_conn_en_show(struct device_driver *_drv, char *_buf)
 {
 
 	dwc_otg_device_t *otg_dev = g_otgdev;
-	dwc_otg_pcd_t *_pcd = otg_dev->pcd;
-	return sprintf(_buf, "%d\n", _pcd->conn_en);
+
+	if (!otg_dev)
+		return -EINVAL;
+
+	return sprintf(_buf, "%d\n", otg_dev->pcd->conn_en);
 
 }
 
@@ -521,10 +526,12 @@ static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv,
 {
 	int enable = simple_strtoul(_buf, NULL, 10);
 	dwc_otg_device_t *otg_dev = g_otgdev;
-	dwc_otg_pcd_t *_pcd = otg_dev->pcd;
-	DWC_PRINTF("%s %d->%d\n", __func__, _pcd->conn_en, enable);
 
-	_pcd->conn_en = enable;
+	if (!otg_dev)
+		return -EINVAL;
+
+	DWC_PRINTF("%s %d->%d\n", __func__, otg_dev->pcd->conn_en, enable);
+	otg_dev->pcd->conn_en = enable;
 	return _count;
 }
 
@@ -571,8 +578,11 @@ static DRIVER_ATTR(op_state, S_IRUGO, dwc_otg_op_state_show, NULL);
 static ssize_t vbus_status_show(struct device_driver *_drv, char *_buf)
 {
 	dwc_otg_device_t *otg_dev = g_otgdev;
-	dwc_otg_pcd_t *_pcd = otg_dev->pcd;
-	return sprintf(_buf, "%d\n", _pcd->vbus_status);
+
+	if (!otg_dev)
+		return -EINVAL;
+
+	return sprintf(_buf, "%d\n", otg_dev->pcd->vbus_status);
 }
 
 static DRIVER_ATTR(vbus_status, S_IRUGO, vbus_status_show, NULL);
