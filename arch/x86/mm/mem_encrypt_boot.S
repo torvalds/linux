@@ -103,20 +103,19 @@ ENTRY(__enc_copy)
 	orq	$X86_CR4_PGE, %rdx
 	mov	%rdx, %cr4
 
-	/* Set the PAT register PA5 entry to write-protect */
-	push	%rcx
-	movl	$MSR_IA32_CR_PAT, %ecx
-	rdmsr
-	push	%rdx			/* Save original PAT value */
-	andl	$0xffff00ff, %edx	/* Clear PA5 */
-	orl	$0x00000500, %edx	/* Set PA5 to WP */
-	wrmsr
-	pop	%rdx			/* RDX contains original PAT value */
-	pop	%rcx
+	push	%r15
 
 	movq	%rcx, %r9		/* Save kernel length */
 	movq	%rdi, %r10		/* Save encrypted kernel address */
 	movq	%rsi, %r11		/* Save decrypted kernel address */
+
+	/* Set the PAT register PA5 entry to write-protect */
+	movl	$MSR_IA32_CR_PAT, %ecx
+	rdmsr
+	mov	%rdx, %r15		/* Save original PAT value */
+	andl	$0xffff00ff, %edx	/* Clear PA5 */
+	orl	$0x00000500, %edx	/* Set PA5 to WP */
+	wrmsr
 
 	wbinvd				/* Invalidate any cache entries */
 
@@ -138,11 +137,12 @@ ENTRY(__enc_copy)
 	jnz	1b			/* Kernel length not zero? */
 
 	/* Restore PAT register */
-	push	%rdx			/* Save original PAT value */
 	movl	$MSR_IA32_CR_PAT, %ecx
 	rdmsr
-	pop	%rdx			/* Restore original PAT value */
+	mov	%r15, %rdx		/* Restore original PAT value */
 	wrmsr
+
+	pop	%r15
 
 	ret
 .L__enc_copy_end:
