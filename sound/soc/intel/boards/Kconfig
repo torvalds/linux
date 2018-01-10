@@ -12,20 +12,6 @@ menuconfig SND_SOC_INTEL_MACH
 
 if SND_SOC_INTEL_MACH
 
-if SND_SST_ATOM_HIFI2_PLATFORM_PCI
-
-config SND_MFLD_MACHINE
-	tristate "Medfield (Intel MID)"
-	depends on INTEL_SCU_IPC
-	select SND_SOC_SN95031
-	help
-          This adds support for ASoC machine driver for Intel(R) MID Medfield platform
-          used as alsa device in audio substem in Intel(R) MID devices
-          Say Y if you have such a device.
-          If unsure select "N".
-
-endif ## SND_SST_ATOM_HIFI2_PLATFORM_PCI
-
 if SND_SOC_INTEL_HASWELL
 
 config SND_SOC_INTEL_HASWELL_MACH
