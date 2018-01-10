@@ -1292,15 +1292,17 @@ static int lan9303_register_switch(struct lan9303 *chip)
 	return dsa_register_switch(chip->ds);
 }
 
-static void lan9303_probe_reset_gpio(struct lan9303 *chip,
+static int lan9303_probe_reset_gpio(struct lan9303 *chip,
 				     struct device_node *np)
 {
 	chip->reset_gpio = devm_gpiod_get_optional(chip->dev, "reset",
 						   GPIOD_OUT_LOW);
+	if (IS_ERR(chip->reset_gpio))
+		return PTR_ERR(chip->reset_gpio);
 
-	if (IS_ERR(chip->reset_gpio)) {
+	if (!chip->reset_gpio) {
 		dev_dbg(chip->dev, "No reset GPIO defined\n");
-		return;
+		return 0;
 	}
 
 	chip->reset_duration = 200;
@@ -1315,6 +1317,8 @@ static void lan9303_probe_reset_gpio(struct lan9303 *chip,
 	/* A sane reset duration should not be longer than 1s */
 	if (chip->reset_duration > 1000)
 		chip->reset_duration = 1000;
+
+	return 0;
 }
 
 int lan9303_probe(struct lan9303 *chip, struct device_node *np)
@@ -1324,7 +1328,9 @@ int lan9303_probe(struct lan9303 *chip, struct device_node *np)
 	mutex_init(&chip->indirect_mutex);
 	mutex_init(&chip->alr_mutex);
 
-	lan9303_probe_reset_gpio(chip, np);
+	ret = lan9303_probe_reset_gpio(chip, np);
+	if (ret)
+		return ret;
 
 	lan9303_handle_reset(chip);
 
