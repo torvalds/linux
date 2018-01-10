@@ -3115,6 +3115,24 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 	}
 }
 
+static netdev_features_t cxgb_features_check(struct sk_buff *skb,
+					     struct net_device *dev,
+					     netdev_features_t features)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
+
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) < CHELSIO_T6)
+		return features;
+
+	/* Check if hw supports offload for this packet */
+	if (!skb->encapsulation || cxgb_encap_offload_supported(skb))
+		return features;
+
+	/* Offload is not supported for this encapsulated packet */
+	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+}
+
 static netdev_features_t cxgb_fix_features(struct net_device *dev,
 					   netdev_features_t features)
 {
@@ -3148,6 +3166,7 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_setup_tc         = cxgb_setup_tc,
 	.ndo_udp_tunnel_add   = cxgb_add_udp_tunnel,
 	.ndo_udp_tunnel_del   = cxgb_del_udp_tunnel,
+	.ndo_features_check   = cxgb_features_check,
 	.ndo_fix_features     = cxgb_fix_features,
 };
 
