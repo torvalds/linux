@@ -782,6 +782,7 @@ static noinline int device_list_add(const char *path,
 
 		ret = 1;
 		device->fs_devices = fs_devices;
+		btrfs_free_stale_device(device);
 	} else if (!device->name || strcmp(device->name->str, path)) {
 		/*
 		 * When FS is already mounted.
@@ -839,13 +840,6 @@ static noinline int device_list_add(const char *path,
 	 */
 	if (!fs_devices->opened)
 		device->generation = found_transid;
-
-	/*
-	 * if there is new btrfs on an already registered device,
-	 * then remove the stale device entry.
-	 */
-	if (ret > 0)
-		btrfs_free_stale_device(device);
 
 	*fs_devices_ret = fs_devices;
 
