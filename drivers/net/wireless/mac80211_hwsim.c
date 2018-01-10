@@ -1018,6 +1018,36 @@ static int hwsim_unicast_netgroup(struct mac80211_hwsim_data *data,
 	return res;
 }
 
+static inline u16 trans_tx_rate_flags_ieee2hwsim(struct ieee80211_tx_rate *rate)
+{
+	u16 result = 0;
+
+	if (rate->flags & IEEE80211_TX_RC_USE_RTS_CTS)
+		result |= MAC80211_HWSIM_TX_RC_USE_RTS_CTS;
+	if (rate->flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
+		result |= MAC80211_HWSIM_TX_RC_USE_CTS_PROTECT;
+	if (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
+		result |= MAC80211_HWSIM_TX_RC_USE_SHORT_PREAMBLE;
+	if (rate->flags & IEEE80211_TX_RC_MCS)
+		result |= MAC80211_HWSIM_TX_RC_MCS;
+	if (rate->flags & IEEE80211_TX_RC_GREEN_FIELD)
+		result |= MAC80211_HWSIM_TX_RC_GREEN_FIELD;
+	if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		result |= MAC80211_HWSIM_TX_RC_40_MHZ_WIDTH;
+	if (rate->flags & IEEE80211_TX_RC_DUP_DATA)
+		result |= MAC80211_HWSIM_TX_RC_DUP_DATA;
+	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+		result |= MAC80211_HWSIM_TX_RC_SHORT_GI;
+	if (rate->flags & IEEE80211_TX_RC_VHT_MCS)
+		result |= MAC80211_HWSIM_TX_RC_VHT_MCS;
+	if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+		result |= MAC80211_HWSIM_TX_RC_80_MHZ_WIDTH;
+	if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
+		result |= MAC80211_HWSIM_TX_RC_160_MHZ_WIDTH;
+
+	return result;
+}
+
 static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 				       struct sk_buff *my_skb,
 				       int dst_portid)
@@ -1030,6 +1060,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	unsigned int hwsim_flags = 0;
 	int i;
 	struct hwsim_tx_rate tx_attempts[IEEE80211_TX_MAX_RATES];
+	struct hwsim_tx_rate_flag tx_attempts_flags[IEEE80211_TX_MAX_RATES];
 	uintptr_t cookie;
 
 	if (data->ps != PS_DISABLED)
@@ -1081,12 +1112,21 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		tx_attempts[i].idx = info->status.rates[i].idx;
+		tx_attempts_flags[i].idx = info->status.rates[i].idx;
 		tx_attempts[i].count = info->status.rates[i].count;
+		tx_attempts_flags[i].flags =
+				trans_tx_rate_flags_ieee2hwsim(
+						&info->status.rates[i]);
 	}
 
 	if (nla_put(skb, HWSIM_ATTR_TX_INFO,
 		    sizeof(struct hwsim_tx_rate)*IEEE80211_TX_MAX_RATES,
 		    tx_attempts))
+		goto nla_put_failure;
+
+	if (nla_put(skb, HWSIM_ATTR_TX_INFO_FLAGS,
+		    sizeof(struct hwsim_tx_rate_flag) * IEEE80211_TX_MAX_RATES,
+		    tx_attempts_flags))
 		goto nla_put_failure;
 
 	/* We create a cookie to identify this skb */
@@ -2983,7 +3023,6 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		txi->status.rates[i].idx = tx_attempts[i].idx;
 		txi->status.rates[i].count = tx_attempts[i].count;
-		/*txi->status.rates[i].flags = 0;*/
 	}
 
 	txi->status.ack_signal = nla_get_u32(info->attrs[HWSIM_ATTR_SIGNAL]);
