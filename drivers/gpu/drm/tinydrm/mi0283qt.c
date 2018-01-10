@@ -9,17 +9,18 @@
  * (at your option) any later version.
  */
 
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_modeset_helper.h>
-#include <drm/tinydrm/ili9341.h>
-#include <drm/tinydrm/mipi-dbi.h>
-#include <drm/tinydrm/tinydrm-helpers.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_modeset_helper.h>
+#include <drm/tinydrm/ili9341.h>
+#include <drm/tinydrm/mipi-dbi.h>
+#include <drm/tinydrm/tinydrm-helpers.h>
 #include <video/mipi_display.h>
 
 static int mi0283qt_init(struct mipi_dbi *mipi)
