@@ -42,3 +42,20 @@
 #include "imx6ul.dtsi"
 #include "imx6ull-pinfunc.h"
 #include "imx6ull-pinfunc-snvs.h"
+
+/ {
+	soc {
+		aips3: aips-bus@2200000 {
+			compatible = "fsl,aips-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x02200000 0x100000>;
+			ranges;
+
+			iomuxc_snvs: iomuxc-snvs@2290000 {
+				compatible = "fsl,imx6ull-iomuxc-snvs";
+				reg = <0x02290000 0x4000>;
+			};
+		};
+	};
+};
