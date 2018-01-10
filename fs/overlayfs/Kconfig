@@ -47,9 +47,6 @@ config OVERLAY_FS_INDEX
 	  The inodes index feature prevents breaking of lower hardlinks on copy
 	  up.
 
-	  Note, that the inodes index feature is read-only backward compatible.
-	  That is, mounting an overlay which has an index dir on a kernel that
-	  doesn't support this feature read-only, will not have any negative
-	  outcomes.  However, mounting the same overlay with an old kernel
-	  read-write and then mounting it again with a new kernel, will have
-	  unexpected results.
+	  Note, that the inodes index feature is not backward compatible.
+	  That is, mounting an overlay which has an inodes index on a kernel
+	  that doesn't support this feature will have unexpected results.

@@ -281,9 +281,9 @@ filesystem, so both st_dev and st_ino of the file may change.
 
 Any open files referring to this inode will access the old data.
 
-If a file with multiple hard links is copied up, then this will
-"break" the link.  Changes will not be propagated to other names
-referring to the same inode.
+Unless "inode index" feature is enabled, if a file with multiple hard
+links is copied up, then this will "break" the link.  Changes will not be
+propagated to other names referring to the same inode.
 
 Unless "redirect_dir" feature is enabled, rename(2) on a lower or merged
 directory will fail with EXDEV.
