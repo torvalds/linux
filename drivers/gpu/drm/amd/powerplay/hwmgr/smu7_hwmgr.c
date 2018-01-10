@@ -48,6 +48,7 @@
 #include "smu7_thermal.h"
 #include "smu7_clockpowergating.h"
 #include "processpptables.h"
+#include "pp_thermal.h"
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -4674,6 +4675,25 @@ static int smu7_get_max_high_clocks(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int smu7_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
+		struct PP_TemperatureRange *thermal_data)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)hwmgr->pptable;
+
+	memcpy(thermal_data, &SMU7ThermalPolicy[0], sizeof(struct PP_TemperatureRange));
+
+	if (hwmgr->pp_table_version == PP_TABLE_V1)
+		thermal_data->max = table_info->cac_dtp_table->usSoftwareShutdownTemp *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	else if (hwmgr->pp_table_version == PP_TABLE_V0)
+		thermal_data->max = data->thermal_temp_setting.temperature_shutdown *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -4727,6 +4747,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.start_thermal_controller = smu7_start_thermal_controller,
 	.notify_cac_buffer_info = smu7_notify_cac_buffer_info,
 	.get_max_high_clocks = smu7_get_max_high_clocks,
+	.get_thermal_temperature_range = smu7_get_thermal_temperature_range,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

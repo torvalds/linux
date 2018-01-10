@@ -31,4 +31,10 @@ static const struct PP_TemperatureRange SMU7ThermalWithDelayPolicy[] =
 	{ 120000, 120000},
 };
 
+static const struct PP_TemperatureRange SMU7ThermalPolicy[] =
+{
+	{-273150,  99000},
+	{ 120000, 120000},
+};
+
 #endif
