@@ -197,21 +197,6 @@ static int livepatch_callbacks_demo_init(void)
 {
 	int ret;
 
-	if (!klp_have_reliable_stack() && !patch.immediate) {
-		/*
-		 * WARNING: Be very careful when using 'patch.immediate' in
-		 * your patches.  It's ok to use it for simple patches like
-		 * this, but for more complex patches which change function
-		 * semantics, locking semantics, or data structures, it may not
-		 * be safe.  Use of this option will also prevent removal of
-		 * the patch.
-		 *
-		 * See Documentation/livepatch/livepatch.txt for more details.
-		 */
-		patch.immediate = true;
-		pr_notice("The consistency model isn't supported for your architecture.  Bypassing safety mechanisms and applying the patch immediately.\n");
-	}
-
 	ret = klp_register_patch(&patch);
 	if (ret)
 		return ret;
