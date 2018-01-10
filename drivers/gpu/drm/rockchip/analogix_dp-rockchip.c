@@ -66,6 +66,7 @@ struct rockchip_dp_device {
 
 	const struct rockchip_dp_chip_data *data;
 
+	struct analogix_dp_device *adp;
 	struct analogix_dp_plat_data plat_data;
 };
 
@@ -376,12 +377,6 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	}
 
 	dp->plat_data.panel = panel;
-	/*
-	 * Just like the probe function said, we don't need the
-	 * device drvrate anymore, we should leave the charge to
-	 * analogix dp driver, set the device drvdata to NULL.
-	 */
-	dev_set_drvdata(dev, NULL);
 
 	dp_data = of_device_get_match_data(dev);
 	if (!dp_data)
@@ -408,13 +403,19 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	dp->plat_data.power_off = rockchip_dp_powerdown;
 	dp->plat_data.get_modes = rockchip_dp_get_modes;
 
-	return analogix_dp_bind(dev, dp->drm_dev, &dp->plat_data);
+	dp->adp = analogix_dp_bind(dev, dp->drm_dev, &dp->plat_data);
+	if (IS_ERR(dp->adp))
+		return PTR_ERR(dp->adp);
+
+	return 0;
 }
 
 static void rockchip_dp_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
-	return analogix_dp_unbind(dev, master, data);
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	analogix_dp_unbind(dp->adp);
 }
 
 static const struct component_ops rockchip_dp_component_ops = {
@@ -433,11 +434,6 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 
 	dp->dev = dev;
 
-	/*
-	 * We just use the drvdata until driver run into component
-	 * add function, and then we would set drvdata to null, so
-	 * that analogix dp driver could take charge of the drvdata.
-	 */
 	platform_set_drvdata(pdev, dp);
 
 	return component_add(dev, &rockchip_dp_component_ops);
@@ -450,10 +446,26 @@ static int rockchip_dp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int rockchip_dp_suspend(struct device *dev)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	return analogix_dp_suspend(dp->adp);
+}
+
+static int rockchip_dp_resume(struct device *dev)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	return analogix_dp_resume(dp->adp);
+}
+#endif
+
 static const struct dev_pm_ops rockchip_dp_pm_ops = {
 #ifdef CONFIG_PM_SLEEP
-	.suspend_late = analogix_dp_suspend,
-	.resume_early = analogix_dp_resume,
+	.suspend = rockchip_dp_suspend,
+	.resume_early = rockchip_dp_resume,
 #endif
 };
 
