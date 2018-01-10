@@ -769,7 +769,7 @@ struct hns_roce_v2_cqe {
 	u32	byte_12;
 	u32	byte_16;
 	u32	byte_cnt;
-	u32	smac;
+	u8	smac[4];
 	u32	byte_28;
 	u32	byte_32;
 };

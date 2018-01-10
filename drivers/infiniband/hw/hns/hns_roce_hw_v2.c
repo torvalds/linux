@@ -1913,6 +1913,18 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		wc->port_num = roce_get_field(cqe->byte_32,
 				V2_CQE_BYTE_32_PORTN_M, V2_CQE_BYTE_32_PORTN_S);
 		wc->pkey_index = 0;
+		memcpy(wc->smac, cqe->smac, 4);
+		wc->smac[4] = roce_get_field(cqe->byte_28,
+					     V2_CQE_BYTE_28_SMAC_4_M,
+					     V2_CQE_BYTE_28_SMAC_4_S);
+		wc->smac[5] = roce_get_field(cqe->byte_28,
+					     V2_CQE_BYTE_28_SMAC_5_M,
+					     V2_CQE_BYTE_28_SMAC_5_S);
+		wc->vlan_id = 0xffff;
+		wc->wc_flags |= (IB_WC_WITH_VLAN | IB_WC_WITH_SMAC);
+		wc->network_hdr_type = roce_get_field(cqe->byte_28,
+						    V2_CQE_BYTE_28_PORT_TYPE_M,
+						    V2_CQE_BYTE_28_PORT_TYPE_S);
 	}
 
 	return 0;
