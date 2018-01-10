@@ -954,6 +954,12 @@ static void blk_mq_timeout_work(struct work_struct *work)
 		data.next = blk_rq_timeout(round_jiffies_up(data.next));
 		mod_timer(&q->timeout, data.next);
 	} else {
+		/*
+		 * Request timeouts are handled as a forward rolling timer. If
+		 * we end up here it means that no requests are pending and
+		 * also that no request has been pending for a while. Mark
+		 * each hctx as idle.
+		 */
 		queue_for_each_hw_ctx(q, hctx, i) {
 			/* the hctx may be unmapped, so check it here */
 			if (blk_mq_hw_queue_mapped(hctx))
