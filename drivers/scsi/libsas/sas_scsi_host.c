@@ -486,15 +486,28 @@ static int sas_queue_reset(struct domain_device *dev, int reset_type,
 
 int sas_eh_abort_handler(struct scsi_cmnd *cmd)
 {
-	int res;
+	int res = TMF_RESP_FUNC_FAILED;
 	struct sas_task *task = TO_SAS_TASK(cmd);
 	struct Scsi_Host *host = cmd->device->host;
+	struct domain_device *dev = cmd_to_domain_dev(cmd);
 	struct sas_internal *i = to_sas_internal(host->transportt);
+	unsigned long flags;
 
 	if (!i->dft->lldd_abort_task)
 		return FAILED;
 
-	res = i->dft->lldd_abort_task(task);
+	spin_lock_irqsave(host->host_lock, flags);
+	/* We cannot do async aborts for SATA devices */
+	if (dev_is_sata(dev) && !host->host_eh_scheduled) {
+		spin_unlock_irqrestore(host->host_lock, flags);
+		return FAILED;
+	}
+	spin_unlock_irqrestore(host->host_lock, flags);
+
+	if (task)
+		res = i->dft->lldd_abort_task(task);
+	else
+		SAS_DPRINTK("no task to abort\n");
 	if (res == TMF_RESP_FUNC_SUCC || res == TMF_RESP_FUNC_COMPLETE)
 		return SUCCESS;
 
