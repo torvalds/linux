@@ -47,6 +47,8 @@ enum mlxsw_sp_qdisc_type {
 };
 
 struct mlxsw_sp_qdisc_ops {
+	int (*destroy)(struct mlxsw_sp_port *mlxsw_sp_port,
+		       struct mlxsw_sp_qdisc *mlxsw_sp_qdisc);
 	int (*get_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
 			 struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			 struct tc_qopt_offload_stats *stats_ptr);
@@ -78,6 +80,25 @@ mlxsw_sp_qdisc_compare(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc, u32 handle,
 {
 	return mlxsw_sp_qdisc && mlxsw_sp_qdisc->handle == handle &&
 	       mlxsw_sp_qdisc->type == type;
+}
+
+static int
+mlxsw_sp_qdisc_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
+		       struct mlxsw_sp_qdisc *mlxsw_sp_qdisc)
+{
+	int err = 0;
+
+	if (!mlxsw_sp_qdisc)
+		return 0;
+
+	if (mlxsw_sp_qdisc->ops && mlxsw_sp_qdisc->ops->destroy)
+		err = mlxsw_sp_qdisc->ops->destroy(mlxsw_sp_port,
+						   mlxsw_sp_qdisc);
+
+	mlxsw_sp_qdisc->handle = TC_H_UNSPEC;
+	mlxsw_sp_qdisc->type = MLXSW_SP_QDISC_NO_QDISC;
+	mlxsw_sp_qdisc->ops = NULL;
+	return err;
 }
 
 static int
@@ -175,14 +196,8 @@ static int
 mlxsw_sp_qdisc_red_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct mlxsw_sp_qdisc *mlxsw_sp_qdisc)
 {
-	int err;
-
-	err = mlxsw_sp_tclass_congestion_disable(mlxsw_sp_port,
-						 mlxsw_sp_qdisc->tclass_num);
-	mlxsw_sp_qdisc->handle = TC_H_UNSPEC;
-	mlxsw_sp_qdisc->type = MLXSW_SP_QDISC_NO_QDISC;
-
-	return err;
+	return mlxsw_sp_tclass_congestion_disable(mlxsw_sp_port,
+						  mlxsw_sp_qdisc->tclass_num);
 }
 
 static int
@@ -238,7 +253,7 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 err_bad_param:
 	err = -EINVAL;
 err_config:
-	mlxsw_sp_qdisc_red_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
+	mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 	return err;
 }
 
@@ -308,6 +323,7 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 #define MLXSW_SP_PORT_DEFAULT_TCLASS 0
 
 static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_red = {
+	.destroy = mlxsw_sp_qdisc_red_destroy,
 	.get_stats = mlxsw_sp_qdisc_get_red_stats,
 	.get_xstats = mlxsw_sp_qdisc_get_red_xstats,
 };
@@ -334,8 +350,7 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	switch (p->command) {
 	case TC_RED_DESTROY:
-		return mlxsw_sp_qdisc_red_destroy(mlxsw_sp_port,
-						  mlxsw_sp_qdisc);
+		return mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 	case TC_RED_XSTATS:
 		return mlxsw_sp_qdisc_get_xstats(mlxsw_sp_port, mlxsw_sp_qdisc,
 						 p->xstats);
