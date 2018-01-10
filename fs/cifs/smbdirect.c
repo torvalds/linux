@@ -1862,7 +1862,6 @@ int smbd_recv_buf(struct smbd_connection *info, char *buf, unsigned int size)
 	int to_copy, to_read, data_read, offset;
 	u32 data_length, remaining_data_length, data_offset;
 	int rc;
-	unsigned long flags;
 
 again:
 	if (info->transport_status != SMBD_CONNECTED) {
@@ -1935,15 +1934,13 @@ again:
 				 * end of the queue
 				 */
 				if (!queue_length)
-					spin_lock_irqsave(
-						&info->reassembly_queue_lock,
-						flags);
+					spin_lock_irq(
+						&info->reassembly_queue_lock);
 				list_del(&response->list);
 				queue_removed++;
 				if (!queue_length)
-					spin_unlock_irqrestore(
-						&info->reassembly_queue_lock,
-						flags);
+					spin_unlock_irq(
+						&info->reassembly_queue_lock);
 
 				info->count_reassembly_queue--;
 				info->count_dequeue_reassembly_queue++;
@@ -1963,10 +1960,10 @@ again:
 				to_read, data_read, offset);
 		}
 
-		spin_lock_irqsave(&info->reassembly_queue_lock, flags);
+		spin_lock_irq(&info->reassembly_queue_lock);
 		info->reassembly_data_length -= data_read;
 		info->reassembly_queue_length -= queue_removed;
-		spin_unlock_irqrestore(&info->reassembly_queue_lock, flags);
+		spin_unlock_irq(&info->reassembly_queue_lock);
 
 		info->first_entry_offset = offset;
 		log_read(INFO, "returning to thread data_read=%d "
