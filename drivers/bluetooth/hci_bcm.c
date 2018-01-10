@@ -197,11 +197,21 @@ static bool bcm_device_exists(struct bcm_device *device)
 
 static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 {
-	if (powered && !IS_ERR(dev->clk) && !dev->clk_enabled)
-		clk_prepare_enable(dev->clk);
+	int err;
 
-	dev->set_shutdown(dev, powered);
-	dev->set_device_wakeup(dev, powered);
+	if (powered && !IS_ERR(dev->clk) && !dev->clk_enabled) {
+		err = clk_prepare_enable(dev->clk);
+		if (err)
+			return err;
+	}
+
+	err = dev->set_shutdown(dev, powered);
+	if (err)
+		goto err_clk_disable;
+
+	err = dev->set_device_wakeup(dev, powered);
+	if (err)
+		goto err_revert_shutdown;
 
 	if (!powered && !IS_ERR(dev->clk) && dev->clk_enabled)
 		clk_disable_unprepare(dev->clk);
@@ -209,6 +219,13 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 	dev->clk_enabled = powered;
 
 	return 0;
+
+err_revert_shutdown:
+	dev->set_shutdown(dev, !powered);
+err_clk_disable:
+	if (powered && !IS_ERR(dev->clk) && !dev->clk_enabled)
+		clk_disable_unprepare(dev->clk);
+	return err;
 }
 
 #ifdef CONFIG_PM
@@ -331,6 +348,7 @@ static int bcm_open(struct hci_uart *hu)
 {
 	struct bcm_data *bcm;
 	struct list_head *p;
+	int err;
 
 	bt_dev_dbg(hu->hdev, "hu %p", hu);
 
@@ -345,7 +363,10 @@ static int bcm_open(struct hci_uart *hu)
 	mutex_lock(&bcm_device_lock);
 
 	if (hu->serdev) {
-		serdev_device_open(hu->serdev);
+		err = serdev_device_open(hu->serdev);
+		if (err)
+			goto err_free;
+
 		bcm->dev = serdev_device_get_drvdata(hu->serdev);
 		goto out;
 	}
@@ -373,17 +394,30 @@ out:
 	if (bcm->dev) {
 		hu->init_speed = bcm->dev->init_speed;
 		hu->oper_speed = bcm->dev->oper_speed;
-		bcm_gpio_set_power(bcm->dev, true);
+		err = bcm_gpio_set_power(bcm->dev, true);
+		if (err)
+			goto err_unset_hu;
 	}
 
 	mutex_unlock(&bcm_device_lock);
 	return 0;
+
+err_unset_hu:
+#ifdef CONFIG_PM
+	bcm->dev->hu = NULL;
+#endif
+err_free:
+	mutex_unlock(&bcm_device_lock);
+	hu->priv = NULL;
+	kfree(bcm);
+	return err;
 }
 
 static int bcm_close(struct hci_uart *hu)
 {
 	struct bcm_data *bcm = hu->priv;
 	struct bcm_device *bdev = NULL;
+	int err;
 
 	bt_dev_dbg(hu->hdev, "hu %p", hu);
 
@@ -407,8 +441,11 @@ static int bcm_close(struct hci_uart *hu)
 			pm_runtime_disable(bdev->dev);
 		}
 
-		bcm_gpio_set_power(bdev, false);
-		pm_runtime_set_suspended(bdev->dev);
+		err = bcm_gpio_set_power(bdev, false);
+		if (err)
+			bt_dev_err(hu->hdev, "Failed to power down");
+		else
+			pm_runtime_set_suspended(bdev->dev);
 	}
 	mutex_unlock(&bcm_device_lock);
 
@@ -588,6 +625,7 @@ static struct sk_buff *bcm_dequeue(struct hci_uart *hu)
 static int bcm_suspend_device(struct device *dev)
 {
 	struct bcm_device *bdev = dev_get_drvdata(dev);
+	int err;
 
 	bt_dev_dbg(bdev, "");
 
@@ -599,7 +637,15 @@ static int bcm_suspend_device(struct device *dev)
 	}
 
 	/* Suspend the device */
-	bdev->set_device_wakeup(bdev, false);
+	err = bdev->set_device_wakeup(bdev, false);
+	if (err) {
+		if (bdev->is_suspended && bdev->hu) {
+			bdev->is_suspended = false;
+			hci_uart_set_flow_control(bdev->hu, false);
+		}
+		return -EBUSY;
+	}
+
 	bt_dev_dbg(bdev, "suspend, delaying 15 ms");
 	mdelay(15);
 
@@ -609,10 +655,16 @@ static int bcm_suspend_device(struct device *dev)
 static int bcm_resume_device(struct device *dev)
 {
 	struct bcm_device *bdev = dev_get_drvdata(dev);
+	int err;
 
 	bt_dev_dbg(bdev, "");
 
-	bdev->set_device_wakeup(bdev, true);
+	err = bdev->set_device_wakeup(bdev, true);
+	if (err) {
+		dev_err(dev, "Failed to power up\n");
+		return err;
+	}
+
 	bt_dev_dbg(bdev, "resume, delaying 15 ms");
 	mdelay(15);
 
@@ -666,6 +718,7 @@ unlock:
 static int bcm_resume(struct device *dev)
 {
 	struct bcm_device *bdev = dev_get_drvdata(dev);
+	int err = 0;
 
 	bt_dev_dbg(bdev, "resume: is_suspended %d", bdev->is_suspended);
 
@@ -685,14 +738,16 @@ static int bcm_resume(struct device *dev)
 		bt_dev_dbg(bdev, "BCM irq: disabled");
 	}
 
-	bcm_resume_device(dev);
+	err = bcm_resume_device(dev);
 
 unlock:
 	mutex_unlock(&bcm_device_lock);
 
-	pm_runtime_disable(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
+	if (!err) {
+		pm_runtime_disable(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+	}
 
 	return 0;
 }
@@ -923,7 +978,9 @@ static int bcm_probe(struct platform_device *pdev)
 	list_add_tail(&dev->list, &bcm_device_list);
 	mutex_unlock(&bcm_device_lock);
 
-	bcm_gpio_set_power(dev, false);
+	ret = bcm_gpio_set_power(dev, false);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to power down\n");
 
 	return 0;
 }
@@ -1025,7 +1082,9 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 	if (err)
 		return err;
 
-	bcm_gpio_set_power(bcmdev, false);
+	err = bcm_gpio_set_power(bcmdev, false);
+	if (err)
+		dev_err(&serdev->dev, "Failed to power down\n");
 
 	return hci_uart_register_device(&bcmdev->serdev_hu, &bcm_proto);
 }
