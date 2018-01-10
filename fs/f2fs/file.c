@@ -2125,10 +2125,12 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 			continue;
 		}
 
-		if (blk_end && blk_end != map.m_pblk) {
+		if (blk_end && blk_end != map.m_pblk)
 			fragmented = true;
-			break;
-		}
+
+		/* record total count of block that we're going to move */
+		total += map.m_len;
+
 		blk_end = map.m_pblk + map.m_len;
 
 		map.m_lblk += map.m_len;
@@ -2137,10 +2139,7 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 	if (!fragmented)
 		goto out;
 
-	map.m_lblk = pg_start;
-	map.m_len = pg_end - pg_start;
-
-	sec_num = (map.m_len + BLKS_PER_SEC(sbi) - 1) / BLKS_PER_SEC(sbi);
+	sec_num = (total + BLKS_PER_SEC(sbi) - 1) / BLKS_PER_SEC(sbi);
 
 	/*
 	 * make sure there are enough free section for LFS allocation, this can
@@ -2151,6 +2150,10 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 		err = -EAGAIN;
 		goto out;
 	}
+
+	map.m_lblk = pg_start;
+	map.m_len = pg_end - pg_start;
+	total = 0;
 
 	while (map.m_lblk < pg_end) {
 		pgoff_t idx;
