@@ -1017,8 +1017,12 @@ next_block:
 					*map->m_next_pgofs = pgofs + 1;
 				goto sync_out;
 			}
-			if (flag != F2FS_GET_BLOCK_FIEMAP)
+			if (flag != F2FS_GET_BLOCK_FIEMAP) {
+				/* for defragment case */
+				if (map->m_next_pgofs)
+					*map->m_next_pgofs = pgofs + 1;
 				goto sync_out;
+			}
 		}
 	}
 
