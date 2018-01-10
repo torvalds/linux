@@ -474,27 +474,7 @@ static struct bpf_align_test tests[] = {
 		.result = REJECT,
 		.matches = {
 			{4, "R5=pkt(id=0,off=0,r=0,imm=0)"},
-			/* ptr & 0x40 == either 0 or 0x40 */
-			{5, "R5=inv(id=0,umax_value=64,var_off=(0x0; 0x40))"},
-			/* ptr << 2 == unknown, (4n) */
-			{7, "R5=inv(id=0,smax_value=9223372036854775804,umax_value=18446744073709551612,var_off=(0x0; 0xfffffffffffffffc))"},
-			/* (4n) + 14 == (4n+2).  We blow our bounds, because
-			 * the add could overflow.
-			 */
-			{8, "R5=inv(id=0,var_off=(0x2; 0xfffffffffffffffc))"},
-			/* Checked s>=0 */
-			{10, "R5=inv(id=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
-			/* packet pointer + nonnegative (4n+2) */
-			{12, "R6=pkt(id=1,off=0,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
-			{14, "R4=pkt(id=1,off=4,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
-			/* NET_IP_ALIGN + (4n+2) == (4n), alignment is fine.
-			 * We checked the bounds, but it might have been able
-			 * to overflow if the packet pointer started in the
-			 * upper half of the address space.
-			 * So we did not get a 'range' on R6, and the access
-			 * attempt will fail.
-			 */
-			{16, "R6=pkt(id=1,off=0,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
+			/* R5 bitwise operator &= on pointer prohibited */
 		}
 	},
 	{
