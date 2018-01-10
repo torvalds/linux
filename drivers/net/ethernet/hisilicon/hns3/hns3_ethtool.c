@@ -59,41 +59,6 @@ static const struct hns3_stats hns3_rxq_stats[] = {
 
 #define HNS3_TQP_STATS_COUNT (HNS3_TXQ_STATS_COUNT + HNS3_RXQ_STATS_COUNT)
 
-/* netdev stats */
-#define HNS3_NETDEV_STAT(_string, _member)	{			\
-	.stats_string = _string,					\
-	.stats_offset = offsetof(struct rtnl_link_stats64, _member)	\
-}
-
-static const struct hns3_stats hns3_netdev_stats[] = {
-	/* Rx per-queue statistics */
-	HNS3_NETDEV_STAT("rx_packets", rx_packets),
-	HNS3_NETDEV_STAT("tx_packets", tx_packets),
-	HNS3_NETDEV_STAT("rx_bytes", rx_bytes),
-	HNS3_NETDEV_STAT("tx_bytes", tx_bytes),
-	HNS3_NETDEV_STAT("rx_errors", rx_errors),
-	HNS3_NETDEV_STAT("tx_errors", tx_errors),
-	HNS3_NETDEV_STAT("rx_dropped", rx_dropped),
-	HNS3_NETDEV_STAT("tx_dropped", tx_dropped),
-	HNS3_NETDEV_STAT("multicast", multicast),
-	HNS3_NETDEV_STAT("collisions", collisions),
-	HNS3_NETDEV_STAT("rx_length_errors", rx_length_errors),
-	HNS3_NETDEV_STAT("rx_over_errors", rx_over_errors),
-	HNS3_NETDEV_STAT("rx_crc_errors", rx_crc_errors),
-	HNS3_NETDEV_STAT("rx_frame_errors", rx_frame_errors),
-	HNS3_NETDEV_STAT("rx_fifo_errors", rx_fifo_errors),
-	HNS3_NETDEV_STAT("rx_missed_errors", rx_missed_errors),
-	HNS3_NETDEV_STAT("tx_aborted_errors", tx_aborted_errors),
-	HNS3_NETDEV_STAT("tx_carrier_errors", tx_carrier_errors),
-	HNS3_NETDEV_STAT("tx_fifo_errors", tx_fifo_errors),
-	HNS3_NETDEV_STAT("tx_heartbeat_errors", tx_heartbeat_errors),
-	HNS3_NETDEV_STAT("tx_window_errors", tx_window_errors),
-	HNS3_NETDEV_STAT("rx_compressed", rx_compressed),
-	HNS3_NETDEV_STAT("tx_compressed", tx_compressed),
-};
-
-#define HNS3_NETDEV_STATS_COUNT ARRAY_SIZE(hns3_netdev_stats)
-
 #define HNS3_SELF_TEST_TPYE_NUM		1
 #define HNS3_NIC_LB_TEST_PKT_NUM	1
 #define HNS3_NIC_LB_TEST_RING_ID	0
@@ -466,27 +431,6 @@ static u8 *hns3_get_strings_tqps(struct hnae3_handle *handle, u8 *data)
 	return data;
 }
 
-static u8 *hns3_netdev_stats_get_strings(u8 *data)
-{
-	int i;
-
-	/* get strings for netdev */
-	for (i = 0; i < HNS3_NETDEV_STATS_COUNT; i++) {
-		snprintf(data, ETH_GSTRING_LEN,
-			 hns3_netdev_stats[i].stats_string);
-		data += ETH_GSTRING_LEN;
-	}
-
-	snprintf(data, ETH_GSTRING_LEN, "netdev_rx_dropped");
-	data += ETH_GSTRING_LEN;
-	snprintf(data, ETH_GSTRING_LEN, "netdev_tx_dropped");
-	data += ETH_GSTRING_LEN;
-	snprintf(data, ETH_GSTRING_LEN, "netdev_tx_timeout");
-	data += ETH_GSTRING_LEN;
-
-	return data;
-}
-
 static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -498,7 +442,6 @@ static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		buff = hns3_netdev_stats_get_strings(buff);
 		buff = hns3_get_strings_tqps(h, buff);
 		h->ae_algo->ops->get_strings(h, stringset, (u8 *)buff);
 		break;
@@ -537,27 +480,6 @@ static u64 *hns3_get_stats_tqps(struct hnae3_handle *handle, u64 *data)
 	return data;
 }
 
-static u64 *hns3_get_netdev_stats(struct net_device *netdev, u64 *data)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	const struct rtnl_link_stats64 *net_stats;
-	struct rtnl_link_stats64 temp;
-	u8 *stat;
-	int i;
-
-	net_stats = dev_get_stats(netdev, &temp);
-	for (i = 0; i < HNS3_NETDEV_STATS_COUNT; i++) {
-		stat = (u8 *)net_stats + hns3_netdev_stats[i].stats_offset;
-		*data++ = *(u64 *)stat;
-	}
-
-	*data++ = netdev->rx_dropped.counter;
-	*data++ = netdev->tx_dropped.counter;
-	*data++ = priv->tx_timeout_count;
-
-	return data;
-}
-
 /* hns3_get_stats - get detail statistics.
  * @netdev: net device
  * @stats: statistics info.
@@ -574,7 +496,7 @@ static void hns3_get_stats(struct net_device *netdev,
 		return;
 	}
 
-	p = hns3_get_netdev_stats(netdev, p);
+	h->ae_algo->ops->update_stats(h, &netdev->stats);
 
 	/* get per-queue stats */
 	p = hns3_get_stats_tqps(h, p);
