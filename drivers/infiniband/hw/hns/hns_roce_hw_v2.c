@@ -1910,6 +1910,9 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		wc->wc_flags |= (roce_get_bit(cqe->byte_32,
 					      V2_CQE_BYTE_32_GRH_S) ?
 					      IB_WC_GRH : 0);
+		wc->port_num = roce_get_field(cqe->byte_32,
+				V2_CQE_BYTE_32_PORTN_M, V2_CQE_BYTE_32_PORTN_S);
+		wc->pkey_index = 0;
 	}
 
 	return 0;
