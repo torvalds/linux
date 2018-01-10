@@ -325,6 +325,34 @@ int perf_time__percent_parse_str(struct perf_time_interval *ptime_buf, int num,
 	return -1;
 }
 
+struct perf_time_interval *perf_time__range_alloc(const char *ostr, int *size)
+{
+	const char *p1, *p2;
+	int i = 1;
+	struct perf_time_interval *ptime;
+
+	/*
+	 * At least allocate one time range.
+	 */
+	if (!ostr)
+		goto alloc;
+
+	p1 = ostr;
+	while (p1 < ostr + strlen(ostr)) {
+		p2 = strchr(p1, ',');
+		if (!p2)
+			break;
+
+		p1 = p2 + 1;
+		i++;
+	}
+
+alloc:
+	*size = i;
+	ptime = calloc(i, sizeof(*ptime));
+	return ptime;
+}
+
 bool perf_time__skip_sample(struct perf_time_interval *ptime, u64 timestamp)
 {
 	/* if time is not set don't drop sample */
