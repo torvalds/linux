@@ -358,7 +358,7 @@ static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
 	if (mlxsw_sp_fw_rev_ge(rev, &mlxsw_sp_supported_fw_rev))
 		return 0;
 
-	dev_info(mlxsw_sp->bus_info->dev, "The firmware version %d.%d.%d out of data\n",
+	dev_info(mlxsw_sp->bus_info->dev, "The firmware version %d.%d.%d is out of date\n",
 		 rev->major, rev->minor, rev->subminor);
 	dev_info(mlxsw_sp->bus_info->dev, "Upgrading firmware using file %s\n",
 		 MLXSW_SP_FW_FILENAME);
