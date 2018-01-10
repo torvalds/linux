@@ -1314,6 +1314,7 @@ void t4_sge_start(struct adapter *adap);
 void t4_sge_stop(struct adapter *adap);
 void cxgb4_set_ethtool_ops(struct net_device *netdev);
 int cxgb4_write_rss(const struct port_info *pi, const u16 *queues);
+enum cpl_tx_tnl_lso_type cxgb_encap_offload_supported(struct sk_buff *skb);
 extern int dbfifo_int_thresh;
 
 #define for_each_port(adapter, iter) \

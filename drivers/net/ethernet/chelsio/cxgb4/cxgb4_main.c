@@ -5210,6 +5210,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_RXCSUM | NETIF_F_RXHASH |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 			NETIF_F_HW_TC;
+
+		if (CHELSIO_CHIP_VERSION(chip) > CHELSIO_T5)
+			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+
 		if (highdma)
 			netdev->hw_features |= NETIF_F_HIGHDMA;
 		netdev->features |= netdev->hw_features;
