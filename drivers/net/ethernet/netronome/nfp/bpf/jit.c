@@ -2742,3 +2742,26 @@ int nfp_bpf_jit(struct nfp_prog *nfp_prog)
 
 	return nfp_bpf_ustore_calc(nfp_prog, (__force __le64 *)nfp_prog->prog);
 }
+
+void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt)
+{
+	struct nfp_insn_meta *meta;
+
+	/* Another pass to record jump information. */
+	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		u64 code = meta->insn.code;
+
+		if (BPF_CLASS(code) == BPF_JMP && BPF_OP(code) != BPF_EXIT &&
+		    BPF_OP(code) != BPF_CALL) {
+			struct nfp_insn_meta *dst_meta;
+			unsigned short dst_indx;
+
+			dst_indx = meta->n + 1 + meta->insn.off;
+			dst_meta = nfp_bpf_goto_meta(nfp_prog, meta, dst_indx,
+						     cnt);
+
+			meta->jmp_dst = dst_meta;
+			dst_meta->flags |= FLAG_INSN_IS_JUMP_DST;
+		}
+	}
+}

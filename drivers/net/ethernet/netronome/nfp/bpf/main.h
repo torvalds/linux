@@ -236,6 +236,7 @@ struct nfp_bpf_vnic {
 	struct bpf_prog *tc_prog;
 };
 
+void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt);
 int nfp_bpf_jit(struct nfp_prog *prog);
 
 extern const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops;
