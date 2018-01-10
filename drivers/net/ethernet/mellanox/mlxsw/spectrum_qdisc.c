@@ -98,9 +98,9 @@ mlxsw_sp_tclass_congestion_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static void
-mlxsw_sp_setup_tc_qdisc_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
-				    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
-				    int tclass_num)
+mlxsw_sp_setup_tc_qdisc_red_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
+					struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+					int tclass_num)
 {
 	struct mlxsw_sp_qdisc_stats *stats_base;
 	struct mlxsw_sp_port_xstats *xstats;
@@ -110,24 +110,17 @@ mlxsw_sp_setup_tc_qdisc_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
 	stats = &mlxsw_sp_port->periodic_hw_stats.stats;
 	stats_base = &mlxsw_sp_qdisc->stats_base;
+	red_base = &mlxsw_sp_qdisc->xstats_base.red;
 
 	stats_base->tx_packets = stats->tx_packets;
 	stats_base->tx_bytes = stats->tx_bytes;
 
-	switch (mlxsw_sp_qdisc->type) {
-	case MLXSW_SP_QDISC_RED:
-		red_base = &mlxsw_sp_qdisc->xstats_base.red;
-		red_base->prob_mark = xstats->ecn;
-		red_base->prob_drop = xstats->wred_drop[tclass_num];
-		red_base->pdrop = xstats->tail_drop[tclass_num];
+	red_base->prob_mark = xstats->ecn;
+	red_base->prob_drop = xstats->wred_drop[tclass_num];
+	red_base->pdrop = xstats->tail_drop[tclass_num];
 
-		stats_base->overlimits = red_base->prob_drop +
-					 red_base->prob_mark;
-		stats_base->drops = red_base->prob_drop + red_base->pdrop;
-		break;
-	default:
-		break;
-	}
+	stats_base->overlimits = red_base->prob_drop + red_base->prob_mark;
+	stats_base->drops = red_base->prob_drop + red_base->pdrop;
 }
 
 static int
@@ -189,9 +182,9 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 
 	mlxsw_sp_qdisc->type = MLXSW_SP_QDISC_RED;
 	if (mlxsw_sp_qdisc->handle != handle)
-		mlxsw_sp_setup_tc_qdisc_clean_stats(mlxsw_sp_port,
-						    mlxsw_sp_qdisc,
-						    tclass_num);
+		mlxsw_sp_setup_tc_qdisc_red_clean_stats(mlxsw_sp_port,
+							mlxsw_sp_qdisc,
+							tclass_num);
 
 	mlxsw_sp_qdisc->handle = handle;
 	return 0;
