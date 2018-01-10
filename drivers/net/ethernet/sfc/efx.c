@@ -953,31 +953,42 @@ void efx_link_status_changed(struct efx_nic *efx)
 		netif_info(efx, link, efx->net_dev, "link down\n");
 }
 
-void efx_link_set_advertising(struct efx_nic *efx, u32 advertising)
+void efx_link_set_advertising(struct efx_nic *efx,
+			      const unsigned long *advertising)
 {
-	efx->link_advertising = advertising;
-	if (advertising) {
-		if (advertising & ADVERTISED_Pause)
-			efx->wanted_fc |= (EFX_FC_TX | EFX_FC_RX);
-		else
-			efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
-		if (advertising & ADVERTISED_Asym_Pause)
-			efx->wanted_fc ^= EFX_FC_TX;
-	}
+	memcpy(efx->link_advertising, advertising,
+	       sizeof(__ETHTOOL_DECLARE_LINK_MODE_MASK()));
+
+	efx->link_advertising[0] |= ADVERTISED_Autoneg;
+	if (advertising[0] & ADVERTISED_Pause)
+		efx->wanted_fc |= (EFX_FC_TX | EFX_FC_RX);
+	else
+		efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
+	if (advertising[0] & ADVERTISED_Asym_Pause)
+		efx->wanted_fc ^= EFX_FC_TX;
+}
+
+/* Equivalent to efx_link_set_advertising with all-zeroes, except does not
+ * force the Autoneg bit on.
+ */
+void efx_link_clear_advertising(struct efx_nic *efx)
+{
+	bitmap_zero(efx->link_advertising, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	efx->wanted_fc &= ~(EFX_FC_TX | EFX_FC_RX);
 }
 
 void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
 {
 	efx->wanted_fc = wanted_fc;
-	if (efx->link_advertising) {
+	if (efx->link_advertising[0]) {
 		if (wanted_fc & EFX_FC_RX)
-			efx->link_advertising |= (ADVERTISED_Pause |
-						  ADVERTISED_Asym_Pause);
+			efx->link_advertising[0] |= (ADVERTISED_Pause |
+						     ADVERTISED_Asym_Pause);
 		else
-			efx->link_advertising &= ~(ADVERTISED_Pause |
-						   ADVERTISED_Asym_Pause);
+			efx->link_advertising[0] &= ~(ADVERTISED_Pause |
+						      ADVERTISED_Asym_Pause);
 		if (wanted_fc & EFX_FC_TX)
-			efx->link_advertising ^= ADVERTISED_Asym_Pause;
+			efx->link_advertising[0] ^= ADVERTISED_Asym_Pause;
 	}
 }
 

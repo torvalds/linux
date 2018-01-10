@@ -937,7 +937,7 @@ struct efx_nic {
 	unsigned int mdio_bus;
 	enum efx_phy_mode phy_mode;
 
-	u32 link_advertising;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(link_advertising);
 	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;
 

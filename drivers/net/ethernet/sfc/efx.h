@@ -258,7 +258,9 @@ static inline void efx_schedule_channel_irq(struct efx_channel *channel)
 }
 
 void efx_link_status_changed(struct efx_nic *efx);
-void efx_link_set_advertising(struct efx_nic *efx, u32);
+void efx_link_set_advertising(struct efx_nic *efx,
+			      const unsigned long *advertising);
+void efx_link_clear_advertising(struct efx_nic *efx);
 void efx_link_set_wanted_fc(struct efx_nic *efx, u8);
 
 static inline void efx_device_detach_sync(struct efx_nic *efx)
