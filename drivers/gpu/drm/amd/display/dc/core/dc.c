@@ -1105,6 +1105,7 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 
 	if (update_flags->bits.rotation_change
 			|| update_flags->bits.stereo_format_change
+			|| update_flags->bits.pixel_format_change
 			|| update_flags->bits.gamma_change
 			|| update_flags->bits.bpp_change
 			|| update_flags->bits.bandwidth_change

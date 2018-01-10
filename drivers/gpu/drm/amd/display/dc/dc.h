@@ -213,6 +213,7 @@ struct dc_debug {
 	bool vsr_support;
 	bool performance_trace;
 	bool az_endpoint_mute_only;
+	bool always_use_regamma;
 };
 struct dc_state;
 struct resource_pool;
@@ -495,7 +496,6 @@ struct dc_surface_update {
 	/* following updates require alloc/sleep/spin that is not isr safe,
 	 * null means no updates
 	 */
-	/* gamma TO BE REMOVED */
 	struct dc_gamma *gamma;
 	enum color_transfer_func color_input_tf;
 	struct dc_transfer_func *in_transfer_func;
