@@ -568,6 +568,7 @@ nfp_net_aux_irq_request(struct nfp_net *nn, u32 ctrl_offset,
 		return err;
 	}
 	nn_writeb(nn, ctrl_offset, entry->entry);
+	nfp_net_irq_unmask(nn, entry->entry);
 
 	return 0;
 }
@@ -582,6 +583,7 @@ static void nfp_net_aux_irq_free(struct nfp_net *nn, u32 ctrl_offset,
 				 unsigned int vector_idx)
 {
 	nn_writeb(nn, ctrl_offset, 0xff);
+	nn_pci_flush(nn);
 	free_irq(nn->irq_entries[vector_idx].vector, nn);
 }
 
