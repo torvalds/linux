@@ -2844,10 +2844,8 @@ static void force_quiescent_state(struct rcu_state *rsp)
 		      !raw_spin_trylock(&rnp->fqslock);
 		if (rnp_old != NULL)
 			raw_spin_unlock(&rnp_old->fqslock);
-		if (ret) {
-			rsp->n_force_qs_lh++;
+		if (ret)
 			return;
-		}
 		rnp_old = rnp;
 	}
 	/* rnp_old == rcu_get_root(rsp), rnp == NULL. */
@@ -2856,7 +2854,6 @@ static void force_quiescent_state(struct rcu_state *rsp)
 	raw_spin_lock_irqsave_rcu_node(rnp_old, flags);
 	raw_spin_unlock(&rnp_old->fqslock);
 	if (READ_ONCE(rsp->gp_flags) & RCU_GP_FLAG_FQS) {
-		rsp->n_force_qs_lh++;
 		raw_spin_unlock_irqrestore_rcu_node(rnp_old, flags);
 		return;  /* Someone beat us to it. */
 	}
