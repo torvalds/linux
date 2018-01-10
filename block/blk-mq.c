@@ -483,7 +483,6 @@ void blk_mq_free_request(struct request *rq)
 		blk_put_rl(blk_rq_rl(rq));
 
 	blk_mq_rq_update_state(rq, MQ_RQ_IDLE);
-	clear_bit(REQ_ATOM_POLL_SLEPT, &rq->atomic_flags);
 	if (rq->tag != -1)
 		blk_mq_put_tag(hctx, hctx->tags, ctx, rq->tag);
 	if (sched_tag != -1)
@@ -2976,7 +2975,7 @@ static bool blk_mq_poll_hybrid_sleep(struct request_queue *q,
 	unsigned int nsecs;
 	ktime_t kt;
 
-	if (test_bit(REQ_ATOM_POLL_SLEPT, &rq->atomic_flags))
+	if (rq->rq_flags & RQF_MQ_POLL_SLEPT)
 		return false;
 
 	/*
@@ -2996,7 +2995,7 @@ static bool blk_mq_poll_hybrid_sleep(struct request_queue *q,
 	if (!nsecs)
 		return false;
 
-	set_bit(REQ_ATOM_POLL_SLEPT, &rq->atomic_flags);
+	rq->rq_flags |= RQF_MQ_POLL_SLEPT;
 
 	/*
 	 * This will be replaced with the stats tracking code, using
