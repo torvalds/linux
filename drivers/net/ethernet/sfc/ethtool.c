@@ -720,7 +720,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 		goto out;
 	}
 
-	if ((wanted_fc & EFX_FC_AUTO) && !efx->link_advertising) {
+	if ((wanted_fc & EFX_FC_AUTO) && !efx->link_advertising[0]) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Autonegotiation is disabled\n");
 		rc = -EINVAL;
@@ -732,10 +732,10 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	    (wanted_fc & EFX_FC_TX) && !(efx->wanted_fc & EFX_FC_TX))
 		efx->type->prepare_enable_fc_tx(efx);
 
-	old_adv = efx->link_advertising;
+	old_adv = efx->link_advertising[0];
 	old_fc = efx->wanted_fc;
 	efx_link_set_wanted_fc(efx, wanted_fc);
-	if (efx->link_advertising != old_adv ||
+	if (efx->link_advertising[0] != old_adv ||
 	    (efx->wanted_fc ^ old_fc) & EFX_FC_AUTO) {
 		rc = efx->phy_op->reconfigure(efx);
 		if (rc) {
