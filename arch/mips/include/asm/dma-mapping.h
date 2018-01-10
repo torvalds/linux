@@ -17,14 +17,6 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 	return mips_dma_map_ops;
 }
 
-static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
-{
-	if (!dev->dma_mask)
-		return false;
-
-	return addr + size - 1 <= *dev->dma_mask;
-}
-
 static inline void dma_mark_clean(void *addr, size_t size) {}
 
 #define arch_setup_dma_ops arch_setup_dma_ops

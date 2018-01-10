@@ -6,7 +6,7 @@
 #include <linux/init.h>
 #include <linux/swiotlb.h>
 #include <linux/bootmem.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/mem_encrypt.h>
 
 #include <asm/iommu.h>

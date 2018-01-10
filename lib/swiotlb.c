@@ -18,7 +18,7 @@
  */
 
 #include <linux/cache.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/mm.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>

@@ -4338,6 +4338,7 @@ F:	lib/dma-noop.c
 F:	lib/dma-virt.c
 F:	drivers/base/dma-mapping.c
 F:	drivers/base/dma-coherent.c
+F:	include/linux/dma-direct.h
 F:	include/linux/dma-mapping.h
 
 DME1737 HARDWARE MONITOR DRIVER
