@@ -485,6 +485,7 @@ struct hns_roce_qp {
 	u32			access_flags;
 	u32                     atomic_rd_en;
 	u32			pkey_index;
+	u32			qkey;
 	void			(*event)(struct hns_roce_qp *,
 					 enum hns_roce_event);
 	unsigned long		qpn;
