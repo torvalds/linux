@@ -167,15 +167,11 @@ void kzfree(const void *);
 size_t ksize(const void *);
 
 #ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
-const char *__check_heap_object(const void *ptr, unsigned long n,
-				struct page *page);
+void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
+			bool to_user);
 #else
-static inline const char *__check_heap_object(const void *ptr,
-					      unsigned long n,
-					      struct page *page)
-{
-	return NULL;
-}
+static inline void __check_heap_object(const void *ptr, unsigned long n,
+				       struct page *page, bool to_user) { }
 #endif
 
 /*

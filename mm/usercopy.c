@@ -86,10 +86,10 @@ void __noreturn usercopy_abort(const char *name, const char *detail,
 }
 
 /* Returns true if any portion of [ptr,ptr+n) over laps with [low,high). */
-static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
-		     unsigned long high)
+static bool overlaps(const unsigned long ptr, unsigned long n,
+		     unsigned long low, unsigned long high)
 {
-	unsigned long check_low = (uintptr_t)ptr;
+	const unsigned long check_low = ptr;
 	unsigned long check_high = check_low + n;
 
 	/* Does not overlap if entirely above or entirely below. */
@@ -100,15 +100,15 @@ static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
 }
 
 /* Is this address range in the kernel text area? */
-static inline const char *check_kernel_text_object(const void *ptr,
-						   unsigned long n)
+static inline void check_kernel_text_object(const unsigned long ptr,
+					    unsigned long n, bool to_user)
 {
 	unsigned long textlow = (unsigned long)_stext;
 	unsigned long texthigh = (unsigned long)_etext;
 	unsigned long textlow_linear, texthigh_linear;
 
 	if (overlaps(ptr, n, textlow, texthigh))
-		return "<kernel text>";
+		usercopy_abort("kernel text", NULL, to_user, ptr - textlow, n);
 
 	/*
 	 * Some architectures have virtual memory mappings with a secondary
@@ -121,32 +121,30 @@ static inline const char *check_kernel_text_object(const void *ptr,
 	textlow_linear = (unsigned long)lm_alias(textlow);
 	/* No different mapping: we're done. */
 	if (textlow_linear == textlow)
-		return NULL;
+		return;
 
 	/* Check the secondary mapping... */
 	texthigh_linear = (unsigned long)lm_alias(texthigh);
 	if (overlaps(ptr, n, textlow_linear, texthigh_linear))
-		return "<linear kernel text>";
-
-	return NULL;
+		usercopy_abort("linear kernel text", NULL, to_user,
+			       ptr - textlow_linear, n);
 }
 
-static inline const char *check_bogus_address(const void *ptr, unsigned long n)
+static inline void check_bogus_address(const unsigned long ptr, unsigned long n,
+				       bool to_user)
 {
 	/* Reject if object wraps past end of memory. */
-	if ((unsigned long)ptr + n < (unsigned long)ptr)
-		return "<wrapped address>";
+	if (ptr + n < ptr)
+		usercopy_abort("wrapped address", NULL, to_user, 0, ptr + n);
 
 	/* Reject if NULL or ZERO-allocation. */
 	if (ZERO_OR_NULL_PTR(ptr))
-		return "<null>";
-
-	return NULL;
+		usercopy_abort("null address", NULL, to_user, ptr, n);
 }
 
 /* Checks for allocs that are marked in some way as spanning multiple pages. */
-static inline const char *check_page_span(const void *ptr, unsigned long n,
-					  struct page *page, bool to_user)
+static inline void check_page_span(const void *ptr, unsigned long n,
+				   struct page *page, bool to_user)
 {
 #ifdef CONFIG_HARDENED_USERCOPY_PAGESPAN
 	const void *end = ptr + n - 1;
@@ -163,28 +161,28 @@ static inline const char *check_page_span(const void *ptr, unsigned long n,
 	if (ptr >= (const void *)__start_rodata &&
 	    end <= (const void *)__end_rodata) {
 		if (!to_user)
-			return "<rodata>";
-		return NULL;
+			usercopy_abort("rodata", NULL, to_user, 0, n);
+		return;
 	}
 
 	/* Allow kernel data region (if not marked as Reserved). */
 	if (ptr >= (const void *)_sdata && end <= (const void *)_edata)
-		return NULL;
+		return;
 
 	/* Allow kernel bss region (if not marked as Reserved). */
 	if (ptr >= (const void *)__bss_start &&
 	    end <= (const void *)__bss_stop)
-		return NULL;
+		return;
 
 	/* Is the object wholly within one base page? */
 	if (likely(((unsigned long)ptr & (unsigned long)PAGE_MASK) ==
 		   ((unsigned long)end & (unsigned long)PAGE_MASK)))
-		return NULL;
+		return;
 
 	/* Allow if fully inside the same compound (__GFP_COMP) page. */
 	endpage = virt_to_head_page(end);
 	if (likely(endpage == page))
-		return NULL;
+		return;
 
 	/*
 	 * Reject if range is entirely either Reserved (i.e. special or
@@ -194,36 +192,37 @@ static inline const char *check_page_span(const void *ptr, unsigned long n,
 	is_reserved = PageReserved(page);
 	is_cma = is_migrate_cma_page(page);
 	if (!is_reserved && !is_cma)
-		return "<spans multiple pages>";
+		usercopy_abort("spans multiple pages", NULL, to_user, 0, n);
 
 	for (ptr += PAGE_SIZE; ptr <= end; ptr += PAGE_SIZE) {
 		page = virt_to_head_page(ptr);
 		if (is_reserved && !PageReserved(page))
-			return "<spans Reserved and non-Reserved pages>";
+			usercopy_abort("spans Reserved and non-Reserved pages",
+				       NULL, to_user, 0, n);
 		if (is_cma && !is_migrate_cma_page(page))
-			return "<spans CMA and non-CMA pages>";
+			usercopy_abort("spans CMA and non-CMA pages", NULL,
+				       to_user, 0, n);
 	}
 #endif
-
-	return NULL;
 }
 
-static inline const char *check_heap_object(const void *ptr, unsigned long n,
-					    bool to_user)
+static inline void check_heap_object(const void *ptr, unsigned long n,
+				     bool to_user)
 {
 	struct page *page;
 
 	if (!virt_addr_valid(ptr))
-		return NULL;
+		return;
 
 	page = virt_to_head_page(ptr);
 
-	/* Check slab allocator for flags and size. */
-	if (PageSlab(page))
-		return __check_heap_object(ptr, n, page);
-
-	/* Verify object does not incorrectly span multiple pages. */
-	return check_page_span(ptr, n, page, to_user);
+	if (PageSlab(page)) {
+		/* Check slab allocator for flags and size. */
+		__check_heap_object(ptr, n, page, to_user);
+	} else {
+		/* Verify object does not incorrectly span multiple pages. */
+		check_page_span(ptr, n, page, to_user);
+	}
 }
 
 /*
@@ -234,21 +233,15 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
  */
 void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 {
-	const char *err;
-
 	/* Skip all tests if size is zero. */
 	if (!n)
 		return;
 
 	/* Check for invalid addresses. */
-	err = check_bogus_address(ptr, n);
-	if (err)
-		goto report;
+	check_bogus_address((const unsigned long)ptr, n, to_user);
 
 	/* Check for bad heap object. */
-	err = check_heap_object(ptr, n, to_user);
-	if (err)
-		goto report;
+	check_heap_object(ptr, n, to_user);
 
 	/* Check for bad stack object. */
 	switch (check_stack_object(ptr, n)) {
@@ -264,16 +257,10 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 		 */
 		return;
 	default:
-		err = "<process stack>";
-		goto report;
+		usercopy_abort("process stack", NULL, to_user, 0, n);
 	}
 
 	/* Check for object in kernel to avoid text exposure. */
-	err = check_kernel_text_object(ptr, n);
-	if (!err)
-		return;
-
-report:
-	usercopy_abort(err, NULL, to_user, 0, n);
+	check_kernel_text_object((const unsigned long)ptr, n, to_user);
 }
 EXPORT_SYMBOL(__check_object_size);

@@ -4397,8 +4397,8 @@ module_init(slab_proc_init);
  * Returns NULL if check passes, otherwise const char * to name of cache
  * to indicate an error.
  */
-const char *__check_heap_object(const void *ptr, unsigned long n,
-				struct page *page)
+void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
+			 bool to_user)
 {
 	struct kmem_cache *cachep;
 	unsigned int objnr;
@@ -4414,9 +4414,9 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
 
 	/* Allow address range falling entirely within object size. */
 	if (offset <= cachep->object_size && n <= cachep->object_size - offset)
-		return NULL;
+		return;
 
-	return cachep->name;
+	usercopy_abort("SLAB object", cachep->name, to_user, offset, n);
 }
 #endif /* CONFIG_HARDENED_USERCOPY */
 
