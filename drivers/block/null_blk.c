@@ -14,6 +14,7 @@
 #include <linux/hrtimer.h>
 #include <linux/configfs.h>
 #include <linux/badblocks.h>
+#include <linux/fault-inject.h>
 
 #define SECTOR_SHIFT		9
 #define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
@@ -25,6 +26,8 @@
 
 #define TICKS_PER_SEC		50ULL
 #define TIMER_INTERVAL		(NSEC_PER_SEC / TICKS_PER_SEC)
+
+static DECLARE_FAULT_ATTR(null_timeout_attr);
 
 static inline u64 mb_per_tick(int mbps)
 {
@@ -161,6 +164,9 @@ MODULE_PARM_DESC(submit_queues, "Number of submission queues");
 static int g_home_node = NUMA_NO_NODE;
 module_param_named(home_node, g_home_node, int, S_IRUGO);
 MODULE_PARM_DESC(home_node, "Home node for the device");
+
+static char g_timeout_str[80];
+module_param_string(timeout, g_timeout_str, sizeof(g_timeout_str), S_IRUGO);
 
 static int g_queue_mode = NULL_Q_MQ;
 
@@ -1364,6 +1370,14 @@ static int null_rq_prep_fn(struct request_queue *q, struct request *req)
 	return BLKPREP_DEFER;
 }
 
+static bool should_timeout_request(struct request *rq)
+{
+	if (g_timeout_str[0])
+		return should_fail(&null_timeout_attr, 1);
+
+	return false;
+}
+
 static void null_request_fn(struct request_queue *q)
 {
 	struct request *rq;
@@ -1371,9 +1385,11 @@ static void null_request_fn(struct request_queue *q)
 	while ((rq = blk_fetch_request(q)) != NULL) {
 		struct nullb_cmd *cmd = rq->special;
 
-		spin_unlock_irq(q->queue_lock);
-		null_handle_cmd(cmd);
-		spin_lock_irq(q->queue_lock);
+		if (!should_timeout_request(rq)) {
+			spin_unlock_irq(q->queue_lock);
+			null_handle_cmd(cmd);
+			spin_lock_irq(q->queue_lock);
+		}
 	}
 }
 
@@ -1400,7 +1416,10 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(bd->rq);
 
-	return null_handle_cmd(cmd);
+	if (!should_timeout_request(bd->rq))
+		return null_handle_cmd(cmd);
+
+	return BLK_STS_OK;
 }
 
 static const struct blk_mq_ops null_mq_ops = {
@@ -1634,6 +1653,18 @@ static void null_validate_conf(struct nullb_device *dev)
 		dev->mbps = 0;
 }
 
+static bool null_setup_fault(void)
+{
+	if (!g_timeout_str[0])
+		return true;
+
+	if (!setup_fault_attr(&null_timeout_attr, g_timeout_str))
+		return false;
+
+	null_timeout_attr.verbose = 0;
+	return true;
+}
+
 static int null_add_dev(struct nullb_device *dev)
 {
 	struct nullb *nullb;
@@ -1667,6 +1698,9 @@ static int null_add_dev(struct nullb_device *dev)
 		if (rv)
 			goto out_cleanup_queues;
 
+		if (!null_setup_fault())
+			goto out_cleanup_queues;
+
 		nullb->tag_set->timeout = 5 * HZ;
 		nullb->q = blk_mq_init_queue(nullb->tag_set);
 		if (IS_ERR(nullb->q)) {
@@ -1691,6 +1725,10 @@ static int null_add_dev(struct nullb_device *dev)
 			rv = -ENOMEM;
 			goto out_cleanup_queues;
 		}
+
+		if (!null_setup_fault())
+			goto out_cleanup_blk_queue;
+
 		blk_queue_prep_rq(nullb->q, null_rq_prep_fn);
 		blk_queue_softirq_done(nullb->q, null_softirq_done_fn);
 		blk_queue_rq_timed_out(nullb->q, null_rq_timed_out_fn);
