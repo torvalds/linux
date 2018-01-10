@@ -58,6 +58,9 @@ v1 is available under Documentation/cgroup-v1/.
        5-6-1. RDMA Interface Files
      5-7. Misc
        5-7-1. perf_event
+     5-N. Non-normative information
+       5-N-1. CPU controller root cgroup process behaviour
+       5-N-2. IO controller root cgroup process behaviour
    6. Namespace
      6-1. Basics
      6-2. The Root and Views
@@ -421,7 +424,9 @@ The root cgroup is exempt from this restriction.  Root contains
 processes and anonymous resource consumption which can't be associated
 with any other cgroups and requires special treatment from most
 controllers.  How resource consumption in the root cgroup is governed
-is up to each controller.
+is up to each controller (for more information on this topic please
+refer to the Non-normative information section in the Controllers
+chapter).
 
 Note that the restriction doesn't get in the way if there is no
 enabled controller in the cgroup's "cgroup.subtree_control".  This is
@@ -1504,6 +1509,35 @@ perf_event controller, if not mounted on a legacy hierarchy, is
 automatically enabled on the v2 hierarchy so that perf events can
 always be filtered by cgroup v2 path.  The controller can still be
 moved to a legacy hierarchy after v2 hierarchy is populated.
+
+
+Non-normative information
+-------------------------
+
+This section contains information that isn't considered to be a part of
+the stable kernel API and so is subject to change.
+
+
+CPU controller root cgroup process behaviour
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When distributing CPU cycles in the root cgroup each thread in this
+cgroup is treated as if it was hosted in a separate child cgroup of the
+root cgroup. This child cgroup weight is dependent on its thread nice
+level.
+
+For details of this mapping see sched_prio_to_weight array in
+kernel/sched/core.c file (values from this array should be scaled
+appropriately so the neutral - nice 0 - value is 100 instead of 1024).
+
+
+IO controller root cgroup process behaviour
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Root cgroup processes are hosted in an implicit leaf child node.
+When distributing IO resources this implicit child node is taken into
+account as if it was a normal child cgroup of the root cgroup with a
+weight value of 200.
 
 
 Namespace
