@@ -129,10 +129,8 @@ static int exynos_trng_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	trng->mem = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(trng->mem)) {
-		dev_err(&pdev->dev, "Could not map IO resources.\n");
+	if (IS_ERR(trng->mem))
 		return PTR_ERR(trng->mem);
-	}
 
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
