@@ -294,12 +294,6 @@ static const char *const rqf_name[] = {
 };
 #undef RQF_NAME
 
-#define RQAF_NAME(name) [REQ_ATOM_##name] = #name
-static const char *const rqaf_name[] = {
-	RQAF_NAME(COMPLETE),
-};
-#undef RQAF_NAME
-
 int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 {
 	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
@@ -316,8 +310,7 @@ int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 	seq_puts(m, ", .rq_flags=");
 	blk_flags_show(m, (__force unsigned int)rq->rq_flags, rqf_name,
 		       ARRAY_SIZE(rqf_name));
-	seq_puts(m, ", .atomic_flags=");
-	blk_flags_show(m, rq->atomic_flags, rqaf_name, ARRAY_SIZE(rqaf_name));
+	seq_printf(m, ", complete=%d", blk_rq_is_complete(rq));
 	seq_printf(m, ", .tag=%d, .internal_tag=%d", rq->tag,
 		   rq->internal_tag);
 	if (mq_ops->show_rq)

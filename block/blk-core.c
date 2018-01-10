@@ -2853,7 +2853,7 @@ void blk_start_request(struct request *req)
 		wbt_issue(req->q->rq_wb, &req->issue_stat);
 	}
 
-	BUG_ON(test_bit(REQ_ATOM_COMPLETE, &req->atomic_flags));
+	BUG_ON(blk_rq_is_complete(req));
 	blk_add_timer(req);
 }
 EXPORT_SYMBOL(blk_start_request);

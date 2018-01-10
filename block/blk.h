@@ -120,24 +120,23 @@ void blk_account_io_completion(struct request *req, unsigned int bytes);
 void blk_account_io_done(struct request *req);
 
 /*
- * Internal atomic flags for request handling
- */
-enum rq_atomic_flags {
-	REQ_ATOM_COMPLETE = 0,
-};
-
-/*
  * EH timer and IO completion will both attempt to 'grab' the request, make
- * sure that only one of them succeeds
+ * sure that only one of them succeeds. Steal the bottom bit of the
+ * __deadline field for this.
  */
 static inline int blk_mark_rq_complete(struct request *rq)
 {
-	return test_and_set_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
+	return test_and_set_bit(0, &rq->__deadline);
 }
 
 static inline void blk_clear_rq_complete(struct request *rq)
 {
-	clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
+	clear_bit(0, &rq->__deadline);
+}
+
+static inline bool blk_rq_is_complete(struct request *rq)
+{
+	return test_bit(0, &rq->__deadline);
 }
 
 /*
