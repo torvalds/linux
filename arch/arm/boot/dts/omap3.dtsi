@@ -595,7 +595,7 @@
 		};
 
 		smartreflex_mpu_iva: smartreflex@480c9000 {
-			compatible = "ti,omap3-smartreflex-iva";
+			compatible = "ti,omap3-smartreflex-mpu-iva";
 			ti,hwmods = "smartreflex_mpu_iva";
 			reg = <0x480c9000 0x400>;
 			interrupts = <18>;
