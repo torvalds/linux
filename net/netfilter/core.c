@@ -140,7 +140,7 @@ nf_hook_entries_grow(const struct nf_hook_entries *old,
 
 		if (reg->nat_hook && orig_ops[i]->nat_hook) {
 			kvfree(new);
-			return ERR_PTR(-EEXIST);
+			return ERR_PTR(-EBUSY);
 		}
 
 		if (inserted || reg->priority > orig_ops[i]->priority) {
