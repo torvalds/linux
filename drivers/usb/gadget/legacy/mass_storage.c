@@ -225,7 +225,7 @@ static int msg_unbind(struct usb_composite_dev *cdev)
 static struct usb_composite_driver msg_driver = {
 	.name		= "g_mass_storage",
 	.dev		= &msg_device_desc,
-	.max_speed	= USB_SPEED_SUPER,
+	.max_speed	= USB_SPEED_SUPER_PLUS,
 	.needs_serial	= 1,
 	.strings	= dev_strings,
 	.bind		= msg_bind,
