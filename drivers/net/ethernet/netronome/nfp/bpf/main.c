@@ -191,7 +191,9 @@ static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 
 static bool nfp_bpf_tc_busy(struct nfp_app *app, struct nfp_net *nn)
 {
-	return nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF;
+	struct nfp_bpf_vnic *bv = nn->app_priv;
+
+	return !!bv->tc_prog;
 }
 
 static int
