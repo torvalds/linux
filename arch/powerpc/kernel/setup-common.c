@@ -387,10 +387,10 @@ static void c_stop(struct seq_file *m, void *v)
 }
 
 const struct seq_operations cpuinfo_op = {
-	.start =c_start,
-	.next =	c_next,
-	.stop =	c_stop,
-	.show =	show_cpuinfo,
+	.start	= c_start,
+	.next	= c_next,
+	.stop	= c_stop,
+	.show	= show_cpuinfo,
 };
 
 void __init check_for_initrd(void)
