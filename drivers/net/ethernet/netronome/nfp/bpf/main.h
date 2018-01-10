@@ -42,16 +42,27 @@
 
 #include "../nfp_asm.h"
 
-/* For branch fixup logic use up-most byte of branch instruction as scratch
+/* For relocation logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
  */
-#define OP_BR_SPECIAL	0xff00000000000000ULL
+#define OP_RELO_TYPE	0xff00000000000000ULL
 
-enum br_special {
-	OP_BR_NORMAL = 0,
-	OP_BR_GO_OUT,
-	OP_BR_GO_ABORT,
+enum nfp_relo_type {
+	RELO_NONE = 0,
+	/* standard internal jumps */
+	RELO_BR_REL,
+	/* internal jumps to parts of the outro */
+	RELO_BR_GO_OUT,
+	RELO_BR_GO_ABORT,
+	/* external jumps to fixed addresses */
+	RELO_BR_NEXT_PKT,
 };
+
+/* To make absolute relocated branches (branches other than RELO_BR_REL)
+ * distinguishable in user space dumps from normal jumps, add a large offset
+ * to them.
+ */
+#define BR_OFF_RELO		15000
 
 enum static_regs {
 	STATIC_REG_IMM		= 21, /* Bank AB */
@@ -191,11 +202,9 @@ static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
  * @__prog_alloc_len: alloc size of @prog array
  * @verifier_meta: temporary storage for verifier's insn meta
  * @type: BPF program type
- * @start_off: address of the first instruction in the memory
  * @last_bpf_off: address of the last instruction translated from BPF
  * @tgt_out: jump target for normal exit
  * @tgt_abort: jump target for abort (e.g. access outside of packet buffer)
- * @tgt_done: jump target to get the next packet
  * @n_translated: number of successfully translated instructions (for errors)
  * @error: error code if something went wrong
  * @stack_depth: max stack depth from the verifier
@@ -213,11 +222,9 @@ struct nfp_prog {
 
 	enum bpf_prog_type type;
 
-	unsigned int start_off;
 	unsigned int last_bpf_off;
 	unsigned int tgt_out;
 	unsigned int tgt_abort;
-	unsigned int tgt_done;
 
 	unsigned int n_translated;
 	int error;
@@ -231,11 +238,16 @@ struct nfp_prog {
 /**
  * struct nfp_bpf_vnic - per-vNIC BPF priv structure
  * @tc_prog:	currently loaded cls_bpf program
+ * @start_off:	address of the first instruction in the memory
+ * @tgt_done:	jump target to get the next packet
  */
 struct nfp_bpf_vnic {
 	struct bpf_prog *tc_prog;
+	unsigned int start_off;
+	unsigned int tgt_done;
 };
 
+void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt);
 int nfp_bpf_jit(struct nfp_prog *prog);
 
 extern const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops;
@@ -244,16 +256,14 @@ struct netdev_bpf;
 struct nfp_app;
 struct nfp_net;
 
+int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn,
+		struct netdev_bpf *bpf);
 int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 			bool old_prog);
 
-int nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
-			  struct netdev_bpf *bpf);
-int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
-		      struct bpf_prog *prog);
-int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
-		    struct bpf_prog *prog);
 struct nfp_insn_meta *
 nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		  unsigned int insn_idx, unsigned int n_insns);
+
+void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv);
 #endif

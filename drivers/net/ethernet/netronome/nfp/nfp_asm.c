@@ -50,6 +50,36 @@ const struct cmd_tgt_act cmd_tgt_act[__CMD_TGT_MAP_SIZE] = {
 	[CMD_TGT_READ_SWAP_LE] =	{ 0x03, 0x40 },
 };
 
+u16 br_get_offset(u64 instr)
+{
+	u16 addr_lo, addr_hi;
+
+	addr_lo = FIELD_GET(OP_BR_ADDR_LO, instr);
+	addr_hi = FIELD_GET(OP_BR_ADDR_HI, instr);
+
+	return (addr_hi * ((OP_BR_ADDR_LO >> __bf_shf(OP_BR_ADDR_LO)) + 1)) |
+		addr_lo;
+}
+
+void br_set_offset(u64 *instr, u16 offset)
+{
+	u16 addr_lo, addr_hi;
+
+	addr_lo = offset & (OP_BR_ADDR_LO >> __bf_shf(OP_BR_ADDR_LO));
+	addr_hi = offset != addr_lo;
+	*instr &= ~(OP_BR_ADDR_HI | OP_BR_ADDR_LO);
+	*instr |= FIELD_PREP(OP_BR_ADDR_HI, addr_hi);
+	*instr |= FIELD_PREP(OP_BR_ADDR_LO, addr_lo);
+}
+
+void br_add_offset(u64 *instr, u16 offset)
+{
+	u16 addr;
+
+	addr = br_get_offset(*instr);
+	br_set_offset(instr, addr + offset);
+}
+
 static u16 nfp_swreg_to_unreg(swreg reg, bool is_dst)
 {
 	bool lm_id, lm_dec = false;
