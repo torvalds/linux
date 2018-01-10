@@ -377,8 +377,8 @@ static void nf_remove_net_hook(struct nf_hook_entries *old,
 	}
 }
 
-void __nf_unregister_net_hook(struct net *net, int pf,
-			      const struct nf_hook_ops *reg)
+static void __nf_unregister_net_hook(struct net *net, int pf,
+				     const struct nf_hook_ops *reg)
 {
 	struct nf_hook_entries __rcu **pp;
 	struct nf_hook_entries *p;
