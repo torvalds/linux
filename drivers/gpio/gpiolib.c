@@ -1501,14 +1501,15 @@ static void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gpiochip)
 	gpiochip->irq.valid_mask = NULL;
 }
 
-static bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gpiochip,
-				       unsigned int offset)
+bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gpiochip,
+				unsigned int offset)
 {
 	/* No mask means all valid */
 	if (likely(!gpiochip->irq.valid_mask))
 		return true;
 	return test_bit(offset, gpiochip->irq.valid_mask);
 }
+EXPORT_SYMBOL_GPL(gpiochip_irqchip_irq_valid);
 
 /**
  * gpiochip_set_cascaded_irqchip() - connects a cascaded irqchip to a gpiochip
