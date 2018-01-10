@@ -49,32 +49,16 @@
 
 static int mi0283qt_init(struct mipi_dbi *mipi)
 {
-	struct tinydrm_device *tdev = &mipi->tinydrm;
-	struct device *dev = tdev->drm->dev;
 	u8 addr_mode;
 	int ret;
 
 	DRM_DEBUG_KMS("\n");
 
-	ret = regulator_enable(mipi->regulator);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "Failed to enable regulator %d\n", ret);
+	ret = mipi_dbi_poweron_conditional_reset(mipi);
+	if (ret < 0)
 		return ret;
-	}
-
-	/* Avoid flicker by skipping setup if the bootloader has done it */
-	if (mipi_dbi_display_is_on(mipi))
+	if (ret == 1)
 		return 0;
-
-	mipi_dbi_hw_reset(mipi);
-	ret = mipi_dbi_command(mipi, MIPI_DCS_SOFT_RESET);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
-		regulator_disable(mipi->regulator);
-		return ret;
-	}
-
-	msleep(20);
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_OFF);
 

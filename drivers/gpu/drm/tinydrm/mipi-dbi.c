@@ -463,6 +463,7 @@ bool mipi_dbi_display_is_on(struct mipi_dbi *mipi)
 
 	val &= ~DCS_POWER_MODE_RESERVED_MASK;
 
+	/* The poweron/reset value is 08h DCS_POWER_MODE_DISPLAY_NORMAL_MODE */
 	if (val != (DCS_POWER_MODE_DISPLAY |
 	    DCS_POWER_MODE_DISPLAY_NORMAL_MODE | DCS_POWER_MODE_SLEEP_MODE))
 		return false;
@@ -472,6 +473,78 @@ bool mipi_dbi_display_is_on(struct mipi_dbi *mipi)
 	return true;
 }
 EXPORT_SYMBOL(mipi_dbi_display_is_on);
+
+static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *mipi, bool cond)
+{
+	struct device *dev = mipi->tinydrm.drm->dev;
+	int ret;
+
+	if (mipi->regulator) {
+		ret = regulator_enable(mipi->regulator);
+		if (ret) {
+			DRM_DEV_ERROR(dev, "Failed to enable regulator (%d)\n", ret);
+			return ret;
+		}
+	}
+
+	if (cond && mipi_dbi_display_is_on(mipi))
+		return 1;
+
+	mipi_dbi_hw_reset(mipi);
+	ret = mipi_dbi_command(mipi, MIPI_DCS_SOFT_RESET);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "Failed to send reset command (%d)\n", ret);
+		if (mipi->regulator)
+			regulator_disable(mipi->regulator);
+		return ret;
+	}
+
+	/*
+	 * If we did a hw reset, we know the controller is in Sleep mode and
+	 * per MIPI DSC spec should wait 5ms after soft reset. If we didn't,
+	 * we assume worst case and wait 120ms.
+	 */
+	if (mipi->reset)
+		usleep_range(5000, 20000);
+	else
+		msleep(120);
+
+	return 0;
+}
+
+/**
+ * mipi_dbi_poweron_reset - MIPI DBI poweron and reset
+ * @mipi: MIPI DBI structure
+ *
+ * This function enables the regulator if used and does a hardware and software
+ * reset.
+ *
+ * Returns:
+ * Zero on success, or a negative error code.
+ */
+int mipi_dbi_poweron_reset(struct mipi_dbi *mipi)
+{
+	return mipi_dbi_poweron_reset_conditional(mipi, false);
+}
+EXPORT_SYMBOL(mipi_dbi_poweron_reset);
+
+/**
+ * mipi_dbi_poweron_conditional_reset - MIPI DBI poweron and conditional reset
+ * @mipi: MIPI DBI structure
+ *
+ * This function enables the regulator if used and if the display is off, it
+ * does a hardware and software reset. If mipi_dbi_display_is_on() determines
+ * that the display is on, no reset is performed.
+ *
+ * Returns:
+ * Zero if the controller was reset, 1 if the display was already on, or a
+ * negative error code.
+ */
+int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *mipi)
+{
+	return mipi_dbi_poweron_reset_conditional(mipi, true);
+}
+EXPORT_SYMBOL(mipi_dbi_poweron_conditional_reset);
 
 #if IS_ENABLED(CONFIG_SPI)
 

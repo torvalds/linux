@@ -179,19 +179,16 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
-	struct device *dev = tdev->drm->dev;
 	int ret;
 	u8 addr_mode;
 
 	DRM_DEBUG_KMS("\n");
 
-	mipi_dbi_hw_reset(mipi);
-	ret = mipi_dbi_command(mipi, ST7586_AUTO_READ_CTRL, 0x9f);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
+	ret = mipi_dbi_poweron_reset(mipi);
+	if (ret)
 		return;
-	}
 
+	mipi_dbi_command(mipi, ST7586_AUTO_READ_CTRL, 0x9f);
 	mipi_dbi_command(mipi, ST7586_OTP_RW_CTRL, 0x00);
 
 	msleep(10);

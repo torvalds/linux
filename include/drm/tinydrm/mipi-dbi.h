@@ -73,6 +73,8 @@ void mipi_dbi_pipe_enable(struct drm_simple_display_pipe *pipe,
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe);
 void mipi_dbi_hw_reset(struct mipi_dbi *mipi);
 bool mipi_dbi_display_is_on(struct mipi_dbi *mipi);
+int mipi_dbi_poweron_reset(struct mipi_dbi *mipi);
+int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *mipi);
 u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len);
 
 int mipi_dbi_command_read(struct mipi_dbi *mipi, u8 cmd, u8 *val);
