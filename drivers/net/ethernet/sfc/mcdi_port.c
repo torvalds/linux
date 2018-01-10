@@ -198,6 +198,12 @@ static void mcdi_to_ethtool_linkset(u32 media, u32 cap, unsigned long *linkset)
 			SET_BIT(10000baseT_Full);
 		if (cap & (1 << MC_CMD_PHY_CAP_40000FDX_LBN))
 			SET_BIT(40000baseCR4_Full);
+		if (cap & (1 << MC_CMD_PHY_CAP_100000FDX_LBN))
+			SET_BIT(100000baseCR4_Full);
+		if (cap & (1 << MC_CMD_PHY_CAP_25000FDX_LBN))
+			SET_BIT(25000baseCR_Full);
+		if (cap & (1 << MC_CMD_PHY_CAP_50000FDX_LBN))
+			SET_BIT(50000baseCR2_Full);
 		break;
 
 	case MC_CMD_MEDIA_BASE_T:
@@ -252,6 +258,12 @@ static u32 ethtool_linkset_to_mcdi_cap(const unsigned long *linkset)
 		result |= (1 << MC_CMD_PHY_CAP_10000FDX_LBN);
 	if (TEST_BIT(40000baseCR4_Full) || TEST_BIT(40000baseKR4_Full))
 		result |= (1 << MC_CMD_PHY_CAP_40000FDX_LBN);
+	if (TEST_BIT(100000baseCR4_Full))
+		result |= (1 << MC_CMD_PHY_CAP_100000FDX_LBN);
+	if (TEST_BIT(25000baseCR_Full))
+		result |= (1 << MC_CMD_PHY_CAP_25000FDX_LBN);
+	if (TEST_BIT(50000baseCR2_Full))
+		result |= (1 << MC_CMD_PHY_CAP_50000FDX_LBN);
 	if (TEST_BIT(Pause))
 		result |= (1 << MC_CMD_PHY_CAP_PAUSE_LBN);
 	if (TEST_BIT(Asym_Pause))
