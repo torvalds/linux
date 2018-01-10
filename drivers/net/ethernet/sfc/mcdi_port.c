@@ -556,19 +556,22 @@ efx_mcdi_phy_set_link_ksettings(struct efx_nic *efx,
 			 1 << MC_CMD_PHY_CAP_AN_LBN);
 	} else if (cmd->base.duplex) {
 		switch (cmd->base.speed) {
-		case 10:    caps = 1 << MC_CMD_PHY_CAP_10FDX_LBN;    break;
-		case 100:   caps = 1 << MC_CMD_PHY_CAP_100FDX_LBN;   break;
-		case 1000:  caps = 1 << MC_CMD_PHY_CAP_1000FDX_LBN;  break;
-		case 10000: caps = 1 << MC_CMD_PHY_CAP_10000FDX_LBN; break;
-		case 40000: caps = 1 << MC_CMD_PHY_CAP_40000FDX_LBN; break;
-		default:    return -EINVAL;
+		case 10:     caps = 1 << MC_CMD_PHY_CAP_10FDX_LBN;     break;
+		case 100:    caps = 1 << MC_CMD_PHY_CAP_100FDX_LBN;    break;
+		case 1000:   caps = 1 << MC_CMD_PHY_CAP_1000FDX_LBN;   break;
+		case 10000:  caps = 1 << MC_CMD_PHY_CAP_10000FDX_LBN;  break;
+		case 40000:  caps = 1 << MC_CMD_PHY_CAP_40000FDX_LBN;  break;
+		case 100000: caps = 1 << MC_CMD_PHY_CAP_100000FDX_LBN; break;
+		case 25000:  caps = 1 << MC_CMD_PHY_CAP_25000FDX_LBN;  break;
+		case 50000:  caps = 1 << MC_CMD_PHY_CAP_50000FDX_LBN;  break;
+		default:     return -EINVAL;
 		}
 	} else {
 		switch (cmd->base.speed) {
-		case 10:    caps = 1 << MC_CMD_PHY_CAP_10HDX_LBN;    break;
-		case 100:   caps = 1 << MC_CMD_PHY_CAP_100HDX_LBN;   break;
-		case 1000:  caps = 1 << MC_CMD_PHY_CAP_1000HDX_LBN;  break;
-		default:    return -EINVAL;
+		case 10:     caps = 1 << MC_CMD_PHY_CAP_10HDX_LBN;     break;
+		case 100:    caps = 1 << MC_CMD_PHY_CAP_100HDX_LBN;    break;
+		case 1000:   caps = 1 << MC_CMD_PHY_CAP_1000HDX_LBN;   break;
+		default:     return -EINVAL;
 		}
 	}
 
@@ -985,6 +988,9 @@ static unsigned int efx_mcdi_event_link_speed[] = {
 	[MCDI_EVENT_LINKCHANGE_SPEED_1G] = 1000,
 	[MCDI_EVENT_LINKCHANGE_SPEED_10G] = 10000,
 	[MCDI_EVENT_LINKCHANGE_SPEED_40G] = 40000,
+	[MCDI_EVENT_LINKCHANGE_SPEED_25G] = 25000,
+	[MCDI_EVENT_LINKCHANGE_SPEED_50G] = 50000,
+	[MCDI_EVENT_LINKCHANGE_SPEED_100G] = 100000,
 };
 
 void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev)
