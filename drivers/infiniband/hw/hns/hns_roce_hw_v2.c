@@ -34,6 +34,7 @@
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <net/addrconf.h>
 #include <rdma/ib_umem.h>
 
 #include "hnae3.h"
@@ -4678,6 +4679,9 @@ static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 	hr_dev->caps.num_ports = 1;
 	hr_dev->iboe.netdevs[0] = handle->rinfo.netdev;
 	hr_dev->iboe.phy_port[0] = 0;
+
+	addrconf_addr_eui48((u8 *)&hr_dev->ib_dev.node_guid,
+			    hr_dev->iboe.netdevs[0]->dev_addr);
 
 	for (i = 0; i < HNS_ROCE_V2_MAX_IRQ_NUM; i++)
 		hr_dev->irq[i] = pci_irq_vector(handle->pdev,
