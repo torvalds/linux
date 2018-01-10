@@ -47,6 +47,7 @@
 #include <linux/rhashtable.h>
 #include <net/switchdev.h>
 #include <net/xdp.h>
+#include <linux/net_dim.h>
 #include "wq.h"
 #include "mlx5_core.h"
 #include "en_stats.h"
@@ -227,12 +228,6 @@ enum mlx5e_priv_flag {
 #define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
 #endif
 
-struct mlx5e_cq_moder {
-	u16 usec;
-	u16 pkts;
-	u8 cq_period_mode;
-};
-
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
@@ -243,8 +238,8 @@ struct mlx5e_params {
 	u16 num_channels;
 	u8  num_tc;
 	bool rx_cqe_compress_def;
-	struct mlx5e_cq_moder rx_cq_moderation;
-	struct mlx5e_cq_moder tx_cq_moderation;
+	struct net_dim_cq_moder rx_cq_moderation;
+	struct net_dim_cq_moder tx_cq_moderation;
 	bool lro_en;
 	u32 lro_wqe_sz;
 	u16 tx_max_inline;
@@ -254,7 +249,7 @@ struct mlx5e_params {
 	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
 	bool vlan_strip_disable;
 	bool scatter_fcs_en;
-	bool rx_am_enabled;
+	bool rx_dim_enabled;
 	u32 lro_timeout;
 	u32 pflags;
 	struct bpf_prog *xdp_prog;
@@ -473,32 +468,6 @@ struct mlx5e_mpw_info {
 	u16 skbs_frags[MLX5_MPWRQ_PAGES_PER_WQE];
 };
 
-struct mlx5e_rx_am_stats {
-	int ppms; /* packets per msec */
-	int bpms; /* bytes per msec */
-	int epms; /* events per msec */
-};
-
-struct mlx5e_rx_am_sample {
-	ktime_t	time;
-	u32	pkt_ctr;
-	u32	byte_ctr;
-	u16	event_ctr;
-};
-
-struct mlx5e_rx_am { /* Adaptive Moderation */
-	u8					state;
-	struct mlx5e_rx_am_stats		prev_stats;
-	struct mlx5e_rx_am_sample		start_sample;
-	struct work_struct			work;
-	u8					profile_ix;
-	u8					mode;
-	u8					tune_state;
-	u8					steps_right;
-	u8					steps_left;
-	u8					tired;
-};
-
 /* a single cache unit is capable to serve one napi call (for non-striding rq)
  * or a MPWQE (for striding rq).
  */
@@ -559,7 +528,7 @@ struct mlx5e_rq {
 	unsigned long          state;
 	int                    ix;
 
-	struct mlx5e_rx_am     am; /* Adaptive Moderation */
+	struct net_dim         dim; /* Dynamic Interrupt Moderation */
 
 	/* XDP */
 	struct bpf_prog       *xdp_prog;
@@ -865,10 +834,6 @@ void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi);
 
-void mlx5e_rx_am(struct mlx5e_rq *rq);
-void mlx5e_rx_am_work(struct work_struct *work);
-struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode);
-
 void mlx5e_update_stats(struct mlx5e_priv *priv, bool full);
 
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
@@ -1115,4 +1080,5 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			    struct mlx5e_params *params,
 			    u16 max_channels);
 u8 mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev);
+void mlx5e_rx_dim_work(struct work_struct *work);
 #endif /* __MLX5_EN_H__ */

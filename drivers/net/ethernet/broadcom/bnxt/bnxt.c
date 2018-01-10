@@ -1645,6 +1645,8 @@ next_rx:
 	rxr->rx_next_cons = NEXT_RX(cons);
 
 next_rx_no_prod:
+	cpr->rx_packets += 1;
+	cpr->rx_bytes += len;
 	*raw_cons = tmp_raw_cons;
 
 	return rc;
@@ -1802,6 +1804,7 @@ static irqreturn_t bnxt_msix(int irq, void *dev_instance)
 	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 	u32 cons = RING_CMP(cpr->cp_raw_cons);
 
+	cpr->event_ctr++;
 	prefetch(&cpr->cp_desc_ring[CP_RING(cons)][CP_IDX(cons)]);
 	napi_schedule(&bnapi->napi);
 	return IRQ_HANDLED;
@@ -2024,6 +2027,15 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 						 cpr->cp_raw_cons);
 			break;
 		}
+	}
+	if (bp->flags & BNXT_FLAG_DIM) {
+		struct net_dim_sample dim_sample;
+
+		net_dim_sample(cpr->event_ctr,
+			       cpr->rx_packets,
+			       cpr->rx_bytes,
+			       &dim_sample);
+		net_dim(&cpr->dim, dim_sample);
 	}
 	mmiowb();
 	return work_done;
@@ -2617,6 +2629,8 @@ static void bnxt_init_cp_rings(struct bnxt *bp)
 		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
 
 		ring->fw_ring_id = INVALID_HW_RING_ID;
+		cpr->rx_ring_coal.coal_ticks = bp->rx_coal.coal_ticks;
+		cpr->rx_ring_coal.coal_bufs = bp->rx_coal.coal_bufs;
 	}
 }
 
@@ -4593,6 +4607,36 @@ static void bnxt_hwrm_set_coal_params(struct bnxt_coal *hw_coal,
 	req->flags = cpu_to_le16(flags);
 }
 
+int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi)
+{
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req_rx = {0};
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	struct bnxt_coal coal;
+	unsigned int grp_idx;
+
+	/* Tick values in micro seconds.
+	 * 1 coal_buf x bufs_per_record = 1 completion record.
+	 */
+	memcpy(&coal, &bp->rx_coal, sizeof(struct bnxt_coal));
+
+	coal.coal_ticks = cpr->rx_ring_coal.coal_ticks;
+	coal.coal_bufs = cpr->rx_ring_coal.coal_bufs;
+
+	if (!bnapi->rx_ring)
+		return -ENODEV;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req_rx,
+			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
+
+	bnxt_hwrm_set_coal_params(&coal, &req_rx);
+
+	grp_idx = bnapi->index;
+	req_rx.ring_id = cpu_to_le16(bp->grp_info[grp_idx].cp_fw_ring_id);
+
+	return hwrm_send_message(bp, &req_rx, sizeof(req_rx),
+				 HWRM_CMD_TIMEOUT);
+}
+
 int bnxt_hwrm_set_coal(struct bnxt *bp)
 {
 	int i, rc = 0;
@@ -5715,7 +5759,13 @@ static void bnxt_enable_napi(struct bnxt *bp)
 	int i;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
+		struct bnxt_cp_ring_info *cpr = &bp->bnapi[i]->cp_ring;
 		bp->bnapi[i]->in_reset = false;
+
+		if (bp->bnapi[i]->rx_ring) {
+			INIT_WORK(&cpr->dim.work, bnxt_dim_work);
+			cpr->dim.mode = NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+		}
 		napi_enable(&bp->bnapi[i]->napi);
 	}
 }

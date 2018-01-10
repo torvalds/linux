@@ -465,7 +465,7 @@ int mlx5e_ethtool_get_coalesce(struct mlx5e_priv *priv,
 	coal->rx_max_coalesced_frames = priv->channels.params.rx_cq_moderation.pkts;
 	coal->tx_coalesce_usecs       = priv->channels.params.tx_cq_moderation.usec;
 	coal->tx_max_coalesced_frames = priv->channels.params.tx_cq_moderation.pkts;
-	coal->use_adaptive_rx_coalesce = priv->channels.params.rx_am_enabled;
+	coal->use_adaptive_rx_coalesce = priv->channels.params.rx_dim_enabled;
 
 	return 0;
 }
@@ -519,7 +519,7 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 	new_channels.params.tx_cq_moderation.pkts = coal->tx_max_coalesced_frames;
 	new_channels.params.rx_cq_moderation.usec = coal->rx_coalesce_usecs;
 	new_channels.params.rx_cq_moderation.pkts = coal->rx_max_coalesced_frames;
-	new_channels.params.rx_am_enabled         = !!coal->use_adaptive_rx_coalesce;
+	new_channels.params.rx_dim_enabled        = !!coal->use_adaptive_rx_coalesce;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
@@ -527,7 +527,7 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 	}
 	/* we are opened */
 
-	reset = !!coal->use_adaptive_rx_coalesce != priv->channels.params.rx_am_enabled;
+	reset = !!coal->use_adaptive_rx_coalesce != priv->channels.params.rx_dim_enabled;
 	if (!reset) {
 		mlx5e_set_priv_channels_coalesce(priv, coal);
 		priv->channels.params = new_channels.params;
