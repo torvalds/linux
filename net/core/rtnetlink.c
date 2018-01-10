@@ -904,6 +904,10 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev,
 			 nla_total_size_64bit(sizeof(__u64)) +
 			 /* IFLA_VF_STATS_MULTICAST */
 			 nla_total_size_64bit(sizeof(__u64)) +
+			 /* IFLA_VF_STATS_RX_DROPPED */
+			 nla_total_size_64bit(sizeof(__u64)) +
+			 /* IFLA_VF_STATS_TX_DROPPED */
+			 nla_total_size_64bit(sizeof(__u64)) +
 			 nla_total_size(sizeof(struct ifla_vf_trust)));
 		return size;
 	} else
@@ -1258,7 +1262,11 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 	    nla_put_u64_64bit(skb, IFLA_VF_STATS_BROADCAST,
 			      vf_stats.broadcast, IFLA_VF_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, IFLA_VF_STATS_MULTICAST,
-			      vf_stats.multicast, IFLA_VF_STATS_PAD)) {
+			      vf_stats.multicast, IFLA_VF_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, IFLA_VF_STATS_RX_DROPPED,
+			      vf_stats.rx_dropped, IFLA_VF_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, IFLA_VF_STATS_TX_DROPPED,
+			      vf_stats.tx_dropped, IFLA_VF_STATS_PAD)) {
 		nla_nest_cancel(skb, vfstats);
 		goto nla_put_vf_failure;
 	}

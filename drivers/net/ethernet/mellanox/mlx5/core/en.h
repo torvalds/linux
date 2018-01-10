@@ -659,6 +659,7 @@ struct mlx5e_tc_table {
 	struct rhashtable               ht;
 
 	DECLARE_HASHTABLE(mod_hdr_tbl, 8);
+	DECLARE_HASHTABLE(hairpin_tbl, 8);
 };
 
 struct mlx5e_vlan_table {

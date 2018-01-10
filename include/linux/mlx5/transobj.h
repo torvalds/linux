@@ -75,4 +75,23 @@ int mlx5_core_modify_rqt(struct mlx5_core_dev *dev, u32 rqtn, u32 *in,
 			 int inlen);
 void mlx5_core_destroy_rqt(struct mlx5_core_dev *dev, u32 rqtn);
 
+struct mlx5_hairpin_params {
+	u8  log_data_size;
+	u16 q_counter;
+};
+
+struct mlx5_hairpin {
+	struct mlx5_core_dev *func_mdev;
+	struct mlx5_core_dev *peer_mdev;
+
+	u32 rqn;
+	u32 sqn;
+};
+
+struct mlx5_hairpin *
+mlx5_core_hairpin_create(struct mlx5_core_dev *func_mdev,
+			 struct mlx5_core_dev *peer_mdev,
+			 struct mlx5_hairpin_params *params);
+
+void mlx5_core_hairpin_destroy(struct mlx5_hairpin *pair);
 #endif /* __TRANSOBJ_H__ */

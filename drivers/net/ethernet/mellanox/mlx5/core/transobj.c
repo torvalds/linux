@@ -398,3 +398,187 @@ void mlx5_core_destroy_rqt(struct mlx5_core_dev *dev, u32 rqtn)
 	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_destroy_rqt);
+
+static int mlx5_hairpin_create_rq(struct mlx5_core_dev *mdev,
+				  struct mlx5_hairpin_params *params, u32 *rqn)
+{
+	u32 in[MLX5_ST_SZ_DW(create_rq_in)] = {0};
+	void *rqc, *wq;
+
+	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
+	wq  = MLX5_ADDR_OF(rqc, rqc, wq);
+
+	MLX5_SET(rqc, rqc, hairpin, 1);
+	MLX5_SET(rqc, rqc, state, MLX5_RQC_STATE_RST);
+	MLX5_SET(rqc, rqc, counter_set_id, params->q_counter);
+
+	MLX5_SET(wq, wq, log_hairpin_data_sz, params->log_data_size);
+
+	return mlx5_core_create_rq(mdev, in, MLX5_ST_SZ_BYTES(create_rq_in), rqn);
+}
+
+static int mlx5_hairpin_create_sq(struct mlx5_core_dev *mdev,
+				  struct mlx5_hairpin_params *params, u32 *sqn)
+{
+	u32 in[MLX5_ST_SZ_DW(create_sq_in)] = {0};
+	void *sqc, *wq;
+
+	sqc = MLX5_ADDR_OF(create_sq_in, in, ctx);
+	wq  = MLX5_ADDR_OF(sqc, sqc, wq);
+
+	MLX5_SET(sqc, sqc, hairpin, 1);
+	MLX5_SET(sqc, sqc, state, MLX5_SQC_STATE_RST);
+
+	MLX5_SET(wq, wq, log_hairpin_data_sz, params->log_data_size);
+
+	return mlx5_core_create_sq(mdev, in, MLX5_ST_SZ_BYTES(create_sq_in), sqn);
+}
+
+static int mlx5_hairpin_create_queues(struct mlx5_hairpin *hp,
+				      struct mlx5_hairpin_params *params)
+{
+	int err;
+
+	err = mlx5_hairpin_create_rq(hp->func_mdev, params, &hp->rqn);
+	if (err)
+		goto out_err_rq;
+
+	err = mlx5_hairpin_create_sq(hp->peer_mdev, params, &hp->sqn);
+	if (err)
+		goto out_err_sq;
+
+	return 0;
+
+out_err_sq:
+	mlx5_core_destroy_rq(hp->func_mdev, hp->rqn);
+out_err_rq:
+	return err;
+}
+
+static void mlx5_hairpin_destroy_queues(struct mlx5_hairpin *hp)
+{
+	mlx5_core_destroy_rq(hp->func_mdev, hp->rqn);
+	mlx5_core_destroy_sq(hp->peer_mdev, hp->sqn);
+}
+
+static int mlx5_hairpin_modify_rq(struct mlx5_core_dev *func_mdev, u32 rqn,
+				  int curr_state, int next_state,
+				  u16 peer_vhca, u32 peer_sq)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_rq_in)] = {0};
+	void *rqc;
+
+	rqc = MLX5_ADDR_OF(modify_rq_in, in, ctx);
+
+	if (next_state == MLX5_RQC_STATE_RDY) {
+		MLX5_SET(rqc, rqc, hairpin_peer_sq, peer_sq);
+		MLX5_SET(rqc, rqc, hairpin_peer_vhca, peer_vhca);
+	}
+
+	MLX5_SET(modify_rq_in, in, rq_state, curr_state);
+	MLX5_SET(rqc, rqc, state, next_state);
+
+	return mlx5_core_modify_rq(func_mdev, rqn,
+				   in, MLX5_ST_SZ_BYTES(modify_rq_in));
+}
+
+static int mlx5_hairpin_modify_sq(struct mlx5_core_dev *peer_mdev, u32 sqn,
+				  int curr_state, int next_state,
+				  u16 peer_vhca, u32 peer_rq)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_sq_in)] = {0};
+	void *sqc;
+
+	sqc = MLX5_ADDR_OF(modify_sq_in, in, ctx);
+
+	if (next_state == MLX5_RQC_STATE_RDY) {
+		MLX5_SET(sqc, sqc, hairpin_peer_rq, peer_rq);
+		MLX5_SET(sqc, sqc, hairpin_peer_vhca, peer_vhca);
+	}
+
+	MLX5_SET(modify_sq_in, in, sq_state, curr_state);
+	MLX5_SET(sqc, sqc, state, next_state);
+
+	return mlx5_core_modify_sq(peer_mdev, sqn,
+				   in, MLX5_ST_SZ_BYTES(modify_sq_in));
+}
+
+static int mlx5_hairpin_pair_queues(struct mlx5_hairpin *hp)
+{
+	int err;
+
+	/* set peer SQ */
+	err = mlx5_hairpin_modify_sq(hp->peer_mdev, hp->sqn,
+				     MLX5_SQC_STATE_RST, MLX5_SQC_STATE_RDY,
+				     MLX5_CAP_GEN(hp->func_mdev, vhca_id), hp->rqn);
+	if (err)
+		goto err_modify_sq;
+
+	/* set func RQ */
+	err = mlx5_hairpin_modify_rq(hp->func_mdev, hp->rqn,
+				     MLX5_RQC_STATE_RST, MLX5_RQC_STATE_RDY,
+				     MLX5_CAP_GEN(hp->peer_mdev, vhca_id), hp->sqn);
+
+	if (err)
+		goto err_modify_rq;
+
+	return 0;
+
+err_modify_rq:
+	mlx5_hairpin_modify_sq(hp->peer_mdev, hp->sqn, MLX5_SQC_STATE_RDY,
+			       MLX5_SQC_STATE_RST, 0, 0);
+err_modify_sq:
+	return err;
+}
+
+static void mlx5_hairpin_unpair_queues(struct mlx5_hairpin *hp)
+{
+	/* unset func RQ */
+	mlx5_hairpin_modify_rq(hp->func_mdev, hp->rqn, MLX5_RQC_STATE_RDY,
+			       MLX5_RQC_STATE_RST, 0, 0);
+
+	/* unset peer SQ */
+	mlx5_hairpin_modify_sq(hp->peer_mdev, hp->sqn, MLX5_SQC_STATE_RDY,
+			       MLX5_SQC_STATE_RST, 0, 0);
+}
+
+struct mlx5_hairpin *
+mlx5_core_hairpin_create(struct mlx5_core_dev *func_mdev,
+			 struct mlx5_core_dev *peer_mdev,
+			 struct mlx5_hairpin_params *params)
+{
+	struct mlx5_hairpin *hp;
+	int size, err;
+
+	size = sizeof(*hp);
+	hp = kzalloc(size, GFP_KERNEL);
+	if (!hp)
+		return ERR_PTR(-ENOMEM);
+
+	hp->func_mdev = func_mdev;
+	hp->peer_mdev = peer_mdev;
+
+	/* alloc and pair func --> peer hairpin */
+	err = mlx5_hairpin_create_queues(hp, params);
+	if (err)
+		goto err_create_queues;
+
+	err = mlx5_hairpin_pair_queues(hp);
+	if (err)
+		goto err_pair_queues;
+
+	return hp;
+
+err_pair_queues:
+	mlx5_hairpin_destroy_queues(hp);
+err_create_queues:
+	kfree(hp);
+	return ERR_PTR(err);
+}
+
+void mlx5_core_hairpin_destroy(struct mlx5_hairpin *hp)
+{
+	mlx5_hairpin_unpair_queues(hp);
+	mlx5_hairpin_destroy_queues(hp);
+	kfree(hp);
+}
