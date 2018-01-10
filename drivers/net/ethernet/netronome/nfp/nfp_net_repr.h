@@ -89,6 +89,7 @@ struct nfp_repr {
  * @NFP_REPR_TYPE_PHYS_PORT:	external NIC port
  * @NFP_REPR_TYPE_PF:		physical function
  * @NFP_REPR_TYPE_VF:		virtual function
+ * @__NFP_REPR_TYPE_MAX:	number of representor types
  */
 enum nfp_repr_type {
 	NFP_REPR_TYPE_PHYS_PORT,

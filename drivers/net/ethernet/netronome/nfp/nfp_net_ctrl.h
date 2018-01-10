@@ -91,23 +91,24 @@
 #define NFP_NET_RSS_IPV6_EX_UDP         9
 
 /**
- * @NFP_NET_TXR_MAX:         Maximum number of TX rings
- * @NFP_NET_RXR_MAX:         Maximum number of RX rings
+ * Ring counts
+ * %NFP_NET_TXR_MAX:         Maximum number of TX rings
+ * %NFP_NET_RXR_MAX:         Maximum number of RX rings
  */
 #define NFP_NET_TXR_MAX                 64
 #define NFP_NET_RXR_MAX                 64
 
 /**
  * Read/Write config words (0x0000 - 0x002c)
- * @NFP_NET_CFG_CTRL:        Global control
- * @NFP_NET_CFG_UPDATE:      Indicate which fields are updated
- * @NFP_NET_CFG_TXRS_ENABLE: Bitmask of enabled TX rings
- * @NFP_NET_CFG_RXRS_ENABLE: Bitmask of enabled RX rings
- * @NFP_NET_CFG_MTU:         Set MTU size
- * @NFP_NET_CFG_FLBUFSZ:     Set freelist buffer size (must be larger than MTU)
- * @NFP_NET_CFG_EXN:         MSI-X table entry for exceptions
- * @NFP_NET_CFG_LSC:         MSI-X table entry for link state changes
- * @NFP_NET_CFG_MACADDR:     MAC address
+ * %NFP_NET_CFG_CTRL:        Global control
+ * %NFP_NET_CFG_UPDATE:      Indicate which fields are updated
+ * %NFP_NET_CFG_TXRS_ENABLE: Bitmask of enabled TX rings
+ * %NFP_NET_CFG_RXRS_ENABLE: Bitmask of enabled RX rings
+ * %NFP_NET_CFG_MTU:         Set MTU size
+ * %NFP_NET_CFG_FLBUFSZ:     Set freelist buffer size (must be larger than MTU)
+ * %NFP_NET_CFG_EXN:         MSI-X table entry for exceptions
+ * %NFP_NET_CFG_LSC:         MSI-X table entry for link state changes
+ * %NFP_NET_CFG_MACADDR:     MAC address
  *
  * TODO:
  * - define Error details in UPDATE
@@ -176,14 +177,14 @@
 
 /**
  * Read-only words (0x0030 - 0x0050):
- * @NFP_NET_CFG_VERSION:     Firmware version number
- * @NFP_NET_CFG_STS:         Status
- * @NFP_NET_CFG_CAP:         Capabilities (same bits as @NFP_NET_CFG_CTRL)
- * @NFP_NET_CFG_MAX_TXRINGS: Maximum number of TX rings
- * @NFP_NET_CFG_MAX_RXRINGS: Maximum number of RX rings
- * @NFP_NET_CFG_MAX_MTU:     Maximum support MTU
- * @NFP_NET_CFG_START_TXQ:   Start Queue Control Queue to use for TX (PF only)
- * @NFP_NET_CFG_START_RXQ:   Start Queue Control Queue to use for RX (PF only)
+ * %NFP_NET_CFG_VERSION:     Firmware version number
+ * %NFP_NET_CFG_STS:         Status
+ * %NFP_NET_CFG_CAP:         Capabilities (same bits as %NFP_NET_CFG_CTRL)
+ * %NFP_NET_CFG_MAX_TXRINGS: Maximum number of TX rings
+ * %NFP_NET_CFG_MAX_RXRINGS: Maximum number of RX rings
+ * %NFP_NET_CFG_MAX_MTU:     Maximum support MTU
+ * %NFP_NET_CFG_START_TXQ:   Start Queue Control Queue to use for TX (PF only)
+ * %NFP_NET_CFG_START_RXQ:   Start Queue Control Queue to use for RX (PF only)
  *
  * TODO:
  * - define more STS bits
@@ -228,31 +229,31 @@
 
 /**
  * RSS capabilities
- * @NFP_NET_CFG_RSS_CAP_HFUNC:	supported hash functions (same bits as
- *				@NFP_NET_CFG_RSS_HFUNC)
+ * %NFP_NET_CFG_RSS_CAP_HFUNC:	supported hash functions (same bits as
+ *				%NFP_NET_CFG_RSS_HFUNC)
  */
 #define NFP_NET_CFG_RSS_CAP		0x0054
 #define   NFP_NET_CFG_RSS_CAP_HFUNC	  0xff000000
 
 /**
  * VXLAN/UDP encap configuration
- * @NFP_NET_CFG_VXLAN_PORT:	Base address of table of tunnels' UDP dst ports
- * @NFP_NET_CFG_VXLAN_SZ:	Size of the UDP port table in bytes
+ * %NFP_NET_CFG_VXLAN_PORT:	Base address of table of tunnels' UDP dst ports
+ * %NFP_NET_CFG_VXLAN_SZ:	Size of the UDP port table in bytes
  */
 #define NFP_NET_CFG_VXLAN_PORT		0x0060
 #define NFP_NET_CFG_VXLAN_SZ		  0x0008
 
 /**
  * BPF section
- * @NFP_NET_CFG_BPF_ABI:	BPF ABI version
- * @NFP_NET_CFG_BPF_CAP:	BPF capabilities
- * @NFP_NET_CFG_BPF_MAX_LEN:	Maximum size of JITed BPF code in bytes
- * @NFP_NET_CFG_BPF_START:	Offset at which BPF will be loaded
- * @NFP_NET_CFG_BPF_DONE:	Offset to jump to on exit
- * @NFP_NET_CFG_BPF_STACK_SZ:	Total size of stack area in 64B chunks
- * @NFP_NET_CFG_BPF_INL_MTU:	Packet data split offset in 64B chunks
- * @NFP_NET_CFG_BPF_SIZE:	Size of the JITed BPF code in instructions
- * @NFP_NET_CFG_BPF_ADDR:	DMA address of the buffer with JITed BPF code
+ * %NFP_NET_CFG_BPF_ABI:	BPF ABI version
+ * %NFP_NET_CFG_BPF_CAP:	BPF capabilities
+ * %NFP_NET_CFG_BPF_MAX_LEN:	Maximum size of JITed BPF code in bytes
+ * %NFP_NET_CFG_BPF_START:	Offset at which BPF will be loaded
+ * %NFP_NET_CFG_BPF_DONE:	Offset to jump to on exit
+ * %NFP_NET_CFG_BPF_STACK_SZ:	Total size of stack area in 64B chunks
+ * %NFP_NET_CFG_BPF_INL_MTU:	Packet data split offset in 64B chunks
+ * %NFP_NET_CFG_BPF_SIZE:	Size of the JITed BPF code in instructions
+ * %NFP_NET_CFG_BPF_ADDR:	DMA address of the buffer with JITed BPF code
  */
 #define NFP_NET_CFG_BPF_ABI		0x0080
 #define   NFP_NET_BPF_ABI		2
@@ -278,9 +279,9 @@
 /**
  * RSS configuration (0x0100 - 0x01ac):
  * Used only when NFP_NET_CFG_CTRL_RSS is enabled
- * @NFP_NET_CFG_RSS_CFG:     RSS configuration word
- * @NFP_NET_CFG_RSS_KEY:     RSS "secret" key
- * @NFP_NET_CFG_RSS_ITBL:    RSS indirection table
+ * %NFP_NET_CFG_RSS_CFG:     RSS configuration word
+ * %NFP_NET_CFG_RSS_KEY:     RSS "secret" key
+ * %NFP_NET_CFG_RSS_ITBL:    RSS indirection table
  */
 #define NFP_NET_CFG_RSS_BASE            0x0100
 #define NFP_NET_CFG_RSS_CTRL            NFP_NET_CFG_RSS_BASE
@@ -305,13 +306,13 @@
 
 /**
  * TX ring configuration (0x200 - 0x800)
- * @NFP_NET_CFG_TXR_BASE:    Base offset for TX ring configuration
- * @NFP_NET_CFG_TXR_ADDR:    Per TX ring DMA address (8B entries)
- * @NFP_NET_CFG_TXR_WB_ADDR: Per TX ring write back DMA address (8B entries)
- * @NFP_NET_CFG_TXR_SZ:      Per TX ring ring size (1B entries)
- * @NFP_NET_CFG_TXR_VEC:     Per TX ring MSI-X table entry (1B entries)
- * @NFP_NET_CFG_TXR_PRIO:    Per TX ring priority (1B entries)
- * @NFP_NET_CFG_TXR_IRQ_MOD: Per TX ring interrupt moderation packet
+ * %NFP_NET_CFG_TXR_BASE:    Base offset for TX ring configuration
+ * %NFP_NET_CFG_TXR_ADDR:    Per TX ring DMA address (8B entries)
+ * %NFP_NET_CFG_TXR_WB_ADDR: Per TX ring write back DMA address (8B entries)
+ * %NFP_NET_CFG_TXR_SZ:      Per TX ring ring size (1B entries)
+ * %NFP_NET_CFG_TXR_VEC:     Per TX ring MSI-X table entry (1B entries)
+ * %NFP_NET_CFG_TXR_PRIO:    Per TX ring priority (1B entries)
+ * %NFP_NET_CFG_TXR_IRQ_MOD: Per TX ring interrupt moderation packet
  */
 #define NFP_NET_CFG_TXR_BASE            0x0200
 #define NFP_NET_CFG_TXR_ADDR(_x)        (NFP_NET_CFG_TXR_BASE + ((_x) * 0x8))
@@ -325,12 +326,12 @@
 
 /**
  * RX ring configuration (0x0800 - 0x0c00)
- * @NFP_NET_CFG_RXR_BASE:    Base offset for RX ring configuration
- * @NFP_NET_CFG_RXR_ADDR:    Per RX ring DMA address (8B entries)
- * @NFP_NET_CFG_RXR_SZ:      Per RX ring ring size (1B entries)
- * @NFP_NET_CFG_RXR_VEC:     Per RX ring MSI-X table entry (1B entries)
- * @NFP_NET_CFG_RXR_PRIO:    Per RX ring priority (1B entries)
- * @NFP_NET_CFG_RXR_IRQ_MOD: Per RX ring interrupt moderation (4B entries)
+ * %NFP_NET_CFG_RXR_BASE:    Base offset for RX ring configuration
+ * %NFP_NET_CFG_RXR_ADDR:    Per RX ring DMA address (8B entries)
+ * %NFP_NET_CFG_RXR_SZ:      Per RX ring ring size (1B entries)
+ * %NFP_NET_CFG_RXR_VEC:     Per RX ring MSI-X table entry (1B entries)
+ * %NFP_NET_CFG_RXR_PRIO:    Per RX ring priority (1B entries)
+ * %NFP_NET_CFG_RXR_IRQ_MOD: Per RX ring interrupt moderation (4B entries)
  */
 #define NFP_NET_CFG_RXR_BASE            0x0800
 #define NFP_NET_CFG_RXR_ADDR(_x)        (NFP_NET_CFG_RXR_BASE + ((_x) * 0x8))
@@ -343,7 +344,7 @@
 /**
  * Interrupt Control/Cause registers (0x0c00 - 0x0d00)
  * These registers are only used when MSI-X auto-masking is not
- * enabled (@NFP_NET_CFG_CTRL_MSIXAUTO not set).  The array is index
+ * enabled (%NFP_NET_CFG_CTRL_MSIXAUTO not set).  The array is index
  * by MSI-X entry and are 1B in size.  If an entry is zero, the
  * corresponding entry is enabled.  If the FW generates an interrupt,
  * it writes a cause into the corresponding field.  This also masks
@@ -393,8 +394,8 @@
 /**
  * Per ring stats (0x1000 - 0x1800)
  * options, 64bit per entry
- * @NFP_NET_CFG_TXR_STATS:   TX ring statistics (Packet and Byte count)
- * @NFP_NET_CFG_RXR_STATS:   RX ring statistics (Packet and Byte count)
+ * %NFP_NET_CFG_TXR_STATS:   TX ring statistics (Packet and Byte count)
+ * %NFP_NET_CFG_RXR_STATS:   RX ring statistics (Packet and Byte count)
  */
 #define NFP_NET_CFG_TXR_STATS_BASE      0x1000
 #define NFP_NET_CFG_TXR_STATS(_x)       (NFP_NET_CFG_TXR_STATS_BASE + \
@@ -418,10 +419,10 @@
 
 /**
  * VLAN filtering using general use mailbox
- * @NFP_NET_CFG_VLAN_FILTER:		Base address of VLAN filter mailbox
- * @NFP_NET_CFG_VLAN_FILTER_VID:	VLAN ID to filter
- * @NFP_NET_CFG_VLAN_FILTER_PROTO:	VLAN proto to filter
- * @NFP_NET_CFG_VXLAN_SZ:		Size of the VLAN filter mailbox in bytes
+ * %NFP_NET_CFG_VLAN_FILTER:		Base address of VLAN filter mailbox
+ * %NFP_NET_CFG_VLAN_FILTER_VID:	VLAN ID to filter
+ * %NFP_NET_CFG_VLAN_FILTER_PROTO:	VLAN proto to filter
+ * %NFP_NET_CFG_VXLAN_SZ:		Size of the VLAN filter mailbox in bytes
  */
 #define NFP_NET_CFG_VLAN_FILTER		NFP_NET_CFG_MBOX_VAL
 #define  NFP_NET_CFG_VLAN_FILTER_VID	NFP_NET_CFG_VLAN_FILTER
