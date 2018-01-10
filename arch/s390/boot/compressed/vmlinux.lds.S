@@ -17,14 +17,14 @@ SECTIONS
 		HEAD_TEXT
 		_ehead = . ;
 	}
-	.rodata.compressed : {
-		*(.rodata.compressed)
-	}
 	.text :	{
 		_text = .;	/* Text */
 		*(.text)
 		*(.text.*)
 		_etext = . ;
+	}
+	.rodata.compressed : {
+		*(.rodata.compressed)
 	}
 	.rodata : {
 		_rodata = . ;
