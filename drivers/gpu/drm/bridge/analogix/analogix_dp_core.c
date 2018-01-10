@@ -98,17 +98,15 @@ static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
 	return 0;
 }
 
-int analogix_dp_psr_supported(struct device *dev)
+int analogix_dp_psr_supported(struct analogix_dp_device *dp)
 {
-	struct analogix_dp_device *dp = dev_get_drvdata(dev);
 
 	return dp->psr_support;
 }
 EXPORT_SYMBOL_GPL(analogix_dp_psr_supported);
 
-int analogix_dp_enable_psr(struct device *dev)
+int analogix_dp_enable_psr(struct analogix_dp_device *dp)
 {
-	struct analogix_dp_device *dp = dev_get_drvdata(dev);
 	struct edp_vsc_psr psr_vsc;
 
 	if (!dp->psr_support)
@@ -129,9 +127,8 @@ int analogix_dp_enable_psr(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(analogix_dp_enable_psr);
 
-int analogix_dp_disable_psr(struct device *dev)
+int analogix_dp_disable_psr(struct analogix_dp_device *dp)
 {
-	struct analogix_dp_device *dp = dev_get_drvdata(dev);
 	struct edp_vsc_psr psr_vsc;
 	int ret;
 
@@ -1279,8 +1276,9 @@ static ssize_t analogix_dpaux_transfer(struct drm_dp_aux *aux,
 	return analogix_dp_transfer(dp, msg);
 }
 
-int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
-		     struct analogix_dp_plat_data *plat_data)
+struct analogix_dp_device *
+analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
+		 struct analogix_dp_plat_data *plat_data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct analogix_dp_device *dp;
@@ -1290,14 +1288,12 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	if (!plat_data) {
 		dev_err(dev, "Invalided input plat_data\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	dp = devm_kzalloc(dev, sizeof(struct analogix_dp_device), GFP_KERNEL);
 	if (!dp)
-		return -ENOMEM;
-
-	dev_set_drvdata(dev, dp);
+		return ERR_PTR(-ENOMEM);
 
 	dp->dev = &pdev->dev;
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
@@ -1314,7 +1310,7 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	ret = analogix_dp_dt_parse_pdata(dp);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	dp->phy = devm_phy_get(dp->dev, "dp");
 	if (IS_ERR(dp->phy)) {
@@ -1328,14 +1324,14 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 			if (ret == -ENOSYS || ret == -ENODEV)
 				dp->phy = NULL;
 			else
-				return ret;
+				return ERR_PTR(ret);
 		}
 	}
 
 	dp->clock = devm_clk_get(&pdev->dev, "dp");
 	if (IS_ERR(dp->clock)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
-		return PTR_ERR(dp->clock);
+		return ERR_CAST(dp->clock);
 	}
 
 	clk_prepare_enable(dp->clock);
@@ -1344,7 +1340,7 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	dp->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dp->reg_base))
-		return PTR_ERR(dp->reg_base);
+		return ERR_CAST(dp->reg_base);
 
 	dp->force_hpd = of_property_read_bool(dev->of_node, "force-hpd");
 
@@ -1365,7 +1361,7 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 					    "hpd_gpio");
 		if (ret) {
 			dev_err(&pdev->dev, "failed to get hpd gpio\n");
-			return ret;
+			return ERR_PTR(ret);
 		}
 		dp->irq = gpio_to_irq(dp->hpd_gpio);
 		irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
@@ -1377,7 +1373,7 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	if (dp->irq == -ENXIO) {
 		dev_err(&pdev->dev, "failed to get irq\n");
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 	}
 
 	pm_runtime_enable(dev);
@@ -1418,7 +1414,7 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 	phy_power_off(dp->phy);
 	pm_runtime_put(dev);
 
-	return 0;
+	return dp;
 
 err_disable_pm_runtime:
 
@@ -1426,15 +1422,12 @@ err_disable_pm_runtime:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(analogix_dp_bind);
 
-void analogix_dp_unbind(struct device *dev, struct device *master,
-			void *data)
+void analogix_dp_unbind(struct analogix_dp_device *dp)
 {
-	struct analogix_dp_device *dp = dev_get_drvdata(dev);
-
 	analogix_dp_bridge_disable(dp->bridge);
 	dp->connector.funcs->destroy(&dp->connector);
 	dp->encoder->funcs->destroy(dp->encoder);
@@ -1447,16 +1440,14 @@ void analogix_dp_unbind(struct device *dev, struct device *master,
 	}
 
 	drm_dp_aux_unregister(&dp->aux);
-	pm_runtime_disable(dev);
+	pm_runtime_disable(dp->dev);
 	clk_disable_unprepare(dp->clock);
 }
 EXPORT_SYMBOL_GPL(analogix_dp_unbind);
 
 #ifdef CONFIG_PM
-int analogix_dp_suspend(struct device *dev)
+int analogix_dp_suspend(struct analogix_dp_device *dp)
 {
-	struct analogix_dp_device *dp = dev_get_drvdata(dev);
-
 	clk_disable_unprepare(dp->clock);
 
 	if (dp->plat_data->panel) {
@@ -1468,9 +1459,8 @@ int analogix_dp_suspend(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(analogix_dp_suspend);
 
-int analogix_dp_resume(struct device *dev)
+int analogix_dp_resume(struct analogix_dp_device *dp)
 {
-	struct analogix_dp_device *dp = dev_get_drvdata(dev);
 	int ret;
 
 	ret = clk_prepare_enable(dp->clock);
