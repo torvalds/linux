@@ -58,11 +58,25 @@ static noinline int check_stack_object(const void *obj, unsigned long len)
 	return GOOD_STACK;
 }
 
-static void report_usercopy(unsigned long len, bool to_user, const char *type)
+/*
+ * If this function is reached, then CONFIG_HARDENED_USERCOPY has found an
+ * unexpected state during a copy_from_user() or copy_to_user() call.
+ * There are several checks being performed on the buffer by the
+ * __check_object_size() function. Normal stack buffer usage should never
+ * trip the checks, and kernel text addressing will always trip the check.
+ * For cache objects, copies must be within the object size.
+ */
+void __noreturn usercopy_abort(const char *name, const char *detail,
+			       bool to_user, unsigned long offset,
+			       unsigned long len)
 {
-	pr_emerg("kernel memory %s attempt detected %s '%s' (%lu bytes)\n",
-		to_user ? "exposure" : "overwrite",
-		to_user ? "from" : "to", type ? : "unknown", len);
+	pr_emerg("Kernel memory %s attempt detected %s %s%s%s%s (offset %lu, size %lu)!\n",
+		 to_user ? "exposure" : "overwrite",
+		 to_user ? "from" : "to",
+		 name ? : "unknown?!",
+		 detail ? " '" : "", detail ? : "", detail ? "'" : "",
+		 offset, len);
+
 	/*
 	 * For greater effect, it would be nice to do do_group_exit(),
 	 * but BUG() actually hooks all the lock-breaking and per-arch
@@ -260,6 +274,6 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 		return;
 
 report:
-	report_usercopy(n, to_user, err);
+	usercopy_abort(err, NULL, to_user, 0, n);
 }
 EXPORT_SYMBOL(__check_object_size);
