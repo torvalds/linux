@@ -41,6 +41,28 @@
 #include "spectrum.h"
 #include "reg.h"
 
+enum mlxsw_sp_qdisc_type {
+	MLXSW_SP_QDISC_NO_QDISC,
+	MLXSW_SP_QDISC_RED,
+};
+
+struct mlxsw_sp_qdisc {
+	u32 handle;
+	enum mlxsw_sp_qdisc_type type;
+	struct red_stats xstats_base;
+	union {
+		struct {
+			u64 tail_drop_base;
+			u64 ecn_base;
+			u64 wred_drop_base;
+		} red;
+	} xstats;
+	u64 tx_bytes;
+	u64 tx_packets;
+	u64 drops;
+	u64 overlimits;
+};
+
 static int
 mlxsw_sp_tclass_congestion_enable(struct mlxsw_sp_port *mlxsw_sp_port,
 				  int tclass_num, u32 min, u32 max,
@@ -251,7 +273,7 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (p->parent != TC_H_ROOT)
 		return -EOPNOTSUPP;
 
-	mlxsw_sp_qdisc = &mlxsw_sp_port->root_qdisc;
+	mlxsw_sp_qdisc = mlxsw_sp_port->root_qdisc;
 	tclass_num = MLXSW_SP_PORT_DEFAULT_TCLASS;
 
 	switch (p->command) {
@@ -273,4 +295,19 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	mlxsw_sp_port->root_qdisc = kzalloc(sizeof(*mlxsw_sp_port->root_qdisc),
+					    GFP_KERNEL);
+	if (!mlxsw_sp_port->root_qdisc)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void mlxsw_sp_tc_qdisc_fini(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	kfree(mlxsw_sp_port->root_qdisc);
 }
