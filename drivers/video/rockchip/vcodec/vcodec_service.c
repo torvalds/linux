@@ -353,6 +353,7 @@ struct vpu_service_info {
 	 * this is a temporary solution.
 	 */
 	struct mutex reset_lock;
+	struct mutex sip_reset_lock; /* sip smc reset lock */
 	struct vpu_reg *reg_codec;
 	struct vpu_reg *reg_pproc;
 	struct vpu_reg *reg_resev;
@@ -429,6 +430,8 @@ struct vpu_service_info {
 
 	struct vcodec_hw_ops *hw_ops;
 	const struct vcodec_hw_var *hw_var;
+	struct devfreq *parent_devfreq;
+	struct notifier_block devfreq_nb;
 };
 
 struct vcodec_hw_ops {
@@ -471,7 +474,6 @@ struct compat_vpu_request {
 #define VPU_POWER_OFF_DELAY		(4 * HZ) /* 4s */
 #define VPU_TIMEOUT_DELAY		(2 * HZ) /* 2s */
 
-static void *vcodec_get_drv_data(struct platform_device *pdev);
 static void vcodec_reduce_freq_rk3328(struct vpu_service_info *pservice);
 
 static void vpu_service_power_on(struct vpu_subdev_data *data,
@@ -699,7 +701,9 @@ static void _vpu_reset(struct vpu_subdev_data *data)
 
 	/* rk3328 need to use sip_smc_vpu_reset to reset vpu */
 	if (pservice->hw_ops->reduce_freq == vcodec_reduce_freq_rk3328) {
+		mutex_lock(&pservice->sip_reset_lock);
 		sip_smc_vpu_reset(0, 0, 0);
+		mutex_unlock(&pservice->sip_reset_lock);
 	} else {
 		rockchip_pmu_idle_request(pservice->dev, true);
 		if (pservice->hw_ops->reduce_freq)
@@ -3004,8 +3008,6 @@ static const struct of_device_id vcodec_service_dt_ids[] = {
 
 static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 {
-	const struct of_device_id *match = NULL;
-
 	pservice->dev_id = VCODEC_DEVICE_ID_VPU;
 	pservice->curr_mode = -1;
 
@@ -3015,6 +3017,7 @@ static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 	mutex_init(&pservice->lock);
 	mutex_init(&pservice->shutdown_lock);
 	mutex_init(&pservice->reset_lock);
+	mutex_init(&pservice->sip_reset_lock);
 	mutex_init(&pservice->set_clk_lock);
 	atomic_set(&pservice->service_on, 1);
 
@@ -3031,10 +3034,6 @@ static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 
 	INIT_DELAYED_WORK(&pservice->power_off_work, vpu_power_off_work);
 	pservice->last.tv64 = 0;
-
-	match = of_match_node(vcodec_service_dt_ids, pservice->dev->of_node);
-	if (match)
-		pservice->hw_var = match->data;
 
 	pservice->alloc_type = 0;
 
@@ -3238,17 +3237,36 @@ static int vcodec_power_model_simple_init(struct vpu_service_info *pservice)
 	return 0;
 }
 
+static int vcodec_devfreq_notifier_call(struct notifier_block *nb,
+					unsigned long event,
+					void *data)
+{
+	struct vpu_service_info *ps = container_of(nb, struct vpu_service_info,
+						   devfreq_nb);
+
+	if (!ps)
+		return NOTIFY_OK;
+
+	if (event == DEVFREQ_PRECHANGE)
+		mutex_lock(&ps->sip_reset_lock);
+	else if (event == DEVFREQ_POSTCHANGE)
+		mutex_unlock(&ps->sip_reset_lock);
+
+	return NOTIFY_OK;
+}
+
 static int vcodec_probe(struct platform_device *pdev)
 {
 	int i;
 	int ret = 0;
+	const struct of_device_id *match = NULL;
 	struct resource *res = NULL;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
+	struct device_node *parent_np;
 	struct devfreq_dev_profile *devp = &devfreq_vcodec_profile;
 	struct devfreq_dev_status *stat;
 	struct vpu_service_info *pservice = NULL;
-	struct vcodec_device_info *driver_data;
 	struct vpu_session *session = NULL;
 #define MAX_PROP_NAME_LEN	3
 	char name[MAX_PROP_NAME_LEN];
@@ -3270,21 +3288,57 @@ static int vcodec_probe(struct platform_device *pdev)
 		dev_warn(dev, "no regulator for vcodec\n");
 	}
 
+	match = of_match_node(vcodec_service_dt_ids, pservice->dev->of_node);
+	if (match)
+		pservice->hw_var = match->data;
+	else
+		return -EINVAL;
+
+	if (pservice->hw_var->ops &&
+	    pservice->hw_var->ops->reduce_freq == vcodec_reduce_freq_rk3328) {
+		pservice->parent_devfreq = devfreq_get_devfreq_by_phandle(dev,
+									  0);
+		if (IS_ERR(pservice->parent_devfreq)) {
+			ret = PTR_ERR(pservice->parent_devfreq);
+			if (ret == -EPROBE_DEFER) {
+				parent_np = of_parse_phandle(np, "devfreq", 0);
+				if (parent_np &&
+				    of_device_is_available(parent_np)) {
+					dev_warn(dev,
+						 "parent devfreq retry\n");
+					return ret;
+				}
+				dev_warn(dev, "parent devfreq is disabled\n");
+				pservice->parent_devfreq = NULL;
+			} else {
+				dev_err(dev, "parent devfreq is error\n");
+				return -EINVAL;
+			}
+		} else {
+			dev_info(dev, "parent devfreq is ok\n");
+		}
+	}
+
 	pservice->set_workq = create_singlethread_workqueue("vcodec");
 	if (!pservice->set_workq) {
 		dev_err(dev, "failed to create workqueue\n");
 		return -ENOMEM;
 	}
 
-	driver_data = vcodec_get_drv_data(pdev);
-	if (!driver_data)
-		return -EINVAL;
-
 	vcodec_read_property(np, pservice);
 	vcodec_init_drvdata(pservice);
 
+	if (pservice->parent_devfreq) {
+		pservice->devfreq_nb.notifier_call =
+			vcodec_devfreq_notifier_call;
+		devm_devfreq_register_notifier(dev,
+					       pservice->parent_devfreq,
+					       &pservice->devfreq_nb,
+					       DEVFREQ_TRANSITION_NOTIFIER);
+	}
+
 	/* Underscore for label, hyphens for name */
-	switch (driver_data->device_type) {
+	switch (pservice->hw_var->device_type) {
 	case VCODEC_DEVICE_TYPE_VPUX:
 		pservice->dev_id = VCODEC_DEVICE_ID_VPU;
 		break;
@@ -3479,18 +3533,6 @@ static void vcodec_shutdown(struct platform_device *pdev)
 }
 
 MODULE_DEVICE_TABLE(of, vcodec_service_dt_ids);
-
-static void *vcodec_get_drv_data(struct platform_device *pdev)
-{
-	struct vcodec_device_info *driver_data = NULL;
-	const struct of_device_id *match;
-
-	match = of_match_node(vcodec_service_dt_ids, pdev->dev.of_node);
-	if (match)
-		driver_data = (struct vcodec_device_info *)match->data;
-
-	return driver_data;
-}
 
 static struct platform_driver vcodec_driver = {
 	.probe = vcodec_probe,
