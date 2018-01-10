@@ -47,6 +47,12 @@ enum mlxsw_sp_qdisc_type {
 };
 
 struct mlxsw_sp_qdisc_ops {
+	enum mlxsw_sp_qdisc_type type;
+	int (*check_params)(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			    void *params);
+	int (*replace)(struct mlxsw_sp_port *mlxsw_sp_port,
+		       struct mlxsw_sp_qdisc *mlxsw_sp_qdisc, void *params);
 	int (*destroy)(struct mlxsw_sp_port *mlxsw_sp_port,
 		       struct mlxsw_sp_qdisc *mlxsw_sp_qdisc);
 	int (*get_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -55,11 +61,12 @@ struct mlxsw_sp_qdisc_ops {
 	int (*get_xstats)(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			  void *xstats_ptr);
+	void (*clean_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc);
 };
 
 struct mlxsw_sp_qdisc {
 	u32 handle;
-	enum mlxsw_sp_qdisc_type type;
 	u8 tclass_num;
 	union {
 		struct red_stats red;
@@ -78,8 +85,9 @@ static bool
 mlxsw_sp_qdisc_compare(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc, u32 handle,
 		       enum mlxsw_sp_qdisc_type type)
 {
-	return mlxsw_sp_qdisc && mlxsw_sp_qdisc->handle == handle &&
-	       mlxsw_sp_qdisc->type == type;
+	return mlxsw_sp_qdisc && mlxsw_sp_qdisc->ops &&
+	       mlxsw_sp_qdisc->ops->type == type &&
+	       mlxsw_sp_qdisc->handle == handle;
 }
 
 static int
@@ -96,8 +104,37 @@ mlxsw_sp_qdisc_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 						   mlxsw_sp_qdisc);
 
 	mlxsw_sp_qdisc->handle = TC_H_UNSPEC;
-	mlxsw_sp_qdisc->type = MLXSW_SP_QDISC_NO_QDISC;
 	mlxsw_sp_qdisc->ops = NULL;
+	return err;
+}
+
+static int
+mlxsw_sp_qdisc_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
+		       struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+		       struct mlxsw_sp_qdisc_ops *ops, void *params)
+{
+	int err;
+
+	err = ops->check_params(mlxsw_sp_port, mlxsw_sp_qdisc, params);
+	if (err)
+		goto err_bad_param;
+
+	err = ops->replace(mlxsw_sp_port, mlxsw_sp_qdisc, params);
+	if (err)
+		goto err_config;
+
+	if (mlxsw_sp_qdisc->handle != handle) {
+		mlxsw_sp_qdisc->ops = ops;
+		if (ops->clean_stats)
+			ops->clean_stats(mlxsw_sp_port, mlxsw_sp_qdisc);
+	}
+
+	mlxsw_sp_qdisc->handle = handle;
+	return 0;
+
+err_bad_param:
+err_config:
+	mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 	return err;
 }
 
@@ -201,33 +238,42 @@ mlxsw_sp_qdisc_red_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int
-mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
-			   struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
-			   struct mlxsw_sp_qdisc_ops *ops,
-			   struct tc_red_qopt_offload_params *p)
+mlxsw_sp_qdisc_red_check_params(struct mlxsw_sp_port *mlxsw_sp_port,
+				struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+				void *params)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
-	u32 min, max;
-	u64 prob;
-	int err = 0;
+	struct tc_red_qopt_offload_params *p = params;
 
 	if (p->min > p->max) {
 		dev_err(mlxsw_sp->bus_info->dev,
 			"spectrum: RED: min %u is bigger then max %u\n", p->min,
 			p->max);
-		goto err_bad_param;
+		return -EINVAL;
 	}
 	if (p->max > MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE)) {
 		dev_err(mlxsw_sp->bus_info->dev,
 			"spectrum: RED: max value %u is too big\n", p->max);
-		goto err_bad_param;
+		return -EINVAL;
 	}
 	if (p->min == 0 || p->max == 0) {
 		dev_err(mlxsw_sp->bus_info->dev,
 			"spectrum: RED: 0 value is illegal for min and max\n");
-		goto err_bad_param;
+		return -EINVAL;
 	}
+	return 0;
+}
+
+static int
+mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port,
+			   struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			   void *params)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct tc_red_qopt_offload_params *p = params;
+	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
+	u32 min, max;
+	u64 prob;
 
 	/* calculate probability in percentage */
 	prob = p->probability;
@@ -236,25 +282,8 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 	prob = DIV_ROUND_UP(prob, 1 << 16);
 	min = mlxsw_sp_bytes_cells(mlxsw_sp, p->min);
 	max = mlxsw_sp_bytes_cells(mlxsw_sp, p->max);
-	err = mlxsw_sp_tclass_congestion_enable(mlxsw_sp_port, tclass_num, min,
-						max, prob, p->is_ecn);
-	if (err)
-		goto err_config;
-
-	mlxsw_sp_qdisc->type = MLXSW_SP_QDISC_RED;
-	mlxsw_sp_qdisc->ops = ops;
-	if (mlxsw_sp_qdisc->handle != handle)
-		mlxsw_sp_setup_tc_qdisc_red_clean_stats(mlxsw_sp_port,
-							mlxsw_sp_qdisc);
-
-	mlxsw_sp_qdisc->handle = handle;
-	return 0;
-
-err_bad_param:
-	err = -EINVAL;
-err_config:
-	mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
-	return err;
+	return mlxsw_sp_tclass_congestion_enable(mlxsw_sp_port, tclass_num, min,
+						 max, prob, p->is_ecn);
 }
 
 static int
@@ -323,9 +352,13 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 #define MLXSW_SP_PORT_DEFAULT_TCLASS 0
 
 static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_red = {
+	.type = MLXSW_SP_QDISC_RED,
+	.check_params = mlxsw_sp_qdisc_red_check_params,
+	.replace = mlxsw_sp_qdisc_red_replace,
 	.destroy = mlxsw_sp_qdisc_red_destroy,
 	.get_stats = mlxsw_sp_qdisc_get_red_stats,
 	.get_xstats = mlxsw_sp_qdisc_get_red_xstats,
+	.clean_stats = mlxsw_sp_setup_tc_qdisc_red_clean_stats,
 };
 
 int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -339,10 +372,10 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_qdisc = mlxsw_sp_port->root_qdisc;
 
 	if (p->command == TC_RED_REPLACE)
-		return mlxsw_sp_qdisc_red_replace(mlxsw_sp_port, p->handle,
-						  mlxsw_sp_qdisc,
-						  &mlxsw_sp_qdisc_ops_red,
-						  &p->set);
+		return mlxsw_sp_qdisc_replace(mlxsw_sp_port, p->handle,
+					      mlxsw_sp_qdisc,
+					      &mlxsw_sp_qdisc_ops_red,
+					      &p->set);
 
 	if (!mlxsw_sp_qdisc_compare(mlxsw_sp_qdisc, p->handle,
 				    MLXSW_SP_QDISC_RED))
