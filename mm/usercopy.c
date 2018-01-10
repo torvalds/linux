@@ -59,13 +59,28 @@ static noinline int check_stack_object(const void *obj, unsigned long len)
 }
 
 /*
- * If this function is reached, then CONFIG_HARDENED_USERCOPY has found an
- * unexpected state during a copy_from_user() or copy_to_user() call.
+ * If these functions are reached, then CONFIG_HARDENED_USERCOPY has found
+ * an unexpected state during a copy_from_user() or copy_to_user() call.
  * There are several checks being performed on the buffer by the
  * __check_object_size() function. Normal stack buffer usage should never
  * trip the checks, and kernel text addressing will always trip the check.
- * For cache objects, copies must be within the object size.
+ * For cache objects, it is checking that only the whitelisted range of
+ * bytes for a given cache is being accessed (via the cache's usersize and
+ * useroffset fields). To adjust a cache whitelist, use the usercopy-aware
+ * kmem_cache_create_usercopy() function to create the cache (and
+ * carefully audit the whitelist range).
  */
+void usercopy_warn(const char *name, const char *detail, bool to_user,
+		   unsigned long offset, unsigned long len)
+{
+	WARN_ONCE(1, "Bad or missing usercopy whitelist? Kernel memory %s attempt detected %s %s%s%s%s (offset %lu, size %lu)!\n",
+		 to_user ? "exposure" : "overwrite",
+		 to_user ? "from" : "to",
+		 name ? : "unknown?!",
+		 detail ? " '" : "", detail ? : "", detail ? "'" : "",
+		 offset, len);
+}
+
 void __noreturn usercopy_abort(const char *name, const char *detail,
 			       bool to_user, unsigned long offset,
 			       unsigned long len)
