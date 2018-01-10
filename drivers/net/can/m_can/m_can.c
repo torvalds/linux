@@ -1253,7 +1253,6 @@ static struct net_device *alloc_m_can_dev(struct platform_device *pdev,
 	struct net_device *dev;
 	struct m_can_priv *priv;
 	int m_can_version;
-	unsigned int echo_buffer_count;
 
 	m_can_version = m_can_check_core_release(addr);
 	/* return if unsupported version */
@@ -1262,12 +1261,7 @@ static struct net_device *alloc_m_can_dev(struct platform_device *pdev,
 		goto return_dev;
 	}
 
-	/* If version < 3.1.x, then only one echo buffer is used */
-	echo_buffer_count = ((m_can_version == 30)
-				? 1U
-				: (unsigned int)tx_fifo_size);
-
-	dev = alloc_candev(sizeof(*priv), echo_buffer_count);
+	dev = alloc_candev(sizeof(*priv), tx_fifo_size);
 	if (!dev) {
 		dev = NULL;
 		goto return_dev;
