@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
- */
+/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved. */
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -204,6 +203,7 @@ static int spmi_pmic_clkdiv_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	struct device *dev = &pdev->dev;
 	struct device_node *of_node = dev->of_node;
+	bool use_dt_name = false;
 	const char *parent_name;
 	int nclks, i, ret, cxo_hz;
 	char name[20];
@@ -252,13 +252,26 @@ static int spmi_pmic_clkdiv_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (of_find_property(of_node, "clock-output-names", NULL))
+		use_dt_name = true;
+
 	init.name = name;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 	init.ops = &clk_spmi_pmic_div_ops;
 
 	for (i = 0, clkdiv = cc->clks; i < nclks; i++) {
-		snprintf(name, sizeof(name), "div_clk%d", i + 1);
+		if (use_dt_name) {
+			ret = of_property_read_string_index(of_node,
+				"clock-output-names", i, &init.name);
+			if (ret) {
+				dev_err(dev, "could not read clock-output-names %d, ret=%d\n",
+					i, ret);
+				return ret;
+			}
+		} else {
+			snprintf(name, sizeof(name), "div_clk%d", i + 1);
+		}
 
 		spin_lock_init(&clkdiv[i].lock);
 		clkdiv[i].base = start + i * 0x100;
