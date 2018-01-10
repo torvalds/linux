@@ -739,7 +739,7 @@ construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset, u16 src, u8 size)
 		 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
 	emit_alu(nfp_prog, reg_none(),
 		 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
-	emit_br_relo(nfp_prog, BR_BLO, 0, 0, RELO_BR_GO_ABORT);
+	emit_br_relo(nfp_prog, BR_BLO, BR_OFF_RELO, 0, RELO_BR_GO_ABORT);
 
 	/* Load data */
 	return data_ld(nfp_prog, imm_b(nfp_prog), 0, size);
@@ -752,7 +752,7 @@ static int construct_data_ld(struct nfp_prog *nfp_prog, u16 offset, u8 size)
 	/* Check packet length */
 	tmp_reg = ur_load_imm_any(nfp_prog, offset + size, imm_a(nfp_prog));
 	emit_alu(nfp_prog, reg_none(), plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
-	emit_br_relo(nfp_prog, BR_BLO, 0, 0, RELO_BR_GO_ABORT);
+	emit_br_relo(nfp_prog, BR_BLO, BR_OFF_RELO, 0, RELO_BR_GO_ABORT);
 
 	/* Load data */
 	tmp_reg = re_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
@@ -2026,7 +2026,7 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int goto_out(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	emit_br_relo(nfp_prog, BR_UNC, 0, 0, RELO_BR_GO_OUT);
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 0, RELO_BR_GO_OUT);
 
 	return 0;
 }
@@ -2175,7 +2175,7 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	/* Target for aborts */
 	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
 
-	emit_br_relo(nfp_prog, BR_UNC, 0, 2, RELO_BR_NEXT_PKT);
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 2, RELO_BR_NEXT_PKT);
 
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x11), SHF_SC_L_SHF, 16);
@@ -2202,7 +2202,7 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_imm(0xf), SHF_OP_AND, reg_b(3), SHF_SC_R_SHF, 0);
 
-	emit_br_relo(nfp_prog, BR_UNC, 0, 2, RELO_BR_NEXT_PKT);
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 2, RELO_BR_NEXT_PKT);
 
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_a(2), SHF_OP_OR, reg_b(2), SHF_SC_L_SHF, 4);
@@ -2221,7 +2221,7 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 	/* Target for aborts */
 	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
 
-	emit_br_relo(nfp_prog, BR_UNC, 0, 2, RELO_BR_NEXT_PKT);
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 2, RELO_BR_NEXT_PKT);
 
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x82), SHF_SC_L_SHF, 16);
@@ -2242,7 +2242,7 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_imm(0xff), SHF_OP_AND, reg_b(2), SHF_SC_R_SHF, 0);
 
-	emit_br_relo(nfp_prog, BR_UNC, 0, 2, RELO_BR_NEXT_PKT);
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 2, RELO_BR_NEXT_PKT);
 
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_b(2), SHF_SC_L_SHF, 16);

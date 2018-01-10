@@ -58,6 +58,12 @@ enum nfp_relo_type {
 	RELO_BR_NEXT_PKT,
 };
 
+/* To make absolute relocated branches (branches other than RELO_BR_REL)
+ * distinguishable in user space dumps from normal jumps, add a large offset
+ * to them.
+ */
+#define BR_OFF_RELO		15000
+
 enum static_regs {
 	STATIC_REG_IMM		= 21, /* Bank AB */
 	STATIC_REG_STACK	= 22, /* Bank A */
