@@ -7645,7 +7645,7 @@ err_rxq_info:
 	/* Rollback successful reg's and free other resources */
 	while (i--)
 		xdp_rxq_info_unreg(&rx[i].xdp_rxq);
-	kfree(dev->_rx);
+	kvfree(dev->_rx);
 	dev->_rx = NULL;
 	return err;
 }
