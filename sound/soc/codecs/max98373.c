@@ -311,7 +311,10 @@ static int max98373_dai_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int mask;
 	int x, slot_found;
 
-	max98373->tdm_mode = true;
+	if (!tx_mask && !rx_mask && !slots && !slot_width)
+		max98373->tdm_mode = false;
+	else
+		max98373->tdm_mode = true;
 
 	/* BCLK configuration */
 	bsel = max98373_get_bclk_sel(slots * slot_width);
