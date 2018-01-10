@@ -1081,6 +1081,42 @@ static int pp_dpm_get_power_profile_state(void *handle,
 	return 0;
 }
 
+static int pp_get_power_profile_mode(void *handle, char *buf)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+
+	if (!buf || pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->get_power_profile_mode == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return snprintf(buf, PAGE_SIZE, "\n");
+	}
+
+	return hwmgr->hwmgr_func->get_power_profile_mode(hwmgr, buf);
+}
+
+static int pp_set_power_profile_mode(void *handle, long *input, uint32_t size)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+
+	if (pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->set_power_profile_mode == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	return hwmgr->hwmgr_func->set_power_profile_mode(hwmgr, input, size);
+}
+
 static int pp_dpm_set_power_profile_state(void *handle,
 		struct amd_pp_profile *request)
 {
@@ -1464,6 +1500,8 @@ const struct amd_pm_funcs pp_dpm_funcs = {
 	.switch_power_profile = pp_dpm_switch_power_profile,
 	.set_clockgating_by_smu = pp_set_clockgating_by_smu,
 	.notify_smu_memory_info = pp_dpm_notify_smu_memory_info,
+	.get_power_profile_mode = pp_get_power_profile_mode,
+	.set_power_profile_mode = pp_set_power_profile_mode,
 /* export to DC */
 	.get_sclk = pp_dpm_get_sclk,
 	.get_mclk = pp_dpm_get_mclk,

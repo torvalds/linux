@@ -342,6 +342,8 @@ struct pp_hwmgr_func {
 					uint32_t size);
 	int (*get_thermal_temperature_range)(struct pp_hwmgr *hwmgr,
 					struct PP_TemperatureRange *range);
+	int (*get_power_profile_mode)(struct pp_hwmgr *hwmgr, char *buf);
+	int (*set_power_profile_mode)(struct pp_hwmgr *hwmgr, long *input, uint32_t size);
 };
 
 struct pp_table_func {
@@ -750,6 +752,7 @@ struct pp_hwmgr {
 	struct amd_pp_profile default_compute_power_profile;
 	enum amd_pp_profile_type current_power_profile;
 	bool en_umd_pstate;
+	uint32_t power_profile_mode;
 };
 
 struct cgs_irq_src_funcs {

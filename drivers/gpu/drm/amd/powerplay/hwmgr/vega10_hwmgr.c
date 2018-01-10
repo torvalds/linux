@@ -760,6 +760,8 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->backend = data;
 
+	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_VIDEO;
+
 	vega10_set_default_registry_data(hwmgr);
 
 	data->disable_dpm_mask = 0xff;
@@ -3963,6 +3965,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		ret = -EINVAL;
 		break;
 	}
+
 	return ret;
 }
 
@@ -5021,6 +5024,82 @@ static int vega10_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
+{
+	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	uint32_t i, size = 0;
+	static const uint8_t profile_mode_setting[5][4] = {{70, 60, 1, 3,},
+						{90, 60, 0, 0,},
+						{70, 60, 0, 0,},
+						{70, 90, 0, 0,},
+						{30, 60, 0, 6,},
+						};
+	static const char *profile_name[6] = {"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTER",
+					"CUSTOM"};
+	static const char *title[6] = {"NUM",
+			"MODE_NAME",
+			"BUSY_SET_POINT",
+			"FPS",
+			"USE_RLC_BUSY",
+			"MIN_ACTIVE_LEVEL"};
+
+	if (!buf)
+		return -EINVAL;
+
+	size += sprintf(buf + size, "%s %16s %s %s %s %s\n",title[0],
+			title[1], title[2], title[3], title[4], title[5]);
+
+	for (i = 0; i < PP_SMC_POWER_PROFILE_CUSTOM; i++)
+		size += sprintf(buf + size, "%3d %14s%s: %14d %3d %10d %14d\n",
+			i, profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ",
+			profile_mode_setting[i][0], profile_mode_setting[i][1],
+			profile_mode_setting[i][2], profile_mode_setting[i][3]);
+	size += sprintf(buf + size, "%3d %14s%s: %14d %3d %10d %14d\n", i,
+			profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ",
+			data->custom_profile_mode[0], data->custom_profile_mode[1],
+			data->custom_profile_mode[2], data->custom_profile_mode[3]);
+	return size;
+}
+
+static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint32_t size)
+{
+	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	uint8_t busy_set_point;
+	uint8_t FPS;
+	uint8_t use_rlc_busy;
+	uint8_t min_active_level;
+
+	if (input[size] == PP_SMC_POWER_PROFILE_AUTO)
+		return 0; /* TO DO auto wattman feature not enabled */
+
+	hwmgr->power_profile_mode = input[size];
+
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
+						1<<hwmgr->power_profile_mode);
+
+	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		if (size == 0 || size > 4)
+			return -EINVAL;
+
+		data->custom_profile_mode[0] = busy_set_point = input[0];
+		data->custom_profile_mode[1] = FPS = input[1];
+		data->custom_profile_mode[2] = use_rlc_busy = input[2];
+		data->custom_profile_mode[3] = min_active_level = input[3];
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetCustomGfxDpmParameters,
+					busy_set_point | FPS<<8 |
+					use_rlc_busy << 16 | min_active_level<<24);
+				pr_info("size is %d value is %x \n", size, busy_set_point | FPS<<8 |
+					use_rlc_busy << 16 | min_active_level<<24);
+	}
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.backend_init = vega10_hwmgr_backend_init,
 	.backend_fini = vega10_hwmgr_backend_fini,
@@ -5078,6 +5157,8 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.get_thermal_temperature_range = vega10_get_thermal_temperature_range,
 	.register_internal_thermal_interrupt = vega10_register_thermal_interrupt,
 	.start_thermal_controller = vega10_start_thermal_controller,
+	.get_power_profile_mode = vega10_get_power_profile_mode,
+	.set_power_profile_mode = vega10_set_power_profile_mode,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
