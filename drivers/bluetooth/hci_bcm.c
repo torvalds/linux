@@ -29,6 +29,7 @@
 #include <linux/acpi.h>
 #include <linux/of.h>
 #include <linux/property.h>
+#include <linux/platform_data/x86/apple.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
@@ -64,7 +65,12 @@
  * @shutdown: BT_REG_ON pin,
  *	power up or power down Bluetooth device internal regulators
  * @set_device_wakeup: callback to toggle BT_WAKE pin
+ *	either by accessing @device_wakeup or by calling @btlp
  * @set_shutdown: callback to toggle BT_REG_ON pin
+ *	either by accessing @shutdown or by calling @btpu/@btpd
+ * @btlp: Apple ACPI method to toggle BT_WAKE pin ("Bluetooth Low Power")
+ * @btpu: Apple ACPI method to drive BT_REG_ON pin high ("Bluetooth Power Up")
+ * @btpd: Apple ACPI method to drive BT_REG_ON pin low ("Bluetooth Power Down")
  * @clk: clock used by Bluetooth device
  * @clk_enabled: whether @clk is prepared and enabled
  * @init_speed: default baudrate of Bluetooth device;
@@ -90,6 +96,9 @@ struct bcm_device {
 	struct gpio_desc	*shutdown;
 	int			(*set_device_wakeup)(struct bcm_device *, bool);
 	int			(*set_shutdown)(struct bcm_device *, bool);
+#ifdef CONFIG_ACPI
+	acpi_handle		btlp, btpu, btpd;
+#endif
 
 	struct clk		*clk;
 	bool			clk_enabled;
@@ -844,6 +853,49 @@ static int bcm_resource(struct acpi_resource *ares, void *data)
 
 	return 0;
 }
+
+static int bcm_apple_set_device_wakeup(struct bcm_device *dev, bool awake)
+{
+	if (ACPI_FAILURE(acpi_execute_simple_method(dev->btlp, NULL, !awake)))
+		return -EIO;
+
+	return 0;
+}
+
+static int bcm_apple_set_shutdown(struct bcm_device *dev, bool powered)
+{
+	if (ACPI_FAILURE(acpi_evaluate_object(powered ? dev->btpu : dev->btpd,
+					      NULL, NULL, NULL)))
+		return -EIO;
+
+	return 0;
+}
+
+static int bcm_apple_get_resources(struct bcm_device *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev->dev);
+	const union acpi_object *obj;
+
+	if (!adev ||
+	    ACPI_FAILURE(acpi_get_handle(adev->handle, "BTLP", &dev->btlp)) ||
+	    ACPI_FAILURE(acpi_get_handle(adev->handle, "BTPU", &dev->btpu)) ||
+	    ACPI_FAILURE(acpi_get_handle(adev->handle, "BTPD", &dev->btpd)))
+		return -ENODEV;
+
+	if (!acpi_dev_get_property(adev, "baud", ACPI_TYPE_BUFFER, &obj) &&
+	    obj->buffer.length == 8)
+		dev->init_speed = *(u64 *)obj->buffer.pointer;
+
+	dev->set_device_wakeup = bcm_apple_set_device_wakeup;
+	dev->set_shutdown = bcm_apple_set_shutdown;
+
+	return 0;
+}
+#else
+static inline int bcm_apple_get_resources(struct bcm_device *dev)
+{
+	return -EOPNOTSUPP;
+}
 #endif /* CONFIG_ACPI */
 
 static int bcm_gpio_set_device_wakeup(struct bcm_device *dev, bool awake)
@@ -861,6 +913,9 @@ static int bcm_gpio_set_shutdown(struct bcm_device *dev, bool powered)
 static int bcm_get_resources(struct bcm_device *dev)
 {
 	dev->name = dev_name(dev->dev);
+
+	if (x86_apple_machine && !bcm_apple_get_resources(dev))
+		return 0;
 
 	dev->clk = devm_clk_get(dev->dev, NULL);
 
