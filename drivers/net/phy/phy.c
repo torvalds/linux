@@ -1057,16 +1057,12 @@ void phy_state_machine(struct work_struct *work)
 /**
  * phy_mac_interrupt - MAC says the link has changed
  * @phydev: phy_device struct with changed link
- * @new_link: Link is Up/Down.
  *
- * Description: The MAC layer is able indicate there has been a change
- *   in the PHY link status. Set the new link status, and trigger the
- *   state machine, work a work queue.
+ * The MAC layer is able to indicate there has been a change in the PHY link
+ * status. Trigger the state machine and work a work queue.
  */
-void phy_mac_interrupt(struct phy_device *phydev, int new_link)
+void phy_mac_interrupt(struct phy_device *phydev)
 {
-	phydev->link = new_link;
-
 	/* Trigger a state machine change */
 	queue_work(system_power_efficient_wq, &phydev->phy_queue);
 }

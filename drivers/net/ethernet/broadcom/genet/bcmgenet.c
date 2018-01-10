@@ -2527,9 +2527,10 @@ static void bcmgenet_irq_task(struct work_struct *work)
 	spin_unlock_irq(&priv->lock);
 
 	/* Link UP/DOWN event */
-	if (status & UMAC_IRQ_LINK_EVENT)
-		phy_mac_interrupt(priv->dev->phydev,
-				  !!(status & UMAC_IRQ_LINK_UP));
+	if (status & UMAC_IRQ_LINK_EVENT) {
+		priv->dev->phydev->link = !!(status & UMAC_IRQ_LINK_UP);
+		phy_mac_interrupt(priv->dev->phydev);
+	}
 }
 
 /* bcmgenet_isr1: handle Rx and Tx priority queues */
