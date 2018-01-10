@@ -42,11 +42,11 @@ static inline bool tun_is_xdp_buff(void *ptr)
 {
 	return false;
 }
-void *tun_xdp_to_ptr(void *ptr)
+static inline void *tun_xdp_to_ptr(void *ptr)
 {
 	return NULL;
 }
-void *tun_ptr_to_xdp(void *ptr)
+static inline void *tun_ptr_to_xdp(void *ptr)
 {
 	return NULL;
 }
