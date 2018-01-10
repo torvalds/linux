@@ -338,23 +338,6 @@ static int imx219_s_stream(struct v4l2_subdev *sd, int enable)
 	if (ret)
 		return ret;
 
-	/* Handle analogue gain */
-	ret = reg_write(client, 0x0157, priv->analogue_gain);
-	if (ret)
-		return ret;
-
-	/* Handle digital gain */
-	ret = reg_write(client, 0x0158, priv->digital_gain >> 8);
-	ret |= reg_write(client, 0x0159, priv->digital_gain & 0xff);
-	if (ret)
-		return ret;
-
-	/* Handle exposure time */
-	ret = reg_write(client, 0x015a, priv->exposure_time >> 8);
-	ret |= reg_write(client, 0x015b, priv->exposure_time & 0xff);
-	if (ret)
-		return ret;
-
 	/* Handle test pattern */
 	if (priv->test_pattern) {
 		ret = reg_write(client, 0x0600, priv->test_pattern >> 8);
@@ -493,6 +476,7 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 	    container_of(ctrl->handler, struct imx219, ctrl_handler);
 	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
 	u8 reg;
+	int ret;
 
 	switch (ctrl->id) {
 	case V4L2_CID_HFLIP:
@@ -511,7 +495,9 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 		 */
 		priv->analogue_gain =
 		    256 - ((256 * IMX219_ANALOGUE_GAIN_MULTIPLIER) / ctrl->val);
-		break;
+		ret = reg_write(client, 0x0157, priv->analogue_gain);
+
+		return ret;
 	case V4L2_CID_GAIN:
 		/*
 		 * Register value goes from 256 to 4095, and the digital gain
@@ -519,10 +505,16 @@ static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 		 * to 24dB.
 		 */
 		priv->digital_gain = ctrl->val;
-		break;
+		ret = reg_write(client, 0x0158, priv->digital_gain >> 8);
+		ret |= reg_write(client, 0x0159, priv->digital_gain & 0xff);
+
+		return ret;
 	case V4L2_CID_EXPOSURE:
 		priv->exposure_time = ctrl->val;
-		break;
+		ret = reg_write(client, 0x015a, priv->exposure_time >> 8);
+		ret |= reg_write(client, 0x015b, priv->exposure_time & 0xff);
+
+		return ret;
 	case V4L2_CID_TEST_PATTERN:
 		return imx219_s_ctrl_test_pattern(ctrl);
 	default:
