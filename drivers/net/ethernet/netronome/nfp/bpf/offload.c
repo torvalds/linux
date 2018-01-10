@@ -147,7 +147,7 @@ int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
 		return -EOPNOTSUPP;
 	}
 
-	nfp_prog->stack_depth = prog->aux->stack_depth;
+	nfp_prog->stack_depth = round_up(prog->aux->stack_depth, 4);
 	nfp_prog->start_off = nn_readw(nn, NFP_NET_CFG_BPF_START);
 	nfp_prog->tgt_done = nn_readw(nn, NFP_NET_CFG_BPF_DONE);
 
