@@ -81,6 +81,7 @@ enum br_mask {
 	BR_BHS = 0x04,
 	BR_BLO = 0x05,
 	BR_BGE = 0x08,
+	BR_BLT = 0x09,
 	BR_UNC = 0x18,
 };
 
