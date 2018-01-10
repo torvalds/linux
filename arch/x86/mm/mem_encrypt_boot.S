@@ -104,6 +104,7 @@ ENTRY(__enc_copy)
 	mov	%rdx, %cr4
 
 	push	%r15
+	push	%r12
 
 	movq	%rcx, %r9		/* Save kernel length */
 	movq	%rdi, %r10		/* Save encrypted kernel address */
@@ -119,21 +120,27 @@ ENTRY(__enc_copy)
 
 	wbinvd				/* Invalidate any cache entries */
 
-	/* Copy/encrypt 2MB at a time */
+	/* Copy/encrypt up to 2MB at a time */
+	movq	$PMD_PAGE_SIZE, %r12
 1:
+	cmpq	%r12, %r9
+	jnb	2f
+	movq	%r9, %r12
+
+2:
 	movq	%r11, %rsi		/* Source - decrypted kernel */
 	movq	%r8, %rdi		/* Dest   - intermediate copy buffer */
-	movq	$PMD_PAGE_SIZE, %rcx	/* 2MB length */
+	movq	%r12, %rcx
 	rep	movsb
 
 	movq	%r8, %rsi		/* Source - intermediate copy buffer */
 	movq	%r10, %rdi		/* Dest   - encrypted kernel */
-	movq	$PMD_PAGE_SIZE, %rcx	/* 2MB length */
+	movq	%r12, %rcx
 	rep	movsb
 
-	addq	$PMD_PAGE_SIZE, %r11
-	addq	$PMD_PAGE_SIZE, %r10
-	subq	$PMD_PAGE_SIZE, %r9	/* Kernel length decrement */
+	addq	%r12, %r11
+	addq	%r12, %r10
+	subq	%r12, %r9		/* Kernel length decrement */
 	jnz	1b			/* Kernel length not zero? */
 
 	/* Restore PAT register */
@@ -142,6 +149,7 @@ ENTRY(__enc_copy)
 	mov	%r15, %rdx		/* Restore original PAT value */
 	wrmsr
 
+	pop	%r12
 	pop	%r15
 
 	ret

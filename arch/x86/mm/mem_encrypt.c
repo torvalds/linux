@@ -218,6 +218,7 @@ struct sme_populate_pgd_data {
 	pgd_t	*pgd;
 
 	pmdval_t pmd_flags;
+	pteval_t pte_flags;
 	unsigned long paddr;
 
 	unsigned long vaddr;
@@ -242,6 +243,7 @@ static void __init sme_clear_pgd(struct sme_populate_pgd_data *ppd)
 #define PGD_FLAGS		_KERNPG_TABLE_NOENC
 #define P4D_FLAGS		_KERNPG_TABLE_NOENC
 #define PUD_FLAGS		_KERNPG_TABLE_NOENC
+#define PMD_FLAGS		_KERNPG_TABLE_NOENC
 
 #define PMD_FLAGS_LARGE		(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL)
 
@@ -251,7 +253,15 @@ static void __init sme_clear_pgd(struct sme_populate_pgd_data *ppd)
 
 #define PMD_FLAGS_ENC		(PMD_FLAGS_LARGE | _PAGE_ENC)
 
-static void __init sme_populate_pgd_large(struct sme_populate_pgd_data *ppd)
+#define PTE_FLAGS		(__PAGE_KERNEL_EXEC & ~_PAGE_GLOBAL)
+
+#define PTE_FLAGS_DEC		PTE_FLAGS
+#define PTE_FLAGS_DEC_WP	((PTE_FLAGS_DEC & ~_PAGE_CACHE_MASK) | \
+				 (_PAGE_PAT | _PAGE_PWT))
+
+#define PTE_FLAGS_ENC		(PTE_FLAGS | _PAGE_ENC)
+
+static pmd_t __init *sme_prepare_pgd(struct sme_populate_pgd_data *ppd)
 {
 	pgd_t *pgd_p;
 	p4d_t *p4d_p;
@@ -302,7 +312,7 @@ static void __init sme_populate_pgd_large(struct sme_populate_pgd_data *ppd)
 	pud_p += pud_index(ppd->vaddr);
 	if (native_pud_val(*pud_p)) {
 		if (native_pud_val(*pud_p) & _PAGE_PSE)
-			return;
+			return NULL;
 
 		pmd_p = (pmd_t *)(native_pud_val(*pud_p) & ~PTE_FLAGS_MASK);
 	} else {
@@ -316,16 +326,55 @@ static void __init sme_populate_pgd_large(struct sme_populate_pgd_data *ppd)
 		native_set_pud(pud_p, pud);
 	}
 
+	return pmd_p;
+}
+
+static void __init sme_populate_pgd_large(struct sme_populate_pgd_data *ppd)
+{
+	pmd_t *pmd_p;
+
+	pmd_p = sme_prepare_pgd(ppd);
+	if (!pmd_p)
+		return;
+
 	pmd_p += pmd_index(ppd->vaddr);
 	if (!native_pmd_val(*pmd_p) || !(native_pmd_val(*pmd_p) & _PAGE_PSE))
 		native_set_pmd(pmd_p, native_make_pmd(ppd->paddr | ppd->pmd_flags));
 }
 
-static void __init __sme_map_range(struct sme_populate_pgd_data *ppd,
-				   pmdval_t pmd_flags)
+static void __init sme_populate_pgd(struct sme_populate_pgd_data *ppd)
 {
-	ppd->pmd_flags = pmd_flags;
+	pmd_t *pmd_p;
+	pte_t *pte_p;
 
+	pmd_p = sme_prepare_pgd(ppd);
+	if (!pmd_p)
+		return;
+
+	pmd_p += pmd_index(ppd->vaddr);
+	if (native_pmd_val(*pmd_p)) {
+		if (native_pmd_val(*pmd_p) & _PAGE_PSE)
+			return;
+
+		pte_p = (pte_t *)(native_pmd_val(*pmd_p) & ~PTE_FLAGS_MASK);
+	} else {
+		pmd_t pmd;
+
+		pte_p = ppd->pgtable_area;
+		memset(pte_p, 0, sizeof(*pte_p) * PTRS_PER_PTE);
+		ppd->pgtable_area += sizeof(*pte_p) * PTRS_PER_PTE;
+
+		pmd = native_make_pmd((pteval_t)pte_p + PMD_FLAGS);
+		native_set_pmd(pmd_p, pmd);
+	}
+
+	pte_p += pte_index(ppd->vaddr);
+	if (!native_pte_val(*pte_p))
+		native_set_pte(pte_p, native_make_pte(ppd->paddr | ppd->pte_flags));
+}
+
+static void __init __sme_map_range_pmd(struct sme_populate_pgd_data *ppd)
+{
 	while (ppd->vaddr < ppd->vaddr_end) {
 		sme_populate_pgd_large(ppd);
 
@@ -334,33 +383,71 @@ static void __init __sme_map_range(struct sme_populate_pgd_data *ppd,
 	}
 }
 
+static void __init __sme_map_range_pte(struct sme_populate_pgd_data *ppd)
+{
+	while (ppd->vaddr < ppd->vaddr_end) {
+		sme_populate_pgd(ppd);
+
+		ppd->vaddr += PAGE_SIZE;
+		ppd->paddr += PAGE_SIZE;
+	}
+}
+
+static void __init __sme_map_range(struct sme_populate_pgd_data *ppd,
+				   pmdval_t pmd_flags, pteval_t pte_flags)
+{
+	unsigned long vaddr_end;
+
+	ppd->pmd_flags = pmd_flags;
+	ppd->pte_flags = pte_flags;
+
+	/* Save original end value since we modify the struct value */
+	vaddr_end = ppd->vaddr_end;
+
+	/* If start is not 2MB aligned, create PTE entries */
+	ppd->vaddr_end = ALIGN(ppd->vaddr, PMD_PAGE_SIZE);
+	__sme_map_range_pte(ppd);
+
+	/* Create PMD entries */
+	ppd->vaddr_end = vaddr_end & PMD_PAGE_MASK;
+	__sme_map_range_pmd(ppd);
+
+	/* If end is not 2MB aligned, create PTE entries */
+	ppd->vaddr_end = vaddr_end;
+	__sme_map_range_pte(ppd);
+}
+
 static void __init sme_map_range_encrypted(struct sme_populate_pgd_data *ppd)
 {
-	__sme_map_range(ppd, PMD_FLAGS_ENC);
+	__sme_map_range(ppd, PMD_FLAGS_ENC, PTE_FLAGS_ENC);
 }
 
 static void __init sme_map_range_decrypted(struct sme_populate_pgd_data *ppd)
 {
-	__sme_map_range(ppd, PMD_FLAGS_DEC);
+	__sme_map_range(ppd, PMD_FLAGS_DEC, PTE_FLAGS_DEC);
 }
 
 static void __init sme_map_range_decrypted_wp(struct sme_populate_pgd_data *ppd)
 {
-	__sme_map_range(ppd, PMD_FLAGS_DEC_WP);
+	__sme_map_range(ppd, PMD_FLAGS_DEC_WP, PTE_FLAGS_DEC_WP);
 }
 
 static unsigned long __init sme_pgtable_calc(unsigned long len)
 {
-	unsigned long p4d_size, pud_size, pmd_size;
+	unsigned long p4d_size, pud_size, pmd_size, pte_size;
 	unsigned long total;
 
 	/*
 	 * Perform a relatively simplistic calculation of the pagetable
-	 * entries that are needed. That mappings will be covered by 2MB
-	 * PMD entries so we can conservatively calculate the required
+	 * entries that are needed. Those mappings will be covered mostly
+	 * by 2MB PMD entries so we can conservatively calculate the required
 	 * number of P4D, PUD and PMD structures needed to perform the
-	 * mappings. Incrementing the count for each covers the case where
-	 * the addresses cross entries.
+	 * mappings.  For mappings that are not 2MB aligned, PTE mappings
+	 * would be needed for the start and end portion of the address range
+	 * that fall outside of the 2MB alignment.  This results in, at most,
+	 * two extra pages to hold PTE entries for each range that is mapped.
+	 * Incrementing the count for each covers the case where the addresses
+	 * cross entries.
 	 */
 	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
 		p4d_size = (ALIGN(len, PGDIR_SIZE) / PGDIR_SIZE) + 1;
@@ -374,8 +461,9 @@ static unsigned long __init sme_pgtable_calc(unsigned long len)
 	}
 	pmd_size = (ALIGN(len, PUD_SIZE) / PUD_SIZE) + 1;
 	pmd_size *= sizeof(pmd_t) * PTRS_PER_PMD;
+	pte_size = 2 * sizeof(pte_t) * PTRS_PER_PTE;
 
-	total = p4d_size + pud_size + pmd_size;
+	total = p4d_size + pud_size + pmd_size + pte_size;
 
 	/*
 	 * Now calculate the added pagetable structures needed to populate
@@ -458,10 +546,13 @@ void __init sme_encrypt_kernel(void)
 
 	/*
 	 * The total workarea includes the executable encryption area and
-	 * the pagetable area.
+	 * the pagetable area. The start of the workarea is already 2MB
+	 * aligned, align the end of the workarea on a 2MB boundary so that
+	 * we don't try to create/allocate PTE entries from the workarea
+	 * before it is mapped.
 	 */
 	workarea_len = execute_len + pgtable_area_len;
-	workarea_end = workarea_start + workarea_len;
+	workarea_end = ALIGN(workarea_start + workarea_len, PMD_PAGE_SIZE);
 
 	/*
 	 * Set the address to the start of where newly created pagetable
