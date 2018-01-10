@@ -216,8 +216,10 @@ static int bcm_request_irq(struct bcm_data *bcm)
 			       bdev->irq_active_low ? IRQF_TRIGGER_FALLING :
 						      IRQF_TRIGGER_RISING,
 			       "host_wake", bdev);
-	if (err)
+	if (err) {
+		bdev->irq = err;
 		goto unlock;
+	}
 
 	device_init_wakeup(bdev->dev, true);
 
