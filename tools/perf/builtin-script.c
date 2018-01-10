@@ -1480,8 +1480,6 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 	return 0;
 }
 
-#define PTIME_RANGE_MAX	10
-
 struct perf_script {
 	struct perf_tool	tool;
 	struct perf_session	*session;
@@ -1496,7 +1494,8 @@ struct perf_script {
 	struct thread_map	*threads;
 	int			name_width;
 	const char              *time_str;
-	struct perf_time_interval ptime_range[PTIME_RANGE_MAX];
+	struct perf_time_interval *ptime_range;
+	int			range_size;
 	int			range_num;
 };
 
@@ -3445,6 +3444,13 @@ int cmd_script(int argc, const char **argv)
 	if (err < 0)
 		goto out_delete;
 
+	script.ptime_range = perf_time__range_alloc(script.time_str,
+						    &script.range_size);
+	if (!script.ptime_range) {
+		err = -ENOMEM;
+		goto out_delete;
+	}
+
 	/* needs to be parsed after looking up reference time */
 	if (perf_time__parse_str(script.ptime_range, script.time_str) != 0) {
 		if (session->evlist->first_sample_time == 0 &&
@@ -3457,7 +3463,7 @@ int cmd_script(int argc, const char **argv)
 		}
 
 		script.range_num = perf_time__percent_parse_str(
-					script.ptime_range, PTIME_RANGE_MAX,
+					script.ptime_range, script.range_size,
 					script.time_str,
 					session->evlist->first_sample_time,
 					session->evlist->last_sample_time);
@@ -3476,6 +3482,8 @@ int cmd_script(int argc, const char **argv)
 	flush_scripting();
 
 out_delete:
+	zfree(&script.ptime_range);
+
 	perf_evlist__free_stats(session->evlist);
 	perf_session__delete(session);
 
