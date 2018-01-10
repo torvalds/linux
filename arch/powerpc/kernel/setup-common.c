@@ -354,10 +354,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   loops_per_jiffy / (500000/HZ),
 		   (loops_per_jiffy / (5000/HZ)) % 100);
 #endif
-
-#ifdef CONFIG_SMP
 	seq_printf(m, "\n");
-#endif
 
 	preempt_enable();
 
