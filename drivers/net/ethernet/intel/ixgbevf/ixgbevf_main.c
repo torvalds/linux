@@ -1896,10 +1896,6 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 	unsigned int flags = netdev->flags;
 	int xcast_mode;
 
-	xcast_mode = (flags & IFF_ALLMULTI) ? IXGBEVF_XCAST_MODE_ALLMULTI :
-		     (flags & (IFF_BROADCAST | IFF_MULTICAST)) ?
-		     IXGBEVF_XCAST_MODE_MULTI : IXGBEVF_XCAST_MODE_NONE;
-
 	/* request the most inclusive mode we need */
 	if (flags & IFF_PROMISC)
 		xcast_mode = IXGBEVF_XCAST_MODE_PROMISC;

@@ -1034,11 +1034,8 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 		 ixgbe_driver_name,
 		 ixgbe_driver_version);
 	/* Firmware Version */
-	snprintf(info->firmware_version,
-		 sizeof(info->firmware_version),
-		 "0x%08x",
-		 (adapter->eeprom_verh << 16) |
-		  adapter->eeprom_verl);
+	strlcpy(info->firmware_version, adapter->eeprom_id,
+		sizeof(info->firmware_version));
 
 	/* Model */
 	if (hw->mac.type == ixgbe_mac_82599EB) {

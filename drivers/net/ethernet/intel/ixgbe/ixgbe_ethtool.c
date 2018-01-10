@@ -1014,16 +1014,13 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	u32 nvm_track_id;
 
 	strlcpy(drvinfo->driver, ixgbe_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, ixgbe_driver_version,
 		sizeof(drvinfo->version));
 
-	nvm_track_id = (adapter->eeprom_verh << 16) |
-			adapter->eeprom_verl;
-	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version), "0x%08x",
-		 nvm_track_id);
+	strlcpy(drvinfo->fw_version, adapter->eeprom_id,
+		sizeof(drvinfo->fw_version));
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
