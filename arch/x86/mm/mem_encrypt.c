@@ -213,6 +213,14 @@ void swiotlb_set_mem_attributes(void *vaddr, unsigned long size)
 	set_memory_decrypted((unsigned long)vaddr, size >> PAGE_SHIFT);
 }
 
+struct sme_populate_pgd_data {
+	void	*pgtable_area;
+	pgd_t	*pgd;
+
+	pmdval_t pmd_val;
+	unsigned long vaddr;
+};
+
 static void __init sme_clear_pgd(pgd_t *pgd_base, unsigned long start,
 				 unsigned long end)
 {
@@ -235,15 +243,14 @@ static void __init sme_clear_pgd(pgd_t *pgd_base, unsigned long start,
 #define PUD_FLAGS	_KERNPG_TABLE_NOENC
 #define PMD_FLAGS	(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL)
 
-static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
-				     unsigned long vaddr, pmdval_t pmd_val)
+static void __init sme_populate_pgd_large(struct sme_populate_pgd_data *ppd)
 {
 	pgd_t *pgd_p;
 	p4d_t *p4d_p;
 	pud_t *pud_p;
 	pmd_t *pmd_p;
 
-	pgd_p = pgd_base + pgd_index(vaddr);
+	pgd_p = ppd->pgd + pgd_index(ppd->vaddr);
 	if (native_pgd_val(*pgd_p)) {
 		if (IS_ENABLED(CONFIG_X86_5LEVEL))
 			p4d_p = (p4d_t *)(native_pgd_val(*pgd_p) & ~PTE_FLAGS_MASK);
@@ -253,15 +260,15 @@ static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
 		pgd_t pgd;
 
 		if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
-			p4d_p = pgtable_area;
+			p4d_p = ppd->pgtable_area;
 			memset(p4d_p, 0, sizeof(*p4d_p) * PTRS_PER_P4D);
-			pgtable_area += sizeof(*p4d_p) * PTRS_PER_P4D;
+			ppd->pgtable_area += sizeof(*p4d_p) * PTRS_PER_P4D;
 
 			pgd = native_make_pgd((pgdval_t)p4d_p + PGD_FLAGS);
 		} else {
-			pud_p = pgtable_area;
+			pud_p = ppd->pgtable_area;
 			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
-			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
+			ppd->pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
 
 			pgd = native_make_pgd((pgdval_t)pud_p + PGD_FLAGS);
 		}
@@ -269,44 +276,41 @@ static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
 	}
 
 	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
-		p4d_p += p4d_index(vaddr);
+		p4d_p += p4d_index(ppd->vaddr);
 		if (native_p4d_val(*p4d_p)) {
 			pud_p = (pud_t *)(native_p4d_val(*p4d_p) & ~PTE_FLAGS_MASK);
 		} else {
 			p4d_t p4d;
 
-			pud_p = pgtable_area;
+			pud_p = ppd->pgtable_area;
 			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
-			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
+			ppd->pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
 
 			p4d = native_make_p4d((pudval_t)pud_p + P4D_FLAGS);
 			native_set_p4d(p4d_p, p4d);
 		}
 	}
 
-	pud_p += pud_index(vaddr);
+	pud_p += pud_index(ppd->vaddr);
 	if (native_pud_val(*pud_p)) {
 		if (native_pud_val(*pud_p) & _PAGE_PSE)
-			goto out;
+			return;
 
 		pmd_p = (pmd_t *)(native_pud_val(*pud_p) & ~PTE_FLAGS_MASK);
 	} else {
 		pud_t pud;
 
-		pmd_p = pgtable_area;
+		pmd_p = ppd->pgtable_area;
 		memset(pmd_p, 0, sizeof(*pmd_p) * PTRS_PER_PMD);
-		pgtable_area += sizeof(*pmd_p) * PTRS_PER_PMD;
+		ppd->pgtable_area += sizeof(*pmd_p) * PTRS_PER_PMD;
 
 		pud = native_make_pud((pmdval_t)pmd_p + PUD_FLAGS);
 		native_set_pud(pud_p, pud);
 	}
 
-	pmd_p += pmd_index(vaddr);
+	pmd_p += pmd_index(ppd->vaddr);
 	if (!native_pmd_val(*pmd_p) || !(native_pmd_val(*pmd_p) & _PAGE_PSE))
-		native_set_pmd(pmd_p, native_make_pmd(pmd_val));
-
-out:
-	return pgtable_area;
+		native_set_pmd(pmd_p, native_make_pmd(ppd->pmd_val));
 }
 
 static unsigned long __init sme_pgtable_calc(unsigned long len)
@@ -364,11 +368,10 @@ void __init sme_encrypt_kernel(void)
 	unsigned long workarea_start, workarea_end, workarea_len;
 	unsigned long execute_start, execute_end, execute_len;
 	unsigned long kernel_start, kernel_end, kernel_len;
+	struct sme_populate_pgd_data ppd;
 	unsigned long pgtable_area_len;
 	unsigned long paddr, pmd_flags;
 	unsigned long decrypted_base;
-	void *pgtable_area;
-	pgd_t *pgd;
 
 	if (!sme_active())
 		return;
@@ -432,18 +435,18 @@ void __init sme_encrypt_kernel(void)
 	 * pagetables and when the new encrypted and decrypted kernel
 	 * mappings are populated.
 	 */
-	pgtable_area = (void *)execute_end;
+	ppd.pgtable_area = (void *)execute_end;
 
 	/*
 	 * Make sure the current pagetable structure has entries for
 	 * addressing the workarea.
 	 */
-	pgd = (pgd_t *)native_read_cr3_pa();
+	ppd.pgd = (pgd_t *)native_read_cr3_pa();
 	paddr = workarea_start;
 	while (paddr < workarea_end) {
-		pgtable_area = sme_populate_pgd(pgd, pgtable_area,
-						paddr,
-						paddr + PMD_FLAGS);
+		ppd.pmd_val = paddr + PMD_FLAGS;
+		ppd.vaddr = paddr;
+		sme_populate_pgd_large(&ppd);
 
 		paddr += PMD_PAGE_SIZE;
 	}
@@ -457,17 +460,17 @@ void __init sme_encrypt_kernel(void)
 	 * populated with new PUDs and PMDs as the encrypted and decrypted
 	 * kernel mappings are created.
 	 */
-	pgd = pgtable_area;
-	memset(pgd, 0, sizeof(*pgd) * PTRS_PER_PGD);
-	pgtable_area += sizeof(*pgd) * PTRS_PER_PGD;
+	ppd.pgd = ppd.pgtable_area;
+	memset(ppd.pgd, 0, sizeof(pgd_t) * PTRS_PER_PGD);
+	ppd.pgtable_area += sizeof(pgd_t) * PTRS_PER_PGD;
 
 	/* Add encrypted kernel (identity) mappings */
 	pmd_flags = PMD_FLAGS | _PAGE_ENC;
 	paddr = kernel_start;
 	while (paddr < kernel_end) {
-		pgtable_area = sme_populate_pgd(pgd, pgtable_area,
-						paddr,
-						paddr + pmd_flags);
+		ppd.pmd_val = paddr + pmd_flags;
+		ppd.vaddr = paddr;
+		sme_populate_pgd_large(&ppd);
 
 		paddr += PMD_PAGE_SIZE;
 	}
@@ -485,9 +488,9 @@ void __init sme_encrypt_kernel(void)
 	pmd_flags = (PMD_FLAGS & ~_PAGE_CACHE_MASK) | (_PAGE_PAT | _PAGE_PWT);
 	paddr = kernel_start;
 	while (paddr < kernel_end) {
-		pgtable_area = sme_populate_pgd(pgd, pgtable_area,
-						paddr + decrypted_base,
-						paddr + pmd_flags);
+		ppd.pmd_val = paddr + pmd_flags;
+		ppd.vaddr = paddr + decrypted_base;
+		sme_populate_pgd_large(&ppd);
 
 		paddr += PMD_PAGE_SIZE;
 	}
@@ -495,30 +498,29 @@ void __init sme_encrypt_kernel(void)
 	/* Add decrypted workarea mappings to both kernel mappings */
 	paddr = workarea_start;
 	while (paddr < workarea_end) {
-		pgtable_area = sme_populate_pgd(pgd, pgtable_area,
-						paddr,
-						paddr + PMD_FLAGS);
+		ppd.pmd_val = paddr + PMD_FLAGS;
+		ppd.vaddr = paddr;
+		sme_populate_pgd_large(&ppd);
 
-		pgtable_area = sme_populate_pgd(pgd, pgtable_area,
-						paddr + decrypted_base,
-						paddr + PMD_FLAGS);
+		ppd.vaddr = paddr + decrypted_base;
+		sme_populate_pgd_large(&ppd);
 
 		paddr += PMD_PAGE_SIZE;
 	}
 
 	/* Perform the encryption */
 	sme_encrypt_execute(kernel_start, kernel_start + decrypted_base,
-			    kernel_len, workarea_start, (unsigned long)pgd);
+			    kernel_len, workarea_start, (unsigned long)ppd.pgd);
 
 	/*
 	 * At this point we are running encrypted.  Remove the mappings for
 	 * the decrypted areas - all that is needed for this is to remove
 	 * the PGD entry/entries.
 	 */
-	sme_clear_pgd(pgd, kernel_start + decrypted_base,
+	sme_clear_pgd(ppd.pgd, kernel_start + decrypted_base,
 		      kernel_end + decrypted_base);
 
-	sme_clear_pgd(pgd, workarea_start + decrypted_base,
+	sme_clear_pgd(ppd.pgd, workarea_start + decrypted_base,
 		      workarea_end + decrypted_base);
 
 	/* Flush the TLB - no globals so cr3 is enough */
