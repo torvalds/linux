@@ -290,31 +290,6 @@ void mipi_dbi_enable_flush(struct mipi_dbi *mipi)
 }
 EXPORT_SYMBOL(mipi_dbi_enable_flush);
 
-/**
- * mipi_dbi_pipe_enable - MIPI DBI pipe enable helper
- * @pipe: Display pipe
- * @crtc_state: CRTC state
- *
- * This function enables backlight. Drivers can use this as their
- * &drm_simple_display_pipe_funcs->enable callback.
- */
-void mipi_dbi_pipe_enable(struct drm_simple_display_pipe *pipe,
-			  struct drm_crtc_state *crtc_state)
-{
-	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
-	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
-	struct drm_framebuffer *fb = pipe->plane.fb;
-
-	DRM_DEBUG_KMS("\n");
-
-	mipi->enabled = true;
-	if (fb)
-		fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
-
-	tinydrm_enable_backlight(mipi->backlight);
-}
-EXPORT_SYMBOL(mipi_dbi_pipe_enable);
-
 static void mipi_dbi_blank(struct mipi_dbi *mipi)
 {
 	struct drm_device *drm = mipi->tinydrm.drm;
@@ -336,8 +311,8 @@ static void mipi_dbi_blank(struct mipi_dbi *mipi)
  * mipi_dbi_pipe_disable - MIPI DBI pipe disable helper
  * @pipe: Display pipe
  *
- * This function disables backlight if present or if not the
- * display memory is blanked. Drivers can use this as their
+ * This function disables backlight if present, if not the display memory is
+ * blanked. The regulator is disabled if in use. Drivers can use this as their
  * &drm_simple_display_pipe_funcs->disable callback.
  */
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -353,6 +328,9 @@ void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 		tinydrm_disable_backlight(mipi->backlight);
 	else
 		mipi_dbi_blank(mipi);
+
+	if (mipi->regulator)
+		regulator_disable(mipi->regulator);
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_disable);
 
