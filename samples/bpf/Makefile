@@ -142,6 +142,7 @@ always += xdp_redirect_map_kern.o
 always += xdp_redirect_cpu_kern.o
 always += xdp_monitor_kern.o
 always += xdp_rxq_info_kern.o
+always += xdp2skb_meta_kern.o
 always += syscall_tp_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
