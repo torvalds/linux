@@ -572,11 +572,9 @@ static int bcm_suspend_device(struct device *dev)
 	}
 
 	/* Suspend the device */
-	if (bdev->device_wakeup) {
-		gpiod_set_value(bdev->device_wakeup, false);
-		bt_dev_dbg(bdev, "suspend, delaying 15 ms");
-		mdelay(15);
-	}
+	gpiod_set_value(bdev->device_wakeup, false);
+	bt_dev_dbg(bdev, "suspend, delaying 15 ms");
+	mdelay(15);
 
 	return 0;
 }
@@ -587,11 +585,9 @@ static int bcm_resume_device(struct device *dev)
 
 	bt_dev_dbg(bdev, "");
 
-	if (bdev->device_wakeup) {
-		gpiod_set_value(bdev->device_wakeup, true);
-		bt_dev_dbg(bdev, "resume, delaying 15 ms");
-		mdelay(15);
-	}
+	gpiod_set_value(bdev->device_wakeup, true);
+	bt_dev_dbg(bdev, "resume, delaying 15 ms");
+	mdelay(15);
 
 	/* When this executes, the device has woken up already */
 	if (bdev->is_suspended && bdev->hu) {
@@ -774,14 +770,12 @@ static int bcm_get_resources(struct bcm_device *dev)
 
 	dev->clk = devm_clk_get(dev->dev, NULL);
 
-	dev->device_wakeup = devm_gpiod_get_optional(dev->dev,
-						     "device-wakeup",
-						     GPIOD_OUT_LOW);
+	dev->device_wakeup = devm_gpiod_get(dev->dev, "device-wakeup",
+					    GPIOD_OUT_LOW);
 	if (IS_ERR(dev->device_wakeup))
 		return PTR_ERR(dev->device_wakeup);
 
-	dev->shutdown = devm_gpiod_get_optional(dev->dev, "shutdown",
-						GPIOD_OUT_LOW);
+	dev->shutdown = devm_gpiod_get(dev->dev, "shutdown", GPIOD_OUT_LOW);
 	if (IS_ERR(dev->shutdown))
 		return PTR_ERR(dev->shutdown);
 
