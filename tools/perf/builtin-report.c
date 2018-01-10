@@ -54,8 +54,6 @@
 #include <unistd.h>
 #include <linux/mman.h>
 
-#define PTIME_RANGE_MAX	10
-
 struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
@@ -76,7 +74,8 @@ struct report {
 	const char		*cpu_list;
 	const char		*symbol_filter_str;
 	const char		*time_str;
-	struct perf_time_interval ptime_range[PTIME_RANGE_MAX];
+	struct perf_time_interval *ptime_range;
+	int			range_size;
 	int			range_num;
 	float			min_percent;
 	u64			nr_entries;
@@ -1300,24 +1299,33 @@ repeat:
 	if (symbol__init(&session->header.env) < 0)
 		goto error;
 
+	report.ptime_range = perf_time__range_alloc(report.time_str,
+						    &report.range_size);
+	if (!report.ptime_range) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
 	if (perf_time__parse_str(report.ptime_range, report.time_str) != 0) {
 		if (session->evlist->first_sample_time == 0 &&
 		    session->evlist->last_sample_time == 0) {
 			pr_err("HINT: no first/last sample time found in perf data.\n"
 			       "Please use latest perf binary to execute 'perf record'\n"
 			       "(if '--buildid-all' is enabled, please set '--timestamp-boundary').\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto error;
 		}
 
 		report.range_num = perf_time__percent_parse_str(
-					report.ptime_range, PTIME_RANGE_MAX,
+					report.ptime_range, report.range_size,
 					report.time_str,
 					session->evlist->first_sample_time,
 					session->evlist->last_sample_time);
 
 		if (report.range_num < 0) {
 			pr_err("Invalid time string\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto error;
 		}
 	} else {
 		report.range_num = 1;
@@ -1333,6 +1341,8 @@ repeat:
 		ret = 0;
 
 error:
+	zfree(&report.ptime_range);
+
 	perf_session__delete(session);
 	return ret;
 }
