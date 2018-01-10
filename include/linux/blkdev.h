@@ -141,12 +141,6 @@ typedef __u32 __bitwise req_flags_t;
  * especially blk_mq_rq_ctx_init() to take care of the added fields.
  */
 struct request {
-	struct list_head queuelist;
-	union {
-		call_single_data_t csd;
-		u64 fifo_time;
-	};
-
 	struct request_queue *q;
 	struct blk_mq_ctx *mq_ctx;
 
@@ -163,6 +157,8 @@ struct request {
 
 	struct bio *bio;
 	struct bio *biotail;
+
+	struct list_head queuelist;
 
 	/*
 	 * The hash is used inside the scheduler, and killed once the
@@ -211,19 +207,16 @@ struct request {
 	struct hd_struct *part;
 	unsigned long start_time;
 	struct blk_issue_stat issue_stat;
-#ifdef CONFIG_BLK_CGROUP
-	struct request_list *rl;		/* rl this rq is alloced from */
-	unsigned long long start_time_ns;
-	unsigned long long io_start_time_ns;    /* when passed to hardware */
-#endif
 	/* Number of scatter-gather DMA addr+len pairs after
 	 * physical address coalescing is performed.
 	 */
 	unsigned short nr_phys_segments;
+
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	unsigned short nr_integrity_segments;
 #endif
 
+	unsigned short write_hint;
 	unsigned short ioprio;
 
 	unsigned int timeout;
@@ -231,8 +224,6 @@ struct request {
 	void *special;		/* opaque pointer available for LLD use */
 
 	unsigned int extra_len;	/* length of alignment and padding */
-
-	unsigned short write_hint;
 
 	/*
 	 * On blk-mq, the lower bits of ->gstate (generation number and
@@ -260,6 +251,11 @@ struct request {
 
 	struct list_head timeout_list;
 
+	union {
+		call_single_data_t csd;
+		u64 fifo_time;
+	};
+
 	/*
 	 * completion callback.
 	 */
@@ -268,6 +264,12 @@ struct request {
 
 	/* for bidi */
 	struct request *next_rq;
+
+#ifdef CONFIG_BLK_CGROUP
+	struct request_list *rl;		/* rl this rq is alloced from */
+	unsigned long long start_time_ns;
+	unsigned long long io_start_time_ns;    /* when passed to hardware */
+#endif
 };
 
 static inline bool blk_rq_is_scsi(struct request *rq)
