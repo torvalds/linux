@@ -2060,6 +2060,7 @@ struct fw_vi_cmd {
 #define FW_VI_MAC_ADD_MAC		0x3FF
 #define FW_VI_MAC_ADD_PERSIST_MAC	0x3FE
 #define FW_VI_MAC_MAC_BASED_FREE	0x3FD
+#define FW_VI_MAC_ID_BASED_FREE		0x3FC
 #define FW_CLS_TCAM_NUM_ENTRIES		336
 
 enum fw_vi_mac_smac {
@@ -2076,6 +2077,13 @@ enum fw_vi_mac_result {
 	FW_VI_MAC_R_F_ACL_CHECK
 };
 
+enum fw_vi_mac_entry_types {
+	FW_VI_MAC_TYPE_EXACTMAC,
+	FW_VI_MAC_TYPE_HASHVEC,
+	FW_VI_MAC_TYPE_RAW,
+	FW_VI_MAC_TYPE_EXACTMAC_VNI,
+};
+
 struct fw_vi_mac_cmd {
 	__be32 op_to_viid;
 	__be32 freemacs_to_len16;
@@ -2087,6 +2095,13 @@ struct fw_vi_mac_cmd {
 		struct fw_vi_mac_hash {
 			__be64 hashvec;
 		} hash;
+		struct fw_vi_mac_raw {
+			__be32 raw_idx_pkd;
+			__be32 data0_pkd;
+			__be32 data1[2];
+			__be64 data0m_pkd;
+			__be32 data1m[2];
+		} raw;
 	} u;
 };
 
@@ -2095,6 +2110,12 @@ struct fw_vi_mac_cmd {
 
 #define FW_VI_MAC_CMD_FREEMACS_S	31
 #define FW_VI_MAC_CMD_FREEMACS_V(x)	((x) << FW_VI_MAC_CMD_FREEMACS_S)
+
+#define FW_VI_MAC_CMD_ENTRY_TYPE_S      23
+#define FW_VI_MAC_CMD_ENTRY_TYPE_M      0x7
+#define FW_VI_MAC_CMD_ENTRY_TYPE_V(x)   ((x) << FW_VI_MAC_CMD_ENTRY_TYPE_S)
+#define FW_VI_MAC_CMD_ENTRY_TYPE_G(x)	\
+	(((x) >> FW_VI_MAC_CMD_ENTRY_TYPE_S) & FW_VI_MAC_CMD_ENTRY_TYPE_M)
 
 #define FW_VI_MAC_CMD_HASHVECEN_S	23
 #define FW_VI_MAC_CMD_HASHVECEN_V(x)	((x) << FW_VI_MAC_CMD_HASHVECEN_S)
@@ -2121,6 +2142,12 @@ struct fw_vi_mac_cmd {
 #define FW_VI_MAC_CMD_IDX_V(x)	((x) << FW_VI_MAC_CMD_IDX_S)
 #define FW_VI_MAC_CMD_IDX_G(x)	\
 	(((x) >> FW_VI_MAC_CMD_IDX_S) & FW_VI_MAC_CMD_IDX_M)
+
+#define FW_VI_MAC_CMD_RAW_IDX_S         16
+#define FW_VI_MAC_CMD_RAW_IDX_M         0xffff
+#define FW_VI_MAC_CMD_RAW_IDX_V(x)      ((x) << FW_VI_MAC_CMD_RAW_IDX_S)
+#define FW_VI_MAC_CMD_RAW_IDX_G(x)      \
+	(((x) >> FW_VI_MAC_CMD_RAW_IDX_S) & FW_VI_MAC_CMD_RAW_IDX_M)
 
 #define FW_RXMODE_MTU_NO_CHG	65535
 

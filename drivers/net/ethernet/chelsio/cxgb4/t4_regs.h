@@ -2511,6 +2511,17 @@
 #define MPS_RX_MAC_BG_PG_CNT0_A 0x11208
 #define MPS_RX_LPBK_BG_PG_CNT0_A 0x11218
 
+#define MPS_RX_VXLAN_TYPE_A 0x11234
+
+#define VXLAN_EN_S    16
+#define VXLAN_EN_V(x) ((x) << VXLAN_EN_S)
+#define VXLAN_EN_F    VXLAN_EN_V(1U)
+
+#define VXLAN_S    0
+#define VXLAN_M    0xffffU
+#define VXLAN_V(x) ((x) << VXLAN_S)
+#define VXLAN_G(x) (((x) >> VXLAN_S) & VXLAN_M)
+
 #define MPS_CLS_TCAM_Y_L_A 0xf000
 #define MPS_CLS_TCAM_DATA0_A 0xf000
 #define MPS_CLS_TCAM_DATA1_A 0xf004
@@ -2537,7 +2548,13 @@
 
 #define DATAPORTNUM_S    12
 #define DATAPORTNUM_M    0xfU
+#define DATAPORTNUM_V(x) ((x) << DATAPORTNUM_S)
 #define DATAPORTNUM_G(x) (((x) >> DATAPORTNUM_S) & DATAPORTNUM_M)
+
+#define DATALKPTYPE_S    10
+#define DATALKPTYPE_M    0x3U
+#define DATALKPTYPE_V(x) ((x) << DATALKPTYPE_S)
+#define DATALKPTYPE_G(x) (((x) >> DATALKPTYPE_S) & DATALKPTYPE_M)
 
 #define DATADIPHIT_S    8
 #define DATADIPHIT_V(x) ((x) << DATADIPHIT_S)
