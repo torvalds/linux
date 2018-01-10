@@ -2243,7 +2243,6 @@ static int rcu_nocb_kthread(void *arg)
 		smp_mb__before_atomic();  /* _add after CB invocation. */
 		atomic_long_add(-c, &rdp->nocb_q_count);
 		atomic_long_add(-cl, &rdp->nocb_q_count_lazy);
-		rdp->n_nocbs_invoked += c;
 	}
 	return 0;
 }
