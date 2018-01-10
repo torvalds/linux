@@ -310,11 +310,14 @@ static int omap_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_width = 8;
 	dev->mode_config.min_height = 2;
 
-	/* note: eventually will need some cpu_is_omapXYZ() type stuff here
-	 * to fill in these limits properly on different OMAP generations..
+	/*
+	 * Note: these values are used for multiple independent things:
+	 * connector mode filtering, buffer sizes, crtc sizes...
+	 * Use big enough values here to cover all use cases, and do more
+	 * specific checking in the respective code paths.
 	 */
-	dev->mode_config.max_width = 2048;
-	dev->mode_config.max_height = 2048;
+	dev->mode_config.max_width = 8192;
+	dev->mode_config.max_height = 8192;
 
 	dev->mode_config.funcs = &omap_mode_config_funcs;
 	dev->mode_config.helper_private = &omap_mode_config_helper_funcs;
