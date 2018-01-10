@@ -455,6 +455,13 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 		hr_qp->sge.sge_shift = 4;
 	}
 
+	/* ud sqwqe's sge use extend sge */
+	if (hr_dev->caps.max_sq_sg > 2 && hr_qp->ibqp.qp_type == IB_QPT_GSI) {
+		hr_qp->sge.sge_cnt = roundup_pow_of_two(hr_qp->sq.wqe_cnt *
+				     hr_qp->sq.max_gs);
+		hr_qp->sge.sge_shift = 4;
+	}
+
 	/* Get buf size, SQ and RQ are aligned to PAGE_SIZE */
 	page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
 	hr_qp->sq.offset = 0;
@@ -501,6 +508,8 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	spin_lock_init(&hr_qp->rq.lock);
 
 	hr_qp->state = IB_QPS_RESET;
+
+	hr_qp->ibqp.qp_type = init_attr->qp_type;
 
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		hr_qp->sq_signal_bits = IB_SIGNAL_ALL_WR;
@@ -764,8 +773,13 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 		hr_qp = &hr_sqp->hr_qp;
 		hr_qp->port = init_attr->port_num - 1;
 		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
-		hr_qp->ibqp.qp_num = HNS_ROCE_MAX_PORTS +
-				     hr_dev->iboe.phy_port[hr_qp->port];
+
+		/* when hw version is v1, the sqpn is allocated */
+		if (hr_dev->caps.max_sq_sg <= 2)
+			hr_qp->ibqp.qp_num = HNS_ROCE_MAX_PORTS +
+					     hr_dev->iboe.phy_port[hr_qp->port];
+		else
+			hr_qp->ibqp.qp_num = 1;
 
 		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
 						hr_qp->ibqp.qp_num, hr_qp);
