@@ -176,6 +176,7 @@ static int max98373_get_bclk_sel(int bclk)
 	}
 	return 0;
 }
+
 static int max98373_set_clock(struct snd_soc_codec *codec,
 	struct snd_pcm_hw_params *params)
 {
@@ -270,6 +271,7 @@ static int max98373_dai_hw_params(struct snd_pcm_substream *substream,
 			params_rate(params));
 		goto err;
 	}
+
 	/* set DAI_SR to correct LRCLK frequency */
 	regmap_update_bits(max98373->regmap,
 		MAX98373_R2027_PCM_SR_SETUP_1,
