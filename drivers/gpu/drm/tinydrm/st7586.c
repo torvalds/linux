@@ -179,7 +179,6 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
-	struct drm_framebuffer *fb = pipe->plane.fb;
 	struct device *dev = tdev->drm->dev;
 	int ret;
 	u8 addr_mode;
@@ -241,10 +240,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_ON);
 
-	mipi->enabled = true;
-
-	if (fb)
-		fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
+	mipi_dbi_enable_flush(mipi);
 }
 
 static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)

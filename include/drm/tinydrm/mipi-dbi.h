@@ -67,6 +67,7 @@ int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 		  const struct drm_simple_display_pipe_funcs *pipe_funcs,
 		  struct drm_driver *driver,
 		  const struct drm_display_mode *mode, unsigned int rotation);
+void mipi_dbi_enable_flush(struct mipi_dbi *mipi);
 void mipi_dbi_pipe_enable(struct drm_simple_display_pipe *pipe,
 			  struct drm_crtc_state *crtc_state);
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe);

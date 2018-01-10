@@ -271,6 +271,26 @@ static const struct drm_framebuffer_funcs mipi_dbi_fb_funcs = {
 };
 
 /**
+ * mipi_dbi_enable_flush - MIPI DBI enable helper
+ * @mipi: MIPI DBI structure
+ *
+ * This function sets &mipi_dbi->enabled, flushes the whole framebuffer and
+ * enables the backlight. Drivers can use this in their
+ * &drm_simple_display_pipe_funcs->enable callback.
+ */
+void mipi_dbi_enable_flush(struct mipi_dbi *mipi)
+{
+	struct drm_framebuffer *fb = mipi->tinydrm.pipe.plane.fb;
+
+	mipi->enabled = true;
+	if (fb)
+		fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
+
+	tinydrm_enable_backlight(mipi->backlight);
+}
+EXPORT_SYMBOL(mipi_dbi_enable_flush);
+
+/**
  * mipi_dbi_pipe_enable - MIPI DBI pipe enable helper
  * @pipe: Display pipe
  * @crtc_state: CRTC state
