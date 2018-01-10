@@ -66,6 +66,7 @@ struct msm_gpu_funcs {
 	/* show GPU status in debugfs: */
 	void (*show)(struct msm_gpu *gpu, struct seq_file *m);
 #endif
+	int (*gpu_busy)(struct msm_gpu *gpu, uint64_t *value);
 };
 
 struct msm_gpu {
@@ -120,6 +121,12 @@ struct msm_gpu {
 	struct work_struct recover_work;
 
 	struct drm_gem_object *memptrs_bo;
+
+	struct {
+		struct devfreq *devfreq;
+		u64 busy_cycles;
+		ktime_t time;
+	} devfreq;
 };
 
 /* It turns out that all targets use the same ringbuffer size */

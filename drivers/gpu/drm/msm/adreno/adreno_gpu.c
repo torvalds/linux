@@ -22,7 +22,6 @@
 #include "msm_gem.h"
 #include "msm_mmu.h"
 
-
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);

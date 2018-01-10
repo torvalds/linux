@@ -21,11 +21,90 @@
 #include "msm_fence.h"
 
 #include <linux/string_helpers.h>
+#include <linux/pm_opp.h>
+#include <linux/devfreq.h>
 
 
 /*
  * Power Management:
  */
+
+static int msm_devfreq_target(struct device *dev, unsigned long *freq,
+		u32 flags)
+{
+	struct msm_gpu *gpu = platform_get_drvdata(to_platform_device(dev));
+	struct dev_pm_opp *opp;
+
+	opp = devfreq_recommended_opp(dev, freq, flags);
+
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
+
+	clk_set_rate(gpu->core_clk, *freq);
+	dev_pm_opp_put(opp);
+
+	return 0;
+}
+
+static int msm_devfreq_get_dev_status(struct device *dev,
+		struct devfreq_dev_status *status)
+{
+	struct msm_gpu *gpu = platform_get_drvdata(to_platform_device(dev));
+	u64 cycles;
+	u32 freq = ((u32) status->current_frequency) / 1000000;
+	ktime_t time;
+
+	status->current_frequency = (unsigned long) clk_get_rate(gpu->core_clk);
+	gpu->funcs->gpu_busy(gpu, &cycles);
+
+	status->busy_time = ((u32) (cycles - gpu->devfreq.busy_cycles)) / freq;
+
+	gpu->devfreq.busy_cycles = cycles;
+
+	time = ktime_get();
+	status->total_time = ktime_us_delta(time, gpu->devfreq.time);
+	gpu->devfreq.time = time;
+
+	return 0;
+}
+
+static int msm_devfreq_get_cur_freq(struct device *dev, unsigned long *freq)
+{
+	struct msm_gpu *gpu = platform_get_drvdata(to_platform_device(dev));
+
+	*freq = (unsigned long) clk_get_rate(gpu->core_clk);
+
+	return 0;
+}
+
+static struct devfreq_dev_profile msm_devfreq_profile = {
+	.polling_ms = 10,
+	.target = msm_devfreq_target,
+	.get_dev_status = msm_devfreq_get_dev_status,
+	.get_cur_freq = msm_devfreq_get_cur_freq,
+};
+
+static void msm_devfreq_init(struct msm_gpu *gpu)
+{
+	/* We need target support to do devfreq */
+	if (!gpu->funcs->gpu_busy)
+		return;
+
+	msm_devfreq_profile.initial_freq = gpu->fast_rate;
+
+	/*
+	 * Don't set the freq_table or max_state and let devfreq build the table
+	 * from OPP
+	 */
+
+	gpu->devfreq.devfreq = devm_devfreq_add_device(&gpu->pdev->dev,
+			&msm_devfreq_profile, "simple_ondemand", NULL);
+
+	if (IS_ERR(gpu->devfreq.devfreq)) {
+		dev_err(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
+		gpu->devfreq.devfreq = NULL;
+	}
+}
 
 static int enable_pwrrail(struct msm_gpu *gpu)
 {
@@ -140,6 +219,13 @@ int msm_gpu_pm_resume(struct msm_gpu *gpu)
 	if (ret)
 		return ret;
 
+	if (gpu->devfreq.devfreq) {
+		gpu->devfreq.busy_cycles = 0;
+		gpu->devfreq.time = ktime_get();
+
+		devfreq_resume_device(gpu->devfreq.devfreq);
+	}
+
 	gpu->needs_hw_init = true;
 
 	return 0;
@@ -150,6 +236,9 @@ int msm_gpu_pm_suspend(struct msm_gpu *gpu)
 	int ret;
 
 	DBG("%s", gpu->name);
+
+	if (gpu->devfreq.devfreq)
+		devfreq_suspend_device(gpu->devfreq.devfreq);
 
 	ret = disable_axi(gpu);
 	if (ret)
@@ -719,6 +808,8 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	gpu->pdev = pdev;
 	platform_set_drvdata(pdev, gpu);
+
+	msm_devfreq_init(gpu);
 
 	gpu->aspace = msm_gpu_create_address_space(gpu, pdev,
 		config->va_start, config->va_end);
