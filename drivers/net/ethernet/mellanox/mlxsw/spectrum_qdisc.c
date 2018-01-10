@@ -212,6 +212,7 @@ mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 {
 	struct red_stats *xstats_base = &mlxsw_sp_qdisc->xstats_base;
 	struct mlxsw_sp_port_xstats *xstats;
+	int early_drops, marks, pdrops;
 
 	if (mlxsw_sp_qdisc->handle != handle ||
 	    mlxsw_sp_qdisc->type != MLXSW_SP_QDISC_RED)
@@ -219,9 +220,17 @@ mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 
 	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
 
-	res->prob_drop = xstats->wred_drop[tclass_num] - xstats_base->prob_drop;
-	res->prob_mark = xstats->ecn - xstats_base->prob_mark;
-	res->pdrop = xstats->tail_drop[tclass_num] - xstats_base->pdrop;
+	early_drops = xstats->wred_drop[tclass_num] - xstats_base->prob_drop;
+	marks = xstats->ecn - xstats_base->prob_mark;
+	pdrops = xstats->tail_drop[tclass_num] - xstats_base->pdrop;
+
+	res->pdrop += pdrops;
+	res->prob_drop += early_drops;
+	res->prob_mark += marks;
+
+	xstats_base->pdrop += pdrops;
+	xstats_base->prob_drop += early_drops;
+	xstats_base->prob_mark += marks;
 	return 0;
 }
 
