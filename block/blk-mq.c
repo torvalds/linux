@@ -559,6 +559,7 @@ static void __blk_mq_complete_request(struct request *rq)
 }
 
 static void hctx_unlock(struct blk_mq_hw_ctx *hctx, int srcu_idx)
+	__releases(hctx->srcu)
 {
 	if (!(hctx->flags & BLK_MQ_F_BLOCKING))
 		rcu_read_unlock();
@@ -567,6 +568,7 @@ static void hctx_unlock(struct blk_mq_hw_ctx *hctx, int srcu_idx)
 }
 
 static void hctx_lock(struct blk_mq_hw_ctx *hctx, int *srcu_idx)
+	__acquires(hctx->srcu)
 {
 	if (!(hctx->flags & BLK_MQ_F_BLOCKING)) {
 		/* shut up gcc false positive */
