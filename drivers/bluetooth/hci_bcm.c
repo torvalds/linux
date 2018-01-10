@@ -373,15 +373,13 @@ static int bcm_close(struct hci_uart *hu)
 
 	if (bdev) {
 		bcm_gpio_set_power(bdev, false);
-#ifdef CONFIG_PM
 		pm_runtime_disable(bdev->dev);
 		pm_runtime_set_suspended(bdev->dev);
 
-		if (bdev->irq > 0) {
+		if (IS_ENABLED(CONFIG_PM) && bdev->irq > 0) {
 			devm_free_irq(bdev->dev, bdev->irq, bdev);
 			device_init_wakeup(bdev->dev, false);
 		}
-#endif
 	}
 	mutex_unlock(&bcm_device_lock);
 
