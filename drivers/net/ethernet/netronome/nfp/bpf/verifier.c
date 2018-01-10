@@ -31,8 +31,6 @@
  * SOFTWARE.
  */
 
-#define pr_fmt(fmt)	"NFP net bpf: " fmt
-
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
 #include <linux/kernel.h>
@@ -40,6 +38,9 @@
 
 #include "fw.h"
 #include "main.h"
+
+#define pr_vlog(env, fmt, ...)	\
+	bpf_verifier_log_write(env, "[nfp] " fmt, ##__VA_ARGS__)
 
 struct nfp_insn_meta *
 nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
@@ -116,18 +117,18 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 	switch (func_id) {
 	case BPF_FUNC_xdp_adjust_head:
 		if (!bpf->adjust_head.off_max) {
-			pr_warn("adjust_head not supported by FW\n");
+			pr_vlog(env, "adjust_head not supported by FW\n");
 			return -EOPNOTSUPP;
 		}
 		if (!(bpf->adjust_head.flags & NFP_BPF_ADJUST_HEAD_NO_META)) {
-			pr_warn("adjust_head: FW requires shifting metadata, not supported by the driver\n");
+			pr_vlog(env, "adjust_head: FW requires shifting metadata, not supported by the driver\n");
 			return -EOPNOTSUPP;
 		}
 
 		nfp_record_adjust_head(bpf, nfp_prog, meta, reg2);
 		break;
 	default:
-		pr_warn("unsupported function id: %d\n", func_id);
+		pr_vlog(env, "unsupported function id: %d\n", func_id);
 		return -EOPNOTSUPP;
 	}
 
@@ -150,7 +151,7 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 		char tn_buf[48];
 
 		tnum_strn(tn_buf, sizeof(tn_buf), reg0->var_off);
-		pr_info("unsupported exit state: %d, var_off: %s\n",
+		pr_vlog(env, "unsupported exit state: %d, var_off: %s\n",
 			reg0->type, tn_buf);
 		return -EINVAL;
 	}
@@ -160,7 +161,7 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 	    imm <= TC_ACT_REDIRECT &&
 	    imm != TC_ACT_SHOT && imm != TC_ACT_STOLEN &&
 	    imm != TC_ACT_QUEUED) {
-		pr_info("unsupported exit state: %d, imm: %llx\n",
+		pr_vlog(env, "unsupported exit state: %d, imm: %llx\n",
 			reg0->type, imm);
 		return -EINVAL;
 	}
@@ -171,12 +172,13 @@ nfp_bpf_check_exit(struct nfp_prog *nfp_prog,
 static int
 nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
 			   struct nfp_insn_meta *meta,
-			   const struct bpf_reg_state *reg)
+			   const struct bpf_reg_state *reg,
+			   struct bpf_verifier_env *env)
 {
 	s32 old_off, new_off;
 
 	if (!tnum_is_const(reg->var_off)) {
-		pr_info("variable ptr stack access\n");
+		pr_vlog(env, "variable ptr stack access\n");
 		return -EINVAL;
 	}
 
@@ -194,7 +196,7 @@ nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
 	if (old_off % 4 == new_off % 4)
 		return 0;
 
-	pr_info("stack access changed location was:%d is:%d\n",
+	pr_vlog(env, "stack access changed location was:%d is:%d\n",
 		old_off, new_off);
 	return -EINVAL;
 }
@@ -209,18 +211,18 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	if (reg->type != PTR_TO_CTX &&
 	    reg->type != PTR_TO_STACK &&
 	    reg->type != PTR_TO_PACKET) {
-		pr_info("unsupported ptr type: %d\n", reg->type);
+		pr_vlog(env, "unsupported ptr type: %d\n", reg->type);
 		return -EINVAL;
 	}
 
 	if (reg->type == PTR_TO_STACK) {
-		err = nfp_bpf_check_stack_access(nfp_prog, meta, reg);
+		err = nfp_bpf_check_stack_access(nfp_prog, meta, reg, env);
 		if (err)
 			return err;
 	}
 
 	if (meta->ptr.type != NOT_INIT && meta->ptr.type != reg->type) {
-		pr_info("ptr type changed for instruction %d -> %d\n",
+		pr_vlog(env, "ptr type changed for instruction %d -> %d\n",
 			meta->ptr.type, reg->type);
 		return -EINVAL;
 	}
@@ -241,7 +243,7 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 
 	if (meta->insn.src_reg >= MAX_BPF_REG ||
 	    meta->insn.dst_reg >= MAX_BPF_REG) {
-		pr_err("program uses extended registers - jit hardening?\n");
+		pr_vlog(env, "program uses extended registers - jit hardening?\n");
 		return -EINVAL;
 	}
 
