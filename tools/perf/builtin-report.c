@@ -1300,7 +1300,9 @@ repeat:
 	if (perf_time__parse_str(report.ptime_range, report.time_str) != 0) {
 		if (session->evlist->first_sample_time == 0 &&
 		    session->evlist->last_sample_time == 0) {
-			pr_err("No first/last sample time in perf data\n");
+			pr_err("HINT: no first/last sample time found in perf data.\n"
+			       "Please use latest perf binary to execute 'perf record'\n"
+			       "(if '--buildid-all' is enabled, please set '--timestamp-boundary').\n");
 			return -EINVAL;
 		}
 
