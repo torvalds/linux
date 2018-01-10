@@ -12642,6 +12642,13 @@ F:	drivers/md/raid*
 F:	include/linux/raid/
 F:	include/uapi/linux/raid/
 
+SOCIONEXT (SNI) NETSEC NETWORK DRIVER
+M:	Jassi Brar <jaswinder.singh@linaro.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/socionext/netsec.c
+F:	Documentation/devicetree/bindings/net/socionext-netsec.txt
+
 SONIC NETWORK DRIVER
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
 L:	netdev@vger.kernel.org
