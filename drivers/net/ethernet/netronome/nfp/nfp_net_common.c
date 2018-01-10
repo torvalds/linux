@@ -3049,6 +3049,11 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	struct nfp_net_dp *dp;
+	int err;
+
+	err = nfp_app_change_mtu(nn->app, netdev, new_mtu);
+	if (err)
+		return err;
 
 	dp = nfp_net_clone_dp(nn);
 	if (!dp)

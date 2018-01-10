@@ -195,6 +195,24 @@ static bool nfp_bpf_tc_busy(struct nfp_app *app, struct nfp_net *nn)
 }
 
 static int
+nfp_bpf_change_mtu(struct nfp_app *app, struct net_device *netdev, int new_mtu)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	unsigned int max_mtu;
+
+	if (~nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF)
+		return 0;
+
+	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
+	if (new_mtu > max_mtu) {
+		nn_info(nn, "BPF offload active, MTU over %u not supported\n",
+			max_mtu);
+		return -EBUSY;
+	}
+	return 0;
+}
+
+static int
 nfp_bpf_parse_cap_adjust_head(struct nfp_app_bpf *bpf, void __iomem *value,
 			      u32 length)
 {
@@ -310,6 +328,8 @@ const struct nfp_app_type app_bpf = {
 
 	.init		= nfp_bpf_init,
 	.clean		= nfp_bpf_clean,
+
+	.change_mtu	= nfp_bpf_change_mtu,
 
 	.extra_cap	= nfp_bpf_extra_cap,
 
