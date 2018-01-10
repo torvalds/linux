@@ -192,6 +192,9 @@ struct bpf_verifier_env {
 	u32 subprog_cnt;
 };
 
+__printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
+					   const char *fmt, ...);
+
 static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)
 {
 	struct bpf_verifier_state *cur = env->cur_state;
