@@ -49,18 +49,15 @@ enum mlxsw_sp_qdisc_type {
 struct mlxsw_sp_qdisc {
 	u32 handle;
 	enum mlxsw_sp_qdisc_type type;
-	struct red_stats xstats_base;
 	union {
-		struct {
-			u64 tail_drop_base;
-			u64 ecn_base;
-			u64 wred_drop_base;
-		} red;
-	} xstats;
-	u64 tx_bytes;
-	u64 tx_packets;
-	u64 drops;
-	u64 overlimits;
+		struct red_stats red;
+	} xstats_base;
+	struct mlxsw_sp_qdisc_stats {
+		u64 tx_bytes;
+		u64 tx_packets;
+		u64 drops;
+		u64 overlimits;
+	} stats_base;
 };
 
 static int
@@ -105,26 +102,28 @@ mlxsw_sp_setup_tc_qdisc_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 				    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 				    int tclass_num)
 {
-	struct red_stats *xstats_base = &mlxsw_sp_qdisc->xstats_base;
+	struct mlxsw_sp_qdisc_stats *stats_base;
 	struct mlxsw_sp_port_xstats *xstats;
 	struct rtnl_link_stats64 *stats;
+	struct red_stats *red_base;
 
 	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
 	stats = &mlxsw_sp_port->periodic_hw_stats.stats;
+	stats_base = &mlxsw_sp_qdisc->stats_base;
 
-	mlxsw_sp_qdisc->tx_packets = stats->tx_packets;
-	mlxsw_sp_qdisc->tx_bytes = stats->tx_bytes;
+	stats_base->tx_packets = stats->tx_packets;
+	stats_base->tx_bytes = stats->tx_bytes;
 
 	switch (mlxsw_sp_qdisc->type) {
 	case MLXSW_SP_QDISC_RED:
-		xstats_base->prob_mark = xstats->ecn;
-		xstats_base->prob_drop = xstats->wred_drop[tclass_num];
-		xstats_base->pdrop = xstats->tail_drop[tclass_num];
+		red_base = &mlxsw_sp_qdisc->xstats_base.red;
+		red_base->prob_mark = xstats->ecn;
+		red_base->prob_drop = xstats->wred_drop[tclass_num];
+		red_base->pdrop = xstats->tail_drop[tclass_num];
 
-		mlxsw_sp_qdisc->overlimits = xstats_base->prob_drop +
-					     xstats_base->prob_mark;
-		mlxsw_sp_qdisc->drops = xstats_base->prob_drop +
-					xstats_base->pdrop;
+		stats_base->overlimits = red_base->prob_drop +
+					 red_base->prob_mark;
+		stats_base->drops = red_base->prob_drop + red_base->pdrop;
 		break;
 	default:
 		break;
@@ -210,7 +209,7 @@ mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 			      struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			      int tclass_num, struct red_stats *res)
 {
-	struct red_stats *xstats_base = &mlxsw_sp_qdisc->xstats_base;
+	struct red_stats *xstats_base = &mlxsw_sp_qdisc->xstats_base.red;
 	struct mlxsw_sp_port_xstats *xstats;
 	int early_drops, marks, pdrops;
 
@@ -241,6 +240,7 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 			     struct tc_qopt_offload_stats *res)
 {
 	u64 tx_bytes, tx_packets, overlimits, drops;
+	struct mlxsw_sp_qdisc_stats *stats_base;
 	struct mlxsw_sp_port_xstats *xstats;
 	struct rtnl_link_stats64 *stats;
 
@@ -250,13 +250,14 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 
 	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
 	stats = &mlxsw_sp_port->periodic_hw_stats.stats;
+	stats_base = &mlxsw_sp_qdisc->stats_base;
 
-	tx_bytes = stats->tx_bytes - mlxsw_sp_qdisc->tx_bytes;
-	tx_packets = stats->tx_packets - mlxsw_sp_qdisc->tx_packets;
+	tx_bytes = stats->tx_bytes - stats_base->tx_bytes;
+	tx_packets = stats->tx_packets - stats_base->tx_packets;
 	overlimits = xstats->wred_drop[tclass_num] + xstats->ecn -
-		     mlxsw_sp_qdisc->overlimits;
+		     stats_base->overlimits;
 	drops = xstats->wred_drop[tclass_num] + xstats->tail_drop[tclass_num] -
-		mlxsw_sp_qdisc->drops;
+		stats_base->drops;
 
 	_bstats_update(res->bstats, tx_bytes, tx_packets);
 	res->qstats->overlimits += overlimits;
@@ -264,10 +265,10 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 	res->qstats->backlog += mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
 						xstats->backlog[tclass_num]);
 
-	mlxsw_sp_qdisc->drops +=  drops;
-	mlxsw_sp_qdisc->overlimits += overlimits;
-	mlxsw_sp_qdisc->tx_bytes += tx_bytes;
-	mlxsw_sp_qdisc->tx_packets += tx_packets;
+	stats_base->drops +=  drops;
+	stats_base->overlimits += overlimits;
+	stats_base->tx_bytes += tx_bytes;
+	stats_base->tx_packets += tx_packets;
 	return 0;
 }
 
