@@ -487,11 +487,12 @@ static unsigned long __init sme_pgtable_calc(unsigned long len)
 	return total;
 }
 
-void __init sme_encrypt_kernel(void)
+void __init sme_encrypt_kernel(struct boot_params *bp)
 {
 	unsigned long workarea_start, workarea_end, workarea_len;
 	unsigned long execute_start, execute_end, execute_len;
 	unsigned long kernel_start, kernel_end, kernel_len;
+	unsigned long initrd_start, initrd_end, initrd_len;
 	struct sme_populate_pgd_data ppd;
 	unsigned long pgtable_area_len;
 	unsigned long decrypted_base;
@@ -500,14 +501,15 @@ void __init sme_encrypt_kernel(void)
 		return;
 
 	/*
-	 * Prepare for encrypting the kernel by building new pagetables with
-	 * the necessary attributes needed to encrypt the kernel in place.
+	 * Prepare for encrypting the kernel and initrd by building new
+	 * pagetables with the necessary attributes needed to encrypt the
+	 * kernel in place.
 	 *
 	 *   One range of virtual addresses will map the memory occupied
-	 *   by the kernel as encrypted.
+	 *   by the kernel and initrd as encrypted.
 	 *
 	 *   Another range of virtual addresses will map the memory occupied
-	 *   by the kernel as decrypted and write-protected.
+	 *   by the kernel and initrd as decrypted and write-protected.
 	 *
 	 *     The use of write-protect attribute will prevent any of the
 	 *     memory from being cached.
@@ -517,6 +519,20 @@ void __init sme_encrypt_kernel(void)
 	kernel_start = __pa_symbol(_text);
 	kernel_end = ALIGN(__pa_symbol(_end), PMD_PAGE_SIZE);
 	kernel_len = kernel_end - kernel_start;
+
+	initrd_start = 0;
+	initrd_end = 0;
+	initrd_len = 0;
+#ifdef CONFIG_BLK_DEV_INITRD
+	initrd_len = (unsigned long)bp->hdr.ramdisk_size |
+		     ((unsigned long)bp->ext_ramdisk_size << 32);
+	if (initrd_len) {
+		initrd_start = (unsigned long)bp->hdr.ramdisk_image |
+			       ((unsigned long)bp->ext_ramdisk_image << 32);
+		initrd_end = PAGE_ALIGN(initrd_start + initrd_len);
+		initrd_len = initrd_end - initrd_start;
+	}
+#endif
 
 	/* Set the encryption workarea to be immediately after the kernel */
 	workarea_start = kernel_end;
@@ -540,6 +556,8 @@ void __init sme_encrypt_kernel(void)
 	 */
 	pgtable_area_len = sizeof(pgd_t) * PTRS_PER_PGD;
 	pgtable_area_len += sme_pgtable_calc(execute_end - kernel_start) * 2;
+	if (initrd_len)
+		pgtable_area_len += sme_pgtable_calc(initrd_len) * 2;
 
 	/* PUDs and PMDs needed in the current pagetables for the workarea */
 	pgtable_area_len += sme_pgtable_calc(execute_len + pgtable_area_len);
@@ -578,9 +596,9 @@ void __init sme_encrypt_kernel(void)
 
 	/*
 	 * A new pagetable structure is being built to allow for the kernel
-	 * to be encrypted. It starts with an empty PGD that will then be
-	 * populated with new PUDs and PMDs as the encrypted and decrypted
-	 * kernel mappings are created.
+	 * and initrd to be encrypted. It starts with an empty PGD that will
+	 * then be populated with new PUDs and PMDs as the encrypted and
+	 * decrypted kernel mappings are created.
 	 */
 	ppd.pgd = ppd.pgtable_area;
 	memset(ppd.pgd, 0, sizeof(pgd_t) * PTRS_PER_PGD);
@@ -593,6 +611,12 @@ void __init sme_encrypt_kernel(void)
 	 * the base of the mapping.
 	 */
 	decrypted_base = (pgd_index(workarea_end) + 1) & (PTRS_PER_PGD - 1);
+	if (initrd_len) {
+		unsigned long check_base;
+
+		check_base = (pgd_index(initrd_end) + 1) & (PTRS_PER_PGD - 1);
+		decrypted_base = max(decrypted_base, check_base);
+	}
 	decrypted_base <<= PGDIR_SHIFT;
 
 	/* Add encrypted kernel (identity) mappings */
@@ -606,6 +630,21 @@ void __init sme_encrypt_kernel(void)
 	ppd.vaddr = kernel_start + decrypted_base;
 	ppd.vaddr_end = kernel_end + decrypted_base;
 	sme_map_range_decrypted_wp(&ppd);
+
+	if (initrd_len) {
+		/* Add encrypted initrd (identity) mappings */
+		ppd.paddr = initrd_start;
+		ppd.vaddr = initrd_start;
+		ppd.vaddr_end = initrd_end;
+		sme_map_range_encrypted(&ppd);
+		/*
+		 * Add decrypted, write-protected initrd (non-identity) mappings
+		 */
+		ppd.paddr = initrd_start;
+		ppd.vaddr = initrd_start + decrypted_base;
+		ppd.vaddr_end = initrd_end + decrypted_base;
+		sme_map_range_decrypted_wp(&ppd);
+	}
 
 	/* Add decrypted workarea mappings to both kernel mappings */
 	ppd.paddr = workarea_start;
@@ -622,6 +661,11 @@ void __init sme_encrypt_kernel(void)
 	sme_encrypt_execute(kernel_start, kernel_start + decrypted_base,
 			    kernel_len, workarea_start, (unsigned long)ppd.pgd);
 
+	if (initrd_len)
+		sme_encrypt_execute(initrd_start, initrd_start + decrypted_base,
+				    initrd_len, workarea_start,
+				    (unsigned long)ppd.pgd);
+
 	/*
 	 * At this point we are running encrypted.  Remove the mappings for
 	 * the decrypted areas - all that is needed for this is to remove
@@ -630,6 +674,12 @@ void __init sme_encrypt_kernel(void)
 	ppd.vaddr = kernel_start + decrypted_base;
 	ppd.vaddr_end = kernel_end + decrypted_base;
 	sme_clear_pgd(&ppd);
+
+	if (initrd_len) {
+		ppd.vaddr = initrd_start + decrypted_base;
+		ppd.vaddr_end = initrd_end + decrypted_base;
+		sme_clear_pgd(&ppd);
+	}
 
 	ppd.vaddr = workarea_start + decrypted_base;
 	ppd.vaddr_end = workarea_end + decrypted_base;
