@@ -41,3 +41,4 @@
 
 #include "imx6ul.dtsi"
 #include "imx6ull-pinfunc.h"
+#include "imx6ull-pinfunc-snvs.h"
