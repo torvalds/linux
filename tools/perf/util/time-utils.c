@@ -116,7 +116,8 @@ int perf_time__parse_str(struct perf_time_interval *ptime, const char *ostr)
 
 static int parse_percent(double *pcnt, char *str)
 {
-	char *c;
+	char *c, *endptr;
+	double d;
 
 	c = strchr(str, '%');
 	if (c)
@@ -124,8 +125,11 @@ static int parse_percent(double *pcnt, char *str)
 	else
 		return -1;
 
-	*pcnt = atof(str) / 100.0;
+	d = strtod(str, &endptr);
+	if (endptr != str + strlen(str))
+		return -1;
 
+	*pcnt = d / 100.0;
 	return 0;
 }
 
