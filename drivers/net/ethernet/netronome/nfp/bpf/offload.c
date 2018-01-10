@@ -42,6 +42,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/list.h>
+#include <linux/mm.h>
 
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
@@ -135,7 +136,7 @@ int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
 	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
 	nfp_prog->__prog_alloc_len = max_instr * sizeof(u64);
 
-	nfp_prog->prog = kmalloc(nfp_prog->__prog_alloc_len, GFP_KERNEL);
+	nfp_prog->prog = kvmalloc(nfp_prog->__prog_alloc_len, GFP_KERNEL);
 	if (!nfp_prog->prog)
 		return -ENOMEM;
 
@@ -147,7 +148,7 @@ int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 
-	kfree(nfp_prog->prog);
+	kvfree(nfp_prog->prog);
 	nfp_prog_free(nfp_prog);
 
 	return 0;

@@ -2676,6 +2676,20 @@ static int nfp_bpf_ustore_calc(u64 *prog, unsigned int len)
 	return 0;
 }
 
+static void nfp_bpf_prog_trim(struct nfp_prog *nfp_prog)
+{
+	void *prog;
+
+	prog = kvmalloc_array(nfp_prog->prog_len, sizeof(u64), GFP_KERNEL);
+	if (!prog)
+		return;
+
+	nfp_prog->__prog_alloc_len = nfp_prog->prog_len * sizeof(u64);
+	memcpy(prog, nfp_prog->prog, nfp_prog->__prog_alloc_len);
+	kvfree(nfp_prog->prog);
+	nfp_prog->prog = prog;
+}
+
 int nfp_bpf_jit(struct nfp_prog *nfp_prog)
 {
 	int ret;
@@ -2690,6 +2704,8 @@ int nfp_bpf_jit(struct nfp_prog *nfp_prog)
 		       ret, nfp_prog->n_translated);
 		return -EINVAL;
 	}
+
+	nfp_bpf_prog_trim(nfp_prog);
 
 	return ret;
 }
