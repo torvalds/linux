@@ -366,6 +366,14 @@ enum amdgpu_pcie_gen {
 			(adev)->powerplay.pp_handle, virtual_addr_low, \
 			virtual_addr_hi, mc_addr_low, mc_addr_hi, size)
 
+#define amdgpu_dpm_get_power_profile_mode(adev, buf) \
+		((adev)->powerplay.pp_funcs->get_power_profile_mode(\
+			(adev)->powerplay.pp_handle, buf))
+
+#define amdgpu_dpm_set_power_profile_mode(adev, parameter, size) \
+		((adev)->powerplay.pp_funcs->set_power_profile_mode(\
+			(adev)->powerplay.pp_handle, parameter, size))
+
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
 	/* number of valid power states */

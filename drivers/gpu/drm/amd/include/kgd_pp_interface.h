@@ -140,7 +140,15 @@ struct amd_pp_init {
 	uint32_t feature_mask;
 };
 
-
+enum PP_SMC_POWER_PROFILE {
+	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x0,
+	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x1,
+	PP_SMC_POWER_PROFILE_VIDEO        = 0x2,
+	PP_SMC_POWER_PROFILE_VR           = 0x3,
+	PP_SMC_POWER_PROFILE_COMPUTE      = 0x4,
+	PP_SMC_POWER_PROFILE_CUSTOM       = 0x5,
+	PP_SMC_POWER_PROFILE_AUTO         = 0x6,
+};
 
 enum {
 	PP_GROUP_UNKNOWN = 0,
@@ -289,6 +297,8 @@ struct amd_pm_funcs {
 				struct pp_display_clock_request *clock);
 	int (*get_display_mode_validation_clocks)(void *handle,
 		struct amd_pp_simple_clock_info *clocks);
+	int (*get_power_profile_mode)(void *handle, char *buf);
+	int (*set_power_profile_mode)(void *handle, long *input, uint32_t size);
 };
 
 #endif

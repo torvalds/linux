@@ -584,6 +584,73 @@ fail:
 	return count;
 }
 
+static ssize_t amdgpu_get_pp_power_profile_mode(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+
+	if (adev->powerplay.pp_funcs->get_power_profile_mode)
+		return amdgpu_dpm_get_power_profile_mode(adev, buf);
+
+	return snprintf(buf, PAGE_SIZE, "\n");
+}
+
+
+static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	int ret = 0xff;
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	uint32_t parameter_size = 0;
+	long parameter[64];
+	char *sub_str, buf_cpy[128];
+	char *tmp_str;
+	uint32_t i = 0;
+	char tmp[2];
+	long int profile_mode = 0;
+	const char delimiter[3] = {' ', '\n', '\0'};
+
+	tmp[0] = *(buf);
+	tmp[1] = '\0';
+	ret = kstrtol(tmp, 0, &profile_mode);
+	if (ret)
+		goto fail;
+
+	if (profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		if (count < 2 || count > 127)
+			return -EINVAL;
+		while (isspace(*++buf))
+			i++;
+		memcpy(buf_cpy, buf, count-i);
+		tmp_str = buf_cpy;
+		while (tmp_str[0]) {
+			sub_str = strsep(&tmp_str, delimiter);
+			ret = kstrtol(sub_str, 0, &parameter[parameter_size]);
+			if (ret) {
+				count = -EINVAL;
+				goto fail;
+			}
+			pr_info("value is %ld \n", parameter[parameter_size]);
+			parameter_size++;
+			while (isspace(*tmp_str))
+				tmp_str++;
+		}
+	}
+	parameter[parameter_size] = profile_mode;
+	if (adev->powerplay.pp_funcs->set_power_profile_mode)
+		ret = amdgpu_dpm_set_power_profile_mode(adev, parameter, parameter_size);
+
+	if (!ret)
+		return count;
+fail:
+	return -EINVAL;
+}
+
 static ssize_t amdgpu_get_pp_power_profile(struct device *dev,
 		char *buf, struct amd_pp_profile *query)
 {
@@ -772,7 +839,9 @@ static DEVICE_ATTR(pp_gfx_power_profile, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(pp_compute_power_profile, S_IRUGO | S_IWUSR,
 		amdgpu_get_pp_compute_power_profile,
 		amdgpu_set_pp_compute_power_profile);
-
+static DEVICE_ATTR(pp_power_profile_mode, S_IRUGO | S_IWUSR,
+		amdgpu_get_pp_power_profile_mode,
+		amdgpu_set_pp_power_profile_mode);
 static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
@@ -1405,6 +1474,14 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		return ret;
 	}
 
+	ret = device_create_file(adev->dev,
+			&dev_attr_pp_power_profile_mode);
+	if (ret) {
+		DRM_ERROR("failed to create device file	"
+				"pp_power_profile_mode\n");
+		return ret;
+	}
+
 	ret = amdgpu_debugfs_pm_init(adev);
 	if (ret) {
 		DRM_ERROR("Failed to register debugfs file for dpm!\n");
@@ -1440,6 +1517,8 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 			&dev_attr_pp_gfx_power_profile);
 	device_remove_file(adev->dev,
 			&dev_attr_pp_compute_power_profile);
+	device_remove_file(adev->dev,
+			&dev_attr_pp_power_profile_mode);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
