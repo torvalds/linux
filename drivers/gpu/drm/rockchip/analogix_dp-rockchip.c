@@ -354,15 +354,22 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	dp->psr_state = ~EDP_VSC_PSR_STATE_ACTIVE;
 	INIT_WORK(&dp->psr_work, analogix_dp_psr_work);
 
-	rockchip_drm_psr_register(&dp->encoder, analogix_dp_psr_set);
+	ret = rockchip_drm_psr_register(&dp->encoder, analogix_dp_psr_set);
+	if (ret < 0)
+		goto err_cleanup_encoder;
 
 	dp->adp = analogix_dp_bind(dev, dp->drm_dev, &dp->plat_data);
 	if (IS_ERR(dp->adp)) {
-		dp->encoder.funcs->destroy(&dp->encoder);
-		return PTR_ERR(dp->adp);
+		ret = PTR_ERR(dp->adp);
+		goto err_unreg_psr;
 	}
 
 	return 0;
+err_unreg_psr:
+	rockchip_drm_psr_unregister(&dp->encoder);
+err_cleanup_encoder:
+	dp->encoder.funcs->destroy(&dp->encoder);
+	return ret;
 }
 
 static void rockchip_dp_unbind(struct device *dev, struct device *master,
