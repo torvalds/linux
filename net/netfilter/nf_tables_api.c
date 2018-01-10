@@ -5225,7 +5225,7 @@ static int nf_tables_getflowtable(struct net *net, struct sock *nlsk,
 
 	flowtable = nf_tables_flowtable_lookup(table, nla[NFTA_FLOWTABLE_NAME],
 					       genmask);
-	if (IS_ERR(table))
+	if (IS_ERR(flowtable))
 		return PTR_ERR(flowtable);
 
 	skb2 = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
