@@ -204,29 +204,6 @@ struct mlxsw_sp_port_vlan {
 	struct list_head bridge_vlan_node;
 };
 
-enum mlxsw_sp_qdisc_type {
-	MLXSW_SP_QDISC_NO_QDISC,
-	MLXSW_SP_QDISC_RED,
-};
-
-struct mlxsw_sp_qdisc {
-	u32 handle;
-	enum mlxsw_sp_qdisc_type type;
-	struct red_stats xstats_base;
-	union {
-		struct {
-			u64 tail_drop_base;
-			u64 ecn_base;
-			u64 wred_drop_base;
-		} red;
-	} xstats;
-
-	u64 tx_bytes;
-	u64 tx_packets;
-	u64 drops;
-	u64 overlimits;
-};
-
 /* No need an internal lock; At worse - miss a single periodic iteration */
 struct mlxsw_sp_port_xstats {
 	u64 ecn;
@@ -269,7 +246,7 @@ struct mlxsw_sp_port {
 	} periodic_hw_stats;
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
-	struct mlxsw_sp_qdisc root_qdisc;
+	struct mlxsw_sp_qdisc *root_qdisc;
 	unsigned acl_rule_count;
 };
 
@@ -584,6 +561,8 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			  struct tc_cls_flower_offload *f);
 
 /* spectrum_qdisc.c */
+int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port);
+void mlxsw_sp_tc_qdisc_fini(struct mlxsw_sp_port *mlxsw_sp_port);
 int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct tc_red_qopt_offload *p);
 

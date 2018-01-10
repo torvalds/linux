@@ -344,32 +344,24 @@ static int red_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
-	struct tc_red_xstats st = {
-		.early	= q->stats.prob_drop + q->stats.forced_drop,
-		.pdrop	= q->stats.pdrop,
-		.other	= q->stats.other,
-		.marked	= q->stats.prob_mark + q->stats.forced_mark,
-	};
+	struct tc_red_xstats st = {0};
 
 	if (sch->flags & TCQ_F_OFFLOADED) {
-		struct red_stats hw_stats = {0};
 		struct tc_red_qopt_offload hw_stats_request = {
 			.command = TC_RED_XSTATS,
 			.handle = sch->handle,
 			.parent = sch->parent,
 			{
-				.xstats = &hw_stats,
+				.xstats = &q->stats,
 			},
 		};
-		if (!dev->netdev_ops->ndo_setup_tc(dev,
-						   TC_SETUP_QDISC_RED,
-						   &hw_stats_request)) {
-			st.early += hw_stats.prob_drop + hw_stats.forced_drop;
-			st.pdrop += hw_stats.pdrop;
-			st.other += hw_stats.other;
-			st.marked += hw_stats.prob_mark + hw_stats.forced_mark;
-		}
+		dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_QDISC_RED,
+					      &hw_stats_request);
 	}
+	st.early = q->stats.prob_drop + q->stats.forced_drop;
+	st.pdrop = q->stats.pdrop;
+	st.other = q->stats.other;
+	st.marked = q->stats.prob_mark + q->stats.forced_mark;
 
 	return gnet_stats_copy_app(d, &st, sizeof(st));
 }
