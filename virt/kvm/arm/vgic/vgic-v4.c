@@ -337,8 +337,10 @@ int kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int virq,
 		goto out;
 
 	WARN_ON(!(irq->hw && irq->host_irq == virq));
-	irq->hw = false;
-	ret = its_unmap_vlpi(virq);
+	if (irq->hw) {
+		irq->hw = false;
+		ret = its_unmap_vlpi(virq);
+	}
 
 out:
 	mutex_unlock(&its->its_lock);

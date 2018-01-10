@@ -82,6 +82,7 @@
 	pinctrl-0 = <&rgmii_pins>;
 	phy-mode = "rgmii";
 	phy-handle = <&ext_rgmii_phy>;
+	phy-supply = <&reg_dc1sw>;
 	status = "okay";
 };
 
@@ -95,7 +96,7 @@
 &mmc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
-	vmmc-supply = <&reg_vcc3v3>;
+	vmmc-supply = <&reg_dcdc1>;
 	vqmmc-supply = <&reg_vcc1v8>;
 	bus-width = <8>;
 	non-removable;

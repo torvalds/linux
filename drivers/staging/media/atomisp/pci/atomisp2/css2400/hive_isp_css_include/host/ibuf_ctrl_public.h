@@ -54,7 +54,7 @@ STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_get_proc_state(
 STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_dump_state(
 		const ibuf_ctrl_ID_t ID,
 		ibuf_ctrl_state_t *state);
-/** end of NCI */
+/* end of NCI */
 
 /*****************************************************
  *
@@ -87,7 +87,7 @@ STORAGE_CLASS_IBUF_CTRL_H void ibuf_ctrl_reg_store(
 	const ibuf_ctrl_ID_t ID,
 	const hrt_address reg,
 	const hrt_data value);
-/** end of DLI */
+/* end of DLI */
 
 #endif /* USE_INPUT_SYSTEM_VERSION_2401 */
 #endif /* __IBUF_CTRL_PUBLIC_H_INCLUDED__ */

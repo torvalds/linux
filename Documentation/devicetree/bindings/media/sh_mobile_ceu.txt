@@ -8,7 +8,7 @@ Bindings, specific for the sh_mobile_ceu_camera.c driver:
 
 Example:
 
-ceu0: ceu@0xfe910000 {
+ceu0: ceu@fe910000 {
 	compatible = "renesas,sh-mobile-ceu";
 	reg = <0xfe910000 0xa0>;
 	interrupt-parent = <&intcs>;

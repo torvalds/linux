@@ -102,7 +102,7 @@ static void __init meson_smp_prepare_cpus(const char *scu_compatible,
 
 	scu_base = of_iomap(node, 0);
 	if (!scu_base) {
-		pr_err("Couln't map SCU registers\n");
+		pr_err("Couldn't map SCU registers\n");
 		return;
 	}
 

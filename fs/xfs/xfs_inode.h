@@ -232,6 +232,7 @@ static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
  * log recovery to replay a bmap operation on the inode.
  */
 #define XFS_IRECOVERY		(1 << 11)
+#define XFS_ICOWBLOCKS		(1 << 12)/* has the cowblocks tag set */
 
 /*
  * Per-lifetime flags need to be reset when re-using a reclaimable inode during
@@ -428,7 +429,7 @@ xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
 xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_inode *ip);
 
 int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_inode *, umode_t,
-			       xfs_nlink_t, dev_t, prid_t, int,
+			       xfs_nlink_t, dev_t, prid_t,
 			       struct xfs_inode **, int *);
 
 /* from xfs_file.c */

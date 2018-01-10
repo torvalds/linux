@@ -46,7 +46,7 @@ Note: If above properties are not defined it can be assumed that the supply
 regulators or clocks are always on.
 
 Example:
-	ufshc@0xfc598000 {
+	ufshc@fc598000 {
 		compatible = "jedec,ufs-1.1";
 		reg = <0xfc598000 0x800>;
 		interrupts = <0 28 0>;

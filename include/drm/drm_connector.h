@@ -24,6 +24,7 @@
 #define __DRM_CONNECTOR_H__
 
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/ctype.h>
 #include <linux/hdmi.h>
 #include <drm/drm_mode_object.h>
@@ -916,6 +917,15 @@ struct drm_connector {
 	uint8_t num_h_tile, num_v_tile;
 	uint8_t tile_h_loc, tile_v_loc;
 	uint16_t tile_h_size, tile_v_size;
+
+	/**
+	 * @free_node:
+	 *
+	 * List used only by &drm_connector_iter to be able to clean up a
+	 * connector from any context, in conjunction with
+	 * &drm_mode_config.connector_free_work.
+	 */
+	struct llist_node free_node;
 };
 
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)

@@ -19,7 +19,7 @@
 #include "sh_css_defs.h"
 #include "dma.h"
 
-/** Reference frame */
+/* Reference frame */
 struct ia_css_ref_configuration {
 	const struct ia_css_frame *ref_frames[MAX_NUM_VIDEO_DELAY_FRAMES];
 	uint32_t dvs_frame_delay;

@@ -181,6 +181,9 @@ out_unlock:
 static int __dma_purge_tlb(struct zpci_dev *zdev, dma_addr_t dma_addr,
 			   size_t size, int flags)
 {
+	unsigned long irqflags;
+	int ret;
+
 	/*
 	 * With zdev->tlb_refresh == 0, rpcit is not required to establish new
 	 * translations when previously invalid translation-table entries are
@@ -196,8 +199,22 @@ static int __dma_purge_tlb(struct zpci_dev *zdev, dma_addr_t dma_addr,
 			return 0;
 	}
 
-	return zpci_refresh_trans((u64) zdev->fh << 32, dma_addr,
-				  PAGE_ALIGN(size));
+	ret = zpci_refresh_trans((u64) zdev->fh << 32, dma_addr,
+				 PAGE_ALIGN(size));
+	if (ret == -ENOMEM && !s390_iommu_strict) {
+		/* enable the hypervisor to free some resources */
+		if (zpci_refresh_global(zdev))
+			goto out;
+
+		spin_lock_irqsave(&zdev->iommu_bitmap_lock, irqflags);
+		bitmap_andnot(zdev->iommu_bitmap, zdev->iommu_bitmap,
+			      zdev->lazy_bitmap, zdev->iommu_pages);
+		bitmap_zero(zdev->lazy_bitmap, zdev->iommu_pages);
+		spin_unlock_irqrestore(&zdev->iommu_bitmap_lock, irqflags);
+		ret = 0;
+	}
+out:
+	return ret;
 }
 
 static int dma_update_trans(struct zpci_dev *zdev, unsigned long pa,

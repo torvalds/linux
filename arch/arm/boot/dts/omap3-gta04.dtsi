@@ -120,6 +120,7 @@
 	hsusb2_phy: hsusb2_phy {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
+		#phy-cells = <0>;
 	};
 
 	tv0: connector {

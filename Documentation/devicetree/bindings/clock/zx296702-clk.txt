@@ -20,13 +20,13 @@ ID in its "clocks" phandle cell. See include/dt-bindings/clock/zx296702-clock.h
 for the full list of zx296702 clock IDs.
 
 
-topclk: topcrm@0x09800000 {
+topclk: topcrm@09800000 {
         compatible = "zte,zx296702-topcrm-clk";
         reg = <0x09800000 0x1000>;
         #clock-cells = <1>;
 };
 
-uart0: serial@0x09405000 {
+uart0: serial@09405000 {
         compatible = "zte,zx296702-uart";
         reg = <0x09405000 0x1000>;
         interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;

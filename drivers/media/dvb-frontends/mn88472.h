@@ -19,21 +19,21 @@
 
 #include <linux/dvb/frontend.h>
 
-/**
- * struct mn88472_config - Platform data for the mn88472 driver
- * @xtal: Clock frequency.
- * @ts_mode: TS mode.
- * @ts_clock: TS clock config.
- * @i2c_wr_max: Max number of bytes driver writes to I2C at once.
- * @get_dvb_frontend: Get DVB frontend.
- */
-
 /* Define old names for backward compatibility */
 #define VARIABLE_TS_CLOCK   MN88472_TS_CLK_VARIABLE
 #define FIXED_TS_CLOCK      MN88472_TS_CLK_FIXED
 #define SERIAL_TS_MODE      MN88472_TS_MODE_SERIAL
 #define PARALLEL_TS_MODE    MN88472_TS_MODE_PARALLEL
 
+/**
+ * struct mn88472_config - Platform data for the mn88472 driver
+ * @xtal: Clock frequency.
+ * @ts_mode: TS mode.
+ * @ts_clock: TS clock config.
+ * @i2c_wr_max: Max number of bytes driver writes to I2C at once.
+ * @fe: pointer to a frontend pointer
+ * @get_dvb_frontend: Get DVB frontend callback.
+ */
 struct mn88472_config {
 	unsigned int xtal;
 

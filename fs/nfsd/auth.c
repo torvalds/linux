@@ -60,6 +60,9 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 				gi->gid[i] = exp->ex_anon_gid;
 			else
 				gi->gid[i] = rqgi->gid[i];
+
+			/* Each thread allocates its own gi, no race */
+			groups_sort(gi);
 		}
 	} else {
 		gi = get_group_info(rqgi);

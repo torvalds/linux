@@ -41,7 +41,7 @@ more details.
 /*********************************************************************
 ****	Frame INFO APIs
 **********************************************************************/
-/** @brief Sets the given width and alignment to the frame info
+/* @brief Sets the given width and alignment to the frame info
  *
  * @param
  * @param[in]	info        The info to which parameters would set
@@ -53,7 +53,7 @@ void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
 	unsigned int width,
 	unsigned int min_padded_width);
 
-/** @brief Sets the given format to the frame info
+/* @brief Sets the given format to the frame info
  *
  * @param
  * @param[in]	info        The info to which parameters would set
@@ -63,7 +63,7 @@ void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
 void ia_css_frame_info_set_format(struct ia_css_frame_info *info,
 	enum ia_css_frame_format format);
 
-/** @brief Sets the frame info with the given parameters
+/* @brief Sets the frame info with the given parameters
  *
  * @param
  * @param[in]	info        The info to which parameters would set
@@ -79,7 +79,7 @@ void ia_css_frame_info_init(struct ia_css_frame_info *info,
 	enum ia_css_frame_format format,
 	unsigned int aligned);
 
-/** @brief Checks whether 2 frame infos has the same resolution
+/* @brief Checks whether 2 frame infos has the same resolution
  *
  * @param
  * @param[in]	frame_a         The first frame to be compared
@@ -90,7 +90,7 @@ bool ia_css_frame_info_is_same_resolution(
 	const struct ia_css_frame_info *info_a,
 	const struct ia_css_frame_info *info_b);
 
-/** @brief Check the frame info is valid
+/* @brief Check the frame info is valid
  *
  * @param
  * @param[in]	info       The frame attributes to be initialized
@@ -102,7 +102,7 @@ enum ia_css_err ia_css_frame_check_info(const struct ia_css_frame_info *info);
 ****	Frame APIs
 **********************************************************************/
 
-/** @brief Initialize the plane depending on the frame type
+/* @brief Initialize the plane depending on the frame type
  *
  * @param
  * @param[in]	frame           The frame attributes to be initialized
@@ -110,7 +110,7 @@ enum ia_css_err ia_css_frame_check_info(const struct ia_css_frame_info *info);
  */
 enum ia_css_err ia_css_frame_init_planes(struct ia_css_frame *frame);
 
-/** @brief Free an array of frames
+/* @brief Free an array of frames
  *
  * @param
  * @param[in]	num_frames      The number of frames to be freed in the array
@@ -120,7 +120,7 @@ enum ia_css_err ia_css_frame_init_planes(struct ia_css_frame *frame);
 void ia_css_frame_free_multiple(unsigned int num_frames,
 	struct ia_css_frame **frames_array);
 
-/** @brief Allocate a CSS frame structure of given size in bytes..
+/* @brief Allocate a CSS frame structure of given size in bytes..
  *
  * @param	frame	The allocated frame.
  * @param[in]	size_bytes	The frame size in bytes.
@@ -135,7 +135,7 @@ enum ia_css_err ia_css_frame_allocate_with_buffer_size(
 	const unsigned int size_bytes,
 	const bool contiguous);
 
-/** @brief Check whether 2 frames are same type
+/* @brief Check whether 2 frames are same type
  *
  * @param
  * @param[in]	frame_a         The first frame to be compared
@@ -146,7 +146,7 @@ bool ia_css_frame_is_same_type(
 	const struct ia_css_frame *frame_a,
 	const struct ia_css_frame *frame_b);
 
-/** @brief Configure a dma port from frame info
+/* @brief Configure a dma port from frame info
  *
  * @param
  * @param[in]	config         The DAM port configuration
@@ -158,7 +158,7 @@ void ia_css_dma_configure_from_info(
 	const struct ia_css_frame_info *info);
 
 #ifdef ISP2401
-/** @brief Finds the cropping resolution
+/* @brief Finds the cropping resolution
  * This function finds the maximum cropping resolution in an input image keeping
  * the aspect ratio for the given output resolution.Calculates the coordinates
  * for cropping from the center and returns the starting pixel location of the

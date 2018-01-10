@@ -886,6 +886,7 @@ pref_skip_coa:
 		break;
 	case IPV6_AUTOFLOWLABEL:
 		np->autoflowlabel = valbool;
+		np->autoflowlabel_set = 1;
 		retv = 0;
 		break;
 	case IPV6_RECVFRAGSIZE:

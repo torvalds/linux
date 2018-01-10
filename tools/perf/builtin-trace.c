@@ -1152,12 +1152,14 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	if (trace->host == NULL)
 		return -ENOMEM;
 
-	if (trace_event__register_resolver(trace->host, trace__machine__resolve_kernel_addr) < 0)
-		return -errno;
+	err = trace_event__register_resolver(trace->host, trace__machine__resolve_kernel_addr);
+	if (err < 0)
+		goto out;
 
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
 					    evlist->threads, trace__tool_process, false,
 					    trace->opts.proc_map_timeout, 1);
+out:
 	if (err)
 		symbol__exit();
 
