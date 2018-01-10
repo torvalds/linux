@@ -229,7 +229,7 @@ static int
 mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			     int tclass_num,
-			     struct tc_red_qopt_offload_stats *res)
+			     struct tc_qopt_offload_stats *res)
 {
 	u64 tx_bytes, tx_packets, overlimits, drops;
 	struct mlxsw_sp_port_xstats *xstats;
