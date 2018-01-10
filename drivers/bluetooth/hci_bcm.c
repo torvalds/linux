@@ -943,7 +943,7 @@ static int bcm_get_resources(struct bcm_device *dev)
 		dev->irq = gpiod_to_irq(gpio);
 	}
 
-	dev_info(dev->dev, "BCM irq: %d\n", dev->irq);
+	dev_dbg(dev->dev, "BCM irq: %d\n", dev->irq);
 	return 0;
 }
 
