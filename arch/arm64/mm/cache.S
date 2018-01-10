@@ -72,7 +72,7 @@ USER(9f, ic	ivau, x4	)		// invalidate I line PoU
 	isb
 	mov	x0, #0
 1:
-	uaccess_ttbr0_disable x1
+	uaccess_ttbr0_disable x1, x2
 	ret
 9:
 	mov	x0, #-EFAULT
