@@ -89,10 +89,8 @@ extern const struct nfp_app_type app_flower;
  * @ctrl_msg_rx:    control message handler
  * @setup_tc:	setup TC ndo
  * @tc_busy:	TC HW offload busy (rules loaded)
+ * @bpf:	BPF ndo offload-related calls
  * @xdp_offload:    offload an XDP program
- * @bpf_verifier_prep:	verifier prep for dev-specific BPF programs
- * @bpf_translate:	translate call for dev-specific BPF programs
- * @bpf_destroy:	destroy for dev-specific BPF programs
  * @eswitch_mode_get:    get SR-IOV eswitch mode
  * @sriov_enable: app-specific sriov initialisation
  * @sriov_disable: app-specific sriov clean-up
@@ -133,13 +131,9 @@ struct nfp_app_type {
 	int (*setup_tc)(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data);
 	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
+	int (*bpf)(struct nfp_app *app, struct nfp_net *nn,
+		   struct netdev_bpf *xdp);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
-			   struct bpf_prog *prog);
-	int (*bpf_verifier_prep)(struct nfp_app *app, struct nfp_net *nn,
-				 struct netdev_bpf *bpf);
-	int (*bpf_translate)(struct nfp_app *app, struct nfp_net *nn,
-			     struct bpf_prog *prog);
-	int (*bpf_destroy)(struct nfp_app *app, struct nfp_net *nn,
 			   struct bpf_prog *prog);
 
 	int (*sriov_enable)(struct nfp_app *app, int num_vfs);
@@ -316,39 +310,20 @@ static inline int nfp_app_setup_tc(struct nfp_app *app,
 	return app->type->setup_tc(app, netdev, type, type_data);
 }
 
+static inline int nfp_app_bpf(struct nfp_app *app, struct nfp_net *nn,
+			      struct netdev_bpf *bpf)
+{
+	if (!app || !app->type->bpf)
+		return -EINVAL;
+	return app->type->bpf(app, nn, bpf);
+}
+
 static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 				      struct bpf_prog *prog)
 {
 	if (!app || !app->type->xdp_offload)
 		return -EOPNOTSUPP;
 	return app->type->xdp_offload(app, nn, prog);
-}
-
-static inline int
-nfp_app_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
-			  struct netdev_bpf *bpf)
-{
-	if (!app || !app->type->bpf_verifier_prep)
-		return -EOPNOTSUPP;
-	return app->type->bpf_verifier_prep(app, nn, bpf);
-}
-
-static inline int
-nfp_app_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
-		      struct bpf_prog *prog)
-{
-	if (!app || !app->type->bpf_translate)
-		return -EOPNOTSUPP;
-	return app->type->bpf_translate(app, nn, prog);
-}
-
-static inline int
-nfp_app_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
-		    struct bpf_prog *prog)
-{
-	if (!app || !app->type->bpf_destroy)
-		return -EOPNOTSUPP;
-	return app->type->bpf_destroy(app, nn, prog);
 }
 
 static inline bool nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)

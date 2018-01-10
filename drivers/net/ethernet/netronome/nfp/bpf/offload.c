@@ -87,8 +87,9 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 	kfree(nfp_prog);
 }
 
-int nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
-			  struct netdev_bpf *bpf)
+static int
+nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
+		      struct netdev_bpf *bpf)
 {
 	struct bpf_prog *prog = bpf->verifier.prog;
 	struct nfp_prog *nfp_prog;
@@ -118,8 +119,7 @@ err_free:
 	return ret;
 }
 
-int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
-		      struct bpf_prog *prog)
+static int nfp_bpf_translate(struct nfp_net *nn, struct bpf_prog *prog)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 	unsigned int stack_size;
@@ -143,8 +143,7 @@ int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
 	return nfp_bpf_jit(nfp_prog);
 }
 
-int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
-		    struct bpf_prog *prog)
+static int nfp_bpf_destroy(struct nfp_net *nn, struct bpf_prog *prog)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 
@@ -152,6 +151,20 @@ int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
 	nfp_prog_free(nfp_prog);
 
 	return 0;
+}
+
+int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn, struct netdev_bpf *bpf)
+{
+	switch (bpf->command) {
+	case BPF_OFFLOAD_VERIFIER_PREP:
+		return nfp_bpf_verifier_prep(app, nn, bpf);
+	case BPF_OFFLOAD_TRANSLATE:
+		return nfp_bpf_translate(nn, bpf->offload.prog);
+	case BPF_OFFLOAD_DESTROY:
+		return nfp_bpf_destroy(nn, bpf->offload.prog);
+	default:
+		return -EINVAL;
+	}
 }
 
 static int nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog)

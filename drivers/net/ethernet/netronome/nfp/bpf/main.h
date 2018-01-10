@@ -256,15 +256,11 @@ struct netdev_bpf;
 struct nfp_app;
 struct nfp_net;
 
+int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn,
+		struct netdev_bpf *bpf);
 int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 			bool old_prog);
 
-int nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
-			  struct netdev_bpf *bpf);
-int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
-		      struct bpf_prog *prog);
-int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
-		    struct bpf_prog *prog);
 struct nfp_insn_meta *
 nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		  unsigned int insn_idx, unsigned int n_insns);

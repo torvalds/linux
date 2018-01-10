@@ -345,9 +345,6 @@ const struct nfp_app_type app_bpf = {
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.tc_busy	= nfp_bpf_tc_busy,
+	.bpf		= nfp_ndo_bpf,
 	.xdp_offload	= nfp_bpf_xdp_offload,
-
-	.bpf_verifier_prep	= nfp_bpf_verifier_prep,
-	.bpf_translate		= nfp_bpf_translate,
-	.bpf_destroy		= nfp_bpf_destroy,
 };
