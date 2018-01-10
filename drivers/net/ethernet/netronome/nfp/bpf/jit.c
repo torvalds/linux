@@ -85,7 +85,7 @@ static void nfp_prog_push(struct nfp_prog *nfp_prog, u64 insn)
 
 static unsigned int nfp_prog_current_offset(struct nfp_prog *nfp_prog)
 {
-	return nfp_prog->start_off + nfp_prog->prog_len;
+	return nfp_prog->prog_len;
 }
 
 static bool
@@ -98,12 +98,6 @@ nfp_prog_confirm_current_offset(struct nfp_prog *nfp_prog, unsigned int off)
 	if (nfp_prog->error)
 		return true;
 	return !WARN_ON_ONCE(nfp_prog_current_offset(nfp_prog) != off);
-}
-
-static unsigned int
-nfp_prog_offset_to_index(struct nfp_prog *nfp_prog, unsigned int offset)
-{
-	return offset - nfp_prog->start_off;
 }
 
 /* --- Emitters --- */
@@ -195,22 +189,28 @@ __emit_br(struct nfp_prog *nfp_prog, enum br_mask mask, enum br_ev_pip ev_pip,
 	nfp_prog_push(nfp_prog, insn);
 }
 
-static void emit_br_def(struct nfp_prog *nfp_prog, u16 addr, u8 defer)
+static void
+emit_br_relo(struct nfp_prog *nfp_prog, enum br_mask mask, u16 addr, u8 defer,
+	     enum nfp_relo_type relo)
 {
-	if (defer > 2) {
+	if (mask == BR_UNC && defer > 2) {
 		pr_err("BUG: branch defer out of bounds %d\n", defer);
 		nfp_prog->error = -EFAULT;
 		return;
 	}
-	__emit_br(nfp_prog, BR_UNC, BR_EV_PIP_UNCOND, BR_CSS_NONE, addr, defer);
+
+	__emit_br(nfp_prog, mask,
+		  mask != BR_UNC ? BR_EV_PIP_COND : BR_EV_PIP_UNCOND,
+		  BR_CSS_NONE, addr, defer);
+
+	nfp_prog->prog[nfp_prog->prog_len - 1] |=
+		FIELD_PREP(OP_RELO_TYPE, relo);
 }
 
 static void
 emit_br(struct nfp_prog *nfp_prog, enum br_mask mask, u16 addr, u8 defer)
 {
-	__emit_br(nfp_prog, mask,
-		  mask != BR_UNC ? BR_EV_PIP_COND : BR_EV_PIP_UNCOND,
-		  BR_CSS_NONE, addr, defer);
+	emit_br_relo(nfp_prog, mask, addr, defer, RELO_BR_REL);
 }
 
 static void
@@ -515,16 +515,6 @@ static void wrp_nops(struct nfp_prog *nfp_prog, unsigned int count)
 		emit_nop(nfp_prog);
 }
 
-static void
-wrp_br_special(struct nfp_prog *nfp_prog, enum br_mask mask,
-	       enum br_special special)
-{
-	emit_br(nfp_prog, mask, 0, 0);
-
-	nfp_prog->prog[nfp_prog->prog_len - 1] |=
-		FIELD_PREP(OP_BR_SPECIAL, special);
-}
-
 static void wrp_mov(struct nfp_prog *nfp_prog, swreg dst, swreg src)
 {
 	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, src);
@@ -749,7 +739,7 @@ construct_data_ind_ld(struct nfp_prog *nfp_prog, u16 offset, u16 src, u8 size)
 		 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
 	emit_alu(nfp_prog, reg_none(),
 		 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
-	wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
+	emit_br_relo(nfp_prog, BR_BLO, 0, 0, RELO_BR_GO_ABORT);
 
 	/* Load data */
 	return data_ld(nfp_prog, imm_b(nfp_prog), 0, size);
@@ -762,7 +752,7 @@ static int construct_data_ld(struct nfp_prog *nfp_prog, u16 offset, u8 size)
 	/* Check packet length */
 	tmp_reg = ur_load_imm_any(nfp_prog, offset + size, imm_a(nfp_prog));
 	emit_alu(nfp_prog, reg_none(), plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
-	wrp_br_special(nfp_prog, BR_BLO, OP_BR_GO_ABORT);
+	emit_br_relo(nfp_prog, BR_BLO, 0, 0, RELO_BR_GO_ABORT);
 
 	/* Load data */
 	tmp_reg = re_load_imm_any(nfp_prog, offset, imm_b(nfp_prog));
@@ -1269,7 +1259,7 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	emit_ld_field(nfp_prog, pptr_reg(nfp_prog), 0x3, tmp, SHF_SC_NONE, 0);
 
 	/* Skip over the -EINVAL ret code (defer 2) */
-	emit_br_def(nfp_prog, end, 2);
+	emit_br(nfp_prog, BR_UNC, end, 2);
 
 	emit_alu(nfp_prog, plen_reg(nfp_prog),
 		 plen_reg(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
@@ -2036,7 +2026,7 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int goto_out(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	wrp_br_special(nfp_prog, BR_UNC, OP_BR_GO_OUT);
+	emit_br_relo(nfp_prog, BR_UNC, 0, 0, RELO_BR_GO_OUT);
 
 	return 0;
 }
@@ -2125,11 +2115,9 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 			continue;
 
 		if (list_is_last(&meta->l, &nfp_prog->insns))
-			idx = nfp_prog->last_bpf_off;
+			br_idx = nfp_prog->last_bpf_off;
 		else
-			idx = list_next_entry(meta, l)->off - 1;
-
-		br_idx = nfp_prog_offset_to_index(nfp_prog, idx);
+			br_idx = list_next_entry(meta, l)->off - 1;
 
 		if (!nfp_is_br(nfp_prog->prog[br_idx])) {
 			pr_err("Fixup found block not ending in branch %d %02x %016llx!!\n",
@@ -2137,7 +2125,8 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 			return -ELOOP;
 		}
 		/* Leave special branches for later */
-		if (FIELD_GET(OP_BR_SPECIAL, nfp_prog->prog[br_idx]))
+		if (FIELD_GET(OP_RELO_TYPE, nfp_prog->prog[br_idx]) !=
+		    RELO_BR_REL)
 			continue;
 
 		if (!meta->jmp_dst) {
@@ -2152,36 +2141,11 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 			return -ELOOP;
 		}
 
-		for (idx = nfp_prog_offset_to_index(nfp_prog, meta->off);
-		     idx <= br_idx; idx++) {
+		for (idx = meta->off; idx <= br_idx; idx++) {
 			if (!nfp_is_br(nfp_prog->prog[idx]))
 				continue;
 			br_set_offset(&nfp_prog->prog[idx], jmp_dst->off);
 		}
-	}
-
-	/* Fixup 'goto out's separately, they can be scattered around */
-	for (br_idx = 0; br_idx < nfp_prog->prog_len; br_idx++) {
-		enum br_special special;
-
-		if ((nfp_prog->prog[br_idx] & OP_BR_BASE_MASK) != OP_BR_BASE)
-			continue;
-
-		special = FIELD_GET(OP_BR_SPECIAL, nfp_prog->prog[br_idx]);
-		switch (special) {
-		case OP_BR_NORMAL:
-			break;
-		case OP_BR_GO_OUT:
-			br_set_offset(&nfp_prog->prog[br_idx],
-				      nfp_prog->tgt_out);
-			break;
-		case OP_BR_GO_ABORT:
-			br_set_offset(&nfp_prog->prog[br_idx],
-				      nfp_prog->tgt_abort);
-			break;
-		}
-
-		nfp_prog->prog[br_idx] &= ~OP_BR_SPECIAL;
 	}
 
 	return 0;
@@ -2211,7 +2175,7 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	/* Target for aborts */
 	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
 
-	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
+	emit_br_relo(nfp_prog, BR_UNC, 0, 2, RELO_BR_NEXT_PKT);
 
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x11), SHF_SC_L_SHF, 16);
@@ -2238,7 +2202,7 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_imm(0xf), SHF_OP_AND, reg_b(3), SHF_SC_R_SHF, 0);
 
-	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
+	emit_br_relo(nfp_prog, BR_UNC, 0, 2, RELO_BR_NEXT_PKT);
 
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_a(2), SHF_OP_OR, reg_b(2), SHF_SC_L_SHF, 4);
@@ -2257,7 +2221,7 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 	/* Target for aborts */
 	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
 
-	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
+	emit_br_relo(nfp_prog, BR_UNC, 0, 2, RELO_BR_NEXT_PKT);
 
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x82), SHF_SC_L_SHF, 16);
@@ -2278,7 +2242,7 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_imm(0xff), SHF_OP_AND, reg_b(2), SHF_SC_R_SHF, 0);
 
-	emit_br_def(nfp_prog, nfp_prog->tgt_done, 2);
+	emit_br_relo(nfp_prog, BR_UNC, 0, 2, RELO_BR_NEXT_PKT);
 
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_b(2), SHF_SC_L_SHF, 16);
@@ -2694,20 +2658,19 @@ static int nfp_bpf_optimize(struct nfp_prog *nfp_prog)
 	return 0;
 }
 
-static int nfp_bpf_ustore_calc(struct nfp_prog *nfp_prog, __le64 *ustore)
+static int nfp_bpf_ustore_calc(u64 *prog, unsigned int len)
 {
+	__le64 *ustore = (__force __le64 *)prog;
 	int i;
 
-	for (i = 0; i < nfp_prog->prog_len; i++) {
+	for (i = 0; i < len; i++) {
 		int err;
 
-		err = nfp_ustore_check_valid_no_ecc(nfp_prog->prog[i]);
+		err = nfp_ustore_check_valid_no_ecc(prog[i]);
 		if (err)
 			return err;
 
-		nfp_prog->prog[i] = nfp_ustore_calc_ecc_insn(nfp_prog->prog[i]);
-
-		ustore[i] = cpu_to_le64(nfp_prog->prog[i]);
+		ustore[i] = cpu_to_le64(nfp_ustore_calc_ecc_insn(prog[i]));
 	}
 
 	return 0;
@@ -2728,7 +2691,7 @@ int nfp_bpf_jit(struct nfp_prog *nfp_prog)
 		return -EINVAL;
 	}
 
-	return nfp_bpf_ustore_calc(nfp_prog, (__force __le64 *)nfp_prog->prog);
+	return ret;
 }
 
 void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt)
@@ -2752,4 +2715,52 @@ void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt)
 			dst_meta->flags |= FLAG_INSN_IS_JUMP_DST;
 		}
 	}
+}
+
+void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
+{
+	unsigned int i;
+	u64 *prog;
+	int err;
+
+	prog = kmemdup(nfp_prog->prog, nfp_prog->prog_len * sizeof(u64),
+		       GFP_KERNEL);
+	if (!prog)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < nfp_prog->prog_len; i++) {
+		enum nfp_relo_type special;
+
+		special = FIELD_GET(OP_RELO_TYPE, prog[i]);
+		switch (special) {
+		case RELO_NONE:
+			continue;
+		case RELO_BR_REL:
+			br_add_offset(&prog[i], bv->start_off);
+			break;
+		case RELO_BR_GO_OUT:
+			br_set_offset(&prog[i],
+				      nfp_prog->tgt_out + bv->start_off);
+			break;
+		case RELO_BR_GO_ABORT:
+			br_set_offset(&prog[i],
+				      nfp_prog->tgt_abort + bv->start_off);
+			break;
+		case RELO_BR_NEXT_PKT:
+			br_set_offset(&prog[i], bv->tgt_done);
+			break;
+		}
+
+		prog[i] &= ~OP_RELO_TYPE;
+	}
+
+	err = nfp_bpf_ustore_calc(prog, nfp_prog->prog_len);
+	if (err)
+		goto err_free_prog;
+
+	return prog;
+
+err_free_prog:
+	kfree(prog);
+	return ERR_PTR(err);
 }

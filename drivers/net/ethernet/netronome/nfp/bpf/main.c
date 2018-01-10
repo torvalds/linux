@@ -87,15 +87,20 @@ static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 static int
 nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 {
+	struct nfp_bpf_vnic *bv;
 	int err;
 
-	nn->app_priv = kzalloc(sizeof(struct nfp_bpf_vnic), GFP_KERNEL);
-	if (!nn->app_priv)
+	bv = kzalloc(sizeof(*bv), GFP_KERNEL);
+	if (!bv)
 		return -ENOMEM;
+	nn->app_priv = bv;
 
 	err = nfp_app_nic_vnic_alloc(app, nn, id);
 	if (err)
 		goto err_free_priv;
+
+	bv->start_off = nn_readw(nn, NFP_NET_CFG_BPF_START);
+	bv->tgt_done = nn_readw(nn, NFP_NET_CFG_BPF_DONE);
 
 	return 0;
 err_free_priv:
