@@ -26,7 +26,6 @@
 #include "dgnc_tty.h"
 #include "dgnc_neo.h"
 #include "dgnc_cls.h"
-#include "dgnc_utils.h"
 
 /* Default transparent print information. */
 
@@ -1229,7 +1228,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 			if (ch->ch_close_delay) {
 				spin_unlock_irqrestore(&ch->ch_lock,
 						       flags);
-				dgnc_ms_sleep(ch->ch_close_delay);
+				msleep_interruptible(ch->ch_close_delay);
 				spin_lock_irqsave(&ch->ch_lock, flags);
 			}
 		}
