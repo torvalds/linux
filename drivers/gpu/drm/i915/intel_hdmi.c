@@ -1943,6 +1943,37 @@ static u8 cnp_port_to_ddc_pin(struct drm_i915_private *dev_priv,
 	return ddc_pin;
 }
 
+static u8 icl_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_A:
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_2_BXT;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_9_TC1_ICP;
+		break;
+	case PORT_D:
+		ddc_pin = GMBUS_PIN_10_TC2_ICP;
+		break;
+	case PORT_E:
+		ddc_pin = GMBUS_PIN_11_TC3_ICP;
+		break;
+	case PORT_F:
+		ddc_pin = GMBUS_PIN_12_TC4_ICP;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_2_BXT;
+		break;
+	}
+	return ddc_pin;
+}
+
 static u8 g4x_port_to_ddc_pin(struct drm_i915_private *dev_priv,
 			      enum port port)
 {
@@ -1985,6 +2016,8 @@ static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 		ddc_pin = bxt_port_to_ddc_pin(dev_priv, port);
 	else if (HAS_PCH_CNP(dev_priv))
 		ddc_pin = cnp_port_to_ddc_pin(dev_priv, port);
+	else if (IS_ICELAKE(dev_priv))
+		ddc_pin = icl_port_to_ddc_pin(dev_priv, port);
 	else
 		ddc_pin = g4x_port_to_ddc_pin(dev_priv, port);
 

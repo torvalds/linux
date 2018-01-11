@@ -3063,7 +3063,12 @@ enum i915_power_well_id {
 #define   GMBUS_PIN_2_BXT	2
 #define   GMBUS_PIN_3_BXT	3
 #define   GMBUS_PIN_4_CNP	4
-#define   GMBUS_NUM_PINS	7 /* including 0 */
+#define   GMBUS_PIN_9_TC1_ICP	9
+#define   GMBUS_PIN_10_TC2_ICP	10
+#define   GMBUS_PIN_11_TC3_ICP	11
+#define   GMBUS_PIN_12_TC4_ICP	12
+
+#define   GMBUS_NUM_PINS	13 /* including 0 */
 #define GMBUS1			_MMIO(dev_priv->gpio_mmio_base + 0x5104) /* command/status */
 #define   GMBUS_SW_CLR_INT	(1<<31)
 #define   GMBUS_SW_RDY		(1<<30)
