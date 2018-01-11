@@ -111,24 +111,11 @@
 #include <stdio.h>
 #include <ctype.h>
 
-int insert_extra_deps;
-char *target;
-char *depfile;
-char *cmdline;
-
 static void usage(void)
 {
 	fprintf(stderr, "Usage: fixdep [-e] <depfile> <target> <cmdline>\n");
 	fprintf(stderr, " -e  insert extra dependencies given on stdin\n");
 	exit(1);
-}
-
-/*
- * Print out the commandline prefixed with cmd_<target filename> :=
- */
-static void print_cmdline(void)
-{
-	printf("cmd_%s := %s\n\n", target, cmdline);
 }
 
 /*
@@ -152,16 +139,16 @@ static void print_config(const char *m, int slen)
 
 static void do_extra_deps(void)
 {
-	if (insert_extra_deps) {
-		char buf[80];
-		while(fgets(buf, sizeof(buf), stdin)) {
-			int len = strlen(buf);
-			if (len < 2 || buf[len-1] != '\n') {
-				fprintf(stderr, "fixdep: bad data on stdin\n");
-				exit(1);
-			}
-			print_config(buf, len-1);
+	char buf[80];
+
+	while (fgets(buf, sizeof(buf), stdin)) {
+		int len = strlen(buf);
+
+		if (len < 2 || buf[len - 1] != '\n') {
+			fprintf(stderr, "fixdep: bad data on stdin\n");
+			exit(1);
 		}
+		print_config(buf, len - 1);
 	}
 }
 
@@ -300,7 +287,7 @@ static void *read_file(const char *filename)
  * assignments are parsed not only by make, but also by the rather simple
  * parser in scripts/mod/sumversion.c.
  */
-static void parse_dep_file(char *m)
+static void parse_dep_file(char *m, const char *target, int insert_extra_deps)
 {
 	char *p;
 	int is_last, is_target;
@@ -385,7 +372,8 @@ static void parse_dep_file(char *m)
 		exit(1);
 	}
 
-	do_extra_deps();
+	if (insert_extra_deps)
+		do_extra_deps();
 
 	printf("\n%s: $(deps_%s)\n\n", target, target);
 	printf("$(deps_%s):\n", target);
@@ -393,6 +381,8 @@ static void parse_dep_file(char *m)
 
 int main(int argc, char *argv[])
 {
+	const char *depfile, *target, *cmdline;
+	int insert_extra_deps = 0;
 	void *buf;
 
 	if (argc == 5 && !strcmp(argv[1], "-e")) {
@@ -405,10 +395,10 @@ int main(int argc, char *argv[])
 	target = argv[2];
 	cmdline = argv[3];
 
-	print_cmdline();
+	printf("cmd_%s := %s\n\n", target, cmdline);
 
 	buf = read_file(depfile);
-	parse_dep_file(buf);
+	parse_dep_file(buf, target, insert_extra_deps);
 	free(buf);
 
 	return 0;
