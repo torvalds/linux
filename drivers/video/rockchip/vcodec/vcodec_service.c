@@ -1568,6 +1568,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, struct vpu_reg *reg)
 static void try_set_reg(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
+	int reset_request = atomic_read(&pservice->reset_request);
 
 	vpu_debug_enter();
 
@@ -1576,18 +1577,23 @@ static void try_set_reg(struct vpu_subdev_data *data)
 		mutex_unlock(&pservice->shutdown_lock);
 		return;
 	}
+
+	if (reset_request) {
+		vpu_service_power_on(data, pservice);
+		vpu_reset(data);
+	}
+
 	if (!list_empty(&pservice->waiting)) {
 		struct vpu_reg *reg_codec = pservice->reg_codec;
 		struct vpu_reg *reg_pproc = pservice->reg_pproc;
 		int can_set = 0;
 		bool change_able = (reg_codec == NULL) && (reg_pproc == NULL);
-		int reset_request = atomic_read(&pservice->reset_request);
 		struct vpu_reg *reg = list_entry(pservice->waiting.next,
 				struct vpu_reg, status_link);
 
 		vpu_service_power_on(data, pservice);
 
-		if (change_able || !reset_request) {
+		if (change_able) {
 			switch (reg->type) {
 			case VPU_ENC: {
 				if (change_able)
@@ -1628,14 +1634,6 @@ static void try_set_reg(struct vpu_subdev_data *data)
 			} break;
 			}
 		}
-
-		/* then check reset request */
-		if (reset_request && !change_able)
-			reset_request = 0;
-
-		/* do reset before setting registers */
-		if (reset_request)
-			vpu_reset(data);
 
 		if (can_set) {
 			reg_from_wait_to_run(pservice, reg);
@@ -1810,6 +1808,9 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 		ret = wait_event_timeout(session->wait,
 					 !list_empty(&session->done),
 					 VPU_TIMEOUT_DELAY);
+
+		while (atomic_read(&pservice->reset_request))
+			msleep(10);
 
 		if (!list_empty(&session->done)) {
 			if (ret < 0)
@@ -2605,7 +2606,7 @@ static struct vcodec_hw_var rk3328_vpucombo_var = {
 	.device_type = VCODEC_DEVICE_TYPE_VPUC,
 	.name = "vpu-combo",
 	.pmu_type = -1,
-	.ops = &hw_ops_default,
+	.ops = NULL,
 	.init = NULL,
 	.config = NULL,
 };
@@ -2615,7 +2616,7 @@ static struct vcodec_hw_var vpu_device_info = {
 	.device_type = VCODEC_DEVICE_TYPE_VPUX,
 	.name = "vpu-service",
 	.pmu_type = -1,
-	.ops = &hw_ops_default,
+	.ops = NULL,
 	.init = NULL,
 	.config = NULL,
 };
@@ -2624,7 +2625,7 @@ static struct vcodec_hw_var vpu_combo_device_info = {
 	.device_type = VCODEC_DEVICE_TYPE_VPUC,
 	.name = "vpu-combo",
 	.pmu_type = -1,
-	.ops = &hw_ops_default,
+	.ops = NULL,
 	.init = NULL,
 	.config = NULL,
 };
@@ -2633,7 +2634,7 @@ static struct vcodec_hw_var hevc_device_info = {
 	.device_type = VCODEC_DEVICE_TYPE_HEVC,
 	.name = "hevc-service",
 	.pmu_type = -1,
-	.ops = &hw_ops_default,
+	.ops = NULL,
 	.init = NULL,
 	.config = NULL,
 };
@@ -2642,7 +2643,7 @@ static struct vcodec_hw_var rkvd_device_info = {
 	.device_type = VCODEC_DEVICE_TYPE_RKVD,
 	.name = "rkvdec",
 	.pmu_type = -1,
-	.ops = &hw_ops_default,
+	.ops = NULL,
 	.init = NULL,
 	.config = NULL,
 };
@@ -2651,7 +2652,9 @@ static void vcodec_set_hw_ops(struct vpu_service_info *pservice)
 {
 	if (pservice->hw_var) {
 		pservice->hw_ops = pservice->hw_var->ops;
-	} else {
+	}
+
+	if (!pservice->hw_ops) {
 		pservice->hw_ops = &hw_ops_default;
 		if (of_machine_is_compatible("rockchip,rk3328") ||
 		    of_machine_is_compatible("rockchip,rk3228") ||
