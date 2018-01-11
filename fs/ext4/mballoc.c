@@ -757,10 +757,10 @@ void ext4_mb_generate_buddy(struct super_block *sb,
 	clear_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &(grp->bb_state));
 
 	period = get_cycles() - period;
-	spin_lock(&EXT4_SB(sb)->s_bal_lock);
-	EXT4_SB(sb)->s_mb_buddies_generated++;
-	EXT4_SB(sb)->s_mb_generation_time += period;
-	spin_unlock(&EXT4_SB(sb)->s_bal_lock);
+	spin_lock(&sbi->s_bal_lock);
+	sbi->s_mb_buddies_generated++;
+	sbi->s_mb_generation_time += period;
+	spin_unlock(&sbi->s_bal_lock);
 }
 
 static void mb_regenerate_buddy(struct ext4_buddy *e4b)
@@ -1447,7 +1447,7 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 		ext4_fsblk_t blocknr;
 
 		blocknr = ext4_group_first_block_no(sb, e4b->bd_group);
-		blocknr += EXT4_C2B(EXT4_SB(sb), block);
+		blocknr += EXT4_C2B(sbi, block);
 		ext4_grp_locked_error(sb, e4b->bd_group,
 				      inode ? inode->i_ino : 0,
 				      blocknr,
@@ -4838,9 +4838,9 @@ do_more:
 	if (in_range(ext4_block_bitmap(sb, gdp), block, count) ||
 	    in_range(ext4_inode_bitmap(sb, gdp), block, count) ||
 	    in_range(block, ext4_inode_table(sb, gdp),
-		     EXT4_SB(sb)->s_itb_per_group) ||
+		     sbi->s_itb_per_group) ||
 	    in_range(block + count - 1, ext4_inode_table(sb, gdp),
-		     EXT4_SB(sb)->s_itb_per_group)) {
+		     sbi->s_itb_per_group)) {
 
 		ext4_error(sb, "Freeing blocks in system zone - "
 			   "Block = %llu, count = %lu", block, count);
