@@ -148,10 +148,10 @@ enum bus_acquire {
 	ACQUIRE_AND_WAKEUP	= 1,
 };
 
-typedef enum {
+enum bus_release {
 	RELEASE_ONLY		= 0,
 	RELEASE_ALLOW_SLEEP	= 1,
-} BUS_RELEASE_T;
+};
 
 typedef enum {
 	NO_SECURITY		= 0,

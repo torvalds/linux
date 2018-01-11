@@ -14,7 +14,7 @@ static inline void acquire_bus(struct wilc *wilc, enum bus_acquire acquire)
 		chip_wakeup(wilc);
 }
 
-static inline void release_bus(struct wilc *wilc, BUS_RELEASE_T release)
+static inline void release_bus(struct wilc *wilc, enum bus_release release)
 {
 	if (release == RELEASE_ALLOW_SLEEP)
 		chip_allow_sleep(wilc);
