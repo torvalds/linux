@@ -30,8 +30,9 @@ config SND_SOC_STM32_SPDIFRX
 
 config SND_SOC_STM32_DFSDM
 	tristate "SoC Audio support for STM32 DFSDM"
-	depends on (ARCH_STM32 && OF && STM32_DFSDM_ADC) || COMPILE_TEST
+	depends on ARCH_STM32 || COMPILE_TEST
 	depends on SND_SOC
+	depends on STM32_DFSDM_ADC
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select SND_SOC_DMIC
 	select IIO_BUFFER_CB
