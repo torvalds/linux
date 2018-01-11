@@ -242,9 +242,7 @@ static int ocm_debugfs_show(struct seq_file *m, void *v)
 		seq_printf(m, "PhysAddr     : 0x%llx\n", ocm->phys);
 		seq_printf(m, "MemTotal     : %d Bytes\n", ocm->memtotal);
 		seq_printf(m, "MemTotal(NC) : %d Bytes\n", ocm->nc.memtotal);
-		seq_printf(m, "MemTotal(C)  : %d Bytes\n", ocm->c.memtotal);
-
-		seq_printf(m, "\n");
+		seq_printf(m, "MemTotal(C)  : %d Bytes\n\n", ocm->c.memtotal);
 
 		seq_printf(m, "NC.PhysAddr  : 0x%llx\n", ocm->nc.phys);
 		seq_printf(m, "NC.VirtAddr  : 0x%p\n", ocm->nc.virt);
@@ -256,9 +254,7 @@ static int ocm_debugfs_show(struct seq_file *m, void *v)
 							blk->size, blk->owner);
 		}
 
-		seq_printf(m, "\n");
-
-		seq_printf(m, "C.PhysAddr   : 0x%llx\n", ocm->c.phys);
+		seq_printf(m, "\nC.PhysAddr   : 0x%llx\n", ocm->c.phys);
 		seq_printf(m, "C.VirtAddr   : 0x%p\n", ocm->c.virt);
 		seq_printf(m, "C.MemTotal   : %d Bytes\n", ocm->c.memtotal);
 		seq_printf(m, "C.MemFree    : %d Bytes\n", ocm->c.memfree);
