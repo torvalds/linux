@@ -146,37 +146,6 @@ static inline u32 pmc_core_adjust_slp_s0_step(u32 value)
 	return value * SPT_PMC_SLP_S0_RES_COUNTER_STEP;
 }
 
-/**
- * intel_pmc_slp_s0_counter_read() - Read SLP_S0 residency.
- * @data: Out param that contains current SLP_S0 count.
- *
- * This API currently supports Intel Skylake SoC and Sunrise
- * Point Platform Controller Hub. Future platform support
- * should be added for platforms that support low power modes
- * beyond Package C10 state.
- *
- * SLP_S0_RESIDENCY counter counts in 100 us granularity per
- * step hence function populates the multiplied value in out
- * parameter @data.
- *
- * Return: an error code or 0 on success.
- */
-int intel_pmc_slp_s0_counter_read(u32 *data)
-{
-	struct pmc_dev *pmcdev = &pmc;
-	const struct pmc_reg_map *map = pmcdev->map;
-	u32 value;
-
-	if (!pmcdev->has_slp_s0_res)
-		return -EACCES;
-
-	value = pmc_core_reg_read(pmcdev, map->slp_s0_offset);
-	*data = pmc_core_adjust_slp_s0_step(value);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(intel_pmc_slp_s0_counter_read);
-
 static int pmc_core_dev_state_get(void *data, u64 *val)
 {
 	struct pmc_dev *pmcdev = data;
@@ -548,7 +517,6 @@ static int pmc_core_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err < 0)
 		dev_warn(&dev->dev, "PMC Core: debugfs register failed.\n");
 
-	pmc.has_slp_s0_res = true;
 	return 0;
 }
 
