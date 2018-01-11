@@ -20,7 +20,7 @@ MODULE_AUTHOR("Digi International, http://www.digi.com");
 MODULE_DESCRIPTION("Driver for the Digi International Neo and Classic PCI based product line");
 MODULE_SUPPORTED_DEVICE("dgnc");
 
-uint			dgnc_num_boards;
+static unsigned int dgnc_num_boards;
 struct dgnc_board		*dgnc_board[MAXBOARDS];
 DEFINE_SPINLOCK(dgnc_global_lock);
 DEFINE_SPINLOCK(dgnc_poll_lock); /* Poll scheduling lock */
