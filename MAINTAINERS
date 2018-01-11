@@ -8798,6 +8798,13 @@ W:	http://www.melexis.com
 S:	Supported
 F:	drivers/iio/temperature/mlx90614.c
 
+MELEXIS MLX90632 DRIVER
+M:	Crt Mori <cmo@melexis.com>
+L:	linux-iio@vger.kernel.org
+W:	http://www.melexis.com
+S:	Supported
+F:	drivers/iio/temperature/mlx90632.c
+
 MELFAS MIP4 TOUCHSCREEN DRIVER
 M:	Sangwon Jee <jeesw@melfas.com>
 W:	http://www.melfas.com
