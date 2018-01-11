@@ -2077,6 +2077,20 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	return 0;
 }
 
+static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
+				  struct net_device *peer_netdev)
+{
+	struct mlx5e_priv *peer_priv;
+
+	peer_priv = netdev_priv(peer_netdev);
+
+	return (MLX5_CAP_ESW(priv->mdev, merged_eswitch) &&
+		(priv->netdev->netdev_ops == peer_netdev->netdev_ops) &&
+		same_hw_devs(priv, peer_priv) &&
+		MLX5_VPORT_MANAGER(peer_priv->mdev) &&
+		(peer_priv->mdev->priv.eswitch->mode == SRIOV_OFFLOADS));
+}
+
 static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 				   struct net_device *mirred_dev,
 				   struct net_device **out_dev,
@@ -2535,7 +2549,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			out_dev = tcf_mirred_dev(a);
 
 			if (switchdev_port_same_parent_id(priv->netdev,
-							  out_dev)) {
+							  out_dev) ||
+			    is_merged_eswitch_dev(priv, out_dev)) {
 				action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 				out_priv = netdev_priv(out_dev);
