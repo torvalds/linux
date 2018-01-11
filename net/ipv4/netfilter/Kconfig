@@ -343,6 +343,7 @@ config IP_NF_TARGET_CLUSTERIP
 	depends on NF_CONNTRACK_IPV4
 	depends on NETFILTER_ADVANCED
 	select NF_CONNTRACK_MARK
+	select NETFILTER_FAMILY_ARP
 	help
 	  The CLUSTERIP target allows you to build load-balancing clusters of
 	  network servers without having a dedicated load-balancing
