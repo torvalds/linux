@@ -1154,13 +1154,13 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (ret)
 		return ret;
 
+	inode_lock(inode);
+
 	if (f2fs_has_inline_data(inode)) {
 		ret = f2fs_inline_data_fiemap(inode, fieinfo, start, len);
 		if (ret != -EAGAIN)
-			return ret;
+			goto out;
 	}
-
-	inode_lock(inode);
 
 	if (logical_to_blk(inode, len) == 0)
 		len = blk_to_logical(inode, 1);
