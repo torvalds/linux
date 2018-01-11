@@ -1675,8 +1675,10 @@ static int tcmu_configure_device(struct se_device *dev)
 
 	udev->data_bitmap = kzalloc(BITS_TO_LONGS(udev->max_blocks) *
 				    sizeof(unsigned long), GFP_KERNEL);
-	if (!udev->data_bitmap)
+	if (!udev->data_bitmap) {
+		ret = -ENOMEM;
 		goto err_bitmap_alloc;
+	}
 
 	udev->mb_addr = vzalloc(CMDR_SIZE);
 	if (!udev->mb_addr) {
