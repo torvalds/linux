@@ -2090,7 +2090,7 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	struct cpl_rx_phys_dsgl *phys_cpl;
 	struct ulptx_sgl *ulptx;
 	unsigned int transhdr_len;
-	unsigned int dst_size = 0, temp;
+	unsigned int dst_size = 0, temp, subtype = get_aead_subtype(tfm);
 	unsigned int   kctx_len = 0, dnents;
 	unsigned int  assoclen = req->assoclen;
 	unsigned int  authsize = crypto_aead_authsize(tfm);
@@ -2104,7 +2104,8 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 		return NULL;
 
 	reqctx->b0_dma = 0;
-	if (get_aead_subtype(tfm) == CRYPTO_ALG_SUB_TYPE_AEAD_NULL) {
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CBC_NULL ||
+	subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL) {
 		null = 1;
 		assoclen = 0;
 	}
@@ -2169,16 +2170,23 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 					temp & 0xF,
 					null ? 0 : assoclen + IV + 1,
 					temp, temp);
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL ||
+	    subtype == CRYPTO_ALG_SUB_TYPE_CTR_SHA)
+		temp = CHCR_SCMD_CIPHER_MODE_AES_CTR;
+	else
+		temp = CHCR_SCMD_CIPHER_MODE_AES_CBC;
 	chcr_req->sec_cpl.seqno_numivs = FILL_SEC_CPL_SCMD0_SEQNO(op_type,
 					(op_type == CHCR_ENCRYPT_OP) ? 1 : 0,
-					CHCR_SCMD_CIPHER_MODE_AES_CBC,
+					temp,
 					actx->auth_mode, aeadctx->hmac_ctrl,
 					IV >> 1);
 	chcr_req->sec_cpl.ivgen_hdrlen =  FILL_SEC_CPL_IVGEN_HDRLEN(0, 0, 1,
 					 0, 0, dst_size);
 
 	chcr_req->key_ctx.ctx_hdr = aeadctx->key_ctx_hdr;
-	if (op_type == CHCR_ENCRYPT_OP)
+	if (op_type == CHCR_ENCRYPT_OP ||
+		subtype == CRYPTO_ALG_SUB_TYPE_CTR_SHA ||
+		subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL)
 		memcpy(chcr_req->key_ctx.key, aeadctx->key,
 		       aeadctx->enckey_len);
 	else
@@ -2188,7 +2196,16 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	memcpy(chcr_req->key_ctx.key + (DIV_ROUND_UP(aeadctx->enckey_len, 16) <<
 					4), actx->h_iopad, kctx_len -
 				(DIV_ROUND_UP(aeadctx->enckey_len, 16) << 4));
-	memcpy(reqctx->iv, req->iv, IV);
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_SHA ||
+	    subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL) {
+		memcpy(reqctx->iv, aeadctx->nonce, CTR_RFC3686_NONCE_SIZE);
+		memcpy(reqctx->iv + CTR_RFC3686_NONCE_SIZE, req->iv,
+				CTR_RFC3686_IV_SIZE);
+		*(__be32 *)(reqctx->iv + CTR_RFC3686_NONCE_SIZE +
+			CTR_RFC3686_IV_SIZE) = cpu_to_be32(1);
+	} else {
+		memcpy(reqctx->iv, req->iv, IV);
+	}
 	phys_cpl = (struct cpl_rx_phys_dsgl *)((u8 *)(chcr_req + 1) + kctx_len);
 	ulptx = (struct ulptx_sgl *)((u8 *)(phys_cpl + 1) + dst_size);
 	chcr_add_aead_dst_ent(req, phys_cpl, assoclen, op_type, qid);
@@ -3216,7 +3233,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	struct chcr_authenc_ctx *actx = AUTHENC_CTX(aeadctx);
 	/* it contains auth and cipher key both*/
 	struct crypto_authenc_keys keys;
-	unsigned int bs;
+	unsigned int bs, subtype;
 	unsigned int max_authsize = crypto_aead_alg(authenc)->maxauthsize;
 	int err = 0, i, key_ctx_len = 0;
 	unsigned char ck_size = 0;
@@ -3245,6 +3262,15 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 		pr_err("chcr : Unsupported digest size\n");
 		goto out;
 	}
+	subtype = get_aead_subtype(authenc);
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_SHA ||
+		subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL) {
+		if (keys.enckeylen < CTR_RFC3686_NONCE_SIZE)
+			goto out;
+		memcpy(aeadctx->nonce, keys.enckey + (keys.enckeylen
+		- CTR_RFC3686_NONCE_SIZE), CTR_RFC3686_NONCE_SIZE);
+		keys.enckeylen -= CTR_RFC3686_NONCE_SIZE;
+	}
 	if (keys.enckeylen == AES_KEYSIZE_128) {
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
 	} else if (keys.enckeylen == AES_KEYSIZE_192) {
@@ -3262,9 +3288,12 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	 */
 	memcpy(aeadctx->key, keys.enckey, keys.enckeylen);
 	aeadctx->enckey_len = keys.enckeylen;
-	get_aes_decrypt_key(actx->dec_rrkey, aeadctx->key,
-			    aeadctx->enckey_len << 3);
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CBC_SHA ||
+		subtype == CRYPTO_ALG_SUB_TYPE_CBC_NULL) {
 
+		get_aes_decrypt_key(actx->dec_rrkey, aeadctx->key,
+			    aeadctx->enckey_len << 3);
+	}
 	base_hash  = chcr_alloc_shash(max_authsize);
 	if (IS_ERR(base_hash)) {
 		pr_err("chcr : Base driver cannot be loaded\n");
@@ -3337,6 +3366,7 @@ static int chcr_aead_digest_null_setkey(struct crypto_aead *authenc,
 	struct crypto_authenc_keys keys;
 	int err;
 	/* it contains auth and cipher key both*/
+	unsigned int subtype;
 	int key_ctx_len = 0;
 	unsigned char ck_size = 0;
 
@@ -3354,6 +3384,15 @@ static int chcr_aead_digest_null_setkey(struct crypto_aead *authenc,
 		crypto_aead_set_flags(authenc, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		goto out;
 	}
+	subtype = get_aead_subtype(authenc);
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_SHA ||
+	    subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL) {
+		if (keys.enckeylen < CTR_RFC3686_NONCE_SIZE)
+			goto out;
+		memcpy(aeadctx->nonce, keys.enckey + (keys.enckeylen
+			- CTR_RFC3686_NONCE_SIZE), CTR_RFC3686_NONCE_SIZE);
+		keys.enckeylen -= CTR_RFC3686_NONCE_SIZE;
+	}
 	if (keys.enckeylen == AES_KEYSIZE_128) {
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
 	} else if (keys.enckeylen == AES_KEYSIZE_192) {
@@ -3361,13 +3400,16 @@ static int chcr_aead_digest_null_setkey(struct crypto_aead *authenc,
 	} else if (keys.enckeylen == AES_KEYSIZE_256) {
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_256;
 	} else {
-		pr_err("chcr : Unsupported cipher key\n");
+		pr_err("chcr : Unsupported cipher key %d\n", keys.enckeylen);
 		goto out;
 	}
 	memcpy(aeadctx->key, keys.enckey, keys.enckeylen);
 	aeadctx->enckey_len = keys.enckeylen;
-	get_aes_decrypt_key(actx->dec_rrkey, aeadctx->key,
-				    aeadctx->enckey_len << 3);
+	if (subtype == CRYPTO_ALG_SUB_TYPE_CBC_SHA ||
+	    subtype == CRYPTO_ALG_SUB_TYPE_CBC_NULL) {
+		get_aes_decrypt_key(actx->dec_rrkey, aeadctx->key,
+				aeadctx->enckey_len << 3);
+	}
 	key_ctx_len =  sizeof(struct _key_ctx)
 		+ ((DIV_ROUND_UP(keys.enckeylen, 16)) << 4);
 
@@ -3421,8 +3463,10 @@ static int chcr_aead_encrypt(struct aead_request *req)
 	reqctx->verify = VERIFY_HW;
 
 	switch (get_aead_subtype(tfm)) {
-	case CRYPTO_ALG_SUB_TYPE_AEAD_AUTHENC:
-	case CRYPTO_ALG_SUB_TYPE_AEAD_NULL:
+	case CRYPTO_ALG_SUB_TYPE_CTR_SHA:
+	case CRYPTO_ALG_SUB_TYPE_CBC_SHA:
+	case CRYPTO_ALG_SUB_TYPE_CBC_NULL:
+	case CRYPTO_ALG_SUB_TYPE_CTR_NULL:
 		return chcr_aead_op(req, CHCR_ENCRYPT_OP, 0,
 				    create_authenc_wr);
 	case CRYPTO_ALG_SUB_TYPE_AEAD_CCM:
@@ -3451,8 +3495,10 @@ static int chcr_aead_decrypt(struct aead_request *req)
 	}
 
 	switch (get_aead_subtype(tfm)) {
-	case CRYPTO_ALG_SUB_TYPE_AEAD_AUTHENC:
-	case CRYPTO_ALG_SUB_TYPE_AEAD_NULL:
+	case CRYPTO_ALG_SUB_TYPE_CBC_SHA:
+	case CRYPTO_ALG_SUB_TYPE_CTR_SHA:
+	case CRYPTO_ALG_SUB_TYPE_CBC_NULL:
+	case CRYPTO_ALG_SUB_TYPE_CTR_NULL:
 		return chcr_aead_op(req, CHCR_DECRYPT_OP, size,
 				    create_authenc_wr);
 	case CRYPTO_ALG_SUB_TYPE_AEAD_CCM:
@@ -3748,7 +3794,7 @@ static struct chcr_alg_template driver_algs[] = {
 		}
 	},
 	{
-		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_AEAD_AUTHENC,
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CBC_SHA,
 		.is_registered = 0,
 		.alg.aead = {
 			.base = {
@@ -3769,7 +3815,7 @@ static struct chcr_alg_template driver_algs[] = {
 		}
 	},
 	{
-		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_AEAD_AUTHENC,
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CBC_SHA,
 		.is_registered = 0,
 		.alg.aead = {
 			.base = {
@@ -3791,7 +3837,7 @@ static struct chcr_alg_template driver_algs[] = {
 		}
 	},
 	{
-		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_AEAD_AUTHENC,
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CBC_SHA,
 		.is_registered = 0,
 		.alg.aead = {
 			.base = {
@@ -3811,7 +3857,7 @@ static struct chcr_alg_template driver_algs[] = {
 		}
 	},
 	{
-		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_AEAD_AUTHENC,
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CBC_SHA,
 		.is_registered = 0,
 		.alg.aead = {
 			.base = {
@@ -3832,7 +3878,7 @@ static struct chcr_alg_template driver_algs[] = {
 		}
 	},
 	{
-		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_AEAD_AUTHENC,
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CBC_SHA,
 		.is_registered = 0,
 		.alg.aead = {
 			.base = {
@@ -3853,7 +3899,7 @@ static struct chcr_alg_template driver_algs[] = {
 		}
 	},
 	{
-		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_AEAD_NULL,
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CBC_NULL,
 		.is_registered = 0,
 		.alg.aead = {
 			.base = {
@@ -3873,6 +3919,133 @@ static struct chcr_alg_template driver_algs[] = {
 			.setauthsize = chcr_authenc_null_setauthsize,
 		}
 	},
+	{
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CTR_SHA,
+		.is_registered = 0,
+		.alg.aead = {
+			.base = {
+				.cra_name = "authenc(hmac(sha1),rfc3686(ctr(aes)))",
+				.cra_driver_name =
+				"authenc-hmac-sha1-rfc3686-ctr-aes-chcr",
+				.cra_blocksize	 = 1,
+				.cra_priority = CHCR_AEAD_PRIORITY,
+				.cra_ctxsize =	sizeof(struct chcr_context) +
+						sizeof(struct chcr_aead_ctx) +
+						sizeof(struct chcr_authenc_ctx),
+
+			},
+			.ivsize = CTR_RFC3686_IV_SIZE,
+			.maxauthsize = SHA1_DIGEST_SIZE,
+			.setkey = chcr_authenc_setkey,
+			.setauthsize = chcr_authenc_setauthsize,
+		}
+	},
+	{
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CTR_SHA,
+		.is_registered = 0,
+		.alg.aead = {
+			.base = {
+
+				.cra_name = "authenc(hmac(sha256),rfc3686(ctr(aes)))",
+				.cra_driver_name =
+				"authenc-hmac-sha256-rfc3686-ctr-aes-chcr",
+				.cra_blocksize	 = 1,
+				.cra_priority = CHCR_AEAD_PRIORITY,
+				.cra_ctxsize =	sizeof(struct chcr_context) +
+						sizeof(struct chcr_aead_ctx) +
+						sizeof(struct chcr_authenc_ctx),
+
+			},
+			.ivsize = CTR_RFC3686_IV_SIZE,
+			.maxauthsize	= SHA256_DIGEST_SIZE,
+			.setkey = chcr_authenc_setkey,
+			.setauthsize = chcr_authenc_setauthsize,
+		}
+	},
+	{
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CTR_SHA,
+		.is_registered = 0,
+		.alg.aead = {
+			.base = {
+				.cra_name = "authenc(hmac(sha224),rfc3686(ctr(aes)))",
+				.cra_driver_name =
+				"authenc-hmac-sha224-rfc3686-ctr-aes-chcr",
+				.cra_blocksize	 = 1,
+				.cra_priority = CHCR_AEAD_PRIORITY,
+				.cra_ctxsize =	sizeof(struct chcr_context) +
+						sizeof(struct chcr_aead_ctx) +
+						sizeof(struct chcr_authenc_ctx),
+			},
+			.ivsize = CTR_RFC3686_IV_SIZE,
+			.maxauthsize = SHA224_DIGEST_SIZE,
+			.setkey = chcr_authenc_setkey,
+			.setauthsize = chcr_authenc_setauthsize,
+		}
+	},
+	{
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CTR_SHA,
+		.is_registered = 0,
+		.alg.aead = {
+			.base = {
+				.cra_name = "authenc(hmac(sha384),rfc3686(ctr(aes)))",
+				.cra_driver_name =
+				"authenc-hmac-sha384-rfc3686-ctr-aes-chcr",
+				.cra_blocksize	 = 1,
+				.cra_priority = CHCR_AEAD_PRIORITY,
+				.cra_ctxsize =	sizeof(struct chcr_context) +
+						sizeof(struct chcr_aead_ctx) +
+						sizeof(struct chcr_authenc_ctx),
+
+			},
+			.ivsize = CTR_RFC3686_IV_SIZE,
+			.maxauthsize = SHA384_DIGEST_SIZE,
+			.setkey = chcr_authenc_setkey,
+			.setauthsize = chcr_authenc_setauthsize,
+		}
+	},
+	{
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CTR_SHA,
+		.is_registered = 0,
+		.alg.aead = {
+			.base = {
+				.cra_name = "authenc(hmac(sha512),rfc3686(ctr(aes)))",
+				.cra_driver_name =
+				"authenc-hmac-sha512-rfc3686-ctr-aes-chcr",
+				.cra_blocksize	 = 1,
+				.cra_priority = CHCR_AEAD_PRIORITY,
+				.cra_ctxsize =	sizeof(struct chcr_context) +
+						sizeof(struct chcr_aead_ctx) +
+						sizeof(struct chcr_authenc_ctx),
+
+			},
+			.ivsize = CTR_RFC3686_IV_SIZE,
+			.maxauthsize = SHA512_DIGEST_SIZE,
+			.setkey = chcr_authenc_setkey,
+			.setauthsize = chcr_authenc_setauthsize,
+		}
+	},
+	{
+		.type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_SUB_TYPE_CTR_NULL,
+		.is_registered = 0,
+		.alg.aead = {
+			.base = {
+				.cra_name = "authenc(digest_null,rfc3686(ctr(aes)))",
+				.cra_driver_name =
+				"authenc-digest_null-rfc3686-ctr-aes-chcr",
+				.cra_blocksize	 = 1,
+				.cra_priority = CHCR_AEAD_PRIORITY,
+				.cra_ctxsize =	sizeof(struct chcr_context) +
+						sizeof(struct chcr_aead_ctx) +
+						sizeof(struct chcr_authenc_ctx),
+
+			},
+			.ivsize  = CTR_RFC3686_IV_SIZE,
+			.maxauthsize = 0,
+			.setkey  = chcr_aead_digest_null_setkey,
+			.setauthsize = chcr_authenc_null_setauthsize,
+		}
+	},
+
 };
 
 /*
