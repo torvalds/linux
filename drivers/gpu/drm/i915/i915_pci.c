@@ -579,6 +579,19 @@ static const struct intel_device_info intel_cannonlake_gt2_info __initconst = {
 	.gt = 2,
 };
 
+#define GEN11_FEATURES \
+	GEN10_FEATURES, \
+	.gen = 11, \
+	.ddb_size = 2048, \
+	.has_csr = 0
+
+static const struct intel_device_info intel_icelake_11_info __initconst = {
+	GEN11_FEATURES,
+	.platform = INTEL_ICELAKE,
+	.is_alpha_support = 1,
+	.has_resource_streamer = 0,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem

@@ -69,6 +69,8 @@ enum intel_platform {
 	INTEL_COFFEELAKE,
 	/* gen10 */
 	INTEL_CANNONLAKE,
+	/* gen11 */
+	INTEL_ICELAKE,
 	INTEL_MAX_PLATFORMS
 };
 
