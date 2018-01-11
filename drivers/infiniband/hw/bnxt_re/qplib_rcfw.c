@@ -616,7 +616,7 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 				   int msix_vector,
 				   int cp_bar_reg_off, int virt_fn,
 				   int (*aeq_handler)(struct bnxt_qplib_rcfw *,
-						      struct creq_func_event *))
+						      void *, void *))
 {
 	resource_size_t res_base;
 	struct cmdq_init init;

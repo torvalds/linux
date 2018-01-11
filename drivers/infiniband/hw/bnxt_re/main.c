@@ -588,6 +588,12 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->query_ah			= bnxt_re_query_ah;
 	ibdev->destroy_ah		= bnxt_re_destroy_ah;
 
+	ibdev->create_srq		= bnxt_re_create_srq;
+	ibdev->modify_srq		= bnxt_re_modify_srq;
+	ibdev->query_srq		= bnxt_re_query_srq;
+	ibdev->destroy_srq		= bnxt_re_destroy_srq;
+	ibdev->post_srq_recv		= bnxt_re_post_srq_recv;
+
 	ibdev->create_qp		= bnxt_re_create_qp;
 	ibdev->modify_qp		= bnxt_re_modify_qp;
 	ibdev->query_qp			= bnxt_re_query_qp;
@@ -689,10 +695,10 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct net_device *netdev,
 	return rdev;
 }
 
-static int bnxt_re_aeq_handler(struct bnxt_qplib_rcfw *rcfw,
-			       struct creq_func_event *aeqe)
+static int bnxt_re_handle_unaffi_async_event(struct creq_func_event
+					     *unaffi_async)
 {
-	switch (aeqe->event) {
+	switch (unaffi_async->event) {
 	case CREQ_FUNC_EVENT_EVENT_TX_WQE_ERROR:
 		break;
 	case CREQ_FUNC_EVENT_EVENT_TX_DATA_ERROR:
@@ -719,6 +725,93 @@ static int bnxt_re_aeq_handler(struct bnxt_qplib_rcfw *rcfw,
 		return -EINVAL;
 	}
 	return 0;
+}
+
+static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
+					 struct bnxt_re_qp *qp)
+{
+	struct ib_event event;
+
+	memset(&event, 0, sizeof(event));
+	if (qp->qplib_qp.srq) {
+		event.device = &qp->rdev->ibdev;
+		event.element.qp = &qp->ib_qp;
+		event.event = IB_EVENT_QP_LAST_WQE_REACHED;
+	}
+
+	if (event.device && qp->ib_qp.event_handler)
+		qp->ib_qp.event_handler(&event, qp->ib_qp.qp_context);
+
+	return 0;
+}
+
+static int bnxt_re_handle_affi_async_event(struct creq_qp_event *affi_async,
+					   void *obj)
+{
+	int rc = 0;
+	u8 event;
+
+	if (!obj)
+		return rc; /* QP was already dead, still return success */
+
+	event = affi_async->event;
+	if (event == CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION) {
+		struct bnxt_qplib_qp *lib_qp = obj;
+		struct bnxt_re_qp *qp = container_of(lib_qp, struct bnxt_re_qp,
+						     qplib_qp);
+		rc = bnxt_re_handle_qp_async_event(affi_async, qp);
+	}
+	return rc;
+}
+
+static int bnxt_re_aeq_handler(struct bnxt_qplib_rcfw *rcfw,
+			       void *aeqe, void *obj)
+{
+	struct creq_qp_event *affi_async;
+	struct creq_func_event *unaffi_async;
+	u8 type;
+	int rc;
+
+	type = ((struct creq_base *)aeqe)->type;
+	if (type == CREQ_BASE_TYPE_FUNC_EVENT) {
+		unaffi_async = aeqe;
+		rc = bnxt_re_handle_unaffi_async_event(unaffi_async);
+	} else {
+		affi_async = aeqe;
+		rc = bnxt_re_handle_affi_async_event(affi_async, obj);
+	}
+
+	return rc;
+}
+
+static int bnxt_re_srqn_handler(struct bnxt_qplib_nq *nq,
+				struct bnxt_qplib_srq *handle, u8 event)
+{
+	struct bnxt_re_srq *srq = container_of(handle, struct bnxt_re_srq,
+					       qplib_srq);
+	struct ib_event ib_event;
+	int rc = 0;
+
+	if (!srq) {
+		dev_err(NULL, "%s: SRQ is NULL, SRQN not handled",
+			ROCE_DRV_MODULE_NAME);
+		rc = -EINVAL;
+		goto done;
+	}
+	ib_event.device = &srq->rdev->ibdev;
+	ib_event.element.srq = &srq->ib_srq;
+	if (event == NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT)
+		ib_event.event = IB_EVENT_SRQ_LIMIT_REACHED;
+	else
+		ib_event.event = IB_EVENT_SRQ_ERR;
+
+	if (srq->ib_srq.event_handler) {
+		/* Lock event_handler? */
+		(*srq->ib_srq.event_handler)(&ib_event,
+					     srq->ib_srq.srq_context);
+	}
+done:
+	return rc;
 }
 
 static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
@@ -763,7 +856,8 @@ static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 		rc = bnxt_qplib_enable_nq(rdev->en_dev->pdev, &rdev->nq[i - 1],
 					  i - 1, rdev->msix_entries[i].vector,
 					  rdev->msix_entries[i].db_offset,
-					  &bnxt_re_cqn_handler, NULL);
+					  &bnxt_re_cqn_handler,
+					  &bnxt_re_srqn_handler);
 
 		if (rc) {
 			dev_err(rdev_to_dev(rdev),
