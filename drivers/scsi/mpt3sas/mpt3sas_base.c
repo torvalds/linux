@@ -888,7 +888,7 @@ _base_async_event(struct MPT3SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 	return 1;
 }
 
-struct scsiio_tracker *
+static struct scsiio_tracker *
 _get_st_from_smid(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 {
 	struct scsi_cmnd *cmd;
