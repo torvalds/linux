@@ -848,7 +848,9 @@ static inline int obd_pool_del(struct obd_device *obd, char *poolname)
 	return rc;
 }
 
-static inline int obd_pool_add(struct obd_device *obd, char *poolname, char *ostname)
+static inline int obd_pool_add(struct obd_device *obd,
+			       char *poolname,
+			       char *ostname)
 {
 	int rc;
 
@@ -859,7 +861,9 @@ static inline int obd_pool_add(struct obd_device *obd, char *poolname, char *ost
 	return rc;
 }
 
-static inline int obd_pool_rem(struct obd_device *obd, char *poolname, char *ostname)
+static inline int obd_pool_rem(struct obd_device *obd,
+			       char *poolname,
+			       char *ostname)
 {
 	int rc;
 
@@ -993,7 +997,8 @@ static inline int obd_statfs(const struct lu_env *env, struct obd_export *exp,
 			spin_unlock(&obd->obd_osfs_lock);
 		}
 	} else {
-		CDEBUG(D_SUPER, "%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
+		CDEBUG(D_SUPER,
+		       "%s: use %p cache blocks %llu/%llu objects %llu/%llu\n",
 		       obd->obd_name, &obd->obd_osfs,
 		       obd->obd_osfs.os_bavail, obd->obd_osfs.os_blocks,
 		       obd->obd_osfs.os_ffree, obd->obd_osfs.os_files);
@@ -1572,7 +1577,8 @@ int class_procfs_init(void);
 int class_procfs_clean(void);
 
 /* prng.c */
-#define ll_generate_random_uuid(uuid_out) get_random_bytes(uuid_out, sizeof(class_uuid_t))
+#define ll_generate_random_uuid(uuid_out) \
+	get_random_bytes(uuid_out, sizeof(class_uuid_t))
 
 /* statfs_pack.c */
 struct kstatfs;
