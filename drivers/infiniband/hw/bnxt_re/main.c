@@ -1245,6 +1245,7 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	set_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags);
 	ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
 			 &rdev->active_width);
+	set_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS, &rdev->flags);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_PORT_ACTIVE);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_GID_CHANGE);
 

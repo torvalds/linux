@@ -790,3 +790,73 @@ int bnxt_qplib_map_tc2cos(struct bnxt_qplib_res *res, u16 *cids)
 				     0);
 	return 0;
 }
+
+int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
+			      struct bnxt_qplib_roce_stats *stats)
+{
+	struct cmdq_query_roce_stats req;
+	struct creq_query_roce_stats_resp resp;
+	struct bnxt_qplib_rcfw_sbuf *sbuf;
+	struct creq_query_roce_stats_resp_sb *sb;
+	u16 cmd_flags = 0;
+	int rc = 0;
+
+	RCFW_CMD_PREP(req, QUERY_ROCE_STATS, cmd_flags);
+
+	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
+	if (!sbuf) {
+		dev_err(&rcfw->pdev->dev,
+			"QPLIB: SP: QUERY_ROCE_STATS alloc side buffer failed");
+		return -ENOMEM;
+	}
+
+	sb = sbuf->sb;
+	req.resp_size = sizeof(*sb) / BNXT_QPLIB_CMDQE_UNITS;
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
+					  (void *)sbuf, 0);
+	if (rc)
+		goto bail;
+	/* Extract the context from the side buffer */
+	stats->to_retransmits = le64_to_cpu(sb->to_retransmits);
+	stats->seq_err_naks_rcvd = le64_to_cpu(sb->seq_err_naks_rcvd);
+	stats->max_retry_exceeded = le64_to_cpu(sb->max_retry_exceeded);
+	stats->rnr_naks_rcvd = le64_to_cpu(sb->rnr_naks_rcvd);
+	stats->missing_resp = le64_to_cpu(sb->missing_resp);
+	stats->unrecoverable_err = le64_to_cpu(sb->unrecoverable_err);
+	stats->bad_resp_err = le64_to_cpu(sb->bad_resp_err);
+	stats->local_qp_op_err = le64_to_cpu(sb->local_qp_op_err);
+	stats->local_protection_err = le64_to_cpu(sb->local_protection_err);
+	stats->mem_mgmt_op_err = le64_to_cpu(sb->mem_mgmt_op_err);
+	stats->remote_invalid_req_err = le64_to_cpu(sb->remote_invalid_req_err);
+	stats->remote_access_err = le64_to_cpu(sb->remote_access_err);
+	stats->remote_op_err = le64_to_cpu(sb->remote_op_err);
+	stats->dup_req = le64_to_cpu(sb->dup_req);
+	stats->res_exceed_max = le64_to_cpu(sb->res_exceed_max);
+	stats->res_length_mismatch = le64_to_cpu(sb->res_length_mismatch);
+	stats->res_exceeds_wqe = le64_to_cpu(sb->res_exceeds_wqe);
+	stats->res_opcode_err = le64_to_cpu(sb->res_opcode_err);
+	stats->res_rx_invalid_rkey = le64_to_cpu(sb->res_rx_invalid_rkey);
+	stats->res_rx_domain_err = le64_to_cpu(sb->res_rx_domain_err);
+	stats->res_rx_no_perm = le64_to_cpu(sb->res_rx_no_perm);
+	stats->res_rx_range_err = le64_to_cpu(sb->res_rx_range_err);
+	stats->res_tx_invalid_rkey = le64_to_cpu(sb->res_tx_invalid_rkey);
+	stats->res_tx_domain_err = le64_to_cpu(sb->res_tx_domain_err);
+	stats->res_tx_no_perm = le64_to_cpu(sb->res_tx_no_perm);
+	stats->res_tx_range_err = le64_to_cpu(sb->res_tx_range_err);
+	stats->res_irrq_oflow = le64_to_cpu(sb->res_irrq_oflow);
+	stats->res_unsup_opcode = le64_to_cpu(sb->res_unsup_opcode);
+	stats->res_unaligned_atomic = le64_to_cpu(sb->res_unaligned_atomic);
+	stats->res_rem_inv_err = le64_to_cpu(sb->res_rem_inv_err);
+	stats->res_mem_error = le64_to_cpu(sb->res_mem_error);
+	stats->res_srq_err = le64_to_cpu(sb->res_srq_err);
+	stats->res_cmp_err = le64_to_cpu(sb->res_cmp_err);
+	stats->res_invalid_dup_rkey = le64_to_cpu(sb->res_invalid_dup_rkey);
+	stats->res_wqe_format_err = le64_to_cpu(sb->res_wqe_format_err);
+	stats->res_cq_load_err = le64_to_cpu(sb->res_cq_load_err);
+	stats->res_srq_load_err = le64_to_cpu(sb->res_srq_load_err);
+	stats->res_tx_pci_err = le64_to_cpu(sb->res_tx_pci_err);
+	stats->res_rx_pci_err = le64_to_cpu(sb->res_rx_pci_err);
+bail:
+	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	return rc;
+}

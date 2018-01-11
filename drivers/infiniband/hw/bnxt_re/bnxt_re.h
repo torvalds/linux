@@ -121,6 +121,7 @@ struct bnxt_re_dev {
 #define BNXT_RE_FLAG_RCFW_CHANNEL_EN		4
 #define BNXT_RE_FLAG_QOS_WORK_REG		5
 #define BNXT_RE_FLAG_TASK_IN_PROG		6
+#define BNXT_RE_FLAG_ISSUE_ROCE_STATS          29
 	struct net_device		*netdev;
 	unsigned int			version, major, minor;
 	struct bnxt_en_dev		*en_dev;
@@ -168,6 +169,7 @@ struct bnxt_re_dev {
 	atomic_t nq_alloc_cnt;
 	u32 is_virtfn;
 	u32 num_vfs;
+	struct bnxt_qplib_roce_stats	stats;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
