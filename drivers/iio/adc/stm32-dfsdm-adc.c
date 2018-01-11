@@ -1100,9 +1100,9 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	dev_data = (const struct stm32_dfsdm_dev_data *)of_id->data;
 
 	iio = devm_iio_device_alloc(dev, sizeof(*adc));
-	if (IS_ERR(iio)) {
+	if (!iio) {
 		dev_err(dev, "%s: Failed to allocate IIO\n", __func__);
-		return PTR_ERR(iio);
+		return -ENOMEM;
 	}
 
 	adc = iio_priv(iio);
