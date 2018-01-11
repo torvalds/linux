@@ -1078,11 +1078,23 @@ static int ovl_get_indexdir(struct ovl_fs *ofs, struct ovl_entry *oe,
 
 	ofs->indexdir = ovl_workdir_create(ofs, OVL_INDEXDIR_NAME, true);
 	if (ofs->indexdir) {
-		/* Verify upper root is exclusively associated with index dir */
-		err = ovl_verify_set_fh(ofs->indexdir, OVL_XATTR_ORIGIN,
-					upperpath->dentry, true, true);
+		/*
+		 * Verify upper root is exclusively associated with index dir.
+		 * Older kernels stored upper fh in "trusted.overlay.origin"
+		 * xattr. If that xattr exists, verify that it is a match to
+		 * upper dir file handle. In any case, verify or set xattr
+		 * "trusted.overlay.upper" to indicate that index may have
+		 * directory entries.
+		 */
+		if (ovl_check_origin_xattr(ofs->indexdir)) {
+			err = ovl_verify_set_fh(ofs->indexdir, OVL_XATTR_ORIGIN,
+						upperpath->dentry, true, false);
+			if (err)
+				pr_err("overlayfs: failed to verify index dir 'origin' xattr\n");
+		}
+		err = ovl_verify_upper(ofs->indexdir, upperpath->dentry, true);
 		if (err)
-			pr_err("overlayfs: failed to verify index dir origin\n");
+			pr_err("overlayfs: failed to verify index dir 'upper' xattr\n");
 
 		/* Cleanup bad/stale/orphan index entries */
 		if (!err)

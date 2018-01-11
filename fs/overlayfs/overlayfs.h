@@ -27,6 +27,7 @@ enum ovl_path_type {
 #define OVL_XATTR_ORIGIN OVL_XATTR_PREFIX "origin"
 #define OVL_XATTR_IMPURE OVL_XATTR_PREFIX "impure"
 #define OVL_XATTR_NLINK OVL_XATTR_PREFIX "nlink"
+#define OVL_XATTR_UPPER OVL_XATTR_PREFIX "upper"
 
 enum ovl_flag {
 	/* Pure upper dir that may contain non pure upper entries */
@@ -264,6 +265,12 @@ static inline int ovl_verify_origin(struct dentry *upper,
 				    struct dentry *origin, bool set)
 {
 	return ovl_verify_set_fh(upper, OVL_XATTR_ORIGIN, origin, false, set);
+}
+
+static inline int ovl_verify_upper(struct dentry *index,
+				    struct dentry *upper, bool set)
+{
+	return ovl_verify_set_fh(index, OVL_XATTR_UPPER, upper, true, set);
 }
 
 /* readdir.c */

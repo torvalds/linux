@@ -538,6 +538,7 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 	struct dentry *index;
 	struct inode *inode;
 	struct qstr name;
+	bool is_dir = d_is_dir(origin);
 	int err;
 
 	err = ovl_get_index_name(origin, &name);
@@ -561,8 +562,6 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 	inode = d_inode(index);
 	if (d_is_negative(index)) {
 		goto out_dput;
-	} else if (upper && d_inode(upper) != inode) {
-		goto out_dput;
 	} else if (ovl_dentry_weird(index) || ovl_is_whiteout(index) ||
 		   ((inode->i_mode ^ d_inode(origin)->i_mode) & S_IFMT)) {
 		/*
@@ -576,8 +575,25 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 				    index, d_inode(index)->i_mode & S_IFMT,
 				    d_inode(origin)->i_mode & S_IFMT);
 		goto fail;
-	}
+	} else if (is_dir) {
+		if (!upper) {
+			pr_warn_ratelimited("overlayfs: suspected uncovered redirected dir found (origin=%pd2, index=%pd2).\n",
+					    origin, index);
+			goto fail;
+		}
 
+		/* Verify that dir index 'upper' xattr points to upper dir */
+		err = ovl_verify_upper(index, upper, false);
+		if (err) {
+			if (err == -ESTALE) {
+				pr_warn_ratelimited("overlayfs: suspected multiply redirected dir found (upper=%pd2, origin=%pd2, index=%pd2).\n",
+						    upper, origin, index);
+			}
+			goto fail;
+		}
+	} else if (upper && d_inode(upper) != inode) {
+		goto out_dput;
+	}
 out:
 	kfree(name.name);
 	return index;
@@ -646,6 +662,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	struct ovl_entry *roe = dentry->d_sb->s_root->d_fsdata;
 	struct ovl_path *stack = NULL;
 	struct dentry *upperdir, *upperdentry = NULL;
+	struct dentry *origin = NULL;
 	struct dentry *index = NULL;
 	unsigned int ctr = 0;
 	struct inode *inode = NULL;
@@ -739,7 +756,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 		/*
 		 * When "verify_lower" feature is enabled, do not merge with a
-		 * lower dir that does not match a stored origin xattr.
+		 * lower dir that does not match a stored origin xattr. In any
+		 * case, only verified origin is used for index lookup.
 		 */
 		if (upperdentry && !ctr && ovl_verify_lower(dentry->d_sb)) {
 			err = ovl_verify_origin(upperdentry, this, false);
@@ -747,6 +765,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 				dput(this);
 				break;
 			}
+
+			/* Bless lower dir as verified origin */
+			origin = this;
 		}
 
 		stack[ctr].dentry = this;
@@ -780,10 +801,17 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		}
 	}
 
-	/* Lookup index by lower inode and verify it matches upper inode */
-	if (ctr && !d.is_dir && ovl_indexdir(dentry->d_sb)) {
-		struct dentry *origin = stack[0].dentry;
+	/*
+	 * Lookup index by lower inode and verify it matches upper inode.
+	 * We only trust dir index if we verified that lower dir matches
+	 * origin, otherwise dir index entries may be inconsistent and we
+	 * ignore them. Always lookup index of non-dir and non-upper.
+	 */
+	if (ctr && (!upperdentry || !d.is_dir))
+		origin = stack[0].dentry;
 
+	if (origin && ovl_indexdir(dentry->d_sb) &&
+	    (!d.is_dir || ovl_index_all(dentry->d_sb))) {
 		index = ovl_lookup_index(dentry, upperdentry, origin);
 		if (IS_ERR(index)) {
 			err = PTR_ERR(index);
