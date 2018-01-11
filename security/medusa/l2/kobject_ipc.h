@@ -1,9 +1,11 @@
+#include <linux/sched.h>
 #include <linux/medusa/l3/registry.h>
 
 struct ipc_kobject {	
-	unsigned int sid;
-	unsigned int sclass;
+	unsigned int ipc_class;
+	key_t key;
 	MEDUSA_OBJECT_VARS;
+	MEDUSA_SUBJECT_VARS;
 };
 extern MED_DECLARE_KCLASSOF(ipc_kobject);
 
