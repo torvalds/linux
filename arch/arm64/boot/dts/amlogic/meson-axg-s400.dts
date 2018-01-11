@@ -14,6 +14,7 @@
 
 	aliases {
 		serial0 = &uart_AO;
+		serial1 = &uart_A;
 	};
 };
 
@@ -21,6 +22,12 @@
 	status = "okay";
 	phy-mode = "rgmii";
 	pinctrl-0 = <&eth_rgmii_y_pins>;
+	pinctrl-names = "default";
+};
+
+&uart_A {
+	status = "okay";
+	pinctrl-0 = <&uart_a_pins>;
 	pinctrl-names = "default";
 };
 
