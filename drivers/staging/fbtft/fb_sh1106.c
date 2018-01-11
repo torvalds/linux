@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the SH1106 OLED Controller
  * Based on the SSD1306 driver by Noralf Tronnes

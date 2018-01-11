@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FBTFT driver for the RA8875 LCD Controller
  * Copyright by Pf@nne & NOTRO

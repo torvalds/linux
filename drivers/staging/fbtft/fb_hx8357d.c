@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the HX8357D LCD Controller
  * Copyright (C) 2015 Adafruit Industries
