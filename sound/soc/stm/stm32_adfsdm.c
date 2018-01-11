@@ -320,7 +320,7 @@ static int stm32_adfsdm_probe(struct platform_device *pdev)
 
 	priv->iio_cb = iio_channel_get_all_cb(&pdev->dev, NULL, NULL);
 	if (IS_ERR(priv->iio_cb))
-		return PTR_ERR(priv->iio_ch);
+		return PTR_ERR(priv->iio_cb);
 
 	ret = devm_snd_soc_register_platform(&pdev->dev,
 					     &stm32_adfsdm_soc_platform);
