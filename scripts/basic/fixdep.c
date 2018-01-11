@@ -109,7 +109,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <limits.h>
 #include <ctype.h>
 
 int insert_extra_deps;
@@ -304,7 +303,6 @@ static void *read_file(const char *filename)
 static void parse_dep_file(char *m)
 {
 	char *p;
-	char s[PATH_MAX];
 	int is_last, is_target;
 	int saw_any_target = 0;
 	int is_first_dep = 0;
@@ -330,16 +328,14 @@ static void parse_dep_file(char *m)
 			/* The /next/ file is the first dependency */
 			is_first_dep = 1;
 		} else {
-			/* Save this token/filename */
-			memcpy(s, m, p-m);
-			s[p - m] = 0;
+			*p = '\0';
 
 			/* Ignore certain dependencies */
-			if (strrcmp(s, "include/generated/autoconf.h") &&
-			    strrcmp(s, "include/generated/autoksyms.h") &&
-			    strrcmp(s, "arch/um/include/uml-config.h") &&
-			    strrcmp(s, "include/linux/kconfig.h") &&
-			    strrcmp(s, ".ver")) {
+			if (strrcmp(m, "include/generated/autoconf.h") &&
+			    strrcmp(m, "include/generated/autoksyms.h") &&
+			    strrcmp(m, "arch/um/include/uml-config.h") &&
+			    strrcmp(m, "include/linux/kconfig.h") &&
+			    strrcmp(m, ".ver")) {
 				/*
 				 * Do not list the source file as dependency,
 				 * so that kbuild is not confused if a .c file
@@ -360,15 +356,15 @@ static void parse_dep_file(char *m)
 					if (!saw_any_target) {
 						saw_any_target = 1;
 						printf("source_%s := %s\n\n",
-							target, s);
+							target, m);
 						printf("deps_%s := \\\n",
 							target);
 					}
 					is_first_dep = 0;
 				} else
-					printf("  %s \\\n", s);
+					printf("  %s \\\n", m);
 
-				buf = read_file(s);
+				buf = read_file(m);
 				parse_config_file(buf);
 				free(buf);
 			}
