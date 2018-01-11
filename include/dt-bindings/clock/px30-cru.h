@@ -26,6 +26,7 @@
 #define ARMCLK			7
 
 /* sclk gates (special clocks) */
+#define USB480M			14
 #define SCLK_PDM		15
 #define SCLK_I2S0_TX		16
 #define SCLK_I2S0_TX_OUT	17
@@ -65,12 +66,12 @@
 #define SCLK_ISP		51
 #define SCLK_CIF_OUT		52
 #define SCLK_RGA_CORE		53
-#define SCLK_VOPM_PWM		54
+#define SCLK_VOPB_PWM		54
 #define SCLK_NANDC		55
 #define SCLK_SDIO		56
 #define SCLK_EMMC		57
 #define SCLK_SFC		58
-#define SCLK_SDCARD		59
+#define SCLK_SDMMC		59
 #define SCLK_OTG_ADP		60
 #define SCLK_GMAC_SRC		61
 #define SCLK_GMAC		62
@@ -87,10 +88,12 @@
 #define SCLK_GPU		73
 #define SCLK_PVTM		74
 #define SCLK_CORE_VPU		75
+#define SCLK_GMAC_RMII		76
+#define SCLK_UART2_SRC		77
 
 /* dclk gates */
-#define DCLK_VOPM		150
-#define DCLK_VOPS		151
+#define DCLK_VOPB		150
+#define DCLK_VOPL		151
 
 /* aclk gates */
 #define ACLK_GPU		170
@@ -103,12 +106,12 @@
 #define ACLK_GMAC		178
 #define ACLK_CIF		179
 #define ACLK_ISP		180
-#define ACLK_VOPM		181
-#define ACLK_VOPS		182
+#define ACLK_VOPB		181
+#define ACLK_VOPL		182
 #define ACLK_RGA		183
 #define ACLK_GIC		184
-#define ACLK_DMAC		185
 #define ACLK_DCF		186
+#define ACLK_DMAC		187
 
 /* hclk gates */
 #define HCLK_BUS_PRE		240
@@ -118,12 +121,12 @@
 #define HCLK_VPU		244
 #define HCLK_PERI_PRE		245
 #define HCLK_MMC_NAND		246
-#define HCLK_SDCARD		247
+#define HCLK_SDMMC		247
 #define HCLK_USB		248
 #define HCLK_CIF		249
 #define HCLK_ISP		250
-#define HCLK_VOPM		251
-#define HCLK_VOPS		252
+#define HCLK_VOPB		251
+#define HCLK_VOPL		252
 #define HCLK_RGA		253
 #define HCLK_NANDC		254
 #define HCLK_SDIO		255
@@ -184,6 +187,8 @@
 #define SCLK_REF24M_PMU		9
 #define SCLK_USBPHY_REF		10
 #define SCLK_MIPIDSIPHY_REF	11
+
+#define XIN24M_DIV		12
 
 #define PCLK_GPIO0_PMU		20
 #define PCLK_UART0_PMU		21

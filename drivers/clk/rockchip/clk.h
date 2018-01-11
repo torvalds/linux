@@ -51,7 +51,7 @@ struct clk;
 
 #define PX30_PMU_PLL_CON(x)		((x) * 0x4)
 #define PX30_PMU_CLKSEL_CON(x)		((x) * 0x4 + 0x40)
-#define PX30_PMU_CLKGATE_CON(x)		((x) * 0x4 + 0x58)
+#define PX30_PMU_CLKGATE_CON(x)		((x) * 0x4 + 0x80)
 #define PX30_PMU_MODE			0x0020
 
 #define PX30_BOOST_PLL_H_CON(x)		((x) * 0x4 + 0x8000)

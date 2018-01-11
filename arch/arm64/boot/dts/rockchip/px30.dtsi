@@ -123,14 +123,15 @@
 			};
 			pd_sdcard@PX30_PD_SDCARD {
 				reg = <PX30_PD_SDCARD>;
-				clocks = <&cru HCLK_SDCARD>,
-					 <&cru SCLK_SDCARD>;
+				clocks = <&cru HCLK_SDMMC>,
+					 <&cru SCLK_SDMMC>;
 			};
 			pd_gmac@PX30_PD_GMAC {
 				reg = <PX30_PD_GMAC>;
 				clocks = <&cru ACLK_GMAC>,
 					 <&cru PCLK_GMAC>,
-					 <&cru SCLK_MAC_REF>;
+					 <&cru SCLK_MAC_REF>,
+					 <&cru SCLK_GMAC_RX_TX>;
 			};
 			pd_mmc_nand@PX30_PD_MMC_NAND {
 				reg = <PX30_PD_MMC_NAND>;
@@ -152,16 +153,16 @@
 			pd_vo@PX30_PD_VO {
 				reg = <PX30_PD_VO>;
 				clocks = <&cru ACLK_RGA>,
-					 <&cru ACLK_VOPM>,
-					 <&cru ACLK_VOPS>,
-					 <&cru DCLK_VOPM>,
-					 <&cru DCLK_VOPS>,
+					 <&cru ACLK_VOPB>,
+					 <&cru ACLK_VOPL>,
+					 <&cru DCLK_VOPB>,
+					 <&cru DCLK_VOPL>,
 					 <&cru HCLK_RGA>,
-					 <&cru HCLK_VOPM>,
-					 <&cru HCLK_VOPS>,
+					 <&cru HCLK_VOPB>,
+					 <&cru HCLK_VOPL>,
 					 <&cru PCLK_MIPI_DSI>,
 					 <&cru SCLK_RGA_CORE>,
-					 <&cru SCLK_VOPM_PWM>;
+					 <&cru SCLK_VOPB_PWM>;
 			};
 			pd_vi@PX30_PD_VI {
 				reg = <PX30_PD_VI>;
@@ -173,8 +174,7 @@
 			};
 			pd_gpu@PX30_PD_GPU {
 				reg = <PX30_PD_GPU>;
-				clocks = <&cru ACLK_GPU>,
-					 <&cru SCLK_GPU>;
+				clocks = <&cru ACLK_GPU>;
 			};
 		};
 	};
@@ -405,6 +405,7 @@
 	wdt: watchdog@ff1e0000 {
 		compatible = "snps,dw-wdt";
 		reg = <0x0 0xff1e0000 0x0 0x100>;
+		clocks = <&cru PCLK_WDT_NS>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		status = "disabled";
 	};
@@ -560,7 +561,7 @@
 			<&cru ARMCLK>;
 		assigned-clock-rates =
 			<1608000000>, <1416000000>,
-			<594000000>, <500000000>,
+			<1188000000>, <1188000000>,
 			<816000000>;
 	};
 
@@ -573,16 +574,14 @@
 
 		assigned-clocks =
 			<&pmucru PLL_GPLL>, <&pmucru PCLK_PMU_PRE>,
-			<&pmucru SCLK_WIFI_PMU>,
-			<&cru ACLK_BUS_PRE>, <&cru ACLK_PERI_PRE>,
-			<&cru HCLK_BUS_PRE>, <&cru HCLK_PERI_PRE>,
-			<&cru PCLK_BUS_PRE>, <&cru SCLK_GPU>;
+			<&pmucru SCLK_WIFI_PMU>, <&cru ACLK_BUS_PRE>,
+			<&cru ACLK_PERI_PRE>, <&cru HCLK_BUS_PRE>,
+			<&cru HCLK_PERI_PRE>, <&cru PCLK_BUS_PRE>;
 		assigned-clock-rates =
-			<624000000>, <100000000>,
-			<26000000>,
-			<300000000>, <300000000>,
-			<150000000>, <150000000>,
-			<75000000>, <416000000>;
+			<1200000000>, <100000000>,
+			<26000000>, <300000000>,
+			<300000000>, <150000000>,
+			<150000000>, <75000000>;
 	};
 
 	mipi_dphy: mipi-dphy@ff2e0000 {
@@ -635,7 +634,7 @@
 		compatible = "rockchip,px30-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff370000 0x0 0x4000>;
 		max-frequency = <150000000>;
-		clocks = <&cru HCLK_SDCARD>, <&cru SCLK_SDCARD>;
+		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
 		clock-names = "biu", "ciu";
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
@@ -708,8 +707,8 @@
 		reg = <0x0 0xff460000 0x0 0x1fc>, <0x0 0xff460a00 0x0 0x400>;
 		reg-names = "regs", "gamma_lut";
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_VOPM>, <&cru DCLK_VOPM>,
-			 <&cru HCLK_VOPM>;
+		clocks = <&cru ACLK_VOPB>, <&cru DCLK_VOPB>,
+			 <&cru HCLK_VOPB>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
 		iommus = <&vopb_mmu>;
 		status = "disabled";
@@ -735,7 +734,7 @@
 		reg = <0x0 0xff460f00 0x0 0x100>;
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vopb_mmu";
-		clocks = <&cru ACLK_VOPM>, <&cru HCLK_VOPM>;
+		clocks = <&cru ACLK_VOPB>, <&cru HCLK_VOPB>;
 		clock-names = "aclk", "hclk";
 		#iommu-cells = <0>;
 		status = "disabled";
@@ -746,8 +745,8 @@
 		reg = <0x0 0xff470000 0x0 0x1fc>, <0x0 0xff470a00 0x0 0x400>;
 		reg-names = "regs", "gamma_lut";
 		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_VOPS>, <&cru DCLK_VOPS>,
-			 <&cru HCLK_VOPS>;
+		clocks = <&cru ACLK_VOPL>, <&cru DCLK_VOPL>,
+			 <&cru HCLK_VOPL>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
 		iommus = <&vopl_mmu>;
 		status = "disabled";
@@ -773,7 +772,7 @@
 		reg = <0x0 0xff470f00 0x0 0x100>;
 		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vopl_mmu";
-		clocks = <&cru ACLK_VOPS>, <&cru HCLK_VOPS>;
+		clocks = <&cru ACLK_VOPL>, <&cru HCLK_VOPL>;
 		clock-names = "aclk", "hclk";
 		#iommu-cells = <0>;
 		status = "disabled";
