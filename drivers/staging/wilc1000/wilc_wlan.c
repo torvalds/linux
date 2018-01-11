@@ -7,7 +7,7 @@
 
 static enum chip_ps_states chip_ps_state = CHIP_WAKEDUP;
 
-static inline void acquire_bus(struct wilc *wilc, BUS_ACQUIRE_T acquire)
+static inline void acquire_bus(struct wilc *wilc, enum bus_acquire acquire)
 {
 	mutex_lock(&wilc->hif_cs);
 	if (acquire == ACQUIRE_AND_WAKEUP)

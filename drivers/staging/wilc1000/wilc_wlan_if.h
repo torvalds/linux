@@ -143,10 +143,10 @@ enum chip_ps_states {
 	CHIP_SLEEPING_MANUAL	= 2
 };
 
-typedef enum {
+enum bus_acquire {
 	ACQUIRE_ONLY            = 0,
 	ACQUIRE_AND_WAKEUP	= 1,
-} BUS_ACQUIRE_T;
+};
 
 typedef enum {
 	RELEASE_ONLY		= 0,
