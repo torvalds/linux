@@ -532,22 +532,24 @@ static ssize_t signal_store(struct kobject *kobj, struct kobj_attribute *attr,
 	int ret;
 	bool val;
 
-	patch = container_of(kobj, struct klp_patch, kobj);
-
-	/*
-	 * klp_mutex lock is not grabbed here intentionally. It is not really
-	 * needed. The race window is harmless and grabbing the lock would only
-	 * hold the action back.
-	 */
-	if (patch != klp_transition_patch)
-		return -EINVAL;
-
 	ret = kstrtobool(buf, &val);
 	if (ret)
 		return ret;
 
-	if (val)
-		klp_send_signals();
+	if (!val)
+		return count;
+
+	mutex_lock(&klp_mutex);
+
+	patch = container_of(kobj, struct klp_patch, kobj);
+	if (patch != klp_transition_patch) {
+		mutex_unlock(&klp_mutex);
+		return -EINVAL;
+	}
+
+	klp_send_signals();
+
+	mutex_unlock(&klp_mutex);
 
 	return count;
 }
@@ -559,22 +561,24 @@ static ssize_t force_store(struct kobject *kobj, struct kobj_attribute *attr,
 	int ret;
 	bool val;
 
-	patch = container_of(kobj, struct klp_patch, kobj);
-
-	/*
-	 * klp_mutex lock is not grabbed here intentionally. It is not really
-	 * needed. The race window is harmless and grabbing the lock would only
-	 * hold the action back.
-	 */
-	if (patch != klp_transition_patch)
-		return -EINVAL;
-
 	ret = kstrtobool(buf, &val);
 	if (ret)
 		return ret;
 
-	if (val)
-		klp_force_transition();
+	if (!val)
+		return count;
+
+	mutex_lock(&klp_mutex);
+
+	patch = container_of(kobj, struct klp_patch, kobj);
+	if (patch != klp_transition_patch) {
+		mutex_unlock(&klp_mutex);
+		return -EINVAL;
+	}
+
+	klp_force_transition();
+
+	mutex_unlock(&klp_mutex);
 
 	return count;
 }
