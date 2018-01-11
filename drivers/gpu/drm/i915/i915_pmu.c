@@ -719,6 +719,7 @@ static const struct attribute_group *i915_pmu_attr_groups[] = {
 static struct i915_ext_attribute *
 add_i915_attr(struct i915_ext_attribute *attr, const char *name, u64 config)
 {
+	sysfs_attr_init(&attr->attr.attr);
 	attr->attr.attr.name = name;
 	attr->attr.attr.mode = 0444;
 	attr->attr.show = i915_pmu_event_show;
@@ -731,6 +732,7 @@ static struct perf_pmu_events_attr *
 add_pmu_attr(struct perf_pmu_events_attr *attr, const char *name,
 	     const char *str)
 {
+	sysfs_attr_init(&attr->attr.attr);
 	attr->attr.attr.name = name;
 	attr->attr.attr.mode = 0444;
 	attr->attr.show = perf_event_sysfs_show;
