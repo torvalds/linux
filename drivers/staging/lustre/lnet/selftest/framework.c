@@ -941,14 +941,12 @@ sfw_create_test_rpc(struct sfw_test_unit *tsu, struct lnet_process_id peer,
 	return 0;
 }
 
-static int
+static void
 sfw_run_test(struct swi_workitem *wi)
 {
 	struct sfw_test_unit *tsu = container_of(wi, struct sfw_test_unit, tsu_worker);
 	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	struct srpc_client_rpc *rpc = NULL;
-
-	LASSERT(wi == &tsu->tsu_worker);
 
 	if (tsi->tsi_ops->tso_prep_rpc(tsu, tsu->tsu_dest, &rpc)) {
 		LASSERT(!rpc);
@@ -975,7 +973,7 @@ sfw_run_test(struct swi_workitem *wi)
 	rpc->crpc_timeout = rpc_timeout;
 	srpc_post_rpc(rpc);
 	spin_unlock(&rpc->crpc_lock);
-	return 0;
+	return;
 
 test_done:
 	/*
@@ -985,9 +983,7 @@ test_done:
 	 * - my batch is still active; no one can run it again now.
 	 * Cancel pending schedules and prevent future schedule attempts:
 	 */
-	swi_exit_workitem(wi);
 	sfw_test_unit_done(tsu);
-	return 1;
 }
 
 static int
@@ -1017,7 +1013,7 @@ sfw_run_batch(struct sfw_batch *tsb)
 			tsu->tsu_loop = tsi->tsi_loop;
 			wi = &tsu->tsu_worker;
 			swi_init_workitem(wi, sfw_run_test,
-					  lst_sched_test[lnet_cpt_of_nid(tsu->tsu_dest.nid)]);
+					  lst_test_wq[lnet_cpt_of_nid(tsu->tsu_dest.nid)]);
 			swi_schedule_workitem(wi);
 		}
 	}
