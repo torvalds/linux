@@ -612,9 +612,12 @@ struct perf_event_mmap_page {
  */
 #define PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT	(1 << 12)
 /*
- * PERF_RECORD_MISC_MMAP_DATA and PERF_RECORD_MISC_COMM_EXEC are used on
- * different events so can reuse the same bit position.
- * Ditto PERF_RECORD_MISC_SWITCH_OUT.
+ * Following PERF_RECORD_MISC_* are used on different
+ * events, so can reuse the same bit position:
+ *
+ *   PERF_RECORD_MISC_MMAP_DATA  - PERF_RECORD_MMAP* events
+ *   PERF_RECORD_MISC_COMM_EXEC  - PERF_RECORD_COMM event
+ *   PERF_RECORD_MISC_SWITCH_OUT - PERF_RECORD_SWITCH* events
  */
 #define PERF_RECORD_MISC_MMAP_DATA		(1 << 13)
 #define PERF_RECORD_MISC_COMM_EXEC		(1 << 13)
@@ -864,6 +867,7 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *	u32				pid;
 	 *	u32				tid;
+	 *	struct sample_id		sample_id;
 	 * };
 	 */
 	PERF_RECORD_ITRACE_START		= 12,
