@@ -114,6 +114,10 @@ static void f2fs_write_end_io(struct bio *bio)
 			if (type == F2FS_WB_CP_DATA)
 				f2fs_stop_checkpoint(sbi, true);
 		}
+
+		f2fs_bug_on(sbi, page->mapping == NODE_MAPPING(sbi) &&
+					page->index != nid_of_node(page));
+
 		dec_page_count(sbi, type);
 		clear_cold_data(page);
 		end_page_writeback(page);
