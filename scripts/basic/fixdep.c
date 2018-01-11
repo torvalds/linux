@@ -264,42 +264,36 @@ static int strrcmp(const char *s, const char *sub)
 	return memcmp(s + slen - sublen, sub, sublen);
 }
 
-static void do_config_file(const char *filename)
+static void *read_file(const char *filename)
 {
 	struct stat st;
 	int fd;
-	char *map;
+	char *buf;
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "fixdep: error opening config file: ");
+		fprintf(stderr, "fixdep: error opening file: ");
 		perror(filename);
 		exit(2);
 	}
 	if (fstat(fd, &st) < 0) {
-		fprintf(stderr, "fixdep: error fstat'ing config file: ");
+		fprintf(stderr, "fixdep: error fstat'ing file: ");
 		perror(filename);
 		exit(2);
 	}
-	if (st.st_size == 0) {
-		close(fd);
-		return;
-	}
-	map = malloc(st.st_size + 1);
-	if (!map) {
+	buf = malloc(st.st_size + 1);
+	if (!buf) {
 		perror("fixdep: malloc");
 		exit(2);
 	}
-	if (read(fd, map, st.st_size) != st.st_size) {
+	if (read(fd, buf, st.st_size) != st.st_size) {
 		perror("fixdep: read");
 		exit(2);
 	}
-	map[st.st_size] = '\0';
+	buf[st.st_size] = '\0';
 	close(fd);
 
-	parse_config_file(map);
-
-	free(map);
+	return buf;
 }
 
 /*
@@ -314,6 +308,7 @@ static void parse_dep_file(char *m)
 	int is_last, is_target;
 	int saw_any_target = 0;
 	int is_first_dep = 0;
+	void *buf;
 
 	while (1) {
 		/* Skip any "white space" */
@@ -372,7 +367,10 @@ static void parse_dep_file(char *m)
 					is_first_dep = 0;
 				} else
 					printf("  %s \\\n", s);
-				do_config_file(s);
+
+				buf = read_file(s);
+				parse_config_file(buf);
+				free(buf);
 			}
 		}
 
@@ -397,46 +395,10 @@ static void parse_dep_file(char *m)
 	printf("$(deps_%s):\n", target);
 }
 
-static void print_deps(const char *filename)
-{
-	struct stat st;
-	int fd;
-	char *buf;
-
-	fd = open(filename, O_RDONLY);
-	if (fd < 0) {
-		fprintf(stderr, "fixdep: error opening depfile: ");
-		perror(filename);
-		exit(2);
-	}
-	if (fstat(fd, &st) < 0) {
-		fprintf(stderr, "fixdep: error fstat'ing depfile: ");
-		perror(filename);
-		exit(2);
-	}
-	if (st.st_size == 0) {
-		close(fd);
-		return;
-	}
-	buf = malloc(st.st_size + 1);
-	if (!buf) {
-		perror("fixdep: malloc");
-		exit(2);
-	}
-	if (read(fd, buf, st.st_size) != st.st_size) {
-		perror("fixdep: read");
-		exit(2);
-	}
-	buf[st.st_size] = '\0';
-	close(fd);
-
-	parse_dep_file(buf);
-
-	free(buf);
-}
-
 int main(int argc, char *argv[])
 {
+	void *buf;
+
 	if (argc == 5 && !strcmp(argv[1], "-e")) {
 		insert_extra_deps = 1;
 		argv++;
@@ -448,7 +410,10 @@ int main(int argc, char *argv[])
 	cmdline = argv[3];
 
 	print_cmdline();
-	print_deps(depfile);
+
+	buf = read_file(depfile);
+	parse_dep_file(buf);
+	free(buf);
 
 	return 0;
 }
