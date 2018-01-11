@@ -307,6 +307,20 @@ static int f81534_set_mask_register(struct usb_serial *serial, u16 reg,
 	return f81534_set_register(serial, reg, tmp);
 }
 
+static int f81534_set_phy_port_register(struct usb_serial *serial, int phy,
+					u16 reg, u8 data)
+{
+	return f81534_set_register(serial, reg + F81534_UART_OFFSET * phy,
+					data);
+}
+
+static int f81534_get_phy_port_register(struct usb_serial *serial, int phy,
+					u16 reg, u8 *data)
+{
+	return f81534_get_register(serial, reg + F81534_UART_OFFSET * phy,
+					data);
+}
+
 static int f81534_set_port_register(struct usb_serial_port *port, u16 reg,
 					u8 data)
 {
@@ -733,6 +747,70 @@ static int f81534_find_config_idx(struct usb_serial *serial, u8 *index)
 }
 
 /*
+ * The F81532/534 will not report serial port to USB serial subsystem when
+ * H/W DCD/DSR/CTS/RI/RX pin connected to ground.
+ *
+ * To detect RX pin status, we'll enable MCR interal loopback, disable it and
+ * delayed for 60ms. It connected to ground If LSR register report UART_LSR_BI.
+ */
+static bool f81534_check_port_hw_disabled(struct usb_serial *serial, int phy)
+{
+	int status;
+	u8 old_mcr;
+	u8 msr;
+	u8 lsr;
+	u8 msr_mask;
+
+	msr_mask = UART_MSR_DCD | UART_MSR_RI | UART_MSR_DSR | UART_MSR_CTS;
+
+	status = f81534_get_phy_port_register(serial, phy,
+				F81534_MODEM_STATUS_REG, &msr);
+	if (status)
+		return false;
+
+	if ((msr & msr_mask) != msr_mask)
+		return false;
+
+	status = f81534_set_phy_port_register(serial, phy,
+				F81534_FIFO_CONTROL_REG, UART_FCR_ENABLE_FIFO |
+				UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
+	if (status)
+		return false;
+
+	status = f81534_get_phy_port_register(serial, phy,
+				F81534_MODEM_CONTROL_REG, &old_mcr);
+	if (status)
+		return false;
+
+	status = f81534_set_phy_port_register(serial, phy,
+				F81534_MODEM_CONTROL_REG, UART_MCR_LOOP);
+	if (status)
+		return false;
+
+	status = f81534_set_phy_port_register(serial, phy,
+				F81534_MODEM_CONTROL_REG, 0x0);
+	if (status)
+		return false;
+
+	msleep(60);
+
+	status = f81534_get_phy_port_register(serial, phy,
+				F81534_LINE_STATUS_REG, &lsr);
+	if (status)
+		return false;
+
+	status = f81534_set_phy_port_register(serial, phy,
+				F81534_MODEM_CONTROL_REG, old_mcr);
+	if (status)
+		return false;
+
+	if ((lsr & UART_LSR_BI) == UART_LSR_BI)
+		return true;
+
+	return false;
+}
+
+/*
  * We had 2 generation of F81532/534 IC. All has an internal storage.
  *
  * 1st is pure USB-to-TTL RS232 IC and designed for 4 ports only, no any
@@ -823,6 +901,9 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 
 	/* New style, find all possible ports */
 	for (i = 0; i < F81534_NUM_PORT; ++i) {
+		if (f81534_check_port_hw_disabled(serial, i))
+			serial_priv->conf_data[i] |= F81534_PORT_UNAVAILABLE;
+
 		if (serial_priv->conf_data[i] & F81534_PORT_UNAVAILABLE)
 			continue;
 
