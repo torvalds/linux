@@ -2762,6 +2762,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		if (err == 0 && rt->dst.error)
 			err = -rt->dst.error;
 	} else {
+		fl4.flowi4_iif = LOOPBACK_IFINDEX;
 		rt = ip_route_output_key_hash_rcu(net, &fl4, &res, skb);
 		err = 0;
 		if (IS_ERR(rt))
