@@ -9357,7 +9357,7 @@ static int active_load_balance_cpu_stop(void *data)
 	struct rq *target_rq = cpu_rq(target_cpu);
 	struct sched_domain *sd = NULL;
 	struct task_struct *p = NULL;
-	struct task_struct *push_task;
+	struct task_struct *push_task = NULL;
 	int push_task_detached = 0;
 	struct lb_env env = {
 		.sd		= sd,
