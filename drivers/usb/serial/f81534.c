@@ -52,6 +52,7 @@
 #define F81534_CUSTOM_NO_CUSTOM_DATA	0xff
 #define F81534_CUSTOM_VALID_TOKEN	0xf0
 #define F81534_CONF_OFFSET		1
+#define F81534_CONF_GPIO_OFFSET		4
 
 #define F81534_MAX_DATA_BLOCK		64
 #define F81534_MAX_BUS_RETRY		20
@@ -164,6 +165,23 @@ struct f81534_port_private {
 	u8 phy_num;
 };
 
+struct f81534_pin_data {
+	const u16 reg_addr;
+	const u8 reg_mask;
+};
+
+struct f81534_port_out_pin {
+	struct f81534_pin_data pin[3];
+};
+
+/* Pin output value for M2/M1/M0(SD) */
+static const struct f81534_port_out_pin f81534_port_out_pins[] = {
+	 { { { 0x2ae8, BIT(7) }, { 0x2a90, BIT(5) }, { 0x2a90, BIT(4) } } },
+	 { { { 0x2ae8, BIT(6) }, { 0x2ae8, BIT(0) }, { 0x2ae8, BIT(3) } } },
+	 { { { 0x2a90, BIT(0) }, { 0x2ae8, BIT(2) }, { 0x2a80, BIT(6) } } },
+	 { { { 0x2a90, BIT(3) }, { 0x2a90, BIT(2) }, { 0x2a90, BIT(1) } } },
+};
+
 static u32 const baudrate_table[] = { 115200, 921600, 1152000, 1500000 };
 static u8 const clock_table[] = { F81534_CLK_1_846_MHZ, F81534_CLK_14_77_MHZ,
 				F81534_CLK_18_46_MHZ, F81534_CLK_24_MHZ };
@@ -271,6 +289,22 @@ static int f81534_get_register(struct usb_serial *serial, u16 reg, u8 *data)
 end:
 	kfree(tmp);
 	return status;
+}
+
+static int f81534_set_mask_register(struct usb_serial *serial, u16 reg,
+					u8 mask, u8 data)
+{
+	int status;
+	u8 tmp;
+
+	status = f81534_get_register(serial, reg, &tmp);
+	if (status)
+		return status;
+
+	tmp &= ~mask;
+	tmp |= (mask & data);
+
+	return f81534_set_register(serial, reg, tmp);
 }
 
 static int f81534_set_port_register(struct usb_serial_port *port, u16 reg,
@@ -1281,6 +1315,37 @@ static void f81534_lsr_worker(struct work_struct *work)
 		dev_warn(&port->dev, "read LSR failed: %d\n", status);
 }
 
+static int f81534_set_port_output_pin(struct usb_serial_port *port)
+{
+	struct f81534_serial_private *serial_priv;
+	struct f81534_port_private *port_priv;
+	struct usb_serial *serial;
+	const struct f81534_port_out_pin *pins;
+	int status;
+	int i;
+	u8 value;
+	u8 idx;
+
+	serial = port->serial;
+	serial_priv = usb_get_serial_data(serial);
+	port_priv = usb_get_serial_port_data(port);
+
+	idx = F81534_CONF_GPIO_OFFSET + port_priv->phy_num;
+	value = serial_priv->conf_data[idx];
+	pins = &f81534_port_out_pins[port_priv->phy_num];
+
+	for (i = 0; i < ARRAY_SIZE(pins->pin); ++i) {
+		status = f81534_set_mask_register(serial,
+				pins->pin[i].reg_addr, pins->pin[i].reg_mask,
+				value & BIT(i) ? pins->pin[i].reg_mask : 0);
+		if (status)
+			return status;
+	}
+
+	dev_dbg(&port->dev, "Output pin (M0/M1/M2): %d\n", value);
+	return 0;
+}
+
 static int f81534_port_probe(struct usb_serial_port *port)
 {
 	struct f81534_serial_private *serial_priv;
@@ -1339,7 +1404,7 @@ static int f81534_port_probe(struct usb_serial_port *port)
 		break;
 	}
 
-	return 0;
+	return f81534_set_port_output_pin(port);
 }
 
 static int f81534_port_remove(struct usb_serial_port *port)
