@@ -19,6 +19,11 @@
 
 #include "power.h"
 
+#ifndef CONFIG_SUSPEND
+suspend_state_t pm_suspend_target_state;
+#define pm_suspend_target_state	(PM_SUSPEND_ON)
+#endif
+
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
  * if wakeup events are registered during or immediately before the transition.
@@ -267,6 +272,9 @@ int device_wakeup_enable(struct device *dev)
 
 	if (!dev || !dev->power.can_wakeup)
 		return -EINVAL;
+
+	if (pm_suspend_target_state != PM_SUSPEND_ON)
+		dev_dbg(dev, "Suspicious %s() during system transition!\n", __func__);
 
 	ws = wakeup_source_register(dev_name(dev));
 	if (!ws)
