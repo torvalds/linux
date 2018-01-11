@@ -217,6 +217,7 @@ struct timing_generator_funcs {
 	 */
 	bool (*get_crc)(struct timing_generator *tg,
 			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
+
 };
 
 #endif
