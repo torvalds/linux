@@ -7,30 +7,6 @@
 #ifndef _DIGI_H
 #define _DIGI_H
 
-#ifndef TIOCM_LE
-#define		TIOCM_LE	0x01		/* line enable */
-#define		TIOCM_DTR	0x02		/* data terminal ready */
-#define		TIOCM_RTS	0x04		/* request to send */
-#define		TIOCM_ST	0x08		/* secondary transmit */
-#define		TIOCM_SR	0x10		/* secondary receive */
-#define		TIOCM_CTS	0x20		/* clear to send */
-#define		TIOCM_CAR	0x40		/* carrier detect */
-#define		TIOCM_RNG	0x80		/* ring	indicator */
-#define		TIOCM_DSR	0x100		/* data set ready */
-#define		TIOCM_RI	TIOCM_RNG	/* ring (alternate) */
-#define		TIOCM_CD	TIOCM_CAR	/* carrier detect (alt)	*/
-#endif
-
-#if !defined(TIOCMSET)
-#define	TIOCMSET	(('d' << 8) | 252)	/* set modem ctrl state	*/
-#define	TIOCMGET	(('d' << 8) | 253)	/* set modem ctrl state	*/
-#endif
-
-#if !defined(TIOCMBIC)
-#define	TIOCMBIC	(('d' << 8) | 254)	/* set modem ctrl state */
-#define	TIOCMBIS	(('d' << 8) | 255)	/* set modem ctrl state */
-#endif
-
 #define DIGI_GETA	(('e' << 8) | 94)	/* Read params */
 #define DIGI_SETA	(('e' << 8) | 95)	/* Set params */
 #define DIGI_SETAW	(('e' << 8) | 96)	/* Drain & set params */
