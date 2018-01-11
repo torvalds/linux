@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * nvec_ps2: mouse driver for a NVIDIA compliant embedded controller
  *

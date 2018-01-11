@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NVEC: NVIDIA compliant embedded controller interface
  *
