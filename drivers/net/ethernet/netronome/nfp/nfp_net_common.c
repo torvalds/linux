@@ -2253,7 +2253,8 @@ static void nfp_net_rx_ring_free(struct nfp_net_rx_ring *rx_ring)
 	struct nfp_net_r_vector *r_vec = rx_ring->r_vec;
 	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
 
-	xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
+	if (dp->netdev)
+		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 	kfree(rx_ring->rxbufs);
 
 	if (rx_ring->rxds)
@@ -2279,9 +2280,12 @@ nfp_net_rx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring)
 {
 	int sz, err;
 
-	err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, dp->netdev, rx_ring->idx);
-	if (err < 0)
-		return err;
+	if (dp->netdev) {
+		err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, dp->netdev,
+				       rx_ring->idx);
+		if (err < 0)
+			return err;
+	}
 
 	rx_ring->cnt = dp->rxd_cnt;
 	rx_ring->size = sizeof(*rx_ring->rxds) * rx_ring->cnt;
@@ -3045,6 +3049,11 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	struct nfp_net_dp *dp;
+	int err;
+
+	err = nfp_app_change_mtu(nn->app, netdev, new_mtu);
+	if (err)
+		return err;
 
 	dp = nfp_net_clone_dp(nn);
 	if (!dp)
@@ -3405,16 +3414,8 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 		xdp->prog_id = nn->xdp_prog ? nn->xdp_prog->aux->id : 0;
 		xdp->prog_flags = nn->xdp_prog ? nn->xdp_flags : 0;
 		return 0;
-	case BPF_OFFLOAD_VERIFIER_PREP:
-		return nfp_app_bpf_verifier_prep(nn->app, nn, xdp);
-	case BPF_OFFLOAD_TRANSLATE:
-		return nfp_app_bpf_translate(nn->app, nn,
-					     xdp->offload.prog);
-	case BPF_OFFLOAD_DESTROY:
-		return nfp_app_bpf_destroy(nn->app, nn,
-					   xdp->offload.prog);
 	default:
-		return -EINVAL;
+		return nfp_app_bpf(nn->app, nn, xdp);
 	}
 }
 

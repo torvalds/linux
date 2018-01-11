@@ -169,11 +169,11 @@ struct bpf_call_arg_meta {
 static DEFINE_MUTEX(bpf_verifier_lock);
 
 /* log_level controls verbosity level of eBPF verifier.
- * verbose() is used to dump the verification trace to the log, so the user
- * can figure out what's wrong with the program
+ * bpf_verifier_log_write() is used to dump the verification trace to the log,
+ * so the user can figure out what's wrong with the program
  */
-static __printf(2, 3) void verbose(struct bpf_verifier_env *env,
-				   const char *fmt, ...)
+__printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
+					   const char *fmt, ...)
 {
 	struct bpf_verifer_log *log = &env->log;
 	unsigned int n;
@@ -197,6 +197,14 @@ static __printf(2, 3) void verbose(struct bpf_verifier_env *env,
 	else
 		log->ubuf = NULL;
 }
+EXPORT_SYMBOL_GPL(bpf_verifier_log_write);
+/* Historically bpf_verifier_log_write was called verbose, but the name was too
+ * generic for symbol export. The function was renamed, but not the calls in
+ * the verifier to avoid complicating backports. Hence the alias below.
+ */
+static __printf(2, 3) void verbose(struct bpf_verifier_env *env,
+				   const char *fmt, ...)
+	__attribute__((alias("bpf_verifier_log_write")));
 
 static bool type_is_pkt_pointer(enum bpf_reg_type type)
 {
@@ -375,6 +383,8 @@ static int realloc_func_state(struct bpf_func_state *state, int size,
 
 static void free_func_state(struct bpf_func_state *state)
 {
+	if (!state)
+		return;
 	kfree(state->stack);
 	kfree(state);
 }
@@ -487,6 +497,8 @@ static struct bpf_verifier_state *push_stack(struct bpf_verifier_env *env,
 	}
 	return &elem->st;
 err:
+	free_verifier_state(env->cur_state, true);
+	env->cur_state = NULL;
 	/* pop all elements and return */
 	while (!pop_stack(env, NULL, NULL));
 	return NULL;

@@ -7657,7 +7657,7 @@ err_rxq_info:
 	/* Rollback successful reg's and free other resources */
 	while (i--)
 		xdp_rxq_info_unreg(&rx[i].xdp_rxq);
-	kfree(dev->_rx);
+	kvfree(dev->_rx);
 	dev->_rx = NULL;
 	return err;
 }
@@ -7665,16 +7665,15 @@ err_rxq_info:
 static void netif_free_rx_queues(struct net_device *dev)
 {
 	unsigned int i, count = dev->num_rx_queues;
-	struct netdev_rx_queue *rx;
 
 	/* netif_alloc_rx_queues alloc failed, resources have been unreg'ed */
 	if (!dev->_rx)
 		return;
 
-	rx = dev->_rx;
-
 	for (i = 0; i < count; i++)
-		xdp_rxq_info_unreg(&rx[i].xdp_rxq);
+		xdp_rxq_info_unreg(&dev->_rx[i].xdp_rxq);
+
+	kvfree(dev->_rx);
 }
 
 static void netdev_init_one_queue(struct net_device *dev,

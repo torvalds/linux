@@ -186,6 +186,13 @@ nfp_repr_get_offload_stats(int attr_id, const struct net_device *dev,
 	return -EINVAL;
 }
 
+static int nfp_repr_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct nfp_repr *repr = netdev_priv(netdev);
+
+	return nfp_app_change_mtu(repr->app, netdev, new_mtu);
+}
+
 static netdev_tx_t nfp_repr_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
@@ -240,6 +247,7 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_open		= nfp_repr_open,
 	.ndo_stop		= nfp_repr_stop,
 	.ndo_start_xmit		= nfp_repr_xmit,
+	.ndo_change_mtu		= nfp_repr_change_mtu,
 	.ndo_get_stats64	= nfp_repr_get_stats64,
 	.ndo_has_offload_stats	= nfp_repr_has_offload_stats,
 	.ndo_get_offload_stats	= nfp_repr_get_offload_stats,

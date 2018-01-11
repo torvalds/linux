@@ -81,6 +81,7 @@ enum br_mask {
 	BR_BHS = 0x04,
 	BR_BLO = 0x05,
 	BR_BGE = 0x08,
+	BR_BLT = 0x09,
 	BR_UNC = 0x18,
 };
 
@@ -92,6 +93,10 @@ enum br_ev_pip {
 enum br_ctx_signal_state {
 	BR_CSS_NONE = 2,
 };
+
+u16 br_get_offset(u64 instr);
+void br_set_offset(u64 *instr, u16 offset);
+void br_add_offset(u64 *instr, u16 offset);
 
 #define OP_BBYTE_BASE		0x0c800000000ULL
 #define OP_BB_A_SRC		0x000000000ffULL

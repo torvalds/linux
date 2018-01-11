@@ -87,15 +87,20 @@ static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 static int
 nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 {
+	struct nfp_bpf_vnic *bv;
 	int err;
 
-	nn->app_priv = kzalloc(sizeof(struct nfp_bpf_vnic), GFP_KERNEL);
-	if (!nn->app_priv)
+	bv = kzalloc(sizeof(*bv), GFP_KERNEL);
+	if (!bv)
 		return -ENOMEM;
+	nn->app_priv = bv;
 
 	err = nfp_app_nic_vnic_alloc(app, nn, id);
 	if (err)
 		goto err_free_priv;
+
+	bv->start_off = nn_readw(nn, NFP_NET_CFG_BPF_START);
+	bv->tgt_done = nn_readw(nn, NFP_NET_CFG_BPF_DONE);
 
 	return 0;
 err_free_priv:
@@ -191,7 +196,27 @@ static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 
 static bool nfp_bpf_tc_busy(struct nfp_app *app, struct nfp_net *nn)
 {
-	return nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF;
+	struct nfp_bpf_vnic *bv = nn->app_priv;
+
+	return !!bv->tc_prog;
+}
+
+static int
+nfp_bpf_change_mtu(struct nfp_app *app, struct net_device *netdev, int new_mtu)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	unsigned int max_mtu;
+
+	if (~nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF)
+		return 0;
+
+	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
+	if (new_mtu > max_mtu) {
+		nn_info(nn, "BPF offload active, MTU over %u not supported\n",
+			max_mtu);
+		return -EBUSY;
+	}
+	return 0;
 }
 
 static int
@@ -311,6 +336,8 @@ const struct nfp_app_type app_bpf = {
 	.init		= nfp_bpf_init,
 	.clean		= nfp_bpf_clean,
 
+	.change_mtu	= nfp_bpf_change_mtu,
+
 	.extra_cap	= nfp_bpf_extra_cap,
 
 	.vnic_alloc	= nfp_bpf_vnic_alloc,
@@ -318,9 +345,6 @@ const struct nfp_app_type app_bpf = {
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.tc_busy	= nfp_bpf_tc_busy,
+	.bpf		= nfp_ndo_bpf,
 	.xdp_offload	= nfp_bpf_xdp_offload,
-
-	.bpf_verifier_prep	= nfp_bpf_verifier_prep,
-	.bpf_translate		= nfp_bpf_translate,
-	.bpf_destroy		= nfp_bpf_destroy,
 };
