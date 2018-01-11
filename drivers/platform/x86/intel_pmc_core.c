@@ -21,8 +21,8 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/init.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 
@@ -124,6 +124,7 @@ static const struct pci_device_id pmc_pci_ids[] = {
 					(kernel_ulong_t)&spt_reg_map },
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, pmc_pci_ids);
 
 static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
 {
@@ -520,10 +521,20 @@ static int pmc_core_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return 0;
 }
 
+static void pmc_core_remove(struct pci_dev *dev)
+{
+	pmc_core_dbgfs_unregister(&pmc);
+	mutex_destroy(&pmc.lock);
+}
+
 static struct pci_driver intel_pmc_core_driver = {
 	.name = "intel_pmc_core",
 	.id_table = pmc_pci_ids,
 	.probe = pmc_core_probe,
+	.remove = pmc_core_remove,
 };
 
-builtin_pci_driver(intel_pmc_core_driver);
+module_pci_driver(intel_pmc_core_driver);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Intel PMC Core Driver");

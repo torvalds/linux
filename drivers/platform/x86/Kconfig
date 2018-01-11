@@ -974,7 +974,7 @@ config INTEL_IMR
 	  If you are running on a Galileo/Quark say Y here.
 
 config INTEL_PMC_CORE
-	bool "Intel PMC Core driver"
+	tristate "Intel PMC Core driver"
 	depends on PCI
 	---help---
 	  The Intel Platform Controller Hub for Intel Core SoCs provides access
