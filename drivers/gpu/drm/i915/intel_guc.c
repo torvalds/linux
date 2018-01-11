@@ -215,6 +215,19 @@ static u32 get_core_family(struct drm_i915_private *dev_priv)
 	}
 }
 
+static u32 get_log_verbosity_flags(void)
+{
+	if (i915_modparams.guc_log_level > 0) {
+		u32 verbosity = i915_modparams.guc_log_level - 1;
+
+		GEM_BUG_ON(verbosity > GUC_LOG_VERBOSITY_MAX);
+		return verbosity << GUC_LOG_VERBOSITY_SHIFT;
+	}
+
+	GEM_BUG_ON(i915_modparams.enable_guc < 0);
+	return GUC_LOG_DISABLED;
+}
+
 /*
  * Initialise the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
@@ -247,12 +260,7 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
 
-	if (i915_modparams.guc_log_level >= 0) {
-		params[GUC_CTL_DEBUG] =
-			i915_modparams.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
-	} else {
-		params[GUC_CTL_DEBUG] = GUC_LOG_DISABLED;
-	}
+	params[GUC_CTL_DEBUG] = get_log_verbosity_flags();
 
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (USES_GUC_SUBMISSION(dev_priv)) {
@@ -445,7 +453,7 @@ int intel_guc_resume(struct drm_i915_private *dev_priv)
 	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return 0;
 
-	if (i915_modparams.guc_log_level >= 0)
+	if (i915_modparams.guc_log_level)
 		gen9_enable_guc_interrupts(dev_priv);
 
 	data[0] = INTEL_GUC_ACTION_EXIT_S_STATE;

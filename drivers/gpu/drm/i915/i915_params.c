@@ -155,7 +155,8 @@ i915_param_named_unsafe(enable_guc, int, 0400,
 	"(-1=auto, 0=disable [default], 1=GuC submission, 2=HuC load)");
 
 i915_param_named(guc_log_level, int, 0400,
-	"GuC firmware logging level (-1:disabled (default), 0-3:enabled)");
+	"GuC firmware logging level. Requires GuC to be loaded. "
+	"(-1=auto [default], 0=disable, 1..4=enable with verbosity min..max)");
 
 i915_param_named_unsafe(guc_firmware_path, charp, 0400,
 	"GuC firmware path to use instead of the default one");

@@ -65,6 +65,21 @@ static int __get_platform_enable_guc(struct drm_i915_private *dev_priv)
 	return enable_guc;
 }
 
+static int __get_default_guc_log_level(struct drm_i915_private *dev_priv)
+{
+	int guc_log_level = 0; /* disabled */
+
+	/* Enable if we're running on platform with GuC and debug config */
+	if (HAS_GUC(dev_priv) && intel_uc_is_using_guc() &&
+	    (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
+	     IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)))
+		guc_log_level = 1 + GUC_LOG_VERBOSITY_MAX;
+
+	/* Any platform specific fine-tuning can be done here */
+
+	return guc_log_level;
+}
+
 /**
  * intel_uc_sanitize_options - sanitize uC related modparam options
  * @dev_priv: device private
@@ -74,6 +89,13 @@ static int __get_platform_enable_guc(struct drm_i915_private *dev_priv)
  * modparam varies between platforms and it is hardcoded in driver code.
  * Any other modparam value is only monitored against availability of the
  * related hardware or firmware definitions.
+ *
+ * In case of "guc_log_level" option this function will attempt to modify
+ * it only if it was initially set to "auto(-1)" or if initial value was
+ * "enable(1..4)" on platforms without the GuC. Default value for this
+ * modparam varies between platforms and is usually set to "disable(0)"
+ * unless GuC is enabled on given platform and the driver is compiled with
+ * debug config when this modparam will default to "enable(1..4)".
  */
 void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 {
@@ -91,22 +113,48 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 
 	/* Verify GuC firmware availability */
 	if (intel_uc_is_using_guc() && !intel_uc_fw_is_selected(guc_fw)) {
-		DRM_WARN("Incompatible option detected: enable_guc=%d, %s!\n",
-			 i915_modparams.enable_guc,
+		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
+			 "enable_guc", i915_modparams.enable_guc,
 			 !HAS_GUC(dev_priv) ? "no GuC hardware" :
 					      "no GuC firmware");
 	}
 
 	/* Verify HuC firmware availability */
 	if (intel_uc_is_using_huc() && !intel_uc_fw_is_selected(huc_fw)) {
-		DRM_WARN("Incompatible option detected: enable_guc=%d, %s!\n",
-			 i915_modparams.enable_guc,
+		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
+			 "enable_guc", i915_modparams.enable_guc,
 			 !HAS_HUC(dev_priv) ? "no HuC hardware" :
 					      "no HuC firmware");
 	}
 
+	/* A negative value means "use platform/config default" */
+	if (i915_modparams.guc_log_level < 0)
+		i915_modparams.guc_log_level =
+			__get_default_guc_log_level(dev_priv);
+
+	if (i915_modparams.guc_log_level > 0 && !intel_uc_is_using_guc()) {
+		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
+			 "guc_log_level", i915_modparams.guc_log_level,
+			 !HAS_GUC(dev_priv) ? "no GuC hardware" :
+					      "GuC not enabled");
+		i915_modparams.guc_log_level = 0;
+	}
+
+	if (i915_modparams.guc_log_level > 1 + GUC_LOG_VERBOSITY_MAX) {
+		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
+			 "guc_log_level", i915_modparams.guc_log_level,
+			 "verbosity too high");
+		i915_modparams.guc_log_level = 1 + GUC_LOG_VERBOSITY_MAX;
+	}
+
+	DRM_DEBUG_DRIVER("guc_log_level=%d (enabled:%s verbosity:%d)\n",
+			 i915_modparams.guc_log_level,
+			 yesno(i915_modparams.guc_log_level),
+			 i915_modparams.guc_log_level - 1);
+
 	/* Make sure that sanitization was done */
 	GEM_BUG_ON(i915_modparams.enable_guc < 0);
+	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
 }
 
 void intel_uc_init_early(struct drm_i915_private *dev_priv)
@@ -152,7 +200,7 @@ void intel_uc_init_mmio(struct drm_i915_private *dev_priv)
 
 static void guc_capture_load_err_log(struct intel_guc *guc)
 {
-	if (!guc->log.vma || i915_modparams.guc_log_level < 0)
+	if (!guc->log.vma || !i915_modparams.guc_log_level)
 		return;
 
 	if (!guc->load_err_log)
@@ -322,7 +370,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	}
 
 	if (USES_GUC_SUBMISSION(dev_priv)) {
-		if (i915_modparams.guc_log_level >= 0)
+		if (i915_modparams.guc_log_level)
 			gen9_enable_guc_interrupts(dev_priv);
 
 		ret = intel_guc_submission_enable(guc);
