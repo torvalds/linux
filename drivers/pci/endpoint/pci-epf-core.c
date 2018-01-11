@@ -99,7 +99,7 @@ EXPORT_SYMBOL_GPL(pci_epf_bind);
  */
 void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar)
 {
-	struct device *dev = &epf->dev;
+	struct device *dev = epf->epc->dev.parent;
 
 	if (!addr)
 		return;
@@ -122,7 +122,7 @@ EXPORT_SYMBOL_GPL(pci_epf_free_space);
 void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar)
 {
 	void *space;
-	struct device *dev = &epf->dev;
+	struct device *dev = epf->epc->dev.parent;
 	dma_addr_t phys_addr;
 
 	if (size < 128)
