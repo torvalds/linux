@@ -203,9 +203,6 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 {
 	int i, idx = 0;
 
-	if (!data)
-		return;
-
 	mutex_lock(&priv->state_lock);
 	mlx5e_update_stats(priv);
 	mutex_unlock(&priv->state_lock);
