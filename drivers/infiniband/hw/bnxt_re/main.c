@@ -572,6 +572,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 
 	ibdev->query_port		= bnxt_re_query_port;
 	ibdev->get_port_immutable	= bnxt_re_get_port_immutable;
+	ibdev->get_dev_fw_str           = bnxt_re_query_fw_str;
 	ibdev->query_pkey		= bnxt_re_query_pkey;
 	ibdev->query_gid		= bnxt_re_query_gid;
 	ibdev->get_netdev		= bnxt_re_get_netdev;
@@ -623,14 +624,6 @@ static ssize_t show_rev(struct device *device, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", rdev->en_dev->pdev->vendor);
 }
 
-static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
-			   char *buf)
-{
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
-
-	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->dev_attr.fw_ver);
-}
-
 static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 			char *buf)
 {
@@ -640,12 +633,10 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(hw_rev, 0444, show_rev, NULL);
-static DEVICE_ATTR(fw_rev, 0444, show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, 0444, show_hca, NULL);
 
 static struct device_attribute *bnxt_re_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_rev,
 	&dev_attr_hca_type
 };
 

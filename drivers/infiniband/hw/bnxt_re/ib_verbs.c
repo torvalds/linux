@@ -141,8 +141,9 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
 
 	memset(ib_attr, 0, sizeof(*ib_attr));
-
-	ib_attr->fw_ver = (u64)(unsigned long)(dev_attr->fw_ver);
+	memcpy(&ib_attr->fw_ver, dev_attr->fw_ver,
+	       min(sizeof(dev_attr->fw_ver),
+		   sizeof(ib_attr->fw_ver)));
 	bnxt_qplib_get_guid(rdev->netdev->dev_addr,
 			    (u8 *)&ib_attr->sys_image_guid);
 	ib_attr->max_mr_size = BNXT_RE_MAX_MR_SIZE;
@@ -279,6 +280,15 @@ int bnxt_re_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 	immutable->core_cap_flags |= RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP;
 	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 	return 0;
+}
+
+void bnxt_re_query_fw_str(struct ib_device *ibdev, char *str)
+{
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
+
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%d.%d.%d.%d",
+		 rdev->dev_attr.fw_ver[0], rdev->dev_attr.fw_ver[1],
+		 rdev->dev_attr.fw_ver[2], rdev->dev_attr.fw_ver[3]);
 }
 
 int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,

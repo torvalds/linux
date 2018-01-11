@@ -93,7 +93,8 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 	opcode = req->opcode;
 	if (!test_bit(FIRMWARE_INITIALIZED_FLAG, &rcfw->flags) &&
 	    (opcode != CMDQ_BASE_OPCODE_QUERY_FUNC &&
-	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW)) {
+	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW &&
+	     opcode != CMDQ_BASE_OPCODE_QUERY_VERSION)) {
 		dev_err(&rcfw->pdev->dev,
 			"QPLIB: RCFW not initialized, reject opcode 0x%x",
 			opcode);

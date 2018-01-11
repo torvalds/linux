@@ -45,7 +45,8 @@
 #define PCI_EXP_DEVCTL2_ATOMIC_REQ      0x0040
 
 struct bnxt_qplib_dev_attr {
-	char				fw_ver[32];
+#define FW_VER_ARR_LEN			4
+	u8				fw_ver[FW_VER_ARR_LEN];
 	u16				max_sgid;
 	u16				max_mrw;
 	u32				max_qp;

@@ -143,6 +143,7 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 		       struct ib_port_attr *port_attr);
 int bnxt_re_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 			       struct ib_port_immutable *immutable);
+void bnxt_re_query_fw_str(struct ib_device *ibdev, char *str);
 int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,
 		       u16 index, u16 *pkey);
 int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
