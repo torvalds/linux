@@ -334,7 +334,6 @@ void *ppc4xx_ocm_alloc(phys_addr_t *phys, int size, int align,
 
 		ocm_blk = kzalloc(sizeof(*ocm_blk), GFP_KERNEL);
 		if (!ocm_blk) {
-			printk(KERN_ERR "PPC4XX OCM: could not allocate ocm block");
 			rh_free(ocm_reg->rh, offset);
 			break;
 		}
@@ -388,10 +387,8 @@ static int __init ppc4xx_ocm_init(void)
 		return 0;
 
 	ocm_nodes = kzalloc((count * sizeof(struct ocm_info)), GFP_KERNEL);
-	if (!ocm_nodes) {
-		printk(KERN_ERR "PPC4XX OCM: failed to allocate OCM nodes!\n");
+	if (!ocm_nodes)
 		return -ENOMEM;
-	}
 
 	ocm_count = count;
 	count = 0;
