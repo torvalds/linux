@@ -1017,7 +1017,8 @@ static unsigned int adjust_ctr_overflow(u8 *iv, u32 bytes)
 	return bytes;
 }
 
-static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv)
+static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv,
+			     u32 isfinal)
 {
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
 	struct ablk_ctx *ablkctx = ABLK_CTX(c_ctx(tfm));
@@ -1044,7 +1045,8 @@ static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv)
 	for (i = 0; i < (round % 8); i++)
 		gf128mul_x_ble((le128 *)iv, (le128 *)iv);
 
-	crypto_cipher_decrypt_one(cipher, iv, iv);
+	if (!isfinal)
+		crypto_cipher_decrypt_one(cipher, iv, iv);
 out:
 	return ret;
 }
@@ -1065,7 +1067,7 @@ static int chcr_update_cipher_iv(struct ablkcipher_request *req,
 			CTR_RFC3686_IV_SIZE) = cpu_to_be32((reqctx->processed /
 						AES_BLOCK_SIZE) + 1);
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_XTS)
-		ret = chcr_update_tweak(req, iv);
+		ret = chcr_update_tweak(req, iv, 0);
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_CBC) {
 		if (reqctx->op)
 			sg_pcopy_to_buffer(req->src, sg_nents(req->src), iv,
@@ -1096,7 +1098,7 @@ static int chcr_final_cipher_iv(struct ablkcipher_request *req,
 		ctr_add_iv(iv, req->info, (reqctx->processed /
 			   AES_BLOCK_SIZE));
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_XTS)
-		ret = chcr_update_tweak(req, iv);
+		ret = chcr_update_tweak(req, iv, 1);
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_CBC) {
 		if (reqctx->op)
 			sg_pcopy_to_buffer(req->src, sg_nents(req->src), iv,
