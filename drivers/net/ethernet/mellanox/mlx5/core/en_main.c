@@ -3242,24 +3242,20 @@ static int mlx5e_set_features(struct net_device *netdev,
 			      netdev_features_t features)
 {
 	netdev_features_t oper_features = netdev->features;
-	int err;
+	int err = 0;
 
-	err  = mlx5e_handle_feature(netdev, &oper_features, features,
-				    NETIF_F_LRO, set_feature_lro);
-	err |= mlx5e_handle_feature(netdev, &oper_features, features,
-				    NETIF_F_HW_VLAN_CTAG_FILTER,
+#define MLX5E_HANDLE_FEATURE(feature, handler) \
+	mlx5e_handle_feature(netdev, &oper_features, features, feature, handler)
+
+	err |= MLX5E_HANDLE_FEATURE(NETIF_F_LRO, set_feature_lro);
+	err |= MLX5E_HANDLE_FEATURE(NETIF_F_HW_VLAN_CTAG_FILTER,
 				    set_feature_cvlan_filter);
-	err |= mlx5e_handle_feature(netdev, &oper_features, features,
-				    NETIF_F_HW_TC, set_feature_tc_num_filters);
-	err |= mlx5e_handle_feature(netdev, &oper_features, features,
-				    NETIF_F_RXALL, set_feature_rx_all);
-	err |= mlx5e_handle_feature(netdev, &oper_features, features,
-				    NETIF_F_RXFCS, set_feature_rx_fcs);
-	err |= mlx5e_handle_feature(netdev, &oper_features, features,
-				    NETIF_F_HW_VLAN_CTAG_RX, set_feature_rx_vlan);
+	err |= MLX5E_HANDLE_FEATURE(NETIF_F_HW_TC, set_feature_tc_num_filters);
+	err |= MLX5E_HANDLE_FEATURE(NETIF_F_RXALL, set_feature_rx_all);
+	err |= MLX5E_HANDLE_FEATURE(NETIF_F_RXFCS, set_feature_rx_fcs);
+	err |= MLX5E_HANDLE_FEATURE(NETIF_F_HW_VLAN_CTAG_RX, set_feature_rx_vlan);
 #ifdef CONFIG_RFS_ACCEL
-	err |= mlx5e_handle_feature(netdev, &oper_features, features,
-				    NETIF_F_NTUPLE, set_feature_arfs);
+	err |= MLX5E_HANDLE_FEATURE(NETIF_F_NTUPLE, set_feature_arfs);
 #endif
 
 	if (err) {
