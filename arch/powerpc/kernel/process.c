@@ -1590,6 +1590,7 @@ int set_thread_tidr(struct task_struct *t)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(set_thread_tidr);
 
 #endif /* CONFIG_PPC64 */
 
