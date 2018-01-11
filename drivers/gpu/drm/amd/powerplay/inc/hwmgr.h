@@ -345,6 +345,9 @@ struct pp_hwmgr_func {
 					struct PP_TemperatureRange *range);
 	int (*get_power_profile_mode)(struct pp_hwmgr *hwmgr, char *buf);
 	int (*set_power_profile_mode)(struct pp_hwmgr *hwmgr, long *input, uint32_t size);
+	int (*odn_edit_dpm_table)(struct pp_hwmgr *hwmgr,
+					enum PP_OD_DPM_TABLE_COMMAND type,
+					long *input, uint32_t size);
 };
 
 struct pp_table_func {

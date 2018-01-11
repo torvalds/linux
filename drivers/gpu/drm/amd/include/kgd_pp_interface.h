@@ -161,6 +161,13 @@ enum {
 	PP_GROUP_MAX
 };
 
+enum PP_OD_DPM_TABLE_COMMAND {
+	PP_OD_EDIT_SCLK_VDDC_TABLE,
+	PP_OD_EDIT_MCLK_VDDC_TABLE,
+	PP_OD_RESTORE_DEFAULT_TABLE,
+	PP_OD_COMMIT_DPM_TABLE
+};
+
 struct pp_states_info {
 	uint32_t nums;
 	uint32_t states[16];
