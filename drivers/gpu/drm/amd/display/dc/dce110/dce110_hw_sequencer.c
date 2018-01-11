@@ -989,12 +989,31 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings)
 {
 	struct encoder_unblank_param params = { { 0 } };
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->sink->link;
 
 	/* only 3 items below are used by unblank */
 	params.pixel_clk_khz =
 		pipe_ctx->stream->timing.pix_clk_khz;
 	params.link_settings.link_rate = link_settings->link_rate;
-	pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
+
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
+		link->dc->hwss.edp_backlight_control(link, true);
+}
+void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
+{
+	struct encoder_unblank_param params = { { 0 } };
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->sink->link;
+
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
+		link->dc->hwss.edp_backlight_control(link, false);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
 }
 
 
@@ -2911,6 +2930,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.enable_stream = dce110_enable_stream,
 	.disable_stream = dce110_disable_stream,
 	.unblank_stream = dce110_unblank_stream,
+	.blank_stream = dce110_blank_stream,
 	.enable_display_pipe_clock_gating = enable_display_pipe_clock_gating,
 	.enable_display_power_gating = dce110_enable_display_power_gating,
 	.disable_plane = dce110_power_down_fe,

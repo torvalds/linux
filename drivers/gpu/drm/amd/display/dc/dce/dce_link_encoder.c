@@ -821,6 +821,9 @@ void dce110_link_encoder_hw_init(
 	cntl.coherent = false;
 	cntl.hpd_sel = enc110->base.hpd_source;
 
+	if (enc110->base.connector.id == CONNECTOR_ID_EDP)
+		cntl.signal = SIGNAL_TYPE_EDP;
+
 	result = link_transmitter_control(enc110, &cntl);
 
 	if (result != BP_RESULT_OK) {

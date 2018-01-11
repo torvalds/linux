@@ -52,6 +52,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option);
 void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);
 
+void dce110_blank_stream(struct pipe_ctx *pipe_ctx);
 void dce110_update_info_frame(struct pipe_ctx *pipe_ctx);
 
 void dce110_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);

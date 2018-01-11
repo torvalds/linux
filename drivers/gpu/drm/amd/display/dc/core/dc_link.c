@@ -1279,13 +1279,12 @@ static enum dc_status enable_link_edp(
 	enum dc_status status;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
-
+	/*in case it is not on*/
 	link->dc->hwss.edp_power_control(link, true);
 	link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 
 	status = enable_link_dp(state, pipe_ctx);
 
-	link->dc->hwss.edp_backlight_control(link, true);
 
 	return status;
 }
@@ -2309,7 +2308,6 @@ void core_link_enable_stream(
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		allocate_mst_payload(pipe_ctx);
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		core_dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->sink->link->cur_link_settings);
 }
@@ -2321,8 +2319,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
 
-	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP)
-		core_dc->hwss.edp_backlight_control(pipe_ctx->stream->sink->link, false);
+	core_dc->hwss.blank_stream(pipe_ctx);
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 

@@ -149,6 +149,7 @@ struct hw_sequencer_funcs {
 	void (*unblank_stream)(struct pipe_ctx *pipe_ctx,
 			struct dc_link_settings *link_settings);
 
+	void (*blank_stream)(struct pipe_ctx *pipe_ctx);
 	void (*pipe_control_lock)(
 				struct dc *dc,
 				struct pipe_ctx *pipe,
