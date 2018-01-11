@@ -98,10 +98,15 @@
 
 #define F81534_DEFAULT_BAUD_RATE	9600
 
+#define F81534_PORT_CONF_RS232		0
+#define F81534_PORT_CONF_RS485		BIT(0)
+#define F81534_PORT_CONF_RS485_INVERT	(BIT(0) | BIT(1))
+#define F81534_PORT_CONF_MODE_MASK	GENMASK(1, 0)
 #define F81534_PORT_CONF_DISABLE_PORT	BIT(3)
 #define F81534_PORT_CONF_NOT_EXIST_PORT	BIT(7)
 #define F81534_PORT_UNAVAILABLE		\
 	(F81534_PORT_CONF_DISABLE_PORT | F81534_PORT_CONF_NOT_EXIST_PORT)
+
 
 #define F81534_1X_RXTRIGGER		0xc3
 #define F81534_8X_RXTRIGGER		0xcf
@@ -115,6 +120,8 @@
  *			01: 18.46MHz.
  *			10: 24MHz.
  *			11: 14.77MHz.
+ * Bit4:	Auto direction(RTS) control (RTS pin Low when TX)
+ * Bit5:	Invert direction(RTS) when Bit4 enabled (RTS pin high when TX)
  */
 
 #define F81534_UART_EN			BIT(0)
@@ -123,6 +130,8 @@
 #define F81534_CLK_24_MHZ		BIT(2)
 #define F81534_CLK_14_77_MHZ		(BIT(1) | BIT(2))
 #define F81534_CLK_MASK			GENMASK(2, 1)
+#define F81534_CLK_RS485_MODE		BIT(4)
+#define F81534_CLK_RS485_INVERT		BIT(5)
 
 static const struct usb_device_id f81534_id_table[] = {
 	{ USB_DEVICE(FINTEK_VENDOR_ID_1, FINTEK_DEVICE_ID) },
@@ -1274,9 +1283,12 @@ static void f81534_lsr_worker(struct work_struct *work)
 
 static int f81534_port_probe(struct usb_serial_port *port)
 {
+	struct f81534_serial_private *serial_priv;
 	struct f81534_port_private *port_priv;
 	int ret;
+	u8 value;
 
+	serial_priv = usb_get_serial_data(port->serial);
 	port_priv = devm_kzalloc(&port->dev, sizeof(*port_priv), GFP_KERNEL);
 	if (!port_priv)
 		return -ENOMEM;
@@ -1308,6 +1320,24 @@ static int f81534_port_probe(struct usb_serial_port *port)
 			UART_IER_RDI | UART_IER_THRI | UART_IER_MSI);
 	if (ret)
 		return ret;
+
+	value = serial_priv->conf_data[port_priv->phy_num];
+	switch (value & F81534_PORT_CONF_MODE_MASK) {
+	case F81534_PORT_CONF_RS485_INVERT:
+		port_priv->shadow_clk |= F81534_CLK_RS485_MODE |
+					F81534_CLK_RS485_INVERT;
+		dev_dbg(&port->dev, "RS485 invert mode\n");
+		break;
+	case F81534_PORT_CONF_RS485:
+		port_priv->shadow_clk |= F81534_CLK_RS485_MODE;
+		dev_dbg(&port->dev, "RS485 mode\n");
+		break;
+
+	default:
+	case F81534_PORT_CONF_RS232:
+		dev_dbg(&port->dev, "RS232 mode\n");
+		break;
+	}
 
 	return 0;
 }
