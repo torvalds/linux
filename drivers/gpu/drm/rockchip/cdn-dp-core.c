@@ -13,6 +13,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
@@ -261,21 +262,6 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 	return ret;
 }
 
-static int cdn_dp_set_hdcp_drm_property(struct cdn_dp_device *dp, uint64_t val)
-{
-	struct drm_connector *connector = &dp->connector;
-	struct drm_mode_config *mc = &connector->dev->mode_config;
-	int ret;
-
-	ret = drm_object_property_set_value(&connector->base,
-					    mc->content_protection_property,
-					    val);
-	if (ret)
-		DRM_DEV_ERROR(dp->dev, "Failed to set CP prop to %lld/%d\n",
-			      val, ret);
-	return ret;
-}
-
 static int cdn_dp_stop_hdcp1x_auth(struct cdn_dp_device *dp)
 {
 	int ret;
@@ -290,18 +276,16 @@ static int cdn_dp_stop_hdcp1x_auth(struct cdn_dp_device *dp)
 	else
 		DRM_DEV_ERROR(dp->dev, "Disable HDCP failed %d\n", ret);
 
-	if (!dp->hdcp_desired)
-		return ret;
-	/*
-	 * In the case where we're disabling hdcp while it's still desired,
-	 * set the property value back to DESIRED to reflect that hdcp is
-	 * no longer enabled
+	dp->hdcp_enabled = false;
+
+	/* If hdcp is still desired, we're disabling because of error or
+	 * hotplug. In both of these cases, we'll want to change the content
+	 * protection property from ENABLED to DESIRED. Schedule the property
+	 * worker for this.
 	 */
-	ret = cdn_dp_set_hdcp_drm_property(dp,
-			DRM_MODE_CONTENT_PROTECTION_DESIRED);
-	if (ret)
-		DRM_DEV_ERROR(dp->dev, "Failed set CP property to DESIRED %d\n",
-				ret);
+	if (dp->hdcp_desired)
+		schedule_work(&dp->hdcp_prop_work);
+
 	return ret;
 }
 
@@ -372,65 +356,15 @@ static void cdn_dp_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static int cdn_dp_set_content_protection(struct drm_connector *connector,
-					 uint64_t val)
-{
-	struct cdn_dp_device *dp = connector_to_dp(connector);
-	struct drm_property *property;
-	struct drm_mode_config *mode_config = &connector->dev->mode_config;
-	int ret;
-
-	property = mode_config->content_protection_property;
-
-	/* If we're in a state transition already, wait for it to finish */
-	cancel_delayed_work_sync(&dp->hdcp_event_work);
-
-	mutex_lock(&dp->lock);
-
-	ret = cdn_dp_set_hdcp_drm_property(dp, val);
-	if (ret)
-		goto out;
-
-	dp->hdcp_desired = val == DRM_MODE_CONTENT_PROTECTION_DESIRED;
-	if (val == DRM_MODE_CONTENT_PROTECTION_DESIRED)
-		ret = cdn_dp_start_hdcp1x_auth(dp);
-	else
-		ret = cdn_dp_stop_hdcp1x_auth(dp);
-
-	if (ret)
-		DRM_DEV_ERROR(dp->dev, "%s HDCP failed %d\n",
-				dp->hdcp_desired ? "Enable" : "Disable", ret);
-
-out:
-	mutex_unlock(&dp->lock);
-
-	return ret;
-}
-
-static int cdn_dp_connector_set_property(struct drm_connector *connector,
-						struct drm_property *property,
-						uint64_t val)
-{
-	if (strcmp(property->name, "Content Protection") == 0) {
-		/* Only the driver can set to enabled */
-		if (val == DRM_MODE_CONTENT_PROTECTION_ENABLED)
-			return -EINVAL;
-
-		return cdn_dp_set_content_protection(connector, val);
-	}
-	return 0;
-}
-
 static int cdn_dp_connector_atomic_get_property(
 					struct drm_connector *connector,
 					const struct drm_connector_state *state,
 					struct drm_property *property,
 					uint64_t *val)
 {
-	struct drm_mode_config *mc = &connector->dev->mode_config;
 	int i;
 
-	if (property == mc->content_protection_property) {
+	if (property == connector->content_protection_property) {
 		for (i = 0; i < connector->properties.count; i++) {
 			if (connector->properties.properties[i] == property) {
 				*val = connector->properties.values[i];
@@ -448,11 +382,15 @@ static const struct drm_connector_funcs cdn_dp_atomic_connector_funcs = {
 	.destroy = cdn_dp_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.reset = drm_atomic_helper_connector_reset,
-	.set_property = cdn_dp_connector_set_property,
+	.set_property = drm_atomic_helper_connector_set_property,
 	.atomic_get_property = cdn_dp_connector_atomic_get_property,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
+
+bool is_connector_cdn_dp(struct drm_connector *connector) {
+	return connector->funcs == &cdn_dp_atomic_connector_funcs;
+}
 
 static int cdn_dp_connector_get_modes(struct drm_connector *connector)
 {
@@ -718,12 +656,6 @@ static int cdn_dp_disable(struct cdn_dp_device *dp)
 	if (!dp->active)
 		return 0;
 
-	if (dp->hdcp_desired) {
-		ret = cdn_dp_stop_hdcp1x_auth(dp);
-		if (ret)
-			DRM_DEV_ERROR(dp->dev, "Failed to stop hdcp%d\n", ret);
-	}
-
 	for (i = 0; i < dp->ports; i++)
 		cdn_dp_disable_phy(dp, dp->port[i]);
 
@@ -792,6 +724,13 @@ static int cdn_dp_enable(struct cdn_dp_device *dp)
 			}
 		}
 	}
+
+	/* Enable hdcp if it's desired */
+	if (dp->connector.state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_DESIRED)
+		ret = cdn_dp_start_hdcp1x_auth(dp);
+
+	return ret;
 
 err_clk_disable:
 	cdn_dp_clk_disable(dp);
@@ -899,12 +838,6 @@ static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 		DRM_DEV_ERROR(dp->dev, "Failed to valid video %d\n", ret);
 		goto out;
 	}
-
-	if (dp->hdcp_desired) {
-		ret = cdn_dp_start_hdcp1x_auth(dp);
-		if (ret)
-			DRM_DEV_ERROR(dp->dev, "hdcp start failed %d\n", ret);
-	}
 out:
 	mutex_unlock(&dp->lock);
 	if (!ret) {
@@ -922,6 +855,7 @@ static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
 	int ret;
 
 	mutex_lock(&dp->lock);
+
 	if (dp->active) {
 		ret = cdn_dp_disable(dp);
 		if (ret) {
@@ -949,11 +883,72 @@ static void cdn_dp_encoder_disable(struct drm_encoder *encoder)
 		schedule_work(&dp->event_work);
 }
 
+void cdn_dp_hdcp_atomic_enable(struct drm_connector *connector)
+{
+	struct cdn_dp_device *dp = connector_to_dp(connector);
+	int ret;
+
+	cancel_delayed_work_sync(&dp->hdcp_event_work);
+
+	mutex_lock(&dp->lock);
+
+	dp->hdcp_desired = true;
+
+	ret = cdn_dp_start_hdcp1x_auth(dp);
+	if (ret)
+		DRM_DEV_ERROR(dp->dev, "hdcp start failed %d\n", ret);
+
+	mutex_unlock(&dp->lock);
+}
+
+void cdn_dp_hdcp_atomic_disable(struct drm_connector *connector)
+{
+	struct cdn_dp_device *dp = connector_to_dp(connector);
+	uint64_t val;
+	int ret;
+
+	cancel_delayed_work_sync(&dp->hdcp_event_work);
+
+	mutex_lock(&dp->lock);
+
+	val = dp->connector.state->content_protection;
+	dp->hdcp_desired = val == DRM_MODE_CONTENT_PROTECTION_DESIRED;
+
+	ret = cdn_dp_stop_hdcp1x_auth(dp);
+	if (ret)
+		DRM_DEV_ERROR(dp->dev, "Failed to stop hdcp%d\n", ret);
+
+	mutex_unlock(&dp->lock);
+}
+
+static int cdn_dp_hdcp_atomic_check(struct cdn_dp_device *dp,
+				    uint64_t old_val,
+				    struct drm_crtc_state *crtc_state,
+				    struct drm_connector_state *conn_state)
+{
+	mutex_lock(&dp->lock);
+
+	if (!conn_state->crtc) {
+		/*
+		 * If the connector is being disabled with CP enabled, mark it
+		 * desired so it's re-enabled when the connector is brought back
+		 */
+		if (old_val == DRM_MODE_CONTENT_PROTECTION_ENABLED)
+			conn_state->content_protection =
+				DRM_MODE_CONTENT_PROTECTION_DESIRED;
+	}
+
+	mutex_unlock(&dp->lock);
+	return 0;
+}
+
 static int cdn_dp_encoder_atomic_check(struct drm_encoder *encoder,
 				       struct drm_crtc_state *crtc_state,
 				       struct drm_connector_state *conn_state)
 {
+	struct cdn_dp_device *dp = encoder_to_dp(encoder);
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	uint64_t old_cp = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_DisplayPort;
@@ -962,7 +957,10 @@ static int cdn_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	s->eotf = TRADITIONAL_GAMMA_SDR;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
-	return 0;
+	if (dp->connector.state)
+		old_cp = dp->connector.state->content_protection;
+
+	return cdn_dp_hdcp_atomic_check(dp, old_cp, crtc_state, conn_state);
 }
 
 static const struct drm_encoder_helper_funcs cdn_dp_encoder_helper_funcs = {
@@ -1325,13 +1323,13 @@ static bool cdn_dp_hdcp_authorize(struct cdn_dp_device *dp)
 		if (ret)
 			goto out;
 		if (HDCP_TX_STATUS_ERROR(tx_status)) {
+			dp->hdcp_enabled = false;
 			DRM_DEV_ERROR(dp->dev, "hdcp status error: %#x\n",
 				HDCP_TX_STATUS_ERROR(tx_status));
 			goto out;
 		} else if (tx_status & HDCP_TX_STATUS_AUTHENTICATED) {
-			ret = cdn_dp_set_hdcp_drm_property(dp,
-				DRM_MODE_CONTENT_PROTECTION_ENABLED);
 			if (!ret) {
+				dp->hdcp_enabled = true;
 				auth_done = true;
 				DRM_DEV_INFO(dp->dev, "HDCP is enabled\n");
 			}
@@ -1342,12 +1340,15 @@ static bool cdn_dp_hdcp_authorize(struct cdn_dp_device *dp)
 	if (sw_event & HDCP_TX_IS_RECEIVER_ID_VALID_EVENT) {
 		ret = cdn_dp_hdcp_tx_is_receiver_id_valid_req(dp);
 		if (ret) {
+			dp->hdcp_enabled = false;
 			auth_done = true;
 			goto out;
 		}
 		ret = cdn_dp_hdcp_tx_respond_id_valid(dp, true);
-		if (ret)
+		if (ret) {
+			dp->hdcp_enabled = false;
 			auth_done = true;
+		}
 	}
 
 out:
@@ -1368,6 +1369,47 @@ static void cdn_dp_hdcp_event_work(struct work_struct *work)
 				 HDCP_EVENT_TIMEOUT_US);
 	if (ret)
 		DRM_DEV_ERROR(dp->dev, "Failed to authorize hdcp\n");
+
+	/*
+	 * Ensure the content_protection property value is consistent with the
+	 * current authentication state of the hardware. This might mean a
+	 * transition from DESIRED->ENABLED, or in the case of error,
+	 * ENABLED->DESIRED. We never transition to ->UNDESIRED, that's up to
+	 * atomic_check().
+	 */
+	schedule_work(&dp->hdcp_prop_work);
+}
+
+static void cdn_dp_hdcp_prop_work(struct work_struct *work)
+{
+	struct cdn_dp_device *dp = container_of(work, struct cdn_dp_device,
+						hdcp_prop_work);
+	struct drm_device *dev = dp->drm_dev;
+	struct drm_connector *connector = &dp->connector;
+	struct drm_connector_state *state;
+	uint64_t val;
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	mutex_lock(&dp->lock);
+
+	/*
+	 * This worker is only used to flip between ENABLED/DESIRED. Either of
+	 * those to UNDESIRED is handled by core. If !hdcp_desired, we're
+	 * running just after hdcp has been disabled, so just exit
+	 */
+	if (dp->hdcp_desired) {
+		if (dp->hdcp_enabled)
+			val = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+		else
+			val = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+
+		state = connector->state;
+		state->content_protection = val;
+	}
+
+	mutex_unlock(&dp->lock);
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
 }
 
 static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
@@ -1377,7 +1419,6 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 	struct drm_connector *connector;
 	struct cdn_dp_port *port;
 	struct drm_device *drm_dev = data;
-	struct drm_mode_config *mode_config;
 	int ret, i;
 
 	ret = cdn_dp_parse_dt(dp);
@@ -1392,6 +1433,7 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 
 	INIT_WORK(&dp->event_work, cdn_dp_pd_event_work);
 	INIT_DELAYED_WORK(&dp->hdcp_event_work, cdn_dp_hdcp_event_work);
+	INIT_WORK(&dp->hdcp_prop_work, cdn_dp_hdcp_prop_work);
 
 	encoder = &dp->encoder;
 
@@ -1453,10 +1495,11 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 
 	schedule_work(&dp->event_work);
 
-	mode_config = &connector->dev->mode_config;
-	drm_object_attach_property(&connector->base,
-				   mode_config->content_protection_property,
-				   DRM_MODE_CONTENT_PROTECTION_UNDESIRED);
+	ret = drm_connector_attach_content_protection_property(connector);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "Failed to attach protection (%d)\n", ret);
+		goto err_free_connector;
+	}
 
 	return 0;
 
