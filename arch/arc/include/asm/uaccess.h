@@ -673,6 +673,7 @@ __arc_strncpy_from_user(char *dst, const char __user *src, long count)
 		return 0;
 
 	__asm__ __volatile__(
+	"	mov	lp_count, %5		\n"
 	"	lp	3f			\n"
 	"1:	ldb.ab  %3, [%2, 1]		\n"
 	"	breq.d	%3, 0, 3f               \n"
@@ -689,8 +690,8 @@ __arc_strncpy_from_user(char *dst, const char __user *src, long count)
 	"	.word   1b, 4b			\n"
 	"	.previous			\n"
 	: "+r"(res), "+r"(dst), "+r"(src), "=r"(val)
-	: "g"(-EFAULT), "l"(count)
-	: "memory");
+	: "g"(-EFAULT), "r"(count)
+	: "lp_count", "lp_start", "lp_end", "memory");
 
 	return res;
 }

@@ -126,10 +126,16 @@ void __init kasan_init(void)
 
 	/*
 	 * kasan_zero_page has been used as early shadow memory, thus it may
-	 * contain some garbage. Now we can clear it, since after the TLB flush
-	 * no one should write to it.
+	 * contain some garbage. Now we can clear and write protect it, since
+	 * after the TLB flush no one should write to it.
 	 */
 	memset(kasan_zero_page, 0, PAGE_SIZE);
+	for (i = 0; i < PTRS_PER_PTE; i++) {
+		pte_t pte = __pte(__pa(kasan_zero_page) | __PAGE_KERNEL_RO);
+		set_pte(&kasan_zero_pte[i], pte);
+	}
+	/* Flush TLBs again to be sure that write protection applied. */
+	__flush_tlb_all();
 
 	init_task.kasan_depth = 0;
 	pr_info("KernelAddressSanitizer initialized\n");
