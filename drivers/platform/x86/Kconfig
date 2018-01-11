@@ -983,7 +983,10 @@ config INTEL_PMC_CORE
 	  exposed by the Power Management Controller.
 
 	  Supported features:
-		- SLP_S0_RESIDENCY counter.
+		- SLP_S0_RESIDENCY counter
+		- PCH IP Power Gating status
+		- LTR Ignore
+		- MPHY/PLL gating status (Sunrisepoint PCH only)
 
 config IBM_RTL
 	tristate "Device driver to enable PRTL support"
