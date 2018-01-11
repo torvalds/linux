@@ -753,14 +753,14 @@ static int f81534_find_config_idx(struct usb_serial *serial, u8 *index)
 static int f81534_calc_num_ports(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
+	struct f81534_serial_private *serial_priv;
 	struct device *dev = &serial->interface->dev;
 	int size_bulk_in = usb_endpoint_maxp(epds->bulk_in[0]);
 	int size_bulk_out = usb_endpoint_maxp(epds->bulk_out[0]);
-	u8 setting[F81534_CUSTOM_DATA_SIZE];
-	u8 setting_idx;
 	u8 num_port = 0;
+	int index = 0;
 	int status;
-	size_t i;
+	int i;
 
 	if (size_bulk_out != F81534_WRITE_BUFFER_SIZE ||
 			size_bulk_in != F81534_MAX_RECEIVE_BLOCK_SIZE) {
@@ -768,8 +768,16 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 		return -ENODEV;
 	}
 
+	serial_priv = devm_kzalloc(&serial->interface->dev,
+					sizeof(*serial_priv), GFP_KERNEL);
+	if (!serial_priv)
+		return -ENOMEM;
+
+	usb_set_serial_data(serial, serial_priv);
+	mutex_init(&serial_priv->urb_mutex);
+
 	/* Check had custom setting */
-	status = f81534_find_config_idx(serial, &setting_idx);
+	status = f81534_find_config_idx(serial, &serial_priv->setting_idx);
 	if (status) {
 		dev_err(&serial->interface->dev, "%s: find idx failed: %d\n",
 				__func__, status);
@@ -780,11 +788,12 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 	 * We'll read custom data only when data available, otherwise we'll
 	 * read default value instead.
 	 */
-	if (setting_idx != F81534_CUSTOM_NO_CUSTOM_DATA) {
+	if (serial_priv->setting_idx != F81534_CUSTOM_NO_CUSTOM_DATA) {
 		status = f81534_read_flash(serial,
 						F81534_CUSTOM_ADDRESS_START +
 						F81534_CONF_OFFSET,
-						sizeof(setting), setting);
+						sizeof(serial_priv->conf_data),
+						serial_priv->conf_data);
 		if (status) {
 			dev_err(&serial->interface->dev,
 					"%s: get custom data failed: %d\n",
@@ -794,13 +803,13 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 
 		dev_dbg(&serial->interface->dev,
 				"%s: read config from block: %d\n", __func__,
-				setting_idx);
+				serial_priv->setting_idx);
 	} else {
 		/* Read default board setting */
 		status = f81534_read_flash(serial,
-				F81534_DEF_CONF_ADDRESS_START, F81534_NUM_PORT,
-				setting);
-
+				F81534_DEF_CONF_ADDRESS_START,
+				sizeof(serial_priv->conf_data),
+				serial_priv->conf_data);
 		if (status) {
 			dev_err(&serial->interface->dev,
 					"%s: read failed: %d\n", __func__,
@@ -814,7 +823,7 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 
 	/* New style, find all possible ports */
 	for (i = 0; i < F81534_NUM_PORT; ++i) {
-		if (setting[i] & F81534_PORT_UNAVAILABLE)
+		if (serial_priv->conf_data[i] & F81534_PORT_UNAVAILABLE)
 			continue;
 
 		++num_port;
@@ -824,6 +833,17 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 		dev_warn(&serial->interface->dev,
 			"no config found, assuming 4 ports\n");
 		num_port = 4;		/* Nothing found, oldest version IC */
+	}
+
+	/* Assign phy-to-logic mapping */
+	for (i = 0; i < F81534_NUM_PORT; ++i) {
+		if (serial_priv->conf_data[i] & F81534_PORT_UNAVAILABLE)
+			continue;
+
+		serial_priv->tty_idx[i] = index++;
+		dev_dbg(&serial->interface->dev,
+				"%s: phy_num: %d, tty_idx: %d\n", __func__, i,
+				serial_priv->tty_idx[i]);
 	}
 
 	/*
@@ -1227,79 +1247,6 @@ static void f81534_write_usb_callback(struct urb *urb)
 	}
 }
 
-static int f81534_attach(struct usb_serial *serial)
-{
-	struct f81534_serial_private *serial_priv;
-	int index = 0;
-	int status;
-	int i;
-
-	serial_priv = devm_kzalloc(&serial->interface->dev,
-					sizeof(*serial_priv), GFP_KERNEL);
-	if (!serial_priv)
-		return -ENOMEM;
-
-	usb_set_serial_data(serial, serial_priv);
-
-	mutex_init(&serial_priv->urb_mutex);
-
-	/* Check had custom setting */
-	status = f81534_find_config_idx(serial, &serial_priv->setting_idx);
-	if (status) {
-		dev_err(&serial->interface->dev, "%s: find idx failed: %d\n",
-				__func__, status);
-		return status;
-	}
-
-	/*
-	 * We'll read custom data only when data available, otherwise we'll
-	 * read default value instead.
-	 */
-	if (serial_priv->setting_idx == F81534_CUSTOM_NO_CUSTOM_DATA) {
-		/*
-		 * The default configuration layout:
-		 *	byte 0/1/2/3: uart setting
-		 */
-		status = f81534_read_flash(serial,
-					F81534_DEF_CONF_ADDRESS_START,
-					F81534_DEF_CONF_SIZE,
-					serial_priv->conf_data);
-		if (status) {
-			dev_err(&serial->interface->dev,
-					"%s: read reserve data failed: %d\n",
-					__func__, status);
-			return status;
-		}
-	} else {
-		/* Only read 8 bytes for mode & GPIO */
-		status = f81534_read_flash(serial,
-						F81534_CUSTOM_ADDRESS_START +
-						F81534_CONF_OFFSET,
-						sizeof(serial_priv->conf_data),
-						serial_priv->conf_data);
-		if (status) {
-			dev_err(&serial->interface->dev,
-					"%s: idx: %d get data failed: %d\n",
-					__func__, serial_priv->setting_idx,
-					status);
-			return status;
-		}
-	}
-
-	/* Assign phy-to-logic mapping */
-	for (i = 0; i < F81534_NUM_PORT; ++i) {
-		if (serial_priv->conf_data[i] & F81534_PORT_UNAVAILABLE)
-			continue;
-
-		serial_priv->tty_idx[i] = index++;
-		dev_dbg(&serial->interface->dev,
-				"%s: phy_num: %d, tty_idx: %d\n", __func__, i,
-				serial_priv->tty_idx[i]);
-	}
-
-	return 0;
-}
-
 static void f81534_lsr_worker(struct work_struct *work)
 {
 	struct f81534_port_private *port_priv;
@@ -1543,7 +1490,6 @@ static struct usb_serial_driver f81534_device = {
 	.write =		f81534_write,
 	.tx_empty =		f81534_tx_empty,
 	.calc_num_ports =	f81534_calc_num_ports,
-	.attach =		f81534_attach,
 	.port_probe =		f81534_port_probe,
 	.port_remove =		f81534_port_remove,
 	.break_ctl =		f81534_break_ctl,
