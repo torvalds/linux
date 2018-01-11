@@ -372,7 +372,6 @@ struct channel_t {
 	ulong		ch_xoff_sends;
 };
 
-extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern struct dgnc_board *dgnc_board[MAXBOARDS];/* Array of boards */
 
 #endif	/* _DGNC_DRIVER_H */
