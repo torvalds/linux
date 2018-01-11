@@ -1688,7 +1688,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_kill_tasklets);
 struct scsi_transport_template *hisi_sas_stt;
 EXPORT_SYMBOL_GPL(hisi_sas_stt);
 
-struct device_attribute *host_attrs[] = {
+static struct device_attribute *host_attrs[] = {
 	&dev_attr_phy_event_threshold,
 	NULL,
 };
