@@ -242,7 +242,6 @@ MODULE_DEVICE_TABLE(of, stm32_dfsdm_of_match);
 static int stm32_dfsdm_probe(struct platform_device *pdev)
 {
 	struct dfsdm_priv *priv;
-	struct device_node *pnode = pdev->dev.of_node;
 	const struct of_device_id *of_id;
 	const struct stm32_dfsdm_dev_data *dev_data;
 	struct stm32_dfsdm *dfsdm;
@@ -254,7 +253,7 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 
 	priv->pdev = pdev;
 
-	of_id = of_match_node(stm32_dfsdm_of_match, pnode);
+	of_id = of_match_node(stm32_dfsdm_of_match, pdev->dev.of_node);
 	if (!of_id->data) {
 		dev_err(&pdev->dev, "Data associated to device is missing\n");
 		return -EINVAL;
