@@ -888,10 +888,9 @@ static void iwl_mvm_tx_add_stream(struct iwl_mvm *mvm,
 	/*
 	 * The first deferred frame should've stopped the MAC queues, so we
 	 * should never get a second deferred frame for the RA/TID.
+	 * In case of GSO the first packet may have been split, so don't warn.
 	 */
-	if (!WARN(skb_queue_len(deferred_tx_frames) != 1,
-		  "RATID %d/%d has %d deferred frames\n", mvm_sta->sta_id, tid,
-		  skb_queue_len(deferred_tx_frames))) {
+	if (skb_queue_len(deferred_tx_frames) == 1) {
 		iwl_mvm_stop_mac_queues(mvm, BIT(mac_queue));
 		schedule_work(&mvm->add_stream_wk);
 	}
@@ -1719,8 +1718,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		ba_info->band = chanctx_conf->def.chan->band;
 		iwl_mvm_hwrate_to_tx_status(rate, ba_info);
 
-		if (!fw_has_capa(&mvm->fw->ucode_capa,
-				 IWL_UCODE_TLV_CAPA_TLC_OFFLOAD)) {
+		if (!iwl_mvm_has_tlc_offload(mvm)) {
 			IWL_DEBUG_TX_REPLY(mvm,
 					   "No reclaim. Update rs directly\n");
 			iwl_mvm_rs_tx_status(mvm, sta, tid, ba_info, false);

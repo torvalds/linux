@@ -1221,7 +1221,7 @@ static ssize_t iwl_dbgfs_cont_recording_write(struct iwl_mvm *mvm,
 					      loff_t *ppos)
 {
 	struct iwl_trans *trans = mvm->trans;
-	const struct iwl_fw_dbg_dest_tlv *dest = trans->dbg_dest_tlv;
+	const struct iwl_fw_dbg_dest_tlv_v1 *dest = trans->dbg_dest_tlv;
 	struct iwl_continuous_record_cmd cont_rec = {};
 	int ret, rec_mode;
 
@@ -1914,7 +1914,7 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD))
+	if (iwl_mvm_has_tlc_offload(mvm))
 		MVM_DEBUGFS_ADD_STA_FILE(rs_data, dir, S_IRUSR);
 
 	return;
