@@ -188,10 +188,8 @@ endef
 
 # LEX
 # ---------------------------------------------------------------------------
-LEX_PREFIX = $(if $(LEX_PREFIX_${baseprereq}),$(LEX_PREFIX_${baseprereq}),yy)
-
 quiet_cmd_flex = LEX     $@
-      cmd_flex = $(LEX) -o$@ -L -P $(LEX_PREFIX) $<
+      cmd_flex = $(LEX) -o$@ -L $<
 
 ifdef REGENERATE_PARSERS
 .PRECIOUS: $(src)/%.lex.c_shipped
@@ -205,10 +203,8 @@ $(filter %.lex.c,$(targets)): $(obj)/%.lex.c: $(src)/%.l FORCE
 
 # YACC
 # ---------------------------------------------------------------------------
-YACC_PREFIX = $(if $(YACC_PREFIX_${baseprereq}),$(YACC_PREFIX_${baseprereq}),yy)
-
 quiet_cmd_bison = YACC    $@
-      cmd_bison = $(YACC) -o$@ -t -l -p $(YACC_PREFIX) $<
+      cmd_bison = $(YACC) -o$@ -t -l $<
 
 ifdef REGENERATE_PARSERS
 .PRECIOUS: $(src)/%.tab.c_shipped
