@@ -1140,6 +1140,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		{DVO_PORT_HDMIC, DVO_PORT_DPC, -1},
 		{DVO_PORT_HDMID, DVO_PORT_DPD, -1},
 		{DVO_PORT_CRT, DVO_PORT_HDMIE, DVO_PORT_DPE},
+		{DVO_PORT_HDMIF, DVO_PORT_DPF, -1},
 	};
 
 	/*
@@ -1690,6 +1691,7 @@ bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port por
 		[PORT_C] = { DVO_PORT_DPC, DVO_PORT_HDMIC, },
 		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
 		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
+		[PORT_F] = { DVO_PORT_DPF, DVO_PORT_HDMIF, },
 	};
 	int i;
 
@@ -1728,6 +1730,7 @@ bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 		[PORT_C] = DVO_PORT_DPC,
 		[PORT_D] = DVO_PORT_DPD,
 		[PORT_E] = DVO_PORT_DPE,
+		[PORT_F] = DVO_PORT_DPF,
 	};
 	int i;
 
@@ -1763,6 +1766,7 @@ static bool child_dev_is_dp_dual_mode(const struct child_device_config *child,
 		[PORT_C] = { DVO_PORT_DPC, DVO_PORT_HDMIC, },
 		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
 		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
+		[PORT_F] = { DVO_PORT_DPF, DVO_PORT_HDMIF, },
 	};
 
 	if (port == PORT_A || port >= ARRAY_SIZE(port_mapping))
@@ -1927,6 +1931,11 @@ intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
 		case DVO_PORT_DPD:
 		case DVO_PORT_HDMID:
 			if (port == PORT_D)
+				return true;
+			break;
+		case DVO_PORT_DPF:
+		case DVO_PORT_HDMIF:
+			if (port == PORT_F)
 				return true;
 			break;
 		default:

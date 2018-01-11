@@ -299,6 +299,8 @@ struct bdb_general_features {
 #define DVO_PORT_DPA		10
 #define DVO_PORT_DPE		11				/* 193 */
 #define DVO_PORT_HDMIE		12				/* 193 */
+#define DVO_PORT_DPF		13				/* N/A */
+#define DVO_PORT_HDMIF		14				/* N/A */
 #define DVO_PORT_MIPIA		21				/* 171 */
 #define DVO_PORT_MIPIB		22				/* 171 */
 #define DVO_PORT_MIPIC		23				/* 171 */

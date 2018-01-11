@@ -1378,6 +1378,7 @@ static i915_reg_t skl_aux_ctl_reg(struct drm_i915_private *dev_priv,
 	case PORT_B:
 	case PORT_C:
 	case PORT_D:
+	case PORT_F:
 		return DP_AUX_CH_CTL(port);
 	default:
 		MISSING_CASE(port);
@@ -1393,6 +1394,7 @@ static i915_reg_t skl_aux_data_reg(struct drm_i915_private *dev_priv,
 	case PORT_B:
 	case PORT_C:
 	case PORT_D:
+	case PORT_F:
 		return DP_AUX_CH_DATA(port, index);
 	default:
 		MISSING_CASE(port);
