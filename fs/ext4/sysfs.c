@@ -11,6 +11,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/proc_fs.h>
 
 #include "ext4.h"
@@ -351,11 +352,10 @@ static struct kset ext4_kset = {
 static struct kobj_type ext4_feat_ktype = {
 	.default_attrs	= ext4_feat_attrs,
 	.sysfs_ops	= &ext4_attr_ops,
+	.release	= (void (*)(struct kobject *))kfree,
 };
 
-static struct kobject ext4_feat = {
-	.kset	= &ext4_kset,
-};
+static struct kobject *ext4_feat;
 
 #define PROC_FILE_SHOW_DEFN(name) \
 static int name##_open(struct inode *inode, struct file *file) \
@@ -438,20 +438,31 @@ int __init ext4_init_sysfs(void)
 		return ret;
 	}
 
-	ret = kobject_init_and_add(&ext4_feat, &ext4_feat_ktype,
-				   NULL, "features");
-	if (ret) {
-		kobject_put(&ext4_feat);
-		kset_unregister(&ext4_kset);
-	} else {
-		ext4_proc_root = proc_mkdir(proc_dirname, NULL);
+	ext4_feat = kzalloc(sizeof(*ext4_feat), GFP_KERNEL);
+	if (!ext4_feat) {
+		ret = -ENOMEM;
+		goto kset_err;
 	}
+
+	ext4_feat->kset = &ext4_kset;
+	ret = kobject_init_and_add(ext4_feat, &ext4_feat_ktype,
+				   NULL, "features");
+	if (ret)
+		goto feat_err;
+
+	ext4_proc_root = proc_mkdir(proc_dirname, NULL);
+	return ret;
+
+feat_err:
+	kobject_put(ext4_feat);
+kset_err:
+	kset_unregister(&ext4_kset);
 	return ret;
 }
 
 void ext4_exit_sysfs(void)
 {
-	kobject_put(&ext4_feat);
+	kobject_put(ext4_feat);
 	kset_unregister(&ext4_kset);
 	remove_proc_entry(proc_dirname, NULL);
 	ext4_proc_root = NULL;
