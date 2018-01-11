@@ -239,15 +239,14 @@ static void parse_config_file(const char *p)
 }
 
 /* test if s ends in sub */
-static int strrcmp(const char *s, const char *sub)
+static int str_ends_with(const char *s, int slen, const char *sub)
 {
-	int slen = strlen(s);
 	int sublen = strlen(sub);
 
 	if (sublen > slen)
-		return 1;
+		return 0;
 
-	return memcmp(s + slen - sublen, sub, sublen);
+	return !memcmp(s + slen - sublen, sub, sublen);
 }
 
 static void *read_file(const char *filename)
@@ -282,6 +281,16 @@ static void *read_file(const char *filename)
 	return buf;
 }
 
+/* Ignore certain dependencies */
+static int is_ignored_file(const char *s, int len)
+{
+	return str_ends_with(s, len, "include/generated/autoconf.h") ||
+	       str_ends_with(s, len, "include/generated/autoksyms.h") ||
+	       str_ends_with(s, len, "arch/um/include/uml-config.h") ||
+	       str_ends_with(s, len, "include/linux/kconfig.h") ||
+	       str_ends_with(s, len, ".ver");
+}
+
 /*
  * Important: The below generated source_foo.o and deps_foo.o variable
  * assignments are parsed not only by make, but also by the rather simple
@@ -314,47 +323,38 @@ static void parse_dep_file(char *m, const char *target, int insert_extra_deps)
 		if (is_target) {
 			/* The /next/ file is the first dependency */
 			is_first_dep = 1;
-		} else {
+		} else if (!is_ignored_file(m, p - m)) {
 			*p = '\0';
 
-			/* Ignore certain dependencies */
-			if (strrcmp(m, "include/generated/autoconf.h") &&
-			    strrcmp(m, "include/generated/autoksyms.h") &&
-			    strrcmp(m, "arch/um/include/uml-config.h") &&
-			    strrcmp(m, "include/linux/kconfig.h") &&
-			    strrcmp(m, ".ver")) {
+			/*
+			 * Do not list the source file as dependency, so that
+			 * kbuild is not confused if a .c file is rewritten
+			 * into .S or vice versa. Storing it in source_* is
+			 * needed for modpost to compute srcversions.
+			 */
+			if (is_first_dep) {
 				/*
-				 * Do not list the source file as dependency,
-				 * so that kbuild is not confused if a .c file
-				 * is rewritten into .S or vice versa. Storing
-				 * it in source_* is needed for modpost to
-				 * compute srcversions.
+				 * If processing the concatenation of multiple
+				 * dependency files, only process the first
+				 * target name, which will be the original
+				 * source name, and ignore any other target
+				 * names, which will be intermediate temporary
+				 * files.
 				 */
-				if (is_first_dep) {
-					/*
-					 * If processing the concatenation of
-					 * multiple dependency files, only
-					 * process the first target name, which
-					 * will be the original source name,
-					 * and ignore any other target names,
-					 * which will be intermediate temporary
-					 * files.
-					 */
-					if (!saw_any_target) {
-						saw_any_target = 1;
-						printf("source_%s := %s\n\n",
-							target, m);
-						printf("deps_%s := \\\n",
-							target);
-					}
-					is_first_dep = 0;
-				} else
-					printf("  %s \\\n", m);
-
-				buf = read_file(m);
-				parse_config_file(buf);
-				free(buf);
+				if (!saw_any_target) {
+					saw_any_target = 1;
+					printf("source_%s := %s\n\n",
+					       target, m);
+					printf("deps_%s := \\\n", target);
+				}
+				is_first_dep = 0;
+			} else {
+				printf("  %s \\\n", m);
 			}
+
+			buf = read_file(m);
+			parse_config_file(buf);
+			free(buf);
 		}
 
 		if (is_last)
