@@ -1350,6 +1350,7 @@ static void rcu_check_gp_kthread_starvation(struct rcu_state *rsp)
 		       rsp->gp_kthread ? rsp->gp_kthread->state : ~0,
 		       rsp->gp_kthread ? task_cpu(rsp->gp_kthread) : -1);
 		if (rsp->gp_kthread) {
+			pr_err("RCU grace-period kthread stack dump:\n");
 			sched_show_task(rsp->gp_kthread);
 			wake_up_process(rsp->gp_kthread);
 		}
