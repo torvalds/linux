@@ -107,12 +107,12 @@ typedef enum {
 	RATE_54MB		= 54
 } TX_RATE_T;
 
-typedef enum {
+enum {
 	B_ONLY_MODE		= 0,    /* 1, 2 M, otherwise 5, 11 M */
 	G_ONLY_MODE,			/* 6,12,24 otherwise 9,18,36,48,54 */
 	G_MIXED_11B_1_MODE,		/* 1,2,5.5,11 otherwise all on */
 	G_MIXED_11B_2_MODE,		/* 1,2,5,11,6,12,24 otherwise all on */
-} G_OPERATING_MODE_T;
+};
 
 typedef enum {
 	G_SHORT_PREAMBLE	= 0,	/* Short Preamble */
