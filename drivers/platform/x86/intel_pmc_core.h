@@ -160,12 +160,14 @@ struct pmc_reg_map {
 
 /**
  * struct pmc_dev - pmc device structure
- * @base_addr:		comtains pmc base address
+ * @base_addr:		contains pmc base address
  * @regbase:		pointer to io-remapped memory location
- * @dbgfs_dir:		path to debug fs interface
- * @feature_available:	flag to indicate whether
- *			the feature is available
- *			on a particular platform or not.
+ * @map:		pointer to pmc_reg_map struct that contains platform
+ *			specific attributes
+ * @dbgfs_dir:		path to debugfs interface
+ * @pmc_xram_read_bit:	flag to indicate whether PMC XRAM shadow registers
+ *			used to read MPHY PG and PLL status are available
+ * @mutex_lock:		mutex to complete one transcation
  *
  * pmc_dev contains info about power management controller device.
  */
