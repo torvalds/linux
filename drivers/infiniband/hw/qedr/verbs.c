@@ -3039,7 +3039,7 @@ static int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		swqe->wqe_size = 2;
 		swqe2 = qed_chain_produce(&qp->sq.pbl);
 
-		swqe->inv_key_or_imm_data = cpu_to_le32(wr->ex.imm_data);
+		swqe->inv_key_or_imm_data = cpu_to_le32(be32_to_cpu(wr->ex.imm_data));
 		length = qedr_prepare_sq_send_data(dev, qp, swqe, swqe2,
 						   wr, bad_wr);
 		swqe->length = cpu_to_le32(length);
@@ -3590,7 +3590,7 @@ static inline int qedr_set_ok_cqe_resp_wc(struct rdma_cqe_responder *resp,
 	wc->byte_len = le32_to_cpu(resp->length);
 
 	if (resp->flags & QEDR_RESP_IMM) {
-		wc->ex.imm_data = le32_to_cpu(resp->imm_data_or_inv_r_Key);
+		wc->ex.imm_data = cpu_to_be32(le32_to_cpu(resp->imm_data_or_inv_r_Key));
 		wc->wc_flags |= IB_WC_WITH_IMM;
 
 		if (resp->flags & QEDR_RESP_RDMA)
