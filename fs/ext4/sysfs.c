@@ -330,6 +330,13 @@ static void ext4_sb_release(struct kobject *kobj)
 	complete(&sbi->s_kobj_unregister);
 }
 
+static void ext4_kset_release(struct kobject *kobj)
+{
+	struct kset *kset = container_of(kobj, struct kset, kobj);
+
+	kfree(kset);
+}
+
 static const struct sysfs_ops ext4_attr_ops = {
 	.show	= ext4_attr_show,
 	.store	= ext4_attr_store,
@@ -343,11 +350,10 @@ static struct kobj_type ext4_sb_ktype = {
 
 static struct kobj_type ext4_ktype = {
 	.sysfs_ops	= &ext4_attr_ops,
+	.release	= ext4_kset_release,
 };
 
-static struct kset ext4_kset = {
-	.kobj   = {.ktype = &ext4_ktype},
-};
+static struct kset *ext4_kset;
 
 static struct kobj_type ext4_feat_ktype = {
 	.default_attrs	= ext4_feat_attrs,
@@ -392,7 +398,7 @@ int ext4_register_sysfs(struct super_block *sb)
 	const struct ext4_proc_files *p;
 	int err;
 
-	sbi->s_kobj.kset = &ext4_kset;
+	sbi->s_kobj.kset = ext4_kset;
 	init_completion(&sbi->s_kobj_unregister);
 	err = kobject_init_and_add(&sbi->s_kobj, &ext4_sb_ktype, NULL,
 				   "%s", sb->s_id);
@@ -430,13 +436,16 @@ int __init ext4_init_sysfs(void)
 {
 	int ret;
 
-	kobject_set_name(&ext4_kset.kobj, "ext4");
-	ext4_kset.kobj.parent = fs_kobj;
-	ret = kset_register(&ext4_kset);
-	if (ret) {
-		kset_unregister(&ext4_kset);
-		return ret;
-	}
+	ext4_kset = kzalloc(sizeof(*ext4_kset), GFP_KERNEL);
+	if (!ext4_kset)
+		return -ENOMEM;
+
+	kobject_set_name(&ext4_kset->kobj, "ext4");
+	ext4_kset->kobj.parent = fs_kobj;
+	ext4_kset->kobj.ktype = &ext4_ktype;
+	ret = kset_register(ext4_kset);
+	if (ret)
+		goto kset_err;
 
 	ext4_feat = kzalloc(sizeof(*ext4_feat), GFP_KERNEL);
 	if (!ext4_feat) {
@@ -444,7 +453,7 @@ int __init ext4_init_sysfs(void)
 		goto kset_err;
 	}
 
-	ext4_feat->kset = &ext4_kset;
+	ext4_feat->kset = ext4_kset;
 	ret = kobject_init_and_add(ext4_feat, &ext4_feat_ktype,
 				   NULL, "features");
 	if (ret)
@@ -456,14 +465,16 @@ int __init ext4_init_sysfs(void)
 feat_err:
 	kobject_put(ext4_feat);
 kset_err:
-	kset_unregister(&ext4_kset);
+	kset_unregister(ext4_kset);
+	ext4_kset = NULL;
 	return ret;
 }
 
 void ext4_exit_sysfs(void)
 {
 	kobject_put(ext4_feat);
-	kset_unregister(&ext4_kset);
+	kset_unregister(ext4_kset);
+	ext4_kset = NULL;
 	remove_proc_entry(proc_dirname, NULL);
 	ext4_proc_root = NULL;
 }
