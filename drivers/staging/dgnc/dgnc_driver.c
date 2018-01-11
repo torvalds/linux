@@ -22,7 +22,6 @@ MODULE_SUPPORTED_DEVICE("dgnc");
 
 static unsigned int dgnc_num_boards;
 struct dgnc_board		*dgnc_board[MAXBOARDS];
-DEFINE_SPINLOCK(dgnc_global_lock);
 static DEFINE_SPINLOCK(dgnc_poll_lock); /* Poll scheduling lock */
 int			dgnc_poll_tick = 20;	/* Poll interval - 20 ms */
 
