@@ -27,7 +27,7 @@ function parse_argv {
         MEDUSA_ONLY=0
         DELETE=0
         INSTALL=1
-
+	FORCE=0
         for arg in "$@"; do
                 if [[ "$arg" == '--delete' || "$arg" == '-delete' ]]; then
                         DELETE=1
@@ -46,6 +46,8 @@ function parse_argv {
                         INSTALL=0
                         GRUB=0
                         REBOOT=0
+                elif [[ "$arg" == '-f' || "$arg" == '--force' ]]; then
+			FORCE=1
                 elif [[ "$arg" == '-h' || "$arg" == '--help' || "$arg" == '-help' ]]; then
                         help
                 else
@@ -134,6 +136,11 @@ function update_grub {
 }
 
 parse_argv $@
+
+if (( $EUID == 0 && $FORCE == 0 )); then
+    echo "Don't run script as root. If you know what are you doing use '-f' flag."
+    exit
+fi
 
 [ -f vmlinux ] && sudo rm -f vmlinux 2> /dev/null
 
