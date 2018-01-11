@@ -58,11 +58,15 @@ static int guc_log_flush(struct intel_guc *guc)
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static int guc_log_control(struct intel_guc *guc, u32 control_val)
+static int guc_log_control(struct intel_guc *guc, bool enable, u32 verbosity)
 {
+	union guc_log_control control_val = {
+		.logging_enabled = enable,
+		.verbosity = verbosity,
+	};
 	u32 action[] = {
 		INTEL_GUC_ACTION_UK_LOG_ENABLE_LOGGING,
-		control_val
+		control_val.value
 	};
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
@@ -567,28 +571,27 @@ void intel_guc_log_destroy(struct intel_guc *guc)
 int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-
-	union guc_log_control log_param;
+	bool enable_logging = control_val > 0;
+	u32 verbosity;
 	int ret;
 
-	log_param.value = control_val;
-
-	if (log_param.verbosity < GUC_LOG_VERBOSITY_MIN ||
-	    log_param.verbosity > GUC_LOG_VERBOSITY_MAX)
+	BUILD_BUG_ON(GUC_LOG_VERBOSITY_MIN);
+	if (control_val > 1 + GUC_LOG_VERBOSITY_MAX)
 		return -EINVAL;
 
 	/* This combination doesn't make sense & won't have any effect */
-	if (!log_param.logging_enabled && !i915_modparams.guc_log_level)
+	if (!enable_logging && !i915_modparams.guc_log_level)
 		return 0;
 
-	ret = guc_log_control(guc, log_param.value);
+	verbosity = enable_logging ? control_val - 1 : 0;
+	ret = guc_log_control(guc, enable_logging, verbosity);
 	if (ret < 0) {
 		DRM_DEBUG_DRIVER("guc_logging_control action failed %d\n", ret);
 		return ret;
 	}
 
-	if (log_param.logging_enabled) {
-		i915_modparams.guc_log_level = 1 + log_param.verbosity;
+	if (enable_logging) {
+		i915_modparams.guc_log_level = 1 + verbosity;
 
 		/*
 		 * If log was disabled at boot time, then the relay channel file
