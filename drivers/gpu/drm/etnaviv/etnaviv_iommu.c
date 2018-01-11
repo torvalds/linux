@@ -158,7 +158,7 @@ void etnaviv_iommuv1_restore(struct etnaviv_gpu *gpu)
 	gpu_write(gpu, VIVS_MC_MMU_RA_PAGE_TABLE, pgtable);
 }
 
-const struct etnaviv_iommu_domain_ops etnaviv_iommuv1_ops = {
+static const struct etnaviv_iommu_domain_ops etnaviv_iommuv1_ops = {
 	.free = etnaviv_iommuv1_domain_free,
 	.map = etnaviv_iommuv1_map,
 	.unmap = etnaviv_iommuv1_unmap,

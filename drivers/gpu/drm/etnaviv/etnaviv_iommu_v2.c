@@ -236,7 +236,7 @@ void etnaviv_iommuv2_restore(struct etnaviv_gpu *gpu)
 	gpu_write(gpu, VIVS_MMUv2_CONTROL, VIVS_MMUv2_CONTROL_ENABLE);
 }
 
-const struct etnaviv_iommu_domain_ops etnaviv_iommuv2_ops = {
+static const struct etnaviv_iommu_domain_ops etnaviv_iommuv2_ops = {
 	.free = etnaviv_iommuv2_domain_free,
 	.map = etnaviv_iommuv2_map,
 	.unmap = etnaviv_iommuv2_unmap,
