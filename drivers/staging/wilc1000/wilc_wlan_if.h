@@ -137,11 +137,11 @@ typedef enum {
 	MAX_PSPOLL_PS		= 4
 } USER_PS_MODE_T;
 
-typedef enum {
+enum chip_ps_states {
 	CHIP_WAKEDUP		= 0,
 	CHIP_SLEEPING_AUTO      = 1,
 	CHIP_SLEEPING_MANUAL	= 2
-} CHIP_PS_STATE_T;
+};
 
 typedef enum {
 	ACQUIRE_ONLY            = 0,

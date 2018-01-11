@@ -5,7 +5,7 @@
 #include "wilc_wfi_netdevice.h"
 #include "wilc_wlan_cfg.h"
 
-static CHIP_PS_STATE_T chip_ps_state = CHIP_WAKEDUP;
+static enum chip_ps_states chip_ps_state = CHIP_WAKEDUP;
 
 static inline void acquire_bus(struct wilc *wilc, BUS_ACQUIRE_T acquire)
 {
