@@ -1799,6 +1799,16 @@ struct cmdq_set_func_resources {
 	u8 resp_size;
 	u8 reserved8;
 	__le64 resp_addr;
+	__le32 number_of_qp;
+	__le32 number_of_mrw;
+	__le32 number_of_srq;
+	__le32 number_of_cq;
+	__le32 max_qp_per_vf;
+	__le32 max_mrw_per_vf;
+	__le32 max_srq_per_vf;
+	__le32 max_cq_per_vf;
+	__le32 max_gid_per_vf;
+	__le32 stat_ctx_id;
 };
 
 /* Read hardware resource context command (24 bytes) */

@@ -2295,10 +2295,14 @@ int bnxt_re_post_recv(struct ib_qp *ib_qp, struct ib_recv_wr *wr,
 /* Completion Queues */
 int bnxt_re_destroy_cq(struct ib_cq *ib_cq)
 {
-	struct bnxt_re_cq *cq = container_of(ib_cq, struct bnxt_re_cq, ib_cq);
-	struct bnxt_re_dev *rdev = cq->rdev;
 	int rc;
-	struct bnxt_qplib_nq *nq = cq->qplib_cq.nq;
+	struct bnxt_re_cq *cq;
+	struct bnxt_qplib_nq *nq;
+	struct bnxt_re_dev *rdev;
+
+	cq = container_of(ib_cq, struct bnxt_re_cq, ib_cq);
+	rdev = cq->rdev;
+	nq = cq->qplib_cq.nq;
 
 	rc = bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
 	if (rc) {
@@ -2308,12 +2312,11 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq)
 	if (!IS_ERR_OR_NULL(cq->umem))
 		ib_umem_release(cq->umem);
 
-	if (cq) {
-		kfree(cq->cql);
-		kfree(cq);
-	}
 	atomic_dec(&rdev->cq_count);
 	nq->budget--;
+	kfree(cq->cql);
+	kfree(cq);
+
 	return 0;
 }
 

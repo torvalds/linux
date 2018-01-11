@@ -80,6 +80,79 @@ static DEFINE_MUTEX(bnxt_re_dev_lock);
 static struct workqueue_struct *bnxt_re_wq;
 static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev, bool lock_wait);
 
+/* SR-IOV helper functions */
+
+static void bnxt_re_get_sriov_func_type(struct bnxt_re_dev *rdev)
+{
+	struct bnxt *bp;
+
+	bp = netdev_priv(rdev->en_dev->net);
+	if (BNXT_VF(bp))
+		rdev->is_virtfn = 1;
+}
+
+/* Set the maximum number of each resource that the driver actually wants
+ * to allocate. This may be up to the maximum number the firmware has
+ * reserved for the function. The driver may choose to allocate fewer
+ * resources than the firmware maximum.
+ */
+static void bnxt_re_set_resource_limits(struct bnxt_re_dev *rdev)
+{
+	u32 vf_qps = 0, vf_srqs = 0, vf_cqs = 0, vf_mrws = 0, vf_gids = 0;
+	u32 i;
+	u32 vf_pct;
+	u32 num_vfs;
+	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
+
+	rdev->qplib_ctx.qpc_count = min_t(u32, BNXT_RE_MAX_QPC_COUNT,
+					  dev_attr->max_qp);
+
+	rdev->qplib_ctx.mrw_count = BNXT_RE_MAX_MRW_COUNT_256K;
+	/* Use max_mr from fw since max_mrw does not get set */
+	rdev->qplib_ctx.mrw_count = min_t(u32, rdev->qplib_ctx.mrw_count,
+					  dev_attr->max_mr);
+	rdev->qplib_ctx.srqc_count = min_t(u32, BNXT_RE_MAX_SRQC_COUNT,
+					   dev_attr->max_srq);
+	rdev->qplib_ctx.cq_count = min_t(u32, BNXT_RE_MAX_CQ_COUNT,
+					 dev_attr->max_cq);
+
+	for (i = 0; i < MAX_TQM_ALLOC_REQ; i++)
+		rdev->qplib_ctx.tqm_count[i] =
+		rdev->dev_attr.tqm_alloc_reqs[i];
+
+	if (rdev->num_vfs) {
+		/*
+		 * Reserve a set of resources for the PF. Divide the remaining
+		 * resources among the VFs
+		 */
+		vf_pct = 100 - BNXT_RE_PCT_RSVD_FOR_PF;
+		num_vfs = 100 * rdev->num_vfs;
+		vf_qps = (rdev->qplib_ctx.qpc_count * vf_pct) / num_vfs;
+		vf_srqs = (rdev->qplib_ctx.srqc_count * vf_pct) / num_vfs;
+		vf_cqs = (rdev->qplib_ctx.cq_count * vf_pct) / num_vfs;
+		/*
+		 * The driver allows many more MRs than other resources. If the
+		 * firmware does also, then reserve a fixed amount for the PF
+		 * and divide the rest among VFs. VFs may use many MRs for NFS
+		 * mounts, ISER, NVME applications, etc. If the firmware
+		 * severely restricts the number of MRs, then let PF have
+		 * half and divide the rest among VFs, as for the other
+		 * resource types.
+		 */
+		if (rdev->qplib_ctx.mrw_count < BNXT_RE_MAX_MRW_COUNT_64K)
+			vf_mrws = rdev->qplib_ctx.mrw_count * vf_pct / num_vfs;
+		else
+			vf_mrws = (rdev->qplib_ctx.mrw_count -
+				   BNXT_RE_RESVD_MR_FOR_PF) / rdev->num_vfs;
+		vf_gids = BNXT_RE_MAX_GID_PER_VF;
+	}
+	rdev->qplib_ctx.vf_res.max_mrw_per_vf = vf_mrws;
+	rdev->qplib_ctx.vf_res.max_gid_per_vf = vf_gids;
+	rdev->qplib_ctx.vf_res.max_qp_per_vf = vf_qps;
+	rdev->qplib_ctx.vf_res.max_srq_per_vf = vf_srqs;
+	rdev->qplib_ctx.vf_res.max_cq_per_vf = vf_cqs;
+}
+
 /* for handling bnxt_en callbacks later */
 static void bnxt_re_stop(void *p)
 {
@@ -91,6 +164,15 @@ static void bnxt_re_start(void *p)
 
 static void bnxt_re_sriov_config(void *p, int num_vfs)
 {
+	struct bnxt_re_dev *rdev = p;
+
+	if (!rdev)
+		return;
+
+	rdev->num_vfs = num_vfs;
+	bnxt_re_set_resource_limits(rdev);
+	bnxt_qplib_set_func_resources(&rdev->qplib_res, &rdev->rcfw,
+				      &rdev->qplib_ctx);
 }
 
 static void bnxt_re_shutdown(void *p)
@@ -734,7 +816,8 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 
 	/* Configure and allocate resources for qplib */
 	rdev->qplib_res.rcfw = &rdev->rcfw;
-	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr);
+	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr,
+				     rdev->is_virtfn);
 	if (rc)
 		goto fail;
 
@@ -1035,19 +1118,6 @@ static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev, bool lock_wait)
 	}
 }
 
-static void bnxt_re_set_resource_limits(struct bnxt_re_dev *rdev)
-{
-	u32 i;
-
-	rdev->qplib_ctx.qpc_count = BNXT_RE_MAX_QPC_COUNT;
-	rdev->qplib_ctx.mrw_count = BNXT_RE_MAX_MRW_COUNT;
-	rdev->qplib_ctx.srqc_count = BNXT_RE_MAX_SRQC_COUNT;
-	rdev->qplib_ctx.cq_count = BNXT_RE_MAX_CQ_COUNT;
-	for (i = 0; i < MAX_TQM_ALLOC_REQ; i++)
-		rdev->qplib_ctx.tqm_count[i] =
-		rdev->dev_attr.tqm_alloc_reqs[i];
-}
-
 /* worker thread for polling periodic events. Now used for QoS programming*/
 static void bnxt_re_worker(struct work_struct *work)
 {
@@ -1069,6 +1139,9 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		return -EINVAL;
 	}
 	set_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
+
+	/* Check whether VF or PF */
+	bnxt_re_get_sriov_func_type(rdev);
 
 	rc = bnxt_re_request_msix(rdev);
 	if (rc) {
@@ -1101,16 +1174,18 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 				(rdev->en_dev->pdev, &rdev->rcfw,
 				 rdev->msix_entries[BNXT_RE_AEQ_IDX].vector,
 				 rdev->msix_entries[BNXT_RE_AEQ_IDX].db_offset,
-				 0, &bnxt_re_aeq_handler);
+				 rdev->is_virtfn, &bnxt_re_aeq_handler);
 	if (rc) {
 		pr_err("Failed to enable RCFW channel: %#x\n", rc);
 		goto free_ring;
 	}
 
-	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr);
+	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr,
+				     rdev->is_virtfn);
 	if (rc)
 		goto disable_rcfw;
-	bnxt_re_set_resource_limits(rdev);
+	if (!rdev->is_virtfn)
+		bnxt_re_set_resource_limits(rdev);
 
 	rc = bnxt_qplib_alloc_ctx(rdev->en_dev->pdev, &rdev->qplib_ctx, 0);
 	if (rc) {
@@ -1125,7 +1200,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		goto free_ctx;
 	}
 
-	rc = bnxt_qplib_init_rcfw(&rdev->rcfw, &rdev->qplib_ctx, 0);
+	rc = bnxt_qplib_init_rcfw(&rdev->rcfw, &rdev->qplib_ctx,
+				  rdev->is_virtfn);
 	if (rc) {
 		pr_err("Failed to initialize RCFW: %#x\n", rc);
 		goto free_sctx;
@@ -1144,13 +1220,15 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		goto fail;
 	}
 
-	rc = bnxt_re_setup_qos(rdev);
-	if (rc)
-		pr_info("RoCE priority not yet configured\n");
+	if (!rdev->is_virtfn) {
+		rc = bnxt_re_setup_qos(rdev);
+		if (rc)
+			pr_info("RoCE priority not yet configured\n");
 
-	INIT_DELAYED_WORK(&rdev->worker, bnxt_re_worker);
-	set_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags);
-	schedule_delayed_work(&rdev->worker, msecs_to_jiffies(30000));
+		INIT_DELAYED_WORK(&rdev->worker, bnxt_re_worker);
+		set_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags);
+		schedule_delayed_work(&rdev->worker, msecs_to_jiffies(30000));
+	}
 
 	/* Register ib dev */
 	rc = bnxt_re_register_ib(rdev);
@@ -1400,7 +1478,7 @@ err_netdev:
 
 static void __exit bnxt_re_mod_exit(void)
 {
-	struct bnxt_re_dev *rdev;
+	struct bnxt_re_dev *rdev, *next;
 	LIST_HEAD(to_be_deleted);
 
 	mutex_lock(&bnxt_re_dev_lock);
@@ -1408,8 +1486,11 @@ static void __exit bnxt_re_mod_exit(void)
 	if (!list_empty(&bnxt_re_dev_list))
 		list_splice_init(&bnxt_re_dev_list, &to_be_deleted);
 	mutex_unlock(&bnxt_re_dev_lock);
-
-	list_for_each_entry(rdev, &to_be_deleted, list) {
+       /*
+	* Cleanup the devices in reverse order so that the VF device
+	* cleanup is done before PF cleanup
+	*/
+	list_for_each_entry_safe_reverse(rdev, next, &to_be_deleted, list) {
 		dev_info(rdev_to_dev(rdev), "Unregistering Device");
 		bnxt_re_dev_stop(rdev);
 		bnxt_re_ib_unreg(rdev, true);

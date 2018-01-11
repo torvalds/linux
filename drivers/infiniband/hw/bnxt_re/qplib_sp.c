@@ -65,7 +65,7 @@ static bool bnxt_qplib_is_atomic_cap(struct bnxt_qplib_rcfw *rcfw)
 }
 
 int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
-			    struct bnxt_qplib_dev_attr *attr)
+			    struct bnxt_qplib_dev_attr *attr, bool vf)
 {
 	struct cmdq_query_func req;
 	struct creq_query_func_resp resp;
@@ -95,7 +95,8 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	/* Extract the context from the side buffer */
 	attr->max_qp = le32_to_cpu(sb->max_qp);
 	/* max_qp value reported by FW for PF doesn't include the QP1 for PF */
-	attr->max_qp += 1;
+	if (!vf)
+		attr->max_qp += 1;
 	attr->max_qp_rd_atom =
 		sb->max_qp_rd_atom > BNXT_QPLIB_MAX_OUT_RD_ATOM ?
 		BNXT_QPLIB_MAX_OUT_RD_ATOM : sb->max_qp_rd_atom;
@@ -147,6 +148,38 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->is_atomic = bnxt_qplib_is_atomic_cap(rcfw);
 bail:
 	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	return rc;
+}
+
+int bnxt_qplib_set_func_resources(struct bnxt_qplib_res *res,
+				  struct bnxt_qplib_rcfw *rcfw,
+				  struct bnxt_qplib_ctx *ctx)
+{
+	struct cmdq_set_func_resources req;
+	struct creq_set_func_resources_resp resp;
+	u16 cmd_flags = 0;
+	int rc = 0;
+
+	RCFW_CMD_PREP(req, SET_FUNC_RESOURCES, cmd_flags);
+
+	req.number_of_qp = cpu_to_le32(ctx->qpc_count);
+	req.number_of_mrw = cpu_to_le32(ctx->mrw_count);
+	req.number_of_srq =  cpu_to_le32(ctx->srqc_count);
+	req.number_of_cq = cpu_to_le32(ctx->cq_count);
+
+	req.max_qp_per_vf = cpu_to_le32(ctx->vf_res.max_qp_per_vf);
+	req.max_mrw_per_vf = cpu_to_le32(ctx->vf_res.max_mrw_per_vf);
+	req.max_srq_per_vf = cpu_to_le32(ctx->vf_res.max_srq_per_vf);
+	req.max_cq_per_vf = cpu_to_le32(ctx->vf_res.max_cq_per_vf);
+	req.max_gid_per_vf = cpu_to_le32(ctx->vf_res.max_gid_per_vf);
+
+	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req,
+					  (void *)&resp,
+					  NULL, 0);
+	if (rc) {
+		dev_err(&res->pdev->dev,
+			"QPLIB: Failed to set function resources");
+	}
 	return rc;
 }
 

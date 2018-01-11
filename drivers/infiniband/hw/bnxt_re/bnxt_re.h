@@ -57,6 +57,19 @@
 #define BNXT_RE_MAX_MRW_COUNT		(64 * 1024)
 #define BNXT_RE_MAX_SRQC_COUNT		(64 * 1024)
 #define BNXT_RE_MAX_CQ_COUNT		(64 * 1024)
+#define BNXT_RE_MAX_MRW_COUNT_64K	(64 * 1024)
+#define BNXT_RE_MAX_MRW_COUNT_256K	(256 * 1024)
+
+/* Number of MRs to reserve for PF, leaving remainder for VFs */
+#define BNXT_RE_RESVD_MR_FOR_PF         (32 * 1024)
+#define BNXT_RE_MAX_GID_PER_VF          128
+
+/*
+ * Percentage of resources of each type reserved for PF.
+ * Remaining resources are divided equally among VFs.
+ * [0, 100]
+ */
+#define BNXT_RE_PCT_RSVD_FOR_PF         50
 
 #define BNXT_RE_UD_QP_HW_STALL		0x400000
 
@@ -145,6 +158,8 @@ struct bnxt_re_dev {
 	struct bnxt_re_ah		*sqp_ah;
 	struct bnxt_re_sqp_entries sqp_tbl[1024];
 	atomic_t nq_alloc_cnt;
+	u32 is_virtfn;
+	u32 num_vfs;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
