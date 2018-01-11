@@ -3527,6 +3527,7 @@ bool is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 
 	return result;
 }
+EXPORT_SYMBOL(is_subdir);
 
 static enum d_walk_ret d_genocide_kill(void *data, struct dentry *dentry)
 {

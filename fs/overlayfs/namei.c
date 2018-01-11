@@ -84,7 +84,19 @@ invalid:
 
 static int ovl_acceptable(void *ctx, struct dentry *dentry)
 {
-	return 1;
+	/*
+	 * A non-dir origin may be disconnected, which is fine, because
+	 * we only need it for its unique inode number.
+	 */
+	if (!d_is_dir(dentry))
+		return 1;
+
+	/* Don't decode a deleted empty directory */
+	if (d_unhashed(dentry))
+		return 0;
+
+	/* Check if directory belongs to the layer we are decoding from */
+	return is_subdir(dentry, ((struct vfsmount *)ctx)->mnt_root);
 }
 
 /*
@@ -160,7 +172,7 @@ invalid:
 
 static struct dentry *ovl_decode_fh(struct ovl_fh *fh, struct vfsmount *mnt)
 {
-	struct dentry *origin;
+	struct dentry *real;
 	int bytes;
 
 	/*
@@ -171,22 +183,28 @@ static struct dentry *ovl_decode_fh(struct ovl_fh *fh, struct vfsmount *mnt)
 		return NULL;
 
 	bytes = (fh->len - offsetof(struct ovl_fh, fid));
-	origin = exportfs_decode_fh(mnt, (struct fid *)fh->fid,
-				    bytes >> 2, (int)fh->type,
-				    ovl_acceptable, NULL);
-	if (IS_ERR(origin)) {
-		/* Treat stale file handle as "origin unknown" */
-		if (origin == ERR_PTR(-ESTALE))
-			origin = NULL;
-		return origin;
+	real = exportfs_decode_fh(mnt, (struct fid *)fh->fid,
+				  bytes >> 2, (int)fh->type,
+				  ovl_acceptable, mnt);
+	if (IS_ERR(real)) {
+		/*
+		 * Treat stale file handle to lower file as "origin unknown".
+		 * upper file handle could become stale when upper file is
+		 * unlinked and this information is needed to handle stale
+		 * index entries correctly.
+		 */
+		if (real == ERR_PTR(-ESTALE) &&
+		    !(fh->flags & OVL_FH_FLAG_PATH_UPPER))
+			real = NULL;
+		return real;
 	}
 
-	if (ovl_dentry_weird(origin)) {
-		dput(origin);
+	if (ovl_dentry_weird(real)) {
+		dput(real);
 		return NULL;
 	}
 
-	return origin;
+	return real;
 }
 
 static bool ovl_is_opaquedir(struct dentry *dentry)
@@ -420,6 +438,35 @@ fail:
 	goto out;
 }
 
+/* Get upper dentry from index */
+static struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index)
+{
+	struct ovl_fh *fh;
+	struct dentry *upper;
+
+	if (!d_is_dir(index))
+		return dget(index);
+
+	fh = ovl_get_fh(index, OVL_XATTR_UPPER);
+	if (IS_ERR_OR_NULL(fh))
+		return ERR_CAST(fh);
+
+	upper = ovl_decode_fh(fh, ofs->upper_mnt);
+	kfree(fh);
+
+	if (IS_ERR_OR_NULL(upper))
+		return upper ?: ERR_PTR(-ESTALE);
+
+	if (!d_is_dir(upper)) {
+		pr_warn_ratelimited("overlayfs: invalid index upper (%pd2, upper=%pd2).\n",
+				    index, upper);
+		dput(upper);
+		return ERR_PTR(-EIO);
+	}
+
+	return upper;
+}
+
 /*
  * Verify that an index entry name matches the origin file handle stored in
  * OVL_XATTR_ORIGIN and that origin file handle can be decoded to lower path.
@@ -431,23 +478,13 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 	size_t len;
 	struct ovl_path origin = { };
 	struct ovl_path *stack = &origin;
+	struct dentry *upper = NULL;
 	int err;
 
 	if (!d_inode(index))
 		return 0;
 
-	/*
-	 * Directory index entries are going to be used for looking up
-	 * redirected upper dirs by lower dir fh when decoding an overlay
-	 * file handle of a merge dir.  We don't know the verification rules
-	 * for directory index entries, because they have not been implemented
-	 * yet, so return EINVAL if those entries are found to abort the mount
-	 * and to avoid corrupting an index that was created by a newer kernel.
-	 */
 	err = -EINVAL;
-	if (d_is_dir(index))
-		goto fail;
-
 	if (index->d_name.len < sizeof(struct ovl_fh)*2)
 		goto fail;
 
@@ -473,21 +510,45 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 	if (ovl_is_whiteout(index))
 		goto out;
 
-	err = ovl_verify_fh(index, OVL_XATTR_ORIGIN, fh);
+	/*
+	 * Verifying directory index entries are not stale is expensive, so
+	 * only verify stale dir index if NFS export is enabled.
+	 */
+	if (d_is_dir(index) && !ofs->config.nfs_export)
+		goto out;
+
+	/*
+	 * Directory index entries should have 'upper' xattr pointing to the
+	 * real upper dir. Non-dir index entries are hardlinks to the upper
+	 * real inode. For non-dir index, we can read the copy up origin xattr
+	 * directly from the index dentry, but for dir index we first need to
+	 * decode the upper directory.
+	 */
+	upper = ovl_index_upper(ofs, index);
+	if (IS_ERR_OR_NULL(upper)) {
+		err = PTR_ERR(upper);
+		if (!err)
+			err = -ESTALE;
+		goto fail;
+	}
+
+	err = ovl_verify_fh(upper, OVL_XATTR_ORIGIN, fh);
+	dput(upper);
 	if (err)
 		goto fail;
 
-	err = ovl_check_origin_fh(ofs, fh, index, &stack);
-	if (err)
-		goto fail;
+	/* Check if non-dir index is orphan and don't warn before cleaning it */
+	if (!d_is_dir(index) && d_inode(index)->i_nlink == 1) {
+		err = ovl_check_origin_fh(ofs, fh, index, &stack);
+		if (err)
+			goto fail;
 
-	/* Check if index is orphan and don't warn before cleaning it */
-	if (d_inode(index)->i_nlink == 1 &&
-	    ovl_get_nlink(origin.dentry, index, 0) == 0)
-		err = -ENOENT;
+		if (ovl_get_nlink(origin.dentry, index, 0) == 0)
+			err = -ENOENT;
+	}
 
-	dput(origin.dentry);
 out:
+	dput(origin.dentry);
 	kfree(fh);
 	return err;
 
