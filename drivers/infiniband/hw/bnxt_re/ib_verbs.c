@@ -147,7 +147,7 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	bnxt_qplib_get_guid(rdev->netdev->dev_addr,
 			    (u8 *)&ib_attr->sys_image_guid);
 	ib_attr->max_mr_size = BNXT_RE_MAX_MR_SIZE;
-	ib_attr->page_size_cap = BNXT_RE_PAGE_SIZE_4K;
+	ib_attr->page_size_cap = BNXT_RE_PAGE_SIZE_4K | BNXT_RE_PAGE_SIZE_2M;
 
 	ib_attr->vendor_id = rdev->en_dev->pdev->vendor;
 	ib_attr->vendor_part_id = rdev->en_dev->pdev->device;
@@ -248,8 +248,7 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 				    IB_PORT_VENDOR_CLASS_SUP |
 				    IB_PORT_IP_BASED_GIDS;
 
-	/* Max MSG size set to 2G for now */
-	port_attr->max_msg_sz = 0x80000000;
+	port_attr->max_msg_sz = (u32)BNXT_RE_MAX_MR_SIZE_LOW;
 	port_attr->bad_pkey_cntr = 0;
 	port_attr->qkey_viol_cntr = 0;
 	port_attr->pkey_tbl_len = dev_attr->max_pkey;
@@ -542,7 +541,7 @@ static int bnxt_re_create_fence_mr(struct bnxt_re_pd *pd)
 	mr->qplib_mr.total_size = BNXT_RE_FENCE_BYTES;
 	pbl_tbl = dma_addr;
 	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, &pbl_tbl,
-			       BNXT_RE_FENCE_PBL_SIZE, false);
+			       BNXT_RE_FENCE_PBL_SIZE, false, PAGE_SIZE);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to register fence-MR\n");
 		goto fail;
@@ -3091,7 +3090,8 @@ struct ib_mr *bnxt_re_get_dma_mr(struct ib_pd *ib_pd, int mr_access_flags)
 
 	mr->qplib_mr.hwq.level = PBL_LVL_MAX;
 	mr->qplib_mr.total_size = -1; /* Infinte length */
-	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, &pbl, 0, false);
+	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, &pbl, 0, false,
+			       PAGE_SIZE);
 	if (rc)
 		goto fail_mr;
 
@@ -3117,10 +3117,8 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
 	int rc;
 
 	rc = bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
-	if (rc) {
+	if (rc)
 		dev_err(rdev_to_dev(rdev), "Dereg MR failed: %#x\n", rc);
-		return rc;
-	}
 
 	if (mr->pages) {
 		rc = bnxt_qplib_free_fast_reg_page_list(&rdev->qplib_res,
@@ -3183,7 +3181,7 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 
 	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
 	if (rc)
-		goto fail;
+		goto bail;
 
 	mr->ib_mr.lkey = mr->qplib_mr.lkey;
 	mr->ib_mr.rkey = mr->ib_mr.lkey;
@@ -3205,9 +3203,10 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 	return &mr->ib_mr;
 
 fail_mr:
-	bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
-fail:
 	kfree(mr->pages);
+fail:
+	bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
+bail:
 	kfree(mr);
 	return ERR_PTR(rc);
 }
@@ -3261,6 +3260,46 @@ int bnxt_re_dealloc_mw(struct ib_mw *ib_mw)
 	return rc;
 }
 
+static int bnxt_re_page_size_ok(int page_shift)
+{
+	switch (page_shift) {
+	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_4K:
+	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_8K:
+	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_64K:
+	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_2M:
+	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_256K:
+	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_1M:
+	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_4M:
+	case CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_PG_1G:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static int fill_umem_pbl_tbl(struct ib_umem *umem, u64 *pbl_tbl_orig,
+			     int page_shift)
+{
+	u64 *pbl_tbl = pbl_tbl_orig;
+	u64 paddr;
+	u64 page_mask = (1ULL << page_shift) - 1;
+	int i, pages;
+	struct scatterlist *sg;
+	int entry;
+
+	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
+		pages = sg_dma_len(sg) >> PAGE_SHIFT;
+		for (i = 0; i < pages; i++) {
+			paddr = sg_dma_address(sg) + (i << PAGE_SHIFT);
+			if (pbl_tbl == pbl_tbl_orig)
+				*pbl_tbl++ = paddr & ~page_mask;
+			else if ((paddr & page_mask) == 0)
+				*pbl_tbl++ = paddr;
+		}
+	}
+	return pbl_tbl - pbl_tbl_orig;
+}
+
 /* uverbs */
 struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 				  u64 virt_addr, int mr_access_flags,
@@ -3270,10 +3309,8 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	struct bnxt_re_dev *rdev = pd->rdev;
 	struct bnxt_re_mr *mr;
 	struct ib_umem *umem;
-	u64 *pbl_tbl, *pbl_tbl_orig;
-	int i, umem_pgs, pages, rc;
-	struct scatterlist *sg;
-	int entry;
+	u64 *pbl_tbl = NULL;
+	int umem_pgs, page_shift, rc;
 
 	if (length > BNXT_RE_MAX_MR_SIZE) {
 		dev_err(rdev_to_dev(rdev), "MR Size: %lld > Max supported:%ld\n",
@@ -3290,64 +3327,68 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	mr->qplib_mr.flags = __from_ib_access_flags(mr_access_flags);
 	mr->qplib_mr.type = CMDQ_ALLOCATE_MRW_MRW_FLAGS_MR;
 
+	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Failed to allocate MR");
+		goto free_mr;
+	}
+	/* The fixed portion of the rkey is the same as the lkey */
+	mr->ib_mr.rkey = mr->qplib_mr.rkey;
+
 	umem = ib_umem_get(ib_pd->uobject->context, start, length,
 			   mr_access_flags, 0);
 	if (IS_ERR(umem)) {
 		dev_err(rdev_to_dev(rdev), "Failed to get umem");
 		rc = -EFAULT;
-		goto free_mr;
+		goto free_mrw;
 	}
 	mr->ib_umem = umem;
-
-	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev), "Failed to allocate MR");
-		goto release_umem;
-	}
-	/* The fixed portion of the rkey is the same as the lkey */
-	mr->ib_mr.rkey = mr->qplib_mr.rkey;
 
 	mr->qplib_mr.va = virt_addr;
 	umem_pgs = ib_umem_page_count(umem);
 	if (!umem_pgs) {
 		dev_err(rdev_to_dev(rdev), "umem is invalid!");
 		rc = -EINVAL;
-		goto free_mrw;
+		goto free_umem;
 	}
 	mr->qplib_mr.total_size = length;
 
 	pbl_tbl = kcalloc(umem_pgs, sizeof(u64 *), GFP_KERNEL);
 	if (!pbl_tbl) {
+		rc = -ENOMEM;
+		goto free_umem;
+	}
+
+	page_shift = umem->page_shift;
+
+	if (!bnxt_re_page_size_ok(page_shift)) {
+		dev_err(rdev_to_dev(rdev), "umem page size unsupported!");
+		rc = -EFAULT;
+		goto fail;
+	}
+
+	if (!umem->hugetlb && length > BNXT_RE_MAX_MR_SIZE_LOW) {
+		dev_err(rdev_to_dev(rdev), "Requested MR Sz:%llu Max sup:%llu",
+			length,	(u64)BNXT_RE_MAX_MR_SIZE_LOW);
 		rc = -EINVAL;
-		goto free_mrw;
-	}
-	pbl_tbl_orig = pbl_tbl;
-
-	if (umem->hugetlb) {
-		dev_err(rdev_to_dev(rdev), "umem hugetlb not supported!");
-		rc = -EFAULT;
 		goto fail;
 	}
-
-	if (umem->page_shift != PAGE_SHIFT) {
-		dev_err(rdev_to_dev(rdev), "umem page shift unsupported!");
-		rc = -EFAULT;
-		goto fail;
+	if (umem->hugetlb && length > BNXT_RE_PAGE_SIZE_2M) {
+		page_shift = BNXT_RE_PAGE_SHIFT_2M;
+		dev_warn(rdev_to_dev(rdev), "umem hugetlb set page_size %x",
+			 1 << page_shift);
 	}
+
 	/* Map umem buf ptrs to the PBL */
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		pages = sg_dma_len(sg) >> umem->page_shift;
-		for (i = 0; i < pages; i++, pbl_tbl++)
-			*pbl_tbl = sg_dma_address(sg) + (i << umem->page_shift);
-	}
-	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, pbl_tbl_orig,
-			       umem_pgs, false);
+	umem_pgs = fill_umem_pbl_tbl(umem, pbl_tbl, page_shift);
+	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, pbl_tbl,
+			       umem_pgs, false, 1 << page_shift);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to register user MR");
 		goto fail;
 	}
 
-	kfree(pbl_tbl_orig);
+	kfree(pbl_tbl);
 
 	mr->ib_mr.lkey = mr->qplib_mr.lkey;
 	mr->ib_mr.rkey = mr->qplib_mr.lkey;
@@ -3355,11 +3396,11 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 
 	return &mr->ib_mr;
 fail:
-	kfree(pbl_tbl_orig);
+	kfree(pbl_tbl);
+free_umem:
+	ib_umem_release(umem);
 free_mrw:
 	bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
-release_umem:
-	ib_umem_release(umem);
 free_mr:
 	kfree(mr);
 	return ERR_PTR(rc);

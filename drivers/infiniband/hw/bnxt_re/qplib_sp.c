@@ -657,7 +657,7 @@ int bnxt_qplib_dereg_mrw(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mrw,
 }
 
 int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
-		      u64 *pbl_tbl, int num_pbls, bool block)
+		      u64 *pbl_tbl, int num_pbls, bool block, u32 buf_pg_size)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_register_mr req;
@@ -668,6 +668,9 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 	u32 pg_size;
 
 	if (num_pbls) {
+		/* Allocate memory for the non-leaf pages to store buf ptrs.
+		 * Non-leaf pages always uses system PAGE_SIZE
+		 */
 		pg_ptrs = roundup_pow_of_two(num_pbls);
 		pages = pg_ptrs >> MAX_PBL_LVL_1_PGS_SHIFT;
 		if (!pages)
@@ -685,6 +688,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 			bnxt_qplib_free_hwq(res->pdev, &mr->hwq);
 
 		mr->hwq.max_elements = pages;
+		/* Use system PAGE_SIZE */
 		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &mr->hwq, NULL, 0,
 					       &mr->hwq.max_elements,
 					       PAGE_SIZE, 0, PAGE_SIZE,
@@ -705,18 +709,22 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 
 	/* Configure the request */
 	if (mr->hwq.level == PBL_LVL_MAX) {
+		/* No PBL provided, just use system PAGE_SIZE */
 		level = 0;
 		req.pbl = 0;
 		pg_size = PAGE_SIZE;
 	} else {
 		level = mr->hwq.level + 1;
 		req.pbl = cpu_to_le64(mr->hwq.pbl[PBL_LVL_0].pg_map_arr[0]);
-		pg_size = mr->hwq.pbl[PBL_LVL_0].pg_size;
 	}
+	pg_size = buf_pg_size ? buf_pg_size : PAGE_SIZE;
 	req.log2_pg_size_lvl = (level << CMDQ_REGISTER_MR_LVL_SFT) |
 			       ((ilog2(pg_size) <<
 				 CMDQ_REGISTER_MR_LOG2_PG_SIZE_SFT) &
 				CMDQ_REGISTER_MR_LOG2_PG_SIZE_MASK);
+	req.log2_pbl_pg_size = cpu_to_le16(((ilog2(PAGE_SIZE) <<
+				 CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_SFT) &
+				CMDQ_REGISTER_MR_LOG2_PBL_PG_SIZE_MASK));
 	req.access = (mr->flags & 0xFFFF);
 	req.va = cpu_to_le64(mr->va);
 	req.key = cpu_to_le32(mr->lkey);
