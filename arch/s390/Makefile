@@ -138,8 +138,7 @@ archheaders:
 
 archprepare:
 	$(Q)$(MAKE) $(build)=$(syscalls) kapi
-	$(Q)$(MAKE) $(build)=$(tools) include/generated/facilities.h
-	$(Q)$(MAKE) $(build)=$(tools) include/generated/dis.h
+	$(Q)$(MAKE) $(build)=$(tools) kapi
 
 # Don't use tabs in echo arguments
 define archhelp
