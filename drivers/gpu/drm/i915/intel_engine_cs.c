@@ -38,6 +38,7 @@
  */
 #define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
 
+#define DEFAULT_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
 #define GEN8_LR_CONTEXT_RENDER_SIZE	(20 * PAGE_SIZE)
 #define GEN9_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
 #define GEN10_LR_CONTEXT_RENDER_SIZE	(18 * PAGE_SIZE)
@@ -157,6 +158,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		switch (INTEL_GEN(dev_priv)) {
 		default:
 			MISSING_CASE(INTEL_GEN(dev_priv));
+			return DEFAULT_LR_CONTEXT_RENDER_SIZE;
 		case 10:
 			return GEN10_LR_CONTEXT_RENDER_SIZE;
 		case 9:
