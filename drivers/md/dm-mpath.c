@@ -517,9 +517,8 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 		return DM_MAPIO_KILL;
 	} else if (test_bit(MPATHF_QUEUE_IO, &m->flags) ||
 		   test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags)) {
-		if (pg_init_all_paths(m))
-			return DM_MAPIO_DELAY_REQUEUE;
-		return DM_MAPIO_REQUEUE;
+		pg_init_all_paths(m);
+		return DM_MAPIO_DELAY_REQUEUE;
 	}
 
 	mpio->pgpath = pgpath;
