@@ -20,6 +20,7 @@
 #include <linux/mm.h>
 
 #include <asm/apic.h>
+#include <asm/nospec-branch.h>
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 
@@ -55,11 +56,11 @@ DEFINE_PER_CPU(struct irq_stack *, softirq_stack);
 static void call_on_stack(void *func, void *stack)
 {
 	asm volatile("xchgl	%%ebx,%%esp	\n"
-		     "call	*%%edi		\n"
+		     CALL_NOSPEC
 		     "movl	%%ebx,%%esp	\n"
 		     : "=b" (stack)
 		     : "0" (stack),
-		       "D"(func)
+		       [thunk_target] "D"(func)
 		     : "memory", "cc", "edx", "ecx", "eax");
 }
 
@@ -95,11 +96,11 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 		call_on_stack(print_stack_overflow, isp);
 
 	asm volatile("xchgl	%%ebx,%%esp	\n"
-		     "call	*%%edi		\n"
+		     CALL_NOSPEC
 		     "movl	%%ebx,%%esp	\n"
 		     : "=a" (arg1), "=b" (isp)
 		     :  "0" (desc),   "1" (isp),
-			"D" (desc->handle_irq)
+			[thunk_target] "D" (desc->handle_irq)
 		     : "memory", "cc", "ecx");
 	return 1;
 }
