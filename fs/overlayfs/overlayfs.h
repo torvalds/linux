@@ -249,14 +249,20 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 
 
 /* namei.c */
-int ovl_verify_origin(struct dentry *dentry, struct dentry *origin,
-		      bool is_upper, bool set);
+int ovl_verify_set_fh(struct dentry *dentry, const char *name,
+		      struct dentry *real, bool is_upper, bool set);
 int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index);
 int ovl_get_index_name(struct dentry *origin, struct qstr *name);
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags);
 bool ovl_lower_positive(struct dentry *dentry);
+
+static inline int ovl_verify_origin(struct dentry *upper,
+				    struct dentry *origin, bool set)
+{
+	return ovl_verify_set_fh(upper, OVL_XATTR_ORIGIN, origin, false, set);
+}
 
 /* readdir.c */
 extern const struct file_operations ovl_dir_operations;
@@ -320,6 +326,6 @@ int ovl_copy_up(struct dentry *dentry);
 int ovl_copy_up_flags(struct dentry *dentry, int flags);
 int ovl_copy_xattr(struct dentry *old, struct dentry *new);
 int ovl_set_attr(struct dentry *upper, struct kstat *stat);
-struct ovl_fh *ovl_encode_fh(struct dentry *lower, bool is_upper);
+struct ovl_fh *ovl_encode_fh(struct dentry *real, bool is_upper);
 int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 		   struct dentry *upper);

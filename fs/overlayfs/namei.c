@@ -114,12 +114,12 @@ static int ovl_check_fh_len(struct ovl_fh *fh, int fh_len)
 	return 0;
 }
 
-static struct ovl_fh *ovl_get_origin_fh(struct dentry *dentry)
+static struct ovl_fh *ovl_get_fh(struct dentry *dentry, const char *name)
 {
 	int res, err;
 	struct ovl_fh *fh = NULL;
 
-	res = vfs_getxattr(dentry, OVL_XATTR_ORIGIN, NULL, 0);
+	res = vfs_getxattr(dentry, name, NULL, 0);
 	if (res < 0) {
 		if (res == -ENODATA || res == -EOPNOTSUPP)
 			return NULL;
@@ -133,7 +133,7 @@ static struct ovl_fh *ovl_get_origin_fh(struct dentry *dentry)
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 
-	res = vfs_getxattr(dentry, OVL_XATTR_ORIGIN, fh, res);
+	res = vfs_getxattr(dentry, name, fh, res);
 	if (res < 0)
 		goto fail;
 
@@ -337,7 +337,7 @@ invalid:
 static int ovl_check_origin(struct ovl_fs *ofs, struct dentry *upperdentry,
 			    struct ovl_path **stackp, unsigned int *ctrp)
 {
-	struct ovl_fh *fh = ovl_get_origin_fh(upperdentry);
+	struct ovl_fh *fh = ovl_get_fh(upperdentry, OVL_XATTR_ORIGIN);
 	int err;
 
 	if (IS_ERR_OR_NULL(fh))
@@ -360,12 +360,13 @@ static int ovl_check_origin(struct ovl_fs *ofs, struct dentry *upperdentry,
 }
 
 /*
- * Verify that @fh matches the origin file handle stored in OVL_XATTR_ORIGIN.
+ * Verify that @fh matches the file handle stored in xattr @name.
  * Return 0 on match, -ESTALE on mismatch, < 0 on error.
  */
-static int ovl_verify_origin_fh(struct dentry *dentry, const struct ovl_fh *fh)
+static int ovl_verify_fh(struct dentry *dentry, const char *name,
+			 const struct ovl_fh *fh)
 {
-	struct ovl_fh *ofh = ovl_get_origin_fh(dentry);
+	struct ovl_fh *ofh = ovl_get_fh(dentry, name);
 	int err = 0;
 
 	if (!ofh)
@@ -382,28 +383,28 @@ static int ovl_verify_origin_fh(struct dentry *dentry, const struct ovl_fh *fh)
 }
 
 /*
- * Verify that an inode matches the origin file handle stored in upper inode.
+ * Verify that @real dentry matches the file handle stored in xattr @name.
  *
- * If @set is true and there is no stored file handle, encode and store origin
- * file handle in OVL_XATTR_ORIGIN.
+ * If @set is true and there is no stored file handle, encode @real and store
+ * file handle in xattr @name.
  *
- * Return 0 on match, -ESTALE on mismatch, < 0 on error.
+ * Return 0 on match, -ESTALE on mismatch, -ENODATA on no xattr, < 0 on error.
  */
-int ovl_verify_origin(struct dentry *dentry, struct dentry *origin,
-		      bool is_upper, bool set)
+int ovl_verify_set_fh(struct dentry *dentry, const char *name,
+		      struct dentry *real, bool is_upper, bool set)
 {
 	struct inode *inode;
 	struct ovl_fh *fh;
 	int err;
 
-	fh = ovl_encode_fh(origin, is_upper);
+	fh = ovl_encode_fh(real, is_upper);
 	err = PTR_ERR(fh);
 	if (IS_ERR(fh))
 		goto fail;
 
-	err = ovl_verify_origin_fh(dentry, fh);
+	err = ovl_verify_fh(dentry, name, fh);
 	if (set && err == -ENODATA)
-		err = ovl_do_setxattr(dentry, OVL_XATTR_ORIGIN, fh, fh->len, 0);
+		err = ovl_do_setxattr(dentry, name, fh, fh->len, 0);
 	if (err)
 		goto fail;
 
@@ -412,9 +413,10 @@ out:
 	return err;
 
 fail:
-	inode = d_inode(origin);
-	pr_warn_ratelimited("overlayfs: failed to verify origin (%pd2, ino=%lu, err=%i)\n",
-			    origin, inode ? inode->i_ino : 0, err);
+	inode = d_inode(real);
+	pr_warn_ratelimited("overlayfs: failed to verify %s (%pd2, ino=%lu, err=%i)\n",
+			    is_upper ? "upper" : "origin", real,
+			    inode ? inode->i_ino : 0, err);
 	goto out;
 }
 
@@ -466,7 +468,7 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 	if (err)
 		goto fail;
 
-	err = ovl_verify_origin_fh(index, fh);
+	err = ovl_verify_fh(index, OVL_XATTR_ORIGIN, fh);
 	if (err)
 		goto fail;
 

@@ -232,13 +232,13 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 	return err;
 }
 
-struct ovl_fh *ovl_encode_fh(struct dentry *lower, bool is_upper)
+struct ovl_fh *ovl_encode_fh(struct dentry *real, bool is_upper)
 {
 	struct ovl_fh *fh;
 	int fh_type, fh_len, dwords;
 	void *buf;
 	int buflen = MAX_HANDLE_SZ;
-	uuid_t *uuid = &lower->d_sb->s_uuid;
+	uuid_t *uuid = &real->d_sb->s_uuid;
 
 	buf = kmalloc(buflen, GFP_KERNEL);
 	if (!buf)
@@ -250,7 +250,7 @@ struct ovl_fh *ovl_encode_fh(struct dentry *lower, bool is_upper)
 	 * the price or reconnecting the dentry.
 	 */
 	dwords = buflen >> 2;
-	fh_type = exportfs_encode_fh(lower, buf, &dwords, 0);
+	fh_type = exportfs_encode_fh(real, buf, &dwords, 0);
 	buflen = (dwords << 2);
 
 	fh = ERR_PTR(-EIO);
