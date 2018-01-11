@@ -574,7 +574,8 @@ static void  ulptx_walk_add_sg(struct ulptx_walk *walk,
 			skip = 0;
 		}
 	}
-	if (walk->nents == 0) {
+	WARN(!sg, "SG should not be null here\n");
+	if (sg && (walk->nents == 0)) {
 		small = min_t(unsigned int, sg_dma_len(sg) - skip_len, len);
 		sgmin = min_t(unsigned int, small, CHCR_SRC_SG_SIZE);
 		walk->sgl->len0 = cpu_to_be32(sgmin);
