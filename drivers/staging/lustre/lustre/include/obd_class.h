@@ -55,7 +55,7 @@ extern struct obd_device *obd_devs[MAX_OBD_DEVICES];
 extern rwlock_t obd_dev_lock;
 
 /* OBD Operations Declarations */
-struct obd_device *class_exp2obd(struct obd_export *);
+struct obd_device *class_exp2obd(struct obd_export *exp);
 int class_handle_ioctl(unsigned int cmd, unsigned long arg);
 int lustre_get_jobid(char *jobid);
 
@@ -63,10 +63,10 @@ struct lu_device_type;
 
 /* genops.c */
 extern struct list_head obd_types;
-struct obd_export *class_conn2export(struct lustre_handle *);
-int class_register_type(struct obd_ops *, struct md_ops *,
-			const char *nm, struct lu_device_type *ldt);
-int class_unregister_type(const char *nm);
+struct obd_export *class_conn2export(struct lustre_handle *conn);
+int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
+			const char *name, struct lu_device_type *ldt);
+int class_unregister_type(const char *name);
 
 struct obd_device *class_newdev(const char *type_name, const char *name);
 void class_release_dev(struct obd_device *obd);
@@ -205,9 +205,11 @@ void class_del_profiles(void);
 
 #if LUSTRE_TRACKS_LOCK_EXP_REFS
 
-void __class_export_add_lock_ref(struct obd_export *, struct ldlm_lock *);
-void __class_export_del_lock_ref(struct obd_export *, struct ldlm_lock *);
-extern void (*class_export_dump_hook)(struct obd_export *);
+void __class_export_add_lock_ref(struct obd_export *exp,
+				 struct ldlm_lock *lock);
+void __class_export_del_lock_ref(struct obd_export *exp,
+				 struct ldlm_lock *lock);
+extern void (*class_export_dump_hook)(struct obd_export *exp);
 
 #else
 
@@ -223,8 +225,8 @@ struct obd_export *class_new_export(struct obd_device *obddev,
 				    struct obd_uuid *cluuid);
 void class_unlink_export(struct obd_export *exp);
 
-struct obd_import *class_import_get(struct obd_import *);
-void class_import_put(struct obd_import *);
+struct obd_import *class_import_get(struct obd_import *imp);
+void class_import_put(struct obd_import *imp);
 struct obd_import *class_new_import(struct obd_device *obd);
 void class_destroy_import(struct obd_import *exp);
 
