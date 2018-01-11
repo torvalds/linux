@@ -306,6 +306,36 @@
 					gpio-ranges = <&pinctrl_periphs 0 0 86>;
 				};
 
+				eth_rmii_x_pins: eth-x-rmii {
+					mux {
+						groups = "eth_mdio_x",
+						       "eth_mdc_x",
+						       "eth_rgmii_rx_clk_x",
+						       "eth_rx_dv_x",
+						       "eth_rxd0_x",
+						       "eth_rxd1_x",
+						       "eth_txen_x",
+						       "eth_txd0_x",
+						       "eth_txd1_x";
+						function = "eth";
+					};
+				};
+
+				eth_rmii_y_pins: eth-y-rmii {
+					mux {
+						groups = "eth_mdio_y",
+						       "eth_mdc_y",
+						       "eth_rgmii_rx_clk_y",
+						       "eth_rx_dv_y",
+						       "eth_rxd0_y",
+						       "eth_rxd1_y",
+						       "eth_txen_y",
+						       "eth_txd0_y",
+						       "eth_txd1_y";
+						function = "eth";
+					};
+				};
+
 				eth_rgmii_x_pins: eth-x-rgmii {
 					mux {
 						groups = "eth_mdio_x",
