@@ -328,116 +328,116 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	return rc;
 }
 
-#define OBD_COUNTER_OFFSET(op)				  \
-	((offsetof(struct obd_ops, op) -		  \
-	  offsetof(struct obd_ops, iocontrol))		\
-	 / sizeof(((struct obd_ops *)(0))->iocontrol))
+#define OBD_COUNTER_OFFSET(op)					\
+	((offsetof(struct obd_ops, op) -			\
+		offsetof(struct obd_ops, iocontrol))		\
+		/ sizeof(((struct obd_ops *)(0))->iocontrol))
 
-#define OBD_COUNTER_INCREMENT(obdx, op)			   \
-do {							  \
-	if ((obdx)->obd_stats) {				  \
-		unsigned int coffset;			     \
-		coffset = (unsigned int)((obdx)->obd_cntr_base) + \
-			OBD_COUNTER_OFFSET(op);		   \
-		LASSERT(coffset < (obdx)->obd_stats->ls_num);     \
-		lprocfs_counter_incr((obdx)->obd_stats, coffset); \
-	}							  \
-} while (0)
-
-#define EXP_COUNTER_INCREMENT(export, op)				    \
-do {								\
-	if ((export)->exp_obd->obd_stats) {			  \
+#define OBD_COUNTER_INCREMENT(obdx, op)					\
+do {									\
+	if ((obdx)->obd_stats) {					\
 		unsigned int coffset;					\
-		coffset = (unsigned int)((export)->exp_obd->obd_cntr_base) + \
-			OBD_COUNTER_OFFSET(op);			      \
-		LASSERT(coffset < (export)->exp_obd->obd_stats->ls_num);     \
-		lprocfs_counter_incr((export)->exp_obd->obd_stats, coffset); \
+		coffset = (unsigned int)((obdx)->obd_cntr_base) +	\
+			OBD_COUNTER_OFFSET(op);				\
+		LASSERT(coffset < (obdx)->obd_stats->ls_num);		\
+		lprocfs_counter_incr((obdx)->obd_stats, coffset);	\
 	}								\
 } while (0)
 
-#define MD_COUNTER_OFFSET(op)				   \
-	((offsetof(struct md_ops, op) -		   \
-	  offsetof(struct md_ops, getstatus))		 \
-	 / sizeof(((struct md_ops *)(0))->getstatus))
+#define EXP_COUNTER_INCREMENT(export, op)				     \
+do {									     \
+	if ((export)->exp_obd->obd_stats) {				     \
+		unsigned int coffset;					     \
+		coffset = (unsigned int)((export)->exp_obd->obd_cntr_base) + \
+			OBD_COUNTER_OFFSET(op);				     \
+		LASSERT(coffset < (export)->exp_obd->obd_stats->ls_num);     \
+		lprocfs_counter_incr((export)->exp_obd->obd_stats, coffset); \
+	}								     \
+} while (0)
 
-#define MD_COUNTER_INCREMENT(obdx, op)			   \
-do {						   \
-	if ((obd)->md_stats) {			   \
-		unsigned int coffset;			    \
+#define MD_COUNTER_OFFSET(op)					\
+	((offsetof(struct md_ops, op) -				\
+		offsetof(struct md_ops, getstatus))		\
+		/ sizeof(((struct md_ops *)(0))->getstatus))
+
+#define MD_COUNTER_INCREMENT(obdx, op)				 \
+do {								 \
+	if ((obd)->md_stats) {					 \
+		unsigned int coffset;				 \
 		coffset = (unsigned int)((obdx)->md_cntr_base) + \
-			MD_COUNTER_OFFSET(op);		   \
-		LASSERT(coffset < (obdx)->md_stats->ls_num);     \
+			MD_COUNTER_OFFSET(op);			 \
+		LASSERT(coffset < (obdx)->md_stats->ls_num);	 \
 		lprocfs_counter_incr((obdx)->md_stats, coffset); \
 	}							 \
 } while (0)
 
-#define EXP_MD_COUNTER_INCREMENT(export, op)				 \
-do {								\
-	if ((export)->exp_obd->obd_stats) {				  \
-		unsigned int coffset;					\
-		coffset = (unsigned int)((export)->exp_obd->md_cntr_base) +  \
-			MD_COUNTER_OFFSET(op);			       \
-		LASSERT(coffset < (export)->exp_obd->md_stats->ls_num);      \
-		lprocfs_counter_incr((export)->exp_obd->md_stats, coffset);  \
-		if ((export)->exp_md_stats)				  \
-			lprocfs_counter_incr(				\
+#define EXP_MD_COUNTER_INCREMENT(export, op)				    \
+do {									    \
+	if ((export)->exp_obd->obd_stats) {				    \
+		unsigned int coffset;					    \
+		coffset = (unsigned int)((export)->exp_obd->md_cntr_base) + \
+			MD_COUNTER_OFFSET(op);				    \
+		LASSERT(coffset < (export)->exp_obd->md_stats->ls_num);	    \
+		lprocfs_counter_incr((export)->exp_obd->md_stats, coffset); \
+		if ((export)->exp_md_stats)				    \
+			lprocfs_counter_incr(				    \
 				(export)->exp_md_stats, coffset);	    \
-	}								\
+	}								    \
 } while (0)
 
 #define EXP_CHECK_MD_OP(exp, op)				\
-do {							    \
-	if (!(exp)) {				    \
-		CERROR("obd_" #op ": NULL export\n");	   \
-		return -ENODEV;				\
-	}						       \
-	if (!(exp)->exp_obd || !OBT((exp)->exp_obd)) {   \
+do {								\
+	if (!(exp)) {						\
+		CERROR("obd_" #op ": NULL export\n");		\
+		return -ENODEV;					\
+	}							\
+	if (!(exp)->exp_obd || !OBT((exp)->exp_obd)) {		\
 		CERROR("obd_" #op ": cleaned up obd\n");	\
-		return -EOPNOTSUPP;			    \
-	}						       \
-	if (!OBT((exp)->exp_obd) || !MDP((exp)->exp_obd, op)) { \
+		return -EOPNOTSUPP;				\
+	}							\
+	if (!OBT((exp)->exp_obd) || !MDP((exp)->exp_obd, op)) {	\
 		CERROR("obd_" #op ": dev %s/%d no operation\n", \
-		       (exp)->exp_obd->obd_name,		\
-		       (exp)->exp_obd->obd_minor);	      \
-		return -EOPNOTSUPP;			    \
-	}						       \
+			(exp)->exp_obd->obd_name,		\
+			(exp)->exp_obd->obd_minor);		\
+		return -EOPNOTSUPP;				\
+	}							\
 } while (0)
 
-#define OBD_CHECK_DT_OP(obd, op, err)			   \
-do {							    \
-	if (!OBT(obd) || !OBP((obd), op)) {		     \
-		if (err)					\
-			CERROR("obd_" #op ": dev %d no operation\n",    \
-			       obd->obd_minor);		 \
-		return err;				    \
-	}						       \
+#define OBD_CHECK_DT_OP(obd, op, err)					\
+do {									\
+	if (!OBT(obd) || !OBP((obd), op)) {				\
+		if (err)						\
+			CERROR("obd_" #op ": dev %d no operation\n",	\
+				obd->obd_minor);			\
+		return err;						\
+	}								\
 } while (0)
 
 #define EXP_CHECK_DT_OP(exp, op)				\
-do {							    \
-	if (!(exp)) {				    \
-		CERROR("obd_" #op ": NULL export\n");	   \
-		return -ENODEV;				\
-	}						       \
-	if (!(exp)->exp_obd || !OBT((exp)->exp_obd)) {   \
+do {								\
+	if (!(exp)) {						\
+		CERROR("obd_" #op ": NULL export\n");		\
+		return -ENODEV;					\
+	}							\
+	if (!(exp)->exp_obd || !OBT((exp)->exp_obd)) {		\
 		CERROR("obd_" #op ": cleaned up obd\n");	\
-		return -EOPNOTSUPP;			    \
-	}						       \
-	if (!OBT((exp)->exp_obd) || !OBP((exp)->exp_obd, op)) { \
-		CERROR("obd_" #op ": dev %d no operation\n",    \
-		       (exp)->exp_obd->obd_minor);	      \
-		return -EOPNOTSUPP;			    \
-	}						       \
+		return -EOPNOTSUPP;				\
+	}							\
+	if (!OBT((exp)->exp_obd) || !OBP((exp)->exp_obd, op)) {	\
+		CERROR("obd_" #op ": dev %d no operation\n",	\
+			(exp)->exp_obd->obd_minor);		\
+		return -EOPNOTSUPP;				\
+	}							\
 } while (0)
 
-#define CTXT_CHECK_OP(ctxt, op, err)				 \
-do {								 \
-	if (!OBT(ctxt->loc_obd) || !CTXTP((ctxt), op)) {	     \
-		if (err)					     \
-			CERROR("lop_" #op ": dev %d no operation\n", \
-			       ctxt->loc_obd->obd_minor);	    \
-		return err;					 \
-	}							    \
+#define CTXT_CHECK_OP(ctxt, op, err)					\
+do {									\
+	if (!OBT(ctxt->loc_obd) || !CTXTP((ctxt), op)) {		\
+		if (err)						\
+			CERROR("lop_" #op ": dev %d no operation\n",	\
+				ctxt->loc_obd->obd_minor);		\
+		return err;						\
+	}								\
 } while (0)
 
 static inline int class_devno_max(void)
