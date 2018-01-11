@@ -2062,6 +2062,21 @@ static inline bool should_fail_request(struct hd_struct *part,
 
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
 
+static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
+{
+	if (part->policy && op_is_write(bio_op(bio))) {
+		char b[BDEVNAME_SIZE];
+
+		printk(KERN_ERR
+		       "generic_make_request: Trying to write "
+			"to read-only block-device %s (partno %d)\n",
+			bio_devname(bio, b), part->partno);
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * Remap block n of partition p to block n+start(p) of the disk.
  */
@@ -2070,27 +2085,28 @@ static inline int blk_partition_remap(struct bio *bio)
 	struct hd_struct *p;
 	int ret = 0;
 
+	rcu_read_lock();
+	p = __disk_get_part(bio->bi_disk, bio->bi_partno);
+	if (unlikely(!p || should_fail_request(p, bio->bi_iter.bi_size) ||
+		     bio_check_ro(bio, p))) {
+		ret = -EIO;
+		goto out;
+	}
+
 	/*
 	 * Zone reset does not include bi_size so bio_sectors() is always 0.
 	 * Include a test for the reset op code and perform the remap if needed.
 	 */
-	if (!bio->bi_partno ||
-	    (!bio_sectors(bio) && bio_op(bio) != REQ_OP_ZONE_RESET))
-		return 0;
+	if (!bio_sectors(bio) && bio_op(bio) != REQ_OP_ZONE_RESET)
+		goto out;
 
-	rcu_read_lock();
-	p = __disk_get_part(bio->bi_disk, bio->bi_partno);
-	if (likely(p && !should_fail_request(p, bio->bi_iter.bi_size))) {
-		bio->bi_iter.bi_sector += p->start_sect;
-		bio->bi_partno = 0;
-		trace_block_bio_remap(bio->bi_disk->queue, bio, part_devt(p),
-				bio->bi_iter.bi_sector - p->start_sect);
-	} else {
-		printk("%s: fail for partition %d\n", __func__, bio->bi_partno);
-		ret = -EIO;
-	}
+	bio->bi_iter.bi_sector += p->start_sect;
+	bio->bi_partno = 0;
+	trace_block_bio_remap(bio->bi_disk->queue, bio, part_devt(p),
+			      bio->bi_iter.bi_sector - p->start_sect);
+
+out:
 	rcu_read_unlock();
-
 	return ret;
 }
 
@@ -2149,15 +2165,19 @@ generic_make_request_checks(struct bio *bio)
 	 * For a REQ_NOWAIT based request, return -EOPNOTSUPP
 	 * if queue is not a request based queue.
 	 */
-
 	if ((bio->bi_opf & REQ_NOWAIT) && !queue_is_rq_based(q))
 		goto not_supported;
 
 	if (should_fail_request(&bio->bi_disk->part0, bio->bi_iter.bi_size))
 		goto end_io;
 
-	if (blk_partition_remap(bio))
-		goto end_io;
+	if (!bio->bi_partno) {
+		if (unlikely(bio_check_ro(bio, &bio->bi_disk->part0)))
+			goto end_io;
+	} else {
+		if (blk_partition_remap(bio))
+			goto end_io;
+	}
 
 	if (bio_check_eod(bio, nr_sectors))
 		goto end_io;
