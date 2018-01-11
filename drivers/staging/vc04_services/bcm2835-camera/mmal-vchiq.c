@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Broadcom BM2835 V4L2 driver
  *
