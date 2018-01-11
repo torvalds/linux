@@ -358,6 +358,7 @@ static inline bool __has_cursum_space(struct f2fs_journal *journal,
 #define F2FS_IOC_GET_FEATURES		_IOR(F2FS_IOCTL_MAGIC, 12, __u32)
 #define F2FS_IOC_SET_PIN_FILE		_IOW(F2FS_IOCTL_MAGIC, 13, __u32)
 #define F2FS_IOC_GET_PIN_FILE		_IOR(F2FS_IOCTL_MAGIC, 14, __u32)
+#define F2FS_IOC_PRECACHE_EXTENTS	_IO(F2FS_IOCTL_MAGIC, 15)
 
 #define F2FS_IOC_SET_ENCRYPTION_POLICY	FS_IOC_SET_ENCRYPTION_POLICY
 #define F2FS_IOC_GET_ENCRYPTION_POLICY	FS_IOC_GET_ENCRYPTION_POLICY
@@ -553,6 +554,7 @@ struct f2fs_map_blocks {
 	unsigned int m_len;
 	unsigned int m_flags;
 	pgoff_t *m_next_pgofs;		/* point next possible non-hole pgofs */
+	pgoff_t *m_next_extent;		/* point to next possible extent */
 	int m_seg_type;
 };
 
@@ -563,6 +565,7 @@ enum {
 	F2FS_GET_BLOCK_BMAP,
 	F2FS_GET_BLOCK_PRE_DIO,
 	F2FS_GET_BLOCK_PRE_AIO,
+	F2FS_GET_BLOCK_PRECACHE,
 };
 
 /*
@@ -2564,6 +2567,7 @@ int f2fs_getattr(const struct path *path, struct kstat *stat,
 int f2fs_setattr(struct dentry *dentry, struct iattr *attr);
 int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end);
 void truncate_data_blocks_range(struct dnode_of_data *dn, int count);
+int f2fs_precache_extents(struct inode *inode);
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int f2fs_pin_file_control(struct inode *inode, bool inc);

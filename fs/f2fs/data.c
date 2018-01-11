@@ -865,6 +865,7 @@ int f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *from)
 		map.m_len = 0;
 
 	map.m_next_pgofs = NULL;
+	map.m_next_extent = NULL;
 	map.m_seg_type = NO_CHECK_TYPE;
 
 	if (direct_io) {
@@ -931,6 +932,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 	blkcnt_t prealloc;
 	struct extent_info ei = {0,0,0};
 	block_t blkaddr;
+	unsigned int start_pgofs;
 
 	if (!maxblocks)
 		return 0;
@@ -946,6 +948,8 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 		map->m_pblk = ei.blk + pgofs - ei.fofs;
 		map->m_len = min((pgoff_t)maxblocks, ei.fofs + ei.len - pgofs);
 		map->m_flags = F2FS_MAP_MAPPED;
+		if (map->m_next_extent)
+			*map->m_next_extent = pgofs + map->m_len;
 		goto out;
 	}
 
@@ -964,10 +968,14 @@ next_dnode:
 			if (map->m_next_pgofs)
 				*map->m_next_pgofs =
 					get_next_page_offset(&dn, pgofs);
+			if (map->m_next_extent)
+				*map->m_next_extent =
+					get_next_page_offset(&dn, pgofs);
 		}
 		goto unlock_out;
 	}
 
+	start_pgofs = pgofs;
 	prealloc = 0;
 	last_ofs_in_node = ofs_in_node = dn.ofs_in_node;
 	end_offset = ADDRS_PER_PAGE(dn.node_page, inode);
@@ -1001,6 +1009,8 @@ next_block:
 				map->m_pblk = 0;
 				goto sync_out;
 			}
+			if (flag == F2FS_GET_BLOCK_PRECACHE)
+				goto sync_out;
 			if (flag == F2FS_GET_BLOCK_FIEMAP &&
 						blkaddr == NULL_ADDR) {
 				if (map->m_next_pgofs)
@@ -1059,6 +1069,16 @@ skip:
 	else if (dn.ofs_in_node < end_offset)
 		goto next_block;
 
+	if (flag == F2FS_GET_BLOCK_PRECACHE) {
+		if (map->m_flags & F2FS_MAP_MAPPED) {
+			unsigned int ofs = start_pgofs - map->m_lblk;
+
+			f2fs_update_extent_cache_range(&dn,
+				start_pgofs, map->m_pblk + ofs,
+				map->m_len - ofs);
+		}
+	}
+
 	f2fs_put_dnode(&dn);
 
 	if (create) {
@@ -1068,6 +1088,17 @@ skip:
 	goto next_dnode;
 
 sync_out:
+	if (flag == F2FS_GET_BLOCK_PRECACHE) {
+		if (map->m_flags & F2FS_MAP_MAPPED) {
+			unsigned int ofs = start_pgofs - map->m_lblk;
+
+			f2fs_update_extent_cache_range(&dn,
+				start_pgofs, map->m_pblk + ofs,
+				map->m_len - ofs);
+		}
+		if (map->m_next_extent)
+			*map->m_next_extent = pgofs + 1;
+	}
 	f2fs_put_dnode(&dn);
 unlock_out:
 	if (create) {
@@ -1089,6 +1120,7 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 	map.m_lblk = iblock;
 	map.m_len = bh->b_size >> inode->i_blkbits;
 	map.m_next_pgofs = next_pgofs;
+	map.m_next_extent = NULL;
 	map.m_seg_type = seg_type;
 
 	err = f2fs_map_blocks(inode, &map, create, flag);
@@ -1212,6 +1244,12 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	u32 flags = 0;
 	int ret = 0;
 
+	if (fieinfo->fi_flags & FIEMAP_FLAG_CACHE) {
+		ret = f2fs_precache_extents(inode);
+		if (ret)
+			return ret;
+	}
+
 	ret = fiemap_check_flags(fieinfo, FIEMAP_FLAG_SYNC | FIEMAP_FLAG_XATTR);
 	if (ret)
 		return ret;
@@ -1313,6 +1351,7 @@ static int f2fs_mpage_readpages(struct address_space *mapping,
 	map.m_len = 0;
 	map.m_flags = 0;
 	map.m_next_pgofs = NULL;
+	map.m_next_extent = NULL;
 	map.m_seg_type = NO_CHECK_TYPE;
 
 	for (; nr_pages; nr_pages--) {
