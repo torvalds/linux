@@ -96,7 +96,7 @@ struct test_config {
 			    struct device *device);
 };
 
-struct test_config *test_fw_config;
+static struct test_config *test_fw_config;
 
 static ssize_t test_fw_misc_read(struct file *f, char __user *buf,
 				 size_t size, loff_t *offset)
