@@ -85,11 +85,11 @@ typedef enum {
 	P2P_IE			= 221,
 } BEACON_IE;
 
-typedef enum {
+enum bss_types {
 	INFRASTRUCTURE		= 0,
 	INDEPENDENT,
 	AP,
-} BSSTYPE_T;
+};
 
 typedef enum {
 	RATE_AUTO		= 0,
