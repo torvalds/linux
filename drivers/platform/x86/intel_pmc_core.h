@@ -135,7 +135,6 @@ struct pmc_bit_map {
  * @pll_sts:		Maps name of PLL to corresponding bit status
  * @slp_s0_offset:	PWRMBASE offset to read SLP_S0 residency
  * @ltr_ignore_offset:	PWRMBASE offset to read/write LTR ignore bit
- * @base_address:	Base address of PWRMBASE defined in BIOS writer guide
  * @regmap_length:	Length of memory to map from PWRMBASE address to access
  * @ppfear0_offset:	PWRMBASE offset to to read PPFEAR*
  * @ppfear_buckets:	Number of 8 bits blocks to read all IP blocks from
@@ -152,7 +151,6 @@ struct pmc_reg_map {
 	const struct pmc_bit_map *pll_sts;
 	const u32 slp_s0_offset;
 	const u32 ltr_ignore_offset;
-	const u32 base_address;
 	const int regmap_length;
 	const u32 ppfear0_offset;
 	const int ppfear_buckets;
