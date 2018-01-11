@@ -5773,7 +5773,7 @@ static int btrfs_inode_rsv_refill(struct btrfs_inode *inode,
  * This is the same as btrfs_block_rsv_release, except that it handles the
  * tracepoint for the reservation.
  */
-void btrfs_inode_rsv_release(struct btrfs_inode *inode)
+static void btrfs_inode_rsv_release(struct btrfs_inode *inode)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
