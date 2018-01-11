@@ -1073,7 +1073,8 @@ int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 	ret = ttm_get_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
 			    ttm->caching_state);
 	if (unlikely(ret != 0)) {
-		ttm_pool_unpopulate(ttm);
+		ttm_put_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
+			      ttm->caching_state);
 		return ret;
 	}
 
@@ -1081,7 +1082,8 @@ int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
 						PAGE_SIZE, ctx);
 		if (unlikely(ret != 0)) {
-			ttm_pool_unpopulate(ttm);
+			ttm_put_pages(ttm->pages, ttm->num_pages,
+				      ttm->page_flags, ttm->caching_state);
 			return -ENOMEM;
 		}
 	}
