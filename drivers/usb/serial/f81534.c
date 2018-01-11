@@ -41,6 +41,7 @@
 #define F81534_MODEM_CONTROL_REG	(0x04 + F81534_UART_BASE_ADDRESS)
 #define F81534_LINE_STATUS_REG		(0x05 + F81534_UART_BASE_ADDRESS)
 #define F81534_MODEM_STATUS_REG		(0x06 + F81534_UART_BASE_ADDRESS)
+#define F81534_CLOCK_REG		(0x08 + F81534_UART_BASE_ADDRESS)
 #define F81534_CONFIG1_REG		(0x09 + F81534_UART_BASE_ADDRESS)
 
 #define F81534_DEF_CONF_ADDRESS_START	0x3000
@@ -57,7 +58,7 @@
 
 /* Default URB timeout for USB operations */
 #define F81534_USB_MAX_RETRY		10
-#define F81534_USB_TIMEOUT		1000
+#define F81534_USB_TIMEOUT		2000
 #define F81534_SET_GET_REGISTER		0xA0
 
 #define F81534_NUM_PORT			4
@@ -96,7 +97,6 @@
 #define F81534_CMD_READ			0x03
 
 #define F81534_DEFAULT_BAUD_RATE	9600
-#define F81534_MAX_BAUDRATE		115200
 
 #define F81534_PORT_CONF_DISABLE_PORT	BIT(3)
 #define F81534_PORT_CONF_NOT_EXIST_PORT	BIT(7)
@@ -105,6 +105,24 @@
 
 #define F81534_1X_RXTRIGGER		0xc3
 #define F81534_8X_RXTRIGGER		0xcf
+
+/*
+ * F81532/534 Clock registers (offset +08h)
+ *
+ * Bit0:	UART Enable (always on)
+ * Bit2-1:	Clock source selector
+ *			00: 1.846MHz.
+ *			01: 18.46MHz.
+ *			10: 24MHz.
+ *			11: 14.77MHz.
+ */
+
+#define F81534_UART_EN			BIT(0)
+#define F81534_CLK_1_846_MHZ		0
+#define F81534_CLK_18_46_MHZ		BIT(1)
+#define F81534_CLK_24_MHZ		BIT(2)
+#define F81534_CLK_14_77_MHZ		(BIT(1) | BIT(2))
+#define F81534_CLK_MASK			GENMASK(2, 1)
 
 static const struct usb_device_id f81534_id_table[] = {
 	{ USB_DEVICE(FINTEK_VENDOR_ID_1, FINTEK_DEVICE_ID) },
@@ -129,11 +147,17 @@ struct f81534_port_private {
 	struct usb_serial_port *port;
 	unsigned long tx_empty;
 	spinlock_t msr_lock;
+	u32 baud_base;
 	u8 shadow_mcr;
 	u8 shadow_lcr;
 	u8 shadow_msr;
+	u8 shadow_clk;
 	u8 phy_num;
 };
+
+static u32 const baudrate_table[] = { 115200, 921600, 1152000, 1500000 };
+static u8 const clock_table[] = { F81534_CLK_1_846_MHZ, F81534_CLK_14_77_MHZ,
+				F81534_CLK_18_46_MHZ, F81534_CLK_24_MHZ };
 
 static int f81534_logic_to_phy_port(struct usb_serial *serial,
 					struct usb_serial_port *port)
@@ -460,13 +484,52 @@ static u32 f81534_calc_baud_divisor(u32 baudrate, u32 clockrate)
 	return DIV_ROUND_CLOSEST(clockrate, baudrate);
 }
 
-static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
-					u8 lcr)
+static int f81534_find_clk(u32 baudrate)
+{
+	int idx;
+
+	for (idx = 0; idx < ARRAY_SIZE(baudrate_table); ++idx) {
+		if (baudrate <= baudrate_table[idx] &&
+				baudrate_table[idx] % baudrate == 0)
+			return idx;
+	}
+
+	return -EINVAL;
+}
+
+static int f81534_set_port_config(struct usb_serial_port *port,
+		struct tty_struct *tty, u32 baudrate, u32 old_baudrate, u8 lcr)
 {
 	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
 	u32 divisor;
 	int status;
+	int i;
+	int idx;
 	u8 value;
+	u32 baud_list[] = {baudrate, old_baudrate, F81534_DEFAULT_BAUD_RATE};
+
+	for (i = 0; i < ARRAY_SIZE(baud_list); ++i) {
+		idx = f81534_find_clk(baud_list[i]);
+		if (idx >= 0) {
+			baudrate = baud_list[i];
+			tty_encode_baud_rate(tty, baudrate, baudrate);
+			break;
+		}
+	}
+
+	if (idx < 0)
+		return -EINVAL;
+
+	port_priv->baud_base = baudrate_table[idx];
+	port_priv->shadow_clk &= ~F81534_CLK_MASK;
+	port_priv->shadow_clk |= clock_table[idx];
+
+	status = f81534_set_port_register(port, F81534_CLOCK_REG,
+			port_priv->shadow_clk);
+	if (status) {
+		dev_err(&port->dev, "CLOCK_REG setting failed\n");
+		return status;
+	}
 
 	if (baudrate <= 1200)
 		value = F81534_1X_RXTRIGGER;	/* 128 FIFO & TL: 1x */
@@ -482,7 +545,7 @@ static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
 	if (baudrate <= 1200)
 		value = UART_FCR_TRIGGER_1 | UART_FCR_ENABLE_FIFO; /* TL: 1 */
 	else
-		value = UART_FCR_R_TRIG_11 | UART_FCR_ENABLE_FIFO; /* TL: 14 */
+		value = UART_FCR_TRIGGER_8 | UART_FCR_ENABLE_FIFO; /* TL: 8 */
 
 	status = f81534_set_port_register(port, F81534_FIFO_CONTROL_REG,
 						value);
@@ -491,7 +554,7 @@ static int f81534_set_port_config(struct usb_serial_port *port, u32 baudrate,
 		return status;
 	}
 
-	divisor = f81534_calc_baud_divisor(baudrate, F81534_MAX_BAUDRATE);
+	divisor = f81534_calc_baud_divisor(baudrate, port_priv->baud_base);
 
 	mutex_lock(&port_priv->lcr_mutex);
 
@@ -741,6 +804,7 @@ static void f81534_set_termios(struct tty_struct *tty,
 	u8 new_lcr = 0;
 	int status;
 	u32 baud;
+	u32 old_baud;
 
 	if (C_BAUD(tty) == B0)
 		f81534_update_mctrl(port, 0, TIOCM_DTR | TIOCM_RTS);
@@ -780,18 +844,14 @@ static void f81534_set_termios(struct tty_struct *tty,
 	if (!baud)
 		return;
 
-	if (baud > F81534_MAX_BAUDRATE) {
-		if (old_termios)
-			baud = tty_termios_baud_rate(old_termios);
-		else
-			baud = F81534_DEFAULT_BAUD_RATE;
-
-		tty_encode_baud_rate(tty, baud, baud);
-	}
+	if (old_termios)
+		old_baud = tty_termios_baud_rate(old_termios);
+	else
+		old_baud = F81534_DEFAULT_BAUD_RATE;
 
 	dev_dbg(&port->dev, "%s: baud: %d\n", __func__, baud);
 
-	status = f81534_set_port_config(port, baud, new_lcr);
+	status = f81534_set_port_config(port, tty, baud, old_baud, new_lcr);
 	if (status < 0) {
 		dev_err(&port->dev, "%s: set port config failed: %d\n",
 				__func__, status);
@@ -947,7 +1007,7 @@ static int f81534_get_serial_info(struct usb_serial_port *port,
 	tmp.type = PORT_16550A;
 	tmp.port = port->port_number;
 	tmp.line = port->minor;
-	tmp.baud_base = F81534_MAX_BAUDRATE;
+	tmp.baud_base = port_priv->baud_base;
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
@@ -1221,6 +1281,7 @@ static int f81534_port_probe(struct usb_serial_port *port)
 	if (!port_priv)
 		return -ENOMEM;
 
+	port_priv->shadow_clk = F81534_UART_EN;
 	spin_lock_init(&port_priv->msr_lock);
 	mutex_init(&port_priv->mcr_mutex);
 	mutex_init(&port_priv->lcr_mutex);
