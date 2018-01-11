@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include "dgnc_driver.h"
 #include "dgnc_pci.h"
-#include "dgnc_mgmt.h"
 #include "dgnc_tty.h"
 #include "dgnc_cls.h"
 #include "dgnc_neo.h"
@@ -21,21 +20,11 @@ MODULE_AUTHOR("Digi International, http://www.digi.com");
 MODULE_DESCRIPTION("Driver for the Digi International Neo and Classic PCI based product line");
 MODULE_SUPPORTED_DEVICE("dgnc");
 
-static const struct file_operations dgnc_board_fops = {
-	.owner		=	THIS_MODULE,
-	.unlocked_ioctl =	dgnc_mgmt_ioctl,
-	.open		=	dgnc_mgmt_open,
-	.release	=	dgnc_mgmt_close
-};
-
 uint			dgnc_num_boards;
 struct dgnc_board		*dgnc_board[MAXBOARDS];
 DEFINE_SPINLOCK(dgnc_global_lock);
 DEFINE_SPINLOCK(dgnc_poll_lock); /* Poll scheduling lock */
-uint			dgnc_major;
 int			dgnc_poll_tick = 20;	/* Poll interval - 20 ms */
-
-static struct class *dgnc_class;
 
 static ulong		dgnc_poll_time; /* Time of next poll */
 static uint		dgnc_poll_stop; /* Used to tell poller to stop */
@@ -379,32 +368,7 @@ static struct pci_driver dgnc_driver = {
 
 static int dgnc_start(void)
 {
-	int rc = 0;
 	unsigned long flags;
-	struct device *dev;
-
-	rc = register_chrdev(0, "dgnc", &dgnc_board_fops);
-	if (rc < 0) {
-		pr_err(DRVSTR ": Can't register dgnc driver device (%d)\n", rc);
-		return rc;
-	}
-	dgnc_major = rc;
-
-	dgnc_class = class_create(THIS_MODULE, "dgnc_mgmt");
-	if (IS_ERR(dgnc_class)) {
-		rc = PTR_ERR(dgnc_class);
-		pr_err(DRVSTR ": Can't create dgnc_mgmt class (%d)\n", rc);
-		goto failed_class;
-	}
-
-	dev = device_create(dgnc_class, NULL,
-			    MKDEV(dgnc_major, 0),
-			NULL, "dgnc_mgmt");
-	if (IS_ERR(dev)) {
-		rc = PTR_ERR(dev);
-		pr_err(DRVSTR ": Can't create device (%d)\n", rc);
-		goto failed_device;
-	}
 
 	/* Start the poller */
 	spin_lock_irqsave(&dgnc_poll_lock, flags);
@@ -416,13 +380,6 @@ static int dgnc_start(void)
 	add_timer(&dgnc_poll_timer);
 
 	return 0;
-
-failed_device:
-	class_destroy(dgnc_class);
-failed_class:
-	unregister_chrdev(dgnc_major, "dgnc");
-
-	return rc;
 }
 
 /* Free all the memory associated with a board */
@@ -485,10 +442,6 @@ static void cleanup(void)
 
 	/* Turn off poller right away. */
 	del_timer_sync(&dgnc_poll_timer);
-
-	device_destroy(dgnc_class, MKDEV(dgnc_major, 0));
-	class_destroy(dgnc_class);
-	unregister_chrdev(dgnc_major, "dgnc");
 
 	for (i = 0; i < dgnc_num_boards; ++i) {
 		dgnc_cleanup_tty(dgnc_board[i]);

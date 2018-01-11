@@ -35,7 +35,6 @@
 #define DIGI_SETA	(('e' << 8) | 95)	/* Set params */
 #define DIGI_SETAW	(('e' << 8) | 96)	/* Drain & set params */
 #define DIGI_SETAF	(('e' << 8) | 97)	/* Drain, flush & set params */
-#define DIGI_GET_NI_INFO (('d' << 8) | 250)	/* Non-intelligent state info */
 #define DIGI_LOOPBACK (('d' << 8) | 252)	/* Enable/disable UART
 						 * internal loopback
 						 */
@@ -77,49 +76,6 @@ struct digi_t {
 	char		digi_offstr[DIGI_PLEN];
 	char		digi_term[DIGI_TSIZ];
 };
-
-/**
- * struct digi_dinfo - Driver status information.
- * @dinfo_nboards: Number of boards configured.
- * @dinfo_reserved: Not used, for future expansion.
- * @dinfio_version: Driver version.
- */
-struct digi_dinfo {
-	unsigned int	dinfo_nboards;
-	char		dinfo_reserved[12];
-	char		dinfo_version[16];
-};
-
-#define	DIGI_GETDD	(('d' << 8) | 248)	/* get driver info */
-
-/**
- * struct digi_info - Ioctl commands for per board information.
- *
- * Physsize and memsize differ when board has "windowed" memory.
- *
- * @info_bdnum: Board number (0 based).
- * @info_ioport: IO port address.
- * @indo_physaddr: Memory address.
- * @info_physize: Size of host memory window.
- * @info_memsize: Amount of dual-port memory on board.
- * @info_bdtype: Board type.
- * @info_nports: Number of ports.
- * @info_bdstate: Board state.
- * @info_reserved: Not used, for future expansion.
- */
-struct digi_info {
-	unsigned int	info_bdnum;
-	unsigned int	info_ioport;
-	unsigned int	info_physaddr;
-	unsigned int	info_physsize;
-	unsigned int	info_memsize;
-	unsigned short	info_bdtype;
-	unsigned short	info_nports;
-	char		info_bdstate;
-	char		info_reserved[7];
-};
-
-#define	DIGI_GETBD	(('d' << 8) | 249)	/* get board info */
 
 /**
  * struct digi_getbuffer - Holds buffer use counts.
