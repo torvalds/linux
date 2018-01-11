@@ -193,6 +193,9 @@ static int verify_eraseblock(int ebnum)
 		ops.datbuf    = NULL;
 		ops.oobbuf    = readbuf;
 		err = mtd_read_oob(mtd, addr, &ops);
+		if (mtd_is_bitflip(err))
+			err = 0;
+
 		if (err || ops.oobretlen != use_len) {
 			pr_err("error: readoob failed at %#llx\n",
 			       (long long)addr);
@@ -227,6 +230,9 @@ static int verify_eraseblock(int ebnum)
 			ops.datbuf    = NULL;
 			ops.oobbuf    = readbuf;
 			err = mtd_read_oob(mtd, addr, &ops);
+			if (mtd_is_bitflip(err))
+				err = 0;
+
 			if (err || ops.oobretlen != mtd->oobavail) {
 				pr_err("error: readoob failed at %#llx\n",
 						(long long)addr);
@@ -286,6 +292,9 @@ static int verify_eraseblock_in_one_go(int ebnum)
 
 	/* read entire block's OOB at one go */
 	err = mtd_read_oob(mtd, addr, &ops);
+	if (mtd_is_bitflip(err))
+		err = 0;
+
 	if (err || ops.oobretlen != len) {
 		pr_err("error: readoob failed at %#llx\n",
 		       (long long)addr);
@@ -527,6 +536,9 @@ static int __init mtd_oobtest_init(void)
 	pr_info("attempting to start read past end of OOB\n");
 	pr_info("an error is expected...\n");
 	err = mtd_read_oob(mtd, addr0, &ops);
+	if (mtd_is_bitflip(err))
+		err = 0;
+
 	if (err) {
 		pr_info("error occurred as expected\n");
 		err = 0;
@@ -571,6 +583,9 @@ static int __init mtd_oobtest_init(void)
 		pr_info("attempting to read past end of device\n");
 		pr_info("an error is expected...\n");
 		err = mtd_read_oob(mtd, mtd->size - mtd->writesize, &ops);
+		if (mtd_is_bitflip(err))
+			err = 0;
+
 		if (err) {
 			pr_info("error occurred as expected\n");
 			err = 0;
@@ -615,6 +630,9 @@ static int __init mtd_oobtest_init(void)
 		pr_info("attempting to read past end of device\n");
 		pr_info("an error is expected...\n");
 		err = mtd_read_oob(mtd, mtd->size - mtd->writesize, &ops);
+		if (mtd_is_bitflip(err))
+			err = 0;
+
 		if (err) {
 			pr_info("error occurred as expected\n");
 			err = 0;
@@ -684,6 +702,9 @@ static int __init mtd_oobtest_init(void)
 		ops.datbuf    = NULL;
 		ops.oobbuf    = readbuf;
 		err = mtd_read_oob(mtd, addr, &ops);
+		if (mtd_is_bitflip(err))
+			err = 0;
+
 		if (err)
 			goto out;
 		if (memcmpshow(addr, readbuf, writebuf,
