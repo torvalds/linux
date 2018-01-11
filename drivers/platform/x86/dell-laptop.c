@@ -1177,6 +1177,7 @@ static u8 kbd_previous_mode_bit;
 
 static bool kbd_led_present;
 static DEFINE_MUTEX(kbd_led_mutex);
+static enum led_brightness kbd_led_level;
 
 /*
  * NOTE: there are three ways to set the keyboard backlight level.
@@ -2020,6 +2021,7 @@ static enum led_brightness kbd_led_level_get(struct led_classdev *led_cdev)
 static int kbd_led_level_set(struct led_classdev *led_cdev,
 			     enum led_brightness value)
 {
+	enum led_brightness new_value = value;
 	struct kbd_state state;
 	struct kbd_state new_state;
 	u16 num;
@@ -2049,6 +2051,9 @@ static int kbd_led_level_set(struct led_classdev *led_cdev,
 	}
 
 out:
+	if (ret == 0)
+		kbd_led_level = new_value;
+
 	mutex_unlock(&kbd_led_mutex);
 	return ret;
 }
@@ -2076,6 +2081,9 @@ static int __init kbd_led_init(struct device *dev)
 		if (kbd_led.max_brightness)
 			kbd_led.max_brightness--;
 	}
+
+	kbd_led_level = kbd_led_level_get(NULL);
+
 	ret = led_classdev_register(dev, &kbd_led);
 	if (ret)
 		kbd_led_present = false;
@@ -2100,13 +2108,25 @@ static void kbd_led_exit(void)
 static int dell_laptop_notifier_call(struct notifier_block *nb,
 				     unsigned long action, void *data)
 {
+	bool changed = false;
+	enum led_brightness new_kbd_led_level;
+
 	switch (action) {
 	case DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED:
 		if (!kbd_led_present)
 			break;
 
-		led_classdev_notify_brightness_hw_changed(&kbd_led,
-						kbd_led_level_get(&kbd_led));
+		mutex_lock(&kbd_led_mutex);
+		new_kbd_led_level = kbd_led_level_get(&kbd_led);
+		if (kbd_led_level != new_kbd_led_level) {
+			kbd_led_level = new_kbd_led_level;
+			changed = true;
+		}
+		mutex_unlock(&kbd_led_mutex);
+
+		if (changed)
+			led_classdev_notify_brightness_hw_changed(&kbd_led,
+								kbd_led_level);
 		break;
 	}
 
