@@ -27,7 +27,9 @@
 #define TICKS_PER_SEC		50ULL
 #define TIMER_INTERVAL		(NSEC_PER_SEC / TICKS_PER_SEC)
 
+#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
 static DECLARE_FAULT_ATTR(null_timeout_attr);
+#endif
 
 static inline u64 mb_per_tick(int mbps)
 {
@@ -165,8 +167,10 @@ static int g_home_node = NUMA_NO_NODE;
 module_param_named(home_node, g_home_node, int, S_IRUGO);
 MODULE_PARM_DESC(home_node, "Home node for the device");
 
+#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
 static char g_timeout_str[80];
 module_param_string(timeout, g_timeout_str, sizeof(g_timeout_str), S_IRUGO);
+#endif
 
 static int g_queue_mode = NULL_Q_MQ;
 
@@ -1372,8 +1376,10 @@ static int null_rq_prep_fn(struct request_queue *q, struct request *req)
 
 static bool should_timeout_request(struct request *rq)
 {
+#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
 	if (g_timeout_str[0])
 		return should_fail(&null_timeout_attr, 1);
+#endif
 
 	return false;
 }
@@ -1655,6 +1661,7 @@ static void null_validate_conf(struct nullb_device *dev)
 
 static bool null_setup_fault(void)
 {
+#ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
 	if (!g_timeout_str[0])
 		return true;
 
@@ -1662,6 +1669,7 @@ static bool null_setup_fault(void)
 		return false;
 
 	null_timeout_attr.verbose = 0;
+#endif
 	return true;
 }
 
