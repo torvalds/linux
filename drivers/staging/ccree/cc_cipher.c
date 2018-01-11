@@ -127,8 +127,7 @@ static int validate_data_size(struct cc_cipher_ctx *ctx_p,
 static unsigned int get_max_keysize(struct crypto_tfm *tfm)
 {
 	struct cc_crypto_alg *cc_alg =
-		container_of(tfm->__crt_alg, struct cc_crypto_alg,
-			     crypto_alg);
+		container_of(tfm->__crt_alg, struct cc_crypto_alg, crypto_alg);
 
 	if ((cc_alg->crypto_alg.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
 	    CRYPTO_ALG_TYPE_ABLKCIPHER)
@@ -391,8 +390,7 @@ static void cc_setup_cipher_desc(struct crypto_tfm *tfm,
 	unsigned int du_size = nbytes;
 
 	struct cc_crypto_alg *cc_alg =
-		container_of(tfm->__crt_alg, struct cc_crypto_alg,
-			     crypto_alg);
+		container_of(tfm->__crt_alg, struct cc_crypto_alg, crypto_alg);
 
 	if ((cc_alg->crypto_alg.cra_flags & CRYPTO_ALG_BULK_MASK) ==
 	    CRYPTO_ALG_BULK_DU_512)
@@ -611,8 +609,7 @@ static void cc_cipher_complete(struct device *dev, void *cc_req, int err)
 		kfree(req_ctx->backup_info);
 	} else if (!err) {
 		scatterwalk_map_and_copy(req->info, req->dst,
-					 (req->nbytes - ivsize),
-					 ivsize, 0);
+					 (req->nbytes - ivsize), ivsize, 0);
 	}
 
 	ablkcipher_request_complete(areq, err);
@@ -1096,8 +1093,7 @@ struct cc_crypto_alg *cc_cipher_create_alg(struct cc_alg_template *template,
 int cc_cipher_free(struct cc_drvdata *drvdata)
 {
 	struct cc_crypto_alg *t_alg, *n;
-	struct cc_cipher_handle *blkcipher_handle =
-						drvdata->blkcipher_handle;
+	struct cc_cipher_handle *blkcipher_handle = drvdata->blkcipher_handle;
 	if (blkcipher_handle) {
 		/* Remove registered algs */
 		list_for_each_entry_safe(t_alg, n,

@@ -1858,9 +1858,8 @@ int cc_init_hash_sram(struct cc_drvdata *drvdata)
 	hash_handle->larval_digest_sram_addr = sram_buff_ofs;
 
 	/* Copy-to-sram initial SHA* digests */
-	cc_set_sram_desc(md5_init, sram_buff_ofs,
-			 ARRAY_SIZE(md5_init), larval_seq,
-			 &larval_seq_len);
+	cc_set_sram_desc(md5_init, sram_buff_ofs, ARRAY_SIZE(md5_init),
+			 larval_seq, &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
 	if (rc)
 		goto init_digest_const_err;
@@ -2004,8 +2003,7 @@ int cc_hash_alloc(struct cc_drvdata *drvdata)
 			kfree(t_alg);
 			goto fail;
 		} else {
-			list_add_tail(&t_alg->entry,
-				      &hash_handle->hash_list);
+			list_add_tail(&t_alg->entry, &hash_handle->hash_list);
 		}
 
 		if (hw_mode == DRV_CIPHER_XCBC_MAC ||

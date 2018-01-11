@@ -53,8 +53,7 @@ void cc_fips_fini(struct cc_drvdata *drvdata)
 
 void fips_handler(struct cc_drvdata *drvdata)
 {
-	struct cc_fips_handle *fips_handle_ptr =
-		drvdata->fips_handle;
+	struct cc_fips_handle *fips_handle_ptr = drvdata->fips_handle;
 
 	tasklet_schedule(&fips_handle_ptr->tasklet);
 }

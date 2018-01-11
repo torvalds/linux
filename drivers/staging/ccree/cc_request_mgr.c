@@ -275,8 +275,7 @@ static int cc_do_send_request(struct cc_drvdata *drvdata,
 		/* Acquire IV from pool */
 		rc = cc_get_iv(drvdata, cc_req->ivgen_dma_addr,
 			       cc_req->ivgen_dma_addr_len,
-			       cc_req->ivgen_size,
-			       iv_seq, &iv_seq_len);
+			       cc_req->ivgen_size, iv_seq, &iv_seq_len);
 
 		if (rc) {
 			dev_err(dev, "Failed to generate IV (rc=%d)\n", rc);
