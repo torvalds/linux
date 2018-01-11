@@ -214,6 +214,7 @@ struct dc_debug {
 	bool performance_trace;
 	bool az_endpoint_mute_only;
 	bool always_use_regamma;
+	bool p010_mpo_support;
 };
 struct dc_state;
 struct resource_pool;
