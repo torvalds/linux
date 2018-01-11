@@ -667,6 +667,9 @@ static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 	struct resource *res, *conflict;
 	struct pci_dev *other;
 
+	if (!(pci_probe & PCI_BIG_ROOT_WINDOW))
+		return;
+
 	/* Check that we are the only device of that type */
 	other = pci_get_device(dev->vendor, dev->device, NULL);
 	if (other != dev ||
@@ -714,7 +717,9 @@ static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 		res->start = conflict->end + 1;
 	}
 
-	dev_info(&dev->dev, "adding root bus resource %pR\n", res);
+	dev_info(&dev->dev, "adding root bus resource %pR (tainting kernel)\n",
+		 res);
+	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
 
 	base = ((res->start >> 8) & AMD_141b_MMIO_BASE_MMIOBASE_MASK) |
 		AMD_141b_MMIO_BASE_RE_MASK | AMD_141b_MMIO_BASE_WE_MASK;
