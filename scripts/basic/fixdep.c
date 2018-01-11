@@ -112,7 +112,6 @@
 #include <stdio.h>
 #include <limits.h>
 #include <ctype.h>
-#include <arpa/inet.h>
 
 int insert_extra_deps;
 char *target;
