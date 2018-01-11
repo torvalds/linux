@@ -918,9 +918,9 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			break;
 
 		case SCTP_CID_ABORT:
-			if (sctp_test_T_bit(chunk)) {
+			if (sctp_test_T_bit(chunk))
 				packet->vtag = asoc->c.my_vtag;
-			}
+			/* fallthru */
 		/* The following chunks are "response" chunks, i.e.
 		 * they are generated in response to something we
 		 * received.  If we are sending these, then we can
