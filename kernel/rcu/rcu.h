@@ -356,23 +356,19 @@ static inline bool rcu_gp_is_normal(void) { return true; }
 static inline bool rcu_gp_is_expedited(void) { return false; }
 static inline void rcu_expedite_gp(void) { }
 static inline void rcu_unexpedite_gp(void) { }
+static inline void rcu_request_urgent_qs_task(struct task_struct *t) { }
 #else /* #ifdef CONFIG_TINY_RCU */
 bool rcu_gp_is_normal(void);     /* Internal RCU use. */
 bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
 void rcu_expedite_gp(void);
 void rcu_unexpedite_gp(void);
 void rcupdate_announce_bootup_oddness(void);
+void rcu_request_urgent_qs_task(struct task_struct *t);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
 #define RCU_SCHEDULER_INACTIVE	0
 #define RCU_SCHEDULER_INIT	1
 #define RCU_SCHEDULER_RUNNING	2
-
-#ifdef CONFIG_TINY_RCU
-static inline void rcu_request_urgent_qs_task(struct task_struct *t) { }
-#else /* #ifdef CONFIG_TINY_RCU */
-void rcu_request_urgent_qs_task(struct task_struct *t);
-#endif /* #else #ifdef CONFIG_TINY_RCU */
 
 enum rcutorture_type {
 	RCU_FLAVOR,
