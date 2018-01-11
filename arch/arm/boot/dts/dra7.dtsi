@@ -2114,4 +2114,20 @@
 	temperature = <120000>; /* milli Celsius */
 };
 
+&core_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+&gpu_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+&dspeve_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
+&iva_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
 /include/ "dra7xx-clocks.dtsi"
