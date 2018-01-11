@@ -1067,12 +1067,33 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 			break;
 		}
 		err = ovl_verify_index(ofs, index);
-		/* Cleanup stale and orphan index entries */
-		if (err && (err == -ESTALE || err == -ENOENT))
+		if (!err) {
+			goto next;
+		} else if (err == -ESTALE) {
+			/* Cleanup stale index entries */
 			err = ovl_cleanup(dir, index);
+		} else if (err != -ENOENT) {
+			/*
+			 * Abort mount to avoid corrupting the index if
+			 * an incompatible index entry was found or on out
+			 * of memory.
+			 */
+			break;
+		} else if (ofs->config.nfs_export) {
+			/*
+			 * Whiteout orphan index to block future open by
+			 * handle after overlay nlink dropped to zero.
+			 */
+			err = ovl_cleanup_and_whiteout(indexdir, dir, index);
+		} else {
+			/* Cleanup orphan index entries */
+			err = ovl_cleanup(dir, index);
+		}
+
 		if (err)
 			break;
 
+next:
 		dput(index);
 		index = NULL;
 	}
