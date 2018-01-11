@@ -7259,6 +7259,9 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 	case IXGBE_LINK_SPEED_10GB_FULL:
 		speed_str = "10 Gbps";
 		break;
+	case IXGBE_LINK_SPEED_5GB_FULL:
+		speed_str = "5 Gbps";
+		break;
 	case IXGBE_LINK_SPEED_2_5GB_FULL:
 		speed_str = "2.5 Gbps";
 		break;
