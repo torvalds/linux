@@ -104,7 +104,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
@@ -308,24 +307,27 @@ static void do_config_file(const char *filename)
  * assignments are parsed not only by make, but also by the rather simple
  * parser in scripts/mod/sumversion.c.
  */
-static void parse_dep_file(void *map, size_t len)
+static void parse_dep_file(char *m)
 {
-	char *m = map;
-	char *end = m + len;
 	char *p;
 	char s[PATH_MAX];
-	int is_target;
+	int is_last, is_target;
 	int saw_any_target = 0;
 	int is_first_dep = 0;
 
-	while (m < end) {
+	while (1) {
 		/* Skip any "white space" */
-		while (m < end && (*m == ' ' || *m == '\\' || *m == '\n'))
+		while (*m == ' ' || *m == '\\' || *m == '\n')
 			m++;
+
+		if (!*m)
+			break;
+
 		/* Find next "white space" */
 		p = m;
-		while (p < end && *p != ' ' && *p != '\\' && *p != '\n')
+		while (*p && *p != ' ' && *p != '\\' && *p != '\n')
 			p++;
+		is_last = (*p == '\0');
 		/* Is the token we found a target name? */
 		is_target = (*(p-1) == ':');
 		/* Don't write any target names into the dependency file */
@@ -373,6 +375,10 @@ static void parse_dep_file(void *map, size_t len)
 				do_config_file(s);
 			}
 		}
+
+		if (is_last)
+			break;
+
 		/*
 		 * Start searching for next token immediately after the first
 		 * "whitespace" character that follows this token.
@@ -391,40 +397,42 @@ static void parse_dep_file(void *map, size_t len)
 	printf("$(deps_%s):\n", target);
 }
 
-static void print_deps(void)
+static void print_deps(const char *filename)
 {
 	struct stat st;
 	int fd;
-	void *map;
+	char *buf;
 
-	fd = open(depfile, O_RDONLY);
+	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
 		fprintf(stderr, "fixdep: error opening depfile: ");
-		perror(depfile);
+		perror(filename);
 		exit(2);
 	}
 	if (fstat(fd, &st) < 0) {
 		fprintf(stderr, "fixdep: error fstat'ing depfile: ");
-		perror(depfile);
+		perror(filename);
 		exit(2);
 	}
 	if (st.st_size == 0) {
-		fprintf(stderr,"fixdep: %s is empty\n",depfile);
 		close(fd);
 		return;
 	}
-	map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-	if ((long) map == -1) {
-		perror("fixdep: mmap");
-		close(fd);
-		return;
+	buf = malloc(st.st_size + 1);
+	if (!buf) {
+		perror("fixdep: malloc");
+		exit(2);
 	}
-
-	parse_dep_file(map, st.st_size);
-
-	munmap(map, st.st_size);
-
+	if (read(fd, buf, st.st_size) != st.st_size) {
+		perror("fixdep: read");
+		exit(2);
+	}
+	buf[st.st_size] = '\0';
 	close(fd);
+
+	parse_dep_file(buf);
+
+	free(buf);
 }
 
 int main(int argc, char *argv[])
@@ -440,7 +448,7 @@ int main(int argc, char *argv[])
 	cmdline = argv[3];
 
 	print_cmdline();
-	print_deps();
+	print_deps(depfile);
 
 	return 0;
 }
