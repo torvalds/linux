@@ -219,25 +219,6 @@ static void use_config(const char *m, int slen)
 	print_config(m, slen);
 }
 
-static void parse_config_file(const char *p)
-{
-	const char *q, *r;
-
-	while ((p = strstr(p, "CONFIG_"))) {
-		p += 7;
-		q = p;
-		while (*q && (isalnum(*q) || *q == '_'))
-			q++;
-		if (memcmp(q - 7, "_MODULE", 7) == 0)
-			r = q - 7;
-		else
-			r = q;
-		if (r > p)
-			use_config(p, r - p);
-		p = q;
-	}
-}
-
 /* test if s ends in sub */
 static int str_ends_with(const char *s, int slen, const char *sub)
 {
@@ -247,6 +228,25 @@ static int str_ends_with(const char *s, int slen, const char *sub)
 		return 0;
 
 	return !memcmp(s + slen - sublen, sub, sublen);
+}
+
+static void parse_config_file(const char *p)
+{
+	const char *q, *r;
+
+	while ((p = strstr(p, "CONFIG_"))) {
+		p += 7;
+		q = p;
+		while (*q && (isalnum(*q) || *q == '_'))
+			q++;
+		if (str_ends_with(p, q - p, "_MODULE"))
+			r = q - 7;
+		else
+			r = q;
+		if (r > p)
+			use_config(p, r - p);
+		p = q;
+	}
 }
 
 static void *read_file(const char *filename)
