@@ -108,8 +108,8 @@ static inline void __uaccess_ttbr0_disable(void)
 	unsigned long ttbr;
 
 	ttbr = read_sysreg(ttbr1_el1);
-	/* reserved_ttbr0 placed at the end of swapper_pg_dir */
-	write_sysreg(ttbr + SWAPPER_DIR_SIZE, ttbr0_el1);
+	/* reserved_ttbr0 placed before swapper_pg_dir */
+	write_sysreg(ttbr - RESERVED_TTBR0_SIZE, ttbr0_el1);
 	isb();
 	/* Set reserved ASID */
 	ttbr &= ~TTBR_ASID_MASK;
