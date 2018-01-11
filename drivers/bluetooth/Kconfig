@@ -77,6 +77,7 @@ config BT_HCIBTSDIO
 config BT_HCIUART
 	tristate "HCI UART driver"
 	depends on SERIAL_DEV_BUS || !SERIAL_DEV_BUS
+	depends on NVMEM || !NVMEM
 	depends on TTY
 	help
 	  Bluetooth HCI UART driver.
@@ -107,6 +108,7 @@ config BT_HCIUART_NOKIA
 	tristate "UART Nokia H4+ protocol support"
 	depends on BT_HCIUART
 	depends on BT_HCIUART_SERDEV
+	depends on GPIOLIB
 	depends on PM
 	select BT_HCIUART_H4
 	select BT_BCM
@@ -168,6 +170,7 @@ config BT_HCIUART_3WIRE
 config BT_HCIUART_INTEL
 	bool "Intel protocol support"
 	depends on BT_HCIUART
+	depends on GPIOLIB
 	select BT_HCIUART_H4
 	select BT_INTEL
 	help
@@ -181,6 +184,7 @@ config BT_HCIUART_BCM
 	depends on BT_HCIUART
 	depends on BT_HCIUART_SERDEV
 	depends on (!ACPI || SERIAL_DEV_CTRL_TTYPORT)
+	depends on GPIOLIB
 	select BT_HCIUART_H4
 	select BT_BCM
 	help

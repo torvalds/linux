@@ -259,7 +259,7 @@ static int bpa10x_flush(struct hci_dev *hdev)
 
 static int bpa10x_setup(struct hci_dev *hdev)
 {
-	const u8 req[] = { 0x07 };
+	static const u8 req[] = { 0x07 };
 	struct sk_buff *skb;
 
 	BT_DBG("%s", hdev->name);
