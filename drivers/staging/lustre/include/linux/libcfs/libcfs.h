@@ -45,7 +45,6 @@
 #include <linux/libcfs/libcfs_prim.h>
 #include <linux/libcfs/libcfs_time.h>
 #include <linux/libcfs/libcfs_string.h>
-#include <linux/libcfs/libcfs_workitem.h>
 #include <linux/libcfs/libcfs_hash.h>
 #include <linux/libcfs/libcfs_fail.h>
 #include <linux/libcfs/curproc.h>

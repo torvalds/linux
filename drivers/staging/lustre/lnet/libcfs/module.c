@@ -547,12 +547,6 @@ static int libcfs_init(void)
 		goto cleanup_cpu;
 	}
 
-	rc = cfs_wi_startup();
-	if (rc) {
-		CERROR("initialize workitem: error %d\n", rc);
-		goto cleanup_deregister;
-	}
-
 	cfs_rehash_wq = alloc_workqueue("cfs_rh", WQ_SYSFS, 4);
 	if (!cfs_rehash_wq) {
 		CERROR("Failed to start rehash workqueue.\n");
@@ -563,15 +557,13 @@ static int libcfs_init(void)
 	rc = cfs_crypto_register();
 	if (rc) {
 		CERROR("cfs_crypto_register: error %d\n", rc);
-		goto cleanup_wi;
+		goto cleanup_deregister;
 	}
 
 	lustre_insert_debugfs(lnet_table, lnet_debugfs_symlinks);
 
 	CDEBUG(D_OTHER, "portals setup OK\n");
 	return 0;
- cleanup_wi:
-	cfs_wi_shutdown();
  cleanup_deregister:
 	misc_deregister(&libcfs_dev);
 cleanup_cpu:
@@ -593,7 +585,6 @@ static void libcfs_exit(void)
 	}
 
 	cfs_crypto_unregister();
-	cfs_wi_shutdown();
 
 	misc_deregister(&libcfs_dev);
 
