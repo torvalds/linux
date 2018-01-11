@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -196,6 +196,7 @@ enum wmi_service {
 	WMI_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE,
 	WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
 	WMI_SERVICE_MGMT_TX_WMI,
+	WMI_SERVICE_TDLS_WIDER_BANDWIDTH,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -337,6 +338,7 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_TDLS_UAPSD_SLEEP_STA,
 	WMI_10_4_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE,
 	WMI_10_4_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
+	WMI_10_4_SERVICE_TDLS_WIDER_BANDWIDTH,
 };
 
 static inline char *wmi_service_name(int service_id)
@@ -445,6 +447,7 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_SMART_LOGGING_SUPPORT);
 	SVCSTR(WMI_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE);
 	SVCSTR(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY);
+	SVCSTR(WMI_SERVICE_TDLS_WIDER_BANDWIDTH);
 	default:
 		return NULL;
 	}
@@ -741,6 +744,8 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE, len);
 	SVCMAP(WMI_10_4_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
 	       WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY, len);
+	SVCMAP(WMI_10_4_SERVICE_TDLS_WIDER_BANDWIDTH,
+	       WMI_SERVICE_TDLS_WIDER_BANDWIDTH, len);
 }
 
 #undef SVCMAP
@@ -2924,7 +2929,7 @@ struct wmi_ext_resource_config_10_4_cmd {
 	__le32 max_tdls_concurrent_buffer_sta;
 };
 
-/* strucutre describing host memory chunk. */
+/* structure describing host memory chunk. */
 struct host_memory_chunk {
 	/* id of the request that is passed up in service ready */
 	__le32 req_id;

@@ -771,11 +771,11 @@ static void wil_collect_fw_info(struct wil6210_priv *wil)
 void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 {
 	struct wiphy *wiphy = wil_to_wiphy(wil);
+	int features;
 
 	wil->keep_radio_on_during_sleep =
-		wil->platform_ops.keep_radio_on_during_sleep &&
-		wil->platform_ops.keep_radio_on_during_sleep(
-			wil->platform_handle) &&
+		test_bit(WIL_PLATFORM_CAPA_RADIO_ON_IN_SUSPEND,
+			 wil->platform_capa) &&
 		test_bit(WMI_FW_CAPABILITY_D3_SUSPEND, wil->fw_capabilities);
 
 	wil_info(wil, "keep_radio_on_during_sleep (%d)\n",
@@ -785,6 +785,24 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 		wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	else
 		wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
+
+	if (test_bit(WMI_FW_CAPABILITY_PNO, wil->fw_capabilities)) {
+		wiphy->max_sched_scan_reqs = 1;
+		wiphy->max_sched_scan_ssids = WMI_MAX_PNO_SSID_NUM;
+		wiphy->max_match_sets = WMI_MAX_PNO_SSID_NUM;
+		wiphy->max_sched_scan_ie_len = WMI_MAX_IE_LEN;
+		wiphy->max_sched_scan_plans = WMI_MAX_PLANS_NUM;
+	}
+
+	if (wil->platform_ops.set_features) {
+		features = (test_bit(WMI_FW_CAPABILITY_REF_CLOCK_CONTROL,
+				     wil->fw_capabilities) &&
+			    test_bit(WIL_PLATFORM_CAPA_EXT_CLK,
+				     wil->platform_capa)) ?
+			BIT(WIL_PLATFORM_FEATURE_FW_EXT_CLK_CONTROL) : 0;
+
+		wil->platform_ops.set_features(wil->platform_handle, features);
+	}
 }
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
@@ -980,6 +998,7 @@ static void wil_pre_fw_config(struct wil6210_priv *wil)
 int wil_reset(struct wil6210_priv *wil, bool load_fw)
 {
 	int rc;
+	unsigned long status_flags = BIT(wil_status_resetting);
 
 	wil_dbg_misc(wil, "reset\n");
 
@@ -1000,6 +1019,16 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	if (wil->hw_version == HW_VER_UNKNOWN)
 		return -ENODEV;
 
+	if (test_bit(WIL_PLATFORM_CAPA_T_PWR_ON_0, wil->platform_capa)) {
+		wil_dbg_misc(wil, "Notify FW to set T_POWER_ON=0\n");
+		wil_s(wil, RGF_USER_USAGE_8, BIT_USER_SUPPORT_T_POWER_ON_0);
+	}
+
+	if (test_bit(WIL_PLATFORM_CAPA_EXT_CLK, wil->platform_capa)) {
+		wil_dbg_misc(wil, "Notify FW on ext clock configuration\n");
+		wil_s(wil, RGF_USER_USAGE_8, BIT_USER_EXT_CLK);
+	}
+
 	if (wil->platform_ops.notify) {
 		rc = wil->platform_ops.notify(wil->platform_handle,
 					      WIL_PLATFORM_EVT_PRE_RESET);
@@ -1009,6 +1038,14 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	}
 
 	set_bit(wil_status_resetting, wil->status);
+	if (test_bit(wil_status_collecting_dumps, wil->status)) {
+		/* Device collects crash dump, cancel the reset.
+		 * following crash dump collection, reset would take place.
+		 */
+		wil_dbg_misc(wil, "reject reset while collecting crash dump\n");
+		rc = -EBUSY;
+		goto out;
+	}
 
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
@@ -1023,7 +1060,11 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 	/* prevent NAPI from being scheduled and prevent wmi commands */
 	mutex_lock(&wil->wmi_mutex);
-	bitmap_zero(wil->status, wil_status_last);
+	if (test_bit(wil_status_suspending, wil->status))
+		status_flags |= BIT(wil_status_suspending);
+	bitmap_and(wil->status, wil->status, &status_flags,
+		   wil_status_last);
+	wil_dbg_misc(wil, "wil->status (0x%lx)\n", *wil->status);
 	mutex_unlock(&wil->wmi_mutex);
 
 	wil_mask_irq(wil);
@@ -1041,14 +1082,14 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	wil_rx_fini(wil);
 	if (rc) {
 		wil_bl_crash_info(wil, true);
-		return rc;
+		goto out;
 	}
 
 	rc = wil_get_bl_info(wil);
 	if (rc == -EAGAIN && !load_fw) /* ignore RF error if not going up */
 		rc = 0;
 	if (rc)
-		return rc;
+		goto out;
 
 	wil_set_oob_mode(wil, oob_mode);
 	if (load_fw) {
@@ -1060,10 +1101,10 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		/* Loading f/w from the file */
 		rc = wil_request_firmware(wil, wil->wil_fw_name, true);
 		if (rc)
-			return rc;
+			goto out;
 		rc = wil_request_firmware(wil, WIL_BOARD_FILE_NAME, true);
 		if (rc)
-			return rc;
+			goto out;
 
 		wil_pre_fw_config(wil);
 		wil_release_cpu(wil);
@@ -1074,6 +1115,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	reinit_completion(&wil->wmi_ready);
 	reinit_completion(&wil->wmi_call);
 	reinit_completion(&wil->halp.comp);
+
+	clear_bit(wil_status_resetting, wil->status);
 
 	if (load_fw) {
 		wil_configure_interrupt_moderation(wil);
@@ -1107,6 +1150,10 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		}
 	}
 
+	return rc;
+
+out:
+	clear_bit(wil_status_resetting, wil->status);
 	return rc;
 }
 
@@ -1213,9 +1260,7 @@ int __wil_down(struct wil6210_priv *wil)
 	wil_abort_scan(wil, false);
 	mutex_unlock(&wil->p2p_wdev_mutex);
 
-	wil_reset(wil, false);
-
-	return 0;
+	return wil_reset(wil, false);
 }
 
 int wil_down(struct wil6210_priv *wil)

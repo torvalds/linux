@@ -145,6 +145,13 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 
 	/* Prevent handling of new tx and wmi commands */
 	set_bit(wil_status_suspending, wil->status);
+	if (test_bit(wil_status_collecting_dumps, wil->status)) {
+		/* Device collects crash dump, cancel the suspend */
+		wil_dbg_pm(wil, "reject suspend while collecting crash dump\n");
+		clear_bit(wil_status_suspending, wil->status);
+		wil->suspend_stats.rejected_by_host++;
+		return -EBUSY;
+	}
 	wil_update_net_queues_bh(wil, NULL, true);
 
 	if (!wil_is_tx_idle(wil)) {
@@ -255,6 +262,15 @@ static int wil_suspend_radio_off(struct wil6210_priv *wil)
 
 	wil_dbg_pm(wil, "suspend radio off\n");
 
+	set_bit(wil_status_suspending, wil->status);
+	if (test_bit(wil_status_collecting_dumps, wil->status)) {
+		/* Device collects crash dump, cancel the suspend */
+		wil_dbg_pm(wil, "reject suspend while collecting crash dump\n");
+		clear_bit(wil_status_suspending, wil->status);
+		wil->suspend_stats.rejected_by_host++;
+		return -EBUSY;
+	}
+
 	/* if netif up, hardware is alive, shut it down */
 	if (ndev->flags & IFF_UP) {
 		rc = wil_down(wil);
@@ -281,6 +297,7 @@ static int wil_suspend_radio_off(struct wil6210_priv *wil)
 	set_bit(wil_status_suspended, wil->status);
 
 out:
+	clear_bit(wil_status_suspending, wil->status);
 	wil_dbg_pm(wil, "suspend radio off: %d\n", rc);
 
 	return rc;

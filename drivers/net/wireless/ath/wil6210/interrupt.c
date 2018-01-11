@@ -565,7 +565,7 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	if (unlikely((pseudo_cause == 0) || ((pseudo_cause & 0xff) == 0xff)))
 		return IRQ_NONE;
 
-	/* FIXME: IRQ mask debug */
+	/* IRQ mask debug */
 	if (unlikely(wil6210_debug_irq_mask(wil, pseudo_cause)))
 		return IRQ_NONE;
 

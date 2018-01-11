@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -561,6 +561,12 @@ struct ath10k_hw_params {
 	u32 num_peers;
 	u32 ast_skid_limit;
 	u32 num_wds_entries;
+
+	/* Targets supporting physical addressing capability above 32-bits */
+	bool target_64bit;
+
+	/* Target rx ring fill level */
+	u32 rx_ring_fill_level;
 };
 
 struct htt_rx_desc;
@@ -882,6 +888,7 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define PCIE_INTR_CLR_ADDRESS			ar->regs->pcie_intr_clr_address
 #define SCRATCH_3_ADDRESS			ar->regs->scratch_3_address
 #define CPU_INTR_ADDRESS			0x0010
+#define FW_RAM_CONFIG_ADDRESS			0x0018
 
 #define CCNT_TO_MSEC(ar, x) ((x) / ar->hw_params.channel_counters_freq_hz)
 

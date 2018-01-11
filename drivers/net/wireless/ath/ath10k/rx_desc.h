@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -210,6 +210,10 @@ struct rx_frag_info {
 	u8 ring1_more_count;
 	u8 ring2_more_count;
 	u8 ring3_more_count;
+	u8 ring4_more_count;
+	u8 ring5_more_count;
+	u8 ring6_more_count;
+	u8 ring7_more_count;
 } __packed;
 
 /*
@@ -471,10 +475,16 @@ struct rx_msdu_start_qca99x0 {
 	__le32 info2; /* %RX_MSDU_START_INFO2_ */
 } __packed;
 
+struct rx_msdu_start_wcn3990 {
+	__le32 info2; /* %RX_MSDU_START_INFO2_ */
+	__le32 info3; /* %RX_MSDU_START_INFO3_ */
+} __packed;
+
 struct rx_msdu_start {
 	struct rx_msdu_start_common common;
 	union {
 		struct rx_msdu_start_qca99x0 qca99x0;
+		struct rx_msdu_start_wcn3990 wcn3990;
 	} __packed;
 } __packed;
 
@@ -595,10 +605,23 @@ struct rx_msdu_end_qca99x0 {
 	__le32 info2;
 } __packed;
 
+struct rx_msdu_end_wcn3990 {
+	__le32 ipv6_crc;
+	__le32 tcp_seq_no;
+	__le32 tcp_ack_no;
+	__le32 info1;
+	__le32 info2;
+	__le32 rule_indication_0;
+	__le32 rule_indication_1;
+	__le32 rule_indication_2;
+	__le32 rule_indication_3;
+} __packed;
+
 struct rx_msdu_end {
 	struct rx_msdu_end_common common;
 	union {
 		struct rx_msdu_end_qca99x0 qca99x0;
+		struct rx_msdu_end_wcn3990 wcn3990;
 	} __packed;
 } __packed;
 
@@ -963,6 +986,12 @@ struct rx_pkt_end {
 	__le32 phy_timestamp_2;
 } __packed;
 
+struct rx_pkt_end_wcn3990 {
+	__le32 info0; /* %RX_PKT_END_INFO0_ */
+	__le64 phy_timestamp_1;
+	__le64 phy_timestamp_2;
+} __packed;
+
 #define RX_LOCATION_INFO0_RTT_FAC_LEGACY_MASK		0x00003fff
 #define RX_LOCATION_INFO0_RTT_FAC_LEGACY_LSB		0
 #define RX_LOCATION_INFO0_RTT_FAC_VHT_MASK		0x1fff8000
@@ -996,6 +1025,12 @@ struct rx_pkt_end {
 struct rx_location_info {
 	__le32 rx_location_info0; /* %RX_LOCATION_INFO0_ */
 	__le32 rx_location_info1; /* %RX_LOCATION_INFO1_ */
+} __packed;
+
+struct rx_location_info_wcn3990 {
+	__le32 rx_location_info0; /* %RX_LOCATION_INFO0_ */
+	__le32 rx_location_info1; /* %RX_LOCATION_INFO1_ */
+	__le32 rx_location_info2; /* %RX_LOCATION_INFO2_ */
 } __packed;
 
 enum rx_phy_ppdu_end_info0 {
@@ -1086,6 +1121,20 @@ struct rx_ppdu_end_qca9984 {
 	__le16 info1; /* %RX_PPDU_END_INFO1_ */
 } __packed;
 
+struct rx_ppdu_end_wcn3990 {
+	struct rx_pkt_end_wcn3990 rx_pkt_end;
+	struct rx_location_info_wcn3990 rx_location_info;
+	struct rx_phy_ppdu_end rx_phy_ppdu_end;
+	__le32 rx_timing_offset;
+	__le32 reserved_info_0;
+	__le32 reserved_info_1;
+	__le32 rx_antenna_info;
+	__le32 rx_coex_info;
+	__le32 rx_mpdu_cnt_info;
+	__le64 phy_timestamp_tx;
+	__le32 rx_bb_length;
+} __packed;
+
 struct rx_ppdu_end {
 	struct rx_ppdu_end_common common;
 	union {
@@ -1093,6 +1142,7 @@ struct rx_ppdu_end {
 		struct rx_ppdu_end_qca6174 qca6174;
 		struct rx_ppdu_end_qca99x0 qca99x0;
 		struct rx_ppdu_end_qca9984 qca9984;
+		struct rx_ppdu_end_wcn3990 wcn3990;
 	} __packed;
 } __packed;
 
