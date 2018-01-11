@@ -119,13 +119,6 @@ struct sound_unit
 	char name[32];
 };
 
-#ifdef CONFIG_SOUND_MSNDCLAS
-extern int msnd_classic_init(void);
-#endif
-#ifdef CONFIG_SOUND_MSNDPIN
-extern int msnd_pinnacle_init(void);
-#endif
-
 /*
  * By default, OSS sound_core claims full legacy minor range (0-255)
  * of SOUND_MAJOR to trap open attempts to any sound minor and
