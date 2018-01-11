@@ -183,6 +183,7 @@ struct nvme_ctrl {
 	struct work_struct scan_work;
 	struct work_struct async_event_work;
 	struct delayed_work ka_work;
+	struct nvme_command ka_cmd;
 	struct work_struct fw_act_work;
 
 	/* Power saving configuration */
