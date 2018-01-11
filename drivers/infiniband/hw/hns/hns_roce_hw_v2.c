@@ -1709,7 +1709,7 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		case HNS_ROCE_V2_OPCODE_RDMA_WRITE_IMM:
 			wc->opcode = IB_WC_RECV_RDMA_WITH_IMM;
 			wc->wc_flags = IB_WC_WITH_IMM;
-			wc->ex.imm_data = le32_to_cpu(cqe->rkey_immtdata);
+			wc->ex.imm_data = cqe->immtdata;
 			break;
 		case HNS_ROCE_V2_OPCODE_SEND:
 			wc->opcode = IB_WC_RECV;
@@ -1718,12 +1718,12 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		case HNS_ROCE_V2_OPCODE_SEND_WITH_IMM:
 			wc->opcode = IB_WC_RECV;
 			wc->wc_flags = IB_WC_WITH_IMM;
-			wc->ex.imm_data = le32_to_cpu(cqe->rkey_immtdata);
+			wc->ex.imm_data = cqe->immtdata;
 			break;
 		case HNS_ROCE_V2_OPCODE_SEND_WITH_INV:
 			wc->opcode = IB_WC_RECV;
 			wc->wc_flags = IB_WC_WITH_INVALIDATE;
-			wc->ex.invalidate_rkey = cqe->rkey_immtdata;
+			wc->ex.invalidate_rkey = le32_to_cpu(cqe->rkey);
 			break;
 		default:
 			wc->status = IB_WC_GENERAL_ERR;

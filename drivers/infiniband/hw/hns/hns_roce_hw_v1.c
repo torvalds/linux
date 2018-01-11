@@ -2311,15 +2311,16 @@ static int hns_roce_v1_poll_one(struct hns_roce_cq *hr_cq,
 		case HNS_ROCE_OPCODE_RDMA_WITH_IMM_RECEIVE:
 			wc->opcode = IB_WC_RECV_RDMA_WITH_IMM;
 			wc->wc_flags = IB_WC_WITH_IMM;
-			wc->ex.imm_data = le32_to_cpu(cqe->immediate_data);
+			wc->ex.imm_data =
+				cpu_to_be32(le32_to_cpu(cqe->immediate_data));
 			break;
 		case HNS_ROCE_OPCODE_SEND_DATA_RECEIVE:
 			if (roce_get_bit(cqe->cqe_byte_4,
 					 CQE_BYTE_4_IMM_INDICATOR_S)) {
 				wc->opcode = IB_WC_RECV;
 				wc->wc_flags = IB_WC_WITH_IMM;
-				wc->ex.imm_data = le32_to_cpu(
-						  cqe->immediate_data);
+				wc->ex.imm_data = cpu_to_be32(
+					le32_to_cpu(cqe->immediate_data));
 			} else {
 				wc->opcode = IB_WC_RECV;
 				wc->wc_flags = 0;

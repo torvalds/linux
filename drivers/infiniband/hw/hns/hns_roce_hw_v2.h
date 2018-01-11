@@ -762,7 +762,10 @@ struct hns_roce_v2_qp_context {
 
 struct hns_roce_v2_cqe {
 	u32	byte_4;
-	u32	rkey_immtdata;
+	union {
+		__le32 rkey;
+		__be32 immtdata;
+	};
 	u32	byte_12;
 	u32	byte_16;
 	u32	byte_cnt;
