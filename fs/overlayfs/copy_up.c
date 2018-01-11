@@ -315,6 +315,94 @@ int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 	return err;
 }
 
+/* Store file handle of @upper dir in @index dir entry */
+static int ovl_set_upper_fh(struct dentry *upper, struct dentry *index)
+{
+	const struct ovl_fh *fh;
+	int err;
+
+	fh = ovl_encode_fh(upper, true);
+	if (IS_ERR(fh))
+		return PTR_ERR(fh);
+
+	err = ovl_do_setxattr(index, OVL_XATTR_UPPER, fh, fh->len, 0);
+
+	kfree(fh);
+	return err;
+}
+
+/*
+ * Create and install index entry.
+ *
+ * Caller must hold i_mutex on indexdir.
+ */
+static int ovl_create_index(struct dentry *dentry, struct dentry *origin,
+			    struct dentry *upper)
+{
+	struct dentry *indexdir = ovl_indexdir(dentry->d_sb);
+	struct inode *dir = d_inode(indexdir);
+	struct dentry *index = NULL;
+	struct dentry *temp = NULL;
+	struct qstr name = { };
+	int err;
+
+	/*
+	 * For now this is only used for creating index entry for directories,
+	 * because non-dir are copied up directly to index and then hardlinked
+	 * to upper dir.
+	 *
+	 * TODO: implement create index for non-dir, so we can call it when
+	 * encoding file handle for non-dir in case index does not exist.
+	 */
+	if (WARN_ON(!d_is_dir(dentry)))
+		return -EIO;
+
+	/* Directory not expected to be indexed before copy up */
+	if (WARN_ON(ovl_test_flag(OVL_INDEX, d_inode(dentry))))
+		return -EIO;
+
+	err = ovl_get_index_name(origin, &name);
+	if (err)
+		return err;
+
+	temp = ovl_lookup_temp(indexdir);
+	if (IS_ERR(temp))
+		goto temp_err;
+
+	err = ovl_do_mkdir(dir, temp, S_IFDIR, true);
+	if (err)
+		goto out;
+
+	err = ovl_set_upper_fh(upper, temp);
+	if (err)
+		goto out_cleanup;
+
+	index = lookup_one_len(name.name, indexdir, name.len);
+	if (IS_ERR(index)) {
+		err = PTR_ERR(index);
+	} else {
+		err = ovl_do_rename(dir, temp, dir, index, 0);
+		dput(index);
+	}
+
+	if (err)
+		goto out_cleanup;
+
+out:
+	dput(temp);
+	kfree(name.name);
+	return err;
+
+temp_err:
+	err = PTR_ERR(temp);
+	temp = NULL;
+	goto out;
+
+out_cleanup:
+	ovl_cleanup(dir, temp);
+	goto out;
+}
+
 struct ovl_copy_up_ctx {
 	struct dentry *parent;
 	struct dentry *dentry;
@@ -327,6 +415,7 @@ struct ovl_copy_up_ctx {
 	struct dentry *workdir;
 	bool tmpfile;
 	bool origin;
+	bool indexed;
 };
 
 static int ovl_link_up(struct ovl_copy_up_ctx *c)
@@ -498,6 +587,12 @@ static int ovl_copy_up_locked(struct ovl_copy_up_ctx *c)
 	if (err)
 		goto out_cleanup;
 
+	if (S_ISDIR(c->stat.mode) && c->indexed) {
+		err = ovl_create_index(c->dentry, c->lowerpath.dentry, temp);
+		if (err)
+			goto out_cleanup;
+	}
+
 	if (c->tmpfile) {
 		inode_lock_nested(udir, I_MUTEX_PARENT);
 		err = ovl_install_temp(c, temp, &newdentry);
@@ -536,12 +631,26 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 {
 	int err;
 	struct ovl_fs *ofs = c->dentry->d_sb->s_fs_info;
-	bool indexed = ovl_need_index(c->dentry);
+	bool to_index = false;
 
-	if (S_ISDIR(c->stat.mode) || c->stat.nlink == 1 || indexed)
+	/*
+	 * Indexed non-dir is copied up directly to the index entry and then
+	 * hardlinked to upper dir. Indexed dir is copied up to indexdir,
+	 * then index entry is created and then copied up dir installed.
+	 * Copying dir up to indexdir instead of workdir simplifies locking.
+	 */
+	if (ovl_need_index(c->dentry)) {
+		c->indexed = true;
+		if (S_ISDIR(c->stat.mode))
+			c->workdir = ovl_indexdir(c->dentry->d_sb);
+		else
+			to_index = true;
+	}
+
+	if (S_ISDIR(c->stat.mode) || c->stat.nlink == 1 || to_index)
 		c->origin = true;
 
-	if (indexed) {
+	if (to_index) {
 		c->destdir = ovl_indexdir(c->dentry->d_sb);
 		err = ovl_get_index_name(c->lowerpath.dentry, &c->destname);
 		if (err)
@@ -568,9 +677,10 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 		}
 	}
 
-	if (indexed) {
-		if (!err)
-			ovl_set_flag(OVL_INDEX, d_inode(c->dentry));
+	if (!err && c->indexed)
+		ovl_set_flag(OVL_INDEX, d_inode(c->dentry));
+
+	if (to_index) {
 		kfree(c->destname.name);
 	} else if (!err) {
 		struct inode *udir = d_inode(c->destdir);
