@@ -131,6 +131,7 @@
 #define F81534_CLK_24_MHZ		BIT(2)
 #define F81534_CLK_14_77_MHZ		(BIT(1) | BIT(2))
 #define F81534_CLK_MASK			GENMASK(2, 1)
+#define F81534_CLK_TX_DELAY_1BIT	BIT(3)
 #define F81534_CLK_RS485_MODE		BIT(4)
 #define F81534_CLK_RS485_INVERT		BIT(5)
 
@@ -1386,7 +1387,11 @@ static int f81534_port_probe(struct usb_serial_port *port)
 	if (!port_priv)
 		return -ENOMEM;
 
-	port_priv->shadow_clk = F81534_UART_EN;
+	/*
+	 * We'll make tx frame error when baud rate from 384~500kps. So we'll
+	 * delay all tx data frame with 1bit.
+	 */
+	port_priv->shadow_clk = F81534_UART_EN | F81534_CLK_TX_DELAY_1BIT;
 	spin_lock_init(&port_priv->msr_lock);
 	mutex_init(&port_priv->mcr_mutex);
 	mutex_init(&port_priv->lcr_mutex);
