@@ -3739,6 +3739,17 @@ static const struct dmi_system_id dmi_platform_data[] = {
 	{ }
 };
 
+static bool rt5645_check_dp(struct device *dev)
+{
+	if (device_property_present(dev, "realtek,in2-differential") ||
+	    device_property_present(dev, "realtek,dmic1-data-pin") ||
+	    device_property_present(dev, "realtek,dmic2-data-pin") ||
+	    device_property_present(dev, "realtek,jd-mode"))
+		return true;
+
+	return false;
+}
+
 static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
 {
 	rt5645->pdata.in2_diff = device_property_read_bool(dev,
@@ -3779,8 +3790,10 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5645->pdata = *pdata;
-	else
+	else if (rt5645_check_dp(&i2c->dev))
 		rt5645_parse_dt(rt5645, &i2c->dev);
+	else
+		rt5645->pdata = jd_mode3_platform_data;
 
 	if (quirk != -1) {
 		rt5645->pdata.in2_diff = QUIRK_IN2_DIFF(quirk);
