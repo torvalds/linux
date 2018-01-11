@@ -332,22 +332,26 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	 / sizeof(((struct obd_ops *)(0))->iocontrol))
 
 #define OBD_COUNTER_INCREMENT(obdx, op)			   \
+do {							  \
 	if ((obdx)->obd_stats) {				  \
 		unsigned int coffset;			     \
 		coffset = (unsigned int)((obdx)->obd_cntr_base) + \
 			OBD_COUNTER_OFFSET(op);		   \
 		LASSERT(coffset < (obdx)->obd_stats->ls_num);     \
 		lprocfs_counter_incr((obdx)->obd_stats, coffset); \
-	}
+	}							  \
+} while (0)
 
 #define EXP_COUNTER_INCREMENT(export, op)				    \
+do {								\
 	if ((export)->exp_obd->obd_stats) {			  \
 		unsigned int coffset;					\
 		coffset = (unsigned int)((export)->exp_obd->obd_cntr_base) + \
 			OBD_COUNTER_OFFSET(op);			      \
 		LASSERT(coffset < (export)->exp_obd->obd_stats->ls_num);     \
 		lprocfs_counter_incr((export)->exp_obd->obd_stats, coffset); \
-	}
+	}								\
+} while (0)
 
 #define MD_COUNTER_OFFSET(op)				   \
 	((offsetof(struct md_ops, op) -		   \
@@ -355,15 +359,18 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	 / sizeof(((struct md_ops *)(0))->getstatus))
 
 #define MD_COUNTER_INCREMENT(obdx, op)			   \
+do {						   \
 	if ((obd)->md_stats) {			   \
 		unsigned int coffset;			    \
 		coffset = (unsigned int)((obdx)->md_cntr_base) + \
 			MD_COUNTER_OFFSET(op);		   \
 		LASSERT(coffset < (obdx)->md_stats->ls_num);     \
 		lprocfs_counter_incr((obdx)->md_stats, coffset); \
-	}
+	}							 \
+} while (0)
 
 #define EXP_MD_COUNTER_INCREMENT(export, op)				 \
+do {								\
 	if ((export)->exp_obd->obd_stats) {				  \
 		unsigned int coffset;					\
 		coffset = (unsigned int)((export)->exp_obd->md_cntr_base) +  \
@@ -373,7 +380,8 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 		if ((export)->exp_md_stats)				  \
 			lprocfs_counter_incr(				\
 				(export)->exp_md_stats, coffset);	    \
-	}
+	}								\
+} while (0)
 
 #define EXP_CHECK_MD_OP(exp, op)				\
 do {							    \
