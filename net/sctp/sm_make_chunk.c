@@ -1276,7 +1276,6 @@ struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc)
 	struct sctp_authhdr auth_hdr;
 	struct sctp_hmac *hmac_desc;
 	struct sctp_chunk *retval;
-	__u8 *hmac;
 
 	/* Get the first hmac that the peer told us to use */
 	hmac_desc = sctp_auth_asoc_get_hmac(asoc);
@@ -1295,7 +1294,7 @@ struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc)
 	retval->subh.auth_hdr = sctp_addto_chunk(retval, sizeof(auth_hdr),
 						 &auth_hdr);
 
-	hmac = skb_put_zero(retval->skb, hmac_desc->hmac_len);
+	skb_put_zero(retval->skb, hmac_desc->hmac_len);
 
 	/* Adjust the chunk header to include the empty MAC */
 	retval->chunk_hdr->length =
