@@ -662,10 +662,11 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2033, quirk_no_aersid);
  */
 static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 {
-	unsigned i;
 	u32 base, limit, high;
-	struct resource *res, *conflict;
 	struct pci_dev *other;
+	struct resource *res;
+	unsigned i;
+	int r;
 
 	if (!(pci_probe & PCI_BIG_ROOT_WINDOW))
 		return;
@@ -702,19 +703,20 @@ static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 	if (!res)
 		return;
 
+	/*
+	 * Allocate a 256GB window directly below the 0xfd00000000 hardware
+	 * limit (see AMD Family 15h Models 30h-3Fh BKDG, sec 2.4.6).
+	 */
 	res->name = "PCI Bus 0000:00";
 	res->flags = IORESOURCE_PREFETCH | IORESOURCE_MEM |
 		IORESOURCE_MEM_64 | IORESOURCE_WINDOW;
-	res->start = 0x100000000ull;
+	res->start = 0xbd00000000ull;
 	res->end = 0xfd00000000ull - 1;
 
-	/* Just grab the free area behind system memory for this */
-	while ((conflict = request_resource_conflict(&iomem_resource, res))) {
-		if (conflict->end >= res->end) {
-			kfree(res);
-			return;
-		}
-		res->start = conflict->end + 1;
+	r = request_resource(&iomem_resource, res);
+	if (r) {
+		kfree(res);
+		return;
 	}
 
 	dev_info(&dev->dev, "adding root bus resource %pR (tainting kernel)\n",
