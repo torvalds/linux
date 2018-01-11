@@ -65,6 +65,9 @@ static unsigned int ipv6_defrag(void *priv,
 		return NF_ACCEPT;
 #endif
 
+	if (skb->_nfct == IP_CT_UNTRACKED)
+		return NF_ACCEPT;
+
 	err = nf_ct_frag6_gather(state->net, skb,
 				 nf_ct6_defrag_user(state->hook, skb));
 	/* queued */

@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/slab.h>
@@ -12,7 +13,11 @@
 
 static int __net_init iptable_raw_table_init(struct net *net);
 
-static const struct xt_table packet_raw = {
+static bool raw_before_defrag __read_mostly;
+MODULE_PARM_DESC(raw_before_defrag, "Enable raw table before defrag");
+module_param(raw_before_defrag, bool, 0000);
+
+static struct xt_table packet_raw = {
 	.name = "raw",
 	.valid_hooks =  RAW_VALID_HOOKS,
 	.me = THIS_MODULE,
@@ -63,6 +68,12 @@ static struct pernet_operations iptable_raw_net_ops = {
 static int __init iptable_raw_init(void)
 {
 	int ret;
+
+	if (raw_before_defrag) {
+		packet_raw.priority = NF_IP_PRI_RAW_BEFORE_DEFRAG;
+
+		pr_info("Enabling raw table before defrag\n");
+	}
 
 	rawtable_ops = xt_hook_ops_alloc(&packet_raw, iptable_raw_hook);
 	if (IS_ERR(rawtable_ops))
