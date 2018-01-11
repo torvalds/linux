@@ -396,8 +396,11 @@ int ext4_register_sysfs(struct super_block *sb)
 	init_completion(&sbi->s_kobj_unregister);
 	err = kobject_init_and_add(&sbi->s_kobj, &ext4_sb_ktype, NULL,
 				   "%s", sb->s_id);
-	if (err)
+	if (err) {
+		kobject_put(&sbi->s_kobj);
+		wait_for_completion(&sbi->s_kobj_unregister);
 		return err;
+	}
 
 	if (ext4_proc_root)
 		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
@@ -430,15 +433,19 @@ int __init ext4_init_sysfs(void)
 	kobject_set_name(&ext4_kset.kobj, "ext4");
 	ext4_kset.kobj.parent = fs_kobj;
 	ret = kset_register(&ext4_kset);
-	if (ret)
+	if (ret) {
+		kset_unregister(&ext4_kset);
 		return ret;
+	}
 
 	ret = kobject_init_and_add(&ext4_feat, &ext4_feat_ktype,
 				   NULL, "features");
-	if (ret)
+	if (ret) {
+		kobject_put(&ext4_feat);
 		kset_unregister(&ext4_kset);
-	else
+	} else {
 		ext4_proc_root = proc_mkdir(proc_dirname, NULL);
+	}
 	return ret;
 }
 
