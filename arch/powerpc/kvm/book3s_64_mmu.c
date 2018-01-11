@@ -235,6 +235,7 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 		gpte->may_read = true;
 		gpte->may_write = true;
 		gpte->page_size = MMU_PAGE_4K;
+		gpte->wimg = HPTE_R_M;
 
 		return 0;
 	}
