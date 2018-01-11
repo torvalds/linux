@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* speakup_keyhelp.c
  * help module for speakup
  *

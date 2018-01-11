@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* speakup.c
  * review functions for the speakup screen review package.
  * originally written by: Kirk Reiser and Andy Berdan.

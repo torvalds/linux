@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /* spk_priv.h
  * review functions for the speakup screen review package.
  * originally written by: Kirk Reiser and Andy Berdan.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * originally written by: Kirk Reiser <kirk@braille.uwo.ca>
  * this version considerably modified by David Borowski, david575@rogers.com
