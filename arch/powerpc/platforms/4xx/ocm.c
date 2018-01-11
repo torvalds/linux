@@ -264,7 +264,7 @@ static int ocm_debugfs_show(struct seq_file *m, void *v)
 						blk->size, blk->owner);
 		}
 
-		seq_printf(m, "\n");
+		seq_putc(m, '\n');
 	}
 
 	return 0;
