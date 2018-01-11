@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  EMXX FCD (Function Controller Driver) for USB.
  *
