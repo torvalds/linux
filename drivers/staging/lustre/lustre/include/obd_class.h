@@ -489,14 +489,11 @@ static inline int obd_set_info_async(const struct lu_env *env,
  * obd_precleanup() and obd_cleanup() call both lu_device and obd operations.
  */
 
-#define DECLARE_LU_VARS(ldt, d)		 \
-	struct lu_device_type *ldt;       \
-	struct lu_device *d
-
 static inline int obd_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 {
 	int rc;
-	DECLARE_LU_VARS(ldt, d);
+	struct lu_device_type *ldt;
+	struct lu_device *d;
 
 	ldt = obd->obd_type->typ_lu;
 	if (ldt) {
@@ -534,7 +531,8 @@ static inline int obd_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 static inline int obd_precleanup(struct obd_device *obd)
 {
 	int rc;
-	DECLARE_LU_VARS(ldt, d);
+	struct lu_device_type *ldt;
+	struct lu_device *d;
 
 	rc = obd_check_dev(obd);
 	if (rc)
@@ -560,7 +558,8 @@ static inline int obd_precleanup(struct obd_device *obd)
 static inline int obd_cleanup(struct obd_device *obd)
 {
 	int rc;
-	DECLARE_LU_VARS(ldt, d);
+	struct lu_device_type *ldt;
+	struct lu_device *d;
 
 	rc = obd_check_dev(obd);
 	if (rc)
@@ -608,7 +607,8 @@ static inline int
 obd_process_config(struct obd_device *obd, int datalen, void *data)
 {
 	int rc;
-	DECLARE_LU_VARS(ldt, d);
+	struct lu_device_type *ldt;
+	struct lu_device *d;
 
 	rc = obd_check_dev(obd);
 	if (rc)
