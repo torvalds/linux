@@ -223,8 +223,6 @@ static void __init ocm_init_node(int count, struct device_node *node)
 	INIT_LIST_HEAD(&ocm->c.list);
 
 	ocm->ready = 1;
-
-	return;
 }
 
 static int ocm_debugfs_show(struct seq_file *m, void *v)

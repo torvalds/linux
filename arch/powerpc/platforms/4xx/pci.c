@@ -1399,7 +1399,6 @@ static void __init ppc_476fpe_pciex_check_link(struct ppc4xx_pciex_port *port)
 		printk(KERN_WARNING "PCIE%d: Link up failed\n", port->index);
 
 	iounmap(mbase);
-	return;
 }
 
 static struct ppc4xx_pciex_hwops ppc_476fpe_pcie_hwops __initdata =
