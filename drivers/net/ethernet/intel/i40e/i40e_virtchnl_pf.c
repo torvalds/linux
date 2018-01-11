@@ -81,12 +81,12 @@ static void i40e_vc_notify_vf_link_state(struct i40e_vf *vf)
 	if (vf->link_forced) {
 		pfe.event_data.link_event.link_status = vf->link_up;
 		pfe.event_data.link_event.link_speed =
-			(vf->link_up ? I40E_LINK_SPEED_40GB : 0);
+			(vf->link_up ? VIRTCHNL_LINK_SPEED_40GB : 0);
 	} else {
 		pfe.event_data.link_event.link_status =
 			ls->link_info & I40E_AQ_LINK_UP;
 		pfe.event_data.link_event.link_speed =
-			(enum virtchnl_link_speed)ls->link_speed;
+			i40e_virtchnl_link_speed(ls->link_speed);
 	}
 	i40e_aq_send_msg_to_vf(hw, abs_vf_id, VIRTCHNL_OP_EVENT,
 			       0, (u8 *)&pfe, sizeof(pfe), NULL);
@@ -2749,6 +2749,7 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
 		ret = i40e_vc_get_vf_resources_msg(vf, msg);
+		i40e_vc_notify_vf_link_state(vf);
 		break;
 	case VIRTCHNL_OP_RESET_VF:
 		i40e_vc_reset_vf_msg(vf);

@@ -1422,19 +1422,19 @@ enum i40e_reset_type {
 #define I40E_FD_INSET_FLEX_WORD57_MASK		(0x1ULL << \
 					I40E_FD_INSET_FLEX_WORD57_SHIFT)
 
-/* Version format for PPP */
-struct i40e_ppp_version {
+/* Version format for Dynamic Device Personalization(DDP) */
+struct i40e_ddp_version {
 	u8 major;
 	u8 minor;
 	u8 update;
 	u8 draft;
 };
 
-#define I40E_PPP_NAME_SIZE	32
+#define I40E_DDP_NAME_SIZE	32
 
 /* Package header */
 struct i40e_package_header {
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u32 segment_count;
 	u32 segment_offset[1];
 };
@@ -1446,16 +1446,16 @@ struct i40e_generic_seg_header {
 #define SEGMENT_TYPE_I40E	0x00000011
 #define SEGMENT_TYPE_X722	0x00000012
 	u32 type;
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u32 size;
-	char name[I40E_PPP_NAME_SIZE];
+	char name[I40E_DDP_NAME_SIZE];
 };
 
 struct i40e_metadata_segment {
 	struct i40e_generic_seg_header header;
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u32 track_id;
-	char name[I40E_PPP_NAME_SIZE];
+	char name[I40E_DDP_NAME_SIZE];
 };
 
 struct i40e_device_id_entry {
@@ -1465,8 +1465,8 @@ struct i40e_device_id_entry {
 
 struct i40e_profile_segment {
 	struct i40e_generic_seg_header header;
-	struct i40e_ppp_version version;
-	char name[I40E_PPP_NAME_SIZE];
+	struct i40e_ddp_version version;
+	char name[I40E_DDP_NAME_SIZE];
 	u32 device_table_count;
 	struct i40e_device_id_entry device_table[1];
 };
@@ -1493,11 +1493,11 @@ struct i40e_profile_section_header {
 
 struct i40e_profile_info {
 	u32 track_id;
-	struct i40e_ppp_version version;
+	struct i40e_ddp_version version;
 	u8 op;
-#define I40E_PPP_ADD_TRACKID		0x01
-#define I40E_PPP_REMOVE_TRACKID	0x02
+#define I40E_DDP_ADD_TRACKID		0x01
+#define I40E_DDP_REMOVE_TRACKID	0x02
 	u8 reserved[7];
-	u8 name[I40E_PPP_NAME_SIZE];
+	u8 name[I40E_DDP_NAME_SIZE];
 };
 #endif /* _I40E_TYPE_H_ */
