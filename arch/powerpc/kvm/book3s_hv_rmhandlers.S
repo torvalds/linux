@@ -617,13 +617,6 @@ kvmppc_hv_entry:
 	lbz	r0, KVM_RADIX(r9)
 	cmpwi	cr7, r0, 0
 
-	/* Clear out SLB if hash */
-	bne	cr7, 2f
-	li	r6,0
-	slbmte	r6,r6
-	slbia
-	ptesync
-2:
 	/*
 	 * POWER7/POWER8 host -> guest partition switch code.
 	 * We don't have to lock against concurrent tlbies,
@@ -738,19 +731,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 10:	cmpdi	r4, 0
 	beq	kvmppc_primary_no_guest
 kvmppc_got_guest:
-
-	/* Load up guest SLB entries (N.B. slb_max will be 0 for radix) */
-	lwz	r5,VCPU_SLB_MAX(r4)
-	cmpwi	r5,0
-	beq	9f
-	mtctr	r5
-	addi	r6,r4,VCPU_SLB
-1:	ld	r8,VCPU_SLB_E(r6)
-	ld	r9,VCPU_SLB_V(r6)
-	slbmte	r9,r8
-	addi	r6,r6,VCPU_SLB_SIZE
-	bdnz	1b
-9:
 	/* Increment yield count if they have a VPA */
 	ld	r3, VCPU_VPA(r4)
 	cmpdi	r3, 0
@@ -1017,6 +997,29 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	cmpdi	r3, 512		/* 1 microsecond */
 	blt	hdec_soon
 
+	/* For hash guest, clear out and reload the SLB */
+	ld	r6, VCPU_KVM(r4)
+	lbz	r0, KVM_RADIX(r6)
+	cmpwi	r0, 0
+	bne	9f
+	li	r6, 0
+	slbmte	r6, r6
+	slbia
+	ptesync
+
+	/* Load up guest SLB entries (N.B. slb_max will be 0 for radix) */
+	lwz	r5,VCPU_SLB_MAX(r4)
+	cmpwi	r5,0
+	beq	9f
+	mtctr	r5
+	addi	r6,r4,VCPU_SLB
+1:	ld	r8,VCPU_SLB_E(r6)
+	ld	r9,VCPU_SLB_V(r6)
+	slbmte	r9,r8
+	addi	r6,r6,VCPU_SLB_SIZE
+	bdnz	1b
+9:
+
 #ifdef CONFIG_KVM_XICS
 	/* We are entering the guest on that thread, push VCPU to XIVE */
 	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
@@ -1193,7 +1196,7 @@ hdec_soon:
 	addi	r3, r4, VCPU_TB_RMEXIT
 	bl	kvmhv_accumulate_time
 #endif
-	b	guest_exit_cont
+	b	guest_bypass
 
 /******************************************************************************
  *                                                                            *
@@ -1481,6 +1484,35 @@ mc_cont:
 1:
 #endif /* CONFIG_KVM_XICS */
 
+	/* For hash guest, read the guest SLB and save it away */
+	ld	r5, VCPU_KVM(r9)
+	lbz	r0, KVM_RADIX(r5)
+	li	r5, 0
+	cmpwi	r0, 0
+	bne	3f			/* for radix, save 0 entries */
+	lwz	r0,VCPU_SLB_NR(r9)	/* number of entries in SLB */
+	mtctr	r0
+	li	r6,0
+	addi	r7,r9,VCPU_SLB
+1:	slbmfee	r8,r6
+	andis.	r0,r8,SLB_ESID_V@h
+	beq	2f
+	add	r8,r8,r6		/* put index in */
+	slbmfev	r3,r6
+	std	r8,VCPU_SLB_E(r7)
+	std	r3,VCPU_SLB_V(r7)
+	addi	r7,r7,VCPU_SLB_SIZE
+	addi	r5,r5,1
+2:	addi	r6,r6,1
+	bdnz	1b
+	/* Finally clear out the SLB */
+	li	r0,0
+	slbmte	r0,r0
+	slbia
+	ptesync
+3:	stw	r5,VCPU_SLB_MAX(r9)
+
+guest_bypass:
 	mr 	r3, r12
 	/* Increment exit count, poke other threads to exit */
 	bl	kvmhv_commence_exit
@@ -1501,31 +1533,6 @@ mc_cont:
 	ori	r6,r6,1
 	mtspr	SPRN_CTRLT,r6
 4:
-	/* Check if we are running hash or radix and store it in cr2 */
-	ld	r5, VCPU_KVM(r9)
-	lbz	r0, KVM_RADIX(r5)
-	cmpwi	cr2,r0,0
-
-	/* Read the guest SLB and save it away */
-	li	r5, 0
-	bne	cr2, 3f			/* for radix, save 0 entries */
-	lwz	r0,VCPU_SLB_NR(r9)	/* number of entries in SLB */
-	mtctr	r0
-	li	r6,0
-	addi	r7,r9,VCPU_SLB
-1:	slbmfee	r8,r6
-	andis.	r0,r8,SLB_ESID_V@h
-	beq	2f
-	add	r8,r8,r6		/* put index in */
-	slbmfev	r3,r6
-	std	r8,VCPU_SLB_E(r7)
-	std	r3,VCPU_SLB_V(r7)
-	addi	r7,r7,VCPU_SLB_SIZE
-	addi	r5,r5,1
-2:	addi	r6,r6,1
-	bdnz	1b
-3:	stw	r5,VCPU_SLB_MAX(r9)
-
 	/*
 	 * Save the guest PURR/SPURR
 	 */
@@ -1803,7 +1810,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	ld	r5, VCPU_KVM(r9)
 	lbz	r0, KVM_RADIX(r5)
 	cmpwi	cr2, r0, 0
-	beq	cr2, 3f
+	beq	cr2, 4f
 
 	/* Radix: Handle the case where the guest used an illegal PID */
 	LOAD_REG_ADDR(r4, mmu_base_pid)
@@ -1839,15 +1846,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 BEGIN_FTR_SECTION
 	PPC_INVALIDATE_ERAT
 END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
-	b	4f
+4:
 #endif /* CONFIG_PPC_RADIX_MMU */
 
-	/* Hash: clear out SLB */
-3:	li	r5,0
-	slbmte	r5,r5
-	slbia
-	ptesync
-4:
 	/*
 	 * POWER7/POWER8 guest -> host partition switch code.
 	 * We don't have to lock against tlbies but we do
