@@ -452,10 +452,10 @@ enum hns3_link_mode_bits {
 };
 
 #define HNS3_INT_GL_MAX			0x1FE0
-#define HNS3_INT_GL_50K		0x000A
-#define HNS3_INT_GL_20K		0x0019
-#define HNS3_INT_GL_18K		0x001B
-#define HNS3_INT_GL_8K		0x003E
+#define HNS3_INT_GL_50K			0x0014
+#define HNS3_INT_GL_20K			0x0032
+#define HNS3_INT_GL_18K			0x0036
+#define HNS3_INT_GL_8K			0x007C
 
 #define HNS3_INT_RL_MAX			0x00EC
 #define HNS3_INT_RL_ENABLE_MASK		0x40
