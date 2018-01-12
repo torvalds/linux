@@ -507,9 +507,12 @@ uint32_t amdgpu_display_framebuffer_domains(struct amdgpu_device *adev)
 {
 	uint32_t domain = AMDGPU_GEM_DOMAIN_VRAM;
 
+#if defined(CONFIG_DRM_AMD_DC)
 	if (adev->asic_type >= CHIP_CARRIZO && adev->asic_type < CHIP_RAVEN &&
-	    adev->flags & AMD_IS_APU)
+	    adev->flags & AMD_IS_APU &&
+	    amdgpu_device_asic_has_dc_support(adev->asic_type))
 		domain |= AMDGPU_GEM_DOMAIN_GTT;
+#endif
 
 	return domain;
 }
