@@ -133,7 +133,6 @@ static struct watchdog_device mt7621_wdt_dev = {
 static int mt7621_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mt7621_wdt_base = devm_ioremap_resource(&pdev->dev, res);
@@ -164,16 +163,7 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 		set_bit(WDOG_HW_RUNNING, &mt7621_wdt_dev.status);
 	}
 
-	ret = watchdog_register_device(&mt7621_wdt_dev);
-
-	return 0;
-}
-
-static int mt7621_wdt_remove(struct platform_device *pdev)
-{
-	watchdog_unregister_device(&mt7621_wdt_dev);
-
-	return 0;
+	return devm_watchdog_register_device(&pdev->dev, &mt7621_wdt_dev);
 }
 
 static void mt7621_wdt_shutdown(struct platform_device *pdev)
@@ -189,7 +179,6 @@ MODULE_DEVICE_TABLE(of, mt7621_wdt_match);
 
 static struct platform_driver mt7621_wdt_driver = {
 	.probe		= mt7621_wdt_probe,
-	.remove		= mt7621_wdt_remove,
 	.shutdown	= mt7621_wdt_shutdown,
 	.driver		= {
 		.name		= KBUILD_MODNAME,
