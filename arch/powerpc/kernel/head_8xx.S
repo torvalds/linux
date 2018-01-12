@@ -486,10 +486,6 @@ _ENTRY(DTLBMiss_jmp)
 	 * above.
 	 */
 	rlwimi	r11, r10, 0, 26, 27
-	/* Insert the WriteThru flag into the TWC from the Linux PTE.
-	 * It is bit 25 in the Linux PTE and bit 30 in the TWC
-	 */
-	rlwimi	r11, r10, 32-5, 30, 30
 	mtspr	SPRN_MD_TWC, r11
 
 	/* In 4k pages mode, SPS (bit 28) in RPN must match PS[1] (bit 29)
@@ -523,7 +519,6 @@ _ENTRY(DTLBMiss_jmp)
 #else
 	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
 #endif
-	rlwimi	r10, r11, 0, 20, 20	/* clear 20 */
 	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
 
 	/* Restore registers */
