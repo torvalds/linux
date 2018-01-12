@@ -336,16 +336,15 @@ EXPORT_SYMBOL(phy_write_mmd);
  */
 int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 {
-	int ret, res;
+	int ret;
 
 	ret = __phy_read(phydev, regnum);
-	if (ret >= 0) {
-		res = __phy_write(phydev, regnum, (ret & ~mask) | set);
-		if (res < 0)
-			ret = res;
-	}
+	if (ret < 0)
+		return ret;
 
-	return ret;
+	ret = __phy_write(phydev, regnum, (ret & ~mask) | set);
+
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL_GPL(__phy_modify);
 
