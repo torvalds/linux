@@ -21,9 +21,19 @@
 #include "super.h"
 #include "mds_client.h"
 
-static inline bool ceph_has_quota(struct ceph_inode_info *ci)
+void ceph_adjust_quota_realms_count(struct inode *inode, bool inc)
 {
-	return (ci && (ci->i_max_files || ci->i_max_bytes));
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
+	if (inc)
+		atomic64_inc(&mdsc->quotarealms_count);
+	else
+		atomic64_dec(&mdsc->quotarealms_count);
+}
+
+static inline bool ceph_has_realms_with_quotas(struct inode *inode)
+{
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
+	return atomic64_read(&mdsc->quotarealms_count) > 0;
 }
 
 void ceph_handle_quota(struct ceph_mds_client *mdsc,
@@ -62,8 +72,8 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 	ci->i_rbytes = le64_to_cpu(h->rbytes);
 	ci->i_rfiles = le64_to_cpu(h->rfiles);
 	ci->i_rsubdirs = le64_to_cpu(h->rsubdirs);
-	ci->i_max_bytes = le64_to_cpu(h->max_bytes);
-	ci->i_max_files = le64_to_cpu(h->max_files);
+	__ceph_update_quota(ci, le64_to_cpu(h->max_bytes),
+		            le64_to_cpu(h->max_files));
 	spin_unlock(&ci->i_ceph_lock);
 
 	iput(inode);
@@ -103,7 +113,7 @@ static struct ceph_snap_realm *get_quota_realm(struct ceph_mds_client *mdsc,
 			break;
 
 		ci = ceph_inode(in);
-		has_quota = ceph_has_quota(ci);
+		has_quota = __ceph_has_any_quota(ci);
 		iput(in);
 
 		next = realm->parent;
@@ -241,6 +251,9 @@ static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
  */
 bool ceph_quota_is_max_files_exceeded(struct inode *inode)
 {
+	if (!ceph_has_realms_with_quotas(inode))
+		return false;
+
 	WARN_ON(!S_ISDIR(inode->i_mode));
 
 	return check_quota_exceeded(inode, QUOTA_CHECK_MAX_FILES_OP, 0);
@@ -257,6 +270,9 @@ bool ceph_quota_is_max_files_exceeded(struct inode *inode)
 bool ceph_quota_is_max_bytes_exceeded(struct inode *inode, loff_t newsize)
 {
 	loff_t size = i_size_read(inode);
+
+	if (!ceph_has_realms_with_quotas(inode))
+		return false;
 
 	/* return immediately if we're decreasing file size */
 	if (newsize <= size)
@@ -276,6 +292,9 @@ bool ceph_quota_is_max_bytes_exceeded(struct inode *inode, loff_t newsize)
 bool ceph_quota_is_max_bytes_approaching(struct inode *inode, loff_t newsize)
 {
 	loff_t size = ceph_inode(inode)->i_reported_size;
+
+	if (!ceph_has_realms_with_quotas(inode))
+		return false;
 
 	/* return immediately if we're decreasing file size */
 	if (newsize <= size)

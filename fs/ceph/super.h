@@ -1075,6 +1075,26 @@ extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);
 extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
 
 /* quota.c */
+static inline bool __ceph_has_any_quota(struct ceph_inode_info *ci)
+{
+	return ci->i_max_files || ci->i_max_bytes;
+}
+
+extern void ceph_adjust_quota_realms_count(struct inode *inode, bool inc);
+
+static inline void __ceph_update_quota(struct ceph_inode_info *ci,
+				       u64 max_bytes, u64 max_files)
+{
+	bool had_quota, has_quota;
+	had_quota = __ceph_has_any_quota(ci);
+	ci->i_max_bytes = max_bytes;
+	ci->i_max_files = max_files;
+	has_quota = __ceph_has_any_quota(ci);
+
+	if (had_quota != has_quota)
+		ceph_adjust_quota_realms_count(&ci->vfs_inode, has_quota);
+}
+
 extern void ceph_handle_quota(struct ceph_mds_client *mdsc,
 			      struct ceph_mds_session *session,
 			      struct ceph_msg *msg);

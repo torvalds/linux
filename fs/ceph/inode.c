@@ -539,6 +539,9 @@ void ceph_destroy_inode(struct inode *inode)
 
 	ceph_queue_caps_release(inode);
 
+	if (__ceph_has_any_quota(ci))
+		ceph_adjust_quota_realms_count(inode, false);
+
 	/*
 	 * we may still have a snap_realm reference if there are stray
 	 * caps in i_snap_caps.
@@ -796,8 +799,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	inode->i_rdev = le32_to_cpu(info->rdev);
 	inode->i_blkbits = fls(le32_to_cpu(info->layout.fl_stripe_unit)) - 1;
 
-	ci->i_max_bytes = iinfo->max_bytes;
-	ci->i_max_files = iinfo->max_files;
+	__ceph_update_quota(ci, iinfo->max_bytes, iinfo->max_files);
 
 	if ((new_version || (new_issued & CEPH_CAP_AUTH_SHARED)) &&
 	    (issued & CEPH_CAP_AUTH_EXCL) == 0) {

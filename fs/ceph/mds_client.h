@@ -314,6 +314,8 @@ struct ceph_mds_client {
 	int                     max_sessions;  /* len of s_mds_sessions */
 	int                     stopping;      /* true if shutting down */
 
+	atomic64_t		quotarealms_count; /* # realms with quota */
+
 	/*
 	 * snap_rwsem will cover cap linkage into snaprealms, and
 	 * realm snap contexts.  (later, we can do per-realm snap
