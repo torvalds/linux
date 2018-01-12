@@ -55,7 +55,7 @@ static void ssusb_wakeup_ip_sleep_set(struct ssusb_mtk *ssusb, bool enable)
 		break;
 	default:
 		return;
-	};
+	}
 	regmap_update_bits(ssusb->uwk, reg, msk, val);
 }
 
