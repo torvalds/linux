@@ -57,7 +57,6 @@ struct omap2_onenand {
 	struct dma_chan *dma_chan;
 	int freq;
 	int (*setup)(void __iomem *base, int *freq_ptr);
-	u8 flags;
 };
 
 static void omap2_onenand_dma_complete_func(void *completion)
@@ -148,9 +147,8 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 		if (!(syscfg & ONENAND_SYS_CFG1_IOBE)) {
 			syscfg |= ONENAND_SYS_CFG1_IOBE;
 			write_reg(c, syscfg, ONENAND_REG_SYS_CFG1);
-			if (c->flags & ONENAND_IN_OMAP34XX)
-				/* Add a delay to let GPIO settle */
-				syscfg = read_reg(c, ONENAND_REG_SYS_CFG1);
+			/* Add a delay to let GPIO settle */
+			syscfg = read_reg(c, ONENAND_REG_SYS_CFG1);
 		}
 
 		reinit_completion(&c->irq_done);
@@ -470,7 +468,6 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 
 	init_completion(&c->irq_done);
 	init_completion(&c->dma_done);
-	c->flags = pdata->flags;
 	c->gpmc_cs = pdata->cs;
 	c->gpio_irq = pdata->gpio_irq;
 	if (pdata->dma_channel < 0) {
