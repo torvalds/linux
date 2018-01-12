@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SAMSUNG EXYNOS5410 SoC device tree source
  *
@@ -7,10 +8,6 @@
  * SAMSUNG EXYNOS5410 SoC device nodes are listed in this file.
  * EXYNOS5410 based board files can include this file and provide
  * values for board specfic bindings.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "exynos54xx.dtsi"
@@ -75,9 +72,6 @@
 			clock-names = "clkout16";
 			clocks = <&fin_pll>;
 			#clock-cells = <1>;
-			interrupt-controller;
-			#interrupt-cells = <3>;
-			interrupt-parent = <&gic>;
 		};
 
 		clock: clock-controller@10010000 {
@@ -346,7 +340,6 @@
 &rtc {
 	clocks = <&clock CLK_RTC>;
 	clock-names = "rtc";
-	interrupt-parent = <&pmu_system_controller>;
 	status = "disabled";
 };
 

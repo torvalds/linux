@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos4210 SoC device tree source
  *
@@ -13,11 +14,7 @@
  * Note: This file does not include device nodes for all the controllers in
  * Exynos4210 SoC. As device tree coverage for Exynos4210 increases, additional
  * nodes can be added to this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include "exynos4.dtsi"
 #include "exynos4210-pinctrl.dtsi"
