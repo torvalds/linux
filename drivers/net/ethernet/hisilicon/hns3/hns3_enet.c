@@ -1133,14 +1133,16 @@ static int hns3_nic_set_features(struct net_device *netdev,
 		}
 	}
 
-	if (changed & NETIF_F_HW_VLAN_CTAG_FILTER) {
+	if ((changed & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+	    h->ae_algo->ops->enable_vlan_filter) {
 		if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
 			h->ae_algo->ops->enable_vlan_filter(h, true);
 		else
 			h->ae_algo->ops->enable_vlan_filter(h, false);
 	}
 
-	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
+	if ((changed & NETIF_F_HW_VLAN_CTAG_RX) &&
+	    h->ae_algo->ops->enable_hw_strip_rxvtag) {
 		if (features & NETIF_F_HW_VLAN_CTAG_RX)
 			ret = h->ae_algo->ops->enable_hw_strip_rxvtag(h, true);
 		else
