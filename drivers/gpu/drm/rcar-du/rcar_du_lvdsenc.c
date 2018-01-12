@@ -201,17 +201,11 @@ int rcar_du_lvdsenc_enable(struct rcar_du_lvdsenc *lvds, struct drm_crtc *crtc,
 void rcar_du_lvdsenc_atomic_check(struct rcar_du_lvdsenc *lvds,
 				  struct drm_display_mode *mode)
 {
-	struct rcar_du_device *rcdu = lvds->dev;
-
 	/*
 	 * The internal LVDS encoder has a restricted clock frequency operating
-	 * range (30MHz to 150MHz on Gen2, 25.175MHz to 148.5MHz on Gen3). Clamp
-	 * the clock accordingly.
+	 * range (31MHz to 148.5MHz). Clamp the clock accordingly.
 	 */
-	if (rcdu->info->gen < 3)
-		mode->clock = clamp(mode->clock, 30000, 150000);
-	else
-		mode->clock = clamp(mode->clock, 25175, 148500);
+	mode->clock = clamp(mode->clock, 31000, 148500);
 }
 
 void rcar_du_lvdsenc_set_mode(struct rcar_du_lvdsenc *lvds,
