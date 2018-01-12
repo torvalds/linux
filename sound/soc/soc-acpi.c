@@ -84,11 +84,9 @@ snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines)
 
 	for (mach = machines; mach->id[0]; mach++) {
 		if (snd_soc_acpi_check_hid(mach->id) == true) {
-			if (mach->machine_quirk == NULL)
-				return mach;
-
-			if (mach->machine_quirk(mach) != NULL)
-				return mach;
+			if (mach->machine_quirk)
+				mach = mach->machine_quirk(mach);
+			return mach;
 		}
 	}
 	return NULL;
