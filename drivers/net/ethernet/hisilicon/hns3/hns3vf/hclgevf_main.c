@@ -1433,6 +1433,35 @@ static void hclgevf_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ae_dev->priv = NULL;
 }
 
+static u32 hclgevf_get_max_channels(struct hclgevf_dev *hdev)
+{
+	struct hnae3_handle *nic = &hdev->nic;
+	struct hnae3_knic_private_info *kinfo = &nic->kinfo;
+
+	return min_t(u32, hdev->rss_size_max * kinfo->num_tc, hdev->num_tqps);
+}
+
+/**
+ * hclgevf_get_channels - Get the current channels enabled and max supported.
+ * @handle: hardware information for network interface
+ * @ch: ethtool channels structure
+ *
+ * We don't support separate tx and rx queues as channels. The other count
+ * represents how many queues are being used for control. max_combined counts
+ * how many queue pairs we can support. They may not be mapped 1 to 1 with
+ * q_vectors since we support a lot more queue pairs than q_vectors.
+ **/
+static void hclgevf_get_channels(struct hnae3_handle *handle,
+				 struct ethtool_channels *ch)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	ch->max_combined = hclgevf_get_max_channels(hdev);
+	ch->other_count = 0;
+	ch->max_other = 0;
+	ch->combined_count = hdev->num_tqps;
+}
+
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
@@ -1462,6 +1491,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_tc_size = hclgevf_get_tc_size,
 	.get_fw_version = hclgevf_get_fw_version,
 	.set_vlan_filter = hclgevf_set_vlan_filter,
+	.get_channels = hclgevf_get_channels,
 };
 
 static struct hnae3_ae_algo ae_algovf = {

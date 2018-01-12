@@ -900,6 +900,7 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_rxfh = hns3_get_rss,
 	.set_rxfh = hns3_set_rss,
 	.get_link_ksettings = hns3_get_link_ksettings,
+	.get_channels = hns3_get_channels,
 };
 
 static const struct ethtool_ops hns3_ethtool_ops = {
