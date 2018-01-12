@@ -1093,65 +1093,21 @@ static int f2fs_rename2(struct inode *old_dir, struct dentry *old_dentry,
 
 static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cookie)
 {
-	struct page *cpage = NULL;
-	char *caddr, *paddr = NULL;
-	struct fscrypt_str cstr = FSTR_INIT(NULL, 0);
-	struct fscrypt_str pstr = FSTR_INIT(NULL, 0);
-	struct fscrypt_symlink_data *sd;
 	struct inode *inode = d_inode(dentry);
-	u32 max_size = inode->i_sb->s_blocksize;
-	int res;
+	struct page *page;
+	void *target;
 
-	res = fscrypt_get_encryption_info(inode);
-	if (res)
-		return ERR_PTR(res);
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
-	cpage = read_mapping_page(inode->i_mapping, 0, NULL);
-	if (IS_ERR(cpage))
-		return ERR_CAST(cpage);
-	caddr = page_address(cpage);
+	page = read_mapping_page(inode->i_mapping, 0, NULL);
+	if (IS_ERR(page))
+		return ERR_CAST(page);
 
-	/* Symlink is encrypted */
-	sd = (struct fscrypt_symlink_data *)caddr;
-	cstr.name = sd->encrypted_path;
-	cstr.len = le16_to_cpu(sd->len);
-
-	/* this is broken symlink case */
-	if (unlikely(cstr.len == 0)) {
-		res = -ENOENT;
-		goto errout;
-	}
-
-	if ((cstr.len + sizeof(struct fscrypt_symlink_data) - 1) > max_size) {
-		/* Symlink data on the disk is corrupted */
-		res = -EIO;
-		goto errout;
-	}
-	res = fscrypt_fname_alloc_buffer(inode, cstr.len, &pstr);
-	if (res)
-		goto errout;
-
-	res = fscrypt_fname_disk_to_usr(inode, 0, 0, &cstr, &pstr);
-	if (res)
-		goto errout;
-
-	/* this is broken symlink case */
-	if (unlikely(pstr.name[0] == 0)) {
-		res = -ENOENT;
-		goto errout;
-	}
-
-	paddr = pstr.name;
-
-	/* Null-terminate the name */
-	paddr[pstr.len] = '\0';
-
-	put_page(cpage);
-	return *cookie = paddr;
-errout:
-	fscrypt_fname_free_buffer(&pstr);
-	put_page(cpage);
-	return ERR_PTR(res);
+	target = fscrypt_get_symlink(inode, page_address(page),
+				     inode->i_sb->s_blocksize);
+	put_page(page);
+	return *cookie = target;
 }
 
 const struct inode_operations f2fs_encrypted_symlink_inode_operations = {
