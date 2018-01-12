@@ -178,7 +178,7 @@ name:
  * TRAMP_REAL_*   - real, unrelocated helpers (virt can call these)
  * TRAMP_VIRT_*   - virt, unreloc helpers (in practice, real can use)
  * TRAMP_KVM      - KVM handlers that get put into real, unrelocated
- * EXC_COMMON_*   - virt, relocated common handlers
+ * EXC_COMMON     - virt, relocated common handlers
  *
  * The EXC handlers are given a name, and branch to name_common, or the
  * appropriate KVM or masking function. Vector handler verieties are as
@@ -211,7 +211,6 @@ name:
  * EXC_COMMON_BEGIN/END - used to open-code the handler
  * EXC_COMMON
  * EXC_COMMON_ASYNC
- * EXC_COMMON_HV
  *
  * TRAMP_REAL and TRAMP_VIRT can be used with BEGIN/END. KVM
  * and OOL handlers are implemented as types of TRAMP and TRAMP_VIRT handlers.
@@ -412,10 +411,6 @@ name:
 #define EXC_COMMON_ASYNC(name, realvec, hdlr)				\
 	EXC_COMMON_BEGIN(name);						\
 	STD_EXCEPTION_COMMON_ASYNC(realvec, name, hdlr);		\
-
-#define EXC_COMMON_HV(name, realvec, hdlr)				\
-	EXC_COMMON_BEGIN(name);						\
-	STD_EXCEPTION_COMMON(realvec + 0x2, name, hdlr);		\
 
 #endif /* __ASSEMBLY__ */
 

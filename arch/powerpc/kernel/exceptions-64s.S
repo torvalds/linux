@@ -1318,7 +1318,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	b	.
 #endif
 
-EXC_COMMON_HV(denorm_common, 0x1500, unknown_exception)
+EXC_COMMON(denorm_common, 0x1500, unknown_exception)
 
 
 #ifdef CONFIG_CBE_RAS
