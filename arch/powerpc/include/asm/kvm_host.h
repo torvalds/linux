@@ -709,6 +709,7 @@ struct kvm_vcpu_arch {
 	u8 ceded;
 	u8 prodded;
 	u8 doorbell_request;
+	u8 irq_pending; /* Used by XIVE to signal pending guest irqs */
 	u32 last_inst;
 
 	struct swait_queue_head *wqp;

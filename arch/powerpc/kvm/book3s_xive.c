@@ -84,8 +84,7 @@ static irqreturn_t xive_esc_irq(int irq, void *data)
 {
 	struct kvm_vcpu *vcpu = data;
 
-	/* We use the existing H_PROD mechanism to wake up the target */
-	vcpu->arch.prodded = 1;
+	vcpu->arch.irq_pending = 1;
 	smp_mb();
 	if (vcpu->arch.ceded)
 		kvmppc_fast_vcpu_kick(vcpu);

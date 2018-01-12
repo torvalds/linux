@@ -2999,7 +2999,7 @@ static inline bool xive_interrupt_pending(struct kvm_vcpu *vcpu)
 {
 	if (!xive_enabled())
 		return false;
-	return vcpu->arch.xive_saved_state.pipr <
+	return vcpu->arch.irq_pending || vcpu->arch.xive_saved_state.pipr <
 		vcpu->arch.xive_saved_state.cppr;
 }
 #else
