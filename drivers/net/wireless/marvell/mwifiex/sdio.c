@@ -399,8 +399,6 @@ mwifiex_sdio_remove(struct sdio_func *func)
 		mwifiex_init_shutdown_fw(priv, MWIFIEX_FUNC_SHUTDOWN);
 	}
 
-	cancel_work_sync(&card->work);
-
 	mwifiex_remove_card(adapter);
 }
 
