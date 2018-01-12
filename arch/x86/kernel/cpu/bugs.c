@@ -23,6 +23,7 @@
 #include <asm/alternative.h>
 #include <asm/pgtable.h>
 #include <asm/set_memory.h>
+#include <asm/intel-family.h>
 
 static void __init spectre_v2_select_mitigation(void);
 
@@ -155,6 +156,23 @@ disable:
 	return SPECTRE_V2_CMD_NONE;
 }
 
+/* Check for Skylake-like CPUs (for RSB handling) */
+static bool __init is_skylake_era(void)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
+	    boot_cpu_data.x86 == 6) {
+		switch (boot_cpu_data.x86_model) {
+		case INTEL_FAM6_SKYLAKE_MOBILE:
+		case INTEL_FAM6_SKYLAKE_DESKTOP:
+		case INTEL_FAM6_SKYLAKE_X:
+		case INTEL_FAM6_KABYLAKE_MOBILE:
+		case INTEL_FAM6_KABYLAKE_DESKTOP:
+			return true;
+		}
+	}
+	return false;
+}
+
 static void __init spectre_v2_select_mitigation(void)
 {
 	enum spectre_v2_mitigation_cmd cmd = spectre_v2_parse_cmdline();
@@ -213,6 +231,24 @@ retpoline_auto:
 
 	spectre_v2_enabled = mode;
 	pr_info("%s\n", spectre_v2_strings[mode]);
+
+	/*
+	 * If neither SMEP or KPTI are available, there is a risk of
+	 * hitting userspace addresses in the RSB after a context switch
+	 * from a shallow call stack to a deeper one. To prevent this fill
+	 * the entire RSB, even when using IBRS.
+	 *
+	 * Skylake era CPUs have a separate issue with *underflow* of the
+	 * RSB, when they will predict 'ret' targets from the generic BTB.
+	 * The proper mitigation for this is IBRS. If IBRS is not supported
+	 * or deactivated in favour of retpolines the RSB fill on context
+	 * switch is required.
+	 */
+	if ((!boot_cpu_has(X86_FEATURE_PTI) &&
+	     !boot_cpu_has(X86_FEATURE_SMEP)) || is_skylake_era()) {
+		setup_force_cpu_cap(X86_FEATURE_RSB_CTXSW);
+		pr_info("Filling RSB on context switch\n");
+	}
 }
 
 #undef pr_fmt
