@@ -6061,13 +6061,13 @@ int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes)
 	if (btrfs_is_free_space_inode(inode)) {
 		flush = BTRFS_RESERVE_NO_FLUSH;
 		delalloc_lock = false;
-	} else if (current->journal_info) {
-		flush = BTRFS_RESERVE_FLUSH_LIMIT;
-	}
+	} else {
+		if (current->journal_info)
+			flush = BTRFS_RESERVE_FLUSH_LIMIT;
 
-	if (flush != BTRFS_RESERVE_NO_FLUSH &&
-	    btrfs_transaction_in_commit(fs_info))
-		schedule_timeout(1);
+		if (btrfs_transaction_in_commit(fs_info))
+			schedule_timeout(1);
+	}
 
 	if (delalloc_lock)
 		mutex_lock(&inode->delalloc_mutex);
