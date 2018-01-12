@@ -660,6 +660,9 @@ nv50_ovly_create(struct nvif_device *device, struct nvif_object *disp,
 
 struct nv50_head {
 	struct nouveau_crtc base;
+	struct {
+		struct nouveau_bo *nvbo[1];
+	} lut;
 	struct nv50_ovly ovly;
 	struct nv50_oimm oimm;
 };
@@ -2162,7 +2165,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 		asyh->core.block = 0;
 		asyh->core.pitch = ALIGN(asyh->core.w, 64) * 4;
 		asyh->lut.handle = disp->mast.base.vram.handle;
-		asyh->lut.offset = head->base.lut.nvbo->bo.offset;
+		asyh->lut.offset = head->lut.nvbo[0]->bo.offset;
 		asyh->set.base = armh->base.cpp != asyh->base.cpp;
 		asyh->set.ovly = armh->ovly.cpp != asyh->ovly.cpp;
 	} else {
@@ -2204,8 +2207,8 @@ static void
 nv50_head_lut_load(struct drm_crtc *crtc)
 {
 	struct nv50_disp *disp = nv50_disp(crtc->dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	void __iomem *lut = nvbo_kmap_obj_iovirtual(nv_crtc->lut.nvbo);
+	struct nv50_head *head = nv50_head(crtc);
+	void __iomem *lut = nvbo_kmap_obj_iovirtual(head->lut.nvbo[0]);
 	u16 *r, *g, *b;
 	int i;
 
@@ -2296,17 +2299,15 @@ nv50_head_reset(struct drm_crtc *crtc)
 static void
 nv50_head_destroy(struct drm_crtc *crtc)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
+	int i;
 
 	nv50_dmac_destroy(&head->ovly.base, disp->disp);
 	nv50_pioc_destroy(&head->oimm.base);
 
-	nouveau_bo_unmap(nv_crtc->lut.nvbo);
-	if (nv_crtc->lut.nvbo)
-		nouveau_bo_unpin(nv_crtc->lut.nvbo);
-	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
+	for (i = 0; i < ARRAY_SIZE(head->lut.nvbo); i++)
+		nouveau_bo_unmap_unpin_unref(&head->lut.nvbo[i]);
 
 	drm_crtc_cleanup(crtc);
 	kfree(crtc);
@@ -2333,7 +2334,7 @@ nv50_head_create(struct drm_device *dev, int index)
 	struct nv50_base *base;
 	struct nv50_curs *curs;
 	struct drm_crtc *crtc;
-	int ret;
+	int ret, i;
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (!head)
@@ -2355,21 +2356,13 @@ nv50_head_create(struct drm_device *dev, int index)
 	drm_crtc_helper_add(crtc, &nv50_head_help);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
-	ret = nouveau_bo_new(&drm->client, 8192, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, NULL, &head->base.lut.nvbo);
-	if (!ret) {
-		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM, true);
-		if (!ret) {
-			ret = nouveau_bo_map(head->base.lut.nvbo);
-			if (ret)
-				nouveau_bo_unpin(head->base.lut.nvbo);
-		}
+	for (i = 0; i < ARRAY_SIZE(head->lut.nvbo); i++) {
+		ret = nouveau_bo_new_pin_map(&drm->client, 1025 * 8, 0x100,
+					     TTM_PL_FLAG_VRAM,
+					     &head->lut.nvbo[i]);
 		if (ret)
-			nouveau_bo_ref(NULL, &head->base.lut.nvbo);
+			goto out;
 	}
-
-	if (ret)
-		goto out;
 
 	/* allocate overlay resources */
 	ret = nv50_oimm_create(device, disp->disp, index, &head->oimm);
