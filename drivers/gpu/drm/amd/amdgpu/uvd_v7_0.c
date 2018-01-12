@@ -1255,17 +1255,17 @@ static void uvd_v7_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
-static void uvd_v7_0_vm_reg_write(struct amdgpu_ring *ring,
-				uint32_t data0, uint32_t data1)
+static void uvd_v7_0_ring_emit_wreg(struct amdgpu_ring *ring,
+				    uint32_t reg, uint32_t val)
 {
 	struct amdgpu_device *adev = ring->adev;
 
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0));
-	amdgpu_ring_write(ring, data0);
+	amdgpu_ring_write(ring, reg << 2);
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1), 0));
-	amdgpu_ring_write(ring, data1);
+	amdgpu_ring_write(ring, val);
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
 	amdgpu_ring_write(ring, 8);
@@ -1305,11 +1305,11 @@ static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	data0 = (hub->ctx0_ptb_addr_hi32 + vmid * 2) << 2;
 	data1 = upper_32_bits(pd_addr);
-	uvd_v7_0_vm_reg_write(ring, data0, data1);
+	uvd_v7_0_ring_emit_wreg(ring, data0, data1);
 
 	data0 = (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2;
 	data1 = lower_32_bits(pd_addr);
-	uvd_v7_0_vm_reg_write(ring, data0, data1);
+	uvd_v7_0_ring_emit_wreg(ring, data0, data1);
 
 	data0 = (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2;
 	data1 = lower_32_bits(pd_addr);
@@ -1319,7 +1319,7 @@ static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	/* flush TLB */
 	data0 = (hub->vm_inv_eng0_req + eng) << 2;
 	data1 = req;
-	uvd_v7_0_vm_reg_write(ring, data0, data1);
+	uvd_v7_0_ring_emit_wreg(ring, data0, data1);
 
 	/* wait for flush */
 	data0 = (hub->vm_inv_eng0_ack + eng) << 2;
@@ -1378,6 +1378,14 @@ static void uvd_v7_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (hub->vm_inv_eng0_ack + eng) << 2);
 	amdgpu_ring_write(ring, 1 << vmid);
 	amdgpu_ring_write(ring, 1 << vmid);
+}
+
+static void uvd_v7_0_enc_ring_emit_wreg(struct amdgpu_ring *ring,
+					uint32_t reg, uint32_t val)
+{
+	amdgpu_ring_write(ring, HEVC_ENC_CMD_REG_WRITE);
+	amdgpu_ring_write(ring,	reg << 2);
+	amdgpu_ring_write(ring, val);
 }
 
 #if 0
@@ -1730,6 +1738,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
+	.emit_wreg = uvd_v7_0_ring_emit_wreg,
 };
 
 static const struct amdgpu_ring_funcs uvd_v7_0_enc_ring_vm_funcs = {
@@ -1756,6 +1765,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_enc_ring_vm_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
+	.emit_wreg = uvd_v7_0_enc_ring_emit_wreg,
 };
 
 static void uvd_v7_0_set_ring_funcs(struct amdgpu_device *adev)
