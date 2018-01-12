@@ -435,8 +435,6 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	int ret;
 	int irq = 0;
 
-	irq = platform_get_irq(pdev, 0);
-
 	stmpe_gpio = kzalloc(sizeof(*stmpe_gpio), GFP_KERNEL);
 	if (!stmpe_gpio)
 		return -ENOMEM;
@@ -459,6 +457,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	if (stmpe_gpio->norequest_mask)
 		stmpe_gpio->chip.irq.need_valid_mask = true;
 
+	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		dev_info(&pdev->dev,
 			"device configured in no-irq mode: "
