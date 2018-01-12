@@ -810,7 +810,7 @@ static int si2168_probe(struct i2c_client *client,
 err_kfree:
 	kfree(dev);
 err:
-	dev_dbg(&client->dev, "failed=%d\n", ret);
+	dev_warn(&client->dev, "probe failed = %d\n", ret);
 	return ret;
 }
 
