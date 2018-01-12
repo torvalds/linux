@@ -378,6 +378,7 @@ void bpf_map_put(struct bpf_map *map);
 int bpf_map_precharge_memlock(u32 pages);
 void *bpf_map_area_alloc(size_t size, int numa_node);
 void bpf_map_area_free(void *base);
+void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr);
 
 extern int sysctl_unprivileged_bpf_disabled;
 
