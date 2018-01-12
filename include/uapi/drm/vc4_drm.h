@@ -42,6 +42,9 @@ extern "C" {
 #define DRM_VC4_GET_TILING                        0x09
 #define DRM_VC4_LABEL_BO                          0x0a
 #define DRM_VC4_GEM_MADVISE                       0x0b
+#define DRM_VC4_PERFMON_CREATE                    0x0c
+#define DRM_VC4_PERFMON_DESTROY                   0x0d
+#define DRM_VC4_PERFMON_GET_VALUES                0x0e
 
 #define DRM_IOCTL_VC4_SUBMIT_CL           DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_SUBMIT_CL, struct drm_vc4_submit_cl)
 #define DRM_IOCTL_VC4_WAIT_SEQNO          DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_WAIT_SEQNO, struct drm_vc4_wait_seqno)
@@ -55,6 +58,9 @@ extern "C" {
 #define DRM_IOCTL_VC4_GET_TILING          DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_GET_TILING, struct drm_vc4_get_tiling)
 #define DRM_IOCTL_VC4_LABEL_BO            DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_LABEL_BO, struct drm_vc4_label_bo)
 #define DRM_IOCTL_VC4_GEM_MADVISE         DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_GEM_MADVISE, struct drm_vc4_gem_madvise)
+#define DRM_IOCTL_VC4_PERFMON_CREATE      DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_PERFMON_CREATE, struct drm_vc4_perfmon_create)
+#define DRM_IOCTL_VC4_PERFMON_DESTROY     DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_PERFMON_DESTROY, struct drm_vc4_perfmon_destroy)
+#define DRM_IOCTL_VC4_PERFMON_GET_VALUES  DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_PERFMON_GET_VALUES, struct drm_vc4_perfmon_get_values)
 
 struct drm_vc4_submit_rcl_surface {
 	__u32 hindex; /* Handle index, or ~0 if not present. */
@@ -173,6 +179,15 @@ struct drm_vc4_submit_cl {
 	 * wait ioctl).
 	 */
 	__u64 seqno;
+
+	/* ID of the perfmon to attach to this job. 0 means no perfmon. */
+	__u32 perfmonid;
+
+	/* Unused field to align this struct on 64 bits. Must be set to 0.
+	 * If one ever needs to add an u32 field to this struct, this field
+	 * can be used.
+	 */
+	__u32 pad2;
 };
 
 /**
@@ -308,6 +323,7 @@ struct drm_vc4_get_hang_state {
 #define DRM_VC4_PARAM_SUPPORTS_THREADED_FS	5
 #define DRM_VC4_PARAM_SUPPORTS_FIXED_RCL_ORDER	6
 #define DRM_VC4_PARAM_SUPPORTS_MADVISE		7
+#define DRM_VC4_PARAM_SUPPORTS_PERFMON		8
 
 struct drm_vc4_get_param {
 	__u32 param;
@@ -350,6 +366,66 @@ struct drm_vc4_gem_madvise {
 	__u32 madv;
 	__u32 retained;
 	__u32 pad;
+};
+
+enum {
+	VC4_PERFCNT_FEP_VALID_PRIMS_NO_RENDER,
+	VC4_PERFCNT_FEP_VALID_PRIMS_RENDER,
+	VC4_PERFCNT_FEP_CLIPPED_QUADS,
+	VC4_PERFCNT_FEP_VALID_QUADS,
+	VC4_PERFCNT_TLB_QUADS_NOT_PASSING_STENCIL,
+	VC4_PERFCNT_TLB_QUADS_NOT_PASSING_Z_AND_STENCIL,
+	VC4_PERFCNT_TLB_QUADS_PASSING_Z_AND_STENCIL,
+	VC4_PERFCNT_TLB_QUADS_ZERO_COVERAGE,
+	VC4_PERFCNT_TLB_QUADS_NON_ZERO_COVERAGE,
+	VC4_PERFCNT_TLB_QUADS_WRITTEN_TO_COLOR_BUF,
+	VC4_PERFCNT_PLB_PRIMS_OUTSIDE_VIEWPORT,
+	VC4_PERFCNT_PLB_PRIMS_NEED_CLIPPING,
+	VC4_PERFCNT_PSE_PRIMS_REVERSED,
+	VC4_PERFCNT_QPU_TOTAL_IDLE_CYCLES,
+	VC4_PERFCNT_QPU_TOTAL_CLK_CYCLES_VERTEX_COORD_SHADING,
+	VC4_PERFCNT_QPU_TOTAL_CLK_CYCLES_FRAGMENT_SHADING,
+	VC4_PERFCNT_QPU_TOTAL_CLK_CYCLES_EXEC_VALID_INST,
+	VC4_PERFCNT_QPU_TOTAL_CLK_CYCLES_WAITING_TMUS,
+	VC4_PERFCNT_QPU_TOTAL_CLK_CYCLES_WAITING_SCOREBOARD,
+	VC4_PERFCNT_QPU_TOTAL_CLK_CYCLES_WAITING_VARYINGS,
+	VC4_PERFCNT_QPU_TOTAL_INST_CACHE_HIT,
+	VC4_PERFCNT_QPU_TOTAL_INST_CACHE_MISS,
+	VC4_PERFCNT_QPU_TOTAL_UNIFORM_CACHE_HIT,
+	VC4_PERFCNT_QPU_TOTAL_UNIFORM_CACHE_MISS,
+	VC4_PERFCNT_TMU_TOTAL_TEXT_QUADS_PROCESSED,
+	VC4_PERFCNT_TMU_TOTAL_TEXT_CACHE_MISS,
+	VC4_PERFCNT_VPM_TOTAL_CLK_CYCLES_VDW_STALLED,
+	VC4_PERFCNT_VPM_TOTAL_CLK_CYCLES_VCD_STALLED,
+	VC4_PERFCNT_L2C_TOTAL_L2_CACHE_HIT,
+	VC4_PERFCNT_L2C_TOTAL_L2_CACHE_MISS,
+	VC4_PERFCNT_NUM_EVENTS,
+};
+
+#define DRM_VC4_MAX_PERF_COUNTERS	16
+
+struct drm_vc4_perfmon_create {
+	__u32 id;
+	__u32 ncounters;
+	__u8 events[DRM_VC4_MAX_PERF_COUNTERS];
+};
+
+struct drm_vc4_perfmon_destroy {
+	__u32 id;
+};
+
+/*
+ * Returns the values of the performance counters tracked by this
+ * perfmon (as an array of ncounters u64 values).
+ *
+ * No implicit synchronization is performed, so the user has to
+ * guarantee that any jobs using this perfmon have already been
+ * completed  (probably by blocking on the seqno returned by the
+ * last exec that used the perfmon).
+ */
+struct drm_vc4_perfmon_get_values {
+	__u32 id;
+	__u64 values_ptr;
 };
 
 #if defined(__cplusplus)

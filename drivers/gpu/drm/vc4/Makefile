@@ -15,6 +15,7 @@ vc4-y := \
 	vc4_vec.o \
 	vc4_hvs.o \
 	vc4_irq.o \
+	vc4_perfmon.o \
 	vc4_plane.o \
 	vc4_render_cl.o \
 	vc4_trace_points.o \
