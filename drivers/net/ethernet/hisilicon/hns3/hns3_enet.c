@@ -2459,25 +2459,22 @@ static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 
 static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 {
-	u16 rx_int_gl, tx_int_gl;
-	bool rx, tx;
+	struct hns3_enet_ring_group *rx_group = &tqp_vector->rx_group;
+	struct hns3_enet_ring_group *tx_group = &tqp_vector->tx_group;
+	bool rx_update, tx_update;
 
-	rx = hns3_get_new_int_gl(&tqp_vector->rx_group);
-	tx = hns3_get_new_int_gl(&tqp_vector->tx_group);
-	rx_int_gl = tqp_vector->rx_group.int_gl;
-	tx_int_gl = tqp_vector->tx_group.int_gl;
-	if (rx && tx) {
-		if (rx_int_gl > tx_int_gl) {
-			tqp_vector->tx_group.int_gl = rx_int_gl;
-			tqp_vector->tx_group.flow_level =
-				tqp_vector->rx_group.flow_level;
-			hns3_set_vector_coalesc_gl(tqp_vector, rx_int_gl);
-		} else {
-			tqp_vector->rx_group.int_gl = tx_int_gl;
-			tqp_vector->rx_group.flow_level =
-				tqp_vector->tx_group.flow_level;
-			hns3_set_vector_coalesc_gl(tqp_vector, tx_int_gl);
-		}
+	if (rx_group->gl_adapt_enable) {
+		rx_update = hns3_get_new_int_gl(rx_group);
+		if (rx_update)
+			hns3_set_vector_coalesce_rx_gl(tqp_vector,
+						       rx_group->int_gl);
+	}
+
+	if (tx_group->gl_adapt_enable) {
+		tx_update = hns3_get_new_int_gl(&tqp_vector->tx_group);
+		if (tx_update)
+			hns3_set_vector_coalesce_tx_gl(tqp_vector,
+						       tx_group->int_gl);
 	}
 }
 
