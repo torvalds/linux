@@ -1656,6 +1656,7 @@ static struct ib_mr *i40iw_alloc_mr(struct ib_pd *pd,
 		err_code = -EOVERFLOW;
 		goto err;
 	}
+	stag &= ~I40IW_CQPSQ_STAG_KEY_MASK;
 	iwmr->stag = stag;
 	iwmr->ibmr.rkey = stag;
 	iwmr->ibmr.lkey = stag;
