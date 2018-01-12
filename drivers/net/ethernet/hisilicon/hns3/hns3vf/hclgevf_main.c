@@ -201,20 +201,6 @@ static int hclge_get_queue_info(struct hclgevf_dev *hdev)
 	return 0;
 }
 
-static int hclgevf_enable_tso(struct hclgevf_dev *hdev, int enable)
-{
-	struct hclgevf_cfg_tso_status_cmd *req;
-	struct hclgevf_desc desc;
-
-	req = (struct hclgevf_cfg_tso_status_cmd *)desc.data;
-
-	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_TSO_GENERIC_CONFIG,
-				     false);
-	hnae_set_bit(req->tso_enable, HCLGEVF_TSO_ENABLE_B, enable);
-
-	return hclgevf_cmd_send(&hdev->hw, &desc, 1);
-}
-
 static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_tqp *tqp;
@@ -1372,12 +1358,6 @@ static int hclgevf_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclgevf_set_handle_info(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed(%d) to set handle info\n", ret);
-		goto err_config;
-	}
-
-	ret = hclgevf_enable_tso(hdev, true);
-	if (ret) {
-		dev_err(&pdev->dev, "failed(%d) to enable tso\n", ret);
 		goto err_config;
 	}
 

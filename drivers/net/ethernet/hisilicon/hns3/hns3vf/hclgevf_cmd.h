@@ -86,8 +86,6 @@ enum hclgevf_opcode_type {
 	HCLGEVF_OPC_QUERY_TX_STATUS	= 0x0B03,
 	HCLGEVF_OPC_QUERY_RX_STATUS	= 0x0B13,
 	HCLGEVF_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
-	/* TSO cmd */
-	HCLGEVF_OPC_TSO_GENERIC_CONFIG	= 0x0C01,
 	/* RSS cmd */
 	HCLGEVF_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
 	HCLGEVF_OPC_RSS_INDIR_TABLE	= 0x0D07,
@@ -200,12 +198,6 @@ struct hclgevf_cfg_tx_queue_pointer_cmd {
 	__le16 fbd_num;
 	__le16 ring_offset;
 	u8 rsv[14];
-};
-
-#define HCLGEVF_TSO_ENABLE_B	0
-struct hclgevf_cfg_tso_status_cmd {
-	u8 tso_enable;
-	u8 rsv[23];
 };
 
 #define HCLGEVF_TYPE_CRQ		0
