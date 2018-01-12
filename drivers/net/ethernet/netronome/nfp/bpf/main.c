@@ -381,6 +381,7 @@ static void nfp_bpf_clean(struct nfp_app *app)
 
 	WARN_ON(!skb_queue_empty(&bpf->cmsg_replies));
 	WARN_ON(!list_empty(&bpf->map_list));
+	WARN_ON(bpf->maps_in_use || bpf->map_elems_in_use);
 	kfree(bpf);
 }
 

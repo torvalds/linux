@@ -108,6 +108,8 @@ enum pkt_vec {
  * @cmsg_wq:		work queue for waiting for cmsg replies
  *
  * @map_list:		list of offloaded maps
+ * @maps_in_use:	number of currently offloaded maps
+ * @map_elems_in_use:	number of elements allocated to offloaded maps
  *
  * @adjust_head:	adjust head capability
  * @flags:		extra flags for adjust head
@@ -138,6 +140,8 @@ struct nfp_app_bpf {
 	struct wait_queue_head cmsg_wq;
 
 	struct list_head map_list;
+	unsigned int maps_in_use;
+	unsigned int map_elems_in_use;
 
 	struct nfp_bpf_cap_adjust_head {
 		u32 flags;
