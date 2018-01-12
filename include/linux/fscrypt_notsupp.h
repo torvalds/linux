@@ -130,14 +130,6 @@ static inline void fscrypt_free_filename(struct fscrypt_name *fname)
 	return;
 }
 
-static inline u32 fscrypt_fname_encrypted_size(const struct inode *inode,
-					       u32 ilen)
-{
-	/* never happens */
-	WARN_ON(1);
-	return 0;
-}
-
 static inline int fscrypt_fname_alloc_buffer(const struct inode *inode,
 					     u32 max_encrypted_len,
 					     struct fscrypt_str *crypto_str)

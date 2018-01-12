@@ -190,17 +190,20 @@ static int digest_decode(const char *src, int len, char *dst)
 	return cp - dst;
 }
 
-u32 fscrypt_fname_encrypted_size(const struct inode *inode, u32 ilen)
+bool fscrypt_fname_encrypted_size(const struct inode *inode, u32 orig_len,
+				  u32 max_len, u32 *encrypted_len_ret)
 {
-	int padding = 32;
-	struct fscrypt_info *ci = inode->i_crypt_info;
+	int padding = 4 << (inode->i_crypt_info->ci_flags &
+			    FS_POLICY_FLAGS_PAD_MASK);
+	u32 encrypted_len;
 
-	if (ci)
-		padding = 4 << (ci->ci_flags & FS_POLICY_FLAGS_PAD_MASK);
-	ilen = max(ilen, (u32)FS_CRYPTO_BLOCK_SIZE);
-	return round_up(ilen, padding);
+	if (orig_len > max_len)
+		return false;
+	encrypted_len = max(orig_len, (u32)FS_CRYPTO_BLOCK_SIZE);
+	encrypted_len = round_up(encrypted_len, padding);
+	*encrypted_len_ret = min(encrypted_len, max_len);
+	return true;
 }
-EXPORT_SYMBOL(fscrypt_fname_encrypted_size);
 
 /**
  * fscrypt_fname_alloc_buffer - allocate a buffer for presented filenames
@@ -341,14 +344,10 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 		return ret;
 
 	if (dir->i_crypt_info) {
-		unsigned int max_len = dir->i_sb->s_cop->max_namelen(dir);
-
-		if (iname->len > max_len)
+		if (!fscrypt_fname_encrypted_size(dir, iname->len,
+						  dir->i_sb->s_cop->max_namelen(dir),
+						  &fname->crypto_buf.len))
 			return -ENAMETOOLONG;
-
-		fname->crypto_buf.len =
-			min(fscrypt_fname_encrypted_size(dir, iname->len),
-			    max_len);
 		fname->crypto_buf.name = kmalloc(fname->crypto_buf.len,
 						 GFP_NOFS);
 		if (!fname->crypto_buf.name)

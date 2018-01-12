@@ -120,6 +120,9 @@ extern struct page *fscrypt_alloc_bounce_page(struct fscrypt_ctx *ctx,
 /* fname.c */
 extern int fname_encrypt(struct inode *inode, const struct qstr *iname,
 			 u8 *out, unsigned int olen);
+extern bool fscrypt_fname_encrypted_size(const struct inode *inode,
+					 u32 orig_len, u32 max_len,
+					 u32 *encrypted_len_ret);
 
 /* keyinfo.c */
 extern void __exit fscrypt_essiv_cleanup(void);

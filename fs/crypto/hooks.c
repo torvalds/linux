@@ -143,12 +143,12 @@ int __fscrypt_prepare_symlink(struct inode *dir, unsigned int len,
 	 * counting it (even though it is meaningless for ciphertext) is simpler
 	 * for now since filesystems will assume it is there and subtract it.
 	 */
-	if (sizeof(struct fscrypt_symlink_data) + len > max_len)
+	if (!fscrypt_fname_encrypted_size(dir, len,
+					  max_len - sizeof(struct fscrypt_symlink_data),
+					  &disk_link->len))
 		return -ENAMETOOLONG;
-	disk_link->len = min_t(unsigned int,
-			       sizeof(struct fscrypt_symlink_data) +
-					fscrypt_fname_encrypted_size(dir, len),
-			       max_len);
+	disk_link->len += sizeof(struct fscrypt_symlink_data);
+
 	disk_link->name = NULL;
 	return 0;
 }
