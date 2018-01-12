@@ -794,7 +794,7 @@ create_event_attributes(struct drm_i915_private *i915)
 		goto err_alloc;
 
 	/* Max one pointer of each attribute type plus a termination entry. */
-	attr = kzalloc((count * 2 + 1) * sizeof(attr), GFP_KERNEL);
+	attr = kzalloc((count * 2 + 1) * sizeof(*attr), GFP_KERNEL);
 	if (!attr)
 		goto err_alloc;
 
