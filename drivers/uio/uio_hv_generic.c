@@ -202,7 +202,7 @@ hv_uio_probe(struct hv_device *dev,
 		 "recv:%u", pdata->recv_gpadl);
 	pdata->info.mem[RECV_BUF_MAP].name = pdata->recv_name;
 	pdata->info.mem[RECV_BUF_MAP].addr
-		= (phys_addr_t)pdata->recv_buf;
+		= (uintptr_t)pdata->recv_buf;
 	pdata->info.mem[RECV_BUF_MAP].size = RECV_BUFFER_SIZE;
 	pdata->info.mem[RECV_BUF_MAP].memtype = UIO_MEM_VIRTUAL;
 
@@ -222,7 +222,7 @@ hv_uio_probe(struct hv_device *dev,
 		 "send:%u", pdata->send_gpadl);
 	pdata->info.mem[SEND_BUF_MAP].name = pdata->send_name;
 	pdata->info.mem[SEND_BUF_MAP].addr
-		= (phys_addr_t)pdata->send_buf;
+		= (uintptr_t)pdata->send_buf;
 	pdata->info.mem[SEND_BUF_MAP].size = SEND_BUFFER_SIZE;
 	pdata->info.mem[SEND_BUF_MAP].memtype = UIO_MEM_VIRTUAL;
 
