@@ -514,7 +514,6 @@ struct amdgpu_vmhub {
 struct amdgpu_mc {
 	resource_size_t		aper_size;
 	resource_size_t		aper_base;
-	resource_size_t		agp_base;
 	/* for some chips with <= 32MB we need to lie
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
