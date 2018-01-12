@@ -936,7 +936,8 @@ static int ceph_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 		goto out;
 	}
 
-	if (ceph_quota_is_max_files_exceeded(dir)) {
+	if (op == CEPH_MDS_OP_MKDIR &&
+	    ceph_quota_is_max_files_exceeded(dir)) {
 		err = -EDQUOT;
 		goto out;
 	}
