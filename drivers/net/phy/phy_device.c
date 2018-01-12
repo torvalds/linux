@@ -1660,13 +1660,13 @@ EXPORT_SYMBOL(genphy_config_init);
 
 int genphy_suspend(struct phy_device *phydev)
 {
-	return phy_modify(phydev, MII_BMCR, 0, BMCR_PDOWN);
+	return phy_set_bits(phydev, MII_BMCR, BMCR_PDOWN);
 }
 EXPORT_SYMBOL(genphy_suspend);
 
 int genphy_resume(struct phy_device *phydev)
 {
-	return phy_modify(phydev, MII_BMCR, BMCR_PDOWN, 0);
+	return phy_clear_bits(phydev, MII_BMCR, BMCR_PDOWN);
 }
 EXPORT_SYMBOL(genphy_resume);
 
