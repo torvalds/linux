@@ -311,35 +311,6 @@ int fscrypt_fname_disk_to_usr(struct inode *inode,
 EXPORT_SYMBOL(fscrypt_fname_disk_to_usr);
 
 /**
- * fscrypt_fname_usr_to_disk() - converts a filename from user space to disk
- * space
- *
- * The caller must have allocated sufficient memory for the @oname string.
- *
- * Return: 0 on success, -errno on failure
- */
-int fscrypt_fname_usr_to_disk(struct inode *inode,
-			const struct qstr *iname,
-			struct fscrypt_str *oname)
-{
-	if (fscrypt_is_dot_dotdot(iname)) {
-		oname->name[0] = '.';
-		oname->name[iname->len - 1] = '.';
-		oname->len = iname->len;
-		return 0;
-	}
-	if (inode->i_crypt_info)
-		return fname_encrypt(inode, iname, oname);
-	/*
-	 * Without a proper key, a user is not allowed to modify the filenames
-	 * in a directory. Consequently, a user space name cannot be mapped to
-	 * a disk-space name
-	 */
-	return -ENOKEY;
-}
-EXPORT_SYMBOL(fscrypt_fname_usr_to_disk);
-
-/**
  * fscrypt_setup_filename() - prepare to search a possibly encrypted directory
  * @dir: the directory that will be searched
  * @iname: the user-provided filename being searched for
