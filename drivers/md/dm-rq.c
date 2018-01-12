@@ -704,7 +704,6 @@ int dm_old_init_request_queue(struct mapped_device *md, struct dm_table *t)
 	/* disable dm_old_request_fn's merge heuristic by default */
 	md->seq_rq_merge_deadline_usecs = 0;
 
-	dm_init_normal_md_queue(md);
 	blk_queue_softirq_done(md->queue, dm_softirq_done);
 
 	/* Initialize the request-based DM worker thread */
@@ -814,7 +813,6 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 		err = PTR_ERR(q);
 		goto out_tag_set;
 	}
-	dm_init_md_queue(md);
 
 	/* backfill 'mq' sysfs registration normally done in blk_register_queue */
 	err = blk_mq_register_dev(disk_to_dev(md->disk), q);
