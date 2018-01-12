@@ -1818,7 +1818,7 @@ nv50_head_lut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 			evo_data(push, asyh->lut.handle);
 		} else {
 			evo_mthd(push, 0x0440 + (head->base.index * 0x300), 4);
-			evo_data(push, 0x83000000);
+			evo_data(push, 0x87000000);
 			evo_data(push, asyh->lut.offset >> 8);
 			evo_data(push, 0x00000000);
 			evo_data(push, 0x00000000);
@@ -2225,9 +2225,9 @@ nv50_head_lut_load(struct drm_crtc *crtc)
 			writew((*b++ >> 2) + 0x0000, lut + (i * 0x08) + 4);
 		} else {
 			/* 0x6000 interferes with the 14-bit color??? */
-			writew((*r++ >> 2) + 0x6000, lut + (i * 0x20) + 0);
-			writew((*g++ >> 2) + 0x6000, lut + (i * 0x20) + 2);
-			writew((*b++ >> 2) + 0x6000, lut + (i * 0x20) + 4);
+			writew((*r++ >> 2) + 0x6000, lut + (i * 0x08) + 0);
+			writew((*g++ >> 2) + 0x6000, lut + (i * 0x08) + 2);
+			writew((*b++ >> 2) + 0x6000, lut + (i * 0x08) + 4);
 		}
 	}
 }
