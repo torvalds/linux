@@ -178,6 +178,8 @@ int cc_ivgen_init(struct cc_drvdata *drvdata)
 	if (!ivgen_ctx)
 		return -ENOMEM;
 
+	drvdata->ivgen_handle = ivgen_ctx;
+
 	/* Allocate pool's header for initial enc. key/IV */
 	ivgen_ctx->pool_meta = dma_alloc_coherent(device, CC_IVPOOL_META_SIZE,
 						  &ivgen_ctx->pool_meta_dma,
@@ -195,8 +197,6 @@ int cc_ivgen_init(struct cc_drvdata *drvdata)
 		rc = -ENOMEM;
 		goto out;
 	}
-
-	drvdata->ivgen_handle = ivgen_ctx;
 
 	return cc_init_iv_sram(drvdata);
 
