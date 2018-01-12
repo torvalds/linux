@@ -99,9 +99,5 @@
 	status = "disabled";
 };
 
-&smartreflex_mpu_iva {
-	status = "disabled";
-};
-
 /include/ "am35xx-clocks.dtsi"
 /include/ "omap36xx-am35xx-omap3430es2plus-clocks.dtsi"
