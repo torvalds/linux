@@ -248,7 +248,7 @@ static int __init init_cr16_clocksource(void)
 	 * different sockets, so mark them unstable and lower rating on
 	 * multi-socket SMP systems.
 	 */
-	if (num_online_cpus() > 1) {
+	if (num_online_cpus() > 1 && !running_on_qemu) {
 		int cpu;
 		unsigned long cpu0_loc;
 		cpu0_loc = per_cpu(cpu_data, 0).cpu_loc;
