@@ -785,16 +785,16 @@ create_event_attributes(struct drm_i915_private *i915)
 	}
 
 	/* Allocate attribute objects and table. */
-	i915_attr = kzalloc(count * sizeof(*i915_attr), GFP_KERNEL);
+	i915_attr = kcalloc(count, sizeof(*i915_attr), GFP_KERNEL);
 	if (!i915_attr)
 		goto err_alloc;
 
-	pmu_attr = kzalloc(count * sizeof(*pmu_attr), GFP_KERNEL);
+	pmu_attr = kcalloc(count, sizeof(*pmu_attr), GFP_KERNEL);
 	if (!pmu_attr)
 		goto err_alloc;
 
 	/* Max one pointer of each attribute type plus a termination entry. */
-	attr = kzalloc((count * 2 + 1) * sizeof(*attr), GFP_KERNEL);
+	attr = kcalloc(count * 2 + 1, sizeof(*attr), GFP_KERNEL);
 	if (!attr)
 		goto err_alloc;
 
