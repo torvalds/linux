@@ -680,8 +680,7 @@ exit:
  * - Determines if any node local ports overlap
  */
 void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
-				   u32 upper, u32 scope,
-				   struct tipc_nlist *nodes)
+				   u32 upper, struct tipc_nlist *nodes)
 {
 	struct sub_seq *sseq, *stop;
 	struct publication *publ;
@@ -699,8 +698,7 @@ void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
 	for (; sseq != stop && sseq->lower <= upper; sseq++) {
 		info = sseq->info;
 		list_for_each_entry(publ, &info->zone_list, zone_list) {
-			if (publ->scope == scope)
-				tipc_nlist_add(nodes, publ->node);
+			tipc_nlist_add(nodes, publ->node);
 		}
 	}
 	spin_unlock_bh(&seq->lock);

@@ -105,8 +105,7 @@ int tipc_nametbl_mc_lookup(struct net *net, u32 type, u32 lower, u32 upper,
 void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 			      u32 type, u32 domain);
 void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
-				   u32 upper, u32 domain,
-				   struct tipc_nlist *nodes);
+				   u32 upper, struct tipc_nlist *nodes);
 bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 domain,
 			 struct list_head *dsts, int *dstcnt, u32 exclude,
 			 bool all);

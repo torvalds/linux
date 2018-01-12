@@ -772,7 +772,6 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	struct net *net = sock_net(sk);
 	int mtu = tipc_bcast_get_mtu(net);
 	struct tipc_mc_method *method = &tsk->mc_method;
-	u32 domain = addr_domain(net, TIPC_CLUSTER_SCOPE);
 	struct sk_buff_head pkts;
 	struct tipc_nlist dsts;
 	int rc;
@@ -788,7 +787,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	/* Lookup destination nodes */
 	tipc_nlist_init(&dsts, tipc_own_addr(net));
 	tipc_nametbl_lookup_dst_nodes(net, seq->type, seq->lower,
-				      seq->upper, domain, &dsts);
+				      seq->upper, &dsts);
 	if (!dsts.local && !dsts.remote)
 		return -EHOSTUNREACH;
 
