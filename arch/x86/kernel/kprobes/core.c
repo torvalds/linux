@@ -1183,3 +1183,17 @@ int arch_trampoline_kprobe(struct kprobe *p)
 {
 	return 0;
 }
+
+asmlinkage void override_func(void);
+asm(
+	".type override_func, @function\n"
+	"override_func:\n"
+	"	ret\n"
+	".size override_func, .-override_func\n"
+);
+
+void arch_kprobe_override_function(struct pt_regs *regs)
+{
+	regs->ip = (unsigned long)&override_func;
+}
+NOKPROBE_SYMBOL(arch_kprobe_override_function);

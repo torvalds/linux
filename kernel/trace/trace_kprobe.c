@@ -88,13 +88,16 @@ static nokprobe_inline unsigned long trace_kprobe_nhit(struct trace_kprobe *tk)
 	return nhit;
 }
 
-int trace_kprobe_ftrace(struct trace_event_call *call)
+bool trace_kprobe_on_func_entry(struct trace_event_call *call)
 {
 	struct trace_kprobe *tk = (struct trace_kprobe *)call->data;
-	return kprobe_ftrace(&tk->rp.kp);
+
+	return kprobe_on_func_entry(tk->rp.kp.addr,
+			tk->rp.kp.addr ? NULL : tk->rp.kp.symbol_name,
+			tk->rp.kp.addr ? 0 : tk->rp.kp.offset);
 }
 
-int trace_kprobe_error_injectable(struct trace_event_call *call)
+bool trace_kprobe_error_injectable(struct trace_event_call *call)
 {
 	struct trace_kprobe *tk = (struct trace_kprobe *)call->data;
 	unsigned long addr;

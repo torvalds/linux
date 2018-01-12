@@ -85,7 +85,7 @@ BPF_CALL_2(bpf_override_return, struct pt_regs *, regs, unsigned long, rc)
 {
 	__this_cpu_write(bpf_kprobe_override, 1);
 	regs_set_return_value(regs, rc);
-	arch_ftrace_kprobe_override_function(regs);
+	arch_kprobe_override_function(regs);
 	return 0;
 }
 
@@ -800,11 +800,11 @@ int perf_event_attach_bpf_prog(struct perf_event *event,
 	int ret = -EEXIST;
 
 	/*
-	 * Kprobe override only works for ftrace based kprobes, and only if they
-	 * are on the opt-in list.
+	 * Kprobe override only works if they are on the function entry,
+	 * and only if they are on the opt-in list.
 	 */
 	if (prog->kprobe_override &&
-	    (!trace_kprobe_ftrace(event->tp_event) ||
+	    (!trace_kprobe_on_func_entry(event->tp_event) ||
 	     !trace_kprobe_error_injectable(event->tp_event)))
 		return -EINVAL;
 
