@@ -1210,7 +1210,7 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 	}
 }
 
-void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
+static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 {
 	struct sk_buff *skb;
 
