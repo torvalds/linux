@@ -287,11 +287,9 @@ find_event(struct pevent *pevent, struct event_list **events,
 		sys_name = NULL;
 	}
 
-	reg = malloc(strlen(event_name) + 3);
-	if (reg == NULL)
+	ret = asprintf(&reg, "^%s$", event_name);
+	if (ret < 0)
 		return PEVENT_ERRNO__MEM_ALLOC_FAILED;
-
-	sprintf(reg, "^%s$", event_name);
 
 	ret = regcomp(&ereg, reg, REG_ICASE|REG_NOSUB);
 	free(reg);
@@ -300,13 +298,12 @@ find_event(struct pevent *pevent, struct event_list **events,
 		return PEVENT_ERRNO__INVALID_EVENT_NAME;
 
 	if (sys_name) {
-		reg = malloc(strlen(sys_name) + 3);
-		if (reg == NULL) {
+		ret = asprintf(&reg, "^%s$", sys_name);
+		if (ret < 0) {
 			regfree(&ereg);
 			return PEVENT_ERRNO__MEM_ALLOC_FAILED;
 		}
 
-		sprintf(reg, "^%s$", sys_name);
 		ret = regcomp(&sreg, reg, REG_ICASE|REG_NOSUB);
 		free(reg);
 		if (ret) {
