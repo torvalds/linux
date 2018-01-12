@@ -249,6 +249,7 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	if (reg->type != PTR_TO_CTX &&
 	    reg->type != PTR_TO_STACK &&
+	    reg->type != PTR_TO_MAP_VALUE &&
 	    reg->type != PTR_TO_PACKET) {
 		pr_vlog(env, "unsupported ptr type: %d\n", reg->type);
 		return -EINVAL;
@@ -258,6 +259,13 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		err = nfp_bpf_check_stack_access(nfp_prog, meta, reg, env);
 		if (err)
 			return err;
+	}
+
+	if (reg->type == PTR_TO_MAP_VALUE) {
+		if (is_mbpf_store(meta)) {
+			pr_info("map writes not supported\n");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	if (meta->ptr.type != NOT_INIT && meta->ptr.type != reg->type) {
