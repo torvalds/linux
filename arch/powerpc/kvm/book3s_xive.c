@@ -112,19 +112,21 @@ static int xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio)
 		return -EIO;
 	}
 
-	/*
-	 * Future improvement: start with them disabled
-	 * and handle DD2 and later scheme of merged escalation
-	 * interrupts
-	 */
-	name = kasprintf(GFP_KERNEL, "kvm-%d-%d-%d",
-			 vcpu->kvm->arch.lpid, xc->server_num, prio);
+	if (xc->xive->single_escalation)
+		name = kasprintf(GFP_KERNEL, "kvm-%d-%d",
+				 vcpu->kvm->arch.lpid, xc->server_num);
+	else
+		name = kasprintf(GFP_KERNEL, "kvm-%d-%d-%d",
+				 vcpu->kvm->arch.lpid, xc->server_num, prio);
 	if (!name) {
 		pr_err("Failed to allocate escalation irq name for queue %d of VCPU %d\n",
 		       prio, xc->server_num);
 		rc = -ENOMEM;
 		goto error;
 	}
+
+	pr_devel("Escalation %s irq %d (prio %d)\n", name, xc->esc_virq[prio], prio);
+
 	rc = request_irq(xc->esc_virq[prio], xive_esc_irq,
 			 IRQF_NO_THREAD, name, vcpu);
 	if (rc) {
@@ -191,12 +193,12 @@ static int xive_check_provisioning(struct kvm *kvm, u8 prio)
 
 	pr_devel("Provisioning prio... %d\n", prio);
 
-	/* Provision each VCPU and enable escalations */
+	/* Provision each VCPU and enable escalations if needed */
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (!vcpu->arch.xive_vcpu)
 			continue;
 		rc = xive_provision_queue(vcpu, prio);
-		if (rc == 0)
+		if (rc == 0 && !xive->single_escalation)
 			xive_attach_escalation(vcpu, prio);
 		if (rc)
 			return rc;
@@ -1081,6 +1083,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 	/* Allocate IPI */
 	xc->vp_ipi = xive_native_alloc_irq();
 	if (!xc->vp_ipi) {
+		pr_err("Failed to allocate xive irq for VCPU IPI\n");
 		r = -EIO;
 		goto bail;
 	}
@@ -1091,18 +1094,33 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 		goto bail;
 
 	/*
+	 * Enable the VP first as the single escalation mode will
+	 * affect escalation interrupts numbering
+	 */
+	r = xive_native_enable_vp(xc->vp_id, xive->single_escalation);
+	if (r) {
+		pr_err("Failed to enable VP in OPAL, err %d\n", r);
+		goto bail;
+	}
+
+	/*
 	 * Initialize queues. Initially we set them all for no queueing
 	 * and we enable escalation for queue 0 only which we'll use for
 	 * our mfrr change notifications. If the VCPU is hot-plugged, we
-	 * do handle provisioning however.
+	 * do handle provisioning however based on the existing "map"
+	 * of enabled queues.
 	 */
 	for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
 		struct xive_q *q = &xc->queues[i];
 
+		/* Single escalation, no queue 7 */
+		if (i == 7 && xive->single_escalation)
+			break;
+
 		/* Is queue already enabled ? Provision it */
 		if (xive->qmap & (1 << i)) {
 			r = xive_provision_queue(vcpu, i);
-			if (r == 0)
+			if (r == 0 && !xive->single_escalation)
 				xive_attach_escalation(vcpu, i);
 			if (r)
 				goto bail;
@@ -1119,11 +1137,6 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 
 	/* If not done above, attach priority 0 escalation */
 	r = xive_attach_escalation(vcpu, 0);
-	if (r)
-		goto bail;
-
-	/* Enable the VP */
-	r = xive_native_enable_vp(xc->vp_id);
 	if (r)
 		goto bail;
 
@@ -1473,6 +1486,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 
 	pr_devel("  val=0x016%llx (server=0x%x, guest_prio=%d)\n",
 		 val, server, guest_prio);
+
 	/*
 	 * If the source doesn't already have an IPI, allocate
 	 * one and get the corresponding data
@@ -1760,6 +1774,8 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 
 	if (xive->vp_base == XIVE_INVALID_VP)
 		ret = -ENOMEM;
+
+	xive->single_escalation = xive_native_has_single_escalation();
 
 	if (ret) {
 		kfree(xive);
