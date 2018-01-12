@@ -31,16 +31,9 @@ struct snd_soc_acpi_package_context {
 #define SND_ACPI_I2C_ID_LEN (4 + ACPI_ID_LEN + 3 + 1)
 
 #if IS_ENABLED(CONFIG_ACPI)
-/* translation fron HID to I2C name, needed for DAI codec_name */
-const char *snd_soc_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN]);
 bool snd_soc_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
 				    struct snd_soc_acpi_package_context *ctx);
 #else
-static inline const char *
-snd_soc_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN])
-{
-	return NULL;
-}
 static inline bool
 snd_soc_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
 				   struct snd_soc_acpi_package_context *ctx)
