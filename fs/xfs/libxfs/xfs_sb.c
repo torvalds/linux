@@ -951,7 +951,7 @@ xfs_fs_geometry(
 	geo->rtsectsize = sbp->sb_blocksize;
 	geo->dirblocksize = xfs_dir2_dirblock_bytes(sbp);
 
-	if (struct_version < 3)
+	if (struct_version < 4)
 		return 0;
 
 	if (xfs_sb_version_haslogv2(sbp))
