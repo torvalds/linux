@@ -804,6 +804,8 @@ enum bpf_netdev_command {
 	BPF_OFFLOAD_VERIFIER_PREP,
 	BPF_OFFLOAD_TRANSLATE,
 	BPF_OFFLOAD_DESTROY,
+	BPF_OFFLOAD_MAP_ALLOC,
+	BPF_OFFLOAD_MAP_FREE,
 };
 
 struct bpf_prog_offload_ops;
@@ -834,6 +836,10 @@ struct netdev_bpf {
 		struct {
 			struct bpf_prog *prog;
 		} offload;
+		/* BPF_OFFLOAD_MAP_ALLOC, BPF_OFFLOAD_MAP_FREE */
+		struct {
+			struct bpf_offloaded_map *offmap;
+		};
 	};
 };
 

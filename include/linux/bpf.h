@@ -74,6 +74,33 @@ struct bpf_map {
 	char name[BPF_OBJ_NAME_LEN];
 };
 
+struct bpf_offloaded_map;
+
+struct bpf_map_dev_ops {
+	int (*map_get_next_key)(struct bpf_offloaded_map *map,
+				void *key, void *next_key);
+	int (*map_lookup_elem)(struct bpf_offloaded_map *map,
+			       void *key, void *value);
+	int (*map_update_elem)(struct bpf_offloaded_map *map,
+			       void *key, void *value, u64 flags);
+	int (*map_delete_elem)(struct bpf_offloaded_map *map, void *key);
+};
+
+struct bpf_offloaded_map {
+	struct bpf_map map;
+	struct net_device *netdev;
+	const struct bpf_map_dev_ops *dev_ops;
+	void *dev_priv;
+	struct list_head offloads;
+};
+
+static inline struct bpf_offloaded_map *map_to_offmap(struct bpf_map *map)
+{
+	return container_of(map, struct bpf_offloaded_map, map);
+}
+
+extern const struct bpf_map_ops bpf_map_offload_ops;
+
 /* function argument constraints */
 enum bpf_arg_type {
 	ARG_DONTCARE = 0,	/* unused argument in helper function */
@@ -369,6 +396,7 @@ int __bpf_prog_charge(struct user_struct *user, u32 pages);
 void __bpf_prog_uncharge(struct user_struct *user, u32 pages);
 
 void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock);
+void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock);
 
 struct bpf_map *bpf_map_get_with_uref(u32 ufd);
 struct bpf_map *__bpf_map_get(struct fd f);
@@ -556,6 +584,15 @@ void bpf_prog_offload_destroy(struct bpf_prog *prog);
 int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 			       struct bpf_prog *prog);
 
+int bpf_map_offload_lookup_elem(struct bpf_map *map, void *key, void *value);
+int bpf_map_offload_update_elem(struct bpf_map *map,
+				void *key, void *value, u64 flags);
+int bpf_map_offload_delete_elem(struct bpf_map *map, void *key);
+int bpf_map_offload_get_next_key(struct bpf_map *map,
+				 void *key, void *next_key);
+
+bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map);
+
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr);
 
@@ -563,6 +600,14 @@ static inline bool bpf_prog_is_dev_bound(struct bpf_prog_aux *aux)
 {
 	return aux->offload_requested;
 }
+
+static inline bool bpf_map_is_dev_bound(struct bpf_map *map)
+{
+	return unlikely(map->ops == &bpf_map_offload_ops);
+}
+
+struct bpf_map *bpf_map_offload_map_alloc(union bpf_attr *attr);
+void bpf_map_offload_map_free(struct bpf_map *map);
 #else
 static inline int bpf_prog_offload_init(struct bpf_prog *prog,
 					union bpf_attr *attr)
@@ -573,6 +618,20 @@ static inline int bpf_prog_offload_init(struct bpf_prog *prog,
 static inline bool bpf_prog_is_dev_bound(struct bpf_prog_aux *aux)
 {
 	return false;
+}
+
+static inline bool bpf_map_is_dev_bound(struct bpf_map *map)
+{
+	return false;
+}
+
+static inline struct bpf_map *bpf_map_offload_map_alloc(union bpf_attr *attr)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline void bpf_map_offload_map_free(struct bpf_map *map)
+{
 }
 #endif /* CONFIG_NET && CONFIG_BPF_SYSCALL */
 
