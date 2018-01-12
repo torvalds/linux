@@ -1478,9 +1478,6 @@ static int ath10k_pci_dump_memory_section(struct ath10k *ar,
 	if (!mem_region || !buf)
 		return 0;
 
-	if (mem_region->section_table.size < 0)
-		return 0;
-
 	cur_section = &mem_region->section_table.sections[0];
 
 	if (mem_region->start > cur_section->start) {
