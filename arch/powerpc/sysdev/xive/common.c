@@ -367,7 +367,8 @@ static void xive_irq_eoi(struct irq_data *d)
 	 * EOI the source if it hasn't been disabled and hasn't
 	 * been passed-through to a KVM guest
 	 */
-	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d))
+	if (!irqd_irq_disabled(d) && !irqd_is_forwarded_to_vcpu(d) &&
+	    !(xd->flags & XIVE_IRQ_NO_EOI))
 		xive_do_source_eoi(irqd_to_hwirq(d), xd);
 
 	/*
