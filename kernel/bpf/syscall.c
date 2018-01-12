@@ -96,16 +96,25 @@ static int check_uarg_tail_zero(void __user *uaddr,
 
 static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 {
+	const struct bpf_map_ops *ops;
 	struct bpf_map *map;
+	int err;
 
-	if (attr->map_type >= ARRAY_SIZE(bpf_map_types) ||
-	    !bpf_map_types[attr->map_type])
+	if (attr->map_type >= ARRAY_SIZE(bpf_map_types))
+		return ERR_PTR(-EINVAL);
+	ops = bpf_map_types[attr->map_type];
+	if (!ops)
 		return ERR_PTR(-EINVAL);
 
-	map = bpf_map_types[attr->map_type]->map_alloc(attr);
+	if (ops->map_alloc_check) {
+		err = ops->map_alloc_check(attr);
+		if (err)
+			return ERR_PTR(err);
+	}
+	map = ops->map_alloc(attr);
 	if (IS_ERR(map))
 		return map;
-	map->ops = bpf_map_types[attr->map_type];
+	map->ops = ops;
 	map->map_type = attr->map_type;
 	return map;
 }
