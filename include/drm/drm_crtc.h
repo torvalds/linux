@@ -716,6 +716,12 @@ struct drm_connector_state {
 
 	struct drm_atomic_state *state;
 
+	/**
+	 * @content_protection: Connector property to request content
+	 * protection. This is most commonly used for HDCP.
+	 */
+	unsigned int content_protection;
+
 	struct drm_tv_connector_state tv;
 
 	/**
@@ -946,6 +952,7 @@ struct drm_encoder {
  * @tile_v_loc: vertical location of this tile
  * @tile_h_size: horizontal size of this tile.
  * @tile_v_size: vertical size of this tile.
+ * @content_protection_property: Optional property to control content protection
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
  * another connector if they can share a CRTC.  Each connector also has a specific
@@ -988,6 +995,12 @@ struct drm_connector {
 
 	struct drm_property_blob *edid_blob_ptr;
 	struct drm_object_properties properties;
+
+	/**
+	 * @content_protection_property: DRM ENUM property for content
+	 * protection
+	 */
+	struct drm_property *content_protection_property;
 
 	struct drm_property_blob *path_blob_ptr;
 
@@ -1840,6 +1853,7 @@ extern const char *drm_get_dvi_i_subconnector_name(int val);
 extern const char *drm_get_dvi_i_select_name(int val);
 extern const char *drm_get_tv_subconnector_name(int val);
 extern const char *drm_get_tv_select_name(int val);
+extern const char *drm_get_content_protection_name(int val);
 extern const char *drm_get_connector_name(int val);
 extern void drm_fb_release(struct drm_file *file_priv);
 extern void drm_property_destroy_user_blobs(struct drm_device *dev,
@@ -1937,6 +1951,8 @@ extern int drm_mode_create_tv_properties(struct drm_device *dev,
 					 unsigned int num_modes,
 					 const char * const modes[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
+extern int drm_connector_attach_content_protection_property(
+			struct drm_connector *connector);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
