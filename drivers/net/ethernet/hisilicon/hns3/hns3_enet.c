@@ -206,21 +206,32 @@ void hns3_set_vector_coalesce_tx_gl(struct hns3_enet_tqp_vector *tqp_vector,
 	writel(tx_gl_reg, tqp_vector->mask_addr + HNS3_VECTOR_GL1_OFFSET);
 }
 
-static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector)
+static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector,
+				   struct hns3_nic_priv *priv)
 {
+	struct hnae3_handle *h = priv->ae_handle;
+
 	/* initialize the configuration for interrupt coalescing.
 	 * 1. GL (Interrupt Gap Limiter)
 	 * 2. RL (Interrupt Rate Limiter)
 	 */
 
-	/* Default :enable interrupt coalesce */
-	tqp_vector->rx_group.int_gl = HNS3_INT_GL_50K;
+	/* Default: enable interrupt coalescing self-adaptive and GL */
+	tqp_vector->tx_group.gl_adapt_enable = 1;
+	tqp_vector->rx_group.gl_adapt_enable = 1;
+
 	tqp_vector->tx_group.int_gl = HNS3_INT_GL_50K;
-	hns3_set_vector_coalesc_gl(tqp_vector, HNS3_INT_GL_50K);
-	/* for now we are disabling Interrupt RL - we
-	 * will re-enable later
-	 */
-	hns3_set_vector_coalesce_rl(tqp_vector, 0);
+	tqp_vector->rx_group.int_gl = HNS3_INT_GL_50K;
+
+	hns3_set_vector_coalesce_tx_gl(tqp_vector,
+				       tqp_vector->tx_group.int_gl);
+	hns3_set_vector_coalesce_rx_gl(tqp_vector,
+				       tqp_vector->rx_group.int_gl);
+
+	/* Default: disable RL */
+	h->kinfo.int_rl_setting = 0;
+	hns3_set_vector_coalesce_rl(tqp_vector, h->kinfo.int_rl_setting);
+
 	tqp_vector->rx_group.flow_level = HNS3_FLOW_LOW;
 	tqp_vector->tx_group.flow_level = HNS3_FLOW_LOW;
 }
@@ -2654,7 +2665,7 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 		tqp_vector->rx_group.total_packets = 0;
 		tqp_vector->tx_group.total_bytes = 0;
 		tqp_vector->tx_group.total_packets = 0;
-		hns3_vector_gl_rl_init(tqp_vector);
+		hns3_vector_gl_rl_init(tqp_vector, priv);
 		tqp_vector->handle = h;
 
 		ret = hns3_get_vector_ring_chain(tqp_vector,
