@@ -14,6 +14,7 @@
  */
 #define _PAGE_BIT_SWAP_TYPE	0
 
+#define _PAGE_NA		0
 #define _PAGE_RO		0
 #define _PAGE_USER		0
 
