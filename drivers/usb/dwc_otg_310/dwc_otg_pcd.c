@@ -1486,7 +1486,7 @@ int dwc_otg_pcd_ep_enable(dwc_otg_pcd_t *pcd,
 	num = UE_GET_ADDR(desc->bEndpointAddress);
 	dir = UE_GET_DIR(desc->bEndpointAddress);
 
-	if (!desc->wMaxPacketSize) {
+	if (!UGETW(desc->wMaxPacketSize)) {
 		DWC_WARN("bad maxpacketsize\n");
 		retval = -DWC_E_INVALID;
 		goto out;
@@ -2273,7 +2273,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t *pcd, void *ep_handle,
 	 * (odd/even) start transfer
 	 */
 	if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_ISOC) {
-		if (req != 0) {
+		if (req) {
 			depctl_data_t depctl = {.d32 =
 				    DWC_READ_REG32(&pcd->core_if->
 						   dev_if->in_ep_regs[ep->
@@ -2433,7 +2433,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t *pcd, void *ep_handle,
 		}
 	}
 
-	if (req != 0) {
+	if (req) {
 		++pcd->request_pending;
 		DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
 		if (ep->dwc_ep.is_in && ep->stopped

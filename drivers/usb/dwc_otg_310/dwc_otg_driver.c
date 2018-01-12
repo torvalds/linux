@@ -551,9 +551,7 @@ int dwc_otg_usb_state(void)
 		/* op_state is A_HOST */
 		if (1 == otg_dev->core_if->op_state)
 			return 1;
-		/* op_state is B_PERIPHERAL */
-		else if (4 == otg_dev->core_if->op_state)
-			return 0;
+		/* op_state is B_PERIPHERAL or others */
 		else
 			return 0;
 	} else {

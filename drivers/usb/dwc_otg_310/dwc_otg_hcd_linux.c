@@ -472,18 +472,23 @@ int otg20_hcd_init(struct platform_device *_dev)
 	 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 30)
 	hcd = usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev, _dev->dev.bus_id);
-#else
-	hcd =
-	    usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev,
-			   dev_name(&_dev->dev));
-	hcd->has_tt = 1;
-	/* hcd->uses_new_polling = 1; */
-	/* hcd->poll_rh = 0; */
-#endif
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto error1;
 	}
+#else
+	hcd =
+	    usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev,
+			   dev_name(&_dev->dev));
+	if (!hcd) {
+		retval = -ENOMEM;
+		goto error1;
+	}
+
+	hcd->has_tt = 1;
+	/* hcd->uses_new_polling = 1; */
+	/* hcd->poll_rh = 0; */
+#endif
 
 	hcd->regs = otg_dev->os_dep.base;
 
@@ -563,18 +568,22 @@ int host20_hcd_init(struct platform_device *_dev)
 	 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 30)
 	hcd = usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev, _dev->dev.bus_id);
-#else
-	hcd =
-	    usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev,
-			   dev_name(&_dev->dev));
-	hcd->has_tt = 1;
-	/* hcd->uses_new_polling = 1; */
-	/* hcd->poll_rh = 0; */
-#endif
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto error1;
 	}
+#else
+	hcd =
+	    usb_create_hcd(&dwc_otg_hc_driver, &_dev->dev,
+			   dev_name(&_dev->dev));
+	if (!hcd) {
+		retval = -ENOMEM;
+		goto error1;
+	}
+	hcd->has_tt = 1;
+	/* hcd->uses_new_polling = 1; */
+	/* hcd->poll_rh = 0; */
+#endif
 
 	hcd->regs = otg_dev->os_dep.base;
 
@@ -811,7 +820,7 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
 #endif
 
 	/* power on */
-	pcgcctl.d32 = DWC_READ_REG32(core_if->pcgcctl);;
+	pcgcctl.d32 = DWC_READ_REG32(core_if->pcgcctl);
 	pcgcctl.b.stoppclk = 0;	/* restart phy clk */
 	DWC_WRITE_REG32(core_if->pcgcctl, pcgcctl.d32);
 	udelay(1);

@@ -782,7 +782,7 @@ struct dwc_otg_global_regs_backup {
 	uint32_t hptxfsiz_local;
 	uint32_t pcgcctl_local;
 	uint32_t gdfifocfg_local;
-	uint32_t dtxfsiz_local[MAX_EPS_CHANNELS];
+	uint32_t dtxfsiz_local[MAX_TX_FIFOS];
 	uint32_t gpwrdn_local;
 	uint32_t xhib_pcgcctl;
 	uint32_t xhib_gpwrdn;

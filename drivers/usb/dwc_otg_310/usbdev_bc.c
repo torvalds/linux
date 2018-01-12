@@ -23,12 +23,12 @@ char *bc_string[USB_BC_TYPE_MAX] = {"DISCONNECT",
 				    "UNKNOW"};
 
 /****** GET and SET REGISTER FIELDS IN GRF UOC ******/
-#define BC_GET(x) grf_uoc_get_field(&pBC_UOC_FIELDS[x])
-#define BC_SET(x, v) grf_uoc_set_field(&pBC_UOC_FIELDS[x], v)
+#define BC_GET(x) grf_uoc_get_field(&p_bc_uoc_fields[x])
+#define BC_SET(x, v) grf_uoc_set_field(&p_bc_uoc_fields[x], v)
 
-uoc_field_t *pBC_UOC_FIELDS;
-static void *pGRF_BASE;
-static void *pGRF_REGMAP;
+uoc_field_t *p_bc_uoc_fields;
+static void *p_grf_base;
+static void *p_grf_regmap;
 DEFINE_MUTEX(bc_mutex);
 
 static enum bc_port_type usb_charger_status = USB_BC_TYPE_DISCNT;
@@ -64,11 +64,11 @@ void grf_uoc_set_field(uoc_field_t *field, u32 value)
 	if (!uoc_field_valid(field))
 		return;
 
-	if (pGRF_BASE) {
-		grf_uoc_set(pGRF_BASE, field->b.offset, field->b.bitmap,
+	if (p_grf_base) {
+		grf_uoc_set(p_grf_base, field->b.offset, field->b.bitmap,
 			    field->b.mask, value);
-	} else if (pGRF_REGMAP) {
-		regmap_grf_uoc_set(pGRF_REGMAP, field->b.offset,
+	} else if (p_grf_regmap) {
+		regmap_grf_uoc_set(p_grf_regmap, field->b.offset,
 				   field->b.bitmap,
 				   field->b.mask, value);
 	}
@@ -76,11 +76,11 @@ void grf_uoc_set_field(uoc_field_t *field, u32 value)
 
 u32 grf_uoc_get_field(uoc_field_t *field)
 {
-	if (pGRF_BASE) {
-		return grf_uoc_get(pGRF_BASE, field->b.offset, field->b.bitmap,
+	if (p_grf_base) {
+		return grf_uoc_get(p_grf_base, field->b.offset, field->b.bitmap,
 				   field->b.mask);
-	} else if (pGRF_REGMAP) {
-		return regmap_grf_uoc_get(pGRF_REGMAP, field->b.offset,
+	} else if (p_grf_regmap) {
+		return regmap_grf_uoc_get(p_grf_regmap, field->b.offset,
 					  field->b.bitmap, field->b.mask);
 	} else {
 		return 0;
@@ -98,72 +98,83 @@ static inline int uoc_init_field(struct device_node *np, const char *name,
 
 static inline void uoc_init_synop(struct device_node *np)
 {
-	pBC_UOC_FIELDS =
-	    (uoc_field_t *) kzalloc(SYNOP_BC_MAX * sizeof(uoc_field_t),
-				    GFP_ATOMIC);
+	p_bc_uoc_fields = kcalloc(SYNOP_BC_MAX, sizeof(uoc_field_t),
+				  GFP_ATOMIC);
 
-	uoc_init_field(np, "rk_usb,bvalid", &pBC_UOC_FIELDS[SYNOP_BC_BVALID]);
-	uoc_init_field(np, "rk_usb,iddig", &pBC_UOC_FIELDS[SYNOP_BC_IDDIG]);
-	uoc_init_field(np, "rk_usb,dcdenb", &pBC_UOC_FIELDS[SYNOP_BC_DCDENB]);
+	if (!p_bc_uoc_fields)
+		return;
+
+	uoc_init_field(np, "rk_usb,bvalid", &p_bc_uoc_fields[SYNOP_BC_BVALID]);
+	uoc_init_field(np, "rk_usb,iddig", &p_bc_uoc_fields[SYNOP_BC_IDDIG]);
+	uoc_init_field(np, "rk_usb,dcdenb", &p_bc_uoc_fields[SYNOP_BC_DCDENB]);
 	uoc_init_field(np, "rk_usb,vdatsrcenb",
-		       &pBC_UOC_FIELDS[SYNOP_BC_VDATSRCENB]);
+		       &p_bc_uoc_fields[SYNOP_BC_VDATSRCENB]);
 	uoc_init_field(np, "rk_usb,vdatdetenb",
-		       &pBC_UOC_FIELDS[SYNOP_BC_VDATDETENB]);
-	uoc_init_field(np, "rk_usb,chrgsel", &pBC_UOC_FIELDS[SYNOP_BC_CHRGSEL]);
-	uoc_init_field(np, "rk_usb,chgdet", &pBC_UOC_FIELDS[SYNOP_BC_CHGDET]);
-	uoc_init_field(np, "rk_usb,fsvplus", &pBC_UOC_FIELDS[SYNOP_BC_FSVPLUS]);
+		       &p_bc_uoc_fields[SYNOP_BC_VDATDETENB]);
+	uoc_init_field(np, "rk_usb,chrgsel",
+		       &p_bc_uoc_fields[SYNOP_BC_CHRGSEL]);
+	uoc_init_field(np, "rk_usb,chgdet", &p_bc_uoc_fields[SYNOP_BC_CHGDET]);
+	uoc_init_field(np, "rk_usb,fsvplus",
+		       &p_bc_uoc_fields[SYNOP_BC_FSVPLUS]);
 	uoc_init_field(np, "rk_usb,fsvminus",
-		       &pBC_UOC_FIELDS[SYNOP_BC_FSVMINUS]);
+		       &p_bc_uoc_fields[SYNOP_BC_FSVMINUS]);
 }
 
 static inline void uoc_init_rk(struct device_node *np)
 {
-	pBC_UOC_FIELDS =
-	    (uoc_field_t *) kzalloc(RK_BC_MAX * sizeof(uoc_field_t),
-				    GFP_ATOMIC);
+	p_bc_uoc_fields = kcalloc(RK_BC_MAX, sizeof(uoc_field_t),
+				  GFP_ATOMIC);
 
-	uoc_init_field(np, "rk_usb,bvalid", &pBC_UOC_FIELDS[RK_BC_BVALID]);
-	uoc_init_field(np, "rk_usb,iddig", &pBC_UOC_FIELDS[RK_BC_IDDIG]);
-	uoc_init_field(np, "rk_usb,line", &pBC_UOC_FIELDS[RK_BC_LINESTATE]);
-	uoc_init_field(np, "rk_usb,softctrl", &pBC_UOC_FIELDS[RK_BC_SOFTCTRL]);
-	uoc_init_field(np, "rk_usb,opmode", &pBC_UOC_FIELDS[RK_BC_OPMODE]);
-	uoc_init_field(np, "rk_usb,xcvrsel", &pBC_UOC_FIELDS[RK_BC_XCVRSELECT]);
-	uoc_init_field(np, "rk_usb,termsel", &pBC_UOC_FIELDS[RK_BC_TERMSELECT]);
+	if (!p_bc_uoc_fields)
+		return;
+
+	uoc_init_field(np, "rk_usb,bvalid", &p_bc_uoc_fields[RK_BC_BVALID]);
+	uoc_init_field(np, "rk_usb,iddig", &p_bc_uoc_fields[RK_BC_IDDIG]);
+	uoc_init_field(np, "rk_usb,line", &p_bc_uoc_fields[RK_BC_LINESTATE]);
+	uoc_init_field(np, "rk_usb,softctrl", &p_bc_uoc_fields[RK_BC_SOFTCTRL]);
+	uoc_init_field(np, "rk_usb,opmode", &p_bc_uoc_fields[RK_BC_OPMODE]);
+	uoc_init_field(np, "rk_usb,xcvrsel",
+		       &p_bc_uoc_fields[RK_BC_XCVRSELECT]);
+	uoc_init_field(np, "rk_usb,termsel",
+		       &p_bc_uoc_fields[RK_BC_TERMSELECT]);
 }
 
 static inline void uoc_init_inno(struct device_node *np)
 {
-	pBC_UOC_FIELDS = (uoc_field_t *)
-			 kzalloc(INNO_BC_MAX * sizeof(uoc_field_t), GFP_ATOMIC);
+	p_bc_uoc_fields = kcalloc(INNO_BC_MAX, sizeof(uoc_field_t),
+				  GFP_ATOMIC);
+
+	if (!p_bc_uoc_fields)
+		return;
 
 	uoc_init_field(np, "rk_usb,bvalid",
-			   &pBC_UOC_FIELDS[INNO_BC_BVALID]);
+			   &p_bc_uoc_fields[INNO_BC_BVALID]);
 	uoc_init_field(np, "rk_usb,iddig",
-			   &pBC_UOC_FIELDS[INNO_BC_IDDIG]);
+			   &p_bc_uoc_fields[INNO_BC_IDDIG]);
 	uoc_init_field(np, "rk_usb,vdmsrcen",
-			   &pBC_UOC_FIELDS[INNO_BC_VDMSRCEN]);
+			   &p_bc_uoc_fields[INNO_BC_VDMSRCEN]);
 	uoc_init_field(np, "rk_usb,vdpsrcen",
-			   &pBC_UOC_FIELDS[INNO_BC_VDPSRCEN]);
+			   &p_bc_uoc_fields[INNO_BC_VDPSRCEN]);
 	uoc_init_field(np, "rk_usb,rdmpden",
-			   &pBC_UOC_FIELDS[INNO_BC_RDMPDEN]);
+			   &p_bc_uoc_fields[INNO_BC_RDMPDEN]);
 	uoc_init_field(np, "rk_usb,idpsrcen",
-			   &pBC_UOC_FIELDS[INNO_BC_IDPSRCEN]);
+			   &p_bc_uoc_fields[INNO_BC_IDPSRCEN]);
 	uoc_init_field(np, "rk_usb,idmsinken",
-			   &pBC_UOC_FIELDS[INNO_BC_IDMSINKEN]);
+			   &p_bc_uoc_fields[INNO_BC_IDMSINKEN]);
 	uoc_init_field(np, "rk_usb,idpsinken",
-			   &pBC_UOC_FIELDS[INNO_BC_IDPSINKEN]);
+			   &p_bc_uoc_fields[INNO_BC_IDPSINKEN]);
 	uoc_init_field(np, "rk_usb,dpattach",
-			   &pBC_UOC_FIELDS[INNO_BC_DPATTACH]);
+			   &p_bc_uoc_fields[INNO_BC_DPATTACH]);
 	uoc_init_field(np, "rk_usb,cpdet",
-			   &pBC_UOC_FIELDS[INNO_BC_CPDET]);
+			   &p_bc_uoc_fields[INNO_BC_CPDET]);
 	uoc_init_field(np, "rk_usb,dcpattach",
-			   &pBC_UOC_FIELDS[INNO_BC_DCPATTACH]);
+			   &p_bc_uoc_fields[INNO_BC_DCPATTACH]);
 }
 
 /****** BATTERY CHARGER DETECT FUNCTIONS ******/
 bool is_connected(void)
 {
-	if (!pGRF_BASE && !pGRF_REGMAP)
+	if (!p_grf_base && !p_grf_regmap)
 		return false;
 	if (BC_GET(BC_BVALID) && BC_GET(BC_IDDIG))
 		return true;
@@ -387,26 +398,26 @@ enum bc_port_type usb_battery_charger_detect(bool wait)
 		np = of_find_node_by_name(NULL, "usb_bc");
 	if (!np)
 		return -1;
-	if (!pGRF_BASE && !pGRF_REGMAP) {
-		pGRF_BASE = get_grf_base(np);
-		pGRF_REGMAP = get_grf_regmap(np);
+	if (!p_grf_base && !p_grf_regmap) {
+		p_grf_base = get_grf_base(np);
+		p_grf_regmap = get_grf_regmap(np);
 	}
 
 	mutex_lock(&bc_mutex);
 	if (of_device_is_compatible(np, "rockchip,ctrl")) {
-		if (!pBC_UOC_FIELDS)
+		if (!p_bc_uoc_fields)
 			uoc_init_rk(np);
 		ret = usb_battery_charger_detect_rk(wait);
 	}
 
 	else if (of_device_is_compatible(np, "synopsys,phy")) {
-		if (!pBC_UOC_FIELDS)
+		if (!p_bc_uoc_fields)
 			uoc_init_synop(np);
 		ret = usb_battery_charger_detect_synop(wait);
 	}
 
 	else if (of_device_is_compatible(np, "inno,phy")) {
-		if (!pBC_UOC_FIELDS)
+		if (!p_bc_uoc_fields)
 			uoc_init_inno(np);
 		ret = usb_battery_charger_detect_inno(wait);
 	}

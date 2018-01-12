@@ -326,7 +326,7 @@ void w_conn_id_status_change(void *p)
 		DWC_ASSERT(++count < 10000,
 			   "Connection id status change timed out");
 		core_if->op_state = B_PERIPHERAL;
-		cil_hcd_stop(core_if);;
+		cil_hcd_stop(core_if);
 		/* pcd->phy_suspend = 1; */
 		pcd->vbus_status = 0;
 		dwc_otg_pcd_start_check_vbus_work(pcd);
@@ -826,8 +826,7 @@ static int32_t dwc_otg_handle_pwrdn_session_change(dwc_otg_core_if_t *core_if)
 			return 1;
 		}
 
-		if ((otg_cap_param != DWC_OTG_CAP_PARAM_HNP_SRP_CAPABLE ||
-		     otg_cap_param != DWC_OTG_CAP_PARAM_SRP_ONLY_CAPABLE) &&
+		if (otg_cap_param == DWC_OTG_CAP_PARAM_NO_HNP_SRP_CAPABLE &&
 		    gpwrdn.b.bsessvld == 0) {
 			/* Save gpwrdn register for further usage if stschng interrupt */
 			core_if->gr_backup->gpwrdn_local =
@@ -920,7 +919,7 @@ static int32_t dwc_otg_handle_pwrdn_session_change(dwc_otg_core_if_t *core_if)
  */
 static uint32_t dwc_otg_handle_pwrdn_stschng_intr(dwc_otg_device_t *otg_dev)
 {
-	int retval;
+	int retval = 0;
 	gpwrdn_data_t gpwrdn = {.d32 = 0 };
 	gpwrdn_data_t gpwrdn_temp = {.d32 = 0 };
 	dwc_otg_core_if_t *core_if = otg_dev->core_if;
@@ -1341,7 +1340,7 @@ int32_t dwc_otg_handle_usb_suspend_intr(dwc_otg_core_if_t *core_if)
 			gotgctl_data_t gotgctl = {.d32 = 0 };
 			gotgctl.d32 =
 			    DWC_READ_REG32(&core_if->core_global_regs->gotgctl);
-			if (gotgctl.b.devhnpen && core_if->otg_ver == 1) {
+			if (gotgctl.b.devhnpen) {
 				gotgctl_data_t gotgctl = {.d32 = 0 };
 				dwc_mdelay(5);
 				/**@todo Is the gotgctl.devhnpen cleared

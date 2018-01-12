@@ -147,7 +147,7 @@ typedef struct dwc_otg_core_global_regs {
 	/** Device Periodic Transmit FIFO#n Register if dedicated fifos are disabled,
 		otherwise Device Transmit FIFO#n Register.
 	 * <i>Offset: 104h + (FIFO_Number-1)*04h, 1 <= FIFO Number <= 15 (1<=n<=15).</i> */
-	volatile uint32_t dtxfsiz[15];
+	volatile uint32_t dtxfsiz[MAX_TX_FIFOS];
 } dwc_otg_core_global_regs_t;
 
 /**

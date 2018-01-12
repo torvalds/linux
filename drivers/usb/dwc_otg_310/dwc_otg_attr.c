@@ -401,16 +401,20 @@ DEVICE_ATTR(_otg_attr_name_, 0444, _otg_attr_name_##_show, NULL);
 
 void dwc_set_device_platform_data(struct platform_device *pdev, void *data)
 {
-	if (NULL == pdev || NULL == &pdev->dev)
+	if (NULL == pdev || NULL == &pdev->dev) {
 		DWC_ERROR("NULL Pointer in func %s \n", __func__);
+		return;
+	}
 
 	pdev->dev.platform_data = data;
 }
 
 void *dwc_get_device_platform_data(const struct platform_device *pdev)
 {
-	if (NULL == pdev || NULL == &pdev->dev)
+	if (NULL == pdev || NULL == &pdev->dev) {
 		DWC_ERROR("NULL Pointer in func %s \n", __func__);
+		return NULL;
+	}
 
 	return pdev->dev.platform_data;
 }
@@ -464,8 +468,7 @@ static ssize_t regvalue_show(struct device *_dev,
 	uint32_t val;
 	volatile uint32_t *addr;
 
-	if (otg_dev->os_dep.reg_offset != 0xFFFFFFFF
-	    && 0 != otg_dev->os_dep.base) {
+	if (otg_dev->os_dep.reg_offset != 0xFFFFFFFF && otg_dev->os_dep.base) {
 		/* Calculate the address */
 		addr = (uint32_t *) (otg_dev->os_dep.reg_offset +
 				     (uint8_t *) otg_dev->os_dep.base);
@@ -497,8 +500,7 @@ static ssize_t regvalue_store(struct device *_dev,
 	/* dev_dbg(_dev, "Offset=0x%08x Val=0x%08x\n",
 	 * otg_dev->reg_offset, val);
 	 */
-	if (otg_dev->os_dep.reg_offset != 0xFFFFFFFF
-	    && 0 != otg_dev->os_dep.base) {
+	if (otg_dev->os_dep.reg_offset != 0xFFFFFFFF && otg_dev->os_dep.base) {
 		/* Calculate the address */
 		addr = (uint32_t *) (otg_dev->os_dep.reg_offset +
 				     (uint8_t *) otg_dev->os_dep.base);
