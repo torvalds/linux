@@ -315,9 +315,7 @@ static inline int omap2_onenand_dma_transfer(struct omap2_onenand *c,
 	return 0;
 }
 
-#if defined(CONFIG_ARCH_OMAP3) || defined(MULTI_OMAP2)
-
-static int omap3_onenand_read_bufferram(struct mtd_info *mtd, int area,
+static int omap2_onenand_read_bufferram(struct mtd_info *mtd, int area,
 					unsigned char *buffer, int offset,
 					size_t count)
 {
@@ -379,7 +377,7 @@ out_copy:
 	return 0;
 }
 
-static int omap3_onenand_write_bufferram(struct mtd_info *mtd, int area,
+static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
 					 const unsigned char *buffer,
 					 int offset, size_t count)
 {
@@ -433,120 +431,6 @@ out_copy:
 	memcpy(this->base + bram_offset, buf, count);
 	return 0;
 }
-
-#else
-
-static int omap3_onenand_read_bufferram(struct mtd_info *mtd, int area,
-					unsigned char *buffer, int offset,
-					size_t count)
-{
-	return -ENOSYS;
-}
-
-static int omap3_onenand_write_bufferram(struct mtd_info *mtd, int area,
-					 const unsigned char *buffer,
-					 int offset, size_t count)
-{
-	return -ENOSYS;
-}
-
-#endif
-
-#if defined(CONFIG_ARCH_OMAP2) || defined(MULTI_OMAP2)
-
-static int omap2_onenand_read_bufferram(struct mtd_info *mtd, int area,
-					unsigned char *buffer, int offset,
-					size_t count)
-{
-	struct omap2_onenand *c = container_of(mtd, struct omap2_onenand, mtd);
-	struct onenand_chip *this = mtd->priv;
-	dma_addr_t dma_src, dma_dst;
-	int bram_offset, ret;
-
-	bram_offset = omap2_onenand_bufferram_offset(mtd, area) + area + offset;
-	/* DMA is not used.  Revisit PM requirements before enabling it. */
-	if (1 || (c->dma_channel < 0) ||
-	    ((void *) buffer >= (void *) high_memory) || (bram_offset & 3) ||
-	    (((unsigned int) buffer) & 3) || (count < 1024) || (count & 3)) {
-		memcpy(buffer, (__force void *)(this->base + bram_offset),
-		       count);
-		return 0;
-	}
-
-	dma_src = c->phys_base + bram_offset;
-	dma_dst = dma_map_single(&c->pdev->dev, buffer, count,
-				 DMA_FROM_DEVICE);
-	if (dma_mapping_error(&c->pdev->dev, dma_dst)) {
-		dev_err(&c->pdev->dev,
-			"Couldn't DMA map a %d byte buffer\n",
-			count);
-		return -1;
-	}
-
-	ret = omap2_onenand_dma_transfer(c, dma_src, dma_dst, count);
-	dma_unmap_single(&c->pdev->dev, dma_dst, count, DMA_FROM_DEVICE);
-
-	if (ret)
-		dev_err(&c->pdev->dev, "timeout waiting for DMA\n");
-
-	return ret;
-}
-
-static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
-					 const unsigned char *buffer,
-					 int offset, size_t count)
-{
-	struct omap2_onenand *c = container_of(mtd, struct omap2_onenand, mtd);
-	struct onenand_chip *this = mtd->priv;
-	dma_addr_t dma_src, dma_dst;
-	int bram_offset, ret;
-
-	bram_offset = omap2_onenand_bufferram_offset(mtd, area) + area + offset;
-	/* DMA is not used.  Revisit PM requirements before enabling it. */
-	if (1 || (c->dma_channel < 0) ||
-	    ((void *) buffer >= (void *) high_memory) || (bram_offset & 3) ||
-	    (((unsigned int) buffer) & 3) || (count < 1024) || (count & 3)) {
-		memcpy((__force void *)(this->base + bram_offset), buffer,
-		       count);
-		return 0;
-	}
-
-	dma_src = dma_map_single(&c->pdev->dev, (void *) buffer, count,
-				 DMA_TO_DEVICE);
-	dma_dst = c->phys_base + bram_offset;
-	if (dma_mapping_error(&c->pdev->dev, dma_src)) {
-		dev_err(&c->pdev->dev,
-			"Couldn't DMA map a %d byte buffer\n",
-			count);
-		return -1;
-	}
-
-	ret = omap2_onenand_dma_transfer(c, dma_src, dma_dst, count);
-	dma_unmap_single(&c->pdev->dev, dma_src, count, DMA_TO_DEVICE);
-
-	if (ret)
-		dev_err(&c->pdev->dev, "timeout waiting for DMA\n");
-
-	return ret;
-}
-
-#else
-
-static int omap2_onenand_read_bufferram(struct mtd_info *mtd, int area,
-					unsigned char *buffer, int offset,
-					size_t count)
-{
-	return -ENOSYS;
-}
-
-static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
-					 const unsigned char *buffer,
-					 int offset, size_t count)
-{
-	return -ENOSYS;
-}
-
-#endif
 
 static struct platform_driver omap2_onenand_driver;
 
@@ -671,13 +555,8 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 	this = &c->onenand;
 	if (c->dma_channel >= 0) {
 		this->wait = omap2_onenand_wait;
-		if (c->flags & ONENAND_IN_OMAP34XX) {
-			this->read_bufferram = omap3_onenand_read_bufferram;
-			this->write_bufferram = omap3_onenand_write_bufferram;
-		} else {
-			this->read_bufferram = omap2_onenand_read_bufferram;
-			this->write_bufferram = omap2_onenand_write_bufferram;
-		}
+		this->read_bufferram = omap2_onenand_read_bufferram;
+		this->write_bufferram = omap2_onenand_write_bufferram;
 	}
 
 	if ((r = onenand_scan(&c->mtd, 1)) < 0)
