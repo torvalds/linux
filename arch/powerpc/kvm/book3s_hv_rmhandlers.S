@@ -1033,7 +1033,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	li	r9, TM_QW1_OS + TM_WORD2
 	stwcix	r11,r9,r10
 	li	r9, 1
-	stw	r9, VCPU_XIVE_PUSHED(r4)
+	stb	r9, VCPU_XIVE_PUSHED(r4)
 	eieio
 
 	/*
@@ -1458,7 +1458,7 @@ mc_cont:
 #endif
 #ifdef CONFIG_KVM_XICS
 	/* We are exiting, pull the VP from the XIVE */
-	lwz	r0, VCPU_XIVE_PUSHED(r9)
+	lbz	r0, VCPU_XIVE_PUSHED(r9)
 	cmpwi	cr0, r0, 0
 	beq	1f
 	li	r7, TM_SPC_PULL_OS_CTX
@@ -1487,7 +1487,7 @@ mc_cont:
 	/* Fixup some of the state for the next load */
 	li	r10, 0
 	li	r0, 0xff
-	stw	r10, VCPU_XIVE_PUSHED(r9)
+	stb	r10, VCPU_XIVE_PUSHED(r9)
 	stb	r10, (VCPU_XIVE_SAVED_STATE+3)(r9)
 	stb	r0, (VCPU_XIVE_SAVED_STATE+4)(r9)
 	eieio

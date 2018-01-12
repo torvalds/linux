@@ -739,7 +739,7 @@ struct kvm_vcpu_arch {
 	struct kvmppc_icp *icp; /* XICS presentation controller */
 	struct kvmppc_xive_vcpu *xive_vcpu; /* XIVE virtual CPU data */
 	__be32 xive_cam_word;    /* Cooked W2 in proper endian with valid bit */
-	u32 xive_pushed;	 /* Is the VP pushed on the physical CPU ? */
+	u8 xive_pushed;		 /* Is the VP pushed on the physical CPU ? */
 	union xive_tma_w01 xive_saved_state; /* W0..1 of XIVE thread state */
 #endif
 
