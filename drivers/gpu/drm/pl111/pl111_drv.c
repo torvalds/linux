@@ -108,11 +108,17 @@ static int pl111_modeset_init(struct drm_device *dev)
 			ret = PTR_ERR(bridge);
 			goto out_config;
 		}
-		/*
-		 * TODO: when we are using a different bridge than a panel
-		 * (such as a dumb VGA connector) we need to devise a different
-		 * method to get the connector out of the bridge.
-		 */
+	} else if (bridge) {
+		dev_info(dev->dev, "Using non-panel bridge\n");
+	} else {
+		dev_err(dev->dev, "No bridge, exiting\n");
+		return -ENODEV;
+	}
+
+	priv->bridge = bridge;
+	if (panel) {
+		priv->panel = panel;
+		priv->connector = panel->connector;
 	}
 
 	ret = pl111_display_init(dev);
@@ -125,10 +131,6 @@ static int pl111_modeset_init(struct drm_device *dev)
 						    bridge);
 	if (ret)
 		return ret;
-
-	priv->bridge = bridge;
-	priv->panel = panel;
-	priv->connector = panel->connector;
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret != 0) {
