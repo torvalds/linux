@@ -281,21 +281,21 @@ void get_local_mem_info(struct kgd_dev *kgd,
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 	uint64_t address_mask = adev->dev->dma_mask ? ~*adev->dev->dma_mask :
 					     ~((1ULL << 32) - 1);
-	resource_size_t aper_limit = adev->mc.aper_base + adev->mc.aper_size;
+	resource_size_t aper_limit = adev->gmc.aper_base + adev->gmc.aper_size;
 
 	memset(mem_info, 0, sizeof(*mem_info));
-	if (!(adev->mc.aper_base & address_mask || aper_limit & address_mask)) {
-		mem_info->local_mem_size_public = adev->mc.visible_vram_size;
-		mem_info->local_mem_size_private = adev->mc.real_vram_size -
-				adev->mc.visible_vram_size;
+	if (!(adev->gmc.aper_base & address_mask || aper_limit & address_mask)) {
+		mem_info->local_mem_size_public = adev->gmc.visible_vram_size;
+		mem_info->local_mem_size_private = adev->gmc.real_vram_size -
+				adev->gmc.visible_vram_size;
 	} else {
 		mem_info->local_mem_size_public = 0;
-		mem_info->local_mem_size_private = adev->mc.real_vram_size;
+		mem_info->local_mem_size_private = adev->gmc.real_vram_size;
 	}
-	mem_info->vram_width = adev->mc.vram_width;
+	mem_info->vram_width = adev->gmc.vram_width;
 
 	pr_debug("Address base: %pap limit %pap public 0x%llx private 0x%llx\n",
-			&adev->mc.aper_base, &aper_limit,
+			&adev->gmc.aper_base, &aper_limit,
 			mem_info->local_mem_size_public,
 			mem_info->local_mem_size_private);
 

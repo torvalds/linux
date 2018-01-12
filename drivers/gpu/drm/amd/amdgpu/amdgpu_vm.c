@@ -465,7 +465,7 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 
 static bool amdgpu_vm_is_large_bar(struct amdgpu_device *adev)
 {
-	return (adev->mc.real_vram_size == adev->mc.visible_vram_size);
+	return (adev->gmc.real_vram_size == adev->gmc.visible_vram_size);
 }
 
 /**

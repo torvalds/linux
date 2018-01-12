@@ -3796,7 +3796,7 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, ALIGNMENT_MODE,
 					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 			WREG32(mmSH_MEM_CONFIG, tmp);
-			tmp = adev->mc.shared_aperture_start >> 48;
+			tmp = adev->gmc.shared_aperture_start >> 48;
 			WREG32(mmSH_MEM_BASES, tmp);
 		}
 

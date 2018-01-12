@@ -2693,7 +2693,7 @@ static int dce_v6_0_sw_init(void *handle)
 	adev->ddev->mode_config.max_height = 16384;
 	adev->ddev->mode_config.preferred_depth = 24;
 	adev->ddev->mode_config.prefer_shadow = 1;
-	adev->ddev->mode_config.fb_base = adev->mc.aper_base;
+	adev->ddev->mode_config.fb_base = adev->gmc.aper_base;
 
 	r = amdgpu_modeset_create_props(adev);
 	if (r)

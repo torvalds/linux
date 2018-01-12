@@ -50,7 +50,7 @@ static void mmhub_v1_0_init_gart_pt_regs(struct amdgpu_device *adev)
 	uint64_t value;
 
 	BUG_ON(adev->gart.table_addr & (~0x0000FFFFFFFFF000ULL));
-	value = adev->gart.table_addr - adev->mc.vram_start +
+	value = adev->gart.table_addr - adev->gmc.vram_start +
 		adev->vm_manager.vram_base_offset;
 	value &= 0x0000FFFFFFFFF000ULL;
 	value |= 0x1; /* valid bit */
@@ -67,14 +67,14 @@ static void mmhub_v1_0_init_gart_aperture_regs(struct amdgpu_device *adev)
 	mmhub_v1_0_init_gart_pt_regs(adev);
 
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
-		     (u32)(adev->mc.gart_start >> 12));
+		     (u32)(adev->gmc.gart_start >> 12));
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
-		     (u32)(adev->mc.gart_start >> 44));
+		     (u32)(adev->gmc.gart_start >> 44));
 
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
-		     (u32)(adev->mc.gart_end >> 12));
+		     (u32)(adev->gmc.gart_end >> 12));
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
-		     (u32)(adev->mc.gart_end >> 44));
+		     (u32)(adev->gmc.gart_end >> 44));
 }
 
 static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
@@ -89,12 +89,12 @@ static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 
 	/* Program the system aperture low logical page number. */
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
-		     adev->mc.vram_start >> 18);
+		     adev->gmc.vram_start >> 18);
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-		     adev->mc.vram_end >> 18);
+		     adev->gmc.vram_end >> 18);
 
 	/* Set default page address. */
-	value = adev->vram_scratch.gpu_addr - adev->mc.vram_start +
+	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start +
 		adev->vm_manager.vram_base_offset;
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
 		     (u32)(value >> 12));
@@ -155,7 +155,7 @@ static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL2, tmp);
 
-	if (adev->mc.translate_further) {
+	if (adev->gmc.translate_further) {
 		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, BANK_SELECT, 12);
 		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3,
 				    L2_CACHE_BIGK_FRAGMENT_SIZE, 9);
@@ -207,7 +207,7 @@ static void mmhub_v1_0_setup_vmid_config(struct amdgpu_device *adev)
 
 	num_level = adev->vm_manager.num_level;
 	block_size = adev->vm_manager.block_size;
-	if (adev->mc.translate_further)
+	if (adev->gmc.translate_further)
 		num_level -= 1;
 	else
 		block_size -= 9;
@@ -499,9 +499,9 @@ int mmhub_v1_0_gart_enable(struct amdgpu_device *adev)
 		 * SRIOV driver need to program them
 		 */
 		WREG32_SOC15(MMHUB, 0, mmMC_VM_FB_LOCATION_BASE,
-			     adev->mc.vram_start >> 24);
+			     adev->gmc.vram_start >> 24);
 		WREG32_SOC15(MMHUB, 0, mmMC_VM_FB_LOCATION_TOP,
-			     adev->mc.vram_end >> 24);
+			     adev->gmc.vram_end >> 24);
 	}
 
 	/* GART Enable. */

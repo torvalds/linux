@@ -83,7 +83,7 @@ void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 	u32 c = 0;
 
 	if (domain & AMDGPU_GEM_DOMAIN_VRAM) {
-		unsigned visible_pfn = adev->mc.visible_vram_size >> PAGE_SHIFT;
+		unsigned visible_pfn = adev->gmc.visible_vram_size >> PAGE_SHIFT;
 
 		places[c].fpfn = 0;
 		places[c].lpfn = 0;
@@ -103,7 +103,7 @@ void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
 		places[c].fpfn = 0;
 		if (flags & AMDGPU_GEM_CREATE_SHADOW)
-			places[c].lpfn = adev->mc.gart_size >> PAGE_SHIFT;
+			places[c].lpfn = adev->gmc.gart_size >> PAGE_SHIFT;
 		else
 			places[c].lpfn = 0;
 		places[c].flags = TTM_PL_FLAG_TT;
@@ -428,9 +428,9 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	if (unlikely(r != 0))
 		return r;
 
-	if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
+	if (adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
 	    bo->tbo.mem.mem_type == TTM_PL_VRAM &&
-	    bo->tbo.mem.start < adev->mc.visible_vram_size >> PAGE_SHIFT)
+	    bo->tbo.mem.start < adev->gmc.visible_vram_size >> PAGE_SHIFT)
 		amdgpu_cs_report_moved_bytes(adev, ctx.bytes_moved,
 					     ctx.bytes_moved);
 	else
@@ -832,25 +832,25 @@ static const char *amdgpu_vram_names[] = {
 int amdgpu_bo_init(struct amdgpu_device *adev)
 {
 	/* reserve PAT memory space to WC for VRAM */
-	arch_io_reserve_memtype_wc(adev->mc.aper_base,
-				   adev->mc.aper_size);
+	arch_io_reserve_memtype_wc(adev->gmc.aper_base,
+				   adev->gmc.aper_size);
 
 	/* Add an MTRR for the VRAM */
-	adev->mc.vram_mtrr = arch_phys_wc_add(adev->mc.aper_base,
-					      adev->mc.aper_size);
+	adev->gmc.vram_mtrr = arch_phys_wc_add(adev->gmc.aper_base,
+					      adev->gmc.aper_size);
 	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
-		 adev->mc.mc_vram_size >> 20,
-		 (unsigned long long)adev->mc.aper_size >> 20);
+		 adev->gmc.mc_vram_size >> 20,
+		 (unsigned long long)adev->gmc.aper_size >> 20);
 	DRM_INFO("RAM width %dbits %s\n",
-		 adev->mc.vram_width, amdgpu_vram_names[adev->mc.vram_type]);
+		 adev->gmc.vram_width, amdgpu_vram_names[adev->gmc.vram_type]);
 	return amdgpu_ttm_init(adev);
 }
 
 void amdgpu_bo_fini(struct amdgpu_device *adev)
 {
 	amdgpu_ttm_fini(adev);
-	arch_phys_wc_del(adev->mc.vram_mtrr);
-	arch_io_free_memtype_wc(adev->mc.aper_base, adev->mc.aper_size);
+	arch_phys_wc_del(adev->gmc.vram_mtrr);
+	arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
 }
 
 int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,
@@ -980,7 +980,7 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 	size = bo->mem.num_pages << PAGE_SHIFT;
 	offset = bo->mem.start << PAGE_SHIFT;
-	if ((offset + size) <= adev->mc.visible_vram_size)
+	if ((offset + size) <= adev->gmc.visible_vram_size)
 		return 0;
 
 	/* Can't move a pinned BO to visible VRAM */
@@ -1003,7 +1003,7 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	offset = bo->mem.start << PAGE_SHIFT;
 	/* this should never happen */
 	if (bo->mem.mem_type == TTM_PL_VRAM &&
-	    (offset + size) > adev->mc.visible_vram_size)
+	    (offset + size) > adev->gmc.visible_vram_size)
 		return -EINVAL;
 
 	return 0;

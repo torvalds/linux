@@ -426,7 +426,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	init_data.asic_id.pci_revision_id = adev->rev_id;
 	init_data.asic_id.hw_internal_rev = adev->external_rev_id;
 
-	init_data.asic_id.vram_width = adev->mc.vram_width;
+	init_data.asic_id.vram_width = adev->gmc.vram_width;
 	/* TODO: initialize init_data.asic_id.vram_type here!!!! */
 	init_data.asic_id.atombios_base_address =
 		adev->mode_info.atom_context->bios;
@@ -1314,7 +1314,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	/* indicate support of immediate flip */
 	adev->ddev->mode_config.async_page_flip = true;
 
-	adev->ddev->mode_config.fb_base = adev->mc.aper_base;
+	adev->ddev->mode_config.fb_base = adev->gmc.aper_base;
 
 	r = amdgpu_modeset_create_props(adev);
 	if (r)

@@ -1946,7 +1946,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 		if (i == 0)
 			sh_mem_base = 0;
 		else
-			sh_mem_base = adev->mc.shared_aperture_start >> 48;
+			sh_mem_base = adev->gmc.shared_aperture_start >> 48;
 		cik_srbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
 		WREG32(mmSH_MEM_CONFIG, sh_mem_cfg);

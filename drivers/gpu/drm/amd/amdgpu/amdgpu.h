@@ -68,6 +68,7 @@
 #include "amdgpu_vce.h"
 #include "amdgpu_vcn.h"
 #include "amdgpu_mn.h"
+#include "amdgpu_gmc.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_virt.h"
 #include "amdgpu_gart.h"
@@ -494,55 +495,6 @@ int amdgpu_mode_dumb_mmap(struct drm_file *filp,
 			  uint32_t handle, uint64_t *offset_p);
 int amdgpu_fence_slab_init(void);
 void amdgpu_fence_slab_fini(void);
-
-/*
- * VMHUB structures, functions & helpers
- */
-struct amdgpu_vmhub {
-	uint32_t	ctx0_ptb_addr_lo32;
-	uint32_t	ctx0_ptb_addr_hi32;
-	uint32_t	vm_inv_eng0_req;
-	uint32_t	vm_inv_eng0_ack;
-	uint32_t	vm_context0_cntl;
-	uint32_t	vm_l2_pro_fault_status;
-	uint32_t	vm_l2_pro_fault_cntl;
-};
-
-/*
- * GPU MC structures, functions & helpers
- */
-struct amdgpu_mc {
-	resource_size_t		aper_size;
-	resource_size_t		aper_base;
-	/* for some chips with <= 32MB we need to lie
-	 * about vram size near mc fb location */
-	u64			mc_vram_size;
-	u64			visible_vram_size;
-	u64			gart_size;
-	u64			gart_start;
-	u64			gart_end;
-	u64			vram_start;
-	u64			vram_end;
-	unsigned		vram_width;
-	u64			real_vram_size;
-	int			vram_mtrr;
-	u64                     mc_mask;
-	const struct firmware   *fw;	/* MC firmware */
-	uint32_t                fw_version;
-	struct amdgpu_irq_src	vm_fault;
-	uint32_t		vram_type;
-	uint32_t                srbm_soft_reset;
-	bool			prt_warning;
-	uint64_t		stolen_size;
-	/* apertures */
-	u64					shared_aperture_start;
-	u64					shared_aperture_end;
-	u64					private_aperture_start;
-	u64					private_aperture_end;
-	/* protects concurrent invalidation */
-	spinlock_t		invalidate_lock;
-	bool			translate_further;
-};
 
 /*
  * GPU doorbell structures, functions & helpers
@@ -1579,7 +1531,7 @@ struct amdgpu_device {
 	struct amdgpu_clock            clock;
 
 	/* MC */
-	struct amdgpu_mc		mc;
+	struct amdgpu_gmc		gmc;
 	struct amdgpu_gart		gart;
 	struct amdgpu_dummy_page	dummy_page;
 	struct amdgpu_vm_manager	vm_manager;
@@ -1908,9 +1860,9 @@ void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes,
 void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
 bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
 void amdgpu_device_vram_location(struct amdgpu_device *adev,
-				 struct amdgpu_mc *mc, u64 base);
+				 struct amdgpu_gmc *mc, u64 base);
 void amdgpu_device_gart_location(struct amdgpu_device *adev,
-				 struct amdgpu_mc *mc);
+				 struct amdgpu_gmc *mc);
 int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev);
 void amdgpu_ttm_set_active_vram_size(struct amdgpu_device *adev, u64 size);
 int amdgpu_ttm_init(struct amdgpu_device *adev);

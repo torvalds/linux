@@ -191,7 +191,7 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 		fw_info->feature = 0;
 		break;
 	case AMDGPU_INFO_FW_GMC:
-		fw_info->ver = adev->mc.fw_version;
+		fw_info->ver = adev->gmc.fw_version;
 		fw_info->feature = 0;
 		break;
 	case AMDGPU_INFO_FW_GFX_ME:
@@ -470,9 +470,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	case AMDGPU_INFO_VRAM_GTT: {
 		struct drm_amdgpu_info_vram_gtt vram_gtt;
 
-		vram_gtt.vram_size = adev->mc.real_vram_size;
+		vram_gtt.vram_size = adev->gmc.real_vram_size;
 		vram_gtt.vram_size -= adev->vram_pin_size;
-		vram_gtt.vram_cpu_accessible_size = adev->mc.visible_vram_size;
+		vram_gtt.vram_cpu_accessible_size = adev->gmc.visible_vram_size;
 		vram_gtt.vram_cpu_accessible_size -= (adev->vram_pin_size - adev->invisible_pin_size);
 		vram_gtt.gtt_size = adev->mman.bdev.man[TTM_PL_TT].size;
 		vram_gtt.gtt_size *= PAGE_SIZE;
@@ -484,17 +484,17 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_memory_info mem;
 
 		memset(&mem, 0, sizeof(mem));
-		mem.vram.total_heap_size = adev->mc.real_vram_size;
+		mem.vram.total_heap_size = adev->gmc.real_vram_size;
 		mem.vram.usable_heap_size =
-			adev->mc.real_vram_size - adev->vram_pin_size;
+			adev->gmc.real_vram_size - adev->vram_pin_size;
 		mem.vram.heap_usage =
 			amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.vram.max_allocation = mem.vram.usable_heap_size * 3 / 4;
 
 		mem.cpu_accessible_vram.total_heap_size =
-			adev->mc.visible_vram_size;
+			adev->gmc.visible_vram_size;
 		mem.cpu_accessible_vram.usable_heap_size =
-			adev->mc.visible_vram_size -
+			adev->gmc.visible_vram_size -
 			(adev->vram_pin_size - adev->invisible_pin_size);
 		mem.cpu_accessible_vram.heap_usage =
 			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
@@ -599,8 +599,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		       sizeof(adev->gfx.cu_info.ao_cu_bitmap));
 		memcpy(&dev_info.cu_bitmap[0], &adev->gfx.cu_info.bitmap[0],
 		       sizeof(adev->gfx.cu_info.bitmap));
-		dev_info.vram_type = adev->mc.vram_type;
-		dev_info.vram_bit_width = adev->mc.vram_width;
+		dev_info.vram_type = adev->gmc.vram_type;
+		dev_info.vram_bit_width = adev->gmc.vram_width;
 		dev_info.vce_harvest_config = adev->vce.harvest_config;
 		dev_info.gc_double_offchip_lds_buf =
 			adev->gfx.config.double_offchip_lds_buf;

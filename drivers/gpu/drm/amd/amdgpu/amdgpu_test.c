@@ -42,7 +42,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 	/* Number of tests =
 	 * (Total GTT - IB pool - writeback page - ring buffers) / test size
 	 */
-	n = adev->mc.gart_size - AMDGPU_IB_POOL_SIZE*64*1024;
+	n = adev->gmc.gart_size - AMDGPU_IB_POOL_SIZE*64*1024;
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
 		if (adev->rings[i])
 			n -= adev->rings[i]->ring_size;
@@ -142,10 +142,10 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 					  "0x%16llx/0x%16llx)\n",
 					  i, *vram_start, gart_start,
 					  (unsigned long long)
-					  (gart_addr - adev->mc.gart_start +
+					  (gart_addr - adev->gmc.gart_start +
 					   (void*)gart_start - gtt_map),
 					  (unsigned long long)
-					  (vram_addr - adev->mc.vram_start +
+					  (vram_addr - adev->gmc.vram_start +
 					   (void*)gart_start - gtt_map));
 				amdgpu_bo_kunmap(vram_obj);
 				goto out_lclean_unpin;
@@ -187,10 +187,10 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 					  "0x%16llx/0x%16llx)\n",
 					  i, *gart_start, vram_start,
 					  (unsigned long long)
-					  (vram_addr - adev->mc.vram_start +
+					  (vram_addr - adev->gmc.vram_start +
 					   (void*)vram_start - vram_map),
 					  (unsigned long long)
-					  (gart_addr - adev->mc.gart_start +
+					  (gart_addr - adev->gmc.gart_start +
 					   (void*)vram_start - vram_map));
 				amdgpu_bo_kunmap(gtt_obj[i]);
 				goto out_lclean_unpin;
@@ -200,7 +200,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		amdgpu_bo_kunmap(gtt_obj[i]);
 
 		DRM_INFO("Tested GTT->VRAM and VRAM->GTT copy for GTT offset 0x%llx\n",
-			 gart_addr - adev->mc.gart_start);
+			 gart_addr - adev->gmc.gart_start);
 		continue;
 
 out_lclean_unpin:

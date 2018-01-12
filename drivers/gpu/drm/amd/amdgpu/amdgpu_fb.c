@@ -244,8 +244,8 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 
 	info->fbops = &amdgpufb_ops;
 
-	tmp = amdgpu_bo_gpu_offset(abo) - adev->mc.vram_start;
-	info->fix.smem_start = adev->mc.aper_base + tmp;
+	tmp = amdgpu_bo_gpu_offset(abo) - adev->gmc.vram_start;
+	info->fix.smem_start = adev->gmc.aper_base + tmp;
 	info->fix.smem_len = amdgpu_bo_size(abo);
 	info->screen_base = amdgpu_bo_kptr(abo);
 	info->screen_size = amdgpu_bo_size(abo);
@@ -254,7 +254,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 
 	/* setup aperture base/size for vesafb takeover */
 	info->apertures->ranges[0].base = adev->ddev->mode_config.fb_base;
-	info->apertures->ranges[0].size = adev->mc.aper_size;
+	info->apertures->ranges[0].size = adev->gmc.aper_size;
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
@@ -264,7 +264,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	}
 
 	DRM_INFO("fb mappable at 0x%lX\n",  info->fix.smem_start);
-	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)adev->mc.aper_base);
+	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)adev->gmc.aper_base);
 	DRM_INFO("size %lu\n", (unsigned long)amdgpu_bo_size(abo));
 	DRM_INFO("fb depth is %d\n", fb->format->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
@@ -321,7 +321,7 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 		return 0;
 
 	/* select 8 bpp console on low vram cards */
-	if (adev->mc.real_vram_size <= (32*1024*1024))
+	if (adev->gmc.real_vram_size <= (32*1024*1024))
 		bpp_sel = 8;
 
 	rfbdev = kzalloc(sizeof(struct amdgpu_fbdev), GFP_KERNEL);

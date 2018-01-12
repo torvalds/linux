@@ -905,7 +905,7 @@ static bool ci_dpm_vblank_too_short(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 vblank_time = amdgpu_dpm_get_vblank_time(adev);
-	u32 switch_limit = adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5 ? 450 : 300;
+	u32 switch_limit = adev->gmc.vram_type == AMDGPU_VRAM_TYPE_GDDR5 ? 450 : 300;
 
 	/* disable mclk switching if the refresh is >120Hz, even if the
 	 * blanking period would allow it
@@ -2954,7 +2954,7 @@ static int ci_calculate_mclk_params(struct amdgpu_device *adev,
 	mpll_ad_func_cntl &= ~MPLL_AD_FUNC_CNTL__YCLK_POST_DIV_MASK;
 	mpll_ad_func_cntl |= (mpll_param.post_div << MPLL_AD_FUNC_CNTL__YCLK_POST_DIV__SHIFT);
 
-	if (adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5) {
+	if (adev->gmc.vram_type == AMDGPU_VRAM_TYPE_GDDR5) {
 		mpll_dq_func_cntl &= ~(MPLL_DQ_FUNC_CNTL__YCLK_SEL_MASK |
 				MPLL_AD_FUNC_CNTL__YCLK_POST_DIV_MASK);
 		mpll_dq_func_cntl |= (mpll_param.yclk_sel << MPLL_DQ_FUNC_CNTL__YCLK_SEL__SHIFT) |
@@ -3077,7 +3077,7 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 	    (memory_clock <= pi->mclk_strobe_mode_threshold))
 		memory_level->StrobeEnable = 1;
 
-	if (adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5) {
+	if (adev->gmc.vram_type == AMDGPU_VRAM_TYPE_GDDR5) {
 		memory_level->StrobeRatio =
 			ci_get_mclk_frequency_ratio(memory_clock, memory_level->StrobeEnable);
 		if (pi->mclk_edc_enable_threshold &&
@@ -3752,7 +3752,7 @@ static int ci_init_smc_table(struct amdgpu_device *adev)
 	if (adev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_STEPVDDC)
 		table->SystemFlags |= PPSMC_SYSTEMFLAG_STEPVDDC;
 
-	if (adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5)
+	if (adev->gmc.vram_type == AMDGPU_VRAM_TYPE_GDDR5)
 		table->SystemFlags |= PPSMC_SYSTEMFLAG_GDDR5;
 
 	if (ulv->supported) {
@@ -4549,12 +4549,12 @@ static int ci_set_mc_special_registers(struct amdgpu_device *adev,
 			for (k = 0; k < table->num_entries; k++) {
 				table->mc_reg_table_entry[k].mc_data[j] =
 					(temp_reg & 0xffff0000) | (table->mc_reg_table_entry[k].mc_data[i] & 0x0000ffff);
-				if (adev->mc.vram_type != AMDGPU_VRAM_TYPE_GDDR5)
+				if (adev->gmc.vram_type != AMDGPU_VRAM_TYPE_GDDR5)
 					table->mc_reg_table_entry[k].mc_data[j] |= 0x100;
 			}
 			j++;
 
-			if (adev->mc.vram_type != AMDGPU_VRAM_TYPE_GDDR5) {
+			if (adev->gmc.vram_type != AMDGPU_VRAM_TYPE_GDDR5) {
 				if (j >= SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE)
 					return -EINVAL;
 				table->mc_reg_address[j].s1 = mmMC_PMG_AUTO_CMD;
