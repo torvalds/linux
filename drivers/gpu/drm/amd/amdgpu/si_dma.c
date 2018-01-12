@@ -24,6 +24,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
+#include "si.h"
 #include "sid.h"
 
 const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
@@ -476,17 +477,7 @@ static void si_dma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 				      unsigned vmid, unsigned pasid,
 				      uint64_t pd_addr)
 {
-	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	if (vmid < 8)
-		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid));
-	else
-		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + (vmid - 8)));
-	amdgpu_ring_write(ring, pd_addr >> 12);
-
-	/* bits 0-7 are the VM contexts0-7 */
-	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	amdgpu_ring_write(ring, (0xf << 16) | (VM_INVALIDATE_REQUEST));
-	amdgpu_ring_write(ring, 1 << vmid);
+	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pasid, pd_addr);
 
 	/* wait for invalidate to complete */
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_POLL_REG_MEM, 0, 0, 0, 0));
@@ -784,7 +775,7 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 		3 + /* si_dma_ring_emit_hdp_flush */
 		3 + /* si_dma_ring_emit_hdp_invalidate */
 		6 + /* si_dma_ring_emit_pipeline_sync */
-		12 + /* si_dma_ring_emit_vm_flush */
+		SI_FLUSH_GPU_TLB_NUM_WREG * 3 + 6 + /* si_dma_ring_emit_vm_flush */
 		9 + 9 + 9, /* si_dma_ring_emit_fence x3 for user fence, vm fence */
 	.emit_ib_size = 7 + 3, /* si_dma_ring_emit_ib */
 	.emit_ib = si_dma_ring_emit_ib,
