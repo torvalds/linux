@@ -432,8 +432,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *np = pdev->dev.of_node;
 	struct stmpe_gpio *stmpe_gpio;
-	int ret;
-	int irq = 0;
+	int ret, irq;
 
 	stmpe_gpio = kzalloc(sizeof(*stmpe_gpio), GFP_KERNEL);
 	if (!stmpe_gpio)
