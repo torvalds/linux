@@ -3409,6 +3409,11 @@ int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 			       hnae_get_bit(node->flag, HNAE3_RING_TYPE_B));
 		hnae_set_field(tqp_type_and_id, HCLGE_TQP_ID_M,
 			       HCLGE_TQP_ID_S, node->tqp_index);
+		hnae_set_field(tqp_type_and_id, HCLGE_INT_GL_IDX_M,
+			       HCLGE_INT_GL_IDX_S,
+			       hnae_get_field(node->int_gl_idx,
+					      HNAE3_RING_GL_IDX_M,
+					      HNAE3_RING_GL_IDX_S));
 		req->tqp_type_and_id[i] = cpu_to_le16(tqp_type_and_id);
 		if (++i >= HCLGE_VECTOR_ELEMENTS_PER_CMD) {
 			req->int_cause_num = HCLGE_VECTOR_ELEMENTS_PER_CMD;
