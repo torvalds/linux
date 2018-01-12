@@ -112,13 +112,8 @@ struct flag_info {
 
 static const struct flag_info flag_array[] = {
 	{
-#ifdef CONFIG_PPC_BOOK3S_64
-		.mask	= _PAGE_PRIVILEGED,
-		.val	= 0,
-#else
-		.mask	= _PAGE_USER,
+		.mask	= _PAGE_USER | _PAGE_PRIVILEGED,
 		.val	= _PAGE_USER,
-#endif
 		.set	= "user",
 		.clear	= "    ",
 	}, {
@@ -229,10 +224,6 @@ static const struct flag_info flag_array[] = {
 		.mask	= _PAGE_SPECIAL,
 		.val	= _PAGE_SPECIAL,
 		.set	= "special",
-	}, {
-		.mask	= _PAGE_SHARED,
-		.val	= _PAGE_SHARED,
-		.set	= "shared",
 	}
 };
 

@@ -31,7 +31,7 @@
 /* Definitions for 8xx embedded chips. */
 #define _PAGE_PRESENT	0x0001	/* Page is valid */
 #define _PAGE_NO_CACHE	0x0002	/* I: cache inhibit */
-#define _PAGE_SHARED	0x0004	/* No ASID (context) compare */
+#define _PAGE_PRIVILEGED	0x0004	/* No ASID (context) compare */
 #define _PAGE_SPECIAL	0x0008	/* SW entry, forced to 0 by the TLB miss */
 #define _PAGE_DIRTY	0x0100	/* C: page changed */
 
@@ -53,14 +53,6 @@
 
 /* Until my rework is finished, 8xx still needs atomic PTE updates */
 #define PTE_ATOMIC_UPDATES	1
-
-/* We need to add _PAGE_SHARED to kernel pages */
-#define _PAGE_KERNEL_RO		(_PAGE_SHARED | _PAGE_RO)
-#define _PAGE_KERNEL_ROX	(_PAGE_SHARED | _PAGE_RO | _PAGE_EXEC)
-#define _PAGE_KERNEL_RW		(_PAGE_SHARED | _PAGE_DIRTY | _PAGE_RW | \
-				 _PAGE_HWWRITE)
-#define _PAGE_KERNEL_RWX	(_PAGE_SHARED | _PAGE_DIRTY | _PAGE_RW | \
-				 _PAGE_HWWRITE | _PAGE_EXEC)
 
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_NOHASH_32_PTE_8xx_H */
