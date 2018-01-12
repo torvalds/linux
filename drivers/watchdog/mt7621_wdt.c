@@ -105,6 +105,11 @@ static int mt7621_wdt_bootcause(void)
 	return 0;
 }
 
+static int mt7621_wdt_is_running(struct watchdog_device *w)
+{
+	return !!(rt_wdt_r32(TIMER_REG_TMR1CTL) & TMR1CTL_ENABLE);
+}
+
 static const struct watchdog_info mt7621_wdt_info = {
 	.identity = "Mediatek Watchdog",
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
@@ -144,6 +149,20 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 	watchdog_init_timeout(&mt7621_wdt_dev, mt7621_wdt_dev.max_timeout,
 			      &pdev->dev);
 	watchdog_set_nowayout(&mt7621_wdt_dev, nowayout);
+	if (mt7621_wdt_is_running(&mt7621_wdt_dev)) {
+		/*
+		 * Make sure to apply timeout from watchdog core, taking
+		 * the prescaler of this driver here into account (the
+		 * boot loader might be using a different prescaler).
+		 *
+		 * To avoid spurious resets because of different scaling,
+		 * we first disable the watchdog, set the new prescaler
+		 * and timeout, and then re-enable the watchdog.
+		 */
+		mt7621_wdt_stop(&mt7621_wdt_dev);
+		mt7621_wdt_start(&mt7621_wdt_dev);
+		set_bit(WDOG_HW_RUNNING, &mt7621_wdt_dev.status);
+	}
 
 	ret = watchdog_register_device(&mt7621_wdt_dev);
 
