@@ -345,6 +345,7 @@ struct cx231xx_board {
 
 	/* demod related */
 	int demod_addr;
+	int demod_addr2;
 	u8 demod_xfer_mode;	/* 0 - Serial; 1 - parallel */
 
 	/* GPIO Pins */

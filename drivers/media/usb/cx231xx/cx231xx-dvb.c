@@ -68,7 +68,7 @@ struct cx231xx_dvb {
 	struct dmx_frontend fe_hw;
 	struct dmx_frontend fe_mem;
 	struct dvb_net net;
-	struct i2c_client *i2c_client_demod;
+	struct i2c_client *i2c_client_demod[2];
 	struct i2c_client *i2c_client_tuner;
 };
 
@@ -616,7 +616,12 @@ static void unregister_dvb(struct cx231xx_dvb *dvb)
 		i2c_unregister_device(client);
 	}
 	/* remove I2C demod */
-	client = dvb->i2c_client_demod;
+	client = dvb->i2c_client_demod[1];
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+	client = dvb->i2c_client_demod[0];
 	if (client) {
 		module_put(client->dev.driver->owner);
 		i2c_unregister_device(client);
@@ -805,7 +810,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dvb->i2c_client_demod = client;
+		dvb->i2c_client_demod[0] = client;
 
 		dev->dvb->frontend[0]->ops.i2c_gate_ctrl = NULL;
 
@@ -852,7 +857,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dvb->i2c_client_demod = client;
+		dvb->i2c_client_demod[0] = client;
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
 
@@ -1012,7 +1017,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dvb->i2c_client_demod = client;
+		dvb->i2c_client_demod[0] = client;
 
 		/* attach tuner chip */
 		si2157_config.fe = dev->dvb->frontend[0];
@@ -1031,16 +1036,16 @@ static int dvb_init(struct cx231xx *dev)
 		client = i2c_new_device(tuner_i2c, &info);
 
 		if (client == NULL || client->dev.driver == NULL) {
-			module_put(dvb->i2c_client_demod->dev.driver->owner);
-			i2c_unregister_device(dvb->i2c_client_demod);
+			module_put(dvb->i2c_client_demod[0]->dev.driver->owner);
+			i2c_unregister_device(dvb->i2c_client_demod[0]);
 			result = -ENODEV;
 			goto out_free;
 		}
 
 		if (!try_module_get(client->dev.driver->owner)) {
 			i2c_unregister_device(client);
-			module_put(dvb->i2c_client_demod->dev.driver->owner);
-			i2c_unregister_device(dvb->i2c_client_demod);
+			module_put(dvb->i2c_client_demod[0]->dev.driver->owner);
+			i2c_unregister_device(dvb->i2c_client_demod[0]);
 			result = -ENODEV;
 			goto out_free;
 		}
@@ -1078,7 +1083,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dvb->i2c_client_demod = client;
+		dvb->i2c_client_demod[0] = client;
 
 		/* define general-purpose callback pointer */
 		dvb->frontend[0]->callback = cx231xx_tuner_callback;
@@ -1122,7 +1127,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dvb->i2c_client_demod = client;
+		dvb->i2c_client_demod[0] = client;
 		dev->dvb->frontend[0]->ops.i2c_gate_ctrl = NULL;
 
 		/* define general-purpose callback pointer */
@@ -1144,8 +1149,8 @@ static int dvb_init(struct cx231xx *dev)
 
 		client = i2c_new_device(adapter, &info);
 		if (client == NULL || client->dev.driver == NULL) {
-			module_put(dvb->i2c_client_demod->dev.driver->owner);
-			i2c_unregister_device(dvb->i2c_client_demod);
+			module_put(dvb->i2c_client_demod[0]->dev.driver->owner);
+			i2c_unregister_device(dvb->i2c_client_demod[0]);
 			result = -ENODEV;
 			goto out_free;
 		}
@@ -1154,8 +1159,8 @@ static int dvb_init(struct cx231xx *dev)
 			dev_err(dev->dev,
 				"Failed to obtain %s tuner.\n",	info.type);
 			i2c_unregister_device(client);
-			module_put(dvb->i2c_client_demod->dev.driver->owner);
-			i2c_unregister_device(dvb->i2c_client_demod);
+			module_put(dvb->i2c_client_demod[0]->dev.driver->owner);
+			i2c_unregister_device(dvb->i2c_client_demod[0]);
 			result = -ENODEV;
 			goto out_free;
 		}
@@ -1196,7 +1201,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dvb->i2c_client_demod = client;
+		dvb->i2c_client_demod[0] = client;
 		dev->dvb->frontend[0]->ops.i2c_gate_ctrl = NULL;
 
 		/* define general-purpose callback pointer */
@@ -1218,8 +1223,8 @@ static int dvb_init(struct cx231xx *dev)
 
 		client = i2c_new_device(tuner_i2c, &info);
 		if (client == NULL || client->dev.driver == NULL) {
-			module_put(dvb->i2c_client_demod->dev.driver->owner);
-			i2c_unregister_device(dvb->i2c_client_demod);
+			module_put(dvb->i2c_client_demod[0]->dev.driver->owner);
+			i2c_unregister_device(dvb->i2c_client_demod[0]);
 			result = -ENODEV;
 			goto out_free;
 		}
@@ -1228,8 +1233,8 @@ static int dvb_init(struct cx231xx *dev)
 			dev_err(dev->dev,
 				"Failed to obtain %s tuner.\n",	info.type);
 			i2c_unregister_device(client);
-			module_put(dvb->i2c_client_demod->dev.driver->owner);
-			i2c_unregister_device(dvb->i2c_client_demod);
+			module_put(dvb->i2c_client_demod[0]->dev.driver->owner);
+			i2c_unregister_device(dvb->i2c_client_demod[0]);
 			result = -ENODEV;
 			goto out_free;
 		}
