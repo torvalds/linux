@@ -93,6 +93,8 @@ enum pkt_vec {
  * struct nfp_app_bpf - bpf app priv structure
  * @app:		backpointer to the app
  *
+ * @map_list:		list of offloaded maps
+ *
  * @adjust_head:	adjust head capability
  * @flags:		extra flags for adjust head
  * @off_min:		minimal packet offset within buffer required
@@ -103,6 +105,8 @@ enum pkt_vec {
 struct nfp_app_bpf {
 	struct nfp_app *app;
 
+	struct list_head map_list;
+
 	struct nfp_bpf_cap_adjust_head {
 		u32 flags;
 		int off_min;
@@ -110,6 +114,20 @@ struct nfp_app_bpf {
 		int guaranteed_sub;
 		int guaranteed_add;
 	} adjust_head;
+};
+
+/**
+ * struct nfp_bpf_map - private per-map data attached to BPF maps for offload
+ * @offmap:	pointer to the offloaded BPF map
+ * @bpf:	back pointer to bpf app private structure
+ * @tid:	table id identifying map on datapath
+ * @l:		link on the nfp_app_bpf->map_list list
+ */
+struct nfp_bpf_map {
+	struct bpf_offloaded_map *offmap;
+	struct nfp_app_bpf *bpf;
+	u32 tid;
+	struct list_head l;
 };
 
 struct nfp_prog;

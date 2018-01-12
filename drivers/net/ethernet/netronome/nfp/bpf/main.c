@@ -313,6 +313,8 @@ static int nfp_bpf_init(struct nfp_app *app)
 	bpf->app = app;
 	app->priv = bpf;
 
+	INIT_LIST_HEAD(&bpf->map_list);
+
 	err = nfp_bpf_parse_capabilities(app);
 	if (err)
 		goto err_free_bpf;
@@ -326,7 +328,10 @@ err_free_bpf:
 
 static void nfp_bpf_clean(struct nfp_app *app)
 {
-	kfree(app->priv);
+	struct nfp_app_bpf *bpf = app->priv;
+
+	WARN_ON(!list_empty(&bpf->map_list));
+	kfree(bpf);
 }
 
 const struct nfp_app_type app_bpf = {
