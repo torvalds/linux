@@ -20,15 +20,6 @@
 struct fscrypt_ctx;
 struct fscrypt_info;
 
-/**
- * For encrypted symlinks, the ciphertext length is stored at the beginning
- * of the string in little-endian format.
- */
-struct fscrypt_symlink_data {
-	__le16 len;
-	char encrypted_path[1];
-} __packed;
-
 struct fscrypt_str {
 	unsigned char *name;
 	u32 len;
