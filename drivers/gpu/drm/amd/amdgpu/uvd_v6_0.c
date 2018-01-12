@@ -1087,26 +1087,7 @@ static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vmid, unsigned pasid,
 					uint64_t pd_addr)
 {
-	uint32_t reg;
-
-	if (vmid < 8)
-		reg = mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid;
-	else
-		reg = mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8;
-
-	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
-	amdgpu_ring_write(ring, reg << 2);
-	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0));
-	amdgpu_ring_write(ring, pd_addr >> 12);
-	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
-	amdgpu_ring_write(ring, 0x8);
-
-	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
-	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST << 2);
-	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0));
-	amdgpu_ring_write(ring, 1 << vmid);
-	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
-	amdgpu_ring_write(ring, 0x8);
+	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pasid, pd_addr);
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST << 2);
