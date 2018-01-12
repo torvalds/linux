@@ -1113,7 +1113,7 @@ static int liquidio_watchdog(void *param)
 				dev_err(&oct->pci_dev->dev,
 					"ERROR: Octeon core %d crashed or got stuck!  See oct-fwdump for details.\n",
 					core);
-					err_msg_was_printed[core] = true;
+				err_msg_was_printed[core] = true;
 			}
 		}
 

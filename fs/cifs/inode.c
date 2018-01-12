@@ -985,7 +985,7 @@ retry_iget5_locked:
 		}
 
 		cifs_fattr_to_inode(inode, fattr);
-		if (sb->s_flags & MS_NOATIME)
+		if (sb->s_flags & SB_NOATIME)
 			inode->i_flags |= S_NOATIME | S_NOCMTIME;
 		if (inode->i_state & I_NEW) {
 			inode->i_ino = hash;

@@ -138,7 +138,7 @@ Example:
 		};
 
 		/* MIPI CSI-2 bus IF sensor */
-		s5c73m3: sensor@0x1a {
+		s5c73m3: sensor@1a {
 			compatible = "samsung,s5c73m3";
 			reg = <0x1a>;
 			vddio-supply = <...>;

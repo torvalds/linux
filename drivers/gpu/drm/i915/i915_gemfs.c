@@ -52,7 +52,8 @@ int i915_gemfs_init(struct drm_i915_private *i915)
 
 	if (has_transparent_hugepage()) {
 		struct super_block *sb = gemfs->mnt_sb;
-		char options[] = "huge=within_size";
+		/* FIXME: Disabled until we get W/A for read BW issue. */
+		char options[] = "huge=never";
 		int flags = 0;
 		int err;
 

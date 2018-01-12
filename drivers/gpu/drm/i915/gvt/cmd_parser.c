@@ -1628,7 +1628,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	struct intel_shadow_bb_entry *entry_obj;
 	struct intel_vgpu *vgpu = s->vgpu;
 	unsigned long gma = 0;
-	uint32_t bb_size;
+	int bb_size;
 	void *dst = NULL;
 	int ret = 0;
 

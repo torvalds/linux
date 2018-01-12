@@ -887,7 +887,8 @@ static int ovl_set_redirect(struct dentry *dentry, bool samedir)
 		spin_unlock(&dentry->d_lock);
 	} else {
 		kfree(redirect);
-		pr_warn_ratelimited("overlay: failed to set redirect (%i)\n", err);
+		pr_warn_ratelimited("overlayfs: failed to set redirect (%i)\n",
+				    err);
 		/* Fall back to userspace copy-up */
 		err = -EXDEV;
 	}

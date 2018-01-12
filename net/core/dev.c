@@ -1106,7 +1106,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	 * when the name is long and there isn't enough space left
 	 * for the digits, or if all bits are used.
 	 */
-	return p ? -ENFILE : -EEXIST;
+	return -ENFILE;
 }
 
 static int dev_alloc_name_ns(struct net *net,
@@ -3904,7 +3904,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 				     hroom > 0 ? ALIGN(hroom, NET_SKB_PAD) : 0,
 				     troom > 0 ? troom + 128 : 0, GFP_ATOMIC))
 			goto do_drop;
-		if (troom > 0 && __skb_linearize(skb))
+		if (skb_linearize(skb))
 			goto do_drop;
 	}
 

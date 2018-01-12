@@ -17,7 +17,7 @@
  */
 
 #include <linux/module.h>
-#include <lib/libgcc.h>
+#include <linux/libgcc.h>
 
 long long notrace __lshrdi3(long long u, word_type b)
 {

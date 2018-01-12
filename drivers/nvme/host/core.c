@@ -1287,7 +1287,7 @@ static void nvme_config_discard(struct nvme_ctrl *ctrl,
 	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
 			NVME_DSM_MAX_RANGES);
 
-	queue->limits.discard_alignment = size;
+	queue->limits.discard_alignment = 0;
 	queue->limits.discard_granularity = size;
 
 	blk_queue_max_discard_sectors(queue, UINT_MAX);
@@ -1449,19 +1449,19 @@ static int nvme_pr_command(struct block_device *bdev, u32 cdw10,
 	int srcu_idx, ret;
 	u8 data[16] = { 0, };
 
+	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
+	if (unlikely(!ns))
+		return -EWOULDBLOCK;
+
 	put_unaligned_le64(key, &data[0]);
 	put_unaligned_le64(sa_key, &data[8]);
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = op;
-	c.common.nsid = cpu_to_le32(head->ns_id);
+	c.common.nsid = cpu_to_le32(ns->head->ns_id);
 	c.common.cdw10[0] = cpu_to_le32(cdw10);
 
-	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
-	if (unlikely(!ns))
-		ret = -EWOULDBLOCK;
-	else
-		ret = nvme_submit_sync_cmd(ns->queue, &c, data, 16);
+	ret = nvme_submit_sync_cmd(ns->queue, &c, data, 16);
 	nvme_put_ns_from_disk(head, srcu_idx);
 	return ret;
 }
@@ -1705,7 +1705,8 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 		blk_queue_max_hw_sectors(q, ctrl->max_hw_sectors);
 		blk_queue_max_segments(q, min_t(u32, max_segments, USHRT_MAX));
 	}
-	if (ctrl->quirks & NVME_QUIRK_STRIPE_SIZE)
+	if ((ctrl->quirks & NVME_QUIRK_STRIPE_SIZE) &&
+	    is_power_of_2(ctrl->max_hw_sectors))
 		blk_queue_chunk_sectors(q, ctrl->max_hw_sectors);
 	blk_queue_virt_boundary(q, ctrl->page_size - 1);
 	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
@@ -2869,7 +2870,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
 	nvme_set_queue_limits(ctrl, ns->queue);
-	nvme_setup_streams_ns(ctrl, ns);
 
 	id = nvme_identify_ns(ctrl, nsid);
 	if (!id)
@@ -2880,6 +2880,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 	if (nvme_init_ns_head(ns, nsid, id, &new))
 		goto out_free_id;
+	nvme_setup_streams_ns(ctrl, ns);
 	
 #ifdef CONFIG_NVME_MULTIPATH
 	/*
@@ -2961,14 +2962,10 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 static void nvme_ns_remove(struct nvme_ns *ns)
 {
-	struct nvme_ns_head *head = ns->head;
-
 	if (test_and_set_bit(NVME_NS_REMOVING, &ns->flags))
 		return;
 
 	if (ns->disk && ns->disk->flags & GENHD_FL_UP) {
-		if (blk_get_integrity(ns->disk))
-			blk_integrity_unregister(ns->disk);
 		nvme_mpath_remove_disk_links(ns);
 		sysfs_remove_group(&disk_to_dev(ns->disk)->kobj,
 					&nvme_ns_id_attr_group);
@@ -2976,19 +2973,20 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 			nvme_nvm_unregister_sysfs(ns);
 		del_gendisk(ns->disk);
 		blk_cleanup_queue(ns->queue);
+		if (blk_get_integrity(ns->disk))
+			blk_integrity_unregister(ns->disk);
 	}
 
 	mutex_lock(&ns->ctrl->subsys->lock);
 	nvme_mpath_clear_current_path(ns);
-	if (head)
-		list_del_rcu(&ns->siblings);
+	list_del_rcu(&ns->siblings);
 	mutex_unlock(&ns->ctrl->subsys->lock);
 
 	mutex_lock(&ns->ctrl->namespaces_mutex);
 	list_del_init(&ns->list);
 	mutex_unlock(&ns->ctrl->namespaces_mutex);
 
-	synchronize_srcu(&head->srcu);
+	synchronize_srcu(&ns->head->srcu);
 	nvme_put_ns(ns);
 }
 

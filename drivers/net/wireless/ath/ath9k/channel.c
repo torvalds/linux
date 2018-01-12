@@ -1113,7 +1113,7 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 		if (!avp->assoc)
 			return false;
 
-		skb = ieee80211_nullfunc_get(sc->hw, vif);
+		skb = ieee80211_nullfunc_get(sc->hw, vif, false);
 		if (!skb)
 			return false;
 

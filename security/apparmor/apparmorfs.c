@@ -2451,7 +2451,7 @@ static int __init aa_create_aafs(void)
 	aafs_mnt = kern_mount(&aafs_ops);
 	if (IS_ERR(aafs_mnt))
 		panic("can't set apparmorfs up\n");
-	aafs_mnt->mnt_sb->s_flags &= ~MS_NOUSER;
+	aafs_mnt->mnt_sb->s_flags &= ~SB_NOUSER;
 
 	/* Populate fs tree. */
 	error = entry_create_dir(&aa_sfs_entry, NULL);

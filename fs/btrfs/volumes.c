@@ -189,6 +189,7 @@ static void free_fs_devices(struct btrfs_fs_devices *fs_devices)
 				    struct btrfs_device, dev_list);
 		list_del(&device->dev_list);
 		rcu_string_free(device->name);
+		bio_put(device->flush_bio);
 		kfree(device);
 	}
 	kfree(fs_devices);
@@ -236,7 +237,6 @@ static struct btrfs_device *__alloc_device(void)
 		kfree(dev);
 		return ERR_PTR(-ENOMEM);
 	}
-	bio_get(dev->flush_bio);
 
 	INIT_LIST_HEAD(&dev->dev_list);
 	INIT_LIST_HEAD(&dev->dev_alloc_list);
@@ -578,6 +578,7 @@ static void btrfs_free_stale_device(struct btrfs_device *cur_dev)
 				fs_devs->num_devices--;
 				list_del(&dev->dev_list);
 				rcu_string_free(dev->name);
+				bio_put(dev->flush_bio);
 				kfree(dev);
 			}
 			break;
@@ -630,6 +631,7 @@ static noinline int device_list_add(const char *path,
 
 		name = rcu_string_strdup(path, GFP_NOFS);
 		if (!name) {
+			bio_put(device->flush_bio);
 			kfree(device);
 			return -ENOMEM;
 		}
@@ -742,6 +744,7 @@ static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
 			name = rcu_string_strdup(orig_dev->name->str,
 					GFP_KERNEL);
 			if (!name) {
+				bio_put(device->flush_bio);
 				kfree(device);
 				goto error;
 			}
@@ -807,6 +810,7 @@ again:
 		list_del_init(&device->dev_list);
 		fs_devices->num_devices--;
 		rcu_string_free(device->name);
+		bio_put(device->flush_bio);
 		kfree(device);
 	}
 
@@ -1750,20 +1754,24 @@ static int btrfs_rm_dev_item(struct btrfs_fs_info *fs_info,
 	key.offset = device->devid;
 
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-	if (ret < 0)
-		goto out;
-
-	if (ret > 0) {
-		ret = -ENOENT;
+	if (ret) {
+		if (ret > 0)
+			ret = -ENOENT;
+		btrfs_abort_transaction(trans, ret);
+		btrfs_end_transaction(trans);
 		goto out;
 	}
 
 	ret = btrfs_del_item(trans, root, path);
-	if (ret)
-		goto out;
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		btrfs_end_transaction(trans);
+	}
+
 out:
 	btrfs_free_path(path);
-	btrfs_commit_transaction(trans);
+	if (!ret)
+		ret = btrfs_commit_transaction(trans);
 	return ret;
 }
 
@@ -1993,7 +2001,7 @@ void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
 	fs_devices = srcdev->fs_devices;
 
 	list_del_rcu(&srcdev->dev_list);
-	list_del_rcu(&srcdev->dev_alloc_list);
+	list_del(&srcdev->dev_alloc_list);
 	fs_devices->num_devices--;
 	if (srcdev->missing)
 		fs_devices->missing_devices--;
@@ -2349,6 +2357,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 
 	name = rcu_string_strdup(device_path, GFP_KERNEL);
 	if (!name) {
+		bio_put(device->flush_bio);
 		kfree(device);
 		ret = -ENOMEM;
 		goto error;
@@ -2358,6 +2367,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		rcu_string_free(device->name);
+		bio_put(device->flush_bio);
 		kfree(device);
 		ret = PTR_ERR(trans);
 		goto error;
@@ -2384,7 +2394,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
 
 	if (seeding_dev) {
-		sb->s_flags &= ~MS_RDONLY;
+		sb->s_flags &= ~SB_RDONLY;
 		ret = btrfs_prepare_sprout(fs_info);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -2497,10 +2507,11 @@ error_sysfs:
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, device);
 error_trans:
 	if (seeding_dev)
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	if (trans)
 		btrfs_end_transaction(trans);
 	rcu_string_free(device->name);
+	bio_put(device->flush_bio);
 	kfree(device);
 error:
 	blkdev_put(bdev, FMODE_EXCL);
@@ -2567,6 +2578,7 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 
 	name = rcu_string_strdup(device_path, GFP_KERNEL);
 	if (!name) {
+		bio_put(device->flush_bio);
 		kfree(device);
 		ret = -ENOMEM;
 		goto error;
@@ -6284,6 +6296,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 
 		ret = find_next_devid(fs_info, &tmp);
 		if (ret) {
+			bio_put(dev->flush_bio);
 			kfree(dev);
 			return ERR_PTR(ret);
 		}

@@ -103,7 +103,7 @@ static void destroy_inodecache(void)
 static int ncp_remount(struct super_block *sb, int *flags, char* data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_NODIRATIME;
+	*flags |= SB_NODIRATIME;
 	return 0;
 }
 
@@ -547,7 +547,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	else
 		default_bufsize = 1024;
 
-	sb->s_flags |= MS_NODIRATIME;	/* probably even noatime */
+	sb->s_flags |= SB_NODIRATIME;	/* probably even noatime */
 	sb->s_maxbytes = 0xFFFFFFFFU;
 	sb->s_blocksize = 1024;	/* Eh...  Is this correct? */
 	sb->s_blocksize_bits = 10;

@@ -1172,7 +1172,7 @@ again:
 	if (!i_done || ret)
 		goto out;
 
-	if (!(inode->i_sb->s_flags & MS_ACTIVE))
+	if (!(inode->i_sb->s_flags & SB_ACTIVE))
 		goto out;
 
 	/*
@@ -1333,7 +1333,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		 * make sure we stop running if someone unmounts
 		 * the FS
 		 */
-		if (!(inode->i_sb->s_flags & MS_ACTIVE))
+		if (!(inode->i_sb->s_flags & SB_ACTIVE))
 			break;
 
 		if (btrfs_defrag_cancelled(fs_info)) {
@@ -2206,7 +2206,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	if (!path)
 		return -ENOMEM;
 
-	ptr = &name[BTRFS_INO_LOOKUP_PATH_MAX];
+	ptr = &name[BTRFS_INO_LOOKUP_PATH_MAX - 1];
 
 	key.objectid = tree_id;
 	key.type = BTRFS_ROOT_ITEM_KEY;

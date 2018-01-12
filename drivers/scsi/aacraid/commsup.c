@@ -467,35 +467,6 @@ int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw
 	return 0;
 }
 
-#ifdef CONFIG_EEH
-static inline int aac_check_eeh_failure(struct aac_dev *dev)
-{
-	/* Check for an EEH failure for the given
-	 * device node. Function eeh_dev_check_failure()
-	 * returns 0 if there has not been an EEH error
-	 * otherwise returns a non-zero value.
-	 *
-	 * Need to be called before any PCI operation,
-	 * i.e.,before aac_adapter_check_health()
-	 */
-	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev->pdev);
-
-	if (eeh_dev_check_failure(edev)) {
-		/* The EEH mechanisms will handle this
-		 * error and reset the device if
-		 * necessary.
-		 */
-		return 1;
-	}
-	return 0;
-}
-#else
-static inline int aac_check_eeh_failure(struct aac_dev *dev)
-{
-	return 0;
-}
-#endif
-
 /*
  *	Define the highest level of host to adapter communication routines.
  *	These routines will support host to adapter FS commuication. These
@@ -701,7 +672,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 					return -ETIMEDOUT;
 				}
 
-				if (aac_check_eeh_failure(dev))
+				if (unlikely(pci_channel_offline(dev->pdev)))
 					return -EFAULT;
 
 				if ((blink = aac_adapter_check_health(dev)) > 0) {
@@ -801,7 +772,7 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
 
-		if (aac_check_eeh_failure(dev))
+		if (unlikely(pci_channel_offline(dev->pdev)))
 			return -EFAULT;
 
 		fibptr->flags |= FIB_CONTEXT_FLAG_WAIT;
@@ -1583,6 +1554,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 * will ensure that i/o is queisced and the card is flushed in that
 	 * case.
 	 */
+	aac_free_irq(aac);
 	aac_fib_map_free(aac);
 	dma_free_coherent(&aac->pdev->dev, aac->comm_size, aac->comm_addr,
 			  aac->comm_phys);
@@ -1590,7 +1562,6 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	aac->comm_phys = 0;
 	kfree(aac->queues);
 	aac->queues = NULL;
-	aac_free_irq(aac);
 	kfree(aac->fsa_dev);
 	aac->fsa_dev = NULL;
 
@@ -2511,8 +2482,8 @@ int aac_command_thread(void *data)
 			/* Synchronize our watches */
 			if (((NSEC_PER_SEC - (NSEC_PER_SEC / HZ)) > now.tv_nsec)
 			 && (now.tv_nsec > (NSEC_PER_SEC / HZ)))
-				difference = (((NSEC_PER_SEC - now.tv_nsec) * HZ)
-				  + NSEC_PER_SEC / 2) / NSEC_PER_SEC;
+				difference = HZ + HZ / 2 -
+					     now.tv_nsec / (NSEC_PER_SEC / HZ);
 			else {
 				if (now.tv_nsec > NSEC_PER_SEC / 2)
 					++now.tv_sec;
@@ -2536,6 +2507,10 @@ int aac_command_thread(void *data)
 		if (kthread_should_stop())
 			break;
 
+		/*
+		 * we probably want usleep_range() here instead of the
+		 * jiffies computation
+		 */
 		schedule_timeout(difference);
 
 		if (kthread_should_stop())

@@ -28,17 +28,17 @@ struct atomisp_histogram32 {
 };
 
 struct atomisp_dvs2_stat_types32 {
-	compat_uptr_t odd_real; /**< real part of the odd statistics*/
-	compat_uptr_t odd_imag; /**< imaginary part of the odd statistics*/
-	compat_uptr_t even_real;/**< real part of the even statistics*/
-	compat_uptr_t even_imag;/**< imaginary part of the even statistics*/
+	compat_uptr_t odd_real; /** real part of the odd statistics*/
+	compat_uptr_t odd_imag; /** imaginary part of the odd statistics*/
+	compat_uptr_t even_real;/** real part of the even statistics*/
+	compat_uptr_t even_imag;/** imaginary part of the even statistics*/
 };
 
 struct atomisp_dvs2_coef_types32 {
-	compat_uptr_t odd_real; /**< real part of the odd coefficients*/
-	compat_uptr_t odd_imag; /**< imaginary part of the odd coefficients*/
-	compat_uptr_t even_real;/**< real part of the even coefficients*/
-	compat_uptr_t even_imag;/**< imaginary part of the even coefficients*/
+	compat_uptr_t odd_real; /** real part of the odd coefficients*/
+	compat_uptr_t odd_imag; /** imaginary part of the odd coefficients*/
+	compat_uptr_t even_real;/** real part of the even coefficients*/
+	compat_uptr_t even_imag;/** imaginary part of the even coefficients*/
 };
 
 struct atomisp_dvs2_statistics32 {

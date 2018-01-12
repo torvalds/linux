@@ -781,17 +781,17 @@ xfs_log_mount_finish(
 	 * something to an unlinked inode, the irele won't cause
 	 * premature truncation and freeing of the inode, which results
 	 * in log recovery failure.  We have to evict the unreferenced
-	 * lru inodes after clearing MS_ACTIVE because we don't
+	 * lru inodes after clearing SB_ACTIVE because we don't
 	 * otherwise clean up the lru if there's a subsequent failure in
 	 * xfs_mountfs, which leads to us leaking the inodes if nothing
 	 * else (e.g. quotacheck) references the inodes before the
 	 * mount failure occurs.
 	 */
-	mp->m_super->s_flags |= MS_ACTIVE;
+	mp->m_super->s_flags |= SB_ACTIVE;
 	error = xlog_recover_finish(mp->m_log);
 	if (!error)
 		xfs_log_work_queue(mp);
-	mp->m_super->s_flags &= ~MS_ACTIVE;
+	mp->m_super->s_flags &= ~SB_ACTIVE;
 	evict_inodes(mp->m_super);
 
 	/*

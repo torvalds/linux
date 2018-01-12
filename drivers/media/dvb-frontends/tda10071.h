@@ -38,7 +38,6 @@
  * @tuner_i2c_addr: CX24118A tuner I2C address (0x14, 0x54, ...).
  * @get_dvb_frontend: Get DVB frontend.
  */
-
 struct tda10071_platform_data {
 	u32 clk;
 	u16 i2c_wr_max;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/perf_event.h>
 #include <linux/perf_regs.h>
 #include <linux/kernel.h>

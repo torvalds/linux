@@ -327,13 +327,13 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 	int last_byte_offset = -1;
 	struct vgic_irq *irq;
 	int ret;
+	u8 val;
 
 	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
 		int byte_offset, bit_nr;
 		struct kvm_vcpu *vcpu;
 		gpa_t pendbase, ptr;
 		bool stored;
-		u8 val;
 
 		vcpu = irq->target_vcpu;
 		if (!vcpu)

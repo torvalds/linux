@@ -71,8 +71,8 @@ const nfs4_stateid zero_stateid = {
 };
 const nfs4_stateid invalid_stateid = {
 	{
-		.seqid = cpu_to_be32(0xffffffffU),
-		.other = { 0 },
+		/* Funky initialiser keeps older gcc versions happy */
+		.data = { 0xff, 0xff, 0xff, 0xff, 0 },
 	},
 	.type = NFS4_INVALID_STATEID_TYPE,
 };

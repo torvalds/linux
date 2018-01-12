@@ -752,7 +752,7 @@ int nfs_getattr(const struct path *path, struct kstat *stat,
 	 * Note that we only have to check the vfsmount flags here:
 	 *  - NFS always sets S_NOATIME by so checking it would give a
 	 *    bogus result
-	 *  - NFS never sets MS_NOATIME or MS_NODIRATIME so there is
+	 *  - NFS never sets SB_NOATIME or SB_NODIRATIME so there is
 	 *    no point in checking those.
 	 */
 	if ((path->mnt->mnt_flags & MNT_NOATIME) ||

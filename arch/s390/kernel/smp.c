@@ -55,6 +55,7 @@
 #include <asm/sigp.h>
 #include <asm/idle.h>
 #include <asm/nmi.h>
+#include <asm/topology.h>
 #include "entry.h"
 
 enum {

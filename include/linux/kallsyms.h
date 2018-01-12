@@ -14,12 +14,6 @@
 #define KSYM_SYMBOL_LEN (sizeof("%s+%#lx/%#lx [%s]") + (KSYM_NAME_LEN - 1) + \
 			 2*(BITS_PER_LONG*3/10) + (MODULE_NAME_LEN - 1) + 1)
 
-#ifndef CONFIG_64BIT
-# define KALLSYM_FMT "%08lx"
-#else
-# define KALLSYM_FMT "%016lx"
-#endif
-
 struct module;
 
 #ifdef CONFIG_KALLSYMS

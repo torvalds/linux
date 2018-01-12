@@ -148,8 +148,10 @@ struct pkcs7_message *pkcs7_parse_message(const void *data, size_t datalen)
 	}
 
 	ret = pkcs7_check_authattrs(ctx->msg);
-	if (ret < 0)
+	if (ret < 0) {
+		msg = ERR_PTR(ret);
 		goto out;
+	}
 
 	msg = ctx->msg;
 	ctx->msg = NULL;

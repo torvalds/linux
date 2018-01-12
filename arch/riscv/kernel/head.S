@@ -152,6 +152,3 @@ END(_start)
 __PAGE_ALIGNED_BSS
 	/* Empty zero page */
 	.balign PAGE_SIZE
-ENTRY(empty_zero_page)
-	.fill (empty_zero_page + PAGE_SIZE) - ., 1, 0x00
-END(empty_zero_page)

@@ -671,10 +671,13 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		disk->flags |= GENHD_FL_NO_PART_SCAN;
 	} else {
+		int ret;
+
 		/* Register BDI before referencing it from bdev */
 		disk_to_dev(disk)->devt = devt;
-		bdi_register_owner(disk->queue->backing_dev_info,
-				disk_to_dev(disk));
+		ret = bdi_register_owner(disk->queue->backing_dev_info,
+						disk_to_dev(disk));
+		WARN_ON(ret);
 		blk_register_region(disk_devt(disk), disk->minors, NULL,
 				    exact_match, exact_lock, disk);
 	}
@@ -1389,7 +1392,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 
 	if (minors > DISK_MAX_PARTS) {
 		printk(KERN_ERR
-			"block: can't allocated more than %d partitions\n",
+			"block: can't allocate more than %d partitions\n",
 			DISK_MAX_PARTS);
 		minors = DISK_MAX_PARTS;
 	}

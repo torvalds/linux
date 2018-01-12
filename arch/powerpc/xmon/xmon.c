@@ -1590,7 +1590,7 @@ static void print_bug_trap(struct pt_regs *regs)
 	printf("kernel BUG at %s:%u!\n",
 	       bug->file, bug->line);
 #else
-	printf("kernel BUG at %p!\n", (void *)bug->bug_addr);
+	printf("kernel BUG at %px!\n", (void *)bug->bug_addr);
 #endif
 #endif /* CONFIG_BUG */
 }
@@ -2329,7 +2329,7 @@ static void dump_one_paca(int cpu)
 
 	p = &paca[cpu];
 
-	printf("paca for cpu 0x%x @ %p:\n", cpu, p);
+	printf("paca for cpu 0x%x @ %px:\n", cpu, p);
 
 	printf(" %-*s = %s\n", 20, "possible", cpu_possible(cpu) ? "yes" : "no");
 	printf(" %-*s = %s\n", 20, "present", cpu_present(cpu) ? "yes" : "no");
@@ -2945,7 +2945,7 @@ static void show_task(struct task_struct *tsk)
 		(tsk->exit_state & EXIT_DEAD) ? 'E' :
 		(tsk->state & TASK_INTERRUPTIBLE) ? 'S' : '?';
 
-	printf("%p %016lx %6d %6d %c %2d %s\n", tsk,
+	printf("%px %016lx %6d %6d %c %2d %s\n", tsk,
 		tsk->thread.ksp,
 		tsk->pid, tsk->parent->pid,
 		state, task_thread_info(tsk)->cpu,
@@ -2988,7 +2988,7 @@ static void show_pte(unsigned long addr)
 
 	if (setjmp(bus_error_jmp) != 0) {
 		catch_memory_errors = 0;
-		printf("*** Error dumping pte for task %p\n", tsk);
+		printf("*** Error dumping pte for task %px\n", tsk);
 		return;
 	}
 
@@ -3074,7 +3074,7 @@ static void show_tasks(void)
 
 	if (setjmp(bus_error_jmp) != 0) {
 		catch_memory_errors = 0;
-		printf("*** Error dumping task %p\n", tsk);
+		printf("*** Error dumping task %px\n", tsk);
 		return;
 	}
 

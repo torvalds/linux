@@ -191,6 +191,24 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 
 	switch (type) {
 	case KFD_QUEUE_TYPE_SDMA:
+		if (dev->dqm->queue_count >=
+			CIK_SDMA_QUEUES_PER_ENGINE * CIK_SDMA_ENGINE_NUM) {
+			pr_err("Over-subscription is not allowed for SDMA.\n");
+			retval = -EPERM;
+			goto err_create_queue;
+		}
+
+		retval = create_cp_queue(pqm, dev, &q, properties, f, *qid);
+		if (retval != 0)
+			goto err_create_queue;
+		pqn->q = q;
+		pqn->kq = NULL;
+		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd,
+						&q->properties.vmid);
+		pr_debug("DQM returned %d for create_queue\n", retval);
+		print_queue(q);
+		break;
+
 	case KFD_QUEUE_TYPE_COMPUTE:
 		/* check if there is over subscription */
 		if ((sched_policy == KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION) &&

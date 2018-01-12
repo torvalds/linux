@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_CROP_TYPES_H
 #define __IA_CSS_CROP_TYPES_H
 
-/** Crop frame
+/* Crop frame
  *
  *  ISP block: crop frame
  */

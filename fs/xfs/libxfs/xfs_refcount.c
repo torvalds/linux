@@ -1488,27 +1488,12 @@ __xfs_refcount_cow_alloc(
 	xfs_extlen_t		aglen,
 	struct xfs_defer_ops	*dfops)
 {
-	int			error;
-
 	trace_xfs_refcount_cow_increase(rcur->bc_mp, rcur->bc_private.a.agno,
 			agbno, aglen);
 
 	/* Add refcount btree reservation */
-	error = xfs_refcount_adjust_cow(rcur, agbno, aglen,
+	return xfs_refcount_adjust_cow(rcur, agbno, aglen,
 			XFS_REFCOUNT_ADJUST_COW_ALLOC, dfops);
-	if (error)
-		return error;
-
-	/* Add rmap entry */
-	if (xfs_sb_version_hasrmapbt(&rcur->bc_mp->m_sb)) {
-		error = xfs_rmap_alloc_extent(rcur->bc_mp, dfops,
-				rcur->bc_private.a.agno,
-				agbno, aglen, XFS_RMAP_OWN_COW);
-		if (error)
-			return error;
-	}
-
-	return error;
 }
 
 /*
@@ -1521,27 +1506,12 @@ __xfs_refcount_cow_free(
 	xfs_extlen_t		aglen,
 	struct xfs_defer_ops	*dfops)
 {
-	int			error;
-
 	trace_xfs_refcount_cow_decrease(rcur->bc_mp, rcur->bc_private.a.agno,
 			agbno, aglen);
 
 	/* Remove refcount btree reservation */
-	error = xfs_refcount_adjust_cow(rcur, agbno, aglen,
+	return xfs_refcount_adjust_cow(rcur, agbno, aglen,
 			XFS_REFCOUNT_ADJUST_COW_FREE, dfops);
-	if (error)
-		return error;
-
-	/* Remove rmap entry */
-	if (xfs_sb_version_hasrmapbt(&rcur->bc_mp->m_sb)) {
-		error = xfs_rmap_free_extent(rcur->bc_mp, dfops,
-				rcur->bc_private.a.agno,
-				agbno, aglen, XFS_RMAP_OWN_COW);
-		if (error)
-			return error;
-	}
-
-	return error;
 }
 
 /* Record a CoW staging extent in the refcount btree. */
@@ -1552,11 +1522,19 @@ xfs_refcount_alloc_cow_extent(
 	xfs_fsblock_t			fsb,
 	xfs_extlen_t			len)
 {
+	int				error;
+
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
 		return 0;
 
-	return __xfs_refcount_add(mp, dfops, XFS_REFCOUNT_ALLOC_COW,
+	error = __xfs_refcount_add(mp, dfops, XFS_REFCOUNT_ALLOC_COW,
 			fsb, len);
+	if (error)
+		return error;
+
+	/* Add rmap entry */
+	return xfs_rmap_alloc_extent(mp, dfops, XFS_FSB_TO_AGNO(mp, fsb),
+			XFS_FSB_TO_AGBNO(mp, fsb), len, XFS_RMAP_OWN_COW);
 }
 
 /* Forget a CoW staging event in the refcount btree. */
@@ -1567,8 +1545,16 @@ xfs_refcount_free_cow_extent(
 	xfs_fsblock_t			fsb,
 	xfs_extlen_t			len)
 {
+	int				error;
+
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
 		return 0;
+
+	/* Remove rmap entry */
+	error = xfs_rmap_free_extent(mp, dfops, XFS_FSB_TO_AGNO(mp, fsb),
+			XFS_FSB_TO_AGBNO(mp, fsb), len, XFS_RMAP_OWN_COW);
+	if (error)
+		return error;
 
 	return __xfs_refcount_add(mp, dfops, XFS_REFCOUNT_FREE_COW,
 			fsb, len);

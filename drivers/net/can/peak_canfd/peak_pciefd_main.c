@@ -825,7 +825,10 @@ err_release_regions:
 err_disable_pci:
 	pci_disable_device(pdev);
 
-	return err;
+	/* pci_xxx_config_word() return positive PCIBIOS_xxx error codes while
+	 * the probe() function must return a negative errno in case of failure
+	 * (err is unchanged if negative) */
+	return pcibios_err_to_errno(err);
 }
 
 /* free the board structure object, as well as its resources: */

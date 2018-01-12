@@ -121,7 +121,7 @@
 					switch0port10: port@10 {
 						reg = <10>;
 						label = "dsa";
-						phy-mode = "xgmii";
+						phy-mode = "xaui";
 						link = <&switch1port10>;
 					};
 				};
@@ -208,7 +208,7 @@
 					switch1port10: port@10 {
 						reg = <10>;
 						label = "dsa";
-						phy-mode = "xgmii";
+						phy-mode = "xaui";
 						link = <&switch0port10>;
 					};
 				};
@@ -359,7 +359,7 @@
 };
 
 &i2c1 {
-	at24mac602@0 {
+	at24mac602@50 {
 		compatible = "atmel,24c02";
 		reg = <0x50>;
 		read-only;

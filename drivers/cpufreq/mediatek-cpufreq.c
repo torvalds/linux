@@ -620,3 +620,7 @@ static int __init mtk_cpufreq_driver_init(void)
 	return 0;
 }
 device_initcall(mtk_cpufreq_driver_init);
+
+MODULE_DESCRIPTION("MediaTek CPUFreq driver");
+MODULE_AUTHOR("Pi-Cheng Chen <pi-cheng.chen@linaro.org>");
+MODULE_LICENSE("GPL v2");

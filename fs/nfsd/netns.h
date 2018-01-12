@@ -119,6 +119,9 @@ struct nfsd_net {
 	u32 clverifier_counter;
 
 	struct svc_serv *nfsd_serv;
+
+	wait_queue_head_t ntf_wq;
+	atomic_t ntf_refcnt;
 };
 
 /* Simple check to find out if a given net was properly initialized */

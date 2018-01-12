@@ -1145,6 +1145,7 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	noio_flag = memalloc_noio_save();
 	p->tx_ring = vzalloc(ipoib_sendq_size * sizeof(*p->tx_ring));
 	if (!p->tx_ring) {
+		memalloc_noio_restore(noio_flag);
 		ret = -ENOMEM;
 		goto err_tx;
 	}

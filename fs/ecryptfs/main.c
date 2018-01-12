@@ -560,8 +560,8 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	 * Set the POSIX ACL flag based on whether they're enabled in the lower
 	 * mount.
 	 */
-	s->s_flags = flags & ~MS_POSIXACL;
-	s->s_flags |= path.dentry->d_sb->s_flags & MS_POSIXACL;
+	s->s_flags = flags & ~SB_POSIXACL;
+	s->s_flags |= path.dentry->d_sb->s_flags & SB_POSIXACL;
 
 	/**
 	 * Force a read-only eCryptfs mount when:
@@ -569,7 +569,7 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	 *   2) The ecryptfs_encrypted_view mount option is specified
 	 */
 	if (sb_rdonly(path.dentry->d_sb) || mount_crypt_stat->flags & ECRYPTFS_ENCRYPTED_VIEW_ENABLED)
-		s->s_flags |= MS_RDONLY;
+		s->s_flags |= SB_RDONLY;
 
 	s->s_maxbytes = path.dentry->d_sb->s_maxbytes;
 	s->s_blocksize = path.dentry->d_sb->s_blocksize;
@@ -602,7 +602,7 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	ecryptfs_set_dentry_private(s->s_root, root_info);
 	root_info->lower_path = path;
 
-	s->s_flags |= MS_ACTIVE;
+	s->s_flags |= SB_ACTIVE;
 	return dget(s->s_root);
 
 out_free:

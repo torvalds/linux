@@ -1,5 +1,5 @@
 /*
-* Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -516,13 +516,11 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			right_view = (plane_state->rotation == ROTATION_ANGLE_270) != sec_split;
 
 		if (right_view) {
-			data->viewport.width /= 2;
-			data->viewport_c.width /= 2;
-			data->viewport.x +=  data->viewport.width;
-			data->viewport_c.x +=  data->viewport_c.width;
+			data->viewport.x +=  data->viewport.width / 2;
+			data->viewport_c.x +=  data->viewport_c.width / 2;
 			/* Ceil offset pipe */
-			data->viewport.width += data->viewport.width % 2;
-			data->viewport_c.width += data->viewport_c.width % 2;
+			data->viewport.width = (data->viewport.width + 1) / 2;
+			data->viewport_c.width = (data->viewport_c.width + 1) / 2;
 		} else {
 			data->viewport.width /= 2;
 			data->viewport_c.width /= 2;
@@ -580,14 +578,12 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->plane_state ==
 		pipe_ctx->plane_state) {
 		if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
-			pipe_ctx->plane_res.scl_data.recout.height /= 2;
-			pipe_ctx->plane_res.scl_data.recout.y += pipe_ctx->plane_res.scl_data.recout.height;
+			pipe_ctx->plane_res.scl_data.recout.y += pipe_ctx->plane_res.scl_data.recout.height / 2;
 			/* Floor primary pipe, ceil 2ndary pipe */
-			pipe_ctx->plane_res.scl_data.recout.height += pipe_ctx->plane_res.scl_data.recout.height % 2;
+			pipe_ctx->plane_res.scl_data.recout.height = (pipe_ctx->plane_res.scl_data.recout.height + 1) / 2;
 		} else {
-			pipe_ctx->plane_res.scl_data.recout.width /= 2;
-			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width;
-			pipe_ctx->plane_res.scl_data.recout.width += pipe_ctx->plane_res.scl_data.recout.width % 2;
+			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width / 2;
+			pipe_ctx->plane_res.scl_data.recout.width = (pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
 		}
 	} else if (pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state) {
@@ -856,6 +852,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
 	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 
+
 	/* Taps calculations */
 	if (pipe_ctx->plane_res.xfm != NULL)
 		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
@@ -864,16 +861,21 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->plane_res.dpp != NULL)
 		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
 				pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
-
 	if (!res) {
 		/* Try 24 bpp linebuffer */
 		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_24BPP;
 
-		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
-			pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+		if (pipe_ctx->plane_res.xfm != NULL)
+			res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
+					pipe_ctx->plane_res.xfm,
+					&pipe_ctx->plane_res.scl_data,
+					&plane_state->scaling_quality);
 
-		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
-			pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+		if (pipe_ctx->plane_res.dpp != NULL)
+			res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
+					pipe_ctx->plane_res.dpp,
+					&pipe_ctx->plane_res.scl_data,
+					&plane_state->scaling_quality);
 	}
 
 	if (res)
@@ -991,8 +993,10 @@ static struct pipe_ctx *acquire_free_pipe_for_stream(
 
 	head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);
 
-	if (!head_pipe)
+	if (!head_pipe) {
 		ASSERT(0);
+		return NULL;
+	}
 
 	if (!head_pipe->plane_state)
 		return head_pipe;
@@ -1447,11 +1451,16 @@ static struct stream_encoder *find_first_free_match_stream_enc_for_link(
 
 static struct audio *find_first_free_audio(
 		struct resource_context *res_ctx,
-		const struct resource_pool *pool)
+		const struct resource_pool *pool,
+		enum engine_id id)
 {
 	int i;
 	for (i = 0; i < pool->audio_count; i++) {
 		if ((res_ctx->is_audio_acquired[i] == false) && (res_ctx->is_stream_enc_acquired[i] == true)) {
+			/*we have enough audio endpoint, find the matching inst*/
+			if (id != i)
+				continue;
+
 			return pool->audios[i];
 		}
 	}
@@ -1700,7 +1709,7 @@ enum dc_status resource_map_pool_resources(
 	    dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
 	    stream->audio_info.mode_count) {
 		pipe_ctx->stream_res.audio = find_first_free_audio(
-		&context->res_ctx, pool);
+		&context->res_ctx, pool, pipe_ctx->stream_res.stream_enc->id);
 
 		/*
 		 * Audio assigned in order first come first get.
@@ -1765,13 +1774,16 @@ enum dc_status dc_validate_global_state(
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i, j;
 
+	if (!new_ctx)
+		return DC_ERROR_UNEXPECTED;
+
 	if (dc->res_pool->funcs->validate_global) {
 			result = dc->res_pool->funcs->validate_global(dc, new_ctx);
 			if (result != DC_OK)
 				return result;
 	}
 
-	for (i = 0; new_ctx && i < new_ctx->stream_count; i++) {
+	for (i = 0; i < new_ctx->stream_count; i++) {
 		struct dc_stream_state *stream = new_ctx->streams[i];
 
 		for (j = 0; j < dc->res_pool->pipe_count; j++) {

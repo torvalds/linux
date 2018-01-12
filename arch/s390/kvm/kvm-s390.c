@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * hosting zSeries kernel virtual machines
+ * hosting IBM Z kernel virtual machines (s390x)
  *
- * Copyright IBM Corp. 2008, 2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
+ * Copyright IBM Corp. 2008, 2017
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -795,11 +792,12 @@ static int kvm_s390_vm_start_migration(struct kvm *kvm)
 
 	if (kvm->arch.use_cmma) {
 		/*
-		 * Get the last slot. They should be sorted by base_gfn, so the
-		 * last slot is also the one at the end of the address space.
-		 * We have verified above that at least one slot is present.
+		 * Get the first slot. They are reverse sorted by base_gfn, so
+		 * the first slot is also the one at the end of the address
+		 * space. We have verified above that at least one slot is
+		 * present.
 		 */
-		ms = slots->memslots + slots->used_slots - 1;
+		ms = slots->memslots;
 		/* round up so we only use full longs */
 		ram_pages = roundup(ms->base_gfn + ms->npages, BITS_PER_LONG);
 		/* allocate enough bytes to store all the bits */
@@ -3372,7 +3370,6 @@ static void store_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int rc;
-	sigset_t sigsaved;
 
 	if (kvm_run->immediate_exit)
 		return -EINTR;
@@ -3382,8 +3379,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return 0;
 	}
 
-	if (vcpu->sigset_active)
-		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
+	kvm_sigset_activate(vcpu);
 
 	if (!kvm_s390_user_cpu_state_ctrl(vcpu->kvm)) {
 		kvm_s390_vcpu_start(vcpu);
@@ -3417,8 +3413,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	disable_cpu_timer_accounting(vcpu);
 	store_regs(vcpu, kvm_run);
 
-	if (vcpu->sigset_active)
-		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	kvm_sigset_deactivate(vcpu);
 
 	vcpu->stat.exit_userspace++;
 	return rc;
@@ -3811,6 +3806,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			r = -EINVAL;
 			break;
 		}
+		/* do not use irq_state.flags, it will break old QEMUs */
 		r = kvm_s390_set_irq_state(vcpu,
 					   (void __user *) irq_state.buf,
 					   irq_state.len);
@@ -3826,6 +3822,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			r = -EINVAL;
 			break;
 		}
+		/* do not use irq_state.flags, it will break old QEMUs */
 		r = kvm_s390_get_irq_state(vcpu,
 					   (__u8 __user *)  irq_state.buf,
 					   irq_state.len);

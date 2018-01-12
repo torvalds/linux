@@ -134,7 +134,7 @@ enum hva_h264_sei_payload_type {
 	SEI_FRAME_PACKING_ARRANGEMENT = 45
 };
 
-/**
+/*
  * stereo Video Info struct
  */
 struct hva_h264_stereo_video_sei {
@@ -146,7 +146,9 @@ struct hva_h264_stereo_video_sei {
 	u8 right_view_self_contained_flag;
 };
 
-/**
+/*
+ * struct hva_h264_td
+ *
  * @frame_width: width in pixels of the buffer containing the input frame
  * @frame_height: height in pixels of the buffer containing the input frame
  * @frame_num: the parameter to be written in the slice header
@@ -352,7 +354,9 @@ struct hva_h264_td {
 	u32 addr_brc_in_out_parameter;
 };
 
-/**
+/*
+ * struct hva_h264_slice_po
+ *
  * @ slice_size: slice size
  * @ slice_start_time: start time
  * @ slice_stop_time: stop time
@@ -365,7 +369,9 @@ struct hva_h264_slice_po {
 	u32 slice_num;
 };
 
-/**
+/*
+ * struct hva_h264_po
+ *
  * @ bitstream_size: bitstream size
  * @ dct_bitstream_size: dtc bitstream size
  * @ stuffing_bits: number of stuffing bits inserted by the encoder
@@ -391,7 +397,9 @@ struct hva_h264_task {
 	struct hva_h264_po po;
 };
 
-/**
+/*
+ * struct hva_h264_ctx
+ *
  * @seq_info:  sequence information buffer
  * @ref_frame: reference frame buffer
  * @rec_frame: reconstructed frame buffer

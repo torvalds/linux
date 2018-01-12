@@ -22,7 +22,7 @@
 #include <ia_css_stream_public.h>
 #include <ia_css_stream_format.h>
 
-/** @brief convert "errno" error code to "ia_css_err" error code
+/* @brief convert "errno" error code to "ia_css_err" error code
  *
  * @param[in]	"errno" error code
  * @return	"ia_css_err" error code
@@ -31,7 +31,7 @@
 enum ia_css_err ia_css_convert_errno(
 	int in_err);
 
-/** @brief check vf frame info.
+/* @brief check vf frame info.
  *
  * @param[in] info
  * @return	IA_CSS_SUCCESS or error code upon error.
@@ -40,7 +40,7 @@ enum ia_css_err ia_css_convert_errno(
 extern enum ia_css_err ia_css_util_check_vf_info(
 	const struct ia_css_frame_info * const info);
 
-/** @brief check input configuration.
+/* @brief check input configuration.
  *
  * @param[in] stream_config
  * @param[in] must_be_raw
@@ -52,7 +52,7 @@ extern enum ia_css_err ia_css_util_check_input(
 	bool must_be_raw,
 	bool must_be_yuv);
 
-/** @brief check vf and out frame info.
+/* @brief check vf and out frame info.
  *
  * @param[in] out_info
  * @param[in] vf_info
@@ -63,7 +63,7 @@ extern enum ia_css_err ia_css_util_check_vf_out_info(
 	const struct ia_css_frame_info * const out_info,
 	const struct ia_css_frame_info * const vf_info);
 
-/** @brief check width and height
+/* @brief check width and height
  *
  * @param[in] width
  * @param[in] height
@@ -75,7 +75,7 @@ extern enum ia_css_err ia_css_util_check_res(
 	unsigned int height);
 
 #ifdef ISP2401
-/** @brief compare resolutions (less or equal)
+/* @brief compare resolutions (less or equal)
  *
  * @param[in] a resolution
  * @param[in] b resolution
@@ -108,7 +108,7 @@ extern bool ia_css_util_resolution_is_even(
 		const struct ia_css_resolution resolution);
 
 #endif
-/** @brief check width and height
+/* @brief check width and height
  *
  * @param[in] stream_format
  * @param[in] two_ppc
@@ -119,7 +119,7 @@ extern unsigned int ia_css_util_input_format_bpp(
 	enum ia_css_stream_format stream_format,
 	bool two_ppc);
 
-/** @brief check if input format it raw
+/* @brief check if input format it raw
  *
  * @param[in] stream_format
  * @return true if the input format is raw or false otherwise
@@ -128,7 +128,7 @@ extern unsigned int ia_css_util_input_format_bpp(
 extern bool ia_css_util_is_input_format_raw(
 	enum ia_css_stream_format stream_format);
 
-/** @brief check if input format it yuv
+/* @brief check if input format it yuv
  *
  * @param[in] stream_format
  * @return true if the input format is yuv or false otherwise

@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  *    Hypervisor filesystem for Linux on s390.
  *
  *    Copyright IBM Corp. 2006, 2008
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
- *    License: GPL
  */
 
 #define KMSG_COMPONENT "hypfs"

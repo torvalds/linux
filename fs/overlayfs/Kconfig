@@ -24,6 +24,16 @@ config OVERLAY_FS_REDIRECT_DIR
 	  an overlay which has redirects on a kernel that doesn't support this
 	  feature will have unexpected results.
 
+config OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW
+	bool "Overlayfs: follow redirects even if redirects are turned off"
+	default y
+	depends on OVERLAY_FS
+	help
+	  Disable this to get a possibly more secure configuration, but that
+	  might not be backward compatible with previous kernels.
+
+	  For more information, see Documentation/filesystems/overlayfs.txt
+
 config OVERLAY_FS_INDEX
 	bool "Overlayfs: turn on inodes index feature by default"
 	depends on OVERLAY_FS

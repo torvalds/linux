@@ -44,6 +44,7 @@
 
 		reset-gpios = <&gpio6 17 GPIO_ACTIVE_LOW>; /* gpio 177 */
 		vcc-supply = <&vbat>;
+		#phy-cells = <0>;
 
 		clocks = <&auxclk3_ck>;
 		clock-names = "main_clk";

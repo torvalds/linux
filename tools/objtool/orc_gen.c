@@ -165,6 +165,8 @@ int create_orc_sections(struct objtool_file *file)
 
 	/* create .orc_unwind_ip and .rela.orc_unwind_ip sections */
 	sec = elf_create_section(file->elf, ".orc_unwind_ip", sizeof(int), idx);
+	if (!sec)
+		return -1;
 
 	ip_relasec = elf_create_rela_section(file->elf, sec);
 	if (!ip_relasec)

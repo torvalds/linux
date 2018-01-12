@@ -1499,6 +1499,7 @@ static __init int sctp_init(void)
 	INIT_LIST_HEAD(&sctp_address_families);
 	sctp_v4_pf_init();
 	sctp_v6_pf_init();
+	sctp_sched_ops_init();
 
 	status = register_pernet_subsys(&sctp_defaults_ops);
 	if (status)

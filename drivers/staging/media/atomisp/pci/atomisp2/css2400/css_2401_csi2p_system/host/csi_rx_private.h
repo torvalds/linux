@@ -277,6 +277,6 @@ static inline void csi_rx_be_ctrl_reg_store(
 
 	ia_css_device_store_uint32(CSI_RX_BE_CTRL_BASE[ID] + reg*sizeof(hrt_data), value);
 }
-/** end of DLI */
+/* end of DLI */
 
 #endif /* __CSI_RX_PRIVATE_H_INCLUDED__ */

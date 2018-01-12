@@ -35,13 +35,13 @@ static inline u64 mb_per_tick(int mbps)
 struct nullb_cmd {
 	struct list_head list;
 	struct llist_node ll_list;
-	call_single_data_t csd;
+	struct __call_single_data csd;
 	struct request *rq;
 	struct bio *bio;
 	unsigned int tag;
+	blk_status_t error;
 	struct nullb_queue *nq;
 	struct hrtimer timer;
-	blk_status_t error;
 };
 
 struct nullb_queue {
@@ -471,7 +471,6 @@ static void nullb_device_release(struct config_item *item)
 {
 	struct nullb_device *dev = to_nullb_device(item);
 
-	badblocks_exit(&dev->badblocks);
 	null_free_device_storage(dev, false);
 	null_free_dev(dev);
 }
@@ -582,6 +581,10 @@ static struct nullb_device *null_alloc_dev(void)
 
 static void null_free_dev(struct nullb_device *dev)
 {
+	if (!dev)
+		return;
+
+	badblocks_exit(&dev->badblocks);
 	kfree(dev);
 }
 

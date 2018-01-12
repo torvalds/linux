@@ -15,7 +15,7 @@ Optional properties:
 Example:
 
 	i2c@80110000 {
-		bu21013_tp@0x5c {
+		bu21013_tp@5c {
 			compatible = "rohm,bu21013_tp";
 			reg = <0x5c>;
 			touch-gpio = <&gpio2 20 0x4>;

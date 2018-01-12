@@ -1,6 +1,7 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
+generic-y += bpf_perf_event.h
 generic-y += errno.h
 generic-y += fcntl.h
 generic-y += ioctl.h
