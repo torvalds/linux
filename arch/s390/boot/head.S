@@ -315,7 +315,7 @@ ENTRY(startup_kdump)
 	brasl	%r14,startup_kernel
 
 .Lstack:
-	.long	0x8000 + THREAD_SIZE - STACK_FRAME_OVERHEAD
+	.long	0x8000 + (1<<(PAGE_SHIFT+BOOT_STACK_ORDER)) - STACK_FRAME_OVERHEAD
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
 
