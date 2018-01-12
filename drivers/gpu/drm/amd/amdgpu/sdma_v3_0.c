@@ -1155,6 +1155,15 @@ static void sdma_v3_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(10)); /* retry count, poll interval */
 }
 
+static void sdma_v3_0_ring_emit_wreg(struct amdgpu_ring *ring,
+				     uint32_t reg, uint32_t val)
+{
+	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
+			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
+	amdgpu_ring_write(ring, reg);
+	amdgpu_ring_write(ring, val);
+}
+
 static int sdma_v3_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1653,6 +1662,7 @@ static const struct amdgpu_ring_funcs sdma_v3_0_ring_funcs = {
 	.test_ib = sdma_v3_0_ring_test_ib,
 	.insert_nop = sdma_v3_0_ring_insert_nop,
 	.pad_ib = sdma_v3_0_ring_pad_ib,
+	.emit_wreg = sdma_v3_0_ring_emit_wreg,
 };
 
 static void sdma_v3_0_set_ring_funcs(struct amdgpu_device *adev)
