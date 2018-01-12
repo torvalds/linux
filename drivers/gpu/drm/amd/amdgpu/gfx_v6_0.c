@@ -2402,6 +2402,18 @@ static void gfx_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	}
 }
 
+static void gfx_v6_0_ring_emit_wreg(struct amdgpu_ring *ring,
+				    uint32_t reg, uint32_t val)
+{
+	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
+				 WRITE_DATA_DST_SEL(0)));
+	amdgpu_ring_write(ring, reg);
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, val);
+}
 
 static void gfx_v6_0_rlc_fini(struct amdgpu_device *adev)
 {
@@ -3529,6 +3541,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.test_ib = gfx_v6_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.emit_cntxcntl = gfx_v6_ring_emit_cntxcntl,
+	.emit_wreg = gfx_v6_0_ring_emit_wreg,
 };
 
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
@@ -3554,6 +3567,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.test_ring = gfx_v6_0_ring_test_ring,
 	.test_ib = gfx_v6_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
+	.emit_wreg = gfx_v6_0_ring_emit_wreg,
 };
 
 static void gfx_v6_0_set_ring_funcs(struct amdgpu_device *adev)
