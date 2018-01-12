@@ -112,6 +112,17 @@ enum pkt_vec {
  * @off_max:		maximum packet offset within buffer required
  * @guaranteed_sub:	amount of negative adjustment guaranteed possible
  * @guaranteed_add:	amount of positive adjustment guaranteed possible
+ *
+ * @maps:		map capability
+ * @types:		supported map types
+ * @max_maps:		max number of maps supported
+ * @max_elems:		max number of entries in each map
+ * @max_key_sz:		max size of map key
+ * @max_val_sz:		max size of map value
+ * @max_elem_sz:	max size of map entry (key + value)
+ *
+ * @helpers:		helper addressess for various calls
+ * @map_lookup:		map lookup helper address
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
@@ -132,6 +143,19 @@ struct nfp_app_bpf {
 		int guaranteed_sub;
 		int guaranteed_add;
 	} adjust_head;
+
+	struct {
+		u32 types;
+		u32 max_maps;
+		u32 max_elems;
+		u32 max_key_sz;
+		u32 max_val_sz;
+		u32 max_elem_sz;
+	} maps;
+
+	struct {
+		u32 map_lookup;
+	} helpers;
 };
 
 /**

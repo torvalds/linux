@@ -38,7 +38,14 @@
 #include <linux/types.h>
 
 enum bpf_cap_tlv_type {
+	NFP_BPF_CAP_TYPE_FUNC		= 1,
 	NFP_BPF_CAP_TYPE_ADJUST_HEAD	= 2,
+	NFP_BPF_CAP_TYPE_MAPS		= 3,
+};
+
+struct nfp_bpf_cap_tlv_func {
+	__le32 func_id;
+	__le32 func_addr;
 };
 
 struct nfp_bpf_cap_tlv_adjust_head {
@@ -50,6 +57,15 @@ struct nfp_bpf_cap_tlv_adjust_head {
 };
 
 #define NFP_BPF_ADJUST_HEAD_NO_META	BIT(0)
+
+struct nfp_bpf_cap_tlv_maps {
+	__le32 types;
+	__le32 max_maps;
+	__le32 max_elems;
+	__le32 max_key_sz;
+	__le32 max_val_sz;
+	__le32 max_elem_sz;
+};
 
 /*
  * Types defined for map related control messages

@@ -251,6 +251,45 @@ nfp_bpf_parse_cap_adjust_head(struct nfp_app_bpf *bpf, void __iomem *value,
 	return 0;
 }
 
+static int
+nfp_bpf_parse_cap_func(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
+{
+	struct nfp_bpf_cap_tlv_func __iomem *cap = value;
+
+	if (length < sizeof(*cap)) {
+		nfp_err(bpf->app->cpp, "truncated function TLV: %d\n", length);
+		return -EINVAL;
+	}
+
+	switch (readl(&cap->func_id)) {
+	case BPF_FUNC_map_lookup_elem:
+		bpf->helpers.map_lookup = readl(&cap->func_addr);
+		break;
+	}
+
+	return 0;
+}
+
+static int
+nfp_bpf_parse_cap_maps(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
+{
+	struct nfp_bpf_cap_tlv_maps __iomem *cap = value;
+
+	if (length < sizeof(*cap)) {
+		nfp_err(bpf->app->cpp, "truncated maps TLV: %d\n", length);
+		return -EINVAL;
+	}
+
+	bpf->maps.types = readl(&cap->types);
+	bpf->maps.max_maps = readl(&cap->max_maps);
+	bpf->maps.max_elems = readl(&cap->max_elems);
+	bpf->maps.max_key_sz = readl(&cap->max_key_sz);
+	bpf->maps.max_val_sz = readl(&cap->max_val_sz);
+	bpf->maps.max_elem_sz = readl(&cap->max_elem_sz);
+
+	return 0;
+}
+
 static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 {
 	struct nfp_cpp *cpp = app->pf->cpp;
@@ -276,9 +315,17 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 			goto err_release_free;
 
 		switch (type) {
+		case NFP_BPF_CAP_TYPE_FUNC:
+			if (nfp_bpf_parse_cap_func(app->priv, value, length))
+				goto err_release_free;
+			break;
 		case NFP_BPF_CAP_TYPE_ADJUST_HEAD:
 			if (nfp_bpf_parse_cap_adjust_head(app->priv, value,
 							  length))
+				goto err_release_free;
+			break;
+		case NFP_BPF_CAP_TYPE_MAPS:
+			if (nfp_bpf_parse_cap_maps(app->priv, value, length))
 				goto err_release_free;
 			break;
 		default:
