@@ -209,9 +209,6 @@ vc4_irq_postinstall(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-	/* Undo the effects of a previous vc4_irq_uninstall. */
-	enable_irq(dev->irq);
-
 	/* Enable both the render done and out of memory interrupts. */
 	V3D_WRITE(V3D_INTENA, V3D_DRIVER_IRQS);
 

@@ -1359,12 +1359,15 @@ static int ppgtt_handle_guest_write_page_table_bytes(void *gp,
 			return ret;
 	} else {
 		if (!test_bit(index, spt->post_shadow_bitmap)) {
+			int type = spt->shadow_page.type;
+
 			ppgtt_get_shadow_entry(spt, &se, index);
 			ret = ppgtt_handle_guest_entry_removal(gpt, &se, index);
 			if (ret)
 				return ret;
+			ops->set_pfn(&se, vgpu->gtt.scratch_pt[type].page_mfn);
+			ppgtt_set_shadow_entry(spt, &se, index);
 		}
-
 		ppgtt_set_post_shadow(spt, index);
 	}
 
