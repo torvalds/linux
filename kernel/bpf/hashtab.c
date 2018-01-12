@@ -269,6 +269,28 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	if (numa_node != NUMA_NO_NODE && (percpu || percpu_lru))
 		return ERR_PTR(-EINVAL);
 
+	/* check sanity of attributes.
+	 * value_size == 0 may be allowed in the future to use map as a set
+	 */
+	if (attr->max_entries == 0 || attr->key_size == 0 ||
+	    attr->value_size == 0)
+		return ERR_PTR(-EINVAL);
+
+	if (attr->key_size > MAX_BPF_STACK)
+		/* eBPF programs initialize keys on stack, so they cannot be
+		 * larger than max stack size
+		 */
+		return ERR_PTR(-E2BIG);
+
+	if (attr->value_size >= KMALLOC_MAX_SIZE -
+	    MAX_BPF_STACK - sizeof(struct htab_elem))
+		/* if value_size is bigger, the user space won't be able to
+		 * access the elements via bpf syscall. This check also makes
+		 * sure that the elem_size doesn't overflow and it's
+		 * kmalloc-able later in htab_map_update_elem()
+		 */
+		return ERR_PTR(-E2BIG);
+
 	htab = kzalloc(sizeof(*htab), GFP_USER);
 	if (!htab)
 		return ERR_PTR(-ENOMEM);
@@ -280,14 +302,6 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	htab->map.max_entries = attr->max_entries;
 	htab->map.map_flags = attr->map_flags;
 	htab->map.numa_node = numa_node;
-
-	/* check sanity of attributes.
-	 * value_size == 0 may be allowed in the future to use map as a set
-	 */
-	err = -EINVAL;
-	if (htab->map.max_entries == 0 || htab->map.key_size == 0 ||
-	    htab->map.value_size == 0)
-		goto free_htab;
 
 	if (percpu_lru) {
 		/* ensure each CPU's lru list has >=1 elements.
@@ -304,22 +318,6 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	/* hash table size must be power of 2 */
 	htab->n_buckets = roundup_pow_of_two(htab->map.max_entries);
 
-	err = -E2BIG;
-	if (htab->map.key_size > MAX_BPF_STACK)
-		/* eBPF programs initialize keys on stack, so they cannot be
-		 * larger than max stack size
-		 */
-		goto free_htab;
-
-	if (htab->map.value_size >= KMALLOC_MAX_SIZE -
-	    MAX_BPF_STACK - sizeof(struct htab_elem))
-		/* if value_size is bigger, the user space won't be able to
-		 * access the elements via bpf syscall. This check also makes
-		 * sure that the elem_size doesn't overflow and it's
-		 * kmalloc-able later in htab_map_update_elem()
-		 */
-		goto free_htab;
-
 	htab->elem_size = sizeof(struct htab_elem) +
 			  round_up(htab->map.key_size, 8);
 	if (percpu)
@@ -327,6 +325,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	else
 		htab->elem_size += round_up(htab->map.value_size, 8);
 
+	err = -E2BIG;
 	/* prevent zero size kmalloc and check for u32 overflow */
 	if (htab->n_buckets == 0 ||
 	    htab->n_buckets > U32_MAX / sizeof(struct bucket))
