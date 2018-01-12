@@ -3970,6 +3970,11 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 				val &= ~fval;
 			}
 		}
+		if (val) {
+			if (print && arg->flags.delim)
+				trace_seq_puts(s, arg->flags.delim);
+			trace_seq_printf(s, "0x%llx", val);
+		}
 		break;
 	case PRINT_SYMBOL:
 		val = eval_num_arg(data, size, event, arg->symbol.field);
