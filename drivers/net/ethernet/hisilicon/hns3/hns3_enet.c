@@ -1118,25 +1118,28 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 static int hns3_nic_set_features(struct net_device *netdev,
 				 netdev_features_t features)
 {
+	netdev_features_t changed = netdev->features ^ features;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
-	netdev_features_t changed;
 	int ret;
 
-	if (features & (NETIF_F_TSO | NETIF_F_TSO6)) {
-		priv->ops.fill_desc = hns3_fill_desc_tso;
-		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tso;
-	} else {
-		priv->ops.fill_desc = hns3_fill_desc;
-		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
+	if (changed & (NETIF_F_TSO | NETIF_F_TSO6)) {
+		if (features & (NETIF_F_TSO | NETIF_F_TSO6)) {
+			priv->ops.fill_desc = hns3_fill_desc_tso;
+			priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tso;
+		} else {
+			priv->ops.fill_desc = hns3_fill_desc;
+			priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
+		}
 	}
 
-	if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
-		h->ae_algo->ops->enable_vlan_filter(h, true);
-	else
-		h->ae_algo->ops->enable_vlan_filter(h, false);
+	if (changed & NETIF_F_HW_VLAN_CTAG_FILTER) {
+		if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
+			h->ae_algo->ops->enable_vlan_filter(h, true);
+		else
+			h->ae_algo->ops->enable_vlan_filter(h, false);
+	}
 
-	changed = netdev->features ^ features;
 	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
 		if (features & NETIF_F_HW_VLAN_CTAG_RX)
 			ret = h->ae_algo->ops->enable_hw_strip_rxvtag(h, true);
