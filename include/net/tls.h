@@ -170,7 +170,7 @@ static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)
 
 static inline void tls_err_abort(struct sock *sk)
 {
-	sk->sk_err = -EBADMSG;
+	sk->sk_err = EBADMSG;
 	sk->sk_error_report(sk);
 }
 
