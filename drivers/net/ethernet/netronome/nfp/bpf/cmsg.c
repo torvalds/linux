@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/bpf.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/jiffies.h>
@@ -77,6 +78,28 @@ static void nfp_bpf_free_tag(struct nfp_app_bpf *bpf, u16 tag)
 	while (!test_bit(bpf->tag_alloc_last, bpf->tag_allocator) &&
 	       bpf->tag_alloc_last != bpf->tag_alloc_next)
 		bpf->tag_alloc_last++;
+}
+
+static struct sk_buff *
+nfp_bpf_cmsg_alloc(struct nfp_app_bpf *bpf, unsigned int size)
+{
+	struct sk_buff *skb;
+
+	skb = nfp_app_ctrl_msg_alloc(bpf->app, size, GFP_KERNEL);
+	skb_put(skb, size);
+
+	return skb;
+}
+
+static struct sk_buff *
+nfp_bpf_cmsg_map_req_alloc(struct nfp_app_bpf *bpf, unsigned int n)
+{
+	unsigned int size;
+
+	size = sizeof(struct cmsg_req_map_op);
+	size += sizeof(struct cmsg_key_value_pair) * n;
+
+	return nfp_bpf_cmsg_alloc(bpf, size);
 }
 
 static unsigned int nfp_bpf_cmsg_get_tag(struct sk_buff *skb)
@@ -159,7 +182,7 @@ nfp_bpf_cmsg_wait_reply(struct nfp_app_bpf *bpf, enum nfp_bpf_cmsg_type type,
 	return skb;
 }
 
-struct sk_buff *
+static struct sk_buff *
 nfp_bpf_cmsg_communicate(struct nfp_app_bpf *bpf, struct sk_buff *skb,
 			 enum nfp_bpf_cmsg_type type, unsigned int reply_size)
 {
@@ -204,6 +227,191 @@ nfp_bpf_cmsg_communicate(struct nfp_app_bpf *bpf, struct sk_buff *skb,
 err_free:
 	dev_kfree_skb_any(skb);
 	return ERR_PTR(-EIO);
+}
+
+static int
+nfp_bpf_ctrl_rc_to_errno(struct nfp_app_bpf *bpf,
+			 struct cmsg_reply_map_simple *reply)
+{
+	static const int res_table[] = {
+		[CMSG_RC_SUCCESS]	= 0,
+		[CMSG_RC_ERR_MAP_FD]	= -EBADFD,
+		[CMSG_RC_ERR_MAP_NOENT]	= -ENOENT,
+		[CMSG_RC_ERR_MAP_ERR]	= -EINVAL,
+		[CMSG_RC_ERR_MAP_PARSE]	= -EIO,
+		[CMSG_RC_ERR_MAP_EXIST]	= -EEXIST,
+		[CMSG_RC_ERR_MAP_NOMEM]	= -ENOMEM,
+		[CMSG_RC_ERR_MAP_E2BIG]	= -E2BIG,
+	};
+	u32 rc;
+
+	rc = be32_to_cpu(reply->rc);
+	if (rc >= ARRAY_SIZE(res_table)) {
+		cmsg_warn(bpf, "FW responded with invalid status: %u\n", rc);
+		return -EIO;
+	}
+
+	return res_table[rc];
+}
+
+long long int
+nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map)
+{
+	struct cmsg_reply_map_alloc_tbl *reply;
+	struct cmsg_req_map_alloc_tbl *req;
+	struct sk_buff *skb;
+	u32 tid;
+	int err;
+
+	skb = nfp_bpf_cmsg_alloc(bpf, sizeof(*req));
+	if (!skb)
+		return -ENOMEM;
+
+	req = (void *)skb->data;
+	req->key_size = cpu_to_be32(map->key_size);
+	req->value_size = cpu_to_be32(map->value_size);
+	req->max_entries = cpu_to_be32(map->max_entries);
+	req->map_type = cpu_to_be32(map->map_type);
+	req->map_flags = 0;
+
+	skb = nfp_bpf_cmsg_communicate(bpf, skb, CMSG_TYPE_MAP_ALLOC,
+				       sizeof(*reply));
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	reply = (void *)skb->data;
+	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	if (err)
+		goto err_free;
+
+	tid = be32_to_cpu(reply->tid);
+	dev_consume_skb_any(skb);
+
+	return tid;
+err_free:
+	dev_kfree_skb_any(skb);
+	return err;
+}
+
+void nfp_bpf_ctrl_free_map(struct nfp_app_bpf *bpf, struct nfp_bpf_map *nfp_map)
+{
+	struct cmsg_reply_map_free_tbl *reply;
+	struct cmsg_req_map_free_tbl *req;
+	struct sk_buff *skb;
+	int err;
+
+	skb = nfp_bpf_cmsg_alloc(bpf, sizeof(*req));
+	if (!skb) {
+		cmsg_warn(bpf, "leaking map - failed to allocate msg\n");
+		return;
+	}
+
+	req = (void *)skb->data;
+	req->tid = cpu_to_be32(nfp_map->tid);
+
+	skb = nfp_bpf_cmsg_communicate(bpf, skb, CMSG_TYPE_MAP_FREE,
+				       sizeof(*reply));
+	if (IS_ERR(skb)) {
+		cmsg_warn(bpf, "leaking map - I/O error\n");
+		return;
+	}
+
+	reply = (void *)skb->data;
+	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	if (err)
+		cmsg_warn(bpf, "leaking map - FW responded with: %d\n", err);
+
+	dev_consume_skb_any(skb);
+}
+
+static int
+nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap,
+		      enum nfp_bpf_cmsg_type op,
+		      u8 *key, u8 *value, u64 flags, u8 *out_key, u8 *out_value)
+{
+	struct nfp_bpf_map *nfp_map = offmap->dev_priv;
+	struct nfp_app_bpf *bpf = nfp_map->bpf;
+	struct bpf_map *map = &offmap->map;
+	struct cmsg_reply_map_op *reply;
+	struct cmsg_req_map_op *req;
+	struct sk_buff *skb;
+	int err;
+
+	/* FW messages have no space for more than 32 bits of flags */
+	if (flags >> 32)
+		return -EOPNOTSUPP;
+
+	skb = nfp_bpf_cmsg_map_req_alloc(bpf, 1);
+	if (!skb)
+		return -ENOMEM;
+
+	req = (void *)skb->data;
+	req->tid = cpu_to_be32(nfp_map->tid);
+	req->count = cpu_to_be32(1);
+	req->flags = cpu_to_be32(flags);
+
+	/* Copy inputs */
+	if (key)
+		memcpy(&req->elem[0].key, key, map->key_size);
+	if (value)
+		memcpy(&req->elem[0].value, value, map->value_size);
+
+	skb = nfp_bpf_cmsg_communicate(bpf, skb, op,
+				       sizeof(*reply) + sizeof(*reply->elem));
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	reply = (void *)skb->data;
+	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	if (err)
+		goto err_free;
+
+	/* Copy outputs */
+	if (out_key)
+		memcpy(out_key, &reply->elem[0].key, map->key_size);
+	if (out_value)
+		memcpy(out_value, &reply->elem[0].value, map->value_size);
+
+	dev_consume_skb_any(skb);
+
+	return 0;
+err_free:
+	dev_kfree_skb_any(skb);
+	return err;
+}
+
+int nfp_bpf_ctrl_update_entry(struct bpf_offloaded_map *offmap,
+			      void *key, void *value, u64 flags)
+{
+	return nfp_bpf_ctrl_entry_op(offmap, CMSG_TYPE_MAP_UPDATE,
+				     key, value, flags, NULL, NULL);
+}
+
+int nfp_bpf_ctrl_del_entry(struct bpf_offloaded_map *offmap, void *key)
+{
+	return nfp_bpf_ctrl_entry_op(offmap, CMSG_TYPE_MAP_DELETE,
+				     key, NULL, 0, NULL, NULL);
+}
+
+int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
+			      void *key, void *value)
+{
+	return nfp_bpf_ctrl_entry_op(offmap, CMSG_TYPE_MAP_LOOKUP,
+				     key, NULL, 0, NULL, value);
+}
+
+int nfp_bpf_ctrl_getfirst_entry(struct bpf_offloaded_map *offmap,
+				void *next_key)
+{
+	return nfp_bpf_ctrl_entry_op(offmap, CMSG_TYPE_MAP_GETFIRST,
+				     NULL, NULL, 0, next_key, NULL);
+}
+
+int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
+			       void *key, void *next_key)
+{
+	return nfp_bpf_ctrl_entry_op(offmap, CMSG_TYPE_MAP_GETNEXT,
+				     key, NULL, 0, next_key, NULL);
 }
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb)

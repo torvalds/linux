@@ -303,8 +303,19 @@ nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv);
 
-struct sk_buff *
-nfp_bpf_cmsg_communicate(struct nfp_app_bpf *bpf, struct sk_buff *skb,
-			 enum nfp_bpf_cmsg_type type, unsigned int reply_size);
+long long int
+nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map);
+void
+nfp_bpf_ctrl_free_map(struct nfp_app_bpf *bpf, struct nfp_bpf_map *nfp_map);
+int nfp_bpf_ctrl_getfirst_entry(struct bpf_offloaded_map *offmap,
+				void *next_key);
+int nfp_bpf_ctrl_update_entry(struct bpf_offloaded_map *offmap,
+			      void *key, void *value, u64 flags);
+int nfp_bpf_ctrl_del_entry(struct bpf_offloaded_map *offmap, void *key);
+int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
+			      void *key, void *value);
+int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
+			       void *key, void *next_key);
+
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
 #endif
