@@ -308,7 +308,7 @@ static void usb_wakeup_ip_sleep_set(struct xhci_hcd_mtk *mtk, bool enable)
 		break;
 	default:
 		return;
-	};
+	}
 	regmap_update_bits(mtk->uwk, reg, msk, val);
 }
 
