@@ -1893,8 +1893,6 @@ static enum i40iw_status_code i40iw_sc_get_next_aeqe(struct i40iw_sc_aeq *aeq,
 static enum i40iw_status_code i40iw_sc_repost_aeq_entries(struct i40iw_sc_dev *dev,
 							  u32 count)
 {
-	if (count > I40IW_MAX_AEQ_ALLOCATE_COUNT)
-		return I40IW_ERR_INVALID_SIZE;
 
 	if (dev->is_pf)
 		i40iw_wr32(dev->hw, I40E_PFPE_AEQALLOC, count);
