@@ -4300,6 +4300,26 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				goto process_again;
 			case 'p':
 				ls = 1;
+				if (isalnum(ptr[1])) {
+					ptr++;
+					/* Check for special pointers */
+					switch (*ptr) {
+					case 's':
+					case 'S':
+					case 'f':
+					case 'F':
+						break;
+					default:
+						/*
+						 * Older kernels do not process
+						 * dereferenced pointers.
+						 * Only process if the pointer
+						 * value is a printable.
+						 */
+						if (isprint(*(char *)bptr))
+							goto process_string;
+					}
+				}
 				/* fall through */
 			case 'd':
 			case 'u':
@@ -4352,6 +4372,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 
 				break;
 			case 's':
+ process_string:
 				arg = alloc_arg();
 				if (!arg) {
 					do_warning_event(event, "%s(%d): not enough memory!",
@@ -4958,6 +4979,11 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 
 				if (isalnum(ptr[1]))
 					ptr++;
+
+				if (arg->type == PRINT_BSTRING) {
+					trace_seq_puts(s, arg->string.string);
+					break;
+				}
 
 				if (*ptr == 'F' || *ptr == 'f' ||
 				    *ptr == 'S' || *ptr == 's') {
