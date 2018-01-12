@@ -1072,6 +1072,17 @@ static void uvd_v6_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
+static void uvd_v6_0_ring_emit_wreg(struct amdgpu_ring *ring,
+				    uint32_t reg, uint32_t val)
+{
+	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
+	amdgpu_ring_write(ring, reg << 2);
+	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0));
+	amdgpu_ring_write(ring, val);
+	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
+	amdgpu_ring_write(ring, 0x8);
+}
+
 static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vmid, unsigned pasid,
 					uint64_t pd_addr)
@@ -1608,6 +1619,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
+	.emit_wreg = uvd_v6_0_ring_emit_wreg,
 };
 
 static const struct amdgpu_ring_funcs uvd_v6_0_enc_ring_vm_funcs = {
