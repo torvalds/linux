@@ -270,14 +270,14 @@ restart:
 				continue;
 			tw = inet_twsk(sk);
 			if ((tw->tw_family != family) ||
-				atomic_read(&twsk_net(tw)->count))
+				refcount_read(&twsk_net(tw)->count))
 				continue;
 
 			if (unlikely(!refcount_inc_not_zero(&tw->tw_refcnt)))
 				continue;
 
 			if (unlikely((tw->tw_family != family) ||
-				     atomic_read(&twsk_net(tw)->count))) {
+				     refcount_read(&twsk_net(tw)->count))) {
 				inet_twsk_put(tw);
 				goto restart;
 			}

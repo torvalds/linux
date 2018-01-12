@@ -35,7 +35,7 @@ LIST_HEAD(net_namespace_list);
 EXPORT_SYMBOL_GPL(net_namespace_list);
 
 struct net init_net = {
-	.count		= ATOMIC_INIT(1),
+	.count		= REFCOUNT_INIT(1),
 	.dev_base_head	= LIST_HEAD_INIT(init_net.dev_base_head),
 };
 EXPORT_SYMBOL(init_net);
@@ -224,10 +224,10 @@ int peernet2id_alloc(struct net *net, struct net *peer)
 	bool alloc;
 	int id;
 
-	if (atomic_read(&net->count) == 0)
+	if (refcount_read(&net->count) == 0)
 		return NETNSA_NSID_NOT_ASSIGNED;
 	spin_lock_bh(&net->nsid_lock);
-	alloc = atomic_read(&peer->count) == 0 ? false : true;
+	alloc = refcount_read(&peer->count) == 0 ? false : true;
 	id = __peernet2id_alloc(net, peer, &alloc);
 	spin_unlock_bh(&net->nsid_lock);
 	if (alloc && id >= 0)
@@ -284,7 +284,7 @@ static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 	int error = 0;
 	LIST_HEAD(net_exit_list);
 
-	atomic_set(&net->count, 1);
+	refcount_set(&net->count, 1);
 	refcount_set(&net->passive, 1);
 	net->dev_base_seq = 1;
 	net->user_ns = user_ns;
