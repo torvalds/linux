@@ -4303,11 +4303,10 @@ static void to_rdma_ah_attr(struct mlx5_ib_dev *ibdev,
 
 	memset(ah_attr, 0, sizeof(*ah_attr));
 
-	ah_attr->type = rdma_ah_find_type(&ibdev->ib_dev, path->port);
-	rdma_ah_set_port_num(ah_attr, path->port);
-	if (rdma_ah_get_port_num(ah_attr) == 0 ||
-	    rdma_ah_get_port_num(ah_attr) > MLX5_CAP_GEN(dev, num_ports))
+	if (!path->port || path->port > MLX5_CAP_GEN(dev, num_ports))
 		return;
+
+	ah_attr->type = rdma_ah_find_type(&ibdev->ib_dev, path->port);
 
 	rdma_ah_set_port_num(ah_attr, path->port);
 	rdma_ah_set_sl(ah_attr, path->dci_cfi_prio_sl & 0xf);
