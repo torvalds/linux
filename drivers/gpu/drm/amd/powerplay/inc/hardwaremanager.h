@@ -368,8 +368,8 @@ struct phm_odn_clock_levels {
 	uint32_t size;
 	uint32_t options;
 	uint32_t flags;
-	uint32_t number_of_performance_levels;
-	/* variable-sized array, specify by ulNumberOfPerformanceLevels. */
+	uint32_t num_of_pl;
+	/* variable-sized array, specify by num_of_pl. */
 	struct phm_odn_performance_level entries[8];
 };
 

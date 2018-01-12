@@ -1386,8 +1386,8 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 
 	if (PP_CAP(PHM_PlatformCaps_ODNinACSupport) ||
 	    PP_CAP(PHM_PlatformCaps_ODNinDCSupport)) {
-		data->odn_dpm_table.odn_core_clock_dpm_levels.
-		number_of_performance_levels = data->dpm_table.gfx_table.count;
+		data->odn_dpm_table.odn_core_clock_dpm_levels.num_of_pl =
+						data->dpm_table.gfx_table.count;
 		for (i = 0; i < data->dpm_table.gfx_table.count; i++) {
 			data->odn_dpm_table.odn_core_clock_dpm_levels.entries[i].clock =
 					data->dpm_table.gfx_table.dpm_levels[i].value;
@@ -1407,8 +1407,8 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 					dep_gfx_table->entries[i].cks_voffset;
 		}
 
-		data->odn_dpm_table.odn_memory_clock_dpm_levels.
-		number_of_performance_levels = data->dpm_table.mem_table.count;
+		data->odn_dpm_table.odn_memory_clock_dpm_levels.num_of_pl =
+						data->dpm_table.mem_table.count;
 		for (i = 0; i < data->dpm_table.mem_table.count; i++) {
 			data->odn_dpm_table.odn_memory_clock_dpm_levels.entries[i].clock =
 					data->dpm_table.mem_table.dpm_levels[i].value;
