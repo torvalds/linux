@@ -887,6 +887,182 @@ static void hns3_get_channels(struct net_device *netdev,
 		h->ae_algo->ops->get_channels(h, ch);
 }
 
+static int hns3_get_coalesce_per_queue(struct net_device *netdev, u32 queue,
+				       struct ethtool_coalesce *cmd)
+{
+	struct hns3_enet_tqp_vector *tx_vector, *rx_vector;
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
+	u16 queue_num = h->kinfo.num_tqps;
+
+	if (queue >= queue_num) {
+		netdev_err(netdev,
+			   "Invalid queue value %d! Queue max id=%d\n",
+			   queue, queue_num - 1);
+		return -EINVAL;
+	}
+
+	tx_vector = priv->ring_data[queue].ring->tqp_vector;
+	rx_vector = priv->ring_data[queue_num + queue].ring->tqp_vector;
+
+	cmd->use_adaptive_tx_coalesce = tx_vector->tx_group.gl_adapt_enable;
+	cmd->use_adaptive_rx_coalesce = rx_vector->rx_group.gl_adapt_enable;
+
+	cmd->tx_coalesce_usecs = tx_vector->tx_group.int_gl;
+	cmd->rx_coalesce_usecs = rx_vector->rx_group.int_gl;
+
+	cmd->tx_coalesce_usecs_high = h->kinfo.int_rl_setting;
+	cmd->rx_coalesce_usecs_high = h->kinfo.int_rl_setting;
+
+	return 0;
+}
+
+static int hns3_get_coalesce(struct net_device *netdev,
+			     struct ethtool_coalesce *cmd)
+{
+	return hns3_get_coalesce_per_queue(netdev, 0, cmd);
+}
+
+static int hns3_check_gl_coalesce_para(struct net_device *netdev,
+				       struct ethtool_coalesce *cmd)
+{
+	u32 rx_gl, tx_gl;
+
+	if (cmd->rx_coalesce_usecs > HNS3_INT_GL_MAX) {
+		netdev_err(netdev,
+			   "Invalid rx-usecs value, rx-usecs range is 0-%d\n",
+			   HNS3_INT_GL_MAX);
+		return -EINVAL;
+	}
+
+	if (cmd->tx_coalesce_usecs > HNS3_INT_GL_MAX) {
+		netdev_err(netdev,
+			   "Invalid tx-usecs value, tx-usecs range is 0-%d\n",
+			   HNS3_INT_GL_MAX);
+		return -EINVAL;
+	}
+
+	rx_gl = hns3_gl_round_down(cmd->rx_coalesce_usecs);
+	if (rx_gl != cmd->rx_coalesce_usecs) {
+		netdev_info(netdev,
+			    "rx_usecs(%d) rounded down to %d, because it must be multiple of 2.\n",
+			    cmd->rx_coalesce_usecs, rx_gl);
+	}
+
+	tx_gl = hns3_gl_round_down(cmd->tx_coalesce_usecs);
+	if (tx_gl != cmd->tx_coalesce_usecs) {
+		netdev_info(netdev,
+			    "tx_usecs(%d) rounded down to %d, because it must be multiple of 2.\n",
+			    cmd->tx_coalesce_usecs, tx_gl);
+	}
+
+	return 0;
+}
+
+static int hns3_check_rl_coalesce_para(struct net_device *netdev,
+				       struct ethtool_coalesce *cmd)
+{
+	u32 rl;
+
+	if (cmd->tx_coalesce_usecs_high != cmd->rx_coalesce_usecs_high) {
+		netdev_err(netdev,
+			   "tx_usecs_high must be same as rx_usecs_high.\n");
+		return -EINVAL;
+	}
+
+	if (cmd->rx_coalesce_usecs_high > HNS3_INT_RL_MAX) {
+		netdev_err(netdev,
+			   "Invalid usecs_high value, usecs_high range is 0-%d\n",
+			   HNS3_INT_RL_MAX);
+		return -EINVAL;
+	}
+
+	rl = hns3_rl_round_down(cmd->rx_coalesce_usecs_high);
+	if (rl != cmd->rx_coalesce_usecs_high) {
+		netdev_info(netdev,
+			    "usecs_high(%d) rounded down to %d, because it must be multiple of 4.\n",
+			    cmd->rx_coalesce_usecs_high, rl);
+	}
+
+	return 0;
+}
+
+static int hns3_check_coalesce_para(struct net_device *netdev,
+				    struct ethtool_coalesce *cmd)
+{
+	int ret;
+
+	ret = hns3_check_gl_coalesce_para(netdev, cmd);
+	if (ret) {
+		netdev_err(netdev,
+			   "Check gl coalesce param fail. ret = %d\n", ret);
+		return ret;
+	}
+
+	ret = hns3_check_rl_coalesce_para(netdev, cmd);
+	if (ret) {
+		netdev_err(netdev,
+			   "Check rl coalesce param fail. ret = %d\n", ret);
+		return ret;
+	}
+
+	if (cmd->use_adaptive_tx_coalesce == 1 ||
+	    cmd->use_adaptive_rx_coalesce == 1) {
+		netdev_info(netdev,
+			    "adaptive-tx=%d and adaptive-rx=%d, tx_usecs or rx_usecs will changed dynamically.\n",
+			    cmd->use_adaptive_tx_coalesce,
+			    cmd->use_adaptive_rx_coalesce);
+	}
+
+	return 0;
+}
+
+static void hns3_set_coalesce_per_queue(struct net_device *netdev,
+					struct ethtool_coalesce *cmd,
+					u32 queue)
+{
+	struct hns3_enet_tqp_vector *tx_vector, *rx_vector;
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
+	int queue_num = h->kinfo.num_tqps;
+
+	tx_vector = priv->ring_data[queue].ring->tqp_vector;
+	rx_vector = priv->ring_data[queue_num + queue].ring->tqp_vector;
+
+	tx_vector->tx_group.gl_adapt_enable = cmd->use_adaptive_tx_coalesce;
+	rx_vector->rx_group.gl_adapt_enable = cmd->use_adaptive_rx_coalesce;
+
+	tx_vector->tx_group.int_gl = cmd->tx_coalesce_usecs;
+	rx_vector->rx_group.int_gl = cmd->rx_coalesce_usecs;
+
+	hns3_set_vector_coalesce_tx_gl(tx_vector, tx_vector->tx_group.int_gl);
+	hns3_set_vector_coalesce_rx_gl(rx_vector, rx_vector->rx_group.int_gl);
+
+	hns3_set_vector_coalesce_rl(tx_vector, h->kinfo.int_rl_setting);
+	hns3_set_vector_coalesce_rl(rx_vector, h->kinfo.int_rl_setting);
+}
+
+static int hns3_set_coalesce(struct net_device *netdev,
+			     struct ethtool_coalesce *cmd)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	u16 queue_num = h->kinfo.num_tqps;
+	int ret;
+	int i;
+
+	ret = hns3_check_coalesce_para(netdev, cmd);
+	if (ret)
+		return ret;
+
+	h->kinfo.int_rl_setting =
+		hns3_rl_round_down(cmd->rx_coalesce_usecs_high);
+
+	for (i = 0; i < queue_num; i++)
+		hns3_set_coalesce_per_queue(netdev, cmd, i);
+
+	return 0;
+}
+
 static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_ringparam = hns3_get_ringparam,
@@ -900,6 +1076,7 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_rxfh = hns3_get_rss,
 	.set_rxfh = hns3_set_rss,
 	.get_link_ksettings = hns3_get_link_ksettings,
+	.get_channels = hns3_get_channels,
 };
 
 static const struct ethtool_ops hns3_ethtool_ops = {
@@ -924,6 +1101,8 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.nway_reset = hns3_nway_reset,
 	.get_channels = hns3_get_channels,
 	.set_channels = hns3_set_channels,
+	.get_coalesce = hns3_get_coalesce,
+	.set_coalesce = hns3_set_coalesce,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)

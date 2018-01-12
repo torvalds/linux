@@ -133,11 +133,16 @@ struct hnae3_vector_info {
 #define HNAE3_RING_TYPE_B 0
 #define HNAE3_RING_TYPE_TX 0
 #define HNAE3_RING_TYPE_RX 1
+#define HNAE3_RING_GL_IDX_S 0
+#define HNAE3_RING_GL_IDX_M GENMASK(1, 0)
+#define HNAE3_RING_GL_RX 0
+#define HNAE3_RING_GL_TX 1
 
 struct hnae3_ring_chain_node {
 	struct hnae3_ring_chain_node *next;
 	u32 tqp_index;
 	u32 flag;
+	u32 int_gl_idx;
 };
 
 #define HNAE3_IS_TX_RING(node) \
@@ -448,6 +453,8 @@ struct hnae3_knic_private_info {
 	u16 num_tqps;		  /* total number of TQPs in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs in this instance */
 	const struct hnae3_dcb_ops *dcb_ops;
+
+	u16 int_rl_setting;
 };
 
 struct hnae3_roce_private_info {

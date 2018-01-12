@@ -451,10 +451,14 @@ enum hns3_link_mode_bits {
 	HNS3_LM_COUNT = 15
 };
 
-#define HNS3_INT_GL_50K		0x000A
-#define HNS3_INT_GL_20K		0x0019
-#define HNS3_INT_GL_18K		0x001B
-#define HNS3_INT_GL_8K		0x003E
+#define HNS3_INT_GL_MAX			0x1FE0
+#define HNS3_INT_GL_50K			0x0014
+#define HNS3_INT_GL_20K			0x0032
+#define HNS3_INT_GL_18K			0x0036
+#define HNS3_INT_GL_8K			0x007C
+
+#define HNS3_INT_RL_MAX			0x00EC
+#define HNS3_INT_RL_ENABLE_MASK		0x40
 
 struct hns3_enet_ring_group {
 	/* array of pointers to rings */
@@ -464,6 +468,7 @@ struct hns3_enet_ring_group {
 	u16 count;
 	enum hns3_flow_level_range flow_level;
 	u16 int_gl;
+	u8 gl_adapt_enable;
 };
 
 struct hns3_enet_tqp_vector {
@@ -594,6 +599,12 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 #define hns3_get_handle(ndev) \
 	(((struct hns3_nic_priv *)netdev_priv(ndev))->ae_handle)
 
+#define hns3_gl_usec_to_reg(int_gl) (int_gl >> 1)
+#define hns3_gl_round_down(int_gl) round_down(int_gl, 2)
+
+#define hns3_rl_usec_to_reg(int_rl) (int_rl >> 2)
+#define hns3_rl_round_down(int_rl) round_down(int_rl, 4)
+
 void hns3_ethtool_set_ops(struct net_device *netdev);
 int hns3_set_channels(struct net_device *netdev,
 		      struct ethtool_channels *ch);
@@ -605,6 +616,13 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev);
 int hns3_clean_rx_ring(
 		struct hns3_enet_ring *ring, int budget,
 		void (*rx_fn)(struct hns3_enet_ring *, struct sk_buff *));
+
+void hns3_set_vector_coalesce_rx_gl(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 gl_value);
+void hns3_set_vector_coalesce_tx_gl(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 gl_value);
+void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
+				 u32 rl_value);
 
 #ifdef CONFIG_HNS3_DCB
 void hns3_dcbnl_setup(struct hnae3_handle *handle);
