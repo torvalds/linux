@@ -28,6 +28,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_vce.h"
+#include "soc15.h"
 #include "soc15d.h"
 #include "soc15_common.h"
 #include "mmsch_v1_0.h"
@@ -969,30 +970,15 @@ static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 				   uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gmc.gmc_funcs->get_invalidate_req(vmid);
-	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 
-	amdgpu_gmc_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
-	pd_addr |= flags;
+	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pasid, pd_addr);
 
-	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_hi32 + vmid * 2) << 2);
-	amdgpu_ring_write(ring, upper_32_bits(pd_addr));
-
-	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
-	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
-
+	/* wait for reg writes */
 	amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
 	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
 	amdgpu_ring_write(ring, 0xffffffff);
 	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
-
-	/* flush TLB */
-	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	(hub->vm_inv_eng0_req + eng) << 2);
-	amdgpu_ring_write(ring, req);
 
 	/* wait for flush */
 	amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
@@ -1078,7 +1064,7 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.set_wptr = vce_v4_0_ring_set_wptr,
 	.parse_cs = amdgpu_vce_ring_parse_cs_vm,
 	.emit_frame_size =
-		17 + /* vce_v4_0_emit_vm_flush */
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 + 8 + /* vce_v4_0_emit_vm_flush */
 		5 + 5 + /* amdgpu_vce_ring_emit_fence x2 vm fence */
 		1, /* vce_v4_0_ring_insert_end */
 	.emit_ib_size = 5, /* vce_v4_0_ring_emit_ib */

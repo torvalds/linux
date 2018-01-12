@@ -25,6 +25,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_vcn.h"
+#include "soc15.h"
 #include "soc15d.h"
 #include "soc15_common.h"
 
@@ -852,22 +853,6 @@ static void vcn_v1_0_dec_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
-static void vcn_v1_0_dec_vm_reg_write(struct amdgpu_ring *ring,
-				uint32_t data0, uint32_t data1)
-{
-	struct amdgpu_device *adev = ring->adev;
-
-	amdgpu_ring_write(ring,
-		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0));
-	amdgpu_ring_write(ring, data0);
-	amdgpu_ring_write(ring,
-		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1), 0));
-	amdgpu_ring_write(ring, data1);
-	amdgpu_ring_write(ring,
-		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0));
-	amdgpu_ring_write(ring, VCN_DEC_CMD_WRITE_REG << 1);
-}
-
 static void vcn_v1_0_dec_vm_reg_wait(struct amdgpu_ring *ring,
 				uint32_t data0, uint32_t data1, uint32_t mask)
 {
@@ -892,31 +877,16 @@ static void vcn_v1_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					    uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gmc.gmc_funcs->get_invalidate_req(vmid);
-	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 	uint32_t data0, data1, mask;
 
-	amdgpu_gmc_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
-	pd_addr |= flags;
+	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pasid, pd_addr);
 
-	data0 = (hub->ctx0_ptb_addr_hi32 + vmid * 2) << 2;
-	data1 = upper_32_bits(pd_addr);
-	vcn_v1_0_dec_vm_reg_write(ring, data0, data1);
-
-	data0 = (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2;
-	data1 = lower_32_bits(pd_addr);
-	vcn_v1_0_dec_vm_reg_write(ring, data0, data1);
-
+	/* wait for register write */
 	data0 = (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2;
 	data1 = lower_32_bits(pd_addr);
 	mask = 0xffffffff;
 	vcn_v1_0_dec_vm_reg_wait(ring, data0, data1, mask);
-
-	/* flush TLB */
-	data0 = (hub->vm_inv_eng0_req + eng) << 2;
-	data1 = req;
-	vcn_v1_0_dec_vm_reg_write(ring, data0, data1);
 
 	/* wait for flush */
 	data0 = (hub->vm_inv_eng0_ack + eng) << 2;
@@ -1026,33 +996,16 @@ static void vcn_v1_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					    uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gmc.gmc_funcs->get_invalidate_req(vmid);
-	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 
-	amdgpu_gmc_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
-	pd_addr |= flags;
+	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pasid, pd_addr);
 
-	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,
-			  (hub->ctx0_ptb_addr_hi32 + vmid * 2) << 2);
-	amdgpu_ring_write(ring, upper_32_bits(pd_addr));
-
-	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,
-			  (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
-	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
-
+	/* wait for reg writes */
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WAIT);
 	amdgpu_ring_write(ring,
 			  (hub->ctx0_ptb_addr_lo32 + vmid * 2) << 2);
 	amdgpu_ring_write(ring, 0xffffffff);
 	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
-
-	/* flush TLB */
-	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	(hub->vm_inv_eng0_req + eng) << 2);
-	amdgpu_ring_write(ring, req);
 
 	/* wait for flush */
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WAIT);
@@ -1144,7 +1097,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_dec_ring_vm_funcs = {
 	.set_wptr = vcn_v1_0_dec_ring_set_wptr,
 	.emit_frame_size =
 		2 + /* vcn_v1_0_dec_ring_emit_hdp_invalidate */
-		34 + /* vcn_v1_0_dec_ring_emit_vm_flush */
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 + 16 + /* vcn_v1_0_dec_ring_emit_vm_flush */
 		14 + 14 + /* vcn_v1_0_dec_ring_emit_fence x2 vm fence */
 		6,
 	.emit_ib_size = 8, /* vcn_v1_0_dec_ring_emit_ib */
@@ -1173,7 +1126,7 @@ static const struct amdgpu_ring_funcs vcn_v1_0_enc_ring_vm_funcs = {
 	.get_wptr = vcn_v1_0_enc_ring_get_wptr,
 	.set_wptr = vcn_v1_0_enc_ring_set_wptr,
 	.emit_frame_size =
-		17 + /* vcn_v1_0_enc_ring_emit_vm_flush */
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 + 8 + /* vcn_v1_0_enc_ring_emit_vm_flush */
 		5 + 5 + /* vcn_v1_0_enc_ring_emit_fence x2 vm fence */
 		1, /* vcn_v1_0_enc_ring_insert_end */
 	.emit_ib_size = 5, /* vcn_v1_0_enc_ring_emit_ib */

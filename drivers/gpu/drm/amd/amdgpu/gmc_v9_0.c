@@ -366,6 +366,29 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
 	spin_unlock(&adev->gmc.invalidate_lock);
 }
 
+static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
+					    unsigned vmid, unsigned pasid,
+					    uint64_t pd_addr)
+{
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	uint32_t req = gmc_v9_0_get_invalidate_req(vmid);
+	uint64_t flags = AMDGPU_PTE_VALID;
+	unsigned eng = ring->vm_inv_eng;
+
+	amdgpu_gmc_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
+	pd_addr |= flags;
+
+	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_lo32 + (2 * vmid),
+			      lower_32_bits(pd_addr));
+
+	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_hi32 + (2 * vmid),
+			      upper_32_bits(pd_addr));
+
+	amdgpu_ring_emit_wreg(ring, hub->vm_inv_eng0_req + eng, req);
+
+	return pd_addr;
+}
+
 /**
  * gmc_v9_0_set_pte_pde - update the page tables using MMIO
  *
@@ -491,8 +514,8 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 
 static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v9_0_flush_gpu_tlb,
+	.emit_flush_gpu_tlb = gmc_v9_0_emit_flush_gpu_tlb,
 	.set_pte_pde = gmc_v9_0_set_pte_pde,
-	.get_invalidate_req = gmc_v9_0_get_invalidate_req,
 	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags,
 	.get_vm_pde = gmc_v9_0_get_vm_pde
 };

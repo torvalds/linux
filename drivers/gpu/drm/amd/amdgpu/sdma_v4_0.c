@@ -1137,28 +1137,9 @@ static void sdma_v4_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					 uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gmc.gmc_funcs->get_invalidate_req(vmid);
-	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 
-	amdgpu_gmc_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
-	pd_addr |= flags;
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, hub->ctx0_ptb_addr_lo32 + vmid * 2);
-	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, hub->ctx0_ptb_addr_hi32 + vmid * 2);
-	amdgpu_ring_write(ring, upper_32_bits(pd_addr));
-
-	/* flush TLB */
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, hub->vm_inv_eng0_req + eng);
-	amdgpu_ring_write(ring, req);
+	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pasid, pd_addr);
 
 	/* wait for flush */
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_POLL_REGMEM) |
@@ -1604,7 +1585,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 		6 + /* sdma_v4_0_ring_emit_hdp_flush */
 		3 + /* sdma_v4_0_ring_emit_hdp_invalidate */
 		6 + /* sdma_v4_0_ring_emit_pipeline_sync */
-		18 + /* sdma_v4_0_ring_emit_vm_flush */
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 + 6 + /* sdma_v4_0_ring_emit_vm_flush */
 		10 + 10 + 10, /* sdma_v4_0_ring_emit_fence x3 for user fence, vm fence */
 	.emit_ib_size = 7 + 6, /* sdma_v4_0_ring_emit_ib */
 	.emit_ib = sdma_v4_0_ring_emit_ib,
