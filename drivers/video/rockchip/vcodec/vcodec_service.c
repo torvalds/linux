@@ -694,6 +694,9 @@ static void _vpu_reset(struct vpu_subdev_data *data)
 	pservice->reg_resev = NULL;
 
 #ifdef CONFIG_RESET_CONTROLLER
+
+	rockchip_save_qos(pservice->dev);
+
 	/* rk3328 need to use sip_smc_vpu_reset to reset vpu */
 	if (pservice->hw_ops->reduce_freq == vcodec_reduce_freq_rk3328) {
 		sip_smc_vpu_reset(0, 0, 0);
@@ -721,6 +724,9 @@ static void _vpu_reset(struct vpu_subdev_data *data)
 
 		rockchip_pmu_idle_request(pservice->dev, false);
 	}
+
+	rockchip_restore_qos(pservice->dev);
+
 	dev_info(pservice->dev, "reset done\n");
 #endif
 }
