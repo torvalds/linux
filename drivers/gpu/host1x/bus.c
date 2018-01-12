@@ -211,8 +211,7 @@ int host1x_device_init(struct host1x_device *device)
 				dev_err(&device->dev,
 					"failed to initialize %s: %d\n",
 					dev_name(client->dev), err);
-				mutex_unlock(&device->clients_lock);
-				return err;
+				goto teardown;
 			}
 		}
 	}
@@ -220,6 +219,14 @@ int host1x_device_init(struct host1x_device *device)
 	mutex_unlock(&device->clients_lock);
 
 	return 0;
+
+teardown:
+	list_for_each_entry_continue_reverse(client, &device->clients, list)
+		if (client->ops->exit)
+			client->ops->exit(client);
+
+	mutex_unlock(&device->clients_lock);
+	return err;
 }
 EXPORT_SYMBOL(host1x_device_init);
 

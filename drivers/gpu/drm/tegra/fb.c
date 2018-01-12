@@ -54,17 +54,40 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 	uint64_t modifier = fb->base.modifier;
 
-	switch (fourcc_mod_tegra_mod(modifier)) {
-	case NV_FORMAT_MOD_TEGRA_TILED:
+	switch (modifier) {
+	case DRM_FORMAT_MOD_NVIDIA_TEGRA_TILED:
 		tiling->mode = TEGRA_BO_TILING_MODE_TILED;
 		tiling->value = 0;
 		break;
 
-	case NV_FORMAT_MOD_TEGRA_16BX2_BLOCK(0):
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(0):
 		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
-		tiling->value = fourcc_mod_tegra_param(modifier);
-		if (tiling->value > 5)
-			return -EINVAL;
+		tiling->value = 0;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(1):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 1;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(2):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 2;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 3;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 4;
+		break;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5):
+		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
+		tiling->value = 5;
 		break;
 
 	default:
@@ -230,6 +253,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	cmd.height = sizes->surface_height;
 	cmd.pitches[0] = round_up(sizes->surface_width * bytes_per_pixel,
 				  tegra->pitch_align);
+
 	cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 						     sizes->surface_depth);
 
