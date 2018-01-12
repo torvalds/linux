@@ -1523,6 +1523,7 @@ continue_func:
 	goto continue_func;
 }
 
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON
 static int get_callee_stack_depth(struct bpf_verifier_env *env,
 				  const struct bpf_insn *insn, int idx)
 {
@@ -1537,6 +1538,7 @@ static int get_callee_stack_depth(struct bpf_verifier_env *env,
 	subprog++;
 	return env->subprog_stack_depth[subprog];
 }
+#endif
 
 /* truncate register to smaller size (in bytes)
  * must be called with size < BPF_REG_SIZE
@@ -2321,6 +2323,13 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 	err = check_func_arg(env, BPF_REG_2, fn->arg2_type, &meta);
 	if (err)
 		return err;
+	if (func_id == BPF_FUNC_tail_call) {
+		if (meta.map_ptr == NULL) {
+			verbose(env, "verifier bug\n");
+			return -EINVAL;
+		}
+		env->insn_aux_data[insn_idx].map_ptr = meta.map_ptr;
+	}
 	err = check_func_arg(env, BPF_REG_3, fn->arg3_type, &meta);
 	if (err)
 		return err;
@@ -5264,14 +5273,20 @@ out_free:
 
 static int fixup_call_args(struct bpf_verifier_env *env)
 {
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON
 	struct bpf_prog *prog = env->prog;
 	struct bpf_insn *insn = prog->insnsi;
 	int i, depth;
+#endif
+	int err;
 
-	if (env->prog->jit_requested)
-		if (jit_subprogs(env) == 0)
+	err = 0;
+	if (env->prog->jit_requested) {
+		err = jit_subprogs(env);
+		if (err == 0)
 			return 0;
-
+	}
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON
 	for (i = 0; i < prog->len; i++, insn++) {
 		if (insn->code != (BPF_JMP | BPF_CALL) ||
 		    insn->src_reg != BPF_PSEUDO_CALL)
@@ -5281,7 +5296,9 @@ static int fixup_call_args(struct bpf_verifier_env *env)
 			return depth;
 		bpf_patch_call_args(insn, depth);
 	}
-	return 0;
+	err = 0;
+#endif
+	return err;
 }
 
 /* fixup insn->imm field of bpf_call instructions
@@ -5328,6 +5345,35 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			 */
 			insn->imm = 0;
 			insn->code = BPF_JMP | BPF_TAIL_CALL;
+
+			/* instead of changing every JIT dealing with tail_call
+			 * emit two extra insns:
+			 * if (index >= max_entries) goto out;
+			 * index &= array->index_mask;
+			 * to avoid out-of-bounds cpu speculation
+			 */
+			map_ptr = env->insn_aux_data[i + delta].map_ptr;
+			if (map_ptr == BPF_MAP_PTR_POISON) {
+				verbose(env, "tail_call obusing map_ptr\n");
+				return -EINVAL;
+			}
+			if (!map_ptr->unpriv_array)
+				continue;
+			insn_buf[0] = BPF_JMP_IMM(BPF_JGE, BPF_REG_3,
+						  map_ptr->max_entries, 2);
+			insn_buf[1] = BPF_ALU32_IMM(BPF_AND, BPF_REG_3,
+						    container_of(map_ptr,
+								 struct bpf_array,
+								 map)->index_mask);
+			insn_buf[2] = *insn;
+			cnt = 3;
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
+			if (!new_prog)
+				return -ENOMEM;
+
+			delta    += cnt - 1;
+			env->prog = prog = new_prog;
+			insn      = new_prog->insnsi + i + delta;
 			continue;
 		}
 

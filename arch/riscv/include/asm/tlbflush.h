@@ -15,8 +15,6 @@
 #ifndef _ASM_RISCV_TLBFLUSH_H
 #define _ASM_RISCV_TLBFLUSH_H
 
-#ifdef CONFIG_MMU
-
 #include <linux/mm_types.h>
 
 /*
@@ -63,7 +61,5 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 {
 	flush_tlb_all();
 }
-
-#endif /* CONFIG_MMU */
 
 #endif /* _ASM_RISCV_TLBFLUSH_H */
