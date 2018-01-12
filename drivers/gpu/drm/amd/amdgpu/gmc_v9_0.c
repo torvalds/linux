@@ -316,14 +316,14 @@ static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid)
  */
 
 /**
- * gmc_v9_0_gart_flush_gpu_tlb - gart tlb flush callback
+ * gmc_v9_0_flush_gpu_tlb - gart tlb flush callback
  *
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
  *
  * Flush the TLB for the requested page table.
  */
-static void gmc_v9_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
+static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
 					uint32_t vmid)
 {
 	/* Use register 17 for GART */
@@ -367,7 +367,7 @@ static void gmc_v9_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
 }
 
 /**
- * gmc_v9_0_gart_set_pte_pde - update the page tables using MMIO
+ * gmc_v9_0_set_pte_pde - update the page tables using MMIO
  *
  * @adev: amdgpu_device pointer
  * @cpu_pt_addr: cpu address of the page table
@@ -377,11 +377,9 @@ static void gmc_v9_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
  *
  * Update the page tables using the CPU.
  */
-static int gmc_v9_0_gart_set_pte_pde(struct amdgpu_device *adev,
-					void *cpu_pt_addr,
-					uint32_t gpu_page_idx,
-					uint64_t addr,
-					uint64_t flags)
+static int gmc_v9_0_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
+				uint32_t gpu_page_idx, uint64_t addr,
+				uint64_t flags)
 {
 	void __iomem *ptr = (void *)cpu_pt_addr;
 	uint64_t value;
@@ -491,25 +489,25 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 	}
 }
 
-static const struct amdgpu_gart_funcs gmc_v9_0_gart_funcs = {
-	.flush_gpu_tlb = gmc_v9_0_gart_flush_gpu_tlb,
-	.set_pte_pde = gmc_v9_0_gart_set_pte_pde,
+static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
+	.flush_gpu_tlb = gmc_v9_0_flush_gpu_tlb,
+	.set_pte_pde = gmc_v9_0_set_pte_pde,
 	.get_invalidate_req = gmc_v9_0_get_invalidate_req,
 	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags,
 	.get_vm_pde = gmc_v9_0_get_vm_pde
 };
 
-static void gmc_v9_0_set_gart_funcs(struct amdgpu_device *adev)
+static void gmc_v9_0_set_gmc_funcs(struct amdgpu_device *adev)
 {
-	if (adev->gart.gart_funcs == NULL)
-		adev->gart.gart_funcs = &gmc_v9_0_gart_funcs;
+	if (adev->gmc.gmc_funcs == NULL)
+		adev->gmc.gmc_funcs = &gmc_v9_0_gmc_funcs;
 }
 
 static int gmc_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gmc_v9_0_set_gart_funcs(adev);
+	gmc_v9_0_set_gmc_funcs(adev);
 	gmc_v9_0_set_irq_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
@@ -981,7 +979,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	gfxhub_v1_0_set_fault_enable_default(adev, value);
 	mmhub_v1_0_set_fault_enable_default(adev, value);
-	gmc_v9_0_gart_flush_gpu_tlb(adev, 0);
+	gmc_v9_0_flush_gpu_tlb(adev, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),

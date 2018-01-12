@@ -679,8 +679,8 @@ static void amdgpu_vm_cpu_set_ptes(struct amdgpu_pte_update_params *params,
 		value = params->pages_addr ?
 			amdgpu_vm_map_gart(params->pages_addr, addr) :
 			addr;
-		amdgpu_gart_set_pte_pde(params->adev, (void *)(uintptr_t)pe,
-					i, value, flags);
+		amdgpu_gmc_set_pte_pde(params->adev, (void *)(uintptr_t)pe,
+				       i, value, flags);
 		addr += incr;
 	}
 }
@@ -738,7 +738,7 @@ static void amdgpu_vm_update_pde(struct amdgpu_pte_update_params *params,
 	level += params->adev->vm_manager.root_level;
 	pt = amdgpu_bo_gpu_offset(bo);
 	flags = AMDGPU_PTE_VALID;
-	amdgpu_gart_get_vm_pde(params->adev, level, &pt, &flags);
+	amdgpu_gmc_get_vm_pde(params->adev, level, &pt, &flags);
 	if (shadow) {
 		pde = shadow_addr + (entry - parent->entries) * 8;
 		params->func(params, pde, pt, 1, 0, flags);
@@ -967,8 +967,7 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 	}
 
 	entry->huge = true;
-	amdgpu_gart_get_vm_pde(p->adev, AMDGPU_VM_PDB0,
-			       &dst, &flags);
+	amdgpu_gmc_get_vm_pde(p->adev, AMDGPU_VM_PDB0, &dst, &flags);
 
 	if (p->func == amdgpu_vm_cpu_set_ptes) {
 		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->base.bo);
@@ -1485,7 +1484,7 @@ static void amdgpu_vm_update_prt_state(struct amdgpu_device *adev)
 
 	spin_lock_irqsave(&adev->vm_manager.prt_lock, flags);
 	enable = !!atomic_read(&adev->vm_manager.num_prt_users);
-	adev->gart.gart_funcs->set_prt(adev, enable);
+	adev->gmc.gmc_funcs->set_prt(adev, enable);
 	spin_unlock_irqrestore(&adev->vm_manager.prt_lock, flags);
 }
 
@@ -1494,7 +1493,7 @@ static void amdgpu_vm_update_prt_state(struct amdgpu_device *adev)
  */
 static void amdgpu_vm_prt_get(struct amdgpu_device *adev)
 {
-	if (!adev->gart.gart_funcs->set_prt)
+	if (!adev->gmc.gmc_funcs->set_prt)
 		return;
 
 	if (atomic_inc_return(&adev->vm_manager.num_prt_users) == 1)
@@ -1529,7 +1528,7 @@ static void amdgpu_vm_add_prt_cb(struct amdgpu_device *adev,
 {
 	struct amdgpu_prt_cb *cb;
 
-	if (!adev->gart.gart_funcs->set_prt)
+	if (!adev->gmc.gmc_funcs->set_prt)
 		return;
 
 	cb = kmalloc(sizeof(struct amdgpu_prt_cb), GFP_KERNEL);
@@ -2405,7 +2404,7 @@ static void amdgpu_vm_free_levels(struct amdgpu_device *adev,
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
-	bool prt_fini_needed = !!adev->gart.gart_funcs->set_prt;
+	bool prt_fini_needed = !!adev->gmc.gmc_funcs->set_prt;
 	struct amdgpu_bo *root;
 	u64 fault;
 	int i, r;

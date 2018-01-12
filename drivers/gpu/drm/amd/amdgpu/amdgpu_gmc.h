@@ -48,6 +48,27 @@ struct amdgpu_vmhub {
 /*
  * GPU MC structures, functions & helpers
  */
+struct amdgpu_gmc_funcs {
+	/* flush the vm tlb via mmio */
+	void (*flush_gpu_tlb)(struct amdgpu_device *adev,
+			      uint32_t vmid);
+	/* write pte/pde updates using the cpu */
+	int (*set_pte_pde)(struct amdgpu_device *adev,
+			   void *cpu_pt_addr, /* cpu addr of page table */
+			   uint32_t gpu_page_idx, /* pte/pde to update */
+			   uint64_t addr, /* addr to write into pte/pde */
+			   uint64_t flags); /* access flags */
+	/* enable/disable PRT support */
+	void (*set_prt)(struct amdgpu_device *adev, bool enable);
+	/* set pte flags based per asic */
+	uint64_t (*get_vm_pte_flags)(struct amdgpu_device *adev,
+				     uint32_t flags);
+	/* get the pde for a given mc addr */
+	void (*get_vm_pde)(struct amdgpu_device *adev, int level,
+			   u64 *dst, u64 *flags);
+	uint32_t (*get_invalidate_req)(unsigned int vmid);
+};
+
 struct amdgpu_gmc {
 	resource_size_t		aper_size;
 	resource_size_t		aper_base;
@@ -79,6 +100,8 @@ struct amdgpu_gmc {
 	/* protects concurrent invalidation */
 	spinlock_t		invalidate_lock;
 	bool			translate_further;
+
+	const struct amdgpu_gmc_funcs	*gmc_funcs;
 };
 
 #endif

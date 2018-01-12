@@ -37,7 +37,7 @@
 #include "dce/dce_6_0_sh_mask.h"
 #include "si_enums.h"
 
-static void gmc_v6_0_set_gart_funcs(struct amdgpu_device *adev);
+static void gmc_v6_0_set_gmc_funcs(struct amdgpu_device *adev);
 static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 static int gmc_v6_0_wait_for_idle(void *handle);
 
@@ -357,17 +357,14 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gmc_v6_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
-					uint32_t vmid)
+static void gmc_v6_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid)
 {
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
 }
 
-static int gmc_v6_0_gart_set_pte_pde(struct amdgpu_device *adev,
-				     void *cpu_pt_addr,
-				     uint32_t gpu_page_idx,
-				     uint64_t addr,
-				     uint64_t flags)
+static int gmc_v6_0_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
+				uint32_t gpu_page_idx, uint64_t addr,
+				uint64_t flags)
 {
 	void __iomem *ptr = (void *)cpu_pt_addr;
 	uint64_t value;
@@ -559,7 +556,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	else
 		gmc_v6_0_set_fault_enable_default(adev, true);
 
-	gmc_v6_0_gart_flush_gpu_tlb(adev, 0);
+	gmc_v6_0_flush_gpu_tlb(adev, 0);
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)adev->gart.table_addr);
@@ -793,7 +790,7 @@ static int gmc_v6_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gmc_v6_0_set_gart_funcs(adev);
+	gmc_v6_0_set_gmc_funcs(adev);
 	gmc_v6_0_set_irq_funcs(adev);
 
 	return 0;
@@ -1127,9 +1124,9 @@ static const struct amd_ip_funcs gmc_v6_0_ip_funcs = {
 	.set_powergating_state = gmc_v6_0_set_powergating_state,
 };
 
-static const struct amdgpu_gart_funcs gmc_v6_0_gart_funcs = {
-	.flush_gpu_tlb = gmc_v6_0_gart_flush_gpu_tlb,
-	.set_pte_pde = gmc_v6_0_gart_set_pte_pde,
+static const struct amdgpu_gmc_funcs gmc_v6_0_gmc_funcs = {
+	.flush_gpu_tlb = gmc_v6_0_flush_gpu_tlb,
+	.set_pte_pde = gmc_v6_0_set_pte_pde,
 	.set_prt = gmc_v6_0_set_prt,
 	.get_vm_pde = gmc_v6_0_get_vm_pde,
 	.get_vm_pte_flags = gmc_v6_0_get_vm_pte_flags
@@ -1140,10 +1137,10 @@ static const struct amdgpu_irq_src_funcs gmc_v6_0_irq_funcs = {
 	.process = gmc_v6_0_process_interrupt,
 };
 
-static void gmc_v6_0_set_gart_funcs(struct amdgpu_device *adev)
+static void gmc_v6_0_set_gmc_funcs(struct amdgpu_device *adev)
 {
-	if (adev->gart.gart_funcs == NULL)
-		adev->gart.gart_funcs = &gmc_v6_0_gart_funcs;
+	if (adev->gmc.gmc_funcs == NULL)
+		adev->gmc.gmc_funcs = &gmc_v6_0_gmc_funcs;
 }
 
 static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev)

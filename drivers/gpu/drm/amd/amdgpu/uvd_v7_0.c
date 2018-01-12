@@ -1294,12 +1294,12 @@ static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vmid, uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vmid);
+	uint32_t req = ring->adev->gmc.gmc_funcs->get_invalidate_req(vmid);
 	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 	uint32_t data0, data1, mask;
 
-	amdgpu_gart_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
+	amdgpu_gmc_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
 	pd_addr |= flags;
 
 	data0 = (hub->ctx0_ptb_addr_hi32 + vmid * 2) << 2;
@@ -1346,11 +1346,11 @@ static void uvd_v7_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 			 unsigned int vmid, uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vmid);
+	uint32_t req = ring->adev->gmc.gmc_funcs->get_invalidate_req(vmid);
 	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 
-	amdgpu_gart_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
+	amdgpu_gmc_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
 	pd_addr |= flags;
 
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_REG_WRITE);

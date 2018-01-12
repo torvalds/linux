@@ -333,28 +333,6 @@ struct amdgpu_vm_pte_funcs {
 			    uint32_t incr, uint64_t flags);
 };
 
-/* provided by the gmc block */
-struct amdgpu_gart_funcs {
-	/* flush the vm tlb via mmio */
-	void (*flush_gpu_tlb)(struct amdgpu_device *adev,
-			      uint32_t vmid);
-	/* write pte/pde updates using the cpu */
-	int (*set_pte_pde)(struct amdgpu_device *adev,
-			   void *cpu_pt_addr, /* cpu addr of page table */
-			   uint32_t gpu_page_idx, /* pte/pde to update */
-			   uint64_t addr, /* addr to write into pte/pde */
-			   uint64_t flags); /* access flags */
-	/* enable/disable PRT support */
-	void (*set_prt)(struct amdgpu_device *adev, bool enable);
-	/* set pte flags based per asic */
-	uint64_t (*get_vm_pte_flags)(struct amdgpu_device *adev,
-				     uint32_t flags);
-	/* get the pde for a given mc addr */
-	void (*get_vm_pde)(struct amdgpu_device *adev, int level,
-			   u64 *dst, u64 *flags);
-	uint32_t (*get_invalidate_req)(unsigned int vmid);
-};
-
 /* provided by the ih block */
 struct amdgpu_ih_funcs {
 	/* ring read/write ptr handling, called from interrupt context */
@@ -1797,13 +1775,13 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_asic_get_config_memsize(adev) (adev)->asic_funcs->get_config_memsize((adev))
 #define amdgpu_asic_flush_hdp(adev) (adev)->asic_funcs->flush_hdp((adev))
 #define amdgpu_asic_invalidate_hdp(adev) (adev)->asic_funcs->invalidate_hdp((adev))
-#define amdgpu_gart_flush_gpu_tlb(adev, vmid) (adev)->gart.gart_funcs->flush_gpu_tlb((adev), (vmid))
-#define amdgpu_gart_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gart.gart_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
-#define amdgpu_gart_get_vm_pde(adev, level, dst, flags) (adev)->gart.gart_funcs->get_vm_pde((adev), (level), (dst), (flags))
+#define amdgpu_gmc_flush_gpu_tlb(adev, vmid) (adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid))
+#define amdgpu_gmc_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gmc.gmc_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
+#define amdgpu_gmc_get_vm_pde(adev, level, dst, flags) (adev)->gmc.gmc_funcs->get_vm_pde((adev), (level), (dst), (flags))
+#define amdgpu_gmc_get_pte_flags(adev, flags) (adev)->gmc.gmc_funcs->get_vm_pte_flags((adev),(flags))
 #define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))
 #define amdgpu_vm_write_pte(adev, ib, pe, value, count, incr) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pe), (value), (count), (incr)))
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
-#define amdgpu_vm_get_pte_flags(adev, flags) (adev)->gart.gart_funcs->get_vm_pte_flags((adev),(flags))
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
 #define amdgpu_ring_test_ib(r, t) (r)->funcs->test_ib((r), (t))

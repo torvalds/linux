@@ -634,7 +634,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		if (r)
 			goto error_backoff;
 
-		va_flags = amdgpu_vm_get_pte_flags(adev, args->flags);
+		va_flags = amdgpu_gmc_get_pte_flags(adev, args->flags);
 		r = amdgpu_vm_bo_map(adev, bo_va, args->va_address,
 				     args->offset_in_bo, args->map_size,
 				     va_flags);
@@ -654,7 +654,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		if (r)
 			goto error_backoff;
 
-		va_flags = amdgpu_vm_get_pte_flags(adev, args->flags);
+		va_flags = amdgpu_gmc_get_pte_flags(adev, args->flags);
 		r = amdgpu_vm_bo_replace_map(adev, bo_va, args->va_address,
 					     args->offset_in_bo, args->map_size,
 					     va_flags);
