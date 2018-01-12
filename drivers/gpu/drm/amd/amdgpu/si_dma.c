@@ -497,6 +497,14 @@ static void si_dma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (0 << 28) | 0x20); /* func(always) | poll interval */
 }
 
+static void si_dma_ring_emit_wreg(struct amdgpu_ring *ring,
+				  uint32_t reg, uint32_t val)
+{
+	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
+	amdgpu_ring_write(ring, (0xf << 16) | reg);
+	amdgpu_ring_write(ring, val);
+}
+
 static int si_dma_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -789,6 +797,7 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.test_ib = si_dma_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = si_dma_ring_pad_ib,
+	.emit_wreg = si_dma_ring_emit_wreg,
 };
 
 static void si_dma_set_ring_funcs(struct amdgpu_device *adev)
