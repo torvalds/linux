@@ -35,6 +35,8 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
+		display0 = &lcd;
+		display1 = &tv;
 	};
 
 	cpus {
@@ -965,7 +967,7 @@
 		ti,esd-recovery-timeout-ms = <8000>;
 	};
 
-	acx565akm@2 {
+	lcd: acx565akm@2 {
 		compatible = "sony,acx565akm";
 		spi-max-frequency = <6000000>;
 		reg = <2>;
