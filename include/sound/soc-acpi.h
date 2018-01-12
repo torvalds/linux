@@ -17,6 +17,7 @@
 
 #include <linux/stddef.h>
 #include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 
 struct snd_soc_acpi_package_context {
 	char *name;           /* package name */
