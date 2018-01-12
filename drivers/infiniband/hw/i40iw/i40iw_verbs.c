@@ -428,6 +428,7 @@ void i40iw_free_qp_resources(struct i40iw_device *iwdev,
 {
 	struct i40iw_pbl *iwpbl = &iwqp->iwpbl;
 
+	i40iw_ieq_cleanup_qp(iwdev->vsi.ieq, &iwqp->sc_qp);
 	i40iw_dealloc_push_page(iwdev, &iwqp->sc_qp);
 	if (qp_num)
 		i40iw_free_resource(iwdev, iwdev->allocated_qps, qp_num);
