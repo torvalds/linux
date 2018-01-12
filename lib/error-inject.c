@@ -16,6 +16,7 @@ struct ei_entry {
 	struct list_head list;
 	unsigned long start_addr;
 	unsigned long end_addr;
+	int etype;
 	void *priv;
 };
 
@@ -35,6 +36,17 @@ bool within_error_injection_list(unsigned long addr)
 	return ret;
 }
 
+int get_injectable_error_type(unsigned long addr)
+{
+	struct ei_entry *ent;
+
+	list_for_each_entry(ent, &error_injection_list, list) {
+		if (addr >= ent->start_addr && addr < ent->end_addr)
+			return ent->etype;
+	}
+	return EI_ETYPE_NONE;
+}
+
 /*
  * Lookup and populate the error_injection_list.
  *
@@ -42,16 +54,17 @@ bool within_error_injection_list(unsigned long addr)
  * bpf_error_injection, so we need to populate the list of the symbols that have
  * been marked as safe for overriding.
  */
-static void populate_error_injection_list(unsigned long *start,
-					  unsigned long *end, void *priv)
+static void populate_error_injection_list(struct error_injection_entry *start,
+					  struct error_injection_entry *end,
+					  void *priv)
 {
-	unsigned long *iter;
+	struct error_injection_entry *iter;
 	struct ei_entry *ent;
 	unsigned long entry, offset = 0, size = 0;
 
 	mutex_lock(&ei_mutex);
 	for (iter = start; iter < end; iter++) {
-		entry = arch_deref_entry_point((void *)*iter);
+		entry = arch_deref_entry_point((void *)iter->addr);
 
 		if (!kernel_text_address(entry) ||
 		    !kallsyms_lookup_size_offset(entry, &size, &offset)) {
@@ -65,6 +78,7 @@ static void populate_error_injection_list(unsigned long *start,
 			break;
 		ent->start_addr = entry;
 		ent->end_addr = entry + size;
+		ent->etype = iter->etype;
 		ent->priv = priv;
 		INIT_LIST_HEAD(&ent->list);
 		list_add_tail(&ent->list, &error_injection_list);
@@ -73,8 +87,8 @@ static void populate_error_injection_list(unsigned long *start,
 }
 
 /* Markers of the _error_inject_whitelist section */
-extern unsigned long __start_error_injection_whitelist[];
-extern unsigned long __stop_error_injection_whitelist[];
+extern struct error_injection_entry __start_error_injection_whitelist[];
+extern struct error_injection_entry __stop_error_injection_whitelist[];
 
 static void __init populate_kernel_ei_list(void)
 {
@@ -157,11 +171,26 @@ static void *ei_seq_next(struct seq_file *m, void *v, loff_t *pos)
 	return seq_list_next(v, &error_injection_list, pos);
 }
 
+static const char *error_type_string(int etype)
+{
+	switch (etype) {
+	case EI_ETYPE_NULL:
+		return "NULL";
+	case EI_ETYPE_ERRNO:
+		return "ERRNO";
+	case EI_ETYPE_ERRNO_NULL:
+		return "ERRNO_NULL";
+	default:
+		return "(unknown)";
+	}
+}
+
 static int ei_seq_show(struct seq_file *m, void *v)
 {
 	struct ei_entry *ent = list_entry(v, struct ei_entry, list);
 
-	seq_printf(m, "%pf\n", (void *)ent->start_addr);
+	seq_printf(m, "%pf\t%s\n", (void *)ent->start_addr,
+		   error_type_string(ent->etype));
 	return 0;
 }
 

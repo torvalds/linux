@@ -137,7 +137,7 @@
 #endif
 
 #ifdef CONFIG_FUNCTION_ERROR_INJECTION
-#define ERROR_INJECT_WHITELIST()	. = ALIGN(8);			      \
+#define ERROR_INJECT_WHITELIST()	STRUCT_ALIGN();			      \
 			VMLINUX_SYMBOL(__start_error_injection_whitelist) = .;\
 			KEEP(*(_error_injection_whitelist))		      \
 			VMLINUX_SYMBOL(__stop_error_injection_whitelist) = .;
