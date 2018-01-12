@@ -170,14 +170,40 @@ static void hns3_set_vector_coalesc_gl(struct hns3_enet_tqp_vector *tqp_vector,
 	writel(gl_value, tqp_vector->mask_addr + HNS3_VECTOR_GL2_OFFSET);
 }
 
-static void hns3_set_vector_coalesc_rl(struct hns3_enet_tqp_vector *tqp_vector,
-				       u32 rl_value)
+void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
+				 u32 rl_value)
 {
+	u32 rl_reg = hns3_rl_usec_to_reg(rl_value);
+
 	/* this defines the configuration for RL (Interrupt Rate Limiter).
 	 * Rl defines rate of interrupts i.e. number of interrupts-per-second
 	 * GL and RL(Rate Limiter) are 2 ways to acheive interrupt coalescing
 	 */
-	writel(rl_value, tqp_vector->mask_addr + HNS3_VECTOR_RL_OFFSET);
+
+	if (rl_reg > 0 && !tqp_vector->tx_group.gl_adapt_enable &&
+	    !tqp_vector->rx_group.gl_adapt_enable)
+		/* According to the hardware, the range of rl_reg is
+		 * 0-59 and the unit is 4.
+		 */
+		rl_reg |=  HNS3_INT_RL_ENABLE_MASK;
+
+	writel(rl_reg, tqp_vector->mask_addr + HNS3_VECTOR_RL_OFFSET);
+}
+
+void hns3_set_vector_coalesce_rx_gl(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 gl_value)
+{
+	u32 rx_gl_reg = hns3_gl_usec_to_reg(gl_value);
+
+	writel(rx_gl_reg, tqp_vector->mask_addr + HNS3_VECTOR_GL0_OFFSET);
+}
+
+void hns3_set_vector_coalesce_tx_gl(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 gl_value)
+{
+	u32 tx_gl_reg = hns3_gl_usec_to_reg(gl_value);
+
+	writel(tx_gl_reg, tqp_vector->mask_addr + HNS3_VECTOR_GL1_OFFSET);
 }
 
 static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector)
@@ -194,7 +220,7 @@ static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector)
 	/* for now we are disabling Interrupt RL - we
 	 * will re-enable later
 	 */
-	hns3_set_vector_coalesc_rl(tqp_vector, 0);
+	hns3_set_vector_coalesce_rl(tqp_vector, 0);
 	tqp_vector->rx_group.flow_level = HNS3_FLOW_LOW;
 	tqp_vector->tx_group.flow_level = HNS3_FLOW_LOW;
 }
