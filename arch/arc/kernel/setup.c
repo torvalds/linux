@@ -199,7 +199,7 @@ static void read_arc_build_cfg_regs(void)
 			unsigned int exec_ctrl;
 
 			READ_BCR(AUX_EXEC_CTRL, exec_ctrl);
-			cpu->extn.dual_enb = exec_ctrl & 1;
+			cpu->extn.dual_enb = !(exec_ctrl & 1);
 
 			/* dual issue always present for this core */
 			cpu->extn.dual = 1;
