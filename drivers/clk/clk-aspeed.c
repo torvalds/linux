@@ -211,6 +211,7 @@ static int aspeed_clk_enable(struct clk_hw *hw)
 	unsigned long flags;
 	u32 clk = BIT(gate->clock_idx);
 	u32 rst = BIT(gate->reset_idx);
+	u32 enval;
 
 	spin_lock_irqsave(gate->lock, flags);
 
@@ -223,7 +224,8 @@ static int aspeed_clk_enable(struct clk_hw *hw)
 	}
 
 	/* Enable clock */
-	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, 0);
+	enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
+	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, enval);
 
 	if (gate->reset_idx >= 0) {
 		/* A delay of 10ms is specified by the ASPEED docs */
@@ -243,10 +245,12 @@ static void aspeed_clk_disable(struct clk_hw *hw)
 	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
 	unsigned long flags;
 	u32 clk = BIT(gate->clock_idx);
+	u32 enval;
 
 	spin_lock_irqsave(gate->lock, flags);
 
-	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, clk);
+	enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? clk : 0;
+	regmap_update_bits(gate->map, ASPEED_CLK_STOP_CTRL, clk, enval);
 
 	spin_unlock_irqrestore(gate->lock, flags);
 }
@@ -478,7 +482,12 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_gates); i++) {
 		const struct aspeed_gate_data *gd = &aspeed_gates[i];
+		u32 gate_flags;
 
+		/* Special case: the USB port 1 clock (bit 14) is always
+		 * working the opposite way from the other ones.
+		 */
+		gate_flags = (gd->clock_idx == 14) ? 0 : CLK_GATE_SET_TO_DISABLE;
 		hw = aspeed_clk_hw_register_gate(dev,
 				gd->name,
 				gd->parent_name,
@@ -486,7 +495,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 				map,
 				gd->clock_idx,
 				gd->reset_idx,
-				CLK_GATE_SET_TO_DISABLE,
+				gate_flags,
 				&aspeed_clk_lock);
 		if (IS_ERR(hw))
 			return PTR_ERR(hw);
