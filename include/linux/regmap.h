@@ -264,6 +264,9 @@ typedef void (*regmap_unlock)(void *);
  *                field is NULL but precious_table (see below) is not, the
  *                check is performed on such table (a register is precious if
  *                it belongs to one of the ranges specified by precious_table).
+ * @disable_locking: This regmap is either protected by external means or
+ *                   is guaranteed not be be accessed from multiple threads.
+ *                   Don't use any locking mechanisms.
  * @lock:	  Optional lock callback (overrides regmap's default lock
  *		  function, based on spinlock or mutex).
  * @unlock:	  As above for unlocking.
@@ -317,6 +320,7 @@ typedef void (*regmap_unlock)(void *);
  *
  * @ranges: Array of configuration entries for virtual address ranges.
  * @num_ranges: Number of range configuration entries.
+ * @use_hwlock: Indicate if a hardware spinlock should be used.
  * @hwlock_id: Specify the hardware spinlock id.
  * @hwlock_mode: The hardware spinlock mode, should be HWLOCK_IRQSTATE,
  *		 HWLOCK_IRQ or 0.
@@ -333,6 +337,8 @@ struct regmap_config {
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
+
+	bool disable_locking;
 	regmap_lock lock;
 	regmap_unlock unlock;
 	void *lock_arg;
@@ -365,6 +371,7 @@ struct regmap_config {
 	const struct regmap_range_cfg *ranges;
 	unsigned int num_ranges;
 
+	bool use_hwlock;
 	unsigned int hwlock_id;
 	unsigned int hwlock_mode;
 };
