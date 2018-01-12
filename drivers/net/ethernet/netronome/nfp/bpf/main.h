@@ -60,6 +60,9 @@ enum nfp_relo_type {
 	RELO_BR_GO_ABORT,
 	/* external jumps to fixed addresses */
 	RELO_BR_NEXT_PKT,
+	RELO_BR_HELPER,
+	/* immediate relocation against load address */
+	RELO_IMMED_REL,
 };
 
 /* To make absolute relocated branches (branches other than RELO_BR_REL)
@@ -191,9 +194,12 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * @ptr: pointer type for memory operations
  * @ldst_gather_len: memcpy length gathered from load/store sequence
  * @paired_st: the paired store insn at the head of the sequence
- * @arg2: arg2 for call instructions
  * @ptr_not_const: pointer is not always constant
  * @jmp_dst: destination info for jump instructions
+ * @func_id: function id for call instructions
+ * @arg1: arg1 for call instructions
+ * @arg2: arg2 for call instructions
+ * @arg2_var_off: arg2 changes stack offset on different paths
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
@@ -211,7 +217,12 @@ struct nfp_insn_meta {
 			bool ptr_not_const;
 		};
 		struct nfp_insn_meta *jmp_dst;
-		struct bpf_reg_state arg2;
+		struct {
+			u32 func_id;
+			struct bpf_reg_state arg1;
+			struct bpf_reg_state arg2;
+			bool arg2_var_off;
+		};
 	};
 	unsigned int off;
 	unsigned short n;

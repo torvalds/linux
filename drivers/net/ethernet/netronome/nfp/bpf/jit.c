@@ -483,6 +483,21 @@ static void wrp_immed(struct nfp_prog *nfp_prog, swreg dst, u32 imm)
 	}
 }
 
+static void
+wrp_immed_relo(struct nfp_prog *nfp_prog, swreg dst, u32 imm,
+	       enum nfp_relo_type relo)
+{
+	if (imm > 0xffff) {
+		pr_err("relocation of a large immediate!\n");
+		nfp_prog->error = -EFAULT;
+		return;
+	}
+	emit_immed(nfp_prog, dst, imm, IMMED_WIDTH_ALL, false, IMMED_SHIFT_0B);
+
+	nfp_prog->prog[nfp_prog->prog_len - 1] |=
+		FIELD_PREP(OP_RELO_TYPE, relo);
+}
+
 /* ur_load_imm_any() - encode immediate or use tmp register (unrestricted)
  * If the @imm is small enough encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
@@ -1279,6 +1294,56 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
+static int
+map_lookup_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	struct bpf_offloaded_map *offmap;
+	struct nfp_bpf_map *nfp_map;
+	bool load_lm_ptr;
+	u32 ret_tgt;
+	s64 lm_off;
+	swreg tid;
+
+	offmap = (struct bpf_offloaded_map *)meta->arg1.map_ptr;
+	nfp_map = offmap->dev_priv;
+
+	/* We only have to reload LM0 if the key is not at start of stack */
+	lm_off = nfp_prog->stack_depth;
+	lm_off += meta->arg2.var_off.value + meta->arg2.off;
+	load_lm_ptr = meta->arg2_var_off || lm_off;
+
+	/* Set LM0 to start of key */
+	if (load_lm_ptr)
+		emit_csr_wr(nfp_prog, reg_b(2 * 2), NFP_CSR_ACT_LM_ADDR0);
+
+	/* Load map ID into a register, it should actually fit as an immediate
+	 * but in case it doesn't deal with it here, not in the delay slots.
+	 */
+	tid = ur_load_imm_any(nfp_prog, nfp_map->tid, imm_a(nfp_prog));
+
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO + BPF_FUNC_map_lookup_elem,
+		     2, RELO_BR_HELPER);
+	ret_tgt = nfp_prog_current_offset(nfp_prog) + 2;
+
+	/* Load map ID into A0 */
+	wrp_mov(nfp_prog, reg_a(0), tid);
+
+	/* Load the return address into B0 */
+	wrp_immed_relo(nfp_prog, reg_b(0), ret_tgt, RELO_IMMED_REL);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, ret_tgt))
+		return -EINVAL;
+
+	/* Reset the LM0 pointer */
+	if (!load_lm_ptr)
+		return 0;
+
+	emit_csr_wr(nfp_prog, stack_reg(nfp_prog),  NFP_CSR_ACT_LM_ADDR0);
+	wrp_nops(nfp_prog, 3);
+
+	return 0;
+}
+
 /* --- Callbacks --- */
 static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
@@ -2058,6 +2123,8 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	switch (meta->insn.imm) {
 	case BPF_FUNC_xdp_adjust_head:
 		return adjust_head(nfp_prog, meta);
+	case BPF_FUNC_map_lookup_elem:
+		return map_lookup_stack(nfp_prog, meta);
 	default:
 		WARN_ONCE(1, "verifier allowed unsupported function\n");
 		return -EOPNOTSUPP;
@@ -2794,6 +2861,7 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 
 	for (i = 0; i < nfp_prog->prog_len; i++) {
 		enum nfp_relo_type special;
+		u32 val;
 
 		special = FIELD_GET(OP_RELO_TYPE, prog[i]);
 		switch (special) {
@@ -2812,6 +2880,24 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 			break;
 		case RELO_BR_NEXT_PKT:
 			br_set_offset(&prog[i], bv->tgt_done);
+			break;
+		case RELO_BR_HELPER:
+			val = br_get_offset(prog[i]);
+			val -= BR_OFF_RELO;
+			switch (val) {
+			case BPF_FUNC_map_lookup_elem:
+				val = nfp_prog->bpf->helpers.map_lookup;
+				break;
+			default:
+				pr_err("relocation of unknown helper %d\n",
+				       val);
+				err = -EINVAL;
+				goto err_free_prog;
+			}
+			br_set_offset(&prog[i], val);
+			break;
+		case RELO_IMMED_REL:
+			immed_add_value(&prog[i], bv->start_off);
 			break;
 		}
 
