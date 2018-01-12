@@ -162,11 +162,13 @@ void optee_enable_shm_cache(struct optee *optee);
 void optee_disable_shm_cache(struct optee *optee);
 
 int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
-		       struct page **pages, size_t num_pages);
+		       struct page **pages, size_t num_pages,
+		       unsigned long start);
 int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm);
 
 int optee_shm_register_supp(struct tee_context *ctx, struct tee_shm *shm,
-			    struct page **pages, size_t num_pages);
+			    struct page **pages, size_t num_pages,
+			    unsigned long start);
 int optee_shm_unregister_supp(struct tee_context *ctx, struct tee_shm *shm);
 
 int optee_from_msg_param(struct tee_param *params, size_t num_params,
