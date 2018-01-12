@@ -158,18 +158,6 @@ static void hns3_vector_disable(struct hns3_enet_tqp_vector *tqp_vector)
 	napi_disable(&tqp_vector->napi);
 }
 
-static void hns3_set_vector_coalesc_gl(struct hns3_enet_tqp_vector *tqp_vector,
-				       u32 gl_value)
-{
-	/* this defines the configuration for GL (Interrupt Gap Limiter)
-	 * GL defines inter interrupt gap.
-	 * GL and RL(Rate Limiter) are 2 ways to acheive interrupt coalescing
-	 */
-	writel(gl_value, tqp_vector->mask_addr + HNS3_VECTOR_GL0_OFFSET);
-	writel(gl_value, tqp_vector->mask_addr + HNS3_VECTOR_GL1_OFFSET);
-	writel(gl_value, tqp_vector->mask_addr + HNS3_VECTOR_GL2_OFFSET);
-}
-
 void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 				 u32 rl_value)
 {
