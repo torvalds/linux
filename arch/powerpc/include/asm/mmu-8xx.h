@@ -29,17 +29,17 @@
 #define MI_Kp		0x40000000	/* Should always be set */
 
 /*
- * All pages' PP exec bits are set to 000, which means Execute for Supervisor
- * and no Execute for User.
- * Then we use the APG to say whether accesses are according to Page rules,
- * "all Supervisor" rules (Exec for all) and "all User" rules (Exec for noone)
- * Therefore, we define 4 APG groups. msb is _PAGE_EXEC, lsb is _PAGE_USER
- * 0 (00) => Not User, no exec => 11 (all accesses performed as user)
- * 1 (01) => User but no exec => 11 (all accesses performed as user)
- * 2 (10) => Not User, exec => 01 (rights according to page definition)
- * 3 (11) => User, exec => 00 (all accesses performed as supervisor)
+ * All pages' PP data bits are set to either 001 or 011 by copying _PAGE_EXEC
+ * into bit 21 in the ITLBmiss handler (bit 21 is the middle bit), which means
+ * respectively NA for All or X for Supervisor and no access for User.
+ * Then we use the APG to say whether accesses are according to Page rules or
+ * "all Supervisor" rules (Access to all)
+ * Therefore, we define 2 APG groups. lsb is _PMD_USER
+ * 0 => No user => 01 (all accesses performed according to page definition)
+ * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
+ * We define all 16 groups so that all other bits of APG can take any value
  */
-#define MI_APG_INIT	0xf4ffffff
+#define MI_APG_INIT	0x44444444
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MI_RPN is written, bits in
@@ -102,17 +102,17 @@
 #define MD_Kp		0x40000000	/* Should always be set */
 
 /*
- * All pages' PP data bits are set to either 000 or 011, which means
+ * All pages' PP data bits are set to either 000 or 011 or 001, which means
  * respectively RW for Supervisor and no access for User, or RO for
- * Supervisor and no access for user.
+ * Supervisor and no access for user and NA for ALL.
  * Then we use the APG to say whether accesses are according to Page rules or
  * "all Supervisor" rules (Access to all)
- * Therefore, we define 2 APG groups. lsb is _PAGE_USER
+ * Therefore, we define 2 APG groups. lsb is _PMD_USER
  * 0 => No user => 01 (all accesses performed according to page definition)
- * 1 => User => 00 (all accesses performed as supervisor
- *                                 according to page definition)
+ * 1 => User => 00 (all accesses performed as supervisor iaw page definition)
+ * We define all 16 groups so that all other bits of APG can take any value
  */
-#define MD_APG_INIT	0x4fffffff
+#define MD_APG_INIT	0x44444444
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MD_RPN is written, bits in

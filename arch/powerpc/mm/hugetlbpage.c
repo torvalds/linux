@@ -96,7 +96,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 			*hpdp = __hugepd(__pa(new) |
 					 (shift_to_mmu_psize(pshift) << 2));
 #elif defined(CONFIG_PPC_8xx)
-			*hpdp = __hugepd(__pa(new) |
+			*hpdp = __hugepd(__pa(new) | _PMD_USER |
 					 (pshift == PAGE_SHIFT_8M ? _PMD_PAGE_8M :
 					  _PMD_PAGE_512K) | _PMD_PRESENT);
 #else

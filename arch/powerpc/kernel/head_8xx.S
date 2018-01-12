@@ -52,11 +52,7 @@
  * Value for the bits that have fixed value in RPN entries.
  * Also used for tagging DAR for DTLBerror.
  */
-#ifdef CONFIG_PPC_16K_PAGES
-#define RPN_PATTERN	(0x00f0 | MD_SPS16K)
-#else
 #define RPN_PATTERN	0x00f0
-#endif
 
 #define PAGE_SHIFT_512K		19
 #define PAGE_SHIFT_8M		23
@@ -358,31 +354,23 @@ _ENTRY(ITLBMiss_cmp)
 #if defined(ITLB_MISS_KERNEL) || defined(CONFIG_HUGETLB_PAGE)
 	mtcr	r12
 #endif
-	/* Insert the APG into the TWC from the Linux PTE. */
-	rlwimi	r11, r10, 0, 25, 26
 	/* Load the MI_TWC with the attributes for this "segment." */
 	mtspr	SPRN_MI_TWC, r11	/* Set segment attributes */
 
-#if defined (CONFIG_HUGETLB_PAGE) && defined (CONFIG_PPC_4K_PAGES)
-	rlwimi	r10, r11, 1, MI_SPS16K
-#endif
 #ifdef CONFIG_SWAP
 	rlwinm	r11, r10, 32-5, _PAGE_PRESENT
 	and	r11, r11, r10
 	rlwimi	r10, r11, 0, _PAGE_PRESENT
 #endif
-	li	r11, RPN_PATTERN
+	li	r11, RPN_PATTERN | 0x200
 	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 20-23 and 28 must be clear.
-	 * Software indicator bits 24, 25, 26, and 27 must be
+	 * Software indicator bits 20 and 23 must be clear.
+	 * Software indicator bits 22, 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
-#if defined (CONFIG_HUGETLB_PAGE) && defined (CONFIG_PPC_4K_PAGES)
-	rlwimi	r10, r11, 0, 0x0ff0	/* Set 24-27, clear 20-23 */
-#else
-	rlwimi	r10, r11, 0, 0x0ff8	/* Set 24-27, clear 20-23,28 */
-#endif
+	rlwimi	r11, r10, 4, 0x0400	/* Copy _PAGE_EXEC into bit 21 */
+	rlwimi	r10, r11, 0, 0x0ff0	/* Set 22, 24-27, clear 20,23 */
 	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
 
 	/* Restore registers */
@@ -419,7 +407,6 @@ _ENTRY(itlb_miss_perf)
 	rlwinm	r10, r11, 0, ~HUGEPD_SHIFT_MASK
 #endif
 	lwz	r10, 0(r10)	/* Get the pte */
-	rlwinm	r11, r11, 0, 0xf
 	b	4b
 
 20:	/* 512k pages */
@@ -428,7 +415,6 @@ _ENTRY(itlb_miss_perf)
 	/* Add level 2 base */
 	rlwimi	r10, r11, 0, 0, 32 + PAGE_SHIFT_512K - (PAGE_SHIFT << 1) - 1
 	lwz	r10, 0(r10)	/* Get the pte */
-	rlwinm	r11, r11, 0, 0xf
 	b	4b
 #endif
 
@@ -479,20 +465,15 @@ _ENTRY(DTLBMiss_jmp)
 4:
 	mtcr	r12
 
-	/* Insert the Guarded flag and APG into the TWC from the Linux PTE.
-	 * It is bit 26-27 of both the Linux PTE and the TWC (at least
+	/* Insert the Guarded flag into the TWC from the Linux PTE.
+	 * It is bit 27 of both the Linux PTE and the TWC (at least
 	 * I got that right :-).  It will be better when we can put
 	 * this into the Linux pgd/pmd and load it in the operation
 	 * above.
 	 */
-	rlwimi	r11, r10, 0, 26, 27
+	rlwimi	r11, r10, 0, _PAGE_GUARDED
 	mtspr	SPRN_MD_TWC, r11
 
-	/* In 4k pages mode, SPS (bit 28) in RPN must match PS[1] (bit 29)
-	 * In 16k pages mode, SPS is always 1 */
-#if defined (CONFIG_HUGETLB_PAGE) && defined (CONFIG_PPC_4K_PAGES)
-	rlwimi	r10, r11, 1, MD_SPS16K
-#endif
 	/* Both _PAGE_ACCESSED and _PAGE_PRESENT has to be set.
 	 * We also need to know if the insn is a load/store, so:
 	 * Clear _PAGE_PRESENT and load that which will
@@ -508,17 +489,12 @@ _ENTRY(DTLBMiss_jmp)
 	rlwimi	r10, r11, 0, _PAGE_PRESENT
 #endif
 	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 22 and 28 must be clear.
 	 * Software indicator bits 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
 	li	r11, RPN_PATTERN
-#if defined (CONFIG_HUGETLB_PAGE) && defined (CONFIG_PPC_4K_PAGES)
 	rlwimi	r10, r11, 0, 24, 27	/* Set 24-27 */
-#else
-	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
-#endif
 	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
 
 	/* Restore registers */
@@ -552,7 +528,6 @@ _ENTRY(dtlb_miss_perf)
 	rlwinm	r10, r11, 0, ~HUGEPD_SHIFT_MASK
 #endif
 	lwz	r10, 0(r10)	/* Get the pte */
-	rlwinm	r11, r11, 0, 0xf
 	b	4b
 
 20:	/* 512k pages */
@@ -561,7 +536,6 @@ _ENTRY(dtlb_miss_perf)
 	/* Add level 2 base */
 	rlwimi	r10, r11, 0, 0, 32 + PAGE_SHIFT_512K - (PAGE_SHIFT << 1) - 1
 	lwz	r10, 0(r10)	/* Get the pte */
-	rlwinm	r11, r11, 0, 0xf
 	b	4b
 #endif
 
@@ -712,7 +686,7 @@ _ENTRY(dtlb_miss_exit_3)
 ITLBMissLinear:
 	mtcr	r12
 	/* Set 8M byte page and mark it valid */
-	li	r11, MI_PS8MEG | MI_SVALID | _PAGE_EXEC
+	li	r11, MI_PS8MEG | MI_SVALID
 	mtspr	SPRN_MI_TWC, r11
 	rlwinm	r10, r10, 0, 0x0f800000	/* 8xx supports max 256Mb RAM */
 	ori	r10, r10, 0xf0 | MI_SPS16K | _PAGE_PRIVILEGED | _PAGE_DIRTY | \
@@ -994,7 +968,7 @@ initial_mmu:
 	lis	r8, KERNELBASE@h	/* Create vaddr for TLB */
 	ori	r8, r8, MI_EVALID	/* Mark it valid */
 	mtspr	SPRN_MI_EPN, r8
-	li	r8, MI_PS8MEG | (2 << 5)	/* Set 8M byte page, APG 2 */
+	li	r8, MI_PS8MEG /* Set 8M byte page */
 	ori	r8, r8, MI_SVALID	/* Make it valid */
 	mtspr	SPRN_MI_TWC, r8
 	li	r8, MI_BOOTINIT		/* Create RPN for address 0 */

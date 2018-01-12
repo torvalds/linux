@@ -126,7 +126,7 @@ static inline pte_t pte_mkspecial(pte_t pte)
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return pte;
+	return __pte(pte_val(pte) | _PAGE_HUGE);
 }
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)

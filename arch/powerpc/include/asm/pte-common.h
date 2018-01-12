@@ -53,6 +53,9 @@
 #ifndef _PAGE_NA
 #define _PAGE_NA 0
 #endif
+#ifndef _PAGE_HUGE
+#define _PAGE_HUGE 0
+#endif
 
 #ifndef _PMD_PRESENT_MASK
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
@@ -60,6 +63,9 @@
 #ifndef _PMD_SIZE
 #define _PMD_SIZE	0
 #define PMD_PAGE_SIZE(pmd)	bad_call_to_PMD_PAGE_SIZE()
+#endif
+#ifndef _PMD_USER
+#define _PMD_USER	0
 #endif
 #ifndef _PAGE_KERNEL_RO
 #define _PAGE_KERNEL_RO		(_PAGE_PRIVILEGED | _PAGE_RO)
