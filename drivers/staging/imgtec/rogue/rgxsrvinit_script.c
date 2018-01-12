@@ -160,7 +160,7 @@ IMG_BOOL ScriptDBGReadRGXReg(RGX_SCRIPT_BUILD *psScript,
 {
 	RGX_INIT_COMMAND *psComm = NextScriptCommand(psScript);
 
-	PVR_ASSERT(strlen(pszName) < RGX_DBG_CMD_NAME_SIZE);
+	PVR_ASSERT((strlen(pszName) + 1) < RGX_DBG_CMD_NAME_SIZE);
 
 	if (psComm != NULL)
 	{
@@ -170,7 +170,7 @@ IMG_BOOL ScriptDBGReadRGXReg(RGX_SCRIPT_BUILD *psScript,
 		psComm->sDBGReadHWReg.eOp = eOp;
 		psComm->sDBGReadHWReg.ui32Offset = ui32Offset;
 
-		strcpy(&psComm->sDBGReadHWReg.aszName[0], pszName);
+		strlcpy(psComm->sDBGReadHWReg.aszName, pszName, sizeof(psComm->sDBGReadHWReg.aszName));
 
 		return IMG_TRUE;
 	}
@@ -188,7 +188,7 @@ IMG_BOOL ScriptDBGCalc(RGX_SCRIPT_BUILD *psScript,
 {
 	RGX_INIT_COMMAND *psComm = NextScriptCommand(psScript);
 
-	PVR_ASSERT(strlen(pszName) < RGX_DBG_CMD_NAME_SIZE);
+	PVR_ASSERT((strlen(pszName) + 1) < RGX_DBG_CMD_NAME_SIZE);
 
 	if (psComm != NULL)
 	{
@@ -198,7 +198,7 @@ IMG_BOOL ScriptDBGCalc(RGX_SCRIPT_BUILD *psScript,
 		psComm->sDBGCalc.ui32Offset1 = ui32Offset1;
 		psComm->sDBGCalc.ui32Offset2 = ui32Offset2;
 		psComm->sDBGCalc.ui32Offset3 = ui32Offset3;
-		strcpy(&psComm->sDBGCalc.aszName[0], pszName);
+		strlcpy(psComm->sDBGCalc.aszName, pszName, sizeof(psComm->sDBGReadHWReg.aszName));
 
 		return IMG_TRUE;
 	}
