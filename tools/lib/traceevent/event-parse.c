@@ -5566,8 +5566,14 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 
 	event = pevent_find_event_by_record(pevent, record);
 	if (!event) {
-		do_warning("ug! no event found for type %d",
-			   trace_parse_common_type(pevent, record->data));
+		int i;
+		int type = trace_parse_common_type(pevent, record->data);
+
+		do_warning("ug! no event found for type %d", type);
+		trace_seq_printf(s, "[UNKNOWN TYPE %d]", type);
+		for (i = 0; i < record->size; i++)
+			trace_seq_printf(s, " %02x",
+					 ((unsigned char *)record->data)[i]);
 		return;
 	}
 
