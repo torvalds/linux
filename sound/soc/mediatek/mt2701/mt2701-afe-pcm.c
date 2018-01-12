@@ -1440,9 +1440,9 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	}
 
 	afe->regmap = syscon_node_to_regmap(dev->parent->of_node);
-	if (!afe->regmap) {
+	if (IS_ERR(afe->regmap)) {
 		dev_err(dev, "could not get regmap from parent\n");
-		return -ENODEV;
+		return PTR_ERR(afe->regmap);
 	}
 
 	mutex_init(&afe->irq_alloc_lock);
