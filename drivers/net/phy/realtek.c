@@ -41,37 +41,14 @@ MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
 
-static int rtl8211x_page_read(struct phy_device *phydev, u16 page, u16 address)
+static int rtl821x_read_page(struct phy_device *phydev)
 {
-	int ret;
-
-	ret = phy_write(phydev, RTL821x_PAGE_SELECT, page);
-	if (ret)
-		return ret;
-
-	ret = phy_read(phydev, address);
-
-	/* restore to default page 0 */
-	phy_write(phydev, RTL821x_PAGE_SELECT, 0x0);
-
-	return ret;
+	return __phy_read(phydev, RTL821x_PAGE_SELECT);
 }
 
-static int rtl8211x_page_write(struct phy_device *phydev, u16 page,
-			       u16 address, u16 val)
+static int rtl821x_write_page(struct phy_device *phydev, int page)
 {
-	int ret;
-
-	ret = phy_write(phydev, RTL821x_PAGE_SELECT, page);
-	if (ret)
-		return ret;
-
-	ret = phy_write(phydev, address, val);
-
-	/* restore to default page 0 */
-	phy_write(phydev, RTL821x_PAGE_SELECT, 0x0);
-
-	return ret;
+	return __phy_write(phydev, RTL821x_PAGE_SELECT, page);
 }
 
 static int rtl8201_ack_interrupt(struct phy_device *phydev)
@@ -96,7 +73,7 @@ static int rtl8211f_ack_interrupt(struct phy_device *phydev)
 {
 	int err;
 
-	err = rtl8211x_page_read(phydev, 0xa43, RTL8211F_INSR);
+	err = phy_read_paged(phydev, 0xa43, RTL8211F_INSR);
 
 	return (err < 0) ? err : 0;
 }
@@ -110,7 +87,7 @@ static int rtl8201_config_intr(struct phy_device *phydev)
 	else
 		val = 0;
 
-	return rtl8211x_page_write(phydev, 0x7, RTL8201F_IER, val);
+	return phy_write_paged(phydev, 0x7, RTL8201F_IER, val);
 }
 
 static int rtl8211b_config_intr(struct phy_device *phydev)
@@ -148,36 +125,24 @@ static int rtl8211f_config_intr(struct phy_device *phydev)
 	else
 		val = 0;
 
-	return rtl8211x_page_write(phydev, 0xa42, RTL821x_INER, val);
+	return phy_write_paged(phydev, 0xa42, RTL821x_INER, val);
 }
 
 static int rtl8211f_config_init(struct phy_device *phydev)
 {
 	int ret;
-	u16 val;
+	u16 val = 0;
 
 	ret = genphy_config_init(phydev);
 	if (ret < 0)
 		return ret;
 
-	ret = rtl8211x_page_read(phydev, 0xd08, 0x11);
-	if (ret < 0)
-		return ret;
-
-	val = ret & 0xffff;
-
 	/* enable TX-delay for rgmii-id and rgmii-txid, otherwise disable it */
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
 	    phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
-		val |= RTL8211F_TX_DELAY;
-	else
-		val &= ~RTL8211F_TX_DELAY;
+		val = RTL8211F_TX_DELAY;
 
-	ret = rtl8211x_page_write(phydev, 0xd08, 0x11, val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return phy_modify_paged(phydev, 0xd08, 0x11, RTL8211F_TX_DELAY, val);
 }
 
 static struct phy_driver realtek_drvs[] = {
@@ -197,6 +162,8 @@ static struct phy_driver realtek_drvs[] = {
 		.config_intr	= &rtl8201_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
 	}, {
 		.phy_id		= 0x001cc912,
 		.name		= "RTL8211B Gigabit Ethernet",
@@ -236,6 +203,8 @@ static struct phy_driver realtek_drvs[] = {
 		.config_intr	= &rtl8211f_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
 	},
 };
 
