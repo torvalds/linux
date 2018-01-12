@@ -1564,7 +1564,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	u8 status;
 	bool hv;
 
-	hv = (regs->trap == 0xf80);
+	hv = (TRAP(regs) == 0xf80);
 	if (hv)
 		value = mfspr(SPRN_HFSCR);
 	else

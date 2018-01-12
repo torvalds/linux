@@ -571,7 +571,7 @@ void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 
 	/* kernel has accessed a bad area */
 
-	switch (regs->trap) {
+	switch (TRAP(regs)) {
 	case 0x300:
 	case 0x380:
 		printk(KERN_ALERT "Unable to handle kernel paging request for "
