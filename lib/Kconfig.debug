@@ -1500,6 +1500,10 @@ config FAULT_INJECTION
 	  Provide fault-injection framework.
 	  For more details, see Documentation/fault-injection/.
 
+config FUNCTION_ERROR_INJECTION
+	def_bool y
+	depends on HAVE_FUNCTION_ERROR_INJECTION && KPROBES
+
 config FAILSLAB
 	bool "Fault-injection capability for kmalloc"
 	depends on FAULT_INJECTION

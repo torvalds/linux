@@ -476,9 +476,9 @@ struct module {
 	unsigned int num_ctors;
 #endif
 
-#ifdef CONFIG_BPF_KPROBE_OVERRIDE
-	unsigned int num_kprobe_ei_funcs;
-	unsigned long *kprobe_ei_funcs;
+#ifdef CONFIG_FUNCTION_ERROR_INJECTION
+	unsigned int num_ei_funcs;
+	unsigned long *ei_funcs;
 #endif
 } ____cacheline_aligned __randomize_layout;
 #ifndef MODULE_ARCH_INIT

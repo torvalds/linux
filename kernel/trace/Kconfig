@@ -533,7 +533,7 @@ config FUNCTION_PROFILER
 config BPF_KPROBE_OVERRIDE
 	bool "Enable BPF programs to override a kprobed function"
 	depends on BPF_EVENTS
-	depends on HAVE_KPROBE_OVERRIDE
+	depends on FUNCTION_ERROR_INJECTION
 	default n
 	help
 	 Allows BPF to override the execution of a probed function and
