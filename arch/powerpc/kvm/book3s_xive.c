@@ -1794,6 +1794,7 @@ static int xive_debug_show(struct seq_file *m, void *private)
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
+		unsigned int i;
 
 		if (!xc)
 			continue;
@@ -1803,6 +1804,33 @@ static int xive_debug_show(struct seq_file *m, void *private)
 			   xc->server_num, xc->cppr, xc->hw_cppr,
 			   xc->mfrr, xc->pending,
 			   xc->stat_rm_h_xirr, xc->stat_vm_h_xirr);
+		for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
+			struct xive_q *q = &xc->queues[i];
+			u32 i0, i1, idx;
+
+			if (!q->qpage && !xc->esc_virq[i])
+				continue;
+
+			seq_printf(m, " [q%d]: ", i);
+
+			if (q->qpage) {
+				idx = q->idx;
+				i0 = be32_to_cpup(q->qpage + idx);
+				idx = (idx + 1) & q->msk;
+				i1 = be32_to_cpup(q->qpage + idx);
+				seq_printf(m, "T=%d %08x %08x... \n", q->toggle, i0, i1);
+			}
+			if (xc->esc_virq[i]) {
+				struct irq_data *d = irq_get_irq_data(xc->esc_virq[i]);
+				struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+				u64 pq = xive_vm_esb_load(xd, XIVE_ESB_GET);
+				seq_printf(m, "E:%c%c I(%d:%llx:%llx)",
+					   (pq & XIVE_ESB_VAL_P) ? 'P' : 'p',
+					   (pq & XIVE_ESB_VAL_Q) ? 'Q' : 'q',
+					   xc->esc_virq[i], pq, xd->eoi_page);
+				seq_printf(m, "\n");
+			}
+		}
 
 		t_rm_h_xirr += xc->stat_rm_h_xirr;
 		t_rm_h_ipoll += xc->stat_rm_h_ipoll;
