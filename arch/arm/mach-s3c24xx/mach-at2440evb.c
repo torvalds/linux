@@ -1,16 +1,11 @@
-/* linux/arch/arm/mach-s3c2440/mach-at2440evb.c
- *
- * Copyright (c) 2008 Ramax Lo <ramaxlo@gmail.com>
- *      Based on mach-anubis.c by Ben Dooks <ben@simtec.co.uk>
- *      and modifications by SBZ <sbz@spgui.org> and
- *      Weibing <http://weibing.blogbus.com>
- *
- * For product information, visit http://www.arm.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2008 Ramax Lo <ramaxlo@gmail.com>
+//      Based on mach-anubis.c by Ben Dooks <ben@simtec.co.uk>
+//      and modifications by SBZ <sbz@spgui.org> and
+//      Weibing <http://weibing.blogbus.com>
+//
+// For product information, visit http://www.arm.com/
 
 #include <linux/kernel.h>
 #include <linux/types.h>

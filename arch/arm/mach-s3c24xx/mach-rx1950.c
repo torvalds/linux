@@ -1,14 +1,9 @@
-/*
- * Copyright (c) 2006-2009 Victor Chukhantsev, Denis Grigoriev,
- * Copyright (c) 2007-2010 Vasily Khoruzhick
- *
- * based on smdk2440 written by Ben Dooks
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2006-2009 Victor Chukhantsev, Denis Grigoriev,
+// Copyright (c) 2007-2010 Vasily Khoruzhick
+//
+// based on smdk2440 written by Ben Dooks
 
 #include <linux/kernel.h>
 #include <linux/types.h>

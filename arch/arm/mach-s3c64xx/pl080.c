@@ -1,12 +1,8 @@
-/*
- * Samsung's S3C64XX generic DMA support using amba-pl08x driver.
- *
- * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Samsung's S3C64XX generic DMA support using amba-pl08x driver.
+//
+// Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
 
 #include <linux/kernel.h>
 #include <linux/amba/bus.h>

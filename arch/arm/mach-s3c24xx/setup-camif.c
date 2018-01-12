@@ -1,12 +1,8 @@
-/*
- * Copyright (C) 2012 Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
- *
- * Helper functions for S3C24XX/S3C64XX SoC series CAMIF driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2012 Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
+//
+// Helper functions for S3C24XX/S3C64XX SoC series CAMIF driver
 
 #include <linux/gpio.h>
 #include <plat/gpio-cfg.h>
