@@ -304,12 +304,6 @@ InstructionTLBMiss:
 #if defined(ITLB_MISS_KERNEL) || defined(CONFIG_HUGETLB_PAGE)
 	mtspr	SPRN_SPRG_SCRATCH2, r12
 #endif
-#ifdef CONFIG_PPC_8xx_PERF_EVENT
-	lis	r10, (itlb_miss_counter - PAGE_OFFSET)@ha
-	lwz	r11, (itlb_miss_counter - PAGE_OFFSET)@l(r10)
-	addi	r11, r11, 1
-	stw	r11, (itlb_miss_counter - PAGE_OFFSET)@l(r10)
-#endif
 
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
@@ -392,6 +386,20 @@ _ENTRY(ITLBMiss_cmp)
 	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
 
 	/* Restore registers */
+_ENTRY(itlb_miss_exit_1)
+	mfspr	r10, SPRN_SPRG_SCRATCH0
+	mfspr	r11, SPRN_SPRG_SCRATCH1
+#if defined(ITLB_MISS_KERNEL) || defined(CONFIG_HUGETLB_PAGE)
+	mfspr	r12, SPRN_SPRG_SCRATCH2
+#endif
+	rfi
+#ifdef CONFIG_PERF_EVENTS
+_ENTRY(itlb_miss_perf)
+	lis	r10, (itlb_miss_counter - PAGE_OFFSET)@ha
+	lwz	r11, (itlb_miss_counter - PAGE_OFFSET)@l(r10)
+	addi	r11, r11, 1
+	stw	r11, (itlb_miss_counter - PAGE_OFFSET)@l(r10)
+#endif
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 #if defined(ITLB_MISS_KERNEL) || defined(CONFIG_HUGETLB_PAGE)
@@ -429,12 +437,6 @@ DataStoreTLBMiss:
 	mtspr	SPRN_SPRG_SCRATCH0, r10
 	mtspr	SPRN_SPRG_SCRATCH1, r11
 	mtspr	SPRN_SPRG_SCRATCH2, r12
-#ifdef CONFIG_PPC_8xx_PERF_EVENT
-	lis	r10, (dtlb_miss_counter - PAGE_OFFSET)@ha
-	lwz	r11, (dtlb_miss_counter - PAGE_OFFSET)@l(r10)
-	addi	r11, r11, 1
-	stw	r11, (dtlb_miss_counter - PAGE_OFFSET)@l(r10)
-#endif
 	mfcr	r12
 
 	/* If we are faulting a kernel address, we have to use the
@@ -526,6 +528,18 @@ _ENTRY(DTLBMiss_jmp)
 
 	/* Restore registers */
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
+_ENTRY(dtlb_miss_exit_1)
+	mfspr	r10, SPRN_SPRG_SCRATCH0
+	mfspr	r11, SPRN_SPRG_SCRATCH1
+	mfspr	r12, SPRN_SPRG_SCRATCH2
+	rfi
+#ifdef CONFIG_PERF_EVENTS
+_ENTRY(dtlb_miss_perf)
+	lis	r10, (dtlb_miss_counter - PAGE_OFFSET)@ha
+	lwz	r11, (dtlb_miss_counter - PAGE_OFFSET)@l(r10)
+	addi	r11, r11, 1
+	stw	r11, (dtlb_miss_counter - PAGE_OFFSET)@l(r10)
+#endif
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r12, SPRN_SPRG_SCRATCH2
@@ -635,7 +649,7 @@ DataBreakpoint:
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	rfi
 
-#ifdef CONFIG_PPC_8xx_PERF_EVENT
+#ifdef CONFIG_PERF_EVENTS
 	. = 0x1d00
 InstructionBreakpoint:
 	mtspr	SPRN_SPRG_SCRATCH0, r10
@@ -675,6 +689,7 @@ DTLBMissIMMR:
 
 	li	r11, RPN_PATTERN
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
+_ENTRY(dtlb_miss_exit_2)
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r12, SPRN_SPRG_SCRATCH2
@@ -692,6 +707,7 @@ DTLBMissLinear:
 
 	li	r11, RPN_PATTERN
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
+_ENTRY(dtlb_miss_exit_3)
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r12, SPRN_SPRG_SCRATCH2
@@ -708,6 +724,7 @@ ITLBMissLinear:
 			  _PAGE_PRESENT
 	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
 
+_ENTRY(itlb_miss_exit_2)
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r12, SPRN_SPRG_SCRATCH2
@@ -1039,7 +1056,7 @@ initial_mmu:
 #endif
 	/* Disable debug mode entry on breakpoints */
 	mfspr	r8, SPRN_DER
-#ifdef CONFIG_PPC_8xx_PERF_EVENT
+#ifdef CONFIG_PERF_EVENTS
 	rlwinm	r8, r8, 0, ~0xc
 #else
 	rlwinm	r8, r8, 0, ~0x8
@@ -1072,7 +1089,7 @@ swapper_pg_dir:
 abatron_pteptrs:
 	.space	8
 
-#ifdef CONFIG_PPC_8xx_PERF_EVENT
+#ifdef CONFIG_PERF_EVENTS
 	.globl	itlb_miss_counter
 itlb_miss_counter:
 	.space	4
