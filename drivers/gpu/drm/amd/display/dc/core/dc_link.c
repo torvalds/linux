@@ -50,6 +50,7 @@
 	dm_logger_write(dc_ctx->logger, LOG_HW_HOTPLUG, \
 		__VA_ARGS__)
 
+#define DEFAULT_DELAY_DISCONNECT 100
 /*******************************************************************************
  * Private structures
  ******************************************************************************/
@@ -117,7 +118,7 @@ struct gpio *get_hpd_gpio(struct dc_bios *dcb,
  *     true on success, false otherwise
  */
 static bool program_hpd_filter(
-	const struct dc_link *link)
+	const struct dc_link *link, int default_disconnect_delay)
 {
 	bool result = false;
 
@@ -133,7 +134,7 @@ static bool program_hpd_filter(
 	case SIGNAL_TYPE_HDMI_TYPE_A:
 		/* Program hpd filter */
 		delay_on_connect_in_ms = 500;
-		delay_on_disconnect_in_ms = 100;
+		delay_on_disconnect_in_ms = default_disconnect_delay;
 		break;
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
@@ -695,6 +696,11 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			dp_hbr_verify_link_cap(link, &link->reported_link_cap);
 		}
 
+		/* Add delay for certain monitors */
+		if (sink->edid_caps.panel_patch.disconnect_delay > 0 &&
+				SIGNAL_TYPE_HDMI_TYPE_A)
+			program_hpd_filter(link, sink->edid_caps.panel_patch.disconnect_delay);
+
 		/* HDMI-DVI Dongle */
 		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
 				!sink->edid_caps.edid_hdmi)
@@ -1081,7 +1087,7 @@ static bool construct(
 	 * If GPIO isn't programmed correctly HPD might not rise or drain
 	 * fast enough, leading to bounces.
 	 */
-	program_hpd_filter(link);
+	program_hpd_filter(link, DEFAULT_DELAY_DISCONNECT);
 
 	return true;
 device_tag_fail:
@@ -2000,7 +2006,7 @@ const struct dc_link_status *dc_link_get_status(const struct dc_link *link)
 void core_link_resume(struct dc_link *link)
 {
 	if (link->connector_signal != SIGNAL_TYPE_VIRTUAL)
-		program_hpd_filter(link);
+		program_hpd_filter(link, DEFAULT_DELAY_DISCONNECT);
 }
 
 static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
