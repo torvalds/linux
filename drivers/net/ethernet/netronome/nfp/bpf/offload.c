@@ -237,7 +237,7 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 	int err;
 
 	if (prog) {
-		struct bpf_dev_offload *offload = prog->aux->offload;
+		struct bpf_prog_offload *offload = prog->aux->offload;
 
 		if (!offload)
 			return -EINVAL;

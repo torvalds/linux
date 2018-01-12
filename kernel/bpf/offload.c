@@ -32,7 +32,7 @@ static LIST_HEAD(bpf_prog_offload_devs);
 
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
 {
-	struct bpf_dev_offload *offload;
+	struct bpf_prog_offload *offload;
 
 	if (attr->prog_type != BPF_PROG_TYPE_SCHED_CLS &&
 	    attr->prog_type != BPF_PROG_TYPE_XDP)
@@ -72,7 +72,7 @@ err_free:
 static int __bpf_offload_ndo(struct bpf_prog *prog, enum bpf_netdev_command cmd,
 			     struct netdev_bpf *data)
 {
-	struct bpf_dev_offload *offload = prog->aux->offload;
+	struct bpf_prog_offload *offload = prog->aux->offload;
 	struct net_device *netdev;
 
 	ASSERT_RTNL();
@@ -110,7 +110,7 @@ exit_unlock:
 int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 				 int insn_idx, int prev_insn_idx)
 {
-	struct bpf_dev_offload *offload;
+	struct bpf_prog_offload *offload;
 	int ret = -ENODEV;
 
 	down_read(&bpf_devs_lock);
@@ -124,7 +124,7 @@ int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 
 static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 {
-	struct bpf_dev_offload *offload = prog->aux->offload;
+	struct bpf_prog_offload *offload = prog->aux->offload;
 	struct netdev_bpf data = {};
 
 	data.offload.prog = prog;
@@ -242,7 +242,7 @@ static int bpf_offload_notification(struct notifier_block *notifier,
 				    ulong event, void *ptr)
 {
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
-	struct bpf_dev_offload *offload, *tmp;
+	struct bpf_prog_offload *offload, *tmp;
 
 	ASSERT_RTNL();
 

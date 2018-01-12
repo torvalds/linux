@@ -200,7 +200,7 @@ struct bpf_prog_offload_ops {
 			 int insn_idx, int prev_insn_idx);
 };
 
-struct bpf_dev_offload {
+struct bpf_prog_offload {
 	struct bpf_prog		*prog;
 	struct net_device	*netdev;
 	void			*dev_priv;
@@ -230,7 +230,7 @@ struct bpf_prog_aux {
 #ifdef CONFIG_SECURITY
 	void *security;
 #endif
-	struct bpf_dev_offload *offload;
+	struct bpf_prog_offload *offload;
 	union {
 		struct work_struct work;
 		struct rcu_head	rcu;
