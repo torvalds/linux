@@ -152,17 +152,13 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 		}
 
 		reinit_completion(&c->irq_done);
-		if (c->gpio_irq) {
-			result = gpio_get_value(c->gpio_irq);
-			if (result == -1) {
-				ctrl = read_reg(c, ONENAND_REG_CTRL_STATUS);
-				intr = read_reg(c, ONENAND_REG_INTERRUPT);
-				wait_err("gpio error", state, ctrl, intr);
-				return -EIO;
-			}
-		} else
-			result = 0;
-		if (result == 0) {
+		result = gpio_get_value(c->gpio_irq);
+		if (result < 0) {
+			ctrl = read_reg(c, ONENAND_REG_CTRL_STATUS);
+			intr = read_reg(c, ONENAND_REG_INTERRUPT);
+			wait_err("gpio error", state, ctrl, intr);
+			return -EIO;
+		} else if (result == 0) {
 			int retry_cnt = 0;
 retry:
 			if (!wait_for_completion_io_timeout(&c->irq_done,
@@ -450,6 +446,7 @@ static void omap2_onenand_shutdown(struct platform_device *pdev)
 
 static int omap2_onenand_probe(struct platform_device *pdev)
 {
+	dma_cap_mask_t mask;
 	struct omap_onenand_platform_data *pdata;
 	struct omap2_onenand *c;
 	struct onenand_chip *this;
@@ -513,31 +510,25 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,  "Failed to request GPIO%d for "
 				"OneNAND\n", c->gpio_irq);
 			goto err_iounmap;
+		}
+		gpio_direction_input(c->gpio_irq);
+
+		if ((r = request_irq(gpio_to_irq(c->gpio_irq),
+				     omap2_onenand_interrupt, IRQF_TRIGGER_RISING,
+				     pdev->dev.driver->name, c)) < 0)
+			goto err_release_gpio;
+
+		this->wait = omap2_onenand_wait;
 	}
-	gpio_direction_input(c->gpio_irq);
 
-	if ((r = request_irq(gpio_to_irq(c->gpio_irq),
-			     omap2_onenand_interrupt, IRQF_TRIGGER_RISING,
-			     pdev->dev.driver->name, c)) < 0)
-		goto err_release_gpio;
-	}
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_MEMCPY, mask);
 
-	if (pdata->dma_channel >= 0) {
-		dma_cap_mask_t mask;
-
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_MEMCPY, mask);
-
-		c->dma_chan = dma_request_channel(mask, NULL, NULL);
-		if (!c->dma_chan)
-			dev_info(&pdev->dev,
-				 "failed to allocate DMA for OneNAND, "
-				 "using PIO instead\n");
-	}
+	c->dma_chan = dma_request_channel(mask, NULL, NULL);
 
 	dev_info(&pdev->dev, "initializing on CS%d, phys base 0x%08lx, virtual "
-		 "base %p, freq %d MHz\n", c->gpmc_cs, c->phys_base,
-		 c->onenand.base, c->freq);
+		 "base %p, freq %d MHz, %s mode\n", c->gpmc_cs, c->phys_base,
+		 c->onenand.base, c->freq, c->dma_chan ? "DMA" : "PIO");
 
 	c->pdev = pdev;
 	c->mtd.priv = &c->onenand;
@@ -547,7 +538,6 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 
 	this = &c->onenand;
 	if (c->dma_chan) {
-		this->wait = omap2_onenand_wait;
 		this->read_bufferram = omap2_onenand_read_bufferram;
 		this->write_bufferram = omap2_onenand_write_bufferram;
 	}
