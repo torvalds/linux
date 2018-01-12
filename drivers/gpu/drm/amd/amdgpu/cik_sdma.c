@@ -907,6 +907,14 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (0xfff << 16) | 10); /* retry count, poll interval */
 }
 
+static void cik_sdma_ring_emit_wreg(struct amdgpu_ring *ring,
+				    uint32_t reg, uint32_t val)
+{
+	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	amdgpu_ring_write(ring, reg);
+	amdgpu_ring_write(ring, val);
+}
+
 static void cik_enable_sdma_mgcg(struct amdgpu_device *adev,
 				 bool enable)
 {
@@ -1295,6 +1303,7 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.test_ib = cik_sdma_ring_test_ib,
 	.insert_nop = cik_sdma_ring_insert_nop,
 	.pad_ib = cik_sdma_ring_pad_ib,
+	.emit_wreg = cik_sdma_ring_emit_wreg,
 };
 
 static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev)
