@@ -755,6 +755,7 @@ struct ceph_readdir_cache_control {
  */
 struct ceph_snap_realm {
 	u64 ino;
+	struct inode *inode;
 	atomic_t nref;
 	struct rb_node node;
 

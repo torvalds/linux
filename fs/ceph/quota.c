@@ -83,7 +83,6 @@ static struct ceph_snap_realm *get_quota_realm(struct ceph_mds_client *mdsc,
 {
 	struct ceph_inode_info *ci = NULL;
 	struct ceph_snap_realm *realm, *next;
-	struct ceph_vino vino;
 	struct inode *in;
 	bool has_quota;
 
@@ -97,13 +96,12 @@ static struct ceph_snap_realm *get_quota_realm(struct ceph_mds_client *mdsc,
 		pr_err_ratelimited("get_quota_realm: ino (%llx.%llx) "
 				   "null i_snap_realm\n", ceph_vinop(inode));
 	while (realm) {
-		vino.ino = realm->ino;
-		vino.snap = CEPH_NOSNAP;
-		in = ceph_find_inode(inode->i_sb, vino);
-		if (!in) {
-			pr_warn("Failed to find inode for %llu\n", vino.ino);
+		spin_lock(&realm->inodes_with_caps_lock);
+		in = realm->inode ? igrab(realm->inode) : NULL;
+		spin_unlock(&realm->inodes_with_caps_lock);
+		if (!in)
 			break;
-		}
+
 		ci = ceph_inode(in);
 		has_quota = ceph_has_quota(ci);
 		iput(in);
@@ -161,7 +159,6 @@ static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	struct ceph_inode_info *ci;
 	struct ceph_snap_realm *realm, *next;
-	struct ceph_vino vino;
 	struct inode *in;
 	u64 max, rvalue;
 	bool exceeded = false;
@@ -177,13 +174,12 @@ static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
 		pr_err_ratelimited("check_quota_exceeded: ino (%llx.%llx) "
 				   "null i_snap_realm\n", ceph_vinop(inode));
 	while (realm) {
-		vino.ino = realm->ino;
-		vino.snap = CEPH_NOSNAP;
-		in = ceph_find_inode(inode->i_sb, vino);
-		if (!in) {
-			pr_warn("Failed to find inode for %llu\n", vino.ino);
+		spin_lock(&realm->inodes_with_caps_lock);
+		in = realm->inode ? igrab(realm->inode) : NULL;
+		spin_unlock(&realm->inodes_with_caps_lock);
+		if (!in)
 			break;
-		}
+
 		ci = ceph_inode(in);
 		spin_lock(&ci->i_ceph_lock);
 		if (op == QUOTA_CHECK_MAX_FILES_OP) {

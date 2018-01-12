@@ -703,9 +703,11 @@ void ceph_add_cap(struct inode *inode,
 			}
 
 			spin_lock(&realm->inodes_with_caps_lock);
-			ci->i_snap_realm = realm;
 			list_add(&ci->i_snap_realm_item,
 				 &realm->inodes_with_caps);
+			ci->i_snap_realm = realm;
+			if (realm->ino == ci->i_vino.ino)
+				realm->inode = inode;
 			spin_unlock(&realm->inodes_with_caps_lock);
 
 			if (oldrealm)

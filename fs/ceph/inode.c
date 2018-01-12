@@ -551,6 +551,9 @@ void ceph_destroy_inode(struct inode *inode)
 		dout(" dropping residual ref to snap realm %p\n", realm);
 		spin_lock(&realm->inodes_with_caps_lock);
 		list_del_init(&ci->i_snap_realm_item);
+		ci->i_snap_realm = NULL;
+		if (realm->ino == ci->i_vino.ino)
+			realm->inode = NULL;
 		spin_unlock(&realm->inodes_with_caps_lock);
 		ceph_put_snap_realm(mdsc, realm);
 	}
