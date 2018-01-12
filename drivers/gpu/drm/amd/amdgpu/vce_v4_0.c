@@ -1001,6 +1001,14 @@ static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, 1 << vmid);
 }
 
+static void vce_v4_0_emit_wreg(struct amdgpu_ring *ring,
+			       uint32_t reg, uint32_t val)
+{
+	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
+	amdgpu_ring_write(ring,	reg << 2);
+	amdgpu_ring_write(ring, val);
+}
+
 static int vce_v4_0_set_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					unsigned type,
@@ -1084,6 +1092,7 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
 	.end_use = amdgpu_vce_ring_end_use,
+	.emit_wreg = vce_v4_0_emit_wreg,
 };
 
 static void vce_v4_0_set_ring_funcs(struct amdgpu_device *adev)
