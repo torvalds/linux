@@ -2628,7 +2628,8 @@ struct mlxsw_sp_nexthop_group_cmp_arg {
 
 static bool
 mlxsw_sp_nexthop6_group_has_nexthop(const struct mlxsw_sp_nexthop_group *nh_grp,
-				    const struct in6_addr *gw, int ifindex)
+				    const struct in6_addr *gw, int ifindex,
+				    int weight)
 {
 	int i;
 
@@ -2636,7 +2637,7 @@ mlxsw_sp_nexthop6_group_has_nexthop(const struct mlxsw_sp_nexthop_group *nh_grp,
 		const struct mlxsw_sp_nexthop *nh;
 
 		nh = &nh_grp->nexthops[i];
-		if (nh->ifindex == ifindex &&
+		if (nh->ifindex == ifindex && nh->nh_weight == weight &&
 		    ipv6_addr_equal(gw, (struct in6_addr *) nh->gw_addr))
 			return true;
 	}
@@ -2655,11 +2656,13 @@ mlxsw_sp_nexthop6_group_cmp(const struct mlxsw_sp_nexthop_group *nh_grp,
 
 	list_for_each_entry(mlxsw_sp_rt6, &fib6_entry->rt6_list, list) {
 		struct in6_addr *gw;
-		int ifindex;
+		int ifindex, weight;
 
 		ifindex = mlxsw_sp_rt6->rt->dst.dev->ifindex;
+		weight = mlxsw_sp_rt6->rt->rt6i_nh_weight;
 		gw = &mlxsw_sp_rt6->rt->rt6i_gateway;
-		if (!mlxsw_sp_nexthop6_group_has_nexthop(nh_grp, gw, ifindex))
+		if (!mlxsw_sp_nexthop6_group_has_nexthop(nh_grp, gw, ifindex,
+							 weight))
 			return false;
 	}
 
@@ -4762,7 +4765,7 @@ static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
 	struct net_device *dev = rt->dst.dev;
 
 	nh->nh_grp = nh_grp;
-	nh->nh_weight = 1;
+	nh->nh_weight = rt->rt6i_nh_weight;
 	memcpy(&nh->gw_addr, &rt->rt6i_gateway, sizeof(nh->gw_addr));
 	mlxsw_sp_nexthop_counter_alloc(mlxsw_sp, nh);
 
