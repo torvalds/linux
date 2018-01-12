@@ -42,8 +42,6 @@ struct trace_kprobe {
 	(offsetof(struct trace_kprobe, tp.args) +	\
 	(sizeof(struct probe_arg) * (n)))
 
-DEFINE_PER_CPU(int, bpf_kprobe_override);
-
 static nokprobe_inline bool trace_kprobe_is_return(struct trace_kprobe *tk)
 {
 	return tk->rp.handler != NULL;
@@ -1205,6 +1203,7 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 	int rctx;
 
 	if (bpf_prog_array_valid(call)) {
+		unsigned long orig_ip = instruction_pointer(regs);
 		int ret;
 
 		ret = trace_call_bpf(call, regs);
@@ -1212,12 +1211,13 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 		/*
 		 * We need to check and see if we modified the pc of the
 		 * pt_regs, and if so clear the kprobe and return 1 so that we
-		 * don't do the instruction skipping.  Also reset our state so
-		 * we are clean the next pass through.
+		 * don't do the single stepping.
+		 * The ftrace kprobe handler leaves it up to us to re-enable
+		 * preemption here before returning if we've modified the ip.
 		 */
-		if (__this_cpu_read(bpf_kprobe_override)) {
-			__this_cpu_write(bpf_kprobe_override, 0);
+		if (orig_ip != instruction_pointer(regs)) {
 			reset_current_kprobe();
+			preempt_enable_no_resched();
 			return 1;
 		}
 		if (!ret)
@@ -1325,15 +1325,8 @@ static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 	if (tk->tp.flags & TP_FLAG_TRACE)
 		kprobe_trace_func(tk, regs);
 #ifdef CONFIG_PERF_EVENTS
-	if (tk->tp.flags & TP_FLAG_PROFILE) {
+	if (tk->tp.flags & TP_FLAG_PROFILE)
 		ret = kprobe_perf_func(tk, regs);
-		/*
-		 * The ftrace kprobe handler leaves it up to us to re-enable
-		 * preemption here before returning if we've modified the ip.
-		 */
-		if (ret)
-			preempt_enable_no_resched();
-	}
 #endif
 	return ret;
 }

@@ -83,7 +83,6 @@ EXPORT_SYMBOL_GPL(trace_call_bpf);
 #ifdef CONFIG_BPF_KPROBE_OVERRIDE
 BPF_CALL_2(bpf_override_return, struct pt_regs *, regs, unsigned long, rc)
 {
-	__this_cpu_write(bpf_kprobe_override, 1);
 	regs_set_return_value(regs, rc);
 	arch_kprobe_override_function(regs);
 	return 0;
