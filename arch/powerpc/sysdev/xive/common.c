@@ -1269,11 +1269,6 @@ static void xive_setup_cpu(void)
 {
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
 
-	/* Debug: Dump the TM state */
-	pr_devel("CPU %d [HW 0x%02x] VT=%02x\n",
-	    smp_processor_id(), hard_smp_processor_id(),
-	    in_8(xive_tima + xive_tima_offset + TM_WORD2));
-
 	/* The backend might have additional things to do */
 	if (xive_ops->setup_cpu)
 		xive_ops->setup_cpu(smp_processor_id(), xc);
