@@ -33,23 +33,6 @@
 #include <asm/fixmap.h>
 #include <asm/export.h>
 
-/* Macro to make the code more readable. */
-#ifdef CONFIG_8xx_CPU6
-#define SPRN_MI_TWC_ADDR	0x2b80
-#define SPRN_MI_RPN_ADDR	0x2d80
-#define SPRN_MD_TWC_ADDR	0x3b80
-#define SPRN_MD_RPN_ADDR	0x3d80
-
-#define MTSPR_CPU6(spr, reg, treg)	\
-	li	treg, spr##_ADDR;	\
-	stw	treg, 12(r0);		\
-	lwz	treg, 12(r0);		\
-	mtspr	spr, reg
-#else
-#define MTSPR_CPU6(spr, reg, treg)	\
-	mtspr	spr, reg
-#endif
-
 #if CONFIG_TASK_SIZE <= 0x80000000 && CONFIG_PAGE_OFFSET >= 0x80000000
 /* By simply checking Address >= 0x80000000, we know if its a kernel address */
 #define SIMPLE_KERNEL_ADDRESS		1
@@ -326,7 +309,7 @@ SystemCall:
 #endif
 
 InstructionTLBMiss:
-#if defined(CONFIG_8xx_CPU6) || defined(ITLB_MISS_KERNEL) || defined(CONFIG_HUGETLB_PAGE)
+#if defined(ITLB_MISS_KERNEL) || defined(CONFIG_HUGETLB_PAGE)
 	mtspr	SPRN_SPRG_SCRATCH2, r3
 #endif
 	EXCEPTION_PROLOG_0
@@ -393,7 +376,7 @@ _ENTRY(ITLBMiss_cmp)
 	/* Insert the APG into the TWC from the Linux PTE. */
 	rlwimi	r11, r10, 0, 25, 26
 	/* Load the MI_TWC with the attributes for this "segment." */
-	MTSPR_CPU6(SPRN_MI_TWC, r11, r3)	/* Set segment attributes */
+	mtspr	SPRN_MI_TWC, r11	/* Set segment attributes */
 
 #if defined (CONFIG_HUGETLB_PAGE) && defined (CONFIG_PPC_4K_PAGES)
 	rlwimi	r10, r11, 1, MI_SPS16K
@@ -415,10 +398,10 @@ _ENTRY(ITLBMiss_cmp)
 #else
 	rlwimi	r10, r11, 0, 0x0ff8	/* Set 24-27, clear 20-23,28 */
 #endif
-	MTSPR_CPU6(SPRN_MI_RPN, r10, r3)	/* Update TLB entry */
+	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
 
 	/* Restore registers */
-#if defined(CONFIG_8xx_CPU6) || defined(ITLB_MISS_KERNEL) || defined(CONFIG_HUGETLB_PAGE)
+#if defined(ITLB_MISS_KERNEL) || defined(CONFIG_HUGETLB_PAGE)
 	mfspr	r3, SPRN_SPRG_SCRATCH2
 #endif
 	EXCEPTION_EPILOG_0
@@ -512,7 +495,7 @@ _ENTRY(DTLBMiss_jmp)
 	 * It is bit 25 in the Linux PTE and bit 30 in the TWC
 	 */
 	rlwimi	r11, r10, 32-5, 30, 30
-	MTSPR_CPU6(SPRN_MD_TWC, r11, r3)
+	mtspr	SPRN_MD_TWC, r11
 
 	/* In 4k pages mode, SPS (bit 28) in RPN must match PS[1] (bit 29)
 	 * In 16k pages mode, SPS is always 1 */
@@ -546,7 +529,7 @@ _ENTRY(DTLBMiss_jmp)
 	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
 #endif
 	rlwimi	r10, r11, 0, 20, 20	/* clear 20 */
-	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
+	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
 
 	/* Restore registers */
 	mfspr	r3, SPRN_SPRG_SCRATCH2
@@ -684,12 +667,12 @@ DTLBMissIMMR:
 	mtcr	r3
 	/* Set 512k byte guarded page and mark it valid */
 	li	r10, MD_PS512K | MD_GUARDED | MD_SVALID
-	MTSPR_CPU6(SPRN_MD_TWC, r10, r11)
+	mtspr	SPRN_MD_TWC, r10
 	mfspr	r10, SPRN_IMMR			/* Get current IMMR */
 	rlwinm	r10, r10, 0, 0xfff80000		/* Get 512 kbytes boundary */
 	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
 			  _PAGE_PRESENT | _PAGE_NO_CACHE
-	MTSPR_CPU6(SPRN_MD_RPN, r10, r11)	/* Update TLB entry */
+	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
 
 	li	r11, RPN_PATTERN
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
@@ -701,11 +684,11 @@ DTLBMissLinear:
 	mtcr	r3
 	/* Set 8M byte page and mark it valid */
 	li	r11, MD_PS8MEG | MD_SVALID
-	MTSPR_CPU6(SPRN_MD_TWC, r11, r3)
+	mtspr	SPRN_MD_TWC, r11
 	rlwinm	r10, r10, 0, 0x0f800000	/* 8xx supports max 256Mb RAM */
 	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
 			  _PAGE_PRESENT
-	MTSPR_CPU6(SPRN_MD_RPN, r10, r11)	/* Update TLB entry */
+	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
 
 	li	r11, RPN_PATTERN
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
@@ -718,11 +701,11 @@ ITLBMissLinear:
 	mtcr	r3
 	/* Set 8M byte page and mark it valid */
 	li	r11, MI_PS8MEG | MI_SVALID | _PAGE_EXEC
-	MTSPR_CPU6(SPRN_MI_TWC, r11, r3)
+	mtspr	SPRN_MI_TWC, r11
 	rlwinm	r10, r10, 0, 0x0f800000	/* 8xx supports max 256Mb RAM */
 	ori	r10, r10, 0xf0 | MI_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
 			  _PAGE_PRESENT
-	MTSPR_CPU6(SPRN_MI_RPN, r10, r11)	/* Update TLB entry */
+	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
 
 	mfspr	r3, SPRN_SPRG_SCRATCH2
 	EXCEPTION_EPILOG_0
@@ -933,13 +916,6 @@ start_here:
 	 */
 	lis	r6, swapper_pg_dir@ha
 	tophys(r6,r6)
-#ifdef CONFIG_8xx_CPU6
-	lis	r4, cpu6_errata_word@h
-	ori	r4, r4, cpu6_errata_word@l
-	li	r3, 0x3f80
-	stw	r3, 12(r4)
-	lwz	r3, 12(r4)
-#endif
 	mtspr	SPRN_M_TW, r6
 	lis	r4,2f@h
 	ori	r4,r4,2f@l
@@ -1093,12 +1069,6 @@ swapper_pg_dir:
  */
 abatron_pteptrs:
 	.space	8
-
-#ifdef CONFIG_8xx_CPU6
-	.globl	cpu6_errata_word
-cpu6_errata_word:
-	.space	16
-#endif
 
 #ifdef CONFIG_PPC_8xx_PERF_EVENT
 	.globl	itlb_miss_counter

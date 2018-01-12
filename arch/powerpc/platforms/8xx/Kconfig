@@ -116,18 +116,6 @@ config 8xx_GPIO
 
 	  If in doubt, say Y here.
 
-config 8xx_CPU6
-	bool "CPU6 Silicon Errata (860 Pre Rev. C)"
-	help
-	  MPC860 CPUs, prior to Rev C have some bugs in the silicon, which
-	  require workarounds for Linux (and most other OSes to work).  If you
-	  get a BUG() very early in boot, this might fix the problem.  For
-	  more details read the document entitled "MPC860 Family Device Errata
-	  Reference" on Freescale's website.  This option also incurs a
-	  performance hit.
-
-	  If in doubt, say N here.
-
 config 8xx_CPU15
 	bool "CPU15 Silicon Errata"
 	depends on !HUGETLB_PAGE
