@@ -1005,7 +1005,6 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 }
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct encoder_unblank_param params = { { 0 } };
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 
