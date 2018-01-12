@@ -1526,7 +1526,7 @@ static void gfx_v9_0_gpu_init(struct amdgpu_device *adev)
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
 	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids; i++) {
 		soc15_grbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
 		if (i == 0) {

@@ -778,10 +778,6 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 	struct amdgpu_bo *bo;
 	int i, r;
 
-	r = amdgpu_vm_update_directories(adev, vm);
-	if (r)
-		return r;
-
 	r = amdgpu_vm_clear_freed(adev, vm, NULL);
 	if (r)
 		return r;
@@ -836,6 +832,10 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 	}
 
 	r = amdgpu_vm_handle_moved(adev, vm);
+	if (r)
+		return r;
+
+	r = amdgpu_vm_update_directories(adev, vm);
 	if (r)
 		return r;
 

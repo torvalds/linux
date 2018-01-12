@@ -4651,6 +4651,25 @@ static int smu7_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int smu7_get_max_high_clocks(struct pp_hwmgr *hwmgr,
+					struct amd_pp_simple_clock_info *clocks)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct smu7_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct smu7_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+
+	if (clocks == NULL)
+		return -EINVAL;
+
+	clocks->memory_max_clock = mclk_table->count > 1 ?
+				mclk_table->dpm_levels[mclk_table->count-1].value :
+				mclk_table->dpm_levels[0].value;
+	clocks->engine_max_clock = sclk_table->count > 1 ?
+				sclk_table->dpm_levels[sclk_table->count-1].value :
+				sclk_table->dpm_levels[0].value;
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -4703,6 +4722,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.disable_smc_firmware_ctf = smu7_thermal_disable_alert,
 	.start_thermal_controller = smu7_start_thermal_controller,
 	.notify_cac_buffer_info = smu7_notify_cac_buffer_info,
+	.get_max_high_clocks = smu7_get_max_high_clocks,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

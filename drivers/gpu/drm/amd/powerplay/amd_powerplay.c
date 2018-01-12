@@ -718,6 +718,8 @@ static int pp_dpm_get_pp_num_states(void *handle,
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
 
+	memset(data, 0, sizeof(*data));
+
 	ret = pp_check(pp_handle);
 
 	if (ret)
