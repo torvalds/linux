@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos5433 SoC device tree source
  *
@@ -10,10 +11,6 @@
  * Note: This file does not include device nodes for all the controllers in
  * Exynos5433 SoC. As device tree coverage for Exynos5433 increases,
  * additional nodes can be added to this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/clock/exynos5433.h>
@@ -468,7 +465,7 @@
 			clocks = <&xxti>, <&cmu_mif CLK_SCLK_BUS_PLL_ATLAS>;
 		};
 
-		cmu_mscl: clock-controller@105d0000 {
+		cmu_mscl: clock-controller@150d0000 {
 			compatible = "samsung,exynos5433-cmu-mscl";
 			reg = <0x150d0000 0x1000>;
 			#clock-cells = <1>;
@@ -994,7 +991,7 @@
 			reg = <0x145f0000 0x1038>;
 		};
 
-		gsc_0: video-scaler@13C00000 {
+		gsc_0: video-scaler@13c00000 {
 			compatible = "samsung,exynos5433-gsc";
 			reg = <0x13c00000 0x1000>;
 			interrupts = <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>;
@@ -1008,7 +1005,7 @@
 			power-domains = <&pd_gscl>;
 		};
 
-		gsc_1: video-scaler@13C10000 {
+		gsc_1: video-scaler@13c10000 {
 			compatible = "samsung,exynos5433-gsc";
 			reg = <0x13c10000 0x1000>;
 			interrupts = <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
@@ -1022,7 +1019,7 @@
 			power-domains = <&pd_gscl>;
 		};
 
-		gsc_2: video-scaler@13C20000 {
+		gsc_2: video-scaler@13c20000 {
 			compatible = "samsung,exynos5433-gsc";
 			reg = <0x13c20000 0x1000>;
 			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
@@ -1049,7 +1046,7 @@
 			power-domains = <&pd_mscl>;
 		};
 
-		mfc: codec@152E0000 {
+		mfc: codec@152e0000 {
 			compatible = "samsung,exynos5433-mfc";
 			reg = <0x152E0000 0x10000>;
 			interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
