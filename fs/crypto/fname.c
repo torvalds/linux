@@ -203,37 +203,36 @@ u32 fscrypt_fname_encrypted_size(const struct inode *inode, u32 ilen)
 EXPORT_SYMBOL(fscrypt_fname_encrypted_size);
 
 /**
- * fscrypt_fname_crypto_alloc_obuff() -
+ * fscrypt_fname_alloc_buffer - allocate a buffer for presented filenames
  *
- * Allocates an output buffer that is sufficient for the crypto operation
- * specified by the context and the direction.
+ * Allocate a buffer that is large enough to hold any decrypted or encoded
+ * filename (null-terminated), for the given maximum encrypted filename length.
+ *
+ * Return: 0 on success, -errno on failure
  */
 int fscrypt_fname_alloc_buffer(const struct inode *inode,
-				u32 ilen, struct fscrypt_str *crypto_str)
+			       u32 max_encrypted_len,
+			       struct fscrypt_str *crypto_str)
 {
-	u32 olen = fscrypt_fname_encrypted_size(inode, ilen);
 	const u32 max_encoded_len =
 		max_t(u32, BASE64_CHARS(FSCRYPT_FNAME_MAX_UNDIGESTED_SIZE),
 		      1 + BASE64_CHARS(sizeof(struct fscrypt_digested_name)));
+	u32 max_presented_len;
 
-	crypto_str->len = olen;
-	olen = max(olen, max_encoded_len);
+	max_presented_len = max(max_encoded_len, max_encrypted_len);
 
-	/*
-	 * Allocated buffer can hold one more character to null-terminate the
-	 * string
-	 */
-	crypto_str->name = kmalloc(olen + 1, GFP_NOFS);
-	if (!(crypto_str->name))
+	crypto_str->name = kmalloc(max_presented_len + 1, GFP_NOFS);
+	if (!crypto_str->name)
 		return -ENOMEM;
+	crypto_str->len = max_presented_len;
 	return 0;
 }
 EXPORT_SYMBOL(fscrypt_fname_alloc_buffer);
 
 /**
- * fscrypt_fname_crypto_free_buffer() -
+ * fscrypt_fname_free_buffer - free the buffer for presented filenames
  *
- * Frees the buffer allocated for crypto operation.
+ * Free the buffer allocated by fscrypt_fname_alloc_buffer().
  */
 void fscrypt_fname_free_buffer(struct fscrypt_str *crypto_str)
 {

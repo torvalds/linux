@@ -139,7 +139,7 @@ static inline u32 fscrypt_fname_encrypted_size(const struct inode *inode,
 }
 
 static inline int fscrypt_fname_alloc_buffer(const struct inode *inode,
-					     u32 ilen,
+					     u32 max_encrypted_len,
 					     struct fscrypt_str *crypto_str)
 {
 	return -EOPNOTSUPP;
