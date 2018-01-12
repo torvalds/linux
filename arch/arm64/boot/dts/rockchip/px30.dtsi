@@ -515,6 +515,26 @@
 		};
 	};
 
+	tsadc: tsadc@ff280000 {
+		compatible = "rockchip,px30-tsadc";
+		reg = <0x0 0xff280000 0x0 0x100>;
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,grf = <&grf>;
+		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "tsadc", "apb_pclk";
+		assigned-clocks = <&cru SCLK_TSADC>;
+		assigned-clock-rates = <50000>;
+		resets = <&cru SRST_TSADC_P>;
+		reset-names = "tsadc-apb";
+		pinctrl-names = "init", "default", "sleep";
+		pinctrl-0 = <&tsadc_otp_gpio>;
+		pinctrl-1 = <&tsadc_otp_out>;
+		pinctrl-2 = <&tsadc_otp_gpio>;
+		#thermal-sensor-cells = <1>;
+		rockchip,hw-tshut-temp = <100000>;
+		status = "disabled";
+	};
+
 	saradc: saradc@ff288000 {
 		compatible = "rockchip,px30-saradc", "rockchip,rk3399-saradc";
 		reg = <0x0 0xff288000 0x0 0x100>;
@@ -934,6 +954,18 @@
 				rockchip,pins =
 					<1 RK_PB4 RK_FUNC_4 &pcfg_pull_none_smt>,
 					<1 RK_PB5 RK_FUNC_4 &pcfg_pull_none_smt>;
+			};
+		};
+
+		tsadc {
+			tsadc_otp_gpio: tsadc-otp-gpio {
+				rockchip,pins =
+					<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+
+			tsadc_otp_out: tsadc-otp-out {
+				rockchip,pins =
+					<0 RK_PA6 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
@@ -1736,18 +1768,5 @@
 			};
 		};
 
-		tsadcm0_pin {
-			tsadc_shutm0: tsadc-shutm0 {
-				rockchip,pins =
-					<0 RK_PA6 RK_FUNC_1 &pcfg_pull_none>;
-			};
-		};
-
-		tsadcm1_pin {
-			tsadc_shutm1: tsadc-shutm1 {
-				rockchip,pins =
-					<0 RK_PA4 RK_FUNC_2 &pcfg_pull_none>;
-			};
-		};
 	};
 };
