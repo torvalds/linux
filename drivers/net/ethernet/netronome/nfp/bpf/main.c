@@ -313,6 +313,8 @@ static int nfp_bpf_init(struct nfp_app *app)
 	bpf->app = app;
 	app->priv = bpf;
 
+	skb_queue_head_init(&bpf->cmsg_replies);
+	init_waitqueue_head(&bpf->cmsg_wq);
 	INIT_LIST_HEAD(&bpf->map_list);
 
 	err = nfp_bpf_parse_capabilities(app);
@@ -330,6 +332,7 @@ static void nfp_bpf_clean(struct nfp_app *app)
 {
 	struct nfp_app_bpf *bpf = app->priv;
 
+	WARN_ON(!skb_queue_empty(&bpf->cmsg_replies));
 	WARN_ON(!list_empty(&bpf->map_list));
 	kfree(bpf);
 }
@@ -347,6 +350,8 @@ const struct nfp_app_type app_bpf = {
 
 	.vnic_alloc	= nfp_bpf_vnic_alloc,
 	.vnic_free	= nfp_bpf_vnic_free,
+
+	.ctrl_msg_rx	= nfp_bpf_ctrl_msg_rx,
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.tc_busy	= nfp_bpf_tc_busy,

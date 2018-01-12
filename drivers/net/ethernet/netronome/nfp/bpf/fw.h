@@ -51,4 +51,26 @@ struct nfp_bpf_cap_tlv_adjust_head {
 
 #define NFP_BPF_ADJUST_HEAD_NO_META	BIT(0)
 
+/*
+ * Types defined for map related control messages
+ */
+#define CMSG_MAP_ABI_VERSION		1
+
+enum nfp_bpf_cmsg_type {
+	__CMSG_TYPE_MAP_MAX,
+};
+
+#define CMSG_TYPE_MAP_REPLY_BIT		7
+#define __CMSG_REPLY(req)		(BIT(CMSG_TYPE_MAP_REPLY_BIT) | (req))
+
+struct cmsg_hdr {
+	u8 type;
+	u8 ver;
+	__be16 tag;
+};
+
+struct cmsg_reply_map_simple {
+	struct cmsg_hdr hdr;
+	__be32 rc;
+};
 #endif

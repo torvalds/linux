@@ -37,10 +37,14 @@
 #include <linux/bitfield.h>
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
+#include <linux/wait.h>
 
 #include "../nfp_asm.h"
+#include "fw.h"
 
 /* For relocation logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
@@ -93,6 +97,13 @@ enum pkt_vec {
  * struct nfp_app_bpf - bpf app priv structure
  * @app:		backpointer to the app
  *
+ * @tag_allocator:	bitmap of control message tags in use
+ * @tag_alloc_next:	next tag bit to allocate
+ * @tag_alloc_last:	next tag bit to be freed
+ *
+ * @cmsg_replies:	received cmsg replies waiting to be consumed
+ * @cmsg_wq:		work queue for waiting for cmsg replies
+ *
  * @map_list:		list of offloaded maps
  *
  * @adjust_head:	adjust head capability
@@ -104,6 +115,13 @@ enum pkt_vec {
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
+
+	DECLARE_BITMAP(tag_allocator, U16_MAX + 1);
+	u16 tag_alloc_next;
+	u16 tag_alloc_last;
+
+	struct sk_buff_head cmsg_replies;
+	struct wait_queue_head cmsg_wq;
 
 	struct list_head map_list;
 
@@ -284,4 +302,9 @@ nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		  unsigned int insn_idx, unsigned int n_insns);
 
 void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv);
+
+struct sk_buff *
+nfp_bpf_cmsg_communicate(struct nfp_app_bpf *bpf, struct sk_buff *skb,
+			 enum nfp_bpf_cmsg_type type, unsigned int reply_size);
+void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
 #endif

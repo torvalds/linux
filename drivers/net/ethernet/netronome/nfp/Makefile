@@ -44,6 +44,7 @@ endif
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)
 nfp-objs += \
+	    bpf/cmsg.o \
 	    bpf/main.o \
 	    bpf/offload.o \
 	    bpf/verifier.o \
