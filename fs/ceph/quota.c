@@ -85,6 +85,7 @@ static struct ceph_snap_realm *get_quota_realm(struct ceph_mds_client *mdsc,
 	struct ceph_snap_realm *realm, *next;
 	struct ceph_vino vino;
 	struct inode *in;
+	bool has_quota;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return NULL;
@@ -104,12 +105,13 @@ static struct ceph_snap_realm *get_quota_realm(struct ceph_mds_client *mdsc,
 			break;
 		}
 		ci = ceph_inode(in);
-		if (ceph_has_quota(ci) || (ci->i_vino.ino == CEPH_INO_ROOT)) {
-			iput(in);
-			return realm;
-		}
+		has_quota = ceph_has_quota(ci);
 		iput(in);
+
 		next = realm->parent;
+		if (has_quota || !next)
+		       return realm;
+
 		ceph_get_snap_realm(mdsc, next);
 		ceph_put_snap_realm(mdsc, realm);
 		realm = next;
@@ -162,7 +164,6 @@ static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
 	struct ceph_vino vino;
 	struct inode *in;
 	u64 max, rvalue;
-	bool is_root;
 	bool exceeded = false;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
@@ -192,7 +193,6 @@ static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
 			max = ci->i_max_bytes;
 			rvalue = ci->i_rbytes;
 		}
-		is_root = (ci->i_vino.ino == CEPH_INO_ROOT);
 		spin_unlock(&ci->i_ceph_lock);
 		switch (op) {
 		case QUOTA_CHECK_MAX_FILES_OP:
@@ -222,9 +222,9 @@ static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
 		}
 		iput(in);
 
-		if (is_root || exceeded)
-			break;
 		next = realm->parent;
+		if (exceeded || !next)
+			break;
 		ceph_get_snap_realm(mdsc, next);
 		ceph_put_snap_realm(mdsc, realm);
 		realm = next;
