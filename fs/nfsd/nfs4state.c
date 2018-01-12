@@ -3590,6 +3590,7 @@ nfsd4_verify_open_stid(struct nfs4_stid *s)
 	switch (s->sc_type) {
 	default:
 		break;
+	case 0:
 	case NFS4_CLOSED_STID:
 	case NFS4_CLOSED_DELEG_STID:
 		ret = nfserr_bad_stateid;
