@@ -448,6 +448,8 @@ struct hnae3_knic_private_info {
 	u16 num_tqps;		  /* total number of TQPs in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs in this instance */
 	const struct hnae3_dcb_ops *dcb_ops;
+
+	u16 int_rl_setting;
 };
 
 struct hnae3_roce_private_info {

@@ -464,6 +464,7 @@ struct hns3_enet_ring_group {
 	u16 count;
 	enum hns3_flow_level_range flow_level;
 	u16 int_gl;
+	u8 gl_adapt_enable;
 };
 
 struct hns3_enet_tqp_vector {
