@@ -2243,14 +2243,12 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 				info.op.inline_rdma_write.len = ib_wr->sg_list[0].length;
 				info.op.inline_rdma_write.rem_addr.tag_off = rdma_wr(ib_wr)->remote_addr;
 				info.op.inline_rdma_write.rem_addr.stag = rdma_wr(ib_wr)->rkey;
-				info.op.inline_rdma_write.rem_addr.len = ib_wr->sg_list->length;
 				ret = ukqp->ops.iw_inline_rdma_write(ukqp, &info, false);
 			} else {
 				info.op.rdma_write.lo_sg_list = (void *)ib_wr->sg_list;
 				info.op.rdma_write.num_lo_sges = ib_wr->num_sge;
 				info.op.rdma_write.rem_addr.tag_off = rdma_wr(ib_wr)->remote_addr;
 				info.op.rdma_write.rem_addr.stag = rdma_wr(ib_wr)->rkey;
-				info.op.rdma_write.rem_addr.len = ib_wr->sg_list->length;
 				ret = ukqp->ops.iw_rdma_write(ukqp, &info, false);
 			}
 
@@ -2272,7 +2270,6 @@ static int i40iw_post_send(struct ib_qp *ibqp,
 			info.op_type = I40IW_OP_TYPE_RDMA_READ;
 			info.op.rdma_read.rem_addr.tag_off = rdma_wr(ib_wr)->remote_addr;
 			info.op.rdma_read.rem_addr.stag = rdma_wr(ib_wr)->rkey;
-			info.op.rdma_read.rem_addr.len = ib_wr->sg_list->length;
 			info.op.rdma_read.lo_addr.tag_off = ib_wr->sg_list->addr;
 			info.op.rdma_read.lo_addr.stag = ib_wr->sg_list->lkey;
 			info.op.rdma_read.lo_addr.len = ib_wr->sg_list->length;
