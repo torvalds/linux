@@ -651,9 +651,9 @@ int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size)
 	return ret;
 }
 
-void perf_evsel__config_callchain(struct perf_evsel *evsel,
-				  struct record_opts *opts,
-				  struct callchain_param *param)
+static void __perf_evsel__config_callchain(struct perf_evsel *evsel,
+					   struct record_opts *opts,
+					   struct callchain_param *param)
 {
 	bool function = perf_evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->attr;
@@ -697,6 +697,14 @@ void perf_evsel__config_callchain(struct perf_evsel *evsel,
 		pr_info("Disabling user space callchains for function trace event.\n");
 		attr->exclude_callchain_user = 1;
 	}
+}
+
+void perf_evsel__config_callchain(struct perf_evsel *evsel,
+				  struct record_opts *opts,
+				  struct callchain_param *param)
+{
+	if (param->enabled)
+		return __perf_evsel__config_callchain(evsel, opts, param);
 }
 
 static void
