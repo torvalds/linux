@@ -118,8 +118,8 @@ extern struct page *fscrypt_alloc_bounce_page(struct fscrypt_ctx *ctx,
 					      gfp_t gfp_flags);
 
 /* fname.c */
-extern int fname_encrypt(struct inode *inode,
-			 const struct qstr *iname, struct fscrypt_str *oname);
+extern int fname_encrypt(struct inode *inode, const struct qstr *iname,
+			 u8 *out, unsigned int olen);
 
 /* keyinfo.c */
 extern void __exit fscrypt_essiv_cleanup(void);

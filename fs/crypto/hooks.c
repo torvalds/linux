@@ -161,7 +161,6 @@ int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
 	struct qstr iname = { .name = target, .len = len };
 	struct fscrypt_symlink_data *sd;
 	unsigned int ciphertext_len;
-	struct fscrypt_str oname;
 
 	err = fscrypt_require_key(inode);
 	if (err)
@@ -178,16 +177,12 @@ int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
 	ciphertext_len = disk_link->len - sizeof(*sd);
 	sd->len = cpu_to_le16(ciphertext_len);
 
-	oname.name = sd->encrypted_path;
-	oname.len = ciphertext_len;
-	err = fname_encrypt(inode, &iname, &oname);
+	err = fname_encrypt(inode, &iname, sd->encrypted_path, ciphertext_len);
 	if (err) {
 		if (!disk_link->name)
 			kfree(sd);
 		return err;
 	}
-	BUG_ON(oname.len != ciphertext_len);
-
 	/*
 	 * Null-terminating the ciphertext doesn't make sense, but we still
 	 * count the null terminator in the length, so we might as well
