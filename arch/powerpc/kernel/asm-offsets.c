@@ -734,6 +734,9 @@ int main(void)
 	DEFINE(VCPU_XIVE_CAM_WORD, offsetof(struct kvm_vcpu,
 					    arch.xive_cam_word));
 	DEFINE(VCPU_XIVE_PUSHED, offsetof(struct kvm_vcpu, arch.xive_pushed));
+	DEFINE(VCPU_XIVE_ESC_ON, offsetof(struct kvm_vcpu, arch.xive_esc_on));
+	DEFINE(VCPU_XIVE_ESC_RADDR, offsetof(struct kvm_vcpu, arch.xive_esc_raddr));
+	DEFINE(VCPU_XIVE_ESC_VADDR, offsetof(struct kvm_vcpu, arch.xive_esc_vaddr));
 #endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING

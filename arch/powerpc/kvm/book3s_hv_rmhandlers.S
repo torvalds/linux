@@ -1045,6 +1045,41 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	 */
 	li	r0,0
 	stb	r0, VCPU_IRQ_PENDING(r4)
+
+	/*
+	 * In single escalation mode, if the escalation interrupt is
+	 * on, we mask it.
+	 */
+	lbz	r0, VCPU_XIVE_ESC_ON(r4)
+	cmpwi	r0,0
+	beq	1f
+	ld	r10, VCPU_XIVE_ESC_RADDR(r4)
+	li	r9, XIVE_ESB_SET_PQ_01
+	ldcix	r0, r10, r9
+	sync
+
+	/* We have a possible subtle race here: The escalation interrupt might
+	 * have fired and be on its way to the host queue while we mask it,
+	 * and if we unmask it early enough (re-cede right away), there is
+	 * a theorical possibility that it fires again, thus landing in the
+	 * target queue more than once which is a big no-no.
+	 *
+	 * Fortunately, solving this is rather easy. If the above load setting
+	 * PQ to 01 returns a previous value where P is set, then we know the
+	 * escalation interrupt is somewhere on its way to the host. In that
+	 * case we simply don't clear the xive_esc_on flag below. It will be
+	 * eventually cleared by the handler for the escalation interrupt.
+	 *
+	 * Then, when doing a cede, we check that flag again before re-enabling
+	 * the escalation interrupt, and if set, we abort the cede.
+	 */
+	andi.	r0, r0, XIVE_ESB_VAL_P
+	bne-	1f
+
+	/* Now P is 0, we can clear the flag */
+	li	r0, 0
+	stb	r0, VCPU_XIVE_ESC_ON(r4)
+1:
 no_xive:
 #endif /* CONFIG_KVM_XICS */
 
@@ -2756,7 +2791,32 @@ kvm_cede_prodded:
 	/* we've ceded but we want to give control to the host */
 kvm_cede_exit:
 	ld	r9, HSTATE_KVM_VCPU(r13)
-	b	guest_exit_cont
+#ifdef CONFIG_KVM_XICS
+	/* Abort if we still have a pending escalation */
+	lbz	r5, VCPU_XIVE_ESC_ON(r9)
+	cmpwi	r5, 0
+	beq	1f
+	li	r0, 0
+	stb	r0, VCPU_CEDED(r9)
+1:	/* Enable XIVE escalation */
+	li	r5, XIVE_ESB_SET_PQ_00
+	mfmsr	r0
+	andi.	r0, r0, MSR_DR		/* in real mode? */
+	beq	1f
+	ld	r10, VCPU_XIVE_ESC_VADDR(r9)
+	cmpdi	r10, 0
+	beq	3f
+	ldx	r0, r10, r5
+	b	2f
+1:	ld	r10, VCPU_XIVE_ESC_RADDR(r9)
+	cmpdi	r10, 0
+	beq	3f
+	ldcix	r0, r10, r5
+2:	sync
+	li	r0, 1
+	stb	r0, VCPU_XIVE_ESC_ON(r9)
+#endif /* CONFIG_KVM_XICS */
+3:	b	guest_exit_cont
 
 	/* Try to handle a machine check in real mode */
 machine_check_realmode:

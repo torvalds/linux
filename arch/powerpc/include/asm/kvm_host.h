@@ -740,7 +740,10 @@ struct kvm_vcpu_arch {
 	struct kvmppc_xive_vcpu *xive_vcpu; /* XIVE virtual CPU data */
 	__be32 xive_cam_word;    /* Cooked W2 in proper endian with valid bit */
 	u8 xive_pushed;		 /* Is the VP pushed on the physical CPU ? */
+	u8 xive_esc_on;		 /* Is the escalation irq enabled ? */
 	union xive_tma_w01 xive_saved_state; /* W0..1 of XIVE thread state */
+	u64 xive_esc_raddr;	 /* Escalation interrupt ESB real addr */
+	u64 xive_esc_vaddr;	 /* Escalation interrupt ESB virt addr */
 #endif
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE

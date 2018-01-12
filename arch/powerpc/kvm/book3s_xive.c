@@ -89,6 +89,17 @@ static irqreturn_t xive_esc_irq(int irq, void *data)
 	if (vcpu->arch.ceded)
 		kvmppc_fast_vcpu_kick(vcpu);
 
+	/* Since we have the no-EOI flag, the interrupt is effectively
+	 * disabled now. Clearing xive_esc_on means we won't bother
+	 * doing so on the next entry.
+	 *
+	 * This also allows the entry code to know that if a PQ combination
+	 * of 10 is observed while xive_esc_on is true, it means the queue
+	 * contains an unprocessed escalation interrupt. We don't make use of
+	 * that knowledge today but might (see comment in book3s_hv_rmhandler.S)
+	 */
+	vcpu->arch.xive_esc_on = false;
+
 	return IRQ_HANDLED;
 }
 
@@ -134,6 +145,25 @@ static int xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio)
 		goto error;
 	}
 	xc->esc_virq_names[prio] = name;
+
+	/* In single escalation mode, we grab the ESB MMIO of the
+	 * interrupt and mask it. Also populate the VCPU v/raddr
+	 * of the ESB page for use by asm entry/exit code. Finally
+	 * set the XIVE_IRQ_NO_EOI flag which will prevent the
+	 * core code from performing an EOI on the escalation
+	 * interrupt, thus leaving it effectively masked after
+	 * it fires once.
+	 */
+	if (xc->xive->single_escalation) {
+		struct irq_data *d = irq_get_irq_data(xc->esc_virq[prio]);
+		struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+
+		xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_01);
+		vcpu->arch.xive_esc_raddr = xd->eoi_page;
+		vcpu->arch.xive_esc_vaddr = (__force u64)xd->eoi_mmio;
+		xd->flags |= XIVE_IRQ_NO_EOI;
+	}
+
 	return 0;
 error:
 	irq_dispose_mapping(xc->esc_virq[prio]);
