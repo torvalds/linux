@@ -30,9 +30,19 @@
 static DECLARE_RWSEM(bpf_devs_lock);
 static LIST_HEAD(bpf_prog_offload_devs);
 
+static int bpf_dev_offload_check(struct net_device *netdev)
+{
+	if (!netdev)
+		return -EINVAL;
+	if (!netdev->netdev_ops->ndo_bpf)
+		return -EOPNOTSUPP;
+	return 0;
+}
+
 int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
 {
 	struct bpf_prog_offload *offload;
+	int err;
 
 	if (attr->prog_type != BPF_PROG_TYPE_SCHED_CLS &&
 	    attr->prog_type != BPF_PROG_TYPE_XDP)
@@ -49,12 +59,15 @@ int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
 
 	offload->netdev = dev_get_by_index(current->nsproxy->net_ns,
 					   attr->prog_ifindex);
-	if (!offload->netdev)
-		goto err_free;
+	err = bpf_dev_offload_check(offload->netdev);
+	if (err)
+		goto err_maybe_put;
 
 	down_write(&bpf_devs_lock);
-	if (offload->netdev->reg_state != NETREG_REGISTERED)
+	if (offload->netdev->reg_state != NETREG_REGISTERED) {
+		err = -EINVAL;
 		goto err_unlock;
+	}
 	prog->aux->offload = offload;
 	list_add_tail(&offload->offloads, &bpf_prog_offload_devs);
 	dev_put(offload->netdev);
@@ -63,10 +76,11 @@ int bpf_prog_offload_init(struct bpf_prog *prog, union bpf_attr *attr)
 	return 0;
 err_unlock:
 	up_write(&bpf_devs_lock);
-	dev_put(offload->netdev);
-err_free:
+err_maybe_put:
+	if (offload->netdev)
+		dev_put(offload->netdev);
 	kfree(offload);
-	return -EINVAL;
+	return err;
 }
 
 static int __bpf_offload_ndo(struct bpf_prog *prog, enum bpf_netdev_command cmd,
@@ -80,8 +94,6 @@ static int __bpf_offload_ndo(struct bpf_prog *prog, enum bpf_netdev_command cmd,
 	if (!offload)
 		return -ENODEV;
 	netdev = offload->netdev;
-	if (!netdev->netdev_ops->ndo_bpf)
-		return -EOPNOTSUPP;
 
 	data->command = cmd;
 
