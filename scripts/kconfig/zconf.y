@@ -431,6 +431,11 @@ help_start: T_HELP T_EOL
 
 help: help_start T_HELPTEXT
 {
+	if (current_entry->help) {
+		free(current_entry->help);
+		zconfprint("warning: '%s' defined with more than one help text -- only the last one will be used",
+			   current_entry->sym->name ?: "<choice>");
+	}
 	current_entry->help = $2;
 };
 
