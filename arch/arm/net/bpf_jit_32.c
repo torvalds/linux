@@ -949,7 +949,7 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	const u8 *tcc = bpf2a32[TCALL_CNT];
 	const int idx0 = ctx->idx;
 #define cur_offset (ctx->idx - idx0)
-#define jmp_offset (out_offset - (cur_offset))
+#define jmp_offset (out_offset - (cur_offset) - 2)
 	u32 off, lo, hi;
 
 	/* if (index >= array->map.max_entries)
