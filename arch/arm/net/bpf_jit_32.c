@@ -28,24 +28,43 @@
 int bpf_jit_enable __read_mostly;
 
 /*
- * eBPF prog stack layout
+ * eBPF prog stack layout:
  *
  *                         high
- * original ARM_SP =>     +-----+ eBPF prologue
- *                        |FP/LR|
- * current ARM_FP =>      +-----+
- *                        | ... | callee saved registers
- * eBPF fp register =>    +-----+ <= (BPF_FP)
+ * original ARM_SP =>     +-----+
+ *                        |     | callee saved registers
+ *                        +-----+ <= (BPF_FP + SCRATCH_SIZE)
  *                        | ... | eBPF JIT scratch space
- *                        |     | eBPF prog stack
+ * eBPF fp register =>    +-----+
+ *   (BPF_FP)             | ... | eBPF prog stack
  *                        +-----+
  *                        |RSVD | JIT scratchpad
- * current ARM_SP =>      +-----+ <= (BPF_FP - STACK_SIZE)
+ * current ARM_SP =>      +-----+ <= (BPF_FP - STACK_SIZE + SCRATCH_SIZE)
  *                        |     |
  *                        | ... | Function call stack
  *                        |     |
  *                        +-----+
  *                          low
+ *
+ * The callee saved registers depends on whether frame pointers are enabled.
+ * With frame pointers (to be compliant with the ABI):
+ *
+ *                                high
+ * original ARM_SP =>     +------------------+ \
+ *                        |        pc        | |
+ * current ARM_FP =>      +------------------+ } callee saved registers
+ *                        |r4-r8,r10,fp,ip,lr| |
+ *                        +------------------+ /
+ *                                low
+ *
+ * Without frame pointers:
+ *
+ *                                high
+ * original ARM_SP =>     +------------------+
+ *                        |        lr        | (optional)
+ *                        |     r4-r8,r10    | callee saved registers
+ *                        +------------------+
+ *                                low
  */
 
 #define STACK_OFFSET(k)	(k)
