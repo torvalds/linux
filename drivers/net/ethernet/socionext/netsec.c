@@ -252,7 +252,7 @@ struct netsec_desc {
 };
 
 struct netsec_desc_ring {
-	phys_addr_t desc_phys;
+	dma_addr_t desc_dma;
 	struct netsec_desc *desc;
 	void *vaddr;
 	u16 pkt_cnt;
@@ -953,7 +953,7 @@ static void netsec_free_dring(struct netsec_priv *priv, int id)
 
 	if (dring->vaddr) {
 		dma_free_coherent(priv->dev, DESC_SZ * DESC_NUM,
-				  dring->vaddr, dring->desc_phys);
+				  dring->vaddr, dring->desc_dma);
 		dring->vaddr = NULL;
 	}
 
@@ -967,7 +967,7 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 	int ret = 0;
 
 	dring->vaddr = dma_zalloc_coherent(priv->dev, DESC_SZ * DESC_NUM,
-					   &dring->desc_phys, GFP_KERNEL);
+					   &dring->desc_dma, GFP_KERNEL);
 	if (!dring->vaddr) {
 		ret = -ENOMEM;
 		goto err;
@@ -1087,14 +1087,14 @@ static int netsec_reset_hardware(struct netsec_priv *priv)
 
 	/* set desc_start addr */
 	netsec_write(priv, NETSEC_REG_NRM_RX_DESC_START_UP,
-		     upper_32_bits(priv->desc_ring[NETSEC_RING_RX].desc_phys));
+		     upper_32_bits(priv->desc_ring[NETSEC_RING_RX].desc_dma));
 	netsec_write(priv, NETSEC_REG_NRM_RX_DESC_START_LW,
-		     lower_32_bits(priv->desc_ring[NETSEC_RING_RX].desc_phys));
+		     lower_32_bits(priv->desc_ring[NETSEC_RING_RX].desc_dma));
 
 	netsec_write(priv, NETSEC_REG_NRM_TX_DESC_START_UP,
-		     upper_32_bits(priv->desc_ring[NETSEC_RING_TX].desc_phys));
+		     upper_32_bits(priv->desc_ring[NETSEC_RING_TX].desc_dma));
 	netsec_write(priv, NETSEC_REG_NRM_TX_DESC_START_LW,
-		     lower_32_bits(priv->desc_ring[NETSEC_RING_TX].desc_phys));
+		     lower_32_bits(priv->desc_ring[NETSEC_RING_TX].desc_dma));
 
 	/* set normal tx dring ring config */
 	netsec_write(priv, NETSEC_REG_NRM_TX_CONFIG,
