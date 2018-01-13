@@ -629,6 +629,18 @@ struct bfq_data {
 	struct bfq_io_cq *bio_bic;
 	/* bfqq associated with the task issuing current bio for merging */
 	struct bfq_queue *bio_bfqq;
+
+	/*
+	 * Cached sbitmap shift, used to compute depth limits in
+	 * bfq_update_depths.
+	 */
+	unsigned int sb_shift;
+
+	/*
+	 * Depth limits used in bfq_limit_depth (see comments on the
+	 * function)
+	 */
+	unsigned int word_depths[2][2];
 };
 
 enum bfqq_state_flags {

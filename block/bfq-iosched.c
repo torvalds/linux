@@ -417,6 +417,82 @@ static struct request *bfq_choose_req(struct bfq_data *bfqd,
 	}
 }
 
+/*
+ * See the comments on bfq_limit_depth for the purpose of
+ * the depths set in the function.
+ */
+static void bfq_update_depths(struct bfq_data *bfqd, struct sbitmap_queue *bt)
+{
+	bfqd->sb_shift = bt->sb.shift;
+
+	/*
+	 * In-word depths if no bfq_queue is being weight-raised:
+	 * leaving 25% of tags only for sync reads.
+	 *
+	 * In next formulas, right-shift the value
+	 * (1U<<bfqd->sb_shift), instead of computing directly
+	 * (1U<<(bfqd->sb_shift - something)), to be robust against
+	 * any possible value of bfqd->sb_shift, without having to
+	 * limit 'something'.
+	 */
+	/* no more than 50% of tags for async I/O */
+	bfqd->word_depths[0][0] = max((1U<<bfqd->sb_shift)>>1, 1U);
+	/*
+	 * no more than 75% of tags for sync writes (25% extra tags
+	 * w.r.t. async I/O, to prevent async I/O from starving sync
+	 * writes)
+	 */
+	bfqd->word_depths[0][1] = max(((1U<<bfqd->sb_shift) * 3)>>2, 1U);
+
+	/*
+	 * In-word depths in case some bfq_queue is being weight-
+	 * raised: leaving ~63% of tags for sync reads. This is the
+	 * highest percentage for which, in our tests, application
+	 * start-up times didn't suffer from any regression due to tag
+	 * shortage.
+	 */
+	/* no more than ~18% of tags for async I/O */
+	bfqd->word_depths[1][0] = max(((1U<<bfqd->sb_shift) * 3)>>4, 1U);
+	/* no more than ~37% of tags for sync writes (~20% extra tags) */
+	bfqd->word_depths[1][1] = max(((1U<<bfqd->sb_shift) * 6)>>4, 1U);
+}
+
+/*
+ * Async I/O can easily starve sync I/O (both sync reads and sync
+ * writes), by consuming all tags. Similarly, storms of sync writes,
+ * such as those that sync(2) may trigger, can starve sync reads.
+ * Limit depths of async I/O and sync writes so as to counter both
+ * problems.
+ */
+static void bfq_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
+{
+	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
+	struct bfq_data *bfqd = data->q->elevator->elevator_data;
+	struct sbitmap_queue *bt;
+
+	if (op_is_sync(op) && !op_is_write(op))
+		return;
+
+	if (data->flags & BLK_MQ_REQ_RESERVED) {
+		if (unlikely(!tags->nr_reserved_tags)) {
+			WARN_ON_ONCE(1);
+			return;
+		}
+		bt = &tags->breserved_tags;
+	} else
+		bt = &tags->bitmap_tags;
+
+	if (unlikely(bfqd->sb_shift != bt->sb.shift))
+		bfq_update_depths(bfqd, bt);
+
+	data->shallow_depth =
+		bfqd->word_depths[!!bfqd->wr_busy_queues][op_is_sync(op)];
+
+	bfq_log(bfqd, "[%s] wr_busy %d sync %d depth %u",
+			__func__, bfqd->wr_busy_queues, op_is_sync(op),
+			data->shallow_depth);
+}
+
 static struct bfq_queue *
 bfq_rq_pos_tree_lookup(struct bfq_data *bfqd, struct rb_root *root,
 		     sector_t sector, struct rb_node **ret_parent,
@@ -5285,6 +5361,7 @@ static struct elv_fs_entry bfq_attrs[] = {
 
 static struct elevator_type iosched_bfq_mq = {
 	.ops.mq = {
+		.limit_depth		= bfq_limit_depth,
 		.prepare_request	= bfq_prepare_request,
 		.finish_request		= bfq_finish_request,
 		.exit_icq		= bfq_exit_icq,
