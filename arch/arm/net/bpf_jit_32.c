@@ -285,16 +285,20 @@ static inline void emit_mov_i(const u8 rd, u32 val, struct jit_ctx *ctx)
 		emit_mov_i_no8m(rd, val, ctx);
 }
 
+static void emit_bx_r(u8 tgt_reg, struct jit_ctx *ctx)
+{
+	if (elf_hwcap & HWCAP_THUMB)
+		emit(ARM_BX(tgt_reg), ctx);
+	else
+		emit(ARM_MOV_R(ARM_PC, tgt_reg), ctx);
+}
+
 static inline void emit_blx_r(u8 tgt_reg, struct jit_ctx *ctx)
 {
 	ctx->seen |= SEEN_CALL;
 #if __LINUX_ARM_ARCH__ < 5
 	emit(ARM_MOV_R(ARM_LR, ARM_PC), ctx);
-
-	if (elf_hwcap & HWCAP_THUMB)
-		emit(ARM_BX(tgt_reg), ctx);
-	else
-		emit(ARM_MOV_R(ARM_PC, tgt_reg), ctx);
+	emit_bx_r(tgt_reg, ctx);
 #else
 	emit(ARM_BLX_R(tgt_reg), ctx);
 #endif
@@ -997,7 +1001,7 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	emit_a32_mov_i(tmp2[1], off, false, ctx);
 	emit(ARM_LDR_R(tmp[1], tmp[1], tmp2[1]), ctx);
 	emit(ARM_ADD_I(tmp[1], tmp[1], ctx->prologue_bytes), ctx);
-	emit(ARM_BX(tmp[1]), ctx);
+	emit_bx_r(tmp[1], ctx);
 
 	/* out: */
 	if (out_offset == -1)
@@ -1166,7 +1170,7 @@ static void build_epilogue(struct jit_ctx *ctx)
 	emit(ARM_POP(reg_set), ctx);
 	/* Return back to the callee function */
 	if (!(ctx->seen & SEEN_CALL))
-		emit(ARM_BX(ARM_LR), ctx);
+		emit_bx_r(ARM_LR, ctx);
 #endif
 }
 
