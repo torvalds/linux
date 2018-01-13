@@ -186,6 +186,10 @@ typedef struct siginfo {
 #define ILL_PRVREG	6	/* privileged register */
 #define ILL_COPROC	7	/* coprocessor error */
 #define ILL_BADSTK	8	/* internal stack error */
+#ifdef __tile__
+# define ILL_DBLFLT	9	/* double fault */
+# define ILL_HARDWALL	10	/* user networks hardwall violation */
+#endif
 #ifdef __ia64__
 # define ILL_BADIADDR	9	/* unimplemented instruction address */
 # define __ILL_BREAK	10	/* illegal break */
