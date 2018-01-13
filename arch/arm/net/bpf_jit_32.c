@@ -179,8 +179,13 @@ static void jit_fill_hole(void *area, unsigned int size)
 		*ptr++ = __opcode_to_mem_arm(ARM_INST_UDF);
 }
 
-/* Stack must be multiples of 16 Bytes */
-#define STACK_ALIGN(sz) (((sz) + 3) & ~3)
+#if defined(CONFIG_AEABI) && (__LINUX_ARM_ARCH__ >= 5)
+/* EABI requires the stack to be aligned to 64-bit boundaries */
+#define STACK_ALIGNMENT	8
+#else
+/* Stack must be aligned to 32-bit boundaries */
+#define STACK_ALIGNMENT	4
+#endif
 
 /* Stack space for BPF_REG_2, BPF_REG_3, BPF_REG_4,
  * BPF_REG_5, BPF_REG_7, BPF_REG_8, BPF_REG_9,
@@ -194,7 +199,7 @@ static void jit_fill_hole(void *area, unsigned int size)
 	 + SCRATCH_SIZE + \
 	 + 4 /* extra for skb_copy_bits buffer */)
 
-#define STACK_SIZE STACK_ALIGN(_STACK_SIZE)
+#define STACK_SIZE ALIGN(_STACK_SIZE, STACK_ALIGNMENT)
 
 /* Get the offset of eBPF REGISTERs stored on scratch space. */
 #define STACK_VAR(off) (STACK_SIZE-off-4)
