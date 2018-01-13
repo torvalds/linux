@@ -818,7 +818,7 @@ static void sprd_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 
 	grp = &info->groups[selector];
 
-	seq_printf(s, "\n");
+	seq_putc(s, '\n');
 	for (i = 0; i < grp->npins; i++, config++) {
 		unsigned int pin_id = grp->pins[i];
 
