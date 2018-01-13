@@ -53,56 +53,41 @@ void __init oss_init(void)
 }
 
 /*
- * Handle miscellaneous OSS interrupts.
+ * Handle OSS interrupts.
+ * XXX how do you clear a pending IRQ? is it even necessary?
  */
 
-static void oss_irq(struct irq_desc *desc)
+static void oss_iopism_irq(struct irq_desc *desc)
 {
-	int events = oss->irq_pending &
-		(OSS_IP_IOPSCC | OSS_IP_SCSI | OSS_IP_IOPISM);
-
-	if (events & OSS_IP_IOPSCC) {
-		oss->irq_pending &= ~OSS_IP_IOPSCC;
-		generic_handle_irq(IRQ_MAC_SCC);
-	}
-
-	if (events & OSS_IP_SCSI) {
-		oss->irq_pending &= ~OSS_IP_SCSI;
-		generic_handle_irq(IRQ_MAC_SCSI);
-	}
-
-	if (events & OSS_IP_IOPISM) {
-		oss->irq_pending &= ~OSS_IP_IOPISM;
-		generic_handle_irq(IRQ_MAC_ADB);
-	}
+	generic_handle_irq(IRQ_MAC_ADB);
 }
 
-/*
- * Nubus IRQ handler, OSS style
- *
- * Unlike the VIA/RBV this is on its own autovector interrupt level.
- */
+static void oss_scsi_irq(struct irq_desc *desc)
+{
+	generic_handle_irq(IRQ_MAC_SCSI);
+}
 
 static void oss_nubus_irq(struct irq_desc *desc)
 {
-	int events, irq_bit, i;
+	u16 events, irq_bit;
+	int irq_num;
 
 	events = oss->irq_pending & OSS_IP_NUBUS;
-	if (!events)
-		return;
-
-	/* There are only six slots on the OSS, not seven */
-
-	i = 6;
-	irq_bit = 0x40;
+	irq_num = NUBUS_SOURCE_BASE + 5;
+	irq_bit = OSS_IP_NUBUS5;
 	do {
-		--i;
-		irq_bit >>= 1;
 		if (events & irq_bit) {
-			oss->irq_pending &= ~irq_bit;
-			generic_handle_irq(NUBUS_SOURCE_BASE + i);
+			events &= ~irq_bit;
+			generic_handle_irq(irq_num);
 		}
-	} while(events & (irq_bit - 1));
+		--irq_num;
+		irq_bit >>= 1;
+	} while (events);
+}
+
+static void oss_iopscc_irq(struct irq_desc *desc)
+{
+	generic_handle_irq(IRQ_MAC_SCC);
 }
 
 /*
@@ -122,14 +107,14 @@ static void oss_nubus_irq(struct irq_desc *desc)
 
 void __init oss_register_interrupts(void)
 {
-	irq_set_chained_handler(OSS_IRQLEV_IOPISM, oss_irq);
-	irq_set_chained_handler(OSS_IRQLEV_SCSI,   oss_irq);
+	irq_set_chained_handler(OSS_IRQLEV_IOPISM, oss_iopism_irq);
+	irq_set_chained_handler(OSS_IRQLEV_SCSI,   oss_scsi_irq);
 	irq_set_chained_handler(OSS_IRQLEV_NUBUS,  oss_nubus_irq);
-	irq_set_chained_handler(OSS_IRQLEV_IOPSCC, oss_irq);
+	irq_set_chained_handler(OSS_IRQLEV_IOPSCC, oss_iopscc_irq);
 	irq_set_chained_handler(OSS_IRQLEV_VIA1,   via1_irq);
 
 	/* OSS_VIA1 gets enabled here because it has no machspec interrupt. */
-	oss->irq_level[OSS_VIA1] = IRQ_AUTO_6;
+	oss->irq_level[OSS_VIA1] = OSS_IRQLEV_VIA1;
 }
 
 /*
