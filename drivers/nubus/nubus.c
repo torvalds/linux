@@ -161,7 +161,7 @@ static unsigned char *nubus_dirptr(const struct nubus_dirent *nd)
    pointed to with offsets) out of the card ROM. */
 
 void nubus_get_rsrc_mem(void *dest, const struct nubus_dirent *dirent,
-			int len)
+			unsigned int len)
 {
 	unsigned char *t = (unsigned char *)dest;
 	unsigned char *p = nubus_dirptr(dirent);
@@ -173,18 +173,22 @@ void nubus_get_rsrc_mem(void *dest, const struct nubus_dirent *dirent,
 }
 EXPORT_SYMBOL(nubus_get_rsrc_mem);
 
-void nubus_get_rsrc_str(void *dest, const struct nubus_dirent *dirent,
-			int len)
+void nubus_get_rsrc_str(char *dest, const struct nubus_dirent *dirent,
+			unsigned int len)
 {
-	unsigned char *t = (unsigned char *)dest;
+	char *t = dest;
 	unsigned char *p = nubus_dirptr(dirent);
 
-	while (len) {
-		*t = nubus_get_rom(&p, 1, dirent->mask);
-		if (!*t++)
+	while (len > 1) {
+		unsigned char c = nubus_get_rom(&p, 1, dirent->mask);
+
+		if (!c)
 			break;
+		*t++ = c;
 		len--;
 	}
+	if (len > 0)
+		*t = '\0';
 }
 EXPORT_SYMBOL(nubus_get_rsrc_str);
 
@@ -468,7 +472,7 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 		}
 		case NUBUS_RESID_NAME:
 		{
-			nubus_get_rsrc_str(dev->name, &ent, 64);
+			nubus_get_rsrc_str(dev->name, &ent, sizeof(dev->name));
 			pr_info("    name: %s\n", dev->name);
 			break;
 		}
@@ -528,7 +532,7 @@ static int __init nubus_get_vidnames(struct nubus_board *board,
 		/* Don't know what this is yet */
 		u16 id;
 		/* Longest one I've seen so far is 26 characters */
-		char name[32];
+		char name[36];
 	};
 
 	pr_info("    video modes supported:\n");
@@ -598,8 +602,8 @@ static int __init nubus_get_vendorinfo(struct nubus_board *board,
 		char name[64];
 
 		/* These are all strings, we think */
-		nubus_get_rsrc_str(name, &ent, 64);
-		if (ent.type > 5)
+		nubus_get_rsrc_str(name, &ent, sizeof(name));
+		if (ent.type < 1 || ent.type > 5)
 			ent.type = 5;
 		pr_info("    %s: %s\n", vendor_fields[ent.type - 1], name);
 	}
@@ -633,7 +637,8 @@ static int __init nubus_get_board_resource(struct nubus_board *board, int slot,
 			break;
 		}
 		case NUBUS_RESID_NAME:
-			nubus_get_rsrc_str(board->name, &ent, 64);
+			nubus_get_rsrc_str(board->name, &ent,
+					   sizeof(board->name));
 			pr_info("    name: %s\n", board->name);
 			break;
 		case NUBUS_RESID_ICON:

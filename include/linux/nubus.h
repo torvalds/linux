@@ -126,10 +126,8 @@ int nubus_rewinddir(struct nubus_dir* dir);
 /* Things to do with directory entries */
 int nubus_get_subdir(const struct nubus_dirent* ent,
 		     struct nubus_dir* dir);
-void nubus_get_rsrc_mem(void* dest,
-			const struct nubus_dirent *dirent,
-			int len);
-void nubus_get_rsrc_str(void* dest,
-			const struct nubus_dirent *dirent,
-			int maxlen);
+void nubus_get_rsrc_mem(void *dest, const struct nubus_dirent *dirent,
+			unsigned int len);
+void nubus_get_rsrc_str(char *dest, const struct nubus_dirent *dirent,
+			unsigned int maxlen);
 #endif /* LINUX_NUBUS_H */

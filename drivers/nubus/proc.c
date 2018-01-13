@@ -73,10 +73,10 @@ static void nubus_proc_subdir(struct nubus_dev* dev,
 
 	/* Some of these are directories, others aren't */
 	while (nubus_readdir(dir, &ent) != -1) {
-		char name[8];
+		char name[9];
 		struct proc_dir_entry* e;
 		
-		sprintf(name, "%x", ent.type);
+		snprintf(name, sizeof(name), "%x", ent.type);
 		e = proc_create(name, S_IFREG | S_IRUGO | S_IWUSR, parent,
 				&nubus_proc_subdir_fops);
 		if (!e)
@@ -95,11 +95,11 @@ static void nubus_proc_populate(struct nubus_dev* dev,
 	/* We know these are all directories (board resource + one or
 	   more functional resources) */
 	while (nubus_readdir(root, &ent) != -1) {
-		char name[8];
+		char name[9];
 		struct proc_dir_entry* e;
 		struct nubus_dir dir;
 		
-		sprintf(name, "%x", ent.type);
+		snprintf(name, sizeof(name), "%x", ent.type);
 		e = proc_mkdir(name, parent);
 		if (!e) return;
 
@@ -119,7 +119,7 @@ int nubus_proc_attach_device(struct nubus_dev *dev)
 {
 	struct proc_dir_entry *e;
 	struct nubus_dir root;
-	char name[8];
+	char name[9];
 
 	if (dev == NULL) {
 		printk(KERN_ERR
@@ -135,7 +135,7 @@ int nubus_proc_attach_device(struct nubus_dev *dev)
 	}
 		
 	/* Create a directory */
-	sprintf(name, "%x", dev->board->slot);
+	snprintf(name, sizeof(name), "%x", dev->board->slot);
 	e = dev->procdir = proc_mkdir(name, proc_bus_nubus_dir);
 	if (!e)
 		return -ENOMEM;
