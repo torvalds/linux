@@ -205,6 +205,7 @@ struct vop {
 	u32 version;
 
 	struct drm_tv_connector_state active_tv_state;
+	bool pre_overlay;
 
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
@@ -1267,6 +1268,7 @@ static void vop_initial(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, dsp_blank, 0);
 	VOP_CTRL_SET(vop, axi_outstanding_max_num, 30);
 	VOP_CTRL_SET(vop, axi_max_outstanding_en, 1);
+	VOP_CTRL_SET(vop, reg_done_frm, 1);
 
 	/*
 	 * restore the lut table.
@@ -3055,6 +3057,9 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 	struct drm_plane *plane;
 	int i;
+	unsigned long flags;
+	struct rockchip_crtc_state *s =
+		to_rockchip_crtc_state(crtc->state);
 
 	vop_cfg_update(crtc, old_crtc_state);
 
@@ -3102,7 +3107,10 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	vop_update_cabc(crtc, old_crtc_state);
 	vop_update_hdr(crtc, old_crtc_state);
 
+	spin_lock_irqsave(&vop->irq_lock, flags);
+	vop->pre_overlay = s->hdr.pre_overlay;
 	vop_cfg_done(vop);
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
 
 	/*
 	 * There is a (rather unlikely) possiblity that a vblank interrupt
@@ -3409,7 +3417,6 @@ static irqreturn_t vop_isr(int irq, void *data)
 {
 	struct vop *vop = data;
 	struct drm_crtc *crtc = &vop->crtc;
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 	uint32_t active_irqs;
 	unsigned long flags;
 	int ret = IRQ_NONE;
@@ -3444,16 +3451,18 @@ static irqreturn_t vop_isr(int irq, void *data)
 	}
 
 	if (active_irqs & FS_INTR) {
+		/* This is IC design not reasonable, this two register bit need
+		 * frame effective, but actually it's effective immediately, so
+		 * we config this register at frame start.
+		 */
+		spin_lock_irqsave(&vop->irq_lock, flags);
+		VOP_CTRL_SET(vop, level2_overlay_en, vop->pre_overlay);
+		VOP_CTRL_SET(vop, alpha_hard_calc, vop->pre_overlay);
+		spin_unlock_irqrestore(&vop->irq_lock, flags);
 		drm_crtc_handle_vblank(crtc);
 		vop_handle_vblank(vop);
 		active_irqs &= ~FS_INTR;
 		ret = IRQ_HANDLED;
-		/* This is IC design bug, this two register bit need frame
-		 * effective, but actually it's effective immediately, so we
-		 * config this register at frame start.
-		 */
-		VOP_CTRL_SET(vop, level2_overlay_en, s->hdr.pre_overlay);
-		VOP_CTRL_SET(vop, alpha_hard_calc, s->hdr.pre_overlay);
 	}
 
 #define ERROR_HANDLER(x) \
