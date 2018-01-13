@@ -311,7 +311,7 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 {
 	struct sonic_local* lp = netdev_priv(dev);
 	int sr;
-	int commslot = 0;
+	bool commslot = macintosh_config->expansion_type == MAC_EXP_PDS_COMM;
 
 	if (!MACH_IS_MAC)
 		return -ENODEV;
@@ -322,10 +322,7 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 	   Ethernet (BTW, the Ethernet *is* always at the same
 	   address, and nothing else lives there, at least if Apple's
 	   documentation is to be believed) */
-	if (macintosh_config->ident == MAC_MODEL_Q630 ||
-	    macintosh_config->ident == MAC_MODEL_P588 ||
-	    macintosh_config->ident == MAC_MODEL_P575 ||
-	    macintosh_config->ident == MAC_MODEL_C610) {
+	if (commslot || macintosh_config->ident == MAC_MODEL_C610) {
 		int card_present;
 
 		card_present = hwreg_present((void*)ONBOARD_SONIC_REGISTERS);
@@ -333,7 +330,6 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 			printk("none.\n");
 			return -ENODEV;
 		}
-		commslot = 1;
 	}
 
 	printk("yes\n");
