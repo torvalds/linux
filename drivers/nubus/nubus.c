@@ -282,23 +282,6 @@ EXPORT_SYMBOL(nubus_rewinddir);
 /* Driver interface functions, more or less like in pci.c */
 
 struct nubus_dev*
-nubus_find_device(unsigned short category, unsigned short type,
-		  unsigned short dr_hw, unsigned short dr_sw,
-		  const struct nubus_dev *from)
-{
-	struct nubus_dev *itor = from ? from->next : nubus_devices;
-
-	while (itor) {
-		if (itor->category == category && itor->type == type &&
-		    itor->dr_hw == dr_hw && itor->dr_sw == dr_sw)
-			return itor;
-		itor = itor->next;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(nubus_find_device);
-
-struct nubus_dev*
 nubus_find_type(unsigned short category, unsigned short type,
 		const struct nubus_dev *from)
 {
@@ -469,8 +452,10 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 		}
 		case NUBUS_RESID_NAME:
 		{
-			nubus_get_rsrc_str(dev->name, &ent, sizeof(dev->name));
-			pr_debug("    name: %s\n", dev->name);
+			char name[64];
+
+			nubus_get_rsrc_str(name, &ent, sizeof(name));
+			pr_debug("    name: %s\n", name);
 			break;
 		}
 		case NUBUS_RESID_DRVRDIR:
@@ -479,32 +464,39 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 			   use this :-) */
 			struct nubus_dir drvr_dir;
 			struct nubus_dirent drvr_ent;
+			unsigned char *driver;
 
 			nubus_get_subdir(&ent, &drvr_dir);
 			nubus_readdir(&drvr_dir, &drvr_ent);
-			dev->driver = nubus_dirptr(&drvr_ent);
-			pr_debug("    driver at: 0x%p\n", dev->driver);
+			driver = nubus_dirptr(&drvr_ent);
+			pr_debug("    driver at: 0x%p\n", driver);
 			break;
 		}
 		case NUBUS_RESID_MINOR_BASEOS:
+		{
 			/* We will need this in order to support
 			   multiple framebuffers.  It might be handy
 			   for Ethernet as well */
-			nubus_get_rsrc_mem(&dev->iobase, &ent, 4);
-			pr_debug("    memory offset: 0x%08lx\n", dev->iobase);
+			u32 base_offset;
+
+			nubus_get_rsrc_mem(&base_offset, &ent, 4);
+			pr_debug("    memory offset: 0x%08x\n", base_offset);
 			break;
+		}
 		case NUBUS_RESID_MINOR_LENGTH:
+		{
 			/* Ditto */
-			nubus_get_rsrc_mem(&dev->iosize, &ent, 4);
-			pr_debug("    memory length: 0x%08lx\n", dev->iosize);
+			u32 length;
+
+			nubus_get_rsrc_mem(&length, &ent, 4);
+			pr_debug("    memory length: 0x%08x\n", length);
 			break;
+		}
 		case NUBUS_RESID_FLAGS:
-			dev->flags = ent.data;
-			pr_debug("    flags: 0x%06x\n", dev->flags);
+			pr_debug("    flags: 0x%06x\n", ent.data);
 			break;
 		case NUBUS_RESID_HWDEVID:
-			dev->hwdevid = ent.data;
-			pr_debug("    hwdevid: 0x%06x\n", dev->hwdevid);
+			pr_debug("    hwdevid: 0x%06x\n", ent.data);
 			break;
 		default:
 			/* Local/Private resources have their own
@@ -798,11 +790,8 @@ static void __init nubus_probe_slot(int slot)
 
 	rp = nubus_rom_addr(slot);
 	for (i = 4; i; i--) {
-		int card_present;
-
 		rp--;
-		card_present = hwreg_present(rp);
-		if (!card_present)
+		if (!hwreg_present(rp))
 			continue;
 
 		dp = *rp;
@@ -839,8 +828,6 @@ static int __init nubus_init(void)
 	if (!MACH_IS_MAC)
 		return 0;
 
-	nubus_devices = NULL;
-	nubus_boards = NULL;
 	nubus_scan_bus();
 	nubus_proc_init();
 	return 0;

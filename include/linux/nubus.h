@@ -70,16 +70,6 @@ struct nubus_dev {
 	unsigned short type;
 	unsigned short dr_sw;
 	unsigned short dr_hw;
-	/* This is the device's name rather than the board's.
-	   Sometimes they are different.  Usually the board name is
-	   more correct. */
-	char name[64];
-	/* MacOS driver (I kid you not) */
-	unsigned char* driver;
-	/* Actually this is an offset */
-	unsigned long iobase;
-	unsigned long iosize;
-	unsigned char flags, hwdevid;
 	
 	/* Functional directory */
 	unsigned char* directory;
@@ -98,14 +88,9 @@ extern void nubus_proc_init(void);
 #else
 static inline void nubus_proc_init(void) {}
 #endif
-int get_nubus_list(char *buf);
+
 int nubus_proc_attach_device(struct nubus_dev *dev);
 /* If we need more precision we can add some more of these */
-struct nubus_dev* nubus_find_device(unsigned short category,
-				    unsigned short type,
-				    unsigned short dr_hw,
-				    unsigned short dr_sw,
-				    const struct nubus_dev* from);
 struct nubus_dev* nubus_find_type(unsigned short category,
 				  unsigned short type,
 				  const struct nubus_dev* from);
