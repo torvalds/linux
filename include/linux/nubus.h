@@ -10,6 +10,7 @@
 #ifndef LINUX_NUBUS_H
 #define LINUX_NUBUS_H
 
+#include <linux/device.h>
 #include <asm/nubus.h>
 #include <uapi/linux/nubus.h>
 
@@ -32,7 +33,7 @@ struct nubus_dirent {
 };
 
 struct nubus_board {
-	struct nubus_board *next;
+	struct device dev;
 
 	/* Only 9-E actually exist, though 0-8 are also theoretically
 	   possible, and 0 is a special case which represents the
@@ -81,8 +82,14 @@ struct nubus_rsrc {
 
 /* This is all NuBus functional resources (used to find devices later on) */
 extern struct list_head nubus_func_rsrcs;
-/* This is all NuBus cards */
-extern struct nubus_board *nubus_boards;
+
+struct nubus_driver {
+	struct device_driver driver;
+	int (*probe)(struct nubus_board *board);
+	int (*remove)(struct nubus_board *board);
+};
+
+extern struct bus_type nubus_bus_type;
 
 /* Generic NuBus interface functions, modelled after the PCI interface */
 #ifdef CONFIG_PROC_FS
@@ -119,6 +126,9 @@ struct nubus_rsrc *nubus_next_rsrc_or_null(struct nubus_rsrc *from);
 #define for_each_func_rsrc(f) \
 	for (f = nubus_first_rsrc_or_null(); f; f = nubus_next_rsrc_or_null(f))
 
+#define for_each_board_func_rsrc(b, f) \
+	for_each_func_rsrc(f) if (f->board != b) {} else
+
 /* These are somewhat more NuBus-specific.  They all return 0 for
    success and -1 for failure, as you'd expect. */
 
@@ -151,6 +161,23 @@ void nubus_seq_write_rsrc_mem(struct seq_file *m,
 			      const struct nubus_dirent *dirent,
 			      unsigned int len);
 unsigned char *nubus_dirptr(const struct nubus_dirent *nd);
+
+/* Declarations relating to driver model objects */
+int nubus_bus_register(void);
+int nubus_device_register(struct nubus_board *board);
+int nubus_driver_register(struct nubus_driver *ndrv);
+void nubus_driver_unregister(struct nubus_driver *ndrv);
+int nubus_proc_show(struct seq_file *m, void *data);
+
+static inline void nubus_set_drvdata(struct nubus_board *board, void *data)
+{
+	dev_set_drvdata(&board->dev, data);
+}
+
+static inline void *nubus_get_drvdata(struct nubus_board *board)
+{
+	return dev_get_drvdata(&board->dev);
+}
 
 /* Returns a pointer to the "standard" slot space. */
 static inline void *nubus_slot_addr(int slot)

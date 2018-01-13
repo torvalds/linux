@@ -33,7 +33,6 @@
 /* Globals */
 
 LIST_HEAD(nubus_func_rsrcs);
-struct nubus_board *nubus_boards;
 
 /* Meaning of "bytelanes":
 
@@ -715,10 +714,9 @@ static int __init nubus_get_board_resource(struct nubus_board *board, int slot,
 	return 0;
 }
 
-static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
+static void __init nubus_add_board(int slot, int bytelanes)
 {
 	struct nubus_board *board;
-	struct nubus_board **boardp;
 	unsigned char *rp;
 	unsigned long dpat;
 	struct nubus_dir dir;
@@ -731,7 +729,7 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 
 	/* Actually we should probably panic if this fails */
 	if ((board = kzalloc(sizeof(*board), GFP_ATOMIC)) == NULL)
-		return NULL;
+		return;
 	board->fblock = rp;
 
 	/* Dump the format block for debugging purposes */
@@ -794,7 +792,8 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 	if (nubus_readdir(&dir, &ent) == -1) {
 		/* We can't have this! */
 		pr_err("Slot %X: Board resource not found!\n", slot);
-		return NULL;
+		kfree(board);
+		return;
 	}
 
 	if (ent.type < 1 || ent.type > 127)
@@ -823,14 +822,8 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 		list_add_tail(&fres->list, &nubus_func_rsrcs);
 	}
 
-	/* Put it on the global NuBus board chain. Keep entries in order. */
-	for (boardp = &nubus_boards; *boardp != NULL;
-	     boardp = &((*boardp)->next))
-		/* spin */;
-	*boardp = board;
-	board->next = NULL;
-
-	return board;
+	if (nubus_device_register(board))
+		put_device(&board->dev);
 }
 
 static void __init nubus_probe_slot(int slot)
@@ -876,10 +869,15 @@ static void __init nubus_scan_bus(void)
 
 static int __init nubus_init(void)
 {
+	int err;
+
 	if (!MACH_IS_MAC)
 		return 0;
 
 	nubus_proc_init();
+	err = nubus_bus_register();
+	if (err)
+		return err;
 	nubus_scan_bus();
 	return 0;
 }

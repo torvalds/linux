@@ -198,68 +198,17 @@ void nubus_proc_add_rsrc(struct proc_dir_entry *procdir,
 /*
  * /proc/nubus stuff
  */
-static int nubus_proc_show(struct seq_file *m, void *v)
-{
-	const struct nubus_board *board = v;
-
-	/* Display header on line 1 */
-	if (v == SEQ_START_TOKEN)
-		seq_puts(m, "Nubus devices found:\n");
-	else
-		seq_printf(m, "Slot %X: %s\n", board->slot, board->name);
-	return 0;
-}
-
-static void *nubus_proc_start(struct seq_file *m, loff_t *_pos)
-{
-	struct nubus_board *board;
-	unsigned pos;
-
-	if (*_pos > LONG_MAX)
-		return NULL;
-	pos = *_pos;
-	if (pos == 0)
-		return SEQ_START_TOKEN;
-	for (board = nubus_boards; board; board = board->next)
-		if (--pos == 0)
-			break;
-	return board;
-}
-
-static void *nubus_proc_next(struct seq_file *p, void *v, loff_t *_pos)
-{
-	/* Walk the list of NuBus boards */
-	struct nubus_board *board = v;
-
-	++*_pos;
-	if (v == SEQ_START_TOKEN)
-		board = nubus_boards;
-	else if (board)
-		board = board->next;
-	return board;
-}
-
-static void nubus_proc_stop(struct seq_file *p, void *v)
-{
-}
-
-static const struct seq_operations nubus_proc_seqops = {
-	.start	= nubus_proc_start,
-	.next	= nubus_proc_next,
-	.stop	= nubus_proc_stop,
-	.show	= nubus_proc_show,
-};
 
 static int nubus_proc_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &nubus_proc_seqops);
+	return single_open(file, nubus_proc_show, NULL);
 }
 
 static const struct file_operations nubus_proc_fops = {
 	.open		= nubus_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 void __init nubus_proc_init(void)
