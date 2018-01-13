@@ -617,7 +617,7 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 				   pctlops->get_group_name(pctldev,
 					desc->mux_setting->group));
 		else
-			seq_printf(s, "\n");
+			seq_putc(s, '\n');
 	}
 
 	mutex_unlock(&pctldev->mutex);
