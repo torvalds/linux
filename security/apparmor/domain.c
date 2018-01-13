@@ -330,10 +330,7 @@ static struct aa_profile *__attach_match(const char *name,
 			continue;
 
 		if (profile->xmatch) {
-			if (profile->xmatch_len == len) {
-				conflict = true;
-				continue;
-			} else if (profile->xmatch_len > len) {
+			if (profile->xmatch_len >= len) {
 				unsigned int state;
 				u32 perm;
 
@@ -342,6 +339,10 @@ static struct aa_profile *__attach_match(const char *name,
 				perm = dfa_user_allow(profile->xmatch, state);
 				/* any accepting state means a valid match. */
 				if (perm & MAY_EXEC) {
+					if (profile->xmatch_len == len) {
+						conflict = true;
+						continue;
+					}
 					candidate = profile;
 					len = profile->xmatch_len;
 					conflict = false;
