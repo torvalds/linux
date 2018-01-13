@@ -1585,7 +1585,10 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 	if (error && !noretry_error(error)) {
 		struct multipath *m = ti->private;
 
-		r = DM_ENDIO_REQUEUE;
+		if (error == BLK_STS_RESOURCE)
+			r = DM_ENDIO_DELAY_REQUEUE;
+		else
+			r = DM_ENDIO_REQUEUE;
 
 		if (pgpath)
 			fail_path(pgpath);

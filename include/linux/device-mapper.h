@@ -550,6 +550,7 @@ do {									\
 #define DM_ENDIO_DONE		0
 #define DM_ENDIO_INCOMPLETE	1
 #define DM_ENDIO_REQUEUE	2
+#define DM_ENDIO_DELAY_REQUEUE	3
 
 /*
  * Definitions of return values from target map function.
@@ -557,7 +558,7 @@ do {									\
 #define DM_MAPIO_SUBMITTED	0
 #define DM_MAPIO_REMAPPED	1
 #define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
-#define DM_MAPIO_DELAY_REQUEUE	3
+#define DM_MAPIO_DELAY_REQUEUE	DM_ENDIO_DELAY_REQUEUE
 #define DM_MAPIO_KILL		4
 
 #define dm_sector_div64(x, y)( \

@@ -315,6 +315,10 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 		/* The target wants to requeue the I/O */
 		dm_requeue_original_request(tio, false);
 		break;
+	case DM_ENDIO_DELAY_REQUEUE:
+		/* The target wants to requeue the I/O after a delay */
+		dm_requeue_original_request(tio, true);
+		break;
 	default:
 		DMWARN("unimplemented target endio return value: %d", r);
 		BUG();
