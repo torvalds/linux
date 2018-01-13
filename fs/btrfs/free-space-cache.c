@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/math64.h>
 #include <linux/ratelimit.h>
-#include <linux/bpf.h>
+#include <linux/error-injection.h>
 #include "ctree.h"
 #include "free-space-cache.h"
 #include "transaction.h"
@@ -333,7 +333,7 @@ static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
 
 	return 0;
 }
-BPF_ALLOW_ERROR_INJECTION(io_ctl_init);
+ALLOW_ERROR_INJECTION(io_ctl_init, ERRNO);
 
 static void io_ctl_free(struct btrfs_io_ctl *io_ctl)
 {
