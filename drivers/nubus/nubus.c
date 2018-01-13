@@ -616,7 +616,8 @@ static int __init nubus_get_board_resource(struct nubus_board *board, int slot,
 				nbtdata[0], nbtdata[1], nbtdata[2], nbtdata[3]);
 			if (nbtdata[0] != 1 || nbtdata[1] != 0 ||
 			    nbtdata[2] != 0 || nbtdata[3] != 0)
-				pr_err("this sResource is not a board resource!\n");
+				pr_err("Slot %X: sResource is not a board resource!\n",
+				       slot);
 			break;
 		}
 		case NUBUS_RESID_NAME:
@@ -672,6 +673,7 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 	unsigned long dpat;
 	struct nubus_dir dir;
 	struct nubus_dirent ent;
+	int prev_resid = -1;
 
 	/* Move to the start of the format block */
 	rp = nubus_rom_addr(slot);
@@ -711,10 +713,10 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 
 	/* Directory offset should be small and negative... */
 	if (!(board->doffset & 0x00FF0000))
-		pr_warn("Dodgy doffset!\n");
+		pr_warn("Slot %X: Dodgy doffset!\n", slot);
 	dpat = nubus_get_rom(&rp, 4, bytelanes);
 	if (dpat != NUBUS_TEST_PATTERN)
-		pr_warn("Wrong test pattern %08lx!\n", dpat);
+		pr_warn("Slot %X: Wrong test pattern %08lx!\n", slot, dpat);
 
 	/*
 	 *	I wonder how the CRC is meant to work -
@@ -740,11 +742,14 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 	   for each of them. */
 	if (nubus_readdir(&dir, &ent) == -1) {
 		/* We can't have this! */
-		pr_err("Board resource not found!\n");
+		pr_err("Slot %X: Board resource not found!\n", slot);
 		return NULL;
-	} else {
-		nubus_get_board_resource(board, slot, &ent);
 	}
+
+	if (ent.type < 1 || ent.type > 127)
+		pr_warn("Slot %X: Board resource ID is invalid!\n", slot);
+
+	nubus_get_board_resource(board, slot, &ent);
 
 	while (nubus_readdir(&dir, &ent) != -1) {
 		struct nubus_dev *dev;
@@ -753,6 +758,15 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 		dev = nubus_get_functional_resource(board, slot, &ent);
 		if (dev == NULL)
 			continue;
+
+		/* Resources should appear in ascending ID order. This sanity
+		 * check prevents duplicate resource IDs.
+		 */
+		if (dev->resid <= prev_resid) {
+			kfree(dev);
+			continue;
+		}
+		prev_resid = dev->resid;
 
 		/* We zeroed this out above */
 		if (board->first_dev == NULL)
