@@ -129,8 +129,8 @@ struct s3c_onenand {
 	void __iomem	*base;
 	void __iomem	*ahb_addr;
 	int		bootram_command;
-	void __iomem	*page_buf;
-	void __iomem	*oob_buf;
+	void		*page_buf;
+	void		*oob_buf;
 	unsigned int	(*mem_addr)(int fba, int fpa, int fsa);
 	unsigned int	(*cmd_map)(unsigned int type, unsigned int val);
 	void __iomem	*dma_addr;
@@ -408,8 +408,8 @@ static int s3c_onenand_command(struct mtd_info *mtd, int cmd, loff_t addr,
 	/*
 	 * Emulate Two BufferRAMs and access with 4 bytes pointer
 	 */
-	m = (unsigned int *) onenand->page_buf;
-	s = (unsigned int *) onenand->oob_buf;
+	m = onenand->page_buf;
+	s = onenand->oob_buf;
 
 	if (index) {
 		m += (this->writesize >> 2);
@@ -481,11 +481,11 @@ static unsigned char *s3c_get_bufferram(struct mtd_info *mtd, int area)
 	unsigned char *p;
 
 	if (area == ONENAND_DATARAM) {
-		p = (unsigned char *) onenand->page_buf;
+		p = onenand->page_buf;
 		if (index == 1)
 			p += this->writesize;
 	} else {
-		p = (unsigned char *) onenand->oob_buf;
+		p = onenand->oob_buf;
 		if (index == 1)
 			p += mtd->oobsize;
 	}
