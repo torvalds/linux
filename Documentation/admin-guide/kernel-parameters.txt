@@ -3097,6 +3097,12 @@
 		pcie_scan_all	Scan all possible PCIe devices.  Otherwise we
 				only look for one device below a PCIe downstream
 				port.
+		big_root_window	Try to add a big 64bit memory window to the PCIe
+				root complex on AMD CPUs. Some GFX hardware
+				can resize a BAR to allow access to all VRAM.
+				Adding the window is slightly risky (it may
+				conflict with unreported devices), so this
+				taints the kernel.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
