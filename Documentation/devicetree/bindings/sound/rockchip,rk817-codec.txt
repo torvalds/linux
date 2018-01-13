@@ -1,0 +1,34 @@
+* Rockchip rk817 codec
+
+Required properties:
+
+- compatible: "rockchip,rk817-codec"
+- clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
+- clock-names: should be "mclk".
+
+
+Example for rk817 codec:
+
+rk817: pmic@20 {
+	compatible = "rockchip,rk817";
+	reg = <0x20>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_int>;
+
+	........
+
+	rk817_codec: rk817-codec {
+			#sound-dai-cells = <0>;
+			compatible = "rockchip,rk817-codec";
+			clocks = <&cru SCLK_I2S_8CH_OUT>;
+			clock-names = "mclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2s_8ch_mclk>;
+			status = "okay";
+	};
+
+	........
+
+};
