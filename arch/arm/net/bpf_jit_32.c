@@ -913,33 +913,53 @@ static inline void emit_str_r(const u8 dst, const u8 src, bool dstk,
 }
 
 /* dst = *(size*)(src + off) */
-static inline void emit_ldx_r(const u8 dst, const u8 src, bool dstk,
-			      const s32 off, struct jit_ctx *ctx, const u8 sz){
+static inline void emit_ldx_r(const u8 dst[], const u8 src, bool dstk,
+			      s32 off, struct jit_ctx *ctx, const u8 sz){
 	const u8 *tmp = bpf2a32[TMP_REG_1];
-	u8 rd = dstk ? tmp[1] : dst;
+	const u8 *rd = dstk ? tmp : dst;
 	u8 rm = src;
+	s32 off_max;
 
-	if (off) {
+	if (sz == BPF_H)
+		off_max = 0xff;
+	else
+		off_max = 0xfff;
+
+	if (off < 0 || off > off_max) {
 		emit_a32_mov_i(tmp[0], off, false, ctx);
 		emit(ARM_ADD_R(tmp[0], tmp[0], src), ctx);
 		rm = tmp[0];
+		off = 0;
+	} else if (rd[1] == rm) {
+		emit(ARM_MOV_R(tmp[0], rm), ctx);
+		rm = tmp[0];
 	}
 	switch (sz) {
-	case BPF_W:
-		/* Load a Word */
-		emit(ARM_LDR_I(rd, rm, 0), ctx);
+	case BPF_B:
+		/* Load a Byte */
+		emit(ARM_LDRB_I(rd[1], rm, off), ctx);
+		emit_a32_mov_i(dst[0], 0, dstk, ctx);
 		break;
 	case BPF_H:
 		/* Load a HalfWord */
-		emit(ARM_LDRH_I(rd, rm, 0), ctx);
+		emit(ARM_LDRH_I(rd[1], rm, off), ctx);
+		emit_a32_mov_i(dst[0], 0, dstk, ctx);
 		break;
-	case BPF_B:
-		/* Load a Byte */
-		emit(ARM_LDRB_I(rd, rm, 0), ctx);
+	case BPF_W:
+		/* Load a Word */
+		emit(ARM_LDR_I(rd[1], rm, off), ctx);
+		emit_a32_mov_i(dst[0], 0, dstk, ctx);
+		break;
+	case BPF_DW:
+		/* Load a Double Word */
+		emit(ARM_LDR_I(rd[1], rm, off), ctx);
+		emit(ARM_LDR_I(rd[0], rm, off + 4), ctx);
 		break;
 	}
 	if (dstk)
-		emit(ARM_STR_I(rd, ARM_SP, STACK_VAR(dst)), ctx);
+		emit(ARM_STR_I(rd[1], ARM_SP, STACK_VAR(dst[1])), ctx);
+	if (dstk && sz == BPF_DW)
+		emit(ARM_STR_I(rd[0], ARM_SP, STACK_VAR(dst[0])), ctx);
 }
 
 /* Arithmatic Operation */
@@ -1440,22 +1460,7 @@ exit:
 		rn = sstk ? tmp2[1] : src_lo;
 		if (sstk)
 			emit(ARM_LDR_I(rn, ARM_SP, STACK_VAR(src_lo)), ctx);
-		switch (BPF_SIZE(code)) {
-		case BPF_W:
-			/* Load a Word */
-		case BPF_H:
-			/* Load a Half-Word */
-		case BPF_B:
-			/* Load a Byte */
-			emit_ldx_r(dst_lo, rn, dstk, off, ctx, BPF_SIZE(code));
-			emit_a32_mov_i(dst_hi, 0, dstk, ctx);
-			break;
-		case BPF_DW:
-			/* Load a double word */
-			emit_ldx_r(dst_lo, rn, dstk, off, ctx, BPF_W);
-			emit_ldx_r(dst_hi, rn, dstk, off+4, ctx, BPF_W);
-			break;
-		}
+		emit_ldx_r(dst, rn, dstk, off, ctx, BPF_SIZE(code));
 		break;
 	/* R0 = ntohx(*(size *)(((struct sk_buff *)R6)->data + imm)) */
 	case BPF_LD | BPF_ABS | BPF_W:
