@@ -134,9 +134,13 @@ int nubus_proc_attach_device(struct nubus_dev *dev)
 		return -1;
 	}
 		
+	if (dev->board->procdir)
+		return 0;
+
 	/* Create a directory */
 	snprintf(name, sizeof(name), "%x", dev->board->slot);
-	e = dev->procdir = proc_mkdir(name, proc_bus_nubus_dir);
+	e = proc_mkdir(name, proc_bus_nubus_dir);
+	dev->board->procdir = e;
 	if (!e)
 		return -ENOMEM;
 

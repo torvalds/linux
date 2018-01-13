@@ -53,13 +53,14 @@ struct nubus_board {
 	unsigned char rev;
 	unsigned char format;
 	unsigned char lanes;
+
+	/* Directory entry in /proc/bus/nubus */
+	struct proc_dir_entry *procdir;
 };
 
 struct nubus_dev {
 	/* Next link in device list */
 	struct nubus_dev* next;
-	/* Directory entry in /proc/bus/nubus */
-	struct proc_dir_entry* procdir;
 
 	/* The functional resource ID of this device */
 	unsigned char resid;
