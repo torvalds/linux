@@ -1016,7 +1016,7 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	emit_a32_mov_i(tmp[1], off, false, ctx);
 	emit(ARM_LDR_I(tmp2[1], ARM_SP, STACK_VAR(r2[1])), ctx);
 	emit(ARM_LDR_R(tmp[1], tmp2[1], tmp[1]), ctx);
-	/* index (64 bit) */
+	/* index is 32-bit for arrays */
 	emit(ARM_LDR_I(tmp2[1], ARM_SP, STACK_VAR(r3[1])), ctx);
 	/* index >= array->map.max_entries */
 	emit(ARM_CMP_R(tmp2[1], tmp[1]), ctx);
