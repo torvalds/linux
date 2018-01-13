@@ -416,8 +416,11 @@ struct net_device * __init mac8390_probe(int unit)
 	if (unit >= 0)
 		sprintf(dev->name, "eth%d", unit);
 
-	while ((ndev = nubus_find_type(NUBUS_CAT_NETWORK, NUBUS_TYPE_ETHERNET,
-				       ndev))) {
+	for_each_func_rsrc(ndev) {
+		if (ndev->category != NUBUS_CAT_NETWORK ||
+		    ndev->type != NUBUS_TYPE_ETHERNET)
+			continue;
+
 		/* Have we seen it already? */
 		if (slots & (1 << ndev->board->slot))
 			continue;

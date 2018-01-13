@@ -464,9 +464,11 @@ static int mac_nubus_sonic_probe(struct net_device *dev)
 	int reg_offset, dma_bitmode;
 
 	/* Find the first SONIC that hasn't been initialized already */
-	while ((ndev = nubus_find_type(NUBUS_CAT_NETWORK,
-				       NUBUS_TYPE_ETHERNET, ndev)) != NULL)
-	{
+	for_each_func_rsrc(ndev) {
+		if (ndev->category != NUBUS_CAT_NETWORK ||
+		    ndev->type != NUBUS_TYPE_ETHERNET)
+			continue;
+
 		/* Have we seen it already? */
 		if (slots & (1<<ndev->board->slot))
 			continue;

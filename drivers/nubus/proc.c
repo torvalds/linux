@@ -36,15 +36,12 @@
 static int
 nubus_devices_proc_show(struct seq_file *m, void *v)
 {
-	struct nubus_rsrc *fres = nubus_func_rsrcs;
+	struct nubus_rsrc *fres;
 
-	while (fres) {
-		seq_printf(m, "%x\t%04x %04x %04x %04x",
+	for_each_func_rsrc(fres)
+		seq_printf(m, "%x\t%04x %04x %04x %04x\t%08lx\n",
 			   fres->board->slot, fres->category, fres->type,
-			   fres->dr_sw, fres->dr_hw);
-		seq_printf(m, "\t%08lx\n", fres->board->slot_addr);
-		fres = fres->next;
-	}
+			   fres->dr_sw, fres->dr_hw, fres->board->slot_addr);
 	return 0;
 }
 

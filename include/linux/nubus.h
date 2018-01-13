@@ -33,7 +33,6 @@ struct nubus_dirent {
 
 struct nubus_board {
 	struct nubus_board *next;
-	struct nubus_rsrc *first_func_rsrc;
 
 	/* Only 9-E actually exist, though 0-8 are also theoretically
 	   possible, and 0 is a special case which represents the
@@ -63,8 +62,7 @@ struct nubus_board {
 };
 
 struct nubus_rsrc {
-	/* Next link in list */
-	struct nubus_rsrc *next;
+	struct list_head list;
 
 	/* The functional resource ID */
 	unsigned char resid;
@@ -82,7 +80,7 @@ struct nubus_rsrc {
 };
 
 /* This is all NuBus functional resources (used to find devices later on) */
-extern struct nubus_rsrc *nubus_func_rsrcs;
+extern struct list_head nubus_func_rsrcs;
 /* This is all NuBus cards */
 extern struct nubus_board *nubus_boards;
 
@@ -115,12 +113,11 @@ static inline void nubus_proc_add_rsrc(struct proc_dir_entry *procdir,
 				       const struct nubus_dirent *ent) {}
 #endif
 
-struct nubus_rsrc *nubus_find_type(unsigned short category,
-				   unsigned short type,
-				   const struct nubus_rsrc *from);
+struct nubus_rsrc *nubus_first_rsrc_or_null(void);
+struct nubus_rsrc *nubus_next_rsrc_or_null(struct nubus_rsrc *from);
 
-struct nubus_rsrc *nubus_find_slot(unsigned int slot,
-				   const struct nubus_rsrc *from);
+#define for_each_func_rsrc(f) \
+	for (f = nubus_first_rsrc_or_null(); f; f = nubus_next_rsrc_or_null(f))
 
 /* These are somewhat more NuBus-specific.  They all return 0 for
    success and -1 for failure, as you'd expect. */

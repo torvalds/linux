@@ -32,7 +32,7 @@
 
 /* Globals */
 
-struct nubus_rsrc *nubus_func_rsrcs;
+LIST_HEAD(nubus_func_rsrcs);
 struct nubus_board *nubus_boards;
 
 /* Meaning of "bytelanes":
@@ -305,33 +305,20 @@ EXPORT_SYMBOL(nubus_rewinddir);
 
 /* Driver interface functions, more or less like in pci.c */
 
-struct nubus_rsrc *nubus_find_type(unsigned short category, unsigned short type,
-				   const struct nubus_rsrc *from)
+struct nubus_rsrc *nubus_first_rsrc_or_null(void)
 {
-	struct nubus_rsrc *itor = from ? from->next : nubus_func_rsrcs;
-
-	while (itor) {
-		if (itor->category == category && itor->type == type)
-			return itor;
-		itor = itor->next;
-	}
-	return NULL;
+	return list_first_entry_or_null(&nubus_func_rsrcs, struct nubus_rsrc,
+					list);
 }
-EXPORT_SYMBOL(nubus_find_type);
+EXPORT_SYMBOL(nubus_first_rsrc_or_null);
 
-struct nubus_rsrc *nubus_find_slot(unsigned int slot,
-				   const struct nubus_rsrc *from)
+struct nubus_rsrc *nubus_next_rsrc_or_null(struct nubus_rsrc *from)
 {
-	struct nubus_rsrc *itor = from ? from->next : nubus_func_rsrcs;
-
-	while (itor) {
-		if (itor->board->slot == slot)
-			return itor;
-		itor = itor->next;
-	}
-	return NULL;
+	if (list_is_last(&from->list, &nubus_func_rsrcs))
+		return NULL;
+	return list_next_entry(from, list);
 }
-EXPORT_SYMBOL(nubus_find_slot);
+EXPORT_SYMBOL(nubus_next_rsrc_or_null);
 
 int
 nubus_find_rsrc(struct nubus_dir *dir, unsigned char rsrc_type,
@@ -819,7 +806,6 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 
 	while (nubus_readdir(&dir, &ent) != -1) {
 		struct nubus_rsrc *fres;
-		struct nubus_rsrc **fresp;
 
 		fres = nubus_get_functional_resource(board, slot, &ent);
 		if (fres == NULL)
@@ -834,16 +820,7 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 		}
 		prev_resid = fres->resid;
 
-		/* We zeroed this out above */
-		if (board->first_func_rsrc == NULL)
-			board->first_func_rsrc = fres;
-
-		/* Put it on the func. resource list. Keep entries in order. */
-		for (fresp = &nubus_func_rsrcs; *fresp != NULL;
-		     fresp = &((*fresp)->next))
-			/* spin */;
-		*fresp = fres;
-		fres->next = NULL;
+		list_add_tail(&fres->list, &nubus_func_rsrcs);
 	}
 
 	/* Put it on the global NuBus board chain. Keep entries in order. */
