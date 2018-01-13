@@ -274,6 +274,14 @@ config HID_EMS_FF
 	Currently the following devices are known to be supported:
 	 - Trio Linker Plus II
 
+config HID_ELAN
+	tristate "ELAN USB Touchpad Support"
+	depends on LEDS_CLASS && USB_HID
+	---help---
+	Say Y to enable support for the USB ELAN touchpad
+	Currently the following devices are known to be supported:
+	 - HP Pavilion X2 10-p0XX.
+
 config HID_ELECOM
 	tristate "ELECOM HID devices"
 	depends on HID
