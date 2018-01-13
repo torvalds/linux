@@ -102,7 +102,7 @@ struct rockchip_hdmi {
 	struct dw_hdmi *hdmi;
 
 	struct phy *phy;
-	u32 max_tmdsclk;
+	int max_tmdsclk;
 	bool unsupported_yuv_input;
 	bool unsupported_deep_color;
 
@@ -495,7 +495,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	u32 vic = drm_match_cea_mode(mode);
 	unsigned long tmdsclock, pixclock = mode->crtc_clock;
 	bool support_dc = false;
-	u32 max_tmds_clock = info->max_tmds_clock;
+	int max_tmds_clock = info->max_tmds_clock;
 
 	*color_format = DRM_HDMI_OUTPUT_DEFAULT_RGB;
 
@@ -598,11 +598,19 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	if (!max_tmds_clock)
 		max_tmds_clock = 340000;
 
+	max_tmds_clock = min(max_tmds_clock, hdmi->max_tmdsclk);
+
 	if (tmdsclock > max_tmds_clock) {
-		*color_depth = 8;
-		if (tmdsclock > 340000 && drm_mode_is_420(info, mode) &&
-		    (max_tmds_clock <= 340000 || hdmi->max_tmdsclk <= 340000))
-			*color_format = DRM_HDMI_OUTPUT_YCBCR420;
+		if (max_tmds_clock >= 594000) {
+			*color_depth = 8;
+		} else if (max_tmds_clock > 340000) {
+			if (drm_mode_is_420(info, mode))
+				*color_format = DRM_HDMI_OUTPUT_YCBCR420;
+		} else {
+			*color_depth = 8;
+			if (drm_mode_is_420(info, mode))
+				*color_format = DRM_HDMI_OUTPUT_YCBCR420;
+		}
 	}
 }
 
