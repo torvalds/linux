@@ -1009,7 +1009,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_xrcd[0x5];
 
 	u8         nic_receive_steering_discard[0x1];
-	u8         reserved_at_341[0x7];
+	u8         receive_discard_vport_down[0x1];
+	u8         transmit_discard_vport_down[0x1];
+	u8         reserved_at_343[0x5];
 	u8         log_max_flow_counter_bulk[0x8];
 	u8         max_flow_counter_15_0[0x10];
 
