@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <asm/setup.h>
 #include <asm/page.h>
@@ -146,7 +147,7 @@ static inline void *nubus_rom_addr(int slot)
 	return (void *)(0xF1000000 + (slot << 24));
 }
 
-static unsigned char *nubus_dirptr(const struct nubus_dirent *nd)
+unsigned char *nubus_dirptr(const struct nubus_dirent *nd)
 {
 	unsigned char *p = nd->base;
 
@@ -173,8 +174,8 @@ void nubus_get_rsrc_mem(void *dest, const struct nubus_dirent *dirent,
 }
 EXPORT_SYMBOL(nubus_get_rsrc_mem);
 
-void nubus_get_rsrc_str(char *dest, const struct nubus_dirent *dirent,
-			unsigned int len)
+unsigned int nubus_get_rsrc_str(char *dest, const struct nubus_dirent *dirent,
+				unsigned int len)
 {
 	char *t = dest;
 	unsigned char *p = nubus_dirptr(dirent);
@@ -189,8 +190,32 @@ void nubus_get_rsrc_str(char *dest, const struct nubus_dirent *dirent,
 	}
 	if (len > 0)
 		*t = '\0';
+	return t - dest;
 }
 EXPORT_SYMBOL(nubus_get_rsrc_str);
+
+void nubus_seq_write_rsrc_mem(struct seq_file *m,
+			      const struct nubus_dirent *dirent,
+			      unsigned int len)
+{
+	unsigned long buf[32];
+	unsigned int buf_size = sizeof(buf);
+	unsigned char *p = nubus_dirptr(dirent);
+
+	/* If possible, write out full buffers */
+	while (len >= buf_size) {
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(buf); i++)
+			buf[i] = nubus_get_rom(&p, sizeof(buf[0]),
+					       dirent->mask);
+		seq_write(m, buf, buf_size);
+		len -= buf_size;
+	}
+	/* If not, write out individual bytes */
+	while (len--)
+		seq_putc(m, nubus_get_rom(&p, 1, dirent->mask));
+}
 
 int nubus_get_root_dir(const struct nubus_board *board,
 		       struct nubus_dir *dir)
@@ -326,35 +351,35 @@ EXPORT_SYMBOL(nubus_find_rsrc);
    looking at, and print out lots and lots of information from the
    resource blocks. */
 
-/* FIXME: A lot of this stuff will eventually be useful after
-   initialization, for intelligently probing Ethernet and video chips,
-   among other things.  The rest of it should go in the /proc code.
-   For now, we just use it to give verbose boot logs. */
-
 static int __init nubus_get_block_rsrc_dir(struct nubus_board *board,
+					   struct proc_dir_entry *procdir,
 					   const struct nubus_dirent *parent)
 {
 	struct nubus_dir dir;
 	struct nubus_dirent ent;
 
 	nubus_get_subdir(parent, &dir);
+	dir.procdir = nubus_proc_add_rsrc_dir(procdir, parent, board);
 
 	while (nubus_readdir(&dir, &ent) != -1) {
 		u32 size;
 
 		nubus_get_rsrc_mem(&size, &ent, 4);
 		pr_debug("        block (0x%x), size %d\n", ent.type, size);
+		nubus_proc_add_rsrc_mem(dir.procdir, &ent, size);
 	}
 	return 0;
 }
 
 static int __init nubus_get_display_vidmode(struct nubus_board *board,
+					    struct proc_dir_entry *procdir,
 					    const struct nubus_dirent *parent)
 {
 	struct nubus_dir dir;
 	struct nubus_dirent ent;
 
 	nubus_get_subdir(parent, &dir);
+	dir.procdir = nubus_proc_add_rsrc_dir(procdir, parent, board);
 
 	while (nubus_readdir(&dir, &ent) != -1) {
 		switch (ent.type) {
@@ -366,37 +391,42 @@ static int __init nubus_get_display_vidmode(struct nubus_board *board,
 			nubus_get_rsrc_mem(&size, &ent, 4);
 			pr_debug("        block (0x%x), size %d\n", ent.type,
 				size);
+			nubus_proc_add_rsrc_mem(dir.procdir, &ent, size);
 			break;
 		}
 		default:
 			pr_debug("        unknown resource 0x%02x, data 0x%06x\n",
 				ent.type, ent.data);
+			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 0);
 		}
 	}
 	return 0;
 }
 
 static int __init nubus_get_display_resource(struct nubus_dev *dev,
+					     struct proc_dir_entry *procdir,
 					     const struct nubus_dirent *ent)
 {
 	switch (ent->type) {
 	case NUBUS_RESID_GAMMADIR:
 		pr_debug("    gamma directory offset: 0x%06x\n", ent->data);
-		nubus_get_block_rsrc_dir(dev->board, ent);
+		nubus_get_block_rsrc_dir(dev->board, procdir, ent);
 		break;
 	case 0x0080 ... 0x0085:
 		pr_debug("    mode 0x%02x info offset: 0x%06x\n",
 			ent->type, ent->data);
-		nubus_get_display_vidmode(dev->board, ent);
+		nubus_get_display_vidmode(dev->board, procdir, ent);
 		break;
 	default:
 		pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
 			ent->type, ent->data);
+		nubus_proc_add_rsrc_mem(procdir, ent, 0);
 	}
 	return 0;
 }
 
 static int __init nubus_get_network_resource(struct nubus_dev *dev,
+					     struct proc_dir_entry *procdir,
 					     const struct nubus_dirent *ent)
 {
 	switch (ent->type) {
@@ -406,16 +436,19 @@ static int __init nubus_get_network_resource(struct nubus_dev *dev,
 
 		nubus_get_rsrc_mem(addr, ent, 6);
 		pr_debug("    MAC address: %pM\n", addr);
+		nubus_proc_add_rsrc_mem(procdir, ent, 6);
 		break;
 	}
 	default:
 		pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
 			ent->type, ent->data);
+		nubus_proc_add_rsrc_mem(procdir, ent, 0);
 	}
 	return 0;
 }
 
 static int __init nubus_get_cpu_resource(struct nubus_dev *dev,
+					 struct proc_dir_entry *procdir,
 					 const struct nubus_dirent *ent)
 {
 	switch (ent->type) {
@@ -426,6 +459,7 @@ static int __init nubus_get_cpu_resource(struct nubus_dev *dev,
 		nubus_get_rsrc_mem(&meminfo, ent, 8);
 		pr_debug("    memory: [ 0x%08lx 0x%08lx ]\n",
 			meminfo[0], meminfo[1]);
+		nubus_proc_add_rsrc_mem(procdir, ent, 8);
 		break;
 	}
 	case NUBUS_RESID_ROMINFO:
@@ -435,31 +469,35 @@ static int __init nubus_get_cpu_resource(struct nubus_dev *dev,
 		nubus_get_rsrc_mem(&rominfo, ent, 8);
 		pr_debug("    ROM:    [ 0x%08lx 0x%08lx ]\n",
 			rominfo[0], rominfo[1]);
+		nubus_proc_add_rsrc_mem(procdir, ent, 8);
 		break;
 	}
 	default:
 		pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
 			ent->type, ent->data);
+		nubus_proc_add_rsrc_mem(procdir, ent, 0);
 	}
 	return 0;
 }
 
 static int __init nubus_get_private_resource(struct nubus_dev *dev,
+					     struct proc_dir_entry *procdir,
 					     const struct nubus_dirent *ent)
 {
 	switch (dev->category) {
 	case NUBUS_CAT_DISPLAY:
-		nubus_get_display_resource(dev, ent);
+		nubus_get_display_resource(dev, procdir, ent);
 		break;
 	case NUBUS_CAT_NETWORK:
-		nubus_get_network_resource(dev, ent);
+		nubus_get_network_resource(dev, procdir, ent);
 		break;
 	case NUBUS_CAT_CPU:
-		nubus_get_cpu_resource(dev, ent);
+		nubus_get_cpu_resource(dev, procdir, ent);
 		break;
 	default:
 		pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
 			ent->type, ent->data);
+		nubus_proc_add_rsrc_mem(procdir, ent, 0);
 	}
 	return 0;
 }
@@ -474,6 +512,7 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 
 	pr_debug("  Functional resource 0x%02x:\n", parent->type);
 	nubus_get_subdir(parent, &dir);
+	dir.procdir = nubus_proc_add_rsrc_dir(board->procdir, parent, board);
 
 	/* Actually we should probably panic if this fails */
 	if ((dev = kzalloc(sizeof(*dev), GFP_ATOMIC)) == NULL)
@@ -495,14 +534,17 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 			dev->dr_hw    = nbtdata[3];
 			pr_debug("    type: [cat 0x%x type 0x%x sw 0x%x hw 0x%x]\n",
 				nbtdata[0], nbtdata[1], nbtdata[2], nbtdata[3]);
+			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 8);
 			break;
 		}
 		case NUBUS_RESID_NAME:
 		{
 			char name[64];
+			unsigned int len;
 
-			nubus_get_rsrc_str(name, &ent, sizeof(name));
+			len = nubus_get_rsrc_str(name, &ent, sizeof(name));
 			pr_debug("    name: %s\n", name);
+			nubus_proc_add_rsrc_mem(dir.procdir, &ent, len + 1);
 			break;
 		}
 		case NUBUS_RESID_DRVRDIR:
@@ -511,7 +553,7 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 			   use this :-) */
 			pr_debug("    driver directory offset: 0x%06x\n",
 				ent.data);
-			nubus_get_block_rsrc_dir(board, &ent);
+			nubus_get_block_rsrc_dir(board, dir.procdir, &ent);
 			break;
 		}
 		case NUBUS_RESID_MINOR_BASEOS:
@@ -523,6 +565,7 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 
 			nubus_get_rsrc_mem(&base_offset, &ent, 4);
 			pr_debug("    memory offset: 0x%08x\n", base_offset);
+			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 4);
 			break;
 		}
 		case NUBUS_RESID_MINOR_LENGTH:
@@ -532,18 +575,21 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 
 			nubus_get_rsrc_mem(&length, &ent, 4);
 			pr_debug("    memory length: 0x%08x\n", length);
+			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 4);
 			break;
 		}
 		case NUBUS_RESID_FLAGS:
 			pr_debug("    flags: 0x%06x\n", ent.data);
+			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 		case NUBUS_RESID_HWDEVID:
 			pr_debug("    hwdevid: 0x%06x\n", ent.data);
+			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 		default:
 			/* Local/Private resources have their own
 			   function */
-			nubus_get_private_resource(dev, &ent);
+			nubus_get_private_resource(dev, dir.procdir, &ent);
 		}
 	}
 
@@ -552,6 +598,7 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 
 /* This is *really* cool. */
 static int __init nubus_get_icon(struct nubus_board *board,
+				 struct proc_dir_entry *procdir,
 				 const struct nubus_dirent *ent)
 {
 	/* Should be 32x32 if my memory serves me correctly */
@@ -564,11 +611,13 @@ static int __init nubus_get_icon(struct nubus_board *board,
 		pr_debug("        %08x %08x %08x %08x\n",
 			icon[i * 4 + 0], icon[i * 4 + 1],
 			icon[i * 4 + 2], icon[i * 4 + 3]);
+	nubus_proc_add_rsrc_mem(procdir, ent, 128);
 
 	return 0;
 }
 
 static int __init nubus_get_vendorinfo(struct nubus_board *board,
+				       struct proc_dir_entry *procdir,
 				       const struct nubus_dirent *parent)
 {
 	struct nubus_dir dir;
@@ -578,15 +627,18 @@ static int __init nubus_get_vendorinfo(struct nubus_board *board,
 
 	pr_debug("    vendor info:\n");
 	nubus_get_subdir(parent, &dir);
+	dir.procdir = nubus_proc_add_rsrc_dir(procdir, parent, board);
 
 	while (nubus_readdir(&dir, &ent) != -1) {
 		char name[64];
+		unsigned int len;
 
 		/* These are all strings, we think */
-		nubus_get_rsrc_str(name, &ent, sizeof(name));
+		len = nubus_get_rsrc_str(name, &ent, sizeof(name));
 		if (ent.type < 1 || ent.type > 5)
 			ent.type = 5;
 		pr_debug("    %s: %s\n", vendor_fields[ent.type - 1], name);
+		nubus_proc_add_rsrc_mem(dir.procdir, &ent, len + 1);
 	}
 	return 0;
 }
@@ -599,6 +651,7 @@ static int __init nubus_get_board_resource(struct nubus_board *board, int slot,
 
 	pr_debug("  Board resource 0x%02x:\n", parent->type);
 	nubus_get_subdir(parent, &dir);
+	dir.procdir = nubus_proc_add_rsrc_dir(board->procdir, parent, board);
 
 	while (nubus_readdir(&dir, &ent) != -1) {
 		switch (ent.type) {
@@ -615,49 +668,62 @@ static int __init nubus_get_board_resource(struct nubus_board *board, int slot,
 			    nbtdata[2] != 0 || nbtdata[3] != 0)
 				pr_err("Slot %X: sResource is not a board resource!\n",
 				       slot);
+			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 8);
 			break;
 		}
 		case NUBUS_RESID_NAME:
-			nubus_get_rsrc_str(board->name, &ent,
-					   sizeof(board->name));
+		{
+			unsigned int len;
+
+			len = nubus_get_rsrc_str(board->name, &ent,
+						 sizeof(board->name));
 			pr_debug("    name: %s\n", board->name);
+			nubus_proc_add_rsrc_mem(dir.procdir, &ent, len + 1);
 			break;
+		}
 		case NUBUS_RESID_ICON:
-			nubus_get_icon(board, &ent);
+			nubus_get_icon(board, dir.procdir, &ent);
 			break;
 		case NUBUS_RESID_BOARDID:
 			pr_debug("    board id: 0x%x\n", ent.data);
+			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 		case NUBUS_RESID_PRIMARYINIT:
 			pr_debug("    primary init offset: 0x%06x\n", ent.data);
+			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 		case NUBUS_RESID_VENDORINFO:
-			nubus_get_vendorinfo(board, &ent);
+			nubus_get_vendorinfo(board, dir.procdir, &ent);
 			break;
 		case NUBUS_RESID_FLAGS:
 			pr_debug("    flags: 0x%06x\n", ent.data);
+			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 		case NUBUS_RESID_HWDEVID:
 			pr_debug("    hwdevid: 0x%06x\n", ent.data);
+			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 		case NUBUS_RESID_SECONDINIT:
 			pr_debug("    secondary init offset: 0x%06x\n",
 				 ent.data);
+			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 			/* WTF isn't this in the functional resources? */
 		case NUBUS_RESID_VIDNAMES:
 			pr_debug("    vidnames directory offset: 0x%06x\n",
 				ent.data);
-			nubus_get_block_rsrc_dir(board, &ent);
+			nubus_get_block_rsrc_dir(board, dir.procdir, &ent);
 			break;
 			/* Same goes for this */
 		case NUBUS_RESID_VIDMODES:
 			pr_debug("    video mode parameter directory offset: 0x%06x\n",
 				ent.data);
+			nubus_proc_add_rsrc(dir.procdir, &ent);
 			break;
 		default:
 			pr_debug("    unknown resource 0x%02x, data 0x%06x\n",
 				ent.type, ent.data);
+			nubus_proc_add_rsrc_mem(dir.procdir, &ent, 0);
 		}
 	}
 	return 0;
@@ -748,6 +814,8 @@ static struct nubus_board * __init nubus_add_board(int slot, int bytelanes)
 	if (ent.type < 1 || ent.type > 127)
 		pr_warn("Slot %X: Board resource ID is invalid!\n", slot);
 
+	board->procdir = nubus_proc_add_board(board);
+
 	nubus_get_board_resource(board, slot, &ent);
 
 	while (nubus_readdir(&dir, &ent) != -1) {
@@ -835,8 +903,8 @@ static int __init nubus_init(void)
 	if (!MACH_IS_MAC)
 		return 0;
 
-	nubus_scan_bus();
 	nubus_proc_init();
+	nubus_scan_bus();
 	return 0;
 }
 

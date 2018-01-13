@@ -13,11 +13,15 @@
 #include <asm/nubus.h>
 #include <uapi/linux/nubus.h>
 
+struct proc_dir_entry;
+struct seq_file;
+
 struct nubus_dir {
 	unsigned char *base;
 	unsigned char *ptr;
 	int done;
 	int mask;
+	struct proc_dir_entry *procdir;
 };
 
 struct nubus_dirent {
@@ -84,12 +88,33 @@ extern struct nubus_board *nubus_boards;
 
 /* Generic NuBus interface functions, modelled after the PCI interface */
 #ifdef CONFIG_PROC_FS
-extern void nubus_proc_init(void);
+void nubus_proc_init(void);
+struct proc_dir_entry *nubus_proc_add_board(struct nubus_board *board);
+struct proc_dir_entry *nubus_proc_add_rsrc_dir(struct proc_dir_entry *procdir,
+					       const struct nubus_dirent *ent,
+					       struct nubus_board *board);
+void nubus_proc_add_rsrc_mem(struct proc_dir_entry *procdir,
+			     const struct nubus_dirent *ent,
+			     unsigned int size);
+void nubus_proc_add_rsrc(struct proc_dir_entry *procdir,
+			 const struct nubus_dirent *ent);
 #else
 static inline void nubus_proc_init(void) {}
+static inline
+struct proc_dir_entry *nubus_proc_add_board(struct nubus_board *board)
+{ return NULL; }
+static inline
+struct proc_dir_entry *nubus_proc_add_rsrc_dir(struct proc_dir_entry *procdir,
+					       const struct nubus_dirent *ent,
+					       struct nubus_board *board)
+{ return NULL; }
+static inline void nubus_proc_add_rsrc_mem(struct proc_dir_entry *procdir,
+					   const struct nubus_dirent *ent,
+					   unsigned int size) {}
+static inline void nubus_proc_add_rsrc(struct proc_dir_entry *procdir,
+				       const struct nubus_dirent *ent) {}
 #endif
 
-int nubus_proc_attach_device(struct nubus_dev *dev);
 /* If we need more precision we can add some more of these */
 struct nubus_dev *nubus_find_type(unsigned short category,
 				  unsigned short type,
@@ -125,8 +150,12 @@ int nubus_get_subdir(const struct nubus_dirent *ent,
 		     struct nubus_dir *dir);
 void nubus_get_rsrc_mem(void *dest, const struct nubus_dirent *dirent,
 			unsigned int len);
-void nubus_get_rsrc_str(char *dest, const struct nubus_dirent *dirent,
-			unsigned int maxlen);
+unsigned int nubus_get_rsrc_str(char *dest, const struct nubus_dirent *dirent,
+				unsigned int len);
+void nubus_seq_write_rsrc_mem(struct seq_file *m,
+			      const struct nubus_dirent *dirent,
+			      unsigned int len);
+unsigned char *nubus_dirptr(const struct nubus_dirent *nd);
 
 /* Returns a pointer to the "standard" slot space. */
 static inline void *nubus_slot_addr(int slot)
