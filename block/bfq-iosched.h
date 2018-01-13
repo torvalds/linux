@@ -337,6 +337,11 @@ struct bfq_queue {
 	 * last transition from idle to backlogged.
 	 */
 	unsigned long service_from_backlogged;
+	/*
+	 * Cumulative service received from the @bfq_queue since its
+	 * last transition to weight-raised state.
+	 */
+	unsigned long service_from_wr;
 
 	/*
 	 * Value of wr start time when switching to soft rt

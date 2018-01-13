@@ -209,15 +209,17 @@ static struct kmem_cache *bfq_pool;
  * interactive applications automatically, using the following formula:
  * duration = (R / r) * T, where r is the peak rate of the device, and
  * R and T are two reference parameters.
- * In particular, R is the peak rate of the reference device (see below),
- * and T is a reference time: given the systems that are likely to be
- * installed on the reference device according to its speed class, T is
- * about the maximum time needed, under BFQ and while reading two files in
- * parallel, to load typical large applications on these systems.
- * In practice, the slower/faster the device at hand is, the more/less it
- * takes to load applications with respect to the reference device.
- * Accordingly, the longer/shorter BFQ grants weight raising to interactive
- * applications.
+ * In particular, R is the peak rate of the reference device (see
+ * below), and T is a reference time: given the systems that are
+ * likely to be installed on the reference device according to its
+ * speed class, T is about the maximum time needed, under BFQ and
+ * while reading two files in parallel, to load typical large
+ * applications on these systems (see the comments on
+ * max_service_from_wr below, for more details on how T is obtained).
+ * In practice, the slower/faster the device at hand is, the more/less
+ * it takes to load applications with respect to the reference device.
+ * Accordingly, the longer/shorter BFQ grants weight raising to
+ * interactive applications.
  *
  * BFQ uses four different reference pairs (R, T), depending on:
  * . whether the device is rotational or non-rotational;
@@ -253,6 +255,60 @@ static int R_fast[2] = {14000, 33000};
 static int T_slow[2];
 static int T_fast[2];
 static int device_speed_thresh[2];
+
+/*
+ * BFQ uses the above-detailed, time-based weight-raising mechanism to
+ * privilege interactive tasks. This mechanism is vulnerable to the
+ * following false positives: I/O-bound applications that will go on
+ * doing I/O for much longer than the duration of weight
+ * raising. These applications have basically no benefit from being
+ * weight-raised at the beginning of their I/O. On the opposite end,
+ * while being weight-raised, these applications
+ * a) unjustly steal throughput to applications that may actually need
+ * low latency;
+ * b) make BFQ uselessly perform device idling; device idling results
+ * in loss of device throughput with most flash-based storage, and may
+ * increase latencies when used purposelessly.
+ *
+ * BFQ tries to reduce these problems, by adopting the following
+ * countermeasure. To introduce this countermeasure, we need first to
+ * finish explaining how the duration of weight-raising for
+ * interactive tasks is computed.
+ *
+ * For a bfq_queue deemed as interactive, the duration of weight
+ * raising is dynamically adjusted, as a function of the estimated
+ * peak rate of the device, so as to be equal to the time needed to
+ * execute the 'largest' interactive task we benchmarked so far. By
+ * largest task, we mean the task for which each involved process has
+ * to do more I/O than for any of the other tasks we benchmarked. This
+ * reference interactive task is the start-up of LibreOffice Writer,
+ * and in this task each process/bfq_queue needs to have at most ~110K
+ * sectors transferred.
+ *
+ * This last piece of information enables BFQ to reduce the actual
+ * duration of weight-raising for at least one class of I/O-bound
+ * applications: those doing sequential or quasi-sequential I/O. An
+ * example is file copy. In fact, once started, the main I/O-bound
+ * processes of these applications usually consume the above 110K
+ * sectors in much less time than the processes of an application that
+ * is starting, because these I/O-bound processes will greedily devote
+ * almost all their CPU cycles only to their target,
+ * throughput-friendly I/O operations. This is even more true if BFQ
+ * happens to be underestimating the device peak rate, and thus
+ * overestimating the duration of weight raising. But, according to
+ * our measurements, once transferred 110K sectors, these processes
+ * have no right to be weight-raised any longer.
+ *
+ * Basing on the last consideration, BFQ ends weight-raising for a
+ * bfq_queue if the latter happens to have received an amount of
+ * service at least equal to the following constant. The constant is
+ * set to slightly more than 110K, to have a minimum safety margin.
+ *
+ * This early ending of weight-raising reduces the amount of time
+ * during which interactive false positives cause the two problems
+ * described at the beginning of these comments.
+ */
+static const unsigned long max_service_from_wr = 120000;
 
 #define RQ_BIC(rq)		icq_to_bic((rq)->elv.priv[0])
 #define RQ_BFQQ(rq)		((rq)->elv.priv[1])
@@ -1352,6 +1408,7 @@ static void bfq_update_bfqq_wr_on_rq_arrival(struct bfq_data *bfqd,
 	if (old_wr_coeff == 1 && wr_or_deserves_wr) {
 		/* start a weight-raising period */
 		if (interactive) {
+			bfqq->service_from_wr = 0;
 			bfqq->wr_coeff = bfqd->bfq_wr_coeff;
 			bfqq->wr_cur_max_time = bfq_wr_duration(bfqd);
 		} else {
@@ -3664,6 +3721,12 @@ static void bfq_update_wr_data(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 				switch_back_to_interactive_wr(bfqq, bfqd);
 				bfqq->entity.prio_changed = 1;
 			}
+		}
+		if (bfqq->wr_coeff > 1 &&
+		    bfqq->wr_cur_max_time != bfqd->bfq_wr_rt_max_time &&
+		    bfqq->service_from_wr > max_service_from_wr) {
+			/* see comments on max_service_from_wr */
+			bfq_bfqq_end_wr(bfqq);
 		}
 	}
 	/*
