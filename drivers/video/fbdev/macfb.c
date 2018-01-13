@@ -556,7 +556,7 @@ static void __init iounmap_macfb(void)
 static int __init macfb_init(void)
 {
 	int video_cmap_len, video_is_nubus = 0;
-	struct nubus_dev* ndev = NULL;
+	struct nubus_rsrc *ndev = NULL;
 	char *option = NULL;
 	int err;
 

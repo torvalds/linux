@@ -428,26 +428,26 @@ static int mac_nubus_sonic_ethernet_addr(struct net_device *dev,
 	return 0;
 }
 
-static int macsonic_ident(struct nubus_dev *ndev)
+static int macsonic_ident(struct nubus_rsrc *fres)
 {
-	if (ndev->dr_hw == NUBUS_DRHW_ASANTE_LC &&
-	    ndev->dr_sw == NUBUS_DRSW_SONIC_LC)
+	if (fres->dr_hw == NUBUS_DRHW_ASANTE_LC &&
+	    fres->dr_sw == NUBUS_DRSW_SONIC_LC)
 		return MACSONIC_DAYNALINK;
-	if (ndev->dr_hw == NUBUS_DRHW_SONIC &&
-	    ndev->dr_sw == NUBUS_DRSW_APPLE) {
+	if (fres->dr_hw == NUBUS_DRHW_SONIC &&
+	    fres->dr_sw == NUBUS_DRSW_APPLE) {
 		/* There has to be a better way to do this... */
-		if (strstr(ndev->board->name, "DuoDock"))
+		if (strstr(fres->board->name, "DuoDock"))
 			return MACSONIC_DUODOCK;
 		else
 			return MACSONIC_APPLE;
 	}
 
-	if (ndev->dr_hw == NUBUS_DRHW_SMC9194 &&
-	    ndev->dr_sw == NUBUS_DRSW_DAYNA)
+	if (fres->dr_hw == NUBUS_DRHW_SMC9194 &&
+	    fres->dr_sw == NUBUS_DRSW_DAYNA)
 		return MACSONIC_DAYNA;
 
-	if (ndev->dr_hw == NUBUS_DRHW_APPLE_SONIC_LC &&
-	    ndev->dr_sw == 0) { /* huh? */
+	if (fres->dr_hw == NUBUS_DRHW_APPLE_SONIC_LC &&
+	    fres->dr_sw == 0) { /* huh? */
 		return MACSONIC_APPLE16;
 	}
 	return -1;
@@ -456,7 +456,7 @@ static int macsonic_ident(struct nubus_dev *ndev)
 static int mac_nubus_sonic_probe(struct net_device *dev)
 {
 	static int slots;
-	struct nubus_dev* ndev = NULL;
+	struct nubus_rsrc *ndev = NULL;
 	struct sonic_local* lp = netdev_priv(dev);
 	unsigned long base_addr, prom_addr;
 	u16 sonic_dcr;

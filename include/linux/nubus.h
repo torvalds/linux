@@ -33,7 +33,7 @@ struct nubus_dirent {
 
 struct nubus_board {
 	struct nubus_board *next;
-	struct nubus_dev *first_dev;
+	struct nubus_rsrc *first_func_rsrc;
 
 	/* Only 9-E actually exist, though 0-8 are also theoretically
 	   possible, and 0 is a special case which represents the
@@ -62,11 +62,11 @@ struct nubus_board {
 	struct proc_dir_entry *procdir;
 };
 
-struct nubus_dev {
-	/* Next link in device list */
-	struct nubus_dev *next;
+struct nubus_rsrc {
+	/* Next link in list */
+	struct nubus_rsrc *next;
 
-	/* The functional resource ID of this device */
+	/* The functional resource ID */
 	unsigned char resid;
 	/* These are mostly here for convenience; we could always read
 	   them from the ROMs if we wanted to */
@@ -81,8 +81,8 @@ struct nubus_dev {
 	struct nubus_board *board;
 };
 
-/* This is all NuBus devices (used to find devices later on) */
-extern struct nubus_dev *nubus_devices;
+/* This is all NuBus functional resources (used to find devices later on) */
+extern struct nubus_rsrc *nubus_func_rsrcs;
 /* This is all NuBus cards */
 extern struct nubus_board *nubus_boards;
 
@@ -115,13 +115,12 @@ static inline void nubus_proc_add_rsrc(struct proc_dir_entry *procdir,
 				       const struct nubus_dirent *ent) {}
 #endif
 
-/* If we need more precision we can add some more of these */
-struct nubus_dev *nubus_find_type(unsigned short category,
-				  unsigned short type,
-				  const struct nubus_dev *from);
-/* Might have more than one device in a slot, you know... */
-struct nubus_dev *nubus_find_slot(unsigned int slot,
-				  const struct nubus_dev *from);
+struct nubus_rsrc *nubus_find_type(unsigned short category,
+				   unsigned short type,
+				   const struct nubus_rsrc *from);
+
+struct nubus_rsrc *nubus_find_slot(unsigned int slot,
+				   const struct nubus_rsrc *from);
 
 /* These are somewhat more NuBus-specific.  They all return 0 for
    success and -1 for failure, as you'd expect. */
@@ -134,8 +133,7 @@ int nubus_get_root_dir(const struct nubus_board *board,
 int nubus_get_board_dir(const struct nubus_board *board,
 			struct nubus_dir *dir);
 /* The functional directory */
-int nubus_get_func_dir(const struct nubus_dev *dev,
-		       struct nubus_dir *dir);
+int nubus_get_func_dir(const struct nubus_rsrc *fres, struct nubus_dir *dir);
 
 /* These work on any directory gotten via the above */
 int nubus_readdir(struct nubus_dir *dir,
