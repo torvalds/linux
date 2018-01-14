@@ -3222,7 +3222,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		eth_hw_addr_random(ndev);
 	}
 
-	/* ioremap the TSU registers */
 	if (mdp->cd->tsu) {
 		struct resource *rtsu;
 
@@ -3243,6 +3242,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			ret = -EBUSY;
 			goto out_release;
 		}
+		/* ioremap the TSU registers */
 		mdp->tsu_addr = devm_ioremap(&pdev->dev, rtsu->start,
 					     resource_size(rtsu));
 		if (!mdp->tsu_addr) {
@@ -3252,14 +3252,12 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		}
 		mdp->port = devno % 2;
 		ndev->features = NETIF_F_HW_VLAN_CTAG_FILTER;
-	}
 
-	/* Need to init only the first port of the two sharing a TSU */
-	if (devno % 2 == 0) {
-		if (mdp->cd->chip_reset)
-			mdp->cd->chip_reset(ndev);
+		/* Need to init only the first port of the two sharing a TSU */
+		if (devno % 2 == 0) {
+			if (mdp->cd->chip_reset)
+				mdp->cd->chip_reset(ndev);
 
-		if (mdp->cd->tsu) {
 			/* TSU init (Init only)*/
 			sh_eth_tsu_init(mdp);
 		}
