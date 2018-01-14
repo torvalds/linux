@@ -32,6 +32,8 @@ extern unsigned int admin_timeout;
 #define NVME_KATO_GRACE		10
 
 extern struct workqueue_struct *nvme_wq;
+extern struct workqueue_struct *nvme_reset_wq;
+extern struct workqueue_struct *nvme_delete_wq;
 
 enum {
 	NVME_NS_LBA		= 0,
