@@ -41,9 +41,12 @@
 #include "spectrum.h"
 #include "reg.h"
 
+#define MLXSW_SP_PRIO_BAND_TO_TCLASS(band) (IEEE_8021QAZ_MAX_TCS - band - 1)
+
 enum mlxsw_sp_qdisc_type {
 	MLXSW_SP_QDISC_NO_QDISC,
 	MLXSW_SP_QDISC_RED,
+	MLXSW_SP_QDISC_PRIO,
 };
 
 struct mlxsw_sp_qdisc_ops {
@@ -398,6 +401,85 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 	case TC_RED_STATS:
 		return mlxsw_sp_qdisc_get_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
 						&p->stats);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int
+mlxsw_sp_qdisc_prio_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc)
+{
+	int i;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		mlxsw_sp_port_prio_tc_set(mlxsw_sp_port, i,
+					  MLXSW_SP_PORT_DEFAULT_TCLASS);
+
+	return 0;
+}
+
+static int
+mlxsw_sp_qdisc_prio_check_params(struct mlxsw_sp_port *mlxsw_sp_port,
+				 struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+				 void *params)
+{
+	struct tc_prio_qopt_offload_params *p = params;
+
+	if (p->bands > IEEE_8021QAZ_MAX_TCS)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static int
+mlxsw_sp_qdisc_prio_replace(struct mlxsw_sp_port *mlxsw_sp_port,
+			    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			    void *params)
+{
+	struct tc_prio_qopt_offload_params *p = params;
+	int tclass, i;
+	int err;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		tclass = MLXSW_SP_PRIO_BAND_TO_TCLASS(p->priomap[i]);
+		err = mlxsw_sp_port_prio_tc_set(mlxsw_sp_port, i, tclass);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_prio = {
+	.type = MLXSW_SP_QDISC_PRIO,
+	.check_params = mlxsw_sp_qdisc_prio_check_params,
+	.replace = mlxsw_sp_qdisc_prio_replace,
+	.destroy = mlxsw_sp_qdisc_prio_destroy,
+};
+
+int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
+			   struct tc_prio_qopt_offload *p)
+{
+	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
+
+	if (p->parent != TC_H_ROOT)
+		return -EOPNOTSUPP;
+
+	mlxsw_sp_qdisc = mlxsw_sp_port->root_qdisc;
+	if (p->command == TC_PRIO_REPLACE)
+		return mlxsw_sp_qdisc_replace(mlxsw_sp_port, p->handle,
+					      mlxsw_sp_qdisc,
+					      &mlxsw_sp_qdisc_ops_prio,
+					      &p->replace_params);
+
+	if (!mlxsw_sp_qdisc_compare(mlxsw_sp_qdisc, p->handle,
+				    MLXSW_SP_QDISC_PRIO))
+		return -EOPNOTSUPP;
+
+	switch (p->command) {
+	case TC_PRIO_DESTROY:
+		return mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 	default:
 		return -EOPNOTSUPP;
 	}
