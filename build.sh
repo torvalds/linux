@@ -22,8 +22,11 @@ function prepare_SD
   mkdir -p $SD/BPI-ROOT/usr/bin
   mkdir -p $SD/BPI-ROOT/system/etc/firmware
   echo "copy..."
+  export INSTALL_MOD_PATH=$SD/BPI-ROOT/;
+  echo "INSTALL_MOD_PATH: $INSTALL_MOD_PATH"
   cp ./uImage $SD/BPI-BOOT/bananapi/bpi-r2/linux/uImage
-  cp -r ../mod/lib/modules $SD/BPI-ROOT/lib/
+  make modules_install
+  #cp -r ../mod/lib/modules $SD/BPI-ROOT/lib/
 
   cp utils/wmt/config/* $SD/BPI-ROOT/system/etc/firmware/
   cp utils/wmt/src/{wmt_loader,wmt_loopback,stp_uart_launcher} $SD/BPI-ROOT/usr/bin/
@@ -43,11 +46,12 @@ then
   #git pull
   #git reset --hard v4.14
   CFLAGS=-j$(grep ^processor /proc/cpuinfo  | wc -l)
-  export INSTALL_MOD_PATH=$(dirname $(pwd))/mod/;export ARCH=arm;export CROSS_COMPILE=arm-linux-gnueabihf-
-  if [[ ! -z ${#INSTALL_MOD_PATH}  ]]; then
-    rm -r $INSTALL_MOD_PATH/lib/modules 2>/dev/null
-    #echo $INSTALL_MOD_PATH
-  fi
+  #export INSTALL_MOD_PATH=$(dirname $(pwd))/mod/;
+  export ARCH=arm;export CROSS_COMPILE=arm-linux-gnueabihf-
+#  if [[ ! -z ${#INSTALL_MOD_PATH}  ]]; then
+#    rm -r $INSTALL_MOD_PATH/lib/modules 2>/dev/null
+#    #echo $INSTALL_MOD_PATH
+#  fi
 
   if [[ "$action" == "reset" ]];
   then
@@ -81,7 +85,7 @@ then
     exec 3> >(tee build.log)
 	export LOCALVERSION=
 #    make --debug && make modules_install
-    make ${CFLAGS} 2>&3 && make modules_install 2>&3
+    make ${CFLAGS} 2>&3 #&& make modules_install 2>&3
     ret=$?
 #    set +x
     exec 3>&-
@@ -117,7 +121,10 @@ then
 		  echo "copy new kernel"
           cp ./uImage /media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
 		  echo "copy modules (root needed because of ext-fs permission)"
-          sudo cp -r ../mod/lib/modules /media/$USER/BPI-ROOT/lib/
+          export INSTALL_MOD_PATH=/media/$USER/BPI-ROOT/;
+          echo "INSTALL_MOD_PATH: $INSTALL_MOD_PATH"
+          sudo make ARCH=$ARCH INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+          #sudo cp -r ../mod/lib/modules /media/$USER/BPI-ROOT/lib/
           if [[ -n "$(grep 'CONFIG_MT76=' .config)" ]];then
             echo "MT76 set,don't forget the firmware-files...";
           fi
