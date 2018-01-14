@@ -2445,6 +2445,8 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	eth->netdev[id]->vlan_features = MTK_HW_FEATURES &
 		~(NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX);
 	eth->netdev[id]->features |= MTK_HW_FEATURES;
+	eth->netdev[id]->features  &= ~NETIF_F_GSO;
+	eth->netdev[id]->hw_features = eth->netdev[id]->features;
 	eth->netdev[id]->ethtool_ops = &mtk_ethtool_ops;
 
 	eth->netdev[id]->irq = eth->irq[0];
