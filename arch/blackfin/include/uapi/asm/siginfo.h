@@ -11,8 +11,6 @@
 #include <linux/types.h>
 #include <asm-generic/siginfo.h>
 
-#define UID16_SIGINFO_COMPAT_NEEDED
-
 #define si_uid16	_sifields._kill._uid
 
 #endif /* _UAPI_BFIN_SIGINFO_H */
