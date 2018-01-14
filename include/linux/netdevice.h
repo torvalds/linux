@@ -851,6 +851,7 @@ struct xfrmdev_ops {
 	void	(*xdo_dev_state_free) (struct xfrm_state *x);
 	bool	(*xdo_dev_offload_ok) (struct sk_buff *skb,
 				       struct xfrm_state *x);
+	void	(*xdo_dev_state_advance_esn) (struct xfrm_state *x);
 };
 #endif
 

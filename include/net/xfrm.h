@@ -1904,6 +1904,14 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		       struct xfrm_user_offload *xuo);
 bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x);
 
+static inline void xfrm_dev_state_advance_esn(struct xfrm_state *x)
+{
+	struct xfrm_state_offload *xso = &x->xso;
+
+	if (xso->dev && xso->dev->xfrmdev_ops->xdo_dev_state_advance_esn)
+		xso->dev->xfrmdev_ops->xdo_dev_state_advance_esn(x);
+}
+
 static inline bool xfrm_dst_offload_ok(struct dst_entry *dst)
 {
 	struct xfrm_state *x = dst->xfrm;
@@ -1972,6 +1980,10 @@ static inline void xfrm_dev_state_free(struct xfrm_state *x)
 static inline bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 {
 	return false;
+}
+
+static inline void xfrm_dev_state_advance_esn(struct xfrm_state *x)
+{
 }
 
 static inline bool xfrm_dst_offload_ok(struct dst_entry *dst)

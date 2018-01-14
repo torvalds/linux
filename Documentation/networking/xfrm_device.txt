@@ -41,6 +41,7 @@ struct xfrmdev_ops {
 	void	(*xdo_dev_state_free) (struct xfrm_state *x);
 	bool	(*xdo_dev_offload_ok) (struct sk_buff *skb,
 				       struct xfrm_state *x);
+	void    (*xdo_dev_state_advance_esn) (struct xfrm_state *x);
 };
 
 The NIC driver offering ipsec offload will need to implement these
@@ -117,6 +118,8 @@ the stack in xfrm_input().
 
 	hand the packet to napi_gro_receive() as usual
 
+In ESN mode, xdo_dev_state_advance_esn() is called from xfrm_replay_advance_esn().
+Driver will check packet seq number and update HW ESN state machine if needed.
 
 When the SA is removed by the user, the driver's xdo_dev_state_delete()
 is asked to disable the offload.  Later, xdo_dev_state_free() is called
