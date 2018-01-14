@@ -29,12 +29,17 @@ enum ovl_path_type {
 #define OVL_XATTR_NLINK OVL_XATTR_PREFIX "nlink"
 #define OVL_XATTR_UPPER OVL_XATTR_PREFIX "upper"
 
-enum ovl_flag {
+enum ovl_inode_flag {
 	/* Pure upper dir that may contain non pure upper entries */
 	OVL_IMPURE,
 	/* Non-merge dir that may contain whiteout entries */
 	OVL_WHITEOUTS,
 	OVL_INDEX,
+};
+
+enum ovl_entry_flag {
+	OVL_E_UPPER_ALIAS,
+	OVL_E_OPAQUE,
 };
 
 /*
@@ -213,6 +218,9 @@ struct inode *ovl_inode_lower(struct inode *inode);
 struct inode *ovl_inode_real(struct inode *inode);
 struct ovl_dir_cache *ovl_dir_cache(struct inode *inode);
 void ovl_set_dir_cache(struct inode *inode, struct ovl_dir_cache *cache);
+void ovl_dentry_set_flag(unsigned long flag, struct dentry *dentry);
+void ovl_dentry_clear_flag(unsigned long flag, struct dentry *dentry);
+bool ovl_dentry_test_flag(unsigned long flag, struct dentry *dentry);
 bool ovl_dentry_is_opaque(struct dentry *dentry);
 bool ovl_dentry_is_whiteout(struct dentry *dentry);
 void ovl_dentry_set_opaque(struct dentry *dentry);

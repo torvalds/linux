@@ -210,10 +210,24 @@ void ovl_set_dir_cache(struct inode *inode, struct ovl_dir_cache *cache)
 	OVL_I(inode)->cache = cache;
 }
 
+void ovl_dentry_set_flag(unsigned long flag, struct dentry *dentry)
+{
+	set_bit(flag, &OVL_E(dentry)->flags);
+}
+
+void ovl_dentry_clear_flag(unsigned long flag, struct dentry *dentry)
+{
+	clear_bit(flag, &OVL_E(dentry)->flags);
+}
+
+bool ovl_dentry_test_flag(unsigned long flag, struct dentry *dentry)
+{
+	return test_bit(flag, &OVL_E(dentry)->flags);
+}
+
 bool ovl_dentry_is_opaque(struct dentry *dentry)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
-	return oe->opaque;
+	return ovl_dentry_test_flag(OVL_E_OPAQUE, dentry);
 }
 
 bool ovl_dentry_is_whiteout(struct dentry *dentry)
@@ -223,9 +237,7 @@ bool ovl_dentry_is_whiteout(struct dentry *dentry)
 
 void ovl_dentry_set_opaque(struct dentry *dentry)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	oe->opaque = true;
+	ovl_dentry_set_flag(OVL_E_OPAQUE, dentry);
 }
 
 /*
@@ -236,16 +248,12 @@ void ovl_dentry_set_opaque(struct dentry *dentry)
  */
 bool ovl_dentry_has_upper_alias(struct dentry *dentry)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	return oe->has_upper;
+	return ovl_dentry_test_flag(OVL_E_UPPER_ALIAS, dentry);
 }
 
 void ovl_dentry_set_upper_alias(struct dentry *dentry)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	oe->has_upper = true;
+	ovl_dentry_set_flag(OVL_E_UPPER_ALIAS, dentry);
 }
 
 bool ovl_redirect_dir(struct super_block *sb)

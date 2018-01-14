@@ -957,9 +957,11 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	if (!oe)
 		goto out_put;
 
-	oe->opaque = upperopaque;
 	memcpy(oe->lowerstack, stack, sizeof(struct ovl_path) * ctr);
 	dentry->d_fsdata = oe;
+
+	if (upperopaque)
+		ovl_dentry_set_opaque(dentry);
 
 	if (upperdentry)
 		ovl_dentry_set_upper_alias(dentry);
@@ -1003,7 +1005,6 @@ out:
 
 bool ovl_lower_positive(struct dentry *dentry)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
 	struct ovl_entry *poe = dentry->d_parent->d_fsdata;
 	const struct qstr *name = &dentry->d_name;
 	const struct cred *old_cred;
@@ -1016,7 +1017,7 @@ bool ovl_lower_positive(struct dentry *dentry)
 	 * whiteout.
 	 */
 	if (!dentry->d_inode)
-		return oe->opaque;
+		return ovl_dentry_is_opaque(dentry);
 
 	/* Negative upper -> positive lower */
 	if (!ovl_dentry_upper(dentry))

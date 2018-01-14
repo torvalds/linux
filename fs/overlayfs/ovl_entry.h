@@ -61,8 +61,7 @@ struct ovl_fs {
 struct ovl_entry {
 	union {
 		struct {
-			unsigned long has_upper;
-			bool opaque;
+			unsigned long flags;
 		};
 		struct rcu_head rcu;
 	};
@@ -71,6 +70,11 @@ struct ovl_entry {
 };
 
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
+
+static inline struct ovl_entry *OVL_E(struct dentry *dentry)
+{
+	return (struct ovl_entry *) dentry->d_fsdata;
+}
 
 struct ovl_inode {
 	struct ovl_dir_cache *cache;
