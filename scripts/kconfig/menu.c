@@ -323,6 +323,13 @@ void menu_finalize(struct menu *parent)
 				if (menu->sym && menu->sym->type == S_UNKNOWN)
 					menu_set_type(sym->type);
 			}
+
+			/*
+			 * Use the choice itself as the parent dependency of
+			 * the contained items. This turns the mode of the
+			 * choice into an upper bound on the visibility of the
+			 * choice value symbols.
+			 */
 			parentdep = expr_alloc_symbol(sym);
 		} else if (parent->prompt)
 			parentdep = parent->prompt->visible.expr;
