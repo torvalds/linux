@@ -522,12 +522,7 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 		return ERR_PTR(-ENOMEM);
 
 	/* copy mandatory map attributes */
-	trie->map.map_type = attr->map_type;
-	trie->map.key_size = attr->key_size;
-	trie->map.value_size = attr->value_size;
-	trie->map.max_entries = attr->max_entries;
-	trie->map.map_flags = attr->map_flags;
-	trie->map.numa_node = bpf_map_attr_numa_node(attr);
+	bpf_map_init_from_attr(&trie->map, attr);
 	trie->data_size = attr->key_size -
 			  offsetof(struct bpf_lpm_trie_key, data);
 	trie->max_prefixlen = trie->data_size * 8;

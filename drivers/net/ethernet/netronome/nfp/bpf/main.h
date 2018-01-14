@@ -37,10 +37,14 @@
 #include <linux/bitfield.h>
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
+#include <linux/wait.h>
 
 #include "../nfp_asm.h"
+#include "fw.h"
 
 /* For relocation logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
@@ -56,6 +60,9 @@ enum nfp_relo_type {
 	RELO_BR_GO_ABORT,
 	/* external jumps to fixed addresses */
 	RELO_BR_NEXT_PKT,
+	RELO_BR_HELPER,
+	/* immediate relocation against load address */
+	RELO_IMMED_REL,
 };
 
 /* To make absolute relocated branches (branches other than RELO_BR_REL)
@@ -93,15 +100,48 @@ enum pkt_vec {
  * struct nfp_app_bpf - bpf app priv structure
  * @app:		backpointer to the app
  *
+ * @tag_allocator:	bitmap of control message tags in use
+ * @tag_alloc_next:	next tag bit to allocate
+ * @tag_alloc_last:	next tag bit to be freed
+ *
+ * @cmsg_replies:	received cmsg replies waiting to be consumed
+ * @cmsg_wq:		work queue for waiting for cmsg replies
+ *
+ * @map_list:		list of offloaded maps
+ * @maps_in_use:	number of currently offloaded maps
+ * @map_elems_in_use:	number of elements allocated to offloaded maps
+ *
  * @adjust_head:	adjust head capability
  * @flags:		extra flags for adjust head
  * @off_min:		minimal packet offset within buffer required
  * @off_max:		maximum packet offset within buffer required
  * @guaranteed_sub:	amount of negative adjustment guaranteed possible
  * @guaranteed_add:	amount of positive adjustment guaranteed possible
+ *
+ * @maps:		map capability
+ * @types:		supported map types
+ * @max_maps:		max number of maps supported
+ * @max_elems:		max number of entries in each map
+ * @max_key_sz:		max size of map key
+ * @max_val_sz:		max size of map value
+ * @max_elem_sz:	max size of map entry (key + value)
+ *
+ * @helpers:		helper addressess for various calls
+ * @map_lookup:		map lookup helper address
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
+
+	DECLARE_BITMAP(tag_allocator, U16_MAX + 1);
+	u16 tag_alloc_next;
+	u16 tag_alloc_last;
+
+	struct sk_buff_head cmsg_replies;
+	struct wait_queue_head cmsg_wq;
+
+	struct list_head map_list;
+	unsigned int maps_in_use;
+	unsigned int map_elems_in_use;
 
 	struct nfp_bpf_cap_adjust_head {
 		u32 flags;
@@ -110,6 +150,33 @@ struct nfp_app_bpf {
 		int guaranteed_sub;
 		int guaranteed_add;
 	} adjust_head;
+
+	struct {
+		u32 types;
+		u32 max_maps;
+		u32 max_elems;
+		u32 max_key_sz;
+		u32 max_val_sz;
+		u32 max_elem_sz;
+	} maps;
+
+	struct {
+		u32 map_lookup;
+	} helpers;
+};
+
+/**
+ * struct nfp_bpf_map - private per-map data attached to BPF maps for offload
+ * @offmap:	pointer to the offloaded BPF map
+ * @bpf:	back pointer to bpf app private structure
+ * @tid:	table id identifying map on datapath
+ * @l:		link on the nfp_app_bpf->map_list list
+ */
+struct nfp_bpf_map {
+	struct bpf_offloaded_map *offmap;
+	struct nfp_app_bpf *bpf;
+	u32 tid;
+	struct list_head l;
 };
 
 struct nfp_prog;
@@ -131,9 +198,12 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * @ptr: pointer type for memory operations
  * @ldst_gather_len: memcpy length gathered from load/store sequence
  * @paired_st: the paired store insn at the head of the sequence
- * @arg2: arg2 for call instructions
  * @ptr_not_const: pointer is not always constant
  * @jmp_dst: destination info for jump instructions
+ * @func_id: function id for call instructions
+ * @arg1: arg1 for call instructions
+ * @arg2: arg2 for call instructions
+ * @arg2_var_off: arg2 changes stack offset on different paths
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
@@ -151,7 +221,12 @@ struct nfp_insn_meta {
 			bool ptr_not_const;
 		};
 		struct nfp_insn_meta *jmp_dst;
-		struct bpf_reg_state arg2;
+		struct {
+			u32 func_id;
+			struct bpf_reg_state arg1;
+			struct bpf_reg_state arg2;
+			bool arg2_var_off;
+		};
 	};
 	unsigned int off;
 	unsigned short n;
@@ -266,4 +341,20 @@ nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		  unsigned int insn_idx, unsigned int n_insns);
 
 void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv);
+
+long long int
+nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map);
+void
+nfp_bpf_ctrl_free_map(struct nfp_app_bpf *bpf, struct nfp_bpf_map *nfp_map);
+int nfp_bpf_ctrl_getfirst_entry(struct bpf_offloaded_map *offmap,
+				void *next_key);
+int nfp_bpf_ctrl_update_entry(struct bpf_offloaded_map *offmap,
+			      void *key, void *value, u64 flags);
+int nfp_bpf_ctrl_del_entry(struct bpf_offloaded_map *offmap, void *key);
+int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
+			      void *key, void *value);
+int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
+			       void *key, void *next_key);
+
+void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
 #endif

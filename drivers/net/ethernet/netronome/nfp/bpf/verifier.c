@@ -110,9 +110,11 @@ static int
 nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 		   struct nfp_insn_meta *meta)
 {
+	const struct bpf_reg_state *reg1 = cur_regs(env) + BPF_REG_1;
 	const struct bpf_reg_state *reg2 = cur_regs(env) + BPF_REG_2;
 	struct nfp_app_bpf *bpf = nfp_prog->bpf;
 	u32 func_id = meta->insn.imm;
+	s64 off, old_off;
 
 	switch (func_id) {
 	case BPF_FUNC_xdp_adjust_head:
@@ -127,11 +129,48 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 
 		nfp_record_adjust_head(bpf, nfp_prog, meta, reg2);
 		break;
+
+	case BPF_FUNC_map_lookup_elem:
+		if (!bpf->helpers.map_lookup) {
+			pr_info("map_lookup: not supported by FW\n");
+			return -EOPNOTSUPP;
+		}
+		if (reg2->type != PTR_TO_STACK) {
+			pr_info("map_lookup: unsupported key ptr type %d\n",
+				reg2->type);
+			return -EOPNOTSUPP;
+		}
+		if (!tnum_is_const(reg2->var_off)) {
+			pr_info("map_lookup: variable key pointer\n");
+			return -EOPNOTSUPP;
+		}
+
+		off = reg2->var_off.value + reg2->off;
+		if (-off % 4) {
+			pr_info("map_lookup: unaligned stack pointer %lld\n",
+				-off);
+			return -EOPNOTSUPP;
+		}
+
+		/* Rest of the checks is only if we re-parse the same insn */
+		if (!meta->func_id)
+			break;
+
+		old_off = meta->arg2.var_off.value + meta->arg2.off;
+		meta->arg2_var_off |= off != old_off;
+
+		if (meta->arg1.map_ptr != reg1->map_ptr) {
+			pr_info("map_lookup: called for different map\n");
+			return -EOPNOTSUPP;
+		}
+		break;
 	default:
 		pr_vlog(env, "unsupported function id: %d\n", func_id);
 		return -EOPNOTSUPP;
 	}
 
+	meta->func_id = func_id;
+	meta->arg1 = *reg1;
 	meta->arg2 = *reg2;
 
 	return 0;
@@ -210,6 +249,7 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	if (reg->type != PTR_TO_CTX &&
 	    reg->type != PTR_TO_STACK &&
+	    reg->type != PTR_TO_MAP_VALUE &&
 	    reg->type != PTR_TO_PACKET) {
 		pr_vlog(env, "unsupported ptr type: %d\n", reg->type);
 		return -EINVAL;
@@ -219,6 +259,13 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		err = nfp_bpf_check_stack_access(nfp_prog, meta, reg, env);
 		if (err)
 			return err;
+	}
+
+	if (reg->type == PTR_TO_MAP_VALUE) {
+		if (is_mbpf_store(meta)) {
+			pr_info("map writes not supported\n");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	if (meta->ptr.type != NOT_INIT && meta->ptr.type != reg->type) {

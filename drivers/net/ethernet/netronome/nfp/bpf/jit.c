@@ -483,6 +483,21 @@ static void wrp_immed(struct nfp_prog *nfp_prog, swreg dst, u32 imm)
 	}
 }
 
+static void
+wrp_immed_relo(struct nfp_prog *nfp_prog, swreg dst, u32 imm,
+	       enum nfp_relo_type relo)
+{
+	if (imm > 0xffff) {
+		pr_err("relocation of a large immediate!\n");
+		nfp_prog->error = -EFAULT;
+		return;
+	}
+	emit_immed(nfp_prog, dst, imm, IMMED_WIDTH_ALL, false, IMMED_SHIFT_0B);
+
+	nfp_prog->prog[nfp_prog->prog_len - 1] |=
+		FIELD_PREP(OP_RELO_TYPE, relo);
+}
+
 /* ur_load_imm_any() - encode immediate or use tmp register (unrestricted)
  * If the @imm is small enough encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
@@ -538,18 +553,41 @@ wrp_reg_subpart(struct nfp_prog *nfp_prog, swreg dst, swreg src, u8 field_len,
 	emit_ld_field_any(nfp_prog, dst, mask, src, sc, offset * 8, true);
 }
 
+static void
+addr40_offset(struct nfp_prog *nfp_prog, u8 src_gpr, swreg offset,
+	      swreg *rega, swreg *regb)
+{
+	if (offset == reg_imm(0)) {
+		*rega = reg_a(src_gpr);
+		*regb = reg_b(src_gpr + 1);
+		return;
+	}
+
+	emit_alu(nfp_prog, imm_a(nfp_prog), reg_a(src_gpr), ALU_OP_ADD, offset);
+	emit_alu(nfp_prog, imm_b(nfp_prog), reg_b(src_gpr + 1), ALU_OP_ADD_C,
+		 reg_imm(0));
+	*rega = imm_a(nfp_prog);
+	*regb = imm_b(nfp_prog);
+}
+
 /* NFP has Command Push Pull bus which supports bluk memory operations. */
 static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	bool descending_seq = meta->ldst_gather_len < 0;
 	s16 len = abs(meta->ldst_gather_len);
 	swreg src_base, off;
+	bool src_40bit_addr;
 	unsigned int i;
 	u8 xfer_num;
 
 	off = re_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
+	src_40bit_addr = meta->ptr.type == PTR_TO_MAP_VALUE;
 	src_base = reg_a(meta->insn.src_reg * 2);
 	xfer_num = round_up(len, 4) / 4;
+
+	if (src_40bit_addr)
+		addr40_offset(nfp_prog, meta->insn.src_reg, off, &src_base,
+			      &off);
 
 	/* Setup PREV_ALU fields to override memory read length. */
 	if (len > 32)
@@ -557,8 +595,9 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
 
 	/* Memory read from source addr into transfer-in registers. */
-	emit_cmd_any(nfp_prog, CMD_TGT_READ32_SWAP, CMD_MODE_32b, 0, src_base,
-		     off, xfer_num - 1, true, len > 32);
+	emit_cmd_any(nfp_prog, CMD_TGT_READ32_SWAP,
+		     src_40bit_addr ? CMD_MODE_40b_BA : CMD_MODE_32b, 0,
+		     src_base, off, xfer_num - 1, true, len > 32);
 
 	/* Move from transfer-in to transfer-out. */
 	for (i = 0; i < xfer_num; i++)
@@ -696,20 +735,20 @@ data_ld(struct nfp_prog *nfp_prog, swreg offset, u8 dst_gpr, int size)
 }
 
 static int
-data_ld_host_order(struct nfp_prog *nfp_prog, u8 src_gpr, swreg offset,
-		   u8 dst_gpr, int size)
+data_ld_host_order(struct nfp_prog *nfp_prog, u8 dst_gpr,
+		   swreg lreg, swreg rreg, int size, enum cmd_mode mode)
 {
 	unsigned int i;
 	u8 mask, sz;
 
-	/* We load the value from the address indicated in @offset and then
+	/* We load the value from the address indicated in rreg + lreg and then
 	 * mask out the data we don't need.  Note: this is little endian!
 	 */
 	sz = max(size, 4);
 	mask = size < 4 ? GENMASK(size - 1, 0) : 0;
 
-	emit_cmd(nfp_prog, CMD_TGT_READ32_SWAP, CMD_MODE_32b, 0,
-		 reg_a(src_gpr), offset, sz / 4 - 1, true);
+	emit_cmd(nfp_prog, CMD_TGT_READ32_SWAP, mode, 0,
+		 lreg, rreg, sz / 4 - 1, true);
 
 	i = 0;
 	if (mask)
@@ -723,6 +762,26 @@ data_ld_host_order(struct nfp_prog *nfp_prog, u8 src_gpr, swreg offset,
 		wrp_immed(nfp_prog, reg_both(dst_gpr + 1), 0);
 
 	return 0;
+}
+
+static int
+data_ld_host_order_addr32(struct nfp_prog *nfp_prog, u8 src_gpr, swreg offset,
+			  u8 dst_gpr, u8 size)
+{
+	return data_ld_host_order(nfp_prog, dst_gpr, reg_a(src_gpr), offset,
+				  size, CMD_MODE_32b);
+}
+
+static int
+data_ld_host_order_addr40(struct nfp_prog *nfp_prog, u8 src_gpr, swreg offset,
+			  u8 dst_gpr, u8 size)
+{
+	swreg rega, regb;
+
+	addr40_offset(nfp_prog, src_gpr, offset, &rega, &regb);
+
+	return data_ld_host_order(nfp_prog, dst_gpr, rega, regb,
+				  size, CMD_MODE_40b_BA);
 }
 
 static int
@@ -1279,6 +1338,56 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
+static int
+map_lookup_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	struct bpf_offloaded_map *offmap;
+	struct nfp_bpf_map *nfp_map;
+	bool load_lm_ptr;
+	u32 ret_tgt;
+	s64 lm_off;
+	swreg tid;
+
+	offmap = (struct bpf_offloaded_map *)meta->arg1.map_ptr;
+	nfp_map = offmap->dev_priv;
+
+	/* We only have to reload LM0 if the key is not at start of stack */
+	lm_off = nfp_prog->stack_depth;
+	lm_off += meta->arg2.var_off.value + meta->arg2.off;
+	load_lm_ptr = meta->arg2_var_off || lm_off;
+
+	/* Set LM0 to start of key */
+	if (load_lm_ptr)
+		emit_csr_wr(nfp_prog, reg_b(2 * 2), NFP_CSR_ACT_LM_ADDR0);
+
+	/* Load map ID into a register, it should actually fit as an immediate
+	 * but in case it doesn't deal with it here, not in the delay slots.
+	 */
+	tid = ur_load_imm_any(nfp_prog, nfp_map->tid, imm_a(nfp_prog));
+
+	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO + BPF_FUNC_map_lookup_elem,
+		     2, RELO_BR_HELPER);
+	ret_tgt = nfp_prog_current_offset(nfp_prog) + 2;
+
+	/* Load map ID into A0 */
+	wrp_mov(nfp_prog, reg_a(0), tid);
+
+	/* Load the return address into B0 */
+	wrp_immed_relo(nfp_prog, reg_b(0), ret_tgt, RELO_IMMED_REL);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, ret_tgt))
+		return -EINVAL;
+
+	/* Reset the LM0 pointer */
+	if (!load_lm_ptr)
+		return 0;
+
+	emit_csr_wr(nfp_prog, stack_reg(nfp_prog),  NFP_CSR_ACT_LM_ADDR0);
+	wrp_nops(nfp_prog, 3);
+
+	return 0;
+}
+
 /* --- Callbacks --- */
 static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
@@ -1713,8 +1822,20 @@ mem_ldx_data(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	tmp_reg = re_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
 
-	return data_ld_host_order(nfp_prog, meta->insn.src_reg * 2, tmp_reg,
-				  meta->insn.dst_reg * 2, size);
+	return data_ld_host_order_addr32(nfp_prog, meta->insn.src_reg * 2,
+					 tmp_reg, meta->insn.dst_reg * 2, size);
+}
+
+static int
+mem_ldx_emem(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+	     unsigned int size)
+{
+	swreg tmp_reg;
+
+	tmp_reg = re_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
+
+	return data_ld_host_order_addr40(nfp_prog, meta->insn.src_reg * 2,
+					 tmp_reg, meta->insn.dst_reg * 2, size);
 }
 
 static int
@@ -1737,6 +1858,9 @@ mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	if (meta->ptr.type == PTR_TO_STACK)
 		return mem_ldx_stack(nfp_prog, meta, size,
 				     meta->ptr.off + meta->ptr.var_off.value);
+
+	if (meta->ptr.type == PTR_TO_MAP_VALUE)
+		return mem_ldx_emem(nfp_prog, meta, size);
 
 	return -EOPNOTSUPP;
 }
@@ -2058,6 +2182,8 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	switch (meta->insn.imm) {
 	case BPF_FUNC_xdp_adjust_head:
 		return adjust_head(nfp_prog, meta);
+	case BPF_FUNC_map_lookup_elem:
+		return map_lookup_stack(nfp_prog, meta);
 	default:
 		WARN_ONCE(1, "verifier allowed unsupported function\n");
 		return -EOPNOTSUPP;
@@ -2794,6 +2920,7 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 
 	for (i = 0; i < nfp_prog->prog_len; i++) {
 		enum nfp_relo_type special;
+		u32 val;
 
 		special = FIELD_GET(OP_RELO_TYPE, prog[i]);
 		switch (special) {
@@ -2812,6 +2939,24 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 			break;
 		case RELO_BR_NEXT_PKT:
 			br_set_offset(&prog[i], bv->tgt_done);
+			break;
+		case RELO_BR_HELPER:
+			val = br_get_offset(prog[i]);
+			val -= BR_OFF_RELO;
+			switch (val) {
+			case BPF_FUNC_map_lookup_elem:
+				val = nfp_prog->bpf->helpers.map_lookup;
+				break;
+			default:
+				pr_err("relocation of unknown helper %d\n",
+				       val);
+				err = -EINVAL;
+				goto err_free_prog;
+			}
+			br_set_offset(&prog[i], val);
+			break;
+		case RELO_IMMED_REL:
+			immed_add_value(&prog[i], bv->start_off);
 			break;
 		}
 

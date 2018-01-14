@@ -839,6 +839,18 @@ static inline const char *nfp_net_name(struct nfp_net *nn)
 	return nn->dp.netdev ? nn->dp.netdev->name : "ctrl";
 }
 
+static inline void nfp_ctrl_lock(struct nfp_net *nn)
+	__acquires(&nn->r_vecs[0].lock)
+{
+	spin_lock_bh(&nn->r_vecs[0].lock);
+}
+
+static inline void nfp_ctrl_unlock(struct nfp_net *nn)
+	__releases(&nn->r_vecs[0].lock)
+{
+	spin_unlock_bh(&nn->r_vecs[0].lock);
+}
+
 /* Globals */
 extern const char nfp_driver_version[];
 

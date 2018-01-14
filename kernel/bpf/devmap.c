@@ -93,13 +93,7 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 	if (!dtab)
 		return ERR_PTR(-ENOMEM);
 
-	/* mandatory map attributes */
-	dtab->map.map_type = attr->map_type;
-	dtab->map.key_size = attr->key_size;
-	dtab->map.value_size = attr->value_size;
-	dtab->map.max_entries = attr->max_entries;
-	dtab->map.map_flags = attr->map_flags;
-	dtab->map.numa_node = bpf_map_attr_numa_node(attr);
+	bpf_map_init_from_attr(&dtab->map, attr);
 
 	/* make sure page count doesn't overflow */
 	cost = (u64) dtab->map.max_entries * sizeof(struct bpf_dtab_netdev *);

@@ -94,13 +94,7 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 	if (!cmap)
 		return ERR_PTR(-ENOMEM);
 
-	/* mandatory map attributes */
-	cmap->map.map_type = attr->map_type;
-	cmap->map.key_size = attr->key_size;
-	cmap->map.value_size = attr->value_size;
-	cmap->map.max_entries = attr->max_entries;
-	cmap->map.map_flags = attr->map_flags;
-	cmap->map.numa_node = bpf_map_attr_numa_node(attr);
+	bpf_map_init_from_attr(&cmap->map, attr);
 
 	/* Pre-limit array size based on NR_CPUS, not final CPU check */
 	if (cmap->map.max_entries > NR_CPUS) {

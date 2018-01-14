@@ -138,6 +138,10 @@ enum immed_shift {
 	IMMED_SHIFT_2B = 2,
 };
 
+u16 immed_get_value(u64 instr);
+void immed_set_value(u64 *instr, u16 immed);
+void immed_add_value(u64 *instr, u16 offset);
+
 #define OP_SHF_BASE		0x08000000000ULL
 #define OP_SHF_A_SRC		0x000000000ffULL
 #define OP_SHF_SC		0x00000000300ULL

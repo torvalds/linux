@@ -50,6 +50,11 @@ const struct cmd_tgt_act cmd_tgt_act[__CMD_TGT_MAP_SIZE] = {
 	[CMD_TGT_READ_SWAP_LE] =	{ 0x03, 0x40 },
 };
 
+static bool unreg_is_imm(u16 reg)
+{
+	return (reg & UR_REG_IMM) == UR_REG_IMM;
+}
+
 u16 br_get_offset(u64 instr)
 {
 	u16 addr_lo, addr_hi;
@@ -78,6 +83,59 @@ void br_add_offset(u64 *instr, u16 offset)
 
 	addr = br_get_offset(*instr);
 	br_set_offset(instr, addr + offset);
+}
+
+static bool immed_can_modify(u64 instr)
+{
+	if (FIELD_GET(OP_IMMED_INV, instr) ||
+	    FIELD_GET(OP_IMMED_SHIFT, instr) ||
+	    FIELD_GET(OP_IMMED_WIDTH, instr) != IMMED_WIDTH_ALL) {
+		pr_err("Can't decode/encode immed!\n");
+		return false;
+	}
+	return true;
+}
+
+u16 immed_get_value(u64 instr)
+{
+	u16 reg;
+
+	if (!immed_can_modify(instr))
+		return 0;
+
+	reg = FIELD_GET(OP_IMMED_A_SRC, instr);
+	if (!unreg_is_imm(reg))
+		reg = FIELD_GET(OP_IMMED_B_SRC, instr);
+
+	return (reg & 0xff) | FIELD_GET(OP_IMMED_IMM, instr);
+}
+
+void immed_set_value(u64 *instr, u16 immed)
+{
+	if (!immed_can_modify(*instr))
+		return;
+
+	if (unreg_is_imm(FIELD_GET(OP_IMMED_A_SRC, *instr))) {
+		*instr &= ~FIELD_PREP(OP_IMMED_A_SRC, 0xff);
+		*instr |= FIELD_PREP(OP_IMMED_A_SRC, immed & 0xff);
+	} else {
+		*instr &= ~FIELD_PREP(OP_IMMED_B_SRC, 0xff);
+		*instr |= FIELD_PREP(OP_IMMED_B_SRC, immed & 0xff);
+	}
+
+	*instr &= ~OP_IMMED_IMM;
+	*instr |= FIELD_PREP(OP_IMMED_IMM, immed >> 8);
+}
+
+void immed_add_value(u64 *instr, u16 offset)
+{
+	u16 val;
+
+	if (!immed_can_modify(*instr))
+		return;
+
+	val = immed_get_value(*instr);
+	immed_set_value(instr, val + offset);
 }
 
 static u16 nfp_swreg_to_unreg(swreg reg, bool is_dst)
