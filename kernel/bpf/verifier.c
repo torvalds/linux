@@ -2493,6 +2493,11 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 			return -EINVAL;
 		}
 
+		if (opcode == BPF_ARSH && BPF_CLASS(insn->code) != BPF_ALU64) {
+			verbose(env, "BPF_ARSH not supported for 32 bit ALU\n");
+			return -EINVAL;
+		}
+
 		if ((opcode == BPF_LSH || opcode == BPF_RSH ||
 		     opcode == BPF_ARSH) && BPF_SRC(insn->code) == BPF_K) {
 			int size = BPF_CLASS(insn->code) == BPF_ALU64 ? 64 : 32;
@@ -4472,7 +4477,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			 */
 			map_ptr = env->insn_aux_data[i + delta].map_ptr;
 			if (map_ptr == BPF_MAP_PTR_POISON) {
-				verbose(env, "tail_call obusing map_ptr\n");
+				verbose(env, "tail_call abusing map_ptr\n");
 				return -EINVAL;
 			}
 			if (!map_ptr->unpriv_array)
