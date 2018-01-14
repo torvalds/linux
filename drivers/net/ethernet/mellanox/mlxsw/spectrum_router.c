@@ -7011,6 +7011,24 @@ static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
 }
 #endif
 
+static int mlxsw_sp_dscp_init(struct mlxsw_sp *mlxsw_sp)
+{
+	char rdpm_pl[MLXSW_REG_RDPM_LEN];
+	unsigned int i;
+
+	MLXSW_REG_ZERO(rdpm, rdpm_pl);
+
+	/* HW is determining switch priority based on DSCP-bits, but the
+	 * kernel is still doing that based on the ToS. Since there's a
+	 * mismatch in bits we need to make sure to translate the right
+	 * value ToS would observe, skipping the 2 least-significant ECN bits.
+	 */
+	for (i = 0; i < MLXSW_REG_RDPM_DSCP_ENTRY_REC_MAX_COUNT; i++)
+		mlxsw_reg_rdpm_pack(rdpm_pl, i, rt_tos2priority(i << 2));
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rdpm), rdpm_pl);
+}
+
 static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char rgcr_pl[MLXSW_REG_RGCR_LEN];
@@ -7023,6 +7041,7 @@ static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 
 	mlxsw_reg_rgcr_pack(rgcr_pl, true, true);
 	mlxsw_reg_rgcr_max_router_interfaces_set(rgcr_pl, max_rifs);
+	mlxsw_reg_rgcr_usp_set(rgcr_pl, true);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rgcr), rgcr_pl);
 	if (err)
 		return err;
@@ -7098,6 +7117,10 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_mp_hash_init;
 
+	err = mlxsw_sp_dscp_init(mlxsw_sp);
+	if (err)
+		goto err_dscp_init;
+
 	mlxsw_sp->router->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
 	err = register_fib_notifier(&mlxsw_sp->router->fib_nb,
 				    mlxsw_sp_router_fib_dump_flush);
@@ -7107,6 +7130,7 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 
 err_register_fib_notifier:
+err_dscp_init:
 err_mp_hash_init:
 	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
 err_register_netevent_notifier:
