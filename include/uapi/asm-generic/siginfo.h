@@ -204,6 +204,9 @@ typedef struct siginfo {
 #define FPE_FLTRES	6	/* floating point inexact result */
 #define FPE_FLTINV	7	/* floating point invalid operation */
 #define FPE_FLTSUB	8	/* subscript out of range */
+#ifdef __frv__
+# define FPE_MDAOVF	9	/* media overflow */
+#endif
 #ifdef __ia64__
 # define __FPE_DECOVF	9	/* decimal overflow */
 # define __FPE_DECDIV	10	/* decimal division by zero */
