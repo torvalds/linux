@@ -25,8 +25,8 @@ static inline void signal_compat_build_tests(void)
 	 * limits also have to look at this code.  Make sure any
 	 * new fields are handled in copy_siginfo_to_user32()!
 	 */
-	BUILD_BUG_ON(NSIGILL  != 8);
-	BUILD_BUG_ON(NSIGFPE  != 8);
+	BUILD_BUG_ON(NSIGILL  != 11);
+	BUILD_BUG_ON(NSIGFPE  != 13);
 	BUILD_BUG_ON(NSIGSEGV != 4);
 	BUILD_BUG_ON(NSIGBUS  != 5);
 	BUILD_BUG_ON(NSIGTRAP != 4);
