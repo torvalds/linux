@@ -606,6 +606,16 @@ static int ovl_inode_set(struct inode *inode, void *data)
 static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
 			     struct dentry *upperdentry)
 {
+	if (S_ISDIR(inode->i_mode)) {
+		/* Real lower dir moved to upper layer under us? */
+		if (!lowerdentry && ovl_inode_lower(inode))
+			return false;
+
+		/* Lookup of an uncovered redirect origin? */
+		if (!upperdentry && ovl_inode_upper(inode))
+			return false;
+	}
+
 	/*
 	 * Allow non-NULL lower inode in ovl_inode even if lowerdentry is NULL.
 	 * This happens when finding a copied up overlay inode for a renamed
@@ -633,6 +643,8 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
 	struct inode *inode;
 	/* Already indexed or could be indexed on copy up? */
 	bool indexed = (index || (ovl_indexdir(dentry->d_sb) && !upperdentry));
+	struct dentry *origin = indexed ? lowerdentry : NULL;
+	bool is_dir;
 
 	if (WARN_ON(upperdentry && indexed && !lowerdentry))
 		return ERR_PTR(-EIO);
@@ -641,15 +653,19 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
 		realinode = d_inode(lowerdentry);
 
 	/*
-	 * Copy up origin (lower) may exist for non-indexed upper, but we must
-	 * not use lower as hash key in that case.
-	 * Hash inodes that are or could be indexed by origin inode and
-	 * non-indexed upper inodes that could be hard linked by upper inode.
+	 * Copy up origin (lower) may exist for non-indexed non-dir upper, but
+	 * we must not use lower as hash key in that case.
+	 * Hash non-dir that is or could be indexed by origin inode.
+	 * Hash dir that is or could be merged by origin inode.
+	 * Hash pure upper and non-indexed non-dir by upper inode.
 	 */
-	if (!S_ISDIR(realinode->i_mode) && (upperdentry || indexed)) {
-		struct inode *key = d_inode(indexed ? lowerdentry :
-						      upperdentry);
-		unsigned int nlink;
+	is_dir = S_ISDIR(realinode->i_mode);
+	if (is_dir)
+		origin = lowerdentry;
+
+	if (upperdentry || origin) {
+		struct inode *key = d_inode(origin ?: upperdentry);
+		unsigned int nlink = is_dir ? 1 : realinode->i_nlink;
 
 		inode = iget5_locked(dentry->d_sb, (unsigned long) key,
 				     ovl_inode_test, ovl_inode_set, key);
@@ -670,8 +686,9 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
 			goto out;
 		}
 
-		nlink = ovl_get_nlink(lowerdentry, upperdentry,
-				      realinode->i_nlink);
+		/* Recalculate nlink for non-dir due to indexing */
+		if (!is_dir)
+			nlink = ovl_get_nlink(lowerdentry, upperdentry, nlink);
 		set_nlink(inode, nlink);
 	} else {
 		inode = new_inode(dentry->d_sb);
@@ -685,7 +702,7 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
 		ovl_set_flag(OVL_IMPURE, inode);
 
 	/* Check for non-merge dir that may have whiteouts */
-	if (S_ISDIR(realinode->i_mode)) {
+	if (is_dir) {
 		struct ovl_entry *oe = dentry->d_fsdata;
 
 		if (((upperdentry && lowerdentry) || oe->numlower > 1) ||
