@@ -446,13 +446,13 @@ static void fm10k_type_trans(struct fm10k_ring *rx_ring,
 
 	skb->protocol = eth_type_trans(skb, dev);
 
+	/* Record Rx queue, or update macvlan statistics */
 	if (!l2_accel)
-		return;
-
-	/* update MACVLAN statistics */
-	macvlan_count_rx(netdev_priv(dev), skb->len + ETH_HLEN, 1,
-			 !!(rx_desc->w.hdr_info &
-			    cpu_to_le16(FM10K_RXD_HDR_INFO_XC_MASK)));
+		skb_record_rx_queue(skb, rx_ring->queue_index);
+	else
+		macvlan_count_rx(netdev_priv(dev), skb->len + ETH_HLEN, true,
+				 (skb->pkt_type == PACKET_BROADCAST) ||
+				 (skb->pkt_type == PACKET_MULTICAST));
 }
 
 /**
@@ -478,8 +478,6 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 	FM10K_CB(skb)->tstamp = rx_desc->q.timestamp;
 
 	FM10K_CB(skb)->fi.w.vlan = rx_desc->w.vlan;
-
-	skb_record_rx_queue(skb, rx_ring->queue_index);
 
 	FM10K_CB(skb)->fi.d.glort = rx_desc->d.glort;
 

@@ -3420,8 +3420,7 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 		else
 			queue_index = __netdev_pick_tx(dev, skb);
 
-		if (!accel_priv)
-			queue_index = netdev_cap_txqueue(dev, queue_index);
+		queue_index = netdev_cap_txqueue(dev, queue_index);
 	}
 
 	skb_set_queue_mapping(skb, queue_index);

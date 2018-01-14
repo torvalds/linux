@@ -3117,7 +3117,7 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 static unsigned int ixgbe_max_channels(struct ixgbe_adapter *adapter)
 {
 	unsigned int max_combined;
-	u8 tcs = netdev_get_num_tc(adapter->netdev);
+	u8 tcs = adapter->hw_tcs;
 
 	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
 		/* We only support one q_vector without MSI-X */
@@ -3174,7 +3174,7 @@ static void ixgbe_get_channels(struct net_device *dev,
 		return;
 
 	/* same thing goes for being DCB enabled */
-	if (netdev_get_num_tc(dev) > 1)
+	if (adapter->hw_tcs > 1)
 		return;
 
 	/* if ATR is disabled we can exit */
@@ -3220,7 +3220,7 @@ static int ixgbe_set_channels(struct net_device *dev,
 
 #endif
 	/* use setup TC to update any traffic class queue mapping */
-	return ixgbe_setup_tc(dev, netdev_get_num_tc(dev));
+	return ixgbe_setup_tc(dev, adapter->hw_tcs);
 }
 
 static int ixgbe_get_module_info(struct net_device *dev,

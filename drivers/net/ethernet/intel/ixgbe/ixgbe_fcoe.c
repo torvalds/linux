@@ -150,6 +150,7 @@ skip_ddpinv:
  * @xid: the exchange id requesting ddp
  * @sgl: the scatter-gather list for this request
  * @sgc: the number of scatter-gather items
+ * @target_mode: 1 to setup target mode, 0 to setup initiator mode
  *
  * Returns : 1 for success and 0 for no ddp
  */
@@ -1063,7 +1064,7 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 
 /**
  * ixgbe_fcoe_get_tc - get the current TC that fcoe is mapped to
- * @adapter - pointer to the device adapter structure
+ * @adapter: pointer to the device adapter structure
  *
  * Return : TC that FCoE is mapped to
  */
