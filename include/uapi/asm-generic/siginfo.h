@@ -179,13 +179,24 @@ typedef struct siginfo {
  * SIGILL si_codes
  */
 #define ILL_ILLOPC	1	/* illegal opcode */
+#ifdef __bfin__
+# define ILL_ILLPARAOP	2	/* illegal opcode combine */
+#endif
 #define ILL_ILLOPN	2	/* illegal operand */
 #define ILL_ILLADR	3	/* illegal addressing mode */
 #define ILL_ILLTRP	4	/* illegal trap */
+#ifdef __bfin__
+# define ILL_ILLEXCPT	4	/* unrecoverable exception */
+#endif
 #define ILL_PRVOPC	5	/* privileged opcode */
 #define ILL_PRVREG	6	/* privileged register */
 #define ILL_COPROC	7	/* coprocessor error */
 #define ILL_BADSTK	8	/* internal stack error */
+#ifdef __bfin__
+# define ILL_CPLB_VI	9	/* D/I CPLB protect violation */
+# define ILL_CPLB_MISS	10	/* D/I CPLB miss */
+# define ILL_CPLB_MULHIT 11	/* D/I CPLB multiple hit */
+#endif
 #ifdef __tile__
 # define ILL_DBLFLT	9	/* double fault */
 # define ILL_HARDWALL	10	/* user networks hardwall violation */
@@ -225,7 +236,11 @@ typedef struct siginfo {
  */
 #define SEGV_MAPERR	1	/* address not mapped to object */
 #define SEGV_ACCERR	2	/* invalid permissions for mapped object */
-#define SEGV_BNDERR	3	/* failed address bound checks */
+#ifdef __bfin__
+# define SEGV_STACKFLOW	3	/* stack overflow */
+#else
+# define SEGV_BNDERR	3	/* failed address bound checks */
+#endif
 #ifdef __ia64__
 # define __SEGV_PSTKOVF	4	/* paragraph stack overflow */
 #else
@@ -239,8 +254,12 @@ typedef struct siginfo {
 #define BUS_ADRALN	1	/* invalid address alignment */
 #define BUS_ADRERR	2	/* non-existent physical address */
 #define BUS_OBJERR	3	/* object specific hardware error */
+#ifdef __bfin__
+# define BUS_OPFETCH	4	/* error from instruction fetch */
+#else
 /* hardware memory error consumed on a machine check: action required */
-#define BUS_MCEERR_AR	4
+# define BUS_MCEERR_AR	4
+#endif
 /* hardware memory error detected in process but not consumed: action optional*/
 #define BUS_MCEERR_AO	5
 #define NSIGBUS		5
@@ -252,6 +271,12 @@ typedef struct siginfo {
 #define TRAP_TRACE	2	/* process trace trap */
 #define TRAP_BRANCH     3	/* process taken branch trap */
 #define TRAP_HWBKPT     4	/* hardware breakpoint/watchpoint */
+#ifdef __bfin__
+# define TRAP_STEP	1	/* single-step breakpoint */
+# define TRAP_TRACEFLOW	2	/* trace buffer overflow */
+# define TRAP_WATCHPT	3	/* watchpoint match */
+# define TRAP_ILLTRAP	4	/* illegal trap */
+#endif
 #define NSIGTRAP	4
 
 /*
