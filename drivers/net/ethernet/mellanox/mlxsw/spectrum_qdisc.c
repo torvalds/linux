@@ -66,6 +66,11 @@ struct mlxsw_sp_qdisc_ops {
 			  void *xstats_ptr);
 	void (*clean_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
 			    struct mlxsw_sp_qdisc *mlxsw_sp_qdisc);
+	/* unoffload - to be used for a qdisc that stops being offloaded without
+	 * being destroyed.
+	 */
+	void (*unoffload)(struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct mlxsw_sp_qdisc *mlxsw_sp_qdisc, void *params);
 };
 
 struct mlxsw_sp_qdisc {
@@ -79,6 +84,7 @@ struct mlxsw_sp_qdisc {
 		u64 tx_packets;
 		u64 drops;
 		u64 overlimits;
+		u64 backlog;
 	} stats_base;
 
 	struct mlxsw_sp_qdisc_ops *ops;
@@ -144,6 +150,9 @@ mlxsw_sp_qdisc_replace(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle,
 
 err_bad_param:
 err_config:
+	if (mlxsw_sp_qdisc->handle == handle && ops->unoffload)
+		ops->unoffload(mlxsw_sp_port, mlxsw_sp_qdisc, params);
+
 	mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
 	return err;
 }
@@ -451,11 +460,88 @@ mlxsw_sp_qdisc_prio_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 }
 
+void
+mlxsw_sp_qdisc_prio_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+			      struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			      void *params)
+{
+	struct tc_prio_qopt_offload_params *p = params;
+	u64 backlog;
+
+	backlog = mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
+				       mlxsw_sp_qdisc->stats_base.backlog);
+	p->qstats->backlog -= backlog;
+}
+
+static int
+mlxsw_sp_qdisc_get_prio_stats(struct mlxsw_sp_port *mlxsw_sp_port,
+			      struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			      struct tc_qopt_offload_stats *stats_ptr)
+{
+	u64 tx_bytes, tx_packets, drops = 0, backlog = 0;
+	struct mlxsw_sp_qdisc_stats *stats_base;
+	struct mlxsw_sp_port_xstats *xstats;
+	struct rtnl_link_stats64 *stats;
+	int i;
+
+	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
+	stats = &mlxsw_sp_port->periodic_hw_stats.stats;
+	stats_base = &mlxsw_sp_qdisc->stats_base;
+
+	tx_bytes = stats->tx_bytes - stats_base->tx_bytes;
+	tx_packets = stats->tx_packets - stats_base->tx_packets;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		drops += xstats->tail_drop[i];
+		backlog += xstats->backlog[i];
+	}
+	drops = drops - stats_base->drops;
+
+	_bstats_update(stats_ptr->bstats, tx_bytes, tx_packets);
+	stats_ptr->qstats->drops += drops;
+	stats_ptr->qstats->backlog +=
+				mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
+						     backlog) -
+				mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
+						     stats_base->backlog);
+	stats_base->backlog = backlog;
+	stats_base->drops += drops;
+	stats_base->tx_bytes += tx_bytes;
+	stats_base->tx_packets += tx_packets;
+	return 0;
+}
+
+static void
+mlxsw_sp_setup_tc_qdisc_prio_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
+					 struct mlxsw_sp_qdisc *mlxsw_sp_qdisc)
+{
+	struct mlxsw_sp_qdisc_stats *stats_base;
+	struct mlxsw_sp_port_xstats *xstats;
+	struct rtnl_link_stats64 *stats;
+	int i;
+
+	xstats = &mlxsw_sp_port->periodic_hw_stats.xstats;
+	stats = &mlxsw_sp_port->periodic_hw_stats.stats;
+	stats_base = &mlxsw_sp_qdisc->stats_base;
+
+	stats_base->tx_packets = stats->tx_packets;
+	stats_base->tx_bytes = stats->tx_bytes;
+
+	stats_base->drops = 0;
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		stats_base->drops += xstats->tail_drop[i];
+
+	mlxsw_sp_qdisc->stats_base.backlog = 0;
+}
+
 static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_prio = {
 	.type = MLXSW_SP_QDISC_PRIO,
 	.check_params = mlxsw_sp_qdisc_prio_check_params,
 	.replace = mlxsw_sp_qdisc_prio_replace,
+	.unoffload = mlxsw_sp_qdisc_prio_unoffload,
 	.destroy = mlxsw_sp_qdisc_prio_destroy,
+	.get_stats = mlxsw_sp_qdisc_get_prio_stats,
+	.clean_stats = mlxsw_sp_setup_tc_qdisc_prio_clean_stats,
 };
 
 int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -480,6 +566,9 @@ int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 	switch (p->command) {
 	case TC_PRIO_DESTROY:
 		return mlxsw_sp_qdisc_destroy(mlxsw_sp_port, mlxsw_sp_qdisc);
+	case TC_PRIO_STATS:
+		return mlxsw_sp_qdisc_get_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
+						&p->stats);
 	default:
 		return -EOPNOTSUPP;
 	}
