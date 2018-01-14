@@ -178,23 +178,16 @@ hrtimer_check_target(struct hrtimer *timer, struct hrtimer_clock_base *new_base)
 #endif
 }
 
-#ifdef CONFIG_NO_HZ_COMMON
 static inline
 struct hrtimer_cpu_base *get_target_base(struct hrtimer_cpu_base *base,
 					 int pinned)
 {
-	if (pinned || !base->migration_enabled)
-		return base;
-	return &per_cpu(hrtimer_bases, get_nohz_timer_target());
-}
-#else
-static inline
-struct hrtimer_cpu_base *get_target_base(struct hrtimer_cpu_base *base,
-					 int pinned)
-{
+#if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
+	if (static_branch_likely(&timers_migration_enabled) && !pinned)
+		return &per_cpu(hrtimer_bases, get_nohz_timer_target());
+#endif
 	return base;
 }
-#endif
 
 /*
  * We switch the timer base to a power-optimized selected CPU target,
@@ -969,7 +962,7 @@ void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 		 * Kick to reschedule the next tick to handle the new timer
 		 * on dynticks target.
 		 */
-		if (new_base->cpu_base->nohz_active)
+		if (is_timers_nohz_active())
 			wake_up_nohz_cpu(new_base->cpu_base->cpu);
 	} else {
 		hrtimer_reprogram(timer, new_base);
