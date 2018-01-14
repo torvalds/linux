@@ -1009,7 +1009,7 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 
 		buf->buf.field = V4L2_FIELD_NONE;
 		buf->buf.sequence = stream->sequence;
-		buf->buf.vb2_buf.timestamp = uvc_video_get_time();
+		buf->buf.vb2_buf.timestamp = ktime_to_ns(uvc_video_get_time());
 
 		/* TODO: Handle PTS and SCR. */
 		buf->state = UVC_BUF_STATE_ACTIVE;
@@ -1191,7 +1191,8 @@ static void uvc_video_decode_meta(struct uvc_streaming *stream,
 
 	uvc_trace(UVC_TRACE_FRAME,
 		  "%s(): t-sys %lluns, SOF %u, len %u, flags 0x%x, PTS %u, STC %u frame SOF %u\n",
-		  __func__, time, meta->sof, meta->length, meta->flags,
+		  __func__, ktime_to_ns(time), meta->sof, meta->length,
+		  meta->flags,
 		  has_pts ? *(u32 *)meta->buf : 0,
 		  has_scr ? *(u32 *)scr : 0,
 		  has_scr ? *(u32 *)(scr + 4) & 0x7ff : 0);
