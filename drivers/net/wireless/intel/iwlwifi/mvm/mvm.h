@@ -92,7 +92,7 @@
 #include "fw/runtime.h"
 #include "fw/dbg.h"
 #include "fw/acpi.h"
-#include "fw/debugfs.h"
+#include "iwl-nvm-parse.h"
 
 #include <linux/average.h>
 
@@ -506,18 +506,6 @@ enum iwl_mvm_sched_scan_pass_all_states {
 	SCHED_SCAN_PASS_ALL_DISABLED,
 	SCHED_SCAN_PASS_ALL_ENABLED,
 	SCHED_SCAN_PASS_ALL_FOUND,
-};
-
-/**
- * struct iwl_nvm_section - describes an NVM section in memory.
- *
- * This struct holds an NVM section read from the NIC using NVM_ACCESS_CMD,
- * and saved for later use by the driver. Not all NVM sections are saved
- * this way, only the needed ones.
- */
-struct iwl_nvm_section {
-	u16 length;
-	const u8 *data;
 };
 
 /**
@@ -1511,7 +1499,6 @@ void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm);
 /* NVM */
 int iwl_nvm_init(struct iwl_mvm *mvm);
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm);
-int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm);
 
 static inline u8 iwl_mvm_get_valid_tx_ant(struct iwl_mvm *mvm)
 {

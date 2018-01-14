@@ -8,6 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +70,7 @@
 #include <linux/export.h>
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
+#include <linux/firmware.h>
 
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
@@ -76,6 +79,7 @@
 #include "iwl-io.h"
 #include "iwl-csr.h"
 #include "fw/acpi.h"
+#include "fw/api/nvm-reg.h"
 
 /* NVM offsets (in words) definitions */
 enum nvm_offsets {
@@ -146,8 +150,8 @@ static const u8 iwl_ext_nvm_channels[] = {
 	149, 153, 157, 161, 165, 169, 173, 177, 181
 };
 
-#define IWL_NUM_CHANNELS		ARRAY_SIZE(iwl_nvm_channels)
-#define IWL_NUM_CHANNELS_EXT	ARRAY_SIZE(iwl_ext_nvm_channels)
+#define IWL_NVM_NUM_CHANNELS		ARRAY_SIZE(iwl_nvm_channels)
+#define IWL_NVM_NUM_CHANNELS_EXT	ARRAY_SIZE(iwl_ext_nvm_channels)
 #define NUM_2GHZ_CHANNELS		14
 #define NUM_2GHZ_CHANNELS_EXT	14
 #define FIRST_2GHZ_HT_MINUS		5
@@ -301,11 +305,11 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 	const u8 *nvm_chan;
 
 	if (cfg->nvm_type != IWL_NVM_EXT) {
-		num_of_ch = IWL_NUM_CHANNELS;
+		num_of_ch = IWL_NVM_NUM_CHANNELS;
 		nvm_chan = &iwl_nvm_channels[0];
 		num_2ghz_channels = NUM_2GHZ_CHANNELS;
 	} else {
-		num_of_ch = IWL_NUM_CHANNELS_EXT;
+		num_of_ch = IWL_NVM_NUM_CHANNELS_EXT;
 		nvm_chan = &iwl_ext_nvm_channels[0];
 		num_2ghz_channels = NUM_2GHZ_CHANNELS_EXT;
 	}
@@ -720,12 +724,12 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (cfg->nvm_type != IWL_NVM_EXT)
 		data = kzalloc(sizeof(*data) +
 			       sizeof(struct ieee80211_channel) *
-			       IWL_NUM_CHANNELS,
+			       IWL_NVM_NUM_CHANNELS,
 			       GFP_KERNEL);
 	else
 		data = kzalloc(sizeof(*data) +
 			       sizeof(struct ieee80211_channel) *
-			       IWL_NUM_CHANNELS_EXT,
+			       IWL_NVM_NUM_CHANNELS_EXT,
 			       GFP_KERNEL);
 	if (!data)
 		return NULL;
@@ -859,7 +863,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	int valid_rules = 0;
 	bool new_rule;
 	int max_num_ch = cfg->nvm_type == IWL_NVM_EXT ?
-			 IWL_NUM_CHANNELS_EXT : IWL_NUM_CHANNELS;
+			 IWL_NVM_NUM_CHANNELS_EXT : IWL_NVM_NUM_CHANNELS;
 
 	if (WARN_ON_ONCE(num_of_ch > NL80211_MAX_SUPP_REG_RULES))
 		return ERR_PTR(-EINVAL);
@@ -938,3 +942,199 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	return regd;
 }
 IWL_EXPORT_SYMBOL(iwl_parse_nvm_mcc_info);
+
+#define IWL_MAX_NVM_SECTION_SIZE	0x1b58
+#define IWL_MAX_EXT_NVM_SECTION_SIZE	0x1ffc
+#define MAX_NVM_FILE_LEN	16384
+
+void iwl_nvm_fixups(u32 hw_id, unsigned int section, u8 *data,
+		    unsigned int len)
+{
+#define IWL_4165_DEVICE_ID	0x5501
+#define NVM_SKU_CAP_MIMO_DISABLE BIT(5)
+
+	if (section == NVM_SECTION_TYPE_PHY_SKU &&
+	    hw_id == IWL_4165_DEVICE_ID && data && len >= 5 &&
+	    (data[4] & NVM_SKU_CAP_MIMO_DISABLE))
+		/* OTP 0x52 bug work around: it's a 1x1 device */
+		data[3] = ANT_B | (ANT_B << 4);
+}
+IWL_EXPORT_SYMBOL(iwl_nvm_fixups);
+
+/*
+ * Reads external NVM from a file into mvm->nvm_sections
+ *
+ * HOW TO CREATE THE NVM FILE FORMAT:
+ * ------------------------------
+ * 1. create hex file, format:
+ *      3800 -> header
+ *      0000 -> header
+ *      5a40 -> data
+ *
+ *   rev - 6 bit (word1)
+ *   len - 10 bit (word1)
+ *   id - 4 bit (word2)
+ *   rsv - 12 bit (word2)
+ *
+ * 2. flip 8bits with 8 bits per line to get the right NVM file format
+ *
+ * 3. create binary file from the hex file
+ *
+ * 4. save as "iNVM_xxx.bin" under /lib/firmware
+ */
+int iwl_read_external_nvm(struct iwl_trans *trans,
+			  const char *nvm_file_name,
+			  struct iwl_nvm_section *nvm_sections)
+{
+	int ret, section_size;
+	u16 section_id;
+	const struct firmware *fw_entry;
+	const struct {
+		__le16 word1;
+		__le16 word2;
+		u8 data[];
+	} *file_sec;
+	const u8 *eof;
+	u8 *temp;
+	int max_section_size;
+	const __le32 *dword_buff;
+
+#define NVM_WORD1_LEN(x) (8 * (x & 0x03FF))
+#define NVM_WORD2_ID(x) (x >> 12)
+#define EXT_NVM_WORD2_LEN(x) (2 * (((x) & 0xFF) << 8 | (x) >> 8))
+#define EXT_NVM_WORD1_ID(x) ((x) >> 4)
+#define NVM_HEADER_0	(0x2A504C54)
+#define NVM_HEADER_1	(0x4E564D2A)
+#define NVM_HEADER_SIZE	(4 * sizeof(u32))
+
+	IWL_DEBUG_EEPROM(trans->dev, "Read from external NVM\n");
+
+	/* Maximal size depends on NVM version */
+	if (trans->cfg->nvm_type != IWL_NVM_EXT)
+		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
+	else
+		max_section_size = IWL_MAX_EXT_NVM_SECTION_SIZE;
+
+	/*
+	 * Obtain NVM image via request_firmware. Since we already used
+	 * request_firmware_nowait() for the firmware binary load and only
+	 * get here after that we assume the NVM request can be satisfied
+	 * synchronously.
+	 */
+	ret = request_firmware(&fw_entry, nvm_file_name, trans->dev);
+	if (ret) {
+		IWL_ERR(trans, "ERROR: %s isn't available %d\n",
+			nvm_file_name, ret);
+		return ret;
+	}
+
+	IWL_INFO(trans, "Loaded NVM file %s (%zu bytes)\n",
+		 nvm_file_name, fw_entry->size);
+
+	if (fw_entry->size > MAX_NVM_FILE_LEN) {
+		IWL_ERR(trans, "NVM file too large\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	eof = fw_entry->data + fw_entry->size;
+	dword_buff = (__le32 *)fw_entry->data;
+
+	/* some NVM file will contain a header.
+	 * The header is identified by 2 dwords header as follow:
+	 * dword[0] = 0x2A504C54
+	 * dword[1] = 0x4E564D2A
+	 *
+	 * This header must be skipped when providing the NVM data to the FW.
+	 */
+	if (fw_entry->size > NVM_HEADER_SIZE &&
+	    dword_buff[0] == cpu_to_le32(NVM_HEADER_0) &&
+	    dword_buff[1] == cpu_to_le32(NVM_HEADER_1)) {
+		file_sec = (void *)(fw_entry->data + NVM_HEADER_SIZE);
+		IWL_INFO(trans, "NVM Version %08X\n", le32_to_cpu(dword_buff[2]));
+		IWL_INFO(trans, "NVM Manufacturing date %08X\n",
+			 le32_to_cpu(dword_buff[3]));
+
+		/* nvm file validation, dword_buff[2] holds the file version */
+		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+		    CSR_HW_REV_STEP(trans->hw_rev) == SILICON_C_STEP &&
+		    le32_to_cpu(dword_buff[2]) < 0xE4A) {
+			ret = -EFAULT;
+			goto out;
+		}
+	} else {
+		file_sec = (void *)fw_entry->data;
+	}
+
+	while (true) {
+		if (file_sec->data > eof) {
+			IWL_ERR(trans,
+				"ERROR - NVM file too short for section header\n");
+			ret = -EINVAL;
+			break;
+		}
+
+		/* check for EOF marker */
+		if (!file_sec->word1 && !file_sec->word2) {
+			ret = 0;
+			break;
+		}
+
+		if (trans->cfg->nvm_type != IWL_NVM_EXT) {
+			section_size =
+				2 * NVM_WORD1_LEN(le16_to_cpu(file_sec->word1));
+			section_id = NVM_WORD2_ID(le16_to_cpu(file_sec->word2));
+		} else {
+			section_size = 2 * EXT_NVM_WORD2_LEN(
+						le16_to_cpu(file_sec->word2));
+			section_id = EXT_NVM_WORD1_ID(
+						le16_to_cpu(file_sec->word1));
+		}
+
+		if (section_size > max_section_size) {
+			IWL_ERR(trans, "ERROR - section too large (%d)\n",
+				section_size);
+			ret = -EINVAL;
+			break;
+		}
+
+		if (!section_size) {
+			IWL_ERR(trans, "ERROR - section empty\n");
+			ret = -EINVAL;
+			break;
+		}
+
+		if (file_sec->data + section_size > eof) {
+			IWL_ERR(trans,
+				"ERROR - NVM file too short for section (%d bytes)\n",
+				section_size);
+			ret = -EINVAL;
+			break;
+		}
+
+		if (WARN(section_id >= NVM_MAX_NUM_SECTIONS,
+			 "Invalid NVM section ID %d\n", section_id)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		temp = kmemdup(file_sec->data, section_size, GFP_KERNEL);
+		if (!temp) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		iwl_nvm_fixups(trans->hw_id, section_id, temp, section_size);
+
+		kfree(nvm_sections[section_id].data);
+		nvm_sections[section_id].data = temp;
+		nvm_sections[section_id].length = section_size;
+
+		/* advance to the next section */
+		file_sec = (void *)(file_sec->data + section_size);
+	}
+out:
+	release_firmware(fw_entry);
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_read_external_nvm);

@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2008 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,5 +110,26 @@ void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 struct ieee80211_regdomain *
 iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		       int num_of_ch, __le32 *channels, u16 fw_mcc);
+
+/**
+ * struct iwl_nvm_section - describes an NVM section in memory.
+ *
+ * This struct holds an NVM section read from the NIC using NVM_ACCESS_CMD,
+ * and saved for later use by the driver. Not all NVM sections are saved
+ * this way, only the needed ones.
+ */
+struct iwl_nvm_section {
+	u16 length;
+	const u8 *data;
+};
+
+/**
+ * iwl_read_external_nvm - Reads external NVM from a file into nvm_sections
+ */
+int iwl_read_external_nvm(struct iwl_trans *trans,
+			  const char *nvm_file_name,
+			  struct iwl_nvm_section *nvm_sections);
+void iwl_nvm_fixups(u32 hw_id, unsigned int section, u8 *data,
+		    unsigned int len);
 
 #endif /* __iwl_nvm_parse_h__ */
