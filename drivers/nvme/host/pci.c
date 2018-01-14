@@ -1633,8 +1633,8 @@ static int nvme_create_io_queues(struct nvme_dev *dev)
 
 	/*
 	 * Ignore failing Create SQ/CQ commands, we can continue with less
-	 * than the desired aount of queues, and even a controller without
-	 * I/O queues an still be used to issue admin commands.  This might
+	 * than the desired amount of queues, and even a controller without
+	 * I/O queues can still be used to issue admin commands.  This might
 	 * be useful to upgrade a buggy firmware for example.
 	 */
 	return ret >= 0 ? 0 : ret;
