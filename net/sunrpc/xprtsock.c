@@ -1005,6 +1005,7 @@ static void xs_local_data_receive(struct sock_xprt *transport)
 	struct sock *sk;
 	int err;
 
+restart:
 	mutex_lock(&transport->recv_mutex);
 	sk = transport->inet;
 	if (sk == NULL)
@@ -1018,6 +1019,11 @@ static void xs_local_data_receive(struct sock_xprt *transport)
 		}
 		if (!test_and_clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state))
 			break;
+		if (need_resched()) {
+			mutex_unlock(&transport->recv_mutex);
+			cond_resched();
+			goto restart;
+		}
 	}
 out:
 	mutex_unlock(&transport->recv_mutex);
@@ -1096,6 +1102,7 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 	struct sock *sk;
 	int err;
 
+restart:
 	mutex_lock(&transport->recv_mutex);
 	sk = transport->inet;
 	if (sk == NULL)
@@ -1109,6 +1116,11 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 		}
 		if (!test_and_clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state))
 			break;
+		if (need_resched()) {
+			mutex_unlock(&transport->recv_mutex);
+			cond_resched();
+			goto restart;
+		}
 	}
 out:
 	mutex_unlock(&transport->recv_mutex);
@@ -1528,16 +1540,16 @@ static void xs_tcp_data_receive(struct sock_xprt *transport)
 		.arg.data = xprt,
 	};
 	unsigned long total = 0;
-	int loop;
 	int read = 0;
 
+restart:
 	mutex_lock(&transport->recv_mutex);
 	sk = transport->inet;
 	if (sk == NULL)
 		goto out;
 
 	/* We use rd_desc to pass struct xprt to xs_tcp_data_recv */
-	for (loop = 0; loop < 64; loop++) {
+	for (;;) {
 		rd_desc.count = RPC_TCP_READ_CHUNK_SZ;
 		lock_sock(sk);
 		read = tcp_read_sock(sk, &rd_desc, xs_tcp_data_recv);
@@ -1548,6 +1560,11 @@ static void xs_tcp_data_receive(struct sock_xprt *transport)
 		}
 		release_sock(sk);
 		total += read;
+		if (need_resched()) {
+			mutex_unlock(&transport->recv_mutex);
+			cond_resched();
+			goto restart;
+		}
 	}
 	if (test_bit(XPRT_SOCK_DATA_READY, &transport->sock_state))
 		queue_work(xprtiod_workqueue, &transport->recv_worker);
