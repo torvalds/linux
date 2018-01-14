@@ -194,8 +194,6 @@ ifdef CONFIG_RETPOLINE
     RETPOLINE_CFLAGS += $(call cc-option,-mindirect-branch=thunk-extern -mindirect-branch-register)
     ifneq ($(RETPOLINE_CFLAGS),)
         KBUILD_CFLAGS += $(RETPOLINE_CFLAGS) -DRETPOLINE
-    else
-        $(warning CONFIG_RETPOLINE=y, but not supported by the compiler. Toolchain update recommended.)
     endif
 endif
 
