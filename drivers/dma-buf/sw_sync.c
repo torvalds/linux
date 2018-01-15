@@ -43,14 +43,14 @@
  * timelines.
  *
  * Fences can be created with SW_SYNC_IOC_CREATE_FENCE ioctl with struct
- * sw_sync_ioctl_create_fence as parameter.
+ * sw_sync_create_fence_data as parameter.
  *
  * To increment the timeline counter, SW_SYNC_IOC_INC ioctl should be used
  * with the increment as u32. This will update the last signaled value
  * from the timeline and signal any fence that has a seqno smaller or equal
  * to it.
  *
- * struct sw_sync_ioctl_create_fence
+ * struct sw_sync_create_fence_data
  * @value:	the seqno to initialise the fence with
  * @name:	the name of the new sync point
  * @fence:	return the fd of the new sync_file with the created fence
