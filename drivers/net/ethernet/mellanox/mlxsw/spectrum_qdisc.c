@@ -247,6 +247,8 @@ mlxsw_sp_setup_tc_qdisc_red_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	stats_base->overlimits = red_base->prob_drop + red_base->prob_mark;
 	stats_base->drops = red_base->prob_drop + red_base->pdrop;
+
+	stats_base->backlog = 0;
 }
 
 static int
@@ -306,6 +308,19 @@ mlxsw_sp_qdisc_red_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 						 max, prob, p->is_ecn);
 }
 
+static void
+mlxsw_sp_qdisc_red_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
+			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			     void *params)
+{
+	struct tc_red_qopt_offload_params *p = params;
+	u64 backlog;
+
+	backlog = mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
+				       mlxsw_sp_qdisc->stats_base.backlog);
+	p->qstats->backlog -= backlog;
+}
+
 static int
 mlxsw_sp_qdisc_get_red_xstats(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
@@ -338,7 +353,7 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
 			     struct tc_qopt_offload_stats *stats_ptr)
 {
-	u64 tx_bytes, tx_packets, overlimits, drops;
+	u64 tx_bytes, tx_packets, overlimits, drops, backlog;
 	u8 tclass_num = mlxsw_sp_qdisc->tclass_num;
 	struct mlxsw_sp_qdisc_stats *stats_base;
 	struct mlxsw_sp_port_xstats *xstats;
@@ -354,14 +369,18 @@ mlxsw_sp_qdisc_get_red_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 		     stats_base->overlimits;
 	drops = xstats->wred_drop[tclass_num] + xstats->tail_drop[tclass_num] -
 		stats_base->drops;
+	backlog = xstats->backlog[tclass_num];
 
 	_bstats_update(stats_ptr->bstats, tx_bytes, tx_packets);
 	stats_ptr->qstats->overlimits += overlimits;
 	stats_ptr->qstats->drops += drops;
 	stats_ptr->qstats->backlog +=
-			mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
-					     xstats->backlog[tclass_num]);
+				mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
+						     backlog) -
+				mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
+						     stats_base->backlog);
 
+	stats_base->backlog = backlog;
 	stats_base->drops +=  drops;
 	stats_base->overlimits += overlimits;
 	stats_base->tx_bytes += tx_bytes;
@@ -375,6 +394,7 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_red = {
 	.type = MLXSW_SP_QDISC_RED,
 	.check_params = mlxsw_sp_qdisc_red_check_params,
 	.replace = mlxsw_sp_qdisc_red_replace,
+	.unoffload = mlxsw_sp_qdisc_red_unoffload,
 	.destroy = mlxsw_sp_qdisc_red_destroy,
 	.get_stats = mlxsw_sp_qdisc_get_red_stats,
 	.get_xstats = mlxsw_sp_qdisc_get_red_xstats,
