@@ -151,6 +151,8 @@ enum iwl_nvm_type {
 #define	ANT_AC		(ANT_A | ANT_C)
 #define ANT_BC		(ANT_B | ANT_C)
 #define ANT_ABC		(ANT_A | ANT_B | ANT_C)
+#define MAX_ANT_NUM 3
+
 
 static inline u8 num_of_ant(u8 mask)
 {

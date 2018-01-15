@@ -456,6 +456,4 @@ int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable);
 void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb);
-void iwl_mvm_tlc_amsdu_notif(struct iwl_mvm *mvm,
-			     struct iwl_rx_cmd_buffer *rxb);
 #endif /* __rs__ */
