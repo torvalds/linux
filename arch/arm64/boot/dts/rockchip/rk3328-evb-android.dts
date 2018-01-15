@@ -200,7 +200,6 @@
 		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
 		wakeup-source;
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -495,6 +494,11 @@
 &rkvdec {
 	status = "okay";
 	vcodec-supply = <&vdd_logic>;
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,virtual-poweroff = <1>;
 };
 
 &uart0 {
