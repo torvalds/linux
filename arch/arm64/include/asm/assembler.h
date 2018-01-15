@@ -360,7 +360,7 @@ alternative_endif
  * ID_AA64MMFR0_EL1.PARange value
  *
  *	tcr:		register with the TCR_ELx value to be updated
- *	pos:		PARange bitfield position
+ *	pos:		IPS or PS bitfield position
  *	tmp{0,1}:	temporary registers
  */
 	.macro	tcr_compute_pa_size, tcr, pos, tmp0, tmp1
