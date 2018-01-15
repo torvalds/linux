@@ -812,7 +812,7 @@ config PARAVIRT_CLOCK
 
 config JAILHOUSE_GUEST
 	bool "Jailhouse non-root cell support"
-	depends on X86_64
+	depends on X86_64 && PCI
 	select X86_PM_TIMER
 	---help---
 	  This option allows to run Linux as guest in a Jailhouse non-root
