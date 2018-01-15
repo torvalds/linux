@@ -87,17 +87,12 @@ struct board_ops {
 	void (*send_immediate_char)(struct channel_t *ch, unsigned char c);
 };
 
-/* Device flag definitions for bd_flags. */
-
-#define BD_IS_PCI_EXPRESS     0x0001	  /* Is a PCI Express board */
-
 /**
  * struct dgnc_board - Per board information.
  * @boardnum: Board number (0 - 32).
  *
  * @name: Product name.
  * @pdev: Pointer to the pci_dev structure.
- * @bd_flags: Board flags.
  * @vendor: PCI vendor ID.
  * @device: PCI device ID.
  * @subvendor: PCI subsystem vendor ID.
@@ -133,7 +128,6 @@ struct dgnc_board {
 	int		boardnum;
 	char		*name;
 	struct pci_dev	*pdev;
-	unsigned long	bd_flags;
 	u16		vendor;
 	u16		device;
 	u16		subvendor;

@@ -76,7 +76,6 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 {
 	struct dgnc_board *brd;
 	unsigned int pci_irq;
-	int i = 0;
 	int rc = 0;
 
 	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
@@ -92,8 +91,6 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 	brd->pci_slot = PCI_SLOT(pdev->devfn);
 	brd->name = dgnc_ids[id].name;
 	brd->maxports = dgnc_ids[id].maxports;
-	if (dgnc_ids[i].is_pci_express)
-		brd->bd_flags |= BD_IS_PCI_EXPRESS;
 	init_waitqueue_head(&brd->state_wait);
 
 	spin_lock_init(&brd->bd_lock);
