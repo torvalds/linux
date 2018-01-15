@@ -525,6 +525,7 @@
 
 	touchscreen@4b {
 		compatible = "atmel,maxtouch";
+		reset-gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
 		reg = <0x4b>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <4 0x8>;
