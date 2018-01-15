@@ -96,7 +96,6 @@ struct board_ops {
  * @device: PCI device ID.
  * @maxports: Maximum ports this board can handle.
  * @vpd: VPD of this board, if found.
- * @serial_num: Serial number of this board, if found in VPD.
  * @bd_lock: Used to protect board.
  * @bd_intr_lock: Protect poller tasklet and interrupt routine from each other.
  * @state: State of the card.
@@ -124,7 +123,6 @@ struct dgnc_board {
 	u16		device;
 	uint		maxports;
 	unsigned char	vpd[128];
-	unsigned char	serial_num[20];
 
 	/* used to protect the board */
 	spinlock_t	bd_lock;
