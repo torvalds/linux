@@ -454,6 +454,7 @@ static int ina2xx_probe(struct i2c_client *client,
 
 	/* set the device type */
 	data->config = &ina2xx_config[chip];
+	mutex_init(&data->config_lock);
 
 	if (of_property_read_u32(dev->of_node, "shunt-resistor", &val) < 0) {
 		struct ina2xx_platform_data *pdata = dev_get_platdata(dev);
@@ -479,8 +480,6 @@ static int ina2xx_probe(struct i2c_client *client,
 		dev_err(dev, "error configuring the device: %d\n", ret);
 		return -ENODEV;
 	}
-
-	mutex_init(&data->config_lock);
 
 	data->groups[group++] = &ina2xx_group;
 	if (id->driver_data == ina226)
