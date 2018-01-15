@@ -242,8 +242,9 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 	self->aq_hw_ops = *aq_hw_ops;
 	self->port = (u8)port;
 
-	self->aq_hw = self->aq_hw_ops.create(aq_pci_func, self->port,
-						&self->aq_hw_ops);
+	self->aq_hw = self->aq_hw_ops.create(aq_pci_func, self->port);
+	self->aq_hw->aq_nic_cfg = &self->aq_nic_cfg;
+
 	err = self->aq_hw_ops.get_hw_caps(self->aq_hw, &self->aq_hw_caps,
 					  pdev->device, pdev->subsystem_device);
 	if (err < 0)
@@ -268,7 +269,6 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 		goto err_exit;
 	}
 	err = self->aq_hw_ops.hw_get_mac_permanent(self->aq_hw,
-			    self->aq_nic_cfg.aq_hw_caps,
 			    self->ndev->dev_addr);
 	if (err < 0)
 		goto err_exit;
@@ -387,7 +387,7 @@ int aq_nic_init(struct aq_nic_s *self)
 	if (err < 0)
 		goto err_exit;
 
-	err = self->aq_hw_ops.hw_init(self->aq_hw, &self->aq_nic_cfg,
+	err = self->aq_hw_ops.hw_init(self->aq_hw,
 			    aq_nic_get_ndev(self)->dev_addr);
 	if (err < 0)
 		goto err_exit;

@@ -13,6 +13,7 @@
 #define AQ_PCI_FUNC_H
 
 #include "aq_common.h"
+#include "aq_nic.h"
 
 struct aq_pci_func_s *aq_pci_func_alloc(struct aq_hw_ops *hw_ops,
 					struct pci_dev *pdev,

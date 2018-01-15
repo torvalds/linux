@@ -37,21 +37,20 @@ static int hw_atl_b0_get_hw_caps(struct aq_hw_s *self,
 }
 
 static struct aq_hw_s *hw_atl_b0_create(struct aq_pci_func_s *aq_pci_func,
-					unsigned int port,
-					struct aq_hw_ops *ops)
+					unsigned int port)
 {
-	struct hw_atl_s *self = NULL;
+	struct aq_hw_s *self = NULL;
 
 	self = kzalloc(sizeof(*self), GFP_KERNEL);
 	if (!self)
 		goto err_exit;
 
-	self->base.aq_pci_func = aq_pci_func;
+	self->aq_pci_func = aq_pci_func;
 
-	self->base.not_ff_addr = 0x10U;
+	self->not_ff_addr = 0x10U;
 
 err_exit:
-	return (struct aq_hw_s *)self;
+	return self;
 }
 
 static void hw_atl_b0_destroy(struct aq_hw_s *self)
@@ -152,12 +151,10 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 static int hw_atl_b0_hw_rss_hash_set(struct aq_hw_s *self,
 				     struct aq_rss_parameters *rss_params)
 {
-	struct aq_nic_cfg_s *cfg = NULL;
+	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
 	int err = 0;
 	unsigned int i = 0U;
 	unsigned int addr = 0U;
-
-	cfg = self->aq_nic_cfg;
 
 	for (i = 10, addr = 0U; i--; ++addr) {
 		u32 key_data = cfg->is_rss ?
@@ -357,9 +354,7 @@ err_exit:
 	return err;
 }
 
-static int hw_atl_b0_hw_init(struct aq_hw_s *self,
-			     struct aq_nic_cfg_s *aq_nic_cfg,
-			     u8 *mac_addr)
+static int hw_atl_b0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 {
 	static u32 aq_hw_atl_igcr_table_[4][2] = {
 		{ 0x20000000U, 0x20000000U }, /* AQ_IRQ_INVALID */
@@ -371,10 +366,7 @@ static int hw_atl_b0_hw_init(struct aq_hw_s *self,
 	int err = 0;
 	u32 val;
 
-	self->aq_nic_cfg = aq_nic_cfg;
-
-	hw_atl_utils_hw_chip_features_init(self,
-					   &PHAL_ATLANTIC_B0->chip_features);
+	struct aq_nic_cfg_s *aq_nic_cfg = self->aq_nic_cfg;
 
 	hw_atl_b0_hw_init_tx_path(self);
 	hw_atl_b0_hw_init_rx_path(self);
@@ -737,7 +729,7 @@ static int hw_atl_b0_hw_irq_disable(struct aq_hw_s *self, u64 mask)
 	itr_irq_msk_clearlsw_set(self, LODWORD(mask));
 	itr_irq_status_clearlsw_set(self, LODWORD(mask));
 
-	atomic_inc(&PHAL_ATLANTIC_B0->dpc);
+	atomic_inc(&self->dpc);
 	return aq_hw_err_from_flags(self);
 }
 

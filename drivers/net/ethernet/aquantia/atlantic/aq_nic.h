@@ -14,6 +14,7 @@
 
 #include "aq_common.h"
 #include "aq_rss.h"
+#include "aq_hw.h"
 
 struct aq_ring_s;
 struct aq_pci_func_s;

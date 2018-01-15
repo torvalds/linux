@@ -7,7 +7,7 @@
  * version 2, as published by the Free Software Foundation.
  */
 
-/* File aq_hw.h: Declaraion of abstract interface for NIC hardware specific
+/* File aq_hw.h: Declaration of abstract interface for NIC hardware specific
  * functions.
  */
 
@@ -15,6 +15,7 @@
 #define AQ_HW_H
 
 #include "aq_common.h"
+#include "hw_atl/hw_atl_utils.h"
 
 /* NIC H/W capabilities */
 struct aq_hw_caps_s {
@@ -93,6 +94,19 @@ struct aq_hw_s {
 	void __iomem *mmio;
 	unsigned int not_ff_addr;
 	struct aq_hw_link_status_s aq_link_status;
+	struct hw_aq_atl_utils_mbox mbox;
+	struct hw_atl_stats_s last_stats;
+	struct aq_stats_s curr_stats;
+	u64 speed;
+	u32 itr_tx;
+	u32 itr_rx;
+	unsigned int chip_features;
+	u32 fw_ver_actual;
+	atomic_t dpc;
+	u32 mbox_addr;
+	u32 rpc_addr;
+	u32 rpc_tid;
+	struct hw_aq_atl_utils_fw_rpc rpc;
 };
 
 struct aq_ring_s;
@@ -102,7 +116,7 @@ struct sk_buff;
 
 struct aq_hw_ops {
 	struct aq_hw_s *(*create)(struct aq_pci_func_s *aq_pci_func,
-				  unsigned int port, struct aq_hw_ops *ops);
+				  unsigned int port);
 
 	void (*destroy)(struct aq_hw_s *self);
 
@@ -124,7 +138,6 @@ struct aq_hw_ops {
 				      struct aq_ring_s *aq_ring);
 
 	int (*hw_get_mac_permanent)(struct aq_hw_s *self,
-				    struct aq_hw_caps_s *aq_hw_caps,
 				    u8 *mac);
 
 	int (*hw_set_mac_address)(struct aq_hw_s *self, u8 *mac_addr);
@@ -135,8 +148,7 @@ struct aq_hw_ops {
 
 	int (*hw_reset)(struct aq_hw_s *self);
 
-	int (*hw_init)(struct aq_hw_s *self, struct aq_nic_cfg_s *aq_nic_cfg,
-		       u8 *mac_addr);
+	int (*hw_init)(struct aq_hw_s *self, u8 *mac_addr);
 
 	int (*hw_start)(struct aq_hw_s *self);
 
