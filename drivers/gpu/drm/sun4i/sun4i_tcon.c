@@ -902,7 +902,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 				has_lvds_alt = false;
 			} else {
 				dev_err(dev, "Couldn't get the LVDS PLL\n");
-				return PTR_ERR(tcon->lvds_rst);
+				return PTR_ERR(tcon->lvds_pll);
 			}
 		} else {
 			has_lvds_alt = true;
