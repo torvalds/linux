@@ -19,7 +19,6 @@
 #include <linux/netdevice.h>
 
 struct aq_vec_s {
-	struct aq_obj_s header;
 	struct aq_hw_ops *aq_hw_ops;
 	struct aq_hw_s *aq_hw;
 	struct aq_nic_s *aq_nic;

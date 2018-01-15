@@ -87,7 +87,7 @@ struct aq_stats_s {
 #define AQ_HW_FLAG_ERRORS      (AQ_HW_FLAG_ERR_HW | AQ_HW_FLAG_ERR_UNPLUG)
 
 struct aq_hw_s {
-	struct aq_obj_s header;
+	atomic_t flags;
 	struct aq_nic_cfg_s *aq_nic_cfg;
 	struct aq_pci_func_s *aq_pci_func;
 	void __iomem *mmio;

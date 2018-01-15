@@ -105,7 +105,6 @@ union aq_ring_stats_s {
 };
 
 struct aq_ring_s {
-	struct aq_obj_s header;
 	struct aq_ring_buff_s *buff_ring;
 	u8 *dx_ring;		/* descriptors ring, dma shared mem */
 	struct aq_nic_s *aq_nic;

@@ -625,7 +625,7 @@ static int hw_atl_b0_hw_ring_tx_head_update(struct aq_hw_s *self,
 	int err = 0;
 	unsigned int hw_head_ = tdm_tx_desc_head_ptr_get(self, ring->idx);
 
-	if (aq_utils_obj_test(&self->header.flags, AQ_HW_FLAG_ERR_UNPLUG)) {
+	if (aq_utils_obj_test(&self->flags, AQ_HW_FLAG_ERR_UNPLUG)) {
 		err = -ENXIO;
 		goto err_exit;
 	}

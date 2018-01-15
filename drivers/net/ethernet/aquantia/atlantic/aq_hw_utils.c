@@ -40,7 +40,7 @@ u32 aq_hw_read_reg(struct aq_hw_s *hw, u32 reg)
 	u32 value = readl(hw->mmio + reg);
 
 	if ((~0U) == value && (~0U) == readl(hw->mmio + hw->not_ff_addr))
-		aq_utils_obj_set(&hw->header.flags, AQ_HW_FLAG_ERR_UNPLUG);
+		aq_utils_obj_set(&hw->flags, AQ_HW_FLAG_ERR_UNPLUG);
 
 	return value;
 }
@@ -54,11 +54,11 @@ int aq_hw_err_from_flags(struct aq_hw_s *hw)
 {
 	int err = 0;
 
-	if (aq_utils_obj_test(&hw->header.flags, AQ_HW_FLAG_ERR_UNPLUG)) {
+	if (aq_utils_obj_test(&hw->flags, AQ_HW_FLAG_ERR_UNPLUG)) {
 		err = -ENXIO;
 		goto err_exit;
 	}
-	if (aq_utils_obj_test(&hw->header.flags, AQ_HW_FLAG_ERR_HW)) {
+	if (aq_utils_obj_test(&hw->flags, AQ_HW_FLAG_ERR_HW)) {
 		err = -EIO;
 		goto err_exit;
 	}

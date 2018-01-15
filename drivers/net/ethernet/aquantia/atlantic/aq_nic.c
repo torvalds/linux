@@ -150,9 +150,9 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 
 	self->link_status = self->aq_hw->aq_link_status;
 	if (!netif_carrier_ok(self->ndev) && self->link_status.mbps) {
-		aq_utils_obj_set(&self->header.flags,
+		aq_utils_obj_set(&self->flags,
 				 AQ_NIC_FLAG_STARTED);
-		aq_utils_obj_clear(&self->header.flags,
+		aq_utils_obj_clear(&self->flags,
 				   AQ_NIC_LINK_DOWN);
 		netif_carrier_on(self->ndev);
 		netif_tx_wake_all_queues(self->ndev);
@@ -160,7 +160,7 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 	if (netif_carrier_ok(self->ndev) && !self->link_status.mbps) {
 		netif_carrier_off(self->ndev);
 		netif_tx_disable(self->ndev);
-		aq_utils_obj_set(&self->header.flags, AQ_NIC_LINK_DOWN);
+		aq_utils_obj_set(&self->flags, AQ_NIC_LINK_DOWN);
 	}
 	return 0;
 }
@@ -171,7 +171,7 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 	int ctimer = AQ_CFG_SERVICE_TIMER_INTERVAL;
 	int err = 0;
 
-	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
+	if (aq_utils_obj_test(&self->flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		goto err_exit;
 
 	err = aq_nic_update_link_status(self);
