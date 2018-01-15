@@ -2358,7 +2358,6 @@ out:
 }
 
 static const struct file_operations tcp_afinfo_seq_fops = {
-	.owner   = THIS_MODULE,
 	.open    = tcp_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

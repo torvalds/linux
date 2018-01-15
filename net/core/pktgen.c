@@ -523,7 +523,6 @@ static int pgctrl_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations pktgen_fops = {
-	.owner   = THIS_MODULE,
 	.open    = pgctrl_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -1804,7 +1803,6 @@ static int pktgen_if_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations pktgen_if_fops = {
-	.owner   = THIS_MODULE,
 	.open    = pktgen_if_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -1942,7 +1940,6 @@ static int pktgen_thread_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations pktgen_thread_fops = {
-	.owner   = THIS_MODULE,
 	.open    = pktgen_thread_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

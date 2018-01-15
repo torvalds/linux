@@ -2046,7 +2046,6 @@ static int psched_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations psched_fops = {
-	.owner = THIS_MODULE,
 	.open = psched_open,
 	.read  = seq_read,
 	.llseek = seq_lseek,

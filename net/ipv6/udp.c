@@ -1479,7 +1479,6 @@ int udp6_seq_show(struct seq_file *seq, void *v)
 }
 
 static const struct file_operations udp6_afinfo_seq_fops = {
-	.owner    = THIS_MODULE,
 	.open     = udp_seq_open,
 	.read     = seq_read,
 	.llseek   = seq_lseek,

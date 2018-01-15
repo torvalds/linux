@@ -240,7 +240,6 @@ static int rt_cache_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations rt_cache_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = rt_cache_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -331,7 +330,6 @@ static int rt_cpu_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations rt_cpu_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = rt_cpu_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -369,7 +367,6 @@ static int rt_acct_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations rt_acct_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= rt_acct_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

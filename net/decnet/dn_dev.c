@@ -1389,7 +1389,6 @@ static int dn_dev_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dn_dev_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = dn_dev_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,

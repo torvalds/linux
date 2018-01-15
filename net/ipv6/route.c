@@ -4648,7 +4648,6 @@ static int ip6_route_dev_notify(struct notifier_block *this,
 #ifdef CONFIG_PROC_FS
 
 static const struct file_operations ipv6_route_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= ipv6_route_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -4676,7 +4675,6 @@ static int rt6_stats_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations rt6_stats_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = rt6_stats_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
