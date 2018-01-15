@@ -84,10 +84,6 @@ struct digi_getcounter {
 	unsigned long tbytes;
 };
 
-/* Board State Definitions */
-#define	BD_RUNNING	0x0
-#define	BD_NOFEP	0x5
-
 #define DIGI_SETCUSTOMBAUD _IOW('e', 106, int)	/* Set integer baud rate */
 #define DIGI_GETCUSTOMBAUD _IOR('e', 107, int)	/* Get integer baud rate */
 

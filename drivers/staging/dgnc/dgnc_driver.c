@@ -94,7 +94,6 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 	brd->maxports = dgnc_ids[id].maxports;
 	if (dgnc_ids[i].is_pci_express)
 		brd->bd_flags |= BD_IS_PCI_EXPRESS;
-	brd->dpastatus = BD_NOFEP;
 	init_waitqueue_head(&brd->state_wait);
 
 	spin_lock_init(&brd->bd_lock);
@@ -196,7 +195,6 @@ static int dgnc_request_irq(struct dgnc_board *brd)
 			dev_err(&brd->pdev->dev,
 				"Failed to hook IRQ %d\n", brd->irq);
 			brd->state = BOARD_FAILED;
-			brd->dpastatus = BD_NOFEP;
 			return -ENODEV;
 		}
 	}
@@ -287,7 +285,6 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	brd->state = BOARD_READY;
-	brd->dpastatus = BD_RUNNING;
 
 	dgnc_board[dgnc_num_boards++] = brd;
 

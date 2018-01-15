@@ -126,7 +126,6 @@ struct board_ops {
  * @serial_name: Serial driver name.
  * @print_dirver: Pointer to the print driver.
  * @print_name: Print driver name.
- * @dpastatus: Board status as defined by DPA.
  * @bd_dividend: Board/UART's specific dividend.
  * @bd_ops: Pointer to board operations structure.
  */
@@ -178,8 +177,6 @@ struct dgnc_board {
 	char		serial_name[200];
 	struct tty_driver *print_driver;
 	char		print_name[200];
-
-	u16		dpastatus;
 
 	uint		bd_dividend;
 
