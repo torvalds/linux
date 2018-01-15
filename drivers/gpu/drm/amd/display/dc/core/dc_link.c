@@ -700,6 +700,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		if (sink->edid_caps.panel_patch.disconnect_delay > 0 &&
 				SIGNAL_TYPE_HDMI_TYPE_A)
 			program_hpd_filter(link, sink->edid_caps.panel_patch.disconnect_delay);
+		else
+			program_hpd_filter(link, DEFAULT_DELAY_DISCONNECT);
 
 		/* HDMI-DVI Dongle */
 		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
