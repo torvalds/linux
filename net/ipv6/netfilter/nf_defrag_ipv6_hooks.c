@@ -63,10 +63,10 @@ static unsigned int ipv6_defrag(void *priv,
 	/* Previously seen (loopback)?	*/
 	if (skb_nfct(skb) && !nf_ct_is_template((struct nf_conn *)skb_nfct(skb)))
 		return NF_ACCEPT;
-#endif
 
 	if (skb->_nfct == IP_CT_UNTRACKED)
 		return NF_ACCEPT;
+#endif
 
 	err = nf_ct_frag6_gather(state->net, skb,
 				 nf_ct6_defrag_user(state->hook, skb));
