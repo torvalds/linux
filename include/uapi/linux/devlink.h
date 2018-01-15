@@ -221,6 +221,8 @@ enum devlink_attr {
 	DEVLINK_ATTR_RESOURCE_SIZE_GRAN,        /* u64 */
 	DEVLINK_ATTR_RESOURCE_UNIT,		/* u8 */
 	DEVLINK_ATTR_RESOURCE_OCC,		/* u64 */
+	DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_ID,	/* u64 */
+	DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_UNITS,/* u64 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

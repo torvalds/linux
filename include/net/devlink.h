@@ -183,6 +183,9 @@ struct devlink_dpipe_table_ops;
  * @counters_enabled: indicates if counters are active
  * @counter_control_extern: indicates if counter control is in dpipe or
  *			    external tool
+ * @resource_valid: Indicate that the resource id is valid
+ * @resource_id: relative resource this table is related to
+ * @resource_units: number of resource's unit consumed per table's entry
  * @table_ops: table operations
  * @rcu: rcu
  */
@@ -192,6 +195,9 @@ struct devlink_dpipe_table {
 	const char *name;
 	bool counters_enabled;
 	bool counter_control_extern;
+	bool resource_valid;
+	u64 resource_id;
+	u64 resource_units;
 	struct devlink_dpipe_table_ops *table_ops;
 	struct rcu_head rcu;
 };
@@ -403,6 +409,9 @@ void devlink_resources_unregister(struct devlink *devlink,
 int devlink_resource_size_get(struct devlink *devlink,
 			      u64 resource_id,
 			      u64 *p_resource_size);
+int devlink_dpipe_table_resource_set(struct devlink *devlink,
+				     const char *table_name, u64 resource_id,
+				     u64 resource_units);
 
 #else
 
@@ -562,6 +571,14 @@ devlink_resources_unregister(struct devlink *devlink,
 static inline int
 devlink_resource_size_get(struct devlink *devlink, u64 resource_id,
 			  u64 *p_resource_size)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_dpipe_table_resource_set(struct devlink *devlink,
+				 const char *table_name, u64 resource_id,
+				 u64 resource_units)
 {
 	return -EOPNOTSUPP;
 }

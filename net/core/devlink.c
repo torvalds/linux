@@ -1694,6 +1694,12 @@ static int devlink_dpipe_table_put(struct sk_buff *skb,
 		       table->counters_enabled))
 		goto nla_put_failure;
 
+	if (table->resource_valid) {
+		nla_put_u64_64bit(skb, DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_ID,
+				  table->resource_id, DEVLINK_ATTR_PAD);
+		nla_put_u64_64bit(skb, DEVLINK_ATTR_DPIPE_TABLE_RESOURCE_UNITS,
+				  table->resource_units, DEVLINK_ATTR_PAD);
+	}
 	if (devlink_dpipe_matches_put(table, skb))
 		goto nla_put_failure;
 
@@ -3253,6 +3259,37 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_resource_size_get);
+
+/**
+ *	devlink_dpipe_table_resource_set - set the resource id
+ *
+ *	@devlink: devlink
+ *	@table_name: table name
+ *	@resource_id: resource id
+ *	@resource_units: number of resource's units consumed per table's entry
+ */
+int devlink_dpipe_table_resource_set(struct devlink *devlink,
+				     const char *table_name, u64 resource_id,
+				     u64 resource_units)
+{
+	struct devlink_dpipe_table *table;
+	int err = 0;
+
+	mutex_lock(&devlink->lock);
+	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
+					 table_name);
+	if (!table) {
+		err = -EINVAL;
+		goto out;
+	}
+	table->resource_id = resource_id;
+	table->resource_units = resource_units;
+	table->resource_valid = true;
+out:
+	mutex_unlock(&devlink->lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devlink_dpipe_table_resource_set);
 
 static int __init devlink_module_init(void)
 {
