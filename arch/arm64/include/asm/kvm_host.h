@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <asm/cpufeature.h>
+#include <asm/daifflags.h>
 #include <asm/fpsimd.h>
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
@@ -398,4 +399,13 @@ static inline void kvm_fpsimd_flush_cpu_state(void)
 		sve_flush_cpu_state();
 }
 
+static inline void kvm_arm_vhe_guest_enter(void)
+{
+	local_daif_mask();
+}
+
+static inline void kvm_arm_vhe_guest_exit(void)
+{
+	local_daif_restore(DAIF_PROCCTX_NOIRQ);
+}
 #endif /* __ARM64_KVM_HOST_H__ */
