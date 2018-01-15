@@ -229,10 +229,7 @@ int dgnc_tty_init(struct dgnc_board *brd)
 		ch->ch_pun.un_type = DGNC_PRINT;
 		ch->ch_pun.un_dev = i + 128;
 
-		if (brd->bd_uart_offset == 0x200)
-			ch->ch_neo_uart = vaddr + (brd->bd_uart_offset * i);
-		else
-			ch->ch_cls_uart = vaddr + (brd->bd_uart_offset * i);
+		ch->ch_cls_uart = vaddr + (brd->bd_uart_offset * i);
 
 		ch->ch_bd = brd;
 		ch->ch_portnum = i;

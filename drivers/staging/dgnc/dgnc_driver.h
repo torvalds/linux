@@ -246,7 +246,6 @@ struct un_t {
  * @ch_wopen: Waiting for open process count.
  * @ch_mostat: FEP output modem status.
  * @ch_mistat: FEP input modem status.
- * @chc_neo_uart: Pointer to the mapped neo UART struct
  * @ch_cls_uart:  Pointer to the mapped cls UART struct
  * @ch_cached_lsr: Cached value of the LSR register.
  * @ch_rqueue: Read queue buffer, malloc'ed.
@@ -305,7 +304,6 @@ struct channel_t {
 	unsigned char	ch_mostat;
 	unsigned char	ch_mistat;
 
-	struct neo_uart_struct __iomem *ch_neo_uart;
 	struct cls_uart_struct __iomem *ch_cls_uart;
 
 	unsigned char	ch_cached_lsr;
