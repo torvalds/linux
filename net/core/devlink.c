@@ -2515,6 +2515,45 @@ static int devlink_nl_cmd_resource_dump(struct sk_buff *skb,
 	return devlink_resource_fill(info, DEVLINK_CMD_RESOURCE_DUMP, 0);
 }
 
+static int
+devlink_resources_validate(struct devlink *devlink,
+			   struct devlink_resource *resource,
+			   struct genl_info *info)
+{
+	struct list_head *resource_list;
+	int err = 0;
+
+	if (resource)
+		resource_list = &resource->resource_list;
+	else
+		resource_list = &devlink->resource_list;
+
+	list_for_each_entry(resource, resource_list, list) {
+		if (!resource->size_valid)
+			return -EINVAL;
+		err = devlink_resources_validate(devlink, resource, info);
+		if (err)
+			return err;
+	}
+	return err;
+}
+
+static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	int err;
+
+	if (!devlink->ops->reload)
+		return -EOPNOTSUPP;
+
+	err = devlink_resources_validate(devlink, NULL, info);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(info->extack, "resources size validation failed");
+		return err;
+	}
+	return devlink->ops->reload(devlink);
+}
+
 static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING },
@@ -2708,6 +2747,14 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.policy = devlink_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
+	},
+	{
+		.cmd = DEVLINK_CMD_RELOAD,
+		.doit = devlink_nl_cmd_reload,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
+				  DEVLINK_NL_FLAG_NO_LOCK,
 	},
 };
 

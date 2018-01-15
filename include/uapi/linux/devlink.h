@@ -73,6 +73,11 @@ enum devlink_command {
 	DEVLINK_CMD_RESOURCE_SET,
 	DEVLINK_CMD_RESOURCE_DUMP,
 
+	/* Hot driver reload, makes configuration changes take place. The
+	 * devlink instance is not released during the process.
+	 */
+	DEVLINK_CMD_RELOAD,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1

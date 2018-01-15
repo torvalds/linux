@@ -281,6 +281,7 @@ struct devlink_resource {
 #define DEVLINK_RESOURCE_ID_PARENT_TOP 0
 
 struct devlink_ops {
+	int (*reload)(struct devlink *devlink);
 	int (*port_type_set)(struct devlink_port *devlink_port,
 			     enum devlink_port_type port_type);
 	int (*port_split)(struct devlink *devlink, unsigned int port_index,
