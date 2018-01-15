@@ -1252,7 +1252,7 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static struct drm_encoder_helper_funcs
+static const struct drm_encoder_helper_funcs
 dw_mipi_dsi_encoder_helper_funcs = {
 	.mode_fixup = dw_mipi_dsi_encoder_mode_fixup,
 	.mode_set = dw_mipi_dsi_encoder_mode_set,
@@ -1261,7 +1261,7 @@ dw_mipi_dsi_encoder_helper_funcs = {
 	.atomic_check = dw_mipi_dsi_encoder_atomic_check,
 };
 
-static struct drm_encoder_funcs dw_mipi_dsi_encoder_funcs = {
+static const struct drm_encoder_funcs dw_mipi_dsi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
@@ -1294,7 +1294,8 @@ static int dw_mipi_loader_protect(struct drm_connector *connector, bool on)
 	return 0;
 }
 
-static struct drm_connector_helper_funcs dw_mipi_dsi_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs
+dw_mipi_dsi_connector_helper_funcs = {
 	.loader_protect = dw_mipi_loader_protect,
 	.get_modes = dw_mipi_dsi_connector_get_modes,
 	.best_encoder = dw_mipi_dsi_connector_best_encoder,
@@ -1312,7 +1313,7 @@ static void dw_mipi_dsi_drm_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static struct drm_connector_funcs dw_mipi_dsi_atomic_connector_funcs = {
+static const struct drm_connector_funcs dw_mipi_dsi_atomic_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = dw_mipi_dsi_detect,
