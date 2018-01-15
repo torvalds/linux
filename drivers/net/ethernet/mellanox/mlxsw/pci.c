@@ -1053,38 +1053,18 @@ static int mlxsw_pci_resources_query(struct mlxsw_pci *mlxsw_pci, char *mbox,
 }
 
 static int
-mlxsw_pci_profile_get_kvd_sizes(const struct mlxsw_config_profile *profile,
+mlxsw_pci_profile_get_kvd_sizes(const struct mlxsw_pci *mlxsw_pci,
+				const struct mlxsw_config_profile *profile,
 				struct mlxsw_res *res)
 {
-	u32 single_size, double_size, linear_size;
+	u64 single_size, double_size, linear_size;
+	int err;
 
-	if (!MLXSW_RES_VALID(res, KVD_SINGLE_MIN_SIZE) ||
-	    !MLXSW_RES_VALID(res, KVD_DOUBLE_MIN_SIZE) ||
-	    !profile->used_kvd_split_data)
-		return -EIO;
-
-	linear_size = profile->kvd_linear_size;
-
-	/* The hash part is what left of the kvd without the
-	 * linear part. It is split to the single size and
-	 * double size by the parts ratio from the profile.
-	 * Both sizes must be a multiplications of the
-	 * granularity from the profile.
-	 */
-	double_size = MLXSW_RES_GET(res, KVD_SIZE) - linear_size;
-	double_size *= profile->kvd_hash_double_parts;
-	double_size /= profile->kvd_hash_double_parts +
-		       profile->kvd_hash_single_parts;
-	double_size /= profile->kvd_hash_granularity;
-	double_size *= profile->kvd_hash_granularity;
-	single_size = MLXSW_RES_GET(res, KVD_SIZE) - double_size -
-		      linear_size;
-
-	/* Check results are legal. */
-	if (single_size < MLXSW_RES_GET(res, KVD_SINGLE_MIN_SIZE) ||
-	    double_size < MLXSW_RES_GET(res, KVD_DOUBLE_MIN_SIZE) ||
-	    MLXSW_RES_GET(res, KVD_SIZE) < linear_size)
-		return -EIO;
+	err = mlxsw_core_kvd_sizes_get(mlxsw_pci->core, profile,
+				       &single_size, &double_size,
+				       &linear_size);
+	if (err)
+		return err;
 
 	MLXSW_RES_SET(res, KVD_SINGLE_SIZE, single_size);
 	MLXSW_RES_SET(res, KVD_DOUBLE_SIZE, double_size);
@@ -1185,7 +1165,7 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			mbox, profile->adaptive_routing_group_cap);
 	}
 	if (MLXSW_RES_VALID(res, KVD_SIZE)) {
-		err = mlxsw_pci_profile_get_kvd_sizes(profile, res);
+		err = mlxsw_pci_profile_get_kvd_sizes(mlxsw_pci, profile, res);
 		if (err)
 			return err;
 

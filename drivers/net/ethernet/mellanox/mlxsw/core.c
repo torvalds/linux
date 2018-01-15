@@ -1800,6 +1800,22 @@ void mlxsw_core_flush_owq(void)
 }
 EXPORT_SYMBOL(mlxsw_core_flush_owq);
 
+int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
+			     const struct mlxsw_config_profile *profile,
+			     u64 *p_single_size, u64 *p_double_size,
+			     u64 *p_linear_size)
+{
+	struct mlxsw_driver *driver = mlxsw_core->driver;
+
+	if (!driver->kvd_sizes_get)
+		return -EINVAL;
+
+	return driver->kvd_sizes_get(mlxsw_core, profile,
+				     p_single_size, p_double_size,
+				     p_linear_size);
+}
+EXPORT_SYMBOL(mlxsw_core_kvd_sizes_get);
+
 static int __init mlxsw_core_module_init(void)
 {
 	int err;
