@@ -786,7 +786,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 		if (!is_ctrl_up)
 			dev_err(&dev->pdev->dev, "IOP reset failed\n");
 		else {
-			dev_info(&dev->pdev->dev, "IOP reset succeded\n");
+			dev_info(&dev->pdev->dev, "IOP reset succeeded\n");
 			goto set_startup;
 		}
 	}
@@ -808,7 +808,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 			ret = -ENODEV;
 			goto out;
 		} else
-			dev_info(&dev->pdev->dev, "SOFT reset succeded\n");
+			dev_info(&dev->pdev->dev, "SOFT reset succeeded\n");
 	}
 
 set_startup:
