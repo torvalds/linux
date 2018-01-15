@@ -182,8 +182,21 @@
 #define PHY_STOP_WAIT_TIME(cycle)	(((cycle) & 0xff) << 8)
 
 #define DSI_PHY_STATUS			0xb0
-#define LOCK				BIT(0)
-#define STOP_STATE_CLK_LANE		BIT(2)
+#define PHY_ULPSACTIVENOT3LANE		BIT(12)
+#define PHY_STOPSTATE3LANE		BIT(11)
+#define PHY_ULPSACTIVENOT2LANE		BIT(10)
+#define PHY_STOPSTATE2LANE		BIT(9)
+#define PHY_ULPSACTIVENOT1LANE		BIT(8)
+#define PHY_STOPSTATE1LANE		BIT(7)
+#define PHY_RXULPSESC0LANE		BIT(6)
+#define PHY_ULPSACTIVENOT0LANE		BIT(5)
+#define PHY_STOPSTATE0LANE		BIT(4)
+#define PHY_ULPSACTIVENOTCLK		BIT(3)
+#define PHY_STOPSTATECLKLANE		BIT(2)
+#define PHY_DIRECTION			BIT(1)
+#define PHY_LOCK			BIT(0)
+#define PHY_STOPSTATELANE		(PHY_STOPSTATE0LANE | \
+					 PHY_STOPSTATECLKLANE)
 
 #define DSI_PHY_TST_CTRL0		0xb4
 #define PHY_TESTCLK			BIT(1)
@@ -483,9 +496,62 @@ static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi *dsi, u8 test_code,
 		     PHY_TESTCLK | PHY_UNTESTCLR);
 }
 
+static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
+{
+	unsigned int val, mask;
+	int ret;
+
+	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_ENFORCEPLL |
+		     PHY_ENABLECLK | PHY_UNRSTZ | PHY_UNSHUTDOWNZ);
+	usleep_range(1500, 2000);
+
+	if (dsi->dphy.phy)
+		phy_power_on(dsi->dphy.phy);
+
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
+				       val, val & PHY_LOCK,
+				       1000, PHY_STATUS_TIMEOUT_US);
+	if (ret < 0) {
+		dev_err(dsi->dev, "PHY is not locked\n");
+		return ret;
+	}
+
+	mask = PHY_STOPSTATELANE;
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
+				       val, (val & mask) == mask,
+				       1000, PHY_STATUS_TIMEOUT_US);
+	if (ret < 0) {
+		dev_err(dsi->dev, "lane module is not in stop state\n");
+		return ret;
+	}
+
+	udelay(10);
+
+	return 0;
+}
+
+static void mipi_dphy_power_off(struct dw_mipi_dsi *dsi)
+{
+	if (dsi->dphy.phy)
+		phy_power_off(dsi->dphy.phy);
+
+	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_RSTZ);
+}
+
+static void dw_mipi_dsi_host_power_on(struct dw_mipi_dsi *dsi)
+{
+	regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
+}
+
+static void dw_mipi_dsi_host_power_off(struct dw_mipi_dsi *dsi)
+{
+	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+}
+
 static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 {
-	int ret, testdin, vco, val;
+	int testdin, vco, val;
 
 	vco = (dsi->lane_mbps < 200) ? 0 : (dsi->lane_mbps + 100) / 200;
 
@@ -495,16 +561,6 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 			"failed to get testdin for %dmbps lane clock\n",
 			dsi->lane_mbps);
 		return testdin;
-	}
-
-	regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
-
-	if (!IS_ERR(dsi->dphy.cfg_clk)) {
-		ret = clk_prepare_enable(dsi->dphy.cfg_clk);
-		if (ret) {
-			dev_err(dsi->dev, "Failed to enable phy_cfg_clk\n");
-			return ret;
-		}
 	}
 
 	dw_mipi_dsi_phy_write(dsi, 0x10, BYPASS_VCO_RANGE |
@@ -544,29 +600,7 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 	dw_mipi_dsi_phy_write(dsi, 0x71, THS_PRE_PROGRAM_EN | 0x2d);
 	dw_mipi_dsi_phy_write(dsi, 0x72, THS_ZERO_PROGRAM_EN | 0xa);
 
-	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_ENFORCEPLL |
-		     PHY_ENABLECLK | PHY_UNRSTZ | PHY_UNSHUTDOWNZ);
-
-	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
-				       val, val & LOCK,
-				       1000, PHY_STATUS_TIMEOUT_US);
-	if (ret < 0) {
-		dev_err(dsi->dev, "failed to wait for phy lock state\n");
-		goto phy_init_end;
-	}
-
-	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
-				       val, val & STOP_STATE_CLK_LANE,
-				       1000, PHY_STATUS_TIMEOUT_US);
-	if (ret < 0)
-		dev_err(dsi->dev,
-			"failed to wait for phy clk lane stop state\n");
-
-phy_init_end:
-	if (!IS_ERR(dsi->dphy.cfg_clk))
-		clk_disable_unprepare(dsi->dphy.cfg_clk);
-
-	return ret;
+	return 0;
 }
 
 static unsigned long dw_mipi_dsi_calc_bandwidth(struct dw_mipi_dsi *dsi)
@@ -659,8 +693,6 @@ static void dw_mipi_dsi_set_hs_clk(struct dw_mipi_dsi *dsi)
 	if (ret)
 		dev_err(dsi->dev, "failed to set hs clock rate: %lu\n",
 			rate);
-
-	clk_prepare_enable(dsi->dphy.hs_clk);
 
 	dsi->lane_mbps = rate / USEC_PER_SEC;
 }
@@ -902,6 +934,9 @@ static void mipi_dphy_init(struct dw_mipi_dsi *dsi)
 	grf_field_write(dsi, FORCERXMODE, 0);
 	udelay(1);
 
+	if (!dsi->dphy.phy)
+		dw_mipi_dsi_phy_init(dsi);
+
 	/* Enable Data Lane Module */
 	grf_field_write(dsi, ENABLE_N, map[dsi->lanes - 1]);
 
@@ -1078,20 +1113,15 @@ static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi)
 {
-	/* host */
-	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
-	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
-
-	/* phy */
-	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_RSTZ);
-	if (dsi->dphy.phy) {
-		clk_disable_unprepare(dsi->dphy.hs_clk);
-		phy_power_off(dsi->dphy.phy);
-	}
+	dw_mipi_dsi_host_power_off(dsi);
+	mipi_dphy_power_off(dsi);
 
 	pm_runtime_put(dsi->dev);
 	clk_disable_unprepare(dsi->pclk);
 	clk_disable_unprepare(dsi->h2p_clk);
+	clk_disable_unprepare(dsi->dphy.hs_clk);
+	clk_disable_unprepare(dsi->dphy.ref_clk);
+	clk_disable_unprepare(dsi->dphy.cfg_clk);
 
 	if (dsi->slave)
 		dw_mipi_dsi_post_disable(dsi->slave);
@@ -1121,19 +1151,10 @@ static bool dw_mipi_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 
 static void dw_mipi_dsi_pre_init(struct dw_mipi_dsi *dsi)
 {
-	if (clk_prepare_enable(dsi->dphy.ref_clk)) {
-		dev_err(dsi->dev, "Failed to enable pllref_clk\n");
-		return;
-	}
-
-	if (dsi->dphy.phy) {
+	if (dsi->dphy.phy)
 		dw_mipi_dsi_set_hs_clk(dsi);
-		phy_power_on(dsi->dphy.phy);
-	} else {
+	else
 		dw_mipi_dsi_get_lane_bps(dsi);
-	}
-
-	pm_runtime_get_sync(dsi->dev);
 
 	dev_info(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
 		 dsi->lane_mbps, dsi->lanes);
@@ -1157,8 +1178,14 @@ static void dw_mipi_dsi_host_init(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 {
+	dw_mipi_dsi_pre_init(dsi);
+
+	clk_prepare_enable(dsi->dphy.cfg_clk);
+	clk_prepare_enable(dsi->dphy.ref_clk);
+	clk_prepare_enable(dsi->dphy.hs_clk);
 	clk_prepare_enable(dsi->h2p_clk);
 	clk_prepare_enable(dsi->pclk);
+	pm_runtime_get_sync(dsi->dev);
 
 	/* MIPI DSI APB software reset request. */
 	reset_control_assert(dsi->rst);
@@ -1166,10 +1193,10 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 	reset_control_deassert(dsi->rst);
 	udelay(10);
 
-	dw_mipi_dsi_pre_init(dsi);
-	mipi_dphy_init(dsi);
 	dw_mipi_dsi_host_init(dsi);
-	dw_mipi_dsi_phy_init(dsi);
+	mipi_dphy_init(dsi);
+	mipi_dphy_power_on(dsi);
+	dw_mipi_dsi_host_power_on(dsi);
 
 	if (dsi->slave)
 		dw_mipi_dsi_pre_enable(dsi->slave);
@@ -1178,7 +1205,6 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 {
 	dw_mipi_dsi_set_mode(dsi, DSI_VIDEO_MODE);
-	clk_disable_unprepare(dsi->dphy.ref_clk);
 
 	if (dsi->slave)
 		dw_mipi_dsi_enable(dsi->slave);
