@@ -289,17 +289,16 @@ static struct tipc_subscription *tipc_subscrp_create(struct net *net,
 	return sub;
 }
 
-static void tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
-				   struct tipc_subscriber *subscriber, int swap,
-				   bool status)
+static int tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
+				  struct tipc_subscriber *subscriber, int swap,
+				  bool status)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_subscription *sub = NULL;
 	u32 timeout;
 
 	sub = tipc_subscrp_create(net, s, swap);
 	if (!sub)
-		return tipc_conn_terminate(tn->topsrv, subscriber->conid);
+		return -1;
 
 	spin_lock_bh(&subscriber->lock);
 	list_add(&sub->subscrp_list, &subscriber->subscrp_list);
@@ -313,6 +312,7 @@ static void tipc_subscrp_subscribe(struct net *net, struct tipc_subscr *s,
 
 	if (timeout != TIPC_WAIT_FOREVER)
 		mod_timer(&sub->timer, jiffies + msecs_to_jiffies(timeout));
+	return 0;
 }
 
 /* Handle one termination request for the subscriber */
@@ -322,9 +322,9 @@ static void tipc_subscrb_release_cb(int conid, void *usr_data)
 }
 
 /* Handle one request to create a new subscription for the subscriber */
-static void tipc_subscrb_rcv_cb(struct net *net, int conid,
-				struct sockaddr_tipc *addr, void *usr_data,
-				void *buf, size_t len)
+static int tipc_subscrb_rcv_cb(struct net *net, int conid,
+			       struct sockaddr_tipc *addr, void *usr_data,
+			       void *buf, size_t len)
 {
 	struct tipc_subscriber *subscriber = usr_data;
 	struct tipc_subscr *s = (struct tipc_subscr *)buf;
@@ -338,10 +338,11 @@ static void tipc_subscrb_rcv_cb(struct net *net, int conid,
 	/* Detect & process a subscription cancellation request */
 	if (s->filter & htohl(TIPC_SUB_CANCEL, swap)) {
 		s->filter &= ~htohl(TIPC_SUB_CANCEL, swap);
-		return tipc_subscrp_cancel(s, subscriber);
+		tipc_subscrp_cancel(s, subscriber);
+		return 0;
 	}
 	status = !(s->filter & htohl(TIPC_SUB_NO_STATUS, swap));
-	tipc_subscrp_subscribe(net, s, subscriber, swap, status);
+	return tipc_subscrp_subscribe(net, s, subscriber, swap, status);
 }
 
 /* Handle one request to establish a new subscriber */

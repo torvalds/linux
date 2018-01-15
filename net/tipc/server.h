@@ -74,9 +74,9 @@ struct tipc_server {
 	int max_rcvbuf_size;
 	void *(*tipc_conn_new)(int conid);
 	void (*tipc_conn_release)(int conid, void *usr_data);
-	void (*tipc_conn_recvmsg)(struct net *net, int conid,
-				  struct sockaddr_tipc *addr, void *usr_data,
-				  void *buf, size_t len);
+	int (*tipc_conn_recvmsg)(struct net *net, int conid,
+				 struct sockaddr_tipc *addr, void *usr_data,
+				 void *buf, size_t len);
 	struct sockaddr_tipc *saddr;
 	char name[TIPC_SERVER_NAME_LEN];
 	int imp;
