@@ -1023,7 +1023,7 @@ static bool __init sdei_present_dt(void)
 
 	pdev = of_platform_device_create(np, sdei_driver.driver.name, NULL);
 	of_node_put(np);
-	if (IS_ERR(pdev))
+	if (!pdev)
 		return false;
 
 	return true;
