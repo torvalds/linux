@@ -4,6 +4,7 @@ Required properties:
 - compatible: Should be one of the following.
 - "rockchip,pm-rk322x" - for RK322x SOCs.
 - "rockchip,pm-rk3288" - for RK3288 SOCs.
+- "rockchip,pm-rk3328" - for RK3328 SOCs.
 - "rockchip,pm-rk3368" - for RK3368 SoCs.
 - "rockchip,pm-rk3399" - for RK3399 SoCs.
 
@@ -48,6 +49,12 @@ Example:
 			| PWM2_REGULATOR_EN
 			)
 		>;
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3328";
+		status = "disabled";
+		rockchip,virtual-poweroff = <0>;
 	};
 
 	rockchip_suspend: rockchip-suspend {
