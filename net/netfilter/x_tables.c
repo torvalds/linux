@@ -1362,7 +1362,6 @@ static int xt_table_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations xt_table_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = xt_table_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -1498,7 +1497,6 @@ static int xt_match_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations xt_match_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = xt_match_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -1551,7 +1549,6 @@ static int xt_target_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations xt_target_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = xt_target_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,

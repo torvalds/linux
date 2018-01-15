@@ -382,7 +382,6 @@ static int ct_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ct_file_ops = {
-	.owner   = THIS_MODULE,
 	.open    = ct_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -475,7 +474,6 @@ static int ct_cpu_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations ct_cpu_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = ct_cpu_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
