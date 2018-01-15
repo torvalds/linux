@@ -12,6 +12,7 @@
 #include "../aq_hw.h"
 #include "../aq_hw_utils.h"
 #include "../aq_ring.h"
+#include "../aq_nic.h"
 #include "hw_atl_b0.h"
 #include "hw_atl_utils.h"
 #include "hw_atl_llh.h"

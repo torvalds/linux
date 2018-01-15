@@ -14,7 +14,6 @@
 #include "aq_vec.h"
 #include "aq_hw.h"
 #include "aq_pci_func.h"
-#include "aq_nic_internal.h"
 #include "aq_main.h"
 
 #include <linux/moduleparam.h>
@@ -355,11 +354,6 @@ void aq_nic_set_tx_ring(struct aq_nic_s *self, unsigned int idx,
 			struct aq_ring_s *ring)
 {
 	self->aq_ring_tx[idx] = ring;
-}
-
-struct device *aq_nic_get_dev(struct aq_nic_s *self)
-{
-	return self->ndev->dev.parent;
 }
 
 struct net_device *aq_nic_get_ndev(struct aq_nic_s *self)

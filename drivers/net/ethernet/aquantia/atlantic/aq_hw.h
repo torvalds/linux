@@ -15,6 +15,7 @@
 #define AQ_HW_H
 
 #include "aq_common.h"
+#include "aq_rss.h"
 #include "hw_atl/hw_atl_utils.h"
 
 /* NIC H/W capabilities */
@@ -86,6 +87,13 @@ struct aq_stats_s {
 #define AQ_HW_FLAG_ERR_HW      0x80000000U
 
 #define AQ_HW_FLAG_ERRORS      (AQ_HW_FLAG_ERR_HW | AQ_HW_FLAG_ERR_UNPLUG)
+
+#define AQ_NIC_FLAGS_IS_NOT_READY (AQ_NIC_FLAG_STOPPING | \
+			AQ_NIC_FLAG_RESETTING | AQ_NIC_FLAG_CLOSING | \
+			AQ_NIC_FLAG_ERR_UNPLUG | AQ_NIC_FLAG_ERR_HW)
+
+#define AQ_NIC_FLAGS_IS_NOT_TX_READY (AQ_NIC_FLAGS_IS_NOT_READY | \
+					AQ_NIC_LINK_DOWN)
 
 struct aq_hw_s {
 	atomic_t flags;

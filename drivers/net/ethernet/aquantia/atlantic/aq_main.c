@@ -11,7 +11,6 @@
 
 #include "aq_main.h"
 #include "aq_nic.h"
-#include "aq_nic_internal.h"
 #include "aq_pci_func.h"
 #include "aq_ethtool.h"
 

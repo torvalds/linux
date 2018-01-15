@@ -19,6 +19,8 @@
 struct aq_ring_s;
 struct aq_pci_func_s;
 struct aq_hw_ops;
+struct aq_fw_s;
+struct aq_vec_s;
 
 #define AQ_NIC_FC_OFF    0U
 #define AQ_NIC_FC_TX     1U
@@ -45,7 +47,6 @@ struct aq_nic_cfg_s {
 	u16 tx_itr;
 	u32 num_rss_queues;
 	u32 mtu;
-	u32 ucp_0x364;
 	u32 flow_control;
 	u32 link_speed_msk;
 	u32 vlan_id;
@@ -69,6 +70,37 @@ struct aq_nic_cfg_s {
 
 #define AQ_NIC_TCVEC2RING(_NIC_, _TC_, _VEC_) \
 	((_TC_) * AQ_CFG_TCS_MAX + (_VEC_))
+
+struct aq_nic_s {
+	atomic_t flags;
+	struct aq_vec_s *aq_vec[AQ_CFG_VECS_MAX];
+	struct aq_ring_s *aq_ring_tx[AQ_CFG_VECS_MAX * AQ_CFG_TCS_MAX];
+	struct aq_hw_s *aq_hw;
+	struct net_device *ndev;
+	struct aq_pci_func_s *aq_pci_func;
+	unsigned int aq_vecs;
+	unsigned int packet_filter;
+	unsigned int power_state;
+	u8 port;
+	struct aq_hw_ops aq_hw_ops;
+	struct aq_hw_caps_s aq_hw_caps;
+	struct aq_nic_cfg_s aq_nic_cfg;
+	struct timer_list service_timer;
+	struct timer_list polling_timer;
+	struct aq_hw_link_status_s link_status;
+	struct {
+		u32 count;
+		u8 ar[AQ_CFG_MULTICAST_ADDRESS_MAX][ETH_ALEN];
+	} mc_list;
+
+	struct pci_dev *pdev;
+	unsigned int msix_entry_mask;
+};
+
+static inline struct device *aq_nic_get_dev(struct aq_nic_s *self)
+{
+	return self->ndev->dev.parent;
+}
 
 struct aq_nic_s *aq_nic_alloc_cold(struct pci_dev *pdev,
 				   struct aq_pci_func_s *aq_pci_func,

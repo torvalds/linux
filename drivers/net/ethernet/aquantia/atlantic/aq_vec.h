@@ -19,6 +19,8 @@
 
 struct aq_hw_s;
 struct aq_hw_ops;
+struct aq_nic_s;
+struct aq_nic_cfg_s;
 struct aq_ring_stats_rx_s;
 struct aq_ring_stats_tx_s;
 

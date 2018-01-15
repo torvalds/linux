@@ -15,6 +15,7 @@
 #include "aq_common.h"
 
 struct page;
+struct aq_nic_cfg_s;
 
 /*           TxC       SOP        DX         EOP
  *         +----------+----------+----------+-----------
