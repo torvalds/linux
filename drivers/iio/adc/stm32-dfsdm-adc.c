@@ -1099,10 +1099,6 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	}
 
 	adc = iio_priv(iio);
-	if (IS_ERR(adc)) {
-		dev_err(dev, "%s: Failed to allocate ADC\n", __func__);
-		return PTR_ERR(adc);
-	}
 	adc->dfsdm = dev_get_drvdata(dev->parent);
 
 	iio->dev.parent = dev;
