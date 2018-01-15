@@ -109,6 +109,13 @@
 	.endm
 
 /*
+ * RAS Error Synchronization barrier
+ */
+	.macro  esb
+	hint    #16
+	.endm
+
+/*
  * NOP sequence
  */
 	.macro	nops, num
