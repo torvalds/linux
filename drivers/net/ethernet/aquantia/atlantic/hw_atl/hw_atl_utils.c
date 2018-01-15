@@ -35,15 +35,15 @@ static int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 {
 	int err = 0;
 
-	AQ_HW_WAIT_FOR(reg_glb_cpu_sem_get(self,
-					   HW_ATL_FW_SM_RAM) == 1U,
-					   1U, 10000U);
+	AQ_HW_WAIT_FOR(hw_atl_reg_glb_cpu_sem_get(self,
+						  HW_ATL_FW_SM_RAM) == 1U,
+						  1U, 10000U);
 
 	if (err < 0) {
 		bool is_locked;
 
-		reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
-		is_locked = reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
+		hw_atl_reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
+		is_locked = hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
 		if (!is_locked) {
 			err = -ETIME;
 			goto err_exit;
@@ -64,7 +64,7 @@ static int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 		*(p++) = aq_hw_read_reg(self, 0x0000020CU);
 	}
 
-	reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
+	hw_atl_reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
 
 err_exit:
 	return err;
@@ -76,7 +76,7 @@ static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 	int err = 0;
 	bool is_locked;
 
-	is_locked = reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
+	is_locked = hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
 	if (!is_locked) {
 		err = -ETIME;
 		goto err_exit;
@@ -95,7 +95,7 @@ static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 		}
 	}
 
-	reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
+	hw_atl_reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
 
 err_exit:
 	return err;
@@ -131,7 +131,7 @@ static int hw_atl_utils_init_ucp(struct aq_hw_s *self,
 		aq_hw_write_reg(self, HW_ATL_UCP_0X370_REG, ucp_0x370);
 	}
 
-	reg_glb_cpu_scratch_scp_set(self, 0x00000000U, 25U);
+	hw_atl_reg_glb_cpu_scratch_scp_set(self, 0x00000000U, 25U);
 
 	/* check 10 times by 1ms */
 	AQ_HW_WAIT_FOR(0U != (self->mbox_addr =
@@ -280,7 +280,7 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 		pmbox->stats.ubtc = pmbox->stats.uptc * mtu;
 		pmbox->stats.dpc = atomic_read(&self->dpc);
 	} else {
-		pmbox->stats.dpc = reg_rx_dma_stat_counter7get(self);
+		pmbox->stats.dpc = hw_atl_reg_rx_dma_stat_counter7get(self);
 	}
 
 err_exit:;
@@ -461,7 +461,7 @@ unsigned int hw_atl_utils_mbps_2_speed_index(unsigned int mbps)
 void hw_atl_utils_hw_chip_features_init(struct aq_hw_s *self, u32 *p)
 {
 	u32 chip_features = 0U;
-	u32 val = reg_glb_mif_id_get(self);
+	u32 val = hw_atl_reg_glb_mif_id_get(self);
 	u32 mif_rev = val & 0xFFU;
 
 	if ((3U & mif_rev) == 1U) {
@@ -523,10 +523,10 @@ int hw_atl_utils_update_stats(struct aq_hw_s *self)
 		AQ_SDELTA(dpc);
 	}
 #undef AQ_SDELTA
-	self->curr_stats.dma_pkt_rc = stats_rx_dma_good_pkt_counterlsw_get(self);
-	self->curr_stats.dma_pkt_tc = stats_tx_dma_good_pkt_counterlsw_get(self);
-	self->curr_stats.dma_oct_rc = stats_rx_dma_good_octet_counterlsw_get(self);
-	self->curr_stats.dma_oct_tc = stats_tx_dma_good_octet_counterlsw_get(self);
+	self->curr_stats.dma_pkt_rc = hw_atl_stats_rx_dma_good_pkt_counterlsw_get(self);
+	self->curr_stats.dma_pkt_tc = hw_atl_stats_tx_dma_good_pkt_counterlsw_get(self);
+	self->curr_stats.dma_oct_rc = hw_atl_stats_rx_dma_good_octet_counterlsw_get(self);
+	self->curr_stats.dma_oct_tc = hw_atl_stats_tx_dma_good_octet_counterlsw_get(self);
 
 	memcpy(&self->last_stats, &mbox.stats, sizeof(mbox.stats));
 
