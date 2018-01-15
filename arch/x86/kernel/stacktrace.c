@@ -102,7 +102,7 @@ __save_stack_trace_reliable(struct stack_trace *trace,
 	for (unwind_start(&state, task, NULL, NULL); !unwind_done(&state);
 	     unwind_next_frame(&state)) {
 
-		regs = unwind_get_entry_regs(&state);
+		regs = unwind_get_entry_regs(&state, NULL);
 		if (regs) {
 			/*
 			 * Kernel mode registers on the stack indicate an

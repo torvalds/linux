@@ -43,7 +43,14 @@ struct bpf_map_ops {
 };
 
 struct bpf_map {
-	atomic_t refcnt;
+	/* 1st cacheline with read-mostly members of which some
+	 * are also accessed in fast-path (e.g. ops, max_entries).
+	 */
+	const struct bpf_map_ops *ops ____cacheline_aligned;
+	struct bpf_map *inner_map_meta;
+#ifdef CONFIG_SECURITY
+	void *security;
+#endif
 	enum bpf_map_type map_type;
 	u32 key_size;
 	u32 value_size;
@@ -52,15 +59,17 @@ struct bpf_map {
 	u32 pages;
 	u32 id;
 	int numa_node;
-	struct user_struct *user;
-	const struct bpf_map_ops *ops;
-	struct work_struct work;
+	bool unpriv_array;
+	/* 7 bytes hole */
+
+	/* 2nd cacheline with misc members to avoid false sharing
+	 * particularly with refcounting.
+	 */
+	struct user_struct *user ____cacheline_aligned;
+	atomic_t refcnt;
 	atomic_t usercnt;
-	struct bpf_map *inner_map_meta;
+	struct work_struct work;
 	char name[BPF_OBJ_NAME_LEN];
-#ifdef CONFIG_SECURITY
-	void *security;
-#endif
 };
 
 /* function argument constraints */
@@ -221,6 +230,7 @@ struct bpf_prog_aux {
 struct bpf_array {
 	struct bpf_map map;
 	u32 elem_size;
+	u32 index_mask;
 	/* 'ownership' of prog_array is claimed by the first program that
 	 * is going to use this map or by the first program which FD is stored
 	 * in the map to make sure that all callers and callees have the same
@@ -419,6 +429,8 @@ static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
 		attr->numa_node : NUMA_NO_NODE;
 }
 
+struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type);
+
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
 {
@@ -506,6 +518,12 @@ static inline int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu,
 {
 	return 0;
 }
+
+static inline struct bpf_prog *bpf_prog_get_type_path(const char *name,
+				enum bpf_prog_type type)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
 #endif /* CONFIG_BPF_SYSCALL */
 
 static inline struct bpf_prog *bpf_prog_get_type(u32 ufd,
@@ -513,6 +531,8 @@ static inline struct bpf_prog *bpf_prog_get_type(u32 ufd,
 {
 	return bpf_prog_get_type_dev(ufd, type, false);
 }
+
+bool bpf_prog_get_ok(struct bpf_prog *, enum bpf_prog_type *, bool);
 
 int bpf_prog_offload_compile(struct bpf_prog *prog);
 void bpf_prog_offload_destroy(struct bpf_prog *prog);

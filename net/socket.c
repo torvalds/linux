@@ -436,8 +436,10 @@ static int sock_map_fd(struct socket *sock, int flags)
 {
 	struct file *newfile;
 	int fd = get_unused_fd_flags(flags);
-	if (unlikely(fd < 0))
+	if (unlikely(fd < 0)) {
+		sock_release(sock);
 		return fd;
+	}
 
 	newfile = sock_alloc_file(sock, flags, NULL);
 	if (likely(!IS_ERR(newfile))) {
@@ -2618,6 +2620,15 @@ out_fs:
 }
 
 core_initcall(sock_init);	/* early initcall */
+
+static int __init jit_init(void)
+{
+#ifdef CONFIG_BPF_JIT_ALWAYS_ON
+	bpf_jit_enable = 1;
+#endif
+	return 0;
+}
+pure_initcall(jit_init);
 
 #ifdef CONFIG_PROC_FS
 void socket_seq_show(struct seq_file *seq)

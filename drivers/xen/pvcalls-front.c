@@ -805,7 +805,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 		pvcalls_exit();
 		return ret;
 	}
-	map2 = kzalloc(sizeof(*map2), GFP_KERNEL);
+	map2 = kzalloc(sizeof(*map2), GFP_ATOMIC);
 	if (map2 == NULL) {
 		clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
 			  (void *)&map->passive.flags);

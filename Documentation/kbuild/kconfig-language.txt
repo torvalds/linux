@@ -200,10 +200,14 @@ module state. Dependency expressions have the following syntax:
 <expr> ::= <symbol>                             (1)
            <symbol> '=' <symbol>                (2)
            <symbol> '!=' <symbol>               (3)
-           '(' <expr> ')'                       (4)
-           '!' <expr>                           (5)
-           <expr> '&&' <expr>                   (6)
-           <expr> '||' <expr>                   (7)
+           <symbol1> '<' <symbol2>              (4)
+           <symbol1> '>' <symbol2>              (4)
+           <symbol1> '<=' <symbol2>             (4)
+           <symbol1> '>=' <symbol2>             (4)
+           '(' <expr> ')'                       (5)
+           '!' <expr>                           (6)
+           <expr> '&&' <expr>                   (7)
+           <expr> '||' <expr>                   (8)
 
 Expressions are listed in decreasing order of precedence. 
 
@@ -214,10 +218,13 @@ Expressions are listed in decreasing order of precedence.
     otherwise 'n'.
 (3) If the values of both symbols are equal, it returns 'n',
     otherwise 'y'.
-(4) Returns the value of the expression. Used to override precedence.
-(5) Returns the result of (2-/expr/).
-(6) Returns the result of min(/expr/, /expr/).
-(7) Returns the result of max(/expr/, /expr/).
+(4) If value of <symbol1> is respectively lower, greater, lower-or-equal,
+    or greater-or-equal than value of <symbol2>, it returns 'y',
+    otherwise 'n'.
+(5) Returns the value of the expression. Used to override precedence.
+(6) Returns the result of (2-/expr/).
+(7) Returns the result of min(/expr/, /expr/).
+(8) Returns the result of max(/expr/, /expr/).
 
 An expression can have a value of 'n', 'm' or 'y' (or 0, 1, 2
 respectively for calculations). A menu entry becomes visible when its

@@ -45,6 +45,7 @@
 #include <asm/debugreg.h>
 #include <asm/kvm_para.h>
 #include <asm/irq_remapping.h>
+#include <asm/nospec-branch.h>
 
 #include <asm/virtext.h>
 #include "trace.h"
@@ -361,7 +362,6 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *c, *h;
 	struct nested_state *g;
-	u32 h_intercept_exceptions;
 
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
@@ -372,14 +372,9 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 	h = &svm->nested.hsave->control;
 	g = &svm->nested;
 
-	/* No need to intercept #UD if L1 doesn't intercept it */
-	h_intercept_exceptions =
-		h->intercept_exceptions & ~(1U << UD_VECTOR);
-
 	c->intercept_cr = h->intercept_cr | g->intercept_cr;
 	c->intercept_dr = h->intercept_dr | g->intercept_dr;
-	c->intercept_exceptions =
-		h_intercept_exceptions | g->intercept_exceptions;
+	c->intercept_exceptions = h->intercept_exceptions | g->intercept_exceptions;
 	c->intercept = h->intercept | g->intercept;
 }
 
@@ -2202,7 +2197,6 @@ static int ud_interception(struct vcpu_svm *svm)
 {
 	int er;
 
-	WARN_ON_ONCE(is_guest_mode(&svm->vcpu));
 	er = emulate_instruction(&svm->vcpu, EMULTYPE_TRAP_UD);
 	if (er == EMULATE_USER_EXIT)
 		return 0;
@@ -4986,6 +4980,25 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %%r14, %c[r14](%[svm]) \n\t"
 		"mov %%r15, %c[r15](%[svm]) \n\t"
 #endif
+		/*
+		* Clear host registers marked as clobbered to prevent
+		* speculative use.
+		*/
+		"xor %%" _ASM_BX ", %%" _ASM_BX " \n\t"
+		"xor %%" _ASM_CX ", %%" _ASM_CX " \n\t"
+		"xor %%" _ASM_DX ", %%" _ASM_DX " \n\t"
+		"xor %%" _ASM_SI ", %%" _ASM_SI " \n\t"
+		"xor %%" _ASM_DI ", %%" _ASM_DI " \n\t"
+#ifdef CONFIG_X86_64
+		"xor %%r8, %%r8 \n\t"
+		"xor %%r9, %%r9 \n\t"
+		"xor %%r10, %%r10 \n\t"
+		"xor %%r11, %%r11 \n\t"
+		"xor %%r12, %%r12 \n\t"
+		"xor %%r13, %%r13 \n\t"
+		"xor %%r14, %%r14 \n\t"
+		"xor %%r15, %%r15 \n\t"
+#endif
 		"pop %%" _ASM_BP
 		:
 		: [svm]"a"(svm),
@@ -5014,6 +5027,9 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		, "ebx", "ecx", "edx", "esi", "edi"
 #endif
 		);
+
+	/* Eliminate branch target predictions from guest mode */
+	vmexit_fill_RSB();
 
 #ifdef CONFIG_X86_64
 	wrmsrl(MSR_GS_BASE, svm->host.gs_base);

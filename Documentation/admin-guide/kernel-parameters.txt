@@ -713,9 +713,6 @@
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
 
-	crossrelease_fullstack
-			[KNL] Allow to record full stack trace in cross-release
-
 	cryptomgr.notests
                         [KNL] Disable crypto self-tests
 
@@ -2626,6 +2623,11 @@
 	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
+	nospectre_v2	[X86] Disable all mitigations for the Spectre variant 2
+			(indirect branch prediction) vulnerability. System may
+			allow data leaks with this option, which is equivalent
+			to spectre_v2=off.
+
 	noxsave		[BUGS=X86] Disables x86 extended register state save
 			and restore using xsave. The kernel will fallback to
 			enabling legacy floating-point and sse state.
@@ -2711,8 +2713,6 @@
 	no-steal-acc    [X86,KVM] Disable paravirtualized steal time accounting.
 			steal time is computed, but won't influence scheduler
 			behaviour
-
-	nopti		[X86-64] Disable kernel page table isolation
 
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
@@ -3100,6 +3100,12 @@
 		pcie_scan_all	Scan all possible PCIe devices.  Otherwise we
 				only look for one device below a PCIe downstream
 				port.
+		big_root_window	Try to add a big 64bit memory window to the PCIe
+				root complex on AMD CPUs. Some GFX hardware
+				can resize a BAR to allow access to all VRAM.
+				Adding the window is slightly risky (it may
+				conflict with unreported devices), so this
+				taints the kernel.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
@@ -3288,11 +3294,20 @@
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
-	pti=		[X86_64]
-			Control user/kernel address space isolation:
-			on - enable
-			off - disable
-			auto - default setting
+	pti=		[X86_64] Control Page Table Isolation of user and
+			kernel address spaces.  Disabling this feature
+			removes hardening, but improves performance of
+			system calls and interrupts.
+
+			on   - unconditionally enable
+			off  - unconditionally disable
+			auto - kernel detects whether your CPU model is
+			       vulnerable to issues that PTI mitigates
+
+			Not specifying this option is equivalent to pti=auto.
+
+	nopti		[X86_64]
+			Equivalent to pti=off
 
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in
@@ -3942,6 +3957,29 @@
 
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/laptops/sonypi.txt
+
+	spectre_v2=	[X86] Control mitigation of Spectre variant 2
+			(indirect branch speculation) vulnerability.
+
+			on   - unconditionally enable
+			off  - unconditionally disable
+			auto - kernel detects whether your CPU model is
+			       vulnerable
+
+			Selecting 'on' will, and 'auto' may, choose a
+			mitigation method at run time according to the
+			CPU, the available microcode, the setting of the
+			CONFIG_RETPOLINE configuration option, and the
+			compiler with which the kernel was built.
+
+			Specific mitigations can also be selected manually:
+
+			retpoline	  - replace indirect branches
+			retpoline,generic - google's original retpoline
+			retpoline,amd     - AMD-specific minimal thunk
+
+			Not specifying this option is equivalent to
+			spectre_v2=auto.
 
 	spia_io_base=	[HW,MTD]
 	spia_fio_base=

@@ -395,6 +395,7 @@ static void ems_usb_rx_err(struct ems_usb *dev, struct ems_cpc_msg *msg)
 
 		if (dev->can.state == CAN_STATE_ERROR_WARNING ||
 		    dev->can.state == CAN_STATE_ERROR_PASSIVE) {
+			cf->can_id |= CAN_ERR_CRTL;
 			cf->data[1] = (txerr > rxerr) ?
 			    CAN_ERR_CRTL_TX_PASSIVE : CAN_ERR_CRTL_RX_PASSIVE;
 		}

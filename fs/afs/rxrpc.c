@@ -885,7 +885,7 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 {
 	struct afs_net *net = call->net;
 	enum afs_call_state state;
-	u32 remote_abort;
+	u32 remote_abort = 0;
 	int ret;
 
 	_enter("{%s,%zu},,%zu,%d",
