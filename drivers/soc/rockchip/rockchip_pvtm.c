@@ -217,6 +217,7 @@ u32 rockchip_get_pvtm_value(unsigned int ch, unsigned int sub_ch,
 
 	return pvtm->get_value(pvtm, sub_ch, time_us);
 }
+EXPORT_SYMBOL(rockchip_get_pvtm_value);
 
 static void rockchip_pvtm_delay(unsigned int delay)
 {
