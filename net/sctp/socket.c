@@ -1880,8 +1880,14 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 		 */
 		if (sinit) {
 			if (sinit->sinit_num_ostreams) {
-				asoc->c.sinit_num_ostreams =
-					sinit->sinit_num_ostreams;
+				__u16 outcnt = sinit->sinit_num_ostreams;
+
+				asoc->c.sinit_num_ostreams = outcnt;
+				/* outcnt has been changed, so re-init stream */
+				err = sctp_stream_init(&asoc->stream, outcnt, 0,
+						       GFP_KERNEL);
+				if (err)
+					goto out_free;
 			}
 			if (sinit->sinit_max_instreams) {
 				asoc->c.sinit_max_instreams =
