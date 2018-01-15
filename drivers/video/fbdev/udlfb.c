@@ -1919,7 +1919,6 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dev)
 	int ret;
 	struct list_head *entry;
 	struct urb_node *unode;
-	struct urb *urb = NULL;
 	unsigned long flags;
 
 	/* Wait for an in-flight buffer to complete and get re-queued */
@@ -1928,7 +1927,7 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dev)
 		atomic_set(&dev->lost_pixels, 1);
 		pr_warn("wait for urb interrupted: %x available: %d\n",
 		       ret, dev->urbs.available);
-		goto error;
+		return NULL;
 	}
 
 	spin_lock_irqsave(&dev->urbs.lock, flags);
@@ -1941,10 +1940,7 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dev)
 	spin_unlock_irqrestore(&dev->urbs.lock, flags);
 
 	unode = list_entry(entry, struct urb_node, entry);
-	urb = unode->urb;
-
-error:
-	return urb;
+	return unode->urb;
 }
 
 static int dlfb_submit_urb(struct dlfb_data *dev, struct urb *urb, size_t len)
