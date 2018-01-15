@@ -72,8 +72,7 @@ extern u64 idmap_ptrs_per_pgd;
 
 static inline bool __cpu_uses_extended_idmap(void)
 {
-	return (!IS_ENABLED(CONFIG_ARM64_VA_BITS_48) &&
-		unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS)));
+	return unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS));
 }
 
 /*
@@ -82,7 +81,7 @@ static inline bool __cpu_uses_extended_idmap(void)
  */
 static inline bool __cpu_uses_extended_idmap_level(void)
 {
-	return ARM64_HW_PGTABLE_LEVELS((64 - idmap_t0sz)) > CONFIG_PGTABLE_LEVELS;
+	return ARM64_HW_PGTABLE_LEVELS(64 - idmap_t0sz) > CONFIG_PGTABLE_LEVELS;
 }
 
 /*
