@@ -1114,30 +1114,6 @@ static void cls_send_immediate_char(struct channel_t *ch, unsigned char c)
 	writeb(c, &ch->ch_cls_uart->txrx);
 }
 
-static void cls_vpd(struct dgnc_board *brd)
-{
-	ulong           vpdbase;        /* Start of io base of the card */
-	u8 __iomem           *re_map_vpdbase;/* Remapped memory of the card */
-	int i = 0;
-
-	vpdbase = pci_resource_start(brd->pdev, 3);
-	if (!vpdbase)
-		return;
-
-	re_map_vpdbase = ioremap(vpdbase, 0x400);
-
-	if (!re_map_vpdbase)
-		return;
-
-	for (i = 0; i < 0x40; i++) {
-		brd->vpd[i] = readb(re_map_vpdbase + i);
-		pr_info("%x ", brd->vpd[i]);
-	}
-	pr_info("\n");
-
-	iounmap(re_map_vpdbase);
-}
-
 struct board_ops dgnc_cls_ops = {
 	.tasklet =			cls_tasklet,
 	.intr =				cls_intr,
@@ -1145,7 +1121,6 @@ struct board_ops dgnc_cls_ops = {
 	.uart_off =			cls_uart_off,
 	.drain =			cls_drain,
 	.param =			cls_param,
-	.vpd =				cls_vpd,
 	.assert_modem_signals =		cls_assert_modem_signals,
 	.flush_uart_write =		cls_flush_uart_write,
 	.flush_uart_read =		cls_flush_uart_read,

@@ -73,7 +73,6 @@ struct board_ops {
 	void (*uart_off)(struct channel_t *ch);
 	int  (*drain)(struct tty_struct *tty, uint seconds);
 	void (*param)(struct tty_struct *tty);
-	void (*vpd)(struct dgnc_board *brd);
 	void (*assert_modem_signals)(struct channel_t *ch);
 	void (*flush_uart_write)(struct channel_t *ch);
 	void (*flush_uart_read)(struct channel_t *ch);
@@ -95,7 +94,6 @@ struct board_ops {
  * @pdev: Pointer to the pci_dev structure.
  * @device: PCI device ID.
  * @maxports: Maximum ports this board can handle.
- * @vpd: VPD of this board, if found.
  * @bd_lock: Used to protect board.
  * @bd_intr_lock: Protect poller tasklet and interrupt routine from each other.
  * @state: State of the card.
@@ -122,7 +120,6 @@ struct dgnc_board {
 	struct pci_dev	*pdev;
 	u16		device;
 	uint		maxports;
-	unsigned char	vpd[128];
 
 	/* used to protect the board */
 	spinlock_t	bd_lock;

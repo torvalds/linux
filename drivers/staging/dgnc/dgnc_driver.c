@@ -142,9 +142,6 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 		if (rc < 0)
 			goto failed;
 
-		/* Get and store the board VPD, if it exists */
-		brd->bd_ops->vpd(brd);
-
 		/*
 		 * Enable Local Interrupt 1		  (0x1),
 		 * Local Interrupt 1 Polarity Active high (0x2),
