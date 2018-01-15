@@ -115,9 +115,6 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 	case PCI_DEVICE_CLASSIC_8_DID:
 	case PCI_DEVICE_CLASSIC_4_422_DID:
 	case PCI_DEVICE_CLASSIC_8_422_DID:
-
-		brd->dpatype = T_CLASSIC | T_PCIBUS;
-
 		/*
 		 * For PCI ClassicBoards
 		 * PCI Local Address (i.e. "resource" number) space

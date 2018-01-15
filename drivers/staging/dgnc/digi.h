@@ -127,11 +127,6 @@ struct ni_info {
 	unsigned int baud;
 };
 
-#define T_CLASSIC 0002
-#define T_PCIBUS 0400
-#define T_NEO_EXPRESS 0001
-#define T_NEO 0000
-
 #define TTY_FLIPBUF_SIZE 512
 
 #endif	/* _DIGI_H */
