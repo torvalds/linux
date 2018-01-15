@@ -94,6 +94,9 @@ static void __hyp_text __activate_traps(struct kvm_vcpu *vcpu)
 
 	write_sysreg(val, hcr_el2);
 
+	if (cpus_have_const_cap(ARM64_HAS_RAS_EXTN) && (val & HCR_VSE))
+		write_sysreg_s(vcpu->arch.vsesr_el2, SYS_VSESR_EL2);
+
 	/* Trap on AArch32 cp15 c15 accesses (EL1 or EL0) */
 	write_sysreg(1 << 15, hstr_el2);
 	/*
