@@ -838,9 +838,8 @@ config TOSHIBA_WMI
 
 config ACPI_CMPC
 	tristate "CMPC Laptop Extras"
-	depends on ACPI
+	depends on ACPI && INPUT
 	depends on RFKILL || RFKILL=n
-	select INPUT
 	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Support for Intel Classmate PC ACPI devices, including some
