@@ -192,10 +192,11 @@ static void charlcd_print(struct charlcd *lcd, char c)
 			c = lcd->char_conv[(unsigned char)c];
 		lcd->ops->write_data(lcd, c);
 		priv->addr.x++;
+
+		/* prevents the cursor from wrapping onto the next line */
+		if (priv->addr.x == lcd->bwidth)
+			charlcd_gotoxy(lcd);
 	}
-	/* prevents the cursor from wrapping onto the next line */
-	if (priv->addr.x == lcd->bwidth)
-		charlcd_gotoxy(lcd);
 }
 
 static void charlcd_clear_fast(struct charlcd *lcd)
