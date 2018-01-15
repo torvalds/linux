@@ -176,6 +176,16 @@
 #define SYS_AFSR0_EL1			sys_reg(3, 0, 5, 1, 0)
 #define SYS_AFSR1_EL1			sys_reg(3, 0, 5, 1, 1)
 #define SYS_ESR_EL1			sys_reg(3, 0, 5, 2, 0)
+
+#define SYS_ERRIDR_EL1			sys_reg(3, 0, 5, 3, 0)
+#define SYS_ERRSELR_EL1			sys_reg(3, 0, 5, 3, 1)
+#define SYS_ERXFR_EL1			sys_reg(3, 0, 5, 4, 0)
+#define SYS_ERXCTLR_EL1			sys_reg(3, 0, 5, 4, 1)
+#define SYS_ERXSTATUS_EL1		sys_reg(3, 0, 5, 4, 2)
+#define SYS_ERXADDR_EL1			sys_reg(3, 0, 5, 4, 3)
+#define SYS_ERXMISC0_EL1		sys_reg(3, 0, 5, 5, 0)
+#define SYS_ERXMISC1_EL1		sys_reg(3, 0, 5, 5, 1)
+
 #define SYS_FAR_EL1			sys_reg(3, 0, 6, 0, 0)
 #define SYS_PAR_EL1			sys_reg(3, 0, 7, 4, 0)
 
