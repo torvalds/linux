@@ -24,7 +24,6 @@
 #include <linux/pci.h>
 #include "dgnc_driver.h"
 #include "dgnc_tty.h"
-#include "dgnc_neo.h"
 #include "dgnc_cls.h"
 
 /* Default transparent print information. */

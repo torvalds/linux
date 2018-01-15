@@ -13,7 +13,6 @@
 #include "dgnc_pci.h"
 #include "dgnc_tty.h"
 #include "dgnc_cls.h"
-#include "dgnc_neo.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Digi International, http://www.digi.com");
