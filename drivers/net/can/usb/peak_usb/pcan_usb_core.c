@@ -158,7 +158,7 @@ void peak_usb_get_ts_time(struct peak_time_ref *time_ref, u32 ts, ktime_t *time)
  * post received skb after having set any hw timestamp
  */
 int peak_usb_netif_rx(struct sk_buff *skb,
-		      struct peak_time_ref *time_ref, u32 ts_low, u32 ts_high)
+		      struct peak_time_ref *time_ref, u32 ts_low)
 {
 	struct skb_shared_hwtstamps *hwts = skb_hwtstamps(skb);
 
