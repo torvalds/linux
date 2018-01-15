@@ -27,6 +27,7 @@ config THUNDER_NIC_PF
 
 config THUNDER_NIC_VF
 	tristate "Thunder Virtual function driver"
+	imply CAVIUM_PTP
 	depends on 64BIT
 	---help---
 	  This driver supports Thunder's NIC virtual function

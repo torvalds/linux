@@ -245,6 +245,35 @@ void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable)
 }
 EXPORT_SYMBOL(bgx_lmac_rx_tx_enable);
 
+/* Enables or disables timestamp insertion by BGX for Rx packets */
+void bgx_config_timestamping(int node, int bgx_idx, int lmacid, bool enable)
+{
+	struct bgx *bgx = get_bgx(node, bgx_idx);
+	struct lmac *lmac;
+	u64 csr_offset, cfg;
+
+	if (!bgx)
+		return;
+
+	lmac = &bgx->lmac[lmacid];
+
+	if (lmac->lmac_type == BGX_MODE_SGMII ||
+	    lmac->lmac_type == BGX_MODE_QSGMII ||
+	    lmac->lmac_type == BGX_MODE_RGMII)
+		csr_offset = BGX_GMP_GMI_RXX_FRM_CTL;
+	else
+		csr_offset = BGX_SMUX_RX_FRM_CTL;
+
+	cfg = bgx_reg_read(bgx, lmacid, csr_offset);
+
+	if (enable)
+		cfg |= BGX_PKT_RX_PTP_EN;
+	else
+		cfg &= ~BGX_PKT_RX_PTP_EN;
+	bgx_reg_write(bgx, lmacid, csr_offset, cfg);
+}
+EXPORT_SYMBOL(bgx_config_timestamping);
+
 void bgx_lmac_get_pfc(int node, int bgx_idx, int lmacid, void *pause)
 {
 	struct pfc *pfc = (struct pfc *)pause;

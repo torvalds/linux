@@ -982,6 +982,9 @@ void nicvf_qset_config(struct nicvf *nic, bool enable)
 		qs_cfg->be = 1;
 #endif
 		qs_cfg->vnic = qs->vnic_id;
+		/* Enable Tx timestamping capability */
+		if (nic->ptp_clock)
+			qs_cfg->send_tstmp_ena = 1;
 	}
 	nicvf_send_msg_to_pf(nic, &mbx);
 }
@@ -1389,6 +1392,29 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		hdr->inner_l3_offset = skb_network_offset(skb) - 2;
 		this_cpu_inc(nic->pnicvf->drv_stats->tx_tso);
 	}
+
+	/* Check if timestamp is requested */
+	if (!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		skb_tx_timestamp(skb);
+		return;
+	}
+
+	/* Tx timestamping not supported along with TSO, so ignore request */
+	if (skb_shinfo(skb)->gso_size)
+		return;
+
+	/* HW supports only a single outstanding packet to timestamp */
+	if (!atomic_add_unless(&nic->pnicvf->tx_ptp_skbs, 1, 1))
+		return;
+
+	/* Mark the SKB for later reference */
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
+	/* Finally enable timestamp generation
+	 * Since 'post_cqe' is also set, two CQEs will be posted
+	 * for this packet i.e CQE_TYPE_SEND and CQE_TYPE_SEND_PTP.
+	 */
+	hdr->tstmp = 1;
 }
 
 /* SQ GATHER subdescriptor
