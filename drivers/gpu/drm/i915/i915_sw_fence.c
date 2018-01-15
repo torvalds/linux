@@ -398,7 +398,12 @@ static void dma_i915_sw_fence_wake(struct dma_fence *dma,
 	if (fence)
 		i915_sw_fence_complete(fence);
 
-	irq_work_queue(&cb->work);
+	if (cb->dma) {
+		irq_work_queue(&cb->work);
+		return;
+	}
+
+	kfree(cb);
 }
 
 static void irq_i915_sw_fence_work(struct irq_work *wrk)
@@ -437,10 +442,12 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 	i915_sw_fence_await(fence);
 
 	cb->dma = NULL;
-	timer_setup(&cb->timer, timer_i915_sw_fence_wake, TIMER_IRQSAFE);
-	init_irq_work(&cb->work, irq_i915_sw_fence_work);
 	if (timeout) {
 		cb->dma = dma_fence_get(dma);
+		init_irq_work(&cb->work, irq_i915_sw_fence_work);
+
+		timer_setup(&cb->timer,
+			    timer_i915_sw_fence_wake, TIMER_IRQSAFE);
 		mod_timer(&cb->timer, round_jiffies_up(jiffies + timeout));
 	}
 
