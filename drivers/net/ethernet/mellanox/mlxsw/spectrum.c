@@ -4055,12 +4055,21 @@ mlxsw_sp_resource_kvd_hash_double_size_validate(struct devlink *devlink, u64 siz
 	return 0;
 }
 
+static u64 mlxsw_sp_resource_kvd_linear_occ_get(struct devlink *devlink)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+
+	return mlxsw_sp_kvdl_occ_get(mlxsw_sp);
+}
+
 static struct devlink_resource_ops mlxsw_sp_resource_kvd_ops = {
 	.size_validate = mlxsw_sp_resource_kvd_size_validate,
 };
 
 static struct devlink_resource_ops mlxsw_sp_resource_kvd_linear_ops = {
 	.size_validate = mlxsw_sp_resource_kvd_linear_size_validate,
+	.occ_get = mlxsw_sp_resource_kvd_linear_occ_get,
 };
 
 static struct devlink_resource_ops mlxsw_sp_resource_kvd_hash_single_ops = {
