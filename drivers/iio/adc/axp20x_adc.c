@@ -515,6 +515,13 @@ static const struct axp_data axp22x_data = {
 	.maps = axp22x_maps,
 };
 
+static const struct of_device_id axp20x_adc_of_match[] = {
+	{ .compatible = "x-powers,axp209-adc", .data = (void *)&axp20x_data, },
+	{ .compatible = "x-powers,axp221-adc", .data = (void *)&axp22x_data, },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, axp20x_adc_of_match);
+
 static const struct platform_device_id axp20x_adc_id_match[] = {
 	{ .name = "axp20x-adc", .driver_data = (kernel_ulong_t)&axp20x_data, },
 	{ .name = "axp22x-adc", .driver_data = (kernel_ulong_t)&axp22x_data, },
@@ -543,7 +550,16 @@ static int axp20x_probe(struct platform_device *pdev)
 	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	info->data = (struct axp_data *)platform_get_device_id(pdev)->driver_data;
+	if (!pdev->dev.of_node) {
+		const struct platform_device_id *id;
+
+		id = platform_get_device_id(pdev);
+		info->data = (struct axp_data *)id->driver_data;
+	} else {
+		struct device *dev = &pdev->dev;
+
+		info->data = (struct axp_data *)of_device_get_match_data(dev);
+	}
 
 	indio_dev->name = platform_get_device_id(pdev)->name;
 	indio_dev->info = info->data->iio_info;
@@ -606,6 +622,7 @@ static int axp20x_remove(struct platform_device *pdev)
 static struct platform_driver axp20x_adc_driver = {
 	.driver = {
 		.name = "axp20x-adc",
+		.of_match_table = of_match_ptr(axp20x_adc_of_match),
 	},
 	.id_table = axp20x_adc_id_match,
 	.probe = axp20x_probe,
