@@ -4732,7 +4732,7 @@ static void __i915_gem_free_object_rcu(struct rcu_head *head)
 	 * detour through a worker.
 	 */
 	if (llist_add(&obj->freed, &i915->mm.free_list))
-		schedule_work(&i915->mm.free_work);
+		queue_work(i915->wq, &i915->mm.free_work);
 }
 
 void i915_gem_free_object(struct drm_gem_object *gem_obj)
