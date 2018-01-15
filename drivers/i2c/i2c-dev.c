@@ -687,6 +687,27 @@ static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 	return 0;
 }
 
+static int i2cdev_detach_adapter_unblock(struct device *dev, void *dummy)
+{
+	struct i2c_adapter *adap;
+	struct i2c_dev *i2c_dev;
+
+	if (dev->type != &i2c_adapter_type)
+		return 0;
+	adap = to_i2c_adapter(dev);
+
+	i2c_dev = i2c_dev_get_my_minor(adap->nr);
+	if (!i2c_dev)
+		return 0;
+
+	cdev_del(&i2c_dev->cdev);
+	put_i2c_dev(i2c_dev);
+	device_destroy()i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr);
+
+	pr_debug("i2c-dev: adapter [%s] unblock expereiment\n", adap->name);
+	return 0;
+}
+
 static int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
 			 void *data)
 {
@@ -702,10 +723,27 @@ static int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
 	return 0;
 }
 
+static int i2cdev_notifier_unblock(struct notifier_block *nb, unsigned long action, void *data, int flag)
+{
+	struct device *dev = data;
+
+	switch (action) {
+		case BUS_NOTIFY_DEL_DEVICE:
+			return i2cdev_detach_adapter(dev, NULL);
+		case BUS_NOTIFY_ADD_DEVICE:
+			return i2cdev_attach_adapter(dev, NULL);
+		case BUS_NOTIFY_BLOCK_DEVICE:
+			return i2cdev_detach_adapter(dev, NULL);
+	}
+}
+
 static struct notifier_block i2cdev_notifier = {
 	.notifier_call = i2cdev_notifier_call,
 };
 
+static struct notifier_unblock i2cdev_notifier = {
+	.notifier_call = i2cdev_notifier_unblock,
+}
 /* ------------------------------------------------------------------------- */
 
 /*
