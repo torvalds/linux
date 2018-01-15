@@ -84,11 +84,8 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 
 	/* store the info for the board we've found */
 	brd->boardnum = dgnc_num_boards;
-	brd->vendor = dgnc_pci_tbl[id].vendor;
 	brd->device = dgnc_pci_tbl[id].device;
 	brd->pdev = pdev;
-	brd->pci_bus = pdev->bus->number;
-	brd->pci_slot = PCI_SLOT(pdev->devfn);
 	brd->name = dgnc_ids[id].name;
 	brd->maxports = dgnc_ids[id].maxports;
 	init_waitqueue_head(&brd->state_wait);
@@ -97,11 +94,6 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 	spin_lock_init(&brd->bd_intr_lock);
 
 	brd->state		= BOARD_FOUND;
-
-	/* store which card & revision we have */
-	pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &brd->subvendor);
-	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &brd->subdevice);
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &brd->rev);
 
 	pci_irq = pdev->irq;
 	brd->irq = pci_irq;

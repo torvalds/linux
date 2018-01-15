@@ -93,15 +93,8 @@ struct board_ops {
  *
  * @name: Product name.
  * @pdev: Pointer to the pci_dev structure.
- * @vendor: PCI vendor ID.
  * @device: PCI device ID.
- * @subvendor: PCI subsystem vendor ID.
- * @subdevice: PCI subsystem device ID.
- * @rev: PCI revision ID.
- * @pci_bus: PCI bus value.
- * @pci_slot: PCI slot value.
  * @maxports: Maximum ports this board can handle.
- * @dvid: Board specific device ID.
  * @vpd: VPD of this board, if found.
  * @serial_num: Serial number of this board, if found in VPD.
  * @bd_lock: Used to protect board.
@@ -128,15 +121,8 @@ struct dgnc_board {
 	int		boardnum;
 	char		*name;
 	struct pci_dev	*pdev;
-	u16		vendor;
 	u16		device;
-	u16		subvendor;
-	u16		subdevice;
-	unsigned char	rev;
-	uint		pci_bus;
-	uint		pci_slot;
 	uint		maxports;
-	unsigned char	dvid;
 	unsigned char	vpd[128];
 	unsigned char	serial_num[20];
 
