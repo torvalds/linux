@@ -3991,6 +3991,188 @@ static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.resource_query_enable		= 1,
 };
 
+static bool
+mlxsw_sp_resource_kvd_granularity_validate(struct netlink_ext_ack *extack,
+					   u64 size)
+{
+	const struct mlxsw_config_profile *profile;
+
+	profile = &mlxsw_sp_config_profile;
+	if (size % profile->kvd_hash_granularity) {
+		NL_SET_ERR_MSG_MOD(extack, "resource set with wrong granularity");
+		return false;
+	}
+	return true;
+}
+
+static int
+mlxsw_sp_resource_kvd_size_validate(struct devlink *devlink, u64 size,
+				    struct netlink_ext_ack *extack)
+{
+	NL_SET_ERR_MSG_MOD(extack, "kvd size cannot be changed");
+	return -EINVAL;
+}
+
+static int
+mlxsw_sp_resource_kvd_linear_size_validate(struct devlink *devlink, u64 size,
+					   struct netlink_ext_ack *extack)
+{
+	if (!mlxsw_sp_resource_kvd_granularity_validate(extack, size))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+mlxsw_sp_resource_kvd_hash_single_size_validate(struct devlink *devlink, u64 size,
+						struct netlink_ext_ack *extack)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+
+	if (!mlxsw_sp_resource_kvd_granularity_validate(extack, size))
+		return -EINVAL;
+
+	if (size < MLXSW_CORE_RES_GET(mlxsw_core, KVD_SINGLE_MIN_SIZE)) {
+		NL_SET_ERR_MSG_MOD(extack, "hash single size is smaller than minimum");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int
+mlxsw_sp_resource_kvd_hash_double_size_validate(struct devlink *devlink, u64 size,
+						struct netlink_ext_ack *extack)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+
+	if (!mlxsw_sp_resource_kvd_granularity_validate(extack, size))
+		return -EINVAL;
+
+	if (size < MLXSW_CORE_RES_GET(mlxsw_core, KVD_DOUBLE_MIN_SIZE)) {
+		NL_SET_ERR_MSG_MOD(extack, "hash double size is smaller than minimum");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static struct devlink_resource_ops mlxsw_sp_resource_kvd_ops = {
+	.size_validate = mlxsw_sp_resource_kvd_size_validate,
+};
+
+static struct devlink_resource_ops mlxsw_sp_resource_kvd_linear_ops = {
+	.size_validate = mlxsw_sp_resource_kvd_linear_size_validate,
+};
+
+static struct devlink_resource_ops mlxsw_sp_resource_kvd_hash_single_ops = {
+	.size_validate = mlxsw_sp_resource_kvd_hash_single_size_validate,
+};
+
+static struct devlink_resource_ops mlxsw_sp_resource_kvd_hash_double_ops = {
+	.size_validate = mlxsw_sp_resource_kvd_hash_double_size_validate,
+};
+
+static struct devlink_resource_size_params mlxsw_sp_kvd_size_params;
+static struct devlink_resource_size_params mlxsw_sp_linear_size_params;
+static struct devlink_resource_size_params mlxsw_sp_hash_single_size_params;
+static struct devlink_resource_size_params mlxsw_sp_hash_double_size_params;
+
+static void
+mlxsw_sp_resource_size_params_prepare(struct mlxsw_core *mlxsw_core)
+{
+	u32 single_size_min = MLXSW_CORE_RES_GET(mlxsw_core,
+						 KVD_SINGLE_MIN_SIZE);
+	u32 double_size_min = MLXSW_CORE_RES_GET(mlxsw_core,
+						 KVD_DOUBLE_MIN_SIZE);
+	u32 kvd_size = MLXSW_CORE_RES_GET(mlxsw_core, KVD_SIZE);
+	u32 linear_size_min = 0;
+
+	/* KVD top resource */
+	mlxsw_sp_kvd_size_params.size_min = kvd_size;
+	mlxsw_sp_kvd_size_params.size_max = kvd_size;
+	mlxsw_sp_kvd_size_params.size_granularity = MLXSW_SP_KVD_GRANULARITY;
+	mlxsw_sp_kvd_size_params.unit = DEVLINK_RESOURCE_UNIT_ENTRY;
+
+	/* Linear part init */
+	mlxsw_sp_linear_size_params.size_min = linear_size_min;
+	mlxsw_sp_linear_size_params.size_max = kvd_size - single_size_min -
+					       double_size_min;
+	mlxsw_sp_linear_size_params.size_granularity = MLXSW_SP_KVD_GRANULARITY;
+	mlxsw_sp_linear_size_params.unit = DEVLINK_RESOURCE_UNIT_ENTRY;
+
+	/* Hash double part init */
+	mlxsw_sp_hash_double_size_params.size_min = double_size_min;
+	mlxsw_sp_hash_double_size_params.size_max = kvd_size - single_size_min -
+						    linear_size_min;
+	mlxsw_sp_hash_double_size_params.size_granularity = MLXSW_SP_KVD_GRANULARITY;
+	mlxsw_sp_hash_double_size_params.unit = DEVLINK_RESOURCE_UNIT_ENTRY;
+
+	/* Hash single part init */
+	mlxsw_sp_hash_single_size_params.size_min = single_size_min;
+	mlxsw_sp_hash_single_size_params.size_max = kvd_size - double_size_min -
+						    linear_size_min;
+	mlxsw_sp_hash_single_size_params.size_granularity = MLXSW_SP_KVD_GRANULARITY;
+	mlxsw_sp_hash_single_size_params.unit = DEVLINK_RESOURCE_UNIT_ENTRY;
+}
+
+static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
+	u32 kvd_size, single_size, double_size, linear_size;
+	const struct mlxsw_config_profile *profile;
+	int err;
+
+	profile = &mlxsw_sp_config_profile;
+	if (!MLXSW_CORE_RES_VALID(mlxsw_core, KVD_SIZE))
+		return -EIO;
+
+	mlxsw_sp_resource_size_params_prepare(mlxsw_core);
+	kvd_size = MLXSW_CORE_RES_GET(mlxsw_core, KVD_SIZE);
+	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD,
+					true, kvd_size,
+					MLXSW_SP_RESOURCE_KVD,
+					DEVLINK_RESOURCE_ID_PARENT_TOP,
+					&mlxsw_sp_kvd_size_params,
+					&mlxsw_sp_resource_kvd_ops);
+	if (err)
+		return err;
+
+	linear_size = profile->kvd_linear_size;
+	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_LINEAR,
+					false, linear_size,
+					MLXSW_SP_RESOURCE_KVD_LINEAR,
+					MLXSW_SP_RESOURCE_KVD,
+					&mlxsw_sp_linear_size_params,
+					&mlxsw_sp_resource_kvd_linear_ops);
+	if (err)
+		return err;
+
+	double_size = kvd_size - linear_size;
+	double_size *= profile->kvd_hash_double_parts;
+	double_size /= profile->kvd_hash_double_parts +
+		       profile->kvd_hash_single_parts;
+	double_size = rounddown(double_size, profile->kvd_hash_granularity);
+	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_HASH_DOUBLE,
+					false, double_size,
+					MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
+					MLXSW_SP_RESOURCE_KVD,
+					&mlxsw_sp_hash_double_size_params,
+					&mlxsw_sp_resource_kvd_hash_double_ops);
+	if (err)
+		return err;
+
+	single_size = kvd_size - double_size - linear_size;
+	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_HASH_SINGLE,
+					false, single_size,
+					MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
+					MLXSW_SP_RESOURCE_KVD,
+					&mlxsw_sp_hash_single_size_params,
+					&mlxsw_sp_resource_kvd_hash_single_ops);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static struct mlxsw_driver mlxsw_sp_driver = {
 	.kind				= mlxsw_sp_driver_name,
 	.priv_size			= sizeof(struct mlxsw_sp),
@@ -4010,6 +4192,7 @@ static struct mlxsw_driver mlxsw_sp_driver = {
 	.sb_occ_port_pool_get		= mlxsw_sp_sb_occ_port_pool_get,
 	.sb_occ_tc_port_bind_get	= mlxsw_sp_sb_occ_tc_port_bind_get,
 	.txhdr_construct		= mlxsw_sp_txhdr_construct,
+	.resources_register		= mlxsw_sp_resources_register,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp_config_profile,
 };

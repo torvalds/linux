@@ -66,6 +66,18 @@
 #define MLXSW_SP_KVD_LINEAR_SIZE 98304 /* entries */
 #define MLXSW_SP_KVD_GRANULARITY 128
 
+#define MLXSW_SP_RESOURCE_NAME_KVD "kvd"
+#define MLXSW_SP_RESOURCE_NAME_KVD_LINEAR "linear"
+#define MLXSW_SP_RESOURCE_NAME_KVD_HASH_SINGLE "hash_single"
+#define MLXSW_SP_RESOURCE_NAME_KVD_HASH_DOUBLE "hash_double"
+
+enum mlxsw_sp_resource_id {
+	MLXSW_SP_RESOURCE_KVD,
+	MLXSW_SP_RESOURCE_KVD_LINEAR,
+	MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
+	MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
+};
+
 struct mlxsw_sp_port;
 struct mlxsw_sp_rif;
 

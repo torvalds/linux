@@ -1012,6 +1012,12 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_bus_init;
 
+	if (mlxsw_driver->resources_register) {
+		err = mlxsw_driver->resources_register(mlxsw_core);
+		if (err)
+			goto err_register_resources;
+	}
+
 	err = mlxsw_ports_init(mlxsw_core);
 	if (err)
 		goto err_ports_init;
@@ -1067,6 +1073,8 @@ err_alloc_lag_mapping:
 err_ports_init:
 	mlxsw_bus->fini(bus_priv);
 err_bus_init:
+	devlink_resources_unregister(devlink, NULL);
+err_register_resources:
 	devlink_free(devlink);
 err_devlink_alloc:
 	mlxsw_core_driver_put(device_kind);
@@ -1086,6 +1094,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core)
 	mlxsw_emad_fini(mlxsw_core);
 	kfree(mlxsw_core->lag.mapping);
 	mlxsw_ports_fini(mlxsw_core);
+	devlink_resources_unregister(devlink, NULL);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
 	devlink_free(devlink);
 	mlxsw_core_driver_put(device_kind);

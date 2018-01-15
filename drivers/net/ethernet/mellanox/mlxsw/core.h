@@ -308,6 +308,7 @@ struct mlxsw_driver {
 				       u32 *p_cur, u32 *p_max);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
+	int (*resources_register)(struct mlxsw_core *mlxsw_core);
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
 };
