@@ -49,19 +49,6 @@ static const struct board_id dgnc_ids[] = {
 	{	PCI_DEVICE_CLASSIC_4_422_PCI_NAME,	4,	0	},
 	{	PCI_DEVICE_CLASSIC_8_PCI_NAME,		8,	0	},
 	{	PCI_DEVICE_CLASSIC_8_422_PCI_NAME,	8,	0	},
-	{	PCI_DEVICE_NEO_4_PCI_NAME,		4,	0	},
-	{	PCI_DEVICE_NEO_8_PCI_NAME,		8,	0	},
-	{	PCI_DEVICE_NEO_2DB9_PCI_NAME,		2,	0	},
-	{	PCI_DEVICE_NEO_2DB9PRI_PCI_NAME,	2,	0	},
-	{	PCI_DEVICE_NEO_2RJ45_PCI_NAME,		2,	0	},
-	{	PCI_DEVICE_NEO_2RJ45PRI_PCI_NAME,	2,	0	},
-	{	PCI_DEVICE_NEO_1_422_PCI_NAME,		1,	0	},
-	{	PCI_DEVICE_NEO_1_422_485_PCI_NAME,	1,	0	},
-	{	PCI_DEVICE_NEO_2_422_485_PCI_NAME,	2,	0	},
-	{	PCI_DEVICE_NEO_EXPRESS_8_PCI_NAME,	8,	1	},
-	{	PCI_DEVICE_NEO_EXPRESS_4_PCI_NAME,	4,	1	},
-	{	PCI_DEVICE_NEO_EXPRESS_4RJ45_PCI_NAME,	4,	1	},
-	{	PCI_DEVICE_NEO_EXPRESS_8RJ45_PCI_NAME,	8,	1	},
 	{	NULL,					0,	0	}
 };
 
@@ -170,55 +157,6 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 		 * Enable PCI interrupt			  (0x40)
 		 */
 		outb(0x43, brd->iobase + 0x4c);
-
-		break;
-
-	case PCI_DEVICE_NEO_4_DID:
-	case PCI_DEVICE_NEO_8_DID:
-	case PCI_DEVICE_NEO_2DB9_DID:
-	case PCI_DEVICE_NEO_2DB9PRI_DID:
-	case PCI_DEVICE_NEO_2RJ45_DID:
-	case PCI_DEVICE_NEO_2RJ45PRI_DID:
-	case PCI_DEVICE_NEO_1_422_DID:
-	case PCI_DEVICE_NEO_1_422_485_DID:
-	case PCI_DEVICE_NEO_2_422_485_DID:
-	case PCI_DEVICE_NEO_EXPRESS_8_DID:
-	case PCI_DEVICE_NEO_EXPRESS_4_DID:
-	case PCI_DEVICE_NEO_EXPRESS_4RJ45_DID:
-	case PCI_DEVICE_NEO_EXPRESS_8RJ45_DID:
-
-		/*
-		 * This chip is set up 100% when we get to it.
-		 * No need to enable global interrupts or anything.
-		 */
-		if (brd->bd_flags & BD_IS_PCI_EXPRESS)
-			brd->dpatype = T_NEO_EXPRESS | T_PCIBUS;
-		else
-			brd->dpatype = T_NEO | T_PCIBUS;
-
-		brd->membase     = pci_resource_start(pdev, 0);
-		brd->membase_end = pci_resource_end(pdev, 0);
-
-		if (brd->membase & 1)
-			brd->membase &= ~3;
-		else
-			brd->membase &= ~15;
-
-		brd->bd_ops = &dgnc_neo_ops;
-
-		brd->bd_uart_offset = 0x200;
-		brd->bd_dividend = 921600;
-
-		rc = dgnc_do_remap(brd);
-
-		if (rc < 0)
-			goto failed;
-
-		/* Read and store the dvid after remapping */
-		brd->dvid = readb(brd->re_map_membase + 0x8D);
-
-		/* Get and store the board VPD, if it exists */
-		brd->bd_ops->vpd(brd);
 
 		break;
 
