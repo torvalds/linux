@@ -1739,7 +1739,8 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mlxsw_pci->id = id;
 
 	err = mlxsw_core_bus_device_register(&mlxsw_pci->bus_info,
-					     &mlxsw_pci_bus, mlxsw_pci);
+					     &mlxsw_pci_bus, mlxsw_pci, false,
+					     NULL);
 	if (err) {
 		dev_err(&pdev->dev, "cannot register bus device\n");
 		goto err_bus_device_register;
@@ -1767,7 +1768,7 @@ static void mlxsw_pci_remove(struct pci_dev *pdev)
 {
 	struct mlxsw_pci *mlxsw_pci = pci_get_drvdata(pdev);
 
-	mlxsw_core_bus_device_unregister(mlxsw_pci->core);
+	mlxsw_core_bus_device_unregister(mlxsw_pci->core, false);
 	mlxsw_pci_free_irq_vectors(mlxsw_pci);
 	iounmap(mlxsw_pci->hw_addr);
 	pci_release_regions(mlxsw_pci->pdev);

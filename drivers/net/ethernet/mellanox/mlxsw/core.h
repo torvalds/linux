@@ -66,8 +66,9 @@ void mlxsw_core_driver_unregister(struct mlxsw_driver *mlxsw_driver);
 
 int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 				   const struct mlxsw_bus *mlxsw_bus,
-				   void *bus_priv);
-void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core);
+				   void *bus_priv, bool reload,
+				   struct devlink *devlink);
+void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core, bool reload);
 
 struct mlxsw_tx_info {
 	u8 local_port;
