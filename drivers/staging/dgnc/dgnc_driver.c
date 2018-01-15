@@ -10,7 +10,6 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include "dgnc_driver.h"
-#include "dgnc_pci.h"
 #include "dgnc_tty.h"
 #include "dgnc_cls.h"
 
@@ -27,6 +26,17 @@ static int		dgnc_poll_tick = 20;	/* Poll interval - 20 ms */
 static ulong		dgnc_poll_time; /* Time of next poll */
 static uint		dgnc_poll_stop; /* Used to tell poller to stop */
 static struct timer_list dgnc_poll_timer;
+
+#define DIGI_VID				0x114F
+#define PCI_DEVICE_CLASSIC_4_DID		0x0028
+#define PCI_DEVICE_CLASSIC_8_DID		0x0029
+#define PCI_DEVICE_CLASSIC_4_422_DID		0x00D0
+#define PCI_DEVICE_CLASSIC_8_422_DID		0x00D1
+
+#define PCI_DEVICE_CLASSIC_4_PCI_NAME		"ClassicBoard 4 PCI"
+#define PCI_DEVICE_CLASSIC_8_PCI_NAME		"ClassicBoard 8 PCI"
+#define PCI_DEVICE_CLASSIC_4_422_PCI_NAME	"ClassicBoard 4 422 PCI"
+#define PCI_DEVICE_CLASSIC_8_422_PCI_NAME	"ClassicBoard 8 422 PCI"
 
 static const struct pci_device_id dgnc_pci_tbl[] = {
 	{PCI_DEVICE(DIGI_VID, PCI_DEVICE_CLASSIC_4_DID),     .driver_data = 0},
