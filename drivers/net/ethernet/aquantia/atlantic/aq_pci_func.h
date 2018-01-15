@@ -16,9 +16,7 @@
 #include "aq_nic.h"
 
 struct aq_pci_func_s *aq_pci_func_alloc(const struct aq_hw_ops *hw_ops,
-					struct pci_dev *pdev,
-					const struct net_device_ops *ndev_ops,
-					const struct ethtool_ops *eth_ops);
+					struct pci_dev *pdev);
 int aq_pci_func_init(struct aq_pci_func_s *self);
 int aq_pci_func_alloc_irq(struct aq_pci_func_s *self, unsigned int i,
 			  char *name, void *aq_vec,

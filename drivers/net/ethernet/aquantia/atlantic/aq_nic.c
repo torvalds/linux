@@ -15,6 +15,7 @@
 #include "aq_hw.h"
 #include "aq_pci_func.h"
 #include "aq_nic_internal.h"
+#include "aq_main.h"
 
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
@@ -205,14 +206,7 @@ static void aq_nic_polling_timer_cb(struct timer_list *t)
 		AQ_CFG_POLLING_TIMER_INTERVAL);
 }
 
-static struct net_device *aq_nic_ndev_alloc(void)
-{
-	return alloc_etherdev_mq(sizeof(struct aq_nic_s), AQ_CFG_VECS_MAX);
-}
-
-struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
-				   const struct ethtool_ops *et_ops,
-				   struct pci_dev *pdev,
+struct aq_nic_s *aq_nic_alloc_cold(struct pci_dev *pdev,
 				   struct aq_pci_func_s *aq_pci_func,
 				   unsigned int port,
 				   const struct aq_hw_ops *aq_hw_ops)
@@ -221,16 +215,13 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 	struct aq_nic_s *self = NULL;
 	int err = 0;
 
-	ndev = aq_nic_ndev_alloc();
+	ndev = aq_ndev_alloc();
 	if (!ndev) {
 		err = -ENOMEM;
 		goto err_exit;
 	}
 
 	self = netdev_priv(ndev);
-
-	ndev->netdev_ops = ndev_ops;
-	ndev->ethtool_ops = et_ops;
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
