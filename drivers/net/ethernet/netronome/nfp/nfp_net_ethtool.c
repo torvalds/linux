@@ -306,7 +306,7 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 	    ls >= ARRAY_SIZE(ls_to_ethtool))
 		return 0;
 
-	cmd->base.speed = ls_to_ethtool[sts];
+	cmd->base.speed = ls_to_ethtool[ls];
 	cmd->base.duplex = DUPLEX_FULL;
 
 	return 0;
