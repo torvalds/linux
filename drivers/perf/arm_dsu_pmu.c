@@ -120,7 +120,7 @@ struct dsu_pmu {
 	cpumask_t			associated_cpus;
 	cpumask_t			active_cpu;
 	struct hlist_node		cpuhp_node;
-	u8				num_counters;
+	s8				num_counters;
 	int				irq;
 	DECLARE_BITMAP(cpmceid_bitmap, DSU_PMU_MAX_COMMON_EVENTS);
 };
