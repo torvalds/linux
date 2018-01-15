@@ -4355,6 +4355,9 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu7_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
 	struct smu7_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
 	struct smu7_single_dpm_table *pcie_table = &(data->dpm_table.pcie_speed_table);
+	struct smu7_odn_dpm_table *odn_table = &(data->odn_dpm_table);
+	struct phm_odn_clock_levels *odn_sclk_table = &(odn_table->odn_core_clock_dpm_levels);
+	struct phm_odn_clock_levels *odn_mclk_table = &(odn_table->odn_memory_clock_dpm_levels);
 	int i, now, size = 0;
 	uint32_t clock, pcie_speed;
 
@@ -4406,6 +4409,24 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 					(pcie_table->dpm_levels[i].value == 1) ? "5.0GT/s, x16" :
 					(pcie_table->dpm_levels[i].value == 2) ? "8.0GT/s, x16" : "",
 					(i == now) ? "*" : "");
+		break;
+	case OD_SCLK:
+		if (hwmgr->od_enabled) {
+			size = sprintf(buf, "%s: \n", "OD_SCLK");
+			for (i = 0; i < odn_sclk_table->num_of_pl; i++)
+				size += sprintf(buf + size, "%d: %10uMhz %10u mV\n",
+					i, odn_sclk_table->entries[i].clock / 100,
+					odn_sclk_table->entries[i].vddc);
+		}
+		break;
+	case OD_MCLK:
+		if (hwmgr->od_enabled) {
+			size = sprintf(buf, "%s: \n", "OD_MCLK");
+			for (i = 0; i < odn_mclk_table->num_of_pl; i++)
+				size += sprintf(buf + size, "%d: %10uMhz %10u mV\n",
+					i, odn_mclk_table->entries[i].clock / 100,
+					odn_mclk_table->entries[i].vddc);
+		}
 		break;
 	default:
 		break;
