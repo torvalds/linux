@@ -196,7 +196,8 @@ struct aq_hw_ops {
 			       struct aq_rss_parameters *rss_params);
 
 	int (*hw_get_regs)(struct aq_hw_s *self,
-			   struct aq_hw_caps_s *aq_hw_caps, u32 *regs_buff);
+			   const struct aq_hw_caps_s *aq_hw_caps,
+			   u32 *regs_buff);
 
 	int (*hw_update_stats)(struct aq_hw_s *self);
 

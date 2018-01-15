@@ -851,7 +851,7 @@ err_exit:
 	return err;
 }
 
-static struct aq_hw_ops hw_atl_ops_ = {
+static const struct aq_hw_ops hw_atl_ops_ = {
 	.create               = hw_atl_a0_create,
 	.destroy              = hw_atl_a0_destroy,
 	.get_hw_caps          = hw_atl_a0_get_hw_caps,
@@ -894,7 +894,7 @@ static struct aq_hw_ops hw_atl_ops_ = {
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
 };
 
-struct aq_hw_ops *hw_atl_a0_get_ops_by_id(struct pci_dev *pdev)
+const struct aq_hw_ops *hw_atl_a0_get_ops_by_id(struct pci_dev *pdev)
 {
 	bool is_vid_ok = (pdev->vendor == PCI_VENDOR_ID_AQUANTIA);
 	bool is_did_ok = ((pdev->device == HW_ATL_DEVICE_ID_0001) ||

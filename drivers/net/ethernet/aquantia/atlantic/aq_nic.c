@@ -295,7 +295,7 @@ err_exit:
 
 int aq_nic_ndev_init(struct aq_nic_s *self)
 {
-	struct aq_hw_caps_s *aq_hw_caps = self->aq_nic_cfg.aq_hw_caps;
+	const struct aq_hw_caps_s *aq_hw_caps = self->aq_nic_cfg.aq_hw_caps;
 	struct aq_nic_cfg_s *aq_nic_cfg = &self->aq_nic_cfg;
 
 	self->ndev->hw_features |= aq_hw_caps->hw_features;

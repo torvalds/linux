@@ -34,7 +34,7 @@ struct aq_hw_ops;
 #define AQ_NIC_RATE_100M       BIT(5)
 
 struct aq_nic_cfg_s {
-	struct aq_hw_caps_s *aq_hw_caps;
+	const struct aq_hw_caps_s *aq_hw_caps;
 	u64 hw_features;
 	u32 rxds;		/* rx ring size, descriptors # */
 	u32 txds;		/* tx ring size, descriptors # */

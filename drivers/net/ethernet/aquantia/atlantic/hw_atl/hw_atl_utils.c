@@ -117,7 +117,7 @@ err_exit:
 }
 
 static int hw_atl_utils_init_ucp(struct aq_hw_s *self,
-				 struct aq_hw_caps_s *aq_hw_caps)
+				 const struct aq_hw_caps_s *aq_hw_caps)
 {
 	int err = 0;
 
@@ -564,7 +564,7 @@ static const u32 hw_atl_utils_hw_mac_regs[] = {
 };
 
 int hw_atl_utils_hw_get_regs(struct aq_hw_s *self,
-			     struct aq_hw_caps_s *aq_hw_caps,
+			     const struct aq_hw_caps_s *aq_hw_caps,
 			     u32 *regs_buff)
 {
 	unsigned int i = 0U;

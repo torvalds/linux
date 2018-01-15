@@ -35,9 +35,9 @@ MODULE_VERSION(AQ_CFG_DRV_VERSION);
 MODULE_AUTHOR(AQ_CFG_DRV_AUTHOR);
 MODULE_DESCRIPTION(AQ_CFG_DRV_DESC);
 
-static struct aq_hw_ops *aq_pci_probe_get_hw_ops_by_id(struct pci_dev *pdev)
+static const struct aq_hw_ops *aq_pci_probe_get_hw_ops_by_id(struct pci_dev *pdev)
 {
-	struct aq_hw_ops *ops = NULL;
+	const struct aq_hw_ops *ops = NULL;
 
 	ops = hw_atl_a0_get_ops_by_id(pdev);
 	if (!ops)
@@ -174,7 +174,7 @@ static const struct net_device_ops aq_ndev_ops = {
 static int aq_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *pci_id)
 {
-	struct aq_hw_ops *aq_hw_ops = NULL;
+	const struct aq_hw_ops *aq_hw_ops = NULL;
 	struct aq_pci_func_s *aq_pci_func = NULL;
 	int err = 0;
 

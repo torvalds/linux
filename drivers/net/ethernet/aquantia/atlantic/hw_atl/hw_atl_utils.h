@@ -207,7 +207,7 @@ int hw_atl_utils_get_mac_permanent(struct aq_hw_s *self,
 unsigned int hw_atl_utils_mbps_2_speed_index(unsigned int mbps);
 
 int hw_atl_utils_hw_get_regs(struct aq_hw_s *self,
-			     struct aq_hw_caps_s *aq_hw_caps,
+			     const struct aq_hw_caps_s *aq_hw_caps,
 			     u32 *regs_buff);
 
 int hw_atl_utils_hw_set_power(struct aq_hw_s *self,

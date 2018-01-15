@@ -29,6 +29,6 @@
 
 #endif
 
-struct aq_hw_ops *hw_atl_b0_get_ops_by_id(struct pci_dev *pdev);
+const struct aq_hw_ops *hw_atl_b0_get_ops_by_id(struct pci_dev *pdev);
 
 #endif /* HW_ATL_B0_H */
