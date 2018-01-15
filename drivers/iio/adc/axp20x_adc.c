@@ -470,14 +470,18 @@ static const struct iio_info axp22x_adc_iio_info = {
 	.read_raw = axp22x_read_raw,
 };
 
-static int axp20x_adc_rate(int rate)
+static int axp20x_adc_rate(struct axp20x_adc_iio *info, int rate)
 {
-	return AXP20X_ADC_RATE_HZ(rate);
+	return regmap_update_bits(info->regmap, AXP20X_ADC_RATE,
+				  AXP20X_ADC_RATE_MASK,
+				  AXP20X_ADC_RATE_HZ(rate));
 }
 
-static int axp22x_adc_rate(int rate)
+static int axp22x_adc_rate(struct axp20x_adc_iio *info, int rate)
 {
-	return AXP22X_ADC_RATE_HZ(rate);
+	return regmap_update_bits(info->regmap, AXP20X_ADC_RATE,
+				  AXP20X_ADC_RATE_MASK,
+				  AXP22X_ADC_RATE_HZ(rate));
 }
 
 struct axp_data {
@@ -485,7 +489,8 @@ struct axp_data {
 	int				num_channels;
 	struct iio_chan_spec const	*channels;
 	unsigned long			adc_en1_mask;
-	int				(*adc_rate)(int rate);
+	int				(*adc_rate)(struct axp20x_adc_iio *info,
+						    int rate);
 	bool				adc_en2;
 	struct iio_map			*maps;
 };
@@ -554,8 +559,7 @@ static int axp20x_probe(struct platform_device *pdev)
 				   AXP20X_ADC_EN2_MASK, AXP20X_ADC_EN2_MASK);
 
 	/* Configure ADCs rate */
-	regmap_update_bits(info->regmap, AXP20X_ADC_RATE, AXP20X_ADC_RATE_MASK,
-			   info->data->adc_rate(100));
+	info->data->adc_rate(info, 100);
 
 	ret = iio_map_array_register(indio_dev, info->data->maps);
 	if (ret < 0) {
