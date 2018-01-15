@@ -259,10 +259,8 @@ static int rc5t583_i2c_probe(struct i2c_client *i2c,
 	}
 
 	rc5t583 = devm_kzalloc(&i2c->dev, sizeof(struct rc5t583), GFP_KERNEL);
-	if (!rc5t583) {
-		dev_err(&i2c->dev, "Memory allocation failed\n");
+	if (!rc5t583)
 		return -ENOMEM;
-	}
 
 	rc5t583->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, rc5t583);
