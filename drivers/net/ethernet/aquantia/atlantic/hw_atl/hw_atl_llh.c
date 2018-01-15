@@ -18,95 +18,96 @@
 /* global */
 void reg_glb_cpu_sem_set(struct aq_hw_s *aq_hw, u32 glb_cpu_sem, u32 semaphore)
 {
-	aq_hw_write_reg(aq_hw, glb_cpu_sem_adr(semaphore), glb_cpu_sem);
+	aq_hw_write_reg(aq_hw, HW_ATL_GLB_CPU_SEM_ADR(semaphore), glb_cpu_sem);
 }
 
 u32 reg_glb_cpu_sem_get(struct aq_hw_s *aq_hw, u32 semaphore)
 {
-	return aq_hw_read_reg(aq_hw, glb_cpu_sem_adr(semaphore));
+	return aq_hw_read_reg(aq_hw, HW_ATL_GLB_CPU_SEM_ADR(semaphore));
 }
 
 void glb_glb_reg_res_dis_set(struct aq_hw_s *aq_hw, u32 glb_reg_res_dis)
 {
-	aq_hw_write_reg_bit(aq_hw, glb_reg_res_dis_adr,
-			    glb_reg_res_dis_msk,
-			    glb_reg_res_dis_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_GLB_REG_RES_DIS_ADR,
+			    HW_ATL_GLB_REG_RES_DIS_MSK,
+			    HW_ATL_GLB_REG_RES_DIS_SHIFT,
 			    glb_reg_res_dis);
 }
 
 void glb_soft_res_set(struct aq_hw_s *aq_hw, u32 soft_res)
 {
-	aq_hw_write_reg_bit(aq_hw, glb_soft_res_adr, glb_soft_res_msk,
-			    glb_soft_res_shift, soft_res);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_GLB_SOFT_RES_ADR,
+			    HW_ATL_GLB_SOFT_RES_MSK,
+			    HW_ATL_GLB_SOFT_RES_SHIFT, soft_res);
 }
 
 u32 glb_soft_res_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg_bit(aq_hw, glb_soft_res_adr,
-				  glb_soft_res_msk,
-				  glb_soft_res_shift);
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_GLB_SOFT_RES_ADR,
+				  HW_ATL_GLB_SOFT_RES_MSK,
+				  HW_ATL_GLB_SOFT_RES_SHIFT);
 }
 
 u32 reg_rx_dma_stat_counter7get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, rx_dma_stat_counter7_adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_RX_DMA_STAT_COUNTER7_ADR);
 }
 
 u32 reg_glb_mif_id_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, glb_mif_id_adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_GLB_MIF_ID_ADR);
 }
 
 /* stats */
 u32 rpb_rx_dma_drop_pkt_cnt_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, rpb_rx_dma_drop_pkt_cnt_adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_RPB_RX_DMA_DROP_PKT_CNT_ADR);
 }
 
 u32 stats_rx_dma_good_octet_counterlsw_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, stats_rx_dma_good_octet_counterlsw__adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_OCTET_COUNTERLSW);
 }
 
 u32 stats_rx_dma_good_pkt_counterlsw_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, stats_rx_dma_good_pkt_counterlsw__adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_PKT_COUNTERLSW);
 }
 
 u32 stats_tx_dma_good_octet_counterlsw_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, stats_tx_dma_good_octet_counterlsw__adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_OCTET_COUNTERLSW);
 }
 
 u32 stats_tx_dma_good_pkt_counterlsw_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, stats_tx_dma_good_pkt_counterlsw__adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_PKT_COUNTERLSW);
 }
 
 u32 stats_rx_dma_good_octet_countermsw_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, stats_rx_dma_good_octet_countermsw__adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_OCTET_COUNTERMSW);
 }
 
 u32 stats_rx_dma_good_pkt_countermsw_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, stats_rx_dma_good_pkt_countermsw__adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_RX_DMA_GOOD_PKT_COUNTERMSW);
 }
 
 u32 stats_tx_dma_good_octet_countermsw_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, stats_tx_dma_good_octet_countermsw__adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_OCTET_COUNTERMSW);
 }
 
 u32 stats_tx_dma_good_pkt_countermsw_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, stats_tx_dma_good_pkt_countermsw__adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_STATS_TX_DMA_GOOD_PKT_COUNTERMSW);
 }
 
 /* interrupt */
 void itr_irq_auto_masklsw_set(struct aq_hw_s *aq_hw, u32 irq_auto_masklsw)
 {
-	aq_hw_write_reg(aq_hw, itr_iamrlsw_adr, irq_auto_masklsw);
+	aq_hw_write_reg(aq_hw, HW_ATL_ITR_IAMRLSW_ADR, irq_auto_masklsw);
 }
 
 void itr_irq_map_en_rx_set(struct aq_hw_s *aq_hw, u32 irq_map_en_rx, u32 rx)
@@ -114,13 +115,13 @@ void itr_irq_map_en_rx_set(struct aq_hw_s *aq_hw, u32 irq_map_en_rx, u32 rx)
 /* register address for bitfield imr_rx{r}_en */
 	static u32 itr_imr_rxren_adr[32] = {
 			0x00002100U, 0x00002100U, 0x00002104U, 0x00002104U,
-			0x00002108U, 0x00002108U, 0x0000210cU, 0x0000210cU,
+			0x00002108U, 0x00002108U, 0x0000210CU, 0x0000210CU,
 			0x00002110U, 0x00002110U, 0x00002114U, 0x00002114U,
-			0x00002118U, 0x00002118U, 0x0000211cU, 0x0000211cU,
+			0x00002118U, 0x00002118U, 0x0000211CU, 0x0000211CU,
 			0x00002120U, 0x00002120U, 0x00002124U, 0x00002124U,
-			0x00002128U, 0x00002128U, 0x0000212cU, 0x0000212cU,
+			0x00002128U, 0x00002128U, 0x0000212CU, 0x0000212CU,
 			0x00002130U, 0x00002130U, 0x00002134U, 0x00002134U,
-			0x00002138U, 0x00002138U, 0x0000213cU, 0x0000213cU
+			0x00002138U, 0x00002138U, 0x0000213CU, 0x0000213CU
 		};
 
 /* bitmask for bitfield imr_rx{r}_en */
@@ -154,13 +155,13 @@ void itr_irq_map_en_tx_set(struct aq_hw_s *aq_hw, u32 irq_map_en_tx, u32 tx)
 /* register address for bitfield imr_tx{t}_en */
 	static u32 itr_imr_txten_adr[32] = {
 			0x00002100U, 0x00002100U, 0x00002104U, 0x00002104U,
-			0x00002108U, 0x00002108U, 0x0000210cU, 0x0000210cU,
+			0x00002108U, 0x00002108U, 0x0000210CU, 0x0000210CU,
 			0x00002110U, 0x00002110U, 0x00002114U, 0x00002114U,
-			0x00002118U, 0x00002118U, 0x0000211cU, 0x0000211cU,
+			0x00002118U, 0x00002118U, 0x0000211CU, 0x0000211CU,
 			0x00002120U, 0x00002120U, 0x00002124U, 0x00002124U,
-			0x00002128U, 0x00002128U, 0x0000212cU, 0x0000212cU,
+			0x00002128U, 0x00002128U, 0x0000212CU, 0x0000212CU,
 			0x00002130U, 0x00002130U, 0x00002134U, 0x00002134U,
-			0x00002138U, 0x00002138U, 0x0000213cU, 0x0000213cU
+			0x00002138U, 0x00002138U, 0x0000213CU, 0x0000213CU
 		};
 
 /* bitmask for bitfield imr_tx{t}_en */
@@ -194,25 +195,25 @@ void itr_irq_map_rx_set(struct aq_hw_s *aq_hw, u32 irq_map_rx, u32 rx)
 /* register address for bitfield imr_rx{r}[4:0] */
 	static u32 itr_imr_rxr_adr[32] = {
 			0x00002100U, 0x00002100U, 0x00002104U, 0x00002104U,
-			0x00002108U, 0x00002108U, 0x0000210cU, 0x0000210cU,
+			0x00002108U, 0x00002108U, 0x0000210CU, 0x0000210CU,
 			0x00002110U, 0x00002110U, 0x00002114U, 0x00002114U,
-			0x00002118U, 0x00002118U, 0x0000211cU, 0x0000211cU,
+			0x00002118U, 0x00002118U, 0x0000211CU, 0x0000211CU,
 			0x00002120U, 0x00002120U, 0x00002124U, 0x00002124U,
-			0x00002128U, 0x00002128U, 0x0000212cU, 0x0000212cU,
+			0x00002128U, 0x00002128U, 0x0000212CU, 0x0000212CU,
 			0x00002130U, 0x00002130U, 0x00002134U, 0x00002134U,
-			0x00002138U, 0x00002138U, 0x0000213cU, 0x0000213cU
+			0x00002138U, 0x00002138U, 0x0000213CU, 0x0000213CU
 		};
 
 /* bitmask for bitfield imr_rx{r}[4:0] */
 	static u32 itr_imr_rxr_msk[32] = {
-			0x00001f00U, 0x0000001fU, 0x00001f00U, 0x0000001fU,
-			0x00001f00U, 0x0000001fU, 0x00001f00U, 0x0000001fU,
-			0x00001f00U, 0x0000001fU, 0x00001f00U, 0x0000001fU,
-			0x00001f00U, 0x0000001fU, 0x00001f00U, 0x0000001fU,
-			0x00001f00U, 0x0000001fU, 0x00001f00U, 0x0000001fU,
-			0x00001f00U, 0x0000001fU, 0x00001f00U, 0x0000001fU,
-			0x00001f00U, 0x0000001fU, 0x00001f00U, 0x0000001fU,
-			0x00001f00U, 0x0000001fU, 0x00001f00U, 0x0000001fU
+			0x00001f00U, 0x0000001FU, 0x00001F00U, 0x0000001FU,
+			0x00001f00U, 0x0000001FU, 0x00001F00U, 0x0000001FU,
+			0x00001f00U, 0x0000001FU, 0x00001F00U, 0x0000001FU,
+			0x00001f00U, 0x0000001FU, 0x00001F00U, 0x0000001FU,
+			0x00001f00U, 0x0000001FU, 0x00001F00U, 0x0000001FU,
+			0x00001f00U, 0x0000001FU, 0x00001F00U, 0x0000001FU,
+			0x00001f00U, 0x0000001FU, 0x00001F00U, 0x0000001FU,
+			0x00001f00U, 0x0000001FU, 0x00001F00U, 0x0000001FU
 		};
 
 /* lower bit position of bitfield imr_rx{r}[4:0] */
@@ -234,25 +235,25 @@ void itr_irq_map_tx_set(struct aq_hw_s *aq_hw, u32 irq_map_tx, u32 tx)
 /* register address for bitfield imr_tx{t}[4:0] */
 	static u32 itr_imr_txt_adr[32] = {
 			0x00002100U, 0x00002100U, 0x00002104U, 0x00002104U,
-			0x00002108U, 0x00002108U, 0x0000210cU, 0x0000210cU,
+			0x00002108U, 0x00002108U, 0x0000210CU, 0x0000210CU,
 			0x00002110U, 0x00002110U, 0x00002114U, 0x00002114U,
-			0x00002118U, 0x00002118U, 0x0000211cU, 0x0000211cU,
+			0x00002118U, 0x00002118U, 0x0000211CU, 0x0000211CU,
 			0x00002120U, 0x00002120U, 0x00002124U, 0x00002124U,
-			0x00002128U, 0x00002128U, 0x0000212cU, 0x0000212cU,
+			0x00002128U, 0x00002128U, 0x0000212CU, 0x0000212CU,
 			0x00002130U, 0x00002130U, 0x00002134U, 0x00002134U,
-			0x00002138U, 0x00002138U, 0x0000213cU, 0x0000213cU
+			0x00002138U, 0x00002138U, 0x0000213CU, 0x0000213CU
 		};
 
 /* bitmask for bitfield imr_tx{t}[4:0] */
 	static u32 itr_imr_txt_msk[32] = {
-			0x1f000000U, 0x001f0000U, 0x1f000000U, 0x001f0000U,
-			0x1f000000U, 0x001f0000U, 0x1f000000U, 0x001f0000U,
-			0x1f000000U, 0x001f0000U, 0x1f000000U, 0x001f0000U,
-			0x1f000000U, 0x001f0000U, 0x1f000000U, 0x001f0000U,
-			0x1f000000U, 0x001f0000U, 0x1f000000U, 0x001f0000U,
-			0x1f000000U, 0x001f0000U, 0x1f000000U, 0x001f0000U,
-			0x1f000000U, 0x001f0000U, 0x1f000000U, 0x001f0000U,
-			0x1f000000U, 0x001f0000U, 0x1f000000U, 0x001f0000U
+			0x1f000000U, 0x001F0000U, 0x1F000000U, 0x001F0000U,
+			0x1f000000U, 0x001F0000U, 0x1F000000U, 0x001F0000U,
+			0x1f000000U, 0x001F0000U, 0x1F000000U, 0x001F0000U,
+			0x1f000000U, 0x001F0000U, 0x1F000000U, 0x001F0000U,
+			0x1f000000U, 0x001F0000U, 0x1F000000U, 0x001F0000U,
+			0x1f000000U, 0x001F0000U, 0x1F000000U, 0x001F0000U,
+			0x1f000000U, 0x001F0000U, 0x1F000000U, 0x001F0000U,
+			0x1f000000U, 0x001F0000U, 0x1F000000U, 0x001F0000U
 		};
 
 /* lower bit position of bitfield imr_tx{t}[4:0] */
@@ -271,185 +272,189 @@ void itr_irq_map_tx_set(struct aq_hw_s *aq_hw, u32 irq_map_tx, u32 tx)
 
 void itr_irq_msk_clearlsw_set(struct aq_hw_s *aq_hw, u32 irq_msk_clearlsw)
 {
-	aq_hw_write_reg(aq_hw, itr_imcrlsw_adr, irq_msk_clearlsw);
+	aq_hw_write_reg(aq_hw, HW_ATL_ITR_IMCRLSW_ADR, irq_msk_clearlsw);
 }
 
 void itr_irq_msk_setlsw_set(struct aq_hw_s *aq_hw, u32 irq_msk_setlsw)
 {
-	aq_hw_write_reg(aq_hw, itr_imsrlsw_adr, irq_msk_setlsw);
+	aq_hw_write_reg(aq_hw, HW_ATL_ITR_IMSRLSW_ADR, irq_msk_setlsw);
 }
 
 void itr_irq_reg_res_dis_set(struct aq_hw_s *aq_hw, u32 irq_reg_res_dis)
 {
-	aq_hw_write_reg_bit(aq_hw, itr_reg_res_dsbl_adr,
-			    itr_reg_res_dsbl_msk,
-			    itr_reg_res_dsbl_shift, irq_reg_res_dis);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_ITR_REG_RES_DSBL_ADR,
+			    HW_ATL_ITR_REG_RES_DSBL_MSK,
+			    HW_ATL_ITR_REG_RES_DSBL_SHIFT, irq_reg_res_dis);
 }
 
 void itr_irq_status_clearlsw_set(struct aq_hw_s *aq_hw,
 				 u32 irq_status_clearlsw)
 {
-	aq_hw_write_reg(aq_hw, itr_iscrlsw_adr, irq_status_clearlsw);
+	aq_hw_write_reg(aq_hw, HW_ATL_ITR_ISCRLSW_ADR, irq_status_clearlsw);
 }
 
 u32 itr_irq_statuslsw_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, itr_isrlsw_adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_ITR_ISRLSW_ADR);
 }
 
 u32 itr_res_irq_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg_bit(aq_hw, itr_res_adr, itr_res_msk,
-				  itr_res_shift);
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_ITR_RES_ADR, HW_ATL_ITR_RES_MSK,
+				  HW_ATL_ITR_RES_SHIFT);
 }
 
 void itr_res_irq_set(struct aq_hw_s *aq_hw, u32 res_irq)
 {
-	aq_hw_write_reg_bit(aq_hw, itr_res_adr, itr_res_msk,
-			    itr_res_shift, res_irq);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_ITR_RES_ADR, HW_ATL_ITR_RES_MSK,
+			    HW_ATL_ITR_RES_SHIFT, res_irq);
 }
 
 /* rdm */
 void rdm_cpu_id_set(struct aq_hw_s *aq_hw, u32 cpuid, u32 dca)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_dcadcpuid_adr(dca),
-			    rdm_dcadcpuid_msk,
-			    rdm_dcadcpuid_shift, cpuid);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DCADCPUID_ADR(dca),
+			    HW_ATL_RDM_DCADCPUID_MSK,
+			    HW_ATL_RDM_DCADCPUID_SHIFT, cpuid);
 }
 
 void rdm_rx_dca_en_set(struct aq_hw_s *aq_hw, u32 rx_dca_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_dca_en_adr, rdm_dca_en_msk,
-			    rdm_dca_en_shift, rx_dca_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DCA_EN_ADR, HW_ATL_RDM_DCA_EN_MSK,
+			    HW_ATL_RDM_DCA_EN_SHIFT, rx_dca_en);
 }
 
 void rdm_rx_dca_mode_set(struct aq_hw_s *aq_hw, u32 rx_dca_mode)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_dca_mode_adr, rdm_dca_mode_msk,
-			    rdm_dca_mode_shift, rx_dca_mode);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DCA_MODE_ADR,
+			    HW_ATL_RDM_DCA_MODE_MSK,
+			    HW_ATL_RDM_DCA_MODE_SHIFT, rx_dca_mode);
 }
 
 void rdm_rx_desc_data_buff_size_set(struct aq_hw_s *aq_hw,
 				    u32 rx_desc_data_buff_size, u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_descddata_size_adr(descriptor),
-			    rdm_descddata_size_msk,
-			    rdm_descddata_size_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DESCDDATA_SIZE_ADR(descriptor),
+			    HW_ATL_RDM_DESCDDATA_SIZE_MSK,
+			    HW_ATL_RDM_DESCDDATA_SIZE_SHIFT,
 			    rx_desc_data_buff_size);
 }
 
 void rdm_rx_desc_dca_en_set(struct aq_hw_s *aq_hw, u32 rx_desc_dca_en, u32 dca)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_dcaddesc_en_adr(dca),
-			    rdm_dcaddesc_en_msk,
-			    rdm_dcaddesc_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DCADDESC_EN_ADR(dca),
+			    HW_ATL_RDM_DCADDESC_EN_MSK,
+			    HW_ATL_RDM_DCADDESC_EN_SHIFT,
 			    rx_desc_dca_en);
 }
 
 void rdm_rx_desc_en_set(struct aq_hw_s *aq_hw, u32 rx_desc_en, u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_descden_adr(descriptor),
-			    rdm_descden_msk,
-			    rdm_descden_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DESCDEN_ADR(descriptor),
+			    HW_ATL_RDM_DESCDEN_MSK,
+			    HW_ATL_RDM_DESCDEN_SHIFT,
 			    rx_desc_en);
 }
 
 void rdm_rx_desc_head_buff_size_set(struct aq_hw_s *aq_hw,
 				    u32 rx_desc_head_buff_size, u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_descdhdr_size_adr(descriptor),
-			    rdm_descdhdr_size_msk,
-			    rdm_descdhdr_size_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DESCDHDR_SIZE_ADR(descriptor),
+			    HW_ATL_RDM_DESCDHDR_SIZE_MSK,
+			    HW_ATL_RDM_DESCDHDR_SIZE_SHIFT,
 			    rx_desc_head_buff_size);
 }
 
 void rdm_rx_desc_head_splitting_set(struct aq_hw_s *aq_hw,
 				    u32 rx_desc_head_splitting, u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_descdhdr_split_adr(descriptor),
-			    rdm_descdhdr_split_msk,
-			    rdm_descdhdr_split_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DESCDHDR_SPLIT_ADR(descriptor),
+			    HW_ATL_RDM_DESCDHDR_SPLIT_MSK,
+			    HW_ATL_RDM_DESCDHDR_SPLIT_SHIFT,
 			    rx_desc_head_splitting);
 }
 
 u32 rdm_rx_desc_head_ptr_get(struct aq_hw_s *aq_hw, u32 descriptor)
 {
-	return aq_hw_read_reg_bit(aq_hw, rdm_descdhd_adr(descriptor),
-				  rdm_descdhd_msk, rdm_descdhd_shift);
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_RDM_DESCDHD_ADR(descriptor),
+				  HW_ATL_RDM_DESCDHD_MSK,
+				  HW_ATL_RDM_DESCDHD_SHIFT);
 }
 
 void rdm_rx_desc_len_set(struct aq_hw_s *aq_hw, u32 rx_desc_len, u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_descdlen_adr(descriptor),
-			    rdm_descdlen_msk, rdm_descdlen_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DESCDLEN_ADR(descriptor),
+			    HW_ATL_RDM_DESCDLEN_MSK, HW_ATL_RDM_DESCDLEN_SHIFT,
 			    rx_desc_len);
 }
 
 void rdm_rx_desc_res_set(struct aq_hw_s *aq_hw, u32 rx_desc_res, u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_descdreset_adr(descriptor),
-			    rdm_descdreset_msk, rdm_descdreset_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DESCDRESET_ADR(descriptor),
+			    HW_ATL_RDM_DESCDRESET_MSK,
+			    HW_ATL_RDM_DESCDRESET_SHIFT,
 			    rx_desc_res);
 }
 
 void rdm_rx_desc_wr_wb_irq_en_set(struct aq_hw_s *aq_hw,
 				  u32 rx_desc_wr_wb_irq_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_int_desc_wrb_en_adr,
-			    rdm_int_desc_wrb_en_msk,
-			    rdm_int_desc_wrb_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_INT_DESC_WRB_EN_ADR,
+			    HW_ATL_RDM_INT_DESC_WRB_EN_MSK,
+			    HW_ATL_RDM_INT_DESC_WRB_EN_SHIFT,
 			    rx_desc_wr_wb_irq_en);
 }
 
 void rdm_rx_head_dca_en_set(struct aq_hw_s *aq_hw, u32 rx_head_dca_en, u32 dca)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_dcadhdr_en_adr(dca),
-			    rdm_dcadhdr_en_msk,
-			    rdm_dcadhdr_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DCADHDR_EN_ADR(dca),
+			    HW_ATL_RDM_DCADHDR_EN_MSK,
+			    HW_ATL_RDM_DCADHDR_EN_SHIFT,
 			    rx_head_dca_en);
 }
 
 void rdm_rx_pld_dca_en_set(struct aq_hw_s *aq_hw, u32 rx_pld_dca_en, u32 dca)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_dcadpay_en_adr(dca),
-			    rdm_dcadpay_en_msk, rdm_dcadpay_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_DCADPAY_EN_ADR(dca),
+			    HW_ATL_RDM_DCADPAY_EN_MSK,
+			    HW_ATL_RDM_DCADPAY_EN_SHIFT,
 			    rx_pld_dca_en);
 }
 
 void rdm_rdm_intr_moder_en_set(struct aq_hw_s *aq_hw, u32 rdm_intr_moder_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rdm_int_rim_en_adr,
-			    rdm_int_rim_en_msk,
-			    rdm_int_rim_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RDM_INT_RIM_EN_ADR,
+			    HW_ATL_RDM_INT_RIM_EN_MSK,
+			    HW_ATL_RDM_INT_RIM_EN_SHIFT,
 			    rdm_intr_moder_en);
 }
 
 /* reg */
 void reg_gen_irq_map_set(struct aq_hw_s *aq_hw, u32 gen_intr_map, u32 regidx)
 {
-	aq_hw_write_reg(aq_hw, gen_intr_map_adr(regidx), gen_intr_map);
+	aq_hw_write_reg(aq_hw, HW_ATL_GEN_INTR_MAP_ADR(regidx), gen_intr_map);
 }
 
 u32 reg_gen_irq_status_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, gen_intr_stat_adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_GEN_INTR_STAT_ADR);
 }
 
 void reg_irq_glb_ctl_set(struct aq_hw_s *aq_hw, u32 intr_glb_ctl)
 {
-	aq_hw_write_reg(aq_hw, intr_glb_ctl_adr, intr_glb_ctl);
+	aq_hw_write_reg(aq_hw, HW_ATL_INTR_GLB_CTL_ADR, intr_glb_ctl);
 }
 
 void reg_irq_thr_set(struct aq_hw_s *aq_hw, u32 intr_thr, u32 throttle)
 {
-	aq_hw_write_reg(aq_hw, intr_thr_adr(throttle), intr_thr);
+	aq_hw_write_reg(aq_hw, HW_ATL_INTR_THR_ADR(throttle), intr_thr);
 }
 
 void reg_rx_dma_desc_base_addresslswset(struct aq_hw_s *aq_hw,
 					u32 rx_dma_desc_base_addrlsw,
 					u32 descriptor)
 {
-	aq_hw_write_reg(aq_hw, rx_dma_desc_base_addrlsw_adr(descriptor),
+	aq_hw_write_reg(aq_hw, HW_ATL_RX_DMA_DESC_BASE_ADDRLSW_ADR(descriptor),
 			rx_dma_desc_base_addrlsw);
 }
 
@@ -457,61 +462,64 @@ void reg_rx_dma_desc_base_addressmswset(struct aq_hw_s *aq_hw,
 					u32 rx_dma_desc_base_addrmsw,
 					u32 descriptor)
 {
-	aq_hw_write_reg(aq_hw, rx_dma_desc_base_addrmsw_adr(descriptor),
+	aq_hw_write_reg(aq_hw, HW_ATL_RX_DMA_DESC_BASE_ADDRMSW_ADR(descriptor),
 			rx_dma_desc_base_addrmsw);
 }
 
 u32 reg_rx_dma_desc_status_get(struct aq_hw_s *aq_hw, u32 descriptor)
 {
-	return aq_hw_read_reg(aq_hw, rx_dma_desc_stat_adr(descriptor));
+	return aq_hw_read_reg(aq_hw, HW_ATL_RX_DMA_DESC_STAT_ADR(descriptor));
 }
 
 void reg_rx_dma_desc_tail_ptr_set(struct aq_hw_s *aq_hw,
 				  u32 rx_dma_desc_tail_ptr, u32 descriptor)
 {
-	aq_hw_write_reg(aq_hw, rx_dma_desc_tail_ptr_adr(descriptor),
+	aq_hw_write_reg(aq_hw, HW_ATL_RX_DMA_DESC_TAIL_PTR_ADR(descriptor),
 			rx_dma_desc_tail_ptr);
 }
 
 void reg_rx_flr_mcst_flr_msk_set(struct aq_hw_s *aq_hw, u32 rx_flr_mcst_flr_msk)
 {
-	aq_hw_write_reg(aq_hw, rx_flr_mcst_flr_msk_adr, rx_flr_mcst_flr_msk);
+	aq_hw_write_reg(aq_hw, HW_ATL_RX_FLR_MCST_FLR_MSK_ADR,
+			rx_flr_mcst_flr_msk);
 }
 
 void reg_rx_flr_mcst_flr_set(struct aq_hw_s *aq_hw, u32 rx_flr_mcst_flr,
 			     u32 filter)
 {
-	aq_hw_write_reg(aq_hw, rx_flr_mcst_flr_adr(filter), rx_flr_mcst_flr);
+	aq_hw_write_reg(aq_hw, HW_ATL_RX_FLR_MCST_FLR_ADR(filter),
+			rx_flr_mcst_flr);
 }
 
 void reg_rx_flr_rss_control1set(struct aq_hw_s *aq_hw, u32 rx_flr_rss_control1)
 {
-	aq_hw_write_reg(aq_hw, rx_flr_rss_control1_adr, rx_flr_rss_control1);
+	aq_hw_write_reg(aq_hw, HW_ATL_RX_FLR_RSS_CONTROL1_ADR,
+			rx_flr_rss_control1);
 }
 
 void reg_rx_flr_control2_set(struct aq_hw_s *aq_hw, u32 rx_filter_control2)
 {
-	aq_hw_write_reg(aq_hw, rx_flr_control2_adr, rx_filter_control2);
+	aq_hw_write_reg(aq_hw, HW_ATL_RX_FLR_CONTROL2_ADR, rx_filter_control2);
 }
 
 void reg_rx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
 				u32 rx_intr_moderation_ctl,
 				u32 queue)
 {
-	aq_hw_write_reg(aq_hw, rx_intr_moderation_ctl_adr(queue),
+	aq_hw_write_reg(aq_hw, HW_ATL_RX_INTR_MODERATION_CTL_ADR(queue),
 			rx_intr_moderation_ctl);
 }
 
 void reg_tx_dma_debug_ctl_set(struct aq_hw_s *aq_hw, u32 tx_dma_debug_ctl)
 {
-	aq_hw_write_reg(aq_hw, tx_dma_debug_ctl_adr, tx_dma_debug_ctl);
+	aq_hw_write_reg(aq_hw, HW_ATL_TX_DMA_DEBUG_CTL_ADR, tx_dma_debug_ctl);
 }
 
 void reg_tx_dma_desc_base_addresslswset(struct aq_hw_s *aq_hw,
 					u32 tx_dma_desc_base_addrlsw,
 					u32 descriptor)
 {
-	aq_hw_write_reg(aq_hw, tx_dma_desc_base_addrlsw_adr(descriptor),
+	aq_hw_write_reg(aq_hw, HW_ATL_TX_DMA_DESC_BASE_ADDRLSW_ADR(descriptor),
 			tx_dma_desc_base_addrlsw);
 }
 
@@ -519,14 +527,14 @@ void reg_tx_dma_desc_base_addressmswset(struct aq_hw_s *aq_hw,
 					u32 tx_dma_desc_base_addrmsw,
 					u32 descriptor)
 {
-	aq_hw_write_reg(aq_hw, tx_dma_desc_base_addrmsw_adr(descriptor),
+	aq_hw_write_reg(aq_hw, HW_ATL_TX_DMA_DESC_BASE_ADDRMSW_ADR(descriptor),
 			tx_dma_desc_base_addrmsw);
 }
 
 void reg_tx_dma_desc_tail_ptr_set(struct aq_hw_s *aq_hw,
 				  u32 tx_dma_desc_tail_ptr, u32 descriptor)
 {
-	aq_hw_write_reg(aq_hw, tx_dma_desc_tail_ptr_adr(descriptor),
+	aq_hw_write_reg(aq_hw, HW_ATL_TX_DMA_DESC_TAIL_PTR_ADR(descriptor),
 			tx_dma_desc_tail_ptr);
 }
 
@@ -534,39 +542,41 @@ void reg_tx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
 				u32 tx_intr_moderation_ctl,
 				u32 queue)
 {
-	aq_hw_write_reg(aq_hw, tx_intr_moderation_ctl_adr(queue),
+	aq_hw_write_reg(aq_hw, HW_ATL_TX_INTR_MODERATION_CTL_ADR(queue),
 			tx_intr_moderation_ctl);
 }
 
 /* RPB: rx packet buffer */
 void rpb_dma_sys_lbk_set(struct aq_hw_s *aq_hw, u32 dma_sys_lbk)
 {
-	aq_hw_write_reg_bit(aq_hw, rpb_dma_sys_lbk_adr,
-			    rpb_dma_sys_lbk_msk,
-			    rpb_dma_sys_lbk_shift, dma_sys_lbk);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPB_DMA_SYS_LBK_ADR,
+			    HW_ATL_RPB_DMA_SYS_LBK_MSK,
+			    HW_ATL_RPB_DMA_SYS_LBK_SHIFT, dma_sys_lbk);
 }
 
 void rpb_rpf_rx_traf_class_mode_set(struct aq_hw_s *aq_hw,
 				    u32 rx_traf_class_mode)
 {
-	aq_hw_write_reg_bit(aq_hw, rpb_rpf_rx_tc_mode_adr,
-			    rpb_rpf_rx_tc_mode_msk,
-			    rpb_rpf_rx_tc_mode_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPB_RPF_RX_TC_MODE_ADR,
+			    HW_ATL_RPB_RPF_RX_TC_MODE_MSK,
+			    HW_ATL_RPB_RPF_RX_TC_MODE_SHIFT,
 			    rx_traf_class_mode);
 }
 
 void rpb_rx_buff_en_set(struct aq_hw_s *aq_hw, u32 rx_buff_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rpb_rx_buf_en_adr, rpb_rx_buf_en_msk,
-			    rpb_rx_buf_en_shift, rx_buff_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPB_RX_BUF_EN_ADR,
+			    HW_ATL_RPB_RX_BUF_EN_MSK,
+			    HW_ATL_RPB_RX_BUF_EN_SHIFT, rx_buff_en);
 }
 
 void rpb_rx_buff_hi_threshold_per_tc_set(struct aq_hw_s *aq_hw,
 					 u32 rx_buff_hi_threshold_per_tc,
 					 u32 buffer)
 {
-	aq_hw_write_reg_bit(aq_hw, rpb_rxbhi_thresh_adr(buffer),
-			    rpb_rxbhi_thresh_msk, rpb_rxbhi_thresh_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPB_RXBHI_THRESH_ADR(buffer),
+			    HW_ATL_RPB_RXBHI_THRESH_MSK,
+			    HW_ATL_RPB_RXBHI_THRESH_SHIFT,
 			    rx_buff_hi_threshold_per_tc);
 }
 
@@ -574,32 +584,34 @@ void rpb_rx_buff_lo_threshold_per_tc_set(struct aq_hw_s *aq_hw,
 					 u32 rx_buff_lo_threshold_per_tc,
 					 u32 buffer)
 {
-	aq_hw_write_reg_bit(aq_hw, rpb_rxblo_thresh_adr(buffer),
-			    rpb_rxblo_thresh_msk,
-			    rpb_rxblo_thresh_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPB_RXBLO_THRESH_ADR(buffer),
+			    HW_ATL_RPB_RXBLO_THRESH_MSK,
+			    HW_ATL_RPB_RXBLO_THRESH_SHIFT,
 			    rx_buff_lo_threshold_per_tc);
 }
 
 void rpb_rx_flow_ctl_mode_set(struct aq_hw_s *aq_hw, u32 rx_flow_ctl_mode)
 {
-	aq_hw_write_reg_bit(aq_hw, rpb_rx_fc_mode_adr,
-			    rpb_rx_fc_mode_msk,
-			    rpb_rx_fc_mode_shift, rx_flow_ctl_mode);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPB_RX_FC_MODE_ADR,
+			    HW_ATL_RPB_RX_FC_MODE_MSK,
+			    HW_ATL_RPB_RX_FC_MODE_SHIFT, rx_flow_ctl_mode);
 }
 
 void rpb_rx_pkt_buff_size_per_tc_set(struct aq_hw_s *aq_hw,
 				     u32 rx_pkt_buff_size_per_tc, u32 buffer)
 {
-	aq_hw_write_reg_bit(aq_hw, rpb_rxbbuf_size_adr(buffer),
-			    rpb_rxbbuf_size_msk, rpb_rxbbuf_size_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPB_RXBBUF_SIZE_ADR(buffer),
+			    HW_ATL_RPB_RXBBUF_SIZE_MSK,
+			    HW_ATL_RPB_RXBBUF_SIZE_SHIFT,
 			    rx_pkt_buff_size_per_tc);
 }
 
 void rpb_rx_xoff_en_per_tc_set(struct aq_hw_s *aq_hw, u32 rx_xoff_en_per_tc,
 			       u32 buffer)
 {
-	aq_hw_write_reg_bit(aq_hw, rpb_rxbxoff_en_adr(buffer),
-			    rpb_rxbxoff_en_msk, rpb_rxbxoff_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPB_RXBXOFF_EN_ADR(buffer),
+			    HW_ATL_RPB_RXBXOFF_EN_MSK,
+			    HW_ATL_RPB_RXBXOFF_EN_SHIFT,
 			    rx_xoff_en_per_tc);
 }
 
@@ -608,62 +620,63 @@ void rpb_rx_xoff_en_per_tc_set(struct aq_hw_s *aq_hw, u32 rx_xoff_en_per_tc,
 void rpfl2broadcast_count_threshold_set(struct aq_hw_s *aq_hw,
 					u32 l2broadcast_count_threshold)
 {
-	aq_hw_write_reg_bit(aq_hw, rpfl2bc_thresh_adr,
-			    rpfl2bc_thresh_msk,
-			    rpfl2bc_thresh_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPFL2BC_THRESH_ADR,
+			    HW_ATL_RPFL2BC_THRESH_MSK,
+			    HW_ATL_RPFL2BC_THRESH_SHIFT,
 			    l2broadcast_count_threshold);
 }
 
 void rpfl2broadcast_en_set(struct aq_hw_s *aq_hw, u32 l2broadcast_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rpfl2bc_en_adr, rpfl2bc_en_msk,
-			    rpfl2bc_en_shift, l2broadcast_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPFL2BC_EN_ADR, HW_ATL_RPFL2BC_EN_MSK,
+			    HW_ATL_RPFL2BC_EN_SHIFT, l2broadcast_en);
 }
 
 void rpfl2broadcast_flr_act_set(struct aq_hw_s *aq_hw, u32 l2broadcast_flr_act)
 {
-	aq_hw_write_reg_bit(aq_hw, rpfl2bc_act_adr, rpfl2bc_act_msk,
-			    rpfl2bc_act_shift, l2broadcast_flr_act);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPFL2BC_ACT_ADR,
+			    HW_ATL_RPFL2BC_ACT_MSK,
+			    HW_ATL_RPFL2BC_ACT_SHIFT, l2broadcast_flr_act);
 }
 
 void rpfl2multicast_flr_en_set(struct aq_hw_s *aq_hw, u32 l2multicast_flr_en,
 			       u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpfl2mc_enf_adr(filter),
-			    rpfl2mc_enf_msk,
-			    rpfl2mc_enf_shift, l2multicast_flr_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPFL2MC_ENF_ADR(filter),
+			    HW_ATL_RPFL2MC_ENF_MSK,
+			    HW_ATL_RPFL2MC_ENF_SHIFT, l2multicast_flr_en);
 }
 
 void rpfl2promiscuous_mode_en_set(struct aq_hw_s *aq_hw,
 				  u32 l2promiscuous_mode_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rpfl2promis_mode_adr,
-			    rpfl2promis_mode_msk,
-			    rpfl2promis_mode_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPFL2PROMIS_MODE_ADR,
+			    HW_ATL_RPFL2PROMIS_MODE_MSK,
+			    HW_ATL_RPFL2PROMIS_MODE_SHIFT,
 			    l2promiscuous_mode_en);
 }
 
 void rpfl2unicast_flr_act_set(struct aq_hw_s *aq_hw, u32 l2unicast_flr_act,
 			      u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpfl2uc_actf_adr(filter),
-			    rpfl2uc_actf_msk, rpfl2uc_actf_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPFL2UC_ACTF_ADR(filter),
+			    HW_ATL_RPFL2UC_ACTF_MSK, HW_ATL_RPFL2UC_ACTF_SHIFT,
 			    l2unicast_flr_act);
 }
 
 void rpfl2_uc_flr_en_set(struct aq_hw_s *aq_hw, u32 l2unicast_flr_en,
 			 u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpfl2uc_enf_adr(filter),
-			    rpfl2uc_enf_msk,
-			    rpfl2uc_enf_shift, l2unicast_flr_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPFL2UC_ENF_ADR(filter),
+			    HW_ATL_RPFL2UC_ENF_MSK,
+			    HW_ATL_RPFL2UC_ENF_SHIFT, l2unicast_flr_en);
 }
 
 void rpfl2unicast_dest_addresslsw_set(struct aq_hw_s *aq_hw,
 				      u32 l2unicast_dest_addresslsw,
 				      u32 filter)
 {
-	aq_hw_write_reg(aq_hw, rpfl2uc_daflsw_adr(filter),
+	aq_hw_write_reg(aq_hw, HW_ATL_RPFL2UC_DAFLSW_ADR(filter),
 			l2unicast_dest_addresslsw);
 }
 
@@ -671,17 +684,18 @@ void rpfl2unicast_dest_addressmsw_set(struct aq_hw_s *aq_hw,
 				      u32 l2unicast_dest_addressmsw,
 				      u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpfl2uc_dafmsw_adr(filter),
-			    rpfl2uc_dafmsw_msk, rpfl2uc_dafmsw_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPFL2UC_DAFMSW_ADR(filter),
+			    HW_ATL_RPFL2UC_DAFMSW_MSK,
+			    HW_ATL_RPFL2UC_DAFMSW_SHIFT,
 			    l2unicast_dest_addressmsw);
 }
 
 void rpfl2_accept_all_mc_packets_set(struct aq_hw_s *aq_hw,
 				     u32 l2_accept_all_mc_packets)
 {
-	aq_hw_write_reg_bit(aq_hw, rpfl2mc_accept_all_adr,
-			    rpfl2mc_accept_all_msk,
-			    rpfl2mc_accept_all_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPFL2MC_ACCEPT_ALL_ADR,
+			    HW_ATL_RPFL2MC_ACCEPT_ALL_MSK,
+			    HW_ATL_RPFL2MC_ACCEPT_ALL_SHIFT,
 			    l2_accept_all_mc_packets);
 }
 
@@ -690,8 +704,8 @@ void rpf_rpb_user_priority_tc_map_set(struct aq_hw_s *aq_hw,
 {
 /* register address for bitfield rx_tc_up{t}[2:0] */
 	static u32 rpf_rpb_rx_tc_upt_adr[8] = {
-			0x000054c4U, 0x000054c4U, 0x000054c4U, 0x000054c4U,
-			0x000054c4U, 0x000054c4U, 0x000054c4U, 0x000054c4U
+			0x000054c4U, 0x000054C4U, 0x000054C4U, 0x000054C4U,
+			0x000054c4U, 0x000054C4U, 0x000054C4U, 0x000054C4U
 		};
 
 /* bitmask for bitfield rx_tc_up{t}[2:0] */
@@ -713,266 +727,270 @@ void rpf_rpb_user_priority_tc_map_set(struct aq_hw_s *aq_hw,
 
 void rpf_rss_key_addr_set(struct aq_hw_s *aq_hw, u32 rss_key_addr)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_rss_key_addr_adr,
-			    rpf_rss_key_addr_msk,
-			    rpf_rss_key_addr_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_RSS_KEY_ADDR_ADR,
+			    HW_ATL_RPF_RSS_KEY_ADDR_MSK,
+			    HW_ATL_RPF_RSS_KEY_ADDR_SHIFT,
 			    rss_key_addr);
 }
 
 void rpf_rss_key_wr_data_set(struct aq_hw_s *aq_hw, u32 rss_key_wr_data)
 {
-	aq_hw_write_reg(aq_hw, rpf_rss_key_wr_data_adr,
+	aq_hw_write_reg(aq_hw, HW_ATL_RPF_RSS_KEY_WR_DATA_ADR,
 			rss_key_wr_data);
 }
 
 u32 rpf_rss_key_wr_en_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg_bit(aq_hw, rpf_rss_key_wr_eni_adr,
-				  rpf_rss_key_wr_eni_msk,
-				  rpf_rss_key_wr_eni_shift);
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_RPF_RSS_KEY_WR_ENI_ADR,
+				  HW_ATL_RPF_RSS_KEY_WR_ENI_MSK,
+				  HW_ATL_RPF_RSS_KEY_WR_ENI_SHIFT);
 }
 
 void rpf_rss_key_wr_en_set(struct aq_hw_s *aq_hw, u32 rss_key_wr_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_rss_key_wr_eni_adr,
-			    rpf_rss_key_wr_eni_msk,
-			    rpf_rss_key_wr_eni_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_RSS_KEY_WR_ENI_ADR,
+			    HW_ATL_RPF_RSS_KEY_WR_ENI_MSK,
+			    HW_ATL_RPF_RSS_KEY_WR_ENI_SHIFT,
 			    rss_key_wr_en);
 }
 
 void rpf_rss_redir_tbl_addr_set(struct aq_hw_s *aq_hw, u32 rss_redir_tbl_addr)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_rss_redir_addr_adr,
-			    rpf_rss_redir_addr_msk,
-			    rpf_rss_redir_addr_shift, rss_redir_tbl_addr);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_RSS_REDIR_ADDR_ADR,
+			    HW_ATL_RPF_RSS_REDIR_ADDR_MSK,
+			    HW_ATL_RPF_RSS_REDIR_ADDR_SHIFT,
+			    rss_redir_tbl_addr);
 }
 
 void rpf_rss_redir_tbl_wr_data_set(struct aq_hw_s *aq_hw,
 				   u32 rss_redir_tbl_wr_data)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_rss_redir_wr_data_adr,
-			    rpf_rss_redir_wr_data_msk,
-			    rpf_rss_redir_wr_data_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_RSS_REDIR_WR_DATA_ADR,
+			    HW_ATL_RPF_RSS_REDIR_WR_DATA_MSK,
+			    HW_ATL_RPF_RSS_REDIR_WR_DATA_SHIFT,
 			    rss_redir_tbl_wr_data);
 }
 
 u32 rpf_rss_redir_wr_en_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg_bit(aq_hw, rpf_rss_redir_wr_eni_adr,
-				  rpf_rss_redir_wr_eni_msk,
-				  rpf_rss_redir_wr_eni_shift);
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_RPF_RSS_REDIR_WR_ENI_ADR,
+				  HW_ATL_RPF_RSS_REDIR_WR_ENI_MSK,
+				  HW_ATL_RPF_RSS_REDIR_WR_ENI_SHIFT);
 }
 
 void rpf_rss_redir_wr_en_set(struct aq_hw_s *aq_hw, u32 rss_redir_wr_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_rss_redir_wr_eni_adr,
-			    rpf_rss_redir_wr_eni_msk,
-			    rpf_rss_redir_wr_eni_shift, rss_redir_wr_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_RSS_REDIR_WR_ENI_ADR,
+			    HW_ATL_RPF_RSS_REDIR_WR_ENI_MSK,
+			    HW_ATL_RPF_RSS_REDIR_WR_ENI_SHIFT, rss_redir_wr_en);
 }
 
 void rpf_tpo_to_rpf_sys_lbk_set(struct aq_hw_s *aq_hw, u32 tpo_to_rpf_sys_lbk)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_tpo_rpf_sys_lbk_adr,
-			    rpf_tpo_rpf_sys_lbk_msk,
-			    rpf_tpo_rpf_sys_lbk_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_TPO_RPF_SYS_LBK_ADR,
+			    HW_ATL_RPF_TPO_RPF_SYS_LBK_MSK,
+			    HW_ATL_RPF_TPO_RPF_SYS_LBK_SHIFT,
 			    tpo_to_rpf_sys_lbk);
 }
 
 void rpf_vlan_inner_etht_set(struct aq_hw_s *aq_hw, u32 vlan_inner_etht)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_vl_inner_tpid_adr,
-			    rpf_vl_inner_tpid_msk,
-			    rpf_vl_inner_tpid_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_INNER_TPID_ADR,
+			    HW_ATL_RPF_VL_INNER_TPID_MSK,
+			    HW_ATL_RPF_VL_INNER_TPID_SHIFT,
 			    vlan_inner_etht);
 }
 
 void rpf_vlan_outer_etht_set(struct aq_hw_s *aq_hw, u32 vlan_outer_etht)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_vl_outer_tpid_adr,
-			    rpf_vl_outer_tpid_msk,
-			    rpf_vl_outer_tpid_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_OUTER_TPID_ADR,
+			    HW_ATL_RPF_VL_OUTER_TPID_MSK,
+			    HW_ATL_RPF_VL_OUTER_TPID_SHIFT,
 			    vlan_outer_etht);
 }
 
 void rpf_vlan_prom_mode_en_set(struct aq_hw_s *aq_hw, u32 vlan_prom_mode_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_vl_promis_mode_adr,
-			    rpf_vl_promis_mode_msk,
-			    rpf_vl_promis_mode_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_PROMIS_MODE_ADR,
+			    HW_ATL_RPF_VL_PROMIS_MODE_MSK,
+			    HW_ATL_RPF_VL_PROMIS_MODE_SHIFT,
 			    vlan_prom_mode_en);
 }
 
 void rpf_vlan_accept_untagged_packets_set(struct aq_hw_s *aq_hw,
 					  u32 vlan_accept_untagged_packets)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_vl_accept_untagged_mode_adr,
-			    rpf_vl_accept_untagged_mode_msk,
-			    rpf_vl_accept_untagged_mode_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_ACCEPT_UNTAGGED_MODE_ADR,
+			    HW_ATL_RPF_VL_ACCEPT_UNTAGGED_MODE_MSK,
+			    HW_ATL_RPF_VL_ACCEPT_UNTAGGED_MODE_SHIFT,
 			    vlan_accept_untagged_packets);
 }
 
 void rpf_vlan_untagged_act_set(struct aq_hw_s *aq_hw, u32 vlan_untagged_act)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_vl_untagged_act_adr,
-			    rpf_vl_untagged_act_msk,
-			    rpf_vl_untagged_act_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_UNTAGGED_ACT_ADR,
+			    HW_ATL_RPF_VL_UNTAGGED_ACT_MSK,
+			    HW_ATL_RPF_VL_UNTAGGED_ACT_SHIFT,
 			    vlan_untagged_act);
 }
 
 void rpf_vlan_flr_en_set(struct aq_hw_s *aq_hw, u32 vlan_flr_en, u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_vl_en_f_adr(filter),
-			    rpf_vl_en_f_msk,
-			    rpf_vl_en_f_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_EN_F_ADR(filter),
+			    HW_ATL_RPF_VL_EN_F_MSK,
+			    HW_ATL_RPF_VL_EN_F_SHIFT,
 			    vlan_flr_en);
 }
 
 void rpf_vlan_flr_act_set(struct aq_hw_s *aq_hw, u32 vlan_flr_act, u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_vl_act_f_adr(filter),
-			    rpf_vl_act_f_msk,
-			    rpf_vl_act_f_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_ACT_F_ADR(filter),
+			    HW_ATL_RPF_VL_ACT_F_MSK,
+			    HW_ATL_RPF_VL_ACT_F_SHIFT,
 			    vlan_flr_act);
 }
 
 void rpf_vlan_id_flr_set(struct aq_hw_s *aq_hw, u32 vlan_id_flr, u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_vl_id_f_adr(filter),
-			    rpf_vl_id_f_msk,
-			    rpf_vl_id_f_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_ID_F_ADR(filter),
+			    HW_ATL_RPF_VL_ID_F_MSK,
+			    HW_ATL_RPF_VL_ID_F_SHIFT,
 			    vlan_id_flr);
 }
 
 void rpf_etht_flr_en_set(struct aq_hw_s *aq_hw, u32 etht_flr_en, u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_et_enf_adr(filter),
-			    rpf_et_enf_msk,
-			    rpf_et_enf_shift, etht_flr_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_ENF_ADR(filter),
+			    HW_ATL_RPF_ET_ENF_MSK,
+			    HW_ATL_RPF_ET_ENF_SHIFT, etht_flr_en);
 }
 
 void rpf_etht_user_priority_en_set(struct aq_hw_s *aq_hw,
 				   u32 etht_user_priority_en, u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_et_upfen_adr(filter),
-			    rpf_et_upfen_msk, rpf_et_upfen_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_UPFEN_ADR(filter),
+			    HW_ATL_RPF_ET_UPFEN_MSK, HW_ATL_RPF_ET_UPFEN_SHIFT,
 			    etht_user_priority_en);
 }
 
 void rpf_etht_rx_queue_en_set(struct aq_hw_s *aq_hw, u32 etht_rx_queue_en,
 			      u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_et_rxqfen_adr(filter),
-			    rpf_et_rxqfen_msk, rpf_et_rxqfen_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_RXQFEN_ADR(filter),
+			    HW_ATL_RPF_ET_RXQFEN_MSK,
+			    HW_ATL_RPF_ET_RXQFEN_SHIFT,
 			    etht_rx_queue_en);
 }
 
 void rpf_etht_user_priority_set(struct aq_hw_s *aq_hw, u32 etht_user_priority,
 				u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_et_upf_adr(filter),
-			    rpf_et_upf_msk,
-			    rpf_et_upf_shift, etht_user_priority);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_UPF_ADR(filter),
+			    HW_ATL_RPF_ET_UPF_MSK,
+			    HW_ATL_RPF_ET_UPF_SHIFT, etht_user_priority);
 }
 
 void rpf_etht_rx_queue_set(struct aq_hw_s *aq_hw, u32 etht_rx_queue,
 			   u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_et_rxqf_adr(filter),
-			    rpf_et_rxqf_msk,
-			    rpf_et_rxqf_shift, etht_rx_queue);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_RXQF_ADR(filter),
+			    HW_ATL_RPF_ET_RXQF_MSK,
+			    HW_ATL_RPF_ET_RXQF_SHIFT, etht_rx_queue);
 }
 
 void rpf_etht_mgt_queue_set(struct aq_hw_s *aq_hw, u32 etht_mgt_queue,
 			    u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_et_mng_rxqf_adr(filter),
-			    rpf_et_mng_rxqf_msk, rpf_et_mng_rxqf_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_MNG_RXQF_ADR(filter),
+			    HW_ATL_RPF_ET_MNG_RXQF_MSK,
+			    HW_ATL_RPF_ET_MNG_RXQF_SHIFT,
 			    etht_mgt_queue);
 }
 
 void rpf_etht_flr_act_set(struct aq_hw_s *aq_hw, u32 etht_flr_act, u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_et_actf_adr(filter),
-			    rpf_et_actf_msk,
-			    rpf_et_actf_shift, etht_flr_act);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_ACTF_ADR(filter),
+			    HW_ATL_RPF_ET_ACTF_MSK,
+			    HW_ATL_RPF_ET_ACTF_SHIFT, etht_flr_act);
 }
 
 void rpf_etht_flr_set(struct aq_hw_s *aq_hw, u32 etht_flr, u32 filter)
 {
-	aq_hw_write_reg_bit(aq_hw, rpf_et_valf_adr(filter),
-			    rpf_et_valf_msk,
-			    rpf_et_valf_shift, etht_flr);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_VALF_ADR(filter),
+			    HW_ATL_RPF_ET_VALF_MSK,
+			    HW_ATL_RPF_ET_VALF_SHIFT, etht_flr);
 }
 
 /* RPO: rx packet offload */
 void rpo_ipv4header_crc_offload_en_set(struct aq_hw_s *aq_hw,
 				       u32 ipv4header_crc_offload_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rpo_ipv4chk_en_adr,
-			    rpo_ipv4chk_en_msk,
-			    rpo_ipv4chk_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPO_IPV4CHK_EN_ADR,
+			    HW_ATL_RPO_IPV4CHK_EN_MSK,
+			    HW_ATL_RPO_IPV4CHK_EN_SHIFT,
 			    ipv4header_crc_offload_en);
 }
 
 void rpo_rx_desc_vlan_stripping_set(struct aq_hw_s *aq_hw,
 				    u32 rx_desc_vlan_stripping, u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, rpo_descdvl_strip_adr(descriptor),
-			    rpo_descdvl_strip_msk,
-			    rpo_descdvl_strip_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPO_DESCDVL_STRIP_ADR(descriptor),
+			    HW_ATL_RPO_DESCDVL_STRIP_MSK,
+			    HW_ATL_RPO_DESCDVL_STRIP_SHIFT,
 			    rx_desc_vlan_stripping);
 }
 
 void rpo_tcp_udp_crc_offload_en_set(struct aq_hw_s *aq_hw,
 				    u32 tcp_udp_crc_offload_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rpol4chk_en_adr, rpol4chk_en_msk,
-			    rpol4chk_en_shift, tcp_udp_crc_offload_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPOL4CHK_EN_ADR,
+			    HW_ATL_RPOL4CHK_EN_MSK,
+			    HW_ATL_RPOL4CHK_EN_SHIFT, tcp_udp_crc_offload_en);
 }
 
 void rpo_lro_en_set(struct aq_hw_s *aq_hw, u32 lro_en)
 {
-	aq_hw_write_reg(aq_hw, rpo_lro_en_adr, lro_en);
+	aq_hw_write_reg(aq_hw, HW_ATL_RPO_LRO_EN_ADR, lro_en);
 }
 
 void rpo_lro_patch_optimization_en_set(struct aq_hw_s *aq_hw,
 				       u32 lro_patch_optimization_en)
 {
-	aq_hw_write_reg_bit(aq_hw, rpo_lro_ptopt_en_adr,
-			    rpo_lro_ptopt_en_msk,
-			    rpo_lro_ptopt_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPO_LRO_PTOPT_EN_ADR,
+			    HW_ATL_RPO_LRO_PTOPT_EN_MSK,
+			    HW_ATL_RPO_LRO_PTOPT_EN_SHIFT,
 			    lro_patch_optimization_en);
 }
 
 void rpo_lro_qsessions_lim_set(struct aq_hw_s *aq_hw,
 			       u32 lro_qsessions_lim)
 {
-	aq_hw_write_reg_bit(aq_hw, rpo_lro_qses_lmt_adr,
-			    rpo_lro_qses_lmt_msk,
-			    rpo_lro_qses_lmt_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPO_LRO_QSES_LMT_ADR,
+			    HW_ATL_RPO_LRO_QSES_LMT_MSK,
+			    HW_ATL_RPO_LRO_QSES_LMT_SHIFT,
 			    lro_qsessions_lim);
 }
 
 void rpo_lro_total_desc_lim_set(struct aq_hw_s *aq_hw, u32 lro_total_desc_lim)
 {
-	aq_hw_write_reg_bit(aq_hw, rpo_lro_tot_dsc_lmt_adr,
-			    rpo_lro_tot_dsc_lmt_msk,
-			    rpo_lro_tot_dsc_lmt_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPO_LRO_TOT_DSC_LMT_ADR,
+			    HW_ATL_RPO_LRO_TOT_DSC_LMT_MSK,
+			    HW_ATL_RPO_LRO_TOT_DSC_LMT_SHIFT,
 			    lro_total_desc_lim);
 }
 
 void rpo_lro_min_pay_of_first_pkt_set(struct aq_hw_s *aq_hw,
 				      u32 lro_min_pld_of_first_pkt)
 {
-	aq_hw_write_reg_bit(aq_hw, rpo_lro_pkt_min_adr,
-			    rpo_lro_pkt_min_msk,
-			    rpo_lro_pkt_min_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPO_LRO_PKT_MIN_ADR,
+			    HW_ATL_RPO_LRO_PKT_MIN_MSK,
+			    HW_ATL_RPO_LRO_PKT_MIN_SHIFT,
 			    lro_min_pld_of_first_pkt);
 }
 
 void rpo_lro_pkt_lim_set(struct aq_hw_s *aq_hw, u32 lro_pkt_lim)
 {
-	aq_hw_write_reg(aq_hw, rpo_lro_rsc_max_adr, lro_pkt_lim);
+	aq_hw_write_reg(aq_hw, HW_ATL_RPO_LRO_RSC_MAX_ADR, lro_pkt_lim);
 }
 
 void rpo_lro_max_num_of_descriptors_set(struct aq_hw_s *aq_hw,
@@ -1020,101 +1038,104 @@ void rpo_lro_max_num_of_descriptors_set(struct aq_hw_s *aq_hw,
 void rpo_lro_time_base_divider_set(struct aq_hw_s *aq_hw,
 				   u32 lro_time_base_divider)
 {
-	aq_hw_write_reg_bit(aq_hw, rpo_lro_tb_div_adr,
-			    rpo_lro_tb_div_msk,
-			    rpo_lro_tb_div_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPO_LRO_TB_DIV_ADR,
+			    HW_ATL_RPO_LRO_TB_DIV_MSK,
+			    HW_ATL_RPO_LRO_TB_DIV_SHIFT,
 			    lro_time_base_divider);
 }
 
 void rpo_lro_inactive_interval_set(struct aq_hw_s *aq_hw,
 				   u32 lro_inactive_interval)
 {
-	aq_hw_write_reg_bit(aq_hw, rpo_lro_ina_ival_adr,
-			    rpo_lro_ina_ival_msk,
-			    rpo_lro_ina_ival_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPO_LRO_INA_IVAL_ADR,
+			    HW_ATL_RPO_LRO_INA_IVAL_MSK,
+			    HW_ATL_RPO_LRO_INA_IVAL_SHIFT,
 			    lro_inactive_interval);
 }
 
 void rpo_lro_max_coalescing_interval_set(struct aq_hw_s *aq_hw,
 					 u32 lro_max_coalescing_interval)
 {
-	aq_hw_write_reg_bit(aq_hw, rpo_lro_max_ival_adr,
-			    rpo_lro_max_ival_msk,
-			    rpo_lro_max_ival_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPO_LRO_MAX_IVAL_ADR,
+			    HW_ATL_RPO_LRO_MAX_IVAL_MSK,
+			    HW_ATL_RPO_LRO_MAX_IVAL_SHIFT,
 			    lro_max_coalescing_interval);
 }
 
 /* rx */
 void rx_rx_reg_res_dis_set(struct aq_hw_s *aq_hw, u32 rx_reg_res_dis)
 {
-	aq_hw_write_reg_bit(aq_hw, rx_reg_res_dsbl_adr,
-			    rx_reg_res_dsbl_msk,
-			    rx_reg_res_dsbl_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_RX_REG_RES_DSBL_ADR,
+			    HW_ATL_RX_REG_RES_DSBL_MSK,
+			    HW_ATL_RX_REG_RES_DSBL_SHIFT,
 			    rx_reg_res_dis);
 }
 
 /* tdm */
 void tdm_cpu_id_set(struct aq_hw_s *aq_hw, u32 cpuid, u32 dca)
 {
-	aq_hw_write_reg_bit(aq_hw, tdm_dcadcpuid_adr(dca),
-			    tdm_dcadcpuid_msk,
-			    tdm_dcadcpuid_shift, cpuid);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TDM_DCADCPUID_ADR(dca),
+			    HW_ATL_TDM_DCADCPUID_MSK,
+			    HW_ATL_TDM_DCADCPUID_SHIFT, cpuid);
 }
 
 void tdm_large_send_offload_en_set(struct aq_hw_s *aq_hw,
 				   u32 large_send_offload_en)
 {
-	aq_hw_write_reg(aq_hw, tdm_lso_en_adr, large_send_offload_en);
+	aq_hw_write_reg(aq_hw, HW_ATL_TDM_LSO_EN_ADR, large_send_offload_en);
 }
 
 void tdm_tx_dca_en_set(struct aq_hw_s *aq_hw, u32 tx_dca_en)
 {
-	aq_hw_write_reg_bit(aq_hw, tdm_dca_en_adr, tdm_dca_en_msk,
-			    tdm_dca_en_shift, tx_dca_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TDM_DCA_EN_ADR, HW_ATL_TDM_DCA_EN_MSK,
+			    HW_ATL_TDM_DCA_EN_SHIFT, tx_dca_en);
 }
 
 void tdm_tx_dca_mode_set(struct aq_hw_s *aq_hw, u32 tx_dca_mode)
 {
-	aq_hw_write_reg_bit(aq_hw, tdm_dca_mode_adr, tdm_dca_mode_msk,
-			    tdm_dca_mode_shift, tx_dca_mode);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TDM_DCA_MODE_ADR,
+			    HW_ATL_TDM_DCA_MODE_MSK,
+			    HW_ATL_TDM_DCA_MODE_SHIFT, tx_dca_mode);
 }
 
 void tdm_tx_desc_dca_en_set(struct aq_hw_s *aq_hw, u32 tx_desc_dca_en, u32 dca)
 {
-	aq_hw_write_reg_bit(aq_hw, tdm_dcaddesc_en_adr(dca),
-			    tdm_dcaddesc_en_msk, tdm_dcaddesc_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TDM_DCADDESC_EN_ADR(dca),
+			    HW_ATL_TDM_DCADDESC_EN_MSK,
+			    HW_ATL_TDM_DCADDESC_EN_SHIFT,
 			    tx_desc_dca_en);
 }
 
 void tdm_tx_desc_en_set(struct aq_hw_s *aq_hw, u32 tx_desc_en, u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, tdm_descden_adr(descriptor),
-			    tdm_descden_msk,
-			    tdm_descden_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TDM_DESCDEN_ADR(descriptor),
+			    HW_ATL_TDM_DESCDEN_MSK,
+			    HW_ATL_TDM_DESCDEN_SHIFT,
 			    tx_desc_en);
 }
 
 u32 tdm_tx_desc_head_ptr_get(struct aq_hw_s *aq_hw, u32 descriptor)
 {
-	return aq_hw_read_reg_bit(aq_hw, tdm_descdhd_adr(descriptor),
-				  tdm_descdhd_msk, tdm_descdhd_shift);
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_TDM_DESCDHD_ADR(descriptor),
+				  HW_ATL_TDM_DESCDHD_MSK,
+				  HW_ATL_TDM_DESCDHD_SHIFT);
 }
 
 void tdm_tx_desc_len_set(struct aq_hw_s *aq_hw, u32 tx_desc_len,
 			 u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, tdm_descdlen_adr(descriptor),
-			    tdm_descdlen_msk,
-			    tdm_descdlen_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TDM_DESCDLEN_ADR(descriptor),
+			    HW_ATL_TDM_DESCDLEN_MSK,
+			    HW_ATL_TDM_DESCDLEN_SHIFT,
 			    tx_desc_len);
 }
 
 void tdm_tx_desc_wr_wb_irq_en_set(struct aq_hw_s *aq_hw,
 				  u32 tx_desc_wr_wb_irq_en)
 {
-	aq_hw_write_reg_bit(aq_hw, tdm_int_desc_wrb_en_adr,
-			    tdm_int_desc_wrb_en_msk,
-			    tdm_int_desc_wrb_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TDM_INT_DESC_WRB_EN_ADR,
+			    HW_ATL_TDM_INT_DESC_WRB_EN_MSK,
+			    HW_ATL_TDM_INT_DESC_WRB_EN_SHIFT,
 			    tx_desc_wr_wb_irq_en);
 }
 
@@ -1122,18 +1143,18 @@ void tdm_tx_desc_wr_wb_threshold_set(struct aq_hw_s *aq_hw,
 				     u32 tx_desc_wr_wb_threshold,
 				     u32 descriptor)
 {
-	aq_hw_write_reg_bit(aq_hw, tdm_descdwrb_thresh_adr(descriptor),
-			    tdm_descdwrb_thresh_msk,
-			    tdm_descdwrb_thresh_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TDM_DESCDWRB_THRESH_ADR(descriptor),
+			    HW_ATL_TDM_DESCDWRB_THRESH_MSK,
+			    HW_ATL_TDM_DESCDWRB_THRESH_SHIFT,
 			    tx_desc_wr_wb_threshold);
 }
 
 void tdm_tdm_intr_moder_en_set(struct aq_hw_s *aq_hw,
 			       u32 tdm_irq_moderation_en)
 {
-	aq_hw_write_reg_bit(aq_hw, tdm_int_mod_en_adr,
-			    tdm_int_mod_en_msk,
-			    tdm_int_mod_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TDM_INT_MOD_EN_ADR,
+			    HW_ATL_TDM_INT_MOD_EN_MSK,
+			    HW_ATL_TDM_INT_MOD_EN_SHIFT,
 			    tdm_irq_moderation_en);
 }
 
@@ -1141,43 +1162,45 @@ void tdm_tdm_intr_moder_en_set(struct aq_hw_s *aq_hw,
 void thm_lso_tcp_flag_of_first_pkt_set(struct aq_hw_s *aq_hw,
 				       u32 lso_tcp_flag_of_first_pkt)
 {
-	aq_hw_write_reg_bit(aq_hw, thm_lso_tcp_flag_first_adr,
-			    thm_lso_tcp_flag_first_msk,
-			    thm_lso_tcp_flag_first_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_THM_LSO_TCP_FLAG_FIRST_ADR,
+			    HW_ATL_THM_LSO_TCP_FLAG_FIRST_MSK,
+			    HW_ATL_THM_LSO_TCP_FLAG_FIRST_SHIFT,
 			    lso_tcp_flag_of_first_pkt);
 }
 
 void thm_lso_tcp_flag_of_last_pkt_set(struct aq_hw_s *aq_hw,
 				      u32 lso_tcp_flag_of_last_pkt)
 {
-	aq_hw_write_reg_bit(aq_hw, thm_lso_tcp_flag_last_adr,
-			    thm_lso_tcp_flag_last_msk,
-			    thm_lso_tcp_flag_last_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_THM_LSO_TCP_FLAG_LAST_ADR,
+			    HW_ATL_THM_LSO_TCP_FLAG_LAST_MSK,
+			    HW_ATL_THM_LSO_TCP_FLAG_LAST_SHIFT,
 			    lso_tcp_flag_of_last_pkt);
 }
 
 void thm_lso_tcp_flag_of_middle_pkt_set(struct aq_hw_s *aq_hw,
 					u32 lso_tcp_flag_of_middle_pkt)
 {
-	aq_hw_write_reg_bit(aq_hw, thm_lso_tcp_flag_mid_adr,
-			    thm_lso_tcp_flag_mid_msk,
-			    thm_lso_tcp_flag_mid_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_THM_LSO_TCP_FLAG_MID_ADR,
+			    HW_ATL_THM_LSO_TCP_FLAG_MID_MSK,
+			    HW_ATL_THM_LSO_TCP_FLAG_MID_SHIFT,
 			    lso_tcp_flag_of_middle_pkt);
 }
 
 /* TPB: tx packet buffer */
 void tpb_tx_buff_en_set(struct aq_hw_s *aq_hw, u32 tx_buff_en)
 {
-	aq_hw_write_reg_bit(aq_hw, tpb_tx_buf_en_adr, tpb_tx_buf_en_msk,
-			    tpb_tx_buf_en_shift, tx_buff_en);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPB_TX_BUF_EN_ADR,
+			    HW_ATL_TPB_TX_BUF_EN_MSK,
+			    HW_ATL_TPB_TX_BUF_EN_SHIFT, tx_buff_en);
 }
 
 void tpb_tx_buff_hi_threshold_per_tc_set(struct aq_hw_s *aq_hw,
 					 u32 tx_buff_hi_threshold_per_tc,
 					 u32 buffer)
 {
-	aq_hw_write_reg_bit(aq_hw, tpb_txbhi_thresh_adr(buffer),
-			    tpb_txbhi_thresh_msk, tpb_txbhi_thresh_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPB_TXBHI_THRESH_ADR(buffer),
+			    HW_ATL_TPB_TXBHI_THRESH_MSK,
+			    HW_ATL_TPB_TXBHI_THRESH_SHIFT,
 			    tx_buff_hi_threshold_per_tc);
 }
 
@@ -1185,33 +1208,34 @@ void tpb_tx_buff_lo_threshold_per_tc_set(struct aq_hw_s *aq_hw,
 					 u32 tx_buff_lo_threshold_per_tc,
 					 u32 buffer)
 {
-	aq_hw_write_reg_bit(aq_hw, tpb_txblo_thresh_adr(buffer),
-			    tpb_txblo_thresh_msk, tpb_txblo_thresh_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPB_TXBLO_THRESH_ADR(buffer),
+			    HW_ATL_TPB_TXBLO_THRESH_MSK,
+			    HW_ATL_TPB_TXBLO_THRESH_SHIFT,
 			    tx_buff_lo_threshold_per_tc);
 }
 
 void tpb_tx_dma_sys_lbk_en_set(struct aq_hw_s *aq_hw, u32 tx_dma_sys_lbk_en)
 {
-	aq_hw_write_reg_bit(aq_hw, tpb_dma_sys_lbk_adr,
-			    tpb_dma_sys_lbk_msk,
-			    tpb_dma_sys_lbk_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPB_DMA_SYS_LBK_ADR,
+			    HW_ATL_TPB_DMA_SYS_LBK_MSK,
+			    HW_ATL_TPB_DMA_SYS_LBK_SHIFT,
 			    tx_dma_sys_lbk_en);
 }
 
 void tpb_tx_pkt_buff_size_per_tc_set(struct aq_hw_s *aq_hw,
 				     u32 tx_pkt_buff_size_per_tc, u32 buffer)
 {
-	aq_hw_write_reg_bit(aq_hw, tpb_txbbuf_size_adr(buffer),
-			    tpb_txbbuf_size_msk,
-			    tpb_txbbuf_size_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPB_TXBBUF_SIZE_ADR(buffer),
+			    HW_ATL_TPB_TXBBUF_SIZE_MSK,
+			    HW_ATL_TPB_TXBBUF_SIZE_SHIFT,
 			    tx_pkt_buff_size_per_tc);
 }
 
 void tpb_tx_path_scp_ins_en_set(struct aq_hw_s *aq_hw, u32 tx_path_scp_ins_en)
 {
-	aq_hw_write_reg_bit(aq_hw, tpb_tx_scp_ins_en_adr,
-			    tpb_tx_scp_ins_en_msk,
-			    tpb_tx_scp_ins_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPB_TX_SCP_INS_EN_ADR,
+			    HW_ATL_TPB_TX_SCP_INS_EN_MSK,
+			    HW_ATL_TPB_TX_SCP_INS_EN_SHIFT,
 			    tx_path_scp_ins_en);
 }
 
@@ -1219,26 +1243,26 @@ void tpb_tx_path_scp_ins_en_set(struct aq_hw_s *aq_hw, u32 tx_path_scp_ins_en)
 void tpo_ipv4header_crc_offload_en_set(struct aq_hw_s *aq_hw,
 				       u32 ipv4header_crc_offload_en)
 {
-	aq_hw_write_reg_bit(aq_hw, tpo_ipv4chk_en_adr,
-			    tpo_ipv4chk_en_msk,
-			    tpo_ipv4chk_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPO_IPV4CHK_EN_ADR,
+			    HW_ATL_TPO_IPV4CHK_EN_MSK,
+			    HW_ATL_TPO_IPV4CHK_EN_SHIFT,
 			    ipv4header_crc_offload_en);
 }
 
 void tpo_tcp_udp_crc_offload_en_set(struct aq_hw_s *aq_hw,
 				    u32 tcp_udp_crc_offload_en)
 {
-	aq_hw_write_reg_bit(aq_hw, tpol4chk_en_adr,
-			    tpol4chk_en_msk,
-			    tpol4chk_en_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPOL4CHK_EN_ADR,
+			    HW_ATL_TPOL4CHK_EN_MSK,
+			    HW_ATL_TPOL4CHK_EN_SHIFT,
 			    tcp_udp_crc_offload_en);
 }
 
 void tpo_tx_pkt_sys_lbk_en_set(struct aq_hw_s *aq_hw, u32 tx_pkt_sys_lbk_en)
 {
-	aq_hw_write_reg_bit(aq_hw, tpo_pkt_sys_lbk_adr,
-			    tpo_pkt_sys_lbk_msk,
-			    tpo_pkt_sys_lbk_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPO_PKT_SYS_LBK_ADR,
+			    HW_ATL_TPO_PKT_SYS_LBK_MSK,
+			    HW_ATL_TPO_PKT_SYS_LBK_SHIFT,
 			    tx_pkt_sys_lbk_en);
 }
 
@@ -1246,36 +1270,36 @@ void tpo_tx_pkt_sys_lbk_en_set(struct aq_hw_s *aq_hw, u32 tx_pkt_sys_lbk_en)
 void tps_tx_pkt_shed_data_arb_mode_set(struct aq_hw_s *aq_hw,
 				       u32 tx_pkt_shed_data_arb_mode)
 {
-	aq_hw_write_reg_bit(aq_hw, tps_data_tc_arb_mode_adr,
-			    tps_data_tc_arb_mode_msk,
-			    tps_data_tc_arb_mode_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DATA_TC_ARB_MODE_ADR,
+			    HW_ATL_TPS_DATA_TC_ARB_MODE_MSK,
+			    HW_ATL_TPS_DATA_TC_ARB_MODE_SHIFT,
 			    tx_pkt_shed_data_arb_mode);
 }
 
 void tps_tx_pkt_shed_desc_rate_curr_time_res_set(struct aq_hw_s *aq_hw,
 						 u32 curr_time_res)
 {
-	aq_hw_write_reg_bit(aq_hw, tps_desc_rate_ta_rst_adr,
-			    tps_desc_rate_ta_rst_msk,
-			    tps_desc_rate_ta_rst_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_RATE_TA_RST_ADR,
+			    HW_ATL_TPS_DESC_RATE_TA_RST_MSK,
+			    HW_ATL_TPS_DESC_RATE_TA_RST_SHIFT,
 			    curr_time_res);
 }
 
 void tps_tx_pkt_shed_desc_rate_lim_set(struct aq_hw_s *aq_hw,
 				       u32 tx_pkt_shed_desc_rate_lim)
 {
-	aq_hw_write_reg_bit(aq_hw, tps_desc_rate_lim_adr,
-			    tps_desc_rate_lim_msk,
-			    tps_desc_rate_lim_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_RATE_LIM_ADR,
+			    HW_ATL_TPS_DESC_RATE_LIM_MSK,
+			    HW_ATL_TPS_DESC_RATE_LIM_SHIFT,
 			    tx_pkt_shed_desc_rate_lim);
 }
 
 void tps_tx_pkt_shed_desc_tc_arb_mode_set(struct aq_hw_s *aq_hw,
 					  u32 tx_pkt_shed_desc_tc_arb_mode)
 {
-	aq_hw_write_reg_bit(aq_hw, tps_desc_tc_arb_mode_adr,
-			    tps_desc_tc_arb_mode_msk,
-			    tps_desc_tc_arb_mode_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_TC_ARB_MODE_ADR,
+			    HW_ATL_TPS_DESC_TC_ARB_MODE_MSK,
+			    HW_ATL_TPS_DESC_TC_ARB_MODE_SHIFT,
 			    tx_pkt_shed_desc_tc_arb_mode);
 }
 
@@ -1283,27 +1307,27 @@ void tps_tx_pkt_shed_desc_tc_max_credit_set(struct aq_hw_s *aq_hw,
 					    u32 tx_pkt_shed_desc_tc_max_credit,
 					    u32 tc)
 {
-	aq_hw_write_reg_bit(aq_hw, tps_desc_tctcredit_max_adr(tc),
-			    tps_desc_tctcredit_max_msk,
-			    tps_desc_tctcredit_max_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_TCTCREDIT_MAX_ADR(tc),
+			    HW_ATL_TPS_DESC_TCTCREDIT_MAX_MSK,
+			    HW_ATL_TPS_DESC_TCTCREDIT_MAX_SHIFT,
 			    tx_pkt_shed_desc_tc_max_credit);
 }
 
 void tps_tx_pkt_shed_desc_tc_weight_set(struct aq_hw_s *aq_hw,
 					u32 tx_pkt_shed_desc_tc_weight, u32 tc)
 {
-	aq_hw_write_reg_bit(aq_hw, tps_desc_tctweight_adr(tc),
-			    tps_desc_tctweight_msk,
-			    tps_desc_tctweight_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_TCTWEIGHT_ADR(tc),
+			    HW_ATL_TPS_DESC_TCTWEIGHT_MSK,
+			    HW_ATL_TPS_DESC_TCTWEIGHT_SHIFT,
 			    tx_pkt_shed_desc_tc_weight);
 }
 
 void tps_tx_pkt_shed_desc_vm_arb_mode_set(struct aq_hw_s *aq_hw,
 					  u32 tx_pkt_shed_desc_vm_arb_mode)
 {
-	aq_hw_write_reg_bit(aq_hw, tps_desc_vm_arb_mode_adr,
-			    tps_desc_vm_arb_mode_msk,
-			    tps_desc_vm_arb_mode_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_VM_ARB_MODE_ADR,
+			    HW_ATL_TPS_DESC_VM_ARB_MODE_MSK,
+			    HW_ATL_TPS_DESC_VM_ARB_MODE_SHIFT,
 			    tx_pkt_shed_desc_vm_arb_mode);
 }
 
@@ -1311,84 +1335,84 @@ void tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
 					    u32 tx_pkt_shed_tc_data_max_credit,
 					    u32 tc)
 {
-	aq_hw_write_reg_bit(aq_hw, tps_data_tctcredit_max_adr(tc),
-			    tps_data_tctcredit_max_msk,
-			    tps_data_tctcredit_max_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DATA_TCTCREDIT_MAX_ADR(tc),
+			    HW_ATL_TPS_DATA_TCTCREDIT_MAX_MSK,
+			    HW_ATL_TPS_DATA_TCTCREDIT_MAX_SHIFT,
 			    tx_pkt_shed_tc_data_max_credit);
 }
 
 void tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
 					u32 tx_pkt_shed_tc_data_weight, u32 tc)
 {
-	aq_hw_write_reg_bit(aq_hw, tps_data_tctweight_adr(tc),
-			    tps_data_tctweight_msk,
-			    tps_data_tctweight_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DATA_TCTWEIGHT_ADR(tc),
+			    HW_ATL_TPS_DATA_TCTWEIGHT_MSK,
+			    HW_ATL_TPS_DATA_TCTWEIGHT_SHIFT,
 			    tx_pkt_shed_tc_data_weight);
 }
 
 /* tx */
 void tx_tx_reg_res_dis_set(struct aq_hw_s *aq_hw, u32 tx_reg_res_dis)
 {
-	aq_hw_write_reg_bit(aq_hw, tx_reg_res_dsbl_adr,
-			    tx_reg_res_dsbl_msk,
-			    tx_reg_res_dsbl_shift, tx_reg_res_dis);
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TX_REG_RES_DSBL_ADR,
+			    HW_ATL_TX_REG_RES_DSBL_MSK,
+			    HW_ATL_TX_REG_RES_DSBL_SHIFT, tx_reg_res_dis);
 }
 
 /* msm */
 u32 msm_reg_access_status_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg_bit(aq_hw, msm_reg_access_busy_adr,
-				  msm_reg_access_busy_msk,
-				  msm_reg_access_busy_shift);
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_MSM_REG_ACCESS_BUSY_ADR,
+				  HW_ATL_MSM_REG_ACCESS_BUSY_MSK,
+				  HW_ATL_MSM_REG_ACCESS_BUSY_SHIFT);
 }
 
 void msm_reg_addr_for_indirect_addr_set(struct aq_hw_s *aq_hw,
 					u32 reg_addr_for_indirect_addr)
 {
-	aq_hw_write_reg_bit(aq_hw, msm_reg_addr_adr,
-			    msm_reg_addr_msk,
-			    msm_reg_addr_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_MSM_REG_ADDR_ADR,
+			    HW_ATL_MSM_REG_ADDR_MSK,
+			    HW_ATL_MSM_REG_ADDR_SHIFT,
 			    reg_addr_for_indirect_addr);
 }
 
 void msm_reg_rd_strobe_set(struct aq_hw_s *aq_hw, u32 reg_rd_strobe)
 {
-	aq_hw_write_reg_bit(aq_hw, msm_reg_rd_strobe_adr,
-			    msm_reg_rd_strobe_msk,
-			    msm_reg_rd_strobe_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_MSM_REG_RD_STROBE_ADR,
+			    HW_ATL_MSM_REG_RD_STROBE_MSK,
+			    HW_ATL_MSM_REG_RD_STROBE_SHIFT,
 			    reg_rd_strobe);
 }
 
 u32 msm_reg_rd_data_get(struct aq_hw_s *aq_hw)
 {
-	return aq_hw_read_reg(aq_hw, msm_reg_rd_data_adr);
+	return aq_hw_read_reg(aq_hw, HW_ATL_MSM_REG_RD_DATA_ADR);
 }
 
 void msm_reg_wr_data_set(struct aq_hw_s *aq_hw, u32 reg_wr_data)
 {
-	aq_hw_write_reg(aq_hw, msm_reg_wr_data_adr, reg_wr_data);
+	aq_hw_write_reg(aq_hw, HW_ATL_MSM_REG_WR_DATA_ADR, reg_wr_data);
 }
 
 void msm_reg_wr_strobe_set(struct aq_hw_s *aq_hw, u32 reg_wr_strobe)
 {
-	aq_hw_write_reg_bit(aq_hw, msm_reg_wr_strobe_adr,
-			    msm_reg_wr_strobe_msk,
-			    msm_reg_wr_strobe_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_MSM_REG_WR_STROBE_ADR,
+			    HW_ATL_MSM_REG_WR_STROBE_MSK,
+			    HW_ATL_MSM_REG_WR_STROBE_SHIFT,
 			    reg_wr_strobe);
 }
 
 /* pci */
 void pci_pci_reg_res_dis_set(struct aq_hw_s *aq_hw, u32 pci_reg_res_dis)
 {
-	aq_hw_write_reg_bit(aq_hw, pci_reg_res_dsbl_adr,
-			    pci_reg_res_dsbl_msk,
-			    pci_reg_res_dsbl_shift,
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_PCI_REG_RES_DSBL_ADR,
+			    HW_ATL_PCI_REG_RES_DSBL_MSK,
+			    HW_ATL_PCI_REG_RES_DSBL_SHIFT,
 			    pci_reg_res_dis);
 }
 
 void reg_glb_cpu_scratch_scp_set(struct aq_hw_s *aq_hw, u32 glb_cpu_scratch_scp,
 				 u32 scratch_scp)
 {
-	aq_hw_write_reg(aq_hw, glb_cpu_scratch_scp_adr(scratch_scp),
+	aq_hw_write_reg(aq_hw, HW_ATL_GLB_CPU_SCRATCH_SCP_ADR(scratch_scp),
 			glb_cpu_scratch_scp);
 }

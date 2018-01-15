@@ -381,14 +381,15 @@ static int hw_atl_b0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 	hw_atl_b0_hw_rss_hash_set(self, &aq_nic_cfg->aq_rss);
 
 	/* Force limit MRRS on RDM/TDM to 2K */
-	val = aq_hw_read_reg(self, pci_reg_control6_adr);
-	aq_hw_write_reg(self, pci_reg_control6_adr, (val & ~0x707) | 0x404);
+	val = aq_hw_read_reg(self, HW_ATL_PCI_REG_CONTROL6_ADR);
+	aq_hw_write_reg(self, HW_ATL_PCI_REG_CONTROL6_ADR,
+			(val & ~0x707) | 0x404);
 
 	/* TX DMA total request limit. B0 hardware is not capable to
 	 * handle more than (8K-MRRS) incoming DMA data.
 	 * Value 24 in 256byte units
 	 */
-	aq_hw_write_reg(self, tx_dma_total_req_limit_adr, 24);
+	aq_hw_write_reg(self, HW_ATL_TX_DMA_TOTAL_REQ_LIMIT_ADR, 24);
 
 	/* Reset link status and read out initial hardware counters */
 	self->aq_link_status.mbps = 0;
