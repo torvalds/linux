@@ -992,7 +992,7 @@ void aq_nic_free_hot_resources(struct aq_nic_s *self)
 	if (!self)
 		goto err_exit;
 
-	for (i = AQ_DIMOF(self->aq_vec); i--;) {
+	for (i = ARRAY_SIZE(self->aq_vec); i--;) {
 		if (self->aq_vec[i]) {
 			aq_vec_free(self->aq_vec[i]);
 			self->aq_vec[i] = NULL;

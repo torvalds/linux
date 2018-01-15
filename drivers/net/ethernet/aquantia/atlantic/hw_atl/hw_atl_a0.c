@@ -193,7 +193,7 @@ static int hw_atl_a0_hw_rss_set(struct aq_hw_s *self,
 			((i * 3U) & 0xFU));
 	}
 
-	for (i = AQ_DIMOF(bitary); i--;) {
+	for (i = ARRAY_SIZE(bitary); i--;) {
 		rpf_rss_redir_tbl_wr_data_set(self, bitary[i]);
 		rpf_rss_redir_tbl_addr_set(self, i);
 		rpf_rss_redir_wr_en_set(self, 1U);

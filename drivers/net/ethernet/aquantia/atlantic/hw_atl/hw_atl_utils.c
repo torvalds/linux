@@ -396,7 +396,7 @@ int hw_atl_utils_get_mac_permanent(struct aq_hw_s *self,
 					    aq_hw_read_reg(self, 0x00000374U) +
 					    (40U * 4U),
 					    mac_addr,
-					    AQ_DIMOF(mac_addr));
+					    ARRAY_SIZE(mac_addr));
 	if (err < 0) {
 		mac_addr[0] = 0U;
 		mac_addr[1] = 0U;

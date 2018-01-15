@@ -14,8 +14,6 @@
 
 #include "aq_common.h"
 
-#define AQ_DIMOF(_ARY_)  ARRAY_SIZE(_ARY_)
-
 struct aq_obj_s {
 	atomic_t flags;
 };
