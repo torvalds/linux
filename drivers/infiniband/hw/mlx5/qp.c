@@ -1279,6 +1279,10 @@ static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 	if (tunnel_offload_en)
 		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
 
+	if (dev->rep)
+		MLX5_SET(tirc, tirc, self_lb_block,
+			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST_);
+
 	err = mlx5_core_create_tir(dev->mdev, in, inlen, &rq->tirn);
 
 	kvfree(in);
@@ -1570,6 +1574,10 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	MLX5_SET(rx_hash_field_select, hfso, selected_fields, selected_fields);
 
 create_tir:
+	if (dev->rep)
+		MLX5_SET(tirc, tirc, self_lb_block,
+			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST_);
+
 	err = mlx5_core_create_tir(dev->mdev, in, inlen, &qp->rss_qp.tirn);
 
 	if (err)
