@@ -30,6 +30,7 @@ struct devlink {
 	const struct devlink_ops *ops;
 	struct device *dev;
 	possible_net_t _net;
+	struct mutex lock;
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
