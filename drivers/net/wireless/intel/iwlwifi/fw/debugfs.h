@@ -18,6 +18,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.
+ *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -60,45 +63,25 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl_fw_api_mac_cfg_h__
-#define __iwl_fw_api_mac_cfg_h__
+#include "runtime.h"
 
-/**
- * enum iwl_mac_conf_subcmd_ids - mac configuration command IDs
- */
-enum iwl_mac_conf_subcmd_ids {
-	/**
-	 * @LOW_LATENCY_CMD: &struct iwl_mac_low_latency_cmd
-	 */
-	LOW_LATENCY_CMD = 0x3,
-	/**
-	 * @CHANNEL_SWITCH_NOA_NOTIF: &struct iwl_channel_switch_noa_notif
-	 */
-	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
-};
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
+			    struct dentry *dbgfs_dir);
 
-/**
- * struct iwl_channel_switch_noa_notif - Channel switch NOA notification
- *
- * @id_and_color: ID and color of the MAC
- */
-struct iwl_channel_switch_noa_notif {
-	__le32 id_and_color;
-} __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
+static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
+{
+	fwrt->timestamp.delay = 0;
+	cancel_delayed_work_sync(&fwrt->timestamp.wk);
+}
 
-/**
- * struct iwl_mac_low_latency_cmd - set/clear mac to 'low-latency mode'
- *
- * @mac_id: MAC ID to whom to apply the low-latency configurations
- * @low_latency_rx: 1/0 to set/clear Rx low latency direction
- * @low_latency_tx: 1/0 to set/clear Tx low latency direction
- * @reserved: reserved for alignment purposes
- */
-struct iwl_mac_low_latency_cmd {
-	__le32 mac_id;
-	u8 low_latency_rx;
-	u8 low_latency_tx;
-	__le16 reserved;
-} __packed; /* MAC_LOW_LATENCY_API_S_VER_1 */
+#else
+static inline int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
+					  struct dentry *dbgfs_dir)
+{
+	return 0;
+}
 
-#endif /* __iwl_fw_api_mac_cfg_h__ */
+static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt) {}
+
+#endif /* CONFIG_IWLWIFI_DEBUGFS */

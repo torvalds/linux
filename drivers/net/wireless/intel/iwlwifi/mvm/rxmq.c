@@ -261,7 +261,9 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 		return 0;
 	case IWL_RX_MPDU_STATUS_SEC_TKIP:
 		/* Don't drop the frame and decrypt it in SW */
-		if (!(status & IWL_RX_MPDU_RES_STATUS_TTAK_OK))
+		if (!fw_has_api(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_API_DEPRECATE_TTAK) &&
+		    !(status & IWL_RX_MPDU_RES_STATUS_TTAK_OK))
 			return 0;
 
 		*crypt_len = IEEE80211_TKIP_IV_LEN;

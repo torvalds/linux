@@ -421,7 +421,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
 	ieee80211_hw_set(hw, NEEDS_UNIQUE_STA_ADDR);
 
-	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD)) {
+	if (iwl_mvm_has_tlc_offload(mvm)) {
 		ieee80211_hw_set(hw, TX_AMPDU_SETUP_IN_HW);
 		ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 	}
@@ -460,7 +460,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	/* this is the case for CCK frames, it's better (only 8) for OFDM */
 	hw->radiotap_timestamp.accuracy = 22;
 
-	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD))
+	if (!iwl_mvm_has_tlc_offload(mvm))
 		hw->rate_control_algorithm = RS_NAME;
 
 	hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
@@ -3801,7 +3801,7 @@ static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
 		mvm->noa_duration = noa_duration;
 		mvm->noa_vif = vif;
 
-		return iwl_mvm_update_quotas(mvm, false, NULL);
+		return iwl_mvm_update_quotas(mvm, true, NULL);
 	case IWL_MVM_TM_CMD_SET_BEACON_FILTER:
 		/* must be associated client vif - ignore authorized */
 		if (!vif || vif->type != NL80211_IFTYPE_STATION ||

@@ -310,6 +310,8 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 		mwifiex_init_shutdown_fw(priv, MWIFIEX_FUNC_SHUTDOWN);
 	}
 
+	cancel_work_sync(&card->work);
+
 	mwifiex_remove_card(adapter);
 }
 
@@ -2769,12 +2771,17 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 
 static void mwifiex_pcie_device_dump_work(struct mwifiex_adapter *adapter)
 {
-	int drv_info_size;
-	void *drv_info;
+	adapter->devdump_data = vzalloc(MWIFIEX_FW_DUMP_SIZE);
+	if (!adapter->devdump_data) {
+		mwifiex_dbg(adapter, ERROR,
+			    "vzalloc devdump data failure!\n");
+		return;
+	}
 
-	drv_info_size = mwifiex_drv_info_dump(adapter, &drv_info);
+	mwifiex_drv_info_dump(adapter);
 	mwifiex_pcie_fw_dump(adapter);
-	mwifiex_upload_device_dump(adapter, drv_info, drv_info_size);
+	mwifiex_prepare_fw_dump_info(adapter);
+	mwifiex_upload_device_dump(adapter);
 }
 
 static void mwifiex_pcie_card_reset_work(struct mwifiex_adapter *adapter)

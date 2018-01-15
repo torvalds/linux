@@ -190,7 +190,7 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		goto err_mac;
 	}
 
-	if (qtnf_core_net_attach(mac, vif, name, name_assign_t, type)) {
+	if (qtnf_core_net_attach(mac, vif, name, name_assign_t)) {
 		pr_err("VIF%u.%u: failed to attach netdev\n", mac->macid,
 		       vif->vifid);
 		goto err_net;
@@ -381,6 +381,7 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	const struct ieee80211_mgmt *mgmt_frame = (void *)params->buf;
 	u32 short_cookie = prandom_u32();
 	u16 flags = 0;
+	u16 freq;
 
 	*cookie = short_cookie;
 
@@ -393,13 +394,21 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (params->dont_wait_for_ack)
 		flags |= QLINK_MGMT_FRAME_TX_FLAG_ACK_NOWAIT;
 
+	/* If channel is not specified, pass "freq = 0" to tell device
+	 * firmware to use current channel.
+	 */
+	if (params->chan)
+		freq = params->chan->center_freq;
+	else
+		freq = 0;
+
 	pr_debug("%s freq:%u; FC:%.4X; DA:%pM; len:%zu; C:%.8X; FL:%.4X\n",
-		 wdev->netdev->name, params->chan->center_freq,
+		 wdev->netdev->name, freq,
 		 le16_to_cpu(mgmt_frame->frame_control), mgmt_frame->da,
 		 params->len, short_cookie, flags);
 
 	return qtnf_cmd_send_mgmt_frame(vif, short_cookie, flags,
-					params->chan->center_freq,
+					freq,
 					params->buf, params->len);
 }
 
@@ -409,6 +418,7 @@ qtnf_get_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 
+	sinfo->generation = vif->generation;
 	return qtnf_cmd_get_sta_info(vif, mac, sinfo);
 }
 
@@ -430,10 +440,12 @@ qtnf_dump_station(struct wiphy *wiphy, struct net_device *dev,
 	ret = qtnf_cmd_get_sta_info(vif, sta_node->mac_addr, sinfo);
 
 	if (unlikely(ret == -ENOENT)) {
-		qtnf_sta_list_del(&vif->sta_list, mac);
+		qtnf_sta_list_del(vif, mac);
 		cfg80211_del_sta(vif->netdev, mac, GFP_KERNEL);
 		sinfo->filled = 0;
 	}
+
+	sinfo->generation = vif->generation;
 
 	return ret;
 }
@@ -717,7 +729,8 @@ qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 	}
 
 	if (!cfg80211_chandef_valid(chandef)) {
-		pr_err("%s: bad chan freq1=%u freq2=%u bw=%u\n", ndev->name,
+		pr_err("%s: bad channel freq=%u cf1=%u cf2=%u bw=%u\n",
+		       ndev->name, chandef->chan->center_freq,
 		       chandef->center_freq1, chandef->center_freq2,
 		       chandef->width);
 		ret = -ENODATA;
@@ -750,6 +763,35 @@ static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
+static int qtnf_start_radar_detection(struct wiphy *wiphy,
+				      struct net_device *ndev,
+				      struct cfg80211_chan_def *chandef,
+				      u32 cac_time_ms)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	int ret;
+
+	ret = qtnf_cmd_start_cac(vif, chandef, cac_time_ms);
+	if (ret)
+		pr_err("%s: failed to start CAC ret=%d\n", ndev->name, ret);
+
+	return ret;
+}
+
+static int qtnf_set_mac_acl(struct wiphy *wiphy,
+			    struct net_device *dev,
+			    const struct cfg80211_acl_data *params)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	ret = qtnf_cmd_set_mac_acl(vif, params);
+	if (ret)
+		pr_err("%s: failed to set mac ACL ret=%d\n", dev->name, ret);
+
+	return ret;
+}
+
 static struct cfg80211_ops qtn_cfg80211_ops = {
 	.add_virtual_intf	= qtnf_add_virtual_intf,
 	.change_virtual_intf	= qtnf_change_virtual_intf,
@@ -773,7 +815,9 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.disconnect		= qtnf_disconnect,
 	.dump_survey		= qtnf_dump_survey,
 	.get_channel		= qtnf_get_channel,
-	.channel_switch		= qtnf_channel_switch
+	.channel_switch		= qtnf_channel_switch,
+	.start_radar_detection	= qtnf_start_radar_detection,
+	.set_mac_acl		= qtnf_set_mac_acl,
 };
 
 static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
@@ -802,6 +846,9 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 			continue;
 
 		mac = bus->mac[mac_idx];
+		if (!mac)
+			continue;
+
 		wiphy = priv_to_wiphy(mac);
 
 		for (band = 0; band < NUM_NL80211_BANDS; ++band) {
@@ -886,6 +933,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->max_scan_ie_len = QTNF_MAX_VSIE_LEN;
 	wiphy->mgmt_stypes = qtnf_mgmt_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
+	wiphy->max_acl_mac_addrs = mac->macinfo.max_acl_mac_addrs;
 
 	wiphy->iface_combinations = iface_comb;
 	wiphy->n_iface_combinations = 1;

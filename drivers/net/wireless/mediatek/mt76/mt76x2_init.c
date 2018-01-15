@@ -308,8 +308,6 @@ int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 	for (i = 0; i < 16; i++)
 		mt76_rr(dev, MT_TX_STAT_FIFO);
 
-	mt76_set(dev, MT_MAC_APC_BSSID_H(0), MT_MAC_APC_BSSID0_H_EN);
-
 	mt76_wr(dev, MT_CH_TIME_CFG,
 		MT_CH_TIME_CFG_TIMER_EN |
 		MT_CH_TIME_CFG_TX_AS_BUSY |
@@ -586,6 +584,8 @@ int mt76x2_init_hardware(struct mt76x2_dev *dev)
 	if (ret)
 		return ret;
 
+	dev->rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
+
 	ret = mt76x2_dma_init(dev);
 	if (ret)
 		return ret;
@@ -600,7 +600,6 @@ int mt76x2_init_hardware(struct mt76x2_dev *dev)
 		return ret;
 
 	mt76x2_mac_stop(dev, false);
-	dev->rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
 	return 0;
 }
@@ -760,6 +759,37 @@ static void mt76x2_led_set_brightness(struct led_classdev *led_cdev,
 		mt76x2_led_set_config(mt76, 0xff, 0);
 }
 
+static void
+mt76x2_init_txpower(struct mt76x2_dev *dev,
+		    struct ieee80211_supported_band *sband)
+{
+	struct ieee80211_channel *chan;
+	struct mt76x2_tx_power_info txp;
+	struct mt76_rate_power t = {};
+	int target_power;
+	int i;
+
+	for (i = 0; i < sband->n_channels; i++) {
+		chan = &sband->channels[i];
+
+		mt76x2_get_power_info(dev, &txp, chan);
+
+		target_power = max_t(int, (txp.chain[0].target_power +
+					   txp.chain[0].delta),
+					  (txp.chain[1].target_power +
+					   txp.chain[1].delta));
+
+		mt76x2_get_rate_power(dev, &t, chan);
+
+		chan->max_power = mt76x2_get_max_rate_power(&t) +
+				  target_power;
+		chan->max_power /= 2;
+
+		/* convert to combined output power on 2x2 devices */
+		chan->max_power += 3;
+	}
+}
+
 int mt76x2_register_device(struct mt76x2_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
@@ -828,6 +858,8 @@ int mt76x2_register_device(struct mt76x2_dev *dev)
 		goto fail;
 
 	mt76x2_init_debugfs(dev);
+	mt76x2_init_txpower(dev, &dev->mt76.sband_2g.sband);
+	mt76x2_init_txpower(dev, &dev->mt76.sband_5g.sband);
 
 	return 0;
 

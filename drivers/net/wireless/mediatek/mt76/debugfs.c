@@ -33,7 +33,8 @@ mt76_reg_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_regval, mt76_reg_get, mt76_reg_set, "0x%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_regval, mt76_reg_get, mt76_reg_set,
+			 "0x%08llx\n");
 
 static int
 mt76_queues_read(struct seq_file *s, void *data)
@@ -65,8 +66,8 @@ struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
 
 	debugfs_create_u8("led_pin", S_IRUSR | S_IWUSR, dir, &dev->led_pin);
 	debugfs_create_u32("regidx", S_IRUSR | S_IWUSR, dir, &dev->debugfs_reg);
-	debugfs_create_file("regval", S_IRUSR | S_IWUSR, dir, dev,
-			    &fops_regval);
+	debugfs_create_file_unsafe("regval", S_IRUSR | S_IWUSR, dir, dev,
+				   &fops_regval);
 	debugfs_create_blob("eeprom", S_IRUSR, dir, &dev->eeprom);
 	if (dev->otp.data)
 		debugfs_create_blob("otp", S_IRUSR, dir, &dev->otp);

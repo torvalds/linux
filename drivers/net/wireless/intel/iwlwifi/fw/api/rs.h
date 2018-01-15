@@ -71,7 +71,7 @@
  * @IWL_TLC_MNG_CFG_FLAGS_BF_MSK: enable BFER
  * @IWL_TLC_MNG_CFG_FLAGS_DCM_MSK: enable DCM
  */
-enum iwl_tlc_mng_cfg_flags_enum {
+enum iwl_tlc_mng_cfg_flags {
 	IWL_TLC_MNG_CFG_FLAGS_CCK_MSK	= BIT(0),
 	IWL_TLC_MNG_CFG_FLAGS_DD_MSK	= BIT(1),
 	IWL_TLC_MNG_CFG_FLAGS_STBC_MSK	= BIT(2),
@@ -81,14 +81,14 @@ enum iwl_tlc_mng_cfg_flags_enum {
 };
 
 /**
- * enum iwl_tlc_mng_cfg_cw_enum - channel width options
+ * enum iwl_tlc_mng_cfg_cw - channel width options
  * @IWL_TLC_MNG_MAX_CH_WIDTH_20MHZ: 20MHZ channel
  * @IWL_TLC_MNG_MAX_CH_WIDTH_40MHZ: 40MHZ channel
  * @IWL_TLC_MNG_MAX_CH_WIDTH_80MHZ: 80MHZ channel
  * @IWL_TLC_MNG_MAX_CH_WIDTH_160MHZ: 160MHZ channel
  * @IWL_TLC_MNG_MAX_CH_WIDTH_LAST: maximum value
  */
-enum iwl_tlc_mng_cfg_cw_enum {
+enum iwl_tlc_mng_cfg_cw {
 	IWL_TLC_MNG_MAX_CH_WIDTH_20MHZ,
 	IWL_TLC_MNG_MAX_CH_WIDTH_40MHZ,
 	IWL_TLC_MNG_MAX_CH_WIDTH_80MHZ,
@@ -97,25 +97,25 @@ enum iwl_tlc_mng_cfg_cw_enum {
 };
 
 /**
- * enum iwl_tlc_mng_cfg_chains_enum - possible chains
+ * enum iwl_tlc_mng_cfg_chains - possible chains
  * @IWL_TLC_MNG_CHAIN_A_MSK: chain A
  * @IWL_TLC_MNG_CHAIN_B_MSK: chain B
  * @IWL_TLC_MNG_CHAIN_C_MSK: chain C
  */
-enum iwl_tlc_mng_cfg_chains_enum {
+enum iwl_tlc_mng_cfg_chains {
 	IWL_TLC_MNG_CHAIN_A_MSK = BIT(0),
 	IWL_TLC_MNG_CHAIN_B_MSK = BIT(1),
 	IWL_TLC_MNG_CHAIN_C_MSK = BIT(2),
 };
 
 /**
- * enum iwl_tlc_mng_cfg_gi_enum - guard interval options
+ * enum iwl_tlc_mng_cfg_gi - guard interval options
  * @IWL_TLC_MNG_SGI_20MHZ_MSK: enable short GI for 20MHZ
  * @IWL_TLC_MNG_SGI_40MHZ_MSK: enable short GI for 40MHZ
  * @IWL_TLC_MNG_SGI_80MHZ_MSK: enable short GI for 80MHZ
  * @IWL_TLC_MNG_SGI_160MHZ_MSK: enable short GI for 160MHZ
  */
-enum iwl_tlc_mng_cfg_gi_enum {
+enum iwl_tlc_mng_cfg_gi {
 	IWL_TLC_MNG_SGI_20MHZ_MSK  = BIT(0),
 	IWL_TLC_MNG_SGI_40MHZ_MSK  = BIT(1),
 	IWL_TLC_MNG_SGI_80MHZ_MSK  = BIT(2),
@@ -123,7 +123,7 @@ enum iwl_tlc_mng_cfg_gi_enum {
 };
 
 /**
- * enum iwl_tlc_mng_cfg_mode_enum - supported modes
+ * enum iwl_tlc_mng_cfg_mode - supported modes
  * @IWL_TLC_MNG_MODE_CCK: enable CCK
  * @IWL_TLC_MNG_MODE_OFDM_NON_HT: enable OFDM (non HT)
  * @IWL_TLC_MNG_MODE_NON_HT: enable non HT
@@ -133,7 +133,7 @@ enum iwl_tlc_mng_cfg_gi_enum {
  * @IWL_TLC_MNG_MODE_INVALID: invalid value
  * @IWL_TLC_MNG_MODE_NUM: a count of possible modes
  */
-enum iwl_tlc_mng_cfg_mode_enum {
+enum iwl_tlc_mng_cfg_mode {
 	IWL_TLC_MNG_MODE_CCK = 0,
 	IWL_TLC_MNG_MODE_OFDM_NON_HT = IWL_TLC_MNG_MODE_CCK,
 	IWL_TLC_MNG_MODE_NON_HT = IWL_TLC_MNG_MODE_CCK,
@@ -145,14 +145,14 @@ enum iwl_tlc_mng_cfg_mode_enum {
 };
 
 /**
- * enum iwl_tlc_mng_vht_he_types_enum - VHT HE types
+ * enum iwl_tlc_mng_vht_he_types - VHT HE types
  * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU: VHT HT single user
  * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU_EXT: VHT HT single user extended
  * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_MU: VHT HT multiple users
  * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_TRIG_BASED: trigger based
  * @IWL_TLC_MNG_VALID_VHT_HE_TYPES_NUM: a count of possible types
  */
-enum iwl_tlc_mng_vht_he_types_enum {
+enum iwl_tlc_mng_vht_he_types {
 	IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU = 0,
 	IWL_TLC_MNG_VALID_VHT_HE_TYPES_SU_EXT,
 	IWL_TLC_MNG_VALID_VHT_HE_TYPES_MU,
@@ -163,7 +163,7 @@ enum iwl_tlc_mng_vht_he_types_enum {
 };
 
 /**
- * enum iwl_tlc_mng_ht_rates_enum - HT/VHT rates
+ * enum iwl_tlc_mng_ht_rates - HT/VHT rates
  * @IWL_TLC_MNG_HT_RATE_MCS0: index of MCS0
  * @IWL_TLC_MNG_HT_RATE_MCS1: index of MCS1
  * @IWL_TLC_MNG_HT_RATE_MCS2: index of MCS2
@@ -176,7 +176,7 @@ enum iwl_tlc_mng_vht_he_types_enum {
  * @IWL_TLC_MNG_HT_RATE_MCS9: index of MCS9
  * @IWL_TLC_MNG_HT_RATE_MAX: maximal rate for HT/VHT
  */
-enum iwl_tlc_mng_ht_rates_enum {
+enum iwl_tlc_mng_ht_rates {
 	IWL_TLC_MNG_HT_RATE_MCS0 = 0,
 	IWL_TLC_MNG_HT_RATE_MCS1,
 	IWL_TLC_MNG_HT_RATE_MCS2,
@@ -198,13 +198,13 @@ enum iwl_tlc_mng_ht_rates_enum {
  * @sta_id: station id
  * @reserved1: reserved
  * @max_supp_ch_width: channel width
- * @flags: bitmask of %IWL_TLC_MNG_CONFIG_FLAGS_ENABLE_\*
- * @chains: bitmask of %IWL_TLC_MNG_CHAIN_\*
+ * @flags: bitmask of &enum iwl_tlc_mng_cfg_flags
+ * @chains: bitmask of &enum iwl_tlc_mng_cfg_chains
  * @max_supp_ss: valid values are 0-3, 0 - spatial streams are not supported
- * @valid_vht_he_types: bitmap of %IWL_TLC_MNG_VALID_VHT_HE_TYPES_\*
+ * @valid_vht_he_types: bitmap of &enum iwl_tlc_mng_vht_he_types
  * @non_ht_supp_rates: bitmap of supported legacy rates
  * @ht_supp_rates: bitmap of supported HT/VHT rates, valid bits are 0-9
- * @mode: modulation type %IWL_TLC_MNG_MODE_\*
+ * @mode: &enum iwl_tlc_mng_cfg_mode
  * @reserved2: reserved
  * @he_supp_rates: bitmap of supported HE rates
  * @sgi_ch_width_supp: bitmap of SGI support per channel width

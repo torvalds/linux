@@ -626,7 +626,7 @@ int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 
 	msg_body.scan_type = WCN36XX_HAL_SCAN_TYPE_ACTIVE;
 	msg_body.min_ch_time = 30;
-	msg_body.min_ch_time = 100;
+	msg_body.max_ch_time = 100;
 	msg_body.scan_hidden = 1;
 	memcpy(msg_body.mac, vif->addr, ETH_ALEN);
 	msg_body.p2p_search = vif->p2p;

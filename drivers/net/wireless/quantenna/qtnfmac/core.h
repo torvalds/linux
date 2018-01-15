@@ -88,6 +88,7 @@ struct qtnf_vif {
 	struct work_struct reset_work;
 	struct qtnf_sta_list sta_list;
 	unsigned long cons_tx_timeout_cnt;
+	int generation;
 };
 
 struct qtnf_mac_info {
@@ -102,10 +103,14 @@ struct qtnf_mac_info {
 	u8 sretry_limit;
 	u8 coverage_class;
 	u8 radar_detect_widths;
+	u32 max_acl_mac_addrs;
 	struct ieee80211_ht_cap ht_cap_mod_mask;
 	struct ieee80211_vht_cap vht_cap_mod_mask;
 	struct ieee80211_iface_limit *limits;
 	size_t n_limits;
+	u8 *extended_capabilities;
+	u8 *extended_capabilities_mask;
+	u8 extended_capabilities_len;
 };
 
 struct qtnf_chan_stats {
@@ -144,8 +149,7 @@ struct qtnf_vif *qtnf_mac_get_free_vif(struct qtnf_wmac *mac);
 struct qtnf_vif *qtnf_mac_get_base_vif(struct qtnf_wmac *mac);
 struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus);
 int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *priv,
-			 const char *name, unsigned char name_assign_type,
-			 enum nl80211_iftype iftype);
+			 const char *name, unsigned char name_assign_type);
 void qtnf_main_work_queue(struct work_struct *work);
 int qtnf_cmd_send_update_phy_params(struct qtnf_wmac *mac, u32 changed);
 int qtnf_cmd_send_get_phy_params(struct qtnf_wmac *mac);

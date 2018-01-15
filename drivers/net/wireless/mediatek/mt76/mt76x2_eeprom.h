@@ -146,9 +146,12 @@ mt76x2_eeprom_get(struct mt76x2_dev *dev, enum mt76x2_eeprom_field field)
 	return get_unaligned_le16(dev->mt76.eeprom.data + field);
 }
 
-void mt76x2_get_rate_power(struct mt76x2_dev *dev, struct mt76_rate_power *t);
+void mt76x2_get_rate_power(struct mt76x2_dev *dev, struct mt76_rate_power *t,
+			   struct ieee80211_channel *chan);
+int mt76x2_get_max_rate_power(struct mt76_rate_power *r);
 void mt76x2_get_power_info(struct mt76x2_dev *dev,
-			   struct mt76x2_tx_power_info *t);
+			   struct mt76x2_tx_power_info *t,
+			   struct ieee80211_channel *chan);
 int mt76x2_get_temp_comp(struct mt76x2_dev *dev, struct mt76x2_temp_comp *t);
 bool mt76x2_ext_pa_enabled(struct mt76x2_dev *dev, enum nl80211_band band);
 void mt76x2_read_rx_gain(struct mt76x2_dev *dev);

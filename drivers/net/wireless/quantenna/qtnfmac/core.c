@@ -258,7 +258,7 @@ static void qtnf_mac_init_primary_intf(struct qtnf_wmac *mac)
 {
 	struct qtnf_vif *vif = &mac->iflist[QTNF_PRIMARY_VIF_IDX];
 
-	vif->wdev.iftype = NL80211_IFTYPE_AP;
+	vif->wdev.iftype = NL80211_IFTYPE_STATION;
 	vif->bss_priority = QTNF_DEF_BSS_PRIORITY;
 	vif->wdev.wiphy = priv_to_wiphy(mac);
 	INIT_WORK(&vif->reset_work, qtnf_vif_reset_handler);
@@ -298,8 +298,7 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 }
 
 int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
-			 const char *name, unsigned char name_assign_type,
-			 enum nl80211_iftype iftype)
+			 const char *name, unsigned char name_assign_type)
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct net_device *dev;
@@ -320,7 +319,6 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev->needs_free_netdev = true;
 	dev_net_set(dev, wiphy_net(wiphy));
 	dev->ieee80211_ptr = &vif->wdev;
-	dev->ieee80211_ptr->iftype = iftype;
 	ether_addr_copy(dev->dev_addr, vif->mac_addr);
 	SET_NETDEV_DEV(dev, wiphy_dev(wiphy));
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
@@ -383,6 +381,8 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 	}
 
 	kfree(mac->macinfo.limits);
+	kfree(mac->macinfo.extended_capabilities);
+	kfree(mac->macinfo.extended_capabilities_mask);
 	kfree(wiphy->iface_combinations);
 	wiphy_free(wiphy);
 	bus->mac[macid] = NULL;
@@ -418,7 +418,7 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error;
 	}
 
-	ret = qtnf_cmd_send_add_intf(vif, NL80211_IFTYPE_AP, vif->mac_addr);
+	ret = qtnf_cmd_send_add_intf(vif, vif->wdev.iftype, vif->mac_addr);
 	if (ret) {
 		pr_err("MAC%u: failed to add VIF\n", macid);
 		goto error;
@@ -446,8 +446,7 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 
 	rtnl_lock();
 
-	ret = qtnf_core_net_attach(mac, vif, "wlan%d", NET_NAME_ENUM,
-				   NL80211_IFTYPE_AP);
+	ret = qtnf_core_net_attach(mac, vif, "wlan%d", NET_NAME_ENUM);
 	rtnl_unlock();
 
 	if (ret) {

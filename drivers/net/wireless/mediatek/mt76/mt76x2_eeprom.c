@@ -425,12 +425,13 @@ mt76x2_rate_power_val(u8 val)
 	return mt76x2_sign_extend_optional(val, 7);
 }
 
-void mt76x2_get_rate_power(struct mt76x2_dev *dev, struct mt76_rate_power *t)
+void mt76x2_get_rate_power(struct mt76x2_dev *dev, struct mt76_rate_power *t,
+			   struct ieee80211_channel *chan)
 {
 	bool is_5ghz;
 	u16 val;
 
-	is_5ghz = dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ;
+	is_5ghz = chan->band == NL80211_BAND_5GHZ;
 
 	memset(t, 0, sizeof(*t));
 
@@ -482,11 +483,22 @@ void mt76x2_get_rate_power(struct mt76x2_dev *dev, struct mt76_rate_power *t)
 	t->vht[8] = t->vht[9] = mt76x2_rate_power_val(val >> 8);
 }
 
+int mt76x2_get_max_rate_power(struct mt76_rate_power *r)
+{
+	int i;
+	s8 ret = 0;
+
+	for (i = 0; i < sizeof(r->all); i++)
+		ret = max(ret, r->all[i]);
+
+	return ret;
+}
+
 static void
 mt76x2_get_power_info_2g(struct mt76x2_dev *dev, struct mt76x2_tx_power_info *t,
-		       int chain, int offset)
+		         struct ieee80211_channel *chan, int chain, int offset)
 {
-	int channel = dev->mt76.chandef.chan->hw_value;
+	int channel = chan->hw_value;
 	int delta_idx;
 	u8 data[6];
 	u16 val;
@@ -511,9 +523,9 @@ mt76x2_get_power_info_2g(struct mt76x2_dev *dev, struct mt76x2_tx_power_info *t,
 
 static void
 mt76x2_get_power_info_5g(struct mt76x2_dev *dev, struct mt76x2_tx_power_info *t,
-		       int chain, int offset)
+		         struct ieee80211_channel *chan, int chain, int offset)
 {
-	int channel = dev->mt76.chandef.chan->hw_value;
+	int channel = chan->hw_value;
 	enum mt76x2_cal_channel_group group;
 	int delta_idx;
 	u16 val;
@@ -524,7 +536,7 @@ mt76x2_get_power_info_5g(struct mt76x2_dev *dev, struct mt76x2_tx_power_info *t,
 
 	if (channel >= 192)
 		delta_idx = 4;
-	else if (channel >= 484)
+	else if (channel >= 184)
 		delta_idx = 3;
 	else if (channel < 44)
 		delta_idx = 3;
@@ -559,7 +571,8 @@ mt76x2_get_power_info_5g(struct mt76x2_dev *dev, struct mt76x2_tx_power_info *t,
 }
 
 void mt76x2_get_power_info(struct mt76x2_dev *dev,
-			   struct mt76x2_tx_power_info *t)
+			   struct mt76x2_tx_power_info *t,
+			   struct ieee80211_channel *chan)
 {
 	u16 bw40, bw80;
 
@@ -568,13 +581,17 @@ void mt76x2_get_power_info(struct mt76x2_dev *dev,
 	bw40 = mt76x2_eeprom_get(dev, MT_EE_TX_POWER_DELTA_BW40);
 	bw80 = mt76x2_eeprom_get(dev, MT_EE_TX_POWER_DELTA_BW80);
 
-	if (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ) {
+	if (chan->band == NL80211_BAND_5GHZ) {
 		bw40 >>= 8;
-		mt76x2_get_power_info_5g(dev, t, 0, MT_EE_TX_POWER_0_START_5G);
-		mt76x2_get_power_info_5g(dev, t, 1, MT_EE_TX_POWER_1_START_5G);
+		mt76x2_get_power_info_5g(dev, t, chan, 0,
+					 MT_EE_TX_POWER_0_START_5G);
+		mt76x2_get_power_info_5g(dev, t, chan, 1,
+					 MT_EE_TX_POWER_1_START_5G);
 	} else {
-		mt76x2_get_power_info_2g(dev, t, 0, MT_EE_TX_POWER_0_START_2G);
-		mt76x2_get_power_info_2g(dev, t, 1, MT_EE_TX_POWER_1_START_2G);
+		mt76x2_get_power_info_2g(dev, t, chan, 0,
+					 MT_EE_TX_POWER_0_START_2G);
+		mt76x2_get_power_info_2g(dev, t, chan, 1,
+					 MT_EE_TX_POWER_1_START_2G);
 	}
 
 	if (mt76x2_tssi_enabled(dev) || !field_valid(t->target_power))

@@ -161,6 +161,10 @@ struct RGF_ICR {
 #define RGF_USER_USAGE_6		(0x880018)
 	#define BIT_USER_OOB_MODE		BIT(31)
 	#define BIT_USER_OOB_R2_MODE		BIT(30)
+#define RGF_USER_USAGE_8		(0x880020)
+	#define BIT_USER_PREVENT_DEEP_SLEEP	BIT(0)
+	#define BIT_USER_SUPPORT_T_POWER_ON_0	BIT(1)
+	#define BIT_USER_EXT_CLK		BIT(2)
 #define RGF_USER_HW_MACHINE_STATE	(0x8801dc)
 	#define HW_MACHINE_BOOT_DONE	(0x3fffffd)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
@@ -435,12 +439,13 @@ enum { /* for wil6210_priv.status */
 	wil_status_fwconnected,
 	wil_status_dontscan,
 	wil_status_mbox_ready, /* MBOX structures ready */
-	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
+	wil_status_irqen, /* interrupts enabled - for debug */
 	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
 	wil_status_resetting, /* reset in progress */
 	wil_status_suspending, /* suspend in progress */
 	wil_status_suspended, /* suspend completed, device is suspended */
 	wil_status_resuming, /* resume in progress */
+	wil_status_collecting_dumps, /* crashdump collection in progress */
 	wil_status_last /* keep last */
 };
 
@@ -643,12 +648,14 @@ struct wil6210_priv {
 	const char *wil_fw_name;
 	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
+	DECLARE_BITMAP(platform_capa, WIL_PLATFORM_CAPA_MAX);
 	u8 n_mids; /* number of additional MIDs as reported by FW */
 	u32 recovery_count; /* num of FW recovery attempts in a short time */
 	u32 recovery_state; /* FW recovery state machine */
 	unsigned long last_fw_recovery; /* jiffies of last fw recovery */
 	wait_queue_head_t wq; /* for all wait_event() use */
 	/* profile */
+	struct cfg80211_chan_def monitor_chandef;
 	u32 monitor_flags;
 	u32 privacy; /* secure connection? */
 	u8 hidden_ssid; /* relevant in AP mode */
@@ -704,7 +711,7 @@ struct wil6210_priv {
 	struct wil_sta_info sta[WIL6210_MAX_CID];
 	int bcast_vring;
 	u32 vring_idle_trsh; /* HW fetches up to 16 descriptors at once  */
-	bool use_extended_dma_addr; /* indicates whether we are using 48 bits */
+	u32 dma_addr_size; /* indicates dma addr size */
 	/* scan */
 	struct cfg80211_scan_request *scan_request;
 
@@ -742,9 +749,7 @@ struct wil6210_priv {
 
 	int fw_calib_result;
 
-#ifdef CONFIG_PM
 	struct notifier_block pm_notify;
-#endif /* CONFIG_PM */
 
 	bool suspend_resp_rcvd;
 	bool suspend_resp_comp;
@@ -1031,5 +1036,9 @@ void wil_halp_vote(struct wil6210_priv *wil);
 void wil_halp_unvote(struct wil6210_priv *wil);
 void wil6210_set_halp(struct wil6210_priv *wil);
 void wil6210_clear_halp(struct wil6210_priv *wil);
+
+int wmi_start_sched_scan(struct wil6210_priv *wil,
+			 struct cfg80211_sched_scan_request *request);
+int wmi_stop_sched_scan(struct wil6210_priv *wil);
 
 #endif /* __WIL6210_H__ */

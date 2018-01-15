@@ -21,10 +21,6 @@
 #include <linux/firmware.h>
 #include "firmware.h"
 
-#define SDIO_FUNC_0		0
-#define SDIO_FUNC_1		1
-#define SDIO_FUNC_2		2
-
 #define SDIOD_FBR_SIZE		0x100
 
 /* io_en */
@@ -39,15 +35,9 @@
 #define INTR_STATUS_FUNC1	0x2
 #define INTR_STATUS_FUNC2	0x4
 
-/* Maximum number of I/O funcs */
-#define SDIOD_MAX_IOFUNCS	7
-
 /* mask of register map */
 #define REG_F0_REG_MASK		0x7FF
 #define REG_F1_MISC_MASK	0x1FFFF
-
-/* as of sdiod rev 0, supports 3 functions */
-#define SBSDIO_NUM_FUNCTION		3
 
 /* function 0 vendor specific CCCR registers */
 
@@ -55,6 +45,11 @@
 #define SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	BIT(1)
 #define SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT	BIT(2)
 #define SDIO_CCCR_BRCM_CARDCAP_CMD_NODEC	BIT(3)
+
+/* Interrupt enable bits for each function */
+#define SDIO_CCCR_IEN_FUNC0			BIT(0)
+#define SDIO_CCCR_IEN_FUNC1			BIT(1)
+#define SDIO_CCCR_IEN_FUNC2			BIT(2)
 
 #define SDIO_CCCR_BRCM_CARDCTRL			0xf1
 #define SDIO_CCCR_BRCM_CARDCTRL_WLANRESET	BIT(1)
@@ -175,9 +170,10 @@ struct brcmf_sdio;
 struct brcmf_sdiod_freezer;
 
 struct brcmf_sdio_dev {
-	struct sdio_func *func[SDIO_MAX_FUNCS];
-	u8 num_funcs;			/* Supported funcs on client */
+	struct sdio_func *func1;
+	struct sdio_func *func2;
 	u32 sbwad;			/* Save backplane window address */
+	struct brcmf_core *cc_core;	/* chipcommon core info struct */
 	struct brcmf_sdio *bus;
 	struct device *dev;
 	struct brcmf_bus *bus_if;
@@ -296,17 +292,17 @@ void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 /* SDIO device register access interface */
 /* Accessors for SDIO Function 0 */
 #define brcmf_sdiod_func0_rb(sdiodev, addr, r) \
-	sdio_readb((sdiodev)->func[0], (addr), (r))
+	sdio_f0_readb((sdiodev)->func1, (addr), (r))
 
 #define brcmf_sdiod_func0_wb(sdiodev, addr, v, ret) \
-	sdio_writeb((sdiodev)->func[0], (v), (addr), (ret))
+	sdio_f0_writeb((sdiodev)->func1, (v), (addr), (ret))
 
 /* Accessors for SDIO Function 1 */
 #define brcmf_sdiod_readb(sdiodev, addr, r) \
-	sdio_readb((sdiodev)->func[1], (addr), (r))
+	sdio_readb((sdiodev)->func1, (addr), (r))
 
 #define brcmf_sdiod_writeb(sdiodev, addr, v, ret) \
-	sdio_writeb((sdiodev)->func[1], (v), (addr), (ret))
+	sdio_writeb((sdiodev)->func1, (v), (addr), (ret))
 
 u32 brcmf_sdiod_readl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
 void brcmf_sdiod_writel(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
@@ -350,7 +346,8 @@ int brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		      u8 *data, uint size);
 
 /* Issue an abort to the specified function */
-int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, u8 fn);
+int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, struct sdio_func *func);
+
 void brcmf_sdiod_sgtable_alloc(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
 			      enum brcmf_sdiod_state state);

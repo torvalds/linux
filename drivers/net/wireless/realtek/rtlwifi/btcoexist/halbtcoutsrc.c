@@ -653,6 +653,105 @@ static bool halbtc_set(void *void_btcoexist, u8 set_type, void *in_buf)
 	return ret;
 }
 
+static void halbtc_display_coex_statistics(struct btc_coexist *btcoexist,
+					   struct seq_file *m)
+{
+}
+
+static void halbtc_display_bt_link_info(struct btc_coexist *btcoexist,
+					struct seq_file *m)
+{
+}
+
+static void halbtc_display_wifi_status(struct btc_coexist *btcoexist,
+				       struct seq_file *m)
+{
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
+	s32 wifi_rssi = 0, bt_hs_rssi = 0;
+	bool scan = false, link = false, roam = false, wifi_busy = false;
+	bool wifi_under_b_mode = false;
+	bool wifi_under_5g = false;
+	u32 wifi_bw = BTC_WIFI_BW_HT20;
+	u32 wifi_traffic_dir = BTC_WIFI_TRAFFIC_TX;
+	u32 wifi_freq = BTC_FREQ_2_4G;
+	u32 wifi_link_status = 0x0;
+	bool bt_hs_on = false, under_ips = false, under_lps = false;
+	bool low_power = false, dc_mode = false;
+	u8 wifi_chnl = 0, wifi_hs_chnl = 0, fw_ps_state;
+	u8 ap_num = 0;
+
+	wifi_link_status = halbtc_get_wifi_link_status(btcoexist);
+	seq_printf(m, "\n %-35s = %d/ %d/ %d/ %d/ %d",
+		   "STA/vWifi/HS/p2pGo/p2pGc",
+		   ((wifi_link_status & WIFI_STA_CONNECTED) ? 1 : 0),
+		   ((wifi_link_status & WIFI_AP_CONNECTED) ? 1 : 0),
+		   ((wifi_link_status & WIFI_HS_CONNECTED) ? 1 : 0),
+		   ((wifi_link_status & WIFI_P2P_GO_CONNECTED) ? 1 : 0),
+		   ((wifi_link_status & WIFI_P2P_GC_CONNECTED) ? 1 : 0));
+
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_HS_OPERATION, &bt_hs_on);
+	btcoexist->btc_get(btcoexist, BTC_GET_U1_WIFI_DOT11_CHNL, &wifi_chnl);
+	btcoexist->btc_get(btcoexist, BTC_GET_U1_WIFI_HS_CHNL, &wifi_hs_chnl);
+	seq_printf(m, "\n %-35s = %d / %d(%d)",
+		   "Dot11 channel / HsChnl(High Speed)",
+		   wifi_chnl, wifi_hs_chnl, bt_hs_on);
+
+	btcoexist->btc_get(btcoexist, BTC_GET_S4_WIFI_RSSI, &wifi_rssi);
+	btcoexist->btc_get(btcoexist, BTC_GET_S4_HS_RSSI, &bt_hs_rssi);
+	seq_printf(m, "\n %-35s = %d/ %d",
+		   "Wifi rssi/ HS rssi",
+		   wifi_rssi - 100, bt_hs_rssi - 100);
+
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_SCAN, &scan);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_LINK, &link);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_ROAM, &roam);
+	seq_printf(m, "\n %-35s = %d/ %d/ %d ",
+		   "Wifi link/ roam/ scan",
+		   link, roam, scan);
+
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_UNDER_5G, &wifi_under_5g);
+	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_BW, &wifi_bw);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_BUSY, &wifi_busy);
+	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_TRAFFIC_DIRECTION,
+			   &wifi_traffic_dir);
+	btcoexist->btc_get(btcoexist, BTC_GET_U1_AP_NUM, &ap_num);
+	wifi_freq = (wifi_under_5g ? BTC_FREQ_5G : BTC_FREQ_2_4G);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_UNDER_B_MODE,
+			   &wifi_under_b_mode);
+
+	seq_printf(m, "\n %-35s = %s / %s/ %s/ AP=%d ",
+		   "Wifi freq/ bw/ traffic",
+		   gl_btc_wifi_freq_string[wifi_freq],
+		   ((wifi_under_b_mode) ? "11b" :
+		    gl_btc_wifi_bw_string[wifi_bw]),
+		   ((!wifi_busy) ? "idle" : ((BTC_WIFI_TRAFFIC_TX ==
+					      wifi_traffic_dir) ? "uplink" :
+					     "downlink")),
+		   ap_num);
+
+	/* power status	 */
+	dc_mode = true;	/*TODO*/
+	under_ips = rtlpriv->psc.inactive_pwrstate == ERFOFF ? 1 : 0;
+	under_lps = rtlpriv->psc.dot11_psmode == EACTIVE ? 0 : 1;
+	fw_ps_state = 0;
+	low_power = 0; /*TODO*/
+	seq_printf(m, "\n %-35s = %s%s%s%s",
+		   "Power Status",
+		   (dc_mode ? "DC mode" : "AC mode"),
+		   (under_ips ? ", IPS ON" : ""),
+		   (under_lps ? ", LPS ON" : ""),
+		   (low_power ? ", 32k" : ""));
+
+	seq_printf(m,
+		   "\n %-35s = %02x %02x %02x %02x %02x %02x (0x%x/0x%x)",
+		   "Power mode cmd(lps/rpwm)",
+		   btcoexist->pwr_mode_val[0], btcoexist->pwr_mode_val[1],
+		   btcoexist->pwr_mode_val[2], btcoexist->pwr_mode_val[3],
+		   btcoexist->pwr_mode_val[4], btcoexist->pwr_mode_val[5],
+		   btcoexist->bt_info.lps_val,
+		   btcoexist->bt_info.rpwm_val);
+}
+
 /************************************************************
  *		IO related function
  ************************************************************/
@@ -831,6 +930,26 @@ void halbtc_set_bt_reg(void *btc_context, u8 reg_type, u32 offset, u32 set_val)
 	}
 }
 
+static void halbtc_display_dbg_msg(void *bt_context, u8 disp_type,
+				   struct seq_file *m)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)bt_context;
+
+	switch (disp_type) {
+	case BTC_DBG_DISP_COEX_STATISTICS:
+		halbtc_display_coex_statistics(btcoexist, m);
+		break;
+	case BTC_DBG_DISP_BT_LINK_INFO:
+		halbtc_display_bt_link_info(btcoexist, m);
+		break;
+	case BTC_DBG_DISP_WIFI_STATUS:
+		halbtc_display_wifi_status(btcoexist, m);
+		break;
+	default:
+		break;
+	}
+}
+
 bool halbtc_under_ips(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -874,6 +993,7 @@ bool exhalbtc_initlize_variables(void)
 	btcoexist->btc_get_rf_reg = halbtc_get_rfreg;
 
 	btcoexist->btc_fill_h2c = halbtc_fill_h2c_cmd;
+	btcoexist->btc_disp_dbg_msg = halbtc_display_dbg_msg;
 
 	btcoexist->btc_get = halbtc_get;
 	btcoexist->btc_set = halbtc_set;
@@ -1513,7 +1633,8 @@ void exhalbtc_set_single_ant_path(u8 single_ant_path)
 	gl_bt_coexist.board_info.single_ant_path = single_ant_path;
 }
 
-void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist)
+void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist,
+				   struct seq_file *m)
 {
 	if (!halbtc_is_bt_coexist_available(btcoexist))
 		return;
@@ -1522,17 +1643,17 @@ void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist)
 
 	if (IS_HARDWARE_TYPE_8821(btcoexist->adapter)) {
 		if (btcoexist->board_info.btdm_ant_num == 2)
-			ex_btc8821a2ant_display_coex_info(btcoexist);
+			ex_btc8821a2ant_display_coex_info(btcoexist, m);
 		else if (btcoexist->board_info.btdm_ant_num == 1)
-			ex_btc8821a1ant_display_coex_info(btcoexist);
+			ex_btc8821a1ant_display_coex_info(btcoexist, m);
 	} else if (IS_HARDWARE_TYPE_8723B(btcoexist->adapter)) {
 		if (btcoexist->board_info.btdm_ant_num == 2)
-			ex_btc8723b2ant_display_coex_info(btcoexist);
+			ex_btc8723b2ant_display_coex_info(btcoexist, m);
 		else if (btcoexist->board_info.btdm_ant_num == 1)
-			ex_btc8723b1ant_display_coex_info(btcoexist);
+			ex_btc8723b1ant_display_coex_info(btcoexist, m);
 	} else if (IS_HARDWARE_TYPE_8192E(btcoexist->adapter)) {
 		if (btcoexist->board_info.btdm_ant_num == 2)
-			ex_btc8192e2ant_display_coex_info(btcoexist);
+			ex_btc8192e2ant_display_coex_info(btcoexist, m);
 	}
 
 	halbtc_normal_low_power(btcoexist);

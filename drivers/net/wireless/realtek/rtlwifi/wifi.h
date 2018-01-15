@@ -2381,6 +2381,12 @@ struct rtl_works {
 	struct work_struct fill_h2c_cmd;
 };
 
+struct rtl_debug {
+	/* add for debug */
+	struct dentry *debugfs_dir;
+	char debugfs_name[20];
+};
+
 #define MIMO_PS_STATIC			0
 #define MIMO_PS_DYNAMIC			1
 #define MIMO_PS_NOLIMIT			3
@@ -2575,6 +2581,8 @@ struct rtl_btc_ops {
 	bool (*btc_is_bt_disabled) (struct rtl_priv *rtlpriv);
 	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
 					  u8 pkt_type);
+	void (*btc_display_bt_coex_info)(struct rtl_priv *rtlpriv,
+					 struct seq_file *m);
 	void (*btc_record_pwr_mode)(struct rtl_priv *rtlpriv, u8 *buf, u8 len);
 	u8   (*btc_get_lps_val)(struct rtl_priv *rtlpriv);
 	u8   (*btc_get_rpwm_val)(struct rtl_priv *rtlpriv);
@@ -2649,6 +2657,7 @@ struct rtl_priv {
 	/* c2hcmd list for kthread level access */
 	struct list_head c2hcmd_list;
 
+	struct rtl_debug dbg;
 	int max_fw_size;
 
 	/*

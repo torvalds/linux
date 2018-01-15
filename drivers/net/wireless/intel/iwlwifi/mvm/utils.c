@@ -516,8 +516,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 		IWL_ERR(trans, "HW error, resetting before reading\n");
 
 		/* reset the device */
-		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-		usleep_range(5000, 6000);
+		iwl_trans_sw_reset(trans);
 
 		/* set INIT_DONE flag */
 		iwl_set_bit(trans, CSR_GP_CNTRL,
@@ -913,8 +912,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 	};
 
 	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA ||
-		    fw_has_capa(&mvm->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_TLC_OFFLOAD)))
+		    iwl_mvm_has_tlc_offload(mvm)))
 		return -EINVAL;
 
 	return iwl_mvm_send_cmd(mvm, &cmd);
@@ -1033,11 +1031,33 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int res;
+	bool low_latency;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (iwl_mvm_vif_low_latency(mvmvif) == prev)
+	low_latency = iwl_mvm_vif_low_latency(mvmvif);
+
+	if (low_latency == prev)
 		return 0;
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA)) {
+		struct iwl_mac_low_latency_cmd cmd = {
+			.mac_id = cpu_to_le32(mvmvif->id)
+		};
+
+		if (low_latency) {
+			/* currently we don't care about the direction */
+			cmd.low_latency_rx = 1;
+			cmd.low_latency_tx = 1;
+		}
+		res = iwl_mvm_send_cmd_pdu(mvm,
+					   iwl_cmd_id(LOW_LATENCY_CMD,
+						      MAC_CONF_GROUP, 0),
+					   0, sizeof(cmd), &cmd);
+		if (res)
+			IWL_ERR(mvm, "Failed to send low latency command\n");
+	}
 
 	res = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (res)

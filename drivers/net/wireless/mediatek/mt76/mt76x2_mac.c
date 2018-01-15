@@ -28,7 +28,7 @@ void mt76x2_mac_set_bssid(struct mt76x2_dev *dev, u8 idx, const u8 *addr)
 		       get_unaligned_le16(addr + 4));
 }
 
-static void
+static int
 mt76x2_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 {
 	u8 idx = FIELD_GET(MT_RXWI_RATE_INDEX, rate);
@@ -42,7 +42,7 @@ mt76x2_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 			idx += 4;
 
 		status->rate_idx = idx;
-		return;
+		return 0;
 	case MT_PHY_TYPE_CCK:
 		if (idx >= 8) {
 			idx -= 8;
@@ -53,7 +53,7 @@ mt76x2_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 			idx = 0;
 
 		status->rate_idx = idx;
-		return;
+		return 0;
 	case MT_PHY_TYPE_HT_GF:
 		status->enc_flags |= RX_ENC_FLAG_HT_GF;
 		/* fall through */
@@ -67,8 +67,7 @@ mt76x2_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 		status->nss = FIELD_GET(MT_RATE_INDEX_VHT_NSS, idx) + 1;
 		break;
 	default:
-		WARN_ON(1);
-		return;
+		return -EINVAL;
 	}
 
 	if (rate & MT_RXWI_RATE_LDPC)
@@ -92,6 +91,8 @@ mt76x2_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 	default:
 		break;
 	}
+
+	return 0;
 }
 
 static __le16
@@ -272,12 +273,10 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 	status->freq = dev->mt76.chandef.chan->center_freq;
 	status->band = dev->mt76.chandef.chan->band;
 
-	mt76x2_mac_process_rate(status, rate);
-
-	return 0;
+	return mt76x2_mac_process_rate(status, rate);
 }
 
-static void
+static int
 mt76x2_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 			   enum nl80211_band band)
 {
@@ -293,13 +292,13 @@ mt76x2_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 			idx += 4;
 
 		txrate->idx = idx;
-		return;
+		return 0;
 	case MT_PHY_TYPE_CCK:
 		if (idx >= 8)
 			idx -= 8;
 
 		txrate->idx = idx;
-		return;
+		return 0;
 	case MT_PHY_TYPE_HT_GF:
 		txrate->flags |= IEEE80211_TX_RC_GREEN_FIELD;
 		/* fall through */
@@ -312,8 +311,7 @@ mt76x2_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 		txrate->idx = idx;
 		break;
 	default:
-		WARN_ON(1);
-		return;
+		return -EINVAL;
 	}
 
 	switch (FIELD_GET(MT_RXWI_RATE_BW, rate)) {
@@ -326,12 +324,14 @@ mt76x2_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 		txrate->flags |= IEEE80211_TX_RC_80_MHZ_WIDTH;
 		break;
 	default:
-		WARN_ON(1);
+		return -EINVAL;
 		break;
 	}
 
 	if (rate & MT_RXWI_RATE_SGI)
 		txrate->flags |= IEEE80211_TX_RC_SHORT_GI;
+
+	return 0;
 }
 
 static void

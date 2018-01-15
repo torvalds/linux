@@ -150,7 +150,7 @@ void *wil_if_alloc(struct device *dev)
 	wdev->iftype = NL80211_IFTYPE_STATION; /* TODO */
 	/* default monitor channel */
 	ch = wdev->wiphy->bands[NL80211_BAND_60GHZ]->channels;
-	cfg80211_chandef_create(&wdev->preset_chandef, ch, NL80211_CHAN_NO_HT);
+	cfg80211_chandef_create(&wil->monitor_chandef, ch, NL80211_CHAN_NO_HT);
 
 	ndev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, wil_dev_setup);
 	if (!ndev) {

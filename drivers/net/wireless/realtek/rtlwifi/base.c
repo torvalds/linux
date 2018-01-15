@@ -859,8 +859,8 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	u8 hw_rate;
 
-	if ((get_rf_type(rtlphy) == RF_2T2R) &&
-	    (sta->ht_cap.mcs.rx_mask[1] != 0))
+	if (get_rf_type(rtlphy) == RF_2T2R &&
+	    sta->ht_cap.mcs.rx_mask[1] != 0)
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS15];
 	else
 		hw_rate = rtlpriv->cfg->maps[RTL_RC_HT_RATEMCS7];
@@ -1180,7 +1180,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 				tcb_desc->hw_rate =
 				_rtl_get_vht_highest_n_rate(hw, sta);
 			} else {
-				if (sta && (sta->ht_cap.ht_supported)) {
+				if (sta && sta->ht_cap.ht_supported) {
 					tcb_desc->hw_rate =
 						_rtl_get_highest_n_rate(hw, sta);
 				} else {
@@ -1321,6 +1321,10 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 				  le16_to_cpu(mgmt->u.action.u.addba_req.capab);
 				tid = (capab &
 				       IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
+				if (tid >= MAX_TID_COUNT) {
+					rcu_read_unlock();
+					return true;
+				}
 				tid_data = &sta_entry->tids[tid];
 				if (tid_data->agg.rx_agg_state ==
 				    RTL_RX_AGG_START)
@@ -1972,9 +1976,9 @@ void rtl_watchdog_wq_callback(void *data)
 		    rtlpriv->btcoexist.btc_ops->btc_is_bt_ctrl_lps(rtlpriv))
 			goto label_lps_done;
 
-		if (((rtlpriv->link_info.num_rx_inperiod +
-		      rtlpriv->link_info.num_tx_inperiod) > 8) ||
-		    (rtlpriv->link_info.num_rx_inperiod > 2))
+		if (rtlpriv->link_info.num_rx_inperiod +
+		      rtlpriv->link_info.num_tx_inperiod > 8 ||
+		    rtlpriv->link_info.num_rx_inperiod > 2)
 			rtl_lps_leave(hw);
 		else
 			rtl_lps_enter(hw);
@@ -2225,9 +2229,7 @@ static struct sk_buff *rtl_make_smps_action(struct ieee80211_hw *hw,
 	case IEEE80211_SMPS_AUTOMATIC:/* 0 */
 	case IEEE80211_SMPS_NUM_MODES:/* 4 */
 		WARN_ON(1);
-	/* Here will get a 'MISSING_BREAK' in Coverity Test, just ignore it.
-	 * According to Kernel Code, here is right.
-	 */
+	/* fall through */
 	case IEEE80211_SMPS_OFF:/* 1 */ /*MIMO_PS_NOLIMIT*/
 		action_frame->u.action.u.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DISABLED;/* 0 */
@@ -2528,6 +2530,9 @@ static int __init rtl_core_module_init(void)
 	if (rtl_rate_control_register())
 		pr_err("rtl: Unable to register rtl_rc, use default RC !!\n");
 
+	/* add debugfs */
+	rtl_debugfs_add_topdir();
+
 	/* init some global vars */
 	INIT_LIST_HEAD(&rtl_global_var.glb_priv_list);
 	spin_lock_init(&rtl_global_var.glb_list_lock);
@@ -2539,6 +2544,9 @@ static void __exit rtl_core_module_exit(void)
 {
 	/*RC*/
 	rtl_rate_control_unregister();
+
+	/* remove debugfs */
+	rtl_debugfs_remove_topdir();
 }
 
 module_init(rtl_core_module_init);

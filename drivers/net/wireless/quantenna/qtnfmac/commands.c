@@ -162,6 +162,14 @@ static void qtnf_cmd_tlv_ie_set_add(struct sk_buff *cmd_skb, u8 frame_type,
 		memcpy(tlv->ie_data, buf, len);
 }
 
+static inline size_t qtnf_cmd_acl_data_size(const struct cfg80211_acl_data *acl)
+{
+	size_t size = sizeof(struct qlink_acl_data) +
+		      acl->n_acl_entries * sizeof(struct qlink_mac_address);
+
+	return size;
+}
+
 static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 				      const struct cfg80211_ap_settings *s)
 {
@@ -177,6 +185,9 @@ static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 
 	if (cfg80211_chandef_valid(&s->chandef))
 		len += sizeof(struct qlink_tlv_chandef);
+
+	if (s->acl)
+		len += qtnf_cmd_acl_data_size(s->acl);
 
 	if (len > (sizeof(struct qlink_cmd) + QTNF_MAX_CMD_BUF_SIZE)) {
 		pr_err("VIF%u.%u: can not fit AP settings: %u\n",
@@ -247,7 +258,7 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 		chtlv->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANDEF);
 		chtlv->hdr.len = cpu_to_le16(sizeof(*chtlv) -
 					     sizeof(chtlv->hdr));
-		qlink_chandef_cfg2q(&s->chandef, &chtlv->chan);
+		qlink_chandef_cfg2q(&s->chandef, &chtlv->chdef);
 	}
 
 	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_BEACON_HEAD,
@@ -281,6 +292,16 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 		tlv->type = cpu_to_le16(WLAN_EID_VHT_CAPABILITY);
 		tlv->len = cpu_to_le16(sizeof(*s->vht_cap));
 		memcpy(tlv->val, s->vht_cap, sizeof(*s->vht_cap));
+	}
+
+	if (s->acl) {
+		size_t acl_size = qtnf_cmd_acl_data_size(s->acl);
+		struct qlink_tlv_hdr *tlv =
+			skb_put(cmd_skb, sizeof(*tlv) + acl_size);
+
+		tlv->type = cpu_to_le16(QTN_TLV_ID_ACL_DATA);
+		tlv->len = cpu_to_le16(acl_size);
+		qlink_acl_data_cfg2q(s->acl, (struct qlink_acl_data *)tlv->val);
 	}
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -461,30 +482,8 @@ out:
 }
 
 static void
-qtnf_sta_info_parse_basic_counters(struct station_info *sinfo,
-		const struct qlink_sta_stat_basic_counters *counters)
-{
-	sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES) |
-			 BIT(NL80211_STA_INFO_TX_BYTES);
-	sinfo->rx_bytes = get_unaligned_le64(&counters->rx_bytes);
-	sinfo->tx_bytes = get_unaligned_le64(&counters->tx_bytes);
-
-	sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS) |
-			 BIT(NL80211_STA_INFO_TX_PACKETS) |
-			 BIT(NL80211_STA_INFO_BEACON_RX);
-	sinfo->rx_packets = get_unaligned_le32(&counters->rx_packets);
-	sinfo->tx_packets = get_unaligned_le32(&counters->tx_packets);
-	sinfo->rx_beacon = get_unaligned_le64(&counters->rx_beacons);
-
-	sinfo->filled |= BIT(NL80211_STA_INFO_RX_DROP_MISC) |
-			 BIT(NL80211_STA_INFO_TX_FAILED);
-	sinfo->rx_dropped_misc = get_unaligned_le32(&counters->rx_dropped);
-	sinfo->tx_failed = get_unaligned_le32(&counters->tx_failed);
-}
-
-static void
 qtnf_sta_info_parse_rate(struct rate_info *rate_dst,
-			 const struct  qlink_sta_info_rate *rate_src)
+			 const struct qlink_sta_info_rate *rate_src)
 {
 	rate_dst->legacy = get_unaligned_le16(&rate_src->rate) * 10;
 
@@ -493,22 +492,23 @@ qtnf_sta_info_parse_rate(struct rate_info *rate_dst,
 	rate_dst->flags = 0;
 
 	switch (rate_src->bw) {
-	case QLINK_STA_INFO_RATE_BW_5:
+	case QLINK_CHAN_WIDTH_5:
 		rate_dst->bw = RATE_INFO_BW_5;
 		break;
-	case QLINK_STA_INFO_RATE_BW_10:
+	case QLINK_CHAN_WIDTH_10:
 		rate_dst->bw = RATE_INFO_BW_10;
 		break;
-	case QLINK_STA_INFO_RATE_BW_20:
+	case QLINK_CHAN_WIDTH_20:
+	case QLINK_CHAN_WIDTH_20_NOHT:
 		rate_dst->bw = RATE_INFO_BW_20;
 		break;
-	case QLINK_STA_INFO_RATE_BW_40:
+	case QLINK_CHAN_WIDTH_40:
 		rate_dst->bw = RATE_INFO_BW_40;
 		break;
-	case QLINK_STA_INFO_RATE_BW_80:
+	case QLINK_CHAN_WIDTH_80:
 		rate_dst->bw = RATE_INFO_BW_80;
 		break;
-	case QLINK_STA_INFO_RATE_BW_160:
+	case QLINK_CHAN_WIDTH_160:
 		rate_dst->bw = RATE_INFO_BW_160;
 		break;
 	default:
@@ -578,87 +578,125 @@ qtnf_sta_info_parse_flags(struct nl80211_sta_flag_update *dst,
 }
 
 static void
-qtnf_sta_info_parse_generic_info(struct station_info *sinfo,
-				 const struct qlink_sta_info_generic *info)
+qtnf_cmd_sta_info_parse(struct station_info *sinfo,
+			const struct qlink_tlv_hdr *tlv,
+			size_t resp_size)
 {
-	sinfo->filled |= BIT(NL80211_STA_INFO_CONNECTED_TIME) |
-			 BIT(NL80211_STA_INFO_INACTIVE_TIME);
-	sinfo->connected_time = get_unaligned_le32(&info->connected_time);
-	sinfo->inactive_time = get_unaligned_le32(&info->inactive_time);
+	const struct qlink_sta_stats *stats = NULL;
+	const u8 *map = NULL;
+	unsigned int map_len = 0;
+	unsigned int stats_len = 0;
+	u16 tlv_len;
 
-	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL) |
-			 BIT(NL80211_STA_INFO_SIGNAL_AVG);
-	sinfo->signal = info->rssi - 120;
-	sinfo->signal_avg = info->rssi_avg - QLINK_RSSI_OFFSET;
+#define qtnf_sta_stat_avail(stat_name, bitn)	\
+	(qtnf_utils_is_bit_set(map, bitn, map_len) && \
+	 (offsetofend(struct qlink_sta_stats, stat_name) <= stats_len))
 
-	if (info->rx_rate.rate) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
-		qtnf_sta_info_parse_rate(&sinfo->rxrate, &info->rx_rate);
-	}
+	while (resp_size >= sizeof(*tlv)) {
+		tlv_len = le16_to_cpu(tlv->len);
 
-	if (info->tx_rate.rate) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
-		qtnf_sta_info_parse_rate(&sinfo->txrate, &info->tx_rate);
-	}
-
-	sinfo->filled |= BIT(NL80211_STA_INFO_STA_FLAGS);
-	qtnf_sta_info_parse_flags(&sinfo->sta_flags, &info->state);
-}
-
-static int qtnf_cmd_sta_info_parse(struct station_info *sinfo,
-				   const u8 *payload, size_t payload_size)
-{
-	const struct qlink_sta_stat_basic_counters *counters;
-	const struct qlink_sta_info_generic *sta_info;
-	u16 tlv_type;
-	u16 tlv_value_len;
-	size_t tlv_full_len;
-	const struct qlink_tlv_hdr *tlv;
-
-	sinfo->filled = 0;
-
-	tlv = (const struct qlink_tlv_hdr *)payload;
-	while (payload_size >= sizeof(struct qlink_tlv_hdr)) {
-		tlv_type = le16_to_cpu(tlv->type);
-		tlv_value_len = le16_to_cpu(tlv->len);
-		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
-		if (tlv_full_len > payload_size) {
-			pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
-				tlv_type, tlv_value_len);
-			return -EINVAL;
-		}
-		switch (tlv_type) {
-		case QTN_TLV_ID_STA_BASIC_COUNTERS:
-			if (unlikely(tlv_value_len < sizeof(*counters))) {
-				pr_err("invalid TLV size %.4X: %u\n",
-				       tlv_type, tlv_value_len);
-				break;
-			}
-
-			counters = (void *)tlv->val;
-			qtnf_sta_info_parse_basic_counters(sinfo, counters);
+		switch (le16_to_cpu(tlv->type)) {
+		case QTN_TLV_ID_STA_STATS_MAP:
+			map_len = tlv_len;
+			map = tlv->val;
 			break;
-		case QTN_TLV_ID_STA_GENERIC_INFO:
-			if (unlikely(tlv_value_len < sizeof(*sta_info)))
-				break;
-
-			sta_info = (void *)tlv->val;
-			qtnf_sta_info_parse_generic_info(sinfo, sta_info);
+		case QTN_TLV_ID_STA_STATS:
+			stats_len = tlv_len;
+			stats = (const struct qlink_sta_stats *)tlv->val;
 			break;
 		default:
-			pr_warn("unexpected TLV type: %.4X\n", tlv_type);
 			break;
 		}
-		payload_size -= tlv_full_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
+
+		resp_size -= tlv_len + sizeof(*tlv);
+		tlv = (const struct qlink_tlv_hdr *)(tlv->val + tlv_len);
 	}
 
-	if (payload_size) {
-		pr_warn("malformed TLV buf; bytes left: %zu\n", payload_size);
-		return -EINVAL;
+	if (!map || !stats)
+		return;
+
+	if (qtnf_sta_stat_avail(inactive_time, QLINK_STA_INFO_INACTIVE_TIME)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_INACTIVE_TIME);
+		sinfo->inactive_time = le32_to_cpu(stats->inactive_time);
 	}
 
-	return 0;
+	if (qtnf_sta_stat_avail(connected_time,
+				QLINK_STA_INFO_CONNECTED_TIME)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_CONNECTED_TIME);
+		sinfo->connected_time = le32_to_cpu(stats->connected_time);
+	}
+
+	if (qtnf_sta_stat_avail(signal, QLINK_STA_INFO_SIGNAL)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->signal = stats->signal - QLINK_RSSI_OFFSET;
+	}
+
+	if (qtnf_sta_stat_avail(signal_avg, QLINK_STA_INFO_SIGNAL_AVG)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL_AVG);
+		sinfo->signal_avg = stats->signal_avg - QLINK_RSSI_OFFSET;
+	}
+
+	if (qtnf_sta_stat_avail(rxrate, QLINK_STA_INFO_RX_BITRATE)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
+		qtnf_sta_info_parse_rate(&sinfo->rxrate, &stats->rxrate);
+	}
+
+	if (qtnf_sta_stat_avail(txrate, QLINK_STA_INFO_TX_BITRATE)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+		qtnf_sta_info_parse_rate(&sinfo->txrate, &stats->txrate);
+	}
+
+	if (qtnf_sta_stat_avail(sta_flags, QLINK_STA_INFO_STA_FLAGS)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_STA_FLAGS);
+		qtnf_sta_info_parse_flags(&sinfo->sta_flags, &stats->sta_flags);
+	}
+
+	if (qtnf_sta_stat_avail(rx_bytes, QLINK_STA_INFO_RX_BYTES)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES);
+		sinfo->rx_bytes = le64_to_cpu(stats->rx_bytes);
+	}
+
+	if (qtnf_sta_stat_avail(tx_bytes, QLINK_STA_INFO_TX_BYTES)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES);
+		sinfo->tx_bytes = le64_to_cpu(stats->tx_bytes);
+	}
+
+	if (qtnf_sta_stat_avail(rx_bytes, QLINK_STA_INFO_RX_BYTES64)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
+		sinfo->rx_bytes = le64_to_cpu(stats->rx_bytes);
+	}
+
+	if (qtnf_sta_stat_avail(tx_bytes, QLINK_STA_INFO_TX_BYTES64)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES64);
+		sinfo->tx_bytes = le64_to_cpu(stats->tx_bytes);
+	}
+
+	if (qtnf_sta_stat_avail(rx_packets, QLINK_STA_INFO_RX_PACKETS)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
+		sinfo->rx_packets = le32_to_cpu(stats->rx_packets);
+	}
+
+	if (qtnf_sta_stat_avail(tx_packets, QLINK_STA_INFO_TX_PACKETS)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
+		sinfo->tx_packets = le32_to_cpu(stats->tx_packets);
+	}
+
+	if (qtnf_sta_stat_avail(rx_beacon, QLINK_STA_INFO_BEACON_RX)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_RX);
+		sinfo->rx_beacon = le64_to_cpu(stats->rx_beacon);
+	}
+
+	if (qtnf_sta_stat_avail(rx_dropped_misc, QLINK_STA_INFO_RX_DROP_MISC)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_DROP_MISC);
+		sinfo->rx_dropped_misc = le32_to_cpu(stats->rx_dropped_misc);
+	}
+
+	if (qtnf_sta_stat_avail(tx_failed, QLINK_STA_INFO_TX_FAILED)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_FAILED);
+		sinfo->tx_failed = le32_to_cpu(stats->tx_failed);
+	}
+
+#undef qtnf_sta_stat_avail
 }
 
 int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,
@@ -715,7 +753,9 @@ int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,
 		goto out;
 	}
 
-	ret = qtnf_cmd_sta_info_parse(sinfo, resp->info, var_resp_len);
+	qtnf_cmd_sta_info_parse(sinfo,
+				(const struct qlink_tlv_hdr *)resp->info,
+				var_resp_len);
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
@@ -1029,6 +1069,10 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 	struct qlink_iface_comb_num *comb;
 	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
+	u8 *ext_capa = NULL;
+	u8 *ext_capa_mask = NULL;
+	u8 ext_capa_len = 0;
+	u8 ext_capa_mask_len = 0;
 
 	mac->macinfo.n_limits = 0;
 
@@ -1092,6 +1136,18 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 			if (limits[rec].types)
 				rec++;
 			break;
+		case WLAN_EID_EXT_CAPABILITY:
+			if (unlikely(tlv_value_len > U8_MAX))
+				return -EINVAL;
+			ext_capa = (u8 *)tlv->val;
+			ext_capa_len = tlv_value_len;
+			break;
+		case QTN_TLV_ID_EXT_CAPABILITY_MASK:
+			if (unlikely(tlv_value_len > U8_MAX))
+				return -EINVAL;
+			ext_capa_mask = (u8 *)tlv->val;
+			ext_capa_mask_len = tlv_value_len;
+			break;
 		default:
 			break;
 		}
@@ -1111,6 +1167,34 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 		       mac->macid, mac->macinfo.n_limits, rec);
 		return -EINVAL;
 	}
+
+	if (ext_capa_len != ext_capa_mask_len) {
+		pr_err("MAC%u: ext_capa/_mask lengths mismatch: %u != %u\n",
+		       mac->macid, ext_capa_len, ext_capa_mask_len);
+		return -EINVAL;
+	}
+
+	if (ext_capa_len > 0) {
+		ext_capa = kmemdup(ext_capa, ext_capa_len, GFP_KERNEL);
+		if (!ext_capa)
+			return -ENOMEM;
+
+		ext_capa_mask =
+			kmemdup(ext_capa_mask, ext_capa_mask_len, GFP_KERNEL);
+		if (!ext_capa_mask) {
+			kfree(ext_capa);
+			return -ENOMEM;
+		}
+	} else {
+		ext_capa = NULL;
+		ext_capa_mask = NULL;
+	}
+
+	kfree(mac->macinfo.extended_capabilities);
+	kfree(mac->macinfo.extended_capabilities_mask);
+	mac->macinfo.extended_capabilities = ext_capa;
+	mac->macinfo.extended_capabilities_mask = ext_capa_mask;
+	mac->macinfo.extended_capabilities_len = ext_capa_len;
 
 	return 0;
 }
@@ -1143,6 +1227,7 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 	mac_info->radar_detect_widths =
 			qlink_chan_width_mask_to_nl(le16_to_cpu(
 					resp_info->radar_detect_widths));
+	mac_info->max_acl_mac_addrs = le32_to_cpu(resp_info->max_acl_mac_addrs);
 
 	memcpy(&mac_info->ht_cap_mod_mask, &resp_info->ht_cap_mod_mask,
 	       sizeof(mac_info->ht_cap_mod_mask));
@@ -1186,7 +1271,7 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 	size_t tlv_len;
 	size_t tlv_dlen;
 	const struct qlink_tlv_hdr *tlv;
-	const struct qlink_tlv_channel *qchan;
+	const struct qlink_channel *qchan;
 	struct ieee80211_channel *chan;
 	unsigned int chidx = 0;
 	u32 qflags;
@@ -1232,7 +1317,7 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 
 		switch (tlv_type) {
 		case QTN_TLV_ID_CHANNEL:
-			if (unlikely(tlv_len != sizeof(*qchan))) {
+			if (unlikely(tlv_dlen != sizeof(*qchan))) {
 				pr_err("invalid channel TLV len %zu\n",
 				       tlv_len);
 				goto error_ret;
@@ -1243,7 +1328,7 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 				goto error_ret;
 			}
 
-			qchan = (const struct qlink_tlv_channel *)tlv;
+			qchan = (const struct qlink_channel *)tlv->val;
 			chan = &band->channels[chidx++];
 			qflags = le32_to_cpu(qchan->flags);
 
@@ -1948,21 +2033,17 @@ int qtnf_cmd_send_change_sta(struct qtnf_vif *vif, const u8 *mac,
 
 	cmd = (struct qlink_cmd_change_sta *)cmd_skb->data;
 	ether_addr_copy(cmd->sta_addr, mac);
+	cmd->flag_update.mask =
+		cpu_to_le32(qtnf_encode_sta_flags(params->sta_flags_mask));
+	cmd->flag_update.value =
+		cpu_to_le32(qtnf_encode_sta_flags(params->sta_flags_set));
 
 	switch (vif->wdev.iftype) {
 	case NL80211_IFTYPE_AP:
 		cmd->if_type = cpu_to_le16(QLINK_IFTYPE_AP);
-		cmd->sta_flags_mask = cpu_to_le32(qtnf_encode_sta_flags(
-						  params->sta_flags_mask));
-		cmd->sta_flags_set = cpu_to_le32(qtnf_encode_sta_flags(
-						 params->sta_flags_set));
 		break;
 	case NL80211_IFTYPE_STATION:
 		cmd->if_type = cpu_to_le16(QLINK_IFTYPE_STATION);
-		cmd->sta_flags_mask = cpu_to_le32(qtnf_encode_sta_flags(
-						  params->sta_flags_mask));
-		cmd->sta_flags_set = cpu_to_le32(qtnf_encode_sta_flags(
-						 params->sta_flags_set));
 		break;
 	default:
 		pr_err("unsupported iftype %d\n", vif->wdev.iftype);
@@ -2037,8 +2118,8 @@ static void qtnf_cmd_channel_tlv_add(struct sk_buff *cmd_skb,
 	qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
 	qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
 	qchan->hdr.len = cpu_to_le16(sizeof(*qchan) - sizeof(qchan->hdr));
-	qchan->center_freq = cpu_to_le16(sc->center_freq);
-	qchan->hw_value = cpu_to_le16(sc->hw_value);
+	qchan->chan.center_freq = cpu_to_le16(sc->center_freq);
+	qchan->chan.hw_value = cpu_to_le16(sc->hw_value);
 
 	if (sc->flags & IEEE80211_CHAN_NO_IR)
 		flags |= QLINK_CHAN_NO_IR;
@@ -2046,7 +2127,7 @@ static void qtnf_cmd_channel_tlv_add(struct sk_buff *cmd_skb,
 	if (sc->flags & IEEE80211_CHAN_RADAR)
 		flags |= QLINK_CHAN_RADAR;
 
-	qchan->flags = cpu_to_le32(flags);
+	qchan->chan.flags = cpu_to_le32(flags);
 }
 
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
@@ -2510,5 +2591,83 @@ int qtnf_cmd_get_channel(struct qtnf_vif *vif, struct cfg80211_chan_def *chdef)
 
 out:
 	consume_skb(resp_skb);
+	return ret;
+}
+
+int qtnf_cmd_start_cac(const struct qtnf_vif *vif,
+		       const struct cfg80211_chan_def *chdef,
+		       u32 cac_time_ms)
+{
+	struct qtnf_bus *bus = vif->mac->bus;
+	struct sk_buff *cmd_skb;
+	struct qlink_cmd_start_cac *cmd;
+	int ret;
+	u16 res_code;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_START_CAC,
+					    sizeof(*cmd));
+	if (unlikely(!cmd_skb))
+		return -ENOMEM;
+
+	cmd = (struct qlink_cmd_start_cac *)cmd_skb->data;
+	cmd->cac_time_ms = cpu_to_le32(cac_time_ms);
+	qlink_chandef_cfg2q(chdef, &cmd->chan);
+
+	qtnf_bus_lock(bus);
+	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
+	qtnf_bus_unlock(bus);
+
+	if (ret)
+		return ret;
+
+	switch (res_code) {
+	case QLINK_CMD_RESULT_OK:
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+
+int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
+			 const struct cfg80211_acl_data *params)
+{
+	struct qtnf_bus *bus = vif->mac->bus;
+	struct sk_buff *cmd_skb;
+	struct qlink_cmd_set_mac_acl *cmd;
+	u16 res_code;
+	int ret;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_SET_MAC_ACL,
+					    sizeof(*cmd) +
+					    qtnf_cmd_acl_data_size(params));
+	if (unlikely(!cmd_skb))
+		return -ENOMEM;
+
+	cmd = (struct qlink_cmd_set_mac_acl *)cmd_skb->data;
+	qlink_acl_data_cfg2q(params, &cmd->acl);
+
+	qtnf_bus_lock(bus);
+	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
+	qtnf_bus_unlock(bus);
+
+	if (unlikely(ret))
+		return ret;
+
+	switch (res_code) {
+	case QLINK_CMD_RESULT_OK:
+		break;
+	case QLINK_CMD_RESULT_INVALID:
+		ret = -EINVAL;
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
 	return ret;
 }
