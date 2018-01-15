@@ -312,6 +312,7 @@
 			pd_vpu@RK3228_PD_VPU {
 				reg = <RK3228_PD_VPU>;
 				clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+				pm_qos = <&qos_vpu>;
 			};
 
 			pd_rkvdec@RK3228_PD_RKVDEC {
@@ -320,6 +321,7 @@
 					 <&cru HCLK_RKVDEC>,
 					 <&cru SCLK_VDEC_CABAC>,
 					 <&cru SCLK_VDEC_CORE>;
+				pm_qos = <&qos_rkvdec_r>, <&qos_rkvdec_w>;
 			};
 		};
 	};
@@ -944,6 +946,21 @@
 		reset-names = "stmmaceth", "mac-phy";
 		rockchip,grf = <&grf>;
 		status = "disabled";
+	};
+
+	qos_vpu: qos@31040000 {
+		compatible = "syscon";
+		reg = <0x0 0x31040000 0x0 0x20>;
+	};
+
+	qos_rkvdec_r: qos@31070000 {
+		compatible = "syscon";
+		reg = <0x0 0x31070000 0x0 0x20>;
+	};
+
+	qos_rkvdec_w: qos@31070080 {
+		compatible = "syscon";
+		reg = <0x0 0x31070080 0x0 0x20>;
 	};
 
 	gic: interrupt-controller@32010000 {
