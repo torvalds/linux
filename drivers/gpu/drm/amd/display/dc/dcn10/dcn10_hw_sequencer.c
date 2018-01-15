@@ -1430,7 +1430,7 @@ static bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 	return false;
 }
 
-static bool is_rgb_cspace(enum dc_color_space output_color_space)
+bool is_rgb_cspace(enum dc_color_space output_color_space)
 {
 	switch (output_color_space) {
 	case COLOR_SPACE_SRGB:

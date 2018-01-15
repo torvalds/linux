@@ -35,5 +35,6 @@ extern void fill_display_configs(
 	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg);
 
+bool is_rgb_cspace(enum dc_color_space output_color_space);
 
 #endif /* __DC_HWSS_DCN10_H__ */

@@ -201,7 +201,6 @@ struct hw_sequencer_funcs {
 
 	void (*set_cursor_position)(struct pipe_ctx *pipe);
 	void (*set_cursor_attribute)(struct pipe_ctx *pipe);
-
 };
 
 void color_space_to_black_color(
