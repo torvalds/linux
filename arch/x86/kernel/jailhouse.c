@@ -52,6 +52,24 @@ static unsigned long jailhouse_get_tsc(void)
 	return precalibrated_tsc_khz;
 }
 
+static void __init jailhouse_x2apic_init(void)
+{
+#ifdef CONFIG_X86_X2APIC
+	if (!x2apic_enabled())
+		return;
+	/*
+	 * We do not have access to IR inside Jailhouse non-root cells.  So
+	 * we have to run in physical mode.
+	 */
+	x2apic_phys = 1;
+	/*
+	 * This will trigger the switch to apic_x2apic_phys.  Empty OEM IDs
+	 * ensure that only this APIC driver picks up the call.
+	 */
+	default_acpi_madt_oem_check("", "");
+#endif
+}
+
 static void __init jailhouse_get_smp_config(unsigned int early)
 {
 	struct ioapic_domain_cfg ioapic_cfg = {
@@ -65,20 +83,7 @@ static void __init jailhouse_get_smp_config(unsigned int early)
 	};
 	unsigned int cpu;
 
-	if (x2apic_enabled()) {
-		/*
-		 * We do not have access to IR inside Jailhouse non-root cells.
-		 * So we have to run in physical mode.
-		 */
-		x2apic_phys = 1;
-
-		/*
-		 * This will trigger the switch to apic_x2apic_phys.
-		 * Empty OEM IDs ensure that only this APIC driver picks up
-		 * the call.
-		 */
-		default_acpi_madt_oem_check("", "");
-	}
+	jailhouse_x2apic_init();
 
 	register_lapic_address(0xfee00000);
 
