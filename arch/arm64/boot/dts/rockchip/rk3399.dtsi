@@ -164,6 +164,7 @@
 		ports = <&vopl_out>, <&vopb_out>;
 		clocks = <&cru PLL_VPLL>, <&cru PLL_CPLL>;
 		clock-names = "hdmi-tmds-pll", "default-vop-pll";
+		devfreq = <&dmc>;
 	};
 
 	pmu_a53 {
