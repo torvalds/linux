@@ -226,6 +226,7 @@ config ZIIRAVE_WATCHDOG
 config RAVE_SP_WATCHDOG
 	tristate "RAVE SP Watchdog timer"
 	depends on RAVE_SP_CORE
+	depends on NVMEM || !NVMEM
 	select WATCHDOG_CORE
 	help
 	  Support for the watchdog on RAVE SP device.
