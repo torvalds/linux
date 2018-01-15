@@ -124,6 +124,17 @@ ENTRY(__guest_exit)
 	// Now restore the host regs
 	restore_callee_saved_regs x2
 
+alternative_if ARM64_HAS_RAS_EXTN
+	// If we have the RAS extensions we can consume a pending error
+	// without an unmask-SError and isb.
+	esb
+	mrs_s	x2, SYS_DISR_EL1
+	str	x2, [x1, #(VCPU_FAULT_DISR - VCPU_CONTEXT)]
+	cbz	x2, 1f
+	msr_s	SYS_DISR_EL1, xzr
+	orr	x0, x0, #(1<<ARM_EXIT_WITH_SERROR_BIT)
+1:	ret
+alternative_else
 	// If we have a pending asynchronous abort, now is the
 	// time to find out. From your VAXorcist book, page 666:
 	// "Threaten me not, oh Evil one!  For I speak with
@@ -134,7 +145,9 @@ ENTRY(__guest_exit)
 	mov	x5, x0
 
 	dsb	sy		// Synchronize against in-flight ld/st
+	nop
 	msr	daifclr, #4	// Unmask aborts
+alternative_endif
 
 	// This is our single instruction exception window. A pending
 	// SError is guaranteed to occur at the earliest when we unmask
