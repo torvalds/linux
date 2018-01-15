@@ -281,7 +281,6 @@ struct rbd_obj_request {
 	int			result;
 
 	rbd_obj_callback_t	callback;
-	struct completion	completion;
 
 	struct kref		kref;
 };
@@ -1734,10 +1733,7 @@ static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p cb %p\n", __func__, obj_request,
 		obj_request->callback);
-	if (obj_request->callback)
-		obj_request->callback(obj_request);
-	else
-		complete_all(&obj_request->completion);
+	obj_request->callback(obj_request);
 }
 
 static void rbd_obj_request_error(struct rbd_obj_request *obj_request, int err)
@@ -2013,7 +2009,6 @@ rbd_obj_request_create(enum obj_request_type type)
 	obj_request->which = BAD_WHICH;
 	obj_request->type = type;
 	INIT_LIST_HEAD(&obj_request->links);
-	init_completion(&obj_request->completion);
 	kref_init(&obj_request->kref);
 
 	dout("%s %p\n", __func__, obj_request);
