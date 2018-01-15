@@ -807,6 +807,7 @@ static void sii8620_burst_rx_all(struct sii8620 *ctx)
 static void sii8620_fetch_edid(struct sii8620 *ctx)
 {
 	u8 lm_ddc, ddc_cmd, int3, cbus;
+	unsigned long timeout;
 	int fetched, i;
 	int edid_len = EDID_LENGTH;
 	u8 *edid;
@@ -856,23 +857,31 @@ static void sii8620_fetch_edid(struct sii8620 *ctx)
 			REG_DDC_CMD, ddc_cmd | VAL_DDC_CMD_ENH_DDC_READ_NO_ACK
 		);
 
-		do {
-			int3 = sii8620_readb(ctx, REG_INTR3);
+		int3 = 0;
+		timeout = jiffies + msecs_to_jiffies(200);
+		for (;;) {
 			cbus = sii8620_readb(ctx, REG_CBUS_STATUS);
-
-			if (int3 & BIT_DDC_CMD_DONE)
-				break;
-
-			if (!(cbus & BIT_CBUS_STATUS_CBUS_CONNECTED)) {
+			if (~cbus & BIT_CBUS_STATUS_CBUS_CONNECTED) {
 				kfree(edid);
 				edid = NULL;
 				goto end;
 			}
-		} while (1);
-
-		sii8620_readb(ctx, REG_DDC_STATUS);
-		while (sii8620_readb(ctx, REG_DDC_DOUT_CNT) < FETCH_SIZE)
+			if (int3 & BIT_DDC_CMD_DONE) {
+				if (sii8620_readb(ctx, REG_DDC_DOUT_CNT)
+				    >= FETCH_SIZE)
+					break;
+			} else {
+				int3 = sii8620_readb(ctx, REG_INTR3);
+			}
+			if (time_is_before_jiffies(timeout)) {
+				ctx->error = -ETIMEDOUT;
+				dev_err(ctx->dev, "timeout during EDID read\n");
+				kfree(edid);
+				edid = NULL;
+				goto end;
+			}
 			usleep_range(10, 20);
+		}
 
 		sii8620_read_buf(ctx, REG_DDC_DATA, edid + fetched, FETCH_SIZE);
 		if (fetched + FETCH_SIZE == EDID_LENGTH) {
