@@ -629,12 +629,14 @@ static void xgifb_set_lcd(int chip_id,
 	xgifb_reg_and(pVBInfo->P3c4, 0x35, ~0x80); /* Vsync polarity */
 
 	temp = XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag;
-	if (temp & 0x4000)
+	if (temp & 0x4000) {
 		/* Hsync polarity */
 		xgifb_reg_or(pVBInfo->P3c4, 0x30, 0x20);
-	if (temp & 0x8000)
+	}
+	if (temp & 0x8000) {
 		/* Vsync polarity */
 		xgifb_reg_or(pVBInfo->P3c4, 0x35, 0x80);
+	}
 }
 
 /*
@@ -1770,9 +1772,10 @@ static void XGI_UpdateModeInfo(struct vb_device_info *pVBInfo)
 
 			temp &= 0x05;
 
-			if (!(tempcl & ActiveLCD))
+			if (!(tempcl & ActiveLCD)) {
 				if (temp == 0x01)
 					tempcl |= ActiveCRT2;
+			}
 
 			if (temp == 0x04)
 				tempcl |= ActiveLCD;
@@ -2010,10 +2013,11 @@ static void XGI_GetTVInfo(unsigned short ModeIdIndex,
 			if (tempbx & TVSetPALM)
 				/* set to NTSC if PAL-M */
 				tempbx &= ~TVSetPAL;
-		} else
+		} else {
 			tempbx &= (SetCHTVOverScan |
 				   TVSetNTSCJ |
 				   TVSetPAL);
+		}
 
 		if (pVBInfo->VBInfo & SetCRT2ToSCART)
 			tempbx |= TVSetPAL;
@@ -2038,9 +2042,10 @@ static void XGI_GetTVInfo(unsigned short ModeIdIndex,
 		    (!(pVBInfo->VBInfo & SetNotSimuMode)))
 			tempbx |= TVSimuMode;
 
-		if (!(tempbx & TVSetPAL) && (modeflag > 13) && (resinfo == 8))
+		if (!(tempbx & TVSetPAL) && (modeflag > 13) && (resinfo == 8)) {
 			/* NTSC 1024x768, */
 			tempbx |= NTSC1024x768;
+		}
 
 		tempbx |= RPLLDIV2XO;
 
@@ -2339,9 +2344,10 @@ void XGI_DisplayOff(struct xgifb_video_info *xgifb_info,
 			mdelay(xgifb_info->lvds_data.PSC_S3);
 		}
 
-		if (pVBInfo->IF_DEF_LVDS == 0)
+		if (pVBInfo->IF_DEF_LVDS == 0) {
 			/* DVO/DVI signal off */
 			XGI_XG27BLSignalVDD(0x20, 0x00, pVBInfo);
+		}
 	}
 
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x01, 0xDF, 0x20);
@@ -4647,13 +4653,14 @@ static void XGI_SetLCDCap_A(unsigned short tempcx,
 static void XGI_SetLCDCap_B(unsigned short tempcx,
 			    struct vb_device_info *pVBInfo)
 {
-	if (tempcx & EnableLCD24bpp) /* 24bits */
+	if (tempcx & EnableLCD24bpp) { /* 24bits */
 		xgifb_reg_and_or(pVBInfo->Part2Port, 0x1A, 0xE0,
 				 (unsigned short)(((tempcx & 0x00ff) >> 6) | 0x0c));
-	else
+	} else {
 		xgifb_reg_and_or(pVBInfo->Part2Port, 0x1A, 0xE0,
 				 (unsigned short)(((tempcx & 0x00ff) >> 6) | 0x18));
 				  /* Enable Dither */
+	}
 }
 
 static void XGI_LongWait(struct vb_device_info *pVBInfo)
