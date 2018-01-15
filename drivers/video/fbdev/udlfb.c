@@ -1605,7 +1605,6 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 	kref_init(&dev->kref); /* matching kref_put in usb .disconnect fn */
 
 	dev->udev = usbdev;
-	dev->gdev = &usbdev->dev; /* our generic struct device * */
 	usb_set_intfdata(interface, dev);
 
 	pr_info("%s %s - serial #%s\n",
@@ -1670,7 +1669,7 @@ static void dlfb_init_framebuffer_work(struct work_struct *work)
 	int i;
 
 	/* allocates framebuffer driver structure, not framebuffer memory */
-	info = framebuffer_alloc(0, dev->gdev);
+	info = framebuffer_alloc(0, &dev->udev->dev);
 	if (!info) {
 		pr_err("framebuffer_alloc failed\n");
 		goto error;
@@ -1765,7 +1764,6 @@ static void dlfb_usb_disconnect(struct usb_interface *interface)
 
 	usb_set_intfdata(interface, NULL);
 	dev->udev = NULL;
-	dev->gdev = NULL;
 
 	/* if clients still have us open, will be freed on last close */
 	if (dev->fb_count == 0)

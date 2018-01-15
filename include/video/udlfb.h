@@ -35,7 +35,6 @@ struct urb_list {
 
 struct dlfb_data {
 	struct usb_device *udev;
-	struct device *gdev; /* &udev->dev */
 	struct fb_info *info;
 	struct urb_list urbs;
 	struct kref kref;
