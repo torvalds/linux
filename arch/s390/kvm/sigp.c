@@ -20,14 +20,11 @@
 static int __sigp_sense(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
 			u64 *reg)
 {
-	struct kvm_s390_local_interrupt *li;
 	int cpuflags;
 	int rc;
 	int ext_call_pending;
 
-	li = &dst_vcpu->arch.local_int;
-
-	cpuflags = atomic_read(li->cpuflags);
+	cpuflags = atomic_read(&dst_vcpu->arch.sie_block->cpuflags);
 	ext_call_pending = kvm_s390_ext_call_pending(dst_vcpu);
 	if (!(cpuflags & CPUSTAT_STOPPED) && !ext_call_pending)
 		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
@@ -211,7 +208,7 @@ static int __sigp_store_status_at_addr(struct kvm_vcpu *vcpu,
 	int flags;
 	int rc;
 
-	flags = atomic_read(dst_vcpu->arch.local_int.cpuflags);
+	flags = atomic_read(&dst_vcpu->arch.sie_block->cpuflags);
 	if (!(flags & CPUSTAT_STOPPED)) {
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INCORRECT_STATE;
@@ -231,7 +228,6 @@ static int __sigp_store_status_at_addr(struct kvm_vcpu *vcpu,
 static int __sigp_sense_running(struct kvm_vcpu *vcpu,
 				struct kvm_vcpu *dst_vcpu, u64 *reg)
 {
-	struct kvm_s390_local_interrupt *li;
 	int rc;
 
 	if (!test_kvm_facility(vcpu->kvm, 9)) {
@@ -240,8 +236,8 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu,
 		return SIGP_CC_STATUS_STORED;
 	}
 
-	li = &dst_vcpu->arch.local_int;
-	if (atomic_read(li->cpuflags) & CPUSTAT_RUNNING) {
+	if (atomic_read(&dst_vcpu->arch.sie_block->cpuflags) &
+	    CPUSTAT_RUNNING) {
 		/* running */
 		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	} else {
