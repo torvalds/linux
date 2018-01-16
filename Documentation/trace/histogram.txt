@@ -172,6 +172,21 @@
   The examples below provide a more concrete illustration of the
   concepts and typical usage patterns discussed above.
 
+  'special' event fields
+  ------------------------
+
+  There are a number of 'special event fields' available for use as
+  keys or values in a hist trigger.  These look like and behave as if
+  they were actual event fields, but aren't really part of the event's
+  field definition or format file.  They are however available for any
+  event, and can be used anywhere an actual event field could be.
+  They are:
+
+    common_timestamp       u64 - timestamp (from ring buffer) associated
+                                 with the event, in nanoseconds.  May be
+				 modified by .usecs to have timestamps
+				 interpreted as microseconds.
+    cpu                    int - the cpu on which the event occurred.
 
 6.2 'hist' trigger examples
 ---------------------------
