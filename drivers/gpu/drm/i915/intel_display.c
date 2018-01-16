@@ -2959,12 +2959,16 @@ static int skl_check_main_surface(const struct intel_crtc_state *crtc_state,
 	 * Planes other than the cursor may cause FIFO underflow and display
 	 * corruption if starting less than 4 pixels from the right edge of
 	 * the screen.
+	 * Besides the above WA fix the similar problem, where planes other
+	 * than the cursor ending less than 4 pixels from the left edge of the
+	 * screen may cause FIFO underflow and display corruption.
 	 */
 	if ((IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
-	    dst_x > pipe_src_w - 4) {
-		DRM_DEBUG_KMS("requested plane X start position %d invalid (valid range %d-%d)\n",
-			      dst_x,
-			      0, pipe_src_w - 4);
+	    (dst_x + w < 4 || dst_x > pipe_src_w - 4)) {
+		DRM_DEBUG_KMS("requested plane X %s position %d invalid (valid range %d-%d)\n",
+			      dst_x + w < 4 ? "end" : "start",
+			      dst_x + w < 4 ? dst_x + w : dst_x,
+			      4, pipe_src_w - 4);
 		return -ERANGE;
 	}
 
