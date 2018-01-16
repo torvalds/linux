@@ -37,17 +37,10 @@
 #define QUSB2PHY_PLL_AUTOPGM_CTL1	0x1c
 #define QUSB2PHY_PLL_PWR_CTRL		0x18
 
-#define QUSB2PHY_PLL_STATUS		0x38
+/* QUSB2PHY_PLL_STATUS register bits */
 #define PLL_LOCKED			BIT(5)
 
-#define QUSB2PHY_PORT_TUNE1		0x80
-#define QUSB2PHY_PORT_TUNE2		0x84
-#define QUSB2PHY_PORT_TUNE3		0x88
-#define QUSB2PHY_PORT_TUNE4		0x8c
-#define QUSB2PHY_PORT_TUNE5		0x90
-#define QUSB2PHY_PORT_TEST2		0x9c
-
-#define QUSB2PHY_PORT_POWERDOWN		0xb4
+/* QUSB2PHY_PORT_POWERDOWN register bits */
 #define CLAMP_N_EN			BIT(5)
 #define FREEZIO_N			BIT(1)
 #define POWER_DOWN			BIT(0)
@@ -59,6 +52,11 @@
 struct qusb2_phy_init_tbl {
 	unsigned int offset;
 	unsigned int val;
+	/*
+	 * register part of layout ?
+	 * if yes, then offset gives index in the reg-layout
+	 */
+	int in_layout;
 };
 
 #define QUSB2_PHY_INIT_CFG(o, v) \
@@ -67,15 +65,50 @@ struct qusb2_phy_init_tbl {
 		.val = v,	\
 	}
 
+#define QUSB2_PHY_INIT_CFG_L(o, v) \
+	{			\
+		.offset = o,	\
+		.val = v,	\
+		.in_layout = 1,	\
+	}
+
+/* set of registers with offsets different per-PHY */
+enum qusb2phy_reg_layout {
+	QUSB2PHY_PLL_STATUS,
+	QUSB2PHY_PORT_TUNE1,
+	QUSB2PHY_PORT_TUNE2,
+	QUSB2PHY_PORT_TUNE3,
+	QUSB2PHY_PORT_TUNE4,
+	QUSB2PHY_PORT_TUNE5,
+	QUSB2PHY_PORT_TEST1,
+	QUSB2PHY_PORT_TEST2,
+	QUSB2PHY_PORT_POWERDOWN,
+	QUSB2PHY_INTR_CTRL,
+};
+
+static const unsigned int msm8996_regs_layout[] = {
+	[QUSB2PHY_PLL_STATUS]		= 0x38,
+	[QUSB2PHY_PORT_TUNE1]		= 0x80,
+	[QUSB2PHY_PORT_TUNE2]		= 0x84,
+	[QUSB2PHY_PORT_TUNE3]		= 0x88,
+	[QUSB2PHY_PORT_TUNE4]		= 0x8c,
+	[QUSB2PHY_PORT_TUNE5]		= 0x90,
+	[QUSB2PHY_PORT_TEST2]		= 0x9c,
+	[QUSB2PHY_PORT_POWERDOWN]	= 0xb4,
+};
+
 static const struct qusb2_phy_init_tbl msm8996_init_tbl[] = {
-	QUSB2_PHY_INIT_CFG(QUSB2PHY_PORT_TUNE1, 0xf8),
-	QUSB2_PHY_INIT_CFG(QUSB2PHY_PORT_TUNE2, 0xb3),
-	QUSB2_PHY_INIT_CFG(QUSB2PHY_PORT_TUNE3, 0x83),
-	QUSB2_PHY_INIT_CFG(QUSB2PHY_PORT_TUNE4, 0xc0),
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE1, 0xf8),
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE2, 0xb3),
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE3, 0x83),
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE4, 0xc0),
+
 	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_TUNE, 0x30),
 	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_USER_CTL1, 0x79),
 	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_USER_CTL2, 0x21),
-	QUSB2_PHY_INIT_CFG(QUSB2PHY_PORT_TEST2, 0x14),
+
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TEST2, 0x14),
+
 	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_AUTOPGM_CTL1, 0x9f),
 	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_PWR_CTRL, 0x00),
 };
@@ -86,11 +119,27 @@ struct qusb2_phy_cfg {
 	unsigned int tbl_num;
 	/* offset to PHY_CLK_SCHEME register in TCSR map */
 	unsigned int clk_scheme_offset;
+
+	/* array of registers with different offsets */
+	const unsigned int *regs;
+	unsigned int mask_core_ready;
+	unsigned int disable_ctrl;
+
+	/* true if PHY has PLL_TEST register to select clk_scheme */
+	bool has_pll_test;
+
+	/* true if TUNE1 register must be updated by fused value, else TUNE2 */
+	bool update_tune1_with_efuse;
 };
 
 static const struct qusb2_phy_cfg msm8996_phy_cfg = {
-	.tbl = msm8996_init_tbl,
-	.tbl_num = ARRAY_SIZE(msm8996_init_tbl),
+	.tbl		= msm8996_init_tbl,
+	.tbl_num	= ARRAY_SIZE(msm8996_init_tbl),
+	.regs		= msm8996_regs_layout,
+
+	.has_pll_test	= true,
+	.disable_ctrl	= (CLAMP_N_EN | FREEZIO_N | POWER_DOWN),
+	.mask_core_ready = PLL_LOCKED,
 };
 
 static const char * const qusb2_phy_vreg_names[] = {
@@ -160,26 +209,32 @@ static inline void qusb2_clrbits(void __iomem *base, u32 offset, u32 val)
 
 static inline
 void qcom_qusb2_phy_configure(void __iomem *base,
+			      const unsigned int *regs,
 			      const struct qusb2_phy_init_tbl tbl[], int num)
 {
 	int i;
 
-	for (i = 0; i < num; i++)
-		writel(tbl[i].val, base + tbl[i].offset);
+	for (i = 0; i < num; i++) {
+		if (tbl[i].in_layout)
+			writel(tbl[i].val, base + regs[tbl[i].offset]);
+		else
+			writel(tbl[i].val, base + tbl[i].offset);
+	}
 }
 
 /*
  * Fetches HS Tx tuning value from nvmem and sets the
- * QUSB2PHY_PORT_TUNE2 register.
+ * QUSB2PHY_PORT_TUNE1/2 register.
  * For error case, skip setting the value and use the default value.
  */
 static void qusb2_phy_set_tune2_param(struct qusb2_phy *qphy)
 {
 	struct device *dev = &qphy->phy->dev;
+	const struct qusb2_phy_cfg *cfg = qphy->cfg;
 	u8 *val;
 
 	/*
-	 * Read efuse register having TUNE2 parameter's high nibble.
+	 * Read efuse register having TUNE2/1 parameter's high nibble.
 	 * If efuse register shows value as 0x0, or if we fail to find
 	 * a valid efuse register settings, then use default value
 	 * as 0xB for high nibble that we have already set while
@@ -191,14 +246,21 @@ static void qusb2_phy_set_tune2_param(struct qusb2_phy *qphy)
 		return;
 	}
 
-	/* Fused TUNE2 value is the higher nibble only */
-	qusb2_setbits(qphy->base, QUSB2PHY_PORT_TUNE2, val[0] << 0x4);
+	/* Fused TUNE1/2 value is the higher nibble only */
+	if (cfg->update_tune1_with_efuse)
+		qusb2_setbits(qphy->base, cfg->regs[QUSB2PHY_PORT_TUNE1],
+			      val[0] << 0x4);
+	else
+		qusb2_setbits(qphy->base, cfg->regs[QUSB2PHY_PORT_TUNE2],
+			      val[0] << 0x4);
+
 }
 
 static int qusb2_phy_init(struct phy *phy)
 {
 	struct qusb2_phy *qphy = phy_get_drvdata(phy);
-	unsigned int val;
+	const struct qusb2_phy_cfg *cfg = qphy->cfg;
+	unsigned int val = 0;
 	unsigned int clk_scheme;
 	int ret;
 
@@ -239,20 +301,23 @@ static int qusb2_phy_init(struct phy *phy)
 	}
 
 	/* Disable the PHY */
-	qusb2_setbits(qphy->base, QUSB2PHY_PORT_POWERDOWN,
-		      CLAMP_N_EN | FREEZIO_N | POWER_DOWN);
+	qusb2_setbits(qphy->base, cfg->regs[QUSB2PHY_PORT_POWERDOWN],
+		      qphy->cfg->disable_ctrl);
 
-	/* save reset value to override reference clock scheme later */
-	val = readl(qphy->base + QUSB2PHY_PLL_TEST);
+	if (cfg->has_pll_test) {
+		/* save reset value to override reference clock scheme later */
+		val = readl(qphy->base + QUSB2PHY_PLL_TEST);
+	}
 
-	qcom_qusb2_phy_configure(qphy->base, qphy->cfg->tbl,
-				 qphy->cfg->tbl_num);
+	qcom_qusb2_phy_configure(qphy->base, cfg->regs, cfg->tbl,
+				 cfg->tbl_num);
 
 	/* Set efuse value for tuning the PHY */
 	qusb2_phy_set_tune2_param(qphy);
 
 	/* Enable the PHY */
-	qusb2_clrbits(qphy->base, QUSB2PHY_PORT_POWERDOWN, POWER_DOWN);
+	qusb2_clrbits(qphy->base, cfg->regs[QUSB2PHY_PORT_POWERDOWN],
+		      POWER_DOWN);
 
 	/* Required to get phy pll lock successfully */
 	usleep_range(150, 160);
@@ -285,27 +350,31 @@ static int qusb2_phy_init(struct phy *phy)
 	}
 
 	if (!qphy->has_se_clk_scheme) {
-		val &= ~CLK_REF_SEL;
 		ret = clk_prepare_enable(qphy->ref_clk);
 		if (ret) {
 			dev_err(&phy->dev, "failed to enable ref clk, %d\n",
 				ret);
 			goto assert_phy_reset;
 		}
-	} else {
-		val |= CLK_REF_SEL;
 	}
 
-	writel(val, qphy->base + QUSB2PHY_PLL_TEST);
+	if (cfg->has_pll_test) {
+		if (!qphy->has_se_clk_scheme)
+			val &= ~CLK_REF_SEL;
+		else
+			val |= CLK_REF_SEL;
 
-	/* ensure above write is through */
-	readl(qphy->base + QUSB2PHY_PLL_TEST);
+		writel(val, qphy->base + QUSB2PHY_PLL_TEST);
+
+		/* ensure above write is through */
+		readl(qphy->base + QUSB2PHY_PLL_TEST);
+	}
 
 	/* Required to get phy pll lock successfully */
 	usleep_range(100, 110);
 
-	val = readb(qphy->base + QUSB2PHY_PLL_STATUS);
-	if (!(val & PLL_LOCKED)) {
+	val = readb(qphy->base + cfg->regs[QUSB2PHY_PLL_STATUS]);
+	if (!(val & cfg->mask_core_ready)) {
 		dev_err(&phy->dev,
 			"QUSB2PHY pll lock failed: status reg = %x\n", val);
 		ret = -EBUSY;
@@ -334,8 +403,8 @@ static int qusb2_phy_exit(struct phy *phy)
 	struct qusb2_phy *qphy = phy_get_drvdata(phy);
 
 	/* Disable the PHY */
-	qusb2_setbits(qphy->base, QUSB2PHY_PORT_POWERDOWN,
-		      CLAMP_N_EN | FREEZIO_N | POWER_DOWN);
+	qusb2_setbits(qphy->base, qphy->cfg->regs[QUSB2PHY_PORT_POWERDOWN],
+		      qphy->cfg->disable_ctrl);
 
 	if (!qphy->has_se_clk_scheme)
 		clk_disable_unprepare(qphy->ref_clk);
