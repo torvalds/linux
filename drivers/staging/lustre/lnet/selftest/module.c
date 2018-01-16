@@ -95,15 +95,17 @@ lnet_selftest_init(void)
 	lst_serial_wq = alloc_ordered_workqueue("lst_s", 0);
 	if (!lst_serial_wq) {
 		CERROR("Failed to create serial WI scheduler for LST\n");
-		return rc;
+		return -ENOMEM;
 	}
 	lst_init_step = LST_INIT_WI_SERIAL;
 
 	nscheds = cfs_cpt_number(lnet_cpt_table());
 	lst_test_wq = kvmalloc_array(nscheds, sizeof(lst_test_wq[0]),
 					GFP_KERNEL | __GFP_ZERO);
-	if (!lst_test_wq)
+	if (!lst_test_wq) {
+		rc = -ENOMEM;
 		goto error;
+	}
 
 	lst_init_step = LST_INIT_WI_TEST;
 	for (i = 0; i < nscheds; i++) {
@@ -116,6 +118,7 @@ lnet_selftest_init(void)
 		if (!lst_test_wq[i]) {
 			CWARN("Failed to create CPU partition affinity WI scheduler %d for LST\n",
 			      i);
+			rc = -ENOMEM;
 			goto error;
 		}
 		attrs.nice = 0;
