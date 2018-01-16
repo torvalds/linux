@@ -289,6 +289,10 @@ static struct hist_field *find_var(struct hist_trigger_data *hist_data,
 	return NULL;
 }
 
+struct hist_elt_data {
+	char *comm;
+};
+
 static const char *hist_field_name(struct hist_field *field,
 				   unsigned int level)
 {
@@ -503,45 +507,61 @@ static inline void save_comm(char *comm, struct task_struct *task)
 	memcpy(comm, task->comm, TASK_COMM_LEN);
 }
 
-static void hist_trigger_elt_comm_free(struct tracing_map_elt *elt)
+static void hist_elt_data_free(struct hist_elt_data *elt_data)
 {
-	kfree((char *)elt->private_data);
+	kfree(elt_data->comm);
+	kfree(elt_data);
 }
 
-static int hist_trigger_elt_comm_alloc(struct tracing_map_elt *elt)
+static void hist_trigger_elt_data_free(struct tracing_map_elt *elt)
+{
+	struct hist_elt_data *elt_data = elt->private_data;
+
+	hist_elt_data_free(elt_data);
+}
+
+static int hist_trigger_elt_data_alloc(struct tracing_map_elt *elt)
 {
 	struct hist_trigger_data *hist_data = elt->map->private_data;
+	unsigned int size = TASK_COMM_LEN;
+	struct hist_elt_data *elt_data;
 	struct hist_field *key_field;
 	unsigned int i;
+
+	elt_data = kzalloc(sizeof(*elt_data), GFP_KERNEL);
+	if (!elt_data)
+		return -ENOMEM;
 
 	for_each_hist_key_field(i, hist_data) {
 		key_field = hist_data->fields[i];
 
 		if (key_field->flags & HIST_FIELD_FL_EXECNAME) {
-			unsigned int size = TASK_COMM_LEN + 1;
-
-			elt->private_data = kzalloc(size, GFP_KERNEL);
-			if (!elt->private_data)
+			elt_data->comm = kzalloc(size, GFP_KERNEL);
+			if (!elt_data->comm) {
+				kfree(elt_data);
 				return -ENOMEM;
+			}
 			break;
 		}
 	}
 
+	elt->private_data = elt_data;
+
 	return 0;
 }
 
-static void hist_trigger_elt_comm_init(struct tracing_map_elt *elt)
+static void hist_trigger_elt_data_init(struct tracing_map_elt *elt)
 {
-	char *comm = elt->private_data;
+	struct hist_elt_data *elt_data = elt->private_data;
 
-	if (comm)
-		save_comm(comm, current);
+	if (elt_data->comm)
+		save_comm(elt_data->comm, current);
 }
 
-static const struct tracing_map_ops hist_trigger_elt_comm_ops = {
-	.elt_alloc	= hist_trigger_elt_comm_alloc,
-	.elt_free	= hist_trigger_elt_comm_free,
-	.elt_init	= hist_trigger_elt_comm_init,
+static const struct tracing_map_ops hist_trigger_elt_data_ops = {
+	.elt_alloc	= hist_trigger_elt_data_alloc,
+	.elt_free	= hist_trigger_elt_data_free,
+	.elt_init	= hist_trigger_elt_data_init,
 };
 
 static const char *get_hist_field_flags(struct hist_field *hist_field)
@@ -1484,21 +1504,6 @@ static int create_tracing_map_fields(struct hist_trigger_data *hist_data)
 	return 0;
 }
 
-static bool need_tracing_map_ops(struct hist_trigger_data *hist_data)
-{
-	struct hist_field *key_field;
-	unsigned int i;
-
-	for_each_hist_key_field(i, hist_data) {
-		key_field = hist_data->fields[i];
-
-		if (key_field->flags & HIST_FIELD_FL_EXECNAME)
-			return true;
-	}
-
-	return false;
-}
-
 static struct hist_trigger_data *
 create_hist_data(unsigned int map_bits,
 		 struct hist_trigger_attrs *attrs,
@@ -1524,8 +1529,7 @@ create_hist_data(unsigned int map_bits,
 	if (ret)
 		goto free;
 
-	if (need_tracing_map_ops(hist_data))
-		map_ops = &hist_trigger_elt_comm_ops;
+	map_ops = &hist_trigger_elt_data_ops;
 
 	hist_data->map = tracing_map_create(map_bits, hist_data->key_size,
 					    map_ops, hist_data);
@@ -1713,7 +1717,13 @@ hist_trigger_entry_print(struct seq_file *m,
 			seq_printf(m, "%s: [%llx] %-55s", field_name,
 				   uval, str);
 		} else if (key_field->flags & HIST_FIELD_FL_EXECNAME) {
-			char *comm = elt->private_data;
+			struct hist_elt_data *elt_data = elt->private_data;
+			char *comm;
+
+			if (WARN_ON_ONCE(!elt_data))
+				return;
+
+			comm = elt_data->comm;
 
 			uval = *(u64 *)(key + key_field->offset);
 			seq_printf(m, "%s: %-16s[%10llu]", field_name,
