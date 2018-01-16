@@ -1,0 +1,171 @@
+
+# Copyright (C) 2005-2017 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Introduction
+----------------------------------------
+
+aufs [ei ju: ef es] | /ey-yoo-ef-es/ | [a u f s]
+1. abbrev. for "advanced multi-layered unification filesystem".
+2. abbrev. for "another unionfs".
+3. abbrev. for "auf das" in German which means "on the" in English.
+   Ex. "Butter aufs Brot"(G) means "butter onto bread"(E).
+   But "Filesystem aufs Filesystem" is hard to understand.
+4. abbrev. for "African Urban Fashion Show".
+
+AUFS is a filesystem with features:
+- multi layered stackable unification filesystem, the member directory
+  is called as a branch.
+- branch permission and attribute, 'readonly', 'real-readonly',
+  'readwrite', 'whiteout-able', 'link-able whiteout', etc. and their
+  combination.
+- internal "file copy-on-write".
+- logical deletion, whiteout.
+- dynamic branch manipulation, adding, deleting and changing permission.
+- allow bypassing aufs, user's direct branch access.
+- external inode number translation table and bitmap which maintains the
+  persistent aufs inode number.
+- seekable directory, including NFS readdir.
+- file mapping, mmap and sharing pages.
+- pseudo-link, hardlink over branches.
+- loopback mounted filesystem as a branch.
+- several policies to select one among multiple writable branches.
+- revert a single systemcall when an error occurs in aufs.
+- and more...
+
+
+Multi Layered Stackable Unification Filesystem
+----------------------------------------------------------------------
+Most people already knows what it is.
+It is a filesystem which unifies several directories and provides a
+merged single directory. When users access a file, the access will be
+passed/re-directed/converted (sorry, I am not sure which English word is
+correct) to the real file on the member filesystem. The member
+filesystem is called 'lower filesystem' or 'branch' and has a mode
+'readonly' and 'readwrite.' And the deletion for a file on the lower
+readonly branch is handled by creating 'whiteout' on the upper writable
+branch.
+
+On LKML, there have been discussions about UnionMount (Jan Blunck,
+Bharata B Rao and Valerie Aurora) and Unionfs (Erez Zadok). They took
+different approaches to implement the merged-view.
+The former tries putting it into VFS, and the latter implements as a
+separate filesystem.
+(If I misunderstand about these implementations, please let me know and
+I shall correct it. Because it is a long time ago when I read their
+source files last time).
+
+UnionMount's approach will be able to small, but may be hard to share
+branches between several UnionMount since the whiteout in it is
+implemented in the inode on branch filesystem and always
+shared. According to Bharata's post, readdir does not seems to be
+finished yet.
+There are several missing features known in this implementations such as
+- for users, the inode number may change silently. eg. copy-up.
+- link(2) may break by copy-up.
+- read(2) may get an obsoleted filedata (fstat(2) too).
+- fcntl(F_SETLK) may be broken by copy-up.
+- unnecessary copy-up may happen, for example mmap(MAP_PRIVATE) after
+  open(O_RDWR).
+
+In linux-3.18, "overlay" filesystem (formerly known as "overlayfs") was
+merged into mainline. This is another implementation of UnionMount as a
+separated filesystem. All the limitations and known problems which
+UnionMount are equally inherited to "overlay" filesystem.
+
+Unionfs has a longer history. When I started implementing a stackable
+filesystem (Aug 2005), it already existed. It has virtual super_block,
+inode, dentry and file objects and they have an array pointing lower
+same kind objects. After contributing many patches for Unionfs, I
+re-started my project AUFS (Jun 2006).
+
+In AUFS, the structure of filesystem resembles to Unionfs, but I
+implemented my own ideas, approaches and enhancements and it became
+totally different one.
+
+Comparing DM snapshot and fs based implementation
+- the number of bytes to be copied between devices is much smaller.
+- the type of filesystem must be one and only.
+- the fs must be writable, no readonly fs, even for the lower original
+  device. so the compression fs will not be usable. but if we use
+  loopback mount, we may address this issue.
+  for instance,
+	mount /cdrom/squashfs.img /sq
+	losetup /sq/ext2.img
+	losetup /somewhere/cow
+	dmsetup "snapshot /dev/loop0 /dev/loop1 ..."
+- it will be difficult (or needs more operations) to extract the
+  difference between the original device and COW.
+- DM snapshot-merge may help a lot when users try merging. in the
+  fs-layer union, users will use rsync(1).
+
+You may want to read my old paper "Filesystems in LiveCD"
+(http://aufs.sourceforge.net/aufs2/report/sq/sq.pdf).
+
+
+Several characters/aspects/persona of aufs
+----------------------------------------------------------------------
+
+Aufs has several characters, aspects or persona.
+1. a filesystem, callee of VFS helper
+2. sub-VFS, caller of VFS helper for branches
+3. a virtual filesystem which maintains persistent inode number
+4. reader/writer of files on branches such like an application
+
+1. Callee of VFS Helper
+As an ordinary linux filesystem, aufs is a callee of VFS. For instance,
+unlink(2) from an application reaches sys_unlink() kernel function and
+then vfs_unlink() is called. vfs_unlink() is one of VFS helper and it
+calls filesystem specific unlink operation. Actually aufs implements the
+unlink operation but it behaves like a redirector.
+
+2. Caller of VFS Helper for Branches
+aufs_unlink() passes the unlink request to the branch filesystem as if
+it were called from VFS. So the called unlink operation of the branch
+filesystem acts as usual. As a caller of VFS helper, aufs should handle
+every necessary pre/post operation for the branch filesystem.
+- acquire the lock for the parent dir on a branch
+- lookup in a branch
+- revalidate dentry on a branch
+- mnt_want_write() for a branch
+- vfs_unlink() for a branch
+- mnt_drop_write() for a branch
+- release the lock on a branch
+
+3. Persistent Inode Number
+One of the most important issue for a filesystem is to maintain inode
+numbers. This is particularly important to support exporting a
+filesystem via NFS. Aufs is a virtual filesystem which doesn't have a
+backend block device for its own. But some storage is necessary to
+keep and maintain the inode numbers. It may be a large space and may not
+suit to keep in memory. Aufs rents some space from its first writable
+branch filesystem (by default) and creates file(s) on it. These files
+are created by aufs internally and removed soon (currently) keeping
+opened.
+Note: Because these files are removed, they are totally gone after
+      unmounting aufs. It means the inode numbers are not persistent
+      across unmount or reboot. I have a plan to make them really
+      persistent which will be important for aufs on NFS server.
+
+4. Read/Write Files Internally (copy-on-write)
+Because a branch can be readonly, when you write a file on it, aufs will
+"copy-up" it to the upper writable branch internally. And then write the
+originally requested thing to the file. Generally kernel doesn't
+open/read/write file actively. In aufs, even a single write may cause a
+internal "file copy". This behaviour is very similar to cp(1) command.
+
+Some people may think it is better to pass such work to user space
+helper, instead of doing in kernel space. Actually I am still thinking
+about it. But currently I have implemented it in kernel space.

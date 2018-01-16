@@ -1,0 +1,72 @@
+
+# Copyright (C) 2005-2017 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+mmap(2) -- File Memory Mapping
+----------------------------------------------------------------------
+In aufs, the file-mapped pages are handled by a branch fs directly, no
+interaction with aufs. It means aufs_mmap() calls the branch fs's
+->mmap().
+This approach is simple and good, but there is one problem.
+Under /proc, several entries show the mmapped files by its path (with
+device and inode number), and the printed path will be the path on the
+branch fs's instead of virtual aufs's.
+This is not a problem in most cases, but some utilities lsof(1) (and its
+user) may expect the path on aufs.
+
+To address this issue, aufs adds a new member called vm_prfile in struct
+vm_area_struct (and struct vm_region). The original vm_file points to
+the file on the branch fs in order to handle everything correctly as
+usual. The new vm_prfile points to a virtual file in aufs, and the
+show-functions in procfs refers to vm_prfile if it is set.
+Also we need to maintain several other places where touching vm_file
+such like
+- fork()/clone() copies vma and the reference count of vm_file is
+  incremented.
+- merging vma maintains the ref count too.
+
+This is not a good approach. It just fakes the printed path. But it
+leaves all behaviour around f_mapping unchanged. This is surely an
+advantage.
+Actually aufs had adopted another complicated approach which calls
+generic_file_mmap() and handles struct vm_operations_struct. In this
+approach, aufs met a hard problem and I could not solve it without
+switching the approach.
+
+There may be one more another approach which is
+- bind-mount the branch-root onto the aufs-root internally
+- grab the new vfsmount (ie. struct mount)
+- lazy-umount the branch-root internally
+- in open(2) the aufs-file, open the branch-file with the hidden
+  vfsmount (instead of the original branch's vfsmount)
+- ideally this "bind-mount and lazy-umount" should be done atomically,
+  but it may be possible from userspace by the mount helper.
+
+Adding the internal hidden vfsmount and using it in opening a file, the
+file path under /proc will be printed correctly. This approach looks
+smarter, but is not possible I am afraid.
+- aufs-root may be bind-mount later. when it happens, another hidden
+  vfsmount will be required.
+- it is hard to get the chance to bind-mount and lazy-umount
+  + in kernel-space, FS can have vfsmount in open(2) via
+    file->f_path, and aufs can know its vfsmount. But several locks are
+    already acquired, and if aufs tries to bind-mount and lazy-umount
+    here, then it may cause a deadlock.
+  + in user-space, bind-mount doesn't invoke the mount helper.
+- since /proc shows dev and ino, aufs has to give vma these info. it
+  means a new member vm_prinode will be necessary. this is essentially
+  equivalent to vm_prfile described above.
+
+I have to give up this "looks-smater" approach.
