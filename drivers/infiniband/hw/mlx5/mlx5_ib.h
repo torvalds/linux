@@ -731,6 +731,7 @@ struct mlx5_ib_delay_drop {
 
 enum mlx5_ib_stages {
 	MLX5_IB_STAGE_INIT,
+	MLX5_IB_STAGE_FLOW_DB,
 	MLX5_IB_STAGE_CAPS,
 	MLX5_IB_STAGE_ROCE,
 	MLX5_IB_STAGE_DEVICE_RESOURCES,
@@ -798,7 +799,7 @@ struct mlx5_ib_dev {
 	struct srcu_struct      mr_srcu;
 	u32			null_mkey;
 #endif
-	struct mlx5_ib_flow_db	flow_db;
+	struct mlx5_ib_flow_db	*flow_db;
 	/* protect resources needed as part of reset flow */
 	spinlock_t		reset_flow_resource_lock;
 	struct list_head	qp_list;

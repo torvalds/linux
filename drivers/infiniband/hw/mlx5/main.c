@@ -2632,7 +2632,7 @@ static int mlx5_ib_destroy_flow(struct ib_flow *flow_id)
 							  ibflow);
 	struct mlx5_ib_flow_handler *iter, *tmp;
 
-	mutex_lock(&dev->flow_db.lock);
+	mutex_lock(&dev->flow_db->lock);
 
 	list_for_each_entry_safe(iter, tmp, &handler->list, list) {
 		mlx5_del_flow_rules(iter->rule);
@@ -2643,7 +2643,7 @@ static int mlx5_ib_destroy_flow(struct ib_flow *flow_id)
 
 	mlx5_del_flow_rules(handler->rule);
 	put_flow_table(dev, handler->prio, true);
-	mutex_unlock(&dev->flow_db.lock);
+	mutex_unlock(&dev->flow_db->lock);
 
 	kfree(handler);
 
@@ -2692,7 +2692,7 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 					     MLX5_FLOW_NAMESPACE_BYPASS);
 		num_entries = MLX5_FS_MAX_ENTRIES;
 		num_groups = MLX5_FS_MAX_TYPES;
-		prio = &dev->flow_db.prios[priority];
+		prio = &dev->flow_db->prios[priority];
 	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
 		ns = mlx5_get_flow_namespace(dev->mdev,
@@ -2700,7 +2700,7 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 		build_leftovers_ft_param(&priority,
 					 &num_entries,
 					 &num_groups);
-		prio = &dev->flow_db.prios[MLX5_IB_FLOW_LEFTOVERS_PRIO];
+		prio = &dev->flow_db->prios[MLX5_IB_FLOW_LEFTOVERS_PRIO];
 	} else if (flow_attr->type == IB_FLOW_ATTR_SNIFFER) {
 		if (!MLX5_CAP_FLOWTABLE(dev->mdev,
 					allow_sniffer_and_nic_rx_shared_tir))
@@ -2710,7 +2710,7 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 					     MLX5_FLOW_NAMESPACE_SNIFFER_RX :
 					     MLX5_FLOW_NAMESPACE_SNIFFER_TX);
 
-		prio = &dev->flow_db.sniffer[ft_type];
+		prio = &dev->flow_db->sniffer[ft_type];
 		priority = 0;
 		num_entries = 1;
 		num_groups = 1;
@@ -3000,7 +3000,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	if (!dst)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&dev->flow_db.lock);
+	mutex_lock(&dev->flow_db->lock);
 
 	ft_prio = get_flow_table(dev, flow_attr, MLX5_IB_FT_RX);
 	if (IS_ERR(ft_prio)) {
@@ -3049,7 +3049,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 		goto destroy_ft;
 	}
 
-	mutex_unlock(&dev->flow_db.lock);
+	mutex_unlock(&dev->flow_db->lock);
 	kfree(dst);
 
 	return &handler->ibflow;
@@ -3059,7 +3059,7 @@ destroy_ft:
 	if (ft_prio_tx)
 		put_flow_table(dev, ft_prio_tx, false);
 unlock:
-	mutex_unlock(&dev->flow_db.lock);
+	mutex_unlock(&dev->flow_db->lock);
 	kfree(dst);
 	kfree(handler);
 	return ERR_PTR(err);
@@ -3803,7 +3803,7 @@ static int mlx5_eth_lag_init(struct mlx5_ib_dev *dev)
 		goto err_destroy_vport_lag;
 	}
 
-	dev->flow_db.lag_demux_ft = ft;
+	dev->flow_db->lag_demux_ft = ft;
 	return 0;
 
 err_destroy_vport_lag:
@@ -3815,9 +3815,9 @@ static void mlx5_eth_lag_cleanup(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
 
-	if (dev->flow_db.lag_demux_ft) {
-		mlx5_destroy_flow_table(dev->flow_db.lag_demux_ft);
-		dev->flow_db.lag_demux_ft = NULL;
+	if (dev->flow_db->lag_demux_ft) {
+		mlx5_destroy_flow_table(dev->flow_db->lag_demux_ft);
+		dev->flow_db->lag_demux_ft = NULL;
 
 		mlx5_cmd_destroy_vport_lag(mdev);
 	}
@@ -4565,7 +4565,6 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 		dev->mdev->priv.eq_table.num_comp_vectors;
 	dev->ib_dev.dev.parent		= &mdev->pdev->dev;
 
-	mutex_init(&dev->flow_db.lock);
 	mutex_init(&dev->cap_mask_mutex);
 	INIT_LIST_HEAD(&dev->qp_list);
 	spin_lock_init(&dev->reset_flow_resource_lock);
@@ -4584,6 +4583,23 @@ err_free_port:
 	kfree(dev->port);
 
 	return -ENOMEM;
+}
+
+static int mlx5_ib_stage_flow_db_init(struct mlx5_ib_dev *dev)
+{
+	dev->flow_db = kzalloc(sizeof(*dev->flow_db), GFP_KERNEL);
+
+	if (!dev->flow_db)
+		return -ENOMEM;
+
+	mutex_init(&dev->flow_db->lock);
+
+	return 0;
+}
+
+static void mlx5_ib_stage_flow_db_cleanup(struct mlx5_ib_dev *dev)
+{
+	kfree(dev->flow_db);
 }
 
 static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
@@ -4974,6 +4990,9 @@ static const struct mlx5_ib_profile pf_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_INIT,
 		     mlx5_ib_stage_init_init,
 		     mlx5_ib_stage_init_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_FLOW_DB,
+		     mlx5_ib_stage_flow_db_init,
+		     mlx5_ib_stage_flow_db_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_CAPS,
 		     mlx5_ib_stage_caps_init,
 		     NULL),
