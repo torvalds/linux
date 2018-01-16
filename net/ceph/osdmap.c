@@ -2141,72 +2141,40 @@ bool ceph_osds_changed(const struct ceph_osds *old_acting,
 }
 
 /*
- * calculate file layout from given offset, length.
- * fill in correct oid, logical length, and object extent
- * offset, length.
+ * Map a file extent to a stripe unit within an object.
+ * Fill in objno, offset into object, and object extent length (i.e. the
+ * number of bytes mapped, less than or equal to @l->stripe_unit).
  *
- * for now, we write only a single su, until we can
- * pass a stride back to the caller.
+ * Example for stripe_count = 3, stripes_per_object = 4:
+ *
+ * blockno   |  0  3  6  9 |  1  4  7 10 |  2  5  8 11 | 12 15 18 21 | 13 16 19
+ * stripeno  |  0  1  2  3 |  0  1  2  3 |  0  1  2  3 |  4  5  6  7 |  4  5  6
+ * stripepos |      0      |      1      |      2      |      0      |      1
+ * objno     |      0      |      1      |      2      |      3      |      4
+ * objsetno  |                    0                    |                    1
  */
-int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
+int ceph_calc_file_object_mapping(struct ceph_file_layout *l,
 				   u64 off, u64 len,
-				   u64 *ono,
-				   u64 *oxoff, u64 *oxlen)
+				   u64 *objno, u64 *objoff, u64 *xlen)
 {
-	u32 osize = layout->object_size;
-	u32 su = layout->stripe_unit;
-	u32 sc = layout->stripe_count;
-	u32 bl, stripeno, stripepos, objsetno;
-	u32 su_per_object;
-	u64 t, su_offset;
+	u32 stripes_per_object = l->object_size / l->stripe_unit;
+	u64 blockno;	/* which su in the file (i.e. globally) */
+	u32 blockoff;	/* offset into su */
+	u64 stripeno;	/* which stripe */
+	u32 stripepos;	/* which su in the stripe,
+			   which object in the object set */
+	u64 objsetno;	/* which object set */
+	u32 objsetpos;	/* which stripe in the object set */
 
-	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, len,
-	     osize, su);
-	if (su == 0 || sc == 0)
-		goto invalid;
-	su_per_object = osize / su;
-	if (su_per_object == 0)
-		goto invalid;
-	dout("osize %u / su %u = su_per_object %u\n", osize, su,
-	     su_per_object);
+	blockno = div_u64_rem(off, l->stripe_unit, &blockoff);
+	stripeno = div_u64_rem(blockno, l->stripe_count, &stripepos);
+	objsetno = div_u64_rem(stripeno, stripes_per_object, &objsetpos);
 
-	if ((su & ~PAGE_MASK) != 0)
-		goto invalid;
+	*objno = objsetno * l->stripe_count + stripepos;
+	*objoff = objsetpos * l->stripe_unit + blockoff;
+	*xlen = min_t(u64, len, l->stripe_unit - blockoff);
 
-	/* bl = *off / su; */
-	t = off;
-	do_div(t, su);
-	bl = t;
-	dout("off %llu / su %u = bl %u\n", off, su, bl);
-
-	stripeno = bl / sc;
-	stripepos = bl % sc;
-	objsetno = stripeno / su_per_object;
-
-	*ono = objsetno * sc + stripepos;
-	dout("objset %u * sc %u = ono %u\n", objsetno, sc, (unsigned int)*ono);
-
-	/* *oxoff = *off % layout->fl_stripe_unit;  # offset in su */
-	t = off;
-	su_offset = do_div(t, su);
-	*oxoff = su_offset + (stripeno % su_per_object) * su;
-
-	/*
-	 * Calculate the length of the extent being written to the selected
-	 * object. This is the minimum of the full length requested (len) or
-	 * the remainder of the current stripe being written to.
-	 */
-	*oxlen = min_t(u64, len, su - su_offset);
-
-	dout(" obj extent %llu~%llu\n", *oxoff, *oxlen);
 	return 0;
-
-invalid:
-	dout(" invalid layout\n");
-	*ono = 0;
-	*oxoff = 0;
-	*oxlen = 0;
-	return -EINVAL;
 }
 EXPORT_SYMBOL(ceph_calc_file_object_mapping);
 
