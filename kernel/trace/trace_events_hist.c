@@ -292,6 +292,10 @@ struct hist_trigger_data {
 	unsigned int			n_field_var_str;
 	struct field_var_hist		*field_var_hists[SYNTH_FIELDS_MAX];
 	unsigned int			n_field_var_hists;
+
+	struct field_var		*max_vars[SYNTH_FIELDS_MAX];
+	unsigned int			n_max_vars;
+	unsigned int			n_max_var_str;
 };
 
 struct synth_field {
@@ -334,6 +338,14 @@ struct action_data {
 			char			*synth_event_name;
 			struct synth_event	*synth_event;
 		} onmatch;
+
+		struct {
+			char			*var_str;
+			char			*fn_name;
+			unsigned int		max_var_ref_idx;
+			struct hist_field	*max_var;
+			struct hist_field	*var;
+		} onmax;
 	};
 };
 
@@ -1697,7 +1709,8 @@ static int parse_action(char *str, struct hist_trigger_attrs *attrs)
 	if (attrs->n_actions >= HIST_ACTIONS_MAX)
 		return ret;
 
-	if ((strncmp(str, "onmatch(", strlen("onmatch(")) == 0)) {
+	if ((strncmp(str, "onmatch(", strlen("onmatch(")) == 0) ||
+	    (strncmp(str, "onmax(", strlen("onmax(")) == 0)) {
 		attrs->action_str[attrs->n_actions] = kstrdup(str, GFP_KERNEL);
 		if (!attrs->action_str[attrs->n_actions]) {
 			ret = -ENOMEM;
@@ -1869,7 +1882,7 @@ static int hist_trigger_elt_data_alloc(struct tracing_map_elt *elt)
 		}
 	}
 
-	n_str = hist_data->n_field_var_str;
+	n_str = hist_data->n_field_var_str + hist_data->n_max_var_str;
 
 	size = STR_VAR_LEN_MAX;
 
@@ -2894,6 +2907,15 @@ static void update_field_vars(struct hist_trigger_data *hist_data,
 			    hist_data->n_field_vars, 0);
 }
 
+static void update_max_vars(struct hist_trigger_data *hist_data,
+			    struct tracing_map_elt *elt,
+			    struct ring_buffer_event *rbe,
+			    void *rec)
+{
+	__update_field_vars(elt, rbe, rec, hist_data->max_vars,
+			    hist_data->n_max_vars, hist_data->n_field_var_str);
+}
+
 static struct hist_field *create_var(struct hist_trigger_data *hist_data,
 				     struct trace_event_file *file,
 				     char *name, int size, const char *type)
@@ -3023,6 +3045,227 @@ create_target_field_var(struct hist_trigger_data *target_hist_data,
 	return create_field_var(target_hist_data, file, var_name);
 }
 
+static void onmax_print(struct seq_file *m,
+			struct hist_trigger_data *hist_data,
+			struct tracing_map_elt *elt,
+			struct action_data *data)
+{
+	unsigned int i, save_var_idx, max_idx = data->onmax.max_var->var.idx;
+
+	seq_printf(m, "\n\tmax: %10llu", tracing_map_read_var(elt, max_idx));
+
+	for (i = 0; i < hist_data->n_max_vars; i++) {
+		struct hist_field *save_val = hist_data->max_vars[i]->val;
+		struct hist_field *save_var = hist_data->max_vars[i]->var;
+		u64 val;
+
+		save_var_idx = save_var->var.idx;
+
+		val = tracing_map_read_var(elt, save_var_idx);
+
+		if (save_val->flags & HIST_FIELD_FL_STRING) {
+			seq_printf(m, "  %s: %-32s", save_var->var.name,
+				   (char *)(uintptr_t)(val));
+		} else
+			seq_printf(m, "  %s: %10llu", save_var->var.name, val);
+	}
+}
+
+static void onmax_save(struct hist_trigger_data *hist_data,
+		       struct tracing_map_elt *elt, void *rec,
+		       struct ring_buffer_event *rbe,
+		       struct action_data *data, u64 *var_ref_vals)
+{
+	unsigned int max_idx = data->onmax.max_var->var.idx;
+	unsigned int max_var_ref_idx = data->onmax.max_var_ref_idx;
+
+	u64 var_val, max_val;
+
+	var_val = var_ref_vals[max_var_ref_idx];
+	max_val = tracing_map_read_var(elt, max_idx);
+
+	if (var_val <= max_val)
+		return;
+
+	tracing_map_set_var(elt, max_idx, var_val);
+
+	update_max_vars(hist_data, elt, rbe, rec);
+}
+
+static void onmax_destroy(struct action_data *data)
+{
+	unsigned int i;
+
+	destroy_hist_field(data->onmax.max_var, 0);
+	destroy_hist_field(data->onmax.var, 0);
+
+	kfree(data->onmax.var_str);
+	kfree(data->onmax.fn_name);
+
+	for (i = 0; i < data->n_params; i++)
+		kfree(data->params[i]);
+
+	kfree(data);
+}
+
+static int onmax_create(struct hist_trigger_data *hist_data,
+			struct action_data *data)
+{
+	struct trace_event_file *file = hist_data->event_file;
+	struct hist_field *var_field, *ref_field, *max_var;
+	unsigned int var_ref_idx = hist_data->n_var_refs;
+	struct field_var *field_var;
+	char *onmax_var_str, *param;
+	unsigned long flags;
+	unsigned int i;
+	int ret = 0;
+
+	onmax_var_str = data->onmax.var_str;
+	if (onmax_var_str[0] != '$')
+		return -EINVAL;
+	onmax_var_str++;
+
+	var_field = find_target_event_var(hist_data, NULL, NULL, onmax_var_str);
+	if (!var_field)
+		return -EINVAL;
+
+	flags = HIST_FIELD_FL_VAR_REF;
+	ref_field = create_hist_field(hist_data, NULL, flags, NULL);
+	if (!ref_field)
+		return -ENOMEM;
+
+	if (init_var_ref(ref_field, var_field, NULL, NULL)) {
+		destroy_hist_field(ref_field, 0);
+		ret = -ENOMEM;
+		goto out;
+	}
+	hist_data->var_refs[hist_data->n_var_refs] = ref_field;
+	ref_field->var_ref_idx = hist_data->n_var_refs++;
+	data->onmax.var = ref_field;
+
+	data->fn = onmax_save;
+	data->onmax.max_var_ref_idx = var_ref_idx;
+	max_var = create_var(hist_data, file, "max", sizeof(u64), "u64");
+	if (IS_ERR(max_var)) {
+		ret = PTR_ERR(max_var);
+		goto out;
+	}
+	data->onmax.max_var = max_var;
+
+	for (i = 0; i < data->n_params; i++) {
+		param = kstrdup(data->params[i], GFP_KERNEL);
+		if (!param) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		field_var = create_target_field_var(hist_data, NULL, NULL, param);
+		if (IS_ERR(field_var)) {
+			ret = PTR_ERR(field_var);
+			kfree(param);
+			goto out;
+		}
+
+		hist_data->max_vars[hist_data->n_max_vars++] = field_var;
+		if (field_var->val->flags & HIST_FIELD_FL_STRING)
+			hist_data->n_max_var_str++;
+
+		kfree(param);
+	}
+ out:
+	return ret;
+}
+
+static int parse_action_params(char *params, struct action_data *data)
+{
+	char *param, *saved_param;
+	int ret = 0;
+
+	while (params) {
+		if (data->n_params >= SYNTH_FIELDS_MAX)
+			goto out;
+
+		param = strsep(&params, ",");
+		if (!param) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		param = strstrip(param);
+		if (strlen(param) < 2) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		saved_param = kstrdup(param, GFP_KERNEL);
+		if (!saved_param) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		data->params[data->n_params++] = saved_param;
+	}
+ out:
+	return ret;
+}
+
+static struct action_data *onmax_parse(char *str)
+{
+	char *onmax_fn_name, *onmax_var_str;
+	struct action_data *data;
+	int ret = -EINVAL;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+
+	onmax_var_str = strsep(&str, ")");
+	if (!onmax_var_str || !str) {
+		ret = -EINVAL;
+		goto free;
+	}
+
+	data->onmax.var_str = kstrdup(onmax_var_str, GFP_KERNEL);
+	if (!data->onmax.var_str) {
+		ret = -ENOMEM;
+		goto free;
+	}
+
+	strsep(&str, ".");
+	if (!str)
+		goto free;
+
+	onmax_fn_name = strsep(&str, "(");
+	if (!onmax_fn_name || !str)
+		goto free;
+
+	if (strncmp(onmax_fn_name, "save", strlen("save")) == 0) {
+		char *params = strsep(&str, ")");
+
+		if (!params) {
+			ret = -EINVAL;
+			goto free;
+		}
+
+		ret = parse_action_params(params, data);
+		if (ret)
+			goto free;
+	} else
+		goto free;
+
+	data->onmax.fn_name = kstrdup(onmax_fn_name, GFP_KERNEL);
+	if (!data->onmax.fn_name) {
+		ret = -ENOMEM;
+		goto free;
+	}
+ out:
+	return data;
+ free:
+	onmax_destroy(data);
+	data = ERR_PTR(ret);
+	goto out;
+}
+
 static void onmatch_destroy(struct action_data *data)
 {
 	unsigned int i;
@@ -3105,39 +3348,6 @@ static int check_synth_field(struct synth_event *event,
 		return -EINVAL;
 
 	return 0;
-}
-
-static int parse_action_params(char *params, struct action_data *data)
-{
-	char *param, *saved_param;
-	int ret = 0;
-
-	while (params) {
-		if (data->n_params >= SYNTH_FIELDS_MAX)
-			goto out;
-
-		param = strsep(&params, ",");
-		if (!param) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		param = strstrip(param);
-		if (strlen(param) < 2) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		saved_param = kstrdup(param, GFP_KERNEL);
-		if (!saved_param) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		data->params[data->n_params++] = saved_param;
-	}
- out:
-	return ret;
 }
 
 static struct hist_field *
@@ -3796,6 +4006,8 @@ static void destroy_actions(struct hist_trigger_data *hist_data)
 
 		if (data->fn == action_trace)
 			onmatch_destroy(data);
+		else if (data->fn == onmax_save)
+			onmax_destroy(data);
 		else
 			kfree(data);
 	}
@@ -3821,6 +4033,15 @@ static int parse_actions(struct hist_trigger_data *hist_data)
 				break;
 			}
 			data->fn = action_trace;
+		} else if (strncmp(str, "onmax(", strlen("onmax(")) == 0) {
+			char *action_str = str + strlen("onmax(");
+
+			data = onmax_parse(action_str);
+			if (IS_ERR(data)) {
+				ret = PTR_ERR(data);
+				break;
+			}
+			data->fn = onmax_save;
 		} else {
 			ret = -EINVAL;
 			break;
@@ -3846,10 +4067,46 @@ static int create_actions(struct hist_trigger_data *hist_data,
 			ret = onmatch_create(hist_data, file, data);
 			if (ret)
 				return ret;
+		} else if (data->fn == onmax_save) {
+			ret = onmax_create(hist_data, data);
+			if (ret)
+				return ret;
 		}
 	}
 
 	return ret;
+}
+
+static void print_actions(struct seq_file *m,
+			  struct hist_trigger_data *hist_data,
+			  struct tracing_map_elt *elt)
+{
+	unsigned int i;
+
+	for (i = 0; i < hist_data->n_actions; i++) {
+		struct action_data *data = hist_data->actions[i];
+
+		if (data->fn == onmax_save)
+			onmax_print(m, hist_data, elt, data);
+	}
+}
+
+static void print_onmax_spec(struct seq_file *m,
+			     struct hist_trigger_data *hist_data,
+			     struct action_data *data)
+{
+	unsigned int i;
+
+	seq_puts(m, ":onmax(");
+	seq_printf(m, "%s", data->onmax.var_str);
+	seq_printf(m, ").%s(", data->onmax.fn_name);
+
+	for (i = 0; i < hist_data->n_max_vars; i++) {
+		seq_printf(m, "%s", hist_data->max_vars[i]->var->var.name);
+		if (i < hist_data->n_max_vars - 1)
+			seq_puts(m, ",");
+	}
+	seq_puts(m, ")");
 }
 
 static void print_onmatch_spec(struct seq_file *m,
@@ -3882,6 +4139,8 @@ static void print_actions_spec(struct seq_file *m,
 
 		if (data->fn == action_trace)
 			print_onmatch_spec(m, hist_data, data);
+		else if (data->fn == onmax_save)
+			print_onmax_spec(m, hist_data, data);
 	}
 }
 
@@ -4262,6 +4521,8 @@ hist_trigger_entry_print(struct seq_file *m,
 				   tracing_map_read_sum(elt, i));
 		}
 	}
+
+	print_actions(m, hist_data, elt);
 
 	seq_puts(m, "\n");
 }
