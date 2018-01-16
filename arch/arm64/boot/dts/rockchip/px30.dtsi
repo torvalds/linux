@@ -76,6 +76,13 @@
 		status = "disabled";
 	};
 
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
