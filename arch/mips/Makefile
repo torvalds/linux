@@ -228,7 +228,7 @@ libs-y				+= arch/mips/fw/lib/
 #
 # Kernel compression
 #
-ifdef SYS_SUPPORTS_ZBOOT
+ifdef CONFIG_SYS_SUPPORTS_ZBOOT
 COMPRESSION_FNAME		= vmlinuz
 else
 COMPRESSION_FNAME		= vmlinux
