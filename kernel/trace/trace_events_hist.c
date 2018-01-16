@@ -89,6 +89,12 @@ static u64 hist_field_log2(struct hist_field *hist_field, void *event,
 	return (u64) ilog2(roundup_pow_of_two(val));
 }
 
+static u64 hist_field_timestamp(struct hist_field *hist_field, void *event,
+				struct ring_buffer_event *rbe)
+{
+	return ring_buffer_event_time_stamp(rbe);
+}
+
 #define DEFINE_HIST_FIELD_FN(type)					\
 	static u64 hist_field_##type(struct hist_field *hist_field,	\
 				     void *event,			\
@@ -135,6 +141,7 @@ enum hist_field_flags {
 	HIST_FIELD_FL_SYSCALL		= 1 << 7,
 	HIST_FIELD_FL_STACKTRACE	= 1 << 8,
 	HIST_FIELD_FL_LOG2		= 1 << 9,
+	HIST_FIELD_FL_TIMESTAMP		= 1 << 10,
 };
 
 struct hist_trigger_attrs {
@@ -159,6 +166,7 @@ struct hist_trigger_data {
 	struct trace_event_file		*event_file;
 	struct hist_trigger_attrs	*attrs;
 	struct tracing_map		*map;
+	bool				enable_timestamps;
 };
 
 static const char *hist_field_name(struct hist_field *field,
@@ -173,6 +181,8 @@ static const char *hist_field_name(struct hist_field *field,
 		field_name = field->field->name;
 	else if (field->flags & HIST_FIELD_FL_LOG2)
 		field_name = hist_field_name(field->operands[0], ++level);
+	else if (field->flags & HIST_FIELD_FL_TIMESTAMP)
+		field_name = "common_timestamp";
 
 	if (field_name == NULL)
 		field_name = "";
@@ -440,6 +450,12 @@ static struct hist_field *create_hist_field(struct ftrace_event_field *field,
 		goto out;
 	}
 
+	if (flags & HIST_FIELD_FL_TIMESTAMP) {
+		hist_field->fn = hist_field_timestamp;
+		hist_field->size = sizeof(u64);
+		goto out;
+	}
+
 	if (WARN_ON_ONCE(!field))
 		goto out;
 
@@ -517,10 +533,15 @@ static int create_val_field(struct hist_trigger_data *hist_data,
 		}
 	}
 
-	field = trace_find_event_field(file->event_call, field_name);
-	if (!field || !field->size) {
-		ret = -EINVAL;
-		goto out;
+	if (strcmp(field_name, "common_timestamp") == 0) {
+		flags |= HIST_FIELD_FL_TIMESTAMP;
+		hist_data->enable_timestamps = true;
+	} else {
+		field = trace_find_event_field(file->event_call, field_name);
+		if (!field || !field->size) {
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 
 	hist_data->fields[val_idx] = create_hist_field(field, flags);
@@ -615,16 +636,22 @@ static int create_key_field(struct hist_trigger_data *hist_data,
 			}
 		}
 
-		field = trace_find_event_field(file->event_call, field_name);
-		if (!field || !field->size) {
-			ret = -EINVAL;
-			goto out;
-		}
+		if (strcmp(field_name, "common_timestamp") == 0) {
+			flags |= HIST_FIELD_FL_TIMESTAMP;
+			hist_data->enable_timestamps = true;
+			key_size = sizeof(u64);
+		} else {
+			field = trace_find_event_field(file->event_call, field_name);
+			if (!field || !field->size) {
+				ret = -EINVAL;
+				goto out;
+			}
 
-		if (is_string_field(field))
-			key_size = MAX_FILTER_STR_VAL;
-		else
-			key_size = field->size;
+			if (is_string_field(field))
+				key_size = MAX_FILTER_STR_VAL;
+			else
+				key_size = field->size;
+		}
 	}
 
 	hist_data->fields[key_idx] = create_hist_field(field, flags);
@@ -820,6 +847,9 @@ static int create_tracing_map_fields(struct hist_trigger_data *hist_data)
 
 			if (hist_field->flags & HIST_FIELD_FL_STACKTRACE)
 				cmp_fn = tracing_map_cmp_none;
+			else if (!field)
+				cmp_fn = tracing_map_cmp_num(hist_field->size,
+							     hist_field->is_signed);
 			else if (is_string_field(field))
 				cmp_fn = tracing_map_cmp_string;
 			else
@@ -1215,7 +1245,11 @@ static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
 {
 	const char *field_name = hist_field_name(hist_field, 0);
 
-	seq_printf(m, "%s", field_name);
+	if (hist_field->flags & HIST_FIELD_FL_TIMESTAMP)
+		seq_puts(m, "common_timestamp");
+	else if (field_name)
+		seq_printf(m, "%s", field_name);
+
 	if (hist_field->flags) {
 		const char *flags_str = get_hist_field_flags(hist_field);
 
@@ -1266,27 +1300,25 @@ static int event_hist_trigger_print(struct seq_file *m,
 
 	for (i = 0; i < hist_data->n_sort_keys; i++) {
 		struct tracing_map_sort_key *sort_key;
+		unsigned int idx;
 
 		sort_key = &hist_data->sort_keys[i];
+		idx = sort_key->field_idx;
+
+		if (WARN_ON(idx >= TRACING_MAP_FIELDS_MAX))
+			return -EINVAL;
 
 		if (i > 0)
 			seq_puts(m, ",");
 
-		if (sort_key->field_idx == HITCOUNT_IDX)
+		if (idx == HITCOUNT_IDX)
 			seq_puts(m, "hitcount");
-		else {
-			unsigned int idx = sort_key->field_idx;
-
-			if (WARN_ON(idx >= TRACING_MAP_FIELDS_MAX))
-				return -EINVAL;
-
+		else
 			hist_field_print(m, hist_data->fields[idx]);
-		}
 
 		if (sort_key->descending)
 			seq_puts(m, ".descending");
 	}
-
 	seq_printf(m, ":size=%u", (1 << hist_data->map->map_bits));
 
 	if (data->filter_str)
@@ -1454,6 +1486,10 @@ static bool hist_trigger_match(struct event_trigger_data *data,
 			return false;
 		if (key_field->offset != key_field_test->offset)
 			return false;
+		if (key_field->size != key_field_test->size)
+			return false;
+		if (key_field->is_signed != key_field_test->is_signed)
+			return false;
 	}
 
 	for (i = 0; i < hist_data->n_sort_keys; i++) {
@@ -1536,6 +1572,9 @@ static int hist_register_trigger(char *glob, struct event_trigger_ops *ops,
 
 	update_cond_flag(file);
 
+	if (hist_data->enable_timestamps)
+		tracing_set_time_stamp_abs(file->tr, true);
+
 	if (trace_event_trigger_enable_disable(file, 1) < 0) {
 		list_del_rcu(&data->list);
 		update_cond_flag(file);
@@ -1570,17 +1609,26 @@ static void hist_unregister_trigger(char *glob, struct event_trigger_ops *ops,
 
 	if (unregistered && test->ops->free)
 		test->ops->free(test->ops, test);
+
+	if (hist_data->enable_timestamps) {
+		if (unregistered)
+			tracing_set_time_stamp_abs(file->tr, false);
+	}
 }
 
 static void hist_unreg_all(struct trace_event_file *file)
 {
 	struct event_trigger_data *test, *n;
+	struct hist_trigger_data *hist_data;
 
 	list_for_each_entry_safe(test, n, &file->triggers, list) {
 		if (test->cmd_ops->trigger_type == ETT_EVENT_HIST) {
+			hist_data = test->private_data;
 			list_del_rcu(&test->list);
 			trace_event_trigger_enable_disable(file, 0);
 			update_cond_flag(file);
+			if (hist_data->enable_timestamps)
+				tracing_set_time_stamp_abs(file->tr, false);
 			if (test->ops->free)
 				test->ops->free(test->ops, test);
 		}
