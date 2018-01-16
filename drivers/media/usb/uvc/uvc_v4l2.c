@@ -40,13 +40,13 @@ static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
 	unsigned int size;
 	int ret;
 
-	map = kzalloc(sizeof *map, GFP_KERNEL);
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (map == NULL)
 		return -ENOMEM;
 
 	map->id = xmap->id;
-	memcpy(map->name, xmap->name, sizeof map->name);
-	memcpy(map->entity, xmap->entity, sizeof map->entity);
+	memcpy(map->name, xmap->name, sizeof(map->name));
+	memcpy(map->entity, xmap->entity, sizeof(map->entity));
 	map->selector = xmap->selector;
 	map->size = xmap->size;
 	map->offset = xmap->offset;
@@ -224,7 +224,7 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 		(100000000/interval)%10);
 
 	/* Set the format index, frame index and frame interval. */
-	memset(probe, 0, sizeof *probe);
+	memset(probe, 0, sizeof(*probe));
 	probe->bmHint = 1;	/* dwFrameInterval */
 	probe->bFormatIndex = format->index;
 	probe->bFrameIndex = frame->bFrameIndex;
@@ -348,7 +348,7 @@ static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 	denominator = 10000000;
 	uvc_simplify_fraction(&numerator, &denominator, 8, 333);
 
-	memset(parm, 0, sizeof *parm);
+	memset(parm, 0, sizeof(*parm));
 	parm->type = stream->type;
 
 	if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
@@ -526,7 +526,7 @@ static int uvc_v4l2_open(struct file *file)
 		return ret;
 
 	/* Create the device handle. */
-	handle = kzalloc(sizeof *handle, GFP_KERNEL);
+	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (handle == NULL) {
 		usb_autopm_put_interface(stream->dev->intf);
 		return -ENOMEM;
