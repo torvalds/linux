@@ -1318,7 +1318,6 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 			goto out;
 		}
 
-
 		len -= ie_len;
 		data += ie_len;
 	}
