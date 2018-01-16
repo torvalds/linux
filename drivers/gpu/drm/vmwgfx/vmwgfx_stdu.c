@@ -494,45 +494,13 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 	struct vmw_screen_target_display_unit *stdu = vmw_crtc_to_stdu(crtc);
 	int ret;
 
-	dev_priv          = vmw_priv(crtc->dev);
-	stdu              = vmw_crtc_to_stdu(crtc);
-
 	if (!stdu->defined || !vmw_kms_crtc_flippable(dev_priv, crtc))
 		return -EINVAL;
 
-	/*
-	 * We're always async, but the helper doesn't know how to set async
-	 * so lie to the helper. Also, the helper expects someone
-	 * to pick the event up from the crtc state, and if nobody does,
-	 * it will free it. Since we handle the event in this function,
-	 * don't hand it to the helper.
-	 */
-	flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
-	ret = drm_atomic_helper_page_flip(crtc, new_fb, NULL, flags, ctx);
+	ret = drm_atomic_helper_page_flip(crtc, new_fb, event, flags, ctx);
 	if (ret) {
 		DRM_ERROR("Page flip error %d.\n", ret);
 		return ret;
-	}
-
-	if (stdu->base.is_implicit)
-		vmw_kms_update_implicit_fb(dev_priv, crtc);
-
-	if (event) {
-		struct vmw_fence_obj *fence = NULL;
-		struct drm_file *file_priv = event->base.file_priv;
-
-		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-		if (!fence)
-			return -ENOMEM;
-
-		ret = vmw_event_fence_action_queue(file_priv, fence,
-						   &event->base,
-						   &event->event.vbl.tv_sec,
-						   &event->event.vbl.tv_usec,
-						   true);
-		vmw_fence_obj_unreference(&fence);
-	} else {
-		(void) vmw_fifo_flush(dev_priv, false);
 	}
 
 	return 0;
@@ -1307,46 +1275,37 @@ static void
 vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	struct vmw_private *dev_priv;
-	struct vmw_screen_target_display_unit *stdu;
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(plane->state);
-	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
-	struct vmw_framebuffer *vfb = NULL;
+	struct drm_crtc *crtc = plane->state->crtc;
+	struct vmw_screen_target_display_unit *stdu;
+	struct drm_pending_vblank_event *event;
+	struct vmw_private *dev_priv;
 	int ret;
-
-	stdu     = vmw_crtc_to_stdu(crtc);
-	dev_priv = vmw_priv(crtc->dev);
-
-	stdu->display_srf = vps->surf;
-	stdu->content_fb_type = vps->content_fb_type;
-	stdu->cpp = vps->cpp;
-	memcpy(&stdu->host_map, &vps->host_map, sizeof(vps->host_map));
-
-	if (!stdu->defined)
-		return;
-
-	if (plane->state->fb) {
-		vfb = vmw_framebuffer_to_vfb(plane->state->fb);
-		ret = vmw_stdu_bind_st(dev_priv, stdu, &stdu->display_srf->res);
-	} else
-		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
 
 	/*
 	 * We cannot really fail this function, so if we do, then output an
-	 * error and quit
+	 * error and maintain consistent atomic state.
 	 */
-	if (ret)
-		DRM_ERROR("Failed to bind surface to STDU.\n");
-	else
-		crtc->primary->fb = plane->state->fb;
-
-	if (vfb) {
+	if (crtc && plane->state->fb) {
+		struct vmw_framebuffer *vfb =
+			vmw_framebuffer_to_vfb(plane->state->fb);
 		struct drm_vmw_rect vclips;
+		stdu = vmw_crtc_to_stdu(crtc);
+		dev_priv = vmw_priv(crtc->dev);
+
+		stdu->display_srf = vps->surf;
+		stdu->content_fb_type = vps->content_fb_type;
+		stdu->cpp = vps->cpp;
+		memcpy(&stdu->host_map, &vps->host_map, sizeof(vps->host_map));
 
 		vclips.x = crtc->x;
 		vclips.y = crtc->y;
 		vclips.w = crtc->mode.hdisplay;
 		vclips.h = crtc->mode.vdisplay;
+
+		ret = vmw_stdu_bind_st(dev_priv, stdu, &stdu->display_srf->res);
+		if (ret)
+			DRM_ERROR("Failed to bind surface to STDU.\n");
 
 		if (vfb->dmabuf)
 			ret = vmw_kms_stdu_dma(dev_priv, NULL, vfb, NULL, NULL,
@@ -1356,11 +1315,65 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 			ret = vmw_kms_stdu_surface_dirty(dev_priv, vfb, NULL,
 							 &vclips, NULL, 0, 0,
 							 1, 1, NULL, crtc);
-	} else
-		ret = vmw_stdu_update_st(dev_priv, stdu);
+		if (ret)
+			DRM_ERROR("Failed to update STDU.\n");
 
-	if (ret)
-		DRM_ERROR("Failed to update STDU.\n");
+		crtc->primary->fb = plane->state->fb;
+	} else {
+		crtc = old_state->crtc;
+		stdu = vmw_crtc_to_stdu(crtc);
+		dev_priv = vmw_priv(crtc->dev);
+
+		/*
+		 * When disabling a plane, CRTC and FB should always be NULL
+		 * together, otherwise it's an error.
+		 * Here primary plane is being disable so blank the screen
+		 * target display unit, if not already done.
+		 */
+		if (!stdu->defined)
+			return;
+
+		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
+		if (ret)
+			DRM_ERROR("Failed to blank STDU\n");
+
+		ret = vmw_stdu_update_st(dev_priv, stdu);
+		if (ret)
+			DRM_ERROR("Failed to update STDU.\n");
+
+		return;
+	}
+
+	event = crtc->state->event;
+	/*
+	 * In case of failure and other cases, vblank event will be sent in
+	 * vmw_du_crtc_atomic_flush.
+	 */
+	if (event && (ret == 0)) {
+		struct vmw_fence_obj *fence = NULL;
+		struct drm_file *file_priv = event->base.file_priv;
+
+		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
+
+		/*
+		 * If fence is NULL, then already sync.
+		 */
+		if (fence) {
+			ret = vmw_event_fence_action_queue(
+				file_priv, fence, &event->base,
+				&event->event.vbl.tv_sec,
+				&event->event.vbl.tv_usec,
+				true);
+			if (ret)
+				DRM_ERROR("Failed to queue event on fence.\n");
+			else
+				crtc->state->event = NULL;
+
+			vmw_fence_obj_unreference(&fence);
+		}
+	} else {
+		(void) vmw_fifo_flush(dev_priv, false);
+	}
 }
 
 
