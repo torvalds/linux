@@ -1182,7 +1182,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (vif->iftype == AP_MODE || vif->iftype == GO_MODE) {
 		for (i = 0; i < NUM_STA_ASSOCIATED; i++) {
-			if (!(memcmp(mac, priv->assoc_stainfo.au8Sta_AssociatedBss[i], ETH_ALEN))) {
+			if (!(memcmp(mac, priv->assoc_stainfo.sta_associated_bss[i], ETH_ALEN))) {
 				associatedsta = i;
 				break;
 			}
@@ -1837,7 +1837,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		vif->iftype = STATION_MODE;
 		wilc_set_operation_mode(vif, STATION_MODE);
 
-		memset(priv->assoc_stainfo.au8Sta_AssociatedBss, 0, MAX_NUM_STA * ETH_ALEN);
+		memset(priv->assoc_stainfo.sta_associated_bss, 0, MAX_NUM_STA * ETH_ALEN);
 
 		wilc_enable_ps = true;
 		wilc_set_power_mgmt(vif, 1, 0);
@@ -1970,7 +1970,7 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (vif->iftype == AP_MODE || vif->iftype == GO_MODE) {
 		memcpy(strStaParams.bssid, mac, ETH_ALEN);
-		memcpy(priv->assoc_stainfo.au8Sta_AssociatedBss[params->aid], mac, ETH_ALEN);
+		memcpy(priv->assoc_stainfo.sta_associated_bss[params->aid], mac, ETH_ALEN);
 		strStaParams.aid = params->aid;
 		strStaParams.rates_len = params->supported_rates_len;
 		strStaParams.rates = params->supported_rates;
@@ -2010,7 +2010,7 @@ static int del_station(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->iftype == AP_MODE || vif->iftype == GO_MODE) {
 		if (!mac)
 			s32Error = wilc_del_allstation(vif,
-				     priv->assoc_stainfo.au8Sta_AssociatedBss);
+				     priv->assoc_stainfo.sta_associated_bss);
 
 		s32Error = wilc_del_station(vif, mac);
 

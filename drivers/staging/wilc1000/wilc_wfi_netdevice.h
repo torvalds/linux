@@ -86,7 +86,7 @@ struct wilc_wfi_wep_key {
 };
 
 struct sta_info {
-	u8 au8Sta_AssociatedBss[MAX_NUM_STA][ETH_ALEN];
+	u8 sta_associated_bss[MAX_NUM_STA][ETH_ALEN];
 };
 
 /*Parameters needed for host interface for  remaining on channel*/
