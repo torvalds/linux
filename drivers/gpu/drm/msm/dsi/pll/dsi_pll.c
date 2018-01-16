@@ -173,7 +173,7 @@ struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 
 	if (IS_ERR(pll)) {
 		dev_err(dev, "%s: failed to init DSI PLL\n", __func__);
-		return NULL;
+		return pll;
 	}
 
 	pll->type = type;

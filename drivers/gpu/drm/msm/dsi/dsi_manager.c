@@ -88,6 +88,8 @@ static int dsi_mgr_setup_components(int id)
 
 		msm_dsi_phy_set_usecase(msm_dsi->phy, MSM_DSI_PHY_STANDALONE);
 		src_pll = msm_dsi_phy_get_pll(msm_dsi->phy);
+		if (IS_ERR(src_pll))
+			return PTR_ERR(src_pll);
 		ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
 	} else if (!other_dsi) {
 		ret = 0;
@@ -116,6 +118,8 @@ static int dsi_mgr_setup_components(int id)
 		msm_dsi_phy_set_usecase(clk_slave_dsi->phy,
 					MSM_DSI_PHY_SLAVE);
 		src_pll = msm_dsi_phy_get_pll(clk_master_dsi->phy);
+		if (IS_ERR(src_pll))
+			return PTR_ERR(src_pll);
 		ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
 		if (ret)
 			return ret;
