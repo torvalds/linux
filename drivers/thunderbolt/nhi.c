@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/property.h>
 
 #include "nhi.h"
 #include "nhi_regs.h"
@@ -859,12 +860,52 @@ static irqreturn_t nhi_msi(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int nhi_suspend_noirq(struct device *dev)
+static int __nhi_suspend_noirq(struct device *dev, bool wakeup)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
+	struct tb_nhi *nhi = tb->nhi;
+	int ret;
 
-	return tb_domain_suspend_noirq(tb);
+	ret = tb_domain_suspend_noirq(tb);
+	if (ret)
+		return ret;
+
+	if (nhi->ops && nhi->ops->suspend_noirq) {
+		ret = nhi->ops->suspend_noirq(tb->nhi, wakeup);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int nhi_suspend_noirq(struct device *dev)
+{
+	return __nhi_suspend_noirq(dev, device_may_wakeup(dev));
+}
+
+static bool nhi_wake_supported(struct pci_dev *pdev)
+{
+	u8 val;
+
+	/*
+	 * If power rails are sustainable for wakeup from S4 this
+	 * property is set by the BIOS.
+	 */
+	if (device_property_read_u8(&pdev->dev, "WAKE_SUPPORTED", &val))
+		return !!val;
+
+	return true;
+}
+
+static int nhi_poweroff_noirq(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	bool wakeup;
+
+	wakeup = device_may_wakeup(dev) && nhi_wake_supported(pdev);
+	return __nhi_suspend_noirq(dev, wakeup);
 }
 
 static void nhi_enable_int_throttling(struct tb_nhi *nhi)
@@ -887,16 +928,24 @@ static int nhi_resume_noirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
+	struct tb_nhi *nhi = tb->nhi;
+	int ret;
 
 	/*
 	 * Check that the device is still there. It may be that the user
 	 * unplugged last device which causes the host controller to go
 	 * away on PCs.
 	 */
-	if (!pci_device_is_present(pdev))
-		tb->nhi->going_away = true;
-	else
+	if (!pci_device_is_present(pdev)) {
+		nhi->going_away = true;
+	} else {
+		if (nhi->ops && nhi->ops->resume_noirq) {
+			ret = nhi->ops->resume_noirq(nhi);
+			if (ret)
+				return ret;
+		}
 		nhi_enable_int_throttling(tb->nhi);
+	}
 
 	return tb_domain_resume_noirq(tb);
 }
@@ -929,16 +978,35 @@ static int nhi_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
+	struct tb_nhi *nhi = tb->nhi;
+	int ret;
 
-	return tb_domain_runtime_suspend(tb);
+	ret = tb_domain_runtime_suspend(tb);
+	if (ret)
+		return ret;
+
+	if (nhi->ops && nhi->ops->runtime_suspend) {
+		ret = nhi->ops->runtime_suspend(tb->nhi);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 static int nhi_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
+	struct tb_nhi *nhi = tb->nhi;
+	int ret;
 
-	nhi_enable_int_throttling(tb->nhi);
+	if (nhi->ops && nhi->ops->runtime_resume) {
+		ret = nhi->ops->runtime_resume(nhi);
+		if (ret)
+			return ret;
+	}
+
+	nhi_enable_int_throttling(nhi);
 	return tb_domain_runtime_resume(tb);
 }
 
@@ -966,6 +1034,9 @@ static void nhi_shutdown(struct tb_nhi *nhi)
 		flush_work(&nhi->interrupt_work);
 	}
 	ida_destroy(&nhi->msix_ida);
+
+	if (nhi->ops && nhi->ops->shutdown)
+		nhi->ops->shutdown(nhi);
 }
 
 static int nhi_init_msi(struct tb_nhi *nhi)
@@ -1010,11 +1081,26 @@ static int nhi_init_msi(struct tb_nhi *nhi)
 	return 0;
 }
 
+static bool nhi_imr_valid(struct pci_dev *pdev)
+{
+	u8 val;
+
+	if (!device_property_read_u8(&pdev->dev, "IMR_VALID", &val))
+		return !!val;
+
+	return true;
+}
+
 static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct tb_nhi *nhi;
 	struct tb *tb;
 	int res;
+
+	if (!nhi_imr_valid(pdev)) {
+		dev_warn(&pdev->dev, "firmware image not valid, aborting\n");
+		return -ENODEV;
+	}
 
 	res = pcim_enable_device(pdev);
 	if (res) {
@@ -1033,6 +1119,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	nhi->pdev = pdev;
+	nhi->ops = (const struct tb_nhi_ops *)id->driver_data;
 	/* cannot fail - table is allocated bin pcim_iomap_regions */
 	nhi->iobase = pcim_iomap_table(pdev)[0];
 	nhi->hop_count = ioread32(nhi->iobase + REG_HOP_COUNT) & 0x3ff;
@@ -1064,6 +1151,12 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	pci_set_master(pdev);
+
+	if (nhi->ops && nhi->ops->init) {
+		res = nhi->ops->init(nhi);
+		if (res)
+			return res;
+	}
 
 	tb = icm_probe(nhi);
 	if (!tb)
@@ -1125,6 +1218,7 @@ static const struct dev_pm_ops nhi_pm_ops = {
 	.restore_noirq = nhi_resume_noirq,
 	.suspend = nhi_suspend,
 	.freeze = nhi_suspend,
+	.poweroff_noirq = nhi_poweroff_noirq,
 	.poweroff = nhi_suspend,
 	.complete = nhi_complete,
 	.runtime_suspend = nhi_runtime_suspend,
@@ -1172,6 +1266,10 @@ static struct pci_device_id nhi_ids[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_USBONLY_NHI) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_NHI) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_NHI) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICL_NHI0),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICL_NHI1),
+	  .driver_data = (kernel_ulong_t)&icl_nhi_ops },
 
 	{ 0,}
 };

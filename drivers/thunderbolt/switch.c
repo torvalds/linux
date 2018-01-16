@@ -1470,6 +1470,8 @@ static int tb_switch_get_generation(struct tb_switch *sw)
 	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
 	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
 	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
+	case PCI_DEVICE_ID_INTEL_ICL_NHI0:
+	case PCI_DEVICE_ID_INTEL_ICL_NHI1:
 		return 3;
 
 	default:
