@@ -274,4 +274,7 @@
 #define QPHY_V3_PCS_FLL_MAN_CODE			0x0d4
 #define QPHY_V3_PCS_RX_SIGDET_LVL			0x1d8
 
+/* Only for QMP V3 PHY - PCS_MISC registers */
+#define QPHY_V3_PCS_MISC_CLAMP_ENABLE			0x0c
+
 #endif

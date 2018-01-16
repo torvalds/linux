@@ -61,6 +61,19 @@
 #define USB3_MODE				BIT(0) /* enables USB3 mode */
 #define DP_MODE					BIT(1) /* enables DP mode */
 
+/* QPHY_PCS_AUTONOMOUS_MODE_CTRL register bits */
+#define ARCVR_DTCT_EN				BIT(0)
+#define ALFPS_DTCT_EN				BIT(1)
+#define ARCVR_DTCT_EVENT_SEL			BIT(4)
+
+/* QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR register bits */
+#define IRQ_CLEAR				BIT(0)
+
+/* QPHY_PCS_LFPS_RXTERM_IRQ_STATUS register bits */
+#define RCVR_DETECT				BIT(0)
+
+/* QPHY_V3_PCS_MISC_CLAMP_ENABLE register bits */
+#define CLAMP_EN				BIT(0) /* enables i/o clamp_n */
 
 #define PHY_INIT_COMPLETE_TIMEOUT		1000
 #define POWER_DOWN_DELAY_US_MIN			10
@@ -108,6 +121,9 @@ enum qphy_reg_layout {
 	QPHY_SW_RESET,
 	QPHY_START_CTRL,
 	QPHY_PCS_READY_STATUS,
+	QPHY_PCS_AUTONOMOUS_MODE_CTRL,
+	QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR,
+	QPHY_PCS_LFPS_RXTERM_IRQ_STATUS,
 };
 
 static const unsigned int pciephy_regs_layout[] = {
@@ -135,12 +151,18 @@ static const unsigned int usb3phy_regs_layout[] = {
 	[QPHY_SW_RESET]			= 0x00,
 	[QPHY_START_CTRL]		= 0x08,
 	[QPHY_PCS_READY_STATUS]		= 0x17c,
+	[QPHY_PCS_AUTONOMOUS_MODE_CTRL]	= 0x0d4,
+	[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR]  = 0x0d8,
+	[QPHY_PCS_LFPS_RXTERM_IRQ_STATUS] = 0x178,
 };
 
 static const unsigned int qmp_v3_usb3phy_regs_layout[] = {
 	[QPHY_SW_RESET]			= 0x00,
 	[QPHY_START_CTRL]		= 0x08,
 	[QPHY_PCS_READY_STATUS]		= 0x174,
+	[QPHY_PCS_AUTONOMOUS_MODE_CTRL]	= 0x0d8,
+	[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR]  = 0x0dc,
+	[QPHY_PCS_LFPS_RXTERM_IRQ_STATUS] = 0x170,
 };
 
 static const struct qmp_phy_init_tbl msm8996_pcie_serdes_tbl[] = {
@@ -536,6 +558,7 @@ struct qmp_phy_cfg {
  * @tx: iomapped memory space for lane's tx
  * @rx: iomapped memory space for lane's rx
  * @pcs: iomapped memory space for lane's pcs
+ * @pcs_misc: iomapped memory space for lane's pcs_misc
  * @pipe_clk: pipe lock
  * @index: lane index
  * @qmp: QMP phy to which this lane belongs
@@ -546,6 +569,7 @@ struct qmp_phy {
 	void __iomem *tx;
 	void __iomem *rx;
 	void __iomem *pcs;
+	void __iomem *pcs_misc;
 	struct clk *pipe_clk;
 	unsigned int index;
 	struct qcom_qmp *qmp;
@@ -567,6 +591,8 @@ struct qmp_phy {
  * @phys: array of per-lane phy descriptors
  * @phy_mutex: mutex lock for PHY common block initialization
  * @init_count: phy common block initialization count
+ * @phy_initialized: indicate if PHY has been initialized
+ * @mode: current PHY mode
  */
 struct qcom_qmp {
 	struct device *dev;
@@ -582,6 +608,8 @@ struct qcom_qmp {
 
 	struct mutex phy_mutex;
 	int init_count;
+	bool phy_initialized;
+	enum phy_mode mode;
 };
 
 static inline void qphy_setbits(void __iomem *base, u32 offset, u32 val)
@@ -995,6 +1023,7 @@ static int qcom_qmp_phy_init(struct phy *phy)
 		dev_err(qmp->dev, "phy initialization timed-out\n");
 		goto err_pcs_ready;
 	}
+	qmp->phy_initialized = true;
 
 	return ret;
 
@@ -1028,6 +1057,128 @@ static int qcom_qmp_phy_exit(struct phy *phy)
 		reset_control_assert(qphy->lane_rst);
 
 	qcom_qmp_phy_com_exit(qmp);
+
+	qmp->phy_initialized = false;
+
+	return 0;
+}
+
+static int qcom_qmp_phy_set_mode(struct phy *phy, enum phy_mode mode)
+{
+	struct qmp_phy *qphy = phy_get_drvdata(phy);
+	struct qcom_qmp *qmp = qphy->qmp;
+
+	qmp->mode = mode;
+
+	return 0;
+}
+
+static void qcom_qmp_phy_enable_autonomous_mode(struct qmp_phy *qphy)
+{
+	struct qcom_qmp *qmp = qphy->qmp;
+	const struct qmp_phy_cfg *cfg = qmp->cfg;
+	void __iomem *pcs = qphy->pcs;
+	void __iomem *pcs_misc = qphy->pcs_misc;
+	u32 intr_mask;
+
+	if (qmp->mode == PHY_MODE_USB_HOST_SS ||
+	    qmp->mode == PHY_MODE_USB_DEVICE_SS)
+		intr_mask = ARCVR_DTCT_EN | ALFPS_DTCT_EN;
+	else
+		intr_mask = ARCVR_DTCT_EN | ARCVR_DTCT_EVENT_SEL;
+
+	/* Clear any pending interrupts status */
+	qphy_setbits(pcs, cfg->regs[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR], IRQ_CLEAR);
+	/* Writing 1 followed by 0 clears the interrupt */
+	qphy_clrbits(pcs, cfg->regs[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR], IRQ_CLEAR);
+
+	qphy_clrbits(pcs, cfg->regs[QPHY_PCS_AUTONOMOUS_MODE_CTRL],
+		     ARCVR_DTCT_EN | ALFPS_DTCT_EN | ARCVR_DTCT_EVENT_SEL);
+
+	/* Enable required PHY autonomous mode interrupts */
+	qphy_setbits(pcs, cfg->regs[QPHY_PCS_AUTONOMOUS_MODE_CTRL], intr_mask);
+
+	/* Enable i/o clamp_n for autonomous mode */
+	if (pcs_misc)
+		qphy_clrbits(pcs_misc, QPHY_V3_PCS_MISC_CLAMP_ENABLE, CLAMP_EN);
+}
+
+static void qcom_qmp_phy_disable_autonomous_mode(struct qmp_phy *qphy)
+{
+	struct qcom_qmp *qmp = qphy->qmp;
+	const struct qmp_phy_cfg *cfg = qmp->cfg;
+	void __iomem *pcs = qphy->pcs;
+	void __iomem *pcs_misc = qphy->pcs_misc;
+
+	/* Disable i/o clamp_n on resume for normal mode */
+	if (pcs_misc)
+		qphy_setbits(pcs_misc, QPHY_V3_PCS_MISC_CLAMP_ENABLE, CLAMP_EN);
+
+	qphy_clrbits(pcs, cfg->regs[QPHY_PCS_AUTONOMOUS_MODE_CTRL],
+		     ARCVR_DTCT_EN | ARCVR_DTCT_EVENT_SEL | ALFPS_DTCT_EN);
+
+	qphy_setbits(pcs, cfg->regs[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR], IRQ_CLEAR);
+	/* Writing 1 followed by 0 clears the interrupt */
+	qphy_clrbits(pcs, cfg->regs[QPHY_PCS_LFPS_RXTERM_IRQ_CLEAR], IRQ_CLEAR);
+}
+
+static int __maybe_unused qcom_qmp_phy_runtime_suspend(struct device *dev)
+{
+	struct qcom_qmp *qmp = dev_get_drvdata(dev);
+	struct qmp_phy *qphy = qmp->phys[0];
+	const struct qmp_phy_cfg *cfg = qmp->cfg;
+
+	dev_vdbg(dev, "Suspending QMP phy, mode:%d\n", qmp->mode);
+
+	/* Supported only for USB3 PHY */
+	if (cfg->type != PHY_TYPE_USB3)
+		return 0;
+
+	if (!qmp->phy_initialized) {
+		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		return 0;
+	}
+
+	qcom_qmp_phy_enable_autonomous_mode(qphy);
+
+	clk_disable_unprepare(qphy->pipe_clk);
+	clk_bulk_disable_unprepare(cfg->num_clks, qmp->clks);
+
+	return 0;
+}
+
+static int __maybe_unused qcom_qmp_phy_runtime_resume(struct device *dev)
+{
+	struct qcom_qmp *qmp = dev_get_drvdata(dev);
+	struct qmp_phy *qphy = qmp->phys[0];
+	const struct qmp_phy_cfg *cfg = qmp->cfg;
+	int ret = 0;
+
+	dev_vdbg(dev, "Resuming QMP phy, mode:%d\n", qmp->mode);
+
+	/* Supported only for USB3 PHY */
+	if (cfg->type != PHY_TYPE_USB3)
+		return 0;
+
+	if (!qmp->phy_initialized) {
+		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		return 0;
+	}
+
+	ret = clk_bulk_prepare_enable(cfg->num_clks, qmp->clks);
+	if (ret) {
+		dev_err(qmp->dev, "failed to enable clks, err=%d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(qphy->pipe_clk);
+	if (ret) {
+		dev_err(dev, "pipe_clk enable failed, err=%d\n", ret);
+		clk_bulk_disable_unprepare(cfg->num_clks, qmp->clks);
+		return ret;
+	}
+
+	qcom_qmp_phy_disable_autonomous_mode(qphy);
 
 	return 0;
 }
@@ -1142,6 +1293,7 @@ static const struct phy_ops qcom_qmp_phy_gen_ops = {
 	.init		= qcom_qmp_phy_init,
 	.exit		= qcom_qmp_phy_exit,
 	.power_on	= qcom_qmp_phy_poweron,
+	.set_mode	= qcom_qmp_phy_set_mode,
 	.owner		= THIS_MODULE,
 };
 
@@ -1160,7 +1312,8 @@ int qcom_qmp_phy_create(struct device *dev, struct device_node *np, int id)
 
 	/*
 	 * Get memory resources for each phy lane:
-	 * Resources are indexed as: tx -> 0; rx -> 1; pcs -> 2.
+	 * Resources are indexed as: tx -> 0; rx -> 1; pcs -> 2; and
+	 * pcs_misc (optional) -> 3.
 	 */
 	qphy->tx = of_iomap(np, 0);
 	if (!qphy->tx)
@@ -1173,6 +1326,10 @@ int qcom_qmp_phy_create(struct device *dev, struct device_node *np, int id)
 	qphy->pcs = of_iomap(np, 2);
 	if (!qphy->pcs)
 		return -ENOMEM;
+
+	qphy->pcs_misc = of_iomap(np, 3);
+	if (!qphy->pcs_misc)
+		dev_vdbg(dev, "PHY pcs_misc-reg not used\n");
 
 	/*
 	 * Get PHY's Pipe clock, if any. USB3 and PCIe are PIPE3
@@ -1239,6 +1396,11 @@ static const struct of_device_id qcom_qmp_phy_of_match_table[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qcom_qmp_phy_of_match_table);
+
+static const struct dev_pm_ops qcom_qmp_phy_pm_ops = {
+	SET_RUNTIME_PM_OPS(qcom_qmp_phy_runtime_suspend,
+			   qcom_qmp_phy_runtime_resume, NULL)
+};
 
 static int qcom_qmp_phy_probe(struct platform_device *pdev)
 {
@@ -1308,12 +1470,21 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	id = 0;
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	/*
+	 * Prevent runtime pm from being ON by default. Users can enable
+	 * it using power/control in sysfs.
+	 */
+	pm_runtime_forbid(dev);
+
 	for_each_available_child_of_node(dev->of_node, child) {
 		/* Create per-lane phy */
 		ret = qcom_qmp_phy_create(dev, child, id);
 		if (ret) {
 			dev_err(dev, "failed to create lane%d phy, %d\n",
 				id, ret);
+			pm_runtime_disable(dev);
 			return ret;
 		}
 
@@ -1325,6 +1496,7 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(qmp->dev,
 				"failed to register pipe clock source\n");
+			pm_runtime_disable(dev);
 			return ret;
 		}
 		id++;
@@ -1333,6 +1505,8 @@ static int qcom_qmp_phy_probe(struct platform_device *pdev)
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (!IS_ERR(phy_provider))
 		dev_info(dev, "Registered Qcom-QMP phy\n");
+	else
+		pm_runtime_disable(dev);
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
@@ -1341,6 +1515,7 @@ static struct platform_driver qcom_qmp_phy_driver = {
 	.probe		= qcom_qmp_phy_probe,
 	.driver = {
 		.name	= "qcom-qmp-phy",
+		.pm	= &qcom_qmp_phy_pm_ops,
 		.of_match_table = qcom_qmp_phy_of_match_table,
 	},
 };
