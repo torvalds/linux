@@ -555,7 +555,7 @@ struct qcom_qmp {
 	struct device *dev;
 	void __iomem *serdes;
 
-	struct clk **clks;
+	struct clk_bulk_data *clks;
 	struct reset_control **resets;
 	struct regulator_bulk_data *vregs;
 
@@ -857,22 +857,19 @@ static int qcom_qmp_phy_init(struct phy *phy)
 	void __iomem *pcs = qphy->pcs;
 	void __iomem *status;
 	unsigned int mask, val;
-	int ret, i;
+	int ret;
 
 	dev_vdbg(qmp->dev, "Initializing QMP phy\n");
 
-	for (i = 0; i < qmp->cfg->num_clks; i++) {
-		ret = clk_prepare_enable(qmp->clks[i]);
-		if (ret) {
-			dev_err(qmp->dev, "failed to enable %s clk, err=%d\n",
-				qmp->cfg->clk_list[i], ret);
-			goto err_clk;
-		}
+	ret = clk_bulk_prepare_enable(cfg->num_clks, qmp->clks);
+	if (ret) {
+		dev_err(qmp->dev, "failed to enable clks, err=%d\n", ret);
+		return ret;
 	}
 
 	ret = qcom_qmp_phy_com_init(qmp);
 	if (ret)
-		goto err_clk;
+		goto err_com_init;
 
 	if (cfg->has_lane_rst) {
 		ret = reset_control_deassert(qphy->lane_rst);
@@ -920,9 +917,8 @@ err_pcs_ready:
 		reset_control_assert(qphy->lane_rst);
 err_lane_rst:
 	qcom_qmp_phy_com_exit(qmp);
-err_clk:
-	while (--i >= 0)
-		clk_disable_unprepare(qmp->clks[i]);
+err_com_init:
+	clk_bulk_disable_unprepare(cfg->num_clks, qmp->clks);
 
 	return ret;
 }
@@ -932,7 +928,6 @@ static int qcom_qmp_phy_exit(struct phy *phy)
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
-	int i = cfg->num_clks;
 
 	clk_disable_unprepare(qphy->pipe_clk);
 
@@ -950,8 +945,7 @@ static int qcom_qmp_phy_exit(struct phy *phy)
 
 	qcom_qmp_phy_com_exit(qmp);
 
-	while (--i >= 0)
-		clk_disable_unprepare(qmp->clks[i]);
+	clk_bulk_disable_unprepare(cfg->num_clks, qmp->clks);
 
 	return 0;
 }
@@ -1000,29 +994,17 @@ static int qcom_qmp_phy_reset_init(struct device *dev)
 static int qcom_qmp_phy_clk_init(struct device *dev)
 {
 	struct qcom_qmp *qmp = dev_get_drvdata(dev);
-	int ret, i;
+	int num = qmp->cfg->num_clks;
+	int i;
 
-	qmp->clks = devm_kcalloc(dev, qmp->cfg->num_clks,
-				 sizeof(*qmp->clks), GFP_KERNEL);
+	qmp->clks = devm_kcalloc(dev, num, sizeof(*qmp->clks), GFP_KERNEL);
 	if (!qmp->clks)
 		return -ENOMEM;
 
-	for (i = 0; i < qmp->cfg->num_clks; i++) {
-		struct clk *_clk;
-		const char *name = qmp->cfg->clk_list[i];
+	for (i = 0; i < num; i++)
+		qmp->clks[i].id = qmp->cfg->clk_list[i];
 
-		_clk = devm_clk_get(dev, name);
-		if (IS_ERR(_clk)) {
-			ret = PTR_ERR(_clk);
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "failed to get %s clk, %d\n",
-					name, ret);
-			return ret;
-		}
-		qmp->clks[i] = _clk;
-	}
-
-	return 0;
+	return devm_clk_bulk_get(dev, num, qmp->clks);
 }
 
 /*
