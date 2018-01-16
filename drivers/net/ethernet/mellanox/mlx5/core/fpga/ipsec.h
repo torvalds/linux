@@ -39,7 +39,7 @@
 #ifdef CONFIG_MLX5_FPGA
 
 void *mlx5_fpga_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
-				  struct mlx5_accel_ipsec_sa *cmd);
+				  struct mlx5_accel_ipsec_sa *cmd, int cmd_size);
 int mlx5_fpga_ipsec_sa_cmd_wait(void *context);
 
 u32 mlx5_fpga_ipsec_device_caps(struct mlx5_core_dev *mdev);
@@ -53,7 +53,8 @@ void mlx5_fpga_ipsec_cleanup(struct mlx5_core_dev *mdev);
 #else
 
 static inline void *mlx5_fpga_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
-						struct mlx5_accel_ipsec_sa *cmd)
+						struct mlx5_accel_ipsec_sa *cmd,
+						int cmd_size)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }

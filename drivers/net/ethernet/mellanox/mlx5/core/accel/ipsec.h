@@ -44,6 +44,7 @@ enum {
 	MLX5_ACCEL_IPSEC_ESP = BIT(3),
 	MLX5_ACCEL_IPSEC_LSO = BIT(4),
 	MLX5_ACCEL_IPSEC_NO_TRAILER = BIT(5),
+	MLX5_ACCEL_IPSEC_V2_CMD = BIT(7),
 };
 
 #define MLX5_IPSEC_SADB_IP_AH       BIT(7)
@@ -56,6 +57,9 @@ enum {
 enum {
 	MLX5_IPSEC_CMD_ADD_SA = 0,
 	MLX5_IPSEC_CMD_DEL_SA = 1,
+	MLX5_IPSEC_CMD_ADD_SA_V2 = 2,
+	MLX5_IPSEC_CMD_DEL_SA_V2 = 3,
+	MLX5_IPSEC_CMD_MOD_SA_V2 = 4,
 	MLX5_IPSEC_CMD_SET_CAP = 5,
 };
 
@@ -68,7 +72,7 @@ enum mlx5_accel_ipsec_enc_mode {
 #define MLX5_IPSEC_DEV(mdev) (mlx5_accel_ipsec_device_caps(mdev) & \
 			      MLX5_ACCEL_IPSEC_DEVICE)
 
-struct mlx5_accel_ipsec_sa {
+struct mlx5_accel_ipsec_sa_v1 {
 	__be32 cmd;
 	u8 key_enc[32];
 	u8 key_auth[32];
@@ -88,10 +92,19 @@ struct mlx5_accel_ipsec_sa {
 	__be32 sw_sa_handle;
 	__be16 tfclen;
 	u8 enc_mode;
-	u8 sip_masklen;
-	u8 dip_masklen;
+	u8 reserved1[2];
 	u8 flags;
-	u8 reserved[2];
+	u8 reserved2[2];
+};
+
+struct mlx5_accel_ipsec_sa {
+	struct mlx5_accel_ipsec_sa_v1 ipsec_sa_v1;
+	__be16 udp_sp;
+	__be16 udp_dp;
+	u8 reserved1[4];
+	__be32 esn;
+	__be16 vid;     /* only 12 bits, rest is reserved */
+	__be16 reserved2;
 } __packed;
 
 /**

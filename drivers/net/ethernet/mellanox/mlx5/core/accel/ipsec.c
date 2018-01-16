@@ -40,10 +40,17 @@
 void *mlx5_accel_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
 				   struct mlx5_accel_ipsec_sa *cmd)
 {
+	int cmd_size;
+
 	if (!MLX5_IPSEC_DEV(mdev))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	return mlx5_fpga_ipsec_sa_cmd_exec(mdev, cmd);
+	if (mlx5_accel_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_V2_CMD)
+		cmd_size = sizeof(*cmd);
+	else
+		cmd_size = sizeof(cmd->ipsec_sa_v1);
+
+	return mlx5_fpga_ipsec_sa_cmd_exec(mdev, cmd, cmd_size);
 }
 
 int mlx5_accel_ipsec_sa_cmd_wait(void *ctx)

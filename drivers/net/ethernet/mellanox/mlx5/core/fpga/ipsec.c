@@ -223,9 +223,9 @@ static int mlx5_fpga_ipsec_cmd_wait(void *ctx)
 }
 
 void *mlx5_fpga_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
-				  struct mlx5_accel_ipsec_sa *cmd)
+				  struct mlx5_accel_ipsec_sa *cmd, int cmd_size)
 {
-	return mlx5_fpga_ipsec_cmd_exec(mdev, cmd, sizeof(*cmd));
+	return mlx5_fpga_ipsec_cmd_exec(mdev, cmd, cmd_size);
 }
 
 int mlx5_fpga_ipsec_sa_cmd_wait(void *ctx)
@@ -239,9 +239,9 @@ int mlx5_fpga_ipsec_sa_cmd_wait(void *ctx)
 		goto out;
 
 	sa = (struct mlx5_accel_ipsec_sa *)&context->command;
-	if (sa->sw_sa_handle != context->resp.sw_sa_handle) {
+	if (sa->ipsec_sa_v1.sw_sa_handle != context->resp.sw_sa_handle) {
 		mlx5_fpga_err(context->dev, "mismatch SA handle. cmd 0x%08x vs resp 0x%08x\n",
-			      ntohl(sa->sw_sa_handle),
+			      ntohl(sa->ipsec_sa_v1.sw_sa_handle),
 			      ntohl(context->resp.sw_sa_handle));
 		res = -EIO;
 	}
@@ -275,6 +275,9 @@ u32 mlx5_fpga_ipsec_device_caps(struct mlx5_core_dev *mdev)
 
 	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, rx_no_trailer))
 		ret |= MLX5_ACCEL_IPSEC_NO_TRAILER;
+
+	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, v2_command))
+		ret |= MLX5_ACCEL_IPSEC_V2_CMD;
 
 	return ret;
 }
