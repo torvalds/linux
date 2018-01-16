@@ -641,21 +641,6 @@ out_error:
 	return ret;
 }
 
-static int mtd_add_device_partitions(struct mtd_info *mtd,
-				     struct mtd_partitions *parts)
-{
-	const struct mtd_partition *real_parts = parts->parts;
-	int nbparts = parts->nr_parts;
-
-	if (!nbparts && !device_is_registered(&mtd->dev))
-		return add_mtd_device(mtd);
-
-	if (nbparts > 0)
-		return add_mtd_partitions(mtd, real_parts, nbparts);
-
-	return 0;
-}
-
 /*
  * Set a few defaults based on the parent devices, if not provided by the
  * driver
@@ -706,7 +691,7 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      const struct mtd_partition *parts,
 			      int nr_parts)
 {
-	struct mtd_partitions parsed;
+	struct mtd_partitions parsed = { };
 	int ret;
 
 	mtd_set_dev_defaults(mtd);
@@ -717,24 +702,20 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			return ret;
 	}
 
-	memset(&parsed, 0, sizeof(parsed));
-
+	/* Prefer parsed partitions over driver-provided fallback */
 	ret = parse_mtd_partitions(mtd, types, &parsed, parser_data);
-	if ((ret < 0 || parsed.nr_parts == 0) && parts && nr_parts) {
-		/* Fall back to driver-provided partitions */
-		parsed = (struct mtd_partitions){
-			.parts		= parts,
-			.nr_parts	= nr_parts,
-		};
-	} else if (ret < 0) {
-		/* Didn't come up with parsed OR fallback partitions */
-		pr_info("mtd: failed to find partitions; one or more parsers reports errors (%d)\n",
-			ret);
-		/* Don't abort on errors; we can still use unpartitioned MTD */
-		memset(&parsed, 0, sizeof(parsed));
+	if (!ret && parsed.nr_parts) {
+		parts = parsed.parts;
+		nr_parts = parsed.nr_parts;
 	}
 
-	ret = mtd_add_device_partitions(mtd, &parsed);
+	if (nr_parts)
+		ret = add_mtd_partitions(mtd, parts, nr_parts);
+	else if (!device_is_registered(&mtd->dev))
+		ret = add_mtd_device(mtd);
+	else
+		ret = 0;
+
 	if (ret)
 		goto out;
 
