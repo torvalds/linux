@@ -2057,6 +2057,8 @@ static int vgdrvCheckIfVmmReqIsAllowed(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSI
                 return VINF_SUCCESS;
             break;
         case kLevel_TrustedUsers:
+            if (pSession->fUserSession)
+                break;
         case kLevel_AllUsers:
             return VINF_SUCCESS;
     }

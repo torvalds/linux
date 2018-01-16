@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2006-2018 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -717,11 +717,13 @@ static enum hrtimer_restart rtTimerLinuxHrCallback(struct hrtimer *pHrTimer)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 /**
- * Timer callback for kernels 4.15 and later
+ * Timer callback function for standard timers.
+ *
+ * @param   pLnxTimer   Pointer to the Linux timer structure.
  */
-static void rtTimerLinuxStdCallback(struct timer_list *t)
+static void rtTimerLinuxStdCallback(struct timer_list *pLnxTimer)
 {
-    PRTTIMERLNXSUBTIMER pSubTimer = from_timer(pSubTimer, t, u.Std.LnxTimer);
+    PRTTIMERLNXSUBTIMER pSubTimer = from_timer(pSubTimer, pLnxTimer, u.Std.LnxTimer);
 #else
 /**
  * Timer callback function for standard timers.
@@ -1594,7 +1596,7 @@ RTDECL(int) RTTimerCreateEx(PRTTIMER *ppTimer, uint64_t u64NanoInterval, uint32_
 #endif
         {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
-            timer_setup(&pTimer->aSubTimers[iCpu].u.Std.LnxTimer,rtTimerLinuxStdCallback, TIMER_PINNED);
+            timer_setup(&pTimer->aSubTimers[iCpu].u.Std.LnxTimer, rtTimerLinuxStdCallback, TIMER_PINNED);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
             init_timer_pinned(&pTimer->aSubTimers[iCpu].u.Std.LnxTimer);
 #else
