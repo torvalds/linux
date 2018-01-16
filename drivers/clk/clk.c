@@ -548,7 +548,8 @@ static void clk_core_rate_unprotect(struct clk_core *core)
 	if (!core)
 		return;
 
-	if (WARN_ON(core->protect_count == 0))
+	if (WARN(core->protect_count == 0,
+	    "%s already unprotected\n", core->name))
 		return;
 
 	if (--core->protect_count > 0)
@@ -681,16 +682,18 @@ static void clk_core_unprepare(struct clk_core *core)
 	if (!core)
 		return;
 
-	if (WARN_ON(core->prepare_count == 0))
+	if (WARN(core->prepare_count == 0,
+	    "%s already unprepared\n", core->name))
 		return;
 
-	if (WARN_ON(core->prepare_count == 1 && core->flags & CLK_IS_CRITICAL))
+	if (WARN(core->prepare_count == 1 && core->flags & CLK_IS_CRITICAL,
+	    "Unpreparing critical %s\n", core->name))
 		return;
 
 	if (--core->prepare_count > 0)
 		return;
 
-	WARN_ON(core->enable_count > 0);
+	WARN(core->enable_count > 0, "Unpreparing enabled %s\n", core->name);
 
 	trace_clk_unprepare(core);
 
@@ -808,10 +811,11 @@ static void clk_core_disable(struct clk_core *core)
 	if (!core)
 		return;
 
-	if (WARN_ON(core->enable_count == 0))
+	if (WARN(core->enable_count == 0, "%s already disabled\n", core->name))
 		return;
 
-	if (WARN_ON(core->enable_count == 1 && core->flags & CLK_IS_CRITICAL))
+	if (WARN(core->enable_count == 1 && core->flags & CLK_IS_CRITICAL,
+	    "Disabling critical %s\n", core->name))
 		return;
 
 	if (--core->enable_count > 0)
@@ -866,7 +870,8 @@ static int clk_core_enable(struct clk_core *core)
 	if (!core)
 		return 0;
 
-	if (WARN_ON(core->prepare_count == 0))
+	if (WARN(core->prepare_count == 0,
+	    "Enabling unprepared %s\n", core->name))
 		return -ESHUTDOWN;
 
 	if (core->enable_count == 0) {
