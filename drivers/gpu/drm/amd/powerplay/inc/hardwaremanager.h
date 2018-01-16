@@ -358,6 +358,17 @@ struct phm_clocks {
 	uint32_t clock[MAX_NUM_CLOCKS];
 };
 
+#define DPMTABLE_OD_UPDATE_SCLK     0x00000001
+#define DPMTABLE_OD_UPDATE_MCLK     0x00000002
+#define DPMTABLE_UPDATE_SCLK        0x00000004
+#define DPMTABLE_UPDATE_MCLK        0x00000008
+#define DPMTABLE_OD_UPDATE_VDDC     0x00000010
+
+/* To determine if sclk and mclk are in overdrive state */
+#define SCLK_OVERDRIVE_ENABLED           0x00000001
+#define MCLK_OVERDRIVE_ENABLED           0x00000002
+#define VDDC_OVERDRIVE_ENABLED           0x00000010
+
 struct phm_odn_performance_level {
 	uint32_t clock;
 	uint32_t vddc;
