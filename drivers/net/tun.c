@@ -239,6 +239,12 @@ struct tun_struct {
 	struct tun_pcpu_stats __percpu *pcpu_stats;
 	struct bpf_prog __rcu *xdp_prog;
 	struct tun_prog __rcu *steering_prog;
+	struct tun_prog __rcu *filter_prog;
+};
+
+struct veth {
+	__be16 h_vlan_proto;
+	__be16 h_vlan_TCI;
 };
 
 bool tun_is_xdp_buff(void *ptr)
@@ -1036,12 +1042,25 @@ static void tun_automq_xmit(struct tun_struct *tun, struct sk_buff *skb)
 #endif
 }
 
+static unsigned int run_ebpf_filter(struct tun_struct *tun,
+				    struct sk_buff *skb,
+				    int len)
+{
+	struct tun_prog *prog = rcu_dereference(tun->filter_prog);
+
+	if (prog)
+		len = bpf_prog_run_clear_cb(prog->prog, skb);
+
+	return len;
+}
+
 /* Net device start xmit */
 static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 	int txq = skb->queue_mapping;
 	struct tun_file *tfile;
+	int len = skb->len;
 
 	rcu_read_lock();
 	tfile = rcu_dereference(tun->tfiles[txq]);
@@ -1065,6 +1084,15 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (tfile->socket.sk->sk_filter &&
 	    sk_filter(tfile->socket.sk, skb))
+		goto drop;
+
+	len = run_ebpf_filter(tun, skb, len);
+
+	/* Trim extra bytes since we may insert vlan proto & TCI
+	 * in tun_put_user().
+	 */
+	len -= skb_vlan_tag_present(skb) ? sizeof(struct veth) : 0;
+	if (len <= 0 || pskb_trim(skb, len))
 		goto drop;
 
 	if (unlikely(skb_orphan_frags_rx(skb, GFP_ATOMIC)))
@@ -2054,10 +2082,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 
 	if (vlan_hlen) {
 		int ret;
-		struct {
-			__be16 h_vlan_proto;
-			__be16 h_vlan_TCI;
-		} veth;
+		struct veth veth;
 
 		veth.h_vlan_proto = skb->vlan_proto;
 		veth.h_vlan_TCI = htons(skb_vlan_tag_get(skb));
@@ -2225,6 +2250,7 @@ static void tun_free_netdev(struct net_device *dev)
 	tun_flow_uninit(tun);
 	security_tun_dev_free_security(tun->security);
 	__tun_set_ebpf(tun, &tun->steering_prog, NULL);
+	__tun_set_ebpf(tun, &tun->filter_prog, NULL);
 }
 
 static void tun_setup(struct net_device *dev)
@@ -3017,6 +3043,10 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 
 	case TUNSETSTEERINGEBPF:
 		ret = tun_set_ebpf(tun, &tun->steering_prog, argp);
+		break;
+
+	case TUNSETFILTEREBPF:
+		ret = tun_set_ebpf(tun, &tun->filter_prog, argp);
 		break;
 
 	default:
