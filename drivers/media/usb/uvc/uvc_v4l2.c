@@ -336,7 +336,7 @@ done:
 static int uvc_v4l2_get_streamparm(struct uvc_streaming *stream,
 		struct v4l2_streamparm *parm)
 {
-	uint32_t numerator, denominator;
+	u32 numerator, denominator;
 
 	if (parm->type != stream->type)
 		return -EINVAL;

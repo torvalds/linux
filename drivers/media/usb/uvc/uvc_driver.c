@@ -267,11 +267,11 @@ static __u32 uvc_colorspace(const __u8 primaries)
  * continued fraction decomposition. Using 8 and 333 for n_terms and threshold
  * respectively seems to give nice results.
  */
-void uvc_simplify_fraction(uint32_t *numerator, uint32_t *denominator,
+void uvc_simplify_fraction(u32 *numerator, u32 *denominator,
 		unsigned int n_terms, unsigned int threshold)
 {
-	uint32_t *an;
-	uint32_t x, y, r;
+	u32 *an;
+	u32 x, y, r;
 	unsigned int i, n;
 
 	an = kmalloc(n_terms * sizeof *an, GFP_KERNEL);
@@ -318,21 +318,21 @@ void uvc_simplify_fraction(uint32_t *numerator, uint32_t *denominator,
  * to compute numerator / denominator * 10000000 using 32 bit fixed point
  * arithmetic only.
  */
-uint32_t uvc_fraction_to_interval(uint32_t numerator, uint32_t denominator)
+u32 uvc_fraction_to_interval(u32 numerator, u32 denominator)
 {
-	uint32_t multiplier;
+	u32 multiplier;
 
 	/* Saturate the result if the operation would overflow. */
 	if (denominator == 0 ||
-	    numerator/denominator >= ((uint32_t)-1)/10000000)
-		return (uint32_t)-1;
+	    numerator/denominator >= ((u32)-1)/10000000)
+		return (u32)-1;
 
 	/* Divide both the denominator and the multiplier by two until
 	 * numerator * multiplier doesn't overflow. If anyone knows a better
 	 * algorithm please let me know.
 	 */
 	multiplier = 10000000;
-	while (numerator > ((uint32_t)-1)/multiplier) {
+	while (numerator > ((u32)-1)/multiplier) {
 		multiplier /= 2;
 		denominator /= 2;
 	}
