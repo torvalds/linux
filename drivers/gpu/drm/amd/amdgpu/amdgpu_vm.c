@@ -970,12 +970,16 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 	amdgpu_gart_get_vm_pde(p->adev, AMDGPU_VM_PDB0,
 			       &dst, &flags);
 
-	if (parent->base.bo->shadow) {
-		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo->shadow);
-		pde = pd_addr + (entry - parent->entries) * 8;
-		p->func(p, pde, dst, 1, 0, flags);
+	if (p->func == amdgpu_vm_cpu_set_ptes) {
+		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->base.bo);
+	} else {
+		if (parent->base.bo->shadow) {
+			pd_addr = amdgpu_bo_gpu_offset(parent->base.bo->shadow);
+			pde = pd_addr + (entry - parent->entries) * 8;
+			p->func(p, pde, dst, 1, 0, flags);
+		}
+		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
 	}
-	pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
 	pde = pd_addr + (entry - parent->entries) * 8;
 	p->func(p, pde, dst, 1, 0, flags);
 }
