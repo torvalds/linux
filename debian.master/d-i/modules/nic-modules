@@ -140,6 +140,7 @@ orinoco_plx ?
 orinoco_tmd ?
 pcnet32 ?
 qcom-emac ?
+qede ?
 qeth ?
 qeth_l2 ?
 qeth_l3 ?
