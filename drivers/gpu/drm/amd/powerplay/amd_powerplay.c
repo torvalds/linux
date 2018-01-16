@@ -1122,6 +1122,24 @@ static int pp_set_power_profile_mode(void *handle, long *input, uint32_t size)
 	return hwmgr->hwmgr_func->set_power_profile_mode(hwmgr, input, size);
 }
 
+static int pp_odn_edit_dpm_table(void *handle, uint32_t type, long *input, uint32_t size)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+
+	if (pp_check(pp_handle))
+		return -EINVAL;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->odn_edit_dpm_table == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	return hwmgr->hwmgr_func->odn_edit_dpm_table(hwmgr, type, input, size);
+}
+
 static int pp_dpm_set_power_profile_state(void *handle,
 		struct amd_pp_profile *request)
 {
@@ -1507,6 +1525,7 @@ const struct amd_pm_funcs pp_dpm_funcs = {
 	.notify_smu_memory_info = pp_dpm_notify_smu_memory_info,
 	.get_power_profile_mode = pp_get_power_profile_mode,
 	.set_power_profile_mode = pp_set_power_profile_mode,
+	.odn_edit_dpm_table = pp_odn_edit_dpm_table,
 /* export to DC */
 	.get_sclk = pp_dpm_get_sclk,
 	.get_mclk = pp_dpm_get_mclk,
