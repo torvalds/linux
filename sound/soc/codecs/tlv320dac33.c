@@ -246,6 +246,19 @@ static int dac33_write(struct snd_soc_codec *codec, unsigned int reg,
 	return ret;
 }
 
+static int dac33_write_locked(struct snd_soc_codec *codec, unsigned int reg,
+			      unsigned int value)
+{
+	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	mutex_lock(&dac33->mutex);
+	ret = dac33_write(codec, reg, value);
+	mutex_unlock(&dac33->mutex);
+
+	return ret;
+}
+
 #define DAC33_I2C_ADDR_AUTOINC	0x80
 static int dac33_write16(struct snd_soc_codec *codec, unsigned int reg,
 		       unsigned int value)
@@ -1422,6 +1435,8 @@ static int dac33_soc_remove(struct snd_soc_codec *codec)
 }
 
 static const struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
+	.read = dac33_read_reg_cache,
+	.write = dac33_write_locked,
 	.set_bias_level = dac33_set_bias_level,
 	.idle_bias_off = true,
 
