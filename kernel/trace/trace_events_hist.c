@@ -251,6 +251,51 @@ static void destroy_hist_trigger_attrs(struct hist_trigger_attrs *attrs)
 	kfree(attrs);
 }
 
+static int parse_assignment(char *str, struct hist_trigger_attrs *attrs)
+{
+	int ret = 0;
+
+	if ((strncmp(str, "key=", strlen("key=")) == 0) ||
+	    (strncmp(str, "keys=", strlen("keys=")) == 0)) {
+		attrs->keys_str = kstrdup(str, GFP_KERNEL);
+		if (!attrs->keys_str) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	} else if ((strncmp(str, "val=", strlen("val=")) == 0) ||
+		 (strncmp(str, "vals=", strlen("vals=")) == 0) ||
+		 (strncmp(str, "values=", strlen("values=")) == 0)) {
+		attrs->vals_str = kstrdup(str, GFP_KERNEL);
+		if (!attrs->vals_str) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	} else if (strncmp(str, "sort=", strlen("sort=")) == 0) {
+		attrs->sort_key_str = kstrdup(str, GFP_KERNEL);
+		if (!attrs->sort_key_str) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	} else if (strncmp(str, "name=", strlen("name=")) == 0) {
+		attrs->name = kstrdup(str, GFP_KERNEL);
+		if (!attrs->name) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	} else if (strncmp(str, "size=", strlen("size=")) == 0) {
+		int map_bits = parse_map_size(str);
+
+		if (map_bits < 0) {
+			ret = map_bits;
+			goto out;
+		}
+		attrs->map_bits = map_bits;
+	} else
+		ret = -EINVAL;
+ out:
+	return ret;
+}
+
 static struct hist_trigger_attrs *parse_hist_trigger_attrs(char *trigger_str)
 {
 	struct hist_trigger_attrs *attrs;
@@ -263,33 +308,18 @@ static struct hist_trigger_attrs *parse_hist_trigger_attrs(char *trigger_str)
 	while (trigger_str) {
 		char *str = strsep(&trigger_str, ":");
 
-		if ((strncmp(str, "key=", strlen("key=")) == 0) ||
-		    (strncmp(str, "keys=", strlen("keys=")) == 0))
-			attrs->keys_str = kstrdup(str, GFP_KERNEL);
-		else if ((strncmp(str, "val=", strlen("val=")) == 0) ||
-			 (strncmp(str, "vals=", strlen("vals=")) == 0) ||
-			 (strncmp(str, "values=", strlen("values=")) == 0))
-			attrs->vals_str = kstrdup(str, GFP_KERNEL);
-		else if (strncmp(str, "sort=", strlen("sort=")) == 0)
-			attrs->sort_key_str = kstrdup(str, GFP_KERNEL);
-		else if (strncmp(str, "name=", strlen("name=")) == 0)
-			attrs->name = kstrdup(str, GFP_KERNEL);
-		else if (strcmp(str, "pause") == 0)
+		if (strchr(str, '=')) {
+			ret = parse_assignment(str, attrs);
+			if (ret)
+				goto free;
+		} else if (strcmp(str, "pause") == 0)
 			attrs->pause = true;
 		else if ((strcmp(str, "cont") == 0) ||
 			 (strcmp(str, "continue") == 0))
 			attrs->cont = true;
 		else if (strcmp(str, "clear") == 0)
 			attrs->clear = true;
-		else if (strncmp(str, "size=", strlen("size=")) == 0) {
-			int map_bits = parse_map_size(str);
-
-			if (map_bits < 0) {
-				ret = map_bits;
-				goto free;
-			}
-			attrs->map_bits = map_bits;
-		} else {
+		else {
 			ret = -EINVAL;
 			goto free;
 		}
