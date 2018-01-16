@@ -115,6 +115,8 @@ qla2x00_async_iocb_timeout(void *data)
 
 	switch (sp->type) {
 	case SRB_LOGIN_CMD:
+		if (!fcport)
+			break;
 		/* Retry as needed. */
 		lio->u.logio.data[0] = MBS_COMMAND_ERROR;
 		lio->u.logio.data[1] = lio->u.logio.flags & SRB_LOGIN_RETRIED ?
@@ -128,6 +130,8 @@ qla2x00_async_iocb_timeout(void *data)
 		qla24xx_handle_plogi_done_event(fcport->vha, &ea);
 		break;
 	case SRB_LOGOUT_CMD:
+		if (!fcport)
+			break;
 		qlt_logo_completion_handler(fcport, QLA_FUNCTION_TIMEOUT);
 		break;
 	case SRB_CT_PTHRU_CMD:
