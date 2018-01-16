@@ -43,9 +43,11 @@ struct isp_supplemental_sensor_mode_data {
 	unsigned int isp_output_height;
 	unsigned char binning_factor_x; /* horizontal binning factor used */
 	unsigned char binning_factor_y; /* vertical binning factor used */
-	unsigned char exposure_valid_frame;
+	unsigned char exposure_valid_frame[2];
 	int exp_time;
 	unsigned short gain;
+	unsigned short af_onoff;
+	unsigned int vcm_max_step;
 };
 
 struct camera_module_info_s {

@@ -1552,12 +1552,12 @@ static int cif_isp10_config_img_src(
 	if (IS_ERR_VALUE(ret)) {
 		dev->img_src_exps.exp_valid_frms = 2;
 	} else {
-		if ((sensor_mode.exposure_valid_frame < 2) ||
-			(sensor_mode.exposure_valid_frame > 6))
+		if ((sensor_mode.exposure_valid_frame[0] < 2) ||
+			(sensor_mode.exposure_valid_frame[0] > 6))
 			dev->img_src_exps.exp_valid_frms = 2;
 		else
 			dev->img_src_exps.exp_valid_frms =
-				sensor_mode.exposure_valid_frame;
+				sensor_mode.exposure_valid_frame[0];
 	}
 	cif_isp10_pltfrm_pr_dbg(dev->dev,
 		"cam_itf: (type: 0x%x, dphy: %d, vc: %d, nb_lanes: %d, bitrate: %d)",

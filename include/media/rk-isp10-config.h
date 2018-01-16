@@ -155,7 +155,7 @@ struct cifisp_awb_stat {
 };
 
 struct cifisp_hist_stat {
-	unsigned short hist_bins[CIFISP_HIST_BIN_N_MAX];
+	unsigned int hist_bins[CIFISP_HIST_BIN_N_MAX];
 };
 
 /*! BLS mean measured values */
