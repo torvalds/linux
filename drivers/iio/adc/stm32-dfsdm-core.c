@@ -253,13 +253,8 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 
 	priv->pdev = pdev;
 
-	of_id = of_match_node(stm32_dfsdm_of_match, pdev->dev.of_node);
-	if (!of_id->data) {
-		dev_err(&pdev->dev, "Data associated to device is missing\n");
-		return -EINVAL;
-	}
+	dev_data = of_device_get_match_data(&pdev->dev);
 
-	dev_data = (const struct stm32_dfsdm_dev_data *)of_id->data;
 	dfsdm = &priv->dfsdm;
 	dfsdm->fl_list = devm_kcalloc(&pdev->dev, dev_data->num_filters,
 				      sizeof(*dfsdm->fl_list), GFP_KERNEL);
