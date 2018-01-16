@@ -862,7 +862,7 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 	int id = msm_dsi->id;
 	int ret;
 
-	if (id > DSI_MAX) {
+	if (id >= DSI_MAX) {
 		pr_err("%s: invalid id %d\n", __func__, id);
 		return -EINVAL;
 	}
