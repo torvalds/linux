@@ -488,6 +488,7 @@ struct ring_buffer {
 	u64				(*clock)(void);
 
 	struct rb_irq_work		irq_work;
+	bool				time_stamp_abs;
 };
 
 struct ring_buffer_iter {
@@ -1380,6 +1381,16 @@ void ring_buffer_set_clock(struct ring_buffer *buffer,
 			   u64 (*clock)(void))
 {
 	buffer->clock = clock;
+}
+
+void ring_buffer_set_time_stamp_abs(struct ring_buffer *buffer, bool abs)
+{
+	buffer->time_stamp_abs = abs;
+}
+
+bool ring_buffer_time_stamp_abs(struct ring_buffer *buffer)
+{
+	return buffer->time_stamp_abs;
 }
 
 static void rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer);
