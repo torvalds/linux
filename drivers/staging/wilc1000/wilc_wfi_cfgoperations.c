@@ -815,7 +815,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 	struct host_if_drv *wfi_drv;
 	struct wilc_vif *vif;
 	struct wilc *wilc;
-	u8 NullBssid[ETH_ALEN] = {0};
+	u8 null_bssid[ETH_ALEN] = {0};
 
 	wilc_connecting = 0;
 	priv = wiphy_priv(wiphy);
@@ -834,7 +834,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 	wfi_drv = (struct host_if_drv *)priv->hif_drv;
 	if (!wfi_drv->p2p_connect)
 		wlan_channel = INVALID_CHANNEL;
-	wilc_wlan_set_bssid(priv->dev, NullBssid, STATION_MODE);
+	wilc_wlan_set_bssid(priv->dev, null_bssid, STATION_MODE);
 
 	p2p_local_random = 0x01;
 	p2p_recv_random = 0x00;
@@ -1936,7 +1936,7 @@ static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	s32 ret = 0;
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
-	u8 NullBssid[ETH_ALEN] = {0};
+	u8 null_bssid[ETH_ALEN] = {0};
 
 	if (!wiphy)
 		return -EFAULT;
@@ -1944,7 +1944,7 @@ static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(priv->dev);
 
-	wilc_wlan_set_bssid(dev, NullBssid, AP_MODE);
+	wilc_wlan_set_bssid(dev, null_bssid, AP_MODE);
 
 	ret = wilc_del_beacon(vif);
 
