@@ -104,7 +104,7 @@ struct xdp_exception_ctx {
 SEC("tracepoint/xdp/xdp_exception")
 int trace_xdp_exception(struct xdp_exception_ctx *ctx)
 {
-	u64 *cnt;;
+	u64 *cnt;
 	u32 key;
 
 	key = ctx->act;
