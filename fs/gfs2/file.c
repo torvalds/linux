@@ -246,7 +246,8 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	}
 	if ((flags ^ new_flags) & GFS2_DIF_JDATA) {
 		if (new_flags & GFS2_DIF_JDATA)
-			gfs2_log_flush(sdp, ip->i_gl, NORMAL_FLUSH);
+			gfs2_log_flush(sdp, ip->i_gl,
+				       GFS2_LOG_HEAD_FLUSH_NORMAL);
 		error = filemap_fdatawrite(inode->i_mapping);
 		if (error)
 			goto out;

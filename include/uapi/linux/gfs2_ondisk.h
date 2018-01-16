@@ -403,7 +403,15 @@ struct gfs2_ea_header {
  * Log header structure
  */
 
-#define GFS2_LOG_HEAD_UNMOUNT	0x00000001	/* log is clean */
+#define GFS2_LOG_HEAD_UNMOUNT		0x00000001 /* log is clean */
+#define GFS2_LOG_HEAD_FLUSH_NORMAL	0x00000002 /* normal log flush */
+#define GFS2_LOG_HEAD_FLUSH_SYNC	0x00000004 /* Sync log flush */
+#define GFS2_LOG_HEAD_FLUSH_SHUTDOWN	0x00000008 /* Shutdown log flush */
+#define GFS2_LOG_HEAD_FLUSH_FREEZE	0x00000010 /* Freeze flush */
+#define GFS2_LOG_HEAD_RECOVERY		0x00000020 /* Journal recovery */
+#define GFS2_LOG_HEAD_USERSPACE		0x80000000 /* Written by gfs2-utils */
+
+#define LH_V1_SIZE (offsetofend(struct gfs2_log_header, lh_hash))
 
 struct gfs2_log_header {
 	struct gfs2_meta_header lh_header;
@@ -412,7 +420,21 @@ struct gfs2_log_header {
 	__be32 lh_flags;	/* GFS2_LOG_HEAD_... */
 	__be32 lh_tail;		/* Block number of log tail */
 	__be32 lh_blkno;
-	__be32 lh_hash;
+	__be32 lh_hash;		/* crc up to here with this field 0 */
+
+	/* Version 2 additional fields start here */
+	__be32 lh_crc;		/* crc32c from lh_nsec to end of block */
+	__be32 lh_nsec;		/* Nanoseconds of timestamp */
+	__be64 lh_sec;		/* Seconds of timestamp */
+	__be64 lh_addr;		/* Block addr of this log header (absolute) */
+	__be64 lh_jinode;	/* Journal inode number */
+	__be64 lh_statfs_addr;	/* Local statfs inode number */
+	__be64 lh_quota_addr;	/* Local quota change inode number */
+
+	/* Statfs local changes (i.e. diff from global statfs) */
+	__be64 lh_local_total;
+	__be64 lh_local_free;
+	__be64 lh_local_dinodes;
 };
 
 /*

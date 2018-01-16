@@ -14,6 +14,7 @@
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
+#include <linux/crc32c.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -137,7 +138,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 {
 	struct gfs2_log_header *lh;
 	struct buffer_head *bh;
-	u32 hash;
+	u32 hash, crc;
 	int error;
 
 	error = gfs2_replay_read_block(jd, blk, &bh);
@@ -145,13 +146,17 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 		return error;
 	lh = (void *)bh->b_data;
 
-	hash = crc32(~0, lh, sizeof(*lh) - 4);
+	hash = crc32(~0, lh, LH_V1_SIZE - 4);
 	hash = ~crc32_le_shift(hash, 4);  /* assume lh_hash is zero */
+
+	crc = crc32c(~0, (void *)lh + LH_V1_SIZE + 4,
+		     bh->b_size - LH_V1_SIZE - 4);
 
 	error = lh->lh_header.mh_magic != cpu_to_be32(GFS2_MAGIC) ||
 		lh->lh_header.mh_type != cpu_to_be32(GFS2_METATYPE_LH) ||
 		be32_to_cpu(lh->lh_blkno) != blk ||
-		be32_to_cpu(lh->lh_hash) != hash;
+		be32_to_cpu(lh->lh_hash) != hash ||
+		(lh->lh_crc != 0 && be32_to_cpu(lh->lh_crc) != crc);
 
 	brelse(bh);
 
@@ -372,9 +377,9 @@ static void clean_journal(struct gfs2_jdesc *jd,
 
 	sdp->sd_log_flush_head = head->lh_blkno;
 	gfs2_replay_incr_blk(jd, &sdp->sd_log_flush_head);
-	gfs2_write_log_header(sdp, head->lh_sequence + 1, 0,
-			      GFS2_LOG_HEAD_UNMOUNT, REQ_PREFLUSH |
-			      REQ_FUA | REQ_META | REQ_SYNC);
+	gfs2_write_log_header(sdp, jd, head->lh_sequence + 1, 0,
+			      GFS2_LOG_HEAD_UNMOUNT | GFS2_LOG_HEAD_RECOVERY,
+			      REQ_PREFLUSH | REQ_FUA | REQ_META | REQ_SYNC);
 }
 
 
