@@ -196,7 +196,7 @@ struct tun_flow_entry {
 
 #define TUN_NUM_FLOW_ENTRIES 1024
 
-struct tun_steering_prog {
+struct tun_prog {
 	struct rcu_head rcu;
 	struct bpf_prog *prog;
 };
@@ -238,7 +238,7 @@ struct tun_struct {
 	u32 rx_batched;
 	struct tun_pcpu_stats __percpu *pcpu_stats;
 	struct bpf_prog __rcu *xdp_prog;
-	struct tun_steering_prog __rcu *steering_prog;
+	struct tun_prog __rcu *steering_prog;
 };
 
 bool tun_is_xdp_buff(void *ptr)
@@ -590,7 +590,7 @@ static u16 tun_automq_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 
 static u16 tun_ebpf_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 {
-	struct tun_steering_prog *prog;
+	struct tun_prog *prog;
 	u16 ret = 0;
 
 	prog = rcu_dereference(tun->steering_prog);
@@ -2184,19 +2184,18 @@ static ssize_t tun_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	return ret;
 }
 
-static void tun_steering_prog_free(struct rcu_head *rcu)
+static void tun_prog_free(struct rcu_head *rcu)
 {
-	struct tun_steering_prog *prog = container_of(rcu,
-					 struct tun_steering_prog, rcu);
+	struct tun_prog *prog = container_of(rcu, struct tun_prog, rcu);
 
 	bpf_prog_destroy(prog->prog);
 	kfree(prog);
 }
 
-static int __tun_set_steering_ebpf(struct tun_struct *tun,
-				   struct bpf_prog *prog)
+static int __tun_set_ebpf(struct tun_struct *tun, struct tun_prog **prog_p,
+			  struct bpf_prog *prog)
 {
-	struct tun_steering_prog *old, *new = NULL;
+	struct tun_prog *old, *new = NULL;
 
 	if (prog) {
 		new = kmalloc(sizeof(*new), GFP_KERNEL);
@@ -2206,13 +2205,13 @@ static int __tun_set_steering_ebpf(struct tun_struct *tun,
 	}
 
 	spin_lock_bh(&tun->lock);
-	old = rcu_dereference_protected(tun->steering_prog,
+	old = rcu_dereference_protected(*prog_p,
 					lockdep_is_held(&tun->lock));
-	rcu_assign_pointer(tun->steering_prog, new);
+	rcu_assign_pointer(*prog_p, new);
 	spin_unlock_bh(&tun->lock);
 
 	if (old)
-		call_rcu(&old->rcu, tun_steering_prog_free);
+		call_rcu(&old->rcu, tun_prog_free);
 
 	return 0;
 }
@@ -2225,7 +2224,7 @@ static void tun_free_netdev(struct net_device *dev)
 	free_percpu(tun->pcpu_stats);
 	tun_flow_uninit(tun);
 	security_tun_dev_free_security(tun->security);
-	__tun_set_steering_ebpf(tun, NULL);
+	__tun_set_ebpf(tun, &tun->steering_prog, NULL);
 }
 
 static void tun_setup(struct net_device *dev)
@@ -2720,7 +2719,8 @@ unlock:
 	return ret;
 }
 
-static int tun_set_steering_ebpf(struct tun_struct *tun, void __user *data)
+static int tun_set_ebpf(struct tun_struct *tun, struct tun_prog **prog_p,
+			void __user *data)
 {
 	struct bpf_prog *prog;
 	int fd;
@@ -2736,7 +2736,7 @@ static int tun_set_steering_ebpf(struct tun_struct *tun, void __user *data)
 			return PTR_ERR(prog);
 	}
 
-	return __tun_set_steering_ebpf(tun, prog);
+	return __tun_set_ebpf(tun, prog_p, prog);
 }
 
 static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
@@ -3016,7 +3016,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case TUNSETSTEERINGEBPF:
-		ret = tun_set_steering_ebpf(tun, argp);
+		ret = tun_set_ebpf(tun, &tun->steering_prog, argp);
 		break;
 
 	default:
