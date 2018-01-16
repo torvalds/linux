@@ -124,35 +124,3 @@ int dpmcp_reset(struct fsl_mc_io *mc_io,
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
 }
-
-/**
- * dpmcp_get_api_version - Get Data Path Management Command Portal API version
- * @mc_io:	Pointer to Mc portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @major_ver:	Major version of Data Path Management Command Portal API
- * @minor_ver:	Minor version of Data Path Management Command Portal API
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dpmcp_get_api_version(struct fsl_mc_io *mc_io,
-			  u32 cmd_flags,
-			  u16 *major_ver,
-			  u16 *minor_ver)
-{
-	struct mc_command cmd = { 0 };
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_GET_API_VERSION,
-					  cmd_flags, 0);
-
-	/* send command to mc */
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	mc_cmd_read_api_version(&cmd, major_ver, minor_ver);
-
-	return 0;
-}

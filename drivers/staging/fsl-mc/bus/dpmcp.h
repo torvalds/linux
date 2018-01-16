@@ -48,11 +48,6 @@ int dpmcp_close(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
 
-int dpmcp_get_api_version(struct fsl_mc_io *mc_io,
-			  u32 cmd_flags,
-			  u16 *major_ver,
-			  u16 *minor_ver);
-
 int dpmcp_reset(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);

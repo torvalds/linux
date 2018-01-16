@@ -50,24 +50,12 @@ int dprc_close(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       u16 token);
 
-/* IRQ */
-
-/* IRQ index */
-#define DPRC_IRQ_INDEX          0
-
-/* Number of dprc's IRQs */
-#define DPRC_NUM_OF_IRQS	1
-
 /* DPRC IRQ events */
 
 /* IRQ event - Indicates that a new object added to the container */
 #define DPRC_IRQ_EVENT_OBJ_ADDED		0x00000001
 /* IRQ event - Indicates that an object was removed from the container */
 #define DPRC_IRQ_EVENT_OBJ_REMOVED		0x00000002
-/* IRQ event - Indicates that resources added to the container */
-#define DPRC_IRQ_EVENT_RES_ADDED		0x00000004
-/* IRQ event - Indicates that resources removed from the container */
-#define DPRC_IRQ_EVENT_RES_REMOVED		0x00000008
 /*
  * IRQ event - Indicates that one of the descendant containers that opened by
  * this container is destroyed
@@ -101,36 +89,17 @@ int dprc_set_irq(struct fsl_mc_io *mc_io,
 		 u8 irq_index,
 		 struct dprc_irq_cfg *irq_cfg);
 
-int dprc_get_irq(struct fsl_mc_io *mc_io,
-		 u32 cmd_flags,
-		 u16 token,
-		 u8 irq_index,
-		 int *type,
-		 struct dprc_irq_cfg *irq_cfg);
-
 int dprc_set_irq_enable(struct fsl_mc_io *mc_io,
 			u32 cmd_flags,
 			u16 token,
 			u8 irq_index,
 			u8 en);
 
-int dprc_get_irq_enable(struct fsl_mc_io *mc_io,
-			u32 cmd_flags,
-			u16 token,
-			u8 irq_index,
-			u8 *en);
-
 int dprc_set_irq_mask(struct fsl_mc_io *mc_io,
 		      u32 cmd_flags,
 		      u16 token,
 		      u8 irq_index,
 		      u32 mask);
-
-int dprc_get_irq_mask(struct fsl_mc_io *mc_io,
-		      u32 cmd_flags,
-		      u16 token,
-		      u8 irq_index,
-		      u32 *mask);
 
 int dprc_get_irq_status(struct fsl_mc_io *mc_io,
 			u32 cmd_flags,
@@ -174,13 +143,6 @@ int dprc_get_obj(struct fsl_mc_io *mc_io,
 		 int obj_index,
 		 struct fsl_mc_obj_desc *obj_desc);
 
-int dprc_get_obj_desc(struct fsl_mc_io *mc_io,
-		      u32 cmd_flags,
-		      u16 token,
-		      char *obj_type,
-		      int obj_id,
-		      struct fsl_mc_obj_desc *obj_desc);
-
 int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 		     u32 cmd_flags,
 		     u16 token,
@@ -188,33 +150,6 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 		     int obj_id,
 		     u8 irq_index,
 		     struct dprc_irq_cfg *irq_cfg);
-
-int dprc_get_obj_irq(struct fsl_mc_io *mc_io,
-		     u32 cmd_flags,
-		     u16 token,
-		     char *obj_type,
-		     int obj_id,
-		     u8 irq_index,
-		     int *type,
-		     struct dprc_irq_cfg *irq_cfg);
-
-int dprc_get_res_count(struct fsl_mc_io *mc_io,
-		       u32 cmd_flags,
-		       u16 token,
-		       char *type,
-		       int *res_count);
-
-/**
- * enum dprc_iter_status - Iteration status
- * @DPRC_ITER_STATUS_FIRST: Perform first iteration
- * @DPRC_ITER_STATUS_MORE: Indicates more/next iteration is needed
- * @DPRC_ITER_STATUS_LAST: Indicates last iteration
- */
-enum dprc_iter_status {
-	DPRC_ITER_STATUS_FIRST = 0,
-	DPRC_ITER_STATUS_MORE = 1,
-	DPRC_ITER_STATUS_LAST = 2
-};
 
 /* Region flags */
 /* Cacheable - Indicates that region should be mapped as cacheable */

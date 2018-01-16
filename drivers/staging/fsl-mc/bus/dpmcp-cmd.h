@@ -45,8 +45,6 @@
 /* Command IDs */
 #define DPMCP_CMDID_CLOSE		DPMCP_CMD(0x800)
 #define DPMCP_CMDID_OPEN		DPMCP_CMD(0x80b)
-#define DPMCP_CMDID_GET_API_VERSION	DPMCP_CMD(0xa0b)
-
 #define DPMCP_CMDID_RESET		DPMCP_CMD(0x005)
 
 struct dpmcp_cmd_open {
