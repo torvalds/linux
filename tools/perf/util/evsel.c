@@ -2533,6 +2533,7 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 
 	if (type & PERF_SAMPLE_CPU) {
 		u.val32[0] = sample->cpu;
+		u.val32[1] = 0;
 		if (swapped) {
 			/*
 			 * Inverse of what is done in perf_evsel__parse_sample
