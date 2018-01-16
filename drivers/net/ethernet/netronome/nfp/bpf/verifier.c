@@ -132,22 +132,24 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 
 	case BPF_FUNC_map_lookup_elem:
 		if (!bpf->helpers.map_lookup) {
-			pr_info("map_lookup: not supported by FW\n");
+			pr_vlog(env, "map_lookup: not supported by FW\n");
 			return -EOPNOTSUPP;
 		}
 		if (reg2->type != PTR_TO_STACK) {
-			pr_info("map_lookup: unsupported key ptr type %d\n",
+			pr_vlog(env,
+				"map_lookup: unsupported key ptr type %d\n",
 				reg2->type);
 			return -EOPNOTSUPP;
 		}
 		if (!tnum_is_const(reg2->var_off)) {
-			pr_info("map_lookup: variable key pointer\n");
+			pr_vlog(env, "map_lookup: variable key pointer\n");
 			return -EOPNOTSUPP;
 		}
 
 		off = reg2->var_off.value + reg2->off;
 		if (-off % 4) {
-			pr_info("map_lookup: unaligned stack pointer %lld\n",
+			pr_vlog(env,
+				"map_lookup: unaligned stack pointer %lld\n",
 				-off);
 			return -EOPNOTSUPP;
 		}
@@ -160,7 +162,7 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
 		meta->arg2_var_off |= off != old_off;
 
 		if (meta->arg1.map_ptr != reg1->map_ptr) {
-			pr_info("map_lookup: called for different map\n");
+			pr_vlog(env, "map_lookup: called for different map\n");
 			return -EOPNOTSUPP;
 		}
 		break;
@@ -263,7 +265,7 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	if (reg->type == PTR_TO_MAP_VALUE) {
 		if (is_mbpf_store(meta)) {
-			pr_info("map writes not supported\n");
+			pr_vlog(env, "map writes not supported\n");
 			return -EOPNOTSUPP;
 		}
 	}
