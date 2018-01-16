@@ -22,6 +22,7 @@ config RISCV
 	select GENERIC_ATOMIC64 if !64BIT || !RISCV_ISA_A
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_GENERIC_DMA_COHERENT
@@ -42,6 +43,10 @@ config MMU
 # even on 32-bit, physical (and DMA) addresses are > 32-bits
 config ARCH_PHYS_ADDR_T_64BIT
 	def_bool y
+
+config ZONE_DMA32
+	bool
+	default y
 
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool y

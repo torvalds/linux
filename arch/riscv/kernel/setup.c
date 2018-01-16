@@ -181,6 +181,15 @@ static void __init setup_bootmem(void)
 	early_init_fdt_scan_reserved_mem();
 	memblock_allow_resize();
 	memblock_dump_all();
+
+	for_each_memblock(memory, reg) {
+		unsigned long start_pfn = memblock_region_memory_base_pfn(reg);
+		unsigned long end_pfn = memblock_region_memory_end_pfn(reg);
+
+		memblock_set_node(PFN_PHYS(start_pfn),
+		                  PFN_PHYS(end_pfn - start_pfn),
+		                  &memblock.memory, 0);
+	}
 }
 
 void __init setup_arch(char **cmdline_p)
