@@ -228,6 +228,7 @@ enum hist_field_flags {
 	HIST_FIELD_FL_EXPR		= 1 << 13,
 	HIST_FIELD_FL_VAR_REF		= 1 << 14,
 	HIST_FIELD_FL_CPU		= 1 << 15,
+	HIST_FIELD_FL_ALIAS		= 1 << 16,
 };
 
 struct var_defs {
@@ -1609,7 +1610,8 @@ static const char *hist_field_name(struct hist_field *field,
 
 	if (field->field)
 		field_name = field->field->name;
-	else if (field->flags & HIST_FIELD_FL_LOG2)
+	else if (field->flags & HIST_FIELD_FL_LOG2 ||
+		 field->flags & HIST_FIELD_FL_ALIAS)
 		field_name = hist_field_name(field->operands[0], ++level);
 	else if (field->flags & HIST_FIELD_FL_TIMESTAMP)
 		field_name = "common_timestamp";
@@ -2080,7 +2082,7 @@ static struct hist_field *create_hist_field(struct hist_trigger_data *hist_data,
 
 	hist_field->hist_data = hist_data;
 
-	if (flags & HIST_FIELD_FL_EXPR)
+	if (flags & HIST_FIELD_FL_EXPR || flags & HIST_FIELD_FL_ALIAS)
 		goto out; /* caller will populate */
 
 	if (flags & HIST_FIELD_FL_VAR_REF) {
@@ -2217,10 +2219,18 @@ static int init_var_ref(struct hist_field *ref_field,
 		}
 	}
 
-	ref_field->name = kstrdup(var_field->var.name, GFP_KERNEL);
-	if (!ref_field->name) {
-		err = -ENOMEM;
-		goto free;
+	if (var_field->var.name) {
+		ref_field->name = kstrdup(var_field->var.name, GFP_KERNEL);
+		if (!ref_field->name) {
+			err = -ENOMEM;
+			goto free;
+		}
+	} else if (var_field->name) {
+		ref_field->name = kstrdup(var_field->name, GFP_KERNEL);
+		if (!ref_field->name) {
+			err = -ENOMEM;
+			goto free;
+		}
 	}
 
 	ref_field->type = kstrdup(var_field->type, GFP_KERNEL);
@@ -2382,6 +2392,28 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 	return field;
 }
 
+static struct hist_field *create_alias(struct hist_trigger_data *hist_data,
+				       struct hist_field *var_ref,
+				       char *var_name)
+{
+	struct hist_field *alias = NULL;
+	unsigned long flags = HIST_FIELD_FL_ALIAS | HIST_FIELD_FL_VAR;
+
+	alias = create_hist_field(hist_data, NULL, flags, var_name);
+	if (!alias)
+		return NULL;
+
+	alias->fn = var_ref->fn;
+	alias->operands[0] = var_ref;
+
+	if (init_var_ref(alias, var_ref, var_ref->system, var_ref->event_name)) {
+		destroy_hist_field(alias, 0);
+		return NULL;
+	}
+
+	return alias;
+}
+
 static struct hist_field *parse_atom(struct hist_trigger_data *hist_data,
 				     struct trace_event_file *file, char *str,
 				     unsigned long *flags, char *var_name)
@@ -2415,6 +2447,13 @@ static struct hist_field *parse_atom(struct hist_trigger_data *hist_data,
 		if (hist_field) {
 			hist_data->var_refs[hist_data->n_var_refs] = hist_field;
 			hist_field->var_ref_idx = hist_data->n_var_refs++;
+			if (var_name) {
+				hist_field = create_alias(hist_data, hist_field, var_name);
+				if (!hist_field) {
+					ret = -ENOMEM;
+					goto out;
+				}
+			}
 			return hist_field;
 		}
 	} else
@@ -2514,6 +2553,26 @@ static int check_expr_operands(struct hist_field *operand1,
 {
 	unsigned long operand1_flags = operand1->flags;
 	unsigned long operand2_flags = operand2->flags;
+
+	if ((operand1_flags & HIST_FIELD_FL_VAR_REF) ||
+	    (operand1_flags & HIST_FIELD_FL_ALIAS)) {
+		struct hist_field *var;
+
+		var = find_var_field(operand1->var.hist_data, operand1->name);
+		if (!var)
+			return -EINVAL;
+		operand1_flags = var->flags;
+	}
+
+	if ((operand2_flags & HIST_FIELD_FL_VAR_REF) ||
+	    (operand2_flags & HIST_FIELD_FL_ALIAS)) {
+		struct hist_field *var;
+
+		var = find_var_field(operand2->var.hist_data, operand2->name);
+		if (!var)
+			return -EINVAL;
+		operand2_flags = var->flags;
+	}
 
 	if ((operand1_flags & HIST_FIELD_FL_TIMESTAMP_USECS) !=
 	    (operand2_flags & HIST_FIELD_FL_TIMESTAMP_USECS))
@@ -4646,7 +4705,8 @@ static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
 	else if (hist_field->flags & HIST_FIELD_FL_CPU)
 		seq_puts(m, "cpu");
 	else if (field_name) {
-		if (hist_field->flags & HIST_FIELD_FL_VAR_REF)
+		if (hist_field->flags & HIST_FIELD_FL_VAR_REF ||
+		    hist_field->flags & HIST_FIELD_FL_ALIAS)
 			seq_putc(m, '$');
 		seq_printf(m, "%s", field_name);
 	}
