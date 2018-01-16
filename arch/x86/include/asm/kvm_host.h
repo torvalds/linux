@@ -761,6 +761,15 @@ enum kvm_irqchip_mode {
 	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
 };
 
+struct kvm_sev_info {
+	bool active;		/* SEV enabled guest */
+	unsigned int asid;	/* ASID used for this guest */
+	unsigned int handle;	/* SEV firmware handle */
+	int fd;			/* SEV device fd */
+	unsigned long pages_locked; /* Number of pages locked */
+	struct list_head regions_list;  /* List of registered regions */
+};
+
 struct kvm_arch {
 	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
@@ -848,6 +857,8 @@ struct kvm_arch {
 
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
+
+	struct kvm_sev_info sev_info;
 };
 
 struct kvm_vm_stat {
@@ -1081,6 +1092,10 @@ struct kvm_x86_ops {
 	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
 	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, u64 smbase);
 	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
+
+	int (*mem_enc_op)(struct kvm *kvm, void __user *argp);
+	int (*mem_enc_reg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
+	int (*mem_enc_unreg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
 };
 
 struct kvm_arch_async_pf {
