@@ -1671,7 +1671,16 @@ features have been added to the hist trigger support:
     it is in units of nanoseconds; appending '.usecs' to a
     common_timestamp field changes the units to microseconds.
 
-These features are decribed in more detail in the following sections.
+A note on inter-event timestamps: If common_timestamp is used in a
+histogram, the trace buffer is automatically switched over to using
+absolute timestamps and the "global" trace clock, in order to avoid
+bogus timestamp differences with other clocks that aren't coherent
+across CPUs.  This can be overridden by specifying one of the other
+trace clocks instead, using the "clock=XXX" hist trigger attribute,
+where XXX is any of the clocks listed in the tracing/trace_clock
+pseudo-file.
+
+These features are described in more detail in the following sections.
 
 2.2.1 Histogram Variables
 -------------------------
