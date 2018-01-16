@@ -143,6 +143,15 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 		seq_printf(s, "Current IOCB count[%d]\n", mb[10]);
 		seq_printf(s, "MAX VP count[%d]\n", mb[11]);
 		seq_printf(s, "MAX FCF count[%d]\n", mb[12]);
+		seq_printf(s, "Current free pageable XCB buffer cnt[%d]\n",
+		    mb[20]);
+		seq_printf(s, "Original Initiator fast XCB buffer cnt[%d]\n",
+		    mb[21]);
+		seq_printf(s, "Current free Initiator fast XCB buffer cnt[%d]\n",
+		    mb[22]);
+		seq_printf(s, "Original Target fast XCB buffer cnt[%d]\n",
+		    mb[23]);
+
 	}
 
 	return 0;
