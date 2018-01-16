@@ -17,6 +17,7 @@
  * Release Date:  2015/07/10
  */
 
+#include <linux/compat.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/sched.h>

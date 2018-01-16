@@ -60,12 +60,11 @@ s8 IC_TYPE[16] = "GT1X";
 static char procname[20] = { 0 };
 
 static struct proc_dir_entry *gt1x_tool_proc_entry;
-static struct file_operations gt1x_tool_fops = {
-	.read = gt1x_tool_read,
-	.write = gt1x_tool_write,
-  .open = gt1x_tool_open,
-  .release = gt1x_tool_release,
-  .owner = THIS_MODULE,
+static const struct proc_ops gt1x_tool_fops = {
+	.proc_read = gt1x_tool_read,
+	.proc_write = gt1x_tool_write,
+	.proc_open = gt1x_tool_open,
+	.proc_release = gt1x_tool_release,
 };
 
 static void set_tool_node_name(char *procname)
