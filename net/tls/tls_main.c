@@ -454,6 +454,15 @@ static int tls_init(struct sock *sk)
 	struct tls_context *ctx;
 	int rc = 0;
 
+	/* The TLS ulp is currently supported only for TCP sockets
+	 * in ESTABLISHED state.
+	 * Supporting sockets in LISTEN state will require us
+	 * to modify the accept implementation to clone rather then
+	 * share the ulp context.
+	 */
+	if (sk->sk_state != TCP_ESTABLISHED)
+		return -ENOTSUPP;
+
 	/* allocate tls context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
