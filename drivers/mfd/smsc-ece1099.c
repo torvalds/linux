@@ -39,10 +39,8 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 
 	smsc = devm_kzalloc(&i2c->dev, sizeof(struct smsc),
 				GFP_KERNEL);
-	if (!smsc) {
-		dev_err(&i2c->dev, "smsc mfd driver memory allocation failed\n");
+	if (!smsc)
 		return -ENOMEM;
-	}
 
 	smsc->regmap = devm_regmap_init_i2c(i2c, &smsc_regmap_config);
 	if (IS_ERR(smsc->regmap))
