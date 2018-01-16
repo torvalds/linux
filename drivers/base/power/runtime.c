@@ -1640,7 +1640,7 @@ static bool pm_runtime_need_not_resume(struct device *dev)
 int pm_runtime_force_suspend(struct device *dev)
 {
 	int (*callback)(struct device *);
-	int ret = 0;
+	int ret;
 
 	pm_runtime_disable(dev);
 	if (pm_runtime_status_suspended(dev))
@@ -1648,12 +1648,7 @@ int pm_runtime_force_suspend(struct device *dev)
 
 	callback = RPM_GET_CALLBACK(dev, runtime_suspend);
 
-	if (!callback) {
-		ret = -ENOSYS;
-		goto err;
-	}
-
-	ret = callback(dev);
+	ret = callback ? callback(dev) : 0;
 	if (ret)
 		goto err;
 
@@ -1704,7 +1699,7 @@ int pm_runtime_force_resume(struct device *dev)
 
 	callback = RPM_GET_CALLBACK(dev, runtime_resume);
 
-	ret = callback ? callback(dev) : -ENOSYS;
+	ret = callback ? callback(dev) : 0;
 	if (ret) {
 		pm_runtime_set_suspended(dev);
 		goto out;
