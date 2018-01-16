@@ -909,7 +909,8 @@ static inline void add_to_key(char *compound_key, void *key,
 	memcpy(compound_key + key_field->offset, key, size);
 }
 
-static void event_hist_trigger(struct event_trigger_data *data, void *rec)
+static void event_hist_trigger(struct event_trigger_data *data, void *rec,
+			       struct ring_buffer_event *event)
 {
 	struct hist_trigger_data *hist_data = data->private_data;
 	bool use_compound_key = (hist_data->n_keys > 1);
@@ -1658,7 +1659,8 @@ __init int register_trigger_hist_cmd(void)
 }
 
 static void
-hist_enable_trigger(struct event_trigger_data *data, void *rec)
+hist_enable_trigger(struct event_trigger_data *data, void *rec,
+		    struct ring_buffer_event *event)
 {
 	struct enable_trigger_data *enable_data = data->private_data;
 	struct event_trigger_data *test;
@@ -1674,7 +1676,8 @@ hist_enable_trigger(struct event_trigger_data *data, void *rec)
 }
 
 static void
-hist_enable_count_trigger(struct event_trigger_data *data, void *rec)
+hist_enable_count_trigger(struct event_trigger_data *data, void *rec,
+			  struct ring_buffer_event *event)
 {
 	if (!data->count)
 		return;
@@ -1682,7 +1685,7 @@ hist_enable_count_trigger(struct event_trigger_data *data, void *rec)
 	if (data->count != -1)
 		(data->count)--;
 
-	hist_enable_trigger(data, rec);
+	hist_enable_trigger(data, rec, event);
 }
 
 static struct event_trigger_ops hist_enable_trigger_ops = {
