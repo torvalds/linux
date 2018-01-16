@@ -1917,7 +1917,9 @@ static void dwc2_hsotg_program_zlp(struct dwc2_hsotg *hsotg,
 		/* Not specific buffer needed for ep0 ZLP */
 		dma_addr_t dma = hs_ep->desc_list_dma;
 
-		dwc2_gadget_set_ep0_desc_chain(hsotg, hs_ep);
+		if (!index)
+			dwc2_gadget_set_ep0_desc_chain(hsotg, hs_ep);
+
 		dwc2_gadget_config_nonisoc_xfer_ddma(hs_ep, dma, 0);
 	} else {
 		dwc2_writel(DXEPTSIZ_MC(1) | DXEPTSIZ_PKTCNT(1) |
