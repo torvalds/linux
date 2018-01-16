@@ -379,6 +379,8 @@ struct marvell_nfc_timings {
  * return the number of clock periods.
  */
 #define TO_CYCLES(ps, period_ns) (DIV_ROUND_UP(ps / 1000, period_ns))
+#define TO_CYCLES64(ps, period_ns) (DIV_ROUND_UP_ULL(div_u64(ps, 1000), \
+						     period_ns))
 
 /**
  * NAND driver structure filled during the parsing of the ->exec_op() subop
@@ -2236,8 +2238,20 @@ static int marvell_nfc_setup_data_interface(struct mtd_info *mtd, int chipnr,
 	nfc_tmg.tRHW = TO_CYCLES(max_t(int, sdr->tRHW_min, sdr->tCCS_min),
 				 period_ns);
 
-	/* Use WAIT_MODE (wait for RB line) instead of only relying on delays */
-	nfc_tmg.tR = TO_CYCLES(sdr->tWB_max, period_ns);
+	/*
+	 * NFCv2: Use WAIT_MODE (wait for RB line), do not rely only on delays.
+	 * NFCv1: No WAIT_MODE, tR must be maximal.
+	 */
+	if (nfc->caps->is_nfcv2) {
+		nfc_tmg.tR = TO_CYCLES(sdr->tWB_max, period_ns);
+	} else {
+		nfc_tmg.tR = TO_CYCLES64(sdr->tWB_max + sdr->tR_max,
+					 period_ns);
+		if (nfc_tmg.tR + 3 > nfc_tmg.tCH)
+			nfc_tmg.tR = nfc_tmg.tCH - 3;
+		else
+			nfc_tmg.tR = 0;
+	}
 
 	if (chipnr < 0)
 		return 0;
@@ -2249,17 +2263,23 @@ static int marvell_nfc_setup_data_interface(struct mtd_info *mtd, int chipnr,
 		NDTR0_TWP(nfc_tmg.tWP) |
 		NDTR0_TWH(nfc_tmg.tWH) |
 		NDTR0_TCS(nfc_tmg.tCS) |
-		NDTR0_TCH(nfc_tmg.tCH) |
-		NDTR0_RD_CNT_DEL(read_delay) |
-		NDTR0_SELCNTR |
-		NDTR0_TADL(nfc_tmg.tADL);
+		NDTR0_TCH(nfc_tmg.tCH);
 
 	marvell_nand->ndtr1 =
 		NDTR1_TAR(nfc_tmg.tAR) |
 		NDTR1_TWHR(nfc_tmg.tWHR) |
-		NDTR1_TRHW(nfc_tmg.tRHW) |
-		NDTR1_WAIT_MODE |
 		NDTR1_TR(nfc_tmg.tR);
+
+	if (nfc->caps->is_nfcv2) {
+		marvell_nand->ndtr0 |=
+			NDTR0_RD_CNT_DEL(read_delay) |
+			NDTR0_SELCNTR |
+			NDTR0_TADL(nfc_tmg.tADL);
+
+		marvell_nand->ndtr1 |=
+			NDTR1_TRHW(nfc_tmg.tRHW) |
+			NDTR1_WAIT_MODE;
+	}
 
 	return 0;
 }
@@ -2395,8 +2415,7 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 
 	chip->exec_op = marvell_nfc_exec_op;
 	chip->select_chip = marvell_nfc_select_chip;
-	if (nfc->caps->is_nfcv2 &&
-	    !of_property_read_bool(np, "marvell,nand-keep-config"))
+	if (!of_property_read_bool(np, "marvell,nand-keep-config"))
 		chip->setup_data_interface = marvell_nfc_setup_data_interface;
 
 	mtd = nand_to_mtd(chip);
