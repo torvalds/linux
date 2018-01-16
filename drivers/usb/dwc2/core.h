@@ -956,6 +956,11 @@ struct dwc2_hsotg {
 #define DWC2_FS_IOT_REV_1_00a	0x5531100a
 #define DWC2_HS_IOT_REV_1_00a	0x5532100a
 
+	/* DWC OTG HW Core ID */
+#define DWC2_OTG_ID		0x4f540000
+#define DWC2_FS_IOT_ID		0x55310000
+#define DWC2_HS_IOT_ID		0x55320000
+
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
 	union dwc2_hcd_internal_flags {
 		u32 d32;

@@ -646,14 +646,13 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
 	 * Read and verify the GSNPSID register contents. The value should be
-	 * 0x45f42xxx or 0x45f43xxx, which corresponds to either "OT2" or "OT3",
-	 * as in "OTG version 2.xx" or "OTG version 3.xx".
+	 * 0x45f4xxxx, 0x5531xxxx or 0x5532xxxx
 	 */
+
 	hw->snpsid = dwc2_readl(hsotg->regs + GSNPSID);
-	if ((hw->snpsid & 0xfffff000) != 0x4f542000 &&
-	    (hw->snpsid & 0xfffff000) != 0x4f543000 &&
-	    (hw->snpsid & 0xffff0000) != 0x55310000 &&
-	    (hw->snpsid & 0xffff0000) != 0x55320000) {
+	if ((hw->snpsid & GSNPSID_ID_MASK) != DWC2_OTG_ID &&
+	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_FS_IOT_ID &&
+	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_HS_IOT_ID) {
 		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n",
 			hw->snpsid);
 		return -ENODEV;
