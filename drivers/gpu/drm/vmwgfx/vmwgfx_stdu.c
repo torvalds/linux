@@ -492,8 +492,6 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct vmw_screen_target_display_unit *stdu = vmw_crtc_to_stdu(crtc);
-	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(new_fb);
-	struct drm_vmw_rect vclips;
 	int ret;
 
 	dev_priv          = vmw_priv(crtc->dev);
@@ -518,26 +516,6 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (stdu->base.is_implicit)
 		vmw_kms_update_implicit_fb(dev_priv, crtc);
-
-	/*
-	 * Now that we've bound a new surface to the screen target,
-	 * update the contents.
-	 */
-	vclips.x = crtc->x;
-	vclips.y = crtc->y;
-	vclips.w = crtc->mode.hdisplay;
-	vclips.h = crtc->mode.vdisplay;
-
-	if (vfb->dmabuf)
-		ret = vmw_kms_stdu_dma(dev_priv, NULL, vfb, NULL, NULL, &vclips,
-				       1, 1, true, false, crtc);
-	else
-		ret = vmw_kms_stdu_surface_dirty(dev_priv, vfb, NULL, &vclips,
-						 NULL, 0, 0, 1, 1, NULL, crtc);
-	if (ret) {
-		DRM_ERROR("Page flip update error %d.\n", ret);
-		return ret;
-	}
 
 	if (event) {
 		struct vmw_fence_obj *fence = NULL;
@@ -1333,6 +1311,7 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	struct vmw_screen_target_display_unit *stdu;
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(plane->state);
 	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
+	struct vmw_framebuffer *vfb = NULL;
 	int ret;
 
 	stdu     = vmw_crtc_to_stdu(crtc);
@@ -1346,9 +1325,10 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	if (!stdu->defined)
 		return;
 
-	if (plane->state->fb)
+	if (plane->state->fb) {
+		vfb = vmw_framebuffer_to_vfb(plane->state->fb);
 		ret = vmw_stdu_bind_st(dev_priv, stdu, &stdu->display_srf->res);
-	else
+	} else
 		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
 
 	/*
@@ -1360,7 +1340,24 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	else
 		crtc->primary->fb = plane->state->fb;
 
-	ret = vmw_stdu_update_st(dev_priv, stdu);
+	if (vfb) {
+		struct drm_vmw_rect vclips;
+
+		vclips.x = crtc->x;
+		vclips.y = crtc->y;
+		vclips.w = crtc->mode.hdisplay;
+		vclips.h = crtc->mode.vdisplay;
+
+		if (vfb->dmabuf)
+			ret = vmw_kms_stdu_dma(dev_priv, NULL, vfb, NULL, NULL,
+					       &vclips, 1, 1, true, false,
+					       crtc);
+		else
+			ret = vmw_kms_stdu_surface_dirty(dev_priv, vfb, NULL,
+							 &vclips, NULL, 0, 0,
+							 1, 1, NULL, crtc);
+	} else
+		ret = vmw_stdu_update_st(dev_priv, stdu);
 
 	if (ret)
 		DRM_ERROR("Failed to update STDU.\n");
