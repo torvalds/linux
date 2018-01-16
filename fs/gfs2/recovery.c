@@ -118,22 +118,6 @@ void gfs2_revoke_clean(struct gfs2_jdesc *jd)
 	}
 }
 
-static int gfs2_log_header_in(struct gfs2_log_header_host *lh, const void *buf)
-{
-	const struct gfs2_log_header *str = buf;
-
-	if (str->lh_header.mh_magic != cpu_to_be32(GFS2_MAGIC) ||
-	    str->lh_header.mh_type != cpu_to_be32(GFS2_METATYPE_LH))
-		return 1;
-
-	lh->lh_sequence = be64_to_cpu(str->lh_sequence);
-	lh->lh_flags = be32_to_cpu(str->lh_flags);
-	lh->lh_tail = be32_to_cpu(str->lh_tail);
-	lh->lh_blkno = be32_to_cpu(str->lh_blkno);
-	lh->lh_hash = be32_to_cpu(str->lh_hash);
-	return 0;
-}
-
 /**
  * get_log_header - read the log header for a given segment
  * @jd: the journal
@@ -151,29 +135,33 @@ static int gfs2_log_header_in(struct gfs2_log_header_host *lh, const void *buf)
 static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 			  struct gfs2_log_header_host *head)
 {
+	struct gfs2_log_header *lh;
 	struct buffer_head *bh;
-	struct gfs2_log_header_host uninitialized_var(lh);
-	const u32 nothing = 0;
 	u32 hash;
 	int error;
 
 	error = gfs2_replay_read_block(jd, blk, &bh);
 	if (error)
 		return error;
+	lh = (void *)bh->b_data;
 
-	hash = crc32_le((u32)~0, bh->b_data, sizeof(struct gfs2_log_header) -
-					     sizeof(u32));
-	hash = crc32_le(hash, (unsigned char const *)&nothing, sizeof(nothing));
-	hash ^= (u32)~0;
-	error = gfs2_log_header_in(&lh, bh->b_data);
+	hash = crc32(~0, lh, sizeof(*lh) - 4);
+	hash = ~crc32_le_shift(hash, 4);  /* assume lh_hash is zero */
+
+	error = lh->lh_header.mh_magic != cpu_to_be32(GFS2_MAGIC) ||
+		lh->lh_header.mh_type != cpu_to_be32(GFS2_METATYPE_LH) ||
+		be32_to_cpu(lh->lh_blkno) != blk ||
+		be32_to_cpu(lh->lh_hash) != hash;
+
 	brelse(bh);
 
-	if (error || lh.lh_blkno != blk || lh.lh_hash != hash)
-		return 1;
-
-	*head = lh;
-
-	return 0;
+	if (!error) {
+		head->lh_sequence = be64_to_cpu(lh->lh_sequence);
+		head->lh_flags = be32_to_cpu(lh->lh_flags);
+		head->lh_tail = be32_to_cpu(lh->lh_tail);
+		head->lh_blkno = be32_to_cpu(lh->lh_blkno);
+	}
+	return error;
 }
 
 /**
