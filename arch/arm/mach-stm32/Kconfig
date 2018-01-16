@@ -1,6 +1,9 @@
 menuconfig ARCH_STM32
 	bool "STMicroelectronics STM32 family" if ARM_SINGLE_ARMV7M || ARCH_MULTI_V7
 	select ARMV7M_SYSTICK if ARM_SINGLE_ARMV7M
+	select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
+	select ARM_GIC if ARCH_MULTI_V7
+	select ARM_PSCI if ARCH_MULTI_V7
 	select ARCH_HAS_RESET_CONTROLLER
 	select CLKSRC_STM32
 	select PINCTRL
@@ -34,5 +37,13 @@ config MACH_STM32H743
 	default y
 
 endif # ARMv7-M
+
+if ARCH_MULTI_V7
+
+config MACH_STM32MP157
+	bool "STMicroelectronics STM32MP157"
+	default y
+
+endif # ARMv7-A
 
 endif
