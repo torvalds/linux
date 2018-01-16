@@ -2669,7 +2669,7 @@ void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 		netif_carrier_on(netdev);
 }
 
-void mlx5e_timestamp_set(struct mlx5e_priv *priv)
+void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 {
 	priv->tstamp.tx_type   = HWTSTAMP_TX_OFF;
 	priv->tstamp.rx_filter = HWTSTAMP_FILTER_NONE;
@@ -2690,7 +2690,6 @@ int mlx5e_open_locked(struct net_device *netdev)
 	mlx5e_activate_priv_channels(priv);
 	if (priv->profile->update_carrier)
 		priv->profile->update_carrier(priv);
-	mlx5e_timestamp_set(priv);
 
 	if (priv->profile->update_stats)
 		queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
@@ -3219,12 +3218,12 @@ static int mlx5e_set_mac(struct net_device *netdev, void *addr)
 	return 0;
 }
 
-#define MLX5E_SET_FEATURE(netdev, feature, enable)	\
+#define MLX5E_SET_FEATURE(features, feature, enable)	\
 	do {						\
 		if (enable)				\
-			netdev->features |= feature;	\
+			*features |= feature;		\
 		else					\
-			netdev->features &= ~feature;	\
+			*features &= ~feature;		\
 	} while (0)
 
 typedef int (*mlx5e_feature_handler)(struct net_device *netdev, bool enable);
@@ -3347,6 +3346,7 @@ static int set_feature_arfs(struct net_device *netdev, bool enable)
 #endif
 
 static int mlx5e_handle_feature(struct net_device *netdev,
+				netdev_features_t *features,
 				netdev_features_t wanted_features,
 				netdev_features_t feature,
 				mlx5e_feature_handler feature_handler)
@@ -3365,34 +3365,40 @@ static int mlx5e_handle_feature(struct net_device *netdev,
 		return err;
 	}
 
-	MLX5E_SET_FEATURE(netdev, feature, enable);
+	MLX5E_SET_FEATURE(features, feature, enable);
 	return 0;
 }
 
 static int mlx5e_set_features(struct net_device *netdev,
 			      netdev_features_t features)
 {
+	netdev_features_t oper_features = netdev->features;
 	int err;
 
-	err  = mlx5e_handle_feature(netdev, features, NETIF_F_LRO,
-				    set_feature_lro);
-	err |= mlx5e_handle_feature(netdev, features,
+	err  = mlx5e_handle_feature(netdev, &oper_features, features,
+				    NETIF_F_LRO, set_feature_lro);
+	err |= mlx5e_handle_feature(netdev, &oper_features, features,
 				    NETIF_F_HW_VLAN_CTAG_FILTER,
 				    set_feature_cvlan_filter);
-	err |= mlx5e_handle_feature(netdev, features, NETIF_F_HW_TC,
-				    set_feature_tc_num_filters);
-	err |= mlx5e_handle_feature(netdev, features, NETIF_F_RXALL,
-				    set_feature_rx_all);
-	err |= mlx5e_handle_feature(netdev, features, NETIF_F_RXFCS,
-				    set_feature_rx_fcs);
-	err |= mlx5e_handle_feature(netdev, features, NETIF_F_HW_VLAN_CTAG_RX,
-				    set_feature_rx_vlan);
+	err |= mlx5e_handle_feature(netdev, &oper_features, features,
+				    NETIF_F_HW_TC, set_feature_tc_num_filters);
+	err |= mlx5e_handle_feature(netdev, &oper_features, features,
+				    NETIF_F_RXALL, set_feature_rx_all);
+	err |= mlx5e_handle_feature(netdev, &oper_features, features,
+				    NETIF_F_RXFCS, set_feature_rx_fcs);
+	err |= mlx5e_handle_feature(netdev, &oper_features, features,
+				    NETIF_F_HW_VLAN_CTAG_RX, set_feature_rx_vlan);
 #ifdef CONFIG_RFS_ACCEL
-	err |= mlx5e_handle_feature(netdev, features, NETIF_F_NTUPLE,
-				    set_feature_arfs);
+	err |= mlx5e_handle_feature(netdev, &oper_features, features,
+				    NETIF_F_NTUPLE, set_feature_arfs);
 #endif
 
-	return err ? -EINVAL : 0;
+	if (err) {
+		netdev->features = oper_features;
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
@@ -4139,6 +4145,8 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
 	INIT_WORK(&priv->tx_timeout_work, mlx5e_tx_timeout_work);
 	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
+
+	mlx5e_timestamp_init(priv);
 }
 
 static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
