@@ -1387,6 +1387,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		return r;
 	}
 	adev->mman.initialized = true;
+
+	/* We opt to avoid OOM on system pages allocations */
+	adev->mman.bdev.no_retry = true;
+
 	r = ttm_bo_init_mm(&adev->mman.bdev, TTM_PL_VRAM,
 				adev->gmc.real_vram_size >> PAGE_SHIFT);
 	if (r) {
