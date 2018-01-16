@@ -868,7 +868,11 @@ CONFIG_SCR24X                                   policy<{'amd64': 'm', 'i386': 'm
 CONFIG_IPWIRELESS                               policy<{'amd64': 'm', 'i386': 'm'}>
 
 # Menu: Device Drivers >> Character devices >> Serial device bus
-CONFIG_SERIAL_DEV_BUS                           policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'm'}>
+CONFIG_SERIAL_DEV_BUS                           policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
+CONFIG_SERIAL_DEV_CTRL_TTYPORT                  policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
+#
+CONFIG_SERIAL_DEV_BUS                           note<LP:1739939>
+CONFIG_SERIAL_DEV_CTRL_TTYPORT                  note<LP:1739939>
 
 # Menu: Device Drivers >> Character devices >> Serial drivers
 CONFIG_SERIAL_AMBA_PL010                        policy<{'arm64': 'm', 'armhf': 'm'}>
@@ -9883,7 +9887,7 @@ CONFIG_BT_HCIUART_BCSP                          policy<{'amd64': 'y', 'arm64': '
 CONFIG_BT_HCIUART_ATH3K                         policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_BT_HCIUART_3WIRE                         policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_BT_HCIUART_INTEL                         policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
-CONFIG_BT_HCIUART_BCM                           policy<{'armhf': 'y', 'ppc64el': 'y'}>
+CONFIG_BT_HCIUART_BCM                           policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_BT_HCIUART_QCA                           policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_BT_HCIUART_AG6XX                         policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_BT_HCIUART_MRVL                          policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y'}>
