@@ -32,6 +32,7 @@ static void thread_map__reset(struct thread_map *map, int start, int nr)
 	size_t size = (nr - start) * sizeof(map->map[0]);
 
 	memset(&map->map[start], 0, size);
+	map->err_thread = -1;
 }
 
 static struct thread_map *thread_map__realloc(struct thread_map *map, int nr)

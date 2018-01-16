@@ -637,7 +637,19 @@ try_again:
                                 if (verbose > 0)
                                         ui__warning("%s\n", msg);
                                 goto try_again;
-                        }
+			} else if (target__has_per_thread(&target) &&
+				   evsel_list->threads &&
+				   evsel_list->threads->err_thread != -1) {
+				/*
+				 * For global --per-thread case, skip current
+				 * error thread.
+				 */
+				if (!thread_map__remove(evsel_list->threads,
+							evsel_list->threads->err_thread)) {
+					evsel_list->threads->err_thread = -1;
+					goto try_again;
+				}
+			}
 
 			perf_evsel__open_strerror(counter, &target,
 						  errno, msg, sizeof(msg));

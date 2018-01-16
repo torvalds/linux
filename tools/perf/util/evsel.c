@@ -1915,6 +1915,9 @@ try_fallback:
 		goto fallback_missing_features;
 	}
 out_close:
+	if (err)
+		threads->err_thread = thread;
+
 	do {
 		while (--thread >= 0) {
 			close(FD(evsel, cpu, thread));
