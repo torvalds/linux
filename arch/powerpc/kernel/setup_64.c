@@ -38,6 +38,7 @@
 #include <linux/hugetlb.h>
 #include <linux/memory.h>
 #include <linux/nmi.h>
+#include <linux/debugfs.h>
 
 #include <asm/io.h>
 #include <asm/kdump.h>
@@ -934,6 +935,35 @@ void __init setup_rfi_flush(enum l1d_flush_type types, bool enable)
 	if (!no_rfi_flush)
 		rfi_flush_enable(enable);
 }
+
+#ifdef CONFIG_DEBUG_FS
+static int rfi_flush_set(void *data, u64 val)
+{
+	if (val == 1)
+		rfi_flush_enable(true);
+	else if (val == 0)
+		rfi_flush_enable(false);
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int rfi_flush_get(void *data, u64 *val)
+{
+	*val = rfi_flush ? 1 : 0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_rfi_flush, rfi_flush_get, rfi_flush_set, "%llu\n");
+
+static __init int rfi_flush_debugfs_init(void)
+{
+	debugfs_create_file("rfi_flush", 0600, powerpc_debugfs_root, NULL, &fops_rfi_flush);
+	return 0;
+}
+device_initcall(rfi_flush_debugfs_init);
+#endif
 
 ssize_t cpu_show_meltdown(struct device *dev, struct device_attribute *attr, char *buf)
 {
