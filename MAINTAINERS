@@ -6612,6 +6612,12 @@ L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/i2c-stub.c
 
+I2C MV64XXX MARVELL AND ALLWINNER DRIVER
+M:	Gregory CLEMENT <gregory.clement@free-electrons.com>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/i2c/busses/i2c-mv64xxx.c
+
 i386 BOOT CODE
 M:	"H. Peter Anvin" <hpa@zytor.com>
 S:	Maintained
