@@ -726,6 +726,8 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 
 static const struct snd_soc_codec_driver soc_codec_dev_uda1380 = {
 	.probe =	uda1380_probe,
+	.read =		uda1380_read_reg_cache,
+	.write =	uda1380_write,
 	.set_bias_level = uda1380_set_bias_level,
 	.suspend_bias_off = true,
 
