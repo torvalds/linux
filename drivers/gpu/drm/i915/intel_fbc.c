@@ -668,11 +668,13 @@ void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 static bool stride_is_valid(struct drm_i915_private *dev_priv,
 			    unsigned int stride)
 {
-	/* These should have been caught earlier. */
-	WARN_ON(stride < 512);
-	WARN_ON((stride & (64 - 1)) != 0);
+	/* This should have been caught earlier. */
+	if (WARN_ON_ONCE((stride & (64 - 1)) != 0))
+		return false;
 
 	/* Below are the additional FBC restrictions. */
+	if (stride < 512)
+		return false;
 
 	if (IS_GEN2(dev_priv) || IS_GEN3(dev_priv))
 		return stride == 4096 || stride == 8192;
