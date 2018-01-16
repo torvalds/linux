@@ -909,6 +909,12 @@ void set_named_trigger_data(struct event_trigger_data *data,
 	data->named_data = named_data;
 }
 
+struct event_trigger_data *
+get_named_trigger_data(struct event_trigger_data *data)
+{
+	return data->named_data;
+}
+
 static void
 traceon_trigger(struct event_trigger_data *data, void *rec,
 		struct ring_buffer_event *event)
