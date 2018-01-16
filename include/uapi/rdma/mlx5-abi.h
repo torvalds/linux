@@ -124,7 +124,7 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u8	cqe_version;
 	__u8	cmds_supp_uhw;
 	__u8	eth_min_inline;
-	__u8	reserved2;
+	__u8	clock_info_versions;
 	__u64	hca_core_clock_offset;
 	__u32	log_uar_size;
 	__u32	num_uars_per_page;
@@ -394,7 +394,23 @@ struct mlx5_ib_clock_info {
 	__u64 overflow_period;
 };
 
+enum mlx5_ib_mmap_cmd {
+	MLX5_IB_MMAP_REGULAR_PAGE               = 0,
+	MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES       = 1,
+	MLX5_IB_MMAP_WC_PAGE                    = 2,
+	MLX5_IB_MMAP_NC_PAGE                    = 3,
+	/* 5 is chosen in order to be compatible with old versions of libmlx5 */
+	MLX5_IB_MMAP_CORE_CLOCK                 = 5,
+	MLX5_IB_MMAP_ALLOC_WC                   = 6,
+	MLX5_IB_MMAP_CLOCK_INFO                 = 7,
+};
+
 enum {
 	MLX5_IB_CLOCK_INFO_KERNEL_UPDATING = 1,
+};
+
+/* Bit indexes for the mlx5_alloc_ucontext_resp.clock_info_versions bitmap */
+enum {
+	MLX5_IB_CLOCK_INFO_V1              = 0,
 };
 #endif /* MLX5_ABI_USER_H */

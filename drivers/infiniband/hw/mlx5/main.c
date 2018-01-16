@@ -1579,6 +1579,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_ib_alloc_ucontext_req_v2 req = {};
 	struct mlx5_ib_alloc_ucontext_resp resp = {};
+	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_ib_ucontext *context;
 	struct mlx5_bfreg_info *bfregi;
 	int ver;
@@ -1706,6 +1707,12 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 		resp.response_length += sizeof(resp.eth_min_inline);
 	}
 
+	if (field_avail(typeof(resp), clock_info_versions, udata->outlen)) {
+		if (mdev->clock_info)
+			resp.clock_info_versions = BIT(MLX5_IB_CLOCK_INFO_V1);
+		resp.response_length += sizeof(resp.clock_info_versions);
+	}
+
 	/*
 	 * We don't want to expose information from the PCI bar that is located
 	 * after 4096 bytes, so if the arch only supports larger pages, let's
@@ -1719,8 +1726,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 			resp.hca_core_clock_offset =
 				offsetof(struct mlx5_init_seg, internal_timer_h) % PAGE_SIZE;
 		}
-		resp.response_length += sizeof(resp.hca_core_clock_offset) +
-					sizeof(resp.reserved2);
+		resp.response_length += sizeof(resp.hca_core_clock_offset);
 	}
 
 	if (field_avail(typeof(resp), log_uar_size, udata->outlen))
@@ -1959,6 +1965,38 @@ static inline char *mmap_cmd2str(enum mlx5_ib_mmap_cmd cmd)
 	}
 }
 
+static int mlx5_ib_mmap_clock_info_page(struct mlx5_ib_dev *dev,
+					struct vm_area_struct *vma,
+					struct mlx5_ib_ucontext *context)
+{
+	phys_addr_t pfn;
+	int err;
+
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+
+	if (get_index(vma->vm_pgoff) != MLX5_IB_CLOCK_INFO_V1)
+		return -EOPNOTSUPP;
+
+	if (vma->vm_flags & VM_WRITE)
+		return -EPERM;
+
+	if (!dev->mdev->clock_info_page)
+		return -EOPNOTSUPP;
+
+	pfn = page_to_pfn(dev->mdev->clock_info_page);
+	err = remap_pfn_range(vma, vma->vm_start, pfn, PAGE_SIZE,
+			      vma->vm_page_prot);
+	if (err)
+		return err;
+
+	mlx5_ib_dbg(dev, "mapped clock info at 0x%lx, PA 0x%llx\n",
+		    vma->vm_start,
+		    (unsigned long long)pfn << PAGE_SHIFT);
+
+	return mlx5_ib_set_vma_data(vma, context);
+}
+
 static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 		    struct vm_area_struct *vma,
 		    struct mlx5_ib_ucontext *context)
@@ -2121,6 +2159,8 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 			    vma->vm_start,
 			    (unsigned long long)pfn << PAGE_SHIFT);
 		break;
+	case MLX5_IB_MMAP_CLOCK_INFO:
+		return mlx5_ib_mmap_clock_info_page(dev, vma, context);
 
 	default:
 		return -EINVAL;

@@ -70,16 +70,6 @@ enum {
 	MLX5_IB_MMAP_CMD_MASK	= 0xff,
 };
 
-enum mlx5_ib_mmap_cmd {
-	MLX5_IB_MMAP_REGULAR_PAGE		= 0,
-	MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES	= 1,
-	MLX5_IB_MMAP_WC_PAGE			= 2,
-	MLX5_IB_MMAP_NC_PAGE			= 3,
-	/* 5 is chosen in order to be compatible with old versions of libmlx5 */
-	MLX5_IB_MMAP_CORE_CLOCK			= 5,
-	MLX5_IB_MMAP_ALLOC_WC			= 6,
-};
-
 enum {
 	MLX5_RES_SCAT_DATA32_CQE	= 0x1,
 	MLX5_RES_SCAT_DATA64_CQE	= 0x2,
