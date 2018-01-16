@@ -89,7 +89,7 @@ static int
 lnet_selftest_init(void)
 {
 	int nscheds;
-	int rc;
+	int rc = -ENOMEM;
 	int i;
 
 	lst_serial_wq = alloc_ordered_workqueue("lst_s", 0);
