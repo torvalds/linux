@@ -4808,6 +4808,169 @@ static int smu7_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static bool smu7_check_clk_voltage_valid(struct pp_hwmgr *hwmgr,
+					enum PP_OD_DPM_TABLE_COMMAND type,
+					uint32_t clk,
+					uint32_t voltage)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	uint32_t min_vddc;
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
+
+	if (table_info == NULL)
+		return -EINVAL;
+
+	dep_sclk_table = table_info->vdd_dep_on_sclk;
+	min_vddc = dep_sclk_table->entries[0].vddc;
+
+	if (voltage < min_vddc || voltage > 2000) {
+		pr_info("OD voltage is out of range [%d - 2000] mV\n", min_vddc);
+		return false;
+	}
+
+	if (type == PP_OD_EDIT_SCLK_VDDC_TABLE) {
+		if (data->vbios_boot_state.sclk_bootup_value > clk ||
+			hwmgr->platform_descriptor.overdriveLimit.engineClock < clk) {
+			pr_info("OD engine clock is out of range [%d - %d] MHz\n",
+				data->vbios_boot_state.sclk_bootup_value,
+				hwmgr->platform_descriptor.overdriveLimit.engineClock / 100);
+			return false;
+		}
+	} else if (type == PP_OD_EDIT_MCLK_VDDC_TABLE) {
+		if (data->vbios_boot_state.mclk_bootup_value > clk ||
+			hwmgr->platform_descriptor.overdriveLimit.memoryClock < clk) {
+			pr_info("OD memory clock is out of range [%d - %d] MHz\n",
+				data->vbios_boot_state.mclk_bootup_value/100,
+				hwmgr->platform_descriptor.overdriveLimit.memoryClock / 100);
+			return false;
+		}
+	} else {
+		return false;
+	}
+
+	return true;
+}
+
+static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct smu7_odn_dpm_table *odn_table = &(data->odn_dpm_table);
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	uint32_t i;
+
+	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *odn_dep_table;
+
+	if (table_info == NULL)
+		return;
+
+	for (i=0; i<data->dpm_table.sclk_table.count; i++) {
+		if (odn_table->odn_core_clock_dpm_levels.entries[i].clock !=
+					data->dpm_table.sclk_table.dpm_levels[i].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+			break;
+		}
+	}
+
+	for (i=0; i<data->dpm_table.sclk_table.count; i++) {
+		if (odn_table->odn_memory_clock_dpm_levels.entries[i].clock !=
+					data->dpm_table.mclk_table.dpm_levels[i].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+			break;
+		}
+	}
+
+	dep_table = table_info->vdd_dep_on_mclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_mclk);
+
+	for (i=0; i<dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
+			return;
+		}
+	}
+
+	dep_table = table_info->vdd_dep_on_sclk;
+	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_sclk);
+	for (i=0; i<dep_table->count; i++) {
+		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
+			return;
+		}
+	}
+}
+
+static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
+					enum PP_OD_DPM_TABLE_COMMAND type,
+					long *input, uint32_t size)
+{
+	uint32_t i;
+	struct phm_odn_clock_levels *podn_dpm_table_in_backend = NULL;
+	struct smu7_odn_clock_voltage_dependency_table *podn_vdd_dep_in_backend = NULL;
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+
+	uint32_t input_clk;
+	uint32_t input_vol;
+	uint32_t input_level;
+
+	PP_ASSERT_WITH_CODE(input, "NULL user input for clock and voltage",
+				return -EINVAL);
+
+	if (!hwmgr->od_enabled) {
+		pr_info("OverDrive feature not enabled\n");
+		return -EINVAL;
+	}
+
+	if (PP_OD_EDIT_SCLK_VDDC_TABLE == type) {
+		podn_dpm_table_in_backend = &data->odn_dpm_table.odn_core_clock_dpm_levels;
+		podn_vdd_dep_in_backend = &data->odn_dpm_table.vdd_dependency_on_sclk;
+		PP_ASSERT_WITH_CODE((podn_dpm_table_in_backend && podn_vdd_dep_in_backend),
+				"Failed to get ODN SCLK and Voltage tables",
+				return -EINVAL);
+	} else if (PP_OD_EDIT_MCLK_VDDC_TABLE == type) {
+		podn_dpm_table_in_backend = &data->odn_dpm_table.odn_memory_clock_dpm_levels;
+		podn_vdd_dep_in_backend = &data->odn_dpm_table.vdd_dependency_on_mclk;
+
+		PP_ASSERT_WITH_CODE((podn_dpm_table_in_backend && podn_vdd_dep_in_backend),
+			"Failed to get ODN MCLK and Voltage tables",
+			return -EINVAL);
+	} else if (PP_OD_RESTORE_DEFAULT_TABLE == type) {
+		smu7_odn_initial_default_setting(hwmgr);
+		return 0;
+	} else if (PP_OD_COMMIT_DPM_TABLE == type) {
+		smu7_check_dpm_table_updated(hwmgr);
+		return 0;
+	} else {
+		return -EINVAL;
+	}
+
+	for (i = 0; i < size; i += 3) {
+		if (i + 3 > size || input[i] >= podn_dpm_table_in_backend->num_of_pl) {
+			pr_info("invalid clock voltage input \n");
+			return 0;
+		}
+		input_level = input[i];
+		input_clk = input[i+1] * 100;
+		input_vol = input[i+2];
+
+		if (smu7_check_clk_voltage_valid(hwmgr, type, input_clk, input_vol)) {
+			podn_dpm_table_in_backend->entries[input_level].clock = input_clk;
+			podn_vdd_dep_in_backend->entries[input_level].clk = input_clk;
+			podn_dpm_table_in_backend->entries[input_level].vddc = input_vol;
+			podn_vdd_dep_in_backend->entries[input_level].vddc = input_vol;
+		} else {
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &smu7_hwmgr_backend_fini,
@@ -4862,6 +5025,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.notify_cac_buffer_info = smu7_notify_cac_buffer_info,
 	.get_max_high_clocks = smu7_get_max_high_clocks,
 	.get_thermal_temperature_range = smu7_get_thermal_temperature_range,
+	.odn_edit_dpm_table = smu7_odn_edit_dpm_table,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
@@ -4893,4 +5057,3 @@ int smu7_init_function_pointers(struct pp_hwmgr *hwmgr)
 
 	return ret;
 }
-
