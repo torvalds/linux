@@ -561,10 +561,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 			cfg.l2specific_type = L2TP_L2SPECTYPE_DEFAULT;
 		}
 
-		cfg.l2specific_len = 4;
-		if (info->attrs[L2TP_ATTR_L2SPEC_LEN])
-			cfg.l2specific_len = nla_get_u8(info->attrs[L2TP_ATTR_L2SPEC_LEN]);
-
 		if (info->attrs[L2TP_ATTR_COOKIE]) {
 			u16 len = nla_len(info->attrs[L2TP_ATTR_COOKIE]);
 			if (len > 8) {

@@ -1777,7 +1777,6 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 			session->lns_mode = cfg->lns_mode;
 			session->reorder_timeout = cfg->reorder_timeout;
 			session->l2specific_type = cfg->l2specific_type;
-			session->l2specific_len = cfg->l2specific_len;
 			session->cookie_len = cfg->cookie_len;
 			memcpy(&session->cookie[0], &cfg->cookie[0], cfg->cookie_len);
 			session->peer_cookie_len = cfg->peer_cookie_len;
