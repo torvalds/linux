@@ -349,7 +349,7 @@ static void stm32f4_i2c_read_msg(struct stm32f4_i2c_dev *i2c_dev)
 static void stm32f4_i2c_terminate_xfer(struct stm32f4_i2c_dev *i2c_dev)
 {
 	struct stm32f4_i2c_msg *msg = &i2c_dev->msg;
-	void __iomem *reg = i2c_dev->base + STM32F4_I2C_CR2;
+	void __iomem *reg;
 
 	stm32f4_i2c_disable_irq(i2c_dev);
 
