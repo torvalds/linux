@@ -751,8 +751,6 @@ static int qcom_qmp_phy_poweroff(struct phy *phy)
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	struct qcom_qmp *qmp = qphy->qmp;
 
-	clk_disable_unprepare(qphy->pipe_clk);
-
 	regulator_bulk_disable(qmp->cfg->num_vregs, qmp->vregs);
 
 	return 0;
@@ -935,6 +933,8 @@ static int qcom_qmp_phy_exit(struct phy *phy)
 	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
 	int i = cfg->num_clks;
+
+	clk_disable_unprepare(qphy->pipe_clk);
 
 	/* PHY reset */
 	qphy_setbits(qphy->pcs, cfg->regs[QPHY_SW_RESET], SW_RESET);
