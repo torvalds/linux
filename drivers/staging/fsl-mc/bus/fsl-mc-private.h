@@ -460,8 +460,6 @@ void fsl_mc_msi_domain_free_irqs(struct device *dev);
 
 int __init its_fsl_mc_msi_init(void);
 
-void its_fsl_mc_msi_cleanup(void);
-
 int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
 			   struct irq_domain **mc_msi_domain);
 
