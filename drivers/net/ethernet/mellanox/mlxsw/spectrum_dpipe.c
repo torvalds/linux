@@ -771,14 +771,33 @@ static struct devlink_dpipe_table_ops mlxsw_sp_host4_ops = {
 	.size_get = mlxsw_sp_dpipe_table_host4_size_get,
 };
 
+#define MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_HOST4 1
+
 static int mlxsw_sp_dpipe_host4_table_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	int err;
 
-	return devlink_dpipe_table_register(devlink,
-					    MLXSW_SP_DPIPE_TABLE_NAME_HOST4,
-					    &mlxsw_sp_host4_ops,
-					    mlxsw_sp, false);
+	err = devlink_dpipe_table_register(devlink,
+					   MLXSW_SP_DPIPE_TABLE_NAME_HOST4,
+					   &mlxsw_sp_host4_ops,
+					   mlxsw_sp, false);
+	if (err)
+		return err;
+
+	err = devlink_dpipe_table_resource_set(devlink,
+					       MLXSW_SP_DPIPE_TABLE_NAME_HOST4,
+					       MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
+					       MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_HOST4);
+	if (err)
+		goto err_resource_set;
+
+	return 0;
+
+err_resource_set:
+	devlink_dpipe_table_unregister(devlink,
+				       MLXSW_SP_DPIPE_TABLE_NAME_HOST4);
+	return err;
 }
 
 static void mlxsw_sp_dpipe_host4_table_fini(struct mlxsw_sp *mlxsw_sp)
@@ -829,14 +848,33 @@ static struct devlink_dpipe_table_ops mlxsw_sp_host6_ops = {
 	.size_get = mlxsw_sp_dpipe_table_host6_size_get,
 };
 
+#define MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_HOST6 2
+
 static int mlxsw_sp_dpipe_host6_table_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	int err;
 
-	return devlink_dpipe_table_register(devlink,
-					    MLXSW_SP_DPIPE_TABLE_NAME_HOST6,
-					    &mlxsw_sp_host6_ops,
-					    mlxsw_sp, false);
+	err = devlink_dpipe_table_register(devlink,
+					   MLXSW_SP_DPIPE_TABLE_NAME_HOST6,
+					   &mlxsw_sp_host6_ops,
+					   mlxsw_sp, false);
+	if (err)
+		return err;
+
+	err = devlink_dpipe_table_resource_set(devlink,
+					       MLXSW_SP_DPIPE_TABLE_NAME_HOST6,
+					       MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
+					       MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_HOST6);
+	if (err)
+		goto err_resource_set;
+
+	return 0;
+
+err_resource_set:
+	devlink_dpipe_table_unregister(devlink,
+				       MLXSW_SP_DPIPE_TABLE_NAME_HOST6);
+	return err;
 }
 
 static void mlxsw_sp_dpipe_host6_table_fini(struct mlxsw_sp *mlxsw_sp)
@@ -1213,14 +1251,33 @@ static struct devlink_dpipe_table_ops mlxsw_sp_dpipe_table_adj_ops = {
 	.size_get = mlxsw_sp_dpipe_table_adj_size_get,
 };
 
+#define MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_ADJ 1
+
 static int mlxsw_sp_dpipe_adj_table_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	int err;
 
-	return devlink_dpipe_table_register(devlink,
-					    MLXSW_SP_DPIPE_TABLE_NAME_ADJ,
-					    &mlxsw_sp_dpipe_table_adj_ops,
-					    mlxsw_sp, false);
+	err = devlink_dpipe_table_register(devlink,
+					   MLXSW_SP_DPIPE_TABLE_NAME_ADJ,
+					   &mlxsw_sp_dpipe_table_adj_ops,
+					   mlxsw_sp, false);
+	if (err)
+		return err;
+
+	err = devlink_dpipe_table_resource_set(devlink,
+					       MLXSW_SP_DPIPE_TABLE_NAME_ADJ,
+					       MLXSW_SP_RESOURCE_KVD_LINEAR,
+					       MLXSW_SP_DPIPE_TABLE_RESOURCE_UNIT_ADJ);
+	if (err)
+		goto err_resource_set;
+
+	return 0;
+
+err_resource_set:
+	devlink_dpipe_table_unregister(devlink,
+				       MLXSW_SP_DPIPE_TABLE_NAME_ADJ);
+	return err;
 }
 
 static void mlxsw_sp_dpipe_adj_table_fini(struct mlxsw_sp *mlxsw_sp)
