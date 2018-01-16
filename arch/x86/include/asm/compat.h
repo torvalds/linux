@@ -249,4 +249,8 @@ static inline bool in_compat_syscall(void)
 }
 #define in_compat_syscall in_compat_syscall	/* override the generic impl */
 
+struct compat_siginfo;
+int __copy_siginfo_to_user32(struct compat_siginfo __user *to,
+		const siginfo_t *from, bool x32_ABI);
+
 #endif /* _ASM_X86_COMPAT_H */

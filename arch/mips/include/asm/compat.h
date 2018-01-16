@@ -126,8 +126,6 @@ typedef u32		compat_old_sigset_t;	/* at least 32 bits */
 
 typedef u32		compat_sigset_word;
 
-#define SI_PAD_SIZE32	(128/sizeof(int) - 3)
-
 #define COMPAT_OFF_T_MAX	0x7fffffff
 
 /*

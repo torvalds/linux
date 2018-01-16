@@ -98,6 +98,8 @@ static inline void signal_compat_build_tests(void)
 
 void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact)
 {
+	signal_compat_build_tests();
+
 	/* Don't leak in-kernel non-uapi flags to user-space */
 	if (oact)
 		oact->sa.sa_flags &= ~(SA_IA32_ABI | SA_X32_ABI);
@@ -113,97 +115,3 @@ void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact)
 	if (in_x32_syscall())
 		act->sa.sa_flags |= SA_X32_ABI;
 }
-
-int __copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from,
-		bool x32_ABI)
-{
-	int err = 0;
-
-	signal_compat_build_tests();
-
-	if (!access_ok(VERIFY_WRITE, to, sizeof(compat_siginfo_t)))
-		return -EFAULT;
-
-	put_user_try {
-		/* If you change siginfo_t structure, please make sure that
-		   this code is fixed accordingly.
-		   It should never copy any pad contained in the structure
-		   to avoid security leaks, but must copy the generic
-		   3 ints plus the relevant union member.  */
-		put_user_ex(from->si_signo, &to->si_signo);
-		put_user_ex(from->si_errno, &to->si_errno);
-		put_user_ex(from->si_code, &to->si_code);
-
-		if (from->si_code < 0) {
-			put_user_ex(from->si_pid, &to->si_pid);
-			put_user_ex(from->si_uid, &to->si_uid);
-			put_user_ex(ptr_to_compat(from->si_ptr), &to->si_ptr);
-		} else {
-			/*
-			 * First 32bits of unions are always present:
-			 * si_pid === si_band === si_tid === si_addr(LS half)
-			 */
-			put_user_ex(from->_sifields._pad[0],
-					  &to->_sifields._pad[0]);
-			switch (siginfo_layout(from->si_signo, from->si_code)) {
-			case SIL_FAULT:
-				if (from->si_signo == SIGBUS &&
-				    (from->si_code == BUS_MCEERR_AR ||
-				     from->si_code == BUS_MCEERR_AO))
-					put_user_ex(from->si_addr_lsb, &to->si_addr_lsb);
-
-				if (from->si_signo == SIGSEGV) {
-					if (from->si_code == SEGV_BNDERR) {
-						compat_uptr_t lower = (unsigned long)from->si_lower;
-						compat_uptr_t upper = (unsigned long)from->si_upper;
-						put_user_ex(lower, &to->si_lower);
-						put_user_ex(upper, &to->si_upper);
-					}
-					if (from->si_code == SEGV_PKUERR)
-						put_user_ex(from->si_pkey, &to->si_pkey);
-				}
-				break;
-			case SIL_SYS:
-				put_user_ex(from->si_syscall, &to->si_syscall);
-				put_user_ex(from->si_arch, &to->si_arch);
-				break;
-			case SIL_CHLD:
-				if (!x32_ABI) {
-					put_user_ex(from->si_utime, &to->si_utime);
-					put_user_ex(from->si_stime, &to->si_stime);
-#ifdef CONFIG_X86_X32_ABI
-				} else {
-					put_user_ex(from->si_utime, &to->_sifields._sigchld_x32._utime);
-					put_user_ex(from->si_stime, &to->_sifields._sigchld_x32._stime);
-#endif
-				}
-				put_user_ex(from->si_status, &to->si_status);
-				/* FALL THROUGH */
-			case SIL_KILL:
-				put_user_ex(from->si_uid, &to->si_uid);
-				break;
-			case SIL_POLL:
-				put_user_ex(from->si_fd, &to->si_fd);
-				break;
-			case SIL_TIMER:
-				put_user_ex(from->si_overrun, &to->si_overrun);
-				put_user_ex(ptr_to_compat(from->si_ptr),
-					    &to->si_ptr);
-				break;
-			case SIL_RT:
-				put_user_ex(from->si_uid, &to->si_uid);
-				put_user_ex(from->si_int, &to->si_int);
-				break;
-			}
-		}
-	} put_user_catch(err);
-
-	return err;
-}
-
-/* from syscall's path, where we know the ABI */
-int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
-{
-	return __copy_siginfo_to_user32(to, from, in_x32_syscall());
-}
-
