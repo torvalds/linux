@@ -1750,34 +1750,34 @@ static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 #ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
 		current->thread.debug.dbcr2 &= ~DBCR2_DAC12MODE;
 #endif
-		do_send_trap(regs, mfspr(SPRN_DAC1), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_DAC1), debug_status,
 			     5);
 		changed |= 0x01;
 	}  else if (debug_status & (DBSR_DAC2R | DBSR_DAC2W)) {
 		dbcr_dac(current) &= ~(DBCR_DAC2R | DBCR_DAC2W);
-		do_send_trap(regs, mfspr(SPRN_DAC2), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_DAC2), debug_status,
 			     6);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC1) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC1;
 		dbcr_iac_range(current) &= ~DBCR_IAC12MODE;
-		do_send_trap(regs, mfspr(SPRN_IAC1), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC1), debug_status,
 			     1);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC2) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC2;
-		do_send_trap(regs, mfspr(SPRN_IAC2), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC2), debug_status,
 			     2);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC3) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC3;
 		dbcr_iac_range(current) &= ~DBCR_IAC34MODE;
-		do_send_trap(regs, mfspr(SPRN_IAC3), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC3), debug_status,
 			     3);
 		changed |= 0x01;
 	}  else if (debug_status & DBSR_IAC4) {
 		current->thread.debug.dbcr0 &= ~DBCR0_IAC4;
-		do_send_trap(regs, mfspr(SPRN_IAC4), debug_status, TRAP_HWBKPT,
+		do_send_trap(regs, mfspr(SPRN_IAC4), debug_status,
 			     4);
 		changed |= 0x01;
 	}

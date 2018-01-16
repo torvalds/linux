@@ -601,11 +601,11 @@ EXPORT_SYMBOL(flush_all_to_thread);
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 void do_send_trap(struct pt_regs *regs, unsigned long address,
-		  unsigned long error_code, int signal_code, int breakpt)
+		  unsigned long error_code, int breakpt)
 {
 	siginfo_t info;
 
-	current->thread.trap_nr = signal_code;
+	current->thread.trap_nr = TRAP_HWBKPT;
 	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
 			11, SIGSEGV) == NOTIFY_STOP)
 		return;
@@ -613,7 +613,7 @@ void do_send_trap(struct pt_regs *regs, unsigned long address,
 	/* Deliver the signal to userspace */
 	info.si_signo = SIGTRAP;
 	info.si_errno = breakpt;	/* breakpoint or watchpoint id */
-	info.si_code = signal_code;
+	info.si_code = TRAP_HWBKPT;
 	info.si_addr = (void __user *)address;
 	force_sig_info(SIGTRAP, &info, current);
 }
