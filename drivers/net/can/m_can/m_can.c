@@ -1183,11 +1183,6 @@ static int m_can_set_mode(struct net_device *dev, enum can_mode mode)
 	return 0;
 }
 
-static void free_m_can_dev(struct net_device *dev)
-{
-	free_candev(dev);
-}
-
 /* Checks core release number of M_CAN
  * returns 0 if an unsupported device is detected
  * else it returns the release and step coded as:
@@ -1689,7 +1684,7 @@ static int m_can_plat_probe(struct platform_device *pdev)
 	goto disable_cclk_ret;
 
 failed_free_dev:
-	free_m_can_dev(dev);
+	free_candev(dev);
 disable_cclk_ret:
 	clk_disable_unprepare(cclk);
 disable_hclk_ret:
@@ -1753,7 +1748,7 @@ static int m_can_plat_remove(struct platform_device *pdev)
 	unregister_m_can_dev(dev);
 	platform_set_drvdata(pdev, NULL);
 
-	free_m_can_dev(dev);
+	free_candev(dev);
 
 	return 0;
 }
