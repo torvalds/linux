@@ -25,7 +25,6 @@
  */
 
 #include <string.h>
-#include <subcmd/parse-options.h>
 #include "builtin.h"
 #include "check.h"
 
@@ -35,9 +34,6 @@ static const char *orc_usage[] = {
 	"objtool orc dump file.o",
 	NULL,
 };
-
-extern const struct option check_options[];
-extern bool no_fp, no_unreachable;
 
 int cmd_orc(int argc, const char **argv)
 {
@@ -54,7 +50,7 @@ int cmd_orc(int argc, const char **argv)
 
 		objname = argv[0];
 
-		return check(objname, no_fp, no_unreachable, true);
+		return check(objname, true);
 	}
 
 	if (!strcmp(argv[0], "dump")) {
