@@ -16,7 +16,6 @@
 #include <linux/pci.h>
 
 #include "ver.h"
-#include "aq_nic.h"
 #include "aq_cfg.h"
 #include "aq_utils.h"
 

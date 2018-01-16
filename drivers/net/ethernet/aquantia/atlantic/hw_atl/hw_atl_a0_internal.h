@@ -88,37 +88,6 @@
 
 #define HW_ATL_A0_FW_VER_EXPECTED 0x01050006U
 
-/* Hardware tx descriptor */
-struct __packed hw_atl_txd_s {
-	u64 buf_addr;
-	u32 ctl;
-	u32 ctl2; /* 63..46 - payload length, 45 - ctx enable, 44 - ctx index */
-};
-
-/* Hardware tx context descriptor */
-struct __packed hw_atl_txc_s {
-	u32 rsvd;
-	u32 len;
-	u32 ctl;
-	u32 len2;
-};
-
-/* Hardware rx descriptor */
-struct __packed hw_atl_rxd_s {
-	u64 buf_addr;
-	u64 hdr_addr;
-};
-
-/* Hardware rx descriptor writeback */
-struct __packed hw_atl_rxd_wb_s {
-	u32 type;
-	u32 rss_hash;
-	u16 status;
-	u16 pkt_len;
-	u16 next_desc_ptr;
-	u16 vlan;
-};
-
 /* HW layer capabilities */
 static struct aq_hw_caps_s hw_atl_a0_hw_caps_ = {
 	.ports = 1U,

@@ -14,7 +14,7 @@
 #include "aq_vec.h"
 #include "aq_hw.h"
 #include "aq_pci_func.h"
-#include "aq_nic_internal.h"
+#include "aq_main.h"
 
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
@@ -150,9 +150,9 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 
 	self->link_status = self->aq_hw->aq_link_status;
 	if (!netif_carrier_ok(self->ndev) && self->link_status.mbps) {
-		aq_utils_obj_set(&self->header.flags,
+		aq_utils_obj_set(&self->flags,
 				 AQ_NIC_FLAG_STARTED);
-		aq_utils_obj_clear(&self->header.flags,
+		aq_utils_obj_clear(&self->flags,
 				   AQ_NIC_LINK_DOWN);
 		netif_carrier_on(self->ndev);
 		netif_tx_wake_all_queues(self->ndev);
@@ -160,7 +160,7 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 	if (netif_carrier_ok(self->ndev) && !self->link_status.mbps) {
 		netif_carrier_off(self->ndev);
 		netif_tx_disable(self->ndev);
-		aq_utils_obj_set(&self->header.flags, AQ_NIC_LINK_DOWN);
+		aq_utils_obj_set(&self->flags, AQ_NIC_LINK_DOWN);
 	}
 	return 0;
 }
@@ -171,7 +171,7 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 	int ctimer = AQ_CFG_SERVICE_TIMER_INTERVAL;
 	int err = 0;
 
-	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
+	if (aq_utils_obj_test(&self->flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		goto err_exit;
 
 	err = aq_nic_update_link_status(self);
@@ -205,14 +205,7 @@ static void aq_nic_polling_timer_cb(struct timer_list *t)
 		AQ_CFG_POLLING_TIMER_INTERVAL);
 }
 
-static struct net_device *aq_nic_ndev_alloc(void)
-{
-	return alloc_etherdev_mq(sizeof(struct aq_nic_s), AQ_CFG_VECS_MAX);
-}
-
-struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
-				   const struct ethtool_ops *et_ops,
-				   struct pci_dev *pdev,
+struct aq_nic_s *aq_nic_alloc_cold(struct pci_dev *pdev,
 				   struct aq_pci_func_s *aq_pci_func,
 				   unsigned int port,
 				   const struct aq_hw_ops *aq_hw_ops)
@@ -221,16 +214,13 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 	struct aq_nic_s *self = NULL;
 	int err = 0;
 
-	ndev = aq_nic_ndev_alloc();
+	ndev = aq_ndev_alloc();
 	if (!ndev) {
 		err = -ENOMEM;
 		goto err_exit;
 	}
 
 	self = netdev_priv(ndev);
-
-	ndev->netdev_ops = ndev_ops;
-	ndev->ethtool_ops = et_ops;
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
@@ -242,8 +232,9 @@ struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 	self->aq_hw_ops = *aq_hw_ops;
 	self->port = (u8)port;
 
-	self->aq_hw = self->aq_hw_ops.create(aq_pci_func, self->port,
-						&self->aq_hw_ops);
+	self->aq_hw = self->aq_hw_ops.create(aq_pci_func, self->port);
+	self->aq_hw->aq_nic_cfg = &self->aq_nic_cfg;
+
 	err = self->aq_hw_ops.get_hw_caps(self->aq_hw, &self->aq_hw_caps,
 					  pdev->device, pdev->subsystem_device);
 	if (err < 0)
@@ -268,7 +259,6 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 		goto err_exit;
 	}
 	err = self->aq_hw_ops.hw_get_mac_permanent(self->aq_hw,
-			    self->aq_nic_cfg.aq_hw_caps,
 			    self->ndev->dev_addr);
 	if (err < 0)
 		goto err_exit;
@@ -295,7 +285,7 @@ err_exit:
 
 int aq_nic_ndev_init(struct aq_nic_s *self)
 {
-	struct aq_hw_caps_s *aq_hw_caps = self->aq_nic_cfg.aq_hw_caps;
+	const struct aq_hw_caps_s *aq_hw_caps = self->aq_nic_cfg.aq_hw_caps;
 	struct aq_nic_cfg_s *aq_nic_cfg = &self->aq_nic_cfg;
 
 	self->ndev->hw_features |= aq_hw_caps->hw_features;
@@ -366,11 +356,6 @@ void aq_nic_set_tx_ring(struct aq_nic_s *self, unsigned int idx,
 	self->aq_ring_tx[idx] = ring;
 }
 
-struct device *aq_nic_get_dev(struct aq_nic_s *self)
-{
-	return self->ndev->dev.parent;
-}
-
 struct net_device *aq_nic_get_ndev(struct aq_nic_s *self)
 {
 	return self->ndev;
@@ -387,7 +372,7 @@ int aq_nic_init(struct aq_nic_s *self)
 	if (err < 0)
 		goto err_exit;
 
-	err = self->aq_hw_ops.hw_init(self->aq_hw, &self->aq_nic_cfg,
+	err = self->aq_hw_ops.hw_init(self->aq_hw,
 			    aq_nic_get_ndev(self)->dev_addr);
 	if (err < 0)
 		goto err_exit;
@@ -992,7 +977,7 @@ void aq_nic_free_hot_resources(struct aq_nic_s *self)
 	if (!self)
 		goto err_exit;
 
-	for (i = AQ_DIMOF(self->aq_vec); i--;) {
+	for (i = ARRAY_SIZE(self->aq_vec); i--;) {
 		if (self->aq_vec[i]) {
 			aq_vec_free(self->aq_vec[i]);
 			self->aq_vec[i] = NULL;
