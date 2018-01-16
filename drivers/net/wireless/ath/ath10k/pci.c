@@ -1484,7 +1484,7 @@ static int ath10k_pci_dump_memory_section(struct ath10k *ar,
 	cur_section = &mem_region->section_table.sections[0];
 
 	if (mem_region->start > cur_section->start) {
-		ath10k_warn(ar, "incorrect memdump region 0x%x with section start addrress 0x%x.\n",
+		ath10k_warn(ar, "incorrect memdump region 0x%x with section start address 0x%x.\n",
 			    mem_region->start, cur_section->start);
 		return 0;
 	}
