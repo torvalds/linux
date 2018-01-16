@@ -90,12 +90,6 @@ static u64 hist_field_log2(struct hist_field *hist_field, void *event,
 	return (u64) ilog2(roundup_pow_of_two(val));
 }
 
-static u64 hist_field_timestamp(struct hist_field *hist_field, void *event,
-				struct ring_buffer_event *rbe)
-{
-	return ring_buffer_event_time_stamp(rbe);
-}
-
 #define DEFINE_HIST_FIELD_FN(type)					\
 	static u64 hist_field_##type(struct hist_field *hist_field,	\
 				     void *event,			\
@@ -143,6 +137,7 @@ enum hist_field_flags {
 	HIST_FIELD_FL_STACKTRACE	= 1 << 8,
 	HIST_FIELD_FL_LOG2		= 1 << 9,
 	HIST_FIELD_FL_TIMESTAMP		= 1 << 10,
+	HIST_FIELD_FL_TIMESTAMP_USECS	= 1 << 11,
 };
 
 struct hist_trigger_attrs {
@@ -153,6 +148,7 @@ struct hist_trigger_attrs {
 	bool		pause;
 	bool		cont;
 	bool		clear;
+	bool		ts_in_usecs;
 	unsigned int	map_bits;
 };
 
@@ -169,6 +165,20 @@ struct hist_trigger_data {
 	struct tracing_map		*map;
 	bool				enable_timestamps;
 };
+
+static u64 hist_field_timestamp(struct hist_field *hist_field, void *event,
+				struct ring_buffer_event *rbe)
+{
+	struct hist_trigger_data *hist_data = hist_field->hist_data;
+	struct trace_array *tr = hist_data->event_file->tr;
+
+	u64 ts = ring_buffer_event_time_stamp(rbe);
+
+	if (hist_data->attrs->ts_in_usecs && trace_clock_in_ns(tr))
+		ts = ns2usecs(ts);
+
+	return ts;
+}
 
 static const char *hist_field_name(struct hist_field *field,
 				   unsigned int level)
@@ -634,6 +644,8 @@ static int create_key_field(struct hist_trigger_data *hist_data,
 				flags |= HIST_FIELD_FL_SYSCALL;
 			else if (strcmp(field_str, "log2") == 0)
 				flags |= HIST_FIELD_FL_LOG2;
+			else if (strcmp(field_str, "usecs") == 0)
+				flags |= HIST_FIELD_FL_TIMESTAMP_USECS;
 			else {
 				ret = -EINVAL;
 				goto out;
@@ -643,6 +655,8 @@ static int create_key_field(struct hist_trigger_data *hist_data,
 		if (strcmp(field_name, "common_timestamp") == 0) {
 			flags |= HIST_FIELD_FL_TIMESTAMP;
 			hist_data->enable_timestamps = true;
+			if (flags & HIST_FIELD_FL_TIMESTAMP_USECS)
+				hist_data->attrs->ts_in_usecs = true;
 			key_size = sizeof(u64);
 		} else {
 			field = trace_find_event_field(file->event_call, field_name);
@@ -1241,6 +1255,8 @@ static const char *get_hist_field_flags(struct hist_field *hist_field)
 		flags_str = "syscall";
 	else if (hist_field->flags & HIST_FIELD_FL_LOG2)
 		flags_str = "log2";
+	else if (hist_field->flags & HIST_FIELD_FL_TIMESTAMP_USECS)
+		flags_str = "usecs";
 
 	return flags_str;
 }
