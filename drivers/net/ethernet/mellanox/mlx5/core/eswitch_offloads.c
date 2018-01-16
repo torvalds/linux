@@ -338,6 +338,7 @@ out:
 	kvfree(spec);
 	return flow_rule;
 }
+EXPORT_SYMBOL(mlx5_eswitch_add_send_to_vport_rule);
 
 void mlx5_eswitch_del_send_to_vport_rule(struct mlx5_flow_handle *rule)
 {
@@ -1165,6 +1166,7 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 
 	rep_if->valid = true;
 }
+EXPORT_SYMBOL(mlx5_eswitch_register_vport_rep);
 
 void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 				       int vport_index, u8 rep_type)
@@ -1179,6 +1181,7 @@ void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 
 	rep->rep_if[rep_type].valid = false;
 }
+EXPORT_SYMBOL(mlx5_eswitch_unregister_vport_rep);
 
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type)
 {
@@ -1207,8 +1210,17 @@ void *mlx5_eswitch_get_proto_dev(struct mlx5_eswitch *esw,
 		return rep->rep_if[rep_type].get_proto_dev(rep);
 	return NULL;
 }
+EXPORT_SYMBOL(mlx5_eswitch_get_proto_dev);
 
 void *mlx5_eswitch_uplink_get_proto_dev(struct mlx5_eswitch *esw, u8 rep_type)
 {
 	return mlx5_eswitch_get_proto_dev(esw, UPLINK_REP_INDEX, rep_type);
 }
+EXPORT_SYMBOL(mlx5_eswitch_uplink_get_proto_dev);
+
+struct mlx5_eswitch_rep *mlx5_eswitch_vport_rep(struct mlx5_eswitch *esw,
+						int vport)
+{
+	return &esw->offloads.vport_reps[vport];
+}
+EXPORT_SYMBOL(mlx5_eswitch_vport_rep);
