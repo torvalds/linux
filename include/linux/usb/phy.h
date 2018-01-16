@@ -60,6 +60,7 @@ enum usb_otg_state {
 	OTG_STATE_B_IDLE,
 	OTG_STATE_B_SRP_INIT,
 	OTG_STATE_B_PERIPHERAL,
+	OTG_STATE_B_SUSPEND,
 
 	/* extra dual-role default-b states */
 	OTG_STATE_B_WAIT_ACON,
