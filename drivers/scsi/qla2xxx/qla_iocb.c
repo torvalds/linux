@@ -2620,7 +2620,7 @@ qla2x00_els_dcmd2_sp_done(void *ptr, int res)
 	struct scsi_qla_host *vha = sp->vha;
 
 	ql_dbg(ql_dbg_io + ql_dbg_disc, vha, 0x3072,
-	    "%s ELS hdl=%x, portid=%06x done %8pC\n",
+	    "%s ELS hdl=%x, portid=%06x done %8phC\n",
 	    sp->name, sp->handle, fcport->d_id.b24, fcport->port_name);
 
 	complete(&lio->u.els_plogi.comp);
