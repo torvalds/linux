@@ -108,7 +108,6 @@ void fsnotify_get_mark(struct fsnotify_mark *mark)
 	WARN_ON_ONCE(!refcount_read(&mark->refcnt));
 	refcount_inc(&mark->refcnt);
 }
-EXPORT_SYMBOL_GPL(fsnotify_put_mark);
 
 static void __fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 {
@@ -393,7 +392,6 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 	mutex_unlock(&group->mark_mutex);
 	fsnotify_free_mark(mark);
 }
-EXPORT_SYMBOL_GPL(fsnotify_destroy_mark);
 
 /*
  * Sorting function for lists of fsnotify marks.
@@ -608,7 +606,6 @@ err:
 	fsnotify_put_mark(mark);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(fsnotify_add_mark);
 
 int fsnotify_add_mark(struct fsnotify_mark *mark, struct inode *inode,
 		      struct vfsmount *mnt, int allow_dups)
@@ -744,7 +741,6 @@ void fsnotify_init_mark(struct fsnotify_mark *mark,
 	fsnotify_get_group(group);
 	mark->group = group;
 }
-EXPORT_SYMBOL_GPL(fsnotify_init_mark);
 
 /*
  * Destroy all marks in destroy_list, waits for SRCU period to finish before
