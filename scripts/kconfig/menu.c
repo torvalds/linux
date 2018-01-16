@@ -332,8 +332,10 @@ void menu_finalize(struct menu *parent)
 			 */
 			parentdep = expr_alloc_symbol(sym);
 		} else if (parent->prompt)
+			/* Menu node for 'menu' */
 			parentdep = parent->prompt->visible.expr;
 		else
+			/* Menu node for 'if' */
 			parentdep = parent->dep;
 
 		/* For each child menu node... */
