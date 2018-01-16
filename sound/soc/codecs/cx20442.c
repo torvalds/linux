@@ -28,6 +28,7 @@
 struct cx20442_priv {
 	struct tty_struct *tty;
 	struct regulator *por;
+	u8 reg_cache;
 };
 
 #define CX20442_PM		0x0
@@ -88,6 +89,17 @@ static const struct snd_soc_dapm_route cx20442_audio_map[] = {
 	{"ADC", NULL, "Input Mixer"},
 };
 
+static unsigned int cx20442_read_reg_cache(struct snd_soc_codec *codec,
+					   unsigned int reg)
+{
+	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
+
+	if (reg >= 1)
+		return -EINVAL;
+
+	return cx20442->reg_cache;
+}
+
 enum v253_vls {
 	V253_VLS_NONE = 0,
 	V253_VLS_T,
@@ -112,8 +124,6 @@ enum v253_vls {
 	V253_VLS_TEST,
 };
 
-#if 0
-/* FIXME : these function will be re-used */
 static int cx20442_pm_to_v253_vls(u8 value)
 {
 	switch (value & ~(1 << CX20442_AGC)) {
@@ -147,11 +157,10 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 							unsigned int value)
 {
 	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
-	u8 *reg_cache = codec->reg_cache;
 	int vls, vsp, old, len;
 	char buf[18];
 
-	if (reg >= codec->driver->reg_cache_size)
+	if (reg >= 1)
 		return -EINVAL;
 
 	/* tty and write pointers required for talking to the modem
@@ -159,8 +168,8 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (!cx20442->tty || !cx20442->tty->ops->write)
 		return -EIO;
 
-	old = reg_cache[reg];
-	reg_cache[reg] = value;
+	old = cx20442->reg_cache;
+	cx20442->reg_cache = value;
 
 	vls = cx20442_pm_to_v253_vls(value);
 	if (vls < 0)
@@ -190,7 +199,6 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	return 0;
 }
-#endif
 
 /*
  * Line discpline related code
@@ -384,12 +392,12 @@ static int cx20442_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static const u8 cx20442_reg;
-
 static const struct snd_soc_codec_driver cx20442_codec_dev = {
 	.probe = 	cx20442_codec_probe,
 	.remove = 	cx20442_codec_remove,
 	.set_bias_level = cx20442_set_bias_level,
+	.read = cx20442_read_reg_cache,
+	.write = cx20442_write,
 
 	.component_driver = {
 		.dapm_widgets		= cx20442_dapm_widgets,
