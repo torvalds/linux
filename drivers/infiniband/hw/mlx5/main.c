@@ -2803,6 +2803,18 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	if (!flow_is_multicast_only(flow_attr))
 		set_underlay_qp(dev, spec, underlay_qpn);
 
+	if (dev->rep) {
+		void *misc;
+
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    misc_parameters);
+		MLX5_SET(fte_match_set_misc, misc, source_port,
+			 dev->rep->vport);
+		misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    misc_parameters);
+		MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+	}
+
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
 	if (is_drop) {
 		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
