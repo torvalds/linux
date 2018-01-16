@@ -1610,7 +1610,7 @@ static int event_hist_trigger_print(struct seq_file *m,
 		sort_key = &hist_data->sort_keys[i];
 		idx = sort_key->field_idx;
 
-		if (WARN_ON(idx >= TRACING_MAP_FIELDS_MAX))
+		if (WARN_ON(idx >= HIST_FIELDS_MAX))
 			return -EINVAL;
 
 		if (i > 0)
@@ -1797,6 +1797,11 @@ static bool hist_trigger_match(struct event_trigger_data *data,
 		if (key_field->size != key_field_test->size)
 			return false;
 		if (key_field->is_signed != key_field_test->is_signed)
+			return false;
+		if (!!key_field->var.name != !!key_field_test->var.name)
+			return false;
+		if (key_field->var.name &&
+		    strcmp(key_field->var.name, key_field_test->var.name) != 0)
 			return false;
 	}
 
