@@ -72,11 +72,12 @@ static int wuxga_nt_panel_on(struct wuxga_nt_panel *wuxga_nt)
 static int wuxga_nt_panel_disable(struct drm_panel *panel)
 {
 	struct wuxga_nt_panel *wuxga_nt = to_wuxga_nt_panel(panel);
+	int ret;
 
 	if (!wuxga_nt->enabled)
 		return 0;
 
-	mipi_dsi_shutdown_peripheral(wuxga_nt->dsi);
+	ret = mipi_dsi_shutdown_peripheral(wuxga_nt->dsi);
 
 	if (wuxga_nt->backlight) {
 		wuxga_nt->backlight->props.power = FB_BLANK_POWERDOWN;
@@ -86,7 +87,7 @@ static int wuxga_nt_panel_disable(struct drm_panel *panel)
 
 	wuxga_nt->enabled = false;
 
-	return 0;
+	return ret;
 }
 
 static int wuxga_nt_panel_unprepare(struct drm_panel *panel)
