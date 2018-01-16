@@ -950,9 +950,7 @@ exit_free_irq:
 exit_reset:
 	reset_control_assert(drv_data->rstc);
 exit_clk:
-	/* Not all platforms have a clk */
-	if (!IS_ERR(drv_data->clk))
-		clk_disable_unprepare(drv_data->clk);
+	clk_disable_unprepare(drv_data->clk);
 
 	return rc;
 }
@@ -965,9 +963,7 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 	i2c_del_adapter(&drv_data->adapter);
 	free_irq(drv_data->irq, drv_data);
 	reset_control_assert(drv_data->rstc);
-	/* Not all platforms have a clk */
-	if (!IS_ERR(drv_data->clk))
-		clk_disable_unprepare(drv_data->clk);
+	clk_disable_unprepare(drv_data->clk);
 
 	return 0;
 }
