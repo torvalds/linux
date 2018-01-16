@@ -16,6 +16,7 @@ enum {
 
 enum {
 	REP_ETH,
+	REP_IB,
 	NUM_REP_TYPES,
 };
 
