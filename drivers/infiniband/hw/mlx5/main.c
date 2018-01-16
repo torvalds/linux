@@ -57,6 +57,7 @@
 #include <linux/in.h>
 #include <linux/etherdevice.h>
 #include "mlx5_ib.h"
+#include "ib_rep.h"
 #include "cmd.h"
 
 #define DRIVER_NAME "mlx5_ib"
@@ -4903,6 +4904,18 @@ static int mlx5_ib_stage_class_attr_init(struct mlx5_ib_dev *dev)
 	}
 
 	return 0;
+}
+
+static int mlx5_ib_stage_rep_reg_init(struct mlx5_ib_dev *dev)
+{
+	mlx5_ib_register_vport_reps(dev);
+
+	return 0;
+}
+
+static void mlx5_ib_stage_rep_reg_cleanup(struct mlx5_ib_dev *dev)
+{
+	mlx5_ib_unregister_vport_reps(dev);
 }
 
 static void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
