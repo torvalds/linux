@@ -90,19 +90,19 @@ struct sta_info {
 };
 
 /*Parameters needed for host interface for  remaining on channel*/
-struct wilc_wfi_p2pListenParams {
-	struct ieee80211_channel *pstrListenChan;
+struct wilc_wfi_p2p_listen_params {
+	struct ieee80211_channel *listen_ch;
 	enum nl80211_channel_type tenuChannelType;
-	u32 u32ListenDuration;
-	u64 u64ListenCookie;
-	u32 u32ListenSessionID;
+	u32 listen_duration;
+	u64 listen_cookie;
+	u32 listen_session_id;
 };
 
 struct wilc_priv {
 	struct wireless_dev *wdev;
 	struct cfg80211_scan_request *scan_req;
 
-	struct wilc_wfi_p2pListenParams remain_on_ch_params;
+	struct wilc_wfi_p2p_listen_params remain_on_ch_params;
 	u64 tx_cookie;
 
 	bool cfg_scanning;
