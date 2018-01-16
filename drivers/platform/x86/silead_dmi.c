@@ -309,6 +309,17 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		},
 	},
 	{
+		/* Trekstor Surftab Wintron 7.0 ST70416-6, newer BIOS */
+		.driver_data = (void *)&surftab_wintron70_st70416_6_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TrekStor"),
+			DMI_MATCH(DMI_PRODUCT_NAME,
+					     "SurfTab wintron 7.0 ST70416-6"),
+			/* Exact match, different versions need different fw */
+			DMI_MATCH(DMI_BIOS_VERSION, "TREK.G.WI71C.JGBMRBA05"),
+		},
+	},
+	{
 		/* Ployer Momo7w (same hardware as the Trekstor ST70416-6) */
 		.driver_data = (void *)&surftab_wintron70_st70416_6_data,
 		.matches = {
