@@ -1247,25 +1247,20 @@ static bool m_can_niso_supported(const struct m_can_priv *priv)
 	return !niso_timeout;
 }
 
-static struct net_device *alloc_m_can_dev(struct platform_device *pdev,
-					  void __iomem *addr, u32 tx_fifo_size)
+static int m_can_dev_setup(struct platform_device *pdev, struct net_device *dev,
+			   void __iomem *addr)
 {
-	struct net_device *dev;
 	struct m_can_priv *priv;
 	int m_can_version;
 
 	m_can_version = m_can_check_core_release(addr);
 	/* return if unsupported version */
 	if (!m_can_version) {
-		dev = NULL;
-		goto return_dev;
+		dev_err(&pdev->dev, "Unsupported version number: %2d",
+			m_can_version);
+		return -EINVAL;
 	}
 
-	dev = alloc_candev(sizeof(*priv), tx_fifo_size);
-	if (!dev) {
-		dev = NULL;
-		goto return_dev;
-	}
 	priv = netdev_priv(dev);
 	netif_napi_add(dev, &priv->napi, m_can_poll, M_CAN_NAPI_WEIGHT);
 
@@ -1307,16 +1302,12 @@ static struct net_device *alloc_m_can_dev(struct platform_device *pdev,
 						: 0);
 		break;
 	default:
-		/* Unsupported device: free candev */
-		free_m_can_dev(dev);
 		dev_err(&pdev->dev, "Unsupported version number: %2d",
 			priv->version);
-		dev = NULL;
-		break;
+		return -EINVAL;
 	}
 
-return_dev:
-	return dev;
+	return 0;
 }
 
 static int m_can_open(struct net_device *dev)
@@ -1656,11 +1647,16 @@ static int m_can_plat_probe(struct platform_device *pdev)
 	tx_fifo_size = mram_config_vals[7];
 
 	/* allocate the m_can device */
-	dev = alloc_m_can_dev(pdev, addr, tx_fifo_size);
+	dev = alloc_candev(sizeof(*priv), tx_fifo_size);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto disable_cclk_ret;
 	}
+
+	ret = m_can_dev_setup(pdev, dev, addr);
+	if (ret)
+		goto failed_free_dev;
+
 	priv = netdev_priv(dev);
 	dev->irq = irq;
 	priv->device = &pdev->dev;
