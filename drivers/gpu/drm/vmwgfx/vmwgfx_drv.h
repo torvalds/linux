@@ -678,6 +678,7 @@ extern void vmw_fence_single_bo(struct ttm_buffer_object *bo,
 				struct vmw_fence_obj *fence);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 
+
 /**
  * DMA buffer helper routines - vmwgfx_dmabuf.c
  */
@@ -1165,6 +1166,53 @@ extern int vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man,
 				bool interruptible);
 extern void vmw_cmdbuf_irqthread(struct vmw_cmdbuf_man *man);
 
+/* CPU blit utilities - vmwgfx_blit.c */
+
+/**
+ * struct vmw_diff_cpy - CPU blit information structure
+ *
+ * @rect: The output bounding box rectangle.
+ * @line: The current line of the blit.
+ * @line_offset: Offset of the current line segment.
+ * @cpp: Bytes per pixel (granularity information).
+ * @memcpy: Which memcpy function to use.
+ */
+struct vmw_diff_cpy {
+	struct drm_rect rect;
+	size_t line;
+	size_t line_offset;
+	int cpp;
+	void (*do_cpy)(struct vmw_diff_cpy *diff, u8 *dest, const u8 *src,
+		       size_t n);
+};
+
+#define VMW_CPU_BLIT_INITIALIZER {	\
+	.do_cpy = vmw_memcpy,		\
+}
+
+#define VMW_CPU_BLIT_DIFF_INITIALIZER(_cpp) {	  \
+	.line = 0,				  \
+	.line_offset = 0,			  \
+	.rect = { .x1 = INT_MAX/2,		  \
+		  .y1 = INT_MAX/2,		  \
+		  .x2 = INT_MIN/2,		  \
+		  .y2 = INT_MIN/2		  \
+	},					  \
+	.cpp = _cpp,				  \
+	.do_cpy = vmw_diff_memcpy,		  \
+}
+
+void vmw_diff_memcpy(struct vmw_diff_cpy *diff, u8 *dest, const u8 *src,
+		     size_t n);
+
+void vmw_memcpy(struct vmw_diff_cpy *diff, u8 *dest, const u8 *src, size_t n);
+
+int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
+		    u32 dst_offset, u32 dst_stride,
+		    struct ttm_buffer_object *src,
+		    u32 src_offset, u32 src_stride,
+		    u32 w, u32 h,
+		    struct vmw_diff_cpy *diff);
 
 /**
  * Inline helper functions
