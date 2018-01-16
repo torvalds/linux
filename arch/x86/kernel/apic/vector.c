@@ -359,14 +359,17 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irq_data->chip_data = data;
 		irq_data->hwirq = virq + i;
 		err = assign_irq_vector_policy(virq + i, node, data, info);
-		if (err)
+		if (err) {
+			irq_data->chip_data = NULL;
+			free_apic_chip_data(data);
 			goto error;
+		}
 	}
 
 	return 0;
 
 error:
-	x86_vector_free_irqs(domain, virq, i + 1);
+	x86_vector_free_irqs(domain, virq, i);
 	return err;
 }
 
