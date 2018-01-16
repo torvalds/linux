@@ -316,68 +316,20 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 				  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(new_fb);
-	struct vmw_fence_obj *fence = NULL;
-	struct drm_vmw_rect vclips;
 	int ret;
 
 	if (!vmw_kms_crtc_flippable(dev_priv, crtc))
 		return -EINVAL;
 
-	flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
-	ret = drm_atomic_helper_page_flip(crtc, new_fb, NULL, flags, ctx);
+	ret = drm_atomic_helper_page_flip(crtc, new_fb, event, flags, ctx);
 	if (ret) {
 		DRM_ERROR("Page flip error %d.\n", ret);
 		return ret;
 	}
 
-	/* do a full screen dirty update */
-	vclips.x = crtc->x;
-	vclips.y = crtc->y;
-	vclips.w = crtc->mode.hdisplay;
-	vclips.h = crtc->mode.vdisplay;
-
-	if (vfb->dmabuf)
-		ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, vfb,
-						  NULL, &vclips, 1, 1,
-						  true, &fence, crtc);
-	else
-		ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb,
-						   NULL, &vclips, NULL,
-						   0, 0, 1, 1, &fence, crtc);
-
-
-	if (ret != 0)
-		goto out_no_fence;
-	if (!fence) {
-		ret = -EINVAL;
-		goto out_no_fence;
-	}
-
-	if (event) {
-		struct drm_file *file_priv = event->base.file_priv;
-
-		ret = vmw_event_fence_action_queue(file_priv, fence,
-						   &event->base,
-						   &event->event.vbl.tv_sec,
-						   &event->event.vbl.tv_usec,
-						   true);
-	}
-
-	/*
-	 * No need to hold on to this now. The only cleanup
-	 * we need to do if we fail is unref the fence.
-	 */
-	vmw_fence_obj_unreference(&fence);
-
 	if (vmw_crtc_to_du(crtc)->is_implicit)
 		vmw_kms_update_implicit_fb(dev_priv, crtc);
 
-	return ret;
-
-out_no_fence:
-	drm_atomic_set_fb_for_plane(crtc->primary->state, old_fb);
 	return ret;
 }
 
@@ -530,9 +482,71 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
 	struct drm_crtc *crtc = plane->state->crtc;
+	struct drm_pending_vblank_event *event = NULL;
+	struct vmw_fence_obj *fence = NULL;
+	int ret;
 
-	if (crtc)
+	if (crtc && plane->state->fb) {
+		struct vmw_private *dev_priv = vmw_priv(crtc->dev);
+		struct vmw_framebuffer *vfb =
+			vmw_framebuffer_to_vfb(plane->state->fb);
+		struct drm_vmw_rect vclips;
+
+		vclips.x = crtc->x;
+		vclips.y = crtc->y;
+		vclips.w = crtc->mode.hdisplay;
+		vclips.h = crtc->mode.vdisplay;
+
+		if (vfb->dmabuf)
+			ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, vfb, NULL,
+							  &vclips, 1, 1, true,
+							  &fence, crtc);
+		else
+			ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb, NULL,
+							   &vclips, NULL, 0, 0,
+							   1, 1, &fence, crtc);
+
+		/*
+		 * We cannot really fail this function, so if we do, then output
+		 * an error and maintain consistent atomic state.
+		 */
+		if (ret != 0)
+			DRM_ERROR("Failed to update screen.\n");
+
 		crtc->primary->fb = plane->state->fb;
+	} else {
+		/*
+		 * When disabling a plane, CRTC and FB should always be NULL
+		 * together, otherwise it's an error.
+		 * Here primary plane is being disable so should really blank
+		 * the screen object display unit, if not already done.
+		 */
+		return;
+	}
+
+	event = crtc->state->event;
+	/*
+	 * In case of failure and other cases, vblank event will be sent in
+	 * vmw_du_crtc_atomic_flush.
+	 */
+	if (event && fence) {
+		struct drm_file *file_priv = event->base.file_priv;
+
+		ret = vmw_event_fence_action_queue(file_priv,
+						   fence,
+						   &event->base,
+						   &event->event.vbl.tv_sec,
+						   &event->event.vbl.tv_usec,
+						   true);
+
+		if (unlikely(ret != 0))
+			DRM_ERROR("Failed to queue event on fence.\n");
+		else
+			crtc->state->event = NULL;
+	}
+
+	if (fence)
+		vmw_fence_obj_unreference(&fence);
 }
 
 
