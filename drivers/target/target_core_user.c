@@ -1583,7 +1583,7 @@ static int tcmu_wait_genl_cmd_reply(struct tcmu_dev *udev)
 
 	wake_up_all(&udev->nl_cmd_wq);
 
-	return ret;;
+	return ret;
 }
 
 static int tcmu_netlink_event(struct tcmu_dev *udev, enum tcmu_genl_cmd cmd,
