@@ -211,8 +211,8 @@ static irqreturn_t dpc_irq(int irq, void *context)
 	dev_info(dev, "DPC containment event, status:%#06x source:%#06x\n",
 		status, source);
 
-	reason = (status >> 1) & 0x3;
-	ext_reason = (status >> 5) & 0x3;
+	reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN) >> 1;
+	ext_reason = (status & PCI_EXP_DPC_STATUS_TRIGGER_RSN_EXT) >> 5;
 
 	dev_warn(dev, "DPC %s detected, remove downstream devices\n",
 		 (reason == 0) ? "unmasked uncorrectable error" :

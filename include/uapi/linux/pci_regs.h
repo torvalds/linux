@@ -979,8 +979,10 @@
 
 #define PCI_EXP_DPC_STATUS		8	/* DPC Status */
 #define  PCI_EXP_DPC_STATUS_TRIGGER	0x01	/* Trigger Status */
+#define  PCI_EXP_DPC_STATUS_TRIGGER_RSN	0x06	/* Trigger Reason */
 #define  PCI_EXP_DPC_STATUS_INTERRUPT	0x08	/* Interrupt Status */
 #define  PCI_EXP_DPC_RP_BUSY		0x10	/* Root Port Busy */
+#define  PCI_EXP_DPC_STATUS_TRIGGER_RSN_EXT 0x60 /* Trig Reason Extension */
 
 #define PCI_EXP_DPC_SOURCE_ID		10	/* DPC Source Identifier */
 
