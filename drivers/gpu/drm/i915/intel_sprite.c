@@ -1028,7 +1028,7 @@ intel_check_sprite_plane(struct intel_plane *plane,
 	dst->y2 = crtc_y + crtc_h;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		ret = skl_check_plane_surface(state);
+		ret = skl_check_plane_surface(crtc_state, state);
 		if (ret)
 			return ret;
 
