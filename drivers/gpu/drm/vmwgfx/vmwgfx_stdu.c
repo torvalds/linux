@@ -530,10 +530,10 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (vfb->dmabuf)
 		ret = vmw_kms_stdu_dma(dev_priv, NULL, vfb, NULL, NULL, &vclips,
-				       1, 1, true, false);
+				       1, 1, true, false, crtc);
 	else
 		ret = vmw_kms_stdu_surface_dirty(dev_priv, vfb, NULL, &vclips,
-						 NULL, 0, 0, 1, 1, NULL);
+						 NULL, 0, 0, 1, 1, NULL, crtc);
 	if (ret) {
 		DRM_ERROR("Page flip update error %d.\n", ret);
 		return ret;
@@ -802,6 +802,7 @@ out_cleanup:
  * @to_surface: Whether to DMA to the screen target system as opposed to
  * from the screen target system.
  * @interruptible: Whether to perform waits interruptible if possible.
+ * @crtc: If crtc is passed, perform stdu dma on that crtc only.
  *
  * If DMA-ing till the screen target system, the function will also notify
  * the screen target system that a bounding box of the cliprects has been
@@ -818,7 +819,8 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		     uint32_t num_clips,
 		     int increment,
 		     bool to_surface,
-		     bool interruptible)
+		     bool interruptible,
+		     struct drm_crtc *crtc)
 {
 	struct vmw_dma_buffer *buf =
 		container_of(vfb, struct vmw_framebuffer_dmabuf, base)->buffer;
@@ -851,6 +853,8 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		ddirty.base.clip = vmw_stdu_dmabuf_cpu_clip;
 		ddirty.base.fifo_reserve_size = 0;
 	}
+
+	ddirty.base.crtc = crtc;
 
 	ret = vmw_kms_helper_dirty(dev_priv, vfb, clips, vclips,
 				   0, 0, num_clips, increment, &ddirty.base);
@@ -963,6 +967,7 @@ static void vmw_kms_stdu_surface_fifo_commit(struct vmw_kms_dirty *dirty)
  * @out_fence: If non-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
+ * @crtc: If crtc is passed, perform surface dirty on that crtc only.
  *
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
@@ -975,7 +980,8 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 			       s32 dest_x,
 			       s32 dest_y,
 			       unsigned num_clips, int inc,
-			       struct vmw_fence_obj **out_fence)
+			       struct vmw_fence_obj **out_fence,
+			       struct drm_crtc *crtc)
 {
 	struct vmw_framebuffer_surface *vfbs =
 		container_of(framebuffer, typeof(*vfbs), base);
@@ -1000,6 +1006,7 @@ int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 	sdirty.base.fifo_reserve_size = sizeof(struct vmw_stdu_surface_copy) +
 		sizeof(SVGA3dCopyBox) * num_clips +
 		sizeof(struct vmw_stdu_update);
+	sdirty.base.crtc = crtc;
 	sdirty.sid = srf->id;
 	sdirty.left = sdirty.top = S32_MAX;
 	sdirty.right = sdirty.bottom = S32_MIN;

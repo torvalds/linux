@@ -341,11 +341,11 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 	if (vfb->dmabuf)
 		ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, vfb,
 						  NULL, &vclips, 1, 1,
-						  true, &fence);
+						  true, &fence, crtc);
 	else
 		ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb,
 						   NULL, &vclips, NULL,
-						   0, 0, 1, 1, &fence);
+						   0, 0, 1, 1, &fence, crtc);
 
 
 	if (ret != 0)
@@ -892,6 +892,7 @@ static void vmw_sou_surface_clip(struct vmw_kms_dirty *dirty)
  * @out_fence: If non-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
+ * @crtc: If crtc is passed, perform surface dirty on that crtc only.
  *
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
@@ -904,7 +905,8 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 				 s32 dest_x,
 				 s32 dest_y,
 				 unsigned num_clips, int inc,
-				 struct vmw_fence_obj **out_fence)
+				 struct vmw_fence_obj **out_fence,
+				 struct drm_crtc *crtc)
 {
 	struct vmw_framebuffer_surface *vfbs =
 		container_of(framebuffer, typeof(*vfbs), base);
@@ -923,6 +925,7 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 	sdirty.base.dev_priv = dev_priv;
 	sdirty.base.fifo_reserve_size = sizeof(struct vmw_kms_sou_dirty_cmd) +
 	  sizeof(SVGASignedRect) * num_clips;
+	sdirty.base.crtc = crtc;
 
 	sdirty.sid = srf->id;
 	sdirty.left = sdirty.top = S32_MAX;
@@ -994,6 +997,7 @@ static void vmw_sou_dmabuf_clip(struct vmw_kms_dirty *dirty)
  * @out_fence: If non-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
+ * @crtc: If crtc is passed, perform dmabuf dirty on that crtc only.
  *
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
@@ -1004,7 +1008,8 @@ int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 				struct drm_vmw_rect *vclips,
 				unsigned num_clips, int increment,
 				bool interruptible,
-				struct vmw_fence_obj **out_fence)
+				struct vmw_fence_obj **out_fence,
+				struct drm_crtc *crtc)
 {
 	struct vmw_dma_buffer *buf =
 		container_of(framebuffer, struct vmw_framebuffer_dmabuf,
@@ -1021,6 +1026,7 @@ int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		goto out_revert;
 
+	dirty.crtc = crtc;
 	dirty.fifo_commit = vmw_sou_dmabuf_fifo_commit;
 	dirty.clip = vmw_sou_dmabuf_clip;
 	dirty.fifo_reserve_size = sizeof(struct vmw_kms_sou_dmabuf_blit) *
@@ -1092,6 +1098,7 @@ static void vmw_sou_readback_clip(struct vmw_kms_dirty *dirty)
  * Must be set to non-NULL if @file_priv is non-NULL.
  * @vclips: Array of clip rects.
  * @num_clips: Number of clip rects in @vclips.
+ * @crtc: If crtc is passed, readback on that crtc only.
  *
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
@@ -1101,7 +1108,8 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 			 struct vmw_framebuffer *vfb,
 			 struct drm_vmw_fence_rep __user *user_fence_rep,
 			 struct drm_vmw_rect *vclips,
-			 uint32_t num_clips)
+			 uint32_t num_clips,
+			 struct drm_crtc *crtc)
 {
 	struct vmw_dma_buffer *buf =
 		container_of(vfb, struct vmw_framebuffer_dmabuf, base)->buffer;
@@ -1116,6 +1124,7 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		goto out_revert;
 
+	dirty.crtc = crtc;
 	dirty.fifo_commit = vmw_sou_readback_fifo_commit;
 	dirty.clip = vmw_sou_readback_clip;
 	dirty.fifo_reserve_size = sizeof(struct vmw_kms_sou_readback_blit) *

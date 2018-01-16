@@ -888,11 +888,11 @@ static int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 	if (dev_priv->active_display_unit == vmw_du_screen_object)
 		ret = vmw_kms_sou_do_surface_dirty(dev_priv, &vfbs->base,
 						   clips, NULL, NULL, 0, 0,
-						   num_clips, inc, NULL);
+						   num_clips, inc, NULL, NULL);
 	else
 		ret = vmw_kms_stdu_surface_dirty(dev_priv, &vfbs->base,
 						 clips, NULL, NULL, 0, 0,
-						 num_clips, inc, NULL);
+						 num_clips, inc, NULL, NULL);
 
 	vmw_fifo_flush(dev_priv, false);
 	ttm_read_unlock(&dev_priv->reservation_sem);
@@ -928,11 +928,12 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 	switch (dev_priv->active_display_unit) {
 	case vmw_du_screen_object:
 		return vmw_kms_sou_readback(dev_priv, file_priv, vfb,
-					    user_fence_rep, vclips, num_clips);
+					    user_fence_rep, vclips, num_clips,
+					    NULL);
 	case vmw_du_screen_target:
 		return vmw_kms_stdu_dma(dev_priv, file_priv, vfb,
 					user_fence_rep, NULL, vclips, num_clips,
-					1, false, true);
+					1, false, true, NULL);
 	default:
 		WARN_ONCE(true,
 			  "Readback called with invalid display system.\n");
@@ -1090,12 +1091,12 @@ static int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	case vmw_du_screen_target:
 		ret = vmw_kms_stdu_dma(dev_priv, NULL, &vfbd->base, NULL,
 				       clips, NULL, num_clips, increment,
-				       true, true);
+				       true, true, NULL);
 		break;
 	case vmw_du_screen_object:
 		ret = vmw_kms_sou_do_dmabuf_dirty(dev_priv, &vfbd->base,
 						  clips, NULL, num_clips,
-						  increment, true, NULL);
+						  increment, true, NULL, NULL);
 		break;
 	case vmw_du_legacy:
 		ret = vmw_kms_ldu_do_dmabuf_dirty(dev_priv, &vfbd->base, 0, 0,
@@ -1581,7 +1582,7 @@ static int vmw_kms_generic_present(struct vmw_private *dev_priv,
 {
 	return vmw_kms_sou_do_surface_dirty(dev_priv, vfb, NULL, clips,
 					    &surface->res, destX, destY,
-					    num_clips, 1, NULL);
+					    num_clips, 1, NULL, NULL);
 }
 
 
@@ -1600,7 +1601,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 	case vmw_du_screen_target:
 		ret = vmw_kms_stdu_surface_dirty(dev_priv, vfb, NULL, clips,
 						 &surface->res, destX, destY,
-						 num_clips, 1, NULL);
+						 num_clips, 1, NULL, NULL);
 		break;
 	case vmw_du_screen_object:
 		ret = vmw_kms_generic_present(dev_priv, file_priv, vfb, surface,
@@ -2328,10 +2329,16 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 
 	dirty->dev_priv = dev_priv;
 
-	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->primary->fb != &framebuffer->base)
-			continue;
-		units[num_units++] = vmw_crtc_to_du(crtc);
+	/* If crtc is passed, no need to iterate over other display units */
+	if (dirty->crtc) {
+		units[num_units++] = vmw_crtc_to_du(dirty->crtc);
+	} else {
+		list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list,
+				    head) {
+			if (crtc->primary->fb != &framebuffer->base)
+				continue;
+			units[num_units++] = vmw_crtc_to_du(crtc);
+		}
 	}
 
 	for (k = 0; k < num_units; k++) {
