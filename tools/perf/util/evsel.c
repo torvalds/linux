@@ -726,7 +726,7 @@ perf_evsel__reset_callgraph(struct perf_evsel *evsel,
 }
 
 static void apply_config_terms(struct perf_evsel *evsel,
-			       struct record_opts *opts)
+			       struct record_opts *opts, bool track)
 {
 	struct perf_evsel_config_term *term;
 	struct list_head *config_terms = &evsel->config_terms;
@@ -797,6 +797,8 @@ static void apply_config_terms(struct perf_evsel *evsel,
 
 	/* User explicitly set per-event callgraph, clear the old setting and reset. */
 	if ((callgraph_buf != NULL) || (dump_size > 0) || max_stack) {
+		bool sample_address = false;
+
 		if (max_stack) {
 			param.max_stack = max_stack;
 			if (callgraph_buf == NULL)
@@ -816,6 +818,8 @@ static void apply_config_terms(struct perf_evsel *evsel,
 					       evsel->name);
 					return;
 				}
+				if (param.record_mode == CALLCHAIN_DWARF)
+					sample_address = true;
 			}
 		}
 		if (dump_size > 0) {
@@ -828,8 +832,14 @@ static void apply_config_terms(struct perf_evsel *evsel,
 			perf_evsel__reset_callgraph(evsel, &callchain_param);
 
 		/* set perf-event callgraph */
-		if (param.enabled)
+		if (param.enabled) {
+			if (sample_address) {
+				perf_evsel__set_sample_bit(evsel, ADDR);
+				perf_evsel__set_sample_bit(evsel, DATA_SRC);
+				evsel->attr.mmap_data = track;
+			}
 			perf_evsel__config_callchain(evsel, opts, &param);
+		}
 	}
 }
 
@@ -1060,7 +1070,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	 * Apply event specific term settings,
 	 * it overloads any global configuration.
 	 */
-	apply_config_terms(evsel, opts);
+	apply_config_terms(evsel, opts, track);
 
 	evsel->ignore_missing_thread = opts->ignore_missing_thread;
 }
