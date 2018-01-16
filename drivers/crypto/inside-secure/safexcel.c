@@ -432,8 +432,8 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 }
 
 /* Called with ring's lock taken */
-int safexcel_try_push_requests(struct safexcel_crypto_priv *priv, int ring,
-			       int reqs)
+static int safexcel_try_push_requests(struct safexcel_crypto_priv *priv,
+				      int ring, int reqs)
 {
 	int coal = min_t(int, reqs, EIP197_MAX_BATCH_SZ);
 
