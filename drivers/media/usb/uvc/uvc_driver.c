@@ -216,7 +216,7 @@ static struct uvc_format_desc uvc_fmts[] = {
  */
 
 struct usb_host_endpoint *uvc_find_endpoint(struct usb_host_interface *alts,
-		__u8 epaddr)
+		u8 epaddr)
 {
 	struct usb_host_endpoint *ep;
 	unsigned int i;
@@ -230,7 +230,7 @@ struct usb_host_endpoint *uvc_find_endpoint(struct usb_host_interface *alts,
 	return NULL;
 }
 
-static struct uvc_format_desc *uvc_format_by_guid(const __u8 guid[16])
+static struct uvc_format_desc *uvc_format_by_guid(const u8 guid[16])
 {
 	unsigned int len = ARRAY_SIZE(uvc_fmts);
 	unsigned int i;
@@ -243,9 +243,9 @@ static struct uvc_format_desc *uvc_format_by_guid(const __u8 guid[16])
 	return NULL;
 }
 
-static __u32 uvc_colorspace(const __u8 primaries)
+static u32 uvc_colorspace(const u8 primaries)
 {
-	static const __u8 colorprimaries[] = {
+	static const u8 colorprimaries[] = {
 		0,
 		V4L2_COLORSPACE_SRGB,
 		V4L2_COLORSPACE_470_SYSTEM_M,
@@ -391,7 +391,7 @@ static struct uvc_streaming *uvc_stream_by_id(struct uvc_device *dev, int id)
 
 static int uvc_parse_format(struct uvc_device *dev,
 	struct uvc_streaming *streaming, struct uvc_format *format,
-	__u32 **intervals, unsigned char *buffer, int buflen)
+	u32 **intervals, unsigned char *buffer, int buflen)
 {
 	struct usb_interface *intf = streaming->intf;
 	struct usb_host_interface *alts = intf->cur_altsetting;
@@ -401,7 +401,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 	unsigned int width_multiplier = 1;
 	unsigned int interval;
 	unsigned int i, n;
-	__u8 ftype;
+	u8 ftype;
 
 	format->type = buffer[2];
 	format->index = buffer[3];
@@ -658,8 +658,8 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 	int _buflen, buflen = alts->extralen;
 	unsigned int nformats = 0, nframes = 0, nintervals = 0;
 	unsigned int size, i, n, p;
-	__u32 *interval;
-	__u16 psize;
+	u32 *interval;
+	u16 psize;
 	int ret = -EINVAL;
 
 	if (intf->cur_altsetting->desc.bInterfaceSubClass
@@ -836,7 +836,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 	}
 
 	frame = (struct uvc_frame *)&format[nformats];
-	interval = (__u32 *)&frame[nframes];
+	interval = (u32 *)&frame[nframes];
 
 	streaming->format = format;
 	streaming->nformats = nformats;
@@ -930,7 +930,7 @@ static struct uvc_entity *uvc_alloc_entity(u16 type, u8 id,
 		entity->pads[num_pads-1].flags = MEDIA_PAD_FL_SOURCE;
 
 	entity->bNrInPins = num_inputs;
-	entity->baSourceID = (__u8 *)(&entity->pads[num_pads]);
+	entity->baSourceID = (u8 *)(&entity->pads[num_pads]);
 
 	return entity;
 }
@@ -995,8 +995,8 @@ static int uvc_parse_vendor_control(struct uvc_device *dev,
 		unit->extension.bNumControls = buffer[20];
 		memcpy(unit->baSourceID, &buffer[22], p);
 		unit->extension.bControlSize = buffer[22+p];
-		unit->extension.bmControls = (__u8 *)unit + sizeof(*unit);
-		unit->extension.bmControlsType = (__u8 *)unit + sizeof(*unit)
+		unit->extension.bmControls = (u8 *)unit + sizeof(*unit);
+		unit->extension.bmControlsType = (u8 *)unit + sizeof(*unit)
 					       + n;
 		memcpy(unit->extension.bmControls, &buffer[23+p], 2*n);
 
@@ -1022,7 +1022,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 	struct usb_interface *intf;
 	struct usb_host_interface *alts = dev->intf->cur_altsetting;
 	unsigned int i, n, p, len;
-	__u16 type;
+	u16 type;
 
 	switch (buffer[2]) {
 	case UVC_VC_HEADER:
@@ -1101,7 +1101,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 
 		if (UVC_ENTITY_TYPE(term) == UVC_ITT_CAMERA) {
 			term->camera.bControlSize = n;
-			term->camera.bmControls = (__u8 *)term + sizeof *term;
+			term->camera.bmControls = (u8 *)term + sizeof *term;
 			term->camera.wObjectiveFocalLengthMin =
 				get_unaligned_le16(&buffer[8]);
 			term->camera.wObjectiveFocalLengthMax =
@@ -1112,9 +1112,9 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 		} else if (UVC_ENTITY_TYPE(term) ==
 			   UVC_ITT_MEDIA_TRANSPORT_INPUT) {
 			term->media.bControlSize = n;
-			term->media.bmControls = (__u8 *)term + sizeof *term;
+			term->media.bmControls = (u8 *)term + sizeof *term;
 			term->media.bTransportModeSize = p;
-			term->media.bmTransportModes = (__u8 *)term
+			term->media.bmTransportModes = (u8 *)term
 						     + sizeof *term + n;
 			memcpy(term->media.bmControls, &buffer[9], n);
 			memcpy(term->media.bmTransportModes, &buffer[10+n], p);
@@ -1213,7 +1213,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 		unit->processing.wMaxMultiplier =
 			get_unaligned_le16(&buffer[5]);
 		unit->processing.bControlSize = buffer[7];
-		unit->processing.bmControls = (__u8 *)unit + sizeof *unit;
+		unit->processing.bmControls = (u8 *)unit + sizeof *unit;
 		memcpy(unit->processing.bmControls, &buffer[8], n);
 		if (dev->uvc_version >= 0x0110)
 			unit->processing.bmVideoStandards = buffer[9+n];
@@ -1246,7 +1246,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 		unit->extension.bNumControls = buffer[20];
 		memcpy(unit->baSourceID, &buffer[22], p);
 		unit->extension.bControlSize = buffer[22+p];
-		unit->extension.bmControls = (__u8 *)unit + sizeof *unit;
+		unit->extension.bmControls = (u8 *)unit + sizeof *unit;
 		memcpy(unit->extension.bmControls, &buffer[23+p], n);
 
 		if (buffer[23+p+n] != 0)

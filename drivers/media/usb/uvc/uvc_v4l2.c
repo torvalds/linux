@@ -105,12 +105,12 @@ free_map:
  * the Video Probe and Commit negotiation, but some hardware don't implement
  * that feature.
  */
-static __u32 uvc_try_frame_interval(struct uvc_frame *frame, __u32 interval)
+static u32 uvc_try_frame_interval(struct uvc_frame *frame, u32 interval)
 {
 	unsigned int i;
 
 	if (frame->bFrameIntervalType) {
-		__u32 best = -1, dist;
+		u32 best = -1, dist;
 
 		for (i = 0; i < frame->bFrameIntervalType; ++i) {
 			dist = interval > frame->dwFrameInterval[i]
@@ -125,9 +125,9 @@ static __u32 uvc_try_frame_interval(struct uvc_frame *frame, __u32 interval)
 
 		interval = frame->dwFrameInterval[i-1];
 	} else {
-		const __u32 min = frame->dwFrameInterval[0];
-		const __u32 max = frame->dwFrameInterval[1];
-		const __u32 step = frame->dwFrameInterval[2];
+		const u32 min = frame->dwFrameInterval[0];
+		const u32 max = frame->dwFrameInterval[1];
+		const u32 step = frame->dwFrameInterval[2];
 
 		interval = min + (interval - min + step/2) / step * step;
 		if (interval > max)
@@ -137,7 +137,7 @@ static __u32 uvc_try_frame_interval(struct uvc_frame *frame, __u32 interval)
 	return interval;
 }
 
-static __u32 uvc_v4l2_get_bytesperline(const struct uvc_format *format,
+static u32 uvc_v4l2_get_bytesperline(const struct uvc_format *format,
 	const struct uvc_frame *frame)
 {
 	switch (format->fcc) {
@@ -158,17 +158,17 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 {
 	struct uvc_format *format = NULL;
 	struct uvc_frame *frame = NULL;
-	__u16 rw, rh;
+	u16 rw, rh;
 	unsigned int d, maxd;
 	unsigned int i;
-	__u32 interval;
+	u32 interval;
 	int ret = 0;
-	__u8 *fcc;
+	u8 *fcc;
 
 	if (fmt->type != stream->type)
 		return -EINVAL;
 
-	fcc = (__u8 *)&fmt->fmt.pix.pixelformat;
+	fcc = (u8 *)&fmt->fmt.pix.pixelformat;
 	uvc_trace(UVC_TRACE_FORMAT, "Trying format 0x%08x (%c%c%c%c): %ux%u.\n",
 			fmt->fmt.pix.pixelformat,
 			fcc[0], fcc[1], fcc[2], fcc[3],
@@ -197,8 +197,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	maxd = (unsigned int)-1;
 
 	for (i = 0; i < format->nframes; ++i) {
-		__u16 w = format->frame[i].wWidth;
-		__u16 h = format->frame[i].wHeight;
+		u16 w = format->frame[i].wWidth;
+		u16 h = format->frame[i].wHeight;
 
 		d = min(w, rw) * min(h, rh);
 		d = w*h + rw*rh - 2*d;
@@ -375,7 +375,7 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 	struct v4l2_fract timeperframe;
 	struct uvc_format *format;
 	struct uvc_frame *frame;
-	__u32 interval, maxd;
+	u32 interval, maxd;
 	unsigned int i;
 	int ret;
 
@@ -403,11 +403,11 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 	frame = stream->cur_frame;
 	probe = stream->ctrl;
 	probe.dwFrameInterval = uvc_try_frame_interval(frame, interval);
-	maxd = abs((__s32)probe.dwFrameInterval - interval);
+	maxd = abs((s32)probe.dwFrameInterval - interval);
 
 	/* Try frames with matching size to find the best frame interval. */
 	for (i = 0; i < format->nframes && maxd != 0; i++) {
-		__u32 d, ival;
+		u32 d, ival;
 
 		if (&format->frame[i] == stream->cur_frame)
 			continue;
@@ -417,7 +417,7 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 			continue;
 
 		ival = uvc_try_frame_interval(&format->frame[i], interval);
-		d = abs((__s32)ival - interval);
+		d = abs((s32)ival - interval);
 		if (d >= maxd)
 			continue;
 
@@ -605,7 +605,7 @@ static int uvc_ioctl_enum_fmt(struct uvc_streaming *stream,
 {
 	struct uvc_format *format;
 	enum v4l2_buf_type type = fmt->type;
-	__u32 index = fmt->index;
+	u32 index = fmt->index;
 
 	if (fmt->type != stream->type || fmt->index >= stream->nformats)
 		return -EINVAL;
@@ -1300,20 +1300,20 @@ static long uvc_ioctl_default(struct file *file, void *fh, bool valid_prio,
 
 #ifdef CONFIG_COMPAT
 struct uvc_xu_control_mapping32 {
-	__u32 id;
-	__u8 name[32];
-	__u8 entity[16];
-	__u8 selector;
+	u32 id;
+	u8 name[32];
+	u8 entity[16];
+	u8 selector;
 
-	__u8 size;
-	__u8 offset;
-	__u32 v4l2_type;
-	__u32 data_type;
+	u8 size;
+	u8 offset;
+	u32 v4l2_type;
+	u32 data_type;
 
 	compat_caddr_t menu_info;
-	__u32 menu_count;
+	u32 menu_count;
 
-	__u32 reserved[4];
+	u32 reserved[4];
 };
 
 static int uvc_v4l2_get_xu_mapping(struct uvc_xu_control_mapping *kp,
@@ -1349,10 +1349,10 @@ static int uvc_v4l2_put_xu_mapping(const struct uvc_xu_control_mapping *kp,
 }
 
 struct uvc_xu_control_query32 {
-	__u8 unit;
-	__u8 selector;
-	__u8 query;
-	__u16 size;
+	u8 unit;
+	u8 selector;
+	u8 query;
+	u16 size;
 	compat_caddr_t data;
 };
 
