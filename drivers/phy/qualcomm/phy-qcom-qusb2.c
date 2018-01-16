@@ -40,14 +40,33 @@
 /* QUSB2PHY_PLL_STATUS register bits */
 #define PLL_LOCKED			BIT(5)
 
+/* QUSB2PHY_PLL_COMMON_STATUS_ONE register bits */
+#define CORE_READY_STATUS		BIT(0)
+
 /* QUSB2PHY_PORT_POWERDOWN register bits */
 #define CLAMP_N_EN			BIT(5)
 #define FREEZIO_N			BIT(1)
 #define POWER_DOWN			BIT(0)
 
+/* QUSB2PHY_PWR_CTRL1 register bits */
+#define PWR_CTRL1_VREF_SUPPLY_TRIM	BIT(5)
+#define PWR_CTRL1_CLAMP_N_EN		BIT(1)
+
 #define QUSB2PHY_REFCLK_ENABLE		BIT(0)
 
 #define PHY_CLK_SCHEME_SEL		BIT(0)
+
+#define QUSB2PHY_PLL_ANALOG_CONTROLS_TWO	0x04
+#define QUSB2PHY_PLL_CLOCK_INVERTERS		0x18c
+#define QUSB2PHY_PLL_CMODE			0x2c
+#define QUSB2PHY_PLL_LOCK_DELAY			0x184
+#define QUSB2PHY_PLL_DIGITAL_TIMERS_TWO		0xb4
+#define QUSB2PHY_PLL_BIAS_CONTROL_1		0x194
+#define QUSB2PHY_PLL_BIAS_CONTROL_2		0x198
+#define QUSB2PHY_PWR_CTRL2			0x214
+#define QUSB2PHY_IMP_CTRL1			0x220
+#define QUSB2PHY_IMP_CTRL2			0x224
+#define QUSB2PHY_CHG_CTRL2			0x23c
 
 struct qusb2_phy_init_tbl {
 	unsigned int offset;
@@ -113,6 +132,38 @@ static const struct qusb2_phy_init_tbl msm8996_init_tbl[] = {
 	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_PWR_CTRL, 0x00),
 };
 
+static const unsigned int qusb2_v2_regs_layout[] = {
+	[QUSB2PHY_PLL_STATUS]		= 0x1a0,
+	[QUSB2PHY_PORT_TUNE1]		= 0x240,
+	[QUSB2PHY_PORT_TUNE2]		= 0x244,
+	[QUSB2PHY_PORT_TUNE3]		= 0x248,
+	[QUSB2PHY_PORT_TUNE4]		= 0x24c,
+	[QUSB2PHY_PORT_TUNE5]		= 0x250,
+	[QUSB2PHY_PORT_TEST2]		= 0x258,
+	[QUSB2PHY_PORT_POWERDOWN]	= 0x210,
+};
+
+static const struct qusb2_phy_init_tbl qusb2_v2_init_tbl[] = {
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_ANALOG_CONTROLS_TWO, 0x03),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_CLOCK_INVERTERS, 0x7c),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_CMODE, 0x80),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_LOCK_DELAY, 0x0a),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_DIGITAL_TIMERS_TWO, 0x19),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_BIAS_CONTROL_1, 0x40),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PLL_BIAS_CONTROL_2, 0x20),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_PWR_CTRL2, 0x21),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_IMP_CTRL1, 0x0),
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_IMP_CTRL2, 0x58),
+
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE1, 0x30),
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE2, 0x29),
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE3, 0xca),
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE4, 0x04),
+	QUSB2_PHY_INIT_CFG_L(QUSB2PHY_PORT_TUNE5, 0x03),
+
+	QUSB2_PHY_INIT_CFG(QUSB2PHY_CHG_CTRL2, 0x0),
+};
+
 struct qusb2_phy_cfg {
 	const struct qusb2_phy_init_tbl *tbl;
 	/* number of entries in the table */
@@ -140,6 +191,16 @@ static const struct qusb2_phy_cfg msm8996_phy_cfg = {
 	.has_pll_test	= true,
 	.disable_ctrl	= (CLAMP_N_EN | FREEZIO_N | POWER_DOWN),
 	.mask_core_ready = PLL_LOCKED,
+};
+
+static const struct qusb2_phy_cfg qusb2_v2_phy_cfg = {
+	.tbl		= qusb2_v2_init_tbl,
+	.tbl_num	= ARRAY_SIZE(qusb2_v2_init_tbl),
+	.regs		= qusb2_v2_regs_layout,
+
+	.disable_ctrl	= (PWR_CTRL1_VREF_SUPPLY_TRIM | PWR_CTRL1_CLAMP_N_EN |
+			   POWER_DOWN),
+	.mask_core_ready = CORE_READY_STATUS,
 };
 
 static const char * const qusb2_phy_vreg_names[] = {
@@ -429,6 +490,9 @@ static const struct of_device_id qusb2_phy_of_match_table[] = {
 	{
 		.compatible	= "qcom,msm8996-qusb2-phy",
 		.data		= &msm8996_phy_cfg,
+	}, {
+		.compatible	= "qcom,qusb2-v2-phy",
+		.data		= &qusb2_v2_phy_cfg,
 	},
 	{ },
 };
