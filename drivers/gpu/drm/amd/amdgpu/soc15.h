@@ -27,7 +27,7 @@
 #include "nbio_v6_1.h"
 #include "nbio_v7_0.h"
 
-#define SOC15_FLUSH_GPU_TLB_NUM_WREG	3
+#define SOC15_FLUSH_GPU_TLB_NUM_WREG	4
 
 extern const struct amd_ip_funcs soc15_common_ip_funcs;
 

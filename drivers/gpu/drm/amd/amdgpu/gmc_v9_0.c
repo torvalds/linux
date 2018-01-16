@@ -34,6 +34,7 @@
 #include "vega10_enum.h"
 #include "mmhub/mmhub_1_0_offset.h"
 #include "athub/athub_1_0_offset.h"
+#include "oss/osssys_4_0_offset.h"
 
 #include "soc15.h"
 #include "soc15_common.h"
@@ -370,10 +371,12 @@ static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 					    unsigned vmid, unsigned pasid,
 					    uint64_t pd_addr)
 {
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_vmhub *hub = &adev->vmhub[ring->funcs->vmhub];
 	uint32_t req = gmc_v9_0_get_invalidate_req(vmid);
 	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
+	uint32_t reg;
 
 	amdgpu_gmc_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
 	pd_addr |= flags;
@@ -383,6 +386,13 @@ static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 
 	amdgpu_ring_emit_wreg(ring, hub->ctx0_ptb_addr_hi32 + (2 * vmid),
 			      upper_32_bits(pd_addr));
+
+	if (ring->funcs->vmhub == AMDGPU_GFXHUB)
+		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT) + vmid;
+	else
+		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT_MM) + vmid;
+
+	amdgpu_ring_emit_wreg(ring, reg, pasid);
 
 	amdgpu_ring_emit_wreg(ring, hub->vm_inv_eng0_req + eng, req);
 
