@@ -217,12 +217,14 @@ struct rbd_obj_request;
 typedef void (*rbd_obj_callback_t)(struct rbd_obj_request *);
 
 enum obj_request_type {
-	OBJ_REQUEST_NODATA, OBJ_REQUEST_BIO, OBJ_REQUEST_PAGES
+	OBJ_REQUEST_NODATA = 1,
+	OBJ_REQUEST_BIO,
+	OBJ_REQUEST_PAGES,
 };
 
 enum obj_operation_type {
+	OBJ_OP_READ = 1,
 	OBJ_OP_WRITE,
-	OBJ_OP_READ,
 	OBJ_OP_DISCARD,
 };
 
