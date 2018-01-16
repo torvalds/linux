@@ -114,7 +114,6 @@ struct vmw_screen_target_display_unit {
 	bool defined;
 
 	/* For CPU Blit */
-	struct ttm_bo_kmap_obj host_map;
 	unsigned int cpp;
 };
 
@@ -639,10 +638,9 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 		container_of(dirty->unit, typeof(*stdu), base);
 	s32 width, height;
 	s32 src_pitch, dst_pitch;
-	u8 *src, *dst;
-	bool not_used;
-	struct ttm_bo_kmap_obj guest_map;
-	int ret;
+	struct ttm_buffer_object *src_bo, *dst_bo;
+	u32 src_offset, dst_offset;
+	struct vmw_diff_cpy diff = VMW_CPU_BLIT_DIFF_INITIALIZER(stdu->cpp);
 
 	if (!dirty->num_hits)
 		return;
@@ -653,57 +651,38 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 	if (width == 0 || height == 0)
 		return;
 
-	ret = ttm_bo_kmap(&ddirty->buf->base, 0, ddirty->buf->base.num_pages,
-			  &guest_map);
-	if (ret) {
-		DRM_ERROR("Failed mapping framebuffer for blit: %d\n",
-			  ret);
-		goto out_cleanup;
+	/* Assume we are blitting from Guest (dmabuf) to Host (display_srf) */
+	dst_pitch = stdu->display_srf->base_size.width * stdu->cpp;
+	dst_bo = &stdu->display_srf->res.backup->base;
+	dst_offset = ddirty->top * dst_pitch + ddirty->left * stdu->cpp;
+
+	src_pitch = ddirty->pitch;
+	src_bo = &ddirty->buf->base;
+	src_offset = ddirty->fb_top * src_pitch + ddirty->fb_left * stdu->cpp;
+
+	/* Swap src and dst if the assumption was wrong. */
+	if (ddirty->transfer != SVGA3D_WRITE_HOST_VRAM) {
+		swap(dst_pitch, src_pitch);
+		swap(dst_bo, src_bo);
+		swap(src_offset, dst_offset);
 	}
 
-	/* Assume we are blitting from Host (display_srf) to Guest (dmabuf) */
-	src_pitch = stdu->display_srf->base_size.width * stdu->cpp;
-	src = ttm_kmap_obj_virtual(&stdu->host_map, &not_used);
-	src += ddirty->top * src_pitch + ddirty->left * stdu->cpp;
+	(void) vmw_bo_cpu_blit(dst_bo, dst_offset, dst_pitch,
+			       src_bo, src_offset, src_pitch,
+			       width * stdu->cpp, height, &diff);
 
-	dst_pitch = ddirty->pitch;
-	dst = ttm_kmap_obj_virtual(&guest_map, &not_used);
-	dst += ddirty->fb_top * dst_pitch + ddirty->fb_left * stdu->cpp;
-
-
-	/* Figure out the real direction */
-	if (ddirty->transfer == SVGA3D_WRITE_HOST_VRAM) {
-		u8 *tmp;
-		s32 tmp_pitch;
-
-		tmp = src;
-		tmp_pitch = src_pitch;
-
-		src = dst;
-		src_pitch = dst_pitch;
-
-		dst = tmp;
-		dst_pitch = tmp_pitch;
-	}
-
-	/* CPU Blit */
-	while (height-- > 0) {
-		memcpy(dst, src, width * stdu->cpp);
-		dst += dst_pitch;
-		src += src_pitch;
-	}
-
-	if (ddirty->transfer == SVGA3D_WRITE_HOST_VRAM) {
+	if (ddirty->transfer == SVGA3D_WRITE_HOST_VRAM &&
+	    drm_rect_visible(&diff.rect)) {
 		struct vmw_private *dev_priv;
 		struct vmw_stdu_update *cmd;
 		struct drm_clip_rect region;
 		int ret;
 
 		/* We are updating the actual surface, not a proxy */
-		region.x1 = ddirty->left;
-		region.x2 = ddirty->right;
-		region.y1 = ddirty->top;
-		region.y2 = ddirty->bottom;
+		region.x1 = diff.rect.x1;
+		region.x2 = diff.rect.x2;
+		region.y1 = diff.rect.y1;
+		region.y2 = diff.rect.y2;
 		ret = vmw_kms_update_proxy(
 			(struct vmw_resource *) &stdu->display_srf->res,
 			(const struct drm_clip_rect *) &region, 1, 1);
@@ -720,13 +699,12 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 		}
 
 		vmw_stdu_populate_update(cmd, stdu->base.unit,
-					 ddirty->left, ddirty->right,
-					 ddirty->top, ddirty->bottom);
+					 region.x1, region.x2,
+					 region.y1, region.y2);
 
 		vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	}
 
-	ttm_bo_kunmap(&guest_map);
 out_cleanup:
 	ddirty->left = ddirty->top = ddirty->fb_left = ddirty->fb_top = S32_MAX;
 	ddirty->right = ddirty->bottom = S32_MIN;
@@ -772,9 +750,15 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		container_of(vfb, struct vmw_framebuffer_dmabuf, base)->buffer;
 	struct vmw_stdu_dirty ddirty;
 	int ret;
+	bool cpu_blit = !(dev_priv->capabilities & SVGA_CAP_3D);
 
+	/*
+	 * VMs without 3D support don't have the surface DMA command and
+	 * we'll be using a CPU blit, and the framebuffer should be moved out
+	 * of VRAM.
+	 */
 	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, interruptible,
-					    false);
+					    false, cpu_blit);
 	if (ret)
 		return ret;
 
@@ -793,8 +777,8 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 	if (to_surface)
 		ddirty.base.fifo_reserve_size += sizeof(struct vmw_stdu_update);
 
-	/* 2D VMs cannot use SVGA_3D_CMD_SURFACE_DMA so do CPU blit instead */
-	if (!(dev_priv->capabilities & SVGA_CAP_3D)) {
+
+	if (cpu_blit) {
 		ddirty.base.fifo_commit = vmw_stdu_dmabuf_cpu_commit;
 		ddirty.base.clip = vmw_stdu_dmabuf_cpu_clip;
 		ddirty.base.fifo_reserve_size = 0;
@@ -1071,9 +1055,6 @@ vmw_stdu_primary_plane_cleanup_fb(struct drm_plane *plane,
 {
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
 
-	if (vps->host_map.virtual)
-		ttm_bo_kunmap(&vps->host_map);
-
 	if (vps->surf)
 		WARN_ON(!vps->pinned);
 
@@ -1235,23 +1216,10 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * so cache these mappings
 	 */
 	if (vps->content_fb_type == SEPARATE_DMA &&
-	    !(dev_priv->capabilities & SVGA_CAP_3D)) {
-		ret = ttm_bo_kmap(&vps->surf->res.backup->base, 0,
-				  vps->surf->res.backup->base.num_pages,
-				  &vps->host_map);
-		if (ret) {
-			DRM_ERROR("Failed to map display buffer to CPU\n");
-			goto out_srf_unpin;
-		}
-
+	    !(dev_priv->capabilities & SVGA_CAP_3D))
 		vps->cpp = new_fb->pitches[0] / new_fb->width;
-	}
 
 	return 0;
-
-out_srf_unpin:
-	vmw_resource_unpin(&vps->surf->res);
-	vps->pinned--;
 
 out_srf_unref:
 	vmw_surface_unreference(&vps->surf);
@@ -1296,7 +1264,6 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		stdu->display_srf = vps->surf;
 		stdu->content_fb_type = vps->content_fb_type;
 		stdu->cpp = vps->cpp;
-		memcpy(&stdu->host_map, &vps->host_map, sizeof(vps->host_map));
 
 		vclips.x = crtc->x;
 		vclips.y = crtc->y;

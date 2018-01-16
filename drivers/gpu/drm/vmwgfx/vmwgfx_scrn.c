@@ -1032,7 +1032,7 @@ int vmw_kms_sou_do_dmabuf_dirty(struct vmw_private *dev_priv,
 	int ret;
 
 	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, interruptible,
-					    false);
+					    false, false);
 	if (ret)
 		return ret;
 
@@ -1130,7 +1130,8 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 	struct vmw_kms_dirty dirty;
 	int ret;
 
-	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, true, false);
+	ret = vmw_kms_helper_buffer_prepare(dev_priv, buf, true, false,
+					    false);
 	if (ret)
 		return ret;
 

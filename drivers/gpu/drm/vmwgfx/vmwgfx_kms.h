@@ -177,7 +177,6 @@ struct vmw_plane_state {
 	int pinned;
 
 	/* For CPU Blit */
-	struct ttm_bo_kmap_obj host_map;
 	unsigned int cpp;
 };
 
@@ -289,7 +288,8 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
 				  struct vmw_dma_buffer *buf,
 				  bool interruptible,
-				  bool validate_as_mob);
+				  bool validate_as_mob,
+				  bool for_cpu_blit);
 void vmw_kms_helper_buffer_revert(struct vmw_dma_buffer *buf);
 void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 				  struct drm_file *file_priv,

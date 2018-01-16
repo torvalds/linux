@@ -682,9 +682,6 @@ vmw_du_plane_duplicate_state(struct drm_plane *plane)
 		return NULL;
 
 	vps->pinned = 0;
-
-	/* Mapping is managed by prepare_fb/cleanup_fb */
-	memset(&vps->host_map, 0, sizeof(vps->host_map));
 	vps->cpp = 0;
 
 	/* Each ref counted resource needs to be acquired again */
@@ -746,11 +743,6 @@ vmw_du_plane_destroy_state(struct drm_plane *plane,
 
 
 	/* Should have been freed by cleanup_fb */
-	if (vps->host_map.virtual) {
-		DRM_ERROR("Host mapping not freed\n");
-		ttm_bo_kunmap(&vps->host_map);
-	}
-
 	if (vps->surf)
 		vmw_surface_unreference(&vps->surf);
 
@@ -1129,12 +1121,14 @@ static const struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
 };
 
 /**
- * Pin the dmabuffer to the start of vram.
+ * Pin the dmabuffer in a location suitable for access by the
+ * display system.
  */
 static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
 {
 	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
 	struct vmw_dma_buffer *buf;
+	struct ttm_placement *placement;
 	int ret;
 
 	buf = vfb->dmabuf ?  vmw_framebuffer_to_vfbd(&vfb->base)->buffer :
@@ -1151,12 +1145,24 @@ static int vmw_framebuffer_pin(struct vmw_framebuffer *vfb)
 		break;
 	case vmw_du_screen_object:
 	case vmw_du_screen_target:
-		if (vfb->dmabuf)
-			return vmw_dmabuf_pin_in_vram_or_gmr(dev_priv, buf,
-							     false);
+		if (vfb->dmabuf) {
+			if (dev_priv->capabilities & SVGA_CAP_3D) {
+				/*
+				 * Use surface DMA to get content to
+				 * sreen target surface.
+				 */
+				placement = &vmw_vram_gmr_placement;
+			} else {
+				/* Use CPU blit. */
+				placement = &vmw_sys_placement;
+			}
+		} else {
+			/* Use surface / image update */
+			placement = &vmw_mob_placement;
+		}
 
-		return vmw_dmabuf_pin_in_placement(dev_priv, buf,
-						   &vmw_mob_placement, false);
+		return vmw_dmabuf_pin_in_placement(dev_priv, buf, placement,
+						   false);
 	default:
 		return -EINVAL;
 	}
@@ -2419,14 +2425,21 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
 				  struct vmw_dma_buffer *buf,
 				  bool interruptible,
-				  bool validate_as_mob)
+				  bool validate_as_mob,
+				  bool for_cpu_blit)
 {
+	struct ttm_operation_ctx ctx = {
+		.interruptible = interruptible,
+		.no_wait_gpu = false};
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
 
 	ttm_bo_reserve(bo, false, false, NULL);
-	ret = vmw_validate_single_buffer(dev_priv, bo, interruptible,
-					 validate_as_mob);
+	if (for_cpu_blit)
+		ret = ttm_bo_validate(bo, &vmw_nonfixed_placement, &ctx);
+	else
+		ret = vmw_validate_single_buffer(dev_priv, bo, interruptible,
+						 validate_as_mob);
 	if (ret)
 		ttm_bo_unreserve(bo);
 
@@ -2538,7 +2551,8 @@ int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
 	if (res->backup) {
 		ret = vmw_kms_helper_buffer_prepare(res->dev_priv, res->backup,
 						    interruptible,
-						    res->dev_priv->has_mob);
+						    res->dev_priv->has_mob,
+						    false);
 		if (ret)
 			goto out_unreserve;
 	}
