@@ -13,7 +13,6 @@
 #
 
 
-
 # Driver version string which is returned to userspace via an ioctl
 MALI_RELEASE_NAME ?= "r14p0-01rel0"
 
@@ -189,20 +188,17 @@ ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
 platform_name := $(shell echo $(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME))
 MALI_PLATFORM_THIRDPARTY_DIR := platform/$(platform_name)
 ccflags-y += -I$(src)/$(MALI_PLATFORM_THIRDPARTY_DIR)
-ifeq ($(CONFIG_MALI_MIDGARD),m)
+MALI_PLATFORM_DIR := platform/$(platform_name)
 include  $(src)/platform/$(platform_name)/Kbuild
-else ifeq ($(CONFIG_MALI_MIDGARD),y)
-obj-$(CONFIG_MALI_MIDGARD) += platform/
-endif
 endif
 
 # Tell the Linux build system from which .o file to create the kernel module
-obj-$(CONFIG_MALI_MIDGARD) += mali_kbase.o
+obj-$(CONFIG_MALI_MIDGARD) += midgard_kbase.o
 
 # Tell the Linux build system to enable building of our .c files
-mali_kbase-y := $(SRC:.c=.o)
+midgard_kbase-y := $(SRC:.c=.o)
 
-mali_kbase-$(CONFIG_MALI_DMA_FENCE) += mali_kbase_dma_fence.o
+midgard_kbase-$(CONFIG_MALI_DMA_FENCE) += mali_kbase_dma_fence.o
 
 MALI_BACKEND_PATH ?= backend
 CONFIG_MALI_BACKEND ?= gpu
@@ -211,12 +207,12 @@ CONFIG_MALI_BACKEND_REAL ?= $(CONFIG_MALI_BACKEND)
 ifeq ($(MALI_MOCK_TEST),1)
 ifeq ($(CONFIG_MALI_BACKEND_REAL),gpu)
 # Test functionality
-mali_kbase-y += tests/internal/src/mock/mali_kbase_pm_driver_mock.o
+midgard_kbase-y += tests/internal/src/mock/mali_kbase_pm_driver_mock.o
 endif
 endif
 
 include  $(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)/Kbuild
-mali_kbase-y += $(BACKEND:.c=.o)
+midgard_kbase-y += $(BACKEND:.c=.o)
 
 ccflags-y += -I$(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)
 subdir-ccflags-y += -I$(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)
@@ -227,7 +223,7 @@ ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY)$(CONFIG_MALI_PLATFORM_FAKE),)
 CONFIG_MALI_PLATFORM_DEVICETREE := y
 endif
 
-mali_kbase-$(CONFIG_MALI_PLATFORM_DEVICETREE) += \
+midgard_kbase-$(CONFIG_MALI_PLATFORM_DEVICETREE) += \
 	platform/devicetree/mali_kbase_runtime_pm.o \
 	platform/devicetree/mali_kbase_config_devicetree.o
 ccflags-$(CONFIG_MALI_PLATFORM_DEVICETREE) += -I$(src)/platform/devicetree
