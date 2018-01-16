@@ -32,7 +32,7 @@
 #include <video/udlfb.h>
 #include "edid.h"
 
-static struct fb_fix_screeninfo dlfb_fix = {
+static const struct fb_fix_screeninfo dlfb_fix = {
 	.id =           "udlfb",
 	.type =         FB_TYPE_PACKED_PIXELS,
 	.visual =       FB_VISUAL_TRUECOLOR,
@@ -1455,7 +1455,7 @@ static const struct bin_attribute edid_attr = {
 	.write = edid_store
 };
 
-static struct device_attribute fb_device_attrs[] = {
+static const struct device_attribute fb_device_attrs[] = {
 	__ATTR_RO(metrics_bytes_rendered),
 	__ATTR_RO(metrics_bytes_identical),
 	__ATTR_RO(metrics_bytes_sent),
