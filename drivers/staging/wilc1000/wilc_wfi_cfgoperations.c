@@ -653,7 +653,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	u32 i;
 	u32 sel_bssi_idx = UINT_MAX;
 	u8 u8security = NO_ENCRYPT;
-	enum AUTHTYPE tenuAuth_type = ANY;
+	enum AUTHTYPE auth_type = ANY;
 
 	struct wilc_priv *priv;
 	struct host_if_drv *wfi_drv;
@@ -763,11 +763,11 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (sme->auth_type)	{
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
-		tenuAuth_type = OPEN_SYSTEM;
+		auth_type = OPEN_SYSTEM;
 		break;
 
 	case NL80211_AUTHTYPE_SHARED_KEY:
-		tenuAuth_type = SHARED_KEY;
+		auth_type = SHARED_KEY;
 		break;
 
 	default:
@@ -777,7 +777,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	if (sme->crypto.n_akm_suites) {
 		switch (sme->crypto.akm_suites[0]) {
 		case WLAN_AKM_SUITE_8021X:
-			tenuAuth_type = IEEE8021;
+			auth_type = IEEE8021;
 			break;
 
 		default:
@@ -795,7 +795,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	ret = wilc_set_join_req(vif, pstrNetworkInfo->bssid, sme->ssid,
 				     sme->ssid_len, sme->ie, sme->ie_len,
 				     cfg_connect_result, (void *)priv,
-				     u8security, tenuAuth_type,
+				     u8security, auth_type,
 				     pstrNetworkInfo->ch,
 				     pstrNetworkInfo->join_params);
 	if (ret != 0) {
@@ -1200,9 +1200,9 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (vif->iftype == STATION_MODE) {
-		struct rf_info strStatistics;
+		struct rf_info stats;
 
-		wilc_get_statistics(vif, &strStatistics);
+		wilc_get_statistics(vif, &stats);
 
 		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL) |
 						BIT(NL80211_STA_INFO_RX_PACKETS) |
@@ -1210,16 +1210,16 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 						BIT(NL80211_STA_INFO_TX_FAILED) |
 						BIT(NL80211_STA_INFO_TX_BITRATE);
 
-		sinfo->signal = strStatistics.rssi;
-		sinfo->rx_packets = strStatistics.rx_cnt;
-		sinfo->tx_packets = strStatistics.tx_cnt + strStatistics.tx_fail_cnt;
-		sinfo->tx_failed = strStatistics.tx_fail_cnt;
-		sinfo->txrate.legacy = strStatistics.link_speed * 10;
+		sinfo->signal = stats.rssi;
+		sinfo->rx_packets = stats.rx_cnt;
+		sinfo->tx_packets = stats.tx_cnt + stats.tx_fail_cnt;
+		sinfo->tx_failed = stats.tx_fail_cnt;
+		sinfo->txrate.legacy = stats.link_speed * 10;
 
-		if ((strStatistics.link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH) &&
-		    (strStatistics.link_speed != DEFAULT_LINK_SPEED))
+		if ((stats.link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH) &&
+		    (stats.link_speed != DEFAULT_LINK_SPEED))
 			wilc_enable_tcp_ack_filter(true);
-		else if (strStatistics.link_speed != DEFAULT_LINK_SPEED)
+		else if (stats.link_speed != DEFAULT_LINK_SPEED)
 			wilc_enable_tcp_ack_filter(false);
 	}
 	return 0;
