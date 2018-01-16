@@ -495,8 +495,11 @@ int cec_thread_func(void *_adap)
 		if (data->msg.len == 1 && adap->is_configured)
 			attempts = 2;
 		else
+#ifdef CONFIG_ANDROID
+			attempts = 1;
+#else
 			attempts = 4;
-
+#endif
 		/* Set the suggested signal free time */
 		if (data->attempts) {
 			/* should be >= 3 data bit periods for a retry */
