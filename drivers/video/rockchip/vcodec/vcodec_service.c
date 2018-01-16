@@ -735,7 +735,6 @@ static void vpu_reset(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
 
-	mutex_lock(&pservice->reset_lock);
 	_vpu_reset(data);
 	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 		clear_bit(MMU_ACTIVATED, &data->state);
@@ -748,8 +747,6 @@ static void vpu_reset(struct vpu_subdev_data *data)
 			BUG_ON(!atomic_read(&pservice->enabled));
 		}
 	}
-
-	mutex_unlock(&pservice->reset_lock);
 
 	atomic_set(&pservice->reset_request, 0);
 	dev_info(pservice->dev, "reset done\n");
@@ -1586,7 +1583,9 @@ static void try_set_reg(struct vpu_subdev_data *data)
 
 	if (reset_request) {
 		vpu_service_power_on(data, pservice);
+		mutex_lock(&pservice->reset_lock);
 		vpu_reset(data);
+		mutex_unlock(&pservice->reset_lock);
 	}
 
 	if (!list_empty(&pservice->waiting)) {
@@ -1601,38 +1600,12 @@ static void try_set_reg(struct vpu_subdev_data *data)
 
 		if (change_able) {
 			switch (reg->type) {
-			case VPU_ENC: {
-				if (change_able)
-					can_set = 1;
-			} break;
-			case VPU_DEC: {
-				if (reg_codec == NULL)
-					can_set = 1;
-				if (pservice->auto_freq && (reg_pproc != NULL))
-					can_set = 0;
-			} break;
-			case VPU_PP: {
-				if (reg_codec == NULL) {
-					if (reg_pproc == NULL)
-						can_set = 1;
-				} else {
-					if ((reg_codec->type == VPU_DEC) &&
-					    (reg_pproc == NULL))
-						can_set = 1;
-
-					/*
-					 * NOTE:
-					 * can not charge frequency
-					 * when vpu is working
-					 */
-					if (pservice->auto_freq)
-						can_set = 0;
-				}
-			} break;
+			case VPU_ENC:
+			case VPU_DEC:
+			case VPU_PP:
 			case VPU_DEC_PP: {
-				if (change_able)
-					can_set = 1;
-				} break;
+				can_set = 1;
+			} break;
 			default: {
 				dev_err(pservice->dev,
 					"undefined reg type %d\n",
@@ -1797,10 +1770,8 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 			ret = wait_event_timeout(session->wait,
 						 pservice->secure_isr,
 						 VPU_TIMEOUT_DELAY);
-			if (ret < 0) {
+			if (ret < 0)
 				pr_info("warning: secure wait timeout\n");
-				ret = 0;
-			}
 			pservice->secure_isr = false;
 			break;
 		}
@@ -1838,6 +1809,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 		if (ret < 0) {
 			int task_running = atomic_read(&session->task_running);
 
+			mutex_lock(&pservice->reset_lock);
 			mutex_lock(&pservice->lock);
 			if (task_running) {
 				atomic_set(&session->task_running, 0);
@@ -1847,10 +1819,10 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 					"%d task is running but not return, reset hardware...",
 					task_running);
 				vpu_reset(data);
-				dev_err(pservice->dev, "done\n");
 			}
 			vpu_service_session_clear(data, session);
 			mutex_unlock(&pservice->lock);
+			mutex_unlock(&pservice->reset_lock);
 
 			return ret;
 		}
@@ -2683,7 +2655,6 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 {
 	u8 *regs = NULL;
 	s32 ret = 0;
-	u32 ioaddr = 0;
 	struct resource *res = NULL;
 	struct vpu_hw_info *hw_info = NULL;
 	struct device *dev = &pdev->dev;
@@ -2732,10 +2703,8 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 			ret = PTR_ERR(data->regs);
 			goto err;
 		}
-		ioaddr = res->start;
 	} else {
 		data->regs = pservice->reg_base;
-		ioaddr = pservice->ioaddr;
 	}
 
 	sub_np = of_parse_phandle(np, "iommus", 0);
