@@ -248,7 +248,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xffda4000 0x1000>;
-			interrupts = <0 101 4>;
+			interrupts = <0 99 4>;
+			resets = <&rst SPIM0_RESET>;
+			reg-io-width = <4>;
 			num-chipselect = <4>;
 			bus-num = <0>;
 			status = "disabled";
@@ -259,7 +261,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xffda5000 0x1000>;
-			interrupts = <0 102 4>;
+			interrupts = <0 100 4>;
+			resets = <&rst SPIM1_RESET>;
+			reg-io-width = <4>;
 			num-chipselect = <4>;
 			bus-num = <0>;
 			status = "disabled";
