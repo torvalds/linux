@@ -29,7 +29,7 @@ static const struct fm10k_info *fm10k_info_tbl[] = {
 	[fm10k_device_vf] = &fm10k_vf_info,
 };
 
-/**
+/*
  * fm10k_pci_tbl - PCI Device ID Table
  *
  * Wildcard entries (PCI_ANY_ID) should come last
