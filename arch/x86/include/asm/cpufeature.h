@@ -156,7 +156,7 @@ static __always_inline __pure bool _static_cpu_has(u16 bit)
 		 ".section .altinstructions,\"a\"\n"
 		 " .long 1b - .\n"		/* src offset */
 		 " .long 4f - .\n"		/* repl offset */
-		 " .word %P1\n"			/* always replace */
+		 " .word %P[always]\n"		/* always replace */
 		 " .byte 3b - 1b\n"		/* src len */
 		 " .byte 5f - 4f\n"		/* repl len */
 		 " .byte 3b - 2b\n"		/* pad len */
@@ -168,7 +168,7 @@ static __always_inline __pure bool _static_cpu_has(u16 bit)
 		 ".section .altinstructions,\"a\"\n"
 		 " .long 1b - .\n"		/* src offset */
 		 " .long 0\n"			/* no replacement */
-		 " .word %P0\n"			/* feature bit */
+		 " .word %P[feature]\n"		/* feature bit */
 		 " .byte 3b - 1b\n"		/* src len */
 		 " .byte 0\n"			/* repl len */
 		 " .byte 0\n"			/* pad len */
@@ -179,8 +179,9 @@ static __always_inline __pure bool _static_cpu_has(u16 bit)
 		 " jnz %l[t_yes]\n"
 		 " jmp %l[t_no]\n"
 		 ".previous\n"
-		 : : "i" (bit), "i" (X86_FEATURE_ALWAYS),
-		     [bitnum] "i" (1 << (bit & 7)),
+		 : : [feature]  "i" (bit),
+		     [always]   "i" (X86_FEATURE_ALWAYS),
+		     [bitnum]   "i" (1 << (bit & 7)),
 		     [cap_byte] "m" (((const char *)boot_cpu_data.x86_capability)[bit >> 3])
 		 : : t_yes, t_no);
 t_yes:
