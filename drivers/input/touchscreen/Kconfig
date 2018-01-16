@@ -1157,4 +1157,7 @@ config TOUCHSCREEN_ROHM_BU21023
 config TOUCHSCREEN_VTL_CT36X
 	tristate "VTL touchscreens support"
 
+config TOUCHSCREEN_GT1X
+	tristate "GT1X touchscreens support"
+
 endif
