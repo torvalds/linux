@@ -264,7 +264,6 @@ static int ipmi_powernv_probe(struct platform_device *pdev)
 		goto err_unregister;
 	}
 
-	/* todo: query actual ipmi_device_id */
 	rc = ipmi_register_smi(&ipmi_powernv_smi_handlers, ipmi, dev, 0);
 	if (rc) {
 		dev_warn(dev, "IPMI SMI registration failed (%d)\n", rc);
