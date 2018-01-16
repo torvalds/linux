@@ -290,6 +290,12 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	meta = nfp_bpf_goto_meta(nfp_prog, meta, insn_idx, env->prog->len);
 	nfp_prog->verifier_meta = meta;
 
+	if (!nfp_bpf_supported_opcode(meta->insn.code)) {
+		pr_vlog(env, "instruction %#02x not supported\n",
+			meta->insn.code);
+		return -EINVAL;
+	}
+
 	if (meta->insn.src_reg >= MAX_BPF_REG ||
 	    meta->insn.dst_reg >= MAX_BPF_REG) {
 		pr_vlog(env, "program uses extended registers - jit hardening?\n");
