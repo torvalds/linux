@@ -646,20 +646,12 @@ static int mtd_add_device_partitions(struct mtd_info *mtd,
 {
 	const struct mtd_partition *real_parts = parts->parts;
 	int nbparts = parts->nr_parts;
-	int ret;
 
-	if (nbparts == 0 || IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER)) {
-		ret = add_mtd_device(mtd);
-		if (ret)
-			return ret;
-	}
+	if (!nbparts && !device_is_registered(&mtd->dev))
+		return add_mtd_device(mtd);
 
-	if (nbparts > 0) {
-		ret = add_mtd_partitions(mtd, real_parts, nbparts);
-		if (ret && IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER))
-			del_mtd_device(mtd);
-		return ret;
-	}
+	if (nbparts > 0)
+		return add_mtd_partitions(mtd, real_parts, nbparts);
 
 	return 0;
 }
@@ -719,6 +711,12 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 
 	mtd_set_dev_defaults(mtd);
 
+	if (IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER)) {
+		ret = add_mtd_device(mtd);
+		if (ret)
+			return ret;
+	}
+
 	memset(&parsed, 0, sizeof(parsed));
 
 	ret = parse_mtd_partitions(mtd, types, &parsed, parser_data);
@@ -758,6 +756,9 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 out:
 	/* Cleanup any parsed partitions */
 	mtd_part_parser_cleanup(&parsed);
+	if (ret && device_is_registered(&mtd->dev))
+		del_mtd_device(mtd);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_device_parse_register);
