@@ -302,7 +302,7 @@ static int intel_bts_synth_branch_sample(struct intel_bts_queue *btsq,
 		event.sample.header.size = bts->branches_event_size;
 		ret = perf_event__synthesize_sample(&event,
 						    bts->branches_sample_type,
-						    0, &sample, false);
+						    0, &sample);
 		if (ret)
 			return ret;
 	}

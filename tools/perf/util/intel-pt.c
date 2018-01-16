@@ -1102,7 +1102,7 @@ static int intel_pt_inject_event(union perf_event *event,
 				 struct perf_sample *sample, u64 type)
 {
 	event->header.size = perf_event__sample_event_size(sample, type, 0);
-	return perf_event__synthesize_sample(event, type, 0, sample, false);
+	return perf_event__synthesize_sample(event, type, 0, sample);
 }
 
 static inline int intel_pt_opt_inject(struct intel_pt *pt,
