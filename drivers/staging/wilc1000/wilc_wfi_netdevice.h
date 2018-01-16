@@ -100,15 +100,15 @@ struct wilc_wfi_p2pListenParams {
 
 struct wilc_priv {
 	struct wireless_dev *wdev;
-	struct cfg80211_scan_request *pstrScanReq;
+	struct cfg80211_scan_request *scan_req;
 
-	struct wilc_wfi_p2pListenParams strRemainOnChanParams;
-	u64 u64tx_cookie;
+	struct wilc_wfi_p2pListenParams remain_on_ch_params;
+	u64 tx_cookie;
 
-	bool bCfgScanning;
-	u32 u32RcvdChCount;
+	bool cfg_scanning;
+	u32 rcvd_ch_cnt;
 
-	u8 au8AssociatedBss[ETH_ALEN];
+	u8 associated_bss[ETH_ALEN];
 	struct sta_info assoc_stainfo;
 	struct net_device_stats stats;
 	u8 monitor_flag;
@@ -135,9 +135,9 @@ struct wilc_priv {
 	/* mutexes */
 	struct mutex scan_req_lock;
 	/*  */
-	bool gbAutoRateAdjusted;
+	bool auto_rate_adjusted;
 
-	bool bInP2PlistenState;
+	bool p2p_listen_state;
 
 };
 
