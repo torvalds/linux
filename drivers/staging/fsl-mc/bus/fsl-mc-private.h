@@ -440,8 +440,6 @@ void dprc_driver_exit(void);
 
 int __init fsl_mc_allocator_driver_init(void);
 
-void fsl_mc_allocator_driver_exit(void);
-
 void fsl_mc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
 
 void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
@@ -457,8 +455,6 @@ int fsl_mc_msi_domain_alloc_irqs(struct device *dev,
 				 unsigned int irq_count);
 
 void fsl_mc_msi_domain_free_irqs(struct device *dev);
-
-int __init its_fsl_mc_msi_init(void);
 
 int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
 			   struct irq_domain **mc_msi_domain);

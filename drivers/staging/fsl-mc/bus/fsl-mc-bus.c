@@ -933,14 +933,7 @@ static int __init fsl_mc_bus_driver_init(void)
 	if (error < 0)
 		goto error_cleanup_dprc_driver;
 
-	error = its_fsl_mc_msi_init();
-	if (error < 0)
-		goto error_cleanup_mc_allocator;
-
 	return 0;
-
-error_cleanup_mc_allocator:
-	fsl_mc_allocator_driver_exit();
 
 error_cleanup_dprc_driver:
 	dprc_driver_exit();
