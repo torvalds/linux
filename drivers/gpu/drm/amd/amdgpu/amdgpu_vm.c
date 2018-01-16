@@ -75,7 +75,8 @@ struct amdgpu_pte_update_params {
 	/* indirect buffer to fill with commands */
 	struct amdgpu_ib *ib;
 	/* Function which actually does the update */
-	void (*func)(struct amdgpu_pte_update_params *params, uint64_t pe,
+	void (*func)(struct amdgpu_pte_update_params *params,
+		     struct amdgpu_bo *bo, uint64_t pe,
 		     uint64_t addr, unsigned count, uint32_t incr,
 		     uint64_t flags);
 	/* The next two are used during VM update by CPU
@@ -578,6 +579,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
  * amdgpu_vm_do_set_ptes - helper to call the right asic function
  *
  * @params: see amdgpu_pte_update_params definition
+ * @bo: PD/PT to update
  * @pe: addr of the page entry
  * @addr: dst addr to write into pe
  * @count: number of page entries to update
@@ -588,10 +590,12 @@ struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
  * to setup the page table using the DMA.
  */
 static void amdgpu_vm_do_set_ptes(struct amdgpu_pte_update_params *params,
+				  struct amdgpu_bo *bo,
 				  uint64_t pe, uint64_t addr,
 				  unsigned count, uint32_t incr,
 				  uint64_t flags)
 {
+	pe += amdgpu_bo_gpu_offset(bo);
 	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags);
 
 	if (count < 3) {
@@ -608,6 +612,7 @@ static void amdgpu_vm_do_set_ptes(struct amdgpu_pte_update_params *params,
  * amdgpu_vm_do_copy_ptes - copy the PTEs from the GART
  *
  * @params: see amdgpu_pte_update_params definition
+ * @bo: PD/PT to update
  * @pe: addr of the page entry
  * @addr: dst addr to write into pe
  * @count: number of page entries to update
@@ -617,13 +622,14 @@ static void amdgpu_vm_do_set_ptes(struct amdgpu_pte_update_params *params,
  * Traces the parameters and calls the DMA function to copy the PTEs.
  */
 static void amdgpu_vm_do_copy_ptes(struct amdgpu_pte_update_params *params,
+				   struct amdgpu_bo *bo,
 				   uint64_t pe, uint64_t addr,
 				   unsigned count, uint32_t incr,
 				   uint64_t flags)
 {
 	uint64_t src = (params->src + (addr >> 12) * 8);
 
-
+	pe += amdgpu_bo_gpu_offset(bo);
 	trace_amdgpu_vm_copy_ptes(pe, src, count);
 
 	amdgpu_vm_copy_pte(params->adev, params->ib, pe, src, count);
@@ -657,6 +663,7 @@ static uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
  * amdgpu_vm_cpu_set_ptes - helper to update page tables via CPU
  *
  * @params: see amdgpu_pte_update_params definition
+ * @bo: PD/PT to update
  * @pe: kmap addr of the page entry
  * @addr: dst addr to write into pe
  * @count: number of page entries to update
@@ -666,12 +673,15 @@ static uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
  * Write count number of PT/PD entries directly.
  */
 static void amdgpu_vm_cpu_set_ptes(struct amdgpu_pte_update_params *params,
+				   struct amdgpu_bo *bo,
 				   uint64_t pe, uint64_t addr,
 				   unsigned count, uint32_t incr,
 				   uint64_t flags)
 {
 	unsigned int i;
 	uint64_t value;
+
+	pe += (unsigned long)amdgpu_bo_kptr(bo);
 
 	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags);
 
@@ -714,8 +724,7 @@ static void amdgpu_vm_update_pde(struct amdgpu_pte_update_params *params,
 				 struct amdgpu_vm_pt *parent,
 				 struct amdgpu_vm_pt *entry)
 {
-	struct amdgpu_bo *bo = entry->base.bo, *shadow = NULL, *pbo;
-	uint64_t pd_addr, shadow_addr = 0;
+	struct amdgpu_bo *bo = parent->base.bo, *pbo;
 	uint64_t pde, pt, flags;
 	unsigned level;
 
@@ -723,29 +732,17 @@ static void amdgpu_vm_update_pde(struct amdgpu_pte_update_params *params,
 	if (entry->huge)
 		return;
 
-	if (vm->use_cpu_for_update) {
-		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->base.bo);
-	} else {
-		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
-		shadow = parent->base.bo->shadow;
-		if (shadow)
-			shadow_addr = amdgpu_bo_gpu_offset(shadow);
-	}
-
-	for (level = 0, pbo = parent->base.bo->parent; pbo; ++level)
+	for (level = 0, pbo = bo->parent; pbo; ++level)
 		pbo = pbo->parent;
 
 	level += params->adev->vm_manager.root_level;
-	pt = amdgpu_bo_gpu_offset(bo);
+	pt = amdgpu_bo_gpu_offset(entry->base.bo);
 	flags = AMDGPU_PTE_VALID;
 	amdgpu_gmc_get_vm_pde(params->adev, level, &pt, &flags);
-	if (shadow) {
-		pde = shadow_addr + (entry - parent->entries) * 8;
-		params->func(params, pde, pt, 1, 0, flags);
-	}
-
-	pde = pd_addr + (entry - parent->entries) * 8;
-	params->func(params, pde, pt, 1, 0, flags);
+	pde = (entry - parent->entries) * 8;
+	if (bo->shadow)
+		params->func(params, bo->shadow, pde, pt, 1, 0, flags);
+	params->func(params, bo, pde, pt, 1, 0, flags);
 }
 
 /*
@@ -946,7 +943,7 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 					unsigned nptes, uint64_t dst,
 					uint64_t flags)
 {
-	uint64_t pd_addr, pde;
+	uint64_t pde;
 
 	/* In the case of a mixed PT the PDE must point to it*/
 	if (p->adev->asic_type >= CHIP_VEGA10 && !p->src &&
@@ -969,18 +966,10 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 	entry->huge = true;
 	amdgpu_gmc_get_vm_pde(p->adev, AMDGPU_VM_PDB0, &dst, &flags);
 
-	if (p->func == amdgpu_vm_cpu_set_ptes) {
-		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->base.bo);
-	} else {
-		if (parent->base.bo->shadow) {
-			pd_addr = amdgpu_bo_gpu_offset(parent->base.bo->shadow);
-			pde = pd_addr + (entry - parent->entries) * 8;
-			p->func(p, pde, dst, 1, 0, flags);
-		}
-		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
-	}
-	pde = pd_addr + (entry - parent->entries) * 8;
-	p->func(p, pde, dst, 1, 0, flags);
+	pde = (entry - parent->entries) * 8;
+	if (parent->base.bo->shadow)
+		p->func(p, parent->base.bo->shadow, pde, dst, 1, 0, flags);
+	p->func(p, parent->base.bo, pde, dst, 1, 0, flags);
 }
 
 /**
@@ -1006,7 +995,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	uint64_t addr, pe_start;
 	struct amdgpu_bo *pt;
 	unsigned nptes;
-	bool use_cpu_update = (params->func == amdgpu_vm_cpu_set_ptes);
 
 	/* walk over the address space and update the page tables */
 	for (addr = start; addr < end; addr += nptes,
@@ -1029,20 +1017,11 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			continue;
 
 		pt = entry->base.bo;
-		if (use_cpu_update) {
-			pe_start = (unsigned long)amdgpu_bo_kptr(pt);
-		} else {
-			if (pt->shadow) {
-				pe_start = amdgpu_bo_gpu_offset(pt->shadow);
-				pe_start += (addr & mask) * 8;
-				params->func(params, pe_start, dst, nptes,
-					     AMDGPU_GPU_PAGE_SIZE, flags);
-			}
-			pe_start = amdgpu_bo_gpu_offset(pt);
-		}
-
-		pe_start += (addr & mask) * 8;
-		params->func(params, pe_start, dst, nptes,
+		pe_start = (addr & mask) * 8;
+		if (pt->shadow)
+			params->func(params, pt->shadow, pe_start, dst, nptes,
+				     AMDGPU_GPU_PAGE_SIZE, flags);
+		params->func(params, pt, pe_start, dst, nptes,
 			     AMDGPU_GPU_PAGE_SIZE, flags);
 	}
 
