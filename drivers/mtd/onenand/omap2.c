@@ -533,8 +533,7 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 
 	c->onenand.base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(c->onenand.base)) {
-		dev_err(dev, "Cannot reserve memory region at 0x%08x, size: 0x%x\n",
-			res->start, resource_size(res));
+		dev_err(dev, "Cannot reserve memory region %pR\n", res);
 		return PTR_ERR(c->onenand.base);
 	}
 
