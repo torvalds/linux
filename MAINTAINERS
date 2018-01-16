@@ -13034,7 +13034,7 @@ F:	arch/x86/boot/video*
 
 SWIOTLB SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	linux-kernel@vger.kernel.org
+L:	iommu@lists.linux-foundation.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/konrad/swiotlb.git
 S:	Supported
 F:	lib/swiotlb.c
@@ -14969,6 +14969,7 @@ F:	include/xen/interface/io/vscsiif.h
 XEN SWIOTLB SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
+L:	iommu@lists.linux-foundation.org
 S:	Supported
 F:	arch/x86/xen/*swiotlb*
 F:	drivers/xen/*swiotlb*
