@@ -25,7 +25,7 @@
 #include <linux/delay.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "gt1x_generic.h"
 #if (GTP_HOTKNOT || GTP_HEADER_FW_UPDATE)
