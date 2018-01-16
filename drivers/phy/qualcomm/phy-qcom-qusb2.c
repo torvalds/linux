@@ -56,6 +56,18 @@
 
 #define PHY_CLK_SCHEME_SEL		BIT(0)
 
+/* QUSB2PHY_INTR_CTRL register bits */
+#define DMSE_INTR_HIGH_SEL			BIT(4)
+#define DPSE_INTR_HIGH_SEL			BIT(3)
+#define CHG_DET_INTR_EN				BIT(2)
+#define DMSE_INTR_EN				BIT(1)
+#define DPSE_INTR_EN				BIT(0)
+
+/* QUSB2PHY_PLL_CORE_INPUT_OVERRIDE register bits */
+#define CORE_PLL_EN_FROM_RESET			BIT(4)
+#define CORE_RESET				BIT(5)
+#define CORE_RESET_MUX				BIT(6)
+
 #define QUSB2PHY_PLL_ANALOG_CONTROLS_TWO	0x04
 #define QUSB2PHY_PLL_CLOCK_INVERTERS		0x18c
 #define QUSB2PHY_PLL_CMODE			0x2c
@@ -93,6 +105,7 @@ struct qusb2_phy_init_tbl {
 
 /* set of registers with offsets different per-PHY */
 enum qusb2phy_reg_layout {
+	QUSB2PHY_PLL_CORE_INPUT_OVERRIDE,
 	QUSB2PHY_PLL_STATUS,
 	QUSB2PHY_PORT_TUNE1,
 	QUSB2PHY_PORT_TUNE2,
@@ -112,8 +125,10 @@ static const unsigned int msm8996_regs_layout[] = {
 	[QUSB2PHY_PORT_TUNE3]		= 0x88,
 	[QUSB2PHY_PORT_TUNE4]		= 0x8c,
 	[QUSB2PHY_PORT_TUNE5]		= 0x90,
+	[QUSB2PHY_PORT_TEST1]		= 0xb8,
 	[QUSB2PHY_PORT_TEST2]		= 0x9c,
 	[QUSB2PHY_PORT_POWERDOWN]	= 0xb4,
+	[QUSB2PHY_INTR_CTRL]		= 0xbc,
 };
 
 static const struct qusb2_phy_init_tbl msm8996_init_tbl[] = {
@@ -133,14 +148,17 @@ static const struct qusb2_phy_init_tbl msm8996_init_tbl[] = {
 };
 
 static const unsigned int qusb2_v2_regs_layout[] = {
+	[QUSB2PHY_PLL_CORE_INPUT_OVERRIDE] = 0xa8,
 	[QUSB2PHY_PLL_STATUS]		= 0x1a0,
 	[QUSB2PHY_PORT_TUNE1]		= 0x240,
 	[QUSB2PHY_PORT_TUNE2]		= 0x244,
 	[QUSB2PHY_PORT_TUNE3]		= 0x248,
 	[QUSB2PHY_PORT_TUNE4]		= 0x24c,
 	[QUSB2PHY_PORT_TUNE5]		= 0x250,
+	[QUSB2PHY_PORT_TEST1]		= 0x254,
 	[QUSB2PHY_PORT_TEST2]		= 0x258,
 	[QUSB2PHY_PORT_POWERDOWN]	= 0x210,
+	[QUSB2PHY_INTR_CTRL]		= 0x230,
 };
 
 static const struct qusb2_phy_init_tbl qusb2_v2_init_tbl[] = {
@@ -175,12 +193,16 @@ struct qusb2_phy_cfg {
 	const unsigned int *regs;
 	unsigned int mask_core_ready;
 	unsigned int disable_ctrl;
+	unsigned int autoresume_en;
 
 	/* true if PHY has PLL_TEST register to select clk_scheme */
 	bool has_pll_test;
 
 	/* true if TUNE1 register must be updated by fused value, else TUNE2 */
 	bool update_tune1_with_efuse;
+
+	/* true if PHY has PLL_CORE_INPUT_OVERRIDE register to reset PLL */
+	bool has_pll_override;
 };
 
 static const struct qusb2_phy_cfg msm8996_phy_cfg = {
@@ -191,6 +213,7 @@ static const struct qusb2_phy_cfg msm8996_phy_cfg = {
 	.has_pll_test	= true,
 	.disable_ctrl	= (CLAMP_N_EN | FREEZIO_N | POWER_DOWN),
 	.mask_core_ready = PLL_LOCKED,
+	.autoresume_en	 = BIT(3),
 };
 
 static const struct qusb2_phy_cfg qusb2_v2_phy_cfg = {
@@ -201,6 +224,8 @@ static const struct qusb2_phy_cfg qusb2_v2_phy_cfg = {
 	.disable_ctrl	= (PWR_CTRL1_VREF_SUPPLY_TRIM | PWR_CTRL1_CLAMP_N_EN |
 			   POWER_DOWN),
 	.mask_core_ready = CORE_READY_STATUS,
+	.has_pll_override = true,
+	.autoresume_en	  = BIT(0),
 };
 
 static const char * const qusb2_phy_vreg_names[] = {
@@ -226,6 +251,8 @@ static const char * const qusb2_phy_vreg_names[] = {
  *
  * @cfg: phy config data
  * @has_se_clk_scheme: indicate if PHY has single-ended ref clock scheme
+ * @phy_initialized: indicate if PHY has been initialized
+ * @mode: current PHY mode
  */
 struct qusb2_phy {
 	struct phy *phy;
@@ -242,6 +269,8 @@ struct qusb2_phy {
 
 	const struct qusb2_phy_cfg *cfg;
 	bool has_se_clk_scheme;
+	bool phy_initialized;
+	enum phy_mode mode;
 };
 
 static inline void qusb2_setbits(void __iomem *base, u32 offset, u32 val)
@@ -315,6 +344,133 @@ static void qusb2_phy_set_tune2_param(struct qusb2_phy *qphy)
 		qusb2_setbits(qphy->base, cfg->regs[QUSB2PHY_PORT_TUNE2],
 			      val[0] << 0x4);
 
+}
+
+static int qusb2_phy_set_mode(struct phy *phy, enum phy_mode mode)
+{
+	struct qusb2_phy *qphy = phy_get_drvdata(phy);
+
+	qphy->mode = mode;
+
+	return 0;
+}
+
+static int __maybe_unused qusb2_phy_runtime_suspend(struct device *dev)
+{
+	struct qusb2_phy *qphy = dev_get_drvdata(dev);
+	const struct qusb2_phy_cfg *cfg = qphy->cfg;
+	u32 intr_mask;
+
+	dev_vdbg(dev, "Suspending QUSB2 Phy, mode:%d\n", qphy->mode);
+
+	if (!qphy->phy_initialized) {
+		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		return 0;
+	}
+
+	/*
+	 * Enable DP/DM interrupts to detect line state changes based on current
+	 * speed. In other words, enable the triggers _opposite_ of what the
+	 * current D+/D- levels are e.g. if currently D+ high, D- low
+	 * (HS 'J'/Suspend), configure the mask to trigger on D+ low OR D- high
+	 */
+	intr_mask = DPSE_INTR_EN | DMSE_INTR_EN;
+	switch (qphy->mode) {
+	case PHY_MODE_USB_HOST_HS:
+	case PHY_MODE_USB_HOST_FS:
+	case PHY_MODE_USB_DEVICE_HS:
+	case PHY_MODE_USB_DEVICE_FS:
+		intr_mask |= DMSE_INTR_HIGH_SEL;
+		break;
+	case PHY_MODE_USB_HOST_LS:
+	case PHY_MODE_USB_DEVICE_LS:
+		intr_mask |= DPSE_INTR_HIGH_SEL;
+		break;
+	default:
+		/* No device connected, enable both DP/DM high interrupt */
+		intr_mask |= DMSE_INTR_HIGH_SEL;
+		intr_mask |= DPSE_INTR_HIGH_SEL;
+		break;
+	}
+
+	writel(intr_mask, qphy->base + cfg->regs[QUSB2PHY_INTR_CTRL]);
+
+	/* hold core PLL into reset */
+	if (cfg->has_pll_override) {
+		qusb2_setbits(qphy->base,
+			      cfg->regs[QUSB2PHY_PLL_CORE_INPUT_OVERRIDE],
+			      CORE_PLL_EN_FROM_RESET | CORE_RESET |
+			      CORE_RESET_MUX);
+	}
+
+	/* enable phy auto-resume only if device is connected on bus */
+	if (qphy->mode != PHY_MODE_INVALID) {
+		qusb2_setbits(qphy->base, cfg->regs[QUSB2PHY_PORT_TEST1],
+			      cfg->autoresume_en);
+		/* Autoresume bit has to be toggled in order to enable it */
+		qusb2_clrbits(qphy->base, cfg->regs[QUSB2PHY_PORT_TEST1],
+			      cfg->autoresume_en);
+	}
+
+	if (!qphy->has_se_clk_scheme)
+		clk_disable_unprepare(qphy->ref_clk);
+
+	clk_disable_unprepare(qphy->cfg_ahb_clk);
+	clk_disable_unprepare(qphy->iface_clk);
+
+	return 0;
+}
+
+static int __maybe_unused qusb2_phy_runtime_resume(struct device *dev)
+{
+	struct qusb2_phy *qphy = dev_get_drvdata(dev);
+	const struct qusb2_phy_cfg *cfg = qphy->cfg;
+	int ret;
+
+	dev_vdbg(dev, "Resuming QUSB2 phy, mode:%d\n", qphy->mode);
+
+	if (!qphy->phy_initialized) {
+		dev_vdbg(dev, "PHY not initialized, bailing out\n");
+		return 0;
+	}
+
+	ret = clk_prepare_enable(qphy->iface_clk);
+	if (ret) {
+		dev_err(dev, "failed to enable iface_clk, %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(qphy->cfg_ahb_clk);
+	if (ret) {
+		dev_err(dev, "failed to enable cfg ahb clock, %d\n", ret);
+		goto disable_iface_clk;
+	}
+
+	if (!qphy->has_se_clk_scheme) {
+		clk_prepare_enable(qphy->ref_clk);
+		if (ret) {
+			dev_err(dev, "failed to enable ref clk, %d\n", ret);
+			goto disable_ahb_clk;
+		}
+	}
+
+	writel(0x0, qphy->base + cfg->regs[QUSB2PHY_INTR_CTRL]);
+
+	/* bring core PLL out of reset */
+	if (cfg->has_pll_override) {
+		qusb2_clrbits(qphy->base,
+			      cfg->regs[QUSB2PHY_PLL_CORE_INPUT_OVERRIDE],
+			      CORE_RESET | CORE_RESET_MUX);
+	}
+
+	return 0;
+
+disable_ahb_clk:
+	clk_disable_unprepare(qphy->cfg_ahb_clk);
+disable_iface_clk:
+	clk_disable_unprepare(qphy->iface_clk);
+
+	return ret;
 }
 
 static int qusb2_phy_init(struct phy *phy)
@@ -441,6 +597,7 @@ static int qusb2_phy_init(struct phy *phy)
 		ret = -EBUSY;
 		goto disable_ref_clk;
 	}
+	qphy->phy_initialized = true;
 
 	return 0;
 
@@ -477,12 +634,15 @@ static int qusb2_phy_exit(struct phy *phy)
 
 	regulator_bulk_disable(ARRAY_SIZE(qphy->vregs), qphy->vregs);
 
+	qphy->phy_initialized = false;
+
 	return 0;
 }
 
 static const struct phy_ops qusb2_phy_gen_ops = {
 	.init		= qusb2_phy_init,
 	.exit		= qusb2_phy_exit,
+	.set_mode	= qusb2_phy_set_mode,
 	.owner		= THIS_MODULE,
 };
 
@@ -497,6 +657,11 @@ static const struct of_device_id qusb2_phy_of_match_table[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qusb2_phy_of_match_table);
+
+static const struct dev_pm_ops qusb2_phy_pm_ops = {
+	SET_RUNTIME_PM_OPS(qusb2_phy_runtime_suspend,
+			   qusb2_phy_runtime_resume, NULL)
+};
 
 static int qusb2_phy_probe(struct platform_device *pdev)
 {
@@ -575,11 +740,19 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 		qphy->cell = NULL;
 		dev_dbg(dev, "failed to lookup tune2 hstx trim value\n");
 	}
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	/*
+	 * Prevent runtime pm from being ON by default. Users can enable
+	 * it using power/control in sysfs.
+	 */
+	pm_runtime_forbid(dev);
 
 	generic_phy = devm_phy_create(dev, NULL, &qusb2_phy_gen_ops);
 	if (IS_ERR(generic_phy)) {
 		ret = PTR_ERR(generic_phy);
 		dev_err(dev, "failed to create phy, %d\n", ret);
+		pm_runtime_disable(dev);
 		return ret;
 	}
 	qphy->phy = generic_phy;
@@ -590,6 +763,8 @@ static int qusb2_phy_probe(struct platform_device *pdev)
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (!IS_ERR(phy_provider))
 		dev_info(dev, "Registered Qcom-QUSB2 phy\n");
+	else
+		pm_runtime_disable(dev);
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
@@ -598,6 +773,7 @@ static struct platform_driver qusb2_phy_driver = {
 	.probe		= qusb2_phy_probe,
 	.driver = {
 		.name	= "qcom-qusb2-phy",
+		.pm	= &qusb2_phy_pm_ops,
 		.of_match_table = qusb2_phy_of_match_table,
 	},
 };
