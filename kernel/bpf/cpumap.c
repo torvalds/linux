@@ -137,7 +137,7 @@ free_cmap:
 	return ERR_PTR(err);
 }
 
-void __cpu_map_queue_destructor(void *ptr)
+static void __cpu_map_queue_destructor(void *ptr)
 {
 	/* The tear-down procedure should have made sure that queue is
 	 * empty.  See __cpu_map_entry_replace() and work-queue
@@ -216,8 +216,8 @@ static struct xdp_pkt *convert_to_xdp_pkt(struct xdp_buff *xdp)
 	return xdp_pkt;
 }
 
-struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
-				  struct xdp_pkt *xdp_pkt)
+static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
+					 struct xdp_pkt *xdp_pkt)
 {
 	unsigned int frame_size;
 	void *pkt_data_start;
@@ -331,7 +331,8 @@ static int cpu_map_kthread_run(void *data)
 	return 0;
 }
 
-struct bpf_cpu_map_entry *__cpu_map_entry_alloc(u32 qsize, u32 cpu, int map_id)
+static struct bpf_cpu_map_entry *__cpu_map_entry_alloc(u32 qsize, u32 cpu,
+						       int map_id)
 {
 	gfp_t gfp = GFP_ATOMIC|__GFP_NOWARN;
 	struct bpf_cpu_map_entry *rcpu;
@@ -389,7 +390,7 @@ free_rcu:
 	return NULL;
 }
 
-void __cpu_map_entry_free(struct rcu_head *rcu)
+static void __cpu_map_entry_free(struct rcu_head *rcu)
 {
 	struct bpf_cpu_map_entry *rcpu;
 	int cpu;
@@ -432,8 +433,8 @@ void __cpu_map_entry_free(struct rcu_head *rcu)
  * cpu_map_kthread_stop, which waits for an RCU graze period before
  * stopping kthread, emptying the queue.
  */
-void __cpu_map_entry_replace(struct bpf_cpu_map *cmap,
-			     u32 key_cpu, struct bpf_cpu_map_entry *rcpu)
+static void __cpu_map_entry_replace(struct bpf_cpu_map *cmap,
+				    u32 key_cpu, struct bpf_cpu_map_entry *rcpu)
 {
 	struct bpf_cpu_map_entry *old_rcpu;
 
@@ -445,7 +446,7 @@ void __cpu_map_entry_replace(struct bpf_cpu_map *cmap,
 	}
 }
 
-int cpu_map_delete_elem(struct bpf_map *map, void *key)
+static int cpu_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_cpu_map *cmap = container_of(map, struct bpf_cpu_map, map);
 	u32 key_cpu = *(u32 *)key;
@@ -458,8 +459,8 @@ int cpu_map_delete_elem(struct bpf_map *map, void *key)
 	return 0;
 }
 
-int cpu_map_update_elem(struct bpf_map *map, void *key, void *value,
-				u64 map_flags)
+static int cpu_map_update_elem(struct bpf_map *map, void *key, void *value,
+			       u64 map_flags)
 {
 	struct bpf_cpu_map *cmap = container_of(map, struct bpf_cpu_map, map);
 	struct bpf_cpu_map_entry *rcpu;
@@ -496,7 +497,7 @@ int cpu_map_update_elem(struct bpf_map *map, void *key, void *value,
 	return 0;
 }
 
-void cpu_map_free(struct bpf_map *map)
+static void cpu_map_free(struct bpf_map *map)
 {
 	struct bpf_cpu_map *cmap = container_of(map, struct bpf_cpu_map, map);
 	int cpu;
