@@ -364,8 +364,10 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	crypto_info = &ctx->crypto_send;
 
 	/* Currently we don't support set crypto info more than one time */
-	if (TLS_CRYPTO_INFO_READY(crypto_info))
+	if (TLS_CRYPTO_INFO_READY(crypto_info)) {
+		rc = -EBUSY;
 		goto out;
+	}
 
 	switch (tmp_crypto_info.cipher_type) {
 	case TLS_CIPHER_AES_GCM_128: {
