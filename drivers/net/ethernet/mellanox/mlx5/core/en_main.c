@@ -177,26 +177,6 @@ static void mlx5e_update_carrier_work(struct work_struct *work)
 	mutex_unlock(&priv->state_lock);
 }
 
-static void mlx5e_tx_timeout_work(struct work_struct *work)
-{
-	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
-					       tx_timeout_work);
-	int err;
-
-	rtnl_lock();
-	mutex_lock(&priv->state_lock);
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		goto unlock;
-	mlx5e_close_locked(priv->netdev);
-	err = mlx5e_open_locked(priv->netdev);
-	if (err)
-		netdev_err(priv->netdev, "mlx5e_open_locked failed recovering from a tx_timeout, err(%d).\n",
-			   err);
-unlock:
-	mutex_unlock(&priv->state_lock);
-	rtnl_unlock();
-}
-
 void mlx5e_update_stats(struct mlx5e_priv *priv)
 {
 	int i;
@@ -3658,13 +3638,19 @@ static bool mlx5e_tx_timeout_eq_recover(struct net_device *dev,
 	return true;
 }
 
-static void mlx5e_tx_timeout(struct net_device *dev)
+static void mlx5e_tx_timeout_work(struct work_struct *work)
 {
-	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
+					       tx_timeout_work);
+	struct net_device *dev = priv->netdev;
 	bool reopen_channels = false;
-	int i;
+	int i, err;
 
-	netdev_err(dev, "TX timeout detected\n");
+	rtnl_lock();
+	mutex_lock(&priv->state_lock);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		goto unlock;
 
 	for (i = 0; i < priv->channels.num * priv->channels.params.num_tc; i++) {
 		struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, i);
@@ -3672,7 +3658,9 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 
 		if (!netif_xmit_stopped(dev_queue))
 			continue;
-		netdev_err(dev, "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
+
+		netdev_err(dev,
+			   "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
 			   i, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
 			   jiffies_to_usecs(jiffies - dev_queue->trans_start));
 
@@ -3685,8 +3673,27 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 		}
 	}
 
-	if (reopen_channels && test_bit(MLX5E_STATE_OPENED, &priv->state))
-		schedule_work(&priv->tx_timeout_work);
+	if (!reopen_channels)
+		goto unlock;
+
+	mlx5e_close_locked(dev);
+	err = mlx5e_open_locked(dev);
+	if (err)
+		netdev_err(priv->netdev,
+			   "mlx5e_open_locked failed recovering from a tx_timeout, err(%d).\n",
+			   err);
+
+unlock:
+	mutex_unlock(&priv->state_lock);
+	rtnl_unlock();
+}
+
+static void mlx5e_tx_timeout(struct net_device *dev)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	netdev_err(dev, "TX timeout detected\n");
+	queue_work(priv->wq, &priv->tx_timeout_work);
 }
 
 static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
