@@ -31,9 +31,7 @@
  */
 #include <linux/kernel.h>
 #include "../include/mc.h"
-#include "dprc.h"
-
-#include "dprc-cmd.h"
+#include "fsl-mc-private.h"
 
 /**
  * dprc_open() - Open DPRC object for use

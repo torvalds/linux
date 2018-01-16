@@ -34,8 +34,6 @@
 #include "../include/mc.h"
 
 #include "fsl-mc-private.h"
-#include "dpmcp.h"
-#include "dpmcp-cmd.h"
 
 static int fsl_mc_io_set_dpmcp(struct fsl_mc_io *mc_io,
 			       struct fsl_mc_device *dpmcp_dev)

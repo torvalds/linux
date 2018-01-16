@@ -32,8 +32,7 @@
 #include <linux/kernel.h>
 #include "../include/mc.h"
 
-#include "dpmcp.h"
-#include "dpmcp-cmd.h"
+#include "fsl-mc-private.h"
 
 /**
  * dpmcp_open() - Open a control session for the specified object.

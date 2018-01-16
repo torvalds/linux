@@ -40,7 +40,7 @@
 #include <linux/io-64-nonatomic-hi-lo.h>
 #include "../include/mc.h"
 
-#include "dpmcp.h"
+#include "fsl-mc-private.h"
 
 /**
  * Timeout in milliseconds to wait for the completion of an MC command

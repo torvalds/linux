@@ -22,8 +22,6 @@
 #include <linux/dma-mapping.h>
 
 #include "fsl-mc-private.h"
-#include "dprc-cmd.h"
-#include "dpmng-cmd.h"
 
 /**
  * Default DMA mask for devices on a fsl-mc bus

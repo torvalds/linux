@@ -15,7 +15,6 @@
 #include <linux/msi.h>
 #include "../include/mc.h"
 
-#include "dprc-cmd.h"
 #include "fsl-mc-private.h"
 
 #define FSL_MC_DPRC_DRIVER_NAME    "fsl_mc_dprc"
