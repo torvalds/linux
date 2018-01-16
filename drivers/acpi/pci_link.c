@@ -612,7 +612,7 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 			acpi_isa_irq_penalty[link->irq.active] +=
 				PIRQ_PENALTY_PCI_USING;
 
-		printk(KERN_WARNING PREFIX "%s [%s] enabled at IRQ %d\n",
+		pr_info("%s [%s] enabled at IRQ %d\n",
 		       acpi_device_name(link->device),
 		       acpi_device_bid(link->device), link->irq.active);
 	}
