@@ -31,6 +31,7 @@ rq_sched_info_dequeued(struct rq *rq, unsigned long long delta)
 		rq->rq_sched_info.run_delay += delta;
 }
 #define schedstat_enabled()		static_branch_unlikely(&sched_schedstats)
+#define __schedstat_inc(var)		do { var++; } while (0)
 #define schedstat_inc(var)		do { if (schedstat_enabled()) { var++; } } while (0)
 #define schedstat_add(var, amt)		do { if (schedstat_enabled()) { var += (amt); } } while (0)
 #define schedstat_set(var, val)		do { if (schedstat_enabled()) { var = (val); } } while (0)
@@ -48,6 +49,7 @@ static inline void
 rq_sched_info_depart(struct rq *rq, unsigned long long delta)
 {}
 #define schedstat_enabled()		0
+#define __schedstat_inc(var)		do { } while (0)
 #define schedstat_inc(var)		do { } while (0)
 #define schedstat_add(var, amt)		do { } while (0)
 #define schedstat_set(var, val)		do { } while (0)
