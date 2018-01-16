@@ -215,11 +215,6 @@ struct tracing_map {
  *	Element allocation occurs before tracing begins, when the
  *	tracing_map_init() call is made by client code.
  *
- * @elt_copy: At certain points in the lifetime of an element, it may
- *	need to be copied.  The copy should include a copy of the
- *	client-allocated data, which can be copied into the 'to'
- *	element from the 'from' element.
- *
  * @elt_free: When a tracing_map_elt is freed, this function is called
  *	and allows client-allocated per-element data to be freed.
  *
@@ -233,8 +228,6 @@ struct tracing_map {
  */
 struct tracing_map_ops {
 	int			(*elt_alloc)(struct tracing_map_elt *elt);
-	void			(*elt_copy)(struct tracing_map_elt *to,
-					    struct tracing_map_elt *from);
 	void			(*elt_free)(struct tracing_map_elt *elt);
 	void			(*elt_clear)(struct tracing_map_elt *elt);
 	void			(*elt_init)(struct tracing_map_elt *elt);

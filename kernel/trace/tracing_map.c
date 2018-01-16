@@ -847,67 +847,15 @@ create_sort_entry(void *key, struct tracing_map_elt *elt)
 	return sort_entry;
 }
 
-static struct tracing_map_elt *copy_elt(struct tracing_map_elt *elt)
-{
-	struct tracing_map_elt *dup_elt;
-	unsigned int i;
-
-	dup_elt = tracing_map_elt_alloc(elt->map);
-	if (IS_ERR(dup_elt))
-		return NULL;
-
-	if (elt->map->ops && elt->map->ops->elt_copy)
-		elt->map->ops->elt_copy(dup_elt, elt);
-
-	dup_elt->private_data = elt->private_data;
-	memcpy(dup_elt->key, elt->key, elt->map->key_size);
-
-	for (i = 0; i < elt->map->n_fields; i++) {
-		atomic64_set(&dup_elt->fields[i].sum,
-			     atomic64_read(&elt->fields[i].sum));
-		dup_elt->fields[i].cmp_fn = elt->fields[i].cmp_fn;
-	}
-
-	return dup_elt;
-}
-
-static int merge_dup(struct tracing_map_sort_entry **sort_entries,
-		     unsigned int target, unsigned int dup)
-{
-	struct tracing_map_elt *target_elt, *elt;
-	bool first_dup = (target - dup) == 1;
-	int i;
-
-	if (first_dup) {
-		elt = sort_entries[target]->elt;
-		target_elt = copy_elt(elt);
-		if (!target_elt)
-			return -ENOMEM;
-		sort_entries[target]->elt = target_elt;
-		sort_entries[target]->elt_copied = true;
-	} else
-		target_elt = sort_entries[target]->elt;
-
-	elt = sort_entries[dup]->elt;
-
-	for (i = 0; i < elt->map->n_fields; i++)
-		atomic64_add(atomic64_read(&elt->fields[i].sum),
-			     &target_elt->fields[i].sum);
-
-	sort_entries[dup]->dup = true;
-
-	return 0;
-}
-
-static int merge_dups(struct tracing_map_sort_entry **sort_entries,
+static void detect_dups(struct tracing_map_sort_entry **sort_entries,
 		      int n_entries, unsigned int key_size)
 {
 	unsigned int dups = 0, total_dups = 0;
-	int err, i, j;
+	int i;
 	void *key;
 
 	if (n_entries < 2)
-		return total_dups;
+		return;
 
 	sort(sort_entries, n_entries, sizeof(struct tracing_map_sort_entry *),
 	     (int (*)(const void *, const void *))cmp_entries_dup, NULL);
@@ -916,30 +864,14 @@ static int merge_dups(struct tracing_map_sort_entry **sort_entries,
 	for (i = 1; i < n_entries; i++) {
 		if (!memcmp(sort_entries[i]->key, key, key_size)) {
 			dups++; total_dups++;
-			err = merge_dup(sort_entries, i - dups, i);
-			if (err)
-				return err;
 			continue;
 		}
 		key = sort_entries[i]->key;
 		dups = 0;
 	}
 
-	if (!total_dups)
-		return total_dups;
-
-	for (i = 0, j = 0; i < n_entries; i++) {
-		if (!sort_entries[i]->dup) {
-			sort_entries[j] = sort_entries[i];
-			if (j++ != i)
-				sort_entries[i] = NULL;
-		} else {
-			destroy_sort_entry(sort_entries[i]);
-			sort_entries[i] = NULL;
-		}
-	}
-
-	return total_dups;
+	WARN_ONCE(total_dups > 0,
+		  "Duplicates detected: %d\n", total_dups);
 }
 
 static bool is_key(struct tracing_map *map, unsigned int field_idx)
@@ -1065,10 +997,7 @@ int tracing_map_sort_entries(struct tracing_map *map,
 		return 1;
 	}
 
-	ret = merge_dups(entries, n_entries, map->key_size);
-	if (ret < 0)
-		goto free;
-	n_entries -= ret;
+	detect_dups(entries, n_entries, map->key_size);
 
 	if (is_key(map, sort_keys[0].field_idx))
 		cmp_entries_fn = cmp_entries_key;

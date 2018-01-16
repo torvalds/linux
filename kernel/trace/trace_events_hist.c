@@ -340,16 +340,6 @@ static int hist_trigger_elt_comm_alloc(struct tracing_map_elt *elt)
 	return 0;
 }
 
-static void hist_trigger_elt_comm_copy(struct tracing_map_elt *to,
-				       struct tracing_map_elt *from)
-{
-	char *comm_from = from->private_data;
-	char *comm_to = to->private_data;
-
-	if (comm_from)
-		memcpy(comm_to, comm_from, TASK_COMM_LEN + 1);
-}
-
 static void hist_trigger_elt_comm_init(struct tracing_map_elt *elt)
 {
 	char *comm = elt->private_data;
@@ -360,7 +350,6 @@ static void hist_trigger_elt_comm_init(struct tracing_map_elt *elt)
 
 static const struct tracing_map_ops hist_trigger_elt_comm_ops = {
 	.elt_alloc	= hist_trigger_elt_comm_alloc,
-	.elt_copy	= hist_trigger_elt_comm_copy,
 	.elt_free	= hist_trigger_elt_comm_free,
 	.elt_init	= hist_trigger_elt_comm_init,
 };
