@@ -4515,6 +4515,9 @@ static const char readme_msg[] =
 #ifdef CONFIG_X86_64
 	"     x86-tsc:   TSC cycle counter\n"
 #endif
+	"\n  timestamp_mode\t-view the mode used to timestamp events\n"
+	"       delta:   Delta difference against a buffer-wide timestamp\n"
+	"    absolute:   Absolute (standalone) timestamp\n"
 	"\n  trace_marker\t\t- Writes into this file writes into the kernel buffer\n"
 	"\n  trace_marker_raw\t\t- Writes into this file writes binary data into the kernel buffer\n"
 	"  tracing_cpumask\t- Limit which CPUs to trace\n"
@@ -6282,6 +6285,40 @@ static int tracing_clock_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+static int tracing_time_stamp_mode_show(struct seq_file *m, void *v)
+{
+	struct trace_array *tr = m->private;
+
+	mutex_lock(&trace_types_lock);
+
+	if (ring_buffer_time_stamp_abs(tr->trace_buffer.buffer))
+		seq_puts(m, "delta [absolute]\n");
+	else
+		seq_puts(m, "[delta] absolute\n");
+
+	mutex_unlock(&trace_types_lock);
+
+	return 0;
+}
+
+static int tracing_time_stamp_mode_open(struct inode *inode, struct file *file)
+{
+	struct trace_array *tr = inode->i_private;
+	int ret;
+
+	if (tracing_disabled)
+		return -ENODEV;
+
+	if (trace_array_get(tr))
+		return -ENODEV;
+
+	ret = single_open(file, tracing_time_stamp_mode_show, inode->i_private);
+	if (ret < 0)
+		trace_array_put(tr);
+
+	return ret;
+}
+
 int tracing_set_time_stamp_abs(struct trace_array *tr, bool abs)
 {
 	int ret = 0;
@@ -6558,6 +6595,13 @@ static const struct file_operations trace_clock_fops = {
 	.llseek		= seq_lseek,
 	.release	= tracing_single_release_tr,
 	.write		= tracing_clock_write,
+};
+
+static const struct file_operations trace_time_stamp_mode_fops = {
+	.open		= tracing_time_stamp_mode_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= tracing_single_release_tr,
 };
 
 #ifdef CONFIG_TRACER_SNAPSHOT
@@ -7881,6 +7925,9 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 
 	trace_create_file("tracing_on", 0644, d_tracer,
 			  tr, &rb_simple_fops);
+
+	trace_create_file("timestamp_mode", 0444, d_tracer, tr,
+			  &trace_time_stamp_mode_fops);
 
 	create_trace_options_dir(tr);
 
