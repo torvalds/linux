@@ -55,7 +55,6 @@ nfs_encode_fh(struct inode *inode, __u32 *p, int *max_len, struct inode *parent)
 	p[len - 1] = 0; /* Padding */
 	nfs_copy_fh(clnt_fh, server_fh);
 	*max_len = len;
-out:
 	dprintk("%s: result fh fileid %llu mode %u size %d\n",
 		__func__, NFS_FILEID(inode), inode->i_mode, *max_len);
 	return *max_len;
