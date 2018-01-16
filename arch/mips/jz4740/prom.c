@@ -25,7 +25,6 @@
 
 void __init prom_init(void)
 {
-	mips_machtype = MACH_INGENIC_JZ4740;
 	fw_init_cmdline();
 }
 
