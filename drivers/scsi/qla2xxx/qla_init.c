@@ -1565,6 +1565,13 @@ qla24xx_async_abort_cmd(srb_t *cmd_sp)
 	sp->name = "abort";
 	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha));
 	abt_iocb->u.abt.cmd_hndl = cmd_sp->handle;
+
+	if (vha->flags.qpairs_available && cmd_sp->qpair)
+		abt_iocb->u.abt.req_que_no =
+		    cpu_to_le16(cmd_sp->qpair->req->id);
+	else
+		abt_iocb->u.abt.req_que_no = cpu_to_le16(vha->req->id);
+
 	sp->done = qla24xx_abort_sp_done;
 	abt_iocb->timeout = qla24xx_abort_iocb_timeout;
 	init_completion(&abt_iocb->u.abt.comp);
@@ -1598,6 +1605,9 @@ qla24xx_async_abort_command(srb_t *sp)
 	struct scsi_qla_host *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = vha->req;
+
+	if (vha->flags.qpairs_available && sp->qpair)
+		req = sp->qpair->req;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < req->num_outstanding_cmds; handle++) {
