@@ -107,6 +107,7 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	3f
 1:	UPDATE_VTIME %r14,%r15,\timer
+	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 2:	lg	%r15,__LC_ASYNC_STACK	# load async stack
 3:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	.endm
@@ -187,6 +188,40 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 	.popsection
 	.endm
 
+	.macro BPENTER tif_ptr,tif_mask
+	.pushsection .altinstr_replacement, "ax"
+662:	.word	0xc004, 0x0000, 0x0000	# 6 byte nop
+	.word	0xc004, 0x0000, 0x0000	# 6 byte nop
+	.popsection
+664:	TSTMSK	\tif_ptr,\tif_mask
+	jz	. + 8
+	.long	0xb2e8d000
+	.pushsection .altinstructions, "a"
+	.long 664b - .
+	.long 662b - .
+	.word 82
+	.byte 12
+	.byte 12
+	.popsection
+	.endm
+
+	.macro BPEXIT tif_ptr,tif_mask
+	TSTMSK	\tif_ptr,\tif_mask
+	.pushsection .altinstr_replacement, "ax"
+662:	jnz	. + 8
+	.long	0xb2e8d000
+	.popsection
+664:	jz	. + 8
+	.long	0xb2e8c000
+	.pushsection .altinstructions, "a"
+	.long 664b - .
+	.long 662b - .
+	.word 82
+	.byte 8
+	.byte 8
+	.popsection
+	.endm
+
 	.section .kprobes.text, "ax"
 .Ldummy:
 	/*
@@ -240,9 +275,11 @@ ENTRY(__switch_to)
  */
 ENTRY(sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
+	lg	%r12,__LC_CURRENT
 	stg	%r2,__SF_EMPTY(%r15)		# save control block pointer
 	stg	%r3,__SF_EMPTY+8(%r15)		# save guest register save area
 	xc	__SF_EMPTY+16(8,%r15),__SF_EMPTY+16(%r15) # reason code = 0
+	mvc	__SF_EMPTY+24(8,%r15),__TI_flags(%r12) # copy thread flags
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU		# load guest fp/vx registers ?
 	jno	.Lsie_load_guest_gprs
 	brasl	%r14,load_fpu_regs		# load guest fp/vx regs
@@ -259,11 +296,12 @@ ENTRY(sie64a)
 	jnz	.Lsie_skip
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lsie_skip			# exit if fp/vx regs changed
-	BPON
+	BPEXIT	__SF_EMPTY+24(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 .Lsie_entry:
 	sie	0(%r14)
 .Lsie_exit:
 	BPOFF
+	BPENTER	__SF_EMPTY+24(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 .Lsie_skip:
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
@@ -324,6 +362,7 @@ ENTRY(system_call)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
 .Lsysc_vtime:
 	UPDATE_VTIME %r8,%r9,__LC_SYNC_ENTER_TIMER
+	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 	stmg	%r0,%r7,__PT_R0(%r11)
 	# clear user controlled register to prevent speculative use
 	xgr	%r0,%r0
@@ -362,7 +401,7 @@ ENTRY(system_call)
 	jnz	.Lsysc_work			# check for work
 	TSTMSK	__LC_CPU_FLAGS,_CIF_WORK
 	jnz	.Lsysc_work
-	BPON
+	BPEXIT	__TI_flags(%r12),_TIF_ISOLATE_BP
 .Lsysc_restore:
 	lg	%r14,__LC_VDSO_PER_CPU
 	lmg	%r0,%r10,__PT_R0(%r11)
@@ -597,6 +636,7 @@ ENTRY(pgm_check_handler)
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	4f
 2:	UPDATE_VTIME %r14,%r15,__LC_SYNC_ENTER_TIMER
+	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
 	lg	%r15,__LC_KERNEL_STACK
 	lgr	%r14,%r12
 	aghi	%r14,__TASK_thread	# pointer to thread_struct
@@ -729,7 +769,7 @@ ENTRY(io_int_handler)
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
 	jno	.Lio_exit_kernel
-	BPON
+	BPEXIT	__TI_flags(%r12),_TIF_ISOLATE_BP
 .Lio_exit_timer:
 	stpt	__LC_EXIT_TIMER
 	mvc	__VDSO_ECTG_BASE(16,%r14),__LC_EXIT_TIMER
@@ -1165,7 +1205,7 @@ ENTRY(mcck_int_handler)
 	mvc	__LC_RETURN_MCCK_PSW(16),__PT_PSW(%r11) # move return PSW
 	tm	__LC_RETURN_MCCK_PSW+1,0x01 # returning to user ?
 	jno	0f
-	BPON
+	BPEXIT	__TI_flags(%r12),_TIF_ISOLATE_BP
 	stpt	__LC_EXIT_TIMER
 	mvc	__VDSO_ECTG_BASE(16,%r14),__LC_EXIT_TIMER
 0:	lmg	%r11,%r15,__PT_R11(%r11)
@@ -1292,7 +1332,8 @@ cleanup_critical:
 	clg     %r9,BASED(.Lsie_crit_mcck_length)
 	jh      1f
 	oi      __LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
-1:	lg	%r9,__SF_EMPTY(%r15)		# get control block pointer
+1:	BPENTER __SF_EMPTY+24(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
+	lg	%r9,__SF_EMPTY(%r15)		# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
