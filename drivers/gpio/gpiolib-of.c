@@ -129,7 +129,8 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 	if (IS_ERR(desc))
 		goto out;
 
-	of_gpio_flags_quirks(np, flags);
+	if (flags)
+		of_gpio_flags_quirks(np, flags);
 
 	pr_debug("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
 		 __func__, propname, np, index,
