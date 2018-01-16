@@ -623,6 +623,8 @@ static uint64_t gmc_v8_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 		reg = mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8;
 	amdgpu_ring_emit_wreg(ring, reg, pd_addr >> 12);
 
+	amdgpu_ring_emit_wreg(ring, mmIH_VMID_0_LUT + vmid, pasid);
+
 	/* bits 0-15 are the VM contexts0-15 */
 	amdgpu_ring_emit_wreg(ring, mmVM_INVALIDATE_REQUEST, 1 << vmid);
 
