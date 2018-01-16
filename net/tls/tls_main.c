@@ -373,7 +373,7 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	case TLS_CIPHER_AES_GCM_128: {
 		if (optlen != sizeof(struct tls12_crypto_info_aes_gcm_128)) {
 			rc = -EINVAL;
-			goto out;
+			goto err_crypto_info;
 		}
 		rc = copy_from_user(
 		  crypto_info,
@@ -388,7 +388,7 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	}
 	default:
 		rc = -EINVAL;
-		goto out;
+		goto err_crypto_info;
 	}
 
 	ctx->sk_write_space = sk->sk_write_space;
