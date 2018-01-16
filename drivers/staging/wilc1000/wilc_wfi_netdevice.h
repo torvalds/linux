@@ -92,7 +92,6 @@ struct sta_info {
 /*Parameters needed for host interface for  remaining on channel*/
 struct wilc_wfi_p2p_listen_params {
 	struct ieee80211_channel *listen_ch;
-	enum nl80211_channel_type tenuChannelType;
 	u32 listen_duration;
 	u64 listen_cookie;
 	u32 listen_session_id;
