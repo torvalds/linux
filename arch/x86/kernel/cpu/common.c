@@ -924,7 +924,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
 
 	if (c->x86_vendor != X86_VENDOR_AMD)
-		setup_force_cpu_bug(X86_BUG_CPU_INSECURE);
+		setup_force_cpu_bug(X86_BUG_CPU_MELTDOWN);
 
 	fpu__init_system(c);
 
