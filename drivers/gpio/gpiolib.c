@@ -3692,7 +3692,7 @@ struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
 					 enum gpiod_flags dflags,
 					 const char *label)
 {
-	struct gpio_desc *desc = ERR_PTR(-ENODEV);
+	struct gpio_desc *desc;
 	unsigned long lflags = 0;
 	enum of_gpio_flags flags;
 	bool active_low = false;
