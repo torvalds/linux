@@ -274,6 +274,7 @@ int rockchip_of_get_lkg_scale_sel(struct device *dev, char *name)
 
 	return ret;
 }
+EXPORT_SYMBOL(rockchip_of_get_lkg_scale_sel);
 
 int rockchip_of_get_lkg_volt_sel(struct device *dev, char *name)
 {
@@ -300,6 +301,7 @@ int rockchip_of_get_lkg_volt_sel(struct device *dev, char *name)
 
 	return ret;
 }
+EXPORT_SYMBOL(rockchip_of_get_lkg_volt_sel);
 
 int rockchip_of_get_pvtm_volt_sel(struct device *dev,
 				  char *clk_name,
@@ -340,4 +342,5 @@ int rockchip_of_get_pvtm_volt_sel(struct device *dev,
 
 	return ret ? ret : volt_sel;
 }
+EXPORT_SYMBOL(rockchip_of_get_pvtm_volt_sel);
 
