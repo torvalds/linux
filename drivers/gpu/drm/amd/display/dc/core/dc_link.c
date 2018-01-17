@@ -678,8 +678,6 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		case EDID_NO_RESPONSE:
 			dm_logger_write(link->ctx->logger, LOG_ERROR,
 				"No EDID read.\n");
-			return false;
-
 		default:
 			break;
 		}
