@@ -661,11 +661,9 @@ struct dentry *ovl_get_index_fh(struct ovl_fs *ofs, struct ovl_fh *fh)
 	return ERR_PTR(err);
 }
 
-static struct dentry *ovl_lookup_index(struct dentry *dentry,
-				       struct dentry *upper,
-				       struct dentry *origin)
+struct dentry *ovl_lookup_index(struct ovl_fs *ofs, struct dentry *upper,
+				struct dentry *origin, bool verify)
 {
-	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
 	struct dentry *index;
 	struct inode *inode;
 	struct qstr name;
@@ -693,6 +691,16 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 	inode = d_inode(index);
 	if (d_is_negative(index)) {
 		goto out_dput;
+	} else if (ovl_is_whiteout(index) && !verify) {
+		/*
+		 * When index lookup is called with !verify for decoding an
+		 * overlay file handle, a whiteout index implies that decode
+		 * should treat file handle as stale and no need to print a
+		 * warning about it.
+		 */
+		dput(index);
+		index = ERR_PTR(-ESTALE);
+		goto out;
 	} else if (ovl_dentry_weird(index) || ovl_is_whiteout(index) ||
 		   ((inode->i_mode ^ d_inode(origin)->i_mode) & S_IFMT)) {
 		/*
@@ -706,7 +714,7 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 				    index, d_inode(index)->i_mode & S_IFMT,
 				    d_inode(origin)->i_mode & S_IFMT);
 		goto fail;
-	} else if (is_dir) {
+	} else if (is_dir && verify) {
 		if (!upper) {
 			pr_warn_ratelimited("overlayfs: suspected uncovered redirected dir found (origin=%pd2, index=%pd2).\n",
 					    origin, index);
@@ -943,7 +951,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (origin && ovl_indexdir(dentry->d_sb) &&
 	    (!d.is_dir || ovl_index_all(dentry->d_sb))) {
-		index = ovl_lookup_index(dentry, upperdentry, origin);
+		index = ovl_lookup_index(ofs, upperdentry, origin, true);
 		if (IS_ERR(index)) {
 			err = PTR_ERR(index);
 			index = NULL;
