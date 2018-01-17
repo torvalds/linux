@@ -91,6 +91,7 @@ libperf-$(CONFIG_AUXTRACE) += arm-spe-pkt-decoder.o
 
 ifdef CONFIG_LIBOPENCSD
 libperf-$(CONFIG_AUXTRACE) += cs-etm.o
+libperf-$(CONFIG_AUXTRACE) += cs-etm-decoder/
 endif
 
 libperf-y += parse-branch-options.o

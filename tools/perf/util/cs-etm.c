@@ -18,6 +18,7 @@
 #include "auxtrace.h"
 #include "color.h"
 #include "cs-etm.h"
+#include "cs-etm-decoder/cs-etm-decoder.h"
 #include "debug.h"
 #include "evlist.h"
 #include "intlist.h"
@@ -68,6 +69,78 @@ struct cs_etm_queue {
 	u64 timestamp;
 	u64 offset;
 };
+
+static void cs_etm__packet_dump(const char *pkt_string)
+{
+	const char *color = PERF_COLOR_BLUE;
+	int len = strlen(pkt_string);
+
+	if (len && (pkt_string[len-1] == '\n'))
+		color_fprintf(stdout, color, "	%s", pkt_string);
+	else
+		color_fprintf(stdout, color, "	%s\n", pkt_string);
+
+	fflush(stdout);
+}
+
+static void cs_etm__dump_event(struct cs_etm_auxtrace *etm,
+			       struct auxtrace_buffer *buffer)
+{
+	int i, ret;
+	const char *color = PERF_COLOR_BLUE;
+	struct cs_etm_decoder_params d_params;
+	struct cs_etm_trace_params *t_params;
+	struct cs_etm_decoder *decoder;
+	size_t buffer_used = 0;
+
+	fprintf(stdout, "\n");
+	color_fprintf(stdout, color,
+		     ". ... CoreSight ETM Trace data: size %zu bytes\n",
+		     buffer->size);
+
+	/* Use metadata to fill in trace parameters for trace decoder */
+	t_params = zalloc(sizeof(*t_params) * etm->num_cpu);
+	for (i = 0; i < etm->num_cpu; i++) {
+		t_params[i].protocol = CS_ETM_PROTO_ETMV4i;
+		t_params[i].etmv4.reg_idr0 = etm->metadata[i][CS_ETMV4_TRCIDR0];
+		t_params[i].etmv4.reg_idr1 = etm->metadata[i][CS_ETMV4_TRCIDR1];
+		t_params[i].etmv4.reg_idr2 = etm->metadata[i][CS_ETMV4_TRCIDR2];
+		t_params[i].etmv4.reg_idr8 = etm->metadata[i][CS_ETMV4_TRCIDR8];
+		t_params[i].etmv4.reg_configr =
+					etm->metadata[i][CS_ETMV4_TRCCONFIGR];
+		t_params[i].etmv4.reg_traceidr =
+					etm->metadata[i][CS_ETMV4_TRCTRACEIDR];
+	}
+
+	/* Set decoder parameters to simply print the trace packets */
+	d_params.packet_printer = cs_etm__packet_dump;
+	d_params.operation = CS_ETM_OPERATION_PRINT;
+	d_params.formatted = true;
+	d_params.fsyncs = false;
+	d_params.hsyncs = false;
+	d_params.frame_aligned = true;
+
+	decoder = cs_etm_decoder__new(etm->num_cpu, &d_params, t_params);
+
+	zfree(&t_params);
+
+	if (!decoder)
+		return;
+	do {
+		size_t consumed;
+
+		ret = cs_etm_decoder__process_data_block(
+				decoder, buffer->offset,
+				&((u8 *)buffer->data)[buffer_used],
+				buffer->size - buffer_used, &consumed);
+		if (ret)
+			break;
+
+		buffer_used += consumed;
+	} while (buffer_used < buffer->size);
+
+	cs_etm_decoder__free(decoder);
+}
 
 static int cs_etm__flush_events(struct perf_session *session,
 				struct perf_tool *tool)
@@ -137,11 +210,38 @@ static int cs_etm__process_event(struct perf_session *session,
 
 static int cs_etm__process_auxtrace_event(struct perf_session *session,
 					  union perf_event *event,
-					  struct perf_tool *tool)
+					  struct perf_tool *tool __maybe_unused)
 {
-	(void) session;
-	(void) event;
-	(void) tool;
+	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
+						   struct cs_etm_auxtrace,
+						   auxtrace);
+	if (!etm->data_queued) {
+		struct auxtrace_buffer *buffer;
+		off_t  data_offset;
+		int fd = perf_data__fd(session->data);
+		bool is_pipe = perf_data__is_pipe(session->data);
+		int err;
+
+		if (is_pipe)
+			data_offset = 0;
+		else {
+			data_offset = lseek(fd, 0, SEEK_CUR);
+			if (data_offset == -1)
+				return -errno;
+		}
+
+		err = auxtrace_queues__add_event(&etm->queues, session,
+						 event, data_offset, &buffer);
+		if (err)
+			return err;
+
+		if (dump_trace)
+			if (auxtrace_buffer__get_data(buffer, fd)) {
+				cs_etm__dump_event(etm, buffer);
+				auxtrace_buffer__put_data(buffer);
+			}
+	}
+
 	return 0;
 }
 
