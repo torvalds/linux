@@ -1193,6 +1193,11 @@ static int sx150x_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
+	ret = gpiochip_add_pin_range(&pctl->gpio, dev_name(dev),
+				     0, 0, pctl->data->npins);
+	if (ret)
+		return ret;
+
 	/* Add Interrupt support if an irq is specified */
 	if (client->irq > 0) {
 		pctl->irq_chip.name = devm_kstrdup(dev, client->name,
