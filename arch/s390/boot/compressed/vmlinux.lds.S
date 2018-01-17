@@ -48,4 +48,10 @@ SECTIONS
 		_ebss = .;
 	}
 	_end = .;
+
+	/* Sections to be discarded */
+	/DISCARD/ : {
+		*(.eh_frame)
+		*(*__ksymtab*)
+	}
 }
