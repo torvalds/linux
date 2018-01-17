@@ -223,6 +223,12 @@ static void unshadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	memcpy(scb_o->gcr, scb_s->gcr, 128);
 	scb_o->pp = scb_s->pp;
 
+	/* branch prediction */
+	if (test_kvm_facility(vcpu->kvm, 82)) {
+		scb_o->fpf &= ~FPF_BPBC;
+		scb_o->fpf |= scb_s->fpf & FPF_BPBC;
+	}
+
 	/* interrupt intercept */
 	switch (scb_s->icptcode) {
 	case ICPT_PROGI:
@@ -265,6 +271,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	scb_s->ecb3 = 0;
 	scb_s->ecd = 0;
 	scb_s->fac = 0;
+	scb_s->fpf = 0;
 
 	rc = prepare_cpuflags(vcpu, vsie_page);
 	if (rc)
@@ -324,6 +331,9 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			prefix_unmapped(vsie_page);
 		scb_s->ecb |= scb_o->ecb & ECB_TE;
 	}
+	/* branch prediction */
+	if (test_kvm_facility(vcpu->kvm, 82))
+		scb_s->fpf |= scb_o->fpf & FPF_BPBC;
 	/* SIMD */
 	if (test_kvm_facility(vcpu->kvm, 129)) {
 		scb_s->eca |= scb_o->eca & ECA_VX;
