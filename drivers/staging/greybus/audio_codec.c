@@ -567,7 +567,7 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 	if (ret) {
 		mutex_unlock(&codec->lock);
 		dev_err_ratelimited(dai->dev, "set_data_size failed:%d\n",
-				     ret);
+				    ret);
 		return ret;
 	}
 
@@ -827,7 +827,7 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 					  module->num_dapm_widgets);
 	if (module->controls)
 		snd_soc_add_codec_controls(codec, module->controls,
-				     module->num_controls);
+					   module->num_controls);
 	if (module->dapm_routes)
 		snd_soc_dapm_add_routes(&codec->dapm, module->dapm_routes,
 					module->num_dapm_routes);
@@ -972,7 +972,7 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 		dev_dbg(codec->dev, "Removing %d controls\n",
 			module->num_controls);
 		snd_soc_remove_codec_controls(codec, module->controls,
-					  module->num_controls);
+					      module->num_controls);
 	}
 	if (module->dapm_widgets) {
 		dev_dbg(codec->dev, "Removing %d widgets\n",
