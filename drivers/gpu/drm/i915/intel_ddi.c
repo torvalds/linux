@@ -2923,7 +2923,10 @@ static bool intel_ddi_hotplug(struct intel_encoder *encoder,
 	drm_modeset_acquire_init(&ctx, 0);
 
 	for (;;) {
-		ret = intel_hdmi_reset_link(encoder, &ctx);
+		if (connector->base.connector_type == DRM_MODE_CONNECTOR_HDMIA)
+			ret = intel_hdmi_reset_link(encoder, &ctx);
+		else
+			ret = intel_dp_retrain_link(encoder, &ctx);
 
 		if (ret == -EDEADLK) {
 			drm_modeset_backoff(&ctx);
@@ -3056,10 +3059,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	drm_encoder_init(&dev_priv->drm, encoder, &intel_ddi_funcs,
 			 DRM_MODE_ENCODER_TMDS, "DDI %c", port_name(port));
 
-	if (init_hdmi)
-		intel_encoder->hotplug = intel_ddi_hotplug;
-	else
-		intel_encoder->hotplug = intel_encoder_hotplug;
+	intel_encoder->hotplug = intel_ddi_hotplug;
 	intel_encoder->compute_output_type = intel_ddi_compute_output_type;
 	intel_encoder->compute_config = intel_ddi_compute_config;
 	intel_encoder->enable = intel_enable_ddi;
