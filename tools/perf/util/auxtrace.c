@@ -52,6 +52,7 @@
 #include "debug.h"
 #include <subcmd/parse-options.h>
 
+#include "cs-etm.h"
 #include "intel-pt.h"
 #include "intel-bts.h"
 #include "arm-spe.h"
@@ -914,6 +915,7 @@ int perf_event__process_auxtrace_info(struct perf_tool *tool __maybe_unused,
 	case PERF_AUXTRACE_ARM_SPE:
 		return arm_spe_process_auxtrace_info(event, session);
 	case PERF_AUXTRACE_CS_ETM:
+		return cs_etm__process_auxtrace_info(event, session);
 	case PERF_AUXTRACE_UNKNOWN:
 	default:
 		return -EINVAL;
