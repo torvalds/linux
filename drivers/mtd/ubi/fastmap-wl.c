@@ -360,7 +360,6 @@ static void ubi_fastmap_close(struct ubi_device *ubi)
 {
 	int i;
 
-	flush_work(&ubi->fm_work);
 	return_unused_pool_pebs(ubi, &ubi->fm_pool);
 	return_unused_pool_pebs(ubi, &ubi->fm_wl_pool);
 
