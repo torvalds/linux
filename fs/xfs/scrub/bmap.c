@@ -305,6 +305,7 @@ xfs_scrub_bmap_extent(
 {
 	struct xfs_mount		*mp = info->sc->mp;
 	struct xfs_buf			*bp = NULL;
+	xfs_filblks_t			end;
 	int				error = 0;
 
 	if (cur)
@@ -332,19 +333,23 @@ xfs_scrub_bmap_extent(
 				irec->br_startoff);
 
 	/* Make sure the extent points to a valid place. */
+	if (irec->br_blockcount > MAXEXTLEN)
+		xfs_scrub_fblock_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
 	if (irec->br_startblock + irec->br_blockcount <= irec->br_startblock)
 		xfs_scrub_fblock_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
+	end = irec->br_startblock + irec->br_blockcount - 1;
 	if (info->is_rt &&
 	    (!xfs_verify_rtbno(mp, irec->br_startblock) ||
-	     !xfs_verify_rtbno(mp, irec->br_startblock +
-				irec->br_blockcount - 1)))
+	     !xfs_verify_rtbno(mp, end)))
 		xfs_scrub_fblock_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 	if (!info->is_rt &&
 	    (!xfs_verify_fsbno(mp, irec->br_startblock) ||
-	     !xfs_verify_fsbno(mp, irec->br_startblock +
-				irec->br_blockcount - 1)))
+	     !xfs_verify_fsbno(mp, end) ||
+	     XFS_FSB_TO_AGNO(mp, irec->br_startblock) !=
+				XFS_FSB_TO_AGNO(mp, end)))
 		xfs_scrub_fblock_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
 
