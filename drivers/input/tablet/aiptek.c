@@ -79,13 +79,6 @@
 #include <asm/unaligned.h>
 
 /*
- * Version Information
- */
-#define DRIVER_VERSION "v2.3 (May 2, 2007)"
-#define DRIVER_AUTHOR  "Bryan W. Headley/Chris Atenasio/Cedric Brun/Rene van Paassen"
-#define DRIVER_DESC    "Aiptek HyperPen USB Tablet Driver (Linux 2.6.x)"
-
-/*
  * Aiptek status packet:
  *
  * (returned as Report 1 - relative coordinates from mouse and stylus)
@@ -1941,8 +1934,8 @@ static struct usb_driver aiptek_driver = {
 
 module_usb_driver(aiptek_driver);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Bryan W. Headley/Chris Atenasio/Cedric Brun/Rene van Paassen");
+MODULE_DESCRIPTION("Aiptek HyperPen USB Tablet Driver");
 MODULE_LICENSE("GPL");
 
 module_param(programmableDelay, int, 0);

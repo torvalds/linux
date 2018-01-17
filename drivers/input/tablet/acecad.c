@@ -30,15 +30,8 @@
 #include <linux/module.h>
 #include <linux/usb/input.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v3.2"
-#define DRIVER_DESC    "USB Acecad Flair tablet driver"
-#define DRIVER_AUTHOR  "Edouard TISSERANT <edouard.tisserant@wanadoo.fr>"
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Edouard TISSERANT <edouard.tisserant@wanadoo.fr>");
+MODULE_DESCRIPTION("USB Acecad Flair tablet driver");
 MODULE_LICENSE("GPL");
 
 #define USB_VENDOR_ID_ACECAD	0x0460

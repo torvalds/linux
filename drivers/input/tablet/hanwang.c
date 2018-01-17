@@ -28,11 +28,8 @@
 #include <linux/module.h>
 #include <linux/usb/input.h>
 
-#define DRIVER_AUTHOR   "Xing Wei <weixing@hanwang.com.cn>"
-#define DRIVER_DESC     "USB Hanwang tablet driver"
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Xing Wei <weixing@hanwang.com.cn>");
+MODULE_DESCRIPTION("USB Hanwang tablet driver");
 MODULE_LICENSE("GPL");
 
 #define USB_VENDOR_ID_HANWANG		0x0b57
