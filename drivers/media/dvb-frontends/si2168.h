@@ -46,6 +46,9 @@ struct si2168_config {
 
 	/* TS clock gapped */
 	bool ts_clock_gapped;
+
+	/* Inverted spectrum */
+	bool spectral_inversion;
 };
 
 #endif
