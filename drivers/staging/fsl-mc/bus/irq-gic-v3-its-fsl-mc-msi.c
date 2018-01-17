@@ -67,7 +67,7 @@ static const struct of_device_id its_device_id[] = {
 	{},
 };
 
-int __init its_fsl_mc_msi_init(void)
+static int __init its_fsl_mc_msi_init(void)
 {
 	struct device_node *np;
 	struct irq_domain *parent;
