@@ -159,7 +159,8 @@ xfs_scrub_teardown(
 		sc->tp = NULL;
 	}
 	if (sc->ip) {
-		xfs_iunlock(sc->ip, sc->ilock_flags);
+		if (sc->ilock_flags)
+			xfs_iunlock(sc->ip, sc->ilock_flags);
 		if (sc->ip != ip_in &&
 		    !xfs_internal_inum(sc->mp, sc->ip->i_ino))
 			iput(VFS_I(sc->ip));
