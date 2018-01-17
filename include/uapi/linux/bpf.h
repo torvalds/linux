@@ -17,7 +17,7 @@
 #define BPF_ALU64	0x07	/* alu mode in double word width */
 
 /* ld/ldx fields */
-#define BPF_DW		0x18	/* double word */
+#define BPF_DW		0x18	/* double word (64-bit) */
 #define BPF_XADD	0xc0	/* exclusive add */
 
 /* alu/jmp fields */
