@@ -278,7 +278,6 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 
 	host->cmd = NULL;
 	host->data = NULL;
-	host->force_pio = false;
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
@@ -759,6 +758,7 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 
 	tmio_mmc_init_sg(host, data);
 	host->data = data;
+	host->force_pio = false;
 
 	/* Set transfer length / blocksize */
 	sd_ctrl_write16(host, CTL_SD_XFER_LEN, data->blksz);
@@ -850,7 +850,6 @@ static void tmio_process_mrq(struct tmio_mmc_host *host,
 	return;
 
 fail:
-	host->force_pio = false;
 	host->mrq = NULL;
 	mrq->cmd->error = ret;
 	mmc_request_done(host->mmc, mrq);
@@ -900,7 +899,6 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	if (host->cmd != mrq->sbc) {
 		host->cmd = NULL;
 		host->data = NULL;
-		host->force_pio = false;
 		host->mrq = NULL;
 	}
 
