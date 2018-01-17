@@ -27,6 +27,8 @@
 
 #define DRIVER_NAME			"armada_3700_spi"
 
+#define A3700_SPI_MAX_SPEED_HZ		100000000
+#define A3700_SPI_MAX_PRESCALE		30
 #define A3700_SPI_TIMEOUT		10
 
 /* SPI Register Offest */
@@ -814,6 +816,11 @@ static int a3700_spi_probe(struct platform_device *pdev)
 		dev_err(dev, "could not prepare clk: %d\n", ret);
 		goto error;
 	}
+
+	master->max_speed_hz = min_t(unsigned long, A3700_SPI_MAX_SPEED_HZ,
+					clk_get_rate(spi->clk));
+	master->min_speed_hz = DIV_ROUND_UP(clk_get_rate(spi->clk),
+						A3700_SPI_MAX_PRESCALE);
 
 	ret = a3700_spi_init(spi);
 	if (ret)
