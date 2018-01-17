@@ -796,7 +796,6 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 
 		hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
 		device->lldd_dev = NULL;
-		memset(sas_dev, 0, sizeof(*sas_dev));
 	}
 
 	if (hisi_hba->hw->free_device)
