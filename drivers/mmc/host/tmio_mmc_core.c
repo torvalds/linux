@@ -1195,7 +1195,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	struct tmio_mmc_data *pdata = _host->pdata;
 	struct mmc_host *mmc = _host->mmc;
 	int ret;
-	u32 irq_mask = TMIO_MASK_CMD;
 
 	/*
 	 * Check the sanity of mmc->f_min to prevent tmio_mmc_set_clock() from
@@ -1276,8 +1275,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 
 	_host->sdcard_irq_mask = sd_ctrl_read16_and_16_as_32(_host, CTL_IRQ_MASK);
 	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
-
-	_host->sdcard_irq_mask &= ~irq_mask;
 
 	if (_host->native_hotplug)
 		tmio_mmc_enable_mmc_irqs(_host,
