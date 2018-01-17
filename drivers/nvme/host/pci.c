@@ -725,20 +725,19 @@ static void nvme_pci_sgl_set_seg(struct nvme_sgl_desc *sge,
 }
 
 static blk_status_t nvme_pci_setup_sgls(struct nvme_dev *dev,
-		struct request *req, struct nvme_rw_command *cmd)
+		struct request *req, struct nvme_rw_command *cmd, int entries)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
-	int length = blk_rq_payload_bytes(req);
 	struct dma_pool *pool;
 	struct nvme_sgl_desc *sg_list;
 	struct scatterlist *sg = iod->sg;
-	int entries = iod->nents, i = 0;
 	dma_addr_t sgl_dma;
+	int i = 0;
 
 	/* setting the transfer type as SGL */
 	cmd->flags = NVME_CMD_SGL_METABUF;
 
-	if (length == sg_dma_len(sg)) {
+	if (entries == 1) {
 		nvme_pci_sgl_set_data(&cmd->dptr.sgl, sg);
 		return BLK_STS_OK;
 	}
@@ -778,13 +777,9 @@ static blk_status_t nvme_pci_setup_sgls(struct nvme_dev *dev,
 		}
 
 		nvme_pci_sgl_set_data(&sg_list[i++], sg);
-
-		length -= sg_dma_len(sg);
 		sg = sg_next(sg);
-		entries--;
-	} while (length > 0);
+	} while (--entries > 0);
 
-	WARN_ON(entries > 0);
 	return BLK_STS_OK;
 }
 
@@ -796,6 +791,7 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 	enum dma_data_direction dma_dir = rq_data_dir(req) ?
 			DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	blk_status_t ret = BLK_STS_IOERR;
+	int nr_mapped;
 
 	sg_init_table(iod->sg, blk_rq_nr_phys_segments(req));
 	iod->nents = blk_rq_map_sg(q, req, iod->sg);
@@ -803,12 +799,13 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 		goto out;
 
 	ret = BLK_STS_RESOURCE;
-	if (!dma_map_sg_attrs(dev->dev, iod->sg, iod->nents, dma_dir,
-				DMA_ATTR_NO_WARN))
+	nr_mapped = dma_map_sg_attrs(dev->dev, iod->sg, iod->nents, dma_dir,
+			DMA_ATTR_NO_WARN);
+	if (!nr_mapped)
 		goto out;
 
 	if (iod->use_sgl)
-		ret = nvme_pci_setup_sgls(dev, req, &cmnd->rw);
+		ret = nvme_pci_setup_sgls(dev, req, &cmnd->rw, nr_mapped);
 	else
 		ret = nvme_pci_setup_prps(dev, req, &cmnd->rw);
 
