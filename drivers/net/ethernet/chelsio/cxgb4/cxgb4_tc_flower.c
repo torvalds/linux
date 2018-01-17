@@ -111,6 +111,9 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 			ethtype_mask = 0;
 		}
 
+		if (ethtype_key == ETH_P_IPV6)
+			fs->type = 1;
+
 		fs->val.ethtype = ethtype_key;
 		fs->mask.ethtype = ethtype_mask;
 		fs->val.proto = key->ip_proto;
