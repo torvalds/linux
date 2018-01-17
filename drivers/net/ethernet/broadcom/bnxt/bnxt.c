@@ -8061,11 +8061,23 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	return rc;
 }
 
-void bnxt_restore_pf_fw_resources(struct bnxt *bp)
+int bnxt_restore_pf_fw_resources(struct bnxt *bp)
 {
+	int rc;
+
 	ASSERT_RTNL();
+	if (bnxt_ulp_registered(bp->edev, BNXT_ROCE_ULP))
+		return 0;
+
 	bnxt_hwrm_func_qcaps(bp);
-	bnxt_subtract_ulp_resources(bp, BNXT_ROCE_ULP);
+	__bnxt_close_nic(bp, true, false);
+	bnxt_clear_int_mode(bp);
+	rc = bnxt_init_int_mode(bp);
+	if (rc)
+		dev_close(bp->dev);
+	else
+		rc = bnxt_open_nic(bp, true, false);
+	return rc;
 }
 
 static int bnxt_init_mac_addr(struct bnxt *bp)

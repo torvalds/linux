@@ -1432,7 +1432,7 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 		     int tx_xdp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
-void bnxt_restore_pf_fw_resources(struct bnxt *bp);
+int bnxt_restore_pf_fw_resources(struct bnxt *bp);
 int bnxt_port_attr_get(struct bnxt *bp, struct switchdev_attr *attr);
 void bnxt_dim_work(struct work_struct *work);
 int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi);
