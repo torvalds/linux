@@ -1841,6 +1841,23 @@ static int srpt_disconnect_ch(struct srpt_rdma_ch *ch)
 	return ret;
 }
 
+static bool srpt_ch_closed(struct srpt_device *sdev, struct srpt_rdma_ch *ch)
+{
+	struct srpt_rdma_ch *ch2;
+	bool res = true;
+
+	rcu_read_lock();
+	list_for_each_entry(ch2, &sdev->rch_list, list) {
+		if (ch2 == ch) {
+			res = false;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return res;
+}
+
 /*
  * Send DREQ and wait for DREP. Return true if and only if this function
  * changed the state of @ch.
@@ -1848,31 +1865,24 @@ static int srpt_disconnect_ch(struct srpt_rdma_ch *ch)
 static bool srpt_disconnect_ch_sync(struct srpt_rdma_ch *ch)
 	__must_hold(&sdev->mutex)
 {
-	DECLARE_COMPLETION_ONSTACK(release_done);
 	struct srpt_device *sdev = ch->sport->sdev;
-	bool wait;
+	int ret;
 
 	lockdep_assert_held(&sdev->mutex);
 
 	pr_debug("ch %s-%d state %d\n", ch->sess_name, ch->qp->qp_num,
 		 ch->state);
 
-	WARN_ON(ch->release_done);
-	ch->release_done = &release_done;
-	wait = !list_empty(&ch->list);
-	srpt_disconnect_ch(ch);
+	ret = srpt_disconnect_ch(ch);
 	mutex_unlock(&sdev->mutex);
 
-	if (!wait)
-		goto out;
-
-	while (wait_for_completion_timeout(&release_done, 180 * HZ) == 0)
+	while (wait_event_timeout(sdev->ch_releaseQ, srpt_ch_closed(sdev, ch),
+				  5 * HZ) == 0)
 		pr_info("%s(%s-%d state %d): still waiting ...\n", __func__,
 			ch->sess_name, ch->qp->qp_num, ch->state);
 
-out:
 	mutex_lock(&sdev->mutex);
-	return wait;
+	return ret == 0;
 }
 
 static void srpt_set_enabled(struct srpt_port *sport, bool enabled)
@@ -1916,8 +1926,7 @@ static void srpt_release_channel_work(struct work_struct *w)
 	struct se_session *se_sess;
 
 	ch = container_of(w, struct srpt_rdma_ch, release_work);
-	pr_debug("%s: %s-%d; release_done = %p\n", __func__, ch->sess_name,
-		 ch->qp->qp_num, ch->release_done);
+	pr_debug("%s-%d\n", ch->sess_name, ch->qp->qp_num);
 
 	sdev = ch->sport->sdev;
 	BUG_ON(!sdev);
@@ -1946,14 +1955,6 @@ static void srpt_release_channel_work(struct work_struct *w)
 
 	mutex_lock(&sdev->mutex);
 	list_del_rcu(&ch->list);
-	if (ch->release_done)
-		complete(ch->release_done);
-	mutex_unlock(&sdev->mutex);
-
-	synchronize_rcu();
-
-	mutex_lock(&sdev->mutex);
-	INIT_LIST_HEAD(&ch->list);
 	mutex_unlock(&sdev->mutex);
 
 	wake_up(&sdev->ch_releaseQ);
