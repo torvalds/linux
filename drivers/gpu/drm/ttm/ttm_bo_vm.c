@@ -226,7 +226,9 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 	} else {
 		struct ttm_operation_ctx ctx = {
 			.interruptible = false,
-			.no_wait_gpu = false
+			.no_wait_gpu = false,
+			.flags = TTM_OPT_FLAG_FORCE_ALLOC
+
 		};
 
 		ttm = bo->ttm;

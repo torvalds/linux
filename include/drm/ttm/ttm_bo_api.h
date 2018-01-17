@@ -278,7 +278,9 @@ struct ttm_operation_ctx {
 };
 
 /* Allow eviction of reserved BOs */
-#define TTM_OPT_FLAG_ALLOW_RES_EVICT	0x1
+#define TTM_OPT_FLAG_ALLOW_RES_EVICT		0x1
+/* when serving page fault or suspend, allow alloc anyway */
+#define TTM_OPT_FLAG_FORCE_ALLOC		0x2
 
 /**
  * ttm_bo_reference - reference a struct ttm_buffer_object
