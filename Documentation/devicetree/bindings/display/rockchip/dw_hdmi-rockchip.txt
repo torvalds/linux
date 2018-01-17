@@ -41,6 +41,7 @@ Optional properties
 - phys: from general PHY binding: the phandle for the PHY device.
 - phy-names: Should be "hdmi" if phys references an external phy.
 - hdcp1x-enable: enable hdcp1.x, enable if defined, disable if not defined
+- scramble-low-rates: if defined enable scarmble when tmdsclk less than 340Mhz
 
 Optional pinctrl entry:
 - If you have both a "unwedge" and "default" pinctrl entry, dw_hdmi
