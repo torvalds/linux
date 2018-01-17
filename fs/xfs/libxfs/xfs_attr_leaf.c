@@ -249,12 +249,13 @@ xfs_attr3_leaf_hdr_to_disk(
 
 static xfs_failaddr_t
 xfs_attr3_leaf_verify(
-	struct xfs_buf		*bp)
+	struct xfs_buf			*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
-	struct xfs_attr_leafblock *leaf = bp->b_addr;
-	struct xfs_perag *pag = bp->b_pag;
-	struct xfs_attr3_icleaf_hdr ichdr;
+	struct xfs_attr3_icleaf_hdr	ichdr;
+	struct xfs_mount		*mp = bp->b_target->bt_mount;
+	struct xfs_attr_leafblock	*leaf = bp->b_addr;
+	struct xfs_perag		*pag = bp->b_pag;
+	struct xfs_attr_leaf_entry	*entries;
 
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
 
@@ -280,6 +281,21 @@ xfs_attr3_leaf_verify(
 	 * if the attr didn't fit in shortform.
 	 */
 	if (pag && pag->pagf_init && ichdr.count == 0)
+		return __this_address;
+
+	/*
+	 * firstused is the block offset of the first name info structure.
+	 * Make sure it doesn't go off the block or crash into the header.
+	 */
+	if (ichdr.firstused > mp->m_attr_geo->blksize)
+		return __this_address;
+	if (ichdr.firstused < xfs_attr3_leaf_hdr_size(leaf))
+		return __this_address;
+
+	/* Make sure the entries array doesn't crash into the name info. */
+	entries = xfs_attr3_leaf_entryp(bp->b_addr);
+	if ((char *)&entries[ichdr.count] >
+	    (char *)bp->b_addr + ichdr.firstused)
 		return __this_address;
 
 	/* XXX: need to range check rest of attr header values */
