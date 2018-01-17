@@ -94,3 +94,10 @@ config DRM_MSM_DSI_14NM_PHY
 	default y
 	help
 	  Choose this option if DSI PHY on 8996 is used on the platform.
+
+config DRM_MSM_DSI_10NM_PHY
+	bool "Enable DSI 10nm PHY driver in MSM DRM (used by SDM845)"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if DSI PHY on SDM845 is used on the platform.
