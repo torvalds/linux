@@ -610,6 +610,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 {
 	struct drm_i915_private *dev_priv = m->i915;
 	struct drm_i915_error_object *obj;
+	struct timespec64 ts;
 	int i, j;
 
 	if (!error) {
@@ -620,12 +621,15 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	if (*error->error_msg)
 		err_printf(m, "%s\n", error->error_msg);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
-	err_printf(m, "Time: %ld s %ld us\n",
-		   error->time.tv_sec, error->time.tv_usec);
-	err_printf(m, "Boottime: %ld s %ld us\n",
-		   error->boottime.tv_sec, error->boottime.tv_usec);
-	err_printf(m, "Uptime: %ld s %ld us\n",
-		   error->uptime.tv_sec, error->uptime.tv_usec);
+	ts = ktime_to_timespec64(error->time);
+	err_printf(m, "Time: %lld s %ld us\n",
+		   (s64)ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC);
+	ts = ktime_to_timespec64(error->boottime);
+	err_printf(m, "Boottime: %lld s %ld us\n",
+		   (s64)ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC);
+	ts = ktime_to_timespec64(error->uptime);
+	err_printf(m, "Uptime: %lld s %ld us\n",
+		   (s64)ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC);
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
 		if (error->engine[i].hangcheck_stalled &&
@@ -1737,11 +1741,10 @@ static int capture(void *data)
 {
 	struct i915_gpu_state *error = data;
 
-	do_gettimeofday(&error->time);
-	error->boottime = ktime_to_timeval(ktime_get_boottime());
-	error->uptime =
-		ktime_to_timeval(ktime_sub(ktime_get(),
-					   error->i915->gt.last_init_time));
+	error->time = ktime_get_real();
+	error->boottime = ktime_get_boottime();
+	error->uptime = ktime_sub(ktime_get(),
+				  error->i915->gt.last_init_time);
 
 	capture_params(error);
 	capture_uc_state(error);
