@@ -265,31 +265,66 @@ void tcf_chain_put(struct tcf_chain *chain)
 }
 EXPORT_SYMBOL(tcf_chain_put);
 
-static void tcf_block_offload_cmd(struct tcf_block *block, struct Qdisc *q,
-				  struct tcf_block_ext_info *ei,
-				  enum tc_block_command command)
+static bool tcf_block_offload_in_use(struct tcf_block *block)
 {
-	struct net_device *dev = q->dev_queue->dev;
+	return block->offloadcnt;
+}
+
+static int tcf_block_offload_cmd(struct tcf_block *block,
+				 struct net_device *dev,
+				 struct tcf_block_ext_info *ei,
+				 enum tc_block_command command)
+{
 	struct tc_block_offload bo = {};
 
-	if (!dev->netdev_ops->ndo_setup_tc)
-		return;
 	bo.command = command;
 	bo.binder_type = ei->binder_type;
 	bo.block = block;
-	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
+	return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
 }
 
-static void tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
-				   struct tcf_block_ext_info *ei)
+static int tcf_block_offload_bind(struct tcf_block *block, struct Qdisc *q,
+				  struct tcf_block_ext_info *ei)
 {
-	tcf_block_offload_cmd(block, q, ei, TC_BLOCK_BIND);
+	struct net_device *dev = q->dev_queue->dev;
+	int err;
+
+	if (!dev->netdev_ops->ndo_setup_tc)
+		goto no_offload_dev_inc;
+
+	/* If tc offload feature is disabled and the block we try to bind
+	 * to already has some offloaded filters, forbid to bind.
+	 */
+	if (!tc_can_offload(dev) && tcf_block_offload_in_use(block))
+		return -EOPNOTSUPP;
+
+	err = tcf_block_offload_cmd(block, dev, ei, TC_BLOCK_BIND);
+	if (err == -EOPNOTSUPP)
+		goto no_offload_dev_inc;
+	return err;
+
+no_offload_dev_inc:
+	if (tcf_block_offload_in_use(block))
+		return -EOPNOTSUPP;
+	block->nooffloaddevcnt++;
+	return 0;
 }
 
 static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 				     struct tcf_block_ext_info *ei)
 {
-	tcf_block_offload_cmd(block, q, ei, TC_BLOCK_UNBIND);
+	struct net_device *dev = q->dev_queue->dev;
+	int err;
+
+	if (!dev->netdev_ops->ndo_setup_tc)
+		goto no_offload_dev_dec;
+	err = tcf_block_offload_cmd(block, dev, ei, TC_BLOCK_UNBIND);
+	if (err == -EOPNOTSUPP)
+		goto no_offload_dev_dec;
+	return;
+
+no_offload_dev_dec:
+	WARN_ON(block->nooffloaddevcnt-- == 0);
 }
 
 static int
@@ -502,10 +537,16 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 					   ei, extack);
 	if (err)
 		goto err_chain_head_change_cb_add;
-	tcf_block_offload_bind(block, q, ei);
+
+	err = tcf_block_offload_bind(block, q, ei);
+	if (err)
+		goto err_block_offload_bind;
+
 	*p_block = block;
 	return 0;
 
+err_block_offload_bind:
+	tcf_chain_head_change_cb_del(tcf_block_chain_zero(block), ei);
 err_chain_head_change_cb_add:
 	tcf_block_owner_del(block, q, ei->binder_type);
 err_block_owner_add:
@@ -637,9 +678,16 @@ struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
 {
 	struct tcf_block_cb *block_cb;
 
+	/* At this point, playback of previous block cb calls is not supported,
+	 * so forbid to register to block which already has some offloaded
+	 * filters present.
+	 */
+	if (tcf_block_offload_in_use(block))
+		return ERR_PTR(-EOPNOTSUPP);
+
 	block_cb = kzalloc(sizeof(*block_cb), GFP_KERNEL);
 	if (!block_cb)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	block_cb->cb = cb;
 	block_cb->cb_ident = cb_ident;
 	block_cb->cb_priv = cb_priv;
@@ -655,7 +703,7 @@ int tcf_block_cb_register(struct tcf_block *block,
 	struct tcf_block_cb *block_cb;
 
 	block_cb = __tcf_block_cb_register(block, cb, cb_ident, cb_priv);
-	return block_cb ? 0 : -ENOMEM;
+	return IS_ERR(block_cb) ? PTR_ERR(block_cb) : 0;
 }
 EXPORT_SYMBOL(tcf_block_cb_register);
 
@@ -684,6 +732,10 @@ static int tcf_block_cb_call(struct tcf_block *block, enum tc_setup_type type,
 	struct tcf_block_cb *block_cb;
 	int ok_count = 0;
 	int err;
+
+	/* Make sure all netdevs sharing this block are offload-capable. */
+	if (block->nooffloaddevcnt && err_stop)
+		return -EOPNOTSUPP;
 
 	list_for_each_entry(block_cb, &block->cb_list, list) {
 		err = block_cb->cb(type, type_data, block_cb->cb_priv);

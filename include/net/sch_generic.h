@@ -289,7 +289,25 @@ struct tcf_block {
 	struct list_head cb_list;
 	struct list_head owner_list;
 	bool keep_dst;
+	unsigned int offloadcnt; /* Number of oddloaded filters */
+	unsigned int nooffloaddevcnt; /* Number of devs unable to do offload */
 };
+
+static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
+{
+	if (*flags & TCA_CLS_FLAGS_IN_HW)
+		return;
+	*flags |= TCA_CLS_FLAGS_IN_HW;
+	block->offloadcnt++;
+}
+
+static inline void tcf_block_offload_dec(struct tcf_block *block, u32 *flags)
+{
+	if (!(*flags & TCA_CLS_FLAGS_IN_HW))
+		return;
+	*flags &= ~TCA_CLS_FLAGS_IN_HW;
+	block->offloadcnt--;
+}
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
 {
