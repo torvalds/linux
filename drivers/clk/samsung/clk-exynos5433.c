@@ -5513,10 +5513,8 @@ static int __init exynos5433_cmu_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(reg_base)) {
-		dev_err(dev, "failed to map registers\n");
+	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
-	}
 
 	for (i = 0; i < info->nr_clk_ids; ++i)
 		ctx->clk_data.hws[i] = ERR_PTR(-ENOENT);
