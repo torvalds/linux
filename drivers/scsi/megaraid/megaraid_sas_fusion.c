@@ -983,7 +983,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	MFI_CAPABILITIES *drv_ops;
 	u32 scratch_pad_2;
 	unsigned long flags;
-	struct timeval tv;
+	ktime_t time;
 	bool cur_fw_64bit_dma_capable;
 
 	fusion = instance->ctrl_context;
@@ -1042,10 +1042,9 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	IOCInitMessage->HostMSIxVectors = instance->msix_vectors;
 	IOCInitMessage->HostPageSize = MR_DEFAULT_NVME_PAGE_SHIFT;
 
-	do_gettimeofday(&tv);
+	time = ktime_get_real();
 	/* Convert to milliseconds as per FW requirement */
-	IOCInitMessage->TimeStamp = cpu_to_le64((tv.tv_sec * 1000) +
-						(tv.tv_usec / 1000));
+	IOCInitMessage->TimeStamp = cpu_to_le64(ktime_to_ms(time));
 
 	init_frame = (struct megasas_init_frame *)cmd->frame;
 	memset(init_frame, 0, IOC_INIT_FRAME_SIZE);
