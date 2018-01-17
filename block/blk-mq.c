@@ -1775,15 +1775,19 @@ static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 
 static void __blk_mq_fallback_to_insert(struct blk_mq_hw_ctx *hctx,
 					struct request *rq,
-					bool run_queue)
+					bool run_queue, bool bypass_insert)
 {
-	blk_mq_sched_insert_request(rq, false, run_queue, false,
-					hctx->flags & BLK_MQ_F_BLOCKING);
+	if (!bypass_insert)
+		blk_mq_sched_insert_request(rq, false, run_queue, false,
+					    hctx->flags & BLK_MQ_F_BLOCKING);
+	else
+		blk_mq_request_bypass_insert(rq, run_queue);
 }
 
 static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 						struct request *rq,
-						blk_qc_t *cookie)
+						blk_qc_t *cookie,
+						bool bypass_insert)
 {
 	struct request_queue *q = rq->q;
 	bool run_queue = true;
@@ -1794,7 +1798,7 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		goto insert;
 	}
 
-	if (q->elevator)
+	if (q->elevator && !bypass_insert)
 		goto insert;
 
 	if (!blk_mq_get_driver_tag(rq, NULL, false))
@@ -1807,7 +1811,9 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 
 	return __blk_mq_issue_directly(hctx, rq, cookie);
 insert:
-	__blk_mq_fallback_to_insert(hctx, rq, run_queue);
+	__blk_mq_fallback_to_insert(hctx, rq, run_queue, bypass_insert);
+	if (bypass_insert)
+		return BLK_STS_RESOURCE;
 
 	return BLK_STS_OK;
 }
@@ -1822,13 +1828,28 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 
 	hctx_lock(hctx, &srcu_idx);
 
-	ret = __blk_mq_try_issue_directly(hctx, rq, cookie);
+	ret = __blk_mq_try_issue_directly(hctx, rq, cookie, false);
 	if (ret == BLK_STS_RESOURCE)
-		__blk_mq_fallback_to_insert(hctx, rq, true);
+		__blk_mq_fallback_to_insert(hctx, rq, true, false);
 	else if (ret != BLK_STS_OK)
 		blk_mq_end_request(rq, ret);
 
 	hctx_unlock(hctx, srcu_idx);
+}
+
+blk_status_t blk_mq_request_direct_issue(struct request *rq)
+{
+	blk_status_t ret;
+	int srcu_idx;
+	blk_qc_t unused_cookie;
+	struct blk_mq_ctx *ctx = rq->mq_ctx;
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(rq->q, ctx->cpu);
+
+	hctx_lock(hctx, &srcu_idx);
+	ret = __blk_mq_try_issue_directly(hctx, rq, &unused_cookie, true);
+	hctx_unlock(hctx, srcu_idx);
+
+	return ret;
 }
 
 static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)

@@ -74,6 +74,9 @@ void blk_mq_request_bypass_insert(struct request *rq, bool run_queue);
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 				struct list_head *list);
 
+/* Used by blk_insert_cloned_request() to issue request directly */
+blk_status_t blk_mq_request_direct_issue(struct request *rq);
+
 /*
  * CPU -> queue mappings
  */
