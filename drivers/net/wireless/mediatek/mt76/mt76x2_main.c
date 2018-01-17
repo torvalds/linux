@@ -380,8 +380,10 @@ mt76x2_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct mt76x2_dev *dev = hw->priv;
-	u8 cw_min = 5, cw_max = 10;
+	u8 cw_min = 5, cw_max = 10, qid;
 	u32 val;
+
+	qid = dev->mt76.q_tx[queue].hw_idx;
 
 	if (params->cw_min)
 		cw_min = fls(params->cw_min);
@@ -392,26 +394,26 @@ mt76x2_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	      FIELD_PREP(MT_EDCA_CFG_AIFSN, params->aifs) |
 	      FIELD_PREP(MT_EDCA_CFG_CWMIN, cw_min) |
 	      FIELD_PREP(MT_EDCA_CFG_CWMAX, cw_max);
-	mt76_wr(dev, MT_EDCA_CFG_AC(queue), val);
+	mt76_wr(dev, MT_EDCA_CFG_AC(qid), val);
 
-	val = mt76_rr(dev, MT_WMM_TXOP(queue));
-	val &= ~(MT_WMM_TXOP_MASK << MT_WMM_TXOP_SHIFT(queue));
-	val |= params->txop << MT_WMM_TXOP_SHIFT(queue);
-	mt76_wr(dev, MT_WMM_TXOP(queue), val);
+	val = mt76_rr(dev, MT_WMM_TXOP(qid));
+	val &= ~(MT_WMM_TXOP_MASK << MT_WMM_TXOP_SHIFT(qid));
+	val |= params->txop << MT_WMM_TXOP_SHIFT(qid);
+	mt76_wr(dev, MT_WMM_TXOP(qid), val);
 
 	val = mt76_rr(dev, MT_WMM_AIFSN);
-	val &= ~(MT_WMM_AIFSN_MASK << MT_WMM_AIFSN_SHIFT(queue));
-	val |= params->aifs << MT_WMM_AIFSN_SHIFT(queue);
+	val &= ~(MT_WMM_AIFSN_MASK << MT_WMM_AIFSN_SHIFT(qid));
+	val |= params->aifs << MT_WMM_AIFSN_SHIFT(qid);
 	mt76_wr(dev, MT_WMM_AIFSN, val);
 
 	val = mt76_rr(dev, MT_WMM_CWMIN);
-	val &= ~(MT_WMM_CWMIN_MASK << MT_WMM_CWMIN_SHIFT(queue));
-	val |= cw_min << MT_WMM_CWMIN_SHIFT(queue);
+	val &= ~(MT_WMM_CWMIN_MASK << MT_WMM_CWMIN_SHIFT(qid));
+	val |= cw_min << MT_WMM_CWMIN_SHIFT(qid);
 	mt76_wr(dev, MT_WMM_CWMIN, val);
 
 	val = mt76_rr(dev, MT_WMM_CWMAX);
-	val &= ~(MT_WMM_CWMAX_MASK << MT_WMM_CWMAX_SHIFT(queue));
-	val |= cw_max << MT_WMM_CWMAX_SHIFT(queue);
+	val &= ~(MT_WMM_CWMAX_MASK << MT_WMM_CWMAX_SHIFT(qid));
+	val |= cw_max << MT_WMM_CWMAX_SHIFT(qid);
 	mt76_wr(dev, MT_WMM_CWMAX, val);
 
 	return 0;
