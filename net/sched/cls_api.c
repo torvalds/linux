@@ -865,8 +865,9 @@ static struct tcf_proto *tcf_chain_tp_find(struct tcf_chain *chain,
 }
 
 static int tcf_fill_node(struct net *net, struct sk_buff *skb,
-			 struct tcf_proto *tp, struct Qdisc *q, u32 parent,
-			 void *fh, u32 portid, u32 seq, u16 flags, int event)
+			 struct tcf_proto *tp, struct tcf_block *block,
+			 struct Qdisc *q, u32 parent, void *fh,
+			 u32 portid, u32 seq, u16 flags, int event)
 {
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
@@ -879,8 +880,13 @@ static int tcf_fill_node(struct net *net, struct sk_buff *skb,
 	tcm->tcm_family = AF_UNSPEC;
 	tcm->tcm__pad1 = 0;
 	tcm->tcm__pad2 = 0;
-	tcm->tcm_ifindex = qdisc_dev(q)->ifindex;
-	tcm->tcm_parent = parent;
+	if (q) {
+		tcm->tcm_ifindex = qdisc_dev(q)->ifindex;
+		tcm->tcm_parent = parent;
+	} else {
+		tcm->tcm_ifindex = TCM_IFINDEX_MAGIC_BLOCK;
+		tcm->tcm_block_index = block->index;
+	}
 	tcm->tcm_info = TC_H_MAKE(tp->prio, tp->protocol);
 	if (nla_put_string(skb, TCA_KIND, tp->ops->kind))
 		goto nla_put_failure;
@@ -903,8 +909,8 @@ nla_put_failure:
 
 static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 			  struct nlmsghdr *n, struct tcf_proto *tp,
-			  struct Qdisc *q, u32 parent,
-			  void *fh, int event, bool unicast)
+			  struct tcf_block *block, struct Qdisc *q,
+			  u32 parent, void *fh, int event, bool unicast)
 {
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
@@ -913,8 +919,8 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 	if (!skb)
 		return -ENOBUFS;
 
-	if (tcf_fill_node(net, skb, tp, q, parent, fh, portid, n->nlmsg_seq,
-			  n->nlmsg_flags, event) <= 0) {
+	if (tcf_fill_node(net, skb, tp, block, q, parent, fh, portid,
+			  n->nlmsg_seq, n->nlmsg_flags, event) <= 0) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -928,8 +934,8 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 
 static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 			      struct nlmsghdr *n, struct tcf_proto *tp,
-			      struct Qdisc *q, u32 parent,
-			      void *fh, bool unicast, bool *last)
+			      struct tcf_block *block, struct Qdisc *q,
+			      u32 parent, void *fh, bool unicast, bool *last)
 {
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
@@ -939,8 +945,8 @@ static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 	if (!skb)
 		return -ENOBUFS;
 
-	if (tcf_fill_node(net, skb, tp, q, parent, fh, portid, n->nlmsg_seq,
-			  n->nlmsg_flags, RTM_DELTFILTER) <= 0) {
+	if (tcf_fill_node(net, skb, tp, block, q, parent, fh, portid,
+			  n->nlmsg_seq, n->nlmsg_flags, RTM_DELTFILTER) <= 0) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -959,15 +965,16 @@ static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 }
 
 static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
-				 struct Qdisc *q, u32 parent,
-				 struct nlmsghdr *n,
+				 struct tcf_block *block, struct Qdisc *q,
+				 u32 parent, struct nlmsghdr *n,
 				 struct tcf_chain *chain, int event)
 {
 	struct tcf_proto *tp;
 
 	for (tp = rtnl_dereference(chain->filter_chain);
 	     tp; tp = rtnl_dereference(tp->next))
-		tfilter_notify(net, oskb, n, tp, q, parent, 0, event, false);
+		tfilter_notify(net, oskb, n, tp, block,
+			       q, parent, 0, event, false);
 }
 
 /* Add/change/delete/get a filter node */
@@ -983,13 +990,11 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	bool prio_allocate;
 	u32 parent;
 	u32 chain_index;
-	struct net_device *dev;
-	struct Qdisc  *q;
+	struct Qdisc *q = NULL;
 	struct tcf_chain_info chain_info;
 	struct tcf_chain *chain = NULL;
 	struct tcf_block *block;
 	struct tcf_proto *tp;
-	const struct Qdisc_class_ops *cops;
 	unsigned long cl;
 	void *fh;
 	int err;
@@ -1036,41 +1041,58 @@ replay:
 
 	/* Find head of filter chain. */
 
-	/* Find link */
-	dev = __dev_get_by_index(net, t->tcm_ifindex);
-	if (dev == NULL)
-		return -ENODEV;
-
-	/* Find qdisc */
-	if (!parent) {
-		q = dev->qdisc;
-		parent = q->handle;
+	if (t->tcm_ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
+		block = tcf_block_lookup(net, t->tcm_block_index);
+		if (!block) {
+			NL_SET_ERR_MSG(extack, "Block of given index was not found");
+			err = -EINVAL;
+			goto errout;
+		}
 	} else {
-		q = qdisc_lookup(dev, TC_H_MAJ(t->tcm_parent));
-		if (q == NULL)
+		const struct Qdisc_class_ops *cops;
+		struct net_device *dev;
+
+		/* Find link */
+		dev = __dev_get_by_index(net, t->tcm_ifindex);
+		if (!dev)
+			return -ENODEV;
+
+		/* Find qdisc */
+		if (!parent) {
+			q = dev->qdisc;
+			parent = q->handle;
+		} else {
+			q = qdisc_lookup(dev, TC_H_MAJ(t->tcm_parent));
+			if (!q)
+				return -EINVAL;
+		}
+
+		/* Is it classful? */
+		cops = q->ops->cl_ops;
+		if (!cops)
 			return -EINVAL;
-	}
 
-	/* Is it classful? */
-	cops = q->ops->cl_ops;
-	if (!cops)
-		return -EINVAL;
+		if (!cops->tcf_block)
+			return -EOPNOTSUPP;
 
-	if (!cops->tcf_block)
-		return -EOPNOTSUPP;
+		/* Do we search for filter, attached to class? */
+		if (TC_H_MIN(parent)) {
+			cl = cops->find(q, parent);
+			if (cl == 0)
+				return -ENOENT;
+		}
 
-	/* Do we search for filter, attached to class? */
-	if (TC_H_MIN(parent)) {
-		cl = cops->find(q, parent);
-		if (cl == 0)
-			return -ENOENT;
-	}
-
-	/* And the last stroke */
-	block = cops->tcf_block(q, cl, extack);
-	if (!block) {
-		err = -EINVAL;
-		goto errout;
+		/* And the last stroke */
+		block = cops->tcf_block(q, cl, extack);
+		if (!block) {
+			err = -EINVAL;
+			goto errout;
+		}
+		if (tcf_block_shared(block)) {
+			NL_SET_ERR_MSG(extack, "This filter block is shared. Please use the block index to manipulate the filters");
+			err = -EOPNOTSUPP;
+			goto errout;
+		}
 	}
 
 	chain_index = tca[TCA_CHAIN] ? nla_get_u32(tca[TCA_CHAIN]) : 0;
@@ -1086,7 +1108,7 @@ replay:
 	}
 
 	if (n->nlmsg_type == RTM_DELTFILTER && prio == 0) {
-		tfilter_notify_chain(net, skb, q, parent, n,
+		tfilter_notify_chain(net, skb, block, q, parent, n,
 				     chain, RTM_DELTFILTER);
 		tcf_chain_flush(chain);
 		err = 0;
@@ -1134,7 +1156,7 @@ replay:
 	if (!fh) {
 		if (n->nlmsg_type == RTM_DELTFILTER && t->tcm_handle == 0) {
 			tcf_chain_tp_remove(chain, &chain_info, tp);
-			tfilter_notify(net, skb, n, tp, q, parent, fh,
+			tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 				       RTM_DELTFILTER, false);
 			tcf_proto_destroy(tp);
 			err = 0;
@@ -1159,8 +1181,8 @@ replay:
 			}
 			break;
 		case RTM_DELTFILTER:
-			err = tfilter_del_notify(net, skb, n, tp, q, parent,
-						 fh, false, &last);
+			err = tfilter_del_notify(net, skb, n, tp, block,
+						 q, parent, fh, false, &last);
 			if (err)
 				goto errout;
 			if (last) {
@@ -1169,8 +1191,8 @@ replay:
 			}
 			goto errout;
 		case RTM_GETTFILTER:
-			err = tfilter_notify(net, skb, n, tp, q, parent, fh,
-					     RTM_NEWTFILTER, true);
+			err = tfilter_notify(net, skb, n, tp, block, q, parent,
+					     fh, RTM_NEWTFILTER, true);
 			goto errout;
 		default:
 			err = -EINVAL;
@@ -1183,7 +1205,7 @@ replay:
 	if (err == 0) {
 		if (tp_created)
 			tcf_chain_tp_insert(chain, &chain_info, tp);
-		tfilter_notify(net, skb, n, tp, q, parent, fh,
+		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_NEWTFILTER, false);
 	} else {
 		if (tp_created)
@@ -1203,6 +1225,7 @@ struct tcf_dump_args {
 	struct tcf_walker w;
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
+	struct tcf_block *block;
 	struct Qdisc *q;
 	u32 parent;
 };
@@ -1212,7 +1235,7 @@ static int tcf_node_dump(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
 	struct tcf_dump_args *a = (void *)arg;
 	struct net *net = sock_net(a->skb->sk);
 
-	return tcf_fill_node(net, a->skb, tp, a->q, a->parent,
+	return tcf_fill_node(net, a->skb, tp, a->block, a->q, a->parent,
 			     n, NETLINK_CB(a->cb->skb).portid,
 			     a->cb->nlh->nlmsg_seq, NLM_F_MULTI,
 			     RTM_NEWTFILTER);
@@ -1223,6 +1246,7 @@ static bool tcf_chain_dump(struct tcf_chain *chain, struct Qdisc *q, u32 parent,
 			   long index_start, long *p_index)
 {
 	struct net *net = sock_net(skb->sk);
+	struct tcf_block *block = chain->block;
 	struct tcmsg *tcm = nlmsg_data(cb->nlh);
 	struct tcf_dump_args arg;
 	struct tcf_proto *tp;
@@ -1241,7 +1265,7 @@ static bool tcf_chain_dump(struct tcf_chain *chain, struct Qdisc *q, u32 parent,
 			memset(&cb->args[1], 0,
 			       sizeof(cb->args) - sizeof(cb->args[0]));
 		if (cb->args[1] == 0) {
-			if (tcf_fill_node(net, skb, tp, q, parent, 0,
+			if (tcf_fill_node(net, skb, tp, block, q, parent, 0,
 					  NETLINK_CB(cb->skb).portid,
 					  cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					  RTM_NEWTFILTER) <= 0)
@@ -1254,6 +1278,7 @@ static bool tcf_chain_dump(struct tcf_chain *chain, struct Qdisc *q, u32 parent,
 		arg.w.fn = tcf_node_dump;
 		arg.skb = skb;
 		arg.cb = cb;
+		arg.block = block;
 		arg.q = q;
 		arg.parent = parent;
 		arg.w.stop = 0;
@@ -1272,13 +1297,10 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tca[TCA_MAX + 1];
-	struct net_device *dev;
-	struct Qdisc *q;
+	struct Qdisc *q = NULL;
 	struct tcf_block *block;
 	struct tcf_chain *chain;
 	struct tcmsg *tcm = nlmsg_data(cb->nlh);
-	unsigned long cl = 0;
-	const struct Qdisc_class_ops *cops;
 	long index_start;
 	long index;
 	u32 parent;
@@ -1291,32 +1313,44 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	if (err)
 		return err;
 
-	dev = __dev_get_by_index(net, tcm->tcm_ifindex);
-	if (!dev)
-		return skb->len;
-
-	parent = tcm->tcm_parent;
-	if (!parent) {
-		q = dev->qdisc;
-		parent = q->handle;
-	} else {
-		q = qdisc_lookup(dev, TC_H_MAJ(tcm->tcm_parent));
-	}
-	if (!q)
-		goto out;
-	cops = q->ops->cl_ops;
-	if (!cops)
-		goto out;
-	if (!cops->tcf_block)
-		goto out;
-	if (TC_H_MIN(tcm->tcm_parent)) {
-		cl = cops->find(q, tcm->tcm_parent);
-		if (cl == 0)
+	if (tcm->tcm_ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
+		block = tcf_block_lookup(net, tcm->tcm_block_index);
+		if (!block)
 			goto out;
+	} else {
+		const struct Qdisc_class_ops *cops;
+		struct net_device *dev;
+		unsigned long cl = 0;
+
+		dev = __dev_get_by_index(net, tcm->tcm_ifindex);
+		if (!dev)
+			return skb->len;
+
+		parent = tcm->tcm_parent;
+		if (!parent) {
+			q = dev->qdisc;
+			parent = q->handle;
+		} else {
+			q = qdisc_lookup(dev, TC_H_MAJ(tcm->tcm_parent));
+		}
+		if (!q)
+			goto out;
+		cops = q->ops->cl_ops;
+		if (!cops)
+			goto out;
+		if (!cops->tcf_block)
+			goto out;
+		if (TC_H_MIN(tcm->tcm_parent)) {
+			cl = cops->find(q, tcm->tcm_parent);
+			if (cl == 0)
+				goto out;
+		}
+		block = cops->tcf_block(q, cl, NULL);
+		if (!block)
+			goto out;
+		if (tcf_block_shared(block))
+			q = NULL;
 	}
-	block = cops->tcf_block(q, cl, NULL);
-	if (!block)
-		goto out;
 
 	index_start = cb->args[0];
 	index = 0;
