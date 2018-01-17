@@ -63,48 +63,64 @@
 		cpu0: cpu@0 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			cci-control-port = <&cci_control0>;
+			clock-frequency = <12000000>;
 			reg = <0x0>;
 		};
 
 		cpu1: cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			cci-control-port = <&cci_control0>;
+			clock-frequency = <12000000>;
 			reg = <0x1>;
 		};
 
 		cpu2: cpu@2 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			cci-control-port = <&cci_control0>;
+			clock-frequency = <12000000>;
 			reg = <0x2>;
 		};
 
 		cpu3: cpu@3 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
+			cci-control-port = <&cci_control0>;
+			clock-frequency = <12000000>;
 			reg = <0x3>;
 		};
 
 		cpu4: cpu@100 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
+			cci-control-port = <&cci_control1>;
+			clock-frequency = <18000000>;
 			reg = <0x100>;
 		};
 
 		cpu5: cpu@101 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
+			cci-control-port = <&cci_control1>;
+			clock-frequency = <18000000>;
 			reg = <0x101>;
 		};
 
 		cpu6: cpu@102 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
+			cci-control-port = <&cci_control1>;
+			clock-frequency = <18000000>;
 			reg = <0x102>;
 		};
 
 		cpu7: cpu@103 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
+			cci-control-port = <&cci_control1>;
+			clock-frequency = <18000000>;
 			reg = <0x103>;
 		};
 	};
@@ -429,6 +445,36 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		};
+
+		cci: cci@1c90000 {
+			compatible = "arm,cci-400";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x01c90000 0x1000>;
+			ranges = <0x0 0x01c90000 0x10000>;
+
+			cci_control0: slave-if@4000 {
+				compatible = "arm,cci-400-ctrl-if";
+				interface-type = "ace";
+				reg = <0x4000 0x1000>;
+			};
+
+			cci_control1: slave-if@5000 {
+				compatible = "arm,cci-400-ctrl-if";
+				interface-type = "ace";
+				reg = <0x5000 0x1000>;
+			};
+
+			pmu@9000 {
+				 compatible = "arm,cci-400-pmu,r1";
+				 reg = <0x9000 0x5000>;
+				 interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+					      <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		de_clocks: clock@3000000 {
