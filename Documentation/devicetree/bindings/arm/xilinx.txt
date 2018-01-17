@@ -15,6 +15,7 @@ Additional compatible strings:
   "xlnx,zynq-zc770-xm010"
   "xlnx,zynq-zc770-xm011"
   "xlnx,zynq-zc770-xm012"
+  "xlnx,zynq-zc770-xm013"
 
 ---------------------------------------------------------------
 
