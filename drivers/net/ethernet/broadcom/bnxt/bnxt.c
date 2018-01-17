@@ -7064,13 +7064,26 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
 		max_rss_ctxs = max_vnics;
 	if (vnics > max_vnics || vnics > max_rss_ctxs) {
-		netdev_warn(bp->dev,
-			    "Not enough resources to support NTUPLE filters, enough resources for up to %d rx rings\n",
-			    min(max_rss_ctxs - 1, max_vnics - 1));
+		if (bp->rx_nr_rings > 1)
+			netdev_warn(bp->dev,
+				    "Not enough resources to support NTUPLE filters, enough resources for up to %d rx rings\n",
+				    min(max_rss_ctxs - 1, max_vnics - 1));
 		return false;
 	}
 
-	return true;
+	if (!(bp->flags & BNXT_FLAG_NEW_RM))
+		return true;
+
+	if (vnics == bp->hw_resc.resv_vnics)
+		return true;
+
+	bnxt_hwrm_reserve_rings(bp, 0, 0, 0, 0, vnics);
+	if (vnics <= bp->hw_resc.resv_vnics)
+		return true;
+
+	netdev_warn(bp->dev, "Unable to reserve resources to support NTUPLE filters.\n");
+	bnxt_hwrm_reserve_rings(bp, 0, 0, 0, 0, 1);
+	return false;
 #else
 	return false;
 #endif
