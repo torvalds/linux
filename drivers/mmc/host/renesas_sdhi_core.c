@@ -511,7 +511,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 						"state_uhs");
 	}
 
-	host = tmio_mmc_host_alloc(pdev);
+	host = tmio_mmc_host_alloc(pdev, mmc_data);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
@@ -571,9 +571,13 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	/* All SDHI have SDIO status bits which must be 1 */
 	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_SETBITS;
 
-	ret = tmio_mmc_host_probe(host, mmc_data, dma_ops);
-	if (ret < 0)
+	ret = renesas_sdhi_clk_enable(host);
+	if (ret)
 		goto efree;
+
+	ret = tmio_mmc_host_probe(host, dma_ops);
+	if (ret < 0)
+		goto edisclk;
 
 	/* One Gen2 SDHI incarnation does NOT have a CBSY bit */
 	if (sd_ctrl_read16(host, CTL_VERSION) == SDHI_VER_GEN2_SDR50)
@@ -635,6 +639,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 eirq:
 	tmio_mmc_host_remove(host);
+edisclk:
+	renesas_sdhi_clk_disable(host);
 efree:
 	tmio_mmc_host_free(host);
 
@@ -647,6 +653,7 @@ int renesas_sdhi_remove(struct platform_device *pdev)
 	struct tmio_mmc_host *host = platform_get_drvdata(pdev);
 
 	tmio_mmc_host_remove(host);
+	renesas_sdhi_clk_disable(host);
 
 	return 0;
 }

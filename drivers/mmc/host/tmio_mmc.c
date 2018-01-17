@@ -92,7 +92,7 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 
 	pdata->flags |= TMIO_MMC_HAVE_HIGH_REG;
 
-	host = tmio_mmc_host_alloc(pdev);
+	host = tmio_mmc_host_alloc(pdev, pdata);
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
 		goto cell_disable;
@@ -101,7 +101,10 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
 	host->bus_shift = resource_size(res) >> 10;
 
-	ret = tmio_mmc_host_probe(host, pdata, NULL);
+	host->mmc->f_max = pdata->hclk;
+	host->mmc->f_min = pdata->hclk / 512;
+
+	ret = tmio_mmc_host_probe(host, NULL);
 	if (ret)
 		goto host_free;
 
