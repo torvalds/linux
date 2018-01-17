@@ -395,10 +395,8 @@ bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map)
 	struct bpf_prog_offload *offload;
 	bool ret;
 
-	if (!!bpf_prog_is_dev_bound(prog->aux) != !!bpf_map_is_dev_bound(map))
+	if (!bpf_prog_is_dev_bound(prog->aux) || !bpf_map_is_dev_bound(map))
 		return false;
-	if (!bpf_prog_is_dev_bound(prog->aux))
-		return true;
 
 	down_read(&bpf_devs_lock);
 	offload = prog->aux->offload;

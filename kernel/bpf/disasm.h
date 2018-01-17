@@ -29,8 +29,8 @@ extern const char *const bpf_class_string[8];
 
 const char *func_id_name(int id);
 
-typedef void (*bpf_insn_print_t)(struct bpf_verifier_env *env,
-				 const char *, ...);
+typedef __printf(2, 3) void (*bpf_insn_print_t)(struct bpf_verifier_env *env,
+						const char *, ...);
 typedef const char *(*bpf_insn_revmap_call_t)(void *private_data,
 					      const struct bpf_insn *insn);
 typedef const char *(*bpf_insn_print_imm_t)(void *private_data,

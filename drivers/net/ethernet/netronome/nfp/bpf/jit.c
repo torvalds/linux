@@ -2907,6 +2907,11 @@ void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt)
 	}
 }
 
+bool nfp_bpf_supported_opcode(u8 code)
+{
+	return !!instr_cb[code];
+}
+
 void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 {
 	unsigned int i;
