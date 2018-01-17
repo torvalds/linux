@@ -2355,18 +2355,20 @@ static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
 		return;
 	}
 
-	/* Trigger wait list processing. */
-	ret = srpt_zerolength_write(ch);
-	WARN_ONCE(ret < 0, "%d\n", ret);
-
 	/*
 	 * Note: calling srpt_close_ch() if the transition to the LIVE state
 	 * fails is not necessary since that means that that function has
 	 * already been invoked from another thread.
 	 */
-	if (!srpt_set_ch_state(ch, CH_LIVE))
+	if (!srpt_set_ch_state(ch, CH_LIVE)) {
 		pr_err("%s-%d: channel transition to LIVE state failed\n",
 		       ch->sess_name, ch->qp->qp_num);
+		return;
+	}
+
+	/* Trigger wait list processing. */
+	ret = srpt_zerolength_write(ch);
+	WARN_ONCE(ret < 0, "%d\n", ret);
 }
 
 /**
