@@ -208,8 +208,8 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 					   VLAN_PRIO_SHIFT);
 		vlan_tci_mask = mask->vlan_id | (mask->vlan_priority <<
 						 VLAN_PRIO_SHIFT);
-		fs->val.ivlan = cpu_to_be16(vlan_tci);
-		fs->mask.ivlan = cpu_to_be16(vlan_tci_mask);
+		fs->val.ivlan = vlan_tci;
+		fs->mask.ivlan = vlan_tci_mask;
 
 		/* Chelsio adapters use ivlan_vld bit to match vlan packets
 		 * as 802.1Q. Also, when vlan tag is present in packets,
