@@ -1705,7 +1705,15 @@ static void intel_sdvo_enable_hotplug(struct intel_encoder *encoder)
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 
 	intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG,
-			&intel_sdvo->hotplug_active, 2);
+			     &intel_sdvo->hotplug_active, 2);
+}
+
+static bool intel_sdvo_hotplug(struct intel_encoder *encoder,
+			       struct intel_connector *connector)
+{
+	intel_sdvo_enable_hotplug(encoder);
+
+	return intel_encoder_hotplug(encoder, connector);
 }
 
 static bool
@@ -2516,7 +2524,7 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 		 * Some SDVO devices have one-shot hotplug interrupts.
 		 * Ensure that they get re-enabled when an interrupt happens.
 		 */
-		intel_encoder->hot_plug = intel_sdvo_enable_hotplug;
+		intel_encoder->hotplug = intel_sdvo_hotplug;
 		intel_sdvo_enable_hotplug(intel_encoder);
 	} else {
 		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
