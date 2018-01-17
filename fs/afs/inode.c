@@ -377,6 +377,10 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	}
 
 	read_sequnlock_excl(&vnode->cb_lock);
+
+	if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
+		clear_nlink(&vnode->vfs_inode);
+
 	if (valid)
 		goto valid;
 

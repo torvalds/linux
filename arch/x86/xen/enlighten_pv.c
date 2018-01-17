@@ -88,6 +88,8 @@
 #include "multicalls.h"
 #include "pmu.h"
 
+#include "../kernel/cpu/cpu.h" /* get_cpu_cap() */
+
 void *xen_initial_gdt;
 
 static int xen_cpu_up_prepare_pv(unsigned int cpu);
@@ -826,7 +828,7 @@ static void xen_load_sp0(unsigned long sp0)
 	mcs = xen_mc_entry(0);
 	MULTI_stack_switch(mcs.mc, __KERNEL_DS, sp0);
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
-	this_cpu_write(cpu_tss.x86_tss.sp0, sp0);
+	this_cpu_write(cpu_tss_rw.x86_tss.sp0, sp0);
 }
 
 void xen_set_iopl_mask(unsigned mask)
@@ -1258,6 +1260,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	__userpte_alloc_gfp &= ~__GFP_HIGHMEM;
 
 	/* Work out if we support NX */
+	get_cpu_cap(&boot_cpu_data);
 	x86_configure_nx();
 
 	/* Get mfn list */

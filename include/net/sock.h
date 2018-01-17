@@ -1514,6 +1514,11 @@ static inline bool sock_owned_by_user(const struct sock *sk)
 	return sk->sk_lock.owned;
 }
 
+static inline bool sock_owned_by_user_nocheck(const struct sock *sk)
+{
+	return sk->sk_lock.owned;
+}
+
 /* no reclassification while locks are held */
 static inline bool sock_allow_reclassification(const struct sock *csk)
 {

@@ -1801,7 +1801,7 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 		link->link_enc->funcs->disable_output(link->link_enc, signal, link);
 }
 
-bool dp_active_dongle_validate_timing(
+static bool dp_active_dongle_validate_timing(
 		const struct dc_crtc_timing *timing,
 		const struct dc_dongle_caps *dongle_caps)
 {
@@ -1833,6 +1833,8 @@ bool dp_active_dongle_validate_timing(
 	/* Check Color Depth and Pixel Clock */
 	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		required_pix_clk /= 2;
+	else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+		required_pix_clk = required_pix_clk * 2 / 3;
 
 	switch (timing->display_color_depth) {
 	case COLOR_DEPTH_666:

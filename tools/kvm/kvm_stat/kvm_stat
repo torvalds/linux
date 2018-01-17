@@ -478,7 +478,7 @@ class Provider(object):
     @staticmethod
     def is_field_wanted(fields_filter, field):
         """Indicate whether field is valid according to fields_filter."""
-        if not fields_filter or fields_filter == "help":
+        if not fields_filter:
             return True
         return re.match(fields_filter, field) is not None
 
@@ -549,8 +549,8 @@ class TracepointProvider(Provider):
 
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
-        self._fields = [field for field in self.get_available_fields()
-                        if self.is_field_wanted(fields_filter, field)]
+        self.fields = [field for field in self.get_available_fields()
+                       if self.is_field_wanted(fields_filter, field)]
 
     @staticmethod
     def get_online_cpus():
@@ -950,7 +950,8 @@ class Tui(object):
             curses.nocbreak()
             curses.endwin()
 
-    def get_all_gnames(self):
+    @staticmethod
+    def get_all_gnames():
         """Returns a list of (pid, gname) tuples of all running guests"""
         res = []
         try:
@@ -963,7 +964,7 @@ class Tui(object):
             # perform a sanity check before calling the more expensive
             # function to possibly extract the guest name
             if ' -name ' in line[1]:
-                res.append((line[0], self.get_gname_from_pid(line[0])))
+                res.append((line[0], Tui.get_gname_from_pid(line[0])))
         child.stdout.close()
 
         return res
@@ -984,7 +985,8 @@ class Tui(object):
         except Exception:
             self.screen.addstr(row + 1, 2, 'Not available')
 
-    def get_pid_from_gname(self, gname):
+    @staticmethod
+    def get_pid_from_gname(gname):
         """Fuzzy function to convert guest name to QEMU process pid.
 
         Returns a list of potential pids, can be empty if no match found.
@@ -992,7 +994,7 @@ class Tui(object):
 
         """
         pids = []
-        for line in self.get_all_gnames():
+        for line in Tui.get_all_gnames():
             if gname == line[1]:
                 pids.append(int(line[0]))
 
@@ -1090,15 +1092,16 @@ class Tui(object):
             # sort by totals
             return (0, -stats[x][0])
         total = 0.
-        for val in stats.values():
-            total += val[0]
+        for key in stats.keys():
+            if key.find('(') is -1:
+                total += stats[key][0]
         if self._sorting == SORT_DEFAULT:
             sortkey = sortCurAvg
         else:
             sortkey = sortTotal
+        tavg = 0
         for key in sorted(stats.keys(), key=sortkey):
-
-            if row >= self.screen.getmaxyx()[0]:
+            if row >= self.screen.getmaxyx()[0] - 1:
                 break
             values = stats[key]
             if not values[0] and not values[1]:
@@ -1110,9 +1113,15 @@ class Tui(object):
                 self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' %
                                    (key, values[0], values[0] * 100 / total,
                                     cur))
+                if cur is not '' and key.find('(') is -1:
+                    tavg += cur
             row += 1
         if row == 3:
             self.screen.addstr(4, 1, 'No matching events reported yet')
+        else:
+            self.screen.addstr(row, 1, '%-40s %10d        %8s' %
+                               ('Total', total, tavg if tavg else ''),
+                               curses.A_BOLD)
         self.screen.refresh()
 
     def show_msg(self, text):
@@ -1358,7 +1367,7 @@ class Tui(object):
                 if char == 'x':
                     self.update_drilldown()
                     # prevents display of current values on next refresh
-                    self.stats.get()
+                    self.stats.get(self._display_guests)
             except KeyboardInterrupt:
                 break
             except curses.error:
@@ -1451,16 +1460,13 @@ Press any other key to refresh statistics immediately.
         try:
             pids = Tui.get_pid_from_gname(val)
         except:
-            raise optparse.OptionValueError('Error while searching for guest '
-                                            '"{}", use "-p" to specify a pid '
-                                            'instead'.format(val))
+            sys.exit('Error while searching for guest "{}". Use "-p" to '
+                     'specify a pid instead?'.format(val))
         if len(pids) == 0:
-            raise optparse.OptionValueError('No guest by the name "{}" '
-                                            'found'.format(val))
+            sys.exit('Error: No guest by the name "{}" found'.format(val))
         if len(pids) > 1:
-            raise optparse.OptionValueError('Multiple processes found (pids: '
-                                            '{}) - use "-p" to specify a pid '
-                                            'instead'.format(" ".join(pids)))
+            sys.exit('Error: Multiple processes found (pids: {}). Use "-p" '
+                     'to specify the desired pid'.format(" ".join(pids)))
         parser.values.pid = pids[0]
 
     optparser = optparse.OptionParser(description=description_text,
@@ -1518,7 +1524,16 @@ Press any other key to refresh statistics immediately.
                          help='restrict statistics to guest by name',
                          callback=cb_guest_to_pid,
                          )
-    (options, _) = optparser.parse_args(sys.argv)
+    options, unkn = optparser.parse_args(sys.argv)
+    if len(unkn) != 1:
+        sys.exit('Error: Extra argument(s): ' + ' '.join(unkn[1:]))
+    try:
+        # verify that we were passed a valid regex up front
+        re.compile(options.fields)
+    except re.error:
+        sys.exit('Error: "' + options.fields + '" is not a valid regular '
+                 'expression')
+
     return options
 
 
@@ -1564,16 +1579,13 @@ def main():
 
     stats = Stats(options)
 
-    if options.fields == "help":
-        event_list = "\n"
-        s = stats.get()
-        for key in s.keys():
-            if key.find('(') != -1:
-                key = key[0:key.find('(')]
-            if event_list.find('\n' + key + '\n') == -1:
-                event_list += key + '\n'
-        sys.stdout.write(event_list)
-        return ""
+    if options.fields == 'help':
+        stats.fields_filter = None
+        event_list = []
+        for key in stats.get().keys():
+            event_list.append(key.split('(', 1)[0])
+        sys.stdout.write('  ' + '\n  '.join(sorted(set(event_list))) + '\n')
+        sys.exit(0)
 
     if options.log:
         log(stats)

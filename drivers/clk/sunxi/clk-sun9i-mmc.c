@@ -16,6 +16,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -83,9 +84,20 @@ static int sun9i_mmc_reset_deassert(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static int sun9i_mmc_reset_reset(struct reset_controller_dev *rcdev,
+				 unsigned long id)
+{
+	sun9i_mmc_reset_assert(rcdev, id);
+	udelay(10);
+	sun9i_mmc_reset_deassert(rcdev, id);
+
+	return 0;
+}
+
 static const struct reset_control_ops sun9i_mmc_reset_ops = {
 	.assert		= sun9i_mmc_reset_assert,
 	.deassert	= sun9i_mmc_reset_deassert,
+	.reset		= sun9i_mmc_reset_reset,
 };
 
 static int sun9i_a80_mmc_config_clk_probe(struct platform_device *pdev)

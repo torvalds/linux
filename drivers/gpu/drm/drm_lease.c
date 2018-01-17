@@ -220,17 +220,6 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 
 	mutex_lock(&dev->mode_config.idr_mutex);
 
-	/* Insert the new lessee into the tree */
-	id = idr_alloc(&(drm_lease_owner(lessor)->lessee_idr), lessee, 1, 0, GFP_KERNEL);
-	if (id < 0) {
-		error = id;
-		goto out_lessee;
-	}
-
-	lessee->lessee_id = id;
-	lessee->lessor = drm_master_get(lessor);
-	list_add_tail(&lessee->lessee_list, &lessor->lessees);
-
 	idr_for_each_entry(leases, entry, object) {
 		error = 0;
 		if (!idr_find(&dev->mode_config.crtc_idr, object))
@@ -245,6 +234,17 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 			goto out_lessee;
 		}
 	}
+
+	/* Insert the new lessee into the tree */
+	id = idr_alloc(&(drm_lease_owner(lessor)->lessee_idr), lessee, 1, 0, GFP_KERNEL);
+	if (id < 0) {
+		error = id;
+		goto out_lessee;
+	}
+
+	lessee->lessee_id = id;
+	lessee->lessor = drm_master_get(lessor);
+	list_add_tail(&lessee->lessee_list, &lessor->lessees);
 
 	/* Move the leases over */
 	lessee->leases = *leases;

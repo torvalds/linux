@@ -231,19 +231,3 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 
 	return ops;
 }
-
-static int __init of_iommu_init(void)
-{
-	struct device_node *np;
-	const struct of_device_id *match, *matches = &__iommu_of_table;
-
-	for_each_matching_node_and_match(np, matches, &match) {
-		const of_iommu_init_fn init_fn = match->data;
-
-		if (init_fn && init_fn(np))
-			pr_err("Failed to initialise IOMMU %pOF\n", np);
-	}
-
-	return 0;
-}
-postcore_initcall_sync(of_iommu_init);

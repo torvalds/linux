@@ -88,7 +88,7 @@ void stub_complete(struct urb *urb)
 	/* link a urb to the queue of tx. */
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 	if (sdev->ud.tcp_socket == NULL) {
-		usbip_dbg_stub_tx("ignore urb for closed connection %p", urb);
+		usbip_dbg_stub_tx("ignore urb for closed connection\n");
 		/* It will be freed in stub_device_cleanup_urbs(). */
 	} else if (priv->unlinking) {
 		stub_enqueue_ret_unlink(sdev, priv->seqnum, urb->status);
@@ -190,8 +190,8 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 		/* 1. setup usbip_header */
 		setup_ret_submit_pdu(&pdu_header, urb);
-		usbip_dbg_stub_tx("setup txdata seqnum: %d urb: %p\n",
-				  pdu_header.base.seqnum, urb);
+		usbip_dbg_stub_tx("setup txdata seqnum: %d\n",
+				  pdu_header.base.seqnum);
 		usbip_header_correct_endian(&pdu_header, 1);
 
 		iov[iovnum].iov_base = &pdu_header;

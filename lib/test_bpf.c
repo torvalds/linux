@@ -435,6 +435,41 @@ loop:
 	return 0;
 }
 
+static int bpf_fill_ld_abs_vlan_push_pop2(struct bpf_test *self)
+{
+	struct bpf_insn *insn;
+
+	insn = kmalloc_array(16, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	/* Due to func address being non-const, we need to
+	 * assemble this here.
+	 */
+	insn[0] = BPF_MOV64_REG(R6, R1);
+	insn[1] = BPF_LD_ABS(BPF_B, 0);
+	insn[2] = BPF_LD_ABS(BPF_H, 0);
+	insn[3] = BPF_LD_ABS(BPF_W, 0);
+	insn[4] = BPF_MOV64_REG(R7, R6);
+	insn[5] = BPF_MOV64_IMM(R6, 0);
+	insn[6] = BPF_MOV64_REG(R1, R7);
+	insn[7] = BPF_MOV64_IMM(R2, 1);
+	insn[8] = BPF_MOV64_IMM(R3, 2);
+	insn[9] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+			       bpf_skb_vlan_push_proto.func - __bpf_call_base);
+	insn[10] = BPF_MOV64_REG(R6, R7);
+	insn[11] = BPF_LD_ABS(BPF_B, 0);
+	insn[12] = BPF_LD_ABS(BPF_H, 0);
+	insn[13] = BPF_LD_ABS(BPF_W, 0);
+	insn[14] = BPF_MOV64_IMM(R0, 42);
+	insn[15] = BPF_EXIT_INSN();
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = 16;
+
+	return 0;
+}
+
 static int bpf_fill_jump_around_ld_abs(struct bpf_test *self)
 {
 	unsigned int len = BPF_MAXINSNS;
@@ -6066,6 +6101,14 @@ static struct bpf_test tests[] = {
 		{},
 		{ {0x1, 0x42 } },
 	},
+	{
+		"LD_ABS with helper changing skb data",
+		{ },
+		INTERNAL,
+		{ 0x34 },
+		{ { ETH_HLEN, 42 } },
+		.fill_helper = bpf_fill_ld_abs_vlan_push_pop2,
+	},
 };
 
 static struct net_device dev;
@@ -6207,9 +6250,8 @@ static struct bpf_prog *generate_filter(int which, int *err)
 				return NULL;
 			}
 		}
-		/* We don't expect to fail. */
 		if (*err) {
-			pr_cont("FAIL to attach err=%d len=%d\n",
+			pr_cont("FAIL to prog_create err=%d len=%d\n",
 				*err, fprog.len);
 			return NULL;
 		}
@@ -6233,6 +6275,10 @@ static struct bpf_prog *generate_filter(int which, int *err)
 		 * checks.
 		 */
 		fp = bpf_prog_select_runtime(fp, err);
+		if (*err) {
+			pr_cont("FAIL to select_runtime err=%d\n", *err);
+			return NULL;
+		}
 		break;
 	}
 
@@ -6418,8 +6464,8 @@ static __init int test_bpf(void)
 				pass_cnt++;
 				continue;
 			}
-
-			return err;
+			err_cnt++;
+			continue;
 		}
 
 		pr_cont("jited:%u ", fp->jited);

@@ -455,6 +455,7 @@ ttm_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		freed += (nr_free_pool - shrink_pages) << pool->order;
 		if (freed >= sc->nr_to_scan)
 			break;
+		shrink_pages <<= pool->order;
 	}
 	mutex_unlock(&lock);
 	return freed;
@@ -543,7 +544,7 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 	int r = 0;
 	unsigned i, j, cpages;
 	unsigned npages = 1 << order;
-	unsigned max_cpages = min(count, (unsigned)NUM_PAGES_TO_ALLOC);
+	unsigned max_cpages = min(count << order, (unsigned)NUM_PAGES_TO_ALLOC);
 
 	/* allocate array for page caching change */
 	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
@@ -1006,6 +1007,8 @@ int ttm_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 	pr_info("Initializing pool allocator\n");
 
 	_manager = kzalloc(sizeof(*_manager), GFP_KERNEL);
+	if (!_manager)
+		return -ENOMEM;
 
 	ttm_page_pool_init_locked(&_manager->wc_pool, GFP_HIGHUSER, "wc", 0);
 

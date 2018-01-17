@@ -368,7 +368,45 @@ out:
 	putname(pname);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(bpf_obj_get_user);
+
+static struct bpf_prog *__get_prog_inode(struct inode *inode, enum bpf_prog_type type)
+{
+	struct bpf_prog *prog;
+	int ret = inode_permission(inode, MAY_READ | MAY_WRITE);
+	if (ret)
+		return ERR_PTR(ret);
+
+	if (inode->i_op == &bpf_map_iops)
+		return ERR_PTR(-EINVAL);
+	if (inode->i_op != &bpf_prog_iops)
+		return ERR_PTR(-EACCES);
+
+	prog = inode->i_private;
+
+	ret = security_bpf_prog(prog);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	if (!bpf_prog_get_ok(prog, &type, false))
+		return ERR_PTR(-EINVAL);
+
+	return bpf_prog_inc(prog);
+}
+
+struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type)
+{
+	struct bpf_prog *prog;
+	struct path path;
+	int ret = kern_path(name, LOOKUP_FOLLOW, &path);
+	if (ret)
+		return ERR_PTR(ret);
+	prog = __get_prog_inode(d_backing_inode(path.dentry), type);
+	if (!IS_ERR(prog))
+		touch_atime(&path);
+	path_put(&path);
+	return prog;
+}
+EXPORT_SYMBOL(bpf_prog_get_type_path);
 
 static void bpf_evict_inode(struct inode *inode)
 {
