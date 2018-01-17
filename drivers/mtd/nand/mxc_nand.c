@@ -154,6 +154,7 @@ struct mxc_nand_devtype_data {
 			u_char *read_ecc, u_char *calc_ecc);
 	int (*setup_data_interface)(struct mtd_info *mtd, int csline,
 				    const struct nand_data_interface *conf);
+	void (*enable_hwecc)(struct nand_chip *chip, bool enable);
 
 	/*
 	 * On i.MX21 the CONFIG2:INT bit cannot be read if interrupts are masked
@@ -676,6 +677,42 @@ static uint16_t get_dev_status_v1_v2(struct mxc_nand_host *host)
 	writel(store, main_buf);
 
 	return ret;
+}
+
+static void mxc_nand_enable_hwecc_v1_v2(struct nand_chip *chip, bool enable)
+{
+	struct mxc_nand_host *host = nand_get_controller_data(chip);
+	uint16_t config1;
+
+	if (chip->ecc.mode != NAND_ECC_HW)
+		return;
+
+	config1 = readw(NFC_V1_V2_CONFIG1);
+
+	if (enable)
+		config1 |= NFC_V1_V2_CONFIG1_ECC_EN;
+	else
+		config1 &= ~NFC_V1_V2_CONFIG1_ECC_EN;
+
+	writew(config1, NFC_V1_V2_CONFIG1);
+}
+
+static void mxc_nand_enable_hwecc_v3(struct nand_chip *chip, bool enable)
+{
+	struct mxc_nand_host *host = nand_get_controller_data(chip);
+	uint32_t config2;
+
+	if (chip->ecc.mode != NAND_ECC_HW)
+		return;
+
+	config2 = readl(NFC_V3_CONFIG2);
+
+	if (enable)
+		config2 |= NFC_V3_CONFIG2_ECC_EN;
+	else
+		config2 &= ~NFC_V3_CONFIG2_ECC_EN;
+
+	writel(config2, NFC_V3_CONFIG2);
 }
 
 /* This functions is used by upper layer to checks if device is ready */
@@ -1408,6 +1445,7 @@ static const struct mxc_nand_devtype_data imx21_nand_devtype_data = {
 	.ooblayout = &mxc_v1_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
 	.correct_data = mxc_nand_correct_data_v1,
+	.enable_hwecc = mxc_nand_enable_hwecc_v1_v2,
 	.irqpending_quirk = 1,
 	.needs_ip = 0,
 	.regs_offset = 0xe00,
@@ -1431,6 +1469,7 @@ static const struct mxc_nand_devtype_data imx27_nand_devtype_data = {
 	.ooblayout = &mxc_v1_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
 	.correct_data = mxc_nand_correct_data_v1,
+	.enable_hwecc = mxc_nand_enable_hwecc_v1_v2,
 	.irqpending_quirk = 0,
 	.needs_ip = 0,
 	.regs_offset = 0xe00,
@@ -1456,6 +1495,7 @@ static const struct mxc_nand_devtype_data imx25_nand_devtype_data = {
 	.select_chip = mxc_nand_select_chip_v2,
 	.correct_data = mxc_nand_correct_data_v2_v3,
 	.setup_data_interface = mxc_nand_v2_setup_data_interface,
+	.enable_hwecc = mxc_nand_enable_hwecc_v1_v2,
 	.irqpending_quirk = 0,
 	.needs_ip = 0,
 	.regs_offset = 0x1e00,
@@ -1480,6 +1520,7 @@ static const struct mxc_nand_devtype_data imx51_nand_devtype_data = {
 	.ooblayout = &mxc_v2_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
 	.correct_data = mxc_nand_correct_data_v2_v3,
+	.enable_hwecc = mxc_nand_enable_hwecc_v3,
 	.irqpending_quirk = 0,
 	.needs_ip = 1,
 	.regs_offset = 0,
@@ -1505,6 +1546,7 @@ static const struct mxc_nand_devtype_data imx53_nand_devtype_data = {
 	.ooblayout = &mxc_v2_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
 	.correct_data = mxc_nand_correct_data_v2_v3,
+	.enable_hwecc = mxc_nand_enable_hwecc_v3,
 	.irqpending_quirk = 0,
 	.needs_ip = 1,
 	.regs_offset = 0,
