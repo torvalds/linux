@@ -36,12 +36,20 @@
 #include "mlx5_core.h"
 #include "vxlan.h"
 
+static void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port);
+
 void mlx5e_vxlan_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
 
 	spin_lock_init(&vxlan_db->lock);
 	INIT_RADIX_TREE(&vxlan_db->tree, GFP_ATOMIC);
+
+	if (mlx5e_vxlan_allowed(priv->mdev))
+		/* Hardware adds 4789 by default.
+		 * Lockless since we are the only hash table consumers, wq and TX are disabled.
+		 */
+		mlx5e_vxlan_add_port(priv, 4789);
 }
 
 static int mlx5e_vxlan_core_add_port_cmd(struct mlx5_core_dev *mdev, u16 port)
@@ -78,25 +86,20 @@ struct mlx5e_vxlan *mlx5e_vxlan_lookup_port(struct mlx5e_priv *priv, u16 port)
 	return vxlan;
 }
 
-static void mlx5e_vxlan_add_port(struct work_struct *work)
+static void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port)
 {
-	struct mlx5e_vxlan_work *vxlan_work =
-		container_of(work, struct mlx5e_vxlan_work, work);
-	struct mlx5e_priv *priv = vxlan_work->priv;
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
-	u16 port = vxlan_work->port;
 	struct mlx5e_vxlan *vxlan;
 	int err;
 
-	mutex_lock(&priv->state_lock);
 	vxlan = mlx5e_vxlan_lookup_port(priv, port);
 	if (vxlan) {
 		atomic_inc(&vxlan->refcount);
-		goto free_work;
+		return;
 	}
 
 	if (mlx5e_vxlan_core_add_port_cmd(priv->mdev, port))
-		goto free_work;
+		return;
 
 	vxlan = kzalloc(sizeof(*vxlan), GFP_KERNEL);
 	if (!vxlan)
@@ -111,18 +114,29 @@ static void mlx5e_vxlan_add_port(struct work_struct *work)
 	if (err)
 		goto err_free;
 
-	goto free_work;
+	return;
 
 err_free:
 	kfree(vxlan);
 err_delete_port:
 	mlx5e_vxlan_core_del_port_cmd(priv->mdev, port);
-free_work:
+}
+
+static void mlx5e_vxlan_add_work(struct work_struct *work)
+{
+	struct mlx5e_vxlan_work *vxlan_work =
+		container_of(work, struct mlx5e_vxlan_work, work);
+	struct mlx5e_priv *priv = vxlan_work->priv;
+	u16 port = vxlan_work->port;
+
+	mutex_lock(&priv->state_lock);
+	mlx5e_vxlan_add_port(priv, port);
 	mutex_unlock(&priv->state_lock);
+
 	kfree(vxlan_work);
 }
 
-static void mlx5e_vxlan_del_port(struct work_struct *work)
+static void mlx5e_vxlan_del_work(struct work_struct *work)
 {
 	struct mlx5e_vxlan_work *vxlan_work =
 		container_of(work, struct mlx5e_vxlan_work, work);
@@ -164,9 +178,9 @@ void mlx5e_vxlan_queue_work(struct mlx5e_priv *priv, sa_family_t sa_family,
 		return;
 
 	if (add)
-		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_add_port);
+		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_add_work);
 	else
-		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_del_port);
+		INIT_WORK(&vxlan_work->work, mlx5e_vxlan_del_work);
 
 	vxlan_work->priv = priv;
 	vxlan_work->port = port;
