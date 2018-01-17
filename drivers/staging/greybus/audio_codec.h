@@ -53,7 +53,7 @@ enum gbaudio_codec_state {
 struct gbaudio_stream_params {
 	int state;
 	u8 sig_bits, channels;
-	uint32_t format, rate;
+	u32 format, rate;
 };
 
 struct gbaudio_codec_dai {
@@ -183,12 +183,12 @@ extern int gb_audio_gb_enable_widget(struct gb_connection *connection,
 extern int gb_audio_gb_disable_widget(struct gb_connection *connection,
 				      u8 widget_id);
 extern int gb_audio_gb_get_pcm(struct gb_connection *connection,
-			       u16 data_cport, uint32_t *format,
-			       uint32_t *rate, u8 *channels,
+			       u16 data_cport, u32 *format,
+			       u32 *rate, u8 *channels,
 			       u8 *sig_bits);
 extern int gb_audio_gb_set_pcm(struct gb_connection *connection,
-			       u16 data_cport, uint32_t format,
-			       uint32_t rate, u8 channels,
+			       u16 data_cport, u32 format,
+			       u32 rate, u8 channels,
 			       u8 sig_bits);
 extern int gb_audio_gb_set_tx_data_size(struct gb_connection *connection,
 					u16 data_cport, u16 size);
