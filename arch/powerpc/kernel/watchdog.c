@@ -393,25 +393,3 @@ int __init watchdog_nmi_probe(void)
 	}
 	return 0;
 }
-
-static void handle_backtrace_ipi(struct pt_regs *regs)
-{
-	nmi_cpu_backtrace(regs);
-}
-
-static void raise_backtrace_ipi(cpumask_t *mask)
-{
-	unsigned int cpu;
-
-	for_each_cpu(cpu, mask) {
-		if (cpu == smp_processor_id())
-			handle_backtrace_ipi(NULL);
-		else
-			smp_send_nmi_ipi(cpu, handle_backtrace_ipi, 1000000);
-	}
-}
-
-void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)
-{
-	nmi_trigger_cpumask_backtrace(mask, exclude_self, raise_backtrace_ipi);
-}
