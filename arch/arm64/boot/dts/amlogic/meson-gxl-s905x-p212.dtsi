@@ -17,6 +17,7 @@
 	aliases {
 		serial0 = &uart_AO;
 		serial1 = &uart_A;
+		ethernet0 = &ethmac;
 	};
 
 	chosen {

@@ -29,6 +29,7 @@
 
 	aliases {
 		serial2 = &uart_AO_B;
+		ethernet0 = &ethmac;
 	};
 
 	gpio-keys-polled {
