@@ -421,50 +421,6 @@ enum btc_notify_type_stack_operation {
 	BTC_STACK_OP_MAX
 };
 
-typedef u8 (*bfp_btc_r1)(void *btc_context, u32 reg_addr);
-
-typedef u16 (*bfp_btc_r2)(void *btc_context, u32 reg_addr);
-
-typedef u32 (*bfp_btc_r4)(void *btc_context, u32 reg_addr);
-
-typedef void (*bfp_btc_w1)(void *btc_context, u32 reg_addr, u32 data);
-
-typedef void (*bfp_btc_w1_bit_mak)(void *btc_context, u32 reg_addr,
-				   u32 bit_mask, u8 data1b);
-
-typedef void (*bfp_btc_w2)(void *btc_context, u32 reg_addr, u16 data);
-
-typedef void (*bfp_btc_w4)(void *btc_context, u32 reg_addr, u32 data);
-
-typedef void (*bfp_btc_local_reg_w1)(void *btc_context, u32 reg_addr, u8 data);
-typedef void (*bfp_btc_wr_1byte_bit_mask)(void *btc_context, u32 reg_addr,
-					  u8 bit_mask, u8 data);
-
-typedef void (*bfp_btc_set_bb_reg)(void *btc_context, u32 reg_addr,
-				   u32 bit_mask, u32 data);
-
-typedef u32 (*bfp_btc_get_bb_reg)(void *btc_context, u32 reg_addr,
-				  u32 bit_mask);
-
-typedef void (*bfp_btc_set_rf_reg)(void *btc_context, u8 rf_path, u32 reg_addr,
-				   u32 bit_mask, u32 data);
-
-typedef u32 (*bfp_btc_get_rf_reg)(void *btc_context, u8 rf_path,
-				  u32 reg_addr, u32 bit_mask);
-
-typedef void (*bfp_btc_fill_h2c)(void *btc_context, u8 element_id,
-				 u32 cmd_len, u8 *cmd_buffer);
-
-typedef	bool (*bfp_btc_get)(void *btcoexist, u8 get_type, void *out_buf);
-
-typedef	bool (*bfp_btc_set)(void *btcoexist, u8 set_type, void *in_buf);
-
-typedef void (*bfp_btc_set_bt_reg)(void *btc_context, u8 reg_type, u32 offset,
-				   u32 value);
-
-typedef void (*bfp_btc_disp_dbg_msg)(void *btcoexist, u8 disp_type,
-				     struct seq_file *m);
-
 struct btc_bt_info {
 	bool bt_disabled;
 	u8 rssi_adjust_for_agc_table_on;
@@ -575,29 +531,37 @@ struct btc_coexist {
 	u8 pwr_mode_val[10];
 
 	/* function pointers - io related */
-	bfp_btc_r1 btc_read_1byte;
-	bfp_btc_w1 btc_write_1byte;
-	bfp_btc_w1_bit_mak btc_write_1byte_bitmask;
-	bfp_btc_r2 btc_read_2byte;
-	bfp_btc_w2 btc_write_2byte;
-	bfp_btc_r4 btc_read_4byte;
-	bfp_btc_w4 btc_write_4byte;
-	bfp_btc_local_reg_w1 btc_write_local_reg_1byte;
+	u8 (*btc_read_1byte)(void *btc_context, u32 reg_addr);
+	void (*btc_write_1byte)(void *btc_context, u32 reg_addr, u32 data);
+	void (*btc_write_1byte_bitmask)(void *btc_context, u32 reg_addr,
+					u32 bit_mask, u8 data1b);
+	u16 (*btc_read_2byte)(void *btc_context, u32 reg_addr);
+	void (*btc_write_2byte)(void *btc_context, u32 reg_addr, u16 data);
+	u32 (*btc_read_4byte)(void *btc_context, u32 reg_addr);
+	void (*btc_write_4byte)(void *btc_context, u32 reg_addr, u32 data);
 
-	bfp_btc_set_bb_reg btc_set_bb_reg;
-	bfp_btc_get_bb_reg btc_get_bb_reg;
+	void (*btc_write_local_reg_1byte)(void *btc_context, u32 reg_addr,
+					  u8 data);
+	void (*btc_set_bb_reg)(void *btc_context, u32 reg_addr,
+			       u32 bit_mask, u32 data);
+	u32 (*btc_get_bb_reg)(void *btc_context, u32 reg_addr,
+			      u32 bit_mask);
+	void (*btc_set_rf_reg)(void *btc_context, u8 rf_path, u32 reg_addr,
+			       u32 bit_mask, u32 data);
+	u32 (*btc_get_rf_reg)(void *btc_context, u8 rf_path,
+			      u32 reg_addr, u32 bit_mask);
 
-	bfp_btc_set_rf_reg btc_set_rf_reg;
-	bfp_btc_get_rf_reg btc_get_rf_reg;
+	void (*btc_fill_h2c)(void *btc_context, u8 element_id,
+			     u32 cmd_len, u8 *cmd_buffer);
 
-	bfp_btc_fill_h2c btc_fill_h2c;
+	void (*btc_disp_dbg_msg)(void *btcoexist, u8 disp_type,
+				 struct seq_file *m);
 
-	bfp_btc_disp_dbg_msg btc_disp_dbg_msg;
+	bool (*btc_get)(void *btcoexist, u8 get_type, void *out_buf);
+	bool (*btc_set)(void *btcoexist, u8 set_type, void *in_buf);
 
-	bfp_btc_get btc_get;
-	bfp_btc_set btc_set;
-
-	bfp_btc_set_bt_reg btc_set_bt_reg;
+	void (*btc_set_bt_reg)(void *btc_context, u8 reg_type, u32 offset,
+			       u32 value);
 };
 
 bool halbtc_is_wifi_uplink(struct rtl_priv *adapter);
