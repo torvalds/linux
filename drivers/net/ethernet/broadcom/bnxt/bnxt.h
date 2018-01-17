@@ -836,6 +836,9 @@ struct bnxt_pf_info {
 	u32	max_rx_wm_flows;
 	unsigned long	*vf_event_bmap;
 	u16	hwrm_cmd_req_pages;
+	u8	vf_resv_strategy;
+#define BNXT_VF_RESV_STRATEGY_MAXIMAL	0
+#define BNXT_VF_RESV_STRATEGY_MINIMAL	1
 	void			*hwrm_cmd_req_addr[4];
 	dma_addr_t		hwrm_cmd_req_dma_addr[4];
 	struct bnxt_vf_info	*vf;

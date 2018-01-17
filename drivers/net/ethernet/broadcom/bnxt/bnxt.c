@@ -5018,6 +5018,14 @@ static int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp)
 	hw_resc->min_stat_ctxs = le16_to_cpu(resp->min_stat_ctx);
 	hw_resc->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
 
+	if (BNXT_PF(bp)) {
+		struct bnxt_pf_info *pf = &bp->pf;
+
+		pf->vf_resv_strategy =
+			le16_to_cpu(resp->vf_reservation_strategy);
+		if (pf->vf_resv_strategy > BNXT_VF_RESV_STRATEGY_MINIMAL)
+			pf->vf_resv_strategy = BNXT_VF_RESV_STRATEGY_MAXIMAL;
+	}
 hwrm_func_resc_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;

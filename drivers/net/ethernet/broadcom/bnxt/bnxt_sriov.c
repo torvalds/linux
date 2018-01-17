@@ -416,7 +416,100 @@ static int bnxt_hwrm_func_buf_rgtr(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
-/* only call by PF to reserve resources for VF */
+/* Only called by PF to reserve resources for VFs, returns actual number of
+ * VFs configured, or < 0 on error.
+ */
+static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
+{
+	struct hwrm_func_vf_resource_cfg_input req = {0};
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+	u16 vf_tx_rings, vf_rx_rings, vf_cp_rings;
+	u16 vf_stat_ctx, vf_vnics, vf_ring_grps;
+	struct bnxt_pf_info *pf = &bp->pf;
+	int i, rc = 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_VF_RESOURCE_CFG, -1, -1);
+
+	vf_cp_rings = hw_resc->max_cp_rings - bp->cp_nr_rings;
+	vf_stat_ctx = hw_resc->max_stat_ctxs - bp->num_stat_ctxs;
+	if (bp->flags & BNXT_FLAG_AGG_RINGS)
+		vf_rx_rings = hw_resc->max_rx_rings - bp->rx_nr_rings * 2;
+	else
+		vf_rx_rings = hw_resc->max_rx_rings - bp->rx_nr_rings;
+	vf_ring_grps = hw_resc->max_hw_ring_grps - bp->rx_nr_rings;
+	vf_tx_rings = hw_resc->max_tx_rings - bp->tx_nr_rings;
+	vf_vnics = hw_resc->max_vnics - bp->nr_vnics;
+	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
+
+	req.min_rsscos_ctx = cpu_to_le16(1);
+	req.max_rsscos_ctx = cpu_to_le16(1);
+	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL) {
+		req.min_cmpl_rings = cpu_to_le16(1);
+		req.min_tx_rings = cpu_to_le16(1);
+		req.min_rx_rings = cpu_to_le16(1);
+		req.min_l2_ctxs = cpu_to_le16(1);
+		req.min_vnics = cpu_to_le16(1);
+		req.min_stat_ctx = cpu_to_le16(1);
+		req.min_hw_ring_grps = cpu_to_le16(1);
+	} else {
+		vf_cp_rings /= num_vfs;
+		vf_tx_rings /= num_vfs;
+		vf_rx_rings /= num_vfs;
+		vf_vnics /= num_vfs;
+		vf_stat_ctx /= num_vfs;
+		vf_ring_grps /= num_vfs;
+
+		req.min_cmpl_rings = cpu_to_le16(vf_cp_rings);
+		req.min_tx_rings = cpu_to_le16(vf_tx_rings);
+		req.min_rx_rings = cpu_to_le16(vf_rx_rings);
+		req.min_l2_ctxs = cpu_to_le16(4);
+		req.min_vnics = cpu_to_le16(vf_vnics);
+		req.min_stat_ctx = cpu_to_le16(vf_stat_ctx);
+		req.min_hw_ring_grps = cpu_to_le16(vf_ring_grps);
+	}
+	req.max_cmpl_rings = cpu_to_le16(vf_cp_rings);
+	req.max_tx_rings = cpu_to_le16(vf_tx_rings);
+	req.max_rx_rings = cpu_to_le16(vf_rx_rings);
+	req.max_l2_ctxs = cpu_to_le16(4);
+	req.max_vnics = cpu_to_le16(vf_vnics);
+	req.max_stat_ctx = cpu_to_le16(vf_stat_ctx);
+	req.max_hw_ring_grps = cpu_to_le16(vf_ring_grps);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	for (i = 0; i < num_vfs; i++) {
+		req.vf_id = cpu_to_le16(pf->first_vf_id + i);
+		rc = _hwrm_send_message(bp, &req, sizeof(req),
+					HWRM_CMD_TIMEOUT);
+		if (rc) {
+			rc = -ENOMEM;
+			break;
+		}
+		pf->active_vfs = i + 1;
+		pf->vf[i].fw_fid = pf->first_vf_id + i;
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	if (pf->active_vfs) {
+		u16 n = 1;
+
+		if (pf->vf_resv_strategy != BNXT_VF_RESV_STRATEGY_MINIMAL)
+			n = pf->active_vfs;
+
+		hw_resc->max_tx_rings -= vf_tx_rings * n;
+		hw_resc->max_rx_rings -= vf_rx_rings * n;
+		hw_resc->max_hw_ring_grps -= vf_ring_grps * n;
+		hw_resc->max_cp_rings -= vf_cp_rings * n;
+		hw_resc->max_rsscos_ctxs -= pf->active_vfs;
+		hw_resc->max_stat_ctxs -= vf_stat_ctx * n;
+		hw_resc->max_vnics -= vf_vnics * n;
+
+		rc = pf->active_vfs;
+	}
+	return rc;
+}
+
+/* Only called by PF to reserve resources for VFs, returns actual number of
+ * VFs configured, or < 0 on error.
+ */
 static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 {
 	u32 rc = 0, mtu, i;
@@ -489,7 +582,9 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 		total_vf_tx_rings += vf_tx_rsvd;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
-	if (!rc) {
+	if (rc)
+		rc = -ENOMEM;
+	if (pf->active_vfs) {
 		hw_resc->max_tx_rings -= total_vf_tx_rings;
 		hw_resc->max_rx_rings -= vf_rx_rings * num_vfs;
 		hw_resc->max_hw_ring_grps -= vf_ring_grps * num_vfs;
@@ -497,8 +592,17 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 		hw_resc->max_rsscos_ctxs -= num_vfs;
 		hw_resc->max_stat_ctxs -= vf_stat_ctx * num_vfs;
 		hw_resc->max_vnics -= vf_vnics * num_vfs;
+		rc = pf->active_vfs;
 	}
 	return rc;
+}
+
+static int bnxt_func_cfg(struct bnxt *bp, int num_vfs)
+{
+	if (bp->flags & BNXT_FLAG_NEW_RM)
+		return bnxt_hwrm_func_vf_resc_cfg(bp, num_vfs);
+	else
+		return bnxt_hwrm_func_cfg(bp, num_vfs);
 }
 
 static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
@@ -567,9 +671,16 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 		goto err_out1;
 
 	/* Reserve resources for VFs */
-	rc = bnxt_hwrm_func_cfg(bp, *num_vfs);
-	if (rc)
-		goto err_out2;
+	rc = bnxt_func_cfg(bp, *num_vfs);
+	if (rc != *num_vfs) {
+		if (rc <= 0) {
+			netdev_warn(bp->dev, "Unable to reserve resources for SRIOV.\n");
+			*num_vfs = 0;
+			goto err_out2;
+		}
+		netdev_warn(bp->dev, "Only able to reserve resources for %d VFs.\n", rc);
+		*num_vfs = rc;
+	}
 
 	/* Register buffers for VFs */
 	rc = bnxt_hwrm_func_buf_rgtr(bp);
