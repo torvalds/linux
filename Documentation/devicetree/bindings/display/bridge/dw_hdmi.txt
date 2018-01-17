@@ -25,6 +25,7 @@ Optional properties
 - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
 - clocks, clock-names: phandle to the HDMI CEC clock, name should be "cec"
 - hdcp1x-enable: enable hdcp1.x, enable if defined, disable if not defined
+- scramble-low-rates: if defined enable scarmble when tmdsclk less than 340Mhz
 
 Example:
 	hdmi: hdmi@0120000 {

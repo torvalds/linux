@@ -252,6 +252,7 @@ struct dw_hdmi {
 	unsigned int audio_cts;
 	unsigned int audio_n;
 	bool audio_enable;
+	bool scramble_low_rates;
 
 #ifdef CONFIG_SWITCH
 	struct switch_dev switchdev;
@@ -1928,7 +1929,8 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	 * when activate the scrambler feature.
 	 */
 	inv_val = (vmode->mtmdsclock > 340000000 ||
-		   hdmi_info->scdc.scrambling.low_rates ?
+		   (hdmi_info->scdc.scrambling.low_rates &&
+		    hdmi->scramble_low_rates) ?
 		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE :
 		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_INACTIVE);
 
@@ -1999,7 +2001,8 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	/* Scrambling Control */
 	if (hdmi_info->scdc.supported) {
 		if (vmode->mtmdsclock > 340000000 ||
-		    hdmi_info->scdc.scrambling.low_rates) {
+		    (hdmi_info->scdc.scrambling.low_rates &&
+		     hdmi->scramble_low_rates)) {
 			drm_scdc_readb(&hdmi->i2c->adap, SCDC_SINK_VERSION,
 				       &bytes);
 			drm_scdc_writeb(&hdmi->i2c->adap, SCDC_SOURCE_VERSION,
@@ -3650,6 +3653,9 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	dev_set_drvdata(dev, hdmi);
 
 	dw_hdmi_register_debugfs(dev, hdmi);
+
+	if (of_property_read_bool(np, "scramble-low-rates"))
+		hdmi->scramble_low_rates = true;
 
 	if (of_property_read_bool(np, "hdcp1x-enable"))
 		hdcp1x_enable = true;
