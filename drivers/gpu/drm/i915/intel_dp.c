@@ -1913,6 +1913,7 @@ void intel_dp_set_link_params(struct intel_dp *intel_dp,
 			      int link_rate, uint8_t lane_count,
 			      bool link_mst)
 {
+	intel_dp->link_trained = false;
 	intel_dp->link_rate = link_rate;
 	intel_dp->lane_count = lane_count;
 	intel_dp->link_mst = link_mst;
@@ -2760,6 +2761,8 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 			     const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
+	intel_dp->link_trained = false;
 
 	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder,
@@ -4277,10 +4280,11 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 {
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
-	if (!intel_dp_get_link_status(intel_dp, link_status)) {
-		DRM_ERROR("Failed to get link status\n");
+	if (!intel_dp->link_trained)
 		return false;
-	}
+
+	if (!intel_dp_get_link_status(intel_dp, link_status))
+		return false;
 
 	/*
 	 * Validate the cached values of intel_dp->link_rate and

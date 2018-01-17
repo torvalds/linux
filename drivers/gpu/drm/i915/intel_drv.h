@@ -1048,6 +1048,7 @@ struct intel_dp {
 	uint8_t lane_count;
 	uint8_t sink_count;
 	bool link_mst;
+	bool link_trained;
 	bool has_audio;
 	bool detect_done;
 	bool reset_link_params;

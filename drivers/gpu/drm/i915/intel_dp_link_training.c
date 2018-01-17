@@ -307,6 +307,8 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 
 void intel_dp_stop_link_train(struct intel_dp *intel_dp)
 {
+	intel_dp->link_trained = true;
+
 	intel_dp_set_link_train(intel_dp,
 				DP_TRAINING_PATTERN_DISABLE);
 }
