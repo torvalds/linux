@@ -2604,14 +2604,14 @@ try_onemore:
 
 	err = init_percpu_info(sbi);
 	if (err)
-		goto free_options;
+		goto free_bio_info;
 
 	if (F2FS_IO_SIZE(sbi) > 1) {
 		sbi->write_io_dummy =
 			mempool_create_page_pool(2 * (F2FS_IO_SIZE(sbi) - 1), 0);
 		if (!sbi->write_io_dummy) {
 			err = -ENOMEM;
-			goto free_options;
+			goto free_percpu;
 		}
 	}
 
@@ -2843,10 +2843,12 @@ free_meta_inode:
 	iput(sbi->meta_inode);
 free_io_dummy:
 	mempool_destroy(sbi->write_io_dummy);
-free_options:
+free_percpu:
+	destroy_percpu_info(sbi);
+free_bio_info:
 	for (i = 0; i < NR_PAGE_TYPE; i++)
 		kfree(sbi->write_io[i]);
-	destroy_percpu_info(sbi);
+free_options:
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < MAXQUOTAS; i++)
 		kfree(sbi->s_qf_names[i]);
