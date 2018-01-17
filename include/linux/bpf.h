@@ -234,6 +234,8 @@ struct bpf_prog_offload {
 	struct list_head	offloads;
 	bool			dev_state;
 	const struct bpf_prog_offload_ops *dev_ops;
+	void			*jited_image;
+	u32			jited_len;
 };
 
 struct bpf_prog_aux {
