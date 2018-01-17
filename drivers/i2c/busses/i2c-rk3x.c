@@ -161,6 +161,7 @@ enum rk3x_i2c_state {
 };
 
 /**
+ * struct rk3x_i2c_soc_data:
  * @grf_offset: offset inside the grf regmap for setting the i2c type
  * @calc_timings: Callback function for i2c timing information calculated
  */
