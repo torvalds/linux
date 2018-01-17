@@ -953,7 +953,7 @@ static int pci_pm_freeze_late(struct device *dev)
 	if (dev_pm_smart_suspend_and_suspended(dev))
 		return 0;
 
-	return pm_generic_freeze_late(dev);;
+	return pm_generic_freeze_late(dev);
 }
 
 static int pci_pm_freeze_noirq(struct device *dev)
