@@ -118,8 +118,26 @@ struct mlxsw_sp_fid *mlxsw_sp_acl_dummy_fid(struct mlxsw_sp *mlxsw_sp)
 	return mlxsw_sp->acl->dummy_fid;
 }
 
+static int mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_ruleset *ruleset,
+				     struct net_device *dev, bool ingress)
+{
+	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
+
+	return ops->ruleset_bind(mlxsw_sp, ruleset->priv, dev, ingress);
+}
+
+static void mlxsw_sp_acl_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_acl_ruleset *ruleset)
+{
+	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
+
+	ops->ruleset_unbind(mlxsw_sp, ruleset->priv);
+}
+
 static struct mlxsw_sp_acl_ruleset *
-mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
+mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
+			    bool ingress, u32 chain_index,
 			    const struct mlxsw_sp_acl_profile_ops *ops)
 {
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
@@ -132,6 +150,9 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 	if (!ruleset)
 		return ERR_PTR(-ENOMEM);
 	ruleset->ref_count = 1;
+	ruleset->ht_key.dev = dev;
+	ruleset->ht_key.ingress = ingress;
+	ruleset->ht_key.chain_index = chain_index;
 	ruleset->ht_key.ops = ops;
 
 	err = rhashtable_init(&ruleset->rule_ht, &mlxsw_sp_acl_rule_ht_params);
@@ -142,8 +163,29 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_ops_ruleset_add;
 
+	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_node,
+				     mlxsw_sp_acl_ruleset_ht_params);
+	if (err)
+		goto err_ht_insert;
+
+	if (!chain_index) {
+		/* We only need ruleset with chain index 0, the implicit one,
+		 * to be directly bound to device. The rest of the rulesets
+		 * are bound by "Goto action set".
+		 */
+		err = mlxsw_sp_acl_ruleset_bind(mlxsw_sp, ruleset,
+						dev, ingress);
+		if (err)
+			goto err_ruleset_bind;
+	}
+
 	return ruleset;
 
+err_ruleset_bind:
+	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
+			       mlxsw_sp_acl_ruleset_ht_params);
+err_ht_insert:
+	ops->ruleset_del(mlxsw_sp, ruleset->priv);
 err_ops_ruleset_add:
 	rhashtable_destroy(&ruleset->rule_ht);
 err_rhashtable_init:
@@ -155,55 +197,15 @@ static void mlxsw_sp_acl_ruleset_destroy(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_acl_ruleset *ruleset)
 {
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
-
-	ops->ruleset_del(mlxsw_sp, ruleset->priv);
-	rhashtable_destroy(&ruleset->rule_ht);
-	kfree(ruleset);
-}
-
-static int mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_acl_ruleset *ruleset,
-				     struct net_device *dev, bool ingress,
-				     u32 chain_index)
-{
-	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
-	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
-	int err;
-
-	ruleset->ht_key.dev = dev;
-	ruleset->ht_key.ingress = ingress;
-	ruleset->ht_key.chain_index = chain_index;
-	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_node,
-				     mlxsw_sp_acl_ruleset_ht_params);
-	if (err)
-		return err;
-	if (!ruleset->ht_key.chain_index) {
-		/* We only need ruleset with chain index 0, the implicit one,
-		 * to be directly bound to device. The rest of the rulesets
-		 * are bound by "Goto action set".
-		 */
-		err = ops->ruleset_bind(mlxsw_sp, ruleset->priv, dev, ingress);
-		if (err)
-			goto err_ops_ruleset_bind;
-	}
-	return 0;
-
-err_ops_ruleset_bind:
-	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
-			       mlxsw_sp_acl_ruleset_ht_params);
-	return err;
-}
-
-static void mlxsw_sp_acl_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_acl_ruleset *ruleset)
-{
-	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 
 	if (!ruleset->ht_key.chain_index)
-		ops->ruleset_unbind(mlxsw_sp, ruleset->priv);
+		mlxsw_sp_acl_ruleset_unbind(mlxsw_sp, ruleset);
 	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
 			       mlxsw_sp_acl_ruleset_ht_params);
+	ops->ruleset_del(mlxsw_sp, ruleset->priv);
+	rhashtable_destroy(&ruleset->rule_ht);
+	kfree(ruleset);
 }
 
 static void mlxsw_sp_acl_ruleset_ref_inc(struct mlxsw_sp_acl_ruleset *ruleset)
@@ -216,7 +218,6 @@ static void mlxsw_sp_acl_ruleset_ref_dec(struct mlxsw_sp *mlxsw_sp,
 {
 	if (--ruleset->ref_count)
 		return;
-	mlxsw_sp_acl_ruleset_unbind(mlxsw_sp, ruleset);
 	mlxsw_sp_acl_ruleset_destroy(mlxsw_sp, ruleset);
 }
 
@@ -263,7 +264,6 @@ mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
 	const struct mlxsw_sp_acl_profile_ops *ops;
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 	struct mlxsw_sp_acl_ruleset *ruleset;
-	int err;
 
 	ops = acl->ops->profile_ops(mlxsw_sp, profile);
 	if (!ops)
@@ -275,18 +275,8 @@ mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
 		mlxsw_sp_acl_ruleset_ref_inc(ruleset);
 		return ruleset;
 	}
-	ruleset = mlxsw_sp_acl_ruleset_create(mlxsw_sp, ops);
-	if (IS_ERR(ruleset))
-		return ruleset;
-	err = mlxsw_sp_acl_ruleset_bind(mlxsw_sp, ruleset, dev,
-					ingress, chain_index);
-	if (err)
-		goto err_ruleset_bind;
-	return ruleset;
-
-err_ruleset_bind:
-	mlxsw_sp_acl_ruleset_destroy(mlxsw_sp, ruleset);
-	return ERR_PTR(err);
+	return mlxsw_sp_acl_ruleset_create(mlxsw_sp, dev, ingress,
+					   chain_index, ops);
 }
 
 void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
