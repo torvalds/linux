@@ -341,21 +341,13 @@ static void cxgb4_cudbg_collect_entity(struct cudbg_init *pdbg_init,
 				       const struct cxgb4_collect_entity *e_arr,
 				       u32 arr_size, void *buf, u32 *tot_size)
 {
-	struct adapter *adap = pdbg_init->adap;
 	struct cudbg_error cudbg_err = { 0 };
 	struct cudbg_entity_hdr *entity_hdr;
-	u32 entity_size, i;
-	u32 total_size = 0;
+	u32 i, total_size = 0;
 	int ret;
 
 	for (i = 0; i < arr_size; i++) {
 		const struct cxgb4_collect_entity *e = &e_arr[i];
-
-		/* Skip entities that won't fit in output buffer */
-		entity_size = cxgb4_get_entity_length(adap, e->entity);
-		if (entity_size >
-		    pdbg_init->outbuf_size - *tot_size - total_size)
-			continue;
 
 		entity_hdr = cudbg_get_entity_hdr(buf, e->entity);
 		entity_hdr->entity_type = e->entity;
@@ -408,7 +400,8 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 	cudbg_hdr->max_entities = CUDBG_MAX_ENTITY;
 	cudbg_hdr->chip_ver = adap->params.chip;
 	cudbg_hdr->dump_type = CUDBG_DUMP_TYPE_MINI;
-	cudbg_hdr->compress_type = CUDBG_COMPRESSION_NONE;
+	cudbg_init.compress_type = CUDBG_COMPRESSION_NONE;
+	cudbg_hdr->compress_type = cudbg_init.compress_type;
 
 	min_size = sizeof(struct cudbg_hdr) +
 		   sizeof(struct cudbg_entity_hdr) *
