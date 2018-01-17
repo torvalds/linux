@@ -2294,7 +2294,7 @@ static int devlink_nl_cmd_dpipe_table_counters_set(struct sk_buff *skb,
 						counters_enable);
 }
 
-struct devlink_resource *
+static struct devlink_resource *
 devlink_resource_find(struct devlink *devlink,
 		      struct devlink_resource *resource, u64 resource_id)
 {
@@ -2319,7 +2319,8 @@ devlink_resource_find(struct devlink *devlink,
 	return NULL;
 }
 
-void devlink_resource_validate_children(struct devlink_resource *resource)
+static void
+devlink_resource_validate_children(struct devlink_resource *resource)
 {
 	struct devlink_resource *child_resource;
 	bool size_valid = true;
