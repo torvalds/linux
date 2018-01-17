@@ -128,11 +128,12 @@ static int mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
 }
 
 static void mlxsw_sp_acl_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_acl_ruleset *ruleset)
+					struct mlxsw_sp_acl_ruleset *ruleset,
+					struct net_device *dev, bool ingress)
 {
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 
-	ops->ruleset_unbind(mlxsw_sp, ruleset->priv);
+	ops->ruleset_unbind(mlxsw_sp, ruleset->priv, dev, ingress);
 }
 
 static struct mlxsw_sp_acl_ruleset *
@@ -200,7 +201,9 @@ static void mlxsw_sp_acl_ruleset_destroy(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 
 	if (!ruleset->ht_key.chain_index)
-		mlxsw_sp_acl_ruleset_unbind(mlxsw_sp, ruleset);
+		mlxsw_sp_acl_ruleset_unbind(mlxsw_sp, ruleset,
+					    ruleset->ht_key.dev,
+					    ruleset->ht_key.ingress);
 	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
 			       mlxsw_sp_acl_ruleset_ht_params);
 	ops->ruleset_del(mlxsw_sp, ruleset->priv);

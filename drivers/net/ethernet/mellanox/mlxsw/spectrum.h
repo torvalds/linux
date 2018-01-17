@@ -469,7 +469,8 @@ struct mlxsw_sp_acl_profile_ops {
 	void (*ruleset_del)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
 	int (*ruleset_bind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 			    struct net_device *dev, bool ingress);
-	void (*ruleset_unbind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
+	void (*ruleset_unbind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
+			       struct net_device *dev, bool ingress);
 	u16 (*ruleset_group_id)(void *ruleset_priv);
 	size_t rule_priv_size;
 	int (*rule_add)(struct mlxsw_sp *mlxsw_sp,
