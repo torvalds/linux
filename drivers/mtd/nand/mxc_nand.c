@@ -252,6 +252,109 @@ static void memcpy16_toio(void __iomem *trg, const void *src, int size)
 		__raw_writew(*s++, t++);
 }
 
+/*
+ * The controller splits a page into data chunks of 512 bytes + partial oob.
+ * There are writesize / 512 such chunks, the size of the partial oob parts is
+ * oobsize / #chunks rounded down to a multiple of 2. The last oob chunk then
+ * contains additionally the byte lost by rounding (if any).
+ * This function handles the needed shuffling between host->data_buf (which
+ * holds a page in natural order, i.e. writesize bytes data + oobsize bytes
+ * spare) and the NFC buffer.
+ */
+static void copy_spare(struct mtd_info *mtd, bool bfrom)
+{
+	struct nand_chip *this = mtd_to_nand(mtd);
+	struct mxc_nand_host *host = nand_get_controller_data(this);
+	u16 i, oob_chunk_size;
+	u16 num_chunks = mtd->writesize / 512;
+
+	u8 *d = host->data_buf + mtd->writesize;
+	u8 __iomem *s = host->spare0;
+	u16 sparebuf_size = host->devtype_data->spare_len;
+
+	/* size of oob chunk for all but possibly the last one */
+	oob_chunk_size = (host->used_oobsize / num_chunks) & ~1;
+
+	if (bfrom) {
+		for (i = 0; i < num_chunks - 1; i++)
+			memcpy16_fromio(d + i * oob_chunk_size,
+					s + i * sparebuf_size,
+					oob_chunk_size);
+
+		/* the last chunk */
+		memcpy16_fromio(d + i * oob_chunk_size,
+				s + i * sparebuf_size,
+				host->used_oobsize - i * oob_chunk_size);
+	} else {
+		for (i = 0; i < num_chunks - 1; i++)
+			memcpy16_toio(&s[i * sparebuf_size],
+				      &d[i * oob_chunk_size],
+				      oob_chunk_size);
+
+		/* the last chunk */
+		memcpy16_toio(&s[i * sparebuf_size],
+			      &d[i * oob_chunk_size],
+			      host->used_oobsize - i * oob_chunk_size);
+	}
+}
+
+/*
+ * MXC NANDFC can only perform full page+spare or spare-only read/write.  When
+ * the upper layers perform a read/write buf operation, the saved column address
+ * is used to index into the full page. So usually this function is called with
+ * column == 0 (unless no column cycle is needed indicated by column == -1)
+ */
+static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
+{
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
+
+	/* Write out column address, if necessary */
+	if (column != -1) {
+		host->devtype_data->send_addr(host, column & 0xff,
+					      page_addr == -1);
+		if (mtd->writesize > 512)
+			/* another col addr cycle for 2k page */
+			host->devtype_data->send_addr(host,
+						      (column >> 8) & 0xff,
+						      false);
+	}
+
+	/* Write out page address, if necessary */
+	if (page_addr != -1) {
+		/* paddr_0 - p_addr_7 */
+		host->devtype_data->send_addr(host, (page_addr & 0xff), false);
+
+		if (mtd->writesize > 512) {
+			if (mtd->size >= 0x10000000) {
+				/* paddr_8 - paddr_15 */
+				host->devtype_data->send_addr(host,
+						(page_addr >> 8) & 0xff,
+						false);
+				host->devtype_data->send_addr(host,
+						(page_addr >> 16) & 0xff,
+						true);
+			} else
+				/* paddr_8 - paddr_15 */
+				host->devtype_data->send_addr(host,
+						(page_addr >> 8) & 0xff, true);
+		} else {
+			if (nand_chip->options & NAND_ROW_ADDR_3) {
+				/* paddr_8 - paddr_15 */
+				host->devtype_data->send_addr(host,
+						(page_addr >> 8) & 0xff,
+						false);
+				host->devtype_data->send_addr(host,
+						(page_addr >> 16) & 0xff,
+						true);
+			} else
+				/* paddr_8 - paddr_15 */
+				host->devtype_data->send_addr(host,
+						(page_addr >> 8) & 0xff, true);
+		}
+	}
+}
+
 static int check_int_v3(struct mxc_nand_host *host)
 {
 	uint32_t tmp;
@@ -770,109 +873,6 @@ static void mxc_nand_select_chip_v2(struct mtd_info *mtd, int chip)
 
 	host->active_cs = chip;
 	writew(host->active_cs << 4, NFC_V1_V2_BUF_ADDR);
-}
-
-/*
- * The controller splits a page into data chunks of 512 bytes + partial oob.
- * There are writesize / 512 such chunks, the size of the partial oob parts is
- * oobsize / #chunks rounded down to a multiple of 2. The last oob chunk then
- * contains additionally the byte lost by rounding (if any).
- * This function handles the needed shuffling between host->data_buf (which
- * holds a page in natural order, i.e. writesize bytes data + oobsize bytes
- * spare) and the NFC buffer.
- */
-static void copy_spare(struct mtd_info *mtd, bool bfrom)
-{
-	struct nand_chip *this = mtd_to_nand(mtd);
-	struct mxc_nand_host *host = nand_get_controller_data(this);
-	u16 i, oob_chunk_size;
-	u16 num_chunks = mtd->writesize / 512;
-
-	u8 *d = host->data_buf + mtd->writesize;
-	u8 __iomem *s = host->spare0;
-	u16 sparebuf_size = host->devtype_data->spare_len;
-
-	/* size of oob chunk for all but possibly the last one */
-	oob_chunk_size = (host->used_oobsize / num_chunks) & ~1;
-
-	if (bfrom) {
-		for (i = 0; i < num_chunks - 1; i++)
-			memcpy16_fromio(d + i * oob_chunk_size,
-					s + i * sparebuf_size,
-					oob_chunk_size);
-
-		/* the last chunk */
-		memcpy16_fromio(d + i * oob_chunk_size,
-				s + i * sparebuf_size,
-				host->used_oobsize - i * oob_chunk_size);
-	} else {
-		for (i = 0; i < num_chunks - 1; i++)
-			memcpy16_toio(&s[i * sparebuf_size],
-				      &d[i * oob_chunk_size],
-				      oob_chunk_size);
-
-		/* the last chunk */
-		memcpy16_toio(&s[i * sparebuf_size],
-			      &d[i * oob_chunk_size],
-			      host->used_oobsize - i * oob_chunk_size);
-	}
-}
-
-/*
- * MXC NANDFC can only perform full page+spare or spare-only read/write.  When
- * the upper layers perform a read/write buf operation, the saved column address
- * is used to index into the full page. So usually this function is called with
- * column == 0 (unless no column cycle is needed indicated by column == -1)
- */
-static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
-{
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
-
-	/* Write out column address, if necessary */
-	if (column != -1) {
-		host->devtype_data->send_addr(host, column & 0xff,
-					      page_addr == -1);
-		if (mtd->writesize > 512)
-			/* another col addr cycle for 2k page */
-			host->devtype_data->send_addr(host,
-						      (column >> 8) & 0xff,
-						      false);
-	}
-
-	/* Write out page address, if necessary */
-	if (page_addr != -1) {
-		/* paddr_0 - p_addr_7 */
-		host->devtype_data->send_addr(host, (page_addr & 0xff), false);
-
-		if (mtd->writesize > 512) {
-			if (mtd->size >= 0x10000000) {
-				/* paddr_8 - paddr_15 */
-				host->devtype_data->send_addr(host,
-						(page_addr >> 8) & 0xff,
-						false);
-				host->devtype_data->send_addr(host,
-						(page_addr >> 16) & 0xff,
-						true);
-			} else
-				/* paddr_8 - paddr_15 */
-				host->devtype_data->send_addr(host,
-						(page_addr >> 8) & 0xff, true);
-		} else {
-			if (nand_chip->options & NAND_ROW_ADDR_3) {
-				/* paddr_8 - paddr_15 */
-				host->devtype_data->send_addr(host,
-						(page_addr >> 8) & 0xff,
-						false);
-				host->devtype_data->send_addr(host,
-						(page_addr >> 16) & 0xff,
-						true);
-			} else
-				/* paddr_8 - paddr_15 */
-				host->devtype_data->send_addr(host,
-						(page_addr >> 8) & 0xff, true);
-		}
-	}
 }
 
 #define MXC_V1_ECCBYTES		5
