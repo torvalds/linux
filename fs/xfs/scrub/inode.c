@@ -39,6 +39,7 @@
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
+#include "scrub/btree.h"
 #include "scrub/trace.h"
 
 /*
@@ -577,6 +578,53 @@ out_buf:
 	return error;
 }
 
+/*
+ * Make sure the finobt doesn't think this inode is free.
+ * We don't have to check the inobt ourselves because we got the inode via
+ * IGET_UNTRUSTED, which checks the inobt for us.
+ */
+static void
+xfs_scrub_inode_xref_finobt(
+	struct xfs_scrub_context	*sc,
+	xfs_ino_t			ino)
+{
+	struct xfs_inobt_rec_incore	rec;
+	xfs_agino_t			agino;
+	int				has_record;
+	int				error;
+
+	if (!sc->sa.fino_cur)
+		return;
+
+	agino = XFS_INO_TO_AGINO(sc->mp, ino);
+
+	/*
+	 * Try to get the finobt record.  If we can't get it, then we're
+	 * in good shape.
+	 */
+	error = xfs_inobt_lookup(sc->sa.fino_cur, agino, XFS_LOOKUP_LE,
+			&has_record);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.fino_cur) ||
+	    !has_record)
+		return;
+
+	error = xfs_inobt_get_rec(sc->sa.fino_cur, &rec, &has_record);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.fino_cur) ||
+	    !has_record)
+		return;
+
+	/*
+	 * Otherwise, make sure this record either doesn't cover this inode,
+	 * or that it does but it's marked present.
+	 */
+	if (rec.ir_startino > agino ||
+	    rec.ir_startino + XFS_INODES_PER_CHUNK <= agino)
+		return;
+
+	if (rec.ir_free & XFS_INOBT_MASK(agino - rec.ir_startino))
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.fino_cur, 0);
+}
+
 /* Cross-reference with the other btrees. */
 STATIC void
 xfs_scrub_inode_xref(
@@ -599,6 +647,7 @@ xfs_scrub_inode_xref(
 		return;
 
 	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+	xfs_scrub_inode_xref_finobt(sc, ino);
 
 	xfs_scrub_ag_free(sc, &sc->sa);
 }

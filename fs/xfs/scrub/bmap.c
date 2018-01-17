@@ -138,6 +138,7 @@ xfs_scrub_bmap_extent_xref(
 		return;
 
 	xfs_scrub_xref_is_used_space(info->sc, agbno, len);
+	xfs_scrub_xref_is_not_inode_chunk(info->sc, agbno, len);
 
 	xfs_scrub_ag_free(info->sc, &info->sc->sa);
 }

@@ -62,6 +62,7 @@ xfs_scrub_refcountbt_xref(
 		return;
 
 	xfs_scrub_xref_is_used_space(sc, agbno, len);
+	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, len);
 }
 
 /* Scrub a refcountbt record. */

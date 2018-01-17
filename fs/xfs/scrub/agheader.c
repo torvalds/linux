@@ -122,6 +122,7 @@ xfs_scrub_superblock_xref(
 		return;
 
 	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, 1);
 
 	/* scrub teardown will take care of sc->sa for us */
 }
@@ -507,6 +508,7 @@ xfs_scrub_agf_xref(
 	xfs_scrub_xref_is_used_space(sc, agbno, 1);
 	xfs_scrub_agf_xref_freeblks(sc);
 	xfs_scrub_agf_xref_cntbt(sc);
+	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, 1);
 
 	/* scrub teardown will take care of sc->sa for us */
 }
@@ -612,6 +614,7 @@ xfs_scrub_agfl_block_xref(
 		return;
 
 	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, 1);
 }
 
 /* Scrub an AGFL block. */
@@ -666,6 +669,7 @@ xfs_scrub_agfl_xref(
 		return;
 
 	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, 1);
 
 	/*
 	 * Scrub teardown will take care of sc->sa for us.  Leave sc->sa
@@ -740,6 +744,27 @@ out:
 
 /* AGI */
 
+/* Check agi_count/agi_freecount */
+static inline void
+xfs_scrub_agi_xref_icounts(
+	struct xfs_scrub_context	*sc)
+{
+	struct xfs_agi			*agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
+	xfs_agino_t			icount;
+	xfs_agino_t			freecount;
+	int				error;
+
+	if (!sc->sa.ino_cur)
+		return;
+
+	error = xfs_ialloc_count_inodes(sc->sa.ino_cur, &icount, &freecount);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.ino_cur))
+		return;
+	if (be32_to_cpu(agi->agi_count) != icount ||
+	    be32_to_cpu(agi->agi_freecount) != freecount)
+		xfs_scrub_block_xref_set_corrupt(sc, sc->sa.agi_bp);
+}
+
 /* Cross-reference with the other btrees. */
 STATIC void
 xfs_scrub_agi_xref(
@@ -759,6 +784,8 @@ xfs_scrub_agi_xref(
 		return;
 
 	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, 1);
+	xfs_scrub_agi_xref_icounts(sc);
 
 	/* scrub teardown will take care of sc->sa for us */
 }

@@ -104,6 +104,7 @@ xfs_scrub_allocbt_xref(
 		return;
 
 	xfs_scrub_allocbt_xref_other(sc, agbno, len);
+	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, len);
 }
 
 /* Scrub a bnobt/cntbt record. */

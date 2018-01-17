@@ -64,6 +64,10 @@ xfs_scrub_rmapbt_xref(
 		return;
 
 	xfs_scrub_xref_is_used_space(sc, agbno, len);
+	if (irec->rm_owner == XFS_RMAP_OWN_INODES)
+		xfs_scrub_xref_is_inode_chunk(sc, agbno, len);
+	else
+		xfs_scrub_xref_is_not_inode_chunk(sc, agbno, len);
 }
 
 /* Scrub an rmapbt record. */

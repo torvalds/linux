@@ -126,5 +126,9 @@ xfs_scrub_quota(struct xfs_scrub_context *sc)
 /* cross-referencing helpers */
 void xfs_scrub_xref_is_used_space(struct xfs_scrub_context *sc,
 		xfs_agblock_t agbno, xfs_extlen_t len);
+void xfs_scrub_xref_is_not_inode_chunk(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len);
+void xfs_scrub_xref_is_inode_chunk(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len);
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */

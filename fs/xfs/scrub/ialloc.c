@@ -58,6 +58,35 @@ xfs_scrub_setup_ag_iallocbt(
 
 /* Inode btree scrubber. */
 
+/*
+ * If we're checking the finobt, cross-reference with the inobt.
+ * Otherwise we're checking the inobt; if there is an finobt, make sure
+ * we have a record or not depending on freecount.
+ */
+static inline void
+xfs_scrub_iallocbt_chunk_xref_other(
+	struct xfs_scrub_context	*sc,
+	struct xfs_inobt_rec_incore	*irec,
+	xfs_agino_t			agino)
+{
+	struct xfs_btree_cur		**pcur;
+	bool				has_irec;
+	int				error;
+
+	if (sc->sm->sm_type == XFS_SCRUB_TYPE_FINOBT)
+		pcur = &sc->sa.ino_cur;
+	else
+		pcur = &sc->sa.fino_cur;
+	if (!(*pcur))
+		return;
+	error = xfs_ialloc_has_inode_record(*pcur, agino, agino, &has_irec);
+	if (!xfs_scrub_should_check_xref(sc, &error, pcur))
+		return;
+	if (((irec->ir_freecount > 0 && !has_irec) ||
+	     (irec->ir_freecount == 0 && has_irec)))
+		xfs_scrub_btree_xref_set_corrupt(sc, *pcur, 0);
+}
+
 /* Cross-reference with the other btrees. */
 STATIC void
 xfs_scrub_iallocbt_chunk_xref(
@@ -71,6 +100,7 @@ xfs_scrub_iallocbt_chunk_xref(
 		return;
 
 	xfs_scrub_xref_is_used_space(sc, agbno, len);
+	xfs_scrub_iallocbt_chunk_xref_other(sc, irec, agino);
 }
 
 /* Is this chunk worth checking? */
@@ -351,4 +381,47 @@ xfs_scrub_finobt(
 	struct xfs_scrub_context	*sc)
 {
 	return xfs_scrub_iallocbt(sc, XFS_BTNUM_FINO);
+}
+
+/* See if an inode btree has (or doesn't have) an inode chunk record. */
+static inline void
+xfs_scrub_xref_inode_check(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len,
+	struct xfs_btree_cur		**icur,
+	bool				should_have_inodes)
+{
+	bool				has_inodes;
+	int				error;
+
+	if (!(*icur))
+		return;
+
+	error = xfs_ialloc_has_inodes_at_extent(*icur, agbno, len, &has_inodes);
+	if (!xfs_scrub_should_check_xref(sc, &error, icur))
+		return;
+	if (has_inodes != should_have_inodes)
+		xfs_scrub_btree_xref_set_corrupt(sc, *icur, 0);
+}
+
+/* xref check that the extent is not covered by inodes */
+void
+xfs_scrub_xref_is_not_inode_chunk(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len)
+{
+	xfs_scrub_xref_inode_check(sc, agbno, len, &sc->sa.ino_cur, false);
+	xfs_scrub_xref_inode_check(sc, agbno, len, &sc->sa.fino_cur, false);
+}
+
+/* xref check that the extent is covered by inodes */
+void
+xfs_scrub_xref_is_inode_chunk(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len)
+{
+	xfs_scrub_xref_inode_check(sc, agbno, len, &sc->sa.ino_cur, true);
 }
