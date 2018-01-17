@@ -256,10 +256,12 @@ u32 mlx5_fpga_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	struct mlx5_fpga_device *fdev = mdev->fpga;
 	u32 ret = 0;
 
-	if (mlx5_fpga_is_ipsec_device(mdev))
+	if (mlx5_fpga_is_ipsec_device(mdev)) {
 		ret |= MLX5_ACCEL_IPSEC_CAP_DEVICE;
-	else
+		ret |= MLX5_ACCEL_IPSEC_CAP_REQUIRED_METADATA;
+	} else {
 		return ret;
+	}
 
 	if (!fdev->ipsec)
 		return ret;
