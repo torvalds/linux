@@ -266,6 +266,7 @@ enum rdma_ch_state {
  * @cmd_wait_list: List of SCSI commands that arrived before the RTU event. This
  *                 list contains struct srpt_ioctx elements and is protected
  *                 against concurrent modification by the cm_id spinlock.
+ * @pkey:          P_Key of the IB partition for this SRP channel.
  * @sess:          Session information associated with this SRP channel.
  * @sess_name:     Session name.
  * @ini_guid:      Initiator port GUID.
@@ -294,6 +295,7 @@ struct srpt_rdma_ch {
 	struct srpt_recv_ioctx	**ioctx_recv_ring;
 	struct list_head	list;
 	struct list_head	cmd_wait_list;
+	uint16_t		pkey;
 	struct se_session	*sess;
 	u8			sess_name[36];
 	u8			ini_guid[24];
