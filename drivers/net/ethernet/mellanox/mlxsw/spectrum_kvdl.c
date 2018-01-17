@@ -286,7 +286,7 @@ static void mlxsw_sp_kvdl_parts_fini(struct mlxsw_sp *mlxsw_sp)
 		mlxsw_sp_kvdl_part_fini(mlxsw_sp, i);
 }
 
-u64 mlxsw_sp_kvdl_part_occ(struct mlxsw_sp_kvdl_part *part)
+static u64 mlxsw_sp_kvdl_part_occ(struct mlxsw_sp_kvdl_part *part)
 {
 	unsigned int nr_entries;
 	int bit = -1;
