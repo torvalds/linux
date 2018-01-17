@@ -407,6 +407,10 @@ xfs_scrub_btree_check_block_owner(
 	if (!bs->sc->sa.bno_cur && btnum == XFS_BTNUM_BNO)
 		bs->cur = NULL;
 
+	xfs_scrub_xref_is_owned_by(bs->sc, agbno, 1, bs->oinfo);
+	if (!bs->sc->sa.rmap_cur && btnum == XFS_BTNUM_RMAP)
+		bs->cur = NULL;
+
 	if (init_sa)
 		xfs_scrub_ag_free(bs->sc, &bs->sc->sa);
 

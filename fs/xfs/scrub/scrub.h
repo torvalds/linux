@@ -130,5 +130,13 @@ void xfs_scrub_xref_is_not_inode_chunk(struct xfs_scrub_context *sc,
 		xfs_agblock_t agbno, xfs_extlen_t len);
 void xfs_scrub_xref_is_inode_chunk(struct xfs_scrub_context *sc,
 		xfs_agblock_t agbno, xfs_extlen_t len);
+void xfs_scrub_xref_is_owned_by(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len,
+		struct xfs_owner_info *oinfo);
+void xfs_scrub_xref_is_not_owned_by(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len,
+		struct xfs_owner_info *oinfo);
+void xfs_scrub_xref_has_no_owner(struct xfs_scrub_context *sc,
+		xfs_agblock_t agbno, xfs_extlen_t len);
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */

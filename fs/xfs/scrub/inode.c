@@ -36,6 +36,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_da_format.h"
 #include "xfs_reflink.h"
+#include "xfs_rmap.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -632,6 +633,7 @@ xfs_scrub_inode_xref(
 	xfs_ino_t			ino,
 	struct xfs_dinode		*dip)
 {
+	struct xfs_owner_info		oinfo;
 	xfs_agnumber_t			agno;
 	xfs_agblock_t			agbno;
 	int				error;
@@ -648,6 +650,8 @@ xfs_scrub_inode_xref(
 
 	xfs_scrub_xref_is_used_space(sc, agbno, 1);
 	xfs_scrub_inode_xref_finobt(sc, ino);
+	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
+	xfs_scrub_xref_is_owned_by(sc, agbno, 1, &oinfo);
 
 	xfs_scrub_ag_free(sc, &sc->sa);
 }

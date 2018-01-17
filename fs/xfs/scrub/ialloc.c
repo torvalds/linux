@@ -96,11 +96,15 @@ xfs_scrub_iallocbt_chunk_xref(
 	xfs_agblock_t			agbno,
 	xfs_extlen_t			len)
 {
+	struct xfs_owner_info		oinfo;
+
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	xfs_scrub_xref_is_used_space(sc, agbno, len);
 	xfs_scrub_iallocbt_chunk_xref_other(sc, irec, agino);
+	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
+	xfs_scrub_xref_is_owned_by(sc, agbno, len, &oinfo);
 }
 
 /* Is this chunk worth checking? */
@@ -237,8 +241,14 @@ xfs_scrub_iallocbt_check_freemask(
 		}
 
 		/* If any part of this is a hole, skip it. */
-		if (ir_holemask)
+		if (ir_holemask) {
+			xfs_scrub_xref_is_not_owned_by(bs->sc, agbno,
+					blks_per_cluster, &oinfo);
 			continue;
+		}
+
+		xfs_scrub_xref_is_owned_by(bs->sc, agbno, blks_per_cluster,
+				&oinfo);
 
 		/* Grab the inode cluster buffer. */
 		imap.im_blkno = XFS_AGB_TO_DADDR(mp, bs->cur->bc_private.a.agno,
@@ -274,6 +284,7 @@ xfs_scrub_iallocbt_rec(
 	union xfs_btree_rec		*rec)
 {
 	struct xfs_mount		*mp = bs->cur->bc_mp;
+	xfs_filblks_t			*inode_blocks = bs->private;
 	struct xfs_inobt_rec_incore	irec;
 	uint64_t			holes;
 	xfs_agnumber_t			agno = bs->cur->bc_private.a.agno;
@@ -310,6 +321,9 @@ xfs_scrub_iallocbt_rec(
 	if ((agbno & (xfs_ialloc_cluster_alignment(mp) - 1)) ||
 	    (agbno & (xfs_icluster_size_fsb(mp) - 1)))
 		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	*inode_blocks += XFS_B_TO_FSB(mp,
+			irec.ir_count * mp->m_sb.sb_inodesize);
 
 	/* Handle non-sparse inodes */
 	if (!xfs_inobt_issparse(irec.ir_holemask)) {
@@ -355,6 +369,72 @@ out:
 	return error;
 }
 
+/*
+ * Make sure the inode btrees are as large as the rmap thinks they are.
+ * Don't bother if we're missing btree cursors, as we're already corrupt.
+ */
+STATIC void
+xfs_scrub_iallocbt_xref_rmap_btreeblks(
+	struct xfs_scrub_context	*sc,
+	int				which)
+{
+	struct xfs_owner_info		oinfo;
+	xfs_filblks_t			blocks;
+	xfs_extlen_t			inobt_blocks = 0;
+	xfs_extlen_t			finobt_blocks = 0;
+	int				error;
+
+	if (!sc->sa.ino_cur || !sc->sa.rmap_cur ||
+	    (xfs_sb_version_hasfinobt(&sc->mp->m_sb) && !sc->sa.fino_cur))
+		return;
+
+	/* Check that we saw as many inobt blocks as the rmap says. */
+	error = xfs_btree_count_blocks(sc->sa.ino_cur, &inobt_blocks);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.ino_cur))
+		return;
+
+	if (sc->sa.fino_cur) {
+		error = xfs_btree_count_blocks(sc->sa.fino_cur, &finobt_blocks);
+		if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.fino_cur))
+			return;
+	}
+
+	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INOBT);
+	error = xfs_scrub_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, &oinfo,
+			&blocks);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.rmap_cur))
+		return;
+	if (blocks != inobt_blocks + finobt_blocks)
+		xfs_scrub_btree_set_corrupt(sc, sc->sa.ino_cur, 0);
+}
+
+/*
+ * Make sure that the inobt records point to the same number of blocks as
+ * the rmap says are owned by inodes.
+ */
+STATIC void
+xfs_scrub_iallocbt_xref_rmap_inodes(
+	struct xfs_scrub_context	*sc,
+	int				which,
+	xfs_filblks_t			inode_blocks)
+{
+	struct xfs_owner_info		oinfo;
+	xfs_filblks_t			blocks;
+	int				error;
+
+	if (!sc->sa.rmap_cur)
+		return;
+
+	/* Check that we saw as many inode blocks as the rmap knows about. */
+	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
+	error = xfs_scrub_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, &oinfo,
+			&blocks);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.rmap_cur))
+		return;
+	if (blocks != inode_blocks)
+		xfs_scrub_btree_set_corrupt(sc, sc->sa.ino_cur, 0);
+}
+
 /* Scrub the inode btrees for some AG. */
 STATIC int
 xfs_scrub_iallocbt(
@@ -363,10 +443,29 @@ xfs_scrub_iallocbt(
 {
 	struct xfs_btree_cur		*cur;
 	struct xfs_owner_info		oinfo;
+	xfs_filblks_t			inode_blocks = 0;
+	int				error;
 
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INOBT);
 	cur = which == XFS_BTNUM_INO ? sc->sa.ino_cur : sc->sa.fino_cur;
-	return xfs_scrub_btree(sc, cur, xfs_scrub_iallocbt_rec, &oinfo, NULL);
+	error = xfs_scrub_btree(sc, cur, xfs_scrub_iallocbt_rec, &oinfo,
+			&inode_blocks);
+	if (error)
+		return error;
+
+	xfs_scrub_iallocbt_xref_rmap_btreeblks(sc, which);
+
+	/*
+	 * If we're scrubbing the inode btree, inode_blocks is the number of
+	 * blocks pointed to by all the inode chunk records.  Therefore, we
+	 * should compare to the number of inode chunk blocks that the rmap
+	 * knows about.  We can't do this for the finobt since it only points
+	 * to inode chunks with free inodes.
+	 */
+	if (which == XFS_BTNUM_INO)
+		xfs_scrub_iallocbt_xref_rmap_inodes(sc, which, inode_blocks);
+
+	return error;
 }
 
 int

@@ -157,3 +157,68 @@ xfs_scrub_rmapbt(
 	return xfs_scrub_btree(sc, sc->sa.rmap_cur, xfs_scrub_rmapbt_rec,
 			&oinfo, NULL);
 }
+
+/* xref check that the extent is owned by a given owner */
+static inline void
+xfs_scrub_xref_check_owner(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	struct xfs_owner_info		*oinfo,
+	bool				should_have_rmap)
+{
+	bool				has_rmap;
+	int				error;
+
+	if (!sc->sa.rmap_cur)
+		return;
+
+	error = xfs_rmap_record_exists(sc->sa.rmap_cur, bno, len, oinfo,
+			&has_rmap);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.rmap_cur))
+		return;
+	if (has_rmap != should_have_rmap)
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
+}
+
+/* xref check that the extent is owned by a given owner */
+void
+xfs_scrub_xref_is_owned_by(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	struct xfs_owner_info		*oinfo)
+{
+	xfs_scrub_xref_check_owner(sc, bno, len, oinfo, true);
+}
+
+/* xref check that the extent is not owned by a given owner */
+void
+xfs_scrub_xref_is_not_owned_by(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	struct xfs_owner_info		*oinfo)
+{
+	xfs_scrub_xref_check_owner(sc, bno, len, oinfo, false);
+}
+
+/* xref check that the extent has no reverse mapping at all */
+void
+xfs_scrub_xref_has_no_owner(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len)
+{
+	bool				has_rmap;
+	int				error;
+
+	if (!sc->sa.rmap_cur)
+		return;
+
+	error = xfs_rmap_has_record(sc->sa.rmap_cur, bno, len, &has_rmap);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.rmap_cur))
+		return;
+	if (has_rmap)
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
+}

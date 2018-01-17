@@ -99,6 +99,139 @@ struct xfs_scrub_bmap_info {
 	int				whichfork;
 };
 
+/* Look for a corresponding rmap for this irec. */
+static inline bool
+xfs_scrub_bmap_get_rmap(
+	struct xfs_scrub_bmap_info	*info,
+	struct xfs_bmbt_irec		*irec,
+	xfs_agblock_t			agbno,
+	uint64_t			owner,
+	struct xfs_rmap_irec		*rmap)
+{
+	xfs_fileoff_t			offset;
+	unsigned int			rflags = 0;
+	int				has_rmap;
+	int				error;
+
+	if (info->whichfork == XFS_ATTR_FORK)
+		rflags |= XFS_RMAP_ATTR_FORK;
+
+	/*
+	 * CoW staging extents are owned (on disk) by the refcountbt, so
+	 * their rmaps do not have offsets.
+	 */
+	if (info->whichfork == XFS_COW_FORK)
+		offset = 0;
+	else
+		offset = irec->br_startoff;
+
+	/*
+	 * If the caller thinks this could be a shared bmbt extent (IOWs,
+	 * any data fork extent of a reflink inode) then we have to use the
+	 * range rmap lookup to make sure we get the correct owner/offset.
+	 */
+	if (info->is_shared) {
+		error = xfs_rmap_lookup_le_range(info->sc->sa.rmap_cur, agbno,
+				owner, offset, rflags, rmap, &has_rmap);
+		if (!xfs_scrub_should_check_xref(info->sc, &error,
+				&info->sc->sa.rmap_cur))
+			return false;
+		goto out;
+	}
+
+	/*
+	 * Otherwise, use the (faster) regular lookup.
+	 */
+	error = xfs_rmap_lookup_le(info->sc->sa.rmap_cur, agbno, 0, owner,
+			offset, rflags, &has_rmap);
+	if (!xfs_scrub_should_check_xref(info->sc, &error,
+			&info->sc->sa.rmap_cur))
+		return false;
+	if (!has_rmap)
+		goto out;
+
+	error = xfs_rmap_get_rec(info->sc->sa.rmap_cur, rmap, &has_rmap);
+	if (!xfs_scrub_should_check_xref(info->sc, &error,
+			&info->sc->sa.rmap_cur))
+		return false;
+
+out:
+	if (!has_rmap)
+		xfs_scrub_fblock_xref_set_corrupt(info->sc, info->whichfork,
+			irec->br_startoff);
+	return has_rmap;
+}
+
+/* Make sure that we have rmapbt records for this extent. */
+STATIC void
+xfs_scrub_bmap_xref_rmap(
+	struct xfs_scrub_bmap_info	*info,
+	struct xfs_bmbt_irec		*irec,
+	xfs_agblock_t			agbno)
+{
+	struct xfs_rmap_irec		rmap;
+	unsigned long long		rmap_end;
+	uint64_t			owner;
+
+	if (!info->sc->sa.rmap_cur)
+		return;
+
+	if (info->whichfork == XFS_COW_FORK)
+		owner = XFS_RMAP_OWN_COW;
+	else
+		owner = info->sc->ip->i_ino;
+
+	/* Find the rmap record for this irec. */
+	if (!xfs_scrub_bmap_get_rmap(info, irec, agbno, owner, &rmap))
+		return;
+
+	/* Check the rmap. */
+	rmap_end = (unsigned long long)rmap.rm_startblock + rmap.rm_blockcount;
+	if (rmap.rm_startblock > agbno ||
+	    agbno + irec->br_blockcount > rmap_end)
+		xfs_scrub_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+
+	/*
+	 * Check the logical offsets if applicable.  CoW staging extents
+	 * don't track logical offsets since the mappings only exist in
+	 * memory.
+	 */
+	if (info->whichfork != XFS_COW_FORK) {
+		rmap_end = (unsigned long long)rmap.rm_offset +
+				rmap.rm_blockcount;
+		if (rmap.rm_offset > irec->br_startoff ||
+		    irec->br_startoff + irec->br_blockcount > rmap_end)
+			xfs_scrub_fblock_xref_set_corrupt(info->sc,
+					info->whichfork, irec->br_startoff);
+	}
+
+	if (rmap.rm_owner != owner)
+		xfs_scrub_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+
+	/*
+	 * Check for discrepancies between the unwritten flag in the irec and
+	 * the rmap.  Note that the (in-memory) CoW fork distinguishes between
+	 * unwritten and written extents, but we don't track that in the rmap
+	 * records because the blocks are owned (on-disk) by the refcountbt,
+	 * which doesn't track unwritten state.
+	 */
+	if (owner != XFS_RMAP_OWN_COW &&
+	    irec->br_state == XFS_EXT_UNWRITTEN &&
+	    !(rmap.rm_flags & XFS_RMAP_UNWRITTEN))
+		xfs_scrub_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+
+	if (info->whichfork == XFS_ATTR_FORK &&
+	    !(rmap.rm_flags & XFS_RMAP_ATTR_FORK))
+		xfs_scrub_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+	if (rmap.rm_flags & XFS_RMAP_BMBT_BLOCK)
+		xfs_scrub_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+}
+
 /* Cross-reference a single rtdev extent record. */
 STATIC void
 xfs_scrub_bmap_rt_extent_xref(
@@ -139,6 +272,7 @@ xfs_scrub_bmap_extent_xref(
 
 	xfs_scrub_xref_is_used_space(info->sc, agbno, len);
 	xfs_scrub_xref_is_not_inode_chunk(info->sc, agbno, len);
+	xfs_scrub_bmap_xref_rmap(info, irec, agbno);
 
 	xfs_scrub_ag_free(info->sc, &info->sc->sa);
 }
