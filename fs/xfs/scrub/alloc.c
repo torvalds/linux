@@ -31,6 +31,7 @@
 #include "xfs_sb.h"
 #include "xfs_alloc.h"
 #include "xfs_rmap.h"
+#include "xfs_alloc.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -49,6 +50,48 @@ xfs_scrub_setup_ag_allocbt(
 }
 
 /* Free space btree scrubber. */
+/*
+ * Ensure there's a corresponding cntbt/bnobt record matching this
+ * bnobt/cntbt record, respectively.
+ */
+STATIC void
+xfs_scrub_allocbt_xref_other(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len)
+{
+	struct xfs_btree_cur		**pcur;
+	xfs_agblock_t			fbno;
+	xfs_extlen_t			flen;
+	int				has_otherrec;
+	int				error;
+
+	if (sc->sm->sm_type == XFS_SCRUB_TYPE_BNOBT)
+		pcur = &sc->sa.cnt_cur;
+	else
+		pcur = &sc->sa.bno_cur;
+	if (!*pcur)
+		return;
+
+	error = xfs_alloc_lookup_le(*pcur, agbno, len, &has_otherrec);
+	if (!xfs_scrub_should_check_xref(sc, &error, pcur))
+		return;
+	if (!has_otherrec) {
+		xfs_scrub_btree_xref_set_corrupt(sc, *pcur, 0);
+		return;
+	}
+
+	error = xfs_alloc_get_rec(*pcur, &fbno, &flen, &has_otherrec);
+	if (!xfs_scrub_should_check_xref(sc, &error, pcur))
+		return;
+	if (!has_otherrec) {
+		xfs_scrub_btree_xref_set_corrupt(sc, *pcur, 0);
+		return;
+	}
+
+	if (fbno != agbno || flen != len)
+		xfs_scrub_btree_xref_set_corrupt(sc, *pcur, 0);
+}
 
 /* Cross-reference with the other btrees. */
 STATIC void
@@ -59,6 +102,8 @@ xfs_scrub_allocbt_xref(
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	xfs_scrub_allocbt_xref_other(sc, agbno, len);
 }
 
 /* Scrub a bnobt/cntbt record. */

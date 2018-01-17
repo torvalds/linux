@@ -454,6 +454,38 @@ xfs_scrub_agf_xref_freeblks(
 		xfs_scrub_block_xref_set_corrupt(sc, sc->sa.agf_bp);
 }
 
+/* Cross reference the AGF with the cntbt (freespace by length btree) */
+static inline void
+xfs_scrub_agf_xref_cntbt(
+	struct xfs_scrub_context	*sc)
+{
+	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	xfs_agblock_t			agbno;
+	xfs_extlen_t			blocks;
+	int				have;
+	int				error;
+
+	if (!sc->sa.cnt_cur)
+		return;
+
+	/* Any freespace at all? */
+	error = xfs_alloc_lookup_le(sc->sa.cnt_cur, 0, -1U, &have);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.cnt_cur))
+		return;
+	if (!have) {
+		if (agf->agf_freeblks != be32_to_cpu(0))
+			xfs_scrub_block_xref_set_corrupt(sc, sc->sa.agf_bp);
+		return;
+	}
+
+	/* Check agf_longest */
+	error = xfs_alloc_get_rec(sc->sa.cnt_cur, &agbno, &blocks, &have);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.cnt_cur))
+		return;
+	if (!have || blocks != be32_to_cpu(agf->agf_longest))
+		xfs_scrub_block_xref_set_corrupt(sc, sc->sa.agf_bp);
+}
+
 /* Cross-reference with the other btrees. */
 STATIC void
 xfs_scrub_agf_xref(
@@ -474,6 +506,7 @@ xfs_scrub_agf_xref(
 
 	xfs_scrub_xref_is_used_space(sc, agbno, 1);
 	xfs_scrub_agf_xref_freeblks(sc);
+	xfs_scrub_agf_xref_cntbt(sc);
 
 	/* scrub teardown will take care of sc->sa for us */
 }
