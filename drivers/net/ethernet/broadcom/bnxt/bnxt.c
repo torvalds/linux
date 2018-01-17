@@ -4791,7 +4791,46 @@ func_qcfg_exit:
 	return rc;
 }
 
-static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
+static int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp)
+{
+	struct hwrm_func_resource_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_func_resource_qcaps_input req = {0};
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_RESOURCE_QCAPS, -1, -1);
+	req.fid = cpu_to_le16(0xffff);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc) {
+		rc = -EIO;
+		goto hwrm_func_resc_qcaps_exit;
+	}
+
+	hw_resc->min_rsscos_ctxs = le16_to_cpu(resp->min_rsscos_ctx);
+	hw_resc->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
+	hw_resc->min_cp_rings = le16_to_cpu(resp->min_cmpl_rings);
+	hw_resc->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
+	hw_resc->min_tx_rings = le16_to_cpu(resp->min_tx_rings);
+	hw_resc->max_tx_rings = le16_to_cpu(resp->max_tx_rings);
+	hw_resc->min_rx_rings = le16_to_cpu(resp->min_rx_rings);
+	hw_resc->max_rx_rings = le16_to_cpu(resp->max_rx_rings);
+	hw_resc->min_hw_ring_grps = le16_to_cpu(resp->min_hw_ring_grps);
+	hw_resc->max_hw_ring_grps = le16_to_cpu(resp->max_hw_ring_grps);
+	hw_resc->min_l2_ctxs = le16_to_cpu(resp->min_l2_ctxs);
+	hw_resc->max_l2_ctxs = le16_to_cpu(resp->max_l2_ctxs);
+	hw_resc->min_vnics = le16_to_cpu(resp->min_vnics);
+	hw_resc->max_vnics = le16_to_cpu(resp->max_vnics);
+	hw_resc->min_stat_ctxs = le16_to_cpu(resp->min_stat_ctx);
+	hw_resc->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
+
+hwrm_func_resc_qcaps_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 {
 	int rc = 0;
 	struct hwrm_func_qcaps_input req = {0};
@@ -4857,6 +4896,21 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 hwrm_func_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
+}
+
+static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
+{
+	int rc;
+
+	rc = __bnxt_hwrm_func_qcaps(bp);
+	if (rc)
+		return rc;
+	if (bp->hwrm_spec_code >= 0x10803) {
+		rc = bnxt_hwrm_func_resc_qcaps(bp);
+		if (!rc)
+			bp->flags |= BNXT_FLAG_NEW_RM;
+	}
+	return 0;
 }
 
 static int bnxt_hwrm_func_reset(struct bnxt *bp)
