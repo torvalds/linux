@@ -115,6 +115,7 @@ struct msm_dsi_host {
 	struct clk *pixel_clk;
 	struct clk *byte_clk_src;
 	struct clk *pixel_clk_src;
+	struct clk *byte_intf_clk;
 
 	u32 byte_clk_rate;
 	u32 esc_clk_rate;
@@ -377,6 +378,14 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		goto exit;
 	}
 
+	msm_host->byte_intf_clk = msm_clk_get(pdev, "byte_intf");
+	if (IS_ERR(msm_host->byte_intf_clk)) {
+		ret = PTR_ERR(msm_host->byte_intf_clk);
+		pr_debug("%s: can't find byte_intf clock. ret=%d\n",
+			 __func__, ret);
+		msm_host->byte_intf_clk = NULL;
+	}
+
 	msm_host->byte_clk_src = clk_get_parent(msm_host->byte_clk);
 	if (!msm_host->byte_clk_src) {
 		ret = -ENODEV;
@@ -502,6 +511,16 @@ static int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
 		goto error;
 	}
 
+	if (msm_host->byte_intf_clk) {
+		ret = clk_set_rate(msm_host->byte_intf_clk,
+				   msm_host->byte_clk_rate / 2);
+		if (ret) {
+			pr_err("%s: Failed to set rate byte intf clk, %d\n",
+			       __func__, ret);
+			goto error;
+		}
+	}
+
 	ret = clk_prepare_enable(msm_host->esc_clk);
 	if (ret) {
 		pr_err("%s: Failed to enable dsi esc clk\n", __func__);
@@ -520,8 +539,19 @@ static int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
 		goto pixel_clk_err;
 	}
 
+	if (msm_host->byte_intf_clk) {
+		ret = clk_prepare_enable(msm_host->byte_intf_clk);
+		if (ret) {
+			pr_err("%s: Failed to enable byte intf clk\n",
+			       __func__);
+			goto byte_intf_clk_err;
+		}
+	}
+
 	return 0;
 
+byte_intf_clk_err:
+	clk_disable_unprepare(msm_host->pixel_clk);
 pixel_clk_err:
 	clk_disable_unprepare(msm_host->byte_clk);
 byte_clk_err:
@@ -615,6 +645,8 @@ static void dsi_link_clk_disable(struct msm_dsi_host *msm_host)
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
 		clk_disable_unprepare(msm_host->esc_clk);
 		clk_disable_unprepare(msm_host->pixel_clk);
+		if (msm_host->byte_intf_clk)
+			clk_disable_unprepare(msm_host->byte_intf_clk);
 		clk_disable_unprepare(msm_host->byte_clk);
 	} else {
 		clk_disable_unprepare(msm_host->pixel_clk);
