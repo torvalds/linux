@@ -620,27 +620,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 		goto out_tunnel;
 	}
 
-	/* Check that pseudowire-specific params are present */
-	switch (cfg.pw_type) {
-	case L2TP_PWTYPE_NONE:
-		break;
-	case L2TP_PWTYPE_ETH_VLAN:
-		if (!info->attrs[L2TP_ATTR_VLAN_ID]) {
-			ret = -EINVAL;
-			goto out_tunnel;
-		}
-		break;
-	case L2TP_PWTYPE_ETH:
-		break;
-	case L2TP_PWTYPE_PPP:
-	case L2TP_PWTYPE_PPP_AC:
-		break;
-	case L2TP_PWTYPE_IP:
-	default:
-		ret = -EPROTONOSUPPORT;
-		break;
-	}
-
 	ret = l2tp_nl_cmd_ops[cfg.pw_type]->session_create(net, tunnel,
 							   session_id,
 							   peer_session_id,
