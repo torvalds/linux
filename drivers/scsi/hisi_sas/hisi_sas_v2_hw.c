@@ -3474,6 +3474,44 @@ static int soft_reset_v2_hw(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+static int write_gpio_v2_hw(struct hisi_hba *hisi_hba, u8 reg_type,
+			u8 reg_index, u8 reg_count, u8 *write_data)
+{
+	struct device *dev = hisi_hba->dev;
+	int phy_no, count;
+
+	if (!hisi_hba->sgpio_regs)
+		return -EOPNOTSUPP;
+
+	switch (reg_type) {
+	case SAS_GPIO_REG_TX:
+		count = reg_count * 4;
+		count = min(count, hisi_hba->n_phy);
+
+		for (phy_no = 0; phy_no < count; phy_no++) {
+			/*
+			 * GPIO_TX[n] register has the highest numbered drive
+			 * of the four in the first byte and the lowest
+			 * numbered drive in the fourth byte.
+			 * See SFF-8485 Rev. 0.7 Table 24.
+			 */
+			void __iomem  *reg_addr = hisi_hba->sgpio_regs +
+					reg_index * 4 + phy_no;
+			int data_idx = phy_no + 3 - (phy_no % 4) * 2;
+
+			writeb(write_data[data_idx], reg_addr);
+		}
+
+		break;
+	default:
+		dev_err(dev, "write gpio: unsupported or bad reg type %d\n",
+				reg_type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.hw_init = hisi_sas_v2_init,
 	.setup_itct = setup_itct_v2_hw,
@@ -3501,6 +3539,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v2_hdr),
 	.soft_reset = soft_reset_v2_hw,
 	.get_phys_state = get_phys_state_v2_hw,
+	.write_gpio = write_gpio_v2_hw,
 };
 
 static int hisi_sas_v2_probe(struct platform_device *pdev)

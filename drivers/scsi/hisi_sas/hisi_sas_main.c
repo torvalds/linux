@@ -1634,6 +1634,18 @@ static void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
 {
 }
 
+static int hisi_sas_write_gpio(struct sas_ha_struct *sha, u8 reg_type,
+			u8 reg_index, u8 reg_count, u8 *write_data)
+{
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+
+	if (!hisi_hba->hw->write_gpio)
+		return -EOPNOTSUPP;
+
+	return hisi_hba->hw->write_gpio(hisi_hba, reg_type,
+				reg_index, reg_count, write_data);
+}
+
 static void hisi_sas_phy_disconnected(struct hisi_sas_phy *phy)
 {
 	phy->phy_attached = 0;
@@ -1731,6 +1743,7 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 	.lldd_clear_nexus_ha = hisi_sas_clear_nexus_ha,
 	.lldd_port_formed	= hisi_sas_port_formed,
 	.lldd_port_deformed = hisi_sas_port_deformed,
+	.lldd_write_gpio = hisi_sas_write_gpio,
 };
 
 void hisi_sas_init_mem(struct hisi_hba *hisi_hba)
@@ -2054,6 +2067,13 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	hisi_hba->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hisi_hba->regs))
 		goto err_out;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res) {
+		hisi_hba->sgpio_regs = devm_ioremap_resource(dev, res);
+		if (IS_ERR(hisi_hba->sgpio_regs))
+			goto err_out;
+	}
 
 	if (hisi_sas_alloc(hisi_hba, shost)) {
 		hisi_sas_free(hisi_hba);
