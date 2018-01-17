@@ -776,7 +776,17 @@ static int do_dump(int argc, char **argv)
 		}
 	} else {
 		if (member_len == &info.jited_prog_len) {
-			disasm_print_insn(buf, *member_len, opcodes);
+			const char *name = NULL;
+
+			if (info.ifindex) {
+				name = ifindex_to_bfd_name_ns(info.ifindex,
+							      info.netns_dev,
+							      info.netns_ino);
+				if (!name)
+					goto err_free;
+			}
+
+			disasm_print_insn(buf, *member_len, opcodes, name);
 		} else {
 			kernel_syms_load(&dd);
 			if (json_output)

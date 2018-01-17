@@ -121,7 +121,10 @@ int do_cgroup(int argc, char **arg);
 
 int prog_parse_fd(int *argc, char ***argv);
 
-void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes);
+void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
+		       const char *arch);
 void print_hex_data_json(uint8_t *data, size_t len);
+
+const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino);
 
 #endif
