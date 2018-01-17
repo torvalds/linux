@@ -1533,39 +1533,39 @@ fail:
  * srpt_handle_new_iu - process a newly received information unit
  * @ch:    RDMA channel through which the information unit has been received.
  * @recv_ioctx: Receive I/O context associated with the information unit.
- * @send_ioctx: Send I/O context.
  */
-static void srpt_handle_new_iu(struct srpt_rdma_ch *ch,
-			       struct srpt_recv_ioctx *recv_ioctx,
-			       struct srpt_send_ioctx *send_ioctx)
+static bool
+srpt_handle_new_iu(struct srpt_rdma_ch *ch, struct srpt_recv_ioctx *recv_ioctx)
 {
+	struct srpt_send_ioctx *send_ioctx = NULL;
 	struct srp_cmd *srp_cmd;
+	bool res = false;
+	u8 opcode;
 
 	BUG_ON(!ch);
 	BUG_ON(!recv_ioctx);
+
+	if (unlikely(ch->state == CH_CONNECTING))
+		goto push;
 
 	ib_dma_sync_single_for_cpu(ch->sport->sdev->device,
 				   recv_ioctx->ioctx.dma, srp_max_req_size,
 				   DMA_FROM_DEVICE);
 
-	if (unlikely(ch->state == CH_CONNECTING))
-		goto out_wait;
-
-	if (unlikely(ch->state != CH_LIVE))
-		return;
-
 	srp_cmd = recv_ioctx->ioctx.buf;
-	if (srp_cmd->opcode == SRP_CMD || srp_cmd->opcode == SRP_TSK_MGMT) {
-		if (!send_ioctx) {
-			if (!list_empty(&ch->cmd_wait_list))
-				goto out_wait;
-			send_ioctx = srpt_get_send_ioctx(ch);
-		}
+	opcode = srp_cmd->opcode;
+	if (opcode == SRP_CMD || opcode == SRP_TSK_MGMT) {
+		send_ioctx = srpt_get_send_ioctx(ch);
 		if (unlikely(!send_ioctx))
-			goto out_wait;
+			goto push;
 	}
 
-	switch (srp_cmd->opcode) {
+	if (!list_empty(&recv_ioctx->wait_list)) {
+		WARN_ON_ONCE(!ch->processing_wait_list);
+		list_del_init(&recv_ioctx->wait_list);
+	}
+
+	switch (opcode) {
 	case SRP_CMD:
 		srpt_handle_cmd(ch, recv_ioctx, send_ioctx);
 		break;
@@ -1585,16 +1585,22 @@ static void srpt_handle_new_iu(struct srpt_rdma_ch *ch,
 		pr_err("Received SRP_RSP\n");
 		break;
 	default:
-		pr_err("received IU with unknown opcode 0x%x\n",
-		       srp_cmd->opcode);
+		pr_err("received IU with unknown opcode 0x%x\n", opcode);
 		break;
 	}
 
 	srpt_post_recv(ch->sport->sdev, ch, recv_ioctx);
-	return;
+	res = true;
 
-out_wait:
-	list_add_tail(&recv_ioctx->wait_list, &ch->cmd_wait_list);
+out:
+	return res;
+
+push:
+	if (list_empty(&recv_ioctx->wait_list)) {
+		WARN_ON_ONCE(ch->processing_wait_list);
+		list_add_tail(&recv_ioctx->wait_list, &ch->cmd_wait_list);
+	}
+	goto out;
 }
 
 static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc)
@@ -1609,7 +1615,7 @@ static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 		req_lim = atomic_dec_return(&ch->req_lim);
 		if (unlikely(req_lim < 0))
 			pr_err("req_lim = %d < 0\n", req_lim);
-		srpt_handle_new_iu(ch, ioctx, NULL);
+		srpt_handle_new_iu(ch, ioctx);
 	} else {
 		pr_info_ratelimited("receiving failed for ioctx %p with status %d\n",
 				    ioctx, wc->status);
@@ -1623,19 +1629,21 @@ static void srpt_recv_done(struct ib_cq *cq, struct ib_wc *wc)
  */
 static void srpt_process_wait_list(struct srpt_rdma_ch *ch)
 {
-	struct srpt_send_ioctx *ioctx;
+	struct srpt_recv_ioctx *recv_ioctx, *tmp;
 
-	while (!list_empty(&ch->cmd_wait_list) &&
-	       ch->state >= CH_LIVE &&
-	       (ioctx = srpt_get_send_ioctx(ch)) != NULL) {
-		struct srpt_recv_ioctx *recv_ioctx;
+	WARN_ON_ONCE(ch->state == CH_CONNECTING);
 
-		recv_ioctx = list_first_entry(&ch->cmd_wait_list,
-					      struct srpt_recv_ioctx,
-					      wait_list);
-		list_del(&recv_ioctx->wait_list);
-		srpt_handle_new_iu(ch, recv_ioctx, ioctx);
+	if (list_empty(&ch->cmd_wait_list))
+		return;
+
+	WARN_ON_ONCE(ch->processing_wait_list);
+	ch->processing_wait_list = true;
+	list_for_each_entry_safe(recv_ioctx, tmp, &ch->cmd_wait_list,
+				 wait_list) {
+		if (!srpt_handle_new_iu(ch, recv_ioctx))
+			break;
 	}
+	ch->processing_wait_list = false;
 }
 
 /**
@@ -2150,6 +2158,8 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 			    cpu_to_be32(SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 			goto free_ring;
 		}
+		for (i = 0; i < ch->rq_size; i++)
+			INIT_LIST_HEAD(&ch->ioctx_recv_ring[i]->wait_list);
 	}
 
 	ret = srpt_create_ch_ib(ch);
@@ -2773,8 +2783,10 @@ static int srpt_alloc_srq(struct srpt_device *sdev)
 	sdev->use_srq = true;
 	sdev->srq = srq;
 
-	for (i = 0; i < sdev->srq_size; ++i)
+	for (i = 0; i < sdev->srq_size; ++i) {
+		INIT_LIST_HEAD(&sdev->ioctx_ring[i]->wait_list);
 		srpt_post_recv(sdev, NULL, sdev->ioctx_ring[i]);
+	}
 
 	return 0;
 }

@@ -261,6 +261,7 @@ enum rdma_ch_state {
  * @spinlock:      Protects free_list and state.
  * @free_list:     Head of list with free send I/O contexts.
  * @state:         channel state. See also enum rdma_ch_state.
+ * @processing_wait_list: Whether or not cmd_wait_list is being processed.
  * @ioctx_ring:    Send ring.
  * @ioctx_recv_ring: Receive I/O context ring.
  * @list:          Node in srpt_nexus.ch_list.
@@ -295,6 +296,7 @@ struct srpt_rdma_ch {
 	struct list_head	list;
 	struct list_head	cmd_wait_list;
 	uint16_t		pkey;
+	bool			processing_wait_list;
 	struct se_session	*sess;
 	u8			sess_name[24];
 	struct work_struct	release_work;
