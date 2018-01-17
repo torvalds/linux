@@ -1120,6 +1120,11 @@ static void tmio_mmc_of_parse(struct platform_device *pdev,
 	if (!np)
 		return;
 
+	/*
+	 * DEPRECATED:
+	 * For new platforms, please use "disable-wp" instead of
+	 * "toshiba,mmc-wrprotect-disable"
+	 */
 	if (of_get_property(np, "toshiba,mmc-wrprotect-disable", NULL))
 		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
 }
