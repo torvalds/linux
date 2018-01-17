@@ -1227,6 +1227,7 @@ static int em28178_dvb_init_pctv_292e(struct em28xx *dev)
 	si2168_config.i2c_adapter = &adapter;
 	si2168_config.fe = &dvb->fe[0];
 	si2168_config.ts_mode = SI2168_TS_PARALLEL;
+	si2168_config.spectral_inversion = true;
 
 	dvb->i2c_client_demod = dvb_module_probe("si2168", NULL,
 						 &dev->i2c_adap[dev->def_i2c_bus],
@@ -1331,6 +1332,7 @@ static int em28174_dvb_init_hauppauge_wintv_dualhd_dvb(struct em28xx *dev)
 	si2168_config.i2c_adapter = &adapter;
 	si2168_config.fe = &dvb->fe[0];
 	si2168_config.ts_mode = SI2168_TS_SERIAL;
+	si2168_config.spectral_inversion = true;
 	addr = (dev->ts == PRIMARY_TS) ? 0x64 : 0x67;
 
 	dvb->i2c_client_demod = dvb_module_probe("si2168", NULL,
