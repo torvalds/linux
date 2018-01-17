@@ -693,7 +693,8 @@ static int test_dma_fence(void *arg)
 	sleep = jiffies_to_usecs(delay) / 3;
 	usleep_range(sleep, 2 * sleep);
 	if (time_after(jiffies, end)) {
-		pr_debug("Slept too long, delay=%lu, skipping!\n", delay);
+		pr_debug("Slept too long, delay=%lu, (target=%lu, now=%lu) skipping\n",
+			 delay, end, jiffies);
 		goto skip;
 	}
 
@@ -702,18 +703,15 @@ static int test_dma_fence(void *arg)
 		goto err;
 	}
 
-	do {
-		sleep = jiffies_to_usecs(end - jiffies + 1);
-		usleep_range(sleep, 2 * sleep);
-	} while (!time_after(jiffies, end));
-
-	if (i915_sw_fence_done(not)) {
-		pr_err("No timeout fence signaled!\n");
+	if (!wait_event_timeout(timeout->wait,
+				i915_sw_fence_done(timeout),
+				2 * (end - jiffies) + 1)) {
+		pr_err("Timeout fence unsignaled!\n");
 		goto err;
 	}
 
-	if (!i915_sw_fence_done(timeout)) {
-		pr_err("Timeout fence unsignaled!\n");
+	if (i915_sw_fence_done(not)) {
+		pr_err("No timeout fence signaled!\n");
 		goto err;
 	}
 
