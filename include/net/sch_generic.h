@@ -204,6 +204,13 @@ struct Qdisc_ops {
 	int			(*dump)(struct Qdisc *, struct sk_buff *);
 	int			(*dump_stats)(struct Qdisc *, struct gnet_dump *);
 
+	void			(*ingress_block_set)(struct Qdisc *sch,
+						     u32 block_index);
+	void			(*egress_block_set)(struct Qdisc *sch,
+						    u32 block_index);
+	u32			(*ingress_block_get)(struct Qdisc *sch);
+	u32			(*egress_block_get)(struct Qdisc *sch);
+
 	struct module		*owner;
 };
 
