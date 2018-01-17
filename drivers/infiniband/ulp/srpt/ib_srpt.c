@@ -1868,22 +1868,16 @@ done:
 	return res;
 }
 
-/*
- * Send DREQ and wait for DREP. Return true if and only if this function
- * changed the state of @ch.
- */
-static bool srpt_disconnect_ch_sync(struct srpt_rdma_ch *ch)
-	__must_hold(&sdev->mutex)
+/* Send DREQ and wait for DREP. */
+static void srpt_disconnect_ch_sync(struct srpt_rdma_ch *ch)
 {
 	struct srpt_port *sport = ch->sport;
-	int ret;
-
-	lockdep_assert_held(&sport->mutex);
 
 	pr_debug("ch %s-%d state %d\n", ch->sess_name, ch->qp->qp_num,
 		 ch->state);
 
-	ret = srpt_disconnect_ch(ch);
+	mutex_lock(&sport->mutex);
+	srpt_disconnect_ch(ch);
 	mutex_unlock(&sport->mutex);
 
 	while (wait_event_timeout(sport->ch_releaseQ, srpt_ch_closed(sport, ch),
@@ -1891,8 +1885,6 @@ static bool srpt_disconnect_ch_sync(struct srpt_rdma_ch *ch)
 		pr_info("%s(%s-%d state %d): still waiting ...\n", __func__,
 			ch->sess_name, ch->qp->qp_num, ch->state);
 
-	mutex_lock(&sport->mutex);
-	return ret == 0;
 }
 
 static void __srpt_close_all_ch(struct srpt_port *sport)
@@ -2991,11 +2983,8 @@ static void srpt_release_cmd(struct se_cmd *se_cmd)
 static void srpt_close_session(struct se_session *se_sess)
 {
 	struct srpt_rdma_ch *ch = se_sess->fabric_sess_ptr;
-	struct srpt_port *sport = ch->sport;
 
-	mutex_lock(&sport->mutex);
 	srpt_disconnect_ch_sync(ch);
-	mutex_unlock(&sport->mutex);
 }
 
 /**
