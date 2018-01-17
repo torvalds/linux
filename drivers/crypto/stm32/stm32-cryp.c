@@ -1052,10 +1052,8 @@ static int stm32_cryp_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	cryp->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(cryp->regs)) {
-		dev_err(dev, "Cannot map CRYP IO\n");
+	if (IS_ERR(cryp->regs))
 		return PTR_ERR(cryp->regs);
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
