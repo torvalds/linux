@@ -738,22 +738,65 @@ static void mxc_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 static int mxc_nand_correct_data_v1(struct mtd_info *mtd, u_char *dat,
 				 u_char *read_ecc, u_char *calc_ecc)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
-	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
+	return 0;
+}
 
-	/*
-	 * 1-Bit errors are automatically corrected in HW.  No need for
-	 * additional correction.  2-Bit errors cannot be corrected by
-	 * HW ECC, so we need to return failure
-	 */
-	uint16_t ecc_status = get_ecc_status_v1(host);
+static int mxc_nand_read_page_v1(struct nand_chip *chip, void *buf, void *oob,
+				 bool ecc, int page)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct mxc_nand_host *host = nand_get_controller_data(chip);
+	unsigned int bitflips_corrected = 0;
+	int no_subpages;
+	int i;
 
-	if (((ecc_status & 0x3) == 2) || ((ecc_status >> 2) == 2)) {
-		dev_dbg(host->dev, "HWECC uncorrectable 2-bit ECC error\n");
-		return -EBADMSG;
+	host->devtype_data->enable_hwecc(chip, ecc);
+
+	host->devtype_data->send_cmd(host, NAND_CMD_READ0, false);
+	mxc_do_addr_cycle(mtd, 0, page);
+
+	if (mtd->writesize > 512)
+		host->devtype_data->send_cmd(host, NAND_CMD_READSTART, true);
+
+	no_subpages = mtd->writesize >> 9;
+
+	for (i = 0; i < no_subpages; i++) {
+		uint16_t ecc_stats;
+
+		/* NANDFC buffer 0 is used for page read/write */
+		writew((host->active_cs << 4) | i, NFC_V1_V2_BUF_ADDR);
+
+		writew(NFC_OUTPUT, NFC_V1_V2_CONFIG2);
+
+		/* Wait for operation to complete */
+		wait_op_done(host, true);
+
+		ecc_stats = get_ecc_status_v1(host);
+
+		ecc_stats >>= 2;
+
+		if (buf && ecc) {
+			switch (ecc_stats & 0x3) {
+			case 0:
+			default:
+				break;
+			case 1:
+				mtd->ecc_stats.corrected++;
+				bitflips_corrected = 1;
+				break;
+			case 2:
+				mtd->ecc_stats.failed++;
+				break;
+			}
+		}
 	}
 
-	return 0;
+	if (buf)
+		memcpy32_fromio(buf, host->main_area0, mtd->writesize);
+	if (oob)
+		copy_spare(mtd, true, oob);
+
+	return bitflips_corrected;
 }
 
 static int mxc_nand_correct_data_v2_v3(struct mtd_info *mtd, u_char *dat,
@@ -1494,6 +1537,7 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 /* v1 + irqpending_quirk: i.MX21 */
 static const struct mxc_nand_devtype_data imx21_nand_devtype_data = {
 	.preset = preset_v1,
+	.read_page = mxc_nand_read_page_v1,
 	.send_cmd = send_cmd_v1_v2,
 	.send_addr = send_addr_v1_v2,
 	.send_page = send_page_v1,
@@ -1518,6 +1562,7 @@ static const struct mxc_nand_devtype_data imx21_nand_devtype_data = {
 /* v1 + !irqpending_quirk: i.MX27, i.MX31 */
 static const struct mxc_nand_devtype_data imx27_nand_devtype_data = {
 	.preset = preset_v1,
+	.read_page = mxc_nand_read_page_v1,
 	.send_cmd = send_cmd_v1_v2,
 	.send_addr = send_addr_v1_v2,
 	.send_page = send_page_v1,
@@ -1856,11 +1901,9 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	switch (this->ecc.mode) {
 	case NAND_ECC_HW:
-		if (host->devtype_data->read_page) {
-			this->ecc.read_page = mxc_nand_read_page;
-			this->ecc.read_page_raw = mxc_nand_read_page_raw;
-			this->ecc.read_oob = mxc_nand_read_oob;
-		}
+		this->ecc.read_page = mxc_nand_read_page;
+		this->ecc.read_page_raw = mxc_nand_read_page_raw;
+		this->ecc.read_oob = mxc_nand_read_oob;
 		this->ecc.calculate = mxc_nand_calculate_ecc;
 		this->ecc.hwctl = mxc_nand_enable_hwecc;
 		this->ecc.correct = host->devtype_data->correct_data;
