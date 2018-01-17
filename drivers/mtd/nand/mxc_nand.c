@@ -262,14 +262,14 @@ static void memcpy16_toio(void __iomem *trg, const void *src, int size)
  * holds a page in natural order, i.e. writesize bytes data + oobsize bytes
  * spare) and the NFC buffer.
  */
-static void copy_spare(struct mtd_info *mtd, bool bfrom)
+static void copy_spare(struct mtd_info *mtd, bool bfrom, void *buf)
 {
 	struct nand_chip *this = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_get_controller_data(this);
 	u16 i, oob_chunk_size;
 	u16 num_chunks = mtd->writesize / 512;
 
-	u8 *d = host->data_buf + mtd->writesize;
+	u8 *d = buf;
 	u8 __iomem *s = host->spare0;
 	u16 sparebuf_size = host->devtype_data->spare_len;
 
@@ -1295,7 +1295,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 
 		memcpy32_fromio(host->data_buf, host->main_area0,
 				mtd->writesize);
-		copy_spare(mtd, true);
+		copy_spare(mtd, true, host->data_buf + mtd->writesize);
 		break;
 
 	case NAND_CMD_SEQIN:
@@ -1314,7 +1314,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 
 	case NAND_CMD_PAGEPROG:
 		memcpy32_toio(host->main_area0, host->data_buf, mtd->writesize);
-		copy_spare(mtd, false);
+		copy_spare(mtd, false, host->data_buf + mtd->writesize);
 		host->devtype_data->send_page(mtd, NFC_INPUT);
 		host->devtype_data->send_cmd(host, command, true);
 		WARN_ONCE(column != -1 || page_addr != -1,
