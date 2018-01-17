@@ -1,7 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
- * Copyright (c) 2016-2017 Broadcom Limited
+ * Copyright (c) 2016-2018 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,10 +12,10 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.8.0"
+#define DRV_MODULE_VERSION	"1.9.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	8
+#define DRV_VER_MIN	9
 #define DRV_VER_UPD	0
 
 #include <linux/interrupt.h>
@@ -776,19 +776,38 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
 };
 
+struct bnxt_hw_resc {
+	u16	min_rsscos_ctxs;
+	u16	max_rsscos_ctxs;
+	u16	min_cp_rings;
+	u16	max_cp_rings;
+	u16	resv_cp_rings;
+	u16	min_tx_rings;
+	u16	max_tx_rings;
+	u16	resv_tx_rings;
+	u16	min_rx_rings;
+	u16	max_rx_rings;
+	u16	resv_rx_rings;
+	u16	min_hw_ring_grps;
+	u16	max_hw_ring_grps;
+	u16	resv_hw_ring_grps;
+	u16	min_l2_ctxs;
+	u16	max_l2_ctxs;
+	u16	min_vnics;
+	u16	max_vnics;
+	u16	resv_vnics;
+	u16	min_stat_ctxs;
+	u16	max_stat_ctxs;
+	u16	max_irqs;
+};
+
 #if defined(CONFIG_BNXT_SRIOV)
 struct bnxt_vf_info {
 	u16	fw_fid;
-	u8	mac_addr[ETH_ALEN];
-	u16	max_rsscos_ctxs;
-	u16	max_cp_rings;
-	u16	max_tx_rings;
-	u16	max_rx_rings;
-	u16	max_hw_ring_grps;
-	u16	max_l2_ctxs;
-	u16	max_irqs;
-	u16	max_vnics;
-	u16	max_stat_ctxs;
+	u8	mac_addr[ETH_ALEN];	/* PF assigned MAC Address */
+	u8	vf_mac_addr[ETH_ALEN];	/* VF assigned MAC address, only
+					 * stored by PF.
+					 */
 	u16	vlan;
 	u32	flags;
 #define BNXT_VF_QOS		0x1
@@ -809,15 +828,6 @@ struct bnxt_pf_info {
 	u16	fw_fid;
 	u16	port_id;
 	u8	mac_addr[ETH_ALEN];
-	u16	max_rsscos_ctxs;
-	u16	max_cp_rings;
-	u16	max_tx_rings; /* HW assigned max tx rings for this PF */
-	u16	max_rx_rings; /* HW assigned max rx rings for this PF */
-	u16	max_hw_ring_grps;
-	u16	max_irqs;
-	u16	max_l2_ctxs;
-	u16	max_vnics;
-	u16	max_stat_ctxs;
 	u32	first_vf_id;
 	u16	active_vfs;
 	u16	max_vfs;
@@ -829,6 +839,9 @@ struct bnxt_pf_info {
 	u32	max_rx_wm_flows;
 	unsigned long	*vf_event_bmap;
 	u16	hwrm_cmd_req_pages;
+	u8	vf_resv_strategy;
+#define BNXT_VF_RESV_STRATEGY_MAXIMAL	0
+#define BNXT_VF_RESV_STRATEGY_MINIMAL	1
 	void			*hwrm_cmd_req_addr[4];
 	dma_addr_t		hwrm_cmd_req_dma_addr[4];
 	struct bnxt_vf_info	*vf;
@@ -1137,6 +1150,7 @@ struct bnxt {
 	#define BNXT_FLAG_FW_DCBX_AGENT	0x800000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 	#define BNXT_FLAG_DIM		0x2000000
+	#define BNXT_FLAG_NEW_RM	0x8000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
 					    BNXT_FLAG_RFS |		\
@@ -1196,7 +1210,6 @@ struct bnxt {
 	int			tx_nr_rings;
 	int			tx_nr_rings_per_tc;
 	int			tx_nr_rings_xdp;
-	int			tx_reserved_rings;
 
 	int			tx_wake_thresh;
 	int			tx_push_thresh;
@@ -1308,6 +1321,7 @@ struct bnxt {
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
 #define BNXT_FLOW_STATS_SP_EVENT	15
 
+	struct bnxt_hw_resc	hw_resc;
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
 	int			nr_vfs;
@@ -1357,6 +1371,7 @@ struct bnxt {
 	enum devlink_eswitch_mode eswitch_mode;
 	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
+	u8			switch_id[8];
 	struct bnxt_tc_info	*tc_info;
 };
 
@@ -1432,7 +1447,7 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 		     int tx_xdp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
-void bnxt_restore_pf_fw_resources(struct bnxt *bp);
+int bnxt_restore_pf_fw_resources(struct bnxt *bp);
 int bnxt_port_attr_get(struct bnxt *bp, struct switchdev_attr *attr);
 void bnxt_dim_work(struct work_struct *work);
 int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi);

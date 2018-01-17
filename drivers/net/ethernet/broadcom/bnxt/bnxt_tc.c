@@ -43,7 +43,7 @@ static u16 bnxt_flow_get_dst_fid(struct bnxt *pf_bp, struct net_device *dev)
 	}
 
 	/* Is dev a VF-rep? */
-	if (dev != pf_bp->dev)
+	if (bnxt_dev_is_vf_rep(dev))
 		return bnxt_vf_rep_get_fid(dev);
 
 	bp = netdev_priv(dev);
