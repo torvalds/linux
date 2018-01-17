@@ -1050,7 +1050,6 @@ struct intel_dp {
 	bool link_mst;
 	bool has_audio;
 	bool detect_done;
-	bool channel_eq_status;
 	bool reset_link_params;
 	enum aux_ch aux_ch;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
