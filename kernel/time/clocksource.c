@@ -993,6 +993,14 @@ static ssize_t available_clocksource_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(available_clocksource);
 
+static struct attribute *clocksource_attrs[] = {
+	&dev_attr_current_clocksource.attr,
+	&dev_attr_unbind_clocksource.attr,
+	&dev_attr_available_clocksource.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(clocksource);
+
 static struct bus_type clocksource_subsys = {
 	.name = "clocksource",
 	.dev_name = "clocksource",
@@ -1001,6 +1009,7 @@ static struct bus_type clocksource_subsys = {
 static struct device device_clocksource = {
 	.id	= 0,
 	.bus	= &clocksource_subsys,
+	.groups	= clocksource_groups,
 };
 
 static int __init init_clocksource_sysfs(void)
@@ -1009,17 +1018,7 @@ static int __init init_clocksource_sysfs(void)
 
 	if (!error)
 		error = device_register(&device_clocksource);
-	if (!error)
-		error = device_create_file(
-				&device_clocksource,
-				&dev_attr_current_clocksource);
-	if (!error)
-		error = device_create_file(&device_clocksource,
-					   &dev_attr_unbind_clocksource);
-	if (!error)
-		error = device_create_file(
-				&device_clocksource,
-				&dev_attr_available_clocksource);
+
 	return error;
 }
 
