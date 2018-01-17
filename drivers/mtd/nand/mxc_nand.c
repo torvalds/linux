@@ -152,8 +152,6 @@ struct mxc_nand_devtype_data {
 	u32 (*get_ecc_status)(struct mxc_nand_host *);
 	const struct mtd_ooblayout_ops *ooblayout;
 	void (*select_chip)(struct mtd_info *mtd, int chip);
-	int (*correct_data)(struct mtd_info *mtd, u_char *dat,
-			u_char *read_ecc, u_char *calc_ecc);
 	int (*setup_data_interface)(struct mtd_info *mtd, int csline,
 				    const struct nand_data_interface *conf);
 	void (*enable_hwecc)(struct nand_chip *chip, bool enable);
@@ -727,20 +725,6 @@ static int mxc_nand_dev_ready(struct mtd_info *mtd)
 	return 1;
 }
 
-static void mxc_nand_enable_hwecc(struct mtd_info *mtd, int mode)
-{
-	/*
-	 * If HW ECC is enabled, we turn it on during init. There is
-	 * no need to enable again here.
-	 */
-}
-
-static int mxc_nand_correct_data_v1(struct mtd_info *mtd, u_char *dat,
-				 u_char *read_ecc, u_char *calc_ecc)
-{
-	return 0;
-}
-
 static int mxc_nand_read_page_v1(struct nand_chip *chip, void *buf, void *oob,
 				 bool ecc, int page)
 {
@@ -797,12 +781,6 @@ static int mxc_nand_read_page_v1(struct nand_chip *chip, void *buf, void *oob,
 		copy_spare(mtd, true, oob);
 
 	return bitflips_corrected;
-}
-
-static int mxc_nand_correct_data_v2_v3(struct mtd_info *mtd, u_char *dat,
-				 u_char *read_ecc, u_char *calc_ecc)
-{
-	return 0;
 }
 
 static int mxc_nand_read_page_v2_v3(struct nand_chip *chip, void *buf,
@@ -932,12 +910,6 @@ static int mxc_nand_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	memset(host->data_buf, 0xff, mtd->writesize);
 
 	return mxc_nand_write_page(chip, host->data_buf, false, page);
-}
-
-static int mxc_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
-				  u_char *ecc_code)
-{
-	return 0;
 }
 
 static u_char mxc_nand_read_byte(struct mtd_info *mtd)
@@ -1592,7 +1564,6 @@ static const struct mxc_nand_devtype_data imx21_nand_devtype_data = {
 	.get_ecc_status = get_ecc_status_v1,
 	.ooblayout = &mxc_v1_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
-	.correct_data = mxc_nand_correct_data_v1,
 	.enable_hwecc = mxc_nand_enable_hwecc_v1_v2,
 	.irqpending_quirk = 1,
 	.needs_ip = 0,
@@ -1617,7 +1588,6 @@ static const struct mxc_nand_devtype_data imx27_nand_devtype_data = {
 	.get_ecc_status = get_ecc_status_v1,
 	.ooblayout = &mxc_v1_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
-	.correct_data = mxc_nand_correct_data_v1,
 	.enable_hwecc = mxc_nand_enable_hwecc_v1_v2,
 	.irqpending_quirk = 0,
 	.needs_ip = 0,
@@ -1643,7 +1613,6 @@ static const struct mxc_nand_devtype_data imx25_nand_devtype_data = {
 	.get_ecc_status = get_ecc_status_v2,
 	.ooblayout = &mxc_v2_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v2,
-	.correct_data = mxc_nand_correct_data_v2_v3,
 	.setup_data_interface = mxc_nand_v2_setup_data_interface,
 	.enable_hwecc = mxc_nand_enable_hwecc_v1_v2,
 	.irqpending_quirk = 0,
@@ -1670,7 +1639,6 @@ static const struct mxc_nand_devtype_data imx51_nand_devtype_data = {
 	.get_ecc_status = get_ecc_status_v3,
 	.ooblayout = &mxc_v2_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
-	.correct_data = mxc_nand_correct_data_v2_v3,
 	.enable_hwecc = mxc_nand_enable_hwecc_v3,
 	.irqpending_quirk = 0,
 	.needs_ip = 1,
@@ -1697,7 +1665,6 @@ static const struct mxc_nand_devtype_data imx53_nand_devtype_data = {
 	.get_ecc_status = get_ecc_status_v3,
 	.ooblayout = &mxc_v2_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
-	.correct_data = mxc_nand_correct_data_v2_v3,
 	.enable_hwecc = mxc_nand_enable_hwecc_v3,
 	.irqpending_quirk = 0,
 	.needs_ip = 1,
@@ -1951,9 +1918,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 		this->ecc.write_page = mxc_nand_write_page_ecc;
 		this->ecc.write_page_raw = mxc_nand_write_page_raw;
 		this->ecc.write_oob = mxc_nand_write_oob;
-		this->ecc.calculate = mxc_nand_calculate_ecc;
-		this->ecc.hwctl = mxc_nand_enable_hwecc;
-		this->ecc.correct = host->devtype_data->correct_data;
 		break;
 
 	case NAND_ECC_SOFT:
