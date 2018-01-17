@@ -758,6 +758,24 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 				return -EINVAL;
 			}
 			break;
+		case AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_SCLK:
+			/* get stable pstate sclk in Mhz */
+			if (amdgpu_dpm_read_sensor(adev,
+						   AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK,
+						   (void *)&ui32, &ui32_size)) {
+				return -EINVAL;
+			}
+			ui32 /= 100;
+			break;
+		case AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_MCLK:
+			/* get stable pstate mclk in Mhz */
+			if (amdgpu_dpm_read_sensor(adev,
+						   AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK,
+						   (void *)&ui32, &ui32_size)) {
+				return -EINVAL;
+			}
+			ui32 /= 100;
+			break;
 		default:
 			DRM_DEBUG_KMS("Invalid request %d\n",
 				      info->sensor_info.type);
