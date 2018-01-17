@@ -98,6 +98,8 @@ include ../scripts/utilities.mak
 # When selected, pass LLVM_CONFIG=/path/to/llvm-config to `make' if
 # llvm-config is not in $PATH.
 
+# Define NO_CORESIGHT if you do not want support for CoreSight trace decoding.
+
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
 LC_COLLATE=C
