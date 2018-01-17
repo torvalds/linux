@@ -244,6 +244,7 @@ enum rdma_ch_state {
  * @qp:            IB queue pair used for communicating over this channel.
  * @cq:            IB completion queue for this channel.
  * @zw_cqe:	   Zero-length write CQE.
+ * @rcu:           RCU head.
  * @kref:	   kref for this channel.
  * @rq_size:       IB receive queue size.
  * @max_rsp_size:  Maximum size of an RSP response message in bytes.
@@ -276,6 +277,7 @@ struct srpt_rdma_ch {
 	struct ib_qp		*qp;
 	struct ib_cq		*cq;
 	struct ib_cqe		zw_cqe;
+	struct rcu_head		rcu;
 	struct kref		kref;
 	int			rq_size;
 	u32			max_rsp_size;

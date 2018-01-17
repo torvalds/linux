@@ -1906,7 +1906,7 @@ static void srpt_free_ch(struct kref *kref)
 {
 	struct srpt_rdma_ch *ch = container_of(kref, struct srpt_rdma_ch, kref);
 
-	kfree(ch);
+	kfree_rcu(ch, rcu);
 }
 
 static void srpt_release_channel_work(struct work_struct *w)
@@ -1945,9 +1945,15 @@ static void srpt_release_channel_work(struct work_struct *w)
 			     srp_max_req_size, DMA_FROM_DEVICE);
 
 	mutex_lock(&sdev->mutex);
-	list_del_init(&ch->list);
+	list_del_rcu(&ch->list);
 	if (ch->release_done)
 		complete(ch->release_done);
+	mutex_unlock(&sdev->mutex);
+
+	synchronize_rcu();
+
+	mutex_lock(&sdev->mutex);
+	INIT_LIST_HEAD(&ch->list);
 	mutex_unlock(&sdev->mutex);
 
 	wake_up(&sdev->ch_releaseQ);
@@ -2064,6 +2070,7 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 		goto reject;
 	}
 
+	init_rcu_head(&ch->rcu);
 	kref_init(&ch->kref);
 	ch->zw_cqe.done = srpt_zerolength_write_done;
 	INIT_WORK(&ch->release_work, srpt_release_channel_work);
@@ -2190,7 +2197,7 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	}
 
 	mutex_lock(&sdev->mutex);
-	list_add_tail(&ch->list, &sdev->rch_list);
+	list_add_tail_rcu(&ch->list, &sdev->rch_list);
 	mutex_unlock(&sdev->mutex);
 
 	goto out;
