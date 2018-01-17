@@ -215,6 +215,23 @@ nomem:
 	return ERR_PTR(-ENOMEM);
 }
 
+/* Get the upper or lower dentry in stach whose on layer @idx */
+static struct dentry *ovl_dentry_real_at(struct dentry *dentry, int idx)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+	int i;
+
+	if (!idx)
+		return ovl_dentry_upper(dentry);
+
+	for (i = 0; i < oe->numlower; i++) {
+		if (oe->lowerstack[i].layer->idx == idx)
+			return oe->lowerstack[i].dentry;
+	}
+
+	return NULL;
+}
+
 /*
  * Lookup a child overlay dentry to get a connected overlay dentry whose real
  * dentry is @real. If @real is on upper layer, we lookup a child overlay
@@ -230,10 +247,6 @@ static struct dentry *ovl_lookup_real_one(struct dentry *connected,
 	struct name_snapshot name;
 	int err;
 
-	/* TODO: lookup by lower real dentry */
-	if (layer->idx)
-		return ERR_PTR(-EACCES);
-
 	/*
 	 * Lookup child overlay dentry by real name. The dir mutex protects us
 	 * from racing with overlay rename. If the overlay dentry that is above
@@ -244,7 +257,7 @@ static struct dentry *ovl_lookup_real_one(struct dentry *connected,
 	inode_lock_nested(dir, I_MUTEX_PARENT);
 	err = -ECHILD;
 	parent = dget_parent(real);
-	if (ovl_dentry_upper(connected) != parent)
+	if (ovl_dentry_real_at(connected, layer->idx) != parent)
 		goto fail;
 
 	/*
@@ -262,7 +275,7 @@ static struct dentry *ovl_lookup_real_one(struct dentry *connected,
 		dput(this);
 		err = -ENOENT;
 		goto fail;
-	} else if (ovl_dentry_upper(this) != real) {
+	} else if (ovl_dentry_real_at(this, layer->idx) != real) {
 		dput(this);
 		err = -ESTALE;
 		goto fail;
@@ -294,14 +307,13 @@ static struct dentry *ovl_lookup_real(struct super_block *sb,
 	int err = 0;
 
 	/* TODO: use index when looking up by lower real dentry */
-	if (layer->idx)
-		return ERR_PTR(-EACCES);
 
 	connected = dget(sb->s_root);
 	while (!err) {
 		struct dentry *next, *this;
 		struct dentry *parent = NULL;
-		struct dentry *real_connected = ovl_dentry_upper(connected);
+		struct dentry *real_connected = ovl_dentry_real_at(connected,
+								   layer->idx);
 
 		if (real_connected == real)
 			break;
@@ -391,6 +403,7 @@ static struct dentry *ovl_get_dentry(struct super_block *sb,
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 	struct ovl_layer upper_layer = { .mnt = ofs->upper_mnt };
+	struct ovl_layer *layer = upper ? &upper_layer : lowerpath->layer;
 	struct dentry *real = upper ?: (index ?: lowerpath->dentry);
 
 	/*
@@ -400,19 +413,15 @@ static struct dentry *ovl_get_dentry(struct super_block *sb,
 	if (!d_is_dir(real))
 		return ovl_obtain_alias(sb, upper, lowerpath, index);
 
-	/* TODO: lookup connected dir from real lower dir */
-	if (!upper)
-		return ERR_PTR(-EACCES);
-
 	/* Removed empty directory? */
-	if ((upper->d_flags & DCACHE_DISCONNECTED) || d_unhashed(upper))
+	if ((real->d_flags & DCACHE_DISCONNECTED) || d_unhashed(real))
 		return ERR_PTR(-ENOENT);
 
 	/*
-	 * If real upper dentry is connected and hashed, get a connected
-	 * overlay dentry with the same path as the real upper dentry.
+	 * If real dentry is connected and hashed, get a connected overlay
+	 * dentry whose real dentry is @real.
 	 */
-	return ovl_lookup_real(sb, upper, &upper_layer);
+	return ovl_lookup_real(sb, real, layer);
 }
 
 static struct dentry *ovl_upper_fh_to_d(struct super_block *sb,
