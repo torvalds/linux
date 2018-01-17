@@ -532,10 +532,8 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 	c->phys_base = res->start;
 
 	c->onenand.base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(c->onenand.base)) {
-		dev_err(dev, "Cannot reserve memory region %pR\n", res);
+	if (IS_ERR(c->onenand.base))
 		return PTR_ERR(c->onenand.base);
-	}
 
 	c->int_gpiod = devm_gpiod_get_optional(dev, "int", GPIOD_IN);
 	if (IS_ERR(c->int_gpiod)) {
