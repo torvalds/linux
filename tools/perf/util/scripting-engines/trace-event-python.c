@@ -499,6 +499,8 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 			PyLong_FromUnsignedLongLong(sample->time));
 	pydict_set_item_string_decref(dict_sample, "period",
 			PyLong_FromUnsignedLongLong(sample->period));
+	pydict_set_item_string_decref(dict_sample, "phys_addr",
+			PyLong_FromUnsignedLongLong(sample->phys_addr));
 	set_sample_read_in_dict(dict_sample, sample, evsel);
 	pydict_set_item_string_decref(dict, "sample", dict_sample);
 

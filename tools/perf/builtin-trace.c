@@ -1644,7 +1644,7 @@ static int trace__resolve_callchain(struct trace *trace, struct perf_evsel *evse
 	struct addr_location al;
 
 	if (machine__resolve(trace->host, &al, sample) < 0 ||
-	    thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, trace->max_stack))
+	    thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, evsel->attr.sample_max_stack))
 		return -1;
 
 	return 0;
@@ -2222,6 +2222,9 @@ static int trace__add_syscall_newtp(struct trace *trace)
 	if (perf_evsel__init_sc_tp_uint_field(sys_exit, ret))
 		goto out_delete_sys_exit;
 
+	perf_evsel__config_callchain(sys_enter, &trace->opts, &callchain_param);
+	perf_evsel__config_callchain(sys_exit, &trace->opts, &callchain_param);
+
 	perf_evlist__add(evlist, sys_enter);
 	perf_evlist__add(evlist, sys_exit);
 
@@ -2318,6 +2321,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		pgfault_maj = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MAJ);
 		if (pgfault_maj == NULL)
 			goto out_error_mem;
+		perf_evsel__config_callchain(pgfault_maj, &trace->opts, &callchain_param);
 		perf_evlist__add(evlist, pgfault_maj);
 	}
 
@@ -2325,6 +2329,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		pgfault_min = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MIN);
 		if (pgfault_min == NULL)
 			goto out_error_mem;
+		perf_evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);
 		perf_evlist__add(evlist, pgfault_min);
 	}
 
@@ -2345,45 +2350,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__config(evlist, &trace->opts, NULL);
-
-	if (callchain_param.enabled) {
-		bool use_identifier = false;
-
-		if (trace->syscalls.events.sys_exit) {
-			perf_evsel__config_callchain(trace->syscalls.events.sys_exit,
-						     &trace->opts, &callchain_param);
-			use_identifier = true;
-		}
-
-		if (pgfault_maj) {
-			perf_evsel__config_callchain(pgfault_maj, &trace->opts, &callchain_param);
-			use_identifier = true;
-		}
-
-		if (pgfault_min) {
-			perf_evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);
-			use_identifier = true;
-		}
-
-		if (use_identifier) {
-		       /*
-			* Now we have evsels with different sample_ids, use
-			* PERF_SAMPLE_IDENTIFIER to map from sample to evsel
-			* from a fixed position in each ring buffer record.
-			*
-			* As of this the changeset introducing this comment, this
-			* isn't strictly needed, as the fields that can come before
-			* PERF_SAMPLE_ID are all used, but we'll probably disable
-			* some of those for things like copying the payload of
-			* pointer syscall arguments, and for vfs_getname we don't
-			* need PERF_SAMPLE_ADDR and PERF_SAMPLE_IP, so do this
-			* here as a warning we need to use PERF_SAMPLE_IDENTIFIER.
-			*/
-			perf_evlist__set_sample_bit(evlist, IDENTIFIER);
-			perf_evlist__reset_sample_bit(evlist, ID);
-		}
-	}
+	perf_evlist__config(evlist, &trace->opts, &callchain_param);
 
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
@@ -2456,6 +2423,18 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	trace->multiple_threads = thread_map__pid(evlist->threads, 0) == -1 ||
 				  evlist->threads->nr > 1 ||
 				  perf_evlist__first(evlist)->attr.inherit;
+
+	/*
+	 * Now that we already used evsel->attr to ask the kernel to setup the
+	 * events, lets reuse evsel->attr.sample_max_stack as the limit in
+	 * trace__resolve_callchain(), allowing per-event max-stack settings
+	 * to override an explicitely set --max-stack global setting.
+	 */
+	evlist__for_each_entry(evlist, evsel) {
+		if ((evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) &&
+		    evsel->attr.sample_max_stack == 0)
+			evsel->attr.sample_max_stack = trace->max_stack;
+	}
 again:
 	before = trace->nr_events;
 
@@ -3098,8 +3077,9 @@ int cmd_trace(int argc, const char **argv)
 	}
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-	if ((trace.min_stack || max_stack_user_set) && !callchain_param.enabled && trace.trace_syscalls)
+	if ((trace.min_stack || max_stack_user_set) && !callchain_param.enabled) {
 		record_opts__parse_callchain(&trace.opts, &callchain_param, "dwarf", false);
+	}
 #endif
 
 	if (callchain_param.enabled) {

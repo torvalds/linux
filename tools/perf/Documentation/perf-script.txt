@@ -351,19 +351,19 @@ include::itrace.txt[]
 	to end of file.
 
 	Also support time percent with multipe time range. Time string is
-	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'. The maximum number of slices is 10.
+	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'.
 
 	For example:
-	Select the second 10% time slice
+	Select the second 10% time slice:
 	perf script --time 10%/2
 
-	Select from 0% to 10% time slice
+	Select from 0% to 10% time slice:
 	perf script --time 0%-10%
 
-	Select the first and second 10% time slices
+	Select the first and second 10% time slices:
 	perf script --time 10%/1,10%/2
 
-	Select from 0% to 10% and 30% to 40% slices
+	Select from 0% to 10% and 30% to 40% slices:
 	perf script --time 0%-10%,30%-40%
 
 --max-blocks::

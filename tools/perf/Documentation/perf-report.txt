@@ -403,7 +403,7 @@ OPTIONS
 	to end of file.
 
 	Also support time percent with multiple time range. Time string is
-	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'. The maximum number of slices is 10.
+	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'.
 
 	For example:
 	Select the second 10% time slice:

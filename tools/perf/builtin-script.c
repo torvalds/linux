@@ -1480,8 +1480,6 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 	return 0;
 }
 
-#define PTIME_RANGE_MAX	10
-
 struct perf_script {
 	struct perf_tool	tool;
 	struct perf_session	*session;
@@ -1496,7 +1494,8 @@ struct perf_script {
 	struct thread_map	*threads;
 	int			name_width;
 	const char              *time_str;
-	struct perf_time_interval ptime_range[PTIME_RANGE_MAX];
+	struct perf_time_interval *ptime_range;
+	int			range_size;
 	int			range_num;
 };
 
@@ -2919,9 +2918,10 @@ static void script__setup_sample_type(struct perf_script *script)
 
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain) {
 		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
-		    (sample_type & PERF_SAMPLE_STACK_USER))
+		    (sample_type & PERF_SAMPLE_STACK_USER)) {
 			callchain_param.record_mode = CALLCHAIN_DWARF;
-		else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+			dwarf_callchain_users = true;
+		} else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
 			callchain_param.record_mode = CALLCHAIN_LBR;
 		else
 			callchain_param.record_mode = CALLCHAIN_FP;
@@ -3444,17 +3444,26 @@ int cmd_script(int argc, const char **argv)
 	if (err < 0)
 		goto out_delete;
 
+	script.ptime_range = perf_time__range_alloc(script.time_str,
+						    &script.range_size);
+	if (!script.ptime_range) {
+		err = -ENOMEM;
+		goto out_delete;
+	}
+
 	/* needs to be parsed after looking up reference time */
 	if (perf_time__parse_str(script.ptime_range, script.time_str) != 0) {
 		if (session->evlist->first_sample_time == 0 &&
 		    session->evlist->last_sample_time == 0) {
-			pr_err("No first/last sample time in perf data\n");
+			pr_err("HINT: no first/last sample time found in perf data.\n"
+			       "Please use latest perf binary to execute 'perf record'\n"
+			       "(if '--buildid-all' is enabled, please set '--timestamp-boundary').\n");
 			err = -EINVAL;
 			goto out_delete;
 		}
 
 		script.range_num = perf_time__percent_parse_str(
-					script.ptime_range, PTIME_RANGE_MAX,
+					script.ptime_range, script.range_size,
 					script.time_str,
 					session->evlist->first_sample_time,
 					session->evlist->last_sample_time);
@@ -3473,6 +3482,8 @@ int cmd_script(int argc, const char **argv)
 	flush_scripting();
 
 out_delete:
+	zfree(&script.ptime_range);
+
 	perf_evlist__free_stats(session->evlist);
 	perf_session__delete(session);
 
