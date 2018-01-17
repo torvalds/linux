@@ -526,7 +526,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 
 	timer_setup(&fnew->perturb_timer, flow_perturbation, TIMER_DEFERRABLE);
 
-	netif_keep_dst(qdisc_dev(tp->q));
+	tcf_block_netif_keep_dst(tp->chain->block);
 
 	if (tb[TCA_FLOW_KEYS]) {
 		fnew->keymask = keymask;

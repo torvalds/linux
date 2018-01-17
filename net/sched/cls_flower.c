@@ -229,6 +229,7 @@ static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f)
 
 	tc_setup_cb_call(block, &f->exts, TC_SETUP_CLSFLOWER,
 			 &cls_flower, false);
+	tcf_block_offload_dec(block, &f->flags);
 }
 
 static int fl_hw_replace_filter(struct tcf_proto *tp,
@@ -256,7 +257,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 		fl_hw_destroy_filter(tp, f);
 		return err;
 	} else if (err > 0) {
-		f->flags |= TCA_CLS_FLAGS_IN_HW;
+		tcf_block_offload_inc(block, &f->flags);
 	}
 
 	if (skip_sw && !(f->flags & TCA_CLS_FLAGS_IN_HW))

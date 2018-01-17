@@ -167,13 +167,16 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	cls_bpf.exts_integrated = obj->exts_integrated;
 	cls_bpf.gen_flags = obj->gen_flags;
 
+	if (oldprog)
+		tcf_block_offload_dec(block, &oldprog->gen_flags);
+
 	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSBPF, &cls_bpf, skip_sw);
 	if (prog) {
 		if (err < 0) {
 			cls_bpf_offload_cmd(tp, oldprog, prog);
 			return err;
 		} else if (err > 0) {
-			prog->gen_flags |= TCA_CLS_FLAGS_IN_HW;
+			tcf_block_offload_inc(block, &prog->gen_flags);
 		}
 	}
 
@@ -392,8 +395,8 @@ static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog,
 	prog->bpf_name = name;
 	prog->filter = fp;
 
-	if (fp->dst_needed && !(tp->q->flags & TCQ_F_INGRESS))
-		netif_keep_dst(qdisc_dev(tp->q));
+	if (fp->dst_needed)
+		tcf_block_netif_keep_dst(tp->chain->block);
 
 	return 0;
 }

@@ -81,6 +81,7 @@ static void mall_destroy_hw_filter(struct tcf_proto *tp,
 	cls_mall.cookie = cookie;
 
 	tc_setup_cb_call(block, NULL, TC_SETUP_CLSMATCHALL, &cls_mall, false);
+	tcf_block_offload_dec(block, &head->flags);
 }
 
 static int mall_replace_hw_filter(struct tcf_proto *tp,
@@ -103,7 +104,7 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 		mall_destroy_hw_filter(tp, head, cookie);
 		return err;
 	} else if (err > 0) {
-		head->flags |= TCA_CLS_FLAGS_IN_HW;
+		tcf_block_offload_inc(block, &head->flags);
 	}
 
 	if (skip_sw && !(head->flags & TCA_CLS_FLAGS_IN_HW))
