@@ -1114,7 +1114,7 @@ static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 }
 
 static void tmio_mmc_of_parse(struct platform_device *pdev,
-			      struct tmio_mmc_data *pdata)
+			      struct mmc_host *mmc)
 {
 	const struct device_node *np = pdev->dev.of_node;
 
@@ -1122,7 +1122,7 @@ static void tmio_mmc_of_parse(struct platform_device *pdev,
 		return;
 
 	if (of_get_property(np, "toshiba,mmc-wrprotect-disable", NULL))
-		pdata->flags |= TMIO_MMC_WRPROTECT_DISABLE;
+		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
 }
 
 struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev,
@@ -1157,7 +1157,7 @@ struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev,
 		goto free;
 	}
 
-	tmio_mmc_of_parse(pdev, pdata);
+	tmio_mmc_of_parse(pdev, mmc);
 
 	platform_set_drvdata(pdev, host);
 
