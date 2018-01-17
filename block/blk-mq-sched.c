@@ -427,7 +427,7 @@ done:
 }
 
 void blk_mq_sched_insert_request(struct request *rq, bool at_head,
-				 bool run_queue, bool async, bool can_block)
+				 bool run_queue, bool async)
 {
 	struct request_queue *q = rq->q;
 	struct elevator_queue *e = q->elevator;
