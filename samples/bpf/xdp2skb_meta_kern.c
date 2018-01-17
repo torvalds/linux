@@ -35,15 +35,17 @@ int _xdp_mark(struct xdp_md *ctx)
 	void *data, *data_end;
 	int ret;
 
-	/* Reserve space in-front data pointer for our meta info.
+	/* Reserve space in-front of data pointer for our meta info.
 	 * (Notice drivers not supporting data_meta will fail here!)
 	 */
 	ret = bpf_xdp_adjust_meta(ctx, -(int)sizeof(*meta));
 	if (ret < 0)
 		return XDP_ABORTED;
 
-	/* For some unknown reason, these ctx pointers must be read
-	 * after bpf_xdp_adjust_meta, else verifier will reject prog.
+	/* Notice: Kernel-side verifier requires that loading of
+	 * ctx->data MUST happen _after_ helper bpf_xdp_adjust_meta(),
+	 * as pkt-data pointers are invalidated.  Helpers that require
+	 * this are determined/marked by bpf_helper_changes_pkt_data()
 	 */
 	data = (void *)(unsigned long)ctx->data;
 
