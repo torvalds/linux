@@ -137,7 +137,6 @@ struct btrfs_device {
 	struct rcu_head rcu;
 
 	/* readahead state */
-	spinlock_t reada_lock;
 	atomic_t reada_in_flight;
 	u64 reada_next;
 	struct reada_zone *reada_curr_zone;
