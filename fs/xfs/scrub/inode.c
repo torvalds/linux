@@ -619,7 +619,7 @@ xfs_scrub_inode(
 	if (xfs_is_reflink_inode(sc->ip)) {
 		error = xfs_reflink_inode_has_shared_extents(sc->tp, sc->ip,
 				&has_shared);
-		if (!xfs_scrub_process_error(sc, XFS_INO_TO_AGNO(mp, ino),
+		if (!xfs_scrub_xref_process_error(sc, XFS_INO_TO_AGNO(mp, ino),
 				XFS_INO_TO_AGBNO(mp, ino), &error))
 			goto out;
 		if (!has_shared)

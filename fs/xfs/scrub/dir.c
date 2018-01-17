@@ -92,7 +92,7 @@ xfs_scrub_dir_check_ftype(
 	 * inodes can trigger immediate inactive cleanup of the inode.
 	 */
 	error = xfs_iget(mp, sdc->sc->tp, inum, 0, 0, &ip);
-	if (!xfs_scrub_fblock_process_error(sdc->sc, XFS_DATA_FORK, offset,
+	if (!xfs_scrub_fblock_xref_process_error(sdc->sc, XFS_DATA_FORK, offset,
 			&error))
 		goto out;
 
