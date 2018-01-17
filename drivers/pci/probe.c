@@ -1230,6 +1230,13 @@ static void pci_read_irq(struct pci_dev *dev)
 {
 	unsigned char irq;
 
+	/* VFs are not allowed to use INTx, so skip the config reads */
+	if (dev->is_virtfn) {
+		dev->pin = 0;
+		dev->irq = 0;
+		return;
+	}
+
 	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &irq);
 	dev->pin = irq;
 	if (irq)
