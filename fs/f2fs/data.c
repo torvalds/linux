@@ -1200,7 +1200,7 @@ static int f2fs_xattr_fiemap(struct inode *inode,
 		phys = (__u64)blk_to_logical(inode, ni.blk_addr);
 		offset = offsetof(struct f2fs_inode, i_addr) +
 					sizeof(__le32) * (DEF_ADDRS_PER_INODE -
-					F2FS_INLINE_XATTR_ADDRS(inode));
+					get_inline_xattr_addrs(inode));
 
 		phys += offset;
 		len = inline_xattr_size(inode);

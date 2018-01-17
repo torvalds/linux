@@ -414,10 +414,9 @@ struct f2fs_flush_device {
 #define DEF_MIN_INLINE_SIZE		1
 static inline int get_extra_isize(struct inode *inode);
 static inline int get_inline_xattr_addrs(struct inode *inode);
-#define F2FS_INLINE_XATTR_ADDRS(inode)	get_inline_xattr_addrs(inode)
 #define MAX_INLINE_DATA(inode)	(sizeof(__le32) *			\
 				(CUR_ADDRS_PER_INODE(inode) -		\
-				F2FS_INLINE_XATTR_ADDRS(inode) -	\
+				get_inline_xattr_addrs(inode) -	\
 				DEF_INLINE_RESERVED_SIZE))
 
 /* for inline dir */
@@ -2324,7 +2323,7 @@ static inline int f2fs_has_inline_xattr(struct inode *inode)
 
 static inline unsigned int addrs_per_inode(struct inode *inode)
 {
-	return CUR_ADDRS_PER_INODE(inode) - F2FS_INLINE_XATTR_ADDRS(inode);
+	return CUR_ADDRS_PER_INODE(inode) - get_inline_xattr_addrs(inode);
 }
 
 static inline void *inline_xattr_addr(struct inode *inode, struct page *page)
@@ -2332,7 +2331,7 @@ static inline void *inline_xattr_addr(struct inode *inode, struct page *page)
 	struct f2fs_inode *ri = F2FS_INODE(page);
 
 	return (void *)&(ri->i_addr[DEF_ADDRS_PER_INODE -
-					F2FS_INLINE_XATTR_ADDRS(inode)]);
+					get_inline_xattr_addrs(inode)]);
 }
 
 static inline int inline_xattr_size(struct inode *inode)
