@@ -151,6 +151,8 @@ struct btc_board_info {
 	u8 btdm_ant_pos;
 	u8 single_ant_path; /* current used for 8723b only, 1=>s0,  0=>s1 */
 	bool tfbga_package;
+
+	u8 rfe_type;
 };
 
 enum btc_dbg_opcode {
