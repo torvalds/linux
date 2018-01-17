@@ -1076,15 +1076,9 @@ static int tmio_mmc_get_ro(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct tmio_mmc_data *pdata = host->pdata;
-	int ret = mmc_gpio_get_ro(mmc);
 
-	if (ret >= 0)
-		return ret;
-
-	ret = !((pdata->flags & TMIO_MMC_WRPROTECT_DISABLE) ||
-		(sd_ctrl_read16_and_16_as_32(host, CTL_STATUS) & TMIO_STAT_WRPROTECT));
-
-	return ret;
+	return !((pdata->flags & TMIO_MMC_WRPROTECT_DISABLE) ||
+		 (sd_ctrl_read16_and_16_as_32(host, CTL_STATUS) & TMIO_STAT_WRPROTECT));
 }
 
 static int tmio_multi_io_quirk(struct mmc_card *card,
@@ -1246,6 +1240,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 			mmc->max_req_size = max_size;
 	}
 	mmc->max_seg_size = mmc->max_req_size;
+
+	if (mmc_can_gpio_ro(mmc))
+		_host->ops.get_ro = mmc_gpio_get_ro;
 
 	_host->native_hotplug = !(mmc_can_gpio_cd(mmc) ||
 				  mmc->caps & MMC_CAP_NEEDS_POLL ||
