@@ -66,6 +66,7 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_LWT_XMIT]	= "lwt_xmit",
 	[BPF_PROG_TYPE_SOCK_OPS]	= "sock_ops",
 	[BPF_PROG_TYPE_SK_SKB]		= "sk_skb",
+	[BPF_PROG_TYPE_CGROUP_DEVICE]	= "cgroup_device",
 };
 
 static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)

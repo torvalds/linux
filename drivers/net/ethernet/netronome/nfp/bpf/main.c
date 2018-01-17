@@ -251,6 +251,45 @@ nfp_bpf_parse_cap_adjust_head(struct nfp_app_bpf *bpf, void __iomem *value,
 	return 0;
 }
 
+static int
+nfp_bpf_parse_cap_func(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
+{
+	struct nfp_bpf_cap_tlv_func __iomem *cap = value;
+
+	if (length < sizeof(*cap)) {
+		nfp_err(bpf->app->cpp, "truncated function TLV: %d\n", length);
+		return -EINVAL;
+	}
+
+	switch (readl(&cap->func_id)) {
+	case BPF_FUNC_map_lookup_elem:
+		bpf->helpers.map_lookup = readl(&cap->func_addr);
+		break;
+	}
+
+	return 0;
+}
+
+static int
+nfp_bpf_parse_cap_maps(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
+{
+	struct nfp_bpf_cap_tlv_maps __iomem *cap = value;
+
+	if (length < sizeof(*cap)) {
+		nfp_err(bpf->app->cpp, "truncated maps TLV: %d\n", length);
+		return -EINVAL;
+	}
+
+	bpf->maps.types = readl(&cap->types);
+	bpf->maps.max_maps = readl(&cap->max_maps);
+	bpf->maps.max_elems = readl(&cap->max_elems);
+	bpf->maps.max_key_sz = readl(&cap->max_key_sz);
+	bpf->maps.max_val_sz = readl(&cap->max_val_sz);
+	bpf->maps.max_elem_sz = readl(&cap->max_elem_sz);
+
+	return 0;
+}
+
 static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 {
 	struct nfp_cpp *cpp = app->pf->cpp;
@@ -276,9 +315,17 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 			goto err_release_free;
 
 		switch (type) {
+		case NFP_BPF_CAP_TYPE_FUNC:
+			if (nfp_bpf_parse_cap_func(app->priv, value, length))
+				goto err_release_free;
+			break;
 		case NFP_BPF_CAP_TYPE_ADJUST_HEAD:
 			if (nfp_bpf_parse_cap_adjust_head(app->priv, value,
 							  length))
+				goto err_release_free;
+			break;
+		case NFP_BPF_CAP_TYPE_MAPS:
+			if (nfp_bpf_parse_cap_maps(app->priv, value, length))
 				goto err_release_free;
 			break;
 		default:
@@ -313,6 +360,10 @@ static int nfp_bpf_init(struct nfp_app *app)
 	bpf->app = app;
 	app->priv = bpf;
 
+	skb_queue_head_init(&bpf->cmsg_replies);
+	init_waitqueue_head(&bpf->cmsg_wq);
+	INIT_LIST_HEAD(&bpf->map_list);
+
 	err = nfp_bpf_parse_capabilities(app);
 	if (err)
 		goto err_free_bpf;
@@ -326,7 +377,12 @@ err_free_bpf:
 
 static void nfp_bpf_clean(struct nfp_app *app)
 {
-	kfree(app->priv);
+	struct nfp_app_bpf *bpf = app->priv;
+
+	WARN_ON(!skb_queue_empty(&bpf->cmsg_replies));
+	WARN_ON(!list_empty(&bpf->map_list));
+	WARN_ON(bpf->maps_in_use || bpf->map_elems_in_use);
+	kfree(bpf);
 }
 
 const struct nfp_app_type app_bpf = {
@@ -342,6 +398,8 @@ const struct nfp_app_type app_bpf = {
 
 	.vnic_alloc	= nfp_bpf_vnic_alloc,
 	.vnic_free	= nfp_bpf_vnic_free,
+
+	.ctrl_msg_rx	= nfp_bpf_ctrl_msg_rx,
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.tc_busy	= nfp_bpf_tc_busy,

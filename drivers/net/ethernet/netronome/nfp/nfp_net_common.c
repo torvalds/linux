@@ -1920,6 +1920,13 @@ err_free:
 	return false;
 }
 
+bool __nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb)
+{
+	struct nfp_net_r_vector *r_vec = &nn->r_vecs[0];
+
+	return nfp_ctrl_tx_one(nn, r_vec, skb, false);
+}
+
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb)
 {
 	struct nfp_net_r_vector *r_vec = &nn->r_vecs[0];

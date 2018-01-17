@@ -1803,7 +1803,7 @@ BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
 BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
 BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
 
-#define BPF_PROG_SEC(string, type) { string, sizeof(string), type }
+#define BPF_PROG_SEC(string, type) { string, sizeof(string) - 1, type }
 static const struct {
 	const char *sec;
 	size_t len;

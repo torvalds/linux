@@ -3118,10 +3118,10 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 					     sizeof(*mod->ftrace_callsites),
 					     &mod->num_ftrace_callsites);
 #endif
-#ifdef CONFIG_BPF_KPROBE_OVERRIDE
-	mod->kprobe_ei_funcs = section_objs(info, "_kprobe_error_inject_list",
-					    sizeof(*mod->kprobe_ei_funcs),
-					    &mod->num_kprobe_ei_funcs);
+#ifdef CONFIG_FUNCTION_ERROR_INJECTION
+	mod->ei_funcs = section_objs(info, "_error_injection_whitelist",
+					    sizeof(*mod->ei_funcs),
+					    &mod->num_ei_funcs);
 #endif
 	mod->extable = section_objs(info, "__ex_table",
 				    sizeof(*mod->extable), &mod->num_exentries);

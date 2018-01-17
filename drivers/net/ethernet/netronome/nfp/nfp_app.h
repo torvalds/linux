@@ -165,6 +165,7 @@ struct nfp_app {
 	void *priv;
 };
 
+bool __nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 
 static inline int nfp_app_init(struct nfp_app *app)
@@ -324,6 +325,14 @@ static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 	if (!app || !app->type->xdp_offload)
 		return -EOPNOTSUPP;
 	return app->type->xdp_offload(app, nn, prog);
+}
+
+static inline bool __nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)
+{
+	trace_devlink_hwmsg(priv_to_devlink(app->pf), false, 0,
+			    skb->data, skb->len);
+
+	return __nfp_ctrl_tx(app->ctrl, skb);
 }
 
 static inline bool nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)
