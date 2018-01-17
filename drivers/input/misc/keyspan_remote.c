@@ -20,7 +20,6 @@
 #define DRIVER_VERSION	"v0.1"
 #define DRIVER_AUTHOR	"Michael Downey <downey@zymeta.com>"
 #define DRIVER_DESC	"Driver for the USB Keyspan remote control."
-#define DRIVER_LICENSE	"GPL"
 
 /* Parameters that can be passed to the driver. */
 static int debug;
@@ -592,4 +591,4 @@ module_usb_driver(keyspan_driver);
 MODULE_DEVICE_TABLE(usb, keyspan_table);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_LICENSE("GPL");
