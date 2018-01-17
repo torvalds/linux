@@ -7042,6 +7042,8 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0285:
 	case 0x10ec0289:
 		spec->codec_variant = ALC269_TYPE_ALC215;
+		spec->shutup = alc225_shutup;
+		spec->init_hook = alc225_init;
 		spec->gen.mixer_nid = 0;
 		break;
 	case 0x10ec0225:
