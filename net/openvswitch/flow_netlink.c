@@ -2454,7 +2454,7 @@ static int validate_geneve_opts(struct sw_flow_key *key)
 
 		option = (struct geneve_opt *)((u8 *)option + len);
 		opts_len -= len;
-	};
+	}
 
 	key->tun_key.tun_flags |= crit_opt ? TUNNEL_CRIT_OPT : 0;
 
@@ -2487,7 +2487,7 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 		case OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS:
 			break;
 		}
-	};
+	}
 
 	start = add_nested_action_start(sfa, OVS_ACTION_ATTR_SET, log);
 	if (start < 0)
