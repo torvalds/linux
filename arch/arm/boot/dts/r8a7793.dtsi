@@ -228,9 +228,9 @@
 	};
 
 	thermal: thermal@e61f0000 {
-		compatible =	"renesas,thermal-r8a7793",
-				"renesas,rcar-gen2-thermal",
-				"renesas,rcar-thermal";
+		compatible = "renesas,thermal-r8a7793",
+			     "renesas,rcar-gen2-thermal",
+			     "renesas,rcar-thermal";
 		reg = <0 0xe61f0000 0 0x10>, <0 0xe61f0100 0 0x38>;
 		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 522>;
@@ -1174,12 +1174,13 @@
 		 * Single DAI : #sound-dai-cells = <0>;         <&rcar_sound>;
 		 * Multi  DAI : #sound-dai-cells = <1>;         <&rcar_sound N>;
 		 */
-		compatible =  "renesas,rcar_sound-r8a7793", "renesas,rcar_sound-gen2";
-		reg =	<0 0xec500000 0 0x1000>, /* SCU */
-			<0 0xec5a0000 0 0x100>,  /* ADG */
-			<0 0xec540000 0 0x1000>, /* SSIU */
-			<0 0xec541000 0 0x280>,  /* SSI */
-			<0 0xec740000 0 0x200>;  /* Audio DMAC peri peri*/
+		compatible = "renesas,rcar_sound-r8a7793",
+			     "renesas,rcar_sound-gen2";
+		reg = <0 0xec500000 0 0x1000>, /* SCU */
+		      <0 0xec5a0000 0 0x100>,  /* ADG */
+		      <0 0xec540000 0 0x1000>, /* SSIU */
+		      <0 0xec541000 0 0x280>,  /* SSI */
+		      <0 0xec740000 0 0x200>;  /* Audio DMAC peri peri*/
 		reg-names = "scu", "adg", "ssiu", "ssi", "audmapp";
 
 		clocks = <&cpg CPG_MOD 1005>,
