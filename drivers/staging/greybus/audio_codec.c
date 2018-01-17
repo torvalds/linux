@@ -319,7 +319,7 @@ int gbaudio_module_update(struct gbaudio_codec_info *codec,
 	char intf_name[NAME_SIZE], dir[NAME_SIZE];
 
 	dev_dbg(module->dev, "%s:Module update %s sequence\n", w->name,
-		enable ? "Enable":"Disable");
+		enable ? "Enable" : "Disable");
 
 	if ((w->id != snd_soc_dapm_aif_in) && (w->id != snd_soc_dapm_aif_out)) {
 		dev_dbg(codec->dev, "No action required for %s\n", w->name);
@@ -588,7 +588,7 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	struct gbaudio_stream_params *params;
 
 	dev_dbg(dai->dev, "Mute:%d, Direction:%s\n", mute,
-		stream ? "CAPTURE":"PLAYBACK");
+		stream ? "CAPTURE" : "PLAYBACK");
 
 	mutex_lock(&codec->lock);
 
