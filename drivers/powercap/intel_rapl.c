@@ -1211,7 +1211,7 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 	struct rapl_domain *rd;
 	char dev_name[17]; /* max domain name = 7 + 1 + 8 for int + 1 for null*/
 	struct powercap_zone *power_zone = NULL;
-	int nr_pl, ret;;
+	int nr_pl, ret;
 
 	/* Update the domain data of the new package */
 	rapl_update_domain_data(rp);
