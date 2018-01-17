@@ -59,10 +59,6 @@ static void malidp_de_plane_destroy(struct drm_plane *plane)
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 
-	if (mp->base.fb)
-		drm_framebuffer_put(mp->base.fb);
-
-	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
 	kfree(mp);
 }

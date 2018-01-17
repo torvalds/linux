@@ -278,6 +278,7 @@ static int malidp_init(struct drm_device *drm)
 
 static void malidp_fini(struct drm_device *drm)
 {
+	drm_atomic_helper_shutdown(drm);
 	drm_mode_config_cleanup(drm);
 }
 
