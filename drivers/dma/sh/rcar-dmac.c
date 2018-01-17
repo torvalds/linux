@@ -1615,22 +1615,6 @@ static struct dma_chan *rcar_dmac_of_xlate(struct of_phandle_args *dma_spec,
  * Power management
  */
 
-#ifdef CONFIG_PM_SLEEP
-static int rcar_dmac_sleep_suspend(struct device *dev)
-{
-	/*
-	 * TODO: Wait for the current transfer to complete and stop the device.
-	 */
-	return 0;
-}
-
-static int rcar_dmac_sleep_resume(struct device *dev)
-{
-	/* TODO: Resume transfers, if any. */
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_PM
 static int rcar_dmac_runtime_suspend(struct device *dev)
 {
@@ -1646,7 +1630,13 @@ static int rcar_dmac_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops rcar_dmac_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rcar_dmac_sleep_suspend, rcar_dmac_sleep_resume)
+	/*
+	 * TODO for system sleep/resume:
+	 *   - Wait for the current transfer to complete and stop the device,
+	 *   - Resume transfers, if any.
+	 */
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				     pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(rcar_dmac_runtime_suspend, rcar_dmac_runtime_resume,
 			   NULL)
 };
