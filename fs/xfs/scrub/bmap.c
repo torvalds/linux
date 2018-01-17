@@ -119,8 +119,27 @@ xfs_scrub_bmap_extent_xref(
 	struct xfs_btree_cur		*cur,
 	struct xfs_bmbt_irec		*irec)
 {
+	struct xfs_mount		*mp = info->sc->mp;
+	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
+	xfs_extlen_t			len;
+	int				error;
+
 	if (info->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	agno = XFS_FSB_TO_AGNO(mp, irec->br_startblock);
+	agbno = XFS_FSB_TO_AGBNO(mp, irec->br_startblock);
+	len = irec->br_blockcount;
+
+	error = xfs_scrub_ag_init(info->sc, agno, &info->sc->sa);
+	if (!xfs_scrub_fblock_process_error(info->sc, info->whichfork,
+			irec->br_startoff, &error))
+		return;
+
+	xfs_scrub_xref_is_used_space(info->sc, agbno, len);
+
+	xfs_scrub_ag_free(info->sc, &info->sc->sa);
 }
 
 /* Scrub a single extent record. */

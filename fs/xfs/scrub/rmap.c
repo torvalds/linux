@@ -57,8 +57,13 @@ xfs_scrub_rmapbt_xref(
 	struct xfs_scrub_context	*sc,
 	struct xfs_rmap_irec		*irec)
 {
+	xfs_agblock_t			agbno = irec->rm_startblock;
+	xfs_extlen_t			len = irec->rm_blockcount;
+
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, len);
 }
 
 /* Scrub an rmapbt record. */

@@ -60,6 +60,8 @@ xfs_scrub_refcountbt_xref(
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, len);
 }
 
 /* Scrub a refcountbt record. */

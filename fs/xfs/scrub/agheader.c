@@ -107,8 +107,23 @@ xfs_scrub_superblock_xref(
 	struct xfs_scrub_context	*sc,
 	struct xfs_buf			*bp)
 {
+	struct xfs_mount		*mp = sc->mp;
+	xfs_agnumber_t			agno = sc->sm->sm_agno;
+	xfs_agblock_t			agbno;
+	int				error;
+
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	agbno = XFS_SB_BLOCK(mp);
+
+	error = xfs_scrub_ag_init(sc, agno, &sc->sa);
+	if (!xfs_scrub_xref_process_error(sc, agno, agbno, &error))
+		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+
+	/* scrub teardown will take care of sc->sa for us */
 }
 
 /*
@@ -406,13 +421,61 @@ xfs_scrub_superblock(
 
 /* AGF */
 
+/* Tally freespace record lengths. */
+STATIC int
+xfs_scrub_agf_record_bno_lengths(
+	struct xfs_btree_cur		*cur,
+	struct xfs_alloc_rec_incore	*rec,
+	void				*priv)
+{
+	xfs_extlen_t			*blocks = priv;
+
+	(*blocks) += rec->ar_blockcount;
+	return 0;
+}
+
+/* Check agf_freeblks */
+static inline void
+xfs_scrub_agf_xref_freeblks(
+	struct xfs_scrub_context	*sc)
+{
+	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	xfs_extlen_t			blocks = 0;
+	int				error;
+
+	if (!sc->sa.bno_cur)
+		return;
+
+	error = xfs_alloc_query_all(sc->sa.bno_cur,
+			xfs_scrub_agf_record_bno_lengths, &blocks);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.bno_cur))
+		return;
+	if (blocks != be32_to_cpu(agf->agf_freeblks))
+		xfs_scrub_block_xref_set_corrupt(sc, sc->sa.agf_bp);
+}
+
 /* Cross-reference with the other btrees. */
 STATIC void
 xfs_scrub_agf_xref(
 	struct xfs_scrub_context	*sc)
 {
+	struct xfs_mount		*mp = sc->mp;
+	xfs_agblock_t			agbno;
+	int				error;
+
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	agbno = XFS_AGF_BLOCK(mp);
+
+	error = xfs_scrub_ag_btcur_init(sc, &sc->sa);
+	if (error)
+		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+	xfs_scrub_agf_xref_freeblks(sc);
+
+	/* scrub teardown will take care of sc->sa for us */
 }
 
 /* Scrub the AGF. */
@@ -514,6 +577,8 @@ xfs_scrub_agfl_block_xref(
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, 1);
 }
 
 /* Scrub an AGFL block. */
@@ -554,8 +619,25 @@ STATIC void
 xfs_scrub_agfl_xref(
 	struct xfs_scrub_context	*sc)
 {
+	struct xfs_mount		*mp = sc->mp;
+	xfs_agblock_t			agbno;
+	int				error;
+
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	agbno = XFS_AGFL_BLOCK(mp);
+
+	error = xfs_scrub_ag_btcur_init(sc, &sc->sa);
+	if (error)
+		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+
+	/*
+	 * Scrub teardown will take care of sc->sa for us.  Leave sc->sa
+	 * active so that the agfl block xref can use it too.
+	 */
 }
 
 /* Scrub the AGFL. */
@@ -630,8 +712,22 @@ STATIC void
 xfs_scrub_agi_xref(
 	struct xfs_scrub_context	*sc)
 {
+	struct xfs_mount		*mp = sc->mp;
+	xfs_agblock_t			agbno;
+	int				error;
+
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	agbno = XFS_AGI_BLOCK(mp);
+
+	error = xfs_scrub_ag_btcur_init(sc, &sc->sa);
+	if (error)
+		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+
+	/* scrub teardown will take care of sc->sa for us */
 }
 
 /* Scrub the AGI. */

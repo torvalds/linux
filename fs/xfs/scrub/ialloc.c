@@ -69,6 +69,8 @@ xfs_scrub_iallocbt_chunk_xref(
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, len);
 }
 
 /* Is this chunk worth checking? */

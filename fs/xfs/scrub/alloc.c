@@ -113,3 +113,23 @@ xfs_scrub_cntbt(
 {
 	return xfs_scrub_allocbt(sc, XFS_BTNUM_CNT);
 }
+
+/* xref check that the extent is not free */
+void
+xfs_scrub_xref_is_used_space(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len)
+{
+	bool				is_freesp;
+	int				error;
+
+	if (!sc->sa.bno_cur)
+		return;
+
+	error = xfs_alloc_has_record(sc->sa.bno_cur, agbno, len, &is_freesp);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.bno_cur))
+		return;
+	if (is_freesp)
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.bno_cur, 0);
+}

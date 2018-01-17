@@ -378,13 +378,17 @@ xfs_scrub_btree_check_block_owner(
 	xfs_daddr_t			daddr)
 {
 	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
+	xfs_btnum_t			btnum;
 	bool				init_sa;
 	int				error = 0;
 
 	if (!bs->cur)
 		return 0;
 
+	btnum = bs->cur->bc_btnum;
 	agno = xfs_daddr_to_agno(bs->cur->bc_mp, daddr);
+	agbno = xfs_daddr_to_agbno(bs->cur->bc_mp, daddr);
 
 	init_sa = bs->cur->bc_flags & XFS_BTREE_LONG_PTRS;
 	if (init_sa) {
@@ -393,6 +397,15 @@ xfs_scrub_btree_check_block_owner(
 				level, &error))
 			return error;
 	}
+
+	xfs_scrub_xref_is_used_space(bs->sc, agbno, 1);
+	/*
+	 * The bnobt scrubber aliases bs->cur to bs->sc->sa.bno_cur, so we
+	 * have to nullify it (to shut down further block owner checks) if
+	 * self-xref encounters problems.
+	 */
+	if (!bs->sc->sa.bno_cur && btnum == XFS_BTNUM_BNO)
+		bs->cur = NULL;
 
 	if (init_sa)
 		xfs_scrub_ag_free(bs->sc, &bs->sc->sa);

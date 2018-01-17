@@ -584,8 +584,23 @@ xfs_scrub_inode_xref(
 	xfs_ino_t			ino,
 	struct xfs_dinode		*dip)
 {
+	xfs_agnumber_t			agno;
+	xfs_agblock_t			agbno;
+	int				error;
+
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
+
+	agno = XFS_INO_TO_AGNO(sc->mp, ino);
+	agbno = XFS_INO_TO_AGBNO(sc->mp, ino);
+
+	error = xfs_scrub_ag_init(sc, agno, &sc->sa);
+	if (!xfs_scrub_xref_process_error(sc, agno, agbno, &error))
+		return;
+
+	xfs_scrub_xref_is_used_space(sc, agbno, 1);
+
+	xfs_scrub_ag_free(sc, &sc->sa);
 }
 
 /* Scrub an inode. */
