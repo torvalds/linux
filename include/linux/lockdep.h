@@ -337,9 +337,9 @@ extern void lock_release(struct lockdep_map *lock, int nested,
 /*
  * Same "read" as for lock_acquire(), except -1 means any.
  */
-extern int lock_is_held_type(struct lockdep_map *lock, int read);
+extern int lock_is_held_type(const struct lockdep_map *lock, int read);
 
-static inline int lock_is_held(struct lockdep_map *lock)
+static inline int lock_is_held(const struct lockdep_map *lock)
 {
 	return lock_is_held_type(lock, -1);
 }
