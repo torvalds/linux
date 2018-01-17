@@ -2082,7 +2082,7 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 	int err;
 
 	/* if in-place-update policy is enabled, don't waste time here */
-	if (need_inplace_update_policy(inode, NULL))
+	if (should_update_inplace(inode, NULL))
 		return -EINVAL;
 
 	pg_start = range->start >> PAGE_SHIFT;
@@ -2715,6 +2715,11 @@ static int f2fs_ioc_set_pin_file(struct file *filp, unsigned long arg)
 		return ret;
 
 	inode_lock(inode);
+
+	if (should_update_outplace(inode, NULL)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	if (!pin) {
 		clear_inode_flag(inode, FI_PIN_FILE);

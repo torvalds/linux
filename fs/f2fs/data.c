@@ -1518,20 +1518,79 @@ retry_encrypt:
 	return PTR_ERR(fio->encrypted_page);
 }
 
+static inline bool check_inplace_update_policy(struct inode *inode,
+				struct f2fs_io_info *fio)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	unsigned int policy = SM_I(sbi)->ipu_policy;
+
+	if (policy & (0x1 << F2FS_IPU_FORCE))
+		return true;
+	if (policy & (0x1 << F2FS_IPU_SSR) && need_SSR(sbi))
+		return true;
+	if (policy & (0x1 << F2FS_IPU_UTIL) &&
+			utilization(sbi) > SM_I(sbi)->min_ipu_util)
+		return true;
+	if (policy & (0x1 << F2FS_IPU_SSR_UTIL) && need_SSR(sbi) &&
+			utilization(sbi) > SM_I(sbi)->min_ipu_util)
+		return true;
+
+	/*
+	 * IPU for rewrite async pages
+	 */
+	if (policy & (0x1 << F2FS_IPU_ASYNC) &&
+			fio && fio->op == REQ_OP_WRITE &&
+			!(fio->op_flags & REQ_SYNC) &&
+			!f2fs_encrypted_inode(inode))
+		return true;
+
+	/* this is only set during fdatasync */
+	if (policy & (0x1 << F2FS_IPU_FSYNC) &&
+			is_inode_flag_set(inode, FI_NEED_IPU))
+		return true;
+
+	return false;
+}
+
+bool should_update_inplace(struct inode *inode, struct f2fs_io_info *fio)
+{
+	if (f2fs_is_pinned_file(inode))
+		return true;
+
+	/* if this is cold file, we should overwrite to avoid fragmentation */
+	if (file_is_cold(inode))
+		return true;
+
+	return check_inplace_update_policy(inode, fio);
+}
+
+bool should_update_outplace(struct inode *inode, struct f2fs_io_info *fio)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+
+	if (test_opt(sbi, LFS))
+		return true;
+	if (S_ISDIR(inode->i_mode))
+		return true;
+	if (f2fs_is_atomic_file(inode))
+		return true;
+	if (fio) {
+		if (is_cold_data(fio->page))
+			return true;
+		if (IS_ATOMIC_WRITTEN_PAGE(fio->page))
+			return true;
+	}
+	return false;
+}
+
 static inline bool need_inplace_update(struct f2fs_io_info *fio)
 {
 	struct inode *inode = fio->page->mapping->host;
 
-	if (f2fs_is_pinned_file(inode))
-		return true;
-	if (S_ISDIR(inode->i_mode) || f2fs_is_atomic_file(inode))
-		return false;
-	if (is_cold_data(fio->page))
-		return false;
-	if (IS_ATOMIC_WRITTEN_PAGE(fio->page))
+	if (should_update_outplace(inode, fio))
 		return false;
 
-	return need_inplace_update_policy(inode, fio);
+	return should_update_inplace(inode, fio);
 }
 
 static inline bool valid_ipu_blkaddr(struct f2fs_io_info *fio)

@@ -2834,6 +2834,8 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 			int create, int flag);
 int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			u64 start, u64 len);
+bool should_update_inplace(struct inode *inode, struct f2fs_io_info *fio);
+bool should_update_outplace(struct inode *inode, struct f2fs_io_info *fio);
 void f2fs_set_page_dirty_nobuffers(struct page *page);
 int __f2fs_write_data_pages(struct address_space *mapping,
 						struct writeback_control *wbc,
