@@ -531,7 +531,7 @@ static int brcm_sata_phy_calibrate(struct phy *phy)
 		break;
 	default:
 		break;
-	};
+	}
 
 	return rc;
 }
