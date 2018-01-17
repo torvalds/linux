@@ -152,6 +152,12 @@ mlxsw_sp_bridge_device_find(const struct mlxsw_sp_bridge *bridge,
 	return NULL;
 }
 
+bool mlxsw_sp_bridge_device_is_offloaded(const struct mlxsw_sp *mlxsw_sp,
+					 const struct net_device *br_dev)
+{
+	return !!mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
+}
+
 static struct mlxsw_sp_bridge_device *
 mlxsw_sp_bridge_device_create(struct mlxsw_sp_bridge *bridge,
 			      struct net_device *br_dev)

@@ -156,9 +156,9 @@ int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 	sctp_stream_outq_migrate(stream, NULL, outcnt);
 	sched->sched_all(stream);
 
-	i = sctp_stream_alloc_out(stream, outcnt, gfp);
-	if (i)
-		return i;
+	ret = sctp_stream_alloc_out(stream, outcnt, gfp);
+	if (ret)
+		goto out;
 
 	stream->outcnt = outcnt;
 	for (i = 0; i < stream->outcnt; i++)
@@ -170,19 +170,17 @@ in:
 	if (!incnt)
 		goto out;
 
-	i = sctp_stream_alloc_in(stream, incnt, gfp);
-	if (i) {
-		ret = -ENOMEM;
-		goto free;
+	ret = sctp_stream_alloc_in(stream, incnt, gfp);
+	if (ret) {
+		sched->free(stream);
+		kfree(stream->out);
+		stream->out = NULL;
+		stream->outcnt = 0;
+		goto out;
 	}
 
 	stream->incnt = incnt;
-	goto out;
 
-free:
-	sched->free(stream);
-	kfree(stream->out);
-	stream->out = NULL;
 out:
 	return ret;
 }
