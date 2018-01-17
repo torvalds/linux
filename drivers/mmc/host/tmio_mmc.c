@@ -104,7 +104,7 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 	host->mmc->f_max = pdata->hclk;
 	host->mmc->f_min = pdata->hclk / 512;
 
-	ret = tmio_mmc_host_probe(host, NULL);
+	ret = tmio_mmc_host_probe(host);
 	if (ret)
 		goto host_free;
 

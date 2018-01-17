@@ -532,6 +532,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	host->clk_update	= renesas_sdhi_clk_update;
 	host->clk_disable	= renesas_sdhi_clk_disable;
 	host->multi_io_quirk	= renesas_sdhi_multi_io_quirk;
+	host->dma_ops		= dma_ops;
 
 	/* SDR speeds are only available on Gen2+ */
 	if (mmc_data->flags & TMIO_MMC_MIN_RCAR2) {
@@ -575,7 +576,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	if (ret)
 		goto efree;
 
-	ret = tmio_mmc_host_probe(host, dma_ops);
+	ret = tmio_mmc_host_probe(host);
 	if (ret < 0)
 		goto edisclk;
 
