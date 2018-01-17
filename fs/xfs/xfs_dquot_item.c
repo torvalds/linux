@@ -150,10 +150,7 @@ xfs_dquot_item_error(
 	struct xfs_log_item	*lip,
 	struct xfs_buf		*bp)
 {
-	struct xfs_dquot	*dqp;
-
-	dqp = DQUOT_ITEM(lip)->qli_dquot;
-	ASSERT(!completion_done(&dqp->q_flush));
+	ASSERT(!completion_done(&DQUOT_ITEM(lip)->qli_dquot->q_flush));
 	xfs_set_li_failed(lip, bp);
 }
 
