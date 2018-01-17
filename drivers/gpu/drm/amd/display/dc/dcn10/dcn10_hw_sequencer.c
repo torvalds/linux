@@ -1584,6 +1584,7 @@ static void update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
 }
 
+
 static void update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
@@ -1819,8 +1820,9 @@ static void program_all_pipe_in_tree(
 			dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 	}
 
-	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx)
+	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx) {
 		program_all_pipe_in_tree(dc, pipe_ctx->bottom_pipe, context);
+	}
 }
 
 static void dcn10_pplib_apply_display_requirements(
