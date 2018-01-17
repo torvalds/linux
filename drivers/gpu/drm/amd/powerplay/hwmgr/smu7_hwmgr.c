@@ -3482,8 +3482,6 @@ static int smu7_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	uint32_t i;
 	struct cgs_display_info info = {0};
 
-	data->need_update_smu7_dpm_table = 0;
-
 	for (i = 0; i < sclk_table->count; i++) {
 		if (sclk == sclk_table->dpm_levels[i].value)
 			break;
@@ -3625,106 +3623,27 @@ static int smu7_populate_and_upload_sclk_mclk_dpm_levels(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
 	int result = 0;
-	const struct phm_set_power_state_input *states =
-			(const struct phm_set_power_state_input *)input;
-	const struct smu7_power_state *smu7_ps =
-			cast_const_phw_smu7_power_state(states->pnew_state);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	uint32_t sclk = smu7_ps->performance_levels
-			[smu7_ps->performance_level_count - 1].engine_clock;
-	uint32_t mclk = smu7_ps->performance_levels
-			[smu7_ps->performance_level_count - 1].memory_clock;
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
-
-	struct smu7_dpm_table *golden_dpm_table = &data->golden_dpm_table;
-	uint32_t dpm_count, clock_percent;
-	uint32_t i;
+	uint32_t count;
+	struct smu7_odn_dpm_table *odn_table = &(data->odn_dpm_table);
+	struct phm_odn_clock_levels *odn_sclk_table = &(odn_table->odn_core_clock_dpm_levels);
+	struct phm_odn_clock_levels *odn_mclk_table = &(odn_table->odn_memory_clock_dpm_levels);
 
 	if (0 == data->need_update_smu7_dpm_table)
 		return 0;
 
-	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_SCLK) {
-		dpm_table->sclk_table.dpm_levels
-		[dpm_table->sclk_table.count - 1].value = sclk;
-
-		if (hwmgr->od_enabled) {
-		/* Need to do calculation based on the golden DPM table
-		 * as the Heatmap GPU Clock axis is also based on the default values
-		 */
-			PP_ASSERT_WITH_CODE(
-				(golden_dpm_table->sclk_table.dpm_levels
-						[golden_dpm_table->sclk_table.count - 1].value != 0),
-				"Divide by 0!",
-				return -EINVAL);
-			dpm_count = dpm_table->sclk_table.count < 2 ? 0 : dpm_table->sclk_table.count - 2;
-
-			for (i = dpm_count; i > 1; i--) {
-				if (sclk > golden_dpm_table->sclk_table.dpm_levels[golden_dpm_table->sclk_table.count-1].value) {
-					clock_percent =
-					      ((sclk
-						- golden_dpm_table->sclk_table.dpm_levels[golden_dpm_table->sclk_table.count-1].value
-						) * 100)
-						/ golden_dpm_table->sclk_table.dpm_levels[golden_dpm_table->sclk_table.count-1].value;
-
-					dpm_table->sclk_table.dpm_levels[i].value =
-							golden_dpm_table->sclk_table.dpm_levels[i].value +
-							(golden_dpm_table->sclk_table.dpm_levels[i].value *
-								clock_percent)/100;
-
-				} else if (golden_dpm_table->sclk_table.dpm_levels[dpm_table->sclk_table.count-1].value > sclk) {
-					clock_percent =
-						((golden_dpm_table->sclk_table.dpm_levels[golden_dpm_table->sclk_table.count - 1].value
-						- sclk) * 100)
-						/ golden_dpm_table->sclk_table.dpm_levels[golden_dpm_table->sclk_table.count-1].value;
-
-					dpm_table->sclk_table.dpm_levels[i].value =
-							golden_dpm_table->sclk_table.dpm_levels[i].value -
-							(golden_dpm_table->sclk_table.dpm_levels[i].value *
-									clock_percent) / 100;
-				} else
-					dpm_table->sclk_table.dpm_levels[i].value =
-							golden_dpm_table->sclk_table.dpm_levels[i].value;
-			}
+	if (hwmgr->od_enabled && data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_SCLK) {
+		for (count = 0; count < dpm_table->sclk_table.count; count++) {
+			dpm_table->sclk_table.dpm_levels[count].enabled = odn_sclk_table->entries[count].enabled;
+			dpm_table->sclk_table.dpm_levels[count].value = odn_sclk_table->entries[count].clock;
 		}
 	}
 
-	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK) {
-		dpm_table->mclk_table.dpm_levels
-			[dpm_table->mclk_table.count - 1].value = mclk;
-
-		if (hwmgr->od_enabled) {
-
-			PP_ASSERT_WITH_CODE(
-					(golden_dpm_table->mclk_table.dpm_levels
-						[golden_dpm_table->mclk_table.count-1].value != 0),
-					"Divide by 0!",
-					return -EINVAL);
-			dpm_count = dpm_table->mclk_table.count < 2 ? 0 : dpm_table->mclk_table.count - 2;
-			for (i = dpm_count; i > 1; i--) {
-				if (golden_dpm_table->mclk_table.dpm_levels[golden_dpm_table->mclk_table.count-1].value < mclk) {
-					clock_percent = ((mclk -
-					golden_dpm_table->mclk_table.dpm_levels[golden_dpm_table->mclk_table.count-1].value) * 100)
-					/ golden_dpm_table->mclk_table.dpm_levels[golden_dpm_table->mclk_table.count-1].value;
-
-					dpm_table->mclk_table.dpm_levels[i].value =
-							golden_dpm_table->mclk_table.dpm_levels[i].value +
-							(golden_dpm_table->mclk_table.dpm_levels[i].value *
-							clock_percent) / 100;
-
-				} else if (golden_dpm_table->mclk_table.dpm_levels[dpm_table->mclk_table.count-1].value > mclk) {
-					clock_percent = (
-					 (golden_dpm_table->mclk_table.dpm_levels[golden_dpm_table->mclk_table.count-1].value - mclk)
-					* 100)
-					/ golden_dpm_table->mclk_table.dpm_levels[golden_dpm_table->mclk_table.count-1].value;
-
-					dpm_table->mclk_table.dpm_levels[i].value =
-							golden_dpm_table->mclk_table.dpm_levels[i].value -
-							(golden_dpm_table->mclk_table.dpm_levels[i].value *
-									clock_percent) / 100;
-				} else
-					dpm_table->mclk_table.dpm_levels[i].value =
-							golden_dpm_table->mclk_table.dpm_levels[i].value;
-			}
+	if (hwmgr->od_enabled && data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK) {
+		for (count = 0; count < dpm_table->mclk_table.count; count++) {
+			dpm_table->mclk_table.dpm_levels[count].enabled = odn_mclk_table->entries[count].enabled;
+			dpm_table->mclk_table.dpm_levels[count].value = odn_mclk_table->entries[count].clock;
 		}
 	}
 
@@ -3846,7 +3765,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		    return -EINVAL);
 	}
 
-	data->need_update_smu7_dpm_table = 0;
+	data->need_update_smu7_dpm_table &= DPMTABLE_OD_UPDATE_VDDC;
 
 	return 0;
 }
@@ -4114,6 +4033,7 @@ static int smu7_check_states_equal(struct pp_hwmgr *hwmgr,
 	const struct smu7_power_state *psa;
 	const struct smu7_power_state *psb;
 	int i;
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (pstate1 == NULL || pstate2 == NULL || equal == NULL)
 		return -EINVAL;
@@ -4138,6 +4058,10 @@ static int smu7_check_states_equal(struct pp_hwmgr *hwmgr,
 	*equal = ((psa->uvd_clks.vclk == psb->uvd_clks.vclk) && (psa->uvd_clks.dclk == psb->uvd_clks.dclk));
 	*equal &= ((psa->vce_clks.evclk == psb->vce_clks.evclk) && (psa->vce_clks.ecclk == psb->vce_clks.ecclk));
 	*equal &= (psa->sclk_threshold == psb->sclk_threshold);
+	/* For OD call, set value based on flag */
+	*equal &= !(data->need_update_smu7_dpm_table & (DPMTABLE_OD_UPDATE_SCLK |
+							DPMTABLE_OD_UPDATE_MCLK |
+							DPMTABLE_OD_UPDATE_VDDC));
 
 	return 0;
 }
@@ -4887,21 +4811,25 @@ static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 	dep_table = table_info->vdd_dep_on_mclk;
 	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_mclk);
 
-	for (i=0; i<dep_table->count; i++) {
+	for (i=0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
 			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
-			return;
+			break;
 		}
 	}
+	if (i == dep_table->count)
+		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
 
 	dep_table = table_info->vdd_dep_on_sclk;
 	odn_dep_table = (struct phm_ppt_v1_clock_voltage_dependency_table *)&(odn_table->vdd_dependency_on_sclk);
-	for (i=0; i<dep_table->count; i++) {
+	for (i=0; i < dep_table->count; i++) {
 		if (dep_table->entries[i].vddc != odn_dep_table->entries[i].vddc) {
 			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_VDDC;
-			return;
+			break;
 		}
 	}
+	if (i == dep_table->count)
+		data->need_update_smu7_dpm_table &= ~DPMTABLE_OD_UPDATE_VDDC;
 }
 
 static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,

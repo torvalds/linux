@@ -948,12 +948,18 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	SMU_SclkSetting curr_sclk_setting = { 0 };
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
 	result = polaris10_calculate_sclk_params(hwmgr, clock, &curr_sclk_setting);
 
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = table_info->vdd_dep_on_sclk;
+
 	/* populate graphics levels */
 	result = polaris10_get_dependency_volt_by_clk(hwmgr,
-			table_info->vdd_dep_on_sclk, clock,
+			vdd_dep_table, clock,
 			&level->MinVoltage, &mvdd);
 
 	PP_ASSERT_WITH_CODE((0 == result),
@@ -1107,12 +1113,18 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	int result = 0;
 	struct cgs_display_info info = {0, 0, NULL};
 	uint32_t mclk_stutter_mode_threshold = 40000;
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
 	cgs_get_active_displays_info(hwmgr->device, &info);
 
-	if (table_info->vdd_dep_on_mclk) {
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = table_info->vdd_dep_on_mclk;
+
+	if (vdd_dep_table) {
 		result = polaris10_get_dependency_volt_by_clk(hwmgr,
-				table_info->vdd_dep_on_mclk, clock,
+				vdd_dep_table, clock,
 				&mem_level->MinVoltage, &mem_level->MinMvdd);
 		PP_ASSERT_WITH_CODE((0 == result),
 				"can not find MinVddc voltage value from memory "

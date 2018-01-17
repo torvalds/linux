@@ -620,12 +620,18 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *pptable_info =
 			    (struct phm_ppt_v1_information *)(hwmgr->pptable);
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
 	result = tonga_calculate_sclk_params(hwmgr, engine_clock, graphic_level);
 
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = pptable_info->vdd_dep_on_sclk;
+
 	/* populate graphics levels*/
 	result = tonga_get_dependency_volt_by_clk(hwmgr,
-		pptable_info->vdd_dep_on_sclk, engine_clock,
+		vdd_dep_table, engine_clock,
 		&graphic_level->MinVoltage, &mvdd);
 	PP_ASSERT_WITH_CODE((!result),
 		"can not find VDDC voltage value for VDDC "
@@ -966,10 +972,16 @@ static int tonga_populate_single_memory_level(
 	uint32_t mclk_stutter_mode_threshold = 30000;
 	uint32_t mclk_edc_enable_threshold = 40000;
 	uint32_t mclk_strobe_mode_threshold = 40000;
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
-	if (NULL != pptable_info->vdd_dep_on_mclk) {
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = pptable_info->vdd_dep_on_mclk;
+
+	if (NULL != vdd_dep_table) {
 		result = tonga_get_dependency_volt_by_clk(hwmgr,
-				pptable_info->vdd_dep_on_mclk,
+				vdd_dep_table,
 				memory_clock,
 				&memory_level->MinVoltage, &mvdd);
 		PP_ASSERT_WITH_CODE(

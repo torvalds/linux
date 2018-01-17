@@ -981,12 +981,18 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
 	result = fiji_calculate_sclk_params(hwmgr, clock, level);
 
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = table_info->vdd_dep_on_sclk;
+
 	/* populate graphics levels */
 	result = fiji_get_dependency_volt_by_clk(hwmgr,
-			table_info->vdd_dep_on_sclk, clock,
+			vdd_dep_table, clock,
 			(uint32_t *)(&level->MinVoltage), &mvdd);
 	PP_ASSERT_WITH_CODE((0 == result),
 			"can not find VDDC voltage value for "
@@ -1202,10 +1208,16 @@ static int fiji_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	int result = 0;
 	uint32_t mclk_stutter_mode_threshold = 60000;
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
-	if (table_info->vdd_dep_on_mclk) {
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = table_info->vdd_dep_on_mclk;
+
+	if (vdd_dep_table) {
 		result = fiji_get_dependency_volt_by_clk(hwmgr,
-				table_info->vdd_dep_on_mclk, clock,
+				vdd_dep_table, clock,
 				(uint32_t *)(&mem_level->MinVoltage), &mem_level->MinMvdd);
 		PP_ASSERT_WITH_CODE((0 == result),
 				"can not find MinVddc voltage value from memory "
