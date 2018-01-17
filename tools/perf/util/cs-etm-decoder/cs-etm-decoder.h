@@ -93,4 +93,13 @@ cs_etm_decoder__new(int num_cpu,
 
 void cs_etm_decoder__free(struct cs_etm_decoder *decoder);
 
+int cs_etm_decoder__add_mem_access_cb(struct cs_etm_decoder *decoder,
+				      u64 start, u64 end,
+				      cs_etm_mem_cb_type cb_func);
+
+int cs_etm_decoder__get_packet(struct cs_etm_decoder *decoder,
+			       struct cs_etm_packet *packet);
+
+int cs_etm_decoder__reset(struct cs_etm_decoder *decoder);
+
 #endif /* INCLUDE__CS_ETM_DECODER_H__ */
