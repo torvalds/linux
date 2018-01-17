@@ -2418,7 +2418,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 				dm_state ? (dm_state->scaling != RMX_OFF) : false);
 	}
 
-	drm_mode_set_crtcinfo(&mode, 0);
+	if (!dm_state)
+		drm_mode_set_crtcinfo(&mode, 0);
+
 	fill_stream_properties_from_drm_display_mode(stream,
 			&mode, &aconnector->base);
 	update_stream_scaling_settings(&mode, dm_state, stream);
