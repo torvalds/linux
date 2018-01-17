@@ -8860,12 +8860,13 @@ W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlxfw/
 
-MELLANOX MLX CPLD HOTPLUG DRIVER
+MELLANOX HARDWARE PLATFORM SUPPORT
+M:	Andy Shevchenko <andy@infradead.org>
+M:	Darren Hart <dvhart@infradead.org>
 M:	Vadim Pasternak <vadimp@mellanox.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Supported
-F:	drivers/platform/x86/mlxcpld-hotplug.c
-F:	include/linux/platform_data/mlxcpld-hotplug.h
+F:	drivers/platform/mellanox/
 
 MELLANOX MLX4 core VPI driver
 M:	Tariq Toukan <tariqt@mellanox.com>

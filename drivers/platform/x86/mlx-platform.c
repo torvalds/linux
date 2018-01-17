@@ -38,7 +38,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/i2c-mux-reg.h>
-#include <linux/platform_data/mlxcpld-hotplug.h>
+#include <linux/platform_data/mlxreg.h>
 
 #define MLX_PLAT_DEVICE_NAME		"mlxplat"
 
@@ -138,7 +138,7 @@ static struct i2c_mux_reg_platform_data mlxplat_mux_data[] = {
 };
 
 /* Platform hotplug devices */
-static struct mlxcpld_hotplug_device mlxplat_mlxcpld_psu[] = {
+static struct mlxreg_hotplug_device mlxplat_mlxcpld_psu[] = {
 	{
 		.brdinfo = { I2C_BOARD_INFO("24c02", 0x51) },
 		.bus = 10,
@@ -149,7 +149,7 @@ static struct mlxcpld_hotplug_device mlxplat_mlxcpld_psu[] = {
 	},
 };
 
-static struct mlxcpld_hotplug_device mlxplat_mlxcpld_pwr[] = {
+static struct mlxreg_hotplug_device mlxplat_mlxcpld_pwr[] = {
 	{
 		.brdinfo = { I2C_BOARD_INFO("dps460", 0x59) },
 		.bus = 10,
@@ -160,7 +160,7 @@ static struct mlxcpld_hotplug_device mlxplat_mlxcpld_pwr[] = {
 	},
 };
 
-static struct mlxcpld_hotplug_device mlxplat_mlxcpld_fan[] = {
+static struct mlxreg_hotplug_device mlxplat_mlxcpld_fan[] = {
 	{
 		.brdinfo = { I2C_BOARD_INFO("24c32", 0x50) },
 		.bus = 11,
@@ -181,7 +181,7 @@ static struct mlxcpld_hotplug_device mlxplat_mlxcpld_fan[] = {
 
 /* Platform hotplug default data */
 static
-struct mlxcpld_hotplug_platform_data mlxplat_mlxcpld_default_data = {
+struct mlxreg_hotplug_platform_data mlxplat_mlxcpld_default_data = {
 	.top_aggr_offset = MLXPLAT_CPLD_LPC_REG_AGGR_ADRR,
 	.top_aggr_mask = MLXPLAT_CPLD_AGGR_MASK_DEF,
 	.top_aggr_psu_mask = MLXPLAT_CPLD_AGGR_PSU_MASK_DEF,
@@ -203,7 +203,7 @@ struct mlxcpld_hotplug_platform_data mlxplat_mlxcpld_default_data = {
 
 /* Platform hotplug MSN21xx system family data */
 static
-struct mlxcpld_hotplug_platform_data mlxplat_mlxcpld_msn21xx_data = {
+struct mlxreg_hotplug_platform_data mlxplat_mlxcpld_msn21xx_data = {
 	.top_aggr_offset = MLXPLAT_CPLD_LPC_REG_AGGR_ADRR,
 	.top_aggr_mask = MLXPLAT_CPLD_AGGR_MASK_MSN21XX,
 	.top_aggr_pwr_mask = MLXPLAT_CPLD_AGGR_MASK_MSN21XX,
@@ -213,11 +213,11 @@ struct mlxcpld_hotplug_platform_data mlxplat_mlxcpld_msn21xx_data = {
 };
 
 static struct resource mlxplat_mlxcpld_resources[] = {
-	[0] = DEFINE_RES_IRQ_NAMED(17, "mlxcpld-hotplug"),
+	[0] = DEFINE_RES_IRQ_NAMED(17, "mlxreg-hotplug"),
 };
 
 static struct platform_device *mlxplat_dev;
-static struct mlxcpld_hotplug_platform_data *mlxplat_hotplug;
+static struct mlxreg_hotplug_platform_data *mlxplat_hotplug;
 
 static int __init mlxplat_dmi_default_matched(const struct dmi_system_id *dmi)
 {
@@ -329,7 +329,7 @@ static int __init mlxplat_init(void)
 	}
 
 	priv->pdev_hotplug = platform_device_register_resndata(
-				&mlxplat_dev->dev, "mlxcpld-hotplug",
+				&mlxplat_dev->dev, "mlxreg-hotplug",
 				PLATFORM_DEVID_NONE,
 				mlxplat_mlxcpld_resources,
 				ARRAY_SIZE(mlxplat_mlxcpld_resources),
