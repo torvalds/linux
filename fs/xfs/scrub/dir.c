@@ -200,6 +200,7 @@ xfs_scrub_dir_rec(
 	struct xfs_inode		*dp = ds->dargs.dp;
 	struct xfs_dir2_data_entry	*dent;
 	struct xfs_buf			*bp;
+	char				*p, *endp;
 	xfs_ino_t			ino;
 	xfs_dablk_t			rec_bno;
 	xfs_dir2_db_t			db;
@@ -239,8 +240,35 @@ xfs_scrub_dir_rec(
 	}
 	xfs_scrub_buffer_recheck(ds->sc, bp);
 
-	/* Retrieve the entry, sanity check it, and compare hashes. */
 	dent = (struct xfs_dir2_data_entry *)(((char *)bp->b_addr) + off);
+
+	/* Make sure we got a real directory entry. */
+	p = (char *)mp->m_dir_inode_ops->data_entry_p(bp->b_addr);
+	endp = xfs_dir3_data_endp(mp->m_dir_geo, bp->b_addr);
+	if (!endp) {
+		xfs_scrub_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		goto out_relse;
+	}
+	while (p < endp) {
+		struct xfs_dir2_data_entry	*dep;
+		struct xfs_dir2_data_unused	*dup;
+
+		dup = (struct xfs_dir2_data_unused *)p;
+		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+			p += be16_to_cpu(dup->length);
+			continue;
+		}
+		dep = (struct xfs_dir2_data_entry *)p;
+		if (dep == dent)
+			break;
+		p += mp->m_dir_inode_ops->data_entsize(dep->namelen);
+	}
+	if (p >= endp) {
+		xfs_scrub_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		goto out_relse;
+	}
+
+	/* Retrieve the entry, sanity check it, and compare hashes. */
 	ino = be64_to_cpu(dent->inumber);
 	hash = be32_to_cpu(ent->hashval);
 	tag = be16_to_cpup(dp->d_ops->data_entry_tag_p(dent));
@@ -363,13 +391,7 @@ xfs_scrub_directory_data_bestfree(
 
 	/* Make sure the bestfrees are actually the best free spaces. */
 	ptr = (char *)d_ops->data_entry_p(bp->b_addr);
-	if (is_block) {
-		struct xfs_dir2_block_tail	*btp;
-
-		btp = xfs_dir2_block_tail_p(mp->m_dir_geo, bp->b_addr);
-		endptr = (char *)xfs_dir2_block_leaf_p(btp);
-	} else
-		endptr = (char *)bp->b_addr + BBTOB(bp->b_length);
+	endptr = xfs_dir3_data_endp(mp->m_dir_geo, bp->b_addr);
 
 	/* Iterate the entries, stopping when we hit or go past the end. */
 	while (ptr < endptr) {

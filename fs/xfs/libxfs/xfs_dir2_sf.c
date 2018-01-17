@@ -156,7 +156,6 @@ xfs_dir2_block_to_sf(
 	xfs_dir2_sf_hdr_t	*sfhp)		/* shortform directory hdr */
 {
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */
-	xfs_dir2_block_tail_t	*btp;		/* block tail pointer */
 	xfs_dir2_data_entry_t	*dep;		/* data entry pointer */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	xfs_dir2_data_unused_t	*dup;		/* unused data pointer */
@@ -192,9 +191,8 @@ xfs_dir2_block_to_sf(
 	/*
 	 * Set up to loop over the block's entries.
 	 */
-	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	ptr = (char *)dp->d_ops->data_entry_p(hdr);
-	endptr = (char *)xfs_dir2_block_leaf_p(btp);
+	endptr = xfs_dir3_data_endp(args->geo, hdr);
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	/*
 	 * Loop over the active and unused entries.
