@@ -98,7 +98,11 @@ Required properties:
 - clocks: Phandles to device clocks. See [1] for details on clock bindings.
 - clock-names: the following clocks are required:
   * "iface"
+  For 28nm HPM/LP, 28nm 8960 PHYs:
 - vddio-supply: phandle to vdd-io regulator device node
+  For 20nm PHY:
+- vddio-supply: phandle to vdd-io regulator device node
+- vcca-supply: phandle to vcca regulator device node
 
 Optional properties:
 - qcom,dsi-phy-regulator-ldo-mode: Boolean value indicating if the LDO mode PHY
