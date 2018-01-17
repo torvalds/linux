@@ -594,6 +594,9 @@ static void __clocksource_select(bool skipcur)
 	if (!best)
 		return;
 
+	if (!strlen(override_name))
+		goto found;
+
 	/* Check for the override clocksource. */
 	list_for_each_entry(cs, &clocksource_list, list) {
 		if (skipcur && cs == curr_clocksource)
@@ -625,6 +628,7 @@ static void __clocksource_select(bool skipcur)
 		break;
 	}
 
+found:
 	if (curr_clocksource != best && !timekeeping_notify(best)) {
 		pr_info("Switched to clocksource %s\n", best->name);
 		curr_clocksource = best;
