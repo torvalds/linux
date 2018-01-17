@@ -841,8 +841,8 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 		 * from codec->jack_list
 		 */
 		list_for_each_entry(jack, &codec->jack_list, list) {
-			if ((jack == &module->headset_jack)
-			    || (jack == &module->button_jack))
+			if ((jack == &module->headset_jack) ||
+			    (jack == &module->button_jack))
 				snd_device_register(codec->card->snd_card,
 						    jack->jack);
 		}
