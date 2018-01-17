@@ -690,8 +690,8 @@ not provide the necessary runtime environment and the include files are
 not tested for it. It is still possible, but not recommended. If you
 really want to do this, forget about exceptions at least.
 
-NUMif
------
+#if
+---
 
 It is generally considered cleaner to use macros in header files (or at
 the top of .c files) to abstract away functions rather than using \`#if'
