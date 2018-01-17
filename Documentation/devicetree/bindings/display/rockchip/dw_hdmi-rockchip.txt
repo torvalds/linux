@@ -44,6 +44,7 @@ Optional properties
 - unsupported-yuv-input: If yuv input is not supported, set this property.
 - unsupported-deep-color: If deep color mode is not supported, set this property.
 - hdcp1x-enable: enable hdcp1.x, enable if defined, disable if not defined
+- scramble-low-rates: if defined enable scarmble when tmdsclk less than 340Mhz
 
 Example:
 

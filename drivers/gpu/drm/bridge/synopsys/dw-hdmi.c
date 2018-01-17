@@ -267,6 +267,7 @@ struct dw_hdmi {
 	unsigned int audio_cts;
 	unsigned int audio_n;
 	bool audio_enable;
+	bool scramble_low_rates;
 
 	struct extcon_dev *extcon;
 
@@ -2150,7 +2151,8 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	/* Scrambling Control */
 	if (dw_hdmi_support_scdc(hdmi)) {
 		if (vmode->mtmdsclock > HDMI14_MAX_TMDSCLK ||
-		    hdmi_info->scdc.scrambling.low_rates) {
+		    (hdmi_info->scdc.scrambling.low_rates &&
+		     hdmi->scramble_low_rates)) {
 			/*
 			 * HDMI2.0 Specifies the following procedure:
 			 * After the Source Device has determined that
@@ -3867,6 +3869,9 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		dw_hdmi_i2c_init(hdmi);
 
 	dw_hdmi_register_debugfs(dev, hdmi);
+
+	if (of_property_read_bool(np, "scramble-low-rates"))
+		hdmi->scramble_low_rates = true;
 
 	if (of_property_read_bool(np, "hdcp1x-enable"))
 		hdcp1x_enable = 1;
