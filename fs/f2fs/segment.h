@@ -580,47 +580,6 @@ enum {
 	F2FS_IPU_ASYNC,
 };
 
-static inline bool need_inplace_update_policy(struct inode *inode,
-				struct f2fs_io_info *fio)
-{
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	unsigned int policy = SM_I(sbi)->ipu_policy;
-
-	if (test_opt(sbi, LFS))
-		return false;
-
-	/* if this is cold file, we should overwrite to avoid fragmentation */
-	if (file_is_cold(inode))
-		return true;
-
-	if (policy & (0x1 << F2FS_IPU_FORCE))
-		return true;
-	if (policy & (0x1 << F2FS_IPU_SSR) && need_SSR(sbi))
-		return true;
-	if (policy & (0x1 << F2FS_IPU_UTIL) &&
-			utilization(sbi) > SM_I(sbi)->min_ipu_util)
-		return true;
-	if (policy & (0x1 << F2FS_IPU_SSR_UTIL) && need_SSR(sbi) &&
-			utilization(sbi) > SM_I(sbi)->min_ipu_util)
-		return true;
-
-	/*
-	 * IPU for rewrite async pages
-	 */
-	if (policy & (0x1 << F2FS_IPU_ASYNC) &&
-			fio && fio->op == REQ_OP_WRITE &&
-			!(fio->op_flags & REQ_SYNC) &&
-			!f2fs_encrypted_inode(inode))
-		return true;
-
-	/* this is only set during fdatasync */
-	if (policy & (0x1 << F2FS_IPU_FSYNC) &&
-			is_inode_flag_set(inode, FI_NEED_IPU))
-		return true;
-
-	return false;
-}
-
 static inline unsigned int curseg_segno(struct f2fs_sb_info *sbi,
 		int type)
 {
