@@ -756,3 +756,26 @@ xfs_scrub_should_check_xref(
 	*error = 0;
 	return false;
 }
+
+/* Run the structure verifiers on in-memory buffers to detect bad memory. */
+void
+xfs_scrub_buffer_recheck(
+	struct xfs_scrub_context	*sc,
+	struct xfs_buf			*bp)
+{
+	xfs_failaddr_t			fa;
+
+	if (bp->b_ops == NULL) {
+		xfs_scrub_block_set_corrupt(sc, bp);
+		return;
+	}
+	if (bp->b_ops->verify_struct == NULL) {
+		xfs_scrub_set_incomplete(sc);
+		return;
+	}
+	fa = bp->b_ops->verify_struct(bp);
+	if (!fa)
+		return;
+	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+	trace_xfs_scrub_block_error(sc, bp->b_bn, fa);
+}

@@ -314,6 +314,8 @@ xfs_scrub_btree_block_check_sibling(
 	pp = xfs_btree_ptr_addr(ncur, ncur->bc_ptrs[level + 1], pblock);
 	if (!xfs_scrub_btree_ptr_ok(bs, level + 1, pp))
 		goto out;
+	if (pbp)
+		xfs_scrub_buffer_recheck(bs->sc, pbp);
 
 	if (xfs_btree_diff_two_ptrs(cur, pp, sibling))
 		xfs_scrub_btree_set_corrupt(bs->sc, cur, level);
@@ -486,6 +488,8 @@ xfs_scrub_btree_get_block(
 		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, level);
 		return 0;
 	}
+	if (*pbp)
+		xfs_scrub_buffer_recheck(bs->sc, *pbp);
 
 	/*
 	 * Check the block's owner; this function absorbs error codes

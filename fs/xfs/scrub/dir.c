@@ -237,6 +237,7 @@ xfs_scrub_dir_rec(
 		xfs_scrub_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
 		goto out;
 	}
+	xfs_scrub_buffer_recheck(ds->sc, bp);
 
 	/* Retrieve the entry, sanity check it, and compare hashes. */
 	dent = (struct xfs_dir2_data_entry *)(((char *)bp->b_addr) + off);
@@ -324,6 +325,7 @@ xfs_scrub_directory_data_bestfree(
 	}
 	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
 		goto out;
+	xfs_scrub_buffer_recheck(sc, bp);
 
 	/* XXX: Check xfs_dir3_data_hdr.pad is zero once we start setting it. */
 
@@ -474,6 +476,7 @@ xfs_scrub_directory_leaf1_bestfree(
 	error = xfs_dir3_leaf_read(sc->tp, sc->ip, lblk, -1, &bp);
 	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
 		goto out;
+	xfs_scrub_buffer_recheck(sc, bp);
 
 	leaf = bp->b_addr;
 	d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
@@ -559,6 +562,7 @@ xfs_scrub_directory_free_bestfree(
 	error = xfs_dir2_free_read(sc->tp, sc->ip, lblk, &bp);
 	if (!xfs_scrub_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
 		goto out;
+	xfs_scrub_buffer_recheck(sc, bp);
 
 	if (xfs_sb_version_hascrc(&sc->mp->m_sb)) {
 		struct xfs_dir3_free_hdr	*hdr3 = bp->b_addr;

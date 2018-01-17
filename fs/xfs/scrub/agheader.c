@@ -611,6 +611,7 @@ xfs_scrub_agf(
 			&sc->sa.agf_bp, &sc->sa.agfl_bp);
 	if (!xfs_scrub_process_error(sc, agno, XFS_AGF_BLOCK(sc->mp), &error))
 		goto out;
+	xfs_scrub_buffer_recheck(sc, sc->sa.agf_bp);
 
 	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
 
@@ -780,6 +781,7 @@ xfs_scrub_agfl(
 		goto out;
 	if (!sc->sa.agf_bp)
 		return -EFSCORRUPTED;
+	xfs_scrub_buffer_recheck(sc, sc->sa.agfl_bp);
 
 	xfs_scrub_agfl_xref(sc);
 
@@ -902,6 +904,7 @@ xfs_scrub_agi(
 			&sc->sa.agf_bp, &sc->sa.agfl_bp);
 	if (!xfs_scrub_process_error(sc, agno, XFS_AGI_BLOCK(sc->mp), &error))
 		goto out;
+	xfs_scrub_buffer_recheck(sc, sc->sa.agi_bp);
 
 	agi = XFS_BUF_TO_AGI(sc->sa.agi_bp);
 
