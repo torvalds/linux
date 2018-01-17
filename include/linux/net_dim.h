@@ -244,9 +244,16 @@ static inline int net_dim_stats_compare(struct net_dim_stats *curr,
 		return (curr->bpms > prev->bpms) ? NET_DIM_STATS_BETTER :
 						   NET_DIM_STATS_WORSE;
 
+	if (!prev->ppms)
+		return curr->ppms ? NET_DIM_STATS_BETTER :
+				    NET_DIM_STATS_SAME;
+
 	if (IS_SIGNIFICANT_DIFF(curr->ppms, prev->ppms))
 		return (curr->ppms > prev->ppms) ? NET_DIM_STATS_BETTER :
 						   NET_DIM_STATS_WORSE;
+
+	if (!prev->epms)
+		return NET_DIM_STATS_SAME;
 
 	if (IS_SIGNIFICANT_DIFF(curr->epms, prev->epms))
 		return (curr->epms < prev->epms) ? NET_DIM_STATS_BETTER :
