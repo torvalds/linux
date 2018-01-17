@@ -1989,6 +1989,7 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	struct srp_login_rej *rej;
 	struct ib_cm_rep_param *rep_param;
 	struct srpt_rdma_ch *ch, *tmp_ch;
+	char i_port_id[36];
 	u32 it_iu_len;
 	int i, ret = 0;
 
@@ -2143,9 +2144,9 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 		goto destroy_ib;
 	}
 
-	srpt_format_guid(ch->ini_guid, sizeof(ch->ini_guid),
+	srpt_format_guid(ch->sess_name, sizeof(ch->sess_name),
 			 &param->primary_path->dgid.global.interface_id);
-	snprintf(ch->sess_name, sizeof(ch->sess_name), "0x%016llx%016llx",
+	snprintf(i_port_id, sizeof(i_port_id), "0x%016llx%016llx",
 			be64_to_cpu(*(__be64 *)ch->i_port_id),
 			be64_to_cpu(*(__be64 *)(ch->i_port_id + 8)));
 
@@ -2154,16 +2155,16 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	if (sport->port_guid_tpg.se_tpg_wwn)
 		ch->sess = target_alloc_session(&sport->port_guid_tpg, 0, 0,
 						TARGET_PROT_NORMAL,
-						ch->ini_guid, ch, NULL);
+						ch->sess_name, ch, NULL);
 	if (sport->port_gid_tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
 		ch->sess = target_alloc_session(&sport->port_gid_tpg, 0, 0,
-					TARGET_PROT_NORMAL, ch->sess_name, ch,
+					TARGET_PROT_NORMAL, i_port_id, ch,
 					NULL);
 	/* Retry without leading "0x" */
 	if (sport->port_gid_tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
 		ch->sess = target_alloc_session(&sport->port_gid_tpg, 0, 0,
 						TARGET_PROT_NORMAL,
-						ch->sess_name + 2, ch, NULL);
+						i_port_id + 2, ch, NULL);
 	if (IS_ERR_OR_NULL(ch->sess)) {
 		pr_info("Rejected login because no ACL has been configured yet for initiator %s.\n",
 			ch->sess_name);

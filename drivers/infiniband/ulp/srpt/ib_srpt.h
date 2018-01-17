@@ -269,7 +269,6 @@ enum rdma_ch_state {
  * @pkey:          P_Key of the IB partition for this SRP channel.
  * @sess:          Session information associated with this SRP channel.
  * @sess_name:     Session name.
- * @ini_guid:      Initiator port GUID.
  * @release_work:  Allows scheduling of srpt_release_channel().
  */
 struct srpt_rdma_ch {
@@ -297,8 +296,7 @@ struct srpt_rdma_ch {
 	struct list_head	cmd_wait_list;
 	uint16_t		pkey;
 	struct se_session	*sess;
-	u8			sess_name[36];
-	u8			ini_guid[24];
+	u8			sess_name[24];
 	struct work_struct	release_work;
 };
 
