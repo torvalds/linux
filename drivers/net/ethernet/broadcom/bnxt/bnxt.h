@@ -804,7 +804,10 @@ struct bnxt_hw_resc {
 #if defined(CONFIG_BNXT_SRIOV)
 struct bnxt_vf_info {
 	u16	fw_fid;
-	u8	mac_addr[ETH_ALEN];
+	u8	mac_addr[ETH_ALEN];	/* PF assigned MAC Address */
+	u8	vf_mac_addr[ETH_ALEN];	/* VF assigned MAC address, only
+					 * stored by PF.
+					 */
 	u16	vlan;
 	u32	flags;
 #define BNXT_VF_QOS		0x1

@@ -135,7 +135,10 @@ int bnxt_get_vf_config(struct net_device *dev, int vf_id,
 	ivi->vf = vf_id;
 	vf = &bp->pf.vf[vf_id];
 
-	memcpy(&ivi->mac, vf->mac_addr, ETH_ALEN);
+	if (is_valid_ether_addr(vf->mac_addr))
+		memcpy(&ivi->mac, vf->mac_addr, ETH_ALEN);
+	else
+		memcpy(&ivi->mac, vf->vf_mac_addr, ETH_ALEN);
 	ivi->max_tx_rate = vf->max_tx_rate;
 	ivi->min_tx_rate = vf->min_tx_rate;
 	ivi->vlan = vf->vlan;
@@ -883,17 +886,51 @@ exec_fwd_resp_exit:
 	return rc;
 }
 
+static int bnxt_vf_store_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
+{
+	u32 msg_size = sizeof(struct hwrm_func_vf_cfg_input);
+	struct hwrm_func_vf_cfg_input *req =
+		(struct hwrm_func_vf_cfg_input *)vf->hwrm_cmd_req_addr;
+
+	/* Only allow VF to set a valid MAC address if the PF assigned MAC
+	 * address is zero
+	 */
+	if (req->enables & cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_DFLT_MAC_ADDR)) {
+		if (is_valid_ether_addr(req->dflt_mac_addr) &&
+		    !is_valid_ether_addr(vf->mac_addr)) {
+			ether_addr_copy(vf->vf_mac_addr, req->dflt_mac_addr);
+			return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
+		}
+		return bnxt_hwrm_fwd_err_resp(bp, vf, msg_size);
+	}
+	return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
+}
+
 static int bnxt_vf_validate_set_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 {
 	u32 msg_size = sizeof(struct hwrm_cfa_l2_filter_alloc_input);
 	struct hwrm_cfa_l2_filter_alloc_input *req =
 		(struct hwrm_cfa_l2_filter_alloc_input *)vf->hwrm_cmd_req_addr;
+	bool mac_ok = false;
 
-	if (!is_valid_ether_addr(vf->mac_addr) ||
-	    ether_addr_equal((const u8 *)req->l2_addr, vf->mac_addr))
+	/* VF MAC address must first match PF MAC address, if it is valid.
+	 * Otherwise, it must match the VF MAC address if firmware spec >=
+	 * 1.2.2
+	 */
+	if (is_valid_ether_addr(vf->mac_addr)) {
+		if (ether_addr_equal((const u8 *)req->l2_addr, vf->mac_addr))
+			mac_ok = true;
+	} else if (is_valid_ether_addr(vf->vf_mac_addr)) {
+		if (ether_addr_equal((const u8 *)req->l2_addr, vf->vf_mac_addr))
+			mac_ok = true;
+	} else if (bp->hwrm_spec_code < 0x10202) {
+		mac_ok = true;
+	} else {
+		mac_ok = true;
+	}
+	if (mac_ok)
 		return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
-	else
-		return bnxt_hwrm_fwd_err_resp(bp, vf, msg_size);
+	return bnxt_hwrm_fwd_err_resp(bp, vf, msg_size);
 }
 
 static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
@@ -955,6 +992,9 @@ static int bnxt_vf_req_validate_snd(struct bnxt *bp, struct bnxt_vf_info *vf)
 	u32 req_type = le16_to_cpu(encap_req->req_type);
 
 	switch (req_type) {
+	case HWRM_FUNC_VF_CFG:
+		rc = bnxt_vf_store_mac(bp, vf);
+		break;
 	case HWRM_CFA_L2_FILTER_ALLOC:
 		rc = bnxt_vf_validate_set_mac(bp, vf);
 		break;

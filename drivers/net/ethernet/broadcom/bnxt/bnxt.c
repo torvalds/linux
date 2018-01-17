@@ -213,6 +213,7 @@ MODULE_DEVICE_TABLE(pci, bnxt_pci_tbl);
 
 static const u16 bnxt_vf_req_snif[] = {
 	HWRM_FUNC_CFG,
+	HWRM_FUNC_VF_CFG,
 	HWRM_PORT_PHY_QCFG,
 	HWRM_CFA_L2_FILTER_ALLOC,
 };
@@ -8432,7 +8433,7 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 		struct bnxt_vf_info *vf = &bp->vf;
 
 		if (is_valid_ether_addr(vf->mac_addr)) {
-			/* overwrite netdev dev_adr with admin VF MAC */
+			/* overwrite netdev dev_addr with admin VF MAC */
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
 		} else {
 			eth_hw_addr_random(bp->dev);
