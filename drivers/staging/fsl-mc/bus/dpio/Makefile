@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # QorIQ DPAA2 DPIO driver
 #
