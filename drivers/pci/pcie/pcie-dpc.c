@@ -339,7 +339,7 @@ static int dpc_probe(struct pcie_device *dev)
 	pci_write_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CTL, ctl);
 
 	dev_info(device, "DPC error containment capabilities: Int Msg #%d, RPExt%c PoisonedTLP%c SwTrigger%c RP PIO Log %d, DL_ActiveErr%c\n",
-		cap & 0xf, FLAG(cap, PCI_EXP_DPC_CAP_RP_EXT),
+		cap & PCI_EXP_DPC_IRQ, FLAG(cap, PCI_EXP_DPC_CAP_RP_EXT),
 		FLAG(cap, PCI_EXP_DPC_CAP_POISONED_TLP),
 		FLAG(cap, PCI_EXP_DPC_CAP_SW_TRIGGER), (cap >> 8) & 0xf,
 		FLAG(cap, PCI_EXP_DPC_CAP_DL_ACTIVE));
