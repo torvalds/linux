@@ -49,7 +49,7 @@
 
 static int kvmapf = 1;
 
-static int parse_no_kvmapf(char *arg)
+static int __init parse_no_kvmapf(char *arg)
 {
         kvmapf = 0;
         return 0;
@@ -58,7 +58,7 @@ static int parse_no_kvmapf(char *arg)
 early_param("no-kvmapf", parse_no_kvmapf);
 
 static int steal_acc = 1;
-static int parse_no_stealacc(char *arg)
+static int __init parse_no_stealacc(char *arg)
 {
         steal_acc = 0;
         return 0;
@@ -67,7 +67,7 @@ static int parse_no_stealacc(char *arg)
 early_param("no-steal-acc", parse_no_stealacc);
 
 static int kvmclock_vsyscall = 1;
-static int parse_no_kvmclock_vsyscall(char *arg)
+static int __init parse_no_kvmclock_vsyscall(char *arg)
 {
         kvmclock_vsyscall = 0;
         return 0;
