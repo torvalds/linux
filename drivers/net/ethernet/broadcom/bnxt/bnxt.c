@@ -4540,7 +4540,7 @@ static int bnxt_hwrm_reserve_tx_rings(struct bnxt *bp, int *tx_rings)
 	rc = __bnxt_hwrm_get_tx_rings(bp, 0xffff, tx_rings);
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	if (!rc)
-		bp->tx_reserved_rings = *tx_rings;
+		bp->hw_resc.resv_tx_rings = *tx_rings;
 	return rc;
 }
 
@@ -4796,6 +4796,8 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	int rc = 0;
 	struct hwrm_func_qcaps_input req = {0};
 	struct hwrm_func_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+	u32 flags;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCAPS, -1, -1);
 	req.fid = cpu_to_le16(0xffff);
@@ -4805,15 +4807,26 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	if (rc)
 		goto hwrm_func_qcaps_exit;
 
-	if (resp->flags & cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_ROCE_V1_SUPPORTED))
+	flags = le32_to_cpu(resp->flags);
+	if (flags & FUNC_QCAPS_RESP_FLAGS_ROCE_V1_SUPPORTED)
 		bp->flags |= BNXT_FLAG_ROCEV1_CAP;
-	if (resp->flags & cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_ROCE_V2_SUPPORTED))
+	if (flags & FUNC_QCAPS_RESP_FLAGS_ROCE_V2_SUPPORTED)
 		bp->flags |= BNXT_FLAG_ROCEV2_CAP;
 
 	bp->tx_push_thresh = 0;
-	if (resp->flags &
-	    cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED))
+	if (flags & FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED)
 		bp->tx_push_thresh = BNXT_TX_PUSH_THRESH;
+
+	hw_resc->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
+	hw_resc->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
+	hw_resc->max_tx_rings = le16_to_cpu(resp->max_tx_rings);
+	hw_resc->max_rx_rings = le16_to_cpu(resp->max_rx_rings);
+	hw_resc->max_hw_ring_grps = le32_to_cpu(resp->max_hw_ring_grps);
+	if (!hw_resc->max_hw_ring_grps)
+		hw_resc->max_hw_ring_grps = hw_resc->max_tx_rings;
+	hw_resc->max_l2_ctxs = le16_to_cpu(resp->max_l2_ctxs);
+	hw_resc->max_vnics = le16_to_cpu(resp->max_vnics);
+	hw_resc->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
 
 	if (BNXT_PF(bp)) {
 		struct bnxt_pf_info *pf = &bp->pf;
@@ -4822,16 +4835,6 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		pf->port_id = le16_to_cpu(resp->port_id);
 		bp->dev->dev_port = pf->port_id;
 		memcpy(pf->mac_addr, resp->mac_address, ETH_ALEN);
-		pf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
-		pf->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
-		pf->max_tx_rings = le16_to_cpu(resp->max_tx_rings);
-		pf->max_rx_rings = le16_to_cpu(resp->max_rx_rings);
-		pf->max_hw_ring_grps = le32_to_cpu(resp->max_hw_ring_grps);
-		if (!pf->max_hw_ring_grps)
-			pf->max_hw_ring_grps = pf->max_tx_rings;
-		pf->max_l2_ctxs = le16_to_cpu(resp->max_l2_ctxs);
-		pf->max_vnics = le16_to_cpu(resp->max_vnics);
-		pf->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
 		pf->first_vf_id = le16_to_cpu(resp->first_vf_id);
 		pf->max_vfs = le16_to_cpu(resp->max_vfs);
 		pf->max_encap_records = le32_to_cpu(resp->max_encap_records);
@@ -4840,26 +4843,13 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		pf->max_tx_wm_flows = le32_to_cpu(resp->max_tx_wm_flows);
 		pf->max_rx_em_flows = le32_to_cpu(resp->max_rx_em_flows);
 		pf->max_rx_wm_flows = le32_to_cpu(resp->max_rx_wm_flows);
-		if (resp->flags &
-		    cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_WOL_MAGICPKT_SUPPORTED))
+		if (flags & FUNC_QCAPS_RESP_FLAGS_WOL_MAGICPKT_SUPPORTED)
 			bp->flags |= BNXT_FLAG_WOL_CAP;
 	} else {
 #ifdef CONFIG_BNXT_SRIOV
 		struct bnxt_vf_info *vf = &bp->vf;
 
 		vf->fw_fid = le16_to_cpu(resp->fid);
-
-		vf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
-		vf->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
-		vf->max_tx_rings = le16_to_cpu(resp->max_tx_rings);
-		vf->max_rx_rings = le16_to_cpu(resp->max_rx_rings);
-		vf->max_hw_ring_grps = le32_to_cpu(resp->max_hw_ring_grps);
-		if (!vf->max_hw_ring_grps)
-			vf->max_hw_ring_grps = vf->max_tx_rings;
-		vf->max_l2_ctxs = le16_to_cpu(resp->max_l2_ctxs);
-		vf->max_vnics = le16_to_cpu(resp->max_vnics);
-		vf->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
-
 		memcpy(vf->mac_addr, resp->mac_address, ETH_ALEN);
 #endif
 	}
@@ -5226,7 +5216,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 				   rc);
 			goto err_out;
 		}
-		if (bp->tx_reserved_rings != bp->tx_nr_rings) {
+		if (bp->hw_resc.resv_tx_rings != bp->tx_nr_rings) {
 			int tx = bp->tx_nr_rings;
 
 			if (bnxt_hwrm_reserve_tx_rings(bp, &tx) ||
@@ -5454,79 +5444,45 @@ static int bnxt_setup_int_mode(struct bnxt *bp)
 #ifdef CONFIG_RFS_ACCEL
 static unsigned int bnxt_get_max_func_rss_ctxs(struct bnxt *bp)
 {
-#if defined(CONFIG_BNXT_SRIOV)
-	if (BNXT_VF(bp))
-		return bp->vf.max_rsscos_ctxs;
-#endif
-	return bp->pf.max_rsscos_ctxs;
+	return bp->hw_resc.max_rsscos_ctxs;
 }
 
 static unsigned int bnxt_get_max_func_vnics(struct bnxt *bp)
 {
-#if defined(CONFIG_BNXT_SRIOV)
-	if (BNXT_VF(bp))
-		return bp->vf.max_vnics;
-#endif
-	return bp->pf.max_vnics;
+	return bp->hw_resc.max_vnics;
 }
 #endif
 
 unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp)
 {
-#if defined(CONFIG_BNXT_SRIOV)
-	if (BNXT_VF(bp))
-		return bp->vf.max_stat_ctxs;
-#endif
-	return bp->pf.max_stat_ctxs;
+	return bp->hw_resc.max_stat_ctxs;
 }
 
 void bnxt_set_max_func_stat_ctxs(struct bnxt *bp, unsigned int max)
 {
-#if defined(CONFIG_BNXT_SRIOV)
-	if (BNXT_VF(bp))
-		bp->vf.max_stat_ctxs = max;
-	else
-#endif
-		bp->pf.max_stat_ctxs = max;
+	bp->hw_resc.max_stat_ctxs = max;
 }
 
 unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp)
 {
-#if defined(CONFIG_BNXT_SRIOV)
-	if (BNXT_VF(bp))
-		return bp->vf.max_cp_rings;
-#endif
-	return bp->pf.max_cp_rings;
+	return bp->hw_resc.max_cp_rings;
 }
 
 void bnxt_set_max_func_cp_rings(struct bnxt *bp, unsigned int max)
 {
-#if defined(CONFIG_BNXT_SRIOV)
-	if (BNXT_VF(bp))
-		bp->vf.max_cp_rings = max;
-	else
-#endif
-		bp->pf.max_cp_rings = max;
+	bp->hw_resc.max_cp_rings = max;
 }
 
 static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
 {
-#if defined(CONFIG_BNXT_SRIOV)
-	if (BNXT_VF(bp))
-		return min_t(unsigned int, bp->vf.max_irqs,
-			     bp->vf.max_cp_rings);
-#endif
-	return min_t(unsigned int, bp->pf.max_irqs, bp->pf.max_cp_rings);
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+
+	return min_t(unsigned int, hw_resc->max_irqs, hw_resc->max_cp_rings);
 }
 
 void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max_irqs)
 {
-#if defined(CONFIG_BNXT_SRIOV)
-	if (BNXT_VF(bp))
-		bp->vf.max_irqs = max_irqs;
-	else
-#endif
-		bp->pf.max_irqs = max_irqs;
+	bp->hw_resc.max_irqs = max_irqs;
 }
 
 static int bnxt_init_msix(struct bnxt *bp)
@@ -7948,24 +7904,14 @@ static int bnxt_get_max_irq(struct pci_dev *pdev)
 static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 				int *max_cp)
 {
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 	int max_ring_grps = 0;
 
-#ifdef CONFIG_BNXT_SRIOV
-	if (!BNXT_PF(bp)) {
-		*max_tx = bp->vf.max_tx_rings;
-		*max_rx = bp->vf.max_rx_rings;
-		*max_cp = min_t(int, bp->vf.max_irqs, bp->vf.max_cp_rings);
-		*max_cp = min_t(int, *max_cp, bp->vf.max_stat_ctxs);
-		max_ring_grps = bp->vf.max_hw_ring_grps;
-	} else
-#endif
-	{
-		*max_tx = bp->pf.max_tx_rings;
-		*max_rx = bp->pf.max_rx_rings;
-		*max_cp = min_t(int, bp->pf.max_irqs, bp->pf.max_cp_rings);
-		*max_cp = min_t(int, *max_cp, bp->pf.max_stat_ctxs);
-		max_ring_grps = bp->pf.max_hw_ring_grps;
-	}
+	*max_tx = hw_resc->max_tx_rings;
+	*max_rx = hw_resc->max_rx_rings;
+	*max_cp = min_t(int, hw_resc->max_irqs, hw_resc->max_cp_rings);
+	*max_cp = min_t(int, *max_cp, hw_resc->max_stat_ctxs);
+	max_ring_grps = hw_resc->max_hw_ring_grps;
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp) && BNXT_PF(bp)) {
 		*max_cp -= 1;
 		*max_rx -= 2;

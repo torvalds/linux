@@ -421,24 +421,28 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 {
 	u32 rc = 0, mtu, i;
 	u16 vf_tx_rings, vf_rx_rings, vf_cp_rings, vf_stat_ctx, vf_vnics;
-	u16 vf_ring_grps;
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+	u16 vf_ring_grps, max_stat_ctxs;
 	struct hwrm_func_cfg_input req = {0};
 	struct bnxt_pf_info *pf = &bp->pf;
 	int total_vf_tx_rings = 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
 
+	max_stat_ctxs = hw_resc->max_stat_ctxs;
+
 	/* Remaining rings are distributed equally amongs VF's for now */
-	vf_cp_rings = (pf->max_cp_rings - bp->cp_nr_rings) / num_vfs;
-	vf_stat_ctx = (pf->max_stat_ctxs - bp->num_stat_ctxs) / num_vfs;
+	vf_cp_rings = (hw_resc->max_cp_rings - bp->cp_nr_rings) / num_vfs;
+	vf_stat_ctx = (max_stat_ctxs - bp->num_stat_ctxs) / num_vfs;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
-		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings * 2) /
+		vf_rx_rings = (hw_resc->max_rx_rings - bp->rx_nr_rings * 2) /
 			      num_vfs;
 	else
-		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings) / num_vfs;
-	vf_ring_grps = (bp->pf.max_hw_ring_grps - bp->rx_nr_rings) / num_vfs;
-	vf_tx_rings = (pf->max_tx_rings - bp->tx_nr_rings) / num_vfs;
-	vf_vnics = (pf->max_vnics - bp->nr_vnics) / num_vfs;
+		vf_rx_rings = (hw_resc->max_rx_rings - bp->rx_nr_rings) /
+			      num_vfs;
+	vf_ring_grps = (hw_resc->max_hw_ring_grps - bp->rx_nr_rings) / num_vfs;
+	vf_tx_rings = (hw_resc->max_tx_rings - bp->tx_nr_rings) / num_vfs;
+	vf_vnics = (hw_resc->max_vnics - bp->nr_vnics) / num_vfs;
 	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MTU |
@@ -486,13 +490,13 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	if (!rc) {
-		pf->max_tx_rings -= total_vf_tx_rings;
-		pf->max_rx_rings -= vf_rx_rings * num_vfs;
-		pf->max_hw_ring_grps -= vf_ring_grps * num_vfs;
-		pf->max_cp_rings -= vf_cp_rings * num_vfs;
-		pf->max_rsscos_ctxs -= num_vfs;
-		pf->max_stat_ctxs -= vf_stat_ctx * num_vfs;
-		pf->max_vnics -= vf_vnics * num_vfs;
+		hw_resc->max_tx_rings -= total_vf_tx_rings;
+		hw_resc->max_rx_rings -= vf_rx_rings * num_vfs;
+		hw_resc->max_hw_ring_grps -= vf_ring_grps * num_vfs;
+		hw_resc->max_cp_rings -= vf_cp_rings * num_vfs;
+		hw_resc->max_rsscos_ctxs -= num_vfs;
+		hw_resc->max_stat_ctxs -= vf_stat_ctx * num_vfs;
+		hw_resc->max_vnics -= vf_vnics * num_vfs;
 	}
 	return rc;
 }
@@ -501,6 +505,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 {
 	int rc = 0, vfs_supported;
 	int min_rx_rings, min_tx_rings, min_rss_ctxs;
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 	int tx_ok = 0, rx_ok = 0, rss_ok = 0;
 	int avail_cp, avail_stat;
 
@@ -510,8 +515,8 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	 */
 	vfs_supported = *num_vfs;
 
-	avail_cp = bp->pf.max_cp_rings - bp->cp_nr_rings;
-	avail_stat = bp->pf.max_stat_ctxs - bp->num_stat_ctxs;
+	avail_cp = hw_resc->max_cp_rings - bp->cp_nr_rings;
+	avail_stat = hw_resc->max_stat_ctxs - bp->num_stat_ctxs;
 	avail_cp = min_t(int, avail_cp, avail_stat);
 
 	while (vfs_supported) {
@@ -520,23 +525,24 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 		min_rss_ctxs = vfs_supported;
 
 		if (bp->flags & BNXT_FLAG_AGG_RINGS) {
-			if (bp->pf.max_rx_rings - bp->rx_nr_rings * 2 >=
+			if (hw_resc->max_rx_rings - bp->rx_nr_rings * 2 >=
 			    min_rx_rings)
 				rx_ok = 1;
 		} else {
-			if (bp->pf.max_rx_rings - bp->rx_nr_rings >=
+			if (hw_resc->max_rx_rings - bp->rx_nr_rings >=
 			    min_rx_rings)
 				rx_ok = 1;
 		}
-		if (bp->pf.max_vnics - bp->nr_vnics < min_rx_rings ||
+		if (hw_resc->max_vnics - bp->nr_vnics < min_rx_rings ||
 		    avail_cp < min_rx_rings)
 			rx_ok = 0;
 
-		if (bp->pf.max_tx_rings - bp->tx_nr_rings >= min_tx_rings &&
+		if (hw_resc->max_tx_rings - bp->tx_nr_rings >= min_tx_rings &&
 		    avail_cp >= min_tx_rings)
 			tx_ok = 1;
 
-		if (bp->pf.max_rsscos_ctxs - bp->rsscos_nr_ctxs >= min_rss_ctxs)
+		if (hw_resc->max_rsscos_ctxs - bp->rsscos_nr_ctxs >=
+		    min_rss_ctxs)
 			rss_ok = 1;
 
 		if (tx_ok && rx_ok && rss_ok)

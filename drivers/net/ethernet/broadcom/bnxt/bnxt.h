@@ -776,19 +776,35 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
 };
 
+struct bnxt_hw_resc {
+	u16	min_rsscos_ctxs;
+	u16	max_rsscos_ctxs;
+	u16	min_cp_rings;
+	u16	max_cp_rings;
+	u16	resv_cp_rings;
+	u16	min_tx_rings;
+	u16	max_tx_rings;
+	u16	resv_tx_rings;
+	u16	min_rx_rings;
+	u16	max_rx_rings;
+	u16	resv_rx_rings;
+	u16	min_hw_ring_grps;
+	u16	max_hw_ring_grps;
+	u16	resv_hw_ring_grps;
+	u16	min_l2_ctxs;
+	u16	max_l2_ctxs;
+	u16	min_vnics;
+	u16	max_vnics;
+	u16	resv_vnics;
+	u16	min_stat_ctxs;
+	u16	max_stat_ctxs;
+	u16	max_irqs;
+};
+
 #if defined(CONFIG_BNXT_SRIOV)
 struct bnxt_vf_info {
 	u16	fw_fid;
 	u8	mac_addr[ETH_ALEN];
-	u16	max_rsscos_ctxs;
-	u16	max_cp_rings;
-	u16	max_tx_rings;
-	u16	max_rx_rings;
-	u16	max_hw_ring_grps;
-	u16	max_l2_ctxs;
-	u16	max_irqs;
-	u16	max_vnics;
-	u16	max_stat_ctxs;
 	u16	vlan;
 	u32	flags;
 #define BNXT_VF_QOS		0x1
@@ -809,15 +825,6 @@ struct bnxt_pf_info {
 	u16	fw_fid;
 	u16	port_id;
 	u8	mac_addr[ETH_ALEN];
-	u16	max_rsscos_ctxs;
-	u16	max_cp_rings;
-	u16	max_tx_rings; /* HW assigned max tx rings for this PF */
-	u16	max_rx_rings; /* HW assigned max rx rings for this PF */
-	u16	max_hw_ring_grps;
-	u16	max_irqs;
-	u16	max_l2_ctxs;
-	u16	max_vnics;
-	u16	max_stat_ctxs;
 	u32	first_vf_id;
 	u16	active_vfs;
 	u16	max_vfs;
@@ -1196,7 +1203,6 @@ struct bnxt {
 	int			tx_nr_rings;
 	int			tx_nr_rings_per_tc;
 	int			tx_nr_rings_xdp;
-	int			tx_reserved_rings;
 
 	int			tx_wake_thresh;
 	int			tx_push_thresh;
@@ -1308,6 +1314,7 @@ struct bnxt {
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
 #define BNXT_FLOW_STATS_SP_EVENT	15
 
+	struct bnxt_hw_resc	hw_resc;
 	struct bnxt_pf_info	pf;
 #ifdef CONFIG_BNXT_SRIOV
 	int			nr_vfs;
