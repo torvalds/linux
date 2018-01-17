@@ -64,7 +64,7 @@ static void malidp_de_plane_destroy(struct drm_plane *plane)
 
 	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
-	devm_kfree(plane->dev->dev, mp);
+	kfree(mp);
 }
 
 /*
@@ -449,18 +449,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 	return 0;
 
 cleanup:
-	malidp_de_planes_destroy(drm);
 	kfree(formats);
 
 	return ret;
-}
-
-void malidp_de_planes_destroy(struct drm_device *drm)
-{
-	struct drm_plane *p, *pt;
-
-	list_for_each_entry_safe(p, pt, &drm->mode_config.plane_list, head) {
-		drm_plane_cleanup(p);
-		kfree(p);
-	}
 }

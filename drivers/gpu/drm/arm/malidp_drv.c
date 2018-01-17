@@ -278,7 +278,6 @@ static int malidp_init(struct drm_device *drm)
 
 static void malidp_fini(struct drm_device *drm)
 {
-	malidp_de_planes_destroy(drm);
 	drm_mode_config_cleanup(drm);
 }
 

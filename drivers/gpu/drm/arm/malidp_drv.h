@@ -60,7 +60,6 @@ struct malidp_crtc_state {
 #define to_malidp_crtc_state(x) container_of(x, struct malidp_crtc_state, base)
 
 int malidp_de_planes_init(struct drm_device *drm);
-void malidp_de_planes_destroy(struct drm_device *drm);
 int malidp_crtc_init(struct drm_device *drm);
 
 /* often used combination of rotational bits */
