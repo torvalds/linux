@@ -8030,6 +8030,17 @@ static int bnxt_get_dflt_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	return rc;
 }
 
+/* In initial default shared ring setting, each shared ring must have a
+ * RX/TX ring pair.
+ */
+static void bnxt_trim_dflt_sh_rings(struct bnxt *bp)
+{
+	bp->cp_nr_rings = min_t(int, bp->tx_nr_rings_per_tc, bp->rx_nr_rings);
+	bp->rx_nr_rings = bp->cp_nr_rings;
+	bp->tx_nr_rings_per_tc = bp->cp_nr_rings;
+	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
+}
+
 static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 {
 	int dflt_rings, max_rx_rings, max_tx_rings, rc;
@@ -8045,10 +8056,18 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 		return rc;
 	bp->rx_nr_rings = min_t(int, dflt_rings, max_rx_rings);
 	bp->tx_nr_rings_per_tc = min_t(int, dflt_rings, max_tx_rings);
+	if (sh)
+		bnxt_trim_dflt_sh_rings(bp);
+	else
+		bp->cp_nr_rings = bp->tx_nr_rings_per_tc + bp->rx_nr_rings;
+	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 
 	rc = bnxt_hwrm_reserve_tx_rings(bp, &bp->tx_nr_rings_per_tc);
 	if (rc)
 		netdev_warn(bp->dev, "Unable to reserve tx rings\n");
+	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
+	if (sh)
+		bnxt_trim_dflt_sh_rings(bp);
 
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
