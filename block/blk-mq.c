@@ -1319,21 +1319,47 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
  */
 static int blk_mq_hctx_next_cpu(struct blk_mq_hw_ctx *hctx)
 {
+	bool tried = false;
+
 	if (hctx->queue->nr_hw_queues == 1)
 		return WORK_CPU_UNBOUND;
 
 	if (--hctx->next_cpu_batch <= 0) {
 		int next_cpu;
-
+select_cpu:
 		next_cpu = cpumask_next_and(hctx->next_cpu, hctx->cpumask,
 				cpu_online_mask);
 		if (next_cpu >= nr_cpu_ids)
 			next_cpu = cpumask_first_and(hctx->cpumask,cpu_online_mask);
 
-		hctx->next_cpu = next_cpu;
+		/*
+		 * No online CPU is found, so have to make sure hctx->next_cpu
+		 * is set correctly for not breaking workqueue.
+		 */
+		if (next_cpu >= nr_cpu_ids)
+			hctx->next_cpu = cpumask_first(hctx->cpumask);
+		else
+			hctx->next_cpu = next_cpu;
 		hctx->next_cpu_batch = BLK_MQ_CPU_WORK_BATCH;
 	}
 
+	/*
+	 * Do unbound schedule if we can't find a online CPU for this hctx,
+	 * and it should only happen in the path of handling CPU DEAD.
+	 */
+	if (!cpu_online(hctx->next_cpu)) {
+		if (!tried) {
+			tried = true;
+			goto select_cpu;
+		}
+
+		/*
+		 * Make sure to re-select CPU next time once after CPUs
+		 * in hctx->cpumask become online again.
+		 */
+		hctx->next_cpu_batch = 1;
+		return WORK_CPU_UNBOUND;
+	}
 	return hctx->next_cpu;
 }
 
