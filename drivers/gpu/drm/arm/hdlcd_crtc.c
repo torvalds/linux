@@ -280,16 +280,10 @@ static const struct drm_plane_helper_funcs hdlcd_plane_helper_funcs = {
 	.atomic_update = hdlcd_plane_atomic_update,
 };
 
-static void hdlcd_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_helper_disable(plane, NULL);
-	drm_plane_cleanup(plane);
-}
-
 static const struct drm_plane_funcs hdlcd_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
-	.destroy		= hdlcd_plane_destroy,
+	.destroy		= drm_plane_cleanup,
 	.reset			= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,

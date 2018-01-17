@@ -355,6 +355,7 @@ static void hdlcd_drm_unbind(struct device *dev)
 	pm_runtime_put_sync(drm->dev);
 	pm_runtime_disable(drm->dev);
 	of_reserved_mem_device_release(drm->dev);
+	drm_atomic_helper_shutdown(drm);
 	drm_mode_config_cleanup(drm);
 	drm_dev_put(drm);
 	drm->dev_private = NULL;
