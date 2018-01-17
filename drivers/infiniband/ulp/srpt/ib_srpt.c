@@ -1849,16 +1849,20 @@ static int srpt_disconnect_ch(struct srpt_rdma_ch *ch)
 
 static bool srpt_ch_closed(struct srpt_port *sport, struct srpt_rdma_ch *ch)
 {
+	struct srpt_nexus *nexus;
 	struct srpt_rdma_ch *ch2;
 	bool res = true;
 
 	rcu_read_lock();
-	list_for_each_entry(ch2, &sport->rch_list, list) {
-		if (ch2 == ch) {
-			res = false;
-			break;
+	list_for_each_entry(nexus, &sport->nexus_list, entry) {
+		list_for_each_entry(ch2, &nexus->ch_list, list) {
+			if (ch2 == ch) {
+				res = false;
+				goto done;
+			}
 		}
 	}
+done:
 	rcu_read_unlock();
 
 	return res;
@@ -1891,30 +1895,78 @@ static bool srpt_disconnect_ch_sync(struct srpt_rdma_ch *ch)
 	return ret == 0;
 }
 
+static void __srpt_close_all_ch(struct srpt_port *sport)
+{
+	struct srpt_nexus *nexus;
+	struct srpt_rdma_ch *ch;
+
+	lockdep_assert_held(&sport->mutex);
+
+	list_for_each_entry(nexus, &sport->nexus_list, entry) {
+		list_for_each_entry(ch, &nexus->ch_list, list) {
+			if (srpt_disconnect_ch(ch) >= 0)
+				pr_info("Closing channel %s-%d because target %s_%d has been disabled\n",
+					ch->sess_name, ch->qp->qp_num,
+					sport->sdev->device->name, sport->port);
+			srpt_close_ch(ch);
+		}
+	}
+}
+
+/*
+ * Look up (i_port_id, t_port_id) in sport->nexus_list. Create an entry if
+ * it does not yet exist.
+ */
+static struct srpt_nexus *srpt_get_nexus(struct srpt_port *sport,
+					 const u8 i_port_id[16],
+					 const u8 t_port_id[16])
+{
+	struct srpt_nexus *nexus = NULL, *tmp_nexus = NULL, *n;
+
+	for (;;) {
+		mutex_lock(&sport->mutex);
+		list_for_each_entry(n, &sport->nexus_list, entry) {
+			if (memcmp(n->i_port_id, i_port_id, 16) == 0 &&
+			    memcmp(n->t_port_id, t_port_id, 16) == 0) {
+				nexus = n;
+				break;
+			}
+		}
+		if (!nexus && tmp_nexus) {
+			list_add_tail_rcu(&tmp_nexus->entry,
+					  &sport->nexus_list);
+			swap(nexus, tmp_nexus);
+		}
+		mutex_unlock(&sport->mutex);
+
+		if (nexus)
+			break;
+		tmp_nexus = kzalloc(sizeof(*nexus), GFP_KERNEL);
+		if (!tmp_nexus) {
+			nexus = ERR_PTR(-ENOMEM);
+			break;
+		}
+		init_rcu_head(&tmp_nexus->rcu);
+		INIT_LIST_HEAD(&tmp_nexus->ch_list);
+		memcpy(tmp_nexus->i_port_id, i_port_id, 16);
+		memcpy(tmp_nexus->t_port_id, t_port_id, 16);
+	}
+
+	kfree(tmp_nexus);
+
+	return nexus;
+}
+
 static void srpt_set_enabled(struct srpt_port *sport, bool enabled)
 	__must_hold(&sport->mutex)
 {
-	struct srpt_rdma_ch *ch;
-
 	lockdep_assert_held(&sport->mutex);
 
 	if (sport->enabled == enabled)
 		return;
 	sport->enabled = enabled;
-	if (sport->enabled)
-		return;
-
-again:
-	list_for_each_entry(ch, &sport->rch_list, list) {
-		if (ch->sport == sport) {
-			pr_info("%s: closing channel %s-%d\n",
-				sport->sdev->device->name, ch->sess_name,
-				ch->qp->qp_num);
-			if (srpt_disconnect_ch_sync(ch))
-				goto again;
-		}
-	}
-
+	if (!enabled)
+		__srpt_close_all_ch(sport);
 }
 
 static void srpt_free_ch(struct kref *kref)
@@ -1984,11 +2036,12 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 {
 	struct srpt_device *sdev = cm_id->context;
 	struct srpt_port *sport = &sdev->port[param->port - 1];
+	struct srpt_nexus *nexus;
 	struct srp_login_req *req;
-	struct srp_login_rsp *rsp;
-	struct srp_login_rej *rej;
-	struct ib_cm_rep_param *rep_param;
-	struct srpt_rdma_ch *ch, *tmp_ch;
+	struct srp_login_rsp *rsp = NULL;
+	struct srp_login_rej *rej = NULL;
+	struct ib_cm_rep_param *rep_param = NULL;
+	struct srpt_rdma_ch *ch;
 	char i_port_id[36];
 	u32 it_iu_len;
 	int i, ret = 0;
@@ -2006,6 +2059,13 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 		req->initiator_port_id, req->target_port_id, it_iu_len,
 		param->port, &sport->gid,
 		be16_to_cpu(param->primary_path->pkey));
+
+	nexus = srpt_get_nexus(sport, req->initiator_port_id,
+			       req->target_port_id);
+	if (IS_ERR(nexus)) {
+		ret = PTR_ERR(nexus);
+		goto out;
+	}
 
 	rsp = kzalloc(sizeof(*rsp), GFP_KERNEL);
 	rej = kzalloc(sizeof(*rej), GFP_KERNEL);
@@ -2036,29 +2096,22 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	}
 
 	if ((req->req_flags & SRP_MTCH_ACTION) == SRP_MULTICHAN_SINGLE) {
+		struct srpt_rdma_ch *ch2;
+
 		rsp->rsp_flags = SRP_LOGIN_RSP_MULTICHAN_NO_CHAN;
 
 		mutex_lock(&sport->mutex);
-
-		list_for_each_entry_safe(ch, tmp_ch, &sport->rch_list, list) {
-			if (!memcmp(ch->i_port_id, req->initiator_port_id, 16)
-			    && !memcmp(ch->t_port_id, req->target_port_id, 16)
-			    && param->port == ch->sport->port
-			    && param->listen_id == ch->sport->sdev->cm_id
-			    && ch->cm_id) {
-				if (srpt_disconnect_ch(ch) < 0)
-					continue;
-				pr_info("Relogin - closed existing channel %s\n",
-					ch->sess_name);
-				rsp->rsp_flags =
-					SRP_LOGIN_RSP_MULTICHAN_TERMINATED;
-			}
+		list_for_each_entry(ch2, &nexus->ch_list, list) {
+			if (srpt_disconnect_ch(ch2) < 0)
+				continue;
+			pr_info("Relogin - closed existing channel %s\n",
+				ch2->sess_name);
+			rsp->rsp_flags = SRP_LOGIN_RSP_MULTICHAN_TERMINATED;
 		}
-
 		mutex_unlock(&sport->mutex);
-
-	} else
+	} else {
 		rsp->rsp_flags = SRP_LOGIN_RSP_MULTICHAN_MAINTAINED;
+	}
 
 	if (*(__be64 *)req->target_port_id != cpu_to_be64(srpt_service_guid)
 	    || *(__be64 *)(req->target_port_id + 8) !=
@@ -2083,10 +2136,9 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	init_rcu_head(&ch->rcu);
 	kref_init(&ch->kref);
 	ch->pkey = be16_to_cpu(param->primary_path->pkey);
+	ch->nexus = nexus;
 	ch->zw_cqe.done = srpt_zerolength_write_done;
 	INIT_WORK(&ch->release_work, srpt_release_channel_work);
-	memcpy(ch->i_port_id, req->initiator_port_id, 16);
-	memcpy(ch->t_port_id, req->target_port_id, 16);
 	ch->sport = &sdev->port[param->port - 1];
 	ch->cm_id = cm_id;
 	cm_id->context = ch;
@@ -2147,8 +2199,8 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	srpt_format_guid(ch->sess_name, sizeof(ch->sess_name),
 			 &param->primary_path->dgid.global.interface_id);
 	snprintf(i_port_id, sizeof(i_port_id), "0x%016llx%016llx",
-			be64_to_cpu(*(__be64 *)ch->i_port_id),
-			be64_to_cpu(*(__be64 *)(ch->i_port_id + 8)));
+			be64_to_cpu(*(__be64 *)nexus->i_port_id),
+			be64_to_cpu(*(__be64 *)(nexus->i_port_id + 8)));
 
 	pr_debug("registering session %s\n", ch->sess_name);
 
@@ -2208,7 +2260,7 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	}
 
 	mutex_lock(&sport->mutex);
-	list_add_tail_rcu(&ch->list, &sport->rch_list);
+	list_add_tail_rcu(&ch->list, &nexus->ch_list);
 	mutex_unlock(&sport->mutex);
 
 	goto out;
@@ -2560,13 +2612,28 @@ static void srpt_refresh_port_work(struct work_struct *work)
 	srpt_refresh_port(sport);
 }
 
+static bool srpt_ch_list_empty(struct srpt_port *sport)
+{
+	struct srpt_nexus *nexus;
+	bool res = true;
+
+	rcu_read_lock();
+	list_for_each_entry(nexus, &sport->nexus_list, entry)
+		if (!list_empty(&nexus->ch_list))
+			res = false;
+	rcu_read_unlock();
+
+	return res;
+}
+
 /**
  * srpt_release_sport - disable login and wait for associated channels
  * @sport: SRPT HCA port.
  */
 static int srpt_release_sport(struct srpt_port *sport)
 {
-	int res;
+	struct srpt_nexus *nexus, *next_n;
+	struct srpt_rdma_ch *ch;
 
 	WARN_ON_ONCE(irqs_disabled());
 
@@ -2574,10 +2641,27 @@ static int srpt_release_sport(struct srpt_port *sport)
 	srpt_set_enabled(sport, false);
 	mutex_unlock(&sport->mutex);
 
-	res = wait_event_interruptible(sport->ch_releaseQ,
-				       list_empty_careful(&sport->rch_list));
-	if (res)
-		pr_err("%s: interrupted.\n", __func__);
+	while (wait_event_timeout(sport->ch_releaseQ,
+				  srpt_ch_list_empty(sport), 5 * HZ) <= 0) {
+		pr_info("%s_%d: waiting for session unregistration ...\n",
+			sport->sdev->device->name, sport->port);
+		rcu_read_lock();
+		list_for_each_entry(nexus, &sport->nexus_list, entry) {
+			list_for_each_entry(ch, &nexus->ch_list, list) {
+				pr_info("%s-%d: state %s\n",
+					ch->sess_name, ch->qp->qp_num,
+					get_ch_state_name(ch->state));
+			}
+		}
+		rcu_read_unlock();
+	}
+
+	mutex_lock(&sport->mutex);
+	list_for_each_entry_safe(nexus, next_n, &sport->nexus_list, entry) {
+		list_del(&nexus->entry);
+		kfree_rcu(nexus, rcu);
+	}
+	mutex_unlock(&sport->mutex);
 
 	return 0;
 }
@@ -2744,7 +2828,7 @@ static void srpt_add_one(struct ib_device *device)
 
 	for (i = 1; i <= sdev->device->phys_port_cnt; i++) {
 		sport = &sdev->port[i - 1];
-		INIT_LIST_HEAD(&sport->rch_list);
+		INIT_LIST_HEAD(&sport->nexus_list);
 		init_waitqueue_head(&sport->ch_releaseQ);
 		mutex_init(&sport->mutex);
 		sport->sdev = sdev;
