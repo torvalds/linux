@@ -5412,6 +5412,28 @@ static int bnxt_hwrm_set_br_mode(struct bnxt *bp, u16 br_mode)
 	return rc;
 }
 
+static int bnxt_hwrm_set_cache_line_size(struct bnxt *bp, int size)
+{
+	struct hwrm_func_cfg_input req = {0};
+	int rc;
+
+	if (BNXT_VF(bp) || bp->hwrm_spec_code < 0x10803)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
+	req.fid = cpu_to_le16(0xffff);
+	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_CACHE_LINESIZE);
+	req.cache_linesize = FUNC_QCFG_RESP_CACHE_LINESIZE_CACHE_LINESIZE_64;
+	if (size == 128)
+		req.cache_linesize =
+			FUNC_QCFG_RESP_CACHE_LINESIZE_CACHE_LINESIZE_128;
+
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		rc = -EIO;
+	return rc;
+}
+
 static int bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
 {
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
@@ -8644,6 +8666,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		device_set_wakeup_enable(&pdev->dev, bp->wol);
 	else
 		device_set_wakeup_capable(&pdev->dev, false);
+
+	bnxt_hwrm_set_cache_line_size(bp, cache_line_size());
 
 	if (BNXT_PF(bp)) {
 		if (!bnxt_pf_wq) {
