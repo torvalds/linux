@@ -214,7 +214,7 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 		goto exit;
 	}
 
-	ahb_clk = clk_get(dev, "iface_clk");
+	ahb_clk = msm_clk_get(msm_host->pdev, "iface");
 	if (IS_ERR(ahb_clk)) {
 		pr_err("%s: cannot get interface clock\n", __func__);
 		goto put_gdsc;
@@ -225,7 +225,7 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 	ret = regulator_enable(gdsc_reg);
 	if (ret) {
 		pr_err("%s: unable to enable gdsc\n", __func__);
-		goto put_clk;
+		goto put_gdsc;
 	}
 
 	ret = clk_prepare_enable(ahb_clk);
@@ -249,8 +249,6 @@ disable_clks:
 disable_gdsc:
 	regulator_disable(gdsc_reg);
 	pm_runtime_put_sync(dev);
-put_clk:
-	clk_put(ahb_clk);
 put_gdsc:
 	regulator_put(gdsc_reg);
 exit:
