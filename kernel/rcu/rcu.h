@@ -337,7 +337,7 @@ do {									\
 } while (0)
 
 #define raw_spin_unlock_irqrestore_rcu_node(p, flags)			\
-	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)	\
+	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)
 
 #define raw_spin_trylock_rcu_node(p)					\
 ({									\
@@ -347,6 +347,9 @@ do {									\
 		smp_mb__after_unlock_lock();				\
 	___locked;							\
 })
+
+#define raw_lockdep_assert_held_rcu_node(p)				\
+	lockdep_assert_held(&ACCESS_PRIVATE(p, lock))
 
 #endif /* #if defined(SRCU) || !defined(TINY_RCU) */
 

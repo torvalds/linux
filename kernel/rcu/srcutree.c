@@ -439,7 +439,7 @@ static void srcu_gp_start(struct srcu_struct *sp)
 	struct srcu_data *sdp = this_cpu_ptr(sp->sda);
 	int state;
 
-	lockdep_assert_held(&sp->lock);
+	lockdep_assert_held(&ACCESS_PRIVATE(sp, lock));
 	WARN_ON_ONCE(ULONG_CMP_GE(sp->srcu_gp_seq, sp->srcu_gp_seq_needed));
 	rcu_segcblist_advance(&sdp->srcu_cblist,
 			      rcu_seq_current(&sp->srcu_gp_seq));
