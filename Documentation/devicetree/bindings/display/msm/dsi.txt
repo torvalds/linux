@@ -7,8 +7,6 @@ Required properties:
 - reg: Physical base address and length of the registers of controller
 - reg-names: The names of register regions. The following regions are required:
   * "dsi_ctrl"
-- qcom,dsi-host-index: The ID of DSI controller hardware instance. This should
-  be 0 or 1, since we have 2 DSI controllers at most for now.
 - interrupts: The interrupt signal from the DSI block.
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: Phandles to device clocks.
@@ -96,8 +94,6 @@ Required properties:
   * "dsi_phy_regulator"
 - clock-cells: Must be 1. The DSI PHY block acts as a clock provider, creating
   2 clocks: A byte clock (index 0), and a pixel clock (index 1).
-- qcom,dsi-phy-index: The ID of DSI PHY hardware instance. This should
-  be 0 or 1, since we have 2 DSI PHYs at most for now.
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: Phandles to device clocks. See [1] for details on clock bindings.
 - clock-names: the following clocks are required:
