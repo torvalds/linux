@@ -6,6 +6,11 @@ shall have the following properties.
 Required root node properties:
     - compatible = "xlnx,zynq-7000";
 
+Additional compatible strings:
+
+- Xilinx internal board cc108
+  "xlnx,zynq-cc108"
+
 ---------------------------------------------------------------
 
 Xilinx Zynq UltraScale+ MPSoC Platforms Device Tree Bindings
