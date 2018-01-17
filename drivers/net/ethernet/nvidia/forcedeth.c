@@ -5510,11 +5510,9 @@ static int nv_open(struct net_device *dev)
 	/* One manual link speed update: Interrupts are enabled, future link
 	 * speed changes cause interrupts and are handled by nv_link_irq().
 	 */
-	{
-		u32 miistat;
-		miistat = readl(base + NvRegMIIStatus);
-		writel(NVREG_MIISTAT_MASK_ALL, base + NvRegMIIStatus);
-	}
+	readl(base + NvRegMIIStatus);
+	writel(NVREG_MIISTAT_MASK_ALL, base + NvRegMIIStatus);
+
 	/* set linkspeed to invalid value, thus force nv_update_linkspeed
 	 * to init hw */
 	np->linkspeed = 0;
