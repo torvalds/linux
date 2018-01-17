@@ -262,7 +262,7 @@ enum rdma_ch_state {
  * @state:         channel state. See also enum rdma_ch_state.
  * @ioctx_ring:    Send ring.
  * @ioctx_recv_ring: Receive I/O context ring.
- * @list:          Node for insertion in the srpt_device.rch_list list.
+ * @list:          Node in srpt_port.rch_list.
  * @cmd_wait_list: List of SCSI commands that arrived before the RTU event. This
  *                 list contains struct srpt_ioctx elements and is protected
  *                 against concurrent modification by the cm_id spinlock.
@@ -334,6 +334,9 @@ struct srpt_port_attrib {
  * @port_gid_tpg:  TPG associated with target port GID.
  * @port_gid_wwn:  WWN associated with target port GID.
  * @port_attrib:   Port attributes that can be accessed through configfs.
+ * @ch_releaseQ:   Enables waiting for removal from rch_list.
+ * @mutex:	   Protects rch_list.
+ * @rch_list:	   Channel list. See also srpt_rdma_ch.list.
  */
 struct srpt_port {
 	struct srpt_device	*sdev;
@@ -351,6 +354,9 @@ struct srpt_port {
 	struct se_portal_group	port_gid_tpg;
 	struct se_wwn		port_gid_wwn;
 	struct srpt_port_attrib port_attrib;
+	wait_queue_head_t	ch_releaseQ;
+	struct mutex		mutex;
+	struct list_head	rch_list;
 };
 
 /**
@@ -361,11 +367,9 @@ struct srpt_port {
  * @srq:           Per-HCA SRQ (shared receive queue).
  * @cm_id:         Connection identifier.
  * @srq_size:      SRQ size.
+ * @sdev_mutex:	   Serializes use_srq changes.
  * @use_srq:       Whether or not to use SRQ.
  * @ioctx_ring:    Per-HCA SRQ.
- * @rch_list:      Per-device channel list -- see also srpt_rdma_ch.list.
- * @ch_releaseQ:   Enables waiting for removal from rch_list.
- * @mutex:         Protects rch_list.
  * @port:          Information about the ports owned by this HCA.
  * @event_handler: Per-HCA asynchronous IB event handler.
  * @list:          Node in srpt_dev_list.
@@ -377,11 +381,9 @@ struct srpt_device {
 	struct ib_srq		*srq;
 	struct ib_cm_id		*cm_id;
 	int			srq_size;
+	struct mutex		sdev_mutex;
 	bool			use_srq;
 	struct srpt_recv_ioctx	**ioctx_ring;
-	struct list_head	rch_list;
-	wait_queue_head_t	ch_releaseQ;
-	struct mutex		mutex;
 	struct srpt_port	port[2];
 	struct ib_event_handler	event_handler;
 	struct list_head	list;
