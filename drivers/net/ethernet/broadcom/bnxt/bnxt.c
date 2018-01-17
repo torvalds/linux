@@ -8149,12 +8149,8 @@ int bnxt_port_attr_get(struct bnxt *bp, struct switchdev_attr *attr)
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
-		/* In SRIOV each PF-pool (PF + child VFs) serves as a
-		 * switching domain, the PF's perm mac-addr can be used
-		 * as the unique parent-id
-		 */
-		attr->u.ppid.id_len = ETH_ALEN;
-		ether_addr_copy(attr->u.ppid.id, bp->pf.mac_addr);
+		attr->u.ppid.id_len = sizeof(bp->switch_id);
+		memcpy(attr->u.ppid.id, bp->switch_id, attr->u.ppid.id_len);
 		break;
 	default:
 		return -EOPNOTSUPP;
