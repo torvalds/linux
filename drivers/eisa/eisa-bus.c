@@ -324,10 +324,8 @@ static int __init eisa_probe(struct eisa_root_device *root)
 	 * here, simply fail, unless root->force_probe is set. */
 
 	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
-	if (!edev) {
-		dev_err(root->dev, "EISA: Couldn't allocate mainboard slot\n");
+	if (!edev)
 		return -ENOMEM;
-	}
 
 	if (eisa_request_resources(root, edev, 0)) {
 		dev_warn(root->dev,
