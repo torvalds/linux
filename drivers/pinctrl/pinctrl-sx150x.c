@@ -1225,7 +1225,7 @@ static int sx150x_probe(struct i2c_client *client,
 	pctl->pinctrl_desc.npins = pctl->data->npins;
 	pctl->pinctrl_desc.owner = THIS_MODULE;
 
-	pctl->pctldev = pinctrl_register(&pctl->pinctrl_desc, dev, pctl);
+	pctl->pctldev = devm_pinctrl_register(dev, &pctl->pinctrl_desc, pctl);
 	if (IS_ERR(pctl->pctldev)) {
 		dev_err(dev, "Failed to register pinctrl device\n");
 		return PTR_ERR(pctl->pctldev);
