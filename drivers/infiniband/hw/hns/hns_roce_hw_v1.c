@@ -4788,10 +4788,6 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 
 	/* get the mapped register base address */
 	res = platform_get_resource(hr_dev->pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "memory resource not found!\n");
-		return -EINVAL;
-	}
 	hr_dev->reg_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hr_dev->reg_base))
 		return PTR_ERR(hr_dev->reg_base);
