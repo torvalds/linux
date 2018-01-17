@@ -158,10 +158,8 @@ static int bcm2835_rng_probe(struct platform_device *pdev)
 
 	/* map peripheral */
 	priv->base = devm_ioremap_resource(dev, r);
-	if (IS_ERR(priv->base)) {
-		dev_err(dev, "failed to remap rng regs");
+	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
-	}
 
 	/* Clock is optional on most platforms */
 	priv->clk = devm_clk_get(dev, NULL);
