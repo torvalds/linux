@@ -142,5 +142,11 @@ void xfs_scrub_xref_is_cow_staging(struct xfs_scrub_context *sc,
 		xfs_agblock_t bno, xfs_extlen_t len);
 void xfs_scrub_xref_is_not_shared(struct xfs_scrub_context *sc,
 		xfs_agblock_t bno, xfs_extlen_t len);
+#ifdef CONFIG_XFS_RT
+void xfs_scrub_xref_is_used_rt_space(struct xfs_scrub_context *sc,
+		xfs_rtblock_t rtbno, xfs_extlen_t len);
+#else
+# define xfs_scrub_xref_is_used_rt_space(sc, rtbno, len) do { } while (0)
+#endif
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */
