@@ -2383,6 +2383,7 @@ void intel_hdmi_init(struct drm_i915_private *dev_priv,
 			 &intel_hdmi_enc_funcs, DRM_MODE_ENCODER_TMDS,
 			 "HDMI %c", port_name(port));
 
+	intel_encoder->hotplug = intel_encoder_hotplug;
 	intel_encoder->compute_config = intel_hdmi_compute_config;
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		intel_encoder->disable = pch_disable_hdmi;

@@ -274,24 +274,26 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 	intel_runtime_pm_put(dev_priv);
 }
 
-static bool intel_hpd_irq_event(struct drm_device *dev,
-				struct drm_connector *connector)
+bool intel_encoder_hotplug(struct intel_encoder *encoder,
+			   struct intel_connector *connector)
 {
+	struct drm_device *dev = connector->base.dev;
 	enum drm_connector_status old_status;
 
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
-	old_status = connector->status;
+	old_status = connector->base.status;
 
-	connector->status = drm_helper_probe_detect(connector, NULL, false);
+	connector->base.status =
+		drm_helper_probe_detect(&connector->base, NULL, false);
 
-	if (old_status == connector->status)
+	if (old_status == connector->base.status)
 		return false;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
-		      connector->base.id,
-		      connector->name,
+		      connector->base.base.id,
+		      connector->base.name,
 		      drm_get_connector_status_name(old_status),
-		      drm_get_connector_status_name(connector->status));
+		      drm_get_connector_status_name(connector->base.status));
 
 	return true;
 }
@@ -381,10 +383,9 @@ static void i915_hotplug_work_func(struct work_struct *work)
 		if (hpd_event_bits & (1 << intel_encoder->hpd_pin)) {
 			DRM_DEBUG_KMS("Connector %s (pin %i) received hotplug event.\n",
 				      connector->name, intel_encoder->hpd_pin);
-			if (intel_encoder->hot_plug)
-				intel_encoder->hot_plug(intel_encoder);
-			if (intel_hpd_irq_event(dev, connector))
-				changed = true;
+
+			changed |= intel_encoder->hotplug(intel_encoder,
+							  intel_connector);
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);

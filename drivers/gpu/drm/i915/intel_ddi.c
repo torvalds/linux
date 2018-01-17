@@ -25,6 +25,7 @@
  *
  */
 
+#include <drm/drm_scdc_helper.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 
@@ -2798,6 +2799,147 @@ intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
 	return connector;
 }
 
+static int modeset_pipe(struct drm_crtc *crtc,
+			struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_atomic_state *state;
+	struct drm_crtc_state *crtc_state;
+	int ret;
+
+	state = drm_atomic_state_alloc(crtc->dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = ctx;
+
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto out;
+	}
+
+	crtc_state->mode_changed = true;
+
+	ret = drm_atomic_add_affected_connectors(state, crtc);
+	if (ret)
+		goto out;
+
+	ret = drm_atomic_add_affected_planes(state, crtc);
+	if (ret)
+		goto out;
+
+	ret = drm_atomic_commit(state);
+	if (ret)
+		goto out;
+
+	return 0;
+
+ out:
+	drm_atomic_state_put(state);
+
+	return ret;
+}
+
+static int intel_hdmi_reset_link(struct intel_encoder *encoder,
+				 struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_hdmi *hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct intel_connector *connector = hdmi->attached_connector;
+	struct i2c_adapter *adapter =
+		intel_gmbus_get_adapter(dev_priv, hdmi->ddc_bus);
+	struct drm_connector_state *conn_state;
+	struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	u8 config;
+	int ret;
+
+	if (!connector || connector->base.status != connector_status_connected)
+		return 0;
+
+	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
+			       ctx);
+	if (ret)
+		return ret;
+
+	conn_state = connector->base.state;
+
+	crtc = to_intel_crtc(conn_state->crtc);
+	if (!crtc)
+		return 0;
+
+	ret = drm_modeset_lock(&crtc->base.mutex, ctx);
+	if (ret)
+		return ret;
+
+	crtc_state = to_intel_crtc_state(crtc->base.state);
+
+	WARN_ON(!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI));
+
+	if (!crtc_state->base.active)
+		return 0;
+
+	if (!crtc_state->hdmi_high_tmds_clock_ratio &&
+	    !crtc_state->hdmi_scrambling)
+		return 0;
+
+	if (conn_state->commit &&
+	    !try_wait_for_completion(&conn_state->commit->hw_done))
+		return 0;
+
+	ret = drm_scdc_readb(adapter, SCDC_TMDS_CONFIG, &config);
+	if (ret < 0) {
+		DRM_ERROR("Failed to read TMDS config: %d\n", ret);
+		return 0;
+	}
+
+	if (!!(config & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40) ==
+	    crtc_state->hdmi_high_tmds_clock_ratio &&
+	    !!(config & SCDC_SCRAMBLING_ENABLE) ==
+	    crtc_state->hdmi_scrambling)
+		return 0;
+
+	/*
+	 * HDMI 2.0 says that one should not send scrambled data
+	 * prior to configuring the sink scrambling, and that
+	 * TMDS clock/data transmission should be suspended when
+	 * changing the TMDS clock rate in the sink. So let's
+	 * just do a full modeset here, even though some sinks
+	 * would be perfectly happy if were to just reconfigure
+	 * the SCDC settings on the fly.
+	 */
+	return modeset_pipe(&crtc->base, ctx);
+}
+
+static bool intel_ddi_hotplug(struct intel_encoder *encoder,
+			      struct intel_connector *connector)
+{
+	struct drm_modeset_acquire_ctx ctx;
+	bool changed;
+	int ret;
+
+	changed = intel_encoder_hotplug(encoder, connector);
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	for (;;) {
+		ret = intel_hdmi_reset_link(encoder, &ctx);
+
+		if (ret == -EDEADLK) {
+			drm_modeset_backoff(&ctx);
+			continue;
+		}
+
+		break;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+	WARN(ret, "Acquiring modeset locks failed with %i\n", ret);
+
+	return changed;
+}
+
 static struct intel_connector *
 intel_ddi_init_hdmi_connector(struct intel_digital_port *intel_dig_port)
 {
@@ -2914,6 +3056,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	drm_encoder_init(&dev_priv->drm, encoder, &intel_ddi_funcs,
 			 DRM_MODE_ENCODER_TMDS, "DDI %c", port_name(port));
 
+	if (init_hdmi)
+		intel_encoder->hotplug = intel_ddi_hotplug;
+	else
+		intel_encoder->hotplug = intel_encoder_hotplug;
 	intel_encoder->compute_output_type = intel_ddi_compute_output_type;
 	intel_encoder->compute_config = intel_ddi_compute_config;
 	intel_encoder->enable = intel_enable_ddi;

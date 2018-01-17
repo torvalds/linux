@@ -6393,6 +6393,7 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 			     "DP %c", port_name(port)))
 		goto err_encoder_init;
 
+	intel_encoder->hotplug = intel_encoder_hotplug;
 	intel_encoder->compute_config = intel_dp_compute_config;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
