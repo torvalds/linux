@@ -413,15 +413,20 @@ static void a3700_spi_transfer_setup(struct spi_device *spi,
 				     struct spi_transfer *xfer)
 {
 	struct a3700_spi *a3700_spi;
-	unsigned int byte_len;
 
 	a3700_spi = spi_master_get_devdata(spi->master);
 
 	a3700_spi_clock_set(a3700_spi, xfer->speed_hz);
 
-	byte_len = xfer->bits_per_word >> 3;
+	/* Use 4 bytes long transfers. Each transfer method has its way to deal
+	 * with the remaining bytes for non 4-bytes aligned transfers.
+	 */
+	a3700_spi_bytelen_set(a3700_spi, 4);
 
-	a3700_spi_fifo_thres_set(a3700_spi, byte_len);
+	/* Initialize the working buffers */
+	a3700_spi->tx_buf  = xfer->tx_buf;
+	a3700_spi->rx_buf  = xfer->rx_buf;
+	a3700_spi->buf_len = xfer->len;
 }
 
 static void a3700_spi_set_cs(struct spi_device *spi, bool enable)
@@ -576,27 +581,26 @@ static int a3700_spi_prepare_message(struct spi_master *master,
 	if (ret)
 		return ret;
 
-	a3700_spi_bytelen_set(a3700_spi, 4);
-
 	a3700_spi_mode_set(a3700_spi, spi->mode);
 
 	return 0;
 }
 
-static int a3700_spi_transfer_one(struct spi_master *master,
+static int a3700_spi_transfer_one_fifo(struct spi_master *master,
 				  struct spi_device *spi,
 				  struct spi_transfer *xfer)
 {
 	struct a3700_spi *a3700_spi = spi_master_get_devdata(master);
 	int ret = 0, timeout = A3700_SPI_TIMEOUT;
-	unsigned int nbits = 0;
+	unsigned int nbits = 0, byte_len;
 	u32 val;
 
-	a3700_spi_transfer_setup(spi, xfer);
+	/* Make sure we use FIFO mode */
+	a3700_spi_fifo_mode_set(a3700_spi, true);
 
-	a3700_spi->tx_buf  = xfer->tx_buf;
-	a3700_spi->rx_buf  = xfer->rx_buf;
-	a3700_spi->buf_len = xfer->len;
+	/* Configure FIFO thresholds */
+	byte_len = xfer->bits_per_word >> 3;
+	a3700_spi_fifo_thres_set(a3700_spi, byte_len);
 
 	if (xfer->tx_buf)
 		nbits = xfer->tx_nbits;
@@ -731,6 +735,64 @@ out:
 	return ret;
 }
 
+static int a3700_spi_transfer_one_full_duplex(struct spi_master *master,
+				  struct spi_device *spi,
+				  struct spi_transfer *xfer)
+{
+	struct a3700_spi *a3700_spi = spi_master_get_devdata(master);
+	u32 val_in, val_out;
+
+	/* Disable FIFO mode */
+	a3700_spi_fifo_mode_set(a3700_spi, false);
+
+	while (a3700_spi->buf_len) {
+
+		/* When we have less than 4 bytes to transfer, switch to 1 byte
+		 * mode. This is reset after each transfer
+		 */
+		if (a3700_spi->buf_len < 4)
+			a3700_spi_bytelen_set(a3700_spi, 1);
+
+		if (a3700_spi->byte_len == 1)
+			val_out = *a3700_spi->tx_buf;
+		else
+			val_out = cpu_to_le32(*(u32 *)a3700_spi->tx_buf);
+
+		spireg_write(a3700_spi, A3700_SPI_DATA_OUT_REG, val_out);
+
+		/* Wait for all the data to be shifted in / out */
+		while (!(spireg_read(a3700_spi, A3700_SPI_IF_CTRL_REG) &
+				A3700_SPI_XFER_DONE))
+			cpu_relax();
+
+		val_in = le32_to_cpu(spireg_read(a3700_spi,
+						 A3700_SPI_DATA_IN_REG));
+
+		memcpy(a3700_spi->rx_buf, &val_in, a3700_spi->byte_len);
+
+		a3700_spi->buf_len -= a3700_spi->byte_len;
+		a3700_spi->tx_buf += a3700_spi->byte_len;
+		a3700_spi->rx_buf += a3700_spi->byte_len;
+
+	}
+
+	spi_finalize_current_transfer(master);
+
+	return 0;
+}
+
+static int a3700_spi_transfer_one(struct spi_master *master,
+				  struct spi_device *spi,
+				  struct spi_transfer *xfer)
+{
+	a3700_spi_transfer_setup(spi, xfer);
+
+	if (xfer->tx_buf && xfer->rx_buf)
+		return a3700_spi_transfer_one_full_duplex(master, spi, xfer);
+
+	return a3700_spi_transfer_one_fifo(master, spi, xfer);
+}
+
 static int a3700_spi_unprepare_message(struct spi_master *master,
 				       struct spi_message *message)
 {
@@ -780,7 +842,6 @@ static int a3700_spi_probe(struct platform_device *pdev)
 	master->transfer_one = a3700_spi_transfer_one;
 	master->unprepare_message = a3700_spi_unprepare_message;
 	master->set_cs = a3700_spi_set_cs;
-	master->flags = SPI_MASTER_HALF_DUPLEX;
 	master->mode_bits |= (SPI_RX_DUAL | SPI_TX_DUAL |
 			      SPI_RX_QUAD | SPI_TX_QUAD);
 
