@@ -1,7 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
- * Copyright (c) 2016-2017 Broadcom Limited
+ * Copyright (c) 2016-2018 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -4938,23 +4938,24 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 
 	memcpy(&bp->ver_resp, resp, sizeof(struct hwrm_ver_get_output));
 
-	bp->hwrm_spec_code = resp->hwrm_intf_maj << 16 |
-			     resp->hwrm_intf_min << 8 | resp->hwrm_intf_upd;
-	if (resp->hwrm_intf_maj < 1) {
+	bp->hwrm_spec_code = resp->hwrm_intf_maj_8b << 16 |
+			     resp->hwrm_intf_min_8b << 8 |
+			     resp->hwrm_intf_upd_8b;
+	if (resp->hwrm_intf_maj_8b < 1) {
 		netdev_warn(bp->dev, "HWRM interface %d.%d.%d is older than 1.0.0.\n",
-			    resp->hwrm_intf_maj, resp->hwrm_intf_min,
-			    resp->hwrm_intf_upd);
+			    resp->hwrm_intf_maj_8b, resp->hwrm_intf_min_8b,
+			    resp->hwrm_intf_upd_8b);
 		netdev_warn(bp->dev, "Please update firmware with HWRM interface 1.0.0 or newer.\n");
 	}
 	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "%d.%d.%d.%d",
-		 resp->hwrm_fw_maj, resp->hwrm_fw_min, resp->hwrm_fw_bld,
-		 resp->hwrm_fw_rsvd);
+		 resp->hwrm_fw_maj_8b, resp->hwrm_fw_min_8b,
+		 resp->hwrm_fw_bld_8b, resp->hwrm_fw_rsvd_8b);
 
 	bp->hwrm_cmd_timeout = le16_to_cpu(resp->def_req_timeout);
 	if (!bp->hwrm_cmd_timeout)
 		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;
 
-	if (resp->hwrm_intf_maj >= 1)
+	if (resp->hwrm_intf_maj_8b >= 1)
 		bp->hwrm_max_req_len = le16_to_cpu(resp->max_req_win_len);
 
 	bp->chip_num = le16_to_cpu(resp->chip_num);
