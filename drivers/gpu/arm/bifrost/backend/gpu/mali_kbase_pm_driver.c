@@ -24,7 +24,7 @@
 #include <mali_kbase.h>
 #include <mali_kbase_config_defaults.h>
 #include <mali_midg_regmap.h>
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 #include <mali_kbase_gator.h>
 #endif
 #include <mali_kbase_tlstream.h>
@@ -173,7 +173,7 @@ static void kbase_pm_invoke(struct kbase_device *kbdev,
 	reg = core_type_to_reg(core_type, action);
 
 	KBASE_DEBUG_ASSERT(reg);
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 	if (cores) {
 		if (action == ACTION_PWRON)
 			kbase_trace_mali_pm_power_on(core_type, cores);
@@ -783,7 +783,7 @@ MOCKABLE(kbase_pm_check_transitions_nolock) (struct kbase_device *kbdev)
 	if (in_desired_state) {
 		KBASE_DEBUG_ASSERT(cores_are_available);
 
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 		kbase_trace_mali_pm_status(KBASE_PM_CORE_L2,
 						kbase_pm_get_ready_cores(kbdev,
 							KBASE_PM_CORE_L2));
@@ -1197,7 +1197,7 @@ static void kbase_pm_hw_issues_detect(struct kbase_device *kbdev)
 	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10327))
 		kbdev->hw_quirks_sc |= SC_SDC_DISABLE_OQ_DISCARD;
 
-#ifdef CONFIG_MALI_PRFCNT_SET_SECONDARY
+#ifdef CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY
 	/* Enable alternative hardware counter selection if configured. */
 	if (!GPU_ID_IS_NEW_FORMAT(prod_id))
 		kbdev->hw_quirks_sc |= SC_ALT_COUNTERS;

@@ -23,7 +23,7 @@
 
 #define CREATE_TRACE_POINTS
 
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 #include "mali_timeline.h"
 
 #include <linux/debugfs.h>
@@ -233,4 +233,4 @@ void kbase_timeline_pm_l2_transition_done(struct kbase_device *kbdev)
 	}
 }
 
-#endif /* CONFIG_MALI_TRACE_TIMELINE */
+#endif /* CONFIG_MALI_BIFROST_TRACE_TIMELINE */

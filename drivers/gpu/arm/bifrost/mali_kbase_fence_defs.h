@@ -23,7 +23,7 @@
  * This file hides the compatibility issues with this for the rest the driver
  */
 
-#if defined(CONFIG_MALI_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
+#if defined(CONFIG_MALI_BIFROST_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
 
 #include <linux/version.h>
 
@@ -46,6 +46,6 @@
 
 #endif /* < 4.10.0 */
 
-#endif /* CONFIG_MALI_DMA_FENCE || CONFIG_SYNC_FILE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE || CONFIG_SYNC_FILE */
 
 #endif /* _KBASE_FENCE_DEFS_H_ */

@@ -75,9 +75,9 @@ int kbase_hwaccess_pm_init(struct kbase_device *kbdev)
 
 	kbdev->pm.backend.gpu_powered = false;
 	kbdev->pm.suspending = false;
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	kbdev->pm.backend.driver_ready_for_irqs = false;
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 	kbdev->pm.backend.gpu_in_desired_state = true;
 	init_waitqueue_head(&kbdev->pm.backend.gpu_in_desired_state_wait);
 
@@ -348,7 +348,7 @@ int kbase_hwaccess_pm_powerup(struct kbase_device *kbdev,
 
 	/* We are ready to receive IRQ's now as power policy is set up, so
 	 * enable them now. */
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	spin_lock_irqsave(&kbdev->pm.backend.gpu_powered_lock, irq_flags);
 	kbdev->pm.backend.driver_ready_for_irqs = true;
 	spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock, irq_flags);

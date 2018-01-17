@@ -67,7 +67,7 @@ struct fragment_job {
 static void dump_job_head(struct kbase_context *kctx, char *head_str,
 		struct job_descriptor_header *job)
 {
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	dev_dbg(kctx->kbdev->dev, "%s\n", head_str);
 	dev_dbg(kctx->kbdev->dev,
 			"addr                  = %p\n"
@@ -128,7 +128,7 @@ static int kbasep_replay_reset_sfbd(struct kbase_context *kctx,
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	dev_dbg(kctx->kbdev->dev,
 		"FBD tiler:\n"
 		"flags = %x\n"
@@ -211,7 +211,7 @@ static int kbasep_replay_reset_mfbd(struct kbase_context *kctx,
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	dev_dbg(kctx->kbdev->dev, "FBD tiler:\n"
 			"flags = %x\n"
 			"heap_free_address = %llx\n",
@@ -713,7 +713,7 @@ static int kbasep_replay_create_atoms(struct kbase_context *kctx,
 	return 0;
 }
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 static void payload_dump(struct kbase_context *kctx, base_jd_replay_payload *payload)
 {
 	u64 next;
@@ -788,7 +788,7 @@ static int kbasep_replay_parse_payload(struct kbase_context *kctx,
 	}
 #endif /* BASE_LEGACY_UK10_2_SUPPORT */
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	dev_dbg(kctx->kbdev->dev, "kbasep_replay_parse_payload: payload=%p\n", payload);
 	dev_dbg(kctx->kbdev->dev, "Payload structure:\n"
 				  "tiler_jc_list            = %llx\n"
@@ -1028,7 +1028,7 @@ static bool kbase_replay_fault_check(struct kbase_jd_atom *katom)
 		return false;
 	}
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	dev_dbg(dev, "kbase_replay_fault_check: payload=%p\n", payload);
 	dev_dbg(dev, "\nPayload structure:\n"
 		     "fragment_jc              = 0x%llx\n"

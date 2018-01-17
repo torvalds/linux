@@ -35,10 +35,10 @@ static inline void
 kbase_as_fault_debugfs_new(struct kbase_device *kbdev, int as_no)
 {
 #ifdef CONFIG_DEBUG_FS
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	kbdev->debugfs_as_read_bitmap |= (1ULL << as_no);
 #endif /* CONFIG_DEBUG_FS */
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 	return;
 }
 

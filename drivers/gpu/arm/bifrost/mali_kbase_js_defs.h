@@ -257,10 +257,10 @@ struct kbasep_js_device_data {
 	/** List of suspended soft jobs */
 	struct list_head suspended_soft_jobs_list;
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	/* Support soft-stop on a single context */
 	bool softstop_always;
-#endif				/* CONFIG_MALI_DEBUG */
+#endif				/* CONFIG_MALI_BIFROST_DEBUG */
 
 	/** The initalized-flag is placed at the end, to avoid cache-pollution (we should
 	 * only be using this during init/term paths).

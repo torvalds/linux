@@ -486,13 +486,13 @@ void kbase_pm_do_poweron(struct kbase_device *kbdev, bool is_resume);
  */
 void kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend);
 
-#if defined(CONFIG_MALI_DEVFREQ) || defined(CONFIG_MALI_MIDGARD_DVFS)
+#if defined(CONFIG_MALI_BIFROST_DEVFREQ) || defined(CONFIG_MALI_BIFROST_DVFS)
 void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev,
 		unsigned long *total, unsigned long *busy);
 void kbase_pm_reset_dvfs_utilisation(struct kbase_device *kbdev);
-#endif /* defined(CONFIG_MALI_DEVFREQ) || defined(CONFIG_MALI_MIDGARD_DVFS) */
+#endif /* defined(CONFIG_MALI_BIFROST_DEVFREQ) || defined(CONFIG_MALI_BIFROST_DVFS) */
 
-#ifdef CONFIG_MALI_MIDGARD_DVFS
+#ifdef CONFIG_MALI_BIFROST_DVFS
 
 /**
  * kbase_platform_dvfs_event - Report utilisation to DVFS code

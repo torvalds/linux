@@ -106,7 +106,7 @@ static int jd_run_atom(struct kbase_jd_atom *katom)
 	return kbasep_js_add_job(kctx, katom);
 }
 
-#if defined(CONFIG_KDS) || defined(CONFIG_MALI_DMA_FENCE)
+#if defined(CONFIG_KDS) || defined(CONFIG_MALI_BIFROST_DMA_FENCE)
 void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom)
 {
 	struct kbase_device *kbdev;
@@ -224,7 +224,7 @@ void kbase_jd_free_external_resources(struct kbase_jd_atom *katom)
 	}
 #endif				/* CONFIG_KDS */
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	/* Flush dma-fence workqueue to ensure that any callbacks that may have
 	 * been queued are done before continuing.
 	 * Any successfully completed atom would have had all it's callbacks
@@ -232,7 +232,7 @@ void kbase_jd_free_external_resources(struct kbase_jd_atom *katom)
 	 */
 	if (katom->event_code != BASE_JD_EVENT_DONE)
 		flush_workqueue(katom->kctx->dma_fence.wq);
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 }
 
 static void kbase_jd_post_external_resources(struct kbase_jd_atom *katom)
@@ -246,9 +246,9 @@ static void kbase_jd_post_external_resources(struct kbase_jd_atom *katom)
 		katom->kds_dep_satisfied = true;
 #endif				/* CONFIG_KDS */
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	kbase_dma_fence_signal(katom);
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 
 	kbase_gpu_vm_lock(katom->kctx);
 	/* only roll back if extres is non-NULL */
@@ -286,7 +286,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 	struct kds_resource **kds_resources = NULL;
 	unsigned long *kds_access_bitmap = NULL;
 #endif				/* CONFIG_KDS */
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	struct kbase_dma_fence_resv_info info = {
 		.dma_fence_resv_count = 0,
 	};
@@ -301,7 +301,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 #else /* CONFIG_SYNC */
 	const bool implicit_sync = true;
 #endif /* CONFIG_SYNC */
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 	struct base_external_resource *input_extres;
 
 	KBASE_DEBUG_ASSERT(katom);
@@ -352,7 +352,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 	}
 #endif				/* CONFIG_KDS */
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	if (implicit_sync) {
 		info.resv_objs = kmalloc_array(katom->nr_extres,
 					sizeof(struct reservation_object *),
@@ -370,7 +370,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 			goto early_err_out;
 		}
 	}
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 
 	/* Take the processes mmap lock */
 	down_read(&current->mm->mmap_sem);
@@ -412,7 +412,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 			goto failed_loop;
 		}
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 		if (implicit_sync &&
 		    reg->gpu_alloc->type == KBASE_MEM_TYPE_IMPORTED_UMM) {
 			struct reservation_object *resv;
@@ -422,7 +422,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 				kbase_dma_fence_add_reservation(resv, &info,
 								exclusive);
 		}
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 
 		/* finish with updating out array with the data we found */
 		/* NOTE: It is important that this is the last thing we do (or
@@ -464,7 +464,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 	kfree(kds_access_bitmap);
 #endif				/* CONFIG_KDS */
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	if (implicit_sync) {
 		if (info.dma_fence_resv_count) {
 			int ret;
@@ -477,14 +477,14 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 		kfree(info.resv_objs);
 		kfree(info.dma_fence_excl_bitmap);
 	}
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 
 	/* all done OK */
 	return 0;
 
 /* error handling section */
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 failed_dma_fence_setup:
 #ifdef CONFIG_KDS
 	/* If we are here, dma_fence setup failed but KDS didn't.
@@ -499,11 +499,11 @@ failed_dma_fence_setup:
 		katom->kds_dep_satisfied = true;
 	}
 #endif /* CONFIG_KDS */
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 #ifdef CONFIG_KDS
 failed_kds_setup:
 #endif
-#if defined(CONFIG_KDS) || defined(CONFIG_MALI_DMA_FENCE)
+#if defined(CONFIG_KDS) || defined(CONFIG_MALI_BIFROST_DMA_FENCE)
 	/* Lock the processes mmap lock */
 	down_read(&current->mm->mmap_sem);
 
@@ -530,7 +530,7 @@ failed_kds_setup:
 	kfree(kds_resources);
 	kfree(kds_access_bitmap);
 #endif				/* CONFIG_KDS */
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	if (implicit_sync) {
 		kfree(info.resv_objs);
 		kfree(info.dma_fence_excl_bitmap);
@@ -568,7 +568,7 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 			}
 #endif
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 			kbase_dma_fence_cancel_callbacks(dep_atom);
 #endif
 
@@ -593,7 +593,7 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 				!dep_atom->will_fail_event_code &&
 				!other_dep_atom->will_fail_event_code))) {
 			bool dep_satisfied = true;
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 			int dep_count;
 
 			dep_count = kbase_fence_dep_count_read(dep_atom);
@@ -615,7 +615,7 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 				 */
 				dep_satisfied = false;
 			}
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 
 #ifdef CONFIG_KDS
 			dep_satisfied = dep_satisfied && dep_atom->kds_dep_satisfied;
@@ -732,7 +732,7 @@ static void jd_try_submitting_deps(struct list_head *out_list,
 				bool dep1_valid = is_dep_valid(
 						dep_atom->dep[1].atom);
 				bool dep_satisfied = true;
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 				int dep_count;
 
 				dep_count = kbase_fence_dep_count_read(
@@ -755,7 +755,7 @@ static void jd_try_submitting_deps(struct list_head *out_list,
 				 */
 					dep_satisfied = false;
 				}
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 #ifdef CONFIG_KDS
 				dep_satisfied = dep_satisfied &&
 						dep_atom->kds_dep_satisfied;
@@ -1010,7 +1010,7 @@ bool jd_submit_atom(struct kbase_context *kctx, const struct base_jd_atom_v2 *us
 	katom->kds_dep_satisfied = true;
 	katom->kds_rset = NULL;
 #endif				/* CONFIG_KDS */
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	kbase_fence_dep_count_set(katom, -1);
 #endif
 
@@ -1236,12 +1236,12 @@ bool jd_submit_atom(struct kbase_context *kctx, const struct base_jd_atom_v2 *us
 #endif				/* CONFIG_KDS */
 
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	if (kbase_fence_dep_count_read(katom) != -1) {
 		ret = false;
 		goto out;
 	}
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 
 	if ((katom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE)
 						  == BASE_JD_REQ_SOFT_REPLAY) {
@@ -1750,13 +1750,13 @@ void kbase_jd_zap_context(struct kbase_context *kctx)
 	}
 #endif
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	kbase_dma_fence_cancel_all_atoms(kctx);
 #endif
 
 	mutex_unlock(&kctx->jctx.lock);
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	/* Flush dma-fence workqueue to ensure that any callbacks that may have
 	 * been queued are done before continuing.
 	 */
@@ -1795,7 +1795,7 @@ int kbase_jd_init(struct kbase_context *kctx)
 		kctx->jctx.atoms[i].event_code = BASE_JD_EVENT_JOB_INVALID;
 		kctx->jctx.atoms[i].status = KBASE_JD_ATOM_STATE_UNUSED;
 
-#if defined(CONFIG_MALI_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
+#if defined(CONFIG_MALI_BIFROST_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
 		kctx->jctx.atoms[i].dma_fence.context =
 						dma_fence_context_alloc(1);
 		atomic_set(&kctx->jctx.atoms[i].dma_fence.seqno, 0);

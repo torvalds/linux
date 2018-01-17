@@ -25,7 +25,7 @@
 #ifndef _KBASE_GATOR_H_
 #define _KBASE_GATOR_H_
 
-#ifdef CONFIG_MALI_GATOR_SUPPORT
+#ifdef CONFIG_MALI_BIFROST_GATOR_SUPPORT
 #define GATOR_MAKE_EVENT(type, number) (((type) << 24) | ((number) << 16))
 #define GATOR_JOB_SLOT_START 1
 #define GATOR_JOB_SLOT_STOP  2
@@ -40,6 +40,6 @@ void kbase_trace_mali_mmu_as_in_use(int event);
 void kbase_trace_mali_mmu_as_released(int event);
 void kbase_trace_mali_total_alloc_pages_change(long long int event);
 
-#endif /* CONFIG_MALI_GATOR_SUPPORT */
+#endif /* CONFIG_MALI_BIFROST_GATOR_SUPPORT */
 
 #endif  /* _KBASE_GATOR_H_ */

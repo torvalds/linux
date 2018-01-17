@@ -59,7 +59,7 @@ int kbase_gpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_gpup
 	get_gpu_speed_mhz = (kbase_gpu_clk_speed_func) GPU_SPEED_FUNC;
 	if (get_gpu_speed_mhz != NULL) {
 		rc = get_gpu_speed_mhz(&gpu_speed_mhz);
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 		/* Issue a warning message when the reported GPU speed falls outside the min/max range */
 		if (rc == 0) {
 			u32 gpu_speed_khz = gpu_speed_mhz * 1000;
@@ -71,7 +71,7 @@ int kbase_gpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_gpup
 						(unsigned long)kctx->kbdev->gpu_props.props.core_props.gpu_freq_khz_min,
 						(unsigned long)kctx->kbdev->gpu_props.props.core_props.gpu_freq_khz_max);
 		}
-#endif				/* CONFIG_MALI_DEBUG */
+#endif				/* CONFIG_MALI_BIFROST_DEBUG */
 	}
 	if (kctx->kbdev->clock) {
 		gpu_speed_mhz = clk_get_rate(kctx->kbdev->clock) / 1000000;

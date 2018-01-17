@@ -25,7 +25,7 @@
 
 #include <backend/gpu/mali_kbase_device_internal.h>
 
-#if !defined(CONFIG_MALI_NO_MALI)
+#if !defined(CONFIG_MALI_BIFROST_NO_MALI)
 
 
 #ifdef CONFIG_DEBUG_FS
@@ -195,7 +195,7 @@ u32 kbase_reg_read(struct kbase_device *kbdev, u16 offset,
 }
 
 KBASE_EXPORT_TEST_API(kbase_reg_read);
-#endif /* !defined(CONFIG_MALI_NO_MALI) */
+#endif /* !defined(CONFIG_MALI_BIFROST_NO_MALI) */
 
 /**
  * kbase_report_gpu_fault - Report a GPU fault.

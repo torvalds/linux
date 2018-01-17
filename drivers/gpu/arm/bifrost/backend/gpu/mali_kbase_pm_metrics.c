@@ -42,7 +42,7 @@
  * counters. */
 #define MALI_UTILIZATION_MAX_PERIOD 100000 /* ns = 100ms */
 
-#ifdef CONFIG_MALI_MIDGARD_DVFS
+#ifdef CONFIG_MALI_BIFROST_DVFS
 static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
 {
 	unsigned long flags;
@@ -64,7 +64,7 @@ static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
 
 	return HRTIMER_NORESTART;
 }
-#endif /* CONFIG_MALI_MIDGARD_DVFS */
+#endif /* CONFIG_MALI_BIFROST_DVFS */
 
 int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 {
@@ -88,7 +88,7 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 
 	spin_lock_init(&kbdev->pm.backend.metrics.lock);
 
-#ifdef CONFIG_MALI_MIDGARD_DVFS
+#ifdef CONFIG_MALI_BIFROST_DVFS
 	kbdev->pm.backend.metrics.timer_active = true;
 	hrtimer_init(&kbdev->pm.backend.metrics.timer, CLOCK_MONOTONIC,
 							HRTIMER_MODE_REL);
@@ -97,7 +97,7 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 	hrtimer_start(&kbdev->pm.backend.metrics.timer,
 			HR_TIMER_DELAY_MSEC(kbdev->pm.dvfs_period),
 			HRTIMER_MODE_REL);
-#endif /* CONFIG_MALI_MIDGARD_DVFS */
+#endif /* CONFIG_MALI_BIFROST_DVFS */
 
 	return 0;
 }
@@ -106,7 +106,7 @@ KBASE_EXPORT_TEST_API(kbasep_pm_metrics_init);
 
 void kbasep_pm_metrics_term(struct kbase_device *kbdev)
 {
-#ifdef CONFIG_MALI_MIDGARD_DVFS
+#ifdef CONFIG_MALI_BIFROST_DVFS
 	unsigned long flags;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
@@ -116,7 +116,7 @@ void kbasep_pm_metrics_term(struct kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
 
 	hrtimer_cancel(&kbdev->pm.backend.metrics.timer);
-#endif /* CONFIG_MALI_MIDGARD_DVFS */
+#endif /* CONFIG_MALI_BIFROST_DVFS */
 }
 
 KBASE_EXPORT_TEST_API(kbasep_pm_metrics_term);
@@ -155,7 +155,7 @@ static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev,
 	kbdev->pm.backend.metrics.time_period_start = now;
 }
 
-#if defined(CONFIG_MALI_DEVFREQ) || defined(CONFIG_MALI_MIDGARD_DVFS)
+#if defined(CONFIG_MALI_BIFROST_DEVFREQ) || defined(CONFIG_MALI_BIFROST_DVFS)
 /* Caller needs to hold kbdev->pm.backend.metrics.lock before calling this
  * function.
  */
@@ -214,7 +214,7 @@ void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev,
 }
 #endif
 
-#ifdef CONFIG_MALI_MIDGARD_DVFS
+#ifdef CONFIG_MALI_BIFROST_DVFS
 
 /* caller needs to hold kbdev->pm.backend.metrics.lock before calling this
  * function
@@ -302,10 +302,10 @@ void kbase_pm_get_dvfs_action(struct kbase_device *kbdev)
 	}
 
 out:
-#ifdef CONFIG_MALI_MIDGARD_DVFS
+#ifdef CONFIG_MALI_BIFROST_DVFS
 	kbase_platform_dvfs_event(kbdev, utilisation, util_gl_share,
 								util_cl_share);
-#endif				/*CONFIG_MALI_MIDGARD_DVFS */
+#endif				/*CONFIG_MALI_BIFROST_DVFS */
 
 	kbase_pm_reset_dvfs_utilisation_unlocked(kbdev, now);
 
@@ -327,7 +327,7 @@ bool kbase_pm_metrics_is_active(struct kbase_device *kbdev)
 }
 KBASE_EXPORT_TEST_API(kbase_pm_metrics_is_active);
 
-#endif /* CONFIG_MALI_MIDGARD_DVFS */
+#endif /* CONFIG_MALI_BIFROST_DVFS */
 
 /**
  * kbase_pm_metrics_active_calc - Update PM active counts based on currently

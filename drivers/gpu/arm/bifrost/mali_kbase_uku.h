@@ -24,13 +24,13 @@
 #include "mali_base_kernel.h"
 
 /* This file needs to support being included from kernel and userside (which use different defines) */
-#if defined(CONFIG_MALI_ERROR_INJECT) || MALI_ERROR_INJECT_ON
+#if defined(CONFIG_MALI_BIFROST_ERROR_INJECT) || MALI_ERROR_INJECT_ON
 #define SUPPORT_MALI_ERROR_INJECT
-#endif /* defined(CONFIG_MALI_ERROR_INJECT) || MALI_ERROR_INJECT_ON */
-#if defined(CONFIG_MALI_NO_MALI)
+#endif /* defined(CONFIG_MALI_BIFROST_ERROR_INJECT) || MALI_ERROR_INJECT_ON */
+#if defined(CONFIG_MALI_BIFROST_NO_MALI)
 #define SUPPORT_MALI_NO_MALI
-#elif defined(MALI_NO_MALI)
-#if MALI_NO_MALI
+#elif defined(MALI_BIFROST_NO_MALI)
+#if MALI_BIFROST_NO_MALI
 #define SUPPORT_MALI_NO_MALI
 #endif
 #endif

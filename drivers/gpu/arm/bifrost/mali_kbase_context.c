@@ -59,7 +59,7 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	atomic_set(&kctx->refcount, 0);
 	if (is_compat)
 		kbase_ctx_flag_set(kctx, KCTX_COMPAT);
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 	kctx->timeline.owner_tgid = task_tgid_nr(current);
 #endif
 	atomic_set(&kctx->setup_complete, 0);
@@ -160,7 +160,7 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 #ifdef CONFIG_GPU_TRACEPOINTS
 	atomic_set(&kctx->jctx.work_id, 0);
 #endif
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 	atomic_set(&kctx->timeline.jd_atoms_in_flight, 0);
 #endif
 

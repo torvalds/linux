@@ -15,7 +15,7 @@
 
 config MALI_IRQ_LATENCY
  tristate "Mali GPU IRQ latency measurement"
- depends on MALI_MIDGARD && MALI_DEBUG && MALI_KUTF
+ depends on MALI_BIFROST && MALI_BIFROST_DEBUG && MALI_KUTF
  default m
  help
    This option will build a test module mali_kutf_irq_test that

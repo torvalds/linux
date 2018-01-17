@@ -46,7 +46,7 @@ void kbase_backend_get_gpu_time(struct kbase_device *kbdev, u64 *cycle_counter,
  *
  * This function is only in use for BASE_HW_ISSUE_6367
  */
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 void kbase_wait_write_flush(struct kbase_context *kctx);
 #endif
 

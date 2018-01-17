@@ -295,7 +295,7 @@ size_t kbase_vinstr_dump_size(struct kbase_device *kbdev)
 {
 	size_t dump_size;
 
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_V4)) {
 		u32 nr_cg;
 
@@ -304,7 +304,7 @@ size_t kbase_vinstr_dump_size(struct kbase_device *kbdev)
 				NR_CNT_PER_BLOCK *
 				NR_BYTES_PER_CNT;
 	} else
-#endif /* CONFIG_MALI_NO_MALI */
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 	{
 		/* assume v5 for now */
 		base_gpu_props *props = &kbdev->gpu_props.props;
@@ -853,7 +853,7 @@ static void accum_clients(struct kbase_vinstr_context *vinstr_ctx)
 	struct kbase_vinstr_client *iter;
 	int v4 = 0;
 
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 	v4 = kbase_hw_has_feature(vinstr_ctx->kbdev, BASE_HW_FEATURE_V4);
 #endif
 
@@ -944,7 +944,7 @@ static int kbasep_vinstr_collect_and_accumulate(
 	unsigned long flags;
 	int rcode;
 
-#ifdef CONFIG_MALI_NO_MALI
+#ifdef CONFIG_MALI_BIFROST_NO_MALI
 	/* The dummy model needs the CPU mapping. */
 	gpu_model_set_dummy_prfcnt_base_cpu(vinstr_ctx->cpu_va);
 #endif
@@ -1524,13 +1524,13 @@ static long kbasep_vinstr_hwcnt_reader_ioctl_disable_event(
 static long kbasep_vinstr_hwcnt_reader_ioctl_get_hwver(
 		struct kbase_vinstr_client *cli, u32 __user *hwver)
 {
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 	struct kbase_vinstr_context *vinstr_ctx = cli->vinstr_ctx;
 #endif
 
 	u32                         ver = 5;
 
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 	KBASE_DEBUG_ASSERT(vinstr_ctx);
 	if (kbase_hw_has_feature(vinstr_ctx->kbdev, BASE_HW_FEATURE_V4))
 		ver = 4;

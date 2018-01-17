@@ -20,11 +20,11 @@
 
 /*
  * mali_kbase_fence.[hc] has common fence code used by both
- * - CONFIG_MALI_DMA_FENCE - implicit DMA fences
+ * - CONFIG_MALI_BIFROST_DMA_FENCE - implicit DMA fences
  * - CONFIG_SYNC_FILE      - explicit fences beginning with 4.9 kernel
  */
 
-#if defined(CONFIG_MALI_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
+#if defined(CONFIG_MALI_BIFROST_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
 
 #include <linux/list.h>
 #include "mali_kbase_fence_defs.h"
@@ -265,6 +265,6 @@ bool kbase_fence_free_callbacks(struct kbase_jd_atom *katom);
 #define kbase_fence_put(fence) dma_fence_put(fence)
 
 
-#endif /* CONFIG_MALI_DMA_FENCE || defined(CONFIG_SYNC_FILE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE || defined(CONFIG_SYNC_FILE */
 
 #endif /* _KBASE_FENCE_H_ */

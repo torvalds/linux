@@ -192,7 +192,7 @@ const char *kbase_sync_status_string(int status);
  */
 void kbase_sync_fence_wait_worker(struct work_struct *data);
 
-#ifdef CONFIG_MALI_FENCE_DEBUG
+#ifdef CONFIG_MALI_BIFROST_FENCE_DEBUG
 /**
  * kbase_sync_fence_in_dump() Trigger a debug dump of atoms input fence state
  * @katom: Atom to trigger fence debug dump for

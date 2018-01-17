@@ -340,7 +340,7 @@ int kbase_sync_fence_out_info_get(struct kbase_jd_atom *katom,
 }
 
 
-#ifdef CONFIG_MALI_FENCE_DEBUG
+#ifdef CONFIG_MALI_BIFROST_FENCE_DEBUG
 void kbase_sync_fence_in_dump(struct kbase_jd_atom *katom)
 {
 	/* Not implemented */

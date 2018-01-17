@@ -45,13 +45,13 @@ BACKEND += \
 	backend/gpu/mali_kbase_pm_fast_start.c
 endif
 
-ifeq ($(CONFIG_MALI_DEVFREQ),y)
+ifeq ($(CONFIG_MALI_BIFROST_DEVFREQ),y)
 BACKEND += \
 	backend/gpu/mali_kbase_devfreq.c \
 	backend/gpu/mali_kbase_pm_ca_devfreq.c
 endif
 
-ifeq ($(CONFIG_MALI_NO_MALI),y)
+ifeq ($(CONFIG_MALI_BIFROST_NO_MALI),y)
 	# Dummy model
 	BACKEND += backend/gpu/mali_kbase_model_dummy.c
 	BACKEND += backend/gpu/mali_kbase_model_linux.c

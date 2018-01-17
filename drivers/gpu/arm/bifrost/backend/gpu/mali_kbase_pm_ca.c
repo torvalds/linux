@@ -25,7 +25,7 @@
 
 static const struct kbase_pm_ca_policy *const policy_list[] = {
 	&kbase_pm_ca_fixed_policy_ops,
-#ifdef CONFIG_MALI_DEVFREQ
+#ifdef CONFIG_MALI_BIFROST_DEVFREQ
 	&kbase_pm_ca_devfreq_policy_ops,
 #endif
 #if !MALI_CUSTOMER_RELEASE

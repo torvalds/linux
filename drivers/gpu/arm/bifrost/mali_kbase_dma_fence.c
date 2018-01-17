@@ -16,7 +16,7 @@
 
 
 
-/* Include mali_kbase_dma_fence.h before checking for CONFIG_MALI_DMA_FENCE as
+/* Include mali_kbase_dma_fence.h before checking for CONFIG_MALI_BIFROST_DMA_FENCE as
  * it will be set there.
  */
 #include "mali_kbase_dma_fence.h"

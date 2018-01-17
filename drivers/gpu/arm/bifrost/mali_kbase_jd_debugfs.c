@@ -57,7 +57,7 @@ static void kbase_jd_debugfs_fence_info(struct kbase_jd_atom *atom,
 	}
 #endif /* CONFIG_SYNC || CONFIG_SYNC_FILE */
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	if (atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES) {
 		struct kbase_fence_cb *cb;
 
@@ -100,7 +100,7 @@ static void kbase_jd_debugfs_fence_info(struct kbase_jd_atom *atom,
 						"signaled" : "active");
 		}
 	}
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 
 }
 

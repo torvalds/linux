@@ -22,7 +22,7 @@
 #include <mali_kbase.h>
 #include <mali_kbase_config.h>
 #include <mali_midg_regmap.h>
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 #include <mali_kbase_gator.h>
 #endif
 #include <mali_kbase_tlstream.h>
@@ -140,7 +140,7 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 	KBASE_TRACE_ADD_SLOT_INFO(kbdev, JM_SUBMIT, kctx, katom, jc_head, js,
 							(u32) katom->affinity);
 
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 	kbase_trace_mali_job_slots_event(
 				GATOR_MAKE_EVENT(GATOR_JOB_SLOT_START, js),
 				kctx, kbase_jd_atom_id(kctx, katom));
@@ -273,7 +273,7 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 
 				switch (completion_code) {
 				case BASE_JD_EVENT_STOPPED:
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 					kbase_trace_mali_job_slots_event(
 						GATOR_MAKE_EVENT(
 						GATOR_JOB_SLOT_SOFT_STOPPED, i),
@@ -507,11 +507,11 @@ void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
 								target_katom);
 
 		if (!soft_stop_allowed) {
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 			dev_dbg(kbdev->dev,
 					"Attempt made to soft-stop a job that cannot be soft-stopped. core_reqs = 0x%X",
 					(unsigned int)core_reqs);
-#endif				/* CONFIG_MALI_DEBUG */
+#endif				/* CONFIG_MALI_BIFROST_DEBUG */
 			return;
 		}
 

@@ -14,19 +14,19 @@
 
 
 
-menuconfig MALI_MIDGARD
-	tristate "Mali Midgard series support"
+menuconfig MALI_BIFROST
+	tristate "Mali Bifrost series support"
 	select GPU_TRACEPOINTS if ANDROID
 	default n
 	help
-	  Enable this option to build support for a ARM Mali Midgard GPU.
+	  Enable this option to build support for a ARM Mali Bifrost GPU.
 
 	  To compile this driver as a module, choose M here:
 	  this will generate a single module, called mali_kbase.
 
-config MALI_GATOR_SUPPORT
+config MALI_BIFROST_GATOR_SUPPORT
 	bool "Streamline support via Gator"
-	depends on MALI_MIDGARD
+	depends on MALI_BIFROST
 	default n
 	help
 	  Adds diagnostic support for use with the ARM Streamline Performance Analyzer.
@@ -34,24 +34,24 @@ config MALI_GATOR_SUPPORT
 	  Streamline debug support.
 	  This is a legacy interface required by older versions of Streamline.
 
-config MALI_MIDGARD_DVFS
+config MALI_BIFROST_DVFS
 	bool "Enable legacy DVFS"
-	depends on MALI_MIDGARD && !MALI_DEVFREQ
+	depends on MALI_BIFROST && !MALI_BIFROST_DEVFREQ
 	default n
 	help
 	  Choose this option to enable legacy DVFS in the Mali Midgard DDK.
 
-config MALI_MIDGARD_ENABLE_TRACE
+config MALI_BIFROST_ENABLE_TRACE
 	bool "Enable kbase tracing"
-	depends on MALI_MIDGARD
+	depends on MALI_BIFROST
 	default n
 	help
 	  Enables tracing in kbase.  Trace log available through
 	  the "mali_trace" debugfs file, when the CONFIG_DEBUG_FS is enabled
 
-config MALI_DEVFREQ
+config MALI_BIFROST_DEVFREQ
 	bool "devfreq support for Mali"
-	depends on MALI_MIDGARD && PM_DEVFREQ
+	depends on MALI_BIFROST && PM_DEVFREQ
 	help
 	  Support devfreq for Mali.
 
@@ -59,9 +59,9 @@ config MALI_DEVFREQ
 	  governor, the frequency of Mali will be dynamically selected from the
 	  available OPPs.
 
-config MALI_DMA_FENCE
+config MALI_BIFROST_DMA_FENCE
 	bool "DMA_BUF fence support for Mali"
-	depends on MALI_MIDGARD && !KDS
+	depends on MALI_BIFROST && !KDS
 	default n
 	help
 	  Support DMA_BUF fences for Mali.
@@ -70,7 +70,7 @@ config MALI_DMA_FENCE
 	  the Linux Kernel has built in support for DMA_BUF fences.
 
 config MALI_PLATFORM_NAME
-	depends on MALI_MIDGARD
+	depends on MALI_BIFROST
 	string "Platform name"
 	default "devicetree"
 	help
@@ -78,10 +78,10 @@ config MALI_PLATFORM_NAME
 	  include in the build. 'platform/$(MALI_PLATFORM_NAME)/Kbuild' must
 	  exist.
 
-# MALI_EXPERT configuration options
+# MALI_BIFROST_EXPERT configuration options
 
-menuconfig MALI_EXPERT
-	depends on MALI_MIDGARD
+menuconfig MALI_BIFROST_EXPERT
+	depends on MALI_BIFROST
 	bool "Enable Expert Settings"
 	default n
 	help
@@ -90,7 +90,7 @@ menuconfig MALI_EXPERT
 
 config MALI_CORESTACK
 	bool "Support controlling power to the GPU core stack"
-	depends on MALI_MIDGARD && MALI_EXPERT
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
 	  Enabling this feature on supported GPUs will let the driver powering
@@ -101,9 +101,9 @@ config MALI_CORESTACK
 
 	  If unsure, say N.
 
-config MALI_PRFCNT_SET_SECONDARY
+config MALI_BIFROST_PRFCNT_SET_SECONDARY
 	bool "Use secondary set of performance counters"
-	depends on MALI_MIDGARD && MALI_EXPERT
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
 	  Select this option to use secondary set of performance counters. Kernel
@@ -114,17 +114,17 @@ config MALI_PRFCNT_SET_SECONDARY
 
 	  If unsure, say N.
 
-config MALI_DEBUG
+config MALI_BIFROST_DEBUG
 	bool "Debug build"
-	depends on MALI_MIDGARD && MALI_EXPERT
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
 	  Select this option for increased checking and reporting of errors.
 
-config MALI_FENCE_DEBUG
+config MALI_BIFROST_FENCE_DEBUG
 	bool "Debug sync fence usage"
-	depends on MALI_MIDGARD && MALI_EXPERT && (SYNC || SYNC_FILE)
-	default y if MALI_DEBUG
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && (SYNC || SYNC_FILE)
+	default y if MALI_BIFROST_DEBUG
 	help
 	  Select this option to enable additional checking and reporting on the
 	  use of sync fences in the Mali driver.
@@ -138,9 +138,9 @@ config MALI_FENCE_DEBUG
 	  The timeout can be changed at runtime through the js_soft_timeout
 	  device attribute, where the timeout is specified in milliseconds.
 
-config MALI_NO_MALI
+config MALI_BIFROST_NO_MALI
 	bool "No Mali"
-	depends on MALI_MIDGARD && MALI_EXPERT
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
 	  This can be used to test the driver in a simulated environment
@@ -150,23 +150,23 @@ config MALI_NO_MALI
 	  All calls to the simulated hardware will complete immediately as if the hardware
 	  completed the task.
 
-config MALI_ERROR_INJECT
+config MALI_BIFROST_ERROR_INJECT
 	bool "Error injection"
-	depends on MALI_MIDGARD && MALI_EXPERT && MALI_NO_MALI
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && MALI_BIFROST_NO_MALI
 	default n
 	help
 	  Enables insertion of errors to test module failure and recovery mechanisms.
 
-config MALI_TRACE_TIMELINE
+config MALI_BIFROST_TRACE_TIMELINE
 	bool "Timeline tracing"
-	depends on MALI_MIDGARD && MALI_EXPERT
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
 	  Enables timeline tracing through the kernel tracepoint system.
 
-config MALI_SYSTEM_TRACE
+config MALI_BIFROST_SYSTEM_TRACE
 	bool "Enable system event tracing support"
-	depends on MALI_MIDGARD && MALI_EXPERT
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
 	  Choose this option to enable system trace events for each
@@ -176,7 +176,7 @@ config MALI_SYSTEM_TRACE
 
 config MALI_2MB_ALLOC
 	bool "Attempt to allocate 2MB pages"
-	depends on MALI_MIDGARD && MALI_EXPERT
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
 	  Rather than allocating all GPU memory page-by-page, attempt to
@@ -193,5 +193,5 @@ config MALI_PWRSOFT_765
 	  not merged in mainline kernel yet. So this define helps to guard those
 	  parts of the code.
 
-source "drivers/gpu/arm/midgard/platform/Kconfig"
-source "drivers/gpu/arm/midgard/tests/Kconfig"
+source "drivers/gpu/arm/bifrost/platform/Kconfig"
+# source "drivers/gpu/arm/bifrost/tests/Kconfig"

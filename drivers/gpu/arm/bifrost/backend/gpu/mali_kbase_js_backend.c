@@ -52,12 +52,12 @@ static inline bool timer_callback_should_run(struct kbase_device *kbdev)
 	 * nr_contexts_pullable is up-to-date for reading */
 	nr_running_ctxs = atomic_read(&kbdev->js_data.nr_contexts_runnable);
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	if (kbdev->js_data.softstop_always) {
 		/* Debug support for allowing soft-stop on a single context */
 		return true;
 	}
-#endif				/* CONFIG_MALI_DEBUG */
+#endif				/* CONFIG_MALI_BIFROST_DEBUG */
 
 	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_9435)) {
 		/* Timeouts would have to be 4x longer (due to micro-

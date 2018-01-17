@@ -26,7 +26,7 @@
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
 static const struct kbase_pm_policy *const policy_list[] = {
-#ifdef CONFIG_MALI_NO_MALI
+#ifdef CONFIG_MALI_BIFROST_NO_MALI
 	&kbase_pm_always_on_policy_ops,
 	&kbase_pm_demand_policy_ops,
 	&kbase_pm_coarse_demand_policy_ops,
@@ -34,7 +34,7 @@ static const struct kbase_pm_policy *const policy_list[] = {
 	&kbase_pm_demand_always_powered_policy_ops,
 	&kbase_pm_fast_start_policy_ops,
 #endif
-#else				/* CONFIG_MALI_NO_MALI */
+#else				/* CONFIG_MALI_BIFROST_NO_MALI */
 #if !PLATFORM_POWER_DOWN_ONLY
 	&kbase_pm_demand_policy_ops,
 #endif /* !PLATFORM_POWER_DOWN_ONLY */
@@ -46,7 +46,7 @@ static const struct kbase_pm_policy *const policy_list[] = {
 	&kbase_pm_fast_start_policy_ops,
 #endif /* !PLATFORM_POWER_DOWN_ONLY */
 #endif
-#endif /* CONFIG_MALI_NO_MALI */
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 };
 
 /* The number of policies available in the system.
@@ -85,7 +85,7 @@ enum {
 typedef u32 kbase_pm_change_state;
 
 
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 /* Timeline Trace code lookups for each function */
 static u32 kbase_pm_change_state_trace_code[KBASE_PM_FUNC_ID_COUNT]
 					[KBASE_PM_CHANGE_STATE_COUNT] = {
@@ -142,13 +142,13 @@ static inline void kbase_timeline_pm_cores_func(struct kbase_device *kbdev,
 	KBASE_TIMELINE_PM_CHECKTRANS(kbdev, trace_code);
 }
 
-#else /* CONFIG_MALI_TRACE_TIMELINE */
+#else /* CONFIG_MALI_BIFROST_TRACE_TIMELINE */
 static inline void kbase_timeline_pm_cores_func(struct kbase_device *kbdev,
 		enum kbase_pm_func_id func_id, kbase_pm_change_state state)
 {
 }
 
-#endif /* CONFIG_MALI_TRACE_TIMELINE */
+#endif /* CONFIG_MALI_BIFROST_TRACE_TIMELINE */
 
 /**
  * kbasep_pm_do_poweroff_cores - Process a poweroff request and power down any

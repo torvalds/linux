@@ -22,7 +22,7 @@
  */
 #include <mali_kbase.h>
 #include <mali_kbase_js.h>
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 #include <mali_kbase_gator.h>
 #endif
 #include <mali_kbase_tlstream.h>
@@ -425,11 +425,11 @@ int kbasep_js_devdata_init(struct kbase_device * const kbdev)
 
 	jsdd = &kbdev->js_data;
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	/* Soft-stop will be disabled on a single context by default unless
 	 * softstop_always is set */
 	jsdd->softstop_always = false;
-#endif				/* CONFIG_MALI_DEBUG */
+#endif				/* CONFIG_MALI_BIFROST_DEBUG */
 	jsdd->nr_all_contexts_running = 0;
 	jsdd->nr_user_contexts_running = 0;
 	jsdd->nr_contexts_pullable = 0;
@@ -1417,7 +1417,7 @@ static kbasep_js_release_result kbasep_js_runpool_release_ctx_internal(
 				kctx, new_ref_count, js_kctx_info->ctx.nr_jobs,
 				kbasep_js_is_submit_allowed(js_devdata, kctx));
 
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 		kbase_trace_mali_mmu_as_released(kctx->as_nr);
 #endif
 		KBASE_TLSTREAM_TL_NRET_AS_CTX(&kbdev->as[kctx->as_nr], kctx);
@@ -1695,7 +1695,7 @@ static bool kbasep_js_schedule_ctx(struct kbase_device *kbdev,
 
 	kbdev->hwaccess.active_kctx = kctx;
 
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 	kbase_trace_mali_mmu_as_in_use(kctx->as_nr);
 #endif
 	KBASE_TLSTREAM_TL_RET_AS_CTX(&kbdev->as[kctx->as_nr], kctx);
@@ -2408,7 +2408,7 @@ struct kbase_jd_atom *kbase_js_complete_atom(struct kbase_jd_atom *katom,
 				katom->sched_priority);
 	}
 
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 	kbase_trace_mali_job_slots_event(GATOR_MAKE_EVENT(GATOR_JOB_SLOT_STOP,
 				katom->slot_nr), NULL, 0);
 #endif

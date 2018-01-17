@@ -374,11 +374,11 @@ void kbase_disjoint_state_down(struct kbase_device *kbdev);
 #if KBASE_TRACE_ENABLE
 void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
 
-#ifndef CONFIG_MALI_SYSTEM_TRACE
+#ifndef CONFIG_MALI_BIFROST_SYSTEM_TRACE
 /** Add trace values about a job-slot
  *
  * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
+ * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
  * functions called to get the parameters supplied to this macro must:
  * - be static or static inline
  * - must just return 0 and have no other statements present in the body.
@@ -390,7 +390,7 @@ void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
 /** Add trace values about a job-slot, with info
  *
  * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
+ * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
  * functions called to get the parameters supplied to this macro must:
  * - be static or static inline
  * - must just return 0 and have no other statements present in the body.
@@ -402,7 +402,7 @@ void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
 /** Add trace values about a ctx refcount
  *
  * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
+ * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
  * functions called to get the parameters supplied to this macro must:
  * - be static or static inline
  * - must just return 0 and have no other statements present in the body.
@@ -413,7 +413,7 @@ void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
 /** Add trace values about a ctx refcount, and info
  *
  * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
+ * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
  * functions called to get the parameters supplied to this macro must:
  * - be static or static inline
  * - must just return 0 and have no other statements present in the body.
@@ -425,7 +425,7 @@ void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
 /** Add trace values (no slot or refcount)
  *
  * @note Any functions called through this macro will still be evaluated in
- * Release builds (CONFIG_MALI_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
+ * Release builds (CONFIG_MALI_BIFROST_DEBUG not defined). Therefore, when KBASE_TRACE_ENABLE == 0 any
  * functions called to get the parameters supplied to this macro must:
  * - be static or static inline
  * - must just return 0 and have no other statements present in the body.
@@ -446,7 +446,7 @@ void kbasep_trace_debugfs_init(struct kbase_device *kbdev);
 void kbasep_trace_add(struct kbase_device *kbdev, enum kbase_trace_code code, void *ctx, struct kbase_jd_atom *katom, u64 gpu_addr, u8 flags, int refcount, int jobslot, unsigned long info_val);
 /** PRIVATE - do not use directly. Use KBASE_TRACE_CLEAR() instead */
 void kbasep_trace_clear(struct kbase_device *kbdev);
-#else /* #ifndef CONFIG_MALI_SYSTEM_TRACE */
+#else /* #ifndef CONFIG_MALI_BIFROST_SYSTEM_TRACE */
 /* Dispatch kbase trace events as system trace events */
 #include <mali_linux_kbase_trace.h>
 #define KBASE_TRACE_ADD_SLOT(kbdev, code, ctx, katom, gpu_addr, jobslot)\
@@ -475,7 +475,7 @@ void kbasep_trace_clear(struct kbase_device *kbdev);
 		CSTD_NOP(0);\
 	} while (0)
 
-#endif /* #ifndef CONFIG_MALI_SYSTEM_TRACE */
+#endif /* #ifndef CONFIG_MALI_BIFROST_SYSTEM_TRACE */
 #else
 #define KBASE_TRACE_ADD_SLOT(kbdev, code, ctx, katom, gpu_addr, jobslot)\
 	do {\
@@ -546,7 +546,7 @@ void kbasep_trace_clear(struct kbase_device *kbdev);
 /** PRIVATE - do not use directly. Use KBASE_TRACE_DUMP() instead */
 void kbasep_trace_dump(struct kbase_device *kbdev);
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 /**
  * kbase_set_driver_inactive - Force driver to go inactive
  * @kbdev:    Device pointer
@@ -557,10 +557,10 @@ void kbasep_trace_dump(struct kbase_device *kbdev);
  * which require that no jobs are running while the test executes.
  */
 void kbase_set_driver_inactive(struct kbase_device *kbdev, bool inactive);
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
 
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_NO_MALI)
+#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_BIFROST_NO_MALI)
 
 /* kbase_io_history_init - initialize data struct for register access history
  *

@@ -18,7 +18,7 @@
 #ifndef _KBASE_IPA_SIMPLE_H_
 #define _KBASE_IPA_SIMPLE_H_
 
-#if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
+#if defined(CONFIG_MALI_BIFROST_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
 
 extern struct kbase_ipa_model_ops kbase_simple_ipa_model_ops;
 
@@ -35,6 +35,6 @@ extern struct kbase_ipa_model_ops kbase_simple_ipa_model_ops;
 void kbase_simple_power_model_set_dummy_temp(int temp);
 #endif /* MALI_UNIT_TEST */
 
-#endif /* (defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)) */
+#endif /* (defined(CONFIG_MALI_BIFROST_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)) */
 
 #endif /* _KBASE_IPA_SIMPLE_H_ */

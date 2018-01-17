@@ -221,13 +221,13 @@ int kbase_device_init(struct kbase_device * const kbdev)
 
 	mutex_init(&kbdev->cacheclean_lock);
 
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 	for (i = 0; i < BASE_JM_MAX_NR_SLOTS; ++i)
 		kbdev->timeline.slot_atoms_submitted[i] = 0;
 
 	for (i = 0; i <= KBASEP_TIMELINE_PM_EVENT_LAST; ++i)
 		atomic_set(&kbdev->timeline.pm_event_uid[i], 0);
-#endif /* CONFIG_MALI_TRACE_TIMELINE */
+#endif /* CONFIG_MALI_BIFROST_TRACE_TIMELINE */
 
 	/* fbdump profiling controls set to 0 - fbdump not enabled until changed by gator */
 	for (i = 0; i < FBDUMP_CONTROL_MAX; i++)
@@ -250,9 +250,9 @@ int kbase_device_init(struct kbase_device * const kbdev)
 	else
 		kbdev->mmu_mode = kbase_mmu_mode_get_lpae();
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	init_waitqueue_head(&kbdev->driver_inactive_wait);
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
 	return 0;
 term_trace:

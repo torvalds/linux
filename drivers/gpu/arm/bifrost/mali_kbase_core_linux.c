@@ -21,16 +21,16 @@
 #include <mali_midg_regmap.h>
 #include <mali_kbase_gator.h>
 #include <mali_kbase_mem_linux.h>
-#ifdef CONFIG_MALI_DEVFREQ
+#ifdef CONFIG_MALI_BIFROST_DEVFREQ
 #include <linux/devfreq.h>
 #include <backend/gpu/mali_kbase_devfreq.h>
 #ifdef CONFIG_DEVFREQ_THERMAL
 #include <ipa/mali_kbase_ipa_debugfs.h>
 #endif /* CONFIG_DEVFREQ_THERMAL */
-#endif /* CONFIG_MALI_DEVFREQ */
-#ifdef CONFIG_MALI_NO_MALI
+#endif /* CONFIG_MALI_BIFROST_DEVFREQ */
+#ifdef CONFIG_MALI_BIFROST_NO_MALI
 #include "mali_kbase_model_linux.h"
-#endif /* CONFIG_MALI_NO_MALI */
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 #include "mali_kbase_mem_profile_debugfs_buf_size.h"
 #include "mali_kbase_debug_mem_view.h"
 #include "mali_kbase_mem.h"
@@ -153,9 +153,9 @@ enum {
 	inited_mem = (1u << 0),
 	inited_js = (1u << 1),
 	inited_pm_runtime_init = (1u << 2),
-#ifdef CONFIG_MALI_DEVFREQ
+#ifdef CONFIG_MALI_BIFROST_DEVFREQ
 	inited_devfreq = (1u << 3),
-#endif /* CONFIG_MALI_DEVFREQ */
+#endif /* CONFIG_MALI_BIFROST_DEVFREQ */
 	inited_tlstream = (1u << 4),
 	inited_backend_early = (1u << 5),
 	inited_backend_late = (1u << 6),
@@ -178,7 +178,7 @@ enum {
 };
 
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 #define INACTIVE_WAIT_MS (5000)
 
 void kbase_set_driver_inactive(struct kbase_device *kbdev, bool inactive)
@@ -191,7 +191,7 @@ void kbase_set_driver_inactive(struct kbase_device *kbdev, bool inactive)
 		msleep(INACTIVE_WAIT_MS);
 }
 KBASE_EXPORT_TEST_API(kbase_set_driver_inactive);
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
 /**
  * kbase_legacy_dispatch - UKK dispatch function
@@ -217,10 +217,10 @@ static int kbase_legacy_dispatch(struct kbase_context *kctx,
 	id = ukh->id;
 	ukh->ret = MALI_ERROR_NONE; /* Be optimistic */
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	wait_event(kbdev->driver_inactive_wait,
 			kbdev->driver_inactive == false);
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
 	if (UKP_FUNC_ID_CHECK_VERSION == id) {
 		struct uku_version_check_args *version_check;
@@ -674,7 +674,7 @@ copy_failed:
 
 	case KBASE_FUNC_INJECT_ERROR:
 		{
-#ifdef CONFIG_MALI_ERROR_INJECT
+#ifdef CONFIG_MALI_BIFROST_ERROR_INJECT
 			unsigned long flags;
 			struct kbase_error_params params = ((struct kbase_uk_error_params *)args)->params;
 
@@ -686,13 +686,13 @@ copy_failed:
 				ukh->ret = MALI_ERROR_NONE;
 			spin_unlock_irqrestore(&kbdev->reg_op_lock, flags);
 			/*mutex unlock */
-#endif /* CONFIG_MALI_ERROR_INJECT */
+#endif /* CONFIG_MALI_BIFROST_ERROR_INJECT */
 			break;
 		}
 
 	case KBASE_FUNC_MODEL_CONTROL:
 		{
-#ifdef CONFIG_MALI_NO_MALI
+#ifdef CONFIG_MALI_BIFROST_NO_MALI
 			unsigned long flags;
 			struct kbase_model_control_params params =
 					((struct kbase_uk_model_control_params *)args)->params;
@@ -705,7 +705,7 @@ copy_failed:
 				ukh->ret = MALI_ERROR_NONE;
 			spin_unlock_irqrestore(&kbdev->reg_op_lock, flags);
 			/*mutex unlock */
-#endif /* CONFIG_MALI_NO_MALI */
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 			break;
 		}
 
@@ -782,7 +782,7 @@ copy_failed:
 			break;
 		}
 
-#ifdef CONFIG_MALI_NO_MALI
+#ifdef CONFIG_MALI_BIFROST_NO_MALI
 	case KBASE_FUNC_SET_PRFCNT_VALUES:
 		{
 
@@ -793,7 +793,7 @@ copy_failed:
 
 			break;
 		}
-#endif /* CONFIG_MALI_NO_MALI */
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 #ifdef BASE_LEGACY_UK10_4_SUPPORT
 	case KBASE_FUNC_TLSTREAM_ACQUIRE_V10_4:
 		{
@@ -2139,7 +2139,7 @@ static const struct file_operations kbase_fops = {
 	.get_unmapped_area = kbase_get_unmapped_area,
 };
 
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 void kbase_os_reg_write(struct kbase_device *kbdev, u16 offset, u32 value)
 {
 	writel(value, kbdev->reg + offset);
@@ -2149,7 +2149,7 @@ u32 kbase_os_reg_read(struct kbase_device *kbdev, u16 offset)
 {
 	return readl(kbdev->reg + offset);
 }
-#endif /* !CONFIG_MALI_NO_MALI */
+#endif /* !CONFIG_MALI_BIFROST_NO_MALI */
 
 /**
  * show_policy - Show callback for the power_policy sysfs file.
@@ -2974,7 +2974,7 @@ static DEVICE_ATTR(force_replay, S_IRUGO | S_IWUSR, show_force_replay,
 		set_force_replay);
 #endif /* !MALI_CUSTOMER_RELEASE */
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 static ssize_t set_js_softstop_always(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -3028,9 +3028,9 @@ static ssize_t show_js_softstop_always(struct device *dev,
  * (see CL t6xx_stress_1 unit-test as an example whereby this feature is used.)
  */
 static DEVICE_ATTR(js_softstop_always, S_IRUGO | S_IWUSR, show_js_softstop_always, set_js_softstop_always);
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 typedef void (kbasep_debug_command_func) (struct kbase_device *);
 
 enum kbasep_debug_command_code {
@@ -3132,7 +3132,7 @@ static ssize_t issue_debug(struct device *dev, struct device_attribute *attr, co
  * Writing to it with one of those commands will issue said command.
  */
 static DEVICE_ATTR(debug_command, S_IRUGO | S_IWUSR, show_debug, issue_debug);
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
 /**
  * kbase_show_gpuinfo - Show callback for the gpuinfo sysfs entry.
@@ -3804,7 +3804,7 @@ static void kbasep_protected_mode_term(struct kbase_device *kbdev)
 		kfree(kbdev->protected_dev);
 }
 
-#ifdef CONFIG_MALI_NO_MALI
+#ifdef CONFIG_MALI_BIFROST_NO_MALI
 static int kbase_common_reg_map(struct kbase_device *kbdev)
 {
 	return 0;
@@ -3812,7 +3812,7 @@ static int kbase_common_reg_map(struct kbase_device *kbdev)
 static void kbase_common_reg_unmap(struct kbase_device * const kbdev)
 {
 }
-#else /* CONFIG_MALI_NO_MALI */
+#else /* CONFIG_MALI_BIFROST_NO_MALI */
 static int kbase_common_reg_map(struct kbase_device *kbdev)
 {
 	int err = 0;
@@ -3848,7 +3848,7 @@ static void kbase_common_reg_unmap(struct kbase_device * const kbdev)
 		kbdev->reg_size = 0;
 	}
 }
-#endif /* CONFIG_MALI_NO_MALI */
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 static int registers_map(struct kbase_device * const kbdev)
 {
@@ -4137,16 +4137,16 @@ static int kbase_device_debugfs_init(struct kbase_device *kbdev)
 	kbasep_trace_debugfs_init(kbdev);
 #endif /* KBASE_TRACE_ENABLE */
 
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 	kbasep_trace_timeline_debugfs_init(kbdev);
-#endif /* CONFIG_MALI_TRACE_TIMELINE */
+#endif /* CONFIG_MALI_BIFROST_TRACE_TIMELINE */
 
-#ifdef CONFIG_MALI_DEVFREQ
+#ifdef CONFIG_MALI_BIFROST_DEVFREQ
 #ifdef CONFIG_DEVFREQ_THERMAL
 	if (kbdev->inited_subsys & inited_devfreq)
 		kbase_ipa_debugfs_init(kbdev);
 #endif /* CONFIG_DEVFREQ_THERMAL */
-#endif /* CONFIG_MALI_DEVFREQ */
+#endif /* CONFIG_MALI_BIFROST_DEVFREQ */
 
 #ifdef CONFIG_DEBUG_FS
 	debugfs_create_file("serialize_jobs", S_IRUGO | S_IWUSR,
@@ -4247,7 +4247,7 @@ static void kbase_logging_started_cb(void *data)
 #endif
 
 static struct attribute *kbase_attrs[] = {
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	&dev_attr_debug_command.attr,
 	&dev_attr_js_softstop_always.attr,
 #endif
@@ -4329,7 +4329,7 @@ static int kbase_platform_device_remove(struct platform_device *pdev)
 		kbdev->inited_subsys &= ~inited_vinstr;
 	}
 
-#ifdef CONFIG_MALI_DEVFREQ
+#ifdef CONFIG_MALI_BIFROST_DEVFREQ
 	if (kbdev->inited_subsys & inited_devfreq) {
 		kbase_devfreq_term(kbdev);
 		kbdev->inited_subsys &= ~inited_devfreq;
@@ -4404,12 +4404,12 @@ static int kbase_platform_device_remove(struct platform_device *pdev)
 		kbdev->inited_subsys &= ~inited_registers_map;
 	}
 
-#ifdef CONFIG_MALI_NO_MALI
+#ifdef CONFIG_MALI_BIFROST_NO_MALI
 	if (kbdev->inited_subsys & inited_gpu_device) {
 		gpu_device_destroy(kbdev);
 		kbdev->inited_subsys &= ~inited_gpu_device;
 	}
-#endif /* CONFIG_MALI_NO_MALI */
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	if (kbdev->inited_subsys != 0)
 		dev_err(kbdev->dev, "Missing sub system termination\n");
@@ -4451,7 +4451,7 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 	kbdev->dev = &pdev->dev;
 	dev_set_drvdata(kbdev->dev, kbdev);
 
-#ifdef CONFIG_MALI_NO_MALI
+#ifdef CONFIG_MALI_BIFROST_NO_MALI
 	err = gpu_device_create(kbdev);
 	if (err) {
 		dev_err(&pdev->dev, "Dummy model initialization failed\n");
@@ -4459,7 +4459,7 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 		return err;
 	}
 	kbdev->inited_subsys |= inited_gpu_device;
-#endif /* CONFIG_MALI_NO_MALI */
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	err = assign_irqs(pdev);
 	if (err) {
@@ -4603,14 +4603,14 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 	}
 	kbdev->inited_subsys |= inited_vinstr;
 
-#ifdef CONFIG_MALI_DEVFREQ
+#ifdef CONFIG_MALI_BIFROST_DEVFREQ
 	/* Devfreq uses vinstr, so must be initialized after it. */
 	err = kbase_devfreq_init(kbdev);
 	if (!err)
 		kbdev->inited_subsys |= inited_devfreq;
 	else
 		dev_err(kbdev->dev, "Continuing without devfreq\n");
-#endif /* CONFIG_MALI_DEVFREQ */
+#endif /* CONFIG_MALI_BIFROST_DEVFREQ */
 
 	err = kbase_debug_job_fault_dev_init(kbdev);
 	if (err) {
@@ -4711,7 +4711,7 @@ static int kbase_device_suspend(struct device *dev)
 	if (!kbdev)
 		return -ENODEV;
 
-#if defined(CONFIG_MALI_DEVFREQ) && \
+#if defined(CONFIG_MALI_BIFROST_DEVFREQ) && \
 		(LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	if (kbdev->inited_subsys & inited_devfreq)
 		devfreq_suspend_device(kbdev->devfreq);
@@ -4739,7 +4739,7 @@ static int kbase_device_resume(struct device *dev)
 
 	kbase_pm_resume(kbdev);
 
-#if defined(CONFIG_MALI_DEVFREQ) && \
+#if defined(CONFIG_MALI_BIFROST_DEVFREQ) && \
 		(LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	if (kbdev->inited_subsys & inited_devfreq)
 		devfreq_resume_device(kbdev->devfreq);
@@ -4766,7 +4766,7 @@ static int kbase_device_runtime_suspend(struct device *dev)
 	if (!kbdev)
 		return -ENODEV;
 
-#if defined(CONFIG_MALI_DEVFREQ) && \
+#if defined(CONFIG_MALI_BIFROST_DEVFREQ) && \
 		(LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	if (kbdev->inited_subsys & inited_devfreq)
 		devfreq_suspend_device(kbdev->devfreq);
@@ -4804,7 +4804,7 @@ static int kbase_device_runtime_resume(struct device *dev)
 		dev_dbg(dev, "runtime resume\n");
 	}
 
-#if defined(CONFIG_MALI_DEVFREQ) && \
+#if defined(CONFIG_MALI_BIFROST_DEVFREQ) && \
 		(LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	if (kbdev->inited_subsys & inited_devfreq)
 		devfreq_resume_device(kbdev->devfreq);
@@ -4917,11 +4917,11 @@ MODULE_VERSION(MALI_RELEASE_NAME " (UK version " \
 		__stringify(BASE_UK_VERSION_MAJOR) "." \
 		__stringify(BASE_UK_VERSION_MINOR) ")");
 
-#if defined(CONFIG_MALI_GATOR_SUPPORT) || defined(CONFIG_MALI_SYSTEM_TRACE)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT) || defined(CONFIG_MALI_BIFROST_SYSTEM_TRACE)
 #define CREATE_TRACE_POINTS
 #endif
 
-#ifdef CONFIG_MALI_GATOR_SUPPORT
+#ifdef CONFIG_MALI_BIFROST_GATOR_SUPPORT
 /* Create the trace points (otherwise we just get code to call a tracepoint) */
 #include "mali_linux_trace.h"
 
@@ -4973,7 +4973,7 @@ void kbase_trace_mali_total_alloc_pages_change(long long int event)
 {
 	trace_mali_total_alloc_pages_change(event);
 }
-#endif /* CONFIG_MALI_GATOR_SUPPORT */
-#ifdef CONFIG_MALI_SYSTEM_TRACE
+#endif /* CONFIG_MALI_BIFROST_GATOR_SUPPORT */
+#ifdef CONFIG_MALI_BIFROST_SYSTEM_TRACE
 #include "mali_linux_kbase_trace.h"
 #endif

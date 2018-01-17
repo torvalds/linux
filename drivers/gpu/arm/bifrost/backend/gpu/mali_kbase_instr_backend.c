@@ -129,7 +129,7 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 
 	/* Configure */
 	prfcnt_config = kctx->as_nr << PRFCNT_CONFIG_AS_SHIFT;
-#ifdef CONFIG_MALI_PRFCNT_SET_SECONDARY
+#ifdef CONFIG_MALI_BIFROST_PRFCNT_SET_SECONDARY
 	{
 		u32 gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
 		u32 product_id = (gpu_id & GPU_ID_VERSION_PRODUCT_ID)

@@ -353,9 +353,9 @@ static void kbase_sync_signal_pt(struct sync_pt *pt, int result)
 			 * The warning is only in debug builds to prevent
 			 * a malicious user being able to spam dmesg.
 			 */
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 			pr_err("Fences were triggered in a different order to allocation!");
-#endif				/* CONFIG_MALI_DEBUG */
+#endif				/* CONFIG_MALI_BIFROST_DEBUG */
 			return;
 		}
 	} while (atomic_cmpxchg(&mtl->signaled,
@@ -524,7 +524,7 @@ int kbase_sync_fence_out_info_get(struct kbase_jd_atom *katom,
 	return 0;
 }
 
-#ifdef CONFIG_MALI_FENCE_DEBUG
+#ifdef CONFIG_MALI_BIFROST_FENCE_DEBUG
 void kbase_sync_fence_in_dump(struct kbase_jd_atom *katom)
 {
 	/* Dump out the full state of all the Android sync fences.

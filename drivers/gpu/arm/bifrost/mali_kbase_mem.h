@@ -40,7 +40,7 @@
 #include <mali_kbase_hw.h>
 #include "mali_kbase_pm.h"
 #include "mali_kbase_defs.h"
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 #include "mali_kbase_gator.h"
 #endif
 /* Required for kbase_mem_evictable_unmake */
@@ -449,7 +449,7 @@ static inline int kbase_reg_prepare_native(struct kbase_va_region *reg,
 static inline int kbase_atomic_add_pages(int num_pages, atomic_t *used_pages)
 {
 	int new_val = atomic_add_return(num_pages, used_pages);
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 	kbase_trace_mali_total_alloc_pages_change((long long int)new_val);
 #endif
 	return new_val;
@@ -458,7 +458,7 @@ static inline int kbase_atomic_add_pages(int num_pages, atomic_t *used_pages)
 static inline int kbase_atomic_sub_pages(int num_pages, atomic_t *used_pages)
 {
 	int new_val = atomic_sub_return(num_pages, used_pages);
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 	kbase_trace_mali_total_alloc_pages_change((long long int)new_val);
 #endif
 	return new_val;

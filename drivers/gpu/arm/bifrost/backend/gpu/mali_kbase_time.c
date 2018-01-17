@@ -69,7 +69,7 @@ void kbase_backend_get_gpu_time(struct kbase_device *kbdev, u64 *cycle_counter,
  * Note : If GPU resets occur then the counters are reset to zero, the delay may
  * not be as expected.
  */
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 void kbase_wait_write_flush(struct kbase_context *kctx)
 {
 	u32 base_count = 0;
@@ -100,4 +100,4 @@ void kbase_wait_write_flush(struct kbase_context *kctx)
 	kbase_pm_release_gpu_cycle_counter(kctx->kbdev);
 	kbase_pm_context_idle(kctx->kbdev);
 }
-#endif				/* CONFIG_MALI_NO_MALI */
+#endif				/* CONFIG_MALI_BIFROST_NO_MALI */

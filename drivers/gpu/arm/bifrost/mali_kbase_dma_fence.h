@@ -18,7 +18,7 @@
 #ifndef _KBASE_DMA_FENCE_H_
 #define _KBASE_DMA_FENCE_H_
 
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 
 #include <linux/list.h>
 #include <linux/reservation.h>
@@ -118,7 +118,7 @@ void kbase_dma_fence_term(struct kbase_context *kctx);
 int kbase_dma_fence_init(struct kbase_context *kctx);
 
 
-#else /* CONFIG_MALI_DMA_FENCE */
+#else /* CONFIG_MALI_BIFROST_DMA_FENCE */
 /* Dummy functions for when dma-buf fence isn't enabled. */
 
 static inline int kbase_dma_fence_init(struct kbase_context *kctx)
@@ -127,5 +127,5 @@ static inline int kbase_dma_fence_init(struct kbase_context *kctx)
 }
 
 static inline void kbase_dma_fence_term(struct kbase_context *kctx) {}
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 #endif

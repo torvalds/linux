@@ -61,9 +61,9 @@
 #include <linux/debugfs.h>
 #endif				/* CONFIG_DEBUG_FS */
 
-#ifdef CONFIG_MALI_DEVFREQ
+#ifdef CONFIG_MALI_BIFROST_DEVFREQ
 #include <linux/devfreq.h>
-#endif /* CONFIG_MALI_DEVFREQ */
+#endif /* CONFIG_MALI_BIFROST_DEVFREQ */
 
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
@@ -74,16 +74,16 @@
 #endif
 
 /** Enable SW tracing when set */
-#ifdef CONFIG_MALI_MIDGARD_ENABLE_TRACE
+#ifdef CONFIG_MALI_BIFROST_ENABLE_TRACE
 #define KBASE_TRACE_ENABLE 1
 #endif
 
 #ifndef KBASE_TRACE_ENABLE
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 #define KBASE_TRACE_ENABLE 1
 #else
 #define KBASE_TRACE_ENABLE 0
-#endif				/* CONFIG_MALI_DEBUG */
+#endif				/* CONFIG_MALI_BIFROST_DEBUG */
 #endif				/* KBASE_TRACE_ENABLE */
 
 /** Dump Job slot trace on error (only active if KBASE_TRACE_ENABLE != 0) */
@@ -450,7 +450,7 @@ struct kbase_jd_atom {
 	struct sync_fence *fence;
 	struct sync_fence_waiter sync_waiter;
 #endif				/* CONFIG_SYNC */
-#if defined(CONFIG_MALI_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
+#if defined(CONFIG_MALI_BIFROST_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
 	struct {
 		/* Use the functions/API defined in mali_kbase_fence.h to
 		 * when working with this sub struct */
@@ -516,7 +516,7 @@ struct kbase_jd_atom {
 		 */
 		atomic_t dep_count;
 	} dma_fence;
-#endif /* CONFIG_MALI_DMA_FENCE || CONFIG_SYNC_FILE*/
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE || CONFIG_SYNC_FILE*/
 
 	/* Note: refer to kbasep_js_atom_retained_state, which will take a copy of some of the following members */
 	enum base_jd_event_code event_code;
@@ -816,7 +816,7 @@ enum kbase_timeline_pm_event {
 	KBASEP_TIMELINE_PM_EVENT_LAST = KBASE_TIMELINE_PM_EVENT_CHANGE_GPU_STATE,
 };
 
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 struct kbase_trace_kctx_timeline {
 	atomic_t jd_atoms_in_flight;
 	u32 owner_tgid;
@@ -841,7 +841,7 @@ struct kbase_trace_kbdev_timeline {
 	 * Expected to be protected by hwaccess_lock */
 	bool l2_transitioning;
 };
-#endif /* CONFIG_MALI_TRACE_TIMELINE */
+#endif /* CONFIG_MALI_BIFROST_TRACE_TIMELINE */
 
 
 struct kbasep_kctx_list_element {
@@ -997,7 +997,7 @@ struct kbase_device {
 #endif
 	char devname[DEVNAME_SIZE];
 
-#ifdef CONFIG_MALI_NO_MALI
+#ifdef CONFIG_MALI_BIFROST_NO_MALI
 	void *model;
 	struct kmem_cache *irq_slab;
 	struct workqueue_struct *irq_workq;
@@ -1005,7 +1005,7 @@ struct kbase_device {
 	atomic_t serving_gpu_irq;
 	atomic_t serving_mmu_irq;
 	spinlock_t reg_op_lock;
-#endif	/* CONFIG_MALI_NO_MALI */
+#endif	/* CONFIG_MALI_BIFROST_NO_MALI */
 
 	struct kbase_pm_device_data pm;
 	struct kbasep_js_device_data js_data;
@@ -1117,7 +1117,7 @@ struct kbase_device {
 	struct list_head        kctx_list;
 	struct mutex            kctx_list_lock;
 
-#ifdef CONFIG_MALI_DEVFREQ
+#ifdef CONFIG_MALI_BIFROST_DEVFREQ
 	struct devfreq_dev_profile devfreq_profile;
 	struct devfreq *devfreq;
 	unsigned long current_freq;
@@ -1141,10 +1141,10 @@ struct kbase_device {
 		struct kbase_ipa_model *fallback_model;
 	} ipa;
 #endif /* CONFIG_DEVFREQ_THERMAL */
-#endif /* CONFIG_MALI_DEVFREQ */
+#endif /* CONFIG_MALI_BIFROST_DEVFREQ */
 
 
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 	struct kbase_trace_kbdev_timeline timeline;
 #endif
 
@@ -1160,10 +1160,10 @@ struct kbase_device {
 	/* Root directory for per context entry */
 	struct dentry *debugfs_ctx_directory;
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	/* bit for each as, set if there is new data to report */
 	u64 debugfs_as_read_bitmap;
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
 	/* failed job dump, used for separate debug process */
 	wait_queue_head_t job_fault_wq;
@@ -1263,10 +1263,10 @@ struct kbase_device {
 	bool protected_mode_support;
 
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	wait_queue_head_t driver_inactive_wait;
 	bool driver_inactive;
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
 #ifdef CONFIG_MALI_FPGA_BUS_LOGGER
 	/*
@@ -1423,12 +1423,12 @@ struct kbase_context {
 #ifdef CONFIG_KDS
 	struct list_head waiting_kds_resource;
 #endif
-#ifdef CONFIG_MALI_DMA_FENCE
+#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	struct {
 		struct list_head waiting_resource;
 		struct workqueue_struct *wq;
 	} dma_fence;
-#endif /* CONFIG_MALI_DMA_FENCE */
+#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 	/** This is effectively part of the Run Pool, because it only has a valid
 	 * setting (!=KBASEP_AS_NR_INVALID) whilst the context is scheduled in
 	 *
@@ -1460,7 +1460,7 @@ struct kbase_context {
 	/* End of the SAME_VA zone */
 	u64 same_va_end;
 
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 	struct kbase_trace_kctx_timeline timeline;
 #endif
 #ifdef CONFIG_DEBUG_FS

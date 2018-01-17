@@ -18,7 +18,7 @@
 #ifndef _KBASE_IPA_H_
 #define _KBASE_IPA_H_
 
-#if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
+#if defined(CONFIG_MALI_BIFROST_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
 
 struct devfreq;
 
@@ -152,7 +152,7 @@ extern struct devfreq_cooling_ops kbase_ipa_power_model_ops;
 extern struct devfreq_cooling_power kbase_ipa_power_model_ops;
 #endif
 
-#else /* !(defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)) */
+#else /* !(defined(CONFIG_MALI_BIFROST_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)) */
 
 static inline void kbase_ipa_model_use_fallback_locked(struct kbase_device *kbdev)
 { }
@@ -160,6 +160,6 @@ static inline void kbase_ipa_model_use_fallback_locked(struct kbase_device *kbde
 static inline void kbase_ipa_model_use_configured_locked(struct kbase_device *kbdev)
 { }
 
-#endif /* (defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)) */
+#endif /* (defined(CONFIG_MALI_BIFROST_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)) */
 
 #endif

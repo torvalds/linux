@@ -20,7 +20,7 @@
 #if !defined(_KBASE_TRACE_TIMELINE_H)
 #define _KBASE_TRACE_TIMELINE_H
 
-#ifdef CONFIG_MALI_TRACE_TIMELINE
+#ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 
 enum kbase_trace_timeline_code {
 	#define KBASE_TIMELINE_TRACE_CODE(enum_val, desc, format, format_desc) enum_val
@@ -357,7 +357,7 @@ static inline void kbase_timeline_pm_l2_transition_start(struct kbase_device *kb
 static inline void kbase_timeline_pm_l2_transition_done(struct kbase_device *kbdev)
 {
 }
-#endif				/* CONFIG_MALI_TRACE_TIMELINE */
+#endif				/* CONFIG_MALI_BIFROST_TRACE_TIMELINE */
 
 #endif				/* _KBASE_TRACE_TIMELINE_H */
 

@@ -111,7 +111,7 @@ struct kbasep_pm_metrics_data {
 	u32 active_gl_ctx[2]; /* GL jobs can only run on 2 of the 3 job slots */
 	spinlock_t lock;
 
-#ifdef CONFIG_MALI_MIDGARD_DVFS
+#ifdef CONFIG_MALI_BIFROST_DVFS
 	struct hrtimer timer;
 	bool timer_active;
 #endif
@@ -279,9 +279,9 @@ struct kbase_pm_backend_data {
 
 	bool cg1_disabled;
 
-#ifdef CONFIG_MALI_DEBUG
+#ifdef CONFIG_MALI_BIFROST_DEBUG
 	bool driver_ready_for_irqs;
-#endif /* CONFIG_MALI_DEBUG */
+#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
 	spinlock_t gpu_powered_lock;
 

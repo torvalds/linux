@@ -27,7 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <mali_kbase.h>
 #include <mali_midg_regmap.h>
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 #include <mali_kbase_gator.h>
 #endif
 #include <mali_kbase_tlstream.h>
@@ -341,7 +341,7 @@ void page_fault_worker(struct work_struct *data)
 					"Page table update failure");
 			goto fault_done;
 		}
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
+#if defined(CONFIG_MALI_BIFROST_GATOR_SUPPORT)
 		kbase_trace_mali_page_fault_insert_pages(as_no, new_pages);
 #endif
 		KBASE_TLSTREAM_AUX_PAGEFAULT(kctx->id, (u64)new_pages);
@@ -923,7 +923,7 @@ static void kbase_mmu_flush_invalidate_noretain(struct kbase_context *kctx,
 	}
 #endif /* KBASE_GPU_RESET_EN */
 
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 	/*
 	 * As this function could be called in interrupt context the sync
 	 * request can't block. Instead log the request and the next flush
@@ -932,7 +932,7 @@ static void kbase_mmu_flush_invalidate_noretain(struct kbase_context *kctx,
 	if ((!err) && sync &&
 			kbase_hw_has_issue(kctx->kbdev, BASE_HW_ISSUE_6367))
 		atomic_set(&kctx->drain_pending, 1);
-#endif /* !CONFIG_MALI_NO_MALI */
+#endif /* !CONFIG_MALI_BIFROST_NO_MALI */
 }
 
 static void kbase_mmu_flush_invalidate(struct kbase_context *kctx,
@@ -940,12 +940,12 @@ static void kbase_mmu_flush_invalidate(struct kbase_context *kctx,
 {
 	struct kbase_device *kbdev;
 	bool ctx_is_in_runpool;
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 	bool drain_pending = false;
 
 	if (atomic_xchg(&kctx->drain_pending, 0))
 		drain_pending = true;
-#endif /* !CONFIG_MALI_NO_MALI */
+#endif /* !CONFIG_MALI_BIFROST_NO_MALI */
 
 	/* Early out if there is nothing to do */
 	if (nr == 0)
@@ -991,7 +991,7 @@ static void kbase_mmu_flush_invalidate(struct kbase_context *kctx,
 			mutex_unlock(&kbdev->mmu_hw_mutex);
 			/* AS transaction end */
 
-#ifndef CONFIG_MALI_NO_MALI
+#ifndef CONFIG_MALI_BIFROST_NO_MALI
 			/*
 			 * The transaction lock must be dropped before here
 			 * as kbase_wait_write_flush could take it if
@@ -1005,7 +1005,7 @@ static void kbase_mmu_flush_invalidate(struct kbase_context *kctx,
 				/* Wait for GPU to flush write buffer */
 				kbase_wait_write_flush(kctx);
 			}
-#endif /* !CONFIG_MALI_NO_MALI */
+#endif /* !CONFIG_MALI_BIFROST_NO_MALI */
 
 			kbase_pm_context_idle(kbdev);
 		}
