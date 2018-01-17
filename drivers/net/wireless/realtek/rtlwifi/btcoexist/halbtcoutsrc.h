@@ -103,8 +103,6 @@ enum btc_msg_type {
 	BTC_MSG_MAX
 };
 
-extern u32 btc_dbg_type[];
-
 /* following is for BTC_MSG_INTERFACE */
 #define		INTF_INIT				BIT0
 #define		INTF_NOTIFY				BIT2
@@ -604,9 +602,10 @@ struct btc_coexist {
 
 bool halbtc_is_wifi_uplink(struct rtl_priv *adapter);
 
-extern struct btc_coexist gl_bt_coexist;
+#define rtl_btc_coexist(rtlpriv)				\
+	((struct btc_coexist *)((rtlpriv)->btcoexist.btc_context))
 
-bool exhalbtc_initlize_variables(void);
+bool exhalbtc_initlize_variables(struct rtl_priv *rtlpriv);
 bool exhalbtc_bind_bt_coex_withadapter(void *adapter);
 void exhalbtc_power_on_setting(struct btc_coexist *btcoexist);
 void exhalbtc_init_hw_config(struct btc_coexist *btcoexist, bool wifi_only);
@@ -628,11 +627,12 @@ void exhalbtc_periodical(struct btc_coexist *btcoexist);
 void exhalbtc_dbg_control(struct btc_coexist *btcoexist, u8 code, u8 len,
 			  u8 *data);
 void exhalbtc_stack_update_profile_info(void);
-void exhalbtc_set_hci_version(u16 hci_version);
-void exhalbtc_set_bt_patch_version(u16 bt_hci_version, u16 bt_patch_version);
-void exhalbtc_update_min_bt_rssi(s8 bt_rssi);
-void exhalbtc_set_bt_exist(bool bt_exist);
-void exhalbtc_set_chip_type(u8 chip_type);
+void exhalbtc_set_hci_version(struct btc_coexist *btcoexist, u16 hci_version);
+void exhalbtc_set_bt_patch_version(struct btc_coexist *btcoexist,
+				   u16 bt_hci_version, u16 bt_patch_version);
+void exhalbtc_update_min_bt_rssi(struct btc_coexist *btcoexist, s8 bt_rssi);
+void exhalbtc_set_bt_exist(struct btc_coexist *btcoexist, bool bt_exist);
+void exhalbtc_set_chip_type(struct btc_coexist *btcoexist, u8 chip_type);
 void exhalbtc_set_ant_num(struct rtl_priv *rtlpriv, u8 type, u8 ant_num);
 void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist,
 				   struct seq_file *m);
@@ -640,6 +640,7 @@ void exhalbtc_signal_compensation(struct btc_coexist *btcoexist,
 				  u8 *rssi_wifi, u8 *rssi_bt);
 void exhalbtc_lps_leave(struct btc_coexist *btcoexist);
 void exhalbtc_low_wifi_traffic_notify(struct btc_coexist *btcoexist);
-void exhalbtc_set_single_ant_path(u8 single_ant_path);
+void exhalbtc_set_single_ant_path(struct btc_coexist *btcoexist,
+				  u8 single_ant_path);
 
 #endif

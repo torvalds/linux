@@ -25,14 +25,6 @@
 
 #include "halbt_precomp.h"
 
-/***********************************************
- *		Global variables
- ***********************************************/
-
-struct btc_coexist gl_bt_coexist;
-
-u32 btc_dbg_type[BTC_MSG_MAX];
-
 /***************************************************
  *		Debug related function
  ***************************************************/
@@ -970,9 +962,12 @@ bool halbtc_under_ips(struct btc_coexist *btcoexist)
 /*****************************************************************
  *         Extern functions called by other module
  *****************************************************************/
-bool exhalbtc_initlize_variables(void)
+bool exhalbtc_initlize_variables(struct rtl_priv *rtlpriv)
 {
-	struct btc_coexist *btcoexist = &gl_bt_coexist;
+	struct btc_coexist *btcoexist = rtl_btc_coexist(rtlpriv);
+
+	if (!btcoexist)
+		return false;
 
 	halbtc_dbg_init();
 
@@ -1008,9 +1003,12 @@ bool exhalbtc_initlize_variables(void)
 
 bool exhalbtc_bind_bt_coex_withadapter(void *adapter)
 {
-	struct btc_coexist *btcoexist = &gl_bt_coexist;
 	struct rtl_priv *rtlpriv = adapter;
-	u8 ant_num = 2, chip_type;
+	struct btc_coexist *btcoexist = rtl_btc_coexist(rtlpriv);
+	u8 ant_num = 2, chip_type, single_ant_path = 0;
+
+	if (!btcoexist)
+		return false;
 
 	if (btcoexist->binded)
 		return false;
@@ -1041,9 +1039,15 @@ bool exhalbtc_bind_bt_coex_withadapter(void *adapter)
 	btcoexist->bt_info.miracast_plus_bt = false;
 
 	chip_type = rtl_get_hwpg_bt_type(rtlpriv);
-	exhalbtc_set_chip_type(chip_type);
+	exhalbtc_set_chip_type(btcoexist, chip_type);
 	ant_num = rtl_get_hwpg_ant_num(rtlpriv);
 	exhalbtc_set_ant_num(rtlpriv, BT_COEX_ANT_TYPE_PG, ant_num);
+
+	/* set default antenna position to main  port */
+	btcoexist->board_info.btdm_ant_pos = BTC_ANTENNA_AT_MAIN_PORT;
+
+	single_ant_path = rtl_get_hwpg_single_ant_path(rtlpriv);
+	exhalbtc_set_single_ant_path(btcoexist, single_ant_path);
 
 	if (rtl_get_hwpg_package_type(rtlpriv) == 0)
 		btcoexist->board_info.tfbga_package = false;
@@ -1549,30 +1553,25 @@ void exhalbtc_stack_update_profile_info(void)
 {
 }
 
-void exhalbtc_update_min_bt_rssi(s8 bt_rssi)
+void exhalbtc_update_min_bt_rssi(struct btc_coexist *btcoexist, s8 bt_rssi)
 {
-	struct btc_coexist *btcoexist = &gl_bt_coexist;
-
 	if (!halbtc_is_bt_coexist_available(btcoexist))
 		return;
 
 	btcoexist->stack_info.min_bt_rssi = bt_rssi;
 }
 
-void exhalbtc_set_hci_version(u16 hci_version)
+void exhalbtc_set_hci_version(struct btc_coexist *btcoexist, u16 hci_version)
 {
-	struct btc_coexist *btcoexist = &gl_bt_coexist;
-
 	if (!halbtc_is_bt_coexist_available(btcoexist))
 		return;
 
 	btcoexist->stack_info.hci_version = hci_version;
 }
 
-void exhalbtc_set_bt_patch_version(u16 bt_hci_version, u16 bt_patch_version)
+void exhalbtc_set_bt_patch_version(struct btc_coexist *btcoexist,
+				   u16 bt_hci_version, u16 bt_patch_version)
 {
-	struct btc_coexist *btcoexist = &gl_bt_coexist;
-
 	if (!halbtc_is_bt_coexist_available(btcoexist))
 		return;
 
@@ -1580,7 +1579,7 @@ void exhalbtc_set_bt_patch_version(u16 bt_hci_version, u16 bt_patch_version)
 	btcoexist->bt_info.bt_hci_ver = bt_hci_version;
 }
 
-void exhalbtc_set_chip_type(u8 chip_type)
+void exhalbtc_set_chip_type(struct btc_coexist *btcoexist, u8 chip_type)
 {
 	switch (chip_type) {
 	default:
@@ -1588,48 +1587,54 @@ void exhalbtc_set_chip_type(u8 chip_type)
 	case BT_ISSC_3WIRE:
 	case BT_ACCEL:
 	case BT_RTL8756:
-		gl_bt_coexist.board_info.bt_chip_type = BTC_CHIP_UNDEF;
+		btcoexist->board_info.bt_chip_type = BTC_CHIP_UNDEF;
 		break;
 	case BT_CSR_BC4:
-		gl_bt_coexist.board_info.bt_chip_type = BTC_CHIP_CSR_BC4;
+		btcoexist->board_info.bt_chip_type = BTC_CHIP_CSR_BC4;
 		break;
 	case BT_CSR_BC8:
-		gl_bt_coexist.board_info.bt_chip_type = BTC_CHIP_CSR_BC8;
+		btcoexist->board_info.bt_chip_type = BTC_CHIP_CSR_BC8;
 		break;
 	case BT_RTL8723A:
-		gl_bt_coexist.board_info.bt_chip_type = BTC_CHIP_RTL8723A;
+		btcoexist->board_info.bt_chip_type = BTC_CHIP_RTL8723A;
 		break;
 	case BT_RTL8821A:
-		gl_bt_coexist.board_info.bt_chip_type = BTC_CHIP_RTL8821;
+		btcoexist->board_info.bt_chip_type = BTC_CHIP_RTL8821;
 		break;
 	case BT_RTL8723B:
-		gl_bt_coexist.board_info.bt_chip_type = BTC_CHIP_RTL8723B;
+		btcoexist->board_info.bt_chip_type = BTC_CHIP_RTL8723B;
 		break;
 	}
 }
 
 void exhalbtc_set_ant_num(struct rtl_priv *rtlpriv, u8 type, u8 ant_num)
 {
+	struct btc_coexist *btcoexist = rtl_btc_coexist(rtlpriv);
+
+	if (!btcoexist)
+		return;
+
 	if (BT_COEX_ANT_TYPE_PG == type) {
-		gl_bt_coexist.board_info.pg_ant_num = ant_num;
-		gl_bt_coexist.board_info.btdm_ant_num = ant_num;
+		btcoexist->board_info.pg_ant_num = ant_num;
+		btcoexist->board_info.btdm_ant_num = ant_num;
 	} else if (BT_COEX_ANT_TYPE_ANTDIV == type) {
-		gl_bt_coexist.board_info.btdm_ant_num = ant_num;
+		btcoexist->board_info.btdm_ant_num = ant_num;
 	} else if (type == BT_COEX_ANT_TYPE_DETECTED) {
-		gl_bt_coexist.board_info.btdm_ant_num = ant_num;
+		btcoexist->board_info.btdm_ant_num = ant_num;
 		if (rtlpriv->cfg->mod_params->ant_sel == 1)
-			gl_bt_coexist.board_info.btdm_ant_pos =
+			btcoexist->board_info.btdm_ant_pos =
 				BTC_ANTENNA_AT_AUX_PORT;
 		else
-			gl_bt_coexist.board_info.btdm_ant_pos =
+			btcoexist->board_info.btdm_ant_pos =
 				BTC_ANTENNA_AT_MAIN_PORT;
 	}
 }
 
 /* Currently used by 8723b only, S0 or S1 */
-void exhalbtc_set_single_ant_path(u8 single_ant_path)
+void exhalbtc_set_single_ant_path(struct btc_coexist *btcoexist,
+				  u8 single_ant_path)
 {
-	gl_bt_coexist.board_info.single_ant_path = single_ant_path;
+	btcoexist->board_info.single_ant_path = single_ant_path;
 }
 
 void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist,

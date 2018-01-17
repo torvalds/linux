@@ -1841,7 +1841,10 @@ static void rtl_pci_stop(struct ieee80211_hw *hw)
 	u8 rf_timeout = 0;
 
 	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_halt_notify();
+		rtlpriv->btcoexist.btc_ops->btc_halt_notify(rtlpriv);
+
+	if (rtlpriv->btcoexist.btc_ops)
+		rtlpriv->btcoexist.btc_ops->btc_deinit_variables(rtlpriv);
 
 	/*should be before disable interrupt&adapter
 	 *and will do it immediately.
