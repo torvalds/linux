@@ -42,12 +42,14 @@
  * Check for btree operation errors.  See the section about handling
  * operational errors in common.c.
  */
-bool
-xfs_scrub_btree_process_error(
+static bool
+__xfs_scrub_btree_process_error(
 	struct xfs_scrub_context	*sc,
 	struct xfs_btree_cur		*cur,
 	int				level,
-	int				*error)
+	int				*error,
+	__u32				errflag,
+	void				*ret_ip)
 {
 	if (*error == 0)
 		return true;
@@ -60,36 +62,80 @@ xfs_scrub_btree_process_error(
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
 		/* Note the badness but don't abort. */
-		sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+		sc->sm->sm_flags |= errflag;
 		*error = 0;
 		/* fall through */
 	default:
 		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
 			trace_xfs_scrub_ifork_btree_op_error(sc, cur, level,
-					*error, __return_address);
+					*error, ret_ip);
 		else
 			trace_xfs_scrub_btree_op_error(sc, cur, level,
-					*error, __return_address);
+					*error, ret_ip);
 		break;
 	}
 	return false;
 }
 
+bool
+xfs_scrub_btree_process_error(
+	struct xfs_scrub_context	*sc,
+	struct xfs_btree_cur		*cur,
+	int				level,
+	int				*error)
+{
+	return __xfs_scrub_btree_process_error(sc, cur, level, error,
+			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
+}
+
+bool
+xfs_scrub_btree_xref_process_error(
+	struct xfs_scrub_context	*sc,
+	struct xfs_btree_cur		*cur,
+	int				level,
+	int				*error)
+{
+	return __xfs_scrub_btree_process_error(sc, cur, level, error,
+			XFS_SCRUB_OFLAG_XFAIL, __return_address);
+}
+
 /* Record btree block corruption. */
+static void
+__xfs_scrub_btree_set_corrupt(
+	struct xfs_scrub_context	*sc,
+	struct xfs_btree_cur		*cur,
+	int				level,
+	__u32				errflag,
+	void				*ret_ip)
+{
+	sc->sm->sm_flags |= errflag;
+
+	if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
+		trace_xfs_scrub_ifork_btree_error(sc, cur, level,
+				ret_ip);
+	else
+		trace_xfs_scrub_btree_error(sc, cur, level,
+				ret_ip);
+}
+
 void
 xfs_scrub_btree_set_corrupt(
 	struct xfs_scrub_context	*sc,
 	struct xfs_btree_cur		*cur,
 	int				level)
 {
-	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+	__xfs_scrub_btree_set_corrupt(sc, cur, level, XFS_SCRUB_OFLAG_CORRUPT,
+			__return_address);
+}
 
-	if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
-		trace_xfs_scrub_ifork_btree_error(sc, cur, level,
-				__return_address);
-	else
-		trace_xfs_scrub_btree_error(sc, cur, level,
-				__return_address);
+void
+xfs_scrub_btree_xref_set_corrupt(
+	struct xfs_scrub_context	*sc,
+	struct xfs_btree_cur		*cur,
+	int				level)
+{
+	__xfs_scrub_btree_set_corrupt(sc, cur, level, XFS_SCRUB_OFLAG_XCORRUPT,
+			__return_address);
 }
 
 /*

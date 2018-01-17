@@ -491,6 +491,28 @@ DEFINE_EVENT(xfs_scrub_sbtree_class, name, \
 DEFINE_SCRUB_SBTREE_EVENT(xfs_scrub_btree_rec);
 DEFINE_SCRUB_SBTREE_EVENT(xfs_scrub_btree_key);
 
+TRACE_EVENT(xfs_scrub_xref_error,
+	TP_PROTO(struct xfs_scrub_context *sc, int error, void *ret_ip),
+	TP_ARGS(sc, error, ret_ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(int, type)
+		__field(int, error)
+		__field(void *, ret_ip)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->type = sc->sm->sm_type;
+		__entry->error = error;
+		__entry->ret_ip = ret_ip;
+	),
+	TP_printk("dev %d:%d type %u xref error %d ret_ip %pF",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->type,
+		  __entry->error,
+		  __entry->ret_ip)
+);
+
 #endif /* _TRACE_XFS_SCRUB_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH

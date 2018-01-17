@@ -110,6 +110,16 @@
  * structure itself is corrupt, the CORRUPT flag will be set.  If
  * the metadata is correct but otherwise suboptimal, the PREEN flag
  * will be set.
+ *
+ * We perform secondary validation of filesystem metadata by
+ * cross-referencing every record with all other available metadata.
+ * For example, for block mapping extents, we verify that there are no
+ * records in the free space and inode btrees corresponding to that
+ * space extent and that there is a corresponding entry in the reverse
+ * mapping btree.  Inconsistent metadata is noted by setting the
+ * XCORRUPT flag; btree query function errors are noted by setting the
+ * XFAIL flag and deleting the cursor to prevent further attempts to
+ * cross-reference with a defective btree.
  */
 
 /*

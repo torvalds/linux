@@ -56,6 +56,11 @@ bool xfs_scrub_process_error(struct xfs_scrub_context *sc, xfs_agnumber_t agno,
 bool xfs_scrub_fblock_process_error(struct xfs_scrub_context *sc, int whichfork,
 		xfs_fileoff_t offset, int *error);
 
+bool xfs_scrub_xref_process_error(struct xfs_scrub_context *sc,
+		xfs_agnumber_t agno, xfs_agblock_t bno, int *error);
+bool xfs_scrub_fblock_xref_process_error(struct xfs_scrub_context *sc,
+		int whichfork, xfs_fileoff_t offset, int *error);
+
 void xfs_scrub_block_set_preen(struct xfs_scrub_context *sc,
 		struct xfs_buf *bp);
 void xfs_scrub_ino_set_preen(struct xfs_scrub_context *sc, xfs_ino_t ino,
@@ -68,6 +73,13 @@ void xfs_scrub_ino_set_corrupt(struct xfs_scrub_context *sc, xfs_ino_t ino,
 void xfs_scrub_fblock_set_corrupt(struct xfs_scrub_context *sc, int whichfork,
 		xfs_fileoff_t offset);
 
+void xfs_scrub_block_xref_set_corrupt(struct xfs_scrub_context *sc,
+		struct xfs_buf *bp);
+void xfs_scrub_ino_xref_set_corrupt(struct xfs_scrub_context *sc, xfs_ino_t ino,
+		struct xfs_buf *bp);
+void xfs_scrub_fblock_xref_set_corrupt(struct xfs_scrub_context *sc,
+		int whichfork, xfs_fileoff_t offset);
+
 void xfs_scrub_ino_set_warning(struct xfs_scrub_context *sc, xfs_ino_t ino,
 		struct xfs_buf *bp);
 void xfs_scrub_fblock_set_warning(struct xfs_scrub_context *sc, int whichfork,
@@ -75,6 +87,10 @@ void xfs_scrub_fblock_set_warning(struct xfs_scrub_context *sc, int whichfork,
 
 void xfs_scrub_set_incomplete(struct xfs_scrub_context *sc);
 int xfs_scrub_checkpoint_log(struct xfs_mount *mp);
+
+/* Are we set up for a cross-referencing check? */
+bool xfs_scrub_should_check_xref(struct xfs_scrub_context *sc, int *error,
+			   struct xfs_btree_cur **curpp);
 
 /* Setup functions */
 int xfs_scrub_setup_fs(struct xfs_scrub_context *sc, struct xfs_inode *ip);
