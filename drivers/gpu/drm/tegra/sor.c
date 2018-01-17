@@ -3048,6 +3048,7 @@ static int tegra_sor_probe(struct platform_device *pdev)
 			goto remove;
 		}
 	} else {
+		/* fall back to the module clock on SOR0 (eDP/LVDS only) */
 		sor->clk_out = sor->clk;
 	}
 

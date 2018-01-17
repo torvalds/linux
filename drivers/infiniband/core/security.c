@@ -386,6 +386,9 @@ int ib_open_shared_qp_security(struct ib_qp *qp, struct ib_device *dev)
 	if (ret)
 		return ret;
 
+	if (!qp->qp_sec)
+		return 0;
+
 	mutex_lock(&real_qp->qp_sec->mutex);
 	ret = check_qp_port_pkey_settings(real_qp->qp_sec->ports_pkeys,
 					  qp->qp_sec);

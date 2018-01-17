@@ -1338,6 +1338,11 @@ static int glk_init_workarounds(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
+	/* WA #0862: Userspace has to set "Barrier Mode" to avoid hangs. */
+	ret = wa_ring_whitelist_reg(engine, GEN9_SLICE_COMMON_ECO_CHICKEN1);
+	if (ret)
+		return ret;
+
 	/* WaToEnableHwFixForPushConstHWBug:glk */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);

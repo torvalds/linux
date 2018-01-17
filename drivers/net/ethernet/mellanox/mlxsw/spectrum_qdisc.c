@@ -46,7 +46,8 @@ mlxsw_sp_tclass_congestion_enable(struct mlxsw_sp_port *mlxsw_sp_port,
 				  int tclass_num, u32 min, u32 max,
 				  u32 probability, bool is_ecn)
 {
-	char cwtp_cmd[max_t(u8, MLXSW_REG_CWTP_LEN, MLXSW_REG_CWTPM_LEN)];
+	char cwtpm_cmd[MLXSW_REG_CWTPM_LEN];
+	char cwtp_cmd[MLXSW_REG_CWTP_LEN];
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	int err;
 
@@ -60,10 +61,10 @@ mlxsw_sp_tclass_congestion_enable(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		return err;
 
-	mlxsw_reg_cwtpm_pack(cwtp_cmd, mlxsw_sp_port->local_port, tclass_num,
+	mlxsw_reg_cwtpm_pack(cwtpm_cmd, mlxsw_sp_port->local_port, tclass_num,
 			     MLXSW_REG_CWTP_DEFAULT_PROFILE, true, is_ecn);
 
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(cwtpm), cwtp_cmd);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(cwtpm), cwtpm_cmd);
 }
 
 static int

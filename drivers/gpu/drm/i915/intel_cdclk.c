@@ -931,15 +931,9 @@ static void skl_set_preferred_cdclk_vco(struct drm_i915_private *dev_priv,
 
 static void skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 {
-	int min_cdclk = skl_calc_cdclk(0, vco);
 	u32 val;
 
 	WARN_ON(vco != 8100000 && vco != 8640000);
-
-	/* select the minimum CDCLK before enabling DPLL 0 */
-	val = CDCLK_FREQ_337_308 | skl_cdclk_decimal(min_cdclk);
-	I915_WRITE(CDCLK_CTL, val);
-	POSTING_READ(CDCLK_CTL);
 
 	/*
 	 * We always enable DPLL0 with the lowest link rate possible, but still
@@ -994,7 +988,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 {
 	int cdclk = cdclk_state->cdclk;
 	int vco = cdclk_state->vco;
-	u32 freq_select;
+	u32 freq_select, cdclk_ctl;
 	int ret;
 
 	mutex_lock(&dev_priv->pcu_lock);
@@ -1009,7 +1003,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	/* set CDCLK_CTL */
+	/* Choose frequency for this cdclk */
 	switch (cdclk) {
 	default:
 		WARN_ON(cdclk != dev_priv->cdclk.hw.ref);
@@ -1036,10 +1030,33 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	    dev_priv->cdclk.hw.vco != vco)
 		skl_dpll0_disable(dev_priv);
 
+	cdclk_ctl = I915_READ(CDCLK_CTL);
+
+	if (dev_priv->cdclk.hw.vco != vco) {
+		/* Wa Display #1183: skl,kbl,cfl */
+		cdclk_ctl &= ~(CDCLK_FREQ_SEL_MASK | CDCLK_FREQ_DECIMAL_MASK);
+		cdclk_ctl |= freq_select | skl_cdclk_decimal(cdclk);
+		I915_WRITE(CDCLK_CTL, cdclk_ctl);
+	}
+
+	/* Wa Display #1183: skl,kbl,cfl */
+	cdclk_ctl |= CDCLK_DIVMUX_CD_OVERRIDE;
+	I915_WRITE(CDCLK_CTL, cdclk_ctl);
+	POSTING_READ(CDCLK_CTL);
+
 	if (dev_priv->cdclk.hw.vco != vco)
 		skl_dpll0_enable(dev_priv, vco);
 
-	I915_WRITE(CDCLK_CTL, freq_select | skl_cdclk_decimal(cdclk));
+	/* Wa Display #1183: skl,kbl,cfl */
+	cdclk_ctl &= ~(CDCLK_FREQ_SEL_MASK | CDCLK_FREQ_DECIMAL_MASK);
+	I915_WRITE(CDCLK_CTL, cdclk_ctl);
+
+	cdclk_ctl |= freq_select | skl_cdclk_decimal(cdclk);
+	I915_WRITE(CDCLK_CTL, cdclk_ctl);
+
+	/* Wa Display #1183: skl,kbl,cfl */
+	cdclk_ctl &= ~CDCLK_DIVMUX_CD_OVERRIDE;
+	I915_WRITE(CDCLK_CTL, cdclk_ctl);
 	POSTING_READ(CDCLK_CTL);
 
 	/* inform PCU of the change */

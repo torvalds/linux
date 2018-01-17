@@ -1002,6 +1002,9 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 
 	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
 
+	if (i915_gem_request_completed(request))
+		return;
+
 	if (prio <= READ_ONCE(request->priotree.priority))
 		return;
 

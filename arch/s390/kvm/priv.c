@@ -1006,7 +1006,7 @@ static inline int do_essa(struct kvm_vcpu *vcpu, const int orc)
 		cbrlo[entries] = gfn << PAGE_SHIFT;
 	}
 
-	if (orc) {
+	if (orc && gfn < ms->bitmap_size) {
 		/* increment only if we are really flipping the bit to 1 */
 		if (!test_and_set_bit(gfn, ms->pgste_bitmap))
 			atomic64_inc(&ms->dirty_pages);

@@ -1681,18 +1681,18 @@ static bool link_dump_filtered(struct net_device *dev,
 	return false;
 }
 
-static struct net *get_target_net(struct sk_buff *skb, int netnsid)
+static struct net *get_target_net(struct sock *sk, int netnsid)
 {
 	struct net *net;
 
-	net = get_net_ns_by_id(sock_net(skb->sk), netnsid);
+	net = get_net_ns_by_id(sock_net(sk), netnsid);
 	if (!net)
 		return ERR_PTR(-EINVAL);
 
 	/* For now, the caller is required to have CAP_NET_ADMIN in
 	 * the user namespace owning the target net ns.
 	 */
-	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN)) {
+	if (!sk_ns_capable(sk, net->user_ns, CAP_NET_ADMIN)) {
 		put_net(net);
 		return ERR_PTR(-EACCES);
 	}
@@ -1733,7 +1733,7 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 			ifla_policy, NULL) >= 0) {
 		if (tb[IFLA_IF_NETNSID]) {
 			netnsid = nla_get_s32(tb[IFLA_IF_NETNSID]);
-			tgt_net = get_target_net(skb, netnsid);
+			tgt_net = get_target_net(skb->sk, netnsid);
 			if (IS_ERR(tgt_net)) {
 				tgt_net = net;
 				netnsid = -1;
@@ -2883,7 +2883,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (tb[IFLA_IF_NETNSID]) {
 		netnsid = nla_get_s32(tb[IFLA_IF_NETNSID]);
-		tgt_net = get_target_net(skb, netnsid);
+		tgt_net = get_target_net(NETLINK_CB(skb).sk, netnsid);
 		if (IS_ERR(tgt_net))
 			return PTR_ERR(tgt_net);
 	}
