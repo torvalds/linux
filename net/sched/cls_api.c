@@ -122,8 +122,7 @@ static inline u32 tcf_auto_prio(struct tcf_proto *tp)
 }
 
 static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
-					  u32 prio, u32 parent, struct Qdisc *q,
-					  struct tcf_chain *chain)
+					  u32 prio, struct tcf_chain *chain)
 {
 	struct tcf_proto *tp;
 	int err;
@@ -157,8 +156,6 @@ static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
 	tp->classify = tp->ops->classify;
 	tp->protocol = protocol;
 	tp->prio = prio;
-	tp->classid = parent;
-	tp->q = q;
 	tp->chain = chain;
 
 	err = tp->ops->init(tp);
@@ -1069,7 +1066,7 @@ replay:
 			prio = tcf_auto_prio(tcf_chain_tp_prev(&chain_info));
 
 		tp = tcf_proto_create(nla_data(tca[TCA_KIND]),
-				      protocol, prio, parent, q, chain);
+				      protocol, prio, chain);
 		if (IS_ERR(tp)) {
 			err = PTR_ERR(tp);
 			goto errout;
