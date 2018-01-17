@@ -36,6 +36,7 @@
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2466,6 +2467,15 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	}
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (mvmsta->tid_data[tid].txq_id == IWL_MVM_INVALID_QUEUE &&
+	    iwl_mvm_has_new_tx_api(mvm)) {
+		u8 ac = tid_to_mac80211_ac[tid];
+
+		ret = iwl_mvm_sta_alloc_queue_tvqm(mvm, sta, ac, tid);
+		if (ret)
+			return ret;
+	}
 
 	spin_lock_bh(&mvmsta->lock);
 
