@@ -1391,57 +1391,6 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 		mxc_do_addr_cycle(mtd, column, page_addr);
 		break;
 
-	case NAND_CMD_READ0:
-	case NAND_CMD_READOOB:
-		if (command == NAND_CMD_READ0)
-			host->buf_start = column;
-		else
-			host->buf_start = column + mtd->writesize;
-
-		command = NAND_CMD_READ0; /* only READ0 is valid */
-
-		host->devtype_data->send_cmd(host, command, false);
-		WARN_ONCE(column < 0,
-			  "Unexpected column/row value (cmd=%u, col=%d, row=%d)\n",
-			  command, column, page_addr);
-		mxc_do_addr_cycle(mtd, 0, page_addr);
-
-		if (mtd->writesize > 512)
-			host->devtype_data->send_cmd(host,
-					NAND_CMD_READSTART, true);
-
-		host->devtype_data->send_page(mtd, NFC_OUTPUT);
-
-		memcpy32_fromio(host->data_buf, host->main_area0,
-				mtd->writesize);
-		copy_spare(mtd, true, host->data_buf + mtd->writesize);
-		break;
-
-	case NAND_CMD_SEQIN:
-		if (column >= mtd->writesize)
-			/* call ourself to read a page */
-			mxc_nand_command(mtd, NAND_CMD_READ0, 0, page_addr);
-
-		host->buf_start = column;
-
-		host->devtype_data->send_cmd(host, command, false);
-		WARN_ONCE(column < -1,
-			  "Unexpected column/row value (cmd=%u, col=%d, row=%d)\n",
-			  command, column, page_addr);
-		mxc_do_addr_cycle(mtd, 0, page_addr);
-		break;
-
-	case NAND_CMD_PAGEPROG:
-		memcpy32_toio(host->main_area0, host->data_buf, mtd->writesize);
-		copy_spare(mtd, false, host->data_buf + mtd->writesize);
-		host->devtype_data->send_page(mtd, NFC_INPUT);
-		host->devtype_data->send_cmd(host, command, true);
-		WARN_ONCE(column != -1 || page_addr != -1,
-			  "Unexpected column/row value (cmd=%u, col=%d, row=%d)\n",
-			  command, column, page_addr);
-		mxc_do_addr_cycle(mtd, column, page_addr);
-		break;
-
 	case NAND_CMD_READID:
 		host->devtype_data->send_cmd(host, command, true);
 		mxc_do_addr_cycle(mtd, column, page_addr);
