@@ -621,15 +621,21 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host, unsigned int stat)
 	 */
 	if (host->data && (!cmd->error || cmd->error == -EILSEQ)) {
 		if (host->data->flags & MMC_DATA_READ) {
-			if (host->force_pio || !host->chan_rx)
+			if (host->force_pio || !host->chan_rx) {
 				tmio_mmc_enable_mmc_irqs(host, TMIO_MASK_READOP);
-			else
+			} else {
+				tmio_mmc_disable_mmc_irqs(host,
+							  TMIO_MASK_READOP);
 				tasklet_schedule(&host->dma_issue);
+			}
 		} else {
-			if (host->force_pio || !host->chan_tx)
+			if (host->force_pio || !host->chan_tx) {
 				tmio_mmc_enable_mmc_irqs(host, TMIO_MASK_WRITEOP);
-			else
+			} else {
+				tmio_mmc_disable_mmc_irqs(host,
+							  TMIO_MASK_WRITEOP);
 				tasklet_schedule(&host->dma_issue);
+			}
 		}
 	} else {
 		schedule_work(&host->done);
@@ -1272,12 +1278,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 
 	_host->sdcard_irq_mask = sd_ctrl_read16_and_16_as_32(_host, CTL_IRQ_MASK);
 	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
-
-	/* Unmask the IRQs we want to know about */
-	if (!_host->chan_rx)
-		irq_mask |= TMIO_MASK_READOP;
-	if (!_host->chan_tx)
-		irq_mask |= TMIO_MASK_WRITEOP;
 
 	_host->sdcard_irq_mask &= ~irq_mask;
 

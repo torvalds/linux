@@ -205,8 +205,6 @@ static void renesas_sdhi_sys_dmac_start_dma_rx(struct tmio_mmc_host *host)
 		return;
 	}
 
-	tmio_mmc_disable_mmc_irqs(host, TMIO_STAT_RXRDY);
-
 	/* The only sg element can be unaligned, use our bounce buffer then */
 	if (!aligned) {
 		sg_init_one(&host->bounce_sg, host->bounce_buf, sg->length);
@@ -279,8 +277,6 @@ static void renesas_sdhi_sys_dmac_start_dma_tx(struct tmio_mmc_host *host)
 		host->force_pio = true;
 		return;
 	}
-
-	tmio_mmc_disable_mmc_irqs(host, TMIO_STAT_TXRQ);
 
 	/* The only sg element can be unaligned, use our bounce buffer then */
 	if (!aligned) {
