@@ -512,8 +512,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	}
 
 	host = tmio_mmc_host_alloc(pdev);
-	if (!host)
-		return -ENOMEM;
+	if (IS_ERR(host))
+		return PTR_ERR(host);
 
 	if (of_data) {
 		mmc_data->flags |= of_data->tmio_flags;

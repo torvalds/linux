@@ -1150,12 +1150,20 @@ tmio_mmc_host_alloc(struct platform_device *pdev)
 {
 	struct tmio_mmc_host *host;
 	struct mmc_host *mmc;
+	struct resource *res;
+	void __iomem *ctl;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ctl = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ctl))
+		return ERR_CAST(ctl);
 
 	mmc = mmc_alloc_host(sizeof(struct tmio_mmc_host), &pdev->dev);
 	if (!mmc)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	host = mmc_priv(mmc);
+	host->ctl = ctl;
 	host->mmc = mmc;
 	host->pdev = pdev;
 	host->ops = tmio_mmc_ops;
@@ -1177,7 +1185,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 {
 	struct platform_device *pdev = _host->pdev;
 	struct mmc_host *mmc = _host->mmc;
-	struct resource *res_ctl;
 	int ret;
 	u32 irq_mask = TMIO_MASK_CMD;
 
@@ -1185,11 +1192,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 
 	if (!(pdata->flags & TMIO_MMC_HAS_IDLE_WAIT))
 		_host->write16_hook = NULL;
-
-	res_ctl = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	_host->ctl = devm_ioremap_resource(&pdev->dev, res_ctl);
-	if (IS_ERR(_host->ctl))
-		return PTR_ERR(_host->ctl);
 
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
