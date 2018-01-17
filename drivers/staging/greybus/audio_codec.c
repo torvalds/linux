@@ -47,7 +47,7 @@ static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
 	int module_state, ret = 0;
 	u16 data_cport, i2s_port, cportid;
 	u8 sig_bits, channels;
-	uint32_t format, rate;
+	u32 format, rate;
 	struct gbaudio_data_connection *data;
 	struct gbaudio_stream_params *params;
 
@@ -182,7 +182,7 @@ static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
 	int module_state, ret = 0;
 	u16 data_cport, i2s_port, cportid;
 	u8 sig_bits, channels;
-	uint32_t format, rate;
+	u32 format, rate;
 	struct gbaudio_data_connection *data;
 	struct gbaudio_stream_params *params;
 
@@ -412,7 +412,7 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 {
 	int ret;
 	u8 sig_bits, channels;
-	uint32_t format, rate;
+	u32 format, rate;
 	struct gbaudio_module_info *module;
 	struct gbaudio_data_connection *data;
 	struct gb_bundle *bundle;
