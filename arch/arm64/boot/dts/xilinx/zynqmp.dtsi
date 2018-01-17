@@ -439,10 +439,10 @@
 			device_type = "pci";
 			interrupt-parent = <&gic>;
 			interrupts = <0 118 4>,
-				    <0 117 4>,
-				    <0 116 4>,
-				    <0 115 4>,	/* MSI_1 [63...32] */
-				    <0 114 4>;	/* MSI_0 [31...0] */
+				     <0 117 4>,
+				     <0 116 4>,
+				     <0 115 4>,	/* MSI_1 [63...32] */
+				     <0 114 4>;	/* MSI_0 [31...0] */
 			interrupt-names = "misc", "dummy", "intx",
 					  "msi1", "msi0";
 			msi-parent = <&pcie>;

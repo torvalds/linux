@@ -47,7 +47,7 @@
 	status = "okay";
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
-	phy0: phy@0{
+	phy0: phy@0 {
 		reg = <0>;
 		max-speed = <100>;
 	};
