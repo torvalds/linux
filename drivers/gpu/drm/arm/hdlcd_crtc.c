@@ -334,10 +334,8 @@ int hdlcd_setup_crtc(struct drm_device *drm)
 
 	ret = drm_crtc_init_with_planes(drm, &hdlcd->crtc, primary, NULL,
 					&hdlcd_crtc_funcs, NULL);
-	if (ret) {
-		hdlcd_plane_destroy(primary);
+	if (ret)
 		return ret;
-	}
 
 	drm_crtc_helper_add(&hdlcd->crtc, &hdlcd_crtc_helper_funcs);
 	return 0;
