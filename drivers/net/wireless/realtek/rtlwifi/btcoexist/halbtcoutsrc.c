@@ -207,6 +207,102 @@ u8 rtl_get_hwpg_package_type(struct rtl_priv *rtlpriv)
 	return rtlhal->package_type;
 }
 
+static
+bool halbtc_is_hw_mailbox_exist(struct btc_coexist *btcoexist)
+{
+	if (IS_HARDWARE_TYPE_8812(btcoexist->adapter))
+		return false;
+	else
+		return true;
+}
+
+static
+bool halbtc_send_bt_mp_operation(struct btc_coexist *btcoexist, u8 op_code,
+				 u8 *cmd, u32 len, unsigned long wait_ms)
+{
+	struct rtl_priv *rtlpriv;
+	const u8 oper_ver = 0;
+	u8 req_num;
+
+	if (!halbtc_is_hw_mailbox_exist(btcoexist))
+		return false;
+
+	if (wait_ms)	/* before h2c to avoid race condition */
+		reinit_completion(&btcoexist->bt_mp_comp);
+
+	rtlpriv = btcoexist->adapter;
+
+	/* fill req_num by op_code, and rtl_btc_btmpinfo_notify() use it
+	 * to know message type
+	 */
+	switch (op_code) {
+	case BT_OP_GET_BT_VERSION:
+		req_num = BT_SEQ_GET_BT_VERSION;
+		break;
+	case BT_OP_GET_AFH_MAP_L:
+		req_num = BT_SEQ_GET_AFH_MAP_L;
+		break;
+	case BT_OP_GET_AFH_MAP_M:
+		req_num = BT_SEQ_GET_AFH_MAP_M;
+		break;
+	case BT_OP_GET_AFH_MAP_H:
+		req_num = BT_SEQ_GET_AFH_MAP_H;
+		break;
+	case BT_OP_GET_BT_COEX_SUPPORTED_FEATURE:
+		req_num = BT_SEQ_GET_BT_COEX_SUPPORTED_FEATURE;
+		break;
+	case BT_OP_GET_BT_COEX_SUPPORTED_VERSION:
+		req_num = BT_SEQ_GET_BT_COEX_SUPPORTED_VERSION;
+		break;
+	case BT_OP_GET_BT_ANT_DET_VAL:
+		req_num = BT_SEQ_GET_BT_ANT_DET_VAL;
+		break;
+	case BT_OP_GET_BT_BLE_SCAN_PARA:
+		req_num = BT_SEQ_GET_BT_BLE_SCAN_PARA;
+		break;
+	case BT_OP_GET_BT_BLE_SCAN_TYPE:
+		req_num = BT_SEQ_GET_BT_BLE_SCAN_TYPE;
+		break;
+	case BT_OP_GET_BT_DEVICE_INFO:
+		req_num = BT_SEQ_GET_BT_DEVICE_INFO;
+		break;
+	case BT_OP_GET_BT_FORBIDDEN_SLOT_VAL:
+		req_num = BT_SEQ_GET_BT_FORB_SLOT_VAL;
+		break;
+	case BT_OP_WRITE_REG_ADDR:
+	case BT_OP_WRITE_REG_VALUE:
+	case BT_OP_READ_REG:
+	default:
+		req_num = BT_SEQ_DONT_CARE;
+		break;
+	}
+
+	cmd[0] |= (oper_ver & 0x0f);		/* Set OperVer */
+	cmd[0] |= ((req_num << 4) & 0xf0);	/* Set ReqNum */
+	cmd[1] = op_code;
+	rtlpriv->cfg->ops->fill_h2c_cmd(rtlpriv->mac80211.hw, 0x67, len, cmd);
+
+	/* wait? */
+	if (!wait_ms)
+		return true;
+
+	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		 "btmpinfo wait req_num=%d wait=%ld\n", req_num, wait_ms);
+
+	if (in_interrupt())
+		return false;
+
+	if (wait_for_completion_timeout(&btcoexist->bt_mp_comp,
+					msecs_to_jiffies(wait_ms)) == 0) {
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
+			 "btmpinfo wait (req_num=%d) timeout\n", req_num);
+
+		return false;	/* timeout */
+	}
+
+	return true;
+}
+
 static void halbtc_leave_lps(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv;
@@ -334,22 +430,77 @@ static void halbtc_aggregation_check(struct btc_coexist *btcoexist)
 
 static u32 halbtc_get_bt_patch_version(struct btc_coexist *btcoexist)
 {
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	u8 cmd_buffer[4] = {0};
-	u8 oper_ver = 0;
-	u8 req_num = 0x0E;
 
 	if (btcoexist->bt_info.bt_real_fw_ver)
 		goto label_done;
 
-	cmd_buffer[0] |= (oper_ver & 0x0f);	/* Set OperVer */
-	cmd_buffer[0] |= ((req_num << 4) & 0xf0);	/* Set ReqNum */
-	cmd_buffer[1] = 0; /* BT_OP_GET_BT_VERSION = 0 */
-	rtlpriv->cfg->ops->fill_h2c_cmd(rtlpriv->mac80211.hw, 0x67, 4,
-					&cmd_buffer[0]);
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	halbtc_send_bt_mp_operation(btcoexist, BT_OP_GET_BT_VERSION,
+				    cmd_buffer, 4, 200);
 
 label_done:
 	return btcoexist->bt_info.bt_real_fw_ver;
+}
+
+static u32 halbtc_get_bt_coex_supported_feature(void *btc_context)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
+	u8 cmd_buffer[4] = {0};
+
+	if (btcoexist->bt_info.bt_supported_feature)
+		goto label_done;
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	halbtc_send_bt_mp_operation(btcoexist,
+				    BT_OP_GET_BT_COEX_SUPPORTED_FEATURE,
+				    cmd_buffer, 4, 200);
+
+label_done:
+	return btcoexist->bt_info.bt_supported_feature;
+}
+
+static u32 halbtc_get_bt_coex_supported_version(void *btc_context)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
+	u8 cmd_buffer[4] = {0};
+
+	if (btcoexist->bt_info.bt_supported_version)
+		goto label_done;
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	halbtc_send_bt_mp_operation(btcoexist,
+				    BT_OP_GET_BT_COEX_SUPPORTED_VERSION,
+				    cmd_buffer, 4, 200);
+
+label_done:
+	return btcoexist->bt_info.bt_supported_version;
+}
+
+static u32 halbtc_get_bt_device_info(void *btc_context)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
+	u8 cmd_buffer[4] = {0};
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	halbtc_send_bt_mp_operation(btcoexist,
+				    BT_OP_GET_BT_DEVICE_INFO,
+				    cmd_buffer, 4, 200);
+
+	return btcoexist->bt_info.bt_device_info;
+}
+
+static u32 halbtc_get_bt_forbidden_slot_val(void *btc_context)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
+	u8 cmd_buffer[4] = {0};
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	halbtc_send_bt_mp_operation(btcoexist,
+				    BT_OP_GET_BT_FORBIDDEN_SLOT_VAL,
+				    cmd_buffer, 4, 200);
+
+	return btcoexist->bt_info.bt_forb_slot_val;
 }
 
 u32 halbtc_get_wifi_link_status(struct btc_coexist *btcoexist)
@@ -512,6 +663,18 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 		break;
 	case BTC_GET_U4_VENDOR:
 		*u32_tmp = BTC_VENDOR_OTHER;
+		break;
+	case BTC_GET_U4_SUPPORTED_VERSION:
+		*u32_tmp = halbtc_get_bt_coex_supported_version(btcoexist);
+		break;
+	case BTC_GET_U4_SUPPORTED_FEATURE:
+		*u32_tmp = halbtc_get_bt_coex_supported_feature(btcoexist);
+		break;
+	case BTC_GET_U4_BT_DEVICE_INFO:
+		*u32_tmp = halbtc_get_bt_device_info(btcoexist);
+		break;
+	case BTC_GET_U4_BT_FORBIDDEN_SLOT_VAL:
+		*u32_tmp = halbtc_get_bt_forbidden_slot_val(btcoexist);
 		break;
 	case BTC_GET_U1_WIFI_DOT11_CHNL:
 		*u8_tmp = rtlphy->current_channel;
@@ -893,32 +1056,20 @@ static void halbtc_fill_h2c_cmd(void *bt_context, u8 element_id,
 void halbtc_set_bt_reg(void *btc_context, u8 reg_type, u32 offset, u32 set_val)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	u8 cmd_buffer1[4] = {0};
 	u8 cmd_buffer2[4] = {0};
-	u8 *addr_to_set = (u8 *)&offset;
-	u8 *value_to_set = (u8 *)&set_val;
-	u8 oper_ver = 0;
-	u8 req_num = 0;
 
-	if (IS_HARDWARE_TYPE_8723B(btcoexist->adapter)) {
-		cmd_buffer1[0] |= (oper_ver & 0x0f);	/* Set OperVer */
-		cmd_buffer1[0] |= ((req_num << 4) & 0xf0);	/* Set ReqNum */
-		cmd_buffer1[1] = 0x0d;	/* OpCode: BT_LO_OP_WRITE_REG_VALUE */
-		cmd_buffer1[2] = value_to_set[0];	/* Set WriteRegValue */
-		rtlpriv->cfg->ops->fill_h2c_cmd(rtlpriv->mac80211.hw, 0x67, 4,
-						&cmd_buffer1[0]);
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	*((__le16 *)&cmd_buffer1[2]) = cpu_to_le16((u16)set_val);
+	if (!halbtc_send_bt_mp_operation(btcoexist, BT_OP_WRITE_REG_VALUE,
+					 cmd_buffer1, 4, 200))
+		return;
 
-		msleep(200);
-		req_num++;
-
-		cmd_buffer2[0] |= (oper_ver & 0x0f);	/* Set OperVer */
-		cmd_buffer2[0] |= ((req_num << 4) & 0xf0);	/* Set ReqNum */
-		cmd_buffer2[1] = 0x0c;	/* OpCode: BT_LO_OP_WRITE_REG_ADDR */
-		cmd_buffer2[3] = addr_to_set[0];	/* Set WriteRegAddr */
-		rtlpriv->cfg->ops->fill_h2c_cmd(rtlpriv->mac80211.hw, 0x67, 4,
-						&cmd_buffer2[0]);
-	}
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	cmd_buffer2[2] = reg_type;
+	*((u8 *)&cmd_buffer2[3]) = (u8)offset;
+	halbtc_send_bt_mp_operation(btcoexist, BT_OP_WRITE_REG_ADDR,
+				    cmd_buffer2, 4, 200);
 }
 
 static void halbtc_display_dbg_msg(void *bt_context, u8 disp_type,
@@ -959,6 +1110,86 @@ bool halbtc_under_ips(struct btc_coexist *btcoexist)
 	return false;
 }
 
+static u8 halbtc_get_ant_det_val_from_bt(void *btc_context)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
+	u8 cmd_buffer[4] = {0};
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	halbtc_send_bt_mp_operation(btcoexist, BT_OP_GET_BT_ANT_DET_VAL,
+				    cmd_buffer, 4, 200);
+
+	/* need wait completion to return correct value */
+
+	return btcoexist->bt_info.bt_ant_det_val;
+}
+
+static u8 halbtc_get_ble_scan_type_from_bt(void *btc_context)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
+	u8 cmd_buffer[4] = {0};
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	halbtc_send_bt_mp_operation(btcoexist, BT_OP_GET_BT_BLE_SCAN_TYPE,
+				    cmd_buffer, 4, 200);
+
+	/* need wait completion to return correct value */
+
+	return btcoexist->bt_info.bt_ble_scan_type;
+}
+
+static u32 halbtc_get_ble_scan_para_from_bt(void *btc_context, u8 scan_type)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
+	u8 cmd_buffer[4] = {0};
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	halbtc_send_bt_mp_operation(btcoexist, BT_OP_GET_BT_BLE_SCAN_PARA,
+				    cmd_buffer, 4, 200);
+
+	/* need wait completion to return correct value */
+
+	return btcoexist->bt_info.bt_ble_scan_para;
+}
+
+static bool halbtc_get_bt_afh_map_from_bt(void *btc_context, u8 map_type,
+					  u8 *afh_map)
+{
+	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
+	u8 cmd_buffer[2] = {0};
+	bool ret;
+	u32 *afh_map_l = (u32 *)afh_map;
+	u32 *afh_map_m = (u32 *)(afh_map + 4);
+	u16 *afh_map_h = (u16 *)(afh_map + 8);
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	ret = halbtc_send_bt_mp_operation(btcoexist, BT_OP_GET_AFH_MAP_L,
+					  cmd_buffer, 2, 200);
+	if (!ret)
+		goto exit;
+
+	*afh_map_l = btcoexist->bt_info.afh_map_l;
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	ret = halbtc_send_bt_mp_operation(btcoexist, BT_OP_GET_AFH_MAP_M,
+					  cmd_buffer, 2, 200);
+	if (!ret)
+		goto exit;
+
+	*afh_map_m = btcoexist->bt_info.afh_map_m;
+
+	/* cmd_buffer[0] and [1] is filled by halbtc_send_bt_mp_operation() */
+	ret = halbtc_send_bt_mp_operation(btcoexist, BT_OP_GET_AFH_MAP_H,
+					  cmd_buffer, 2, 200);
+	if (!ret)
+		goto exit;
+
+	*afh_map_h = btcoexist->bt_info.afh_map_h;
+
+exit:
+	return ret;
+}
+
 /*****************************************************************
  *         Extern functions called by other module
  *****************************************************************/
@@ -993,11 +1224,25 @@ bool exhalbtc_initlize_variables(struct rtl_priv *rtlpriv)
 	btcoexist->btc_set = halbtc_set;
 	btcoexist->btc_set_bt_reg = halbtc_set_bt_reg;
 
-
 	btcoexist->bt_info.bt_ctrl_buf_size = false;
 	btcoexist->bt_info.agg_buf_size = 5;
 
 	btcoexist->bt_info.increase_scan_dev_num = false;
+
+	btcoexist->btc_get_bt_coex_supported_feature =
+					halbtc_get_bt_coex_supported_feature;
+	btcoexist->btc_get_bt_coex_supported_version =
+					halbtc_get_bt_coex_supported_version;
+	btcoexist->btc_get_ant_det_val_from_bt = halbtc_get_ant_det_val_from_bt;
+	btcoexist->btc_get_ble_scan_type_from_bt =
+					halbtc_get_ble_scan_type_from_bt;
+	btcoexist->btc_get_ble_scan_para_from_bt =
+					halbtc_get_ble_scan_para_from_bt;
+	btcoexist->btc_get_bt_afh_map_from_bt =
+					halbtc_get_bt_afh_map_from_bt;
+
+	init_completion(&btcoexist->bt_mp_comp);
+
 	return true;
 }
 

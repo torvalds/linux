@@ -291,6 +291,7 @@ void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
 	u8 extid, seq, len;
 	u16 bt_real_fw_ver;
 	u8 bt_fw_ver;
+	u8 *data;
 
 	if (!btcoexist)
 		return;
@@ -305,15 +306,60 @@ void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
 
 	len = tmp_buf[1] >> 4;
 	seq = tmp_buf[2] >> 4;
+	data = &tmp_buf[3];
 
 	/* BT Firmware version response */
-	if (seq == 0x0E) {
+	switch (seq) {
+	case BT_SEQ_GET_BT_VERSION:
 		bt_real_fw_ver = tmp_buf[3] | (tmp_buf[4] << 8);
 		bt_fw_ver = tmp_buf[5];
 
 		btcoexist->bt_info.bt_real_fw_ver = bt_real_fw_ver;
 		btcoexist->bt_info.bt_fw_ver = bt_fw_ver;
+		break;
+	case BT_SEQ_GET_AFH_MAP_L:
+		btcoexist->bt_info.afh_map_l = le32_to_cpu(*(__le32 *)data);
+		break;
+	case BT_SEQ_GET_AFH_MAP_M:
+		btcoexist->bt_info.afh_map_m = le32_to_cpu(*(__le32 *)data);
+		break;
+	case BT_SEQ_GET_AFH_MAP_H:
+		btcoexist->bt_info.afh_map_h = le16_to_cpu(*(__le16 *)data);
+		break;
+	case BT_SEQ_GET_BT_COEX_SUPPORTED_FEATURE:
+		btcoexist->bt_info.bt_supported_feature = tmp_buf[3] |
+							  (tmp_buf[4] << 8);
+		break;
+	case BT_SEQ_GET_BT_COEX_SUPPORTED_VERSION:
+		btcoexist->bt_info.bt_supported_version = tmp_buf[3] |
+							  (tmp_buf[4] << 8);
+		break;
+	case BT_SEQ_GET_BT_ANT_DET_VAL:
+		btcoexist->bt_info.bt_ant_det_val = tmp_buf[3];
+		break;
+	case BT_SEQ_GET_BT_BLE_SCAN_PARA:
+		btcoexist->bt_info.bt_ble_scan_para = tmp_buf[3] |
+						      (tmp_buf[4] << 8) |
+						      (tmp_buf[5] << 16) |
+						      (tmp_buf[6] << 24);
+		break;
+	case BT_SEQ_GET_BT_BLE_SCAN_TYPE:
+		btcoexist->bt_info.bt_ble_scan_type = tmp_buf[3];
+		break;
+	case BT_SEQ_GET_BT_DEVICE_INFO:
+		btcoexist->bt_info.bt_device_info =
+						le32_to_cpu(*(__le32 *)data);
+		break;
+	case BT_OP_GET_BT_FORBIDDEN_SLOT_VAL:
+		btcoexist->bt_info.bt_forb_slot_val =
+						le32_to_cpu(*(__le32 *)data);
+		break;
 	}
+
+	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		 "btmpinfo complete req_num=%d\n", seq);
+
+	complete(&btcoexist->bt_mp_comp);
 }
 
 bool rtl_btc_is_limited_dig(struct rtl_priv *rtlpriv)
