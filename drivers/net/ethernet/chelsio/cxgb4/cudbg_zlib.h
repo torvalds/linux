@@ -18,10 +18,39 @@
 #ifndef __CUDBG_ZLIB_H__
 #define __CUDBG_ZLIB_H__
 
+#include <linux/zlib.h>
+
+#define CUDBG_ZLIB_COMPRESS_ID 17
+#define CUDBG_ZLIB_WIN_BITS 12
+#define CUDBG_ZLIB_MEM_LVL 4
+
+struct cudbg_compress_hdr {
+	u32 compress_id;
+	u64 decompress_size;
+	u64 compress_size;
+	u64 rsvd[32];
+};
+
+static inline int cudbg_get_workspace_size(void)
+{
+#ifdef CONFIG_ZLIB_DEFLATE
+	return zlib_deflate_workspacesize(CUDBG_ZLIB_WIN_BITS,
+					  CUDBG_ZLIB_MEM_LVL);
+#else
+	return 0;
+#endif /* CONFIG_ZLIB_DEFLATE */
+}
+
+#ifndef CONFIG_ZLIB_DEFLATE
 static inline int cudbg_compress_buff(struct cudbg_init *pdbg_init,
 				      struct cudbg_buffer *pin_buff,
 				      struct cudbg_buffer *pout_buff)
 {
 	return 0;
 }
+#else
+int cudbg_compress_buff(struct cudbg_init *pdbg_init,
+			struct cudbg_buffer *pin_buff,
+			struct cudbg_buffer *pout_buff);
+#endif /* CONFIG_ZLIB_DEFLATE */
 #endif /* __CUDBG_ZLIB_H__ */

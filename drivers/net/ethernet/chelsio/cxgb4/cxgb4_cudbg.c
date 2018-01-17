@@ -18,6 +18,7 @@
 #include "t4_regs.h"
 #include "cxgb4.h"
 #include "cxgb4_cudbg.h"
+#include "cudbg_zlib.h"
 
 static const struct cxgb4_collect_entity cxgb4_collect_mem_dump[] = {
 	{ CUDBG_EDC0, cudbg_collect_edc0_meminfo },
@@ -318,6 +319,7 @@ u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 {
 	u32 i, entity;
 	u32 len = 0;
+	u32 wsize;
 
 	if (flag & CXGB4_ETH_DUMP_HW) {
 		for (i = 0; i < ARRAY_SIZE(cxgb4_collect_hw_dump); i++) {
@@ -332,6 +334,11 @@ u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 			len += cxgb4_get_entity_length(adap, entity);
 		}
 	}
+
+	/* If compression is enabled, a smaller destination buffer is enough */
+	wsize = cudbg_get_workspace_size();
+	if (wsize && len > CUDBG_DUMP_BUFF_SIZE)
+		len = CUDBG_DUMP_BUFF_SIZE;
 
 	return len;
 }
@@ -374,6 +381,28 @@ static void cxgb4_cudbg_collect_entity(struct cudbg_init *pdbg_init,
 	*tot_size += total_size;
 }
 
+static int cudbg_alloc_compress_buff(struct cudbg_init *pdbg_init)
+{
+	u32 workspace_size;
+
+	workspace_size = cudbg_get_workspace_size();
+	pdbg_init->compress_buff = vzalloc(CUDBG_COMPRESS_BUFF_SIZE +
+					   workspace_size);
+	if (!pdbg_init->compress_buff)
+		return -ENOMEM;
+
+	pdbg_init->compress_buff_size = CUDBG_COMPRESS_BUFF_SIZE;
+	pdbg_init->workspace = (u8 *)pdbg_init->compress_buff +
+			       CUDBG_COMPRESS_BUFF_SIZE - workspace_size;
+	return 0;
+}
+
+static void cudbg_free_compress_buff(struct cudbg_init *pdbg_init)
+{
+	if (pdbg_init->compress_buff)
+		vfree(pdbg_init->compress_buff);
+}
+
 int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 			u32 flag)
 {
@@ -381,6 +410,7 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 	struct cudbg_buffer dbg_buff = { 0 };
 	u32 size, min_size, total_size = 0;
 	struct cudbg_hdr *cudbg_hdr;
+	int rc;
 
 	size = *buf_size;
 
@@ -400,8 +430,6 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 	cudbg_hdr->max_entities = CUDBG_MAX_ENTITY;
 	cudbg_hdr->chip_ver = adap->params.chip;
 	cudbg_hdr->dump_type = CUDBG_DUMP_TYPE_MINI;
-	cudbg_init.compress_type = CUDBG_COMPRESSION_NONE;
-	cudbg_hdr->compress_type = cudbg_init.compress_type;
 
 	min_size = sizeof(struct cudbg_hdr) +
 		   sizeof(struct cudbg_entity_hdr) *
@@ -409,6 +437,24 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 	if (size < min_size)
 		return -ENOMEM;
 
+	rc = cudbg_get_workspace_size();
+	if (rc) {
+		/* Zlib available.  So, use zlib deflate */
+		cudbg_init.compress_type = CUDBG_COMPRESSION_ZLIB;
+		rc = cudbg_alloc_compress_buff(&cudbg_init);
+		if (rc) {
+			/* Ignore error and continue without compression. */
+			dev_warn(adap->pdev_dev,
+				 "Fail allocating compression buffer ret: %d.  Continuing without compression.\n",
+				 rc);
+			cudbg_init.compress_type = CUDBG_COMPRESSION_NONE;
+			rc = 0;
+		}
+	} else {
+		cudbg_init.compress_type = CUDBG_COMPRESSION_NONE;
+	}
+
+	cudbg_hdr->compress_type = cudbg_init.compress_type;
 	dbg_buff.offset += min_size;
 	total_size = dbg_buff.offset;
 
@@ -426,8 +472,12 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 					   buf,
 					   &total_size);
 
+	cudbg_free_compress_buff(&cudbg_init);
 	cudbg_hdr->data_len = total_size;
-	*buf_size = total_size;
+	if (cudbg_init.compress_type != CUDBG_COMPRESSION_NONE)
+		*buf_size = size;
+	else
+		*buf_size = total_size;
 	return 0;
 }
 

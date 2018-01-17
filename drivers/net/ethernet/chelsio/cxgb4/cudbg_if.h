@@ -90,6 +90,7 @@ struct cudbg_init {
 	u8 compress_type; /* Type of compression to use */
 	void *compress_buff; /* Compression buffer */
 	u32 compress_buff_size; /* Compression buffer size */
+	void *workspace; /* Workspace for zlib */
 };
 
 static inline unsigned int cudbg_mbytes_to_bytes(unsigned int size)
