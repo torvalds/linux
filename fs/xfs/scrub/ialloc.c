@@ -105,6 +105,7 @@ xfs_scrub_iallocbt_chunk_xref(
 	xfs_scrub_iallocbt_chunk_xref_other(sc, irec, agino);
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
 	xfs_scrub_xref_is_owned_by(sc, agbno, len, &oinfo);
+	xfs_scrub_xref_is_not_shared(sc, agbno, len);
 }
 
 /* Is this chunk worth checking? */

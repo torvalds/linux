@@ -31,6 +31,7 @@
 #include "xfs_sb.h"
 #include "xfs_alloc.h"
 #include "xfs_rmap.h"
+#include "xfs_refcount.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -445,4 +446,70 @@ xfs_scrub_refcountbt(
 	xfs_scrub_refcount_xref_rmap(sc, &oinfo, cow_blocks);
 
 	return 0;
+}
+
+/* xref check that a cow staging extent is marked in the refcountbt. */
+void
+xfs_scrub_xref_is_cow_staging(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len)
+{
+	struct xfs_refcount_irec	rc;
+	bool				has_cowflag;
+	int				has_refcount;
+	int				error;
+
+	if (!sc->sa.refc_cur)
+		return;
+
+	/* Find the CoW staging extent. */
+	error = xfs_refcount_lookup_le(sc->sa.refc_cur,
+			agbno + XFS_REFC_COW_START, &has_refcount);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.refc_cur))
+		return;
+	if (!has_refcount) {
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
+		return;
+	}
+
+	error = xfs_refcount_get_rec(sc->sa.refc_cur, &rc, &has_refcount);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.refc_cur))
+		return;
+	if (!has_refcount) {
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
+		return;
+	}
+
+	/* CoW flag must be set, refcount must be 1. */
+	has_cowflag = (rc.rc_startblock & XFS_REFC_COW_START);
+	if (!has_cowflag || rc.rc_refcount != 1)
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
+
+	/* Must be at least as long as what was passed in */
+	if (rc.rc_blockcount < len)
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
+}
+
+/*
+ * xref check that the extent is not shared.  Only file data blocks
+ * can have multiple owners.
+ */
+void
+xfs_scrub_xref_is_not_shared(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len)
+{
+	bool				shared;
+	int				error;
+
+	if (!sc->sa.refc_cur)
+		return;
+
+	error = xfs_refcount_has_record(sc->sa.refc_cur, agbno, len, &shared);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.refc_cur))
+		return;
+	if (shared)
+		xfs_scrub_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
 }

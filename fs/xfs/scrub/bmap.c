@@ -37,6 +37,7 @@
 #include "xfs_bmap_util.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_rmap.h"
+#include "xfs_refcount.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -273,6 +274,20 @@ xfs_scrub_bmap_extent_xref(
 	xfs_scrub_xref_is_used_space(info->sc, agbno, len);
 	xfs_scrub_xref_is_not_inode_chunk(info->sc, agbno, len);
 	xfs_scrub_bmap_xref_rmap(info, irec, agbno);
+	switch (info->whichfork) {
+	case XFS_DATA_FORK:
+		if (xfs_is_reflink_inode(info->sc->ip))
+			break;
+		/* fall through */
+	case XFS_ATTR_FORK:
+		xfs_scrub_xref_is_not_shared(info->sc, agbno,
+				irec->br_blockcount);
+		break;
+	case XFS_COW_FORK:
+		xfs_scrub_xref_is_cow_staging(info->sc, agbno,
+				irec->br_blockcount);
+		break;
+	}
 
 	xfs_scrub_ag_free(info->sc, &info->sc->sa);
 }

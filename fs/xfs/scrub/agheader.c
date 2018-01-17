@@ -127,6 +127,7 @@ xfs_scrub_superblock_xref(
 	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, 1);
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_FS);
 	xfs_scrub_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xfs_scrub_xref_is_not_shared(sc, agbno, 1);
 
 	/* scrub teardown will take care of sc->sa for us */
 }
@@ -537,6 +538,25 @@ xfs_scrub_agf_xref_btreeblks(
 		xfs_scrub_block_xref_set_corrupt(sc, sc->sa.agf_bp);
 }
 
+/* Check agf_refcount_blocks against tree size */
+static inline void
+xfs_scrub_agf_xref_refcblks(
+	struct xfs_scrub_context	*sc)
+{
+	struct xfs_agf			*agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
+	xfs_agblock_t			blocks;
+	int				error;
+
+	if (!sc->sa.refc_cur)
+		return;
+
+	error = xfs_btree_count_blocks(sc->sa.refc_cur, &blocks);
+	if (!xfs_scrub_should_check_xref(sc, &error, &sc->sa.refc_cur))
+		return;
+	if (blocks != be32_to_cpu(agf->agf_refcount_blocks))
+		xfs_scrub_block_xref_set_corrupt(sc, sc->sa.agf_bp);
+}
+
 /* Cross-reference with the other btrees. */
 STATIC void
 xfs_scrub_agf_xref(
@@ -563,6 +583,8 @@ xfs_scrub_agf_xref(
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_FS);
 	xfs_scrub_xref_is_owned_by(sc, agbno, 1, &oinfo);
 	xfs_scrub_agf_xref_btreeblks(sc);
+	xfs_scrub_xref_is_not_shared(sc, agbno, 1);
+	xfs_scrub_agf_xref_refcblks(sc);
 
 	/* scrub teardown will take care of sc->sa for us */
 }
@@ -672,6 +694,7 @@ xfs_scrub_agfl_block_xref(
 	xfs_scrub_xref_is_used_space(sc, agbno, 1);
 	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, 1);
 	xfs_scrub_xref_is_owned_by(sc, agbno, 1, oinfo);
+	xfs_scrub_xref_is_not_shared(sc, agbno, 1);
 }
 
 /* Scrub an AGFL block. */
@@ -730,6 +753,7 @@ xfs_scrub_agfl_xref(
 	xfs_scrub_xref_is_not_inode_chunk(sc, agbno, 1);
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_FS);
 	xfs_scrub_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xfs_scrub_xref_is_not_shared(sc, agbno, 1);
 
 	/*
 	 * Scrub teardown will take care of sc->sa for us.  Leave sc->sa
@@ -850,6 +874,7 @@ xfs_scrub_agi_xref(
 	xfs_scrub_agi_xref_icounts(sc);
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_FS);
 	xfs_scrub_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xfs_scrub_xref_is_not_shared(sc, agbno, 1);
 
 	/* scrub teardown will take care of sc->sa for us */
 }
