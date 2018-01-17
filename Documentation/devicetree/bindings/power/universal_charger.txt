@@ -1,0 +1,16 @@
+Binding for UNIVERSAL Charger
+
+Required properties:
+- compatible: Should contain one of the following:
+    * "universal-charger"
+- extcon: extcon specifier for the Charger.
+- dc-det-gpio: gpio for dc detect.
+
+Example:
+
+	universal_charger {
+		status = "okay";
+		compatible = "universal-charger";
+		extcon = <&u2phy0>;
+		dc-det-gpio = <&gpio3 1 GPIO_ACTIVE_HIGH>;
+	};
