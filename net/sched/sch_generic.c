@@ -907,7 +907,7 @@ void qdisc_reset(struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_reset);
 
-static void qdisc_free(struct Qdisc *qdisc)
+void qdisc_free(struct Qdisc *qdisc)
 {
 	if (qdisc_is_percpu_stats(qdisc)) {
 		free_percpu(qdisc->cpu_bstats);

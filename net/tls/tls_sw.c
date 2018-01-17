@@ -391,7 +391,7 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 
 	while (msg_data_left(msg)) {
 		if (sk->sk_err) {
-			ret = sk->sk_err;
+			ret = -sk->sk_err;
 			goto send_end;
 		}
 
@@ -544,7 +544,7 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 		size_t copy, required_size;
 
 		if (sk->sk_err) {
-			ret = sk->sk_err;
+			ret = -sk->sk_err;
 			goto sendpage_end;
 		}
 

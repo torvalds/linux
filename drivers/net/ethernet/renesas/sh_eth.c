@@ -2089,8 +2089,8 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 		add_reg(CSMR);
 	if (cd->select_mii)
 		add_reg(RMII_MII);
-	add_reg(ARSTR);
 	if (cd->tsu) {
+		add_tsu_reg(ARSTR);
 		add_tsu_reg(TSU_CTRST);
 		add_tsu_reg(TSU_FWEN0);
 		add_tsu_reg(TSU_FWEN1);

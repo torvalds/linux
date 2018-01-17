@@ -363,7 +363,6 @@ enum ovs_tunnel_key_attr {
 	OVS_TUNNEL_KEY_ATTR_IPV6_SRC,		/* struct in6_addr src IPv6 address. */
 	OVS_TUNNEL_KEY_ATTR_IPV6_DST,		/* struct in6_addr dst IPv6 address. */
 	OVS_TUNNEL_KEY_ATTR_PAD,
-	OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS,	/* be32 ERSPAN index. */
 	__OVS_TUNNEL_KEY_ATTR_MAX
 };
 

@@ -757,6 +757,12 @@ static int ibmvnic_login(struct net_device *netdev)
 		}
 	} while (adapter->renegotiate);
 
+	/* handle pending MAC address changes after successful login */
+	if (adapter->mac_change_pending) {
+		__ibmvnic_set_mac(netdev, &adapter->desired.mac);
+		adapter->mac_change_pending = false;
+	}
+
 	return 0;
 }
 
@@ -993,11 +999,6 @@ static int ibmvnic_open(struct net_device *netdev)
 	int rc, vpd;
 
 	mutex_lock(&adapter->reset_lock);
-
-	if (adapter->mac_change_pending) {
-		__ibmvnic_set_mac(netdev, &adapter->desired.mac);
-		adapter->mac_change_pending = false;
-	}
 
 	if (adapter->state != VNIC_CLOSED) {
 		rc = ibmvnic_login(netdev);
@@ -1532,7 +1533,7 @@ static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
 
-	if (adapter->state != VNIC_OPEN) {
+	if (adapter->state == VNIC_PROBED) {
 		memcpy(&adapter->desired.mac, addr, sizeof(struct sockaddr));
 		adapter->mac_change_pending = true;
 		return 0;
