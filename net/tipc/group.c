@@ -93,18 +93,13 @@ struct tipc_group {
 	u16 max_active;
 	u16 bc_snd_nxt;
 	u16 bc_ackers;
+	bool *open;
 	bool loopback;
 	bool events;
-	bool open;
 };
 
 static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
 				  int mtyp, struct sk_buff_head *xmitq);
-
-bool tipc_group_is_open(struct tipc_group *grp)
-{
-	return grp->open;
-}
 
 static void tipc_group_open(struct tipc_member *m, bool *wakeup)
 {
@@ -112,7 +107,7 @@ static void tipc_group_open(struct tipc_member *m, bool *wakeup)
 	if (list_empty(&m->small_win))
 		return;
 	list_del_init(&m->small_win);
-	m->group->open = true;
+	*m->group->open = true;
 	*wakeup = true;
 }
 
@@ -170,7 +165,8 @@ int tipc_group_size(struct tipc_group *grp)
 }
 
 struct tipc_group *tipc_group_create(struct net *net, u32 portid,
-				     struct tipc_group_req *mreq)
+				     struct tipc_group_req *mreq,
+				     bool *group_is_open)
 {
 	u32 filter = TIPC_SUB_PORTS | TIPC_SUB_NO_STATUS;
 	bool global = mreq->scope != TIPC_NODE_SCOPE;
@@ -192,6 +188,7 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 	grp->scope = mreq->scope;
 	grp->loopback = mreq->flags & TIPC_GROUP_LOOPBACK;
 	grp->events = mreq->flags & TIPC_GROUP_MEMBER_EVTS;
+	grp->open = group_is_open;
 	filter |= global ? TIPC_SUB_CLUSTER_SCOPE : TIPC_SUB_NODE_SCOPE;
 	if (tipc_topsrv_kern_subscr(net, portid, type, 0, ~0,
 				    filter, &grp->subid))
@@ -430,7 +427,7 @@ bool tipc_group_cong(struct tipc_group *grp, u32 dnode, u32 dport,
 	if (m->window >= len)
 		return false;
 
-	grp->open = false;
+	*grp->open = false;
 
 	/* If not fully advertised, do it now to prevent mutual blocking */
 	adv = m->advertised;
@@ -453,7 +450,7 @@ bool tipc_group_bc_cong(struct tipc_group *grp, int len)
 
 	/* If prev bcast was replicast, reject until all receivers have acked */
 	if (grp->bc_ackers) {
-		grp->open = false;
+		*grp->open = false;
 		return true;
 	}
 	if (list_empty(&grp->small_win))
@@ -800,7 +797,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 		if (--grp->bc_ackers)
 			return;
 		list_del_init(&m->small_win);
-		m->group->open = true;
+		*m->group->open = true;
 		*usr_wakeup = true;
 		tipc_group_update_member(m, 0);
 		return;

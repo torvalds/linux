@@ -116,6 +116,7 @@ struct tipc_sock {
 	struct tipc_mc_method mc_method;
 	struct rcu_head rcu;
 	struct tipc_group *group;
+	bool group_is_open;
 };
 
 static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb);
@@ -715,7 +716,6 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
-	struct tipc_group *grp;
 	u32 revents = 0;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
@@ -736,8 +736,7 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 			revents |= POLLIN | POLLRDNORM;
 		break;
 	case TIPC_OPEN:
-		grp = tsk->group;
-		if ((!grp || tipc_group_is_open(grp)) && !tsk->cong_link_cnt)
+		if (tsk->group_is_open && !tsk->cong_link_cnt)
 			revents |= POLLOUT;
 		if (!tipc_sk_type_connectionless(sk))
 			break;
@@ -2758,7 +2757,7 @@ static int tipc_sk_join(struct tipc_sock *tsk, struct tipc_group_req *mreq)
 		return -EINVAL;
 	if (grp)
 		return -EACCES;
-	grp = tipc_group_create(net, tsk->portid, mreq);
+	grp = tipc_group_create(net, tsk->portid, mreq, &tsk->group_is_open);
 	if (!grp)
 		return -ENOMEM;
 	tsk->group = grp;
