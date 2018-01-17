@@ -587,7 +587,6 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	struct gbaudio_codec_info *codec = dev_get_drvdata(dai->dev);
 	struct gbaudio_stream_params *params;
 
-
 	dev_dbg(dai->dev, "Mute:%d, Direction:%s\n", mute,
 		stream ? "CAPTURE":"PLAYBACK");
 
@@ -907,7 +906,6 @@ static void gbaudio_codec_clean_data_rx(struct gbaudio_data_connection *data)
 	data->state[1] = GBAUDIO_CODEC_SHUTDOWN;
 }
 
-
 static void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 {
 	struct gbaudio_data_connection *data;
@@ -923,7 +921,6 @@ static void gbaudio_codec_cleanup(struct gbaudio_module_info *module)
 
 		if (cap_state > GBAUDIO_CODEC_SHUTDOWN)
 			gbaudio_codec_clean_data_rx(data);
-
 	}
 }
 
