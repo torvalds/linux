@@ -50,6 +50,18 @@ xfs_scrub_setup_ag_refcountbt(
 
 /* Reference count btree scrubber. */
 
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_refcountbt_xref(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len,
+	xfs_nlink_t			refcount)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
+
 /* Scrub a refcountbt record. */
 STATIC int
 xfs_scrub_refcountbt_rec(
@@ -82,6 +94,8 @@ xfs_scrub_refcountbt_rec(
 
 	if (refcount == 0)
 		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	xfs_scrub_refcountbt_xref(bs->sc, bno, len, refcount);
 
 	return error;
 }

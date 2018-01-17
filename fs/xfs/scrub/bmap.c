@@ -99,6 +99,30 @@ struct xfs_scrub_bmap_info {
 	int				whichfork;
 };
 
+/* Cross-reference a single rtdev extent record. */
+STATIC void
+xfs_scrub_bmap_rt_extent_xref(
+	struct xfs_scrub_bmap_info	*info,
+	struct xfs_inode		*ip,
+	struct xfs_btree_cur		*cur,
+	struct xfs_bmbt_irec		*irec)
+{
+	if (info->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
+
+/* Cross-reference a single datadev extent record. */
+STATIC void
+xfs_scrub_bmap_extent_xref(
+	struct xfs_scrub_bmap_info	*info,
+	struct xfs_inode		*ip,
+	struct xfs_btree_cur		*cur,
+	struct xfs_bmbt_irec		*irec)
+{
+	if (info->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
+
 /* Scrub a single extent record. */
 STATIC int
 xfs_scrub_bmap_extent(
@@ -157,6 +181,11 @@ xfs_scrub_bmap_extent(
 	    info->whichfork == XFS_ATTR_FORK)
 		xfs_scrub_fblock_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
+
+	if (info->is_rt)
+		xfs_scrub_bmap_rt_extent_xref(info, ip, cur, irec);
+	else
+		xfs_scrub_bmap_extent_xref(info, ip, cur, irec);
 
 	info->lastoff = irec->br_startoff + irec->br_blockcount;
 	return error;

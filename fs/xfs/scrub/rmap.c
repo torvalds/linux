@@ -51,6 +51,16 @@ xfs_scrub_setup_ag_rmapbt(
 
 /* Reverse-mapping scrubber. */
 
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_rmapbt_xref(
+	struct xfs_scrub_context	*sc,
+	struct xfs_rmap_irec		*irec)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
+
 /* Scrub an rmapbt record. */
 STATIC int
 xfs_scrub_rmapbt_rec(
@@ -121,6 +131,8 @@ xfs_scrub_rmapbt_rec(
 		    irec.rm_owner > XFS_RMAP_OWN_FS)
 			xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
 	}
+
+	xfs_scrub_rmapbt_xref(bs->sc, &irec);
 out:
 	return error;
 }

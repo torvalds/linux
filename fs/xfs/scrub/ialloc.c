@@ -58,6 +58,19 @@ xfs_scrub_setup_ag_iallocbt(
 
 /* Inode btree scrubber. */
 
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_iallocbt_chunk_xref(
+	struct xfs_scrub_context	*sc,
+	struct xfs_inobt_rec_incore	*irec,
+	xfs_agino_t			agino,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
+
 /* Is this chunk worth checking? */
 STATIC bool
 xfs_scrub_iallocbt_chunk(
@@ -75,6 +88,8 @@ xfs_scrub_iallocbt_chunk(
 	    !xfs_verify_agbno(mp, agno, bno) ||
 	    !xfs_verify_agbno(mp, agno, bno + len - 1))
 		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	xfs_scrub_iallocbt_chunk_xref(bs->sc, irec, agino, bno, len);
 
 	return true;
 }

@@ -37,7 +37,10 @@
 #include "scrub/common.h"
 #include "scrub/trace.h"
 
-/* Walk all the blocks in the AGFL. */
+/*
+ * Walk all the blocks in the AGFL.  The fn function can return any negative
+ * error code or XFS_BTREE_QUERY_RANGE_ABORT.
+ */
 int
 xfs_scrub_walk_agfl(
 	struct xfs_scrub_context	*sc,
@@ -97,6 +100,16 @@ xfs_scrub_walk_agfl(
 }
 
 /* Superblock */
+
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_superblock_xref(
+	struct xfs_scrub_context	*sc,
+	struct xfs_buf			*bp)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
 
 /*
  * Scrub the filesystem superblock.
@@ -386,10 +399,21 @@ xfs_scrub_superblock(
 			BBTOB(bp->b_length) - sizeof(struct xfs_dsb)))
 		xfs_scrub_block_set_corrupt(sc, bp);
 
+	xfs_scrub_superblock_xref(sc, bp);
+
 	return error;
 }
 
 /* AGF */
+
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_agf_xref(
+	struct xfs_scrub_context	*sc)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
 
 /* Scrub the AGF. */
 int
@@ -469,6 +493,7 @@ xfs_scrub_agf(
 	if (agfl_count != 0 && fl_count != agfl_count)
 		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
 
+	xfs_scrub_agf_xref(sc);
 out:
 	return error;
 }
@@ -480,6 +505,16 @@ struct xfs_scrub_agfl_info {
 	unsigned int			nr_entries;
 	xfs_agblock_t			*entries;
 };
+
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_agfl_block_xref(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
 
 /* Scrub an AGFL block. */
 STATIC int
@@ -498,6 +533,8 @@ xfs_scrub_agfl_block(
 	else
 		xfs_scrub_block_set_corrupt(sc, sc->sa.agfl_bp);
 
+	xfs_scrub_agfl_block_xref(sc, agbno);
+
 	return 0;
 }
 
@@ -510,6 +547,15 @@ xfs_scrub_agblock_cmp(
 	const xfs_agblock_t	*b = pb;
 
 	return (int)*a - (int)*b;
+}
+
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_agfl_xref(
+	struct xfs_scrub_context	*sc)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
 }
 
 /* Scrub the AGFL. */
@@ -531,6 +577,11 @@ xfs_scrub_agfl(
 		goto out;
 	if (!sc->sa.agf_bp)
 		return -EFSCORRUPTED;
+
+	xfs_scrub_agfl_xref(sc);
+
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		goto out;
 
 	/* Allocate buffer to ensure uniqueness of AGFL entries. */
 	agf = XFS_BUF_TO_AGF(sc->sa.agf_bp);
@@ -573,6 +624,15 @@ out:
 }
 
 /* AGI */
+
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_agi_xref(
+	struct xfs_scrub_context	*sc)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
 
 /* Scrub the AGI. */
 int
@@ -652,6 +712,7 @@ xfs_scrub_agi(
 	if (agi->agi_pad32 != cpu_to_be32(0))
 		xfs_scrub_block_set_corrupt(sc, sc->sa.agi_bp);
 
+	xfs_scrub_agi_xref(sc);
 out:
 	return error;
 }

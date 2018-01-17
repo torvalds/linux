@@ -50,6 +50,17 @@ xfs_scrub_setup_ag_allocbt(
 
 /* Free space btree scrubber. */
 
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_allocbt_xref(
+	struct xfs_scrub_context	*sc,
+	xfs_agblock_t			agbno,
+	xfs_extlen_t			len)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
+
 /* Scrub a bnobt/cntbt record. */
 STATIC int
 xfs_scrub_allocbt_rec(
@@ -69,6 +80,8 @@ xfs_scrub_allocbt_rec(
 	    !xfs_verify_agbno(mp, agno, bno) ||
 	    !xfs_verify_agbno(mp, agno, bno + len - 1))
 		xfs_scrub_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	xfs_scrub_allocbt_xref(bs->sc, bno, len);
 
 	return error;
 }

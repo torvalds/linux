@@ -577,6 +577,17 @@ out_buf:
 	return error;
 }
 
+/* Cross-reference with the other btrees. */
+STATIC void
+xfs_scrub_inode_xref(
+	struct xfs_scrub_context	*sc,
+	xfs_ino_t			ino,
+	struct xfs_dinode		*dip)
+{
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+}
+
 /* Scrub an inode. */
 int
 xfs_scrub_inode(
@@ -626,6 +637,7 @@ xfs_scrub_inode(
 			xfs_scrub_ino_set_preen(sc, ino, bp);
 	}
 
+	xfs_scrub_inode_xref(sc, ino, dip);
 out:
 	if (bp)
 		xfs_trans_brelse(sc->tp, bp);
