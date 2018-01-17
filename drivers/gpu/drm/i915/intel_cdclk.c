@@ -858,7 +858,7 @@ static void skl_get_cdclk(struct drm_i915_private *dev_priv,
 
 	skl_dpll0_update(dev_priv, cdclk_state);
 
-	cdclk_state->cdclk = cdclk_state->ref;
+	cdclk_state->cdclk = cdclk_state->bypass = cdclk_state->ref;
 
 	if (cdclk_state->vco == 0)
 		goto out;
@@ -1006,7 +1006,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	/* Choose frequency for this cdclk */
 	switch (cdclk) {
 	default:
-		WARN_ON(cdclk != dev_priv->cdclk.hw.ref);
+		WARN_ON(cdclk != dev_priv->cdclk.hw.bypass);
 		WARN_ON(vco != 0);
 		/* fall through */
 	case 308571:
@@ -1085,7 +1085,7 @@ static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 
 	/* Is PLL enabled and locked ? */
 	if (dev_priv->cdclk.hw.vco == 0 ||
-	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.ref)
+	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.bypass)
 		goto sanitize;
 
 	/* DPLL okay; verify the cdclock
@@ -1159,7 +1159,7 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
 
-	cdclk_state.cdclk = cdclk_state.ref;
+	cdclk_state.cdclk = cdclk_state.bypass;
 	cdclk_state.vco = 0;
 	cdclk_state.voltage_level = skl_calc_voltage_level(cdclk_state.cdclk);
 
@@ -1199,7 +1199,7 @@ static int bxt_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 {
 	int ratio;
 
-	if (cdclk == dev_priv->cdclk.hw.ref)
+	if (cdclk == dev_priv->cdclk.hw.bypass)
 		return 0;
 
 	switch (cdclk) {
@@ -1224,7 +1224,7 @@ static int glk_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 {
 	int ratio;
 
-	if (cdclk == dev_priv->cdclk.hw.ref)
+	if (cdclk == dev_priv->cdclk.hw.bypass)
 		return 0;
 
 	switch (cdclk) {
@@ -1268,7 +1268,7 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 
 	bxt_de_pll_update(dev_priv, cdclk_state);
 
-	cdclk_state->cdclk = cdclk_state->ref;
+	cdclk_state->cdclk = cdclk_state->bypass = cdclk_state->ref;
 
 	if (cdclk_state->vco == 0)
 		goto out;
@@ -1352,7 +1352,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	/* cdclk = vco / 2 / div{1,1.5,2,4} */
 	switch (DIV_ROUND_CLOSEST(vco, cdclk)) {
 	default:
-		WARN_ON(cdclk != dev_priv->cdclk.hw.ref);
+		WARN_ON(cdclk != dev_priv->cdclk.hw.bypass);
 		WARN_ON(vco != 0);
 		/* fall through */
 	case 2:
@@ -1425,7 +1425,7 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
 
 	if (dev_priv->cdclk.hw.vco == 0 ||
-	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.ref)
+	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.bypass)
 		goto sanitize;
 
 	/* DPLL okay; verify the cdclock
@@ -1514,7 +1514,7 @@ void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
 
-	cdclk_state.cdclk = cdclk_state.ref;
+	cdclk_state.cdclk = cdclk_state.bypass;
 	cdclk_state.vco = 0;
 	cdclk_state.voltage_level = bxt_calc_voltage_level(cdclk_state.cdclk);
 
@@ -1574,7 +1574,7 @@ static void cnl_get_cdclk(struct drm_i915_private *dev_priv,
 
 	cnl_cdclk_pll_update(dev_priv, cdclk_state);
 
-	cdclk_state->cdclk = cdclk_state->ref;
+	cdclk_state->cdclk = cdclk_state->bypass = cdclk_state->ref;
 
 	if (cdclk_state->vco == 0)
 		goto out;
@@ -1660,7 +1660,7 @@ static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
 	/* cdclk = vco / 2 / div{1,2} */
 	switch (DIV_ROUND_CLOSEST(vco, cdclk)) {
 	default:
-		WARN_ON(cdclk != dev_priv->cdclk.hw.ref);
+		WARN_ON(cdclk != dev_priv->cdclk.hw.bypass);
 		WARN_ON(vco != 0);
 		/* fall through */
 	case 2:
@@ -1705,7 +1705,7 @@ static int cnl_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 {
 	int ratio;
 
-	if (cdclk == dev_priv->cdclk.hw.ref)
+	if (cdclk == dev_priv->cdclk.hw.bypass)
 		return 0;
 
 	switch (cdclk) {
@@ -1732,7 +1732,7 @@ static void cnl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
 
 	if (dev_priv->cdclk.hw.vco == 0 ||
-	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.ref)
+	    dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.bypass)
 		goto sanitize;
 
 	/* DPLL okay; verify the cdclock
@@ -1805,7 +1805,7 @@ void cnl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
 
-	cdclk_state.cdclk = cdclk_state.ref;
+	cdclk_state.cdclk = cdclk_state.bypass;
 	cdclk_state.vco = 0;
 	cdclk_state.voltage_level = cnl_calc_voltage_level(cdclk_state.cdclk);
 
@@ -1846,9 +1846,10 @@ bool intel_cdclk_changed(const struct intel_cdclk_state *a,
 void intel_dump_cdclk_state(const struct intel_cdclk_state *cdclk_state,
 			    const char *context)
 {
-	DRM_DEBUG_DRIVER("%s %d kHz, VCO %d kHz, ref %d kHz, voltage level %d\n",
+	DRM_DEBUG_DRIVER("%s %d kHz, VCO %d kHz, ref %d kHz, bypass %d kHz, voltage level %d\n",
 			 context, cdclk_state->cdclk, cdclk_state->vco,
-			 cdclk_state->ref, cdclk_state->voltage_level);
+			 cdclk_state->ref, cdclk_state->bypass,
+			 cdclk_state->voltage_level);
 }
 
 /**
