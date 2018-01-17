@@ -258,15 +258,11 @@ static void mlxsw_sp_acl_tcam_group_del(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_acl_tcam_group_bind(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_acl_tcam_group *group,
-			     struct net_device *dev, bool ingress)
+			     struct mlxsw_sp_port *mlxsw_sp_port,
+			     bool ingress)
 {
-	struct mlxsw_sp_port *mlxsw_sp_port;
 	char ppbt_pl[MLXSW_REG_PPBT_LEN];
 
-	if (!mlxsw_sp_port_dev_check(dev))
-		return -EINVAL;
-
-	mlxsw_sp_port = netdev_priv(dev);
 	mlxsw_reg_ppbt_pack(ppbt_pl, ingress ? MLXSW_REG_PXBT_E_IACL :
 					       MLXSW_REG_PXBT_E_EACL,
 			    MLXSW_REG_PXBT_OP_BIND, mlxsw_sp_port->local_port,
@@ -277,15 +273,11 @@ mlxsw_sp_acl_tcam_group_bind(struct mlxsw_sp *mlxsw_sp,
 static void
 mlxsw_sp_acl_tcam_group_unbind(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_tcam_group *group,
-			       struct net_device *dev, bool ingress)
+			       struct mlxsw_sp_port *mlxsw_sp_port,
+			       bool ingress)
 {
-	struct mlxsw_sp_port *mlxsw_sp_port;
 	char ppbt_pl[MLXSW_REG_PPBT_LEN];
 
-	if (WARN_ON(!mlxsw_sp_port_dev_check(dev)))
-		return;
-
-	mlxsw_sp_port = netdev_priv(dev);
 	mlxsw_reg_ppbt_pack(ppbt_pl, ingress ? MLXSW_REG_PXBT_E_IACL :
 					       MLXSW_REG_PXBT_E_EACL,
 			    MLXSW_REG_PXBT_OP_UNBIND, mlxsw_sp_port->local_port,
@@ -1054,22 +1046,25 @@ mlxsw_sp_acl_tcam_flower_ruleset_del(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_acl_tcam_flower_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
 				      void *ruleset_priv,
-				      struct net_device *dev, bool ingress)
+				      struct mlxsw_sp_port *mlxsw_sp_port,
+				      bool ingress)
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
 	return mlxsw_sp_acl_tcam_group_bind(mlxsw_sp, &ruleset->group,
-					    dev, ingress);
+					    mlxsw_sp_port, ingress);
 }
 
 static void
 mlxsw_sp_acl_tcam_flower_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
 					void *ruleset_priv,
-					struct net_device *dev, bool ingress)
+					struct mlxsw_sp_port *mlxsw_sp_port,
+					bool ingress)
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
-	mlxsw_sp_acl_tcam_group_unbind(mlxsw_sp, &ruleset->group, dev, ingress);
+	mlxsw_sp_acl_tcam_group_unbind(mlxsw_sp, &ruleset->group,
+				       mlxsw_sp_port, ingress);
 }
 
 static u16

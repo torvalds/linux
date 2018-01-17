@@ -169,7 +169,7 @@ mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 
 	return ops->ruleset_bind(mlxsw_sp, ruleset->priv,
-				 binding->mlxsw_sp_port->dev, binding->ingress);
+				 binding->mlxsw_sp_port, binding->ingress);
 }
 
 static void
@@ -181,7 +181,7 @@ mlxsw_sp_acl_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 
 	ops->ruleset_unbind(mlxsw_sp, ruleset->priv,
-			    binding->mlxsw_sp_port->dev, binding->ingress);
+			    binding->mlxsw_sp_port, binding->ingress);
 }
 
 static bool mlxsw_sp_acl_ruleset_block_bound(struct mlxsw_sp_acl_block *block)
