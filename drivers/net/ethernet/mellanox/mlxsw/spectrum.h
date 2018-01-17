@@ -260,6 +260,8 @@ struct mlxsw_sp_port {
 	struct list_head vlans_list;
 	struct mlxsw_sp_qdisc *root_qdisc;
 	unsigned acl_rule_count;
+	struct mlxsw_sp_acl_block *ing_acl_block;
+	struct mlxsw_sp_acl_block *eg_acl_block;
 };
 
 static inline bool
@@ -490,17 +492,34 @@ struct mlxsw_sp_acl_ops {
 				       enum mlxsw_sp_acl_profile profile);
 };
 
+struct mlxsw_sp_acl_block;
 struct mlxsw_sp_acl_ruleset;
 
 /* spectrum_acl.c */
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
+struct mlxsw_sp *mlxsw_sp_acl_block_mlxsw_sp(struct mlxsw_sp_acl_block *block);
+unsigned int mlxsw_sp_acl_block_rule_count(struct mlxsw_sp_acl_block *block);
+void mlxsw_sp_acl_block_disable_inc(struct mlxsw_sp_acl_block *block);
+void mlxsw_sp_acl_block_disable_dec(struct mlxsw_sp_acl_block *block);
+bool mlxsw_sp_acl_block_disabled(struct mlxsw_sp_acl_block *block);
+struct mlxsw_sp_acl_block *mlxsw_sp_acl_block_create(struct mlxsw_sp *mlxsw_sp,
+						     struct net *net);
+void mlxsw_sp_acl_block_destroy(struct mlxsw_sp_acl_block *block);
+int mlxsw_sp_acl_block_bind(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_block *block,
+			    struct mlxsw_sp_port *mlxsw_sp_port,
+			    bool ingress);
+int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_acl_block *block,
+			      struct mlxsw_sp_port *mlxsw_sp_port,
+			      bool ingress);
 struct mlxsw_sp_acl_ruleset *
-mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
-			    bool ingress, u32 chain_index,
+mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_block *block, u32 chain_index,
 			    enum mlxsw_sp_acl_profile profile);
 struct mlxsw_sp_acl_ruleset *
-mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
-			 bool ingress, u32 chain_index,
+mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
+			 struct mlxsw_sp_acl_block *block, u32 chain_index,
 			 enum mlxsw_sp_acl_profile profile);
 void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_ruleset *ruleset);
@@ -567,11 +586,14 @@ void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp);
 extern const struct mlxsw_sp_acl_ops mlxsw_sp_acl_tcam_ops;
 
 /* spectrum_flower.c */
-int mlxsw_sp_flower_replace(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
+int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_block *block,
 			    struct tc_cls_flower_offload *f);
-void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
+void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_acl_block *block,
 			     struct tc_cls_flower_offload *f);
-int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
+int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_acl_block *block,
 			  struct tc_cls_flower_offload *f);
 
 /* spectrum_qdisc.c */
