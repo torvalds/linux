@@ -1162,6 +1162,8 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
 				 "BSS_CHANGED_ASSOC\n");
 		} else {
+			struct cfg80211_bss *bss = NULL;
+
 			mstatus = RT_MEDIA_DISCONNECT;
 
 			if (mac->link_state == MAC80211_LINKED)
@@ -1169,6 +1171,22 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ppsc->p2p_ps_info.p2p_ps_mode > P2P_PS_NONE)
 				rtl_p2p_ps_cmd(hw, P2P_PS_DISABLE);
 			mac->link_state = MAC80211_NOLINK;
+
+			bss = cfg80211_get_bss(hw->wiphy, NULL,
+					       (u8 *)mac->bssid, NULL, 0,
+					       IEEE80211_BSS_TYPE_ESS,
+					       IEEE80211_PRIVACY_OFF);
+
+			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
+				 "bssid = %pMF\n", mac->bssid);
+
+			if (bss) {
+				cfg80211_unlink_bss(hw->wiphy, bss);
+				cfg80211_put_bss(hw->wiphy, bss);
+				RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
+					 "cfg80211_unlink !!\n");
+			}
+
 			eth_zero_addr(mac->bssid);
 			mac->vendor = PEER_UNKNOWN;
 			mac->mode = 0;
