@@ -1152,6 +1152,7 @@ struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev,
 	struct mmc_host *mmc;
 	struct resource *res;
 	void __iomem *ctl;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ctl = devm_ioremap_resource(&pdev->dev, res);
@@ -1170,7 +1171,19 @@ struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev,
 	host->ops = tmio_mmc_ops;
 	mmc->ops = &host->ops;
 
+	ret = mmc_of_parse(host->mmc);
+	if (ret) {
+		host = ERR_PTR(ret);
+		goto free;
+	}
+
+	tmio_mmc_of_parse(pdev, pdata);
+
 	platform_set_drvdata(pdev, host);
+
+	return host;
+free:
+	mmc_free_host(mmc);
 
 	return host;
 }
@@ -1198,14 +1211,8 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 	if (mmc->f_min == 0)
 		return -EINVAL;
 
-	tmio_mmc_of_parse(pdev, pdata);
-
 	if (!(pdata->flags & TMIO_MMC_HAS_IDLE_WAIT))
 		_host->write16_hook = NULL;
-
-	ret = mmc_of_parse(mmc);
-	if (ret < 0)
-		return ret;
 
 	_host->set_pwr = pdata->set_pwr;
 	_host->set_clk_div = pdata->set_clk_div;
