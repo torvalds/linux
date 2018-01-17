@@ -439,19 +439,32 @@ int cxgb4_get_free_ftid(struct net_device *dev, int family)
 		if (ftid >= t->nftids)
 			ftid = -1;
 	} else {
-		ftid = bitmap_find_free_region(t->ftid_bmap, t->nftids, 2);
-		if (ftid < 0)
-			goto out_unlock;
+		if (is_t6(adap->params.chip)) {
+			ftid = bitmap_find_free_region(t->ftid_bmap,
+						       t->nftids, 1);
+			if (ftid < 0)
+				goto out_unlock;
 
-		/* this is only a lookup, keep the found region unallocated */
-		bitmap_release_region(t->ftid_bmap, ftid, 2);
+			/* this is only a lookup, keep the found region
+			 * unallocated
+			 */
+			bitmap_release_region(t->ftid_bmap, ftid, 1);
+		} else {
+			ftid = bitmap_find_free_region(t->ftid_bmap,
+						       t->nftids, 2);
+			if (ftid < 0)
+				goto out_unlock;
+
+			bitmap_release_region(t->ftid_bmap, ftid, 2);
+		}
 	}
 out_unlock:
 	spin_unlock_bh(&t->ftid_lock);
 	return ftid;
 }
 
-static int cxgb4_set_ftid(struct tid_info *t, int fidx, int family)
+static int cxgb4_set_ftid(struct tid_info *t, int fidx, int family,
+			  unsigned int chip_ver)
 {
 	spin_lock_bh(&t->ftid_lock);
 
@@ -460,22 +473,31 @@ static int cxgb4_set_ftid(struct tid_info *t, int fidx, int family)
 		return -EBUSY;
 	}
 
-	if (family == PF_INET)
+	if (family == PF_INET) {
 		__set_bit(fidx, t->ftid_bmap);
-	else
-		bitmap_allocate_region(t->ftid_bmap, fidx, 2);
+	} else {
+		if (chip_ver < CHELSIO_T6)
+			bitmap_allocate_region(t->ftid_bmap, fidx, 2);
+		else
+			bitmap_allocate_region(t->ftid_bmap, fidx, 1);
+	}
 
 	spin_unlock_bh(&t->ftid_lock);
 	return 0;
 }
 
-static void cxgb4_clear_ftid(struct tid_info *t, int fidx, int family)
+static void cxgb4_clear_ftid(struct tid_info *t, int fidx, int family,
+			     unsigned int chip_ver)
 {
 	spin_lock_bh(&t->ftid_lock);
-	if (family == PF_INET)
+	if (family == PF_INET) {
 		__clear_bit(fidx, t->ftid_bmap);
-	else
-		bitmap_release_region(t->ftid_bmap, fidx, 2);
+	} else {
+		if (chip_ver < CHELSIO_T6)
+			bitmap_release_region(t->ftid_bmap, fidx, 2);
+		else
+			bitmap_release_region(t->ftid_bmap, fidx, 1);
+	}
 	spin_unlock_bh(&t->ftid_lock);
 }
 
@@ -1249,23 +1271,42 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 			}
 		}
 	} else { /* IPv6 */
-		/* Ensure that the IPv6 filter is aligned on a
-		 * multiple of 4 boundary.
-		 */
-		if (filter_id & 0x3) {
-			dev_err(adapter->pdev_dev,
-				"Invalid location. IPv6 must be aligned on a 4-slot boundary\n");
-			return -EINVAL;
-		}
+		if (chip_ver < CHELSIO_T6) {
+			/* Ensure that the IPv6 filter is aligned on a
+			 * multiple of 4 boundary.
+			 */
+			if (filter_id & 0x3) {
+				dev_err(adapter->pdev_dev,
+					"Invalid location. IPv6 must be aligned on a 4-slot boundary\n");
+				return -EINVAL;
+			}
 
-		/* Check all except the base overlapping IPv4 filter slots. */
-		for (fidx = filter_id + 1; fidx < filter_id + 4; fidx++) {
+			/* Check all except the base overlapping IPv4 filter
+			 * slots.
+			 */
+			for (fidx = filter_id + 1; fidx < filter_id + 4;
+			     fidx++) {
+				f = &adapter->tids.ftid_tab[fidx];
+				if (f->valid) {
+					dev_err(adapter->pdev_dev,
+						"Invalid location.  IPv6 requires 4 slots and an IPv4 filter exists at %u\n",
+						fidx);
+					return -EBUSY;
+				}
+			}
+		} else {
+			/* For T6, CLIP being enabled, IPv6 filter would occupy
+			 * 2 entries.
+			 */
+			if (filter_id & 0x1)
+				return -EINVAL;
+			/* Check overlapping IPv4 filter slot */
+			fidx = filter_id + 1;
 			f = &adapter->tids.ftid_tab[fidx];
 			if (f->valid) {
-				dev_err(adapter->pdev_dev,
-					"Invalid location.  IPv6 requires 4 slots and an IPv4 filter exists at %u\n",
-					fidx);
-				return -EINVAL;
+				pr_err("%s: IPv6 filter requires 2 indices. IPv4 filter already present at %d. Please remove IPv4 filter first.\n",
+				       __func__, fidx);
+				return -EBUSY;
 			}
 		}
 	}
@@ -1279,16 +1320,18 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 
 	fidx = filter_id + adapter->tids.ftid_base;
 	ret = cxgb4_set_ftid(&adapter->tids, filter_id,
-			     fs->type ? PF_INET6 : PF_INET);
+			     fs->type ? PF_INET6 : PF_INET,
+			     chip_ver);
 	if (ret)
 		return ret;
 
-	/* Check to make sure the filter requested is writable ... */
+	/* Check t  make sure the filter requested is writable ... */
 	ret = writable_filter(f);
 	if (ret) {
 		/* Clear the bits we have set above */
 		cxgb4_clear_ftid(&adapter->tids, filter_id,
-				 fs->type ? PF_INET6 : PF_INET);
+				 fs->type ? PF_INET6 : PF_INET,
+				 chip_ver);
 		return ret;
 	}
 
@@ -1303,7 +1346,8 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 	    IPV6_ADDR_ANY) {
 		ret = cxgb4_clip_get(dev, (const u32 *)&fs->val.lip, 1);
 		if (ret) {
-			cxgb4_clear_ftid(&adapter->tids, filter_id, PF_INET6);
+			cxgb4_clear_ftid(&adapter->tids, filter_id, PF_INET6,
+					 chip_ver);
 			return ret;
 		}
 	}
@@ -1333,7 +1377,8 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 	ret = set_filter_wr(adapter, filter_id);
 	if (ret) {
 		cxgb4_clear_ftid(&adapter->tids, filter_id,
-				 fs->type ? PF_INET6 : PF_INET);
+				 fs->type ? PF_INET6 : PF_INET,
+				 chip_ver);
 		clear_filter(adapter, f);
 	}
 
@@ -1411,6 +1456,7 @@ int __cxgb4_del_filter(struct net_device *dev, int filter_id,
 		       struct filter_ctx *ctx)
 {
 	struct adapter *adapter = netdev2adap(dev);
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
 	struct filter_entry *f;
 	unsigned int max_fidx;
 	int ret;
@@ -1436,7 +1482,8 @@ int __cxgb4_del_filter(struct net_device *dev, int filter_id,
 	if (f->valid) {
 		f->ctx = ctx;
 		cxgb4_clear_ftid(&adapter->tids, filter_id,
-				 f->fs.type ? PF_INET6 : PF_INET);
+				 f->fs.type ? PF_INET6 : PF_INET,
+				 chip_ver);
 		return del_filter_wr(adapter, filter_id);
 	}
 
