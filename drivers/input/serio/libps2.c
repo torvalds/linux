@@ -256,15 +256,22 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 		for (i = 0; i < receive; i++)
 			ps2dev->cmdbuf[(receive - 1) - i] = param[i];
 
+	/* Signal that we are sending the command byte */
+	ps2dev->flags |= PS2_FLAG_ACK_CMD;
+
 	/*
 	 * Some devices (Synaptics) peform the reset before
 	 * ACKing the reset command, and so it can take a long
 	 * time before the ACK arrives.
 	 */
-	rc = ps2_do_sendbyte(ps2dev, command & 0xff,
-			     command == PS2_CMD_RESET_BAT ? 1000 : 200, 2);
+	timeout = command == PS2_CMD_RESET_BAT ? 1000 : 200;
+
+	rc = ps2_do_sendbyte(ps2dev, command & 0xff, timeout, 2);
 	if (rc)
 		goto out_reset_flags;
+
+	/* Now we are sending command parameters, if any */
+	ps2dev->flags &= ~PS2_FLAG_ACK_CMD;
 
 	for (i = 0; i < send; i++) {
 		rc = ps2_do_sendbyte(ps2dev, param[i], 200, 2);
@@ -416,7 +423,19 @@ bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 		}
 		/* Fall through */
 	default:
-		return false;
+		/*
+		 * Do not signal errors if we get unexpected reply while
+		 * waiting for an ACK to the initial (first) command byte:
+		 * the device might not be quiesced yet and continue
+		 * delivering data.
+		 * Note that we reset PS2_FLAG_WAITID flag, so the workaround
+		 * for mice not acknowledging the Get ID command only triggers
+		 * on the 1st byte; if device spews data we really want to see
+		 * a real ACK from it.
+		 */
+		dev_dbg(&ps2dev->serio->dev, "unexpected %#02x\n", data);
+		ps2dev->flags &= ~PS2_FLAG_WAITID;
+		return ps2dev->flags & PS2_FLAG_ACK_CMD;
 	}
 
 	if (!ps2dev->nak) {
