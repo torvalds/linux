@@ -11,6 +11,9 @@ Additional compatible strings:
 - Xilinx internal board cc108
   "xlnx,zynq-cc108"
 
+- Xilinx internal board zc770 with different FMC cards
+  "xlnx,zynq-zc770-xm010"
+
 ---------------------------------------------------------------
 
 Xilinx Zynq UltraScale+ MPSoC Platforms Device Tree Bindings
