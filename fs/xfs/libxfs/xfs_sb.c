@@ -118,6 +118,9 @@ xfs_mount_validate_sb(
 	bool		check_inprogress,
 	bool		check_version)
 {
+	u32		agcount = 0;
+	u32		rem;
+
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
 		xfs_warn(mp, "bad magic number");
 		return -EWRONGFS;
@@ -228,6 +231,13 @@ xfs_mount_validate_sb(
 		return -EINVAL;
 	}
 
+	/* Compute agcount for this number of dblocks and agblocks */
+	if (sbp->sb_agblocks) {
+		agcount = div_u64_rem(sbp->sb_dblocks, sbp->sb_agblocks, &rem);
+		if (rem)
+			agcount++;
+	}
+
 	/*
 	 * More sanity checking.  Most of these were stolen directly from
 	 * xfs_repair.
@@ -252,6 +262,10 @@ xfs_mount_validate_sb(
 	    sbp->sb_inodesize != (1 << sbp->sb_inodelog)		||
 	    sbp->sb_logsunit > XLOG_MAX_RECORD_BSIZE			||
 	    sbp->sb_inopblock != howmany(sbp->sb_blocksize,sbp->sb_inodesize) ||
+	    XFS_FSB_TO_B(mp, sbp->sb_agblocks) < XFS_MIN_AG_BYTES	||
+	    XFS_FSB_TO_B(mp, sbp->sb_agblocks) > XFS_MAX_AG_BYTES	||
+	    sbp->sb_agblklog != xfs_highbit32(sbp->sb_agblocks - 1) + 1	||
+	    agcount == 0 || agcount != sbp->sb_agcount			||
 	    (sbp->sb_blocklog - sbp->sb_inodelog != sbp->sb_inopblog)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE)	||
