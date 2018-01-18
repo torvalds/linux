@@ -353,7 +353,7 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
 static bool select_all(const struct xt_hashlimit_htable *ht,
 		       const struct dsthash_ent *he)
 {
-	return 1;
+	return true;
 }
 
 static bool select_gc(const struct xt_hashlimit_htable *ht,
