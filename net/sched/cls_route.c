@@ -316,7 +316,8 @@ static void route4_destroy(struct tcf_proto *tp)
 	kfree_rcu(head, rcu);
 }
 
-static int route4_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int route4_delete(struct tcf_proto *tp, void *arg, bool *last,
+			 struct netlink_ext_ack *extack)
 {
 	struct route4_head *head = rtnl_dereference(tp->root);
 	struct route4_filter *f = arg;

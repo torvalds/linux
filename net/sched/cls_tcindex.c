@@ -193,7 +193,8 @@ static void tcindex_destroy_fexts(struct rcu_head *head)
 	tcf_queue_work(&f->work);
 }
 
-static int tcindex_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int tcindex_delete(struct tcf_proto *tp, void *arg, bool *last,
+			  struct netlink_ext_ack *extack)
 {
 	struct tcindex_data *p = rtnl_dereference(tp->root);
 	struct tcindex_filter_result *r = arg;
@@ -246,7 +247,7 @@ static int tcindex_destroy_element(struct tcf_proto *tp,
 {
 	bool last;
 
-	return tcindex_delete(tp, arg, &last);
+	return tcindex_delete(tp, arg, &last, NULL);
 }
 
 static void __tcindex_destroy(struct rcu_head *head)

@@ -985,7 +985,8 @@ errout_tb:
 	return err;
 }
 
-static int fl_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
+		     struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f = arg;

@@ -955,7 +955,7 @@ static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 		return -EINVAL;
 	}
 
-	err = tp->ops->delete(tp, fh, last);
+	err = tp->ops->delete(tp, fh, last, extack);
 	if (err) {
 		kfree_skb(skb);
 		return err;

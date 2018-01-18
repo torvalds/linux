@@ -575,7 +575,8 @@ err1:
 	return err;
 }
 
-static int flow_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int flow_delete(struct tcf_proto *tp, void *arg, bool *last,
+		       struct netlink_ext_ack *extack)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f = arg;

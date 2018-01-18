@@ -350,7 +350,8 @@ static void rsvp_destroy(struct tcf_proto *tp)
 	kfree_rcu(data, rcu);
 }
 
-static int rsvp_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int rsvp_delete(struct tcf_proto *tp, void *arg, bool *last,
+		       struct netlink_ext_ack *extack)
 {
 	struct rsvp_head *head = rtnl_dereference(tp->root);
 	struct rsvp_filter *nfp, *f = arg;

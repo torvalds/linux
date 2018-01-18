@@ -130,7 +130,8 @@ static void basic_destroy(struct tcf_proto *tp)
 	kfree_rcu(head, rcu);
 }
 
-static int basic_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int basic_delete(struct tcf_proto *tp, void *arg, bool *last,
+			struct netlink_ext_ack *extack)
 {
 	struct basic_head *head = rtnl_dereference(tp->root);
 	struct basic_filter *f = arg;

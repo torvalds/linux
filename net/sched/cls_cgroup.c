@@ -156,7 +156,8 @@ static void cls_cgroup_destroy(struct tcf_proto *tp)
 	}
 }
 
-static int cls_cgroup_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int cls_cgroup_delete(struct tcf_proto *tp, void *arg, bool *last,
+			     struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }

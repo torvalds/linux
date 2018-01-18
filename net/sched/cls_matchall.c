@@ -225,7 +225,8 @@ err_exts_init:
 	return err;
 }
 
-static int mall_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int mall_delete(struct tcf_proto *tp, void *arg, bool *last,
+		       struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }

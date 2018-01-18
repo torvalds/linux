@@ -672,7 +672,8 @@ static void u32_destroy(struct tcf_proto *tp)
 	tp->data = NULL;
 }
 
-static int u32_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int u32_delete(struct tcf_proto *tp, void *arg, bool *last,
+		      struct netlink_ext_ack *extack)
 {
 	struct tc_u_hnode *ht = arg;
 	struct tc_u_hnode *root_ht = rtnl_dereference(tp->root);
