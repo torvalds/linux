@@ -295,9 +295,30 @@ static ssize_t carrier_changes_show(struct device *dev,
 	struct net_device *netdev = to_net_dev(dev);
 
 	return sprintf(buf, fmt_dec,
-		       atomic_read(&netdev->carrier_changes));
+		       atomic_read(&netdev->carrier_up_count) +
+		       atomic_read(&netdev->carrier_down_count));
 }
 static DEVICE_ATTR_RO(carrier_changes);
+
+static ssize_t carrier_up_count_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+
+	return sprintf(buf, fmt_dec, atomic_read(&netdev->carrier_up_count));
+}
+static DEVICE_ATTR_RO(carrier_up_count);
+
+static ssize_t carrier_down_count_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+
+	return sprintf(buf, fmt_dec, atomic_read(&netdev->carrier_down_count));
+}
+static DEVICE_ATTR_RO(carrier_down_count);
 
 /* read-write attributes */
 
@@ -547,6 +568,8 @@ static struct attribute *net_class_attrs[] __ro_after_init = {
 	&dev_attr_phys_port_name.attr,
 	&dev_attr_phys_switch_id.attr,
 	&dev_attr_proto_down.attr,
+	&dev_attr_carrier_up_count.attr,
+	&dev_attr_carrier_down_count.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(net_class);
