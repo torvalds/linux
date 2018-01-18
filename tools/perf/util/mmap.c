@@ -113,6 +113,45 @@ union perf_event *perf_mmap__read_backward(struct perf_mmap *map)
 	return perf_mmap__read(map, &map->prev, end);
 }
 
+/*
+ * Read event from ring buffer one by one.
+ * Return one event for each call.
+ *
+ * Usage:
+ * perf_mmap__read_init()
+ * while(event = perf_mmap__read_event()) {
+ *	//process the event
+ *	perf_mmap__consume()
+ * }
+ * perf_mmap__read_done()
+ */
+union perf_event *perf_mmap__read_event(struct perf_mmap *map,
+					bool overwrite,
+					u64 *startp, u64 end)
+{
+	union perf_event *event;
+
+	/*
+	 * Check if event was unmapped due to a POLLHUP/POLLERR.
+	 */
+	if (!refcount_read(&map->refcnt))
+		return NULL;
+
+	if (startp == NULL)
+		return NULL;
+
+	/* non-overwirte doesn't pause the ringbuffer */
+	if (!overwrite)
+		end = perf_mmap__read_head(map);
+
+	event = perf_mmap__read(map, startp, end);
+
+	if (!overwrite)
+		map->prev = *startp;
+
+	return event;
+}
+
 void perf_mmap__read_catchup(struct perf_mmap *map)
 {
 	u64 head;
