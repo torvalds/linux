@@ -39,18 +39,6 @@
     },
     {
         "PEBS": "2",
-        "EventCode": "0xCD",
-        "Counter": "3",
-        "UMask": "0x2",
-        "EventName": "MEM_TRANS_RETIRED.PRECISE_STORE",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Sample stores and collect precise store operation via PEBS record. PMC3 only.",
-        "PRECISE_STORE": "1",
-        "TakenAlone": "1",
-        "CounterHTOff": "3"
-    },
-    {
-        "PEBS": "2",
         "PublicDescription": "Loads with latency value being above 4.",
         "EventCode": "0xCD",
         "MSRValue": "0x4",
@@ -162,75 +150,15 @@
         "CounterHTOff": "3"
     },
     {
-        "EventCode": "0xB7, 0xBB",
-        "MSRValue": "0x300400244",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "Offcore": "1",
-        "EventName": "OFFCORE_RESPONSE.ALL_CODE_RD.LLC_MISS.DRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Counts all demand & prefetch code reads that miss the LLC  and the data returned from dram",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xB7, 0xBB",
-        "MSRValue": "0x300400091",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "Offcore": "1",
-        "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.LLC_MISS.DRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Counts all demand & prefetch data reads that miss the LLC  and the data returned from dram",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xB7, 0xBB",
-        "MSRValue": "0x3004003f7",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "Offcore": "1",
-        "EventName": "OFFCORE_RESPONSE.ALL_READS.LLC_MISS.DRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Counts all data/code/rfo reads (demand & prefetch) that miss the LLC  and the data returned from dram",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xB7, 0xBB",
-        "MSRValue": "0x300400004",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "Offcore": "1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.LLC_MISS.DRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand code reads that miss the LLC and the data returned from dram",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xB7, 0xBB",
-        "MSRValue": "0x300400001",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "Offcore": "1",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_MISS.DRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Counts demand data reads that miss the LLC and the data returned from dram",
-        "CounterHTOff": "0,1,2,3"
-    },
-    {
-        "EventCode": "0xB7, 0xBB",
-        "MSRValue": "0x6004001b3",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "Offcore": "1",
-        "EventName": "OFFCORE_RESPONSE.DATA_IN_SOCKET.LLC_MISS.LOCAL_DRAM",
-        "MSRIndex": "0x1a6,0x1a7",
-        "SampleAfterValue": "100003",
-        "BriefDescription": "Counts LLC replacements",
-        "CounterHTOff": "0,1,2,3"
+        "PEBS": "2",
+        "EventCode": "0xCD",
+        "Counter": "3",
+        "UMask": "0x2",
+        "EventName": "MEM_TRANS_RETIRED.PRECISE_STORE",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Sample stores and collect precise store operation via PEBS record. PMC3 only.",
+        "PRECISE_STORE": "1",
+        "TakenAlone": "1",
+        "CounterHTOff": "3"
     }
 ]
