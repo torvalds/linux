@@ -436,6 +436,8 @@ struct dc_gamma {
 
 	/* private to DC core */
 	struct dc_context *ctx;
+
+	bool is_identity;
 };
 
 /* Used by both ipp amd opp functions*/
