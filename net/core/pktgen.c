@@ -184,25 +184,36 @@
 
 #define func_enter() pr_debug("entering %s\n", __func__);
 
+#define PKT_FLAGS							\
+	pf(IPV6)		/* Interface in IPV6 Mode */		\
+	pf(IPSRC_RND)		/* IP-Src Random  */			\
+	pf(IPDST_RND)		/* IP-Dst Random  */			\
+	pf(TXSIZE_RND)		/* Transmit size is random */		\
+	pf(UDPSRC_RND)		/* UDP-Src Random */			\
+	pf(UDPDST_RND)		/* UDP-Dst Random */			\
+	pf(UDPCSUM)		/* Include UDP checksum */		\
+	pf(NO_TIMESTAMP)	/* Don't timestamp packets (default TS) */ \
+	pf(MPLS_RND)		/* Random MPLS labels */		\
+	pf(QUEUE_MAP_RND)	/* queue map Random */			\
+	pf(QUEUE_MAP_CPU)	/* queue map mirrors smp_processor_id() */ \
+	pf(FLOW_SEQ)		/* Sequential flows */			\
+	pf(IPSEC)		/* ipsec on for flows */		\
+	pf(MACSRC_RND)		/* MAC-Src Random */			\
+	pf(MACDST_RND)		/* MAC-Dst Random */			\
+	pf(VID_RND)		/* Random VLAN ID */			\
+	pf(SVID_RND)		/* Random SVLAN ID */			\
+	pf(NODE)		/* Node memory alloc*/			\
+
+#define pf(flag)		flag##_SHIFT,
+enum pkt_flags {
+	PKT_FLAGS
+};
+#undef pf
+
 /* Device flag bits */
-#define F_IPSRC_RND   (1<<0)	/* IP-Src Random  */
-#define F_IPDST_RND   (1<<1)	/* IP-Dst Random  */
-#define F_UDPSRC_RND  (1<<2)	/* UDP-Src Random */
-#define F_UDPDST_RND  (1<<3)	/* UDP-Dst Random */
-#define F_MACSRC_RND  (1<<4)	/* MAC-Src Random */
-#define F_MACDST_RND  (1<<5)	/* MAC-Dst Random */
-#define F_TXSIZE_RND  (1<<6)	/* Transmit size is random */
-#define F_IPV6        (1<<7)	/* Interface in IPV6 Mode */
-#define F_MPLS_RND    (1<<8)	/* Random MPLS labels */
-#define F_VID_RND     (1<<9)	/* Random VLAN ID */
-#define F_SVID_RND    (1<<10)	/* Random SVLAN ID */
-#define F_FLOW_SEQ    (1<<11)	/* Sequential flows */
-#define F_IPSEC_ON    (1<<12)	/* ipsec on for flows */
-#define F_QUEUE_MAP_RND (1<<13)	/* queue map Random */
-#define F_QUEUE_MAP_CPU (1<<14)	/* queue map mirrors smp_processor_id() */
-#define F_NODE          (1<<15)	/* Node memory alloc*/
-#define F_UDPCSUM       (1<<16)	/* Include UDP checksum */
-#define F_NO_TIMESTAMP  (1<<17)	/* Don't timestamp packets (default TS) */
+#define pf(flag)		static const __u32 F_##flag = (1<<flag##_SHIFT);
+PKT_FLAGS
+#undef pf
 
 /* Thread control flag bits */
 #define T_STOP        (1<<0)	/* Stop run */
@@ -672,7 +683,7 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 	}
 
 #ifdef CONFIG_XFRM
-	if (pkt_dev->flags & F_IPSEC_ON) {
+	if (pkt_dev->flags & F_IPSEC) {
 		seq_puts(seq,  "IPSEC  ");
 		if (pkt_dev->spi)
 			seq_printf(seq, "spi:%u", pkt_dev->spi);
@@ -1303,10 +1314,10 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->flags &= ~F_QUEUE_MAP_CPU;
 #ifdef CONFIG_XFRM
 		else if (strcmp(f, "IPSEC") == 0)
-			pkt_dev->flags |= F_IPSEC_ON;
+			pkt_dev->flags |= F_IPSEC;
 
 		else if (strcmp(f, "!IPSEC") == 0)
-			pkt_dev->flags &= ~F_IPSEC_ON;
+			pkt_dev->flags &= ~F_IPSEC;
 #endif
 
 		else if (strcmp(f, "!IPV6") == 0)
@@ -2547,7 +2558,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 				pkt_dev->flows[flow].cur_daddr =
 				    pkt_dev->cur_daddr;
 #ifdef CONFIG_XFRM
-				if (pkt_dev->flags & F_IPSEC_ON)
+				if (pkt_dev->flags & F_IPSEC)
 					get_ipsec_sa(pkt_dev, flow);
 #endif
 				pkt_dev->nflows++;
@@ -2652,7 +2663,7 @@ static void free_SAs(struct pktgen_dev *pkt_dev)
 static int process_ipsec(struct pktgen_dev *pkt_dev,
 			      struct sk_buff *skb, __be16 protocol)
 {
-	if (pkt_dev->flags & F_IPSEC_ON) {
+	if (pkt_dev->flags & F_IPSEC) {
 		struct xfrm_state *x = pkt_dev->flows[pkt_dev->curfl].x;
 		int nhead = 0;
 		if (x) {
