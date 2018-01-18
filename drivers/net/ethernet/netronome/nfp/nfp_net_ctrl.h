@@ -43,9 +43,7 @@
 #ifndef _NFP_NET_CTRL_H_
 #define _NFP_NET_CTRL_H_
 
-/* IMPORTANT: This header file is shared with the FW,
- *	      no OS specific constructs, please!
- */
+#include <linux/types.h>
 
 /**
  * Configuration BAR size.
@@ -234,6 +232,12 @@
  */
 #define NFP_NET_CFG_RSS_CAP		0x0054
 #define   NFP_NET_CFG_RSS_CAP_HFUNC	  0xff000000
+
+/**
+ * TLV area start
+ * %NFP_NET_CFG_TLV_BASE:	start anchor of the TLV area
+ */
+#define NFP_NET_CFG_TLV_BASE		0x0058
 
 /**
  * VXLAN/UDP encap configuration
@@ -428,5 +432,62 @@
 #define  NFP_NET_CFG_VLAN_FILTER_VID	NFP_NET_CFG_VLAN_FILTER
 #define  NFP_NET_CFG_VLAN_FILTER_PROTO	 (NFP_NET_CFG_VLAN_FILTER + 2)
 #define NFP_NET_CFG_VLAN_FILTER_SZ	 0x0004
+
+/**
+ * TLV capabilities
+ * %NFP_NET_CFG_TLV_TYPE:	Offset of type within the TLV
+ * %NFP_NET_CFG_TLV_TYPE_REQUIRED: Driver must be able to parse the TLV
+ * %NFP_NET_CFG_TLV_LENGTH:	Offset of length within the TLV
+ * %NFP_NET_CFG_TLV_LENGTH_INC:	TLV length increments
+ * %NFP_NET_CFG_TLV_VALUE:	Offset of value with the TLV
+ *
+ * List of simple TLV structures, first one starts at %NFP_NET_CFG_TLV_BASE.
+ * Last structure must be of type %NFP_NET_CFG_TLV_TYPE_END.  Presence of TLVs
+ * is indicated by %NFP_NET_CFG_TLV_BASE being non-zero.  TLV structures may
+ * fill the entire remainder of the BAR or be shorter.  FW must make sure TLVs
+ * don't conflict with other features which allocate space beyond
+ * %NFP_NET_CFG_TLV_BASE.  %NFP_NET_CFG_TLV_TYPE_RESERVED should be used to wrap
+ * space used by such features.
+ * Note that the 4 byte TLV header is not counted in %NFP_NET_CFG_TLV_LENGTH.
+ */
+#define NFP_NET_CFG_TLV_TYPE		0x00
+#define   NFP_NET_CFG_TLV_TYPE_REQUIRED	  0x8000
+#define NFP_NET_CFG_TLV_LENGTH		0x02
+#define   NFP_NET_CFG_TLV_LENGTH_INC	  4
+#define NFP_NET_CFG_TLV_VALUE		0x04
+
+#define NFP_NET_CFG_TLV_HEADER_REQUIRED	0x80000000
+#define NFP_NET_CFG_TLV_HEADER_TYPE	0x7fff0000
+#define NFP_NET_CFG_TLV_HEADER_LENGTH	0x0000ffff
+
+/**
+ * Capability TLV types
+ *
+ * %NFP_NET_CFG_TLV_TYPE_UNKNOWN:
+ * Special TLV type to catch bugs, should never be encountered.  Drivers should
+ * treat encountering this type as error and refuse to probe.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_RESERVED:
+ * Reserved space, may contain legacy fixed-offset fields, or be used for
+ * padding.  The use of this type should be otherwise avoided.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_END:
+ * Empty, end of TLV list.  Must be the last TLV.  Drivers will stop processing
+ * further TLVs when encountered.
+ */
+#define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
+#define NFP_NET_CFG_TLV_TYPE_RESERVED		1
+#define NFP_NET_CFG_TLV_TYPE_END		2
+
+struct device;
+
+/**
+ * struct nfp_net_tlv_caps - parsed control BAR TLV capabilities
+ */
+struct nfp_net_tlv_caps {
+};
+
+int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
+			   struct nfp_net_tlv_caps *caps);
 
 #endif /* _NFP_NET_CTRL_H_ */

@@ -3815,6 +3815,11 @@ int nfp_net_init(struct nfp_net *nn)
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_IRQMOD;
 	}
 
+	err = nfp_net_tlv_caps_parse(&nn->pdev->dev, nn->dp.ctrl_bar,
+				     &nn->tlv_caps);
+	if (err)
+		return err;
+
 	if (nn->dp.netdev)
 		nfp_net_netdev_init(nn);
 
