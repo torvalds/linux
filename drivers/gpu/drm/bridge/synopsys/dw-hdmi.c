@@ -2079,7 +2079,7 @@ static void dw_hdmi_enable_video_path(struct dw_hdmi *hdmi)
 
 	/* Enable pixel repetition path */
 	if (hdmi->hdmi_data.video_mode.mpixelrepetitioninput) {
-		hdmi->mc_clkdis &= ~HDMI_MC_CLKDIS_CSCCLK_DISABLE;
+		hdmi->mc_clkdis &= ~HDMI_MC_CLKDIS_PREPCLK_DISABLE;
 		hdmi_writeb(hdmi, hdmi->mc_clkdis, HDMI_MC_CLKDIS);
 	}
 
