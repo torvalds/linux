@@ -1347,7 +1347,11 @@ static inline int _loop_cyclic(struct pl330_dmac *pl330, unsigned dry_run,
 	/* forever loop */
 	off += _emit_MOV(dry_run, &buf[off], SAR, x->src_addr);
 	off += _emit_MOV(dry_run, &buf[off], DAR, x->dst_addr);
-
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (!(pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP))
+		off += _emit_FLUSHP(dry_run, &buf[off],
+					pxs->desc->peri);
+#endif
 	/* loop0 */
 	off += _emit_LP(dry_run, &buf[off], 0,  lcnt0);
 	ljmp0 = off;
@@ -1423,7 +1427,11 @@ static inline int _setup_loops(struct pl330_dmac *pl330,
 	u32 ccr = pxs->ccr;
 	unsigned long c, bursts = BYTE_TO_BURST(x->bytes, ccr);
 	int off = 0;
-
+#ifdef CONFIG_ARCH_ROCKCHIP
+	if (!(pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP))
+		off += _emit_FLUSHP(dry_run, &buf[off],
+					pxs->desc->peri);
+#endif
 	while (bursts) {
 		c = bursts;
 		off += _loop(pl330, dry_run, &buf[off], &c, pxs);
