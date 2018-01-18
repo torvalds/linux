@@ -145,13 +145,13 @@ void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars);
 
 /* Passed as data param to class_config_parse_llog */
 struct config_llog_instance {
-	char	       *cfg_obdname;
-	void	       *cfg_instance;
+	char		   *cfg_obdname;
+	void		   *cfg_instance;
 	struct super_block *cfg_sb;
 	struct obd_uuid     cfg_uuid;
 	llog_cb_t	    cfg_callback;
-	int		 cfg_last_idx; /* for partial llog processing */
-	int		 cfg_flags;
+	int		    cfg_last_idx; /* for partial llog processing */
+	int		    cfg_flags;
 };
 
 int class_config_parse_llog(const struct lu_env *env, struct llog_ctxt *ctxt,
@@ -169,31 +169,31 @@ enum {
 
 /* list of active configuration logs  */
 struct config_llog_data {
-	struct ldlm_res_id	  cld_resid;
+	struct ldlm_res_id	    cld_resid;
 	struct config_llog_instance cld_cfg;
-	struct list_head		  cld_list_chain;
-	atomic_t		cld_refcount;
+	struct list_head	    cld_list_chain;
+	atomic_t		    cld_refcount;
 	struct config_llog_data    *cld_sptlrpc;/* depended sptlrpc log */
 	struct config_llog_data	   *cld_params;	/* common parameters log */
 	struct config_llog_data    *cld_recover;/* imperative recover log */
-	struct obd_export	  *cld_mgcexp;
+	struct obd_export	   *cld_mgcexp;
 	struct mutex		    cld_lock;
-	int			 cld_type;
-	unsigned int		cld_stopping:1, /*
-						 * we were told to stop
-						 * watching
-						 */
-				cld_lostlock:1; /* lock not requeued */
-	char			cld_logname[0];
+	int			    cld_type;
+	unsigned int		    cld_stopping:1, /*
+						     * we were told to stop
+						     * watching
+						     */
+				    cld_lostlock:1; /* lock not requeued */
+	char			    cld_logname[0];
 };
 
 struct lustre_profile {
-	struct list_head       lp_list;
-	char	    *lp_profile;
-	char	    *lp_dt;
-	char	    *lp_md;
-	int			lp_refs;
-	bool			lp_list_deleted;
+	struct list_head lp_list;
+	char		*lp_profile;
+	char		*lp_dt;
+	char		*lp_md;
+	int		 lp_refs;
+	bool		 lp_list_deleted;
 };
 
 struct lustre_profile *class_get_profile(const char *prof);
@@ -1544,7 +1544,7 @@ struct lwp_register_item {
 	struct obd_export **lri_exp;
 	register_lwp_cb	    lri_cb_func;
 	void		   *lri_cb_data;
-	struct list_head	    lri_list;
+	struct list_head    lri_list;
 	char		    lri_name[MTI_NAME_MAXLEN];
 };
 
