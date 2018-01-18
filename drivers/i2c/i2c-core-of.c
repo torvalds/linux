@@ -25,7 +25,7 @@
 static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 						 struct device_node *node)
 {
-	struct i2c_client *result;
+	struct i2c_client *client;
 	struct i2c_board_info info = {};
 	struct dev_archdata dev_ad = {};
 	const __be32 *addr_be;
@@ -73,13 +73,13 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	if (of_get_property(node, "wakeup-source", NULL))
 		info.flags |= I2C_CLIENT_WAKE;
 
-	result = i2c_new_device(adap, &info);
-	if (result == NULL) {
+	client = i2c_new_device(adap, &info);
+	if (!client) {
 		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", node);
 		of_node_put(node);
 		return ERR_PTR(-EINVAL);
 	}
-	return result;
+	return client;
 }
 
 void of_i2c_register_devices(struct i2c_adapter *adap)
