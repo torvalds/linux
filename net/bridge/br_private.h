@@ -760,7 +760,7 @@ static inline void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 
 static inline bool br_multicast_is_router(struct net_bridge *br)
 {
-	return 0;
+	return false;
 }
 
 static inline bool br_multicast_querier_exists(struct net_bridge *br,
