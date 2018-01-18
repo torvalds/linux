@@ -223,6 +223,17 @@
 &i2c1 {
 	status = "okay";
 
+	sensor@0f {
+		status = "okay";
+		compatible = "ak8963";
+		reg = <0x0f>;
+		type = <SENSOR_TYPE_COMPASS>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <1>;
+		reprobe_en = <1>;
+	};
+
 	ts@40 {
 		status = "okay";
 		compatible = "GT1X";

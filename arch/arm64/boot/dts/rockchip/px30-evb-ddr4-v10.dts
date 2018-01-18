@@ -6,6 +6,7 @@
 
 /dts-v1/;
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/sensor-dev.h>
 #include "px30.dtsi"
 #include "px30-android.dtsi"
 
@@ -144,6 +145,32 @@
 				pixelclk-active = <0>;
 			};
 		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	sensor@0f {
+		status = "okay";
+		compatible = "ak8963";
+		reg = <0x0f>;
+		type = <SENSOR_TYPE_COMPASS>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <1>;
+		reprobe_en = <1>;
+	};
+
+	sensor@4c {
+		status = "okay";
+		compatible = "gs_mma7660";
+		reg = <0x4c>;
+		type = <SENSOR_TYPE_ACCEL>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <6>;
+		reprobe_en = <1>;
 	};
 };
 
