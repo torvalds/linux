@@ -3999,9 +3999,11 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 out_mdio:
 	mv88e6xxx_mdios_unregister(chip);
 out_g1_vtu_prob_irq:
-	mv88e6xxx_g1_vtu_prob_irq_free(chip);
+	if (chip->irq > 0)
+		mv88e6xxx_g1_vtu_prob_irq_free(chip);
 out_g1_atu_prob_irq:
-	mv88e6xxx_g1_atu_prob_irq_free(chip);
+	if (chip->irq > 0)
+		mv88e6xxx_g1_atu_prob_irq_free(chip);
 out_g2_irq:
 	if (chip->info->g2_irqs > 0 && chip->irq > 0)
 		mv88e6xxx_g2_irq_free(chip);
