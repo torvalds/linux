@@ -1013,13 +1013,13 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	list_del(&q->list);
 	qpd->queue_count--;
-	if (q->properties.is_active)
+	if (q->properties.is_active) {
 		dqm->queue_count--;
-
-	retval = execute_queues_cpsch(dqm,
+		retval = execute_queues_cpsch(dqm,
 				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
-	if (retval == -ETIME)
-		qpd->reset_wavefronts = true;
+		if (retval == -ETIME)
+			qpd->reset_wavefronts = true;
+	}
 
 	mqd->uninit_mqd(mqd, q->mqd, q->mqd_mem_obj);
 
@@ -1033,7 +1033,7 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	mutex_unlock(&dqm->lock);
 
-	return 0;
+	return retval;
 
 failed:
 failed_try_destroy_debugged_queue:

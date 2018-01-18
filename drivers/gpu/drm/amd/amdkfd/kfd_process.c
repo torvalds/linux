@@ -461,7 +461,8 @@ int kfd_bind_processes_to_device(struct kfd_dev *dev)
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		mutex_lock(&p->mutex);
 		pdd = kfd_get_process_device_data(dev, p);
-		if (pdd->bound != PDD_BOUND_SUSPENDED) {
+
+		if (WARN_ON(!pdd) || pdd->bound != PDD_BOUND_SUSPENDED) {
 			mutex_unlock(&p->mutex);
 			continue;
 		}
@@ -500,6 +501,11 @@ void kfd_unbind_processes_from_device(struct kfd_dev *dev)
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		mutex_lock(&p->mutex);
 		pdd = kfd_get_process_device_data(dev, p);
+
+		if (WARN_ON(!pdd)) {
+			mutex_unlock(&p->mutex);
+			continue;
+		}
 
 		if (pdd->bound == PDD_BOUND)
 			pdd->bound = PDD_BOUND_SUSPENDED;
