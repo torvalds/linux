@@ -194,6 +194,9 @@ enum spectre_v2_mitigation {
 	SPECTRE_V2_IBRS,
 };
 
+extern char __indirect_thunk_start[];
+extern char __indirect_thunk_end[];
+
 /*
  * On VMEXIT we must ensure that no RSB predictions learned in the guest
  * can be followed in the host, by overwriting the RSB completely. Both
