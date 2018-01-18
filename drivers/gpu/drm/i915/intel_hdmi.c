@@ -2296,8 +2296,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	intel_hdmi_add_properties(intel_hdmi, connector);
 
-	/* PORT E doesn't have HDCP, and PORT F is disabled */
-	if (INTEL_GEN(dev_priv) >= 9 && port < PORT_E) {
+	if (is_hdcp_supported(dev_priv, port)) {
 		int ret = intel_hdcp_init(intel_connector,
 					  &intel_hdmi_hdcp_shim);
 		if (ret)

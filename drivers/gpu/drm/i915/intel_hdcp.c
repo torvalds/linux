@@ -49,13 +49,32 @@ static int intel_hdcp_load_keys(struct drm_i915_private *dev_priv)
 	int ret;
 	u32 val;
 
-	/* Initiate loading the HDCP key from fuses */
-	mutex_lock(&dev_priv->pcu_lock);
-	ret = sandybridge_pcode_write(dev_priv, SKL_PCODE_LOAD_HDCP_KEYS, 1);
-	mutex_unlock(&dev_priv->pcu_lock);
-	if (ret) {
-		DRM_ERROR("Failed to initiate HDCP key load (%d)\n", ret);
-		return ret;
+	/*
+	 * On HSW and BDW HW loads the HDCP1.4 Key when Display comes
+	 * out of reset. So if Key is not already loaded, its an error state.
+	 */
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		if (!(I915_READ(HDCP_KEY_STATUS) & HDCP_KEY_LOAD_DONE))
+			return -ENXIO;
+
+	/*
+	 * Initiate loading the HDCP key from fuses.
+	 *
+	 * BXT+ platforms, HDCP key needs to be loaded by SW. Only SKL and KBL
+	 * differ in the key load trigger process from other platforms.
+	 */
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		mutex_lock(&dev_priv->pcu_lock);
+		ret = sandybridge_pcode_write(dev_priv,
+					      SKL_PCODE_LOAD_HDCP_KEYS, 1);
+		mutex_unlock(&dev_priv->pcu_lock);
+		if (ret) {
+			DRM_ERROR("Failed to initiate HDCP key load (%d)\n",
+			          ret);
+			return ret;
+		}
+	} else {
+		I915_WRITE(HDCP_KEY_CONF, HDCP_KEY_LOAD_TRIGGER);
 	}
 
 	/* Wait for the keys to load (500us) */
@@ -573,6 +592,13 @@ static void intel_hdcp_prop_work(struct work_struct *work)
 
 	mutex_unlock(&connector->hdcp_mutex);
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+}
+
+bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port)
+{
+	/* PORT E doesn't have HDCP, and PORT F is disabled */
+	return ((INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv)) &&
+		!IS_CHERRYVIEW(dev_priv) && port < PORT_E);
 }
 
 int intel_hdcp_init(struct intel_connector *connector,
