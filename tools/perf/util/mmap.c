@@ -63,6 +63,10 @@ static union perf_event *perf_mmap__read(struct perf_mmap *map,
 	return event;
 }
 
+/*
+ * legacy interface for mmap read.
+ * Don't use it. Use perf_mmap__read_event().
+ */
 union perf_event *perf_mmap__read_forward(struct perf_mmap *map)
 {
 	u64 head;
@@ -76,41 +80,6 @@ union perf_event *perf_mmap__read_forward(struct perf_mmap *map)
 	head = perf_mmap__read_head(map);
 
 	return perf_mmap__read(map, &map->prev, head);
-}
-
-union perf_event *perf_mmap__read_backward(struct perf_mmap *map)
-{
-	u64 head, end;
-
-	/*
-	 * Check if event was unmapped due to a POLLHUP/POLLERR.
-	 */
-	if (!refcount_read(&map->refcnt))
-		return NULL;
-
-	head = perf_mmap__read_head(map);
-	if (!head)
-		return NULL;
-
-	/*
-	 * 'head' pointer starts from 0. Kernel minus sizeof(record) form
-	 * it each time when kernel writes to it, so in fact 'head' is
-	 * negative. 'end' pointer is made manually by adding the size of
-	 * the ring buffer to 'head' pointer, means the validate data can
-	 * read is the whole ring buffer. If 'end' is positive, the ring
-	 * buffer has not fully filled, so we must adjust 'end' to 0.
-	 *
-	 * However, since both 'head' and 'end' is unsigned, we can't
-	 * simply compare 'end' against 0. Here we compare '-head' and
-	 * the size of the ring buffer, where -head is the number of bytes
-	 * kernel write to the ring buffer.
-	 */
-	if (-head < (u64)(map->mask + 1))
-		end = 0;
-	else
-		end = head + map->mask + 1;
-
-	return perf_mmap__read(map, &map->prev, end);
 }
 
 /*
@@ -150,17 +119,6 @@ union perf_event *perf_mmap__read_event(struct perf_mmap *map,
 		map->prev = *startp;
 
 	return event;
-}
-
-void perf_mmap__read_catchup(struct perf_mmap *map)
-{
-	u64 head;
-
-	if (!refcount_read(&map->refcnt))
-		return;
-
-	head = perf_mmap__read_head(map);
-	map->prev = head;
 }
 
 static bool perf_mmap__empty(struct perf_mmap *map)
