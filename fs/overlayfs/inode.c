@@ -614,9 +614,15 @@ static int ovl_inode_set(struct inode *inode, void *data)
 }
 
 static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
-			     struct dentry *upperdentry)
+			     struct dentry *upperdentry, bool strict)
 {
-	if (S_ISDIR(inode->i_mode)) {
+	/*
+	 * For directories, @strict verify from lookup path performs consistency
+	 * checks, so NULL lower/upper in dentry must match NULL lower/upper in
+	 * inode. Non @strict verify from NFS handle decode path passes NULL for
+	 * 'unknown' lower/upper.
+	 */
+	if (S_ISDIR(inode->i_mode) && strict) {
 		/* Real lower dir moved to upper layer under us? */
 		if (!lowerdentry && ovl_inode_lower(inode))
 			return false;
@@ -645,15 +651,17 @@ static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
 	return true;
 }
 
-struct inode *ovl_lookup_inode(struct super_block *sb, struct dentry *origin)
+struct inode *ovl_lookup_inode(struct super_block *sb, struct dentry *real,
+			       bool is_upper)
 {
-	struct inode *inode, *key = d_inode(origin);
+	struct inode *inode, *key = d_inode(real);
 
 	inode = ilookup5(sb, (unsigned long) key, ovl_inode_test, key);
 	if (!inode)
 		return NULL;
 
-	if (!ovl_verify_inode(inode, origin, NULL)) {
+	if (!ovl_verify_inode(inode, is_upper ? NULL : real,
+			      is_upper ? real : NULL, false)) {
 		iput(inode);
 		return ERR_PTR(-ESTALE);
 	}
@@ -704,7 +712,8 @@ struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
 			 * Verify that the underlying files stored in the inode
 			 * match those in the dentry.
 			 */
-			if (!ovl_verify_inode(inode, lowerdentry, upperdentry)) {
+			if (!ovl_verify_inode(inode, lowerdentry, upperdentry,
+					      true)) {
 				iput(inode);
 				inode = ERR_PTR(-ESTALE);
 				goto out;

@@ -295,6 +295,88 @@ fail:
 }
 
 /*
+ * Lookup an indexed or hashed overlay dentry by real inode.
+ */
+static struct dentry *ovl_lookup_real_inode(struct super_block *sb,
+					    struct dentry *real,
+					    struct ovl_layer *layer)
+{
+	struct dentry *this = NULL;
+	struct inode *inode;
+
+	inode = ovl_lookup_inode(sb, real, !layer->idx);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+	if (inode) {
+		this = d_find_any_alias(inode);
+		iput(inode);
+	}
+
+	/* TODO: use index when looking up by origin inode */
+	if (!this)
+		return NULL;
+
+	if (WARN_ON(ovl_dentry_real_at(this, layer->idx) != real)) {
+		dput(this);
+		this = ERR_PTR(-EIO);
+	}
+
+	return this;
+}
+
+/*
+ * Lookup an indexed or hashed overlay dentry, whose real dentry is an
+ * ancestor of @real.
+ */
+static struct dentry *ovl_lookup_real_ancestor(struct super_block *sb,
+					       struct dentry *real,
+					       struct ovl_layer *layer)
+{
+	struct dentry *next, *parent = NULL;
+	struct dentry *ancestor = ERR_PTR(-EIO);
+
+	if (real == layer->mnt->mnt_root)
+		return dget(sb->s_root);
+
+	/* Find the topmost indexed or hashed ancestor */
+	next = dget(real);
+	for (;;) {
+		parent = dget_parent(next);
+
+		/*
+		 * Lookup a matching overlay dentry in inode/dentry
+		 * cache or in index by real inode.
+		 */
+		ancestor = ovl_lookup_real_inode(sb, next, layer);
+		if (ancestor)
+			break;
+
+		if (parent == layer->mnt->mnt_root) {
+			ancestor = dget(sb->s_root);
+			break;
+		}
+
+		/*
+		 * If @real has been moved out of the layer root directory,
+		 * we will eventully hit the real fs root. This cannot happen
+		 * by legit overlay rename, so we return error in that case.
+		 */
+		if (parent == next) {
+			ancestor = ERR_PTR(-EXDEV);
+			break;
+		}
+
+		dput(next);
+		next = parent;
+	}
+
+	dput(parent);
+	dput(next);
+
+	return ancestor;
+}
+
+/*
  * Lookup a connected overlay dentry whose real dentry is @real.
  * If @real is on upper layer, we lookup a child overlay dentry with the same
  * path the real dentry. Otherwise, we need to consult index for lookup.
@@ -306,9 +388,10 @@ static struct dentry *ovl_lookup_real(struct super_block *sb,
 	struct dentry *connected;
 	int err = 0;
 
-	/* TODO: use index when looking up by lower real dentry */
+	connected = ovl_lookup_real_ancestor(sb, real, layer);
+	if (IS_ERR(connected))
+		return connected;
 
-	connected = dget(sb->s_root);
 	while (!err) {
 		struct dentry *next, *this;
 		struct dentry *parent = NULL;
@@ -365,11 +448,15 @@ static struct dentry *ovl_lookup_real(struct super_block *sb,
 			 * overlay rename of child away from 'connected' parent.
 			 * In this case, we need to restart the lookup from the
 			 * top, because we cannot trust that 'real_connected' is
-			 * still an ancestor of 'real'.
+			 * still an ancestor of 'real'. There is a good chance
+			 * that the renamed overlay ancestor is now in cache, so
+			 * ovl_lookup_real_ancestor() will find it and we can
+			 * continue to connect exactly from where lookup failed.
 			 */
 			if (err == -ECHILD) {
-				this = dget(sb->s_root);
-				err = 0;
+				this = ovl_lookup_real_ancestor(sb, real,
+								layer);
+				err = IS_ERR(this) ? PTR_ERR(this) : 0;
 			}
 			if (!err) {
 				dput(connected);
@@ -494,7 +581,7 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 	} else if (is_deleted) {
 		/* Lookup deleted non-dir by origin inode */
 		if (!d_is_dir(origin.dentry))
-			inode = ovl_lookup_inode(sb, origin.dentry);
+			inode = ovl_lookup_inode(sb, origin.dentry, false);
 		err = -ESTALE;
 		if (!inode || atomic_read(&inode->i_count) == 1)
 			goto out_err;
