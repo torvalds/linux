@@ -807,15 +807,6 @@ config SPRD_WATCHDOG
 	  Say Y here to include watchdog timer supported
 	  by Spreadtrum system.
 
-# AVR32 Architecture
-
-config AT32AP700X_WDT
-	tristate "AT32AP700x watchdog"
-	depends on CPU_AT32AP700X || COMPILE_TEST
-	help
-	  Watchdog timer embedded into AT32AP700x devices. This will reboot
-	  your system when the timeout is reached.
-
 # BLACKFIN Architecture
 
 config BFIN_WDT
