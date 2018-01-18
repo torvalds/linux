@@ -183,11 +183,6 @@
 
 &i2c12 {
 	status = "okay";
-
-	max31785@52 {
-		compatible = "maxim,max31785";
-		reg = <0x52>;
-	};
 };
 
 &gpio {
