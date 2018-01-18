@@ -302,6 +302,8 @@ int perf_mmap__push(struct perf_mmap *md, bool overwrite,
 			return -1;
 	}
 
+	size = end - start;
+
 	if ((start & md->mask) + size != (end & md->mask)) {
 		buf = &data[start & md->mask];
 		size = md->mask + 1 - (start & md->mask);
