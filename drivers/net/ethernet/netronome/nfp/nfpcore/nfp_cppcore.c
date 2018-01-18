@@ -674,18 +674,20 @@ void __iomem *nfp_cpp_area_iomem(struct nfp_cpp_area *area)
  * @offset:	Offset into area
  * @value:	Pointer to read buffer
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_cpp_area_readl(struct nfp_cpp_area *area,
 		       unsigned long offset, u32 *value)
 {
 	u8 tmp[4];
-	int err;
+	int n;
 
-	err = nfp_cpp_area_read(area, offset, &tmp, sizeof(tmp));
+	n = nfp_cpp_area_read(area, offset, &tmp, sizeof(tmp));
+	if (n != sizeof(tmp))
+		return n < 0 ? n : -EIO;
+
 	*value = get_unaligned_le32(tmp);
-
-	return err;
+	return 0;
 }
 
 /**
@@ -694,16 +696,18 @@ int nfp_cpp_area_readl(struct nfp_cpp_area *area,
  * @offset:	Offset into area
  * @value:	Value to write
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_cpp_area_writel(struct nfp_cpp_area *area,
 			unsigned long offset, u32 value)
 {
 	u8 tmp[4];
+	int n;
 
 	put_unaligned_le32(value, tmp);
+	n = nfp_cpp_area_write(area, offset, &tmp, sizeof(tmp));
 
-	return nfp_cpp_area_write(area, offset, &tmp, sizeof(tmp));
+	return n == sizeof(tmp) ? 0 : n < 0 ? n : -EIO;
 }
 
 /**
@@ -712,18 +716,20 @@ int nfp_cpp_area_writel(struct nfp_cpp_area *area,
  * @offset:	Offset into area
  * @value:	Pointer to read buffer
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_cpp_area_readq(struct nfp_cpp_area *area,
 		       unsigned long offset, u64 *value)
 {
 	u8 tmp[8];
-	int err;
+	int n;
 
-	err = nfp_cpp_area_read(area, offset, &tmp, sizeof(tmp));
+	n = nfp_cpp_area_read(area, offset, &tmp, sizeof(tmp));
+	if (n != sizeof(tmp))
+		return n < 0 ? n : -EIO;
+
 	*value = get_unaligned_le64(tmp);
-
-	return err;
+	return 0;
 }
 
 /**
@@ -732,16 +738,18 @@ int nfp_cpp_area_readq(struct nfp_cpp_area *area,
  * @offset:	Offset into area
  * @value:	Value to write
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_cpp_area_writeq(struct nfp_cpp_area *area,
 			unsigned long offset, u64 value)
 {
 	u8 tmp[8];
+	int n;
 
 	put_unaligned_le64(value, tmp);
+	n = nfp_cpp_area_write(area, offset, &tmp, sizeof(tmp));
 
-	return nfp_cpp_area_write(area, offset, &tmp, sizeof(tmp));
+	return n == sizeof(tmp) ? 0 : n < 0 ? n : -EIO;
 }
 
 /**
@@ -1080,7 +1088,7 @@ static u32 nfp_xpb_to_cpp(struct nfp_cpp *cpp, u32 *xpb_addr)
  * @xpb_addr:	Address for operation
  * @value:	Pointer to read buffer
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_xpb_readl(struct nfp_cpp *cpp, u32 xpb_addr, u32 *value)
 {
@@ -1095,7 +1103,7 @@ int nfp_xpb_readl(struct nfp_cpp *cpp, u32 xpb_addr, u32 *value)
  * @xpb_addr:	Address for operation
  * @value:	Value to write
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_xpb_writel(struct nfp_cpp *cpp, u32 xpb_addr, u32 value)
 {
@@ -1113,7 +1121,7 @@ int nfp_xpb_writel(struct nfp_cpp *cpp, u32 xpb_addr, u32 value)
  *
  * KERNEL: This operation is safe to call in interrupt or softirq context.
  *
- * Return: length of the io, or -ERRNO
+ * Return: 0 on success, or -ERRNO
  */
 int nfp_xpb_writelm(struct nfp_cpp *cpp, u32 xpb_tgt,
 		    u32 mask, u32 value)
