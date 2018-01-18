@@ -272,7 +272,7 @@ int perf_mmap__push(struct perf_mmap *md, bool overwrite,
 {
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
-	u64 end = head, start = old;
+	u64 end, start;
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
 	void *buf;
