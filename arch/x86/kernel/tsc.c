@@ -280,6 +280,16 @@ static int __init tsc_setup(char *str)
 
 __setup("tsc=", tsc_setup);
 
+static int tsc_freq_override_khz;
+
+static int __init tsc_freq_setup(char *str)
+{
+	tsc_freq_override_khz = simple_strtol(str, NULL, 0);
+	return 1;
+}
+
+__setup("tsc_freq=", tsc_freq_setup);
+
 #define MAX_RETRIES     5
 #define SMI_TRESHOLD    50000
 
@@ -577,6 +587,12 @@ unsigned long native_calibrate_tsc(void)
 {
 	unsigned int eax_denominator, ebx_numerator, ecx_hz, edx;
 	unsigned int crystal_khz;
+	
+	if (tsc_freq_override_khz) {
+		/* Workaround for possibly incorrect TSC frequency computation */
+		setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
+		return tsc_freq_override_khz;
+	}
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return 0;
