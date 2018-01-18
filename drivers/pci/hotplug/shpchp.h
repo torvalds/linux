@@ -62,15 +62,15 @@ do {									\
 #define ctrl_dbg(ctrl, format, arg...)					\
 	do {								\
 		if (shpchp_debug)					\
-			dev_printk(KERN_DEBUG, &ctrl->pci_dev->dev,	\
+			pci_printk(KERN_DEBUG, ctrl->pci_dev,		\
 					format, ## arg);		\
 	} while (0)
 #define ctrl_err(ctrl, format, arg...)					\
-	dev_err(&ctrl->pci_dev->dev, format, ## arg)
+	pci_err(ctrl->pci_dev, format, ## arg)
 #define ctrl_info(ctrl, format, arg...)					\
-	dev_info(&ctrl->pci_dev->dev, format, ## arg)
+	pci_info(ctrl->pci_dev, format, ## arg)
 #define ctrl_warn(ctrl, format, arg...)					\
-	dev_warn(&ctrl->pci_dev->dev, format, ## arg)
+	pci_warn(ctrl->pci_dev, format, ## arg)
 
 
 #define SLOT_NAME_SIZE 10

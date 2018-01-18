@@ -33,7 +33,7 @@ static void pci_ptm_info(struct pci_dev *dev)
 			 dev->ptm_granularity);
 		break;
 	}
-	dev_info(&dev->dev, "PTM enabled%s, %s granularity\n",
+	pci_info(dev, "PTM enabled%s, %s granularity\n",
 		 dev->ptm_root ? " (root)" : "", clock_desc);
 }
 

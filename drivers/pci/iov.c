@@ -259,19 +259,19 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 			nres++;
 	}
 	if (nres != iov->nres) {
-		dev_err(&dev->dev, "not enough MMIO resources for SR-IOV\n");
+		pci_err(dev, "not enough MMIO resources for SR-IOV\n");
 		return -ENOMEM;
 	}
 
 	bus = pci_iov_virtfn_bus(dev, nr_virtfn - 1);
 	if (bus > dev->bus->busn_res.end) {
-		dev_err(&dev->dev, "can't enable %d VFs (bus %02x out of range of %pR)\n",
+		pci_err(dev, "can't enable %d VFs (bus %02x out of range of %pR)\n",
 			nr_virtfn, bus, &dev->bus->busn_res);
 		return -ENOMEM;
 	}
 
 	if (pci_enable_resources(dev, bars)) {
-		dev_err(&dev->dev, "SR-IOV: IOV BARS not allocated\n");
+		pci_err(dev, "SR-IOV: IOV BARS not allocated\n");
 		return -ENOMEM;
 	}
 
@@ -298,7 +298,7 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 
 	rc = pcibios_sriov_enable(dev, initial);
 	if (rc) {
-		dev_err(&dev->dev, "failure %d from pcibios_sriov_enable()\n", rc);
+		pci_err(dev, "failure %d from pcibios_sriov_enable()\n", rc);
 		goto err_pcibios;
 	}
 
@@ -432,7 +432,7 @@ found:
 		}
 		iov->barsz[i] = resource_size(res);
 		res->end = res->start + resource_size(res) * total - 1;
-		dev_info(&dev->dev, "VF(n) BAR%d space: %pR (contains BAR%d for %d VFs)\n",
+		pci_info(dev, "VF(n) BAR%d space: %pR (contains BAR%d for %d VFs)\n",
 			 i, res, i, total);
 		i += bar64;
 		nres++;

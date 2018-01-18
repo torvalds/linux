@@ -344,14 +344,14 @@ static int aer_inject(struct aer_error_inj *einj)
 		return -ENODEV;
 	rpdev = pcie_find_root_port(dev);
 	if (!rpdev) {
-		dev_err(&dev->dev, "aer_inject: Root port not found\n");
+		pci_err(dev, "aer_inject: Root port not found\n");
 		ret = -ENODEV;
 		goto out_put;
 	}
 
 	pos_cap_err = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 	if (!pos_cap_err) {
-		dev_err(&dev->dev, "aer_inject: Device doesn't support AER\n");
+		pci_err(dev, "aer_inject: Device doesn't support AER\n");
 		ret = -EPROTONOSUPPORT;
 		goto out_put;
 	}
@@ -362,8 +362,7 @@ static int aer_inject(struct aer_error_inj *einj)
 
 	rp_pos_cap_err = pci_find_ext_capability(rpdev, PCI_EXT_CAP_ID_ERR);
 	if (!rp_pos_cap_err) {
-		dev_err(&rpdev->dev,
-			"aer_inject: Root port doesn't support AER\n");
+		pci_err(rpdev, "aer_inject: Root port doesn't support AER\n");
 		ret = -EPROTONOSUPPORT;
 		goto out_put;
 	}
@@ -411,16 +410,14 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (!aer_mask_override && einj->cor_status &&
 	    !(einj->cor_status & ~cor_mask)) {
 		ret = -EINVAL;
-		dev_warn(&dev->dev,
-			 "aer_inject: The correctable error(s) is masked by device\n");
+		pci_warn(dev, "aer_inject: The correctable error(s) is masked by device\n");
 		spin_unlock_irqrestore(&inject_lock, flags);
 		goto out_put;
 	}
 	if (!aer_mask_override && einj->uncor_status &&
 	    !(einj->uncor_status & ~uncor_mask)) {
 		ret = -EINVAL;
-		dev_warn(&dev->dev,
-			 "aer_inject: The uncorrectable error(s) is masked by device\n");
+		pci_warn(dev, "aer_inject: The uncorrectable error(s) is masked by device\n");
 		spin_unlock_irqrestore(&inject_lock, flags);
 		goto out_put;
 	}
@@ -483,7 +480,7 @@ static int aer_inject(struct aer_error_inj *einj)
 			 einj->cor_status, einj->uncor_status, pci_name(dev));
 		aer_irq(-1, edev);
 	} else {
-		dev_err(&rpdev->dev, "aer_inject: AER device not found\n");
+		pci_err(rpdev, "aer_inject: AER device not found\n");
 		ret = -ENODEV;
 	}
 out_put:
