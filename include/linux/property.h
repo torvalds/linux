@@ -83,10 +83,16 @@ struct fwnode_handle *fwnode_get_next_parent(
 	struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_get_next_child_node(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
+struct fwnode_handle *fwnode_get_next_available_child_node(
+	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
 
 #define fwnode_for_each_child_node(fwnode, child)			\
 	for (child = fwnode_get_next_child_node(fwnode, NULL); child;	\
 	     child = fwnode_get_next_child_node(fwnode, child))
+
+#define fwnode_for_each_available_child_node(fwnode, child)		       \
+	for (child = fwnode_get_next_available_child_node(fwnode, NULL); child;\
+	     child = fwnode_get_next_available_child_node(fwnode, child))
 
 struct fwnode_handle *device_get_next_child_node(
 	struct device *dev, struct fwnode_handle *child);

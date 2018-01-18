@@ -998,6 +998,32 @@ fwnode_get_next_child_node(const struct fwnode_handle *fwnode,
 EXPORT_SYMBOL_GPL(fwnode_get_next_child_node);
 
 /**
+ * fwnode_get_next_available_child_node - Return the next
+ * available child node handle for a node
+ * @fwnode: Firmware node to find the next child node for.
+ * @child: Handle to one of the node's child nodes or a %NULL handle.
+ */
+struct fwnode_handle *
+fwnode_get_next_available_child_node(const struct fwnode_handle *fwnode,
+				     struct fwnode_handle *child)
+{
+	struct fwnode_handle *next_child = child;
+
+	if (!fwnode)
+		return NULL;
+
+	do {
+		next_child = fwnode_get_next_child_node(fwnode, next_child);
+
+		if (!next_child || fwnode_device_is_available(next_child))
+			break;
+	} while (next_child);
+
+	return next_child;
+}
+EXPORT_SYMBOL_GPL(fwnode_get_next_available_child_node);
+
+/**
  * device_get_next_child_node - Return the next child node handle for a device
  * @dev: Device to find the next child node for.
  * @child: Handle to one of the device's child nodes or a null handle.
