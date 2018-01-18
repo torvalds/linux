@@ -140,7 +140,6 @@ snd-soc-sigmadsp-i2c-objs := sigmadsp-i2c.o
 snd-soc-sigmadsp-regmap-objs := sigmadsp-regmap.o
 snd-soc-si476x-objs := si476x.o
 snd-soc-sirf-audio-codec-objs := sirf-audio-codec.o
-snd-soc-sn95031-objs := sn95031.o
 snd-soc-spdif-tx-objs := spdif_transmitter.o
 snd-soc-spdif-rx-objs := spdif_receiver.o
 snd-soc-ssm2518-objs := ssm2518.o
