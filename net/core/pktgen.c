@@ -1284,8 +1284,11 @@ static ssize_t pktgen_if_write(struct file *file,
 		else if (strcmp(f, "!SVID_RND") == 0)
 			pkt_dev->flags &= ~F_SVID_RND;
 
-		else if (strcmp(f, "FLOW_SEQ") == 0)
+		else if (strcmp(f, "FLOW_SEQ") == 0 || strcmp(f, "!FLOW_RND") == 0)
 			pkt_dev->flags |= F_FLOW_SEQ;
+
+		else if (strcmp(f, "FLOW_RND") == 0 || strcmp(f, "!FLOW_SEQ") == 0)
+			pkt_dev->flags &= ~F_FLOW_SEQ;
 
 		else if (strcmp(f, "QUEUE_MAP_RND") == 0)
 			pkt_dev->flags |= F_QUEUE_MAP_RND;
@@ -1301,6 +1304,9 @@ static ssize_t pktgen_if_write(struct file *file,
 #ifdef CONFIG_XFRM
 		else if (strcmp(f, "IPSEC") == 0)
 			pkt_dev->flags |= F_IPSEC_ON;
+
+		else if (strcmp(f, "!IPSEC") == 0)
+			pkt_dev->flags &= ~F_IPSEC_ON;
 #endif
 
 		else if (strcmp(f, "!IPV6") == 0)
