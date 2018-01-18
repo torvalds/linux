@@ -34,15 +34,33 @@
  * --------------------------------
  *  Pure upper		| U
  *  Non-indexed upper	| U
- *  Indexed upper	| L
- *  Non-upper		| L
+ *  Indexed upper	| L (*)
+ *  Non-upper		| L (*)
  *
  * U = upper file handle
  * L = lower file handle
+ *
+ * (*) Connecting an overlay dir from real lower dentry is not always
+ * possible when there are redirects in lower layers. To mitigate this case,
+ * we copy up the lower dir first and then encode an upper dir file handle.
  */
 static bool ovl_should_encode_origin(struct dentry *dentry)
 {
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+
 	if (!ovl_dentry_lower(dentry))
+		return false;
+
+	/*
+	 * Decoding a merge dir, whose origin's parent is under a redirected
+	 * lower dir is not always possible. As a simple aproximation, we do
+	 * not encode lower dir file handles when overlay has multiple lower
+	 * layers and origin is below the topmost lower layer.
+	 *
+	 * TODO: copy up only the parent that is under redirected lower.
+	 */
+	if (d_is_dir(dentry) && ofs->upper_mnt &&
+	    OVL_E(dentry)->lowerstack[0].layer->idx > 1)
 		return false;
 
 	/* Decoding a non-indexed upper from origin is not implemented */
@@ -53,16 +71,43 @@ static bool ovl_should_encode_origin(struct dentry *dentry)
 	return true;
 }
 
+static int ovl_encode_maybe_copy_up(struct dentry *dentry)
+{
+	int err;
+
+	if (ovl_dentry_upper(dentry))
+		return 0;
+
+	err = ovl_want_write(dentry);
+	if (err)
+		return err;
+
+	err = ovl_copy_up(dentry);
+
+	ovl_drop_write(dentry);
+	return err;
+}
+
 static int ovl_d_to_fh(struct dentry *dentry, char *buf, int buflen)
 {
-	struct dentry *upper = ovl_dentry_upper(dentry);
+	struct dentry *upper;
 	struct dentry *origin = ovl_dentry_lower(dentry);
 	struct ovl_fh *fh = NULL;
 	int err;
 
-	if (!ovl_should_encode_origin(dentry))
-		origin = NULL;
+	/*
+	 * If we should not encode a lower dir file handle, copy up and encode
+	 * an upper dir file handle.
+	 */
+	if (!ovl_should_encode_origin(dentry)) {
+		err = ovl_encode_maybe_copy_up(dentry);
+		if (err)
+			goto fail;
 
+		origin = NULL;
+	}
+
+	upper = ovl_dentry_upper(dentry);
 	err = -EACCES;
 	if (!upper || origin)
 		goto fail;
