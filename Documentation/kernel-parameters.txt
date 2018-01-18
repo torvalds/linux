@@ -2523,8 +2523,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nojitter	[IA-64] Disables jitter checking for ITC timers.
 
-	nopti		[X86-64] Disable KAISER isolation of kernel from user.
-
 	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
 
 	no-kvmapf	[X86,KVM] Disable paravirtualized asynchronous page
@@ -3056,11 +3054,20 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
-	pti=		[X86_64]
-			Control KAISER user/kernel address space isolation:
-			on - enable
-			off - disable
-			auto - default setting
+	pti=		[X86_64] Control Page Table Isolation of user and
+			kernel address spaces.  Disabling this feature
+			removes hardening, but improves performance of
+			system calls and interrupts.
+
+			on   - unconditionally enable
+			off  - unconditionally disable
+			auto - kernel detects whether your CPU model is
+			       vulnerable to issues that PTI mitigates
+
+			Not specifying this option is equivalent to pti=auto.
+
+	nopti		[X86_64]
+			Equivalent to pti=off
 
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in

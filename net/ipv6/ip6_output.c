@@ -1785,8 +1785,10 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 	cork.base.opt = NULL;
 	v6_cork.opt = NULL;
 	err = ip6_setup_cork(sk, &cork, &v6_cork, hlimit, tclass, opt, rt, fl6);
-	if (err)
+	if (err) {
+		ip6_cork_release(&cork, &v6_cork);
 		return ERR_PTR(err);
+	}
 
 	if (dontfrag < 0)
 		dontfrag = inet6_sk(sk)->dontfrag;
