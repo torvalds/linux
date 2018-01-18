@@ -1126,21 +1126,21 @@ enum dev_dma_attr device_get_dma_attr(struct device *dev)
 EXPORT_SYMBOL_GPL(device_get_dma_attr);
 
 /**
- * device_get_phy_mode - Get phy mode for given device
- * @dev:	Pointer to the given device
+ * fwnode_get_phy_mode - Get phy mode for given firmware node
+ * @fwnode:	Pointer to the given node
  *
  * The function gets phy interface string from property 'phy-mode' or
  * 'phy-connection-type', and return its index in phy_modes table, or errno in
  * error case.
  */
-int device_get_phy_mode(struct device *dev)
+int fwnode_get_phy_mode(struct fwnode_handle *fwnode)
 {
 	const char *pm;
 	int err, i;
 
-	err = device_property_read_string(dev, "phy-mode", &pm);
+	err = fwnode_property_read_string(fwnode, "phy-mode", &pm);
 	if (err < 0)
-		err = device_property_read_string(dev,
+		err = fwnode_property_read_string(fwnode,
 						  "phy-connection-type", &pm);
 	if (err < 0)
 		return err;
@@ -1150,6 +1150,20 @@ int device_get_phy_mode(struct device *dev)
 			return i;
 
 	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(fwnode_get_phy_mode);
+
+/**
+ * device_get_phy_mode - Get phy mode for given device
+ * @dev:	Pointer to the given device
+ *
+ * The function gets phy interface string from property 'phy-mode' or
+ * 'phy-connection-type', and return its index in phy_modes table, or errno in
+ * error case.
+ */
+int device_get_phy_mode(struct device *dev)
+{
+	return fwnode_get_phy_mode(dev_fwnode(dev));
 }
 EXPORT_SYMBOL_GPL(device_get_phy_mode);
 
