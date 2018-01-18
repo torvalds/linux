@@ -2852,12 +2852,18 @@ static int btrfs_fallocate_update_isize(struct inode *inode,
 	return ret ? ret : ret2;
 }
 
+enum {
+	RANGE_BOUNDARY_WRITTEN_EXTENT = 0,
+	RANGE_BOUNDARY_PREALLOC_EXTENT = 1,
+	RANGE_BOUNDARY_HOLE = 2,
+};
+
 static int btrfs_zero_range_check_range_boundary(struct inode *inode,
 						 u64 offset)
 {
 	const u64 sectorsize = btrfs_inode_sectorsize(inode);
 	struct extent_map *em;
-	int ret = 0;
+	int ret;
 
 	offset = round_down(offset, sectorsize);
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize, 0);
@@ -2865,7 +2871,11 @@ static int btrfs_zero_range_check_range_boundary(struct inode *inode,
 		return PTR_ERR(em);
 
 	if (em->block_start == EXTENT_MAP_HOLE)
-		ret = 1;
+		ret = RANGE_BOUNDARY_HOLE;
+	else if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+		ret = RANGE_BOUNDARY_PREALLOC_EXTENT;
+	else
+		ret = RANGE_BOUNDARY_WRITTEN_EXTENT;
 
 	free_extent_map(em);
 	return ret;
@@ -2974,13 +2984,15 @@ static int btrfs_zero_range(struct inode *inode,
 		ret = btrfs_zero_range_check_range_boundary(inode, offset);
 		if (ret < 0)
 			goto out;
-		if (ret) {
+		if (ret == RANGE_BOUNDARY_HOLE) {
 			alloc_start = round_down(offset, sectorsize);
 			ret = 0;
-		} else {
+		} else if (ret == RANGE_BOUNDARY_WRITTEN_EXTENT) {
 			ret = btrfs_truncate_block(inode, offset, 0, 0);
 			if (ret)
 				goto out;
+		} else {
+			ret = 0;
 		}
 	}
 
@@ -2989,13 +3001,15 @@ static int btrfs_zero_range(struct inode *inode,
 							    offset + len);
 		if (ret < 0)
 			goto out;
-		if (ret) {
+		if (ret == RANGE_BOUNDARY_HOLE) {
 			alloc_end = round_up(offset + len, sectorsize);
 			ret = 0;
-		} else {
+		} else if (ret == RANGE_BOUNDARY_WRITTEN_EXTENT) {
 			ret = btrfs_truncate_block(inode, offset + len, 0, 1);
 			if (ret)
 				goto out;
+		} else {
+			ret = 0;
 		}
 	}
 
