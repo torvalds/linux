@@ -656,7 +656,7 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	if (dc->res_pool->hubps[pipe_ctx->pipe_idx]->power_gated)
+	if (!pipe_ctx->plane_res.hubp || pipe_ctx->plane_res.hubp->power_gated)
 		return;
 
 	plane_atomic_disable(dc, pipe_ctx);
