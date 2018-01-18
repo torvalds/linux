@@ -474,17 +474,24 @@
  * %NFP_NET_CFG_TLV_TYPE_END:
  * Empty, end of TLV list.  Must be the last TLV.  Drivers will stop processing
  * further TLVs when encountered.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_ME_FREQ:
+ * Single word, ME frequency in MHz as used in calculation for
+ * %NFP_NET_CFG_RXR_IRQ_MOD and %NFP_NET_CFG_TXR_IRQ_MOD.
  */
 #define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
 #define NFP_NET_CFG_TLV_TYPE_END		2
+#define NFP_NET_CFG_TLV_TYPE_ME_FREQ		3
 
 struct device;
 
 /**
  * struct nfp_net_tlv_caps - parsed control BAR TLV capabilities
+ * @me_freq_mhz:	ME clock_freq (MHz)
  */
 struct nfp_net_tlv_caps {
+	u32 me_freq_mhz;
 };
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,

@@ -42,6 +42,7 @@
 static void nfp_net_tlv_caps_reset(struct nfp_net_tlv_caps *caps)
 {
 	memset(caps, 0, sizeof(*caps));
+	caps->me_freq_mhz = 1200;
 }
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
@@ -91,6 +92,16 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			dev_err(dev, "END TLV should be empty, has len:%d\n",
 				length);
 			return -EINVAL;
+		case NFP_NET_CFG_TLV_TYPE_ME_FREQ:
+			if (length != 4) {
+				dev_err(dev,
+					"ME FREQ TLV should be 4B, is %dB\n",
+					length);
+				return -EINVAL;
+			}
+
+			caps->me_freq_mhz = readl(data);
+			break;
 		default:
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))
 				break;

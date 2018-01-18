@@ -2458,7 +2458,7 @@ void nfp_net_coalesce_write_cfg(struct nfp_net *nn)
 	 * ME timestamp ticks.  There are 16 ME clock cycles for each timestamp
 	 * count.
 	 */
-	factor = nn->me_freq_mhz / 16;
+	factor = nn->tlv_caps.me_freq_mhz / 16;
 
 	/* copy RX interrupt coalesce parameters */
 	value = (nn->rx_coalesce_max_frames << 16) |
