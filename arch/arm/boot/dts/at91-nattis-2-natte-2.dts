@@ -216,29 +216,34 @@
 			reg = <0x0 0x40000>;
 		};
 
-		bootloader@40000 {
-			label = "bootloader";
-			reg = <0x40000 0x80000>;
+		barebox@40000 {
+			label = "barebox";
+			reg = <0x40000 0x60000>;
 		};
 
-		bootloaderenv@c0000 {
-			label = "bootloader env";
-			reg = <0xc0000 0xc0000>;
+		bareboxenv@c0000 {
+			label = "bareboxenv";
+			reg = <0xc0000 0x40000>;
 		};
 
-		dtb@180000 {
-			label = "device tree";
-			reg = <0x180000 0x80000>;
+		bareboxenv2@100000 {
+			label = "bareboxenv2";
+			reg = <0x100000 0x40000>;
+		};
+
+		oftree@180000 {
+			label = "oftree";
+			reg = <0x180000 0x20000>;
 		};
 
 		kernel@200000 {
 			label = "kernel";
-			reg = <0x200000 0x600000>;
+			reg = <0x200000 0x500000>;
 		};
 
 		rootfs@800000 {
 			label = "rootfs";
-			reg = <0x800000 0x0f800000>;
+			reg = <0x800000 0x1f800000>;
 		};
 	};
 };
