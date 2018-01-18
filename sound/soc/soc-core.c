@@ -598,6 +598,7 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(snd_soc_rtdcom_lookup);
 
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream)
