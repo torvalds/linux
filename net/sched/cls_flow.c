@@ -401,7 +401,7 @@ static void flow_destroy_filter(struct rcu_head *head)
 static int flow_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle, struct nlattr **tca,
-		       void **arg, bool ovr)
+		       void **arg, bool ovr, struct netlink_ext_ack *extack)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *fold, *fnew;

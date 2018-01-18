@@ -239,7 +239,8 @@ struct tcf_proto_ops {
 	int			(*change)(struct net *net, struct sk_buff *,
 					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
-					void **, bool);
+					void **, bool,
+					struct netlink_ext_ack *);
 	int			(*delete)(struct tcf_proto *tp, void *arg,
 					  bool *last);
 	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);

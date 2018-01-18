@@ -520,7 +520,8 @@ errout:
 static int
 tcindex_change(struct net *net, struct sk_buff *in_skb,
 	       struct tcf_proto *tp, unsigned long base, u32 handle,
-	       struct nlattr **tca, void **arg, bool ovr)
+	       struct nlattr **tca, void **arg, bool ovr,
+	       struct netlink_ext_ack *extack)
 {
 	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_TCINDEX_MAX + 1];

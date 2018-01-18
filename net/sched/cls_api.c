@@ -1231,7 +1231,8 @@ replay:
 	}
 
 	err = tp->ops->change(net, skb, tp, cl, t->tcm_handle, tca, &fh,
-			      n->nlmsg_flags & NLM_F_CREATE ? TCA_ACT_NOREPLACE : TCA_ACT_REPLACE);
+			      n->nlmsg_flags & NLM_F_CREATE ? TCA_ACT_NOREPLACE : TCA_ACT_REPLACE,
+			      extack);
 	if (err == 0) {
 		if (tp_created)
 			tcf_chain_tp_insert(chain, &chain_info, tp);

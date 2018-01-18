@@ -160,7 +160,7 @@ static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 static int mall_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle, struct nlattr **tca,
-		       void **arg, bool ovr)
+		       void **arg, bool ovr, struct netlink_ext_ack *extack)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 	struct nlattr *tb[TCA_MATCHALL_MAX + 1];

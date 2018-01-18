@@ -257,7 +257,7 @@ static int fw_set_parms(struct net *net, struct tcf_proto *tp,
 static int fw_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle, struct nlattr **tca, void **arg,
-		     bool ovr)
+		     bool ovr, struct netlink_ext_ack *extack)
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct fw_filter *f = *arg;

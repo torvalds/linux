@@ -91,7 +91,8 @@ static void cls_cgroup_destroy_rcu(struct rcu_head *root)
 static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
-			     void **arg, bool ovr)
+			     void **arg, bool ovr,
+			     struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[TCA_CGROUP_MAX + 1];
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
