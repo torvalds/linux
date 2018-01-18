@@ -604,8 +604,16 @@ static void pending_bios_fn(struct btrfs_work *work)
 	run_scheduled_bios(device);
 }
 
-
-static void btrfs_free_stale_devices(struct btrfs_device *skip_dev)
+/*
+ *  Search and remove all stale (devices which are not mounted) devices.
+ *  When both inputs are NULL, it will search and release all stale devices.
+ *  path:	Optional. When provided will it release all unmounted devices
+ *		matching this path only.
+ *  skip_dev:	Optional. Will skip this device when searching for the stale
+ *		devices.
+ */
+static void btrfs_free_stale_devices(const char *path,
+				     struct btrfs_device *skip_dev)
 {
 	struct btrfs_fs_devices *fs_devs, *tmp_fs_devs;
 	struct btrfs_device *dev, *tmp_dev;
@@ -619,19 +627,15 @@ static void btrfs_free_stale_devices(struct btrfs_device *skip_dev)
 					 &fs_devs->devices, dev_list) {
 			int not_found = 0;
 
-			if (skip_dev && (skip_dev == dev || !dev->name))
+			if (skip_dev && skip_dev == dev)
+				continue;
+			if (path && !dev->name)
 				continue;
 
-			/*
-			 * Todo: This won't be enough. What if the same device
-			 * comes back (with new uuid and) with its mapper path?
-			 * But for now, this does help as mostly an admin will
-			 * either use mapper or non mapper path throughout.
-			 */
 			rcu_read_lock();
-			if (skip_dev)
+			if (path)
 				not_found = strcmp(rcu_str_deref(dev->name),
-						   rcu_str_deref(skip_dev->name));
+						   path);
 			rcu_read_unlock();
 			if (not_found)
 				continue;
@@ -773,7 +777,7 @@ static noinline int device_list_add(const char *path,
 
 		ret = 1;
 		device->fs_devices = fs_devices;
-		btrfs_free_stale_devices(device);
+		btrfs_free_stale_devices(path, device);
 	} else if (!device->name || strcmp(device->name->str, path)) {
 		/*
 		 * When FS is already mounted.
