@@ -978,6 +978,13 @@ static bool is_pointer_value(struct bpf_verifier_env *env, int regno)
 	return __is_pointer_value(env->allow_ptr_leaks, cur_regs(env) + regno);
 }
 
+static bool is_ctx_reg(struct bpf_verifier_env *env, int regno)
+{
+	const struct bpf_reg_state *reg = cur_regs(env) + regno;
+
+	return reg->type == PTR_TO_CTX;
+}
+
 static int check_pkt_ptr_alignment(struct bpf_verifier_env *env,
 				   const struct bpf_reg_state *reg,
 				   int off, int size, bool strict)
@@ -1255,6 +1262,12 @@ static int check_xadd(struct bpf_verifier_env *env, int insn_idx, struct bpf_ins
 
 	if (is_pointer_value(env, insn->src_reg)) {
 		verbose(env, "R%d leaks addr into mem\n", insn->src_reg);
+		return -EACCES;
+	}
+
+	if (is_ctx_reg(env, insn->dst_reg)) {
+		verbose(env, "BPF_XADD stores into R%d context is not allowed\n",
+			insn->dst_reg);
 		return -EACCES;
 	}
 
@@ -1882,17 +1895,13 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 
 	dst_reg = &regs[dst];
 
-	if (WARN_ON_ONCE(known && (smin_val != smax_val))) {
-		print_verifier_state(env, env->cur_state);
-		verbose(env,
-			"verifier internal error: known but bad sbounds\n");
-		return -EINVAL;
-	}
-	if (WARN_ON_ONCE(known && (umin_val != umax_val))) {
-		print_verifier_state(env, env->cur_state);
-		verbose(env,
-			"verifier internal error: known but bad ubounds\n");
-		return -EINVAL;
+	if ((known && (smin_val != smax_val || umin_val != umax_val)) ||
+	    smin_val > smax_val || umin_val > umax_val) {
+		/* Taint dst register if offset had invalid bounds derived from
+		 * e.g. dead branches.
+		 */
+		__mark_reg_unknown(dst_reg);
+		return 0;
 	}
 
 	if (BPF_CLASS(insn->code) != BPF_ALU64) {
@@ -2083,6 +2092,15 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 	umax_val = src_reg.umax_value;
 	src_known = tnum_is_const(src_reg.var_off);
 	dst_known = tnum_is_const(dst_reg->var_off);
+
+	if ((src_known && (smin_val != smax_val || umin_val != umax_val)) ||
+	    smin_val > smax_val || umin_val > umax_val) {
+		/* Taint dst register if offset had invalid bounds derived from
+		 * e.g. dead branches.
+		 */
+		__mark_reg_unknown(dst_reg);
+		return 0;
+	}
 
 	if (!src_known &&
 	    opcode != BPF_ADD && opcode != BPF_SUB && opcode != BPF_AND) {
@@ -3993,6 +4011,12 @@ static int do_check(struct bpf_verifier_env *env)
 			if (err)
 				return err;
 
+			if (is_ctx_reg(env, insn->dst_reg)) {
+				verbose(env, "BPF_ST stores into R%d context is not allowed\n",
+					insn->dst_reg);
+				return -EACCES;
+			}
+
 			/* check that memory (dst_reg + off) is writeable */
 			err = check_mem_access(env, insn_idx, insn->dst_reg, insn->off,
 					       BPF_SIZE(insn->code), BPF_WRITE,
@@ -4445,6 +4469,24 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 	int i, cnt, delta = 0;
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
+		if (insn->code == (BPF_ALU | BPF_MOD | BPF_X) ||
+		    insn->code == (BPF_ALU | BPF_DIV | BPF_X)) {
+			/* due to JIT bugs clear upper 32-bits of src register
+			 * before div/mod operation
+			 */
+			insn_buf[0] = BPF_MOV32_REG(insn->src_reg, insn->src_reg);
+			insn_buf[1] = *insn;
+			cnt = 2;
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
+			if (!new_prog)
+				return -ENOMEM;
+
+			delta    += cnt - 1;
+			env->prog = prog = new_prog;
+			insn      = new_prog->insnsi + i + delta;
+			continue;
+		}
+
 		if (insn->code != (BPF_JMP | BPF_CALL))
 			continue;
 
