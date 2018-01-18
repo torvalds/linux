@@ -83,6 +83,8 @@ static unsigned int fmax = 515633;
  * @qcom_dml: enables qcom specific dma glue for dma transfers.
  * @reversed_irq_handling: handle data irq before cmd irq.
  * @mmcimask1: true if variant have a MMCIMASK1 register.
+ * @start_err: bitmask identifying the STARTBITERR bit inside MMCISTATUS
+ *	       register.
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -113,6 +115,7 @@ struct variant_data {
 	bool			qcom_dml;
 	bool			reversed_irq_handling;
 	bool			mmcimask1;
+	u32			start_err;
 };
 
 static struct variant_data variant_arm = {
@@ -123,6 +126,7 @@ static struct variant_data variant_arm = {
 	.f_max			= 100000000,
 	.reversed_irq_handling	= true,
 	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
 };
 
 static struct variant_data variant_arm_extended_fifo = {
@@ -132,6 +136,7 @@ static struct variant_data variant_arm_extended_fifo = {
 	.pwrreg_powerup		= MCI_PWR_UP,
 	.f_max			= 100000000,
 	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
 };
 
 static struct variant_data variant_arm_extended_fifo_hwfc = {
@@ -142,6 +147,7 @@ static struct variant_data variant_arm_extended_fifo_hwfc = {
 	.pwrreg_powerup		= MCI_PWR_UP,
 	.f_max			= 100000000,
 	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
 };
 
 static struct variant_data variant_u300 = {
@@ -158,6 +164,7 @@ static struct variant_data variant_u300 = {
 	.pwrreg_clkgate		= true,
 	.pwrreg_nopower		= true,
 	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
 };
 
 static struct variant_data variant_nomadik = {
@@ -175,6 +182,7 @@ static struct variant_data variant_nomadik = {
 	.pwrreg_clkgate		= true,
 	.pwrreg_nopower		= true,
 	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
 };
 
 static struct variant_data variant_ux500 = {
@@ -198,6 +206,7 @@ static struct variant_data variant_ux500 = {
 	.busy_detect_mask	= MCI_ST_BUSYENDMASK,
 	.pwrreg_nopower		= true,
 	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
 };
 
 static struct variant_data variant_ux500v2 = {
@@ -223,6 +232,7 @@ static struct variant_data variant_ux500v2 = {
 	.busy_detect_mask	= MCI_ST_BUSYENDMASK,
 	.pwrreg_nopower		= true,
 	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
 };
 
 static struct variant_data variant_qcom = {
@@ -242,6 +252,7 @@ static struct variant_data variant_qcom = {
 	.qcom_fifo		= true,
 	.qcom_dml		= true,
 	.mmcimask1		= true,
+	.start_err		= MCI_STARTBITERR,
 };
 
 /* Busy detection for the ST Micro variant */
@@ -935,8 +946,9 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		return;
 
 	/* First check for errors */
-	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_STARTBITERR|
-		      MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
+	if (status & (MCI_DATACRCFAIL | MCI_DATATIMEOUT |
+		      host->variant->start_err |
+		      MCI_TXUNDERRUN | MCI_RXOVERRUN)) {
 		u32 remain, success;
 
 		/* Terminate the DMA transfer */
