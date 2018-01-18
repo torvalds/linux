@@ -582,10 +582,10 @@
 &sdmmc {
 	cap-mmc-highspeed;
 	supports-sd;
-	broken-cd;
 	card-detect-delay = <800>;
 	ignore-pm-notify;
 	keep-power-in-suspend;
+	cd-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>; /* CD GPIO */
 	status = "disabled";
 };
 
