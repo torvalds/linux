@@ -21,3 +21,8 @@ Additional compatible strings:
 
 - Xilinx 96boards compatible board zcu100
   "xlnx,zynqmp-zcu100-revC", "xlnx,zynqmp-zcu100"
+
+- Xilinx evaluation board zcu102
+  "xlnx,zynqmp-zcu102-revA", "xlnx,zynqmp-zcu102"
+  "xlnx,zynqmp-zcu102-revB", "xlnx,zynqmp-zcu102"
+  "xlnx,zynqmp-zcu102-rev1.0", "xlnx,zynqmp-zcu102"
