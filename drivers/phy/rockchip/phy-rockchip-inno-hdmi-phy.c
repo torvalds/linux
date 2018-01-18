@@ -169,6 +169,7 @@ struct inno_hdmi_phy {
 	struct clk_hw hw;
 	struct clk *pclk;
 	unsigned long pixclock;
+	unsigned long tmdsclock;
 };
 
 struct pre_pll_config {
@@ -360,6 +361,9 @@ static u32 inno_hdmi_phy_get_tmdsclk(struct inno_hdmi_phy *inno, int rate)
 	return tmdsclk;
 }
 
+static int inno_hdmi_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+				      unsigned long parent_rate);
+
 static int inno_hdmi_phy_power_on(struct phy *phy)
 {
 	struct inno_hdmi_phy *inno = phy_get_drvdata(phy);
@@ -390,6 +394,7 @@ static int inno_hdmi_phy_power_on(struct phy *phy)
 		return -EINVAL;
 
 	dev_dbg(inno->dev, "Inno HDMI PHY Power On\n");
+	inno_hdmi_phy_clk_set_rate(&inno->hw, inno->pixclock, 0);
 
 	if (inno->plat_data->ops->power_on)
 		return inno->plat_data->ops->power_on(inno, cfg, phy_cfg);
@@ -492,6 +497,9 @@ static int inno_hdmi_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	dev_dbg(inno->dev, "%s rate %lu tmdsclk %u\n",
 		__func__, rate, tmdsclock);
 
+	if (inno->tmdsclock == tmdsclock)
+		return 0;
+
 	for (; cfg->pixclock != ~0UL; cfg++)
 		if (cfg->pixclock == rate && cfg->tmdsclock == tmdsclock)
 			break;
@@ -505,6 +513,7 @@ static int inno_hdmi_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		inno->plat_data->ops->pre_pll_update(inno, cfg);
 
 	inno->pixclock = rate;
+	inno->tmdsclock = tmdsclock;
 
 	return 0;
 }

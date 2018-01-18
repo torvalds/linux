@@ -106,20 +106,22 @@ struct rockchip_hdmi {
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
 
+static void inno_dw_hdmi_phy_disable(struct dw_hdmi *dw_hdmi, void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	while (hdmi->phy->power_count > 0)
+		phy_power_off(hdmi->phy);
+}
+
 static int
 inno_dw_hdmi_phy_init(struct dw_hdmi *dw_hdmi, void *data,
 		      struct drm_display_mode *mode)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
+	inno_dw_hdmi_phy_disable(dw_hdmi, data);
 	return phy_power_on(hdmi->phy);
-}
-
-static void inno_dw_hdmi_phy_disable(struct dw_hdmi *dw_hdmi, void *data)
-{
-	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
-
-	phy_power_off(hdmi->phy);
 }
 
 static enum drm_connector_status
