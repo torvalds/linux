@@ -3756,18 +3756,8 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	nfp_net_set_ethtool_ops(netdev);
 }
 
-/**
- * nfp_net_init() - Initialise/finalise the nfp_net structure
- * @nn:		NFP Net device structure
- *
- * Return: 0 on success or negative errno on error.
- */
-int nfp_net_init(struct nfp_net *nn)
+static int nfp_net_read_caps(struct nfp_net *nn)
 {
-	int err;
-
-	nn->dp.rx_dma_dir = DMA_FROM_DEVICE;
-
 	/* Get some of the read-only fields from the BAR */
 	nn->cap = nn_readl(nn, NFP_NET_CFG_CAP);
 	nn->max_mtu = nn_readl(nn, NFP_NET_CFG_MAX_MTU);
@@ -3799,6 +3789,25 @@ int nfp_net_init(struct nfp_net *nn)
 	} else {
 		nn->dp.rx_offset = NFP_NET_RX_OFFSET;
 	}
+
+	return 0;
+}
+
+/**
+ * nfp_net_init() - Initialise/finalise the nfp_net structure
+ * @nn:		NFP Net device structure
+ *
+ * Return: 0 on success or negative errno on error.
+ */
+int nfp_net_init(struct nfp_net *nn)
+{
+	int err;
+
+	nn->dp.rx_dma_dir = DMA_FROM_DEVICE;
+
+	err = nfp_net_read_caps(nn);
+	if (err)
+		return err;
 
 	/* Set default MTU and Freelist buffer size */
 	if (nn->max_mtu < NFP_NET_DEFAULT_MTU)
