@@ -96,4 +96,5 @@ size_t perf_mmap__mmap_len(struct perf_mmap *map);
 
 int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
 			 u64 *startp, u64 *endp);
+void perf_mmap__read_done(struct perf_mmap *map);
 #endif /*__PERF_MMAP_H */

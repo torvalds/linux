@@ -338,3 +338,14 @@ int perf_mmap__push(struct perf_mmap *md, bool overwrite,
 out:
 	return rc;
 }
+
+/*
+ * Mandatory for overwrite mode
+ * The direction of overwrite mode is backward.
+ * The last perf_mmap__read() will set tail to map->prev.
+ * Need to correct the map->prev to head which is the end of next read.
+ */
+void perf_mmap__read_done(struct perf_mmap *map)
+{
+	map->prev = perf_mmap__read_head(map);
+}
