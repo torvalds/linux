@@ -493,7 +493,10 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 	 * on those as well.
 	 */
 
-	return intel_hdcp_auth_downstream(intel_dig_port, shim);
+	if (repeater_present)
+		return intel_hdcp_auth_downstream(intel_dig_port, shim);
+
+	return 0;
 }
 
 static
