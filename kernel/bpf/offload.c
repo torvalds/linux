@@ -230,9 +230,12 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 		.prog	= prog,
 		.info	= info,
 	};
+	struct bpf_prog_aux *aux = prog->aux;
 	struct inode *ns_inode;
 	struct path ns_path;
+	char __user *uinsns;
 	void *res;
+	u32 ulen;
 
 	res = ns_get_path_cb(&ns_path, bpf_prog_offload_info_fill_ns, &args);
 	if (IS_ERR(res)) {
@@ -240,6 +243,26 @@ int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 			return -ENODEV;
 		return PTR_ERR(res);
 	}
+
+	down_read(&bpf_devs_lock);
+
+	if (!aux->offload) {
+		up_read(&bpf_devs_lock);
+		return -ENODEV;
+	}
+
+	ulen = info->jited_prog_len;
+	info->jited_prog_len = aux->offload->jited_len;
+	if (info->jited_prog_len & ulen) {
+		uinsns = u64_to_user_ptr(info->jited_prog_insns);
+		ulen = min_t(u32, info->jited_prog_len, ulen);
+		if (copy_to_user(uinsns, aux->offload->jited_image, ulen)) {
+			up_read(&bpf_devs_lock);
+			return -EFAULT;
+		}
+	}
+
+	up_read(&bpf_devs_lock);
 
 	ns_inode = ns_path.dentry->d_inode;
 	info->netns_dev = new_encode_dev(ns_inode->i_sb->s_dev);

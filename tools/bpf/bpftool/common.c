@@ -34,6 +34,7 @@
 /* Author: Jakub Kicinski <kubakici@wp.pl> */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <fts.h>
 #include <libgen.h>
 #include <mntent.h>
@@ -431,6 +432,77 @@ ifindex_to_name_ns(__u32 ifindex, __u32 ns_dev, __u32 ns_ino, char *buf)
 		return NULL;
 
 	return if_indextoname(ifindex, buf);
+}
+
+static int read_sysfs_hex_int(char *path)
+{
+	char vendor_id_buf[8];
+	int len;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		p_err("Can't open %s: %s", path, strerror(errno));
+		return -1;
+	}
+
+	len = read(fd, vendor_id_buf, sizeof(vendor_id_buf));
+	close(fd);
+	if (len < 0) {
+		p_err("Can't read %s: %s", path, strerror(errno));
+		return -1;
+	}
+	if (len >= (int)sizeof(vendor_id_buf)) {
+		p_err("Value in %s too long", path);
+		return -1;
+	}
+
+	vendor_id_buf[len] = 0;
+
+	return strtol(vendor_id_buf, NULL, 0);
+}
+
+static int read_sysfs_netdev_hex_int(char *devname, const char *entry_name)
+{
+	char full_path[64];
+
+	snprintf(full_path, sizeof(full_path), "/sys/class/net/%s/device/%s",
+		 devname, entry_name);
+
+	return read_sysfs_hex_int(full_path);
+}
+
+const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
+{
+	char devname[IF_NAMESIZE];
+	int vendor_id;
+	int device_id;
+
+	if (!ifindex_to_name_ns(ifindex, ns_dev, ns_ino, devname)) {
+		p_err("Can't get net device name for ifindex %d: %s", ifindex,
+		      strerror(errno));
+		return NULL;
+	}
+
+	vendor_id = read_sysfs_netdev_hex_int(devname, "vendor");
+	if (vendor_id < 0) {
+		p_err("Can't get device vendor id for %s", devname);
+		return NULL;
+	}
+
+	switch (vendor_id) {
+	case 0x19ee:
+		device_id = read_sysfs_netdev_hex_int(devname, "device");
+		if (device_id != 0x4000 &&
+		    device_id != 0x6000 &&
+		    device_id != 0x6003)
+			p_info("Unknown NFP device ID, assuming it is NFP-6xxx arch");
+		return "NFP-6xxx";
+	default:
+		p_err("Can't get bfd arch name for device vendor id 0x%04x",
+		      vendor_id);
+		return NULL;
+	}
 }
 
 void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)

@@ -76,7 +76,8 @@ static int fprintf_json(void *out, const char *fmt, ...)
 	return 0;
 }
 
-void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes)
+void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
+		       const char *arch)
 {
 	disassembler_ftype disassemble;
 	struct disassemble_info info;
@@ -100,6 +101,19 @@ void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes)
 	else
 		init_disassemble_info(&info, stdout,
 				      (fprintf_ftype) fprintf);
+
+	/* Update architecture info for offload. */
+	if (arch) {
+		const bfd_arch_info_type *inf = bfd_scan_arch(arch);
+
+		if (inf) {
+			bfdf->arch_info = inf;
+		} else {
+			p_err("No libfd support for %s", arch);
+			return;
+		}
+	}
+
 	info.arch = bfd_get_arch(bfdf);
 	info.mach = bfd_get_mach(bfdf);
 	info.buffer = image;
