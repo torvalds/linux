@@ -26,3 +26,6 @@ Additional compatible strings:
   "xlnx,zynqmp-zcu102-revA", "xlnx,zynqmp-zcu102"
   "xlnx,zynqmp-zcu102-revB", "xlnx,zynqmp-zcu102"
   "xlnx,zynqmp-zcu102-rev1.0", "xlnx,zynqmp-zcu102"
+
+- Xilinx evaluation board zcu104
+  "xlnx,zynqmp-zcu104-revA", "xlnx,zynqmp-zcu104"
