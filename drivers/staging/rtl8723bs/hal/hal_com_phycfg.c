@@ -66,8 +66,7 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 			DBG_871X("Invalid RateSection %d in Band 2.4G, Rf Path %d, %dTx in PHY_GetTxPowerByRateBase()\n",
 					 RateSection, RfPath, TxNum);
 			break;
-
-		};
+		}
 	} else if (Band == BAND_ON_5G) {
 		switch (RateSection) {
 		case OFDM:
@@ -101,7 +100,7 @@ u8 PHY_GetTxPowerByRateBase(struct adapter *Adapter, u8 Band, u8 RfPath,
 			DBG_871X("Invalid RateSection %d in Band 5G, Rf Path %d, %dTx in PHY_GetTxPowerByRateBase()\n",
 					 RateSection, RfPath, TxNum);
 			break;
-		};
+		}
 	} else
 		DBG_871X("Invalid Band %d in PHY_GetTxPowerByRateBase()\n", Band);
 
@@ -161,7 +160,7 @@ phy_SetTxPowerByRateBase(
 			DBG_871X("Invalid RateSection %d in Band 2.4G, Rf Path %d, %dTx in phy_SetTxPowerByRateBase()\n",
 					 RateSection, RfPath, TxNum);
 			break;
-		};
+		}
 	} else if (Band == BAND_ON_5G) {
 		switch (RateSection) {
 		case OFDM:
@@ -195,7 +194,7 @@ phy_SetTxPowerByRateBase(
 			DBG_871X("Invalid RateSection %d in Band 5G, Rf Path %d, %dTx in phy_SetTxPowerByRateBase()\n",
 					 RateSection, RfPath, TxNum);
 			break;
-		};
+		}
 	} else
 		DBG_871X("Invalid Band %d in phy_SetTxPowerByRateBase()\n", Band);
 }
@@ -336,7 +335,7 @@ u8 PHY_GetRateSectionIndexOfTxPowerByRate(
 		default:
 			DBG_871X("Invalid RegAddr 0x3%x in PHY_GetRateSectionIndexOfTxPowerByRate()", RegAddr);
 			break;
-		};
+		}
 	}
 
 	return index;
@@ -726,7 +725,7 @@ PHY_GetRateValuesOfTxPowerByRate(
 	default:
 		DBG_871X("Invalid RegAddr 0x%x in %s()\n", RegAddr, __func__);
 		break;
-	};
+	}
 }
 
 static void PHY_StoreTxPowerByRateNew(
@@ -1474,8 +1473,7 @@ u8 PHY_GetRateIndexOfTxPowerByRate(u8 Rate)
 	default:
 		DBG_871X("Invalid rate 0x%x in %s\n", Rate, __func__);
 		break;
-	};
-
+	}
 	return index;
 }
 
