@@ -2682,8 +2682,6 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 
 	parent_request->copyup_pages = NULL;
 	parent_request->copyup_page_count = 0;
-	parent_request->obj_request = NULL;
-	rbd_obj_request_put(obj_request);
 out_err:
 	if (pages)
 		ceph_release_page_vector(pages, page_count);
