@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2017, Maxim Integrated */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2017, Maxim Integrated
 
 #include <linux/acpi.h>
 #include <linux/i2c.h>
