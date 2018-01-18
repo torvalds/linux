@@ -33,6 +33,9 @@
 
 #define DRIVER_NAME    "dw-mipi-dsi"
 
+#define IS_DSI0(dsi)	((dsi)->id == 0)
+#define IS_DSI1(dsi)	((dsi)->id == 1)
+
 #define DSI_VERSION			0x00
 #define DSI_PWR_UP			0x04
 #define RESET				0
@@ -534,8 +537,6 @@ static void mipi_dphy_power_off(struct dw_mipi_dsi *dsi)
 {
 	if (dsi->dphy.phy)
 		phy_power_off(dsi->dphy.phy);
-
-	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_RSTZ);
 }
 
 static void dw_mipi_dsi_host_power_on(struct dw_mipi_dsi *dsi)
@@ -549,9 +550,22 @@ static void dw_mipi_dsi_host_power_off(struct dw_mipi_dsi *dsi)
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
 }
 
+static void dw_mipi_dsi_phy_pll_init(struct dw_mipi_dsi *dsi)
+{
+	dw_mipi_dsi_phy_write(dsi, 0x17, INPUT_DIVIDER(dsi->dphy.input_div));
+	dw_mipi_dsi_phy_write(dsi, 0x18,
+			      LOOP_DIV_LOW_SEL(dsi->dphy.feedback_div) |
+			      LOW_PROGRAM_EN);
+	dw_mipi_dsi_phy_write(dsi, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
+	dw_mipi_dsi_phy_write(dsi, 0x18,
+			      LOOP_DIV_HIGH_SEL(dsi->dphy.feedback_div) |
+			      HIGH_PROGRAM_EN);
+	dw_mipi_dsi_phy_write(dsi, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
+}
+
 static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 {
-	int testdin, vco, val;
+	int testdin, vco;
 
 	vco = (dsi->lane_mbps < 200) ? 0 : (dsi->lane_mbps + 100) / 200;
 
@@ -574,13 +588,8 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 
 	dw_mipi_dsi_phy_write(dsi, 0x44, HSFREQRANGE_SEL(testdin));
 
-	dw_mipi_dsi_phy_write(dsi, 0x17, INPUT_DIVIDER(dsi->dphy.input_div));
-	val = LOOP_DIV_LOW_SEL(dsi->dphy.feedback_div) | LOW_PROGRAM_EN;
-	dw_mipi_dsi_phy_write(dsi, 0x18, val);
-	dw_mipi_dsi_phy_write(dsi, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
-	val = LOOP_DIV_HIGH_SEL(dsi->dphy.feedback_div) | HIGH_PROGRAM_EN;
-	dw_mipi_dsi_phy_write(dsi, 0x18, val);
-	dw_mipi_dsi_phy_write(dsi, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
+	if (IS_DSI0(dsi))
+		dw_mipi_dsi_phy_pll_init(dsi);
 
 	dw_mipi_dsi_phy_write(dsi, 0x20, POWER_CONTROL | INTERNAL_REG_CURRENT |
 					 BIAS_BLOCK_ON | BANDGAP_ON);
@@ -1273,7 +1282,10 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	if (dsi->slave)
-		s->output_flags = ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL;
+		s->output_flags |= ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL;
+
+	if (IS_DSI1(dsi))
+		s->output_flags |= ROCKCHIP_OUTPUT_DSI_DUAL_LINK;
 
 	return 0;
 }
