@@ -215,6 +215,14 @@ enum pkt_flags {
 PKT_FLAGS
 #undef pf
 
+#define pf(flag)		__stringify(flag),
+static char *pkt_flag_names[] = {
+	PKT_FLAGS
+};
+#undef pf
+
+#define NR_PKT_FLAGS		ARRAY_SIZE(pkt_flag_names)
+
 /* Thread control flag bits */
 #define T_STOP        (1<<0)	/* Stop run */
 #define T_RUN         (1<<1)	/* Start run */
@@ -545,6 +553,7 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 {
 	const struct pktgen_dev *pkt_dev = seq->private;
 	ktime_t stopped;
+	unsigned int i;
 	u64 idle;
 
 	seq_printf(seq,
@@ -606,7 +615,6 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 		   pkt_dev->src_mac_count, pkt_dev->dst_mac_count);
 
 	if (pkt_dev->nr_labels) {
-		unsigned int i;
 		seq_puts(seq, "     mpls: ");
 		for (i = 0; i < pkt_dev->nr_labels; i++)
 			seq_printf(seq, "%08x%s", ntohl(pkt_dev->labels[i]),
@@ -642,68 +650,21 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	seq_puts(seq, "     Flags: ");
 
-	if (pkt_dev->flags & F_IPV6)
-		seq_puts(seq, "IPV6  ");
+	for (i = 0; i < NR_PKT_FLAGS; i++) {
+		if (i == F_FLOW_SEQ)
+			if (!pkt_dev->cflows)
+				continue;
 
-	if (pkt_dev->flags & F_IPSRC_RND)
-		seq_puts(seq, "IPSRC_RND  ");
-
-	if (pkt_dev->flags & F_IPDST_RND)
-		seq_puts(seq, "IPDST_RND  ");
-
-	if (pkt_dev->flags & F_TXSIZE_RND)
-		seq_puts(seq, "TXSIZE_RND  ");
-
-	if (pkt_dev->flags & F_UDPSRC_RND)
-		seq_puts(seq, "UDPSRC_RND  ");
-
-	if (pkt_dev->flags & F_UDPDST_RND)
-		seq_puts(seq, "UDPDST_RND  ");
-
-	if (pkt_dev->flags & F_UDPCSUM)
-		seq_puts(seq, "UDPCSUM  ");
-
-	if (pkt_dev->flags & F_NO_TIMESTAMP)
-		seq_puts(seq, "NO_TIMESTAMP  ");
-
-	if (pkt_dev->flags & F_MPLS_RND)
-		seq_puts(seq,  "MPLS_RND  ");
-
-	if (pkt_dev->flags & F_QUEUE_MAP_RND)
-		seq_puts(seq,  "QUEUE_MAP_RND  ");
-
-	if (pkt_dev->flags & F_QUEUE_MAP_CPU)
-		seq_puts(seq,  "QUEUE_MAP_CPU  ");
-
-	if (pkt_dev->cflows) {
-		if (pkt_dev->flags & F_FLOW_SEQ)
-			seq_puts(seq,  "FLOW_SEQ  "); /*in sequence flows*/
-		else
-			seq_puts(seq,  "FLOW_RND  ");
-	}
+		if (pkt_dev->flags & (1 << i))
+			seq_printf(seq, "%s  ", pkt_flag_names[i]);
+		else if (i == F_FLOW_SEQ)
+			seq_puts(seq, "FLOW_RND  ");
 
 #ifdef CONFIG_XFRM
-	if (pkt_dev->flags & F_IPSEC) {
-		seq_puts(seq,  "IPSEC  ");
-		if (pkt_dev->spi)
+		if (i == F_IPSEC && pkt_dev->spi)
 			seq_printf(seq, "spi:%u", pkt_dev->spi);
-	}
 #endif
-
-	if (pkt_dev->flags & F_MACSRC_RND)
-		seq_puts(seq, "MACSRC_RND  ");
-
-	if (pkt_dev->flags & F_MACDST_RND)
-		seq_puts(seq, "MACDST_RND  ");
-
-	if (pkt_dev->flags & F_VID_RND)
-		seq_puts(seq, "VID_RND  ");
-
-	if (pkt_dev->flags & F_SVID_RND)
-		seq_puts(seq, "SVID_RND  ");
-
-	if (pkt_dev->flags & F_NODE)
-		seq_puts(seq, "NODE_ALLOC  ");
+	}
 
 	seq_puts(seq, "\n");
 
