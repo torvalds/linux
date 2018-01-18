@@ -251,7 +251,7 @@
 
 			jtag_gpio4: jtag_gpio4 {
 				brcm,pins = <4 5 6 12 13>;
-				brcm,function = <BCM2835_FSEL_ALT4>;
+				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
 			jtag_gpio22: jtag_gpio22 {
 				brcm,pins = <22 23 24 25 26 27>;
