@@ -1279,6 +1279,9 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	if (dsi->slave)
 		s->output_flags |= ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL;
 
+	if (dsi->id)
+		s->output_flags |= ROCKCHIP_OUTPUT_DSI_DUAL_LINK;
+
 	return 0;
 }
 
