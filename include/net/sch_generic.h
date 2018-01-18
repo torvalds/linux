@@ -240,7 +240,8 @@ struct tcf_proto_ops {
 					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
 					void **, bool);
-	int			(*delete)(struct tcf_proto*, void *, bool*);
+	int			(*delete)(struct tcf_proto *tp, void *arg,
+					  bool *last);
 	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);
 	void			(*bind_class)(void *, u32, unsigned long);
 

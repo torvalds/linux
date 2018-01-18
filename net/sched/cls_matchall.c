@@ -203,7 +203,7 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 		goto err_set_parms;
 
 	if (!tc_skip_hw(new->flags)) {
-		err = mall_replace_hw_filter(tp, new, (unsigned long) new);
+		err = mall_replace_hw_filter(tp, new, (unsigned long)new);
 		if (err)
 			goto err_replace_hw_filter;
 	}
