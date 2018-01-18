@@ -66,6 +66,11 @@ struct rockchip_drm_mode_set {
 	int vrefresh;
 	int flags;
 
+	int left_margin;
+	int right_margin;
+	int top_margin;
+	int bottom_margin;
+
 	bool mode_changed;
 	bool ymirror;
 	int ratio;
@@ -396,6 +401,18 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 	if (!of_property_read_u32(route, "logo,ymirror", &val))
 		set->ymirror = val;
 
+	if (!of_property_read_u32(route, "overscan,left_margin", &val))
+		set->left_margin = val;
+
+	if (!of_property_read_u32(route, "overscan,right_margin", &val))
+		set->right_margin = val;
+
+	if (!of_property_read_u32(route, "overscan,top_margin", &val))
+		set->top_margin = val;
+
+	if (!of_property_read_u32(route, "overscan,bottom_margin", &val))
+		set->bottom_margin = val;
+
 	set->ratio = 1;
 	if (!of_property_read_string(route, "logo,mode", &string) &&
 	    !strcmp(string, "fullscreen"))
@@ -582,6 +599,7 @@ static int update_state(struct drm_device *drm_dev,
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector_state *conn_state;
 	int ret;
+	struct rockchip_crtc_state *s;
 
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state))
@@ -589,6 +607,11 @@ static int update_state(struct drm_device *drm_dev,
 	conn_state = drm_atomic_get_connector_state(state, connector);
 	if (IS_ERR(conn_state))
 		return PTR_ERR(conn_state);
+	s = to_rockchip_crtc_state(crtc_state);
+	s->left_margin = set->left_margin;
+	s->right_margin = set->right_margin;
+	s->top_margin = set->top_margin;
+	s->bottom_margin = set->bottom_margin;
 
 	if (set->mode_changed) {
 		ret = drm_atomic_set_crtc_for_connector(conn_state, crtc);
