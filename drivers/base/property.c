@@ -1153,11 +1153,11 @@ int device_get_phy_mode(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(device_get_phy_mode);
 
-static void *device_get_mac_addr(struct device *dev,
+static void *fwnode_get_mac_addr(struct fwnode_handle *fwnode,
 				 const char *name, char *addr,
 				 int alen)
 {
-	int ret = device_property_read_u8_array(dev, name, addr, alen);
+	int ret = fwnode_property_read_u8_array(fwnode, name, addr, alen);
 
 	if (ret == 0 && alen == ETH_ALEN && is_valid_ether_addr(addr))
 		return addr;
@@ -1165,8 +1165,8 @@ static void *device_get_mac_addr(struct device *dev,
 }
 
 /**
- * device_get_mac_address - Get the MAC for a given device
- * @dev:	Pointer to the device
+ * fwnode_get_mac_address - Get the MAC from the firmware node
+ * @fwnode:	Pointer to the firmware node
  * @addr:	Address of buffer to store the MAC in
  * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
  *
@@ -1187,19 +1187,31 @@ static void *device_get_mac_addr(struct device *dev,
  * In this case, the real MAC is in 'local-mac-address', and 'mac-address'
  * exists but is all zeros.
 */
-void *device_get_mac_address(struct device *dev, char *addr, int alen)
+void *fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr, int alen)
 {
 	char *res;
 
-	res = device_get_mac_addr(dev, "mac-address", addr, alen);
+	res = fwnode_get_mac_addr(fwnode, "mac-address", addr, alen);
 	if (res)
 		return res;
 
-	res = device_get_mac_addr(dev, "local-mac-address", addr, alen);
+	res = fwnode_get_mac_addr(fwnode, "local-mac-address", addr, alen);
 	if (res)
 		return res;
 
-	return device_get_mac_addr(dev, "address", addr, alen);
+	return fwnode_get_mac_addr(fwnode, "address", addr, alen);
+}
+EXPORT_SYMBOL(fwnode_get_mac_address);
+
+/**
+ * device_get_mac_address - Get the MAC for a given device
+ * @dev:	Pointer to the device
+ * @addr:	Address of buffer to store the MAC in
+ * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
+ */
+void *device_get_mac_address(struct device *dev, char *addr, int alen)
+{
+	return fwnode_get_mac_address(dev_fwnode(dev), addr, alen);
 }
 EXPORT_SYMBOL(device_get_mac_address);
 
