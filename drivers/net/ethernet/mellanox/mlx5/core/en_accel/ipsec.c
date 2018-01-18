@@ -51,6 +51,21 @@ struct mlx5e_ipsec_sa_entry {
 	void *hw_context;
 };
 
+static struct mlx5e_ipsec_sa_entry *to_ipsec_sa_entry(struct xfrm_state *x)
+{
+	struct mlx5e_ipsec_sa_entry *sa;
+
+	if (!x)
+		return NULL;
+
+	sa = (struct mlx5e_ipsec_sa_entry *)x->xso.offload_handle;
+	if (!sa)
+		return NULL;
+
+	WARN_ON(sa->x != x);
+	return sa;
+}
+
 struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *ipsec,
 					      unsigned int handle)
 {
@@ -312,13 +327,10 @@ out:
 
 static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 {
-	struct mlx5e_ipsec_sa_entry *sa_entry;
+	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 
-	if (!x->xso.offload_handle)
+	if (!sa_entry)
 		return;
-
-	sa_entry = (struct mlx5e_ipsec_sa_entry *)x->xso.offload_handle;
-	WARN_ON(sa_entry->x != x);
 
 	if (x->xso.flags & XFRM_OFFLOAD_INBOUND)
 		mlx5e_ipsec_sadb_rx_del(sa_entry);
@@ -326,13 +338,10 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 
 static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 {
-	struct mlx5e_ipsec_sa_entry *sa_entry;
+	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 
-	if (!x->xso.offload_handle)
+	if (!sa_entry)
 		return;
-
-	sa_entry = (struct mlx5e_ipsec_sa_entry *)x->xso.offload_handle;
-	WARN_ON(sa_entry->x != x);
 
 	if (sa_entry->hw_context) {
 		mlx5_accel_esp_free_hw_context(sa_entry->hw_context);
