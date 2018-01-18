@@ -103,7 +103,7 @@ void of_i2c_register_devices(struct i2c_adapter *adap)
 
 		client = of_i2c_register_device(adap, node);
 		if (IS_ERR(client)) {
-			dev_warn(&adap->dev,
+			dev_err(&adap->dev,
 				 "Failed to create I2C device for %pOF\n",
 				 node);
 			of_node_clear_flag(node, OF_POPULATED);
