@@ -748,6 +748,11 @@ static inline void inode_lock_nested(struct inode *inode, unsigned subclass)
 	down_write_nested(&inode->i_rwsem, subclass);
 }
 
+static inline void inode_lock_shared_nested(struct inode *inode, unsigned subclass)
+{
+	down_read_nested(&inode->i_rwsem, subclass);
+}
+
 void lock_two_nondirectories(struct inode *, struct inode*);
 void unlock_two_nondirectories(struct inode *, struct inode*);
 
