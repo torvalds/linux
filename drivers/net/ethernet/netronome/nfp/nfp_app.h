@@ -385,6 +385,8 @@ static inline struct net_device *nfp_app_repr_get(struct nfp_app *app, u32 id)
 struct nfp_app *nfp_app_from_netdev(struct net_device *netdev);
 
 struct nfp_reprs *
+nfp_reprs_get_locked(struct nfp_app *app, enum nfp_repr_type type);
+struct nfp_reprs *
 nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
 		  struct nfp_reprs *reprs);
 

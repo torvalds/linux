@@ -424,9 +424,7 @@ int nfp_reprs_resync_phys_ports(struct nfp_app *app)
 	struct nfp_repr *repr;
 	int i;
 
-	old_reprs =
-		rcu_dereference_protected(app->reprs[NFP_REPR_TYPE_PHYS_PORT],
-					  lockdep_is_held(&app->pf->lock));
+	old_reprs = nfp_reprs_get_locked(app, NFP_REPR_TYPE_PHYS_PORT);
 	if (!old_reprs)
 		return 0;
 
