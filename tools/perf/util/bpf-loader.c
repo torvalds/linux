@@ -94,7 +94,7 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 		err = perf_clang__compile_bpf(filename, &obj_buf, &obj_buf_sz);
 		perf_clang__cleanup();
 		if (err) {
-			pr_warning("bpf: builtin compilation failed: %d, try external compiler\n", err);
+			pr_debug("bpf: builtin compilation failed: %d, try external compiler\n", err);
 			err = llvm__compile_bpf(filename, &obj_buf, &obj_buf_sz);
 			if (err)
 				return ERR_PTR(-BPF_LOADER_ERRNO__COMPILE);
