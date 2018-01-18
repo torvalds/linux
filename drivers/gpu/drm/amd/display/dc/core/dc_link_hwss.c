@@ -102,7 +102,7 @@ void dp_enable_link_phy(
 	dp_receiver_power_ctrl(link, true);
 }
 
-static bool edp_receiver_ready_T9(struct dc_link *link)
+bool edp_receiver_ready_T9(struct dc_link *link)
 {
 	unsigned int tries = 0;
 	unsigned char sinkstatus = 0;
@@ -130,7 +130,6 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 		dp_receiver_power_ctrl(link, false);
 
 	if (signal == SIGNAL_TYPE_EDP) {
-		edp_receiver_ready_T9(link);
 		link->link_enc->funcs->disable_output(link->link_enc, signal);
 		link->dc->hwss.edp_power_control(link, false);
 	} else

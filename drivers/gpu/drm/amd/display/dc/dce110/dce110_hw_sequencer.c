@@ -928,6 +928,8 @@ void hwss_edp_backlight_control(
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
 	link_transmitter_control(ctx->dc_bios, &cntl);
+	/*edp 1.2*/
+	edp_receiver_ready_T9(link);
 }
 
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
