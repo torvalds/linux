@@ -1465,8 +1465,19 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				~MCI_ST_DATA2DIREN);
 	}
 
-	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN && variant->opendrain)
-		pwr |= variant->opendrain;
+	if (variant->opendrain) {
+		if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN)
+			pwr |= variant->opendrain;
+	} else {
+		/*
+		 * If the variant cannot configure the pads by its own, then we
+		 * expect the pinctrl to be able to do that for us
+		 */
+		if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN)
+			pinctrl_select_state(host->pinctrl, host->pins_opendrain);
+		else
+			pinctrl_select_state(host->pinctrl, host->pins_default);
+	}
 
 	/*
 	 * If clock = 0 and the variant requires the MMCIPOWER to be used for
@@ -1609,6 +1620,32 @@ static int mmci_probe(struct amba_device *dev,
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
+
+	/*
+	 * Some variant (STM32) doesn't have opendrain bit, nevertheless
+	 * pins can be set accordingly using pinctrl
+	 */
+	if (!variant->opendrain) {
+		host->pinctrl = devm_pinctrl_get(&dev->dev);
+		if (IS_ERR(host->pinctrl)) {
+			dev_err(&dev->dev, "failed to get pinctrl");
+			goto host_free;
+		}
+
+		host->pins_default = pinctrl_lookup_state(host->pinctrl,
+							  PINCTRL_STATE_DEFAULT);
+		if (IS_ERR(host->pins_default)) {
+			dev_err(mmc_dev(mmc), "Can't select default pins\n");
+			goto host_free;
+		}
+
+		host->pins_opendrain = pinctrl_lookup_state(host->pinctrl,
+							    MMCI_PINCTRL_STATE_OPENDRAIN);
+		if (IS_ERR(host->pins_opendrain)) {
+			dev_err(mmc_dev(mmc), "Can't select opendrain pins\n");
+			goto host_free;
+		}
+	}
 
 	host->hw_designer = amba_manf(dev);
 	host->hw_revision = amba_rev(dev);
