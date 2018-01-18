@@ -282,7 +282,7 @@ int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
 	*endp = overwrite ? old : head;
 
 	if (*startp == *endp)
-		return 0;
+		return -EAGAIN;
 
 	size = *endp - *startp;
 	if (size > (unsigned long)(md->mask) + 1) {
@@ -291,7 +291,7 @@ int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
 
 			md->prev = head;
 			perf_mmap__consume(md, overwrite);
-			return 0;
+			return -EAGAIN;
 		}
 
 		/*
@@ -299,10 +299,10 @@ int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
 		 * most of data from it.
 		 */
 		if (overwrite_rb_find_range(data, md->mask, head, startp, endp))
-			return -1;
+			return -EINVAL;
 	}
 
-	return 1;
+	return 0;
 }
 
 int perf_mmap__push(struct perf_mmap *md, bool overwrite,
@@ -316,8 +316,8 @@ int perf_mmap__push(struct perf_mmap *md, bool overwrite,
 	int rc = 0;
 
 	rc = perf_mmap__read_init(md, overwrite, &start, &end);
-	if (rc < 1)
-		return rc;
+	if (rc < 0)
+		return (rc == -EAGAIN) ? 0 : -1;
 
 	size = end - start;
 
