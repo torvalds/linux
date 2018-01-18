@@ -85,6 +85,7 @@ static unsigned int fmax = 515633;
  * @mmcimask1: true if variant have a MMCIMASK1 register.
  * @start_err: bitmask identifying the STARTBITERR bit inside MMCISTATUS
  *	       register.
+ * @opendrain: bitmask identifying the OPENDRAIN bit inside MMCIPOWER register
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -116,6 +117,7 @@ struct variant_data {
 	bool			reversed_irq_handling;
 	bool			mmcimask1;
 	u32			start_err;
+	u32			opendrain;
 };
 
 static struct variant_data variant_arm = {
@@ -127,6 +129,7 @@ static struct variant_data variant_arm = {
 	.reversed_irq_handling	= true,
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_ROD,
 };
 
 static struct variant_data variant_arm_extended_fifo = {
@@ -137,6 +140,7 @@ static struct variant_data variant_arm_extended_fifo = {
 	.f_max			= 100000000,
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_ROD,
 };
 
 static struct variant_data variant_arm_extended_fifo_hwfc = {
@@ -148,6 +152,7 @@ static struct variant_data variant_arm_extended_fifo_hwfc = {
 	.f_max			= 100000000,
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_ROD,
 };
 
 static struct variant_data variant_u300 = {
@@ -165,6 +170,7 @@ static struct variant_data variant_u300 = {
 	.pwrreg_nopower		= true,
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_OD,
 };
 
 static struct variant_data variant_nomadik = {
@@ -183,6 +189,7 @@ static struct variant_data variant_nomadik = {
 	.pwrreg_nopower		= true,
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_OD,
 };
 
 static struct variant_data variant_ux500 = {
@@ -207,6 +214,7 @@ static struct variant_data variant_ux500 = {
 	.pwrreg_nopower		= true,
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_OD,
 };
 
 static struct variant_data variant_ux500v2 = {
@@ -233,6 +241,7 @@ static struct variant_data variant_ux500v2 = {
 	.pwrreg_nopower		= true,
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_OD,
 };
 
 static struct variant_data variant_qcom = {
@@ -253,6 +262,7 @@ static struct variant_data variant_qcom = {
 	.qcom_dml		= true,
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
+	.opendrain		= MCI_ROD,
 };
 
 /* Busy detection for the ST Micro variant */
@@ -1455,17 +1465,8 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				~MCI_ST_DATA2DIREN);
 	}
 
-	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN) {
-		if (host->hw_designer != AMBA_VENDOR_ST)
-			pwr |= MCI_ROD;
-		else {
-			/*
-			 * The ST Micro variant use the ROD bit for something
-			 * else and only has OD (Open Drain).
-			 */
-			pwr |= MCI_OD;
-		}
-	}
+	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN && variant->opendrain)
+		pwr |= variant->opendrain;
 
 	/*
 	 * If clock = 0 and the variant requires the MMCIPOWER to be used for
