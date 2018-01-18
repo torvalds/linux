@@ -724,12 +724,11 @@ error_brelse:
  * Add new device to list of registered devices
  *
  * Returns:
- * 0   - device already known or newly added
- * < 0 - error
+ * device pointer which was just added or updated when successful
+ * error pointer when failed
  */
-static noinline int device_list_add(const char *path,
-			   struct btrfs_super_block *disk_super,
-			   u64 devid, struct btrfs_fs_devices **fs_devices_ret)
+static noinline struct btrfs_device *device_list_add(const char *path,
+			   struct btrfs_super_block *disk_super, u64 devid)
 {
 	struct btrfs_device *device;
 	struct btrfs_fs_devices *fs_devices;
@@ -740,7 +739,7 @@ static noinline int device_list_add(const char *path,
 	if (!fs_devices) {
 		fs_devices = alloc_fs_devices(disk_super->fsid);
 		if (IS_ERR(fs_devices))
-			return PTR_ERR(fs_devices);
+			return ERR_CAST(fs_devices);
 
 		list_add(&fs_devices->list, &fs_uuids);
 
@@ -752,19 +751,19 @@ static noinline int device_list_add(const char *path,
 
 	if (!device) {
 		if (fs_devices->opened)
-			return -EBUSY;
+			return ERR_PTR(-EBUSY);
 
 		device = btrfs_alloc_device(NULL, &devid,
 					    disk_super->dev_item.uuid);
 		if (IS_ERR(device)) {
 			/* we can safely leave the fs_devices entry around */
-			return PTR_ERR(device);
+			return device;
 		}
 
 		name = rcu_string_strdup(path, GFP_NOFS);
 		if (!name) {
 			free_device(device);
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 		}
 		rcu_assign_pointer(device->name, name);
 
@@ -818,12 +817,12 @@ static noinline int device_list_add(const char *path,
 			 * with larger generation number or the last-in if
 			 * generation are equal.
 			 */
-			return -EEXIST;
+			return ERR_PTR(-EEXIST);
 		}
 
 		name = rcu_string_strdup(path, GFP_NOFS);
 		if (!name)
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 		rcu_string_free(device->name);
 		rcu_assign_pointer(device->name, name);
 		if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state)) {
@@ -843,9 +842,7 @@ static noinline int device_list_add(const char *path,
 
 	fs_devices->total_devices = btrfs_super_num_devices(disk_super);
 
-	*fs_devices_ret = fs_devices;
-
-	return 0;
+	return device;
 }
 
 static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
@@ -1180,9 +1177,10 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 			  struct btrfs_fs_devices **fs_devices_ret)
 {
 	struct btrfs_super_block *disk_super;
+	struct btrfs_device *device;
 	struct block_device *bdev;
 	struct page *page;
-	int ret;
+	int ret = 0;
 	u64 devid;
 	u64 bytenr;
 
@@ -1209,7 +1207,11 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 
 	devid = btrfs_stack_device_id(&disk_super->dev_item);
 
-	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
+	device = device_list_add(path, disk_super, devid);
+	if (IS_ERR(device))
+		ret = PTR_ERR(device);
+	else
+		*fs_devices_ret = device->fs_devices;
 
 	btrfs_release_disk_super(page);
 
