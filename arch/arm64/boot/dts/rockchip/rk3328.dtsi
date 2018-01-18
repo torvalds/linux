@@ -780,6 +780,7 @@
 		power-domains = <&power RK3328_PD_VIDEO>;
 		operating-points-v2 = <&rkvdec_opp_table>;
 		#cooling-cells = <2>;
+		devfreq = <&dmc>;
 		status = "disabled";
 
 		vcodec_power_model: vcodec_power_model {
