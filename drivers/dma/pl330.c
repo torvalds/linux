@@ -1169,6 +1169,16 @@ static inline int _ldst_devtomem(struct pl330_dmac *pl330, unsigned dry_run,
 		off += _emit_WFP(dry_run, &buf[off], cond, pxs->desc->peri);
 		off += _emit_LDP(dry_run, &buf[off], cond, pxs->desc->peri);
 		off += _emit_ST(dry_run, &buf[off], ALWAYS);
+#ifdef CONFIG_ARCH_ROCKCHIP
+		/*
+		 * Make suree dma has finish transmission, or later flush may
+		 * cause dma second transmission,and fifo is overrun.
+		 */
+		off += _emit_WMB(dry_run, &buf[off]);
+		off += _emit_NOP(dry_run, &buf[off]);
+		off += _emit_WMB(dry_run, &buf[off]);
+		off += _emit_NOP(dry_run, &buf[off]);
+#endif
 
 		if (!(pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP))
 			off += _emit_FLUSHP(dry_run, &buf[off],
@@ -1189,6 +1199,16 @@ static inline int _ldst_memtodev(struct pl330_dmac *pl330,
 		off += _emit_WFP(dry_run, &buf[off], cond, pxs->desc->peri);
 		off += _emit_LD(dry_run, &buf[off], ALWAYS);
 		off += _emit_STP(dry_run, &buf[off], cond, pxs->desc->peri);
+#ifdef CONFIG_ARCH_ROCKCHIP
+		/*
+		 * Make suree dma has finish transmission, or later flush may
+		 * cause dma second transmission,and fifo is overrun.
+		 */
+		off += _emit_WMB(dry_run, &buf[off]);
+		off += _emit_NOP(dry_run, &buf[off]);
+		off += _emit_WMB(dry_run, &buf[off]);
+		off += _emit_NOP(dry_run, &buf[off]);
+#endif
 
 		if (!(pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP))
 			off += _emit_FLUSHP(dry_run, &buf[off],
