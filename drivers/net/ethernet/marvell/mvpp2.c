@@ -865,7 +865,7 @@ struct mvpp2 {
 
 	/* List of pointers to port structures */
 	int port_count;
-	struct mvpp2_port **port_list;
+	struct mvpp2_port *port_list[MVPP2_MAX_PORTS];
 
 	/* Aggregated TXQs */
 	struct mvpp2_tx_queue *aggr_txqs;
@@ -7741,7 +7741,7 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 /* Ports initialization */
 static int mvpp2_port_probe(struct platform_device *pdev,
 			    struct device_node *port_node,
-			    struct mvpp2 *priv, int index)
+			    struct mvpp2 *priv)
 {
 	struct device_node *phy_node;
 	struct phy *comphy;
@@ -7934,7 +7934,8 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	}
 	netdev_info(dev, "Using %s mac address %pM\n", mac_from, dev->dev_addr);
 
-	priv->port_list[index] = port;
+	priv->port_list[priv->port_count++] = port;
+
 	return 0;
 
 err_free_port_pcpu:
@@ -8313,28 +8314,17 @@ static int mvpp2_probe(struct platform_device *pdev)
 		goto err_mg_clk;
 	}
 
-	priv->port_count = of_get_available_child_count(dn);
+	/* Initialize ports */
+	for_each_available_child_of_node(dn, port_node) {
+		err = mvpp2_port_probe(pdev, port_node, priv);
+		if (err < 0)
+			goto err_port_probe;
+	}
+
 	if (priv->port_count == 0) {
 		dev_err(&pdev->dev, "no ports enabled\n");
 		err = -ENODEV;
 		goto err_mg_clk;
-	}
-
-	priv->port_list = devm_kcalloc(&pdev->dev, priv->port_count,
-				       sizeof(*priv->port_list),
-				       GFP_KERNEL);
-	if (!priv->port_list) {
-		err = -ENOMEM;
-		goto err_mg_clk;
-	}
-
-	/* Initialize ports */
-	i = 0;
-	for_each_available_child_of_node(dn, port_node) {
-		err = mvpp2_port_probe(pdev, port_node, priv, i);
-		if (err < 0)
-			goto err_port_probe;
-		i++;
 	}
 
 	/* Statistics must be gathered regularly because some of them (like
