@@ -355,9 +355,15 @@ mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (cmd == SET_KEY) {
 		key->hw_key_idx = wcid->idx;
 		wcid->hw_key_idx = idx;
+		if (key->flags & IEEE80211_KEY_FLAG_RX_MGMT) {
+			key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
+			wcid->sw_iv = true;
+		}
 	} else {
-		if (idx == wcid->hw_key_idx)
+		if (idx == wcid->hw_key_idx) {
 			wcid->hw_key_idx = -1;
+			wcid->sw_iv = true;
+		}
 
 		key = NULL;
 	}
