@@ -19,6 +19,40 @@
 #include <linux/ratelimit.h>
 #include "overlayfs.h"
 
+/*
+ * We only need to encode origin if there is a chance that the same object was
+ * encoded pre copy up and then we need to stay consistent with the same
+ * encoding also after copy up. If non-pure upper is not indexed, then it was
+ * copied up before NFS export was enabled. In that case we don't need to worry
+ * about staying consistent with pre copy up encoding and we encode an upper
+ * file handle. Overlay root dentry is a private case of non-indexed upper.
+ *
+ * The following table summarizes the different file handle encodings used for
+ * different overlay object types:
+ *
+ *  Object type		| Encoding
+ * --------------------------------
+ *  Pure upper		| U
+ *  Non-indexed upper	| U
+ *  Indexed upper	| L
+ *  Non-upper		| L
+ *
+ * U = upper file handle
+ * L = lower file handle
+ */
+static bool ovl_should_encode_origin(struct dentry *dentry)
+{
+	if (!ovl_dentry_lower(dentry))
+		return false;
+
+	/* Decoding a non-indexed upper from origin is not implemented */
+	if (ovl_dentry_upper(dentry) &&
+	    !ovl_test_flag(OVL_INDEX, d_inode(dentry)))
+		return false;
+
+	return true;
+}
+
 static int ovl_d_to_fh(struct dentry *dentry, char *buf, int buflen)
 {
 	struct dentry *upper = ovl_dentry_upper(dentry);
@@ -26,11 +60,7 @@ static int ovl_d_to_fh(struct dentry *dentry, char *buf, int buflen)
 	struct ovl_fh *fh = NULL;
 	int err;
 
-	/*
-	 * On overlay with an upper layer, overlay root inode is encoded as
-	 * an upper file handle, because upper root dir is not indexed.
-	 */
-	if (dentry == dentry->d_sb->s_root && upper)
+	if (!ovl_should_encode_origin(dentry))
 		origin = NULL;
 
 	err = -EACCES;
