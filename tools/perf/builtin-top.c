@@ -943,6 +943,27 @@ static int perf_top__overwrite_check(struct perf_top *top)
 	return 0;
 }
 
+static int perf_top_overwrite_fallback(struct perf_top *top,
+				       struct perf_evsel *evsel)
+{
+	struct record_opts *opts = &top->record_opts;
+	struct perf_evlist *evlist = top->evlist;
+	struct perf_evsel *counter;
+
+	if (!opts->overwrite)
+		return 0;
+
+	/* only fall back when first event fails */
+	if (evsel != perf_evlist__first(evlist))
+		return 0;
+
+	evlist__for_each_entry(evlist, counter)
+		counter->attr.write_backward = false;
+	opts->overwrite = false;
+	ui__warning("fall back to non-overwrite mode\n");
+	return 1;
+}
+
 static int perf_top__start_counters(struct perf_top *top)
 {
 	char msg[BUFSIZ];
@@ -967,6 +988,21 @@ static int perf_top__start_counters(struct perf_top *top)
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
+
+			/*
+			 * Specially handle overwrite fall back.
+			 * Because perf top is the only tool which has
+			 * overwrite mode by default, support
+			 * both overwrite and non-overwrite mode, and
+			 * require consistent mode for all events.
+			 *
+			 * May move it to generic code with more tools
+			 * have similar attribute.
+			 */
+			if (perf_missing_features.write_backward &&
+			    perf_top_overwrite_fallback(top, counter))
+				goto try_again;
+
 			if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
 				if (verbose > 0)
 					ui__warning("%s\n", msg);
