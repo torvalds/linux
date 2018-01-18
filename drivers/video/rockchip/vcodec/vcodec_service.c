@@ -3591,6 +3591,7 @@ static void get_hw_info(struct vpu_subdev_data *data)
 		pservice->bug_dec_addr = of_machine_is_compatible
 			("rockchip,rk30xx");
 		break;
+	case VCODEC_RUNNING_MODE_HEVC:
 	case VCODEC_RUNNING_MODE_RKVDEC:
 		pservice->auto_freq = true;
 		atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
