@@ -728,12 +728,13 @@ error_brelse:
  * error pointer when failed
  */
 static noinline struct btrfs_device *device_list_add(const char *path,
-			   struct btrfs_super_block *disk_super, u64 devid)
+			   struct btrfs_super_block *disk_super)
 {
 	struct btrfs_device *device;
 	struct btrfs_fs_devices *fs_devices;
 	struct rcu_string *name;
 	u64 found_transid = btrfs_super_generation(disk_super);
+	u64 devid = btrfs_stack_device_id(&disk_super->dev_item);
 
 	fs_devices = find_fsid(disk_super->fsid);
 	if (!fs_devices) {
@@ -1181,7 +1182,6 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	struct block_device *bdev;
 	struct page *page;
 	int ret = 0;
-	u64 devid;
 	u64 bytenr;
 
 	/*
@@ -1205,9 +1205,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		goto error_bdev_put;
 	}
 
-	devid = btrfs_stack_device_id(&disk_super->dev_item);
-
-	device = device_list_add(path, disk_super, devid);
+	device = device_list_add(path, disk_super);
 	if (IS_ERR(device))
 		ret = PTR_ERR(device);
 	else
