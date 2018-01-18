@@ -410,6 +410,10 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 	struct ibmvnic_rx_pool *rx_pool;
 	int rx_scrqs;
 	int i, j, rc;
+	u64 *size_array;
+
+	size_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
+		be32_to_cpu(adapter->login_rsp_buf->off_rxadd_buff_size));
 
 	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
 	for (i = 0; i < rx_scrqs; i++) {
@@ -417,7 +421,17 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 
 		netdev_dbg(adapter->netdev, "Re-setting rx_pool[%d]\n", i);
 
-		rc = reset_long_term_buff(adapter, &rx_pool->long_term_buff);
+		if (rx_pool->buff_size != be64_to_cpu(size_array[i])) {
+			free_long_term_buff(adapter, &rx_pool->long_term_buff);
+			rx_pool->buff_size = be64_to_cpu(size_array[i]);
+			alloc_long_term_buff(adapter, &rx_pool->long_term_buff,
+					     rx_pool->size *
+					     rx_pool->buff_size);
+		} else {
+			rc = reset_long_term_buff(adapter,
+						  &rx_pool->long_term_buff);
+		}
+
 		if (rc)
 			return rc;
 
@@ -439,14 +453,12 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 static void release_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_rx_pool *rx_pool;
-	int rx_scrqs;
 	int i, j;
 
 	if (!adapter->rx_pool)
 		return;
 
-	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
-	for (i = 0; i < rx_scrqs; i++) {
+	for (i = 0; i < adapter->num_active_rx_pools; i++) {
 		rx_pool = &adapter->rx_pool[i];
 
 		netdev_dbg(adapter->netdev, "Releasing rx_pool[%d]\n", i);
@@ -469,6 +481,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->rx_pool);
 	adapter->rx_pool = NULL;
+	adapter->num_active_rx_pools = 0;
 }
 
 static int init_rx_pools(struct net_device *netdev)
@@ -492,6 +505,8 @@ static int init_rx_pools(struct net_device *netdev)
 		dev_err(dev, "Failed to allocate rx pools\n");
 		return -1;
 	}
+
+	adapter->num_active_rx_pools = 0;
 
 	for (i = 0; i < rxadd_subcrqs; i++) {
 		rx_pool = &adapter->rx_pool[i];
@@ -535,6 +550,8 @@ static int init_rx_pools(struct net_device *netdev)
 		rx_pool->next_alloc = 0;
 		rx_pool->next_free = 0;
 	}
+
+	adapter->num_active_rx_pools = rxadd_subcrqs;
 
 	return 0;
 }
@@ -586,13 +603,12 @@ static void release_vpd_data(struct ibmvnic_adapter *adapter)
 static void release_tx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_tx_pool *tx_pool;
-	int i, tx_scrqs;
+	int i;
 
 	if (!adapter->tx_pool)
 		return;
 
-	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
-	for (i = 0; i < tx_scrqs; i++) {
+	for (i = 0; i < adapter->num_active_tx_pools; i++) {
 		netdev_dbg(adapter->netdev, "Releasing tx_pool[%d]\n", i);
 		tx_pool = &adapter->tx_pool[i];
 		kfree(tx_pool->tx_buff);
@@ -603,6 +619,7 @@ static void release_tx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->tx_pool);
 	adapter->tx_pool = NULL;
+	adapter->num_active_tx_pools = 0;
 }
 
 static int init_tx_pools(struct net_device *netdev)
@@ -618,6 +635,8 @@ static int init_tx_pools(struct net_device *netdev)
 				   sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
 	if (!adapter->tx_pool)
 		return -1;
+
+	adapter->num_active_tx_pools = 0;
 
 	for (i = 0; i < tx_subcrqs; i++) {
 		tx_pool = &adapter->tx_pool[i];
@@ -665,6 +684,8 @@ static int init_tx_pools(struct net_device *netdev)
 		tx_pool->consumer_index = 0;
 		tx_pool->producer_index = 0;
 	}
+
+	adapter->num_active_tx_pools = tx_subcrqs;
 
 	return 0;
 }
@@ -1548,6 +1569,7 @@ static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 static int do_reset(struct ibmvnic_adapter *adapter,
 		    struct ibmvnic_rwi *rwi, u32 reset_state)
 {
+	u64 old_num_rx_queues, old_num_tx_queues;
 	struct net_device *netdev = adapter->netdev;
 	int i, rc;
 
@@ -1556,6 +1578,9 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 
 	netif_carrier_off(netdev);
 	adapter->reset_reason = rwi->reset_reason;
+
+	old_num_rx_queues = adapter->req_rx_queues;
+	old_num_tx_queues = adapter->req_tx_queues;
 
 	if (rwi->reset_reason == VNIC_RESET_MOBILITY) {
 		rc = ibmvnic_reenable_crq_queue(adapter);
@@ -1601,6 +1626,12 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			rc = init_resources(adapter);
 			if (rc)
 				return rc;
+		} else if (adapter->req_rx_queues != old_num_rx_queues ||
+			   adapter->req_tx_queues != old_num_tx_queues) {
+			release_rx_pools(adapter);
+			release_tx_pools(adapter);
+			init_rx_pools(netdev);
+			init_tx_pools(netdev);
 		} else {
 			rc = reset_tx_pools(adapter);
 			if (rc)
