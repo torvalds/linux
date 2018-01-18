@@ -285,6 +285,26 @@ static inline void kernel_signal_stop(void)
 
 	schedule();
 }
+#ifdef __ARCH_SI_TRAPNO
+# define ___ARCH_SI_TRAPNO(_a1) , _a1
+#else
+# define ___ARCH_SI_TRAPNO(_a1)
+#endif
+#ifdef __ia64__
+# define ___ARCH_SI_IA64(_a1, _a2, _a3) , _a1, _a2, _a3
+#else
+# define ___ARCH_SI_IA64(_a1, _a2, _a3)
+#endif
+
+int force_sig_fault(int sig, int code, void __user *addr
+	___ARCH_SI_TRAPNO(int trapno)
+	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
+	, struct task_struct *t);
+int send_sig_fault(int sig, int code, void __user *addr
+	___ARCH_SI_TRAPNO(int trapno)
+	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
+	, struct task_struct *t);
+
 extern int send_sig_info(int, struct siginfo *, struct task_struct *);
 extern int force_sigsegv(int, struct task_struct *);
 extern int force_sig_info(int, struct siginfo *, struct task_struct *);
