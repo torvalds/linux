@@ -138,7 +138,7 @@ config IMG_ASCII_LCD
 	tristate "Imagination Technologies ASCII LCD Display"
 	depends on HAS_IOMEM
 	default y if MIPS_MALTA
-	select SYSCON
+	select MFD_SYSCON
 	help
 	  Enable this to support the simple ASCII LCD displays found on
 	  development boards such as the MIPS Boston, MIPS Malta & MIPS SEAD3
