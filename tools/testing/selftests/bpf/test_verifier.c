@@ -29,6 +29,7 @@
 #include <linux/filter.h>
 #include <linux/bpf_perf_event.h>
 #include <linux/bpf.h>
+#include <linux/if_ether.h>
 
 #include <bpf/bpf.h>
 
@@ -49,6 +50,8 @@
 #define MAX_INSNS	512
 #define MAX_FIXUPS	8
 #define MAX_NR_MAPS	4
+#define POINTER_VALUE	0xcafe4all
+#define TEST_DATA_LEN	64
 
 #define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
 #define F_LOAD_WITH_STRICT_ALIGNMENT		(1 << 1)
@@ -62,6 +65,7 @@ struct bpf_test {
 	int fixup_map_in_map[MAX_FIXUPS];
 	const char *errstr;
 	const char *errstr_unpriv;
+	uint32_t retval;
 	enum {
 		UNDEF,
 		ACCEPT,
@@ -95,6 +99,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
+		.retval = -3,
 	},
 	{
 		"unreachable",
@@ -210,6 +215,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
+		.retval = 1,
 	},
 	{
 		"test8 ld_imm64",
@@ -517,6 +523,7 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "R0 leaks addr",
 		.result = ACCEPT,
 		.result_unpriv = REJECT,
+		.retval = POINTER_VALUE,
 	},
 	{
 		"check valid spill/fill, skb mark",
@@ -803,6 +810,7 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "R1 pointer comparison",
 		.result_unpriv = REJECT,
 		.result = ACCEPT,
+		.retval = -ENOENT,
 	},
 	{
 		"jump test 4",
@@ -1823,6 +1831,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
+		.retval = 0xfaceb00c,
 	},
 	{
 		"PTR_TO_STACK store/load - bad alignment on off",
@@ -1881,6 +1890,7 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 		.result_unpriv = REJECT,
 		.errstr_unpriv = "R0 leaks addr",
+		.retval = POINTER_VALUE,
 	},
 	{
 		"unpriv: add const to pointer",
@@ -2054,6 +2064,7 @@ static struct bpf_test tests[] = {
 			BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6, 0),
 			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 				     BPF_FUNC_get_hash_recalc),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
@@ -2818,6 +2829,7 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.retval = 1,
 	},
 	{
 		"direct packet access: test12 (and, good access)",
@@ -2842,6 +2854,7 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.retval = 1,
 	},
 	{
 		"direct packet access: test13 (branches, good access)",
@@ -2872,6 +2885,7 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.retval = 1,
 	},
 	{
 		"direct packet access: test14 (pkt_ptr += 0, CONST_IMM, good access)",
@@ -2895,6 +2909,7 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.retval = 1,
 	},
 	{
 		"direct packet access: test15 (spill with xadd)",
@@ -3181,6 +3196,7 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.retval = 1,
 	},
 	{
 		"direct packet access: test28 (marking on <=, bad access)",
@@ -5798,6 +5814,7 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.retval = 0 /* csum_diff of 64-byte packet */,
 	},
 	{
 		"helper access to variable memory: size = 0 not allowed on NULL (!ARG_PTR_TO_MEM_OR_NULL)",
@@ -6166,6 +6183,7 @@ static struct bpf_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.result = ACCEPT,
+		.retval = 42 /* ultimate return value */,
 	},
 	{
 		"ld_ind: check calling conv, r1",
@@ -6237,6 +6255,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
+		.retval = 1,
 	},
 	{
 		"check bpf_perf_event_data->sample_period byte load permitted",
@@ -7224,6 +7243,7 @@ static struct bpf_test tests[] = {
 		},
 		.fixup_map1 = { 3 },
 		.result = ACCEPT,
+		.retval = POINTER_VALUE,
 		.result_unpriv = REJECT,
 		.errstr_unpriv = "R0 leaks addr as return value"
 	},
@@ -7244,6 +7264,7 @@ static struct bpf_test tests[] = {
 		},
 		.fixup_map1 = { 3 },
 		.result = ACCEPT,
+		.retval = POINTER_VALUE,
 		.result_unpriv = REJECT,
 		.errstr_unpriv = "R0 leaks addr as return value"
 	},
@@ -7685,6 +7706,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
+		.retval = TEST_DATA_LEN,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	},
 	{
@@ -8705,6 +8727,7 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "function calls to other bpf functions are allowed for root only",
 		.result_unpriv = REJECT,
 		.result = ACCEPT,
+		.retval = 1,
 	},
 	{
 		"calls: overlapping caller/callee",
@@ -8900,6 +8923,7 @@ static struct bpf_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_ACT,
 		.result = ACCEPT,
+		.retval = TEST_DATA_LEN,
 	},
 	{
 		"calls: callee using args1",
@@ -8912,6 +8936,7 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "allowed for root only",
 		.result_unpriv = REJECT,
 		.result = ACCEPT,
+		.retval = POINTER_VALUE,
 	},
 	{
 		"calls: callee using wrong args2",
@@ -8942,6 +8967,7 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "allowed for root only",
 		.result_unpriv = REJECT,
 		.result = ACCEPT,
+		.retval = TEST_DATA_LEN + TEST_DATA_LEN - ETH_HLEN - ETH_HLEN,
 	},
 	{
 		"calls: callee changing pkt pointers",
@@ -8990,6 +9016,7 @@ static struct bpf_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.result = ACCEPT,
+		.retval = TEST_DATA_LEN + TEST_DATA_LEN,
 	},
 	{
 		"calls: calls with stack arith",
@@ -9008,6 +9035,7 @@ static struct bpf_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.result = ACCEPT,
+		.retval = 42,
 	},
 	{
 		"calls: calls with misaligned stack access",
@@ -9041,6 +9069,7 @@ static struct bpf_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.result = ACCEPT,
+		.retval = 43,
 	},
 	{
 		"calls: calls control flow, jump test 2",
@@ -9533,6 +9562,7 @@ static struct bpf_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_XDP,
 		.result = ACCEPT,
+		.retval = 42,
 	},
 	{
 		"calls: write into callee stack frame",
@@ -10144,6 +10174,7 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.retval = POINTER_VALUE,
 	},
 	{
 		"calls: pkt_ptr spill into caller stack 2",
@@ -10209,6 +10240,7 @@ static struct bpf_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.result = ACCEPT,
+		.retval = 1,
 	},
 	{
 		"calls: pkt_ptr spill into caller stack 4",
@@ -10242,6 +10274,7 @@ static struct bpf_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.result = ACCEPT,
+		.retval = 1,
 	},
 	{
 		"calls: pkt_ptr spill into caller stack 5",
@@ -10650,10 +10683,12 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	int fd_prog, expected_ret, reject_from_alignment;
 	struct bpf_insn *prog = test->insns;
 	int prog_len = probe_filter_length(prog);
+	char data_in[TEST_DATA_LEN] = {};
 	int prog_type = test->prog_type;
 	int map_fds[MAX_NR_MAPS];
 	const char *expected_err;
-	int i;
+	uint32_t retval;
+	int i, err;
 
 	for (i = 0; i < MAX_NR_MAPS; i++)
 		map_fds[i] = -1;
@@ -10696,6 +10731,19 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		}
 	}
 
+	if (fd_prog >= 0) {
+		err = bpf_prog_test_run(fd_prog, 1, data_in, sizeof(data_in),
+					NULL, NULL, &retval, NULL);
+		if (err && errno != 524/*ENOTSUPP*/ && errno != EPERM) {
+			printf("Unexpected bpf_prog_test_run error\n");
+			goto fail_log;
+		}
+		if (!err && retval != test->retval &&
+		    test->retval != POINTER_VALUE) {
+			printf("FAIL retval %d != %d\n", retval, test->retval);
+			goto fail_log;
+		}
+	}
 	(*passes)++;
 	printf("OK%s\n", reject_from_alignment ?
 	       " (NOTE: reject due to unknown alignment)" : "");

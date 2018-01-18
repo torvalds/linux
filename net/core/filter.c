@@ -4526,6 +4526,7 @@ const struct bpf_verifier_ops sk_filter_verifier_ops = {
 };
 
 const struct bpf_prog_ops sk_filter_prog_ops = {
+	.test_run		= bpf_prog_test_run_skb,
 };
 
 const struct bpf_verifier_ops tc_cls_act_verifier_ops = {
