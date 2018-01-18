@@ -244,6 +244,23 @@ static struct variant_data variant_ux500v2 = {
 	.opendrain		= MCI_OD,
 };
 
+static struct variant_data variant_stm32 = {
+	.fifosize		= 32 * 4,
+	.fifohalfsize		= 8 * 4,
+	.clkreg			= MCI_CLK_ENABLE,
+	.clkreg_enable		= MCI_ST_UX500_HWFCEN,
+	.clkreg_8bit_bus_enable = MCI_ST_8BIT_BUS,
+	.clkreg_neg_edge_enable	= MCI_ST_UX500_NEG_EDGE,
+	.datalength_bits	= 24,
+	.datactrl_mask_sdio	= MCI_DPSM_ST_SDIOEN,
+	.st_sdio		= true,
+	.st_clkdiv		= true,
+	.pwrreg_powerup		= MCI_PWR_ON,
+	.f_max			= 48000000,
+	.pwrreg_clkgate		= true,
+	.pwrreg_nopower		= true,
+};
+
 static struct variant_data variant_qcom = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
@@ -2020,6 +2037,11 @@ static const struct amba_id mmci_ids[] = {
 		.id     = 0x10480180,
 		.mask   = 0xf0ffffff,
 		.data	= &variant_ux500v2,
+	},
+	{
+		.id     = 0x00880180,
+		.mask   = 0x00ffffff,
+		.data	= &variant_stm32,
 	},
 	/* Qualcomm variants */
 	{
