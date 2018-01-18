@@ -223,6 +223,7 @@ struct mmci_host {
 	u32			clk_reg;
 	u32			datactrl_reg;
 	u32			busy_status;
+	u32			mask1_reg;
 	bool			vqmmc_enabled;
 	struct mmci_platform_data *plat;
 	struct variant_data	*variant;

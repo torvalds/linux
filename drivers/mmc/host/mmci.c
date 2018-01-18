@@ -82,6 +82,7 @@ static unsigned int fmax = 515633;
  * @qcom_fifo: enables qcom specific fifo pio read logic.
  * @qcom_dml: enables qcom specific dma glue for dma transfers.
  * @reversed_irq_handling: handle data irq before cmd irq.
+ * @mmcimask1: true if variant have a MMCIMASK1 register.
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -111,6 +112,7 @@ struct variant_data {
 	bool			qcom_fifo;
 	bool			qcom_dml;
 	bool			reversed_irq_handling;
+	bool			mmcimask1;
 };
 
 static struct variant_data variant_arm = {
@@ -120,6 +122,7 @@ static struct variant_data variant_arm = {
 	.pwrreg_powerup		= MCI_PWR_UP,
 	.f_max			= 100000000,
 	.reversed_irq_handling	= true,
+	.mmcimask1		= true,
 };
 
 static struct variant_data variant_arm_extended_fifo = {
@@ -128,6 +131,7 @@ static struct variant_data variant_arm_extended_fifo = {
 	.datalength_bits	= 16,
 	.pwrreg_powerup		= MCI_PWR_UP,
 	.f_max			= 100000000,
+	.mmcimask1		= true,
 };
 
 static struct variant_data variant_arm_extended_fifo_hwfc = {
@@ -137,6 +141,7 @@ static struct variant_data variant_arm_extended_fifo_hwfc = {
 	.datalength_bits	= 16,
 	.pwrreg_powerup		= MCI_PWR_UP,
 	.f_max			= 100000000,
+	.mmcimask1		= true,
 };
 
 static struct variant_data variant_u300 = {
@@ -152,6 +157,7 @@ static struct variant_data variant_u300 = {
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
 	.pwrreg_nopower		= true,
+	.mmcimask1		= true,
 };
 
 static struct variant_data variant_nomadik = {
@@ -168,6 +174,7 @@ static struct variant_data variant_nomadik = {
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
 	.pwrreg_nopower		= true,
+	.mmcimask1		= true,
 };
 
 static struct variant_data variant_ux500 = {
@@ -190,6 +197,7 @@ static struct variant_data variant_ux500 = {
 	.busy_detect_flag	= MCI_ST_CARDBUSY,
 	.busy_detect_mask	= MCI_ST_BUSYENDMASK,
 	.pwrreg_nopower		= true,
+	.mmcimask1		= true,
 };
 
 static struct variant_data variant_ux500v2 = {
@@ -214,6 +222,7 @@ static struct variant_data variant_ux500v2 = {
 	.busy_detect_flag	= MCI_ST_CARDBUSY,
 	.busy_detect_mask	= MCI_ST_BUSYENDMASK,
 	.pwrreg_nopower		= true,
+	.mmcimask1		= true,
 };
 
 static struct variant_data variant_qcom = {
@@ -232,6 +241,7 @@ static struct variant_data variant_qcom = {
 	.explicit_mclk_control	= true,
 	.qcom_fifo		= true,
 	.qcom_dml		= true,
+	.mmcimask1		= true,
 };
 
 /* Busy detection for the ST Micro variant */
@@ -396,6 +406,7 @@ mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 static void mmci_set_mask1(struct mmci_host *host, unsigned int mask)
 {
 	void __iomem *base = host->base;
+	struct variant_data *variant = host->variant;
 
 	if (host->singleirq) {
 		unsigned int mask0 = readl(base + MMCIMASK0);
@@ -406,7 +417,10 @@ static void mmci_set_mask1(struct mmci_host *host, unsigned int mask)
 		writel(mask0, base + MMCIMASK0);
 	}
 
-	writel(mask, base + MMCIMASK1);
+	if (variant->mmcimask1)
+		writel(mask, base + MMCIMASK1);
+
+	host->mask1_reg = mask;
 }
 
 static void mmci_stop_data(struct mmci_host *host)
@@ -1286,7 +1300,7 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 		status = readl(host->base + MMCISTATUS);
 
 		if (host->singleirq) {
-			if (status & readl(host->base + MMCIMASK1))
+			if (status & host->mask1_reg)
 				mmci_pio_irq(irq, dev_id);
 
 			status &= ~MCI_IRQ1MASK;
@@ -1729,7 +1743,10 @@ static int mmci_probe(struct amba_device *dev,
 	spin_lock_init(&host->lock);
 
 	writel(0, host->base + MMCIMASK0);
-	writel(0, host->base + MMCIMASK1);
+
+	if (variant->mmcimask1)
+		writel(0, host->base + MMCIMASK1);
+
 	writel(0xfff, host->base + MMCICLEAR);
 
 	/*
@@ -1809,6 +1826,7 @@ static int mmci_remove(struct amba_device *dev)
 
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
+		struct variant_data *variant = host->variant;
 
 		/*
 		 * Undo pm_runtime_put() in probe.  We use the _sync
@@ -1819,7 +1837,9 @@ static int mmci_remove(struct amba_device *dev)
 		mmc_remove_host(mmc);
 
 		writel(0, host->base + MMCIMASK0);
-		writel(0, host->base + MMCIMASK1);
+
+		if (variant->mmcimask1)
+			writel(0, host->base + MMCIMASK1);
 
 		writel(0, host->base + MMCICOMMAND);
 		writel(0, host->base + MMCIDATACTRL);
