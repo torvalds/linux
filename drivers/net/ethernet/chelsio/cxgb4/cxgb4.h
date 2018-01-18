@@ -344,7 +344,6 @@ struct adapter_params {
 
 	unsigned int sf_size;             /* serial flash size in bytes */
 	unsigned int sf_nsec;             /* # of flash sectors */
-	unsigned int sf_fw_start;         /* start of FW image in flash */
 
 	unsigned int fw_vers;		  /* firmware version */
 	unsigned int bs_vers;		  /* bootstrap version */

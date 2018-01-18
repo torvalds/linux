@@ -2384,7 +2384,7 @@ int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 						   struct nlmsghdr *,
 						   struct netlink_ext_ack *))
 {
-	struct netlink_ext_ack extack = {};
+	struct netlink_ext_ack extack;
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -2405,6 +2405,7 @@ int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 		if (nlh->nlmsg_type < NLMSG_MIN_TYPE)
 			goto ack;
 
+		memset(&extack, 0, sizeof(extack));
 		err = cb(skb, nlh, &extack);
 		if (err == -EINTR)
 			goto skip;

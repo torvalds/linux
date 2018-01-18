@@ -609,7 +609,8 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 
 	/* re-insert all policies by order of creation */
 	list_for_each_entry_reverse(policy, &net->xfrm.policy_all, walk.all) {
-		if (xfrm_policy_id2dir(policy->index) >= XFRM_POLICY_MAX) {
+		if (policy->walk.dead ||
+		    xfrm_policy_id2dir(policy->index) >= XFRM_POLICY_MAX) {
 			/* skip socket policies */
 			continue;
 		}
@@ -974,8 +975,6 @@ int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
 	}
 	if (!cnt)
 		err = -ESRCH;
-	else
-		xfrm_policy_cache_flush();
 out:
 	spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
 	return err;
@@ -1168,9 +1167,15 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(const struct sock *sk, int dir,
  again:
 	pol = rcu_dereference(sk->sk_policy[dir]);
 	if (pol != NULL) {
-		bool match = xfrm_selector_match(&pol->selector, fl, family);
+		bool match;
 		int err = 0;
 
+		if (pol->family != family) {
+			pol = NULL;
+			goto out;
+		}
+
+		match = xfrm_selector_match(&pol->selector, fl, family);
 		if (match) {
 			if ((sk->sk_mark & pol->mark.m) != pol->mark.v) {
 				pol = NULL;
@@ -1737,6 +1742,8 @@ void xfrm_policy_cache_flush(void)
 	bool found = 0;
 	int cpu;
 
+	might_sleep();
+
 	local_bh_disable();
 	rcu_read_lock();
 	for_each_possible_cpu(cpu) {
@@ -1833,6 +1840,7 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 		   sizeof(struct xfrm_policy *) * num_pols) == 0 &&
 	    xfrm_xdst_can_reuse(xdst, xfrm, err)) {
 		dst_hold(&xdst->u.dst);
+		xfrm_pols_put(pols, num_pols);
 		while (err > 0)
 			xfrm_state_put(xfrm[--err]);
 		return xdst;
@@ -2055,8 +2063,11 @@ xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir, 
 	if (num_xfrms <= 0)
 		goto make_dummy_bundle;
 
+	local_bh_disable();
 	xdst = xfrm_resolve_and_create_bundle(pols, num_pols, fl, family,
-						  xflo->dst_orig);
+					      xflo->dst_orig);
+	local_bh_enable();
+
 	if (IS_ERR(xdst)) {
 		err = PTR_ERR(xdst);
 		if (err != -EAGAIN)
@@ -2143,9 +2154,12 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 				goto no_transform;
 			}
 
+			local_bh_disable();
 			xdst = xfrm_resolve_and_create_bundle(
 					pols, num_pols, fl,
 					family, dst_orig);
+			local_bh_enable();
+
 			if (IS_ERR(xdst)) {
 				xfrm_pols_put(pols, num_pols);
 				err = PTR_ERR(xdst);

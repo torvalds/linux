@@ -448,11 +448,33 @@ static void **nvme_pci_iod_list(struct request *req)
 	return (void **)(iod->sg + blk_rq_nr_phys_segments(req));
 }
 
+static inline bool nvme_pci_use_sgls(struct nvme_dev *dev, struct request *req)
+{
+	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
+	int nseg = blk_rq_nr_phys_segments(req);
+	unsigned int avg_seg_size;
+
+	if (nseg == 0)
+		return false;
+
+	avg_seg_size = DIV_ROUND_UP(blk_rq_payload_bytes(req), nseg);
+
+	if (!(dev->ctrl.sgls & ((1 << 0) | (1 << 1))))
+		return false;
+	if (!iod->nvmeq->qid)
+		return false;
+	if (!sgl_threshold || avg_seg_size < sgl_threshold)
+		return false;
+	return true;
+}
+
 static blk_status_t nvme_init_iod(struct request *rq, struct nvme_dev *dev)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(rq);
 	int nseg = blk_rq_nr_phys_segments(rq);
 	unsigned int size = blk_rq_payload_bytes(rq);
+
+	iod->use_sgl = nvme_pci_use_sgls(dev, rq);
 
 	if (nseg > NVME_INT_PAGES || size > NVME_INT_BYTES(dev)) {
 		size_t alloc_size = nvme_pci_iod_alloc_size(dev, size, nseg,
@@ -604,8 +626,6 @@ static blk_status_t nvme_pci_setup_prps(struct nvme_dev *dev,
 	dma_addr_t prp_dma;
 	int nprps, i;
 
-	iod->use_sgl = false;
-
 	length -= (page_size - offset);
 	if (length <= 0) {
 		iod->first_dma = 0;
@@ -705,22 +725,19 @@ static void nvme_pci_sgl_set_seg(struct nvme_sgl_desc *sge,
 }
 
 static blk_status_t nvme_pci_setup_sgls(struct nvme_dev *dev,
-		struct request *req, struct nvme_rw_command *cmd)
+		struct request *req, struct nvme_rw_command *cmd, int entries)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
-	int length = blk_rq_payload_bytes(req);
 	struct dma_pool *pool;
 	struct nvme_sgl_desc *sg_list;
 	struct scatterlist *sg = iod->sg;
-	int entries = iod->nents, i = 0;
 	dma_addr_t sgl_dma;
-
-	iod->use_sgl = true;
+	int i = 0;
 
 	/* setting the transfer type as SGL */
 	cmd->flags = NVME_CMD_SGL_METABUF;
 
-	if (length == sg_dma_len(sg)) {
+	if (entries == 1) {
 		nvme_pci_sgl_set_data(&cmd->dptr.sgl, sg);
 		return BLK_STS_OK;
 	}
@@ -760,31 +777,10 @@ static blk_status_t nvme_pci_setup_sgls(struct nvme_dev *dev,
 		}
 
 		nvme_pci_sgl_set_data(&sg_list[i++], sg);
-
-		length -= sg_dma_len(sg);
 		sg = sg_next(sg);
-		entries--;
-	} while (length > 0);
+	} while (--entries > 0);
 
-	WARN_ON(entries > 0);
 	return BLK_STS_OK;
-}
-
-static inline bool nvme_pci_use_sgls(struct nvme_dev *dev, struct request *req)
-{
-	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
-	unsigned int avg_seg_size;
-
-	avg_seg_size = DIV_ROUND_UP(blk_rq_payload_bytes(req),
-			blk_rq_nr_phys_segments(req));
-
-	if (!(dev->ctrl.sgls & ((1 << 0) | (1 << 1))))
-		return false;
-	if (!iod->nvmeq->qid)
-		return false;
-	if (!sgl_threshold || avg_seg_size < sgl_threshold)
-		return false;
-	return true;
 }
 
 static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
@@ -795,6 +791,7 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 	enum dma_data_direction dma_dir = rq_data_dir(req) ?
 			DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	blk_status_t ret = BLK_STS_IOERR;
+	int nr_mapped;
 
 	sg_init_table(iod->sg, blk_rq_nr_phys_segments(req));
 	iod->nents = blk_rq_map_sg(q, req, iod->sg);
@@ -802,12 +799,13 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 		goto out;
 
 	ret = BLK_STS_RESOURCE;
-	if (!dma_map_sg_attrs(dev->dev, iod->sg, iod->nents, dma_dir,
-				DMA_ATTR_NO_WARN))
+	nr_mapped = dma_map_sg_attrs(dev->dev, iod->sg, iod->nents, dma_dir,
+			DMA_ATTR_NO_WARN);
+	if (!nr_mapped)
 		goto out;
 
-	if (nvme_pci_use_sgls(dev, req))
-		ret = nvme_pci_setup_sgls(dev, req, &cmnd->rw);
+	if (iod->use_sgl)
+		ret = nvme_pci_setup_sgls(dev, req, &cmnd->rw, nr_mapped);
 	else
 		ret = nvme_pci_setup_prps(dev, req, &cmnd->rw);
 

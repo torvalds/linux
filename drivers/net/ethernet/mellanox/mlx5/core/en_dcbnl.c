@@ -274,6 +274,7 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 static int mlx5e_dbcnl_validate_ets(struct net_device *netdev,
 				    struct ieee_ets *ets)
 {
+	bool have_ets_tc = false;
 	int bw_sum = 0;
 	int i;
 
@@ -288,11 +289,14 @@ static int mlx5e_dbcnl_validate_ets(struct net_device *netdev,
 	}
 
 	/* Validate Bandwidth Sum */
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS)
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS) {
+			have_ets_tc = true;
 			bw_sum += ets->tc_tx_bw[i];
+		}
+	}
 
-	if (bw_sum != 0 && bw_sum != 100) {
+	if (have_ets_tc && bw_sum != 100) {
 		netdev_err(netdev,
 			   "Failed to validate ETS: BW sum is illegal\n");
 		return -EINVAL;
@@ -918,8 +922,9 @@ static void mlx5e_dcbnl_query_dcbx_mode(struct mlx5e_priv *priv,
 
 static void mlx5e_ets_init(struct mlx5e_priv *priv)
 {
-	int i;
 	struct ieee_ets ets;
+	int err;
+	int i;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets))
 		return;
@@ -932,11 +937,16 @@ static void mlx5e_ets_init(struct mlx5e_priv *priv)
 		ets.prio_tc[i] = i;
 	}
 
-	/* tclass[prio=0]=1, tclass[prio=1]=0, tclass[prio=i]=i (for i>1) */
-	ets.prio_tc[0] = 1;
-	ets.prio_tc[1] = 0;
+	if (ets.ets_cap > 1) {
+		/* tclass[prio=0]=1, tclass[prio=1]=0, tclass[prio=i]=i (for i>1) */
+		ets.prio_tc[0] = 1;
+		ets.prio_tc[1] = 0;
+	}
 
-	mlx5e_dcbnl_ieee_setets_core(priv, &ets);
+	err = mlx5e_dcbnl_ieee_setets_core(priv, &ets);
+	if (err)
+		netdev_err(priv->netdev,
+			   "%s, Failed to init ETS: %d\n", __func__, err);
 }
 
 enum {

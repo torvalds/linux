@@ -7,6 +7,7 @@
 #include <asm/mmu.h>
 #include <asm/fixmap.h>
 #include <asm/irq_vectors.h>
+#include <asm/cpu_entry_area.h>
 
 #include <linux/smp.h>
 #include <linux/percpu.h>
@@ -20,6 +21,8 @@ static inline void fill_ldt(struct desc_struct *desc, const struct user_desc *in
 
 	desc->type		= (info->read_exec_only ^ 1) << 1;
 	desc->type	       |= info->contents << 2;
+	/* Set the ACCESS bit so it can be mapped RO */
+	desc->type	       |= 1;
 
 	desc->s			= 1;
 	desc->dpl		= 0x3;

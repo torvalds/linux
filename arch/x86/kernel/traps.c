@@ -51,6 +51,7 @@
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/fpu/internal.h>
+#include <asm/cpu_entry_area.h>
 #include <asm/mce.h>
 #include <asm/fixmap.h>
 #include <asm/mach_traps.h>
@@ -360,7 +361,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	 *
 	 * No need for ist_enter here because we don't use RCU.
 	 */
-	if (((long)regs->sp >> PGDIR_SHIFT) == ESPFIX_PGD_ENTRY &&
+	if (((long)regs->sp >> P4D_SHIFT) == ESPFIX_PGD_ENTRY &&
 		regs->cs == __KERNEL_CS &&
 		regs->ip == (unsigned long)native_irq_return_iret)
 	{
@@ -951,8 +952,9 @@ void __init trap_init(void)
 	 * "sidt" instruction will not leak the location of the kernel, and
 	 * to defend the IDT against arbitrary memory write vulnerabilities.
 	 * It will be reloaded in cpu_init() */
-	__set_fixmap(FIX_RO_IDT, __pa_symbol(idt_table), PAGE_KERNEL_RO);
-	idt_descr.address = fix_to_virt(FIX_RO_IDT);
+	cea_set_pte(CPU_ENTRY_AREA_RO_IDT_VADDR, __pa_symbol(idt_table),
+		    PAGE_KERNEL_RO);
+	idt_descr.address = CPU_ENTRY_AREA_RO_IDT;
 
 	/*
 	 * Should be a barrier for any external CPU state:
