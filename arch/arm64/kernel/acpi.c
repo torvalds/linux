@@ -230,10 +230,10 @@ void __init acpi_boot_table_init(void)
 
 done:
 	if (acpi_disabled) {
-		if (earlycon_init_is_deferred)
+		if (earlycon_acpi_spcr_enable)
 			early_init_dt_scan_chosen_stdout();
 	} else {
-		parse_spcr(earlycon_init_is_deferred);
+		acpi_parse_spcr(earlycon_acpi_spcr_enable, true);
 		if (IS_ENABLED(CONFIG_ACPI_BGRT))
 			acpi_table_parse(ACPI_SIG_BGRT, acpi_parse_bgrt);
 	}
