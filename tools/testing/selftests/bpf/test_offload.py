@@ -20,6 +20,7 @@ import os
 import pprint
 import random
 import string
+import struct
 import subprocess
 import time
 
@@ -156,6 +157,14 @@ def bpftool_prog_list(expected=None, ns=""):
                  (len(progs), expected))
     return progs
 
+def bpftool_map_list(expected=None, ns=""):
+    _, maps = bpftool("map show", JSON=True, ns=ns, fail=True)
+    if expected is not None:
+        if len(maps) != expected:
+            fail(True, "%d BPF maps loaded, expected %d" %
+                 (len(maps), expected))
+    return maps
+
 def bpftool_prog_list_wait(expected=0, n_retry=20):
     for i in range(n_retry):
         nprogs = len(bpftool_prog_list())
@@ -163,6 +172,14 @@ def bpftool_prog_list_wait(expected=0, n_retry=20):
             return
         time.sleep(0.05)
     raise Exception("Time out waiting for program counts to stabilize want %d, have %d" % (expected, nprogs))
+
+def bpftool_map_list_wait(expected=0, n_retry=20):
+    for i in range(n_retry):
+        nmaps = len(bpftool_map_list())
+        if nmaps == expected:
+            return
+        time.sleep(0.05)
+    raise Exception("Time out waiting for map counts to stabilize want %d, have %d" % (expected, nmaps))
 
 def ip(args, force=False, JSON=True, ns="", fail=True):
     if force:
@@ -192,6 +209,26 @@ def mknetns(n_retry=10):
             netns.append(name)
             return name
     return None
+
+def int2str(fmt, val):
+    ret = []
+    for b in struct.pack(fmt, val):
+        ret.append(int(b))
+    return " ".join(map(lambda x: str(x), ret))
+
+def str2int(strtab):
+    inttab = []
+    for i in strtab:
+        inttab.append(int(i, 16))
+    ba = bytearray(inttab)
+    if len(strtab) == 4:
+        fmt = "I"
+    elif len(strtab) == 8:
+        fmt = "Q"
+    else:
+        raise Exception("String array of len %d can't be unpacked to an int" %
+                        (len(strtab)))
+    return struct.unpack(fmt, ba)[0]
 
 class DebugfsDir:
     """
@@ -311,13 +348,13 @@ class NetdevSim:
         return ip("link set dev %s mtu %d" % (self.dev["ifname"], mtu),
                   fail=fail)
 
-    def set_xdp(self, bpf, mode, force=False, fail=True):
+    def set_xdp(self, bpf, mode, force=False, JSON=True, fail=True):
         return ip("link set dev %s xdp%s %s" % (self.dev["ifname"], mode, bpf),
-                  force=force, fail=fail)
+                  force=force, JSON=JSON, fail=fail)
 
-    def unset_xdp(self, mode, force=False, fail=True):
+    def unset_xdp(self, mode, force=False, JSON=True, fail=True):
         return ip("link set dev %s xdp%s off" % (self.dev["ifname"], mode),
-                  force=force, fail=fail)
+                  force=force, JSON=JSON, fail=fail)
 
     def ip_link_show(self, xdp):
         _, link = ip("link show dev %s" % (self['ifname']))
@@ -390,12 +427,16 @@ class NetdevSim:
 
 ################################################################################
 def clean_up():
+    global files, netns, devs
+
     for dev in devs:
         dev.remove()
     for f in files:
         cmd("rm -f %s" % (f))
     for ns in netns:
         cmd("ip netns delete %s" % (ns))
+    files = []
+    netns = []
 
 def pin_prog(file_name, idx=0):
     progs = bpftool_prog_list(expected=(idx + 1))
@@ -405,16 +446,31 @@ def pin_prog(file_name, idx=0):
 
     return file_name, bpf_pinned(file_name)
 
-def check_dev_info(other_ns, ns, pin_file=None, removed=False):
-    if removed:
-        bpftool_prog_list(expected=0)
-        ret, err = bpftool("prog show pin %s" % (pin_file), fail=False)
-        fail(ret == 0, "Showing prog with removed device did not fail")
-        fail(err["error"].find("No such device") == -1,
-             "Showing prog with removed device expected ENODEV, error is %s" %
-             (err["error"]))
-        return
-    progs = bpftool_prog_list(expected=int(not removed), ns=ns)
+def pin_map(file_name, idx=0, expected=1):
+    maps = bpftool_map_list(expected=expected)
+    m = maps[idx]
+    bpftool("map pin id %d %s" % (m["id"], file_name))
+    files.append(file_name)
+
+    return file_name, bpf_pinned(file_name)
+
+def check_dev_info_removed(prog_file=None, map_file=None):
+    bpftool_prog_list(expected=0)
+    ret, err = bpftool("prog show pin %s" % (prog_file), fail=False)
+    fail(ret == 0, "Showing prog with removed device did not fail")
+    fail(err["error"].find("No such device") == -1,
+         "Showing prog with removed device expected ENODEV, error is %s" %
+         (err["error"]))
+
+    bpftool_map_list(expected=0)
+    ret, err = bpftool("map show pin %s" % (map_file), fail=False)
+    fail(ret == 0, "Showing map with removed device did not fail")
+    fail(err["error"].find("No such device") == -1,
+         "Showing map with removed device expected ENODEV, error is %s" %
+         (err["error"]))
+
+def check_dev_info(other_ns, ns, prog_file=None, map_file=None, removed=False):
+    progs = bpftool_prog_list(expected=1, ns=ns)
     prog = progs[0]
 
     fail("dev" not in prog.keys(), "Device parameters not reported")
@@ -423,16 +479,17 @@ def check_dev_info(other_ns, ns, pin_file=None, removed=False):
     fail("ns_dev" not in dev.keys(), "Device parameters not reported")
     fail("ns_inode" not in dev.keys(), "Device parameters not reported")
 
-    if not removed and not other_ns:
+    if not other_ns:
         fail("ifname" not in dev.keys(), "Ifname not reported")
         fail(dev["ifname"] != sim["ifname"],
              "Ifname incorrect %s vs %s" % (dev["ifname"], sim["ifname"]))
     else:
         fail("ifname" in dev.keys(), "Ifname is reported for other ns")
-        if removed:
-            fail(dev["ifindex"] != 0, "Device perameters not zero on removed")
-            fail(dev["ns_dev"] != 0, "Device perameters not zero on removed")
-            fail(dev["ns_inode"] != 0, "Device perameters not zero on removed")
+
+    maps = bpftool_map_list(expected=2, ns=ns)
+    for m in maps:
+        fail("dev" not in m.keys(), "Device parameters not reported")
+        fail(dev != m["dev"], "Map's device different than program's")
 
 # Parse command line
 parser = argparse.ArgumentParser()
@@ -464,7 +521,7 @@ if out.find("/sys/kernel/debug type debugfs") == -1:
     cmd("mount -t debugfs none /sys/kernel/debug")
 
 # Check samples are compiled
-samples = ["sample_ret0.o"]
+samples = ["sample_ret0.o", "sample_map_ret0.o"]
 for s in samples:
     ret, out = cmd("ls %s/%s" % (bpf_test_dir, s), fail=False)
     skip(ret != 0, "sample %s/%s not found, please compile it" %
@@ -739,8 +796,9 @@ try:
     bpftool_prog_list_wait(expected=0)
 
     sim = NetdevSim()
-    sim.set_ethtool_tc_offloads(True)
-    sim.set_xdp(obj, "offload")
+    map_obj = bpf_obj("sample_map_ret0.o")
+    start_test("Test loading program with maps...")
+    sim.set_xdp(map_obj, "offload", JSON=False) # map fixup msg breaks JSON
 
     start_test("Test bpftool bound info reporting (own ns)...")
     check_dev_info(False, "")
@@ -757,11 +815,111 @@ try:
     sim.set_ns("")
     check_dev_info(False, "")
 
-    pin_file, _ = pin_prog("/sys/fs/bpf/tmp")
+    prog_file, _ = pin_prog("/sys/fs/bpf/tmp_prog")
+    map_file, _ = pin_map("/sys/fs/bpf/tmp_map", idx=1, expected=2)
     sim.remove()
 
     start_test("Test bpftool bound info reporting (removed dev)...")
-    check_dev_info(True, "", pin_file=pin_file, removed=True)
+    check_dev_info_removed(prog_file=prog_file, map_file=map_file)
+
+    # Remove all pinned files and reinstantiate the netdev
+    clean_up()
+    bpftool_prog_list_wait(expected=0)
+
+    sim = NetdevSim()
+
+    start_test("Test map update (no flags)...")
+    sim.set_xdp(map_obj, "offload", JSON=False) # map fixup msg breaks JSON
+    maps = bpftool_map_list(expected=2)
+    array = maps[0] if maps[0]["type"] == "array" else maps[1]
+    htab = maps[0] if maps[0]["type"] == "hash" else maps[1]
+    for m in maps:
+        for i in range(2):
+            bpftool("map update id %d key %s value %s" %
+                    (m["id"], int2str("I", i), int2str("Q", i * 3)))
+
+    for m in maps:
+        ret, _ = bpftool("map update id %d key %s value %s" %
+                         (m["id"], int2str("I", 3), int2str("Q", 3 * 3)),
+                         fail=False)
+        fail(ret == 0, "added too many entries")
+
+    start_test("Test map update (exists)...")
+    for m in maps:
+        for i in range(2):
+            bpftool("map update id %d key %s value %s exist" %
+                    (m["id"], int2str("I", i), int2str("Q", i * 3)))
+
+    for m in maps:
+        ret, err = bpftool("map update id %d key %s value %s exist" %
+                           (m["id"], int2str("I", 3), int2str("Q", 3 * 3)),
+                           fail=False)
+        fail(ret == 0, "updated non-existing key")
+        fail(err["error"].find("No such file or directory") == -1,
+             "expected ENOENT, error is '%s'" % (err["error"]))
+
+    start_test("Test map update (noexist)...")
+    for m in maps:
+        for i in range(2):
+            ret, err = bpftool("map update id %d key %s value %s noexist" %
+                               (m["id"], int2str("I", i), int2str("Q", i * 3)),
+                               fail=False)
+        fail(ret == 0, "updated existing key")
+        fail(err["error"].find("File exists") == -1,
+             "expected EEXIST, error is '%s'" % (err["error"]))
+
+    start_test("Test map dump...")
+    for m in maps:
+        _, entries = bpftool("map dump id %d" % (m["id"]))
+        for i in range(2):
+            key = str2int(entries[i]["key"])
+            fail(key != i, "expected key %d, got %d" % (key, i))
+            val = str2int(entries[i]["value"])
+            fail(val != i * 3, "expected value %d, got %d" % (val, i * 3))
+
+    start_test("Test map getnext...")
+    for m in maps:
+        _, entry = bpftool("map getnext id %d" % (m["id"]))
+        key = str2int(entry["next_key"])
+        fail(key != 0, "next key %d, expected %d" % (key, 0))
+        _, entry = bpftool("map getnext id %d key %s" %
+                           (m["id"], int2str("I", 0)))
+        key = str2int(entry["next_key"])
+        fail(key != 1, "next key %d, expected %d" % (key, 1))
+        ret, err = bpftool("map getnext id %d key %s" %
+                           (m["id"], int2str("I", 1)), fail=False)
+        fail(ret == 0, "got next key past the end of map")
+        fail(err["error"].find("No such file or directory") == -1,
+             "expected ENOENT, error is '%s'" % (err["error"]))
+
+    start_test("Test map delete (htab)...")
+    for i in range(2):
+        bpftool("map delete id %d key %s" % (htab["id"], int2str("I", i)))
+
+    start_test("Test map delete (array)...")
+    for i in range(2):
+        ret, err = bpftool("map delete id %d key %s" %
+                           (htab["id"], int2str("I", i)), fail=False)
+        fail(ret == 0, "removed entry from an array")
+        fail(err["error"].find("No such file or directory") == -1,
+             "expected ENOENT, error is '%s'" % (err["error"]))
+
+    start_test("Test map remove...")
+    sim.unset_xdp("offload")
+    bpftool_map_list_wait(expected=0)
+    sim.remove()
+
+    sim = NetdevSim()
+    sim.set_xdp(map_obj, "offload", JSON=False) # map fixup msg breaks JSON
+    sim.remove()
+    bpftool_map_list_wait(expected=0)
+
+    start_test("Test map creation fail path...")
+    sim = NetdevSim()
+    sim.dfs["bpf_map_accept"] = "N"
+    ret, _ = sim.set_xdp(map_obj, "offload", JSON=False, fail=False)
+    fail(ret == 0,
+         "netdevsim didn't refuse to create a map with offload disabled")
 
     print("%s: OK" % (os.path.basename(__file__)))
 
