@@ -250,12 +250,12 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 	int i, res = 0;
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 
-	if (*flags & MS_RDONLY)
+	if (*flags & SB_RDONLY)
 		return 0;
 
 	if (!AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag) {
 		pr_notice("Bitmap invalid - mounting %s read only\n", sb->s_id);
-		*flags |= MS_RDONLY;
+		*flags |= SB_RDONLY;
 		return 0;
 	}
 
@@ -288,7 +288,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 		if (affs_checksum_block(sb, bh)) {
 			pr_warn("Bitmap %u invalid - mounting %s read only.\n",
 				bm->bm_key, sb->s_id);
-			*flags |= MS_RDONLY;
+			*flags |= SB_RDONLY;
 			goto out;
 		}
 		pr_debug("read bitmap block %d: %d\n", blk, bm->bm_key);

@@ -318,8 +318,20 @@ xfs_scrub_dinode(
 
 	/* di_mode */
 	mode = be16_to_cpu(dip->di_mode);
-	if (mode & ~(S_IALLUGO | S_IFMT))
+	switch (mode & S_IFMT) {
+	case S_IFLNK:
+	case S_IFREG:
+	case S_IFDIR:
+	case S_IFCHR:
+	case S_IFBLK:
+	case S_IFIFO:
+	case S_IFSOCK:
+		/* mode is recognized */
+		break;
+	default:
 		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		break;
+	}
 
 	/* v1/v2 fields */
 	switch (dip->di_version) {

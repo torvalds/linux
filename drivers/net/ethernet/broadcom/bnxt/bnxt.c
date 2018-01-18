@@ -1883,7 +1883,7 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 			 * here forever if we consistently cannot allocate
 			 * buffers.
 			 */
-			else if (rc == -ENOMEM)
+			else if (rc == -ENOMEM && budget)
 				rx_pkts++;
 			else if (rc == -EBUSY)	/* partial completion */
 				break;
@@ -1969,7 +1969,7 @@ static int bnxt_poll_nitroa0(struct napi_struct *napi, int budget)
 				cpu_to_le32(RX_CMPL_ERRORS_CRC_ERROR);
 
 			rc = bnxt_rx_pkt(bp, bnapi, &raw_cons, &event);
-			if (likely(rc == -EIO))
+			if (likely(rc == -EIO) && budget)
 				rx_pkts++;
 			else if (rc == -EBUSY)	/* partial completion */
 				break;
@@ -3368,6 +3368,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	u16 cp_ring_id, len = 0;
 	struct hwrm_err_output *resp = bp->hwrm_cmd_resp_addr;
 	u16 max_req_len = BNXT_HWRM_MAX_REQ_LEN;
+	struct hwrm_short_input short_input = {0};
 
 	req->seq_id = cpu_to_le16(bp->hwrm_cmd_seq++);
 	memset(resp, 0, PAGE_SIZE);
@@ -3376,7 +3377,6 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 
 	if (bp->flags & BNXT_FLAG_SHORT_CMD) {
 		void *short_cmd_req = bp->hwrm_short_cmd_req_addr;
-		struct hwrm_short_input short_input = {0};
 
 		memcpy(short_cmd_req, req, msg_len);
 		memset(short_cmd_req + msg_len, 0, BNXT_HWRM_MAX_REQ_LEN -
@@ -8263,8 +8263,9 @@ static void bnxt_shutdown(struct pci_dev *pdev)
 	if (netif_running(dev))
 		dev_close(dev);
 
+	bnxt_ulp_shutdown(bp);
+
 	if (system_state == SYSTEM_POWER_OFF) {
-		bnxt_ulp_shutdown(bp);
 		bnxt_clear_int_mode(bp);
 		pci_wake_from_d3(pdev, bp->wol);
 		pci_set_power_state(pdev, PCI_D3hot);

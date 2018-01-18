@@ -135,6 +135,11 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm);
 static unsigned long long kvm_createvm_count;
 static unsigned long long kvm_active_vms;
 
+__weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+		unsigned long start, unsigned long end)
+{
+}
+
 bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
 {
 	if (pfn_valid(pfn))
@@ -360,6 +365,9 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 		kvm_flush_remote_tlbs(kvm);
 
 	spin_unlock(&kvm->mmu_lock);
+
+	kvm_arch_mmu_notifier_invalidate_range(kvm, start, end);
+
 	srcu_read_unlock(&kvm->srcu, idx);
 }
 
@@ -2064,6 +2072,29 @@ void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn)
 	mark_page_dirty_in_slot(memslot, gfn);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_mark_page_dirty);
+
+void kvm_sigset_activate(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->sigset_active)
+		return;
+
+	/*
+	 * This does a lockless modification of ->real_blocked, which is fine
+	 * because, only current can change ->real_blocked and all readers of
+	 * ->real_blocked don't care as long ->real_blocked is always a subset
+	 * of ->blocked.
+	 */
+	sigprocmask(SIG_SETMASK, &vcpu->sigset, &current->real_blocked);
+}
+
+void kvm_sigset_deactivate(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->sigset_active)
+		return;
+
+	sigprocmask(SIG_SETMASK, &current->real_blocked, NULL);
+	sigemptyset(&current->real_blocked);
+}
 
 static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 {

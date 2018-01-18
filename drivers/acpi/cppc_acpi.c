@@ -949,7 +949,7 @@ static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 	}
 
 	*val = 0;
-	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM)
+	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM && pcc_ss_id >= 0)
 		vaddr = GET_PCC_VADDR(reg->address, pcc_ss_id);
 	else if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		vaddr = reg_res->sys_mem_vaddr;
@@ -988,7 +988,7 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpu);
 	struct cpc_reg *reg = &reg_res->cpc_entry.reg;
 
-	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM)
+	if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM && pcc_ss_id >= 0)
 		vaddr = GET_PCC_VADDR(reg->address, pcc_ss_id);
 	else if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		vaddr = reg_res->sys_mem_vaddr;
@@ -1035,14 +1035,15 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 		*lowest_non_linear_reg, *nominal_reg;
 	u64 high, low, nom, min_nonlinear;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpunum);
-	struct cppc_pcc_data *pcc_ss_data = pcc_data[pcc_ss_id];
+	struct cppc_pcc_data *pcc_ss_data;
 	int ret = 0, regs_in_pcc = 0;
 
-	if (!cpc_desc) {
+	if (!cpc_desc || pcc_ss_id < 0) {
 		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
 		return -ENODEV;
 	}
 
+	pcc_ss_data = pcc_data[pcc_ss_id];
 	highest_reg = &cpc_desc->cpc_regs[HIGHEST_PERF];
 	lowest_reg = &cpc_desc->cpc_regs[LOWEST_PERF];
 	lowest_non_linear_reg = &cpc_desc->cpc_regs[LOW_NON_LINEAR_PERF];
@@ -1095,15 +1096,16 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 	struct cpc_register_resource *delivered_reg, *reference_reg,
 		*ref_perf_reg, *ctr_wrap_reg;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpunum);
-	struct cppc_pcc_data *pcc_ss_data = pcc_data[pcc_ss_id];
+	struct cppc_pcc_data *pcc_ss_data;
 	u64 delivered, reference, ref_perf, ctr_wrap_time;
 	int ret = 0, regs_in_pcc = 0;
 
-	if (!cpc_desc) {
+	if (!cpc_desc || pcc_ss_id < 0) {
 		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
 		return -ENODEV;
 	}
 
+	pcc_ss_data = pcc_data[pcc_ss_id];
 	delivered_reg = &cpc_desc->cpc_regs[DELIVERED_CTR];
 	reference_reg = &cpc_desc->cpc_regs[REFERENCE_CTR];
 	ref_perf_reg = &cpc_desc->cpc_regs[REFERENCE_PERF];
@@ -1172,11 +1174,12 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	struct cppc_pcc_data *pcc_ss_data = pcc_data[pcc_ss_id];
 	int ret = 0;
 
-	if (!cpc_desc) {
+	if (!cpc_desc || pcc_ss_id < 0) {
 		pr_debug("No CPC descriptor for CPU:%d\n", cpu);
 		return -ENODEV;
 	}
 
+	pcc_ss_data = pcc_data[pcc_ss_id];
 	desired_reg = &cpc_desc->cpc_regs[DESIRED_PERF];
 
 	/*
@@ -1301,7 +1304,7 @@ unsigned int cppc_get_transition_latency(int cpu_num)
 	struct cpc_desc *cpc_desc;
 	struct cpc_register_resource *desired_reg;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpu_num);
-	struct cppc_pcc_data *pcc_ss_data = pcc_data[pcc_ss_id];
+	struct cppc_pcc_data *pcc_ss_data;
 
 	cpc_desc = per_cpu(cpc_desc_ptr, cpu_num);
 	if (!cpc_desc)
@@ -1311,6 +1314,10 @@ unsigned int cppc_get_transition_latency(int cpu_num)
 	if (!CPC_IN_PCC(desired_reg))
 		return CPUFREQ_ETERNAL;
 
+	if (pcc_ss_id < 0)
+		return CPUFREQ_ETERNAL;
+
+	pcc_ss_data = pcc_data[pcc_ss_id];
 	if (pcc_ss_data->pcc_mpar)
 		latency_ns = 60 * (1000 * 1000 * 1000 / pcc_ss_data->pcc_mpar);
 

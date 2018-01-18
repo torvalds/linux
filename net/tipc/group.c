@@ -497,6 +497,7 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 	while ((skb = skb_peek(defq))) {
 		hdr = buf_msg(skb);
 		mtyp = msg_type(hdr);
+		blks = msg_blocks(hdr);
 		deliver = true;
 		ack = false;
 		update = false;
@@ -546,7 +547,6 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 		if (!update)
 			continue;
 
-		blks = msg_blocks(hdr);
 		tipc_group_update_rcv_win(grp, blks, node, port, xmitq);
 	}
 	return;

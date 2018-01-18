@@ -120,7 +120,6 @@ MODULE_PARM_DESC(h_ipi_redirect, "Redirect H_IPI wakeup to a free host core");
 
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
-static void kvmppc_setup_partition_table(struct kvm *kvm);
 
 static inline struct kvm_vcpu *next_runnable_thread(struct kvmppc_vcore *vc,
 		int *ip)
@@ -3574,7 +3573,7 @@ static void kvmppc_mmu_destroy_hv(struct kvm_vcpu *vcpu)
 	return;
 }
 
-static void kvmppc_setup_partition_table(struct kvm *kvm)
+void kvmppc_setup_partition_table(struct kvm *kvm)
 {
 	unsigned long dw0, dw1;
 

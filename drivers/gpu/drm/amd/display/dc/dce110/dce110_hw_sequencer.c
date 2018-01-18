@@ -991,6 +991,16 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	struct dc_link *link = stream->sink->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
+			pipe_ctx->stream_res.stream_enc);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
+			pipe_ctx->stream_res.stream_enc);
+
+	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+			pipe_ctx->stream_res.stream_enc, true);
 	if (pipe_ctx->stream_res.audio) {
 		pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
 
@@ -1014,18 +1024,6 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 		 * stream->stream_engine_id);
 		 */
 	}
-
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
-			pipe_ctx->stream_res.stream_enc);
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
-			pipe_ctx->stream_res.stream_enc);
-
-	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-			pipe_ctx->stream_res.stream_enc, true);
-
 
 	/* blank at encoder level */
 	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
@@ -1774,6 +1772,10 @@ static enum dc_status validate_fbc(struct dc *dc,
 	if (pipe_ctx->stream->sink->link->psr_enabled)
 		return DC_ERROR_UNEXPECTED;
 
+	/* Nothing to compress */
+	if (!pipe_ctx->plane_state)
+		return DC_ERROR_UNEXPECTED;
+
 	/* Only for non-linear tiling */
 	if (pipe_ctx->plane_state->tiling_info.gfx8.array_mode == DC_ARRAY_LINEAR_GENERAL)
 		return DC_ERROR_UNEXPECTED;
@@ -1868,8 +1870,10 @@ static void dce110_reset_hw_ctx_wrap(
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
-			/* disable already, no need to disable again */
-			if (pipe_ctx->stream && !pipe_ctx->stream->dpms_off)
+			/* Disable if new stream is null. O/w, if stream is
+			 * disabled already, no need to disable again.
+			 */
+			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off)
 				core_link_disable_stream(pipe_ctx_old, FREE_ACQUIRED_RESOURCE);
 
 			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);

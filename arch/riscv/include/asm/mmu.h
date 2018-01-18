@@ -19,6 +19,10 @@
 
 typedef struct {
 	void *vdso;
+#ifdef CONFIG_SMP
+	/* A local icache flush is needed before user execution can resume. */
+	cpumask_t icache_stale_mask;
+#endif
 } mm_context_t;
 
 #endif /* __ASSEMBLY__ */

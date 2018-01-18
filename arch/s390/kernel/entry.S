@@ -180,18 +180,17 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
  */
 ENTRY(__switch_to)
 	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
-	lgr	%r1,%r2
-	aghi	%r1,__TASK_thread		# thread_struct of prev task
-	lg	%r5,__TASK_stack(%r3)		# start of kernel stack of next
-	stg	%r15,__THREAD_ksp(%r1)		# store kernel stack of prev
-	lgr	%r1,%r3
-	aghi	%r1,__TASK_thread		# thread_struct of next task
+	lghi	%r4,__TASK_stack
+	lghi	%r1,__TASK_thread
+	lg	%r5,0(%r4,%r3)			# start of kernel stack of next
+	stg	%r15,__THREAD_ksp(%r1,%r2)	# store kernel stack of prev
 	lgr	%r15,%r5
 	aghi	%r15,STACK_INIT			# end of kernel stack of next
 	stg	%r3,__LC_CURRENT		# store task struct of next
 	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
-	lg	%r15,__THREAD_ksp(%r1)		# load kernel stack of next
-	mvc	__LC_CURRENT_PID(4,%r0),__TASK_pid(%r3) # store pid of next
+	lg	%r15,__THREAD_ksp(%r1,%r3)	# load kernel stack of next
+	aghi	%r3,__TASK_pid
+	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
 	bzr	%r14

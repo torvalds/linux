@@ -187,7 +187,7 @@ static void sctp_sched_rr_unsched_all(struct sctp_stream *stream)
 		sctp_sched_rr_unsched(stream, soute);
 }
 
-struct sctp_sched_ops sctp_sched_rr = {
+static struct sctp_sched_ops sctp_sched_rr = {
 	.set = sctp_sched_rr_set,
 	.get = sctp_sched_rr_get,
 	.init = sctp_sched_rr_init,
@@ -199,3 +199,8 @@ struct sctp_sched_ops sctp_sched_rr = {
 	.sched_all = sctp_sched_rr_sched_all,
 	.unsched_all = sctp_sched_rr_unsched_all,
 };
+
+void sctp_sched_ops_rr_init(void)
+{
+	sctp_sched_ops_register(SCTP_SS_RR, &sctp_sched_rr);
+}

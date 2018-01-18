@@ -520,7 +520,8 @@ static int detect_mst_link_for_all_connectors(struct drm_device *dev)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		aconnector = to_amdgpu_dm_connector(connector);
-		if (aconnector->dc_link->type == dc_connection_mst_branch) {
+		if (aconnector->dc_link->type == dc_connection_mst_branch &&
+		    aconnector->mst_mgr.aux) {
 			DRM_DEBUG_DRIVER("DM_MST: starting TM on aconnector: %p [id: %d]\n",
 					aconnector, aconnector->base.base.id);
 
@@ -677,6 +678,10 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 
 		mutex_lock(&aconnector->hpd_lock);
 		dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+
+		if (aconnector->fake_enable && aconnector->dc_link->local_sink)
+			aconnector->fake_enable = false;
+
 		aconnector->dc_sink = NULL;
 		amdgpu_dm_update_connector_after_detect(aconnector);
 		mutex_unlock(&aconnector->hpd_lock);
@@ -711,7 +716,6 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 
 	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
 
-	drm_atomic_state_put(adev->dm.cached_state);
 	adev->dm.cached_state = NULL;
 
 	amdgpu_dm_irq_resume_late(adev);
@@ -2704,7 +2708,7 @@ static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 			.link = aconnector->dc_link,
 			.sink_signal = SIGNAL_TYPE_VIRTUAL
 	};
-	struct edid *edid = (struct edid *) aconnector->base.edid_blob_ptr->data;
+	struct edid *edid;
 
 	if (!aconnector->base.edid_blob_ptr ||
 		!aconnector->base.edid_blob_ptr->data) {
@@ -2715,6 +2719,8 @@ static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 		aconnector->base.override_edid = false;
 		return;
 	}
+
+	edid = (struct edid *) aconnector->base.edid_blob_ptr->data;
 
 	aconnector->edid = edid;
 
@@ -4193,12 +4199,12 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		update_stream_scaling_settings(&dm_new_con_state->base.crtc->mode,
 				dm_new_con_state, (struct dc_stream_state *)dm_new_crtc_state->stream);
 
+		if (!dm_new_crtc_state->stream)
+			continue;
+
 		status = dc_stream_get_status(dm_new_crtc_state->stream);
 		WARN_ON(!status);
 		WARN_ON(!status->plane_count);
-
-		if (!dm_new_crtc_state->stream)
-			continue;
 
 		/*TODO How it works with MPO ?*/
 		if (!dc_commit_planes_to_stream(
@@ -4253,7 +4259,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_commit_hw_done(state);
 
 	if (wait_for_vblank)
-		drm_atomic_helper_wait_for_vblanks(dev, state);
+		drm_atomic_helper_wait_for_flip_done(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 }
@@ -4332,9 +4338,11 @@ void dm_restore_drm_connector_state(struct drm_device *dev,
 		return;
 
 	disconnected_acrtc = to_amdgpu_crtc(connector->encoder->crtc);
-	acrtc_state = to_dm_crtc_state(disconnected_acrtc->base.state);
+	if (!disconnected_acrtc)
+		return;
 
-	if (!disconnected_acrtc || !acrtc_state->stream)
+	acrtc_state = to_dm_crtc_state(disconnected_acrtc->base.state);
+	if (!acrtc_state->stream)
 		return;
 
 	/*
@@ -4455,7 +4463,7 @@ static int dm_update_crtcs_state(struct dc *dc,
 			}
 		}
 
-		if (dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
+		if (enable && dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
 				dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {
 
 			new_crtc_state->mode_changed = false;
@@ -4709,7 +4717,8 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 	} else {
 		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-			if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
+			if (!drm_atomic_crtc_needs_modeset(new_crtc_state) &&
+					!new_crtc_state->color_mgmt_changed)
 				continue;
 
 			if (!new_crtc_state->enable)

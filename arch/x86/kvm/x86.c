@@ -107,6 +107,9 @@ EXPORT_SYMBOL_GPL(kvm_x86_ops);
 static bool __read_mostly ignore_msrs = 0;
 module_param(ignore_msrs, bool, S_IRUGO | S_IWUSR);
 
+static bool __read_mostly report_ignored_msrs = true;
+module_param(report_ignored_msrs, bool, S_IRUGO | S_IWUSR);
+
 unsigned int min_timer_period_us = 500;
 module_param(min_timer_period_us, uint, S_IRUGO | S_IWUSR);
 
@@ -1795,10 +1798,13 @@ u64 get_kvmclock_ns(struct kvm *kvm)
 	/* both __this_cpu_read() and rdtsc() should be on the same cpu */
 	get_cpu();
 
-	kvm_get_time_scale(NSEC_PER_SEC, __this_cpu_read(cpu_tsc_khz) * 1000LL,
-			   &hv_clock.tsc_shift,
-			   &hv_clock.tsc_to_system_mul);
-	ret = __pvclock_read_cycles(&hv_clock, rdtsc());
+	if (__this_cpu_read(cpu_tsc_khz)) {
+		kvm_get_time_scale(NSEC_PER_SEC, __this_cpu_read(cpu_tsc_khz) * 1000LL,
+				   &hv_clock.tsc_shift,
+				   &hv_clock.tsc_to_system_mul);
+		ret = __pvclock_read_cycles(&hv_clock, rdtsc());
+	} else
+		ret = ktime_get_boot_ns() + ka->kvmclock_offset;
 
 	put_cpu();
 
@@ -1829,6 +1835,9 @@ static void kvm_setup_pvclock_page(struct kvm_vcpu *v)
 	 * version field is the first in the struct.
 	 */
 	BUILD_BUG_ON(offsetof(struct pvclock_vcpu_time_info, version) != 0);
+
+	if (guest_hv_clock.version & 1)
+		++guest_hv_clock.version;  /* first time write, random junk */
 
 	vcpu->hv_clock.version = guest_hv_clock.version + 1;
 	kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
@@ -2322,7 +2331,9 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		/* Drop writes to this legacy MSR -- see rdmsr
 		 * counterpart for further detail.
 		 */
-		vcpu_unimpl(vcpu, "ignored wrmsr: 0x%x data 0x%llx\n", msr, data);
+		if (report_ignored_msrs)
+			vcpu_unimpl(vcpu, "ignored wrmsr: 0x%x data 0x%llx\n",
+				msr, data);
 		break;
 	case MSR_AMD64_OSVW_ID_LENGTH:
 		if (!guest_cpuid_has(vcpu, X86_FEATURE_OSVW))
@@ -2359,8 +2370,10 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 				    msr, data);
 			return 1;
 		} else {
-			vcpu_unimpl(vcpu, "ignored wrmsr: 0x%x data 0x%llx\n",
-				    msr, data);
+			if (report_ignored_msrs)
+				vcpu_unimpl(vcpu,
+					"ignored wrmsr: 0x%x data 0x%llx\n",
+					msr, data);
 			break;
 		}
 	}
@@ -2578,7 +2591,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 					       msr_info->index);
 			return 1;
 		} else {
-			vcpu_unimpl(vcpu, "ignored rdmsr: 0x%x\n", msr_info->index);
+			if (report_ignored_msrs)
+				vcpu_unimpl(vcpu, "ignored rdmsr: 0x%x\n",
+					msr_info->index);
 			msr_info->data = 0;
 		}
 		break;
@@ -2922,7 +2937,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	pagefault_enable();
 	kvm_x86_ops->vcpu_put(vcpu);
-	kvm_put_guest_fpu(vcpu);
 	vcpu->arch.last_host_tsc = rdtsc();
 }
 
@@ -5237,17 +5251,6 @@ static void emulator_halt(struct x86_emulate_ctxt *ctxt)
 	emul_to_vcpu(ctxt)->arch.halt_request = 1;
 }
 
-static void emulator_get_fpu(struct x86_emulate_ctxt *ctxt)
-{
-	preempt_disable();
-	kvm_load_guest_fpu(emul_to_vcpu(ctxt));
-}
-
-static void emulator_put_fpu(struct x86_emulate_ctxt *ctxt)
-{
-	preempt_enable();
-}
-
 static int emulator_intercept(struct x86_emulate_ctxt *ctxt,
 			      struct x86_instruction_info *info,
 			      enum x86_intercept_stage stage)
@@ -5325,8 +5328,6 @@ static const struct x86_emulate_ops emulate_ops = {
 	.halt                = emulator_halt,
 	.wbinvd              = emulator_wbinvd,
 	.fix_hypercall       = emulator_fix_hypercall,
-	.get_fpu             = emulator_get_fpu,
-	.put_fpu             = emulator_put_fpu,
 	.intercept           = emulator_intercept,
 	.get_cpuid           = emulator_get_cpuid,
 	.set_nmi_mask        = emulator_set_nmi_mask,
@@ -5430,7 +5431,7 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu)
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
 		vcpu->run->internal.ndata = 0;
-		r = EMULATE_FAIL;
+		r = EMULATE_USER_EXIT;
 	}
 	kvm_queue_exception(vcpu, UD_VECTOR);
 
@@ -5721,6 +5722,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 				return EMULATE_FAIL;
 			if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
 						emulation_type))
+				return EMULATE_DONE;
+			if (ctxt->have_exception && inject_emulated_exception(vcpu))
 				return EMULATE_DONE;
 			if (emulation_type & EMULTYPE_SKIP)
 				return EMULATE_FAIL;
@@ -6761,6 +6764,20 @@ static void kvm_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->tlb_flush(vcpu);
 }
 
+void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+		unsigned long start, unsigned long end)
+{
+	unsigned long apic_address;
+
+	/*
+	 * The physical address of apic access page is stored in the VMCS.
+	 * Update it when it becomes invalid.
+	 */
+	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
+	if (start <= apic_address && apic_address < end)
+		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
+}
+
 void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
 {
 	struct page *page = NULL;
@@ -6935,7 +6952,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	preempt_disable();
 
 	kvm_x86_ops->prepare_guest_switch(vcpu);
-	kvm_load_guest_fpu(vcpu);
 
 	/*
 	 * Disable IRQs before setting IN_GUEST_MODE.  Posted interrupt
@@ -7250,12 +7266,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct fpu *fpu = &current->thread.fpu;
 	int r;
-	sigset_t sigsaved;
 
 	fpu__initialize(fpu);
 
-	if (vcpu->sigset_active)
-		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
+	kvm_sigset_activate(vcpu);
 
 	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
 		if (kvm_run->immediate_exit) {
@@ -7282,12 +7296,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 	}
 
+	kvm_load_guest_fpu(vcpu);
+
 	if (unlikely(vcpu->arch.complete_userspace_io)) {
 		int (*cui)(struct kvm_vcpu *) = vcpu->arch.complete_userspace_io;
 		vcpu->arch.complete_userspace_io = NULL;
 		r = cui(vcpu);
 		if (r <= 0)
-			goto out;
+			goto out_fpu;
 	} else
 		WARN_ON(vcpu->arch.pio.count || vcpu->mmio_needed);
 
@@ -7296,10 +7312,11 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	else
 		r = vcpu_run(vcpu);
 
+out_fpu:
+	kvm_put_guest_fpu(vcpu);
 out:
 	post_kvm_run_save(vcpu);
-	if (vcpu->sigset_active)
-		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
+	kvm_sigset_deactivate(vcpu);
 
 	return r;
 }
@@ -7690,32 +7707,25 @@ static void fx_init(struct kvm_vcpu *vcpu)
 	vcpu->arch.cr0 |= X86_CR0_ET;
 }
 
+/* Swap (qemu) user FPU context for the guest FPU context. */
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->guest_fpu_loaded)
-		return;
-
-	/*
-	 * Restore all possible states in the guest,
-	 * and assume host would use all available bits.
-	 * Guest xcr0 would be loaded later.
-	 */
-	vcpu->guest_fpu_loaded = 1;
-	__kernel_fpu_begin();
+	preempt_disable();
+	copy_fpregs_to_fpstate(&vcpu->arch.user_fpu);
 	/* PKRU is separately restored in kvm_x86_ops->run.  */
 	__copy_kernel_to_fpregs(&vcpu->arch.guest_fpu.state,
 				~XFEATURE_MASK_PKRU);
+	preempt_enable();
 	trace_kvm_fpu(1);
 }
 
+/* When vcpu_run ends, restore user space FPU context. */
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->guest_fpu_loaded)
-		return;
-
-	vcpu->guest_fpu_loaded = 0;
+	preempt_disable();
 	copy_fpregs_to_fpstate(&vcpu->arch.guest_fpu);
-	__kernel_fpu_end();
+	copy_kernel_to_fpregs(&vcpu->arch.user_fpu.state);
+	preempt_enable();
 	++vcpu->stat.fpu_reload;
 	trace_kvm_fpu(0);
 }
@@ -7832,7 +7842,8 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		 * To avoid have the INIT path from kvm_apic_has_events() that be
 		 * called with loaded FPU and does not let userspace fix the state.
 		 */
-		kvm_put_guest_fpu(vcpu);
+		if (init_event)
+			kvm_put_guest_fpu(vcpu);
 		mpx_state_buffer = get_xsave_addr(&vcpu->arch.guest_fpu.state.xsave,
 					XFEATURE_MASK_BNDREGS);
 		if (mpx_state_buffer)
@@ -7841,6 +7852,8 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 					XFEATURE_MASK_BNDCSR);
 		if (mpx_state_buffer)
 			memset(mpx_state_buffer, 0, sizeof(struct mpx_bndcsr));
+		if (init_event)
+			kvm_load_guest_fpu(vcpu);
 	}
 
 	if (!init_event) {

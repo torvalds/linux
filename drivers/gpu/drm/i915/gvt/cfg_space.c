@@ -208,6 +208,20 @@ static int emulate_pci_command_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
+static int emulate_pci_rom_bar_write(struct intel_vgpu *vgpu,
+	unsigned int offset, void *p_data, unsigned int bytes)
+{
+	u32 *pval = (u32 *)(vgpu_cfg_space(vgpu) + offset);
+	u32 new = *(u32 *)(p_data);
+
+	if ((new & PCI_ROM_ADDRESS_MASK) == PCI_ROM_ADDRESS_MASK)
+		/* We don't have rom, return size of 0. */
+		*pval = 0;
+	else
+		vgpu_pci_cfg_mem_write(vgpu, offset, p_data, bytes);
+	return 0;
+}
+
 static int emulate_pci_bar_write(struct intel_vgpu *vgpu, unsigned int offset,
 	void *p_data, unsigned int bytes)
 {
@@ -300,6 +314,11 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 	}
 
 	switch (rounddown(offset, 4)) {
+	case PCI_ROM_ADDRESS:
+		if (WARN_ON(!IS_ALIGNED(offset, 4)))
+			return -EINVAL;
+		return emulate_pci_rom_bar_write(vgpu, offset, p_data, bytes);
+
 	case PCI_BASE_ADDRESS_0 ... PCI_BASE_ADDRESS_5:
 		if (WARN_ON(!IS_ALIGNED(offset, 4)))
 			return -EINVAL;
@@ -375,6 +394,8 @@ void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 				pci_resource_len(gvt->dev_priv->drm.pdev, 0);
 	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].size =
 				pci_resource_len(gvt->dev_priv->drm.pdev, 2);
+
+	memset(vgpu_cfg_space(vgpu) + PCI_ROM_ADDRESS, 0, 4);
 }
 
 /**

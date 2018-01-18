@@ -126,6 +126,7 @@ static struct m5mols_scenemode m5mols_default_scenemode[] = {
 
 /**
  * m5mols_do_scenemode() - Change current scenemode
+ * @info: M-5MOLS driver data structure
  * @mode:	Desired mode of the scenemode
  *
  * WARNING: The execution order is important. Do not change the order.

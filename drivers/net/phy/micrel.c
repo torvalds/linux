@@ -496,16 +496,18 @@ static int ksz9031_of_load_skew_values(struct phy_device *phydev,
 	return ksz9031_extended_write(phydev, OP_DATA, 2, reg, newval);
 }
 
+/* Center KSZ9031RNX FLP timing at 16ms. */
 static int ksz9031_center_flp_timing(struct phy_device *phydev)
 {
 	int result;
 
-	/* Center KSZ9031RNX FLP timing at 16ms. */
 	result = ksz9031_extended_write(phydev, OP_DATA, 0,
 					MII_KSZ9031RN_FLP_BURST_TX_HI, 0x0006);
+	if (result)
+		return result;
+
 	result = ksz9031_extended_write(phydev, OP_DATA, 0,
 					MII_KSZ9031RN_FLP_BURST_TX_LO, 0x1A80);
-
 	if (result)
 		return result;
 

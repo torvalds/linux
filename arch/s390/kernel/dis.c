@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Disassemble s390 instructions.
  *
@@ -396,9 +397,14 @@ struct s390_insn *find_insn(unsigned char *code)
 	unsigned char opfrag;
 	int i;
 
+	/* Search the opcode offset table to find an entry which
+	 * matches the beginning of the opcode. If there is no match
+	 * the last entry will be used, which is the default entry for
+	 * unknown instructions as well as 1-byte opcode instructions.
+	 */
 	for (i = 0; i < ARRAY_SIZE(opcode_offset); i++) {
 		entry = &opcode_offset[i];
-		if (entry->opcode == code[0] || entry->opcode == 0)
+		if (entry->opcode == code[0])
 			break;
 	}
 
@@ -543,7 +549,7 @@ void show_code(struct pt_regs *regs)
 		start += opsize;
 		pr_cont("%s", buffer);
 		ptr = buffer;
-		ptr += sprintf(ptr, "\n\t  ");
+		ptr += sprintf(ptr, "\n          ");
 		hops++;
 	}
 	pr_cont("\n");

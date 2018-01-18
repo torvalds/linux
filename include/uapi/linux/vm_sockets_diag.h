@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* AF_VSOCK sock_diag(7) interface for querying open sockets */
 
 #ifndef _UAPI__VM_SOCKETS_DIAG_H__

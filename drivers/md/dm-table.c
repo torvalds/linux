@@ -453,14 +453,15 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 
 		refcount_set(&dd->count, 1);
 		list_add(&dd->list, &t->devices);
+		goto out;
 
 	} else if (dd->dm_dev->mode != (mode | dd->dm_dev->mode)) {
 		r = upgrade_mode(dd, mode, t->md);
 		if (r)
 			return r;
-		refcount_inc(&dd->count);
 	}
-
+	refcount_inc(&dd->count);
+out:
 	*result = dd->dm_dev;
 	return 0;
 }

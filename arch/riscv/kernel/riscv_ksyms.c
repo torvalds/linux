@@ -12,4 +12,7 @@
 /*
  * Assembly functions that may be used (directly or indirectly) by modules
  */
+EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(__copy_user);
+EXPORT_SYMBOL(memset);
+EXPORT_SYMBOL(memcpy);

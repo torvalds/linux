@@ -522,6 +522,9 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 	scatterwalk_copychunks(NULL, &walk->in, req->assoclen, 2);
 	scatterwalk_copychunks(NULL, &walk->out, req->assoclen, 2);
 
+	scatterwalk_done(&walk->in, 0, walk->total);
+	scatterwalk_done(&walk->out, 0, walk->total);
+
 	walk->iv = req->iv;
 	walk->oiv = req->iv;
 

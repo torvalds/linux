@@ -34,11 +34,7 @@ static void __hyp_text save_elrsr(struct kvm_vcpu *vcpu, void __iomem *base)
 	else
 		elrsr1 = 0;
 
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	cpu_if->vgic_elrsr = ((u64)elrsr0 << 32) | elrsr1;
-#else
 	cpu_if->vgic_elrsr = ((u64)elrsr1 << 32) | elrsr0;
-#endif
 }
 
 static void __hyp_text save_lrs(struct kvm_vcpu *vcpu, void __iomem *base)

@@ -15,16 +15,16 @@
 #ifndef __IA_CSS_VERSION_H
 #define __IA_CSS_VERSION_H
 
-/** @file
+/* @file
  * This file contains functions to retrieve CSS-API version information
  */
 
 #include <ia_css_err.h>
 
-/** a common size for the version arrays */
+/* a common size for the version arrays */
 #define MAX_VERSION_SIZE	500
 
-/** @brief Retrieves the current CSS version
+/* @brief Retrieves the current CSS version
  * @param[out]	version		A pointer to a buffer where to put the generated
  *				version string. NULL is ignored.
  * @param[in]	max_size	Size of the version buffer. If version string

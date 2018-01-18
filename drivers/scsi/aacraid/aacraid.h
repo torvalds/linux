@@ -1673,6 +1673,7 @@ struct aac_dev
 	struct aac_hba_map_info	hba_map[AAC_MAX_BUSES][AAC_MAX_TARGETS];
 	u8			adapter_shutdown;
 	u32			handle_pci_error;
+	bool			init_reset;
 };
 
 #define aac_adapter_interrupt(dev) \

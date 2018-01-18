@@ -1,5 +1,5 @@
 /*
- * MeidaTek AHCI SATA driver
+ * MediaTek AHCI SATA driver
  *
  * Copyright (c) 2017 MediaTek Inc.
  * Author: Ryder Lee <ryder.lee@mediatek.com>
@@ -25,7 +25,7 @@
 #include <linux/reset.h>
 #include "ahci.h"
 
-#define DRV_NAME		"ahci"
+#define DRV_NAME		"ahci-mtk"
 
 #define SYS_CFG			0x14
 #define SYS_CFG_SATA_MSK	GENMASK(31, 30)
@@ -192,5 +192,5 @@ static struct platform_driver mtk_ahci_driver = {
 };
 module_platform_driver(mtk_ahci_driver);
 
-MODULE_DESCRIPTION("MeidaTek SATA AHCI Driver");
+MODULE_DESCRIPTION("MediaTek SATA AHCI Driver");
 MODULE_LICENSE("GPL v2");

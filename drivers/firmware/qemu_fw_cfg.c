@@ -582,9 +582,10 @@ static int fw_cfg_sysfs_remove(struct platform_device *pdev)
 {
 	pr_debug("fw_cfg: unloading.\n");
 	fw_cfg_sysfs_cache_cleanup();
+	sysfs_remove_file(fw_cfg_top_ko, &fw_cfg_rev_attr.attr);
+	fw_cfg_io_cleanup();
 	fw_cfg_kset_unregister_recursive(fw_cfg_fname_kset);
 	fw_cfg_kobj_cleanup(fw_cfg_sel_ko);
-	fw_cfg_io_cleanup();
 	return 0;
 }
 

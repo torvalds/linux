@@ -924,7 +924,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t le
 	struct gfs2_holder gh;
 	int ret;
 
-	if (mode & ~FALLOC_FL_KEEP_SIZE)
+	if (mode & ~(FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE))
 		return -EOPNOTSUPP;
 	/* fallocate is needed by gfs2_grow to reserve space in the rindex */
 	if (gfs2_is_jdata(ip) && inode != sdp->sd_rindex)
@@ -948,13 +948,18 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t le
 	if (ret)
 		goto out_unlock;
 
-	ret = gfs2_rsqa_alloc(ip);
-	if (ret)
-		goto out_putw;
+	if (mode & FALLOC_FL_PUNCH_HOLE) {
+		ret = __gfs2_punch_hole(file, offset, len);
+	} else {
+		ret = gfs2_rsqa_alloc(ip);
+		if (ret)
+			goto out_putw;
 
-	ret = __gfs2_fallocate(file, mode, offset, len);
-	if (ret)
-		gfs2_rs_deltree(&ip->i_res);
+		ret = __gfs2_fallocate(file, mode, offset, len);
+
+		if (ret)
+			gfs2_rs_deltree(&ip->i_res);
+	}
 
 out_putw:
 	put_write_access(inode);

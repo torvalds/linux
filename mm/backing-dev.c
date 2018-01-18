@@ -113,11 +113,23 @@ static const struct file_operations bdi_debug_stats_fops = {
 	.release	= single_release,
 };
 
-static void bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
 {
+	if (!bdi_debug_root)
+		return -ENOMEM;
+
 	bdi->debug_dir = debugfs_create_dir(name, bdi_debug_root);
+	if (!bdi->debug_dir)
+		return -ENOMEM;
+
 	bdi->debug_stats = debugfs_create_file("stats", 0444, bdi->debug_dir,
 					       bdi, &bdi_debug_stats_fops);
+	if (!bdi->debug_stats) {
+		debugfs_remove(bdi->debug_dir);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static void bdi_debug_unregister(struct backing_dev_info *bdi)
@@ -129,9 +141,10 @@ static void bdi_debug_unregister(struct backing_dev_info *bdi)
 static inline void bdi_debug_init(void)
 {
 }
-static inline void bdi_debug_register(struct backing_dev_info *bdi,
+static inline int bdi_debug_register(struct backing_dev_info *bdi,
 				      const char *name)
 {
+	return 0;
 }
 static inline void bdi_debug_unregister(struct backing_dev_info *bdi)
 {
@@ -869,10 +882,13 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
+	if (bdi_debug_register(bdi, dev_name(dev))) {
+		device_destroy(bdi_class, dev->devt);
+		return -ENOMEM;
+	}
 	cgwb_bdi_register(bdi);
 	bdi->dev = dev;
 
-	bdi_debug_register(bdi, dev_name(dev));
 	set_bit(WB_registered, &bdi->wb.state);
 
 	spin_lock_bh(&bdi_lock);

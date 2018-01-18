@@ -505,7 +505,7 @@ static void cramfs_kill_sb(struct super_block *sb)
 static int cramfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 	return 0;
 }
 
@@ -592,7 +592,7 @@ static int cramfs_finalize_super(struct super_block *sb,
 	struct inode *root;
 
 	/* Set it all up.. */
-	sb->s_flags |= MS_RDONLY;
+	sb->s_flags |= SB_RDONLY;
 	sb->s_op = &cramfs_ops;
 	root = get_cramfs_inode(sb, cramfs_root, 0);
 	if (IS_ERR(root))

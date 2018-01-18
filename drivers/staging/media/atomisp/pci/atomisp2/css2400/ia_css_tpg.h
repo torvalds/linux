@@ -15,11 +15,11 @@
 #ifndef __IA_CSS_TPG_H
 #define __IA_CSS_TPG_H
 
-/** @file
+/* @file
  * This file contains support for the test pattern generator (TPG)
  */
 
-/** Enumerate the TPG IDs.
+/* Enumerate the TPG IDs.
  */
 enum ia_css_tpg_id {
 	IA_CSS_TPG_ID0,
@@ -35,7 +35,7 @@ enum ia_css_tpg_id {
  */
 #define N_CSS_TPG_IDS (IA_CSS_TPG_ID2+1)
 
-/** Enumerate the TPG modes.
+/* Enumerate the TPG modes.
  */
 enum ia_css_tpg_mode {
 	IA_CSS_TPG_MODE_RAMP,
@@ -44,7 +44,7 @@ enum ia_css_tpg_mode {
 	IA_CSS_TPG_MODE_MONO
 };
 
-/** @brief Configure the test pattern generator.
+/* @brief Configure the test pattern generator.
  *
  * Configure the Test Pattern Generator, the way these values are used to
  * generate the pattern can be seen in the HRT extension for the test pattern

@@ -999,7 +999,7 @@ static int pci_pm_thaw_noirq(struct device *dev)
 	 * the subsequent "thaw" callbacks for the device.
 	 */
 	if (dev_pm_smart_suspend_and_suspended(dev)) {
-		dev->power.direct_complete = true;
+		dev_pm_skip_next_resume_phases(dev);
 		return 0;
 	}
 

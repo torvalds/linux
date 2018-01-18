@@ -227,7 +227,7 @@ int ocfs2_should_update_atime(struct inode *inode,
 		return 0;
 
 	if ((inode->i_flags & S_NOATIME) ||
-	    ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode)))
+	    ((inode->i_sb->s_flags & SB_NODIRATIME) && S_ISDIR(inode->i_mode)))
 		return 0;
 
 	/*

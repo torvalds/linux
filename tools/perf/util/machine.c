@@ -172,6 +172,9 @@ void machine__exit(struct machine *machine)
 {
 	int i;
 
+	if (machine == NULL)
+		return;
+
 	machine__destroy_kernel_maps(machine);
 	map_groups__exit(&machine->kmaps);
 	dsos__exit(&machine->dsos);

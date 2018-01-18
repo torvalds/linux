@@ -1971,6 +1971,12 @@ static int modify_qp(struct ib_uverbs_file *file,
 		goto release_qp;
 	}
 
+	if ((cmd->base.attr_mask & IB_QP_ALT_PATH) &&
+	    !rdma_is_port_valid(qp->device, cmd->base.alt_port_num)) {
+		ret = -EINVAL;
+		goto release_qp;
+	}
+
 	attr->qp_state		  = cmd->base.qp_state;
 	attr->cur_qp_state	  = cmd->base.cur_qp_state;
 	attr->path_mtu		  = cmd->base.path_mtu;

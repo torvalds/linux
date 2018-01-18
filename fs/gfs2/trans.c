@@ -92,7 +92,6 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	s64 nbuf;
 	int alloced = test_bit(TR_ALLOCED, &tr->tr_flags);
 
-	BUG_ON(!tr);
 	current->journal_info = NULL;
 
 	if (!test_bit(TR_TOUCHED, &tr->tr_flags)) {
@@ -117,7 +116,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		kfree(tr);
 	up_read(&sdp->sd_log_flush_lock);
 
-	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
+	if (sdp->sd_vfs->s_flags & SB_SYNCHRONOUS)
 		gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
 	if (alloced)
 		sb_end_intwrite(sdp->sd_vfs);

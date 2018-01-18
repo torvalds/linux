@@ -1714,6 +1714,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_guc_resume(dev_priv);
 
 	intel_modeset_init_hw(dev);
+	intel_init_clock_gating(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display.hpd_irq_setup)
@@ -2617,6 +2618,8 @@ static int intel_runtime_resume(struct device *kdev)
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		ret = vlv_resume_prepare(dev_priv, true);
 	}
+
+	intel_uncore_runtime_resume(dev_priv);
 
 	/*
 	 * No point of rolling back things in case of an error, as the best

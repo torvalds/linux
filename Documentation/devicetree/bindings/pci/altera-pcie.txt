@@ -25,7 +25,7 @@ Optional properties:
 - bus-range:	PCI bus numbers covered
 
 Example
-	pcie_0: pcie@0xc00000000 {
+	pcie_0: pcie@c00000000 {
 		compatible = "altr,pcie-root-port-1.0";
 		reg = <0xc0000000 0x20000000>,
 			<0xff220000 0x00004000>;
