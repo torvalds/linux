@@ -76,12 +76,7 @@
 #define MLXSW_FWREV_MAJOR 13
 #define MLXSW_FWREV_MINOR 1530
 #define MLXSW_FWREV_SUBMINOR 152
-
-static const struct mlxsw_fw_rev mlxsw_sp_supported_fw_rev = {
-	.major = MLXSW_FWREV_MAJOR,
-	.minor = MLXSW_FWREV_MINOR,
-	.subminor = MLXSW_FWREV_SUBMINOR
-};
+#define MLXSW_FWREV_MINOR_TO_BRANCH(minor) ((minor) / 100)
 
 #define MLXSW_SP_FW_FILENAME \
 	"mellanox/mlxsw_spectrum-" __stringify(MLXSW_FWREV_MAJOR) \
@@ -339,28 +334,25 @@ static int mlxsw_sp_firmware_flash(struct mlxsw_sp *mlxsw_sp,
 	return mlxfw_firmware_flash(&mlxsw_sp_mlxfw_dev.mlxfw_dev, firmware);
 }
 
-static bool mlxsw_sp_fw_rev_ge(const struct mlxsw_fw_rev *a,
-			       const struct mlxsw_fw_rev *b)
-{
-	if (a->major != b->major)
-		return a->major > b->major;
-	if (a->minor != b->minor)
-		return a->minor > b->minor;
-	return a->subminor >= b->subminor;
-}
-
 static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
 {
 	const struct mlxsw_fw_rev *rev = &mlxsw_sp->bus_info->fw_rev;
 	const struct firmware *firmware;
 	int err;
 
-	if (mlxsw_sp_fw_rev_ge(rev, &mlxsw_sp_supported_fw_rev))
+	/* Validate driver & FW are compatible */
+	if (rev->major != MLXSW_FWREV_MAJOR) {
+		WARN(1, "Mismatch in major FW version [%d:%d] is never expected; Please contact support\n",
+		     rev->major, MLXSW_FWREV_MAJOR);
+		return -EINVAL;
+	}
+	if (MLXSW_FWREV_MINOR_TO_BRANCH(rev->minor) ==
+	    MLXSW_FWREV_MINOR_TO_BRANCH(MLXSW_FWREV_MINOR))
 		return 0;
 
-	dev_info(mlxsw_sp->bus_info->dev, "The firmware version %d.%d.%d is out of date\n",
+	dev_info(mlxsw_sp->bus_info->dev, "The firmware version %d.%d.%d is incompatible with the driver\n",
 		 rev->major, rev->minor, rev->subminor);
-	dev_info(mlxsw_sp->bus_info->dev, "Upgrading firmware using file %s\n",
+	dev_info(mlxsw_sp->bus_info->dev, "Flashing firmware using file %s\n",
 		 MLXSW_SP_FW_FILENAME);
 
 	err = request_firmware_direct(&firmware, MLXSW_SP_FW_FILENAME,
