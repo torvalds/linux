@@ -2036,6 +2036,33 @@ __be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr)
 }
 EXPORT_SYMBOL(rdma_get_service_id);
 
+void rdma_read_gids(struct rdma_cm_id *cm_id, union ib_gid *sgid,
+		    union ib_gid *dgid)
+{
+	struct rdma_addr *addr = &cm_id->route.addr;
+
+	if (!cm_id->device) {
+		if (sgid)
+			memset(sgid, 0, sizeof(*sgid));
+		if (dgid)
+			memset(dgid, 0, sizeof(*dgid));
+		return;
+	}
+
+	if (rdma_protocol_roce(cm_id->device, cm_id->port_num)) {
+		if (sgid)
+			rdma_ip2gid((struct sockaddr *)&addr->src_addr, sgid);
+		if (dgid)
+			rdma_ip2gid((struct sockaddr *)&addr->dst_addr, dgid);
+	} else {
+		if (sgid)
+			rdma_addr_get_sgid(&addr->dev_addr, sgid);
+		if (dgid)
+			rdma_addr_get_dgid(&addr->dev_addr, dgid);
+	}
+}
+EXPORT_SYMBOL(rdma_read_gids);
+
 static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 {
 	struct rdma_id_private *id_priv = iw_id->context;
