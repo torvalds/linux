@@ -22,29 +22,27 @@ size_t perf_mmap__mmap_len(struct perf_mmap *map)
 
 /* When check_messup is true, 'end' must points to a good entry */
 static union perf_event *perf_mmap__read(struct perf_mmap *map,
-					 u64 start, u64 end, u64 *prev)
+					 u64 *startp, u64 end)
 {
 	unsigned char *data = map->base + page_size;
 	union perf_event *event = NULL;
-	int diff = end - start;
+	int diff = end - *startp;
 
 	if (diff >= (int)sizeof(event->header)) {
 		size_t size;
 
-		event = (union perf_event *)&data[start & map->mask];
+		event = (union perf_event *)&data[*startp & map->mask];
 		size = event->header.size;
 
-		if (size < sizeof(event->header) || diff < (int)size) {
-			event = NULL;
-			goto broken_event;
-		}
+		if (size < sizeof(event->header) || diff < (int)size)
+			return NULL;
 
 		/*
 		 * Event straddles the mmap boundary -- header should always
 		 * be inside due to u64 alignment of output.
 		 */
-		if ((start & map->mask) + size != ((start + size) & map->mask)) {
-			unsigned int offset = start;
+		if ((*startp & map->mask) + size != ((*startp + size) & map->mask)) {
+			unsigned int offset = *startp;
 			unsigned int len = min(sizeof(*event), size), cpy;
 			void *dst = map->event_copy;
 
@@ -59,12 +57,8 @@ static union perf_event *perf_mmap__read(struct perf_mmap *map,
 			event = (union perf_event *)map->event_copy;
 		}
 
-		start += size;
+		*startp += size;
 	}
-
-broken_event:
-	if (prev)
-		*prev = start;
 
 	return event;
 }
@@ -72,7 +66,6 @@ broken_event:
 union perf_event *perf_mmap__read_forward(struct perf_mmap *map)
 {
 	u64 head;
-	u64 old = map->prev;
 
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
@@ -82,13 +75,12 @@ union perf_event *perf_mmap__read_forward(struct perf_mmap *map)
 
 	head = perf_mmap__read_head(map);
 
-	return perf_mmap__read(map, old, head, &map->prev);
+	return perf_mmap__read(map, &map->prev, head);
 }
 
 union perf_event *perf_mmap__read_backward(struct perf_mmap *map)
 {
 	u64 head, end;
-	u64 start = map->prev;
 
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
@@ -118,7 +110,7 @@ union perf_event *perf_mmap__read_backward(struct perf_mmap *map)
 	else
 		end = head + map->mask + 1;
 
-	return perf_mmap__read(map, start, end, &map->prev);
+	return perf_mmap__read(map, &map->prev, end);
 }
 
 void perf_mmap__read_catchup(struct perf_mmap *map)
