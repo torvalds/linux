@@ -324,7 +324,8 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 		dev_dbg(priv->dev, "transfer error %x!\n", priv->msg_err);
 		if (priv->msg_err & XLP9XX_I2C_INTEN_BUSERR)
 			xlp9xx_i2c_init(priv);
-		return -EIO;
+		return (priv->msg_err & XLP9XX_I2C_INTEN_NACKADDR) ?
+			-ENXIO : -EIO;
 	}
 
 	if (timeleft == 0) {
