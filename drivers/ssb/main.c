@@ -1116,7 +1116,7 @@ static bool ssb_dma_translation_special_bit(struct ssb_device *dev)
 			chip_id == 43231 || chip_id == 43222);
 	}
 
-	return 0;
+	return false;
 }
 
 u32 ssb_dma_translation(struct ssb_device *dev)
