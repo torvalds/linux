@@ -239,7 +239,7 @@ static int fw_set_parms(struct net *net, struct tcf_proto *tp,
 #ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_FW_INDEV]) {
 		int ret;
-		ret = tcf_change_indev(net, tb[TCA_FW_INDEV]);
+		ret = tcf_change_indev(net, tb[TCA_FW_INDEV], extack);
 		if (ret < 0)
 			return ret;
 		f->ifindex = ret;

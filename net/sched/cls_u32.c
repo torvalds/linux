@@ -804,7 +804,7 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 #ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_U32_INDEV]) {
 		int ret;
-		ret = tcf_change_indev(net, tb[TCA_U32_INDEV]);
+		ret = tcf_change_indev(net, tb[TCA_U32_INDEV], extack);
 		if (ret < 0)
 			return -EINVAL;
 		n->ifindex = ret;

@@ -557,13 +557,16 @@ static inline int tcf_valid_offset(const struct sk_buff *skb,
 #include <net/net_namespace.h>
 
 static inline int
-tcf_change_indev(struct net *net, struct nlattr *indev_tlv)
+tcf_change_indev(struct net *net, struct nlattr *indev_tlv,
+		 struct netlink_ext_ack *extack)
 {
 	char indev[IFNAMSIZ];
 	struct net_device *dev;
 
-	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ)
+	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ) {
+		NL_SET_ERR_MSG(extack, "Interface name too long");
 		return -EINVAL;
+	}
 	dev = __dev_get_by_name(net, indev);
 	if (!dev)
 		return -ENODEV;
