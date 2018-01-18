@@ -1317,6 +1317,13 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		block = tcf_block_lookup(net, tcm->tcm_block_index);
 		if (!block)
 			goto out;
+		/* If we work with block index, q is NULL and parent value
+		 * will never be used in the following code. The check
+		 * in tcf_fill_node prevents it. However, compiler does not
+		 * see that far, so set parent to zero to silence the warning
+		 * about parent being uninitialized.
+		 */
+		parent = 0;
 	} else {
 		const struct Qdisc_class_ops *cops;
 		struct net_device *dev;
