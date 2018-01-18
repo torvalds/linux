@@ -150,6 +150,12 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 
 	dev_priv = intel_dig_port->base.base.dev->dev_private;
 
+	ret = intel_hdcp_poll_ksv_fifo(intel_dig_port, shim);
+	if (ret) {
+		DRM_ERROR("KSV list failed to become ready (%d)\n", ret);
+		return ret;
+	}
+
 	ret = shim->read_bstatus(intel_dig_port, bstatus);
 	if (ret)
 		return ret;
@@ -159,12 +165,6 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 	if (num_downstream == 0) {
 		DRM_INFO("HDCP is enabled (no downstream devices)\n");
 		return 0;
-	}
-
-	ret = intel_hdcp_poll_ksv_fifo(intel_dig_port, shim);
-	if (ret) {
-		DRM_ERROR("KSV list failed to become ready (%d)\n", ret);
-		return ret;
 	}
 
 	ksv_fifo = kzalloc(num_downstream * DRM_HDCP_KSV_LEN, GFP_KERNEL);
