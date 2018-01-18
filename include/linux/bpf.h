@@ -586,6 +586,8 @@ void bpf_prog_offload_destroy(struct bpf_prog *prog);
 int bpf_prog_offload_info_fill(struct bpf_prog_info *info,
 			       struct bpf_prog *prog);
 
+int bpf_map_offload_info_fill(struct bpf_map_info *info, struct bpf_map *map);
+
 int bpf_map_offload_lookup_elem(struct bpf_map *map, void *key, void *value);
 int bpf_map_offload_update_elem(struct bpf_map *map,
 				void *key, void *value, u64 flags);

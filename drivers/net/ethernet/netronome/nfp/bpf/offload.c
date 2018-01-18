@@ -176,6 +176,8 @@ nfp_bpf_map_get_next_key(struct bpf_offloaded_map *offmap,
 static int
 nfp_bpf_map_delete_elem(struct bpf_offloaded_map *offmap, void *key)
 {
+	if (offmap->map.map_type == BPF_MAP_TYPE_ARRAY)
+		return -EINVAL;
 	return nfp_bpf_ctrl_del_entry(offmap, key);
 }
 
