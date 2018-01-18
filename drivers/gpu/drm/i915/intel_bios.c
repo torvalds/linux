@@ -1323,11 +1323,13 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		expected_size = LEGACY_CHILD_DEVICE_CONFIG_SIZE;
 	} else if (bdb->version == 195) {
 		expected_size = 37;
-	} else if (bdb->version <= 197) {
+	} else if (bdb->version <= 215) {
 		expected_size = 38;
+	} else if (bdb->version <= 216) {
+		expected_size = 39;
 	} else {
-		expected_size = 38;
-		BUILD_BUG_ON(sizeof(*child) < 38);
+		expected_size = sizeof(*child);
+		BUILD_BUG_ON(sizeof(*child) < 39);
 		DRM_DEBUG_DRIVER("Expected child device config size for VBT version %u not known; assuming %u\n",
 				 bdb->version, expected_size);
 	}
