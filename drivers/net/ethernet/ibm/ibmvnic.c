@@ -881,7 +881,7 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 	if (adapter->vpd->buff)
 		len = adapter->vpd->len;
 
-	reinit_completion(&adapter->fw_done);
+	init_completion(&adapter->fw_done);
 	crq.get_vpd_size.first = IBMVNIC_CRQ_CMD;
 	crq.get_vpd_size.cmd = GET_VPD_SIZE;
 	ibmvnic_send_crq(adapter, &crq);
@@ -942,6 +942,13 @@ static int init_resources(struct ibmvnic_adapter *adapter)
 	adapter->vpd = kzalloc(sizeof(*adapter->vpd), GFP_KERNEL);
 	if (!adapter->vpd)
 		return -ENOMEM;
+
+	/* Vital Product Data (VPD) */
+	rc = ibmvnic_get_vpd(adapter);
+	if (rc) {
+		netdev_err(netdev, "failed to initialize Vital Product Data (VPD)\n");
+		return rc;
+	}
 
 	adapter->map_id = 1;
 	adapter->napi = kcalloc(adapter->req_rx_queues,
@@ -1016,7 +1023,7 @@ static int __ibmvnic_open(struct net_device *netdev)
 static int ibmvnic_open(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	int rc, vpd;
+	int rc;
 
 	mutex_lock(&adapter->reset_lock);
 
@@ -1038,11 +1045,6 @@ static int ibmvnic_open(struct net_device *netdev)
 
 	rc = __ibmvnic_open(netdev);
 	netif_carrier_on(netdev);
-
-	/* Vital Product Data (VPD) */
-	vpd = ibmvnic_get_vpd(adapter);
-	if (vpd)
-		netdev_err(netdev, "failed to initialize Vital Product Data (VPD)\n");
 
 	mutex_unlock(&adapter->reset_lock);
 
