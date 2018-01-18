@@ -1654,10 +1654,8 @@ static struct da7213_platform_data
 	u32 fw_val32;
 
 	pdata = devm_kzalloc(codec->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_warn(codec->dev, "Failed to allocate memory for pdata\n");
+	if (!pdata)
 		return NULL;
-	}
 
 	if (device_property_read_u32(dev, "dlg,micbias1-lvl", &fw_val32) >= 0)
 		pdata->micbias1_lvl = da7213_of_micbias_lvl(codec, fw_val32);
@@ -1855,8 +1853,7 @@ static int da7213_i2c_probe(struct i2c_client *i2c,
 	struct da7213_priv *da7213;
 	int ret;
 
-	da7213 = devm_kzalloc(&i2c->dev, sizeof(struct da7213_priv),
-			      GFP_KERNEL);
+	da7213 = devm_kzalloc(&i2c->dev, sizeof(*da7213), GFP_KERNEL);
 	if (!da7213)
 		return -ENOMEM;
 
