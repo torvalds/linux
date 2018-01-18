@@ -57,12 +57,6 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 		info.flags |= I2C_CLIENT_SLAVE;
 	}
 
-	if (i2c_check_addr_validity(addr, info.flags)) {
-		dev_err(&adap->dev, "of_i2c: invalid addr=%x on %pOF\n",
-			addr, node);
-		return ERR_PTR(-EINVAL);
-	}
-
 	info.addr = addr;
 	info.archdata = &dev_ad;
 	info.of_node = of_node_get(node);
