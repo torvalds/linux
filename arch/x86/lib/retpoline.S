@@ -9,7 +9,7 @@
 #include <asm/nospec-branch.h>
 
 .macro THUNK reg
-	.section .text.__x86.indirect_thunk.\reg
+	.section .text.__x86.indirect_thunk
 
 ENTRY(__x86_indirect_thunk_\reg)
 	CFI_STARTPROC
