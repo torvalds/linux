@@ -125,7 +125,16 @@ static void xlp9xx_i2c_update_rx_fifo_thres(struct xlp9xx_i2c_dev *priv)
 {
 	u32 thres;
 
-	thres = min(priv->msg_buf_remaining, XLP9XX_I2C_FIFO_SIZE);
+	if (priv->len_recv)
+		/* interrupt after the first read to examine
+		 * the length byte before proceeding further
+		 */
+		thres = 1;
+	else if (priv->msg_buf_remaining > XLP9XX_I2C_FIFO_SIZE)
+		thres = XLP9XX_I2C_FIFO_SIZE;
+	else
+		thres = priv->msg_buf_remaining;
+
 	xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_MFIFOCTRL,
 			     thres << XLP9XX_I2C_MFIFOCTRL_HITH_SHIFT);
 }
@@ -144,7 +153,7 @@ static void xlp9xx_i2c_fill_tx_fifo(struct xlp9xx_i2c_dev *priv)
 
 static void xlp9xx_i2c_drain_rx_fifo(struct xlp9xx_i2c_dev *priv)
 {
-	u32 len, i;
+	u32 len, i, val;
 	u8 rlen, *buf = priv->msg_buf;
 
 	len = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_FIFOWCNT) &
@@ -156,19 +165,27 @@ static void xlp9xx_i2c_drain_rx_fifo(struct xlp9xx_i2c_dev *priv)
 		rlen = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_MRXFIFO);
 		*buf++ = rlen;
 		len--;
+
 		if (priv->client_pec)
 			++rlen;
 		/* update remaining bytes and message length */
 		priv->msg_buf_remaining = rlen;
 		priv->msg_len = rlen + 1;
 		priv->len_recv = false;
+
+		/* Update transfer length to read only actual data */
+		val = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_CTRL);
+		val = (val & ~XLP9XX_I2C_CTRL_MCTLEN_MASK) |
+			((rlen + 1) << XLP9XX_I2C_CTRL_MCTLEN_SHIFT);
+		xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CTRL, val);
+	} else {
+		len = min(priv->msg_buf_remaining, len);
+		for (i = 0; i < len; i++, buf++)
+			*buf = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_MRXFIFO);
+
+		priv->msg_buf_remaining -= len;
 	}
 
-	len = min(priv->msg_buf_remaining, len);
-	for (i = 0; i < len; i++, buf++)
-		*buf = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_MRXFIFO);
-
-	priv->msg_buf_remaining -= len;
 	priv->msg_buf = buf;
 
 	if (priv->msg_buf_remaining)
@@ -357,8 +374,8 @@ static int xlp9xx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 static u32 xlp9xx_i2c_functionality(struct i2c_adapter *adapter)
 {
-	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C |
-		I2C_FUNC_10BIT_ADDR;
+	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_SMBUS_READ_BLOCK_DATA |
+			I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR;
 }
 
 static const struct i2c_algorithm xlp9xx_i2c_algo = {
