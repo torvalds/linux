@@ -1127,6 +1127,12 @@
 			reg = <0x0 0xc0000000 0x0 0x10000>;
 		};
 
+		dsa_cpld: dsa_cpld@78000010 {
+			compatible = "syscon";
+			reg = <0x0 0x78000010 0x0 0x100>;
+			reg-io-width = <2>;
+		};
+
 		pcie_subctl: pcie_subctl@a0000000 {
 			compatible = "hisilicon,pcie-sas-subctrl", "syscon";
 			reg = <0x0 0xa0000000 0x0 0x10000>;
@@ -1258,6 +1264,7 @@
 			port@0 {
 				reg = <0>;
 				serdes-syscon = <&serdes_ctrl>;
+				cpld-syscon = <&dsa_cpld 0x0>;
 				port-rst-offset = <0>;
 				port-mode-offset = <0>;
 				mc-mac-mask = [ff f0 00 00 00 00];
@@ -1267,6 +1274,7 @@
 			port@1 {
 				reg = <1>;
 				serdes-syscon= <&serdes_ctrl>;
+				cpld-syscon = <&dsa_cpld 0x4>;
 				port-rst-offset = <1>;
 				port-mode-offset = <1>;
 				mc-mac-mask = [ff f0 00 00 00 00];
