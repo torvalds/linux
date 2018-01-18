@@ -396,8 +396,6 @@ static struct macsec_cb *macsec_skb_cb(struct sk_buff *skb)
 #define MACSEC_GCM_AES_128_SAK_LEN 16
 #define MACSEC_GCM_AES_256_SAK_LEN 32
 
-#define MAX_SAK_LEN MACSEC_GCM_AES_256_SAK_LEN
-
 #define DEFAULT_SAK_LEN MACSEC_GCM_AES_128_SAK_LEN
 #define DEFAULT_SEND_SCI true
 #define DEFAULT_ENCRYPT false
@@ -1605,7 +1603,7 @@ static const struct nla_policy macsec_genl_sa_policy[NUM_MACSEC_SA_ATTR] = {
 	[MACSEC_SA_ATTR_KEYID] = { .type = NLA_BINARY,
 				   .len = MACSEC_KEYID_LEN, },
 	[MACSEC_SA_ATTR_KEY] = { .type = NLA_BINARY,
-				 .len = MAX_SAK_LEN, },
+				 .len = MACSEC_MAX_KEY_LEN, },
 };
 
 static int parse_sa_config(struct nlattr **attrs, struct nlattr **tb_sa)
@@ -2374,7 +2372,7 @@ static int nla_put_secy(struct macsec_secy *secy, struct sk_buff *skb)
 
 	switch (secy->key_len) {
 	case MACSEC_GCM_AES_128_SAK_LEN:
-		csid = MACSEC_CIPHER_ID_GCM_AES_128;
+		csid = MACSEC_DEFAULT_CIPHER_ID;
 		break;
 	case MACSEC_GCM_AES_256_SAK_LEN:
 		csid = MACSEC_CIPHER_ID_GCM_AES_256;
@@ -3076,7 +3074,7 @@ static int macsec_changelink_common(struct net_device *dev,
 	if (data[IFLA_MACSEC_CIPHER_SUITE]) {
 		switch (nla_get_u64(data[IFLA_MACSEC_CIPHER_SUITE])) {
 		case MACSEC_CIPHER_ID_GCM_AES_128:
-		case MACSEC_DEFAULT_CIPHER_ALT:
+		case MACSEC_DEFAULT_CIPHER_ID:
 			secy->key_len = MACSEC_GCM_AES_128_SAK_LEN;
 			break;
 		case MACSEC_CIPHER_ID_GCM_AES_256:
@@ -3355,7 +3353,7 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 	switch (csid) {
 	case MACSEC_CIPHER_ID_GCM_AES_128:
 	case MACSEC_CIPHER_ID_GCM_AES_256:
-	case MACSEC_DEFAULT_CIPHER_ALT:
+	case MACSEC_DEFAULT_CIPHER_ID:
 		if (icv_len < MACSEC_MIN_ICV_LEN ||
 		    icv_len > MACSEC_STD_ICV_LEN)
 			return -EINVAL;
@@ -3428,7 +3426,7 @@ static int macsec_fill_info(struct sk_buff *skb,
 
 	switch (secy->key_len) {
 	case MACSEC_GCM_AES_128_SAK_LEN:
-		csid = MACSEC_CIPHER_ID_GCM_AES_128;
+		csid = MACSEC_DEFAULT_CIPHER_ID;
 		break;
 	case MACSEC_GCM_AES_256_SAK_LEN:
 		csid = MACSEC_CIPHER_ID_GCM_AES_256;
