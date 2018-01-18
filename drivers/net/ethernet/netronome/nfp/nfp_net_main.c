@@ -373,7 +373,9 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 	if (IS_ERR(pf->app))
 		return PTR_ERR(pf->app);
 
+	mutex_lock(&pf->lock);
 	err = nfp_app_init(pf->app);
+	mutex_unlock(&pf->lock);
 	if (err)
 		goto err_free;
 
@@ -401,7 +403,9 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 err_unmap:
 	nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
 err_app_clean:
+	mutex_lock(&pf->lock);
 	nfp_app_clean(pf->app);
+	mutex_unlock(&pf->lock);
 err_free:
 	nfp_app_free(pf->app);
 	pf->app = NULL;
@@ -414,7 +418,11 @@ static void nfp_net_pf_app_clean(struct nfp_pf *pf)
 		nfp_net_pf_free_vnic(pf, pf->ctrl_vnic);
 		nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
 	}
+
+	mutex_lock(&pf->lock);
 	nfp_app_clean(pf->app);
+	mutex_unlock(&pf->lock);
+
 	nfp_app_free(pf->app);
 	pf->app = NULL;
 }
@@ -693,6 +701,7 @@ int nfp_net_refresh_eth_port(struct nfp_port *port)
  */
 int nfp_net_pci_probe(struct nfp_pf *pf)
 {
+	struct devlink *devlink = priv_to_devlink(pf);
 	struct nfp_net_fw_version fw_ver;
 	u8 __iomem *ctrl_bar, *qc_bar;
 	int stride;
@@ -706,16 +715,13 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		return -EINVAL;
 	}
 
-	mutex_lock(&pf->lock);
 	pf->max_data_vnics = nfp_net_pf_get_num_ports(pf);
-	if ((int)pf->max_data_vnics < 0) {
-		err = pf->max_data_vnics;
-		goto err_unlock;
-	}
+	if ((int)pf->max_data_vnics < 0)
+		return pf->max_data_vnics;
 
 	err = nfp_net_pci_map_mem(pf);
 	if (err)
-		goto err_unlock;
+		return err;
 
 	ctrl_bar = nfp_cpp_area_iomem(pf->data_vnic_bar);
 	qc_bar = nfp_cpp_area_iomem(pf->qc_area);
@@ -754,6 +760,11 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_unmap;
 
+	err = devlink_register(devlink, &pf->pdev->dev);
+	if (err)
+		goto err_app_clean;
+
+	mutex_lock(&pf->lock);
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
 	/* Allocate the vnics and do basic init */
@@ -785,12 +796,13 @@ err_free_vnics:
 	nfp_net_pf_free_vnics(pf);
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
+	mutex_unlock(&pf->lock);
+	cancel_work_sync(&pf->port_refresh_work);
+	devlink_unregister(devlink);
+err_app_clean:
 	nfp_net_pf_app_clean(pf);
 err_unmap:
 	nfp_net_pci_unmap_mem(pf);
-err_unlock:
-	mutex_unlock(&pf->lock);
-	cancel_work_sync(&pf->port_refresh_work);
 	return err;
 }
 
@@ -810,11 +822,13 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 	/* stop app first, to avoid double free of ctrl vNIC's ddir */
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 
+	mutex_unlock(&pf->lock);
+
+	devlink_unregister(priv_to_devlink(pf));
+
 	nfp_net_pf_free_irqs(pf);
 	nfp_net_pf_app_clean(pf);
 	nfp_net_pci_unmap_mem(pf);
-
-	mutex_unlock(&pf->lock);
 
 	cancel_work_sync(&pf->port_refresh_work);
 }
