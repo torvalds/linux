@@ -94,4 +94,6 @@ int perf_mmap__push(struct perf_mmap *md, bool backward,
 
 size_t perf_mmap__mmap_len(struct perf_mmap *map);
 
+int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
+			 u64 *startp, u64 *endp);
 #endif /*__PERF_MMAP_H */
