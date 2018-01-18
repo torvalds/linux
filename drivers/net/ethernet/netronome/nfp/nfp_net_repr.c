@@ -46,6 +46,13 @@
 #include "nfp_net_sriov.h"
 #include "nfp_port.h"
 
+struct net_device *
+nfp_repr_get_locked(struct nfp_app *app, struct nfp_reprs *set, unsigned int id)
+{
+	return rcu_dereference_protected(set->reprs[id],
+					 lockdep_is_held(&app->pf->lock));
+}
+
 static void
 nfp_repr_inc_tx_stats(struct net_device *netdev, unsigned int len,
 		      int tx_status)
@@ -369,21 +376,24 @@ static void nfp_repr_clean_and_free(struct nfp_repr *repr)
 	nfp_repr_free(repr);
 }
 
-void nfp_reprs_clean_and_free(struct nfp_reprs *reprs)
+void nfp_reprs_clean_and_free(struct nfp_app *app, struct nfp_reprs *reprs)
 {
+	struct net_device *netdev;
 	unsigned int i;
 
-	for (i = 0; i < reprs->num_reprs; i++)
-		if (reprs->reprs[i])
-			nfp_repr_clean_and_free(netdev_priv(reprs->reprs[i]));
+	for (i = 0; i < reprs->num_reprs; i++) {
+		netdev = nfp_repr_get_locked(app, reprs, i);
+		if (netdev)
+			nfp_repr_clean_and_free(netdev_priv(netdev));
+	}
 
 	kfree(reprs);
 }
 
 void
-nfp_reprs_clean_and_free_by_type(struct nfp_app *app,
-				 enum nfp_repr_type type)
+nfp_reprs_clean_and_free_by_type(struct nfp_app *app, enum nfp_repr_type type)
 {
+	struct net_device *netdev;
 	struct nfp_reprs *reprs;
 	int i;
 
@@ -395,14 +405,16 @@ nfp_reprs_clean_and_free_by_type(struct nfp_app *app,
 	/* Preclean must happen before we remove the reprs reference from the
 	 * app below.
 	 */
-	for (i = 0; i < reprs->num_reprs; i++)
-		if (reprs->reprs[i])
-			nfp_app_repr_preclean(app, reprs->reprs[i]);
+	for (i = 0; i < reprs->num_reprs; i++) {
+		netdev = nfp_repr_get_locked(app, reprs, i);
+		if (netdev)
+			nfp_app_repr_preclean(app, netdev);
+	}
 
 	reprs = nfp_app_reprs_set(app, type, NULL);
 
 	synchronize_rcu();
-	nfp_reprs_clean_and_free(reprs);
+	nfp_reprs_clean_and_free(app, reprs);
 }
 
 struct nfp_reprs *nfp_reprs_alloc(unsigned int num_reprs)
@@ -420,46 +432,29 @@ struct nfp_reprs *nfp_reprs_alloc(unsigned int num_reprs)
 
 int nfp_reprs_resync_phys_ports(struct nfp_app *app)
 {
-	struct nfp_reprs *reprs, *old_reprs;
+	struct net_device *netdev;
+	struct nfp_reprs *reprs;
 	struct nfp_repr *repr;
 	int i;
 
-	old_reprs = nfp_reprs_get_locked(app, NFP_REPR_TYPE_PHYS_PORT);
-	if (!old_reprs)
+	reprs = nfp_reprs_get_locked(app, NFP_REPR_TYPE_PHYS_PORT);
+	if (!reprs)
 		return 0;
 
-	reprs = nfp_reprs_alloc(old_reprs->num_reprs);
-	if (!reprs)
-		return -ENOMEM;
-
-	for (i = 0; i < old_reprs->num_reprs; i++) {
-		if (!old_reprs->reprs[i])
+	for (i = 0; i < reprs->num_reprs; i++) {
+		netdev = nfp_repr_get_locked(app, reprs, i);
+		if (!netdev)
 			continue;
 
-		repr = netdev_priv(old_reprs->reprs[i]);
-		if (repr->port->type == NFP_PORT_INVALID) {
-			nfp_app_repr_preclean(app, old_reprs->reprs[i]);
-			continue;
-		}
-
-		reprs->reprs[i] = old_reprs->reprs[i];
-	}
-
-	old_reprs = nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, reprs);
-	synchronize_rcu();
-
-	/* Now we free up removed representors */
-	for (i = 0; i < old_reprs->num_reprs; i++) {
-		if (!old_reprs->reprs[i])
-			continue;
-
-		repr = netdev_priv(old_reprs->reprs[i]);
+		repr = netdev_priv(netdev);
 		if (repr->port->type != NFP_PORT_INVALID)
 			continue;
 
+		nfp_app_repr_preclean(app, netdev);
+		rcu_assign_pointer(reprs->reprs[i], NULL);
+		synchronize_rcu();
 		nfp_repr_clean(repr);
 	}
 
-	kfree(old_reprs);
 	return 0;
 }
