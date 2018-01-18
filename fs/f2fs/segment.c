@@ -1263,6 +1263,11 @@ static bool __drop_discard_cmd(struct f2fs_sb_info *sbi)
 	return dropped;
 }
 
+void drop_discard_cmd(struct f2fs_sb_info *sbi)
+{
+	__drop_discard_cmd(sbi);
+}
+
 static unsigned int __wait_one_discard_bio(struct f2fs_sb_info *sbi,
 							struct discard_cmd *dc)
 {

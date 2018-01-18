@@ -1866,6 +1866,13 @@ static int f2fs_ioc_shutdown(struct file *filp, unsigned long arg)
 		ret = -EINVAL;
 		goto out;
 	}
+
+	stop_gc_thread(sbi);
+	stop_discard_thread(sbi);
+
+	drop_discard_cmd(sbi);
+	clear_opt(sbi, DISCARD);
+
 	f2fs_update_time(sbi, REQ_TIME);
 out:
 	mnt_drop_write_file(filp);
