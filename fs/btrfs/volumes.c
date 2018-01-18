@@ -605,21 +605,22 @@ static void pending_bios_fn(struct btrfs_work *work)
 }
 
 
-static void btrfs_free_stale_device(struct btrfs_device *cur_dev)
+static void btrfs_free_stale_devices(struct btrfs_device *cur_dev)
 {
-	struct btrfs_fs_devices *fs_devs;
-	struct btrfs_device *dev;
+	struct btrfs_fs_devices *fs_devs, *tmp_fs_devs;
+	struct btrfs_device *dev, *tmp_dev;
 
 	if (!cur_dev->name)
 		return;
 
-	list_for_each_entry(fs_devs, &fs_uuids, list) {
-		int del = 1;
+	list_for_each_entry_safe(fs_devs, tmp_fs_devs, &fs_uuids, list) {
 
 		if (fs_devs->opened)
 			continue;
 
-		list_for_each_entry(dev, &fs_devs->devices, dev_list) {
+		list_for_each_entry_safe(dev, tmp_dev,
+					 &fs_devs->devices, dev_list) {
+			int not_found;
 
 			if (dev == cur_dev)
 				continue;
@@ -633,14 +634,12 @@ static void btrfs_free_stale_device(struct btrfs_device *cur_dev)
 			 * either use mapper or non mapper path throughout.
 			 */
 			rcu_read_lock();
-			del = strcmp(rcu_str_deref(dev->name),
+			not_found = strcmp(rcu_str_deref(dev->name),
 						rcu_str_deref(cur_dev->name));
 			rcu_read_unlock();
-			if (!del)
-				break;
-		}
+			if (not_found)
+				continue;
 
-		if (!del) {
 			/* delete the stale device */
 			if (fs_devs->num_devices == 1) {
 				btrfs_sysfs_remove_fsid(fs_devs);
@@ -651,7 +650,6 @@ static void btrfs_free_stale_device(struct btrfs_device *cur_dev)
 				list_del(&dev->dev_list);
 				free_device(dev);
 			}
-			break;
 		}
 	}
 }
@@ -779,7 +777,7 @@ static noinline int device_list_add(const char *path,
 
 		ret = 1;
 		device->fs_devices = fs_devices;
-		btrfs_free_stale_device(device);
+		btrfs_free_stale_devices(device);
 	} else if (!device->name || strcmp(device->name->str, path)) {
 		/*
 		 * When FS is already mounted.
