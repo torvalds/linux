@@ -20,6 +20,8 @@
 #define DRM_HDCP_V_PRIME_PART_LEN		4
 #define DRM_HDCP_V_PRIME_NUM_PARTS		5
 #define DRM_HDCP_NUM_DOWNSTREAM(x)		(x & 0x3f)
+#define DRM_HDCP_MAX_CASCADE_EXCEEDED(x)	(x & BIT(3))
+#define DRM_HDCP_MAX_DEVICE_EXCEEDED(x)		(x & BIT(7))
 
 /* Slave address for the HDCP registers in the receiver */
 #define DRM_HDCP_DDC_ADDR			0x3A

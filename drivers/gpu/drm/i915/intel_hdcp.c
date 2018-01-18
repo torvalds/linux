@@ -160,6 +160,12 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 	if (ret)
 		return ret;
 
+	if (DRM_HDCP_MAX_DEVICE_EXCEEDED(bstatus[0]) ||
+	    DRM_HDCP_MAX_CASCADE_EXCEEDED(bstatus[1])) {
+		DRM_ERROR("Max Topology Limit Exceeded\n");
+		return -EPERM;
+	}
+
 	/* If there are no downstream devices, we're all done. */
 	num_downstream = DRM_HDCP_NUM_DOWNSTREAM(bstatus[0]);
 	if (num_downstream == 0) {
