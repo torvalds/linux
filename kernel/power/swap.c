@@ -879,7 +879,7 @@ out_clean:
  *	space avaiable from the resume partition.
  */
 
-static int enough_swap(unsigned int nr_pages, unsigned int flags)
+static int enough_swap(unsigned int nr_pages)
 {
 	unsigned int free_swap = count_swap_pages(root_swap, 1);
 	unsigned int required;
@@ -915,7 +915,7 @@ int swsusp_write(unsigned int flags)
 		return error;
 	}
 	if (flags & SF_NOCOMPRESS_MODE) {
-		if (!enough_swap(pages, flags)) {
+		if (!enough_swap(pages)) {
 			pr_err("Not enough free swap\n");
 			error = -ENOSPC;
 			goto out_finish;
