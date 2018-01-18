@@ -66,6 +66,9 @@ extern const struct nfp_app_type app_flower;
  * struct nfp_app_type - application definition
  * @id:		application ID
  * @name:	application name
+ * @ctrl_cap_mask:  ctrl vNIC capability mask, allows disabling features like
+ *		    IRQMOD which are on by default but counter-productive for
+ *		    control messages which are often latency-sensitive
  * @ctrl_has_meta:  control messages have prepend of type:5/port:CTRL
  *
  * Callbacks
@@ -100,6 +103,7 @@ struct nfp_app_type {
 	enum nfp_app_id id;
 	const char *name;
 
+	u32 ctrl_cap_mask;
 	bool ctrl_has_meta;
 
 	int (*init)(struct nfp_app *app);

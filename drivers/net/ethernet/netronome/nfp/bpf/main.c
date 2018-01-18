@@ -389,6 +389,8 @@ const struct nfp_app_type app_bpf = {
 	.id		= NFP_APP_BPF_NIC,
 	.name		= "ebpf",
 
+	.ctrl_cap_mask	= ~0U,
+
 	.init		= nfp_bpf_init,
 	.clean		= nfp_bpf_clean,
 

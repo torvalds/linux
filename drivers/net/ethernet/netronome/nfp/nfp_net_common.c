@@ -3790,6 +3790,10 @@ static int nfp_net_read_caps(struct nfp_net *nn)
 		nn->dp.rx_offset = NFP_NET_RX_OFFSET;
 	}
 
+	/* For control vNICs mask out the capabilities app doesn't want. */
+	if (!nn->dp.netdev)
+		nn->cap &= nn->app->type->ctrl_cap_mask;
+
 	return 0;
 }
 

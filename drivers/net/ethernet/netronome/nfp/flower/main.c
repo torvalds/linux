@@ -565,6 +565,8 @@ static void nfp_flower_stop(struct nfp_app *app)
 const struct nfp_app_type app_flower = {
 	.id		= NFP_APP_FLOWER_NIC,
 	.name		= "flower",
+
+	.ctrl_cap_mask	= ~0U,
 	.ctrl_has_meta	= true,
 
 	.extra_cap	= nfp_flower_extra_cap,
