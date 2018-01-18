@@ -36,23 +36,102 @@
 
 #include <linux/mlx5/driver.h>
 
-enum mlx5_accel_ipsec_caps {
+enum mlx5_accel_esp_aes_gcm_keymat_iv_algo {
+	MLX5_ACCEL_ESP_AES_GCM_IV_ALGO_SEQ,
+};
+
+enum mlx5_accel_esp_flags {
+	MLX5_ACCEL_ESP_FLAGS_TUNNEL            = 0,    /* Default */
+	MLX5_ACCEL_ESP_FLAGS_TRANSPORT         = 1UL << 0,
+	MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED     = 1UL << 1,
+	MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP = 1UL << 2,
+};
+
+enum mlx5_accel_esp_action {
+	MLX5_ACCEL_ESP_ACTION_DECRYPT,
+	MLX5_ACCEL_ESP_ACTION_ENCRYPT,
+};
+
+enum mlx5_accel_esp_keymats {
+	MLX5_ACCEL_ESP_KEYMAT_AES_NONE,
+	MLX5_ACCEL_ESP_KEYMAT_AES_GCM,
+};
+
+enum mlx5_accel_esp_replay {
+	MLX5_ACCEL_ESP_REPLAY_NONE,
+	MLX5_ACCEL_ESP_REPLAY_BMP,
+};
+
+struct aes_gcm_keymat {
+	u64   seq_iv;
+	enum mlx5_accel_esp_aes_gcm_keymat_iv_algo iv_algo;
+
+	u32   salt;
+	u32   icv_len;
+
+	u32   key_len;
+	u32   aes_key[256 / 32];
+};
+
+struct mlx5_accel_esp_xfrm_attrs {
+	enum mlx5_accel_esp_action action;
+	u32   esn;
+	u32   spi;
+	u32   seq;
+	u32   tfc_pad;
+	u32   flags;
+	u32   sa_handle;
+	enum mlx5_accel_esp_replay replay_type;
+	union {
+		struct {
+			u32 size;
+
+		} bmp;
+	} replay;
+	enum mlx5_accel_esp_keymats keymat_type;
+	union {
+		struct aes_gcm_keymat aes_gcm;
+	} keymat;
+};
+
+struct mlx5_accel_esp_xfrm {
+	struct mlx5_core_dev  *mdev;
+	struct mlx5_accel_esp_xfrm_attrs attrs;
+};
+
+enum {
+	MLX5_ACCEL_XFRM_FLAG_REQUIRE_METADATA = 1UL << 0,
+};
+
+enum mlx5_accel_ipsec_cap {
 	MLX5_ACCEL_IPSEC_CAP_DEVICE		= 1 << 0,
 	MLX5_ACCEL_IPSEC_CAP_REQUIRED_METADATA	= 1 << 1,
 	MLX5_ACCEL_IPSEC_CAP_ESP		= 1 << 2,
 	MLX5_ACCEL_IPSEC_CAP_IPV6		= 1 << 3,
 	MLX5_ACCEL_IPSEC_CAP_LSO		= 1 << 4,
 	MLX5_ACCEL_IPSEC_CAP_RX_NO_TRAILER	= 1 << 5,
-	MLX5_ACCEL_IPSEC_CAP_V2_CMD		= 1 << 6,
 };
 
 #ifdef CONFIG_MLX5_ACCEL
 
 u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev);
 
+struct mlx5_accel_esp_xfrm *
+mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs,
+			   u32 flags);
+void mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm);
+
 #else
 
 static inline u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev) { return 0; }
+
+static inline struct mlx5_accel_esp_xfrm *
+mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs,
+			   u32 flags) { return ERR_PTR(-EOPNOTSUPP); }
+static inline void
+mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm) {}
 
 #endif
 #endif

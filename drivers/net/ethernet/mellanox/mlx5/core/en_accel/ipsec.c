@@ -47,7 +47,8 @@ struct mlx5e_ipsec_sa_entry {
 	unsigned int handle; /* Handle in SADB_RX */
 	struct xfrm_state *x;
 	struct mlx5e_ipsec *ipsec;
-	void *context;
+	struct mlx5_accel_esp_xfrm *xfrm;
+	void *hw_context;
 };
 
 struct xfrm_state *mlx5e_ipsec_sadb_rx_lookup(struct mlx5e_ipsec *ipsec,
@@ -105,74 +106,51 @@ static void mlx5e_ipsec_sadb_rx_free(struct mlx5e_ipsec_sa_entry *sa_entry)
 	ida_simple_remove(&ipsec->halloc, sa_entry->handle);
 }
 
-static enum mlx5_accel_ipsec_enc_mode mlx5e_ipsec_enc_mode(struct xfrm_state *x)
-{
-	unsigned int key_len = (x->aead->alg_key_len + 7) / 8 - 4;
-
-	switch (key_len) {
-	case 16:
-		return MLX5_IPSEC_SADB_MODE_AES_GCM_128_AUTH_128;
-	case 32:
-		return MLX5_IPSEC_SADB_MODE_AES_GCM_256_AUTH_128;
-	default:
-		netdev_warn(x->xso.dev, "Bad key len: %d for alg %s\n",
-			    key_len, x->aead->alg_name);
-		return -1;
-	}
-}
-
-static void mlx5e_ipsec_build_hw_sa(u32 op, struct mlx5e_ipsec_sa_entry *sa_entry,
-				    struct mlx5_accel_ipsec_sa *hw_sa)
+static void
+mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
+				   struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct xfrm_state *x = sa_entry->x;
+	struct aes_gcm_keymat *aes_gcm = &attrs->keymat.aes_gcm;
 	struct aead_geniv_ctx *geniv_ctx;
-	unsigned int crypto_data_len;
 	struct crypto_aead *aead;
-	unsigned int key_len;
+	unsigned int crypto_data_len, key_len;
 	int ivsize;
 
-	memset(hw_sa, 0, sizeof(*hw_sa));
+	memset(attrs, 0, sizeof(*attrs));
 
+	/* key */
 	crypto_data_len = (x->aead->alg_key_len + 7) / 8;
 	key_len = crypto_data_len - 4; /* 4 bytes salt at end */
+
+	memcpy(aes_gcm->aes_key, x->aead->alg_key, key_len);
+	aes_gcm->key_len = key_len * 8;
+
+	/* salt and seq_iv */
 	aead = x->data;
 	geniv_ctx = crypto_aead_ctx(aead);
 	ivsize = crypto_aead_ivsize(aead);
+	memcpy(&aes_gcm->seq_iv, &geniv_ctx->salt, ivsize);
+	memcpy(&aes_gcm->salt, x->aead->alg_key + key_len,
+	       sizeof(aes_gcm->salt));
 
-	memcpy(&hw_sa->ipsec_sa_v1.key_enc, x->aead->alg_key, key_len);
-	/* Duplicate 128 bit key twice according to HW layout */
-	if (key_len == 16)
-		memcpy(&hw_sa->ipsec_sa_v1.key_enc[16], x->aead->alg_key, key_len);
-	memcpy(&hw_sa->ipsec_sa_v1.gcm.salt_iv, geniv_ctx->salt, ivsize);
-	hw_sa->ipsec_sa_v1.gcm.salt = *((__be32 *)(x->aead->alg_key + key_len));
+	/* iv len */
+	aes_gcm->icv_len = x->aead->alg_icv_len;
 
-	hw_sa->ipsec_sa_v1.cmd = htonl(op);
-	hw_sa->ipsec_sa_v1.flags |= MLX5_IPSEC_SADB_SA_VALID | MLX5_IPSEC_SADB_SPI_EN;
-	if (x->props.family == AF_INET) {
-		hw_sa->ipsec_sa_v1.sip[3] = x->props.saddr.a4;
-		hw_sa->ipsec_sa_v1.dip[3] = x->id.daddr.a4;
-	} else {
-		memcpy(hw_sa->ipsec_sa_v1.sip, x->props.saddr.a6,
-		       sizeof(hw_sa->ipsec_sa_v1.sip));
-		memcpy(hw_sa->ipsec_sa_v1.dip, x->id.daddr.a6,
-		       sizeof(hw_sa->ipsec_sa_v1.dip));
-		hw_sa->ipsec_sa_v1.flags |= MLX5_IPSEC_SADB_IPV6;
-	}
-	hw_sa->ipsec_sa_v1.spi = x->id.spi;
-	hw_sa->ipsec_sa_v1.sw_sa_handle = htonl(sa_entry->handle);
-	switch (x->id.proto) {
-	case IPPROTO_ESP:
-		hw_sa->ipsec_sa_v1.flags |= MLX5_IPSEC_SADB_IP_ESP;
-		break;
-	case IPPROTO_AH:
-		hw_sa->ipsec_sa_v1.flags |= MLX5_IPSEC_SADB_IP_AH;
-		break;
-	default:
-		break;
-	}
-	hw_sa->ipsec_sa_v1.enc_mode = mlx5e_ipsec_enc_mode(x);
-	if (!(x->xso.flags & XFRM_OFFLOAD_INBOUND))
-		hw_sa->ipsec_sa_v1.flags |= MLX5_IPSEC_SADB_DIR_SX;
+	/* rx handle */
+	attrs->sa_handle = sa_entry->handle;
+
+	/* algo type */
+	attrs->keymat_type = MLX5_ACCEL_ESP_KEYMAT_AES_GCM;
+
+	/* action */
+	attrs->action = (!(x->xso.flags & XFRM_OFFLOAD_INBOUND)) ?
+			MLX5_ACCEL_ESP_ACTION_ENCRYPT :
+			MLX5_ACCEL_ESP_ACTION_DECRYPT;
+	/* flags */
+	attrs->flags |= (x->props.mode == XFRM_MODE_TRANSPORT) ?
+			MLX5_ACCEL_ESP_FLAGS_TRANSPORT :
+			MLX5_ACCEL_ESP_FLAGS_TUNNEL;
 }
 
 static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
@@ -254,9 +232,10 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = NULL;
 	struct net_device *netdev = x->xso.dev;
-	struct mlx5_accel_ipsec_sa hw_sa;
+	struct mlx5_accel_esp_xfrm_attrs attrs;
 	struct mlx5e_priv *priv;
-	void *context;
+	__be32 saddr[4] = {0}, daddr[4] = {0}, spi;
+	bool is_ipv6 = false;
 	int err;
 
 	priv = netdev_priv(netdev);
@@ -285,20 +264,41 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 		}
 	}
 
-	mlx5e_ipsec_build_hw_sa(MLX5_IPSEC_CMD_ADD_SA, sa_entry, &hw_sa);
-	context = mlx5_accel_ipsec_sa_cmd_exec(sa_entry->ipsec->en_priv->mdev, &hw_sa);
-	if (IS_ERR(context)) {
-		err = PTR_ERR(context);
+	/* create xfrm */
+	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &attrs);
+	sa_entry->xfrm =
+		mlx5_accel_esp_create_xfrm(priv->mdev, &attrs,
+					   MLX5_ACCEL_XFRM_FLAG_REQUIRE_METADATA);
+	if (IS_ERR(sa_entry->xfrm)) {
+		err = PTR_ERR(sa_entry->xfrm);
 		goto err_sadb_rx;
 	}
 
-	err = mlx5_accel_ipsec_sa_cmd_wait(context);
-	if (err)
-		goto err_sadb_rx;
+	/* create hw context */
+	if (x->props.family == AF_INET) {
+		saddr[3] = x->props.saddr.a4;
+		daddr[3] = x->id.daddr.a4;
+	} else {
+		memcpy(saddr, x->props.saddr.a6, sizeof(saddr));
+		memcpy(daddr, x->id.daddr.a6, sizeof(daddr));
+		is_ipv6 = true;
+	}
+	spi = x->id.spi;
+	sa_entry->hw_context =
+			mlx5_accel_esp_create_hw_context(priv->mdev,
+							 sa_entry->xfrm,
+							 saddr, daddr, spi,
+							 is_ipv6);
+	if (IS_ERR(sa_entry->hw_context)) {
+		err = PTR_ERR(sa_entry->hw_context);
+		goto err_xfrm;
+	}
 
 	x->xso.offload_handle = (unsigned long)sa_entry;
 	goto out;
 
+err_xfrm:
+	mlx5_accel_esp_destroy_xfrm(sa_entry->xfrm);
 err_sadb_rx:
 	if (x->xso.flags & XFRM_OFFLOAD_INBOUND) {
 		mlx5e_ipsec_sadb_rx_del(sa_entry);
@@ -313,8 +313,6 @@ out:
 static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry;
-	struct mlx5_accel_ipsec_sa hw_sa;
-	void *context;
 
 	if (!x->xso.offload_handle)
 		return;
@@ -324,19 +322,11 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 
 	if (x->xso.flags & XFRM_OFFLOAD_INBOUND)
 		mlx5e_ipsec_sadb_rx_del(sa_entry);
-
-	mlx5e_ipsec_build_hw_sa(MLX5_IPSEC_CMD_DEL_SA, sa_entry, &hw_sa);
-	context = mlx5_accel_ipsec_sa_cmd_exec(sa_entry->ipsec->en_priv->mdev, &hw_sa);
-	if (IS_ERR(context))
-		return;
-
-	sa_entry->context = context;
 }
 
 static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry;
-	int res;
 
 	if (!x->xso.offload_handle)
 		return;
@@ -344,11 +334,9 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 	sa_entry = (struct mlx5e_ipsec_sa_entry *)x->xso.offload_handle;
 	WARN_ON(sa_entry->x != x);
 
-	res = mlx5_accel_ipsec_sa_cmd_wait(sa_entry->context);
-	sa_entry->context = NULL;
-	if (res) {
-		/* Leftover object will leak */
-		return;
+	if (sa_entry->hw_context) {
+		mlx5_accel_esp_free_hw_context(sa_entry->hw_context);
+		mlx5_accel_esp_destroy_xfrm(sa_entry->xfrm);
 	}
 
 	if (x->xso.flags & XFRM_OFFLOAD_INBOUND)
