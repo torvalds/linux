@@ -4769,8 +4769,8 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 	u64 block_start;
 	u64 block_end;
 
-	if ((offset & (blocksize - 1)) == 0 &&
-	    (!len || ((len & (blocksize - 1)) == 0)))
+	if (IS_ALIGNED(offset, blocksize) &&
+	    (!len || IS_ALIGNED(len, blocksize)))
 		goto out;
 
 	block_start = round_down(from, blocksize);
