@@ -43,6 +43,8 @@ static void nfp_net_tlv_caps_reset(struct nfp_net_tlv_caps *caps)
 {
 	memset(caps, 0, sizeof(*caps));
 	caps->me_freq_mhz = 1200;
+	caps->mbox_off = NFP_NET_CFG_MBOX_BASE;
+	caps->mbox_len = NFP_NET_CFG_MBOX_VAL_MAX_SZ;
 }
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
@@ -101,6 +103,15 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			}
 
 			caps->me_freq_mhz = readl(data);
+			break;
+		case NFP_NET_CFG_TLV_TYPE_MBOX:
+			if (!length) {
+				caps->mbox_off = 0;
+				caps->mbox_len = 0;
+			} else {
+				caps->mbox_off = data - ctrl_mem;
+				caps->mbox_len = length;
+			}
 			break;
 		default:
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))

@@ -413,10 +413,13 @@
  * 4B used for update command and 4B return code
  * followed by a max of 504B of variable length value
  */
-#define NFP_NET_CFG_MBOX_CMD		0x1800
-#define NFP_NET_CFG_MBOX_RET		0x1804
-#define NFP_NET_CFG_MBOX_VAL		0x1808
+#define NFP_NET_CFG_MBOX_BASE		0x1800
 #define NFP_NET_CFG_MBOX_VAL_MAX_SZ	0x1F8
+
+#define NFP_NET_CFG_MBOX_SIMPLE_CMD	0x0
+#define NFP_NET_CFG_MBOX_SIMPLE_RET	0x4
+#define NFP_NET_CFG_MBOX_SIMPLE_VAL	0x8
+#define NFP_NET_CFG_MBOX_SIMPLE_LEN	0x12
 
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD 1
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL 2
@@ -428,7 +431,7 @@
  * %NFP_NET_CFG_VLAN_FILTER_PROTO:	VLAN proto to filter
  * %NFP_NET_CFG_VXLAN_SZ:		Size of the VLAN filter mailbox in bytes
  */
-#define NFP_NET_CFG_VLAN_FILTER		NFP_NET_CFG_MBOX_VAL
+#define NFP_NET_CFG_VLAN_FILTER		NFP_NET_CFG_MBOX_SIMPLE_VAL
 #define  NFP_NET_CFG_VLAN_FILTER_VID	NFP_NET_CFG_VLAN_FILTER
 #define  NFP_NET_CFG_VLAN_FILTER_PROTO	 (NFP_NET_CFG_VLAN_FILTER + 2)
 #define NFP_NET_CFG_VLAN_FILTER_SZ	 0x0004
@@ -478,23 +481,37 @@
  * %NFP_NET_CFG_TLV_TYPE_ME_FREQ:
  * Single word, ME frequency in MHz as used in calculation for
  * %NFP_NET_CFG_RXR_IRQ_MOD and %NFP_NET_CFG_TXR_IRQ_MOD.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_MBOX:
+ * Variable, mailbox area.  Overwrites the default location which is
+ * %NFP_NET_CFG_MBOX_BASE and length %NFP_NET_CFG_MBOX_VAL_MAX_SZ.
  */
 #define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
 #define NFP_NET_CFG_TLV_TYPE_END		2
 #define NFP_NET_CFG_TLV_TYPE_ME_FREQ		3
+#define NFP_NET_CFG_TLV_TYPE_MBOX		4
 
 struct device;
 
 /**
  * struct nfp_net_tlv_caps - parsed control BAR TLV capabilities
  * @me_freq_mhz:	ME clock_freq (MHz)
+ * @mbox_off:		vNIC mailbox area offset
+ * @mbox_len:		vNIC mailbox area length
  */
 struct nfp_net_tlv_caps {
 	u32 me_freq_mhz;
+	unsigned int mbox_off;
+	unsigned int mbox_len;
 };
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			   struct nfp_net_tlv_caps *caps);
+
+static inline bool nfp_net_has_mbox(struct nfp_net_tlv_caps *caps)
+{
+	return caps->mbox_len >= NFP_NET_CFG_MBOX_SIMPLE_LEN;
+}
 
 #endif /* _NFP_NET_CTRL_H_ */

@@ -293,9 +293,15 @@ int nfp_net_reconfig(struct nfp_net *nn, u32 update)
  */
 static int nfp_net_reconfig_mbox(struct nfp_net *nn, u32 mbox_cmd)
 {
+	u32 mbox = nn->tlv_caps.mbox_off;
 	int ret;
 
-	nn_writeq(nn, NFP_NET_CFG_MBOX_CMD, mbox_cmd);
+	if (!nfp_net_has_mbox(&nn->tlv_caps)) {
+		nn_err(nn, "no mailbox present, command: %u\n", mbox_cmd);
+		return -EIO;
+	}
+
+	nn_writeq(nn, mbox + NFP_NET_CFG_MBOX_SIMPLE_CMD, mbox_cmd);
 
 	ret = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_MBOX);
 	if (ret) {
@@ -303,7 +309,7 @@ static int nfp_net_reconfig_mbox(struct nfp_net *nn, u32 mbox_cmd)
 		return ret;
 	}
 
-	return -nn_readl(nn, NFP_NET_CFG_MBOX_RET);
+	return -nn_readl(nn, mbox + NFP_NET_CFG_MBOX_SIMPLE_RET);
 }
 
 /* Interrupt configuration and handling
@@ -3084,8 +3090,9 @@ nfp_net_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	if (!vid)
 		return 0;
 
-	nn_writew(nn, NFP_NET_CFG_VLAN_FILTER_VID, vid);
-	nn_writew(nn, NFP_NET_CFG_VLAN_FILTER_PROTO, ETH_P_8021Q);
+	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_VID, vid);
+	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_PROTO,
+		  ETH_P_8021Q);
 
 	return nfp_net_reconfig_mbox(nn, NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD);
 }
@@ -3101,8 +3108,9 @@ nfp_net_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	if (!vid)
 		return 0;
 
-	nn_writew(nn, NFP_NET_CFG_VLAN_FILTER_VID, vid);
-	nn_writew(nn, NFP_NET_CFG_VLAN_FILTER_PROTO, ETH_P_8021Q);
+	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_VID, vid);
+	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_PROTO,
+		  ETH_P_8021Q);
 
 	return nfp_net_reconfig_mbox(nn, NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL);
 }
