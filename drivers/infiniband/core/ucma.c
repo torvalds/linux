@@ -944,8 +944,8 @@ static ssize_t ucma_query_gid(struct ucma_context *ctx,
 	} else {
 		addr->sib_family = AF_IB;
 		addr->sib_pkey = (__force __be16) resp.pkey;
-		rdma_addr_get_sgid(&ctx->cm_id->route.addr.dev_addr,
-				   (union ib_gid *) &addr->sib_addr);
+		rdma_read_gids(ctx->cm_id, (union ib_gid *)&addr->sib_addr,
+			       NULL);
 		addr->sib_sid = rdma_get_service_id(ctx->cm_id, (struct sockaddr *)
 						    &ctx->cm_id->route.addr.src_addr);
 	}
@@ -957,8 +957,8 @@ static ssize_t ucma_query_gid(struct ucma_context *ctx,
 	} else {
 		addr->sib_family = AF_IB;
 		addr->sib_pkey = (__force __be16) resp.pkey;
-		rdma_addr_get_dgid(&ctx->cm_id->route.addr.dev_addr,
-				   (union ib_gid *) &addr->sib_addr);
+		rdma_read_gids(ctx->cm_id, NULL,
+			       (union ib_gid *)&addr->sib_addr);
 		addr->sib_sid = rdma_get_service_id(ctx->cm_id, (struct sockaddr *)
 						    &ctx->cm_id->route.addr.dst_addr);
 	}
