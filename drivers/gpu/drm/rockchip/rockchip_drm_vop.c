@@ -435,6 +435,17 @@ static bool vop_is_allwin_disabled(struct vop *vop)
 	return true;
 }
 
+static void vop_disable_allwin(struct vop *vop)
+{
+	int i;
+
+	for (i = 0; i < vop->num_wins; i++) {
+		struct vop_win *win = &vop->win[i];
+
+		VOP_WIN_SET(vop, win, enable, 0);
+	}
+}
+
 static bool vop_fs_irq_is_active(struct vop *vop)
 {
 	return VOP_INTR_GET_TYPE(vop, status, FS_INTR);
@@ -1537,7 +1548,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc *crtc = state->crtc;
-	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_display_mode *mode = NULL;
 	struct vop_win *win = to_vop_win(plane);
 	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
 	struct rockchip_crtc_state *s;
@@ -1566,6 +1577,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
+	mode = &crtc->state->adjusted_mode;
 	actual_w = drm_rect_width(src) >> 16;
 	actual_h = drm_rect_height(src) >> 16;
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
@@ -2334,6 +2346,43 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, dsp_background, val);
 }
 
+/*
+ * if adjusted mode update, return true, else return false
+ */
+static bool vop_crtc_mode_update(struct drm_crtc *crtc)
+{
+	struct vop *vop = to_vop(crtc);
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+	u16 hsync_len = adjusted_mode->crtc_hsync_end -
+				adjusted_mode->crtc_hsync_start;
+	u16 hdisplay = adjusted_mode->crtc_hdisplay;
+	u16 htotal = adjusted_mode->crtc_htotal;
+	u16 hact_st = adjusted_mode->crtc_htotal -
+				adjusted_mode->crtc_hsync_start;
+	u16 hact_end = hact_st + hdisplay;
+	u16 vdisplay = adjusted_mode->crtc_vdisplay;
+	u16 vtotal = adjusted_mode->crtc_vtotal;
+	u16 vsync_len = adjusted_mode->crtc_vsync_end -
+				adjusted_mode->crtc_vsync_start;
+	u16 vact_st = adjusted_mode->crtc_vtotal -
+				adjusted_mode->crtc_vsync_start;
+	u16 vact_end = vact_st + vdisplay;
+	u32 htotal_sync = htotal << 16 | hsync_len;
+	u32 hactive_st_end = hact_st << 16 | hact_end;
+	u32 vtotal_sync = vtotal << 16 | vsync_len;
+	u32 vactive_st_end = vact_st << 16 | vact_end;
+	u32 crtc_clock = adjusted_mode->crtc_clock * 100;
+
+	if ((htotal_sync != VOP_CTRL_GET(vop, htotal_pw)) ||
+	    (hactive_st_end != VOP_CTRL_GET(vop, hact_st_end)) ||
+	    (vtotal_sync != VOP_CTRL_GET(vop, vtotal_pw)) ||
+	    (vactive_st_end != VOP_CTRL_GET(vop, vact_st_end)) ||
+	    (crtc_clock != clk_get_rate(vop->dclk)))
+		return true;
+
+	return false;
+}
+
 static void vop_crtc_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
@@ -2352,6 +2401,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	int sys_status = drm_crtc_index(crtc) ?
 				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 	uint32_t val;
+	bool active;
+	int ret;
 
 	rockchip_set_system_status(sys_status);
 	mutex_lock(&vop->vop_lock);
@@ -2467,6 +2518,12 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, cabc_global_dn_limit_en, 1);
 	VOP_CTRL_SET(vop, win_csc_mode_sel, 1);
 
+	if (vop_crtc_mode_update(crtc)) {
+		vop_disable_allwin(vop);
+		DRM_DEV_INFO(vop->dev, "Update mode to %d*%d, close all win\n",
+			      hdisplay, vdisplay);
+	}
+
 	clk_set_rate(vop->dclk, adjusted_mode->crtc_clock * 1000);
 
 	vop_cfg_done(vop);
@@ -2477,7 +2534,20 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 
 	enable_irq(vop->irq);
 	drm_crtc_vblank_on(crtc);
+	drm_crtc_vblank_get(crtc);
 	mutex_unlock(&vop->vop_lock);
+	/* make sure timing config take effect */
+	ret = readx_poll_timeout_atomic(vop_fs_irq_is_active,
+					vop, active, !active,
+					0, 100 * 1000);
+	if (ret)
+		dev_err(vop->dev, "wait exit fs irq timeout\n");
+	ret = readx_poll_timeout_atomic(vop_fs_irq_is_active,
+					vop, active, active,
+					0, 100 * 1000);
+	if (ret)
+		dev_err(vop->dev, "wait get fs irq timeout\n");
+	drm_crtc_vblank_put(crtc);
 }
 
 static int vop_zpos_cmp(const void *a, const void *b)
