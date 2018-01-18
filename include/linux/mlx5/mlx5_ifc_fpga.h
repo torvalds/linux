@@ -468,6 +468,8 @@ struct mlx5_ifc_fpga_ipsec_cmd_cap {
 } __packed;
 
 enum mlx5_ifc_fpga_ipsec_sa_flags {
+	MLX5_FPGA_IPSEC_SA_ESN_EN = BIT(0),
+	MLX5_FPGA_IPSEC_SA_ESN_OVERLAP = BIT(1),
 	MLX5_FPGA_IPSEC_SA_IPV6 = BIT(2),
 	MLX5_FPGA_IPSEC_SA_DIR_SX = BIT(3),
 	MLX5_FPGA_IPSEC_SA_SPI_EN = BIT(4),

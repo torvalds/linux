@@ -347,6 +347,11 @@ u32 mlx5_fpga_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, rx_no_trailer))
 		ret |= MLX5_ACCEL_IPSEC_CAP_RX_NO_TRAILER;
 
+	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, esn)) {
+		ret |= MLX5_ACCEL_IPSEC_CAP_ESN;
+		ret |= MLX5_ACCEL_IPSEC_CAP_TX_IV_IS_ESN;
+	}
+
 	return ret;
 }
 
@@ -469,6 +474,23 @@ mlx5_fpga_ipsec_build_hw_xfrm(struct mlx5_core_dev *mdev,
 	       sizeof(aes_gcm->seq_iv));
 	memcpy(&hw_sa->ipsec_sa_v1.gcm.salt, &aes_gcm->salt,
 	       sizeof(aes_gcm->salt));
+
+	/* esn */
+	if (xfrm_attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED) {
+		hw_sa->ipsec_sa_v1.flags |= MLX5_FPGA_IPSEC_SA_ESN_EN;
+		hw_sa->ipsec_sa_v1.flags |=
+				(xfrm_attrs->flags &
+				 MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP) ?
+					MLX5_FPGA_IPSEC_SA_ESN_OVERLAP : 0;
+		hw_sa->esn = htonl(xfrm_attrs->esn);
+	} else {
+		hw_sa->ipsec_sa_v1.flags &= ~MLX5_FPGA_IPSEC_SA_ESN_EN;
+		hw_sa->ipsec_sa_v1.flags &=
+				~(xfrm_attrs->flags &
+				  MLX5_ACCEL_ESP_FLAGS_ESN_STATE_OVERLAP) ?
+					MLX5_FPGA_IPSEC_SA_ESN_OVERLAP : 0;
+		hw_sa->esn = 0;
+	}
 
 	/* rx handle */
 	hw_sa->ipsec_sa_v1.sw_sa_handle = htonl(xfrm_attrs->sa_handle);
