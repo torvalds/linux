@@ -673,7 +673,7 @@ static int gmc_v9_0_late_init(void *handle)
 	for(i = 0; i < AMDGPU_MAX_VMHUBS; ++i)
 		BUG_ON(vm_inv_eng[i] > 16);
 
-	if (adev->asic_type == CHIP_VEGA10) {
+	if (adev->asic_type == CHIP_VEGA10 && !amdgpu_sriov_vf(adev)) {
 		r = gmc_v9_0_ecc_available(adev);
 		if (r == 1) {
 			DRM_INFO("ECC is active.\n");
