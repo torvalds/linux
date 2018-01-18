@@ -389,12 +389,13 @@
 			reset-names = "global", "port";
 		};
 
-		miphy28lp_phy: miphy28lp {
+		miphy28lp_phy: miphy28lp@0 {
 			compatible = "st,miphy28lp-phy";
 			st,syscfg = <&syscfg_core>;
 			#address-cells	= <1>;
 			#size-cells	= <1>;
 			ranges;
+			reg = <0 0>;
 
 			phy_port0: port@9b22000 {
 				reg = <0x9b22000 0xff>,

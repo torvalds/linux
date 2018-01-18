@@ -80,7 +80,7 @@
 			st,i2c-min-sda-pulse-width-us = <5>;
 		};
 
-		miphy28lp_phy: miphy28lp {
+		miphy28lp_phy: miphy28lp@0 {
 
 			phy_port0: port@9b22000 {
 				st,osc-rdy;
