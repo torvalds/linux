@@ -605,7 +605,7 @@ static void pending_bios_fn(struct btrfs_work *work)
 }
 
 
-static void btrfs_free_stale_devices(struct btrfs_device *cur_dev)
+static void btrfs_free_stale_devices(struct btrfs_device *skip_dev)
 {
 	struct btrfs_fs_devices *fs_devs, *tmp_fs_devs;
 	struct btrfs_device *dev, *tmp_dev;
@@ -619,7 +619,7 @@ static void btrfs_free_stale_devices(struct btrfs_device *cur_dev)
 					 &fs_devs->devices, dev_list) {
 			int not_found = 0;
 
-			if (cur_dev && (cur_dev == dev || !dev->name))
+			if (skip_dev && (skip_dev == dev || !dev->name))
 				continue;
 
 			/*
@@ -629,9 +629,9 @@ static void btrfs_free_stale_devices(struct btrfs_device *cur_dev)
 			 * either use mapper or non mapper path throughout.
 			 */
 			rcu_read_lock();
-			if (cur_dev)
+			if (skip_dev)
 				not_found = strcmp(rcu_str_deref(dev->name),
-						   rcu_str_deref(cur_dev->name));
+						   rcu_str_deref(skip_dev->name));
 			rcu_read_unlock();
 			if (not_found)
 				continue;
