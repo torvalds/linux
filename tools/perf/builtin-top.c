@@ -881,12 +881,85 @@ static void perf_top__mmap_read(struct perf_top *top)
 		perf_top__mmap_read_idx(top, i);
 }
 
+/*
+ * Check per-event overwrite term.
+ * perf top should support consistent term for all events.
+ * - All events don't have per-event term
+ *   E.g. "cpu/cpu-cycles/,cpu/instructions/"
+ *   Nothing change, return 0.
+ * - All events have same per-event term
+ *   E.g. "cpu/cpu-cycles,no-overwrite/,cpu/instructions,no-overwrite/
+ *   Using the per-event setting to replace the opts->overwrite if
+ *   they are different, then return 0.
+ * - Events have different per-event term
+ *   E.g. "cpu/cpu-cycles,overwrite/,cpu/instructions,no-overwrite/"
+ *   Return -1
+ * - Some of the event set per-event term, but some not.
+ *   E.g. "cpu/cpu-cycles/,cpu/instructions,no-overwrite/"
+ *   Return -1
+ */
+static int perf_top__overwrite_check(struct perf_top *top)
+{
+	struct record_opts *opts = &top->record_opts;
+	struct perf_evlist *evlist = top->evlist;
+	struct perf_evsel_config_term *term;
+	struct list_head *config_terms;
+	struct perf_evsel *evsel;
+	int set, overwrite = -1;
+
+	evlist__for_each_entry(evlist, evsel) {
+		set = -1;
+		config_terms = &evsel->config_terms;
+		list_for_each_entry(term, config_terms, list) {
+			if (term->type == PERF_EVSEL__CONFIG_TERM_OVERWRITE)
+				set = term->val.overwrite ? 1 : 0;
+		}
+
+		/* no term for current and previous event (likely) */
+		if ((overwrite < 0) && (set < 0))
+			continue;
+
+		/* has term for both current and previous event, compare */
+		if ((overwrite >= 0) && (set >= 0) && (overwrite != set))
+			return -1;
+
+		/* no term for current event but has term for previous one */
+		if ((overwrite >= 0) && (set < 0))
+			return -1;
+
+		/* has term for current event */
+		if ((overwrite < 0) && (set >= 0)) {
+			/* if it's first event, set overwrite */
+			if (evsel == perf_evlist__first(evlist))
+				overwrite = set;
+			else
+				return -1;
+		}
+	}
+
+	if ((overwrite >= 0) && (opts->overwrite != overwrite))
+		opts->overwrite = overwrite;
+
+	return 0;
+}
+
 static int perf_top__start_counters(struct perf_top *top)
 {
 	char msg[BUFSIZ];
 	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
+
+	if (perf_top__overwrite_check(top)) {
+		ui__error("perf top only support consistent per-event "
+			  "overwrite setting for all events\n");
+		goto out_err;
+	}
+
+	if (opts->overwrite) {
+		ui__error("not support overwrite mode yet\n");
+		goto out_err;
+	}
 
 	perf_evlist__config(evlist, opts, &callchain_param);
 
