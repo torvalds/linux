@@ -610,9 +610,6 @@ static void btrfs_free_stale_devices(struct btrfs_device *cur_dev)
 	struct btrfs_fs_devices *fs_devs, *tmp_fs_devs;
 	struct btrfs_device *dev, *tmp_dev;
 
-	if (!cur_dev->name)
-		return;
-
 	list_for_each_entry_safe(fs_devs, tmp_fs_devs, &fs_uuids, list) {
 
 		if (fs_devs->opened)
@@ -620,11 +617,9 @@ static void btrfs_free_stale_devices(struct btrfs_device *cur_dev)
 
 		list_for_each_entry_safe(dev, tmp_dev,
 					 &fs_devs->devices, dev_list) {
-			int not_found;
+			int not_found = 0;
 
-			if (dev == cur_dev)
-				continue;
-			if (!dev->name)
+			if (cur_dev && (cur_dev == dev || !dev->name))
 				continue;
 
 			/*
@@ -634,8 +629,9 @@ static void btrfs_free_stale_devices(struct btrfs_device *cur_dev)
 			 * either use mapper or non mapper path throughout.
 			 */
 			rcu_read_lock();
-			not_found = strcmp(rcu_str_deref(dev->name),
-						rcu_str_deref(cur_dev->name));
+			if (cur_dev)
+				not_found = strcmp(rcu_str_deref(dev->name),
+						   rcu_str_deref(cur_dev->name));
 			rcu_read_unlock();
 			if (not_found)
 				continue;
