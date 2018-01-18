@@ -830,6 +830,35 @@ static ssize_t get_labels(const char __user *buffer, struct pktgen_dev *pkt_dev)
 	return i;
 }
 
+static __u32 pktgen_read_flag(const char *f, bool *disable)
+{
+	__u32 i;
+
+	if (f[0] == '!') {
+		*disable = true;
+		f++;
+	}
+
+	for (i = 0; i < NR_PKT_FLAGS; i++) {
+		if (!IS_ENABLED(CONFIG_XFRM) && i == IPSEC_SHIFT)
+			continue;
+
+		/* allow only disabling ipv6 flag */
+		if (!*disable && i == IPV6_SHIFT)
+			continue;
+
+		if (strcmp(f, pkt_flag_names[i]) == 0)
+			return 1 << i;
+	}
+
+	if (strcmp(f, "FLOW_RND") == 0) {
+		*disable = !*disable;
+		return F_FLOW_SEQ;
+	}
+
+	return 0;
+}
+
 static ssize_t pktgen_if_write(struct file *file,
 			       const char __user * user_buffer, size_t count,
 			       loff_t * offset)
@@ -1187,7 +1216,10 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "flag")) {
+		__u32 flag;
 		char f[32];
+		bool disable = false;
+
 		memset(f, 0, 32);
 		len = strn_len(&user_buffer[i], sizeof(f) - 1);
 		if (len < 0)
@@ -1196,113 +1228,15 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (copy_from_user(f, &user_buffer[i], len))
 			return -EFAULT;
 		i += len;
-		if (strcmp(f, "IPSRC_RND") == 0)
-			pkt_dev->flags |= F_IPSRC_RND;
 
-		else if (strcmp(f, "!IPSRC_RND") == 0)
-			pkt_dev->flags &= ~F_IPSRC_RND;
+		flag = pktgen_read_flag(f, &disable);
 
-		else if (strcmp(f, "TXSIZE_RND") == 0)
-			pkt_dev->flags |= F_TXSIZE_RND;
-
-		else if (strcmp(f, "!TXSIZE_RND") == 0)
-			pkt_dev->flags &= ~F_TXSIZE_RND;
-
-		else if (strcmp(f, "IPDST_RND") == 0)
-			pkt_dev->flags |= F_IPDST_RND;
-
-		else if (strcmp(f, "!IPDST_RND") == 0)
-			pkt_dev->flags &= ~F_IPDST_RND;
-
-		else if (strcmp(f, "UDPSRC_RND") == 0)
-			pkt_dev->flags |= F_UDPSRC_RND;
-
-		else if (strcmp(f, "!UDPSRC_RND") == 0)
-			pkt_dev->flags &= ~F_UDPSRC_RND;
-
-		else if (strcmp(f, "UDPDST_RND") == 0)
-			pkt_dev->flags |= F_UDPDST_RND;
-
-		else if (strcmp(f, "!UDPDST_RND") == 0)
-			pkt_dev->flags &= ~F_UDPDST_RND;
-
-		else if (strcmp(f, "MACSRC_RND") == 0)
-			pkt_dev->flags |= F_MACSRC_RND;
-
-		else if (strcmp(f, "!MACSRC_RND") == 0)
-			pkt_dev->flags &= ~F_MACSRC_RND;
-
-		else if (strcmp(f, "MACDST_RND") == 0)
-			pkt_dev->flags |= F_MACDST_RND;
-
-		else if (strcmp(f, "!MACDST_RND") == 0)
-			pkt_dev->flags &= ~F_MACDST_RND;
-
-		else if (strcmp(f, "MPLS_RND") == 0)
-			pkt_dev->flags |= F_MPLS_RND;
-
-		else if (strcmp(f, "!MPLS_RND") == 0)
-			pkt_dev->flags &= ~F_MPLS_RND;
-
-		else if (strcmp(f, "VID_RND") == 0)
-			pkt_dev->flags |= F_VID_RND;
-
-		else if (strcmp(f, "!VID_RND") == 0)
-			pkt_dev->flags &= ~F_VID_RND;
-
-		else if (strcmp(f, "SVID_RND") == 0)
-			pkt_dev->flags |= F_SVID_RND;
-
-		else if (strcmp(f, "!SVID_RND") == 0)
-			pkt_dev->flags &= ~F_SVID_RND;
-
-		else if (strcmp(f, "FLOW_SEQ") == 0 || strcmp(f, "!FLOW_RND") == 0)
-			pkt_dev->flags |= F_FLOW_SEQ;
-
-		else if (strcmp(f, "FLOW_RND") == 0 || strcmp(f, "!FLOW_SEQ") == 0)
-			pkt_dev->flags &= ~F_FLOW_SEQ;
-
-		else if (strcmp(f, "QUEUE_MAP_RND") == 0)
-			pkt_dev->flags |= F_QUEUE_MAP_RND;
-
-		else if (strcmp(f, "!QUEUE_MAP_RND") == 0)
-			pkt_dev->flags &= ~F_QUEUE_MAP_RND;
-
-		else if (strcmp(f, "QUEUE_MAP_CPU") == 0)
-			pkt_dev->flags |= F_QUEUE_MAP_CPU;
-
-		else if (strcmp(f, "!QUEUE_MAP_CPU") == 0)
-			pkt_dev->flags &= ~F_QUEUE_MAP_CPU;
-#ifdef CONFIG_XFRM
-		else if (strcmp(f, "IPSEC") == 0)
-			pkt_dev->flags |= F_IPSEC;
-
-		else if (strcmp(f, "!IPSEC") == 0)
-			pkt_dev->flags &= ~F_IPSEC;
-#endif
-
-		else if (strcmp(f, "!IPV6") == 0)
-			pkt_dev->flags &= ~F_IPV6;
-
-		else if (strcmp(f, "NODE_ALLOC") == 0)
-			pkt_dev->flags |= F_NODE;
-
-		else if (strcmp(f, "!NODE_ALLOC") == 0)
-			pkt_dev->flags &= ~F_NODE;
-
-		else if (strcmp(f, "UDPCSUM") == 0)
-			pkt_dev->flags |= F_UDPCSUM;
-
-		else if (strcmp(f, "!UDPCSUM") == 0)
-			pkt_dev->flags &= ~F_UDPCSUM;
-
-		else if (strcmp(f, "NO_TIMESTAMP") == 0)
-			pkt_dev->flags |= F_NO_TIMESTAMP;
-
-		else if (strcmp(f, "!NO_TIMESTAMP") == 0)
-			pkt_dev->flags &= ~F_NO_TIMESTAMP;
-
-		else {
+		if (flag) {
+			if (disable)
+				pkt_dev->flags &= ~flag;
+			else
+				pkt_dev->flags |= flag;
+		} else {
 			sprintf(pg_result,
 				"Flag -:%s:- unknown\nAvailable flags, (prepend ! to un-set flag):\n%s",
 				f,
