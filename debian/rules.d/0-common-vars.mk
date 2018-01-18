@@ -232,7 +232,7 @@ kmake = make ARCH=$(build_arch) \
 	LOCALVERSION= localver-extra= \
 	CFLAGS_MODULE="-DPKG_ABI=$(abinum)"
 ifneq ($(LOCAL_ENV_CC),)
-kmake += CC=$(LOCAL_ENV_CC) DISTCC_HOSTS=$(LOCAL_ENV_DISTCC_HOSTS)
+kmake += CC="$(LOCAL_ENV_CC)" DISTCC_HOSTS="$(LOCAL_ENV_DISTCC_HOSTS)"
 endif
 
 # Locking is required in parallel builds to prevent loss of contents
