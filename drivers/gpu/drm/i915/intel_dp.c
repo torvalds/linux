@@ -5184,12 +5184,14 @@ bool intel_dp_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 {
 	ssize_t ret;
 	u8 bstatus;
+
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BSTATUS,
 			       &bstatus, 1);
 	if (ret != 1) {
 		DRM_ERROR("Read bstatus from DP/AUX failed (%zd)\n", ret);
-		return ret >= 0 ? -EIO : ret;
+		return false;
 	}
+
 	return !(bstatus & (DP_BSTATUS_LINK_FAILURE | DP_BSTATUS_REAUTH_REQ));
 }
 
