@@ -413,6 +413,61 @@ int bpf_map_offload_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	return ret;
 }
 
+struct ns_get_path_bpf_map_args {
+	struct bpf_offloaded_map *offmap;
+	struct bpf_map_info *info;
+};
+
+static struct ns_common *bpf_map_offload_info_fill_ns(void *private_data)
+{
+	struct ns_get_path_bpf_map_args *args = private_data;
+	struct ns_common *ns;
+	struct net *net;
+
+	rtnl_lock();
+	down_read(&bpf_devs_lock);
+
+	if (args->offmap->netdev) {
+		args->info->ifindex = args->offmap->netdev->ifindex;
+		net = dev_net(args->offmap->netdev);
+		get_net(net);
+		ns = &net->ns;
+	} else {
+		args->info->ifindex = 0;
+		ns = NULL;
+	}
+
+	up_read(&bpf_devs_lock);
+	rtnl_unlock();
+
+	return ns;
+}
+
+int bpf_map_offload_info_fill(struct bpf_map_info *info, struct bpf_map *map)
+{
+	struct ns_get_path_bpf_map_args args = {
+		.offmap	= map_to_offmap(map),
+		.info	= info,
+	};
+	struct inode *ns_inode;
+	struct path ns_path;
+	void *res;
+
+	res = ns_get_path_cb(&ns_path, bpf_map_offload_info_fill_ns, &args);
+	if (IS_ERR(res)) {
+		if (!info->ifindex)
+			return -ENODEV;
+		return PTR_ERR(res);
+	}
+
+	ns_inode = ns_path.dentry->d_inode;
+	info->netns_dev = new_encode_dev(ns_inode->i_sb->s_dev);
+	info->netns_ino = ns_inode->i_ino;
+	path_put(&ns_path);
+
+	return 0;
+}
+
 bool bpf_offload_dev_match(struct bpf_prog *prog, struct bpf_map *map)
 {
 	struct bpf_offloaded_map *offmap;
