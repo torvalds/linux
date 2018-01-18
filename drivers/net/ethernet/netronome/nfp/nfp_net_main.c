@@ -570,17 +570,6 @@ err_unmap_ctrl:
 	return err;
 }
 
-static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
-{
-	nfp_net_pf_app_stop(pf);
-	/* stop app first, to avoid double free of ctrl vNIC's ddir */
-	nfp_net_debugfs_dir_clean(&pf->ddir);
-
-	nfp_net_pf_free_irqs(pf);
-	nfp_net_pf_app_clean(pf);
-	nfp_net_pci_unmap_mem(pf);
-}
-
 static int
 nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 			struct nfp_eth_table *eth_table)
@@ -654,9 +643,6 @@ int nfp_net_refresh_port_table_sync(struct nfp_pf *pf)
 		nfp_net_pf_clean_vnic(pf, nn);
 		nfp_net_pf_free_vnic(pf, nn);
 	}
-
-	if (list_empty(&pf->vnics))
-		nfp_net_pci_remove_finish(pf);
 
 	return 0;
 }
@@ -810,20 +796,24 @@ err_unlock:
 
 void nfp_net_pci_remove(struct nfp_pf *pf)
 {
-	struct nfp_net *nn;
+	struct nfp_net *nn, *next;
 
 	mutex_lock(&pf->lock);
-	if (list_empty(&pf->vnics))
-		goto out;
+	list_for_each_entry_safe(nn, next, &pf->vnics, vnic_list) {
+		if (!nfp_net_is_data_vnic(nn))
+			continue;
+		nfp_net_pf_clean_vnic(pf, nn);
+		nfp_net_pf_free_vnic(pf, nn);
+	}
 
-	list_for_each_entry(nn, &pf->vnics, vnic_list)
-		if (nfp_net_is_data_vnic(nn))
-			nfp_net_pf_clean_vnic(pf, nn);
+	nfp_net_pf_app_stop(pf);
+	/* stop app first, to avoid double free of ctrl vNIC's ddir */
+	nfp_net_debugfs_dir_clean(&pf->ddir);
 
-	nfp_net_pf_free_vnics(pf);
+	nfp_net_pf_free_irqs(pf);
+	nfp_net_pf_app_clean(pf);
+	nfp_net_pci_unmap_mem(pf);
 
-	nfp_net_pci_remove_finish(pf);
-out:
 	mutex_unlock(&pf->lock);
 
 	cancel_work_sync(&pf->port_refresh_work);
