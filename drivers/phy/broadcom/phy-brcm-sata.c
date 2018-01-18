@@ -511,7 +511,6 @@ static int brcm_sata_phy_init(struct phy *phy)
 static void brcm_stb_sata_calibrate(struct brcm_sata_port *port)
 {
 	void __iomem *base = brcm_sata_pcb_base(port);
-	struct brcm_sata_phy *priv = port->phy_priv;
 	u32 tmp = BIT(8);
 
 	brcm_sata_phy_wr(base, RXPMD_REG_BANK, RXPMD_RX_FREQ_MON_CONTROL1,
