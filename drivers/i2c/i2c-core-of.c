@@ -4,7 +4,7 @@
  * Copyright (C) 2008 Jochen Friedrich <jochen@scram.de>
  * based on a previous patch from Jon Smirl <jonsmirl@gmail.com>
  *
- * Copyright (C) 2013 Wolfram Sang <wsa@the-dreams.de>
+ * Copyright (C) 2013, 2018 Wolfram Sang <wsa@the-dreams.de>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -28,9 +28,8 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	struct i2c_client *client;
 	struct i2c_board_info info = {};
 	struct dev_archdata dev_ad = {};
-	const __be32 *addr_be;
 	u32 addr;
-	int len;
+	int ret;
 
 	dev_dbg(&adap->dev, "of_i2c: register %pOF\n", node);
 
@@ -40,13 +39,12 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 		return ERR_PTR(-EINVAL);
 	}
 
-	addr_be = of_get_property(node, "reg", &len);
-	if (!addr_be || (len < sizeof(*addr_be))) {
+	ret = of_property_read_u32(node, "reg", &addr);
+	if (ret) {
 		dev_err(&adap->dev, "of_i2c: invalid reg on %pOF\n", node);
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(ret);
 	}
 
-	addr = be32_to_cpup(addr_be);
 	if (addr & I2C_TEN_BIT_ADDRESS) {
 		addr &= ~I2C_TEN_BIT_ADDRESS;
 		info.flags |= I2C_CLIENT_TEN;
