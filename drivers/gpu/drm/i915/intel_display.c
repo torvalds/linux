@@ -12519,7 +12519,13 @@ static int do_rps_boost(struct wait_queue_entry *_wait,
 	struct wait_rps_boost *wait = container_of(_wait, typeof(*wait), wait);
 	struct drm_i915_gem_request *rq = wait->request;
 
-	gen6_rps_boost(rq, NULL);
+	/*
+	 * If we missed the vblank, but the request is already running it
+	 * is reasonable to assume that it will complete before the next
+	 * vblank without our intervention, so leave RPS alone.
+	 */
+	if (!i915_gem_request_started(rq))
+		gen6_rps_boost(rq, NULL);
 	i915_gem_request_put(rq);
 
 	drm_crtc_vblank_put(wait->crtc);

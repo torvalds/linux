@@ -369,7 +369,8 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 	if (i915_gem_request_completed(rq))
 		goto out;
 
-	/* This client is about to stall waiting for the GPU. In many cases
+	/*
+	 * This client is about to stall waiting for the GPU. In many cases
 	 * this is undesirable and limits the throughput of the system, as
 	 * many clients cannot continue processing user input/output whilst
 	 * blocked. RPS autotuning may take tens of milliseconds to respond
@@ -384,11 +385,9 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 	 * forcing the clocks too high for the whole system, we only allow
 	 * each client to waitboost once in a busy period.
 	 */
-	if (rps_client) {
+	if (rps_client && !i915_gem_request_started(rq)) {
 		if (INTEL_GEN(rq->i915) >= 6)
 			gen6_rps_boost(rq, rps_client);
-		else
-			rps_client = NULL;
 	}
 
 	timeout = i915_wait_request(rq, flags, timeout);

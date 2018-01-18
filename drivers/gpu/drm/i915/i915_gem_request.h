@@ -329,6 +329,19 @@ i915_gem_request_completed(const struct drm_i915_gem_request *req)
 	return __i915_gem_request_completed(req, seqno);
 }
 
+static inline bool
+i915_gem_request_started(const struct drm_i915_gem_request *req)
+{
+	u32 seqno;
+
+	seqno = i915_gem_request_global_seqno(req);
+	if (!seqno)
+		return false;
+
+	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
+				 seqno - 1);
+}
+
 static inline bool i915_priotree_signaled(const struct i915_priotree *pt)
 {
 	const struct drm_i915_gem_request *rq =
