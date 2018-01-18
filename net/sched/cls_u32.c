@@ -765,11 +765,12 @@ static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
 static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			 unsigned long base, struct tc_u_hnode *ht,
 			 struct tc_u_knode *n, struct nlattr **tb,
-			 struct nlattr *est, bool ovr)
+			 struct nlattr *est, bool ovr,
+			 struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr, extack);
 	if (err < 0)
 		return err;
 
@@ -937,7 +938,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 
 		err = u32_set_parms(net, tp, base,
 				    rtnl_dereference(n->ht_up), new, tb,
-				    tca[TCA_RATE], ovr);
+				    tca[TCA_RATE], ovr, extack);
 
 		if (err) {
 			u32_destroy_key(tp, new, false);
@@ -1084,7 +1085,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	}
 #endif
 
-	err = u32_set_parms(net, tp, base, ht, n, tb, tca[TCA_RATE], ovr);
+	err = u32_set_parms(net, tp, base, ht, n, tb, tca[TCA_RATE], ovr,
+			    extack);
 	if (err == 0) {
 		struct tc_u_knode __rcu **ins;
 		struct tc_u_knode *pins;

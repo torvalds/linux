@@ -827,11 +827,12 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 			struct cls_fl_filter *f, struct fl_flow_mask *mask,
 			unsigned long base, struct nlattr **tb,
-			struct nlattr *est, bool ovr)
+			struct nlattr *est, bool ovr,
+			struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr, extack);
 	if (err < 0)
 		return err;
 
@@ -916,7 +917,8 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		}
 	}
 
-	err = fl_set_parms(net, tp, fnew, &mask, base, tb, tca[TCA_RATE], ovr);
+	err = fl_set_parms(net, tp, fnew, &mask, base, tb, tca[TCA_RATE], ovr,
+			   extack);
 	if (err)
 		goto errout_idr;
 

@@ -454,7 +454,8 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto err2;
 
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &fnew->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &fnew->exts, ovr,
+				extack);
 	if (err < 0)
 		goto err2;
 

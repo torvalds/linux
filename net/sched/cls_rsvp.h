@@ -511,7 +511,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	err = tcf_exts_init(&e, TCA_RSVP_ACT, TCA_RSVP_POLICE);
 	if (err < 0)
 		return err;
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr, extack);
 	if (err < 0)
 		goto errout2;
 

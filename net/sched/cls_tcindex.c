@@ -322,7 +322,7 @@ static int
 tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		  u32 handle, struct tcindex_data *p,
 		  struct tcindex_filter_result *r, struct nlattr **tb,
-		  struct nlattr *est, bool ovr)
+		  struct nlattr *est, bool ovr, struct netlink_ext_ack *extack)
 {
 	struct tcindex_filter_result new_filter_result, *old_r = r;
 	struct tcindex_filter_result cr;
@@ -334,7 +334,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	err = tcf_exts_init(&e, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
 	if (err < 0)
 		return err;
-	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr, extack);
 	if (err < 0)
 		goto errout;
 
@@ -541,7 +541,7 @@ tcindex_change(struct net *net, struct sk_buff *in_skb,
 		return err;
 
 	return tcindex_set_parms(net, tp, base, handle, p, r, tb,
-				 tca[TCA_RATE], ovr);
+				 tca[TCA_RATE], ovr, extack);
 }
 
 static void tcindex_walk(struct tcf_proto *tp, struct tcf_walker *walker)

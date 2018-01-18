@@ -142,11 +142,12 @@ static const struct nla_policy mall_policy[TCA_MATCHALL_MAX + 1] = {
 static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 			  struct cls_mall_head *head,
 			  unsigned long base, struct nlattr **tb,
-			  struct nlattr *est, bool ovr)
+			  struct nlattr *est, bool ovr,
+			  struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &head->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, est, &head->exts, ovr, extack);
 	if (err < 0)
 		return err;
 
@@ -198,7 +199,8 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	new->handle = handle;
 	new->flags = flags;
 
-	err = mall_set_parms(net, tp, new, base, tb, tca[TCA_RATE], ovr);
+	err = mall_set_parms(net, tp, new, base, tb, tca[TCA_RATE], ovr,
+			     extack);
 	if (err)
 		goto err_set_parms;
 
