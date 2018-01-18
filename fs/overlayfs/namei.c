@@ -107,7 +107,7 @@ static int ovl_acceptable(void *ctx, struct dentry *dentry)
  * Return -ENODATA for "origin unknown".
  * Return <0 for an invalid file handle.
  */
-static int ovl_check_fh_len(struct ovl_fh *fh, int fh_len)
+int ovl_check_fh_len(struct ovl_fh *fh, int fh_len)
 {
 	if (fh_len < sizeof(struct ovl_fh) || fh_len < fh->len)
 		return -EINVAL;
@@ -171,7 +171,7 @@ invalid:
 	goto out;
 }
 
-static struct dentry *ovl_decode_fh(struct ovl_fh *fh, struct vfsmount *mnt)
+struct dentry *ovl_decode_fh(struct ovl_fh *fh, struct vfsmount *mnt)
 {
 	struct dentry *real;
 	int bytes;
