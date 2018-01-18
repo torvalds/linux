@@ -40,15 +40,12 @@
 #include <lustre_lib.h>
 #include <lprocfs_status.h>
 
-#define OBD_STATFS_NODELAY      0x0001  /* requests should be send without delay
-					 * and resends for avoid deadlocks
-					 */
-#define OBD_STATFS_FROM_CACHE   0x0002  /* the statfs callback should not update
-					 * obd_osfs_age
-					 */
-#define OBD_STATFS_FOR_MDT0	0x0004	/* The statfs is only for retrieving
-					 * information from MDT0.
-					 */
+/* requests should be send without delay and resends for avoid deadlocks */
+#define OBD_STATFS_NODELAY      0x0001
+/* the statfs callback should not update obd_osfs_age */
+#define OBD_STATFS_FROM_CACHE   0x0002
+/* the statfs is only for retrieving information from MDT0 */
+#define OBD_STATFS_FOR_MDT0	0x0004
 
 /* OBD Device Declarations */
 extern struct obd_device *obd_devs[MAX_OBD_DEVICES];
@@ -137,7 +134,7 @@ int class_config_llog_handler(const struct lu_env *env,
 			      struct llog_rec_hdr *rec, void *data);
 int class_add_uuid(const char *uuid, __u64 nid);
 
-/*obdecho*/
+/* obdecho */
 void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars);
 
 #define CFG_F_START     0x01   /* Set when we start updating from a log */
@@ -182,7 +179,8 @@ struct config_llog_data {
 	struct obd_export	  *cld_mgcexp;
 	struct mutex		    cld_lock;
 	int			 cld_type;
-	unsigned int		cld_stopping:1, /* we were told to stop
+	unsigned int		cld_stopping:1, /*
+						 * we were told to stop
 						 * watching
 						 */
 				cld_lostlock:1; /* lock not requeued */
@@ -301,7 +299,8 @@ void obdo_to_ioobj(const struct obdo *oa, struct obd_ioobj *ioobj);
 #define MDP(dev, op)    (dev)->obd_type->typ_md_ops->op
 #define CTXTP(ctxt, op) (ctxt)->loc_logops->lop_##op
 
-/* Ensure obd_setup: used for cleanup which must be called
+/*
+ * Ensure obd_setup: used for cleanup which must be called
  * while obd is stopping
  */
 static inline int obd_check_dev(struct obd_device *obd)
@@ -588,7 +587,8 @@ static inline int obd_cleanup(struct obd_device *obd)
 
 static inline void obd_cleanup_client_import(struct obd_device *obd)
 {
-	/* If we set up but never connected, the
+	/*
+	 * If we set up but never connected, the
 	 * client import will not have been cleaned.
 	 */
 	down_write(&obd->u.cli.cl_sem);
@@ -727,7 +727,8 @@ static inline struct obd_uuid *obd_get_uuid(struct obd_export *exp)
 	return uuid;
 }
 
-/** Create a new /a exp on device /a obd for the uuid /a cluuid
+/*
+ * Create a new /a exp on device /a obd for the uuid /a cluuid
  * @param exp New export handle
  * @param d Connect data, supported flags are set, flags also understood
  *    by obd are returned.
@@ -739,7 +740,8 @@ static inline int obd_connect(const struct lu_env *env,
 			      void *localdata)
 {
 	int rc;
-	__u64 ocf = data ? data->ocd_connect_flags : 0; /* for post-condition
+	__u64 ocf = data ? data->ocd_connect_flags : 0; /*
+							 * for post-condition
 							 * check
 							 */
 
@@ -908,7 +910,8 @@ static inline int obd_destroy_export(struct obd_export *exp)
 	return 0;
 }
 
-/* @max_age is the oldest time in jiffies that we accept using a cached data.
+/*
+ * @max_age is the oldest time in jiffies that we accept using a cached data.
  * If the cache is older than @max_age we will get a new value from the
  * target.  Use a value of "cfs_time_current() + HZ" to guarantee freshness.
  */
@@ -969,7 +972,8 @@ static inline int obd_statfs_rqset(struct obd_export *exp,
 	return rc;
 }
 
-/* @max_age is the oldest time in jiffies that we accept using a cached data.
+/*
+ * @max_age is the oldest time in jiffies that we accept using a cached data.
  * If the cache is older than @max_age we will get a new value from the
  * target.  Use a value of "cfs_time_current() + HZ" to guarantee freshness.
  */
@@ -1133,7 +1137,8 @@ static inline int obd_quotactl(struct obd_export *exp,
 static inline int obd_health_check(const struct lu_env *env,
 				   struct obd_device *obd)
 {
-	/* returns: 0 on healthy
+	/*
+	 * returns: 0 on healthy
 	 *	 >0 on unhealthy + reason code/flag
 	 *	    however the only supported reason == 1 right now
 	 *	    We'll need to define some better reasons
@@ -1506,7 +1511,8 @@ static inline int md_get_fid_from_lsm(struct obd_export *exp,
 	return rc;
 }
 
-/* Unpack an MD struct from disk to in-memory format.
+/*
+ * Unpack an MD struct from disk to in-memory format.
  * Returns +ve size of unpacked MD (0 for free), or -ve error.
  *
  * If *plsm != NULL and lmm == NULL then *lsm will be freed.
@@ -1542,7 +1548,8 @@ struct lwp_register_item {
 	char		    lri_name[MTI_NAME_MAXLEN];
 };
 
-/* I'm as embarrassed about this as you are.
+/*
+ * I'm as embarrassed about this as you are.
  *
  * <shaver> // XXX do not look into _superhack with remaining eye
  * <shaver> // XXX if this were any uglier, I'd get my own show on MTV
