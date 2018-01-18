@@ -34,16 +34,25 @@
 
 #include "i915_drv.h"
 
-static const char *engine_str(int engine)
+static inline const struct intel_engine_cs *
+engine_lookup(const struct drm_i915_private *i915, unsigned int id)
 {
-	switch (engine) {
-	case RCS: return "render";
-	case VCS: return "bsd";
-	case BCS: return "blt";
-	case VECS: return "vebox";
-	case VCS2: return "bsd2";
-	default: return "";
-	}
+	if (id >= I915_NUM_ENGINES)
+		return NULL;
+
+	return i915->engine[id];
+}
+
+static inline const char *
+__engine_name(const struct intel_engine_cs *engine)
+{
+	return engine ? engine->name : "";
+}
+
+static const char *
+engine_name(const struct drm_i915_private *i915, unsigned int id)
+{
+	return __engine_name(engine_lookup(i915, id));
 }
 
 static const char *tiling_flag(int tiling)
@@ -345,7 +354,7 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 		err_puts(m, purgeable_flag(err->purgeable));
 		err_puts(m, err->userptr ? " userptr" : "");
 		err_puts(m, err->engine != -1 ? " " : "");
-		err_puts(m, engine_str(err->engine));
+		err_puts(m, engine_name(m->i915, err->engine));
 		err_puts(m, i915_cache_level_str(m->i915, err->cache_level));
 
 		if (err->name)
@@ -415,7 +424,8 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 {
 	int n;
 
-	err_printf(m, "%s command stream:\n", engine_str(ee->engine_id));
+	err_printf(m, "%s command stream:\n",
+		   engine_name(m->i915, ee->engine_id));
 	err_printf(m, "  IDLE?: %s\n", yesno(ee->idle));
 	err_printf(m, "  START: 0x%08x\n", ee->start);
 	err_printf(m, "  HEAD:  0x%08x [0x%08x]\n", ee->head, ee->rq_head);
@@ -635,7 +645,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		if (error->engine[i].hangcheck_stalled &&
 		    error->engine[i].context.pid) {
 			err_printf(m, "Active process (on ring %s): %s [%d], score %d\n",
-				   engine_str(i),
+				   engine_name(m->i915, i),
 				   error->engine[i].context.comm,
 				   error->engine[i].context.pid,
 				   error->engine[i].context.ban_score);
