@@ -42,7 +42,9 @@ Module.symvers
 arch/arm/boot/zImage-dtb
 uImage
 *.rej
+build.log
 u-boot/
+uboot/
 
 #
 # Top-level generic files
