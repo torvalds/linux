@@ -618,8 +618,6 @@ static void btrfs_free_stale_device(struct btrfs_device *cur_dev)
 
 		if (fs_devs->opened)
 			continue;
-		if (fs_devs->seeding)
-			continue;
 
 		list_for_each_entry(dev, &fs_devs->devices, dev_list) {
 
