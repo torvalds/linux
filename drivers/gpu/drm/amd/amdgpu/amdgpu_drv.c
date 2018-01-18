@@ -74,9 +74,10 @@
  * - 3.22.0 - Add DRM_AMDGPU_SCHED ioctl
  * - 3.23.0 - Add query for VRAM lost counter
  * - 3.24.0 - Add high priority compute support for gfx9
+ * - 3.25.0 - Add support for sensor query info (stable pstate sclk/mclk).
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	24
+#define KMS_DRIVER_MINOR	25
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
