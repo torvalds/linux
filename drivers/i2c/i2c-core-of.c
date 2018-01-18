@@ -64,8 +64,8 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	}
 
 	info.addr = addr;
-	info.of_node = of_node_get(node);
 	info.archdata = &dev_ad;
+	info.of_node = of_node_get(node);
 
 	if (of_property_read_bool(node, "host-notify"))
 		info.flags |= I2C_CLIENT_HOST_NOTIFY;
