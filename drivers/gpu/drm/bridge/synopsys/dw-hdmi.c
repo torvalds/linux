@@ -2627,6 +2627,7 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 		hdmi->hdmi_data.video_mode.mpixelclock = mode->clock;
 		hdmi->hdmi_data.video_mode.previous_pixelclock = mode->clock;
 		hdmi->hdmi_data.video_mode.previous_tmdsclock = mode->clock;
+		hdmi->mc_clkdis = hdmi_readb(hdmi, HDMI_MC_CLKDIS);
 		hdmi->phy.enabled = true;
 		return;
 	}
