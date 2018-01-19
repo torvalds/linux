@@ -3345,19 +3345,16 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 	struct mlx5_ib_event_work *work;
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (work) {
-		INIT_WORK(&work->work, mlx5_ib_handle_event);
-		work->dev = dev;
-		work->param = param;
-		work->context = context;
-		work->event = event;
-
-		queue_work(mlx5_ib_event_wq, &work->work);
+	if (!work)
 		return;
-	}
 
-	dev_warn(&dev->pdev->dev, "%s: mlx5_dev_event: %d, with param: %lu dropped, couldn't allocate memory.\n",
-		 __func__, event, param);
+	INIT_WORK(&work->work, mlx5_ib_handle_event);
+	work->dev = dev;
+	work->param = param;
+	work->context = context;
+	work->event = event;
+
+	queue_work(mlx5_ib_event_wq, &work->work);
 }
 
 static int set_has_smi_cap(struct mlx5_ib_dev *dev)
