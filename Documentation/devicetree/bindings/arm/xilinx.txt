@@ -19,6 +19,15 @@ Required root node properties:
 
 Additional compatible strings:
 
+- Xilinx internal board zc1232
+  "xlnx,zynqmp-zc1232-revA", "xlnx,zynqmp-zc1232"
+
+- Xilinx internal board zc1254
+  "xlnx,zynqmp-zc1254-revA", "xlnx,zynqmp-zc1254"
+
+- Xilinx internal board zc1275
+  "xlnx,zynqmp-zc1275-revA", "xlnx,zynqmp-zc1275"
+
 - Xilinx 96boards compatible board zcu100
   "xlnx,zynqmp-zcu100-revC", "xlnx,zynqmp-zcu100"
 
