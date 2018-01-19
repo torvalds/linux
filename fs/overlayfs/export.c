@@ -163,26 +163,31 @@ static int ovl_encode_inode_fh(struct inode *inode, u32 *fid, int *max_len,
 }
 
 /*
- * Find or instantiate an overlay dentry from real dentries.
+ * Find or instantiate an overlay dentry from real dentries and index.
  */
 static struct dentry *ovl_obtain_alias(struct super_block *sb,
-				       struct dentry *upper,
-				       struct ovl_path *lowerpath)
+				       struct dentry *upper_alias,
+				       struct ovl_path *lowerpath,
+				       struct dentry *index)
 {
 	struct dentry *lower = lowerpath ? lowerpath->dentry : NULL;
+	struct dentry *upper = upper_alias ?: index;
 	struct dentry *dentry;
 	struct inode *inode;
 	struct ovl_entry *oe;
 
-	/* TODO: obtain an indexed non-dir upper with origin */
-	if (lower && (upper || d_is_dir(lower)))
+	/* We get overlay directory dentries with ovl_lookup_real() */
+	if (d_is_dir(upper ?: lower))
 		return ERR_PTR(-EIO);
 
-	inode = ovl_get_inode(sb, dget(upper), lower, NULL, !!lower);
+	inode = ovl_get_inode(sb, dget(upper), lower, index, !!lower);
 	if (IS_ERR(inode)) {
 		dput(upper);
 		return ERR_CAST(inode);
 	}
+
+	if (index)
+		ovl_set_flag(OVL_INDEX, inode);
 
 	dentry = d_find_any_alias(inode);
 	if (!dentry) {
@@ -198,7 +203,7 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 			oe->lowerstack->layer = lowerpath->layer;
 		}
 		dentry->d_fsdata = oe;
-		if (upper)
+		if (upper_alias)
 			ovl_dentry_set_upper_alias(dentry);
 	}
 
@@ -377,32 +382,27 @@ fail:
 }
 
 /*
- * Get an overlay dentry from upper/lower real dentries.
+ * Get an overlay dentry from upper/lower real dentries and index.
  */
 static struct dentry *ovl_get_dentry(struct super_block *sb,
 				     struct dentry *upper,
-				     struct ovl_path *lowerpath)
+				     struct ovl_path *lowerpath,
+				     struct dentry *index)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 	struct ovl_layer upper_layer = { .mnt = ofs->upper_mnt };
+	struct dentry *real = upper ?: (index ?: lowerpath->dentry);
 
 	/*
-	 * Obtain a disconnected overlay dentry from a disconnected non-dir
-	 * real lower dentry.
+	 * Obtain a disconnected overlay dentry from a non-dir real dentry
+	 * and index.
 	 */
-	if (!upper && !d_is_dir(lowerpath->dentry))
-		return ovl_obtain_alias(sb, NULL, lowerpath);
+	if (!d_is_dir(real))
+		return ovl_obtain_alias(sb, upper, lowerpath, index);
 
 	/* TODO: lookup connected dir from real lower dir */
 	if (!upper)
 		return ERR_PTR(-EACCES);
-
-	/*
-	 * Obtain a disconnected overlay dentry from a non-dir real upper
-	 * dentry.
-	 */
-	if (!d_is_dir(upper))
-		return ovl_obtain_alias(sb, upper, NULL);
 
 	/* Removed empty directory? */
 	if ((upper->d_flags & DCACHE_DISCONNECTED) || d_unhashed(upper))
@@ -429,7 +429,7 @@ static struct dentry *ovl_upper_fh_to_d(struct super_block *sb,
 	if (IS_ERR_OR_NULL(upper))
 		return upper;
 
-	dentry = ovl_get_dentry(sb, upper, NULL);
+	dentry = ovl_get_dentry(sb, upper, NULL, NULL);
 	dput(upper);
 
 	return dentry;
@@ -442,16 +442,37 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 	struct ovl_path origin = { };
 	struct ovl_path *stack = &origin;
 	struct dentry *dentry = NULL;
+	struct dentry *index = NULL;
 	int err;
 
+	/* First lookup indexed upper by fh */
+	if (ofs->indexdir) {
+		index = ovl_get_index_fh(ofs, fh);
+		err = PTR_ERR(index);
+		if (IS_ERR(index))
+			return ERR_PTR(err);
+	}
+
+	/* Then lookup origin by fh */
 	err = ovl_check_origin_fh(ofs, fh, NULL, &stack);
-	if (err)
-		return ERR_PTR(err);
+	if (err) {
+		goto out_err;
+	} else if (index) {
+		err = ovl_verify_origin(index, origin.dentry, false);
+		if (err)
+			goto out_err;
+	}
 
-	dentry = ovl_get_dentry(sb, NULL, &origin);
+	dentry = ovl_get_dentry(sb, NULL, &origin, index);
+
+out:
 	dput(origin.dentry);
-
+	dput(index);
 	return dentry;
+
+out_err:
+	dentry = ERR_PTR(err);
+	goto out;
 }
 
 static struct dentry *ovl_fh_to_dentry(struct super_block *sb, struct fid *fid,
