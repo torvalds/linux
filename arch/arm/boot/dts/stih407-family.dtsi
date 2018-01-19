@@ -385,8 +385,9 @@
 			status = "disabled";
 		};
 
-		usb2_picophy0: phy1 {
+		usb2_picophy0: phy1@0 {
 			compatible = "st,stih407-usb2-phy";
+			reg = <0 0>;
 			#phy-cells = <0>;
 			st,syscfg = <&syscfg_core 0x100 0xf4>;
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,

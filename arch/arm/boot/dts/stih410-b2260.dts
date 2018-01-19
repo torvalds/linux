@@ -127,11 +127,11 @@
 			status = "okay";
 		};
 
-		usb2_picophy1: phy2 {
+		usb2_picophy1: phy2@0 {
 			status = "okay";
 		};
 
-		usb2_picophy2: phy3 {
+		usb2_picophy2: phy3@0 {
 			status = "okay";
 		};
 
