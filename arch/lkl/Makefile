@@ -16,7 +16,8 @@ else
 $(error Unrecognized platform: $(OUTPUT_FORMAT))
 endif
 
-ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64-freebsd))
+ifeq ($(shell test ".$(OUTPUT_FORMAT)" = .elf64-x86-64-freebsd -a \
+                   ".$(CROSS_COMPILE)" = . &&  printf "true"), true)
 NPROC=$(shell sysctl -n hw.ncpu)
 else
 NPROC=$(shell nproc)

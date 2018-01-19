@@ -217,7 +217,7 @@ static lkl_thread_t thread_self(void)
 
 static int thread_equal(lkl_thread_t a, lkl_thread_t b)
 {
-	return pthread_equal(a, b);
+	return pthread_equal((pthread_t)a, (pthread_t)b);
 }
 
 static struct lkl_tls_key *tls_alloc(void (*destructor)(void *))

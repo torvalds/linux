@@ -10,7 +10,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/epoll.h>
 #else
 #include <windows.h>
 #endif

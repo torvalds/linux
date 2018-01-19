@@ -510,7 +510,7 @@ static inline struct lkl_netdev *lkl_netdev_raw_create(const char *ifname)
  * on host in advance
  * @offload - offload bits for the device
  */
-#ifdef LKL_HOST_CONFIG_VIRTIO_NET
+#ifdef LKL_HOST_CONFIG_VIRTIO_NET_MACVTAP
 struct lkl_netdev *lkl_netdev_macvtap_create(const char *path, int offload);
 #else
 static inline struct lkl_netdev *

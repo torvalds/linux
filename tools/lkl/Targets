@@ -1,6 +1,8 @@
 libs-y += lib/liblkl
 
+ifneq ($(LKL_HOST_CONFIG_BSD),y)
 libs-$(LKL_HOST_CONFIG_POSIX) += lib/hijack/liblkl-hijack
+endif
 LDFLAGS_lib/hijack/liblkl-hijack-y += -shared -nodefaultlibs
 LDLIBS_lib/hijack/liblkl-hijack-y += -ldl
 LDLIBS_lib/hijack/liblkl-hijack-$(LKL_HOST_CONFIG_ANDROID) += -lgcc -lc
