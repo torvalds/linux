@@ -927,9 +927,13 @@ void hwss_edp_backlight_control(
 	 * Enable it in the future if necessary.
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
+		/*edp 1.2*/
+	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
+		edp_receiver_ready_T7(link);
 	link_transmitter_control(ctx->dc_bios, &cntl);
 	/*edp 1.2*/
-	edp_receiver_ready_T9(link);
+	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_OFF)
+		edp_receiver_ready_T9(link);
 }
 
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
@@ -976,9 +980,6 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 		 */
 	}
 
-	/* blank at encoder level */
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
 
 	link->link_enc->funcs->connect_dig_be_to_fe(
 			link->link_enc,
