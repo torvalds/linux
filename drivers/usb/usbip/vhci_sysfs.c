@@ -34,10 +34,10 @@
 
 /*
  * output example:
- * hub port sta spd dev       sockfd    local_busid
- * hs  0000 004 000 00000000  3         1-2.3
+ * hub port sta spd dev       sockfd local_busid
+ * hs  0000 004 000 00000000  000003 1-2.3
  * ................................................
- * ss  0008 004 000 00000000  4         2-3.4
+ * ss  0008 004 000 00000000  000004 2-3.4
  * ................................................
  *
  * Output includes socket fd instead of socket pointer address to avoid
@@ -61,13 +61,13 @@ static void port_show_vhci(char **out, int hub, int port, struct vhci_device *vd
 	if (vdev->ud.status == VDEV_ST_USED) {
 		*out += sprintf(*out, "%03u %08x ",
 				      vdev->speed, vdev->devid);
-		*out += sprintf(*out, "%u %s",
+		*out += sprintf(*out, "%06u %s",
 				      vdev->ud.sockfd,
 				      dev_name(&vdev->udev->dev));
 
 	} else {
 		*out += sprintf(*out, "000 00000000 ");
-		*out += sprintf(*out, "0000000000000000 0-0");
+		*out += sprintf(*out, "000000 0-0");
 	}
 
 	*out += sprintf(*out, "\n");
@@ -165,7 +165,7 @@ static ssize_t status_show(struct device *dev,
 	int pdev_nr;
 
 	out += sprintf(out,
-		       "hub port sta spd dev      socket           local_busid\n");
+		       "hub port sta spd dev      sockfd local_busid\n");
 
 	pdev_nr = status_name_to_id(attr->attr.name);
 	if (pdev_nr < 0)
