@@ -3353,7 +3353,8 @@ static int vcodec_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(dev, "unsupported device type\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err;
 	}
 
 	pservice->secure_isr = false;
@@ -3374,13 +3375,16 @@ static int vcodec_probe(struct platform_device *pdev)
 
 		if (dev_pm_opp_of_add_table(dev)) {
 			dev_err(dev, "Invalid operating-points\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err;
 		}
 
 		pservice->devfreq = devm_devfreq_add_device(dev, devp,
 							    "userspace", NULL);
-		if (IS_ERR(pservice->devfreq))
-			return PTR_ERR(pservice->devfreq);
+		if (IS_ERR(pservice->devfreq)) {
+			ret = PTR_ERR(pservice->devfreq);
+			goto err;
+		}
 
 		stat = &pservice->devfreq->last_status;
 		stat->current_frequency = clk_get_rate(pservice->aclk_vcodec);
@@ -3388,7 +3392,7 @@ static int vcodec_probe(struct platform_device *pdev)
 
 		ret = devfreq_register_opp_notifier(dev, pservice->devfreq);
 		if (ret)
-			return ret;
+			goto err;
 	}
 
 	if (of_property_read_bool(np, "reg")) {
@@ -3412,10 +3416,11 @@ static int vcodec_probe(struct platform_device *pdev)
 	 * only has one global session, and will be
 	 * release when dev remove
 	 */
-	session = devm_kzalloc(dev, sizeof(*session), GFP_KERNEL);
+	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session) {
 		vpu_err("error: unable to allocate memory for vpu_session.");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	session->type	= VPU_TYPE_BUTT;
@@ -3435,8 +3440,11 @@ static int vcodec_probe(struct platform_device *pdev)
 
 		data = devm_kzalloc(dev, sizeof(struct vpu_subdev_data),
 				    GFP_KERNEL);
-		if (!data)
-			return -ENOMEM;
+		if (!data) {
+			vpu_err("error: unable to allocate memory for vpu_subdev_data");
+			ret = -ENOMEM;
+			goto err;
+		}
 
 		data->pservice = pservice;
 		platform_set_drvdata(pdev, data);
@@ -3475,6 +3483,7 @@ static int vcodec_probe(struct platform_device *pdev)
 
 err:
 	dev_info(dev, "init failed\n");
+	kfree(session);
 	destroy_workqueue(pservice->set_workq);
 	wake_lock_destroy(&pservice->wake_lock);
 
