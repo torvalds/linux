@@ -465,12 +465,14 @@ mt76x2_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76x2_dev *dev = hw->priv;
 	struct mt76x2_sta *msta = (struct mt76x2_sta *) sta->drv_priv;
 	struct ieee80211_txq *txq = sta->txq[params->tid];
-	struct mt76_txq *mtxq = (struct mt76_txq *) txq->drv_priv;
 	u16 tid = params->tid;
 	u16 *ssn = &params->ssn;
+	struct mt76_txq *mtxq;
 
 	if (!txq)
 		return -EINVAL;
+
+	mtxq = (struct mt76_txq *)txq->drv_priv;
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:

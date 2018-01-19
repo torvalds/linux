@@ -28,7 +28,9 @@
 #include "halbt_precomp.h"
 
 void rtl_btc_init_variables(struct rtl_priv *rtlpriv);
+void rtl_btc_deinit_variables(struct rtl_priv *rtlpriv);
 void rtl_btc_init_hal_vars(struct rtl_priv *rtlpriv);
+void rtl_btc_power_on_setting(struct rtl_priv *rtlpriv);
 void rtl_btc_init_hw_config(struct rtl_priv *rtlpriv);
 void rtl_btc_ips_notify(struct rtl_priv *rtlpriv, u8 type);
 void rtl_btc_lps_notify(struct rtl_priv *rtlpriv, u8 type);
@@ -37,7 +39,7 @@ void rtl_btc_connect_notify(struct rtl_priv *rtlpriv, u8 action);
 void rtl_btc_mediastatus_notify(struct rtl_priv *rtlpriv,
 				enum rt_media_status mstatus);
 void rtl_btc_periodical(struct rtl_priv *rtlpriv);
-void rtl_btc_halt_notify(void);
+void rtl_btc_halt_notify(struct rtl_priv *rtlpriv);
 void rtl_btc_btinfo_notify(struct rtl_priv *rtlpriv, u8 *tmpbuf, u8 length);
 void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length);
 bool rtl_btc_is_limited_dig(struct rtl_priv *rtlpriv);

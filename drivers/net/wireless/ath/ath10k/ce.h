@@ -321,6 +321,7 @@ struct ath10k_ce_ops {
 			      dma_addr_t buffer, u32 nbytes,
 			      u32 transfer_id, u32 flags);
 };
+
 static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 {
 	return CE0_BASE_ADDRESS + (CE1_BASE_ADDRESS - CE0_BASE_ADDRESS) * ce_id;
