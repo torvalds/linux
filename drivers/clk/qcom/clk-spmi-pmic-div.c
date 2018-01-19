@@ -245,6 +245,10 @@ static int spmi_pmic_clkdiv_probe(struct platform_device *pdev)
 	}
 	cxo_hz = clk_get_rate(cxo);
 	clk_put(cxo);
+	if (cxo_hz <= 0) {
+		dev_err(dev, "invalid CXO rate: %d\n", cxo_hz);
+		return -EINVAL;
+	}
 
 	parent_name = of_clk_get_parent_name(of_node, 0);
 	if (!parent_name) {
