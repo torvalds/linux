@@ -101,7 +101,6 @@ struct aq_stats_s {
 struct aq_hw_s {
 	atomic_t flags;
 	struct aq_nic_cfg_s *aq_nic_cfg;
-	struct aq_pci_func_s *aq_pci_func;
 	void __iomem *mmio;
 	unsigned int not_ff_addr;
 	struct aq_hw_link_status_s aq_link_status;
@@ -126,10 +125,6 @@ struct aq_nic_cfg_s;
 struct sk_buff;
 
 struct aq_hw_ops {
-	struct aq_hw_s *(*create)(struct aq_pci_func_s *aq_pci_func,
-				  unsigned int port);
-
-	void (*destroy)(struct aq_hw_s *self);
 
 	int (*hw_ring_tx_xmit)(struct aq_hw_s *self, struct aq_ring_s *aq_ring,
 			       unsigned int frags);

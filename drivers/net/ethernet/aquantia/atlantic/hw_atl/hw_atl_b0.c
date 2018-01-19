@@ -82,28 +82,6 @@ const struct aq_hw_caps_s hw_atl_b0_caps_aqc109 = {
 			  HW_ATL_B0_RATE_100M,
 };
 
-static struct aq_hw_s *hw_atl_b0_create(struct aq_pci_func_s *aq_pci_func,
-					unsigned int port)
-{
-	struct aq_hw_s *self = NULL;
-
-	self = kzalloc(sizeof(*self), GFP_KERNEL);
-	if (!self)
-		goto err_exit;
-
-	self->aq_pci_func = aq_pci_func;
-
-	self->not_ff_addr = 0x10U;
-
-err_exit:
-	return self;
-}
-
-static void hw_atl_b0_destroy(struct aq_hw_s *self)
-{
-	kfree(self);
-}
-
 static int hw_atl_b0_hw_reset(struct aq_hw_s *self)
 {
 	int err = 0;
@@ -981,8 +959,6 @@ err_exit:
 }
 
 const struct aq_hw_ops hw_atl_ops_b0 = {
-	.create               = hw_atl_b0_create,
-	.destroy              = hw_atl_b0_destroy,
 	.hw_get_mac_permanent = hw_atl_utils_get_mac_permanent,
 	.hw_set_mac_address   = hw_atl_b0_hw_mac_addr_set,
 	.hw_get_link_status   = hw_atl_utils_mpi_get_link_status,
