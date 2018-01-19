@@ -119,8 +119,10 @@ static int __init jailhouse_pci_arch_init(void)
 	/*
 	 * There are no bridges on the virtual PCI root bus under Jailhouse,
 	 * thus no other way to discover all devices than a full scan.
+	 * Respect any overrides via the command line, though.
 	 */
-	pcibios_last_bus = 0xff;
+	if (pcibios_last_bus < 0)
+		pcibios_last_bus = 0xff;
 
 	return 0;
 }
