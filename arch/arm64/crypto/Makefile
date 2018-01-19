@@ -20,6 +20,9 @@ sha512-ce-y := sha512-ce-glue.o sha512-ce-core.o
 obj-$(CONFIG_CRYPTO_SHA3_ARM64) += sha3-ce.o
 sha3-ce-y := sha3-ce-glue.o sha3-ce-core.o
 
+obj-$(CONFIG_CRYPTO_SM3_ARM64_CE) += sm3-ce.o
+sm3-ce-y := sm3-ce-glue.o sm3-ce-core.o
+
 obj-$(CONFIG_CRYPTO_GHASH_ARM64_CE) += ghash-ce.o
 ghash-ce-y := ghash-ce-glue.o ghash-ce-core.o
 
