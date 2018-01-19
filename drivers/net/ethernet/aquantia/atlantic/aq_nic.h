@@ -69,8 +69,7 @@ struct aq_nic_s {
 	unsigned int packet_filter;
 	unsigned int power_state;
 	u8 port;
-	struct aq_hw_ops aq_hw_ops;
-	struct aq_hw_caps_s aq_hw_caps;
+	const struct aq_hw_ops *aq_hw_ops;
 	struct aq_nic_cfg_s aq_nic_cfg;
 	struct timer_list service_timer;
 	struct timer_list polling_timer;
