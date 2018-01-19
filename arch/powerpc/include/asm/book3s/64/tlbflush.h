@@ -14,6 +14,7 @@ enum {
 	TLB_INVAL_SCOPE_LPID = 1,	/* invalidate TLBs for current LPID */
 };
 
+#ifdef CONFIG_PPC_NATIVE
 static inline void tlbiel_all(void)
 {
 	/*
@@ -29,6 +30,9 @@ static inline void tlbiel_all(void)
 	else
 		hash__tlbiel_all(TLB_INVAL_SCOPE_GLOBAL);
 }
+#else
+static inline void tlbiel_all(void) { BUG(); };
+#endif
 
 static inline void tlbiel_all_lpid(bool radix)
 {
