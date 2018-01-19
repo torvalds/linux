@@ -96,7 +96,8 @@ static struct mpp_ctx *rockchip_mpp_vepu_init(struct rockchip_mpp_dev *mpp,
 	if (extinf_len > 0) {
 		u32 ext_cpy = min_t(size_t, extinf_len, sizeof(ctx->ext_inf));
 
-		if (copy_from_user(&ctx->ext_inf, (u8 *)src + reg_len,
+		if (copy_from_user(&ctx->ext_inf, (u8 *)src +
+				   reg_len * sizeof(u32),
 				   ext_cpy)) {
 			mpp_err("copy_from_user failed when extra info\n");
 			kfree(ctx);
