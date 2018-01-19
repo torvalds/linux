@@ -31,9 +31,17 @@
 #define HW_ATL_MPI_SPEED_MSK    0xFFFF0000U
 #define HW_ATL_MPI_SPEED_SHIFT  16U
 
+#define HW_ATL_MPI_DAISY_CHAIN_STATUS	0x704
+#define HW_ATL_MPI_BOOT_EXIT_CODE	0x388
+
+#define HW_ATL_MAC_PHY_CONTROL	0x4000
+#define HW_ATL_MAC_PHY_MPI_RESET_BIT 0x1D
+
 #define HW_ATL_FW_VER_1X 0x01050006U
 #define HW_ATL_FW_VER_2X 0x02000000U
 #define HW_ATL_FW_VER_3X 0x03000000U
+
+#define FORCE_FLASHLESS 0
 
 static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
 
@@ -41,27 +49,190 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 {
 	int err = 0;
 
+	err = hw_atl_utils_soft_reset(self);
+	if (err)
+		return err;
+
 	hw_atl_utils_hw_chip_features_init(self,
 					   &self->chip_features);
 
 	hw_atl_utils_get_fw_version(self, &self->fw_ver_actual);
 
-	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X, self->fw_ver_actual) == 0)
+	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X,
+				   self->fw_ver_actual) == 0) {
 		*fw_ops = &aq_fw_1x_ops;
-	else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_2X,
-					self->fw_ver_actual) == 0)
+	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_2X,
+					self->fw_ver_actual) == 0) {
 		*fw_ops = &aq_fw_2x_ops;
-	else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_3X,
-					self->fw_ver_actual) == 0)
+	} else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_3X,
+					self->fw_ver_actual) == 0) {
 		*fw_ops = &aq_fw_2x_ops;
-	else {
+	} else {
 		aq_pr_err("Bad FW version detected: %x\n",
-		       self->fw_ver_actual);
+			  self->fw_ver_actual);
 		return -EOPNOTSUPP;
 	}
 	self->aq_fw_ops = *fw_ops;
 	err = self->aq_fw_ops->init(self);
 	return err;
+}
+
+static int hw_atl_utils_soft_reset_flb(struct aq_hw_s *self)
+{
+	int k = 0;
+	u32 gsr;
+
+	aq_hw_write_reg(self, 0x404, 0x40e1);
+	AQ_HW_SLEEP(50);
+
+	/* Cleanup SPI */
+	aq_hw_write_reg(self, 0x534, 0xA0);
+	aq_hw_write_reg(self, 0x100, 0x9F);
+	aq_hw_write_reg(self, 0x100, 0x809F);
+
+	gsr = aq_hw_read_reg(self, HW_ATL_GLB_SOFT_RES_ADR);
+	aq_hw_write_reg(self, HW_ATL_GLB_SOFT_RES_ADR, (gsr & 0xBFFF) | 0x8000);
+
+	/* Kickstart MAC */
+	aq_hw_write_reg(self, 0x404, 0x80e0);
+	aq_hw_write_reg(self, 0x32a8, 0x0);
+	aq_hw_write_reg(self, 0x520, 0x1);
+	AQ_HW_SLEEP(10);
+	aq_hw_write_reg(self, 0x404, 0x180e0);
+
+	for (k = 0; k < 1000; k++) {
+		u32 flb_status = aq_hw_read_reg(self,
+						HW_ATL_MPI_DAISY_CHAIN_STATUS);
+
+		flb_status = flb_status & 0x10;
+		if (flb_status)
+			break;
+		AQ_HW_SLEEP(10);
+	}
+	if (k == 1000) {
+		aq_pr_err("MAC kickstart failed\n");
+		return -EIO;
+	}
+
+	/* FW reset */
+	aq_hw_write_reg(self, 0x404, 0x80e0);
+	AQ_HW_SLEEP(50);
+	aq_hw_write_reg(self, 0x3a0, 0x1);
+
+	/* Kickstart PHY - skipped */
+
+	/* Global software reset*/
+	hw_atl_rx_rx_reg_res_dis_set(self, 0U);
+	hw_atl_tx_tx_reg_res_dis_set(self, 0U);
+	aq_hw_write_reg_bit(self, HW_ATL_MAC_PHY_CONTROL,
+			    BIT(HW_ATL_MAC_PHY_MPI_RESET_BIT),
+			    HW_ATL_MAC_PHY_MPI_RESET_BIT, 0x0);
+	gsr = aq_hw_read_reg(self, HW_ATL_GLB_SOFT_RES_ADR);
+	aq_hw_write_reg(self, HW_ATL_GLB_SOFT_RES_ADR, (gsr & 0xBFFF) | 0x8000);
+
+	for (k = 0; k < 1000; k++) {
+		u32 fw_state = aq_hw_read_reg(self, HW_ATL_MPI_FW_VERSION);
+
+		if (fw_state)
+			break;
+		AQ_HW_SLEEP(10);
+	}
+	if (k == 1000) {
+		aq_pr_err("FW kickstart failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
+{
+	u32 gsr, rbl_status;
+	int k;
+
+	aq_hw_write_reg(self, 0x404, 0x40e1);
+	aq_hw_write_reg(self, 0x3a0, 0x1);
+	aq_hw_write_reg(self, 0x32a8, 0x0);
+
+	/* Alter RBL status */
+	aq_hw_write_reg(self, 0x388, 0xDEAD);
+
+	/* Global software reset*/
+	hw_atl_rx_rx_reg_res_dis_set(self, 0U);
+	hw_atl_tx_tx_reg_res_dis_set(self, 0U);
+	aq_hw_write_reg_bit(self, HW_ATL_MAC_PHY_CONTROL,
+			    BIT(HW_ATL_MAC_PHY_MPI_RESET_BIT),
+			    HW_ATL_MAC_PHY_MPI_RESET_BIT, 0x0);
+	gsr = aq_hw_read_reg(self, HW_ATL_GLB_SOFT_RES_ADR);
+	aq_hw_write_reg(self, HW_ATL_GLB_SOFT_RES_ADR,
+			(gsr & 0xFFFFBFFF) | 0x8000);
+
+	if (FORCE_FLASHLESS)
+		aq_hw_write_reg(self, 0x534, 0x0);
+
+	aq_hw_write_reg(self, 0x404, 0x40e0);
+
+	/* Wait for RBL boot */
+	for (k = 0; k < 1000; k++) {
+		rbl_status = aq_hw_read_reg(self, 0x388) & 0xFFFF;
+		if (rbl_status && rbl_status != 0xDEAD)
+			break;
+		AQ_HW_SLEEP(10);
+	}
+	if (!rbl_status || rbl_status == 0xDEAD) {
+		aq_pr_err("RBL Restart failed");
+		return -EIO;
+	}
+
+	/* Restore NVR */
+	if (FORCE_FLASHLESS)
+		aq_hw_write_reg(self, 0x534, 0xA0);
+
+	if (rbl_status == 0xF1A7) {
+		aq_pr_err("No FW detected. Dynamic FW load not implemented\n");
+		return -ENOTSUPP;
+	}
+
+	for (k = 0; k < 1000; k++) {
+		u32 fw_state = aq_hw_read_reg(self, HW_ATL_MPI_FW_VERSION);
+
+		if (fw_state)
+			break;
+		AQ_HW_SLEEP(10);
+	}
+	if (k == 1000) {
+		aq_pr_err("FW kickstart failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int hw_atl_utils_soft_reset(struct aq_hw_s *self)
+{
+	int k;
+	u32 boot_exit_code = 0;
+
+	for (k = 0; k < 1000; ++k) {
+		u32 flb_status = aq_hw_read_reg(self,
+						HW_ATL_MPI_DAISY_CHAIN_STATUS);
+		boot_exit_code = aq_hw_read_reg(self,
+						HW_ATL_MPI_BOOT_EXIT_CODE);
+		if (flb_status != 0x06000000 || boot_exit_code != 0)
+			break;
+	}
+
+	if (k == 1000) {
+		aq_pr_err("Neither RBL nor FLB firmware started\n");
+		return -EOPNOTSUPP;
+	}
+
+	self->rbl_enabled = (boot_exit_code != 0);
+
+	if (self->rbl_enabled)
+		return hw_atl_utils_soft_reset_rbl(self);
+	else
+		return hw_atl_utils_soft_reset_flb(self);
 }
 
 int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
@@ -598,7 +769,7 @@ int hw_atl_utils_hw_get_regs(struct aq_hw_s *self,
 
 	for (i = 0; i < aq_hw_caps->mac_regs_count; i++)
 		regs_buff[i] = aq_hw_read_reg(self,
-			hw_atl_utils_hw_mac_regs[i]);
+					      hw_atl_utils_hw_mac_regs[i]);
 	return 0;
 }
 

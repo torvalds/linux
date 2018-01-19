@@ -87,32 +87,14 @@ static int hw_atl_b0_hw_reset(struct aq_hw_s *self)
 {
 	int err = 0;
 
-	hw_atl_glb_glb_reg_res_dis_set(self, 1U);
-	hw_atl_pci_pci_reg_res_dis_set(self, 0U);
-	hw_atl_rx_rx_reg_res_dis_set(self, 0U);
-	hw_atl_tx_tx_reg_res_dis_set(self, 0U);
-
-	HW_ATL_FLUSH();
-	hw_atl_glb_soft_res_set(self, 1);
-
-	/* check 10 times by 1ms */
-	AQ_HW_WAIT_FOR(hw_atl_glb_soft_res_get(self) == 0, 1000U, 10U);
-	if (err < 0)
-		goto err_exit;
-
-	hw_atl_itr_irq_reg_res_dis_set(self, 0U);
-	hw_atl_itr_res_irq_set(self, 1U);
-
-	/* check 10 times by 1ms */
-	AQ_HW_WAIT_FOR(hw_atl_itr_res_irq_get(self) == 0, 1000U, 10U);
-	if (err < 0)
-		goto err_exit;
+	err = hw_atl_utils_soft_reset(self);
+	if (err)
+		return err;
 
 	self->aq_fw_ops->set_state(self, MPI_RESET);
 
 	err = aq_hw_err_from_flags(self);
 
-err_exit:
 	return err;
 }
 

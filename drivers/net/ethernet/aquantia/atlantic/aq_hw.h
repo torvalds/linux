@@ -100,6 +100,7 @@ struct aq_stats_s {
 
 struct aq_hw_s {
 	atomic_t flags;
+	u8 rbl_enabled:1;
 	struct aq_nic_cfg_s *aq_nic_cfg;
 	const struct aq_fw_ops *aq_fw_ops;
 	void __iomem *mmio;
