@@ -3996,81 +3996,11 @@ void dwc2_hcd_dump_state(struct dwc2_hsotg *hsotg)
 		(p_tx_status & TXSTS_QSPCAVAIL_MASK) >> TXSTS_QSPCAVAIL_SHIFT);
 	dev_dbg(hsotg->dev, "  P Tx FIFO Space Avail: %d\n",
 		(p_tx_status & TXSTS_FSPCAVAIL_MASK) >> TXSTS_FSPCAVAIL_SHIFT);
-	dwc2_hcd_dump_frrem(hsotg);
 	dwc2_dump_global_registers(hsotg);
 	dwc2_dump_host_registers(hsotg);
 	dev_dbg(hsotg->dev,
 		"************************************************************\n");
 	dev_dbg(hsotg->dev, "\n");
-#endif
-}
-
-/*
- * NOTE: This function will be removed once the peripheral controller code
- * is integrated and the driver is stable
- */
-void dwc2_hcd_dump_frrem(struct dwc2_hsotg *hsotg)
-{
-#ifdef DWC2_DUMP_FRREM
-	dev_dbg(hsotg->dev, "Frame remaining at SOF:\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->frrem_samples, hsotg->frrem_accum,
-		hsotg->frrem_samples > 0 ?
-		hsotg->frrem_accum / hsotg->frrem_samples : 0);
-	dev_dbg(hsotg->dev, "\n");
-	dev_dbg(hsotg->dev, "Frame remaining at start_transfer (uframe 7):\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->hfnum_7_samples,
-		hsotg->hfnum_7_frrem_accum,
-		hsotg->hfnum_7_samples > 0 ?
-		hsotg->hfnum_7_frrem_accum / hsotg->hfnum_7_samples : 0);
-	dev_dbg(hsotg->dev, "Frame remaining at start_transfer (uframe 0):\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->hfnum_0_samples,
-		hsotg->hfnum_0_frrem_accum,
-		hsotg->hfnum_0_samples > 0 ?
-		hsotg->hfnum_0_frrem_accum / hsotg->hfnum_0_samples : 0);
-	dev_dbg(hsotg->dev, "Frame remaining at start_transfer (uframe 1-6):\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->hfnum_other_samples,
-		hsotg->hfnum_other_frrem_accum,
-		hsotg->hfnum_other_samples > 0 ?
-		hsotg->hfnum_other_frrem_accum / hsotg->hfnum_other_samples :
-		0);
-	dev_dbg(hsotg->dev, "\n");
-	dev_dbg(hsotg->dev, "Frame remaining at sample point A (uframe 7):\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->hfnum_7_samples_a, hsotg->hfnum_7_frrem_accum_a,
-		hsotg->hfnum_7_samples_a > 0 ?
-		hsotg->hfnum_7_frrem_accum_a / hsotg->hfnum_7_samples_a : 0);
-	dev_dbg(hsotg->dev, "Frame remaining at sample point A (uframe 0):\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->hfnum_0_samples_a, hsotg->hfnum_0_frrem_accum_a,
-		hsotg->hfnum_0_samples_a > 0 ?
-		hsotg->hfnum_0_frrem_accum_a / hsotg->hfnum_0_samples_a : 0);
-	dev_dbg(hsotg->dev, "Frame remaining at sample point A (uframe 1-6):\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->hfnum_other_samples_a, hsotg->hfnum_other_frrem_accum_a,
-		hsotg->hfnum_other_samples_a > 0 ?
-		hsotg->hfnum_other_frrem_accum_a / hsotg->hfnum_other_samples_a
-		: 0);
-	dev_dbg(hsotg->dev, "\n");
-	dev_dbg(hsotg->dev, "Frame remaining at sample point B (uframe 7):\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->hfnum_7_samples_b, hsotg->hfnum_7_frrem_accum_b,
-		hsotg->hfnum_7_samples_b > 0 ?
-		hsotg->hfnum_7_frrem_accum_b / hsotg->hfnum_7_samples_b : 0);
-	dev_dbg(hsotg->dev, "Frame remaining at sample point B (uframe 0):\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->hfnum_0_samples_b, hsotg->hfnum_0_frrem_accum_b,
-		(hsotg->hfnum_0_samples_b > 0) ?
-		hsotg->hfnum_0_frrem_accum_b / hsotg->hfnum_0_samples_b : 0);
-	dev_dbg(hsotg->dev, "Frame remaining at sample point B (uframe 1-6):\n");
-	dev_dbg(hsotg->dev, "  samples %u, accum %llu, avg %llu\n",
-		hsotg->hfnum_other_samples_b, hsotg->hfnum_other_frrem_accum_b,
-		(hsotg->hfnum_other_samples_b > 0) ?
-		hsotg->hfnum_other_frrem_accum_b / hsotg->hfnum_other_samples_b
-		: 0);
 #endif
 }
 

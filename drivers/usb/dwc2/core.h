@@ -1021,24 +1021,6 @@ struct dwc2_hsotg {
 	struct kmem_cache *desc_gen_cache;
 	struct kmem_cache *desc_hsisoc_cache;
 
-#ifdef DEBUG
-	u32 frrem_samples;
-	u64 frrem_accum;
-
-	u32 hfnum_7_samples_a;
-	u64 hfnum_7_frrem_accum_a;
-	u32 hfnum_0_samples_a;
-	u64 hfnum_0_frrem_accum_a;
-	u32 hfnum_other_samples_a;
-	u64 hfnum_other_frrem_accum_a;
-
-	u32 hfnum_7_samples_b;
-	u64 hfnum_7_frrem_accum_b;
-	u32 hfnum_0_samples_b;
-	u64 hfnum_0_frrem_accum_b;
-	u32 hfnum_other_samples_b;
-	u64 hfnum_other_frrem_accum_b;
-#endif
 #endif /* CONFIG_USB_DWC2_HOST || CONFIG_USB_DWC2_DUAL_ROLE */
 
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || \
