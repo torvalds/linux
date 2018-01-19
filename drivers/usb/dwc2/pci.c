@@ -104,6 +104,13 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 
 	pci_set_master(pci);
 
+	phy = usb_phy_generic_register();
+	if (IS_ERR(phy)) {
+		dev_err(dev, "error registering generic PHY (%ld)\n",
+			PTR_ERR(phy));
+		return PTR_ERR(phy);
+	}
+
 	dwc2 = platform_device_alloc("dwc2", PLATFORM_DEVID_AUTO);
 	if (!dwc2) {
 		dev_err(dev, "couldn't allocate dwc2 device\n");
@@ -128,13 +135,6 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 	}
 
 	dwc2->dev.parent = dev;
-
-	phy = usb_phy_generic_register();
-	if (IS_ERR(phy)) {
-		dev_err(dev, "error registering generic PHY (%ld)\n",
-			PTR_ERR(phy));
-		return PTR_ERR(phy);
-	}
 
 	ret = dwc2_pci_quirks(pci, dwc2);
 	if (ret)
