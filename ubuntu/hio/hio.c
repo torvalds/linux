@@ -4333,14 +4333,22 @@ static void ssd_end_timeout_request(struct ssd_cmd *cmd)
 }
 
 /* cmd timer */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
 static void ssd_cmd_add_timer(struct ssd_cmd *cmd, int timeout, void (*complt)(struct ssd_cmd *))
+#else
+static void ssd_cmd_add_timer(struct ssd_cmd *cmd, int timeout, void (*complt)(struct timer_list *))
+#endif
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
 	init_timer(&cmd->cmd_timer);
 
 	cmd->cmd_timer.data = (unsigned long)cmd;
-	cmd->cmd_timer.expires = jiffies + timeout;
 	cmd->cmd_timer.function = (void (*)(unsigned long)) complt;
+#else
+	timer_setup(&cmd->cmd_timer, complt, 0);
+#endif
 
+	cmd->cmd_timer.expires = jiffies + timeout;
 	add_timer(&cmd->cmd_timer);
 }
 
@@ -4349,14 +4357,22 @@ static int ssd_cmd_del_timer(struct ssd_cmd *cmd)
 	return del_timer(&cmd->cmd_timer);
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
 static void ssd_add_timer(struct timer_list *timer, int timeout, void (*complt)(void *), void *data)
+#else
+static void ssd_add_timer(struct timer_list *timer, int timeout, void (*complt)(struct timer_list *), void *data)
+#endif
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
 	init_timer(timer);
 
 	timer->data = (unsigned long)data;
-	timer->expires = jiffies + timeout;
 	timer->function = (void (*)(unsigned long)) complt;
+#else
+	timer_setup(timer, complt, 0);
+#endif
 
+	timer->expires = jiffies + timeout;
 	add_timer(timer);
 }
 
@@ -4365,8 +4381,15 @@ static int ssd_del_timer(struct timer_list *timer)
 	return del_timer(timer);
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
 static void ssd_cmd_timeout(struct ssd_cmd *cmd)
+#else
+static void ssd_cmd_timeout(struct timer_list *t)
+#endif
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0))
+	struct ssd_cmd *cmd = from_timer(cmd, t, cmd_timer);
+#endif
 	struct ssd_device *dev = cmd->dev;
 	uint32_t msg = *(uint32_t *)cmd->msg;
 
@@ -6788,14 +6811,22 @@ static void ssd_bm_worker(struct work_struct *work)
 	}
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
 static void ssd_bm_routine_start(void *data)
+#else
+static void ssd_bm_routine_start(struct timer_list *t)
+#endif
 {
 	struct ssd_device *dev;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
 	if (!data) {
 		return;
 	}
 	dev = data;
+#else
+	dev = from_timer(dev, t, bm_timer);
+#endif
 
 	if (test_bit(SSD_INIT_WORKQ, &dev->state)) {
 		if (dev->protocol_info.ver < SSD_PROTOCOL_V3_2) {
@@ -11965,14 +11996,22 @@ static void ssd_capmon_worker(struct work_struct *work)
 	}
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
 static void ssd_routine_start(void *data)
+#else
+static void ssd_routine_start(struct timer_list *t)
+#endif
 {
 	struct ssd_device *dev;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
 	if (!data) {
 		return;
 	}
 	dev = data;
+#else
+	dev = from_timer(dev, t, routine_timer);
+#endif
 
 	dev->routine_tick++;
 
