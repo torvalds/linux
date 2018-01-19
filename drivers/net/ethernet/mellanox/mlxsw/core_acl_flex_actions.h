@@ -46,6 +46,8 @@ struct mlxsw_afa_ops {
 	void (*kvdl_set_del)(void *priv, u32 kvdl_index, bool is_first);
 	int (*kvdl_fwd_entry_add)(void *priv, u32 *p_kvdl_index, u8 local_port);
 	void (*kvdl_fwd_entry_del)(void *priv, u32 kvdl_index);
+	int (*counter_index_get)(void *priv, unsigned int *p_counter_index);
+	void (*counter_index_put)(void *priv, unsigned int counter_index);
 };
 
 struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,

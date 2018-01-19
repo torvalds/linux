@@ -108,11 +108,29 @@ static void mlxsw_sp_act_kvdl_fwd_entry_del(void *priv, u32 kvdl_index)
 	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
 }
 
+static int
+mlxsw_sp_act_counter_index_get(void *priv, unsigned int *p_counter_index)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	return mlxsw_sp_flow_counter_alloc(mlxsw_sp, p_counter_index);
+}
+
+static void
+mlxsw_sp_act_counter_index_put(void *priv, unsigned int counter_index)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp_flow_counter_free(mlxsw_sp, counter_index);
+}
+
 static const struct mlxsw_afa_ops mlxsw_sp_act_afa_ops = {
 	.kvdl_set_add		= mlxsw_sp_act_kvdl_set_add,
 	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
 	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
 	.kvdl_fwd_entry_del	= mlxsw_sp_act_kvdl_fwd_entry_del,
+	.counter_index_get	= mlxsw_sp_act_counter_index_get,
+	.counter_index_put	= mlxsw_sp_act_counter_index_put,
 };
 
 int mlxsw_sp_afa_init(struct mlxsw_sp *mlxsw_sp)
