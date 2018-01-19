@@ -26,6 +26,7 @@ enum cudbg_dump_type {
 
 enum cudbg_compression_type {
 	CUDBG_COMPRESSION_NONE = 1,
+	CUDBG_COMPRESSION_ZLIB,
 };
 
 struct cudbg_hdr {
@@ -78,10 +79,11 @@ struct cudbg_error {
 #define CDUMP_MAX_COMP_BUF_SIZE ((64 * 1024) - 1)
 #define CUDBG_CHUNK_SIZE ((CDUMP_MAX_COMP_BUF_SIZE / 1024) * 1024)
 
-int cudbg_get_buff(struct cudbg_buffer *pdbg_buff, u32 size,
+int cudbg_get_buff(struct cudbg_init *pdbg_init,
+		   struct cudbg_buffer *pdbg_buff, u32 size,
 		   struct cudbg_buffer *pin_buff);
-void cudbg_put_buff(struct cudbg_buffer *pin_buff,
-		    struct cudbg_buffer *pdbg_buff);
+void cudbg_put_buff(struct cudbg_init *pdbg_init,
+		    struct cudbg_buffer *pin_buff);
 void cudbg_update_buff(struct cudbg_buffer *pin_buff,
 		       struct cudbg_buffer *pout_buff);
 #endif /* __CUDBG_LIB_COMMON_H__ */

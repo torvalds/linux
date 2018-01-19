@@ -87,6 +87,10 @@ struct cudbg_init {
 	struct adapter *adap; /* Pointer to adapter structure */
 	void *outbuf; /* Output buffer */
 	u32 outbuf_size;  /* Output buffer size */
+	u8 compress_type; /* Type of compression to use */
+	void *compress_buff; /* Compression buffer */
+	u32 compress_buff_size; /* Compression buffer size */
+	void *workspace; /* Workspace for zlib */
 };
 
 static inline unsigned int cudbg_mbytes_to_bytes(unsigned int size)
