@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Generate opcode table initializers for the in-kernel disassembler.
  *

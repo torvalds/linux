@@ -333,14 +333,18 @@ static void __ttm_dma_free_page(struct dma_pool *pool, struct dma_page *d_page)
 static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
 {
 	struct dma_page *d_page;
+	unsigned long attrs = 0;
 	void *vaddr;
 
 	d_page = kmalloc(sizeof(struct dma_page), GFP_KERNEL);
 	if (!d_page)
 		return NULL;
 
-	vaddr = dma_alloc_coherent(pool->dev, pool->size, &d_page->dma,
-				   pool->gfp_flags);
+	if (pool->type & IS_HUGE)
+		attrs = DMA_ATTR_NO_WARN;
+
+	vaddr = dma_alloc_attrs(pool->dev, pool->size, &d_page->dma,
+				pool->gfp_flags, attrs);
 	if (vaddr) {
 		if (is_vmalloc_addr(vaddr))
 			d_page->p = vmalloc_to_page(vaddr);
@@ -923,7 +927,8 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
  * On success pages list will hold count number of correctly
  * cached pages. On failure will hold the negative return value (-ENOMEM, etc).
  */
-int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
+int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
+			struct ttm_operation_ctx *ctx)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
@@ -962,7 +967,7 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 			break;
 
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						pool->size);
+						pool->size, ctx);
 		if (unlikely(ret != 0)) {
 			ttm_dma_unpopulate(ttm_dma, dev);
 			return -ENOMEM;
@@ -998,7 +1003,7 @@ skip_huge:
 		}
 
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						pool->size);
+						pool->size, ctx);
 		if (unlikely(ret != 0)) {
 			ttm_dma_unpopulate(ttm_dma, dev);
 			return -ENOMEM;
@@ -1244,15 +1249,12 @@ int ttm_dma_page_alloc_debugfs(struct seq_file *m, void *data)
 {
 	struct device_pools *p;
 	struct dma_pool *pool = NULL;
-	char *h[] = {"pool", "refills", "pages freed", "inuse", "available",
-		     "name", "virt", "busaddr"};
 
 	if (!_manager) {
 		seq_printf(m, "No pool allocator running.\n");
 		return 0;
 	}
-	seq_printf(m, "%13s %12s %13s %8s %8s %8s\n",
-		   h[0], h[1], h[2], h[3], h[4], h[5]);
+	seq_printf(m, "         pool      refills   pages freed    inuse available     name\n");
 	mutex_lock(&_manager->lock);
 	list_for_each_entry(p, &_manager->pools, pools) {
 		struct device *dev = p->dev;

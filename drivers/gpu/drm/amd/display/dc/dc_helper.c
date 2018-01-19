@@ -1,4 +1,26 @@
 /*
+ * Copyright 2017 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+/*
  * dc_helper.c
  *
  *  Created on: Aug 30, 2016
@@ -156,8 +178,13 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 
 		field_value = get_reg_field_value_ex(reg_val, mask, shift);
 
-		if (field_value == condition_value)
+		if (field_value == condition_value) {
+			if (i * delay_between_poll_us > 1000)
+				dm_output_to_console("REG_WAIT taking a while: %dms in %s line:%d\n",
+						delay_between_poll_us * i / 1000,
+						func_name, line);
 			return reg_val;
+		}
 	}
 
 	dm_error("REG_WAIT timeout %dus * %d tries - %s line:%d\n",

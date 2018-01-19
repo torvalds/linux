@@ -159,7 +159,7 @@ static void tcf_gact_stats_update(struct tc_action *a, u64 bytes, u32 packets,
 	if (action == TC_ACT_SHOT)
 		this_cpu_ptr(gact->common.cpu_qstats)->drops += packets;
 
-	tm->lastuse = lastuse;
+	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
 static int tcf_gact_dump(struct sk_buff *skb, struct tc_action *a,

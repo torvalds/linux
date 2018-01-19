@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef _I915_GUC_SUBMISSION_H_
-#define _I915_GUC_SUBMISSION_H_
+#ifndef _INTEL_GUC_SUBMISSION_H_
+#define _INTEL_GUC_SUBMISSION_H_
 
 #include <linux/spinlock.h>
 
@@ -77,5 +77,7 @@ int intel_guc_submission_init(struct intel_guc *guc);
 int intel_guc_submission_enable(struct intel_guc *guc);
 void intel_guc_submission_disable(struct intel_guc *guc);
 void intel_guc_submission_fini(struct intel_guc *guc);
+int intel_guc_preempt_work_create(struct intel_guc *guc);
+void intel_guc_preempt_work_destroy(struct intel_guc *guc);
 
 #endif

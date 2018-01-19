@@ -85,6 +85,8 @@ static void mock_device_release(struct drm_device *dev)
 
 	i915_gemfs_fini(i915);
 
+	drm_mode_config_cleanup(&i915->drm);
+
 	drm_dev_fini(&i915->drm);
 	put_device(&i915->drm.pdev->dev);
 }
@@ -187,7 +189,7 @@ struct drm_i915_private *mock_gem_device(void)
 
 	i915->wq = alloc_ordered_workqueue("mock", 0);
 	if (!i915->wq)
-		goto put_device;
+		goto err_drv;
 
 	mock_init_contexts(i915);
 
@@ -266,6 +268,9 @@ err_objects:
 	kmem_cache_destroy(i915->objects);
 err_wq:
 	destroy_workqueue(i915->wq);
+err_drv:
+	drm_mode_config_cleanup(&i915->drm);
+	drm_dev_fini(&i915->drm);
 put_device:
 	put_device(&pdev->dev);
 err:

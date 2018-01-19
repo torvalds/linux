@@ -611,7 +611,6 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 						MLX4_MAX_PORTS;
 				else
 					res_alloc->guaranteed[t] = 0;
-				res_alloc->res_free -= res_alloc->guaranteed[t];
 				break;
 			default:
 				break;

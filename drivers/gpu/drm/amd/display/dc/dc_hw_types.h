@@ -492,15 +492,24 @@ struct dc_cursor_attributes {
 enum dc_color_space {
 	COLOR_SPACE_UNKNOWN,
 	COLOR_SPACE_SRGB,
+	COLOR_SPACE_XR_RGB,
 	COLOR_SPACE_SRGB_LIMITED,
+	COLOR_SPACE_MSREF_SCRGB,
 	COLOR_SPACE_YCBCR601,
 	COLOR_SPACE_YCBCR709,
+	COLOR_SPACE_XV_YCC_709,
+	COLOR_SPACE_XV_YCC_601,
 	COLOR_SPACE_YCBCR601_LIMITED,
 	COLOR_SPACE_YCBCR709_LIMITED,
 	COLOR_SPACE_2020_RGB_FULLRANGE,
 	COLOR_SPACE_2020_RGB_LIMITEDRANGE,
 	COLOR_SPACE_2020_YCBCR,
 	COLOR_SPACE_ADOBERGB,
+	COLOR_SPACE_DCIP3,
+	COLOR_SPACE_DISPLAYNATIVE,
+	COLOR_SPACE_DOLBYVISION,
+	COLOR_SPACE_APPCTRL,
+	COLOR_SPACE_CUSTOMPOINTS,
 };
 
 enum dc_dither_option {
@@ -569,8 +578,6 @@ enum dc_timing_standard {
 	/*!< For mode timing override by user*/
 	TIMING_STANDARD_MAX
 };
-
-
 
 enum dc_color_depth {
 	COLOR_DEPTH_UNDEFINED,
@@ -664,6 +671,22 @@ enum dc_timing_3d_format {
 	TIMING_3D_FORMAT_MAX,
 };
 
+enum trigger_delay {
+	TRIGGER_DELAY_NEXT_PIXEL = 0,
+	TRIGGER_DELAY_NEXT_LINE,
+};
+
+enum crtc_event {
+	CRTC_EVENT_VSYNC_RISING = 0,
+	CRTC_EVENT_VSYNC_FALLING
+};
+
+struct crtc_trigger_info {
+	bool enabled;
+	struct dc_stream_state *event_source;
+	enum crtc_event event;
+	enum trigger_delay delay;
+};
 
 struct dc_crtc_timing {
 

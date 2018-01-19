@@ -38,25 +38,25 @@
 void populate_pvinfo_page(struct intel_vgpu *vgpu)
 {
 	/* setup the ballooning information */
-	vgpu_vreg64(vgpu, vgtif_reg(magic)) = VGT_MAGIC;
-	vgpu_vreg(vgpu, vgtif_reg(version_major)) = 1;
-	vgpu_vreg(vgpu, vgtif_reg(version_minor)) = 0;
-	vgpu_vreg(vgpu, vgtif_reg(display_ready)) = 0;
-	vgpu_vreg(vgpu, vgtif_reg(vgt_id)) = vgpu->id;
+	vgpu_vreg64_t(vgpu, vgtif_reg(magic)) = VGT_MAGIC;
+	vgpu_vreg_t(vgpu, vgtif_reg(version_major)) = 1;
+	vgpu_vreg_t(vgpu, vgtif_reg(version_minor)) = 0;
+	vgpu_vreg_t(vgpu, vgtif_reg(display_ready)) = 0;
+	vgpu_vreg_t(vgpu, vgtif_reg(vgt_id)) = vgpu->id;
 
-	vgpu_vreg(vgpu, vgtif_reg(vgt_caps)) = VGT_CAPS_FULL_48BIT_PPGTT;
-	vgpu_vreg(vgpu, vgtif_reg(vgt_caps)) |= VGT_CAPS_HWSP_EMULATION;
+	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) = VGT_CAPS_FULL_48BIT_PPGTT;
+	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) |= VGT_CAPS_HWSP_EMULATION;
 
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.mappable_gmadr.base)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.mappable_gmadr.base)) =
 		vgpu_aperture_gmadr_base(vgpu);
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.mappable_gmadr.size)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.mappable_gmadr.size)) =
 		vgpu_aperture_sz(vgpu);
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.base)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.base)) =
 		vgpu_hidden_gmadr_base(vgpu);
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.size)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.size)) =
 		vgpu_hidden_sz(vgpu);
 
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.fence_num)) = vgpu_fence_sz(vgpu);
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.fence_num)) = vgpu_fence_sz(vgpu);
 
 	gvt_dbg_core("Populate PVINFO PAGE for vGPU %d\n", vgpu->id);
 	gvt_dbg_core("aperture base [GMADR] 0x%llx size 0x%llx\n",
@@ -236,6 +236,7 @@ void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu)
 	}
 
 	intel_vgpu_stop_schedule(vgpu);
+	intel_vgpu_dmabuf_cleanup(vgpu);
 
 	mutex_unlock(&gvt->lock);
 }
@@ -265,6 +266,7 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	intel_gvt_hypervisor_detach_vgpu(vgpu);
 	intel_vgpu_free_resource(vgpu);
 	intel_vgpu_clean_mmio(vgpu);
+	intel_vgpu_dmabuf_cleanup(vgpu);
 	vfree(vgpu);
 
 	intel_gvt_update_vgpu_types(gvt);
@@ -349,7 +351,8 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	vgpu->handle = param->handle;
 	vgpu->gvt = gvt;
 	vgpu->sched_ctl.weight = param->weight;
-
+	INIT_LIST_HEAD(&vgpu->dmabuf_obj_list_head);
+	idr_init(&vgpu->object_idr);
 	intel_vgpu_init_cfg_space(vgpu, param->primary);
 
 	ret = intel_vgpu_init_mmio(vgpu);
@@ -370,9 +373,13 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_detach_hypervisor_vgpu;
 
-	ret = intel_vgpu_init_display(vgpu, param->resolution);
+	ret = intel_vgpu_init_opregion(vgpu);
 	if (ret)
 		goto out_clean_gtt;
+
+	ret = intel_vgpu_init_display(vgpu, param->resolution);
+	if (ret)
+		goto out_clean_opregion;
 
 	ret = intel_vgpu_setup_submission(vgpu);
 	if (ret)
@@ -386,6 +393,10 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_clean_sched_policy;
 
+	ret = intel_gvt_hypervisor_set_opregion(vgpu);
+	if (ret)
+		goto out_clean_sched_policy;
+
 	mutex_unlock(&gvt->lock);
 
 	return vgpu;
@@ -396,6 +407,8 @@ out_clean_submission:
 	intel_vgpu_clean_submission(vgpu);
 out_clean_display:
 	intel_vgpu_clean_display(vgpu);
+out_clean_opregion:
+	intel_vgpu_clean_opregion(vgpu);
 out_clean_gtt:
 	intel_vgpu_clean_gtt(vgpu);
 out_detach_hypervisor_vgpu:

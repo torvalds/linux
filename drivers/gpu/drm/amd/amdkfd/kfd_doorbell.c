@@ -116,8 +116,7 @@ int kfd_doorbell_init(struct kfd_dev *kfd)
 	pr_debug("doorbell aperture size  == 0x%08lX\n",
 			kfd->shared_resources.doorbell_aperture_size);
 
-	pr_debug("doorbell kernel address == 0x%08lX\n",
-			(uintptr_t)kfd->doorbell_kernel_ptr);
+	pr_debug("doorbell kernel address == %p\n", kfd->doorbell_kernel_ptr);
 
 	return 0;
 }
@@ -194,8 +193,8 @@ u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 
 	pr_debug("Get kernel queue doorbell\n"
 			 "     doorbell offset   == 0x%08X\n"
-			 "     kernel address    == 0x%08lX\n",
-		*doorbell_off, (uintptr_t)(kfd->doorbell_kernel_ptr + inx));
+			 "     kernel address    == %p\n",
+		*doorbell_off, (kfd->doorbell_kernel_ptr + inx));
 
 	return kfd->doorbell_kernel_ptr + inx;
 }
@@ -215,7 +214,7 @@ inline void write_kernel_doorbell(u32 __iomem *db, u32 value)
 {
 	if (db) {
 		writel(value, db);
-		pr_debug("Writing %d to doorbell address 0x%p\n", value, db);
+		pr_debug("Writing %d to doorbell address %p\n", value, db);
 	}
 }
 

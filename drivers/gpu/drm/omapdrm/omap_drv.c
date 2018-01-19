@@ -1,7 +1,5 @@
 /*
- * drivers/gpu/drm/omapdrm/omap_drv.c
- *
- * Copyright (C) 2011 Texas Instruments
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -563,6 +561,11 @@ static int pdev_probe(struct platform_device *pdev)
 	ddev->dev_private = priv;
 	platform_set_drvdata(pdev, ddev);
 
+	/* Get memory bandwidth limits */
+	if (priv->dispc_ops->get_memory_bandwidth_limit)
+		priv->max_bandwidth =
+				priv->dispc_ops->get_memory_bandwidth_limit();
+
 	omap_gem_init(ddev);
 
 	ret = omap_modeset_init(ddev);
@@ -710,7 +713,7 @@ static int omap_drm_resume(struct device *dev)
 
 	drm_kms_helper_poll_enable(drm_dev);
 
-	return omap_gem_resume(dev);
+	return omap_gem_resume(drm_dev);
 }
 #endif
 

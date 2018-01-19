@@ -372,6 +372,11 @@ void intel_vgpu_start_schedule(struct intel_vgpu *vgpu)
 	vgpu->gvt->scheduler.sched_ops->start_schedule(vgpu);
 }
 
+void intel_gvt_kick_schedule(struct intel_gvt *gvt)
+{
+	intel_gvt_request_service(gvt, INTEL_GVT_REQUEST_EVENT_SCHED);
+}
+
 void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt_workload_scheduler *scheduler =

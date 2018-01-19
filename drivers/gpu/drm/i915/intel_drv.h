@@ -48,8 +48,9 @@
  * having timed out, since the timeout could be due to preemption or similar and
  * we've never had a chance to check the condition before the timeout.
  */
-#define _wait_for(COND, US, W) ({ \
+#define _wait_for(COND, US, Wmin, Wmax) ({ \
 	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
+	long wait__ = (Wmin); /* recommended min for usleep is 10 us */	\
 	int ret__;							\
 	might_sleep();							\
 	for (;;) {							\
@@ -62,12 +63,14 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		usleep_range((W), (W) * 2);				\
+		usleep_range(wait__, wait__ * 2);			\
+		if (wait__ < (Wmax))					\
+			wait__ <<= 1;					\
 	}								\
 	ret__;								\
 })
 
-#define wait_for(COND, MS)	  	_wait_for((COND), (MS) * 1000, 1000)
+#define wait_for(COND, MS)	_wait_for((COND), (MS) * 1000, 10, 1000)
 
 /* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
 #if defined(CONFIG_DRM_I915_DEBUG) && defined(CONFIG_PREEMPT_COUNT)
@@ -116,7 +119,7 @@
 	int ret__; \
 	BUILD_BUG_ON(!__builtin_constant_p(US)); \
 	if ((US) > 10) \
-		ret__ = _wait_for((COND), (US), 10); \
+		ret__ = _wait_for((COND), (US), 10, 10); \
 	else \
 		ret__ = _wait_for_atomic((COND), (US), 0); \
 	ret__; \
@@ -799,7 +802,6 @@ struct intel_crtc_state {
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
-	enum plane plane;
 	/*
 	 * Whether the crtc and the connected output pipeline is active. Implies
 	 * that crtc->enabled is set, i.e. the current mode configuration has
@@ -844,7 +846,7 @@ struct intel_crtc {
 
 struct intel_plane {
 	struct drm_plane base;
-	u8 plane;
+	enum i9xx_plane_id i9xx_plane;
 	enum plane_id id;
 	enum pipe pipe;
 	bool can_scale;
@@ -866,6 +868,7 @@ struct intel_plane {
 			     const struct intel_plane_state *plane_state);
 	void (*disable_plane)(struct intel_plane *plane,
 			      struct intel_crtc *crtc);
+	bool (*get_hw_state)(struct intel_plane *plane);
 	int (*check_plane)(struct intel_plane *plane,
 			   struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *state);
@@ -1129,7 +1132,7 @@ intel_get_crtc_for_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 }
 
 static inline struct intel_crtc *
-intel_get_crtc_for_plane(struct drm_i915_private *dev_priv, enum plane plane)
+intel_get_crtc_for_plane(struct drm_i915_private *dev_priv, enum i9xx_plane_id plane)
 {
 	return dev_priv->plane_to_crtc_mapping[plane];
 }
@@ -1285,8 +1288,6 @@ intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state);
 void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state);
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp);
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
-bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
-				 struct intel_crtc *intel_crtc);
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config);
 
@@ -1485,6 +1486,7 @@ bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
 int chv_calc_dpll_params(int refclk, struct dpll *pll_clock);
 
 bool intel_crtc_active(struct intel_crtc *crtc);
+bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state);
 void hsw_enable_ips(const struct intel_crtc_state *crtc_state);
 void hsw_disable_ips(const struct intel_crtc_state *crtc_state);
 enum intel_display_power_domain intel_port_to_power_domain(enum port port);
@@ -1651,7 +1653,7 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 
 /* intel_fbc.c */
 void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
-			   struct drm_atomic_state *state);
+			   struct intel_atomic_state *state);
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv);
 void intel_fbc_pre_update(struct intel_crtc *crtc,
 			  struct intel_crtc_state *crtc_state,
@@ -1906,15 +1908,10 @@ bool skl_ddb_allocation_overlaps(struct drm_i915_private *dev_priv,
 				 const struct skl_ddb_entry *ddb,
 				 int ignore);
 bool ilk_disable_lp_wm(struct drm_device *dev);
-int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6);
 int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate);
 void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
-static inline int intel_rc6_enabled(void)
-{
-	return i915_modparams.enable_rc6;
-}
 
 /* intel_sdvo.c */
 bool intel_sdvo_init(struct drm_i915_private *dev_priv,
@@ -1934,6 +1931,7 @@ void skl_update_plane(struct intel_plane *plane,
 		      const struct intel_crtc_state *crtc_state,
 		      const struct intel_plane_state *plane_state);
 void skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc);
+bool skl_plane_get_hw_state(struct intel_plane *plane);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);

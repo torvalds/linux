@@ -184,6 +184,7 @@ static void reserve_irq_vector_locked(struct irq_data *irqd)
 	irq_matrix_reserve(vector_matrix);
 	apicd->can_reserve = true;
 	apicd->has_reserved = true;
+	irqd_set_can_reserve(irqd);
 	trace_vector_reserve(irqd->irq, 0);
 	vector_assign_managed_shutdown(irqd);
 }
@@ -368,8 +369,18 @@ static int activate_reserved(struct irq_data *irqd)
 	int ret;
 
 	ret = assign_irq_vector_any_locked(irqd);
-	if (!ret)
+	if (!ret) {
 		apicd->has_reserved = false;
+		/*
+		 * Core might have disabled reservation mode after
+		 * allocating the irq descriptor. Ideally this should
+		 * happen before allocation time, but that would require
+		 * completely convoluted ways of transporting that
+		 * information.
+		 */
+		if (!irqd_can_reserve(irqd))
+			apicd->can_reserve = false;
+	}
 	return ret;
 }
 
@@ -398,21 +409,21 @@ static int activate_managed(struct irq_data *irqd)
 }
 
 static int x86_vector_activate(struct irq_domain *dom, struct irq_data *irqd,
-			       bool early)
+			       bool reserve)
 {
 	struct apic_chip_data *apicd = apic_chip_data(irqd);
 	unsigned long flags;
 	int ret = 0;
 
 	trace_vector_activate(irqd->irq, apicd->is_managed,
-			      apicd->can_reserve, early);
+			      apicd->can_reserve, reserve);
 
 	/* Nothing to do for fixed assigned vectors */
 	if (!apicd->can_reserve && !apicd->is_managed)
 		return 0;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
-	if (early || irqd_is_managed_and_shutdown(irqd))
+	if (reserve || irqd_is_managed_and_shutdown(irqd))
 		vector_assign_managed_shutdown(irqd);
 	else if (apicd->is_managed)
 		ret = activate_managed(irqd);
@@ -478,6 +489,7 @@ static bool vector_configure_legacy(unsigned int virq, struct irq_data *irqd,
 	} else {
 		/* Release the vector */
 		apicd->can_reserve = true;
+		irqd_set_can_reserve(irqd);
 		clear_irq_vector(irqd);
 		realloc = true;
 	}
@@ -542,8 +554,8 @@ error:
 }
 
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
-void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
-			   struct irq_data *irqd, int ind)
+static void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
+				  struct irq_data *irqd, int ind)
 {
 	unsigned int cpu, vector, prev_cpu, prev_vector;
 	struct apic_chip_data *apicd;

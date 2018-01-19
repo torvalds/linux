@@ -88,15 +88,7 @@ void dp_enable_link_phy(
 	}
 
 	if (dc_is_dp_sst_signal(signal)) {
-		if (signal == SIGNAL_TYPE_EDP) {
-			link->dc->hwss.edp_power_control(link->link_enc, true);
-			link_enc->funcs->enable_dp_output(
-						link_enc,
-						link_settings,
-						clock_source);
-			link->dc->hwss.edp_backlight_control(link, true);
-		} else
-			link_enc->funcs->enable_dp_output(
+		link_enc->funcs->enable_dp_output(
 						link_enc,
 						link_settings,
 						clock_source);
@@ -138,12 +130,11 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 		dp_receiver_power_ctrl(link, false);
 
 	if (signal == SIGNAL_TYPE_EDP) {
-		link->dc->hwss.edp_backlight_control(link, false);
 		edp_receiver_ready_T9(link);
-		link->link_enc->funcs->disable_output(link->link_enc, signal, link);
-		link->dc->hwss.edp_power_control(link->link_enc, false);
+		link->link_enc->funcs->disable_output(link->link_enc, signal);
+		link->dc->hwss.edp_power_control(link, false);
 	} else
-		link->link_enc->funcs->disable_output(link->link_enc, signal, link);
+		link->link_enc->funcs->disable_output(link->link_enc, signal);
 
 	/* Clear current link setting.*/
 	memset(&link->cur_link_settings, 0,
@@ -286,8 +277,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 
 			link->link_enc->funcs->disable_output(
 					link->link_enc,
-					SIGNAL_TYPE_DISPLAY_PORT,
-					link);
+					SIGNAL_TYPE_DISPLAY_PORT);
 
 			/* Clear current link setting. */
 			memset(&link->cur_link_settings, 0,

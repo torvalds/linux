@@ -335,7 +335,8 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 	case INTEL_GVT_PCI_OPREGION:
 		if (WARN_ON(!IS_ALIGNED(offset, 4)))
 			return -EINVAL;
-		ret = intel_vgpu_init_opregion(vgpu, *(u32 *)p_data);
+		ret = intel_vgpu_opregion_base_write_handler(vgpu,
+						   *(u32 *)p_data);
 		if (ret)
 			return ret;
 

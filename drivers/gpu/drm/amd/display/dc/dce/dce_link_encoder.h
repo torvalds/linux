@@ -228,9 +228,8 @@ void dce110_link_encoder_enable_dp_mst_output(
 
 /* disable PHY output */
 void dce110_link_encoder_disable_output(
-	struct link_encoder *link_enc,
-	enum signal_type signal,
-	struct dc_link *link);
+	struct link_encoder *enc,
+	enum signal_type signal);
 
 /* set DP lane settings */
 void dce110_link_encoder_dp_set_lane_settings(

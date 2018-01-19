@@ -18,7 +18,7 @@
 #include <ia_css_frame_public.h>
 #include "sh_css_internal.h"
 
-/** qplane frame
+/* qplane frame
  *
  *  ISP block: qplane frame
  */

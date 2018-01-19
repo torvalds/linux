@@ -541,8 +541,6 @@ retry:
 		 * completely disable it.
 		 */
 		pipe_config->ips_force_disable = enable;
-		if (pipe_config->ips_enabled == enable)
-			pipe_config->base.connectors_changed = true;
 	}
 
 	if (IS_HASWELL(dev_priv)) {

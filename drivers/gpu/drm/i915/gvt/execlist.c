@@ -458,7 +458,7 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	gvt_dbg_el("workload %p emulate schedule_in %d\n", workload,
 			emulate_schedule_in);
 
-	queue_workload(workload);
+	intel_vgpu_queue_workload(workload);
 	return 0;
 }
 
@@ -528,7 +528,7 @@ static void init_vgpu_execlist(struct intel_vgpu *vgpu, int ring_id)
 	vgpu_vreg(vgpu, ctx_status_ptr_reg) = ctx_status_ptr.dw;
 }
 
-void clean_execlist(struct intel_vgpu *vgpu)
+static void clean_execlist(struct intel_vgpu *vgpu)
 {
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
@@ -542,7 +542,7 @@ void clean_execlist(struct intel_vgpu *vgpu)
 	}
 }
 
-void reset_execlist(struct intel_vgpu *vgpu,
+static void reset_execlist(struct intel_vgpu *vgpu,
 		unsigned long engine_mask)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
@@ -553,7 +553,7 @@ void reset_execlist(struct intel_vgpu *vgpu,
 		init_vgpu_execlist(vgpu, engine->id);
 }
 
-int init_execlist(struct intel_vgpu *vgpu)
+static int init_execlist(struct intel_vgpu *vgpu)
 {
 	reset_execlist(vgpu, ALL_ENGINES);
 	return 0;

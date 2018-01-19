@@ -554,6 +554,22 @@ static inline uint32_t ux_dy(
 	return result | fractional_part;
 }
 
+static inline uint32_t clamp_ux_dy(
+	int64_t value,
+	uint32_t integer_bits,
+	uint32_t fractional_bits,
+	uint32_t min_clamp)
+{
+	uint32_t truncated_val = ux_dy(value, integer_bits, fractional_bits);
+
+	if (value >= (1LL << (integer_bits + FIXED31_32_BITS_PER_FRACTIONAL_PART)))
+		return (1 << (integer_bits + fractional_bits)) - 1;
+	else if (truncated_val > min_clamp)
+		return truncated_val;
+	else
+		return min_clamp;
+}
+
 uint32_t dal_fixed31_32_u2d19(
 	struct fixed31_32 arg)
 {
@@ -564,4 +580,16 @@ uint32_t dal_fixed31_32_u0d19(
 	struct fixed31_32 arg)
 {
 	return ux_dy(arg.value, 0, 19);
+}
+
+uint32_t dal_fixed31_32_clamp_u0d14(
+	struct fixed31_32 arg)
+{
+	return clamp_ux_dy(arg.value, 0, 14, 1);
+}
+
+uint32_t dal_fixed31_32_clamp_u0d10(
+	struct fixed31_32 arg)
+{
+	return clamp_ux_dy(arg.value, 0, 10, 1);
 }

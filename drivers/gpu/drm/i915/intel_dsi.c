@@ -1670,7 +1670,7 @@ static int intel_dsi_get_panel_orientation(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	int orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
-	enum plane plane;
+	enum i9xx_plane_id plane;
 	u32 val;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {

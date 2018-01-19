@@ -46,7 +46,6 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
-#include "scrub/scrub.h"
 #include "scrub/btree.h"
 
 /*

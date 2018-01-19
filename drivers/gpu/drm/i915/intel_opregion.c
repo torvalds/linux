@@ -32,6 +32,8 @@
 
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
+
+#include "intel_opregion.h"
 #include "i915_drv.h"
 #include "intel_drv.h"
 

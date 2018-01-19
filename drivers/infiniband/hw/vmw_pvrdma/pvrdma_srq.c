@@ -149,7 +149,7 @@ struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
 
 	spin_lock_init(&srq->lock);
 	refcount_set(&srq->refcnt, 1);
-	init_waitqueue_head(&srq->wait);
+	init_completion(&srq->free);
 
 	dev_dbg(&dev->pdev->dev,
 		"create shared receive queue from user space\n");
@@ -236,8 +236,9 @@ static void pvrdma_free_srq(struct pvrdma_dev *dev, struct pvrdma_srq *srq)
 	dev->srq_tbl[srq->srq_handle] = NULL;
 	spin_unlock_irqrestore(&dev->srq_tbl_lock, flags);
 
-	refcount_dec(&srq->refcnt);
-	wait_event(srq->wait, !refcount_read(&srq->refcnt));
+	if (refcount_dec_and_test(&srq->refcnt))
+		complete(&srq->free);
+	wait_for_completion(&srq->free);
 
 	/* There is no support for kernel clients, so this is safe. */
 	ib_umem_release(srq->umem);

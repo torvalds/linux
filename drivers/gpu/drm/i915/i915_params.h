@@ -25,27 +25,29 @@
 #ifndef _I915_PARAMS_H_
 #define _I915_PARAMS_H_
 
+#include <linux/bitops.h>
 #include <linux/cache.h> /* for __read_mostly */
+
+struct drm_printer;
+
+#define ENABLE_GUC_SUBMISSION		BIT(0)
+#define ENABLE_GUC_LOAD_HUC		BIT(1)
 
 #define I915_PARAMS_FOR_EACH(param) \
 	param(char *, vbt_firmware, NULL) \
 	param(int, modeset, -1) \
 	param(int, panel_ignore_lid, 1) \
-	param(int, semaphores, -1) \
 	param(int, lvds_channel_mode, 0) \
 	param(int, panel_use_ssc, -1) \
 	param(int, vbt_sdvo_panel_type, -1) \
-	param(int, enable_rc6, -1) \
 	param(int, enable_dc, -1) \
 	param(int, enable_fbc, -1) \
 	param(int, enable_ppgtt, -1) \
-	param(int, enable_execlists, -1) \
 	param(int, enable_psr, -1) \
 	param(int, disable_power_well, -1) \
 	param(int, enable_ips, 1) \
 	param(int, invert_brightness, 0) \
-	param(int, enable_guc_loading, 0) \
-	param(int, enable_guc_submission, 0) \
+	param(int, enable_guc, 0) \
 	param(int, guc_log_level, -1) \
 	param(char *, guc_firmware_path, NULL) \
 	param(char *, huc_firmware_path, NULL) \
@@ -76,6 +78,8 @@ struct i915_params {
 #undef MEMBER
 
 extern struct i915_params i915_modparams __read_mostly;
+
+void i915_params_dump(const struct i915_params *params, struct drm_printer *p);
 
 #endif
 

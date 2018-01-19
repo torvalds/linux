@@ -203,7 +203,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 
 	spin_lock_init(&kiq->ring_lock);
 
-	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
+	r = amdgpu_device_wb_get(adev, &adev->virt.reg_val_offs);
 	if (r)
 		return r;
 
@@ -229,7 +229,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring,
 			      struct amdgpu_irq_src *irq)
 {
-	amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
+	amdgpu_device_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
 	amdgpu_ring_fini(ring);
 }
 

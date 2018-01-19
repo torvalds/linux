@@ -291,14 +291,15 @@ static struct ttm_backend_func qxl_backend_func = {
 	.destroy = &qxl_ttm_backend_destroy,
 };
 
-static int qxl_ttm_tt_populate(struct ttm_tt *ttm)
+static int qxl_ttm_tt_populate(struct ttm_tt *ttm,
+			struct ttm_operation_ctx *ctx)
 {
 	int r;
 
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	r = ttm_pool_populate(ttm);
+	r = ttm_pool_populate(ttm, ctx);
 	if (r)
 		return r;
 
@@ -341,15 +342,14 @@ static void qxl_move_null(struct ttm_buffer_object *bo,
 	new_mem->mm_node = NULL;
 }
 
-static int qxl_bo_move(struct ttm_buffer_object *bo,
-		       bool evict, bool interruptible,
-		       bool no_wait_gpu,
+static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
+		       struct ttm_operation_ctx *ctx,
 		       struct ttm_mem_reg *new_mem)
 {
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
 
-	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 	if (ret)
 		return ret;
 
@@ -358,8 +358,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo,
 		qxl_move_null(bo, new_mem);
 		return 0;
 	}
-	return ttm_bo_move_memcpy(bo, interruptible, no_wait_gpu,
-				  new_mem);
+	return ttm_bo_move_memcpy(bo, ctx, new_mem);
 }
 
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
@@ -390,7 +389,6 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.verify_access = &qxl_verify_access,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
 	.io_mem_free = &qxl_ttm_io_mem_free,
-	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 	.move_notify = &qxl_bo_move_notify,
 };
 
