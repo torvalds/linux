@@ -6,11 +6,14 @@
  */
 
 #include <asm/mman.h>
+#include <asm/setup.h>
 #include <linux/pkeys.h>
+#include <linux/of_device.h>
 
 DEFINE_STATIC_KEY_TRUE(pkey_disabled);
 bool pkey_execute_disable_supported;
 int  pkeys_total;		/* Total pkeys as per device tree */
+bool pkeys_devtree_defined;	/* pkey property exported by device tree */
 u32  initial_allocation_mask;	/* Bits set for reserved keys */
 u64  pkey_amr_uamor_mask;	/* Bits in AMR/UMOR not to be touched */
 u64  pkey_iamr_mask;		/* Bits in AMR not to be touched */
@@ -21,6 +24,35 @@ u64  pkey_iamr_mask;		/* Bits in AMR not to be touched */
 #define IAMR_EX_BIT 0x1UL
 #define PKEY_REG_BITS (sizeof(u64)*8)
 #define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey+1) * AMR_BITS_PER_PKEY))
+
+static void scan_pkey_feature(void)
+{
+	u32 vals[2];
+	struct device_node *cpu;
+
+	cpu = of_find_node_by_type(NULL, "cpu");
+	if (!cpu)
+		return;
+
+	if (of_property_read_u32_array(cpu,
+			"ibm,processor-storage-keys", vals, 2))
+		return;
+
+	/*
+	 * Since any pkey can be used for data or execute, we will just treat
+	 * all keys as equal and track them as one entity.
+	 */
+	pkeys_total = be32_to_cpu(vals[0]);
+	pkeys_devtree_defined = true;
+}
+
+static inline bool pkey_mmu_enabled(void)
+{
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		return pkeys_total;
+	else
+		return cpu_has_feature(CPU_FTR_PKEY);
+}
 
 int pkey_initialize(void)
 {
@@ -42,14 +74,17 @@ int pkey_initialize(void)
 		     __builtin_popcountl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)
 				!= (sizeof(u64) * BITS_PER_BYTE));
 
-	/*
-	 * Disable the pkey system till everything is in place. A subsequent
-	 * patch will enable it.
-	 */
-	static_branch_enable(&pkey_disabled);
+	/* scan the device tree for pkey feature */
+	scan_pkey_feature();
 
-	/* Lets assume 32 keys */
-	pkeys_total = 32;
+	/*
+	 * Let's assume 32 pkeys on P8 bare metal, if its not defined by device
+	 * tree. We make this exception since skiboot forgot to expose this
+	 * property on power8.
+	 */
+	if (!pkeys_devtree_defined && !firmware_has_feature(FW_FEATURE_LPAR) &&
+			cpu_has_feature(CPU_FTRS_POWER8))
+		pkeys_total = 32;
 
 	/*
 	 * Adjust the upper limit, based on the number of bits supported by
@@ -58,11 +93,22 @@ int pkey_initialize(void)
 	pkeys_total = min_t(int, pkeys_total,
 			(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT));
 
+	if (!pkey_mmu_enabled() || radix_enabled() || !pkeys_total)
+		static_branch_enable(&pkey_disabled);
+	else
+		static_branch_disable(&pkey_disabled);
+
+	if (static_branch_likely(&pkey_disabled))
+		return 0;
+
 	/*
-	 * Disable execute_disable support for now. A subsequent patch will
-	 * enable it.
+	 * The device tree cannot be relied to indicate support for
+	 * execute_disable support. Instead we use a PVR check.
 	 */
-	pkey_execute_disable_supported = false;
+	if (pvr_version_is(PVR_POWER7) || pvr_version_is(PVR_POWER7p))
+		pkey_execute_disable_supported = false;
+	else
+		pkey_execute_disable_supported = true;
 
 #ifdef CONFIG_PPC_4K_PAGES
 	/*
