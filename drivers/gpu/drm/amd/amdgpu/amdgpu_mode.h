@@ -651,7 +651,7 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 				struct drm_display_mode *adjusted_mode);
 void amdgpu_panel_mode_fixup(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode);
-int amdgpu_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc);
+int amdgpu_display_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc);
 
 /* fbdev layer */
 int amdgpu_fbdev_init(struct amdgpu_device *adev);
