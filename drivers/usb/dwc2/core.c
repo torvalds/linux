@@ -675,6 +675,11 @@ void dwc2_flush_tx_fifo(struct dwc2_hsotg *hsotg, const int num)
 
 	dev_vdbg(hsotg->dev, "Flush Tx FIFO %d\n", num);
 
+	/* Wait for AHB master IDLE state */
+	if (dwc2_hsotg_wait_bit_set(hsotg, GRSTCTL, GRSTCTL_AHBIDLE, 10000))
+		dev_warn(hsotg->dev, "%s:  HANG! AHB Idle GRSCTL\n",
+			 __func__);
+
 	greset = GRSTCTL_TXFFLSH;
 	greset |= num << GRSTCTL_TXFNUM_SHIFT & GRSTCTL_TXFNUM_MASK;
 	dwc2_writel(greset, hsotg->regs + GRSTCTL);
@@ -697,6 +702,11 @@ void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg)
 	u32 greset;
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
+
+	/* Wait for AHB master IDLE state */
+	if (dwc2_hsotg_wait_bit_set(hsotg, GRSTCTL, GRSTCTL_AHBIDLE, 10000))
+		dev_warn(hsotg->dev, "%s:  HANG! AHB Idle GRSCTL\n",
+			 __func__);
 
 	greset = GRSTCTL_RXFFLSH;
 	dwc2_writel(greset, hsotg->regs + GRSTCTL);
