@@ -201,6 +201,13 @@
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-ums = <BOOT_UMS>;
 		};
+
+		pmu_pvtm: pmu-pvtm {
+			compatible = "rockchip,px30-pmu-pvtm";
+			clocks = <&pmucru SCLK_PVTM_PMU>;
+			clock-names = "pmu";
+			status = "disabled";
+		};
 	};
 
 	uart0: serial@ff030000 {
@@ -239,6 +246,20 @@
 
 		io_domains: io-domains {
 			compatible = "rockchip,px30-io-voltage-domain";
+			status = "disabled";
+		};
+	};
+
+	core_grf: syscon@ff148000 {
+		compatible = "syscon", "simple-mfd";
+		reg = <0x0 0xff148000 0x0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		pvtm: pvtm {
+			compatible = "rockchip,px30-pvtm";
+			clocks = <&cru SCLK_PVTM>;
+			clock-names = "core";
 			status = "disabled";
 		};
 	};
