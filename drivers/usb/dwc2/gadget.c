@@ -3278,7 +3278,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 	if (using_dma(hsotg)) {
 		dwc2_writel(GAHBCFG_GLBL_INTR_EN | GAHBCFG_DMA_EN |
-			    (GAHBCFG_HBSTLEN_INCR4 << GAHBCFG_HBSTLEN_SHIFT),
+			    hsotg->params.ahbcfg,
 			    hsotg->regs + GAHBCFG);
 
 		/* Set DDMA mode support in the core if needed */
