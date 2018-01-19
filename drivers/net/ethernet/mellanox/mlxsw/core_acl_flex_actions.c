@@ -310,8 +310,32 @@ struct mlxsw_afa_block {
 	struct mlxsw_afa_set *first_set;
 	struct mlxsw_afa_set *cur_set;
 	unsigned int cur_act_index; /* In current set. */
-	struct list_head fwd_entry_ref_list;
+	struct list_head resource_list; /* List of resources held by actions
+					 * in this block.
+					 */
 };
+
+struct mlxsw_afa_resource {
+	struct list_head list;
+	void (*destructor)(struct mlxsw_afa_block *block,
+			   struct mlxsw_afa_resource *resource);
+};
+
+static void mlxsw_afa_resource_add(struct mlxsw_afa_block *block,
+				   struct mlxsw_afa_resource *resource)
+{
+	list_add(&resource->list, &block->resource_list);
+}
+
+static void mlxsw_afa_resources_destroy(struct mlxsw_afa_block *block)
+{
+	struct mlxsw_afa_resource *resource, *tmp;
+
+	list_for_each_entry_safe(resource, tmp, &block->resource_list, list) {
+		list_del(&resource->list);
+		resource->destructor(block, resource);
+	}
+}
 
 struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa)
 {
@@ -320,7 +344,7 @@ struct mlxsw_afa_block *mlxsw_afa_block_create(struct mlxsw_afa *mlxsw_afa)
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (!block)
 		return NULL;
-	INIT_LIST_HEAD(&block->fwd_entry_ref_list);
+	INIT_LIST_HEAD(&block->resource_list);
 	block->afa = mlxsw_afa;
 
 	/* At least one action set is always present, so just create it here */
@@ -336,8 +360,6 @@ err_first_set_create:
 }
 EXPORT_SYMBOL(mlxsw_afa_block_create);
 
-static void mlxsw_afa_fwd_entry_refs_destroy(struct mlxsw_afa_block *block);
-
 void mlxsw_afa_block_destroy(struct mlxsw_afa_block *block)
 {
 	struct mlxsw_afa_set *set = block->first_set;
@@ -348,7 +370,7 @@ void mlxsw_afa_block_destroy(struct mlxsw_afa_block *block)
 		mlxsw_afa_set_put(block->afa, set);
 		set = next_set;
 	} while (set);
-	mlxsw_afa_fwd_entry_refs_destroy(block);
+	mlxsw_afa_resources_destroy(block);
 	kfree(block);
 }
 EXPORT_SYMBOL(mlxsw_afa_block_destroy);
@@ -489,9 +511,28 @@ static void mlxsw_afa_fwd_entry_put(struct mlxsw_afa *mlxsw_afa,
 }
 
 struct mlxsw_afa_fwd_entry_ref {
-	struct list_head list;
+	struct mlxsw_afa_resource resource;
 	struct mlxsw_afa_fwd_entry *fwd_entry;
 };
+
+static void
+mlxsw_afa_fwd_entry_ref_destroy(struct mlxsw_afa_block *block,
+				struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref)
+{
+	mlxsw_afa_fwd_entry_put(block->afa, fwd_entry_ref->fwd_entry);
+	kfree(fwd_entry_ref);
+}
+
+static void
+mlxsw_afa_fwd_entry_ref_destructor(struct mlxsw_afa_block *block,
+				   struct mlxsw_afa_resource *resource)
+{
+	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
+
+	fwd_entry_ref = container_of(resource, struct mlxsw_afa_fwd_entry_ref,
+				     resource);
+	mlxsw_afa_fwd_entry_ref_destroy(block, fwd_entry_ref);
+}
 
 static struct mlxsw_afa_fwd_entry_ref *
 mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u8 local_port)
@@ -509,31 +550,13 @@ mlxsw_afa_fwd_entry_ref_create(struct mlxsw_afa_block *block, u8 local_port)
 		goto err_fwd_entry_get;
 	}
 	fwd_entry_ref->fwd_entry = fwd_entry;
-	list_add(&fwd_entry_ref->list, &block->fwd_entry_ref_list);
+	fwd_entry_ref->resource.destructor = mlxsw_afa_fwd_entry_ref_destructor;
+	mlxsw_afa_resource_add(block, &fwd_entry_ref->resource);
 	return fwd_entry_ref;
 
 err_fwd_entry_get:
 	kfree(fwd_entry_ref);
 	return ERR_PTR(err);
-}
-
-static void
-mlxsw_afa_fwd_entry_ref_destroy(struct mlxsw_afa_block *block,
-				struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref)
-{
-	list_del(&fwd_entry_ref->list);
-	mlxsw_afa_fwd_entry_put(block->afa, fwd_entry_ref->fwd_entry);
-	kfree(fwd_entry_ref);
-}
-
-static void mlxsw_afa_fwd_entry_refs_destroy(struct mlxsw_afa_block *block)
-{
-	struct mlxsw_afa_fwd_entry_ref *fwd_entry_ref;
-	struct mlxsw_afa_fwd_entry_ref *tmp;
-
-	list_for_each_entry_safe(fwd_entry_ref, tmp,
-				 &block->fwd_entry_ref_list, list)
-		mlxsw_afa_fwd_entry_ref_destroy(block, fwd_entry_ref);
 }
 
 #define MLXSW_AFA_ONE_ACTION_LEN 32
