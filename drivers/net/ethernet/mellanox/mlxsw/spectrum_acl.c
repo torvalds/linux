@@ -566,6 +566,34 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 					  local_port, in_port);
 }
 
+int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  struct mlxsw_sp_acl_block *block,
+				  struct net_device *out_dev)
+{
+	struct mlxsw_sp_acl_block_binding *binding;
+	struct mlxsw_sp_port *out_port;
+	struct mlxsw_sp_port *in_port;
+
+	if (!list_is_singular(&block->binding_list))
+		return -EOPNOTSUPP;
+
+	binding = list_first_entry(&block->binding_list,
+				   struct mlxsw_sp_acl_block_binding, list);
+	in_port = binding->mlxsw_sp_port;
+	if (!mlxsw_sp_port_dev_check(out_dev))
+		return -EINVAL;
+
+	out_port = netdev_priv(out_dev);
+	if (out_port->mlxsw_sp != mlxsw_sp)
+		return -EINVAL;
+
+	return mlxsw_afa_block_append_mirror(rulei->act_block,
+					     in_port->local_port,
+					     out_port->local_port,
+					     binding->ingress);
+}
+
 int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule_info *rulei,
 				u32 action, u16 vid, u16 proto, u8 prio)

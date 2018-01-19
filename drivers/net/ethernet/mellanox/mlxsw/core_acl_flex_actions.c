@@ -834,8 +834,68 @@ int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_trap_and_forward);
 
-int mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
-				  u8 mirror_agent)
+struct mlxsw_afa_mirror {
+	struct mlxsw_afa_resource resource;
+	int span_id;
+	u8 local_in_port;
+	u8 local_out_port;
+	bool ingress;
+};
+
+static void
+mlxsw_afa_mirror_destroy(struct mlxsw_afa_block *block,
+			 struct mlxsw_afa_mirror *mirror)
+{
+	block->afa->ops->mirror_del(block->afa->ops_priv,
+				    mirror->local_in_port,
+				    mirror->local_out_port,
+				    mirror->ingress);
+	kfree(mirror);
+}
+
+static void
+mlxsw_afa_mirror_destructor(struct mlxsw_afa_block *block,
+			    struct mlxsw_afa_resource *resource)
+{
+	struct mlxsw_afa_mirror *mirror;
+
+	mirror = container_of(resource, struct mlxsw_afa_mirror, resource);
+	mlxsw_afa_mirror_destroy(block, mirror);
+}
+
+static struct mlxsw_afa_mirror *
+mlxsw_afa_mirror_create(struct mlxsw_afa_block *block,
+			u8 local_in_port, u8 local_out_port,
+			bool ingress)
+{
+	struct mlxsw_afa_mirror *mirror;
+	int err;
+
+	mirror = kzalloc(sizeof(*mirror), GFP_KERNEL);
+	if (!mirror)
+		return ERR_PTR(-ENOMEM);
+
+	err = block->afa->ops->mirror_add(block->afa->ops_priv,
+					  local_in_port, local_out_port,
+					  ingress, &mirror->span_id);
+	if (err)
+		goto err_mirror_add;
+
+	mirror->ingress = ingress;
+	mirror->local_out_port = local_out_port;
+	mirror->local_in_port = local_in_port;
+	mirror->resource.destructor = mlxsw_afa_mirror_destructor;
+	mlxsw_afa_resource_add(block, &mirror->resource);
+	return mirror;
+
+err_mirror_add:
+	kfree(mirror);
+	return ERR_PTR(err);
+}
+
+static int
+mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
+					u8 mirror_agent)
 {
 	char *act = mlxsw_afa_block_append_action(block,
 						  MLXSW_AFA_TRAPDISC_CODE,
@@ -846,6 +906,29 @@ int mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
 				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_FORWARD, 0);
 	mlxsw_afa_trapdisc_mirror_pack(act, true, mirror_agent);
 	return 0;
+}
+
+int
+mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
+			      u8 local_in_port, u8 local_out_port, bool ingress)
+{
+	struct mlxsw_afa_mirror *mirror;
+	int err;
+
+	mirror = mlxsw_afa_mirror_create(block, local_in_port, local_out_port,
+					 ingress);
+	if (IS_ERR(mirror))
+		return PTR_ERR(mirror);
+
+	err = mlxsw_afa_block_append_allocated_mirror(block, mirror->span_id);
+	if (err)
+		goto err_append_allocated_mirror;
+
+	return 0;
+
+err_append_allocated_mirror:
+	mlxsw_afa_mirror_destroy(block, mirror);
+	return err;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_mirror);
 
