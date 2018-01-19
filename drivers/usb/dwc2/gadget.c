@@ -47,12 +47,12 @@ static inline struct dwc2_hsotg *to_hsotg(struct usb_gadget *gadget)
 	return container_of(gadget, struct dwc2_hsotg, gadget);
 }
 
-static inline void __orr32(void __iomem *ptr, u32 val)
+static inline void dwc2_set_bit(void __iomem *ptr, u32 val)
 {
 	dwc2_writel(dwc2_readl(ptr) | val, ptr);
 }
 
-static inline void __bic32(void __iomem *ptr, u32 val)
+static inline void dwc2_clear_bit(void __iomem *ptr, u32 val)
 {
 	dwc2_writel(dwc2_readl(ptr) & ~val, ptr);
 }
@@ -3237,7 +3237,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	dwc2_hsotg_init_fifo(hsotg);
 
 	if (!is_usb_reset)
-		__orr32(hsotg->regs + DCTL, DCTL_SFTDISCON);
+		dwc2_set_bit(hsotg->regs + DCTL, DCTL_SFTDISCON);
 
 	dcfg |= DCFG_EPMISCNT(1);
 
@@ -3283,7 +3283,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 		/* Set DDMA mode support in the core if needed */
 		if (using_desc_dma(hsotg))
-			__orr32(hsotg->regs + DCFG, DCFG_DESCDMA_EN);
+			dwc2_set_bit(hsotg->regs + DCFG, DCFG_DESCDMA_EN);
 
 	} else {
 		dwc2_writel(((hsotg->dedicated_fifos) ?
@@ -3316,7 +3316,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 	/* Enable BNA interrupt for DDMA */
 	if (using_desc_dma(hsotg))
-		__orr32(hsotg->regs + DOEPMSK, DOEPMSK_BNAMSK);
+		dwc2_set_bit(hsotg->regs + DOEPMSK, DOEPMSK_BNAMSK);
 
 	dwc2_writel(0, hsotg->regs + DAINTMSK);
 
@@ -3340,9 +3340,9 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	dwc2_hsotg_ctrl_epint(hsotg, 0, 1, 1);
 
 	if (!is_usb_reset) {
-		__orr32(hsotg->regs + DCTL, DCTL_PWRONPRGDONE);
+		dwc2_set_bit(hsotg->regs + DCTL, DCTL_PWRONPRGDONE);
 		udelay(10);  /* see openiboot */
-		__bic32(hsotg->regs + DCTL, DCTL_PWRONPRGDONE);
+		dwc2_clear_bit(hsotg->regs + DCTL, DCTL_PWRONPRGDONE);
 	}
 
 	dev_dbg(hsotg->dev, "DCTL=0x%08x\n", dwc2_readl(hsotg->regs + DCTL));
@@ -3369,7 +3369,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	val = DCTL_CGOUTNAK | DCTL_CGNPINNAK;
 	if (!is_usb_reset)
 		val |= DCTL_SFTDISCON;
-	__orr32(hsotg->regs + DCTL, val);
+	dwc2_set_bit(hsotg->regs + DCTL, val);
 
 	/* must be at-least 3ms to allow bus to see disconnect */
 	mdelay(3);
@@ -3386,13 +3386,13 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 static void dwc2_hsotg_core_disconnect(struct dwc2_hsotg *hsotg)
 {
 	/* set the soft-disconnect bit */
-	__orr32(hsotg->regs + DCTL, DCTL_SFTDISCON);
+	dwc2_set_bit(hsotg->regs + DCTL, DCTL_SFTDISCON);
 }
 
 void dwc2_hsotg_core_connect(struct dwc2_hsotg *hsotg)
 {
 	/* remove the soft-disconnect and let's go */
-	__bic32(hsotg->regs + DCTL, DCTL_SFTDISCON);
+	dwc2_clear_bit(hsotg->regs + DCTL, DCTL_SFTDISCON);
 }
 
 /**
@@ -3481,7 +3481,7 @@ static void dwc2_gadget_handle_incomplete_isoc_out(struct dwc2_hsotg *hsotg)
 
 			gintsts = dwc2_readl(hsotg->regs + GINTSTS);
 			if (!(gintsts & GINTSTS_GOUTNAKEFF)) {
-				__orr32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
+				dwc2_set_bit(hsotg->regs + DCTL, DCTL_SGOUTNAK);
 				break;
 			}
 		}
@@ -3542,7 +3542,7 @@ irq_retry:
 		dwc2_hsotg_disconnect(hsotg);
 
 		/* Reset device address to zero */
-		__bic32(hsotg->regs + DCFG, DCFG_DEVADDR_MASK);
+		dwc2_clear_bit(hsotg->regs + DCFG, DCFG_DEVADDR_MASK);
 
 		if (usb_status & GOTGCTL_BSESVLD && connected)
 			dwc2_hsotg_core_init_disconnected(hsotg, true);
@@ -3660,7 +3660,7 @@ irq_retry:
 	if (gintsts & GINTSTS_GINNAKEFF) {
 		dev_info(hsotg->dev, "GINNakEff triggered\n");
 
-		__orr32(hsotg->regs + DCTL, DCTL_CGNPINNAK);
+		dwc2_set_bit(hsotg->regs + DCTL, DCTL_CGNPINNAK);
 
 		dwc2_hsotg_dump(hsotg);
 	}
@@ -3700,7 +3700,7 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 
 	if (hs_ep->dir_in) {
 		if (hsotg->dedicated_fifos || hs_ep->periodic) {
-			__orr32(hsotg->regs + epctrl_reg, DXEPCTL_SNAK);
+			dwc2_set_bit(hsotg->regs + epctrl_reg, DXEPCTL_SNAK);
 			/* Wait for Nak effect */
 			if (dwc2_hsotg_wait_bit_set(hsotg, epint_reg,
 						    DXEPINT_INEPNAKEFF, 100))
@@ -3708,7 +3708,7 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 					 "%s: timeout DIEPINT.NAKEFF\n",
 					 __func__);
 		} else {
-			__orr32(hsotg->regs + DCTL, DCTL_SGNPINNAK);
+			dwc2_set_bit(hsotg->regs + DCTL, DCTL_SGNPINNAK);
 			/* Wait for Nak effect */
 			if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS,
 						    GINTSTS_GINNAKEFF, 100))
@@ -3718,7 +3718,7 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 		}
 	} else {
 		if (!(dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_GOUTNAKEFF))
-			__orr32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
+			dwc2_set_bit(hsotg->regs + DCTL, DCTL_SGOUTNAK);
 
 		/* Wait for global nak to take effect */
 		if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS,
@@ -3728,7 +3728,7 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 	}
 
 	/* Disable ep */
-	__orr32(hsotg->regs + epctrl_reg, DXEPCTL_EPDIS | DXEPCTL_SNAK);
+	dwc2_set_bit(hsotg->regs + epctrl_reg, DXEPCTL_EPDIS | DXEPCTL_SNAK);
 
 	/* Wait for ep to be disabled */
 	if (dwc2_hsotg_wait_bit_set(hsotg, epint_reg, DXEPINT_EPDISBLD, 100))
@@ -3736,7 +3736,7 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 			 "%s: timeout DOEPCTL.EPDisable\n", __func__);
 
 	/* Clear EPDISBLD interrupt */
-	__orr32(hsotg->regs + epint_reg, DXEPINT_EPDISBLD);
+	dwc2_set_bit(hsotg->regs + epint_reg, DXEPINT_EPDISBLD);
 
 	if (hs_ep->dir_in) {
 		unsigned short fifo_index;
@@ -3751,11 +3751,11 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 
 		/* Clear Global In NP NAK in Shared FIFO for non periodic ep */
 		if (!hsotg->dedicated_fifos && !hs_ep->periodic)
-			__orr32(hsotg->regs + DCTL, DCTL_CGNPINNAK);
+			dwc2_set_bit(hsotg->regs + DCTL, DCTL_CGNPINNAK);
 
 	} else {
 		/* Remove global NAKs */
-		__orr32(hsotg->regs + DCTL, DCTL_CGOUTNAK);
+		dwc2_set_bit(hsotg->regs + DCTL, DCTL_CGOUTNAK);
 	}
 }
 
@@ -4177,7 +4177,7 @@ static void dwc2_hsotg_init(struct dwc2_hsotg *hsotg)
 	dwc2_writel(0, hsotg->regs + DAINTMSK);
 
 	/* Be in disconnected state until gadget is registered */
-	__orr32(hsotg->regs + DCTL, DCTL_SFTDISCON);
+	dwc2_set_bit(hsotg->regs + DCTL, DCTL_SFTDISCON);
 
 	/* setup fifos */
 
@@ -4199,7 +4199,7 @@ static void dwc2_hsotg_init(struct dwc2_hsotg *hsotg)
 	dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
 	if (using_dma(hsotg))
-		__orr32(hsotg->regs + GAHBCFG, GAHBCFG_DMA_EN);
+		dwc2_set_bit(hsotg->regs + GAHBCFG, GAHBCFG_DMA_EN);
 }
 
 /**
