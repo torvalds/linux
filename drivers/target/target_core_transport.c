@@ -2300,7 +2300,7 @@ queue_full:
 
 void target_free_sgl(struct scatterlist *sgl, int nents)
 {
-	sgl_free(sgl);
+	sgl_free_n_order(sgl, nents, 0);
 }
 EXPORT_SYMBOL(target_free_sgl);
 

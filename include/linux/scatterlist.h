@@ -282,6 +282,7 @@ struct scatterlist *sgl_alloc_order(unsigned long long length,
 				    gfp_t gfp, unsigned int *nent_p);
 struct scatterlist *sgl_alloc(unsigned long long length, gfp_t gfp,
 			      unsigned int *nent_p);
+void sgl_free_n_order(struct scatterlist *sgl, int nents, int order);
 void sgl_free_order(struct scatterlist *sgl, int order);
 void sgl_free(struct scatterlist *sgl);
 #endif /* CONFIG_SGL_ALLOC */
