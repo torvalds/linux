@@ -668,9 +668,9 @@ static bool amdgpu_display_is_hdtv_mode(const struct drm_display_mode *mode)
 		return false;
 }
 
-bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
-				    const struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode)
+bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
+					const struct drm_display_mode *mode,
+					struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *encoder;

@@ -646,9 +646,9 @@ int amdgpufb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
 
 void amdgpu_enc_destroy(struct drm_encoder *encoder);
 void amdgpu_copy_fb(struct drm_device *dev, struct drm_gem_object *dst_obj);
-bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
-					const struct drm_display_mode *mode,
-					struct drm_display_mode *adjusted_mode);
+bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode);
 void amdgpu_panel_mode_fixup(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode);
 int amdgpu_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc);

@@ -2676,7 +2676,7 @@ static bool dce_v10_0_crtc_mode_fixup(struct drm_crtc *crtc,
 		amdgpu_crtc->connector = NULL;
 		return false;
 	}
-	if (!amdgpu_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
+	if (!amdgpu_display_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
 		return false;
 	if (amdgpu_atombios_crtc_prepare_pll(crtc, adjusted_mode))
 		return false;
