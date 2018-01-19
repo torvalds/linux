@@ -537,9 +537,9 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 }
 
 struct drm_framebuffer *
-amdgpu_user_framebuffer_create(struct drm_device *dev,
-			       struct drm_file *file_priv,
-			       const struct drm_mode_fb_cmd2 *mode_cmd)
+amdgpu_display_user_framebuffer_create(struct drm_device *dev,
+				       struct drm_file *file_priv,
+				       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct amdgpu_framebuffer *amdgpu_fb;
@@ -575,7 +575,7 @@ amdgpu_user_framebuffer_create(struct drm_device *dev,
 }
 
 const struct drm_mode_config_funcs amdgpu_mode_funcs = {
-	.fb_create = amdgpu_user_framebuffer_create,
+	.fb_create = amdgpu_display_user_framebuffer_create,
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
 };
 
