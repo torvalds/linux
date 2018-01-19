@@ -681,18 +681,17 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx)
 	}
 	default:
 		rc = -EINVAL;
-		goto out;
+		goto free_priv;
 	}
 
 	ctx->prepend_size = TLS_HEADER_SIZE + nonce_size;
 	ctx->tag_size = tag_size;
 	ctx->overhead_size = ctx->prepend_size + ctx->tag_size;
 	ctx->iv_size = iv_size;
-	ctx->iv = kmalloc(iv_size + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
-			  GFP_KERNEL);
+	ctx->iv = kmalloc(iv_size + TLS_CIPHER_AES_GCM_128_SALT_SIZE, GFP_KERNEL);
 	if (!ctx->iv) {
 		rc = -ENOMEM;
-		goto out;
+		goto free_priv;
 	}
 	memcpy(ctx->iv, gcm_128_info->salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
 	memcpy(ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv, iv_size);
@@ -740,7 +739,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx)
 
 	rc = crypto_aead_setauthsize(sw_ctx->aead_send, ctx->tag_size);
 	if (!rc)
-		goto out;
+		return 0;
 
 free_aead:
 	crypto_free_aead(sw_ctx->aead_send);
@@ -751,6 +750,9 @@ free_rec_seq:
 free_iv:
 	kfree(ctx->iv);
 	ctx->iv = NULL;
+free_priv:
+	kfree(ctx->priv_ctx);
+	ctx->priv_ctx = NULL;
 out:
 	return rc;
 }

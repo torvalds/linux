@@ -2391,6 +2391,7 @@ int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 	while (skb->len >= nlmsg_total_size(0)) {
 		int msglen;
 
+		memset(&extack, 0, sizeof(extack));
 		nlh = nlmsg_hdr(skb);
 		err = 0;
 
@@ -2405,7 +2406,6 @@ int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 		if (nlh->nlmsg_type < NLMSG_MIN_TYPE)
 			goto ack;
 
-		memset(&extack, 0, sizeof(extack));
 		err = cb(skb, nlh, &extack);
 		if (err == -EINTR)
 			goto skip;

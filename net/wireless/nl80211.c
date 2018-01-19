@@ -9809,7 +9809,7 @@ static int cfg80211_cqm_rssi_update(struct cfg80211_registered_device *rdev,
 	 */
 	if (!wdev->cqm_config->last_rssi_event_value && wdev->current_bss &&
 	    rdev->ops->get_station) {
-		struct station_info sinfo;
+		struct station_info sinfo = {};
 		u8 *mac_addr;
 
 		mac_addr = wdev->current_bss->pub.bssid;

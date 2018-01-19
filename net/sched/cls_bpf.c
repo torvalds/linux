@@ -183,10 +183,17 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	return 0;
 }
 
+static u32 cls_bpf_flags(u32 flags)
+{
+	return flags & CLS_BPF_SUPPORTED_GEN_FLAGS;
+}
+
 static int cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 			   struct cls_bpf_prog *oldprog)
 {
-	if (prog && oldprog && prog->gen_flags != oldprog->gen_flags)
+	if (prog && oldprog &&
+	    cls_bpf_flags(prog->gen_flags) !=
+	    cls_bpf_flags(oldprog->gen_flags))
 		return -EINVAL;
 
 	if (prog && tc_skip_hw(prog->gen_flags))
