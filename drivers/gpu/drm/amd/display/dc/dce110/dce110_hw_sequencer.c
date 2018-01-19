@@ -2930,6 +2930,44 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 	}
 }
 
+void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
+{
+	struct dc_cursor_position pos_cpy = pipe_ctx->stream->cursor_position;
+	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
+	struct mem_input *mi = pipe_ctx->plane_res.mi;
+	struct dc_cursor_mi_param param = {
+		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_khz,
+		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
+		.viewport_x_start = pipe_ctx->plane_res.scl_data.viewport.x,
+		.viewport_width = pipe_ctx->plane_res.scl_data.viewport.width,
+		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz
+	};
+
+	if (pipe_ctx->plane_state->address.type
+			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+		pos_cpy.enable = false;
+
+	if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
+		pos_cpy.enable = false;
+
+	ipp->funcs->ipp_cursor_set_position(ipp, &pos_cpy, &param);
+	mi->funcs->set_cursor_position(mi, &pos_cpy, &param);
+}
+
+void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
+{
+	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
+
+	pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
+				pipe_ctx->plane_res.ipp, attributes);
+
+	pipe_ctx->plane_res.mi->funcs->set_cursor_attributes(
+			pipe_ctx->plane_res.mi, attributes);
+
+	pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes(
+		pipe_ctx->plane_res.xfm, attributes);
+}
+
 static void ready_shared_resources(struct dc *dc, struct dc_state *context) {}
 
 static void optimize_shared_resources(struct dc *dc) {}
@@ -2972,6 +3010,8 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.edp_backlight_control = hwss_edp_backlight_control,
 	.edp_power_control = hwss_edp_power_control,
 	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
+	.set_cursor_position = dce110_set_cursor_position,
+	.set_cursor_attribute = dce110_set_cursor_attribute
 };
 
 void dce110_hw_sequencer_construct(struct dc *dc)
