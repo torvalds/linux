@@ -2619,7 +2619,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	uint64_t reset_flags = 0;
 	int i, r, resched;
 
-	if (!amdgpu_device_ip_check_soft_reset(adev)) {
+	if (!force && !amdgpu_device_ip_check_soft_reset(adev)) {
 		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
 		return 0;
 	}
