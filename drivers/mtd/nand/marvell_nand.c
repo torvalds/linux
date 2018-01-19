@@ -517,7 +517,7 @@ static int marvell_nfc_prepare_cmd(struct nand_chip *chip)
 	/* Poll ND_RUN and clear NDSR before issuing any command */
 	ret = marvell_nfc_wait_ndrun(chip);
 	if (ret) {
-		dev_err(nfc->dev, "Last operation did not suceed\n");
+		dev_err(nfc->dev, "Last operation did not succeed\n");
 		return ret;
 	}
 
