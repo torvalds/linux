@@ -117,10 +117,6 @@ struct amdgpu_display_manager {
 	/* this spin lock synchronizes access to 'irq_handler_list_table' */
 	spinlock_t irq_handler_list_table_lock;
 
-	/* Timer-related data. */
-	struct list_head timer_handler_list;
-	struct workqueue_struct *timer_workqueue;
-
 	struct backlight_device *backlight_dev;
 
 	const struct dc_link *backlight_link;
