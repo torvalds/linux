@@ -392,6 +392,16 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_bad_pkt_num)}
 };
 
+static const struct hclge_mac_mgr_tbl_entry_cmd hclge_mgr_table[] = {
+	{
+		.flags = HCLGE_MAC_MGR_MASK_VLAN_B,
+		.ethter_type = cpu_to_le16(HCLGE_MAC_ETHERTYPE_LLDP),
+		.mac_addr_hi32 = cpu_to_le32(htonl(0x0180C200)),
+		.mac_addr_lo16 = cpu_to_le16(htons(0x000E)),
+		.i_port_bitmap = 0x1,
+	},
+};
+
 static int hclge_64_bit_update_stats(struct hclge_dev *hdev)
 {
 #define HCLGE_64_BIT_CMD_NUM 5
@@ -4249,6 +4259,91 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 	return status;
 }
 
+static int hclge_get_mac_ethertype_cmd_status(struct hclge_dev *hdev,
+					      u16 cmdq_resp, u8 resp_code)
+{
+#define HCLGE_ETHERTYPE_SUCCESS_ADD		0
+#define HCLGE_ETHERTYPE_ALREADY_ADD		1
+#define HCLGE_ETHERTYPE_MGR_TBL_OVERFLOW	2
+#define HCLGE_ETHERTYPE_KEY_CONFLICT		3
+
+	int return_status;
+
+	if (cmdq_resp) {
+		dev_err(&hdev->pdev->dev,
+			"cmdq execute failed for get_mac_ethertype_cmd_status, status=%d.\n",
+			cmdq_resp);
+		return -EIO;
+	}
+
+	switch (resp_code) {
+	case HCLGE_ETHERTYPE_SUCCESS_ADD:
+	case HCLGE_ETHERTYPE_ALREADY_ADD:
+		return_status = 0;
+		break;
+	case HCLGE_ETHERTYPE_MGR_TBL_OVERFLOW:
+		dev_err(&hdev->pdev->dev,
+			"add mac ethertype failed for manager table overflow.\n");
+		return_status = -EIO;
+		break;
+	case HCLGE_ETHERTYPE_KEY_CONFLICT:
+		dev_err(&hdev->pdev->dev,
+			"add mac ethertype failed for key conflict.\n");
+		return_status = -EIO;
+		break;
+	default:
+		dev_err(&hdev->pdev->dev,
+			"add mac ethertype failed for undefined, code=%d.\n",
+			resp_code);
+		return_status = -EIO;
+	}
+
+	return return_status;
+}
+
+static int hclge_add_mgr_tbl(struct hclge_dev *hdev,
+			     const struct hclge_mac_mgr_tbl_entry_cmd *req)
+{
+	struct hclge_desc desc;
+	u8 resp_code;
+	u16 retval;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_ETHTYPE_ADD, false);
+	memcpy(desc.data, req, sizeof(struct hclge_mac_mgr_tbl_entry_cmd));
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"add mac ethertype failed for cmd_send, ret =%d.\n",
+			ret);
+		return ret;
+	}
+
+	resp_code = (le32_to_cpu(desc.data[0]) >> 8) & 0xff;
+	retval = le16_to_cpu(desc.retval);
+
+	return hclge_get_mac_ethertype_cmd_status(hdev, retval, resp_code);
+}
+
+static int init_mgr_tbl(struct hclge_dev *hdev)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hclge_mgr_table); i++) {
+		ret = hclge_add_mgr_tbl(hdev, &hclge_mgr_table[i]);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"add mac ethertype failed, ret =%d.\n",
+				ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void hclge_get_mac_addr(struct hnae3_handle *handle, u8 *p)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -5268,6 +5363,12 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_rss_init_hw(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = init_mgr_tbl(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "manager table init fail, ret =%d\n", ret);
 		return ret;
 	}
 

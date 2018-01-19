@@ -605,6 +605,28 @@ struct hclge_mac_vlan_mask_entry_cmd {
 	u8 rsv2[14];
 };
 
+#define HCLGE_MAC_MGR_MASK_VLAN_B		BIT(0)
+#define HCLGE_MAC_MGR_MASK_MAC_B		BIT(1)
+#define HCLGE_MAC_MGR_MASK_ETHERTYPE_B		BIT(2)
+#define HCLGE_MAC_ETHERTYPE_LLDP		0x88cc
+
+struct hclge_mac_mgr_tbl_entry_cmd {
+	u8      flags;
+	u8      resp_code;
+	__le16  vlan_tag;
+	__le32  mac_addr_hi32;
+	__le16  mac_addr_lo16;
+	__le16  rsv1;
+	__le16  ethter_type;
+	__le16  egress_port;
+	__le16  egress_queue;
+	u8      sw_port_id_aware;
+	u8      rsv2;
+	u8      i_port_bitmap;
+	u8      i_port_direction;
+	u8      rsv3[2];
+};
+
 #define HCLGE_CFG_MTA_MAC_SEL_S		0x0
 #define HCLGE_CFG_MTA_MAC_SEL_M		GENMASK(1, 0)
 #define HCLGE_CFG_MTA_MAC_EN_B		0x7
