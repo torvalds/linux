@@ -94,6 +94,13 @@ static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	const struct pll_rate_table *rate_table = pll->rate_table;
 	int i;
 
+	/*
+	 * if the table is missing, just return the current rate
+	 * since we don't have the other available frequencies
+	 */
+	if (!rate_table)
+		return meson_clk_pll_recalc_rate(hw, *parent_rate);
+
 	for (i = 0; i < pll->rate_count; i++) {
 		if (rate <= rate_table[i].rate)
 			return rate_table[i].rate;
@@ -108,6 +115,9 @@ static const struct pll_rate_table *meson_clk_get_pll_settings(struct meson_clk_
 {
 	const struct pll_rate_table *rate_table = pll->rate_table;
 	int i;
+
+	if (!rate_table)
+		return NULL;
 
 	for (i = 0; i < pll->rate_count; i++) {
 		if (rate == rate_table[i].rate)
