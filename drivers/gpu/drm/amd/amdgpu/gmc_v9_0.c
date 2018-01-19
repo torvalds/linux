@@ -1009,7 +1009,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
 
 	/* After HDP is initialized, flush HDP.*/
-	adev->nbio_funcs->hdp_flush(adev);
+	adev->nbio_funcs->hdp_flush(adev, NULL);
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
 		value = false;

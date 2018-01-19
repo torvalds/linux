@@ -1221,9 +1221,10 @@ struct amdgpu_asic_funcs {
 	/* get config memsize register */
 	u32 (*get_config_memsize)(struct amdgpu_device *adev);
 	/* flush hdp write queue */
-	void (*flush_hdp)(struct amdgpu_device *adev);
+	void (*flush_hdp)(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 	/* invalidate hdp read cache */
-	void (*invalidate_hdp)(struct amdgpu_device *adev);
+	void (*invalidate_hdp)(struct amdgpu_device *adev,
+			       struct amdgpu_ring *ring);
 };
 
 /*
@@ -1367,7 +1368,7 @@ struct amdgpu_nbio_funcs {
 	u32 (*get_pcie_data_offset)(struct amdgpu_device *adev);
 	u32 (*get_rev_id)(struct amdgpu_device *adev);
 	void (*mc_access_enable)(struct amdgpu_device *adev, bool enable);
-	void (*hdp_flush)(struct amdgpu_device *adev);
+	void (*hdp_flush)(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 	u32 (*get_memsize)(struct amdgpu_device *adev);
 	void (*sdma_doorbell_range)(struct amdgpu_device *adev, int instance,
 				    bool use_doorbell, int doorbell_index);
@@ -1774,8 +1775,8 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_asic_read_bios_from_rom(adev, b, l) (adev)->asic_funcs->read_bios_from_rom((adev), (b), (l))
 #define amdgpu_asic_read_register(adev, se, sh, offset, v)((adev)->asic_funcs->read_register((adev), (se), (sh), (offset), (v)))
 #define amdgpu_asic_get_config_memsize(adev) (adev)->asic_funcs->get_config_memsize((adev))
-#define amdgpu_asic_flush_hdp(adev) (adev)->asic_funcs->flush_hdp((adev))
-#define amdgpu_asic_invalidate_hdp(adev) (adev)->asic_funcs->invalidate_hdp((adev))
+#define amdgpu_asic_flush_hdp(adev, r) (adev)->asic_funcs->flush_hdp((adev), (r))
+#define amdgpu_asic_invalidate_hdp(adev, r) (adev)->asic_funcs->invalidate_hdp((adev), (r))
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid) (adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid))
 #define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, pasid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (pasid), (addr))
 #define amdgpu_gmc_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gmc.gmc_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))

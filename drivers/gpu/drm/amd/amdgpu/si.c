@@ -1230,16 +1230,25 @@ static void si_detect_hw_virtualization(struct amdgpu_device *adev)
 		adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 }
 
-static void si_flush_hdp(struct amdgpu_device *adev)
+static void si_flush_hdp(struct amdgpu_device *adev, struct amdgpu_ring *ring)
 {
-	WREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 1);
-	RREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL);
+	if (!ring || !ring->funcs->emit_wreg) {
+		WREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+		RREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL);
+	} else {
+		amdgpu_ring_emit_wreg(ring, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+	}
 }
 
-static void si_invalidate_hdp(struct amdgpu_device *adev)
+static void si_invalidate_hdp(struct amdgpu_device *adev,
+			      struct amdgpu_ring *ring)
 {
-	WREG32(mmHDP_DEBUG0, 1);
-	RREG32(mmHDP_DEBUG0);
+	if (!ring || !ring->funcs->emit_wreg) {
+		WREG32(mmHDP_DEBUG0, 1);
+		RREG32(mmHDP_DEBUG0);
+	} else {
+		amdgpu_ring_emit_wreg(ring, mmHDP_DEBUG0, 1);
+	}
 }
 
 static const struct amdgpu_asic_funcs si_asic_funcs =

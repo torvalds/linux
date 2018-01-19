@@ -53,9 +53,14 @@ static void nbio_v7_0_mc_access_enable(struct amdgpu_device *adev, bool enable)
 		WREG32_SOC15(NBIO, 0, mmBIF_FB_EN, 0);
 }
 
-static void nbio_v7_0_hdp_flush(struct amdgpu_device *adev)
+static void nbio_v7_0_hdp_flush(struct amdgpu_device *adev,
+				struct amdgpu_ring *ring)
 {
-	WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+	if (!ring || !ring->funcs->emit_wreg)
+		WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+	else
+		amdgpu_ring_emit_wreg(ring, SOC15_REG_OFFSET(
+			NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL), 0);
 }
 
 static u32 nbio_v7_0_get_memsize(struct amdgpu_device *adev)

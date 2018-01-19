@@ -247,7 +247,7 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 		}
 	}
 	mb();
-	amdgpu_asic_flush_hdp(adev);
+	amdgpu_asic_flush_hdp(adev, NULL);
 	amdgpu_gmc_flush_gpu_tlb(adev, 0);
 	return 0;
 }
@@ -330,7 +330,7 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		return r;
 
 	mb();
-	amdgpu_asic_flush_hdp(adev);
+	amdgpu_asic_flush_hdp(adev, NULL);
 	amdgpu_gmc_flush_gpu_tlb(adev, 0);
 	return 0;
 }

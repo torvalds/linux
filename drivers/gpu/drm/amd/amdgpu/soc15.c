@@ -583,14 +583,19 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 	return adev->nbio_funcs->get_rev_id(adev);
 }
 
-static void soc15_flush_hdp(struct amdgpu_device *adev)
+static void soc15_flush_hdp(struct amdgpu_device *adev, struct amdgpu_ring *ring)
 {
-	adev->nbio_funcs->hdp_flush(adev);
+	adev->nbio_funcs->hdp_flush(adev, ring);
 }
 
-static void soc15_invalidate_hdp(struct amdgpu_device *adev)
+static void soc15_invalidate_hdp(struct amdgpu_device *adev,
+				 struct amdgpu_ring *ring)
 {
-	WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_READ_CACHE_INVALIDATE, 1);
+	if (!ring || !ring->funcs->emit_wreg)
+		WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_READ_CACHE_INVALIDATE, 1);
+	else
+		amdgpu_ring_emit_wreg(ring, SOC15_REG_OFFSET(
+			HDP, 0, mmHDP_READ_CACHE_INVALIDATE), 1);
 }
 
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
