@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
+#include <linux/power_supply.h>
 #include <linux/thermal.h>
 #include <linux/workqueue.h>
 
@@ -24,6 +25,11 @@ static int hysteresis = 3000;
 module_param(hysteresis, int, 0444);
 MODULE_PARM_DESC(hysteresis,
 		 "Hysteresis in milli-celcius before lowering the fan speed");
+
+static int speed_on_ac = 2;
+module_param(speed_on_ac, int, 0444);
+MODULE_PARM_DESC(speed_on_ac,
+		 "minimum fan speed to allow when system is powered by AC");
 
 struct gpd_pocket_fan_data {
 	struct device *dev;
@@ -46,11 +52,19 @@ static void gpd_pocket_fan_set_speed(struct gpd_pocket_fan_data *fan, int speed)
 	fan->last_speed = speed;
 }
 
+static int gpd_pocket_fan_min_speed(void)
+{
+	if (power_supply_is_system_supplied())
+		return speed_on_ac;
+	else
+		return 0;
+}
+
 static void gpd_pocket_fan_worker(struct work_struct *work)
 {
 	struct gpd_pocket_fan_data *fan =
 		container_of(work, struct gpd_pocket_fan_data, work.work);
-	int t0, t1, temp, speed, i;
+	int t0, t1, temp, speed, min_speed, i;
 
 	if (thermal_zone_get_temp(fan->dts0, &t0) ||
 	    thermal_zone_get_temp(fan->dts1, &t1)) {
@@ -62,9 +76,10 @@ static void gpd_pocket_fan_worker(struct work_struct *work)
 	temp = max(t0, t1);
 
 	speed = fan->last_speed;
+	min_speed = gpd_pocket_fan_min_speed();
 
 	/* Determine minimum speed */
-	for (i = 0; i < ARRAY_SIZE(temp_limits); i++) {
+	for (i = min_speed; i < ARRAY_SIZE(temp_limits); i++) {
 		if (temp < temp_limits[i])
 			break;
 	}
@@ -72,7 +87,7 @@ static void gpd_pocket_fan_worker(struct work_struct *work)
 		speed = i;
 
 	/* Use hysteresis before lowering speed again */
-	for (i = 0; i < ARRAY_SIZE(temp_limits); i++) {
+	for (i = min_speed; i < ARRAY_SIZE(temp_limits); i++) {
 		if (temp <= (temp_limits[i] - hysteresis))
 			break;
 	}
@@ -111,6 +126,11 @@ static int gpd_pocket_fan_probe(struct platform_device *pdev)
 	if (hysteresis < 1000 || hysteresis > 10000) {
 		dev_err(&pdev->dev, "Invalid hysteresis %d (must be between 1000 and 10000)\n",
 			hysteresis);
+		return -EINVAL;
+	}
+	if (speed_on_ac < 0 || speed_on_ac > MAX_SPEED) {
+		dev_err(&pdev->dev, "Invalid speed_on_ac %d (must be between 0 and 3)\n",
+			speed_on_ac);
 		return -EINVAL;
 	}
 
@@ -157,7 +177,7 @@ static int gpd_pocket_fan_suspend(struct device *dev)
 {
 	struct gpd_pocket_fan_data *fan = dev_get_drvdata(dev);
 
-	gpd_pocket_fan_set_speed(fan, 0);
+	gpd_pocket_fan_set_speed(fan, gpd_pocket_fan_min_speed());
 	return 0;
 }
 
