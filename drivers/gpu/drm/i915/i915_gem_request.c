@@ -696,6 +696,17 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		if (ret)
 			goto err_unreserve;
 
+		/*
+		 * We've forced the client to stall and catch up with whatever
+		 * backlog there might have been. As we are assuming that we
+		 * caused the mempressure, now is an opportune time to
+		 * recover as much memory from the request pool as is possible.
+		 * Having already penalized the client to stall, we spend
+		 * a little extra time to re-optimise page allocation.
+		 */
+		kmem_cache_shrink(dev_priv->requests);
+		rcu_barrier(); /* Recover the TYPESAFE_BY_RCU pages */
+
 		req = kmem_cache_alloc(dev_priv->requests, GFP_KERNEL);
 		if (!req) {
 			ret = -ENOMEM;
