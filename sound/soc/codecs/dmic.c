@@ -113,7 +113,7 @@ static int dmic_dev_probe(struct platform_device *pdev)
 
 	if (pdev->dev.of_node) {
 		err = of_property_read_u32(pdev->dev.of_node, "num-channels", &chans);
-		if (err && (err != -ENOENT))
+		if (err && (err != -EINVAL))
 			return err;
 
 		if (!err) {
