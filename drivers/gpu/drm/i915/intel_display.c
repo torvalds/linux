@@ -2387,6 +2387,20 @@ static unsigned int intel_fb_modifier_to_tiling(uint64_t fb_modifier)
 	}
 }
 
+/*
+ * From the Sky Lake PRM:
+ * "The Color Control Surface (CCS) contains the compression status of
+ *  the cache-line pairs. The compression state of the cache-line pair
+ *  is specified by 2 bits in the CCS. Each CCS cache-line represents
+ *  an area on the main surface of 16 x16 sets of 128 byte Y-tiled
+ *  cache-line-pairs. CCS is always Y tiled."
+ *
+ * Since cache line pairs refers to horizontally adjacent cache lines,
+ * each cache line in the CCS corresponds to an area of 32x16 cache
+ * lines on the main surface. Since each pixel is 4 bytes, this gives
+ * us a ratio of one byte in the CCS for each 8x16 pixels in the
+ * main surface.
+ */
 static const struct drm_format_info ccs_formats[] = {
 	{ .format = DRM_FORMAT_XRGB8888, .depth = 24, .num_planes = 2, .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
 	{ .format = DRM_FORMAT_XBGR8888, .depth = 24, .num_planes = 2, .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
