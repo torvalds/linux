@@ -18,12 +18,12 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/uaccess.h>
 
 #include <asm/cpu_device_id.h>
@@ -118,13 +118,6 @@ static const struct pmc_reg_map spt_reg_map = {
 	.pm_cfg_offset = SPT_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = SPT_PMC_READ_DISABLE_BIT,
 };
-
-static const struct pci_device_id pmc_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, SPT_PMC_PCI_DEVICE_ID),
-					(kernel_ulong_t)&spt_reg_map },
-	{ 0, },
-};
-MODULE_DEVICE_TABLE(pci, pmc_pci_ids);
 
 static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
 {
@@ -448,79 +441,59 @@ static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_MOBILE, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL},
+		(kernel_ulong_t)&spt_reg_map},
 	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_SKYLAKE_DESKTOP, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL},
+		(kernel_ulong_t)&spt_reg_map},
 	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_KABYLAKE_MOBILE, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL},
+		(kernel_ulong_t)&spt_reg_map},
 	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_KABYLAKE_DESKTOP, X86_FEATURE_MWAIT,
-		(kernel_ulong_t)NULL},
+		(kernel_ulong_t)&spt_reg_map},
 	{}
 };
 
-static int pmc_core_probe(struct pci_dev *dev, const struct pci_device_id *id)
+MODULE_DEVICE_TABLE(x86cpu, intel_pmc_core_ids);
+
+static int __init pmc_core_probe(void)
 {
-	struct device *ptr_dev = &dev->dev;
 	struct pmc_dev *pmcdev = &pmc;
 	const struct x86_cpu_id *cpu_id;
-	const struct pmc_reg_map *map = (struct pmc_reg_map *)id->driver_data;
 	int err;
 
 	cpu_id = x86_match_cpu(intel_pmc_core_ids);
-	if (!cpu_id) {
-		dev_dbg(&dev->dev, "PMC Core: cpuid mismatch.\n");
-		return -EINVAL;
-	}
+	if (!cpu_id)
+		return -ENODEV;
 
-	err = pcim_enable_device(dev);
-	if (err < 0) {
-		dev_dbg(&dev->dev, "PMC Core: failed to enable Power Management Controller.\n");
-		return err;
-	}
-
-	err = pci_read_config_dword(dev,
-				    SPT_PMC_BASE_ADDR_OFFSET,
-				    &pmcdev->base_addr);
-	if (err < 0) {
-		dev_dbg(&dev->dev, "PMC Core: failed to read PCI config space.\n");
-		return err;
-	}
-	pmcdev->base_addr &= PMC_BASE_ADDR_MASK;
-	dev_dbg(&dev->dev, "PMC Core: PWRMBASE is %#x\n", pmcdev->base_addr);
-
-	pmcdev->regbase = devm_ioremap_nocache(ptr_dev,
-					      pmcdev->base_addr,
-					      SPT_PMC_MMIO_REG_LEN);
-	if (!pmcdev->regbase) {
-		dev_dbg(&dev->dev, "PMC Core: ioremap failed.\n");
+	pmcdev->map = (struct pmc_reg_map *)cpu_id->driver_data;
+	pmcdev->base_addr = PMC_BASE_ADDR_DEFAULT;
+	pmcdev->regbase = ioremap(pmcdev->base_addr,
+				  pmcdev->map->regmap_length);
+	if (!pmcdev->regbase)
 		return -ENOMEM;
-	}
 
 	mutex_init(&pmcdev->lock);
-	pmcdev->map = map;
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit();
 
 	err = pmc_core_dbgfs_register(pmcdev);
-	if (err < 0)
-		dev_warn(&dev->dev, "PMC Core: debugfs register failed.\n");
+	if (err < 0) {
+		pr_warn(" debugfs register failed.\n");
+		iounmap(pmcdev->regbase);
+		return err;
+	}
 
+	pr_info(" initialized\n");
 	return 0;
 }
+module_init(pmc_core_probe)
 
-static void pmc_core_remove(struct pci_dev *dev)
+static void __exit pmc_core_remove(void)
 {
-	pmc_core_dbgfs_unregister(&pmc);
-	mutex_destroy(&pmc.lock);
+	struct pmc_dev *pmcdev = &pmc;
+
+	pmc_core_dbgfs_unregister(pmcdev);
+	mutex_destroy(&pmcdev->lock);
+	iounmap(pmcdev->regbase);
 }
-
-static struct pci_driver intel_pmc_core_driver = {
-	.name = "intel_pmc_core",
-	.id_table = pmc_pci_ids,
-	.probe = pmc_core_probe,
-	.remove = pmc_core_remove,
-};
-
-module_pci_driver(intel_pmc_core_driver);
+module_exit(pmc_core_remove)
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel PMC Core Driver");

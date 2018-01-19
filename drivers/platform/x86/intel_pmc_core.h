@@ -21,8 +21,7 @@
 #ifndef PMC_CORE_H
 #define PMC_CORE_H
 
-/* Sunrise Point Power Management Controller PCI Device ID */
-#define SPT_PMC_PCI_DEVICE_ID			0x9d21
+#define PMC_BASE_ADDR_DEFAULT			0xFE000000
 
 #define SPT_PMC_BASE_ADDR_OFFSET		0x48
 #define SPT_PMC_SLP_S0_RES_COUNTER_OFFSET	0x13c
