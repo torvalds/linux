@@ -114,7 +114,7 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 	dwc2 = platform_device_alloc("dwc2", PLATFORM_DEVID_AUTO);
 	if (!dwc2) {
 		dev_err(dev, "couldn't allocate dwc2 device\n");
-		return -ENOMEM;
+		goto err;
 	}
 
 	memset(res, 0x00, sizeof(struct resource) * ARRAY_SIZE(res));
@@ -131,7 +131,7 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 	ret = platform_device_add_resources(dwc2, res, ARRAY_SIZE(res));
 	if (ret) {
 		dev_err(dev, "couldn't add resources to dwc2 device\n");
-		return ret;
+		goto err;
 	}
 
 	dwc2->dev.parent = dev;
@@ -142,7 +142,7 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
-		return -ENOMEM;
+		goto err;
 
 	ret = platform_device_add(dwc2);
 	if (ret) {
