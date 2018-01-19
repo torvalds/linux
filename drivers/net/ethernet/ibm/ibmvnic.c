@@ -3346,7 +3346,11 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 		return;
 	}
 
+	adapter->ip_offload_ctrl.len =
+	    cpu_to_be32(sizeof(adapter->ip_offload_ctrl));
 	adapter->ip_offload_ctrl.version = cpu_to_be32(INITIAL_VERSION_IOB);
+	adapter->ip_offload_ctrl.ipv4_chksum = buf->ipv4_chksum;
+	adapter->ip_offload_ctrl.ipv6_chksum = buf->ipv6_chksum;
 	adapter->ip_offload_ctrl.tcp_ipv4_chksum = buf->tcp_ipv4_chksum;
 	adapter->ip_offload_ctrl.udp_ipv4_chksum = buf->udp_ipv4_chksum;
 	adapter->ip_offload_ctrl.tcp_ipv6_chksum = buf->tcp_ipv6_chksum;
