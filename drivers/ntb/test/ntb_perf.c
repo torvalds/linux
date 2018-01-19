@@ -1387,8 +1387,8 @@ static int perf_setup_peer_mw(struct perf_peer *peer)
 	if (max_mw_size && peer->outbuf_size > max_mw_size) {
 		peer->outbuf_size = max_mw_size;
 		dev_warn(&peer->perf->ntb->dev,
-			"Peer %d outbuf reduced to %#llx\n", peer->pidx,
-			peer->outbuf_size);
+			"Peer %d outbuf reduced to %pa\n", peer->pidx,
+			&peer->outbuf_size);
 	}
 
 	return 0;
