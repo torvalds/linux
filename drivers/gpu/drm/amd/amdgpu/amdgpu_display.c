@@ -520,11 +520,10 @@ uint32_t amdgpu_display_framebuffer_domains(struct amdgpu_device *adev)
 	return domain;
 }
 
-int
-amdgpu_framebuffer_init(struct drm_device *dev,
-			struct amdgpu_framebuffer *rfb,
-			const struct drm_mode_fb_cmd2 *mode_cmd,
-			struct drm_gem_object *obj)
+int amdgpu_display_framebuffer_init(struct drm_device *dev,
+				    struct amdgpu_framebuffer *rfb,
+				    const struct drm_mode_fb_cmd2 *mode_cmd,
+				    struct drm_gem_object *obj)
 {
 	int ret;
 	rfb->obj = obj;
@@ -565,7 +564,7 @@ amdgpu_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = amdgpu_framebuffer_init(dev, amdgpu_fb, mode_cmd, obj);
+	ret = amdgpu_display_framebuffer_init(dev, amdgpu_fb, mode_cmd, obj);
 	if (ret) {
 		kfree(amdgpu_fb);
 		drm_gem_object_put_unlocked(obj);
