@@ -597,7 +597,7 @@ static const struct drm_prop_enum_list amdgpu_dither_enum_list[] =
 	{ AMDGPU_FMT_DITHER_ENABLE, "on" },
 };
 
-int amdgpu_modeset_create_props(struct amdgpu_device *adev)
+int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 {
 	int sz;
 

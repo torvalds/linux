@@ -1317,7 +1317,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 
 	adev->ddev->mode_config.fb_base = adev->gmc.aper_base;
 
-	r = amdgpu_modeset_create_props(adev);
+	r = amdgpu_display_modeset_create_props(adev);
 	if (r)
 		return r;
 

@@ -2726,7 +2726,7 @@ static int dce_v8_0_sw_init(void *handle)
 
 	adev->ddev->mode_config.fb_base = adev->gmc.aper_base;
 
-	r = amdgpu_modeset_create_props(adev);
+	r = amdgpu_display_modeset_create_props(adev);
 	if (r)
 		return r;
 
