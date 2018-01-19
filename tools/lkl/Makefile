@@ -47,8 +47,16 @@ TARGETS := $(progs-y:%=$(OUTPUT)%$(EXESUF))
 TARGETS += $(libs-y:%=$(OUTPUT)%$(SOSUF))
 all: $(TARGETS)
 
+# this workaround is for FreeBSD
+bin/stat:
+ifeq ($(LKL_HOST_CONFIG_BSD),y)
+	$(Q)ln -sf `which gnustat` bin/stat
+else
+	$(Q)touch bin/stat
+endif
+
 # rule to build lkl.o
-$(OUTPUT)lib/lkl.o:
+$(OUTPUT)lib/lkl.o: bin/stat
 	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) defconfig
 # this workaround is for arm32 linker (ld.gold)
 	$(Q)export PATH=$(srctree)/tools/lkl/bin/:${PATH} ;\
@@ -81,7 +89,7 @@ clean:
 	 -delete -o -name '\.*.d' -delete
 	$(call QUIET_CLEAN, headers)$(RM) -r $(OUTPUT)/include/lkl/
 	$(call QUIET_CLEAN, liblkl.a)$(RM) $(OUTPUT)/liblkl.a
-	$(call QUIET_CLEAN, targets)$(RM) $(TARGETS)
+	$(call QUIET_CLEAN, targets)$(RM) $(TARGETS) bin/stat
 
 clean-conf: clean
 	$(call QUIET_CLEAN, Makefile.conf)$(RM) $(OUTPUT)/Makefile.conf
