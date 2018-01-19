@@ -1247,6 +1247,40 @@ bool exhalbtc_initlize_variables(struct rtl_priv *rtlpriv)
 	return true;
 }
 
+bool exhalbtc_initlize_variables_wifi_only(struct rtl_priv *rtlpriv)
+{
+	struct wifi_only_cfg *wifionly_cfg = rtl_btc_wifi_only(rtlpriv);
+	struct wifi_only_haldata *wifionly_haldata;
+
+	if (!wifionly_cfg)
+		return false;
+
+	wifionly_cfg->adapter = rtlpriv;
+
+	switch (rtlpriv->rtlhal.interface) {
+	case INTF_PCI:
+		wifionly_cfg->chip_interface = BTC_INTF_PCI;
+		break;
+	case INTF_USB:
+		wifionly_cfg->chip_interface = BTC_INTF_USB;
+		break;
+	default:
+		wifionly_cfg->chip_interface = BTC_INTF_UNKNOWN;
+		break;
+	}
+
+	wifionly_haldata = &wifionly_cfg->haldata_info;
+
+	wifionly_haldata->customer_id = CUSTOMER_NORMAL;
+	wifionly_haldata->efuse_pg_antnum = rtl_get_hwpg_ant_num(rtlpriv);
+	wifionly_haldata->efuse_pg_antpath =
+					rtl_get_hwpg_single_ant_path(rtlpriv);
+	wifionly_haldata->rfe_type = rtl_get_hwpg_rfe_type(rtlpriv);
+	wifionly_haldata->ant_div_cfg = 0;
+
+	return true;
+}
+
 bool exhalbtc_bind_bt_coex_withadapter(void *adapter)
 {
 	struct rtl_priv *rtlpriv = adapter;
@@ -1366,6 +1400,10 @@ void exhalbtc_init_hw_config(struct btc_coexist *btcoexist, bool wifi_only)
 		if (btcoexist->board_info.btdm_ant_num == 2)
 			ex_btc8192e2ant_init_hwconfig(btcoexist);
 	}
+}
+
+void exhalbtc_init_hw_config_wifi_only(struct wifi_only_cfg *wifionly_cfg)
+{
 }
 
 void exhalbtc_init_coex_dm(struct btc_coexist *btcoexist)
@@ -1492,6 +1530,11 @@ void exhalbtc_scan_notify(struct btc_coexist *btcoexist, u8 type)
 	}
 
 	halbtc_normal_low_power(btcoexist);
+}
+
+void exhalbtc_scan_notify_wifi_only(struct wifi_only_cfg *wifionly_cfg,
+				    u8 is_5g)
+{
 }
 
 void exhalbtc_connect_notify(struct btc_coexist *btcoexist, u8 action)
@@ -1923,4 +1966,9 @@ void exhalbtc_switch_band_notify(struct btc_coexist *btcoexist, u8 type)
 	halbtc_leave_low_power(btcoexist);
 
 	halbtc_normal_low_power(btcoexist);
+}
+
+void exhalbtc_switch_band_notify_wifi_only(struct wifi_only_cfg *wifionly_cfg,
+					   u8 is_5g)
+{
 }

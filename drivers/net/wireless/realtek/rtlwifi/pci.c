@@ -1794,6 +1794,7 @@ static int rtl_pci_start(struct ieee80211_hw *hw)
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
+	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
 
 	int err;
 
@@ -1803,9 +1804,12 @@ static int rtl_pci_start(struct ieee80211_hw *hw)
 	if (rtlpriv->cfg->ops->get_btc_status &&
 	    rtlpriv->cfg->ops->get_btc_status()) {
 		rtlpriv->btcoexist.btc_info.ap_num = 36;
-		rtlpriv->btcoexist.btc_ops->btc_init_variables(rtlpriv);
-		rtlpriv->btcoexist.btc_ops->btc_init_hal_vars(rtlpriv);
+		btc_ops->btc_init_variables(rtlpriv);
+		btc_ops->btc_init_hal_vars(rtlpriv);
+	} else if (btc_ops) {
+		btc_ops->btc_init_variables_wifi_only(rtlpriv);
 	}
+
 	err = rtlpriv->cfg->ops->hw_init(hw);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,

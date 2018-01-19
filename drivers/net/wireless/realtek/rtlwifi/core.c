@@ -1453,6 +1453,9 @@ static void rtl_op_sw_scan_start(struct ieee80211_hw *hw,
 
 	if (rtlpriv->cfg->ops->get_btc_status())
 		rtlpriv->btcoexist.btc_ops->btc_scan_notify(rtlpriv, 1);
+	else if (rtlpriv->btcoexist.btc_ops)
+		rtlpriv->btcoexist.btc_ops->btc_scan_notify_wifi_only(rtlpriv,
+								      1);
 
 	if (rtlpriv->dm.supp_phymode_switch) {
 		if (rtlpriv->cfg->ops->chk_switch_dmdp)
@@ -1508,6 +1511,9 @@ static void rtl_op_sw_scan_complete(struct ieee80211_hw *hw,
 	rtlpriv->cfg->ops->scan_operation_backup(hw, SCAN_OPT_RESTORE);
 	if (rtlpriv->cfg->ops->get_btc_status())
 		rtlpriv->btcoexist.btc_ops->btc_scan_notify(rtlpriv, 0);
+	else if (rtlpriv->btcoexist.btc_ops)
+		rtlpriv->btcoexist.btc_ops->btc_scan_notify_wifi_only(rtlpriv,
+								      0);
 }
 
 static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,

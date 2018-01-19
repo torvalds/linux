@@ -2502,6 +2502,7 @@ struct bt_coexist_info {
 	struct rtl_btc_info btc_info;
 	/* btc context */
 	void *btc_context;
+	void *wifi_only_context;
 	/* EEPROM BT info. */
 	u8 eeprom_bt_coexist;
 	u8 eeprom_bt_type;
@@ -2558,13 +2559,17 @@ struct bt_coexist_info {
 
 struct rtl_btc_ops {
 	void (*btc_init_variables) (struct rtl_priv *rtlpriv);
+	void (*btc_init_variables_wifi_only)(struct rtl_priv *rtlpriv);
 	void (*btc_deinit_variables)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hal_vars) (struct rtl_priv *rtlpriv);
 	void (*btc_power_on_setting)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config) (struct rtl_priv *rtlpriv);
+	void (*btc_init_hw_config_wifi_only)(struct rtl_priv *rtlpriv);
 	void (*btc_ips_notify) (struct rtl_priv *rtlpriv, u8 type);
 	void (*btc_lps_notify)(struct rtl_priv *rtlpriv, u8 type);
 	void (*btc_scan_notify) (struct rtl_priv *rtlpriv, u8 scantype);
+	void (*btc_scan_notify_wifi_only)(struct rtl_priv *rtlpriv,
+					  u8 scantype);
 	void (*btc_connect_notify) (struct rtl_priv *rtlpriv, u8 action);
 	void (*btc_mediastatus_notify) (struct rtl_priv *rtlpriv,
 					enum rt_media_status mstatus);
@@ -2581,6 +2586,8 @@ struct rtl_btc_ops {
 					  u8 pkt_type);
 	void (*btc_switch_band_notify)(struct rtl_priv *rtlpriv, u8 type,
 				       bool scanning);
+	void (*btc_switch_band_notify_wifi_only)(struct rtl_priv *rtlpriv,
+						 u8 type, bool scanning);
 	void (*btc_display_bt_coex_info)(struct rtl_priv *rtlpriv,
 					 struct seq_file *m);
 	void (*btc_record_pwr_mode)(struct rtl_priv *rtlpriv, u8 *buf, u8 len);
