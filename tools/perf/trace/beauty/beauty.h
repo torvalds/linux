@@ -114,4 +114,6 @@ size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size);
 void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
 				    size_t (*ret_scnprintf)(char *bf, size_t size, struct syscall_arg *arg));
 
+const char *arch_syscalls__strerrno(const char *arch, int err);
+
 #endif /* _PERF_TRACE_BEAUTY_H */
