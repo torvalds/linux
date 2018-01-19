@@ -1727,7 +1727,7 @@ int ttm_bo_swapout(struct ttm_bo_global *glob, struct ttm_operation_ctx *ctx)
 	kref_get(&bo->list_kref);
 
 	if (!list_empty(&bo->ddestroy)) {
-		ret = ttm_bo_cleanup_refs(bo, false, false, true);
+		ret = ttm_bo_cleanup_refs(bo, false, false, locked);
 		kref_put(&bo->list_kref, ttm_bo_release_list);
 		return ret;
 	}
