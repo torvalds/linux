@@ -1517,7 +1517,7 @@ static uint32_t compute_pstate_blackout_duration(
 	return total_dest_line_time_ns;
 }
 
-void dce110_set_displaymarks(
+static void dce110_set_displaymarks(
 	const struct dc *dc,
 	struct dc_state *context)
 {
@@ -2299,7 +2299,7 @@ static void update_plane_addr(const struct dc *dc,
 	plane_state->status.requested_address = plane_state->address;
 }
 
-void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
+static void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 
