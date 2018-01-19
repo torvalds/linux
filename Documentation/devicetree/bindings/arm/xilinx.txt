@@ -32,3 +32,6 @@ Additional compatible strings:
 
 - Xilinx evaluation board zcu106
   "xlnx,zynqmp-zcu106-revA", "xlnx,zynqmp-zcu106"
+
+- Xilinx evaluation board zcu111
+  "xlnx,zynqmp-zcu111-revA", "xlnx,zynqmp-zcu111"
