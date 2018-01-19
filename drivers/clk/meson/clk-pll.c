@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
@@ -51,8 +52,7 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 {
 	struct meson_clk_pll *pll = to_meson_clk_pll(hw);
 	struct parm *p;
-	unsigned long parent_rate_mhz = parent_rate / 1000000;
-	unsigned long rate_mhz;
+	u64 rate;
 	u16 n, m, frac = 0, od, od2 = 0;
 	u32 reg;
 
@@ -74,17 +74,18 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 		od2 = PARM_GET(p->width, p->shift, reg);
 	}
 
+	rate = (u64)parent_rate * m;
+
 	p = &pll->frac;
 	if (p->width) {
 		reg = readl(pll->base + p->reg_off);
 		frac = PARM_GET(p->width, p->shift, reg);
-		rate_mhz = (parent_rate_mhz * m + \
-				(parent_rate_mhz * frac >> 12)) * 2 / n;
-		rate_mhz = rate_mhz >> od >> od2;
-	} else
-		rate_mhz = (parent_rate_mhz * m / n) >> od >> od2;
 
-	return rate_mhz * 1000000;
+		rate += mul_u64_u32_shr(parent_rate, frac, 12);
+		rate *= 2;
+	}
+
+	return div_u64(rate, n) >> od >> od2;
 }
 
 static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
