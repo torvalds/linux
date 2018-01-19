@@ -583,6 +583,8 @@ struct btc_coexist {
 	 */
 	bool auto_report_1ant;
 	bool auto_report_2ant;
+	bool dbg_mode_1ant;
+	bool dbg_mode_2ant;
 	bool initilized;
 	bool stop_coex_dm;
 	bool manual_control;
