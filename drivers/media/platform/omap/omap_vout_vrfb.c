@@ -271,7 +271,7 @@ int omap_vout_prepare_vrfb(struct omap_vout_device *vout,
 	xt->dst_sgl = true;
 	xt->dst_inc = true;
 
-	tx = dmadev->device_prep_interleaved_dma(chan, xt, flags);
+	tx = dmaengine_prep_interleaved_dma(chan, xt, flags);
 	if (tx == NULL) {
 		pr_err("%s: DMA interleaved prep error\n", __func__);
 		return -EINVAL;
