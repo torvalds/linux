@@ -10,12 +10,12 @@ LDLIBS_lklfuse-y := -lfuse
 
 progs-$(LKL_HOST_CONFIG_ARCHIVE) += fs2tar
 LDLIBS_fs2tar-y := -larchive
-LDLIBS_fs2tar-$(LKL_HOST_CONFIG_NEEDS_LARGP) += -largs
+LDLIBS_fs2tar-$(LKL_HOST_CONFIG_NEEDS_LARGP) += -largp
 
 
 progs-$(LKL_HOST_CONFIG_ARCHIVE) += cptofs
 LDLIBS_cptofs-y := -larchive
-LDLIBS_cptofs-$(LKL_HOST_CONFIG_NEEDS_LARGP) += -largs
+LDLIBS_cptofs-$(LKL_HOST_CONFIG_NEEDS_LARGP) += -largp
 
 progs-y += tests/boot
 progs-y += tests/disk
