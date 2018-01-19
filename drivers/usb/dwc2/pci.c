@@ -140,15 +140,15 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 	if (ret)
 		goto err;
 
+	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
+	if (!glue)
+		return -ENOMEM;
+
 	ret = platform_device_add(dwc2);
 	if (ret) {
 		dev_err(dev, "failed to register dwc2 device\n");
 		goto err;
 	}
-
-	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue)
-		return -ENOMEM;
 
 	glue->phy = phy;
 	glue->dwc2 = dwc2;
