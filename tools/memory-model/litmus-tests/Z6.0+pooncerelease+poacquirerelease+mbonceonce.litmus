@@ -1,0 +1,28 @@
+C Z6.0+pooncerelease+poacquirerelease+mbonceonce
+
+{}
+
+P0(int *x, int *y)
+{
+	WRITE_ONCE(*x, 1);
+	smp_store_release(y, 1);
+}
+
+P1(int *y, int *z)
+{
+	int r0;
+
+	r0 = smp_load_acquire(y);
+	smp_store_release(z, 1);
+}
+
+P2(int *x, int *z)
+{
+	int r1;
+
+	WRITE_ONCE(*z, 2);
+	smp_mb();
+	r1 = READ_ONCE(*x);
+}
+
+exists (1:r0=1 /\ z=2 /\ 2:r1=0)

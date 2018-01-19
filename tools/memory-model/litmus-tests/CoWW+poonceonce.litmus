@@ -1,0 +1,11 @@
+C CoWW+poonceonce
+
+{}
+
+P0(int *x)
+{
+	WRITE_ONCE(*x, 1);
+	WRITE_ONCE(*x, 2);
+}
+
+exists (x=1)

@@ -1,0 +1,19 @@
+C S+poonceonces
+
+{}
+
+P0(int *x, int *y)
+{
+	WRITE_ONCE(*x, 2);
+	WRITE_ONCE(*y, 1);
+}
+
+P1(int *x, int *y)
+{
+	int r0;
+
+	r0 = READ_ONCE(*y);
+	WRITE_ONCE(*x, 1);
+}
+
+exists (x=2 /\ 1:r0=1)

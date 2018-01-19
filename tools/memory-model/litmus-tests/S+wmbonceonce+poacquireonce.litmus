@@ -1,0 +1,20 @@
+C S+wmbonceonce+poacquireonce
+
+{}
+
+P0(int *x, int *y)
+{
+	WRITE_ONCE(*x, 2);
+	smp_wmb();
+	WRITE_ONCE(*y, 1);
+}
+
+P1(int *x, int *y)
+{
+	int r0;
+
+	r0 = smp_load_acquire(y);
+	WRITE_ONCE(*x, 1);
+}
+
+exists (x=2 /\ 1:r0=1)
