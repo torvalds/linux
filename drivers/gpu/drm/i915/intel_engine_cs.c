@@ -1394,7 +1394,8 @@ int init_workarounds_ring(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	int err;
 
-	WARN_ON(engine->id != RCS);
+	if (GEM_WARN_ON(engine->id != RCS))
+		return -EINVAL;
 
 	dev_priv->workarounds.count = 0;
 	dev_priv->workarounds.hw_whitelist_count[engine->id] = 0;
