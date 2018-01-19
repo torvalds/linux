@@ -232,10 +232,11 @@ bool cm_helper_convert_to_custom_float(
 	return true;
 }
 
-
+/* driver uses 32 regions or less, but DCN HW has 34, extra 2 are set to 0 */
 #define MAX_REGIONS_NUMBER 34
 #define MAX_LOW_POINT      25
-#define NUMBER_SEGMENTS    32
+#define NUMBER_REGIONS     32
+#define NUMBER_SW_SEGMENTS 16
 
 bool cm_helper_translate_curve_to_hw_format(
 				const struct dc_transfer_func *output_tf,
@@ -251,7 +252,7 @@ bool cm_helper_translate_curve_to_hw_format(
 	struct fixed31_32 y1_min;
 	struct fixed31_32 y3_max;
 
-	int32_t segment_start, segment_end;
+	int32_t region_start, region_end;
 	int32_t i;
 	uint32_t j, k, seg_distr[MAX_REGIONS_NUMBER], increment, start_index, hw_points;
 
@@ -271,11 +272,11 @@ bool cm_helper_translate_curve_to_hw_format(
 		/* 32 segments
 		 * segments are from 2^-25 to 2^7
 		 */
-		for (i = 0; i < 32 ; i++)
+		for (i = 0; i < NUMBER_REGIONS ; i++)
 			seg_distr[i] = 3;
 
-		segment_start = -25;
-		segment_end   = 7;
+		region_start = -MAX_LOW_POINT;
+		region_end   = NUMBER_REGIONS - MAX_LOW_POINT;
 	} else {
 		/* 10 segments
 		 * segment is from 2^-10 to 2^0
@@ -289,14 +290,14 @@ bool cm_helper_translate_curve_to_hw_format(
 		seg_distr[5] = 4;
 		seg_distr[6] = 4;
 		seg_distr[7] = 4;
-		seg_distr[8] = 5;
-		seg_distr[9] = 5;
+		seg_distr[8] = 4;
+		seg_distr[9] = 4;
 
-		segment_start = -10;
-		segment_end = 0;
+		region_start = -10;
+		region_end = 0;
 	}
 
-	for (i = segment_end - segment_start; i < MAX_REGIONS_NUMBER ; i++)
+	for (i = region_end - region_start; i < MAX_REGIONS_NUMBER ; i++)
 		seg_distr[i] = -1;
 
 	for (k = 0; k < MAX_REGIONS_NUMBER; k++) {
@@ -305,10 +306,12 @@ bool cm_helper_translate_curve_to_hw_format(
 	}
 
 	j = 0;
-	for (k = 0; k < (segment_end - segment_start); k++) {
-		increment = NUMBER_SEGMENTS / (1 << seg_distr[k]);
-		start_index = (segment_start + k + MAX_LOW_POINT) * NUMBER_SEGMENTS;
-		for (i = start_index; i < start_index + NUMBER_SEGMENTS; i += increment) {
+	for (k = 0; k < (region_end - region_start); k++) {
+		increment = NUMBER_SW_SEGMENTS / (1 << seg_distr[k]);
+		start_index = (region_start + k + MAX_LOW_POINT) *
+				NUMBER_SW_SEGMENTS;
+		for (i = start_index; i < start_index + NUMBER_SW_SEGMENTS;
+				i += increment) {
 			if (j == hw_points - 1)
 				break;
 			rgb_resulted[j].red = output_tf->tf_pts.red[i];
@@ -319,15 +322,15 @@ bool cm_helper_translate_curve_to_hw_format(
 	}
 
 	/* last point */
-	start_index = (segment_end + MAX_LOW_POINT) * NUMBER_SEGMENTS;
+	start_index = (region_end + MAX_LOW_POINT) * NUMBER_SW_SEGMENTS;
 	rgb_resulted[hw_points - 1].red = output_tf->tf_pts.red[start_index];
 	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
 	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
 	arr_points[0].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-					     dal_fixed31_32_from_int(segment_start));
+					     dal_fixed31_32_from_int(region_start));
 	arr_points[1].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-					     dal_fixed31_32_from_int(segment_end));
+					     dal_fixed31_32_from_int(region_end));
 
 	y_r = rgb_resulted[0].red;
 	y_g = rgb_resulted[0].green;

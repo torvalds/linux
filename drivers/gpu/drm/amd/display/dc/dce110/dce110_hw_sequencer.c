@@ -407,6 +407,10 @@ static bool convert_to_custom_float(struct pwl_result_data *rgb_resulted,
 	return true;
 }
 
+#define MAX_LOW_POINT      11
+#define NUMBER_REGIONS     16
+#define NUMBER_SW_SEGMENTS 16
+
 static bool
 dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 				      struct pwl_params *regamma_params)
@@ -421,8 +425,8 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 	struct fixed31_32 y1_min;
 	struct fixed31_32 y3_max;
 
-	int32_t segment_start, segment_end;
-	uint32_t i, j, k, seg_distr[16], increment, start_index, hw_points;
+	int32_t region_start, region_end;
+	uint32_t i, j, k, seg_distr[NUMBER_REGIONS], increment, start_index, hw_points;
 
 	if (output_tf == NULL || regamma_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
@@ -437,34 +441,20 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 		/* 16 segments
 		 * segments are from 2^-11 to 2^5
 		 */
-		segment_start = -11;
-		segment_end = 5;
+		region_start = -MAX_LOW_POINT;
+		region_end = NUMBER_REGIONS - MAX_LOW_POINT;
 
-		seg_distr[0] = 2;
-		seg_distr[1] = 2;
-		seg_distr[2] = 2;
-		seg_distr[3] = 2;
-		seg_distr[4] = 2;
-		seg_distr[5] = 2;
-		seg_distr[6] = 3;
-		seg_distr[7] = 4;
-		seg_distr[8] = 4;
-		seg_distr[9] = 4;
-		seg_distr[10] = 4;
-		seg_distr[11] = 5;
-		seg_distr[12] = 5;
-		seg_distr[13] = 5;
-		seg_distr[14] = 5;
-		seg_distr[15] = 5;
+		for (i = 0; i < NUMBER_REGIONS; i++)
+			seg_distr[i] = 4;
 
 	} else {
 		/* 10 segments
 		 * segment is from 2^-10 to 2^0
 		 */
-		segment_start = -10;
-		segment_end = 0;
+		region_start = -10;
+		region_end = 0;
 
-		seg_distr[0] = 3;
+		seg_distr[0] = 4;
 		seg_distr[1] = 4;
 		seg_distr[2] = 4;
 		seg_distr[3] = 4;
@@ -472,8 +462,8 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 		seg_distr[5] = 4;
 		seg_distr[6] = 4;
 		seg_distr[7] = 4;
-		seg_distr[8] = 5;
-		seg_distr[9] = 5;
+		seg_distr[8] = 4;
+		seg_distr[9] = 4;
 		seg_distr[10] = -1;
 		seg_distr[11] = -1;
 		seg_distr[12] = -1;
@@ -488,10 +478,12 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 	}
 
 	j = 0;
-	for (k = 0; k < (segment_end - segment_start); k++) {
+	for (k = 0; k < (region_end - region_start); k++) {
 		increment = 32 / (1 << seg_distr[k]);
-		start_index = (segment_start + k + 25) * 32;
-		for (i = start_index; i < start_index + 32; i += increment) {
+		start_index = (region_start + k + MAX_LOW_POINT) *
+				NUMBER_SW_SEGMENTS;
+		for (i = start_index; i < start_index + NUMBER_SW_SEGMENTS;
+				i += increment) {
 			if (j == hw_points - 1)
 				break;
 			rgb_resulted[j].red = output_tf->tf_pts.red[i];
@@ -502,15 +494,15 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 	}
 
 	/* last point */
-	start_index = (segment_end + 25) * 32;
+	start_index = (region_end + MAX_LOW_POINT) * NUMBER_SW_SEGMENTS;
 	rgb_resulted[hw_points - 1].red = output_tf->tf_pts.red[start_index];
 	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
 	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
 	arr_points[0].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-					     dal_fixed31_32_from_int(segment_start));
+					     dal_fixed31_32_from_int(region_start));
 	arr_points[1].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-					     dal_fixed31_32_from_int(segment_end));
+					     dal_fixed31_32_from_int(region_end));
 
 	y_r = rgb_resulted[0].red;
 	y_g = rgb_resulted[0].green;

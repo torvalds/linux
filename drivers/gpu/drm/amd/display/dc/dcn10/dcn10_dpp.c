@@ -196,7 +196,7 @@ static void dpp1_cm_set_regamma_pwl(
 	case OPP_REGAMMA_SRGB:
 		re_mode = 1;
 		break;
-	case OPP_REGAMMA_3_6:
+	case OPP_REGAMMA_XVYCC:
 		re_mode = 2;
 		break;
 	case OPP_REGAMMA_USER:
