@@ -747,7 +747,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 	       channel->state == SMD_CHANNEL_OPENED) {
 		if (!wait) {
 			ret = -EAGAIN;
-			goto out;
+			goto out_unlock;
 		}
 
 		SET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR, 0);
@@ -759,11 +759,11 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 				       qcom_smd_get_tx_avail(channel) >= tlen ||
 				       channel->state != SMD_CHANNEL_OPENED);
 		if (ret)
-			goto out;
+			return ret;
 
 		ret = mutex_lock_interruptible(&channel->tx_lock);
 		if (ret)
-			goto out;
+			return ret;
 
 		SET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR, 1);
 	}
@@ -771,7 +771,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 	/* Fail if the channel was closed */
 	if (channel->state != SMD_CHANNEL_OPENED) {
 		ret = -EPIPE;
-		goto out;
+		goto out_unlock;
 	}
 
 	SET_TX_CHANNEL_FLAG(channel, fTAIL, 0);
@@ -786,7 +786,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 
 	qcom_smd_signal_channel(channel);
 
-out:
+out_unlock:
 	mutex_unlock(&channel->tx_lock);
 
 	return ret;
