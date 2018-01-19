@@ -85,8 +85,6 @@ struct amdgpu_display_manager {
 	struct dal *dal;
 	struct dc *dc;
 	struct cgs_device *cgs_device;
-	/* lock to be used when DAL is called from SYNC IRQ context */
-	spinlock_t dal_lock;
 
 	struct amdgpu_device *adev;	/*AMD base driver*/
 	struct drm_device *ddev;	/*DRM base driver*/
@@ -122,13 +120,6 @@ struct amdgpu_display_manager {
 	/* Timer-related data. */
 	struct list_head timer_handler_list;
 	struct workqueue_struct *timer_workqueue;
-
-	/* Use dal_mutex for any activity which is NOT syncronized by
-	 * DRM mode setting locks.
-	 * For example: amdgpu_dm_hpd_low_irq() calls into DAL *without*
-	 * DRM mode setting locks being acquired. This is where dal_mutex
-	 * is acquired before calling into DAL. */
-	struct mutex dal_mutex;
 
 	struct backlight_device *backlight_dev;
 

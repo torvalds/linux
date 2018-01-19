@@ -411,12 +411,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	/* Zero all the fields */
 	memset(&init_data, 0, sizeof(init_data));
 
-	/* initialize DAL's lock (for SYNC context use) */
-	spin_lock_init(&adev->dm.dal_lock);
-
-	/* initialize DAL's mutex */
-	mutex_init(&adev->dm.dal_mutex);
-
 	if(amdgpu_dm_irq_init(adev)) {
 		DRM_ERROR("amdgpu: failed to initialize DM IRQ support.\n");
 		goto error;
