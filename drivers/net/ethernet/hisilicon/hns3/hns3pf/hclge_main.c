@@ -5544,6 +5544,180 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
 	return ret;
 }
 
+static int hclge_get_regs_num(struct hclge_dev *hdev, u32 *regs_num_32_bit,
+			      u32 *regs_num_64_bit)
+{
+	struct hclge_desc desc;
+	u32 total_num;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_REG_NUM, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Query register number cmd failed, ret = %d.\n", ret);
+		return ret;
+	}
+
+	*regs_num_32_bit = le32_to_cpu(desc.data[0]);
+	*regs_num_64_bit = le32_to_cpu(desc.data[1]);
+
+	total_num = *regs_num_32_bit + *regs_num_64_bit;
+	if (!total_num)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
+				 void *data)
+{
+#define HCLGE_32_BIT_REG_RTN_DATANUM 8
+
+	struct hclge_desc *desc;
+	u32 *reg_val = data;
+	__le32 *desc_data;
+	int cmd_num;
+	int i, k, n;
+	int ret;
+
+	if (regs_num == 0)
+		return 0;
+
+	cmd_num = DIV_ROUND_UP(regs_num + 2, HCLGE_32_BIT_REG_RTN_DATANUM);
+	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_32_BIT_REG, true);
+	ret = hclge_cmd_send(&hdev->hw, desc, cmd_num);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Query 32 bit register cmd failed, ret = %d.\n", ret);
+		kfree(desc);
+		return ret;
+	}
+
+	for (i = 0; i < cmd_num; i++) {
+		if (i == 0) {
+			desc_data = (__le32 *)(&desc[i].data[0]);
+			n = HCLGE_32_BIT_REG_RTN_DATANUM - 2;
+		} else {
+			desc_data = (__le32 *)(&desc[i]);
+			n = HCLGE_32_BIT_REG_RTN_DATANUM;
+		}
+		for (k = 0; k < n; k++) {
+			*reg_val++ = le32_to_cpu(*desc_data++);
+
+			regs_num--;
+			if (!regs_num)
+				break;
+		}
+	}
+
+	kfree(desc);
+	return 0;
+}
+
+static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
+				 void *data)
+{
+#define HCLGE_64_BIT_REG_RTN_DATANUM 4
+
+	struct hclge_desc *desc;
+	u64 *reg_val = data;
+	__le64 *desc_data;
+	int cmd_num;
+	int i, k, n;
+	int ret;
+
+	if (regs_num == 0)
+		return 0;
+
+	cmd_num = DIV_ROUND_UP(regs_num + 1, HCLGE_64_BIT_REG_RTN_DATANUM);
+	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_64_BIT_REG, true);
+	ret = hclge_cmd_send(&hdev->hw, desc, cmd_num);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Query 64 bit register cmd failed, ret = %d.\n", ret);
+		kfree(desc);
+		return ret;
+	}
+
+	for (i = 0; i < cmd_num; i++) {
+		if (i == 0) {
+			desc_data = (__le64 *)(&desc[i].data[0]);
+			n = HCLGE_64_BIT_REG_RTN_DATANUM - 1;
+		} else {
+			desc_data = (__le64 *)(&desc[i]);
+			n = HCLGE_64_BIT_REG_RTN_DATANUM;
+		}
+		for (k = 0; k < n; k++) {
+			*reg_val++ = le64_to_cpu(*desc_data++);
+
+			regs_num--;
+			if (!regs_num)
+				break;
+		}
+	}
+
+	kfree(desc);
+	return 0;
+}
+
+static int hclge_get_regs_len(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 regs_num_32_bit, regs_num_64_bit;
+	int ret;
+
+	ret = hclge_get_regs_num(hdev, &regs_num_32_bit, &regs_num_64_bit);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Get register number failed, ret = %d.\n", ret);
+		return -EOPNOTSUPP;
+	}
+
+	return regs_num_32_bit * sizeof(u32) + regs_num_64_bit * sizeof(u64);
+}
+
+static void hclge_get_regs(struct hnae3_handle *handle, u32 *version,
+			   void *data)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 regs_num_32_bit, regs_num_64_bit;
+	int ret;
+
+	*version = hdev->fw_version;
+
+	ret = hclge_get_regs_num(hdev, &regs_num_32_bit, &regs_num_64_bit);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Get register number failed, ret = %d.\n", ret);
+		return;
+	}
+
+	ret = hclge_get_32_bit_regs(hdev, regs_num_32_bit, data);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Get 32 bit register failed, ret = %d.\n", ret);
+		return;
+	}
+
+	data = (u32 *)data + regs_num_32_bit;
+	ret = hclge_get_64_bit_regs(hdev, regs_num_64_bit,
+				    data);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"Get 64 bit register failed, ret = %d.\n", ret);
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -5595,6 +5769,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_channels = hclge_set_channels,
 	.get_channels = hclge_get_channels,
 	.get_flowctrl_adv = hclge_get_flowctrl_adv,
+	.get_regs_len = hclge_get_regs_len,
+	.get_regs = hclge_get_regs,
 };
 
 static struct hnae3_ae_algo ae_algo = {

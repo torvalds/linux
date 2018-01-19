@@ -102,6 +102,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_STATS_64_BIT		= 0x0030,
 	HCLGE_OPC_STATS_32_BIT		= 0x0031,
 	HCLGE_OPC_STATS_MAC		= 0x0032,
+
+	HCLGE_OPC_QUERY_REG_NUM		= 0x0040,
+	HCLGE_OPC_QUERY_32_BIT_REG	= 0x0041,
+	HCLGE_OPC_QUERY_64_BIT_REG	= 0x0042,
 	/* Device management command */
 
 	/* MAC commond */
