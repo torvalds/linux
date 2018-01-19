@@ -1161,6 +1161,7 @@ static void update_ckpt_flags(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* set this flag to activate crc|cp_ver for recovery */
 	__set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG);
+	__clear_ckpt_flags(ckpt, CP_NOCRC_RECOVERY_FLAG);
 
 	spin_unlock_irqrestore(&sbi->cp_lock, flags);
 }
