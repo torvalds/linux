@@ -306,6 +306,15 @@ static inline struct uniphier_aio *uniphier_priv(struct snd_soc_dai *dai)
 
 int uniphier_aiodma_soc_register_platform(struct platform_device *pdev);
 
+int uniphier_aio_dai_probe(struct snd_soc_dai *dai);
+int uniphier_aio_dai_remove(struct snd_soc_dai *dai);
+int uniphier_aio_dai_suspend(struct snd_soc_dai *dai);
+int uniphier_aio_dai_resume(struct snd_soc_dai *dai);
+int uniphier_aio_probe(struct platform_device *pdev);
+int uniphier_aio_remove(struct platform_device *pdev);
+extern const struct snd_soc_dai_ops uniphier_aio_i2s_ops;
+extern const struct snd_soc_dai_ops uniphier_aio_spdif_ops;
+
 u64 aio_rb_cnt(struct uniphier_aio_sub *sub);
 u64 aio_rbt_cnt_to_end(struct uniphier_aio_sub *sub);
 u64 aio_rb_space(struct uniphier_aio_sub *sub);
