@@ -41,7 +41,8 @@
 	.hw_priv_flags = IFF_UNICAST_FLT, \
 	.flow_control = true, \
 	.mtu = HW_ATL_A0_MTU_JUMBO, \
-	.mac_regs_count = 88
+	.mac_regs_count = 88, \
+	.hw_alive_check_addr = 0x10U
 
 const struct aq_hw_caps_s hw_atl_a0_caps_aqc100 = {
 	DEFAULT_A0_BOARD_BASIC_CAPABILITIES,

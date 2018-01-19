@@ -31,6 +31,7 @@ struct aq_hw_caps_s {
 	u32 vecs;
 	u32 mtu;
 	u32 mac_regs_count;
+	u32 hw_alive_check_addr;
 	u8 msix_irqs;
 	u8 tcs;
 	u8 rxd_alignment;
@@ -102,7 +103,6 @@ struct aq_hw_s {
 	atomic_t flags;
 	struct aq_nic_cfg_s *aq_nic_cfg;
 	void __iomem *mmio;
-	unsigned int not_ff_addr;
 	struct aq_hw_link_status_s aq_link_status;
 	struct hw_aq_atl_utils_mbox mbox;
 	struct hw_atl_stats_s last_stats;
