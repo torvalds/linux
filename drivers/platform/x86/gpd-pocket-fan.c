@@ -13,6 +13,8 @@
 #include <linux/thermal.h>
 #include <linux/workqueue.h>
 
+#define MAX_SPEED 3
+
 static int temp_limits[3] = { 55000, 60000, 65000 };
 module_param_array(temp_limits, int, NULL, 0444);
 MODULE_PARM_DESC(temp_limits,
@@ -53,9 +55,8 @@ static void gpd_pocket_fan_worker(struct work_struct *work)
 	if (thermal_zone_get_temp(fan->dts0, &t0) ||
 	    thermal_zone_get_temp(fan->dts1, &t1)) {
 		dev_warn(fan->dev, "Error getting temperature\n");
-		queue_delayed_work(system_wq, &fan->work,
-				   msecs_to_jiffies(1000));
-		return;
+		speed = MAX_SPEED;
+		goto set_speed;
 	}
 
 	temp = max(t0, t1);
@@ -79,8 +80,9 @@ static void gpd_pocket_fan_worker(struct work_struct *work)
 		speed = i;
 
 	if (fan->last_speed <= 0 && speed)
-		speed = 3; /* kick start motor */
+		speed = MAX_SPEED; /* kick start motor */
 
+set_speed:
 	gpd_pocket_fan_set_speed(fan, speed);
 
 	/* When mostly idle (low temp/speed), slow down the poll interval. */
