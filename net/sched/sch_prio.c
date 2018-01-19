@@ -254,11 +254,15 @@ static int prio_dump_offload(struct Qdisc *sch)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct tc_prio_qopt_offload hw_stats = {
+		.command = TC_PRIO_STATS,
 		.handle = sch->handle,
 		.parent = sch->parent,
-		.command = TC_PRIO_STATS,
-		.stats.bstats = &sch->bstats,
-		.stats.qstats = &sch->qstats,
+		{
+			.stats = {
+				.bstats = &sch->bstats,
+				.qstats = &sch->qstats,
+			},
+		},
 	};
 	int err;
 
