@@ -126,3 +126,7 @@ Rockchip platforms device tree bindings
 - Rockchip PX30 evb ddr3 board:
     Required root node properties:
       - compatible = "rockchip,px30-evb-ddr3-v10", "rockchip,px30";
+
+- Rockchip PX30 evb ddr4 board:
+    Required root node properties:
+      - compatible = "rockchip,px30-evb-ddr4-v10", "rockchip,px30";
