@@ -1087,18 +1087,11 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	const struct stm32_dfsdm_dev_data *dev_data;
 	struct iio_dev *iio;
-	const struct of_device_id *of_id;
 	char *name;
 	int ret, irq, val;
 
-	of_id = of_match_node(stm32_dfsdm_adc_match, np);
-	if (!of_id->data) {
-		dev_err(&pdev->dev, "Data associated to device is missing\n");
-		return -EINVAL;
-	}
 
-	dev_data = (const struct stm32_dfsdm_dev_data *)of_id->data;
-
+	dev_data = of_device_get_match_data(dev);
 	iio = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!iio) {
 		dev_err(dev, "%s: Failed to allocate IIO\n", __func__);
@@ -1106,10 +1099,6 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	}
 
 	adc = iio_priv(iio);
-	if (IS_ERR(adc)) {
-		dev_err(dev, "%s: Failed to allocate ADC\n", __func__);
-		return PTR_ERR(adc);
-	}
 	adc->dfsdm = dev_get_drvdata(dev->parent);
 
 	iio->dev.parent = dev;

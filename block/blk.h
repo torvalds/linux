@@ -330,4 +330,6 @@ static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
 }
 #endif /* CONFIG_BOUNCE */
 
+extern void blk_drain_queue(struct request_queue *q);
+
 #endif /* BLK_INTERNAL_H */

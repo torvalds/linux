@@ -1296,6 +1296,7 @@ int phylink_mii_ioctl(struct phylink *pl, struct ifreq *ifr, int cmd)
 		switch (cmd) {
 		case SIOCGMIIPHY:
 			mii->phy_id = pl->phydev->mdio.addr;
+			/* fall through */
 
 		case SIOCGMIIREG:
 			ret = phylink_phy_read(pl, mii->phy_id, mii->reg_num);
@@ -1318,6 +1319,7 @@ int phylink_mii_ioctl(struct phylink *pl, struct ifreq *ifr, int cmd)
 		switch (cmd) {
 		case SIOCGMIIPHY:
 			mii->phy_id = 0;
+			/* fall through */
 
 		case SIOCGMIIREG:
 			ret = phylink_mii_read(pl, mii->phy_id, mii->reg_num);
@@ -1429,9 +1431,8 @@ static void phylink_sfp_link_down(void *upstream)
 	WARN_ON(!lockdep_rtnl_is_held());
 
 	set_bit(PHYLINK_DISABLE_LINK, &pl->phylink_disable_state);
+	queue_work(system_power_efficient_wq, &pl->resolve);
 	flush_work(&pl->resolve);
-
-	netif_carrier_off(pl->netdev);
 }
 
 static void phylink_sfp_link_up(void *upstream)
