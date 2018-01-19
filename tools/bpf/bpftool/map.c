@@ -66,6 +66,7 @@ static const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_HASH_OF_MAPS]	= "hash_of_maps",
 	[BPF_MAP_TYPE_DEVMAP]		= "devmap",
 	[BPF_MAP_TYPE_SOCKMAP]		= "sockmap",
+	[BPF_MAP_TYPE_CPUMAP]		= "cpumap",
 };
 
 static unsigned int get_possible_cpus(void)
