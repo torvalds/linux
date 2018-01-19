@@ -244,7 +244,8 @@ static void _rtl_init_hw_vht_capab(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
-	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
+	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE ||
+	    rtlhal->hw_type == HARDWARE_TYPE_RTL8822BE) {
 		u16 mcs_map;
 
 		vht_cap->vht_supported = true;
