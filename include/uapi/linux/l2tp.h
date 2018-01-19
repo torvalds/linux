@@ -97,7 +97,7 @@ enum {
 	L2TP_ATTR_OFFSET,		/* u16 (not used) */
 	L2TP_ATTR_DATA_SEQ,		/* u16 */
 	L2TP_ATTR_L2SPEC_TYPE,		/* u8, enum l2tp_l2spec_type */
-	L2TP_ATTR_L2SPEC_LEN,		/* u8, enum l2tp_l2spec_type */
+	L2TP_ATTR_L2SPEC_LEN,		/* u8 (not used) */
 	L2TP_ATTR_PROTO_VERSION,	/* u8 */
 	L2TP_ATTR_IFNAME,		/* string */
 	L2TP_ATTR_CONN_ID,		/* u32 */
