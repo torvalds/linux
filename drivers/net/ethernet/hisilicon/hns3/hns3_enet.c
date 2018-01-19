@@ -3318,8 +3318,8 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 
 	switch (type) {
 	case HNAE3_UP_CLIENT:
-                ret = hns3_reset_notify_up_enet(handle);
-                break;
+		ret = hns3_reset_notify_up_enet(handle);
+		break;
 	case HNAE3_DOWN_CLIENT:
 		ret = hns3_reset_notify_down_enet(handle);
 		break;
