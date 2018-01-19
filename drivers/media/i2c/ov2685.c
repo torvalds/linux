@@ -574,6 +574,7 @@ static int ov2685_set_ctrl(struct v4l2_ctrl *ctrl)
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
 			 __func__, ctrl->id, ctrl->val);
+		ret = -EINVAL;
 		break;
 	};
 
