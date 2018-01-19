@@ -17,7 +17,6 @@
 #include "aq_hw.h"
 
 struct aq_ring_s;
-struct aq_pci_func_s;
 struct aq_hw_ops;
 struct aq_fw_s;
 struct aq_vec_s;
@@ -64,7 +63,6 @@ struct aq_nic_s {
 	struct aq_ring_s *aq_ring_tx[AQ_CFG_VECS_MAX * AQ_CFG_TCS_MAX];
 	struct aq_hw_s *aq_hw;
 	struct net_device *ndev;
-	struct aq_pci_func_s *aq_pci_func;
 	unsigned int aq_vecs;
 	unsigned int packet_filter;
 	unsigned int power_state;
@@ -88,19 +86,13 @@ static inline struct device *aq_nic_get_dev(struct aq_nic_s *self)
 	return self->ndev->dev.parent;
 }
 
-struct aq_nic_s *aq_nic_alloc_cold(struct pci_dev *pdev,
-				   struct aq_pci_func_s *aq_pci_func,
-				   unsigned int port,
-				   const struct aq_hw_ops *aq_hw_ops,
-				   const struct aq_hw_caps_s *aq_hw_caps);
-int aq_nic_ndev_init(struct aq_nic_s *self);
+void aq_nic_ndev_init(struct aq_nic_s *self);
 struct aq_nic_s *aq_nic_alloc_hot(struct net_device *ndev);
 void aq_nic_set_tx_ring(struct aq_nic_s *self, unsigned int idx,
 			struct aq_ring_s *ring);
-struct device *aq_nic_get_dev(struct aq_nic_s *self);
 struct net_device *aq_nic_get_ndev(struct aq_nic_s *self);
 int aq_nic_init(struct aq_nic_s *self);
-int aq_nic_cfg_start(struct aq_nic_s *self);
+void aq_nic_cfg_start(struct aq_nic_s *self);
 int aq_nic_ndev_register(struct aq_nic_s *self);
 void aq_nic_ndev_free(struct aq_nic_s *self);
 int aq_nic_start(struct aq_nic_s *self);
@@ -111,6 +103,7 @@ void aq_nic_get_stats(struct aq_nic_s *self, u64 *data);
 int aq_nic_stop(struct aq_nic_s *self);
 void aq_nic_deinit(struct aq_nic_s *self);
 void aq_nic_free_hot_resources(struct aq_nic_s *self);
+void aq_nic_free_vectors(struct aq_nic_s *self);
 int aq_nic_set_mtu(struct aq_nic_s *self, int new_mtu);
 int aq_nic_set_mac(struct aq_nic_s *self, struct net_device *ndev);
 int aq_nic_set_packet_filter(struct aq_nic_s *self, unsigned int flags);

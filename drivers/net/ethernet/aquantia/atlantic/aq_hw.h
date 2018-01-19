@@ -31,7 +31,6 @@ struct aq_hw_caps_s {
 	u32 vecs;
 	u32 mtu;
 	u32 mac_regs_count;
-	u8 ports;
 	u8 msix_irqs;
 	u8 tcs;
 	u8 rxd_alignment;

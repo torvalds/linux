@@ -12,26 +12,13 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 
-#include "aq_pci_func.h"
+#include "aq_main.h"
 #include "aq_nic.h"
 #include "aq_vec.h"
 #include "aq_hw.h"
+#include "aq_pci_func.h"
 #include "hw_atl/hw_atl_a0.h"
 #include "hw_atl/hw_atl_b0.h"
-
-struct aq_pci_func_s {
-	struct pci_dev *pdev;
-	struct aq_nic_s *port[AQ_CFG_PCI_FUNC_PORTS];
-	void __iomem *mmio;
-	void *aq_vec[AQ_CFG_PCI_FUNC_MSIX_IRQS];
-	resource_size_t mmio_pa;
-	unsigned int msix_entry_mask;
-	unsigned int ports;
-	bool is_pci_enabled;
-	bool is_regions;
-	bool is_pci_using_dac;
-	struct aq_hw_caps_s aq_hw_caps;
-};
 
 static const struct pci_device_id aq_pci_tbl[] = {
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_0001), },
@@ -118,156 +105,39 @@ static int aq_pci_probe_get_hw_by_id(struct pci_dev *pdev,
 	return 0;
 }
 
-struct aq_pci_func_s *aq_pci_func_alloc(const struct aq_hw_ops *aq_hw_ops,
-					const struct aq_hw_caps_s *aq_hw_caps,
-					struct pci_dev *pdev)
-{
-	struct aq_pci_func_s *self = NULL;
-	int err = 0;
-	unsigned int port = 0U;
-
-	if (!aq_hw_ops) {
-		err = -EFAULT;
-		goto err_exit;
-	}
-	self = kzalloc(sizeof(*self), GFP_KERNEL);
-	if (!self) {
-		err = -ENOMEM;
-		goto err_exit;
-	}
-
-	pci_set_drvdata(pdev, self);
-	self->pdev = pdev;
-	self->aq_hw_caps = *aq_hw_caps;
-
-	self->ports = self->aq_hw_caps.ports;
-
-	for (port = 0; port < self->ports; ++port) {
-		struct aq_nic_s *aq_nic = aq_nic_alloc_cold(pdev, self,
-							    port, aq_hw_ops,
-							    aq_hw_caps);
-
-		if (!aq_nic) {
-			err = -ENOMEM;
-			goto err_exit;
-		}
-		self->port[port] = aq_nic;
-	}
-
-err_exit:
-	if (err < 0) {
-		if (self)
-			aq_pci_func_free(self);
-		self = NULL;
-	}
-
-	(void)err;
-	return self;
-}
-
-int aq_pci_func_init(struct aq_pci_func_s *self)
+int aq_pci_func_init(struct pci_dev *pdev)
 {
 	int err = 0;
-	unsigned int bar = 0U;
-	unsigned int port = 0U;
-	unsigned int numvecs = 0U;
 
-	err = pci_enable_device(self->pdev);
-	if (err < 0)
-		goto err_exit;
-
-	self->is_pci_enabled = true;
-
-	err = pci_set_dma_mask(self->pdev, DMA_BIT_MASK(64));
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = pci_set_consistent_dma_mask(self->pdev, DMA_BIT_MASK(64));
-		self->is_pci_using_dac = 1;
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+
 	}
 	if (err) {
-		err = pci_set_dma_mask(self->pdev, DMA_BIT_MASK(32));
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (!err)
-			err = pci_set_consistent_dma_mask(self->pdev,
+			err = pci_set_consistent_dma_mask(pdev,
 							  DMA_BIT_MASK(32));
-		self->is_pci_using_dac = 0;
 	}
 	if (err != 0) {
 		err = -ENOSR;
 		goto err_exit;
 	}
 
-	err = pci_request_regions(self->pdev, AQ_CFG_DRV_NAME "_mmio");
+	err = pci_request_regions(pdev, AQ_CFG_DRV_NAME "_mmio");
 	if (err < 0)
 		goto err_exit;
 
-	self->is_regions = true;
+	pci_set_master(pdev);
 
-	pci_set_master(self->pdev);
-
-	for (bar = 0; bar < 4; ++bar) {
-		if (IORESOURCE_MEM & pci_resource_flags(self->pdev, bar)) {
-			resource_size_t reg_sz;
-
-			self->mmio_pa = pci_resource_start(self->pdev, bar);
-			if (self->mmio_pa == 0U) {
-				err = -EIO;
-				goto err_exit;
-			}
-
-			reg_sz = pci_resource_len(self->pdev, bar);
-			if ((reg_sz <= 24 /*ATL_REGS_SIZE*/)) {
-				err = -EIO;
-				goto err_exit;
-			}
-
-			self->mmio = ioremap_nocache(self->mmio_pa, reg_sz);
-			if (!self->mmio) {
-				err = -EIO;
-				goto err_exit;
-			}
-			break;
-		}
-	}
-
-	numvecs = min((u8)AQ_CFG_VECS_DEF, self->aq_hw_caps.msix_irqs);
-	numvecs = min(numvecs, num_online_cpus());
-
-	/* enable interrupts */
-#if !AQ_CFG_FORCE_LEGACY_INT
-	err = pci_alloc_irq_vectors(self->pdev, numvecs, numvecs, PCI_IRQ_MSIX);
-
-	if (err < 0) {
-		err = pci_alloc_irq_vectors(self->pdev, 1, 1,
-				PCI_IRQ_MSI | PCI_IRQ_LEGACY);
-		if (err < 0)
-			goto err_exit;
-	}
-#endif /* AQ_CFG_FORCE_LEGACY_INT */
-
-	/* net device init */
-	for (port = 0; port < self->ports; ++port) {
-		if (!self->port[port])
-			continue;
-
-		err = aq_nic_cfg_start(self->port[port]);
-		if (err < 0)
-			goto err_exit;
-
-		err = aq_nic_ndev_init(self->port[port]);
-		if (err < 0)
-			goto err_exit;
-
-		err = aq_nic_ndev_register(self->port[port]);
-		if (err < 0)
-			goto err_exit;
-	}
+	return 0;
 
 err_exit:
-	if (err < 0)
-		aq_pci_func_deinit(self);
 	return err;
 }
 
-int aq_pci_func_alloc_irq(struct aq_pci_func_s *self, unsigned int i,
+int aq_pci_func_alloc_irq(struct aq_nic_s *self, unsigned int i,
 			  char *name, void *aq_vec, cpumask_t *affinity_mask)
 {
 	struct pci_dev *pdev = self->pdev;
@@ -288,11 +158,10 @@ int aq_pci_func_alloc_irq(struct aq_pci_func_s *self, unsigned int i,
 			irq_set_affinity_hint(pci_irq_vector(pdev, i),
 					      affinity_mask);
 	}
-
 	return err;
 }
 
-void aq_pci_func_free_irqs(struct aq_pci_func_s *self)
+void aq_pci_func_free_irqs(struct aq_nic_s *self)
 {
 	struct pci_dev *pdev = self->pdev;
 	unsigned int i = 0U;
@@ -308,12 +177,7 @@ void aq_pci_func_free_irqs(struct aq_pci_func_s *self)
 	}
 }
 
-void __iomem *aq_pci_func_get_mmio(struct aq_pci_func_s *self)
-{
-	return self->mmio;
-}
-
-unsigned int aq_pci_func_get_irq_type(struct aq_pci_func_s *self)
+unsigned int aq_pci_func_get_irq_type(struct aq_nic_s *self)
 {
 	if (self->pdev->msix_enabled)
 		return AQ_HW_IRQ_MSIX;
@@ -322,118 +186,148 @@ unsigned int aq_pci_func_get_irq_type(struct aq_pci_func_s *self)
 	return AQ_HW_IRQ_LEGACY;
 }
 
-void aq_pci_func_deinit(struct aq_pci_func_s *self)
+static void aq_pci_free_irq_vectors(struct aq_nic_s *self)
 {
-	if (!self)
-		goto err_exit;
-
-	aq_pci_func_free_irqs(self);
 	pci_free_irq_vectors(self->pdev);
-
-	if (self->is_regions)
-		pci_release_regions(self->pdev);
-
-	if (self->is_pci_enabled)
-		pci_disable_device(self->pdev);
-
-err_exit:;
-}
-
-void aq_pci_func_free(struct aq_pci_func_s *self)
-{
-	unsigned int port = 0U;
-
-	if (!self)
-		goto err_exit;
-
-	for (port = 0; port < self->ports; ++port) {
-		if (!self->port[port])
-			continue;
-
-		aq_nic_ndev_free(self->port[port]);
-	}
-
-	if (self->mmio)
-		iounmap(self->mmio);
-
-	kfree(self);
-
-err_exit:;
-}
-
-int aq_pci_func_change_pm_state(struct aq_pci_func_s *self,
-				pm_message_t *pm_msg)
-{
-	int err = 0;
-	unsigned int port = 0U;
-
-	if (!self) {
-		err = -EFAULT;
-		goto err_exit;
-	}
-	for (port = 0; port < self->ports; ++port) {
-		if (!self->port[port])
-			continue;
-
-		(void)aq_nic_change_pm_state(self->port[port], pm_msg);
-	}
-
-err_exit:
-	return err;
 }
 
 static int aq_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *pci_id)
 {
-	const struct aq_hw_ops *aq_hw_ops = NULL;
-	const struct aq_hw_caps_s *aq_hw_caps = NULL;
-	struct aq_pci_func_s *aq_pci_func = NULL;
+	struct aq_nic_s *self = NULL;
 	int err = 0;
+	struct net_device *ndev;
+	resource_size_t mmio_pa;
+	u32 bar;
+	u32 numvecs;
 
 	err = pci_enable_device(pdev);
-	if (err < 0)
-		goto err_exit;
-	err = aq_pci_probe_get_hw_by_id(pdev, &aq_hw_ops, &aq_hw_caps);
-	if (err < 0)
-		goto err_exit;
-	aq_pci_func = aq_pci_func_alloc(aq_hw_ops, aq_hw_caps, pdev);
-	if (!aq_pci_func) {
-		err = -ENOMEM;
-		goto err_exit;
-	}
-	err = aq_pci_func_init(aq_pci_func);
-	if (err < 0)
-		goto err_exit;
+	if (err)
+		return err;
 
-err_exit:
-	if (err < 0) {
-		if (aq_pci_func)
-			aq_pci_func_free(aq_pci_func);
+	err = aq_pci_func_init(pdev);
+	if (err)
+		goto err_pci_func;
+
+	ndev = aq_ndev_alloc();
+	if (!ndev)
+		goto err_ndev;
+
+	self = netdev_priv(ndev);
+	self->pdev = pdev;
+	SET_NETDEV_DEV(ndev, &pdev->dev);
+	pci_set_drvdata(pdev, self);
+
+	err = aq_pci_probe_get_hw_by_id(pdev, &self->aq_hw_ops,
+					&aq_nic_get_cfg(self)->aq_hw_caps);
+	if (err)
+		goto err_ioremap;
+
+	self->aq_hw = kzalloc(sizeof(*self->aq_hw), GFP_KERNEL);
+	self->aq_hw->aq_nic_cfg = aq_nic_get_cfg(self);
+
+	for (bar = 0; bar < 4; ++bar) {
+		if (IORESOURCE_MEM & pci_resource_flags(pdev, bar)) {
+			resource_size_t reg_sz;
+
+			mmio_pa = pci_resource_start(pdev, bar);
+			if (mmio_pa == 0U) {
+				err = -EIO;
+				goto err_ioremap;
+			}
+
+			reg_sz = pci_resource_len(pdev, bar);
+			if ((reg_sz <= 24 /*ATL_REGS_SIZE*/)) {
+				err = -EIO;
+				goto err_ioremap;
+			}
+
+			self->aq_hw->mmio = ioremap_nocache(mmio_pa, reg_sz);
+			if (!self->aq_hw->mmio) {
+				err = -EIO;
+				goto err_ioremap;
+			}
+			break;
+		}
 	}
+
+	if (bar == 4) {
+		err = -EIO;
+		goto err_ioremap;
+	}
+
+	numvecs = min((u8)AQ_CFG_VECS_DEF,
+		      aq_nic_get_cfg(self)->aq_hw_caps->msix_irqs);
+	numvecs = min(numvecs, num_online_cpus());
+	/*enable interrupts */
+#if !AQ_CFG_FORCE_LEGACY_INT
+	err = pci_alloc_irq_vectors(self->pdev, numvecs, numvecs,
+				    PCI_IRQ_MSIX);
+
+	if (err < 0) {
+		err = pci_alloc_irq_vectors(self->pdev, 1, 1,
+					    PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+		if (err < 0)
+			goto err_hwinit;
+	}
+#endif
+
+	/* net device init */
+	aq_nic_cfg_start(self);
+
+	aq_nic_ndev_init(self);
+
+	err = aq_nic_ndev_register(self);
+	if (err < 0)
+		goto err_register;
+
+	return 0;
+
+err_register:
+	aq_nic_free_vectors(self);
+	aq_pci_free_irq_vectors(self);
+err_hwinit:
+	iounmap(self->aq_hw->mmio);
+err_ioremap:
+	free_netdev(ndev);
+err_pci_func:
+	pci_release_regions(pdev);
+err_ndev:
+	pci_disable_device(pdev);
 	return err;
 }
 
 static void aq_pci_remove(struct pci_dev *pdev)
 {
-	struct aq_pci_func_s *aq_pci_func = pci_get_drvdata(pdev);
+	struct aq_nic_s *self = pci_get_drvdata(pdev);
 
-	aq_pci_func_deinit(aq_pci_func);
-	aq_pci_func_free(aq_pci_func);
+	if (self->ndev) {
+		if (self->ndev->reg_state == NETREG_REGISTERED)
+			unregister_netdev(self->ndev);
+		aq_nic_free_vectors(self);
+		aq_pci_free_irq_vectors(self);
+		iounmap(self->aq_hw->mmio);
+		kfree(self->aq_hw);
+		pci_release_regions(pdev);
+		free_netdev(self->ndev);
+	}
+
+	pci_disable_device(pdev);
 }
 
 static int aq_pci_suspend(struct pci_dev *pdev, pm_message_t pm_msg)
 {
-	struct aq_pci_func_s *aq_pci_func = pci_get_drvdata(pdev);
+	struct aq_nic_s *self = pci_get_drvdata(pdev);
 
-	return aq_pci_func_change_pm_state(aq_pci_func, &pm_msg);
+	return aq_nic_change_pm_state(self, &pm_msg);
 }
 
 static int aq_pci_resume(struct pci_dev *pdev)
 {
-	struct aq_pci_func_s *aq_pci_func = pci_get_drvdata(pdev);
+	struct aq_nic_s *self = pci_get_drvdata(pdev);
 	pm_message_t pm_msg = PMSG_RESTORE;
 
-	return aq_pci_func_change_pm_state(aq_pci_func, &pm_msg);
+	return aq_nic_change_pm_state(self, &pm_msg);
 }
 
 static struct pci_driver aq_pci_ops = {

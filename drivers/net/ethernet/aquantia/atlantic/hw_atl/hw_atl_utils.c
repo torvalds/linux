@@ -369,8 +369,6 @@ int hw_atl_utils_get_mac_permanent(struct aq_hw_s *self,
 	u32 l = 0U;
 	u32 mac_addr[2];
 
-	self->mmio = aq_pci_func_get_mmio(self->aq_pci_func);
-
 	hw_atl_utils_hw_chip_features_init(self,
 					   &self->chip_features);
 
