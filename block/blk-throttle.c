@@ -2489,7 +2489,7 @@ void blk_throtl_register_queue(struct request_queue *q)
 	td->throtl_slice = DFL_THROTL_SLICE_HD;
 #endif
 
-	td->track_bio_latency = !q->mq_ops && !q->request_fn;
+	td->track_bio_latency = !queue_is_rq_based(q);
 	if (!td->track_bio_latency)
 		blk_stat_enable_accounting(q);
 }
