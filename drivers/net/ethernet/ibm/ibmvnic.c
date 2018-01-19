@@ -1276,6 +1276,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned char *dst;
 	u64 *handle_array;
 	int index = 0;
+	u8 proto = 0;
 	int ret = 0;
 
 	if (adapter->resetting) {
@@ -1364,16 +1365,17 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (skb->protocol == htons(ETH_P_IP)) {
-		if (ip_hdr(skb)->version == 4)
-			tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_IPV4;
-		else if (ip_hdr(skb)->version == 6)
-			tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_IPV6;
-
-		if (ip_hdr(skb)->protocol == IPPROTO_TCP)
-			tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_TCP;
-		else if (ip_hdr(skb)->protocol != IPPROTO_TCP)
-			tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_UDP;
+		tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_IPV4;
+		proto = ip_hdr(skb)->protocol;
+	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+		tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_IPV6;
+		proto = ipv6_hdr(skb)->nexthdr;
 	}
+
+	if (proto == IPPROTO_TCP)
+		tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_TCP;
+	else if (proto == IPPROTO_UDP)
+		tx_crq.v1.flags1 |= IBMVNIC_TX_PROT_UDP;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		tx_crq.v1.flags1 |= IBMVNIC_TX_CHKSUM_OFFLOAD;
