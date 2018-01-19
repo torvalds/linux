@@ -158,7 +158,7 @@ int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
 			      unsigned int len, struct fscrypt_str *disk_link)
 {
 	int err;
-	struct qstr iname = { .name = target, .len = len };
+	struct qstr iname = QSTR_INIT(target, len);
 	struct fscrypt_symlink_data *sd;
 	unsigned int ciphertext_len;
 
