@@ -225,12 +225,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 #ifdef CONFIG_X86_64
 	if (!(adev->flags & AMD_IS_APU))
 #endif
-	{
-		if (ring->funcs->emit_hdp_invalidate)
-			amdgpu_ring_emit_hdp_invalidate(ring);
-		else
-			amdgpu_asic_invalidate_hdp(adev, ring);
-	}
+		amdgpu_asic_invalidate_hdp(adev, ring);
 
 	r = amdgpu_fence_emit(ring, f);
 	if (r) {

@@ -75,20 +75,6 @@ static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
 
 }
 
-static void si_dma_ring_emit_hdp_flush(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	amdgpu_ring_write(ring, (0xf << 16) | (HDP_MEM_COHERENCY_FLUSH_CNTL));
-	amdgpu_ring_write(ring, 1);
-}
-
-static void si_dma_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	amdgpu_ring_write(ring, (0xf << 16) | (HDP_DEBUG0));
-	amdgpu_ring_write(ring, 1);
-}
-
 /**
  * si_dma_ring_emit_fence - emit a fence on the DMA ring
  *
@@ -772,8 +758,7 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.get_wptr = si_dma_ring_get_wptr,
 	.set_wptr = si_dma_ring_set_wptr,
 	.emit_frame_size =
-		3 + /* si_dma_ring_emit_hdp_flush */
-		3 + /* si_dma_ring_emit_hdp_invalidate */
+		3 + 3 + /* hdp flush / invalidate */
 		6 + /* si_dma_ring_emit_pipeline_sync */
 		SI_FLUSH_GPU_TLB_NUM_WREG * 3 + 6 + /* si_dma_ring_emit_vm_flush */
 		9 + 9 + 9, /* si_dma_ring_emit_fence x3 for user fence, vm fence */
@@ -782,8 +767,6 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.emit_fence = si_dma_ring_emit_fence,
 	.emit_pipeline_sync = si_dma_ring_emit_pipeline_sync,
 	.emit_vm_flush = si_dma_ring_emit_vm_flush,
-	.emit_hdp_flush = si_dma_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = si_dma_ring_emit_hdp_invalidate,
 	.test_ring = si_dma_ring_test_ring,
 	.test_ib = si_dma_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,

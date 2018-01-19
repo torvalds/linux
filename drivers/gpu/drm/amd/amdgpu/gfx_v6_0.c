@@ -1809,40 +1809,11 @@ static int gfx_v6_0_ring_test_ring(struct amdgpu_ring *ring)
 	return r;
 }
 
-static void gfx_v6_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
-{
-	/* flush hdp cache */
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(1) |
-				 WRITE_DATA_DST_SEL(0)));
-	amdgpu_ring_write(ring, mmHDP_MEM_COHERENCY_FLUSH_CNTL);
-	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, 0x1);
-}
-
 static void gfx_v6_0_ring_emit_vgt_flush(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE, 0));
 	amdgpu_ring_write(ring, EVENT_TYPE(VGT_FLUSH) |
 		EVENT_INDEX(0));
-}
-
-/**
- * gfx_v6_0_ring_emit_hdp_invalidate - emit an hdp invalidate on the cp
- *
- * @adev: amdgpu_device pointer
- * @ridx: amdgpu ring index
- *
- * Emits an hdp invalidate on the cp.
- */
-static void gfx_v6_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(1) |
-				 WRITE_DATA_DST_SEL(0)));
-	amdgpu_ring_write(ring, mmHDP_DEBUG0);
-	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, 0x1);
 }
 
 static void gfx_v6_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
@@ -3507,8 +3478,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_gfx,
 	.emit_frame_size =
-		5 + /* gfx_v6_0_ring_emit_hdp_flush */
-		5 + /* gfx_v6_0_ring_emit_hdp_invalidate */
+		5 + 5 + /* hdp flush / invalidate */
 		14 + 14 + 14 + /* gfx_v6_0_ring_emit_fence x3 for user fence, vm fence */
 		7 + 4 + /* gfx_v6_0_ring_emit_pipeline_sync */
 		SI_FLUSH_GPU_TLB_NUM_WREG * 5 + 7 + 6 + /* gfx_v6_0_ring_emit_vm_flush */
@@ -3518,8 +3488,6 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.emit_fence = gfx_v6_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v6_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v6_0_ring_emit_vm_flush,
-	.emit_hdp_flush = gfx_v6_0_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = gfx_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = gfx_v6_0_ring_test_ring,
 	.test_ib = gfx_v6_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
@@ -3535,8 +3503,7 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_compute,
 	.emit_frame_size =
-		5 + /* gfx_v6_0_ring_emit_hdp_flush */
-		5 + /* gfx_v6_0_ring_emit_hdp_invalidate */
+		5 + 5 + /* hdp flush / invalidate */
 		7 + /* gfx_v6_0_ring_emit_pipeline_sync */
 		SI_FLUSH_GPU_TLB_NUM_WREG * 5 + 7 + /* gfx_v6_0_ring_emit_vm_flush */
 		14 + 14 + 14, /* gfx_v6_0_ring_emit_fence x3 for user fence, vm fence */
@@ -3545,8 +3512,6 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.emit_fence = gfx_v6_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v6_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v6_0_ring_emit_vm_flush,
-	.emit_hdp_flush = gfx_v6_0_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = gfx_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = gfx_v6_0_ring_test_ring,
 	.test_ib = gfx_v6_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,

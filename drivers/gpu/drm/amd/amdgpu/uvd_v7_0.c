@@ -1136,37 +1136,6 @@ static void uvd_v7_0_enc_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 }
 
 /**
- * uvd_v7_0_ring_emit_hdp_flush - emit an hdp flush
- *
- * @ring: amdgpu_ring pointer
- *
- * Emits an hdp flush.
- */
-static void uvd_v7_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-
-	amdgpu_ring_write(ring, PACKET0(SOC15_REG_OFFSET(NBIF, 0,
-		mmHDP_MEM_COHERENCY_FLUSH_CNTL), 0));
-	amdgpu_ring_write(ring, 0);
-}
-
-/**
- * uvd_v7_0_ring_hdp_invalidate - emit an hdp invalidate
- *
- * @ring: amdgpu_ring pointer
- *
- * Emits an hdp invalidate.
- */
-static void uvd_v7_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-
-	amdgpu_ring_write(ring, PACKET0(SOC15_REG_OFFSET(HDP, 0, mmHDP_READ_CACHE_INVALIDATE), 0));
-	amdgpu_ring_write(ring, 1);
-}
-
-/**
  * uvd_v7_0_ring_test_ring - register write test
  *
  * @ring: amdgpu_ring pointer
@@ -1693,16 +1662,13 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.get_wptr = uvd_v7_0_ring_get_wptr,
 	.set_wptr = uvd_v7_0_ring_set_wptr,
 	.emit_frame_size =
-		2 + /* uvd_v7_0_ring_emit_hdp_flush */
-		2 + /* uvd_v7_0_ring_emit_hdp_invalidate */
+		6 + 6 + /* hdp flush / invalidate */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 + 16 + /* uvd_v7_0_ring_emit_vm_flush */
 		14 + 14, /* uvd_v7_0_ring_emit_fence x2 vm fence */
 	.emit_ib_size = 8, /* uvd_v7_0_ring_emit_ib */
 	.emit_ib = uvd_v7_0_ring_emit_ib,
 	.emit_fence = uvd_v7_0_ring_emit_fence,
 	.emit_vm_flush = uvd_v7_0_ring_emit_vm_flush,
-	.emit_hdp_flush = uvd_v7_0_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = uvd_v7_0_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v7_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = uvd_v7_0_ring_insert_nop,
@@ -1722,6 +1688,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_enc_ring_vm_funcs = {
 	.get_wptr = uvd_v7_0_enc_ring_get_wptr,
 	.set_wptr = uvd_v7_0_enc_ring_set_wptr,
 	.emit_frame_size =
+		3 + 3 + /* hdp flush / invalidate */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 + 8 + /* uvd_v7_0_enc_ring_emit_vm_flush */
 		5 + 5 + /* uvd_v7_0_enc_ring_emit_fence x2 vm fence */
 		1, /* uvd_v7_0_enc_ring_insert_end */

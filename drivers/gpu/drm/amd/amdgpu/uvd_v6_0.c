@@ -964,32 +964,6 @@ static void uvd_v6_0_enc_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 }
 
 /**
- * uvd_v6_0_ring_emit_hdp_flush - emit an hdp flush
- *
- * @ring: amdgpu_ring pointer
- *
- * Emits an hdp flush.
- */
-static void uvd_v6_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, PACKET0(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0));
-	amdgpu_ring_write(ring, 0);
-}
-
-/**
- * uvd_v6_0_ring_hdp_invalidate - emit an hdp invalidate
- *
- * @ring: amdgpu_ring pointer
- *
- * Emits an hdp invalidate.
- */
-static void uvd_v6_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, PACKET0(mmHDP_DEBUG0, 0));
-	amdgpu_ring_write(ring, 1);
-}
-
-/**
  * uvd_v6_0_ring_test_ring - register write test
  *
  * @ring: amdgpu_ring pointer
@@ -1556,15 +1530,11 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.set_wptr = uvd_v6_0_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_frame_size =
-		2 + /* uvd_v6_0_ring_emit_hdp_flush */
-		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
 		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
 		14, /* uvd_v6_0_ring_emit_fence x1 no user fence */
 	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
-	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = uvd_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v6_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
@@ -1582,8 +1552,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
 	.emit_frame_size =
-		2 + /* uvd_v6_0_ring_emit_hdp_flush */
-		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
+		6 + 6 + /* hdp flush / invalidate */
 		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
 		20 + /* uvd_v6_0_ring_emit_vm_flush */
 		14 + 14, /* uvd_v6_0_ring_emit_fence x2 vm fence */
@@ -1592,8 +1561,6 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.emit_fence = uvd_v6_0_ring_emit_fence,
 	.emit_vm_flush = uvd_v6_0_ring_emit_vm_flush,
 	.emit_pipeline_sync = uvd_v6_0_ring_emit_pipeline_sync,
-	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = uvd_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v6_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
