@@ -1910,3 +1910,16 @@ void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist,
 
 	halbtc_normal_low_power(btcoexist);
 }
+
+void exhalbtc_switch_band_notify(struct btc_coexist *btcoexist, u8 type)
+{
+	if (!halbtc_is_bt_coexist_available(btcoexist))
+		return;
+
+	if (btcoexist->manual_control)
+		return;
+
+	halbtc_leave_low_power(btcoexist);
+
+	halbtc_normal_low_power(btcoexist);
+}

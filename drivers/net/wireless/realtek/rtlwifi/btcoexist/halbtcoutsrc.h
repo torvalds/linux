@@ -385,6 +385,14 @@ enum btc_notify_type_scan {
 	BTC_SCAN_MAX
 };
 
+enum btc_notify_type_switchband {
+	BTC_NOT_SWITCH = 0x0,
+	BTC_SWITCH_TO_24G = 0x1,
+	BTC_SWITCH_TO_5G = 0x2,
+	BTC_SWITCH_TO_24G_NOFORSCAN = 0x3,
+	BTC_SWITCH_MAX
+};
+
 enum btc_notify_type_associate {
 	BTC_ASSOCIATE_FINISH = 0x0,
 	BTC_ASSOCIATE_START = 0x1,
@@ -659,6 +667,7 @@ void exhalbtc_set_chip_type(struct btc_coexist *btcoexist, u8 chip_type);
 void exhalbtc_set_ant_num(struct rtl_priv *rtlpriv, u8 type, u8 ant_num);
 void exhalbtc_display_bt_coex_info(struct btc_coexist *btcoexist,
 				   struct seq_file *m);
+void exhalbtc_switch_band_notify(struct btc_coexist *btcoexist, u8 type);
 void exhalbtc_signal_compensation(struct btc_coexist *btcoexist,
 				  u8 *rssi_wifi, u8 *rssi_bt);
 void exhalbtc_lps_leave(struct btc_coexist *btcoexist);

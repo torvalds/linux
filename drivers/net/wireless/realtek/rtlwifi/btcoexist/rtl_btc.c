@@ -48,6 +48,7 @@ static struct rtl_btc_ops rtl_btc_operation = {
 	.btc_is_disable_edca_turbo = rtl_btc_is_disable_edca_turbo,
 	.btc_is_bt_disabled = rtl_btc_is_bt_disabled,
 	.btc_special_packet_notify = rtl_btc_special_packet_notify,
+	.btc_switch_band_notify = rtl_btc_switch_band_notify,
 	.btc_record_pwr_mode = rtl_btc_record_pwr_mode,
 	.btc_get_lps_val = rtl_btc_get_lps_val,
 	.btc_get_rpwm_val = rtl_btc_get_rpwm_val,
@@ -421,6 +422,32 @@ void rtl_btc_special_packet_notify(struct rtl_priv *rtlpriv, u8 pkt_type)
 		return;
 
 	return exhalbtc_special_packet_notify(btcoexist, pkt_type);
+}
+
+void rtl_btc_switch_band_notify(struct rtl_priv *rtlpriv, u8 band_type,
+				bool scanning)
+{
+	struct btc_coexist *btcoexist = rtl_btc_coexist(rtlpriv);
+	u8 type = BTC_NOT_SWITCH;
+
+	if (!btcoexist)
+		return;
+
+	switch (band_type) {
+	case BAND_ON_2_4G:
+		if (scanning)
+			type = BTC_SWITCH_TO_24G;
+		else
+			type = BTC_SWITCH_TO_24G_NOFORSCAN;
+		break;
+
+	case BAND_ON_5G:
+		type = BTC_SWITCH_TO_5G;
+		break;
+	}
+
+	if (type != BTC_NOT_SWITCH)
+		exhalbtc_switch_band_notify(btcoexist, type);
 }
 
 struct rtl_btc_ops *rtl_btc_get_ops_pointer(void)

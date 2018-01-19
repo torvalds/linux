@@ -46,6 +46,8 @@ bool rtl_btc_is_limited_dig(struct rtl_priv *rtlpriv);
 bool rtl_btc_is_disable_edca_turbo(struct rtl_priv *rtlpriv);
 bool rtl_btc_is_bt_disabled(struct rtl_priv *rtlpriv);
 void rtl_btc_special_packet_notify(struct rtl_priv *rtlpriv, u8 pkt_type);
+void rtl_btc_switch_band_notify(struct rtl_priv *rtlpriv, u8 band_type,
+				bool scanning);
 void rtl_btc_display_bt_coex_info(struct rtl_priv *rtlpriv, struct seq_file *m);
 void rtl_btc_record_pwr_mode(struct rtl_priv *rtlpriv, u8 *buf, u8 len);
 u8   rtl_btc_get_lps_val(struct rtl_priv *rtlpriv);
