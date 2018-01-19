@@ -152,7 +152,7 @@ struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i);
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream);
 
 /* TODO: Return parsed values rather than direct register read
- * This has a dependency on the caller (amdgpu_get_crtc_scanoutpos)
+ * This has a dependency on the caller (amdgpu_display_get_crtc_scanoutpos)
  * being refactored properly to be dce-specific
  */
 bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,

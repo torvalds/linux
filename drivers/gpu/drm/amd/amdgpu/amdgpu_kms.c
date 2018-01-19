@@ -980,11 +980,11 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 		 */
 		do {
 			count = amdgpu_display_vblank_get_counter(adev, pipe);
-			/* Ask amdgpu_get_crtc_scanoutpos to return vpos as
-			 * distance to start of vblank, instead of regular
-			 * vertical scanout pos.
+			/* Ask amdgpu_display_get_crtc_scanoutpos to return
+			 * vpos as distance to start of vblank, instead of
+			 * regular vertical scanout pos.
 			 */
-			stat = amdgpu_get_crtc_scanoutpos(
+			stat = amdgpu_display_get_crtc_scanoutpos(
 				dev, pipe, GET_DISTANCE_TO_VBLANKSTART,
 				&vpos, &hpos, NULL, NULL,
 				&adev->mode_info.crtcs[pipe]->base.hwmode);
