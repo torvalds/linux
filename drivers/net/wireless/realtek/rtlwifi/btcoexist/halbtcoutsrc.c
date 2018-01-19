@@ -95,21 +95,6 @@ static bool is_any_client_connect_to_ap(struct btc_coexist *btcoexist)
 		return false;
 }
 
-static bool halbtc_is_bt40(struct rtl_priv *adapter)
-{
-	struct rtl_priv *rtlpriv = adapter;
-	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	bool is_ht40 = true;
-	enum ht_channel_width bw = rtlphy->current_chan_bw;
-
-	if (bw == HT_CHANNEL_WIDTH_20)
-		is_ht40 = false;
-	else if (bw == HT_CHANNEL_WIDTH_20_40)
-		is_ht40 = true;
-
-	return is_ht40;
-}
-
 static bool halbtc_legacy(struct rtl_priv *adapter)
 {
 	struct rtl_priv *rtlpriv = adapter;
@@ -135,18 +120,26 @@ bool halbtc_is_wifi_uplink(struct rtl_priv *adapter)
 
 static u32 halbtc_get_wifi_bw(struct btc_coexist *btcoexist)
 {
-	struct rtl_priv *rtlpriv =
-		(struct rtl_priv *)btcoexist->adapter;
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
+	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	u32 wifi_bw = BTC_WIFI_BW_HT20;
 
-	if (halbtc_is_bt40(rtlpriv)) {
-		wifi_bw = BTC_WIFI_BW_HT40;
+	if (halbtc_legacy(rtlpriv)) {
+		wifi_bw = BTC_WIFI_BW_LEGACY;
 	} else {
-		if (halbtc_legacy(rtlpriv))
-			wifi_bw = BTC_WIFI_BW_LEGACY;
-		else
+		switch (rtlphy->current_chan_bw) {
+		case HT_CHANNEL_WIDTH_20:
 			wifi_bw = BTC_WIFI_BW_HT20;
+			break;
+		case HT_CHANNEL_WIDTH_20_40:
+			wifi_bw = BTC_WIFI_BW_HT40;
+			break;
+		case HT_CHANNEL_WIDTH_80:
+			wifi_bw = BTC_WIFI_BW_HT80;
+			break;
+		}
 	}
+
 	return wifi_bw;
 }
 

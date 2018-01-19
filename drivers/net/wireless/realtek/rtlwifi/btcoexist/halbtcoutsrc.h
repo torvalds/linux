@@ -190,6 +190,7 @@ enum btc_wifi_bw_mode {
 	BTC_WIFI_BW_LEGACY = 0x0,
 	BTC_WIFI_BW_HT20 = 0x1,
 	BTC_WIFI_BW_HT40 = 0x2,
+	BTC_WIFI_BW_HT80 = 0x3,
 	BTC_WIFI_BW_MAX
 };
 
