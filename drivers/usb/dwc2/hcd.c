@@ -308,22 +308,10 @@ static int dwc2_gahbcfg_init(struct dwc2_hsotg *hsotg)
 		break;
 	}
 
-	dev_dbg(hsotg->dev, "host_dma:%d dma_desc_enable:%d\n",
-		hsotg->params.host_dma,
-		hsotg->params.dma_desc_enable);
-
-	if (hsotg->params.host_dma) {
-		if (hsotg->params.dma_desc_enable)
-			dev_dbg(hsotg->dev, "Using Descriptor DMA mode\n");
-		else
-			dev_dbg(hsotg->dev, "Using Buffer DMA mode\n");
-	} else {
-		dev_dbg(hsotg->dev, "Using Slave mode\n");
-		hsotg->params.dma_desc_enable = false;
-	}
-
 	if (hsotg->params.host_dma)
 		ahbcfg |= GAHBCFG_DMA_EN;
+	else
+		hsotg->params.dma_desc_enable = false;
 
 	dwc2_writel(ahbcfg, hsotg->regs + GAHBCFG);
 
