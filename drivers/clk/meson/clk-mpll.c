@@ -173,6 +173,13 @@ static int mpll_set_rate(struct clk_hw *hw,
 	reg = PARM_SET(p->width, p->shift, reg, n2);
 	writel(reg, mpll->base + p->reg_off);
 
+	p = &mpll->misc;
+	if (p->width != 0) {
+		reg = readl(mpll->base + p->reg_off);
+		reg = PARM_SET(p->width, p->shift, reg, 1);
+		writel(reg, mpll->base + p->reg_off);
+	}
+
 	if (mpll->lock)
 		spin_unlock_irqrestore(mpll->lock, flags);
 	else

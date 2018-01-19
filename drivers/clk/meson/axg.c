@@ -292,6 +292,11 @@ static struct meson_clk_mpll axg_mpll0 = {
 		.shift   = 25,
 		.width	 = 1,
 	},
+	.misc = {
+		.reg_off = HHI_PLL_TOP_MISC,
+		.shift   = 0,
+		.width	 = 1,
+	},
 	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0",
@@ -320,6 +325,11 @@ static struct meson_clk_mpll axg_mpll1 = {
 	.en = {
 		.reg_off = HHI_MPLL_CNTL8,
 		.shift   = 14,
+		.width	 = 1,
+	},
+	.misc = {
+		.reg_off = HHI_PLL_TOP_MISC,
+		.shift   = 1,
 		.width	 = 1,
 	},
 	.lock = &meson_clk_lock,
@@ -352,6 +362,11 @@ static struct meson_clk_mpll axg_mpll2 = {
 		.shift   = 14,
 		.width	 = 1,
 	},
+	.misc = {
+		.reg_off = HHI_PLL_TOP_MISC,
+		.shift   = 2,
+		.width	 = 1,
+	},
 	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll2",
@@ -380,6 +395,11 @@ static struct meson_clk_mpll axg_mpll3 = {
 	.en = {
 		.reg_off = HHI_MPLL3_CNTL0,
 		.shift   = 0,
+		.width	 = 1,
+	},
+	.misc = {
+		.reg_off = HHI_PLL_TOP_MISC,
+		.shift   = 3,
 		.width	 = 1,
 	},
 	.lock = &meson_clk_lock,
