@@ -169,16 +169,16 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 				       struct dentry *upper,
 				       struct ovl_path *lowerpath)
 {
-	struct inode *inode;
+	struct dentry *lower = lowerpath ? lowerpath->dentry : NULL;
 	struct dentry *dentry;
+	struct inode *inode;
 	struct ovl_entry *oe;
-	void *fsdata = &oe;
 
-	/* TODO: obtain non pure-upper */
-	if (lowerpath)
+	/* TODO: obtain an indexed non-dir upper with origin */
+	if (lower && (upper || d_is_dir(lower)))
 		return ERR_PTR(-EIO);
 
-	inode = ovl_get_inode(sb, dget(upper), NULL, NULL, 0);
+	inode = ovl_get_inode(sb, dget(upper), lower, NULL, !!lower);
 	if (IS_ERR(inode)) {
 		dput(upper);
 		return ERR_CAST(inode);
@@ -189,12 +189,17 @@ static struct dentry *ovl_obtain_alias(struct super_block *sb,
 		dentry = d_alloc_anon(inode->i_sb);
 		if (!dentry)
 			goto nomem;
-		oe = ovl_alloc_entry(0);
+		oe = ovl_alloc_entry(lower ? 1 : 0);
 		if (!oe)
 			goto nomem;
 
+		if (lower) {
+			oe->lowerstack->dentry = dget(lower);
+			oe->lowerstack->layer = lowerpath->layer;
+		}
 		dentry->d_fsdata = oe;
-		ovl_dentry_set_upper_alias(dentry);
+		if (upper)
+			ovl_dentry_set_upper_alias(dentry);
 	}
 
 	return d_instantiate_anon(dentry, inode);
@@ -381,7 +386,14 @@ static struct dentry *ovl_get_dentry(struct super_block *sb,
 	struct ovl_fs *ofs = sb->s_fs_info;
 	struct ovl_layer upper_layer = { .mnt = ofs->upper_mnt };
 
-	/* TODO: get non-upper dentry */
+	/*
+	 * Obtain a disconnected overlay dentry from a disconnected non-dir
+	 * real lower dentry.
+	 */
+	if (!upper && !d_is_dir(lowerpath->dentry))
+		return ovl_obtain_alias(sb, NULL, lowerpath);
+
+	/* TODO: lookup connected dir from real lower dir */
 	if (!upper)
 		return ERR_PTR(-EACCES);
 
@@ -423,6 +435,25 @@ static struct dentry *ovl_upper_fh_to_d(struct super_block *sb,
 	return dentry;
 }
 
+static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
+					struct ovl_fh *fh)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_path origin = { };
+	struct ovl_path *stack = &origin;
+	struct dentry *dentry = NULL;
+	int err;
+
+	err = ovl_check_origin_fh(ofs, fh, NULL, &stack);
+	if (err)
+		return ERR_PTR(err);
+
+	dentry = ovl_get_dentry(sb, NULL, &origin);
+	dput(origin.dentry);
+
+	return dentry;
+}
+
 static struct dentry *ovl_fh_to_dentry(struct super_block *sb, struct fid *fid,
 				       int fh_len, int fh_type)
 {
@@ -440,10 +471,10 @@ static struct dentry *ovl_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	if (err)
 		goto out_err;
 
-	/* TODO: decode non-upper */
 	flags = fh->flags;
-	if (flags & OVL_FH_FLAG_PATH_UPPER)
-		dentry = ovl_upper_fh_to_d(sb, fh);
+	dentry = (flags & OVL_FH_FLAG_PATH_UPPER) ?
+		 ovl_upper_fh_to_d(sb, fh) :
+		 ovl_lower_fh_to_d(sb, fh);
 	err = PTR_ERR(dentry);
 	if (IS_ERR(dentry) && err != -ESTALE)
 		goto out_err;
