@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __XZ_CONFIG_H__
 #define __XZ_CONFIG_H__
 

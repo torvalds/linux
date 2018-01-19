@@ -116,7 +116,7 @@ static const struct fb_var_screeninfo default_var = {
 
 /* default modedb mode */
 /* 640x480, 60 Hz, Non-Interlaced (25.172 MHz dotclock) */
-static struct fb_videomode defaultmode = {
+static const struct fb_videomode defaultmode = {
 	.refresh =	60,
 	.xres =		640,
 	.yres =		480,
@@ -166,7 +166,7 @@ static int aty128_pci_resume(struct pci_dev *pdev);
 static int aty128_do_resume(struct pci_dev *pdev);
 
 /* supported Rage128 chipsets */
-static struct pci_device_id aty128_pci_tbl[] = {
+static const struct pci_device_id aty128_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_RAGE128_LE,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, rage_M3_pci },
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_RAGE128_LF,

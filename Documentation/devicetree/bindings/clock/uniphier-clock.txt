@@ -6,7 +6,6 @@ System clock
 
 Required properties:
 - compatible: should be one of the following:
-    "socionext,uniphier-sld3-clock" - for sLD3 SoC.
     "socionext,uniphier-ld4-clock"  - for LD4 SoC.
     "socionext,uniphier-pro4-clock" - for Pro4 SoC.
     "socionext,uniphier-sld8-clock" - for sLD8 SoC.
@@ -14,6 +13,7 @@ Required properties:
     "socionext,uniphier-pxs2-clock" - for PXs2/LD6b SoC.
     "socionext,uniphier-ld11-clock" - for LD11 SoC.
     "socionext,uniphier-ld20-clock" - for LD20 SoC.
+    "socionext,uniphier-pxs3-clock" - for PXs3 SoC
 - #clock-cells: should be 1.
 
 Example:
@@ -48,7 +48,6 @@ Media I/O (MIO) clock, SD clock
 
 Required properties:
 - compatible: should be one of the following:
-    "socionext,uniphier-sld3-mio-clock" - for sLD3 SoC.
     "socionext,uniphier-ld4-mio-clock"  - for LD4 SoC.
     "socionext,uniphier-pro4-mio-clock" - for Pro4 SoC.
     "socionext,uniphier-sld8-mio-clock" - for sLD8 SoC.
@@ -56,6 +55,7 @@ Required properties:
     "socionext,uniphier-pxs2-sd-clock"  - for PXs2/LD6b SoC.
     "socionext,uniphier-ld11-mio-clock" - for LD11 SoC.
     "socionext,uniphier-ld20-sd-clock"  - for LD20 SoC.
+    "socionext,uniphier-pxs3-sd-clock"  - for PXs3 SoC
 - #clock-cells: should be 1.
 
 Example:
@@ -82,11 +82,9 @@ Provided clocks:
  8: USB2 ch0 host
  9: USB2 ch1 host
 10: USB2 ch2 host
-11: USB2 ch3 host
 12: USB2 ch0 PHY
 13: USB2 ch1 PHY
 14: USB2 ch2 PHY
-15: USB2 ch3 PHY
 
 
 Peripheral clock
@@ -94,7 +92,6 @@ Peripheral clock
 
 Required properties:
 - compatible: should be one of the following:
-    "socionext,uniphier-sld3-peri-clock" - for sLD3 SoC.
     "socionext,uniphier-ld4-peri-clock"  - for LD4 SoC.
     "socionext,uniphier-pro4-peri-clock" - for Pro4 SoC.
     "socionext,uniphier-sld8-peri-clock" - for sLD8 SoC.
@@ -102,6 +99,7 @@ Required properties:
     "socionext,uniphier-pxs2-peri-clock" - for PXs2/LD6b SoC.
     "socionext,uniphier-ld11-peri-clock" - for LD11 SoC.
     "socionext,uniphier-ld20-peri-clock" - for LD20 SoC.
+    "socionext,uniphier-pxs3-peri-clock" - for PXs3 SoC
 - #clock-cells: should be 1.
 
 Example:

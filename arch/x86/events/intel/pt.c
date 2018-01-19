@@ -471,8 +471,9 @@ static void pt_config(struct perf_event *event)
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	u64 reg;
 
-	if (!event->hw.itrace_started) {
-		event->hw.itrace_started = 1;
+	/* First round: clear STATUS, in particular the PSB byte counter. */
+	if (!event->hw.config) {
+		perf_event_itrace_started(event);
 		wrmsrl(MSR_IA32_RTIT_STATUS, 0);
 	}
 

@@ -45,144 +45,20 @@
 #include "vbox_drv.h"
 #include "vboxvideo.h"
 
-#define VBOX_DIRTY_DELAY (HZ / 30)
-/**
- * Tell the host about dirty rectangles to update.
- */
-static void vbox_dirty_update(struct vbox_fbdev *fbdev,
-			      int x, int y, int width, int height)
-{
-	struct drm_gem_object *obj;
-	struct vbox_bo *bo;
-	int ret = -EBUSY;
-	bool store_for_later = false;
-	int x2, y2;
-	unsigned long flags;
-	struct drm_clip_rect rect;
-
-	obj = fbdev->afb.obj;
-	bo = gem_to_vbox_bo(obj);
-
-	/*
-	 * try and reserve the BO, if we fail with busy
-	 * then the BO is being moved and we should
-	 * store up the damage until later.
-	 */
-	if (drm_can_sleep())
-		ret = vbox_bo_reserve(bo, true);
-	if (ret) {
-		if (ret != -EBUSY)
-			return;
-
-		store_for_later = true;
-	}
-
-	x2 = x + width - 1;
-	y2 = y + height - 1;
-	spin_lock_irqsave(&fbdev->dirty_lock, flags);
-
-	if (fbdev->y1 < y)
-		y = fbdev->y1;
-	if (fbdev->y2 > y2)
-		y2 = fbdev->y2;
-	if (fbdev->x1 < x)
-		x = fbdev->x1;
-	if (fbdev->x2 > x2)
-		x2 = fbdev->x2;
-
-	if (store_for_later) {
-		fbdev->x1 = x;
-		fbdev->x2 = x2;
-		fbdev->y1 = y;
-		fbdev->y2 = y2;
-		spin_unlock_irqrestore(&fbdev->dirty_lock, flags);
-		return;
-	}
-
-	fbdev->x1 = INT_MAX;
-	fbdev->y1 = INT_MAX;
-	fbdev->x2 = 0;
-	fbdev->y2 = 0;
-
-	spin_unlock_irqrestore(&fbdev->dirty_lock, flags);
-
-	/*
-	 * Not sure why the original code subtracted 1 here, but I will keep
-	 * it that way to avoid unnecessary differences.
-	 */
-	rect.x1 = x;
-	rect.x2 = x2 + 1;
-	rect.y1 = y;
-	rect.y2 = y2 + 1;
-	vbox_framebuffer_dirty_rectangles(&fbdev->afb.base, &rect, 1);
-
-	vbox_bo_unreserve(bo);
-}
-
-#ifdef CONFIG_FB_DEFERRED_IO
-static void vbox_deferred_io(struct fb_info *info, struct list_head *pagelist)
-{
-	struct vbox_fbdev *fbdev = info->par;
-	unsigned long start, end, min, max;
-	struct page *page;
-	int y1, y2;
-
-	min = ULONG_MAX;
-	max = 0;
-	list_for_each_entry(page, pagelist, lru) {
-		start = page->index << PAGE_SHIFT;
-		end = start + PAGE_SIZE - 1;
-		min = min(min, start);
-		max = max(max, end);
-	}
-
-	if (min < max) {
-		y1 = min / info->fix.line_length;
-		y2 = (max / info->fix.line_length) + 1;
-		DRM_INFO("%s: Calling dirty update: 0, %d, %d, %d\n",
-			 __func__, y1, info->var.xres, y2 - y1 - 1);
-		vbox_dirty_update(fbdev, 0, y1, info->var.xres, y2 - y1 - 1);
-	}
-}
-
+#ifdef CONFIG_DRM_KMS_FB_HELPER
 static struct fb_deferred_io vbox_defio = {
-	.delay = VBOX_DIRTY_DELAY,
-	.deferred_io = vbox_deferred_io,
+	.delay = HZ / 30,
+	.deferred_io = drm_fb_helper_deferred_io,
 };
 #endif
-
-static void vbox_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
-{
-	struct vbox_fbdev *fbdev = info->par;
-
-	sys_fillrect(info, rect);
-	vbox_dirty_update(fbdev, rect->dx, rect->dy, rect->width, rect->height);
-}
-
-static void vbox_copyarea(struct fb_info *info, const struct fb_copyarea *area)
-{
-	struct vbox_fbdev *fbdev = info->par;
-
-	sys_copyarea(info, area);
-	vbox_dirty_update(fbdev, area->dx, area->dy, area->width, area->height);
-}
-
-static void vbox_imageblit(struct fb_info *info, const struct fb_image *image)
-{
-	struct vbox_fbdev *fbdev = info->par;
-
-	sys_imageblit(info, image);
-	vbox_dirty_update(fbdev, image->dx, image->dy, image->width,
-			  image->height);
-}
 
 static struct fb_ops vboxfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
 	.fb_set_par = drm_fb_helper_set_par,
-	.fb_fillrect = vbox_fillrect,
-	.fb_copyarea = vbox_copyarea,
-	.fb_imageblit = vbox_imageblit,
+	.fb_fillrect = drm_fb_helper_sys_fillrect,
+	.fb_copyarea = drm_fb_helper_sys_copyarea,
+	.fb_imageblit = drm_fb_helper_sys_imageblit,
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
@@ -219,7 +95,6 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	struct DRM_MODE_FB_CMD mode_cmd;
 	struct drm_framebuffer *fb;
 	struct fb_info *info;
-	struct device *device = &dev->pdev->dev;
 	struct drm_gem_object *gobj;
 	struct vbox_bo *bo;
 	int size, ret;
@@ -263,16 +138,16 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 		return ret;
 	}
 
-	info = framebuffer_alloc(0, device);
-	if (!info)
-		return -ENOMEM;
+	info = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(info))
+		return -PTR_ERR(info);
+
 	info->par = fbdev;
 
 	fbdev->size = size;
 
 	fb = &fbdev->afb.base;
 	fbdev->helper.fb = fb;
-	fbdev->helper.fbdev = info;
 
 	strcpy(info->fix.id, "vboxdrmfb");
 
@@ -284,17 +159,10 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 		      FBINFO_MISC_ALWAYS_SETPAR;
 	info->fbops = &vboxfb_ops;
 
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret)
-		return -ENOMEM;
-
 	/*
 	 * This seems to be done for safety checking that the framebuffer
 	 * is not registered twice by different drivers.
 	 */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures)
-		return -ENOMEM;
 	info->apertures->ranges[0].base = pci_resource_start(dev->pdev, 0);
 	info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
 
@@ -305,7 +173,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	info->screen_base = bo->kmap.virtual;
 	info->screen_size = size;
 
-#ifdef CONFIG_FB_DEFERRED_IO
+#ifdef CONFIG_DRM_KMS_FB_HELPER
 	info->fbdefio = &vbox_defio;
 	fb_deferred_io_init(info);
 #endif
@@ -317,22 +185,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	return 0;
 }
 
-static void vbox_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-			      u16 blue, int regno)
-{
-}
-
-static void vbox_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-			      u16 *blue, int regno)
-{
-	*red = regno;
-	*green = regno;
-	*blue = regno;
-}
-
 static struct drm_fb_helper_funcs vbox_fb_helper_funcs = {
-	.gamma_set = vbox_fb_gamma_set,
-	.gamma_get = vbox_fb_gamma_get,
 	.fb_probe = vboxfb_create,
 };
 
@@ -341,6 +194,11 @@ void vbox_fbdev_fini(struct drm_device *dev)
 	struct vbox_private *vbox = dev->dev_private;
 	struct vbox_fbdev *fbdev = vbox->fbdev;
 	struct vbox_framebuffer *afb = &fbdev->afb;
+
+#ifdef CONFIG_DRM_KMS_FB_HELPER
+	if (fbdev->helper.fbdev && fbdev->helper.fbdev->fbdefio)
+		fb_deferred_io_cleanup(fbdev->helper.fbdev);
+#endif
 
 	drm_fb_helper_unregister_fbi(&fbdev->helper);
 
@@ -358,7 +216,7 @@ void vbox_fbdev_fini(struct drm_device *dev)
 				vbox_bo_unpin(bo);
 			vbox_bo_unreserve(bo);
 		}
-		drm_gem_object_unreference_unlocked(afb->obj);
+		drm_gem_object_put_unlocked(afb->obj);
 		afb->obj = NULL;
 	}
 	drm_fb_helper_fini(&fbdev->helper);

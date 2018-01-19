@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the VIA framebuffer driver (for Linux Kernel 2.6)
 #

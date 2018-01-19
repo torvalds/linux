@@ -39,8 +39,8 @@
 #include <linux/mutex.h>
 
 #define MLX4_ICM_CHUNK_LEN						\
-	((256 - sizeof (struct list_head) - 2 * sizeof (int)) /		\
-	 (sizeof (struct scatterlist)))
+	((256 - sizeof(struct list_head) - 2 * sizeof(int)) /		\
+	 (sizeof(struct scatterlist)))
 
 enum {
 	MLX4_ICM_PAGE_SHIFT	= 12,

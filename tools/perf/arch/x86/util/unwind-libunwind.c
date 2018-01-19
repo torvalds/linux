@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #ifndef REMOTE_UNWIND_LIBUNWIND
 #include <errno.h>

@@ -122,9 +122,6 @@ static bool __init check_loader_disabled_bsp(void)
 	bool *res = &dis_ucode_ldr;
 #endif
 
-	if (!have_cpuid_p())
-		return *res;
-
 	/*
 	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
 	 * completely accurate as xen pv guests don't see that CPUID bit set but
@@ -166,24 +163,36 @@ bool get_builtin_firmware(struct cpio_data *cd, const char *name)
 void __init load_ucode_bsp(void)
 {
 	unsigned int cpuid_1_eax;
+	bool intel = true;
 
-	if (check_loader_disabled_bsp())
+	if (!have_cpuid_p())
 		return;
 
 	cpuid_1_eax = native_cpuid_eax(1);
 
 	switch (x86_cpuid_vendor()) {
 	case X86_VENDOR_INTEL:
-		if (x86_family(cpuid_1_eax) >= 6)
-			load_ucode_intel_bsp();
+		if (x86_family(cpuid_1_eax) < 6)
+			return;
 		break;
+
 	case X86_VENDOR_AMD:
-		if (x86_family(cpuid_1_eax) >= 0x10)
-			load_ucode_amd_bsp(cpuid_1_eax);
+		if (x86_family(cpuid_1_eax) < 0x10)
+			return;
+		intel = false;
 		break;
+
 	default:
-		break;
+		return;
 	}
+
+	if (check_loader_disabled_bsp())
+		return;
+
+	if (intel)
+		load_ucode_intel_bsp();
+	else
+		load_ucode_amd_bsp(cpuid_1_eax);
 }
 
 static bool check_loader_disabled_ap(void)

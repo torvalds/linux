@@ -527,13 +527,12 @@ static void tz1090_gpio_register_banks(struct tz1090_gpio *priv)
 
 		ret = of_property_read_u32(node, "reg", &addr);
 		if (ret) {
-			dev_err(priv->dev, "invalid reg on %s\n",
-				node->full_name);
+			dev_err(priv->dev, "invalid reg on %pOF\n", node);
 			continue;
 		}
 		if (addr >= 3) {
-			dev_err(priv->dev, "index %u in %s out of range\n",
-				addr, node->full_name);
+			dev_err(priv->dev, "index %u in %pOF out of range\n",
+				addr, node);
 			continue;
 		}
 
@@ -543,8 +542,7 @@ static void tz1090_gpio_register_banks(struct tz1090_gpio *priv)
 
 		ret = tz1090_gpio_bank_probe(&info);
 		if (ret) {
-			dev_err(priv->dev, "failure registering %s\n",
-				node->full_name);
+			dev_err(priv->dev, "failure registering %pOF\n", node);
 			of_node_put(node);
 			continue;
 		}

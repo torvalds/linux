@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _KBD_KERN_H
 #define _KBD_KERN_H
 

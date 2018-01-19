@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LIBLOCKDEP_LINUX_KALLSYMS_H_
 #define _LIBLOCKDEP_LINUX_KALLSYMS_H_
 

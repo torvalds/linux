@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Modified 1998-2001, 2003
  *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co

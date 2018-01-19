@@ -266,6 +266,37 @@ static DEFINE_SPINLOCK(all_mddevs_lock);
  * call has finished, the bio has been linked into some internal structure
  * and so is visible to ->quiesce(), so we don't need the refcount any more.
  */
+void md_handle_request(struct mddev *mddev, struct bio *bio)
+{
+check_suspended:
+	rcu_read_lock();
+	if (mddev->suspended) {
+		DEFINE_WAIT(__wait);
+		for (;;) {
+			prepare_to_wait(&mddev->sb_wait, &__wait,
+					TASK_UNINTERRUPTIBLE);
+			if (!mddev->suspended)
+				break;
+			rcu_read_unlock();
+			schedule();
+			rcu_read_lock();
+		}
+		finish_wait(&mddev->sb_wait, &__wait);
+	}
+	atomic_inc(&mddev->active_io);
+	rcu_read_unlock();
+
+	if (!mddev->pers->make_request(mddev, bio)) {
+		atomic_dec(&mddev->active_io);
+		wake_up(&mddev->sb_wait);
+		goto check_suspended;
+	}
+
+	if (atomic_dec_and_test(&mddev->active_io) && mddev->suspended)
+		wake_up(&mddev->sb_wait);
+}
+EXPORT_SYMBOL(md_handle_request);
+
 static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 {
 	const int rw = bio_data_dir(bio);
@@ -285,23 +316,6 @@ static blk_qc_t md_make_request(struct request_queue *q, struct bio *bio)
 		bio_endio(bio);
 		return BLK_QC_T_NONE;
 	}
-check_suspended:
-	rcu_read_lock();
-	if (mddev->suspended) {
-		DEFINE_WAIT(__wait);
-		for (;;) {
-			prepare_to_wait(&mddev->sb_wait, &__wait,
-					TASK_UNINTERRUPTIBLE);
-			if (!mddev->suspended)
-				break;
-			rcu_read_unlock();
-			schedule();
-			rcu_read_lock();
-		}
-		finish_wait(&mddev->sb_wait, &__wait);
-	}
-	atomic_inc(&mddev->active_io);
-	rcu_read_unlock();
 
 	/*
 	 * save the sectors now since our bio can
@@ -310,19 +324,13 @@ check_suspended:
 	sectors = bio_sectors(bio);
 	/* bio could be mergeable after passing to underlayer */
 	bio->bi_opf &= ~REQ_NOMERGE;
-	if (!mddev->pers->make_request(mddev, bio)) {
-		atomic_dec(&mddev->active_io);
-		wake_up(&mddev->sb_wait);
-		goto check_suspended;
-	}
+
+	md_handle_request(mddev, bio);
 
 	cpu = part_stat_lock();
 	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
 	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw], sectors);
 	part_stat_unlock();
-
-	if (atomic_dec_and_test(&mddev->active_io) && mddev->suspended)
-		wake_up(&mddev->sb_wait);
 
 	return BLK_QC_T_NONE;
 }
@@ -422,7 +430,7 @@ static void submit_flushes(struct work_struct *ws)
 			bi = bio_alloc_mddev(GFP_NOIO, 0, mddev);
 			bi->bi_end_io = md_end_flush;
 			bi->bi_private = rdev;
-			bi->bi_bdev = rdev->bdev;
+			bio_set_dev(bi, rdev->bdev);
 			bi->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 			atomic_inc(&mddev->flush_pending);
 			submit_bio(bi);
@@ -439,16 +447,22 @@ static void md_submit_flush_data(struct work_struct *ws)
 	struct mddev *mddev = container_of(ws, struct mddev, flush_work);
 	struct bio *bio = mddev->flush_bio;
 
+	/*
+	 * must reset flush_bio before calling into md_handle_request to avoid a
+	 * deadlock, because other bios passed md_handle_request suspend check
+	 * could wait for this and below md_handle_request could wait for those
+	 * bios because of suspend check
+	 */
+	mddev->flush_bio = NULL;
+	wake_up(&mddev->sb_wait);
+
 	if (bio->bi_iter.bi_size == 0)
 		/* an empty barrier - all done */
 		bio_endio(bio);
 	else {
 		bio->bi_opf &= ~REQ_PREFLUSH;
-		mddev->pers->make_request(mddev, bio);
+		md_handle_request(mddev, bio);
 	}
-
-	mddev->flush_bio = NULL;
-	wake_up(&mddev->sb_wait);
 }
 
 void md_flush_request(struct mddev *mddev, struct bio *bio)
@@ -772,7 +786,7 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 
 	atomic_inc(&rdev->nr_pending);
 
-	bio->bi_bdev = rdev->meta_bdev ? rdev->meta_bdev : rdev->bdev;
+	bio_set_dev(bio, rdev->meta_bdev ? rdev->meta_bdev : rdev->bdev);
 	bio->bi_iter.bi_sector = sector;
 	bio_add_page(bio, page, size, 0);
 	bio->bi_private = rdev;
@@ -803,8 +817,10 @@ int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 	struct bio *bio = md_bio_alloc_sync(rdev->mddev);
 	int ret;
 
-	bio->bi_bdev = (metadata_op && rdev->meta_bdev) ?
-		rdev->meta_bdev : rdev->bdev;
+	if (metadata_op && rdev->meta_bdev)
+		bio_set_dev(bio, rdev->meta_bdev);
+	else
+		bio_set_dev(bio, rdev->bdev);
 	bio_set_op_attrs(bio, op, op_flags);
 	if (metadata_op)
 		bio->bi_iter.bi_sector = sector + rdev->sb_start;
@@ -1536,7 +1552,8 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 	} else if (sb->bblog_offset != 0)
 		rdev->badblocks.shift = 0;
 
-	if (le32_to_cpu(sb->feature_map) & MD_FEATURE_PPL) {
+	if ((le32_to_cpu(sb->feature_map) &
+	    (MD_FEATURE_PPL | MD_FEATURE_MULTIPLE_PPLS))) {
 		rdev->ppl.offset = (__s16)le16_to_cpu(sb->ppl.offset);
 		rdev->ppl.size = le16_to_cpu(sb->ppl.size);
 		rdev->ppl.sector = rdev->sb_start + rdev->ppl.offset;
@@ -1655,9 +1672,14 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_JOURNAL)
 			set_bit(MD_HAS_JOURNAL, &mddev->flags);
 
-		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_PPL) {
+		if (le32_to_cpu(sb->feature_map) &
+		    (MD_FEATURE_PPL | MD_FEATURE_MULTIPLE_PPLS)) {
 			if (le32_to_cpu(sb->feature_map) &
 			    (MD_FEATURE_BITMAP_OFFSET | MD_FEATURE_JOURNAL))
+				return -EINVAL;
+			if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_PPL) &&
+			    (le32_to_cpu(sb->feature_map) &
+					    MD_FEATURE_MULTIPLE_PPLS))
 				return -EINVAL;
 			set_bit(MD_HAS_PPL, &mddev->flags);
 		}
@@ -1875,7 +1897,11 @@ retry:
 		sb->feature_map |= cpu_to_le32(MD_FEATURE_JOURNAL);
 
 	if (test_bit(MD_HAS_PPL, &mddev->flags)) {
-		sb->feature_map |= cpu_to_le32(MD_FEATURE_PPL);
+		if (test_bit(MD_HAS_MULTIPLE_PPLS, &mddev->flags))
+			sb->feature_map |=
+			    cpu_to_le32(MD_FEATURE_MULTIPLE_PPLS);
+		else
+			sb->feature_map |= cpu_to_le32(MD_FEATURE_PPL);
 		sb->ppl.offset = cpu_to_le16(rdev->ppl.offset);
 		sb->ppl.size = cpu_to_le16(rdev->ppl.size);
 	}
@@ -4283,6 +4309,8 @@ new_dev_store(struct mddev *mddev, const char *buf, size_t len)
 	if (err)
 		export_rdev(rdev);
 	mddev_unlock(mddev);
+	if (!err)
+		md_new_event(mddev);
 	return err ? err : len;
 }
 
@@ -7836,7 +7864,7 @@ static const struct file_operations md_seq_fops = {
 	.open           = md_seq_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
-	.release	= seq_release_private,
+	.release	= seq_release,
 	.poll		= mdstat_poll,
 };
 

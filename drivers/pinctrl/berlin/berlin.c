@@ -206,8 +206,8 @@ static int berlin_pinctrl_add_function(struct berlin_pinctrl *pctrl,
 static int berlin_pinctrl_build_state(struct platform_device *pdev)
 {
 	struct berlin_pinctrl *pctrl = platform_get_drvdata(pdev);
-	struct berlin_desc_group const *desc_group;
-	struct berlin_desc_function const *desc_function;
+	const struct berlin_desc_group *desc_group;
+	const struct berlin_desc_function *desc_function;
 	int i, max_functions = 0;
 
 	pctrl->nfunctions = 0;

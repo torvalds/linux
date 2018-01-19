@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_X86_E820_H
 #define _UAPI_ASM_X86_E820_H
 #define E820MAP	0x2d0		/* our map */

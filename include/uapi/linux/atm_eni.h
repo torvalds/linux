@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atm_eni.h - Driver-specific declarations of the ENI driver (for use by
 	       driver-specific utilities) */
 

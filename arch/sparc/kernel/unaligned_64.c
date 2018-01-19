@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * unaligned.c: Unaligned load/store trap handling with special
  *              cases for the kernel to do them more quickly.

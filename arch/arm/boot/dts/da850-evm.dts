@@ -15,6 +15,13 @@
 	compatible = "ti,da850-evm", "ti,da850";
 	model = "DA850/AM1808/OMAP-L138 EVM";
 
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+		serial2 = &serial2;
+		ethernet0 = &eth0;
+	};
+
 	soc@1c00000 {
 		pmx_core: pinmux@14120 {
 			status = "okay";

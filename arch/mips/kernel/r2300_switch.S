@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * r2300_switch.S: R2300 specific task switching code.
  *
@@ -24,12 +25,6 @@
 
 	.set	mips1
 	.align	5
-
-/*
- * Offset to the current process status flags, the first 32 bytes of the
- * stack are not used.
- */
-#define ST_OFF (_THREAD_SIZE - 32 - PT_SIZE + PT_STATUS)
 
 /*
  * task_struct *resume(task_struct *prev, task_struct *next,
@@ -68,78 +63,3 @@ LEAF(resume)
 	move	v0, a0
 	jr	ra
 	END(resume)
-
-/*
- * Save a thread's fp context.
- */
-LEAF(_save_fp)
-EXPORT_SYMBOL(_save_fp)
-	fpu_save_single a0, t1			# clobbers t1
-	jr	ra
-	END(_save_fp)
-
-/*
- * Restore a thread's fp context.
- */
-LEAF(_restore_fp)
-	fpu_restore_single a0, t1		# clobbers t1
-	jr	ra
-	END(_restore_fp)
-
-/*
- * Load the FPU with signalling NANS.  This bit pattern we're using has
- * the property that no matter whether considered as single or as double
- * precision represents signaling NANS.
- *
- * The value to initialize fcr31 to comes in $a0.
- */
-
-	.set push
-	SET_HARDFLOAT
-
-LEAF(_init_fpu)
-	mfc0	t0, CP0_STATUS
-	li	t1, ST0_CU1
-	or	t0, t1
-	mtc0	t0, CP0_STATUS
-
-	ctc1	a0, fcr31
-
-	li	t0, -1
-
-	mtc1	t0, $f0
-	mtc1	t0, $f1
-	mtc1	t0, $f2
-	mtc1	t0, $f3
-	mtc1	t0, $f4
-	mtc1	t0, $f5
-	mtc1	t0, $f6
-	mtc1	t0, $f7
-	mtc1	t0, $f8
-	mtc1	t0, $f9
-	mtc1	t0, $f10
-	mtc1	t0, $f11
-	mtc1	t0, $f12
-	mtc1	t0, $f13
-	mtc1	t0, $f14
-	mtc1	t0, $f15
-	mtc1	t0, $f16
-	mtc1	t0, $f17
-	mtc1	t0, $f18
-	mtc1	t0, $f19
-	mtc1	t0, $f20
-	mtc1	t0, $f21
-	mtc1	t0, $f22
-	mtc1	t0, $f23
-	mtc1	t0, $f24
-	mtc1	t0, $f25
-	mtc1	t0, $f26
-	mtc1	t0, $f27
-	mtc1	t0, $f28
-	mtc1	t0, $f29
-	mtc1	t0, $f30
-	mtc1	t0, $f31
-	jr	ra
-	END(_init_fpu)
-
-	.set pop

@@ -57,28 +57,12 @@
 #include "nfpcore/nfp6000_pcie.h"
 #include "nfp_app.h"
 #include "nfp_net_ctrl.h"
+#include "nfp_net_sriov.h"
 #include "nfp_net.h"
 #include "nfp_main.h"
 #include "nfp_port.h"
 
 #define NFP_PF_CSR_SLICE_SIZE	(32 * 1024)
-
-static int nfp_is_ready(struct nfp_pf *pf)
-{
-	const char *cp;
-	long state;
-	int err;
-
-	cp = nfp_hwinfo_lookup(pf->hwinfo, "board.state");
-	if (!cp)
-		return 0;
-
-	err = kstrtol(cp, 0, &state);
-	if (err < 0)
-		return 0;
-
-	return state == 15;
-}
 
 /**
  * nfp_net_get_mac_addr() - Get the MAC address.
@@ -160,6 +144,8 @@ nfp_net_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 
 static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 {
+	if (nfp_net_is_data_vnic(nn))
+		nfp_app_vnic_free(pf->app, nn);
 	nfp_port_free(nn->port);
 	list_del(&nn->vnic_list);
 	pf->num_vnics--;
@@ -204,7 +190,7 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 	nn->stride_tx = stride;
 
 	if (needs_netdev) {
-		err = nfp_app_vnic_init(pf->app, nn, id);
+		err = nfp_app_vnic_alloc(pf->app, nn, id);
 		if (err) {
 			nfp_net_free(nn);
 			return ERR_PTR(err);
@@ -242,8 +228,17 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 
 	nfp_net_info(nn);
 
+	if (nfp_net_is_data_vnic(nn)) {
+		err = nfp_app_vnic_init(pf->app, nn);
+		if (err)
+			goto err_devlink_port_clean;
+	}
+
 	return 0;
 
+err_devlink_port_clean:
+	if (nn->port)
+		nfp_devlink_port_unregister(nn->port);
 err_dfs_clean:
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
@@ -287,11 +282,12 @@ err_free_prev:
 
 static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 {
+	if (nfp_net_is_data_vnic(nn))
+		nfp_app_vnic_clean(pf->app, nn);
 	if (nn->port)
 		nfp_devlink_port_unregister(nn->port);
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
-	nfp_app_vnic_clean(pf->app, nn);
 }
 
 static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
@@ -388,7 +384,7 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 					NFP_PF_CSR_SLICE_SIZE,
 					&pf->ctrl_vnic_bar);
 	if (IS_ERR(ctrl_bar)) {
-		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
+		nfp_err(pf->cpp, "Failed to find ctrl vNIC memory symbol\n");
 		err = PTR_ERR(ctrl_bar);
 		goto err_app_clean;
 	}
@@ -456,9 +452,13 @@ static int nfp_net_pf_app_start(struct nfp_pf *pf)
 {
 	int err;
 
-	err = nfp_app_start(pf->app, pf->ctrl_vnic);
+	err = nfp_net_pf_app_start_ctrl(pf);
 	if (err)
 		return err;
+
+	err = nfp_app_start(pf->app, pf->ctrl_vnic);
+	if (err)
+		goto err_ctrl_stop;
 
 	if (pf->num_vfs) {
 		err = nfp_app_sriov_enable(pf->app, pf->num_vfs);
@@ -470,6 +470,8 @@ static int nfp_net_pf_app_start(struct nfp_pf *pf)
 
 err_app_stop:
 	nfp_app_stop(pf->app);
+err_ctrl_stop:
+	nfp_net_pf_app_stop_ctrl(pf);
 	return err;
 }
 
@@ -478,10 +480,13 @@ static void nfp_net_pf_app_stop(struct nfp_pf *pf)
 	if (pf->num_vfs)
 		nfp_app_sriov_disable(pf->app);
 	nfp_app_stop(pf->app);
+	nfp_net_pf_app_stop_ctrl(pf);
 }
 
 static void nfp_net_pci_unmap_mem(struct nfp_pf *pf)
 {
+	if (pf->vfcfg_tbl2_area)
+		nfp_cpp_area_release_free(pf->vfcfg_tbl2_area);
 	if (pf->vf_cfg_bar)
 		nfp_cpp_area_release_free(pf->vf_cfg_bar);
 	if (pf->mac_stats_bar)
@@ -497,7 +502,7 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 	int err;
 
 	min_size = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
-	mem = nfp_net_pf_map_rtsym(pf, "net.ctrl", "_pf%d_net_bar0",
+	mem = nfp_net_pf_map_rtsym(pf, "net.bar0", "_pf%d_net_bar0",
 				   min_size, &pf->data_vnic_bar);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
@@ -528,17 +533,32 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 		pf->vf_cfg_mem = NULL;
 	}
 
+	min_size = NFP_NET_VF_CFG_SZ * pf->limit_vfs + NFP_NET_VF_CFG_MB_SZ;
+	pf->vfcfg_tbl2 = nfp_net_pf_map_rtsym(pf, "net.vfcfg_tbl2",
+					      "_pf%d_net_vf_cfg2",
+					      min_size, &pf->vfcfg_tbl2_area);
+	if (IS_ERR(pf->vfcfg_tbl2)) {
+		if (PTR_ERR(pf->vfcfg_tbl2) != -ENOENT) {
+			err = PTR_ERR(pf->vfcfg_tbl2);
+			goto err_unmap_vf_cfg;
+		}
+		pf->vfcfg_tbl2 = NULL;
+	}
+
 	mem = nfp_cpp_map_area(pf->cpp, "net.qc", 0, 0,
 			       NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
 			       &pf->qc_area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
 		err = PTR_ERR(mem);
-		goto err_unmap_vf_cfg;
+		goto err_unmap_vfcfg_tbl2;
 	}
 
 	return 0;
 
+err_unmap_vfcfg_tbl2:
+	if (pf->vfcfg_tbl2_area)
+		nfp_cpp_area_release_free(pf->vfcfg_tbl2_area);
 err_unmap_vf_cfg:
 	if (pf->vf_cfg_bar)
 		nfp_cpp_area_release_free(pf->vf_cfg_bar);
@@ -552,7 +572,7 @@ err_unmap_ctrl:
 
 static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
 {
-	nfp_net_pf_app_stop_ctrl(pf);
+	nfp_net_pf_app_stop(pf);
 	/* stop app first, to avoid double free of ctrl vNIC's ddir */
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 
@@ -683,22 +703,15 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 {
 	struct nfp_net_fw_version fw_ver;
 	u8 __iomem *ctrl_bar, *qc_bar;
-	struct nfp_net *nn;
 	int stride;
 	int err;
 
 	INIT_WORK(&pf->port_refresh_work, nfp_net_refresh_vnics);
 
-	/* Verify that the board has completed initialization */
-	if (!nfp_is_ready(pf)) {
-		nfp_err(pf->cpp, "NFP is not ready for NIC operation.\n");
-		return -EINVAL;
-	}
-
 	if (!pf->rtbl) {
 		nfp_err(pf->cpp, "No %s, giving up.\n",
 			pf->fw_loaded ? "symbol table" : "firmware found");
-		return -EPROBE_DEFER;
+		return -EINVAL;
 	}
 
 	mutex_lock(&pf->lock);
@@ -760,7 +773,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_free_vnics;
 
-	err = nfp_net_pf_app_start_ctrl(pf);
+	err = nfp_net_pf_app_start(pf);
 	if (err)
 		goto err_free_irqs;
 
@@ -768,20 +781,12 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_stop_app;
 
-	err = nfp_net_pf_app_start(pf);
-	if (err)
-		goto err_clean_vnics;
-
 	mutex_unlock(&pf->lock);
 
 	return 0;
 
-err_clean_vnics:
-	list_for_each_entry(nn, &pf->vnics, vnic_list)
-		if (nfp_net_is_data_vnic(nn))
-			nfp_net_pf_clean_vnic(pf, nn);
 err_stop_app:
-	nfp_net_pf_app_stop_ctrl(pf);
+	nfp_net_pf_app_stop(pf);
 err_free_irqs:
 	nfp_net_pf_free_irqs(pf);
 err_free_vnics:
@@ -804,8 +809,6 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 	mutex_lock(&pf->lock);
 	if (list_empty(&pf->vnics))
 		goto out;
-
-	nfp_net_pf_app_stop(pf);
 
 	list_for_each_entry(nn, &pf->vnics, vnic_list)
 		if (nfp_net_is_data_vnic(nn))

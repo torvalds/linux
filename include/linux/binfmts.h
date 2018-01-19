@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_BINFMTS_H
 #define _LINUX_BINFMTS_H
 
@@ -25,11 +26,25 @@ struct linux_binprm {
 	struct mm_struct *mm;
 	unsigned long p; /* current top of mem */
 	unsigned int
-		cred_prepared:1,/* true if creds already prepared (multiple
-				 * preps happen for interpreters) */
-		cap_effective:1;/* true if has elevated effective capabilities,
-				 * false if not; except for init which inherits
-				 * its parent's caps anyway */
+		/*
+		 * True after the bprm_set_creds hook has been called once
+		 * (multiple calls can be made via prepare_binprm() for
+		 * binfmt_script/misc).
+		 */
+		called_set_creds:1,
+		/*
+		 * True if most recent call to the commoncaps bprm_set_creds
+		 * hook (due to multiple prepare_binprm() calls from the
+		 * binfmt_script/misc handlers) resulted in elevated
+		 * privileges.
+		 */
+		cap_elevated:1,
+		/*
+		 * Set by bprm_set_creds hook to indicate a privilege-gaining
+		 * exec has happened. Used to sanitize execution environment
+		 * and to set AT_SECURE auxv for glibc.
+		 */
+		secureexec:1;
 #ifdef __alpha__
 	unsigned int taso:1;
 #endif
@@ -117,7 +132,7 @@ extern int setup_arg_pages(struct linux_binprm * bprm,
 			   int executable_stack);
 extern int transfer_args_to_stack(struct linux_binprm *bprm,
 				  unsigned long *sp_location);
-extern int bprm_change_interp(char *interp, struct linux_binprm *bprm);
+extern int bprm_change_interp(const char *interp, struct linux_binprm *bprm);
 extern int copy_strings_kernel(int argc, const char *const *argv,
 			       struct linux_binprm *bprm);
 extern int prepare_bprm_creds(struct linux_binprm *bprm);

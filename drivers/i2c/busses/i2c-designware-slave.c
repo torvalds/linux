@@ -346,7 +346,7 @@ static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
 	return IRQ_RETVAL(ret);
 }
 
-static struct i2c_algorithm i2c_dw_algo = {
+static const struct i2c_algorithm i2c_dw_algo = {
 	.functionality = i2c_dw_func,
 	.reg_slave = i2c_dw_reg_slave,
 	.unreg_slave = i2c_dw_unreg_slave,

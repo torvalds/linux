@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_XEN_TRACE_TYPES_H
 #define _ASM_XEN_TRACE_TYPES_H
 

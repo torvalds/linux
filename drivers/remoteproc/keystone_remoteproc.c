@@ -410,7 +410,7 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
-	ksproc->reset = devm_reset_control_get(dev, NULL);
+	ksproc->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(ksproc->reset)) {
 		ret = PTR_ERR(ksproc->reset);
 		goto free_rproc;
@@ -505,6 +505,7 @@ static const struct of_device_id keystone_rproc_of_match[] = {
 	{ .compatible = "ti,k2hk-dsp", },
 	{ .compatible = "ti,k2l-dsp", },
 	{ .compatible = "ti,k2e-dsp", },
+	{ .compatible = "ti,k2g-dsp", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, keystone_rproc_of_match);

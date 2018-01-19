@@ -1124,11 +1124,11 @@ reclaim:
 	 * Because we use RCU freeing we need to ensure the inode always appears
 	 * to be reclaimed with an invalid inode number when in the free state.
 	 * We do this as early as possible under the ILOCK so that
-	 * xfs_iflush_cluster() can be guaranteed to detect races with us here.
-	 * By doing this, we guarantee that once xfs_iflush_cluster has locked
-	 * XFS_ILOCK that it will see either a valid, flushable inode that will
-	 * serialise correctly, or it will see a clean (and invalid) inode that
-	 * it can skip.
+	 * xfs_iflush_cluster() and xfs_ifree_cluster() can be guaranteed to
+	 * detect races with us here. By doing this, we guarantee that once
+	 * xfs_iflush_cluster() or xfs_ifree_cluster() has locked XFS_ILOCK that
+	 * it will see either a valid inode that will serialise correctly, or it
+	 * will see an invalid inode that it can skip.
 	 */
 	spin_lock(&ip->i_flags_lock);
 	ip->i_flags = XFS_IRECLAIM;

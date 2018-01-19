@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef B43_PIO_H_
 #define B43_PIO_H_
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/firewire-constants.h>
 #include <stdio.h>
 #include <stdlib.h>

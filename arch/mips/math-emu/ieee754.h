@@ -67,6 +67,7 @@ union ieee754sp ieee754sp_div(union ieee754sp x, union ieee754sp y);
 union ieee754sp ieee754sp_fint(int x);
 union ieee754sp ieee754sp_flong(s64 x);
 union ieee754sp ieee754sp_fdp(union ieee754dp x);
+union ieee754sp ieee754sp_rint(union ieee754sp x);
 
 int ieee754sp_tint(union ieee754sp x);
 s64 ieee754sp_tlong(union ieee754sp x);
@@ -101,6 +102,7 @@ union ieee754dp ieee754dp_neg(union ieee754dp x);
 union ieee754dp ieee754dp_fint(int x);
 union ieee754dp ieee754dp_flong(s64 x);
 union ieee754dp ieee754dp_fsp(union ieee754sp x);
+union ieee754dp ieee754dp_rint(union ieee754dp x);
 
 int ieee754dp_tint(union ieee754dp x);
 s64 ieee754dp_tlong(union ieee754dp x);

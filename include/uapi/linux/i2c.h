@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* ------------------------------------------------------------------------- */
 /*									     */
 /* i2c.h - definitions for the i2c-bus interface			     */

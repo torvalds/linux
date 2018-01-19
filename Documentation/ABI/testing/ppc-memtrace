@@ -1,0 +1,45 @@
+What:		/sys/kernel/debug/powerpc/memtrace
+Date:		Aug 2017
+KernelVersion:	4.14
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	This folder contains the relevant debugfs files for the
+		hardware trace macro to use. CONFIG_PPC64_HARDWARE_TRACING
+		must be set.
+
+What:		/sys/kernel/debug/powerpc/memtrace/enable
+Date:		Aug 2017
+KernelVersion:	4.14
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	Write an integer containing the size in bytes of the memory
+		you want removed from each NUMA node to this file - it must be
+		aligned to the memblock size. This amount of RAM will be removed
+		from the kernel mappings and the following debugfs files will be
+		created. This can only be successfully done once per boot. Once
+		memory is successfully removed from each node, the following
+		files are created.
+
+What:		/sys/kernel/debug/powerpc/memtrace/<node-id>
+Date:		Aug 2017
+KernelVersion:	4.14
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	This directory contains information about the removed memory
+		from the specific NUMA node.
+
+What:		/sys/kernel/debug/powerpc/memtrace/<node-id>/size
+Date:		Aug 2017
+KernelVersion:	4.14
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	This contains the size of the memory removed from the node.
+
+What:		/sys/kernel/debug/powerpc/memtrace/<node-id>/start
+Date:		Aug 2017
+KernelVersion:	4.14
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	This contains the start address of the removed memory.
+
+What:		/sys/kernel/debug/powerpc/memtrace/<node-id>/trace
+Date:		Aug 2017
+KernelVersion:	4.14
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	This is where the hardware trace macro will output the trace
+		it generates.

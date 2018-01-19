@@ -294,7 +294,7 @@ mlxsw_i2c_write(struct device *dev, size_t in_mbox_size, u8 *in_mbox, int num,
 		write_tran.len = MLXSW_I2C_ADDR_WIDTH + chunk_size;
 		mlxsw_i2c_set_slave_addr(tran_buf, off);
 		memcpy(&tran_buf[MLXSW_I2C_ADDR_BUF_SIZE], in_mbox +
-		       chunk_size * i, chunk_size);
+		       MLXSW_I2C_BLK_MAX * i, chunk_size);
 
 		j = 0;
 		end = jiffies + timeout;

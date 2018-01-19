@@ -37,6 +37,14 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0x300>;
+			/* cpufreq controls */
+			operating-points = <998400 0
+					    800000 0
+					    400000 0
+					    200000 0>;
+			clocks = <&prcmu_clk PRCMU_ARMSS>;
+			clock-names = "cpu";
+			clock-latency = <20000>;
 		};
 		CPU1: cpu@301 {
 			device_type = "cpu";
@@ -492,13 +500,6 @@
 			prcmu-timer-4@80157450 {
 				compatible = "stericsson,db8500-prcmu-timer-4";
 				reg = <0x80157450 0xC>;
-			};
-
-			cpufreq {
-				compatible = "stericsson,cpufreq-ux500";
-				clocks = <&prcmu_clk PRCMU_ARMSS>;
-				clock-names = "armss";
-				status = "disabled";
 			};
 
 			thermal@801573c0 {

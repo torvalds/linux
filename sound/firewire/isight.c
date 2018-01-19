@@ -444,7 +444,7 @@ static snd_pcm_uframes_t isight_pointer(struct snd_pcm_substream *substream)
 
 static int isight_create_pcm(struct isight *isight)
 {
-	static struct snd_pcm_ops ops = {
+	static const struct snd_pcm_ops ops = {
 		.open      = isight_open,
 		.close     = isight_close,
 		.ioctl     = snd_pcm_lib_ioctl,

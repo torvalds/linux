@@ -490,7 +490,7 @@ int rtl8723bs_xmit_thread(void *context)
 
 
 	ret = _SUCCESS;
-	padapter = (struct adapter *)context;
+	padapter = context;
 	pxmitpriv = &padapter->xmitpriv;
 
 	rtw_sprintf(thread_name, 20, "%s-"ADPT_FMT, thread_name, ADPT_ARG(padapter));

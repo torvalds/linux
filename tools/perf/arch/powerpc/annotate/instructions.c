@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 static struct ins_ops *powerpc__associate_instruction_ops(struct arch *arch, const char *name)
 {
 	int i;

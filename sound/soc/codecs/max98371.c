@@ -349,12 +349,14 @@ static struct snd_soc_dai_driver max98371_dai[] = {
 };
 
 static const struct snd_soc_codec_driver max98371_codec = {
-	.controls = max98371_snd_controls,
-	.num_controls = ARRAY_SIZE(max98371_snd_controls),
-	.dapm_routes = max98371_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(max98371_audio_map),
-	.dapm_widgets = max98371_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(max98371_dapm_widgets),
+	.component_driver = {
+		.controls = max98371_snd_controls,
+		.num_controls = ARRAY_SIZE(max98371_snd_controls),
+		.dapm_routes = max98371_audio_map,
+		.num_dapm_routes = ARRAY_SIZE(max98371_audio_map),
+		.dapm_widgets = max98371_dapm_widgets,
+		.num_dapm_widgets = ARRAY_SIZE(max98371_dapm_widgets),
+	},
 };
 
 static const struct regmap_config max98371_regmap = {

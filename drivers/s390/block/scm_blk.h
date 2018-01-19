@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SCM_BLK_H
 #define SCM_BLK_H
 

@@ -1080,8 +1080,6 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	 * raw stack chunk with redzones:
 	 */
 	__memcpy(kcb->jprobes_stack, (kprobe_opcode_t *)addr, MIN_STACK_SIZE(addr));
-	regs->flags &= ~X86_EFLAGS_IF;
-	trace_hardirqs_off();
 	regs->ip = (unsigned long)(jp->entry);
 
 	/*

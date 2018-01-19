@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "platform.h"
 #include "pc.h"
 #include "di_defs.h"

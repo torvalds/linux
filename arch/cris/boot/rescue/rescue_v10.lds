@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 MEMORY 
 	{
 	flash : ORIGIN = 0x00000000,

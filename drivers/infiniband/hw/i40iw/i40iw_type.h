@@ -1345,4 +1345,9 @@ struct i40iw_virtchnl_work_info {
 	void *worker_vf_dev;
 };
 
+struct i40iw_cqp_timeout {
+	u64 compl_cqp_cmds;
+	u8 count;
+};
+
 #endif

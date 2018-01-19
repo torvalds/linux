@@ -13,42 +13,42 @@ an example setup using a data-center-class switch ASIC chip.  Other setups
 with SR-IOV or soft switches, such as OVS, are possible.
 
 
-                             User-space tools
+                             User-space tools
 
-       user space                   |
-      +-------------------------------------------------------------------+
-       kernel                       | Netlink
-                                    |
-                     +--------------+-------------------------------+
-                     |         Network stack                        |
-                     |           (Linux)                            |
-                     |                                              |
-                     +----------------------------------------------+
+       user space                   |
+      +-------------------------------------------------------------------+
+       kernel                       | Netlink
+                                    |
+                     +--------------+-------------------------------+
+                     |         Network stack                        |
+                     |           (Linux)                            |
+                     |                                              |
+                     +----------------------------------------------+
 
                            sw1p2     sw1p4     sw1p6
-                      sw1p1  +  sw1p3  +  sw1p5  +          eth1
-                        +    |    +    |    +    |            +
-                        |    |    |    |    |    |            |
-                     +--+----+----+----+-+--+----+---+  +-----+-----+
-                     |         Switch driver         |  |    mgmt   |
-                     |        (this document)        |  |   driver  |
-                     |                               |  |           |
-                     +--------------+----------------+  +-----------+
-                                    |
-       kernel                       | HW bus (eg PCI)
-      +-------------------------------------------------------------------+
-       hardware                     |
-                     +--------------+---+------------+
-                     |         Switch device (sw1)   |
-                     |  +----+                       +--------+
-                     |  |    v offloaded data path   | mgmt port
-                     |  |    |                       |
-                     +--|----|----+----+----+----+---+
-                        |    |    |    |    |    |
-                        +    +    +    +    +    +
-                       p1   p2   p3   p4   p5   p6
+                      sw1p1  +  sw1p3  +  sw1p5  +          eth1
+                        +    |    +    |    +    |            +
+                        |    |    |    |    |    |            |
+                     +--+----+----+----+----+----+---+  +-----+-----+
+                     |         Switch driver         |  |    mgmt   |
+                     |        (this document)        |  |   driver  |
+                     |                               |  |           |
+                     +--------------+----------------+  +-----------+
+                                    |
+       kernel                       | HW bus (eg PCI)
+      +-------------------------------------------------------------------+
+       hardware                     |
+                     +--------------+----------------+
+                     |         Switch device (sw1)   |
+                     |  +----+                       +--------+
+                     |  |    v offloaded data path   | mgmt port
+                     |  |    |                       |
+                     +--|----|----+----+----+----+---+
+                        |    |    |    |    |    |
+                        +    +    +    +    +    +
+                       p1   p2   p3   p4   p5   p6
 
-                             front-panel ports
+                             front-panel ports
 
 
                                     Fig 1.

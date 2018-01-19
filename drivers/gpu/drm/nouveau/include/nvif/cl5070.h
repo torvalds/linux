@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVIF_CL5070_H__
 #define __NVIF_CL5070_H__
 

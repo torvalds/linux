@@ -32,14 +32,14 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 # ifdef __mips64__
 #  include <linux/kernel.h>
 # endif
 
-#include "../include/obd_class.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_sec.h"
+#include <obd_class.h>
+#include <lustre_net.h>
+#include <lustre_sec.h>
 #include "ptlrpc_internal.h"
 
 struct lnet_handle_eq ptlrpc_eq_h;

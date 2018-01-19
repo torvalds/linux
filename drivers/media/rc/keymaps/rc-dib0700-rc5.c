@@ -212,10 +212,10 @@ static struct rc_map_table dib0700_rc5_table[] = {
 
 static struct rc_map_list dib0700_rc5_map = {
 	.map = {
-		.scan    = dib0700_rc5_table,
-		.size    = ARRAY_SIZE(dib0700_rc5_table),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_DIB0700_RC5_TABLE,
+		.scan     = dib0700_rc5_table,
+		.size     = ARRAY_SIZE(dib0700_rc5_table),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_DIB0700_RC5_TABLE,
 	}
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IPV6_H
 #define _IPV6_H
 
@@ -156,6 +157,16 @@ static inline int inet6_iif(const struct sk_buff *skb)
 static inline bool inet6_is_jumbogram(const struct sk_buff *skb)
 {
 	return !!(IP6CB(skb)->flags & IP6SKB_JUMBOGRAM);
+}
+
+/* can not be used in TCP layer after tcp_v6_fill_cb */
+static inline int inet6_sdif(const struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (skb && ipv6_l3mdev_skb(IP6CB(skb)->flags))
+		return IP6CB(skb)->iif;
+#endif
+	return 0;
 }
 
 /* can not be used in TCP layer after tcp_v6_fill_cb */

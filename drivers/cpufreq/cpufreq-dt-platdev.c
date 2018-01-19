@@ -9,11 +9,16 @@
 
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include "cpufreq-dt.h"
 
-static const struct of_device_id machines[] __initconst = {
+/*
+ * Machines for which the cpufreq device is *always* created, mostly used for
+ * platforms using "operating-points" (V1) property.
+ */
+static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "allwinner,sun4i-a10", },
 	{ .compatible = "allwinner,sun5i-a10s", },
 	{ .compatible = "allwinner,sun5i-a13", },
@@ -22,7 +27,6 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "allwinner,sun6i-a31s", },
 	{ .compatible = "allwinner,sun7i-a20", },
 	{ .compatible = "allwinner,sun8i-a23", },
-	{ .compatible = "allwinner,sun8i-a33", },
 	{ .compatible = "allwinner,sun8i-a83t", },
 	{ .compatible = "allwinner,sun8i-h3", },
 
@@ -32,7 +36,6 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "arm,integrator-cp", },
 
 	{ .compatible = "hisilicon,hi3660", },
-	{ .compatible = "hisilicon,hi6220", },
 
 	{ .compatible = "fsl,imx27", },
 	{ .compatible = "fsl,imx51", },
@@ -46,11 +49,8 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "samsung,exynos3250", },
 	{ .compatible = "samsung,exynos4210", },
 	{ .compatible = "samsung,exynos4212", },
-	{ .compatible = "samsung,exynos4412", },
 	{ .compatible = "samsung,exynos5250", },
 #ifndef CONFIG_BL_SWITCHER
-	{ .compatible = "samsung,exynos5420", },
-	{ .compatible = "samsung,exynos5433", },
 	{ .compatible = "samsung,exynos5800", },
 #endif
 
@@ -67,6 +67,8 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "renesas,r8a7792", },
 	{ .compatible = "renesas,r8a7793", },
 	{ .compatible = "renesas,r8a7794", },
+	{ .compatible = "renesas,r8a7795", },
+	{ .compatible = "renesas,r8a7796", },
 	{ .compatible = "renesas,sh73a0", },
 
 	{ .compatible = "rockchip,rk2928", },
@@ -76,17 +78,17 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "rockchip,rk3188", },
 	{ .compatible = "rockchip,rk3228", },
 	{ .compatible = "rockchip,rk3288", },
+	{ .compatible = "rockchip,rk3328", },
 	{ .compatible = "rockchip,rk3366", },
 	{ .compatible = "rockchip,rk3368", },
 	{ .compatible = "rockchip,rk3399", },
 
-	{ .compatible = "sigma,tango4" },
-
-	{ .compatible = "socionext,uniphier-pro5", },
-	{ .compatible = "socionext,uniphier-pxs2", },
 	{ .compatible = "socionext,uniphier-ld6b", },
-	{ .compatible = "socionext,uniphier-ld11", },
-	{ .compatible = "socionext,uniphier-ld20", },
+
+	{ .compatible = "st-ericsson,u8500", },
+	{ .compatible = "st-ericsson,u8540", },
+	{ .compatible = "st-ericsson,u9500", },
+	{ .compatible = "st-ericsson,u9540", },
 
 	{ .compatible = "ti,omap2", },
 	{ .compatible = "ti,omap3", },
@@ -94,27 +96,72 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "ti,omap5", },
 
 	{ .compatible = "xlnx,zynq-7000", },
-
-	{ .compatible = "zte,zx296718", },
+	{ .compatible = "xlnx,zynqmp", },
 
 	{ }
 };
+
+/*
+ * Machines for which the cpufreq device is *not* created, mostly used for
+ * platforms using "operating-points-v2" property.
+ */
+static const struct of_device_id blacklist[] __initconst = {
+	{ .compatible = "calxeda,highbank", },
+	{ .compatible = "calxeda,ecx-2000", },
+
+	{ .compatible = "marvell,armadaxp", },
+
+	{ .compatible = "nvidia,tegra124", },
+
+	{ .compatible = "st,stih407", },
+	{ .compatible = "st,stih410", },
+
+	{ .compatible = "sigma,tango4", },
+
+	{ .compatible = "ti,am33xx", },
+	{ .compatible = "ti,am43", },
+	{ .compatible = "ti,dra7", },
+
+	{ }
+};
+
+static bool __init cpu0_node_has_opp_v2_prop(void)
+{
+	struct device_node *np = of_cpu_device_node_get(0);
+	bool ret = false;
+
+	if (of_get_property(np, "operating-points-v2", NULL))
+		ret = true;
+
+	of_node_put(np);
+	return ret;
+}
 
 static int __init cpufreq_dt_platdev_init(void)
 {
 	struct device_node *np = of_find_node_by_path("/");
 	const struct of_device_id *match;
+	const void *data = NULL;
 
 	if (!np)
 		return -ENODEV;
 
-	match = of_match_node(machines, np);
-	of_node_put(np);
-	if (!match)
-		return -ENODEV;
+	match = of_match_node(whitelist, np);
+	if (match) {
+		data = match->data;
+		goto create_pdev;
+	}
 
+	if (cpu0_node_has_opp_v2_prop() && !of_match_node(blacklist, np))
+		goto create_pdev;
+
+	of_node_put(np);
+	return -ENODEV;
+
+create_pdev:
+	of_node_put(np);
 	return PTR_ERR_OR_ZERO(platform_device_register_data(NULL, "cpufreq-dt",
-			       -1, match->data,
+			       -1, data,
 			       sizeof(struct cpufreq_dt_platform_data)));
 }
 device_initcall(cpufreq_dt_platdev_init);

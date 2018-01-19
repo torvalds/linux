@@ -446,7 +446,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 
 	i2s->channel_base = base + (max_i2s_chan_pow_2 * 0x20);
 
-	i2s->rst = devm_reset_control_get(&pdev->dev, "rst");
+	i2s->rst = devm_reset_control_get_exclusive(&pdev->dev, "rst");
 	if (IS_ERR(i2s->rst)) {
 		if (PTR_ERR(i2s->rst) != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "No top level reset found\n");

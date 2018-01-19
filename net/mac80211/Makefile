@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_MAC80211) += mac80211.o
 
 # mac80211 objects

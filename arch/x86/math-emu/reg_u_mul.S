@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	.file	"reg_u_mul.S"
 /*---------------------------------------------------------------------------+
  |  reg_u_mul.S                                                              |
@@ -146,3 +147,4 @@ L_exit:
 	ret
 #endif /* PARANOID */ 
 
+ENDPROC(FPU_u_mul)

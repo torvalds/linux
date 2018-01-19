@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_BITREV_H
 #define __ASM_BITREV_H
 static __always_inline __attribute_const__ u32 __arch_bitrev32(u32 x)

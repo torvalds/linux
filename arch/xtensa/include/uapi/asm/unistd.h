@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #if !defined(_UAPI_XTENSA_UNISTD_H) || defined(__SYSCALL)
 #define _UAPI_XTENSA_UNISTD_H
 

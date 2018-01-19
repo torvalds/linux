@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * vendor/product IDs (VID/PID) of devices using FTDI USB serial converters.
  * Please keep numerically sorted within individual areas, thanks!
@@ -608,6 +609,13 @@
 #define ADI_VID			0x0456
 #define ADI_GNICE_PID		0xF000
 #define ADI_GNICEPLUS_PID	0xF001
+
+/*
+ * Cypress WICED USB UART
+ */
+#define CYPRESS_VID			0x04B4
+#define CYPRESS_WICED_BT_USB_PID	0x009B
+#define CYPRESS_WICED_WL_USB_PID	0xF900
 
 /*
  * Microchip Technology, Inc.

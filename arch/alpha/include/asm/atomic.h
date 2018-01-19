@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ALPHA_ATOMIC_H
 #define _ALPHA_ATOMIC_H
 

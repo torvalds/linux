@@ -69,14 +69,14 @@ static void mmhub_v1_0_init_gart_aperture_regs(struct amdgpu_device *adev)
 	mmhub_v1_0_init_gart_pt_regs(adev);
 
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
-		     (u32)(adev->mc.gtt_start >> 12));
+		     (u32)(adev->mc.gart_start >> 12));
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
-		     (u32)(adev->mc.gtt_start >> 44));
+		     (u32)(adev->mc.gart_start >> 44));
 
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
-		     (u32)(adev->mc.gtt_end >> 12));
+		     (u32)(adev->mc.gart_end >> 12));
 	WREG32_SOC15(MMHUB, 0, mmVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
-		     (u32)(adev->mc.gtt_end >> 44));
+		     (u32)(adev->mc.gart_end >> 44));
 }
 
 static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
@@ -143,7 +143,7 @@ static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	/* Setup L2 cache */
 	tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 1);
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_FRAGMENT_PROCESSING, 0);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_FRAGMENT_PROCESSING, 1);
 	/* XXX for emulation, Refer to closed source code.*/
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, L2_PDE0_CACHE_TAG_GENERATION_MODE,
 			    0);
@@ -158,6 +158,8 @@ static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL2, tmp);
 
 	tmp = mmVM_L2_CNTL3_DEFAULT;
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, BANK_SELECT, 9);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, L2_CACHE_BIGK_FRAGMENT_SIZE, 6);
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL3, tmp);
 
 	tmp = mmVM_L2_CNTL4_DEFAULT;
@@ -222,6 +224,9 @@ static void mmhub_v1_0_setup_vmid_config(struct amdgpu_device *adev)
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
 				PAGE_TABLE_BLOCK_SIZE,
 				adev->vm_manager.block_size - 9);
+		/* Send no-retry XNACK on fault to suppress VM fault storm. */
+		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT, 0);
 		WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT1_CNTL, i, tmp);
 		WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32, i*2, 0);
 		WREG32_SOC15_OFFSET(MMHUB, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_HI32, i*2, 0);
@@ -245,28 +250,28 @@ static void mmhub_v1_0_program_invalidation(struct amdgpu_device *adev)
 }
 
 struct pctl_data {
-    uint32_t index;
-    uint32_t data;
+	uint32_t index;
+	uint32_t data;
 };
 
-const struct pctl_data pctl0_data[] = {
-    {0x0, 0x7a640},
-    {0x9, 0x2a64a},
-    {0xd, 0x2a680},
-    {0x11, 0x6a684},
-    {0x19, 0xea68e},
-    {0x29, 0xa69e},
-    {0x2b, 0x34a6c0},
-    {0x61, 0x83a707},
-    {0xe6, 0x8a7a4},
-    {0xf0, 0x1a7b8},
-    {0xf3, 0xfa7cc},
-    {0x104, 0x17a7dd},
-    {0x11d, 0xa7dc},
-    {0x11f, 0x12a7f5},
-    {0x133, 0xa808},
-    {0x135, 0x12a810},
-    {0x149, 0x7a82c}
+static const struct pctl_data pctl0_data[] = {
+	{0x0, 0x7a640},
+	{0x9, 0x2a64a},
+	{0xd, 0x2a680},
+	{0x11, 0x6a684},
+	{0x19, 0xea68e},
+	{0x29, 0xa69e},
+	{0x2b, 0x34a6c0},
+	{0x61, 0x83a707},
+	{0xe6, 0x8a7a4},
+	{0xf0, 0x1a7b8},
+	{0xf3, 0xfa7cc},
+	{0x104, 0x17a7dd},
+	{0x11d, 0xa7dc},
+	{0x11f, 0x12a7f5},
+	{0x133, 0xa808},
+	{0x135, 0x12a810},
+	{0x149, 0x7a82c}
 };
 #define PCTL0_DATA_LEN (sizeof(pctl0_data)/sizeof(pctl0_data[0]))
 
@@ -274,32 +279,39 @@ const struct pctl_data pctl0_data[] = {
 #define PCTL0_STCTRL_REG_SAVE_RANGE0_BASE  0xa640
 #define PCTL0_STCTRL_REG_SAVE_RANGE0_LIMIT 0xa833
 
-const struct pctl_data pctl1_data[] = {
-    {0x0, 0x39a000},
-    {0x3b, 0x44a040},
-    {0x81, 0x2a08d},
-    {0x85, 0x6ba094},
-    {0xf2, 0x18a100},
-    {0x10c, 0x4a132},
-    {0x112, 0xca141},
-    {0x120, 0x2fa158},
-    {0x151, 0x17a1d0},
-    {0x16a, 0x1a1e9},
-    {0x16d, 0x13a1ec},
-    {0x182, 0x7a201},
-    {0x18b, 0x3a20a},
-    {0x190, 0x7a580},
-    {0x199, 0xa590},
-    {0x19b, 0x4a594},
-    {0x1a1, 0x1a59c},
-    {0x1a4, 0x7a82c},
-    {0x1ad, 0xfa7cc},
-    {0x1be, 0x17a7dd},
-    {0x1d7, 0x12a810}
+static const struct pctl_data pctl1_data[] = {
+	{0x0, 0x39a000},
+	{0x3b, 0x44a040},
+	{0x81, 0x2a08d},
+	{0x85, 0x6ba094},
+	{0xf2, 0x18a100},
+	{0x10c, 0x4a132},
+	{0x112, 0xca141},
+	{0x120, 0x2fa158},
+	{0x151, 0x17a1d0},
+	{0x16a, 0x1a1e9},
+	{0x16d, 0x13a1ec},
+	{0x182, 0x7a201},
+	{0x18b, 0x3a20a},
+	{0x190, 0x7a580},
+	{0x199, 0xa590},
+	{0x19b, 0x4a594},
+	{0x1a1, 0x1a59c},
+	{0x1a4, 0x7a82c},
+	{0x1ad, 0xfa7cc},
+	{0x1be, 0x17a7dd},
+	{0x1d7, 0x12a810},
+	{0x1eb, 0x4000a7e1},
+	{0x1ec, 0x5000a7f5},
+	{0x1ed, 0x4000a7e2},
+	{0x1ee, 0x5000a7dc},
+	{0x1ef, 0x4000a7e3},
+	{0x1f0, 0x5000a7f6},
+	{0x1f1, 0x5000a7e4}
 };
 #define PCTL1_DATA_LEN (sizeof(pctl1_data)/sizeof(pctl1_data[0]))
 
-#define PCTL1_RENG_EXEC_END_PTR 0x1ea
+#define PCTL1_RENG_EXEC_END_PTR 0x1f1
 #define PCTL1_STCTRL_REG_SAVE_RANGE0_BASE  0xa000
 #define PCTL1_STCTRL_REG_SAVE_RANGE0_LIMIT 0xa20d
 #define PCTL1_STCTRL_REG_SAVE_RANGE1_BASE  0xa580

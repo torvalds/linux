@@ -954,9 +954,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	struct qed_tunnel_info tunn_info;
 	const u8 *data = NULL;
 	struct qed_hwfn *hwfn;
-#ifdef CONFIG_RFS_ACCEL
 	struct qed_ptt *p_ptt;
-#endif
 	int rc = -EINVAL;
 
 	if (qed_iov_wq_start(cdev))
@@ -972,7 +970,6 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 			goto err;
 		}
 
-#ifdef CONFIG_RFS_ACCEL
 		if (cdev->num_hwfns == 1) {
 			p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
 			if (p_ptt) {
@@ -983,7 +980,6 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 				goto err;
 			}
 		}
-#endif
 	}
 
 	cdev->rx_coalesce_usecs = QED_DEFAULT_RX_USECS;
@@ -1091,12 +1087,10 @@ err:
 	if (IS_PF(cdev))
 		release_firmware(cdev->firmware);
 
-#ifdef CONFIG_RFS_ACCEL
 	if (IS_PF(cdev) && (cdev->num_hwfns == 1) &&
 	    QED_LEADING_HWFN(cdev)->p_arfs_ptt)
 		qed_ptt_release(QED_LEADING_HWFN(cdev),
 				QED_LEADING_HWFN(cdev)->p_arfs_ptt);
-#endif
 
 	qed_iov_wq_stop(cdev, false);
 
@@ -1111,11 +1105,9 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 	qed_ll2_dealloc_if(cdev);
 
 	if (IS_PF(cdev)) {
-#ifdef CONFIG_RFS_ACCEL
 		if (cdev->num_hwfns == 1)
 			qed_ptt_release(QED_LEADING_HWFN(cdev),
 					QED_LEADING_HWFN(cdev)->p_arfs_ptt);
-#endif
 		qed_free_stream_mem(cdev);
 		if (IS_QED_ETH_IF(cdev))
 			qed_sriov_disable(cdev, true);
@@ -1305,6 +1297,10 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 		}
 	}
 
+	if (params->override_flags & QED_LINK_OVERRIDE_EEE_CONFIG)
+		memcpy(&link_params->eee, &params->eee,
+		       sizeof(link_params->eee));
+
 	rc = qed_mcp_set_link(hwfn, ptt, params->link_up);
 
 	qed_ptt_release(hwfn, ptt);
@@ -1491,6 +1487,21 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	if (link.partner_adv_pause == QED_LINK_PARTNER_ASYMMETRIC_PAUSE ||
 	    link.partner_adv_pause == QED_LINK_PARTNER_BOTH_PAUSE)
 		if_link->lp_caps |= QED_LM_Asym_Pause_BIT;
+
+	if (link_caps.default_eee == QED_MCP_EEE_UNSUPPORTED) {
+		if_link->eee_supported = false;
+	} else {
+		if_link->eee_supported = true;
+		if_link->eee_active = link.eee_active;
+		if_link->sup_caps = link_caps.eee_speed_caps;
+		/* MFW clears adv_caps on eee disable; use configured value */
+		if_link->eee.adv_caps = link.eee_adv_caps ? link.eee_adv_caps :
+					params.eee.adv_caps;
+		if_link->eee.lp_adv_caps = link.eee_lp_adv_caps;
+		if_link->eee.enable = params.eee.enable;
+		if_link->eee.tx_lpi_enable = params.eee.tx_lpi_enable;
+		if_link->eee.tx_lpi_timer = params.eee.tx_lpi_timer;
+	}
 }
 
 static void qed_get_current_link(struct qed_dev *cdev,
@@ -1557,36 +1568,10 @@ static int qed_nvm_get_image(struct qed_dev *cdev, enum qed_nvm_images type,
 	return rc;
 }
 
-static void qed_get_coalesce(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal)
-{
-	*rx_coal = cdev->rx_coalesce_usecs;
-	*tx_coal = cdev->tx_coalesce_usecs;
-}
-
 static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
-			    u16 qid, u16 sb_id)
+			    void *handle)
 {
-	struct qed_hwfn *hwfn;
-	struct qed_ptt *ptt;
-	int hwfn_index;
-	int status = 0;
-
-	hwfn_index = qid % cdev->num_hwfns;
-	hwfn = &cdev->hwfns[hwfn_index];
-	ptt = qed_ptt_acquire(hwfn);
-	if (!ptt)
-		return -EAGAIN;
-
-	status = qed_set_rxq_coalesce(hwfn, ptt, rx_coal,
-				      qid / cdev->num_hwfns, sb_id);
-	if (status)
-		goto out;
-	status = qed_set_txq_coalesce(hwfn, ptt, tx_coal,
-				      qid / cdev->num_hwfns, sb_id);
-out:
-	qed_ptt_release(hwfn, ptt);
-
-	return status;
+		return qed_set_queue_coalesce(rx_coal, tx_coal, handle);
 }
 
 static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
@@ -1735,7 +1720,6 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.chain_alloc = &qed_chain_alloc,
 	.chain_free = &qed_chain_free,
 	.nvm_get_image = &qed_nvm_get_image,
-	.get_coalesce = &qed_get_coalesce,
 	.set_coalesce = &qed_set_coalesce,
 	.set_led = &qed_set_led,
 	.update_drv_state = &qed_update_drv_state,

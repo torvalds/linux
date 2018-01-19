@@ -314,7 +314,7 @@ static int snd_rme32_capture_copy_kernel(struct snd_pcm_substream *substream,
 /*
  * SPDIF I/O capabilities (half-duplex mode)
  */
-static struct snd_pcm_hardware snd_rme32_spdif_info = {
+static const struct snd_pcm_hardware snd_rme32_spdif_info = {
 	.info =		(SNDRV_PCM_INFO_MMAP_IOMEM |
 			 SNDRV_PCM_INFO_MMAP_VALID |
 			 SNDRV_PCM_INFO_INTERLEAVED | 
@@ -340,7 +340,7 @@ static struct snd_pcm_hardware snd_rme32_spdif_info = {
 /*
  * ADAT I/O capabilities (half-duplex mode)
  */
-static struct snd_pcm_hardware snd_rme32_adat_info =
+static const struct snd_pcm_hardware snd_rme32_adat_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP_IOMEM |
 			      SNDRV_PCM_INFO_MMAP_VALID |
@@ -365,7 +365,7 @@ static struct snd_pcm_hardware snd_rme32_adat_info =
 /*
  * SPDIF I/O capabilities (full-duplex mode)
  */
-static struct snd_pcm_hardware snd_rme32_spdif_fd_info = {
+static const struct snd_pcm_hardware snd_rme32_spdif_fd_info = {
 	.info =		(SNDRV_PCM_INFO_MMAP |
 			 SNDRV_PCM_INFO_MMAP_VALID |
 			 SNDRV_PCM_INFO_INTERLEAVED | 
@@ -391,7 +391,7 @@ static struct snd_pcm_hardware snd_rme32_spdif_fd_info = {
 /*
  * ADAT I/O capabilities (full-duplex mode)
  */
-static struct snd_pcm_hardware snd_rme32_adat_fd_info =
+static const struct snd_pcm_hardware snd_rme32_adat_fd_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP |
 			      SNDRV_PCM_INFO_MMAP_VALID |

@@ -777,10 +777,6 @@ static void _rtl92cu_init_queue_priority(struct ieee80211_hw *hw,
 						   queue_sel);
 }
 
-static void _rtl92cu_init_usb_aggregation(struct ieee80211_hw *hw)
-{
-}
-
 static void _rtl92cu_init_wmac_setting(struct ieee80211_hw *hw)
 {
 	u16 value16;
@@ -870,7 +866,6 @@ static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 	rtl92c_init_edca(hw);
 	rtl92c_init_rate_fallback(hw);
 	rtl92c_init_retry_function(hw);
-	_rtl92cu_init_usb_aggregation(hw);
 	rtlpriv->cfg->ops->set_bw_mode(hw, NL80211_CHAN_HT20);
 	rtl92c_set_min_space(hw, IS_92C_SERIAL(rtlhal->version));
 	_rtl92cu_init_beacon_parameters(hw);

@@ -378,10 +378,16 @@ BEGIN_FTR_SECTION_NESTED(96);		\
 	cmpwi dest,0;			\
 	beq-  90b;			\
 END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
-#elif defined(CONFIG_8xx)
-#define MFTB(dest)			mftb dest
 #else
-#define MFTB(dest)			mfspr dest, SPRN_TBRL
+#define MFTB(dest)			MFTBL(dest)
+#endif
+
+#ifdef CONFIG_PPC_8xx
+#define MFTBL(dest)			mftb dest
+#define MFTBU(dest)			mftbu dest
+#else
+#define MFTBL(dest)			mfspr dest, SPRN_TBRL
+#define MFTBU(dest)			mfspr dest, SPRN_TBRU
 #endif
 
 #ifndef CONFIG_SMP
@@ -411,7 +417,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
  * and they must be used.
  */
 
-#if !defined(CONFIG_4xx) && !defined(CONFIG_8xx)
+#if !defined(CONFIG_4xx) && !defined(CONFIG_PPC_8xx)
 #define tlbia					\
 	li	r4,1024;			\
 	mtctr	r4;				\
@@ -439,7 +445,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 .machine push ;					\
 .machine "power4" ;				\
        lis     scratch,0x60000000@h;		\
-       dcbt    r0,scratch,0b01010;		\
+       dcbt    0,scratch,0b01010;		\
 .machine pop
 
 /*

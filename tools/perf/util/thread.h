@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_THREAD_H
 #define __PERF_THREAD_H
 
@@ -34,6 +35,7 @@ struct thread {
 
 	void			*priv;
 	struct thread_stack	*ts;
+	struct nsinfo		*nsinfo;
 #ifdef HAVE_LIBUNWIND_SUPPORT
 	void				*addr_space;
 	struct unwind_libunwind_ops	*unwind_libunwind_ops;

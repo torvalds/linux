@@ -745,7 +745,8 @@ filelayout_free_lseg(struct pnfs_layout_segment *lseg)
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
 
 	dprintk("--> %s\n", __func__);
-	nfs4_fl_put_deviceid(fl->dsaddr);
+	if (fl->dsaddr != NULL)
+		nfs4_fl_put_deviceid(fl->dsaddr);
 	/* This assumes a single RW lseg */
 	if (lseg->pls_range.iomode == IOMODE_RW) {
 		struct nfs4_filelayout *flo;

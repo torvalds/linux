@@ -169,7 +169,7 @@ static int of_get_max1586_platform_data(struct device *dev,
 
 	if (of_property_read_u32(np, "v3-gain",
 				 &pdata->v3_gain) < 0) {
-		dev_err(dev, "%s has no 'v3-gain' property\n", np->full_name);
+		dev_err(dev, "%pOF has no 'v3-gain' property\n", np);
 		return -EINVAL;
 	}
 

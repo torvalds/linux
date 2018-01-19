@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Inspired by breakpoint overflow test done by
  * Vince Weaver <vincent.weaver@maine.edu> for perf_event_tests
@@ -164,7 +165,7 @@ static long long bp_count(int fd)
 	return count;
 }
 
-int test__bp_signal(int subtest __maybe_unused)
+int test__bp_signal(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct sigaction sa;
 	long long count1, count2, count3;

@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # This validates that the kernel will fall back to using the fallback mechanism
 # to load firmware it can't find on disk itself. We must request a firmware
 # that the kernel won't find, and any installed helper (e.g. udev) also
@@ -134,6 +135,27 @@ load_fw_custom_cancel()
 	wait
 }
 
+load_fw_fallback_with_child()
+{
+	local name="$1"
+	local file="$2"
+
+	# This is the value already set but we want to be explicit
+	echo 4 >/sys/class/firmware/timeout
+
+	sleep 1 &
+	SECONDS_BEFORE=$(date +%s)
+	echo -n "$name" >"$DIR"/trigger_request 2>/dev/null
+	SECONDS_AFTER=$(date +%s)
+	SECONDS_DELTA=$(($SECONDS_AFTER - $SECONDS_BEFORE))
+	if [ "$SECONDS_DELTA" -lt 4 ]; then
+		RET=1
+	else
+		RET=0
+	fi
+	wait
+	return $RET
+}
 
 trap "test_finish" EXIT
 
@@ -220,5 +242,15 @@ if diff -q "$FW" /dev/test_firmware >/dev/null ; then
 else
 	echo "$0: cancelling custom fallback mechanism works"
 fi
+
+set +e
+load_fw_fallback_with_child "nope-signal-$NAME" "$FW"
+if [ "$?" -eq 0 ]; then
+	echo "$0: SIGCHLD on sync ignored as expected" >&2
+else
+	echo "$0: error - sync firmware request cancelled due to SIGCHLD" >&2
+	exit 1
+fi
+set -e
 
 exit 0

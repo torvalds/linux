@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * File:	drivers/pci/pcie/aspm.c
  * Enabling PCIe link L0s/L1 state and Clock Power Management

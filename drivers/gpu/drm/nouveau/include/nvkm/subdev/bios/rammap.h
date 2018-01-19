@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVBIOS_RAMMAP_H__
 #define __NVBIOS_RAMMAP_H__
 #include <subdev/bios/ramcfg.h>

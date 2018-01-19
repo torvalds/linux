@@ -12,12 +12,18 @@
 #include <uapi/scsi/fc/fc_els.h>
 #include <linux/nvme-fc-driver.h>
 
+#include "qla_def.h"
+
 #define NVME_ATIO_CMD_OFF 32
 #define NVME_FIRST_PACKET_CMDLEN (64 - NVME_ATIO_CMD_OFF)
 #define Q2T_NVME_NUM_TAGS 2048
 #define QLA_MAX_FC_SEGMENTS 64
 
+struct scsi_qla_host;
+struct qla_hw_data;
+struct req_que;
 struct srb;
+
 struct nvme_private {
 	struct srb	*sp;
 	struct nvmefc_ls_req *fd;
@@ -129,4 +135,15 @@ struct pt_ls4_rx_unsol {
 	uint32_t desc_len;
 	uint32_t payload[3];
 };
+
+/*
+ * Global functions prototype in qla_nvme.c source file.
+ */
+void qla_nvme_register_hba(struct scsi_qla_host *);
+int  qla_nvme_register_remote(struct scsi_qla_host *, struct fc_port *);
+void qla_nvme_delete(struct scsi_qla_host *);
+void qla_nvme_abort(struct qla_hw_data *, struct srb *sp);
+void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *, struct pt_ls4_request *,
+    struct req_que *);
+void qla24xx_async_gffid_sp_done(void *, int);
 #endif

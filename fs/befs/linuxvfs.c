@@ -838,7 +838,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	befs_debug(sb, "---> %s", __func__);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		befs_warning(sb,
 			     "No write support. Marking filesystem read-only");
 		sb->s_flags |= MS_RDONLY;

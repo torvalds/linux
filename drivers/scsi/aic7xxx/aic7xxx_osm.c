@@ -2329,11 +2329,6 @@ done:
 	return (retval);
 }
 
-void
-ahc_platform_dump_card_state(struct ahc_softc *ahc)
-{
-}
-
 static void ahc_linux_set_width(struct scsi_target *starget, int width)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);

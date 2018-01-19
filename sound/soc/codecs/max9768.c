@@ -151,7 +151,7 @@ static int max9768_probe(struct snd_soc_component *component)
 	return 0;
 }
 
-static struct snd_soc_component_driver max9768_component_driver = {
+static const struct snd_soc_component_driver max9768_component_driver = {
 	.probe = max9768_probe,
 	.controls = max9768_volume,
 	.num_controls = ARRAY_SIZE(max9768_volume),

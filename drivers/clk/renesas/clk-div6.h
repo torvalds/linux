@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RENESAS_CLK_DIV6_H__
 #define __RENESAS_CLK_DIV6_H__
 

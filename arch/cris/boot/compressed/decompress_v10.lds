@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* OUTPUT_FORMAT(elf32-us-cris) */
 OUTPUT_FORMAT(elf32-cris)
 

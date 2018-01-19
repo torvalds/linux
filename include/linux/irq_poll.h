@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef IRQ_POLL_H
 #define IRQ_POLL_H
 

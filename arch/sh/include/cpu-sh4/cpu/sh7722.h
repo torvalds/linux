@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH7722_H__
 #define __ASM_SH7722_H__
 
@@ -67,7 +68,7 @@ enum {
 	GPIO_PTN3, GPIO_PTN2, GPIO_PTN1, GPIO_PTN0,
 
 	/* PTQ */
-	GPIO_PTQ7, GPIO_PTQ6, GPIO_PTQ5, GPIO_PTQ4,
+	GPIO_PTQ6, GPIO_PTQ5, GPIO_PTQ4,
 	GPIO_PTQ3, GPIO_PTQ2, GPIO_PTQ1, GPIO_PTQ0,
 
 	/* PTR */

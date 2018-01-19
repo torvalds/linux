@@ -336,6 +336,10 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 			mmput(ctx->mm);
 	}
 
+	/*
+	 * Increment driver use count. Enables global TLBIs for hash
+	 * and callbacks to handle the segment table
+	 */
 	cxl_ctx_get();
 
 	if ((rc = cxl_ops->attach_process(ctx, kernel, wed, 0))) {

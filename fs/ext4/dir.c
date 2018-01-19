@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/ext4/dir.c
  *
@@ -411,7 +412,7 @@ static struct dir_private_info *ext4_htree_create_dir_info(struct file *filp,
 {
 	struct dir_private_info *p;
 
-	p = kzalloc(sizeof(struct dir_private_info), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return NULL;
 	p->curr_hash = pos2maj_hash(filp, pos);

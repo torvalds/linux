@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SUN3_INTERSIL_H
 #define _SUN3_INTERSIL_H
 /* bits 0 and 1 */

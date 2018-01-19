@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Low-level task switching. This is based on information published in
  * the Processor Abstraction Layer and the System Abstraction Layer

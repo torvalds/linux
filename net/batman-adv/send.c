@@ -911,7 +911,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 				type = "unknown";
 			}
 
-			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "BCAST packet from orig %pM on %s surpressed: %s\n",
+			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "BCAST packet from orig %pM on %s suppressed: %s\n",
 				   bcast_packet->orig,
 				   hard_iface->net_dev->name, type);
 

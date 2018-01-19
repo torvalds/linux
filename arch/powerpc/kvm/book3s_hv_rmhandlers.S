@@ -149,9 +149,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	subf	r4, r4, r3
 	mtspr	SPRN_DEC, r4
 
+BEGIN_FTR_SECTION
 	/* hwthread_req may have got set by cede or no vcpu, so clear it */
 	li	r0, 0
 	stb	r0, HSTATE_HWTHREAD_REQ(r13)
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 
 	/*
 	 * For external interrupts we need to call the Linux
@@ -314,6 +316,7 @@ kvm_novcpu_exit:
  * Relocation is off and most register values are lost.
  * r13 points to the PACA.
  * r3 contains the SRR1 wakeup value, SRR1 is trashed.
+ * This is not used by ISAv3.0B processors.
  */
 	.globl	kvm_start_guest
 kvm_start_guest:
@@ -432,6 +435,9 @@ kvm_secondary_got_guest:
  * While waiting we also need to check if we get given a vcpu to run.
  */
 kvm_no_guest:
+BEGIN_FTR_SECTION
+	twi	31,0,0
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r3, HSTATE_HWTHREAD_REQ(r13)
 	cmpwi	r3, 0
 	bne	53f
@@ -765,6 +771,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
+	/*
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 */
 	bl	kvmppc_restore_tm
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
@@ -976,17 +985,18 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 #ifdef CONFIG_KVM_XICS
 	/* We are entering the guest on that thread, push VCPU to XIVE */
 	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
-	cmpldi	cr0, r10, r0
+	cmpldi	cr0, r10, 0
 	beq	no_xive
 	ld	r11, VCPU_XIVE_SAVED_STATE(r4)
 	li	r9, TM_QW1_OS
-	stdcix	r11,r9,r10
 	eieio
+	stdcix	r11,r9,r10
 	lwz	r11, VCPU_XIVE_CAM_WORD(r4)
 	li	r9, TM_QW1_OS + TM_WORD2
 	stwcix	r11,r9,r10
 	li	r9, 1
 	stw	r9, VCPU_XIVE_PUSHED(r4)
+	eieio
 no_xive:
 #endif /* CONFIG_KVM_XICS */
 
@@ -1112,6 +1122,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 BEGIN_FTR_SECTION
 	mtspr	SPRN_PPR, r0
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+
+/* Move canary into DSISR to check for later */
+BEGIN_FTR_SECTION
+	li	r0, 0x7fff
+	mtspr	SPRN_HDSISR, r0
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+
 	ld	r0, VCPU_GPR(R0)(r4)
 	ld	r4, VCPU_GPR(R4)(r4)
 
@@ -1280,7 +1297,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
 	bne	2f
 	mfspr	r3,SPRN_HDEC
-	cmpwi	r3,0
+	EXTEND_HDEC(r3)
+	cmpdi	r3,0
 	mr	r4,r9
 	bge	fast_guest_return
 2:
@@ -1293,6 +1311,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	bne	3f
 BEGIN_FTR_SECTION
 	PPC_MSGSYNC
+	lwsync
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r0, HSTATE_HOST_IPI(r13)
 	cmpwi	r0, 0
@@ -1383,8 +1402,8 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	cmpldi	cr0, r10, 0
 	beq	1f
 	/* First load to pull the context, we ignore the value */
-	lwzx	r11, r7, r10
 	eieio
+	lwzx	r11, r7, r10
 	/* Second load to recover the context state (Words 0 and 1) */
 	ldx	r11, r6, r10
 	b	3f
@@ -1392,8 +1411,8 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	cmpldi	cr0, r10, 0
 	beq	1f
 	/* First load to pull the context, we ignore the value */
-	lwzcix	r11, r7, r10
 	eieio
+	lwzcix	r11, r7, r10
 	/* Second load to recover the context state (Words 0 and 1) */
 	ldcix	r11, r6, r10
 3:	std	r11, VCPU_XIVE_SAVED_STATE(r9)
@@ -1403,6 +1422,7 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	stw	r10, VCPU_XIVE_PUSHED(r9)
 	stb	r10, (VCPU_XIVE_SAVED_STATE+3)(r9)
 	stb	r0, (VCPU_XIVE_SAVED_STATE+4)(r9)
+	eieio
 1:
 #endif /* CONFIG_KVM_XICS */
 	/* Save more register state  */
@@ -1623,6 +1643,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
+	/*
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 */
 	bl	kvmppc_save_tm
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
@@ -1742,7 +1765,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	/*
 	 * Are we running hash or radix ?
 	 */
-	beq	cr2,3f
+	ld	r5, VCPU_KVM(r9)
+	lbz	r0, KVM_RADIX(r5)
+	cmpwi	cr2, r0, 0
+	beq	cr2, 3f
 
 	/* Radix: Handle the case where the guest used an illegal PID */
 	LOAD_REG_ADDR(r4, mmu_base_pid)
@@ -1940,9 +1966,14 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 kvmppc_hdsi:
 	ld	r3, VCPU_KVM(r9)
 	lbz	r0, KVM_RADIX(r3)
-	cmpwi	r0, 0
 	mfspr	r4, SPRN_HDAR
 	mfspr	r6, SPRN_HDSISR
+BEGIN_FTR_SECTION
+	/* Look for DSISR canary. If we find it, retry instruction */
+	cmpdi	r6, 0x7fff
+	beq	6f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	cmpwi	r0, 0
 	bne	.Lradix_hdsi		/* on radix, just save DAR/DSISR/ASDR */
 	/* HPTE not found fault or protection fault? */
 	andis.	r0, r6, (DSISR_NOHPTE | DSISR_PROTFAULT)@h
@@ -2459,6 +2490,9 @@ _GLOBAL(kvmppc_h_cede)		/* r3 = vcpu pointer, r11 = msr, r13 = paca */
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
+	/*
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 */
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	bl	kvmppc_save_tm
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
@@ -2512,8 +2546,10 @@ kvm_do_nap:
 	clrrdi	r0, r0, 1
 	mtspr	SPRN_CTRLT, r0
 
+BEGIN_FTR_SECTION
 	li	r0,1
 	stb	r0,HSTATE_HWTHREAD_REQ(r13)
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mfspr	r5,SPRN_LPCR
 	ori	r5,r5,LPCR_PECE0 | LPCR_PECE1
 BEGIN_FTR_SECTION
@@ -2569,6 +2605,9 @@ kvm_end_cede:
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 BEGIN_FTR_SECTION
+	/*
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 */
 	bl	kvmppc_restore_tm
 END_FTR_SECTION_IFSET(CPU_FTR_TM)
 #endif
@@ -2752,6 +2791,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	PPC_MSGCLR(6)
 	/* see if it's a host IPI */
 	li	r3, 1
+BEGIN_FTR_SECTION
+	PPC_MSGSYNC
+	lwsync
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r0, HSTATE_HOST_IPI(r13)
 	cmpwi	r0, 0
 	bnelr

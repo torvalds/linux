@@ -79,7 +79,8 @@ static const struct drm_crtc_funcs meson_crtc_funcs = {
 
 };
 
-static void meson_crtc_enable(struct drm_crtc *crtc)
+static void meson_crtc_atomic_enable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	struct drm_crtc_state *crtc_state = crtc->state;
@@ -102,7 +103,8 @@ static void meson_crtc_enable(struct drm_crtc *crtc)
 	priv->viu.osd1_enabled = true;
 }
 
-static void meson_crtc_disable(struct drm_crtc *crtc)
+static void meson_crtc_atomic_disable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
 {
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	struct meson_drm *priv = meson_crtc->priv;
@@ -149,10 +151,10 @@ static void meson_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs meson_crtc_helper_funcs = {
-	.enable		= meson_crtc_enable,
-	.disable	= meson_crtc_disable,
 	.atomic_begin	= meson_crtc_atomic_begin,
 	.atomic_flush	= meson_crtc_atomic_flush,
+	.atomic_enable	= meson_crtc_atomic_enable,
+	.atomic_disable	= meson_crtc_atomic_disable,
 };
 
 void meson_crtc_irq(struct meson_drm *priv)

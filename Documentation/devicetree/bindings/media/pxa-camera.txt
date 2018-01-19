@@ -24,7 +24,6 @@ Example:
 		clock-frequency = <50000000>;
 		clock-output-names = "qci_mclk";
 
-		status = "okay";
 
 		port {
 			#address-cells = <1>;

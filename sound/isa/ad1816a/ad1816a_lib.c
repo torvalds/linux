@@ -339,7 +339,7 @@ static irqreturn_t snd_ad1816a_interrupt(int irq, void *dev_id)
 }
 
 
-static struct snd_pcm_hardware snd_ad1816a_playback = {
+static const struct snd_pcm_hardware snd_ad1816a_playback = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		(SNDRV_PCM_FMTBIT_MU_LAW | SNDRV_PCM_FMTBIT_A_LAW |
@@ -358,7 +358,7 @@ static struct snd_pcm_hardware snd_ad1816a_playback = {
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_ad1816a_capture = {
+static const struct snd_pcm_hardware snd_ad1816a_capture = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		(SNDRV_PCM_FMTBIT_MU_LAW | SNDRV_PCM_FMTBIT_A_LAW |
@@ -653,7 +653,7 @@ int snd_ad1816a_create(struct snd_card *card,
 	return 0;
 }
 
-static struct snd_pcm_ops snd_ad1816a_playback_ops = {
+static const struct snd_pcm_ops snd_ad1816a_playback_ops = {
 	.open =		snd_ad1816a_playback_open,
 	.close =	snd_ad1816a_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -664,7 +664,7 @@ static struct snd_pcm_ops snd_ad1816a_playback_ops = {
 	.pointer =	snd_ad1816a_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_ad1816a_capture_ops = {
+static const struct snd_pcm_ops snd_ad1816a_capture_ops = {
 	.open =		snd_ad1816a_capture_open,
 	.close =	snd_ad1816a_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

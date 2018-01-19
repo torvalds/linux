@@ -34,12 +34,12 @@ config RESET_BERLIN
 	help
 	  This enables the reset controller driver for Marvell Berlin SoCs.
 
-config RESET_GEMINI
-	bool "Gemini Reset Driver" if COMPILE_TEST
-	default ARCH_GEMINI
-	select MFD_SYSCON
+config RESET_HSDK
+	bool "Synopsys HSDK Reset Driver"
+	depends on HAS_IOMEM
+	depends on ARC_SOC_HSDK || COMPILE_TEST
 	help
-	  This enables the reset controller driver for Cortina Systems Gemini.
+	  This enables the reset controller driver for HSDK board.
 
 config RESET_IMX7
 	bool "i.MX7 Reset Driver" if COMPILE_TEST
@@ -47,6 +47,12 @@ config RESET_IMX7
 	select MFD_SYSCON
 	help
 	  This enables the reset controller driver for i.MX7 SoCs.
+
+config RESET_LANTIQ
+	bool "Lantiq XWAY Reset Driver" if COMPILE_TEST
+	default SOC_TYPE_XWAY
+	help
+	  This enables the reset controller driver for Lantiq / Intel XWAY SoCs.
 
 config RESET_LPC18XX
 	bool "LPC18xx/43xx Reset Driver" if COMPILE_TEST

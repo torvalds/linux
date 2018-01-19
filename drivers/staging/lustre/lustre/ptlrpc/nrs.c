@@ -36,11 +36,11 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_net.h"
-#include "../include/lprocfs_status.h"
-#include "../../include/linux/libcfs/libcfs.h"
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lustre_net.h>
+#include <lprocfs_status.h>
+#include <linux/libcfs/libcfs.h>
 #include "ptlrpc_internal.h"
 
 /**

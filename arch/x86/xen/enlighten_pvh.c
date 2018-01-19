@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/acpi.h>
 
 #include <xen/hvc-console.h>

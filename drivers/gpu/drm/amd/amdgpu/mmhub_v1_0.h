@@ -36,7 +36,4 @@ void mmhub_v1_0_initialize_power_gating(struct amdgpu_device *adev);
 void mmhub_v1_0_update_power_gating(struct amdgpu_device *adev,
                                 bool enable);
 
-extern const struct amd_ip_funcs mmhub_v1_0_ip_funcs;
-extern const struct amdgpu_ip_block_version mmhub_v1_0_ip_block;
-
 #endif

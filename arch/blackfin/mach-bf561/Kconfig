@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if (BF561)
 
 source "arch/blackfin/mach-bf561/boards/Kconfig"

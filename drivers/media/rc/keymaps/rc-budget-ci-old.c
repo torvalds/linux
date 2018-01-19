@@ -70,10 +70,10 @@ static struct rc_map_table budget_ci_old[] = {
 
 static struct rc_map_list budget_ci_old_map = {
 	.map = {
-		.scan    = budget_ci_old,
-		.size    = ARRAY_SIZE(budget_ci_old),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_BUDGET_CI_OLD,
+		.scan     = budget_ci_old,
+		.size     = ARRAY_SIZE(budget_ci_old),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_BUDGET_CI_OLD,
 	}
 };
 

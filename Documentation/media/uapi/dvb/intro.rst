@@ -13,15 +13,18 @@ What you need to know
 =====================
 
 The reader of this document is required to have some knowledge in the
-area of digital video broadcasting (DVB) and should be familiar with
+area of digital video broadcasting (Digital TV) and should be familiar with
 part I of the MPEG2 specification ISO/IEC 13818 (aka ITU-T H.222), i.e
 you should know what a program/transport stream (PS/TS) is and what is
 meant by a packetized elementary stream (PES) or an I-frame.
 
-Various DVB standards documents are available from http://www.dvb.org
-and/or http://www.etsi.org.
+Various Digital TV standards documents are available for download at:
 
-It is also necessary to know how to access unix/linux devices and how to
+- European standards (DVB): http://www.dvb.org and/or http://www.etsi.org.
+- American standards (ATSC): https://www.atsc.org/standards/
+- Japanese standards (ISDB): http://www.dibeg.org/
+
+It is also necessary to know how to access Linux devices and how to
 use ioctl calls. This also includes the knowledge of C or C++.
 
 
@@ -30,21 +33,25 @@ use ioctl calls. This also includes the knowledge of C or C++.
 History
 =======
 
-The first API for DVB cards we used at Convergence in late 1999 was an
+The first API for Digital TV cards we used at Convergence in late 1999 was an
 extension of the Video4Linux API which was primarily developed for frame
-grabber cards. As such it was not really well suited to be used for DVB
-cards and their new features like recording MPEG streams and filtering
+grabber cards. As such it was not really well suited to be used for Digital
+TV cards and their new features like recording MPEG streams and filtering
 several section and PES data streams at the same time.
 
-In early 2000, we were approached by Nokia with a proposal for a new
-standard Linux DVB API. As a commitment to the development of terminals
+In early 2000, Convergence was approached by Nokia with a proposal for a new
+standard Linux Digital TV API. As a commitment to the development of terminals
 based on open standards, Nokia and Convergence made it available to all
 Linux developers and published it on https://linuxtv.org in September
-2000. Convergence is the maintainer of the Linux DVB API. Together with
-the LinuxTV community (i.e. you, the reader of this document), the Linux
-DVB API will be constantly reviewed and improved. With the Linux driver
-for the Siemens/Hauppauge DVB PCI card Convergence provides a first
-implementation of the Linux DVB API.
+2000. With the Linux driver for the Siemens/Hauppauge DVB PCI card,
+Convergence provided a first implementation of the Linux Digital TV API.
+Convergence was the maintainer of the Linux Digital TV API in the early
+days.
+
+Now, the API is maintained by the LinuxTV community (i.e. you, the reader
+of this document). The Linux  Digital TV API is constantly reviewed and
+improved together with the improvements at the subsystem's core at the
+Kernel.
 
 
 .. _overview:
@@ -59,61 +66,65 @@ Overview
     :alt:   dvbstb.svg
     :align: center
 
-    Components of a DVB card/STB
+    Components of a Digital TV card/STB
 
-A DVB PCI card or DVB set-top-box (STB) usually consists of the
+A Digital TV card or set-top-box (STB) usually consists of the
 following main hardware components:
 
--  Frontend consisting of tuner and DVB demodulator
-
-   Here the raw signal reaches the DVB hardware from a satellite dish or
+Frontend consisting of tuner and digital TV demodulator
+   Here the raw signal reaches the digital TV hardware from a satellite dish or
    antenna or directly from cable. The frontend down-converts and
    demodulates this signal into an MPEG transport stream (TS). In case
    of a satellite frontend, this includes a facility for satellite
    equipment control (SEC), which allows control of LNB polarization,
    multi feed switches or dish rotors.
 
--  Conditional Access (CA) hardware like CI adapters and smartcard slots
-
+Conditional Access (CA) hardware like CI adapters and smartcard slots
    The complete TS is passed through the CA hardware. Programs to which
    the user has access (controlled by the smart card) are decoded in
    real time and re-inserted into the TS.
 
--  Demultiplexer which filters the incoming DVB stream
+   .. note::
 
+      Not every digital TV hardware provides conditional access hardware.
+
+Demultiplexer which filters the incoming Digital TV MPEG-TS stream
    The demultiplexer splits the TS into its components like audio and
    video streams. Besides usually several of such audio and video
    streams it also contains data streams with information about the
    programs offered in this or other streams of the same provider.
 
--  MPEG2 audio and video decoder
+Audio and video decoder
+   The main targets of the demultiplexer are audio and video
+   decoders. After decoding, they pass on the uncompressed audio and
+   video to the computer screen or to a TV set.
 
-   The main targets of the demultiplexer are the MPEG2 audio and video
-   decoders. After decoding they pass on the uncompressed audio and
-   video to the computer screen or (through a PAL/NTSC encoder) to a TV
-   set.
+   .. note::
+
+      Modern hardware usually doesn't have a separate decoder hardware, as
+      such functionality can be provided by the main CPU, by the graphics
+      adapter of the system or by a signal processing hardware embedded on
+      a Systems on a Chip (SoC) integrated circuit.
+
+      It may also not be needed for certain usages (e.g. for data-only
+      uses like “internet over satellite”).
 
 :ref:`stb_components` shows a crude schematic of the control and data
 flow between those components.
 
-On a DVB PCI card not all of these have to be present since some
-functionality can be provided by the main CPU of the PC (e.g. MPEG
-picture and sound decoding) or is not needed (e.g. for data-only uses
-like “internet over satellite”). Also not every card or STB provides
-conditional access hardware.
 
 
 .. _dvb_devices:
 
-Linux DVB Devices
-=================
+Linux Digital TV Devices
+========================
 
-The Linux DVB API lets you control these hardware components through
+The Linux Digital TV API lets you control these hardware components through
 currently six Unix-style character devices for video, audio, frontend,
 demux, CA and IP-over-DVB networking. The video and audio devices
 control the MPEG2 decoder hardware, the frontend device the tuner and
-the DVB demodulator. The demux device gives you control over the PES and
-section filters of the hardware. If the hardware does not support
+the Digital TV demodulator. The demux device gives you control over the PES
+and section filters of the hardware. If the hardware does not support
 filtering these filters can be implemented in software. Finally, the CA
 device controls all the conditional access capabilities of the hardware.
 It can depend on the individual security requirements of the platform,
@@ -137,9 +148,9 @@ individual devices are called:
 
 -  ``/dev/dvb/adapterN/caM``,
 
-where N enumerates the DVB PCI cards in a system starting from 0, and M
-enumerates the devices of each type within each adapter, starting
-from 0, too. We will omit the “ ``/dev/dvb/adapterN/``\ ” in the further
+where ``N`` enumerates the Digital TV cards in a system starting from 0, and
+``M`` enumerates the devices of each type within each adapter, starting
+from 0, too. We will omit the “``/dev/dvb/adapterN/``\ ” in the further
 discussion of these devices.
 
 More details about the data structures and function calls of all the
@@ -151,8 +162,8 @@ devices are described in the following chapters.
 API include files
 =================
 
-For each of the DVB devices a corresponding include file exists. The DVB
-API include files should be included in application sources with a
+For each of the Digital TV devices a corresponding include file exists. The
+Digital TV API include files should be included in application sources with a
 partial path like:
 
 

@@ -107,7 +107,10 @@ static struct nios2_clocksource nios2_cs = {
 
 cycles_t get_cycles(void)
 {
-	return nios2_timer_read(&nios2_cs.cs);
+	/* Only read timer if it has been initialized */
+	if (nios2_cs.timer.base)
+		return nios2_timer_read(&nios2_cs.cs);
+	return 0;
 }
 EXPORT_SYMBOL(get_cycles);
 

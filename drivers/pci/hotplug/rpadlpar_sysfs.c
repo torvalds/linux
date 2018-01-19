@@ -102,7 +102,7 @@ static struct attribute *default_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dlpar_attr_group = {
+static const struct attribute_group dlpar_attr_group = {
 	.attrs = default_attrs,
 };
 

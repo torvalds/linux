@@ -564,6 +564,9 @@ static __init u64 safe_stack_limit(void)
 	/* Other BookE, we assume the first GB is bolted */
 	return 1ul << 30;
 #else
+	if (early_radix_enabled())
+		return ULONG_MAX;
+
 	/* BookS, the first segment is bolted */
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		return 1UL << SID_SHIFT_1T;
@@ -578,7 +581,8 @@ void __init irqstack_early_init(void)
 
 	/*
 	 * Interrupt stacks must be in the first segment since we
-	 * cannot afford to take SLB misses on them.
+	 * cannot afford to take SLB misses on them. They are not
+	 * accessed in realmode.
 	 */
 	for_each_possible_cpu(i) {
 		softirq_ctx[i] = (struct thread_info *)
@@ -649,8 +653,9 @@ void __init emergency_stack_init(void)
 	 * aligned.
 	 *
 	 * Since we use these as temporary stacks during secondary CPU
-	 * bringup, we need to get at them in real mode. This means they
-	 * must also be within the RMO region.
+	 * bringup, machine check, system reset, and HMI, we need to get
+	 * at them in real mode. This means they must also be within the RMO
+	 * region.
 	 *
 	 * The IRQ stacks allocated elsewhere in this file are zeroed and
 	 * initialized in kernel/irq.c. These are initialized here in order
@@ -751,3 +756,31 @@ unsigned long memory_block_size_bytes(void)
 struct ppc_pci_io ppc_pci_io;
 EXPORT_SYMBOL(ppc_pci_io);
 #endif
+
+#ifdef CONFIG_HARDLOCKUP_DETECTOR_PERF
+u64 hw_nmi_get_sample_period(int watchdog_thresh)
+{
+	return ppc_proc_freq * watchdog_thresh;
+}
+#endif
+
+/*
+ * The perf based hardlockup detector breaks PMU event based branches, so
+ * disable it by default. Book3S has a soft-nmi hardlockup detector based
+ * on the decrementer interrupt, so it does not suffer from this problem.
+ *
+ * It is likely to get false positives in VM guests, so disable it there
+ * by default too.
+ */
+static int __init disable_hardlockup_detector(void)
+{
+#ifdef CONFIG_HARDLOCKUP_DETECTOR_PERF
+	hardlockup_detector_disable();
+#else
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		hardlockup_detector_disable();
+#endif
+
+	return 0;
+}
+early_initcall(disable_hardlockup_detector);

@@ -1658,8 +1658,8 @@ void hostif_phy_information_request(struct ks_wlan_private *priv)
 
 static
 void hostif_power_mgmt_request(struct ks_wlan_private *priv,
-				unsigned long mode, unsigned long wake_up,
-				unsigned long receive_dtims)
+			       unsigned long mode, unsigned long wake_up,
+			       unsigned long receive_dtims)
 {
 	struct hostif_power_mgmt_request_t *pp;
 

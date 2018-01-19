@@ -494,8 +494,8 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(pctldev->dev, "%s: could not parse node property\n",
-			of_node_full_name(np));
+		dev_err(pctldev->dev, "%pOF: could not parse node property\n",
+			np);
 		return ret;
 	}
 
@@ -504,8 +504,7 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	num_pins = pins->length / sizeof(u32);
 	if (!num_pins) {
-		dev_err(pctldev->dev, "no pins found in node %s\n",
-			of_node_full_name(np));
+		dev_err(pctldev->dev, "no pins found in node %pOF\n", np);
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -584,8 +583,8 @@ static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	if (ret < 0) {
 		pinctrl_utils_free_map(pctldev, *map, *num_maps);
-		dev_err(pctldev->dev, "can't create maps for node %s\n",
-			np_config->full_name);
+		dev_err(pctldev->dev, "can't create maps for node %pOF\n",
+			np_config);
 	}
 
 	return ret;

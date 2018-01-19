@@ -556,7 +556,7 @@ static int __init check_pmac_serial_console(void)
 		pr_debug(" can't find stdout package %s !\n", name);
 		return -ENODEV;
 	}
-	pr_debug("stdout is %s\n", prom_stdout->full_name);
+	pr_debug("stdout is %pOF\n", prom_stdout);
 
 	name = of_get_property(prom_stdout, "name", NULL);
 	if (!name) {

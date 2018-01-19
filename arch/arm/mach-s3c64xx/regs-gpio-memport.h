@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics

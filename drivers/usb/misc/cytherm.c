@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 
-#define DRIVER_VERSION "v1.0"
 #define DRIVER_AUTHOR "Erik Rigtorp"
 #define DRIVER_DESC "Cypress USB Thermometer driver"
 

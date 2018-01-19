@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_DEMANGLE_JAVA
 #define __PERF_DEMANGLE_JAVA 1
 /*

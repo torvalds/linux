@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Linker script for gate DSO.  The gate pages are an ELF shared object
  * prelinked to its virtual address, with only one read-only segment and

@@ -38,7 +38,7 @@
 
 
 /* USB Device ID List */
-static struct usb_device_id si470x_usb_driver_id_table[] = {
+static const struct usb_device_id si470x_usb_driver_id_table[] = {
 	/* Silicon Labs USB FM Radio Reference Design */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c4, 0x818a, USB_CLASS_HID, 0, 0) },
 	/* ADS/Tech FM Radio Receiver (formerly Instant FM Music) */

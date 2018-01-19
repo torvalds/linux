@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Most of this file is copied from tools/lib/traceevent/Makefile
 
 BPF_VERSION = 0
@@ -154,12 +155,12 @@ all: fixdep $(VERSION_FILES) all_cmd
 all_cmd: $(CMD_TARGETS)
 
 $(BPF_IN): force elfdep bpfdep
-	@(test -f ../../../include/uapi/linux/bpf.h -a -f ../../../include/uapi/linux/bpf.h && ( \
+	@(test -f ../../include/uapi/linux/bpf.h -a -f ../../../include/uapi/linux/bpf.h && ( \
 	(diff -B ../../include/uapi/linux/bpf.h ../../../include/uapi/linux/bpf.h >/dev/null) || \
-	echo "Warning: tools/include/uapi/linux/bpf.h differs from kernel" >&2 )) || true
-	@(test -f ../../../include/uapi/linux/bpf_common.h -a -f ../../../include/uapi/linux/bpf_common.h && ( \
+	echo "Warning: Kernel ABI header at 'tools/include/uapi/linux/bpf.h' differs from latest version at 'include/uapi/linux/bpf.h'" >&2 )) || true
+	@(test -f ../../include/uapi/linux/bpf_common.h -a -f ../../../include/uapi/linux/bpf_common.h && ( \
 	(diff -B ../../include/uapi/linux/bpf_common.h ../../../include/uapi/linux/bpf_common.h >/dev/null) || \
-	echo "Warning: tools/include/uapi/linux/bpf_common.h differs from kernel" >&2 )) || true
+	echo "Warning: Kernel ABI header at 'tools/include/uapi/linux/bpf_common.h' differs from latest version at 'include/uapi/linux/bpf_common.h'" >&2 )) || true
 	$(Q)$(MAKE) $(build)=libbpf
 
 $(OUTPUT)libbpf.so: $(BPF_IN)
@@ -188,6 +189,10 @@ endef
 install_lib: all_cmd
 	$(call QUIET_INSTALL, $(LIB_FILE)) \
 		$(call do_install,$(LIB_FILE),$(libdir_SQ))
+
+install_headers:
+	$(call QUIET_INSTALL, headers) \
+		$(call do_install,bpf.h,$(prefix)/include/bpf,644)
 
 install: install_lib
 

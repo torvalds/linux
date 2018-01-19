@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include "common.h"
 
 	.data
@@ -8,7 +9,7 @@ message:
 	.section ".toc"
 	.balign 8
 pattern:
-	.llong 0x5555AAAA5555AAAA
+	.8byte 0x5555AAAA5555AAAA
 
 	.text
 FUNC_START(_start)

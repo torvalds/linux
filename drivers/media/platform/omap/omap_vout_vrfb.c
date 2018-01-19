@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
+#include <linux/slab.h>
 
 #include <media/videobuf-dma-contig.h>
 #include <media/v4l2-device.h>
@@ -233,7 +234,7 @@ int omap_vout_prepare_vrfb(struct omap_vout_device *vout,
 			   struct videobuf_buffer *vb)
 {
 	struct dma_async_tx_descriptor *tx;
-	enum dma_ctrl_flags flags;
+	enum dma_ctrl_flags flags = DMA_PREP_INTERRUPT | DMA_CTRL_ACK;
 	struct dma_chan *chan = vout->vrfb_dma_tx.chan;
 	struct dma_device *dmadev = chan->device;
 	struct dma_interleaved_template *xt = vout->vrfb_dma_tx.xt;

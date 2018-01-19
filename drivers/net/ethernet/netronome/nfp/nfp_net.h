@@ -573,7 +573,6 @@ struct nfp_net_dp {
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @debugfs_dir:	Device directory in debugfs
- * @ethtool_dump_flag:	Ethtool dump flag
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
  * @app:		APP handle if available
@@ -640,7 +639,6 @@ struct nfp_net {
 	u8 __iomem *rx_bar;
 
 	struct dentry *debugfs_dir;
-	u32 ethtool_dump_flag;
 
 	struct list_head vnic_list;
 

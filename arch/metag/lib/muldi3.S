@@ -1,3 +1,4 @@
+! SPDX-License-Identifier: GPL-2.0
 ! Copyright (C) 2012 by Imagination Technologies Ltd.
 !
 ! 64-bit multiply routine.

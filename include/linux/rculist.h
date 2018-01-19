@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_RCULIST_H
 #define _LINUX_RCULIST_H
 
@@ -276,7 +277,7 @@ static inline void list_splice_tail_init_rcu(struct list_head *list,
 #define list_entry_rcu(ptr, type, member) \
 	container_of(lockless_dereference(ptr), type, member)
 
-/**
+/*
  * Where are list_empty_rcu() and list_first_entry_rcu()?
  *
  * Implementing those functions following their counterparts list_empty() and

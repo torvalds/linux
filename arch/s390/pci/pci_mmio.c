@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Access to PCI I/O memory from user space programs.
  *

@@ -705,9 +705,9 @@ static unsigned int xen_blkbk_unmap_prepare(
 				    GNTMAP_host_map, pages[i]->handle);
 		pages[i]->handle = BLKBACK_INVALID_HANDLE;
 		invcount++;
-       }
+	}
 
-       return invcount;
+	return invcount;
 }
 
 static void xen_blkbk_unmap_and_respond_callback(int result, struct gntab_unmap_queue_data *data)
@@ -1251,6 +1251,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 		break;
 	case BLKIF_OP_WRITE_BARRIER:
 		drain = true;
+		/* fall through */
 	case BLKIF_OP_FLUSH_DISKCACHE:
 		ring->st_f_req++;
 		operation = REQ_OP_WRITE;
@@ -1362,7 +1363,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 				goto fail_put_bio;
 
 			biolist[nbio++] = bio;
-			bio->bi_bdev    = preq.bdev;
+			bio_set_dev(bio, preq.bdev);
 			bio->bi_private = pending_req;
 			bio->bi_end_io  = end_block_io_op;
 			bio->bi_iter.bi_sector  = preq.sector_number;
@@ -1381,7 +1382,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 			goto fail_put_bio;
 
 		biolist[nbio++] = bio;
-		bio->bi_bdev    = preq.bdev;
+		bio_set_dev(bio, preq.bdev);
 		bio->bi_private = pending_req;
 		bio->bi_end_io  = end_block_io_op;
 		bio_set_op_attrs(bio, operation, operation_flags);

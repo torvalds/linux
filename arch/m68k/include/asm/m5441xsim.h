@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	m5441xsim.h -- Coldfire 5441x register definitions
  *

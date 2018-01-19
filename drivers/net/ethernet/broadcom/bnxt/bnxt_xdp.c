@@ -169,8 +169,8 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	tc = netdev_get_num_tc(dev);
 	if (!tc)
 		tc = 1;
-	rc = bnxt_reserve_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
-				true, tc, tx_xdp);
+	rc = bnxt_check_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
+			      true, tc, tx_xdp);
 	if (rc) {
 		netdev_warn(dev, "Unable to reserve enough TX rings to support XDP.\n");
 		return rc;

@@ -73,10 +73,10 @@ static struct rc_map_table nebula[] = {
 
 static struct rc_map_list nebula_map = {
 	.map = {
-		.scan    = nebula,
-		.size    = ARRAY_SIZE(nebula),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_NEBULA,
+		.scan     = nebula,
+		.size     = ARRAY_SIZE(nebula),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_NEBULA,
 	}
 };
 

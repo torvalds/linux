@@ -357,6 +357,34 @@ static inline unsigned int cvmx_get_local_core_num(void)
 	return cvmx_get_core_num() & ((1 << CVMX_NODE_NO_SHIFT) - 1);
 }
 
+#define CVMX_NODE_BITS         (2)     /* Number of bits to define a node */
+#define CVMX_MAX_NODES         (1 << CVMX_NODE_BITS)
+#define CVMX_NODE_IO_SHIFT     (36)
+#define CVMX_NODE_MEM_SHIFT    (40)
+#define CVMX_NODE_IO_MASK      ((uint64_t)CVMX_NODE_MASK << CVMX_NODE_IO_SHIFT)
+
+static inline void cvmx_write_csr_node(uint64_t node, uint64_t csr_addr,
+				       uint64_t val)
+{
+	uint64_t composite_csr_addr, node_addr;
+
+	node_addr = (node & CVMX_NODE_MASK) << CVMX_NODE_IO_SHIFT;
+	composite_csr_addr = (csr_addr & ~CVMX_NODE_IO_MASK) | node_addr;
+
+	cvmx_write64_uint64(composite_csr_addr, val);
+	if (((csr_addr >> 40) & 0x7ffff) == (0x118))
+		cvmx_read64_uint64(CVMX_MIO_BOOT_BIST_STAT | node_addr);
+}
+
+static inline uint64_t cvmx_read_csr_node(uint64_t node, uint64_t csr_addr)
+{
+	uint64_t node_addr;
+
+	node_addr = (csr_addr & ~CVMX_NODE_IO_MASK) |
+		    (node & CVMX_NODE_MASK) << CVMX_NODE_IO_SHIFT;
+	return cvmx_read_csr(node_addr);
+}
+
 /**
  * Returns the number of bits set in the provided value.
  * Simple wrapper for POP instruction.

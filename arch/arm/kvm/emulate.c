@@ -227,7 +227,7 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 	u32 return_offset = (is_thumb) ? 2 : 4;
 
 	kvm_update_psr(vcpu, UND_MODE);
-	*vcpu_reg(vcpu, 14) = *vcpu_pc(vcpu) - return_offset;
+	*vcpu_reg(vcpu, 14) = *vcpu_pc(vcpu) + return_offset;
 
 	/* Branch to exception vector */
 	*vcpu_pc(vcpu) = exc_vector_base(vcpu) + vect_offset;
@@ -239,10 +239,8 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu)
  */
 static void inject_abt(struct kvm_vcpu *vcpu, bool is_pabt, unsigned long addr)
 {
-	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	bool is_thumb = (cpsr & PSR_T_BIT);
 	u32 vect_offset;
-	u32 return_offset = (is_thumb) ? 4 : 0;
+	u32 return_offset = (is_pabt) ? 4 : 8;
 	bool is_lpae;
 
 	kvm_update_psr(vcpu, ABT_MODE);

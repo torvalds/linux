@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Basic Node interface support
  */
@@ -27,13 +28,21 @@ static struct bus_type node_subsys = {
 
 static ssize_t node_read_cpumap(struct device *dev, bool list, char *buf)
 {
+	ssize_t n;
+	cpumask_var_t mask;
 	struct node *node_dev = to_node(dev);
-	const struct cpumask *mask = cpumask_of_node(node_dev->dev.id);
 
 	/* 2008/04/07: buf currently PAGE_SIZE, need 9 chars per 32 bits. */
 	BUILD_BUG_ON((NR_CPUS/32 * 9) > (PAGE_SIZE-1));
 
-	return cpumap_print_to_pagebuf(list, buf, mask);
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
+		return 0;
+
+	cpumask_and(mask, cpumask_of_node(node_dev->dev.id), cpu_online_mask);
+	n = cpumap_print_to_pagebuf(list, buf, mask);
+	free_cpumask_var(mask);
+
+	return n;
 }
 
 static inline ssize_t node_read_cpumask(struct device *dev,
@@ -160,12 +169,12 @@ static ssize_t node_read_numastat(struct device *dev,
 		       "interleave_hit %lu\n"
 		       "local_node %lu\n"
 		       "other_node %lu\n",
-		       sum_zone_node_page_state(dev->id, NUMA_HIT),
-		       sum_zone_node_page_state(dev->id, NUMA_MISS),
-		       sum_zone_node_page_state(dev->id, NUMA_FOREIGN),
-		       sum_zone_node_page_state(dev->id, NUMA_INTERLEAVE_HIT),
-		       sum_zone_node_page_state(dev->id, NUMA_LOCAL),
-		       sum_zone_node_page_state(dev->id, NUMA_OTHER));
+		       sum_zone_numa_state(dev->id, NUMA_HIT),
+		       sum_zone_numa_state(dev->id, NUMA_MISS),
+		       sum_zone_numa_state(dev->id, NUMA_FOREIGN),
+		       sum_zone_numa_state(dev->id, NUMA_INTERLEAVE_HIT),
+		       sum_zone_numa_state(dev->id, NUMA_LOCAL),
+		       sum_zone_numa_state(dev->id, NUMA_OTHER));
 }
 static DEVICE_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
 
@@ -181,9 +190,17 @@ static ssize_t node_read_vmstat(struct device *dev,
 		n += sprintf(buf+n, "%s %lu\n", vmstat_text[i],
 			     sum_zone_node_page_state(nid, i));
 
-	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+#ifdef CONFIG_NUMA
+	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
 		n += sprintf(buf+n, "%s %lu\n",
 			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+			     sum_zone_numa_state(nid, i));
+#endif
+
+	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+		n += sprintf(buf+n, "%s %lu\n",
+			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
+			     NR_VM_NUMA_STAT_ITEMS],
 			     node_page_state(pgdat, i));
 
 	return n;

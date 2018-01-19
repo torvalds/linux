@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_BIOS_PRIV_H__
 #define __NVKM_BIOS_PRIV_H__
 #define nvkm_bios(p) container_of((p), struct nvkm_bios, subdev)

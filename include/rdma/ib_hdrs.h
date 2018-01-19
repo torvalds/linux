@@ -193,8 +193,12 @@ static inline void put_ib_ateth_compare(u64 val, struct ib_atomic_eth *ateth)
 #define IB_LNH_MASK		3
 #define IB_SC_MASK		0xf
 #define IB_SC_SHIFT		12
+#define IB_SC5_MASK		0x10
 #define IB_SL_MASK		0xf
 #define IB_SL_SHIFT		4
+#define IB_SL_SHIFT		4
+#define IB_LVER_MASK	0xf
+#define IB_LVER_SHIFT	8
 
 static inline u8 ib_get_lnh(struct ib_header *hdr)
 {
@@ -204,6 +208,11 @@ static inline u8 ib_get_lnh(struct ib_header *hdr)
 static inline u8 ib_get_sc(struct ib_header *hdr)
 {
 	return ((be16_to_cpu(hdr->lrh[0]) >> IB_SC_SHIFT) & IB_SC_MASK);
+}
+
+static inline bool ib_is_sc5(u16 sc5)
+{
+	return !!(sc5 & IB_SC5_MASK);
 }
 
 static inline u8 ib_get_sl(struct ib_header *hdr)
@@ -221,6 +230,27 @@ static inline u16 ib_get_slid(struct ib_header *hdr)
 	return (be16_to_cpu(hdr->lrh[3]));
 }
 
+static inline u8 ib_get_lver(struct ib_header *hdr)
+{
+	return (u8)((be16_to_cpu(hdr->lrh[0]) >> IB_LVER_SHIFT) &
+		   IB_LVER_MASK);
+}
+
+static inline u16 ib_get_len(struct ib_header *hdr)
+{
+	return (u16)(be16_to_cpu(hdr->lrh[2]));
+}
+
+static inline u32 ib_get_qkey(struct ib_other_headers *ohdr)
+{
+	return be32_to_cpu(ohdr->u.ud.deth[0]);
+}
+
+static inline u32 ib_get_sqpn(struct ib_other_headers *ohdr)
+{
+	return ((be32_to_cpu(ohdr->u.ud.deth[1])) & IB_QPN_MASK);
+}
+
 /*
  * BTH
  */
@@ -229,6 +259,14 @@ static inline u16 ib_get_slid(struct ib_header *hdr)
 #define IB_BTH_PAD_MASK	3
 #define IB_BTH_PKEY_MASK	0xffff
 #define IB_BTH_PAD_SHIFT	20
+#define IB_BTH_A_MASK		1
+#define IB_BTH_A_SHIFT		31
+#define IB_BTH_M_MASK		1
+#define IB_BTH_M_SHIFT		22
+#define IB_BTH_SE_MASK		1
+#define IB_BTH_SE_SHIFT	23
+#define IB_BTH_TVER_MASK	0xf
+#define IB_BTH_TVER_SHIFT	16
 
 static inline u8 ib_bth_get_pad(struct ib_other_headers *ohdr)
 {
@@ -245,6 +283,52 @@ static inline u8 ib_bth_get_opcode(struct ib_other_headers *ohdr)
 {
 	return ((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_OPCODE_SHIFT) &
 		   IB_BTH_OPCODE_MASK);
+}
+
+static inline u8 ib_bth_get_ackreq(struct ib_other_headers *ohdr)
+{
+	return (u8)((be32_to_cpu(ohdr->bth[2]) >> IB_BTH_A_SHIFT) &
+		   IB_BTH_A_MASK);
+}
+
+static inline u8 ib_bth_get_migreq(struct ib_other_headers *ohdr)
+{
+	return (u8)((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_M_SHIFT) &
+		    IB_BTH_M_MASK);
+}
+
+static inline u8 ib_bth_get_se(struct ib_other_headers *ohdr)
+{
+	return (u8)((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_SE_SHIFT) &
+		    IB_BTH_SE_MASK);
+}
+
+static inline u32 ib_bth_get_psn(struct ib_other_headers *ohdr)
+{
+	return (u32)(be32_to_cpu(ohdr->bth[2]));
+}
+
+static inline u32 ib_bth_get_qpn(struct ib_other_headers *ohdr)
+{
+	return (u32)((be32_to_cpu(ohdr->bth[1])) & IB_QPN_MASK);
+}
+
+static inline u8 ib_bth_get_becn(struct ib_other_headers *ohdr)
+{
+	return (u8)((be32_to_cpu(ohdr->bth[1]) >> IB_BECN_SHIFT) &
+		     IB_BECN_MASK);
+}
+
+static inline u8 ib_bth_get_fecn(struct ib_other_headers *ohdr)
+{
+	return (u8)((be32_to_cpu(ohdr->bth[1]) >> IB_FECN_SHIFT) &
+		    IB_FECN_MASK);
+}
+
+static inline u8 ib_bth_get_tver(struct ib_other_headers *ohdr)
+{
+	return (u8)((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_TVER_SHIFT)  &
+		    IB_BTH_TVER_MASK);
 }
 
 #endif                          /* IB_HDRS_H */

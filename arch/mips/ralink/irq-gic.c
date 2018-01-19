@@ -11,7 +11,7 @@
 
 #include <linux/of.h>
 #include <linux/irqchip.h>
-#include <linux/irqchip/mips-gic.h>
+#include <asm/mips-cps.h>
 
 int get_c0_perfcount_int(void)
 {

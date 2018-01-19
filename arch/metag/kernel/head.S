@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	! Copyright 2005,2006,2007,2009 Imagination Technologies
 
 #include <linux/init.h>

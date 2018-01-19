@@ -142,11 +142,14 @@ struct ioatdma_chan {
 	spinlock_t prep_lock;
 	struct ioat_descs descs[2];
 	int desc_chunks;
+	int intr_coalesce;
+	int prev_intr_coalesce;
 };
 
 struct ioat_sysfs_entry {
 	struct attribute attr;
 	ssize_t (*show)(struct dma_chan *, char *);
+	ssize_t (*store)(struct dma_chan *, const char *, size_t);
 };
 
 /**

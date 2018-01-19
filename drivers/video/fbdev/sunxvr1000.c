@@ -33,8 +33,8 @@ static int gfb_get_props(struct gfb_info *gp)
 	gp->depth = of_getintprop_default(gp->of_node, "depth", 32);
 
 	if (!gp->width || !gp->height) {
-		printk(KERN_ERR "gfb: Critical properties missing for %s\n",
-		       gp->of_node->full_name);
+		printk(KERN_ERR "gfb: Critical properties missing for %pOF\n",
+		       gp->of_node);
 		return -EINVAL;
 	}
 
@@ -151,12 +151,12 @@ static int gfb_probe(struct platform_device *op)
 	if (err)
 		goto err_unmap_fb;
 
-	printk("gfb: Found device at %s\n", dp->full_name);
+	printk("gfb: Found device at %pOF\n", dp);
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "gfb: Could not register framebuffer %s\n",
-		       dp->full_name);
+		printk(KERN_ERR "gfb: Could not register framebuffer %pOF\n",
+		       dp);
 		goto err_unmap_fb;
 	}
 

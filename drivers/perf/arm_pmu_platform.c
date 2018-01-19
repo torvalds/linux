@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * platform_device probing code for ARM performance counters.
  *

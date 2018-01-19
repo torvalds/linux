@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * bcache journalling code, for btree insertions
  *
@@ -53,7 +54,7 @@ reread:		left = ca->sb.bucket_size - offset;
 
 		bio_reset(bio);
 		bio->bi_iter.bi_sector	= bucket + offset;
-		bio->bi_bdev	= ca->bdev;
+		bio_set_dev(bio, ca->bdev);
 		bio->bi_iter.bi_size	= len << 9;
 
 		bio->bi_end_io	= journal_read_endio;
@@ -452,7 +453,7 @@ static void do_journal_discard(struct cache *ca)
 		bio_set_op_attrs(bio, REQ_OP_DISCARD, 0);
 		bio->bi_iter.bi_sector	= bucket_to_sector(ca->set,
 						ca->sb.d[ja->discard_idx]);
-		bio->bi_bdev		= ca->bdev;
+		bio_set_dev(bio, ca->bdev);
 		bio->bi_iter.bi_size	= bucket_bytes(ca);
 		bio->bi_end_io		= journal_discard_endio;
 
@@ -623,7 +624,7 @@ static void journal_write_unlocked(struct closure *cl)
 
 		bio_reset(bio);
 		bio->bi_iter.bi_sector	= PTR_OFFSET(k, i);
-		bio->bi_bdev	= ca->bdev;
+		bio_set_dev(bio, ca->bdev);
 		bio->bi_iter.bi_size = sectors << 9;
 
 		bio->bi_end_io	= journal_write_endio;

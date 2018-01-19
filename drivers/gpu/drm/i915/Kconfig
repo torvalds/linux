@@ -21,6 +21,7 @@ config DRM_I915
 	select ACPI_BUTTON if ACPI
 	select SYNC_FILE
 	select IOSF_MBI
+	select CRC32
 	help
 	  Choose this option if you have a system that has "Intel Graphics
 	  Media Accelerator" or "HD Graphics" integrated graphics,

@@ -41,7 +41,7 @@ MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
 			pr_info("ivtv-alsa-pcm %s: " fmt, __func__, ##arg); \
 	} while (0)
 
-static struct snd_pcm_hardware snd_ivtv_hw_capture = {
+static const struct snd_pcm_hardware snd_ivtv_hw_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
 		SNDRV_PCM_INFO_INTERLEAVED    |

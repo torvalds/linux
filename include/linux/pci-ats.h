@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_PCI_ATS_H
 #define LINUX_PCI_ATS_H
 

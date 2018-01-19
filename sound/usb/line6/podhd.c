@@ -301,7 +301,8 @@ static void podhd_disconnect(struct usb_line6 *line6)
 
 		intf = usb_ifnum_to_if(line6->usbdev,
 					pod->line6.properties->ctrl_if);
-		usb_driver_release_interface(&podhd_driver, intf);
+		if (intf)
+			usb_driver_release_interface(&podhd_driver, intf);
 	}
 }
 
@@ -316,6 +317,9 @@ static int podhd_init(struct usb_line6 *line6,
 	struct usb_interface *intf;
 
 	line6->disconnect = podhd_disconnect;
+
+	init_timer(&pod->startup_timer);
+	INIT_WORK(&pod->startup_work, podhd_startup_workqueue);
 
 	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL) {
 		/* claim the data interface */
@@ -358,8 +362,6 @@ static int podhd_init(struct usb_line6 *line6,
 	}
 
 	/* init device and delay registering */
-	init_timer(&pod->startup_timer);
-	INIT_WORK(&pod->startup_work, podhd_startup_workqueue);
 	podhd_startup(pod);
 	return 0;
 }

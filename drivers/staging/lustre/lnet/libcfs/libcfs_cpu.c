@@ -30,7 +30,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 /** Global CPU partition table */
 struct cfs_cpt_table   *cfs_cpt_table __read_mostly;

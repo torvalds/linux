@@ -1146,6 +1146,8 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 		return 0;
 	}
 
+	arch_unmap_kpfn(pfn);
+
 	orig_head = hpage = compound_head(p);
 	num_poisoned_pages_inc();
 

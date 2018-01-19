@@ -31,7 +31,6 @@ clock, new bindings (for parsing the clock nodes) have to be added.
 Example:
 
 &mmc3 {
-	status = "okay";
 	vmmc-supply = <&wlan_en_reg>;
 	bus-width = <4>;
 	cap-power-off-card;

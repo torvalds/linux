@@ -427,7 +427,7 @@ static int agp_efficeon_resume(struct pci_dev *pdev)
 }
 #endif
 
-static struct pci_device_id agp_efficeon_pci_table[] = {
+static const struct pci_device_id agp_efficeon_pci_table[] = {
 	{
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 	.class_mask	= ~0,

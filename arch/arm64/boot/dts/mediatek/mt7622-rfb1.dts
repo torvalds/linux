@@ -1,0 +1,27 @@
+/*
+ * Copyright (c) 2017 MediaTek Inc.
+ * Author: Ming Huang <ming.huang@mediatek.com>
+ *	   Sean Wang <sean.wang@mediatek.com>
+ *
+ * SPDX-License-Identifier: (GPL-2.0 OR MIT)
+ */
+
+/dts-v1/;
+#include "mt7622.dtsi"
+
+/ {
+	model = "MediaTek MT7622 RFB1 board";
+	compatible = "mediatek,mt7622-rfb1", "mediatek,mt7622";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n1";
+	};
+
+	memory {
+		reg = <0 0x40000000 0 0x3F000000>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

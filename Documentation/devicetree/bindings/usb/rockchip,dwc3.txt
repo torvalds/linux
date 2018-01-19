@@ -29,13 +29,11 @@ Example device nodes:
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		status = "disabled";
 		usbdrd_dwc3_0: dwc3@fe800000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0xfe800000 0x0 0x100000>;
 			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
-			status = "disabled";
 		};
 	};
 
@@ -48,12 +46,10 @@ Example device nodes:
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		status = "disabled";
 		usbdrd_dwc3_1: dwc3@fe900000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0xfe900000 0x0 0x100000>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
-			status = "disabled";
 		};
 	};

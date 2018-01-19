@@ -95,46 +95,6 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int sa1100_rtc_open(struct device *dev)
-{
-	struct sa1100_rtc *info = dev_get_drvdata(dev);
-	struct rtc_device *rtc = info->rtc;
-	int ret;
-
-	ret = request_irq(info->irq_1hz, sa1100_rtc_interrupt, 0, "rtc 1Hz", dev);
-	if (ret) {
-		dev_err(dev, "IRQ %d already in use.\n", info->irq_1hz);
-		goto fail_ui;
-	}
-	ret = request_irq(info->irq_alarm, sa1100_rtc_interrupt, 0, "rtc Alrm", dev);
-	if (ret) {
-		dev_err(dev, "IRQ %d already in use.\n", info->irq_alarm);
-		goto fail_ai;
-	}
-	rtc->max_user_freq = RTC_FREQ;
-	rtc_irq_set_freq(rtc, NULL, RTC_FREQ);
-
-	return 0;
-
- fail_ai:
-	free_irq(info->irq_1hz, dev);
- fail_ui:
-	clk_disable_unprepare(info->clk);
-	return ret;
-}
-
-static void sa1100_rtc_release(struct device *dev)
-{
-	struct sa1100_rtc *info = dev_get_drvdata(dev);
-
-	spin_lock_irq(&info->lock);
-	writel_relaxed(0, info->rtsr);
-	spin_unlock_irq(&info->lock);
-
-	free_irq(info->irq_alarm, dev);
-	free_irq(info->irq_1hz, dev);
-}
-
 static int sa1100_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	u32 rtsr;
@@ -216,8 +176,6 @@ static int sa1100_rtc_proc(struct device *dev, struct seq_file *seq)
 }
 
 static const struct rtc_class_ops sa1100_rtc_ops = {
-	.open = sa1100_rtc_open,
-	.release = sa1100_rtc_release,
 	.read_time = sa1100_rtc_read_time,
 	.set_time = sa1100_rtc_set_time,
 	.read_alarm = sa1100_rtc_read_alarm,
@@ -265,6 +223,9 @@ int sa1100_rtc_init(struct platform_device *pdev, struct sa1100_rtc *info)
 	}
 	info->rtc = rtc;
 
+	rtc->max_user_freq = RTC_FREQ;
+	rtc_irq_set_freq(rtc, NULL, RTC_FREQ);
+
 	/* Fix for a nasty initialization problem the in SA11xx RTSR register.
 	 * See also the comments in sa1100_rtc_interrupt().
 	 *
@@ -299,6 +260,7 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	struct resource *iores;
 	void __iomem *base;
 	int irq_1hz, irq_alarm;
+	int ret;
 
 	irq_1hz = platform_get_irq_byname(pdev, "rtc 1Hz");
 	irq_alarm = platform_get_irq_byname(pdev, "rtc alarm");
@@ -310,6 +272,19 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	info->irq_1hz = irq_1hz;
 	info->irq_alarm = irq_alarm;
+
+	ret = devm_request_irq(&pdev->dev, irq_1hz, sa1100_rtc_interrupt, 0,
+			       "rtc 1Hz", &pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "IRQ %d already in use.\n", irq_1hz);
+		return ret;
+	}
+	ret = devm_request_irq(&pdev->dev, irq_alarm, sa1100_rtc_interrupt, 0,
+			       "rtc Alrm", &pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "IRQ %d already in use.\n", irq_alarm);
+		return ret;
+	}
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, iores);
@@ -339,8 +314,12 @@ static int sa1100_rtc_remove(struct platform_device *pdev)
 {
 	struct sa1100_rtc *info = platform_get_drvdata(pdev);
 
-	if (info)
+	if (info) {
+		spin_lock_irq(&info->lock);
+		writel_relaxed(0, info->rtsr);
+		spin_unlock_irq(&info->lock);
 		clk_disable_unprepare(info->clk);
+	}
 
 	return 0;
 }

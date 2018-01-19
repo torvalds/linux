@@ -1021,7 +1021,7 @@ static int i2c_imx_init_recovery_info(struct imx_i2c_struct *i2c_imx,
 	}
 
 	dev_dbg(&pdev->dev, "using scl-gpio %d and sda-gpio %d for recovery\n",
-			rinfo->sda_gpio, rinfo->scl_gpio);
+			rinfo->scl_gpio, rinfo->sda_gpio);
 
 	rinfo->prepare_recovery = i2c_imx_prepare_recovery;
 	rinfo->unprepare_recovery = i2c_imx_unprepare_recovery;
@@ -1100,7 +1100,7 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	}
 
 	/* Request IRQ */
-	ret = devm_request_irq(&pdev->dev, irq, i2c_imx_isr, 0,
+	ret = devm_request_irq(&pdev->dev, irq, i2c_imx_isr, IRQF_SHARED,
 				pdev->name, i2c_imx);
 	if (ret) {
 		dev_err(&pdev->dev, "can't claim irq %d\n", irq);

@@ -64,13 +64,11 @@ static void altera_msi_isr(struct irq_desc *desc)
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct altera_msi *msi;
 	unsigned long status;
-	u32 num_of_vectors;
 	u32 bit;
 	u32 virq;
 
 	chained_irq_enter(chip, desc);
 	msi = irq_desc_get_handler_data(desc);
-	num_of_vectors = msi->num_of_vectors;
 
 	while ((status = msi_readl(msi, MSI_STATUS)) != 0) {
 		for_each_set_bit(bit, &status, msi->num_of_vectors) {
@@ -267,9 +265,9 @@ static int altera_msi_probe(struct platform_device *pdev)
 		return ret;
 
 	msi->irq = platform_get_irq(pdev, 0);
-	if (msi->irq <= 0) {
+	if (msi->irq < 0) {
 		dev_err(&pdev->dev, "failed to map IRQ: %d\n", msi->irq);
-		ret = -ENODEV;
+		ret = msi->irq;
 		goto err;
 	}
 

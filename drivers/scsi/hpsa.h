@@ -293,6 +293,7 @@ struct ctlr_info {
 	int	drv_req_rescan;
 	int	raid_offload_debug;
 	int     discovery_polling;
+	int     legacy_board;
 	struct  ReportLUNdata *lastlogicals;
 	int	needs_abort_tags_swizzled;
 	struct workqueue_struct *resubmit_wq;
@@ -447,6 +448,23 @@ static void SA5_intr_mask(struct ctlr_info *h, unsigned long val)
 	}
 }
 
+/*
+ *  Variant of the above; 0x04 turns interrupts off...
+ */
+static void SA5B_intr_mask(struct ctlr_info *h, unsigned long val)
+{
+	if (val) { /* Turn interrupts on */
+		h->interrupts_enabled = 1;
+		writel(0, h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+	} else { /* Turn them off */
+		h->interrupts_enabled = 0;
+		writel(SA5B_INTR_OFF,
+		       h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+	}
+}
+
 static void SA5_performant_intr_mask(struct ctlr_info *h, unsigned long val)
 {
 	if (val) { /* turn on interrupts */
@@ -549,6 +567,14 @@ static bool SA5_ioaccel_mode1_intr_pending(struct ctlr_info *h)
 		true : false;
 }
 
+/*
+ *      Returns true if an interrupt is pending..
+ */
+static bool SA5B_intr_pending(struct ctlr_info *h)
+{
+	return readl(h->vaddr + SA5_INTR_STATUS) & SA5B_INTR_PENDING;
+}
+
 #define IOACCEL_MODE1_REPLY_QUEUE_INDEX  0x1A0
 #define IOACCEL_MODE1_PRODUCER_INDEX     0x1B8
 #define IOACCEL_MODE1_CONSUMER_INDEX     0x1BC
@@ -581,38 +607,53 @@ static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h, u8 q)
 }
 
 static struct access_method SA5_access = {
-	.submit_command = SA5_submit_command,
-	.set_intr_mask = SA5_intr_mask,
-	.intr_pending = SA5_intr_pending,
-	.command_completed = SA5_completed,
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5_intr_mask,
+	.intr_pending =		SA5_intr_pending,
+	.command_completed =	SA5_completed,
+};
+
+/* Duplicate entry of the above to mark unsupported boards */
+static struct access_method SA5A_access = {
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5_intr_mask,
+	.intr_pending =		SA5_intr_pending,
+	.command_completed =	SA5_completed,
+};
+
+static struct access_method SA5B_access = {
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5B_intr_mask,
+	.intr_pending =		SA5B_intr_pending,
+	.command_completed =	SA5_completed,
 };
 
 static struct access_method SA5_ioaccel_mode1_access = {
-	.submit_command = SA5_submit_command,
-	.set_intr_mask = SA5_performant_intr_mask,
-	.intr_pending = SA5_ioaccel_mode1_intr_pending,
-	.command_completed = SA5_ioaccel_mode1_completed,
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5_performant_intr_mask,
+	.intr_pending =		SA5_ioaccel_mode1_intr_pending,
+	.command_completed =	SA5_ioaccel_mode1_completed,
 };
 
 static struct access_method SA5_ioaccel_mode2_access = {
-	.submit_command = SA5_submit_command_ioaccel2,
-	.set_intr_mask = SA5_performant_intr_mask,
-	.intr_pending = SA5_performant_intr_pending,
-	.command_completed = SA5_performant_completed,
+	.submit_command =	SA5_submit_command_ioaccel2,
+	.set_intr_mask =	SA5_performant_intr_mask,
+	.intr_pending =		SA5_performant_intr_pending,
+	.command_completed =	SA5_performant_completed,
 };
 
 static struct access_method SA5_performant_access = {
-	.submit_command = SA5_submit_command,
-	.set_intr_mask = SA5_performant_intr_mask,
-	.intr_pending = SA5_performant_intr_pending,
-	.command_completed = SA5_performant_completed,
+	.submit_command =	SA5_submit_command,
+	.set_intr_mask =	SA5_performant_intr_mask,
+	.intr_pending =		SA5_performant_intr_pending,
+	.command_completed =	SA5_performant_completed,
 };
 
 static struct access_method SA5_performant_access_no_read = {
-	.submit_command = SA5_submit_command_no_read,
-	.set_intr_mask = SA5_performant_intr_mask,
-	.intr_pending = SA5_performant_intr_pending,
-	.command_completed = SA5_performant_completed,
+	.submit_command =	SA5_submit_command_no_read,
+	.set_intr_mask =	SA5_performant_intr_mask,
+	.intr_pending =		SA5_performant_intr_pending,
+	.command_completed =	SA5_performant_completed,
 };
 
 struct board_type {

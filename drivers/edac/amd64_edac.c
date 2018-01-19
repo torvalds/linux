@@ -3130,7 +3130,6 @@ static void setup_mci_misc_attrs(struct mem_ctl_info *mci,
 
 	mci->edac_cap		= determine_edac_cap(pvt);
 	mci->mod_name		= EDAC_MOD_STR;
-	mci->mod_ver		= EDAC_AMD64_VERSION;
 	mci->ctl_name		= fam->ctl_name;
 	mci->dev_name		= pci_name(pvt->F3);
 	mci->ctl_page_to_phys	= NULL;

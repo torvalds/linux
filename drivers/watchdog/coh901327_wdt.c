@@ -218,7 +218,7 @@ static const struct watchdog_info coh901327_ident = {
 	.identity = DRV_NAME,
 };
 
-static struct watchdog_ops coh901327_ops = {
+static const struct watchdog_ops coh901327_ops = {
 	.owner = THIS_MODULE,
 	.start = coh901327_start,
 	.stop = coh901327_stop,

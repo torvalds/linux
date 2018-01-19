@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions and interface for Linux - z/VM Monitor Stream.
  *

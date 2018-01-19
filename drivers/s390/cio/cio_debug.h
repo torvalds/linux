@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef CIO_DEBUG_H
 #define CIO_DEBUG_H
 

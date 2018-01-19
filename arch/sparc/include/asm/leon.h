@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2004 Konrad Eisele (eiselekd@web.de,konrad@gaisler.com) Gaisler Research
  * Copyright (C) 2004 Stefan Holst (mail@s-holst.de) Uni-Stuttgart

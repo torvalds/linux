@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <uapi/linux/mman.h>
 
 static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
@@ -33,6 +34,9 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
 						struct syscall_arg *arg)
 {
 	int printed = 0, flags = arg->val;
+
+	if (flags & MAP_ANONYMOUS)
+		arg->mask |= (1 << 4) | (1 << 5); /* Mask 4th ('fd') and 5th ('offset') args, ignored */
 
 #define	P_MMAP_FLAG(n) \
 	if (flags & MAP_##n) { \

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  SMP related functions
  *
@@ -293,7 +294,10 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 	lc->lpp = LPP_MAGIC;
 	lc->current_pid = tsk->pid;
 	lc->user_timer = tsk->thread.user_timer;
+	lc->guest_timer = tsk->thread.guest_timer;
 	lc->system_timer = tsk->thread.system_timer;
+	lc->hardirq_timer = tsk->thread.hardirq_timer;
+	lc->softirq_timer = tsk->thread.softirq_timer;
 	lc->steal_timer = 0;
 }
 
@@ -1181,6 +1185,7 @@ static int __init s390_smp_init(void)
 
 	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "s390/smp:online",
 			       smp_cpu_online, smp_cpu_pre_down);
+	rc = rc <= 0 ? rc : 0;
 out:
 	return rc;
 }

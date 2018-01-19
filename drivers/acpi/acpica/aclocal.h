@@ -199,6 +199,7 @@ struct acpi_namespace_node {
 #define ANOBJ_EVALUATED                 0x20	/* Set on first evaluation of node */
 #define ANOBJ_ALLOCATED_BUFFER          0x40	/* Method AML buffer is dynamic (install_method) */
 
+#define IMPLICIT_EXTERNAL               0x02	/* iASL only: This object created implicitly via External */
 #define ANOBJ_IS_EXTERNAL               0x08	/* iASL only: This object created via External() */
 #define ANOBJ_METHOD_NO_RETVAL          0x10	/* iASL only: Method has no return value */
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x20	/* iASL only: Method has at least one return value */
@@ -604,7 +605,7 @@ struct acpi_update_state {
  * Pkg state - used to traverse nested package structures
  */
 struct acpi_pkg_state {
-	ACPI_STATE_COMMON u16 index;
+	ACPI_STATE_COMMON u32 index;
 	union acpi_operand_object *source_object;
 	union acpi_operand_object *dest_object;
 	struct acpi_walk_state *walk_state;
@@ -867,7 +868,7 @@ struct acpi_parse_obj_named {
 
 /* This version is used by the iASL compiler only */
 
-#define ACPI_MAX_PARSEOP_NAME   20
+#define ACPI_MAX_PARSEOP_NAME       20
 
 struct acpi_parse_obj_asl {
 	ACPI_PARSE_COMMON union acpi_parse_object *child;
@@ -907,7 +908,7 @@ union acpi_parse_object {
 struct asl_comment_state {
 	u8 comment_type;
 	u32 spaces_before;
-	union acpi_parse_object *latest_parse_node;
+	union acpi_parse_object *latest_parse_op;
 	union acpi_parse_object *parsing_paren_brace_node;
 	u8 capture_comments;
 };

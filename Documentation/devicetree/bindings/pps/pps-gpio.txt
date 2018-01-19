@@ -13,8 +13,12 @@ Optional properties:
 
 Example:
 	pps {
-		compatible = "pps-gpio";
-		gpios = <&gpio2 6 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pps>;
 
+		gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
 		assert-falling-edge;
+
+		compatible = "pps-gpio";
+		status = "okay";
 	};

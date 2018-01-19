@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xfrm6_policy.c: based on xfrm4_policy.c
  *
@@ -27,7 +28,8 @@
 
 static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos, int oif,
 					  const xfrm_address_t *saddr,
-					  const xfrm_address_t *daddr)
+					  const xfrm_address_t *daddr,
+					  u32 mark)
 {
 	struct flowi6 fl6;
 	struct dst_entry *dst;
@@ -36,6 +38,7 @@ static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos, int oif,
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_oif = l3mdev_master_ifindex_by_index(net, oif);
 	fl6.flowi6_flags = FLOWI_FLAG_SKIP_NH_OIF;
+	fl6.flowi6_mark = mark;
 	memcpy(&fl6.daddr, daddr, sizeof(fl6.daddr));
 	if (saddr)
 		memcpy(&fl6.saddr, saddr, sizeof(fl6.saddr));
@@ -52,12 +55,13 @@ static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos, int oif,
 }
 
 static int xfrm6_get_saddr(struct net *net, int oif,
-			   xfrm_address_t *saddr, xfrm_address_t *daddr)
+			   xfrm_address_t *saddr, xfrm_address_t *daddr,
+			   u32 mark)
 {
 	struct dst_entry *dst;
 	struct net_device *dev;
 
-	dst = xfrm6_dst_lookup(net, 0, oif, NULL, daddr);
+	dst = xfrm6_dst_lookup(net, 0, oif, NULL, daddr, mark);
 	if (IS_ERR(dst))
 		return -EHOSTUNREACH;
 
@@ -214,14 +218,6 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	}
 }
 
-static inline int xfrm6_garbage_collect(struct dst_ops *ops)
-{
-	struct net *net = container_of(ops, struct net, xfrm.xfrm6_dst_ops);
-
-	xfrm_garbage_collect_deferred(net);
-	return dst_entries_get_fast(ops) > ops->gc_thresh * 2;
-}
-
 static void xfrm6_update_pmtu(struct dst_entry *dst, struct sock *sk,
 			      struct sk_buff *skb, u32 mtu)
 {
@@ -279,14 +275,13 @@ static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 
 static struct dst_ops xfrm6_dst_ops_template = {
 	.family =		AF_INET6,
-	.gc =			xfrm6_garbage_collect,
 	.update_pmtu =		xfrm6_update_pmtu,
 	.redirect =		xfrm6_redirect,
 	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		xfrm6_dst_destroy,
 	.ifdown =		xfrm6_dst_ifdown,
 	.local_out =		__ip6_local_out,
-	.gc_thresh =		INT_MAX,
+	.gc_thresh =		32768,
 };
 
 static const struct xfrm_policy_afinfo xfrm6_policy_afinfo = {

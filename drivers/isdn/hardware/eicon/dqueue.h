@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: dqueue.h,v 1.1.2.2 2001/02/08 12:25:43 armin Exp $ */
 
 #ifndef _DIVA_USER_MODE_IDI_DATA_QUEUE_H__

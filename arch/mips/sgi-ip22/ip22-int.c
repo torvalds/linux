@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ip22-int.c: Routines for generic manipulation of the INT[23] ASIC
  *	       found on INDY and Indigo2 workstations.

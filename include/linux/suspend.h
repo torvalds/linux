@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SUSPEND_H
 #define _LINUX_SUSPEND_H
 
@@ -33,10 +34,10 @@ static inline void pm_restore_console(void)
 typedef int __bitwise suspend_state_t;
 
 #define PM_SUSPEND_ON		((__force suspend_state_t) 0)
-#define PM_SUSPEND_FREEZE	((__force suspend_state_t) 1)
+#define PM_SUSPEND_TO_IDLE	((__force suspend_state_t) 1)
 #define PM_SUSPEND_STANDBY	((__force suspend_state_t) 2)
 #define PM_SUSPEND_MEM		((__force suspend_state_t) 3)
-#define PM_SUSPEND_MIN		PM_SUSPEND_FREEZE
+#define PM_SUSPEND_MIN		PM_SUSPEND_TO_IDLE
 #define PM_SUSPEND_MAX		((__force suspend_state_t) 4)
 
 enum suspend_stat_step {
@@ -186,7 +187,7 @@ struct platform_suspend_ops {
 	void (*recover)(void);
 };
 
-struct platform_freeze_ops {
+struct platform_s2idle_ops {
 	int (*begin)(void);
 	int (*prepare)(void);
 	void (*wake)(void);
@@ -196,6 +197,9 @@ struct platform_freeze_ops {
 };
 
 #ifdef CONFIG_SUSPEND
+extern suspend_state_t mem_sleep_current;
+extern suspend_state_t mem_sleep_default;
+
 /**
  * suspend_set_ops - set platform dependent suspend operations
  * @ops: The new suspend operations to set.
@@ -234,22 +238,22 @@ static inline bool pm_resume_via_firmware(void)
 }
 
 /* Suspend-to-idle state machnine. */
-enum freeze_state {
-	FREEZE_STATE_NONE,      /* Not suspended/suspending. */
-	FREEZE_STATE_ENTER,     /* Enter suspend-to-idle. */
-	FREEZE_STATE_WAKE,      /* Wake up from suspend-to-idle. */
+enum s2idle_states {
+	S2IDLE_STATE_NONE,      /* Not suspended/suspending. */
+	S2IDLE_STATE_ENTER,     /* Enter suspend-to-idle. */
+	S2IDLE_STATE_WAKE,      /* Wake up from suspend-to-idle. */
 };
 
-extern enum freeze_state __read_mostly suspend_freeze_state;
+extern enum s2idle_states __read_mostly s2idle_state;
 
-static inline bool idle_should_freeze(void)
+static inline bool idle_should_enter_s2idle(void)
 {
-	return unlikely(suspend_freeze_state == FREEZE_STATE_ENTER);
+	return unlikely(s2idle_state == S2IDLE_STATE_ENTER);
 }
 
 extern void __init pm_states_init(void);
-extern void freeze_set_ops(const struct platform_freeze_ops *ops);
-extern void freeze_wake(void);
+extern void s2idle_set_ops(const struct platform_s2idle_ops *ops);
+extern void s2idle_wake(void);
 
 /**
  * arch_suspend_disable_irqs - disable IRQs for suspend
@@ -281,10 +285,10 @@ static inline bool pm_resume_via_firmware(void) { return false; }
 
 static inline void suspend_set_ops(const struct platform_suspend_ops *ops) {}
 static inline int pm_suspend(suspend_state_t state) { return -ENOSYS; }
-static inline bool idle_should_freeze(void) { return false; }
+static inline bool idle_should_enter_s2idle(void) { return false; }
 static inline void __init pm_states_init(void) {}
-static inline void freeze_set_ops(const struct platform_freeze_ops *ops) {}
-static inline void freeze_wake(void) {}
+static inline void s2idle_set_ops(const struct platform_s2idle_ops *ops) {}
+static inline void s2idle_wake(void) {}
 #endif /* !CONFIG_SUSPEND */
 
 /* struct pbe is used for creating lists of pages that should be restored
@@ -427,6 +431,7 @@ extern int unregister_pm_notifier(struct notifier_block *nb);
 /* drivers/base/power/wakeup.c */
 extern bool events_check_enabled;
 extern unsigned int pm_wakeup_irq;
+extern suspend_state_t pm_suspend_target_state;
 
 extern bool pm_wakeup_pending(void);
 extern void pm_system_wakeup(void);
@@ -491,9 +496,23 @@ static inline void unlock_system_sleep(void) {}
 
 #ifdef CONFIG_PM_SLEEP_DEBUG
 extern bool pm_print_times_enabled;
+extern bool pm_debug_messages_on;
+extern __printf(2, 3) void __pm_pr_dbg(bool defer, const char *fmt, ...);
 #else
 #define pm_print_times_enabled	(false)
+#define pm_debug_messages_on	(false)
+
+#include <linux/printk.h>
+
+#define __pm_pr_dbg(defer, fmt, ...) \
+	no_printk(KERN_DEBUG fmt, ##__VA_ARGS__)
 #endif
+
+#define pm_pr_dbg(fmt, ...) \
+	__pm_pr_dbg(false, fmt, ##__VA_ARGS__)
+
+#define pm_deferred_pr_dbg(fmt, ...) \
+	__pm_pr_dbg(true, fmt, ##__VA_ARGS__)
 
 #ifdef CONFIG_PM_AUTOSLEEP
 

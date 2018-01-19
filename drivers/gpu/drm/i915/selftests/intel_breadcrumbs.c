@@ -117,12 +117,12 @@ static int igt_random_insert_remove(void *arg)
 
 	mock_engine_reset(engine);
 
-	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_TEMPORARY);
+	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_KERNEL);
 	if (!waiters)
 		goto out_engines;
 
 	bitmap = kcalloc(DIV_ROUND_UP(count, BITS_PER_LONG), sizeof(*bitmap),
-			 GFP_TEMPORARY);
+			 GFP_KERNEL);
 	if (!bitmap)
 		goto out_waiters;
 
@@ -187,12 +187,12 @@ static int igt_insert_complete(void *arg)
 
 	mock_engine_reset(engine);
 
-	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_TEMPORARY);
+	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_KERNEL);
 	if (!waiters)
 		goto out_engines;
 
 	bitmap = kcalloc(DIV_ROUND_UP(count, BITS_PER_LONG), sizeof(*bitmap),
-			 GFP_TEMPORARY);
+			 GFP_KERNEL);
 	if (!bitmap)
 		goto out_waiters;
 
@@ -368,7 +368,7 @@ static int igt_wakeup(void *arg)
 
 	mock_engine_reset(engine);
 
-	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_TEMPORARY);
+	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_KERNEL);
 	if (!waiters)
 		goto out_engines;
 

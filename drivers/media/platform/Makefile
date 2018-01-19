@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the video capture/playback device drivers.
 #
@@ -85,4 +86,8 @@ obj-$(CONFIG_VIDEO_MEDIATEK_MDP)	+= mtk-mdp/
 
 obj-$(CONFIG_VIDEO_MEDIATEK_JPEG)	+= mtk-jpeg/
 
+obj-$(CONFIG_VIDEO_QCOM_CAMSS)		+= qcom/camss-8x16/
+
 obj-$(CONFIG_VIDEO_QCOM_VENUS)		+= qcom/venus/
+
+obj-y					+= meson/

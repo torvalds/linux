@@ -612,7 +612,7 @@ static int adi_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static struct pinctrl_ops adi_pctrl_ops = {
+static const struct pinctrl_ops adi_pctrl_ops = {
 	.get_groups_count = adi_get_groups_count,
 	.get_group_name = adi_get_group_name,
 	.get_group_pins = adi_get_group_pins,
@@ -696,7 +696,7 @@ static int adi_pinmux_request_gpio(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops adi_pinmux_ops = {
+static const struct pinmux_ops adi_pinmux_ops = {
 	.set_mux = adi_pinmux_set,
 	.get_functions_count = adi_pinmux_get_funcs_count,
 	.get_function_name = adi_pinmux_get_func_name,

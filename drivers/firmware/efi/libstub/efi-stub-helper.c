@@ -205,7 +205,7 @@ again:
 		unsigned long m = (unsigned long)map;
 		u64 start, end;
 
-		desc = (efi_memory_desc_t *)(m + (i * desc_size));
+		desc = efi_early_memdesc_ptr(m, desc_size, i);
 		if (desc->type != EFI_CONVENTIONAL_MEMORY)
 			continue;
 
@@ -298,7 +298,7 @@ efi_status_t efi_low_alloc(efi_system_table_t *sys_table_arg,
 		unsigned long m = (unsigned long)map;
 		u64 start, end;
 
-		desc = (efi_memory_desc_t *)(m + (i * desc_size));
+		desc = efi_early_memdesc_ptr(m, desc_size, i);
 
 		if (desc->type != EFI_CONVENTIONAL_MEMORY)
 			continue;

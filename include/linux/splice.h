@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Function declerations and data structures related to the splice
  * implementation.

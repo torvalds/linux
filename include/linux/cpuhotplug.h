@@ -1,10 +1,30 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CPUHOTPLUG_H
 #define __CPUHOTPLUG_H
 
 #include <linux/types.h>
 
+/*
+ * CPU-up			CPU-down
+ *
+ * BP		AP		BP		AP
+ *
+ * OFFLINE			OFFLINE
+ *   |				  ^
+ *   v				  |
+ * BRINGUP_CPU->AP_OFFLINE	BRINGUP_CPU  <- AP_IDLE_DEAD (idle thread/play_dead)
+ *		  |				AP_OFFLINE
+ *		  v (IRQ-off)	  ,---------------^
+ *		AP_ONLNE	  | (stop_machine)
+ *		  |		TEARDOWN_CPU <-	AP_ONLINE_IDLE
+ *		  |				  ^
+ *		  v				  |
+ *              AP_ACTIVE			AP_ACTIVE
+ */
+
 enum cpuhp_state {
-	CPUHP_OFFLINE,
+	CPUHP_INVALID = -1,
+	CPUHP_OFFLINE = 0,
 	CPUHP_CREATE_THREADS,
 	CPUHP_PERF_PREPARE,
 	CPUHP_PERF_X86_PREPARE,
@@ -137,6 +157,9 @@ enum cpuhp_state {
 	CPUHP_AP_PERF_ARM_L2X0_ONLINE,
 	CPUHP_AP_PERF_ARM_QCOM_L2_ONLINE,
 	CPUHP_AP_PERF_ARM_QCOM_L3_ONLINE,
+	CPUHP_AP_PERF_POWERPC_NEST_IMC_ONLINE,
+	CPUHP_AP_PERF_POWERPC_CORE_IMC_ONLINE,
+	CPUHP_AP_PERF_POWERPC_THREAD_IMC_ONLINE,
 	CPUHP_AP_WORKQUEUE_ONLINE,
 	CPUHP_AP_RCUTREE_ONLINE,
 	CPUHP_AP_ONLINE_DYN,

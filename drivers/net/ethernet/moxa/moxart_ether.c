@@ -161,7 +161,7 @@ static void moxart_mac_setup_desc_ring(struct net_device *ndev)
 
 	priv->rx_head = 0;
 
-	/* reset the MAC controller TX/RX desciptor base address */
+	/* reset the MAC controller TX/RX descriptor base address */
 	writel(priv->tx_base, priv->base + REG_TXR_BASE_ADDRESS);
 	writel(priv->rx_base, priv->base + REG_RXR_BASE_ADDRESS);
 }
@@ -269,9 +269,8 @@ rx_next:
 		priv->rx_head = rx_head;
 	}
 
-	if (rx < budget) {
+	if (rx < budget)
 		napi_complete_done(napi, rx);
-	}
 
 	priv->reg_imr |= RPKT_FINISH_M;
 	writel(priv->reg_imr, priv->base + REG_INTERRUPT_MASK);
@@ -289,8 +288,8 @@ static int moxart_tx_queue_space(struct net_device *ndev)
 static void moxart_tx_finished(struct net_device *ndev)
 {
 	struct moxart_mac_priv_t *priv = netdev_priv(ndev);
-	unsigned tx_head = priv->tx_head;
-	unsigned tx_tail = priv->tx_tail;
+	unsigned int tx_head = priv->tx_head;
+	unsigned int tx_tail = priv->tx_tail;
 
 	while (tx_tail != tx_head) {
 		dma_unmap_single(&ndev->dev, priv->tx_mapping[tx_tail],
@@ -312,7 +311,7 @@ static void moxart_tx_finished(struct net_device *ndev)
 
 static irqreturn_t moxart_mac_interrupt(int irq, void *dev_id)
 {
-	struct net_device *ndev = (struct net_device *) dev_id;
+	struct net_device *ndev = (struct net_device *)dev_id;
 	struct moxart_mac_priv_t *priv = netdev_priv(ndev);
 	unsigned int ists = readl(priv->base + REG_INTERRUPT_STATUS);
 
@@ -495,7 +494,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	priv->tx_desc_base = dma_alloc_coherent(NULL, TX_REG_DESC_SIZE *
 						TX_DESC_NUM, &priv->tx_base,
 						GFP_DMA | GFP_KERNEL);
-	if (priv->tx_desc_base == NULL) {
+	if (!priv->tx_desc_base) {
 		ret = -ENOMEM;
 		goto init_fail;
 	}
@@ -503,7 +502,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	priv->rx_desc_base = dma_alloc_coherent(NULL, RX_REG_DESC_SIZE *
 						RX_DESC_NUM, &priv->rx_base,
 						GFP_DMA | GFP_KERNEL);
-	if (priv->rx_desc_base == NULL) {
+	if (!priv->rx_desc_base) {
 		ret = -ENOMEM;
 		goto init_fail;
 	}

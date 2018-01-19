@@ -36,7 +36,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/musb.h>
 #include <linux/usb/ulpi.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -185,7 +185,7 @@ struct twl4030_usb {
 static int twl4030_i2c_write_u8_verify(struct twl4030_usb *twl,
 		u8 module, u8 data, u8 address)
 {
-	u8 check;
+	u8 check = 0xFF;
 
 	if ((twl_i2c_write_u8(module, data, address) >= 0) &&
 	    (twl_i2c_read_u8(module, &check, address) >= 0) &&

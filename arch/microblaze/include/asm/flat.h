@@ -60,7 +60,7 @@ static inline int flat_get_addr_from_rp(u32 __user *rp, u32 relval, u32 flags,
  * unaligned.
  */
 
-static inline void
+static inline int
 flat_put_addr_at_rp(u32 __user *rp, u32 addr, u32 relval)
 {
 	u32 *p = (__force u32 *)rp;

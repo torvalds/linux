@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig PPC_83xx
 	bool "83xx-based boards"
 	depends on 6xx

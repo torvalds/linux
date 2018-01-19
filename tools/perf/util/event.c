@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dirent.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -57,6 +58,7 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_STAT_ROUND]		= "STAT_ROUND",
 	[PERF_RECORD_EVENT_UPDATE]		= "EVENT_UPDATE",
 	[PERF_RECORD_TIME_CONV]			= "TIME_CONV",
+	[PERF_RECORD_HEADER_FEATURE]		= "FEATURE",
 };
 
 static const char *perf_ns__names[] = {

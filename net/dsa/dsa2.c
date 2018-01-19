@@ -219,7 +219,7 @@ static int dsa_dsa_port_apply(struct dsa_port *port)
 	struct dsa_switch *ds = port->ds;
 	int err;
 
-	err = dsa_cpu_dsa_setup(ds, ds->dev, port, port->index);
+	err = dsa_cpu_dsa_setup(port);
 	if (err) {
 		dev_warn(ds->dev, "Failed to setup dsa port %d: %d\n",
 			 port->index, err);
@@ -243,7 +243,7 @@ static int dsa_cpu_port_apply(struct dsa_port *port)
 	struct dsa_switch *ds = port->ds;
 	int err;
 
-	err = dsa_cpu_dsa_setup(ds, ds->dev, port, port->index);
+	err = dsa_cpu_dsa_setup(port);
 	if (err) {
 		dev_warn(ds->dev, "Failed to setup cpu port %d: %d\n",
 			 port->index, err);
@@ -275,7 +275,7 @@ static int dsa_user_port_apply(struct dsa_port *port)
 	if (!name)
 		name = "eth%d";
 
-	err = dsa_slave_create(ds, ds->dev, port->index, name);
+	err = dsa_slave_create(port, name);
 	if (err) {
 		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
 			 port->index, err);
@@ -496,13 +496,14 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 		if (!ethernet)
 			return -EINVAL;
 		ethernet_dev = of_find_net_device_by_node(ethernet);
+		if (!ethernet_dev)
+			return -EPROBE_DEFER;
 	} else {
 		ethernet_dev = dsa_dev_to_net_device(ds->cd->netdev[index]);
+		if (!ethernet_dev)
+			return -EPROBE_DEFER;
 		dev_put(ethernet_dev);
 	}
-
-	if (!ethernet_dev)
-		return -EPROBE_DEFER;
 
 	if (!dst->cpu_dp) {
 		dst->cpu_dp = port;

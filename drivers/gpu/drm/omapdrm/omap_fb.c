@@ -379,7 +379,7 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 	return fb;
 
 error:
-	while (--i > 0)
+	while (--i >= 0)
 		drm_gem_object_unreference_unlocked(bos[i]);
 
 	return fb;

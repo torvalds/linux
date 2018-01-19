@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/blkdev.h>
@@ -121,21 +122,6 @@ err_out:
 	return 0;
 }
 
-static int mvme147_bus_reset(struct scsi_cmnd *cmd)
-{
-	/* FIXME perform bus-specific reset */
-
-	/* FIXME 2: kill this function, and let midlayer fallback to
-	   the same result, calling wd33c93_host_reset() */
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	wd33c93_host_reset(cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return SUCCESS;
-}
-
-
 static struct scsi_host_template driver_template = {
 	.proc_name		= "MVME147",
 	.name			= "MVME147 built-in SCSI",
@@ -143,7 +129,6 @@ static struct scsi_host_template driver_template = {
 	.release		= mvme147_release,
 	.queuecommand		= wd33c93_queuecommand,
 	.eh_abort_handler	= wd33c93_abort,
-	.eh_bus_reset_handler	= mvme147_bus_reset,
 	.eh_host_reset_handler	= wd33c93_host_reset,
 	.can_queue		= CAN_QUEUE,
 	.this_id		= 7,

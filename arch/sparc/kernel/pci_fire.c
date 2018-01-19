@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* pci_fire.c: Sun4u platform PCI-E controller support.
  *
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)

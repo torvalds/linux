@@ -86,7 +86,6 @@ struct tcpnv {
 				 * < 0 => less than 1 packet/RTT */
 	u8  available8;
 	u16 available16;
-	u32 loss_cwnd;	/* cwnd at last loss */
 	u8  nv_allow_cwnd_growth:1, /* whether cwnd can grow */
 		nv_reset:1,	    /* whether to reset values */
 		nv_catchup:1;	    /* whether we are growing because
@@ -121,7 +120,6 @@ static inline void tcpnv_reset(struct tcpnv *ca, struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	ca->nv_reset = 0;
-	ca->loss_cwnd = 0;
 	ca->nv_no_cong_cnt = 0;
 	ca->nv_rtt_cnt = 0;
 	ca->nv_last_rtt = 0;
@@ -177,17 +175,8 @@ static void tcpnv_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 static u32 tcpnv_recalc_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
-	struct tcpnv *ca = inet_csk_ca(sk);
 
-	ca->loss_cwnd = tp->snd_cwnd;
 	return max((tp->snd_cwnd * nv_loss_dec_factor) >> 10, 2U);
-}
-
-static u32 tcpnv_undo_cwnd(struct sock *sk)
-{
-	struct tcpnv *ca = inet_csk_ca(sk);
-
-	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }
 
 static void tcpnv_state(struct sock *sk, u8 new_state)
@@ -263,7 +252,7 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 
 	/* rate in 100's bits per second */
 	rate64 = ((u64)sample->in_flight) * 8000000;
-	rate = (u32)div64_u64(rate64, (u64)(avg_rtt * 100));
+	rate = (u32)div64_u64(rate64, (u64)(avg_rtt ?: 1) * 100);
 
 	/* Remember the maximum rate seen during this RTT
 	 * Note: It may be more than one RTT. This function should be
@@ -446,7 +435,7 @@ static struct tcp_congestion_ops tcpnv __read_mostly = {
 	.ssthresh	= tcpnv_recalc_ssthresh,
 	.cong_avoid	= tcpnv_cong_avoid,
 	.set_state	= tcpnv_state,
-	.undo_cwnd	= tcpnv_undo_cwnd,
+	.undo_cwnd	= tcp_reno_undo_cwnd,
 	.pkts_acked     = tcpnv_acked,
 	.get_info	= tcpnv_get_info,
 

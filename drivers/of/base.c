@@ -60,14 +60,13 @@ DEFINE_RAW_SPINLOCK(devtree_lock);
 
 int of_n_addr_cells(struct device_node *np)
 {
-	const __be32 *ip;
+	u32 cells;
 
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = of_get_property(np, "#address-cells", NULL);
-		if (ip)
-			return be32_to_cpup(ip);
+		if (!of_property_read_u32(np, "#address-cells", &cells))
+			return cells;
 	} while (np->parent);
 	/* No #address-cells property for the root node */
 	return OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
@@ -76,14 +75,13 @@ EXPORT_SYMBOL(of_n_addr_cells);
 
 int of_n_size_cells(struct device_node *np)
 {
-	const __be32 *ip;
+	u32 cells;
 
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = of_get_property(np, "#size-cells", NULL);
-		if (ip)
-			return be32_to_cpup(ip);
+		if (!of_property_read_u32(np, "#size-cells", &cells))
+			return cells;
 	} while (np->parent);
 	/* No #size-cells property for the root node */
 	return OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
@@ -160,7 +158,7 @@ int __of_add_property_sysfs(struct device_node *np, struct property *pp)
 	pp->attr.read = of_node_property_read;
 
 	rc = sysfs_create_bin_file(&np->kobj, &pp->attr);
-	WARN(rc, "error adding attribute %s to node %s\n", pp->name, np->full_name);
+	WARN(rc, "error adding attribute %s to node %pOF\n", pp->name, np);
 	return rc;
 }
 
@@ -1122,7 +1120,7 @@ EXPORT_SYMBOL(of_find_node_by_phandle);
 void of_print_phandle_args(const char *msg, const struct of_phandle_args *args)
 {
 	int i;
-	printk("%s %s", msg, of_node_full_name(args->np));
+	printk("%s %pOF", msg, args->np);
 	for (i = 0; i < args->args_count; i++) {
 		const char delim = i ? ',' : ':';
 
@@ -1184,17 +1182,17 @@ int of_phandle_iterator_next(struct of_phandle_iterator *it)
 
 		if (it->cells_name) {
 			if (!it->node) {
-				pr_err("%s: could not find phandle\n",
-				       it->parent->full_name);
+				pr_err("%pOF: could not find phandle\n",
+				       it->parent);
 				goto err;
 			}
 
 			if (of_property_read_u32(it->node, it->cells_name,
 						 &count)) {
-				pr_err("%s: could not get %s for %s\n",
-				       it->parent->full_name,
+				pr_err("%pOF: could not get %s for %pOF\n",
+				       it->parent,
 				       it->cells_name,
-				       it->node->full_name);
+				       it->node);
 				goto err;
 			}
 		} else {
@@ -1206,8 +1204,8 @@ int of_phandle_iterator_next(struct of_phandle_iterator *it)
 		 * property data length
 		 */
 		if (it->cur + count > it->list_end) {
-			pr_err("%s: arguments longer than property\n",
-			       it->parent->full_name);
+			pr_err("%pOF: arguments longer than property\n",
+			       it->parent);
 			goto err;
 		}
 	}
@@ -1639,8 +1637,8 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
 	strncpy(ap->stem, stem, stem_len);
 	ap->stem[stem_len] = 0;
 	list_add_tail(&ap->link, &aliases_lookup);
-	pr_debug("adding DT alias:%s: stem=%s id=%i node=%s\n",
-		 ap->alias, ap->stem, ap->id, of_node_full_name(np));
+	pr_debug("adding DT alias:%s: stem=%s id=%i node=%pOF\n",
+		 ap->alias, ap->stem, ap->id, np);
 }
 
 /**
@@ -1664,11 +1662,13 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 
 	if (of_chosen) {
 		/* linux,stdout-path and /aliases/stdout are for legacy compatibility */
-		const char *name = of_get_property(of_chosen, "stdout-path", NULL);
-		if (!name)
-			name = of_get_property(of_chosen, "linux,stdout-path", NULL);
+		const char *name = NULL;
+
+		if (of_property_read_string(of_chosen, "stdout-path", &name))
+			of_property_read_string(of_chosen, "linux,stdout-path",
+						&name);
 		if (IS_ENABLED(CONFIG_PPC) && !name)
-			name = of_get_property(of_aliases, "stdout", NULL);
+			of_property_read_string(of_aliases, "stdout", &name);
 		if (name)
 			of_stdout = of_find_node_opts_by_path(name, &of_stdout_options);
 	}
@@ -1781,8 +1781,12 @@ bool of_console_check(struct device_node *dn, char *name, int index)
 {
 	if (!dn || dn != of_stdout || console_set_on_cmdline)
 		return false;
-	return !add_preferred_console(name, index,
-				      kstrdup(of_stdout_options, GFP_KERNEL));
+
+	/*
+	 * XXX: cast `options' to char pointer to suppress complication
+	 * warnings: printk, UART and console drivers expect char pointer.
+	 */
+	return !add_preferred_console(name, index, (char *)of_stdout_options);
 }
 EXPORT_SYMBOL_GPL(of_console_check);
 

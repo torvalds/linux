@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
 #
 # extract-mod-sig <part> <module-file>
 #

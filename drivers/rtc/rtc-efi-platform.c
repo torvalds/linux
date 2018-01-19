@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Moved from arch/ia64/kernel/time.c
  *

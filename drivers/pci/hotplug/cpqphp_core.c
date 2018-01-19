@@ -1417,7 +1417,7 @@ static void __exit unload_cpqphpd(void)
 		iounmap(smbios_start);
 }
 
-static struct pci_device_id hpcd_pci_tbl[] = {
+static const struct pci_device_id hpcd_pci_tbl[] = {
 	{
 	/* handle any PCI Hotplug controller */
 	.class =        ((PCI_CLASS_SYSTEM_PCI_HOTPLUG << 8) | 0x00),

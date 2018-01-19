@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_IWLEGACY)	+= iwlegacy.o
 iwlegacy-objs 		:= common.o
 iwlegacy-$(CONFIG_IWLEGACY_DEBUGFS) += debug.o

@@ -139,17 +139,6 @@ struct hw_perf_event {
 			/* for tp_event->class */
 			struct list_head	tp_list;
 		};
-		struct { /* intel_cqm */
-			int			cqm_state;
-			u32			cqm_rmid;
-			int			is_group_event;
-			struct list_head	cqm_events_entry;
-			struct list_head	cqm_groups_entry;
-			struct list_head	cqm_group_entry;
-		};
-		struct { /* itrace */
-			int			itrace_started;
-		};
 		struct { /* amd_power */
 			u64	pwr_acc;
 			u64	ptsc;
@@ -417,11 +406,6 @@ struct pmu {
 
 
 	/*
-	 * Return the count value for a counter.
-	 */
-	u64 (*count)			(struct perf_event *event); /*optional*/
-
-	/*
 	 * Set up pmu-private data structures for an AUX area
 	 */
 	void *(*setup_aux)		(int cpu, void **pages,
@@ -541,6 +525,7 @@ struct swevent_hlist {
 #define PERF_ATTACH_GROUP	0x02
 #define PERF_ATTACH_TASK	0x04
 #define PERF_ATTACH_TASK_DATA	0x08
+#define PERF_ATTACH_ITRACE	0x10
 
 struct perf_cgroup;
 struct ring_buffer;
@@ -864,6 +849,7 @@ extern int perf_aux_output_skip(struct perf_output_handle *handle,
 				unsigned long size);
 extern void *perf_get_aux(struct perf_output_handle *handle);
 extern void perf_aux_output_flag(struct perf_output_handle *handle, u64 flags);
+extern void perf_event_itrace_started(struct perf_event *event);
 
 extern int perf_pmu_register(struct pmu *pmu, const char *name, int type);
 extern void perf_pmu_unregister(struct pmu *pmu);
@@ -944,6 +930,8 @@ struct perf_sample_data {
 
 	struct perf_regs		regs_intr;
 	u64				stack_user_size;
+
+	u64				phys_addr;
 } ____cacheline_aligned;
 
 /* default value for data source */
@@ -1109,11 +1097,6 @@ static inline void perf_event_task_sched_out(struct task_struct *prev,
 
 	if (static_branch_unlikely(&perf_sched_events))
 		__perf_event_task_sched_out(prev, next);
-}
-
-static inline u64 __perf_event_count(struct perf_event *event)
-{
-	return local64_read(&event->count) + atomic64_read(&event->child_count);
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);

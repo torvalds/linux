@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RDC321X_MFD_H
 #define __RDC321X_MFD_H
 

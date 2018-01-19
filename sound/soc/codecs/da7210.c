@@ -1164,7 +1164,7 @@ static int da7210_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
+static const struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 	.probe			= da7210_probe,
 
 	.component_driver = {

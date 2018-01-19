@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: sungem.h,v 1.10.2.4 2002/03/11 08:54:48 davem Exp $
  * sungem.h: Definitions for Sun GEM ethernet driver.
  *

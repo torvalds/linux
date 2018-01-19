@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  */
 /dts-v1/;
-/include/ "zynq-7000.dtsi"
+#include "zynq-7000.dtsi"
 
 / {
 	model = "Zynq ZYBO Development Board";
@@ -29,7 +29,7 @@
 	};
 
 	chosen {
-		bootargs = "earlycon";
+		bootargs = "";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -51,6 +51,7 @@
 
 	ethernet_phy: ethernet-phy@0 {
 		reg = <0>;
+		device_type = "ethernet-phy";
 	};
 };
 

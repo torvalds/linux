@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define RF6052_MAX_TX_PWR	0x3F
 #define RF6052_MAX_REG		0x3F
 

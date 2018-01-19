@@ -704,7 +704,7 @@ static umode_t nct7802_temp_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group nct7802_temp_group = {
+static const struct attribute_group nct7802_temp_group = {
 	.attrs = nct7802_temp_attrs,
 	.is_visible = nct7802_temp_is_visible,
 };
@@ -802,7 +802,7 @@ static umode_t nct7802_in_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group nct7802_in_group = {
+static const struct attribute_group nct7802_in_group = {
 	.attrs = nct7802_in_attrs,
 	.is_visible = nct7802_in_is_visible,
 };
@@ -880,7 +880,7 @@ static umode_t nct7802_fan_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group nct7802_fan_group = {
+static const struct attribute_group nct7802_fan_group = {
 	.attrs = nct7802_fan_attrs,
 	.is_visible = nct7802_fan_is_visible,
 };
@@ -898,7 +898,7 @@ static struct attribute *nct7802_pwm_attrs[] = {
 	NULL
 };
 
-static struct attribute_group nct7802_pwm_group = {
+static const struct attribute_group nct7802_pwm_group = {
 	.attrs = nct7802_pwm_attrs,
 };
 
@@ -1011,7 +1011,7 @@ static struct attribute *nct7802_auto_point_attrs[] = {
 	NULL
 };
 
-static struct attribute_group nct7802_auto_point_group = {
+static const struct attribute_group nct7802_auto_point_group = {
 	.attrs = nct7802_auto_point_attrs,
 };
 

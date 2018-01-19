@@ -111,8 +111,8 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 		 */
 
 		memcpy(&backupPMKIDList[0],
-			&adapter->securitypriv.PMKIDList[0],
-			sizeof(struct RT_PMKID_LIST) * NUM_PMKID_CACHE);
+		       &adapter->securitypriv.PMKIDList[0],
+		       sizeof(struct RT_PMKID_LIST) * NUM_PMKID_CACHE);
 		backupPMKIDIndex = adapter->securitypriv.PMKIDIndex;
 		backupTKIPCountermeasure =
 			adapter->securitypriv.btkip_countermeasure;

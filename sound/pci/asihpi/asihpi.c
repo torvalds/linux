@@ -558,12 +558,10 @@ static void snd_card_asihpi_pcm_int_start(struct snd_pcm_substream *substream)
 	struct snd_card_asihpi_pcm *dpcm;
 	struct snd_card_asihpi *card;
 
-	BUG_ON(!substream);
-
 	dpcm = (struct snd_card_asihpi_pcm *)substream->runtime->private_data;
 	card = snd_pcm_substream_chip(substream);
 
-	BUG_ON(in_interrupt());
+	WARN_ON(in_interrupt());
 	tasklet_disable(&card->t);
 	card->llmode_streampriv = dpcm;
 	tasklet_enable(&card->t);
@@ -577,8 +575,6 @@ static void snd_card_asihpi_pcm_int_stop(struct snd_pcm_substream *substream)
 {
 	struct snd_card_asihpi_pcm *dpcm;
 	struct snd_card_asihpi *card;
-
-	BUG_ON(!substream);
 
 	dpcm = (struct snd_card_asihpi_pcm *)substream->runtime->private_data;
 	card = snd_pcm_substream_chip(substream);

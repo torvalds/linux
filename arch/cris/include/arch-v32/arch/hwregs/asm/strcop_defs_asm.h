@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __strcop_defs_asm_h
 #define __strcop_defs_asm_h
 

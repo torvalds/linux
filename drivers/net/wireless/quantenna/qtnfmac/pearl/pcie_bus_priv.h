@@ -32,8 +32,10 @@ struct qtnf_pcie_bus_priv {
 	/* lock for irq configuration changes */
 	spinlock_t irq_lock;
 
-	/* lock for tx operations */
-	spinlock_t tx_lock;
+	/* lock for tx reclaim operations */
+	spinlock_t tx_reclaim_lock;
+	/* lock for tx0 operations */
+	spinlock_t tx0_lock;
 	u8 msi_enabled;
 	int mps;
 
@@ -66,13 +68,11 @@ struct qtnf_pcie_bus_priv {
 	void *bd_table_vaddr;
 	u32 bd_table_len;
 
-	u32 hw_txproc_wr_ptr;
+	u32 rx_bd_w_index;
+	u32 rx_bd_r_index;
 
-	u16 tx_bd_reclaim_start;
-	u16 tx_bd_index;
-	u32 tx_queue_len;
-
-	u16 rx_bd_index;
+	u32 tx_bd_w_index;
+	u32 tx_bd_r_index;
 
 	u32 pcie_irq_mask;
 
@@ -80,6 +80,7 @@ struct qtnf_pcie_bus_priv {
 	u32 pcie_irq_count;
 	u32 pcie_irq_rx_count;
 	u32 pcie_irq_tx_count;
+	u32 pcie_irq_uf_count;
 	u32 tx_full_count;
 	u32 tx_done_count;
 	u32 tx_reclaim_done;

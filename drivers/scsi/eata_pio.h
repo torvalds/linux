@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /********************************************************
 * Header file for eata_pio.c Linux EATA-PIO SCSI driver *
 * (c) 1993-96 Michael Neuffer  	                        *

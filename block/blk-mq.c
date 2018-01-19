@@ -83,6 +83,41 @@ static void blk_mq_hctx_clear_pending(struct blk_mq_hw_ctx *hctx,
 	sbitmap_clear_bit(&hctx->ctx_map, ctx->index_hw);
 }
 
+struct mq_inflight {
+	struct hd_struct *part;
+	unsigned int *inflight;
+};
+
+static void blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
+				  struct request *rq, void *priv,
+				  bool reserved)
+{
+	struct mq_inflight *mi = priv;
+
+	if (test_bit(REQ_ATOM_STARTED, &rq->atomic_flags) &&
+	    !test_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags)) {
+		/*
+		 * index[0] counts the specific partition that was asked
+		 * for. index[1] counts the ones that are active on the
+		 * whole device, so increment that if mi->part is indeed
+		 * a partition, and not a whole device.
+		 */
+		if (rq->part == mi->part)
+			mi->inflight[0]++;
+		if (mi->part->partno)
+			mi->inflight[1]++;
+	}
+}
+
+void blk_mq_in_flight(struct request_queue *q, struct hd_struct *part,
+		      unsigned int inflight[2])
+{
+	struct mq_inflight mi = { .part = part, .inflight = inflight, };
+
+	inflight[0] = inflight[1] = 0;
+	blk_mq_queue_tag_busy_iter(q, blk_mq_check_inflight, &mi);
+}
+
 void blk_freeze_queue_start(struct request_queue *q)
 {
 	int freeze_depth;
@@ -624,11 +659,10 @@ static void blk_mq_requeue_work(struct work_struct *work)
 		container_of(work, struct request_queue, requeue_work.work);
 	LIST_HEAD(rq_list);
 	struct request *rq, *next;
-	unsigned long flags;
 
-	spin_lock_irqsave(&q->requeue_lock, flags);
+	spin_lock_irq(&q->requeue_lock);
 	list_splice_init(&q->requeue_list, &rq_list);
-	spin_unlock_irqrestore(&q->requeue_lock, flags);
+	spin_unlock_irq(&q->requeue_lock);
 
 	list_for_each_entry_safe(rq, next, &rq_list, queuelist) {
 		if (!(rq->rq_flags & RQF_SOFTBARRIER))
@@ -1102,8 +1136,18 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 {
 	int srcu_idx;
 
+	/*
+	 * We should be running this queue from one of the CPUs that
+	 * are mapped to it.
+	 */
 	WARN_ON(!cpumask_test_cpu(raw_smp_processor_id(), hctx->cpumask) &&
 		cpu_online(hctx->next_cpu));
+
+	/*
+	 * We can't run the queue inline with ints disabled. Ensure that
+	 * we catch bad users of this early.
+	 */
+	WARN_ON_ONCE(in_interrupt());
 
 	if (!(hctx->flags & BLK_MQ_F_BLOCKING)) {
 		rcu_read_lock();
@@ -1218,7 +1262,7 @@ EXPORT_SYMBOL(blk_mq_queue_stopped);
 /*
  * This function is often used for pausing .queue_rq() by driver when
  * there isn't enough resource or some conditions aren't satisfied, and
- * BLK_MQ_RQ_QUEUE_BUSY is usually returned.
+ * BLK_STS_RESOURCE is usually returned.
  *
  * We do not guarantee that dispatch can be drained or blocked
  * after blk_mq_stop_hw_queue() returns. Please use
@@ -1235,7 +1279,7 @@ EXPORT_SYMBOL(blk_mq_stop_hw_queue);
 /*
  * This function is often used for pausing .queue_rq() by driver when
  * there isn't enough resource or some conditions aren't satisfied, and
- * BLK_MQ_RQ_QUEUE_BUSY is usually returned.
+ * BLK_STS_RESOURCE is usually returned.
  *
  * We do not guarantee that dispatch can be drained or blocked
  * after blk_mq_stop_hw_queues() returns. Please use
@@ -1355,6 +1399,22 @@ void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 
 	__blk_mq_insert_req_list(hctx, rq, at_head);
 	blk_mq_hctx_mark_pending(hctx, ctx);
+}
+
+/*
+ * Should only be used carefully, when the caller knows we want to
+ * bypass a potential IO scheduler on the target device.
+ */
+void blk_mq_request_bypass_insert(struct request *rq)
+{
+	struct blk_mq_ctx *ctx = rq->mq_ctx;
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(rq->q, ctx->cpu);
+
+	spin_lock(&hctx->lock);
+	list_add_tail(&rq->queuelist, &hctx->dispatch);
+	spin_unlock(&hctx->lock);
+
+	blk_mq_run_hw_queue(hctx, false);
 }
 
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,

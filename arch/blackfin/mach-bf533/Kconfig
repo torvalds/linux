@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if (BF533 || BF532 || BF531)
 
 source "arch/blackfin/mach-bf533/boards/Kconfig"

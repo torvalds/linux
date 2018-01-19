@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_PINCTRL_SH_PFC)	+= core.o pinctrl.o
 obj-$(CONFIG_PINCTRL_SH_PFC_GPIO)	+= gpio.o
 obj-$(CONFIG_PINCTRL_PFC_EMEV2)	+= pfc-emev2.o
@@ -15,6 +16,7 @@ obj-$(CONFIG_PINCTRL_PFC_R8A7794)	+= pfc-r8a7794.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7795)	+= pfc-r8a7795.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7795)	+= pfc-r8a7795-es1.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7796)	+= pfc-r8a7796.o
+obj-$(CONFIG_PINCTRL_PFC_R8A77995)	+= pfc-r8a77995.o
 obj-$(CONFIG_PINCTRL_PFC_SH7203)	+= pfc-sh7203.o
 obj-$(CONFIG_PINCTRL_PFC_SH7264)	+= pfc-sh7264.o
 obj-$(CONFIG_PINCTRL_PFC_SH7269)	+= pfc-sh7269.o

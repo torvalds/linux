@@ -1627,7 +1627,7 @@ static int igt_topdown(void *ignored)
 		goto err;
 
 	bitmap = kzalloc(count / BITS_PER_LONG * sizeof(unsigned long),
-			 GFP_TEMPORARY);
+			 GFP_KERNEL);
 	if (!bitmap)
 		goto err_nodes;
 
@@ -1741,7 +1741,7 @@ static int igt_bottomup(void *ignored)
 		goto err;
 
 	bitmap = kzalloc(count / BITS_PER_LONG * sizeof(unsigned long),
-			 GFP_TEMPORARY);
+			 GFP_KERNEL);
 	if (!bitmap)
 		goto err_nodes;
 

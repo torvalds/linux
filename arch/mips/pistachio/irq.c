@@ -10,7 +10,6 @@
 
 #include <linux/init.h>
 #include <linux/irqchip.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/kernel.h>
 
 #include <asm/cpu-features.h>

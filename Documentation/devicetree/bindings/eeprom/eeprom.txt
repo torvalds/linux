@@ -16,8 +16,12 @@ Required properties:
 
 	"renesas,r1ex24002"
 
+	The following manufacturers values have been deprecated:
+	"at", "at24"
+
 	 If there is no specific driver for <manufacturer>, a generic
-	 driver based on <type> is selected. Possible types are:
+	 device with <type> and manufacturer "atmel" should be used.
+	 Possible types are:
 	 "24c00", "24c01", "24c02", "24c04", "24c08", "24c16", "24c32", "24c64",
 	 "24c128", "24c256", "24c512", "24c1024", "spd"
 

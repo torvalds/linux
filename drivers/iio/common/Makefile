@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the IIO common modules.
 # Common modules contains modules, which can be shared among multiple

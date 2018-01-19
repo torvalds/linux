@@ -27,6 +27,8 @@ struct gic_kvm_info {
 	unsigned int	maint_irq;
 	/* Virtual control interface */
 	struct resource vctrl;
+	/* vlpi support */
+	bool		has_v4;
 };
 
 const struct gic_kvm_info *gic_get_kvm_info(void);

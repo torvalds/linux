@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_BCMA_DRIVER_PCI_H_
 #define LINUX_BCMA_DRIVER_PCI_H_
 

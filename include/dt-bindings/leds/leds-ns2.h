@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DT_BINDINGS_LEDS_NS2_H
 #define _DT_BINDINGS_LEDS_NS2_H
 

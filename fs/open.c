@@ -96,7 +96,7 @@ long vfs_truncate(const struct path *path, loff_t length)
 	 * write access on the upper inode, not on the overlay inode.  For
 	 * non-overlay filesystems d_real() is an identity function.
 	 */
-	upperdentry = d_real(path->dentry, NULL, O_WRONLY);
+	upperdentry = d_real(path->dentry, NULL, O_WRONLY, 0);
 	error = PTR_ERR(upperdentry);
 	if (IS_ERR(upperdentry))
 		goto mnt_drop_write_and_out;
@@ -670,12 +670,12 @@ SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 	if (!f.file)
 		goto out;
 
-	error = mnt_want_write_file(f.file);
+	error = mnt_want_write_file_path(f.file);
 	if (error)
 		goto out_fput;
 	audit_file(f.file);
 	error = chown_common(&f.file->f_path, user, group);
-	mnt_drop_write_file(f.file);
+	mnt_drop_write_file_path(f.file);
 out_fput:
 	fdput(f);
 out:
@@ -857,7 +857,7 @@ EXPORT_SYMBOL(file_path);
 int vfs_open(const struct path *path, struct file *file,
 	     const struct cred *cred)
 {
-	struct dentry *dentry = d_real(path->dentry, NULL, file->f_flags);
+	struct dentry *dentry = d_real(path->dentry, NULL, file->f_flags, 0);
 
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);

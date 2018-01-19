@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2001-2002 Pavel Machek <pavel@suse.cz>
  * Based on code

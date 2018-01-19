@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * cpu.h: Values of the PRId register used to match up
  *	  various MIPS cpu types.
@@ -284,11 +285,6 @@ enum cpu_type_enum {
 	 */
 	CPU_R2000, CPU_R3000, CPU_R3000A, CPU_R3041, CPU_R3051, CPU_R3052,
 	CPU_R3081, CPU_R3081E,
-
-	/*
-	 * R6000 class processors
-	 */
-	CPU_R6000, CPU_R6000A,
 
 	/*
 	 * R4000 class processors

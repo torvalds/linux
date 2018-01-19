@@ -39,7 +39,6 @@
 #include "mv_udc.h"
 
 #define DRIVER_DESC		"Marvell PXA USB Device Controller driver"
-#define DRIVER_VERSION		"8 Nov 2010"
 
 #define ep_dir(ep)	(((ep)->ep_num == 0) ? \
 				((ep)->udc->ep0_dir) : ((ep)->direction))
@@ -2427,5 +2426,4 @@ module_platform_driver(udc_driver);
 MODULE_ALIAS("platform:mv-udc");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

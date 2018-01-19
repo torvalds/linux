@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_METAG_ATOMIC_LNKGET_H
 #define __ASM_METAG_ATOMIC_LNKGET_H
 

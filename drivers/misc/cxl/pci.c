@@ -1279,7 +1279,7 @@ ssize_t cxl_pci_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
 	}
 
 	/* use bounce buffer for copy */
-	tbuf = (void *)__get_free_page(GFP_TEMPORARY);
+	tbuf = (void *)__get_free_page(GFP_KERNEL);
 	if (!tbuf)
 		return -ENOMEM;
 

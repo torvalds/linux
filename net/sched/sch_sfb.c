@@ -632,12 +632,12 @@ static struct Qdisc *sfb_leaf(struct Qdisc *sch, unsigned long arg)
 	return q->qdisc;
 }
 
-static unsigned long sfb_get(struct Qdisc *sch, u32 classid)
+static unsigned long sfb_find(struct Qdisc *sch, u32 classid)
 {
 	return 1;
 }
 
-static void sfb_put(struct Qdisc *sch, unsigned long arg)
+static void sfb_unbind(struct Qdisc *sch, unsigned long arg)
 {
 }
 
@@ -683,14 +683,13 @@ static unsigned long sfb_bind(struct Qdisc *sch, unsigned long parent,
 static const struct Qdisc_class_ops sfb_class_ops = {
 	.graft		=	sfb_graft,
 	.leaf		=	sfb_leaf,
-	.get		=	sfb_get,
-	.put		=	sfb_put,
+	.find		=	sfb_find,
 	.change		=	sfb_change_class,
 	.delete		=	sfb_delete,
 	.walk		=	sfb_walk,
 	.tcf_block	=	sfb_tcf_block,
 	.bind_tcf	=	sfb_bind,
-	.unbind_tcf	=	sfb_put,
+	.unbind_tcf	=	sfb_unbind,
 	.dump		=	sfb_dump_class,
 };
 

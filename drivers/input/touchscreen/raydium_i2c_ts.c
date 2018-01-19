@@ -939,7 +939,7 @@ static struct attribute *raydium_i2c_attributes[] = {
 	NULL
 };
 
-static struct attribute_group raydium_i2c_attribute_group = {
+static const struct attribute_group raydium_i2c_attribute_group = {
 	.attrs = raydium_i2c_attributes,
 };
 

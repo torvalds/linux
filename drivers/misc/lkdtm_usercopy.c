@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This is for all the tests related to copy_to_user() and copy_from_user()
  * hardening.

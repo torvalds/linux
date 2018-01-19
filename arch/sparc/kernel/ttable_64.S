@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* ttable.S: Sparc V9 Trap Table(s) with SpitFire/Cheetah/SUN4V extensions.
  *
  * Copyright (C) 1996, 2001, 2006 David S. Miller (davem@davemloft.net)

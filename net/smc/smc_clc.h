@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -106,8 +107,7 @@ struct smc_ib_device;
 
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type);
-int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info,
-			 u8 out_of_sync);
+int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);
 int smc_clc_send_proposal(struct smc_sock *smc, struct smc_ib_device *smcibdev,
 			  u8 ibport);
 int smc_clc_send_confirm(struct smc_sock *smc);

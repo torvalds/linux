@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* ld script to make s390 Linux kernel
  * Written by Martin Schwidefsky (schwidefsky@de.ibm.com)
  */

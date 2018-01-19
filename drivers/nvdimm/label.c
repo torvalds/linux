@@ -45,12 +45,14 @@ unsigned sizeof_namespace_label(struct nvdimm_drvdata *ndd)
 	return ndd->nslabel_size;
 }
 
+int nvdimm_num_label_slots(struct nvdimm_drvdata *ndd)
+{
+	return ndd->nsarea.config_size / (sizeof_namespace_label(ndd) + 1);
+}
+
 size_t sizeof_namespace_index(struct nvdimm_drvdata *ndd)
 {
-	u32 index_span;
-
-	if (ndd->nsindex_size)
-		return ndd->nsindex_size;
+	u32 nslot, space, size;
 
 	/*
 	 * The minimum index space is 512 bytes, with that amount of
@@ -60,16 +62,16 @@ size_t sizeof_namespace_index(struct nvdimm_drvdata *ndd)
 	 * starts to waste space at larger config_sizes, but it's
 	 * unlikely we'll ever see anything but 128K.
 	 */
-	index_span = ndd->nsarea.config_size / (sizeof_namespace_label(ndd) + 1);
-	index_span /= NSINDEX_ALIGN * 2;
-	ndd->nsindex_size = index_span * NSINDEX_ALIGN;
+	nslot = nvdimm_num_label_slots(ndd);
+	space = ndd->nsarea.config_size - nslot * sizeof_namespace_label(ndd);
+	size = ALIGN(sizeof(struct nd_namespace_index) + DIV_ROUND_UP(nslot, 8),
+			NSINDEX_ALIGN) * 2;
+	if (size <= space)
+		return size / 2;
 
-	return ndd->nsindex_size;
-}
-
-int nvdimm_num_label_slots(struct nvdimm_drvdata *ndd)
-{
-	return ndd->nsarea.config_size / (sizeof_namespace_label(ndd) + 1);
+	dev_err(ndd->dev, "label area (%d) too small to host (%d byte) labels\n",
+			ndd->nsarea.config_size, sizeof_namespace_label(ndd));
+	return 0;
 }
 
 static int __nd_label_validate(struct nvdimm_drvdata *ndd)

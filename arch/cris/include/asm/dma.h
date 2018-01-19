@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: dma.h,v 1.2 2001/05/09 12:17:42 johana Exp $ */
 
 #ifndef _ASM_DMA_H

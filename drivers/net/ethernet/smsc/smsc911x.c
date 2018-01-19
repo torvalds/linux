@@ -2595,6 +2595,11 @@ static int smsc911x_suspend(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct smsc911x_data *pdata = netdev_priv(ndev);
 
+	if (netif_running(ndev)) {
+		netif_stop_queue(ndev);
+		netif_device_detach(ndev);
+	}
+
 	/* enable wake on LAN, energy detection and the external PME
 	 * signal. */
 	smsc911x_reg_write(pdata, PMT_CTRL,
@@ -2628,7 +2633,15 @@ static int smsc911x_resume(struct device *dev)
 	while (!(smsc911x_reg_read(pdata, PMT_CTRL) & PMT_CTRL_READY_) && --to)
 		udelay(1000);
 
-	return (to == 0) ? -EIO : 0;
+	if (to == 0)
+		return -EIO;
+
+	if (netif_running(ndev)) {
+		netif_device_attach(ndev);
+		netif_start_queue(ndev);
+	}
+
+	return 0;
 }
 
 static const struct dev_pm_ops smsc911x_pm_ops = {

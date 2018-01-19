@@ -125,7 +125,7 @@ xfs_fs_set_info(
 	struct xfs_mount *mp = XFS_M(sb);
 	struct qc_dqblk newlim;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
@@ -175,7 +175,7 @@ xfs_quota_enable(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
@@ -190,7 +190,7 @@ xfs_quota_disable(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
@@ -208,7 +208,7 @@ xfs_fs_rm_xquota(
 	struct xfs_mount	*mp = XFS_M(sb);
 	unsigned int		flags = 0;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 
 	if (XFS_IS_QUOTA_ON(mp))
@@ -279,7 +279,7 @@ xfs_fs_set_dqblk(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;

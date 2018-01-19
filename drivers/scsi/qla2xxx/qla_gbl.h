@@ -10,17 +10,6 @@
 #include <linux/interrupt.h>
 
 /*
- * Global functions prototype in qla_nvme.c source file.
- */
-extern void qla_nvme_register_hba(scsi_qla_host_t *);
-extern int  qla_nvme_register_remote(scsi_qla_host_t *, fc_port_t *);
-extern void qla_nvme_delete(scsi_qla_host_t *);
-extern void qla_nvme_abort(struct qla_hw_data *, srb_t *sp);
-extern void qla24xx_nvme_ls4_iocb(scsi_qla_host_t *, struct pt_ls4_request *,
-    struct req_que *);
-extern void qla24xx_async_gffid_sp_done(void *, int);
-
-/*
  * Global Function Prototypes in qla_init.c source file.
  */
 extern int qla2x00_initialize_adapter(scsi_qla_host_t *);
@@ -116,13 +105,15 @@ int qla24xx_async_notify_ack(scsi_qla_host_t *, fc_port_t *,
 int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *,
     void *);
 int qla24xx_fcport_handle_login(struct scsi_qla_host *, fc_port_t *);
-
+int qla24xx_detect_sfp(scsi_qla_host_t *vha);
+int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
 /*
  * Global Data in qla_os.c source file.
  */
 extern char qla2x00_version_str[];
 
 extern struct kmem_cache *srb_cachep;
+extern struct kmem_cache *qla_tgt_plogi_cachep;
 
 extern int ql2xlogintimeout;
 extern int qlport_down_retry;
@@ -153,6 +144,7 @@ extern int ql2xfwholdabts;
 extern int ql2xmvasynctoatio;
 extern int ql2xuctrlirq;
 extern int ql2xnvmeenable;
+extern int ql2xautodetectsfp;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -495,6 +487,9 @@ int qla24xx_gidlist_wait(struct scsi_qla_host *, void *, dma_addr_t,
 int __qla24xx_parse_gpdb(struct scsi_qla_host *, fc_port_t *,
 	struct port_database_24xx *);
 
+extern int qla27xx_get_zio_threshold(scsi_qla_host_t *, uint16_t *);
+extern int qla27xx_set_zio_threshold(scsi_qla_host_t *, uint16_t);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */
@@ -804,6 +799,7 @@ extern char *qdev_state(uint32_t);
 extern void qla82xx_clear_pending_mbx(scsi_qla_host_t *);
 extern int qla82xx_read_temperature(scsi_qla_host_t *);
 extern int qla8044_read_temperature(scsi_qla_host_t *);
+extern int qla2x00_read_sfp_dev(struct scsi_qla_host *, char *, int);
 
 /* BSG related functions */
 extern int qla24xx_bsg_request(struct bsg_job *);
@@ -872,5 +868,7 @@ void qlt_unknown_atio_work_fn(struct work_struct *);
 void qlt_update_host_map(struct scsi_qla_host *, port_id_t);
 void qlt_remove_target_resources(struct qla_hw_data *);
 void qlt_clr_qp_table(struct scsi_qla_host *vha);
+
+void qla_nvme_cmpl_io(struct srb_iocb *);
 
 #endif /* _QLA_GBL_H */

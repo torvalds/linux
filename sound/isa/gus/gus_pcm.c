@@ -650,7 +650,7 @@ static void snd_gf1_pcm_interrupt_dma_read(struct snd_gus_card * gus)
 	}
 }
 
-static struct snd_pcm_hardware snd_gf1_pcm_playback =
+static const struct snd_pcm_hardware snd_gf1_pcm_playback =
 {
 	.info =			SNDRV_PCM_INFO_NONINTERLEAVED,
 	.formats		= (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
@@ -668,7 +668,7 @@ static struct snd_pcm_hardware snd_gf1_pcm_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_gf1_pcm_capture =
+static const struct snd_pcm_hardware snd_gf1_pcm_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -842,7 +842,7 @@ static const struct snd_kcontrol_new snd_gf1_pcm_volume_control1 =
 	.put = snd_gf1_pcm_volume_put
 };
 
-static struct snd_pcm_ops snd_gf1_pcm_playback_ops = {
+static const struct snd_pcm_ops snd_gf1_pcm_playback_ops = {
 	.open =		snd_gf1_pcm_playback_open,
 	.close =	snd_gf1_pcm_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -856,7 +856,7 @@ static struct snd_pcm_ops snd_gf1_pcm_playback_ops = {
 	.fill_silence =	snd_gf1_pcm_playback_silence,
 };
 
-static struct snd_pcm_ops snd_gf1_pcm_capture_ops = {
+static const struct snd_pcm_ops snd_gf1_pcm_capture_ops = {
 	.open =		snd_gf1_pcm_capture_open,
 	.close =	snd_gf1_pcm_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

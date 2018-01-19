@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # linux/arch/x86/boot/compressed/Makefile
 #

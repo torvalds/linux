@@ -1090,7 +1090,8 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 		 */
 		if (last_end == disk_start && stripe->dev->bdev &&
 		    !last->bi_status &&
-		    last->bi_bdev == stripe->dev->bdev) {
+		    last->bi_disk == stripe->dev->bdev->bd_disk &&
+		    last->bi_partno == stripe->dev->bdev->bd_partno) {
 			ret = bio_add_page(last, page, PAGE_SIZE, 0);
 			if (ret == PAGE_SIZE)
 				return 0;
@@ -1100,7 +1101,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	/* put a new bio on the list */
 	bio = btrfs_io_bio_alloc(bio_max_len >> PAGE_SHIFT ?: 1);
 	bio->bi_iter.bi_size = 0;
-	bio->bi_bdev = stripe->dev->bdev;
+	bio_set_dev(bio, stripe->dev->bdev);
 	bio->bi_iter.bi_sector = disk_start >> 9;
 
 	bio_add_page(bio, page, PAGE_SIZE, 0);
@@ -1347,7 +1348,8 @@ static int find_bio_stripe(struct btrfs_raid_bio *rbio,
 		stripe_start = stripe->physical;
 		if (physical >= stripe_start &&
 		    physical < stripe_start + rbio->stripe_len &&
-		    bio->bi_bdev == stripe->dev->bdev) {
+		    bio->bi_disk == stripe->dev->bdev->bd_disk &&
+		    bio->bi_partno == stripe->dev->bdev->bd_partno) {
 			return i;
 		}
 	}

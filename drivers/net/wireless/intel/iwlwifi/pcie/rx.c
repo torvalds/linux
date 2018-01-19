@@ -1168,7 +1168,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 		sequence = le16_to_cpu(pkt->hdr.sequence);
 		index = SEQ_TO_INDEX(sequence);
-		cmd_index = get_cmd_index(txq, index);
+		cmd_index = iwl_pcie_get_cmd_index(txq, index);
 
 		if (rxq->id == 0)
 			iwl_op_mode_rx(trans->op_mode, &rxq->napi,

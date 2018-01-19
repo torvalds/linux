@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_FB_OMAP2_ENCODER_OPA362) += encoder-opa362.o
 obj-$(CONFIG_FB_OMAP2_ENCODER_TFP410) += encoder-tfp410.o
 obj-$(CONFIG_FB_OMAP2_ENCODER_TPD12S015) += encoder-tpd12s015.o

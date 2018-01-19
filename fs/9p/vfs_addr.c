@@ -310,9 +310,13 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 
 	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
 
-	if (unlikely(copied < len && !PageUptodate(page))) {
-		copied = 0;
-		goto out;
+	if (!PageUptodate(page)) {
+		if (unlikely(copied < len)) {
+			copied = 0;
+			goto out;
+		} else if (len == PAGE_SIZE) {
+			SetPageUptodate(page);
+		}
 	}
 	/*
 	 * No need to use i_size_read() here, the i_size

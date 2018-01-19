@@ -40,7 +40,7 @@ static void vbox_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	struct vbox_framebuffer *vbox_fb = to_vbox_framebuffer(fb);
 
 	if (vbox_fb->obj)
-		drm_gem_object_unreference_unlocked(vbox_fb->obj);
+		drm_gem_object_put_unlocked(vbox_fb->obj);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
@@ -198,7 +198,7 @@ static struct drm_framebuffer *vbox_user_framebuffer_create(
 err_free_vbox_fb:
 	kfree(vbox_fb);
 err_unref_obj:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return ERR_PTR(ret);
 }
 
@@ -472,7 +472,7 @@ int vbox_dumb_create(struct drm_file *file,
 		return ret;
 
 	ret = drm_gem_handle_create(file, gobj, &handle);
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 	if (ret)
 		return ret;
 
@@ -525,7 +525,7 @@ vbox_dumb_mmap_offset(struct drm_file *file,
 	bo = gem_to_vbox_bo(obj);
 	*offset = vbox_bo_mmap_offset(bo);
 
-	drm_gem_object_unreference(obj);
+	drm_gem_object_put(obj);
 	ret = 0;
 
 out_unlock:

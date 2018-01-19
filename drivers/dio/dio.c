@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Code to support devices on the DIO and DIO-II bus
  * Copyright (C) 05/1998 Peter Maydell <pmaydell@chiark.greenend.org.uk>
  * Copyright (C) 2004 Jochen Friedrich <jochen@scram.de>

@@ -2851,7 +2851,7 @@ static int ocfs2_lock_refcount_allocators(struct super_block *sb,
 					int *credits)
 {
 	int ret = 0, meta_add = 0;
-	int num_free_extents = ocfs2_num_free_extents(OCFS2_SB(sb), et);
+	int num_free_extents = ocfs2_num_free_extents(et);
 
 	if (num_free_extents < 0) {
 		ret = num_free_extents;

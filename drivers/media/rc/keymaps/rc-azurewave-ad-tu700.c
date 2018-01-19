@@ -79,10 +79,10 @@ static struct rc_map_table azurewave_ad_tu700[] = {
 
 static struct rc_map_list azurewave_ad_tu700_map = {
 	.map = {
-		.scan    = azurewave_ad_tu700,
-		.size    = ARRAY_SIZE(azurewave_ad_tu700),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_AZUREWAVE_AD_TU700,
+		.scan     = azurewave_ad_tu700,
+		.size     = ARRAY_SIZE(azurewave_ad_tu700),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_AZUREWAVE_AD_TU700,
 	}
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SONYLAPTOP_H_
 #define _SONYLAPTOP_H_
 

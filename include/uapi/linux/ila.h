@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* ila.h - ILA Interface */
 
 #ifndef _UAPI_LINUX_ILA_H

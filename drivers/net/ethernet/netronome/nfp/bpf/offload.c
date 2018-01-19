@@ -115,14 +115,14 @@ nfp_net_bpf_get_act(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 
 	/* TC direct action */
 	if (cls_bpf->exts_integrated) {
-		if (tc_no_actions(cls_bpf->exts))
+		if (!tcf_exts_has_actions(cls_bpf->exts))
 			return NN_ACT_DIRECT;
 
 		return -EOPNOTSUPP;
 	}
 
 	/* TC legacy mode */
-	if (!tc_single_action(cls_bpf->exts))
+	if (!tcf_exts_has_one_action(cls_bpf->exts))
 		return -EOPNOTSUPP;
 
 	tcf_exts_to_list(cls_bpf->exts, &actions);

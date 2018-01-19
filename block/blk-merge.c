@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions related to segment and merge handling
  */
@@ -633,8 +634,8 @@ static void blk_account_io_merge(struct request *req)
 		cpu = part_stat_lock();
 		part = req->part;
 
-		part_round_stats(cpu, part);
-		part_dec_in_flight(part, rq_data_dir(req));
+		part_round_stats(req->q, cpu, part);
+		part_dec_in_flight(req->q, part, rq_data_dir(req));
 
 		hd_struct_put(part);
 		part_stat_unlock();
@@ -786,7 +787,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	/* must be same device and not a special request */
-	if (rq->rq_disk != bio->bi_bdev->bd_disk || req_no_special_merge(rq))
+	if (rq->rq_disk != bio->bi_disk || req_no_special_merge(rq))
 		return false;
 
 	/* only merge integrity protected bio into ditto rq */

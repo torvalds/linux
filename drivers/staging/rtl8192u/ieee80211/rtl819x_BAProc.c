@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /********************************************************************************************************************************
  * This file is created to process BA Action Frame. According to 802.11 spec, there are 3 BA action types at all. And as BA is
  * related to TS, this part need some structure defined in QOS side code. Also TX RX is going to be resturctured, so how to send

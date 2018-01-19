@@ -124,7 +124,7 @@ static ssize_t max6875_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute user_eeprom_attr = {
+static const struct bin_attribute user_eeprom_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,

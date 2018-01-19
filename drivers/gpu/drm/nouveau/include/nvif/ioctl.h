@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVIF_IOCTL_H__
 #define __NVIF_IOCTL_H__
 

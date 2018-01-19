@@ -127,7 +127,7 @@ static struct attribute *power_limit_attrs[] = {
 	NULL
 };
 
-static struct attribute_group power_limit_attribute_group = {
+static const struct attribute_group power_limit_attribute_group = {
 	.attrs = power_limit_attrs,
 	.name = "power_limits"
 };

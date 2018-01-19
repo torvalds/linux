@@ -129,42 +129,72 @@ static struct mem_ctl_info *pnd2_mci;
 #define GET_BITFIELD(v, lo, hi)	(((v) & GENMASK_ULL(hi, lo)) >> (lo))
 #define U64_LSHIFT(val, s)	((u64)(val) << (s))
 
-#ifdef CONFIG_X86_INTEL_SBI_APL
-#include "linux/platform_data/sbi_apl.h"
-static int sbi_send(int port, int off, int op, u32 *data)
+/*
+ * On Apollo Lake we access memory controller registers via a
+ * side-band mailbox style interface in a hidden PCI device
+ * configuration space.
+ */
+static struct pci_bus	*p2sb_bus;
+#define P2SB_DEVFN	PCI_DEVFN(0xd, 0)
+#define P2SB_ADDR_OFF	0xd0
+#define P2SB_DATA_OFF	0xd4
+#define P2SB_STAT_OFF	0xd8
+#define P2SB_ROUT_OFF	0xda
+#define P2SB_EADD_OFF	0xdc
+#define P2SB_HIDE_OFF	0xe1
+
+#define P2SB_BUSY	1
+
+#define P2SB_READ(size, off, ptr) \
+	pci_bus_read_config_##size(p2sb_bus, P2SB_DEVFN, off, ptr)
+#define P2SB_WRITE(size, off, val) \
+	pci_bus_write_config_##size(p2sb_bus, P2SB_DEVFN, off, val)
+
+static bool p2sb_is_busy(u16 *status)
 {
-	struct sbi_apl_message sbi_arg;
-	int ret, read = 0;
+	P2SB_READ(word, P2SB_STAT_OFF, status);
 
-	memset(&sbi_arg, 0, sizeof(sbi_arg));
+	return !!(*status & P2SB_BUSY);
+}
 
-	if (op == 0 || op == 4 || op == 6)
-		read = 1;
-	else
-		sbi_arg.data = *data;
+static int _apl_rd_reg(int port, int off, int op, u32 *data)
+{
+	int retries = 0xff, ret;
+	u16 status;
+	u8 hidden;
 
-	sbi_arg.opcode = op;
-	sbi_arg.port_address = port;
-	sbi_arg.register_offset = off;
-	ret = sbi_apl_commit(&sbi_arg);
-	if (ret || sbi_arg.status)
-		edac_dbg(2, "sbi_send status=%d ret=%d data=%x\n",
-				 sbi_arg.status, ret, sbi_arg.data);
+	/* Unhide the P2SB device, if it's hidden */
+	P2SB_READ(byte, P2SB_HIDE_OFF, &hidden);
+	if (hidden)
+		P2SB_WRITE(byte, P2SB_HIDE_OFF, 0);
 
-	if (ret == 0)
-		ret = sbi_arg.status;
+	if (p2sb_is_busy(&status)) {
+		ret = -EAGAIN;
+		goto out;
+	}
 
-	if (ret == 0 && read)
-		*data = sbi_arg.data;
+	P2SB_WRITE(dword, P2SB_ADDR_OFF, (port << 24) | off);
+	P2SB_WRITE(dword, P2SB_DATA_OFF, 0);
+	P2SB_WRITE(dword, P2SB_EADD_OFF, 0);
+	P2SB_WRITE(word, P2SB_ROUT_OFF, 0);
+	P2SB_WRITE(word, P2SB_STAT_OFF, (op << 8) | P2SB_BUSY);
+
+	while (p2sb_is_busy(&status)) {
+		if (retries-- == 0) {
+			ret = -EBUSY;
+			goto out;
+		}
+	}
+
+	P2SB_READ(dword, P2SB_DATA_OFF, data);
+	ret = (status >> 1) & 0x3;
+out:
+	/* Hide the P2SB device, if it was hidden before */
+	if (hidden)
+		P2SB_WRITE(byte, P2SB_HIDE_OFF, hidden);
 
 	return ret;
 }
-#else
-static int sbi_send(int port, int off, int op, u32 *data)
-{
-	return -EUNATCH;
-}
-#endif
 
 static int apl_rd_reg(int port, int off, int op, void *data, size_t sz, char *name)
 {
@@ -173,10 +203,10 @@ static int apl_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 	edac_dbg(2, "Read %s port=%x off=%x op=%x\n", name, port, off, op);
 	switch (sz) {
 	case 8:
-		ret = sbi_send(port, off + 4, op, (u32 *)(data + 4));
+		ret = _apl_rd_reg(port, off + 4, op, (u32 *)(data + 4));
 		/* fall through */
 	case 4:
-		ret |= sbi_send(port, off, op, (u32 *)data);
+		ret |= _apl_rd_reg(port, off, op, (u32 *)data);
 		pnd2_printk(KERN_DEBUG, "%s=%x%08x ret=%d\n", name,
 					sz == 8 ? *((u32 *)(data + 4)) : 0, *((u32 *)data), ret);
 		break;
@@ -212,11 +242,23 @@ static u64 get_sideband_reg_base_addr(void)
 {
 	struct pci_dev *pdev;
 	u32 hi, lo;
+	u8 hidden;
 
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x19dd, NULL);
 	if (pdev) {
+		/* Unhide the P2SB device, if it's hidden */
+		pci_read_config_byte(pdev, 0xe1, &hidden);
+		if (hidden)
+			pci_write_config_byte(pdev, 0xe1, 0);
+
 		pci_read_config_dword(pdev, 0x10, &lo);
 		pci_read_config_dword(pdev, 0x14, &hi);
+		lo &= 0xfffffff0;
+
+		/* Hide the P2SB device, if it was hidden before */
+		if (hidden)
+			pci_write_config_byte(pdev, 0xe1, hidden);
+
 		pci_dev_put(pdev);
 		return (U64_LSHIFT(hi, 32) | U64_LSHIFT(lo, 0));
 	} else {
@@ -1514,6 +1556,12 @@ static int __init pnd2_init(void)
 		return -ENODEV;
 
 	ops = (struct dunit_ops *)id->driver_data;
+
+	if (ops->type == APL) {
+		p2sb_bus = pci_find_bus(0, 0);
+		if (!p2sb_bus)
+			return -ENODEV;
+	}
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();

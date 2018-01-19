@@ -280,7 +280,7 @@ static void zt5550_hc_remove_one(struct pci_dev *pdev)
 }
 
 
-static struct pci_device_id zt5550_hc_pci_tbl[] = {
+static const struct pci_device_id zt5550_hc_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ZIATECH, PCI_DEVICE_ID_ZIATECH_5550_HC, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, }
 };

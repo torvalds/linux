@@ -9221,8 +9221,7 @@ static int niu_get_of_props(struct niu *np)
 
 	phy_type = of_get_property(dp, "phy-type", &prop_len);
 	if (!phy_type) {
-		netdev_err(dev, "%s: OF node lacks phy-type property\n",
-			   dp->full_name);
+		netdev_err(dev, "%pOF: OF node lacks phy-type property\n", dp);
 		return -EINVAL;
 	}
 
@@ -9232,26 +9231,25 @@ static int niu_get_of_props(struct niu *np)
 	strcpy(np->vpd.phy_type, phy_type);
 
 	if (niu_phy_type_prop_decode(np, np->vpd.phy_type)) {
-		netdev_err(dev, "%s: Illegal phy string [%s]\n",
-			   dp->full_name, np->vpd.phy_type);
+		netdev_err(dev, "%pOF: Illegal phy string [%s]\n",
+			   dp, np->vpd.phy_type);
 		return -EINVAL;
 	}
 
 	mac_addr = of_get_property(dp, "local-mac-address", &prop_len);
 	if (!mac_addr) {
-		netdev_err(dev, "%s: OF node lacks local-mac-address property\n",
-			   dp->full_name);
+		netdev_err(dev, "%pOF: OF node lacks local-mac-address property\n",
+			   dp);
 		return -EINVAL;
 	}
 	if (prop_len != dev->addr_len) {
-		netdev_err(dev, "%s: OF MAC address prop len (%d) is wrong\n",
-			   dp->full_name, prop_len);
+		netdev_err(dev, "%pOF: OF MAC address prop len (%d) is wrong\n",
+			   dp, prop_len);
 	}
 	memcpy(dev->dev_addr, mac_addr, dev->addr_len);
 	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
-		netdev_err(dev, "%s: OF MAC address is invalid\n",
-			   dp->full_name);
-		netdev_err(dev, "%s: [ %pM ]\n", dp->full_name, dev->dev_addr);
+		netdev_err(dev, "%pOF: OF MAC address is invalid\n", dp);
+		netdev_err(dev, "%pOF: [ %pM ]\n", dp, dev->dev_addr);
 		return -EINVAL;
 	}
 
@@ -10027,8 +10025,8 @@ static int niu_of_probe(struct platform_device *op)
 
 	reg = of_get_property(op->dev.of_node, "reg", NULL);
 	if (!reg) {
-		dev_err(&op->dev, "%s: No 'reg' property, aborting\n",
-			op->dev.of_node->full_name);
+		dev_err(&op->dev, "%pOF: No 'reg' property, aborting\n",
+			op->dev.of_node);
 		return -ENODEV;
 	}
 

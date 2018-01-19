@@ -135,5 +135,4 @@ Example:
 		       <&dma 13 0 0x0>; /* Logical - MemToDev */
 		dma-names = "rx", "rx";
 
-		status = "disabled";
 	};

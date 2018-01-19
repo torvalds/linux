@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/ext4/page-io.c
  *
@@ -300,7 +301,7 @@ static void ext4_end_bio(struct bio *bio)
 	char b[BDEVNAME_SIZE];
 
 	if (WARN_ONCE(!io_end, "io_end is NULL: %s: sector %Lu len %u err %d\n",
-		      bdevname(bio->bi_bdev, b),
+		      bio_devname(bio, b),
 		      (long long) bio->bi_iter.bi_sector,
 		      (unsigned) bio_sectors(bio),
 		      bio->bi_status)) {
@@ -375,7 +376,7 @@ static int io_submit_init_bio(struct ext4_io_submit *io,
 		return -ENOMEM;
 	wbc_init_bio(io->io_wbc, bio);
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
-	bio->bi_bdev = bh->b_bdev;
+	bio_set_dev(bio, bh->b_bdev);
 	bio->bi_end_io = ext4_end_bio;
 	bio->bi_private = ext4_get_io_end(io->io_end);
 	io->io_bio = bio;

@@ -283,7 +283,7 @@ config SCSI_ISCSI_ATTRS
 config SCSI_SAS_ATTRS
 	tristate "SAS Transport Attributes"
 	depends on SCSI
-	select BLK_DEV_BSG
+	select BLK_DEV_BSGLIB
 	help
 	  If you wish to export transport-specific information about
 	  each attached SAS device to sysfs, say Y.

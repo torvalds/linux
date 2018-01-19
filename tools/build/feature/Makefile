@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 FILES=                                          \
          test-all.bin                           \
          test-backtrace.bin                     \
@@ -49,7 +50,8 @@ FILES=                                          \
          test-sdt.bin                           \
          test-cxx.bin                           \
          test-jvmti.bin				\
-         test-sched_getcpu.bin
+         test-sched_getcpu.bin			\
+         test-setns.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
@@ -93,6 +95,9 @@ $(OUTPUT)test-glibc.bin:
 	$(BUILD)
 
 $(OUTPUT)test-sched_getcpu.bin:
+	$(BUILD)
+
+$(OUTPUT)test-setns.bin:
 	$(BUILD)
 
 DWARFLIBS := -ldw

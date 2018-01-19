@@ -318,7 +318,7 @@ int rpaphp_add_slot(struct device_node *dn)
 	if (!is_php_dn(dn, &indexes, &names, &types, &power_domains))
 		return 0;
 
-	dbg("Entry %s: dn->full_name=%s\n", __func__, dn->full_name);
+	dbg("Entry %s: dn=%pOF\n", __func__, dn);
 
 	/* register PCI devices */
 	name = (char *) &names[1];

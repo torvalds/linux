@@ -376,6 +376,9 @@ struct ib_ucontext *qedr_alloc_ucontext(struct ib_device *ibdev,
 
 	memset(&uresp, 0, sizeof(uresp));
 
+	uresp.dpm_enabled = dev->user_dpm_enabled;
+	uresp.wids_enabled = 1;
+	uresp.wid_count = oparams.wid_count;
 	uresp.db_pa = ctx->dpi_phys_addr;
 	uresp.db_size = ctx->dpi_size;
 	uresp.max_send_wr = dev->attr.max_sqe;
@@ -488,7 +491,7 @@ struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
 		 (udata && context) ? "User Lib" : "Kernel");
 
 	if (!dev->rdma_ctx) {
-		DP_ERR(dev, "invlaid RDMA context\n");
+		DP_ERR(dev, "invalid RDMA context\n");
 		return ERR_PTR(-EINVAL);
 	}
 

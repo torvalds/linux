@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kbuild.h>
 #include <linux/sched.h>
 #include <asm/thread_info.h>

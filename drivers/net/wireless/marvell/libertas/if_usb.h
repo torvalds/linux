@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LBS_IF_USB_H
 #define _LBS_IF_USB_H
 

@@ -509,7 +509,7 @@ static const struct v4l2_ioctl_ops fm_drv_ioctl_ops = {
 };
 
 /* V4L2 RADIO device parent structure */
-static struct video_device fm_viddev_template = {
+static const struct video_device fm_viddev_template = {
 	.fops = &fm_drv_fops,
 	.ioctl_ops = &fm_drv_ioctl_ops,
 	.name = FM_DRV_NAME,

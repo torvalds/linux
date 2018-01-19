@@ -88,6 +88,9 @@ static int pkcs7_check_authattrs(struct pkcs7_message *msg)
 	bool want = false;
 
 	sinfo = msg->signed_infos;
+	if (!sinfo)
+		goto inconsistent;
+
 	if (sinfo->authattrs) {
 		want = true;
 		msg->have_authattrs = true;

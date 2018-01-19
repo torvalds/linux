@@ -2812,7 +2812,7 @@ static struct platform_driver ipmi_driver = {
 };
 
 #ifdef CONFIG_PARISC
-static int ipmi_parisc_probe(struct parisc_device *dev)
+static int __init ipmi_parisc_probe(struct parisc_device *dev)
 {
 	struct smi_info *info;
 	int rv;
@@ -2850,22 +2850,24 @@ static int ipmi_parisc_probe(struct parisc_device *dev)
 	return 0;
 }
 
-static int ipmi_parisc_remove(struct parisc_device *dev)
+static int __exit ipmi_parisc_remove(struct parisc_device *dev)
 {
 	cleanup_one_si(dev_get_drvdata(&dev->dev));
 	return 0;
 }
 
-static const struct parisc_device_id ipmi_parisc_tbl[] = {
+static const struct parisc_device_id ipmi_parisc_tbl[] __initconst = {
 	{ HPHW_MC, HVERSION_REV_ANY_ID, 0x004, 0xC0 },
 	{ 0, }
 };
 
-static struct parisc_driver ipmi_parisc_driver = {
+MODULE_DEVICE_TABLE(parisc, ipmi_parisc_tbl);
+
+static struct parisc_driver ipmi_parisc_driver __refdata = {
 	.name =		"ipmi",
 	.id_table =	ipmi_parisc_tbl,
 	.probe =	ipmi_parisc_probe,
-	.remove =	ipmi_parisc_remove,
+	.remove =	__exit_p(ipmi_parisc_remove),
 };
 #endif /* CONFIG_PARISC */
 

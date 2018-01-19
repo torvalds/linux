@@ -37,6 +37,8 @@
 #include "powernv.h"
 #include "pci.h"
 
+static DEFINE_MUTEX(p2p_mutex);
+
 int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
 {
 	struct device_node *parent = np;
@@ -1016,6 +1018,79 @@ void pnv_pci_dma_bus_setup(struct pci_bus *bus)
 		}
 	}
 }
+
+int pnv_pci_set_p2p(struct pci_dev *initiator, struct pci_dev *target, u64 desc)
+{
+	struct pci_controller *hose;
+	struct pnv_phb *phb_init, *phb_target;
+	struct pnv_ioda_pe *pe_init;
+	int rc;
+
+	if (!opal_check_token(OPAL_PCI_SET_P2P))
+		return -ENXIO;
+
+	hose = pci_bus_to_host(initiator->bus);
+	phb_init = hose->private_data;
+
+	hose = pci_bus_to_host(target->bus);
+	phb_target = hose->private_data;
+
+	pe_init = pnv_ioda_get_pe(initiator);
+	if (!pe_init)
+		return -ENODEV;
+
+	/*
+	 * Configuring the initiator's PHB requires to adjust its
+	 * TVE#1 setting. Since the same device can be an initiator
+	 * several times for different target devices, we need to keep
+	 * a reference count to know when we can restore the default
+	 * bypass setting on its TVE#1 when disabling. Opal is not
+	 * tracking PE states, so we add a reference count on the PE
+	 * in linux.
+	 *
+	 * For the target, the configuration is per PHB, so we keep a
+	 * target reference count on the PHB.
+	 */
+	mutex_lock(&p2p_mutex);
+
+	if (desc & OPAL_PCI_P2P_ENABLE) {
+		/* always go to opal to validate the configuration */
+		rc = opal_pci_set_p2p(phb_init->opal_id, phb_target->opal_id,
+				      desc, pe_init->pe_number);
+
+		if (rc != OPAL_SUCCESS) {
+			rc = -EIO;
+			goto out;
+		}
+
+		pe_init->p2p_initiator_count++;
+		phb_target->p2p_target_count++;
+	} else {
+		if (!pe_init->p2p_initiator_count ||
+			!phb_target->p2p_target_count) {
+			rc = -EINVAL;
+			goto out;
+		}
+
+		if (--pe_init->p2p_initiator_count == 0)
+			pnv_pci_ioda2_set_bypass(pe_init, true);
+
+		if (--phb_target->p2p_target_count == 0) {
+			rc = opal_pci_set_p2p(phb_init->opal_id,
+					      phb_target->opal_id, desc,
+					      pe_init->pe_number);
+			if (rc != OPAL_SUCCESS) {
+				rc = -EIO;
+				goto out;
+			}
+		}
+	}
+	rc = 0;
+out:
+	mutex_unlock(&p2p_mutex);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_set_p2p);
 
 void pnv_pci_shutdown(void)
 {

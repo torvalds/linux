@@ -112,7 +112,7 @@
 #undef	EEPROM_WRITE
 
 /* table of devices that work with this driver */
-static struct usb_device_id rtl8150_table[] = {
+static const struct usb_device_id rtl8150_table[] = {
 	{USB_DEVICE(VENDOR_ID_REALTEK, PRODUCT_ID_RTL8150)},
 	{USB_DEVICE(VENDOR_ID_MELCO, PRODUCT_ID_LUAKTX)},
 	{USB_DEVICE(VENDOR_ID_MICRONET, PRODUCT_ID_SP128AR)},

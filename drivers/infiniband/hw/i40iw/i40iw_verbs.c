@@ -826,12 +826,14 @@ static int i40iw_query_qp(struct ib_qp *ibqp,
 	attr->cap.max_inline_data = I40IW_MAX_INLINE_DATA_SIZE;
 	attr->cap.max_send_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
 	attr->cap.max_recv_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
+	attr->port_num = 1;
 	init_attr->event_handler = iwqp->ibqp.event_handler;
 	init_attr->qp_context = iwqp->ibqp.qp_context;
 	init_attr->send_cq = iwqp->ibqp.send_cq;
 	init_attr->recv_cq = iwqp->ibqp.recv_cq;
 	init_attr->srq = iwqp->ibqp.srq;
 	init_attr->cap = attr->cap;
+	init_attr->port_num = 1;
 	return 0;
 }
 
@@ -1027,7 +1029,19 @@ int i40iw_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				iwqp->hw_tcp_state = I40IW_TCP_STATE_CLOSED;
 				iwqp->last_aeq = I40IW_AE_RESET_SENT;
 				spin_unlock_irqrestore(&iwqp->lock, flags);
+				i40iw_cm_disconn(iwqp);
 			}
+		} else {
+			spin_lock_irqsave(&iwqp->lock, flags);
+			if (iwqp->cm_id) {
+				if (atomic_inc_return(&iwqp->close_timer_started) == 1) {
+					iwqp->cm_id->add_ref(iwqp->cm_id);
+					i40iw_schedule_cm_timer(iwqp->cm_node,
+								(struct i40iw_puda_buf *)iwqp,
+								 I40IW_TIMER_TYPE_CLOSE, 1, 0);
+				}
+			}
+			spin_unlock_irqrestore(&iwqp->lock, flags);
 		}
 	}
 	return 0;
@@ -2584,13 +2598,12 @@ static const char * const i40iw_hw_stat_names[] = {
 		"iwRdmaInv"
 };
 
-static void i40iw_get_dev_fw_str(struct ib_device *dev, char *str,
-				 size_t str_len)
+static void i40iw_get_dev_fw_str(struct ib_device *dev, char *str)
 {
 	u32 firmware_version = I40IW_FW_VERSION;
 
-	snprintf(str, str_len, "%u.%u", firmware_version,
-		       (firmware_version & 0x000000ff));
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%u.%u", firmware_version,
+		 (firmware_version & 0x000000ff));
 }
 
 /**

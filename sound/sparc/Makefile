@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for ALSA
 # Copyright (c) 2002 by David S. Miller <davem@redhat.com>

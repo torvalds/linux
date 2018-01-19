@@ -39,7 +39,8 @@ static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 	.features = 0,
 	.num_crtcs = 2,
 	.routes = {
-		/* R8A7779 has two RGB outputs and one (currently unsupported)
+		/*
+		 * R8A7779 has two RGB outputs and one (currently unsupported)
 		 * TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -61,7 +62,8 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 	.quirks = RCAR_DU_QUIRK_ALIGN_128B | RCAR_DU_QUIRK_LVDS_LANES,
 	.num_crtcs = 3,
 	.routes = {
-		/* R8A7790 has one RGB output, two LVDS outputs and one
+		/*
+		 * R8A7790 has one RGB output, two LVDS outputs and one
 		 * (currently unsupported) TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -87,7 +89,8 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
 	.routes = {
-		/* R8A779[13] has one RGB output, one LVDS output and one
+		/*
+		 * R8A779[13] has one RGB output, one LVDS output and one
 		 * (currently unsupported) TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -127,7 +130,8 @@ static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
 	.routes = {
-		/* R8A7794 has two RGB outputs and one (currently unsupported)
+		/*
+		 * R8A7794 has two RGB outputs and one (currently unsupported)
 		 * TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -149,7 +153,8 @@ static const struct rcar_du_device_info rcar_du_r8a7795_info = {
 		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.num_crtcs = 4,
 	.routes = {
-		/* R8A7795 has one RGB output, two HDMI outputs and one
+		/*
+		 * R8A7795 has one RGB output, two HDMI outputs and one
 		 * LVDS output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -180,12 +185,17 @@ static const struct rcar_du_device_info rcar_du_r8a7796_info = {
 		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.num_crtcs = 3,
 	.routes = {
-		/* R8A7796 has one RGB output, one LVDS output and one
-		 * (currently unsupported) HDMI output.
+		/*
+		 * R8A7796 has one RGB output, one LVDS output and one HDMI
+		 * output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
 			.possible_crtcs = BIT(2),
 			.port = 0,
+		},
+		[RCAR_DU_OUTPUT_HDMI0] = {
+			.possible_crtcs = BIT(1),
+			.port = 1,
 		},
 		[RCAR_DU_OUTPUT_LVDS0] = {
 			.possible_crtcs = BIT(0),
@@ -193,6 +203,7 @@ static const struct rcar_du_device_info rcar_du_r8a7796_info = {
 		},
 	},
 	.num_lvds = 1,
+	.dpll_ch =  BIT(1),
 };
 
 static const struct of_device_id rcar_du_of_table[] = {
@@ -238,8 +249,6 @@ static struct drm_driver rcar_du_driver = {
 	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 	.dumb_create		= rcar_du_dumb_create,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 	.fops			= &rcar_du_fops,
 	.name			= "rcar-du",
 	.desc			= "Renesas R-Car Display Unit",
@@ -341,7 +350,8 @@ static int rcar_du_probe(struct platform_device *pdev)
 
 	ddev->irq_enabled = 1;
 
-	/* Register the DRM device with the core and the connectors with
+	/*
+	 * Register the DRM device with the core and the connectors with
 	 * sysfs.
 	 */
 	ret = drm_dev_register(ddev, 0);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_CPU_SH4_DMA_SH7780_H
 #define __ASM_SH_CPU_SH4_DMA_SH7780_H
 

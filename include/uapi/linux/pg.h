@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /* 	pg.h (c) 1998  Grant R. Guenther <grant@torque.net>
  		       Under the terms of the GNU General Public License
 

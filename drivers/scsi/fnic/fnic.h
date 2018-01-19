@@ -180,7 +180,7 @@ enum fnic_msix_intr_index {
 
 struct fnic_msix_entry {
 	int requested;
-	char devname[IFNAMSIZ];
+	char devname[IFNAMSIZ + 11];
 	irqreturn_t (*isr)(int, void *);
 	void *devid;
 };

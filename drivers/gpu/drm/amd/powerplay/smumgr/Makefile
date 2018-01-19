@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the 'smu manager' sub-component of powerplay.
 # It provides the smu management services for the driver.

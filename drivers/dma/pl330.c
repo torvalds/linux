@@ -3023,7 +3023,7 @@ static int pl330_remove(struct amba_device *adev)
 	return 0;
 }
 
-static struct amba_id pl330_ids[] = {
+static const struct amba_id pl330_ids[] = {
 	{
 		.id	= 0x00041330,
 		.mask	= 0x000fffff,

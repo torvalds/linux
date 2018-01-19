@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "evlist.h"
 #include "evsel.h"
 #include "parse-events.h"
@@ -97,7 +98,7 @@ out_delete_evlist:
 #define perf_evsel__name_array_test(names) \
 	__perf_evsel__name_array_test(names, ARRAY_SIZE(names))
 
-int test__perf_evsel__roundtrip_name_test(int subtest __maybe_unused)
+int test__perf_evsel__roundtrip_name_test(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = 0, ret = 0;
 

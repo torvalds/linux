@@ -16,6 +16,7 @@ PMIC's from Qualcomm.
 		    "qcom,pm8941-gpio"
 		    "qcom,pm8994-gpio"
 		    "qcom,pma8084-gpio"
+		    "qcom,pmi8994-gpio"
 
 		    And must contain either "qcom,spmi-gpio" or "qcom,ssbi-gpio"
 		    if the device is on an spmi bus or an ssbi bus respectively
@@ -85,6 +86,7 @@ to specify in a pin configuration subnode:
 		    gpio1-gpio36 for pm8941
 		    gpio1-gpio22 for pm8994
 		    gpio1-gpio22 for pma8084
+		    gpio1-gpio10 for pmi8994
 
 - function:
 	Usage: required
@@ -98,7 +100,10 @@ to specify in a pin configuration subnode:
 		    "dtest1",
 		    "dtest2",
 		    "dtest3",
-		    "dtest4"
+		    "dtest4",
+		    And following values are supported by LV/MV GPIO subtypes:
+		    "func3",
+		    "func4"
 
 - bias-disable:
 	Usage: optional
@@ -182,6 +187,25 @@ to specify in a pin configuration subnode:
 	Usage: optional
 	Value type: <none>
 	Definition: The specified pins are configured in open-source mode.
+
+- qcom,analog-pass:
+	Usage: optional
+	Value type: <none>
+	Definition: The specified pins are configured in analog-pass-through mode.
+
+- qcom,atest:
+	Usage: optional
+	Value type: <u32>
+	Definition: Selects ATEST rail to route to GPIO when it's configured
+		    in analog-pass-through mode.
+		    Valid values are 1-4 corresponding to ATEST1 to ATEST4.
+
+- qcom,dtest-buffer:
+	Usage: optional
+	Value type: <u32>
+	Definition: Selects DTEST rail to route to GPIO when it's configured
+		    as digital input.
+		    Valid values are 1-4 corresponding to DTEST1 to DTEST4.
 
 Example:
 

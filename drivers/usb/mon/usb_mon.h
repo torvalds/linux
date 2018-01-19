@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * The USB Monitor, inspired by Dave Harding's USBMon.
  *

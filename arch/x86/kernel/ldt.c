@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 1992 Krishna Balasubramanian and Linus Torvalds
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
@@ -21,6 +22,25 @@
 #include <asm/mmu_context.h>
 #include <asm/syscalls.h>
 
+static void refresh_ldt_segments(void)
+{
+#ifdef CONFIG_X86_64
+	unsigned short sel;
+
+	/*
+	 * Make sure that the cached DS and ES descriptors match the updated
+	 * LDT.
+	 */
+	savesegment(ds, sel);
+	if ((sel & SEGMENT_TI_MASK) == SEGMENT_LDT)
+		loadsegment(ds, sel);
+
+	savesegment(es, sel);
+	if ((sel & SEGMENT_TI_MASK) == SEGMENT_LDT)
+		loadsegment(es, sel);
+#endif
+}
+
 /* context.lock is held for us, so we don't need any locking. */
 static void flush_ldt(void *__mm)
 {
@@ -32,6 +52,8 @@ static void flush_ldt(void *__mm)
 
 	pc = &mm->context;
 	set_ldt(pc->ldt->entries, pc->ldt->nr_entries);
+
+	refresh_ldt_segments();
 }
 
 /* The caller must call finalize_ldt_struct on the result. LDT starts zeroed. */

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 rtl8188ee-objs :=		\
 		dm.o		\
 		fw.o		\

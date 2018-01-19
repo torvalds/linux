@@ -179,6 +179,7 @@ EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
 /**
  *	ide_pci_enable	-	do PCI enables
  *	@dev: PCI device
+ *	@bars: PCI BARs mask
  *	@d: IDE port info
  *
  *	Enable the IDE PCI device. We attempt to enable the device in full
@@ -189,9 +190,10 @@ EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
  *	Returns zero on success or an error code
  */
 
-static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
+static int ide_pci_enable(struct pci_dev *dev, int bars,
+			  const struct ide_port_info *d)
 {
-	int ret, bars;
+	int ret;
 
 	if (pci_enable_device(dev)) {
 		ret = pci_enable_device_io(dev);
@@ -214,18 +216,6 @@ static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
 		printk(KERN_ERR "%s %s: can't set DMA mask\n",
 			d->name, pci_name(dev));
 		goto out;
-	}
-
-	if (d->host_flags & IDE_HFLAG_SINGLE)
-		bars = (1 << 2) - 1;
-	else
-		bars = (1 << 4) - 1;
-
-	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0) {
-		if (d->host_flags & IDE_HFLAG_CS5520)
-			bars |= (1 << 2);
-		else
-			bars |= (1 << 4);
 	}
 
 	ret = pci_request_selected_regions(dev, bars, d->name);
@@ -403,6 +393,7 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 /**
  *	ide_setup_pci_controller	-	set up IDE PCI
  *	@dev: PCI device
+ *	@bars: PCI BARs mask
  *	@d: IDE port info
  *	@noisy: verbose flag
  *
@@ -411,7 +402,7 @@ int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
  *	and enables it if need be
  */
 
-static int ide_setup_pci_controller(struct pci_dev *dev,
+static int ide_setup_pci_controller(struct pci_dev *dev, int bars,
 				    const struct ide_port_info *d, int noisy)
 {
 	int ret;
@@ -420,7 +411,7 @@ static int ide_setup_pci_controller(struct pci_dev *dev,
 	if (noisy)
 		ide_setup_pci_noise(dev, d);
 
-	ret = ide_pci_enable(dev, d);
+	ret = ide_pci_enable(dev, bars, d);
 	if (ret < 0)
 		goto out;
 
@@ -428,16 +419,20 @@ static int ide_setup_pci_controller(struct pci_dev *dev,
 	if (ret < 0) {
 		printk(KERN_ERR "%s %s: error accessing PCI regs\n",
 			d->name, pci_name(dev));
-		goto out;
+		goto out_free_bars;
 	}
 	if (!(pcicmd & PCI_COMMAND_IO)) {	/* is device disabled? */
 		ret = ide_pci_configure(dev, d);
 		if (ret < 0)
-			goto out;
+			goto out_free_bars;
 		printk(KERN_INFO "%s %s: device enabled (Linux)\n",
 			d->name, pci_name(dev));
 	}
 
+	goto out;
+
+out_free_bars:
+	pci_release_selected_regions(dev, bars);
 out:
 	return ret;
 }
@@ -540,13 +535,28 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 {
 	struct pci_dev *pdev[] = { dev1, dev2 };
 	struct ide_host *host;
-	int ret, i, n_ports = dev2 ? 4 : 2;
+	int ret, i, n_ports = dev2 ? 4 : 2, bars;
 	struct ide_hw hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 
+	if (d->host_flags & IDE_HFLAG_SINGLE)
+		bars = (1 << 2) - 1;
+	else
+		bars = (1 << 4) - 1;
+
+	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0) {
+		if (d->host_flags & IDE_HFLAG_CS5520)
+			bars |= (1 << 2);
+		else
+			bars |= (1 << 4);
+	}
+
 	for (i = 0; i < n_ports / 2; i++) {
-		ret = ide_setup_pci_controller(pdev[i], d, !i);
-		if (ret < 0)
+		ret = ide_setup_pci_controller(pdev[i], bars, d, !i);
+		if (ret < 0) {
+			if (i == 1)
+				pci_release_selected_regions(pdev[0], bars);
 			goto out;
+		}
 
 		ide_pci_setup_ports(pdev[i], d, &hw[i*2], &hws[i*2]);
 	}
@@ -554,7 +564,7 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 	host = ide_host_alloc(d, hws, n_ports);
 	if (host == NULL) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_free_bars;
 	}
 
 	host->dev[0] = &dev1->dev;
@@ -576,7 +586,7 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 		 * do_ide_setup_pci_device() on the first device!
 		 */
 		if (ret < 0)
-			goto out;
+			goto out_free_bars;
 
 		/* fixup IRQ */
 		if (ide_pci_is_in_compatibility_mode(pdev[i])) {
@@ -589,6 +599,13 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 	ret = ide_host_register(host, d, hws);
 	if (ret)
 		ide_host_free(host);
+	else
+		goto out;
+
+out_free_bars:
+	i = n_ports / 2;
+	while (i--)
+		pci_release_selected_regions(pdev[i], bars);
 out:
 	return ret;
 }

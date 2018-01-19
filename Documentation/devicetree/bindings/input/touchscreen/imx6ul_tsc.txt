@@ -35,5 +35,4 @@ Example:
 		measure-delay-time = <0xfff>;
 		pre-charge-time = <0xffff>;
 		touchscreen-average-samples = <32>;
-		status = "okay";
 	};

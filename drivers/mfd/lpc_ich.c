@@ -1119,17 +1119,7 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 			res->start = spi_base + SPIBASE_LPT;
 			res->end = res->start + SPIBASE_LPT_SZ - 1;
 
-			/*
-			 * Try to make the flash chip writeable now by
-			 * setting BCR_WPD. It it fails we tell the driver
-			 * that it can only read the chip.
-			 */
 			pci_read_config_dword(dev, BCR, &bcr);
-			if (!(bcr & BCR_WPD)) {
-				bcr |= BCR_WPD;
-				pci_write_config_dword(dev, BCR, bcr);
-				pci_read_config_dword(dev, BCR, &bcr);
-			}
 			info->writeable = !!(bcr & BCR_WPD);
 		}
 		break;

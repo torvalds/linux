@@ -33,12 +33,26 @@
 #define LOWER_EL_AArch64_VECTOR		0x400
 #define LOWER_EL_AArch32_VECTOR		0x600
 
+/*
+ * Table taken from ARMv8 ARM DDI0487B-B, table G1-10.
+ */
+static const u8 return_offsets[8][2] = {
+	[0] = { 0, 0 },		/* Reset, unused */
+	[1] = { 4, 2 },		/* Undefined */
+	[2] = { 0, 0 },		/* SVC, unused */
+	[3] = { 4, 4 },		/* Prefetch abort */
+	[4] = { 8, 8 },		/* Data abort */
+	[5] = { 0, 0 },		/* HVC, unused */
+	[6] = { 4, 4 },		/* IRQ, unused */
+	[7] = { 4, 4 },		/* FIQ, unused */
+};
+
 static void prepare_fault32(struct kvm_vcpu *vcpu, u32 mode, u32 vect_offset)
 {
 	unsigned long cpsr;
 	unsigned long new_spsr_value = *vcpu_cpsr(vcpu);
 	bool is_thumb = (new_spsr_value & COMPAT_PSR_T_BIT);
-	u32 return_offset = (is_thumb) ? 4 : 0;
+	u32 return_offset = return_offsets[vect_offset >> 2][is_thumb];
 	u32 sctlr = vcpu_cp15(vcpu, c1_SCTLR);
 
 	cpsr = mode | COMPAT_PSR_I_BIT;

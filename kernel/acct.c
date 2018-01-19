@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/kernel/acct.c
  *
@@ -516,7 +517,7 @@ static void do_acct_process(struct bsd_acct_struct *acct)
 	if (file_start_write_trylock(file)) {
 		/* it's been opened O_APPEND, so position is irrelevant */
 		loff_t pos = 0;
-		__kernel_write(file, (char *)&ac, sizeof(acct_t), &pos);
+		__kernel_write(file, &ac, sizeof(acct_t), &pos);
 		file_end_write(file);
 	}
 out:

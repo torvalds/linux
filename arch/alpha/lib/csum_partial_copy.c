@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * csum_partial_copy - do IP checksumming and copy
  *

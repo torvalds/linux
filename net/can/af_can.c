@@ -78,7 +78,7 @@ MODULE_PARM_DESC(stats_timer, "enable timer for statistics (default:on)");
 static struct kmem_cache *rcv_cache __read_mostly;
 
 /* table of registered CAN protocols */
-static const struct can_proto *proto_tab[CAN_NPROTO] __read_mostly;
+static const struct can_proto __rcu *proto_tab[CAN_NPROTO] __read_mostly;
 static DEFINE_MUTEX(proto_tab_lock);
 
 static atomic_t skbcounter = ATOMIC_INIT(0);
@@ -788,7 +788,7 @@ int can_proto_register(const struct can_proto *cp)
 
 	mutex_lock(&proto_tab_lock);
 
-	if (proto_tab[proto]) {
+	if (rcu_access_pointer(proto_tab[proto])) {
 		pr_err("can: protocol %d already registered\n", proto);
 		err = -EBUSY;
 	} else
@@ -812,7 +812,7 @@ void can_proto_unregister(const struct can_proto *cp)
 	int proto = cp->protocol;
 
 	mutex_lock(&proto_tab_lock);
-	BUG_ON(proto_tab[proto] != cp);
+	BUG_ON(rcu_access_pointer(proto_tab[proto]) != cp);
 	RCU_INIT_POINTER(proto_tab[proto], NULL);
 	mutex_unlock(&proto_tab_lock);
 
@@ -875,9 +875,14 @@ static int can_pernet_init(struct net *net)
 	spin_lock_init(&net->can.can_rcvlists_lock);
 	net->can.can_rx_alldev_list =
 		kzalloc(sizeof(struct dev_rcv_lists), GFP_KERNEL);
-
+	if (!net->can.can_rx_alldev_list)
+		goto out;
 	net->can.can_stats = kzalloc(sizeof(struct s_stats), GFP_KERNEL);
+	if (!net->can.can_stats)
+		goto out_free_alldev_list;
 	net->can.can_pstats = kzalloc(sizeof(struct s_pstats), GFP_KERNEL);
+	if (!net->can.can_pstats)
+		goto out_free_can_stats;
 
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		/* the statistics are updated every second (timer triggered) */
@@ -892,6 +897,13 @@ static int can_pernet_init(struct net *net)
 	}
 
 	return 0;
+
+ out_free_can_stats:
+	kfree(net->can.can_stats);
+ out_free_alldev_list:
+	kfree(net->can.can_rx_alldev_list);
+ out:
+	return -ENOMEM;
 }
 
 static void can_pernet_exit(struct net *net)

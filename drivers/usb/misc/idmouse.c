@@ -33,8 +33,6 @@
 #define HEADER "P5 225 289 255 "
 #define IMGSIZE ((WIDTH * HEIGHT) + sizeof(HEADER)-1)
 
-/* version information */
-#define DRIVER_VERSION "0.6"
 #define DRIVER_SHORT   "idmouse"
 #define DRIVER_AUTHOR  "Florian 'Floe' Echtler <echtler@fs.tum.de>"
 #define DRIVER_DESC    "Siemens ID Mouse FingerTIP Sensor Driver"

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * hypersparc.S: High speed Hypersparc mmu/cache operations.
  *

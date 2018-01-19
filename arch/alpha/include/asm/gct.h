@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ALPHA_GCT_H
 #define __ALPHA_GCT_H
 

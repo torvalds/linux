@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: newport.h,v 1.5 1999/08/04 06:01:51 ulfc Exp $
  *
  * newport.h: Defines and register layout for NEWPORT graphics

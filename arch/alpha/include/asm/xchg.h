@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ALPHA_CMPXCHG_H
 #error Do not include xchg.h directly!
 #else

@@ -209,6 +209,34 @@ static void genpd_sd_counter_inc(struct generic_pm_domain *genpd)
 	smp_mb__after_atomic();
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void genpd_update_accounting(struct generic_pm_domain *genpd)
+{
+	ktime_t delta, now;
+
+	now = ktime_get();
+	delta = ktime_sub(now, genpd->accounting_time);
+
+	/*
+	 * If genpd->status is active, it means we are just
+	 * out of off and so update the idle time and vice
+	 * versa.
+	 */
+	if (genpd->status == GPD_STATE_ACTIVE) {
+		int state_idx = genpd->state_idx;
+
+		genpd->states[state_idx].idle_time =
+			ktime_add(genpd->states[state_idx].idle_time, delta);
+	} else {
+		genpd->on_time = ktime_add(genpd->on_time, delta);
+	}
+
+	genpd->accounting_time = now;
+}
+#else
+static inline void genpd_update_accounting(struct generic_pm_domain *genpd) {}
+#endif
+
 static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 {
 	unsigned int state_idx = genpd->state_idx;
@@ -361,6 +389,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	}
 
 	genpd->status = GPD_STATE_POWER_OFF;
+	genpd_update_accounting(genpd);
 
 	list_for_each_entry(link, &genpd->slave_links, slave_node) {
 		genpd_sd_counter_dec(link->master);
@@ -413,6 +442,8 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
 		goto err;
 
 	genpd->status = GPD_STATE_ACTIVE;
+	genpd_update_accounting(genpd);
+
 	return 0;
 
  err:
@@ -1540,6 +1571,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->max_off_time_changed = true;
 	genpd->provider = NULL;
 	genpd->has_provider = false;
+	genpd->accounting_time = ktime_get();
 	genpd->domain.ops.runtime_suspend = genpd_runtime_suspend;
 	genpd->domain.ops.runtime_resume = genpd_runtime_resume;
 	genpd->domain.ops.prepare = pm_genpd_prepare;
@@ -1743,7 +1775,7 @@ static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 	mutex_lock(&of_genpd_mutex);
 	list_add(&cp->link, &of_genpd_providers);
 	mutex_unlock(&of_genpd_mutex);
-	pr_debug("Added domain provider from %s\n", np->full_name);
+	pr_debug("Added domain provider from %pOF\n", np);
 
 	return 0;
 }
@@ -2149,16 +2181,16 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 	err = of_property_read_u32(state_node, "entry-latency-us",
 						&entry_latency);
 	if (err) {
-		pr_debug(" * %s missing entry-latency-us property\n",
-						state_node->full_name);
+		pr_debug(" * %pOF missing entry-latency-us property\n",
+						state_node);
 		return -EINVAL;
 	}
 
 	err = of_property_read_u32(state_node, "exit-latency-us",
 						&exit_latency);
 	if (err) {
-		pr_debug(" * %s missing exit-latency-us property\n",
-						state_node->full_name);
+		pr_debug(" * %pOF missing exit-latency-us property\n",
+						state_node);
 		return -EINVAL;
 	}
 
@@ -2212,8 +2244,8 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 		ret = genpd_parse_state(&st[i++], np);
 		if (ret) {
 			pr_err
-			("Parsing idle state node %s failed with err %d\n",
-							np->full_name, ret);
+			("Parsing idle state node %pOF failed with err %d\n",
+							np, ret);
 			of_node_put(np);
 			kfree(st);
 			return ret;
@@ -2327,7 +2359,7 @@ exit:
 	return 0;
 }
 
-static int pm_genpd_summary_show(struct seq_file *s, void *data)
+static int genpd_summary_show(struct seq_file *s, void *data)
 {
 	struct generic_pm_domain *genpd;
 	int ret = 0;
@@ -2350,21 +2382,187 @@ static int pm_genpd_summary_show(struct seq_file *s, void *data)
 	return ret;
 }
 
-static int pm_genpd_summary_open(struct inode *inode, struct file *file)
+static int genpd_status_show(struct seq_file *s, void *data)
 {
-	return single_open(file, pm_genpd_summary_show, NULL);
+	static const char * const status_lookup[] = {
+		[GPD_STATE_ACTIVE] = "on",
+		[GPD_STATE_POWER_OFF] = "off"
+	};
+
+	struct generic_pm_domain *genpd = s->private;
+	int ret = 0;
+
+	ret = genpd_lock_interruptible(genpd);
+	if (ret)
+		return -ERESTARTSYS;
+
+	if (WARN_ON_ONCE(genpd->status >= ARRAY_SIZE(status_lookup)))
+		goto exit;
+
+	if (genpd->status == GPD_STATE_POWER_OFF)
+		seq_printf(s, "%s-%u\n", status_lookup[genpd->status],
+			genpd->state_idx);
+	else
+		seq_printf(s, "%s\n", status_lookup[genpd->status]);
+exit:
+	genpd_unlock(genpd);
+	return ret;
 }
 
-static const struct file_operations pm_genpd_summary_fops = {
-	.open = pm_genpd_summary_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+static int genpd_sub_domains_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd = s->private;
+	struct gpd_link *link;
+	int ret = 0;
+
+	ret = genpd_lock_interruptible(genpd);
+	if (ret)
+		return -ERESTARTSYS;
+
+	list_for_each_entry(link, &genpd->master_links, master_node)
+		seq_printf(s, "%s\n", link->slave->name);
+
+	genpd_unlock(genpd);
+	return ret;
+}
+
+static int genpd_idle_states_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd = s->private;
+	unsigned int i;
+	int ret = 0;
+
+	ret = genpd_lock_interruptible(genpd);
+	if (ret)
+		return -ERESTARTSYS;
+
+	seq_puts(s, "State          Time Spent(ms)\n");
+
+	for (i = 0; i < genpd->state_count; i++) {
+		ktime_t delta = 0;
+		s64 msecs;
+
+		if ((genpd->status == GPD_STATE_POWER_OFF) &&
+				(genpd->state_idx == i))
+			delta = ktime_sub(ktime_get(), genpd->accounting_time);
+
+		msecs = ktime_to_ms(
+			ktime_add(genpd->states[i].idle_time, delta));
+		seq_printf(s, "S%-13i %lld\n", i, msecs);
+	}
+
+	genpd_unlock(genpd);
+	return ret;
+}
+
+static int genpd_active_time_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd = s->private;
+	ktime_t delta = 0;
+	int ret = 0;
+
+	ret = genpd_lock_interruptible(genpd);
+	if (ret)
+		return -ERESTARTSYS;
+
+	if (genpd->status == GPD_STATE_ACTIVE)
+		delta = ktime_sub(ktime_get(), genpd->accounting_time);
+
+	seq_printf(s, "%lld ms\n", ktime_to_ms(
+				ktime_add(genpd->on_time, delta)));
+
+	genpd_unlock(genpd);
+	return ret;
+}
+
+static int genpd_total_idle_time_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd = s->private;
+	ktime_t delta = 0, total = 0;
+	unsigned int i;
+	int ret = 0;
+
+	ret = genpd_lock_interruptible(genpd);
+	if (ret)
+		return -ERESTARTSYS;
+
+	for (i = 0; i < genpd->state_count; i++) {
+
+		if ((genpd->status == GPD_STATE_POWER_OFF) &&
+				(genpd->state_idx == i))
+			delta = ktime_sub(ktime_get(), genpd->accounting_time);
+
+		total = ktime_add(total, genpd->states[i].idle_time);
+	}
+	total = ktime_add(total, delta);
+
+	seq_printf(s, "%lld ms\n", ktime_to_ms(total));
+
+	genpd_unlock(genpd);
+	return ret;
+}
+
+
+static int genpd_devices_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd = s->private;
+	struct pm_domain_data *pm_data;
+	const char *kobj_path;
+	int ret = 0;
+
+	ret = genpd_lock_interruptible(genpd);
+	if (ret)
+		return -ERESTARTSYS;
+
+	list_for_each_entry(pm_data, &genpd->dev_list, list_node) {
+		kobj_path = kobject_get_path(&pm_data->dev->kobj,
+				genpd_is_irq_safe(genpd) ?
+				GFP_ATOMIC : GFP_KERNEL);
+		if (kobj_path == NULL)
+			continue;
+
+		seq_printf(s, "%s\n", kobj_path);
+		kfree(kobj_path);
+	}
+
+	genpd_unlock(genpd);
+	return ret;
+}
+
+#define define_genpd_open_function(name) \
+static int genpd_##name##_open(struct inode *inode, struct file *file) \
+{ \
+	return single_open(file, genpd_##name##_show, inode->i_private); \
+}
+
+define_genpd_open_function(summary);
+define_genpd_open_function(status);
+define_genpd_open_function(sub_domains);
+define_genpd_open_function(idle_states);
+define_genpd_open_function(active_time);
+define_genpd_open_function(total_idle_time);
+define_genpd_open_function(devices);
+
+#define define_genpd_debugfs_fops(name) \
+static const struct file_operations genpd_##name##_fops = { \
+	.open = genpd_##name##_open, \
+	.read = seq_read, \
+	.llseek = seq_lseek, \
+	.release = single_release, \
+}
+
+define_genpd_debugfs_fops(summary);
+define_genpd_debugfs_fops(status);
+define_genpd_debugfs_fops(sub_domains);
+define_genpd_debugfs_fops(idle_states);
+define_genpd_debugfs_fops(active_time);
+define_genpd_debugfs_fops(total_idle_time);
+define_genpd_debugfs_fops(devices);
 
 static int __init pm_genpd_debug_init(void)
 {
 	struct dentry *d;
+	struct generic_pm_domain *genpd;
 
 	pm_genpd_debugfs_dir = debugfs_create_dir("pm_genpd", NULL);
 
@@ -2372,9 +2570,28 @@ static int __init pm_genpd_debug_init(void)
 		return -ENOMEM;
 
 	d = debugfs_create_file("pm_genpd_summary", S_IRUGO,
-			pm_genpd_debugfs_dir, NULL, &pm_genpd_summary_fops);
+			pm_genpd_debugfs_dir, NULL, &genpd_summary_fops);
 	if (!d)
 		return -ENOMEM;
+
+	list_for_each_entry(genpd, &gpd_list, gpd_list_node) {
+		d = debugfs_create_dir(genpd->name, pm_genpd_debugfs_dir);
+		if (!d)
+			return -ENOMEM;
+
+		debugfs_create_file("current_state", 0444,
+				d, genpd, &genpd_status_fops);
+		debugfs_create_file("sub_domains", 0444,
+				d, genpd, &genpd_sub_domains_fops);
+		debugfs_create_file("idle_states", 0444,
+				d, genpd, &genpd_idle_states_fops);
+		debugfs_create_file("active_time", 0444,
+				d, genpd, &genpd_active_time_fops);
+		debugfs_create_file("total_idle_time", 0444,
+				d, genpd, &genpd_total_idle_time_fops);
+		debugfs_create_file("devices", 0444,
+				d, genpd, &genpd_devices_fops);
+	}
 
 	return 0;
 }

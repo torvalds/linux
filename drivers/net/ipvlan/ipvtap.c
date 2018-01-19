@@ -24,7 +24,7 @@
 #include <linux/virtio_net.h>
 
 #define TUN_OFFLOADS (NETIF_F_HW_CSUM | NETIF_F_TSO_ECN | NETIF_F_TSO | \
-		      NETIF_F_TSO6 | NETIF_F_UFO)
+		      NETIF_F_TSO6)
 
 static dev_t ipvtap_major;
 static struct cdev ipvtap_cdev;
@@ -197,8 +197,8 @@ static int ipvtap_init(void)
 {
 	int err;
 
-	err = tap_create_cdev(&ipvtap_cdev, &ipvtap_major, "ipvtap");
-
+	err = tap_create_cdev(&ipvtap_cdev, &ipvtap_major, "ipvtap",
+			      THIS_MODULE);
 	if (err)
 		goto out1;
 

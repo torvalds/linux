@@ -203,7 +203,6 @@
 	mmc-hs200-1_2v;
 	mmc-hs200-1_8v;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	status = "okay";
@@ -347,7 +346,6 @@
 	max-frequency = <50000000>;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	vmmc-supply = <&vcc_sd>;

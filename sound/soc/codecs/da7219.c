@@ -1891,7 +1891,7 @@ static int da7219_resume(struct snd_soc_codec *codec)
 #define da7219_resume NULL
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_da7219 = {
+static const struct snd_soc_codec_driver soc_codec_dev_da7219 = {
 	.probe			= da7219_probe,
 	.remove			= da7219_remove,
 	.suspend		= da7219_suspend,

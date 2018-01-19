@@ -39,10 +39,9 @@
 #ifndef __LST_CONRPC_H__
 #define __LST_CONRPC_H__
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/linux/lnet/lnet.h"
-#include "../../include/linux/lnet/lib-types.h"
-#include "../../include/linux/lnet/lnetst.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-types.h>
+#include <uapi/linux/lnet/lnetst.h>
 #include "rpc.h"
 #include "selftest.h"
 

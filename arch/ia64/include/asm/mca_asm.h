@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * File:	mca_asm.h
  * Purpose:	Machine check handling specific defines

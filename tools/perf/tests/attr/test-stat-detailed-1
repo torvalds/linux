@@ -39,12 +39,14 @@ config=0
 fd=6
 type=0
 config=7
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_BACKEND
 [event7:base-stat]
 fd=7
 type=0
 config=8
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_INSTRUCTIONS
 [event8:base-stat]

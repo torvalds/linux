@@ -234,8 +234,6 @@ static int max8925_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		ret = max8925_reg_write(info->rtc, MAX8925_ALARM0_CNTL, 0x77);
 	else
 		ret = max8925_reg_write(info->rtc, MAX8925_ALARM0_CNTL, 0x0);
-	if (ret < 0)
-		goto out;
 out:
 	return ret;
 }

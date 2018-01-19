@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* ld script for sparc32/sparc64 kernel */
 
 #include <asm-generic/vmlinux.lds.h>
@@ -153,6 +154,16 @@ SECTIONS
 		__get_tick_patch = .;
 		*(.get_tick_patch)
 		__get_tick_patch_end = .;
+	}
+	.pud_huge_patch : {
+		__pud_huge_patch = .;
+		*(.pud_huge_patch)
+		__pud_huge_patch_end = .;
+	}
+	.fast_win_ctrl_1insn_patch : {
+		__fast_win_ctrl_1insn_patch = .;
+		*(.fast_win_ctrl_1insn_patch)
+		__fast_win_ctrl_1insn_patch_end = .;
 	}
 	PERCPU_SECTION(SMP_CACHE_BYTES)
 

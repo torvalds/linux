@@ -4,9 +4,9 @@
 - reg: offset and length of the usbss register sets
 - ti,hwmods : must be "usb_otg_hs"
 
-The glue layer contains multiple child nodes. It is required the have
+The glue layer contains multiple child nodes. It is required to have
 at least a control module node, USB node and a PHY node. The second USB
-node and its PHY node is optional. The DMA node is also optional.
+node and its PHY node are optional. The DMA node is also optional.
 
 Reset module
 ~~~~~~~~~~~~

@@ -74,7 +74,7 @@ DEFINE_RWLOCK(x25_list_lock);
 
 static const struct proto_ops x25_proto_ops;
 
-static struct x25_address null_x25_address = {"               "};
+static const struct x25_address null_x25_address = {"               "};
 
 #ifdef CONFIG_COMPAT
 struct compat_x25_subscrip_struct {

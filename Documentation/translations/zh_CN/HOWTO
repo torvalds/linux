@@ -149,9 +149,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
 核源码的主目录中使用以下不同命令将会分别生成PDF、Postscript、HTML和手册
 页等不同格式的文档：
     make pdfdocs
-    make psdocs
     make htmldocs
-    make mandocs
 
 
 如何成为内核开发者

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SPARC_EBUS_DMA_H
 #define __ASM_SPARC_EBUS_DMA_H
 

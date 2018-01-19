@@ -1235,11 +1235,11 @@ static void show_special(struct audit_context *context, int *call_panic)
 	case AUDIT_MQ_SENDRECV:
 		audit_log_format(ab,
 			"mqdes=%d msg_len=%zd msg_prio=%u "
-			"abs_timeout_sec=%ld abs_timeout_nsec=%ld",
+			"abs_timeout_sec=%lld abs_timeout_nsec=%ld",
 			context->mq_sendrecv.mqdes,
 			context->mq_sendrecv.msg_len,
 			context->mq_sendrecv.msg_prio,
-			context->mq_sendrecv.abs_timeout.tv_sec,
+			(long long) context->mq_sendrecv.abs_timeout.tv_sec,
 			context->mq_sendrecv.abs_timeout.tv_nsec);
 		break;
 	case AUDIT_MQ_NOTIFY:
@@ -1462,7 +1462,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 }
 
 /**
- * audit_free - free a per-task audit context
+ * __audit_free - free a per-task audit context
  * @tsk: task whose audit context block to free
  *
  * Called from copy_process and do_exit
@@ -1489,7 +1489,7 @@ void __audit_free(struct task_struct *tsk)
 }
 
 /**
- * audit_syscall_entry - fill in an audit record at syscall entry
+ * __audit_syscall_entry - fill in an audit record at syscall entry
  * @major: major syscall type (function)
  * @a1: additional syscall register 1
  * @a2: additional syscall register 2
@@ -1536,14 +1536,14 @@ void __audit_syscall_entry(int major, unsigned long a1, unsigned long a2,
 		return;
 
 	context->serial     = 0;
-	ktime_get_real_ts64(&context->ctime);
+	context->ctime = current_kernel_time64();
 	context->in_syscall = 1;
 	context->current_state  = state;
 	context->ppid       = 0;
 }
 
 /**
- * audit_syscall_exit - deallocate audit context after a system call
+ * __audit_syscall_exit - deallocate audit context after a system call
  * @success: success value of the syscall
  * @return_code: return value of the syscall
  *
@@ -1705,7 +1705,7 @@ static struct audit_names *audit_alloc_name(struct audit_context *context,
 }
 
 /**
- * audit_reusename - fill out filename with info from existing entry
+ * __audit_reusename - fill out filename with info from existing entry
  * @uptr: userland ptr to pathname
  *
  * Search the audit_names list for the current audit context. If there is an
@@ -1730,7 +1730,7 @@ __audit_reusename(const __user char *uptr)
 }
 
 /**
- * audit_getname - add a name to the list
+ * __audit_getname - add a name to the list
  * @name: name to add
  *
  * Add a name to the list of audit names for this context.
@@ -2083,15 +2083,15 @@ void __audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr)
  *
  */
 void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio,
-			const struct timespec *abs_timeout)
+			const struct timespec64 *abs_timeout)
 {
 	struct audit_context *context = current->audit_context;
-	struct timespec *p = &context->mq_sendrecv.abs_timeout;
+	struct timespec64 *p = &context->mq_sendrecv.abs_timeout;
 
 	if (abs_timeout)
-		memcpy(p, abs_timeout, sizeof(struct timespec));
+		memcpy(p, abs_timeout, sizeof(*p));
 	else
-		memset(p, 0, sizeof(struct timespec));
+		memset(p, 0, sizeof(*p));
 
 	context->mq_sendrecv.mqdes = mqdes;
 	context->mq_sendrecv.msg_len = msg_len;
@@ -2135,7 +2135,7 @@ void __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 }
 
 /**
- * audit_ipc_obj - record audit data for ipc object
+ * __audit_ipc_obj - record audit data for ipc object
  * @ipcp: ipc permissions
  *
  */
@@ -2151,7 +2151,7 @@ void __audit_ipc_obj(struct kern_ipc_perm *ipcp)
 }
 
 /**
- * audit_ipc_set_perm - record audit data for new ipc permissions
+ * __audit_ipc_set_perm - record audit data for new ipc permissions
  * @qbytes: msgq bytes
  * @uid: msgq user id
  * @gid: msgq group id
@@ -2180,7 +2180,7 @@ void __audit_bprm(struct linux_binprm *bprm)
 
 
 /**
- * audit_socketcall - record audit data for sys_socketcall
+ * __audit_socketcall - record audit data for sys_socketcall
  * @nargs: number of args, which should not be more than AUDITSC_ARGS.
  * @args: args array
  *
@@ -2211,7 +2211,7 @@ void __audit_fd_pair(int fd1, int fd2)
 }
 
 /**
- * audit_sockaddr - record audit data for sys_bind, sys_connect, sys_sendto
+ * __audit_sockaddr - record audit data for sys_bind, sys_connect, sys_sendto
  * @len: data length in user space
  * @a: data address in kernel space
  *

@@ -66,7 +66,7 @@ void __init acpi_watchdog_init(void)
 	for (i = 0; i < wdat->entries; i++) {
 		const struct acpi_generic_address *gas;
 		struct resource_entry *rentry;
-		struct resource res;
+		struct resource res = {};
 		bool found;
 
 		gas = &entries[i].register_region;

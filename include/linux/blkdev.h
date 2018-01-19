@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_BLKDEV_H
 #define _LINUX_BLKDEV_H
 
@@ -134,7 +135,7 @@ typedef __u32 __bitwise req_flags_t;
 struct request {
 	struct list_head queuelist;
 	union {
-		struct call_single_data csd;
+		call_single_data_t csd;
 		u64 fifo_time;
 	};
 
@@ -551,6 +552,7 @@ struct request_queue {
 	int			node;
 #ifdef CONFIG_BLK_DEV_IO_TRACE
 	struct blk_trace	*blk_trace;
+	struct mutex		blk_trace_mutex;
 #endif
 	/*
 	 * for flush operations
@@ -600,38 +602,36 @@ struct request_queue {
 	u64			write_hints[BLK_MAX_WRITE_HINTS];
 };
 
-#define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
-#define QUEUE_FLAG_STOPPED	2	/* queue is stopped */
-#define	QUEUE_FLAG_SYNCFULL	3	/* read queue has been filled */
-#define QUEUE_FLAG_ASYNCFULL	4	/* write queue has been filled */
-#define QUEUE_FLAG_DYING	5	/* queue being torn down */
-#define QUEUE_FLAG_BYPASS	6	/* act as dumb FIFO queue */
-#define QUEUE_FLAG_BIDI		7	/* queue supports bidi requests */
-#define QUEUE_FLAG_NOMERGES     8	/* disable merge attempts */
-#define QUEUE_FLAG_SAME_COMP	9	/* complete on same CPU-group */
-#define QUEUE_FLAG_FAIL_IO     10	/* fake timeout */
-#define QUEUE_FLAG_STACKABLE   11	/* supports request stacking */
-#define QUEUE_FLAG_NONROT      12	/* non-rotational device (SSD) */
+#define QUEUE_FLAG_QUEUED	0	/* uses generic tag queueing */
+#define QUEUE_FLAG_STOPPED	1	/* queue is stopped */
+#define QUEUE_FLAG_DYING	2	/* queue being torn down */
+#define QUEUE_FLAG_BYPASS	3	/* act as dumb FIFO queue */
+#define QUEUE_FLAG_BIDI		4	/* queue supports bidi requests */
+#define QUEUE_FLAG_NOMERGES     5	/* disable merge attempts */
+#define QUEUE_FLAG_SAME_COMP	6	/* complete on same CPU-group */
+#define QUEUE_FLAG_FAIL_IO	7	/* fake timeout */
+#define QUEUE_FLAG_STACKABLE	8	/* supports request stacking */
+#define QUEUE_FLAG_NONROT	9	/* non-rotational device (SSD) */
 #define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
-#define QUEUE_FLAG_IO_STAT     13	/* do IO stats */
-#define QUEUE_FLAG_DISCARD     14	/* supports DISCARD */
-#define QUEUE_FLAG_NOXMERGES   15	/* No extended merges */
-#define QUEUE_FLAG_ADD_RANDOM  16	/* Contributes to random pool */
-#define QUEUE_FLAG_SECERASE    17	/* supports secure erase */
-#define QUEUE_FLAG_SAME_FORCE  18	/* force complete on same CPU */
-#define QUEUE_FLAG_DEAD        19	/* queue tear-down finished */
-#define QUEUE_FLAG_INIT_DONE   20	/* queue is initialized */
-#define QUEUE_FLAG_NO_SG_MERGE 21	/* don't attempt to merge SG segments*/
-#define QUEUE_FLAG_POLL	       22	/* IO polling enabled if set */
-#define QUEUE_FLAG_WC	       23	/* Write back caching */
-#define QUEUE_FLAG_FUA	       24	/* device supports FUA writes */
-#define QUEUE_FLAG_FLUSH_NQ    25	/* flush not queueuable */
-#define QUEUE_FLAG_DAX         26	/* device supports DAX */
-#define QUEUE_FLAG_STATS       27	/* track rq completion times */
-#define QUEUE_FLAG_POLL_STATS  28	/* collecting stats for hybrid polling */
-#define QUEUE_FLAG_REGISTERED  29	/* queue has been registered to a disk */
-#define QUEUE_FLAG_SCSI_PASSTHROUGH 30	/* queue supports SCSI commands */
-#define QUEUE_FLAG_QUIESCED    31	/* queue has been quiesced */
+#define QUEUE_FLAG_IO_STAT     10	/* do IO stats */
+#define QUEUE_FLAG_DISCARD     11	/* supports DISCARD */
+#define QUEUE_FLAG_NOXMERGES   12	/* No extended merges */
+#define QUEUE_FLAG_ADD_RANDOM  13	/* Contributes to random pool */
+#define QUEUE_FLAG_SECERASE    14	/* supports secure erase */
+#define QUEUE_FLAG_SAME_FORCE  15	/* force complete on same CPU */
+#define QUEUE_FLAG_DEAD        16	/* queue tear-down finished */
+#define QUEUE_FLAG_INIT_DONE   17	/* queue is initialized */
+#define QUEUE_FLAG_NO_SG_MERGE 18	/* don't attempt to merge SG segments*/
+#define QUEUE_FLAG_POLL	       19	/* IO polling enabled if set */
+#define QUEUE_FLAG_WC	       20	/* Write back caching */
+#define QUEUE_FLAG_FUA	       21	/* device supports FUA writes */
+#define QUEUE_FLAG_FLUSH_NQ    22	/* flush not queueuable */
+#define QUEUE_FLAG_DAX         23	/* device supports DAX */
+#define QUEUE_FLAG_STATS       24	/* track rq completion times */
+#define QUEUE_FLAG_POLL_STATS  25	/* collecting stats for hybrid polling */
+#define QUEUE_FLAG_REGISTERED  26	/* queue has been registered to a disk */
+#define QUEUE_FLAG_SCSI_PASSTHROUGH 27	/* queue supports SCSI commands */
+#define QUEUE_FLAG_QUIESCED    28	/* queue has been quiesced */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\

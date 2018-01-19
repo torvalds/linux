@@ -76,7 +76,8 @@ config VIDEO_M32R_AR_M64278
 
 config VIDEO_MUX
 	tristate "Video Multiplexer"
-	depends on OF && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
+	select MULTIPLEXER
+	depends on VIDEO_V4L2 && OF && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
 	select REGMAP
 	help
 	  This driver provides support for N:1 video bus multiplexers.
@@ -108,6 +109,13 @@ config VIDEO_PXA27x
 	select V4L2_FWNODE
 	---help---
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
+
+config VIDEO_QCOM_CAMSS
+	tristate "Qualcomm 8x16 V4L2 Camera Subsystem driver"
+	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAS_DMA
+	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
+	select VIDEOBUF2_DMA_SG
+	select V4L2_FWNODE
 
 config VIDEO_S3C_CAMIF
 	tristate "Samsung S3C24XX/S3C64XX SoC Camera Interface driver"
@@ -535,6 +543,17 @@ menuconfig CEC_PLATFORM_DRIVERS
 	depends on MEDIA_CEC_SUPPORT
 
 if CEC_PLATFORM_DRIVERS
+
+config VIDEO_MESON_AO_CEC
+	tristate "Amlogic Meson AO CEC driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	select CEC_CORE
+	select CEC_NOTIFIER
+	---help---
+	  This is a driver for Amlogic Meson SoCs AO CEC interface. It uses the
+	  generic CEC framework interface.
+	  CEC bus is present in the HDMI connector and enables communication
+	  between compatible devices.
 
 config VIDEO_SAMSUNG_S5P_CEC
        tristate "Samsung S5P CEC driver"

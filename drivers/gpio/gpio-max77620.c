@@ -82,7 +82,7 @@ static const struct regmap_irq max77620_gpio_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip max77620_gpio_irq_chip = {
+static const struct regmap_irq_chip max77620_gpio_irq_chip = {
 	.name = "max77620-gpio",
 	.irqs = max77620_gpio_irqs,
 	.num_irqs = ARRAY_SIZE(max77620_gpio_irqs),

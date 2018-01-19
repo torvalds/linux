@@ -209,7 +209,7 @@
 			status = "okay";
 		};
 
-		pcie-controller {
+		pcie {
 			status = "okay";
 
 			/*

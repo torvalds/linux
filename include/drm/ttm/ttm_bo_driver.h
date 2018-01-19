@@ -229,13 +229,14 @@ struct ttm_mem_type_manager_func {
 	 * struct ttm_mem_type_manager member debug
 	 *
 	 * @man: Pointer to a memory type manager.
-	 * @prefix: Prefix to be used in printout to identify the caller.
+	 * @printer: Prefix to be used in printout to identify the caller.
 	 *
 	 * This function is called to print out the state of the memory
 	 * type manager to aid debugging of out-of-memory conditions.
 	 * It may not be called from within atomic context.
 	 */
-	void (*debug)(struct ttm_mem_type_manager *man, const char *prefix);
+	void (*debug)(struct ttm_mem_type_manager *man,
+		      struct drm_printer *printer);
 };
 
 /**
@@ -472,6 +473,23 @@ struct ttm_bo_driver {
 	 */
 	unsigned long (*io_mem_pfn)(struct ttm_buffer_object *bo,
 				    unsigned long page_offset);
+
+	/**
+	 * Read/write memory buffers for ptrace access
+	 *
+	 * @bo: the BO to access
+	 * @offset: the offset from the start of the BO
+	 * @buf: pointer to source/destination buffer
+	 * @len: number of bytes to copy
+	 * @write: whether to read (0) from or write (non-0) to BO
+	 *
+	 * If successful, this function should return the number of
+	 * bytes copied, -EIO otherwise. If the number of bytes
+	 * returned is < len, the function may be called again with
+	 * the remainder of the buffer to copy.
+	 */
+	int (*access_memory)(struct ttm_buffer_object *bo, unsigned long offset,
+			     void *buf, int len, int write);
 };
 
 /**

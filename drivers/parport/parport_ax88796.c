@@ -358,8 +358,7 @@ static int parport_ax88796_probe(struct platform_device *pdev)
  exit_unmap:
 	iounmap(dd->base);
  exit_res:
-	release_resource(dd->io);
-	kfree(dd->io);
+	release_mem_region(dd->io->start, size);
  exit_mem:
 	kfree(dd);
 	return ret;
@@ -373,8 +372,7 @@ static int parport_ax88796_remove(struct platform_device *pdev)
 	free_irq(p->irq, p);
 	parport_remove_port(p);
 	iounmap(dd->base);
-	release_resource(dd->io);
-	kfree(dd->io);
+	release_mem_region(dd->io->start, resource_size(dd->io));
 	kfree(dd);
 
 	return 0;

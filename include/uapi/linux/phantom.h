@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  *  Copyright (C) 2005-2007 Jiri Slaby <jirislaby@gmail.com>
  *

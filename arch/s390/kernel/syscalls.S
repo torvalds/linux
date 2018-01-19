@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * definitions for sys_call_table, each line represents an
  * entry in the table in the form

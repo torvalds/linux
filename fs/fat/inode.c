@@ -657,7 +657,7 @@ static void fat_set_state(struct super_block *sb,
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
 	/* do not change any thing if mounted read only */
-	if ((sb->s_flags & MS_RDONLY) && !force)
+	if (sb_rdonly(sb) && !force)
 		return;
 
 	/* do not change state if fs was dirty */
@@ -787,7 +787,7 @@ static int fat_remount(struct super_block *sb, int *flags, char *data)
 
 	/* make sure we update state on remount. */
 	new_rdonly = *flags & MS_RDONLY;
-	if (new_rdonly != (sb->s_flags & MS_RDONLY)) {
+	if (new_rdonly != sb_rdonly(sb)) {
 		if (new_rdonly)
 			fat_set_state(sb, 0, 0);
 		else

@@ -111,4 +111,8 @@ enum interval_iter interval_search(struct interval_node *root,
 				   struct interval_node_extent *ex,
 				   interval_callback_t func, void *data);
 
+enum interval_iter interval_iterate_reverse(struct interval_node *root,
+					    interval_callback_t func,
+					    void *data);
+
 #endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define _LINUX_STRING_H_
 
 #include <linux/compiler.h>	/* for inline */

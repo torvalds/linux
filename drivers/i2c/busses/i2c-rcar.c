@@ -625,9 +625,8 @@ static struct dma_chan *rcar_i2c_request_dma_chan(struct device *dev,
 
 	chan = dma_request_chan(dev, chan_name);
 	if (IS_ERR(chan)) {
-		ret = PTR_ERR(chan);
-		dev_dbg(dev, "request_channel failed for %s (%d)\n",
-			chan_name, ret);
+		dev_dbg(dev, "request_channel failed for %s (%ld)\n",
+			chan_name, PTR_ERR(chan));
 		return chan;
 	}
 

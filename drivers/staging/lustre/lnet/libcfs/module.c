@@ -50,13 +50,12 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <asm/div64.h>
 
-#include "../../include/linux/libcfs/libcfs_crypto.h"
-#include "../../include/linux/lnet/lib-lnet.h"
-#include "../../include/linux/lnet/lib-dlc.h"
-#include "../../include/linux/lnet/lnet.h"
+#include <linux/libcfs/libcfs_crypto.h>
+#include <linux/lnet/lib-lnet.h>
+#include <uapi/linux/lnet/lnet-dlc.h>
 #include "tracefile.h"
 
 static struct dentry *lnet_debugfs_root;

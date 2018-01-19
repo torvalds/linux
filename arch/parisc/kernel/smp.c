@@ -255,12 +255,11 @@ void arch_send_call_function_single_ipi(int cpu)
 static void __init
 smp_cpu_init(int cpunum)
 {
-	extern int init_per_cpu(int);  /* arch/parisc/kernel/processor.c */
 	extern void init_IRQ(void);    /* arch/parisc/kernel/irq.c */
 	extern void start_cpu_itimer(void); /* arch/parisc/kernel/time.c */
 
 	/* Set modes and Enable floating point coprocessor */
-	(void) init_per_cpu(cpunum);
+	init_per_cpu(cpunum);
 
 	disable_sr_hashing();
 

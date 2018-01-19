@@ -44,7 +44,7 @@ static int img_ir_sanyo_scancode(int len, u64 raw, u64 enabled_protocols,
 		return -EINVAL;
 
 	/* Normal Sanyo */
-	request->protocol = RC_TYPE_SANYO;
+	request->protocol = RC_PROTO_SANYO;
 	request->scancode = addr << 8 | data;
 	return IMG_IR_SCANCODE;
 }
@@ -80,7 +80,7 @@ static int img_ir_sanyo_filter(const struct rc_scancode_filter *in,
 
 /* Sanyo decoder */
 struct img_ir_decoder img_ir_sanyo = {
-	.type = RC_BIT_SANYO,
+	.type = RC_PROTO_BIT_SANYO,
 	.control = {
 		.decoden = 1,
 		.code_type = IMG_IR_CODETYPE_PULSEDIST,

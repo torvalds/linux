@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PERF_PSTACK_
 #define _PERF_PSTACK_
 

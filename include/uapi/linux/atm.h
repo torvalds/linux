@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atm.h - general ATM declarations */
  
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */

@@ -642,11 +642,19 @@
 		};
 	};
 
+	cec_clock: cec-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12000000>;
+	};
+
 	hdmi@39 {
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&cec_clock>;
+		clock-names = "cec";
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
@@ -702,7 +710,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "renesas,24c02";
+		compatible = "renesas,24c02", "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 	};

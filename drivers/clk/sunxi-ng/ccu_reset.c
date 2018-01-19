@@ -8,6 +8,7 @@
  * the License, or (at your option) any later version.
  */
 
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/reset-controller.h>
 
@@ -49,7 +50,18 @@ static int ccu_reset_deassert(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static int ccu_reset_reset(struct reset_controller_dev *rcdev,
+			   unsigned long id)
+{
+	ccu_reset_assert(rcdev, id);
+	udelay(10);
+	ccu_reset_deassert(rcdev, id);
+
+	return 0;
+}
+
 const struct reset_control_ops ccu_reset_ops = {
 	.assert		= ccu_reset_assert,
 	.deassert	= ccu_reset_deassert,
+	.reset		= ccu_reset_reset,
 };

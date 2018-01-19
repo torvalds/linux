@@ -41,6 +41,11 @@
 #define MLX5E_CEE_STATE_UP    1
 #define MLX5E_CEE_STATE_DOWN  0
 
+enum {
+	MLX5E_VENDOR_TC_GROUP_NUM = 7,
+	MLX5E_LOWEST_PRIO_GROUP   = 0,
+};
+
 /* If dcbx mode is non-host set the dcbx mode to host.
  */
 static int mlx5e_dcbnl_set_dcbx_mode(struct mlx5e_priv *priv,
@@ -85,6 +90,9 @@ static int mlx5e_dcbnl_ieee_getets(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 tc_group[IEEE_8021QAZ_MAX_TCS];
+	bool is_tc_group_6_exist = false;
+	bool is_zero_bw_ets_tc = false;
 	int err = 0;
 	int i;
 
@@ -96,37 +104,64 @@ static int mlx5e_dcbnl_ieee_getets(struct net_device *netdev,
 		err = mlx5_query_port_prio_tc(mdev, i, &ets->prio_tc[i]);
 		if (err)
 			return err;
-	}
 
-	for (i = 0; i < ets->ets_cap; i++) {
+		err = mlx5_query_port_tc_group(mdev, i, &tc_group[i]);
+		if (err)
+			return err;
+
 		err = mlx5_query_port_tc_bw_alloc(mdev, i, &ets->tc_tx_bw[i]);
 		if (err)
 			return err;
-		if (ets->tc_tx_bw[i] < MLX5E_MAX_BW_ALLOC)
-			priv->dcbx.tc_tsa[i] = IEEE_8021QAZ_TSA_ETS;
+
+		if (ets->tc_tx_bw[i] < MLX5E_MAX_BW_ALLOC &&
+		    tc_group[i] == (MLX5E_LOWEST_PRIO_GROUP + 1))
+			is_zero_bw_ets_tc = true;
+
+		if (tc_group[i] == (MLX5E_VENDOR_TC_GROUP_NUM - 1))
+			is_tc_group_6_exist = true;
 	}
 
+	/* Report 0% ets tc if exits*/
+	if (is_zero_bw_ets_tc) {
+		for (i = 0; i < ets->ets_cap; i++)
+			if (tc_group[i] == MLX5E_LOWEST_PRIO_GROUP)
+				ets->tc_tx_bw[i] = 0;
+	}
+
+	/* Update tc_tsa based on fw setting*/
+	for (i = 0; i < ets->ets_cap; i++) {
+		if (ets->tc_tx_bw[i] < MLX5E_MAX_BW_ALLOC)
+			priv->dcbx.tc_tsa[i] = IEEE_8021QAZ_TSA_ETS;
+		else if (tc_group[i] == MLX5E_VENDOR_TC_GROUP_NUM &&
+			 !is_tc_group_6_exist)
+			priv->dcbx.tc_tsa[i] = IEEE_8021QAZ_TSA_VENDOR;
+	}
 	memcpy(ets->tc_tsa, priv->dcbx.tc_tsa, sizeof(ets->tc_tsa));
 
 	return err;
 }
 
-enum {
-	MLX5E_VENDOR_TC_GROUP_NUM = 7,
-	MLX5E_ETS_TC_GROUP_NUM    = 0,
-};
-
 static void mlx5e_build_tc_group(struct ieee_ets *ets, u8 *tc_group, int max_tc)
 {
 	bool any_tc_mapped_to_ets = false;
+	bool ets_zero_bw = false;
 	int strict_group;
 	int i;
 
-	for (i = 0; i <= max_tc; i++)
-		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS)
+	for (i = 0; i <= max_tc; i++) {
+		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS) {
 			any_tc_mapped_to_ets = true;
+			if (!ets->tc_tx_bw[i])
+				ets_zero_bw = true;
+		}
+	}
 
-	strict_group = any_tc_mapped_to_ets ? 1 : 0;
+	/* strict group has higher priority than ets group */
+	strict_group = MLX5E_LOWEST_PRIO_GROUP;
+	if (any_tc_mapped_to_ets)
+		strict_group++;
+	if (ets_zero_bw)
+		strict_group++;
 
 	for (i = 0; i <= max_tc; i++) {
 		switch (ets->tc_tsa[i]) {
@@ -137,7 +172,9 @@ static void mlx5e_build_tc_group(struct ieee_ets *ets, u8 *tc_group, int max_tc)
 			tc_group[i] = strict_group++;
 			break;
 		case IEEE_8021QAZ_TSA_ETS:
-			tc_group[i] = MLX5E_ETS_TC_GROUP_NUM;
+			tc_group[i] = MLX5E_LOWEST_PRIO_GROUP;
+			if (ets->tc_tx_bw[i] && ets_zero_bw)
+				tc_group[i] = MLX5E_LOWEST_PRIO_GROUP + 1;
 			break;
 		}
 	}
@@ -146,7 +183,21 @@ static void mlx5e_build_tc_group(struct ieee_ets *ets, u8 *tc_group, int max_tc)
 static void mlx5e_build_tc_tx_bw(struct ieee_ets *ets, u8 *tc_tx_bw,
 				 u8 *tc_group, int max_tc)
 {
+	int bw_for_ets_zero_bw_tc = 0;
+	int last_ets_zero_bw_tc = -1;
+	int num_ets_zero_bw = 0;
 	int i;
+
+	for (i = 0; i <= max_tc; i++) {
+		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS &&
+		    !ets->tc_tx_bw[i]) {
+			num_ets_zero_bw++;
+			last_ets_zero_bw_tc = i;
+		}
+	}
+
+	if (num_ets_zero_bw)
+		bw_for_ets_zero_bw_tc = MLX5E_MAX_BW_ALLOC / num_ets_zero_bw;
 
 	for (i = 0; i <= max_tc; i++) {
 		switch (ets->tc_tsa[i]) {
@@ -157,12 +208,26 @@ static void mlx5e_build_tc_tx_bw(struct ieee_ets *ets, u8 *tc_tx_bw,
 			tc_tx_bw[i] = MLX5E_MAX_BW_ALLOC;
 			break;
 		case IEEE_8021QAZ_TSA_ETS:
-			tc_tx_bw[i] = ets->tc_tx_bw[i];
+			tc_tx_bw[i] = ets->tc_tx_bw[i] ?
+				      ets->tc_tx_bw[i] :
+				      bw_for_ets_zero_bw_tc;
 			break;
 		}
 	}
+
+	/* Make sure the total bw for ets zero bw group is 100% */
+	if (last_ets_zero_bw_tc != -1)
+		tc_tx_bw[last_ets_zero_bw_tc] +=
+			MLX5E_MAX_BW_ALLOC % num_ets_zero_bw;
 }
 
+/* If there are ETS BW 0,
+ *   Set ETS group # to 1 for all ETS non zero BW tcs. Their sum must be 100%.
+ *   Set group #0 to all the ETS BW 0 tcs and
+ *     equally splits the 100% BW between them
+ *   Report both group #0 and #1 as ETS type.
+ *     All the tcs in group #0 will be reported with 0% BW.
+ */
 int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -188,7 +253,6 @@ int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 		return err;
 
 	memcpy(priv->dcbx.tc_tsa, ets->tc_tsa, sizeof(ets->tc_tsa));
-
 	return err;
 }
 
@@ -209,17 +273,9 @@ static int mlx5e_dbcnl_validate_ets(struct net_device *netdev,
 	}
 
 	/* Validate Bandwidth Sum */
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS) {
-			if (!ets->tc_tx_bw[i]) {
-				netdev_err(netdev,
-					   "Failed to validate ETS: BW 0 is illegal\n");
-				return -EINVAL;
-			}
-
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_ETS)
 			bw_sum += ets->tc_tx_bw[i];
-		}
-	}
 
 	if (bw_sum != 0 && bw_sum != 100) {
 		netdev_err(netdev,
@@ -533,8 +589,7 @@ static void mlx5e_dcbnl_getpgtccfgtx(struct net_device *netdev,
 static void mlx5e_dcbnl_getpgbwgcfgtx(struct net_device *netdev,
 				      int pgid, u8 *bw_pct)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5_core_dev *mdev = priv->mdev;
+	struct ieee_ets ets;
 
 	if (pgid >= CEE_DCBX_MAX_PGS) {
 		netdev_err(netdev,
@@ -542,8 +597,8 @@ static void mlx5e_dcbnl_getpgbwgcfgtx(struct net_device *netdev,
 		return;
 	}
 
-	if (mlx5_query_port_tc_bw_alloc(mdev, pgid, bw_pct))
-		*bw_pct = 0;
+	mlx5e_dcbnl_ieee_getets(netdev, &ets);
+	*bw_pct = ets.tc_tx_bw[pgid];
 }
 
 static void mlx5e_dcbnl_setpfccfg(struct net_device *netdev,
@@ -738,8 +793,6 @@ static void mlx5e_ets_init(struct mlx5e_priv *priv)
 		ets.tc_tsa[i] = IEEE_8021QAZ_TSA_VENDOR;
 		ets.prio_tc[i] = i;
 	}
-
-	memcpy(priv->dcbx.tc_tsa, ets.tc_tsa, sizeof(ets.tc_tsa));
 
 	/* tclass[prio=0]=1, tclass[prio=1]=0, tclass[prio=i]=i (for i>1) */
 	ets.prio_tc[0] = 1;

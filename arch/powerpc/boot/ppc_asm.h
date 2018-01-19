@@ -80,4 +80,12 @@
 	.long 0xa6037b7d; /* mtsrr1 r11				*/ \
 	.long 0x2400004c  /* rfid				*/
 
+#ifdef CONFIG_PPC_8xx
+#define MFTBL(dest)			mftb dest
+#define MFTBU(dest)			mftbu dest
+#else
+#define MFTBL(dest)			mfspr dest, SPRN_TBRL
+#define MFTBU(dest)			mfspr dest, SPRN_TBRU
+#endif
+
 #endif /* _PPC64_PPC_ASM_H */

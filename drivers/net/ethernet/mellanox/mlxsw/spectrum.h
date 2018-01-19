@@ -77,6 +77,7 @@ enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_SUBPORT,
 	MLXSW_SP_RIF_TYPE_VLAN,
 	MLXSW_SP_RIF_TYPE_FID,
+	MLXSW_SP_RIF_TYPE_IPIP_LB, /* IP-in-IP loopback. */
 	MLXSW_SP_RIF_TYPE_MAX,
 };
 
@@ -384,6 +385,8 @@ int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 int mlxsw_sp_netdevice_router_port_event(struct net_device *dev);
 int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 			    unsigned long event, void *ptr);
+int mlxsw_sp_inet6addr_event(struct notifier_block *unused,
+			     unsigned long event, void *ptr);
 int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 				 struct netdev_notifier_changeupper_info *info);
 void
@@ -415,6 +418,7 @@ struct mlxsw_sp_acl_profile_ops {
 	int (*ruleset_bind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 			    struct net_device *dev, bool ingress);
 	void (*ruleset_unbind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
+	u16 (*ruleset_group_id)(void *ruleset_priv);
 	size_t rule_priv_size;
 	int (*rule_add)(struct mlxsw_sp *mlxsw_sp,
 			void *ruleset_priv, void *rule_priv,
@@ -438,11 +442,16 @@ struct mlxsw_sp_acl_ruleset;
 /* spectrum_acl.c */
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
 struct mlxsw_sp_acl_ruleset *
-mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
-			 struct net_device *dev, bool ingress,
+mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
+			    bool ingress, u32 chain_index,
+			    enum mlxsw_sp_acl_profile profile);
+struct mlxsw_sp_acl_ruleset *
+mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
+			 bool ingress, u32 chain_index,
 			 enum mlxsw_sp_acl_profile profile);
 void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_ruleset *ruleset);
+u16 mlxsw_sp_acl_ruleset_group_id(struct mlxsw_sp_acl_ruleset *ruleset);
 
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl);
@@ -506,7 +515,7 @@ extern const struct mlxsw_sp_acl_ops mlxsw_sp_acl_tcam_ops;
 
 /* spectrum_flower.c */
 int mlxsw_sp_flower_replace(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
-			    __be16 protocol, struct tc_cls_flower_offload *f);
+			    struct tc_cls_flower_offload *f);
 void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			     struct tc_cls_flower_offload *f);
 int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,

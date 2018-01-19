@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * trace task wakeup timings
  *
@@ -397,10 +398,10 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry	= ring_buffer_event_data(event);
 	entry->prev_pid			= prev->pid;
 	entry->prev_prio		= prev->prio;
-	entry->prev_state		= prev->state;
+	entry->prev_state		= __get_task_state(prev);
 	entry->next_pid			= next->pid;
 	entry->next_prio		= next->prio;
-	entry->next_state		= next->state;
+	entry->next_state		= __get_task_state(next);
 	entry->next_cpu	= task_cpu(next);
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
@@ -425,10 +426,10 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry	= ring_buffer_event_data(event);
 	entry->prev_pid			= curr->pid;
 	entry->prev_prio		= curr->prio;
-	entry->prev_state		= curr->state;
+	entry->prev_state		= __get_task_state(curr);
 	entry->next_pid			= wakee->pid;
 	entry->next_prio		= wakee->prio;
-	entry->next_state		= wakee->state;
+	entry->next_state		= __get_task_state(wakee);
 	entry->next_cpu			= task_cpu(wakee);
 
 	if (!call_filter_check_discard(call, entry, buffer, event))

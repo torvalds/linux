@@ -44,7 +44,7 @@ Arguments
 Description
 -----------
 
-This ioctl is for DVB devices only. To control a V4L2 decoder use the
+This ioctl is for Digital TV devices only. To control a V4L2 decoder use the
 V4L2 ``V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK`` control instead.
 
 This ioctl call asks the Audio Device to select the requested channel if

@@ -130,13 +130,11 @@ static void ib_nl_process_good_ip_rsep(const struct nlmsghdr *nlh)
 }
 
 int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
-			     struct netlink_callback *cb)
+			     struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack)
 {
-	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
-
 	if ((nlh->nlmsg_flags & NLM_F_REQUEST) ||
-	    !(NETLINK_CB(skb).sk) ||
-	    !netlink_capable(skb, CAP_NET_ADMIN))
+	    !(NETLINK_CB(skb).sk))
 		return -EPERM;
 
 	if (ib_nl_is_good_ip_resp(nlh))
@@ -186,7 +184,7 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
-	ibnl_multicast(skb, nlh, RDMA_NL_GROUP_LS, GFP_KERNEL);
+	rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, GFP_KERNEL);
 
 	/* Make the request retry, so when we get the response from userspace
 	 * we will have something.
@@ -326,7 +324,7 @@ static void queue_req(struct addr_req *req)
 static int ib_nl_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *dev_addr,
 			  const void *daddr, u32 seq, u16 family)
 {
-	if (ibnl_chk_listeners(RDMA_NL_GROUP_LS))
+	if (rdma_nl_chk_listeners(RDMA_NL_GROUP_LS))
 		return -EADDRNOTAVAIL;
 
 	/* We fill in what we can, the response will fill the rest */

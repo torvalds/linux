@@ -17,12 +17,14 @@
 
 #include <asm/barrier.h>
 #include <asm/byteorder.h>
+#include <linux/atomic.h>
+#include <linux/bitmap.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/err.h>
-#include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mailbox_controller.h>
@@ -95,7 +97,7 @@
 
 /* Register RING_CMPL_START_ADDR fields */
 #define CMPL_START_ADDR_VALUE(pa)			\
-	((u32)((((u64)(pa)) >> RING_CMPL_ALIGN_ORDER) & 0x03ffffff))
+	((u32)((((u64)(pa)) >> RING_CMPL_ALIGN_ORDER) & 0x07ffffff))
 
 /* Register RING_CONTROL fields */
 #define CONTROL_MASK_DISABLE_CONTROL			12
@@ -260,18 +262,21 @@ struct flexrm_ring {
 	void __iomem *regs;
 	bool irq_requested;
 	unsigned int irq;
+	cpumask_t irq_aff_hint;
 	unsigned int msi_timer_val;
 	unsigned int msi_count_threshold;
-	struct ida requests_ida;
 	struct brcm_message *requests[RING_MAX_REQ_COUNT];
 	void *bd_base;
 	dma_addr_t bd_dma_base;
 	u32 bd_write_offset;
 	void *cmpl_base;
 	dma_addr_t cmpl_dma_base;
+	/* Atomic stats */
+	atomic_t msg_send_count;
+	atomic_t msg_cmpl_count;
 	/* Protected members */
 	spinlock_t lock;
-	struct brcm_message *last_pending_msg;
+	DECLARE_BITMAP(requests_bmap, RING_MAX_REQ_COUNT);
 	u32 cmpl_read_offset;
 };
 
@@ -282,6 +287,9 @@ struct flexrm_mbox {
 	struct flexrm_ring *rings;
 	struct dma_pool *bd_pool;
 	struct dma_pool *cmpl_pool;
+	struct dentry *root;
+	struct dentry *config;
+	struct dentry *stats;
 	struct mbox_controller controller;
 };
 
@@ -912,6 +920,62 @@ static void *flexrm_write_descs(struct brcm_message *msg, u32 nhcnt,
 
 /* ====== FlexRM driver helper routines ===== */
 
+static void flexrm_write_config_in_seqfile(struct flexrm_mbox *mbox,
+					   struct seq_file *file)
+{
+	int i;
+	const char *state;
+	struct flexrm_ring *ring;
+
+	seq_printf(file, "%-5s %-9s %-18s %-10s %-18s %-10s\n",
+		   "Ring#", "State", "BD_Addr", "BD_Size",
+		   "Cmpl_Addr", "Cmpl_Size");
+
+	for (i = 0; i < mbox->num_rings; i++) {
+		ring = &mbox->rings[i];
+		if (readl(ring->regs + RING_CONTROL) &
+		    BIT(CONTROL_ACTIVE_SHIFT))
+			state = "active";
+		else
+			state = "inactive";
+		seq_printf(file,
+			   "%-5d %-9s 0x%016llx 0x%08x 0x%016llx 0x%08x\n",
+			   ring->num, state,
+			   (unsigned long long)ring->bd_dma_base,
+			   (u32)RING_BD_SIZE,
+			   (unsigned long long)ring->cmpl_dma_base,
+			   (u32)RING_CMPL_SIZE);
+	}
+}
+
+static void flexrm_write_stats_in_seqfile(struct flexrm_mbox *mbox,
+					  struct seq_file *file)
+{
+	int i;
+	u32 val, bd_read_offset;
+	struct flexrm_ring *ring;
+
+	seq_printf(file, "%-5s %-10s %-10s %-10s %-11s %-11s\n",
+		   "Ring#", "BD_Read", "BD_Write",
+		   "Cmpl_Read", "Submitted", "Completed");
+
+	for (i = 0; i < mbox->num_rings; i++) {
+		ring = &mbox->rings[i];
+		bd_read_offset = readl_relaxed(ring->regs + RING_BD_READ_PTR);
+		val = readl_relaxed(ring->regs + RING_BD_START_ADDR);
+		bd_read_offset *= RING_DESC_SIZE;
+		bd_read_offset += (u32)(BD_START_ADDR_DECODE(val) -
+					ring->bd_dma_base);
+		seq_printf(file, "%-5d 0x%08x 0x%08x 0x%08x %-11d %-11d\n",
+			   ring->num,
+			   (u32)bd_read_offset,
+			   (u32)ring->bd_write_offset,
+			   (u32)ring->cmpl_read_offset,
+			   (u32)atomic_read(&ring->msg_send_count),
+			   (u32)atomic_read(&ring->msg_cmpl_count));
+	}
+}
+
 static int flexrm_new_request(struct flexrm_ring *ring,
 				struct brcm_message *batch_msg,
 				struct brcm_message *msg)
@@ -929,36 +993,22 @@ static int flexrm_new_request(struct flexrm_ring *ring,
 	msg->error = 0;
 
 	/* If no requests possible then save data pointer and goto done. */
-	reqid = ida_simple_get(&ring->requests_ida, 0,
-				RING_MAX_REQ_COUNT, GFP_KERNEL);
-	if (reqid < 0) {
-		spin_lock_irqsave(&ring->lock, flags);
-		if (batch_msg)
-			ring->last_pending_msg = batch_msg;
-		else
-			ring->last_pending_msg = msg;
-		spin_unlock_irqrestore(&ring->lock, flags);
-		return 0;
-	}
+	spin_lock_irqsave(&ring->lock, flags);
+	reqid = bitmap_find_free_region(ring->requests_bmap,
+					RING_MAX_REQ_COUNT, 0);
+	spin_unlock_irqrestore(&ring->lock, flags);
+	if (reqid < 0)
+		return -ENOSPC;
 	ring->requests[reqid] = msg;
 
 	/* Do DMA mappings for the message */
 	ret = flexrm_dma_map(ring->mbox->dev, msg);
 	if (ret < 0) {
 		ring->requests[reqid] = NULL;
-		ida_simple_remove(&ring->requests_ida, reqid);
+		spin_lock_irqsave(&ring->lock, flags);
+		bitmap_release_region(ring->requests_bmap, reqid, 0);
+		spin_unlock_irqrestore(&ring->lock, flags);
 		return ret;
-	}
-
-	/* If last_pending_msg is already set then goto done with error */
-	spin_lock_irqsave(&ring->lock, flags);
-	if (ring->last_pending_msg)
-		ret = -ENOSPC;
-	spin_unlock_irqrestore(&ring->lock, flags);
-	if (ret < 0) {
-		dev_warn(ring->mbox->dev, "no space in ring %d\n", ring->num);
-		exit_cleanup = true;
-		goto exit;
 	}
 
 	/* Determine current HW BD read offset */
@@ -987,13 +1037,7 @@ static int flexrm_new_request(struct flexrm_ring *ring,
 			break;
 	}
 	if (count) {
-		spin_lock_irqsave(&ring->lock, flags);
-		if (batch_msg)
-			ring->last_pending_msg = batch_msg;
-		else
-			ring->last_pending_msg = msg;
-		spin_unlock_irqrestore(&ring->lock, flags);
-		ret = 0;
+		ret = -ENOSPC;
 		exit_cleanup = true;
 		goto exit;
 	}
@@ -1012,6 +1056,9 @@ static int flexrm_new_request(struct flexrm_ring *ring,
 	/* Save ring BD write offset */
 	ring->bd_write_offset = (unsigned long)(next - ring->bd_base);
 
+	/* Increment number of messages sent */
+	atomic_inc_return(&ring->msg_send_count);
+
 exit:
 	/* Update error status in message */
 	msg->error = ret;
@@ -1020,7 +1067,9 @@ exit:
 	if (exit_cleanup) {
 		flexrm_dma_unmap(ring->mbox->dev, msg);
 		ring->requests[reqid] = NULL;
-		ida_simple_remove(&ring->requests_ida, reqid);
+		spin_lock_irqsave(&ring->lock, flags);
+		bitmap_release_region(ring->requests_bmap, reqid, 0);
+		spin_unlock_irqrestore(&ring->lock, flags);
 	}
 
 	return ret;
@@ -1037,12 +1086,6 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 
 	spin_lock_irqsave(&ring->lock, flags);
 
-	/* Check last_pending_msg */
-	if (ring->last_pending_msg) {
-		msg = ring->last_pending_msg;
-		ring->last_pending_msg = NULL;
-	}
-
 	/*
 	 * Get current completion read and write offset
 	 *
@@ -1057,10 +1100,6 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 	ring->cmpl_read_offset = cmpl_write_offset;
 
 	spin_unlock_irqrestore(&ring->lock, flags);
-
-	/* If last_pending_msg was set then queue it back */
-	if (msg)
-		mbox_send_message(chan, msg);
 
 	/* For each completed request notify mailbox clients */
 	reqid = 0;
@@ -1095,7 +1134,9 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 
 		/* Release reqid for recycling */
 		ring->requests[reqid] = NULL;
-		ida_simple_remove(&ring->requests_ida, reqid);
+		spin_lock_irqsave(&ring->lock, flags);
+		bitmap_release_region(ring->requests_bmap, reqid, 0);
+		spin_unlock_irqrestore(&ring->lock, flags);
 
 		/* Unmap DMA mappings */
 		flexrm_dma_unmap(ring->mbox->dev, msg);
@@ -1105,10 +1146,35 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 		mbox_chan_received_data(chan, msg);
 
 		/* Increment number of completions processed */
+		atomic_inc_return(&ring->msg_cmpl_count);
 		count++;
 	}
 
 	return count;
+}
+
+/* ====== FlexRM Debugfs callbacks ====== */
+
+static int flexrm_debugfs_conf_show(struct seq_file *file, void *offset)
+{
+	struct platform_device *pdev = to_platform_device(file->private);
+	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
+
+	/* Write config in file */
+	flexrm_write_config_in_seqfile(mbox, file);
+
+	return 0;
+}
+
+static int flexrm_debugfs_stats_show(struct seq_file *file, void *offset)
+{
+	struct platform_device *pdev = to_platform_device(file->private);
+	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
+
+	/* Write stats in file */
+	flexrm_write_stats_in_seqfile(mbox, file);
+
+	return 0;
 }
 
 /* ====== FlexRM interrupt handler ===== */
@@ -1217,6 +1283,18 @@ static int flexrm_startup(struct mbox_chan *chan)
 	}
 	ring->irq_requested = true;
 
+	/* Set IRQ affinity hint */
+	ring->irq_aff_hint = CPU_MASK_NONE;
+	val = ring->mbox->num_rings;
+	val = (num_online_cpus() < val) ? val / num_online_cpus() : 1;
+	cpumask_set_cpu((ring->num / val) % num_online_cpus(),
+			&ring->irq_aff_hint);
+	ret = irq_set_affinity_hint(ring->irq, &ring->irq_aff_hint);
+	if (ret) {
+		dev_err(ring->mbox->dev, "failed to set IRQ affinity hint\n");
+		goto fail_free_irq;
+	}
+
 	/* Disable/inactivate ring */
 	writel_relaxed(0x0, ring->regs + RING_CONTROL);
 
@@ -1232,9 +1310,6 @@ static int flexrm_startup(struct mbox_chan *chan)
 	/* Program completion start address */
 	val = CMPL_START_ADDR_VALUE(ring->cmpl_dma_base);
 	writel_relaxed(val, ring->regs + RING_CMPL_START_ADDR);
-
-	/* Ensure last pending message is cleared */
-	ring->last_pending_msg = NULL;
 
 	/* Completion read pointer will be same as HW write pointer */
 	ring->cmpl_read_offset =
@@ -1259,8 +1334,15 @@ static int flexrm_startup(struct mbox_chan *chan)
 	val = BIT(CONTROL_ACTIVE_SHIFT);
 	writel_relaxed(val, ring->regs + RING_CONTROL);
 
+	/* Reset stats to zero */
+	atomic_set(&ring->msg_send_count, 0);
+	atomic_set(&ring->msg_cmpl_count, 0);
+
 	return 0;
 
+fail_free_irq:
+	free_irq(ring->irq, ring);
+	ring->irq_requested = false;
 fail_free_cmpl_memory:
 	dma_pool_free(ring->mbox->cmpl_pool,
 		      ring->cmpl_base, ring->cmpl_dma_base);
@@ -1302,7 +1384,6 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 
 		/* Release reqid for recycling */
 		ring->requests[reqid] = NULL;
-		ida_simple_remove(&ring->requests_ida, reqid);
 
 		/* Unmap DMA mappings */
 		flexrm_dma_unmap(ring->mbox->dev, msg);
@@ -1312,8 +1393,12 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 		mbox_chan_received_data(chan, msg);
 	}
 
+	/* Clear requests bitmap */
+	bitmap_zero(ring->requests_bmap, RING_MAX_REQ_COUNT);
+
 	/* Release IRQ */
 	if (ring->irq_requested) {
+		irq_set_affinity_hint(ring->irq, NULL);
 		free_irq(ring->irq, ring);
 		ring->irq_requested = false;
 	}
@@ -1333,24 +1418,10 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 	}
 }
 
-static bool flexrm_last_tx_done(struct mbox_chan *chan)
-{
-	bool ret;
-	unsigned long flags;
-	struct flexrm_ring *ring = chan->con_priv;
-
-	spin_lock_irqsave(&ring->lock, flags);
-	ret = (ring->last_pending_msg) ? false : true;
-	spin_unlock_irqrestore(&ring->lock, flags);
-
-	return ret;
-}
-
 static const struct mbox_chan_ops flexrm_mbox_chan_ops = {
 	.send_data	= flexrm_send_data,
 	.startup	= flexrm_startup,
 	.shutdown	= flexrm_shutdown,
-	.last_tx_done	= flexrm_last_tx_done,
 	.peek_data	= flexrm_peek_data,
 };
 
@@ -1468,14 +1539,15 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 		ring->irq_requested = false;
 		ring->msi_timer_val = MSI_TIMER_VAL_MASK;
 		ring->msi_count_threshold = 0x1;
-		ida_init(&ring->requests_ida);
 		memset(ring->requests, 0, sizeof(ring->requests));
 		ring->bd_base = NULL;
 		ring->bd_dma_base = 0;
 		ring->cmpl_base = NULL;
 		ring->cmpl_dma_base = 0;
+		atomic_set(&ring->msg_send_count, 0);
+		atomic_set(&ring->msg_cmpl_count, 0);
 		spin_lock_init(&ring->lock);
-		ring->last_pending_msg = NULL;
+		bitmap_zero(ring->requests_bmap, RING_MAX_REQ_COUNT);
 		ring->cmpl_read_offset = 0;
 	}
 
@@ -1515,10 +1587,39 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 		ring->irq = desc->irq;
 	}
 
+	/* Check availability of debugfs */
+	if (!debugfs_initialized())
+		goto skip_debugfs;
+
+	/* Create debugfs root entry */
+	mbox->root = debugfs_create_dir(dev_name(mbox->dev), NULL);
+	if (IS_ERR_OR_NULL(mbox->root)) {
+		ret = PTR_ERR_OR_ZERO(mbox->root);
+		goto fail_free_msis;
+	}
+
+	/* Create debugfs config entry */
+	mbox->config = debugfs_create_devm_seqfile(mbox->dev,
+						   "config", mbox->root,
+						   flexrm_debugfs_conf_show);
+	if (IS_ERR_OR_NULL(mbox->config)) {
+		ret = PTR_ERR_OR_ZERO(mbox->config);
+		goto fail_free_debugfs_root;
+	}
+
+	/* Create debugfs stats entry */
+	mbox->stats = debugfs_create_devm_seqfile(mbox->dev,
+						  "stats", mbox->root,
+						  flexrm_debugfs_stats_show);
+	if (IS_ERR_OR_NULL(mbox->stats)) {
+		ret = PTR_ERR_OR_ZERO(mbox->stats);
+		goto fail_free_debugfs_root;
+	}
+skip_debugfs:
+
 	/* Initialize mailbox controller */
 	mbox->controller.txdone_irq = false;
-	mbox->controller.txdone_poll = true;
-	mbox->controller.txpoll_period = 1;
+	mbox->controller.txdone_poll = false;
 	mbox->controller.ops = &flexrm_mbox_chan_ops;
 	mbox->controller.dev = dev;
 	mbox->controller.num_chans = mbox->num_rings;
@@ -1527,7 +1628,7 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 				sizeof(*mbox->controller.chans), GFP_KERNEL);
 	if (!mbox->controller.chans) {
 		ret = -ENOMEM;
-		goto fail_free_msis;
+		goto fail_free_debugfs_root;
 	}
 	for (index = 0; index < mbox->num_rings; index++)
 		mbox->controller.chans[index].con_priv = &mbox->rings[index];
@@ -1535,13 +1636,15 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 	/* Register mailbox controller */
 	ret = mbox_controller_register(&mbox->controller);
 	if (ret)
-		goto fail_free_msis;
+		goto fail_free_debugfs_root;
 
 	dev_info(dev, "registered flexrm mailbox with %d channels\n",
 			mbox->controller.num_chans);
 
 	return 0;
 
+fail_free_debugfs_root:
+	debugfs_remove_recursive(mbox->root);
 fail_free_msis:
 	platform_msi_domain_free_irqs(dev);
 fail_destroy_cmpl_pool:
@@ -1554,22 +1657,17 @@ fail:
 
 static int flexrm_mbox_remove(struct platform_device *pdev)
 {
-	int index;
 	struct device *dev = &pdev->dev;
-	struct flexrm_ring *ring;
 	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
 
 	mbox_controller_unregister(&mbox->controller);
+
+	debugfs_remove_recursive(mbox->root);
 
 	platform_msi_domain_free_irqs(dev);
 
 	dma_pool_destroy(mbox->cmpl_pool);
 	dma_pool_destroy(mbox->bd_pool);
-
-	for (index = 0; index < mbox->num_rings; index++) {
-		ring = &mbox->rings[index];
-		ida_destroy(&ring->requests_ida);
-	}
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ip22-setup.c: SGI specific setup, including init of the feature struct.
  *

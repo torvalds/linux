@@ -134,8 +134,6 @@ typedef long (*dm_dax_direct_access_fn) (struct dm_target *ti, pgoff_t pgoff,
 		long nr_pages, void **kaddr, pfn_t *pfn);
 typedef size_t (*dm_dax_copy_from_iter_fn)(struct dm_target *ti, pgoff_t pgoff,
 		void *addr, size_t bytes, struct iov_iter *i);
-typedef void (*dm_dax_flush_fn)(struct dm_target *ti, pgoff_t pgoff, void *addr,
-		size_t size);
 #define PAGE_SECTORS (PAGE_SIZE / 512)
 
 void dm_error(const char *message);
@@ -186,7 +184,6 @@ struct target_type {
 	dm_io_hints_fn io_hints;
 	dm_dax_direct_access_fn direct_access;
 	dm_dax_copy_from_iter_fn dax_copy_from_iter;
-	dm_dax_flush_fn dax_flush;
 
 	/* For internal device-mapper use. */
 	struct list_head list;
@@ -387,7 +384,7 @@ struct dm_arg {
  * Validate the next argument, either returning it as *value or, if invalid,
  * returning -EINVAL and setting *error.
  */
-int dm_read_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
+int dm_read_arg(const struct dm_arg *arg, struct dm_arg_set *arg_set,
 		unsigned *value, char **error);
 
 /*
@@ -395,7 +392,7 @@ int dm_read_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
  * arg->min and arg->max further arguments. Either return the size as
  * *num_args or, if invalid, return -EINVAL and set *error.
  */
-int dm_read_arg_group(struct dm_arg *arg, struct dm_arg_set *arg_set,
+int dm_read_arg_group(const struct dm_arg *arg, struct dm_arg_set *arg_set,
 		      unsigned *num_args, char **error);
 
 /*

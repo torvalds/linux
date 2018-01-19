@@ -730,8 +730,8 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 
 	node = of_graph_get_next_endpoint(node, NULL);
 	if (!node) {
-		dev_err(&pdev->dev, "No port node at %s\n",
-				pdev->dev.of_node->full_name);
+		dev_err(&pdev->dev, "No port node at %pOF\n",
+				pdev->dev.of_node);
 		return -EINVAL;
 	}
 	/* Get port node and validate MIPI-CSI channel id. */

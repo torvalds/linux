@@ -1192,7 +1192,7 @@ static void snd_msnd_pnp_remove(struct pnp_card_link *pcard)
 static int isa_registered;
 static int pnp_registered;
 
-static struct pnp_card_device_id msnd_pnpids[] = {
+static const struct pnp_card_device_id msnd_pnpids[] = {
 	/* Pinnacle PnP */
 	{ .id = "BVJ0440", .devs = { { "TBS0000" }, { "TBS0001" } } },
 	{ .id = "" }	/* end */

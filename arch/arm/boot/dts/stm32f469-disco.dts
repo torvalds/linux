@@ -47,13 +47,14 @@
 
 /dts-v1/;
 #include "stm32f429.dtsi"
+#include "stm32f469-pinctrl.dtsi"
 
 / {
 	model = "STMicroelectronics STM32F469i-DISCO board";
 	compatible = "st,stm32f469i-disco", "st,stm32f469";
 
 	chosen {
-		bootargs = "root=/dev/ram rdinit=/linuxrc";
+		bootargs = "root=/dev/ram";
 		stdout-path = "serial0:115200n8";
 	};
 

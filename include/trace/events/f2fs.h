@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM f2fs
 
@@ -543,14 +544,14 @@ TRACE_EVENT(f2fs_map_blocks,
 
 TRACE_EVENT(f2fs_background_gc,
 
-	TP_PROTO(struct super_block *sb, long wait_ms,
+	TP_PROTO(struct super_block *sb, unsigned int wait_ms,
 			unsigned int prefree, unsigned int free),
 
 	TP_ARGS(sb, wait_ms, prefree, free),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(long,	wait_ms)
+		__field(unsigned int,	wait_ms)
 		__field(unsigned int,	prefree)
 		__field(unsigned int,	free)
 	),
@@ -562,11 +563,118 @@ TRACE_EVENT(f2fs_background_gc,
 		__entry->free		= free;
 	),
 
-	TP_printk("dev = (%d,%d), wait_ms = %ld, prefree = %u, free = %u",
+	TP_printk("dev = (%d,%d), wait_ms = %u, prefree = %u, free = %u",
 		show_dev(__entry->dev),
 		__entry->wait_ms,
 		__entry->prefree,
 		__entry->free)
+);
+
+TRACE_EVENT(f2fs_gc_begin,
+
+	TP_PROTO(struct super_block *sb, bool sync, bool background,
+			long long dirty_nodes, long long dirty_dents,
+			long long dirty_imeta, unsigned int free_sec,
+			unsigned int free_seg, int reserved_seg,
+			unsigned int prefree_seg),
+
+	TP_ARGS(sb, sync, background, dirty_nodes, dirty_dents, dirty_imeta,
+		free_sec, free_seg, reserved_seg, prefree_seg),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev)
+		__field(bool,		sync)
+		__field(bool,		background)
+		__field(long long,	dirty_nodes)
+		__field(long long,	dirty_dents)
+		__field(long long,	dirty_imeta)
+		__field(unsigned int,	free_sec)
+		__field(unsigned int,	free_seg)
+		__field(int,		reserved_seg)
+		__field(unsigned int,	prefree_seg)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->sync		= sync;
+		__entry->background	= background;
+		__entry->dirty_nodes	= dirty_nodes;
+		__entry->dirty_dents	= dirty_dents;
+		__entry->dirty_imeta	= dirty_imeta;
+		__entry->free_sec	= free_sec;
+		__entry->free_seg	= free_seg;
+		__entry->reserved_seg	= reserved_seg;
+		__entry->prefree_seg	= prefree_seg;
+	),
+
+	TP_printk("dev = (%d,%d), sync = %d, background = %d, nodes = %lld, "
+		"dents = %lld, imeta = %lld, free_sec:%u, free_seg:%u, "
+		"rsv_seg:%d, prefree_seg:%u",
+		show_dev(__entry->dev),
+		__entry->sync,
+		__entry->background,
+		__entry->dirty_nodes,
+		__entry->dirty_dents,
+		__entry->dirty_imeta,
+		__entry->free_sec,
+		__entry->free_seg,
+		__entry->reserved_seg,
+		__entry->prefree_seg)
+);
+
+TRACE_EVENT(f2fs_gc_end,
+
+	TP_PROTO(struct super_block *sb, int ret, int seg_freed,
+			int sec_freed, long long dirty_nodes,
+			long long dirty_dents, long long dirty_imeta,
+			unsigned int free_sec, unsigned int free_seg,
+			int reserved_seg, unsigned int prefree_seg),
+
+	TP_ARGS(sb, ret, seg_freed, sec_freed, dirty_nodes, dirty_dents,
+		dirty_imeta, free_sec, free_seg, reserved_seg, prefree_seg),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev)
+		__field(int,		ret)
+		__field(int,		seg_freed)
+		__field(int,		sec_freed)
+		__field(long long,	dirty_nodes)
+		__field(long long,	dirty_dents)
+		__field(long long,	dirty_imeta)
+		__field(unsigned int,	free_sec)
+		__field(unsigned int,	free_seg)
+		__field(int,		reserved_seg)
+		__field(unsigned int,	prefree_seg)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->ret		= ret;
+		__entry->seg_freed	= seg_freed;
+		__entry->sec_freed	= sec_freed;
+		__entry->dirty_nodes	= dirty_nodes;
+		__entry->dirty_dents	= dirty_dents;
+		__entry->dirty_imeta	= dirty_imeta;
+		__entry->free_sec	= free_sec;
+		__entry->free_seg	= free_seg;
+		__entry->reserved_seg	= reserved_seg;
+		__entry->prefree_seg	= prefree_seg;
+	),
+
+	TP_printk("dev = (%d,%d), ret = %d, seg_freed = %d, sec_freed = %d, "
+		"nodes = %lld, dents = %lld, imeta = %lld, free_sec:%u, "
+		"free_seg:%u, rsv_seg:%d, prefree_seg:%u",
+		show_dev(__entry->dev),
+		__entry->ret,
+		__entry->seg_freed,
+		__entry->sec_freed,
+		__entry->dirty_nodes,
+		__entry->dirty_dents,
+		__entry->dirty_imeta,
+		__entry->free_sec,
+		__entry->free_seg,
+		__entry->reserved_seg,
+		__entry->prefree_seg)
 );
 
 TRACE_EVENT(f2fs_get_victim,
@@ -829,7 +937,7 @@ DECLARE_EVENT_CLASS(f2fs__bio,
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->target		= bio->bi_bdev->bd_dev;
+		__entry->target		= bio_dev(bio);
 		__entry->op		= bio_op(bio);
 		__entry->op_flags	= bio->bi_opf;
 		__entry->type		= type;

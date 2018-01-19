@@ -86,8 +86,7 @@
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/uaccess.h>
 
 #ifdef CONFIG_OF
@@ -222,6 +221,8 @@ static const struct config_registers v6_config_registers = {
  * hwicap_command_desync - Send a DESYNC command to the ICAP port.
  * @drvdata: a pointer to the drvdata.
  *
+ * Returns: '0' on success and failure value on error
+ *
  * This command desynchronizes the ICAP After this command, a
  * bitstream containing a NULL packet, followed by a SYNCH packet is
  * required before the ICAP will recognize commands.
@@ -251,9 +252,11 @@ static int hwicap_command_desync(struct hwicap_drvdata *drvdata)
  * hwicap_get_configuration_register - Query a configuration register.
  * @drvdata: a pointer to the drvdata.
  * @reg: a constant which represents the configuration
- *		register value to be returned.
- * 		Examples:  XHI_IDCODE, XHI_FLR.
+ * register value to be returned.
+ * Examples: XHI_IDCODE, XHI_FLR.
  * @reg_data: returns the value of the register.
+ *
+ * Returns: '0' on success and failure value on error
  *
  * Sends a query packet to the ICAP and then receives the response.
  * The icap is left in Synched state.
@@ -320,7 +323,8 @@ static int hwicap_initialize_hwicap(struct hwicap_drvdata *drvdata)
 	dev_dbg(drvdata->dev, "initializing\n");
 
 	/* Abort any current transaction, to make sure we have the
-	 * ICAP in a good state. */
+	 * ICAP in a good state.
+	 */
 	dev_dbg(drvdata->dev, "Reset...\n");
 	drvdata->config->reset(drvdata);
 
@@ -632,7 +636,6 @@ static int hwicap_setup(struct device *dev, int id,
 
 	drvdata = kzalloc(sizeof(struct hwicap_drvdata), GFP_KERNEL);
 	if (!drvdata) {
-		dev_err(dev, "Couldn't allocate device private record\n");
 		retval = -ENOMEM;
 		goto failed0;
 	}
@@ -759,20 +762,20 @@ static int hwicap_of_probe(struct platform_device *op,
 	id = of_get_property(op->dev.of_node, "port-number", NULL);
 
 	/* It's most likely that we're using V4, if the family is not
-	   specified */
+	 * specified
+	 */
 	regs = &v4_config_registers;
 	family = of_get_property(op->dev.of_node, "xlnx,family", NULL);
 
 	if (family) {
-		if (!strcmp(family, "virtex2p")) {
+		if (!strcmp(family, "virtex2p"))
 			regs = &v2_config_registers;
-		} else if (!strcmp(family, "virtex4")) {
+		else if (!strcmp(family, "virtex4"))
 			regs = &v4_config_registers;
-		} else if (!strcmp(family, "virtex5")) {
+		else if (!strcmp(family, "virtex5"))
 			regs = &v5_config_registers;
-		} else if (!strcmp(family, "virtex6")) {
+		else if (!strcmp(family, "virtex6"))
 			regs = &v6_config_registers;
-		}
 	}
 	return hwicap_setup(&op->dev, id ? *id : -1, &res, config,
 			regs);
@@ -802,20 +805,20 @@ static int hwicap_drv_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* It's most likely that we're using V4, if the family is not
-	   specified */
+	 * specified
+	 */
 	regs = &v4_config_registers;
 	family = pdev->dev.platform_data;
 
 	if (family) {
-		if (!strcmp(family, "virtex2p")) {
+		if (!strcmp(family, "virtex2p"))
 			regs = &v2_config_registers;
-		} else if (!strcmp(family, "virtex4")) {
+		else if (!strcmp(family, "virtex4"))
 			regs = &v4_config_registers;
-		} else if (!strcmp(family, "virtex5")) {
+		else if (!strcmp(family, "virtex5"))
 			regs = &v5_config_registers;
-		} else if (!strcmp(family, "virtex6")) {
+		else if (!strcmp(family, "virtex6"))
 			regs = &v6_config_registers;
-		}
 	}
 
 	return hwicap_setup(&pdev->dev, pdev->id, res,

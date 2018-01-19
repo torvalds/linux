@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree file for Teltonika RUT1xx
  */
@@ -33,6 +34,7 @@
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "Reset to defaults";
+			/* Conflict with TVC */
 			gpios = <&gpio1 28 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -42,12 +44,14 @@
 		led@7 {
 			/* FIXME: add the LED color */
 			label = "rut1xx::gsm";
+			/* Conflict with ICE */
 			gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 		led@31 {
 			/* FIXME: add the LED color */
 			label = "rut1xx::power";
+			/* Conflict with NAND CE0 */
 			gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "heartbeat";
@@ -60,6 +64,42 @@
 			/* 8MB of flash */
 			reg = <0x30000000 0x00800000>;
 			/* TODO: add flash partitions here */
+		};
+
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio0bgrp cover line 7 used by GSM LED
+				 * gpio0fgrp cover line 17 used by power LED
+				 */
+				gpio0_default_pins: pinctrl-gpio0 {
+					mux {
+						function = "gpio0";
+						groups = "gpio0bgrp",
+						"gpio0fgrp";
+					};
+				};
+				/*
+				 * gpio1dgrp cover line 28-31 otherwise used
+				 * by TVC.
+				 */
+				gpio1_default_pins: pinctrl-gpio1 {
+					mux {
+						function = "gpio1";
+						groups = "gpio1dgrp";
+					};
+				};
+			};
+		};
+
+		gpio0: gpio@4d000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio0_default_pins>;
+		};
+
+		gpio1: gpio@4e000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio1_default_pins>;
 		};
 	};
 };

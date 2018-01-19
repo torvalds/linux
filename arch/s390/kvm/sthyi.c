@@ -436,14 +436,6 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 	if (addr & ~PAGE_MASK)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	/*
-	 * If the page has not yet been faulted in, we want to do that
-	 * now and not after all the expensive calculations.
-	 */
-	r = write_guest(vcpu, addr, reg2, &cc, 1);
-	if (r)
-		return kvm_s390_inject_prog_cond(vcpu, r);
-
 	sctns = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!sctns)
 		return -ENOMEM;

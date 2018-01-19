@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DRM_FB_CMA_HELPER_H__
 #define __DRM_FB_CMA_HELPER_H__
 
@@ -24,9 +25,9 @@ void drm_fbdev_cma_fini(struct drm_fbdev_cma *fbdev_cma);
 
 void drm_fbdev_cma_restore_mode(struct drm_fbdev_cma *fbdev_cma);
 void drm_fbdev_cma_hotplug_event(struct drm_fbdev_cma *fbdev_cma);
-void drm_fbdev_cma_set_suspend(struct drm_fbdev_cma *fbdev_cma, int state);
+void drm_fbdev_cma_set_suspend(struct drm_fbdev_cma *fbdev_cma, bool state);
 void drm_fbdev_cma_set_suspend_unlocked(struct drm_fbdev_cma *fbdev_cma,
-					int state);
+					bool state);
 
 void drm_fb_cma_destroy(struct drm_framebuffer *fb);
 int drm_fb_cma_create_handle(struct drm_framebuffer *fb,

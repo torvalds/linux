@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_9P_FS) := 9p.o
 
 9p-objs := \

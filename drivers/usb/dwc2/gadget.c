@@ -4179,7 +4179,7 @@ static int dwc2_hsotg_ep_sethalt_lock(struct usb_ep *ep, int value)
 	return ret;
 }
 
-static struct usb_ep_ops dwc2_hsotg_ep_ops = {
+static const struct usb_ep_ops dwc2_hsotg_ep_ops = {
 	.enable		= dwc2_hsotg_ep_enable,
 	.disable	= dwc2_hsotg_ep_disable,
 	.alloc_request	= dwc2_hsotg_ep_alloc_request,

@@ -29,8 +29,8 @@ struct mmc_csd {
 	unsigned char		structure;
 	unsigned char		mmca_vsn;
 	unsigned short		cmdclass;
-	unsigned short		tacc_clks;
-	unsigned int		tacc_ns;
+	unsigned short		taac_clks;
+	unsigned int		taac_ns;
 	unsigned int		c_size;
 	unsigned int		r2w_factor;
 	unsigned int		max_dtr;

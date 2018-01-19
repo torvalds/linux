@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* floppy.h: Sparc specific parts of the Floppy driver.
  *
  * Copyright (C) 1996, 2007, 2008 David S. Miller (davem@davemloft.net)

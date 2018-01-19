@@ -13,6 +13,7 @@
 #include <linux/mfd/stm32-timers.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/of_device.h>
 
 #define MAX_TRIGGERS 7
 #define MAX_VALIDS 5
@@ -28,9 +29,14 @@ static const void *triggers_table[][MAX_TRIGGERS] = {
 	{ TIM7_TRGO,},
 	{ TIM8_TRGO, TIM8_TRGO2, TIM8_CH1, TIM8_CH2, TIM8_CH3, TIM8_CH4,},
 	{ TIM9_TRGO, TIM9_CH1, TIM9_CH2,},
-	{ }, /* timer 10 */
-	{ }, /* timer 11 */
+	{ TIM10_OC1,},
+	{ TIM11_OC1,},
 	{ TIM12_TRGO, TIM12_CH1, TIM12_CH2,},
+	{ TIM13_OC1,},
+	{ TIM14_OC1,},
+	{ TIM15_TRGO,},
+	{ TIM16_OC1,},
+	{ TIM17_OC1,},
 };
 
 /* List the triggers accepted by each timer */
@@ -43,10 +49,30 @@ static const void *valids_table[][MAX_VALIDS] = {
 	{ }, /* timer 6 */
 	{ }, /* timer 7 */
 	{ TIM1_TRGO, TIM2_TRGO, TIM4_TRGO, TIM5_TRGO,},
-	{ TIM2_TRGO, TIM3_TRGO,},
+	{ TIM2_TRGO, TIM3_TRGO, TIM10_OC1, TIM11_OC1,},
 	{ }, /* timer 10 */
 	{ }, /* timer 11 */
-	{ TIM4_TRGO, TIM5_TRGO,},
+	{ TIM4_TRGO, TIM5_TRGO, TIM13_OC1, TIM14_OC1,},
+};
+
+static const void *stm32h7_valids_table[][MAX_VALIDS] = {
+	{ TIM15_TRGO, TIM2_TRGO, TIM3_TRGO, TIM4_TRGO,},
+	{ TIM1_TRGO, TIM8_TRGO, TIM3_TRGO, TIM4_TRGO,},
+	{ TIM1_TRGO, TIM2_TRGO, TIM15_TRGO, TIM4_TRGO,},
+	{ TIM1_TRGO, TIM2_TRGO, TIM3_TRGO, TIM8_TRGO,},
+	{ TIM1_TRGO, TIM8_TRGO, TIM3_TRGO, TIM4_TRGO,},
+	{ }, /* timer 6 */
+	{ }, /* timer 7 */
+	{ TIM1_TRGO, TIM2_TRGO, TIM4_TRGO, TIM5_TRGO,},
+	{ }, /* timer 9 */
+	{ }, /* timer 10 */
+	{ }, /* timer 11 */
+	{ TIM4_TRGO, TIM5_TRGO, TIM13_OC1, TIM14_OC1,},
+	{ }, /* timer 13 */
+	{ }, /* timer 14 */
+	{ TIM1_TRGO, TIM3_TRGO, TIM16_OC1, TIM17_OC1,},
+	{ }, /* timer 16 */
+	{ }, /* timer 17 */
 };
 
 struct stm32_timer_trigger {
@@ -59,9 +85,19 @@ struct stm32_timer_trigger {
 	bool has_trgo2;
 };
 
+struct stm32_timer_trigger_cfg {
+	const void *(*valids_table)[MAX_VALIDS];
+	const unsigned int num_valids_table;
+};
+
 static bool stm32_timer_is_trgo2_name(const char *name)
 {
 	return !!strstr(name, "trgo2");
+}
+
+static bool stm32_timer_is_trgo_name(const char *name)
+{
+	return (!!strstr(name, "trgo") && !strstr(name, "trgo2"));
 }
 
 static int stm32_timer_start(struct stm32_timer_trigger *priv,
@@ -138,6 +174,7 @@ static void stm32_timer_stop(struct stm32_timer_trigger *priv)
 		clk_disable(priv->clk);
 
 	/* Stop timer */
+	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE, 0);
 	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, 0);
 	regmap_write(priv->regmap, TIM_PSC, 0);
 	regmap_write(priv->regmap, TIM_ARR, 0);
@@ -328,6 +365,7 @@ static int stm32_setup_iio_triggers(struct stm32_timer_trigger *priv)
 
 	while (cur && *cur) {
 		struct iio_trigger *trig;
+		bool cur_is_trgo = stm32_timer_is_trgo_name(*cur);
 		bool cur_is_trgo2 = stm32_timer_is_trgo2_name(*cur);
 
 		if (cur_is_trgo2 && !priv->has_trgo2) {
@@ -344,10 +382,9 @@ static int stm32_setup_iio_triggers(struct stm32_timer_trigger *priv)
 
 		/*
 		 * sampling frequency and master mode attributes
-		 * should only be available on trgo trigger which
-		 * is always the first in the list.
+		 * should only be available on trgo/trgo2 triggers
 		 */
-		if (cur == priv->triggers || cur_is_trgo2)
+		if (cur_is_trgo || cur_is_trgo2)
 			trig->dev.groups = stm32_trigger_attr_groups;
 
 		iio_trigger_set_drvdata(trig, priv);
@@ -679,8 +716,9 @@ static ssize_t stm32_count_set_preset(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
+	/* TIMx_ARR register shouldn't be buffered (ARPE=0) */
+	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE, 0);
 	regmap_write(priv->regmap, TIM_ARR, preset);
-	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE, TIM_CR1_ARPE);
 
 	return len;
 }
@@ -770,18 +808,22 @@ static int stm32_timer_trigger_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct stm32_timer_trigger *priv;
 	struct stm32_timers *ddata = dev_get_drvdata(pdev->dev.parent);
+	const struct stm32_timer_trigger_cfg *cfg;
 	unsigned int index;
 	int ret;
 
 	if (of_property_read_u32(dev->of_node, "reg", &index))
 		return -EINVAL;
 
+	cfg = (const struct stm32_timer_trigger_cfg *)
+		of_match_device(dev->driver->of_match_table, dev)->data;
+
 	if (index >= ARRAY_SIZE(triggers_table) ||
-	    index >= ARRAY_SIZE(valids_table))
+	    index >= cfg->num_valids_table)
 		return -EINVAL;
 
 	/* Create an IIO device only if we have triggers to be validated */
-	if (*valids_table[index])
+	if (*cfg->valids_table[index])
 		priv = stm32_setup_counter_device(dev);
 	else
 		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -794,7 +836,7 @@ static int stm32_timer_trigger_probe(struct platform_device *pdev)
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
 	priv->triggers = triggers_table[index];
-	priv->valids = valids_table[index];
+	priv->valids = cfg->valids_table[index];
 	stm32_timer_detect_trgo2(priv);
 
 	ret = stm32_setup_iio_triggers(priv);
@@ -806,8 +848,24 @@ static int stm32_timer_trigger_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct stm32_timer_trigger_cfg stm32_timer_trg_cfg = {
+	.valids_table = valids_table,
+	.num_valids_table = ARRAY_SIZE(valids_table),
+};
+
+static const struct stm32_timer_trigger_cfg stm32h7_timer_trg_cfg = {
+	.valids_table = stm32h7_valids_table,
+	.num_valids_table = ARRAY_SIZE(stm32h7_valids_table),
+};
+
 static const struct of_device_id stm32_trig_of_match[] = {
-	{ .compatible = "st,stm32-timer-trigger", },
+	{
+		.compatible = "st,stm32-timer-trigger",
+		.data = (void *)&stm32_timer_trg_cfg,
+	}, {
+		.compatible = "st,stm32h7-timer-trigger",
+		.data = (void *)&stm32h7_timer_trg_cfg,
+	},
 	{ /* end node */ },
 };
 MODULE_DEVICE_TABLE(of, stm32_trig_of_match);

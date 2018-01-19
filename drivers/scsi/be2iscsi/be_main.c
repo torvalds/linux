@@ -4257,7 +4257,7 @@ static void beiscsi_cleanup_task(struct iscsi_task *task)
 	pwrb_context = &phwi_ctrlr->wrb_context[cri_index];
 
 	if (io_task->cmd_bhs) {
-		pci_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
+		dma_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
 			      io_task->bhs_pa.u.a64.address);
 		io_task->cmd_bhs = NULL;
 		task->hdr = NULL;
@@ -4374,7 +4374,7 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	struct beiscsi_session *beiscsi_sess = beiscsi_conn->beiscsi_sess;
 	dma_addr_t paddr;
 
-	io_task->cmd_bhs = pci_pool_alloc(beiscsi_sess->bhs_pool,
+	io_task->cmd_bhs = dma_pool_alloc(beiscsi_sess->bhs_pool,
 					  GFP_ATOMIC, &paddr);
 	if (!io_task->cmd_bhs)
 		return -ENOMEM;
@@ -4501,7 +4501,7 @@ free_hndls:
 	if (io_task->pwrb_handle)
 		free_wrb_handle(phba, pwrb_context, io_task->pwrb_handle);
 	io_task->pwrb_handle = NULL;
-	pci_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
+	dma_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
 		      io_task->bhs_pa.u.a64.address);
 	io_task->cmd_bhs = NULL;
 	return -ENOMEM;

@@ -659,13 +659,13 @@ static void fcoe_fcf_device_release(struct device *dev)
 	kfree(fcf);
 }
 
-static struct device_type fcoe_ctlr_device_type = {
+static const struct device_type fcoe_ctlr_device_type = {
 	.name = "fcoe_ctlr",
 	.groups = fcoe_ctlr_attr_groups,
 	.release = fcoe_ctlr_device_release,
 };
 
-static struct device_type fcoe_fcf_device_type = {
+static const struct device_type fcoe_fcf_device_type = {
 	.name = "fcoe_fcf",
 	.groups = fcoe_fcf_attr_groups,
 	.release = fcoe_fcf_device_release,

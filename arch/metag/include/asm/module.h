@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_METAG_MODULE_H
 #define _ASM_METAG_MODULE_H
 

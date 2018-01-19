@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __iop_fifo_out_extra_defs_asm_h
 #define __iop_fifo_out_extra_defs_asm_h
 

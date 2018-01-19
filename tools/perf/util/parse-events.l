@@ -5,9 +5,13 @@
 %option stack
 %option bison-locations
 %option yylineno
+%option reject
 
 %{
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "../perf.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
@@ -51,6 +55,31 @@ static int str(yyscan_t scanner, int token)
 
 	yylval->str = strdup(text);
 	return token;
+}
+
+static bool isbpf_suffix(char *text)
+{
+	int len = strlen(text);
+
+	if (len < 2)
+		return false;
+	if ((text[len - 1] == 'c' || text[len - 1] == 'o') &&
+	    text[len - 2] == '.')
+		return true;
+	if (len > 4 && !strcmp(text + len - 4, ".obj"))
+		return true;
+	return false;
+}
+
+static bool isbpf(yyscan_t scanner)
+{
+	char *text = parse_events_get_text(scanner);
+	struct stat st;
+
+	if (!isbpf_suffix(text))
+		return false;
+
+	return stat(text, &st) == 0;
 }
 
 /*
@@ -126,6 +155,10 @@ do {							\
 	yycolumn += yyleng;				\
 } while (0);
 
+#define USER_REJECT		\
+	yycolumn -= yyleng;	\
+	REJECT
+
 %}
 
 %x mem
@@ -136,8 +169,8 @@ do {							\
 group		[^,{}/]*[{][^}]*[}][^,{}/]*
 event_pmu	[^,{}/]+[/][^/]*[/][^,{}/]*
 event		[^,{}/]+
-bpf_object	[^,{}]+\.(o|bpf)
-bpf_source	[^,{}]+\.c
+bpf_object	[^,{}]+\.(o|bpf)[a-zA-Z0-9._]*
+bpf_source	[^,{}]+\.c[a-zA-Z0-9._]*
 
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]+
@@ -307,8 +340,8 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 {num_hex}		{ return value(yyscanner, 16); }
 
 {modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
-{bpf_object}		{ return str(yyscanner, PE_BPF_OBJECT); }
-{bpf_source}		{ return str(yyscanner, PE_BPF_SOURCE); }
+{bpf_object}		{ if (!isbpf(yyscanner)) { USER_REJECT }; return str(yyscanner, PE_BPF_OBJECT); }
+{bpf_source}		{ if (!isbpf(yyscanner)) { USER_REJECT }; return str(yyscanner, PE_BPF_SOURCE); }
 {name}			{ return pmu_str_check(yyscanner); }
 "/"			{ BEGIN(config); return '/'; }
 -			{ return '-'; }

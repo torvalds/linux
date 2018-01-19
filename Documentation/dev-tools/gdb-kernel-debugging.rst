@@ -31,11 +31,13 @@ Setup
   CONFIG_DEBUG_INFO_REDUCED off. If your architecture supports
   CONFIG_FRAME_POINTER, keep it enabled.
 
-- Install that kernel on the guest.
+- Install that kernel on the guest, turn off KASLR if necessary by adding
+  "nokaslr" to the kernel command line.
   Alternatively, QEMU allows to boot the kernel directly using -kernel,
   -append, -initrd command line switches. This is generally only useful if
   you do not depend on modules. See QEMU documentation for more details on
-  this mode.
+  this mode. In this case, you should build the kernel with
+  CONFIG_RANDOMIZE_BASE disabled if the architecture supports KASLR.
 
 - Enable the gdb stub of QEMU/KVM, either
 

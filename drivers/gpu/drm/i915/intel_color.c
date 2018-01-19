@@ -41,6 +41,22 @@
 
 #define LEGACY_LUT_LENGTH		(sizeof(struct drm_color_lut) * 256)
 
+/* Post offset values for RGB->YCBCR conversion */
+#define POSTOFF_RGB_TO_YUV_HI 0x800
+#define POSTOFF_RGB_TO_YUV_ME 0x100
+#define POSTOFF_RGB_TO_YUV_LO 0x800
+
+/*
+ * These values are direct register values specified in the Bspec,
+ * for RGB->YUV conversion matrix (colorspace BT709)
+ */
+#define CSC_RGB_TO_YUV_RU_GU 0x2ba809d8
+#define CSC_RGB_TO_YUV_BU 0x37e80000
+#define CSC_RGB_TO_YUV_RY_GY 0x1e089cc0
+#define CSC_RGB_TO_YUV_BY 0xb5280000
+#define CSC_RGB_TO_YUV_RV_GV 0xbce89ad8
+#define CSC_RGB_TO_YUV_BV 0x1e080000
+
 /*
  * Extract the CSC coefficient from a CTM coefficient (in U32.32 fixed point
  * format). This macro takes the coefficient we want transformed and the
@@ -58,7 +74,7 @@
 #define I9XX_CSC_COEFF_1_0		\
 	((7 << 12) | I9XX_CSC_COEFF_FP(CTM_COEFF_1_0, 8))
 
-static bool crtc_state_is_legacy(struct drm_crtc_state *state)
+static bool crtc_state_is_legacy_gamma(struct drm_crtc_state *state)
 {
 	return !state->degamma_lut &&
 		!state->ctm &&
@@ -91,6 +107,30 @@ static void ctm_mult_by_limited(uint64_t *result, int64_t *input)
 	}
 }
 
+static void i9xx_load_ycbcr_conversion_matrix(struct intel_crtc *intel_crtc)
+{
+	int pipe = intel_crtc->pipe;
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
+
+	I915_WRITE(PIPE_CSC_PREOFF_HI(pipe), 0);
+	I915_WRITE(PIPE_CSC_PREOFF_ME(pipe), 0);
+	I915_WRITE(PIPE_CSC_PREOFF_LO(pipe), 0);
+
+	I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), CSC_RGB_TO_YUV_RU_GU);
+	I915_WRITE(PIPE_CSC_COEFF_BU(pipe), CSC_RGB_TO_YUV_BU);
+
+	I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), CSC_RGB_TO_YUV_RY_GY);
+	I915_WRITE(PIPE_CSC_COEFF_BY(pipe), CSC_RGB_TO_YUV_BY);
+
+	I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), CSC_RGB_TO_YUV_RV_GV);
+	I915_WRITE(PIPE_CSC_COEFF_BV(pipe), CSC_RGB_TO_YUV_BV);
+
+	I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), POSTOFF_RGB_TO_YUV_HI);
+	I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), POSTOFF_RGB_TO_YUV_ME);
+	I915_WRITE(PIPE_CSC_POSTOFF_LO(pipe), POSTOFF_RGB_TO_YUV_LO);
+	I915_WRITE(PIPE_CSC_MODE(pipe), 0);
+}
+
 /* Set up the pipe CSC unit. */
 static void i9xx_load_csc_matrix(struct drm_crtc_state *crtc_state)
 {
@@ -101,7 +141,10 @@ static void i9xx_load_csc_matrix(struct drm_crtc_state *crtc_state)
 	uint16_t coeffs[9] = { 0, };
 	struct intel_crtc_state *intel_crtc_state = to_intel_crtc_state(crtc_state);
 
-	if (crtc_state->ctm) {
+	if (intel_crtc_state->ycbcr420) {
+		i9xx_load_ycbcr_conversion_matrix(intel_crtc);
+		return;
+	} else if (crtc_state->ctm) {
 		struct drm_color_ctm *ctm =
 			(struct drm_color_ctm *)crtc_state->ctm->data;
 		uint64_t input[9] = { 0, };
@@ -245,7 +288,7 @@ static void cherryview_load_csc_matrix(struct drm_crtc_state *state)
 	}
 
 	mode = (state->ctm ? CGM_PIPE_MODE_CSC : 0);
-	if (!crtc_state_is_legacy(state)) {
+	if (!crtc_state_is_legacy_gamma(state)) {
 		mode |= (state->degamma_lut ? CGM_PIPE_MODE_DEGAMMA : 0) |
 			(state->gamma_lut ? CGM_PIPE_MODE_GAMMA : 0);
 	}
@@ -426,7 +469,7 @@ static void broadwell_load_luts(struct drm_crtc_state *state)
 	struct intel_crtc_state *intel_state = to_intel_crtc_state(state);
 	enum pipe pipe = to_intel_crtc(state->crtc)->pipe;
 
-	if (crtc_state_is_legacy(state)) {
+	if (crtc_state_is_legacy_gamma(state)) {
 		haswell_load_luts(state);
 		return;
 	}
@@ -486,7 +529,7 @@ static void glk_load_luts(struct drm_crtc_state *state)
 
 	glk_load_degamma_lut(state);
 
-	if (crtc_state_is_legacy(state)) {
+	if (crtc_state_is_legacy_gamma(state)) {
 		haswell_load_luts(state);
 		return;
 	}
@@ -508,7 +551,7 @@ static void cherryview_load_luts(struct drm_crtc_state *state)
 	uint32_t i, lut_size;
 	uint32_t word0, word1;
 
-	if (crtc_state_is_legacy(state)) {
+	if (crtc_state_is_legacy_gamma(state)) {
 		/* Turn off degamma/gamma on CGM block. */
 		I915_WRITE(CGM_PIPE_MODE(pipe),
 			   (state->ctm ? CGM_PIPE_MODE_CSC : 0));
@@ -589,12 +632,10 @@ int intel_color_check(struct drm_crtc *crtc,
 		return 0;
 
 	/*
-	 * We also allow no degamma lut and a gamma lut at the legacy
+	 * We also allow no degamma lut/ctm and a gamma lut at the legacy
 	 * size (256 entries).
 	 */
-	if (!crtc_state->degamma_lut &&
-	    crtc_state->gamma_lut &&
-	    crtc_state->gamma_lut->length == LEGACY_LUT_LENGTH)
+	if (crtc_state_is_legacy_gamma(crtc_state))
 		return 0;
 
 	return -EINVAL;
@@ -616,7 +657,7 @@ void intel_color_init(struct drm_crtc *crtc)
 		   IS_BROXTON(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = broadwell_load_luts;
-	} else if (IS_GEMINILAKE(dev_priv)) {
+	} else if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = glk_load_luts;
 	} else {

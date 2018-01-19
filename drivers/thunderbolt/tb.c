@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Thunderbolt Cactus Ridge driver - bus logic (NHI independent)
  *
@@ -7,7 +8,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/dmi.h>
+#include <linux/platform_data/x86/apple.h>
 
 #include "tb.h"
 #include "tb_regs.h"
@@ -453,7 +454,7 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 	struct tb_cm *tcm;
 	struct tb *tb;
 
-	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
+	if (!x86_apple_machine)
 		return NULL;
 
 	tb = tb_domain_alloc(nhi, sizeof(*tcm));

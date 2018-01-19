@@ -69,7 +69,8 @@ static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-static void sun4i_crtc_disable(struct drm_crtc *crtc)
+static void sun4i_crtc_atomic_disable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 
@@ -86,7 +87,8 @@ static void sun4i_crtc_disable(struct drm_crtc *crtc)
 	}
 }
 
-static void sun4i_crtc_enable(struct drm_crtc *crtc)
+static void sun4i_crtc_atomic_enable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 
@@ -98,8 +100,8 @@ static void sun4i_crtc_enable(struct drm_crtc *crtc)
 static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
 	.atomic_begin	= sun4i_crtc_atomic_begin,
 	.atomic_flush	= sun4i_crtc_atomic_flush,
-	.disable	= sun4i_crtc_disable,
-	.enable		= sun4i_crtc_enable,
+	.atomic_enable	= sun4i_crtc_atomic_enable,
+	.atomic_disable	= sun4i_crtc_atomic_disable,
 };
 
 static int sun4i_crtc_enable_vblank(struct drm_crtc *crtc)

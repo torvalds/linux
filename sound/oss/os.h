@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define ALLOW_SELECT
 #undef NO_INLINE_ASM
 #define SHORT_BANNERS

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BOOT_COMPRESSED_EBOOT_H
 #define BOOT_COMPRESSED_EBOOT_H
 

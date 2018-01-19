@@ -104,7 +104,6 @@ static void mptfc_remove(struct pci_dev *pdev);
 static int mptfc_abort(struct scsi_cmnd *SCpnt);
 static int mptfc_dev_reset(struct scsi_cmnd *SCpnt);
 static int mptfc_bus_reset(struct scsi_cmnd *SCpnt);
-static int mptfc_host_reset(struct scsi_cmnd *SCpnt);
 
 static struct scsi_host_template mptfc_driver_template = {
 	.module				= THIS_MODULE,
@@ -123,7 +122,7 @@ static struct scsi_host_template mptfc_driver_template = {
 	.eh_abort_handler		= mptfc_abort,
 	.eh_device_reset_handler	= mptfc_dev_reset,
 	.eh_bus_reset_handler		= mptfc_bus_reset,
-	.eh_host_reset_handler		= mptfc_host_reset,
+	.eh_host_reset_handler		= mptscsih_host_reset,
 	.bios_param			= mptscsih_bios_param,
 	.can_queue			= MPT_FC_CAN_QUEUE,
 	.this_id			= -1,
@@ -252,13 +251,6 @@ mptfc_bus_reset(struct scsi_cmnd *SCpnt)
 {
 	return
 	    mptfc_block_error_handler(SCpnt, mptscsih_bus_reset, __func__);
-}
-
-static int
-mptfc_host_reset(struct scsi_cmnd *SCpnt)
-{
-	return
-	    mptfc_block_error_handler(SCpnt, mptscsih_host_reset, __func__);
 }
 
 static void

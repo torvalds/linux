@@ -290,7 +290,7 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (*num_maps)
 		return 0;
 
-	dev_err(dev, "no mapping found in node %s\n", np->full_name);
+	dev_err(dev, "no mapping found in node %pOF\n", np);
 	ret = -EINVAL;
 
 done:
@@ -742,13 +742,16 @@ static int sh_pfc_pinconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const unsigned int *pins;
 	unsigned int num_pins;
-	unsigned int i;
+	unsigned int i, ret;
 
 	pins = pmx->pfc->info->groups[group].pins;
 	num_pins = pmx->pfc->info->groups[group].nr_pins;
 
-	for (i = 0; i < num_pins; ++i)
-		sh_pfc_pinconf_set(pctldev, pins[i], configs, num_configs);
+	for (i = 0; i < num_pins; ++i) {
+		ret = sh_pfc_pinconf_set(pctldev, pins[i], configs, num_configs);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

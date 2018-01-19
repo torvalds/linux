@@ -32,7 +32,7 @@
 #define USB_VENDER_ID_REALTEK		0x0bda
 
 /* DID_USB_v916_20130116 */
-static struct usb_device_id rtw_usb_id_tbl[] = {
+static const struct usb_device_id rtw_usb_id_tbl[] = {
 	/*=== Realtek demoboard ===*/
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8179)}, /* 8188EUS */
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x0179)}, /* 8188ETV */

@@ -2429,7 +2429,7 @@ static struct vendor_data vendor_lsi = {
 	.internal_cs_ctrl = true,
 };
 
-static struct amba_id pl022_ids[] = {
+static const struct amba_id pl022_ids[] = {
 	{
 		/*
 		 * ARM PL022 variant, this has a 16bit wide

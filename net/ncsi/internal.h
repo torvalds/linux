@@ -180,6 +180,7 @@ struct ncsi_channel {
 #define NCSI_CHANNEL_INACTIVE		1
 #define NCSI_CHANNEL_ACTIVE		2
 #define NCSI_CHANNEL_INVISIBLE		3
+	bool                        reconfigure_needed;
 	spinlock_t                  lock;	/* Protect filters etc */
 	struct ncsi_package         *package;
 	struct ncsi_channel_version version;
@@ -235,6 +236,9 @@ enum {
 	ncsi_dev_state_probe_dp,
 	ncsi_dev_state_config_sp	= 0x0301,
 	ncsi_dev_state_config_cis,
+	ncsi_dev_state_config_clear_vids,
+	ncsi_dev_state_config_svf,
+	ncsi_dev_state_config_ev,
 	ncsi_dev_state_config_sma,
 	ncsi_dev_state_config_ebf,
 #if IS_ENABLED(CONFIG_IPV6)
@@ -251,6 +255,12 @@ enum {
 	ncsi_dev_state_suspend_dc,
 	ncsi_dev_state_suspend_deselect,
 	ncsi_dev_state_suspend_done
+};
+
+struct vlan_vid {
+	struct list_head list;
+	__be16 proto;
+	u16 vid;
 };
 
 struct ncsi_dev_priv {
@@ -276,6 +286,8 @@ struct ncsi_dev_priv {
 	struct work_struct  work;            /* For channel management     */
 	struct packet_type  ptype;           /* NCSI packet Rx handler     */
 	struct list_head    node;            /* Form NCSI device list      */
+#define NCSI_MAX_VLAN_VIDS	15
+	struct list_head    vlan_vids;       /* List of active VLAN IDs */
 };
 
 struct ncsi_cmd_arg {

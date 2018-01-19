@@ -191,24 +191,23 @@ static int ads1015_get_channels_config_of(struct i2c_client *client)
 		unsigned int data_rate = ADS1015_DEFAULT_DATA_RATE;
 
 		if (of_property_read_u32(node, "reg", &pval)) {
-			dev_err(&client->dev, "invalid reg on %s\n",
-				node->full_name);
+			dev_err(&client->dev, "invalid reg on %pOF\n", node);
 			continue;
 		}
 
 		channel = pval;
 		if (channel >= ADS1015_CHANNELS) {
 			dev_err(&client->dev,
-				"invalid channel index %d on %s\n",
-				channel, node->full_name);
+				"invalid channel index %d on %pOF\n",
+				channel, node);
 			continue;
 		}
 
 		if (!of_property_read_u32(node, "ti,gain", &pval)) {
 			pga = pval;
 			if (pga > 6) {
-				dev_err(&client->dev, "invalid gain on %s\n",
-					node->full_name);
+				dev_err(&client->dev, "invalid gain on %pOF\n",
+					node);
 				return -EINVAL;
 			}
 		}
@@ -217,8 +216,7 @@ static int ads1015_get_channels_config_of(struct i2c_client *client)
 			data_rate = pval;
 			if (data_rate > 7) {
 				dev_err(&client->dev,
-					"invalid data_rate on %s\n",
-					node->full_name);
+					"invalid data_rate on %pOF\n", node);
 				return -EINVAL;
 			}
 		}

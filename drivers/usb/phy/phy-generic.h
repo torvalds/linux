@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PHY_GENERIC_H_
 #define _PHY_GENERIC_H_
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 
 # protect against multiple inclusion
 if [ $FILE_CPUFREQ ]; then

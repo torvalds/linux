@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_CPUSET_H
 #define _LINUX_CPUSET_H
 /*
@@ -37,12 +38,6 @@ static inline bool cpusets_enabled(void)
 	return static_branch_unlikely(&cpusets_enabled_key);
 }
 
-static inline int nr_cpusets(void)
-{
-	/* jump label reference count + the top-level cpuset */
-	return static_key_count(&cpusets_enabled_key.key) + 1;
-}
-
 static inline void cpuset_inc(void)
 {
 	static_branch_inc(&cpusets_pre_enable_key);
@@ -57,7 +52,9 @@ static inline void cpuset_dec(void)
 
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
+extern void cpuset_force_rebuild(void);
 extern void cpuset_update_active_cpus(void);
+extern void cpuset_wait_for_hotplug(void);
 extern void cpuset_cpus_allowed(struct task_struct *p, struct cpumask *mask);
 extern void cpuset_cpus_allowed_fallback(struct task_struct *p);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
@@ -170,10 +167,14 @@ static inline bool cpusets_enabled(void) { return false; }
 static inline int cpuset_init(void) { return 0; }
 static inline void cpuset_init_smp(void) {}
 
+static inline void cpuset_force_rebuild(void) { }
+
 static inline void cpuset_update_active_cpus(void)
 {
 	partition_sched_domains(1, NULL, NULL);
 }
+
+static inline void cpuset_wait_for_hotplug(void) { }
 
 static inline void cpuset_cpus_allowed(struct task_struct *p,
 				       struct cpumask *mask)

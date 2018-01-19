@@ -833,7 +833,7 @@ static bool is_discarded_oblock(struct cache *cache, dm_oblock_t b)
  *--------------------------------------------------------------*/
 static void remap_to_origin(struct cache *cache, struct bio *bio)
 {
-	bio->bi_bdev = cache->origin_dev->bdev;
+	bio_set_dev(bio, cache->origin_dev->bdev);
 }
 
 static void remap_to_cache(struct cache *cache, struct bio *bio,
@@ -842,7 +842,7 @@ static void remap_to_cache(struct cache *cache, struct bio *bio,
 	sector_t bi_sector = bio->bi_iter.bi_sector;
 	sector_t block = from_cblock(cblock);
 
-	bio->bi_bdev = cache->cache_dev->bdev;
+	bio_set_dev(bio, cache->cache_dev->bdev);
 	if (!block_size_is_power_of_two(cache))
 		bio->bi_iter.bi_sector =
 			(block * cache->sectors_per_block) +
@@ -2306,7 +2306,7 @@ static void init_features(struct cache_features *cf)
 static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 			  char **error)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 2, "Invalid number of cache feature arguments"},
 	};
 
@@ -2348,7 +2348,7 @@ static int parse_features(struct cache_args *ca, struct dm_arg_set *as,
 static int parse_policy(struct cache_args *ca, struct dm_arg_set *as,
 			char **error)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 1024, "Invalid number of policy arguments"},
 	};
 

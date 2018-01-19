@@ -16,6 +16,7 @@
 
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
+#include "rsi_hal.h"
 
 /**
  * rsi_determine_min_weight_queue() - This function determines the queue with
@@ -136,6 +137,10 @@ static u8 rsi_core_determine_hal_queue(struct rsi_common *common)
 	u8 q_num = INVALID_QUEUE;
 	u8 ii = 0;
 
+	if (skb_queue_len(&common->tx_queue[MGMT_BEACON_Q])) {
+		q_num = MGMT_BEACON_Q;
+		return q_num;
+	}
 	if (skb_queue_len(&common->tx_queue[MGMT_SOFT_Q])) {
 		if (!common->mgmt_q_block)
 			q_num = MGMT_SOFT_Q;
@@ -268,11 +273,11 @@ void rsi_core_qos_processor(struct rsi_common *common)
 			break;
 		}
 
-		mutex_lock(&common->tx_rxlock);
+		mutex_lock(&common->tx_lock);
 
 		status = adapter->check_hw_queue_status(adapter, q_num);
 		if ((status <= 0)) {
-			mutex_unlock(&common->tx_rxlock);
+			mutex_unlock(&common->tx_lock);
 			break;
 		}
 
@@ -287,28 +292,46 @@ void rsi_core_qos_processor(struct rsi_common *common)
 		skb = rsi_core_dequeue_pkt(common, q_num);
 		if (skb == NULL) {
 			rsi_dbg(ERR_ZONE, "skb null\n");
-			mutex_unlock(&common->tx_rxlock);
+			mutex_unlock(&common->tx_lock);
 			break;
 		}
 
-		if (q_num == MGMT_SOFT_Q)
+		if (q_num == MGMT_SOFT_Q) {
 			status = rsi_send_mgmt_pkt(common, skb);
-		else
+		} else if (q_num == MGMT_BEACON_Q) {
+			status = rsi_send_pkt_to_bus(common, skb);
+			dev_kfree_skb(skb);
+		} else {
 			status = rsi_send_data_pkt(common, skb);
+		}
 
 		if (status) {
-			mutex_unlock(&common->tx_rxlock);
+			mutex_unlock(&common->tx_lock);
 			break;
 		}
 
 		common->tx_stats.total_tx_pkt_send[q_num]++;
 
 		tstamp_2 = jiffies;
-		mutex_unlock(&common->tx_rxlock);
+		mutex_unlock(&common->tx_lock);
 
 		if (time_after(tstamp_2, tstamp_1 + (300 * HZ) / 1000))
 			schedule();
 	}
+}
+
+struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr)
+{
+	int i;
+
+	for (i = 0; i < common->max_stations; i++) {
+		if (!common->stations[i].sta)
+			continue;
+		if (!(memcmp(common->stations[i].sta->addr,
+			     mac_addr, ETH_ALEN)))
+			return &common->stations[i];
+	}
+	return NULL;
 }
 
 /**
@@ -323,42 +346,63 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
-	struct ieee80211_hdr *tmp_hdr = NULL;
+	struct ieee80211_hdr *wh;
+	struct ieee80211_vif *vif = adapter->vifs[0];
 	u8 q_num, tid = 0;
+	struct rsi_sta *rsta = NULL;
 
 	if ((!skb) || (!skb->len)) {
 		rsi_dbg(ERR_ZONE, "%s: Null skb/zero Length packet\n",
 			__func__);
 		goto xmit_fail;
 	}
-	info = IEEE80211_SKB_CB(skb);
-	tx_params = (struct skb_info *)info->driver_data;
-	tmp_hdr = (struct ieee80211_hdr *)&skb->data[0];
-
 	if (common->fsm_state != FSM_MAC_INIT_DONE) {
 		rsi_dbg(ERR_ZONE, "%s: FSM state not open\n", __func__);
 		goto xmit_fail;
 	}
 
-	if ((ieee80211_is_mgmt(tmp_hdr->frame_control)) ||
-	    (ieee80211_is_ctl(tmp_hdr->frame_control)) ||
-	    (ieee80211_is_qos_nullfunc(tmp_hdr->frame_control))) {
+	info = IEEE80211_SKB_CB(skb);
+	tx_params = (struct skb_info *)info->driver_data;
+	wh = (struct ieee80211_hdr *)&skb->data[0];
+	tx_params->sta_id = 0;
+
+	if ((ieee80211_is_mgmt(wh->frame_control)) ||
+	    (ieee80211_is_ctl(wh->frame_control)) ||
+	    (ieee80211_is_qos_nullfunc(wh->frame_control))) {
 		q_num = MGMT_SOFT_Q;
 		skb->priority = q_num;
 	} else {
-		if (ieee80211_is_data_qos(tmp_hdr->frame_control)) {
+		if (ieee80211_is_data_qos(wh->frame_control)) {
 			tid = (skb->data[24] & IEEE80211_QOS_TID);
 			skb->priority = TID_TO_WME_AC(tid);
 		} else {
 			tid = IEEE80211_NONQOS_TID;
 			skb->priority = BE_Q;
 		}
+
 		q_num = skb->priority;
 		tx_params->tid = tid;
-		tx_params->sta_id = 0;
+
+		if ((vif->type == NL80211_IFTYPE_AP) &&
+		    (!is_broadcast_ether_addr(wh->addr1)) &&
+		    (!is_multicast_ether_addr(wh->addr1))) {
+			rsta = rsi_find_sta(common, wh->addr1);
+			if (!rsta)
+				goto xmit_fail;
+			tx_params->sta_id = rsta->sta_id;
+		}
+
+		if (rsta) {
+			/* Start aggregation if not done for this tid */
+			if (!rsta->start_tx_aggr[tid]) {
+				rsta->start_tx_aggr[tid] = true;
+				ieee80211_start_tx_ba_session(rsta->sta,
+							      tid, 0);
+			}
+		}
 	}
 
-	if ((q_num != MGMT_SOFT_Q) &&
+	if ((q_num < MGMT_SOFT_Q) &&
 	    ((skb_queue_len(&common->tx_queue[q_num]) + 1) >=
 	     DATA_QUEUE_WATER_MARK)) {
 		rsi_dbg(ERR_ZONE, "%s: sw queue full\n", __func__);

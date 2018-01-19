@@ -102,7 +102,6 @@ And for clarification, here are the snipplets for the i2c-parents:
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "i2c-gpio";
-		status = "disabled";
 		gpios = <&gpio5 6 GPIO_ACTIVE_HIGH /* sda */
 			 &gpio5 5 GPIO_ACTIVE_HIGH /* scl */
 			>;

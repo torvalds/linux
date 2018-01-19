@@ -1469,7 +1469,7 @@ static int __maybe_unused nau8824_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver nau8824_codec_driver = {
+static const struct snd_soc_codec_driver nau8824_codec_driver = {
 	.probe = nau8824_codec_probe,
 	.set_sysclk = nau8824_set_sysclk,
 	.set_pll = nau8824_set_pll,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * File:	mca_drv.h
  * Purpose:	Define helpers for Generic MCA handling

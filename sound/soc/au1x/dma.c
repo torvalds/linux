@@ -277,7 +277,7 @@ static snd_pcm_uframes_t alchemy_pcm_pointer(struct snd_pcm_substream *ss)
 	return bytes_to_frames(ss->runtime, location);
 }
 
-static struct snd_pcm_ops alchemy_pcm_ops = {
+static const struct snd_pcm_ops alchemy_pcm_ops = {
 	.open			= alchemy_pcm_open,
 	.close			= alchemy_pcm_close,
 	.ioctl			= snd_pcm_lib_ioctl,

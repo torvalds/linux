@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* thread_info.h: PowerPC low-level thread information
  * adapted from the i386 version by Paul Mackerras
  *

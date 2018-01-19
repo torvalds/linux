@@ -1404,9 +1404,9 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 		test_cipher_speed("lrw(aes)", DECRYPT, sec, NULL, 0,
 				speed_template_32_40_48);
 		test_cipher_speed("xts(aes)", ENCRYPT, sec, NULL, 0,
-				speed_template_32_48_64);
+				speed_template_32_64);
 		test_cipher_speed("xts(aes)", DECRYPT, sec, NULL, 0,
-				speed_template_32_48_64);
+				speed_template_32_64);
 		test_cipher_speed("cts(cbc(aes))", ENCRYPT, sec, NULL, 0,
 				speed_template_16_24_32);
 		test_cipher_speed("cts(cbc(aes))", DECRYPT, sec, NULL, 0,
@@ -1837,9 +1837,9 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 		test_acipher_speed("lrw(aes)", DECRYPT, sec, NULL, 0,
 				   speed_template_32_40_48);
 		test_acipher_speed("xts(aes)", ENCRYPT, sec, NULL, 0,
-				   speed_template_32_48_64);
+				   speed_template_32_64);
 		test_acipher_speed("xts(aes)", DECRYPT, sec, NULL, 0,
-				   speed_template_32_48_64);
+				   speed_template_32_64);
 		test_acipher_speed("cts(cbc(aes))", ENCRYPT, sec, NULL, 0,
 				   speed_template_16_24_32);
 		test_acipher_speed("cts(cbc(aes))", DECRYPT, sec, NULL, 0,

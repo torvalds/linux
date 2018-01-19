@@ -1781,7 +1781,7 @@ static int __init setup_xirc2ps_cs(char *str)
 	 */
 	int ints[10] = { -1 };
 
-	str = get_options(str, 9, ints);
+	str = get_options(str, ARRAY_SIZE(ints), ints);
 
 #define MAYBE_SET(X,Y) if (ints[0] >= Y && ints[Y] != -1) { X = ints[Y]; }
 	MAYBE_SET(if_port, 3);

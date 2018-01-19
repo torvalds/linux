@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PINCTRL_PINCTRL_NOMADIK_H
 #define PINCTRL_PINCTRL_NOMADIK_H
 

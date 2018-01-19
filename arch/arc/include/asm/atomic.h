@@ -123,6 +123,8 @@ static inline void atomic_set(atomic_t *v, int i)
 	atomic_ops_unlock(flags);
 }
 
+#define atomic_set_release(v, i)	atomic_set((v), (i))
+
 #endif
 
 /*

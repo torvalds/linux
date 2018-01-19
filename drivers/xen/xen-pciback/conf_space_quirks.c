@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCI Backend - Handle special overlays for broken devices.
  *

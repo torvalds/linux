@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Generic register map support.  There are no user servicable options here,
 # this is an API intended to be used by other kernel subsystems.  These
 # subsystems should select the appropriate symbols.

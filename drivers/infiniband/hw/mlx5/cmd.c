@@ -57,3 +57,23 @@ int mlx5_cmd_query_cong_counter(struct mlx5_core_dev *dev,
 	MLX5_SET(query_cong_statistics_in, in, clear, reset);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
 }
+
+int mlx5_cmd_query_cong_params(struct mlx5_core_dev *dev, int cong_point,
+			       void *out, int out_size)
+{
+	u32 in[MLX5_ST_SZ_DW(query_cong_params_in)] = { };
+
+	MLX5_SET(query_cong_params_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_CONG_PARAMS);
+	MLX5_SET(query_cong_params_in, in, cong_protocol, cong_point);
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
+}
+
+int mlx5_cmd_modify_cong_params(struct mlx5_core_dev *dev,
+				void *in, int in_size)
+{
+	u32 out[MLX5_ST_SZ_DW(modify_cong_params_out)] = { };
+
+	return mlx5_cmd_exec(dev, in, in_size, out, sizeof(out));
+}

@@ -57,8 +57,9 @@ static inline int sys_bpf(enum bpf_cmd cmd, union bpf_attr *attr,
 	return syscall(__NR_bpf, cmd, attr, size);
 }
 
-int bpf_create_map(enum bpf_map_type map_type, int key_size,
-		   int value_size, int max_entries, __u32 map_flags)
+int bpf_create_map_node(enum bpf_map_type map_type, int key_size,
+			int value_size, int max_entries, __u32 map_flags,
+			int node)
 {
 	union bpf_attr attr;
 
@@ -69,12 +70,24 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size,
 	attr.value_size = value_size;
 	attr.max_entries = max_entries;
 	attr.map_flags = map_flags;
+	if (node >= 0) {
+		attr.map_flags |= BPF_F_NUMA_NODE;
+		attr.numa_node = node;
+	}
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
-int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
-			  int inner_map_fd, int max_entries, __u32 map_flags)
+int bpf_create_map(enum bpf_map_type map_type, int key_size,
+		   int value_size, int max_entries, __u32 map_flags)
+{
+	return bpf_create_map_node(map_type, key_size, value_size,
+				   max_entries, map_flags, -1);
+}
+
+int bpf_create_map_in_map_node(enum bpf_map_type map_type, int key_size,
+			       int inner_map_fd, int max_entries,
+			       __u32 map_flags, int node)
 {
 	union bpf_attr attr;
 
@@ -86,8 +99,19 @@ int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
 	attr.inner_map_fd = inner_map_fd;
 	attr.max_entries = max_entries;
 	attr.map_flags = map_flags;
+	if (node >= 0) {
+		attr.map_flags |= BPF_F_NUMA_NODE;
+		attr.numa_node = node;
+	}
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
+}
+
+int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
+			  int inner_map_fd, int max_entries, __u32 map_flags)
+{
+	return bpf_create_map_in_map_node(map_type, key_size, inner_map_fd,
+					  max_entries, map_flags, -1);
 }
 
 int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,

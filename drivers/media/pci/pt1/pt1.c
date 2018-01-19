@@ -1202,7 +1202,7 @@ err:
 
 }
 
-static struct pci_device_id pt1_id_table[] = {
+static const struct pci_device_id pt1_id_table[] = {
 	{ PCI_DEVICE(0x10ee, 0x211a) },
 	{ PCI_DEVICE(0x10ee, 0x222a) },
 	{ },

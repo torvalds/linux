@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_FB_ATY) += atyfb.o
 obj-$(CONFIG_FB_ATY128) += aty128fb.o
 obj-$(CONFIG_FB_RADEON) += radeonfb.o

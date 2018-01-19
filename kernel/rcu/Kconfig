@@ -69,8 +69,7 @@ config TREE_SRCU
 	  This option selects the full-fledged version of SRCU.
 
 config TASKS_RCU
-	bool
-	default n
+	def_bool PREEMPT
 	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses

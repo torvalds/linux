@@ -7,6 +7,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/capability.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -256,38 +258,6 @@ static int fw_cache_piggyback_on_request(const char *name);
  * guarding for corner cases a global lock should be OK */
 static DEFINE_MUTEX(fw_lock);
 
-static bool __enable_firmware = false;
-
-static void enable_firmware(void)
-{
-	mutex_lock(&fw_lock);
-	__enable_firmware = true;
-	mutex_unlock(&fw_lock);
-}
-
-static void disable_firmware(void)
-{
-	mutex_lock(&fw_lock);
-	__enable_firmware = false;
-	mutex_unlock(&fw_lock);
-}
-
-/*
- * When disabled only the built-in firmware and the firmware cache will be
- * used to look for firmware.
- */
-static bool firmware_enabled(void)
-{
-	bool enabled = false;
-
-	mutex_lock(&fw_lock);
-	if (__enable_firmware)
-		enabled = true;
-	mutex_unlock(&fw_lock);
-
-	return enabled;
-}
-
 static struct firmware_cache fw_cache;
 
 static struct firmware_buf *__allocate_fw_buf(const char *fw_name,
@@ -331,6 +301,7 @@ static struct firmware_buf *__fw_lookup_buf(const char *fw_name)
 	return NULL;
 }
 
+/* Returns 1 for batching firmware requests with the same name */
 static int fw_lookup_and_allocate_buf(const char *fw_name,
 				      struct firmware_cache *fwc,
 				      struct firmware_buf **buf, void *dbuf,
@@ -344,6 +315,7 @@ static int fw_lookup_and_allocate_buf(const char *fw_name,
 		kref_get(&tmp->ref);
 		spin_unlock(&fwc->lock);
 		*buf = tmp;
+		pr_debug("batched request - sharing the same struct firmware_buf and lookup for multiple requests\n");
 		return 1;
 	}
 	tmp = __allocate_fw_buf(fw_name, fwc, dbuf, size);
@@ -1085,9 +1057,12 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 		mutex_unlock(&fw_lock);
 	}
 
-	if (fw_state_is_aborted(&buf->fw_st))
-		retval = -EAGAIN;
-	else if (buf->is_paged_buf && !buf->data)
+	if (fw_state_is_aborted(&buf->fw_st)) {
+		if (retval == -ERESTARTSYS)
+			retval = -EINTR;
+		else
+			retval = -EAGAIN;
+	} else if (buf->is_paged_buf && !buf->data)
 		retval = -ENOMEM;
 
 	device_del(f_dev);
@@ -1238,12 +1213,6 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	ret = _request_firmware_prepare(&fw, name, device, buf, size);
 	if (ret <= 0) /* error or already assigned */
 		goto out;
-
-	if (!firmware_enabled()) {
-		WARN(1, "firmware request while host is not available\n");
-		ret = -EHOSTDOWN;
-		goto out;
-	}
 
 	ret = fw_get_filesystem_firmware(device, fw->priv);
 	if (ret) {
@@ -1755,62 +1724,6 @@ static void device_uncache_fw_images_delay(unsigned long delay)
 			   msecs_to_jiffies(delay));
 }
 
-/**
- * fw_pm_notify - notifier for suspend/resume
- * @notify_block: unused
- * @mode: mode we are switching to
- * @unused: unused
- *
- * Used to modify the firmware_class state as we move in between states.
- * The firmware_class implements a firmware cache to enable device driver
- * to fetch firmware upon resume before the root filesystem is ready. We
- * disable API calls which do not use the built-in firmware or the firmware
- * cache when we know these calls will not work.
- *
- * The inner logic behind all this is a bit complex so it is worth summarizing
- * the kernel's own suspend/resume process with context and focus on how this
- * can impact the firmware API.
- *
- * First a review on how we go to suspend::
- *
- *	pm_suspend() --> enter_state() -->
- *	sys_sync()
- *	suspend_prepare() -->
- *		__pm_notifier_call_chain(PM_SUSPEND_PREPARE, ...);
- *		suspend_freeze_processes() -->
- *			freeze_processes() -->
- *				__usermodehelper_set_disable_depth(UMH_DISABLED);
- *				freeze all tasks ...
- *			freeze_kernel_threads()
- *	suspend_devices_and_enter() -->
- *		dpm_suspend_start() -->
- *				dpm_prepare()
- *				dpm_suspend()
- *		suspend_enter()  -->
- *			platform_suspend_prepare()
- *			dpm_suspend_late()
- *			freeze_enter()
- *			syscore_suspend()
- *
- * When we resume we bail out of a loop from suspend_devices_and_enter() and
- * unwind back out to the caller enter_state() where we were before as follows::
- *
- * 	enter_state() -->
- *	suspend_devices_and_enter() --> (bail from loop)
- *		dpm_resume_end() -->
- *			dpm_resume()
- *			dpm_complete()
- *	suspend_finish() -->
- *		suspend_thaw_processes() -->
- *			thaw_processes() -->
- *				__usermodehelper_set_disable_depth(UMH_FREEZING);
- *				thaw_workqueues();
- *				thaw all processes ...
- *				usermodehelper_enable();
- *		pm_notifier_call_chain(PM_POST_SUSPEND);
- *
- * fw_pm_notify() works through pm_notifier_call_chain().
- */
 static int fw_pm_notify(struct notifier_block *notify_block,
 			unsigned long mode, void *unused)
 {
@@ -1824,7 +1737,6 @@ static int fw_pm_notify(struct notifier_block *notify_block,
 		 */
 		kill_pending_fw_fallback_reqs(true);
 		device_cache_fw_images();
-		disable_firmware();
 		break;
 
 	case PM_POST_SUSPEND:
@@ -1837,7 +1749,6 @@ static int fw_pm_notify(struct notifier_block *notify_block,
 		mutex_lock(&fw_lock);
 		fw_cache.state = FW_LOADER_NO_CACHE;
 		mutex_unlock(&fw_lock);
-		enable_firmware();
 
 		device_uncache_fw_images_delay(10 * MSEC_PER_SEC);
 		break;
@@ -1886,7 +1797,6 @@ static void __init fw_cache_init(void)
 static int fw_shutdown_notify(struct notifier_block *unused1,
 			      unsigned long unused2, void *unused3)
 {
-	disable_firmware();
 	/*
 	 * Kill all pending fallback requests to avoid both stalling shutdown,
 	 * and avoid a deadlock with the usermode_lock.
@@ -1902,7 +1812,6 @@ static struct notifier_block fw_shutdown_nb = {
 
 static int __init firmware_class_init(void)
 {
-	enable_firmware();
 	fw_cache_init();
 	register_reboot_notifier(&fw_shutdown_nb);
 #ifdef CONFIG_FW_LOADER_USER_HELPER
@@ -1914,7 +1823,6 @@ static int __init firmware_class_init(void)
 
 static void __exit firmware_class_exit(void)
 {
-	disable_firmware();
 #ifdef CONFIG_PM_SLEEP
 	unregister_syscore_ops(&fw_syscore_ops);
 	unregister_pm_notifier(&fw_cache.pm_notify);

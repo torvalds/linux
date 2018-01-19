@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * File:        mca_drv_asm.S
  * Purpose:     Assembly portion of Generic MCA handling

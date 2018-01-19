@@ -48,6 +48,8 @@
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_idle");
 
+#define ACPI_IDLE_STATE_START	(IS_ENABLED(CONFIG_ARCH_HAS_CPU_RELAX) ? 1 : 0)
+
 static unsigned int max_cstate __read_mostly = ACPI_PROCESSOR_MAX_POWER;
 module_param(max_cstate, uint, 0000);
 static unsigned int nocst __read_mostly;
@@ -761,7 +763,7 @@ static int acpi_idle_enter(struct cpuidle_device *dev,
 
 	if (cx->type != ACPI_STATE_C1) {
 		if (acpi_idle_fallback_to_c1(pr) && num_online_cpus() > 1) {
-			index = CPUIDLE_DRIVER_STATE_START;
+			index = ACPI_IDLE_STATE_START;
 			cx = per_cpu(acpi_cstate[index], dev->cpu);
 		} else if (cx->type == ACPI_STATE_C3 && pr->flags.bm_check) {
 			if (cx->bm_sts_skip || !acpi_idle_bm_check()) {
@@ -789,7 +791,7 @@ static int acpi_idle_enter(struct cpuidle_device *dev,
 	return index;
 }
 
-static void acpi_idle_enter_freeze(struct cpuidle_device *dev,
+static void acpi_idle_enter_s2idle(struct cpuidle_device *dev,
 				   struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
@@ -813,7 +815,7 @@ static void acpi_idle_enter_freeze(struct cpuidle_device *dev,
 static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 					   struct cpuidle_device *dev)
 {
-	int i, count = CPUIDLE_DRIVER_STATE_START;
+	int i, count = ACPI_IDLE_STATE_START;
 	struct acpi_processor_cx *cx;
 
 	if (max_cstate == 0)
@@ -840,13 +842,20 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 
 static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 {
-	int i, count = CPUIDLE_DRIVER_STATE_START;
+	int i, count;
 	struct acpi_processor_cx *cx;
 	struct cpuidle_state *state;
 	struct cpuidle_driver *drv = &acpi_idle_driver;
 
 	if (max_cstate == 0)
 		max_cstate = 1;
+
+	if (IS_ENABLED(CONFIG_ARCH_HAS_CPU_RELAX)) {
+		cpuidle_poll_state_init(drv);
+		count = 1;
+	} else {
+		count = 0;
+	}
 
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER && i <= max_cstate; i++) {
 		cx = &pr->power.states[i];
@@ -867,14 +876,14 @@ static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 			drv->safe_state_index = count;
 		}
 		/*
-		 * Halt-induced C1 is not good for ->enter_freeze, because it
+		 * Halt-induced C1 is not good for ->enter_s2idle, because it
 		 * re-enables interrupts on exit.  Moreover, C1 is generally not
 		 * particularly interesting from the suspend-to-idle angle, so
 		 * avoid C1 and the situations in which we may need to fall back
 		 * to it altogether.
 		 */
 		if (cx->type != ACPI_STATE_C1 && !acpi_idle_fallback_to_c1(pr))
-			state->enter_freeze = acpi_idle_enter_freeze;
+			state->enter_s2idle = acpi_idle_enter_s2idle;
 
 		count++;
 		if (count == CPUIDLE_STATE_MAX)
@@ -1291,7 +1300,7 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 		return -EINVAL;
 
 	drv->safe_state_index = -1;
-	for (i = CPUIDLE_DRIVER_STATE_START; i < CPUIDLE_STATE_MAX; i++) {
+	for (i = ACPI_IDLE_STATE_START; i < CPUIDLE_STATE_MAX; i++) {
 		drv->states[i].name[0] = '\0';
 		drv->states[i].desc[0] = '\0';
 	}

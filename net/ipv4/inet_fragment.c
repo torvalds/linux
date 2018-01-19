@@ -234,10 +234,8 @@ evict_again:
 	cond_resched();
 
 	if (read_seqretry(&f->rnd_seqlock, seq) ||
-	    percpu_counter_sum(&nf->mem))
+	    sum_frag_mem_limit(nf))
 		goto evict_again;
-
-	percpu_counter_destroy(&nf->mem);
 }
 EXPORT_SYMBOL(inet_frags_exit_net);
 

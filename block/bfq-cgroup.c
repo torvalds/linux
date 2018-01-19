@@ -206,7 +206,7 @@ static void bfqg_get(struct bfq_group *bfqg)
 	bfqg->ref++;
 }
 
-void bfqg_put(struct bfq_group *bfqg)
+static void bfqg_put(struct bfq_group *bfqg)
 {
 	bfqg->ref--;
 
@@ -385,7 +385,7 @@ static struct bfq_group_data *blkcg_to_bfqgd(struct blkcg *blkcg)
 	return cpd_to_bfqgd(blkcg_to_cpd(blkcg, &blkcg_policy_bfq));
 }
 
-struct blkcg_policy_data *bfq_cpd_alloc(gfp_t gfp)
+static struct blkcg_policy_data *bfq_cpd_alloc(gfp_t gfp)
 {
 	struct bfq_group_data *bgd;
 
@@ -395,7 +395,7 @@ struct blkcg_policy_data *bfq_cpd_alloc(gfp_t gfp)
 	return &bgd->pd;
 }
 
-void bfq_cpd_init(struct blkcg_policy_data *cpd)
+static void bfq_cpd_init(struct blkcg_policy_data *cpd)
 {
 	struct bfq_group_data *d = cpd_to_bfqgd(cpd);
 
@@ -403,12 +403,12 @@ void bfq_cpd_init(struct blkcg_policy_data *cpd)
 		CGROUP_WEIGHT_DFL : BFQ_WEIGHT_LEGACY_DFL;
 }
 
-void bfq_cpd_free(struct blkcg_policy_data *cpd)
+static void bfq_cpd_free(struct blkcg_policy_data *cpd)
 {
 	kfree(cpd_to_bfqgd(cpd));
 }
 
-struct blkg_policy_data *bfq_pd_alloc(gfp_t gfp, int node)
+static struct blkg_policy_data *bfq_pd_alloc(gfp_t gfp, int node)
 {
 	struct bfq_group *bfqg;
 
@@ -426,7 +426,7 @@ struct blkg_policy_data *bfq_pd_alloc(gfp_t gfp, int node)
 	return &bfqg->pd;
 }
 
-void bfq_pd_init(struct blkg_policy_data *pd)
+static void bfq_pd_init(struct blkg_policy_data *pd)
 {
 	struct blkcg_gq *blkg = pd_to_blkg(pd);
 	struct bfq_group *bfqg = blkg_to_bfqg(blkg);
@@ -445,7 +445,7 @@ void bfq_pd_init(struct blkg_policy_data *pd)
 	bfqg->rq_pos_tree = RB_ROOT;
 }
 
-void bfq_pd_free(struct blkg_policy_data *pd)
+static void bfq_pd_free(struct blkg_policy_data *pd)
 {
 	struct bfq_group *bfqg = pd_to_bfqg(pd);
 
@@ -453,7 +453,7 @@ void bfq_pd_free(struct blkg_policy_data *pd)
 	bfqg_put(bfqg);
 }
 
-void bfq_pd_reset_stats(struct blkg_policy_data *pd)
+static void bfq_pd_reset_stats(struct blkg_policy_data *pd)
 {
 	struct bfq_group *bfqg = pd_to_bfqg(pd);
 
@@ -740,7 +740,7 @@ static void bfq_reparent_active_entities(struct bfq_data *bfqd,
  * blkio already grabs the queue_lock for us, so no need to use
  * RCU-based magic
  */
-void bfq_pd_offline(struct blkg_policy_data *pd)
+static void bfq_pd_offline(struct blkg_policy_data *pd)
 {
 	struct bfq_service_tree *st;
 	struct bfq_group *bfqg = pd_to_bfqg(pd);

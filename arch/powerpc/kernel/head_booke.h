@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __HEAD_BOOKE_H__
 #define __HEAD_BOOKE_H__
 

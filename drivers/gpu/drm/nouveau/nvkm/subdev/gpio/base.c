@@ -171,7 +171,7 @@ nvkm_gpio_fini(struct nvkm_subdev *subdev, bool suspend)
 	return 0;
 }
 
-static struct dmi_system_id gpio_reset_ids[] = {
+static const struct dmi_system_id gpio_reset_ids[] = {
 	{
 		.ident = "Apple Macbook 10,1",
 		.matches = {

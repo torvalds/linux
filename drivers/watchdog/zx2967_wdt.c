@@ -229,7 +229,7 @@ static int zx2967_wdt_probe(struct platform_device *pdev)
 	}
 	clk_set_rate(wdt->clock, ZX2967_WDT_CLK_FREQ);
 
-	rstc = devm_reset_control_get(dev, NULL);
+	rstc = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(rstc)) {
 		dev_err(dev, "failed to get rstc");
 		ret = PTR_ERR(rstc);

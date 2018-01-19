@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config STATIC_LINK
 	bool "Force a static link"
 	default n
@@ -20,6 +21,7 @@ config LD_SCRIPT_DYN
 	bool
 	default y
 	depends on !LD_SCRIPT_STATIC
+        select MODULE_REL_CRCS if MODVERSIONS
 
 source "fs/Kconfig.binfmt"
 

@@ -60,7 +60,7 @@ static int __init tng_bt_sfi_setup(struct bt_sfi_data *ddata)
 	return 0;
 }
 
-static struct bt_sfi_data tng_bt_sfi_data __initdata = {
+static const struct bt_sfi_data tng_bt_sfi_data __initdata = {
 	.setup	= tng_bt_sfi_setup,
 };
 

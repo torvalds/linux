@@ -1,7 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __X86_KERNEL_KPROBES_COMMON_H
 #define __X86_KERNEL_KPROBES_COMMON_H
 
 /* Kprobes and Optprobes common header */
+
+#include <asm/asm.h>
+
+#ifdef CONFIG_FRAME_POINTER
+# define SAVE_RBP_STRING "	push %" _ASM_BP "\n" \
+			 "	mov  %" _ASM_SP ", %" _ASM_BP "\n"
+#else
+# define SAVE_RBP_STRING "	push %" _ASM_BP "\n"
+#endif
 
 #ifdef CONFIG_X86_64
 #define SAVE_REGS_STRING			\
@@ -17,7 +27,7 @@
 	"	pushq %r10\n"			\
 	"	pushq %r11\n"			\
 	"	pushq %rbx\n"			\
-	"	pushq %rbp\n"			\
+	SAVE_RBP_STRING				\
 	"	pushq %r12\n"			\
 	"	pushq %r13\n"			\
 	"	pushq %r14\n"			\
@@ -48,7 +58,7 @@
 	"	pushl %es\n"			\
 	"	pushl %ds\n"			\
 	"	pushl %eax\n"			\
-	"	pushl %ebp\n"			\
+	SAVE_RBP_STRING				\
 	"	pushl %edi\n"			\
 	"	pushl %esi\n"			\
 	"	pushl %edx\n"			\

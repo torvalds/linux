@@ -59,5 +59,6 @@ int	xfs_setfilesize(struct xfs_inode *ip, xfs_off_t offset, size_t size);
 
 extern void xfs_count_page_state(struct page *, int *, int *);
 extern struct block_device *xfs_find_bdev_for_inode(struct inode *);
+extern struct dax_device *xfs_find_daxdev_for_inode(struct inode *);
 
 #endif /* __XFS_AOPS_H__ */

@@ -1880,7 +1880,7 @@ static u32 dib8096p_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm dib8096p_tuner_xfer_algo = {
+static const struct i2c_algorithm dib8096p_tuner_xfer_algo = {
 	.master_xfer = dib8096p_tuner_xfer,
 	.functionality = dib8096p_i2c_func,
 };
@@ -4255,23 +4255,6 @@ static int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_fronte
 	return -ENOMEM;
 }
 
-static int dib8000_remove_slave_frontend(struct dvb_frontend *fe)
-{
-	struct dib8000_state *state = fe->demodulator_priv;
-	u8 index_frontend = 1;
-
-	while ((index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL))
-		index_frontend++;
-	if (index_frontend != 1) {
-		dprintk("remove slave fe %p (index %i)\n", state->fe[index_frontend-1], index_frontend-1);
-		state->fe[index_frontend] = NULL;
-		return 0;
-	}
-
-	dprintk("no frontend to be removed\n");
-	return -ENODEV;
-}
-
 static struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
@@ -4506,7 +4489,6 @@ void *dib8000_attach(struct dib8000_ops *ops)
 	ops->get_slave_frontend = dib8000_get_slave_frontend;
 	ops->set_tune_state = dib8000_set_tune_state;
 	ops->pid_filter_ctrl = dib8000_pid_filter_ctrl;
-	ops->remove_slave_frontend = dib8000_remove_slave_frontend;
 	ops->get_adc_power = dib8000_get_adc_power;
 	ops->update_pll = dib8000_update_pll;
 	ops->tuner_sleep = dib8096p_tuner_sleep;

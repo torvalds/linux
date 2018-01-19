@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kdb helper for dumping the ftrace buffer
  *

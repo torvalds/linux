@@ -172,4 +172,4 @@ Other uses for trusted and encrypted keys, such as for disk and file encryption
 are anticipated.  In particular the new format 'ecryptfs' has been defined in
 in order to use encrypted keys to mount an eCryptfs filesystem.  More details
 about the usage can be found in the file
-``Documentation/security/keys-ecryptfs.txt``.
+``Documentation/security/keys/ecryptfs.rst``.

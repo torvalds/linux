@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NV50_DISP_H__
 #define __NV50_DISP_H__
 #define nv50_disp(p) container_of((p), struct nv50_disp, base)

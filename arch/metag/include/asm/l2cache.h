@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _METAG_L2CACHE_H
 #define _METAG_L2CACHE_H
 

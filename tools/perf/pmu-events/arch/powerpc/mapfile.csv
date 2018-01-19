@@ -13,9 +13,13 @@
 #
 
 # Power8 entries
-004b0000,1,power8.json,core
-004b0201,1,power8.json,core
-004c0000,1,power8.json,core
-004d0000,1,power8.json,core
-004d0100,1,power8.json,core
-004d0200,1,power8.json,core
+004b0000,1,power8,core
+004b0201,1,power8,core
+004c0000,1,power8,core
+004d0000,1,power8,core
+004d0100,1,power8,core
+004d0200,1,power8,core
+004c0100,1,power8,core
+004e0100,1,power9,core
+004e0200,1,power9,core
+004e1200,1,power9,core

@@ -82,7 +82,6 @@ usbphy: phy@125b0000 {
 	reg = <0x125b0000 0x100>;
 	clocks = <&clock 305>, <&clock 2>;
 	clock-names = "phy", "ref";
-	status = "okay";
 	#phy-cells = <1>;
 	samsung,sysreg-phandle = <&sys_reg>;
 	samsung,pmureg-phandle = <&pmu_reg>;

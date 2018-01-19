@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* una_asm.S: Kernel unaligned trap assembler helpers.
  *
  * Copyright (C) 1996,2005,2008 David S. Miller (davem@davemloft.net)

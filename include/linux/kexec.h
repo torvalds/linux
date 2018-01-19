@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_KEXEC_H
 #define LINUX_KEXEC_H
 
@@ -326,6 +327,14 @@ static inline void *boot_phys_to_virt(unsigned long entry)
 {
 	return phys_to_virt(boot_phys_to_phys(entry));
 }
+
+#ifndef arch_kexec_post_alloc_pages
+static inline int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages, gfp_t gfp) { return 0; }
+#endif
+
+#ifndef arch_kexec_pre_free_pages
+static inline void arch_kexec_pre_free_pages(void *vaddr, unsigned int pages) { }
+#endif
 
 #else /* !CONFIG_KEXEC_CORE */
 struct pt_regs;

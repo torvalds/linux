@@ -124,7 +124,7 @@ static int zx_hdmi_config_video_avi(struct zx_hdmi *hdmi,
 	union hdmi_infoframe frame;
 	int ret;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
 	if (ret) {
 		DRM_DEV_ERROR(hdmi->dev, "failed to get avi infoframe: %d\n",
 			      ret);
@@ -300,7 +300,6 @@ zx_hdmi_connector_detect(struct drm_connector *connector, bool force)
 }
 
 static const struct drm_connector_funcs zx_hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = zx_hdmi_connector_detect,
 	.destroy = drm_connector_cleanup,

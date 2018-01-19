@@ -52,6 +52,8 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 
 	if (!ci_pdata) {
 		ci_pdata = devm_kmalloc(dev, sizeof(*ci_pdata), GFP_KERNEL);
+		if (!ci_pdata)
+			return -ENOMEM;
 		*ci_pdata = ci_default_pdata;	/* struct copy */
 	}
 

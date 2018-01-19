@@ -1,0 +1,16 @@
+What:		/sys/kernel/mm/swap/
+Date:		August 2017
+Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Description:	Interface for swapping
+
+What:		/sys/kernel/mm/swap/vma_ra_enabled
+Date:		August 2017
+Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Description:	Enable/disable VMA based swap readahead.
+
+		If set to true, the VMA based swap readahead algorithm
+		will be used for swappable anonymous pages mapped in a
+		VMA, and the global swap readahead algorithm will be
+		still used for tmpfs etc. other users.  If set to
+		false, the global swap readahead algorithm will be
+		used for all swappable pages.

@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_PKT_CLS_H
 #define __NET_PKT_CLS_H
 
 #include <linux/pkt_cls.h>
+#include <linux/workqueue.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 
@@ -11,11 +13,13 @@ struct tcf_walker {
 	int	stop;
 	int	skip;
 	int	count;
-	int	(*fn)(struct tcf_proto *, unsigned long node, struct tcf_walker *);
+	int	(*fn)(struct tcf_proto *, void *node, struct tcf_walker *);
 };
 
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
+
+bool tcf_queue_work(struct work_struct *work);
 
 #ifdef CONFIG_NET_CLS
 struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
@@ -90,6 +94,7 @@ struct tcf_exts {
 	__u32	type; /* for backward compat(TCA_OLD_COMPAT) */
 	int nr_actions;
 	struct tc_action **actions;
+	struct net *net;
 #endif
 	/* Map to export classifier specific extension TLV types to the
 	 * generic extensions API. Unsupported extensions must be set to 0.
@@ -103,6 +108,7 @@ static inline int tcf_exts_init(struct tcf_exts *exts, int action, int police)
 #ifdef CONFIG_NET_CLS_ACT
 	exts->type = 0;
 	exts->nr_actions = 0;
+	exts->net = NULL;
 	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
 				GFP_KERNEL);
 	if (!exts->actions)
@@ -113,34 +119,26 @@ static inline int tcf_exts_init(struct tcf_exts *exts, int action, int police)
 	return 0;
 }
 
-/**
- * tcf_exts_is_predicative - check if a predicative extension is present
- * @exts: tc filter extensions handle
- *
- * Returns 1 if a predicative extension is present, i.e. an extension which
- * might cause further actions and thus overrule the regular tcf_result.
+/* Return false if the netns is being destroyed in cleanup_net(). Callers
+ * need to do cleanup synchronously in this case, otherwise may race with
+ * tc_action_net_exit(). Return true for other cases.
  */
-static inline int
-tcf_exts_is_predicative(struct tcf_exts *exts)
+static inline bool tcf_exts_get_net(struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	return exts->nr_actions;
+	exts->net = maybe_get_net(exts->net);
+	return exts->net != NULL;
 #else
-	return 0;
+	return true;
 #endif
 }
 
-/**
- * tcf_exts_is_available - check if at least one extension is present
- * @exts: tc filter extensions handle
- *
- * Returns 1 if at least one extension is present.
- */
-static inline int
-tcf_exts_is_available(struct tcf_exts *exts)
+static inline void tcf_exts_put_net(struct tcf_exts *exts)
 {
-	/* All non-predicative extensions must be added here. */
-	return tcf_exts_is_predicative(exts);
+#ifdef CONFIG_NET_CLS_ACT
+	if (exts->net)
+		put_net(exts->net);
+#endif
 }
 
 static inline void tcf_exts_to_list(const struct tcf_exts *exts,
@@ -177,46 +175,61 @@ tcf_exts_stats_update(const struct tcf_exts *exts,
 }
 
 /**
+ * tcf_exts_has_actions - check if at least one action is present
+ * @exts: tc filter extensions handle
+ *
+ * Returns true if at least one action is present.
+ */
+static inline bool tcf_exts_has_actions(struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	return exts->nr_actions;
+#else
+	return false;
+#endif
+}
+
+/**
+ * tcf_exts_has_one_action - check if exactly one action is present
+ * @exts: tc filter extensions handle
+ *
+ * Returns true if exactly one action is present.
+ */
+static inline bool tcf_exts_has_one_action(struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	return exts->nr_actions == 1;
+#else
+	return false;
+#endif
+}
+
+/**
  * tcf_exts_exec - execute tc filter extensions
  * @skb: socket buffer
  * @exts: tc filter extensions handle
  * @res: desired result
  *
- * Executes all configured extensions. Returns 0 on a normal execution,
+ * Executes all configured extensions. Returns TC_ACT_OK on a normal execution,
  * a negative number if the filter must be considered unmatched or
  * a positive action code (TC_ACT_*) which must be returned to the
  * underlying layer.
  */
 static inline int
 tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
-	       struct tcf_result *res)
+	      struct tcf_result *res)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (exts->nr_actions)
-		return tcf_action_exec(skb, exts->actions, exts->nr_actions,
-				       res);
+	return tcf_action_exec(skb, exts->actions, exts->nr_actions, res);
 #endif
-	return 0;
+	return TC_ACT_OK;
 }
-
-#ifdef CONFIG_NET_CLS_ACT
-
-#define tc_no_actions(_exts)  ((_exts)->nr_actions == 0)
-#define tc_single_action(_exts) ((_exts)->nr_actions == 1)
-
-#else /* CONFIG_NET_CLS_ACT */
-
-#define tc_no_actions(_exts) true
-#define tc_single_action(_exts) false
-
-#endif /* CONFIG_NET_CLS_ACT */
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
 		      struct tcf_exts *exts, bool ovr);
 void tcf_exts_destroy(struct tcf_exts *exts);
-void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
-		     struct tcf_exts *src);
+void tcf_exts_change(struct tcf_exts *dst, struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
@@ -333,26 +346,6 @@ int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
 			struct tcf_pkt_info *);
 
 /**
- * tcf_em_tree_change - replace ematch tree of a running classifier
- *
- * @tp: classifier kind handle
- * @dst: destination ematch tree variable
- * @src: source ematch tree (temporary tree from tcf_em_tree_validate)
- *
- * This functions replaces the ematch tree in @dst with the ematch
- * tree in @src. The classifier in charge of the ematch tree may be
- * running.
- */
-static inline void tcf_em_tree_change(struct tcf_proto *tp,
-				      struct tcf_ematch_tree *dst,
-				      struct tcf_ematch_tree *src)
-{
-	tcf_tree_lock(tp);
-	memcpy(dst, src, sizeof(*dst));
-	tcf_tree_unlock(tp);
-}
-
-/**
  * tcf_em_tree_match - evaulate an ematch tree
  *
  * @skb: socket buffer of the packet in question
@@ -386,7 +379,6 @@ struct tcf_ematch_tree {
 #define tcf_em_tree_validate(tp, tb, t) ((void)(t), 0)
 #define tcf_em_tree_destroy(t) do { (void)(t); } while(0)
 #define tcf_em_tree_dump(skb, t, tlv) (0)
-#define tcf_em_tree_change(tp, dst, src) do { } while(0)
 #define tcf_em_tree_match(skb, t, info) ((void)(info), 1)
 
 #endif /* CONFIG_NET_EMATCH */
@@ -441,6 +433,23 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 }
 #endif /* CONFIG_NET_CLS_IND */
 
+struct tc_cls_common_offload {
+	u32 chain_index;
+	__be16 protocol;
+	u32 prio;
+	u32 classid;
+};
+
+static inline void
+tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
+			   const struct tcf_proto *tp)
+{
+	cls_common->chain_index = tp->chain->index;
+	cls_common->protocol = tp->protocol;
+	cls_common->prio = tp->prio;
+	cls_common->classid = tp->classid;
+}
+
 struct tc_cls_u32_knode {
 	struct tcf_exts *exts;
 	struct tc_u32_sel *sel;
@@ -467,6 +476,7 @@ enum tc_clsu32_command {
 };
 
 struct tc_cls_u32_offload {
+	struct tc_cls_common_offload common;
 	/* knode values */
 	enum tc_clsu32_command command;
 	union {
@@ -475,19 +485,12 @@ struct tc_cls_u32_offload {
 	};
 };
 
-static inline bool tc_can_offload(const struct net_device *dev,
-				  const struct tcf_proto *tp)
+static inline bool tc_can_offload(const struct net_device *dev)
 {
-	const struct Qdisc *sch = tp->q;
-	const struct Qdisc_class_ops *cops = sch->ops->cl_ops;
-
 	if (!(dev->features & NETIF_F_HW_TC))
 		return false;
 	if (!dev->netdev_ops->ndo_setup_tc)
 		return false;
-	if (cops && cops->tcf_cl_offload)
-		return cops->tcf_cl_offload(tp->classid);
-
 	return true;
 }
 
@@ -496,12 +499,11 @@ static inline bool tc_skip_hw(u32 flags)
 	return (flags & TCA_CLS_FLAGS_SKIP_HW) ? true : false;
 }
 
-static inline bool tc_should_offload(const struct net_device *dev,
-				     const struct tcf_proto *tp, u32 flags)
+static inline bool tc_should_offload(const struct net_device *dev, u32 flags)
 {
 	if (tc_skip_hw(flags))
 		return false;
-	return tc_can_offload(dev, tp);
+	return tc_can_offload(dev);
 }
 
 static inline bool tc_skip_sw(u32 flags)
@@ -533,13 +535,14 @@ enum tc_fl_command {
 };
 
 struct tc_cls_flower_offload {
+	struct tc_cls_common_offload common;
 	enum tc_fl_command command;
-	u32 prio;
 	unsigned long cookie;
 	struct flow_dissector *dissector;
 	struct fl_flow_key *mask;
 	struct fl_flow_key *key;
 	struct tcf_exts *exts;
+	bool egress_dev;
 };
 
 enum tc_matchall_command {
@@ -548,6 +551,7 @@ enum tc_matchall_command {
 };
 
 struct tc_cls_matchall_offload {
+	struct tc_cls_common_offload common;
 	enum tc_matchall_command command;
 	struct tcf_exts *exts;
 	unsigned long cookie;
@@ -561,6 +565,7 @@ enum tc_clsbpf_command {
 };
 
 struct tc_cls_bpf_offload {
+	struct tc_cls_common_offload common;
 	enum tc_clsbpf_command command;
 	struct tcf_exts *exts;
 	struct bpf_prog *prog;

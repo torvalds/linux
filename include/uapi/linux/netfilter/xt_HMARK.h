@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef XT_HMARK_H_
 #define XT_HMARK_H_
 

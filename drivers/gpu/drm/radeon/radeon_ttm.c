@@ -178,7 +178,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 static void radeon_evict_flags(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
-	static struct ttm_place placements = {
+	static const struct ttm_place placements = {
 		.fpfn = 0,
 		.lpfn = 0,
 		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
@@ -907,17 +907,17 @@ int radeon_ttm_init(struct radeon_device *rdev)
 
 	r = radeon_bo_create(rdev, 256 * 1024, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
-			     NULL, &rdev->stollen_vga_memory);
+			     NULL, &rdev->stolen_vga_memory);
 	if (r) {
 		return r;
 	}
-	r = radeon_bo_reserve(rdev->stollen_vga_memory, false);
+	r = radeon_bo_reserve(rdev->stolen_vga_memory, false);
 	if (r)
 		return r;
-	r = radeon_bo_pin(rdev->stollen_vga_memory, RADEON_GEM_DOMAIN_VRAM, NULL);
-	radeon_bo_unreserve(rdev->stollen_vga_memory);
+	r = radeon_bo_pin(rdev->stolen_vga_memory, RADEON_GEM_DOMAIN_VRAM, NULL);
+	radeon_bo_unreserve(rdev->stolen_vga_memory);
 	if (r) {
-		radeon_bo_unref(&rdev->stollen_vga_memory);
+		radeon_bo_unref(&rdev->stolen_vga_memory);
 		return r;
 	}
 	DRM_INFO("radeon: %uM of VRAM memory ready\n",
@@ -946,13 +946,13 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 	if (!rdev->mman.initialized)
 		return;
 	radeon_ttm_debugfs_fini(rdev);
-	if (rdev->stollen_vga_memory) {
-		r = radeon_bo_reserve(rdev->stollen_vga_memory, false);
+	if (rdev->stolen_vga_memory) {
+		r = radeon_bo_reserve(rdev->stolen_vga_memory, false);
 		if (r == 0) {
-			radeon_bo_unpin(rdev->stollen_vga_memory);
-			radeon_bo_unreserve(rdev->stollen_vga_memory);
+			radeon_bo_unpin(rdev->stolen_vga_memory);
+			radeon_bo_unreserve(rdev->stolen_vga_memory);
 		}
-		radeon_bo_unref(&rdev->stollen_vga_memory);
+		radeon_bo_unref(&rdev->stolen_vga_memory);
 	}
 	ttm_bo_clean_mm(&rdev->mman.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&rdev->mman.bdev, TTM_PL_TT);
@@ -1030,18 +1030,16 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 static int radeon_mm_dump_table(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	unsigned ttm_pl = *(int *)node->info_ent->data;
+	unsigned ttm_pl = *(int*)node->info_ent->data;
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	struct drm_mm *mm = (struct drm_mm *)rdev->mman.bdev.man[ttm_pl].priv;
-	struct ttm_bo_global *glob = rdev->mman.bdev.glob;
+	struct ttm_mem_type_manager *man = &rdev->mman.bdev.man[ttm_pl];
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	spin_lock(&glob->lru_lock);
-	drm_mm_print(mm, &p);
-	spin_unlock(&glob->lru_lock);
+	man->func->debug(man, &p);
 	return 0;
 }
+
 
 static int ttm_pl_vram = TTM_PL_VRAM;
 static int ttm_pl_tt = TTM_PL_TT;

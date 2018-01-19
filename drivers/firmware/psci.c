@@ -280,8 +280,8 @@ static int psci_dt_cpu_init_idle(struct device_node *cpu_node, int cpu)
 					   "arm,psci-suspend-param",
 					   &state);
 		if (ret) {
-			pr_warn(" * %s missing arm,psci-suspend-param property\n",
-				state_node->full_name);
+			pr_warn(" * %pOF missing arm,psci-suspend-param property\n",
+				state_node);
 			of_node_put(state_node);
 			goto free_mem;
 		}

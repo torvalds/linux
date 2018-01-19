@@ -31,7 +31,7 @@
 
 #define CX18_DSP0_INTERRUPT_MASK     	0xd0004C
 
-static struct v4l2_file_operations cx18_v4l2_enc_fops = {
+static const struct v4l2_file_operations cx18_v4l2_enc_fops = {
 	.owner = THIS_MODULE,
 	.read = cx18_v4l2_read,
 	.open = cx18_v4l2_open,
@@ -240,7 +240,7 @@ static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	list_add_tail(&buf->vb.queue, &s->vb_capture);
 }
 
-static struct videobuf_queue_ops cx18_videobuf_qops = {
+static const struct videobuf_queue_ops cx18_videobuf_qops = {
 	.buf_setup    = buffer_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_queue    = buffer_queue,

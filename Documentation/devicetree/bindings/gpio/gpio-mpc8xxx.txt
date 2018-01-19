@@ -23,7 +23,6 @@ gpio0: gpio@1100 {
 	#gpio-cells = <2>;
 	reg = <0x1100 0x080>;
 	interrupts = <78 0x8>;
-	status = "okay";
 };
 
 Example of gpio-controller node for a ls2080a SoC:

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file contains the generic PMU register description tables
  * and pmc checker used by perfmon.c.

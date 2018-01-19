@@ -520,7 +520,7 @@ out:
  *   update_flash	: Flash new firmware image
  *
  */
-static struct bin_attribute image_data_attr = {
+static const struct bin_attribute image_data_attr = {
 	.attr = {.name = "image", .mode = 0200},
 	.size = MAX_IMAGE_SIZE,	/* Limit image size */
 	.write = image_data_write,

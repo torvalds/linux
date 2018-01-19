@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * proc_tty.c -- handles /proc/tty
  *

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #define OMAP24XX_NR_MMC		2
 #define OMAP2420_MMC_SIZE	OMAP1_MMC_SIZE

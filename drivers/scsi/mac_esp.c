@@ -348,26 +348,24 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 				 u32 dma_count, int write, u8 cmd)
 {
 	struct mac_esp_priv *mep = MAC_ESP_GET_PRIV(esp);
-	u8 *fifo = esp->regs + ESP_FDATA * 16;
+	u8 __iomem *fifo = esp->regs + ESP_FDATA * 16;
+	u8 phase = esp->sreg & ESP_STAT_PMASK;
 
 	cmd &= ~ESP_CMD_DMA;
 	mep->error = 0;
 
 	if (write) {
+		u8 *dst = (u8 *)addr;
+		u8 mask = ~(phase == ESP_MIP ? ESP_INTR_FDONE : ESP_INTR_BSERV);
+
 		scsi_esp_cmd(esp, cmd);
 
 		while (1) {
-			unsigned int n;
-
-			n = mac_esp_wait_for_fifo(esp);
-			if (!n)
+			if (!mac_esp_wait_for_fifo(esp))
 				break;
 
-			if (n > esp_count)
-				n = esp_count;
-			esp_count -= n;
-
-			MAC_ESP_PIO_LOOP("%2@,%0@+", n);
+			*dst++ = esp_read8(ESP_FDATA);
+			--esp_count;
 
 			if (!esp_count)
 				break;
@@ -375,14 +373,17 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			if (mac_esp_wait_for_intr(esp))
 				break;
 
-			if (((esp->sreg & ESP_STAT_PMASK) != ESP_DIP) &&
-			    ((esp->sreg & ESP_STAT_PMASK) != ESP_MIP))
+			if ((esp->sreg & ESP_STAT_PMASK) != phase)
 				break;
 
 			esp->ireg = esp_read8(ESP_INTRPT);
-			if ((esp->ireg & (ESP_INTR_DC | ESP_INTR_BSERV)) !=
-			    ESP_INTR_BSERV)
+			if (esp->ireg & mask) {
+				mep->error = 1;
 				break;
+			}
+
+			if (phase == ESP_MIP)
+				scsi_esp_cmd(esp, ESP_CMD_MOK);
 
 			scsi_esp_cmd(esp, ESP_CMD_TI);
 		}
@@ -402,14 +403,14 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			if (mac_esp_wait_for_intr(esp))
 				break;
 
-			if (((esp->sreg & ESP_STAT_PMASK) != ESP_DOP) &&
-			    ((esp->sreg & ESP_STAT_PMASK) != ESP_MOP))
+			if ((esp->sreg & ESP_STAT_PMASK) != phase)
 				break;
 
 			esp->ireg = esp_read8(ESP_INTRPT);
-			if ((esp->ireg & (ESP_INTR_DC | ESP_INTR_BSERV)) !=
-			    ESP_INTR_BSERV)
+			if (esp->ireg & ~ESP_INTR_BSERV) {
+				mep->error = 1;
 				break;
+			}
 
 			n = MAC_ESP_FIFO_SIZE -
 			    (esp_read8(ESP_FFLAGS) & ESP_FF_FBYTES);

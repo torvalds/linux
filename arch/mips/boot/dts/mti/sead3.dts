@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 /memreserve/ 0x00000000 0x00001000;	// reserved

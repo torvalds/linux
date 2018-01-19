@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
  * irq:		optional wake-up interrupt
  * rearm:	optional soc specific rearm function

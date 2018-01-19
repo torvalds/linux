@@ -30,6 +30,7 @@
 #include <linux/vmalloc.h>
 #include <linux/hugetlb.h>
 #include <asm/kvm_ppc.h>
+#include <asm/pte-walk.h>
 
 #include "e500.h"
 #include "timing.h"
@@ -476,7 +477,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	 * can't run hence pfn won't change.
 	 */
 	local_irq_save(flags);
-	ptep = find_linux_pte_or_hugepte(pgdir, hva, NULL, NULL);
+	ptep = find_linux_pte(pgdir, hva, NULL, NULL);
 	if (ptep) {
 		pte_t pte = READ_ONCE(*ptep);
 

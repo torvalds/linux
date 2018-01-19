@@ -292,7 +292,7 @@ static inline void slot_queue_add(struct sfq_slot *slot, struct sk_buff *skb)
 	slot->skblist_prev = skb;
 }
 
-static unsigned int sfq_drop(struct Qdisc *sch)
+static unsigned int sfq_drop(struct Qdisc *sch, struct sk_buff **to_free)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	sfq_index x, d = q->cur_depth;
@@ -310,9 +310,8 @@ drop:
 		slot->backlog -= len;
 		sfq_dec(q, x);
 		sch->q.qlen--;
-		qdisc_qstats_drop(sch);
 		qdisc_qstats_backlog_dec(sch, skb);
-		kfree_skb(skb);
+		qdisc_drop(skb, sch, to_free);
 		return len;
 	}
 
@@ -360,7 +359,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 	if (hash == 0) {
 		if (ret & __NET_XMIT_BYPASS)
 			qdisc_qstats_drop(sch);
-		kfree_skb(skb);
+		__qdisc_drop(skb, to_free);
 		return ret;
 	}
 	hash--;
@@ -465,7 +464,7 @@ enqueue:
 		return NET_XMIT_SUCCESS;
 
 	qlen = slot->qlen;
-	dropped = sfq_drop(sch);
+	dropped = sfq_drop(sch, to_free);
 	/* Return Congestion Notification only if we dropped a packet
 	 * from this flow.
 	 */
@@ -628,6 +627,8 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 	struct tc_sfq_qopt_v1 *ctl_v1 = NULL;
 	unsigned int qlen, dropped = 0;
 	struct red_parms *p = NULL;
+	struct sk_buff *to_free = NULL;
+	struct sk_buff *tail = NULL;
 
 	if (opt->nla_len < nla_attr_size(sizeof(*ctl)))
 		return -EINVAL;
@@ -674,8 +675,13 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 	}
 
 	qlen = sch->q.qlen;
-	while (sch->q.qlen > q->limit)
-		dropped += sfq_drop(sch);
+	while (sch->q.qlen > q->limit) {
+		dropped += sfq_drop(sch, &to_free);
+		if (!tail)
+			tail = to_free;
+	}
+
+	rtnl_kfree_skbs(to_free, tail);
 	qdisc_tree_reduce_backlog(sch, qlen - sch->q.qlen, dropped);
 
 	del_timer(&q->perturb_timer);
@@ -808,7 +814,7 @@ static struct Qdisc *sfq_leaf(struct Qdisc *sch, unsigned long arg)
 	return NULL;
 }
 
-static unsigned long sfq_get(struct Qdisc *sch, u32 classid)
+static unsigned long sfq_find(struct Qdisc *sch, u32 classid)
 {
 	return 0;
 }
@@ -821,7 +827,7 @@ static unsigned long sfq_bind(struct Qdisc *sch, unsigned long parent,
 	return 0;
 }
 
-static void sfq_put(struct Qdisc *q, unsigned long cl)
+static void sfq_unbind(struct Qdisc *q, unsigned long cl)
 {
 }
 
@@ -885,11 +891,10 @@ static void sfq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 
 static const struct Qdisc_class_ops sfq_class_ops = {
 	.leaf		=	sfq_leaf,
-	.get		=	sfq_get,
-	.put		=	sfq_put,
+	.find		=	sfq_find,
 	.tcf_block	=	sfq_tcf_block,
 	.bind_tcf	=	sfq_bind,
-	.unbind_tcf	=	sfq_put,
+	.unbind_tcf	=	sfq_unbind,
 	.dump		=	sfq_dump_class,
 	.dump_stats	=	sfq_dump_class_stats,
 	.walk		=	sfq_walk,

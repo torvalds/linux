@@ -56,6 +56,12 @@ config DMA_OF
 	select DMA_ENGINE
 
 #devices
+config ALTERA_MSGDMA
+	tristate "Altera / Intel mSGDMA Engine"
+	select DMA_ENGINE
+	help
+	  Enable support for Altera / Intel mSGDMA controller.
+
 config AMBA_PL08X
 	bool "ARM PrimeCell PL080 or PL081 support"
 	depends on ARM_AMBA

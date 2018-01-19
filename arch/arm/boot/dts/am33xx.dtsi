@@ -36,6 +36,8 @@
 		phy1 = &usb1_phy;
 		ethernet0 = &cpsw_emac0;
 		ethernet1 = &cpsw_emac1;
+		spi0 = &spi0;
+		spi1 = &spi1;
 	};
 
 	cpus {

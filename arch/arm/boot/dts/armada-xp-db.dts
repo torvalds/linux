@@ -242,7 +242,7 @@
 		/* Port 2, Lane 0 */
 		status = "okay";
 	};
-	pcie@10,0 {
+	pcie@a,0 {
 		/* Port 3, Lane 0 */
 		status = "okay";
 	};

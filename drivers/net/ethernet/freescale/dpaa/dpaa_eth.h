@@ -52,6 +52,7 @@
 enum dpaa_fq_type {
 	FQ_TYPE_RX_DEFAULT = 1, /* Rx Default FQs */
 	FQ_TYPE_RX_ERROR,	/* Rx Error FQs */
+	FQ_TYPE_RX_PCD,		/* Rx Parse Classify Distribute FQs */
 	FQ_TYPE_TX,		/* "Real" Tx FQs */
 	FQ_TYPE_TX_CONFIRM,	/* Tx default Conf FQ (actually an Rx FQ) */
 	FQ_TYPE_TX_CONF_MQ,	/* Tx conf FQs (one for each Tx FQ) */
@@ -158,6 +159,7 @@ struct dpaa_priv {
 	struct list_head dpaa_fq_list;
 
 	u8 num_tc;
+	bool keygen_in_use;
 	u32 msg_enable;	/* net_device message level */
 
 	struct {

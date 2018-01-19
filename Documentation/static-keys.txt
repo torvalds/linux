@@ -149,6 +149,26 @@ static_branch_inc(), will change the branch back to true. Likewise, if the
 key is initialized false, a 'static_branch_inc()', will change the branch to
 true. And then a 'static_branch_dec()', will again make the branch false.
 
+The state and the reference count can be retrieved with 'static_key_enabled()'
+and 'static_key_count()'.  In general, if you use these functions, they
+should be protected with the same mutex used around the enable/disable
+or increment/decrement function.
+
+Note that switching branches results in some locks being taken,
+particularly the CPU hotplug lock (in order to avoid races against
+CPUs being brought in the kernel whilst the kernel is getting
+patched). Calling the static key API from within a hotplug notifier is
+thus a sure deadlock recipe. In order to still allow use of the
+functionnality, the following functions are provided:
+
+	static_key_enable_cpuslocked()
+	static_key_disable_cpuslocked()
+	static_branch_enable_cpuslocked()
+	static_branch_disable_cpuslocked()
+
+These functions are *not* general purpose, and must only be used when
+you really know that you're in the above context, and no other.
+
 Where an array of keys is required, it can be defined as::
 
 	DEFINE_STATIC_KEY_ARRAY_TRUE(keys, count);

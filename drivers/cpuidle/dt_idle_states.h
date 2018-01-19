@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DT_IDLE_STATES
 #define __DT_IDLE_STATES
 

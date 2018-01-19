@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1995, 1996, 1997 Paul M. Antoine and Harald Koerfgen
  * Copyright (C) 2000, 2001, 2002, 2003, 2005  Maciej W. Rozycki

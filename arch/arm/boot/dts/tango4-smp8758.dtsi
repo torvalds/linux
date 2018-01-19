@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "tango4-common.dtsi"
 
 / {
@@ -13,7 +14,6 @@
 			reg = <0>;
 			clocks = <&clkgen CPU_CLK>;
 			clock-latency = <1>;
-			operating-points = <1215000 0 607500 0 405000 0 243000 0 135000 0>;
 		};
 
 		cpu1: cpu@1 {

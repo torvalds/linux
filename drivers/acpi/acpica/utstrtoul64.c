@@ -276,8 +276,8 @@ static u64 acpi_ut_strtoul_base10(char *string, u32 flags)
 
 		/* Convert and insert (add) the decimal digit */
 
-		next_value =
-		    (return_value * 10) + (ascii_digit - ACPI_ASCII_ZERO);
+		acpi_ut_short_multiply(return_value, 10, &next_value);
+		next_value += (ascii_digit - ACPI_ASCII_ZERO);
 
 		/* Check for overflow (32 or 64 bit) - return current converted value */
 
@@ -335,9 +335,8 @@ static u64 acpi_ut_strtoul_base16(char *string, u32 flags)
 
 		/* Convert and insert the hex digit */
 
-		return_value =
-		    (return_value << 4) |
-		    acpi_ut_ascii_char_to_hex(ascii_digit);
+		acpi_ut_short_shift_left(return_value, 4, &return_value);
+		return_value |= acpi_ut_ascii_char_to_hex(ascii_digit);
 
 		string++;
 		valid_digits++;

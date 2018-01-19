@@ -820,8 +820,7 @@ static void term_afu(struct cxlflash_cfg *cfg)
 	for (k = cfg->afu->num_hwqs - 1; k >= 0; k--)
 		term_intr(cfg, UNMAP_THREE, k);
 
-	if (cfg->afu)
-		stop_afu(cfg);
+	stop_afu(cfg);
 
 	for (k = cfg->afu->num_hwqs - 1; k >= 0; k--)
 		term_mc(cfg, k);

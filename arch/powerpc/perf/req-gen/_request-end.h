@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef REQUEST
 #undef __field
 #undef __array

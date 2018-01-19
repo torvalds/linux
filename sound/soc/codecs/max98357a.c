@@ -72,7 +72,7 @@ static int max98357a_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver max98357a_codec_driver = {
+static const struct snd_soc_codec_driver max98357a_codec_driver = {
 	.probe			= max98357a_codec_probe,
 	.component_driver = {
 		.dapm_widgets		= max98357a_dapm_widgets,

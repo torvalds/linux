@@ -35,7 +35,6 @@ struct kvmppc_xive_irq_state {
 	struct xive_irq_data *pt_data;	/* XIVE Pass-through associated data */
 
 	/* Targetting as set by guest */
-	u32 guest_server;		/* Current guest selected target */
 	u8 guest_priority;		/* Guest set priority */
 	u8 saved_priority;		/* Saved priority when masking */
 

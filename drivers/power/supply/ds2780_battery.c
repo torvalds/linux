@@ -663,7 +663,7 @@ static ssize_t ds2780_write_param_eeprom_bin(struct file *filp,
 	return count;
 }
 
-static struct bin_attribute ds2780_param_eeprom_bin_attr = {
+static const struct bin_attribute ds2780_param_eeprom_bin_attr = {
 	.attr = {
 		.name = "param_eeprom",
 		.mode = S_IRUGO | S_IWUSR,
@@ -708,7 +708,7 @@ static ssize_t ds2780_write_user_eeprom_bin(struct file *filp,
 	return count;
 }
 
-static struct bin_attribute ds2780_user_eeprom_bin_attr = {
+static const struct bin_attribute ds2780_user_eeprom_bin_attr = {
 	.attr = {
 		.name = "user_eeprom",
 		.mode = S_IRUGO | S_IWUSR,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_DMA_MAPPING_H
 #define _LINUX_DMA_MAPPING_H
 
@@ -10,6 +11,7 @@
 #include <linux/scatterlist.h>
 #include <linux/kmemcheck.h>
 #include <linux/bug.h>
+#include <linux/mem_encrypt.h>
 
 /**
  * List of possible attributes associated with a DMA mapping. The semantics
@@ -549,27 +551,20 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 	return dma_free_attrs(dev, size, cpu_addr, dma_handle, 0);
 }
 
-static inline void *dma_alloc_noncoherent(struct device *dev, size_t size,
-		dma_addr_t *dma_handle, gfp_t gfp)
-{
-	return dma_alloc_attrs(dev, size, dma_handle, gfp,
-			       DMA_ATTR_NON_CONSISTENT);
-}
-
-static inline void dma_free_noncoherent(struct device *dev, size_t size,
-		void *cpu_addr, dma_addr_t dma_handle)
-{
-	dma_free_attrs(dev, size, cpu_addr, dma_handle,
-		       DMA_ATTR_NON_CONSISTENT);
-}
-
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	debug_dma_mapping_error(dev, dma_addr);
+	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	if (get_dma_ops(dev)->mapping_error)
-		return get_dma_ops(dev)->mapping_error(dev, dma_addr);
+	debug_dma_mapping_error(dev, dma_addr);
+	if (ops->mapping_error)
+		return ops->mapping_error(dev, dma_addr);
 	return 0;
+}
+
+static inline void dma_check_mask(struct device *dev, u64 mask)
+{
+	if (sme_active() && (mask < (((u64)sme_get_me_mask() << 1) - 1)))
+		dev_warn(dev, "SME is active, device will require DMA bounce buffers\n");
 }
 
 static inline int dma_supported(struct device *dev, u64 mask)
@@ -588,6 +583,9 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
 {
 	if (!dev->dma_mask || !dma_supported(dev, mask))
 		return -EIO;
+
+	dma_check_mask(dev, mask);
+
 	*dev->dma_mask = mask;
 	return 0;
 }
@@ -607,6 +605,9 @@ static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
 {
 	if (!dma_supported(dev, mask))
 		return -EIO;
+
+	dma_check_mask(dev, mask);
+
 	dev->coherent_dma_mask = mask;
 	return 0;
 }
@@ -707,10 +708,7 @@ static inline int dma_get_cache_alignment(void)
 #endif
 
 /* flags for the coherent memory api */
-#define	DMA_MEMORY_MAP			0x01
-#define DMA_MEMORY_IO			0x02
-#define DMA_MEMORY_INCLUDES_CHILDREN	0x04
-#define DMA_MEMORY_EXCLUSIVE		0x08
+#define DMA_MEMORY_EXCLUSIVE		0x01
 
 #ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
 int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
@@ -723,7 +721,7 @@ static inline int
 dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 			    dma_addr_t device_addr, size_t size, int flags)
 {
-	return 0;
+	return -ENOSYS;
 }
 
 static inline void

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_WAIT_H
 #define _LINUX_WAIT_H
 /*
@@ -18,6 +19,7 @@ int default_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, int 
 /* wait_queue_entry::flags */
 #define WQ_FLAG_EXCLUSIVE	0x01
 #define WQ_FLAG_WOKEN		0x02
+#define WQ_FLAG_BOOKMARK	0x04
 
 /*
  * A single wait-queue entry structure:
@@ -184,6 +186,8 @@ __remove_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq
 
 void __wake_up(struct wait_queue_head *wq_head, unsigned int mode, int nr, void *key);
 void __wake_up_locked_key(struct wait_queue_head *wq_head, unsigned int mode, void *key);
+void __wake_up_locked_key_bookmark(struct wait_queue_head *wq_head,
+		unsigned int mode, void *key, wait_queue_entry_t *bookmark);
 void __wake_up_sync_key(struct wait_queue_head *wq_head, unsigned int mode, int nr, void *key);
 void __wake_up_locked(struct wait_queue_head *wq_head, unsigned int mode, int nr);
 void __wake_up_sync(struct wait_queue_head *wq_head, unsigned int mode, int nr);

@@ -42,6 +42,8 @@ the :c:type:`v4l2_format` structure to 0.
 
 .. _v4l2-meta-format:
 
+.. tabularcolumns:: |p{1.4cm}|p{2.2cm}|p{13.9cm}|
+
 .. flat-table:: struct v4l2_meta_format
     :header-rows:  0
     :stub-columns: 0

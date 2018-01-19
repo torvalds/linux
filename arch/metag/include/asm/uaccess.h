@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __METAG_UACCESS_H
 #define __METAG_UACCESS_H
 

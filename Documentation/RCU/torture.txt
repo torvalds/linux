@@ -276,15 +276,17 @@ o	"Free-Block Circulation": Shows the number of torture structures
 	somehow gets incremented farther than it should.
 
 Different implementations of RCU can provide implementation-specific
-additional information.  For example, SRCU provides the following
+additional information.  For example, Tree SRCU provides the following
 additional line:
 
-	srcu-torture: per-CPU(idx=1): 0(0,1) 1(0,1) 2(0,0) 3(0,1)
+	srcud-torture: Tree SRCU per-CPU(idx=0): 0(35,-21) 1(-4,24) 2(1,1) 3(-26,20) 4(28,-47) 5(-9,4) 6(-10,14) 7(-14,11) T(1,6)
 
-This line shows the per-CPU counter state.  The numbers in parentheses are
-the values of the "old" and "current" counters for the corresponding CPU.
-The "idx" value maps the "old" and "current" values to the underlying
-array, and is useful for debugging.
+This line shows the per-CPU counter state, in this case for Tree SRCU
+using a dynamically allocated srcu_struct (hence "srcud-" rather than
+"srcu-").  The numbers in parentheses are the values of the "old" and
+"current" counters for the corresponding CPU.  The "idx" value maps the
+"old" and "current" values to the underlying array, and is useful for
+debugging.  The final "T" entry contains the totals of the counters.
 
 
 USAGE
@@ -304,3 +306,9 @@ checked for such errors.  The "rmmod" command forces a "SUCCESS",
 "FAILURE", or "RCU_HOTPLUG" indication to be printk()ed.  The first
 two are self-explanatory, while the last indicates that while there
 were no RCU failures, CPU-hotplug problems were detected.
+
+However, the tools/testing/selftests/rcutorture/bin/kvm.sh script
+provides better automation, including automatic failure analysis.
+It assumes a qemu/kvm-enabled platform, and runs guest OSes out of initrd.
+See tools/testing/selftests/rcutorture/doc/initrd.txt for instructions
+on setting up such an initrd.

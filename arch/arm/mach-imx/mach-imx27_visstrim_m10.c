@@ -245,7 +245,6 @@ static phys_addr_t mx2_camera_base __initdata;
 static void __init visstrim_analog_camera_init(void)
 {
 	struct platform_device *pdev;
-	int dma;
 
 	gpio_set_value(TVP5150_PWDN, 1);
 	ndelay(1);
@@ -258,12 +257,9 @@ static void __init visstrim_analog_camera_init(void)
 	if (IS_ERR(pdev))
 		return;
 
-	dma = dma_declare_coherent_memory(&pdev->dev,
-				mx2_camera_base, mx2_camera_base,
-				MX2_CAMERA_BUF_SIZE,
-				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
-	if (!(dma & DMA_MEMORY_MAP))
-		return;
+	dma_declare_coherent_memory(&pdev->dev, mx2_camera_base,
+				    mx2_camera_base, MX2_CAMERA_BUF_SIZE,
+				    DMA_MEMORY_EXCLUSIVE);
 }
 
 static void __init visstrim_reserve(void)
@@ -444,16 +440,13 @@ static const struct imx_ssi_platform_data visstrim_m10_ssi_pdata __initconst = {
 static void __init visstrim_coda_init(void)
 {
 	struct platform_device *pdev;
-	int dma;
 
 	pdev = imx27_add_coda();
-	dma = dma_declare_coherent_memory(&pdev->dev,
-					  mx2_camera_base + MX2_CAMERA_BUF_SIZE,
-					  mx2_camera_base + MX2_CAMERA_BUF_SIZE,
-					  MX2_CAMERA_BUF_SIZE,
-					  DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
-	if (!(dma & DMA_MEMORY_MAP))
-		return;
+	dma_declare_coherent_memory(&pdev->dev,
+				    mx2_camera_base + MX2_CAMERA_BUF_SIZE,
+				    mx2_camera_base + MX2_CAMERA_BUF_SIZE,
+				    MX2_CAMERA_BUF_SIZE,
+				    DMA_MEMORY_EXCLUSIVE);
 }
 
 /* DMA deinterlace */
@@ -466,24 +459,21 @@ static void __init visstrim_deinterlace_init(void)
 {
 	int ret = -ENOMEM;
 	struct platform_device *pdev = &visstrim_deinterlace;
-	int dma;
 
 	ret = platform_device_register(pdev);
 
-	dma = dma_declare_coherent_memory(&pdev->dev,
-					  mx2_camera_base + 2 * MX2_CAMERA_BUF_SIZE,
-					  mx2_camera_base + 2 * MX2_CAMERA_BUF_SIZE,
-					  MX2_CAMERA_BUF_SIZE,
-					  DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
-	if (!(dma & DMA_MEMORY_MAP))
-		return;
+	dma_declare_coherent_memory(&pdev->dev,
+				    mx2_camera_base + 2 * MX2_CAMERA_BUF_SIZE,
+				    mx2_camera_base + 2 * MX2_CAMERA_BUF_SIZE,
+				    MX2_CAMERA_BUF_SIZE,
+				    DMA_MEMORY_EXCLUSIVE);
 }
 
 /* Emma-PrP for format conversion */
 static void __init visstrim_emmaprp_init(void)
 {
 	struct platform_device *pdev;
-	int dma;
+	int ret;
 
 	pdev = imx27_add_mx2_emmaprp();
 	if (IS_ERR(pdev))
@@ -493,11 +483,11 @@ static void __init visstrim_emmaprp_init(void)
 	 * Use the same memory area as the analog camera since both
 	 * devices are, by nature, exclusive.
 	 */
-	dma = dma_declare_coherent_memory(&pdev->dev,
+	ret = dma_declare_coherent_memory(&pdev->dev,
 				mx2_camera_base, mx2_camera_base,
 				MX2_CAMERA_BUF_SIZE,
-				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
-	if (!(dma & DMA_MEMORY_MAP))
+				DMA_MEMORY_EXCLUSIVE);
+	if (ret)
 		pr_err("Failed to declare memory for emmaprp\n");
 }
 

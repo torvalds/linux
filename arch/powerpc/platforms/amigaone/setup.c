@@ -40,7 +40,7 @@ static int __init amigaone_add_bridge(struct device_node *dev)
 	const int *bus_range;
 	struct pci_controller *hose;
 
-	printk(KERN_INFO "Adding PCI host bridge %s\n", dev->full_name);
+	printk(KERN_INFO "Adding PCI host bridge %pOF\n", dev);
 
 	cfg_addr = of_get_address(dev, 0, NULL, NULL);
 	cfg_data = of_get_address(dev, 1, NULL, NULL);
@@ -49,8 +49,8 @@ static int __init amigaone_add_bridge(struct device_node *dev)
 
 	bus_range = of_get_property(dev, "bus-range", &len);
 	if ((bus_range == NULL) || (len < 2 * sizeof(int)))
-		printk(KERN_WARNING "Can't get bus-range for %s, assume"
-		       " bus 0\n", dev->full_name);
+		printk(KERN_WARNING "Can't get bus-range for %pOF, assume"
+		       " bus 0\n", dev);
 
 	hose = pcibios_alloc_controller(dev);
 	if (hose == NULL)

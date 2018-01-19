@@ -347,7 +347,7 @@ static u8 fix_header(struct _adapter *padapter, u8 header, u16 header_addr)
 				ret = false;
 				if (value == 0xFF) /* write again */
 					efuse_one_byte_write(padapter, addr,
-							pkt.data[i * 2]);
+							     pkt.data[i * 2]);
 			}
 			if (!efuse_one_byte_read(padapter, addr + 1, &value)) {
 				ret = false;

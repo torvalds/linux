@@ -77,13 +77,17 @@ static void snd_virmidi_init_event(struct snd_virmidi *vmidi,
  * decode input event and put to read buffer of each opened file
  */
 static int snd_virmidi_dev_receive_event(struct snd_virmidi_dev *rdev,
-					 struct snd_seq_event *ev)
+					 struct snd_seq_event *ev,
+					 bool atomic)
 {
 	struct snd_virmidi *vmidi;
 	unsigned char msg[4];
 	int len;
 
-	read_lock(&rdev->filelist_lock);
+	if (atomic)
+		read_lock(&rdev->filelist_lock);
+	else
+		down_read(&rdev->filelist_sem);
 	list_for_each_entry(vmidi, &rdev->filelist, list) {
 		if (!vmidi->trigger)
 			continue;
@@ -97,7 +101,10 @@ static int snd_virmidi_dev_receive_event(struct snd_virmidi_dev *rdev,
 				snd_rawmidi_receive(vmidi->substream, msg, len);
 		}
 	}
-	read_unlock(&rdev->filelist_lock);
+	if (atomic)
+		read_unlock(&rdev->filelist_lock);
+	else
+		up_read(&rdev->filelist_sem);
 
 	return 0;
 }
@@ -115,7 +122,7 @@ int snd_virmidi_receive(struct snd_rawmidi *rmidi, struct snd_seq_event *ev)
 	struct snd_virmidi_dev *rdev;
 
 	rdev = rmidi->private_data;
-	return snd_virmidi_dev_receive_event(rdev, ev);
+	return snd_virmidi_dev_receive_event(rdev, ev, true);
 }
 #endif  /*  0  */
 
@@ -130,7 +137,7 @@ static int snd_virmidi_event_input(struct snd_seq_event *ev, int direct,
 	rdev = private_data;
 	if (!(rdev->flags & SNDRV_VIRMIDI_USE))
 		return 0; /* ignored */
-	return snd_virmidi_dev_receive_event(rdev, ev);
+	return snd_virmidi_dev_receive_event(rdev, ev, atomic);
 }
 
 /*
@@ -209,7 +216,6 @@ static int snd_virmidi_input_open(struct snd_rawmidi_substream *substream)
 	struct snd_virmidi_dev *rdev = substream->rmidi->private_data;
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
 	struct snd_virmidi *vmidi;
-	unsigned long flags;
 
 	vmidi = kzalloc(sizeof(*vmidi), GFP_KERNEL);
 	if (vmidi == NULL)
@@ -223,9 +229,11 @@ static int snd_virmidi_input_open(struct snd_rawmidi_substream *substream)
 	vmidi->client = rdev->client;
 	vmidi->port = rdev->port;	
 	runtime->private_data = vmidi;
-	write_lock_irqsave(&rdev->filelist_lock, flags);
+	down_write(&rdev->filelist_sem);
+	write_lock_irq(&rdev->filelist_lock);
 	list_add_tail(&vmidi->list, &rdev->filelist);
-	write_unlock_irqrestore(&rdev->filelist_lock, flags);
+	write_unlock_irq(&rdev->filelist_lock);
+	up_write(&rdev->filelist_sem);
 	vmidi->rdev = rdev;
 	return 0;
 }
@@ -264,9 +272,11 @@ static int snd_virmidi_input_close(struct snd_rawmidi_substream *substream)
 	struct snd_virmidi_dev *rdev = substream->rmidi->private_data;
 	struct snd_virmidi *vmidi = substream->runtime->private_data;
 
+	down_write(&rdev->filelist_sem);
 	write_lock_irq(&rdev->filelist_lock);
 	list_del(&vmidi->list);
 	write_unlock_irq(&rdev->filelist_lock);
+	up_write(&rdev->filelist_sem);
 	snd_midi_event_free(vmidi->parser);
 	substream->runtime->private_data = NULL;
 	kfree(vmidi);
@@ -520,6 +530,7 @@ int snd_virmidi_new(struct snd_card *card, int device, struct snd_rawmidi **rrmi
 	rdev->rmidi = rmidi;
 	rdev->device = device;
 	rdev->client = -1;
+	init_rwsem(&rdev->filelist_sem);
 	rwlock_init(&rdev->filelist_lock);
 	INIT_LIST_HEAD(&rdev->filelist);
 	rdev->seq_mode = SNDRV_VIRMIDI_SEQ_DISPATCH;

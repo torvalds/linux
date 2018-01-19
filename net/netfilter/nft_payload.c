@@ -184,7 +184,7 @@ static bool nft_payload_udp_checksum(struct sk_buff *skb, unsigned int thoff)
 	if (!uh)
 		return false;
 
-	return uh->check;
+	return (__force bool)uh->check;
 }
 
 static int nft_payload_l4csum_offset(const struct nft_pktinfo *pkt,

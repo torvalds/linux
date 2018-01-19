@@ -81,7 +81,7 @@ static void trigger_cmd_completions(struct mlx5_core_dev *dev)
 	u64 vector;
 
 	/* wait for pending handlers to complete */
-	synchronize_irq(dev->priv.msix_arr[MLX5_EQ_VEC_CMD].vector);
+	synchronize_irq(pci_irq_vector(dev->pdev, MLX5_EQ_VEC_CMD));
 	spin_lock_irqsave(&dev->cmd.alloc_lock, flags);
 	vector = ~dev->cmd.bitmask & ((1ul << (1 << dev->cmd.log_sz)) - 1);
 	if (!vector)
@@ -356,10 +356,11 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 void mlx5_drain_health_recovery(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
+	unsigned long flags;
 
-	spin_lock(&health->wq_lock);
+	spin_lock_irqsave(&health->wq_lock, flags);
 	set_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
-	spin_unlock(&health->wq_lock);
+	spin_unlock_irqrestore(&health->wq_lock, flags);
 	cancel_delayed_work_sync(&dev->priv.health.recover_work);
 }
 

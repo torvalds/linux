@@ -52,10 +52,10 @@ static struct rc_map_table tbs_nec[] = {
 
 static struct rc_map_list tbs_nec_map = {
 	.map = {
-		.scan    = tbs_nec,
-		.size    = ARRAY_SIZE(tbs_nec),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_TBS_NEC,
+		.scan     = tbs_nec,
+		.size     = ARRAY_SIZE(tbs_nec),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_TBS_NEC,
 	}
 };
 

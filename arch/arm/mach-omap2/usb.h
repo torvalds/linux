@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/platform_data/usb-omap.h>
 
 /* AM35x */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SAA7146__
 #define __SAA7146__
 
@@ -96,7 +97,7 @@ struct saa7146_extension
 	   supported devices, last entry 0xffff, 0xfff */
 	struct module *module;
 	struct pci_driver driver;
-	struct pci_device_id *pci_tbl;
+	const struct pci_device_id *pci_tbl;
 
 	/* extension functions */
 	int (*probe)(struct saa7146_dev *);

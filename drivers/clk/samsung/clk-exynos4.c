@@ -294,6 +294,18 @@ static const struct samsung_clk_reg_dump src_mask_suspend_e4210[] = {
 #define PLL_ENABLED	(1 << 31)
 #define PLL_LOCKED	(1 << 29)
 
+static void exynos4_clk_enable_pll(u32 reg)
+{
+	u32 pll_con = readl(reg_base + reg);
+	pll_con |= PLL_ENABLED;
+	writel(pll_con, reg_base + reg);
+
+	while (!(pll_con & PLL_LOCKED)) {
+		cpu_relax();
+		pll_con = readl(reg_base + reg);
+	}
+}
+
 static void exynos4_clk_wait_for_pll(u32 reg)
 {
 	u32 pll_con;
@@ -314,6 +326,9 @@ static int exynos4_clk_suspend(void)
 				ARRAY_SIZE(exynos4_clk_regs));
 	samsung_clk_save(reg_base, exynos4_save_pll,
 				ARRAY_SIZE(exynos4_clk_pll_regs));
+
+	exynos4_clk_enable_pll(EPLL_CON0);
+	exynos4_clk_enable_pll(VPLL_CON0);
 
 	if (exynos4_soc == EXYNOS4210) {
 		samsung_clk_save(reg_base, exynos4_save_soc,

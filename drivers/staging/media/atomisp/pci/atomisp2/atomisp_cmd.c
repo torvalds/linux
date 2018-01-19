@@ -83,48 +83,6 @@ union host {
 };
 
 /*
- * atomisp_kernel_malloc: chooses whether kmalloc() or vmalloc() is preferable.
- *
- * It is also a wrap functions to pass into css framework.
- */
-void *atomisp_kernel_malloc(size_t bytes)
-{
-	/* vmalloc() is preferable if allocating more than 1 page */
-	if (bytes > PAGE_SIZE)
-		return vmalloc(bytes);
-
-	return kmalloc(bytes, GFP_KERNEL);
-}
-
-/*
- * atomisp_kernel_zalloc: chooses whether set 0 to the allocated memory.
- *
- * It is also a wrap functions to pass into css framework.
- */
-void *atomisp_kernel_zalloc(size_t bytes, bool zero_mem)
-{
-	void *ptr = atomisp_kernel_malloc(bytes);
-
-	if (ptr && zero_mem)
-		memset(ptr, 0, bytes);
-
-	return ptr;
-}
-
-/*
- * Free buffer allocated with atomisp_kernel_malloc()/atomisp_kernel_zalloc
- * helper
- */
-void atomisp_kernel_free(void *ptr)
-{
-	/* Verify if buffer was allocated by vmalloc() or kmalloc() */
-	if (is_vmalloc_addr(ptr))
-		vfree(ptr);
-	else
-		kfree(ptr);
-}
-
-/*
  * get sensor:dis71430/ov2720 related info from v4l2_subdev->priv data field.
  * subdev->priv is set in mrst.c
  */
@@ -785,7 +743,7 @@ void atomisp_flush_params_queue(struct atomisp_video_pipe *pipe)
 				   struct atomisp_css_params_with_list, list);
 		list_del(&param->list);
 		atomisp_free_css_parameters(&param->params);
-		atomisp_kernel_free(param);
+		kvfree(param);
 	}
 }
 
@@ -1132,7 +1090,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 				asd->params.dvs_6axis = NULL;
 			atomisp_free_css_parameters(
 				&pipe->frame_params[vb->i]->params);
-			atomisp_kernel_free(pipe->frame_params[vb->i]);
+			kvfree(pipe->frame_params[vb->i]);
 			pipe->frame_params[vb->i] = NULL;
 		}
 
@@ -4329,7 +4287,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 		 * are ready, the parameters will be set to CSS.
 		 * per-frame setting only works for the main output frame.
 		 */
-		param = atomisp_kernel_zalloc(sizeof(*param), true);
+		param = kvzalloc(sizeof(*param), GFP_KERNEL);
 		if (!param) {
 			dev_err(asd->isp->dev, "%s: failed to alloc params buffer\n",
 				__func__);
@@ -4375,7 +4333,7 @@ apply_parameter_failed:
 	if (css_param)
 		atomisp_free_css_parameters(css_param);
 	if (param)
-		atomisp_kernel_free(param);
+		kvfree(param);
 
 	return ret;
 }

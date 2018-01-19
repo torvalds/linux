@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 &nand {
 	nandcs@1 {
 		compatible = "brcm,nandcs";

@@ -259,7 +259,7 @@ int mlx4_gen_pkey_eqe(struct mlx4_dev *dev, int slave, u8 port)
 	if (!s_slave->active)
 		return 0;
 
-	memset(&eqe, 0, sizeof eqe);
+	memset(&eqe, 0, sizeof(eqe));
 
 	eqe.type = MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT;
 	eqe.subtype = MLX4_DEV_PMC_SUBTYPE_PKEY_TABLE;
@@ -276,7 +276,7 @@ int mlx4_gen_guid_change_eqe(struct mlx4_dev *dev, int slave, u8 port)
 	/*don't send if we don't have the that slave */
 	if (dev->persist->num_vfs < slave)
 		return 0;
-	memset(&eqe, 0, sizeof eqe);
+	memset(&eqe, 0, sizeof(eqe));
 
 	eqe.type = MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT;
 	eqe.subtype = MLX4_DEV_PMC_SUBTYPE_GUID_INFO;
@@ -295,7 +295,7 @@ int mlx4_gen_port_state_change_eqe(struct mlx4_dev *dev, int slave, u8 port,
 	/*don't send if we don't have the that slave */
 	if (dev->persist->num_vfs < slave)
 		return 0;
-	memset(&eqe, 0, sizeof eqe);
+	memset(&eqe, 0, sizeof(eqe));
 
 	eqe.type = MLX4_EVENT_TYPE_PORT_CHANGE;
 	eqe.subtype = port_subtype_change;
@@ -432,7 +432,7 @@ int mlx4_gen_slaves_port_mgt_ev(struct mlx4_dev *dev, u8 port, int attr)
 {
 	struct mlx4_eqe eqe;
 
-	memset(&eqe, 0, sizeof eqe);
+	memset(&eqe, 0, sizeof(eqe));
 
 	eqe.type = MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT;
 	eqe.subtype = MLX4_DEV_PMC_SUBTYPE_PORT_INFO;
@@ -726,7 +726,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			}
 			memcpy(&priv->mfunc.master.comm_arm_bit_vector,
 			       eqe->event.comm_channel_arm.bit_vec,
-			       sizeof eqe->event.comm_channel_arm.bit_vec);
+			       sizeof(eqe->event.comm_channel_arm.bit_vec));
 			queue_work(priv->mfunc.master.comm_wq,
 				   &priv->mfunc.master.comm_work);
 			break;
@@ -984,15 +984,15 @@ static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 	 */
 	npages = PAGE_ALIGN(eq->nent * dev->caps.eqe_size) / PAGE_SIZE;
 
-	eq->page_list = kmalloc(npages * sizeof *eq->page_list,
-				GFP_KERNEL);
+	eq->page_list = kmalloc_array(npages, sizeof(*eq->page_list),
+				      GFP_KERNEL);
 	if (!eq->page_list)
 		goto err_out;
 
 	for (i = 0; i < npages; ++i)
 		eq->page_list[i].buf = NULL;
 
-	dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
+	dma_list = kmalloc_array(npages, sizeof(*dma_list), GFP_KERNEL);
 	if (!dma_list)
 		goto err_out_free;
 
@@ -1161,7 +1161,7 @@ int mlx4_alloc_eq_table(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	priv->eq_table.eq = kcalloc(dev->caps.num_eqs - dev->caps.reserved_eqs,
-				    sizeof *priv->eq_table.eq, GFP_KERNEL);
+				    sizeof(*priv->eq_table.eq), GFP_KERNEL);
 	if (!priv->eq_table.eq)
 		return -ENOMEM;
 
@@ -1180,7 +1180,7 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 	int i;
 
 	priv->eq_table.uar_map = kcalloc(mlx4_num_eq_uar(dev),
-					 sizeof *priv->eq_table.uar_map,
+					 sizeof(*priv->eq_table.uar_map),
 					 GFP_KERNEL);
 	if (!priv->eq_table.uar_map) {
 		err = -ENOMEM;

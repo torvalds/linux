@@ -29,6 +29,7 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
+#include "xfs_inode.h"
 
 
 kmem_zone_t	*xfs_buf_item_zone;
@@ -322,6 +323,8 @@ xfs_buf_item_format(
 	ASSERT((bip->bli_flags & XFS_BLI_STALE) ||
 	       (xfs_blft_from_flags(&bip->__bli_format) > XFS_BLFT_UNKNOWN_BUF
 	        && xfs_blft_from_flags(&bip->__bli_format) < XFS_BLFT_MAX_BUF));
+	ASSERT(!(bip->bli_flags & XFS_BLI_ORDERED) ||
+	       (bip->bli_flags & XFS_BLI_STALE));
 
 
 	/*
@@ -344,16 +347,6 @@ xfs_buf_item_format(
 		      xfs_log_item_in_current_chkpt(lip)))
 			bip->__bli_format.blf_flags |= XFS_BLF_INODE_BUF;
 		bip->bli_flags &= ~XFS_BLI_INODE_BUF;
-	}
-
-	if ((bip->bli_flags & (XFS_BLI_ORDERED|XFS_BLI_STALE)) ==
-							XFS_BLI_ORDERED) {
-		/*
-		 * The buffer has been logged just to order it.  It is not being
-		 * included in the transaction commit, so don't format it.
-		 */
-		trace_xfs_buf_item_format_ordered(bip);
-		return;
 	}
 
 	for (i = 0; i < bip->bli_format_count; i++) {
@@ -574,26 +567,20 @@ xfs_buf_item_unlock(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
-	bool			clean;
-	bool			aborted;
-	int			flags;
+	bool			aborted = !!(lip->li_flags & XFS_LI_ABORTED);
+	bool			hold = !!(bip->bli_flags & XFS_BLI_HOLD);
+	bool			dirty = !!(bip->bli_flags & XFS_BLI_DIRTY);
+#if defined(DEBUG) || defined(XFS_WARN)
+	bool			ordered = !!(bip->bli_flags & XFS_BLI_ORDERED);
+#endif
 
 	/* Clear the buffer's association with this transaction. */
 	bp->b_transp = NULL;
 
 	/*
-	 * If this is a transaction abort, don't return early.  Instead, allow
-	 * the brelse to happen.  Normally it would be done for stale
-	 * (cancelled) buffers at unpin time, but we'll never go through the
-	 * pin/unpin cycle if we abort inside commit.
+	 * The per-transaction state has been copied above so clear it from the
+	 * bli.
 	 */
-	aborted = (lip->li_flags & XFS_LI_ABORTED) ? true : false;
-	/*
-	 * Before possibly freeing the buf item, copy the per-transaction state
-	 * so we can reference it safely later after clearing it from the
-	 * buffer log item.
-	 */
-	flags = bip->bli_flags;
 	bip->bli_flags &= ~(XFS_BLI_LOGGED | XFS_BLI_HOLD | XFS_BLI_ORDERED);
 
 	/*
@@ -601,7 +588,7 @@ xfs_buf_item_unlock(
 	 * unlock the buffer and free the buf item when the buffer is unpinned
 	 * for the last time.
 	 */
-	if (flags & XFS_BLI_STALE) {
+	if (bip->bli_flags & XFS_BLI_STALE) {
 		trace_xfs_buf_item_unlock_stale(bip);
 		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
 		if (!aborted) {
@@ -619,20 +606,11 @@ xfs_buf_item_unlock(
 	 * regardless of whether it is dirty or not. A dirty abort implies a
 	 * shutdown, anyway.
 	 *
-	 * Ordered buffers are dirty but may have no recorded changes, so ensure
-	 * we only release clean items here.
+	 * The bli dirty state should match whether the blf has logged segments
+	 * except for ordered buffers, where only the bli should be dirty.
 	 */
-	clean = (flags & XFS_BLI_DIRTY) ? false : true;
-	if (clean) {
-		int i;
-		for (i = 0; i < bip->bli_format_count; i++) {
-			if (!xfs_bitmap_empty(bip->bli_formats[i].blf_data_map,
-				     bip->bli_formats[i].blf_map_size)) {
-				clean = false;
-				break;
-			}
-		}
-	}
+	ASSERT((!ordered && dirty == xfs_buf_item_dirty_format(bip)) ||
+	       (ordered && dirty && !xfs_buf_item_dirty_format(bip)));
 
 	/*
 	 * Clean buffers, by definition, cannot be in the AIL. However, aborted
@@ -651,11 +629,11 @@ xfs_buf_item_unlock(
 			ASSERT(XFS_FORCED_SHUTDOWN(lip->li_mountp));
 			xfs_trans_ail_remove(lip, SHUTDOWN_LOG_IO_ERROR);
 			xfs_buf_item_relse(bp);
-		} else if (clean)
+		} else if (!dirty)
 			xfs_buf_item_relse(bp);
 	}
 
-	if (!(flags & XFS_BLI_HOLD))
+	if (!hold)
 		xfs_buf_relse(bp);
 }
 
@@ -945,14 +923,22 @@ xfs_buf_item_log(
 
 
 /*
- * Return 1 if the buffer has been logged or ordered in a transaction (at any
- * point, not just the current transaction) and 0 if not.
+ * Return true if the buffer has any ranges logged/dirtied by a transaction,
+ * false otherwise.
  */
-uint
-xfs_buf_item_dirty(
-	xfs_buf_log_item_t	*bip)
+bool
+xfs_buf_item_dirty_format(
+	struct xfs_buf_log_item	*bip)
 {
-	return (bip->bli_flags & XFS_BLI_DIRTY);
+	int			i;
+
+	for (i = 0; i < bip->bli_format_count; i++) {
+		if (!xfs_bitmap_empty(bip->bli_formats[i].blf_data_map,
+			     bip->bli_formats[i].blf_map_size))
+			return true;
+	}
+
+	return false;
 }
 
 STATIC void
@@ -1054,6 +1040,31 @@ xfs_buf_do_callbacks(
 	}
 }
 
+/*
+ * Invoke the error state callback for each log item affected by the failed I/O.
+ *
+ * If a metadata buffer write fails with a non-permanent error, the buffer is
+ * eventually resubmitted and so the completion callbacks are not run. The error
+ * state may need to be propagated to the log items attached to the buffer,
+ * however, so the next AIL push of the item knows hot to handle it correctly.
+ */
+STATIC void
+xfs_buf_do_callbacks_fail(
+	struct xfs_buf		*bp)
+{
+	struct xfs_log_item	*next;
+	struct xfs_log_item	*lip = bp->b_fspriv;
+	struct xfs_ail		*ailp = lip->li_ailp;
+
+	spin_lock(&ailp->xa_lock);
+	for (; lip; lip = next) {
+		next = lip->li_bio_list;
+		if (lip->li_ops->iop_error)
+			lip->li_ops->iop_error(lip, bp);
+	}
+	spin_unlock(&ailp->xa_lock);
+}
+
 static bool
 xfs_buf_iodone_callback_error(
 	struct xfs_buf		*bp)
@@ -1123,7 +1134,11 @@ xfs_buf_iodone_callback_error(
 	if ((mp->m_flags & XFS_MOUNT_UNMOUNTING) && mp->m_fail_unmount)
 		goto permanent_error;
 
-	/* still a transient error, higher layers will retry */
+	/*
+	 * Still a transient error, run IO completion failure callbacks and let
+	 * the higher layers retry the buffer.
+	 */
+	xfs_buf_do_callbacks_fail(bp);
 	xfs_buf_ioerror(bp, 0);
 	xfs_buf_relse(bp);
 	return true;
@@ -1203,4 +1218,32 @@ xfs_buf_iodone(
 	spin_lock(&ailp->xa_lock);
 	xfs_trans_ail_delete(ailp, lip, SHUTDOWN_CORRUPT_INCORE);
 	xfs_buf_item_free(BUF_ITEM(lip));
+}
+
+/*
+ * Requeue a failed buffer for writeback
+ *
+ * Return true if the buffer has been re-queued properly, false otherwise
+ */
+bool
+xfs_buf_resubmit_failed_buffers(
+	struct xfs_buf		*bp,
+	struct xfs_log_item	*lip,
+	struct list_head	*buffer_list)
+{
+	struct xfs_log_item	*next;
+
+	/*
+	 * Clear XFS_LI_FAILED flag from all items before resubmit
+	 *
+	 * XFS_LI_FAILED set/clear is protected by xa_lock, caller  this
+	 * function already have it acquired
+	 */
+	for (; lip; lip = next) {
+		next = lip->li_bio_list;
+		xfs_clear_li_failed(lip);
+	}
+
+	/* Add this buffer back to the delayed write list */
+	return xfs_buf_delwri_queue(bp, buffer_list);
 }

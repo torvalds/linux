@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_TLBFLUSH_H
 #define _ASM_POWERPC_BOOK3S_64_TLBFLUSH_H
 

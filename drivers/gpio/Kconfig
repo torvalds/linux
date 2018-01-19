@@ -311,7 +311,7 @@ config GPIO_MOCKUP
 	depends on GPIOLIB && SYSFS
 	select GPIO_SYSFS
 	select GPIOLIB_IRQCHIP
-	select IRQ_WORK
+	select IRQ_SIM
 	help
 	  This enables GPIO Testing driver, which provides a way to test GPIO
 	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
@@ -449,6 +449,16 @@ config GPIO_TS4800
 	select GPIO_GENERIC
 	help
 	  This driver support TS-4800 FPGA GPIO controllers.
+
+config GPIO_THUNDERX
+	tristate "Cavium ThunderX/OCTEON-TX GPIO"
+	depends on ARCH_THUNDER || (64BIT && COMPILE_TEST)
+	depends on PCI_MSI
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
+	help
+	  Say yes here to support the on-chip GPIO lines on the ThunderX
+	  and OCTEON-TX families of SoCs.
 
 config GPIO_TZ1090
 	bool "Toumaz Xenif TZ1090 GPIO support"
@@ -1064,6 +1074,21 @@ config GPIO_TPS65912
 	depends on MFD_TPS65912
 	help
 	  This driver supports TPS65912 gpio chip
+
+config GPIO_TPS68470
+	bool "TPS68470 GPIO"
+	depends on MFD_TPS68470
+	help
+	  Select this option to enable GPIO driver for the TPS68470
+	  chip family.
+	  There are 7 GPIOs and few sensor related GPIOs supported
+	  by the TPS68470. While the 7 GPIOs can be configured as
+	  input or output as appropriate, the sensor related GPIOs
+	  are "output only" GPIOs.
+
+	  This driver config is bool, as the GPIO functionality
+	  of the TPS68470 must be available before dependent
+	  drivers are loaded.
 
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"

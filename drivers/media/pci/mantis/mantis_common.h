@@ -176,7 +176,7 @@ struct mantis_pci {
 	struct work_struct	uart_work;
 
 	struct rc_dev		*rc;
-	char			input_name[80];
+	char			device_name[80];
 	char			input_phys[80];
 	char			*rc_map_name;
 };

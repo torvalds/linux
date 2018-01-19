@@ -591,6 +591,10 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 		return_VOID;
 	}
 
+	if (!acpi_gbl_global_list) {
+		goto exit;
+	}
+
 	element = acpi_gbl_global_list->list_head;
 	while (element) {
 		if ((element->component & component) &&
@@ -602,7 +606,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 
 			if (element->size <
 			    sizeof(struct acpi_common_descriptor)) {
-				acpi_os_printf("%p Length 0x%04X %9.9s-%u "
+				acpi_os_printf("%p Length 0x%04X %9.9s-%4.4u "
 					       "[Not a Descriptor - too small]\n",
 					       descriptor, element->size,
 					       element->module, element->line);
@@ -612,7 +616,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 				if (ACPI_GET_DESCRIPTOR_TYPE(descriptor) !=
 				    ACPI_DESC_TYPE_CACHED) {
 					acpi_os_printf
-					    ("%p Length 0x%04X %9.9s-%u [%s] ",
+					    ("%p Length 0x%04X %9.9s-%4.4u [%s] ",
 					     descriptor, element->size,
 					     element->module, element->line,
 					     acpi_ut_get_descriptor_name
@@ -705,6 +709,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 		element = element->next;
 	}
 
+exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_MEMORY);
 
 	/* Print summary */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -119,5 +120,7 @@
 #define SCM_TIMESTAMPING_PKTINFO	58
 
 #define SO_PEERGROUPS		59
+
+#define SO_ZEROCOPY		60
 
 #endif /* _UAPI_ASM_SOCKET_H */

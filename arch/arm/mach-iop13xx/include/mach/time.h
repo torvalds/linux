@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IOP13XX_TIME_H_
 #define _IOP13XX_TIME_H_
 

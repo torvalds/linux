@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __QCOM_RPM_H__
 #define __QCOM_RPM_H__
 

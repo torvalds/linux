@@ -59,7 +59,7 @@ import datetime
 #	pt_example=# \q
 #
 # An example of using the database is provided by the script
-# call-graph-from-postgresql.py.  Refer to that script for details.
+# call-graph-from-sql.py.  Refer to that script for details.
 #
 # Tables:
 #
@@ -340,7 +340,8 @@ if branches:
 		'to_sym_offset	bigint,'
 		'to_ip		bigint,'
 		'branch_type	integer,'
-		'in_tx		boolean)')
+		'in_tx		boolean,'
+		'call_path_id	bigint)')
 else:
 	do_query(query, 'CREATE TABLE samples ('
 		'id		bigint		NOT NULL,'

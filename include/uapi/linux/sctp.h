@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -376,7 +377,7 @@ struct sctp_remote_error {
 	__u16 sre_type;
 	__u16 sre_flags;
 	__u32 sre_length;
-	__u16 sre_error;
+	__be16 sre_error;
 	sctp_assoc_t sre_assoc_id;
 	__u8 sre_data[0];
 };

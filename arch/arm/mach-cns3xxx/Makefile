@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_ARCH_CNS3XXX)		+= cns3xxx.o
 cns3xxx-y				+= core.o pm.o
 cns3xxx-$(CONFIG_ATAGS)			+= devices.o

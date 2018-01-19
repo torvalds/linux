@@ -192,7 +192,7 @@ static void xgene_pllclk_init(struct device_node *np, enum xgene_pll_type pll_ty
 
 	reg = of_iomap(np, 0);
 	if (reg == NULL) {
-		pr_err("Unable to map CSR register for %s\n", np->full_name);
+		pr_err("Unable to map CSR register for %pOF\n", np);
 		return;
 	}
 	of_property_read_string(np, "clock-output-names", &clk_name);
@@ -409,12 +409,12 @@ static void xgene_pmdclk_init(struct device_node *np)
 	/* Parse the DTS register for resource */
 	rc = of_address_to_resource(np, 0, &res);
 	if (rc != 0) {
-		pr_err("no DTS register for %s\n", np->full_name);
+		pr_err("no DTS register for %pOF\n", np);
 		return;
 	}
 	csr_reg = of_iomap(np, 0);
 	if (!csr_reg) {
-		pr_err("Unable to map resource for %s\n", np->full_name);
+		pr_err("Unable to map resource for %pOF\n", np);
 		return;
 	}
 	of_property_read_string(np, "clock-output-names", &clk_name);
@@ -703,16 +703,14 @@ static void __init xgene_devclk_init(struct device_node *np)
 		rc = of_address_to_resource(np, i, &res);
 		if (rc != 0) {
 			if (i == 0) {
-				pr_err("no DTS register for %s\n",
-					np->full_name);
+				pr_err("no DTS register for %pOF\n", np);
 				return;
 			}
 			break;
 		}
 		map_res = of_iomap(np, i);
 		if (map_res == NULL) {
-			pr_err("Unable to map resource %d for %s\n",
-				i, np->full_name);
+			pr_err("Unable to map resource %d for %pOF\n", i, np);
 			goto err;
 		}
 		if (strcmp(res.name, "div-reg") == 0)
@@ -747,8 +745,7 @@ static void __init xgene_devclk_init(struct device_node *np)
 	pr_debug("Add %s clock\n", clk_name);
 	rc = of_clk_add_provider(np, of_clk_src_simple_get, clk);
 	if (rc != 0)
-		pr_err("%s: could register provider clk %s\n", __func__,
-			np->full_name);
+		pr_err("%s: could register provider clk %pOF\n", __func__, np);
 
 	return;
 

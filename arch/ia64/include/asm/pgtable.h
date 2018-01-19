@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IA64_PGTABLE_H
 #define _ASM_IA64_PGTABLE_H
 

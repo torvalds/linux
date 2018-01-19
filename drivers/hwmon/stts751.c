@@ -718,6 +718,10 @@ static int stts751_read_chip_config(struct stts751_priv *priv)
 	ret = i2c_smbus_read_byte_data(priv->client, STTS751_REG_RATE);
 	if (ret < 0)
 		return ret;
+	if (ret >= ARRAY_SIZE(stts751_intervals)) {
+		dev_err(priv->dev, "Unrecognized conversion rate 0x%x\n", ret);
+		return -ENODEV;
+	}
 	priv->interval = ret;
 
 	ret = stts751_read_reg16(priv, &priv->event_max,

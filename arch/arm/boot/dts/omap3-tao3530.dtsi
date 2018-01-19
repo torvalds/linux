@@ -223,7 +223,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
-	vmmc_aux-supply = <&vsim>;
+	vqmmc-supply = <&vsim>;
 	cd-gpios = <&twl_gpio 0 GPIO_ACTIVE_HIGH>;
 	bus-width = <8>;
 };

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VME_PIO2_H_
 #define _VME_PIO2_H_
 

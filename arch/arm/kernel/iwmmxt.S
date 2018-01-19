@@ -367,6 +367,7 @@ ENTRY(iwmmxt_task_release)
 ENDPROC(iwmmxt_task_release)
 
 	.data
+	.align	2
 concan_owner:
 	.word	0
 

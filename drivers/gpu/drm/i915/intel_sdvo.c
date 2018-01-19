@@ -451,23 +451,24 @@ static const char * const cmd_status_names[] = {
 	"Scaling not supported"
 };
 
-static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
-				 const void *args, int args_len)
+static bool __intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
+				   const void *args, int args_len,
+				   bool unlocked)
 {
 	u8 *buf, status;
 	struct i2c_msg *msgs;
 	int i, ret = true;
 
-        /* Would be simpler to allocate both in one go ? */        
+	/* Would be simpler to allocate both in one go ? */
 	buf = kzalloc(args_len * 2 + 2, GFP_KERNEL);
 	if (!buf)
 		return false;
 
 	msgs = kcalloc(args_len + 3, sizeof(*msgs), GFP_KERNEL);
 	if (!msgs) {
-	        kfree(buf);
+		kfree(buf);
 		return false;
-        }
+	}
 
 	intel_sdvo_debug_write(intel_sdvo, cmd, args, args_len);
 
@@ -498,7 +499,10 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	msgs[i+2].len = 1;
 	msgs[i+2].buf = &status;
 
-	ret = i2c_transfer(intel_sdvo->i2c, msgs, i+3);
+	if (unlocked)
+		ret = i2c_transfer(intel_sdvo->i2c, msgs, i+3);
+	else
+		ret = __i2c_transfer(intel_sdvo->i2c, msgs, i+3);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("I2c transfer returned %d\n", ret);
 		ret = false;
@@ -514,6 +518,12 @@ out:
 	kfree(msgs);
 	kfree(buf);
 	return ret;
+}
+
+static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
+				 const void *args, int args_len)
+{
+	return __intel_sdvo_write_cmd(intel_sdvo, cmd, args, args_len, true);
 }
 
 static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
@@ -602,13 +612,13 @@ static int intel_sdvo_get_pixel_multiplier(const struct drm_display_mode *adjust
 		return 4;
 }
 
-static bool intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
-					      u8 ddc_bus)
+static bool __intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
+						u8 ddc_bus)
 {
 	/* This must be the immediately preceding write before the i2c xfer */
-	return intel_sdvo_write_cmd(intel_sdvo,
-				    SDVO_CMD_SET_CONTROL_BUS_SWITCH,
-				    &ddc_bus, 1);
+	return __intel_sdvo_write_cmd(intel_sdvo,
+				      SDVO_CMD_SET_CONTROL_BUS_SWITCH,
+				      &ddc_bus, 1, false);
 }
 
 static bool intel_sdvo_set_value(struct intel_sdvo *intel_sdvo, u8 cmd, const void *data, int len)
@@ -996,7 +1006,8 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 	ssize_t len;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       &pipe_config->base.adjusted_mode);
+						       &pipe_config->base.adjusted_mode,
+						       false);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return false;
@@ -1343,13 +1354,15 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
 	}
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_CPT)
+	if (HAS_PCH_CPT(dev_priv))
 		sdvox |= SDVO_PIPE_SEL_CPT(crtc->pipe);
 	else
 		sdvox |= SDVO_PIPE_SEL(crtc->pipe);
 
-	if (crtc_state->has_audio)
+	if (crtc_state->has_audio) {
+		WARN_ON_ONCE(INTEL_GEN(dev_priv) < 4);
 		sdvox |= SDVO_AUDIO_ENABLE;
+	}
 
 	if (INTEL_GEN(dev_priv) >= 4) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
@@ -1478,6 +1491,9 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 
 	if (sdvox & HDMI_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
+
+	if (sdvox & SDVO_AUDIO_ENABLE)
+		pipe_config->has_audio = true;
 
 	if (intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_ENCODE,
 				 &val, 1)) {
@@ -2192,10 +2208,8 @@ intel_sdvo_connector_duplicate_state(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_sdvo_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = drm_atomic_helper_connector_set_property,
 	.atomic_get_property = intel_sdvo_connector_atomic_get_property,
 	.atomic_set_property = intel_sdvo_connector_atomic_set_property,
 	.late_register = intel_sdvo_connector_register,
@@ -2454,6 +2468,7 @@ static bool
 intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 {
 	struct drm_encoder *encoder = &intel_sdvo->base.base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct drm_connector *connector;
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 	struct intel_connector *intel_connector;
@@ -2489,7 +2504,9 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 	encoder->encoder_type = DRM_MODE_ENCODER_TMDS;
 	connector->connector_type = DRM_MODE_CONNECTOR_DVID;
 
-	if (intel_sdvo_is_hdmi_connector(intel_sdvo, device)) {
+	/* gen3 doesn't do the hdmi bits in the SDVO register */
+	if (INTEL_GEN(dev_priv) >= 4 &&
+	    intel_sdvo_is_hdmi_connector(intel_sdvo, device)) {
 		connector->connector_type = DRM_MODE_CONNECTOR_HDMIA;
 		intel_sdvo->is_hdmi = true;
 	}
@@ -2925,7 +2942,7 @@ static int intel_sdvo_ddc_proxy_xfer(struct i2c_adapter *adapter,
 {
 	struct intel_sdvo *sdvo = adapter->algo_data;
 
-	if (!intel_sdvo_set_control_bus_switch(sdvo, sdvo->ddc_bus))
+	if (!__intel_sdvo_set_control_bus_switch(sdvo, sdvo->ddc_bus))
 		return -EIO;
 
 	return sdvo->i2c->algo->master_xfer(sdvo->i2c, msgs, num);
@@ -2942,6 +2959,33 @@ static const struct i2c_algorithm intel_sdvo_ddc_proxy = {
 	.functionality	= intel_sdvo_ddc_proxy_func
 };
 
+static void proxy_lock_bus(struct i2c_adapter *adapter,
+			   unsigned int flags)
+{
+	struct intel_sdvo *sdvo = adapter->algo_data;
+	sdvo->i2c->lock_ops->lock_bus(sdvo->i2c, flags);
+}
+
+static int proxy_trylock_bus(struct i2c_adapter *adapter,
+			     unsigned int flags)
+{
+	struct intel_sdvo *sdvo = adapter->algo_data;
+	return sdvo->i2c->lock_ops->trylock_bus(sdvo->i2c, flags);
+}
+
+static void proxy_unlock_bus(struct i2c_adapter *adapter,
+			     unsigned int flags)
+{
+	struct intel_sdvo *sdvo = adapter->algo_data;
+	sdvo->i2c->lock_ops->unlock_bus(sdvo->i2c, flags);
+}
+
+static const struct i2c_lock_operations proxy_lock_ops = {
+	.lock_bus =    proxy_lock_bus,
+	.trylock_bus = proxy_trylock_bus,
+	.unlock_bus =  proxy_unlock_bus,
+};
+
 static bool
 intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 			  struct drm_i915_private *dev_priv)
@@ -2954,6 +2998,7 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 	sdvo->ddc.dev.parent = &pdev->dev;
 	sdvo->ddc.algo_data = sdvo;
 	sdvo->ddc.algo = &intel_sdvo_ddc_proxy;
+	sdvo->ddc.lock_ops = &proxy_lock_ops;
 
 	return i2c_add_adapter(&sdvo->ddc) == 0;
 }

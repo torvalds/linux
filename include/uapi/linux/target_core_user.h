@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __TARGET_CORE_USER_H
 #define __TARGET_CORE_USER_H
 

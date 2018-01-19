@@ -18,8 +18,9 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/linux/lnet/lib-lnet.h"
+
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-lnet.h>
 
 /*
  * This is really lnet_proc.c. You might need to update sanity test 215

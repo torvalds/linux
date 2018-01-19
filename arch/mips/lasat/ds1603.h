@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Dallas Semiconductors 1603 RTC driver
  *

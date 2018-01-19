@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PERF_PERF_H
 #define _PERF_PERF_H
 
@@ -7,6 +8,7 @@
 #include <linux/perf_event.h>
 
 extern bool test_attr__enabled;
+void test_attr__ready(void);
 void test_attr__init(void);
 void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
 		     int fd, int group_fd, unsigned long flags);
@@ -42,6 +44,7 @@ struct record_opts {
 	bool	     no_samples;
 	bool	     raw_samples;
 	bool	     sample_address;
+	bool	     sample_phys_addr;
 	bool	     sample_weight;
 	bool	     sample_time;
 	bool	     sample_time_set;

@@ -355,7 +355,7 @@ static void vpbe_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&disp->dma_queue_lock, flags);
 }
 
-static struct vb2_ops video_qops = {
+static const struct vb2_ops video_qops = {
 	.queue_setup = vpbe_buffer_queue_setup,
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
@@ -1275,7 +1275,7 @@ static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_enum_dv_timings	 = vpbe_display_enum_dv_timings,
 };
 
-static struct v4l2_file_operations vpbe_fops = {
+static const struct v4l2_file_operations vpbe_fops = {
 	.owner = THIS_MODULE,
 	.open = vpbe_display_open,
 	.release = vpbe_display_release,

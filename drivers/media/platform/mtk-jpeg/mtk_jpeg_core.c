@@ -756,7 +756,7 @@ static void mtk_jpeg_stop_streaming(struct vb2_queue *q)
 	pm_runtime_put_sync(ctx->jpeg->dev);
 }
 
-static struct vb2_ops mtk_jpeg_qops = {
+static const struct vb2_ops mtk_jpeg_qops = {
 	.queue_setup        = mtk_jpeg_queue_setup,
 	.buf_prepare        = mtk_jpeg_buf_prepare,
 	.buf_queue          = mtk_jpeg_buf_queue,
@@ -865,7 +865,7 @@ static void mtk_jpeg_job_abort(void *priv)
 {
 }
 
-static struct v4l2_m2m_ops mtk_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops mtk_jpeg_m2m_ops = {
 	.device_run = mtk_jpeg_device_run,
 	.job_ready  = mtk_jpeg_job_ready,
 	.job_abort  = mtk_jpeg_job_abort,

@@ -95,62 +95,6 @@ static u32 dce_virtual_hpd_get_gpio_reg(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
-			      struct amdgpu_mode_mc_save *save)
-{
-	switch (adev->asic_type) {
-#ifdef CONFIG_DRM_AMDGPU_SI
-	case CHIP_TAHITI:
-	case CHIP_PITCAIRN:
-	case CHIP_VERDE:
-	case CHIP_OLAND:
-		dce_v6_0_disable_dce(adev);
-		break;
-#endif
-#ifdef CONFIG_DRM_AMDGPU_CIK
-	case CHIP_BONAIRE:
-	case CHIP_HAWAII:
-	case CHIP_KAVERI:
-	case CHIP_KABINI:
-	case CHIP_MULLINS:
-		dce_v8_0_disable_dce(adev);
-		break;
-#endif
-	case CHIP_FIJI:
-	case CHIP_TONGA:
-		dce_v10_0_disable_dce(adev);
-		break;
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-		dce_v11_0_disable_dce(adev);
-		break;
-	case CHIP_TOPAZ:
-#ifdef CONFIG_DRM_AMDGPU_SI
-	case CHIP_HAINAN:
-#endif
-		/* no DCE */
-		return;
-	default:
-		DRM_ERROR("Virtual display unsupported ASIC type: 0x%X\n", adev->asic_type);
-	}
-
-	return;
-}
-static void dce_virtual_resume_mc_access(struct amdgpu_device *adev,
-				struct amdgpu_mode_mc_save *save)
-{
-	return;
-}
-
-static void dce_virtual_set_vga_render_state(struct amdgpu_device *adev,
-				    bool render)
-{
-	return;
-}
-
 /**
  * dce_virtual_bandwidth_update - program display watermarks
  *
@@ -168,16 +112,6 @@ static int dce_virtual_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
 				      u16 *green, u16 *blue, uint32_t size,
 				      struct drm_modeset_acquire_ctx *ctx)
 {
-	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	int i;
-
-	/* userspace palettes are always correct as is */
-	for (i = 0; i < size; i++) {
-		amdgpu_crtc->lut_r[i] = red[i] >> 6;
-		amdgpu_crtc->lut_g[i] = green[i] >> 6;
-		amdgpu_crtc->lut_b[i] = blue[i] >> 6;
-	}
-
 	return 0;
 }
 
@@ -289,11 +223,6 @@ static int dce_virtual_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
-static void dce_virtual_crtc_load_lut(struct drm_crtc *crtc)
-{
-	return;
-}
-
 static int dce_virtual_crtc_set_base_atomic(struct drm_crtc *crtc,
 					 struct drm_framebuffer *fb,
 					 int x, int y, enum mode_set_atomic state)
@@ -309,14 +238,12 @@ static const struct drm_crtc_helper_funcs dce_virtual_crtc_helper_funcs = {
 	.mode_set_base_atomic = dce_virtual_crtc_set_base_atomic,
 	.prepare = dce_virtual_crtc_prepare,
 	.commit = dce_virtual_crtc_commit,
-	.load_lut = dce_virtual_crtc_load_lut,
 	.disable = dce_virtual_crtc_disable,
 };
 
 static int dce_virtual_crtc_init(struct amdgpu_device *adev, int index)
 {
 	struct amdgpu_crtc *amdgpu_crtc;
-	int i;
 
 	amdgpu_crtc = kzalloc(sizeof(struct amdgpu_crtc) +
 			      (AMDGPUFB_CONN_LIMIT * sizeof(struct drm_connector *)), GFP_KERNEL);
@@ -328,12 +255,6 @@ static int dce_virtual_crtc_init(struct amdgpu_device *adev, int index)
 	drm_mode_crtc_set_gamma_size(&amdgpu_crtc->base, 256);
 	amdgpu_crtc->crtc_id = index;
 	adev->mode_info.crtcs[index] = amdgpu_crtc;
-
-	for (i = 0; i < 256; i++) {
-		amdgpu_crtc->lut_r[i] = i << 2;
-		amdgpu_crtc->lut_g[i] = i << 2;
-		amdgpu_crtc->lut_b[i] = i << 2;
-	}
 
 	amdgpu_crtc->pll_id = ATOM_PPLL_INVALID;
 	amdgpu_crtc->encoder = NULL;
@@ -522,6 +443,47 @@ static int dce_virtual_sw_fini(void *handle)
 
 static int dce_virtual_hw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_VERDE:
+	case CHIP_OLAND:
+		dce_v6_0_disable_dce(adev);
+		break;
+#endif
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+		dce_v8_0_disable_dce(adev);
+		break;
+#endif
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+		dce_v10_0_disable_dce(adev);
+		break;
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+		dce_v11_0_disable_dce(adev);
+		break;
+	case CHIP_TOPAZ:
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_HAINAN:
+#endif
+		/* no DCE */
+		break;
+	case CHIP_VEGA10:
+		break;
+	default:
+		DRM_ERROR("Virtual display unsupported ASIC type: 0x%X\n", adev->asic_type);
+	}
 	return 0;
 }
 
@@ -677,7 +639,6 @@ static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
 }
 
 static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
-	.set_vga_render_state = &dce_virtual_set_vga_render_state,
 	.bandwidth_update = &dce_virtual_bandwidth_update,
 	.vblank_get_counter = &dce_virtual_vblank_get_counter,
 	.vblank_wait = &dce_virtual_vblank_wait,
@@ -690,8 +651,6 @@ static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
 	.page_flip_get_scanoutpos = &dce_virtual_crtc_get_scanoutpos,
 	.add_encoder = NULL,
 	.add_connector = NULL,
-	.stop_mc_access = &dce_virtual_stop_mc_access,
-	.resume_mc_access = &dce_virtual_resume_mc_access,
 };
 
 static void dce_virtual_set_display_funcs(struct amdgpu_device *adev)
@@ -809,7 +768,7 @@ static const struct amdgpu_irq_src_funcs dce_virtual_crtc_irq_funcs = {
 
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_LAST;
+	adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_VBLANK6 + 1;
 	adev->crtc_irq.funcs = &dce_virtual_crtc_irq_funcs;
 }
 

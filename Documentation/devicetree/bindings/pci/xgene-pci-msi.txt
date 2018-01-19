@@ -4,7 +4,7 @@ Required properties:
 
 - compatible: should be "apm,xgene1-msi" to identify
 	      X-Gene v1 PCIe MSI controller block.
-- msi-controller: indicates that this is X-Gene v1 PCIe MSI controller node
+- msi-controller: indicates that this is an X-Gene v1 PCIe MSI controller node
 - reg: physical base address (0x79000000) and length (0x900000) for controller
        registers. These registers include the MSI termination address and data
        registers as well as the MSI interrupt status registers.
@@ -13,7 +13,8 @@ Required properties:
 	      interrupt number 0x10 to 0x1f.
 - interrupt-names: not required
 
-Each PCIe node needs to have property msi-parent that points to msi controller node
+Each PCIe node needs to have property msi-parent that points to an MSI
+controller node
 
 Examples:
 
@@ -44,7 +45,6 @@ SoC DTSI:
 
 	+ PCIe controller node with msi-parent property pointing to MSI node:
 	pcie0: pcie@1f2b0000 {
-		status = "disabled";
 		device_type = "pci";
 		compatible = "apm,xgene-storm-pcie", "apm,xgene-pcie";
 		#interrupt-cells = <1>;

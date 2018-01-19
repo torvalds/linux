@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Encryption policy functions for per-file encryption support.
  *

@@ -1184,7 +1184,7 @@ static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 */
 	ncfi.fileVersionNum = ocfi.fileVersionNum;
 	ncfi.fileCharacteristics = ocfi.fileCharacteristics;
-	memcpy(&(ncfi.icb), &(ocfi.icb), sizeof(struct long_ad));
+	memcpy(&(ncfi.icb), &(ocfi.icb), sizeof(ocfi.icb));
 	udf_write_fi(new_dir, &ncfi, nfi, &nfibh, NULL, NULL);
 
 	/* The old fid may have moved - find it again */

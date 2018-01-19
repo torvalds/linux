@@ -166,6 +166,7 @@ typedef u64 acpi_physical_address;
 #define ACPI_SIZE_MAX                   ACPI_UINT64_MAX
 
 #define ACPI_USE_NATIVE_DIVIDE	/* Has native 64-bit integer support */
+#define ACPI_USE_NATIVE_MATH64	/* Has native 64-bit integer support */
 
 /*
  * In the case of the Itanium Processor Family (IPF), the hardware does not
@@ -554,6 +555,13 @@ typedef u64 acpi_integer;
 #define ACPI_VALIDATE_RSDP_SIG(a)       (!strncmp (ACPI_CAST_PTR (char, (a)), ACPI_SIG_RSDP, 8))
 #define ACPI_MAKE_RSDP_SIG(dest)        (memcpy (ACPI_CAST_PTR (char, (dest)), ACPI_SIG_RSDP, 8))
 
+/*
+ * Algorithm to obtain access bit width.
+ * Can be used with access_width of struct acpi_generic_address and access_size of
+ * struct acpi_resource_generic_register.
+ */
+#define ACPI_ACCESS_BIT_WIDTH(size)     (1 << ((size) + 2))
+
 /*******************************************************************************
  *
  * Miscellaneous constants
@@ -775,7 +783,7 @@ typedef u32 acpi_event_status;
  *   |  | | |  +-- Type of dispatch:to method, handler, notify, or none
  *   |  | | +----- Interrupt type: edge or level triggered
  *   |  | +------- Is a Wake GPE
- *   |  +--------- Is GPE masked by the software GPE masking mechanism
+ *   |  +--------- Has been enabled automatically at init time
  *   +------------ <Reserved>
  */
 #define ACPI_GPE_DISPATCH_NONE          (u8) 0x00
@@ -791,6 +799,7 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_XRUPT_TYPE_MASK        (u8) 0x08
 
 #define ACPI_GPE_CAN_WAKE               (u8) 0x10
+#define ACPI_GPE_AUTO_ENABLED           (u8) 0x20
 
 /*
  * Flags for GPE and Lock interfaces

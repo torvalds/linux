@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* register 01h */
 #define CS4362A_PDN		0x01
 #define CS4362A_DAC1_DIS	0x02

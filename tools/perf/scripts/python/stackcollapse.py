@@ -1,4 +1,5 @@
 # stackcollapse.py - format perf samples with one line per distinct call stack
+# SPDX-License-Identifier: GPL-2.0
 #
 # This script's output has two space-separated fields.  The first is a semicolon
 # separated stack including the program name (from the "comm" field) and the

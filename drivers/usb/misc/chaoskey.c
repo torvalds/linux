@@ -42,12 +42,10 @@ static int chaoskey_rng_read(struct hwrng *rng, void *data,
 	dev_err(&(usb_if)->dev, format, ## arg)
 
 /* Version Information */
-#define DRIVER_VERSION	"v0.1"
 #define DRIVER_AUTHOR	"Keith Packard, keithp@keithp.com"
 #define DRIVER_DESC	"Altus Metrum ChaosKey driver"
 #define DRIVER_SHORT	"chaoskey"
 
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

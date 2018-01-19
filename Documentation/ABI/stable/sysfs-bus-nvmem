@@ -1,0 +1,19 @@
+What:		/sys/bus/nvmem/devices/.../nvmem
+Date:		July 2015
+KernelVersion:  4.2
+Contact:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+Description:
+		This file allows user to read/write the raw NVMEM contents.
+		Permissions for write to this file depends on the nvmem
+		provider configuration.
+
+		ex:
+		hexdump /sys/bus/nvmem/devices/qfprom0/nvmem
+
+		0000000 0000 0000 0000 0000 0000 0000 0000 0000
+		*
+		00000a0 db10 2240 0000 e000 0c00 0c00 0000 0c00
+		0000000 0000 0000 0000 0000 0000 0000 0000 0000
+		...
+		*
+		0001000

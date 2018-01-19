@@ -65,7 +65,7 @@ typedef struct {
 } hfcsusb_vdata;
 
 /* VID/PID device list */
-static struct usb_device_id hfcusb_idtab[] = {
+static const struct usb_device_id hfcusb_idtab[] = {
 	{
 		USB_DEVICE(0x0959, 0x2bd0),
 		.driver_info = (unsigned long) &((hfcsusb_vdata)

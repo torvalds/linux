@@ -132,6 +132,7 @@ EXPORT_SYMBOL(devm_gpiod_get_index);
  * @index:	index of the GPIO to obtain in the consumer
  * @child:	firmware node (child of @dev)
  * @flags:	GPIO initialization flags
+ * @label:	label to attach to the requested GPIO
  *
  * GPIO descriptors returned from this function are automatically disposed on
  * driver detach.
@@ -271,6 +272,7 @@ EXPORT_SYMBOL(devm_gpiod_get_array_optional);
 
 /**
  * devm_gpiod_put - Resource-managed gpiod_put()
+ * @dev:	GPIO consumer
  * @desc:	GPIO descriptor to dispose of
  *
  * Dispose of a GPIO descriptor obtained with devm_gpiod_get() or
@@ -286,6 +288,7 @@ EXPORT_SYMBOL(devm_gpiod_put);
 
 /**
  * devm_gpiod_put_array - Resource-managed gpiod_put_array()
+ * @dev:	GPIO consumer
  * @descs:	GPIO descriptor array to dispose of
  *
  * Dispose of an array of GPIO descriptors obtained with devm_gpiod_get_array().

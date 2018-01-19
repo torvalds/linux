@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LIBLOCKDEP_RCU_H_
 #define _LIBLOCKDEP_RCU_H_
 

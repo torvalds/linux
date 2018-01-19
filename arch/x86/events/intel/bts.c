@@ -268,7 +268,7 @@ static void bts_event_start(struct perf_event *event, int flags)
 	bts->ds_back.bts_absolute_maximum = cpuc->ds->bts_absolute_maximum;
 	bts->ds_back.bts_interrupt_threshold = cpuc->ds->bts_interrupt_threshold;
 
-	event->hw.itrace_started = 1;
+	perf_event_itrace_started(event);
 	event->hw.state = 0;
 
 	__bts_event_start(event);
@@ -546,9 +546,6 @@ static int bts_event_init(struct perf_event *event)
 	if (event->attr.type != bts_pmu.type)
 		return -ENOENT;
 
-	if (x86_add_exclusive(x86_lbr_exclusive_bts))
-		return -EBUSY;
-
 	/*
 	 * BTS leaks kernel addresses even when CPL0 tracing is
 	 * disabled, so disallow intel_bts driver for unprivileged
@@ -561,6 +558,9 @@ static int bts_event_init(struct perf_event *event)
 	if (event->attr.exclude_kernel && perf_paranoid_kernel() &&
 	    !capable(CAP_SYS_ADMIN))
 		return -EACCES;
+
+	if (x86_add_exclusive(x86_lbr_exclusive_bts))
+		return -EBUSY;
 
 	ret = x86_reserve_hardware();
 	if (ret) {

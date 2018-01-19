@@ -15,6 +15,7 @@
 #ifndef _LINUX_BTT_H
 #define _LINUX_BTT_H
 
+#include <linux/badblocks.h>
 #include <linux/types.h>
 
 #define BTT_SIG_LEN 16
@@ -37,6 +38,11 @@
 
 #define IB_FLAG_ERROR 0x00000001
 #define IB_FLAG_ERROR_MASK 0x00000001
+
+#define ent_lba(ent) (ent & MAP_LBA_MASK)
+#define ent_e_flag(ent) (!!(ent & MAP_ERR_MASK))
+#define ent_z_flag(ent) (!!(ent & MAP_TRIM_MASK))
+#define set_e_flag(ent) (ent |= MAP_ERR_MASK)
 
 enum btt_init_state {
 	INIT_UNCHECKED = 0,
@@ -78,6 +84,7 @@ struct free_entry {
 	u32 block;
 	u8 sub;
 	u8 seq;
+	u8 has_err;
 };
 
 struct aligned_lock {
@@ -104,6 +111,7 @@ struct aligned_lock {
  *			handle incoming writes.
  * @version_major:	Metadata layout version major.
  * @version_minor:	Metadata layout version minor.
+ * @sector_size:	The Linux sector size - 512 or 4096
  * @nextoff:		Offset in bytes to the start of the next arena.
  * @infooff:		Offset in bytes to the info block of this arena.
  * @dataoff:		Offset in bytes to the data area of this arena.
@@ -131,6 +139,7 @@ struct arena_info {
 	u32 nfree;
 	u16 version_major;
 	u16 version_minor;
+	u32 sector_size;
 	/* Byte offsets to the different on-media structures */
 	u64 nextoff;
 	u64 infooff;
@@ -147,6 +156,7 @@ struct arena_info {
 	struct dentry *debugfs_dir;
 	/* Arena flags */
 	u32 flags;
+	struct mutex err_lock;
 };
 
 /**
@@ -181,6 +191,7 @@ struct btt {
 	struct mutex init_lock;
 	int init_state;
 	int num_arenas;
+	struct badblocks *phys_bb;
 };
 
 bool nd_btt_arena_is_valid(struct nd_btt *nd_btt, struct btt_sb *super);

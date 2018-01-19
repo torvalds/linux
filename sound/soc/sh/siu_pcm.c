@@ -593,7 +593,7 @@ static void siu_pcm_free(struct snd_pcm *pcm)
 	dev_dbg(pcm->card->dev, "%s\n", __func__);
 }
 
-static struct snd_pcm_ops siu_pcm_ops = {
+static const struct snd_pcm_ops siu_pcm_ops = {
 	.open		= siu_pcm_open,
 	.close		= siu_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,

@@ -29,7 +29,6 @@ void
 virtcrypto_clear_request(struct virtio_crypto_request *vc_req)
 {
 	if (vc_req) {
-		kzfree(vc_req->iv);
 		kzfree(vc_req->req_data);
 		kfree(vc_req->sgs);
 	}
@@ -41,40 +40,18 @@ static void virtcrypto_dataq_callback(struct virtqueue *vq)
 	struct virtio_crypto_request *vc_req;
 	unsigned long flags;
 	unsigned int len;
-	struct ablkcipher_request *ablk_req;
-	int error;
 	unsigned int qid = vq->index;
 
 	spin_lock_irqsave(&vcrypto->data_vq[qid].lock, flags);
 	do {
 		virtqueue_disable_cb(vq);
 		while ((vc_req = virtqueue_get_buf(vq, &len)) != NULL) {
-			if (vc_req->type == VIRTIO_CRYPTO_SYM_OP_CIPHER) {
-				switch (vc_req->status) {
-				case VIRTIO_CRYPTO_OK:
-					error = 0;
-					break;
-				case VIRTIO_CRYPTO_INVSESS:
-				case VIRTIO_CRYPTO_ERR:
-					error = -EINVAL;
-					break;
-				case VIRTIO_CRYPTO_BADMSG:
-					error = -EBADMSG;
-					break;
-				default:
-					error = -EIO;
-					break;
-				}
-				ablk_req = vc_req->ablkcipher_req;
-
-				spin_unlock_irqrestore(
-					&vcrypto->data_vq[qid].lock, flags);
-				/* Finish the encrypt or decrypt process */
-				virtio_crypto_ablkcipher_finalize_req(vc_req,
-				    ablk_req, error);
-				spin_lock_irqsave(
-					&vcrypto->data_vq[qid].lock, flags);
-			}
+			spin_unlock_irqrestore(
+				&vcrypto->data_vq[qid].lock, flags);
+			if (vc_req->alg_cb)
+				vc_req->alg_cb(vc_req, len);
+			spin_lock_irqsave(
+				&vcrypto->data_vq[qid].lock, flags);
 		}
 	} while (!virtqueue_enable_cb(vq));
 	spin_unlock_irqrestore(&vcrypto->data_vq[qid].lock, flags);
@@ -270,7 +247,7 @@ static int virtcrypto_update_status(struct virtio_crypto *vcrypto)
 
 			return -EPERM;
 		}
-		dev_info(&vcrypto->vdev->dev, "Accelerator is ready\n");
+		dev_info(&vcrypto->vdev->dev, "Accelerator device is ready\n");
 	} else {
 		virtcrypto_dev_stop(vcrypto);
 		dev_info(&vcrypto->vdev->dev, "Accelerator is not ready\n");

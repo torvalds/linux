@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_COMPILER_H
 #error "Please don't include <linux/compiler-intel.h> directly, include <linux/compiler.h> instead."
 #endif

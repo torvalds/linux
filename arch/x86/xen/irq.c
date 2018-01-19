@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/hardirq.h>
 
 #include <asm/x86_init.h>
@@ -123,9 +124,6 @@ static const struct pv_irq_ops xen_irq_ops __initconst = {
 
 	.safe_halt = xen_safe_halt,
 	.halt = xen_halt,
-#ifdef CONFIG_X86_64
-	.adjust_exception_frame = xen_adjust_exception_frame,
-#endif
 };
 
 void __init xen_init_irq_ops(void)

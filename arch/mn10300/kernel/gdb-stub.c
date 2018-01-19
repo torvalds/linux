@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* MN10300 GDB stub
  *
  * Originally written by Glenn Engel, Lake Stevens Instrument Division

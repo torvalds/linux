@@ -75,6 +75,16 @@ used when printing stack backtraces. The specifier takes into
 consideration the effect of compiler optimisations which may occur
 when tail-call``s are used and marked with the noreturn GCC attribute.
 
+Examples::
+
+	printk("Going to call: %pF\n", gettimeofday);
+	printk("Going to call: %pF\n", p->func);
+	printk("%s: called from %pS\n", __func__, (void *)_RET_IP_);
+	printk("%s: called from %pS\n", __func__,
+				(void *)__builtin_return_address(0));
+	printk("Faulted at %pS\n", (void *)regs->ip);
+	printk(" %s%pB\n", (reliable ? "" : "? "), (void *)*stack);
+
 
 Kernel Pointers
 ===============

@@ -18,6 +18,18 @@
 
 #include <linux/usb/phy.h>
 
+/* Default current range by charger type. */
+#define DEFAULT_SDP_CUR_MIN	2
+#define DEFAULT_SDP_CUR_MAX	500
+#define DEFAULT_SDP_CUR_MIN_SS	150
+#define DEFAULT_SDP_CUR_MAX_SS	900
+#define DEFAULT_DCP_CUR_MIN	500
+#define DEFAULT_DCP_CUR_MAX	5000
+#define DEFAULT_CDP_CUR_MIN	1500
+#define DEFAULT_CDP_CUR_MAX	5000
+#define DEFAULT_ACA_CUR_MIN	1500
+#define DEFAULT_ACA_CUR_MAX	5000
+
 static LIST_HEAD(phy_list);
 static LIST_HEAD(phy_bind_list);
 static DEFINE_SPINLOCK(phy_lock);
@@ -77,6 +89,221 @@ static struct usb_phy *__of_usb_find_phy(struct device_node *node)
 	return ERR_PTR(-EPROBE_DEFER);
 }
 
+static void usb_phy_set_default_current(struct usb_phy *usb_phy)
+{
+	usb_phy->chg_cur.sdp_min = DEFAULT_SDP_CUR_MIN;
+	usb_phy->chg_cur.sdp_max = DEFAULT_SDP_CUR_MAX;
+	usb_phy->chg_cur.dcp_min = DEFAULT_DCP_CUR_MIN;
+	usb_phy->chg_cur.dcp_max = DEFAULT_DCP_CUR_MAX;
+	usb_phy->chg_cur.cdp_min = DEFAULT_CDP_CUR_MIN;
+	usb_phy->chg_cur.cdp_max = DEFAULT_CDP_CUR_MAX;
+	usb_phy->chg_cur.aca_min = DEFAULT_ACA_CUR_MIN;
+	usb_phy->chg_cur.aca_max = DEFAULT_ACA_CUR_MAX;
+}
+
+/**
+ * usb_phy_notify_charger_work - notify the USB charger state
+ * @work - the charger work to notify the USB charger state
+ *
+ * This work can be issued when USB charger state has been changed or
+ * USB charger current has been changed, then we can notify the current
+ * what can be drawn to power user and the charger state to userspace.
+ *
+ * If we get the charger type from extcon subsystem, we can notify the
+ * charger state to power user automatically by usb_phy_get_charger_type()
+ * issuing from extcon subsystem.
+ *
+ * If we get the charger type from ->charger_detect() instead of extcon
+ * subsystem, the usb phy driver should issue usb_phy_set_charger_state()
+ * to set charger state when the charger state has been changed.
+ */
+static void usb_phy_notify_charger_work(struct work_struct *work)
+{
+	struct usb_phy *usb_phy = container_of(work, struct usb_phy, chg_work);
+	char uchger_state[50] = { 0 };
+	char *envp[] = { uchger_state, NULL };
+	unsigned int min, max;
+
+	switch (usb_phy->chg_state) {
+	case USB_CHARGER_PRESENT:
+		usb_phy_get_charger_current(usb_phy, &min, &max);
+
+		atomic_notifier_call_chain(&usb_phy->notifier, max, usb_phy);
+		snprintf(uchger_state, ARRAY_SIZE(uchger_state),
+			 "USB_CHARGER_STATE=%s", "USB_CHARGER_PRESENT");
+		break;
+	case USB_CHARGER_ABSENT:
+		usb_phy_set_default_current(usb_phy);
+
+		atomic_notifier_call_chain(&usb_phy->notifier, 0, usb_phy);
+		snprintf(uchger_state, ARRAY_SIZE(uchger_state),
+			 "USB_CHARGER_STATE=%s", "USB_CHARGER_ABSENT");
+		break;
+	default:
+		dev_warn(usb_phy->dev, "Unknown USB charger state: %d\n",
+			 usb_phy->chg_state);
+		return;
+	}
+
+	kobject_uevent_env(&usb_phy->dev->kobj, KOBJ_CHANGE, envp);
+}
+
+static void __usb_phy_get_charger_type(struct usb_phy *usb_phy)
+{
+	if (extcon_get_state(usb_phy->edev, EXTCON_CHG_USB_SDP) > 0) {
+		usb_phy->chg_type = SDP_TYPE;
+		usb_phy->chg_state = USB_CHARGER_PRESENT;
+	} else if (extcon_get_state(usb_phy->edev, EXTCON_CHG_USB_CDP) > 0) {
+		usb_phy->chg_type = CDP_TYPE;
+		usb_phy->chg_state = USB_CHARGER_PRESENT;
+	} else if (extcon_get_state(usb_phy->edev, EXTCON_CHG_USB_DCP) > 0) {
+		usb_phy->chg_type = DCP_TYPE;
+		usb_phy->chg_state = USB_CHARGER_PRESENT;
+	} else if (extcon_get_state(usb_phy->edev, EXTCON_CHG_USB_ACA) > 0) {
+		usb_phy->chg_type = ACA_TYPE;
+		usb_phy->chg_state = USB_CHARGER_PRESENT;
+	} else {
+		usb_phy->chg_type = UNKNOWN_TYPE;
+		usb_phy->chg_state = USB_CHARGER_ABSENT;
+	}
+
+	schedule_work(&usb_phy->chg_work);
+}
+
+/**
+ * usb_phy_get_charger_type - get charger type from extcon subsystem
+ * @nb -the notifier block to determine charger type
+ * @state - the cable state
+ * @data - private data
+ *
+ * Determin the charger type from extcon subsystem which also means the
+ * charger state has been chaned, then we should notify this event.
+ */
+static int usb_phy_get_charger_type(struct notifier_block *nb,
+				    unsigned long state, void *data)
+{
+	struct usb_phy *usb_phy = container_of(nb, struct usb_phy, type_nb);
+
+	__usb_phy_get_charger_type(usb_phy);
+	return NOTIFY_OK;
+}
+
+/**
+ * usb_phy_set_charger_current - set the USB charger current
+ * @usb_phy - the USB phy to be used
+ * @mA - the current need to be set
+ *
+ * Usually we only change the charger default current when USB finished the
+ * enumeration as one SDP charger. As one SDP charger, usb_phy_set_power()
+ * will issue this function to change charger current when after setting USB
+ * configuration, or suspend/resume USB. For other type charger, we should
+ * use the default charger current and we do not suggest to issue this function
+ * to change the charger current.
+ *
+ * When USB charger current has been changed, we need to notify the power users.
+ */
+void usb_phy_set_charger_current(struct usb_phy *usb_phy, unsigned int mA)
+{
+	switch (usb_phy->chg_type) {
+	case SDP_TYPE:
+		if (usb_phy->chg_cur.sdp_max == mA)
+			return;
+
+		usb_phy->chg_cur.sdp_max = (mA > DEFAULT_SDP_CUR_MAX_SS) ?
+			DEFAULT_SDP_CUR_MAX_SS : mA;
+		break;
+	case DCP_TYPE:
+		if (usb_phy->chg_cur.dcp_max == mA)
+			return;
+
+		usb_phy->chg_cur.dcp_max = (mA > DEFAULT_DCP_CUR_MAX) ?
+			DEFAULT_DCP_CUR_MAX : mA;
+		break;
+	case CDP_TYPE:
+		if (usb_phy->chg_cur.cdp_max == mA)
+			return;
+
+		usb_phy->chg_cur.cdp_max = (mA > DEFAULT_CDP_CUR_MAX) ?
+			DEFAULT_CDP_CUR_MAX : mA;
+		break;
+	case ACA_TYPE:
+		if (usb_phy->chg_cur.aca_max == mA)
+			return;
+
+		usb_phy->chg_cur.aca_max = (mA > DEFAULT_ACA_CUR_MAX) ?
+			DEFAULT_ACA_CUR_MAX : mA;
+		break;
+	default:
+		return;
+	}
+
+	schedule_work(&usb_phy->chg_work);
+}
+EXPORT_SYMBOL_GPL(usb_phy_set_charger_current);
+
+/**
+ * usb_phy_get_charger_current - get the USB charger current
+ * @usb_phy - the USB phy to be used
+ * @min - the minimum current
+ * @max - the maximum current
+ *
+ * Usually we will notify the maximum current to power user, but for some
+ * special case, power user also need the minimum current value. Then the
+ * power user can issue this function to get the suitable current.
+ */
+void usb_phy_get_charger_current(struct usb_phy *usb_phy,
+				 unsigned int *min, unsigned int *max)
+{
+	switch (usb_phy->chg_type) {
+	case SDP_TYPE:
+		*min = usb_phy->chg_cur.sdp_min;
+		*max = usb_phy->chg_cur.sdp_max;
+		break;
+	case DCP_TYPE:
+		*min = usb_phy->chg_cur.dcp_min;
+		*max = usb_phy->chg_cur.dcp_max;
+		break;
+	case CDP_TYPE:
+		*min = usb_phy->chg_cur.cdp_min;
+		*max = usb_phy->chg_cur.cdp_max;
+		break;
+	case ACA_TYPE:
+		*min = usb_phy->chg_cur.aca_min;
+		*max = usb_phy->chg_cur.aca_max;
+		break;
+	default:
+		*min = 0;
+		*max = 0;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(usb_phy_get_charger_current);
+
+/**
+ * usb_phy_set_charger_state - set the USB charger state
+ * @usb_phy - the USB phy to be used
+ * @state - the new state need to be set for charger
+ *
+ * The usb phy driver can issue this function when the usb phy driver
+ * detected the charger state has been changed, in this case the charger
+ * type should be get from ->charger_detect().
+ */
+void usb_phy_set_charger_state(struct usb_phy *usb_phy,
+			       enum usb_charger_state state)
+{
+	if (usb_phy->chg_state == state || !usb_phy->charger_detect)
+		return;
+
+	usb_phy->chg_state = state;
+	if (usb_phy->chg_state == USB_CHARGER_PRESENT)
+		usb_phy->chg_type = usb_phy->charger_detect(usb_phy);
+	else
+		usb_phy->chg_type = UNKNOWN_TYPE;
+
+	schedule_work(&usb_phy->chg_work);
+}
+EXPORT_SYMBOL_GPL(usb_phy_set_charger_state);
+
 static void devm_usb_phy_release(struct device *dev, void *res)
 {
 	struct usb_phy *phy = *(struct usb_phy **)res;
@@ -124,6 +351,44 @@ static int usb_add_extcon(struct usb_phy *x)
 					"register VBUS notifier failed\n");
 				return ret;
 			}
+		} else {
+			x->type_nb.notifier_call = usb_phy_get_charger_type;
+
+			ret = devm_extcon_register_notifier(x->dev, x->edev,
+							    EXTCON_CHG_USB_SDP,
+							    &x->type_nb);
+			if (ret) {
+				dev_err(x->dev,
+					"register extcon USB SDP failed.\n");
+				return ret;
+			}
+
+			ret = devm_extcon_register_notifier(x->dev, x->edev,
+							    EXTCON_CHG_USB_CDP,
+							    &x->type_nb);
+			if (ret) {
+				dev_err(x->dev,
+					"register extcon USB CDP failed.\n");
+				return ret;
+			}
+
+			ret = devm_extcon_register_notifier(x->dev, x->edev,
+							    EXTCON_CHG_USB_DCP,
+							    &x->type_nb);
+			if (ret) {
+				dev_err(x->dev,
+					"register extcon USB DCP failed.\n");
+				return ret;
+			}
+
+			ret = devm_extcon_register_notifier(x->dev, x->edev,
+							    EXTCON_CHG_USB_ACA,
+							    &x->type_nb);
+			if (ret) {
+				dev_err(x->dev,
+					"register extcon USB ACA failed.\n");
+				return ret;
+			}
 		}
 
 		if (x->id_nb.notifier_call) {
@@ -144,6 +409,13 @@ static int usb_add_extcon(struct usb_phy *x)
 			}
 		}
 	}
+
+	usb_phy_set_default_current(x);
+	INIT_WORK(&x->chg_work, usb_phy_notify_charger_work);
+	x->chg_type = UNKNOWN_TYPE;
+	x->chg_state = USB_CHARGER_DEFAULT;
+	if (x->type_nb.notifier_call)
+		__usb_phy_get_charger_type(x);
 
 	return 0;
 }
@@ -302,8 +574,8 @@ struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
 
 	node = of_parse_phandle(dev->of_node, phandle, index);
 	if (!node) {
-		dev_dbg(dev, "failed to get %s phandle in %s node\n", phandle,
-			dev->of_node->full_name);
+		dev_dbg(dev, "failed to get %s phandle in %pOF node\n", phandle,
+			dev->of_node);
 		return ERR_PTR(-ENODEV);
 	}
 	phy = devm_usb_get_phy_by_node(dev, node, NULL);

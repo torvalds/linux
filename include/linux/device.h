@@ -307,8 +307,6 @@ struct driver_attribute {
 			 size_t count);
 };
 
-#define DRIVER_ATTR(_name, _mode, _show, _store) \
-	struct driver_attribute driver_attr_##_name = __ATTR(_name, _mode, _show, _store)
 #define DRIVER_ATTR_RW(_name) \
 	struct driver_attribute driver_attr_##_name = __ATTR_RW(_name)
 #define DRIVER_ATTR_RO(_name) \
@@ -375,7 +373,7 @@ int subsys_virtual_register(struct bus_type *subsys,
  * @suspend:	Used to put the device to sleep mode, usually to a low power
  *		state.
  * @resume:	Used to bring the device from the sleep mode.
- * @shutdown:	Called at shut-down time to quiesce the device.
+ * @shutdown_pre: Called at shut-down time before driver shutdown.
  * @ns_type:	Callbacks so sysfs can detemine namespaces.
  * @namespace:	Namespace of the device belongs to this class.
  * @pm:		The default device power management operations of this class.
@@ -404,7 +402,7 @@ struct class {
 
 	int (*suspend)(struct device *dev, pm_message_t state);
 	int (*resume)(struct device *dev);
-	int (*shutdown)(struct device *dev);
+	int (*shutdown_pre)(struct device *dev);
 
 	const struct kobj_ns_type_operations *ns_type;
 	const void *(*namespace)(struct device *dev);
@@ -838,7 +836,7 @@ struct dev_links_info {
  * @driver_data: Private pointer for driver specific info.
  * @links:	Links to suppliers and consumers of this device.
  * @power:	For device power management.
- * 		See Documentation/power/admin-guide/devices.rst for details.
+ *		See Documentation/driver-api/pm/devices.rst for details.
  * @pm_domain:	Provide callbacks that are executed during system suspend,
  * 		hibernation, system resume and during runtime PM transitions
  * 		along with subsystem-level and driver-level callbacks.
@@ -847,6 +845,7 @@ struct dev_links_info {
  * @msi_list:	Hosts MSI descriptors
  * @msi_domain: The generic MSI domain this device is using.
  * @numa_node:	NUMA node this device is close to.
+ * @dma_ops:    DMA mapping operations for this device.
  * @dma_mask:	Dma mask (if dma'ble device).
  * @coherent_dma_mask: Like dma_mask, but for alloc_coherent mapping as not all
  * 		hardware supports 64-bit addresses for consistent allocations
@@ -1199,6 +1198,36 @@ struct device *device_create_with_groups(struct class *cls,
 			     const struct attribute_group **groups,
 			     const char *fmt, ...);
 extern void device_destroy(struct class *cls, dev_t devt);
+
+extern int __must_check device_add_groups(struct device *dev,
+					const struct attribute_group **groups);
+extern void device_remove_groups(struct device *dev,
+				 const struct attribute_group **groups);
+
+static inline int __must_check device_add_group(struct device *dev,
+					const struct attribute_group *grp)
+{
+	const struct attribute_group *groups[] = { grp, NULL };
+
+	return device_add_groups(dev, groups);
+}
+
+static inline void device_remove_group(struct device *dev,
+				       const struct attribute_group *grp)
+{
+	const struct attribute_group *groups[] = { grp, NULL };
+
+	return device_remove_groups(dev, groups);
+}
+
+extern int __must_check devm_device_add_groups(struct device *dev,
+					const struct attribute_group **groups);
+extern void devm_device_remove_groups(struct device *dev,
+				      const struct attribute_group **groups);
+extern int __must_check devm_device_add_group(struct device *dev,
+					const struct attribute_group *grp);
+extern void devm_device_remove_group(struct device *dev,
+				     const struct attribute_group *grp);
 
 /*
  * Platform "fixup" functions - allow the platform to have their say

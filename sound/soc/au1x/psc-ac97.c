@@ -474,7 +474,7 @@ static int au1xpsc_ac97_drvresume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops au1xpscac97_pmops = {
+static const struct dev_pm_ops au1xpscac97_pmops = {
 	.suspend	= au1xpsc_ac97_drvsuspend,
 	.resume		= au1xpsc_ac97_drvresume,
 };

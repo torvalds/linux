@@ -1228,7 +1228,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	}
 
 	pstat = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
-	if (pstat == (struct sta_info *)NULL) {
+	if (pstat == NULL) {
 		status = _RSON_CLS2_;
 		goto asoc_class2_error;
 	}
@@ -2392,7 +2392,7 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter, struct xmit_frame *pmgntfr
 
 s32 dump_mgntframe_and_wait_ack(struct adapter *padapter, struct xmit_frame *pmgntframe)
 {
-	static u8 seq_no = 0;
+	static u8 seq_no;
 	s32 ret = _FAIL;
 	u32 timeout_ms = 500;/*   500ms */
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;

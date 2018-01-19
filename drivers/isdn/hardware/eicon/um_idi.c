@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* $Id: um_idi.c,v 1.14 2004/03/21 17:54:37 armin Exp $ */
 
 #include "platform.h"

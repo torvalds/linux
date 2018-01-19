@@ -169,7 +169,7 @@ INTERVAL_TREE_DEFINE(struct drm_mm_node, rb,
 struct drm_mm_node *
 __drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last)
 {
-	return drm_mm_interval_tree_iter_first((struct rb_root *)&mm->interval_tree,
+	return drm_mm_interval_tree_iter_first((struct rb_root_cached *)&mm->interval_tree,
 					       start, last) ?: (struct drm_mm_node *)&mm->head_node;
 }
 EXPORT_SYMBOL(__drm_mm_interval_first);
@@ -180,6 +180,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 	struct drm_mm *mm = hole_node->mm;
 	struct rb_node **link, *rb;
 	struct drm_mm_node *parent;
+	bool leftmost = true;
 
 	node->__subtree_last = LAST(node);
 
@@ -196,9 +197,10 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 
 		rb = &hole_node->rb;
 		link = &hole_node->rb.rb_right;
+		leftmost = false;
 	} else {
 		rb = NULL;
-		link = &mm->interval_tree.rb_node;
+		link = &mm->interval_tree.rb_root.rb_node;
 	}
 
 	while (*link) {
@@ -208,14 +210,15 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 			parent->__subtree_last = node->__subtree_last;
 		if (node->start < parent->start)
 			link = &parent->rb.rb_left;
-		else
+		else {
 			link = &parent->rb.rb_right;
+			leftmost = true;
+		}
 	}
 
 	rb_link_node(&node->rb, rb, link);
-	rb_insert_augmented(&node->rb,
-			    &mm->interval_tree,
-			    &drm_mm_interval_tree_augment);
+	rb_insert_augmented_cached(&node->rb, &mm->interval_tree, leftmost,
+				   &drm_mm_interval_tree_augment);
 }
 
 #define RB_INSERT(root, member, expr) do { \
@@ -577,7 +580,7 @@ void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 	*new = *old;
 
 	list_replace(&old->node_list, &new->node_list);
-	rb_replace_node(&old->rb, &new->rb, &old->mm->interval_tree);
+	rb_replace_node(&old->rb, &new->rb, &old->mm->interval_tree.rb_root);
 
 	if (drm_mm_hole_follows(old)) {
 		list_replace(&old->hole_stack, &new->hole_stack);
@@ -863,7 +866,7 @@ void drm_mm_init(struct drm_mm *mm, u64 start, u64 size)
 	mm->color_adjust = NULL;
 
 	INIT_LIST_HEAD(&mm->hole_stack);
-	mm->interval_tree = RB_ROOT;
+	mm->interval_tree = RB_ROOT_CACHED;
 	mm->holes_size = RB_ROOT;
 	mm->holes_addr = RB_ROOT;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	fs/bfs/dir.c
  *	BFS directory operations.

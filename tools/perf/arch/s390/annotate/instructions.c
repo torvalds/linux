@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 static struct ins_ops *s390__associate_ins_ops(struct arch *arch, const char *name)
 {
 	struct ins_ops *ops = NULL;

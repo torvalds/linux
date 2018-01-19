@@ -69,7 +69,10 @@ struct coprocessor_completion_block {
 #define CSB_CC_WR_PROTECTION	(16)
 #define CSB_CC_UNKNOWN_CODE	(17)
 #define CSB_CC_ABORT		(18)
+#define CSB_CC_EXCEED_BYTE_COUNT	(19)	/* P9 or later */
 #define CSB_CC_TRANSPORT	(20)
+#define CSB_CC_INVALID_CRB	(21)	/* P9 or later */
+#define CSB_CC_INVALID_DDE	(30)	/* P9 or later */
 #define CSB_CC_SEGMENTED_DDL	(31)
 #define CSB_CC_PROGRESS_POINT	(32)
 #define CSB_CC_DDE_OVERFLOW	(33)

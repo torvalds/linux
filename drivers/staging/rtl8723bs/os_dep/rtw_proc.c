@@ -311,6 +311,8 @@ static ssize_t proc_set_cam(struct file *file, const char __user *buffer, size_t
 
 		if (num < 2)
 			return count;
+		if (id >= TOTAL_CAM_ENTRY)
+			return -EINVAL;
 
 		if (strcmp("c", cmd) == 0) {
 			_clear_cam_entry(adapter, id);

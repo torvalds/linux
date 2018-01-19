@@ -220,7 +220,7 @@ static const struct c_can_driver_data am3352_dcan_drvdata = {
 	.raminit_bits = am3352_raminit_bits,
 };
 
-static struct platform_device_id c_can_id_table[] = {
+static const struct platform_device_id c_can_id_table[] = {
 	{
 		.name = KBUILD_MODNAME,
 		.driver_data = (kernel_ulong_t)&c_can_drvdata,
@@ -320,7 +320,6 @@ static int c_can_plat_probe(struct platform_device *pdev)
 		break;
 	case BOSCH_D_CAN:
 		priv->regs = reg_map_d_can;
-		priv->can.ctrlmode_supported |= CAN_CTRLMODE_3_SAMPLES;
 		priv->read_reg = c_can_plat_read_reg_aligned_to_16bit;
 		priv->write_reg = c_can_plat_write_reg_aligned_to_16bit;
 		priv->read_reg32 = d_can_plat_read_reg32;

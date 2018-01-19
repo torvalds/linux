@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* linux/platform_data/ad7879.h */
 
 /* Touchscreen characteristics vary between boards and models.  The

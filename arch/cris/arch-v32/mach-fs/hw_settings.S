@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This table is used by some tools to extract hardware parameters.
  * The table should be included in the kernel and the decompressor.

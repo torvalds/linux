@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * altera_uart.h -- Altera UART driver defines.
  */

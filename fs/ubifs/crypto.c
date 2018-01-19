@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "ubifs.h"
 
 static int ubifs_crypt_get_context(struct inode *inode, void *ctx, size_t len)

@@ -22,8 +22,6 @@
 
 #define AARCH32_KERN_SIGRET_CODE_OFFSET	0x500
 
-extern const compat_ulong_t aarch32_sigret_code[6];
-
 int compat_setup_frame(int usig, struct ksignal *ksig, sigset_t *set,
 		       struct pt_regs *regs);
 int compat_setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,

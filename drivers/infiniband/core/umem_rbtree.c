@@ -72,7 +72,7 @@ INTERVAL_TREE_DEFINE(struct umem_odp_node, rb, u64, __subtree_last,
 /* @last is not a part of the interval. See comment for function
  * node_last.
  */
-int rbt_ib_umem_for_each_in_range(struct rb_root *root,
+int rbt_ib_umem_for_each_in_range(struct rb_root_cached *root,
 				  u64 start, u64 last,
 				  umem_call_back cb,
 				  void *cookie)
@@ -95,7 +95,7 @@ int rbt_ib_umem_for_each_in_range(struct rb_root *root,
 }
 EXPORT_SYMBOL(rbt_ib_umem_for_each_in_range);
 
-struct ib_umem_odp *rbt_ib_umem_lookup(struct rb_root *root,
+struct ib_umem_odp *rbt_ib_umem_lookup(struct rb_root_cached *root,
 				       u64 addr, u64 length)
 {
 	struct umem_odp_node *node;

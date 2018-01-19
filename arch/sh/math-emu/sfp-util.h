@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * These are copied from glibc/stdlib/longlong.h
  */

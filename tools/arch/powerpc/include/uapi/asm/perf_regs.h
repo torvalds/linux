@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_POWERPC_PERF_REGS_H
 #define _UAPI_ASM_POWERPC_PERF_REGS_H
 

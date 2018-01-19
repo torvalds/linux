@@ -1809,37 +1809,22 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 }
 DEBUGFS_RO_ATTR(protection, dbg_protection_show);
 
-static int __init doc_dbg_register(struct docg3 *docg3)
+static void __init doc_dbg_register(struct mtd_info *floor)
 {
-	struct dentry *root, *entry;
+	struct dentry *root = floor->dbg.dfs_dir;
+	struct docg3 *docg3 = floor->priv;
 
-	root = debugfs_create_dir("docg3", NULL);
-	if (!root)
-		return -ENOMEM;
+	if (IS_ERR_OR_NULL(root))
+		return;
 
-	entry = debugfs_create_file("flashcontrol", S_IRUSR, root, docg3,
-				  &flashcontrol_fops);
-	if (entry)
-		entry = debugfs_create_file("asic_mode", S_IRUSR, root,
-					    docg3, &asic_mode_fops);
-	if (entry)
-		entry = debugfs_create_file("device_id", S_IRUSR, root,
-					    docg3, &device_id_fops);
-	if (entry)
-		entry = debugfs_create_file("protection", S_IRUSR, root,
-					    docg3, &protection_fops);
-	if (entry) {
-		docg3->debugfs_root = root;
-		return 0;
-	} else {
-		debugfs_remove_recursive(root);
-		return -ENOMEM;
-	}
-}
-
-static void doc_dbg_unregister(struct docg3 *docg3)
-{
-	debugfs_remove_recursive(docg3->debugfs_root);
+	debugfs_create_file("docg3_flashcontrol", S_IRUSR, root, docg3,
+			    &flashcontrol_fops);
+	debugfs_create_file("docg3_asic_mode", S_IRUSR, root, docg3,
+			    &asic_mode_fops);
+	debugfs_create_file("docg3_device_id", S_IRUSR, root, docg3,
+			    &device_id_fops);
+	debugfs_create_file("docg3_protection", S_IRUSR, root, docg3,
+			    &protection_fops);
 }
 
 /**
@@ -2114,6 +2099,8 @@ static int __init docg3_probe(struct platform_device *pdev)
 						0);
 		if (ret)
 			goto err_probe;
+
+		doc_dbg_register(cascade->floors[floor]);
 	}
 
 	ret = doc_register_sysfs(pdev, cascade);
@@ -2121,7 +2108,6 @@ static int __init docg3_probe(struct platform_device *pdev)
 		goto err_probe;
 
 	platform_set_drvdata(pdev, cascade);
-	doc_dbg_register(cascade->floors[0]->priv);
 	return 0;
 
 notfound:
@@ -2148,7 +2134,6 @@ static int docg3_release(struct platform_device *pdev)
 	int floor;
 
 	doc_unregister_sysfs(pdev, cascade);
-	doc_dbg_unregister(docg3);
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++)
 		if (cascade->floors[floor])
 			doc_release_device(cascade->floors[floor]);

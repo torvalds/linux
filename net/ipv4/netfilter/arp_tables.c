@@ -629,6 +629,7 @@ static void get_counters(const struct xt_table_info *t,
 
 			ADD_COUNTER(counters[i], bcnt, pcnt);
 			++i;
+			cond_resched();
 		}
 	}
 }
@@ -1117,7 +1118,6 @@ compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 			    struct xt_table_info *newinfo, unsigned char *base)
 {
 	struct xt_entry_target *t;
-	struct xt_target *target;
 	struct arpt_entry *de;
 	unsigned int origsize;
 	int h;
@@ -1132,7 +1132,6 @@ compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 
 	de->target_offset = e->target_offset - (origsize - *size);
 	t = compat_arpt_get_target(e);
-	target = t->u.kernel.target;
 	xt_compat_target_from_user(t, dstptr, size);
 
 	de->next_offset = e->next_offset - (origsize - *size);

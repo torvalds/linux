@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_IIO_TRIGGERED_BUFFER_H_
 #define _LINUX_IIO_TRIGGERED_BUFFER_H_
 

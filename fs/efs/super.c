@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * super.c
  *
@@ -306,7 +307,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	}
 	brelse(bh);
 
-	if (!(s->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(s)) {
 #ifdef DEBUG
 		pr_info("forcing read-only mode\n");
 #endif

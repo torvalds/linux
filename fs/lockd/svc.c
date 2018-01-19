@@ -396,7 +396,7 @@ out_rqst:
 	return error;
 }
 
-static struct svc_serv_ops lockd_sv_ops = {
+static const struct svc_serv_ops lockd_sv_ops = {
 	.svo_shutdown		= svc_rpcb_cleanup,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 };

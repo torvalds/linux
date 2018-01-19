@@ -822,7 +822,7 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
 		pmus[i].type	= type;
 		pmus[i].boxes	= kzalloc(size, GFP_KERNEL);
 		if (!pmus[i].boxes)
-			return -ENOMEM;
+			goto err;
 	}
 
 	type->pmus = pmus;
@@ -836,7 +836,7 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
 		attr_group = kzalloc(sizeof(struct attribute *) * (i + 1) +
 					sizeof(*attr_group), GFP_KERNEL);
 		if (!attr_group)
-			return -ENOMEM;
+			goto err;
 
 		attrs = (struct attribute **)(attr_group + 1);
 		attr_group->name = "events";
@@ -849,7 +849,15 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
 	}
 
 	type->pmu_group = &uncore_pmu_attr_group;
+
 	return 0;
+
+err:
+	for (i = 0; i < type->num_boxes; i++)
+		kfree(pmus[i].boxes);
+	kfree(pmus);
+
+	return -ENOMEM;
 }
 
 static int __init

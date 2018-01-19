@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NF_NAT_CORE_H
 #define _NF_NAT_CORE_H
 #include <linux/list.h>

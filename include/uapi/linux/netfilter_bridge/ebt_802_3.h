@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__LINUX_BRIDGE_EBT_802_3_H
 #define _UAPI__LINUX_BRIDGE_EBT_802_3_H
 

@@ -25,6 +25,7 @@
 #include <linux/const.h>
 #include <linux/types.h>
 #include <asm/bug.h>
+#include <asm/page-def.h>
 #include <asm/sizes.h>
 
 /*
@@ -94,13 +95,68 @@
 #define KERNEL_END        _end
 
 /*
- * The size of the KASAN shadow region. This should be 1/8th of the
- * size of the entire kernel virtual address space.
+ * KASAN requires 1/8th of the kernel virtual address space for the shadow
+ * region. KASAN can bloat the stack significantly, so double the (minimum)
+ * stack size when KASAN is in use.
  */
 #ifdef CONFIG_KASAN
 #define KASAN_SHADOW_SIZE	(UL(1) << (VA_BITS - 3))
+#define KASAN_THREAD_SHIFT	1
 #else
 #define KASAN_SHADOW_SIZE	(0)
+#define KASAN_THREAD_SHIFT	0
+#endif
+
+#define MIN_THREAD_SHIFT	(14 + KASAN_THREAD_SHIFT)
+
+/*
+ * VMAP'd stacks are allocated at page granularity, so we must ensure that such
+ * stacks are a multiple of page size.
+ */
+#if defined(CONFIG_VMAP_STACK) && (MIN_THREAD_SHIFT < PAGE_SHIFT)
+#define THREAD_SHIFT		PAGE_SHIFT
+#else
+#define THREAD_SHIFT		MIN_THREAD_SHIFT
+#endif
+
+#if THREAD_SHIFT >= PAGE_SHIFT
+#define THREAD_SIZE_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
+#endif
+
+#define THREAD_SIZE		(UL(1) << THREAD_SHIFT)
+
+/*
+ * By aligning VMAP'd stacks to 2 * THREAD_SIZE, we can detect overflow by
+ * checking sp & (1 << THREAD_SHIFT), which we can do cheaply in the entry
+ * assembly.
+ */
+#ifdef CONFIG_VMAP_STACK
+#define THREAD_ALIGN		(2 * THREAD_SIZE)
+#else
+#define THREAD_ALIGN		THREAD_SIZE
+#endif
+
+#define IRQ_STACK_SIZE		THREAD_SIZE
+
+#define OVERFLOW_STACK_SIZE	SZ_4K
+
+/*
+ * Alignment of kernel segments (e.g. .text, .data).
+ */
+#if defined(CONFIG_DEBUG_ALIGN_RODATA)
+/*
+ *  4 KB granule:   1 level 2 entry
+ * 16 KB granule: 128 level 3 entries, with contiguous bit
+ * 64 KB granule:  32 level 3 entries, with contiguous bit
+ */
+#define SEGMENT_ALIGN			SZ_2M
+#else
+/*
+ *  4 KB granule:  16 level 3 entries, with contiguous bit
+ * 16 KB granule:   4 level 3 entries, without contiguous bit
+ * 64 KB granule:   1 level 3 entry
+ */
+#define SEGMENT_ALIGN			SZ_64K
 #endif
 
 /*

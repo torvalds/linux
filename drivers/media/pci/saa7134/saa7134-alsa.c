@@ -627,7 +627,7 @@ snd_card_saa7134_capture_pointer(struct snd_pcm_substream * substream)
  *    switching to 32kHz without any frequency translation
  */
 
-static struct snd_pcm_hardware snd_card_saa7134_capture =
+static const struct snd_pcm_hardware snd_card_saa7134_capture =
 {
 	.info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |

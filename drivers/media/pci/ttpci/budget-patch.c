@@ -45,7 +45,7 @@ static struct saa7146_extension budget_extension;
 MAKE_BUDGET_INFO(ttbp, "TT-Budget/Patch DVB-S 1.x PCI", BUDGET_PATCH);
 //MAKE_BUDGET_INFO(satel,"TT-Budget/Patch SATELCO PCI", BUDGET_TT_HW_DISEQC);
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbp,0x13c2, 0x0000),
 //        MAKE_EXTENSION_PCI(satel, 0x13c2, 0x1013),
 	{

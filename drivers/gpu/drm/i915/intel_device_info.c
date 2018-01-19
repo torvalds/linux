@@ -363,7 +363,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		 */
 		if (fuse_strap & ILK_INTERNAL_DISPLAY_DISABLE ||
 		    sfuse_strap & SFUSE_STRAP_DISPLAY_DISABLED ||
-		    (dev_priv->pch_type == PCH_CPT &&
+		    (HAS_PCH_CPT(dev_priv) &&
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
 			DRM_INFO("Display fused off, disabling\n");
 			info->num_pipes = 0;

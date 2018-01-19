@@ -270,8 +270,7 @@ int write_nic_byte_E(struct net_device *dev, int indx, u8 data)
 	kfree(usbdata);
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_byte_E TimeOut! status: %d\n",
-			   status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 	return 0;
@@ -321,7 +320,7 @@ int write_nic_byte(struct net_device *dev, int indx, u8 data)
 	kfree(usbdata);
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_byte TimeOut! status: %d\n", status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 
@@ -348,7 +347,7 @@ int write_nic_word(struct net_device *dev, int indx, u16 data)
 	kfree(usbdata);
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_word TimeOut! status: %d\n", status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 
@@ -376,8 +375,7 @@ int write_nic_dword(struct net_device *dev, int indx, u32 data)
 
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_dword TimeOut! status: %d\n",
-			   status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 
@@ -3095,7 +3093,8 @@ static RESET_TYPE TxCheckStuck(struct net_device *dev)
 	if (bCheckFwTxCnt) {
 		if (HalTxCheckStuck819xUsb(dev)) {
 			RT_TRACE(COMP_RESET,
-				 "TxCheckStuck(): Fw indicates no Tx condition!\n");
+				 "%s: Fw indicates no Tx condition!\n",
+				 __func__);
 			return RESET_TYPE_SILENT;
 		}
 	}
@@ -3237,7 +3236,7 @@ static void CamRestoreAllEntry(struct net_device *dev)
 	static u8	CAM_CONST_BROAD[] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	RT_TRACE(COMP_SEC, "CamRestoreAllEntry:\n");
+	RT_TRACE(COMP_SEC, "%s:\n", __func__);
 
 
 	if ((priv->ieee80211->pairwise_key_type == KEY_TYPE_WEP40) ||
@@ -3835,8 +3834,8 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 		default:
 			ret_rate = 0xff;
 			RT_TRACE(COMP_RECV,
-				 "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",
-				 rate, bIsHT);
+				 "%s: Non supported Rate [%x], bIsHT = %d!!!\n",
+				 __func__, rate, bIsHT);
 			break;
 		}
 
@@ -3897,8 +3896,8 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 		default:
 			ret_rate = 0xff;
 			RT_TRACE(COMP_RECV,
-				 "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",
-				 rate, bIsHT);
+				 "%s: Non supported Rate [%x], bIsHT = %d!!!\n",
+				 __func__, rate, bIsHT);
 			break;
 		}
 	}

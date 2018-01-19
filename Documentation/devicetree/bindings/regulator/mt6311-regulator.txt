@@ -1,4 +1,4 @@
-Mediatek MT6311 Regulator Driver
+Mediatek MT6311 Regulator
 
 Required properties:
 - compatible: "mediatek,mt6311-regulator"

@@ -226,10 +226,12 @@ struct isp_device {
 };
 
 struct isp_async_subdev {
-	struct v4l2_subdev *sd;
 	struct isp_bus_cfg bus;
 	struct v4l2_async_subdev asd;
 };
+
+#define v4l2_subdev_to_bus_cfg(sd) \
+	(&container_of((sd)->asd, struct isp_async_subdev, asd)->bus)
 
 #define v4l2_dev_to_isp_device(dev) \
 	container_of(dev, struct isp_device, v4l2_dev)

@@ -24,6 +24,7 @@ Required properties for iomux controller:
 		"rockchip,rk2928-pinctrl":  for Rockchip RK2928
 		"rockchip,rk3066a-pinctrl": for Rockchip RK3066a
 		"rockchip,rk3066b-pinctrl": for Rockchip RK3066b
+		"rockchip,rk3128-pinctrl":  for Rockchip RK3128
 		"rockchip,rk3188-pinctrl":  for Rockchip RK3188
 		"rockchip,rk3228-pinctrl":  for Rockchip RK3228
 		"rockchip,rk3288-pinctrl":  for Rockchip RK3288
@@ -120,7 +121,6 @@ uart2: serial@20064000 {
 	reg-shift = <2>;
 	reg-io-width = <1>;
 	clocks = <&mux_uart2>;
-	status = "okay";
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_xfer>;

@@ -111,10 +111,14 @@ static int ccu_mult_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long flags;
 	u32 reg;
 
-	if (ccu_frac_helper_has_rate(&cm->common, &cm->frac, rate))
-		return ccu_frac_helper_set_rate(&cm->common, &cm->frac, rate);
-	else
+	if (ccu_frac_helper_has_rate(&cm->common, &cm->frac, rate)) {
+		ccu_frac_helper_enable(&cm->common, &cm->frac);
+
+		return ccu_frac_helper_set_rate(&cm->common, &cm->frac,
+						rate, cm->lock);
+	} else {
 		ccu_frac_helper_disable(&cm->common, &cm->frac);
+	}
 
 	parent_rate = ccu_mux_helper_apply_prediv(&cm->common, &cm->mux, -1,
 						  parent_rate);

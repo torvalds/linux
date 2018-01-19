@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 extern int tango_smc(unsigned int val, unsigned int service);
 
 #define tango_set_l2_control(val)	tango_smc(val, 0x102)

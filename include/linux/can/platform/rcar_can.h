@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CAN_PLATFORM_RCAR_CAN_H_
 #define _CAN_PLATFORM_RCAR_CAN_H_
 

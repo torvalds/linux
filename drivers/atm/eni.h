@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* drivers/atm/eni.h - Efficient Networks ENI155P device driver declarations */
  
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */

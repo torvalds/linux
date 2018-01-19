@@ -67,6 +67,9 @@ struct omap_hsmmc_platform_data {
 #define HSMMC_HAS_HSPE_SUPPORT	(1 << 2)
 	unsigned features;
 
+	/* string specifying a particular variant of hardware */
+	char *version;
+
 	int gpio_cd;			/* gpio (card detect) */
 	int gpio_cod;			/* gpio (cover detect) */
 	int gpio_wp;			/* gpio (write protect) */

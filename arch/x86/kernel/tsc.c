@@ -1346,12 +1346,10 @@ void __init tsc_init(void)
 unsigned long calibrate_delay_is_known(void)
 {
 	int sibling, cpu = smp_processor_id();
-	struct cpumask *mask = topology_core_cpumask(cpu);
+	int constant_tsc = cpu_has(&cpu_data(cpu), X86_FEATURE_CONSTANT_TSC);
+	const struct cpumask *mask = topology_core_cpumask(cpu);
 
-	if (!tsc_disabled && !cpu_has(&cpu_data(cpu), X86_FEATURE_CONSTANT_TSC))
-		return 0;
-
-	if (!mask)
+	if (tsc_disabled || !constant_tsc || !mask)
 		return 0;
 
 	sibling = cpumask_any_but(mask, cpu);

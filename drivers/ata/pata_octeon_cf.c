@@ -840,7 +840,6 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	struct property *reg_prop;
 	int n_addr, n_size, reg_len;
 	struct device_node *node;
-	const void *prop;
 	void __iomem *cs0;
 	void __iomem *cs1 = NULL;
 	struct ata_host *host;
@@ -850,7 +849,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	void __iomem *base;
 	struct octeon_cf_port *cf_port;
 	int rv = -ENOMEM;
-
+	u32 bus_width;
 
 	node = pdev->dev.of_node;
 	if (node == NULL)
@@ -860,11 +859,10 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	if (!cf_port)
 		return -ENOMEM;
 
-	cf_port->is_true_ide = (of_find_property(node, "cavium,true-ide", NULL) != NULL);
+	cf_port->is_true_ide = of_property_read_bool(node, "cavium,true-ide");
 
-	prop = of_get_property(node, "cavium,bus-width", NULL);
-	if (prop)
-		is_16bit = (be32_to_cpup(prop) == 16);
+	if (of_property_read_u32(node, "cavium,bus-width", &bus_width) == 0)
+		is_16bit = (bus_width == 16);
 	else
 		is_16bit = false;
 

@@ -105,7 +105,7 @@ static int mdio_mux_mmioreg_probe(struct platform_device *pdev)
 	const __be32 *iprop;
 	int len, ret;
 
-	dev_dbg(&pdev->dev, "probing node %s\n", np->full_name);
+	dev_dbg(&pdev->dev, "probing node %pOF\n", np);
 
 	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
 	if (!s)
@@ -113,8 +113,8 @@ static int mdio_mux_mmioreg_probe(struct platform_device *pdev)
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
-		dev_err(&pdev->dev, "could not obtain memory map for node %s\n",
-			np->full_name);
+		dev_err(&pdev->dev, "could not obtain memory map for node %pOF\n",
+			np);
 		return ret;
 	}
 	s->phys = res.start;
@@ -145,25 +145,26 @@ static int mdio_mux_mmioreg_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(np, np2) {
 		iprop = of_get_property(np2, "reg", &len);
 		if (!iprop || len != sizeof(uint32_t)) {
-			dev_err(&pdev->dev, "mdio-mux child node %s is "
-				"missing a 'reg' property\n", np2->full_name);
+			dev_err(&pdev->dev, "mdio-mux child node %pOF is "
+				"missing a 'reg' property\n", np2);
 			of_node_put(np2);
 			return -ENODEV;
 		}
 		if (be32_to_cpup(iprop) & ~s->mask) {
-			dev_err(&pdev->dev, "mdio-mux child node %s has "
+			dev_err(&pdev->dev, "mdio-mux child node %pOF has "
 				"a 'reg' value with unmasked bits\n",
-				np2->full_name);
+				np2);
 			of_node_put(np2);
 			return -ENODEV;
 		}
 	}
 
-	ret = mdio_mux_init(&pdev->dev, mdio_mux_mmioreg_switch_fn,
+	ret = mdio_mux_init(&pdev->dev, pdev->dev.of_node,
+			    mdio_mux_mmioreg_switch_fn,
 			    &s->mux_handle, s, NULL);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register mdio-mux bus %s\n",
-			np->full_name);
+		dev_err(&pdev->dev, "failed to register mdio-mux bus %pOF\n",
+			np);
 		return ret;
 	}
 

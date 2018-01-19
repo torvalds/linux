@@ -40,7 +40,6 @@ Example:
 		clock-names = "ahb", "mod";
 		dmas = <&dma 1 29>, <&dma 1 28>;
 		dma-names = "rx", "tx";
-		status = "disabled";
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};

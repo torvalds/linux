@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MMU_CONTEXT_H
 #define _ASM_X86_MMU_CONTEXT_H
 
@@ -12,6 +13,9 @@
 #include <asm/tlbflush.h>
 #include <asm/paravirt.h>
 #include <asm/mpx.h>
+
+extern atomic64_t last_mm_ctx_id;
+
 #ifndef CONFIG_PARAVIRT
 static inline void paravirt_activate_mm(struct mm_struct *prev,
 					struct mm_struct *next)
@@ -123,15 +127,14 @@ static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
 	DEBUG_LOCKS_WARN_ON(preemptible());
 }
 
-static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
-{
-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
-		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
-}
+void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);
 
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
+	atomic64_set(&mm->context.tlb_gen, 0);
+
 	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
 		/* pkey 0 is the default and always allocated */
@@ -278,6 +281,32 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 	return __pkru_allows_pkey(vma_pkey(vma), write);
 }
 
+/*
+ * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
+ * bits.  This serves two purposes.  It prevents a nasty situation in
+ * which PCID-unaware code saves CR3, loads some other value (with PCID
+ * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
+ * the saved ASID was nonzero.  It also means that any bugs involving
+ * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
+ * deterministically.
+ */
+
+static inline unsigned long build_cr3(struct mm_struct *mm, u16 asid)
+{
+	if (static_cpu_has(X86_FEATURE_PCID)) {
+		VM_WARN_ON_ONCE(asid > 4094);
+		return __sme_pa(mm->pgd) | (asid + 1);
+	} else {
+		VM_WARN_ON_ONCE(asid != 0);
+		return __sme_pa(mm->pgd);
+	}
+}
+
+static inline unsigned long build_cr3_noflush(struct mm_struct *mm, u16 asid)
+{
+	VM_WARN_ON_ONCE(asid > 4094);
+	return __sme_pa(mm->pgd) | (asid + 1) | CR3_NOFLUSH;
+}
 
 /*
  * This can be used from process context to figure out what the value of
@@ -288,7 +317,8 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
  */
 static inline unsigned long __get_current_cr3_fast(void)
 {
-	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
+	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm),
+		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
 
 	/* For now, be very restrictive about when this can be called. */
 	VM_WARN_ON(in_nmi() || preemptible());

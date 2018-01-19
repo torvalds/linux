@@ -405,7 +405,7 @@ static void ext4_journal_commit_callback(journal_t *journal, transaction_t *txn)
 
 static void ext4_handle_error(struct super_block *sb)
 {
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return;
 
 	if (!test_opt(sb, ERRORS_CONT)) {
@@ -587,8 +587,7 @@ void __ext4_std_error(struct super_block *sb, const char *function,
 	/* Special case: if the error is EROFS, and we're not already
 	 * inside a transaction, then there's really no point in logging
 	 * an error. */
-	if (errno == -EROFS && journal_current_handle() == NULL &&
-	    (sb->s_flags & MS_RDONLY))
+	if (errno == -EROFS && journal_current_handle() == NULL && sb_rdonly(sb))
 		return;
 
 	if (ext4_error_ratelimit(sb)) {
@@ -628,7 +627,7 @@ void __ext4_abort(struct super_block *sb, const char *function,
 	       sb->s_id, function, line, &vaf);
 	va_end(args);
 
-	if ((sb->s_flags & MS_RDONLY) == 0) {
+	if (sb_rdonly(sb) == 0) {
 		ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
 		EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
 		/*
@@ -889,11 +888,11 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
 
-	if (!(sb->s_flags & MS_RDONLY) && !aborted) {
+	if (!sb_rdonly(sb) && !aborted) {
 		ext4_clear_feature_journal_needs_recovery(sb);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
 	}
-	if (!(sb->s_flags & MS_RDONLY))
+	if (!sb_rdonly(sb))
 		ext4_commit_super(sb, 1);
 
 	for (i = 0; i < sbi->s_gdb_count; i++)
@@ -951,6 +950,7 @@ static void ext4_put_super(struct super_block *sb)
 	if (sbi->s_chksum_driver)
 		crypto_free_shash(sbi->s_chksum_driver);
 	kfree(sbi->s_blockgroup_lock);
+	fs_put_dax(sbi->s_daxdev);
 	kfree(sbi);
 }
 
@@ -1677,7 +1677,7 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		sbi->s_mount_flags |= EXT4_MF_FS_ABORTED;
 		return 1;
 	case Opt_i_version:
-		sb->s_flags |= MS_I_VERSION;
+		sb->s_flags |= SB_I_VERSION;
 		return 1;
 	case Opt_lazytime:
 		sb->s_flags |= MS_LAZYTIME;
@@ -2060,7 +2060,7 @@ static int _ext4_show_options(struct seq_file *seq, struct super_block *sb,
 		SEQ_OPTS_PRINT("min_batch_time=%u", sbi->s_min_batch_time);
 	if (nodefs || sbi->s_max_batch_time != EXT4_DEF_MAX_BATCH_TIME)
 		SEQ_OPTS_PRINT("max_batch_time=%u", sbi->s_max_batch_time);
-	if (sb->s_flags & MS_I_VERSION)
+	if (sb->s_flags & SB_I_VERSION)
 		SEQ_OPTS_PUTS("i_version");
 	if (nodefs || sbi->s_stripe)
 		SEQ_OPTS_PRINT("stripe=%lu", sbi->s_stripe);
@@ -2099,7 +2099,7 @@ int ext4_seq_options_show(struct seq_file *seq, void *offset)
 	struct super_block *sb = seq->private;
 	int rc;
 
-	seq_puts(seq, (sb->s_flags & MS_RDONLY) ? "ro" : "rw");
+	seq_puts(seq, sb_rdonly(sb) ? "ro" : "rw");
 	rc = _ext4_show_options(seq, sb, 1);
 	seq_puts(seq, "\n");
 	return rc;
@@ -2367,7 +2367,7 @@ static int ext4_check_descriptors(struct super_block *sb,
 				 "Checksum for group %u failed (%u!=%u)",
 				 i, le16_to_cpu(ext4_group_desc_csum(sb, i,
 				     gdp)), le16_to_cpu(gdp->bg_checksum));
-			if (!(sb->s_flags & MS_RDONLY)) {
+			if (!sb_rdonly(sb)) {
 				ext4_unlock_group(sb, i);
 				return 0;
 			}
@@ -2404,6 +2404,7 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 	unsigned int s_flags = sb->s_flags;
 	int ret, nr_orphans = 0, nr_truncates = 0;
 #ifdef CONFIG_QUOTA
+	int quota_update = 0;
 	int i;
 #endif
 	if (!es->s_last_orphan) {
@@ -2442,14 +2443,32 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 #ifdef CONFIG_QUOTA
 	/* Needed for iput() to work correctly and not trash data */
 	sb->s_flags |= MS_ACTIVE;
-	/* Turn on quotas so that they are updated correctly */
+
+	/*
+	 * Turn on quotas which were not enabled for read-only mounts if
+	 * filesystem has quota feature, so that they are updated correctly.
+	 */
+	if (ext4_has_feature_quota(sb) && (s_flags & MS_RDONLY)) {
+		int ret = ext4_enable_quotas(sb);
+
+		if (!ret)
+			quota_update = 1;
+		else
+			ext4_msg(sb, KERN_ERR,
+				"Cannot turn on quotas: error %d", ret);
+	}
+
+	/* Turn on journaled quotas used for old sytle */
 	for (i = 0; i < EXT4_MAXQUOTAS; i++) {
 		if (EXT4_SB(sb)->s_qf_names[i]) {
 			int ret = ext4_quota_on_mount(sb, i);
-			if (ret < 0)
+
+			if (!ret)
+				quota_update = 1;
+			else
 				ext4_msg(sb, KERN_ERR,
 					"Cannot turn on journaled "
-					"quota: error %d", ret);
+					"quota: type %d: error %d", i, ret);
 		}
 	}
 #endif
@@ -2510,10 +2529,12 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 		ext4_msg(sb, KERN_INFO, "%d truncate%s cleaned up",
 		       PLURAL(nr_truncates));
 #ifdef CONFIG_QUOTA
-	/* Turn quotas off */
-	for (i = 0; i < EXT4_MAXQUOTAS; i++) {
-		if (sb_dqopt(sb)->files[i])
-			dquot_quota_off(sb, i);
+	/* Turn off quotas if they were enabled for orphan cleanup */
+	if (quota_update) {
+		for (i = 0; i < EXT4_MAXQUOTAS; i++) {
+			if (sb_dqopt(sb)->files[i])
+				dquot_quota_off(sb, i);
+		}
 	}
 #endif
 	sb->s_flags = s_flags; /* Restore MS_RDONLY status */
@@ -3114,8 +3135,7 @@ int ext4_register_li_request(struct super_block *sb,
 		goto out;
 	}
 
-	if (first_not_zeroed == ngroups ||
-	    (sb->s_flags & MS_RDONLY) ||
+	if (first_not_zeroed == ngroups || sb_rdonly(sb) ||
 	    !test_opt(sb, INIT_INODE_TABLE))
 		goto out;
 
@@ -3377,6 +3397,7 @@ static void ext4_set_resv_clusters(struct super_block *sb)
 
 static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 {
+	struct dax_device *dax_dev = fs_dax_get_by_bdev(sb->s_bdev);
 	char *orig_data = kstrdup(data, GFP_KERNEL);
 	struct buffer_head *bh;
 	struct ext4_super_block *es = NULL;
@@ -3402,6 +3423,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if ((data && !orig_data) || !sbi)
 		goto out_free_base;
 
+	sbi->s_daxdev = dax_dev;
 	sbi->s_blockgroup_lock =
 		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
 	if (!sbi->s_blockgroup_lock)
@@ -3659,7 +3681,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * previously didn't change the revision level when setting the flags,
 	 * so there is a chance incompat flags are set on a rev 0 filesystem.
 	 */
-	if (!ext4_feature_set_ok(sb, (sb->s_flags & MS_RDONLY)))
+	if (!ext4_feature_set_ok(sb, (sb_rdonly(sb))))
 		goto failed_mount;
 
 	blocksize = BLOCK_SIZE << le32_to_cpu(es->s_log_block_size);
@@ -3788,12 +3810,12 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			sbi->s_hash_unsigned = 3;
 		else if ((i & EXT2_FLAGS_SIGNED_HASH) == 0) {
 #ifdef __CHAR_UNSIGNED__
-			if (!(sb->s_flags & MS_RDONLY))
+			if (!sb_rdonly(sb))
 				es->s_flags |=
 					cpu_to_le32(EXT2_FLAGS_UNSIGNED_HASH);
 			sbi->s_hash_unsigned = 3;
 #else
-			if (!(sb->s_flags & MS_RDONLY))
+			if (!sb_rdonly(sb))
 				es->s_flags |=
 					cpu_to_le32(EXT2_FLAGS_SIGNED_HASH);
 #endif
@@ -3993,7 +4015,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	needs_recovery = (es->s_last_orphan != 0 ||
 			  ext4_has_feature_journal_needs_recovery(sb));
 
-	if (ext4_has_feature_mmp(sb) && !(sb->s_flags & MS_RDONLY))
+	if (ext4_has_feature_mmp(sb) && !sb_rdonly(sb))
 		if (ext4_multi_mount_protect(sb, le64_to_cpu(es->s_mmp_block)))
 			goto failed_mount3a;
 
@@ -4005,7 +4027,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		err = ext4_load_journal(sb, es, journal_devnum);
 		if (err)
 			goto failed_mount3a;
-	} else if (test_opt(sb, NOLOAD) && !(sb->s_flags & MS_RDONLY) &&
+	} else if (test_opt(sb, NOLOAD) && !sb_rdonly(sb) &&
 		   ext4_has_feature_journal_needs_recovery(sb)) {
 		ext4_msg(sb, KERN_ERR, "required journal recovery "
 		       "suppressed and not mounted read-only");
@@ -4119,7 +4141,7 @@ no_journal:
 		goto failed_mount_wq;
 	}
 
-	if (DUMMY_ENCRYPTION_ENABLED(sbi) && !(sb->s_flags & MS_RDONLY) &&
+	if (DUMMY_ENCRYPTION_ENABLED(sbi) && !sb_rdonly(sb) &&
 	    !ext4_has_feature_encrypt(sb)) {
 		ext4_set_feature_encrypt(sb);
 		ext4_commit_super(sb, 1);
@@ -4173,7 +4195,7 @@ no_journal:
 		goto failed_mount4;
 	}
 
-	if (ext4_setup_super(sb, es, sb->s_flags & MS_RDONLY))
+	if (ext4_setup_super(sb, es, sb_rdonly(sb)))
 		sb->s_flags |= MS_RDONLY;
 
 	/* determine the minimum size of new large inodes, if present */
@@ -4261,7 +4283,7 @@ no_journal:
 
 #ifdef CONFIG_QUOTA
 	/* Enable quota usage during mount. */
-	if (ext4_has_feature_quota(sb) && !(sb->s_flags & MS_RDONLY)) {
+	if (ext4_has_feature_quota(sb) && !sb_rdonly(sb)) {
 		err = ext4_enable_quotas(sb);
 		if (err)
 			goto failed_mount8;
@@ -4378,6 +4400,7 @@ out_fail:
 out_free_base:
 	kfree(sbi);
 	kfree(orig_data);
+	fs_put_dax(dax_dev);
 	return err ? err : ret;
 }
 
@@ -4584,7 +4607,7 @@ static int ext4_load_journal(struct super_block *sb,
 	 * can get read-write access to the device.
 	 */
 	if (ext4_has_feature_journal_needs_recovery(sb)) {
-		if (sb->s_flags & MS_RDONLY) {
+		if (sb_rdonly(sb)) {
 			ext4_msg(sb, KERN_INFO, "INFO: recovery "
 					"required on readonly filesystem");
 			if (really_read_only) {
@@ -4739,8 +4762,7 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 	if (jbd2_journal_flush(journal) < 0)
 		goto out;
 
-	if (ext4_has_feature_journal_needs_recovery(sb) &&
-	    sb->s_flags & MS_RDONLY) {
+	if (ext4_has_feature_journal_needs_recovery(sb) && sb_rdonly(sb)) {
 		ext4_clear_feature_journal_needs_recovery(sb);
 		ext4_commit_super(sb, 1);
 	}
@@ -4796,7 +4818,7 @@ int ext4_force_commit(struct super_block *sb)
 {
 	journal_t *journal;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	journal = EXT4_SB(sb)->s_journal;
@@ -4861,7 +4883,7 @@ static int ext4_freeze(struct super_block *sb)
 	int error = 0;
 	journal_t *journal;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	journal = EXT4_SB(sb)->s_journal;
@@ -4896,7 +4918,7 @@ out:
  */
 static int ext4_unfreeze(struct super_block *sb)
 {
-	if ((sb->s_flags & MS_RDONLY) || ext4_forced_shutdown(EXT4_SB(sb)))
+	if (sb_rdonly(sb) || ext4_forced_shutdown(EXT4_SB(sb)))
 		return 0;
 
 	if (EXT4_SB(sb)->s_journal) {
@@ -5034,7 +5056,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	if (*flags & MS_LAZYTIME)
 		sb->s_flags |= MS_LAZYTIME;
 
-	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY)) {
+	if ((bool)(*flags & MS_RDONLY) != sb_rdonly(sb)) {
 		if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED) {
 			err = -EROFS;
 			goto restore_opts;
@@ -5129,7 +5151,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	 * Reinitialize lazy itable initialization thread based on
 	 * current settings
 	 */
-	if ((sb->s_flags & MS_RDONLY) || !test_opt(sb, INIT_INODE_TABLE))
+	if (sb_rdonly(sb) || !test_opt(sb, INIT_INODE_TABLE))
 		ext4_unregister_li_request(sb);
 	else {
 		ext4_group_t first_not_zeroed;
@@ -5194,7 +5216,7 @@ static int ext4_statfs_project(struct super_block *sb,
 	dquot = dqget(sb, qid);
 	if (IS_ERR(dquot))
 		return PTR_ERR(dquot);
-	spin_lock(&dq_data_lock);
+	spin_lock(&dquot->dq_dqb_lock);
 
 	limit = (dquot->dq_dqb.dqb_bsoftlimit ?
 		 dquot->dq_dqb.dqb_bsoftlimit :
@@ -5217,7 +5239,7 @@ static int ext4_statfs_project(struct super_block *sb,
 			 (buf->f_files - dquot->dq_dqb.dqb_curinodes) : 0;
 	}
 
-	spin_unlock(&dq_data_lock);
+	spin_unlock(&dquot->dq_dqb_lock);
 	dqput(dquot);
 	return 0;
 }
@@ -5263,18 +5285,13 @@ static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-/* Helper function for writing quotas on sync - we need to start transaction
- * before quota file is locked for write. Otherwise the are possible deadlocks:
- * Process 1                         Process 2
- * ext4_create()                     quota_sync()
- *   jbd2_journal_start()                  write_dquot()
- *   dquot_initialize()                         down(dqio_mutex)
- *     down(dqio_mutex)                    jbd2_journal_start()
- *
- */
 
 #ifdef CONFIG_QUOTA
 
+/*
+ * Helper functions so that transaction is started before we acquire dqio_sem
+ * to keep correct lock ordering of transaction > dqio_sem
+ */
 static inline struct inode *dquot_to_inode(struct dquot *dquot)
 {
 	return sb_dqopt(dquot->dq_sb)->files[dquot->dq_id.type];
@@ -5409,6 +5426,13 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 			ext4_msg(sb, KERN_WARNING,
 				"Quota file not on filesystem root. "
 				"Journaled quota will not work");
+		sb_dqopt(sb)->flags |= DQUOT_NOLIST_DIRTY;
+	} else {
+		/*
+		 * Clear the flag just in case mount options changed since
+		 * last time.
+		 */
+		sb_dqopt(sb)->flags &= ~DQUOT_NOLIST_DIRTY;
 	}
 
 	/*
@@ -5505,13 +5529,16 @@ static int ext4_enable_quotas(struct super_block *sb)
 		test_opt(sb, PRJQUOTA),
 	};
 
-	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE;
+	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE | DQUOT_NOLIST_DIRTY;
 	for (type = 0; type < EXT4_MAXQUOTAS; type++) {
 		if (qf_inums[type]) {
 			err = ext4_quota_enable(sb, type, QFMT_VFS_V1,
 				DQUOT_USAGE_ENABLED |
 				(quota_mopt[type] ? DQUOT_LIMITS_ENABLED : 0));
 			if (err) {
+				for (type--; type >= 0; type--)
+					dquot_quota_off(sb, type);
+
 				ext4_warning(sb,
 					"Failed to enable quota tracking "
 					"(type=%d, err=%d). Please run "
@@ -5701,7 +5728,7 @@ static inline int ext2_feature_set_ok(struct super_block *sb)
 {
 	if (ext4_has_unknown_ext2_incompat_features(sb))
 		return 0;
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 1;
 	if (ext4_has_unknown_ext2_ro_compat_features(sb))
 		return 0;
@@ -5732,7 +5759,7 @@ static inline int ext3_feature_set_ok(struct super_block *sb)
 		return 0;
 	if (!ext4_has_feature_journal(sb))
 		return 0;
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 1;
 	if (ext4_has_unknown_ext3_ro_compat_features(sb))
 		return 0;

@@ -77,8 +77,8 @@ static struct clk *__of_clk_get_by_name(struct device_node *np,
 			break;
 		} else if (name && index >= 0) {
 			if (PTR_ERR(clk) != -EPROBE_DEFER)
-				pr_err("ERROR: could not get clock %s:%s(%i)\n",
-					np->full_name, name ? name : "", index);
+				pr_err("ERROR: could not get clock %pOF:%s(%i)\n",
+					np, name ? name : "", index);
 			return clk;
 		}
 

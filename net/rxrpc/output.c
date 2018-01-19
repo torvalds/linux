@@ -444,7 +444,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		sp = rxrpc_skb(skb);
 
-		if (rxrpc_extract_addr_from_skb(&srx, skb) == 0) {
+		if (rxrpc_extract_addr_from_skb(local, &srx, skb) == 0) {
 			msg.msg_namelen = srx.transport_len;
 
 			code = htonl(skb->priority);

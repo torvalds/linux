@@ -333,7 +333,7 @@ static void siu_dai_spbstop(struct siu_port *port_info)
 /*		API functions		*/
 
 /* Playback and capture hardware properties are identical */
-static struct snd_pcm_hardware siu_dai_pcm_hw = {
+static const struct snd_pcm_hardware siu_dai_pcm_hw = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED,
 	.formats		= SNDRV_PCM_FMTBIT_S16,
 	.rates			= SNDRV_PCM_RATE_8000_48000,

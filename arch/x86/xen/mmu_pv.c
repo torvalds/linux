@@ -162,26 +162,6 @@ static bool xen_page_pinned(void *ptr)
 	return PagePinned(page);
 }
 
-void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
-{
-	struct multicall_space mcs;
-	struct mmu_update *u;
-
-	trace_xen_mmu_set_domain_pte(ptep, pteval, domid);
-
-	mcs = xen_mc_entry(sizeof(*u));
-	u = mcs.args;
-
-	/* ptep might be kmapped when using 32-bit HIGHPTE */
-	u->ptr = virt_to_machine(ptep).maddr;
-	u->val = pte_val_ma(pteval);
-
-	MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, domid);
-
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
-}
-EXPORT_SYMBOL_GPL(xen_set_domain_pte);
-
 static void xen_extend_mmu_update(const struct mmu_update *update)
 {
 	struct multicall_space mcs;
@@ -1005,14 +985,12 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
 	/* Get the "official" set of cpus referring to our pagetable. */
 	if (!alloc_cpumask_var(&mask, GFP_ATOMIC)) {
 		for_each_online_cpu(cpu) {
-			if (!cpumask_test_cpu(cpu, mm_cpumask(mm))
-			    && per_cpu(xen_current_cr3, cpu) != __pa(mm->pgd))
+			if (per_cpu(xen_current_cr3, cpu) != __pa(mm->pgd))
 				continue;
 			smp_call_function_single(cpu, drop_mm_ref_this_cpu, mm, 1);
 		}
 		return;
 	}
-	cpumask_copy(mask, mm_cpumask(mm));
 
 	/*
 	 * It's possible that a vcpu may have a stale reference to our
@@ -1021,6 +999,7 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
 	 * look at its actual current cr3 value, and force it to flush
 	 * if needed.
 	 */
+	cpumask_clear(mask);
 	for_each_online_cpu(cpu) {
 		if (per_cpu(xen_current_cr3, cpu) == __pa(mm->pgd))
 			cpumask_set_cpu(cpu, mask);
@@ -1259,21 +1238,16 @@ static void __init xen_pagetable_cleanhighmap(void)
 	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
 	 * the ramdisk). We continue on, erasing PMD entries that point to page
 	 * tables - do note that they are accessible at this stage via __va.
-	 * For good measure we also round up to the PMD - which means that if
+	 * As Xen is aligning the memory end to a 4MB boundary, for good
+	 * measure we also round up to PMD_SIZE * 2 - which means that if
 	 * anybody is using __ka address to the initial boot-stack - and try
 	 * to use it - they are going to crash. The xen_start_info has been
 	 * taken care of already in xen_setup_kernel_pagetable. */
 	addr = xen_start_info->pt_base;
-	size = roundup(xen_start_info->nr_pt_frames * PAGE_SIZE, PMD_SIZE);
+	size = xen_start_info->nr_pt_frames * PAGE_SIZE;
 
-	xen_cleanhighmap(addr, addr + size);
+	xen_cleanhighmap(addr, roundup(addr + size, PMD_SIZE * 2));
 	xen_start_info->pt_base = (unsigned long)__va(__pa(xen_start_info->pt_base));
-#ifdef DEBUG
-	/* This is superfluous and is not necessary, but you know what
-	 * lets do it. The MODULES_VADDR -> MODULES_END should be clear of
-	 * anything at this stage. */
-	xen_cleanhighmap(MODULES_VADDR, roundup(MODULES_VADDR, PUD_SIZE) - 1);
-#endif
 }
 #endif
 
@@ -2241,7 +2215,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
  * not the first page table in the page table pool.
  * Iterate through the initial page tables to find the real page table base.
  */
-static phys_addr_t xen_find_pt_base(pmd_t *pmd)
+static phys_addr_t __init xen_find_pt_base(pmd_t *pmd)
 {
 	phys_addr_t pt_base, paddr;
 	unsigned pmdidx;
@@ -2429,8 +2403,6 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 	.flush_tlb_kernel = xen_flush_tlb,
 	.flush_tlb_single = xen_flush_tlb_single,
 	.flush_tlb_others = xen_flush_tlb_others,
-
-	.pte_update = paravirt_nop,
 
 	.pgd_alloc = xen_pgd_alloc,
 	.pgd_free = xen_pgd_free,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Memory barrier definitions.  This is based on information published
  * in the Processor Abstraction Layer and the System Abstraction Layer

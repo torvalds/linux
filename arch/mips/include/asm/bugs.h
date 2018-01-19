@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This is included by init/main.c to check for architecture-dependent bugs.
  *

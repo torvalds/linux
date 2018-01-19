@@ -842,7 +842,7 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
 	req.request.type = req32.request.type;
 	req.request.sequence = req32.request.sequence;
 	req.request.signal = req32.request.signal;
-	err = drm_ioctl_kernel(file, drm_wait_vblank, &req, DRM_UNLOCKED);
+	err = drm_ioctl_kernel(file, drm_wait_vblank_ioctl, &req, DRM_UNLOCKED);
 	if (err)
 		return err;
 

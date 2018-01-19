@@ -56,7 +56,6 @@ m_can1: can@020e8000 {
 		 <&clks IMX6SX_CLK_CANFD>;
 	clock-names = "hclk", "cclk";
 	bosch,mram-cfg = <0x0 0 0 32 0 0 0 1>;
-	status = "disabled";
 };
 
 Board dts:

@@ -405,6 +405,14 @@ int ipu_idmac_lock_enable(struct ipuv3_channel *channel, int num_bursts)
 		return -EINVAL;
 	}
 
+	/*
+	 * IPUv3EX / i.MX51 has a different register layout, and on IPUv3M /
+	 * i.MX53 channel arbitration locking doesn't seem to work properly.
+	 * Allow enabling the lock feature on IPUv3H / i.MX6 only.
+	 */
+	if (bursts && ipu->ipu_type != IPUV3H)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(idmac_lock_en_info); i++) {
 		if (channel->num == idmac_lock_en_info[i].chnum)
 			break;
@@ -1217,8 +1225,8 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 		of_node = of_graph_get_port_by_id(dev->of_node, i);
 		if (!of_node) {
 			dev_info(dev,
-				 "no port@%d node in %s, not using %s%d\n",
-				 i, dev->of_node->full_name,
+				 "no port@%d node in %pOF, not using %s%d\n",
+				 i, dev->of_node,
 				 (i / 2) ? "DI" : "CSI", i % 2);
 			continue;
 		}

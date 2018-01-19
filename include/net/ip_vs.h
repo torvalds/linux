@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* IP Virtual Server
  * data structure and functionality definitions
  */

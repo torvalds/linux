@@ -419,7 +419,7 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct ahash_request req;
-	struct safexcel_inv_result result = { 0 };
+	struct safexcel_inv_result result = {};
 	int ring = ctx->base.ring;
 
 	memset(&req, 0, sizeof(struct ahash_request));

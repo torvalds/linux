@@ -805,7 +805,7 @@ struct media_link *media_entity_find_link(struct media_pad *source,
  * Return: returns a pointer to the pad at the remote end of the first found
  * enabled link, or %NULL if no enabled link has been found.
  */
-struct media_pad *media_entity_remote_pad(struct media_pad *pad);
+struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
 
 /**
  * media_entity_get - Get a reference to the parent module

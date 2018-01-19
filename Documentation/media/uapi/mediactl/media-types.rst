@@ -5,7 +5,7 @@
 Types and flags used to represent the media graph elements
 ==========================================================
 
-..  tabularcolumns:: |p{8.0cm}|p{10.5cm}|
+..  tabularcolumns:: |p{8.2cm}|p{10.3cm}|
 
 .. _media-entity-type:
 

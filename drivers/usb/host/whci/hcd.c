@@ -213,7 +213,7 @@ static void whc_endpoint_reset(struct usb_hcd *usb_hcd,
 }
 
 
-static struct hc_driver whc_hc_driver = {
+static const struct hc_driver whc_hc_driver = {
 	.description = "whci-hcd",
 	.product_desc = "Wireless host controller",
 	.hcd_priv_size = sizeof(struct whc) - sizeof(struct usb_hcd),

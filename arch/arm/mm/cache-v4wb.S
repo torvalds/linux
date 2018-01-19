@@ -47,6 +47,7 @@
 #define CACHE_DLIMIT	(CACHE_DSIZE * 4)
 
 	.data
+	.align	2
 flush_base:
 	.long	FLUSH_BASE
 	.text

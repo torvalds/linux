@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* ITLB ** ICACHE line 1: Context 0 check and TSB load	*/
 	ldxa	[%g0] ASI_IMMU_TSB_8KB_PTR, %g1	! Get TSB 8K pointer
 	ldxa	[%g0] ASI_IMMU, %g6		! Get TAG TARGET

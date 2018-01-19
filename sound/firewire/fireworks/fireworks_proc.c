@@ -12,7 +12,7 @@
 static inline const char*
 get_phys_name(struct snd_efw_phys_grp *grp, bool input)
 {
-	const char *const ch_type[] = {
+	static const char *const ch_type[] = {
 		"Analog", "S/PDIF", "ADAT", "S/PDIF or ADAT", "Mirroring",
 		"Headphones", "I2S", "Guitar", "Pirzo Guitar", "Guitar String",
 	};

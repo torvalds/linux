@@ -299,7 +299,6 @@ struct docg3_cascade {
  * @oob_autoecc: if 1, use only bytes 0-7, 15, and fill the others with HW ECC
  *               if 0, use all the 16 bytes.
  * @oob_write_buf: prepared OOB for next page_write
- * @debugfs_root: debugfs root node
  */
 struct docg3 {
 	struct device *dev;
@@ -312,7 +311,6 @@ struct docg3 {
 	loff_t oob_write_ofs;
 	int oob_autoecc;
 	u8 oob_write_buf[DOC_LAYOUT_OOB_SIZE];
-	struct dentry *debugfs_root;
 };
 
 #define doc_err(fmt, arg...) dev_err(docg3->dev, (fmt), ## arg)

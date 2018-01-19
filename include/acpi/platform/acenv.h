@@ -288,6 +288,11 @@
 #define ACPI_INLINE
 #endif
 
+/* Use ordered initialization if compiler doesn't support designated. */
+#ifndef ACPI_STRUCT_INIT
+#define ACPI_STRUCT_INIT(field, value)  value
+#endif
+
 /*
  * Configurable calling conventions:
  *
@@ -380,10 +385,6 @@
 
 #ifndef ACPI_INIT_FUNCTION
 #define ACPI_INIT_FUNCTION
-#endif
-
-#ifndef ACPI_STRUCT_INIT
-#define ACPI_STRUCT_INIT(field, value) value
 #endif
 
 #endif				/* __ACENV_H__ */

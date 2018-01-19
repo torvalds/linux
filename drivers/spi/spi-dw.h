@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DW_SPI_HEADER_H
 #define DW_SPI_HEADER_H
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/kernel.h>

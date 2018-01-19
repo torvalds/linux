@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NV04_MMU_PRIV__
 #define __NV04_MMU_PRIV__
 #define nv04_mmu(p) container_of((p), struct nv04_mmu, base)

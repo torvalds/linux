@@ -6,7 +6,7 @@
  * published by the Free Software Foundation.
  *
  */
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
 
 #define LP_OPTIONS 0

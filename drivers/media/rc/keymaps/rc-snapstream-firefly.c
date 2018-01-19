@@ -83,10 +83,10 @@ static struct rc_map_table snapstream_firefly[] = {
 
 static struct rc_map_list snapstream_firefly_map = {
 	.map = {
-		.scan    = snapstream_firefly,
-		.size    = ARRAY_SIZE(snapstream_firefly),
-		.rc_type = RC_TYPE_OTHER,
-		.name    = RC_MAP_SNAPSTREAM_FIREFLY,
+		.scan     = snapstream_firefly,
+		.size     = ARRAY_SIZE(snapstream_firefly),
+		.rc_proto = RC_PROTO_OTHER,
+		.name     = RC_MAP_SNAPSTREAM_FIREFLY,
 	}
 };
 

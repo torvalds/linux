@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_SEGMENT_H
 #define _ASM_X86_SEGMENT_H
 
@@ -238,9 +239,7 @@
 #ifndef __ASSEMBLY__
 
 extern const char early_idt_handler_array[NUM_EXCEPTION_VECTORS][EARLY_IDT_HANDLER_SIZE];
-#ifdef CONFIG_TRACING
-# define trace_early_idt_handler_array early_idt_handler_array
-#endif
+extern void early_ignore_irq(void);
 
 /*
  * Load a segment. Fall back on loading the zero segment if something goes

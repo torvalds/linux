@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <media/videobuf2-core.h>
 
 #define CREATE_TRACE_POINTS

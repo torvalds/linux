@@ -288,7 +288,7 @@ static const struct regmap_config pcm1681_regmap = {
 	.readable_reg		= pcm1681_accessible_reg,
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_pcm1681 = {
+static const struct snd_soc_codec_driver soc_codec_dev_pcm1681 = {
 	.component_driver = {
 		.controls		= pcm1681_controls,
 		.num_controls		= ARRAY_SIZE(pcm1681_controls),

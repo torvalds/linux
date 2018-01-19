@@ -24,61 +24,9 @@
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
 #include <linux/platform_data/bcmgenet.h>
+#include <linux/platform_data/mdio-bcm-unimac.h>
 
 #include "bcmgenet.h"
-
-/* read a value from the MII */
-static int bcmgenet_mii_read(struct mii_bus *bus, int phy_id, int location)
-{
-	int ret;
-	struct net_device *dev = bus->priv;
-	struct bcmgenet_priv *priv = netdev_priv(dev);
-	u32 reg;
-
-	bcmgenet_umac_writel(priv, (MDIO_RD | (phy_id << MDIO_PMD_SHIFT) |
-			     (location << MDIO_REG_SHIFT)), UMAC_MDIO_CMD);
-	/* Start MDIO transaction*/
-	reg = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
-	reg |= MDIO_START_BUSY;
-	bcmgenet_umac_writel(priv, reg, UMAC_MDIO_CMD);
-	wait_event_timeout(priv->wq,
-			   !(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD)
-			   & MDIO_START_BUSY),
-			   HZ / 100);
-	ret = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
-
-	/* Some broken devices are known not to release the line during
-	 * turn-around, e.g: Broadcom BCM53125 external switches, so check for
-	 * that condition here and ignore the MDIO controller read failure
-	 * indication.
-	 */
-	if (!(bus->phy_ignore_ta_mask & 1 << phy_id) && (ret & MDIO_READ_FAIL))
-		return -EIO;
-
-	return ret & 0xffff;
-}
-
-/* write a value to the MII */
-static int bcmgenet_mii_write(struct mii_bus *bus, int phy_id,
-			      int location, u16 val)
-{
-	struct net_device *dev = bus->priv;
-	struct bcmgenet_priv *priv = netdev_priv(dev);
-	u32 reg;
-
-	bcmgenet_umac_writel(priv, (MDIO_WR | (phy_id << MDIO_PMD_SHIFT) |
-			     (location << MDIO_REG_SHIFT) | (0xffff & val)),
-			     UMAC_MDIO_CMD);
-	reg = bcmgenet_umac_readl(priv, UMAC_MDIO_CMD);
-	reg |= MDIO_START_BUSY;
-	bcmgenet_umac_writel(priv, reg, UMAC_MDIO_CMD);
-	wait_event_timeout(priv->wq,
-			   !(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD) &
-			   MDIO_START_BUSY),
-			   HZ / 100);
-
-	return 0;
-}
 
 /* setup netdev link state when PHY link status change and
  * update UMAC and RGMII block when link up
@@ -393,103 +341,120 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	return 0;
 }
 
-/* Workaround for integrated BCM7xxx Gigabit PHYs which have a problem with
- * their internal MDIO management controller making them fail to successfully
- * be read from or written to for the first transaction.  We insert a dummy
- * BMSR read here to make sure that phy_get_device() and get_phy_id() can
- * correctly read the PHY MII_PHYSID1/2 registers and successfully register a
- * PHY device for this peripheral.
- *
- * Once the PHY driver is registered, we can workaround subsequent reads from
- * there (e.g: during system-wide power management).
- *
- * bus->reset is invoked before mdiobus_scan during mdiobus_register and is
- * therefore the right location to stick that workaround. Since we do not want
- * to read from non-existing PHYs, we either use bus->phy_mask or do a manual
- * Device Tree scan to limit the search area.
- */
-static int bcmgenet_mii_bus_reset(struct mii_bus *bus)
+static struct device_node *bcmgenet_mii_of_find_mdio(struct bcmgenet_priv *priv)
 {
-	struct net_device *dev = bus->priv;
-	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device_node *np = priv->mdio_dn;
-	struct device_node *child = NULL;
-	u32 read_mask = 0;
-	int addr = 0;
+	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device *kdev = &priv->pdev->dev;
+	char *compat;
 
-	if (!np) {
-		read_mask = 1 << priv->phy_addr;
-	} else {
-		for_each_available_child_of_node(np, child) {
-			addr = of_mdio_parse_addr(&dev->dev, child);
-			if (addr < 0)
-				continue;
+	compat = kasprintf(GFP_KERNEL, "brcm,genet-mdio-v%d", priv->version);
+	if (!compat)
+		return NULL;
 
-			read_mask |= 1 << addr;
-		}
+	priv->mdio_dn = of_find_compatible_node(dn, NULL, compat);
+	kfree(compat);
+	if (!priv->mdio_dn) {
+		dev_err(kdev, "unable to find MDIO bus node\n");
+		return NULL;
 	}
 
-	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
-		if (read_mask & 1 << addr) {
-			dev_dbg(&dev->dev, "Workaround for PHY @ %d\n", addr);
-			mdiobus_read(bus, addr, MII_BMSR);
-		}
-	}
+	return priv->mdio_dn;
+}
 
+static void bcmgenet_mii_pdata_init(struct bcmgenet_priv *priv,
+				    struct unimac_mdio_pdata *ppd)
+{
+	struct device *kdev = &priv->pdev->dev;
+	struct bcmgenet_platform_data *pd = kdev->platform_data;
+
+	if (pd->phy_interface != PHY_INTERFACE_MODE_MOCA && pd->mdio_enabled) {
+		/*
+		 * Internal or external PHY with MDIO access
+		 */
+		if (pd->phy_address >= 0 && pd->phy_address < PHY_MAX_ADDR)
+			ppd->phy_mask = 1 << pd->phy_address;
+		else
+			ppd->phy_mask = 0;
+	}
+}
+
+static int bcmgenet_mii_wait(void *wait_func_data)
+{
+	struct bcmgenet_priv *priv = wait_func_data;
+
+	wait_event_timeout(priv->wq,
+			   !(bcmgenet_umac_readl(priv, UMAC_MDIO_CMD)
+			   & MDIO_START_BUSY),
+			   HZ / 100);
 	return 0;
 }
 
-static int bcmgenet_mii_alloc(struct bcmgenet_priv *priv)
+static int bcmgenet_mii_register(struct bcmgenet_priv *priv)
 {
-	struct mii_bus *bus;
+	struct platform_device *pdev = priv->pdev;
+	struct bcmgenet_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *dn = pdev->dev.of_node;
+	struct unimac_mdio_pdata ppd;
+	struct platform_device *ppdev;
+	struct resource *pres, res;
+	int id, ret;
 
-	if (priv->mii_bus)
-		return 0;
+	pres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	memset(&res, 0, sizeof(res));
+	memset(&ppd, 0, sizeof(ppd));
 
-	priv->mii_bus = mdiobus_alloc();
-	if (!priv->mii_bus) {
-		pr_err("failed to allocate\n");
+	ppd.wait_func = bcmgenet_mii_wait;
+	ppd.wait_func_data = priv;
+	ppd.bus_name = "bcmgenet MII bus";
+
+	/* Unimac MDIO bus controller starts at UniMAC offset + MDIO_CMD
+	 * and is 2 * 32-bits word long, 8 bytes total.
+	 */
+	res.start = pres->start + GENET_UMAC_OFF + UMAC_MDIO_CMD;
+	res.end = res.start + 8;
+	res.flags = IORESOURCE_MEM;
+
+	if (dn)
+		id = of_alias_get_id(dn, "eth");
+	else
+		id = pdev->id;
+
+	ppdev = platform_device_alloc(UNIMAC_MDIO_DRV_NAME, id);
+	if (!ppdev)
 		return -ENOMEM;
-	}
 
-	bus = priv->mii_bus;
-	bus->priv = priv->dev;
-	bus->name = "bcmgenet MII bus";
-	bus->parent = &priv->pdev->dev;
-	bus->read = bcmgenet_mii_read;
-	bus->write = bcmgenet_mii_write;
-	bus->reset = bcmgenet_mii_bus_reset;
-	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-%d",
-		 priv->pdev->name, priv->pdev->id);
+	/* Retain this platform_device pointer for later cleanup */
+	priv->mii_pdev = ppdev;
+	ppdev->dev.parent = &pdev->dev;
+	ppdev->dev.of_node = bcmgenet_mii_of_find_mdio(priv);
+	if (pdata)
+		bcmgenet_mii_pdata_init(priv, &ppd);
+
+	ret = platform_device_add_resources(ppdev, &res, 1);
+	if (ret)
+		goto out;
+
+	ret = platform_device_add_data(ppdev, &ppd, sizeof(ppd));
+	if (ret)
+		goto out;
+
+	ret = platform_device_add(ppdev);
+	if (ret)
+		goto out;
 
 	return 0;
+out:
+	platform_device_put(ppdev);
+	return ret;
 }
 
 static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 {
 	struct device_node *dn = priv->pdev->dev.of_node;
 	struct device *kdev = &priv->pdev->dev;
-	struct phy_device *phydev = NULL;
-	char *compat;
+	struct phy_device *phydev;
 	int phy_mode;
 	int ret;
-
-	compat = kasprintf(GFP_KERNEL, "brcm,genet-mdio-v%d", priv->version);
-	if (!compat)
-		return -ENOMEM;
-
-	priv->mdio_dn = of_find_compatible_node(dn, NULL, compat);
-	kfree(compat);
-	if (!priv->mdio_dn) {
-		dev_err(kdev, "unable to find MDIO bus node\n");
-		return -ENODEV;
-	}
-
-	ret = of_mdiobus_register(priv->mii_bus, priv->mdio_dn);
-	if (ret) {
-		dev_err(kdev, "failed to register MDIO bus\n");
-		return ret;
-	}
 
 	/* Fetch the PHY phandle */
 	priv->phy_dn = of_parse_phandle(dn, "phy-handle", 0);
@@ -537,33 +502,23 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
 	struct bcmgenet_platform_data *pd = kdev->platform_data;
-	struct mii_bus *mdio = priv->mii_bus;
+	char phy_name[MII_BUS_ID_SIZE + 3];
+	char mdio_bus_id[MII_BUS_ID_SIZE];
 	struct phy_device *phydev;
-	int ret;
+
+	snprintf(mdio_bus_id, MII_BUS_ID_SIZE, "%s-%d",
+		 UNIMAC_MDIO_DRV_NAME, priv->pdev->id);
 
 	if (pd->phy_interface != PHY_INTERFACE_MODE_MOCA && pd->mdio_enabled) {
+		snprintf(phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT,
+			 mdio_bus_id, pd->phy_address);
+
 		/*
 		 * Internal or external PHY with MDIO access
 		 */
-		if (pd->phy_address >= 0 && pd->phy_address < PHY_MAX_ADDR)
-			mdio->phy_mask = ~(1 << pd->phy_address);
-		else
-			mdio->phy_mask = 0;
-
-		ret = mdiobus_register(mdio);
-		if (ret) {
-			dev_err(kdev, "failed to register MDIO bus\n");
-			return ret;
-		}
-
-		if (pd->phy_address >= 0 && pd->phy_address < PHY_MAX_ADDR)
-			phydev = mdiobus_get_phy(mdio, pd->phy_address);
-		else
-			phydev = phy_find_first(mdio);
-
+		phydev = phy_attach(priv->dev, phy_name, pd->phy_interface);
 		if (!phydev) {
 			dev_err(kdev, "failed to register PHY device\n");
-			mdiobus_unregister(mdio);
 			return -ENODEV;
 		}
 	} else {
@@ -609,10 +564,9 @@ static int bcmgenet_mii_bus_init(struct bcmgenet_priv *priv)
 int bcmgenet_mii_init(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device_node *dn = priv->pdev->dev.of_node;
 	int ret;
 
-	ret = bcmgenet_mii_alloc(priv);
+	ret = bcmgenet_mii_register(priv);
 	if (ret)
 		return ret;
 
@@ -623,11 +577,7 @@ int bcmgenet_mii_init(struct net_device *dev)
 	return 0;
 
 out:
-	if (of_phy_is_fixed_link(dn))
-		of_phy_deregister_fixed_link(dn);
-	of_node_put(priv->phy_dn);
-	mdiobus_unregister(priv->mii_bus);
-	mdiobus_free(priv->mii_bus);
+	bcmgenet_mii_exit(dev);
 	return ret;
 }
 
@@ -639,6 +589,6 @@ void bcmgenet_mii_exit(struct net_device *dev)
 	if (of_phy_is_fixed_link(dn))
 		of_phy_deregister_fixed_link(dn);
 	of_node_put(priv->phy_dn);
-	mdiobus_unregister(priv->mii_bus);
-	mdiobus_free(priv->mii_bus);
+	platform_device_unregister(priv->mii_pdev);
+	platform_device_put(priv->mii_pdev);
 }

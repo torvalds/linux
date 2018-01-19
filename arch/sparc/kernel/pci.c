@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* pci.c: UltraSparc PCI controller support.
  *
  * Copyright (C) 1997, 1998, 1999 David S. Miller (davem@redhat.com)
@@ -688,16 +689,6 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	pci_claim_bus_resources(bus);
 	pci_bus_add_devices(bus);
 	return bus;
-}
-
-void pcibios_fixup_bus(struct pci_bus *pbus)
-{
-}
-
-resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-				resource_size_t size, resource_size_t align)
-{
-	return res->start;
 }
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)

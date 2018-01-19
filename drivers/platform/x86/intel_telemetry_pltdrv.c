@@ -46,7 +46,6 @@
 #define TELEM_SAMPLING_DEFAULT_PERIOD	0xD
 
 #define TELEM_MAX_EVENTS_SRAM		28
-#define TELEM_MAX_OS_ALLOCATED_EVENTS	20
 #define TELEM_SSRAM_STARTTIME_OFFSET	8
 #define TELEM_SSRAM_EVTLOG_OFFSET	16
 
@@ -153,6 +152,30 @@ static struct telemetry_evtmap
 	{"PC2_AND_MEM_SHALLOW_IDLE_RES",	0x1D40},
 };
 
+static struct telemetry_evtmap
+	telemetry_glk_pss_default_events[TELEM_MAX_OS_ALLOCATED_EVENTS] = {
+	{"IA_CORE0_C6_RES",			0x0400},
+	{"IA_CORE0_C6_CTR",			0x0000},
+	{"IA_MODULE0_C7_RES",			0x0410},
+	{"IA_MODULE0_C7_CTR",			0x000C},
+	{"IA_C0_RES",				0x0805},
+	{"PCS_LTR",				0x2801},
+	{"PSTATES",				0x2802},
+	{"SOC_S0I3_RES",			0x0407},
+	{"SOC_S0I3_CTR",			0x0008},
+	{"PCS_S0I3_CTR",			0x0007},
+	{"PCS_C1E_RES",				0x0414},
+	{"PCS_IDLE_STATUS",			0x2806},
+	{"IA_PERF_LIMITS",			0x280B},
+	{"GT_PERF_LIMITS",			0x280C},
+	{"PCS_WAKEUP_S0IX_CTR",			0x0025},
+	{"PCS_IDLE_BLOCKED",			0x2C00},
+	{"PCS_S0IX_BLOCKED",			0x2C01},
+	{"PCS_S0IX_WAKE_REASONS",		0x2C02},
+	{"PCS_LTR_BLOCKING",			0x2C03},
+	{"PC2_AND_MEM_SHALLOW_IDLE_RES",	0x1D40},
+};
+
 /* APL specific Data */
 static struct telemetry_plt_config telem_apl_config = {
 	.pss_config = {
@@ -163,8 +186,19 @@ static struct telemetry_plt_config telem_apl_config = {
 	},
 };
 
+/* GLK specific Data */
+static struct telemetry_plt_config telem_glk_config = {
+	.pss_config = {
+		.telem_evts = telemetry_glk_pss_default_events,
+	},
+	.ioss_config = {
+		.telem_evts = telemetry_apl_ioss_default_events,
+	},
+};
+
 static const struct x86_cpu_id telemetry_cpu_ids[] = {
 	TELEM_CPU(INTEL_FAM6_ATOM_GOLDMONT, telem_apl_config),
+	TELEM_CPU(INTEL_FAM6_ATOM_GEMINI_LAKE, telem_glk_config),
 	{}
 };
 

@@ -192,20 +192,6 @@ static inline void init_hpc_chain(struct ip22_hostdata *hdata)
 	hcp->desc.pnext = hdata->dma;
 }
 
-static int sgiwd93_bus_reset(struct scsi_cmnd *cmd)
-{
-	/* FIXME perform bus-specific reset */
-
-	/* FIXME 2: kill this function, and let midlayer fallback
-	   to the same result, calling wd33c93_host_reset() */
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	wd33c93_host_reset(cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return SUCCESS;
-}
-
 /*
  * Kludge alert - the SCSI code calls the abort and reset method with int
  * arguments not with pointers.  So this is going to blow up beautyfully
@@ -217,7 +203,6 @@ static struct scsi_host_template sgiwd93_template = {
 	.name			= "SGI WD93",
 	.queuecommand		= wd33c93_queuecommand,
 	.eh_abort_handler	= wd33c93_abort,
-	.eh_bus_reset_handler	= sgiwd93_bus_reset,
 	.eh_host_reset_handler	= wd33c93_host_reset,
 	.can_queue		= 16,
 	.this_id		= 7,

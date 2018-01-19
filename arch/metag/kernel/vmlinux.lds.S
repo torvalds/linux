@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* ld script to make Meta Linux kernel */
 
 #include <asm/thread_info.h>

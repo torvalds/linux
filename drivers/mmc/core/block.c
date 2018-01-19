@@ -36,6 +36,7 @@
 #include <linux/compat.h>
 #include <linux/pm_runtime.h>
 #include <linux/idr.h>
+#include <linux/debugfs.h>
 
 #include <linux/mmc/ioctl.h>
 #include <linux/mmc/card.h>
@@ -126,7 +127,7 @@ module_param(perdev_minors, int, 0444);
 MODULE_PARM_DESC(perdev_minors, "Minors numbers to allocate per device");
 
 static inline int mmc_blk_part_switch(struct mmc_card *card,
-				      struct mmc_blk_data *md);
+				      unsigned int part_type);
 
 static struct mmc_blk_data *mmc_blk_get(struct gendisk *disk)
 {
@@ -188,7 +189,6 @@ static ssize_t power_ro_lock_store(struct device *dev,
 {
 	int ret;
 	struct mmc_blk_data *md, *part_md;
-	struct mmc_card *card;
 	struct mmc_queue *mq;
 	struct request *req;
 	unsigned long set;
@@ -201,7 +201,6 @@ static ssize_t power_ro_lock_store(struct device *dev,
 
 	md = mmc_blk_get(dev_to_disk(dev));
 	mq = &md->queue;
-	card = md->queue.card;
 
 	/* Dispatch locking to the block layer */
 	req = blk_get_request(mq->queue, REQ_OP_DRV_OUT, __GFP_RECLAIM);
@@ -489,7 +488,7 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 
 	mrq.cmd = &cmd;
 
-	err = mmc_blk_part_switch(card, md);
+	err = mmc_blk_part_switch(card, md->part_type);
 	if (err)
 		return err;
 
@@ -554,34 +553,19 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 	return err;
 }
 
-static int mmc_blk_ioctl_cmd(struct block_device *bdev,
+static int mmc_blk_ioctl_cmd(struct mmc_blk_data *md,
 			     struct mmc_ioc_cmd __user *ic_ptr)
 {
 	struct mmc_blk_ioc_data *idata;
 	struct mmc_blk_ioc_data *idatas[1];
-	struct mmc_blk_data *md;
 	struct mmc_queue *mq;
 	struct mmc_card *card;
 	int err = 0, ioc_err = 0;
 	struct request *req;
 
-	/*
-	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
-	 * whole block device, not on a partition.  This prevents overspray
-	 * between sibling partitions.
-	 */
-	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
-		return -EPERM;
-
 	idata = mmc_blk_ioctl_copy_from_user(ic_ptr);
 	if (IS_ERR(idata))
 		return PTR_ERR(idata);
-
-	md = mmc_blk_get(bdev->bd_disk);
-	if (!md) {
-		err = -EINVAL;
-		goto cmd_err;
-	}
 
 	card = md->queue.card;
 	if (IS_ERR(card)) {
@@ -598,7 +582,7 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 		__GFP_RECLAIM);
 	idatas[0] = idata;
 	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_IOCTL;
-	req_to_mmc_queue_req(req)->idata = idatas;
+	req_to_mmc_queue_req(req)->drv_op_data = idatas;
 	req_to_mmc_queue_req(req)->ioc_count = 1;
 	blk_execute_rq(mq->queue, NULL, req, 0);
 	ioc_err = req_to_mmc_queue_req(req)->drv_op_result;
@@ -606,32 +590,21 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	blk_put_request(req);
 
 cmd_done:
-	mmc_blk_put(md);
-cmd_err:
 	kfree(idata->buf);
 	kfree(idata);
 	return ioc_err ? ioc_err : err;
 }
 
-static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
+static int mmc_blk_ioctl_multi_cmd(struct mmc_blk_data *md,
 				   struct mmc_ioc_multi_cmd __user *user)
 {
 	struct mmc_blk_ioc_data **idata = NULL;
 	struct mmc_ioc_cmd __user *cmds = user->cmds;
 	struct mmc_card *card;
-	struct mmc_blk_data *md;
 	struct mmc_queue *mq;
 	int i, err = 0, ioc_err = 0;
 	__u64 num_of_cmds;
 	struct request *req;
-
-	/*
-	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
-	 * whole block device, not on a partition.  This prevents overspray
-	 * between sibling partitions.
-	 */
-	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
-		return -EPERM;
 
 	if (copy_from_user(&num_of_cmds, &user->num_of_cmds,
 			   sizeof(num_of_cmds)))
@@ -656,16 +629,10 @@ static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
 		}
 	}
 
-	md = mmc_blk_get(bdev->bd_disk);
-	if (!md) {
-		err = -EINVAL;
-		goto cmd_err;
-	}
-
 	card = md->queue.card;
 	if (IS_ERR(card)) {
 		err = PTR_ERR(card);
-		goto cmd_done;
+		goto cmd_err;
 	}
 
 
@@ -677,7 +644,7 @@ static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
 		idata[0]->ic.write_flag ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
 		__GFP_RECLAIM);
 	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_IOCTL;
-	req_to_mmc_queue_req(req)->idata = idata;
+	req_to_mmc_queue_req(req)->drv_op_data = idata;
 	req_to_mmc_queue_req(req)->ioc_count = num_of_cmds;
 	blk_execute_rq(mq->queue, NULL, req, 0);
 	ioc_err = req_to_mmc_queue_req(req)->drv_op_result;
@@ -688,8 +655,6 @@ static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
 
 	blk_put_request(req);
 
-cmd_done:
-	mmc_blk_put(md);
 cmd_err:
 	for (i = 0; i < num_of_cmds; i++) {
 		kfree(idata[i]->buf);
@@ -699,16 +664,47 @@ cmd_err:
 	return ioc_err ? ioc_err : err;
 }
 
+static int mmc_blk_check_blkdev(struct block_device *bdev)
+{
+	/*
+	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
+	 * whole block device, not on a partition.  This prevents overspray
+	 * between sibling partitions.
+	 */
+	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
+		return -EPERM;
+	return 0;
+}
+
 static int mmc_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
+	struct mmc_blk_data *md;
+	int ret;
+
 	switch (cmd) {
 	case MMC_IOC_CMD:
-		return mmc_blk_ioctl_cmd(bdev,
-				(struct mmc_ioc_cmd __user *)arg);
+		ret = mmc_blk_check_blkdev(bdev);
+		if (ret)
+			return ret;
+		md = mmc_blk_get(bdev->bd_disk);
+		if (!md)
+			return -EINVAL;
+		ret = mmc_blk_ioctl_cmd(md,
+					(struct mmc_ioc_cmd __user *)arg);
+		mmc_blk_put(md);
+		return ret;
 	case MMC_IOC_MULTI_CMD:
-		return mmc_blk_ioctl_multi_cmd(bdev,
-				(struct mmc_ioc_multi_cmd __user *)arg);
+		ret = mmc_blk_check_blkdev(bdev);
+		if (ret)
+			return ret;
+		md = mmc_blk_get(bdev->bd_disk);
+		if (!md)
+			return -EINVAL;
+		ret = mmc_blk_ioctl_multi_cmd(md,
+					(struct mmc_ioc_multi_cmd __user *)arg);
+		mmc_blk_put(md);
+		return ret;
 	default:
 		return -EINVAL;
 	}
@@ -765,29 +761,29 @@ static int mmc_blk_part_switch_post(struct mmc_card *card,
 }
 
 static inline int mmc_blk_part_switch(struct mmc_card *card,
-				      struct mmc_blk_data *md)
+				      unsigned int part_type)
 {
 	int ret = 0;
 	struct mmc_blk_data *main_md = dev_get_drvdata(&card->dev);
 
-	if (main_md->part_curr == md->part_type)
+	if (main_md->part_curr == part_type)
 		return 0;
 
 	if (mmc_card_mmc(card)) {
 		u8 part_config = card->ext_csd.part_config;
 
-		ret = mmc_blk_part_switch_pre(card, md->part_type);
+		ret = mmc_blk_part_switch_pre(card, part_type);
 		if (ret)
 			return ret;
 
 		part_config &= ~EXT_CSD_PART_CONFIG_ACC_MASK;
-		part_config |= md->part_type;
+		part_config |= part_type;
 
 		ret = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_PART_CONFIG, part_config,
 				 card->ext_csd.part_time);
 		if (ret) {
-			mmc_blk_part_switch_post(card, md->part_type);
+			mmc_blk_part_switch_post(card, part_type);
 			return ret;
 		}
 
@@ -796,7 +792,7 @@ static inline int mmc_blk_part_switch(struct mmc_card *card,
 		ret = mmc_blk_part_switch_post(card, main_md->part_curr);
 	}
 
-	main_md->part_curr = md->part_type;
+	main_md->part_curr = part_type;
 	return ret;
 }
 
@@ -1139,7 +1135,7 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
 		int part_err;
 
 		main_md->part_curr = main_md->part_type;
-		part_err = mmc_blk_part_switch(host->card, md);
+		part_err = mmc_blk_part_switch(host->card, md->part_type);
 		if (part_err) {
 			/*
 			 * We have failed to get back into the correct
@@ -1178,6 +1174,10 @@ static void mmc_blk_issue_drv_op(struct mmc_queue *mq, struct request *req)
 	struct mmc_queue_req *mq_rq;
 	struct mmc_card *card = mq->card;
 	struct mmc_blk_data *md = mq->blkdata;
+	struct mmc_blk_data *main_md = dev_get_drvdata(&card->dev);
+	struct mmc_blk_ioc_data **idata;
+	u8 **ext_csd;
+	u32 status;
 	int ret;
 	int i;
 
@@ -1185,14 +1185,15 @@ static void mmc_blk_issue_drv_op(struct mmc_queue *mq, struct request *req)
 
 	switch (mq_rq->drv_op) {
 	case MMC_DRV_OP_IOCTL:
+		idata = mq_rq->drv_op_data;
 		for (i = 0, ret = 0; i < mq_rq->ioc_count; i++) {
-			ret = __mmc_blk_ioctl_cmd(card, md, mq_rq->idata[i]);
+			ret = __mmc_blk_ioctl_cmd(card, md, idata[i]);
 			if (ret)
 				break;
 		}
 		/* Always switch back to main area after RPMB access */
 		if (md->area_type & MMC_BLK_DATA_AREA_RPMB)
-			mmc_blk_part_switch(card, dev_get_drvdata(&card->dev));
+			mmc_blk_part_switch(card, main_md->part_type);
 		break;
 	case MMC_DRV_OP_BOOT_WP:
 		ret = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BOOT_WP,
@@ -1205,6 +1206,15 @@ static void mmc_blk_issue_drv_op(struct mmc_queue *mq, struct request *req)
 		else
 			card->ext_csd.boot_ro_lock |=
 				EXT_CSD_BOOT_WP_B_PWR_WP_EN;
+		break;
+	case MMC_DRV_OP_GET_CARD_STATUS:
+		ret = mmc_send_status(card, &status);
+		if (!ret)
+			ret = status;
+		break;
+	case MMC_DRV_OP_GET_EXT_CSD:
+		ext_csd = mq_rq->drv_op_data;
+		ret = mmc_get_ext_csd(card, ext_csd);
 		break;
 	default:
 		pr_err("%s: unknown driver specific operation\n",
@@ -1624,8 +1634,6 @@ static void mmc_blk_data_prep(struct mmc_queue *mq, struct mmc_queue_req *mqrq,
 	}
 
 	mqrq->areq.mrq = &brq->mrq;
-
-	mmc_queue_bounce_pre(mqrq);
 }
 
 static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
@@ -1819,7 +1827,6 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 		brq = &mq_rq->brq;
 		old_req = mmc_queue_req_to_req(mq_rq);
 		type = rq_data_dir(old_req) == READ ? MMC_BLK_READ : MMC_BLK_WRITE;
-		mmc_queue_bounce_post(mq_rq);
 
 		switch (status) {
 		case MMC_BLK_SUCCESS:
@@ -1943,7 +1950,7 @@ void mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		/* claim host only for the first request */
 		mmc_get_card(card);
 
-	ret = mmc_blk_part_switch(card, md);
+	ret = mmc_blk_part_switch(card, md->part_type);
 	if (ret) {
 		if (req) {
 			blk_end_request_all(req, BLK_STS_IOERR);
@@ -2024,8 +2031,20 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	int devidx, ret;
 
 	devidx = ida_simple_get(&mmc_blk_ida, 0, max_devices, GFP_KERNEL);
-	if (devidx < 0)
+	if (devidx < 0) {
+		/*
+		 * We get -ENOSPC because there are no more any available
+		 * devidx. The reason may be that, either userspace haven't yet
+		 * unmounted the partitions, which postpones mmc_blk_release()
+		 * from being called, or the device has more partitions than
+		 * what we support.
+		 */
+		if (devidx == -ENOSPC)
+			dev_err(mmc_dev(card->host),
+				"no more device IDs available\n");
+
 		return ERR_PTR(devidx);
+	}
 
 	md = kzalloc(sizeof(struct mmc_blk_data), GFP_KERNEL);
 	if (!md) {
@@ -2283,6 +2302,134 @@ force_ro_fail:
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_FS
+
+static int mmc_dbg_card_status_get(void *data, u64 *val)
+{
+	struct mmc_card *card = data;
+	struct mmc_blk_data *md = dev_get_drvdata(&card->dev);
+	struct mmc_queue *mq = &md->queue;
+	struct request *req;
+	int ret;
+
+	/* Ask the block layer about the card status */
+	req = blk_get_request(mq->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_GET_CARD_STATUS;
+	blk_execute_rq(mq->queue, NULL, req, 0);
+	ret = req_to_mmc_queue_req(req)->drv_op_result;
+	if (ret >= 0) {
+		*val = ret;
+		ret = 0;
+	}
+
+	return ret;
+}
+DEFINE_SIMPLE_ATTRIBUTE(mmc_dbg_card_status_fops, mmc_dbg_card_status_get,
+		NULL, "%08llx\n");
+
+/* That is two digits * 512 + 1 for newline */
+#define EXT_CSD_STR_LEN 1025
+
+static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
+{
+	struct mmc_card *card = inode->i_private;
+	struct mmc_blk_data *md = dev_get_drvdata(&card->dev);
+	struct mmc_queue *mq = &md->queue;
+	struct request *req;
+	char *buf;
+	ssize_t n = 0;
+	u8 *ext_csd;
+	int err, i;
+
+	buf = kmalloc(EXT_CSD_STR_LEN + 1, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* Ask the block layer for the EXT CSD */
+	req = blk_get_request(mq->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	req_to_mmc_queue_req(req)->drv_op = MMC_DRV_OP_GET_EXT_CSD;
+	req_to_mmc_queue_req(req)->drv_op_data = &ext_csd;
+	blk_execute_rq(mq->queue, NULL, req, 0);
+	err = req_to_mmc_queue_req(req)->drv_op_result;
+	if (err) {
+		pr_err("FAILED %d\n", err);
+		goto out_free;
+	}
+
+	for (i = 0; i < 512; i++)
+		n += sprintf(buf + n, "%02x", ext_csd[i]);
+	n += sprintf(buf + n, "\n");
+
+	if (n != EXT_CSD_STR_LEN) {
+		err = -EINVAL;
+		goto out_free;
+	}
+
+	filp->private_data = buf;
+	kfree(ext_csd);
+	return 0;
+
+out_free:
+	kfree(buf);
+	return err;
+}
+
+static ssize_t mmc_ext_csd_read(struct file *filp, char __user *ubuf,
+				size_t cnt, loff_t *ppos)
+{
+	char *buf = filp->private_data;
+
+	return simple_read_from_buffer(ubuf, cnt, ppos,
+				       buf, EXT_CSD_STR_LEN);
+}
+
+static int mmc_ext_csd_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static const struct file_operations mmc_dbg_ext_csd_fops = {
+	.open		= mmc_ext_csd_open,
+	.read		= mmc_ext_csd_read,
+	.release	= mmc_ext_csd_release,
+	.llseek		= default_llseek,
+};
+
+static int mmc_blk_add_debugfs(struct mmc_card *card)
+{
+	struct dentry *root;
+
+	if (!card->debugfs_root)
+		return 0;
+
+	root = card->debugfs_root;
+
+	if (mmc_card_mmc(card) || mmc_card_sd(card)) {
+		if (!debugfs_create_file("status", S_IRUSR, root, card,
+					 &mmc_dbg_card_status_fops))
+			return -EIO;
+	}
+
+	if (mmc_card_mmc(card)) {
+		if (!debugfs_create_file("ext_csd", S_IRUSR, root, card,
+					 &mmc_dbg_ext_csd_fops))
+			return -EIO;
+	}
+
+	return 0;
+}
+
+
+#else
+
+static int mmc_blk_add_debugfs(struct mmc_card *card)
+{
+	return 0;
+}
+
+#endif /* CONFIG_DEBUG_FS */
+
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
@@ -2319,6 +2466,9 @@ static int mmc_blk_probe(struct mmc_card *card)
 			goto out;
 	}
 
+	/* Add two debugfs entries */
+	mmc_blk_add_debugfs(card);
+
 	pm_runtime_set_autosuspend_delay(&card->dev, 3000);
 	pm_runtime_use_autosuspend(&card->dev);
 
@@ -2346,7 +2496,7 @@ static void mmc_blk_remove(struct mmc_card *card)
 	mmc_blk_remove_parts(card, md);
 	pm_runtime_get_sync(&card->dev);
 	mmc_claim_host(card->host);
-	mmc_blk_part_switch(card, md);
+	mmc_blk_part_switch(card, md->part_type);
 	mmc_release_host(card->host);
 	if (card->type != MMC_TYPE_SD_COMBO)
 		pm_runtime_disable(&card->dev);

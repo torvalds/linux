@@ -143,7 +143,7 @@ static ssize_t chp_measurement_chars_read(struct file *filp,
 				       sizeof(chp->cmg_chars));
 }
 
-static struct bin_attribute chp_measurement_chars_attr = {
+static const struct bin_attribute chp_measurement_chars_attr = {
 	.attr = {
 		.name = "measurement_chars",
 		.mode = S_IRUSR,
@@ -197,7 +197,7 @@ static ssize_t chp_measurement_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute chp_measurement_attr = {
+static const struct bin_attribute chp_measurement_attr = {
 	.attr = {
 		.name = "measurement",
 		.mode = S_IRUSR,

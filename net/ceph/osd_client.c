@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/ceph/ceph_debug.h>
 
@@ -863,8 +864,6 @@ static u32 osd_req_encode_op(struct ceph_osd_op *dst,
 		dst->cls.method_len = src->cls.method_len;
 		dst->cls.indata_len = cpu_to_le32(src->cls.indata_len);
 		break;
-	case CEPH_OSD_OP_STARTSYNC:
-		break;
 	case CEPH_OSD_OP_WATCH:
 		dst->watch.cookie = cpu_to_le64(src->watch.cookie);
 		dst->watch.ver = cpu_to_le64(0);
@@ -916,9 +915,6 @@ static u32 osd_req_encode_op(struct ceph_osd_op *dst,
  * if the file was recently truncated, we include information about its
  * old and new size so that the object can be updated appropriately.  (we
  * avoid synchronously deleting truncated objects because it's slow.)
- *
- * if @do_sync, include a 'startsync' command so that the osd will flush
- * data quickly.
  */
 struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       struct ceph_file_layout *layout,

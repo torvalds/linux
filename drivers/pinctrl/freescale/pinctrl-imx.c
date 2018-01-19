@@ -35,18 +35,6 @@
 #define IMX_NO_PAD_CTL	0x80000000	/* no pin config need */
 #define IMX_PAD_SION 0x40000000		/* set SION */
 
-/**
- * @dev: a pointer back to containing device
- * @base: the offset to the controller in virtual memory
- */
-struct imx_pinctrl {
-	struct device *dev;
-	struct pinctrl_dev *pctl;
-	void __iomem *base;
-	void __iomem *input_sel_base;
-	struct imx_pinctrl_soc_info *info;
-};
-
 static inline const struct group_desc *imx_pinctrl_find_group_by_name(
 				struct pinctrl_dev *pctldev,
 				const char *name)
@@ -255,111 +243,11 @@ static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static int imx_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
-			struct pinctrl_gpio_range *range, unsigned offset)
-{
-	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	struct imx_pinctrl_soc_info *info = ipctl->info;
-	const struct imx_pin_reg *pin_reg;
-	struct group_desc *grp;
-	struct imx_pin *imx_pin;
-	unsigned int pin, group;
-	u32 reg;
-
-	/* Currently implementation only for shared mux/conf register */
-	if (!(info->flags & SHARE_MUX_CONF_REG))
-		return 0;
-
-	pin_reg = &info->pin_regs[offset];
-	if (pin_reg->mux_reg == -1)
-		return -EINVAL;
-
-	/* Find the pinctrl config with GPIO mux mode for the requested pin */
-	for (group = 0; group < pctldev->num_groups; group++) {
-		grp = pinctrl_generic_get_group(pctldev, group);
-		if (!grp)
-			continue;
-		for (pin = 0; pin < grp->num_pins; pin++) {
-			imx_pin = &((struct imx_pin *)(grp->data))[pin];
-			if (imx_pin->pin == offset && !imx_pin->mux_mode)
-				goto mux_pin;
-		}
-	}
-
-	return -EINVAL;
-
-mux_pin:
-	reg = readl(ipctl->base + pin_reg->mux_reg);
-	reg &= ~info->mux_mask;
-	reg |= imx_pin->config;
-	writel(reg, ipctl->base + pin_reg->mux_reg);
-
-	return 0;
-}
-
-static void imx_pmx_gpio_disable_free(struct pinctrl_dev *pctldev,
-			struct pinctrl_gpio_range *range, unsigned offset)
-{
-	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	struct imx_pinctrl_soc_info *info = ipctl->info;
-	const struct imx_pin_reg *pin_reg;
-	u32 reg;
-
-	/*
-	 * Only Vybrid has the input/output buffer enable flags (IBE/OBE)
-	 * They are part of the shared mux/conf register.
-	 */
-	if (!(info->flags & SHARE_MUX_CONF_REG))
-		return;
-
-	pin_reg = &info->pin_regs[offset];
-	if (pin_reg->mux_reg == -1)
-		return;
-
-	/* Clear IBE/OBE/PUE to disable the pin (Hi-Z) */
-	reg = readl(ipctl->base + pin_reg->mux_reg);
-	reg &= ~0x7;
-	writel(reg, ipctl->base + pin_reg->mux_reg);
-}
-
-static int imx_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
-	   struct pinctrl_gpio_range *range, unsigned offset, bool input)
-{
-	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	struct imx_pinctrl_soc_info *info = ipctl->info;
-	const struct imx_pin_reg *pin_reg;
-	u32 reg;
-
-	/*
-	 * Only Vybrid has the input/output buffer enable flags (IBE/OBE)
-	 * They are part of the shared mux/conf register.
-	 */
-	if (!(info->flags & SHARE_MUX_CONF_REG))
-		return 0;
-
-	pin_reg = &info->pin_regs[offset];
-	if (pin_reg->mux_reg == -1)
-		return -EINVAL;
-
-	/* IBE always enabled allows us to read the value "on the wire" */
-	reg = readl(ipctl->base + pin_reg->mux_reg);
-	if (input)
-		reg &= ~0x2;
-	else
-		reg |= 0x2;
-	writel(reg, ipctl->base + pin_reg->mux_reg);
-
-	return 0;
-}
-
-static const struct pinmux_ops imx_pmx_ops = {
+struct pinmux_ops imx_pmx_ops = {
 	.get_functions_count = pinmux_generic_get_function_count,
 	.get_function_name = pinmux_generic_get_function_name,
 	.get_function_groups = pinmux_generic_get_function_groups,
 	.set_mux = imx_pmx_set,
-	.gpio_request_enable = imx_pmx_gpio_request_enable,
-	.gpio_disable_free = imx_pmx_gpio_disable_free,
-	.gpio_set_direction = imx_pmx_gpio_set_direction,
 };
 
 /* decode generic config into raw register values */
@@ -563,26 +451,24 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	 * do sanity check and calculate pins number
 	 *
 	 * First try legacy 'fsl,pins' property, then fall back to the
-	 * generic 'pins'.
+	 * generic 'pinmux'.
 	 *
-	 * Note: for generic 'pins' case, there's no CONFIG part in
+	 * Note: for generic 'pinmux' case, there's no CONFIG part in
 	 * the binding format.
 	 */
 	list = of_get_property(np, "fsl,pins", &size);
 	if (!list) {
-		list = of_get_property(np, "pins", &size);
+		list = of_get_property(np, "pinmux", &size);
 		if (!list) {
 			dev_err(info->dev,
-				"no fsl,pins and pins property in node %s\n",
-				np->full_name);
+				"no fsl,pins and pins property in node %pOF\n", np);
 			return -EINVAL;
 		}
 	}
 
 	/* we do not check return since it's safe node passed down */
 	if (!size || size % pin_size) {
-		dev_err(info->dev, "Invalid fsl,pins or pins property in node %s\n",
-			np->full_name);
+		dev_err(info->dev, "Invalid fsl,pins or pins property in node %pOF\n", np);
 		return -EINVAL;
 	}
 
@@ -666,7 +552,7 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 	func->name = np->name;
 	func->num_group_names = of_get_child_count(np);
 	if (func->num_group_names == 0) {
-		dev_err(info->dev, "no groups defined in %s\n", np->full_name);
+		dev_err(info->dev, "no groups defined in %pOF\n", np);
 		return -EINVAL;
 	}
 	func->group_names = devm_kcalloc(info->dev, func->num_group_names,
@@ -861,6 +747,9 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	/* for generic pinconf */
 	imx_pinctrl_desc->custom_params = info->custom_params;
 	imx_pinctrl_desc->num_custom_params = info->num_custom_params;
+
+	/* platform specific callback */
+	imx_pmx_ops.gpio_set_direction = info->gpio_set_direction;
 
 	mutex_init(&info->mutex);
 

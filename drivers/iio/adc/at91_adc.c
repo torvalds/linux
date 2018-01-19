@@ -799,7 +799,7 @@ static u32 calc_startup_ticks_9x5(u32 startup_time, u32 adc_clk_khz)
 	 * For sama5d3x and at91sam9x5, the formula changes to:
 	 * Startup Time = <lookup_table_value> / ADC Clock
 	 */
-	const int startup_lookup[] = {
+	static const int startup_lookup[] = {
 		0,   8,   16,  24,
 		64,  80,  96,  112,
 		512, 576, 640, 704,

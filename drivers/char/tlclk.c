@@ -766,7 +766,7 @@ static struct attribute *tlclk_sysfs_entries[] = {
 	NULL
 };
 
-static struct attribute_group tlclk_attribute_group = {
+static const struct attribute_group tlclk_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = tlclk_sysfs_entries,
 };

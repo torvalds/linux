@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * atomic32.c: 32-bit atomic_t implementation
  *

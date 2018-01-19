@@ -149,5 +149,6 @@ static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen
 
 extern atomic_t dm_global_event_nr;
 extern wait_queue_head_t dm_global_eventq;
+void dm_issue_global_event(void);
 
 #endif

@@ -218,7 +218,7 @@ static struct saa7146_standard analog_standard[];
 static struct saa7146_standard dvb_standard[];
 static struct saa7146_standard standard[];
 
-static struct v4l2_audio msp3400_v4l2_audio = {
+static const struct v4l2_audio msp3400_v4l2_audio = {
 	.index = 0,
 	.name = "Television",
 	.capability = V4L2_AUDCAP_STEREO

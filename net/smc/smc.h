@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -149,7 +150,7 @@ struct smc_connection {
 	atomic_t		sndbuf_space;	/* remaining space in sndbuf */
 	u16			tx_cdc_seq;	/* sequence # for CDC send */
 	spinlock_t		send_lock;	/* protect wr_sends */
-	struct work_struct	tx_work;	/* retry of smc_cdc_msg_send */
+	struct delayed_work	tx_work;	/* retry of smc_cdc_msg_send */
 
 	struct smc_host_cdc_msg	local_rx_ctrl;	/* filled during event_handl.
 						 * .prod cf. TCP rcv_nxt

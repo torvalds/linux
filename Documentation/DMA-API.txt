@@ -515,14 +515,15 @@ API at all.
 ::
 
 	void *
-	dma_alloc_noncoherent(struct device *dev, size_t size,
-			      dma_addr_t *dma_handle, gfp_t flag)
+	dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
+			gfp_t flag, unsigned long attrs)
 
-Identical to dma_alloc_coherent() except that the platform will
-choose to return either consistent or non-consistent memory as it sees
-fit.  By using this API, you are guaranteeing to the platform that you
-have all the correct and necessary sync points for this memory in the
-driver should it choose to return non-consistent memory.
+Identical to dma_alloc_coherent() except that when the
+DMA_ATTR_NON_CONSISTENT flags is passed in the attrs argument, the
+platform will choose to return either consistent or non-consistent memory
+as it sees fit.  By using this API, you are guaranteeing to the platform
+that you have all the correct and necessary sync points for this memory
+in the driver should it choose to return non-consistent memory.
 
 Note: where the platform can return consistent memory, it will
 guarantee that the sync points become nops.
@@ -535,12 +536,13 @@ that simply cannot make consistent memory.
 ::
 
 	void
-	dma_free_noncoherent(struct device *dev, size_t size, void *cpu_addr,
-			     dma_addr_t dma_handle)
+	dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
+		       dma_addr_t dma_handle, unsigned long attrs)
 
-Free memory allocated by the nonconsistent API.  All parameters must
-be identical to those passed in (and returned by
-dma_alloc_noncoherent()).
+Free memory allocated by the dma_alloc_attrs().  All parameters common
+parameters must identical to those otherwise passed to dma_fre_coherent,
+and the attrs argument must be identical to the attrs passed to
+dma_alloc_attrs().
 
 ::
 
@@ -564,8 +566,8 @@ memory or doing partial flushes.
 	dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		       enum dma_data_direction direction)
 
-Do a partial sync of memory that was allocated by
-dma_alloc_noncoherent(), starting at virtual address vaddr and
+Do a partial sync of memory that was allocated by dma_alloc_attrs() with
+the DMA_ATTR_NON_CONSISTENT flag starting at virtual address vaddr and
 continuing on for size.  Again, you *must* observe the cache line
 boundaries when doing this.
 
@@ -590,34 +592,11 @@ size is the size of the area (must be multiples of PAGE_SIZE).
 
 flags can be ORed together and are:
 
-- DMA_MEMORY_MAP - request that the memory returned from
-  dma_alloc_coherent() be directly writable.
-
-- DMA_MEMORY_IO - request that the memory returned from
-  dma_alloc_coherent() be addressable using read()/write()/memcpy_toio() etc.
-
-One or both of these flags must be present.
-
-- DMA_MEMORY_INCLUDES_CHILDREN - make the declared memory be allocated by
-  dma_alloc_coherent of any child devices of this one (for memory residing
-  on a bridge).
-
 - DMA_MEMORY_EXCLUSIVE - only allocate memory from the declared regions.
   Do not allow dma_alloc_coherent() to fall back to system memory when
   it's out of memory in the declared region.
 
-The return value will be either DMA_MEMORY_MAP or DMA_MEMORY_IO and
-must correspond to a passed in flag (i.e. no returning DMA_MEMORY_IO
-if only DMA_MEMORY_MAP were passed in) for success or zero for
-failure.
-
-Note, for DMA_MEMORY_IO returns, all subsequent memory returned by
-dma_alloc_coherent() may no longer be accessed directly, but instead
-must be accessed using the correct bus functions.  If your driver
-isn't prepared to handle this contingency, it should not specify
-DMA_MEMORY_IO in the input flags.
-
-As a simplification for the platforms, only **one** such region of
+As a simplification for the platforms, only *one* such region of
 memory may be declared per device.
 
 For reasons of efficiency, most platforms choose to track the declared

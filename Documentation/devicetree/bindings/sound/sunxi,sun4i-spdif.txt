@@ -39,5 +39,4 @@ spdif: spdif@01c21000 {
 	clock-names = "apb", "spdif";
 	dmas = <&dma 0 2>, <&dma 0 2>;
 	dma-names = "rx", "tx";
-	status = "okay";
 };

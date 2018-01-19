@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* include/net/dsfield.h - Manipulation of the Differentiated Services field */
 
 /* Written 1998-2000 by Werner Almesberger, EPFL ICA */

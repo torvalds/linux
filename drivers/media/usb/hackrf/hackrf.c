@@ -1263,7 +1263,7 @@ static const struct v4l2_file_operations hackrf_fops = {
 	.unlocked_ioctl           = video_ioctl2,
 };
 
-static struct video_device hackrf_template = {
+static const struct video_device hackrf_template = {
 	.name                     = "HackRF One",
 	.release                  = video_device_release_empty,
 	.fops                     = &hackrf_fops,
@@ -1545,7 +1545,7 @@ err:
 }
 
 /* USB device ID list */
-static struct usb_device_id hackrf_id_table[] = {
+static const struct usb_device_id hackrf_id_table[] = {
 	{ USB_DEVICE(0x1d50, 0x6089) }, /* HackRF One */
 	{ }
 };

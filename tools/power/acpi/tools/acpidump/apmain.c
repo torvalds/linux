@@ -300,7 +300,7 @@ static int ap_do_options(int argc, char **argv)
  *
  ******************************************************************************/
 
-#ifndef _GNU_EFI
+#if !defined(_GNU_EFI) && !defined(_EDK2_EFI)
 int ACPI_SYSTEM_XFACE main(int argc, char *argv[])
 #else
 int ACPI_SYSTEM_XFACE acpi_main(int argc, char *argv[])

@@ -71,11 +71,11 @@ int mlx5_fpga_access_reg(struct mlx5_core_dev *dev, u8 size, u64 addr,
 	return 0;
 }
 
-int mlx5_fpga_caps(struct mlx5_core_dev *dev, u32 *caps)
+int mlx5_fpga_caps(struct mlx5_core_dev *dev)
 {
 	u32 in[MLX5_ST_SZ_DW(fpga_cap)] = {0};
 
-	return mlx5_core_access_reg(dev, in, sizeof(in), caps,
+	return mlx5_core_access_reg(dev, in, sizeof(in), dev->caps.fpga,
 				    MLX5_ST_SZ_BYTES(fpga_cap),
 				    MLX5_REG_FPGA_CAP, 0, 0);
 }

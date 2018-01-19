@@ -27,6 +27,7 @@ struct intel_soc_pmic_config {
 	const struct regmap_irq_chip *irq_chip;
 };
 
-extern struct intel_soc_pmic_config intel_soc_pmic_config_crc;
+extern struct intel_soc_pmic_config intel_soc_pmic_config_byt_crc;
+extern struct intel_soc_pmic_config intel_soc_pmic_config_cht_crc;
 
 #endif	/* __INTEL_SOC_PMIC_CORE_H__ */

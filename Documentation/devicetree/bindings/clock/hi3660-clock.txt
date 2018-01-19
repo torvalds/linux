@@ -38,5 +38,4 @@ Examples:
 		clocks = <&crg_ctrl HI3660_CLK_MUX_UART0>,
 			 <&crg_ctrl HI3660_PCLK>;
 		clock-names = "uartclk", "apb_pclk";
-		status = "disabled";
 	};

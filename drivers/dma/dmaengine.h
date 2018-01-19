@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * The contents of this file are private to DMA engine drivers, and is not
  * part of the API to be used by DMA engine users.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 r8712u-y :=				\
 		rtl871x_cmd.o		\
 		rtl8712_cmd.o		\

@@ -88,7 +88,8 @@ EXPORT_SYMBOL(key_task_permission);
  */
 int key_validate(const struct key *key)
 {
-	unsigned long flags = key->flags;
+	unsigned long flags = READ_ONCE(key->flags);
+	time_t expiry = READ_ONCE(key->expiry);
 
 	if (flags & (1 << KEY_FLAG_INVALIDATED))
 		return -ENOKEY;
@@ -99,9 +100,9 @@ int key_validate(const struct key *key)
 		return -EKEYREVOKED;
 
 	/* check it hasn't expired */
-	if (key->expiry) {
+	if (expiry) {
 		struct timespec now = current_kernel_time();
-		if (now.tv_sec >= key->expiry)
+		if (now.tv_sec >= expiry)
 			return -EKEYEXPIRED;
 	}
 

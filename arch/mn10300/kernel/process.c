@@ -59,10 +59,6 @@ void arch_cpu_idle(void)
 }
 #endif
 
-void release_segments(struct mm_struct *mm)
-{
-}
-
 void machine_restart(char *cmd)
 {
 #ifdef CONFIG_KERNEL_DEBUGGER
@@ -109,14 +105,6 @@ void flush_thread(void)
 }
 
 void release_thread(struct task_struct *dead_task)
-{
-}
-
-/*
- * we do not have to muck with descriptors here, that is
- * done in switch_mm() as needed.
- */
-void copy_segments(struct task_struct *p, struct mm_struct *new_mm)
 {
 }
 

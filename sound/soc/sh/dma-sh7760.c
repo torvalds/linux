@@ -89,7 +89,7 @@ struct camelot_pcm {
 #define DMABRG_PREALLOC_BUFFER		32 * 1024
 #define DMABRG_PREALLOC_BUFFER_MAX	32 * 1024
 
-static struct snd_pcm_hardware camelot_pcm_hardware = {
+static const struct snd_pcm_hardware camelot_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -294,7 +294,7 @@ static snd_pcm_uframes_t camelot_pos(struct snd_pcm_substream *substream)
 	return bytes_to_frames(runtime, pos);
 }
 
-static struct snd_pcm_ops camelot_pcm_ops = {
+static const struct snd_pcm_ops camelot_pcm_ops = {
 	.open		= camelot_pcm_open,
 	.close		= camelot_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -320,7 +320,7 @@ static int camelot_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_platform_driver sh7760_soc_platform = {
+static const struct snd_soc_platform_driver sh7760_soc_platform = {
 	.ops		= &camelot_pcm_ops,
 	.pcm_new	= camelot_pcm_new,
 };

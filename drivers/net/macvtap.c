@@ -49,7 +49,7 @@ static struct class macvtap_class = {
 static struct cdev macvtap_cdev;
 
 #define TUN_OFFLOADS (NETIF_F_HW_CSUM | NETIF_F_TSO_ECN | NETIF_F_TSO | \
-		      NETIF_F_TSO6 | NETIF_F_UFO)
+		      NETIF_F_TSO6)
 
 static void macvtap_count_tx_dropped(struct tap_dev *tap)
 {
@@ -204,8 +204,8 @@ static int macvtap_init(void)
 {
 	int err;
 
-	err = tap_create_cdev(&macvtap_cdev, &macvtap_major, "macvtap");
-
+	err = tap_create_cdev(&macvtap_cdev, &macvtap_major, "macvtap",
+			      THIS_MODULE);
 	if (err)
 		goto out1;
 

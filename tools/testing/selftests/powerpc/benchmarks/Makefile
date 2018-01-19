@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 TEST_GEN_PROGS := gettimeofday context_switch mmap_bench futex_bench null_syscall
 
 CFLAGS += -O2

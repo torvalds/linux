@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2007, Red Hat, Inc. */
 
 #ifndef _LBS_CMD_H_

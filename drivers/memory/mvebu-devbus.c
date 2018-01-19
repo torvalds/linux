@@ -105,8 +105,8 @@ static int get_timing_param_ps(struct devbus *devbus,
 
 	err = of_property_read_u32(node, name, &time_ps);
 	if (err < 0) {
-		dev_err(devbus->dev, "%s has no '%s' property\n",
-			name, node->full_name);
+		dev_err(devbus->dev, "%pOF has no '%s' property\n",
+			node, name);
 		return err;
 	}
 
@@ -127,8 +127,8 @@ static int devbus_get_timing_params(struct devbus *devbus,
 	err = of_property_read_u32(node, "devbus,bus-width", &r->bus_width);
 	if (err < 0) {
 		dev_err(devbus->dev,
-			"%s has no 'devbus,bus-width' property\n",
-			node->full_name);
+			"%pOF has no 'devbus,bus-width' property\n",
+			node);
 		return err;
 	}
 
@@ -180,8 +180,8 @@ static int devbus_get_timing_params(struct devbus *devbus,
 					   &w->sync_enable);
 		if (err < 0) {
 			dev_err(devbus->dev,
-				"%s has no 'devbus,sync-enable' property\n",
-				node->full_name);
+				"%pOF has no 'devbus,sync-enable' property\n",
+				node);
 			return err;
 		}
 	}

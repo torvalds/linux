@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Returns 0 if exception before NUL or reaching the supplied limit (N),
  * a value greater than N if the string is longer than the limit, else

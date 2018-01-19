@@ -12,6 +12,7 @@ Required properties:
    * "allwinner,sun4i-a10-mmc"
    * "allwinner,sun5i-a13-mmc"
    * "allwinner,sun7i-a20-mmc"
+   * "allwinner,sun8i-a83t-emmc"
    * "allwinner,sun9i-a80-mmc"
    * "allwinner,sun50i-a64-emmc"
    * "allwinner,sun50i-a64-mmc"

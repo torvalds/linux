@@ -205,5 +205,4 @@ Example:
 		rockchip,phy_lpddr4_ck_cs_drv = <PHY_DRV_ODT_80>;
 		rockchip,phy_lpddr4_dq_drv = <PHY_DRV_ODT_80>;
 		rockchip,phy_lpddr4_odt = <PHY_DRV_ODT_60>;
-		status = "disabled";
 	};

@@ -415,7 +415,6 @@ static int xgene_edac_mc_add(struct xgene_edac *edac, struct device_node *np)
 	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = "0.1";
 	mci->ctl_page_to_phys = NULL;
 	mci->scrub_cap = SCRUB_FLAG_HW_SRC;
 	mci->scrub_mode = SCRUB_HW_SRC;

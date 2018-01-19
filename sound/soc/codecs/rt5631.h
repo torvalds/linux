@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __RTCODEC5631_H__
 #define __RTCODEC5631_H__
 

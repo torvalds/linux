@@ -1,7 +1,7 @@
 #include <linux/bootmem.h>
 #include <linux/gfp.h>
 #include <linux/export.h>
-#include <linux/rwlock.h>
+#include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/dma-mapping.h>

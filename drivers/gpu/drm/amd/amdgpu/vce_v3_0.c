@@ -365,15 +365,10 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
-	/* Fiji, Stoney, Polaris10, Polaris11, Polaris12 are single pipe */
 	if ((adev->asic_type == CHIP_FIJI) ||
-	    (adev->asic_type == CHIP_STONEY) ||
-	    (adev->asic_type == CHIP_POLARIS10) ||
-	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12))
+	    (adev->asic_type == CHIP_STONEY))
 		return AMDGPU_VCE_HARVEST_VCE1;
 
-	/* Tonga and CZ are dual or single pipe */
 	if (adev->flags & AMD_IS_APU)
 		tmp = (RREG32_SMC(ixVCE_HARVEST_FUSE_MACRO__ADDRESS) &
 		       VCE_HARVEST_FUSE_MACRO__MASK) >>
@@ -391,6 +386,11 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 	case 3:
 		return AMDGPU_VCE_HARVEST_VCE0 | AMDGPU_VCE_HARVEST_VCE1;
 	default:
+		if ((adev->asic_type == CHIP_POLARIS10) ||
+		    (adev->asic_type == CHIP_POLARIS11) ||
+		    (adev->asic_type == CHIP_POLARIS12))
+			return AMDGPU_VCE_HARVEST_VCE1;
+
 		return 0;
 	}
 }

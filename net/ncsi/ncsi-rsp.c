@@ -354,7 +354,8 @@ static int ncsi_rsp_handler_svf(struct ncsi_request *nr)
 
 	/* Add or remove the VLAN filter */
 	if (!(cmd->enable & 0x1)) {
-		ret = ncsi_remove_filter(nc, NCSI_FILTER_VLAN, cmd->index);
+		/* HW indexes from 1 */
+		ret = ncsi_remove_filter(nc, NCSI_FILTER_VLAN, cmd->index - 1);
 	} else {
 		vlan = ntohs(cmd->vlan);
 		ret = ncsi_add_filter(nc, NCSI_FILTER_VLAN, &vlan);
@@ -693,7 +694,14 @@ static int ncsi_rsp_handler_gc(struct ncsi_request *nr)
 
 		ncf->index = i;
 		ncf->total = cnt;
-		ncf->bitmap = 0x0ul;
+		if (i == NCSI_FILTER_VLAN) {
+			/* Set VLAN filters active so they are cleared in
+			 * first configuration state
+			 */
+			ncf->bitmap = U64_MAX;
+		} else {
+			ncf->bitmap = 0x0ul;
+		}
 		nc->filters[i] = ncf;
 	}
 
@@ -951,7 +959,7 @@ static struct ncsi_rsp_handler {
 	{ NCSI_PKT_RSP_EGMF,    4, ncsi_rsp_handler_egmf    },
 	{ NCSI_PKT_RSP_DGMF,    4, ncsi_rsp_handler_dgmf    },
 	{ NCSI_PKT_RSP_SNFC,    4, ncsi_rsp_handler_snfc    },
-	{ NCSI_PKT_RSP_GVI,    36, ncsi_rsp_handler_gvi     },
+	{ NCSI_PKT_RSP_GVI,    40, ncsi_rsp_handler_gvi     },
 	{ NCSI_PKT_RSP_GC,     32, ncsi_rsp_handler_gc      },
 	{ NCSI_PKT_RSP_GP,     -1, ncsi_rsp_handler_gp      },
 	{ NCSI_PKT_RSP_GCPS,  172, ncsi_rsp_handler_gcps    },

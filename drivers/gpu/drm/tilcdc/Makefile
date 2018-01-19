@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ifeq (, $(findstring -W,$(EXTRA_CFLAGS)))
 	ccflags-y += -Werror
 endif

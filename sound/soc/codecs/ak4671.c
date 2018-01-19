@@ -610,7 +610,7 @@ static struct snd_soc_dai_driver ak4671_dai = {
 	.ops = &ak4671_dai_ops,
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_ak4671 = {
+static const struct snd_soc_codec_driver soc_codec_dev_ak4671 = {
 	.set_bias_level = ak4671_set_bias_level,
 	.component_driver = {
 		.controls		= ak4671_snd_controls,

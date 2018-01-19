@@ -117,7 +117,11 @@ static struct kvm_task_sleep_node *_find_apf_task(struct kvm_task_sleep_head *b,
 	return NULL;
 }
 
-void kvm_async_pf_task_wait(u32 token)
+/*
+ * @interrupt_kernel: Is this called from a routine which interrupts the kernel
+ * 		      (other than user space)?
+ */
+void kvm_async_pf_task_wait(u32 token, int interrupt_kernel)
 {
 	u32 key = hash_32(token, KVM_TASK_SLEEP_HASHBITS);
 	struct kvm_task_sleep_head *b = &async_pf_sleepers[key];
@@ -140,7 +144,10 @@ void kvm_async_pf_task_wait(u32 token)
 
 	n.token = token;
 	n.cpu = smp_processor_id();
-	n.halted = is_idle_task(current) || preempt_count() > 1;
+	n.halted = is_idle_task(current) ||
+		   (IS_ENABLED(CONFIG_PREEMPT_COUNT)
+		    ? preempt_count() > 1 || rcu_preempt_depth()
+		    : interrupt_kernel);
 	init_swait_queue_head(&n.wq);
 	hlist_add_head(&n.link, &b->list);
 	raw_spin_unlock(&b->lock);
@@ -180,7 +187,7 @@ static void apf_task_wake_one(struct kvm_task_sleep_node *n)
 	hlist_del_init(&n->link);
 	if (n->halted)
 		smp_send_reschedule(n->cpu);
-	else if (swait_active(&n->wq))
+	else if (swq_has_sleeper(&n->wq))
 		swake_up(&n->wq);
 }
 
@@ -263,12 +270,12 @@ do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 	switch (kvm_read_and_reset_pf_reason()) {
 	default:
-		trace_do_page_fault(regs, error_code);
+		do_page_fault(regs, error_code);
 		break;
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
 		/* page is swapped out by the host. */
 		prev_state = exception_enter();
-		kvm_async_pf_task_wait((u32)read_cr2());
+		kvm_async_pf_task_wait((u32)read_cr2(), !user_mode(regs));
 		exception_exit(prev_state);
 		break;
 	case KVM_PV_REASON_PAGE_READY:
@@ -455,7 +462,7 @@ static int kvm_cpu_down_prepare(unsigned int cpu)
 
 static void __init kvm_apf_trap_init(void)
 {
-	set_intr_gate(14, async_page_fault);
+	update_intr_gate(X86_TRAP_PF, async_page_fault);
 }
 
 void __init kvm_guest_init(void)

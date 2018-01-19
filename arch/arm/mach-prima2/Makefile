@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-y += rstc.o
 obj-y += common.o
 obj-y += rtciobrg.o

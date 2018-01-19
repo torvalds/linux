@@ -282,7 +282,7 @@ static void stop_streaming(struct vb2_queue *vq)
  * vb2_ops_wait_prepare/finish helper functions. If q->lock would be NULL,
  * then this driver would have to provide these ops.
  */
-static struct vb2_ops skel_qops = {
+static const struct vb2_ops skel_qops = {
 	.queue_setup		= queue_setup,
 	.buf_prepare		= buffer_prepare,
 	.buf_queue		= buffer_queue,

@@ -19,11 +19,11 @@
  */
 #if defined(CONFIG_PPC64) && !defined(__powerpc64__)
 /* 64 bits kernel, 32 bits code (ie. vdso32) */
-#define FTR_ENTRY_LONG		.llong
+#define FTR_ENTRY_LONG		.8byte
 #define FTR_ENTRY_OFFSET	.long 0xffffffff; .long
 #elif defined(CONFIG_PPC64)
-#define FTR_ENTRY_LONG		.llong
-#define FTR_ENTRY_OFFSET	.llong
+#define FTR_ENTRY_LONG		.8byte
+#define FTR_ENTRY_OFFSET	.8byte
 #else
 #define FTR_ENTRY_LONG		.long
 #define FTR_ENTRY_OFFSET	.long

@@ -1,0 +1,12 @@
+menu "Amlogic SoC drivers"
+
+config MESON_GX_SOCINFO
+	bool "Amlogic Meson GX SoC Information driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	default ARCH_MESON
+	select SOC_BUS
+	help
+	  Say yes to support decoding of Amlogic Meson GX SoC family
+	  information about the type, package and version.
+
+endmenu

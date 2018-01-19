@@ -18,4 +18,3 @@ CA Function Calls
     ca-get-msg
     ca-send-msg
     ca-set-descr
-    ca-set-pid

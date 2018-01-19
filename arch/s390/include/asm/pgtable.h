@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -11,19 +12,6 @@
 #ifndef _ASM_S390_PGTABLE_H
 #define _ASM_S390_PGTABLE_H
 
-/*
- * The Linux memory management assumes a three-level page table setup.
- * For s390 64 bit we use up to four of the five levels the hardware
- * provides (region first tables are not used).
- *
- * The "pgd_xxx()" functions are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- *
- * This file contains the functions and defines necessary to modify and use
- * the S390 page table tree.
- */
-#ifndef __ASSEMBLY__
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
@@ -34,9 +22,6 @@
 
 extern pgd_t swapper_pg_dir[];
 extern void paging_init(void);
-extern void vmem_map_init(void);
-pmd_t *vmem_pmd_alloc(void);
-pte_t *vmem_pte_alloc(void);
 
 enum {
 	PG_DIRECT_MAP_4K = 0,
@@ -77,38 +62,6 @@ extern unsigned long zero_page_mask;
 #define __HAVE_COLOR_ZERO_PAGE
 
 /* TODO: s390 cannot support io_remap_pfn_range... */
-#endif /* !__ASSEMBLY__ */
-
-/*
- * PMD_SHIFT determines the size of the area a second-level page
- * table can map
- * PGDIR_SHIFT determines what a third-level page table entry can map
- */
-#define PMD_SHIFT	20
-#define PUD_SHIFT	31
-#define P4D_SHIFT	42
-#define PGDIR_SHIFT	53
-
-#define PMD_SIZE        (1UL << PMD_SHIFT)
-#define PMD_MASK        (~(PMD_SIZE-1))
-#define PUD_SIZE	(1UL << PUD_SHIFT)
-#define PUD_MASK	(~(PUD_SIZE-1))
-#define P4D_SIZE	(1UL << P4D_SHIFT)
-#define P4D_MASK	(~(P4D_SIZE-1))
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
-#define PGDIR_MASK	(~(PGDIR_SIZE-1))
-
-/*
- * entries per page directory level: the S390 is two-level, so
- * we don't really have any PMD directory physically.
- * for S390 segment-table entries are combined to one PGD
- * that leads to 1024 pte per pgd
- */
-#define PTRS_PER_PTE	256
-#define PTRS_PER_PMD	2048
-#define PTRS_PER_PUD	2048
-#define PTRS_PER_P4D	2048
-#define PTRS_PER_PGD	2048
 
 #define FIRST_USER_ADDRESS  0UL
 
@@ -123,7 +76,6 @@ extern unsigned long zero_page_mask;
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %p.\n", __FILE__, __LINE__, (void *) pgd_val(e))
 
-#ifndef __ASSEMBLY__
 /*
  * The vmalloc and module area will always be on the topmost area of the
  * kernel mapping. We reserve 128GB (64bit) for vmalloc and modules.
@@ -269,7 +221,7 @@ static inline int is_module_addr(void *addr)
  */
 
 /* Bits in the segment/region table address-space-control-element */
-#define _ASCE_ORIGIN		~0xfffUL/* segment table origin		    */
+#define _ASCE_ORIGIN		~0xfffUL/* region/segment table origin	    */
 #define _ASCE_PRIVATE_SPACE	0x100	/* private space control	    */
 #define _ASCE_ALT_EVENT		0x80	/* storage alteration event control */
 #define _ASCE_SPACE_SWITCH	0x40	/* space switch event		    */
@@ -320,9 +272,9 @@ static inline int is_module_addr(void *addr)
 #define _SEGMENT_ENTRY_BITS	0xfffffffffffffe33UL
 #define _SEGMENT_ENTRY_BITS_LARGE 0xfffffffffff0ff33UL
 #define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
-#define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* segment table origin		    */
-#define _SEGMENT_ENTRY_PROTECT	0x200	/* page protection bit		    */
-#define _SEGMENT_ENTRY_NOEXEC	0x100	/* region no-execute bit	    */
+#define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* page table origin		    */
+#define _SEGMENT_ENTRY_PROTECT	0x200	/* segment protection bit	    */
+#define _SEGMENT_ENTRY_NOEXEC	0x100	/* segment no-execute bit	    */
 #define _SEGMENT_ENTRY_INVALID	0x20	/* invalid segment table entry	    */
 
 #define _SEGMENT_ENTRY		(0)
@@ -339,6 +291,54 @@ static inline int is_module_addr(void *addr)
 #else
 #define _SEGMENT_ENTRY_SOFT_DIRTY 0x0000 /* SW segment soft dirty bit */
 #endif
+
+#define _CRST_ENTRIES	2048	/* number of region/segment table entries */
+#define _PAGE_ENTRIES	256	/* number of page table entries	*/
+
+#define _CRST_TABLE_SIZE (_CRST_ENTRIES * 8)
+#define _PAGE_TABLE_SIZE (_PAGE_ENTRIES * 8)
+
+#define _REGION1_SHIFT	53
+#define _REGION2_SHIFT	42
+#define _REGION3_SHIFT	31
+#define _SEGMENT_SHIFT	20
+
+#define _REGION1_INDEX	(0x7ffUL << _REGION1_SHIFT)
+#define _REGION2_INDEX	(0x7ffUL << _REGION2_SHIFT)
+#define _REGION3_INDEX	(0x7ffUL << _REGION3_SHIFT)
+#define _SEGMENT_INDEX	(0x7ffUL << _SEGMENT_SHIFT)
+#define _PAGE_INDEX	(0xffUL  << _PAGE_SHIFT)
+
+#define _REGION1_SIZE	(1UL << _REGION1_SHIFT)
+#define _REGION2_SIZE	(1UL << _REGION2_SHIFT)
+#define _REGION3_SIZE	(1UL << _REGION3_SHIFT)
+#define _SEGMENT_SIZE	(1UL << _SEGMENT_SHIFT)
+
+#define _REGION1_MASK	(~(_REGION1_SIZE - 1))
+#define _REGION2_MASK	(~(_REGION2_SIZE - 1))
+#define _REGION3_MASK	(~(_REGION3_SIZE - 1))
+#define _SEGMENT_MASK	(~(_SEGMENT_SIZE - 1))
+
+#define PMD_SHIFT	_SEGMENT_SHIFT
+#define PUD_SHIFT	_REGION3_SHIFT
+#define P4D_SHIFT	_REGION2_SHIFT
+#define PGDIR_SHIFT	_REGION1_SHIFT
+
+#define PMD_SIZE	_SEGMENT_SIZE
+#define PUD_SIZE	_REGION3_SIZE
+#define P4D_SIZE	_REGION2_SIZE
+#define PGDIR_SIZE	_REGION1_SIZE
+
+#define PMD_MASK	_SEGMENT_MASK
+#define PUD_MASK	_REGION3_MASK
+#define P4D_MASK	_REGION2_MASK
+#define PGDIR_MASK	_REGION1_MASK
+
+#define PTRS_PER_PTE	_PAGE_ENTRIES
+#define PTRS_PER_PMD	_CRST_ENTRIES
+#define PTRS_PER_PUD	_CRST_ENTRIES
+#define PTRS_PER_P4D	_CRST_ENTRIES
+#define PTRS_PER_PGD	_CRST_ENTRIES
 
 /*
  * Segment table and region3 table entry encoding
@@ -376,6 +376,7 @@ static inline int is_module_addr(void *addr)
 
 /* Guest Page State used for virtualization */
 #define _PGSTE_GPS_ZERO			0x0000000080000000UL
+#define _PGSTE_GPS_NODAT		0x0000000040000000UL
 #define _PGSTE_GPS_USAGE_MASK		0x0000000003000000UL
 #define _PGSTE_GPS_USAGE_STABLE		0x0000000000000000UL
 #define _PGSTE_GPS_USAGE_UNUSED		0x0000000001000000UL
@@ -505,7 +506,7 @@ static inline int mm_alloc_pgste(struct mm_struct *mm)
  * In the case that a guest uses storage keys
  * faults should no longer be backed by zero pages
  */
-#define mm_forbids_zeropage mm_use_skey
+#define mm_forbids_zeropage mm_has_pgste
 static inline int mm_use_skey(struct mm_struct *mm)
 {
 #ifdef CONFIG_PGSTE
@@ -952,15 +953,30 @@ static inline pte_t pte_mkhuge(pte_t pte)
 #define IPTE_GLOBAL	0
 #define	IPTE_LOCAL	1
 
-static inline void __ptep_ipte(unsigned long address, pte_t *ptep, int local)
+#define IPTE_NODAT	0x400
+#define IPTE_GUEST_ASCE	0x800
+
+static inline void __ptep_ipte(unsigned long address, pte_t *ptep,
+			       unsigned long opt, unsigned long asce,
+			       int local)
 {
 	unsigned long pto = (unsigned long) ptep;
 
-	/* Invalidation + TLB flush for the pte */
+	if (__builtin_constant_p(opt) && opt == 0) {
+		/* Invalidation + TLB flush for the pte */
+		asm volatile(
+			"	.insn	rrf,0xb2210000,%[r1],%[r2],0,%[m4]"
+			: "+m" (*ptep) : [r1] "a" (pto), [r2] "a" (address),
+			  [m4] "i" (local));
+		return;
+	}
+
+	/* Invalidate ptes with options + TLB flush of the ptes */
+	opt = opt | (asce & _ASCE_ORIGIN);
 	asm volatile(
-		"       .insn rrf,0xb2210000,%[r1],%[r2],0,%[m4]"
-		: "+m" (*ptep) : [r1] "a" (pto), [r2] "a" (address),
-		  [m4] "i" (local));
+		"	.insn	rrf,0xb2210000,%[r1],%[r2],%[r3],%[m4]"
+		: [r2] "+a" (address), [r3] "+a" (opt)
+		: [r1] "a" (pto), [m4] "i" (local) : "memory");
 }
 
 static inline void __ptep_ipte_range(unsigned long address, int nr,
@@ -1341,31 +1357,61 @@ static inline void __pmdp_csp(pmd_t *pmdp)
 #define IDTE_GLOBAL	0
 #define IDTE_LOCAL	1
 
-static inline void __pmdp_idte(unsigned long address, pmd_t *pmdp, int local)
+#define IDTE_PTOA	0x0800
+#define IDTE_NODAT	0x1000
+#define IDTE_GUEST_ASCE	0x2000
+
+static inline void __pmdp_idte(unsigned long addr, pmd_t *pmdp,
+			       unsigned long opt, unsigned long asce,
+			       int local)
 {
 	unsigned long sto;
 
-	sto = (unsigned long) pmdp - pmd_index(address) * sizeof(pmd_t);
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
-		: "+m" (*pmdp)
-		: [r1] "a" (sto), [r2] "a" ((address & HPAGE_MASK)),
-		  [m4] "i" (local)
-		: "cc" );
+	sto = (unsigned long) pmdp - pmd_index(addr) * sizeof(pmd_t);
+	if (__builtin_constant_p(opt) && opt == 0) {
+		/* flush without guest asce */
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+			: "+m" (*pmdp)
+			: [r1] "a" (sto), [r2] "a" ((addr & HPAGE_MASK)),
+			  [m4] "i" (local)
+			: "cc" );
+	} else {
+		/* flush with guest asce */
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,%[r1],%[r2],%[r3],%[m4]"
+			: "+m" (*pmdp)
+			: [r1] "a" (sto), [r2] "a" ((addr & HPAGE_MASK) | opt),
+			  [r3] "a" (asce), [m4] "i" (local)
+			: "cc" );
+	}
 }
 
-static inline void __pudp_idte(unsigned long address, pud_t *pudp, int local)
+static inline void __pudp_idte(unsigned long addr, pud_t *pudp,
+			       unsigned long opt, unsigned long asce,
+			       int local)
 {
 	unsigned long r3o;
 
-	r3o = (unsigned long) pudp - pud_index(address) * sizeof(pud_t);
+	r3o = (unsigned long) pudp - pud_index(addr) * sizeof(pud_t);
 	r3o |= _ASCE_TYPE_REGION3;
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
-		: "+m" (*pudp)
-		: [r1] "a" (r3o), [r2] "a" ((address & PUD_MASK)),
-		  [m4] "i" (local)
-		: "cc");
+	if (__builtin_constant_p(opt) && opt == 0) {
+		/* flush without guest asce */
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+			: "+m" (*pudp)
+			: [r1] "a" (r3o), [r2] "a" ((addr & PUD_MASK)),
+			  [m4] "i" (local)
+			: "cc");
+	} else {
+		/* flush with guest asce */
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,%[r1],%[r2],%[r3],%[m4]"
+			: "+m" (*pudp)
+			: [r1] "a" (r3o), [r2] "a" ((addr & PUD_MASK) | opt),
+			  [r3] "a" (asce), [m4] "i" (local)
+			: "cc" );
+	}
 }
 
 pmd_t pmdp_xchg_direct(struct mm_struct *, unsigned long, pmd_t *, pmd_t);
@@ -1462,7 +1508,9 @@ static inline pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma,
 static inline void pmdp_invalidate(struct vm_area_struct *vma,
 				   unsigned long addr, pmd_t *pmdp)
 {
-	pmdp_xchg_direct(vma->vm_mm, addr, pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
+	pmd_t pmd = __pmd(pmd_val(*pmdp) | _SEGMENT_ENTRY_INVALID);
+
+	pmdp_xchg_direct(vma->vm_mm, addr, pmdp, pmd);
 }
 
 #define __HAVE_ARCH_PMDP_SET_WRPROTECT
@@ -1547,8 +1595,6 @@ static inline swp_entry_t __swp_entry(unsigned long type, unsigned long offset)
 
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
-
-#endif /* !__ASSEMBLY__ */
 
 #define kern_addr_valid(addr)   (1)
 

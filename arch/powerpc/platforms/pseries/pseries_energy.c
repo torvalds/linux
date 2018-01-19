@@ -229,10 +229,9 @@ static int __init pseries_energy_init(void)
 	int cpu, err;
 	struct device *cpu_dev;
 
-	if (!firmware_has_feature(FW_FEATURE_BEST_ENERGY)) {
-		printk(KERN_INFO "Hypercall H_BEST_ENERGY not supported\n");
-		return 0;
-	}
+	if (!firmware_has_feature(FW_FEATURE_BEST_ENERGY))
+		return 0; /* H_BEST_ENERGY hcall not supported */
+
 	/* Create the sysfs files */
 	err = device_create_file(cpu_subsys.dev_root,
 				&attr_cpu_activate_hint_list);

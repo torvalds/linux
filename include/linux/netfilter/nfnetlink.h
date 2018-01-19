@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NFNETLINK_H
 #define _NFNETLINK_H
 

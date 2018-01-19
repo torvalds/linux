@@ -268,7 +268,7 @@ static int stm32_dac_chan_of_init(struct iio_dev *indio_dev)
 			break;
 	}
 	if (i >= ARRAY_SIZE(stm32_dac_channels)) {
-		dev_err(&indio_dev->dev, "Invalid st,dac-channel\n");
+		dev_err(&indio_dev->dev, "Invalid reg property\n");
 		return -EINVAL;
 	}
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
  *  Copyright (C) 2000, 2003  Maciej W. Rozycki

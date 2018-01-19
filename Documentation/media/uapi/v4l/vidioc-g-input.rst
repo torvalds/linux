@@ -29,6 +29,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer an integer with input index.
 
 
 Description

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 btcoexist-objs :=	halbtc8192e2ant.o	\
 			halbtc8723b1ant.o	\
 			halbtc8723b2ant.o	\

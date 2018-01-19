@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ATMEL_ISC_REGS_H
 #define __ATMEL_ISC_REGS_H
 

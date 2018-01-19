@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "xyarray.h"
 #include "util.h"
 #include <stdlib.h>
@@ -12,6 +13,8 @@ struct xyarray *xyarray__new(int xlen, int ylen, size_t entry_size)
 		xy->entry_size = entry_size;
 		xy->row_size   = row_size;
 		xy->entries    = xlen * ylen;
+		xy->max_x      = xlen;
+		xy->max_y      = ylen;
 	}
 
 	return xy;

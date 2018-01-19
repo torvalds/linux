@@ -217,8 +217,6 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 		case 2:
 			num_cnt = sizeof(dpni_stats.page_2) / sizeof(u64);
 			break;
-		default:
-			break;
 		}
 		for (k = 0; k < num_cnt; k++)
 			*(data + i++) = dpni_stats.raw.counter[k];

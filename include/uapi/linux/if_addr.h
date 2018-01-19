@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_IF_ADDR_H
 #define __LINUX_IF_ADDR_H
 

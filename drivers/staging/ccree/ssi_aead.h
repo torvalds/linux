@@ -69,8 +69,8 @@ struct aead_req_ctx {
 	u8 gcm_iv_inc2[AES_BLOCK_SIZE] ____cacheline_aligned;
 	u8 hkey[AES_BLOCK_SIZE] ____cacheline_aligned;
 	struct {
-		u8 lenA[GCM_BLOCK_LEN_SIZE] ____cacheline_aligned;
-		u8 lenC[GCM_BLOCK_LEN_SIZE];
+		u8 len_a[GCM_BLOCK_LEN_SIZE] ____cacheline_aligned;
+		u8 len_c[GCM_BLOCK_LEN_SIZE];
 	} gcm_len_block;
 
 	u8 ccm_config[CCM_CONFIG_BUF_SIZE] ____cacheline_aligned;
@@ -94,10 +94,10 @@ struct aead_req_ctx {
 	struct ssi_mlli assoc;
 	struct ssi_mlli src;
 	struct ssi_mlli dst;
-	struct scatterlist *srcSgl;
-	struct scatterlist *dstSgl;
-	unsigned int srcOffset;
-	unsigned int dstOffset;
+	struct scatterlist *src_sgl;
+	struct scatterlist *dst_sgl;
+	unsigned int src_offset;
+	unsigned int dst_offset;
 	enum ssi_req_dma_buf_type assoc_buff_type;
 	enum ssi_req_dma_buf_type data_buff_type;
 	struct mlli_params mlli_params;

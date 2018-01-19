@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * IPv6 Address Label subsystem
  * for the IPv6 "Default" Source Address Selection
@@ -405,6 +406,18 @@ static const struct nla_policy ifal_policy[IFAL_MAX+1] = {
 	[IFAL_LABEL]		= { .len = sizeof(u32), },
 };
 
+static bool addrlbl_ifindex_exists(struct net *net, int ifindex)
+{
+
+	struct net_device *dev;
+
+	rcu_read_lock();
+	dev = dev_get_by_index_rcu(net, ifindex);
+	rcu_read_unlock();
+
+	return dev != NULL;
+}
+
 static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 			     struct netlink_ext_ack *extack)
 {
@@ -439,7 +452,7 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 	switch (nlh->nlmsg_type) {
 	case RTM_NEWADDRLABEL:
 		if (ifal->ifal_index &&
-		    !__dev_get_by_index(net, ifal->ifal_index))
+		    !addrlbl_ifindex_exists(net, ifal->ifal_index))
 			return -EINVAL;
 
 		err = ip6addrlbl_add(net, pfx, ifal->ifal_prefixlen,
@@ -548,7 +561,7 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 
 	if (ifal->ifal_index &&
-	    !__dev_get_by_index(net, ifal->ifal_index))
+	    !addrlbl_ifindex_exists(net, ifal->ifal_index))
 		return -EINVAL;
 
 	if (!tb[IFAL_ADDRESS])
@@ -593,10 +606,10 @@ out:
 void __init ipv6_addr_label_rtnl_register(void)
 {
 	__rtnl_register(PF_INET6, RTM_NEWADDRLABEL, ip6addrlbl_newdel,
-			NULL, NULL);
+			NULL, RTNL_FLAG_DOIT_UNLOCKED);
 	__rtnl_register(PF_INET6, RTM_DELADDRLABEL, ip6addrlbl_newdel,
-			NULL, NULL);
+			NULL, RTNL_FLAG_DOIT_UNLOCKED);
 	__rtnl_register(PF_INET6, RTM_GETADDRLABEL, ip6addrlbl_get,
-			ip6addrlbl_dump, NULL);
+			ip6addrlbl_dump, RTNL_FLAG_DOIT_UNLOCKED);
 }
 

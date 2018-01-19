@@ -43,7 +43,7 @@ static int next_opcode(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 
 static inline void retry_first_write_send(struct rxe_qp *qp,
 					  struct rxe_send_wqe *wqe,
-					  unsigned mask, int npsn)
+					  unsigned int mask, int npsn)
 {
 	int i;
 
@@ -594,8 +594,10 @@ int rxe_requester(void *arg)
 	rxe_add_ref(qp);
 
 next_wqe:
-	if (unlikely(!qp->valid))
+	if (unlikely(!qp->valid)) {
+		rxe_drain_req_pkts(qp, true);
 		goto exit;
+	}
 
 	if (unlikely(qp->req.state == QP_STATE_ERROR)) {
 		rxe_drain_req_pkts(qp, true);

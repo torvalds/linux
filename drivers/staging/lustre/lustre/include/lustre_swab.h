@@ -48,7 +48,7 @@
 #ifndef _LUSTRE_SWAB_H_
 #define _LUSTRE_SWAB_H_
 
-#include "lustre/lustre_idl.h"
+#include <uapi/linux/lustre/lustre_idl.h>
 
 void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 void lustre_swab_connect(struct obd_connect_data *ocd);
@@ -98,5 +98,11 @@ void lustre_swab_hsm_request(struct hsm_request *hr);
 void lustre_swab_swap_layouts(struct mdc_swap_layouts *msl);
 void lustre_swab_close_data(struct close_data *data);
 void lustre_swab_lmv_user_md(struct lmv_user_md *lum);
+
+/* Functions for dumping PTLRPC fields */
+void dump_rniobuf(struct niobuf_remote *rnb);
+void dump_ioo(struct obd_ioobj *nb);
+void dump_ost_body(struct ost_body *ob);
+void dump_rcs(__u32 *rc);
 
 #endif

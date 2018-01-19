@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	linux/include/asm-alpha/err_common.h
  *

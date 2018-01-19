@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_MICROBLAZE_SYSCALL_H
 #define __ASM_MICROBLAZE_SYSCALL_H
 

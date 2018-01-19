@@ -84,14 +84,11 @@ static const struct venus_format venc_formats[] = {
 		.pixfmt = V4L2_PIX_FMT_VP8,
 		.num_planes = 1,
 		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
-	}, {
-		.pixfmt = V4L2_PIX_FMT_VP9,
-		.num_planes = 1,
-		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
 	},
 };
 
-static const struct venus_format *find_format(u32 pixfmt, u32 type)
+static const struct venus_format *
+find_format(struct venus_inst *inst, u32 pixfmt, u32 type)
 {
 	const struct venus_format *fmt = venc_formats;
 	unsigned int size = ARRAY_SIZE(venc_formats);
@@ -105,11 +102,15 @@ static const struct venus_format *find_format(u32 pixfmt, u32 type)
 	if (i == size || fmt[i].type != type)
 		return NULL;
 
+	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
+	    !venus_helper_check_codec(inst, fmt[i].pixfmt))
+		return NULL;
+
 	return &fmt[i];
 }
 
 static const struct venus_format *
-find_format_by_index(unsigned int index, u32 type)
+find_format_by_index(struct venus_inst *inst, unsigned int index, u32 type)
 {
 	const struct venus_format *fmt = venc_formats;
 	unsigned int size = ARRAY_SIZE(venc_formats);
@@ -127,6 +128,10 @@ find_format_by_index(unsigned int index, u32 type)
 	}
 
 	if (i == size)
+		return NULL;
+
+	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
+	    !venus_helper_check_codec(inst, fmt[i].pixfmt))
 		return NULL;
 
 	return &fmt[i];
@@ -246,9 +251,10 @@ venc_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 
 static int venc_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 {
+	struct venus_inst *inst = to_inst(file);
 	const struct venus_format *fmt;
 
-	fmt = find_format_by_index(f->index, f->type);
+	fmt = find_format_by_index(inst, f->index, f->type);
 
 	memset(f->reserved, 0, sizeof(f->reserved));
 
@@ -271,7 +277,7 @@ venc_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 	memset(pfmt[0].reserved, 0, sizeof(pfmt[0].reserved));
 	memset(pixmp->reserved, 0, sizeof(pixmp->reserved));
 
-	fmt = find_format(pixmp->pixelformat, f->type);
+	fmt = find_format(inst, pixmp->pixelformat, f->type);
 	if (!fmt) {
 		if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 			pixmp->pixelformat = V4L2_PIX_FMT_H264;
@@ -279,7 +285,7 @@ venc_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 			pixmp->pixelformat = V4L2_PIX_FMT_NV12;
 		else
 			return NULL;
-		fmt = find_format(pixmp->pixelformat, f->type);
+		fmt = find_format(inst, pixmp->pixelformat, f->type);
 		pixmp->width = 1280;
 		pixmp->height = 720;
 	}
@@ -289,7 +295,7 @@ venc_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 	pixmp->height = clamp(pixmp->height, inst->cap_height.min,
 			      inst->cap_height.max);
 
-	if (inst->core->res->hfi_version == HFI_VERSION_1XX)
+	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		pixmp->height = ALIGN(pixmp->height, 32);
 
 	pixmp->width = ALIGN(pixmp->width, 2);
@@ -524,10 +530,10 @@ static int venc_enum_framesizes(struct file *file, void *fh,
 
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
 
-	fmt = find_format(fsize->pixel_format,
+	fmt = find_format(inst, fsize->pixel_format,
 			  V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	if (!fmt) {
-		fmt = find_format(fsize->pixel_format,
+		fmt = find_format(inst, fsize->pixel_format,
 				  V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 		if (!fmt)
 			return -EINVAL;
@@ -554,10 +560,10 @@ static int venc_enum_frameintervals(struct file *file, void *fh,
 
 	fival->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 
-	fmt = find_format(fival->pixel_format,
+	fmt = find_format(inst, fival->pixel_format,
 			  V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	if (!fmt) {
-		fmt = find_format(fival->pixel_format,
+		fmt = find_format(inst, fival->pixel_format,
 				  V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 		if (!fmt)
 			return -EINVAL;
@@ -747,8 +753,8 @@ static int venc_init_session(struct venus_inst *inst)
 	if (ret)
 		return ret;
 
-	ret = venus_helper_set_input_resolution(inst, inst->out_width,
-						inst->out_height);
+	ret = venus_helper_set_input_resolution(inst, inst->width,
+						inst->height);
 	if (ret)
 		goto deinit;
 
@@ -1010,6 +1016,8 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->allow_zero_bytesused = 1;
 	src_vq->min_buffers_needed = 1;
 	src_vq->dev = inst->core->dev;
+	if (inst->core->res->hfi_version == HFI_VERSION_1XX)
+		src_vq->bidirectional = 1;
 	ret = vb2_queue_init(src_vq);
 	if (ret)
 		return ret;
@@ -1190,6 +1198,7 @@ static int venc_probe(struct platform_device *pdev)
 	if (!vdev)
 		return -ENOMEM;
 
+	strlcpy(vdev->name, "qcom-venus-encoder", sizeof(vdev->name));
 	vdev->release = video_device_release;
 	vdev->fops = &venc_fops;
 	vdev->ioctl_ops = &venc_ioctl_ops;
@@ -1224,8 +1233,7 @@ static int venc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int venc_runtime_suspend(struct device *dev)
+static __maybe_unused int venc_runtime_suspend(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
 
@@ -1239,7 +1247,7 @@ static int venc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int venc_runtime_resume(struct device *dev)
+static __maybe_unused int venc_runtime_resume(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
 	int ret;
@@ -1253,7 +1261,6 @@ static int venc_runtime_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops venc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,

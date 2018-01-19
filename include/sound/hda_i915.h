@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * HD-Audio helpers to sync with i915 driver
  */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *   S/390 debug facility
  *
@@ -866,7 +867,8 @@ static inline void
 debug_finish_entry(debug_info_t * id, debug_entry_t* active, int level,
 			int exception)
 {
-	active->id.stck = get_tod_clock_fast() - sched_clock_base_cc;
+	active->id.stck = get_tod_clock_fast() -
+		*(unsigned long long *) &tod_clock_base[1];
 	active->id.fields.cpuid = smp_processor_id();
 	active->caller = __builtin_return_address(0);
 	active->id.fields.exception = exception;
@@ -1455,15 +1457,15 @@ int
 debug_dflt_header_fn(debug_info_t * id, struct debug_view *view,
 			 int area, debug_entry_t * entry, char *out_buf)
 {
-	unsigned long sec, usec;
+	unsigned long base, sec, usec;
 	char *except_str;
 	unsigned long caller;
 	int rc = 0;
 	unsigned int level;
 
 	level = entry->id.fields.level;
-	sec = (entry->id.stck >> 12) + (sched_clock_base_cc >> 12);
-	sec = sec - (TOD_UNIX_EPOCH >> 12);
+	base = (*(unsigned long *) &tod_clock_base[0]) >> 4;
+	sec = (entry->id.stck >> 12) + base - (TOD_UNIX_EPOCH >> 12);
 	usec = do_div(sec, USEC_PER_SEC);
 
 	if (entry->id.fields.exception)

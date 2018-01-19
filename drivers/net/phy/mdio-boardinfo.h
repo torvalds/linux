@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mdio-boardinfo.h - board info interface internal to the mdio_bus
  * component

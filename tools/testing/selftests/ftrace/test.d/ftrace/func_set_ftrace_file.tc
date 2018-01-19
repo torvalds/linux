@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - test reading of set_ftrace_filter
 #
 # The set_ftrace_filter file of ftrace is used to list functions as well as

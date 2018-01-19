@@ -246,10 +246,15 @@ static const struct dev_pm_ops funnel_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(funnel_runtime_suspend, funnel_runtime_resume, NULL)
 };
 
-static struct amba_id funnel_ids[] = {
+static const struct amba_id funnel_ids[] = {
 	{
 		.id     = 0x0003b908,
 		.mask   = 0x0003ffff,
+	},
+	{
+		/* Coresight SoC-600 */
+		.id     = 0x000bb9eb,
+		.mask   = 0x000fffff,
 	},
 	{ 0, 0},
 };

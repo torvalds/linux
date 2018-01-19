@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SPARC_PTRACE_H
 #define __SPARC_PTRACE_H
 

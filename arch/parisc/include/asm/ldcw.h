@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PARISC_LDCW_H
 #define __PARISC_LDCW_H
 

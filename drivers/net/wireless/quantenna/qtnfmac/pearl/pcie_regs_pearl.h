@@ -109,6 +109,7 @@
 #define HHBM_WR_REQ				(BIT(0))
 #define HHBM_RD_REQ				(BIT(1))
 #define HHBM_DONE				(BIT(31))
+#define HHBM_64BIT				(BIT(10))
 
 /* offsets for dual PCIE */
 #define PCIE_PORT_LINK_CTL(base)		((base) + 0x0710)
@@ -333,6 +334,7 @@
 #define PCIE_HDP_INT_RX_LEN_ERR		(BIT(2))
 #define PCIE_HDP_INT_RX_HDR_LEN_ERR	(BIT(3))
 #define PCIE_HDP_INT_EP_TXDMA		(BIT(12))
+#define PCIE_HDP_INT_HHBM_UF		(BIT(13))
 #define PCIE_HDP_INT_EP_TXEMPTY		(BIT(15))
 #define PCIE_HDP_INT_IPC		(BIT(29))
 

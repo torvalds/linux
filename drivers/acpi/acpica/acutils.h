@@ -516,7 +516,7 @@ union acpi_generic_state *acpi_ut_create_update_state(union acpi_operand_object
 
 union acpi_generic_state *acpi_ut_create_pkg_state(void *internal_object,
 						   void *external_object,
-						   u16 index);
+						   u32 index);
 
 acpi_status
 acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
@@ -537,6 +537,13 @@ acpi_ut_divide(u64 in_dividend,
 acpi_status
 acpi_ut_short_divide(u64 in_dividend,
 		     u32 divisor, u64 *out_quotient, u32 *out_remainder);
+
+acpi_status
+acpi_ut_short_multiply(u64 in_multiplicand, u32 multiplier, u64 *outproduct);
+
+acpi_status acpi_ut_short_shift_left(u64 operand, u32 count, u64 *out_result);
+
+acpi_status acpi_ut_short_shift_right(u64 operand, u32 count, u64 *out_result);
 
 /*
  * utmisc

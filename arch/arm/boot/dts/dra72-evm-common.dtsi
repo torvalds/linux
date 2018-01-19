@@ -311,6 +311,7 @@
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
 			     <1 IRQ_TYPE_NONE>;	/* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 pin */
+		ti,nand-xfer-type = "prefetch-dma";
 		ti,nand-ecc-opt = "bch8";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <16>;
@@ -419,8 +420,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins_default>;
-
-	vmmc-supply = <&evm_3v3_sw>;
 	bus-width = <8>;
 	ti,non-removable;
 	max-frequency = <192000000>;
@@ -563,4 +562,8 @@
 	mbox_ipu2_ipc3x: mbox_ipu2_ipc3x {
 		status = "okay";
 	};
+};
+
+&pcie1_rc {
+	status = "okay";
 };

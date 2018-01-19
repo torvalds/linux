@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_GPIO_DRIVER_H
 #define __LINUX_GPIO_DRIVER_H
 
@@ -180,8 +181,27 @@ struct gpio_chip {
 	 * If CONFIG_OF is enabled, then all GPIO controllers described in the
 	 * device tree automatically may have an OF translation
 	 */
+
+	/**
+	 * @of_node:
+	 *
+	 * Pointer to a device tree node representing this GPIO controller.
+	 */
 	struct device_node *of_node;
-	int of_gpio_n_cells;
+
+	/**
+	 * @of_gpio_n_cells:
+	 *
+	 * Number of cells used to form the GPIO specifier.
+	 */
+	unsigned int of_gpio_n_cells;
+
+	/**
+	 * @of_xlate:
+	 *
+	 * Callback to translate a device tree GPIO specifier into a chip-
+	 * relative GPIO number and flags.
+	 */
 	int (*of_xlate)(struct gpio_chip *gc,
 			const struct of_phandle_args *gpiospec, u32 *flags);
 #endif
@@ -327,11 +347,10 @@ int gpiochip_generic_config(struct gpio_chip *chip, unsigned offset,
 
 /**
  * struct gpio_pin_range - pin range controlled by a gpio chip
- * @head: list for maintaining set of pin ranges, used internally
+ * @node: list for maintaining set of pin ranges, used internally
  * @pctldev: pinctrl device which handles corresponding pins
  * @range: actual range of pins controlled by a gpio controller
  */
-
 struct gpio_pin_range {
 	struct list_head node;
 	struct pinctrl_dev *pctldev;

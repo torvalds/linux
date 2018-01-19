@@ -2212,7 +2212,7 @@ static int uea_boot(struct uea_softc *sc)
 	ret = usb_submit_urb(sc->urb_int, GFP_KERNEL);
 	if (ret < 0) {
 		uea_err(INS_TO_USBDEV(sc),
-		       "urb submition failed with error %d\n", ret);
+		       "urb submission failed with error %d\n", ret);
 		goto err1;
 	}
 
@@ -2522,7 +2522,7 @@ static struct attribute *attrs[] = {
 	&dev_attr_stat_firmid.attr,
 	NULL,
 };
-static struct attribute_group attr_grp = {
+static const struct attribute_group attr_grp = {
 	.attrs = attrs,
 };
 

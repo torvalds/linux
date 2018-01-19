@@ -37,6 +37,7 @@
 #include <asm/synch.h>
 #include <asm/ppc-opcode.h>
 #include <asm/cputable.h>
+#include <asm/pte-walk.h>
 
 #include "trace_hv.h"
 
@@ -599,8 +600,8 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * hugepage split and collapse.
 			 */
 			local_irq_save(flags);
-			ptep = find_linux_pte_or_hugepte(current->mm->pgd,
-							 hva, NULL, NULL);
+			ptep = find_current_mm_pte(current->mm->pgd,
+						   hva, NULL, NULL);
 			if (ptep) {
 				pte = kvmppc_read_update_linux_pte(ptep, 1);
 				if (__pte_write(pte))
@@ -645,6 +646,16 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		hnow_v = hpte_new_to_old_v(hnow_v, hnow_r);
 		hnow_r = hpte_new_to_old_r(hnow_r);
 	}
+
+	/*
+	 * If the HPT is being resized, don't update the HPTE,
+	 * instead let the guest retry after the resize operation is complete.
+	 * The synchronization for hpte_setup_done test vs. set is provided
+	 * by the HPTE lock.
+	 */
+	if (!kvm->arch.hpte_setup_done)
+		goto out_unlock;
+
 	if ((hnow_v & ~HPTE_V_HVLOCK) != hpte[0] || hnow_r != hpte[1] ||
 	    rev->guest_rpte != hpte[2])
 		/* HPTE has been changed under us; let the guest retry */
@@ -1940,6 +1951,7 @@ int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *ghf)
 	rwflag = (ghf->flags & KVM_GET_HTAB_WRITE) ? O_WRONLY : O_RDONLY;
 	ret = anon_inode_getfd("kvm-htab", &kvm_htab_fops, ctx, rwflag | O_CLOEXEC);
 	if (ret < 0) {
+		kfree(ctx);
 		kvm_put_kvm(kvm);
 		return ret;
 	}

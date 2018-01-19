@@ -714,7 +714,7 @@ int afs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	       vnode->fid.vid, vnode->fid.vnode, file,
 	       datasync);
 
-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	ret = file_write_and_wait_range(file, start, end);
 	if (ret)
 		return ret;
 	inode_lock(inode);

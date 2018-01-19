@@ -70,7 +70,7 @@ ebt_out_hook(void *priv, struct sk_buff *skb,
 	return ebt_do_table(skb, state, state->net->xt.frame_filter);
 }
 
-static struct nf_hook_ops ebt_ops_filter[] __read_mostly = {
+static const struct nf_hook_ops ebt_ops_filter[] = {
 	{
 		.hook		= ebt_in_hook,
 		.pf		= NFPROTO_BRIDGE,
@@ -93,8 +93,8 @@ static struct nf_hook_ops ebt_ops_filter[] __read_mostly = {
 
 static int __net_init frame_filter_net_init(struct net *net)
 {
-	net->xt.frame_filter = ebt_register_table(net, &frame_filter, ebt_ops_filter);
-	return PTR_ERR_OR_ZERO(net->xt.frame_filter);
+	return ebt_register_table(net, &frame_filter, ebt_ops_filter,
+				  &net->xt.frame_filter);
 }
 
 static void __net_exit frame_filter_net_exit(struct net *net)

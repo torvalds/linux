@@ -222,7 +222,6 @@ static int mt8173_rt5650_rt5514_dev_probe(struct platform_device *pdev)
 		mt8173_rt5650_rt5514_codecs[1].of_node;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)

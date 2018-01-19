@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* OLPC machine specific definitions */
 
 #ifndef _ASM_X86_OLPC_H

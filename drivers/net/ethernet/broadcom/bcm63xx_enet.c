@@ -2674,7 +2674,7 @@ static int bcm_enetsw_set_ringparam(struct net_device *dev,
 	return 0;
 }
 
-static struct ethtool_ops bcm_enetsw_ethtool_ops = {
+static const struct ethtool_ops bcm_enetsw_ethtool_ops = {
 	.get_strings		= bcm_enetsw_get_strings,
 	.get_sset_count		= bcm_enetsw_get_sset_count,
 	.get_ethtool_stats      = bcm_enetsw_get_ethtool_stats,

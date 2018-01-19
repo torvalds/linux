@@ -898,6 +898,10 @@ static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
 static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
 {
 	unsigned int used_blocks = sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free);
+
+	if (test_and_clear_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags))
+		return 1;
+
 	return used_blocks + atomic_read(&sdp->sd_log_blks_needed) >=
 		atomic_read(&sdp->sd_log_thresh2);
 }
@@ -918,6 +922,15 @@ int gfs2_logd(void *data)
 	bool did_flush;
 
 	while (!kthread_should_stop()) {
+
+		/* Check for errors writing to the journal */
+		if (sdp->sd_log_error) {
+			gfs2_lm_withdraw(sdp,
+					 "GFS2: fsid=%s: error %d: "
+					 "withdrawing the file system to "
+					 "prevent further damage.\n",
+					 sdp->sd_fsname, sdp->sd_log_error);
+		}
 
 		did_flush = false;
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {

@@ -32,18 +32,17 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	u32 addr;
 	int len;
 
-	dev_dbg(&adap->dev, "of_i2c: register %s\n", node->full_name);
+	dev_dbg(&adap->dev, "of_i2c: register %pOF\n", node);
 
 	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
-		dev_err(&adap->dev, "of_i2c: modalias failure on %s\n",
-			node->full_name);
+		dev_err(&adap->dev, "of_i2c: modalias failure on %pOF\n",
+			node);
 		return ERR_PTR(-EINVAL);
 	}
 
 	addr_be = of_get_property(node, "reg", &len);
 	if (!addr_be || (len < sizeof(*addr_be))) {
-		dev_err(&adap->dev, "of_i2c: invalid reg on %s\n",
-			node->full_name);
+		dev_err(&adap->dev, "of_i2c: invalid reg on %pOF\n", node);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -59,8 +58,8 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	}
 
 	if (i2c_check_addr_validity(addr, info.flags)) {
-		dev_err(&adap->dev, "of_i2c: invalid addr=%x on %s\n",
-			addr, node->full_name);
+		dev_err(&adap->dev, "of_i2c: invalid addr=%x on %pOF\n",
+			addr, node);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -76,8 +75,7 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 
 	result = i2c_new_device(adap, &info);
 	if (result == NULL) {
-		dev_err(&adap->dev, "of_i2c: Failure registering %s\n",
-			node->full_name);
+		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", node);
 		of_node_put(node);
 		return ERR_PTR(-EINVAL);
 	}
@@ -106,8 +104,8 @@ void of_i2c_register_devices(struct i2c_adapter *adap)
 		client = of_i2c_register_device(adap, node);
 		if (IS_ERR(client)) {
 			dev_warn(&adap->dev,
-				 "Failed to create I2C device for %s\n",
-				 node->full_name);
+				 "Failed to create I2C device for %pOF\n",
+				 node);
 			of_node_clear_flag(node, OF_POPULATED);
 		}
 	}
@@ -243,8 +241,8 @@ static int of_i2c_notify(struct notifier_block *nb, unsigned long action,
 		put_device(&adap->dev);
 
 		if (IS_ERR(client)) {
-			dev_err(&adap->dev, "failed to create client for '%s'\n",
-				 rd->dn->full_name);
+			dev_err(&adap->dev, "failed to create client for '%pOF'\n",
+				 rd->dn);
 			of_node_clear_flag(rd->dn, OF_POPULATED);
 			return notifier_from_errno(PTR_ERR(client));
 		}

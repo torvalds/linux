@@ -29,13 +29,13 @@ static const struct sunxi_desc_pin sun8i_a23_r_pins[] = {
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
 		  SUNXI_FUNCTION(0x2, "s_rsb"),		/* SCK */
-		  SUNXI_FUNCTION(0x3, "s_twi"),		/* SCK */
+		  SUNXI_FUNCTION(0x3, "s_i2c"),		/* SCK */
 		  SUNXI_FUNCTION_IRQ_BANK(0x4, 0, 0)),	/* PL_EINT0 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 1),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
 		  SUNXI_FUNCTION(0x2, "s_rsb"),		/* SDA */
-		  SUNXI_FUNCTION(0x3, "s_twi"),		/* SDA */
+		  SUNXI_FUNCTION(0x3, "s_i2c"),		/* SDA */
 		  SUNXI_FUNCTION_IRQ_BANK(0x4, 0, 1)),	/* PL_EINT1 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 2),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
@@ -100,7 +100,7 @@ static int sun8i_a23_r_pinctrl_probe(struct platform_device *pdev)
 	struct reset_control *rstc;
 	int ret;
 
-	rstc = devm_reset_control_get(&pdev->dev, NULL);
+	rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(rstc)) {
 		dev_err(&pdev->dev, "Reset controller missing\n");
 		return PTR_ERR(rstc);

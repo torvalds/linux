@@ -172,7 +172,7 @@
 			status = "okay";
 		};
 
-		pcie-controller {
+		pcie {
 			status = "okay";
 			/*
 			 * The two PCIe units are accessible through

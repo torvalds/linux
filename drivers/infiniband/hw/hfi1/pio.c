@@ -1012,7 +1012,7 @@ static void sc_wait_for_packet_egress(struct send_context *sc, int pause)
 				   "%s: context %u(%u) timeout waiting for packets to egress, remaining count %u, bouncing link\n",
 				   __func__, sc->sw_index,
 				   sc->hw_context, (u32)reg);
-			queue_work(dd->pport->hfi1_wq,
+			queue_work(dd->pport->link_wq,
 				   &dd->pport->link_bounce_work);
 			break;
 		}
@@ -1568,7 +1568,8 @@ static void sc_piobufavail(struct send_context *sc)
 	struct rvt_qp *qp;
 	struct hfi1_qp_priv *priv;
 	unsigned long flags;
-	unsigned i, n = 0;
+	uint i, n = 0, max_idx = 0;
+	u8 max_starved_cnt = 0;
 
 	if (dd->send_contexts[sc->sw_index].type != SC_KERNEL &&
 	    dd->send_contexts[sc->sw_index].type != SC_VL15)
@@ -1591,6 +1592,7 @@ static void sc_piobufavail(struct send_context *sc)
 		priv = qp->priv;
 		list_del_init(&priv->s_iowait.list);
 		priv->s_iowait.lock = NULL;
+		iowait_starve_find_max(wait, &max_starved_cnt, n, &max_idx);
 		/* refcount held until actual wake up */
 		qps[n++] = qp;
 	}
@@ -1605,9 +1607,14 @@ static void sc_piobufavail(struct send_context *sc)
 	}
 	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
 
-	for (i = 0; i < n; i++)
-		hfi1_qp_wakeup(qps[i],
+	/* Wake up the most starved one first */
+	if (n)
+		hfi1_qp_wakeup(qps[max_idx],
 			       RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN);
+	for (i = 0; i < n; i++)
+		if (i != max_idx)
+			hfi1_qp_wakeup(qps[i],
+				       RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN);
 }
 
 /* translate a send credit update to a bit code of reasons */

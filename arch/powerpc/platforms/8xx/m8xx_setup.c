@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1995  Linus Torvalds
  *  Adapted from 'alpha' version by Gary Thomas
@@ -23,7 +24,7 @@
 #include <asm/fs_pd.h>
 #include <mm/mmu_decl.h>
 
-#include <sysdev/mpc8xx_pic.h>
+#include "pic.h"
 
 #include "mpc8xx.h"
 

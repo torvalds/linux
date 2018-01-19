@@ -46,8 +46,6 @@ extern struct clk *clk_get_ppe(void);
 
 /* find out what bootsource we have */
 extern unsigned char ltq_boot_select(void);
-/* find out what caused the last cpu reset */
-extern int ltq_reset_cause(void);
 /* find out the soc type */
 extern int ltq_soc_type(void);
 

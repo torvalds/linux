@@ -97,8 +97,8 @@ static int __init sun4i_of_init(struct device_node *node,
 {
 	sun4i_irq_base = of_iomap(node, 0);
 	if (!sun4i_irq_base)
-		panic("%s: unable to map IC registers\n",
-			node->full_name);
+		panic("%pOF: unable to map IC registers\n",
+			node);
 
 	/* Disable all interrupts */
 	writel(0, sun4i_irq_base + SUN4I_IRQ_ENABLE_REG(0));
@@ -124,7 +124,7 @@ static int __init sun4i_of_init(struct device_node *node,
 	sun4i_irq_domain = irq_domain_add_linear(node, 3 * 32,
 						 &sun4i_irq_ops, NULL);
 	if (!sun4i_irq_domain)
-		panic("%s: unable to create IRQ domain\n", node->full_name);
+		panic("%pOF: unable to create IRQ domain\n", node);
 
 	set_handle_irq(sun4i_handle_irq);
 

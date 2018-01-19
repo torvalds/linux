@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef __uClinux__
 #include <asm/uaccess_no.h>
 #else

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef CEPH_CRUSH_CRUSH_H
 #define CEPH_CRUSH_CRUSH_H
 

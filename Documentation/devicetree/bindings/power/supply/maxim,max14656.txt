@@ -12,7 +12,6 @@ Example:
 	clock-frequency = <50000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2>;
-	status = "okay";
 
 	max14656@35 {
 		compatible = "maxim,max14656";

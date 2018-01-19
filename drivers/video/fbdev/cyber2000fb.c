@@ -1336,7 +1336,7 @@ static void cyber2000fb_i2c_unregister(struct cfb_info *cfb)
  * These parameters give
  * 640x480, hsync 31.5kHz, vsync 60Hz
  */
-static struct fb_videomode cyber2000fb_default_mode = {
+static const struct fb_videomode cyber2000fb_default_mode = {
 	.refresh	= 60,
 	.xres		= 640,
 	.yres		= 480,

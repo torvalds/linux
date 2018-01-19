@@ -5,7 +5,9 @@ functionality. Each pair serves 32 GPIOs. The VF610 has 5 instances of
 each, and each PORT module has its own interrupt.
 
 Required properties for GPIO node:
-- compatible : Should be "fsl,<soc>-gpio", currently "fsl,vf610-gpio"
+- compatible : Should be "fsl,<soc>-gpio", below is supported list:
+	       "fsl,vf610-gpio"
+	       "fsl,imx7ulp-gpio"
 - reg : The first reg tuple represents the PORT module, the second tuple
   the GPIO module.
 - interrupts : Should be the port interrupt shared by all 32 pins.

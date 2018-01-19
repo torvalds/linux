@@ -32,5 +32,4 @@ Example:
 		pinctrl-1 = <&pinctrl_touchctrl_default>;
 		pinctrl-2 = <&pinctrl_touchctrl_gpios>;
 		vf50-ts-min-pressure = <200>;
-		status = "disabled";
 	};

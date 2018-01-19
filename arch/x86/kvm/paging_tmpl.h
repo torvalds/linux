@@ -334,10 +334,11 @@ retry_walk:
 		--walker->level;
 
 		index = PT_INDEX(addr, walker->level);
-
 		table_gfn = gpte_to_gfn(pte);
 		offset    = index * sizeof(pt_element_t);
 		pte_gpa   = gfn_to_gpa(table_gfn) + offset;
+
+		BUG_ON(walker->level < 1);
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
@@ -790,8 +791,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 			 &map_writable))
 		return 0;
 
-	if (handle_abnormal_pfn(vcpu, mmu_is_nested(vcpu) ? 0 : addr,
-				walker.gfn, pfn, walker.pte_access, &r))
+	if (handle_abnormal_pfn(vcpu, addr, walker.gfn, pfn, walker.pte_access, &r))
 		return r;
 
 	/*
@@ -819,7 +819,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 		goto out_unlock;
 
 	kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
-	make_mmu_pages_available(vcpu);
+	if (make_mmu_pages_available(vcpu) < 0)
+		goto out_unlock;
 	if (!force_pt_level)
 		transparent_hugepage_adjust(vcpu, &walker.gfn, &pfn, &level);
 	r = FNAME(fetch)(vcpu, addr, &walker, write_fault,

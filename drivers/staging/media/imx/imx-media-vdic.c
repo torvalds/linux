@@ -126,15 +126,15 @@ struct vdic_priv {
 
 static void vdic_put_ipu_resources(struct vdic_priv *priv)
 {
-	if (!IS_ERR_OR_NULL(priv->vdi_in_ch_p))
+	if (priv->vdi_in_ch_p)
 		ipu_idmac_put(priv->vdi_in_ch_p);
 	priv->vdi_in_ch_p = NULL;
 
-	if (!IS_ERR_OR_NULL(priv->vdi_in_ch))
+	if (priv->vdi_in_ch)
 		ipu_idmac_put(priv->vdi_in_ch);
 	priv->vdi_in_ch = NULL;
 
-	if (!IS_ERR_OR_NULL(priv->vdi_in_ch_n))
+	if (priv->vdi_in_ch_n)
 		ipu_idmac_put(priv->vdi_in_ch_n);
 	priv->vdi_in_ch_n = NULL;
 
@@ -146,40 +146,43 @@ static void vdic_put_ipu_resources(struct vdic_priv *priv)
 static int vdic_get_ipu_resources(struct vdic_priv *priv)
 {
 	int ret, err_chan;
+	struct ipuv3_channel *ch;
+	struct ipu_vdi *vdi;
 
 	priv->ipu = priv->md->ipu[priv->ipu_id];
 
-	priv->vdi = ipu_vdi_get(priv->ipu);
-	if (IS_ERR(priv->vdi)) {
+	vdi = ipu_vdi_get(priv->ipu);
+	if (IS_ERR(vdi)) {
 		v4l2_err(&priv->sd, "failed to get VDIC\n");
-		ret = PTR_ERR(priv->vdi);
+		ret = PTR_ERR(vdi);
 		goto out;
 	}
+	priv->vdi = vdi;
 
 	if (!priv->csi_direct) {
-		priv->vdi_in_ch_p = ipu_idmac_get(priv->ipu,
-						  IPUV3_CHANNEL_MEM_VDI_PREV);
-		if (IS_ERR(priv->vdi_in_ch_p)) {
+		ch = ipu_idmac_get(priv->ipu, IPUV3_CHANNEL_MEM_VDI_PREV);
+		if (IS_ERR(ch)) {
 			err_chan = IPUV3_CHANNEL_MEM_VDI_PREV;
-			ret = PTR_ERR(priv->vdi_in_ch_p);
+			ret = PTR_ERR(ch);
 			goto out_err_chan;
 		}
+		priv->vdi_in_ch_p = ch;
 
-		priv->vdi_in_ch = ipu_idmac_get(priv->ipu,
-						IPUV3_CHANNEL_MEM_VDI_CUR);
-		if (IS_ERR(priv->vdi_in_ch)) {
+		ch = ipu_idmac_get(priv->ipu, IPUV3_CHANNEL_MEM_VDI_CUR);
+		if (IS_ERR(ch)) {
 			err_chan = IPUV3_CHANNEL_MEM_VDI_CUR;
-			ret = PTR_ERR(priv->vdi_in_ch);
+			ret = PTR_ERR(ch);
 			goto out_err_chan;
 		}
+		priv->vdi_in_ch = ch;
 
-		priv->vdi_in_ch_n = ipu_idmac_get(priv->ipu,
-						  IPUV3_CHANNEL_MEM_VDI_NEXT);
+		ch = ipu_idmac_get(priv->ipu, IPUV3_CHANNEL_MEM_VDI_NEXT);
 		if (IS_ERR(priv->vdi_in_ch_n)) {
 			err_chan = IPUV3_CHANNEL_MEM_VDI_NEXT;
-			ret = PTR_ERR(priv->vdi_in_ch_n);
+			ret = PTR_ERR(ch);
 			goto out_err_chan;
 		}
+		priv->vdi_in_ch_n = ch;
 	}
 
 	return 0;

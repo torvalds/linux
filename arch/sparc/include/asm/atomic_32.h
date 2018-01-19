@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* atomic.h: These still suck, but the I-cache hit rate is higher.
  *
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
@@ -28,6 +29,8 @@ int atomic_cmpxchg(atomic_t *, int, int);
 int atomic_xchg(atomic_t *, int);
 int __atomic_add_unless(atomic_t *, int, int);
 void atomic_set(atomic_t *, int);
+
+#define atomic_set_release(v, i)	atomic_set((v), (i))
 
 #define atomic_read(v)          ACCESS_ONCE((v)->counter)
 

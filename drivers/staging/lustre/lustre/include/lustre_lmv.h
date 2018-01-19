@@ -32,7 +32,7 @@
 
 #ifndef _LUSTRE_LMV_H
 #define _LUSTRE_LMV_H
-#include "lustre/lustre_idl.h"
+#include <uapi/linux/lustre/lustre_idl.h>
 
 struct lmv_oinfo {
 	struct lu_fid	lmo_fid;
