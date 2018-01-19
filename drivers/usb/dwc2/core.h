@@ -408,7 +408,7 @@ enum dwc2_ep0_state {
  * @ahbcfg:             This field allows the default value of the GAHBCFG
  *                      register to be overridden
  *                       -1         - GAHBCFG value will be set to 0x06
- *                                    (INCR4, default)
+ *                                    (INCR, default)
  *                       all others - GAHBCFG value will be overridden with
  *                                    this value
  *                      Not all bits can be controlled like this, the
