@@ -3513,7 +3513,7 @@ static void vcodec_shutdown(struct platform_device *pdev)
 	if (ret == -ETIMEDOUT)
 		dev_err(&pdev->dev, "wait total running time out\n");
 
-	vcodec_exit_mode(data);
+	data->pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
 	vpu_service_clear(data);
 	if (of_property_read_bool(np, "subcnt")) {
 		for (i = 0; i < pservice->subcnt; i++) {
