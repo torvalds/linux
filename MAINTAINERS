@@ -7079,6 +7079,7 @@ MIPS GENERIC PLATFORM
 M:	Paul Burton <paul.burton@imgtec.com>
 L:	linux-mips@linux-mips.org
 S:	Supported
+F:	Documentation/devicetree/bindings/power/mti,mips-cpc.txt
 F:	arch/mips/generic/
 
 MIPS RINT INSTRUCTION EMULATION
