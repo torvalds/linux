@@ -3412,14 +3412,21 @@ static void dwc2_gadget_handle_incomplete_isoc_in(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_hsotg_ep *hs_ep;
 	u32 epctrl;
+	u32 daintmsk;
 	u32 idx;
 
 	dev_dbg(hsotg->dev, "Incomplete isoc in interrupt received:\n");
 
+	daintmsk = dwc2_readl(hsotg->regs + DAINTMSK);
+
 	for (idx = 1; idx <= hsotg->num_of_eps; idx++) {
 		hs_ep = hsotg->eps_in[idx];
+		/* Proceed only unmasked ISOC EPs */
+		if (!hs_ep->isochronous || (BIT(idx) & ~daintmsk))
+			continue;
+
 		epctrl = dwc2_readl(hsotg->regs + DIEPCTL(idx));
-		if ((epctrl & DXEPCTL_EPENA) && hs_ep->isochronous &&
+		if ((epctrl & DXEPCTL_EPENA) &&
 		    dwc2_gadget_target_frame_elapsed(hs_ep)) {
 			epctrl |= DXEPCTL_SNAK;
 			epctrl |= DXEPCTL_EPDIS;
