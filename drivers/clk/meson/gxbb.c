@@ -238,6 +238,11 @@ static struct meson_clk_pll gxbb_hdmi_pll = {
 		.shift   = 22,
 		.width   = 2,
 	},
+	.od3 = {
+		.reg_off = HHI_HDMI_PLL_CNTL2,
+		.shift   = 18,
+		.width   = 2,
+	},
 	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_pll",

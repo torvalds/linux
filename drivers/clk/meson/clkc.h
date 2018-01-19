@@ -41,6 +41,7 @@ struct pll_rate_table {
 	u16		n;
 	u16		od;
 	u16		od2;
+	u16		od3;
 	u16		frac;
 };
 
@@ -92,6 +93,7 @@ struct meson_clk_pll {
 	struct parm frac;
 	struct parm od;
 	struct parm od2;
+	struct parm od3;
 	const struct pll_setup_params params;
 	const struct pll_rate_table *rate_table;
 	unsigned int rate_count;
