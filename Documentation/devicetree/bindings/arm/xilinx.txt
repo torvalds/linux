@@ -28,6 +28,9 @@ Additional compatible strings:
 - Xilinx internal board zc1275
   "xlnx,zynqmp-zc1275-revA", "xlnx,zynqmp-zc1275"
 
+- Xilinx internal board zc1751
+  "xlnx,zynqmp-zc1751"
+
 - Xilinx 96boards compatible board zcu100
   "xlnx,zynqmp-zcu100-revC", "xlnx,zynqmp-zcu100"
 
