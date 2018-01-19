@@ -108,13 +108,13 @@
 
 &cp0_syscon0 {
 	cp0_pinctrl: pinctrl {
-		compatible = "marvell,armada-8k-cp0-pinctrl";
+		compatible = "marvell,armada-8k-cpm-pinctrl";
 	};
 };
 
 &cp1_syscon0 {
 	cp1_pinctrl: pinctrl {
-		compatible = "marvell,armada-8k-cp1-pinctrl";
+		compatible = "marvell,armada-8k-cps-pinctrl";
 
 		nand_pins: nand-pins {
 			marvell,pins =
