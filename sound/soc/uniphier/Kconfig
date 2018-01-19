@@ -8,6 +8,16 @@ config SND_SOC_UNIPHIER
 	  audio interfaces to support below.
 	  If unsure select "N".
 
+config SND_SOC_UNIPHIER_AIO
+	tristate "UniPhier AIO DAI Driver"
+	select REGMAP_MMIO
+	depends on SND_SOC_UNIPHIER
+	help
+	  This adds ASoC driver support for Socionext UniPhier
+	  'AIO' Audio Input/Output subsystem.
+	  Select Y if you use such device.
+	  If unsure select "N".
+
 config SND_SOC_UNIPHIER_EVEA_CODEC
 	tristate "UniPhier SoC internal audio codec"
 	depends on SND_SOC_UNIPHIER
