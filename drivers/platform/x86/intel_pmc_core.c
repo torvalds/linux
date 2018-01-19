@@ -407,43 +407,33 @@ static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 
 static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 {
-	struct dentry *dir, *file;
+	struct dentry *dir;
 
 	dir = debugfs_create_dir("pmc_core", NULL);
 	if (!dir)
 		return -ENOMEM;
 
 	pmcdev->dbgfs_dir = dir;
-	file = debugfs_create_file("slp_s0_residency_usec", 0444,
-				   dir, pmcdev, &pmc_core_dev_state);
-	if (!file)
-		goto err;
 
-	file = debugfs_create_file("pch_ip_power_gating_status", 0444,
-				   dir, pmcdev, &pmc_core_ppfear_ops);
-	if (!file)
-		goto err;
+	debugfs_create_file("slp_s0_residency_usec", 0444, dir, pmcdev,
+			    &pmc_core_dev_state);
 
-	file = debugfs_create_file("mphy_core_lanes_power_gating_status", 0444,
-				   dir, pmcdev, &pmc_core_mphy_pg_ops);
-	if (!file)
-		goto err;
+	debugfs_create_file("pch_ip_power_gating_status", 0444, dir, pmcdev,
+			    &pmc_core_ppfear_ops);
 
-	file = debugfs_create_file("pll_status", 0444, dir, pmcdev,
-				   &pmc_core_pll_ops);
-	if (!file)
-		goto err;
+	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
+			    &pmc_core_ltr_ignore_ops);
 
-	file = debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
-				   &pmc_core_ltr_ignore_ops);
+	if (pmcdev->map->pll_sts)
+		debugfs_create_file("pll_status", 0444, dir, pmcdev,
+				    &pmc_core_pll_ops);
 
-	if (!file)
-		goto err;
+	if (pmcdev->map->mphy_sts)
+		debugfs_create_file("mphy_core_lanes_power_gating_status",
+				    0444, dir, pmcdev,
+				    &pmc_core_mphy_pg_ops);
 
 	return 0;
-err:
-	pmc_core_dbgfs_unregister(pmcdev);
-	return -ENODEV;
 }
 #else
 static inline int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
