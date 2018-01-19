@@ -2957,7 +2957,7 @@ static int dce_v11_0_sw_init(void *handle)
 	}
 
 	if (amdgpu_atombios_get_connector_info_from_object_table(adev))
-		amdgpu_print_display_setup(adev->ddev);
+		amdgpu_display_print_display_setup(adev->ddev);
 	else
 		return -EINVAL;
 

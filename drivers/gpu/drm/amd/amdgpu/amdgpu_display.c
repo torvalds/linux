@@ -355,7 +355,7 @@ static const char *hpd_names[6] = {
 	"HPD6",
 };
 
-void amdgpu_print_display_setup(struct drm_device *dev)
+void amdgpu_display_print_display_setup(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	struct amdgpu_connector *amdgpu_connector;
