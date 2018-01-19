@@ -263,6 +263,7 @@ static const struct snd_soc_platform_driver uniphier_soc_platform = {
 	.pcm_new   = uniphier_aiodma_new,
 	.pcm_free  = uniphier_aiodma_free,
 	.ops       = &uniphier_aiodma_ops,
+	.compr_ops = &uniphier_aio_compr_ops,
 };
 
 static const struct regmap_config aiodma_regmap_config = {

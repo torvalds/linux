@@ -11,6 +11,7 @@ config SND_SOC_UNIPHIER
 config SND_SOC_UNIPHIER_AIO
 	tristate "UniPhier AIO DAI Driver"
 	select REGMAP_MMIO
+	select SND_SOC_COMPRESS
 	depends on SND_SOC_UNIPHIER
 	help
 	  This adds ASoC driver support for Socionext UniPhier
