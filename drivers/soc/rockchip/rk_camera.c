@@ -99,6 +99,61 @@ static int rk_dts_sensor_remove(struct platform_device *pdev)
 	return 0;
 }
 
+struct rk29_camera_gpio camera_gpios;
+static struct gpio_desc *rk_dts_sensor_parse_gpio(
+	struct device *dev,
+	struct fwnode_handle *child,
+	int pltfrm_gpio,
+	const char *label)
+{
+	struct rk29_camera_gpio *camera_gpio;
+	struct rk29_camera_gpio *new_gpio;
+	struct gpio_desc *gpio;
+
+	if (IS_ERR_VALUE(pltfrm_gpio))
+		return NULL;
+
+	list_for_each_entry(camera_gpio, &camera_gpios.gpios, gpios) {
+		if (camera_gpio->pltfrm_gpio == pltfrm_gpio)
+			break;
+	}
+
+	if (camera_gpio->pltfrm_gpio != pltfrm_gpio) {
+		dprintk("%s(%d): alloc a new gpio for pltfrm gpio %d\n",
+			__func__, __LINE__, pltfrm_gpio);
+		new_gpio = kzalloc(sizeof(*new_gpio), GFP_KERNEL);
+		if (!new_gpio) {
+			eprintk("%s(%d): alloc camera_gpio failed\n",
+				__func__, __LINE__);
+			return NULL;
+		}
+
+		new_gpio->pltfrm_gpio = pltfrm_gpio;
+		new_gpio->count = 1;
+		new_gpio->gpio_desc =
+			devm_get_gpiod_from_child(dev, label, child);
+		if (IS_ERR(new_gpio->gpio_desc)) {
+			eprintk("gpio reset get failed.\n");
+			goto err_alloc;
+		}
+
+		list_add_tail(&new_gpio->gpios, &camera_gpios.gpios);
+		gpio = new_gpio->gpio_desc;
+	} else {
+		camera_gpio->count++;
+		gpio = camera_gpio->gpio_desc;
+		dprintk("%s(%d): gpio %d have get count %d\n",
+			__func__, __LINE__,
+			pltfrm_gpio, camera_gpio->count);
+	}
+
+	return gpio;
+err_alloc:
+	kfree(new_gpio);
+
+	return NULL;
+}
+
 static int rk_dts_sensor_probe(struct platform_device *pdev)
 {
 	struct device_node *np, *cp;
@@ -106,6 +161,13 @@ static int rk_dts_sensor_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rkcamera_platform_data *new_camera_list;
 	struct fwnode_handle *child;
+	enum of_gpio_flags flags;
+	int power = INVALID_GPIO;
+	int powerdown = INVALID_GPIO;
+	int reset = INVALID_GPIO;
+	int af = INVALID_GPIO;
+	int flash = INVALID_GPIO;
+	int irq = INVALID_GPIO;
 	int count;
 
 	np = dev->of_node;
@@ -116,6 +178,7 @@ static int rk_dts_sensor_probe(struct platform_device *pdev)
 	if (!count)
 		return -ENODEV;
 
+	INIT_LIST_HEAD(&camera_gpios.gpios);
 	device_for_each_child_node(dev, child) {
 		u32 flash_attach = 0, mir = 0, i2c_chl = 0, i2c_add = 0;
 		u32 cif_chl = 0, mclk_rate = 0, is_front = 0;
@@ -286,48 +349,44 @@ static int rk_dts_sensor_probe(struct platform_device *pdev)
 			sprintf(new_camera->dev_name, "%s_%s", name, "back");
 		new_camera->dev.device_info.dev.init_name = (const char *)&new_camera->dev_name[0];
 
-		new_camera->io.gpio_reset = devm_get_gpiod_from_child(dev,
-			"reset", child);
-		if (IS_ERR(new_camera->io.gpio_reset)) {
-			eprintk("gpio reset get failed.\n");
-			new_camera->io.gpio_reset = NULL;
-		}
+		power = of_get_named_gpio_flags(cp, "power-gpios",
+						0, &flags);
+		powerdown = of_get_named_gpio_flags(cp, "powerdown-gpios",
+						    0, &flags);
+		reset = of_get_named_gpio_flags(cp, "reset-gpios",
+						0, &flags);
+		af = of_get_named_gpio_flags(cp, "af-gpios",
+					     0, &flags);
+		flash = of_get_named_gpio_flags(cp, "flash-gpios",
+						0, &flags);
+		irq = of_get_named_gpio_flags(cp, "irq-gpios",
+					      0, &flags);
 
-		new_camera->io.gpio_powerdown = devm_get_gpiod_from_child(dev,
-			"powerdown", child);
-		if (IS_ERR(new_camera->io.gpio_powerdown)) {
-			eprintk("gpio powerdown get failed.\n");
-			new_camera->io.gpio_powerdown = NULL;
-		}
+		new_camera->io.gpio_reset =
+			rk_dts_sensor_parse_gpio(dev, child, reset, "reset");
 
-		new_camera->io.gpio_power = devm_get_gpiod_from_child(dev,
-			"power", child);
-		if (IS_ERR(new_camera->io.gpio_power)) {
-			eprintk("gpio power get failed.\n");
-			new_camera->io.gpio_power = NULL;
-		}
+		new_camera->io.gpio_power =
+			rk_dts_sensor_parse_gpio(dev, child, power, "power");
 
-		new_camera->io.gpio_af = devm_get_gpiod_from_child(dev,
-			"af", child);
-		if (IS_ERR(new_camera->io.gpio_af)) {
-			eprintk("gpio af get failed.\n");
-			new_camera->io.gpio_af = NULL;
-		}
+		new_camera->io.gpio_powerdown =
+			rk_dts_sensor_parse_gpio(dev, child,
+						 powerdown, "powerdown");
 
-		new_camera->io.gpio_flash = devm_get_gpiod_from_child(dev,
-			"flash", child);
-		if (IS_ERR(new_camera->io.gpio_flash)) {
-			eprintk("gpio flash get failed.\n");
-			new_camera->io.gpio_flash = NULL;
-		}
+		new_camera->io.gpio_af =
+			rk_dts_sensor_parse_gpio(dev, child, af, "af");
 
-		new_camera->io.gpio_irq = devm_get_gpiod_from_child(dev,
-			"irq", child);
-		if (IS_ERR(new_camera->io.gpio_irq)) {
-			eprintk("gpio irq get failed.\n");
-			new_camera->io.gpio_irq = NULL;
-		}
+		new_camera->io.gpio_flash =
+			rk_dts_sensor_parse_gpio(dev, child, flash, "flash");
 
+		new_camera->io.gpio_irq =
+			rk_dts_sensor_parse_gpio(dev, child, irq, "irq");
+
+		new_camera->io.reset = reset;
+		new_camera->io.power = power;
+		new_camera->io.powerdown = powerdown;
+		new_camera->io.af = af;
+		new_camera->io.flash = flash;
+		new_camera->io.irq = irq;
 		new_camera->io.gpio_flag = ((pwr_active & 0x01) << RK29_CAM_POWERACTIVE_BITPOS) |
 					    ((rst_active & 0x01) << RK29_CAM_RESETACTIVE_BITPOS) |
 					    ((pwdn_active & 0x01) << RK29_CAM_POWERDNACTIVE_BITPOS) |

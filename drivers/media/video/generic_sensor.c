@@ -1508,3 +1508,69 @@ int generic_sensor_enum_framesizes(struct v4l2_subdev *sd, struct v4l2_frmsizeen
 
 }
 
+static inline int deinit_sensor_gpio(int pltfrm_gpio)
+{
+	struct rk29_camera_gpio *camera_gpio;
+
+	list_for_each_entry(camera_gpio, &camera_gpios.gpios, gpios)
+		if (camera_gpio->pltfrm_gpio == pltfrm_gpio)
+			break;
+
+	if (camera_gpio->pltfrm_gpio == pltfrm_gpio) {
+		camera_gpio->count--;
+
+		if (!camera_gpio->count) {
+			gpiod_direction_input(camera_gpio->gpio_desc);
+			gpiod_put(camera_gpio->gpio_desc);
+
+			list_del(&camera_gpio->gpios);
+			kfree(camera_gpio);
+		}
+	}
+
+	return 0;
+}
+
+void deinit_sensor_gpios(struct soc_camera_device *icd)
+{
+	struct soc_camera_desc *desc = to_soc_camera_desc(icd);
+	struct rk29camera_platform_data *pdata = desc->subdev_desc.drv_priv;
+	struct rkcamera_platform_data *sensor_device = NULL, *new_camera;
+	struct rk29camera_gpio_res *gpios = NULL;
+
+	new_camera = pdata->register_dev_new;
+	while (new_camera) {
+		if (strcmp(dev_name(icd->pdev), new_camera->dev_name) == 0) {
+			sensor_device = new_camera;
+			break;
+		}
+		new_camera = new_camera->next_camera;
+	}
+	if (!sensor_device) {
+		pr_err("%s(%d): Could not find %s\n",
+		       __func__, __LINE__, dev_name(icd->pdev));
+		return;
+	}
+
+	gpios = &new_camera->io;
+
+	deinit_sensor_gpio(gpios->power);
+	deinit_sensor_gpio(gpios->powerdown);
+	deinit_sensor_gpio(gpios->reset);
+	deinit_sensor_gpio(gpios->af);
+	deinit_sensor_gpio(gpios->flash);
+	deinit_sensor_gpio(gpios->irq);
+	gpios->gpio_power = NULL;
+	gpios->gpio_powerdown = NULL;
+	gpios->gpio_reset = NULL;
+	gpios->gpio_af = NULL;
+	gpios->gpio_flash = NULL;
+	gpios->gpio_irq = NULL;
+	gpios->power = INVALID_GPIO;
+	gpios->powerdown = INVALID_GPIO;
+	gpios->reset = INVALID_GPIO;
+	gpios->af = INVALID_GPIO;
+	gpios->flash = INVALID_GPIO;
+	gpios->irq = INVALID_GPIO;
+}
+

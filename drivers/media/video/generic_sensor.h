@@ -92,6 +92,8 @@
 #define CFG_FunChk(a, b)		((a & b) == b)
 #define CFG_FunDis(a, b)		(a &= (~b))
 
+extern struct rk29_camera_gpio camera_gpios;
+
 enum rk_sensor_sequence_property {
 	SEQUENCE_INIT = 1,
 	SEQUENCE_PREVIEW,
@@ -332,6 +334,7 @@ extern int generic_sensor_s_stream(struct v4l2_subdev *sd, int enable);
 extern int generic_sensor_writebuf(struct i2c_client *client, char *buf, int buf_size);
 extern int generic_sensor_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *cc);
 extern int generic_sensor_enum_framesizes(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);
+void deinit_sensor_gpios(struct soc_camera_device *icd);
 
 static inline int sensor_get_full_width_height(int full_resolution, unsigned short *w, unsigned short *h)
 {
@@ -724,54 +727,6 @@ static inline int sensor_v4l2ctrl_flip_default_cb(struct soc_camera_device *icd,
 						  struct v4l2_ext_control *ext_ctrl, bool is_set)
 {
 	return sensor_v4l2ctrl_flip_cb(icd, ctrl_info, ext_ctrl);
-}
-
-static inline void deinit_sensor_gpios(struct soc_camera_device *icd)
-{
-	struct soc_camera_desc *desc = to_soc_camera_desc(icd);
-	struct rk29camera_platform_data *pdata = desc->subdev_desc.drv_priv;
-	struct rkcamera_platform_data *sensor_device = NULL, *new_camera;
-	struct rk29camera_gpio_res *gpios = NULL;
-
-	new_camera = pdata->register_dev_new;
-	while (new_camera) {
-		if (strcmp(dev_name(icd->pdev), new_camera->dev_name) == 0) {
-			sensor_device = new_camera;
-			break;
-		}
-		new_camera = new_camera->next_camera;
-	}
-	if (!sensor_device) {
-		pr_err("%s(%d): Could not find %s\n",
-		       __func__, __LINE__, dev_name(icd->pdev));
-		return;
-	}
-
-	gpios = &new_camera->io;
-	if (gpios->gpio_reset) {
-		gpiod_direction_input(gpios->gpio_reset);
-		gpiod_put(gpios->gpio_reset);
-	}
-	if (gpios->gpio_power) {
-		gpiod_direction_input(gpios->gpio_power);
-		gpiod_put(gpios->gpio_power);
-	}
-	if (gpios->gpio_powerdown) {
-		gpiod_direction_input(gpios->gpio_powerdown);
-		gpiod_put(gpios->gpio_powerdown);
-	}
-	if (gpios->gpio_flash) {
-		gpiod_direction_input(gpios->gpio_flash);
-		gpiod_put(gpios->gpio_flash);
-	}
-	if (gpios->gpio_af) {
-		gpiod_direction_input(gpios->gpio_af);
-		gpiod_put(gpios->gpio_af);
-	}
-	if (gpios->gpio_irq) {
-		gpiod_direction_input(gpios->gpio_irq);
-		gpiod_put(gpios->gpio_irq);
-	}
 }
 
 #define new_user_v4l2ctrl(ctl_id, ctl_type, ctl_name, ctl_min, ctl_max, ctl_step, default_val, callback, seqe)\

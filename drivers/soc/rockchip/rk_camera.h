@@ -170,6 +170,14 @@ enum rk29camera_flash_cmd
     Flash_Torch
 };
 
+struct rk29_camera_gpio {
+	struct gpio_desc *gpio_desc;
+	unsigned int pltfrm_gpio;
+	int count;
+
+	struct list_head gpios;
+};
+
 struct rk29camera_gpio_res {
 	struct gpio_desc *gpio_reset;
 	struct gpio_desc *gpio_power;
@@ -177,6 +185,12 @@ struct rk29camera_gpio_res {
 	struct gpio_desc *gpio_flash;
 	struct gpio_desc *gpio_af;
 	struct gpio_desc *gpio_irq;
+	int reset;
+	int power;
+	int powerdown;
+	int flash;
+	int af;
+	int irq;
 	unsigned int gpio_flag;
 	unsigned int gpio_init;
 	const char *dev_name;
