@@ -1297,9 +1297,22 @@ static void sync_point_worker(struct work_struct *work)
 	etnaviv_gpu_start_fe(gpu, addr + 2, 2);
 }
 
-/*
- * Init/Cleanup:
- */
+static void dump_mmu_fault(struct etnaviv_gpu *gpu)
+{
+	u32 status = gpu_read(gpu, VIVS_MMUv2_STATUS);
+	int i;
+
+	dev_err_ratelimited(gpu->dev, "MMU fault status 0x%08x\n", status);
+
+	for (i = 0; i < 4; i++) {
+		if (!(status & (VIVS_MMUv2_STATUS_EXCEPTION0__MASK << (i * 4))))
+			continue;
+
+		dev_err_ratelimited(gpu->dev, "MMU %d fault addr 0x%08x\n", i,
+				gpu_read(gpu, VIVS_MMUv2_EXCEPTION_ADDR(i)));
+	}
+}
+
 static irqreturn_t irq_handler(int irq, void *data)
 {
 	struct etnaviv_gpu *gpu = data;
@@ -1320,17 +1333,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 		}
 
 		if (intr & VIVS_HI_INTR_ACKNOWLEDGE_MMU_EXCEPTION) {
-			int i;
-
-			dev_err_ratelimited(gpu->dev,
-				"MMU fault status 0x%08x\n",
-				gpu_read(gpu, VIVS_MMUv2_STATUS));
-			for (i = 0; i < 4; i++) {
-				dev_err_ratelimited(gpu->dev,
-					"MMU %d fault addr 0x%08x\n",
-					i, gpu_read(gpu,
-					VIVS_MMUv2_EXCEPTION_ADDR(i)));
-			}
+			dump_mmu_fault(gpu);
 			intr &= ~VIVS_HI_INTR_ACKNOWLEDGE_MMU_EXCEPTION;
 		}
 
