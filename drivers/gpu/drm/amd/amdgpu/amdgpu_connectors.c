@@ -877,7 +877,7 @@ amdgpu_connector_vga_detect(struct drm_connector *connector, bool force)
 		ret = connector_status_disconnected;
 
 	if (amdgpu_connector->ddc_bus)
-		dret = amdgpu_ddc_probe(amdgpu_connector, false);
+		dret = amdgpu_display_ddc_probe(amdgpu_connector, false);
 	if (dret) {
 		amdgpu_connector->detected_by_load = false;
 		amdgpu_connector_free_edid(connector);
@@ -998,7 +998,7 @@ amdgpu_connector_dvi_detect(struct drm_connector *connector, bool force)
 	}
 
 	if (amdgpu_connector->ddc_bus)
-		dret = amdgpu_ddc_probe(amdgpu_connector, false);
+		dret = amdgpu_display_ddc_probe(amdgpu_connector, false);
 	if (dret) {
 		amdgpu_connector->detected_by_load = false;
 		amdgpu_connector_free_edid(connector);
@@ -1401,7 +1401,8 @@ amdgpu_connector_dp_detect(struct drm_connector *connector, bool force)
 			/* setup ddc on the bridge */
 			amdgpu_atombios_encoder_setup_ext_encoder_ddc(encoder);
 			/* bridge chips are always aux */
-			if (amdgpu_ddc_probe(amdgpu_connector, true)) /* try DDC */
+			/* try DDC */
+			if (amdgpu_display_ddc_probe(amdgpu_connector, true))
 				ret = connector_status_connected;
 			else if (amdgpu_connector->dac_load_detect) { /* try load detection */
 				const struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
@@ -1421,7 +1422,8 @@ amdgpu_connector_dp_detect(struct drm_connector *connector, bool force)
 					ret = connector_status_connected;
 			} else {
 				/* try non-aux ddc (DP to DVI/HDMI/etc. adapter) */
-				if (amdgpu_ddc_probe(amdgpu_connector, false))
+				if (amdgpu_display_ddc_probe(amdgpu_connector,
+							     false))
 					ret = connector_status_connected;
 			}
 		}

@@ -432,11 +432,11 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 }
 
 /**
- * amdgpu_ddc_probe
+ * amdgpu_display_ddc_probe
  *
  */
-bool amdgpu_ddc_probe(struct amdgpu_connector *amdgpu_connector,
-		       bool use_aux)
+bool amdgpu_display_ddc_probe(struct amdgpu_connector *amdgpu_connector,
+			      bool use_aux)
 {
 	u8 out = 0x0;
 	u8 buf[8];

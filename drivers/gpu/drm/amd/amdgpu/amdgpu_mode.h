@@ -627,7 +627,8 @@ bool amdgpu_dig_monitor_is_duallink(struct drm_encoder *encoder,
 u16 amdgpu_encoder_get_dp_bridge_encoder_id(struct drm_encoder *encoder);
 struct drm_encoder *amdgpu_get_external_encoder(struct drm_encoder *encoder);
 
-bool amdgpu_ddc_probe(struct amdgpu_connector *amdgpu_connector, bool use_aux);
+bool amdgpu_display_ddc_probe(struct amdgpu_connector *amdgpu_connector,
+			      bool use_aux);
 
 void amdgpu_encoder_set_active_device(struct drm_encoder *encoder);
 
