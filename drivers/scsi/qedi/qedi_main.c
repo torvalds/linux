@@ -998,7 +998,9 @@ static bool qedi_process_completions(struct qedi_fastpath *fp)
 
 		ret = qedi_queue_cqe(qedi, cqe, fp->sb_id, p);
 		if (ret)
-			continue;
+			QEDI_WARN(&qedi->dbg_ctx,
+				  "Dropping CQE 0x%x for cid=0x%x.\n",
+				  que->cq_cons_idx, cqe->cqe_common.conn_id);
 
 		que->cq_cons_idx++;
 		if (que->cq_cons_idx == QEDI_CQ_SIZE)
