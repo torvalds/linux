@@ -77,7 +77,6 @@ config SND_SST_ATOM_HIFI2_PLATFORM_PCI
 	depends on X86 && PCI
 	select SND_SST_IPC_PCI
 	select SND_SOC_COMPRESS
-	select SND_SOC_INTEL_COMMON
 	help
 	  If you have a Intel Medfield or Merrifield/Edison platform, then
 	  enable this option by saying Y or m. Distros will typically not

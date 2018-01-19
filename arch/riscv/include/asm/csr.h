@@ -17,10 +17,10 @@
 #include <linux/const.h>
 
 /* Status register flags */
-#define SR_IE   _AC(0x00000002, UL) /* Interrupt Enable */
-#define SR_PIE  _AC(0x00000020, UL) /* Previous IE */
-#define SR_PS   _AC(0x00000100, UL) /* Previously Supervisor */
-#define SR_SUM  _AC(0x00040000, UL) /* Supervisor may access User Memory */
+#define SR_SIE	_AC(0x00000002, UL) /* Supervisor Interrupt Enable */
+#define SR_SPIE	_AC(0x00000020, UL) /* Previous Supervisor IE */
+#define SR_SPP	_AC(0x00000100, UL) /* Previously Supervisor */
+#define SR_SUM	_AC(0x00040000, UL) /* Supervisor may access User Memory */
 
 #define SR_FS           _AC(0x00006000, UL) /* Floating-point Status */
 #define SR_FS_OFF       _AC(0x00000000, UL)

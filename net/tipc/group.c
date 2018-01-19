@@ -109,7 +109,8 @@ static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
 static void tipc_group_decr_active(struct tipc_group *grp,
 				   struct tipc_member *m)
 {
-	if (m->state == MBR_ACTIVE || m->state == MBR_RECLAIMING)
+	if (m->state == MBR_ACTIVE || m->state == MBR_RECLAIMING ||
+	    m->state == MBR_REMITTED)
 		grp->active_cnt--;
 }
 
@@ -562,7 +563,7 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 	int max_active = grp->max_active;
 	int reclaim_limit = max_active * 3 / 4;
 	int active_cnt = grp->active_cnt;
-	struct tipc_member *m, *rm;
+	struct tipc_member *m, *rm, *pm;
 
 	m = tipc_group_find_member(grp, node, port);
 	if (!m)
@@ -605,6 +606,17 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 			pr_warn_ratelimited("Rcv unexpected msg after REMIT\n");
 			tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
 		}
+		grp->active_cnt--;
+		list_del_init(&m->list);
+		if (list_empty(&grp->pending))
+			return;
+
+		/* Set oldest pending member to active and advertise */
+		pm = list_first_entry(&grp->pending, struct tipc_member, list);
+		pm->state = MBR_ACTIVE;
+		list_move_tail(&pm->list, &grp->active);
+		grp->active_cnt++;
+		tipc_group_proto_xmit(grp, pm, GRP_ADV_MSG, xmitq);
 		break;
 	case MBR_RECLAIMING:
 	case MBR_DISCOVERED:
@@ -742,14 +754,14 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 		if (!m || m->state != MBR_RECLAIMING)
 			return;
 
-		list_del_init(&m->list);
-		grp->active_cnt--;
 		remitted = msg_grp_remitted(hdr);
 
 		/* Messages preceding the REMIT still in receive queue */
 		if (m->advertised > remitted) {
 			m->state = MBR_REMITTED;
 			in_flight = m->advertised - remitted;
+			m->advertised = ADV_IDLE + in_flight;
+			return;
 		}
 		/* All messages preceding the REMIT have been read */
 		if (m->advertised <= remitted) {
@@ -761,6 +773,8 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 			tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, xmitq);
 
 		m->advertised = ADV_IDLE + in_flight;
+		grp->active_cnt--;
+		list_del_init(&m->list);
 
 		/* Set oldest pending member to active and advertise */
 		if (list_empty(&grp->pending))

@@ -16,39 +16,6 @@
 
 #include <sound/soc-acpi.h>
 
-static acpi_status snd_soc_acpi_find_name(acpi_handle handle, u32 level,
-				      void *context, void **ret)
-{
-	struct acpi_device *adev;
-	const char *name = NULL;
-
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	if (adev->status.present && adev->status.functional) {
-		name = acpi_dev_name(adev);
-		*(const char **)ret = name;
-		return AE_CTRL_TERMINATE;
-	}
-
-	return AE_OK;
-}
-
-const char *snd_soc_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN])
-{
-	const char *name = NULL;
-	acpi_status status;
-
-	status = acpi_get_devices(hid, snd_soc_acpi_find_name, NULL,
-				  (void **)&name);
-
-	if (ACPI_FAILURE(status) || name[0] == '\0')
-		return NULL;
-
-	return name;
-}
-EXPORT_SYMBOL_GPL(snd_soc_acpi_find_name_from_hid);
-
 struct snd_soc_acpi_mach *
 snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines)
 {
