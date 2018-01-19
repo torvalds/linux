@@ -2402,7 +2402,7 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 	uint32_t val;
 	bool active;
-	int ret;
+	int ret, act_end;
 
 	rockchip_set_system_status(sys_status);
 	mutex_lock(&vop->vop_lock);
@@ -2485,9 +2485,6 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, vact_st_end, val);
 	VOP_CTRL_SET(vop, vpost_st_end, val);
 
-	VOP_INTR_SET(vop, line_flag_num[0], vact_end);
-	VOP_INTR_SET(vop, line_flag_num[1],
-		     vact_end - us_to_vertical_line(adjusted_mode, 1000));
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		u16 vact_st_f1 = vtotal + vact_st + 1;
 		u16 vact_end_f1 = vact_st_f1 + vdisplay;
@@ -2501,10 +2498,17 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, dsp_interlace, 1);
 		VOP_CTRL_SET(vop, p2i_en, 1);
 		vtotal += vtotal + 1;
+		act_end = vact_end_f1;
 	} else {
 		VOP_CTRL_SET(vop, dsp_interlace, 0);
 		VOP_CTRL_SET(vop, p2i_en, 0);
+		act_end = vact_end;
 	}
+
+	VOP_INTR_SET(vop, line_flag_num[0], act_end);
+	VOP_INTR_SET(vop, line_flag_num[1],
+		     act_end - us_to_vertical_line(adjusted_mode, 1000));
+
 	VOP_CTRL_SET(vop, vtotal_pw, vtotal << 16 | vsync_len);
 
 	VOP_CTRL_SET(vop, core_dclk_div,
@@ -2935,6 +2939,7 @@ static void vop_update_hdr(struct drm_crtc *crtc,
 	if (sdr2hdr_state->bt1886eotf_pre_conv_en ||
 	    sdr2hdr_state->bt1886eotf_post_conv_en)
 		vop_load_sdr2hdr_table(vop, sdr2hdr_state->sdr2hdr_func);
+	VOP_CTRL_SET(vop, win_csc_mode_sel, 1);
 }
 
 static void vop_update_cabc(struct drm_crtc *crtc,
