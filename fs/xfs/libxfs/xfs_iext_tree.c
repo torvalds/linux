@@ -302,7 +302,7 @@ xfs_iext_rec_cmp(
 	xfs_fileoff_t		offset)
 {
 	uint64_t		rec_offset = rec->lo & XFS_IEXT_STARTOFF_MASK;
-	u32			rec_len = rec->hi & XFS_IEXT_LENGTH_MASK;
+	uint32_t		rec_len = rec->hi & XFS_IEXT_LENGTH_MASK;
 
 	if (rec_offset > offset)
 		return 1;
@@ -850,9 +850,9 @@ static void
 xfs_iext_free_last_leaf(
 	struct xfs_ifork	*ifp)
 {
-	ifp->if_u1.if_root = NULL;
 	ifp->if_height--;
 	kmem_free(ifp->if_u1.if_root);
+	ifp->if_u1.if_root = NULL;
 }
 
 void

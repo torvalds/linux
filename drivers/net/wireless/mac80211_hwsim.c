@@ -2805,7 +2805,7 @@ static int mac80211_hwsim_get_radio(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	if (cb)
-		genl_dump_check_consistent(cb, hdr, &hwsim_genl_family);
+		genl_dump_check_consistent(cb, hdr);
 
 	if (data->alpha2[0] && data->alpha2[1])
 		param.reg_alpha2 = data->alpha2;
@@ -3108,6 +3108,7 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 {
 	struct hwsim_new_radio_params param = { 0 };
 	const char *hwname = NULL;
+	int ret;
 
 	param.reg_strict = info->attrs[HWSIM_ATTR_REG_STRICT_REG];
 	param.p2p_device = info->attrs[HWSIM_ATTR_SUPPORT_P2P_DEVICE];
@@ -3147,7 +3148,9 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 		param.regd = hwsim_world_regdom_custom[idx];
 	}
 
-	return mac80211_hwsim_new_radio(info, &param);
+	ret = mac80211_hwsim_new_radio(info, &param);
+	kfree(hwname);
+	return ret;
 }
 
 static int hwsim_del_radio_nl(struct sk_buff *msg, struct genl_info *info)

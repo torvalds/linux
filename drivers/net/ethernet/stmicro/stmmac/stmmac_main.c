@@ -345,9 +345,9 @@ void stmmac_disable_eee_mode(struct stmmac_priv *priv)
  *  if there is no data transfer and if we are not in LPI state,
  *  then MAC Transmitter can be moved to LPI state.
  */
-static void stmmac_eee_ctrl_timer(unsigned long arg)
+static void stmmac_eee_ctrl_timer(struct timer_list *t)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)arg;
+	struct stmmac_priv *priv = from_timer(priv, t, eee_ctrl_timer);
 
 	stmmac_enable_eee_mode(priv);
 	mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(eee_timer));
@@ -401,9 +401,8 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 		spin_lock_irqsave(&priv->lock, flags);
 		if (!priv->eee_active) {
 			priv->eee_active = 1;
-			setup_timer(&priv->eee_ctrl_timer,
-				    stmmac_eee_ctrl_timer,
-				    (unsigned long)priv);
+			timer_setup(&priv->eee_ctrl_timer,
+				    stmmac_eee_ctrl_timer, 0);
 			mod_timer(&priv->eee_ctrl_timer,
 				  STMMAC_LPI_T(eee_timer));
 
@@ -2221,9 +2220,9 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
  * Description:
  * This is the timer handler to directly invoke the stmmac_tx_clean.
  */
-static void stmmac_tx_timer(unsigned long data)
+static void stmmac_tx_timer(struct timer_list *t)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)data;
+	struct stmmac_priv *priv = from_timer(priv, t, txtimer);
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
 	u32 queue;
 
@@ -2244,7 +2243,7 @@ static void stmmac_init_tx_coalesce(struct stmmac_priv *priv)
 {
 	priv->tx_coal_frames = STMMAC_TX_FRAMES;
 	priv->tx_coal_timer = STMMAC_COAL_TX_TIMER;
-	setup_timer(&priv->txtimer, stmmac_tx_timer, (unsigned long)priv);
+	timer_setup(&priv->txtimer, stmmac_tx_timer, 0);
 	priv->txtimer.expires = STMMAC_COAL_TIMER(priv->tx_coal_timer);
 	add_timer(&priv->txtimer);
 }

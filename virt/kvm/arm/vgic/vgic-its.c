@@ -38,7 +38,7 @@ static int vgic_its_save_tables_v0(struct vgic_its *its);
 static int vgic_its_restore_tables_v0(struct vgic_its *its);
 static int vgic_its_commit_v0(struct vgic_its *its);
 static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
-			     struct kvm_vcpu *filter_vcpu);
+			     struct kvm_vcpu *filter_vcpu, bool needs_inv);
 
 /*
  * Creates a new (reference to a) struct vgic_irq for a given LPI.
@@ -106,7 +106,7 @@ out_unlock:
 	 * However we only have those structs for mapped IRQs, so we read in
 	 * the respective config data from memory here upon mapping the LPI.
 	 */
-	ret = update_lpi_config(kvm, irq, NULL);
+	ret = update_lpi_config(kvm, irq, NULL, false);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -273,7 +273,7 @@ static struct its_collection *find_collection(struct vgic_its *its, int coll_id)
  * VCPU. Unconditionally applies if filter_vcpu is NULL.
  */
 static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
-			     struct kvm_vcpu *filter_vcpu)
+			     struct kvm_vcpu *filter_vcpu, bool needs_inv)
 {
 	u64 propbase = GICR_PROPBASER_ADDRESS(kvm->arch.vgic.propbaser);
 	u8 prop;
@@ -292,10 +292,16 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 		irq->priority = LPI_PROP_PRIORITY(prop);
 		irq->enabled = LPI_PROP_ENABLE_BIT(prop);
 
-		vgic_queue_irq_unlock(kvm, irq, flags);
-	} else {
-		spin_unlock_irqrestore(&irq->irq_lock, flags);
+		if (!irq->hw) {
+			vgic_queue_irq_unlock(kvm, irq, flags);
+			return 0;
+		}
 	}
+
+	spin_unlock_irqrestore(&irq->irq_lock, flags);
+
+	if (irq->hw)
+		return its_prop_update_vlpi(irq->host_irq, prop, needs_inv);
 
 	return 0;
 }
@@ -336,6 +342,29 @@ static int vgic_copy_lpi_list(struct kvm_vcpu *vcpu, u32 **intid_ptr)
 	return i;
 }
 
+static int update_affinity(struct vgic_irq *irq, struct kvm_vcpu *vcpu)
+{
+	int ret = 0;
+
+	spin_lock(&irq->irq_lock);
+	irq->target_vcpu = vcpu;
+	spin_unlock(&irq->irq_lock);
+
+	if (irq->hw) {
+		struct its_vlpi_map map;
+
+		ret = its_get_vlpi(irq->host_irq, &map);
+		if (ret)
+			return ret;
+
+		map.vpe = &vcpu->arch.vgic_cpu.vgic_v3.its_vpe;
+
+		ret = its_map_vlpi(irq->host_irq, &map);
+	}
+
+	return ret;
+}
+
 /*
  * Promotes the ITS view of affinity of an ITTE (which redistributor this LPI
  * is targeting) to the VGIC's view, which deals with target VCPUs.
@@ -350,10 +379,7 @@ static void update_affinity_ite(struct kvm *kvm, struct its_ite *ite)
 		return;
 
 	vcpu = kvm_get_vcpu(kvm, ite->collection->target_addr);
-
-	spin_lock(&ite->irq->irq_lock);
-	ite->irq->target_vcpu = vcpu;
-	spin_unlock(&ite->irq->irq_lock);
+	update_affinity(ite->irq, vcpu);
 }
 
 /*
@@ -505,19 +531,11 @@ static unsigned long vgic_mmio_read_its_idregs(struct kvm *kvm,
 	return 0;
 }
 
-/*
- * Find the target VCPU and the LPI number for a given devid/eventid pair
- * and make this IRQ pending, possibly injecting it.
- * Must be called with the its_lock mutex held.
- * Returns 0 on success, a positive error value for any ITS mapping
- * related errors and negative error values for generic errors.
- */
-static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
-				u32 devid, u32 eventid)
+int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
+			 u32 devid, u32 eventid, struct vgic_irq **irq)
 {
 	struct kvm_vcpu *vcpu;
 	struct its_ite *ite;
-	unsigned long flags;
 
 	if (!its->enabled)
 		return -EBUSY;
@@ -533,26 +551,65 @@ static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
 	if (!vcpu->arch.vgic_cpu.lpis_enabled)
 		return -EBUSY;
 
-	spin_lock_irqsave(&ite->irq->irq_lock, flags);
-	ite->irq->pending_latch = true;
-	vgic_queue_irq_unlock(kvm, ite->irq, flags);
-
+	*irq = ite->irq;
 	return 0;
 }
 
-static struct vgic_io_device *vgic_get_its_iodev(struct kvm_io_device *dev)
+struct vgic_its *vgic_msi_to_its(struct kvm *kvm, struct kvm_msi *msi)
 {
+	u64 address;
+	struct kvm_io_device *kvm_io_dev;
 	struct vgic_io_device *iodev;
 
-	if (dev->ops != &kvm_io_gic_ops)
-		return NULL;
+	if (!vgic_has_its(kvm))
+		return ERR_PTR(-ENODEV);
 
-	iodev = container_of(dev, struct vgic_io_device, dev);
+	if (!(msi->flags & KVM_MSI_VALID_DEVID))
+		return ERR_PTR(-EINVAL);
 
+	address = (u64)msi->address_hi << 32 | msi->address_lo;
+
+	kvm_io_dev = kvm_io_bus_get_dev(kvm, KVM_MMIO_BUS, address);
+	if (!kvm_io_dev)
+		return ERR_PTR(-EINVAL);
+
+	if (kvm_io_dev->ops != &kvm_io_gic_ops)
+		return ERR_PTR(-EINVAL);
+
+	iodev = container_of(kvm_io_dev, struct vgic_io_device, dev);
 	if (iodev->iodev_type != IODEV_ITS)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
-	return iodev;
+	return iodev->its;
+}
+
+/*
+ * Find the target VCPU and the LPI number for a given devid/eventid pair
+ * and make this IRQ pending, possibly injecting it.
+ * Must be called with the its_lock mutex held.
+ * Returns 0 on success, a positive error value for any ITS mapping
+ * related errors and negative error values for generic errors.
+ */
+static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
+				u32 devid, u32 eventid)
+{
+	struct vgic_irq *irq = NULL;
+	unsigned long flags;
+	int err;
+
+	err = vgic_its_resolve_lpi(kvm, its, devid, eventid, &irq);
+	if (err)
+		return err;
+
+	if (irq->hw)
+		return irq_set_irqchip_state(irq->host_irq,
+					     IRQCHIP_STATE_PENDING, true);
+
+	spin_lock_irqsave(&irq->irq_lock, flags);
+	irq->pending_latch = true;
+	vgic_queue_irq_unlock(kvm, irq, flags);
+
+	return 0;
 }
 
 /*
@@ -563,30 +620,16 @@ static struct vgic_io_device *vgic_get_its_iodev(struct kvm_io_device *dev)
  */
 int vgic_its_inject_msi(struct kvm *kvm, struct kvm_msi *msi)
 {
-	u64 address;
-	struct kvm_io_device *kvm_io_dev;
-	struct vgic_io_device *iodev;
+	struct vgic_its *its;
 	int ret;
 
-	if (!vgic_has_its(kvm))
-		return -ENODEV;
+	its = vgic_msi_to_its(kvm, msi);
+	if (IS_ERR(its))
+		return PTR_ERR(its);
 
-	if (!(msi->flags & KVM_MSI_VALID_DEVID))
-		return -EINVAL;
-
-	address = (u64)msi->address_hi << 32 | msi->address_lo;
-
-	kvm_io_dev = kvm_io_bus_get_dev(kvm, KVM_MMIO_BUS, address);
-	if (!kvm_io_dev)
-		return -EINVAL;
-
-	iodev = vgic_get_its_iodev(kvm_io_dev);
-	if (!iodev)
-		return -EINVAL;
-
-	mutex_lock(&iodev->its->its_lock);
-	ret = vgic_its_trigger_msi(kvm, iodev->its, msi->devid, msi->data);
-	mutex_unlock(&iodev->its->its_lock);
+	mutex_lock(&its->its_lock);
+	ret = vgic_its_trigger_msi(kvm, its, msi->devid, msi->data);
+	mutex_unlock(&its->its_lock);
 
 	if (ret < 0)
 		return ret;
@@ -608,8 +651,12 @@ static void its_free_ite(struct kvm *kvm, struct its_ite *ite)
 	list_del(&ite->ite_list);
 
 	/* This put matches the get in vgic_add_lpi. */
-	if (ite->irq)
+	if (ite->irq) {
+		if (ite->irq->hw)
+			WARN_ON(its_unmap_vlpi(ite->irq->host_irq));
+
 		vgic_put_irq(kvm, ite->irq);
+	}
 
 	kfree(ite);
 }
@@ -683,11 +730,7 @@ static int vgic_its_cmd_handle_movi(struct kvm *kvm, struct vgic_its *its,
 	ite->collection = collection;
 	vcpu = kvm_get_vcpu(kvm, collection->target_addr);
 
-	spin_lock(&ite->irq->irq_lock);
-	ite->irq->target_vcpu = vcpu;
-	spin_unlock(&ite->irq->irq_lock);
-
-	return 0;
+	return update_affinity(ite->irq, vcpu);
 }
 
 /*
@@ -1054,6 +1097,10 @@ static int vgic_its_cmd_handle_clear(struct kvm *kvm, struct vgic_its *its,
 
 	ite->irq->pending_latch = false;
 
+	if (ite->irq->hw)
+		return irq_set_irqchip_state(ite->irq->host_irq,
+					     IRQCHIP_STATE_PENDING, false);
+
 	return 0;
 }
 
@@ -1073,7 +1120,7 @@ static int vgic_its_cmd_handle_inv(struct kvm *kvm, struct vgic_its *its,
 	if (!ite)
 		return E_ITS_INV_UNMAPPED_INTERRUPT;
 
-	return update_lpi_config(kvm, ite->irq, NULL);
+	return update_lpi_config(kvm, ite->irq, NULL, true);
 }
 
 /*
@@ -1108,11 +1155,14 @@ static int vgic_its_cmd_handle_invall(struct kvm *kvm, struct vgic_its *its,
 		irq = vgic_get_irq(kvm, NULL, intids[i]);
 		if (!irq)
 			continue;
-		update_lpi_config(kvm, irq, vcpu);
+		update_lpi_config(kvm, irq, vcpu, false);
 		vgic_put_irq(kvm, irq);
 	}
 
 	kfree(intids);
+
+	if (vcpu->arch.vgic_cpu.vgic_v3.its_vpe.its_vm)
+		its_invall_vpe(&vcpu->arch.vgic_cpu.vgic_v3.its_vpe);
 
 	return 0;
 }
@@ -1128,11 +1178,12 @@ static int vgic_its_cmd_handle_invall(struct kvm *kvm, struct vgic_its *its,
 static int vgic_its_cmd_handle_movall(struct kvm *kvm, struct vgic_its *its,
 				      u64 *its_cmd)
 {
-	struct vgic_dist *dist = &kvm->arch.vgic;
 	u32 target1_addr = its_cmd_get_target_addr(its_cmd);
 	u32 target2_addr = its_cmd_mask_field(its_cmd, 3, 16, 32);
 	struct kvm_vcpu *vcpu1, *vcpu2;
 	struct vgic_irq *irq;
+	u32 *intids;
+	int irq_count, i;
 
 	if (target1_addr >= atomic_read(&kvm->online_vcpus) ||
 	    target2_addr >= atomic_read(&kvm->online_vcpus))
@@ -1144,19 +1195,19 @@ static int vgic_its_cmd_handle_movall(struct kvm *kvm, struct vgic_its *its,
 	vcpu1 = kvm_get_vcpu(kvm, target1_addr);
 	vcpu2 = kvm_get_vcpu(kvm, target2_addr);
 
-	spin_lock(&dist->lpi_list_lock);
+	irq_count = vgic_copy_lpi_list(vcpu1, &intids);
+	if (irq_count < 0)
+		return irq_count;
 
-	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
-		spin_lock(&irq->irq_lock);
+	for (i = 0; i < irq_count; i++) {
+		irq = vgic_get_irq(kvm, NULL, intids[i]);
 
-		if (irq->target_vcpu == vcpu1)
-			irq->target_vcpu = vcpu2;
+		update_affinity(irq, vcpu2);
 
-		spin_unlock(&irq->irq_lock);
+		vgic_put_irq(kvm, irq);
 	}
 
-	spin_unlock(&dist->lpi_list_lock);
-
+	kfree(intids);
 	return 0;
 }
 
@@ -1634,6 +1685,14 @@ static int vgic_its_create(struct kvm_device *dev, u32 type)
 	if (!its)
 		return -ENOMEM;
 
+	if (vgic_initialized(dev->kvm)) {
+		int ret = vgic_v4_init(dev->kvm);
+		if (ret < 0) {
+			kfree(its);
+			return ret;
+		}
+	}
+
 	mutex_init(&its->its_lock);
 	mutex_init(&its->cmd_lock);
 
@@ -1945,6 +2004,15 @@ static int vgic_its_save_itt(struct vgic_its *its, struct its_device *device)
 
 	list_for_each_entry(ite, &device->itt_head, ite_list) {
 		gpa_t gpa = base + ite->event_id * ite_esz;
+
+		/*
+		 * If an LPI carries the HW bit, this means that this
+		 * interrupt is controlled by GICv4, and we do not
+		 * have direct access to that state. Let's simply fail
+		 * the save operation...
+		 */
+		if (ite->irq->hw)
+			return -EACCES;
 
 		ret = vgic_its_save_ite(its, device, ite, gpa, ite_esz);
 		if (ret)

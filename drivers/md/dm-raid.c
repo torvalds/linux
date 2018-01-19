@@ -2887,9 +2887,6 @@ static void configure_discard_support(struct raid_set *rs)
 	bool raid456;
 	struct dm_target *ti = rs->ti;
 
-	/* Assume discards not supported until after checks below. */
-	ti->discards_supported = false;
-
 	/*
 	 * XXX: RAID level 4,5,6 require zeroing for safety.
 	 */
@@ -2913,9 +2910,6 @@ static void configure_discard_support(struct raid_set *rs)
 			}
 		}
 	}
-
-	/* All RAID members properly support discards */
-	ti->discards_supported = true;
 
 	/*
 	 * RAID1 and RAID10 personalities require bio splitting,

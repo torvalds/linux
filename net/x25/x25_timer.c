@@ -36,7 +36,7 @@ void x25_init_timers(struct sock *sk)
 	timer_setup(&x25->timer, x25_timer_expiry, 0);
 
 	/* initialized by sock_init_data */
-	sk->sk_timer.function = (TIMER_FUNC_TYPE)x25_heartbeat_expiry;
+	sk->sk_timer.function = x25_heartbeat_expiry;
 }
 
 void x25_start_heartbeat(struct sock *sk)

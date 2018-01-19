@@ -1139,6 +1139,7 @@ void xprt_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
 	case -EAGAIN:
 		xprt_add_backlog(xprt, task);
 		dprintk("RPC:       waiting for request slot\n");
+		/* fall through */
 	default:
 		task->tk_status = -EAGAIN;
 	}

@@ -2357,6 +2357,7 @@ retry:
 				 */
 				if (ip->i_ino != inum + i) {
 					xfs_iunlock(ip, XFS_ILOCK_EXCL);
+					rcu_read_unlock();
 					continue;
 				}
 			}
@@ -2400,6 +2401,24 @@ retry:
 }
 
 /*
+ * Free any local-format buffers sitting around before we reset to
+ * extents format.
+ */
+static inline void
+xfs_ifree_local_data(
+	struct xfs_inode	*ip,
+	int			whichfork)
+{
+	struct xfs_ifork	*ifp;
+
+	if (XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_LOCAL)
+		return;
+
+	ifp = XFS_IFORK_PTR(ip, whichfork);
+	xfs_idata_realloc(ip, -ifp->if_bytes, whichfork);
+}
+
+/*
  * This is called to return an inode to the inode free list.
  * The inode should already be truncated to 0 length and have
  * no pages associated with it.  This routine also assumes that
@@ -2435,6 +2454,9 @@ xfs_ifree(
 	error = xfs_difree(tp, ip->i_ino, dfops, &xic);
 	if (error)
 		return error;
+
+	xfs_ifree_local_data(ip, XFS_DATA_FORK);
+	xfs_ifree_local_data(ip, XFS_ATTR_FORK);
 
 	VFS_I(ip)->i_mode = 0;		/* mark incore inode as free */
 	ip->i_d.di_flags = 0;

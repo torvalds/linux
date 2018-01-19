@@ -272,7 +272,8 @@ enum ena_flags_t {
 	ENA_FLAG_DEV_UP,
 	ENA_FLAG_LINK_UP,
 	ENA_FLAG_MSIX_ENABLED,
-	ENA_FLAG_TRIGGER_RESET
+	ENA_FLAG_TRIGGER_RESET,
+	ENA_FLAG_ONGOING_RESET
 };
 
 /* adapter specific private data structure */

@@ -45,8 +45,8 @@ static DEFINE_SPINLOCK(idt77105_priv_lock);
 #define PUT(val,reg) dev->ops->phy_put(dev,val,IDT77105_##reg)
 #define GET(reg) dev->ops->phy_get(dev,IDT77105_##reg)
 
-static void idt77105_stats_timer_func(unsigned long);
-static void idt77105_restart_timer_func(unsigned long);
+static void idt77105_stats_timer_func(struct timer_list *);
+static void idt77105_restart_timer_func(struct timer_list *);
 
 
 static DEFINE_TIMER(stats_timer, idt77105_stats_timer_func);
@@ -80,7 +80,7 @@ static u16 get_counter(struct atm_dev *dev, int counter)
  * a separate copy of the stats allows implementation of
  * an ioctl which gathers the stats *without* zero'ing them.
  */
-static void idt77105_stats_timer_func(unsigned long dummy)
+static void idt77105_stats_timer_func(struct timer_list *unused)
 {
 	struct idt77105_priv *walk;
 	struct atm_dev *dev;
@@ -109,7 +109,7 @@ static void idt77105_stats_timer_func(unsigned long dummy)
  * interrupts need to be disabled when the cable is pulled out
  * to avoid lots of spurious cell error interrupts.
  */
-static void idt77105_restart_timer_func(unsigned long dummy)
+static void idt77105_restart_timer_func(struct timer_list *unused)
 {
 	struct idt77105_priv *walk;
 	struct atm_dev *dev;

@@ -1776,9 +1776,9 @@ config DEBUG_UART_8250_FLOW_CONTROL
 	default y if ARCH_EBSA110 || DEBUG_FOOTBRIDGE_COM1 || DEBUG_GEMINI || ARCH_RPC
 
 config DEBUG_UNCOMPRESS
-	bool
+	bool "Enable decompressor debugging via DEBUG_LL output"
 	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
-	default y if DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
+	depends on DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM) && \
 		     !DEBUG_BRCMSTB_UART
 	help

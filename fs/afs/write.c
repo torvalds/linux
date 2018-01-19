@@ -119,6 +119,11 @@ try_again:
 	}
 
 	if (f != t) {
+		if (PageWriteback(page)) {
+			trace_afs_page_dirty(vnode, tracepoint_string("alrdy"),
+					     page->index, priv);
+			goto flush_conflicting_write;
+		}
 		if (to < f || from > t)
 			goto flush_conflicting_write;
 		if (from < f)

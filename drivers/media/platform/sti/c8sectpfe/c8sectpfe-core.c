@@ -61,9 +61,9 @@ static int load_c8sectpfe_fw(struct c8sectpfei *fei);
 
 #define FIFO_LEN 1024
 
-static void c8sectpfe_timer_interrupt(unsigned long ac8sectpfei)
+static void c8sectpfe_timer_interrupt(struct timer_list *t)
 {
-	struct c8sectpfei *fei = (struct c8sectpfei *)ac8sectpfei;
+	struct c8sectpfei *fei = from_timer(fei, t, timer);
 	struct channel_info *channel;
 	int chan_num;
 
@@ -865,8 +865,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 	}
 
 	/* Setup timer interrupt */
-	setup_timer(&fei->timer, c8sectpfe_timer_interrupt,
-		    (unsigned long)fei);
+	timer_setup(&fei->timer, c8sectpfe_timer_interrupt, 0);
 
 	mutex_init(&fei->lock);
 

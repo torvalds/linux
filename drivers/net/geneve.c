@@ -1337,21 +1337,33 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 	}
 
 	if (data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX]) {
+#if IS_ENABLED(CONFIG_IPV6)
 		if (changelink) {
 			attrtype = IFLA_GENEVE_UDP_ZERO_CSUM6_TX;
 			goto change_notsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX]))
 			info->key.tun_flags &= ~TUNNEL_CSUM;
+#else
+		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_UDP_ZERO_CSUM6_TX],
+				    "IPv6 support not enabled in the kernel");
+		return -EPFNOSUPPORT;
+#endif
 	}
 
 	if (data[IFLA_GENEVE_UDP_ZERO_CSUM6_RX]) {
+#if IS_ENABLED(CONFIG_IPV6)
 		if (changelink) {
 			attrtype = IFLA_GENEVE_UDP_ZERO_CSUM6_RX;
 			goto change_notsup;
 		}
 		if (nla_get_u8(data[IFLA_GENEVE_UDP_ZERO_CSUM6_RX]))
 			*use_udp6_rx_checksums = false;
+#else
+		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_GENEVE_UDP_ZERO_CSUM6_RX],
+				    "IPv6 support not enabled in the kernel");
+		return -EPFNOSUPPORT;
+#endif
 	}
 
 	return 0;
@@ -1527,11 +1539,13 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		goto nla_put_failure;
 
 	if (metadata && nla_put_flag(skb, IFLA_GENEVE_COLLECT_METADATA))
-			goto nla_put_failure;
+		goto nla_put_failure;
 
+#if IS_ENABLED(CONFIG_IPV6)
 	if (nla_put_u8(skb, IFLA_GENEVE_UDP_ZERO_CSUM6_RX,
 		       !geneve->use_udp6_rx_checksums))
 		goto nla_put_failure;
+#endif
 
 	return 0;
 

@@ -846,7 +846,7 @@ module_param_call(audit, param_set_audit, param_get_audit,
 /* Determines if audit header is included in audited messages.  This
  * provides more context if the audit daemon is not running
  */
-bool aa_g_audit_header = 1;
+bool aa_g_audit_header = true;
 module_param_named(audit_header, aa_g_audit_header, aabool,
 		   S_IRUSR | S_IWUSR);
 
@@ -871,7 +871,7 @@ module_param_named(path_max, aa_g_path_max, aauint, S_IRUSR);
  * DEPRECATED: read only as strict checking of load is always done now
  * that none root users (user namespaces) can load policy.
  */
-bool aa_g_paranoid_load = 1;
+bool aa_g_paranoid_load = true;
 module_param_named(paranoid_load, aa_g_paranoid_load, aabool, S_IRUGO);
 
 /* Boot time disable flag */
@@ -1119,7 +1119,7 @@ static int __init apparmor_init(void)
 
 	if (!apparmor_enabled || !security_module_enable("apparmor")) {
 		aa_info_message("AppArmor disabled by boot time parameter");
-		apparmor_enabled = 0;
+		apparmor_enabled = false;
 		return 0;
 	}
 
@@ -1175,7 +1175,7 @@ alloc_out:
 	aa_destroy_aafs();
 	aa_teardown_dfa_engine();
 
-	apparmor_enabled = 0;
+	apparmor_enabled = false;
 	return error;
 }
 

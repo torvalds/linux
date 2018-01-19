@@ -562,7 +562,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 {
 	struct smc_connection *conn = &smc->conn;
 	struct smc_link_group *lgr = conn->lgr;
-	struct smc_buf_desc *buf_desc = NULL;
+	struct smc_buf_desc *buf_desc = ERR_PTR(-ENOMEM);
 	struct list_head *buf_list;
 	int bufsize, bufsize_short;
 	int sk_buf_size;
@@ -575,7 +575,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 		/* use socket send buffer size (w/o overhead) as start value */
 		sk_buf_size = smc->sk.sk_sndbuf / 2;
 
-	for (bufsize_short = smc_compress_bufsize(smc->sk.sk_sndbuf / 2);
+	for (bufsize_short = smc_compress_bufsize(sk_buf_size);
 	     bufsize_short >= 0; bufsize_short--) {
 
 		if (is_rmb) {

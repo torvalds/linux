@@ -1231,7 +1231,7 @@ static bool fm10k_clean_tx_irq(struct fm10k_q_vector *q_vector,
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		read_barrier_depends();
+		smp_rmb();
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->flags & FM10K_TXD_FLAG_DONE))

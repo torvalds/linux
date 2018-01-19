@@ -75,10 +75,10 @@ static struct in6_addr mld2_all_mcr = MLD2_ALL_MCR_INIT;
 
 static void igmp6_join_group(struct ifmcaddr6 *ma);
 static void igmp6_leave_group(struct ifmcaddr6 *ma);
-static void igmp6_timer_handler(unsigned long data);
+static void igmp6_timer_handler(struct timer_list *t);
 
-static void mld_gq_timer_expire(unsigned long data);
-static void mld_ifc_timer_expire(unsigned long data);
+static void mld_gq_timer_expire(struct timer_list *t);
+static void mld_ifc_timer_expire(struct timer_list *t);
 static void mld_ifc_event(struct inet6_dev *idev);
 static void mld_add_delrec(struct inet6_dev *idev, struct ifmcaddr6 *pmc);
 static void mld_del_delrec(struct inet6_dev *idev, struct ifmcaddr6 *pmc);
@@ -839,7 +839,7 @@ static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
 	if (!mc)
 		return NULL;
 
-	setup_timer(&mc->mca_timer, igmp6_timer_handler, (unsigned long)mc);
+	timer_setup(&mc->mca_timer, igmp6_timer_handler, 0);
 
 	mc->mca_addr = *addr;
 	mc->idev = idev; /* reference taken by caller */
@@ -2083,9 +2083,9 @@ void ipv6_mc_dad_complete(struct inet6_dev *idev)
 	}
 }
 
-static void mld_dad_timer_expire(unsigned long data)
+static void mld_dad_timer_expire(struct timer_list *t)
 {
-	struct inet6_dev *idev = (struct inet6_dev *)data;
+	struct inet6_dev *idev = from_timer(idev, t, mc_dad_timer);
 
 	mld_send_initial_cr(idev);
 	if (idev->mc_dad_count) {
@@ -2432,18 +2432,18 @@ static void igmp6_leave_group(struct ifmcaddr6 *ma)
 	}
 }
 
-static void mld_gq_timer_expire(unsigned long data)
+static void mld_gq_timer_expire(struct timer_list *t)
 {
-	struct inet6_dev *idev = (struct inet6_dev *)data;
+	struct inet6_dev *idev = from_timer(idev, t, mc_gq_timer);
 
 	idev->mc_gq_running = 0;
 	mld_send_report(idev, NULL);
 	in6_dev_put(idev);
 }
 
-static void mld_ifc_timer_expire(unsigned long data)
+static void mld_ifc_timer_expire(struct timer_list *t)
 {
-	struct inet6_dev *idev = (struct inet6_dev *)data;
+	struct inet6_dev *idev = from_timer(idev, t, mc_ifc_timer);
 
 	mld_send_cr(idev);
 	if (idev->mc_ifc_count) {
@@ -2462,9 +2462,9 @@ static void mld_ifc_event(struct inet6_dev *idev)
 	mld_ifc_start_timer(idev, 1);
 }
 
-static void igmp6_timer_handler(unsigned long data)
+static void igmp6_timer_handler(struct timer_list *t)
 {
-	struct ifmcaddr6 *ma = (struct ifmcaddr6 *) data;
+	struct ifmcaddr6 *ma = from_timer(ma, t, mca_timer);
 
 	if (mld_in_v1_mode(ma->idev))
 		igmp6_send(&ma->mca_addr, ma->idev->dev, ICMPV6_MGM_REPORT);
@@ -2552,14 +2552,11 @@ void ipv6_mc_init_dev(struct inet6_dev *idev)
 	write_lock_bh(&idev->lock);
 	spin_lock_init(&idev->mc_lock);
 	idev->mc_gq_running = 0;
-	setup_timer(&idev->mc_gq_timer, mld_gq_timer_expire,
-			(unsigned long)idev);
+	timer_setup(&idev->mc_gq_timer, mld_gq_timer_expire, 0);
 	idev->mc_tomb = NULL;
 	idev->mc_ifc_count = 0;
-	setup_timer(&idev->mc_ifc_timer, mld_ifc_timer_expire,
-			(unsigned long)idev);
-	setup_timer(&idev->mc_dad_timer, mld_dad_timer_expire,
-		    (unsigned long)idev);
+	timer_setup(&idev->mc_ifc_timer, mld_ifc_timer_expire, 0);
+	timer_setup(&idev->mc_dad_timer, mld_dad_timer_expire, 0);
 	ipv6_mc_reset(idev);
 	write_unlock_bh(&idev->lock);
 }

@@ -1,5 +1,5 @@
 /*
- * Local APIC related interfaces to support IOAPIC, MSI, HT_IRQ etc.
+ * Local APIC related interfaces to support IOAPIC, MSI, etc.
  *
  * Copyright (C) 1997, 1998, 1999, 2000, 2009 Ingo Molnar, Hajnalka Szabo
  *	Moved from arch/x86/kernel/apic/io_apic.c.
@@ -601,7 +601,7 @@ int __init arch_probe_nr_irqs(void)
 		nr_irqs = NR_VECTORS * nr_cpu_ids;
 
 	nr = (gsi_top + nr_legacy_irqs()) + 8 * nr_cpu_ids;
-#if defined(CONFIG_PCI_MSI) || defined(CONFIG_HT_IRQ)
+#if defined(CONFIG_PCI_MSI)
 	/*
 	 * for MSI and HT dyn irq
 	 */
@@ -663,7 +663,6 @@ int __init arch_early_irq_init(void)
 	irq_set_default_host(x86_vector_domain);
 
 	arch_init_msi_domain(x86_vector_domain);
-	arch_init_htirq_domain(x86_vector_domain);
 
 	BUG_ON(!alloc_cpumask_var(&vector_searchmask, GFP_KERNEL));
 

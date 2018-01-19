@@ -75,7 +75,7 @@ static void desc_dbg(IADEV *iadev);
 static IADEV *ia_dev[8];
 static struct atm_dev *_ia_dev[8];
 static int iadev_count;
-static void ia_led_timer(unsigned long arg);
+static void ia_led_timer(struct timer_list *unused);
 static DEFINE_TIMER(ia_timer, ia_led_timer);
 static int IA_TX_BUF = DFL_TX_BUFFERS, IA_TX_BUF_SZ = DFL_TX_BUF_SZ;
 static int IA_RX_BUF = DFL_RX_BUFFERS, IA_RX_BUF_SZ = DFL_RX_BUF_SZ;
@@ -2432,7 +2432,7 @@ static void ia_update_stats(IADEV *iadev) {
     return;
 }
   
-static void ia_led_timer(unsigned long arg) {
+static void ia_led_timer(struct timer_list *unused) {
  	unsigned long flags;
   	static u_char blinking[8] = {0, 0, 0, 0, 0, 0, 0, 0};
         u_char i;

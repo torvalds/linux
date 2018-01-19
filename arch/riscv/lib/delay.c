@@ -84,6 +84,7 @@ void __delay(unsigned long cycles)
 	while ((unsigned long)(get_cycles() - t0) < cycles)
 		cpu_relax();
 }
+EXPORT_SYMBOL(__delay);
 
 void udelay(unsigned long usecs)
 {

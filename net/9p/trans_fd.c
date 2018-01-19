@@ -724,12 +724,12 @@ static int p9_fd_show_options(struct seq_file *m, struct p9_client *clnt)
 {
 	if (clnt->trans_mod == &p9_tcp_trans) {
 		if (clnt->trans_opts.tcp.port != P9_PORT)
-			seq_printf(m, "port=%u", clnt->trans_opts.tcp.port);
+			seq_printf(m, ",port=%u", clnt->trans_opts.tcp.port);
 	} else if (clnt->trans_mod == &p9_fd_trans) {
 		if (clnt->trans_opts.fd.rfd != ~0)
-			seq_printf(m, "rfd=%u", clnt->trans_opts.fd.rfd);
+			seq_printf(m, ",rfd=%u", clnt->trans_opts.fd.rfd);
 		if (clnt->trans_opts.fd.wfd != ~0)
-			seq_printf(m, "wfd=%u", clnt->trans_opts.fd.wfd);
+			seq_printf(m, ",wfd=%u", clnt->trans_opts.fd.wfd);
 	}
 	return 0;
 }

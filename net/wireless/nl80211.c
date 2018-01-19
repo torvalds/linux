@@ -2605,10 +2605,32 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 			goto nla_put_failure;
 	}
 
-	if (wdev->ssid_len) {
-		if (nla_put(msg, NL80211_ATTR_SSID, wdev->ssid_len, wdev->ssid))
+	wdev_lock(wdev);
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_AP:
+		if (wdev->ssid_len &&
+		    nla_put(msg, NL80211_ATTR_SSID, wdev->ssid_len, wdev->ssid))
 			goto nla_put_failure;
+		break;
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_ADHOC: {
+		const u8 *ssid_ie;
+		if (!wdev->current_bss)
+			break;
+		ssid_ie = ieee80211_bss_get_ie(&wdev->current_bss->pub,
+					       WLAN_EID_SSID);
+		if (!ssid_ie)
+			break;
+		if (nla_put(msg, NL80211_ATTR_SSID, ssid_ie[1], ssid_ie + 2))
+			goto nla_put_failure;
+		break;
+		}
+	default:
+		/* nothing */
+		break;
 	}
+	wdev_unlock(wdev);
 
 	genlmsg_end(msg, hdr);
 	return 0;
@@ -6291,7 +6313,7 @@ static int nl80211_send_regdom(struct sk_buff *msg, struct netlink_callback *cb,
 	if (!hdr)
 		return -1;
 
-	genl_dump_check_consistent(cb, hdr, &nl80211_fam);
+	genl_dump_check_consistent(cb, hdr);
 
 	if (nl80211_put_regdom(regdom, msg))
 		goto nla_put_failure;
@@ -7722,7 +7744,7 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 	if (!hdr)
 		return -1;
 
-	genl_dump_check_consistent(cb, hdr, &nl80211_fam);
+	genl_dump_check_consistent(cb, hdr);
 
 	if (nla_put_u32(msg, NL80211_ATTR_GENERATION, rdev->bss_generation))
 		goto nla_put_failure;

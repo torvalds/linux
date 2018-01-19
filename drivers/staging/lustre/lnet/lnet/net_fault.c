@@ -700,9 +700,9 @@ lnet_delay_rule_daemon(void *arg)
 }
 
 static void
-delay_timer_cb(unsigned long arg)
+delay_timer_cb(struct timer_list *t)
 {
-	struct lnet_delay_rule *rule = (struct lnet_delay_rule *)arg;
+	struct lnet_delay_rule *rule = from_timer(rule, t, dl_timer);
 
 	spin_lock_bh(&delay_dd.dd_lock);
 	if (list_empty(&rule->dl_sched_link) && delay_dd.dd_running) {
@@ -762,7 +762,7 @@ lnet_delay_rule_add(struct lnet_fault_attr *attr)
 		wait_event(delay_dd.dd_ctl_waitq, delay_dd.dd_running);
 	}
 
-	setup_timer(&rule->dl_timer, delay_timer_cb, (unsigned long)rule);
+	timer_setup(&rule->dl_timer, delay_timer_cb, 0);
 
 	spin_lock_init(&rule->dl_lock);
 	INIT_LIST_HEAD(&rule->dl_msg_list);

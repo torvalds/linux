@@ -4766,7 +4766,7 @@ static struct timer_list ipmi_timer;
 
 static atomic_t stop_operation;
 
-static void ipmi_timeout(unsigned long data)
+static void ipmi_timeout(struct timer_list *unused)
 {
 	ipmi_smi_t intf;
 	int nt = 0;
@@ -5172,7 +5172,7 @@ static int ipmi_init_msghandler(void)
 
 #endif /* CONFIG_IPMI_PROC_INTERFACE */
 
-	setup_timer(&ipmi_timer, ipmi_timeout, 0);
+	timer_setup(&ipmi_timer, ipmi_timeout, 0);
 	mod_timer(&ipmi_timer, jiffies + IPMI_TIMEOUT_JIFFIES);
 
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);

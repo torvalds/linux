@@ -23,7 +23,7 @@
 #define __NWBUTTON_C		/* Tell the header file who we are */
 #include "nwbutton.h"
 
-static void button_sequence_finished (unsigned long parameters);
+static void button_sequence_finished(struct timer_list *unused);
 
 static int button_press_count;		/* The count of button presses */
 /* Times for the end of a sequence */
@@ -127,7 +127,7 @@ static void button_consume_callbacks (int bpcount)
  * any matching registered function callbacks, initiate reboot, etc.).
  */
 
-static void button_sequence_finished (unsigned long parameters)
+static void button_sequence_finished(struct timer_list *unused)
 {
 	if (IS_ENABLED(CONFIG_NWBUTTON_REBOOT) &&
 	    button_press_count == reboot_count)

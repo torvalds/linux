@@ -184,9 +184,9 @@ report:
 	nd->handler(nd);
 }
 
-static void ncsi_channel_monitor(unsigned long data)
+static void ncsi_channel_monitor(struct timer_list *t)
 {
-	struct ncsi_channel *nc = (struct ncsi_channel *)data;
+	struct ncsi_channel *nc = from_timer(nc, t, monitor.timer);
 	struct ncsi_package *np = nc->package;
 	struct ncsi_dev_priv *ndp = np->ndp;
 	struct ncsi_channel_mode *ncm;
@@ -313,8 +313,7 @@ struct ncsi_channel *ncsi_add_channel(struct ncsi_package *np, unsigned char id)
 	nc->package = np;
 	nc->state = NCSI_CHANNEL_INACTIVE;
 	nc->monitor.enabled = false;
-	setup_timer(&nc->monitor.timer,
-		    ncsi_channel_monitor, (unsigned long)nc);
+	timer_setup(&nc->monitor.timer, ncsi_channel_monitor, 0);
 	spin_lock_init(&nc->lock);
 	INIT_LIST_HEAD(&nc->link);
 	for (index = 0; index < NCSI_CAP_MAX; index++)
@@ -529,9 +528,9 @@ struct ncsi_dev *ncsi_find_dev(struct net_device *dev)
 	return NULL;
 }
 
-static void ncsi_request_timeout(unsigned long data)
+static void ncsi_request_timeout(struct timer_list *t)
 {
-	struct ncsi_request *nr = (struct ncsi_request *)data;
+	struct ncsi_request *nr = from_timer(nr, t, timer);
 	struct ncsi_dev_priv *ndp = nr->ndp;
 	unsigned long flags;
 
@@ -1577,9 +1576,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	for (i = 0; i < ARRAY_SIZE(ndp->requests); i++) {
 		ndp->requests[i].id = i;
 		ndp->requests[i].ndp = ndp;
-		setup_timer(&ndp->requests[i].timer,
-			    ncsi_request_timeout,
-			    (unsigned long)&ndp->requests[i]);
+		timer_setup(&ndp->requests[i].timer, ncsi_request_timeout, 0);
 	}
 
 	spin_lock_irqsave(&ncsi_dev_lock, flags);

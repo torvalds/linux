@@ -989,18 +989,18 @@ static int usbatm_heavy_init(struct usbatm_data *instance)
 	return 0;
 }
 
-static void usbatm_tasklet_schedule(unsigned long data)
+static void usbatm_tasklet_schedule(struct timer_list *t)
 {
-	tasklet_schedule((struct tasklet_struct *) data);
+	struct usbatm_channel *channel = from_timer(channel, t, delay);
+
+	tasklet_schedule(&channel->tasklet);
 }
 
 static void usbatm_init_channel(struct usbatm_channel *channel)
 {
 	spin_lock_init(&channel->lock);
 	INIT_LIST_HEAD(&channel->list);
-	channel->delay.function = usbatm_tasklet_schedule;
-	channel->delay.data = (unsigned long) &channel->tasklet;
-	init_timer(&channel->delay);
+	timer_setup(&channel->delay, usbatm_tasklet_schedule, 0);
 }
 
 int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,

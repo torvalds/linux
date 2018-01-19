@@ -173,6 +173,20 @@ unsigned long __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
 }
 EXPORT_SYMBOL(__cmpxchg_u32);
 
+u64 __cmpxchg_u64(u64 *ptr, u64 old, u64 new)
+{
+	unsigned long flags;
+	u64 prev;
+
+	spin_lock_irqsave(ATOMIC_HASH(ptr), flags);
+	if ((prev = *ptr) == old)
+		*ptr = new;
+	spin_unlock_irqrestore(ATOMIC_HASH(ptr), flags);
+
+	return prev;
+}
+EXPORT_SYMBOL(__cmpxchg_u64);
+
 unsigned long __xchg_u32(volatile u32 *ptr, u32 new)
 {
 	unsigned long flags;

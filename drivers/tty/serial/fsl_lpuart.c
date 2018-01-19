@@ -966,9 +966,9 @@ static void lpuart_dma_rx_complete(void *arg)
 	lpuart_copy_rx_to_tty(sport);
 }
 
-static void lpuart_timer_func(unsigned long data)
+static void lpuart_timer_func(struct timer_list *t)
 {
-	struct lpuart_port *sport = (struct lpuart_port *)data;
+	struct lpuart_port *sport = from_timer(sport, t, lpuart_timer);
 
 	lpuart_copy_rx_to_tty(sport);
 }
@@ -1263,8 +1263,7 @@ static void lpuart32_setup_watermark(struct lpuart_port *sport)
 
 static void rx_dma_timer_init(struct lpuart_port *sport)
 {
-		setup_timer(&sport->lpuart_timer, lpuart_timer_func,
-				(unsigned long)sport);
+		timer_setup(&sport->lpuart_timer, lpuart_timer_func, 0);
 		sport->lpuart_timer.expires = jiffies + sport->dma_rx_timeout;
 		add_timer(&sport->lpuart_timer);
 }

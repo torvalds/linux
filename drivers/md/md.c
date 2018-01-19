@@ -541,7 +541,7 @@ static void mddev_put(struct mddev *mddev)
 		bioset_free(sync_bs);
 }
 
-static void md_safemode_timeout(unsigned long data);
+static void md_safemode_timeout(struct timer_list *t);
 
 void mddev_init(struct mddev *mddev)
 {
@@ -550,8 +550,7 @@ void mddev_init(struct mddev *mddev)
 	mutex_init(&mddev->bitmap_info.mutex);
 	INIT_LIST_HEAD(&mddev->disks);
 	INIT_LIST_HEAD(&mddev->all_mddevs);
-	setup_timer(&mddev->safemode_timer, md_safemode_timeout,
-		    (unsigned long) mddev);
+	timer_setup(&mddev->safemode_timer, md_safemode_timeout, 0);
 	atomic_set(&mddev->active, 1);
 	atomic_set(&mddev->openers, 0);
 	atomic_set(&mddev->active_io, 0);
@@ -5404,9 +5403,9 @@ static int add_named_array(const char *val, const struct kernel_param *kp)
 	return -EINVAL;
 }
 
-static void md_safemode_timeout(unsigned long data)
+static void md_safemode_timeout(struct timer_list *t)
 {
-	struct mddev *mddev = (struct mddev *) data;
+	struct mddev *mddev = from_timer(mddev, t, safemode_timer);
 
 	mddev->safemode = 1;
 	if (mddev->external)

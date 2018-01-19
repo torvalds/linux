@@ -34,7 +34,7 @@
 #include "iscsi_target_erl2.h"
 #include "iscsi_target.h"
 
-#define OFFLOAD_BUF_SIZE	32768
+#define OFFLOAD_BUF_SIZE	32768U
 
 /*
  *	Used to dump excess datain payload for certain error recovery
@@ -56,7 +56,7 @@ int iscsit_dump_data_payload(
 	if (conn->sess->sess_ops->RDMAExtensions)
 		return 0;
 
-	length = (buf_len > OFFLOAD_BUF_SIZE) ? OFFLOAD_BUF_SIZE : buf_len;
+	length = min(buf_len, OFFLOAD_BUF_SIZE);
 
 	buf = kzalloc(length, GFP_ATOMIC);
 	if (!buf) {
@@ -67,8 +67,7 @@ int iscsit_dump_data_payload(
 	memset(&iov, 0, sizeof(struct kvec));
 
 	while (offset < buf_len) {
-		size = ((offset + length) > buf_len) ?
-			(buf_len - offset) : length;
+		size = min(buf_len - offset, length);
 
 		iov.iov_len = size;
 		iov.iov_base = buf;

@@ -3778,7 +3778,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 				"Trying to Unfreeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr,
-				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
+				PPSMC_MSG_MCLKDPM_UnfreezeLevel),
 		    "Failed to unfreeze MCLK DPM during UnFreezeSclkMclkDPM Function!",
 		    return -EINVAL);
 	}

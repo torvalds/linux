@@ -92,7 +92,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		task->task_done = smp_task_done;
 
-		task->slow_task->timer.function = (TIMER_FUNC_TYPE)smp_task_timedout;
+		task->slow_task->timer.function = smp_task_timedout;
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 

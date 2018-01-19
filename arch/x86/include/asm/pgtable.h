@@ -1061,7 +1061,7 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
 				  unsigned long address, pmd_t *pmdp);
 
 
-#define __HAVE_ARCH_PMD_WRITE
+#define pmd_write pmd_write
 static inline int pmd_write(pmd_t pmd)
 {
 	return pmd_flags(pmd) & _PAGE_RW;
@@ -1086,6 +1086,12 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 				      unsigned long addr, pmd_t *pmdp)
 {
 	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
+}
+
+#define pud_write pud_write
+static inline int pud_write(pud_t pud)
+{
+	return pud_flags(pud) & _PAGE_RW;
 }
 
 /*

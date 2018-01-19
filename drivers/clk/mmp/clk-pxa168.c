@@ -75,19 +75,19 @@ void __init pxa168_clk_init(phys_addr_t mpmu_phys, phys_addr_t apmu_phys,
 	void __iomem *apbc_base;
 
 	mpmu_base = ioremap(mpmu_phys, SZ_4K);
-	if (mpmu_base == NULL) {
+	if (!mpmu_base) {
 		pr_err("error to ioremap MPMU base\n");
 		return;
 	}
 
 	apmu_base = ioremap(apmu_phys, SZ_4K);
-	if (apmu_base == NULL) {
+	if (!apmu_base) {
 		pr_err("error to ioremap APMU base\n");
 		return;
 	}
 
 	apbc_base = ioremap(apbc_phys, SZ_4K);
-	if (apbc_base == NULL) {
+	if (!apbc_base) {
 		pr_err("error to ioremap APBC base\n");
 		return;
 	}

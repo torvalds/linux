@@ -3080,9 +3080,9 @@ err_out:
  * The routine called when the error timer expires, to track the number of
  * recurring errors.
  */
-static void et131x_error_timer_handler(unsigned long data)
+static void et131x_error_timer_handler(struct timer_list *t)
 {
-	struct et131x_adapter *adapter = (struct et131x_adapter *)data;
+	struct et131x_adapter *adapter = from_timer(adapter, t, error_timer);
 	struct phy_device *phydev = adapter->netdev->phydev;
 
 	if (et1310_in_phy_coma(adapter)) {
@@ -3624,8 +3624,7 @@ static int et131x_open(struct net_device *netdev)
 	int result;
 
 	/* Start the timer to track NIC errors */
-	setup_timer(&adapter->error_timer, et131x_error_timer_handler,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->error_timer, et131x_error_timer_handler, 0);
 	adapter->error_timer.expires = jiffies +
 		msecs_to_jiffies(TX_ERROR_PERIOD);
 	add_timer(&adapter->error_timer);

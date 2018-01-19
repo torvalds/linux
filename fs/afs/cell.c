@@ -207,13 +207,8 @@ struct afs_cell *afs_lookup_cell(struct afs_net *net,
 		rcu_read_lock();
 		cell = afs_lookup_cell_rcu(net, name, namesz);
 		rcu_read_unlock();
-		if (!IS_ERR(cell)) {
-			if (excl) {
-				afs_put_cell(net, cell);
-				return ERR_PTR(-EEXIST);
-			}
+		if (!IS_ERR(cell))
 			goto wait_for_cell;
-		}
 	}
 
 	/* Assume we're probably going to create a cell and preallocate and

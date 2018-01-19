@@ -258,6 +258,7 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 static void nfp_repr_clean(struct nfp_repr *repr)
 {
 	unregister_netdev(repr->netdev);
+	nfp_app_repr_clean(repr->app, repr->netdev);
 	dst_release((struct dst_entry *)repr->dst);
 	nfp_port_free(repr->port);
 }
@@ -297,6 +298,8 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	netdev->netdev_ops = &nfp_repr_netdev_ops;
 	netdev->ethtool_ops = &nfp_port_ethtool_ops;
 
+	netdev->max_mtu = pf_netdev->max_mtu;
+
 	SWITCHDEV_SET_OPS(netdev, &nfp_port_switchdev_ops);
 
 	if (nfp_app_has_tc(app)) {
@@ -304,12 +307,18 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 		netdev->hw_features |= NETIF_F_HW_TC;
 	}
 
-	err = register_netdev(netdev);
+	err = nfp_app_repr_init(app, netdev);
 	if (err)
 		goto err_clean;
 
+	err = register_netdev(netdev);
+	if (err)
+		goto err_repr_clean;
+
 	return 0;
 
+err_repr_clean:
+	nfp_app_repr_clean(app, netdev);
 err_clean:
 	dst_release((struct dst_entry *)repr->dst);
 	return err;

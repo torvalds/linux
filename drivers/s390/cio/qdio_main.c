@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Linux for s390 qdio support, buffer handling, qdio API and module support.
  *
@@ -894,9 +895,9 @@ void qdio_outbound_processing(unsigned long data)
 	__qdio_outbound_processing(q);
 }
 
-void qdio_outbound_timer(unsigned long data)
+void qdio_outbound_timer(struct timer_list *t)
 {
-	struct qdio_q *q = (struct qdio_q *)data;
+	struct qdio_q *q = from_timer(q, t, u.out.timer);
 
 	qdio_tasklet_schedule(q);
 }

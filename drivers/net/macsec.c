@@ -2411,7 +2411,7 @@ static int dump_secy(struct macsec_secy *secy, struct net_device *dev,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	genl_dump_check_consistent(cb, hdr, &macsec_fam);
+	genl_dump_check_consistent(cb, hdr);
 
 	if (nla_put_u32(skb, MACSEC_ATTR_IFINDEX, dev->ifindex))
 		goto nla_put_failure;

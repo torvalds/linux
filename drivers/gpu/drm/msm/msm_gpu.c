@@ -353,9 +353,9 @@ static void hangcheck_timer_reset(struct msm_gpu *gpu)
 			round_jiffies_up(jiffies + DRM_MSM_HANGCHECK_JIFFIES));
 }
 
-static void hangcheck_handler(unsigned long data)
+static void hangcheck_handler(struct timer_list *t)
 {
-	struct msm_gpu *gpu = (struct msm_gpu *)data;
+	struct msm_gpu *gpu = from_timer(gpu, t, hangcheck_timer);
 	struct drm_device *dev = gpu->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_ringbuffer *ring = gpu->funcs->active_ring(gpu);
@@ -703,8 +703,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	INIT_WORK(&gpu->recover_work, recover_worker);
 
 
-	setup_timer(&gpu->hangcheck_timer, hangcheck_handler,
-			(unsigned long)gpu);
+	timer_setup(&gpu->hangcheck_timer, hangcheck_handler, 0);
 
 	spin_lock_init(&gpu->perf_lock);
 

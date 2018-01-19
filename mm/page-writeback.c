@@ -433,11 +433,8 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
 	else
 		bg_thresh = (bg_ratio * available_memory) / PAGE_SIZE;
 
-	if (unlikely(bg_thresh >= thresh)) {
-		pr_warn("vm direct limit must be set greater than background limit.\n");
+	if (bg_thresh >= thresh)
 		bg_thresh = thresh / 2;
-	}
-
 	tsk = current;
 	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
 		bg_thresh += bg_thresh / 4 + global_wb_domain.dirty_limit / 32;
@@ -1993,11 +1990,12 @@ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 }
 
 #ifdef CONFIG_BLOCK
-void laptop_mode_timer_fn(unsigned long data)
+void laptop_mode_timer_fn(struct timer_list *t)
 {
-	struct request_queue *q = (struct request_queue *)data;
+	struct backing_dev_info *backing_dev_info =
+		from_timer(backing_dev_info, t, laptop_mode_wb_timer);
 
-	wakeup_flusher_threads_bdi(q->backing_dev_info, WB_REASON_LAPTOP_TIMER);
+	wakeup_flusher_threads_bdi(backing_dev_info, WB_REASON_LAPTOP_TIMER);
 }
 
 /*

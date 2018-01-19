@@ -4406,7 +4406,7 @@ static irqreturn_t DAC960_PD_InterruptHandler(int, void *);
 static irqreturn_t DAC960_P_InterruptHandler(int, void *);
 static void DAC960_V1_QueueMonitoringCommand(DAC960_Command_T *);
 static void DAC960_V2_QueueMonitoringCommand(DAC960_Command_T *);
-static void DAC960_MonitoringTimerFunction(unsigned long);
+static void DAC960_MonitoringTimerFunction(struct timer_list *);
 static void DAC960_Message(DAC960_MessageLevel_T, unsigned char *,
 			   DAC960_Controller_T *, ...);
 static void DAC960_CreateProcEntries(DAC960_Controller_T *);

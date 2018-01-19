@@ -46,8 +46,7 @@ bool afs_begin_vnode_operation(struct afs_fs_cursor *fc, struct afs_vnode *vnode
 		return false;
 	}
 
-	if (test_bit(AFS_VNODE_READLOCKED, &vnode->flags) ||
-	    test_bit(AFS_VNODE_WRITELOCKED, &vnode->flags))
+	if (vnode->lock_state != AFS_VNODE_LOCK_NONE)
 		fc->flags |= AFS_FS_CURSOR_CUR_ONLY;
 	return true;
 }
@@ -117,7 +116,7 @@ static void afs_busy(struct afs_volume *volume, u32 abort_code)
 	case VSALVAGING:	m = "being salvaged";	break;
 	default:		m = "busy";		break;
 	}
-	
+
 	pr_notice("kAFS: Volume %u '%s' is %s\n", volume->vid, volume->name, m);
 }
 
@@ -438,24 +437,67 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 
 	_enter("");
 
-	if (!cbi) {
-		fc->ac.error = -ESTALE;
+	switch (fc->ac.error) {
+	case SHRT_MAX:
+		if (!cbi) {
+			fc->ac.error = -ESTALE;
+			fc->flags |= AFS_FS_CURSOR_STOP;
+			return false;
+		}
+
+		fc->cbi = afs_get_cb_interest(vnode->cb_interest);
+
+		read_lock(&cbi->server->fs_lock);
+		alist = rcu_dereference_protected(cbi->server->addresses,
+						  lockdep_is_held(&cbi->server->fs_lock));
+		afs_get_addrlist(alist);
+		read_unlock(&cbi->server->fs_lock);
+		if (!alist) {
+			fc->ac.error = -ESTALE;
+			fc->flags |= AFS_FS_CURSOR_STOP;
+			return false;
+		}
+
+		fc->ac.alist = alist;
+		fc->ac.addr  = NULL;
+		fc->ac.start = READ_ONCE(alist->index);
+		fc->ac.index = fc->ac.start;
+		fc->ac.error = 0;
+		fc->ac.begun = false;
+		goto iterate_address;
+
+	case 0:
+	default:
+		/* Success or local failure.  Stop. */
 		fc->flags |= AFS_FS_CURSOR_STOP;
+		_leave(" = f [okay/local %d]", fc->ac.error);
 		return false;
+
+	case -ECONNABORTED:
+		fc->flags |= AFS_FS_CURSOR_STOP;
+		_leave(" = f [abort]");
+		return false;
+
+	case -ENETUNREACH:
+	case -EHOSTUNREACH:
+	case -ECONNREFUSED:
+	case -ETIMEDOUT:
+	case -ETIME:
+		_debug("no conn");
+		goto iterate_address;
 	}
 
-	read_lock(&cbi->server->fs_lock);
-	alist = afs_get_addrlist(cbi->server->addresses);
-	read_unlock(&cbi->server->fs_lock);
-	if (!alist) {
-		fc->ac.error = -ESTALE;
-		fc->flags |= AFS_FS_CURSOR_STOP;
-		return false;
+iterate_address:
+	/* Iterate over the current server's address list to try and find an
+	 * address on which it will respond to us.
+	 */
+	if (afs_iterate_addresses(&fc->ac)) {
+		_leave(" = t");
+		return true;
 	}
 
-	fc->ac.alist = alist;
-	fc->ac.error = 0;
-	return true;
+	afs_end_cursor(&fc->ac);
+	return false;
 }
 
 /*

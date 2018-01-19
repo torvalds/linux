@@ -145,9 +145,9 @@ void s5p_mfc_cleanup_queue(struct list_head *lh, struct vb2_queue *vq)
 	}
 }
 
-static void s5p_mfc_watchdog(unsigned long arg)
+static void s5p_mfc_watchdog(struct timer_list *t)
 {
-	struct s5p_mfc_dev *dev = (struct s5p_mfc_dev *)arg;
+	struct s5p_mfc_dev *dev = from_timer(dev, t, watchdog_timer);
 
 	if (test_bit(0, &dev->hw_lock))
 		atomic_inc(&dev->watchdog_cnt);
@@ -1314,9 +1314,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	dev->hw_lock = 0;
 	INIT_WORK(&dev->watchdog_work, s5p_mfc_watchdog_worker);
 	atomic_set(&dev->watchdog_cnt, 0);
-	init_timer(&dev->watchdog_timer);
-	dev->watchdog_timer.data = (unsigned long)dev;
-	dev->watchdog_timer.function = s5p_mfc_watchdog;
+	timer_setup(&dev->watchdog_timer, s5p_mfc_watchdog, 0);
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)

@@ -151,7 +151,7 @@ __sclp_ttybuf_emit(struct sclp_buffer *buffer)
  * temporary write buffer.
  */
 static void
-sclp_tty_timeout(unsigned long data)
+sclp_tty_timeout(struct timer_list *unused)
 {
 	unsigned long flags;
 	struct sclp_buffer *buf;
@@ -218,7 +218,6 @@ static int sclp_tty_write_string(const unsigned char *str, int count, int may_fa
 	/* Setup timer to output current console buffer after 1/10 second */
 	if (sclp_ttybuf && sclp_chars_in_buffer(sclp_ttybuf) &&
 	    !timer_pending(&sclp_tty_timer)) {
-		setup_timer(&sclp_tty_timer, sclp_tty_timeout, 0UL);
 		mod_timer(&sclp_tty_timer, jiffies + HZ / 10);
 	}
 	spin_unlock_irqrestore(&sclp_tty_lock, flags);
@@ -526,7 +525,7 @@ sclp_tty_init(void)
 	}
 	INIT_LIST_HEAD(&sclp_tty_outqueue);
 	spin_lock_init(&sclp_tty_lock);
-	init_timer(&sclp_tty_timer);
+	timer_setup(&sclp_tty_timer, sclp_tty_timeout, 0);
 	sclp_ttybuf = NULL;
 	sclp_tty_buffer_count = 0;
 	if (MACHINE_IS_VM) {

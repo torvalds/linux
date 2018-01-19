@@ -279,7 +279,7 @@ static unsigned detect_isa_irq(void __iomem *);
 #endif				/* CONFIG_ISA */
 
 #ifndef CONFIG_CYZ_INTR
-static void cyz_poll(unsigned long);
+static void cyz_poll(struct timer_list *);
 
 /* The Cyclades-Z polling cycle is defined by this variable */
 static long cyz_polling_cycle = CZ_DEF_POLL;
@@ -1214,7 +1214,7 @@ static void cyz_rx_restart(struct timer_list *t)
 
 #else				/* CONFIG_CYZ_INTR */
 
-static void cyz_poll(unsigned long arg)
+static void cyz_poll(struct timer_list *unused)
 {
 	struct cyclades_card *cinfo;
 	struct cyclades_port *info;

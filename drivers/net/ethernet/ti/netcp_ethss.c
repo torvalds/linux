@@ -2745,9 +2745,9 @@ static int gbe_ioctl(void *intf_priv, struct ifreq *req, int cmd)
 	return -EOPNOTSUPP;
 }
 
-static void netcp_ethss_timer(unsigned long arg)
+static void netcp_ethss_timer(struct timer_list *t)
 {
-	struct gbe_priv *gbe_dev = (struct gbe_priv *)arg;
+	struct gbe_priv *gbe_dev = from_timer(gbe_dev, t, timer);
 	struct gbe_intf *gbe_intf;
 	struct gbe_slave *slave;
 
@@ -3616,8 +3616,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	}
 	spin_unlock_bh(&gbe_dev->hw_stats_lock);
 
-	setup_timer(&gbe_dev->timer, netcp_ethss_timer,
-		    (unsigned long)gbe_dev);
+	timer_setup(&gbe_dev->timer, netcp_ethss_timer, 0);
 	gbe_dev->timer.expires	 = jiffies + GBE_TIMER_INTERVAL;
 	add_timer(&gbe_dev->timer);
 	*inst_priv = gbe_dev;

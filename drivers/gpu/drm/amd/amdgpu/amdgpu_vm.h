@@ -94,7 +94,8 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_MMHUB				1
 
 /* hardcode that limit for now */
-#define AMDGPU_VA_RESERVED_SIZE			(8 << 20)
+#define AMDGPU_VA_RESERVED_SIZE			(8ULL << 20)
+
 /* max vmids dedicated for process */
 #define AMDGPU_VM_MAX_RESERVED_VMID	1
 

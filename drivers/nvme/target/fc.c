@@ -533,15 +533,15 @@ nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 
 	tgtport->ops->fcp_req_release(&tgtport->fc_target_port, fcpreq);
 
+	/* release the queue lookup reference on the completed IO */
+	nvmet_fc_tgt_q_put(queue);
+
 	spin_lock_irqsave(&queue->qlock, flags);
 	deferfcp = list_first_entry_or_null(&queue->pending_cmd_list,
 				struct nvmet_fc_defer_fcp_req, req_list);
 	if (!deferfcp) {
 		list_add_tail(&fod->fcp_list, &fod->queue->fod_list);
 		spin_unlock_irqrestore(&queue->qlock, flags);
-
-		/* Release reference taken at queue lookup and fod allocation */
-		nvmet_fc_tgt_q_put(queue);
 		return;
 	}
 
@@ -759,6 +759,9 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 
 		tgtport->ops->fcp_req_release(&tgtport->fc_target_port,
 				deferfcp->fcp_req);
+
+		/* release the queue lookup reference */
+		nvmet_fc_tgt_q_put(queue);
 
 		kfree(deferfcp);
 
@@ -2144,6 +2147,7 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 			struct nvmet_fc_fcp_iod *fod)
 {
 	struct nvme_fc_cmd_iu *cmdiu = &fod->cmdiubuf;
+	u32 xfrlen = be32_to_cpu(cmdiu->data_len);
 	int ret;
 
 	/*
@@ -2157,7 +2161,6 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 
 	fod->fcpreq->done = nvmet_fc_xmt_fcp_op_done;
 
-	fod->req.transfer_len = be32_to_cpu(cmdiu->data_len);
 	if (cmdiu->flags & FCNVME_CMD_FLAGS_WRITE) {
 		fod->io_dir = NVMET_FCP_WRITE;
 		if (!nvme_is_write(&cmdiu->sqe))
@@ -2168,7 +2171,7 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 			goto transport_error;
 	} else {
 		fod->io_dir = NVMET_FCP_NODATA;
-		if (fod->req.transfer_len)
+		if (xfrlen)
 			goto transport_error;
 	}
 
@@ -2191,6 +2194,8 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 		/* nvmet layer has already called op done to send rsp. */
 		return;
 	}
+
+	fod->req.transfer_len = xfrlen;
 
 	/* keep a running counter of tail position */
 	atomic_inc(&fod->queue->sqtail);

@@ -214,8 +214,14 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 {
 	int err;
 
-	if (prog && !prog->aux->offload)
-		return -EINVAL;
+	if (prog) {
+		struct bpf_dev_offload *offload = prog->aux->offload;
+
+		if (!offload)
+			return -EINVAL;
+		if (offload->netdev != nn->dp.netdev)
+			return -EINVAL;
+	}
 
 	if (prog && old_prog) {
 		u8 cap;

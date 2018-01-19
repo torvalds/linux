@@ -1089,9 +1089,10 @@ static void pch_gbe_set_mode(struct pch_gbe_adapter *adapter, u16 speed,
  * pch_gbe_watchdog - Watchdog process
  * @data:  Board private structure
  */
-static void pch_gbe_watchdog(unsigned long data)
+static void pch_gbe_watchdog(struct timer_list *t)
 {
-	struct pch_gbe_adapter *adapter = (struct pch_gbe_adapter *)data;
+	struct pch_gbe_adapter *adapter = from_timer(adapter, t,
+						     watchdog_timer);
 	struct net_device *netdev = adapter->netdev;
 	struct pch_gbe_hw *hw = &adapter->hw;
 
@@ -2644,8 +2645,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Invalid MAC address, "
 		                    "interface disabled.\n");
 	}
-	setup_timer(&adapter->watchdog_timer, pch_gbe_watchdog,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->watchdog_timer, pch_gbe_watchdog, 0);
 
 	INIT_WORK(&adapter->reset_task, pch_gbe_reset_task);
 

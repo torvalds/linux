@@ -70,7 +70,7 @@ static int fib6_walk_continue(struct fib6_walker *w);
  *	result of redirects, path MTU changes, etc.
  */
 
-static void fib6_gc_timer_cb(unsigned long arg);
+static void fib6_gc_timer_cb(struct timer_list *t);
 
 #define FOR_WALKERS(net, w) \
 	list_for_each_entry(w, &(net)->ipv6.fib6_walkers, lh)
@@ -2026,9 +2026,11 @@ void fib6_run_gc(unsigned long expires, struct net *net, bool force)
 	spin_unlock_bh(&net->ipv6.fib6_gc_lock);
 }
 
-static void fib6_gc_timer_cb(unsigned long arg)
+static void fib6_gc_timer_cb(struct timer_list *t)
 {
-	fib6_run_gc(0, (struct net *)arg, true);
+	struct net *arg = from_timer(arg, t, ipv6.ip6_fib_timer);
+
+	fib6_run_gc(0, arg, true);
 }
 
 static int __net_init fib6_net_init(struct net *net)
@@ -2043,7 +2045,7 @@ static int __net_init fib6_net_init(struct net *net)
 	spin_lock_init(&net->ipv6.fib6_gc_lock);
 	rwlock_init(&net->ipv6.fib6_walker_lock);
 	INIT_LIST_HEAD(&net->ipv6.fib6_walkers);
-	setup_timer(&net->ipv6.ip6_fib_timer, fib6_gc_timer_cb, (unsigned long)net);
+	timer_setup(&net->ipv6.ip6_fib_timer, fib6_gc_timer_cb, 0);
 
 	net->ipv6.rt6_stats = kzalloc(sizeof(*net->ipv6.rt6_stats), GFP_KERNEL);
 	if (!net->ipv6.rt6_stats)

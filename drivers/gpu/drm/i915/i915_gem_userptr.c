@@ -172,7 +172,9 @@ i915_mmu_notifier_create(struct mm_struct *mm)
 	spin_lock_init(&mn->lock);
 	mn->mn.ops = &i915_gem_userptr_notifier;
 	mn->objects = RB_ROOT_CACHED;
-	mn->wq = alloc_workqueue("i915-userptr-release", WQ_UNBOUND, 0);
+	mn->wq = alloc_workqueue("i915-userptr-release",
+				 WQ_UNBOUND | WQ_MEM_RECLAIM,
+				 0);
 	if (mn->wq == NULL) {
 		kfree(mn);
 		return ERR_PTR(-ENOMEM);
@@ -827,7 +829,7 @@ int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
 
 	dev_priv->mm.userptr_wq =
 		alloc_workqueue("i915-userptr-acquire",
-				WQ_HIGHPRI | WQ_MEM_RECLAIM,
+				WQ_HIGHPRI | WQ_UNBOUND,
 				0);
 	if (!dev_priv->mm.userptr_wq)
 		return -ENOMEM;

@@ -642,9 +642,9 @@ err:
 	return -ENOMEM;
 }
 
-static void delay_time_func(unsigned long ctx)
+static void delay_time_func(struct timer_list *t)
 {
-	struct mlx5_ib_dev *dev = (struct mlx5_ib_dev *)ctx;
+	struct mlx5_ib_dev *dev = from_timer(dev, t, delay_timer);
 
 	dev->fill_delay = 0;
 }
@@ -663,7 +663,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		return -ENOMEM;
 	}
 
-	setup_timer(&dev->delay_timer, delay_time_func, (unsigned long)dev);
+	timer_setup(&dev->delay_timer, delay_time_func, 0);
 	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
 		ent = &cache->ent[i];
 		INIT_LIST_HEAD(&ent->head);

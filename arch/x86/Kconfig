@@ -1804,14 +1804,20 @@ config X86_SMAP
 	  If unsure, say Y.
 
 config X86_INTEL_UMIP
-	def_bool n
+	def_bool y
 	depends on CPU_SUP_INTEL
 	prompt "Intel User Mode Instruction Prevention" if EXPERT
 	---help---
 	  The User Mode Instruction Prevention (UMIP) is a security
 	  feature in newer Intel processors. If enabled, a general
-	  protection fault is issued if the instructions SGDT, SLDT,
-	  SIDT, SMSW and STR are executed in user mode.
+	  protection fault is issued if the SGDT, SLDT, SIDT, SMSW
+	  or STR instructions are executed in user mode. These instructions
+	  unnecessarily expose information about the hardware state.
+
+	  The vast majority of applications do not use these instructions.
+	  For the very few that do, software emulation is provided in
+	  specific cases in protected and virtual-8086 modes. Emulated
+	  results are dummy.
 
 config X86_INTEL_MPX
 	prompt "Intel MPX (Memory Protection Extensions)"

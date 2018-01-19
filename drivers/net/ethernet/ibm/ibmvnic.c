@@ -849,7 +849,6 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
 	union ibmvnic_crq crq;
-	dma_addr_t dma_addr;
 	int len = 0;
 
 	if (adapter->vpd->buff)
@@ -879,7 +878,7 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 	adapter->vpd->dma_addr =
 		dma_map_single(dev, adapter->vpd->buff, adapter->vpd->len,
 			       DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, dma_addr)) {
+	if (dma_mapping_error(dev, adapter->vpd->dma_addr)) {
 		dev_err(dev, "Could not map VPD buffer\n");
 		kfree(adapter->vpd->buff);
 		return -ENOMEM;

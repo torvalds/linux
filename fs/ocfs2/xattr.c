@@ -901,7 +901,7 @@ static int ocfs2_xattr_list_entry(struct super_block *sb,
 
 	case OCFS2_XATTR_INDEX_POSIX_ACL_ACCESS:
 	case OCFS2_XATTR_INDEX_POSIX_ACL_DEFAULT:
-		if (!(sb->s_flags & MS_POSIXACL))
+		if (!(sb->s_flags & SB_POSIXACL))
 			return 0;
 		break;
 

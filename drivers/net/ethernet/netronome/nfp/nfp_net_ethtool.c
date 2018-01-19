@@ -104,7 +104,7 @@ static const struct nfp_et_stat nfp_mac_et_stats[] = {
 	{ "rx_frame_too_long_errors",
 			NFP_MAC_STATS_RX_FRAME_TOO_LONG_ERRORS, },
 	{ "rx_range_length_errors",	NFP_MAC_STATS_RX_RANGE_LENGTH_ERRORS, },
-	{ "rx_vlan_reveive_ok",		NFP_MAC_STATS_RX_VLAN_REVEIVE_OK, },
+	{ "rx_vlan_received_ok",	NFP_MAC_STATS_RX_VLAN_RECEIVED_OK, },
 	{ "rx_errors",			NFP_MAC_STATS_RX_IN_ERRORS, },
 	{ "rx_broadcast_pkts",		NFP_MAC_STATS_RX_IN_BROADCAST_PKTS, },
 	{ "rx_drop_events",		NFP_MAC_STATS_RX_DROP_EVENTS, },

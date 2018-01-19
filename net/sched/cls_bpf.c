@@ -258,11 +258,8 @@ static int cls_bpf_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static void __cls_bpf_delete_prog(struct cls_bpf_prog *prog)
+static void cls_bpf_free_parms(struct cls_bpf_prog *prog)
 {
-	tcf_exts_destroy(&prog->exts);
-	tcf_exts_put_net(&prog->exts);
-
 	if (cls_bpf_is_ebpf(prog))
 		bpf_prog_put(prog->filter);
 	else
@@ -270,6 +267,14 @@ static void __cls_bpf_delete_prog(struct cls_bpf_prog *prog)
 
 	kfree(prog->bpf_name);
 	kfree(prog->bpf_ops);
+}
+
+static void __cls_bpf_delete_prog(struct cls_bpf_prog *prog)
+{
+	tcf_exts_destroy(&prog->exts);
+	tcf_exts_put_net(&prog->exts);
+
+	cls_bpf_free_parms(prog);
 	kfree(prog);
 }
 
@@ -382,15 +387,13 @@ static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog,
 {
 	struct bpf_prog *fp;
 	char *name = NULL;
+	bool skip_sw;
 	u32 bpf_fd;
 
 	bpf_fd = nla_get_u32(tb[TCA_BPF_FD]);
+	skip_sw = gen_flags & TCA_CLS_FLAGS_SKIP_SW;
 
-	if (gen_flags & TCA_CLS_FLAGS_SKIP_SW)
-		fp = bpf_prog_get_type_dev(bpf_fd, BPF_PROG_TYPE_SCHED_CLS,
-					   qdisc_dev(tp->q));
-	else
-		fp = bpf_prog_get_type(bpf_fd, BPF_PROG_TYPE_SCHED_CLS);
+	fp = bpf_prog_get_type_dev(bpf_fd, BPF_PROG_TYPE_SCHED_CLS, skip_sw);
 	if (IS_ERR(fp))
 		return PTR_ERR(fp);
 
@@ -516,12 +519,8 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 		goto errout_idr;
 
 	ret = cls_bpf_offload(tp, prog, oldprog);
-	if (ret) {
-		if (!oldprog)
-			idr_remove_ext(&head->handle_idr, prog->handle);
-		__cls_bpf_delete_prog(prog);
-		return ret;
-	}
+	if (ret)
+		goto errout_parms;
 
 	if (!tc_in_hw(prog->gen_flags))
 		prog->gen_flags |= TCA_CLS_FLAGS_NOT_IN_HW;
@@ -539,6 +538,8 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 	*arg = prog;
 	return 0;
 
+errout_parms:
+	cls_bpf_free_parms(prog);
 errout_idr:
 	if (!oldprog)
 		idr_remove_ext(&head->handle_idr, prog->handle);

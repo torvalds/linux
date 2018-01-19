@@ -76,6 +76,8 @@ extern const struct nfp_app_type app_flower;
  * @vnic_free:	free up app's vNIC state
  * @vnic_init:	vNIC netdev was registered
  * @vnic_clean:	vNIC netdev about to be unregistered
+ * @repr_init:	representor about to be registered
+ * @repr_clean:	representor about to be unregistered
  * @repr_open:	representor netdev open callback
  * @repr_stop:	representor netdev stop callback
  * @start:	start application logic
@@ -108,6 +110,9 @@ struct nfp_app_type {
 	void (*vnic_free)(struct nfp_app *app, struct nfp_net *nn);
 	int (*vnic_init)(struct nfp_app *app, struct nfp_net *nn);
 	void (*vnic_clean)(struct nfp_app *app, struct nfp_net *nn);
+
+	int (*repr_init)(struct nfp_app *app, struct net_device *netdev);
+	void (*repr_clean)(struct nfp_app *app, struct net_device *netdev);
 
 	int (*repr_open)(struct nfp_app *app, struct nfp_repr *repr);
 	int (*repr_stop)(struct nfp_app *app, struct nfp_repr *repr);
@@ -210,6 +215,21 @@ static inline int nfp_app_repr_stop(struct nfp_app *app, struct nfp_repr *repr)
 	if (!app->type->repr_stop)
 		return -EINVAL;
 	return app->type->repr_stop(app, repr);
+}
+
+static inline int
+nfp_app_repr_init(struct nfp_app *app, struct net_device *netdev)
+{
+	if (!app->type->repr_init)
+		return 0;
+	return app->type->repr_init(app, netdev);
+}
+
+static inline void
+nfp_app_repr_clean(struct nfp_app *app, struct net_device *netdev)
+{
+	if (app->type->repr_clean)
+		app->type->repr_clean(app, netdev);
 }
 
 static inline int nfp_app_start(struct nfp_app *app, struct nfp_net *ctrl)

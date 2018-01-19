@@ -296,7 +296,7 @@ void mesh_path_tx_pending(struct mesh_path *mpath);
 int mesh_pathtbl_init(struct ieee80211_sub_if_data *sdata);
 void mesh_pathtbl_unregister(struct ieee80211_sub_if_data *sdata);
 int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr);
-void mesh_path_timer(unsigned long data);
+void mesh_path_timer(struct timer_list *t);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
 void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 			     struct sk_buff *skb);

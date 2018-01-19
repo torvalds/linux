@@ -700,7 +700,7 @@ static void usc_enable_async_clock( struct mgsl_struct *info, u32 DataRate );
 
 static void usc_loopback_frame( struct mgsl_struct *info );
 
-static void mgsl_tx_timeout(unsigned long context);
+static void mgsl_tx_timeout(struct timer_list *t);
 
 
 static void usc_loopmode_cancel_transmit( struct mgsl_struct * info );
@@ -1768,7 +1768,7 @@ static int startup(struct mgsl_struct * info)
 	
 	memset(&info->icount, 0, sizeof(info->icount));
 
-	setup_timer(&info->tx_timer, mgsl_tx_timeout, (unsigned long)info);
+	timer_setup(&info->tx_timer, mgsl_tx_timeout, 0);
 	
 	/* Allocate and claim adapter resources */
 	retval = mgsl_claim_resources(info);
@@ -7517,9 +7517,9 @@ static void mgsl_trace_block(struct mgsl_struct *info,const char* data, int coun
  * Arguments:	context		pointer to device instance data
  * Return Value:	None
  */
-static void mgsl_tx_timeout(unsigned long context)
+static void mgsl_tx_timeout(struct timer_list *t)
 {
-	struct mgsl_struct *info = (struct mgsl_struct*)context;
+	struct mgsl_struct *info = from_timer(info, t, tx_timer);
 	unsigned long flags;
 	
 	if ( debug_level >= DEBUG_LEVEL_INFO )

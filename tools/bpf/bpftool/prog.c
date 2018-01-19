@@ -41,7 +41,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <net/if.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -230,21 +229,6 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		     info->tag[0], info->tag[1], info->tag[2], info->tag[3],
 		     info->tag[4], info->tag[5], info->tag[6], info->tag[7]);
 
-	if (info->status & BPF_PROG_STATUS_DEV_BOUND) {
-		jsonw_name(json_wtr, "dev");
-		if (info->ifindex) {
-			char name[IF_NAMESIZE];
-
-			if (!if_indextoname(info->ifindex, name))
-				jsonw_printf(json_wtr, "\"ifindex:%d\"",
-					     info->ifindex);
-			else
-				jsonw_printf(json_wtr, "\"%s\"", name);
-		} else {
-			jsonw_printf(json_wtr, "\"unknown\"");
-		}
-	}
-
 	if (info->load_time) {
 		char buf[32];
 
@@ -302,21 +286,6 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
-	printf(" ");
-
-	if (info->status & BPF_PROG_STATUS_DEV_BOUND) {
-		printf("dev ");
-		if (info->ifindex) {
-			char name[IF_NAMESIZE];
-
-			if (!if_indextoname(info->ifindex, name))
-				printf("ifindex:%d ", info->ifindex);
-			else
-				printf("%s ", name);
-		} else {
-			printf("unknown ");
-		}
-	}
 	printf("\n");
 
 	if (info->load_time) {

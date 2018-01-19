@@ -473,10 +473,10 @@ struct sched_dl_entity {
 	 * conditions between the inactive timer handler and the wakeup
 	 * code.
 	 */
-	int				dl_throttled      : 1;
-	int				dl_boosted        : 1;
-	int				dl_yielded        : 1;
-	int				dl_non_contending : 1;
+	unsigned int			dl_throttled      : 1;
+	unsigned int			dl_boosted        : 1;
+	unsigned int			dl_yielded        : 1;
+	unsigned int			dl_non_contending : 1;
 
 	/*
 	 * Bandwidth enforcement timer. Each -deadline task has its

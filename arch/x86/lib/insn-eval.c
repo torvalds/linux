@@ -733,11 +733,11 @@ static unsigned long get_seg_limit(struct pt_regs *regs, int seg_reg_idx)
  *
  * Returns:
  *
- * A signed 8-bit value containing the default parameters on success.
+ * An int containing ORed-in default parameters on success.
  *
  * -EINVAL on error.
  */
-char insn_get_code_seg_params(struct pt_regs *regs)
+int insn_get_code_seg_params(struct pt_regs *regs)
 {
 	struct desc_struct *desc;
 	short sel;

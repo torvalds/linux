@@ -409,6 +409,10 @@ static bool amdgpu_cs_try_evict(struct amdgpu_cs_parser *p,
 		if (candidate->robj == validated)
 			break;
 
+		/* We can't move pinned BOs here */
+		if (bo->pin_count)
+			continue;
+
 		other = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
 
 		/* Check if this BO is in one of the domains we need space for */
@@ -1495,8 +1499,11 @@ out:
 	memset(wait, 0, sizeof(*wait));
 	wait->out.status = (r > 0);
 	wait->out.first_signaled = first;
-	/* set return value 0 to indicate success */
-	r = array[first]->error;
+
+	if (first < fence_count && array[first])
+		r = array[first]->error;
+	else
+		r = 0;
 
 err_free_fence_array:
 	for (i = 0; i < fence_count; i++)

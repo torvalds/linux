@@ -1986,9 +1986,9 @@ static void nv_unmap_txskb(struct fe_priv *np, struct nv_skb_map *tx_skb)
 					 tx_skb->dma_len,
 					 DMA_TO_DEVICE);
 		else
-			pci_unmap_page(np->pci_dev, tx_skb->dma,
+			dma_unmap_page(&np->pci_dev->dev, tx_skb->dma,
 				       tx_skb->dma_len,
-				       PCI_DMA_TODEVICE);
+				       DMA_TO_DEVICE);
 		tx_skb->dma = 0;
 	}
 }

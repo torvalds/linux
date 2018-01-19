@@ -409,5 +409,15 @@ those drivers as simple as possible, so lots of room for refactoring:
 
 Contact: Noralf Trønnes, Daniel Vetter
 
+AMD DC Display Driver
+---------------------
+
+AMD DC is the display driver for AMD devices starting with Vega. There has been
+a bunch of progress cleaning it up but there's still plenty of work to be done.
+
+See drivers/gpu/drm/amd/display/TODO for tasks.
+
+Contact: Harry Wentland, Alex Deucher
+
 Outside DRM
 ===========

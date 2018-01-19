@@ -22,6 +22,8 @@
 #include <crypto/public_key.h>
 #include <crypto/akcipher.h>
 
+MODULE_DESCRIPTION("In-software asymmetric public-key subtype");
+MODULE_AUTHOR("Red Hat, Inc.");
 MODULE_LICENSE("GPL");
 
 /*

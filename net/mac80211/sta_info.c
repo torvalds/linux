@@ -379,14 +379,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	if (sta_prepare_rate_control(local, sta, gfp))
 		goto free_txq;
 
-	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
-		/*
-		 * timer_to_tid must be initialized with identity mapping
-		 * to enable session_timer's data differentiation. See
-		 * sta_rx_agg_session_timer_expired for usage.
-		 */
-		sta->timer_to_tid[i] = i;
-	}
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		skb_queue_head_init(&sta->ps_tx_buf[i]);
 		skb_queue_head_init(&sta->tx_filtered[i]);
@@ -1064,9 +1056,9 @@ int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
-static void sta_info_cleanup(unsigned long data)
+static void sta_info_cleanup(struct timer_list *t)
 {
-	struct ieee80211_local *local = (struct ieee80211_local *) data;
+	struct ieee80211_local *local = from_timer(local, t, sta_cleanup);
 	struct sta_info *sta;
 	bool timer_needed = false;
 
@@ -1098,8 +1090,7 @@ int sta_info_init(struct ieee80211_local *local)
 	mutex_init(&local->sta_mtx);
 	INIT_LIST_HEAD(&local->sta_list);
 
-	setup_timer(&local->sta_cleanup, sta_info_cleanup,
-		    (unsigned long)local);
+	timer_setup(&local->sta_cleanup, sta_info_cleanup, 0);
 	return 0;
 }
 

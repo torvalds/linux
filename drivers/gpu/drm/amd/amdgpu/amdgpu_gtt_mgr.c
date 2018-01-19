@@ -71,12 +71,6 @@ static int amdgpu_gtt_mgr_fini(struct ttm_mem_type_manager *man)
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
 
-	spin_lock(&mgr->lock);
-	if (!drm_mm_clean(&mgr->mm)) {
-		spin_unlock(&mgr->lock);
-		return -EBUSY;
-	}
-
 	drm_mm_takedown(&mgr->mm);
 	spin_unlock(&mgr->lock);
 	kfree(mgr);

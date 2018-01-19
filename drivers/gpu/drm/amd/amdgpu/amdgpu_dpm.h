@@ -433,7 +433,7 @@ struct amdgpu_pm {
 	uint32_t                fw_version;
 	uint32_t                pcie_gen_mask;
 	uint32_t                pcie_mlw_mask;
-	struct amd_pp_display_configuration pm_display_cfg;/* set by DAL */
+	struct amd_pp_display_configuration pm_display_cfg;/* set by dc */
 };
 
 #define R600_SSTU_DFLT                               0

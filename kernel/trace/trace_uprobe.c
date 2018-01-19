@@ -651,7 +651,7 @@ static int probes_open(struct inode *inode, struct file *file)
 static ssize_t probes_write(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *ppos)
 {
-	return traceprobe_probes_write(file, buffer, count, ppos, create_trace_uprobe);
+	return trace_parse_run_command(file, buffer, count, ppos, create_trace_uprobe);
 }
 
 static const struct file_operations uprobe_events_ops = {
@@ -1155,7 +1155,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 	}
 
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
-			      head, NULL, NULL);
+			      head, NULL);
  out:
 	preempt_enable();
 }

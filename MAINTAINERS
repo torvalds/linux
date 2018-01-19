@@ -384,6 +384,7 @@ ACPI WMI DRIVER
 L:	platform-driver-x86@vger.kernel.org
 S:	Orphan
 F:	drivers/platform/x86/wmi.c
+F:	include/uapi/linux/wmi.h
 
 AD1889 ALSA SOUND DRIVER
 M:	Thibaut Varene <T-Bone@parisc-linux.org>
@@ -1589,10 +1590,13 @@ F:	drivers/rtc/rtc-armada38x.c
 
 ARM/Mediatek RTC DRIVER
 M:	Eddie Huang <eddie.huang@mediatek.com>
+M:	Sean Wang <sean.wang@mediatek.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:	Documentation/devicetree/bindings/rtc/rtc-mt7622.txt
 F:	drivers/rtc/rtc-mt6397.c
+F:	drivers/rtc/rtc-mt7622.c
 
 ARM/Mediatek SoC support
 M:	Matthias Brugger <matthias.bgg@gmail.com>
@@ -2986,6 +2990,14 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/cpufreq/brcm,stb-avs-cpu-freq.txt
 F:	drivers/cpufreq/brcmstb*
 
+BROADCOM STB AVS TMON DRIVER
+M:	Markus Mayer <mmayer@broadcom.com>
+M:	bcm-kernel-feedback-list@broadcom.com
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/thermal/brcm,avs-tmon.txt
+F:	drivers/thermal/broadcom/brcmstb*
+
 BROADCOM STB NAND FLASH DRIVER
 M:	Brian Norris <computersforpeace@gmail.com>
 M:	Kamal Dasu <kdasu.kdev@gmail.com>
@@ -3720,8 +3732,8 @@ F:	drivers/cpuidle/*
 F:	include/linux/cpuidle.h
 
 CRAMFS FILESYSTEM
-W:	http://sourceforge.net/projects/cramfs/
-S:	Orphan / Obsolete
+M:	Nicolas Pitre <nico@linaro.org>
+S:	Maintained
 F:	Documentation/filesystems/cramfs.txt
 F:	fs/cramfs/
 
@@ -4022,6 +4034,26 @@ M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained
 F:	drivers/net/fddi/defxx.*
 
+DELL SMBIOS DRIVER
+M:	Pali Rohár <pali.rohar@gmail.com>
+M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/dell-smbios.*
+
+DELL SMBIOS SMM DRIVER
+M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/dell-smbios-smm.c
+
+DELL SMBIOS WMI DRIVER
+M:	Mario Limonciello <mario.limonciello@dell.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/dell-smbios-wmi.c
+F:	tools/wmi/dell-smbios-example.c
+
 DELL LAPTOP DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
 M:	Pali Rohár <pali.rohar@gmail.com>
@@ -4051,11 +4083,16 @@ S:	Maintained
 F:	Documentation/dcdbas.txt
 F:	drivers/firmware/dcdbas.*
 
-DELL WMI EXTRAS DRIVER
+DELL WMI NOTIFICATIONS DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
 M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
 F:	drivers/platform/x86/dell-wmi.c
+
+DELL WMI DESCRIPTOR DRIVER
+M:	Mario Limonciello <mario.limonciello@dell.com>
+S:	Maintained
+F:	drivers/platform/x86/dell-wmi-descriptor.c
 
 DELTA ST MEDIA DRIVER
 M:	Hugues Fruchet <hugues.fruchet@st.com>
@@ -4208,7 +4245,7 @@ L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-diolan-u2c.c
 
-DIRECT ACCESS (DAX)
+FILESYSTEM DIRECT ACCESS (DAX)
 M:	Matthew Wilcox <mawilcox@microsoft.com>
 M:	Ross Zwisler <ross.zwisler@linux.intel.com>
 L:	linux-fsdevel@vger.kernel.org
@@ -4216,6 +4253,12 @@ S:	Supported
 F:	fs/dax.c
 F:	include/linux/dax.h
 F:	include/trace/events/fs_dax.h
+
+DEVICE DIRECT ACCESS (DAX)
+M:	Dan Williams <dan.j.williams@intel.com>
+L:	linux-nvdimm@lists.01.org
+S:	Supported
+F:	drivers/dax/
 
 DIRECTORY NOTIFICATION (DNOTIFY)
 M:	Jan Kara <jack@suse.cz>
@@ -5210,7 +5253,7 @@ F:	drivers/video/fbdev/s1d13xxxfb.c
 F:	include/video/s1d13xxxfb.h
 
 ERRSEQ ERROR TRACKING INFRASTRUCTURE
-M:	Jeff Layton <jlayton@poochiereds.net>
+M:	Jeff Layton <jlayton@kernel.org>
 S:	Maintained
 F:	lib/errseq.c
 F:	include/linux/errseq.h
@@ -5398,7 +5441,7 @@ F:	include/scsi/libfcoe.h
 F:	include/uapi/scsi/fc/
 
 FILE LOCKING (flock() and fcntl()/lockf())
-M:	Jeff Layton <jlayton@poochiereds.net>
+M:	Jeff Layton <jlayton@kernel.org>
 M:	"J. Bruce Fields" <bfields@fieldses.org>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
@@ -6131,7 +6174,6 @@ M:	Jean Delvare <jdelvare@suse.com>
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 W:	http://hwmon.wiki.kernel.org/
-T:	quilt http://jdelvare.nerim.net/devel/linux/jdelvare-hwmon/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
 F:	Documentation/hwmon/
@@ -6841,6 +6883,7 @@ F:	drivers/ipack/
 
 INFINIBAND SUBSYSTEM
 M:	Doug Ledford <dledford@redhat.com>
+M:	Jason Gunthorpe <jgg@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.openfabrics.org/
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
@@ -7166,6 +7209,11 @@ F:	Documentation/wimax/README.i2400m
 F:	drivers/net/wimax/i2400m/
 F:	include/uapi/linux/wimax/i2400m.h
 
+INTEL WMI THUNDERBOLT FORCE POWER DRIVER
+M:	Mario Limonciello <mario.limonciello@dell.com>
+S:	Maintained
+F:	drivers/platform/x86/intel-wmi-thunderbolt.c
+
 INTEL(R) TRACE HUB
 M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 S:	Supported
@@ -7427,7 +7475,7 @@ JFS FILESYSTEM
 M:	Dave Kleikamp <shaggy@kernel.org>
 L:	jfs-discussion@lists.sourceforge.net
 W:	http://jfs.sourceforge.net/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shaggy/jfs-2.6.git
+T:	git git://github.com/kleikamp/linux-shaggy.git
 S:	Maintained
 F:	Documentation/filesystems/jfs.txt
 F:	fs/jfs/
@@ -7543,7 +7591,7 @@ S:	Odd Fixes
 
 KERNEL NFSD, SUNRPC, AND LOCKD SERVERS
 M:	"J. Bruce Fields" <bfields@fieldses.org>
-M:	Jeff Layton <jlayton@poochiereds.net>
+M:	Jeff Layton <jlayton@kernel.org>
 L:	linux-nfs@vger.kernel.org
 W:	http://nfs.sourceforge.net/
 T:	git git://linux-nfs.org/~bfields/linux.git
@@ -9282,9 +9330,9 @@ F:	drivers/gpu/drm/mxsfb/
 F:	Documentation/devicetree/bindings/display/mxsfb-drm.txt
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
-M:	Hyong-Youb Kim <hykim@myri.com>
+M:	Chris Lee <christopher.lee@cspi.com>
 L:	netdev@vger.kernel.org
-W:	https://www.myricom.com/support/downloads/myri10ge.html
+W:	https://www.cspi.com/ethernet-products/support/downloads/
 S:	Supported
 F:	drivers/net/ethernet/myricom/myri10ge/
 
@@ -9680,12 +9728,11 @@ S:	Supported
 F:	drivers/ntb/hw/idt/
 
 NTB INTEL DRIVER
-M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
 L:	linux-ntb@googlegroups.com
 S:	Supported
-W:	https://github.com/jonmason/ntb/wiki
-T:	git git://github.com/jonmason/ntb.git
+W:	https://github.com/davejiang/linux/wiki
+T:	git https://github.com/davejiang/linux.git
 F:	drivers/ntb/hw/intel/
 
 NTFS FILESYSTEM
@@ -10397,6 +10444,8 @@ F:	Documentation/switchtec.txt
 F:	Documentation/ABI/testing/sysfs-class-switchtec
 F:	drivers/pci/switch/switchtec*
 F:	include/uapi/linux/switchtec_ioctl.h
+F:	include/linux/switchtec.h
+F:	drivers/ntb/hw/mscc/
 
 PCI DRIVER FOR MVEBU (Marvell Armada 370 and Armada XP SOC support)
 M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
@@ -10614,6 +10663,12 @@ L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	crypto/pcrypt.c
 F:	include/crypto/pcrypt.h
+
+PEAQ WMI HOTKEYS DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/peaq-wmi.c
 
 PER-CPU MEMORY ALLOCATOR
 M:	Tejun Heo <tj@kernel.org>
@@ -11528,6 +11583,7 @@ F:	include/linux/rpmsg/
 RENESAS CLOCK DRIVERS
 M:	Geert Uytterhoeven <geert+renesas@glider.be>
 L:	linux-renesas-soc@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-drivers.git clk-renesas
 S:	Supported
 F:	drivers/clk/renesas/
 

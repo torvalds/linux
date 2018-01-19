@@ -761,10 +761,10 @@ EXPORT_SYMBOL(of_find_node_opts_by_path);
 
 /**
  *	of_find_node_by_name - Find a node by its "name" property
- *	@from:	The node to start searching from or NULL, the node
+ *	@from:	The node to start searching from or NULL; the node
  *		you pass will not be searched, only the next one
- *		will; typically, you pass what the previous call
- *		returned. of_node_put() will be called on it
+ *		will. Typically, you pass what the previous call
+ *		returned. of_node_put() will be called on @from.
  *	@name:	The name string to match against
  *
  *	Returns a node pointer with refcount incremented, use

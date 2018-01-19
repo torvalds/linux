@@ -156,7 +156,7 @@ static const struct file_operations pvc_scroll_proc_fops = {
 	.write		= pvc_scroll_proc_write,
 };
 
-void pvc_proc_timerfunc(unsigned long data)
+void pvc_proc_timerfunc(struct timer_list *unused)
 {
 	if (scroll_dir < 0)
 		pvc_move(DISPLAY|RIGHT);
@@ -197,7 +197,7 @@ static int __init pvc_proc_init(void)
 	if (proc_entry == NULL)
 		goto error;
 
-	setup_timer(&timer, pvc_proc_timerfunc, 0UL);
+	timer_setup(&timer, pvc_proc_timerfunc, 0);
 
 	return 0;
 error:

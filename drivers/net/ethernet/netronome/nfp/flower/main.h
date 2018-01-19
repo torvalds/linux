@@ -52,8 +52,7 @@ struct nfp_app;
 #define NFP_FLOWER_MASK_ELEMENT_RS	1
 #define NFP_FLOWER_MASK_HASH_BITS	10
 
-#define NFP_FL_META_FLAG_NEW_MASK	128
-#define NFP_FL_META_FLAG_LAST_MASK	1
+#define NFP_FL_META_FLAG_MANAGE_MASK	BIT(7)
 
 #define NFP_FL_MASK_REUSE_TIME_NS	40000
 #define NFP_FL_MASK_ID_LOCATION		1
@@ -197,5 +196,7 @@ void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4);
 void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);
 void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb);
+int nfp_flower_setup_tc_egress_cb(enum tc_setup_type type, void *type_data,
+				  void *cb_priv);
 
 #endif

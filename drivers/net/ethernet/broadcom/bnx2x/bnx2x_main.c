@@ -5761,9 +5761,9 @@ void bnx2x_drv_pulse(struct bnx2x *bp)
 		 bp->fw_drv_pulse_wr_seq);
 }
 
-static void bnx2x_timer(unsigned long data)
+static void bnx2x_timer(struct timer_list *t)
 {
-	struct bnx2x *bp = (struct bnx2x *) data;
+	struct bnx2x *bp = from_timer(bp, t, timer);
 
 	if (!netif_running(bp->dev))
 		return;
@@ -12421,7 +12421,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	bp->current_interval = CHIP_REV_IS_SLOW(bp) ? 5*HZ : HZ;
 
-	setup_timer(&bp->timer, bnx2x_timer, (unsigned long)bp);
+	timer_setup(&bp->timer, bnx2x_timer, 0);
 	bp->timer.expires = jiffies + bp->current_interval;
 
 	if (SHMEM2_HAS(bp, dcbx_lldp_params_offset) &&

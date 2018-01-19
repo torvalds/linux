@@ -2030,21 +2030,6 @@ out:
 	return ret;
 }
 
-static int rtl8169_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	int ret;
-
-	del_timer_sync(&tp->timer);
-
-	rtl_lock_work(tp);
-	ret = rtl8169_set_speed(dev, cmd->autoneg, ethtool_cmd_speed(cmd),
-				cmd->duplex, cmd->advertising);
-	rtl_unlock_work(tp);
-
-	return ret;
-}
-
 static netdev_features_t rtl8169_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
@@ -2166,6 +2151,27 @@ static int rtl8169_get_link_ksettings(struct net_device *dev,
 
 	rtl_lock_work(tp);
 	rc = tp->get_link_ksettings(dev, cmd);
+	rtl_unlock_work(tp);
+
+	return rc;
+}
+
+static int rtl8169_set_link_ksettings(struct net_device *dev,
+				      const struct ethtool_link_ksettings *cmd)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	int rc;
+	u32 advertising;
+
+	if (!ethtool_convert_link_mode_to_legacy_u32(&advertising,
+	    cmd->link_modes.advertising))
+		return -EINVAL;
+
+	del_timer_sync(&tp->timer);
+
+	rtl_lock_work(tp);
+	rc = rtl8169_set_speed(dev, cmd->base.autoneg, cmd->base.speed,
+			       cmd->base.duplex, advertising);
 	rtl_unlock_work(tp);
 
 	return rc;
@@ -2591,7 +2597,6 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_coalesce		= rtl_get_coalesce,
 	.set_coalesce		= rtl_set_coalesce,
-	.set_settings		= rtl8169_set_settings,
 	.get_msglevel		= rtl8169_get_msglevel,
 	.set_msglevel		= rtl8169_set_msglevel,
 	.get_regs		= rtl8169_get_regs,
@@ -2603,6 +2608,7 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.nway_reset		= rtl8169_nway_reset,
 	.get_link_ksettings	= rtl8169_get_link_ksettings,
+	.set_link_ksettings	= rtl8169_set_link_ksettings,
 };
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
@@ -3789,27 +3795,32 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0000);
 
 	/* EEE setting */
-	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_1111, 0x0000, 0x0003, ERIAR_EXGMAC);
+	rtl_w0w1_eri(tp, 0x1b0, ERIAR_MASK_1111, 0x0003, 0x0000, ERIAR_EXGMAC);
 	rtl_writephy(tp, 0x1f, 0x0005);
 	rtl_writephy(tp, 0x05, 0x8b85);
-	rtl_w0w1_phy(tp, 0x06, 0x0000, 0x2000);
+	rtl_w0w1_phy(tp, 0x06, 0x2000, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0004);
 	rtl_writephy(tp, 0x1f, 0x0007);
 	rtl_writephy(tp, 0x1e, 0x0020);
-	rtl_w0w1_phy(tp, 0x15, 0x0000, 0x0100);
+	rtl_w0w1_phy(tp, 0x15, 0x0100, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0002);
 	rtl_writephy(tp, 0x1f, 0x0000);
 	rtl_writephy(tp, 0x0d, 0x0007);
 	rtl_writephy(tp, 0x0e, 0x003c);
 	rtl_writephy(tp, 0x0d, 0x4007);
-	rtl_writephy(tp, 0x0e, 0x0000);
+	rtl_writephy(tp, 0x0e, 0x0006);
 	rtl_writephy(tp, 0x0d, 0x0000);
 
 	/* Green feature */
 	rtl_writephy(tp, 0x1f, 0x0003);
-	rtl_w0w1_phy(tp, 0x19, 0x0000, 0x0001);
-	rtl_w0w1_phy(tp, 0x10, 0x0000, 0x0400);
+	rtl_w0w1_phy(tp, 0x19, 0x0001, 0x0000);
+	rtl_w0w1_phy(tp, 0x10, 0x0400, 0x0000);
 	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl_writephy(tp, 0x1f, 0x0005);
+	rtl_w0w1_phy(tp, 0x01, 0x0100, 0x0000);
+	rtl_writephy(tp, 0x1f, 0x0000);
+	/* soft-reset phy */
+	rtl_writephy(tp, MII_BMCR, BMCR_RESET | BMCR_ANENABLE | BMCR_ANRESTART);
 
 	/* Broken BIOS workaround: feed GigaMAC registers with MAC address. */
 	rtl_rar_exgmac_set(tp, tp->dev->dev_addr);

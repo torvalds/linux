@@ -1624,9 +1624,9 @@ static inline void clear_ep_state (struct pxa25x_udc *dev)
 		nuke(&dev->ep[i], -ECONNABORTED);
 }
 
-static void udc_watchdog(unsigned long _dev)
+static void udc_watchdog(struct timer_list *t)
 {
-	struct pxa25x_udc	*dev = (void *)_dev;
+	struct pxa25x_udc	*dev = from_timer(dev, t, timer);
 
 	local_irq_disable();
 	if (dev->ep0state == EP0_STALL
@@ -2413,7 +2413,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 		gpio_direction_output(dev->mach->gpio_pullup, 0);
 	}
 
-	setup_timer(&dev->timer, udc_watchdog, (unsigned long)dev);
+	timer_setup(&dev->timer, udc_watchdog, 0);
 
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);

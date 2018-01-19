@@ -22,7 +22,7 @@ struct scsi_dev_info_list {
 	struct list_head dev_info_list;
 	char vendor[8];
 	char model[16];
-	unsigned flags;
+	blist_flags_t flags;
 	unsigned compatible; /* for use with scsi_static_device_list entries */
 };
 
@@ -35,7 +35,7 @@ struct scsi_dev_info_list_table {
 
 
 static const char spaces[] = "                "; /* 16 of them */
-static unsigned scsi_default_dev_flags;
+static blist_flags_t scsi_default_dev_flags;
 static LIST_HEAD(scsi_dev_info_list);
 static char scsi_dev_flags[256];
 
@@ -52,7 +52,7 @@ static struct {
 	char *vendor;
 	char *model;
 	char *revision;	/* revision known to be bad, unused */
-	unsigned flags;
+	blist_flags_t flags;
 } scsi_static_device_list[] __initdata = {
 	/*
 	 * The following devices are known not to tolerate a lun != 0 scan
@@ -335,7 +335,7 @@ static void scsi_strcpy_devinfo(char *name, char *to, size_t to_length,
  * Returns: 0 OK, -error on failure.
  **/
 static int scsi_dev_info_list_add(int compatible, char *vendor, char *model,
-			    char *strflags, int flags)
+			    char *strflags, blist_flags_t flags)
 {
 	return scsi_dev_info_list_add_keyed(compatible, vendor, model,
 					    strflags, flags,
@@ -361,7 +361,7 @@ static int scsi_dev_info_list_add(int compatible, char *vendor, char *model,
  * Returns: 0 OK, -error on failure.
  **/
 int scsi_dev_info_list_add_keyed(int compatible, char *vendor, char *model,
-				 char *strflags, int flags, int key)
+				 char *strflags, blist_flags_t flags, int key)
 {
 	struct scsi_dev_info_list *devinfo;
 	struct scsi_dev_info_list_table *devinfo_table =
@@ -571,9 +571,9 @@ static int scsi_dev_info_list_add_str(char *dev_list)
  *     matching flags value, else return the host or global default
  *     settings.  Called during scan time.
  **/
-int scsi_get_device_flags(struct scsi_device *sdev,
-			  const unsigned char *vendor,
-			  const unsigned char *model)
+blist_flags_t scsi_get_device_flags(struct scsi_device *sdev,
+				    const unsigned char *vendor,
+				    const unsigned char *model)
 {
 	return scsi_get_device_flags_keyed(sdev, vendor, model,
 					   SCSI_DEVINFO_GLOBAL);
@@ -593,7 +593,7 @@ int scsi_get_device_flags(struct scsi_device *sdev,
  *     flags value, else return the host or global default settings.
  *     Called during scan time.
  **/
-int scsi_get_device_flags_keyed(struct scsi_device *sdev,
+blist_flags_t scsi_get_device_flags_keyed(struct scsi_device *sdev,
 				const unsigned char *vendor,
 				const unsigned char *model,
 				int key)

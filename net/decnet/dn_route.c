@@ -125,7 +125,7 @@ static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst,
 					     struct sk_buff *skb,
 					     const void *daddr);
 static int dn_route_input(struct sk_buff *);
-static void dn_run_flush(unsigned long dummy);
+static void dn_run_flush(struct timer_list *unused);
 
 static struct dn_rt_hash_bucket *dn_rt_hash_table;
 static unsigned int dn_rt_hash_mask;
@@ -183,7 +183,7 @@ static __inline__ unsigned int dn_hash(__le16 src, __le16 dst)
 	return dn_rt_hash_mask & (unsigned int)tmp;
 }
 
-static void dn_dst_check_expire(unsigned long dummy)
+static void dn_dst_check_expire(struct timer_list *unused)
 {
 	int i;
 	struct dn_route *rt;
@@ -357,7 +357,7 @@ static int dn_insert_route(struct dn_route *rt, unsigned int hash, struct dn_rou
 	return 0;
 }
 
-static void dn_run_flush(unsigned long dummy)
+static void dn_run_flush(struct timer_list *unused)
 {
 	int i;
 	struct dn_route *rt, *next;
@@ -1875,7 +1875,7 @@ void __init dn_route_init(void)
 		kmem_cache_create("dn_dst_cache", sizeof(struct dn_route), 0,
 				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 	dst_entries_init(&dn_dst_ops);
-	setup_timer(&dn_route_timer, dn_dst_check_expire, 0);
+	timer_setup(&dn_route_timer, dn_dst_check_expire, 0);
 	dn_route_timer.expires = jiffies + decnet_dst_gc_interval * HZ;
 	add_timer(&dn_route_timer);
 

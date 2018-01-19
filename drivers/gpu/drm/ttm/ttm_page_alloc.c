@@ -744,12 +744,14 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 			}
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-			for (j = 0; j < HPAGE_PMD_NR; ++j)
-				if (p++ != pages[i + j])
-				    break;
+			if (!(flags & TTM_PAGE_FLAG_DMA32)) {
+				for (j = 0; j < HPAGE_PMD_NR; ++j)
+					if (p++ != pages[i + j])
+					    break;
 
-			if (j == HPAGE_PMD_NR)
-				order = HPAGE_PMD_ORDER;
+				if (j == HPAGE_PMD_NR)
+					order = HPAGE_PMD_ORDER;
+			}
 #endif
 
 			if (page_count(pages[i]) != 1)
@@ -865,20 +867,22 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 
 		i = 0;
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		while (npages >= HPAGE_PMD_NR) {
-			gfp_t huge_flags = gfp_flags;
+		if (!(gfp_flags & GFP_DMA32)) {
+			while (npages >= HPAGE_PMD_NR) {
+				gfp_t huge_flags = gfp_flags;
 
-			huge_flags |= GFP_TRANSHUGE;
-			huge_flags &= ~__GFP_MOVABLE;
-			huge_flags &= ~__GFP_COMP;
-			p = alloc_pages(huge_flags, HPAGE_PMD_ORDER);
-			if (!p)
-				break;
+				huge_flags |= GFP_TRANSHUGE;
+				huge_flags &= ~__GFP_MOVABLE;
+				huge_flags &= ~__GFP_COMP;
+				p = alloc_pages(huge_flags, HPAGE_PMD_ORDER);
+				if (!p)
+					break;
 
-			for (j = 0; j < HPAGE_PMD_NR; ++j)
-				pages[i++] = p++;
+				for (j = 0; j < HPAGE_PMD_NR; ++j)
+					pages[i++] = p++;
 
-			npages -= HPAGE_PMD_NR;
+				npages -= HPAGE_PMD_NR;
+			}
 		}
 #endif
 
@@ -1058,7 +1062,6 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_pool_unpopulate);
 
-#if defined(CONFIG_SWIOTLB) || defined(CONFIG_INTEL_IOMMU)
 int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt)
 {
 	unsigned i, j;
@@ -1129,7 +1132,6 @@ void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
 	ttm_pool_unpopulate(&tt->ttm);
 }
 EXPORT_SYMBOL(ttm_unmap_and_unpopulate_pages);
-#endif
 
 int ttm_page_alloc_debugfs(struct seq_file *m, void *data)
 {

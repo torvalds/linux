@@ -51,13 +51,17 @@ ENTRY(native_usergs_sysret64)
 END(native_usergs_sysret64)
 #endif /* CONFIG_PARAVIRT */
 
-.macro TRACE_IRQS_IRETQ
+.macro TRACE_IRQS_FLAGS flags:req
 #ifdef CONFIG_TRACE_IRQFLAGS
-	bt	$9, EFLAGS(%rsp)		/* interrupts off? */
+	bt	$9, \flags		/* interrupts off? */
 	jnc	1f
 	TRACE_IRQS_ON
 1:
 #endif
+.endm
+
+.macro TRACE_IRQS_IRETQ
+	TRACE_IRQS_FLAGS EFLAGS(%rsp)
 .endm
 
 /*
@@ -148,8 +152,6 @@ ENTRY(entry_SYSCALL_64)
 	movq	%rsp, PER_CPU_VAR(rsp_scratch)
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
-	TRACE_IRQS_OFF
-
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER_DS			/* pt_regs->ss */
 	pushq	PER_CPU_VAR(rsp_scratch)	/* pt_regs->sp */
@@ -169,6 +171,8 @@ GLOBAL(entry_SYSCALL_64_after_hwframe)
 	pushq	%r11				/* pt_regs->r11 */
 	sub	$(6*8), %rsp			/* pt_regs->bp, bx, r12-15 not saved */
 	UNWIND_HINT_REGS extra=0
+
+	TRACE_IRQS_OFF
 
 	/*
 	 * If we need to do entry work or if we guess we'll need to do
@@ -943,11 +947,13 @@ ENTRY(native_load_gs_index)
 	FRAME_BEGIN
 	pushfq
 	DISABLE_INTERRUPTS(CLBR_ANY & ~CLBR_RDI)
+	TRACE_IRQS_OFF
 	SWAPGS
 .Lgs_change:
 	movl	%edi, %gs
 2:	ALTERNATIVE "", "mfence", X86_BUG_SWAPGS_FENCE
 	SWAPGS
+	TRACE_IRQS_FLAGS (%rsp)
 	popfq
 	FRAME_END
 	ret

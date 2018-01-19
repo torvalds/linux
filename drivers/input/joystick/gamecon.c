@@ -743,9 +743,9 @@ static void gc_psx_process_packet(struct gc *gc)
  * gc_timer() initiates reads of console pads data.
  */
 
-static void gc_timer(unsigned long private)
+static void gc_timer(struct timer_list *t)
 {
-	struct gc *gc = (void *) private;
+	struct gc *gc = from_timer(gc, t, timer);
 
 /*
  * N64 pads - must be read first, any read confuses them for 200 us
@@ -974,7 +974,7 @@ static void gc_attach(struct parport *pp)
 	mutex_init(&gc->mutex);
 	gc->pd = pd;
 	gc->parportno = pp->number;
-	setup_timer(&gc->timer, gc_timer, (long) gc);
+	timer_setup(&gc->timer, gc_timer, 0);
 
 	for (i = 0; i < n_pads && i < GC_MAX_DEVICES; i++) {
 		if (!pads[i])

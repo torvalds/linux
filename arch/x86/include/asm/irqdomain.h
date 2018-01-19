@@ -56,10 +56,4 @@ extern void arch_init_msi_domain(struct irq_domain *domain);
 static inline void arch_init_msi_domain(struct irq_domain *domain) { }
 #endif
 
-#ifdef CONFIG_HT_IRQ
-extern void arch_init_htirq_domain(struct irq_domain *domain);
-#else
-static inline void arch_init_htirq_domain(struct irq_domain *domain) { }
-#endif
-
 #endif

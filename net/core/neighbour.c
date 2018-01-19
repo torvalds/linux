@@ -51,7 +51,7 @@ do {						\
 
 #define PNEIGH_HASHMASK		0xF
 
-static void neigh_timer_handler(unsigned long arg);
+static void neigh_timer_handler(struct timer_list *t);
 static void __neigh_notify(struct neighbour *n, int type, int flags,
 			   u32 pid);
 static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid);
@@ -331,7 +331,7 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl, struct net_device 
 	n->output	  = neigh_blackhole;
 	seqlock_init(&n->hh.hh_lock);
 	n->parms	  = neigh_parms_clone(&tbl->parms);
-	setup_timer(&n->timer, neigh_timer_handler, (unsigned long)n);
+	timer_setup(&n->timer, neigh_timer_handler, 0);
 
 	NEIGH_CACHE_STAT_INC(tbl, allocs);
 	n->tbl		  = tbl;
@@ -903,10 +903,10 @@ static void neigh_probe(struct neighbour *neigh)
 
 /* Called when a timer expires for a neighbour entry. */
 
-static void neigh_timer_handler(unsigned long arg)
+static void neigh_timer_handler(struct timer_list *t)
 {
 	unsigned long now, next;
-	struct neighbour *neigh = (struct neighbour *)arg;
+	struct neighbour *neigh = from_timer(neigh, t, timer);
 	unsigned int state;
 	int notify = 0;
 
@@ -1391,9 +1391,9 @@ int neigh_direct_output(struct neighbour *neigh, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(neigh_direct_output);
 
-static void neigh_proxy_process(unsigned long arg)
+static void neigh_proxy_process(struct timer_list *t)
 {
-	struct neigh_table *tbl = (struct neigh_table *)arg;
+	struct neigh_table *tbl = from_timer(tbl, t, proxy_timer);
 	long sched_next = 0;
 	unsigned long now = jiffies;
 	struct sk_buff *skb, *n;
@@ -1573,7 +1573,7 @@ void neigh_table_init(int index, struct neigh_table *tbl)
 	INIT_DEFERRABLE_WORK(&tbl->gc_work, neigh_periodic_work);
 	queue_delayed_work(system_power_efficient_wq, &tbl->gc_work,
 			tbl->parms.reachable_time);
-	setup_timer(&tbl->proxy_timer, neigh_proxy_process, (unsigned long)tbl);
+	timer_setup(&tbl->proxy_timer, neigh_proxy_process, 0);
 	skb_queue_head_init_class(&tbl->proxy_queue,
 			&neigh_table_proxy_queue_class);
 

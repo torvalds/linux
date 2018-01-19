@@ -1005,7 +1005,7 @@ static void __scc_start_tx_timer(struct scc_channel *scc,
 	} else 
 	if (when != TIMER_OFF)
 	{
-		scc->tx_t.function = (TIMER_FUNC_TYPE)handler;
+		scc->tx_t.function = handler;
 		scc->tx_t.expires = jiffies + (when*HZ)/100;
 		add_timer(&scc->tx_t);
 	}
@@ -1031,7 +1031,7 @@ static void scc_start_defer(struct scc_channel *scc)
 	
 	if (scc->kiss.maxdefer != 0 && scc->kiss.maxdefer != TIMER_OFF)
 	{
-		scc->tx_wdog.function = (TIMER_FUNC_TYPE)t_busy;
+		scc->tx_wdog.function = t_busy;
 		scc->tx_wdog.expires = jiffies + HZ*scc->kiss.maxdefer;
 		add_timer(&scc->tx_wdog);
 	}
@@ -1047,7 +1047,7 @@ static void scc_start_maxkeyup(struct scc_channel *scc)
 	
 	if (scc->kiss.maxkeyup != 0 && scc->kiss.maxkeyup != TIMER_OFF)
 	{
-		scc->tx_wdog.function = (TIMER_FUNC_TYPE)t_maxkeyup;
+		scc->tx_wdog.function = t_maxkeyup;
 		scc->tx_wdog.expires = jiffies + HZ*scc->kiss.maxkeyup;
 		add_timer(&scc->tx_wdog);
 	}
@@ -1428,7 +1428,7 @@ scc_start_calibrate(struct scc_channel *scc, int duration, unsigned char pattern
 
 	del_timer(&scc->tx_wdog);
 
-	scc->tx_wdog.function = (TIMER_FUNC_TYPE)scc_stop_calibrate;
+	scc->tx_wdog.function = scc_stop_calibrate;
 	scc->tx_wdog.expires = jiffies + HZ*duration;
 	add_timer(&scc->tx_wdog);
 

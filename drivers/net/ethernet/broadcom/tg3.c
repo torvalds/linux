@@ -10931,9 +10931,9 @@ static void tg3_chk_missed_msi(struct tg3 *tp)
 	}
 }
 
-static void tg3_timer(unsigned long __opaque)
+static void tg3_timer(struct timer_list *t)
 {
-	struct tg3 *tp = (struct tg3 *) __opaque;
+	struct tg3 *tp = from_timer(tp, t, timer);
 
 	spin_lock(&tp->lock);
 
@@ -11087,7 +11087,7 @@ static void tg3_timer_init(struct tg3 *tp)
 	tp->asf_multiplier = (HZ / tp->timer_offset) *
 			     TG3_FW_UPDATE_FREQ_SEC;
 
-	setup_timer(&tp->timer, tg3_timer, (unsigned long)tp);
+	timer_setup(&tp->timer, tg3_timer, 0);
 }
 
 static void tg3_timer_start(struct tg3 *tp)

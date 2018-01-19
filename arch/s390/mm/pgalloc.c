@@ -71,10 +71,8 @@ static void __crst_table_upgrade(void *arg)
 {
 	struct mm_struct *mm = arg;
 
-	if (current->active_mm == mm) {
-		clear_user_asce();
+	if (current->active_mm == mm)
 		set_user_asce(mm);
-	}
 	__tlb_flush_local();
 }
 

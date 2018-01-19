@@ -444,9 +444,9 @@ static void tun_flow_delete_by_queue(struct tun_struct *tun, u16 queue_index)
 	spin_unlock_bh(&tun->lock);
 }
 
-static void tun_flow_cleanup(unsigned long data)
+static void tun_flow_cleanup(struct timer_list *t)
 {
-	struct tun_struct *tun = (struct tun_struct *)data;
+	struct tun_struct *tun = from_timer(tun, t, flow_gc_timer);
 	unsigned long delay = tun->ageing_time;
 	unsigned long next_timer = jiffies + delay;
 	unsigned long count = 0;
@@ -1196,7 +1196,9 @@ static void tun_flow_init(struct tun_struct *tun)
 		INIT_HLIST_HEAD(&tun->flows[i]);
 
 	tun->ageing_time = TUN_FLOW_EXPIRE;
-	setup_timer(&tun->flow_gc_timer, tun_flow_cleanup, (unsigned long)tun);
+	timer_setup(&tun->flow_gc_timer, tun_flow_cleanup, 0);
+	mod_timer(&tun->flow_gc_timer,
+		  round_jiffies_up(jiffies + tun->ageing_time));
 }
 
 static void tun_flow_uninit(struct tun_struct *tun)
@@ -1485,6 +1487,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 			err = xdp_do_redirect(tun->dev, &xdp, xdp_prog);
 			if (err)
 				goto err_redirect;
+			rcu_read_unlock();
 			return NULL;
 		case XDP_TX:
 			xdp_xmit = true;
@@ -1517,7 +1520,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	if (xdp_xmit) {
 		skb->dev = tun->dev;
 		generic_xdp_tx(skb, xdp_prog);
-		rcu_read_lock();
+		rcu_read_unlock();
 		return NULL;
 	}
 
@@ -2369,6 +2372,8 @@ static int set_offload(struct tun_struct *tun, unsigned long arg)
 				features |= NETIF_F_TSO6;
 			arg &= ~(TUN_F_TSO4|TUN_F_TSO6);
 		}
+
+		arg &= ~TUN_F_UFO;
 	}
 
 	/* This gives the user a way to test for new features in future by

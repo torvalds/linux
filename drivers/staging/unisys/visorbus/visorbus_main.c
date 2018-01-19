@@ -493,9 +493,9 @@ static const struct file_operations bus_info_debugfs_fops = {
 	.release = single_release,
 };
 
-static void dev_periodic_work(unsigned long __opaque)
+static void dev_periodic_work(struct timer_list *t)
 {
-	struct visor_device *dev = (struct visor_device *)__opaque;
+	struct visor_device *dev = from_timer(dev, t, timer);
 	struct visor_driver *drv = to_visor_driver(dev->device.driver);
 
 	drv->channel_interrupt(dev);
@@ -667,7 +667,7 @@ int create_visor_device(struct visor_device *dev)
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
 	get_device(&dev->device);
-	setup_timer(&dev->timer, dev_periodic_work, (unsigned long)dev);
+	timer_setup(&dev->timer, dev_periodic_work, 0);
 	/*
 	 * bus_id must be a unique name with respect to this bus TYPE (NOT bus
 	 * instance).  That's why we need to include the bus number within the

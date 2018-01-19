@@ -21,9 +21,6 @@ obj-$(CONFIG_HOTPLUG_PCI) += hotplug/
 # Build the PCI MSI interrupt support
 obj-$(CONFIG_PCI_MSI) += msi.o
 
-# Build the Hypertransport interrupt support
-obj-$(CONFIG_HT_IRQ) += htirq.o
-
 obj-$(CONFIG_PCI_ATS) += ats.o
 obj-$(CONFIG_PCI_IOV) += iov.o
 

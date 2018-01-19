@@ -221,7 +221,7 @@ static int can_stats_proc_show(struct seq_file *m, void *v)
 
 	seq_putc(m, '\n');
 
-	if (net->can.can_stattimer.function == (TIMER_FUNC_TYPE)can_stat_update) {
+	if (net->can.can_stattimer.function == can_stat_update) {
 		seq_printf(m, " %8ld %% total match ratio (RXMR)\n",
 				can_stats->total_rx_match_ratio);
 
@@ -291,7 +291,7 @@ static int can_reset_stats_proc_show(struct seq_file *m, void *v)
 
 	user_reset = 1;
 
-	if (net->can.can_stattimer.function == (TIMER_FUNC_TYPE)can_stat_update) {
+	if (net->can.can_stattimer.function == can_stat_update) {
 		seq_printf(m, "Scheduled statistic reset #%ld.\n",
 				can_pstats->stats_reset + 1);
 	} else {

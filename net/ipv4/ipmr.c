@@ -112,7 +112,7 @@ static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 				 int cmd);
 static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt);
 static void mroute_clean_tables(struct mr_table *mrt, bool all);
-static void ipmr_expire_process(unsigned long arg);
+static void ipmr_expire_process(struct timer_list *t);
 
 #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
 #define ipmr_for_each_table(mrt, net) \
@@ -375,8 +375,7 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 	INIT_LIST_HEAD(&mrt->mfc_cache_list);
 	INIT_LIST_HEAD(&mrt->mfc_unres_queue);
 
-	setup_timer(&mrt->ipmr_expire_timer, ipmr_expire_process,
-		    (unsigned long)mrt);
+	timer_setup(&mrt->ipmr_expire_timer, ipmr_expire_process, 0);
 
 	mrt->mroute_reg_vif_num = -1;
 #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
@@ -804,9 +803,9 @@ static void ipmr_destroy_unres(struct mr_table *mrt, struct mfc_cache *c)
 }
 
 /* Timer process for the unresolved queue. */
-static void ipmr_expire_process(unsigned long arg)
+static void ipmr_expire_process(struct timer_list *t)
 {
-	struct mr_table *mrt = (struct mr_table *)arg;
+	struct mr_table *mrt = from_timer(mrt, t, ipmr_expire_timer);
 	unsigned long now;
 	unsigned long expires;
 	struct mfc_cache *c, *next;
