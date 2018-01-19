@@ -926,20 +926,6 @@ static void tmio_mmc_done_work(struct work_struct *work)
 	tmio_mmc_finish_request(host);
 }
 
-static int tmio_mmc_clk_enable(struct tmio_mmc_host *host)
-{
-	if (!host->clk_enable)
-		return -ENOTSUPP;
-
-	return host->clk_enable(host);
-}
-
-static void tmio_mmc_clk_disable(struct tmio_mmc_host *host)
-{
-	if (host->clk_disable)
-		host->clk_disable(host);
-}
-
 static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 {
 	struct mmc_host *mmc = host->mmc;
@@ -1337,6 +1323,20 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 EXPORT_SYMBOL_GPL(tmio_mmc_host_remove);
 
 #ifdef CONFIG_PM
+static int tmio_mmc_clk_enable(struct tmio_mmc_host *host)
+{
+	if (!host->clk_enable)
+		return -ENOTSUPP;
+
+	return host->clk_enable(host);
+}
+
+static void tmio_mmc_clk_disable(struct tmio_mmc_host *host)
+{
+	if (host->clk_disable)
+		host->clk_disable(host);
+}
+
 int tmio_mmc_host_runtime_suspend(struct device *dev)
 {
 	struct tmio_mmc_host *host = dev_get_drvdata(dev);
