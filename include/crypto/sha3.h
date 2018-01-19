@@ -19,7 +19,6 @@
 
 struct sha3_state {
 	u64		st[25];
-	unsigned int	md_len;
 	unsigned int	rsiz;
 	unsigned int	rsizw;
 
