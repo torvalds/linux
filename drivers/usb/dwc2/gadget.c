@@ -3628,8 +3628,11 @@ irq_retry:
 		u8 idx;
 		u32 epctrl;
 		u32 gintmsk;
+		u32 daintmsk;
 		struct dwc2_hsotg_ep *hs_ep;
 
+		daintmsk = dwc2_readl(hsotg->regs + DAINTMSK);
+		daintmsk >>= DAINT_OUTEP_SHIFT;
 		/* Mask this interrupt */
 		gintmsk = dwc2_readl(hsotg->regs + GINTMSK);
 		gintmsk &= ~GINTSTS_GOUTNAKEFF;
@@ -3638,9 +3641,13 @@ irq_retry:
 		dev_dbg(hsotg->dev, "GOUTNakEff triggered\n");
 		for (idx = 1; idx <= hsotg->num_of_eps; idx++) {
 			hs_ep = hsotg->eps_out[idx];
+			/* Proceed only unmasked ISOC EPs */
+			if (!hs_ep->isochronous || (BIT(idx) & ~daintmsk))
+				continue;
+
 			epctrl = dwc2_readl(hsotg->regs + DOEPCTL(idx));
 
-			if ((epctrl & DXEPCTL_EPENA) && hs_ep->isochronous) {
+			if (epctrl & DXEPCTL_EPENA) {
 				epctrl |= DXEPCTL_SNAK;
 				epctrl |= DXEPCTL_EPDIS;
 				dwc2_writel(epctrl, hsotg->regs + DOEPCTL(idx));
