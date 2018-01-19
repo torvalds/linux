@@ -92,6 +92,8 @@ void pkey_mm_init(struct mm_struct *mm)
 	if (static_branch_likely(&pkey_disabled))
 		return;
 	mm_pkey_allocation_map(mm) = initial_allocation_mask;
+	/* -1 means unallocated or invalid */
+	mm->context.execute_only_pkey = -1;
 }
 
 static inline u64 read_amr(void)
@@ -255,4 +257,60 @@ void thread_pkey_regs_init(struct thread_struct *thread)
 	write_amr(read_amr() & pkey_amr_uamor_mask);
 	write_iamr(read_iamr() & pkey_iamr_mask);
 	write_uamor(read_uamor() & pkey_amr_uamor_mask);
+}
+
+static inline bool pkey_allows_readwrite(int pkey)
+{
+	int pkey_shift = pkeyshift(pkey);
+
+	if (!is_pkey_enabled(pkey))
+		return true;
+
+	return !(read_amr() & ((AMR_RD_BIT|AMR_WR_BIT) << pkey_shift));
+}
+
+int __execute_only_pkey(struct mm_struct *mm)
+{
+	bool need_to_set_mm_pkey = false;
+	int execute_only_pkey = mm->context.execute_only_pkey;
+	int ret;
+
+	/* Do we need to assign a pkey for mm's execute-only maps? */
+	if (execute_only_pkey == -1) {
+		/* Go allocate one to use, which might fail */
+		execute_only_pkey = mm_pkey_alloc(mm);
+		if (execute_only_pkey < 0)
+			return -1;
+		need_to_set_mm_pkey = true;
+	}
+
+	/*
+	 * We do not want to go through the relatively costly dance to set AMR
+	 * if we do not need to. Check it first and assume that if the
+	 * execute-only pkey is readwrite-disabled than we do not have to set it
+	 * ourselves.
+	 */
+	if (!need_to_set_mm_pkey && !pkey_allows_readwrite(execute_only_pkey))
+		return execute_only_pkey;
+
+	/*
+	 * Set up AMR so that it denies access for everything other than
+	 * execution.
+	 */
+	ret = __arch_set_user_pkey_access(current, execute_only_pkey,
+					  PKEY_DISABLE_ACCESS |
+					  PKEY_DISABLE_WRITE);
+	/*
+	 * If the AMR-set operation failed somehow, just return 0 and
+	 * effectively disable execute-only support.
+	 */
+	if (ret) {
+		mm_pkey_free(mm, execute_only_pkey);
+		return -1;
+	}
+
+	/* We got one, store it and use it from here on out */
+	if (need_to_set_mm_pkey)
+		mm->context.execute_only_pkey = execute_only_pkey;
+	return execute_only_pkey;
 }
