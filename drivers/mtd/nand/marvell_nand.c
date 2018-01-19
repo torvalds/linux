@@ -2649,7 +2649,7 @@ static int marvell_nfc_init_dma(struct marvell_nfc *nfc)
 	 * for DMA transfers and then copy the desired amount of data to
 	 * the provided buffer.
 	 */
-	nfc->dma_buf = kmalloc(MAX_CHUNK_SIZE, GFP_DMA);
+	nfc->dma_buf = kmalloc(MAX_CHUNK_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!nfc->dma_buf)
 		return -ENOMEM;
 
