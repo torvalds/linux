@@ -2517,7 +2517,7 @@ static const struct drm_crtc_funcs dce_v10_0_crtc_funcs = {
 	.cursor_set2 = dce_v10_0_crtc_cursor_set2,
 	.cursor_move = dce_v10_0_crtc_cursor_move,
 	.gamma_set = dce_v10_0_crtc_gamma_set,
-	.set_config = amdgpu_crtc_set_config,
+	.set_config = amdgpu_display_crtc_set_config,
 	.destroy = dce_v10_0_crtc_destroy,
 	.page_flip_target = amdgpu_display_crtc_page_flip_target,
 };

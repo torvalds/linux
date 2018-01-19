@@ -257,8 +257,8 @@ cleanup:
 	return r;
 }
 
-int amdgpu_crtc_set_config(struct drm_mode_set *set,
-			   struct drm_modeset_acquire_ctx *ctx)
+int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
+				   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev;
 	struct amdgpu_device *adev;
