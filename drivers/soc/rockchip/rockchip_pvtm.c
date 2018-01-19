@@ -29,6 +29,9 @@
 #include <linux/slab.h>
 #include <linux/soc/rockchip/pvtm.h>
 
+#define PX30_PVTM_CORE		0
+#define PX30_PVTM_PMU		1
+
 #define RK3288_PVTM_CORE	0
 #define RK3288_PVTM_GPU		1
 
@@ -233,6 +236,15 @@ static void rockchip_pvtm_delay(unsigned int delay)
 		udelay(us);
 }
 
+static void px30_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
+				   unsigned int sub_ch)
+{
+	unsigned int ch = pvtm->channel->ch;
+
+	regmap_write(pvtm->grf, pvtm->con,
+		     wr_mask_bit(sub_ch, (ch * 0x4 + 0x2), 0x3));
+}
+
 static void rk3399_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
 				     unsigned int sub_ch)
 {
@@ -312,6 +324,31 @@ static u32 rockchip_pvtm_get_value(struct rockchip_pvtm *pvtm,
 	return val;
 }
 
+static const struct rockchip_pvtm_channel px30_pvtm_channels[] = {
+	PVTM(PX30_PVTM_CORE, "core", 4, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_info px30_pvtm = {
+	.con = 0x80,
+	.sta = 0x88,
+	.num_channels = ARRAY_SIZE(px30_pvtm_channels),
+	.channels = px30_pvtm_channels,
+	.get_value = rockchip_pvtm_get_value,
+	.set_ring_sel = px30_pvtm_set_ring_sel,
+};
+
+static const struct rockchip_pvtm_channel px30_pmupvtm_channels[] = {
+	PVTM(PX30_PVTM_PMU, "pmu", 1, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_info px30_pmupvtm = {
+	.con = 0x180,
+	.sta = 0x190,
+	.num_channels = ARRAY_SIZE(px30_pmupvtm_channels),
+	.channels = px30_pmupvtm_channels,
+	.get_value = rockchip_pvtm_get_value,
+};
+
 static const struct rockchip_pvtm_channel rk3288_pvtm_channels[] = {
 	PVTM(RK3288_PVTM_CORE, "core", 1, 0, 1, 0x4, 0, 0x4),
 	PVTM(RK3288_PVTM_GPU, "gpu", 1, 8, 9, 0x8, 1, 0x8),
@@ -379,6 +416,14 @@ static const struct rockchip_pvtm_info rk3399_pmupvtm = {
 };
 
 static const struct of_device_id rockchip_pvtm_match[] = {
+	{
+		.compatible = "rockchip,px30-pvtm",
+		.data = (void *)&px30_pvtm,
+	},
+	{
+		.compatible = "rockchip,px30-pmu-pvtm",
+		.data = (void *)&px30_pmupvtm,
+	},
 	{
 		.compatible = "rockchip,rk3288-pvtm",
 		.data = (void *)&rk3288_pvtm,

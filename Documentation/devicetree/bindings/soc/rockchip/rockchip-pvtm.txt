@@ -7,6 +7,8 @@ performance variance caused by chip process, voltage and temperature.
 
 Required properties:
 - compatible: Should be one of the following.
+ - "rockchip,px30-pvtm" - for PX30 SoCs.
+ - "rockchip,px30-pmu-pvtm" - for PX30 SoCs.
  - "rockchip,rk3288-pvtm" - for RK3288 SoCs.
  - "rockchip,rk3366-pvtm" - for RK3366 SoCs.
  - "rockchip,rk3366-pmu-pvtm" - for RK3366 SoCs.
