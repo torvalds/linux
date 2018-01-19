@@ -439,13 +439,40 @@ struct net *copy_net_ns(unsigned long flags,
 	return net;
 }
 
+static void unhash_nsid(struct net *net, struct net *last)
+{
+	struct net *tmp;
+	/* This function is only called from cleanup_net() work,
+	 * and this work is the only process, that may delete
+	 * a net from net_namespace_list. So, when the below
+	 * is executing, the list may only grow. Thus, we do not
+	 * use for_each_net_rcu() or rtnl_lock().
+	 */
+	for_each_net(tmp) {
+		int id;
+
+		spin_lock_bh(&tmp->nsid_lock);
+		id = __peernet2id(tmp, net);
+		if (id >= 0)
+			idr_remove(&tmp->netns_ids, id);
+		spin_unlock_bh(&tmp->nsid_lock);
+		if (id >= 0)
+			rtnl_net_notifyid(tmp, RTM_DELNSID, id);
+		if (tmp == last)
+			break;
+	}
+	spin_lock_bh(&net->nsid_lock);
+	idr_destroy(&net->netns_ids);
+	spin_unlock_bh(&net->nsid_lock);
+}
+
 static DEFINE_SPINLOCK(cleanup_list_lock);
 static LIST_HEAD(cleanup_list);  /* Must hold cleanup_list_lock to touch */
 
 static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
-	struct net *net, *tmp;
+	struct net *net, *tmp, *last;
 	struct list_head net_kill_list;
 	LIST_HEAD(net_exit_list);
 
@@ -458,26 +485,25 @@ static void cleanup_net(struct work_struct *work)
 
 	/* Don't let anyone else find us. */
 	rtnl_lock();
-	list_for_each_entry(net, &net_kill_list, cleanup_list) {
+	list_for_each_entry(net, &net_kill_list, cleanup_list)
 		list_del_rcu(&net->list);
-		list_add_tail(&net->exit_list, &net_exit_list);
-		for_each_net(tmp) {
-			int id;
-
-			spin_lock_bh(&tmp->nsid_lock);
-			id = __peernet2id(tmp, net);
-			if (id >= 0)
-				idr_remove(&tmp->netns_ids, id);
-			spin_unlock_bh(&tmp->nsid_lock);
-			if (id >= 0)
-				rtnl_net_notifyid(tmp, RTM_DELNSID, id);
-		}
-		spin_lock_bh(&net->nsid_lock);
-		idr_destroy(&net->netns_ids);
-		spin_unlock_bh(&net->nsid_lock);
-
-	}
+	/* Cache last net. After we unlock rtnl, no one new net
+	 * added to net_namespace_list can assign nsid pointer
+	 * to a net from net_kill_list (see peernet2id_alloc()).
+	 * So, we skip them in unhash_nsid().
+	 *
+	 * Note, that unhash_nsid() does not delete nsid links
+	 * between net_kill_list's nets, as they've already
+	 * deleted from net_namespace_list. But, this would be
+	 * useless anyway, as netns_ids are destroyed there.
+	 */
+	last = list_last_entry(&net_namespace_list, struct net, list);
 	rtnl_unlock();
+
+	list_for_each_entry(net, &net_kill_list, cleanup_list) {
+		unhash_nsid(net, last);
+		list_add_tail(&net->exit_list, &net_exit_list);
+	}
 
 	/*
 	 * Another CPU might be rcu-iterating the list, wait for it.
