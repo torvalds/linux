@@ -83,7 +83,6 @@ static void dwc2_pci_remove(struct pci_dev *pci)
 
 	platform_device_unregister(glue->dwc2);
 	usb_phy_generic_unregister(glue->phy);
-	kfree(glue);
 	pci_set_drvdata(pci, NULL);
 }
 
@@ -147,7 +146,7 @@ static int dwc2_pci_probe(struct pci_dev *pci,
 		goto err;
 	}
 
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
 		return -ENOMEM;
 
