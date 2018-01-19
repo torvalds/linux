@@ -1833,7 +1833,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 			      struct amdgpu_job* job, bool force);
 void amdgpu_device_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_device_need_post(struct amdgpu_device *adev);
-void amdgpu_update_display_priority(struct amdgpu_device *adev);
+void amdgpu_display_update_priority(struct amdgpu_device *adev);
 
 void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes,
 				  u64 num_vis_bytes);

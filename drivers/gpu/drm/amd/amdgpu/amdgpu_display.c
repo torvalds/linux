@@ -646,7 +646,7 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 	return 0;
 }
 
-void amdgpu_update_display_priority(struct amdgpu_device *adev)
+void amdgpu_display_update_priority(struct amdgpu_device *adev)
 {
 	/* adjustment options for the display watermarks */
 	if ((amdgpu_disp_priority == 0) || (amdgpu_disp_priority > 2))

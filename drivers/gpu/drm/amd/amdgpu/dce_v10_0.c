@@ -1205,7 +1205,7 @@ static void dce_v10_0_bandwidth_update(struct amdgpu_device *adev)
 	u32 num_heads = 0, lb_size;
 	int i;
 
-	amdgpu_update_display_priority(adev);
+	amdgpu_display_update_priority(adev);
 
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		if (adev->mode_info.crtcs[i]->base.enabled)
