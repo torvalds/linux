@@ -99,3 +99,33 @@
 &usb1 {
 	status = "okay";
 };
+
+&ethmac {
+	status = "okay";
+
+	snps,reset-gpio = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 30000>;
+
+	pinctrl-0 = <&eth_rgmii_pins>;
+	pinctrl-names = "default";
+
+	phy-mode = "rgmii";
+	phy-handle = <&eth_phy>;
+	amlogic,tx-delay-ns = <4>;
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Realtek RTL8211F (0x001cc916) */
+		eth_phy: ethernet-phy@0 {
+			reg = <0>;
+			eee-broken-1000t;
+			interrupt-parent = <&gpio_intc>;
+			/* GPIOH_3 */
+			interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
+};
