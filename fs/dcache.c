@@ -1699,9 +1699,15 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 }
 EXPORT_SYMBOL(d_alloc);
 
+struct dentry *d_alloc_anon(struct super_block *sb)
+{
+	return __d_alloc(sb, NULL);
+}
+EXPORT_SYMBOL(d_alloc_anon);
+
 struct dentry *d_alloc_cursor(struct dentry * parent)
 {
-	struct dentry *dentry = __d_alloc(parent->d_sb, NULL);
+	struct dentry *dentry = d_alloc_anon(parent->d_sb);
 	if (dentry) {
 		dentry->d_flags |= DCACHE_RCUACCESS | DCACHE_DENTRY_CURSOR;
 		dentry->d_parent = dget(parent);
@@ -1887,7 +1893,7 @@ struct dentry *d_make_root(struct inode *root_inode)
 	struct dentry *res = NULL;
 
 	if (root_inode) {
-		res = __d_alloc(root_inode->i_sb, NULL);
+		res = d_alloc_anon(root_inode->i_sb);
 		if (res)
 			d_instantiate(res, root_inode);
 		else
@@ -1926,11 +1932,54 @@ struct dentry *d_find_any_alias(struct inode *inode)
 }
 EXPORT_SYMBOL(d_find_any_alias);
 
-static struct dentry *__d_obtain_alias(struct inode *inode, int disconnected)
+static struct dentry *__d_instantiate_anon(struct dentry *dentry,
+					   struct inode *inode,
+					   bool disconnected)
+{
+	struct dentry *res;
+	unsigned add_flags;
+
+	security_d_instantiate(dentry, inode);
+	spin_lock(&inode->i_lock);
+	res = __d_find_any_alias(inode);
+	if (res) {
+		spin_unlock(&inode->i_lock);
+		dput(dentry);
+		goto out_iput;
+	}
+
+	/* attach a disconnected dentry */
+	add_flags = d_flags_for_inode(inode);
+
+	if (disconnected)
+		add_flags |= DCACHE_DISCONNECTED;
+
+	spin_lock(&dentry->d_lock);
+	__d_set_inode_and_type(dentry, inode, add_flags);
+	hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
+	hlist_bl_lock(&dentry->d_sb->s_anon);
+	hlist_bl_add_head(&dentry->d_hash, &dentry->d_sb->s_anon);
+	hlist_bl_unlock(&dentry->d_sb->s_anon);
+	spin_unlock(&dentry->d_lock);
+	spin_unlock(&inode->i_lock);
+
+	return dentry;
+
+ out_iput:
+	iput(inode);
+	return res;
+}
+
+struct dentry *d_instantiate_anon(struct dentry *dentry, struct inode *inode)
+{
+	return __d_instantiate_anon(dentry, inode, true);
+}
+EXPORT_SYMBOL(d_instantiate_anon);
+
+static struct dentry *__d_obtain_alias(struct inode *inode, bool disconnected)
 {
 	struct dentry *tmp;
 	struct dentry *res;
-	unsigned add_flags;
 
 	if (!inode)
 		return ERR_PTR(-ESTALE);
@@ -1941,39 +1990,15 @@ static struct dentry *__d_obtain_alias(struct inode *inode, int disconnected)
 	if (res)
 		goto out_iput;
 
-	tmp = __d_alloc(inode->i_sb, NULL);
+	tmp = d_alloc_anon(inode->i_sb);
 	if (!tmp) {
 		res = ERR_PTR(-ENOMEM);
 		goto out_iput;
 	}
 
-	security_d_instantiate(tmp, inode);
-	spin_lock(&inode->i_lock);
-	res = __d_find_any_alias(inode);
-	if (res) {
-		spin_unlock(&inode->i_lock);
-		dput(tmp);
-		goto out_iput;
-	}
+	return __d_instantiate_anon(tmp, inode, disconnected);
 
-	/* attach a disconnected dentry */
-	add_flags = d_flags_for_inode(inode);
-
-	if (disconnected)
-		add_flags |= DCACHE_DISCONNECTED;
-
-	spin_lock(&tmp->d_lock);
-	__d_set_inode_and_type(tmp, inode, add_flags);
-	hlist_add_head(&tmp->d_u.d_alias, &inode->i_dentry);
-	hlist_bl_lock(&tmp->d_sb->s_anon);
-	hlist_bl_add_head(&tmp->d_hash, &tmp->d_sb->s_anon);
-	hlist_bl_unlock(&tmp->d_sb->s_anon);
-	spin_unlock(&tmp->d_lock);
-	spin_unlock(&inode->i_lock);
-
-	return tmp;
-
- out_iput:
+out_iput:
 	iput(inode);
 	return res;
 }
@@ -1998,7 +2023,7 @@ static struct dentry *__d_obtain_alias(struct inode *inode, int disconnected)
  */
 struct dentry *d_obtain_alias(struct inode *inode)
 {
-	return __d_obtain_alias(inode, 1);
+	return __d_obtain_alias(inode, true);
 }
 EXPORT_SYMBOL(d_obtain_alias);
 
@@ -2019,7 +2044,7 @@ EXPORT_SYMBOL(d_obtain_alias);
  */
 struct dentry *d_obtain_root(struct inode *inode)
 {
-	return __d_obtain_alias(inode, 0);
+	return __d_obtain_alias(inode, false);
 }
 EXPORT_SYMBOL(d_obtain_root);
 
