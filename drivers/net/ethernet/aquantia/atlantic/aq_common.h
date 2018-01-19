@@ -46,6 +46,10 @@
 
 #define HW_ATL_NIC_NAME "aQuantia AQtion 10Gbit Network Adapter"
 
+#define AQ_HWREV_ANY	0
+#define AQ_HWREV_1	1
+#define AQ_HWREV_2	2
+
 #define AQ_NIC_RATE_10G        BIT(0)
 #define AQ_NIC_RATE_5G         BIT(1)
 #define AQ_NIC_RATE_5GSR       BIT(2)

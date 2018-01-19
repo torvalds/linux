@@ -208,7 +208,8 @@ static void aq_nic_polling_timer_cb(struct timer_list *t)
 struct aq_nic_s *aq_nic_alloc_cold(struct pci_dev *pdev,
 				   struct aq_pci_func_s *aq_pci_func,
 				   unsigned int port,
-				   const struct aq_hw_ops *aq_hw_ops)
+				   const struct aq_hw_ops *aq_hw_ops,
+				   const struct aq_hw_caps_s *aq_hw_caps)
 {
 	struct net_device *ndev = NULL;
 	struct aq_nic_s *self = NULL;
@@ -230,15 +231,11 @@ struct aq_nic_s *aq_nic_alloc_cold(struct pci_dev *pdev,
 	self->aq_pci_func = aq_pci_func;
 
 	self->aq_hw_ops = *aq_hw_ops;
+	self->aq_hw_caps = *aq_hw_caps;
 	self->port = (u8)port;
 
 	self->aq_hw = self->aq_hw_ops.create(aq_pci_func, self->port);
 	self->aq_hw->aq_nic_cfg = &self->aq_nic_cfg;
-
-	err = self->aq_hw_ops.get_hw_caps(self->aq_hw, &self->aq_hw_caps,
-					  pdev->device, pdev->subsystem_device);
-	if (err < 0)
-		goto err_exit;
 
 	aq_nic_cfg_init_defaults(self);
 

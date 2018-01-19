@@ -60,20 +60,66 @@ static const struct pci_device_id aq_pci_tbl[] = {
 	{}
 };
 
+const struct aq_board_revision_s hw_atl_boards[] = {
+	{ AQ_DEVICE_ID_0001,	AQ_HWREV_1,	&hw_atl_ops_a0, &hw_atl_a0_caps_aqc107, },
+	{ AQ_DEVICE_ID_D100,	AQ_HWREV_1,	&hw_atl_ops_a0, &hw_atl_a0_caps_aqc100, },
+	{ AQ_DEVICE_ID_D107,	AQ_HWREV_1,	&hw_atl_ops_a0, &hw_atl_a0_caps_aqc107, },
+	{ AQ_DEVICE_ID_D108,	AQ_HWREV_1,	&hw_atl_ops_a0, &hw_atl_a0_caps_aqc108, },
+	{ AQ_DEVICE_ID_D109,	AQ_HWREV_1,	&hw_atl_ops_a0, &hw_atl_a0_caps_aqc109, },
+
+	{ AQ_DEVICE_ID_0001,	AQ_HWREV_2,	&hw_atl_ops_b0, &hw_atl_b0_caps_aqc107, },
+	{ AQ_DEVICE_ID_D100,	AQ_HWREV_2,	&hw_atl_ops_b0, &hw_atl_b0_caps_aqc100, },
+	{ AQ_DEVICE_ID_D107,	AQ_HWREV_2,	&hw_atl_ops_b0, &hw_atl_b0_caps_aqc107, },
+	{ AQ_DEVICE_ID_D108,	AQ_HWREV_2,	&hw_atl_ops_b0, &hw_atl_b0_caps_aqc108, },
+	{ AQ_DEVICE_ID_D109,	AQ_HWREV_2,	&hw_atl_ops_b0, &hw_atl_b0_caps_aqc109, },
+
+	{ AQ_DEVICE_ID_AQC100,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc107, },
+	{ AQ_DEVICE_ID_AQC107,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc107, },
+	{ AQ_DEVICE_ID_AQC108,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc108, },
+	{ AQ_DEVICE_ID_AQC109,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc109, },
+	{ AQ_DEVICE_ID_AQC111,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc111, },
+	{ AQ_DEVICE_ID_AQC112,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc112, },
+
+	{ AQ_DEVICE_ID_AQC100S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc100s, },
+	{ AQ_DEVICE_ID_AQC107S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc107s, },
+	{ AQ_DEVICE_ID_AQC108S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc108s, },
+	{ AQ_DEVICE_ID_AQC109S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc109s, },
+	{ AQ_DEVICE_ID_AQC111S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc111s, },
+	{ AQ_DEVICE_ID_AQC112S,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc112s, },
+
+	{ AQ_DEVICE_ID_AQC111E,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc111e, },
+	{ AQ_DEVICE_ID_AQC112E,	AQ_HWREV_ANY,	&hw_atl_ops_b1, &hw_atl_b0_caps_aqc112e, },
+};
+
 MODULE_DEVICE_TABLE(pci, aq_pci_tbl);
 
-static const struct aq_hw_ops *aq_pci_probe_get_hw_ops_by_id(struct pci_dev *pdev)
+static int aq_pci_probe_get_hw_by_id(struct pci_dev *pdev,
+				     const struct aq_hw_ops **ops,
+				     const struct aq_hw_caps_s **caps)
 {
-	const struct aq_hw_ops *ops = NULL;
+	int i = 0;
 
-	ops = hw_atl_a0_get_ops_by_id(pdev);
-	if (!ops)
-		ops = hw_atl_b0_get_ops_by_id(pdev);
+	if (pdev->vendor != PCI_VENDOR_ID_AQUANTIA)
+		return -EINVAL;
 
-	return ops;
+	for (i = 0; i < ARRAY_SIZE(hw_atl_boards); i++) {
+		if (hw_atl_boards[i].devid == pdev->device &&
+		    (hw_atl_boards[i].revision == AQ_HWREV_ANY ||
+		     hw_atl_boards[i].revision == pdev->revision)) {
+			*ops = hw_atl_boards[i].ops;
+			*caps = hw_atl_boards[i].caps;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(hw_atl_boards))
+		return -EINVAL;
+
+	return 0;
 }
 
 struct aq_pci_func_s *aq_pci_func_alloc(const struct aq_hw_ops *aq_hw_ops,
+					const struct aq_hw_caps_s *aq_hw_caps,
 					struct pci_dev *pdev)
 {
 	struct aq_pci_func_s *self = NULL;
@@ -92,17 +138,14 @@ struct aq_pci_func_s *aq_pci_func_alloc(const struct aq_hw_ops *aq_hw_ops,
 
 	pci_set_drvdata(pdev, self);
 	self->pdev = pdev;
-
-	err = aq_hw_ops->get_hw_caps(NULL, &self->aq_hw_caps, pdev->device,
-				     pdev->subsystem_device);
-	if (err < 0)
-		goto err_exit;
+	self->aq_hw_caps = *aq_hw_caps;
 
 	self->ports = self->aq_hw_caps.ports;
 
 	for (port = 0; port < self->ports; ++port) {
 		struct aq_nic_s *aq_nic = aq_nic_alloc_cold(pdev, self,
-							    port, aq_hw_ops);
+							    port, aq_hw_ops,
+							    aq_hw_caps);
 
 		if (!aq_nic) {
 			err = -ENOMEM;
@@ -343,14 +386,17 @@ static int aq_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *pci_id)
 {
 	const struct aq_hw_ops *aq_hw_ops = NULL;
+	const struct aq_hw_caps_s *aq_hw_caps = NULL;
 	struct aq_pci_func_s *aq_pci_func = NULL;
 	int err = 0;
 
 	err = pci_enable_device(pdev);
 	if (err < 0)
 		goto err_exit;
-	aq_hw_ops = aq_pci_probe_get_hw_ops_by_id(pdev);
-	aq_pci_func = aq_pci_func_alloc(aq_hw_ops, pdev);
+	err = aq_pci_probe_get_hw_by_id(pdev, &aq_hw_ops, &aq_hw_caps);
+	if (err < 0)
+		goto err_exit;
+	aq_pci_func = aq_pci_func_alloc(aq_hw_ops, aq_hw_caps, pdev);
 	if (!aq_pci_func) {
 		err = -ENOMEM;
 		goto err_exit;

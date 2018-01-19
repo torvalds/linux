@@ -23,6 +23,7 @@ struct aq_hw_caps_s {
 	u64 hw_features;
 	u64 link_speed_msk;
 	unsigned int hw_priv_flags;
+	u32 media_type;
 	u32 rxds;
 	u32 txds;
 	u32 txhwb_alignment;
@@ -95,6 +96,9 @@ struct aq_stats_s {
 #define AQ_NIC_FLAGS_IS_NOT_TX_READY (AQ_NIC_FLAGS_IS_NOT_READY | \
 					AQ_NIC_LINK_DOWN)
 
+#define AQ_HW_MEDIA_TYPE_TP    1U
+#define AQ_HW_MEDIA_TYPE_FIBRE 2U
+
 struct aq_hw_s {
 	atomic_t flags;
 	struct aq_nic_cfg_s *aq_nic_cfg;
@@ -127,11 +131,6 @@ struct aq_hw_ops {
 				  unsigned int port);
 
 	void (*destroy)(struct aq_hw_s *self);
-
-	int (*get_hw_caps)(struct aq_hw_s *self,
-			   struct aq_hw_caps_s *aq_hw_caps,
-			   unsigned short device,
-			   unsigned short subsystem_device);
 
 	int (*hw_ring_tx_xmit)(struct aq_hw_s *self, struct aq_ring_s *aq_ring,
 			       unsigned int frags);

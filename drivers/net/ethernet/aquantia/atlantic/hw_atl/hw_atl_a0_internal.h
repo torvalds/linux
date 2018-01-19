@@ -62,6 +62,12 @@
 #define HW_ATL_A0_MPI_SPEED_MSK       0xFFFFU
 #define HW_ATL_A0_MPI_SPEED_SHIFT     16U
 
+#define HW_ATL_A0_RATE_10G            BIT(0)
+#define HW_ATL_A0_RATE_5G             BIT(1)
+#define HW_ATL_A0_RATE_2G5            BIT(3)
+#define HW_ATL_A0_RATE_1G             BIT(4)
+#define HW_ATL_A0_RATE_100M           BIT(5)
+
 #define HW_ATL_A0_TXBUF_MAX 160U
 #define HW_ATL_A0_RXBUF_MAX 320U
 
@@ -81,39 +87,5 @@
 #define HW_ATL_A0_UCP_0X370_REG  0x370U
 
 #define HW_ATL_A0_FW_VER_EXPECTED 0x01050006U
-
-/* HW layer capabilities */
-static struct aq_hw_caps_s hw_atl_a0_hw_caps_ = {
-	.ports = 1U,
-	.is_64_dma = true,
-	.msix_irqs = 4U,
-	.irq_mask = ~0U,
-	.vecs = HW_ATL_A0_RSS_MAX,
-	.tcs = HW_ATL_A0_TC_MAX,
-	.rxd_alignment = 1U,
-	.rxd_size = HW_ATL_A0_RXD_SIZE,
-	.rxds = 248U,
-	.txd_alignment = 1U,
-	.txd_size = HW_ATL_A0_TXD_SIZE,
-	.txds = 8U * 1024U,
-	.txhwb_alignment = 4096U,
-	.tx_rings = HW_ATL_A0_TX_RINGS,
-	.rx_rings = HW_ATL_A0_RX_RINGS,
-	.hw_features = NETIF_F_HW_CSUM |
-			NETIF_F_RXCSUM |
-			NETIF_F_RXHASH |
-			NETIF_F_SG |
-			NETIF_F_TSO,
-	.hw_priv_flags = IFF_UNICAST_FLT,
-	.link_speed_msk = (AQ_NIC_RATE_10G |
-			AQ_NIC_RATE_5G |
-			AQ_NIC_RATE_2GS |
-			AQ_NIC_RATE_1G |
-			AQ_NIC_RATE_100M),
-	.flow_control = true,
-	.mtu = HW_ATL_A0_MTU_JUMBO,
-	.mac_regs_count = 88,
-	.fw_ver_expected = HW_ATL_A0_FW_VER_EXPECTED,
-};
 
 #endif /* HW_ATL_A0_INTERNAL_H */

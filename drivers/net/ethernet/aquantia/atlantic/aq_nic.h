@@ -92,7 +92,8 @@ static inline struct device *aq_nic_get_dev(struct aq_nic_s *self)
 struct aq_nic_s *aq_nic_alloc_cold(struct pci_dev *pdev,
 				   struct aq_pci_func_s *aq_pci_func,
 				   unsigned int port,
-				   const struct aq_hw_ops *aq_hw_ops);
+				   const struct aq_hw_ops *aq_hw_ops,
+				   const struct aq_hw_caps_s *aq_hw_caps);
 int aq_nic_ndev_init(struct aq_nic_s *self);
 struct aq_nic_s *aq_nic_alloc_hot(struct net_device *ndev);
 void aq_nic_set_tx_ring(struct aq_nic_s *self, unsigned int idx,

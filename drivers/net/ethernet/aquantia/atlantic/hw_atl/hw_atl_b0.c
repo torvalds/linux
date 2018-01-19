@@ -19,23 +19,68 @@
 #include "hw_atl_b0_internal.h"
 #include "hw_atl_llh_internal.h"
 
-static int hw_atl_b0_get_hw_caps(struct aq_hw_s *self,
-				 struct aq_hw_caps_s *aq_hw_caps,
-				 unsigned short device,
-				 unsigned short subsystem_device)
-{
-	memcpy(aq_hw_caps, &hw_atl_b0_hw_caps_, sizeof(*aq_hw_caps));
+#define DEFAULT_B0_BOARD_BASIC_CAPABILITIES \
+	.is_64_dma = true,	\
+	.msix_irqs = 4U,	\
+	.irq_mask = ~0U,	\
+	.vecs = HW_ATL_B0_RSS_MAX,	\
+	.tcs = HW_ATL_B0_TC_MAX,	\
+	.rxd_alignment = 1U,		\
+	.rxd_size = HW_ATL_B0_RXD_SIZE, \
+	.rxds = 4U * 1024U,		\
+	.txd_alignment = 1U,		\
+	.txd_size = HW_ATL_B0_TXD_SIZE, \
+	.txds = 8U * 1024U,		\
+	.txhwb_alignment = 4096U,	\
+	.tx_rings = HW_ATL_B0_TX_RINGS, \
+	.rx_rings = HW_ATL_B0_RX_RINGS, \
+	.hw_features = NETIF_F_HW_CSUM | \
+			NETIF_F_RXCSUM | \
+			NETIF_F_RXHASH | \
+			NETIF_F_SG |  \
+			NETIF_F_TSO | \
+			NETIF_F_LRO,  \
+	.hw_priv_flags = IFF_UNICAST_FLT,   \
+	.flow_control = true,		\
+	.mtu = HW_ATL_B0_MTU_JUMBO,	\
+	.mac_regs_count = 88
 
-	if (device == AQ_DEVICE_ID_D108 && subsystem_device == 0x0001)
-		aq_hw_caps->link_speed_msk &= ~AQ_NIC_RATE_10G;
+const struct aq_hw_caps_s hw_atl_b0_caps_aqc100 = {
+	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_FIBRE,
+	.link_speed_msk = HW_ATL_B0_RATE_10G |
+			  HW_ATL_B0_RATE_5G  |
+			  HW_ATL_B0_RATE_2G5 |
+			  HW_ATL_B0_RATE_1G  |
+			  HW_ATL_B0_RATE_100M,
+};
 
-	if (device == AQ_DEVICE_ID_D109 && subsystem_device == 0x0001) {
-		aq_hw_caps->link_speed_msk &= ~AQ_NIC_RATE_10G;
-		aq_hw_caps->link_speed_msk &= ~AQ_NIC_RATE_5G;
-	}
+const struct aq_hw_caps_s hw_atl_b0_caps_aqc107 = {
+	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = HW_ATL_B0_RATE_10G |
+			  HW_ATL_B0_RATE_5G  |
+			  HW_ATL_B0_RATE_2G5 |
+			  HW_ATL_B0_RATE_1G  |
+			  HW_ATL_B0_RATE_100M,
+};
 
-	return 0;
-}
+const struct aq_hw_caps_s hw_atl_b0_caps_aqc108 = {
+	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = HW_ATL_B0_RATE_5G  |
+			  HW_ATL_B0_RATE_2G5 |
+			  HW_ATL_B0_RATE_1G  |
+			  HW_ATL_B0_RATE_100M,
+};
+
+const struct aq_hw_caps_s hw_atl_b0_caps_aqc109 = {
+	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = HW_ATL_B0_RATE_2G5 |
+			  HW_ATL_B0_RATE_1G  |
+			  HW_ATL_B0_RATE_100M,
+};
 
 static struct aq_hw_s *hw_atl_b0_create(struct aq_pci_func_s *aq_pci_func,
 					unsigned int port)
@@ -935,11 +980,9 @@ err_exit:
 	return err;
 }
 
-static const struct aq_hw_ops hw_atl_ops_ = {
+const struct aq_hw_ops hw_atl_ops_b0 = {
 	.create               = hw_atl_b0_create,
 	.destroy              = hw_atl_b0_destroy,
-	.get_hw_caps          = hw_atl_b0_get_hw_caps,
-
 	.hw_get_mac_permanent = hw_atl_utils_get_mac_permanent,
 	.hw_set_mac_address   = hw_atl_b0_hw_mac_addr_set,
 	.hw_get_link_status   = hw_atl_utils_mpi_get_link_status,
@@ -977,17 +1020,3 @@ static const struct aq_hw_ops hw_atl_ops_ = {
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
 };
-
-const struct aq_hw_ops *hw_atl_b0_get_ops_by_id(struct pci_dev *pdev)
-{
-	bool is_vid_ok = (pdev->vendor == PCI_VENDOR_ID_AQUANTIA);
-	bool is_did_ok = ((pdev->device == AQ_DEVICE_ID_0001) ||
-			(pdev->device == AQ_DEVICE_ID_D100) ||
-			(pdev->device == AQ_DEVICE_ID_D107) ||
-			(pdev->device == AQ_DEVICE_ID_D108) ||
-			(pdev->device == AQ_DEVICE_ID_D109));
-
-	bool is_rev_ok = (pdev->revision == 2U);
-
-	return (is_vid_ok && is_did_ok && is_rev_ok) ? &hw_atl_ops_ : NULL;
-}
