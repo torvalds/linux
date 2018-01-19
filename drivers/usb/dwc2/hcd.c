@@ -2403,24 +2403,18 @@ static void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 
 		/* Halt all channels to put them into a known state */
 		for (i = 0; i < num_channels; i++) {
-			int count = 0;
-
 			hcchar = dwc2_readl(hsotg->regs + HCCHAR(i));
 			hcchar |= HCCHAR_CHENA | HCCHAR_CHDIS;
 			hcchar &= ~HCCHAR_EPDIR;
 			dwc2_writel(hcchar, hsotg->regs + HCCHAR(i));
 			dev_dbg(hsotg->dev, "%s: Halt channel %d\n",
 				__func__, i);
-			do {
-				hcchar = dwc2_readl(hsotg->regs + HCCHAR(i));
-				if (++count > 1000) {
-					dev_err(hsotg->dev,
-						"Unable to clear enable on channel %d\n",
-						i);
-					break;
-				}
-				udelay(1);
-			} while (hcchar & HCCHAR_CHENA);
+
+			if (dwc2_hsotg_wait_bit_clear(hsotg, HCCHAR(i),
+						      HCCHAR_CHENA, 1000)) {
+				dev_warn(hsotg->dev, "Unable to clear enable on channel %d\n",
+					 i);
+			}
 		}
 	}
 

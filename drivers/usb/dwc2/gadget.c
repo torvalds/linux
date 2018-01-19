@@ -252,6 +252,7 @@ static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 	unsigned int ep;
 	unsigned int addr;
 	int timeout;
+
 	u32 val;
 	u32 *txfsz = hsotg->params.g_tx_fifo_size;
 
@@ -2495,30 +2496,13 @@ bad_mps:
  */
 static void dwc2_hsotg_txfifo_flush(struct dwc2_hsotg *hsotg, unsigned int idx)
 {
-	int timeout;
-	int val;
-
 	dwc2_writel(GRSTCTL_TXFNUM(idx) | GRSTCTL_TXFFLSH,
 		    hsotg->regs + GRSTCTL);
 
 	/* wait until the fifo is flushed */
-	timeout = 100;
-
-	while (1) {
-		val = dwc2_readl(hsotg->regs + GRSTCTL);
-
-		if ((val & (GRSTCTL_TXFFLSH)) == 0)
-			break;
-
-		if (--timeout == 0) {
-			dev_err(hsotg->dev,
-				"%s: timeout flushing fifo (GRSTCTL=%08x)\n",
-				__func__, val);
-			break;
-		}
-
-		udelay(1);
-	}
+	if (dwc2_hsotg_wait_bit_clear(hsotg, GRSTCTL, GRSTCTL_TXFFLSH, 100))
+		dev_warn(hsotg->dev, "%s: timeout flushing fifo GRSTCTL_TXFFLSH\n",
+			 __func__);
 }
 
 /**
@@ -3674,20 +3658,6 @@ irq_retry:
 	spin_unlock(&hsotg->lock);
 
 	return IRQ_HANDLED;
-}
-
-static int dwc2_hsotg_wait_bit_set(struct dwc2_hsotg *hs_otg, u32 reg,
-				   u32 bit, u32 timeout)
-{
-	u32 i;
-
-	for (i = 0; i < timeout; i++) {
-		if (dwc2_readl(hs_otg->regs + reg) & bit)
-			return 0;
-		udelay(1);
-	}
-
-	return -ETIMEDOUT;
 }
 
 static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,

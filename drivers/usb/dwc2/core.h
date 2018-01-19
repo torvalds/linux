@@ -1142,6 +1142,11 @@ extern const struct of_device_id dwc2_of_match_table[];
 int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
 int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);
 
+/* Common polling functions */
+int dwc2_hsotg_wait_bit_set(struct dwc2_hsotg *hs_otg, u32 reg, u32 bit,
+			    u32 timeout);
+int dwc2_hsotg_wait_bit_clear(struct dwc2_hsotg *hs_otg, u32 reg, u32 bit,
+			      u32 timeout);
 /* Parameters */
 int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
 int dwc2_init_params(struct dwc2_hsotg *hsotg);

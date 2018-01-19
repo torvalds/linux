@@ -317,7 +317,6 @@ static bool dwc2_iddig_filter_enabled(struct dwc2_hsotg *hsotg)
 int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
 {
 	u32 greset;
-	int count = 0;
 	bool wait_for_host_mode = false;
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
@@ -346,29 +345,19 @@ int dwc2_core_reset(struct dwc2_hsotg *hsotg, bool skip_wait)
 	greset = dwc2_readl(hsotg->regs + GRSTCTL);
 	greset |= GRSTCTL_CSFTRST;
 	dwc2_writel(greset, hsotg->regs + GRSTCTL);
-	do {
-		udelay(1);
-		greset = dwc2_readl(hsotg->regs + GRSTCTL);
-		if (++count > 50) {
-			dev_warn(hsotg->dev,
-				 "%s() HANG! Soft Reset GRSTCTL=%0x\n",
-				 __func__, greset);
-			return -EBUSY;
-		}
-	} while (greset & GRSTCTL_CSFTRST);
+
+	if (dwc2_hsotg_wait_bit_clear(hsotg, GRSTCTL, GRSTCTL_CSFTRST, 50)) {
+		dev_warn(hsotg->dev, "%s: HANG! Soft Reset timeout GRSTCTL GRSTCTL_CSFTRST\n",
+			 __func__);
+		return -EBUSY;
+	}
 
 	/* Wait for AHB master IDLE state */
-	count = 0;
-	do {
-		udelay(1);
-		greset = dwc2_readl(hsotg->regs + GRSTCTL);
-		if (++count > 50) {
-			dev_warn(hsotg->dev,
-				 "%s() HANG! AHB Idle GRSTCTL=%0x\n",
-				 __func__, greset);
-			return -EBUSY;
-		}
-	} while (!(greset & GRSTCTL_AHBIDLE));
+	if (dwc2_hsotg_wait_bit_set(hsotg, GRSTCTL, GRSTCTL_AHBIDLE, 50)) {
+		dev_warn(hsotg->dev, "%s: HANG! AHB Idle timeout GRSTCTL GRSTCTL_AHBIDLE\n",
+			 __func__);
+		return -EBUSY;
+	}
 
 	if (wait_for_host_mode && !skip_wait)
 		dwc2_wait_for_mode(hsotg, true);
@@ -683,7 +672,6 @@ void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg)
 void dwc2_flush_tx_fifo(struct dwc2_hsotg *hsotg, const int num)
 {
 	u32 greset;
-	int count = 0;
 
 	dev_vdbg(hsotg->dev, "Flush Tx FIFO %d\n", num);
 
@@ -691,17 +679,9 @@ void dwc2_flush_tx_fifo(struct dwc2_hsotg *hsotg, const int num)
 	greset |= num << GRSTCTL_TXFNUM_SHIFT & GRSTCTL_TXFNUM_MASK;
 	dwc2_writel(greset, hsotg->regs + GRSTCTL);
 
-	do {
-		greset = dwc2_readl(hsotg->regs + GRSTCTL);
-		if (++count > 10000) {
-			dev_warn(hsotg->dev,
-				 "%s() HANG! GRSTCTL=%0x GNPTXSTS=0x%08x\n",
-				 __func__, greset,
-				 dwc2_readl(hsotg->regs + GNPTXSTS));
-			break;
-		}
-		udelay(1);
-	} while (greset & GRSTCTL_TXFFLSH);
+	if (dwc2_hsotg_wait_bit_clear(hsotg, GRSTCTL, GRSTCTL_TXFFLSH, 10000))
+		dev_warn(hsotg->dev, "%s:  HANG! timeout GRSTCTL GRSTCTL_TXFFLSH\n",
+			 __func__);
 
 	/* Wait for at least 3 PHY Clocks */
 	udelay(1);
@@ -715,22 +695,16 @@ void dwc2_flush_tx_fifo(struct dwc2_hsotg *hsotg, const int num)
 void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg)
 {
 	u32 greset;
-	int count = 0;
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
 	greset = GRSTCTL_RXFFLSH;
 	dwc2_writel(greset, hsotg->regs + GRSTCTL);
 
-	do {
-		greset = dwc2_readl(hsotg->regs + GRSTCTL);
-		if (++count > 10000) {
-			dev_warn(hsotg->dev, "%s() HANG! GRSTCTL=%0x\n",
-				 __func__, greset);
-			break;
-		}
-		udelay(1);
-	} while (greset & GRSTCTL_RXFFLSH);
+	/* Wait for RxFIFO flush done */
+	if (dwc2_hsotg_wait_bit_clear(hsotg, GRSTCTL, GRSTCTL_RXFFLSH, 10000))
+		dev_warn(hsotg->dev, "%s: HANG! timeout GRSTCTL GRSTCTL_RXFFLSH\n",
+			 __func__);
 
 	/* Wait for at least 3 PHY Clocks */
 	udelay(1);
@@ -823,6 +797,52 @@ bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg)
 
 	return (op_mode == GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE) ||
 		(op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_DEVICE);
+}
+
+/**
+ * dwc2_hsotg_wait_bit_set - Waits for bit to be set.
+ * @hsotg: Programming view of DWC_otg controller.
+ * @offset: Register's offset where bit/bits must be set.
+ * @mask: Mask of the bit/bits which must be set.
+ * @timeout: Timeout to wait.
+ *
+ * Return: 0 if bit/bits are set or -ETIMEDOUT in case of timeout.
+ */
+int dwc2_hsotg_wait_bit_set(struct dwc2_hsotg *hsotg, u32 offset, u32 mask,
+			    u32 timeout)
+{
+	u32 i;
+
+	for (i = 0; i < timeout; i++) {
+		if (dwc2_readl(hsotg->regs + offset) & mask)
+			return 0;
+		udelay(1);
+	}
+
+	return -ETIMEDOUT;
+}
+
+/**
+ * dwc2_hsotg_wait_bit_clear - Waits for bit to be clear.
+ * @hsotg: Programming view of DWC_otg controller.
+ * @offset: Register's offset where bit/bits must be set.
+ * @mask: Mask of the bit/bits which must be set.
+ * @timeout: Timeout to wait.
+ *
+ * Return: 0 if bit/bits are set or -ETIMEDOUT in case of timeout.
+ */
+int dwc2_hsotg_wait_bit_clear(struct dwc2_hsotg *hsotg, u32 offset, u32 mask,
+			      u32 timeout)
+{
+	u32 i;
+
+	for (i = 0; i < timeout; i++) {
+		if (!(dwc2_readl(hsotg->regs + offset) & mask))
+			return 0;
+		udelay(1);
+	}
+
+	return -ETIMEDOUT;
 }
 
 MODULE_DESCRIPTION("DESIGNWARE HS OTG Core");
