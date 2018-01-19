@@ -212,6 +212,17 @@ static struct meson_clk_pll gxbb_fixed_pll = {
 	},
 };
 
+static struct clk_fixed_factor gxbb_hdmi_pll_pre_mult = {
+	.mult = 2,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmi_pll_pre_mult",
+		.ops = &clk_fixed_factor_ops,
+		.parent_names = (const char *[]){ "xtal" },
+		.num_parents = 1,
+	},
+};
+
 static struct meson_clk_pll gxbb_hdmi_pll = {
 	.m = {
 		.reg_off = HHI_HDMI_PLL_CNTL,
@@ -247,7 +258,7 @@ static struct meson_clk_pll gxbb_hdmi_pll = {
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_pll",
 		.ops = &meson_clk_pll_ro_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_names = (const char *[]){ "hdmi_pll_pre_mult" },
 		.num_parents = 1,
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
@@ -1558,6 +1569,7 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 		[CLKID_VAPB_1]		    = &gxbb_vapb_1.hw,
 		[CLKID_VAPB_SEL]	    = &gxbb_vapb_sel.hw,
 		[CLKID_VAPB]		    = &gxbb_vapb.hw,
+		[CLKID_HDMI_PLL_PRE_MULT]   = &gxbb_hdmi_pll_pre_mult.hw,
 		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,

@@ -88,7 +88,6 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 		frac = PARM_GET(p->width, p->shift, reg);
 
 		rate += mul_u64_u32_shr(parent_rate, frac, p->width);
-		rate *= 2;
 	}
 
 	return div_u64(rate, n) >> od >> od2 >> od3;
