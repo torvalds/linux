@@ -949,6 +949,10 @@ enum package_type {
 	PACKAGE_TFBGA79
 };
 
+enum rtl_spec_ver {
+	RTL_SPEC_NEW_RATEID = BIT(0),	/* use ratr_table_mode_new */
+};
+
 struct octet_string {
 	u8 *octet;
 	u16 length;
@@ -2333,6 +2337,7 @@ struct rtl_hal_cfg {
 	struct rtl_hal_ops *ops;
 	struct rtl_mod_params *mod_params;
 	struct rtl_hal_usbint_cfg *usb_interface_cfg;
+	enum rtl_spec_ver spec_ver;
 
 	/*this map used for some registers or vars
 	   defined int HAL but used in MAIN */
