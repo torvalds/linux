@@ -599,10 +599,6 @@ xfs_reflink_cancel_cow_blocks(
 					del.br_startblock, del.br_blockcount,
 					NULL);
 
-			/* Update quota accounting */
-			xfs_trans_mod_dquot_byino(*tpp, ip, XFS_TRANS_DQ_BCOUNT,
-					-(long)del.br_blockcount);
-
 			/* Roll the transaction */
 			xfs_defer_ijoin(&dfops, ip);
 			error = xfs_defer_finish(tpp, &dfops);
@@ -613,6 +609,13 @@ xfs_reflink_cancel_cow_blocks(
 
 			/* Remove the mapping from the CoW fork. */
 			xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
+
+			/* Remove the quota reservation */
+			error = xfs_trans_reserve_quota_nblks(NULL, ip,
+					-(long)del.br_blockcount, 0,
+					XFS_QMOPT_RES_REGBLKS);
+			if (error)
+				break;
 		} else {
 			/* Didn't do anything, push cursor back. */
 			xfs_iext_prev(ifp, &icur);
@@ -794,6 +797,10 @@ xfs_reflink_end_cow(
 		error = xfs_bmap_map_extent(tp->t_mountp, &dfops, ip, &del);
 		if (error)
 			goto out_defer;
+
+		/* Charge this new data fork mapping to the on-disk quota. */
+		xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_DELBCOUNT,
+				(long)del.br_blockcount);
 
 		/* Remove the mapping from the CoW fork. */
 		xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
