@@ -1414,7 +1414,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	unsigned int i;
 	int ret;
 
-	if (GEM_WARN_ON(engine->id != RCS || !engine->scratch))
+	if (GEM_WARN_ON(engine->id != RCS))
 		return -EINVAL;
 
 	switch (INTEL_GEN(engine->i915)) {
