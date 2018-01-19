@@ -760,6 +760,16 @@ MLXSW_ITEM32(afa, trapdisc, forward_action, 0x00, 0, 4);
  */
 MLXSW_ITEM32(afa, trapdisc, trap_id, 0x04, 0, 9);
 
+/* afa_trapdisc_mirror_agent
+ * Mirror agent.
+ */
+MLXSW_ITEM32(afa, trapdisc, mirror_agent, 0x08, 29, 3);
+
+/* afa_trapdisc_mirror_enable
+ * Mirror enable.
+ */
+MLXSW_ITEM32(afa, trapdisc, mirror_enable, 0x08, 24, 1);
+
 static inline void
 mlxsw_afa_trapdisc_pack(char *payload,
 			enum mlxsw_afa_trapdisc_trap_action trap_action,
@@ -769,6 +779,14 @@ mlxsw_afa_trapdisc_pack(char *payload,
 	mlxsw_afa_trapdisc_trap_action_set(payload, trap_action);
 	mlxsw_afa_trapdisc_forward_action_set(payload, forward_action);
 	mlxsw_afa_trapdisc_trap_id_set(payload, trap_id);
+}
+
+static inline void
+mlxsw_afa_trapdisc_mirror_pack(char *payload, bool mirror_enable,
+			       u8 mirror_agent)
+{
+	mlxsw_afa_trapdisc_mirror_enable_set(payload, mirror_enable);
+	mlxsw_afa_trapdisc_mirror_agent_set(payload, mirror_agent);
 }
 
 int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block)
@@ -815,6 +833,21 @@ int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_trap_and_forward);
+
+int mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
+				  u8 mirror_agent)
+{
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_TRAPDISC_CODE,
+						  MLXSW_AFA_TRAPDISC_SIZE);
+	if (!act)
+		return -ENOBUFS;
+	mlxsw_afa_trapdisc_pack(act, MLXSW_AFA_TRAPDISC_TRAP_ACTION_NOP,
+				MLXSW_AFA_TRAPDISC_FORWARD_ACTION_FORWARD, 0);
+	mlxsw_afa_trapdisc_mirror_pack(act, true, mirror_agent);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_mirror);
 
 /* Forwarding Action
  * -----------------
