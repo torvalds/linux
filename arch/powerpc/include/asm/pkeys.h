@@ -139,4 +139,8 @@ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 }
 
 extern void pkey_mm_init(struct mm_struct *mm);
+extern void thread_pkey_regs_save(struct thread_struct *thread);
+extern void thread_pkey_regs_restore(struct thread_struct *new_thread,
+				     struct thread_struct *old_thread);
+extern void thread_pkey_regs_init(struct thread_struct *thread);
 #endif /*_ASM_POWERPC_KEYS_H */
