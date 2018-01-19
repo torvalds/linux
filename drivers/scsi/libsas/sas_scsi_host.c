@@ -493,6 +493,9 @@ int sas_eh_abort_handler(struct scsi_cmnd *cmd)
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	unsigned long flags;
 
+	if (current != host->ehandler)
+		return FAILED;
+
 	if (!i->dft->lldd_abort_task)
 		return FAILED;
 
