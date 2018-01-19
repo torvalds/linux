@@ -63,6 +63,22 @@ struct dentry *ovl_indexdir(struct super_block *sb)
 	return ofs->indexdir;
 }
 
+/* Index all files on copy up. For now only enabled for NFS export */
+bool ovl_index_all(struct super_block *sb)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	return ofs->config.nfs_export && ofs->config.index;
+}
+
+/* Verify lower origin on lookup. For now only enabled for NFS export */
+bool ovl_verify_lower(struct super_block *sb)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	return ofs->config.nfs_export && ofs->config.index;
+}
+
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower)
 {
 	size_t size = offsetof(struct ovl_entry, lowerstack[numlower]);

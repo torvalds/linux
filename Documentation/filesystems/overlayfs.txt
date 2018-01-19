@@ -190,6 +190,24 @@ Mount options:
     Redirects are not created and not followed (equivalent to "redirect_dir=off"
     if "redirect_always_follow" feature is not enabled).
 
+When the NFS export feature is enabled, every copied up directory is
+indexed by the file handle of the lower inode and a file handle of the
+upper directory is stored in a "trusted.overlay.upper" extended attribute
+on the index entry.  On lookup of a merged directory, if the upper
+directory does not match the file handle stores in the index, that is an
+indication that multiple upper directories may be redirected to the same
+lower directory.  In that case, lookup returns an error and warns about
+a possible inconsistency.
+
+Because lower layer redirects cannot be verified with the index, enabling
+NFS export support on an overlay filesystem with no upper layer requires
+turning off redirect follow (e.g. "redirect_dir=nofollow").
+
+When the NFS export feature is enabled, all directory index entries are
+verified on mount time to check that upper file handles are not stale.
+This verification may cause significant overhead in some cases.
+
+
 Non-directories
 ---------------
 
@@ -298,6 +316,23 @@ Changes to the underlying filesystems while part of a mounted overlay
 filesystem are not allowed.  If the underlying filesystem is changed,
 the behavior of the overlay is undefined, though it will not result in
 a crash or deadlock.
+
+When the overlay NFS export feature is enabled, overlay filesystems
+behavior on offline changes of the underlying lower layer is different
+than the behavior when NFS export is disabled.
+
+On every copy_up, an NFS file handle of the lower inode, along with the
+UUID of the lower filesystem, are encoded and stored in an extended
+attribute "trusted.overlay.origin" on the upper inode.
+
+When the NFS export feature is enabled, a lookup of a merged directory,
+that found a lower directory at the lookup path or at the path pointed
+to by the "trusted.overlay.redirect" extended attribute, will verify
+that the found lower directory file handle and lower filesystem UUID
+match the origin file handle that was stored at copy_up time.  If a
+found lower directory does not match the stored origin, that directory
+will not be merged with the upper directory.
+
 
 Testsuite
 ---------
