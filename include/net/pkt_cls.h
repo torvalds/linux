@@ -376,7 +376,8 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
-		      struct tcf_exts *exts, bool ovr);
+		      struct tcf_exts *exts, bool ovr,
+		      struct netlink_ext_ack *extack);
 void tcf_exts_destroy(struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_exts *dst, struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
@@ -556,13 +557,16 @@ static inline int tcf_valid_offset(const struct sk_buff *skb,
 #include <net/net_namespace.h>
 
 static inline int
-tcf_change_indev(struct net *net, struct nlattr *indev_tlv)
+tcf_change_indev(struct net *net, struct nlattr *indev_tlv,
+		 struct netlink_ext_ack *extack)
 {
 	char indev[IFNAMSIZ];
 	struct net_device *dev;
 
-	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ)
+	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ) {
+		NL_SET_ERR_MSG(extack, "Interface name too long");
 		return -EINVAL;
+	}
 	dev = __dev_get_by_name(net, indev);
 	if (!dev)
 		return -ENODEV;

@@ -526,13 +526,14 @@ static void fl_set_key_ip(struct nlattr **tb,
 }
 
 static int fl_set_key(struct net *net, struct nlattr **tb,
-		      struct fl_flow_key *key, struct fl_flow_key *mask)
+		      struct fl_flow_key *key, struct fl_flow_key *mask,
+		      struct netlink_ext_ack *extack)
 {
 	__be16 ethertype;
 	int ret = 0;
 #ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_FLOWER_INDEV]) {
-		int err = tcf_change_indev(net, tb[TCA_FLOWER_INDEV]);
+		int err = tcf_change_indev(net, tb[TCA_FLOWER_INDEV], extack);
 		if (err < 0)
 			return err;
 		key->indev_ifindex = err;
@@ -827,11 +828,12 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 			struct cls_fl_filter *f, struct fl_flow_mask *mask,
 			unsigned long base, struct nlattr **tb,
-			struct nlattr *est, bool ovr)
+			struct nlattr *est, bool ovr,
+			struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr);
+	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr, extack);
 	if (err < 0)
 		return err;
 
@@ -840,7 +842,7 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 		tcf_bind_filter(tp, &f->res, base);
 	}
 
-	err = fl_set_key(net, tb, &f->key, &mask->key);
+	err = fl_set_key(net, tb, &f->key, &mask->key, extack);
 	if (err)
 		return err;
 
@@ -853,7 +855,7 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 static int fl_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle, struct nlattr **tca,
-		     void **arg, bool ovr)
+		     void **arg, bool ovr, struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *fold = *arg;
@@ -916,7 +918,8 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		}
 	}
 
-	err = fl_set_parms(net, tp, fnew, &mask, base, tb, tca[TCA_RATE], ovr);
+	err = fl_set_parms(net, tp, fnew, &mask, base, tb, tca[TCA_RATE], ovr,
+			   extack);
 	if (err)
 		goto errout_idr;
 
@@ -983,7 +986,8 @@ errout_tb:
 	return err;
 }
 
-static int fl_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
+		     struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f = arg;

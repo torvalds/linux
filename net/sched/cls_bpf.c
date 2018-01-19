@@ -295,7 +295,8 @@ static void __cls_bpf_delete(struct tcf_proto *tp, struct cls_bpf_prog *prog)
 		__cls_bpf_delete_prog(prog);
 }
 
-static int cls_bpf_delete(struct tcf_proto *tp, void *arg, bool *last)
+static int cls_bpf_delete(struct tcf_proto *tp, void *arg, bool *last,
+			  struct netlink_ext_ack *extack)
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 
@@ -403,7 +404,8 @@ static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog,
 
 static int cls_bpf_set_parms(struct net *net, struct tcf_proto *tp,
 			     struct cls_bpf_prog *prog, unsigned long base,
-			     struct nlattr **tb, struct nlattr *est, bool ovr)
+			     struct nlattr **tb, struct nlattr *est, bool ovr,
+			     struct netlink_ext_ack *extack)
 {
 	bool is_bpf, is_ebpf, have_exts = false;
 	u32 gen_flags = 0;
@@ -414,7 +416,7 @@ static int cls_bpf_set_parms(struct net *net, struct tcf_proto *tp,
 	if ((!is_bpf && !is_ebpf) || (is_bpf && is_ebpf))
 		return -EINVAL;
 
-	ret = tcf_exts_validate(net, tp, tb, est, &prog->exts, ovr);
+	ret = tcf_exts_validate(net, tp, tb, est, &prog->exts, ovr, extack);
 	if (ret < 0)
 		return ret;
 
@@ -452,7 +454,7 @@ static int cls_bpf_set_parms(struct net *net, struct tcf_proto *tp,
 static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 			  struct tcf_proto *tp, unsigned long base,
 			  u32 handle, struct nlattr **tca,
-			  void **arg, bool ovr)
+			  void **arg, bool ovr, struct netlink_ext_ack *extack)
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 	struct cls_bpf_prog *oldprog = *arg;
@@ -500,7 +502,8 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 		prog->handle = handle;
 	}
 
-	ret = cls_bpf_set_parms(net, tp, prog, base, tb, tca[TCA_RATE], ovr);
+	ret = cls_bpf_set_parms(net, tp, prog, base, tb, tca[TCA_RATE], ovr,
+				extack);
 	if (ret < 0)
 		goto errout_idr;
 
