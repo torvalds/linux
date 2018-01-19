@@ -571,7 +571,14 @@ static inline int pte_present(pte_t pte)
 	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT));
 }
 
+#ifdef CONFIG_PPC_MEM_KEYS
 extern bool arch_pte_access_permitted(u64 pte, bool write, bool execute);
+#else
+static inline bool arch_pte_access_permitted(u64 pte, bool write, bool execute)
+{
+	return true;
+}
+#endif /* CONFIG_PPC_MEM_KEYS */
 
 #define pte_access_permitted pte_access_permitted
 static inline bool pte_access_permitted(pte_t pte, bool write)
@@ -593,7 +600,8 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 
 	if ((pteval & clear_pte_bits) == clear_pte_bits)
 		return false;
-	return true;
+
+	return arch_pte_access_permitted(pte_val(pte), write, 0);
 }
 
 /*
