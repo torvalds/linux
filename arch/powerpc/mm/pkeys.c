@@ -358,3 +358,31 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
 	/* Nothing to override. */
 	return vma_pkey(vma);
 }
+
+static bool pkey_access_permitted(int pkey, bool write, bool execute)
+{
+	int pkey_shift;
+	u64 amr;
+
+	if (!pkey)
+		return true;
+
+	if (!is_pkey_enabled(pkey))
+		return true;
+
+	pkey_shift = pkeyshift(pkey);
+	if (execute && !(read_iamr() & (IAMR_EX_BIT << pkey_shift)))
+		return true;
+
+	amr = read_amr(); /* Delay reading amr until absolutely needed */
+	return ((!write && !(amr & (AMR_RD_BIT << pkey_shift))) ||
+		(write &&  !(amr & (AMR_WR_BIT << pkey_shift))));
+}
+
+bool arch_pte_access_permitted(u64 pte, bool write, bool execute)
+{
+	if (static_branch_likely(&pkey_disabled))
+		return true;
+
+	return pkey_access_permitted(pte_to_pkey_bits(pte), write, execute);
+}

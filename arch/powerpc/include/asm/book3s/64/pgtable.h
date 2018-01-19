@@ -571,6 +571,8 @@ static inline int pte_present(pte_t pte)
 	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT));
 }
 
+extern bool arch_pte_access_permitted(u64 pte, bool write, bool execute);
+
 #define pte_access_permitted pte_access_permitted
 static inline bool pte_access_permitted(pte_t pte, bool write)
 {
