@@ -1383,6 +1383,12 @@ static int etnaviv_gpu_clk_enable(struct etnaviv_gpu *gpu)
 {
 	int ret;
 
+	if (gpu->clk_reg) {
+		ret = clk_prepare_enable(gpu->clk_reg);
+		if (ret)
+			return ret;
+	}
+
 	if (gpu->clk_bus) {
 		ret = clk_prepare_enable(gpu->clk_bus);
 		if (ret)
@@ -1421,6 +1427,8 @@ static int etnaviv_gpu_clk_disable(struct etnaviv_gpu *gpu)
 		clk_disable_unprepare(gpu->clk_core);
 	if (gpu->clk_bus)
 		clk_disable_unprepare(gpu->clk_bus);
+	if (gpu->clk_reg)
+		clk_disable_unprepare(gpu->clk_reg);
 
 	return 0;
 }
@@ -1676,6 +1684,11 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	}
 
 	/* Get Clocks: */
+	gpu->clk_reg = devm_clk_get(&pdev->dev, "reg");
+	DBG("clk_reg: %p", gpu->clk_reg);
+	if (IS_ERR(gpu->clk_reg))
+		gpu->clk_reg = NULL;
+
 	gpu->clk_bus = devm_clk_get(&pdev->dev, "bus");
 	DBG("clk_bus: %p", gpu->clk_bus);
 	if (IS_ERR(gpu->clk_bus))

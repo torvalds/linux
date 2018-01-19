@@ -147,6 +147,7 @@ struct etnaviv_gpu {
 
 	/* Power Control: */
 	struct clk *clk_bus;
+	struct clk *clk_reg;
 	struct clk *clk_core;
 	struct clk *clk_shader;
 
