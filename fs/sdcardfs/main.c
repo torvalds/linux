@@ -70,7 +70,7 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 	opts->reserved_mb = 0;
 	/* by default, gid derivation is off */
 	opts->gid_derivation = false;
-	vfsopts->default_normal = false;
+	opts->default_normal = false;
 
 	*debug = 0;
 
@@ -126,7 +126,7 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 			opts->gid_derivation = true;
 			break;
 		case Opt_default_normal:
-			vfsopts->default_normal = true;
+			opts->default_normal = true;
 			break;
 		/* unknown option */
 		default:
