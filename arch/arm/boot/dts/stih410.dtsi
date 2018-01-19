@@ -274,7 +274,7 @@
 			interrupts = <GIC_SPI 205 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		delta0 {
+		delta0@0 {
 			compatible = "st,st-delta";
 			clock-names = "delta",
 				      "delta-st231",
