@@ -101,11 +101,17 @@ static inline bool ptr_ring_full_bh(struct ptr_ring *r)
 
 /* Note: callers invoking this in a loop must use a compiler barrier,
  * for example cpu_relax(). Callers must hold producer_lock.
+ * Callers are responsible for making sure pointer that is being queued
+ * points to a valid data.
  */
 static inline int __ptr_ring_produce(struct ptr_ring *r, void *ptr)
 {
 	if (unlikely(!r->size) || r->queue[r->producer])
 		return -ENOSPC;
+
+	/* Make sure the pointer we are storing points to a valid data. */
+	/* Pairs with smp_read_barrier_depends in __ptr_ring_consume. */
+	smp_wmb();
 
 	r->queue[r->producer++] = ptr;
 	if (unlikely(r->producer >= r->size))
@@ -275,6 +281,9 @@ static inline void *__ptr_ring_consume(struct ptr_ring *r)
 	if (ptr)
 		__ptr_ring_discard_one(r);
 
+	/* Make sure anyone accessing data through the pointer is up to date. */
+	/* Pairs with smp_wmb in __ptr_ring_produce. */
+	smp_read_barrier_depends();
 	return ptr;
 }
 

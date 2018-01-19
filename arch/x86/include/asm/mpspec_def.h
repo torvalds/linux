@@ -59,7 +59,7 @@ struct mpc_table {
 #define	MP_TRANSLATION		192
 
 #define CPU_ENABLED		1	/* Processor is available */
-#define CPU_BOOTPROCESSOR	2	/* Processor is the BP */
+#define CPU_BOOTPROCESSOR	2	/* Processor is the boot CPU */
 
 #define CPU_STEPPING_MASK	0x000F
 #define CPU_MODEL_MASK		0x00F0

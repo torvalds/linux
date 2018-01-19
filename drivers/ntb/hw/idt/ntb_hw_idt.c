@@ -2628,35 +2628,35 @@ static void idt_pci_remove(struct pci_dev *pdev)
 /*
  * IDT PCIe-switch models ports configuration structures
  */
-static struct idt_89hpes_cfg idt_89hpes24nt6ag2_config = {
+static const struct idt_89hpes_cfg idt_89hpes24nt6ag2_config = {
 	.name = "89HPES24NT6AG2",
 	.port_cnt = 6, .ports = {0, 2, 4, 6, 8, 12}
 };
-static struct idt_89hpes_cfg idt_89hpes32nt8ag2_config = {
+static const struct idt_89hpes_cfg idt_89hpes32nt8ag2_config = {
 	.name = "89HPES32NT8AG2",
 	.port_cnt = 8, .ports = {0, 2, 4, 6, 8, 12, 16, 20}
 };
-static struct idt_89hpes_cfg idt_89hpes32nt8bg2_config = {
+static const struct idt_89hpes_cfg idt_89hpes32nt8bg2_config = {
 	.name = "89HPES32NT8BG2",
 	.port_cnt = 8, .ports = {0, 2, 4, 6, 8, 12, 16, 20}
 };
-static struct idt_89hpes_cfg idt_89hpes12nt12g2_config = {
+static const struct idt_89hpes_cfg idt_89hpes12nt12g2_config = {
 	.name = "89HPES12NT12G2",
 	.port_cnt = 3, .ports = {0, 8, 16}
 };
-static struct idt_89hpes_cfg idt_89hpes16nt16g2_config = {
+static const struct idt_89hpes_cfg idt_89hpes16nt16g2_config = {
 	.name = "89HPES16NT16G2",
 	.port_cnt = 4, .ports = {0, 8, 12, 16}
 };
-static struct idt_89hpes_cfg idt_89hpes24nt24g2_config = {
+static const struct idt_89hpes_cfg idt_89hpes24nt24g2_config = {
 	.name = "89HPES24NT24G2",
 	.port_cnt = 8, .ports = {0, 2, 4, 6, 8, 12, 16, 20}
 };
-static struct idt_89hpes_cfg idt_89hpes32nt24ag2_config = {
+static const struct idt_89hpes_cfg idt_89hpes32nt24ag2_config = {
 	.name = "89HPES32NT24AG2",
 	.port_cnt = 8, .ports = {0, 2, 4, 6, 8, 12, 16, 20}
 };
-static struct idt_89hpes_cfg idt_89hpes32nt24bg2_config = {
+static const struct idt_89hpes_cfg idt_89hpes32nt24bg2_config = {
 	.name = "89HPES32NT24BG2",
 	.port_cnt = 8, .ports = {0, 2, 4, 6, 8, 12, 16, 20}
 };

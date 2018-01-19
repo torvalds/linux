@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Driver for SA11x0 serial ports
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #if defined(CONFIG_SERIAL_SA1100_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
@@ -123,9 +110,9 @@ static void sa1100_mctrl_check(struct sa1100_port *sport)
  * This is our per-port timeout handler, for checking the
  * modem status signals.
  */
-static void sa1100_timeout(unsigned long data)
+static void sa1100_timeout(struct timer_list *t)
 {
-	struct sa1100_port *sport = (struct sa1100_port *)data;
+	struct sa1100_port *sport = from_timer(sport, t, timer);
 	unsigned long flags;
 
 	if (sport->port.state) {
@@ -640,9 +627,7 @@ static void __init sa1100_init_ports(void)
 		sa1100_ports[i].port.fifosize  = 8;
 		sa1100_ports[i].port.line      = i;
 		sa1100_ports[i].port.iotype    = UPIO_MEM;
-		init_timer(&sa1100_ports[i].timer);
-		sa1100_ports[i].timer.function = sa1100_timeout;
-		sa1100_ports[i].timer.data     = (unsigned long)&sa1100_ports[i];
+		timer_setup(&sa1100_ports[i].timer, sa1100_timeout, 0);
 	}
 
 	/*

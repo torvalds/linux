@@ -432,8 +432,7 @@ static void set_addr(struct mtd_info *mtd, int column, int page_addr)
 		host->addr_value[0] |= (page_addr & 0xffff)
 			<< (host->addr_cycle * 8);
 		host->addr_cycle    += 2;
-		/* One more address cycle for devices > 128MiB */
-		if (chip->chipsize > (128 << 20)) {
+		if (chip->options & NAND_ROW_ADDR_3) {
 			host->addr_cycle += 1;
 			if (host->command == NAND_CMD_ERASE1)
 				host->addr_value[0] |= ((page_addr >> 16) & 0xff) << 16;

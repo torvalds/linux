@@ -795,6 +795,8 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	tcm->tcm_info = refcount_read(&q->refcnt);
 	if (nla_put_string(skb, TCA_KIND, q->ops->id))
 		goto nla_put_failure;
+	if (nla_put_u8(skb, TCA_HW_OFFLOAD, !!(q->flags & TCQ_F_OFFLOADED)))
+		goto nla_put_failure;
 	if (q->ops->dump && q->ops->dump(q, skb) < 0)
 		goto nla_put_failure;
 	qlen = q->q.qlen;
@@ -1502,7 +1504,6 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	int s_idx, s_q_idx;
 	struct net_device *dev;
 	const struct nlmsghdr *nlh = cb->nlh;
-	struct tcmsg *tcm = nlmsg_data(nlh);
 	struct nlattr *tca[TCA_MAX + 1];
 	int err;
 
@@ -1512,7 +1513,7 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	idx = 0;
 	ASSERT_RTNL();
 
-	err = nlmsg_parse(nlh, sizeof(*tcm), tca, TCA_MAX, NULL, NULL);
+	err = nlmsg_parse(nlh, sizeof(struct tcmsg), tca, TCA_MAX, NULL, NULL);
 	if (err < 0)
 		return err;
 
@@ -1664,9 +1665,11 @@ static int tcf_node_bind(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
 	struct tcf_bind_args *a = (void *)arg;
 
 	if (tp->ops->bind_class) {
-		tcf_tree_lock(tp);
+		struct Qdisc *q = tcf_block_q(tp->chain->block);
+
+		sch_tree_lock(q);
 		tp->ops->bind_class(n, a->classid, a->cl);
-		tcf_tree_unlock(tp);
+		sch_tree_unlock(q);
 	}
 	return 0;
 }

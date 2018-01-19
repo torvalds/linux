@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/usb/driver.c - most of the driver model stuff for usb
  *
@@ -16,7 +17,6 @@
  *	(C) Copyright Greg Kroah-Hartman 2002-2003
  *
  * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  *
  * NOTE! This is not actually a driver at all, rather this is
  * just a collection of helper routines that implement the
@@ -1340,8 +1340,8 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 			int err;
 			u16 devstat;
 
-			err = usb_get_status(udev, USB_RECIP_DEVICE, 0,
-					     &devstat);
+			err = usb_get_std_status(udev, USB_RECIP_DEVICE, 0,
+						 &devstat);
 			if (err) {
 				dev_err(&udev->dev,
 					"Failed to suspend device, error %d\n",
@@ -1461,6 +1461,7 @@ static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
 int usb_suspend(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev = to_usb_device(dev);
+	int r;
 
 	unbind_no_pm_drivers_interfaces(udev);
 
@@ -1469,7 +1470,14 @@ int usb_suspend(struct device *dev, pm_message_t msg)
 	 * so we may still need to unbind and rebind upon resume
 	 */
 	choose_wakeup(udev, msg);
-	return usb_suspend_both(udev, msg);
+	r = usb_suspend_both(udev, msg);
+	if (r)
+		return r;
+
+	if (udev->quirks & USB_QUIRK_DISCONNECT_SUSPEND)
+		usb_port_disable(udev);
+
+	return 0;
 }
 
 /* The device lock is held by the PM core */

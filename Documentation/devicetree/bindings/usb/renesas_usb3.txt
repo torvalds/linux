@@ -15,6 +15,10 @@ Required properties:
   - interrupts: Interrupt specifier for the USB3.0 Peripheral
   - clocks: clock phandle and specifier pair
 
+Optional properties:
+  - phys: phandle + phy specifier pair
+  - phy-names: must be "usb"
+
 Example of R-Car H3 ES1.x:
 	usb3_peri0: usb@ee020000 {
 		compatible = "renesas,r8a7795-usb3-peri",

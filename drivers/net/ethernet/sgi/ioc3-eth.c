@@ -764,9 +764,9 @@ static inline void ioc3_setup_duplex(struct ioc3_private *ip)
 	ioc3_w_emcr(ip->emcr);
 }
 
-static void ioc3_timer(unsigned long data)
+static void ioc3_timer(struct timer_list *t)
 {
-	struct ioc3_private *ip = (struct ioc3_private *) data;
+	struct ioc3_private *ip = from_timer(ip, t, ioc3_timer);
 
 	/* Print the link status if it has changed */
 	mii_check_media(&ip->mii, 1, 0);
@@ -818,8 +818,6 @@ out:
 static void ioc3_mii_start(struct ioc3_private *ip)
 {
 	ip->ioc3_timer.expires = jiffies + (12 * HZ)/10;  /* 1.2 sec. */
-	ip->ioc3_timer.data = (unsigned long) ip;
-	ip->ioc3_timer.function = ioc3_timer;
 	add_timer(&ip->ioc3_timer);
 }
 
@@ -1291,7 +1289,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	spin_lock_init(&ip->ioc3_lock);
-	init_timer(&ip->ioc3_timer);
+	timer_setup(&ip->ioc3_timer, ioc3_timer, 0);
 
 	ioc3_stop(ip);
 	ioc3_init(dev);

@@ -16,6 +16,7 @@
 #include "bnxt_hsi.h"
 #include "bnxt.h"
 #include "bnxt_vfr.h"
+#include "bnxt_devlink.h"
 #include "bnxt_tc.h"
 
 #ifdef CONFIG_BNXT_SRIOV
@@ -115,16 +116,53 @@ bnxt_vf_rep_get_stats64(struct net_device *dev,
 	stats->tx_bytes = vf_rep->tx_stats.bytes;
 }
 
-static int bnxt_vf_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
-				void *type_data)
+static int bnxt_vf_rep_setup_tc_block_cb(enum tc_setup_type type,
+					 void *type_data,
+					 void *cb_priv)
 {
-	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+	struct bnxt_vf_rep *vf_rep = cb_priv;
 	struct bnxt *bp = vf_rep->bp;
 	int vf_fid = bp->pf.vf[vf_rep->vf_idx].fw_fid;
+
+	if (!bnxt_tc_flower_enabled(vf_rep->bp) || !tc_can_offload(bp->dev))
+		return -EOPNOTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return bnxt_tc_setup_flower(bp, vf_fid, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int bnxt_vf_rep_setup_tc_block(struct net_device *dev,
+				      struct tc_block_offload *f)
+{
+	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+
+	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		return -EOPNOTSUPP;
+
+	switch (f->command) {
+	case TC_BLOCK_BIND:
+		return tcf_block_cb_register(f->block,
+					     bnxt_vf_rep_setup_tc_block_cb,
+					     vf_rep, vf_rep);
+	case TC_BLOCK_UNBIND:
+		tcf_block_cb_unregister(f->block,
+					bnxt_vf_rep_setup_tc_block_cb, vf_rep);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int bnxt_vf_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
+				void *type_data)
+{
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return bnxt_vf_rep_setup_tc_block(dev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -416,7 +454,7 @@ err:
 }
 
 /* Devlink related routines */
-static int bnxt_dl_eswitch_mode_get(struct devlink *devlink, u16 *mode)
+int bnxt_dl_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
 
@@ -424,7 +462,7 @@ static int bnxt_dl_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	return 0;
 }
 
-static int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
+int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
 	int rc = 0;
@@ -460,54 +498,6 @@ static int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
 done:
 	mutex_unlock(&bp->sriov_lock);
 	return rc;
-}
-
-static const struct devlink_ops bnxt_dl_ops = {
-	.eswitch_mode_set = bnxt_dl_eswitch_mode_set,
-	.eswitch_mode_get = bnxt_dl_eswitch_mode_get
-};
-
-int bnxt_dl_register(struct bnxt *bp)
-{
-	struct devlink *dl;
-	int rc;
-
-	if (!pci_find_ext_capability(bp->pdev, PCI_EXT_CAP_ID_SRIOV))
-		return 0;
-
-	if (bp->hwrm_spec_code < 0x10800) {
-		netdev_warn(bp->dev, "Firmware does not support SR-IOV E-Switch SWITCHDEV mode.\n");
-		return -ENOTSUPP;
-	}
-
-	dl = devlink_alloc(&bnxt_dl_ops, sizeof(struct bnxt_dl));
-	if (!dl) {
-		netdev_warn(bp->dev, "devlink_alloc failed");
-		return -ENOMEM;
-	}
-
-	bnxt_link_bp_to_dl(bp, dl);
-	bp->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
-	rc = devlink_register(dl, &bp->pdev->dev);
-	if (rc) {
-		bnxt_link_bp_to_dl(bp, NULL);
-		devlink_free(dl);
-		netdev_warn(bp->dev, "devlink_register failed. rc=%d", rc);
-		return rc;
-	}
-
-	return 0;
-}
-
-void bnxt_dl_unregister(struct bnxt *bp)
-{
-	struct devlink *dl = bp->dl;
-
-	if (!dl)
-		return;
-
-	devlink_unregister(dl);
-	devlink_free(dl);
 }
 
 #endif

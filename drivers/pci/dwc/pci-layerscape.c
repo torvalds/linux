@@ -33,6 +33,8 @@
 
 /* PEX Internal Configuration Registers */
 #define PCIE_STRFMR1		0x71c /* Symbol Timer & Filter Mask Register1 */
+#define PCIE_ABSERR		0x8d0 /* Bridge Slave Error Response Register */
+#define PCIE_ABSERR_SETTING	0x9401 /* Forward error of non-posted request */
 
 #define PCIE_IATU_NUM		6
 
@@ -124,6 +126,14 @@ static int ls_pcie_link_up(struct dw_pcie *pci)
 	return 1;
 }
 
+/* Forward error response of outbound non-posted requests */
+static void ls_pcie_fix_error_response(struct ls_pcie *pcie)
+{
+	struct dw_pcie *pci = pcie->pci;
+
+	iowrite32(PCIE_ABSERR_SETTING, pci->dbi_base + PCIE_ABSERR);
+}
+
 static int ls_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -135,6 +145,7 @@ static int ls_pcie_host_init(struct pcie_port *pp)
 	 * dw_pcie_setup_rc() will reconfigure the outbound windows.
 	 */
 	ls_pcie_disable_outbound_atus(pcie);
+	ls_pcie_fix_error_response(pcie);
 
 	dw_pcie_dbi_ro_wr_en(pci);
 	ls_pcie_clear_multifunction(pcie);
@@ -253,6 +264,7 @@ static struct ls_pcie_drvdata ls2088_drvdata = {
 };
 
 static const struct of_device_id ls_pcie_of_match[] = {
+	{ .compatible = "fsl,ls1012a-pcie", .data = &ls1046_drvdata },
 	{ .compatible = "fsl,ls1021a-pcie", .data = &ls1021_drvdata },
 	{ .compatible = "fsl,ls1043a-pcie", .data = &ls1043_drvdata },
 	{ .compatible = "fsl,ls1046a-pcie", .data = &ls1046_drvdata },

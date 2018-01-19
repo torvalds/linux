@@ -166,7 +166,7 @@ static void __init tegra_sclk_init(void __iomem *clk_base,
 				   clk_base + SYSTEM_CLK_RATE, 0, 2, 0,
 				   &sysrate_lock);
 	clk = clk_register_gate(NULL, "pclk", "pclk_div", CLK_SET_RATE_PARENT |
-				CLK_IGNORE_UNUSED, clk_base + SYSTEM_CLK_RATE,
+				CLK_IS_CRITICAL, clk_base + SYSTEM_CLK_RATE,
 				3, CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
 	*dt_clk = clk;
 }

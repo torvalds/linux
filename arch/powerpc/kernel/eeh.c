@@ -972,6 +972,18 @@ static struct notifier_block eeh_reboot_nb = {
 	.notifier_call = eeh_reboot_notifier,
 };
 
+void eeh_probe_devices(void)
+{
+	struct pci_controller *hose, *tmp;
+	struct pci_dn *pdn;
+
+	/* Enable EEH for all adapters */
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		pdn = hose->pci_data;
+		traverse_pci_dn(pdn, eeh_ops->probe, NULL);
+	}
+}
+
 /**
  * eeh_init - EEH initialization
  *
@@ -987,21 +999,10 @@ static struct notifier_block eeh_reboot_nb = {
  * Even if force-off is set, the EEH hardware is still enabled, so that
  * newer systems can boot.
  */
-int eeh_init(void)
+static int eeh_init(void)
 {
 	struct pci_controller *hose, *tmp;
-	struct pci_dn *pdn;
-	static int cnt = 0;
 	int ret = 0;
-
-	/*
-	 * We have to delay the initialization on PowerNV after
-	 * the PCI hierarchy tree has been built because the PEs
-	 * are figured out based on PCI devices instead of device
-	 * tree nodes
-	 */
-	if (machine_is(powernv) && cnt++ <= 0)
-		return ret;
 
 	/* Register reboot notifier */
 	ret = register_reboot_notifier(&eeh_reboot_nb);
@@ -1028,22 +1029,7 @@ int eeh_init(void)
 	if (ret)
 		return ret;
 
-	/* Enable EEH for all adapters */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		pdn = hose->pci_data;
-		traverse_pci_dn(pdn, eeh_ops->probe, NULL);
-	}
-
-	/*
-	 * Call platform post-initialization. Actually, It's good chance
-	 * to inform platform that EEH is ready to supply service if the
-	 * I/O cache stuff has been built up.
-	 */
-	if (eeh_ops->post_init) {
-		ret = eeh_ops->post_init();
-		if (ret)
-			return ret;
-	}
+	eeh_probe_devices();
 
 	if (eeh_enabled())
 		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
@@ -1756,10 +1742,6 @@ static int eeh_enable_dbgfs_set(void *data, u64 val)
 		eeh_clear_flag(EEH_FORCE_DISABLED);
 	else
 		eeh_add_flag(EEH_FORCE_DISABLED);
-
-	/* Notify the backend */
-	if (eeh_ops->post_init)
-		eeh_ops->post_init();
 
 	return 0;
 }

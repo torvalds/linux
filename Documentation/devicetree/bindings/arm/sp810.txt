@@ -33,7 +33,7 @@ Required properties:
 		property with the highest frequency
 
 Example:
-	v2m_sysctl: sysctl@020000 {
+	v2m_sysctl: sysctl@20000 {
 		compatible = "arm,sp810", "arm,primecell";
 		reg = <0x020000 0x1000>;
 		clocks = <&v2m_refclk32khz>, <&v2m_refclk1mhz>, <&smbclk>;

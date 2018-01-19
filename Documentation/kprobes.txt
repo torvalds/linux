@@ -8,7 +8,7 @@ Kernel Probes (Kprobes)
 
 .. CONTENTS
 
-  1. Concepts: Kprobes, Jprobes, Return Probes
+  1. Concepts: Kprobes, and Return Probes
   2. Architectures Supported
   3. Configuring Kprobes
   4. API Reference
@@ -16,12 +16,12 @@ Kernel Probes (Kprobes)
   6. Probe Overhead
   7. TODO
   8. Kprobes Example
-  9. Jprobes Example
-  10. Kretprobes Example
+  9. Kretprobes Example
+  10. Deprecated Features
   Appendix A: The kprobes debugfs interface
   Appendix B: The kprobes sysctl interface
 
-Concepts: Kprobes, Jprobes, Return Probes
+Concepts: Kprobes and Return Probes
 =========================================
 
 Kprobes enables you to dynamically break into any kernel routine and
@@ -32,12 +32,10 @@ routine to be invoked when the breakpoint is hit.
 .. [1] some parts of the kernel code can not be trapped, see
        :ref:`kprobes_blacklist`)
 
-There are currently three types of probes: kprobes, jprobes, and
-kretprobes (also called return probes).  A kprobe can be inserted
-on virtually any instruction in the kernel.  A jprobe is inserted at
-the entry to a kernel function, and provides convenient access to the
-function's arguments.  A return probe fires when a specified function
-returns.
+There are currently two types of probes: kprobes, and kretprobes
+(also called return probes).  A kprobe can be inserted on virtually
+any instruction in the kernel.  A return probe fires when a specified
+function returns.
 
 In the typical case, Kprobes-based instrumentation is packaged as
 a kernel module.  The module's init function installs ("registers")
@@ -81,45 +79,6 @@ could sail right past the probepoint.)
 After the instruction is single-stepped, Kprobes executes the
 "post_handler," if any, that is associated with the kprobe.
 Execution then continues with the instruction following the probepoint.
-
-How Does a Jprobe Work?
------------------------
-
-A jprobe is implemented using a kprobe that is placed on a function's
-entry point.  It employs a simple mirroring principle to allow
-seamless access to the probed function's arguments.  The jprobe
-handler routine should have the same signature (arg list and return
-type) as the function being probed, and must always end by calling
-the Kprobes function jprobe_return().
-
-Here's how it works.  When the probe is hit, Kprobes makes a copy of
-the saved registers and a generous portion of the stack (see below).
-Kprobes then points the saved instruction pointer at the jprobe's
-handler routine, and returns from the trap.  As a result, control
-passes to the handler, which is presented with the same register and
-stack contents as the probed function.  When it is done, the handler
-calls jprobe_return(), which traps again to restore the original stack
-contents and processor state and switch to the probed function.
-
-By convention, the callee owns its arguments, so gcc may produce code
-that unexpectedly modifies that portion of the stack.  This is why
-Kprobes saves a copy of the stack and restores it after the jprobe
-handler has run.  Up to MAX_STACK_SIZE bytes are copied -- e.g.,
-64 bytes on i386.
-
-Note that the probed function's args may be passed on the stack
-or in registers.  The jprobe will work in either case, so long as the
-handler's prototype matches that of the probed function.
-
-Note that in some architectures (e.g.: arm64 and sparc64) the stack
-copy is not done, as the actual location of stacked parameters may be
-outside of a reasonable MAX_STACK_SIZE value and because that location
-cannot be determined by the jprobes code. In this case the jprobes
-user must be careful to make certain the calling signature of the
-function does not cause parameters to be passed on the stack (e.g.:
-more than eight function arguments, an argument of more than sixteen
-bytes, or more than 64 bytes of argument data, depending on
-architecture).
 
 Return Probes
 -------------
@@ -245,8 +204,7 @@ Pre-optimization
 After preparing the detour buffer, Kprobes verifies that none of the
 following situations exist:
 
-- The probe has either a break_handler (i.e., it's a jprobe) or a
-  post_handler.
+- The probe has a post_handler.
 - Other instructions in the optimized region are probed.
 - The probe is disabled.
 
@@ -331,7 +289,7 @@ rejects registering it, if the given address is in the blacklist.
 Architectures Supported
 =======================
 
-Kprobes, jprobes, and return probes are implemented on the following
+Kprobes and return probes are implemented on the following
 architectures:
 
 - i386 (Supports jump optimization)
@@ -446,27 +404,6 @@ architecture-specific trap number associated with the fault (e.g.,
 on i386, 13 for a general protection fault or 14 for a page fault).
 Returns 1 if it successfully handled the exception.
 
-register_jprobe
----------------
-
-::
-
-	#include <linux/kprobes.h>
-	int register_jprobe(struct jprobe *jp)
-
-Sets a breakpoint at the address jp->kp.addr, which must be the address
-of the first instruction of a function.  When the breakpoint is hit,
-Kprobes runs the handler whose address is jp->entry.
-
-The handler should have the same arg list and return type as the probed
-function; and just before it returns, it must call jprobe_return().
-(The handler never actually returns, since jprobe_return() returns
-control to Kprobes.)  If the probed function is declared asmlinkage
-or anything else that affects how args are passed, the handler's
-declaration must match.
-
-register_jprobe() returns 0 on success, or a negative errno otherwise.
-
 register_kretprobe
 ------------------
 
@@ -513,7 +450,6 @@ unregister_*probe
 
 	#include <linux/kprobes.h>
 	void unregister_kprobe(struct kprobe *kp);
-	void unregister_jprobe(struct jprobe *jp);
 	void unregister_kretprobe(struct kretprobe *rp);
 
 Removes the specified probe.  The unregister function can be called
@@ -532,7 +468,6 @@ register_*probes
 	#include <linux/kprobes.h>
 	int register_kprobes(struct kprobe **kps, int num);
 	int register_kretprobes(struct kretprobe **rps, int num);
-	int register_jprobes(struct jprobe **jps, int num);
 
 Registers each of the num probes in the specified array.  If any
 error occurs during registration, all probes in the array, up to
@@ -555,7 +490,6 @@ unregister_*probes
 	#include <linux/kprobes.h>
 	void unregister_kprobes(struct kprobe **kps, int num);
 	void unregister_kretprobes(struct kretprobe **rps, int num);
-	void unregister_jprobes(struct jprobe **jps, int num);
 
 Removes each of the num probes in the specified array at once.
 
@@ -574,7 +508,6 @@ disable_*probe
 	#include <linux/kprobes.h>
 	int disable_kprobe(struct kprobe *kp);
 	int disable_kretprobe(struct kretprobe *rp);
-	int disable_jprobe(struct jprobe *jp);
 
 Temporarily disables the specified ``*probe``. You can enable it again by using
 enable_*probe(). You must specify the probe which has been registered.
@@ -587,7 +520,6 @@ enable_*probe
 	#include <linux/kprobes.h>
 	int enable_kprobe(struct kprobe *kp);
 	int enable_kretprobe(struct kretprobe *rp);
-	int enable_jprobe(struct jprobe *jp);
 
 Enables ``*probe`` which has been disabled by disable_*probe(). You must specify
 the probe which has been registered.
@@ -595,12 +527,10 @@ the probe which has been registered.
 Kprobes Features and Limitations
 ================================
 
-Kprobes allows multiple probes at the same address.  Currently,
-however, there cannot be multiple jprobes on the same function at
-the same time.  Also, a probepoint for which there is a jprobe or
-a post_handler cannot be optimized.  So if you install a jprobe,
-or a kprobe with a post_handler, at an optimized probepoint, the
-probepoint will be unoptimized automatically.
+Kprobes allows multiple probes at the same address. Also,
+a probepoint for which there is a post_handler cannot be optimized.
+So if you install a kprobe with a post_handler, at an optimized
+probepoint, the probepoint will be unoptimized automatically.
 
 In general, you can install a probe anywhere in the kernel.
 In particular, you can probe interrupt handlers.  Known exceptions
@@ -662,7 +592,7 @@ We're unaware of other specific cases where this could be a problem.
 If, upon entry to or exit from a function, the CPU is running on
 a stack other than that of the current task, registering a return
 probe on that function may produce undesirable results.  For this
-reason, Kprobes doesn't support return probes (or kprobes or jprobes)
+reason, Kprobes doesn't support return probes (or kprobes)
 on the x86_64 version of __switch_to(); the registration functions
 return -EINVAL.
 
@@ -706,24 +636,24 @@ Probe Overhead
 On a typical CPU in use in 2005, a kprobe hit takes 0.5 to 1.0
 microseconds to process.  Specifically, a benchmark that hits the same
 probepoint repeatedly, firing a simple handler each time, reports 1-2
-million hits per second, depending on the architecture.  A jprobe or
-return-probe hit typically takes 50-75% longer than a kprobe hit.
+million hits per second, depending on the architecture.  A return-probe
+hit typically takes 50-75% longer than a kprobe hit.
 When you have a return probe set on a function, adding a kprobe at
 the entry to that function adds essentially no overhead.
 
 Here are sample overhead figures (in usec) for different architectures::
 
-  k = kprobe; j = jprobe; r = return probe; kr = kprobe + return probe
-  on same function; jr = jprobe + return probe on same function::
+  k = kprobe; r = return probe; kr = kprobe + return probe
+  on same function
 
   i386: Intel Pentium M, 1495 MHz, 2957.31 bogomips
-  k = 0.57 usec; j = 1.00; r = 0.92; kr = 0.99; jr = 1.40
+  k = 0.57 usec; r = 0.92; kr = 0.99
 
   x86_64: AMD Opteron 246, 1994 MHz, 3971.48 bogomips
-  k = 0.49 usec; j = 0.76; r = 0.80; kr = 0.82; jr = 1.07
+  k = 0.49 usec; r = 0.80; kr = 0.82
 
   ppc64: POWER5 (gr), 1656 MHz (SMT disabled, 1 virtual CPU per physical CPU)
-  k = 0.77 usec; j = 1.31; r = 1.26; kr = 1.45; jr = 1.99
+  k = 0.77 usec; r = 1.26; kr = 1.45
 
 Optimized Probe Overhead
 ------------------------
@@ -755,11 +685,6 @@ Kprobes Example
 
 See samples/kprobes/kprobe_example.c
 
-Jprobes Example
-===============
-
-See samples/kprobes/jprobe_example.c
-
 Kretprobes Example
 ==================
 
@@ -772,6 +697,37 @@ For additional information on Kprobes, refer to the following URLs:
 - http://www-users.cs.umn.edu/~boutcher/kprobes/
 - http://www.linuxsymposium.org/2006/linuxsymposium_procv2.pdf (pages 101-115)
 
+Deprecated Features
+===================
+
+Jprobes is now a deprecated feature. People who are depending on it should
+migrate to other tracing features or use older kernels. Please consider to
+migrate your tool to one of the following options:
+
+- Use trace-event to trace target function with arguments.
+
+  trace-event is a low-overhead (and almost no visible overhead if it
+  is off) statically defined event interface. You can define new events
+  and trace it via ftrace or any other tracing tools.
+
+  See the following urls:
+
+    - https://lwn.net/Articles/379903/
+    - https://lwn.net/Articles/381064/
+    - https://lwn.net/Articles/383362/
+
+- Use ftrace dynamic events (kprobe event) with perf-probe.
+
+  If you build your kernel with debug info (CONFIG_DEBUG_INFO=y), you can
+  find which register/stack is assigned to which local variable or arguments
+  by using perf-probe and set up new event to trace it.
+
+  See following documents:
+
+  - Documentation/trace/kprobetrace.txt
+  - Documentation/trace/events.txt
+  - tools/perf/Documentation/perf-probe.txt
+
 
 The kprobes debugfs interface
 =============================
@@ -783,14 +739,13 @@ under the /sys/kernel/debug/kprobes/ directory (assuming debugfs is mounted at /
 /sys/kernel/debug/kprobes/list: Lists all registered probes on the system::
 
 	c015d71a  k  vfs_read+0x0
-	c011a316  j  do_fork+0x0
 	c03dedc5  r  tcp_v4_rcv+0x0
 
 The first column provides the kernel address where the probe is inserted.
-The second column identifies the type of probe (k - kprobe, r - kretprobe
-and j - jprobe), while the third column specifies the symbol+offset of
-the probe. If the probed function belongs to a module, the module name
-is also specified. Following columns show probe status. If the probe is on
+The second column identifies the type of probe (k - kprobe and r - kretprobe)
+while the third column specifies the symbol+offset of the probe.
+If the probed function belongs to a module, the module name is also
+specified. Following columns show probe status. If the probe is on
 a virtual address that is no longer valid (module init sections, module
 virtual addresses that correspond to modules that've been unloaded),
 such probes are marked with [GONE]. If the probe is temporarily disabled,

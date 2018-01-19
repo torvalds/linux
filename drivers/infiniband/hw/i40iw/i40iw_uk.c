@@ -821,6 +821,18 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 		I40IW_RING_SET_TAIL(qp->rq_ring, array_idx + 1);
 		pring = &qp->rq_ring;
 	} else {
+		if (qp->first_sq_wq) {
+			qp->first_sq_wq = false;
+			if (!wqe_idx && (qp->sq_ring.head == qp->sq_ring.tail)) {
+				I40IW_RING_MOVE_HEAD_NOCHECK(cq->cq_ring);
+				I40IW_RING_MOVE_TAIL(cq->cq_ring);
+				set_64bit_val(cq->shadow_area, 0,
+					      I40IW_RING_GETCURRENT_HEAD(cq->cq_ring));
+				memset(info, 0, sizeof(struct i40iw_cq_poll_info));
+				return i40iw_cq_poll_completion(cq, info);
+			}
+		}
+
 		if (info->comp_status != I40IW_COMPL_STATUS_FLUSHED) {
 			info->wr_id = qp->sq_wrtrk_array[wqe_idx].wrid;
 			info->bytes_xfered = qp->sq_wrtrk_array[wqe_idx].wr_len;
@@ -882,8 +894,21 @@ exit:
 }
 
 /**
+ * i40iw_qp_roundup - return round up QP WQ depth
+ * @wqdepth: WQ depth in quantas to round up
+ */
+static int i40iw_qp_round_up(u32 wqdepth)
+{
+	int scount = 1;
+
+	for (wqdepth--; scount <= 16; scount *= 2)
+		wqdepth |= wqdepth >> scount;
+
+	return ++wqdepth;
+}
+
+/**
  * i40iw_get_wqe_shift - get shift count for maximum wqe size
- * @wqdepth: depth of wq required.
  * @sge: Maximum Scatter Gather Elements wqe
  * @inline_data: Maximum inline data size
  * @shift: Returns the shift needed based on sge
@@ -893,22 +918,48 @@ exit:
  * For 2 or 3 SGEs or inline data <= 48, shift = 1 (wqe size of 64 bytes).
  * Shift of 2 otherwise (wqe size of 128 bytes).
  */
-enum i40iw_status_code i40iw_get_wqe_shift(u32 wqdepth, u32 sge, u32 inline_data, u8 *shift)
+void i40iw_get_wqe_shift(u32 sge, u32 inline_data, u8 *shift)
 {
-	u32 size;
-
 	*shift = 0;
 	if (sge > 1 || inline_data > 16)
 		*shift = (sge < 4 && inline_data <= 48) ? 1 : 2;
+}
 
-	/* check if wqdepth is multiple of 2 or not */
+/*
+ * i40iw_get_sqdepth - get SQ depth (quantas)
+ * @sq_size: SQ size
+ * @shift: shift which determines size of WQE
+ * @sqdepth: depth of SQ
+ *
+ */
+enum i40iw_status_code i40iw_get_sqdepth(u32 sq_size, u8 shift, u32 *sqdepth)
+{
+	*sqdepth = i40iw_qp_round_up((sq_size << shift) + I40IW_SQ_RSVD);
 
-	if ((wqdepth < I40IWQP_SW_MIN_WQSIZE) || (wqdepth & (wqdepth - 1)))
+	if (*sqdepth < (I40IW_QP_SW_MIN_WQSIZE << shift))
+		*sqdepth = I40IW_QP_SW_MIN_WQSIZE << shift;
+	else if (*sqdepth > I40IW_QP_SW_MAX_SQ_QUANTAS)
 		return I40IW_ERR_INVALID_SIZE;
 
-	size = wqdepth << *shift;	/* multiple of 32 bytes count */
-	if (size > I40IWQP_SW_MAX_WQSIZE)
+	return 0;
+}
+
+/*
+ * i40iw_get_rq_depth - get RQ depth (quantas)
+ * @rq_size: RQ size
+ * @shift: shift which determines size of WQE
+ * @rqdepth: depth of RQ
+ *
+ */
+enum i40iw_status_code i40iw_get_rqdepth(u32 rq_size, u8 shift, u32 *rqdepth)
+{
+	*rqdepth = i40iw_qp_round_up((rq_size << shift) + I40IW_RQ_RSVD);
+
+	if (*rqdepth < (I40IW_QP_SW_MIN_WQSIZE << shift))
+		*rqdepth = I40IW_QP_SW_MIN_WQSIZE << shift;
+	else if (*rqdepth > I40IW_QP_SW_MAX_RQ_QUANTAS)
 		return I40IW_ERR_INVALID_SIZE;
+
 	return 0;
 }
 
@@ -962,9 +1013,7 @@ enum i40iw_status_code i40iw_qp_uk_init(struct i40iw_qp_uk *qp,
 
 	if (info->max_rq_frag_cnt > I40IW_MAX_WQ_FRAGMENT_COUNT)
 		return I40IW_ERR_INVALID_FRAG_COUNT;
-	ret_code = i40iw_get_wqe_shift(info->sq_size, info->max_sq_frag_cnt, info->max_inline_data, &sqshift);
-	if (ret_code)
-		return ret_code;
+	i40iw_get_wqe_shift(info->max_sq_frag_cnt, info->max_inline_data, &sqshift);
 
 	qp->sq_base = info->sq;
 	qp->rq_base = info->rq;
@@ -988,6 +1037,7 @@ enum i40iw_status_code i40iw_qp_uk_init(struct i40iw_qp_uk *qp,
 	I40IW_RING_MOVE_TAIL(qp->sq_ring);
 	I40IW_RING_MOVE_HEAD(qp->initial_ring, ret_code);
 	qp->swqe_polarity = 1;
+	qp->first_sq_wq = true;
 	qp->swqe_polarity_deferred = 1;
 	qp->rwqe_polarity = 0;
 
@@ -997,9 +1047,7 @@ enum i40iw_status_code i40iw_qp_uk_init(struct i40iw_qp_uk *qp,
 		I40IW_RING_INIT(qp->rq_ring, qp->rq_size);
 		switch (info->abi_ver) {
 		case 4:
-			ret_code = i40iw_get_wqe_shift(info->rq_size, info->max_rq_frag_cnt, 0, &rqshift);
-			if (ret_code)
-				return ret_code;
+			i40iw_get_wqe_shift(info->max_rq_frag_cnt, 0, &rqshift);
 			break;
 		case 5: /* fallthrough until next ABI version */
 		default:

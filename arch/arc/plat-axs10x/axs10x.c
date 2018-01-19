@@ -111,13 +111,6 @@ static void __init axs10x_early_init(void)
 
 	axs10x_enable_gpio_intc_wire();
 
-	/*
-	 * Reset ethernet IP core.
-	 * TODO: get rid of this quirk after axs10x reset driver (or simple
-	 * reset driver) will be available in upstream.
-	 */
-	iowrite32((1 << 5), (void __iomem *) CREG_MB_SW_RESET);
-
 	scnprintf(mb, 32, "MainBoard v%d", mb_rev);
 	axs10x_print_board_ver(CREG_MB_VER, mb);
 }
@@ -324,25 +317,23 @@ static void __init axs103_early_init(void)
 	 * Instead of duplicating defconfig/DT for SMP/QUAD, add a small hack
 	 * of fudging the freq in DT
 	 */
+#define AXS103_QUAD_CORE_CPU_FREQ_HZ	50000000
+
 	unsigned int num_cores = (read_aux_reg(ARC_REG_MCIP_BCR) >> 16) & 0x3F;
 	if (num_cores > 2) {
-		u32 freq = 50, orig;
-		/*
-		 * TODO: use cpu node "cpu-freq" param instead of platform-specific
-		 * "/cpu_card/core_clk" as it works only if we use fixed-clock for cpu.
-		 */
+		u32 freq;
 		int off = fdt_path_offset(initial_boot_params, "/cpu_card/core_clk");
 		const struct fdt_property *prop;
 
 		prop = fdt_get_property(initial_boot_params, off,
-					"clock-frequency", NULL);
-		orig = be32_to_cpu(*(u32*)(prop->data)) / 1000000;
+					"assigned-clock-rates", NULL);
+		freq = be32_to_cpu(*(u32 *)(prop->data));
 
 		/* Patching .dtb in-place with new core clock value */
-		if (freq != orig ) {
-			freq = cpu_to_be32(freq * 1000000);
+		if (freq != AXS103_QUAD_CORE_CPU_FREQ_HZ) {
+			freq = cpu_to_be32(AXS103_QUAD_CORE_CPU_FREQ_HZ);
 			fdt_setprop_inplace(initial_boot_params, off,
-					    "clock-frequency", &freq, sizeof(freq));
+					    "assigned-clock-rates", &freq, sizeof(freq));
 		}
 	}
 #endif

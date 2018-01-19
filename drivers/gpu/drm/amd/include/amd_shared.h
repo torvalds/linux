@@ -23,34 +23,11 @@
 #ifndef __AMD_SHARED_H__
 #define __AMD_SHARED_H__
 
-#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
+#include <drm/amd_asic_type.h>
 
-/*
- * Supported ASIC types
- */
-enum amd_asic_type {
-	CHIP_TAHITI = 0,
-	CHIP_PITCAIRN,
-	CHIP_VERDE,
-	CHIP_OLAND,
-	CHIP_HAINAN,
-	CHIP_BONAIRE,
-	CHIP_KAVERI,
-	CHIP_KABINI,
-	CHIP_HAWAII,
-	CHIP_MULLINS,
-	CHIP_TOPAZ,
-	CHIP_TONGA,
-	CHIP_FIJI,
-	CHIP_CARRIZO,
-	CHIP_STONEY,
-	CHIP_POLARIS10,
-	CHIP_POLARIS11,
-	CHIP_POLARIS12,
-	CHIP_VEGA10,
-	CHIP_RAVEN,
-	CHIP_LAST,
-};
+struct seq_file;
+
+#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
 
 /*
  * Chip flags
@@ -142,6 +119,12 @@ enum amd_fan_ctrl_mode {
 	AMD_FAN_CTRL_NONE = 0,
 	AMD_FAN_CTRL_MANUAL = 1,
 	AMD_FAN_CTRL_AUTO = 2,
+};
+
+enum pp_clock_type {
+	PP_SCLK,
+	PP_MCLK,
+	PP_PCIE,
 };
 
 /* CG flags */
@@ -248,5 +231,97 @@ struct amd_ip_funcs {
 	/* get current clockgating status */
 	void (*get_clockgating_state)(void *handle, u32 *flags);
 };
+
+
+enum amd_pp_task;
+enum amd_pp_clock_type;
+struct pp_states_info;
+struct amd_pp_simple_clock_info;
+struct amd_pp_display_configuration;
+struct amd_pp_clock_info;
+struct pp_display_clock_request;
+struct pp_wm_sets_with_clock_ranges_soc15;
+struct pp_clock_levels_with_voltage;
+struct pp_clock_levels_with_latency;
+struct amd_pp_clocks;
+
+struct amd_pm_funcs {
+/* export for dpm on ci and si */
+	int (*pre_set_power_state)(void *handle);
+	int (*set_power_state)(void *handle);
+	void (*post_set_power_state)(void *handle);
+	void (*display_configuration_changed)(void *handle);
+	void (*print_power_state)(void *handle, void *ps);
+	bool (*vblank_too_short)(void *handle);
+	void (*enable_bapm)(void *handle, bool enable);
+	int (*check_state_equal)(void *handle,
+				void  *cps,
+				void  *rps,
+				bool  *equal);
+/* export for sysfs */
+	int (*get_temperature)(void *handle);
+	void (*set_fan_control_mode)(void *handle, u32 mode);
+	u32 (*get_fan_control_mode)(void *handle);
+	int (*set_fan_speed_percent)(void *handle, u32 speed);
+	int (*get_fan_speed_percent)(void *handle, u32 *speed);
+	int (*force_clock_level)(void *handle, enum pp_clock_type type, uint32_t mask);
+	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
+	int (*force_performance_level)(void *handle, enum amd_dpm_forced_level level);
+	int (*get_sclk_od)(void *handle);
+	int (*set_sclk_od)(void *handle, uint32_t value);
+	int (*get_mclk_od)(void *handle);
+	int (*set_mclk_od)(void *handle, uint32_t value);
+	int (*read_sensor)(void *handle, int idx, void *value, int *size);
+	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
+	enum amd_pm_state_type (*get_current_power_state)(void *handle);
+	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
+	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
+	int (*get_pp_table)(void *handle, char **table);
+	int (*set_pp_table)(void *handle, const char *buf, size_t size);
+	void (*debugfs_print_current_performance_level)(void *handle, struct seq_file *m);
+
+	int (*reset_power_profile_state)(void *handle,
+			struct amd_pp_profile *request);
+	int (*get_power_profile_state)(void *handle,
+			struct amd_pp_profile *query);
+	int (*set_power_profile_state)(void *handle,
+			struct amd_pp_profile *request);
+	int (*switch_power_profile)(void *handle,
+			enum amd_pp_profile_type type);
+/* export to amdgpu */
+	void (*powergate_uvd)(void *handle, bool gate);
+	void (*powergate_vce)(void *handle, bool gate);
+	struct amd_vce_state* (*get_vce_clock_state)(void *handle, u32 idx);
+	int (*dispatch_tasks)(void *handle, enum amd_pp_task task_id,
+				   void *input, void *output);
+	int (*load_firmware)(void *handle);
+	int (*wait_for_fw_loading_complete)(void *handle);
+	int (*set_clockgating_by_smu)(void *handle, uint32_t msg_id);
+/* export to DC */
+	u32 (*get_sclk)(void *handle, bool low);
+	u32 (*get_mclk)(void *handle, bool low);
+	int (*display_configuration_change)(void *handle,
+		const struct amd_pp_display_configuration *input);
+	int (*get_display_power_level)(void *handle,
+		struct amd_pp_simple_clock_info *output);
+	int (*get_current_clocks)(void *handle,
+		struct amd_pp_clock_info *clocks);
+	int (*get_clock_by_type)(void *handle,
+		enum amd_pp_clock_type type,
+		struct amd_pp_clocks *clocks);
+	int (*get_clock_by_type_with_latency)(void *handle,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_latency *clocks);
+	int (*get_clock_by_type_with_voltage)(void *handle,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_voltage *clocks);
+	int (*set_watermarks_for_clocks_ranges)(void *handle,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges);
+	int (*display_clock_voltage_request)(void *handle,
+		struct pp_display_clock_request *clock);
+	int (*get_display_mode_validation_clocks)(void *handle,
+		struct amd_pp_simple_clock_info *clocks);
+};
+
 
 #endif /* __AMD_SHARED_H__ */

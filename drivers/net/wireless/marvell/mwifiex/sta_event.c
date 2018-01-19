@@ -359,13 +359,12 @@ static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
 	} else {
 		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 		sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
-		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
-
 		if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
 			sta_ptr->tx_pause = tp->tx_pause;
 			mwifiex_update_ralist_tx_pause(priv, tp->peermac,
 						       tp->tx_pause);
 		}
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 	}
 }
 
@@ -396,14 +395,13 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 		if (mwifiex_is_tdls_link_setup(status)) {
 			spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 			sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
-			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
-
 			if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
 				sta_ptr->tx_pause = tp->tx_pause;
 				mwifiex_update_ralist_tx_pause(priv,
 							       tp->peermac,
 							       tp->tx_pause);
 			}
+			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 		}
 	}
 }

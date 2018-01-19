@@ -105,7 +105,6 @@ extern struct group_info init_groups;
 	.numbers	= { {						\
 		.nr		= 0,					\
 		.ns		= &init_pid_ns,				\
-		.pid_chain	= { .next = NULL, .pprev = NULL },	\
 	}, }								\
 }
 

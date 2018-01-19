@@ -384,7 +384,7 @@ static void get_cfg_composite_div(const struct composite_clk_gcfg *gcfg,
 	mux_ops = div_ops = gate_ops = NULL;
 	mux_hw = div_hw = gate_hw = NULL;
 
-	if (gcfg->mux && gcfg->mux) {
+	if (gcfg->mux && cfg->mux) {
 		mux = _get_cmux(base + cfg->mux->offset,
 				cfg->mux->shift,
 				cfg->mux->width,
@@ -410,7 +410,7 @@ static void get_cfg_composite_div(const struct composite_clk_gcfg *gcfg,
 		}
 	}
 
-	if (gcfg->gate && gcfg->gate) {
+	if (gcfg->gate && cfg->gate) {
 		gate = _get_cgate(base + cfg->gate->offset,
 				cfg->gate->bit_idx,
 				gcfg->gate->flags, lock);

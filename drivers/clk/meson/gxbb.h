@@ -190,8 +190,12 @@
 #define CLKID_SD_EMMC_B_CLK0_DIV  121
 #define CLKID_SD_EMMC_C_CLK0_SEL  123
 #define CLKID_SD_EMMC_C_CLK0_DIV  124
+#define CLKID_VPU_0_DIV		  127
+#define CLKID_VPU_1_DIV		  130
+#define CLKID_VAPB_0_DIV	  134
+#define CLKID_VAPB_1_DIV	  137
 
-#define NR_CLKS			  126
+#define NR_CLKS			  141
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

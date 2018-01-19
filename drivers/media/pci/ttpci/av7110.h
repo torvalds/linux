@@ -94,7 +94,7 @@ struct infrared {
 	u8			inversion;
 	u16			last_key;
 	u16			last_toggle;
-	u8			delay_timer_finished;
+	bool			keypressed;
 };
 
 

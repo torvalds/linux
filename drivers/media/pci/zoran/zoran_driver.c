@@ -2839,7 +2839,7 @@ static const struct v4l2_file_operations zoran_fops = {
 	.poll = zoran_poll,
 };
 
-struct video_device zoran_template = {
+const struct video_device zoran_template = {
 	.name = ZORAN_NAME,
 	.fops = &zoran_fops,
 	.ioctl_ops = &zoran_ioctl_ops,

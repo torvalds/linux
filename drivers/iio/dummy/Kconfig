@@ -5,7 +5,7 @@ menu "IIO dummy driver"
 	depends on IIO
 
 config IIO_DUMMY_EVGEN
-	select IRQ_WORK
+	select IRQ_SIM
 	tristate
 
 config IIO_SIMPLE_DUMMY

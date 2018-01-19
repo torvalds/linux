@@ -376,7 +376,7 @@ static struct omap_usb_config h3_usb_config __initdata = {
 	.pins[1]	= 3,
 };
 
-static struct omap_lcd_config h3_lcd_config __initdata = {
+static const struct omap_lcd_config h3_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 

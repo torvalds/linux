@@ -426,7 +426,6 @@ static const struct iio_info tmp007_info = {
 	.read_event_value = tmp007_read_thresh,
 	.write_event_value = tmp007_write_thresh,
 	.attrs = &tmp007_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static bool tmp007_identify(struct i2c_client *client)

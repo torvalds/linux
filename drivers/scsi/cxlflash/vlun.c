@@ -428,12 +428,14 @@ static int write_same16(struct scsi_device *sdev,
 	u8 *sense_buf = NULL;
 	int rc = 0;
 	int result = 0;
-	int ws_limit = SISLITE_MAX_WS_BLOCKS;
 	u64 offset = lba;
 	int left = nblks;
-	u32 to = sdev->request_queue->rq_timeout;
 	struct cxlflash_cfg *cfg = shost_priv(sdev->host);
 	struct device *dev = &cfg->dev->dev;
+	const u32 s = ilog2(sdev->sector_size) - 9;
+	const u32 to = sdev->request_queue->rq_timeout;
+	const u32 ws_limit = blk_queue_get_max_sectors(sdev->request_queue,
+						       REQ_OP_WRITE_SAME) >> s;
 
 	cmd_buf = kzalloc(CMD_BUFSIZE, GFP_KERNEL);
 	scsi_cmd = kzalloc(MAX_COMMAND_SIZE, GFP_KERNEL);

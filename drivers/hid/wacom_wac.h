@@ -166,6 +166,7 @@
 				 ((f)->physical == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_DIGITIZER) || \
+				 ((f)->application == WACOM_HID_WD_PEN) || \
 				 ((f)->application == WACOM_HID_WD_DIGITIZER) || \
 				 ((f)->application == WACOM_HID_G9_PEN) || \
 				 ((f)->application == WACOM_HID_G11_PEN))
@@ -291,6 +292,8 @@ struct hid_data {
 	bool inrange_state;
 	bool invert_state;
 	bool tipswitch;
+	bool barrelswitch;
+	bool barrelswitch2;
 	int x;
 	int y;
 	int pressure;

@@ -887,8 +887,8 @@ static int can_pernet_init(struct net *net)
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		/* the statistics are updated every second (timer triggered) */
 		if (stats_timer) {
-			setup_timer(&net->can.can_stattimer, can_stat_update,
-				    (unsigned long)net);
+			timer_setup(&net->can.can_stattimer, can_stat_update,
+				    0);
 			mod_timer(&net->can.can_stattimer,
 				  round_jiffies(jiffies + HZ));
 		}

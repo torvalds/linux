@@ -330,16 +330,6 @@ static int pxa_gpio_of_xlate(struct gpio_chip *gc,
 }
 #endif
 
-static int pxa_gpio_request(struct gpio_chip *chip, unsigned int offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void pxa_gpio_free(struct gpio_chip *chip, unsigned int offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,
 			      struct device_node *np, void __iomem *regbase)
 {
@@ -358,8 +348,8 @@ static int pxa_init_gpio_chip(struct pxa_gpio_chip *pchip, int ngpio,
 	pchip->chip.set = pxa_gpio_set;
 	pchip->chip.to_irq = pxa_gpio_to_irq;
 	pchip->chip.ngpio = ngpio;
-	pchip->chip.request = pxa_gpio_request;
-	pchip->chip.free = pxa_gpio_free;
+	pchip->chip.request = gpiochip_generic_request;
+	pchip->chip.free = gpiochip_generic_free;
 #ifdef CONFIG_OF_GPIO
 	pchip->chip.of_node = np;
 	pchip->chip.of_xlate = pxa_gpio_of_xlate;

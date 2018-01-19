@@ -4385,6 +4385,14 @@ static int decode_delegation_stateid(struct xdr_stream *xdr, nfs4_stateid *state
 	return decode_stateid(xdr, stateid);
 }
 
+static int decode_invalid_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+{
+	nfs4_stateid dummy;
+
+	nfs4_stateid_copy(stateid, &invalid_stateid);
+	return decode_stateid(xdr, &dummy);
+}
+
 static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)
 {
 	int status;
@@ -4393,7 +4401,7 @@ static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)
 	if (status != -EIO)
 		nfs_increment_open_seqid(status, res->seqid);
 	if (!status)
-		status = decode_open_stateid(xdr, &res->stateid);
+		status = decode_invalid_stateid(xdr, &res->stateid);
 	return status;
 }
 
@@ -6108,6 +6116,8 @@ static int decode_layoutreturn(struct xdr_stream *xdr,
 	res->lrs_present = be32_to_cpup(p);
 	if (res->lrs_present)
 		status = decode_layout_stateid(xdr, &res->stateid);
+	else
+		nfs4_stateid_copy(&res->stateid, &invalid_stateid);
 	return status;
 out_overflow:
 	print_overflow_msg(__func__, xdr);

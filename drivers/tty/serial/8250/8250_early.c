@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Early serial console for 8250/16550 devices
  *
  * (c) Copyright 2004 Hewlett-Packard Development Company, L.P.
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Based on the 8250.c serial driver, Copyright (C) 2001 Russell King,
  * and on early_printk.c by Andi Kleen.
@@ -125,12 +122,14 @@ static void __init init_port(struct earlycon_device *device)
 	serial8250_early_out(port, UART_FCR, 0);	/* no fifo */
 	serial8250_early_out(port, UART_MCR, 0x3);	/* DTR + RTS */
 
-	divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
-	c = serial8250_early_in(port, UART_LCR);
-	serial8250_early_out(port, UART_LCR, c | UART_LCR_DLAB);
-	serial8250_early_out(port, UART_DLL, divisor & 0xff);
-	serial8250_early_out(port, UART_DLM, (divisor >> 8) & 0xff);
-	serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
+	if (port->uartclk && device->baud) {
+		divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
+		c = serial8250_early_in(port, UART_LCR);
+		serial8250_early_out(port, UART_LCR, c | UART_LCR_DLAB);
+		serial8250_early_out(port, UART_DLL, divisor & 0xff);
+		serial8250_early_out(port, UART_DLM, (divisor >> 8) & 0xff);
+		serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
+	}
 }
 
 int __init early_serial8250_setup(struct earlycon_device *device,

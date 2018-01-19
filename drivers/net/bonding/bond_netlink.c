@@ -423,7 +423,7 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 			return -EINVAL;
 
 		bond_opt_initval(&newval,
-				 nla_get_be64(data[IFLA_BOND_AD_ACTOR_SYSTEM]));
+				 nla_get_u64(data[IFLA_BOND_AD_ACTOR_SYSTEM]));
 		err = __bond_opt_set(bond, BOND_OPT_AD_ACTOR_SYSTEM, &newval);
 		if (err)
 			return err;

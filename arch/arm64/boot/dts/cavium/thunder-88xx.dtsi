@@ -62,97 +62,97 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		cpu@000 {
+		cpu@0 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x000>;
 			enable-method = "psci";
 		};
-		cpu@001 {
+		cpu@1 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x001>;
 			enable-method = "psci";
 		};
-		cpu@002 {
+		cpu@2 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x002>;
 			enable-method = "psci";
 		};
-		cpu@003 {
+		cpu@3 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x003>;
 			enable-method = "psci";
 		};
-		cpu@004 {
+		cpu@4 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x004>;
 			enable-method = "psci";
 		};
-		cpu@005 {
+		cpu@5 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x005>;
 			enable-method = "psci";
 		};
-		cpu@006 {
+		cpu@6 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x006>;
 			enable-method = "psci";
 		};
-		cpu@007 {
+		cpu@7 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x007>;
 			enable-method = "psci";
 		};
-		cpu@008 {
+		cpu@8 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x008>;
 			enable-method = "psci";
 		};
-		cpu@009 {
+		cpu@9 {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x009>;
 			enable-method = "psci";
 		};
-		cpu@00a {
+		cpu@a {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x00a>;
 			enable-method = "psci";
 		};
-		cpu@00b {
+		cpu@b {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x00b>;
 			enable-method = "psci";
 		};
-		cpu@00c {
+		cpu@c {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x00c>;
 			enable-method = "psci";
 		};
-		cpu@00d {
+		cpu@d {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x00d>;
 			enable-method = "psci";
 		};
-		cpu@00e {
+		cpu@e {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x00e>;
 			enable-method = "psci";
 		};
-		cpu@00f {
+		cpu@f {
 			device_type = "cpu";
 			compatible = "cavium,thunder", "arm,armv8";
 			reg = <0x0 0x00f>;

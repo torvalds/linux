@@ -106,6 +106,23 @@ nft_bitmap_elem_find(const struct nft_set *set, struct nft_bitmap_elem *this,
 	return NULL;
 }
 
+static void *nft_bitmap_get(const struct net *net, const struct nft_set *set,
+			    const struct nft_set_elem *elem, unsigned int flags)
+{
+	const struct nft_bitmap *priv = nft_set_priv(set);
+	u8 genmask = nft_genmask_cur(net);
+	struct nft_bitmap_elem *be;
+
+	list_for_each_entry_rcu(be, &priv->list, head) {
+		if (memcmp(nft_set_ext_key(&be->ext), elem->key.val.data, set->klen) ||
+		    !nft_set_elem_active(&be->ext, genmask))
+			continue;
+
+		return be;
+	}
+	return ERR_PTR(-ENOENT);
+}
+
 static int nft_bitmap_insert(const struct net *net, const struct nft_set *set,
 			     const struct nft_set_elem *elem,
 			     struct nft_set_ext **ext)
@@ -294,6 +311,7 @@ static struct nft_set_ops nft_bitmap_ops __read_mostly = {
 	.activate	= nft_bitmap_activate,
 	.lookup		= nft_bitmap_lookup,
 	.walk		= nft_bitmap_walk,
+	.get		= nft_bitmap_get,
 };
 
 static struct nft_set_type nft_bitmap_type __read_mostly = {

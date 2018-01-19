@@ -18,6 +18,7 @@
 #include <rtw_debug.h>
 #include <rtw_mp.h>
 #include <linux/jiffies.h>
+#include <linux/kernel.h>
 
 #define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV+30)
 
@@ -557,7 +558,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
-			pwep =(struct ndis_802_11_wep	 *) rtw_malloc(wep_total_len);
+			pwep = rtw_malloc(wep_total_len);
 			if (pwep == NULL) {
 				RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_, (" wpa_set_encryption: pwep allocate fail !!!\n"));
 				goto exit;
@@ -2123,12 +2124,9 @@ static int rtw_wx_set_gen_ie(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
 {
-	int ret;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 
-	ret = rtw_set_wpa_ie(padapter, extra, wrqu->data.length);
-
-	return ret;
+	return rtw_set_wpa_ie(padapter, extra, wrqu->data.length);
 }
 
 static int rtw_wx_set_auth(struct net_device *dev,
@@ -2238,7 +2236,7 @@ static int rtw_wx_set_enc_ext(struct net_device *dev,
 	int ret = 0;
 
 	param_len = sizeof(struct ieee_param) + pext->key_len;
-	param = (struct ieee_param *)rtw_malloc(param_len);
+	param = rtw_malloc(param_len);
 	if (param == NULL)
 		return -1;
 
@@ -2347,7 +2345,7 @@ static int rtw_wx_read32(struct net_device *dev,
 	if (0 == len)
 		return -EINVAL;
 
-	ptmp = (u8 *)rtw_malloc(len);
+	ptmp = rtw_malloc(len);
 	if (NULL == ptmp)
 		return -ENOMEM;
 
@@ -3500,7 +3498,7 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 		goto out;
 	}
 
-	param = (struct ieee_param *)rtw_malloc(p->length);
+	param = rtw_malloc(p->length);
 	if (param == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -3621,7 +3619,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
-			pwep =(struct ndis_802_11_wep *)rtw_malloc(wep_total_len);
+			pwep = rtw_malloc(wep_total_len);
 			if (pwep == NULL) {
 				DBG_871X(" r871x_set_encryption: pwep allocate fail !!!\n");
 				goto exit;
@@ -3857,7 +3855,6 @@ static int rtw_hostapd_sta_flush(struct net_device *dev)
 {
 	/* _irqL irqL; */
 	/* struct list_head	*phead, *plist; */
-	int ret = 0;
 	/* struct sta_info *psta = NULL; */
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	/* struct sta_priv *pstapriv = &padapter->stapriv; */
@@ -3866,9 +3863,7 @@ static int rtw_hostapd_sta_flush(struct net_device *dev)
 
 	flush_all_cam_entry(padapter);	/* clear CAM */
 
-	ret = rtw_sta_flush(padapter);
-
-	return ret;
+	return rtw_sta_flush(padapter);
 
 }
 
@@ -4266,7 +4261,6 @@ static int rtw_set_hidden_ssid(struct net_device *dev, struct ieee_param *param,
 
 static int rtw_ioctl_acl_remove_sta(struct net_device *dev, struct ieee_param *param, int len)
 {
-	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
@@ -4279,15 +4273,12 @@ static int rtw_ioctl_acl_remove_sta(struct net_device *dev, struct ieee_param *p
 		return -EINVAL;
 	}
 
-	ret = rtw_acl_remove_sta(padapter, param->sta_addr);
-
-	return ret;
+	return rtw_acl_remove_sta(padapter, param->sta_addr);
 
 }
 
 static int rtw_ioctl_acl_add_sta(struct net_device *dev, struct ieee_param *param, int len)
 {
-	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
@@ -4300,9 +4291,7 @@ static int rtw_ioctl_acl_add_sta(struct net_device *dev, struct ieee_param *para
 		return -EINVAL;
 	}
 
-	ret = rtw_acl_add_sta(padapter, param->sta_addr);
-
-	return ret;
+	return rtw_acl_add_sta(padapter, param->sta_addr);
 
 }
 
@@ -4345,7 +4334,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 		goto out;
 	}
 
-	param = (struct ieee_param *)rtw_malloc(p->length);
+	param = rtw_malloc(p->length);
 	if (param == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -4673,7 +4662,7 @@ static int rtw_test(
 	DBG_871X("+%s\n", __func__);
 	len = wrqu->data.length;
 
-	pbuf = (u8 *)rtw_zmalloc(len);
+	pbuf = rtw_zmalloc(len);
 	if (pbuf == NULL) {
 		DBG_871X("%s: no memory!\n", __func__);
 		return -ENOMEM;
@@ -5029,12 +5018,12 @@ static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
 
 struct iw_handler_def rtw_handlers_def = {
 	.standard = rtw_handlers,
-	.num_standard = sizeof(rtw_handlers) / sizeof(iw_handler),
+	.num_standard = ARRAY_SIZE(rtw_handlers),
 #if defined(CONFIG_WEXT_PRIV)
 	.private = rtw_private_handler,
 	.private_args = (struct iw_priv_args *)rtw_private_args,
-	.num_private = sizeof(rtw_private_handler) / sizeof(iw_handler),
-	.num_private_args = sizeof(rtw_private_args) / sizeof(struct iw_priv_args),
+	.num_private = ARRAY_SIZE(rtw_private_handler),
+	.num_private_args = ARRAY_SIZE(rtw_private_args),
 #endif
 	.get_wireless_stats = rtw_get_wireless_stats,
 };
@@ -5121,8 +5110,8 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 
 	priv = rtw_private_handler;
 	priv_args = rtw_private_args;
-	num_priv = sizeof(rtw_private_handler) / sizeof(iw_handler);
-	num_priv_args = sizeof(rtw_private_args) / sizeof(struct iw_priv_args);
+	num_priv = ARRAY_SIZE(rtw_private_handler);
+	num_priv_args = ARRAY_SIZE(rtw_private_args);
 
 	if (num_priv_args == 0) {
 		err = -EOPNOTSUPP;

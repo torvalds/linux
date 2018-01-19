@@ -26,35 +26,22 @@
 #include "hardwaremanager.h"
 #include "power_state.h"
 
+
+#define TEMP_RANGE_MIN (0)
+#define TEMP_RANGE_MAX (80 * 1000)
+
 #define PHM_FUNC_CHECK(hw) \
 	do {							\
 		if ((hw) == NULL || (hw)->hwmgr_func == NULL)	\
 			return -EINVAL;				\
 	} while (0)
 
-bool phm_is_hw_access_blocked(struct pp_hwmgr *hwmgr)
-{
-	return hwmgr->block_hw_access;
-}
-
-int phm_block_hw_access(struct pp_hwmgr *hwmgr, bool block)
-{
-	hwmgr->block_hw_access = block;
-	return 0;
-}
-
 int phm_setup_asic(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->asic_setup)
-			return hwmgr->hwmgr_func->asic_setup(hwmgr);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->setup_asic),
-					  NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->asic_setup)
+		return hwmgr->hwmgr_func->asic_setup(hwmgr);
 
 	return 0;
 }
@@ -63,14 +50,8 @@ int phm_power_down_asic(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->power_off_asic)
-			return hwmgr->hwmgr_func->power_off_asic(hwmgr);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->power_down_asic),
-					  NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->power_off_asic)
+		return hwmgr->hwmgr_func->power_off_asic(hwmgr);
 
 	return 0;
 }
@@ -86,13 +67,8 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 	states.pcurrent_state = pcurrent_state;
 	states.pnew_state = pnew_power_state;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->power_state_set)
-			return hwmgr->hwmgr_func->power_state_set(hwmgr, &states);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->set_power_state), &states, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->power_state_set)
+		return hwmgr->hwmgr_func->power_state_set(hwmgr, &states);
 
 	return 0;
 }
@@ -103,15 +79,8 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	bool enabled;
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
-			ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
-	} else {
-		ret = phm_dispatch_table(hwmgr,
-				&(hwmgr->enable_dynamic_state_management),
-				NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
+		ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
 
 	enabled = ret == 0;
 
@@ -127,15 +96,8 @@ int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (hwmgr->hwmgr_func->dynamic_state_management_disable)
-			ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
-	} else {
-		ret = phm_dispatch_table(hwmgr,
-				&(hwmgr->disable_dynamic_state_management),
-				NULL, NULL);
-	}
+	if (hwmgr->hwmgr_func->dynamic_state_management_disable)
+		ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
 
 	enabled = ret == 0 ? false : true;
 
@@ -193,35 +155,13 @@ int phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (hwmgr->hwmgr_func->powergate_uvd != NULL)
-		return hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
-	return 0;
-}
-
-int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (hwmgr->hwmgr_func->powergate_vce != NULL)
-		return hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
-	return 0;
-}
-
 int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->enable_clock_power_gating)
-			return hwmgr->hwmgr_func->enable_clock_power_gating(hwmgr);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->enable_clock_power_gatings), NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->enable_clock_power_gating)
+		return hwmgr->hwmgr_func->enable_clock_power_gating(hwmgr);
+
 	return 0;
 }
 
@@ -229,11 +169,9 @@ int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->disable_clock_power_gating)
-			return hwmgr->hwmgr_func->disable_clock_power_gating(hwmgr);
-	}
+	if (NULL != hwmgr->hwmgr_func->disable_clock_power_gating)
+		return hwmgr->hwmgr_func->disable_clock_power_gating(hwmgr);
+
 	return 0;
 }
 
@@ -242,12 +180,9 @@ int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				 PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->display_config_changed)
-			hwmgr->hwmgr_func->display_config_changed(hwmgr);
-	} else
-		return phm_dispatch_table(hwmgr, &hwmgr->display_configuration_changed, NULL, NULL);
+	if (NULL != hwmgr->hwmgr_func->display_config_changed)
+		hwmgr->hwmgr_func->display_config_changed(hwmgr);
+
 	return 0;
 }
 
@@ -255,9 +190,7 @@ int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				 PHM_PlatformCaps_TablelessHardwareInterface))
-		if (NULL != hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment)
+	if (NULL != hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment)
 			hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment(hwmgr);
 
 	return 0;
@@ -277,10 +210,10 @@ int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (hwmgr->hwmgr_func->register_internal_thermal_interrupt == NULL)
-		return -EINVAL;
+	if (hwmgr->hwmgr_func->register_internal_thermal_interrupt != NULL)
+		return hwmgr->hwmgr_func->register_internal_thermal_interrupt(hwmgr, info);
 
-	return hwmgr->hwmgr_func->register_internal_thermal_interrupt(hwmgr, info);
+	return 0;
 }
 
 /**
@@ -292,7 +225,21 @@ int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
 */
 int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *temperature_range)
 {
-	return phm_dispatch_table(hwmgr, &(hwmgr->start_thermal_controller), temperature_range, NULL);
+	struct PP_TemperatureRange range;
+
+	if (temperature_range == NULL) {
+		range.max = TEMP_RANGE_MAX;
+		range.min = TEMP_RANGE_MIN;
+	} else {
+		range.max = temperature_range->max;
+		range.min = temperature_range->min;
+	}
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_ThermalController)
+			&& hwmgr->hwmgr_func->start_thermal_controller != NULL)
+		return hwmgr->hwmgr_func->start_thermal_controller(hwmgr, &range);
+
+	return 0;
 }
 
 
@@ -323,12 +270,26 @@ int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 		    const struct amd_pp_display_configuration *display_config)
 {
+	int index = 0;
+	int number_of_active_display = 0;
+
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (display_config == NULL)
 		return -EINVAL;
 
 	hwmgr->display_config = *display_config;
+
+	if (NULL != hwmgr->hwmgr_func->set_deep_sleep_dcefclk)
+		hwmgr->hwmgr_func->set_deep_sleep_dcefclk(hwmgr, hwmgr->display_config.min_dcef_deep_sleep_set_clk);
+
+	for (index = 0; index < hwmgr->display_config.num_path_including_non_display; index++) {
+		if (hwmgr->display_config.displays[index].controller_id != 0)
+			number_of_active_display++;
+	}
+
+	if (NULL != hwmgr->hwmgr_func->set_active_display_count)
+		hwmgr->hwmgr_func->set_active_display_count(hwmgr, number_of_active_display);
 
 	if (hwmgr->hwmgr_func->store_cc6_data == NULL)
 		return -EINVAL;

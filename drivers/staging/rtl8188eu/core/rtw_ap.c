@@ -754,7 +754,7 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	}
 
 	/* setting only at  first time */
-	if (!(pmlmepriv->cur_network.join_res)) {
+	if (pmlmepriv->cur_network.join_res != true) {
 		/* WEP Key will be set before this function, do not
 		 * clear CAM.
 		 */

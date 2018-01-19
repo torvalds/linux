@@ -816,11 +816,14 @@ static void mvneta_txq_pend_desc_add(struct mvneta_port *pp,
 {
 	u32 val;
 
-	/* Only 255 descriptors can be added at once ; Assume caller
-	 * process TX desriptors in quanta less than 256
-	 */
-	val = pend_desc + txq->pending;
-	mvreg_write(pp, MVNETA_TXQ_UPDATE_REG(txq->id), val);
+	pend_desc += txq->pending;
+
+	/* Only 255 Tx descriptors can be added at once */
+	do {
+		val = min(pend_desc, 255);
+		mvreg_write(pp, MVNETA_TXQ_UPDATE_REG(txq->id), val);
+		pend_desc -= val;
+	} while (pend_desc > 0);
 	txq->pending = 0;
 }
 
@@ -1210,6 +1213,10 @@ static void mvneta_port_disable(struct mvneta_port *pp)
 	val = mvreg_read(pp, MVNETA_GMAC_CTRL_0);
 	val &= ~MVNETA_GMAC0_PORT_ENABLE;
 	mvreg_write(pp, MVNETA_GMAC_CTRL_0, val);
+
+	pp->link = 0;
+	pp->duplex = -1;
+	pp->speed = 0;
 
 	udelay(200);
 }
@@ -1955,9 +1962,9 @@ static int mvneta_rx_swbm(struct mvneta_port *pp, int rx_todo,
 
 		if (!mvneta_rxq_desc_is_first_last(rx_status) ||
 		    (rx_status & MVNETA_RXD_ERR_SUMMARY)) {
+			mvneta_rx_error(pp, rx_desc);
 err_drop_frame:
 			dev->stats.rx_errors++;
-			mvneta_rx_error(pp, rx_desc);
 			/* leave the descriptor untouched */
 			continue;
 		}
@@ -3008,7 +3015,7 @@ static void mvneta_cleanup_rxqs(struct mvneta_port *pp)
 {
 	int queue;
 
-	for (queue = 0; queue < txq_number; queue++)
+	for (queue = 0; queue < rxq_number; queue++)
 		mvneta_rxq_deinit(pp, &pp->rxqs[queue]);
 }
 

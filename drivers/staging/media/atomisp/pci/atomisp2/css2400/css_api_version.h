@@ -31,7 +31,7 @@ more details.
 #ifndef __CSS_API_VERSION_H
 #define __CSS_API_VERSION_H
 
-/** @file
+/* @file
  * CSS API version file. This file contains the version number of the CSS-API.
  *
  * This file is generated from a set of input files describing the CSS-API

@@ -10,6 +10,7 @@
 #include <linux/sched/user.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/audit.h>
 
 #include "fanotify.h"
 
@@ -36,15 +37,13 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 
 	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
 
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	/*
 	 * Don't merge a permission event with any other event so that we know
 	 * the event structure we have created in fanotify_handle_event() is the
 	 * one we should check for permission response.
 	 */
-	if (event->mask & FAN_ALL_PERM_EVENTS)
+	if (fanotify_is_perm_event(event->mask))
 		return 0;
-#endif
 
 	list_for_each_entry_reverse(test_event, list, list) {
 		if (should_merge(test_event, event)) {
@@ -56,7 +55,6 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 	return 0;
 }
 
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 static int fanotify_get_response(struct fsnotify_group *group,
 				 struct fanotify_perm_event_info *event,
 				 struct fsnotify_iter_info *iter_info)
@@ -65,21 +63,10 @@ static int fanotify_get_response(struct fsnotify_group *group,
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	/*
-	 * fsnotify_prepare_user_wait() fails if we race with mark deletion.
-	 * Just let the operation pass in that case.
-	 */
-	if (!fsnotify_prepare_user_wait(iter_info)) {
-		event->response = FAN_ALLOW;
-		goto out;
-	}
-
 	wait_event(group->fanotify_data.access_waitq, event->response);
 
-	fsnotify_finish_user_wait(iter_info);
-out:
 	/* userspace responded, convert to something usable */
-	switch (event->response) {
+	switch (event->response & ~FAN_AUDIT) {
 	case FAN_ALLOW:
 		ret = 0;
 		break;
@@ -87,6 +74,11 @@ out:
 	default:
 		ret = -EPERM;
 	}
+
+	/* Check if the response should be audited */
+	if (event->response & FAN_AUDIT)
+		audit_fanotify(event->response & ~FAN_AUDIT);
+
 	event->response = 0;
 
 	pr_debug("%s: group=%p event=%p about to return ret=%d\n", __func__,
@@ -94,7 +86,6 @@ out:
 	
 	return ret;
 }
-#endif
 
 static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 				       struct fsnotify_mark *vfsmnt_mark,
@@ -153,8 +144,7 @@ struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
 {
 	struct fanotify_event_info *event;
 
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	if (mask & FAN_ALL_PERM_EVENTS) {
+	if (fanotify_is_perm_event(mask)) {
 		struct fanotify_perm_event_info *pevent;
 
 		pevent = kmem_cache_alloc(fanotify_perm_event_cachep,
@@ -165,7 +155,6 @@ struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
 		pevent->response = 0;
 		goto init;
 	}
-#endif
 	event = kmem_cache_alloc(fanotify_event_cachep, GFP_KERNEL);
 	if (!event)
 		return NULL;
@@ -212,9 +201,19 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
 		 mask);
 
+	if (fanotify_is_perm_event(mask)) {
+		/*
+		 * fsnotify_prepare_user_wait() fails if we race with mark
+		 * deletion.  Just let the operation pass in that case.
+		 */
+		if (!fsnotify_prepare_user_wait(iter_info))
+			return 0;
+	}
+
 	event = fanotify_alloc_event(inode, mask, data);
+	ret = -ENOMEM;
 	if (unlikely(!event))
-		return -ENOMEM;
+		goto finish;
 
 	fsn_event = &event->fse;
 	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
@@ -224,16 +223,16 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);
 
-		return 0;
-	}
-
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	if (mask & FAN_ALL_PERM_EVENTS) {
+		ret = 0;
+	} else if (fanotify_is_perm_event(mask)) {
 		ret = fanotify_get_response(group, FANOTIFY_PE(fsn_event),
 					    iter_info);
 		fsnotify_destroy_event(group, fsn_event);
 	}
-#endif
+finish:
+	if (fanotify_is_perm_event(mask))
+		fsnotify_finish_user_wait(iter_info);
+
 	return ret;
 }
 
@@ -253,13 +252,11 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 	event = FANOTIFY_E(fsn_event);
 	path_put(&event->path);
 	put_pid(event->tgid);
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	if (fsn_event->mask & FAN_ALL_PERM_EVENTS) {
+	if (fanotify_is_perm_event(fsn_event->mask)) {
 		kmem_cache_free(fanotify_perm_event_cachep,
 				FANOTIFY_PE(fsn_event));
 		return;
 	}
-#endif
 	kmem_cache_free(fanotify_event_cachep, event);
 }
 

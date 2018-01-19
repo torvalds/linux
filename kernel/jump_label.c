@@ -83,7 +83,7 @@ static void static_key_slow_inc_cpuslocked(struct static_key *key)
 {
 	int v, v1;
 
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 
 	/*
 	 * Careful if we get concurrent static_key_slow_inc() calls;
@@ -128,7 +128,7 @@ EXPORT_SYMBOL_GPL(static_key_slow_inc);
 
 void static_key_enable_cpuslocked(struct static_key *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 
 	if (atomic_read(&key->enabled) > 0) {
 		WARN_ON_ONCE(atomic_read(&key->enabled) != 1);
@@ -158,7 +158,7 @@ EXPORT_SYMBOL_GPL(static_key_enable);
 
 void static_key_disable_cpuslocked(struct static_key *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 
 	if (atomic_read(&key->enabled) != 1) {
 		WARN_ON_ONCE(atomic_read(&key->enabled) != 0);
@@ -224,21 +224,21 @@ static void jump_label_update_timeout(struct work_struct *work)
 
 void static_key_slow_dec(struct static_key *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 	__static_key_slow_dec(key, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(static_key_slow_dec);
 
 void static_key_slow_dec_deferred(struct static_key_deferred *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 	__static_key_slow_dec(&key->key, key->timeout, &key->work);
 }
 EXPORT_SYMBOL_GPL(static_key_slow_dec_deferred);
 
 void static_key_deferred_flush(struct static_key_deferred *key)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 	flush_delayed_work(&key->work);
 }
 EXPORT_SYMBOL_GPL(static_key_deferred_flush);
@@ -246,7 +246,7 @@ EXPORT_SYMBOL_GPL(static_key_deferred_flush);
 void jump_label_rate_limit(struct static_key_deferred *key,
 		unsigned long rl)
 {
-	STATIC_KEY_CHECK_USE();
+	STATIC_KEY_CHECK_USE(key);
 	key->timeout = rl;
 	INIT_DELAYED_WORK(&key->work, jump_label_update_timeout);
 }
@@ -769,7 +769,7 @@ static __init int jump_label_test(void)
 
 	return 0;
 }
-late_initcall(jump_label_test);
+early_initcall(jump_label_test);
 #endif /* STATIC_KEYS_SELFTEST */
 
 #endif /* HAVE_JUMP_LABEL */

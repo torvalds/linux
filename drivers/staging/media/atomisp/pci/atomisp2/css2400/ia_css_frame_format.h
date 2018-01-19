@@ -15,11 +15,11 @@
 #ifndef __IA_CSS_FRAME_FORMAT_H
 #define __IA_CSS_FRAME_FORMAT_H
 
-/** @file
+/* @file
  * This file contains information about formats supported in the ISP
  */
 
-/** Frame formats, some of these come from fourcc.org, others are
+/* Frame formats, some of these come from fourcc.org, others are
    better explained by video4linux2. The NV11 seems to be described only
    on MSDN pages, but even those seem to be gone now.
    Frames can come in many forms, the main categories are RAW, RGB and YUV
@@ -48,45 +48,45 @@
 	- css/bxt_sandbox/isysapi/interface/ia_css_isysapi_fw_types.h
 */
 enum ia_css_frame_format {
-	IA_CSS_FRAME_FORMAT_NV11 = 0,   /**< 12 bit YUV 411, Y, UV plane */
-	IA_CSS_FRAME_FORMAT_NV12,       /**< 12 bit YUV 420, Y, UV plane */
-	IA_CSS_FRAME_FORMAT_NV12_16,    /**< 16 bit YUV 420, Y, UV plane */
-	IA_CSS_FRAME_FORMAT_NV12_TILEY, /**< 12 bit YUV 420, Intel proprietary tiled format, TileY */
-	IA_CSS_FRAME_FORMAT_NV16,       /**< 16 bit YUV 422, Y, UV plane */
-	IA_CSS_FRAME_FORMAT_NV21,       /**< 12 bit YUV 420, Y, VU plane */
-	IA_CSS_FRAME_FORMAT_NV61,       /**< 16 bit YUV 422, Y, VU plane */
-	IA_CSS_FRAME_FORMAT_YV12,       /**< 12 bit YUV 420, Y, V, U plane */
-	IA_CSS_FRAME_FORMAT_YV16,       /**< 16 bit YUV 422, Y, V, U plane */
-	IA_CSS_FRAME_FORMAT_YUV420,     /**< 12 bit YUV 420, Y, U, V plane */
-	IA_CSS_FRAME_FORMAT_YUV420_16,  /**< yuv420, 16 bits per subpixel */
-	IA_CSS_FRAME_FORMAT_YUV422,     /**< 16 bit YUV 422, Y, U, V plane */
-	IA_CSS_FRAME_FORMAT_YUV422_16,  /**< yuv422, 16 bits per subpixel */
-	IA_CSS_FRAME_FORMAT_UYVY,       /**< 16 bit YUV 422, UYVY interleaved */
-	IA_CSS_FRAME_FORMAT_YUYV,       /**< 16 bit YUV 422, YUYV interleaved */
-	IA_CSS_FRAME_FORMAT_YUV444,     /**< 24 bit YUV 444, Y, U, V plane */
-	IA_CSS_FRAME_FORMAT_YUV_LINE,   /**< Internal format, 2 y lines followed
+	IA_CSS_FRAME_FORMAT_NV11 = 0,   /** 12 bit YUV 411, Y, UV plane */
+	IA_CSS_FRAME_FORMAT_NV12,       /** 12 bit YUV 420, Y, UV plane */
+	IA_CSS_FRAME_FORMAT_NV12_16,    /** 16 bit YUV 420, Y, UV plane */
+	IA_CSS_FRAME_FORMAT_NV12_TILEY, /** 12 bit YUV 420, Intel proprietary tiled format, TileY */
+	IA_CSS_FRAME_FORMAT_NV16,       /** 16 bit YUV 422, Y, UV plane */
+	IA_CSS_FRAME_FORMAT_NV21,       /** 12 bit YUV 420, Y, VU plane */
+	IA_CSS_FRAME_FORMAT_NV61,       /** 16 bit YUV 422, Y, VU plane */
+	IA_CSS_FRAME_FORMAT_YV12,       /** 12 bit YUV 420, Y, V, U plane */
+	IA_CSS_FRAME_FORMAT_YV16,       /** 16 bit YUV 422, Y, V, U plane */
+	IA_CSS_FRAME_FORMAT_YUV420,     /** 12 bit YUV 420, Y, U, V plane */
+	IA_CSS_FRAME_FORMAT_YUV420_16,  /** yuv420, 16 bits per subpixel */
+	IA_CSS_FRAME_FORMAT_YUV422,     /** 16 bit YUV 422, Y, U, V plane */
+	IA_CSS_FRAME_FORMAT_YUV422_16,  /** yuv422, 16 bits per subpixel */
+	IA_CSS_FRAME_FORMAT_UYVY,       /** 16 bit YUV 422, UYVY interleaved */
+	IA_CSS_FRAME_FORMAT_YUYV,       /** 16 bit YUV 422, YUYV interleaved */
+	IA_CSS_FRAME_FORMAT_YUV444,     /** 24 bit YUV 444, Y, U, V plane */
+	IA_CSS_FRAME_FORMAT_YUV_LINE,   /** Internal format, 2 y lines followed
 					     by a uvinterleaved line */
-	IA_CSS_FRAME_FORMAT_RAW,	/**< RAW, 1 plane */
-	IA_CSS_FRAME_FORMAT_RGB565,     /**< 16 bit RGB, 1 plane. Each 3 sub
+	IA_CSS_FRAME_FORMAT_RAW,	/** RAW, 1 plane */
+	IA_CSS_FRAME_FORMAT_RGB565,     /** 16 bit RGB, 1 plane. Each 3 sub
 					     pixels are packed into one 16 bit
 					     value, 5 bits for R, 6 bits for G
 					     and 5 bits for B. */
-	IA_CSS_FRAME_FORMAT_PLANAR_RGB888, /**< 24 bit RGB, 3 planes */
-	IA_CSS_FRAME_FORMAT_RGBA888,	/**< 32 bit RGBA, 1 plane, A=Alpha
+	IA_CSS_FRAME_FORMAT_PLANAR_RGB888, /** 24 bit RGB, 3 planes */
+	IA_CSS_FRAME_FORMAT_RGBA888,	/** 32 bit RGBA, 1 plane, A=Alpha
 					     (alpha is unused) */
-	IA_CSS_FRAME_FORMAT_QPLANE6, /**< Internal, for advanced ISP */
-	IA_CSS_FRAME_FORMAT_BINARY_8,	/**< byte stream, used for jpeg. For
+	IA_CSS_FRAME_FORMAT_QPLANE6, /** Internal, for advanced ISP */
+	IA_CSS_FRAME_FORMAT_BINARY_8,	/** byte stream, used for jpeg. For
 					     frames of this type, we set the
 					     height to 1 and the width to the
 					     number of allocated bytes. */
-	IA_CSS_FRAME_FORMAT_MIPI,	/**< MIPI frame, 1 plane */
-	IA_CSS_FRAME_FORMAT_RAW_PACKED, /**< RAW, 1 plane, packed */
-	IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_8,	      /**< 8 bit per Y/U/V.
+	IA_CSS_FRAME_FORMAT_MIPI,	/** MIPI frame, 1 plane */
+	IA_CSS_FRAME_FORMAT_RAW_PACKED, /** RAW, 1 plane, packed */
+	IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_8,	      /** 8 bit per Y/U/V.
 							   Y odd line; UYVY
 							   interleaved even line */
-	IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8, /**< Legacy YUV420. UY odd
+	IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8, /** Legacy YUV420. UY odd
 							   line; VY even line */
-	IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_10       /**< 10 bit per Y/U/V. Y odd
+	IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_10       /** 10 bit per Y/U/V. Y odd
 							   line; UYVY interleaved
 							   even line */
 };
@@ -95,7 +95,7 @@ enum ia_css_frame_format {
 /*       because of issues this would cause with the Clockwork code checking tool.               */
 #define IA_CSS_FRAME_FORMAT_NUM (IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_10 + 1)
 
-/** Number of valid output frame formats for ISP **/
+/* Number of valid output frame formats for ISP **/
 #define IA_CSS_FRAME_OUT_FORMAT_NUM	(IA_CSS_FRAME_FORMAT_RGBA888 + 1)
 
 #endif /* __IA_CSS_FRAME_FORMAT_H */

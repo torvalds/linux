@@ -35,12 +35,55 @@ static struct pci_ecam_ops gen_pci_cfg_cam_bus_ops = {
 	}
 };
 
+static bool pci_dw_valid_device(struct pci_bus *bus, unsigned int devfn)
+{
+	struct pci_config_window *cfg = bus->sysdata;
+
+	/*
+	 * The Synopsys DesignWare PCIe controller in ECAM mode will not filter
+	 * type 0 config TLPs sent to devices 1 and up on its downstream port,
+	 * resulting in devices appearing multiple times on bus 0 unless we
+	 * filter out those accesses here.
+	 */
+	if (bus->number == cfg->busr.start && PCI_SLOT(devfn) > 0)
+		return false;
+
+	return true;
+}
+
+static void __iomem *pci_dw_ecam_map_bus(struct pci_bus *bus,
+					 unsigned int devfn, int where)
+{
+	if (!pci_dw_valid_device(bus, devfn))
+		return NULL;
+
+	return pci_ecam_map_bus(bus, devfn, where);
+}
+
+static struct pci_ecam_ops pci_dw_ecam_bus_ops = {
+	.bus_shift	= 20,
+	.pci_ops	= {
+		.map_bus	= pci_dw_ecam_map_bus,
+		.read		= pci_generic_config_read,
+		.write		= pci_generic_config_write,
+	}
+};
+
 static const struct of_device_id gen_pci_of_match[] = {
 	{ .compatible = "pci-host-cam-generic",
 	  .data = &gen_pci_cfg_cam_bus_ops },
 
 	{ .compatible = "pci-host-ecam-generic",
 	  .data = &pci_generic_ecam_ops },
+
+	{ .compatible = "marvell,armada8k-pcie-ecam",
+	  .data = &pci_dw_ecam_bus_ops },
+
+	{ .compatible = "socionext,synquacer-pcie-ecam",
+	  .data = &pci_dw_ecam_bus_ops },
+
+	{ .compatible = "snps,dw-pcie-ecam",
+	  .data = &pci_dw_ecam_bus_ops },
 
 	{ },
 };

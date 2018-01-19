@@ -90,14 +90,14 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	 * to do an appropriate TLB flush here too
 	 */
 	if (bus->self) {
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 		struct resource *res = bus->resource[0];
 #endif
 
 		pr_debug("IO unmapping for PCI-PCI bridge %s\n",
 			 pci_name(bus->self));
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 		__flush_hash_table_range(&init_mm, res->start + _IO_BASE,
 					 res->end + _IO_BASE + 1);
 #endif

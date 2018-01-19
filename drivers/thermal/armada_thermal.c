@@ -58,7 +58,7 @@ struct armada_thermal_data {
 	/* Test for a valid sensor value (optional) */
 	bool (*is_valid)(struct armada_thermal_priv *);
 
-	/* Formula coeficients: temp = (b + m * reg) / div */
+	/* Formula coeficients: temp = (b - m * reg) / div */
 	unsigned long coef_b;
 	unsigned long coef_m;
 	unsigned long coef_div;

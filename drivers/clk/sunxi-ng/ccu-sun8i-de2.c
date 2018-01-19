@@ -41,9 +41,14 @@ static SUNXI_CCU_GATE(wb_clk,		"wb",		"wb-div",
 
 static SUNXI_CCU_M(mixer0_div_clk, "mixer0-div", "de", 0x0c, 0, 4,
 		   CLK_SET_RATE_PARENT);
-static SUNXI_CCU_M(mixer1_div_clk, "mixer1-div", "de", 0x0c, 4, 4,
-		   CLK_SET_RATE_PARENT);
 static SUNXI_CCU_M(wb_div_clk, "wb-div", "de", 0x0c, 8, 4,
+		   CLK_SET_RATE_PARENT);
+
+static SUNXI_CCU_M(mixer0_div_a83_clk, "mixer0-div", "pll-de", 0x0c, 0, 4,
+		   CLK_SET_RATE_PARENT);
+static SUNXI_CCU_M(mixer1_div_a83_clk, "mixer1-div", "pll-de", 0x0c, 4, 4,
+		   CLK_SET_RATE_PARENT);
+static SUNXI_CCU_M(wb_div_a83_clk, "wb-div", "pll-de", 0x0c, 8, 4,
 		   CLK_SET_RATE_PARENT);
 
 static struct ccu_common *sun8i_a83t_de2_clks[] = {
@@ -55,9 +60,9 @@ static struct ccu_common *sun8i_a83t_de2_clks[] = {
 	&bus_mixer1_clk.common,
 	&bus_wb_clk.common,
 
-	&mixer0_div_clk.common,
-	&mixer1_div_clk.common,
-	&wb_div_clk.common,
+	&mixer0_div_a83_clk.common,
+	&mixer1_div_a83_clk.common,
+	&wb_div_a83_clk.common,
 };
 
 static struct ccu_common *sun8i_v3s_de2_clks[] = {
@@ -81,9 +86,9 @@ static struct clk_hw_onecell_data sun8i_a83t_de2_hw_clks = {
 		[CLK_BUS_MIXER1]	= &bus_mixer1_clk.common.hw,
 		[CLK_BUS_WB]		= &bus_wb_clk.common.hw,
 
-		[CLK_MIXER0_DIV]	= &mixer0_div_clk.common.hw,
-		[CLK_MIXER1_DIV]	= &mixer1_div_clk.common.hw,
-		[CLK_WB_DIV]		= &wb_div_clk.common.hw,
+		[CLK_MIXER0_DIV]	= &mixer0_div_a83_clk.common.hw,
+		[CLK_MIXER1_DIV]	= &mixer1_div_a83_clk.common.hw,
+		[CLK_WB_DIV]		= &wb_div_a83_clk.common.hw,
 	},
 	.num	= CLK_NUMBER,
 };

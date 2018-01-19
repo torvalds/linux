@@ -351,7 +351,7 @@ int rvt_detach_mcast(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	int last = 0;
 	int ret = 0;
 
-	if (ibqp->qp_num <= 1 || qp->state == IB_QPS_RESET)
+	if (ibqp->qp_num <= 1)
 		return -EINVAL;
 
 	spin_lock_irq(&ibp->lock);

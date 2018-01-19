@@ -112,7 +112,7 @@ static void cyc2ns_data_init(struct cyc2ns_data *data)
 	data->cyc2ns_offset = 0;
 }
 
-static void cyc2ns_init(int cpu)
+static void __init cyc2ns_init(int cpu)
 {
 	struct cyc2ns *c2n = &per_cpu(cyc2ns, cpu);
 
@@ -812,13 +812,13 @@ unsigned long native_calibrate_cpu(void)
 	return tsc_pit_min;
 }
 
-int recalibrate_cpu_khz(void)
+void recalibrate_cpu_khz(void)
 {
 #ifndef CONFIG_SMP
 	unsigned long cpu_khz_old = cpu_khz;
 
 	if (!boot_cpu_has(X86_FEATURE_TSC))
-		return -ENODEV;
+		return;
 
 	cpu_khz = x86_platform.calibrate_cpu();
 	tsc_khz = x86_platform.calibrate_tsc();
@@ -828,10 +828,6 @@ int recalibrate_cpu_khz(void)
 		cpu_khz = tsc_khz;
 	cpu_data(0).loops_per_jiffy = cpufreq_scale(cpu_data(0).loops_per_jiffy,
 						    cpu_khz_old, cpu_khz);
-
-	return 0;
-#else
-	return -ENODEV;
 #endif
 }
 
@@ -959,17 +955,21 @@ core_initcall(cpufreq_register_tsc_scaling);
 /*
  * If ART is present detect the numerator:denominator to convert to TSC
  */
-static void detect_art(void)
+static void __init detect_art(void)
 {
 	unsigned int unused[2];
 
 	if (boot_cpu_data.cpuid_level < ART_CPUID_LEAF)
 		return;
 
-	/* Don't enable ART in a VM, non-stop TSC and TSC_ADJUST required */
+	/*
+	 * Don't enable ART in a VM, non-stop TSC and TSC_ADJUST required,
+	 * and the TSC counter resets must not occur asynchronously.
+	 */
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR) ||
 	    !boot_cpu_has(X86_FEATURE_NONSTOP_TSC) ||
-	    !boot_cpu_has(X86_FEATURE_TSC_ADJUST))
+	    !boot_cpu_has(X86_FEATURE_TSC_ADJUST) ||
+	    tsc_async_resets)
 		return;
 
 	cpuid(ART_CPUID_LEAF, &art_to_tsc_denominator,
@@ -1262,6 +1262,25 @@ static int __init init_tsc_clocksource(void)
  * is fully initialized, which may occur at fs_initcall time.
  */
 device_initcall(init_tsc_clocksource);
+
+void __init tsc_early_delay_calibrate(void)
+{
+	unsigned long lpj;
+
+	if (!boot_cpu_has(X86_FEATURE_TSC))
+		return;
+
+	cpu_khz = x86_platform.calibrate_cpu();
+	tsc_khz = x86_platform.calibrate_tsc();
+
+	tsc_khz = tsc_khz ? : cpu_khz;
+	if (!tsc_khz)
+		return;
+
+	lpj = tsc_khz * 1000;
+	do_div(lpj, HZ);
+	loops_per_jiffy = lpj;
+}
 
 void __init tsc_init(void)
 {

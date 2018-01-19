@@ -35,6 +35,8 @@
 
 /* port register default value */
 #define AHCI_PORT_PHY_1_CFG	0xa003fffe
+#define AHCI_PORT_PHY2_CFG	0x28184d1f
+#define AHCI_PORT_PHY3_CFG	0x0e081509
 #define AHCI_PORT_TRANS_CFG	0x08000029
 #define AHCI_PORT_AXICC_CFG	0x3fffffff
 
@@ -183,6 +185,8 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 		writel(readl(qpriv->ecc_addr) | ECC_DIS_ARMV8_CH2,
 				qpriv->ecc_addr);
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
+		writel(AHCI_PORT_PHY2_CFG, reg_base + PORT_PHY2);
+		writel(AHCI_PORT_PHY3_CFG, reg_base + PORT_PHY3);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)
 			writel(AHCI_PORT_AXICC_CFG, reg_base + PORT_AXICC);
@@ -190,6 +194,8 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 
 	case AHCI_LS2080A:
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
+		writel(AHCI_PORT_PHY2_CFG, reg_base + PORT_PHY2);
+		writel(AHCI_PORT_PHY3_CFG, reg_base + PORT_PHY3);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)
 			writel(AHCI_PORT_AXICC_CFG, reg_base + PORT_AXICC);
@@ -201,6 +207,8 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 		writel(readl(qpriv->ecc_addr) | ECC_DIS_ARMV8_CH2,
 				qpriv->ecc_addr);
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
+		writel(AHCI_PORT_PHY2_CFG, reg_base + PORT_PHY2);
+		writel(AHCI_PORT_PHY3_CFG, reg_base + PORT_PHY3);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)
 			writel(AHCI_PORT_AXICC_CFG, reg_base + PORT_AXICC);
@@ -212,6 +220,8 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 		writel(readl(qpriv->ecc_addr) | ECC_DIS_LS1088A,
 		       qpriv->ecc_addr);
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
+		writel(AHCI_PORT_PHY2_CFG, reg_base + PORT_PHY2);
+		writel(AHCI_PORT_PHY3_CFG, reg_base + PORT_PHY3);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)
 			writel(AHCI_PORT_AXICC_CFG, reg_base + PORT_AXICC);
@@ -219,6 +229,8 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 
 	case AHCI_LS2088A:
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
+		writel(AHCI_PORT_PHY2_CFG, reg_base + PORT_PHY2);
+		writel(AHCI_PORT_PHY3_CFG, reg_base + PORT_PHY3);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)
 			writel(AHCI_PORT_AXICC_CFG, reg_base + PORT_AXICC);

@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Freescale QUICC Engine UART device driver
  *
  * Author: Timur Tabi <timur@freescale.com>
  *
- * Copyright 2007 Freescale Semiconductor, Inc.  This file is licensed under
- * the terms of the GNU General Public License version 2.  This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * Copyright 2007 Freescale Semiconductor, Inc.
  *
  * This driver adds support for UART devices via Freescale's QUICC Engine
  * found on some Freescale SOCs.

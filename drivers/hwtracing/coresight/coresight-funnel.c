@@ -248,8 +248,8 @@ static const struct dev_pm_ops funnel_dev_pm_ops = {
 
 static const struct amba_id funnel_ids[] = {
 	{
-		.id     = 0x0003b908,
-		.mask   = 0x0003ffff,
+		.id     = 0x000bb908,
+		.mask   = 0x000fffff,
 	},
 	{
 		/* Coresight SoC-600 */

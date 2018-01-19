@@ -269,7 +269,7 @@ enum ia_css_err
 ia_css_binary_find(struct ia_css_binary_descr *descr,
 		   struct ia_css_binary *binary);
 
-/** @brief Get the shading information of the specified shading correction type.
+/* @brief Get the shading information of the specified shading correction type.
  *
  * @param[in] binary: The isp binary which has the shading correction.
  * @param[in] type: The shading correction type.

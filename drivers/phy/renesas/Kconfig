@@ -12,7 +12,9 @@ config PHY_RCAR_GEN3_USB2
 	tristate "Renesas R-Car generation 3 USB 2.0 PHY driver"
 	depends on ARCH_RENESAS
 	depends on EXTCON
+	depends on USB_SUPPORT
 	select GENERIC_PHY
+	select USB_COMMON
 	help
 	  Support for USB 2.0 PHY found on Renesas R-Car generation 3 SoCs.
 

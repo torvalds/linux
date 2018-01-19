@@ -107,7 +107,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 
-			uart0: serial@0300 {
+			uart0: serial@300 {
 				compatible = "ns16550a";
 				reg = <0x0300 0x100>;
 				interrupt-parent = <&gic>;

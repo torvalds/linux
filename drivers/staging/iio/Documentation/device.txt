@@ -26,9 +26,6 @@ Then fill in the following:
 	pointer to a structure with elements that tend to be fixed for
 	large sets of different parts supported by a given driver.
 	This contains:
-	* info->driver_module:
-		Set to THIS_MODULE. Used to ensure correct ownership
-		of various resources allocate by the core.
 	* info->event_attrs:
 		Attributes used to enable / disable hardware events.
 	* info->attrs:

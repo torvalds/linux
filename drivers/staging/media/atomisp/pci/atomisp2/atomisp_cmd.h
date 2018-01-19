@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -85,11 +81,7 @@ static inline void __iomem *atomisp_get_io_virt_addr(unsigned int address)
 void atomisp_msi_irq_init(struct atomisp_device *isp, struct pci_dev *dev);
 void atomisp_msi_irq_uninit(struct atomisp_device *isp, struct pci_dev *dev);
 void atomisp_wdt_work(struct work_struct *work);
-#ifndef ISP2401
-void atomisp_wdt(unsigned long isp_addr);
-#else
-void atomisp_wdt(unsigned long pipe_addr);
-#endif
+void atomisp_wdt(struct timer_list *t);
 void atomisp_setup_flash(struct atomisp_sub_device *asd);
 irqreturn_t atomisp_isr(int irq, void *dev);
 irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr);

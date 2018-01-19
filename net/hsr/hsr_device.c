@@ -328,12 +328,12 @@ out:
 
 /* Announce (supervision frame) timer function
  */
-static void hsr_announce(unsigned long data)
+static void hsr_announce(struct timer_list *t)
 {
 	struct hsr_priv *hsr;
 	struct hsr_port *master;
 
-	hsr = (struct hsr_priv *) data;
+	hsr = from_timer(hsr, t, announce_timer);
 
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
@@ -463,9 +463,8 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	hsr->sequence_nr = HSR_SEQNR_START;
 	hsr->sup_sequence_nr = HSR_SUP_SEQNR_START;
 
-	setup_timer(&hsr->announce_timer, hsr_announce, (unsigned long)hsr);
-
-	setup_timer(&hsr->prune_timer, hsr_prune_nodes, (unsigned long)hsr);
+	timer_setup(&hsr->announce_timer, hsr_announce, 0);
+	timer_setup(&hsr->prune_timer, hsr_prune_nodes, 0);
 
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;

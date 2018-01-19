@@ -368,6 +368,9 @@ struct csio_hw_stats {
 #define	CSIO_HWF_HOST_INTR_ENABLED	0x00000200	/* Are host interrupts
 							 * enabled?
 							 */
+#define CSIO_HWF_ROOT_NO_RELAXED_ORDERING 0x00000400	/* Is PCIe relaxed
+							 * ordering enabled
+							 */
 
 #define csio_is_hw_intr_enabled(__hw)	\
 				((__hw)->flags & CSIO_HWF_HW_INTR_ENABLED)

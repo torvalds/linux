@@ -165,6 +165,7 @@ enum cxgbit_csk_flags {
 	CSK_LOGIN_PDU_DONE,
 	CSK_LOGIN_DONE,
 	CSK_DDP_ENABLE,
+	CSK_ABORT_RPL_WAIT,
 };
 
 struct cxgbit_sock_common {
@@ -321,6 +322,7 @@ int cxgbit_setup_np(struct iscsi_np *, struct sockaddr_storage *);
 int cxgbit_setup_conn_digest(struct cxgbit_sock *);
 int cxgbit_accept_np(struct iscsi_np *, struct iscsi_conn *);
 void cxgbit_free_np(struct iscsi_np *);
+void cxgbit_abort_conn(struct cxgbit_sock *csk);
 void cxgbit_free_conn(struct iscsi_conn *);
 extern cxgbit_cplhandler_func cxgbit_cplhandlers[NUM_CPL_CMDS];
 int cxgbit_get_login_rx(struct iscsi_conn *, struct iscsi_login *);

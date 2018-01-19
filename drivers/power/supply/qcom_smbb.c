@@ -34,7 +34,7 @@
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/regulator/driver.h>
 
 #define SMBB_CHG_VMAX		0x040
