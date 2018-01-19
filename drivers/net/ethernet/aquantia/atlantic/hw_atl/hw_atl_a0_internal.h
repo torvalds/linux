@@ -62,12 +62,6 @@
 #define HW_ATL_A0_MPI_SPEED_MSK       0xFFFFU
 #define HW_ATL_A0_MPI_SPEED_SHIFT     16U
 
-#define HW_ATL_A0_RATE_10G            BIT(0)
-#define HW_ATL_A0_RATE_5G             BIT(1)
-#define HW_ATL_A0_RATE_2G5            BIT(3)
-#define HW_ATL_A0_RATE_1G             BIT(4)
-#define HW_ATL_A0_RATE_100M           BIT(5)
-
 #define HW_ATL_A0_TXBUF_MAX 160U
 #define HW_ATL_A0_RXBUF_MAX 320U
 
@@ -111,11 +105,11 @@ static struct aq_hw_caps_s hw_atl_a0_hw_caps_ = {
 			NETIF_F_SG |
 			NETIF_F_TSO,
 	.hw_priv_flags = IFF_UNICAST_FLT,
-	.link_speed_msk = (HW_ATL_A0_RATE_10G |
-			HW_ATL_A0_RATE_5G |
-			HW_ATL_A0_RATE_2G5 |
-			HW_ATL_A0_RATE_1G |
-			HW_ATL_A0_RATE_100M),
+	.link_speed_msk = (AQ_NIC_RATE_10G |
+			AQ_NIC_RATE_5G |
+			AQ_NIC_RATE_2GS |
+			AQ_NIC_RATE_1G |
+			AQ_NIC_RATE_100M),
 	.flow_control = true,
 	.mtu = HW_ATL_A0_MTU_JUMBO,
 	.mac_regs_count = 88,

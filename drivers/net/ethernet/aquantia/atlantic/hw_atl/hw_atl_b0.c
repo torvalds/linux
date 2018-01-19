@@ -26,12 +26,12 @@ static int hw_atl_b0_get_hw_caps(struct aq_hw_s *self,
 {
 	memcpy(aq_hw_caps, &hw_atl_b0_hw_caps_, sizeof(*aq_hw_caps));
 
-	if (device == HW_ATL_DEVICE_ID_D108 && subsystem_device == 0x0001)
-		aq_hw_caps->link_speed_msk &= ~HW_ATL_B0_RATE_10G;
+	if (device == AQ_DEVICE_ID_D108 && subsystem_device == 0x0001)
+		aq_hw_caps->link_speed_msk &= ~AQ_NIC_RATE_10G;
 
-	if (device == HW_ATL_DEVICE_ID_D109 && subsystem_device == 0x0001) {
-		aq_hw_caps->link_speed_msk &= ~HW_ATL_B0_RATE_10G;
-		aq_hw_caps->link_speed_msk &= ~HW_ATL_B0_RATE_5G;
+	if (device == AQ_DEVICE_ID_D109 && subsystem_device == 0x0001) {
+		aq_hw_caps->link_speed_msk &= ~AQ_NIC_RATE_10G;
+		aq_hw_caps->link_speed_msk &= ~AQ_NIC_RATE_5G;
 	}
 
 	return 0;
@@ -981,11 +981,11 @@ static const struct aq_hw_ops hw_atl_ops_ = {
 const struct aq_hw_ops *hw_atl_b0_get_ops_by_id(struct pci_dev *pdev)
 {
 	bool is_vid_ok = (pdev->vendor == PCI_VENDOR_ID_AQUANTIA);
-	bool is_did_ok = ((pdev->device == HW_ATL_DEVICE_ID_0001) ||
-			(pdev->device == HW_ATL_DEVICE_ID_D100) ||
-			(pdev->device == HW_ATL_DEVICE_ID_D107) ||
-			(pdev->device == HW_ATL_DEVICE_ID_D108) ||
-			(pdev->device == HW_ATL_DEVICE_ID_D109));
+	bool is_did_ok = ((pdev->device == AQ_DEVICE_ID_0001) ||
+			(pdev->device == AQ_DEVICE_ID_D100) ||
+			(pdev->device == AQ_DEVICE_ID_D107) ||
+			(pdev->device == AQ_DEVICE_ID_D108) ||
+			(pdev->device == AQ_DEVICE_ID_D109));
 
 	bool is_rev_ok = (pdev->revision == 2U);
 

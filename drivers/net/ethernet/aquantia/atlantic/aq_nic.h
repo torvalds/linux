@@ -22,19 +22,6 @@ struct aq_hw_ops;
 struct aq_fw_s;
 struct aq_vec_s;
 
-#define AQ_NIC_FC_OFF    0U
-#define AQ_NIC_FC_TX     1U
-#define AQ_NIC_FC_RX     2U
-#define AQ_NIC_FC_FULL   3U
-#define AQ_NIC_FC_AUTO   4U
-
-#define AQ_NIC_RATE_10G        BIT(0)
-#define AQ_NIC_RATE_5G         BIT(1)
-#define AQ_NIC_RATE_5GSR       BIT(2)
-#define AQ_NIC_RATE_2GS        BIT(3)
-#define AQ_NIC_RATE_1G         BIT(4)
-#define AQ_NIC_RATE_100M       BIT(5)
-
 struct aq_nic_cfg_s {
 	const struct aq_hw_caps_s *aq_hw_caps;
 	u64 hw_features;

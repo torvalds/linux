@@ -16,19 +16,6 @@
 
 #include "../aq_common.h"
 
-#ifndef PCI_VENDOR_ID_AQUANTIA
-
-#define PCI_VENDOR_ID_AQUANTIA  0x1D6A
-#define HW_ATL_DEVICE_ID_0001   0x0001
-#define HW_ATL_DEVICE_ID_D100   0xD100
-#define HW_ATL_DEVICE_ID_D107   0xD107
-#define HW_ATL_DEVICE_ID_D108   0xD108
-#define HW_ATL_DEVICE_ID_D109   0xD109
-
-#define HW_ATL_NIC_NAME "aQuantia AQtion 5Gbit Network Adapter"
-
-#endif
-
 const struct aq_hw_ops *hw_atl_a0_get_ops_by_id(struct pci_dev *pdev);
 
 #endif /* HW_ATL_A0_H */

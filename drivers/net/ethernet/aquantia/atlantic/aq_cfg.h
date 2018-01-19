@@ -65,7 +65,13 @@
 
 /*#define AQ_CFG_MAC_ADDR_PERMANENT {0x30, 0x0E, 0xE3, 0x12, 0x34, 0x56}*/
 
-#define AQ_CFG_FC_MODE 3U
+#define AQ_NIC_FC_OFF    0U
+#define AQ_NIC_FC_TX     1U
+#define AQ_NIC_FC_RX     2U
+#define AQ_NIC_FC_FULL   3U
+#define AQ_NIC_FC_AUTO   4U
+
+#define AQ_CFG_FC_MODE AQ_NIC_FC_FULL
 
 #define AQ_CFG_SPEED_MSK  0xFFFFU	/* 0xFFFFU==auto_neg */
 
