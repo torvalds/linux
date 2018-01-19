@@ -35,6 +35,14 @@ int pkey_initialize(void)
 		     (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
 
 	/*
+	 * pkey_to_vmflag_bits() assumes that the pkey bits are contiguous
+	 * in the vmaflag. Make sure that is really the case.
+	 */
+	BUILD_BUG_ON(__builtin_clzl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT) +
+		     __builtin_popcountl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)
+				!= (sizeof(u64) * BITS_PER_BYTE));
+
+	/*
 	 * Disable the pkey system till everything is in place. A subsequent
 	 * patch will enable it.
 	 */
