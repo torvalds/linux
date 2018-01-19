@@ -1537,6 +1537,67 @@ int send_sig_fault(int sig, int code, void __user *addr
 	return send_sig_info(info.si_signo, &info, t);
 }
 
+#if defined(BUS_MCEERR_AO) && defined(BUS_MCEERR_AR)
+int force_sig_mceerr(int code, void __user *addr, short lsb, struct task_struct *t)
+{
+	struct siginfo info;
+
+	WARN_ON((code != BUS_MCEERR_AO) && (code != BUS_MCEERR_AR));
+	clear_siginfo(&info);
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code = code;
+	info.si_addr = addr;
+	info.si_addr_lsb = lsb;
+	return force_sig_info(info.si_signo, &info, t);
+}
+
+int send_sig_mceerr(int code, void __user *addr, short lsb, struct task_struct *t)
+{
+	struct siginfo info;
+
+	WARN_ON((code != BUS_MCEERR_AO) && (code != BUS_MCEERR_AR));
+	clear_siginfo(&info);
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code = code;
+	info.si_addr = addr;
+	info.si_addr_lsb = lsb;
+	return send_sig_info(info.si_signo, &info, t);
+}
+EXPORT_SYMBOL(send_sig_mceerr);
+#endif
+
+#ifdef SEGV_BNDERR
+int force_sig_bnderr(void __user *addr, void __user *lower, void __user *upper)
+{
+	struct siginfo info;
+
+	clear_siginfo(&info);
+	info.si_signo = SIGSEGV;
+	info.si_errno = 0;
+	info.si_code  = SEGV_BNDERR;
+	info.si_addr  = addr;
+	info.si_lower = lower;
+	info.si_upper = upper;
+	return force_sig_info(info.si_signo, &info, current);
+}
+#endif
+
+#ifdef SEGV_PKUERR
+int force_sig_pkuerr(void __user *addr, u32 pkey)
+{
+	struct siginfo info;
+
+	clear_siginfo(&info);
+	info.si_signo = SIGSEGV;
+	info.si_errno = 0;
+	info.si_code  = SEGV_PKUERR;
+	info.si_addr  = addr;
+	info.si_pkey  = pkey;
+	return force_sig_info(info.si_signo, &info, current);
+}
+#endif
 
 int kill_pgrp(struct pid *pid, int sig, int priv)
 {
