@@ -962,7 +962,7 @@ struct nand_op_parser_pattern_elem {
 	union {
 		struct nand_op_parser_addr_constraints addr;
 		struct nand_op_parser_data_constraints data;
-	};
+	} ctx;
 };
 
 #define NAND_OP_PARSER_PAT_CMD_ELEM(_opt)			\
@@ -975,21 +975,21 @@ struct nand_op_parser_pattern_elem {
 	{							\
 		.type = NAND_OP_ADDR_INSTR,			\
 		.optional = _opt,				\
-		.addr.maxcycles = _maxcycles,			\
+		.ctx.addr.maxcycles = _maxcycles,		\
 	}
 
 #define NAND_OP_PARSER_PAT_DATA_IN_ELEM(_opt, _maxlen)		\
 	{							\
 		.type = NAND_OP_DATA_IN_INSTR,			\
 		.optional = _opt,				\
-		.data.maxlen = _maxlen,				\
+		.ctx.data.maxlen = _maxlen,			\
 	}
 
 #define NAND_OP_PARSER_PAT_DATA_OUT_ELEM(_opt, _maxlen)		\
 	{							\
 		.type = NAND_OP_DATA_OUT_INSTR,			\
 		.optional = _opt,				\
-		.data.maxlen = _maxlen,				\
+		.ctx.data.maxlen = _maxlen,			\
 	}
 
 #define NAND_OP_PARSER_PAT_WAITRDY_ELEM(_opt)			\

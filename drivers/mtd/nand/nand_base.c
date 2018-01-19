@@ -2335,23 +2335,24 @@ nand_op_parser_must_split_instr(const struct nand_op_parser_pattern_elem *pat,
 {
 	switch (pat->type) {
 	case NAND_OP_ADDR_INSTR:
-		if (!pat->addr.maxcycles)
+		if (!pat->ctx.addr.maxcycles)
 			break;
 
 		if (instr->ctx.addr.naddrs - *start_offset >
-		    pat->addr.maxcycles) {
-			*start_offset += pat->addr.maxcycles;
+		    pat->ctx.addr.maxcycles) {
+			*start_offset += pat->ctx.addr.maxcycles;
 			return true;
 		}
 		break;
 
 	case NAND_OP_DATA_IN_INSTR:
 	case NAND_OP_DATA_OUT_INSTR:
-		if (!pat->data.maxlen)
+		if (!pat->ctx.data.maxlen)
 			break;
 
-		if (instr->ctx.data.len - *start_offset > pat->data.maxlen) {
-			*start_offset += pat->data.maxlen;
+		if (instr->ctx.data.len - *start_offset >
+		    pat->ctx.data.maxlen) {
+			*start_offset += pat->ctx.data.maxlen;
 			return true;
 		}
 		break;
