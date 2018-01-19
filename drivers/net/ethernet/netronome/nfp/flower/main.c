@@ -99,7 +99,7 @@ nfp_flower_repr_get(struct nfp_app *app, u32 port_id)
 	if (port >= reprs->num_reprs)
 		return NULL;
 
-	return reprs->reprs[port];
+	return rcu_dereference(reprs->reprs[port]);
 }
 
 static int
@@ -114,15 +114,19 @@ nfp_flower_reprs_reify(struct nfp_app *app, enum nfp_repr_type type,
 	if (!reprs)
 		return 0;
 
-	for (i = 0; i < reprs->num_reprs; i++)
-		if (reprs->reprs[i]) {
-			struct nfp_repr *repr = netdev_priv(reprs->reprs[i]);
+	for (i = 0; i < reprs->num_reprs; i++) {
+		struct net_device *netdev;
+
+		netdev = nfp_repr_get_locked(app, reprs, i);
+		if (netdev) {
+			struct nfp_repr *repr = netdev_priv(netdev);
 
 			err = nfp_flower_cmsg_portreify(repr, exists);
 			if (err)
 				return err;
 			count++;
 		}
+	}
 
 	return count;
 }
@@ -234,19 +238,21 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 		return -ENOMEM;
 
 	for (i = 0; i < cnt; i++) {
+		struct net_device *repr;
 		struct nfp_port *port;
 		u32 port_id;
 
-		reprs->reprs[i] = nfp_repr_alloc(app);
-		if (!reprs->reprs[i]) {
+		repr = nfp_repr_alloc(app);
+		if (!repr) {
 			err = -ENOMEM;
 			goto err_reprs_clean;
 		}
+		RCU_INIT_POINTER(reprs->reprs[i], repr);
 
 		/* For now we only support 1 PF */
 		WARN_ON(repr_type == NFP_REPR_TYPE_PF && i);
 
-		port = nfp_port_alloc(app, port_type, reprs->reprs[i]);
+		port = nfp_port_alloc(app, port_type, repr);
 		if (repr_type == NFP_REPR_TYPE_PF) {
 			port->pf_id = i;
 			port->vnic = priv->nn->dp.ctrl_bar;
@@ -257,11 +263,11 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 				app->pf->vf_cfg_mem + i * NFP_NET_CFG_BAR_SZ;
 		}
 
-		eth_hw_addr_random(reprs->reprs[i]);
+		eth_hw_addr_random(repr);
 
 		port_id = nfp_flower_cmsg_pcie_port(nfp_pcie, vnic_type,
 						    i, queue);
-		err = nfp_repr_init(app, reprs->reprs[i],
+		err = nfp_repr_init(app, repr,
 				    port_id, port, priv->nn->dp.netdev);
 		if (err) {
 			nfp_port_free(port);
@@ -270,7 +276,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 
 		nfp_info(app->cpp, "%s%d Representor(%s) created\n",
 			 repr_type == NFP_REPR_TYPE_PF ? "PF" : "VF", i,
-			 reprs->reprs[i]->name);
+			 repr->name);
 	}
 
 	nfp_app_reprs_set(app, repr_type, reprs);
@@ -291,7 +297,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 err_reprs_remove:
 	reprs = nfp_app_reprs_set(app, repr_type, NULL);
 err_reprs_clean:
-	nfp_reprs_clean_and_free(reprs);
+	nfp_reprs_clean_and_free(app, reprs);
 	return err;
 }
 
@@ -329,17 +335,18 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 
 	for (i = 0; i < eth_tbl->count; i++) {
 		unsigned int phys_port = eth_tbl->ports[i].index;
+		struct net_device *repr;
 		struct nfp_port *port;
 		u32 cmsg_port_id;
 
-		reprs->reprs[phys_port] = nfp_repr_alloc(app);
-		if (!reprs->reprs[phys_port]) {
+		repr = nfp_repr_alloc(app);
+		if (!repr) {
 			err = -ENOMEM;
 			goto err_reprs_clean;
 		}
+		RCU_INIT_POINTER(reprs->reprs[phys_port], repr);
 
-		port = nfp_port_alloc(app, NFP_PORT_PHYS_PORT,
-				      reprs->reprs[phys_port]);
+		port = nfp_port_alloc(app, NFP_PORT_PHYS_PORT, repr);
 		if (IS_ERR(port)) {
 			err = PTR_ERR(port);
 			goto err_reprs_clean;
@@ -350,11 +357,11 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 			goto err_reprs_clean;
 		}
 
-		SET_NETDEV_DEV(reprs->reprs[phys_port], &priv->nn->pdev->dev);
+		SET_NETDEV_DEV(repr, &priv->nn->pdev->dev);
 		nfp_net_get_mac_addr(app->pf, port);
 
 		cmsg_port_id = nfp_flower_cmsg_phys_port(phys_port);
-		err = nfp_repr_init(app, reprs->reprs[phys_port],
+		err = nfp_repr_init(app, repr,
 				    cmsg_port_id, port, priv->nn->dp.netdev);
 		if (err) {
 			nfp_port_free(port);
@@ -367,7 +374,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 					     phys_port);
 
 		nfp_info(app->cpp, "Phys Port %d Representor(%s) created\n",
-			 phys_port, reprs->reprs[phys_port]->name);
+			 phys_port, repr->name);
 	}
 
 	nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, reprs);
@@ -397,7 +404,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 err_reprs_remove:
 	reprs = nfp_app_reprs_set(app, NFP_REPR_TYPE_PHYS_PORT, NULL);
 err_reprs_clean:
-	nfp_reprs_clean_and_free(reprs);
+	nfp_reprs_clean_and_free(app, reprs);
 err_free_ctrl_skb:
 	kfree_skb(ctrl_skb);
 	return err;
@@ -558,6 +565,8 @@ static void nfp_flower_stop(struct nfp_app *app)
 const struct nfp_app_type app_flower = {
 	.id		= NFP_APP_FLOWER_NIC,
 	.name		= "flower",
+
+	.ctrl_cap_mask	= ~0U,
 	.ctrl_has_meta	= true,
 
 	.extra_cap	= nfp_flower_extra_cap,

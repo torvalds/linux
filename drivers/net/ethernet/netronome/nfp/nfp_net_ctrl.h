@@ -43,9 +43,7 @@
 #ifndef _NFP_NET_CTRL_H_
 #define _NFP_NET_CTRL_H_
 
-/* IMPORTANT: This header file is shared with the FW,
- *	      no OS specific constructs, please!
- */
+#include <linux/types.h>
 
 /**
  * Configuration BAR size.
@@ -236,6 +234,12 @@
 #define   NFP_NET_CFG_RSS_CAP_HFUNC	  0xff000000
 
 /**
+ * TLV area start
+ * %NFP_NET_CFG_TLV_BASE:	start anchor of the TLV area
+ */
+#define NFP_NET_CFG_TLV_BASE		0x0058
+
+/**
  * VXLAN/UDP encap configuration
  * %NFP_NET_CFG_VXLAN_PORT:	Base address of table of tunnels' UDP dst ports
  * %NFP_NET_CFG_VXLAN_SZ:	Size of the UDP port table in bytes
@@ -409,10 +413,13 @@
  * 4B used for update command and 4B return code
  * followed by a max of 504B of variable length value
  */
-#define NFP_NET_CFG_MBOX_CMD		0x1800
-#define NFP_NET_CFG_MBOX_RET		0x1804
-#define NFP_NET_CFG_MBOX_VAL		0x1808
+#define NFP_NET_CFG_MBOX_BASE		0x1800
 #define NFP_NET_CFG_MBOX_VAL_MAX_SZ	0x1F8
+
+#define NFP_NET_CFG_MBOX_SIMPLE_CMD	0x0
+#define NFP_NET_CFG_MBOX_SIMPLE_RET	0x4
+#define NFP_NET_CFG_MBOX_SIMPLE_VAL	0x8
+#define NFP_NET_CFG_MBOX_SIMPLE_LEN	0x12
 
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD 1
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL 2
@@ -424,9 +431,87 @@
  * %NFP_NET_CFG_VLAN_FILTER_PROTO:	VLAN proto to filter
  * %NFP_NET_CFG_VXLAN_SZ:		Size of the VLAN filter mailbox in bytes
  */
-#define NFP_NET_CFG_VLAN_FILTER		NFP_NET_CFG_MBOX_VAL
+#define NFP_NET_CFG_VLAN_FILTER		NFP_NET_CFG_MBOX_SIMPLE_VAL
 #define  NFP_NET_CFG_VLAN_FILTER_VID	NFP_NET_CFG_VLAN_FILTER
 #define  NFP_NET_CFG_VLAN_FILTER_PROTO	 (NFP_NET_CFG_VLAN_FILTER + 2)
 #define NFP_NET_CFG_VLAN_FILTER_SZ	 0x0004
+
+/**
+ * TLV capabilities
+ * %NFP_NET_CFG_TLV_TYPE:	Offset of type within the TLV
+ * %NFP_NET_CFG_TLV_TYPE_REQUIRED: Driver must be able to parse the TLV
+ * %NFP_NET_CFG_TLV_LENGTH:	Offset of length within the TLV
+ * %NFP_NET_CFG_TLV_LENGTH_INC:	TLV length increments
+ * %NFP_NET_CFG_TLV_VALUE:	Offset of value with the TLV
+ *
+ * List of simple TLV structures, first one starts at %NFP_NET_CFG_TLV_BASE.
+ * Last structure must be of type %NFP_NET_CFG_TLV_TYPE_END.  Presence of TLVs
+ * is indicated by %NFP_NET_CFG_TLV_BASE being non-zero.  TLV structures may
+ * fill the entire remainder of the BAR or be shorter.  FW must make sure TLVs
+ * don't conflict with other features which allocate space beyond
+ * %NFP_NET_CFG_TLV_BASE.  %NFP_NET_CFG_TLV_TYPE_RESERVED should be used to wrap
+ * space used by such features.
+ * Note that the 4 byte TLV header is not counted in %NFP_NET_CFG_TLV_LENGTH.
+ */
+#define NFP_NET_CFG_TLV_TYPE		0x00
+#define   NFP_NET_CFG_TLV_TYPE_REQUIRED	  0x8000
+#define NFP_NET_CFG_TLV_LENGTH		0x02
+#define   NFP_NET_CFG_TLV_LENGTH_INC	  4
+#define NFP_NET_CFG_TLV_VALUE		0x04
+
+#define NFP_NET_CFG_TLV_HEADER_REQUIRED	0x80000000
+#define NFP_NET_CFG_TLV_HEADER_TYPE	0x7fff0000
+#define NFP_NET_CFG_TLV_HEADER_LENGTH	0x0000ffff
+
+/**
+ * Capability TLV types
+ *
+ * %NFP_NET_CFG_TLV_TYPE_UNKNOWN:
+ * Special TLV type to catch bugs, should never be encountered.  Drivers should
+ * treat encountering this type as error and refuse to probe.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_RESERVED:
+ * Reserved space, may contain legacy fixed-offset fields, or be used for
+ * padding.  The use of this type should be otherwise avoided.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_END:
+ * Empty, end of TLV list.  Must be the last TLV.  Drivers will stop processing
+ * further TLVs when encountered.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_ME_FREQ:
+ * Single word, ME frequency in MHz as used in calculation for
+ * %NFP_NET_CFG_RXR_IRQ_MOD and %NFP_NET_CFG_TXR_IRQ_MOD.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_MBOX:
+ * Variable, mailbox area.  Overwrites the default location which is
+ * %NFP_NET_CFG_MBOX_BASE and length %NFP_NET_CFG_MBOX_VAL_MAX_SZ.
+ */
+#define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
+#define NFP_NET_CFG_TLV_TYPE_RESERVED		1
+#define NFP_NET_CFG_TLV_TYPE_END		2
+#define NFP_NET_CFG_TLV_TYPE_ME_FREQ		3
+#define NFP_NET_CFG_TLV_TYPE_MBOX		4
+
+struct device;
+
+/**
+ * struct nfp_net_tlv_caps - parsed control BAR TLV capabilities
+ * @me_freq_mhz:	ME clock_freq (MHz)
+ * @mbox_off:		vNIC mailbox area offset
+ * @mbox_len:		vNIC mailbox area length
+ */
+struct nfp_net_tlv_caps {
+	u32 me_freq_mhz;
+	unsigned int mbox_off;
+	unsigned int mbox_len;
+};
+
+int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
+			   struct nfp_net_tlv_caps *caps);
+
+static inline bool nfp_net_has_mbox(struct nfp_net_tlv_caps *caps)
+{
+	return caps->mbox_len >= NFP_NET_CFG_MBOX_SIMPLE_LEN;
+}
 
 #endif /* _NFP_NET_CTRL_H_ */

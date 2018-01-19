@@ -518,16 +518,15 @@ nfp_dump_csr_range(struct nfp_pf *pf, struct nfp_dumpspec_csr *spec_csr,
 	max_rd_addr = cpp_rd_addr + be32_to_cpu(spec_csr->cpp.dump_length);
 
 	while (cpp_rd_addr < max_rd_addr) {
-		if (is_xpb_read(&spec_csr->cpp.cpp_id))
-			bytes_read = nfp_xpb_readl(pf->cpp, cpp_rd_addr,
-						   (u32 *)dest);
-		else
+		if (is_xpb_read(&spec_csr->cpp.cpp_id)) {
+			err = nfp_xpb_readl(pf->cpp, cpp_rd_addr, (u32 *)dest);
+		} else {
 			bytes_read = nfp_cpp_read(pf->cpp, cpp_id, cpp_rd_addr,
 						  dest, reg_sz);
-		if (bytes_read != reg_sz) {
-			if (bytes_read >= 0)
-				bytes_read = -EIO;
-			dump_header->error = cpu_to_be32(bytes_read);
+			err = bytes_read == reg_sz ? 0 : -EIO;
+		}
+		if (err) {
+			dump_header->error = cpu_to_be32(err);
 			dump_header->error_offset = cpu_to_be32(cpp_rd_addr);
 			break;
 		}
@@ -555,8 +554,8 @@ nfp_read_indirect_csr(struct nfp_cpp *cpp,
 				   NFP_IND_ME_REFL_WR_SIG_INIT,
 				   cpp_params.token, cpp_params.island);
 	result = nfp_cpp_writel(cpp, cpp_id, csr_ctx_ptr_offs, context);
-	if (result != sizeof(context))
-		return result < 0 ? result : -EIO;
+	if (result)
+		return result;
 
 	cpp_id = nfp_get_numeric_cpp_id(&cpp_params);
 	result = nfp_cpp_read(cpp, cpp_id, csr_ctx_ptr_offs, dest, reg_sz);

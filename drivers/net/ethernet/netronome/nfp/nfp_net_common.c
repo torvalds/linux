@@ -293,9 +293,15 @@ int nfp_net_reconfig(struct nfp_net *nn, u32 update)
  */
 static int nfp_net_reconfig_mbox(struct nfp_net *nn, u32 mbox_cmd)
 {
+	u32 mbox = nn->tlv_caps.mbox_off;
 	int ret;
 
-	nn_writeq(nn, NFP_NET_CFG_MBOX_CMD, mbox_cmd);
+	if (!nfp_net_has_mbox(&nn->tlv_caps)) {
+		nn_err(nn, "no mailbox present, command: %u\n", mbox_cmd);
+		return -EIO;
+	}
+
+	nn_writeq(nn, mbox + NFP_NET_CFG_MBOX_SIMPLE_CMD, mbox_cmd);
 
 	ret = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_MBOX);
 	if (ret) {
@@ -303,7 +309,7 @@ static int nfp_net_reconfig_mbox(struct nfp_net *nn, u32 mbox_cmd)
 		return ret;
 	}
 
-	return -nn_readl(nn, NFP_NET_CFG_MBOX_RET);
+	return -nn_readl(nn, mbox + NFP_NET_CFG_MBOX_SIMPLE_RET);
 }
 
 /* Interrupt configuration and handling
@@ -2458,7 +2464,7 @@ void nfp_net_coalesce_write_cfg(struct nfp_net *nn)
 	 * ME timestamp ticks.  There are 16 ME clock cycles for each timestamp
 	 * count.
 	 */
-	factor = nn->me_freq_mhz / 16;
+	factor = nn->tlv_caps.me_freq_mhz / 16;
 
 	/* copy RX interrupt coalesce parameters */
 	value = (nn->rx_coalesce_max_frames << 16) |
@@ -3084,8 +3090,9 @@ nfp_net_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	if (!vid)
 		return 0;
 
-	nn_writew(nn, NFP_NET_CFG_VLAN_FILTER_VID, vid);
-	nn_writew(nn, NFP_NET_CFG_VLAN_FILTER_PROTO, ETH_P_8021Q);
+	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_VID, vid);
+	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_PROTO,
+		  ETH_P_8021Q);
 
 	return nfp_net_reconfig_mbox(nn, NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_ADD);
 }
@@ -3101,8 +3108,9 @@ nfp_net_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	if (!vid)
 		return 0;
 
-	nn_writew(nn, NFP_NET_CFG_VLAN_FILTER_VID, vid);
-	nn_writew(nn, NFP_NET_CFG_VLAN_FILTER_PROTO, ETH_P_8021Q);
+	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_VID, vid);
+	nn_writew(nn, nn->tlv_caps.mbox_off + NFP_NET_CFG_VLAN_FILTER_PROTO,
+		  ETH_P_8021Q);
 
 	return nfp_net_reconfig_mbox(nn, NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL);
 }
@@ -3748,18 +3756,8 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	nfp_net_set_ethtool_ops(netdev);
 }
 
-/**
- * nfp_net_init() - Initialise/finalise the nfp_net structure
- * @nn:		NFP Net device structure
- *
- * Return: 0 on success or negative errno on error.
- */
-int nfp_net_init(struct nfp_net *nn)
+static int nfp_net_read_caps(struct nfp_net *nn)
 {
-	int err;
-
-	nn->dp.rx_dma_dir = DMA_FROM_DEVICE;
-
 	/* Get some of the read-only fields from the BAR */
 	nn->cap = nn_readl(nn, NFP_NET_CFG_CAP);
 	nn->max_mtu = nn_readl(nn, NFP_NET_CFG_MAX_MTU);
@@ -3792,6 +3790,29 @@ int nfp_net_init(struct nfp_net *nn)
 		nn->dp.rx_offset = NFP_NET_RX_OFFSET;
 	}
 
+	/* For control vNICs mask out the capabilities app doesn't want. */
+	if (!nn->dp.netdev)
+		nn->cap &= nn->app->type->ctrl_cap_mask;
+
+	return 0;
+}
+
+/**
+ * nfp_net_init() - Initialise/finalise the nfp_net structure
+ * @nn:		NFP Net device structure
+ *
+ * Return: 0 on success or negative errno on error.
+ */
+int nfp_net_init(struct nfp_net *nn)
+{
+	int err;
+
+	nn->dp.rx_dma_dir = DMA_FROM_DEVICE;
+
+	err = nfp_net_read_caps(nn);
+	if (err)
+		return err;
+
 	/* Set default MTU and Freelist buffer size */
 	if (nn->max_mtu < NFP_NET_DEFAULT_MTU)
 		nn->dp.mtu = nn->max_mtu;
@@ -3814,6 +3835,11 @@ int nfp_net_init(struct nfp_net *nn)
 		nfp_net_irqmod_init(nn);
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_IRQMOD;
 	}
+
+	err = nfp_net_tlv_caps_parse(&nn->pdev->dev, nn->dp.ctrl_bar,
+				     &nn->tlv_caps);
+	if (err)
+		return err;
 
 	if (nn->dp.netdev)
 		nfp_net_netdev_init(nn);
