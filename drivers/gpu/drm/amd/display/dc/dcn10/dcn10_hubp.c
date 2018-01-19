@@ -73,6 +73,9 @@ static void hubp1_disconnect(struct hubp *hubp)
 
 	REG_UPDATE(DCHUBP_CNTL,
 			HUBP_TTU_DISABLE, 1);
+
+	REG_UPDATE(CURSOR_CONTROL,
+			CURSOR_ENABLE, 0);
 }
 
 static void hubp1_set_hubp_blank_en(struct hubp *hubp, bool blank)
