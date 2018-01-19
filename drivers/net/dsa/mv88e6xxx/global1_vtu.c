@@ -570,7 +570,7 @@ int mv88e6xxx_g1_vtu_prob_irq_setup(struct mv88e6xxx_chip *chip)
 	chip->vtu_prob_irq = irq_find_mapping(chip->g1_irq.domain,
 					      MV88E6XXX_G1_STS_IRQ_VTU_PROB);
 	if (chip->vtu_prob_irq < 0)
-		return chip->device_irq;
+		return chip->vtu_prob_irq;
 
 	err = request_threaded_irq(chip->vtu_prob_irq, NULL,
 				   mv88e6xxx_g1_vtu_prob_irq_thread_fn,

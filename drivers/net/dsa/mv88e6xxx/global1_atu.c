@@ -377,7 +377,7 @@ int mv88e6xxx_g1_atu_prob_irq_setup(struct mv88e6xxx_chip *chip)
 	chip->atu_prob_irq = irq_find_mapping(chip->g1_irq.domain,
 					      MV88E6XXX_G1_STS_IRQ_ATU_PROB);
 	if (chip->atu_prob_irq < 0)
-		return chip->device_irq;
+		return chip->atu_prob_irq;
 
 	err = request_threaded_irq(chip->atu_prob_irq, NULL,
 				   mv88e6xxx_g1_atu_prob_irq_thread_fn,
