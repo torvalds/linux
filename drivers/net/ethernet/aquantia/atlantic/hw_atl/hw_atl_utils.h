@@ -181,8 +181,13 @@ enum hal_atl_utils_fw_state_e {
 #define HAL_ATLANTIC_RATE_INVALID    BIT(6)
 
 struct aq_hw_s;
+struct aq_fw_ops;
 struct aq_hw_caps_s;
 struct aq_hw_link_status_s;
+
+int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops);
+
+int hw_atl_utils_soft_reset(struct aq_hw_s *self);
 
 void hw_atl_utils_hw_chip_features_init(struct aq_hw_s *self, u32 *p);
 
@@ -195,9 +200,6 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 void hw_atl_utils_mpi_set(struct aq_hw_s *self,
 			  enum hal_atl_utils_fw_state_e state,
 			  u32 speed);
-
-int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed,
-			       enum hal_atl_utils_fw_state_e state);
 
 int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self);
 
@@ -220,5 +222,7 @@ int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version);
 int hw_atl_utils_update_stats(struct aq_hw_s *self);
 
 struct aq_stats_s *hw_atl_utils_get_hw_stats(struct aq_hw_s *self);
+
+extern const struct aq_fw_ops aq_fw_1x_ops;
 
 #endif /* HW_ATL_UTILS_H */

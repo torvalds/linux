@@ -102,6 +102,7 @@ struct aq_stats_s {
 struct aq_hw_s {
 	atomic_t flags;
 	struct aq_nic_cfg_s *aq_nic_cfg;
+	const struct aq_fw_ops *aq_fw_ops;
 	void __iomem *mmio;
 	struct aq_hw_link_status_s aq_link_status;
 	struct hw_aq_atl_utils_mbox mbox;
@@ -121,7 +122,6 @@ struct aq_hw_s {
 
 struct aq_ring_s;
 struct aq_ring_param_s;
-struct aq_nic_cfg_s;
 struct sk_buff;
 
 struct aq_hw_ops {
@@ -138,14 +138,7 @@ struct aq_hw_ops {
 	int (*hw_ring_tx_head_update)(struct aq_hw_s *self,
 				      struct aq_ring_s *aq_ring);
 
-	int (*hw_get_mac_permanent)(struct aq_hw_s *self,
-				    u8 *mac);
-
 	int (*hw_set_mac_address)(struct aq_hw_s *self, u8 *mac_addr);
-
-	int (*hw_get_link_status)(struct aq_hw_s *self);
-
-	int (*hw_set_link_speed)(struct aq_hw_s *self, u32 speed);
 
 	int (*hw_reset)(struct aq_hw_s *self);
 
@@ -200,8 +193,6 @@ struct aq_hw_ops {
 			   const struct aq_hw_caps_s *aq_hw_caps,
 			   u32 *regs_buff);
 
-	int (*hw_update_stats)(struct aq_hw_s *self);
-
 	struct aq_stats_s *(*hw_get_hw_stats)(struct aq_hw_s *self);
 
 	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
@@ -209,6 +200,22 @@ struct aq_hw_ops {
 	int (*hw_deinit)(struct aq_hw_s *self);
 
 	int (*hw_set_power)(struct aq_hw_s *self, unsigned int power_state);
+};
+
+struct aq_fw_ops {
+	int (*init)(struct aq_hw_s *self);
+
+	int (*reset)(struct aq_hw_s *self);
+
+	int (*get_mac_permanent)(struct aq_hw_s *self, u8 *mac);
+
+	int (*set_link_speed)(struct aq_hw_s *self, u32 speed);
+
+	int (*set_state)(struct aq_hw_s *self, enum hal_atl_utils_fw_state_e state);
+
+	int (*update_link_status)(struct aq_hw_s *self);
+
+	int (*update_stats)(struct aq_hw_s *self);
 };
 
 #endif /* AQ_HW_H */

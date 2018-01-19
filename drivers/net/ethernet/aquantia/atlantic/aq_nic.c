@@ -122,7 +122,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 
 static int aq_nic_update_link_status(struct aq_nic_s *self)
 {
-	int err = self->aq_hw_ops->hw_get_link_status(self->aq_hw);
+	int err = self->aq_fw_ops->update_link_status(self->aq_hw);
 
 	if (err)
 		return err;
@@ -164,8 +164,8 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 	if (err)
 		goto err_exit;
 
-	if (self->aq_hw_ops->hw_update_stats)
-		self->aq_hw_ops->hw_update_stats(self->aq_hw);
+	if (self->aq_fw_ops->update_stats)
+		self->aq_fw_ops->update_stats(self->aq_hw);
 
 	aq_nic_update_ndev_stats(self);
 
@@ -200,7 +200,11 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 		goto err_exit;
 	}
 
-	err = self->aq_hw_ops->hw_get_mac_permanent(self->aq_hw,
+	err = hw_atl_utils_initfw(self->aq_hw, &self->aq_fw_ops);
+	if (err)
+		goto err_exit;
+
+	err = self->aq_fw_ops->get_mac_permanent(self->aq_hw,
 			    self->ndev->dev_addr);
 	if (err)
 		goto err_exit;
@@ -799,7 +803,7 @@ int aq_nic_set_link_ksettings(struct aq_nic_s *self,
 		self->aq_nic_cfg.is_autoneg = false;
 	}
 
-	err = self->aq_hw_ops->hw_set_link_speed(self->aq_hw, rate);
+	err = self->aq_fw_ops->set_link_speed(self->aq_hw, rate);
 	if (err < 0)
 		goto err_exit;
 

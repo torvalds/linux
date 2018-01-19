@@ -105,7 +105,7 @@ static int hw_atl_a0_hw_reset(struct aq_hw_s *self)
 	if (err < 0)
 		goto err_exit;
 
-	hw_atl_utils_mpi_set(self, MPI_RESET, 0x0U);
+	self->aq_fw_ops->set_state(self, MPI_RESET);
 
 	err = aq_hw_err_from_flags(self);
 
@@ -354,7 +354,8 @@ static int hw_atl_a0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 
 	hw_atl_a0_hw_mac_addr_set(self, mac_addr);
 
-	hw_atl_utils_mpi_set(self, MPI_INIT, aq_nic_cfg->link_speed_msk);
+	self->aq_fw_ops->set_link_speed(self, aq_nic_cfg->link_speed_msk);
+	self->aq_fw_ops->set_state(self, MPI_INIT);
 
 	hw_atl_reg_tx_dma_debug_ctl_set(self, 0x800000b8U);
 	hw_atl_reg_tx_dma_debug_ctl_set(self, 0x000000b8U);
@@ -365,7 +366,7 @@ static int hw_atl_a0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 
 	/* Reset link status and read out initial hardware counters */
 	self->aq_link_status.mbps = 0;
-	hw_atl_utils_update_stats(self);
+	self->aq_fw_ops->update_stats(self);
 
 	err = aq_hw_err_from_flags(self);
 	if (err < 0)
@@ -871,23 +872,8 @@ static int hw_atl_a0_hw_ring_rx_stop(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_a0_hw_set_speed(struct aq_hw_s *self, u32 speed)
-{
-	int err = 0;
-
-	err = hw_atl_utils_mpi_set_speed(self, speed, MPI_INIT);
-	if (err < 0)
-		goto err_exit;
-
-err_exit:
-	return err;
-}
-
 const struct aq_hw_ops hw_atl_ops_a0 = {
-	.hw_get_mac_permanent = hw_atl_utils_get_mac_permanent,
 	.hw_set_mac_address   = hw_atl_a0_hw_mac_addr_set,
-	.hw_get_link_status   = hw_atl_utils_mpi_get_link_status,
-	.hw_set_link_speed    = hw_atl_a0_hw_set_speed,
 	.hw_init              = hw_atl_a0_hw_init,
 	.hw_deinit            = hw_atl_utils_hw_deinit,
 	.hw_set_power         = hw_atl_utils_hw_set_power,
@@ -917,7 +903,6 @@ const struct aq_hw_ops hw_atl_ops_a0 = {
 	.hw_rss_set                  = hw_atl_a0_hw_rss_set,
 	.hw_rss_hash_set             = hw_atl_a0_hw_rss_hash_set,
 	.hw_get_regs                 = hw_atl_utils_hw_get_regs,
-	.hw_update_stats             = hw_atl_utils_update_stats,
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
 };

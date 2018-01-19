@@ -13,22 +13,48 @@
 
 #include "../aq_nic.h"
 #include "../aq_hw_utils.h"
-#include "../aq_pci_func.h"
 #include "hw_atl_utils.h"
 #include "hw_atl_llh.h"
+#include "hw_atl_llh_internal.h"
 
 #include <linux/random.h>
 
 #define HW_ATL_UCP_0X370_REG    0x0370U
 
 #define HW_ATL_FW_SM_RAM        0x2U
+#define HW_ATL_MPI_FW_VERSION	0x18
 #define HW_ATL_MPI_CONTROL_ADR  0x0368U
 #define HW_ATL_MPI_STATE_ADR    0x036CU
 
 #define HW_ATL_MPI_STATE_MSK    0x00FFU
 #define HW_ATL_MPI_STATE_SHIFT  0U
-#define HW_ATL_MPI_SPEED_MSK    0xFFFFU
+#define HW_ATL_MPI_SPEED_MSK    0xFFFF0000U
 #define HW_ATL_MPI_SPEED_SHIFT  16U
+
+#define HW_ATL_FW_VER_1X 0x01050006U
+
+static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
+
+int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
+{
+	int err = 0;
+
+	hw_atl_utils_hw_chip_features_init(self,
+					   &self->chip_features);
+
+	hw_atl_utils_get_fw_version(self, &self->fw_ver_actual);
+
+	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X, self->fw_ver_actual) == 0)
+		*fw_ops = &aq_fw_1x_ops;
+	else {
+		aq_pr_err("Bad FW version detected: %x\n",
+		       self->fw_ver_actual);
+		return -EOPNOTSUPP;
+	}
+	self->aq_fw_ops = *fw_ops;
+	err = self->aq_fw_ops->init(self);
+	return err;
+}
 
 static int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 					 u32 *p, u32 cnt)
@@ -137,14 +163,6 @@ static int hw_atl_utils_init_ucp(struct aq_hw_s *self,
 	AQ_HW_WAIT_FOR(0U != (self->mbox_addr =
 			aq_hw_read_reg(self, 0x360U)), 1000U, 10U);
 
-	err = hw_atl_utils_ver_match(aq_hw_caps->fw_ver_expected,
-				     aq_hw_read_reg(self, 0x18U));
-
-	if (err < 0)
-		pr_err("%s: Bad FW version detected: expected=%x, actual=%x\n",
-		       AQ_CFG_DRV_NAME,
-		       aq_hw_caps->fw_ver_expected,
-		       aq_hw_read_reg(self, 0x18U));
 	return err;
 }
 
@@ -286,19 +304,19 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 err_exit:;
 }
 
-int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed,
-			       enum hal_atl_utils_fw_state_e state)
+int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed)
 {
-	u32 ucp_0x368 = 0;
+	u32 val = aq_hw_read_reg(self, HW_ATL_MPI_CONTROL_ADR);
 
-	ucp_0x368 = (speed << HW_ATL_MPI_SPEED_SHIFT) | state;
-	aq_hw_write_reg(self, HW_ATL_MPI_CONTROL_ADR, ucp_0x368);
+	val = (val & HW_ATL_MPI_STATE_MSK) | (speed << HW_ATL_MPI_SPEED_SHIFT);
+	aq_hw_write_reg(self, HW_ATL_MPI_CONTROL_ADR, val);
 
 	return 0;
 }
 
 void hw_atl_utils_mpi_set(struct aq_hw_s *self,
-			  enum hal_atl_utils_fw_state_e state, u32 speed)
+			  enum hal_atl_utils_fw_state_e state,
+			  u32 speed)
 {
 	int err = 0;
 	u32 transaction_id = 0;
@@ -317,9 +335,20 @@ void hw_atl_utils_mpi_set(struct aq_hw_s *self,
 			goto err_exit;
 	}
 
-	err = hw_atl_utils_mpi_set_speed(self, speed, state);
+	aq_hw_write_reg(self, HW_ATL_MPI_CONTROL_ADR,
+			(speed << HW_ATL_MPI_SPEED_SHIFT) | state);
 
 err_exit:;
+}
+
+static int hw_atl_utils_mpi_set_state(struct aq_hw_s *self,
+				      enum hal_atl_utils_fw_state_e state)
+{
+	u32 val = aq_hw_read_reg(self, HW_ATL_MPI_CONTROL_ADR);
+
+	val = state | (val & HW_ATL_MPI_SPEED_MSK);
+	aq_hw_write_reg(self, HW_ATL_MPI_CONTROL_ADR, val);
+	return 0;
 }
 
 int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self)
@@ -369,13 +398,6 @@ int hw_atl_utils_get_mac_permanent(struct aq_hw_s *self,
 	u32 l = 0U;
 	u32 mac_addr[2];
 
-	hw_atl_utils_hw_chip_features_init(self,
-					   &self->chip_features);
-
-	err = hw_atl_utils_mpi_create(self);
-	if (err < 0)
-		goto err_exit;
-
 	if (!aq_hw_read_reg(self, HW_ATL_UCP_0X370_REG)) {
 		unsigned int rnd = 0;
 		unsigned int ucp_0x370 = 0;
@@ -421,7 +443,6 @@ int hw_atl_utils_get_mac_permanent(struct aq_hw_s *self,
 		mac[0] = (u8)(0xFFU & h);
 	}
 
-err_exit:
 	return err;
 }
 
@@ -578,3 +599,13 @@ int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version)
 	*fw_version = aq_hw_read_reg(self, 0x18U);
 	return 0;
 }
+
+const struct aq_fw_ops aq_fw_1x_ops = {
+	.init = hw_atl_utils_mpi_create,
+	.reset = NULL,
+	.get_mac_permanent = hw_atl_utils_get_mac_permanent,
+	.set_link_speed = hw_atl_utils_mpi_set_speed,
+	.set_state = hw_atl_utils_mpi_set_state,
+	.update_link_status = hw_atl_utils_mpi_get_link_status,
+	.update_stats = hw_atl_utils_update_stats,
+};
