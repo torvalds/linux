@@ -5819,6 +5819,75 @@ static void hclge_get_regs(struct hnae3_handle *handle, u32 *version,
 			"Get 64 bit register failed, ret = %d.\n", ret);
 }
 
+static int hclge_set_led_status_sfp(struct hclge_dev *hdev, u8 speed_led_status,
+				    u8 act_led_status, u8 link_led_status,
+				    u8 locate_led_status)
+{
+	struct hclge_set_led_state_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_LED_STATUS_CFG, false);
+
+	req = (struct hclge_set_led_state_cmd *)desc.data;
+	hnae_set_field(req->port_speed_led_config, HCLGE_LED_PORT_SPEED_STATE_M,
+		       HCLGE_LED_PORT_SPEED_STATE_S, speed_led_status);
+	hnae_set_field(req->link_led_config, HCLGE_LED_ACTIVITY_STATE_M,
+		       HCLGE_LED_ACTIVITY_STATE_S, act_led_status);
+	hnae_set_field(req->activity_led_config, HCLGE_LED_LINK_STATE_M,
+		       HCLGE_LED_LINK_STATE_S, link_led_status);
+	hnae_set_field(req->locate_led_config, HCLGE_LED_LOCATE_STATE_M,
+		       HCLGE_LED_LOCATE_STATE_S, locate_led_status);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"Send set led state cmd error, ret =%d\n", ret);
+
+	return ret;
+}
+
+enum hclge_led_status {
+	HCLGE_LED_OFF,
+	HCLGE_LED_ON,
+	HCLGE_LED_NO_CHANGE = 0xFF,
+};
+
+static int hclge_set_led_id(struct hnae3_handle *handle,
+			    enum ethtool_phys_id_state status)
+{
+#define BLINK_FREQUENCY		2
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+	int ret = 0;
+
+	if (phydev || hdev->hw.mac.media_type != HNAE3_MEDIA_TYPE_FIBER)
+		return -EOPNOTSUPP;
+
+	switch (status) {
+	case ETHTOOL_ID_ACTIVE:
+		ret = hclge_set_led_status_sfp(hdev,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_ON);
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		ret = hclge_set_led_status_sfp(hdev,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_OFF);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -5872,6 +5941,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_flowctrl_adv = hclge_get_flowctrl_adv,
 	.get_regs_len = hclge_get_regs_len,
 	.get_regs = hclge_get_regs,
+	.set_led_id = hclge_set_led_id,
 };
 
 static struct hnae3_ae_algo ae_algo = {
