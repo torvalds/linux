@@ -58,8 +58,6 @@
 
 #include "nf_internals.h"
 
-#define NF_CONNTRACK_VERSION	"0.5.0"
-
 int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
 				      enum nf_nat_manip_type manip,
 				      const struct nlattr *attr) __read_mostly;
@@ -2067,10 +2065,6 @@ int nf_conntrack_init_start(void)
 						SLAB_TYPESAFE_BY_RCU | SLAB_HWCACHE_ALIGN, NULL);
 	if (!nf_conntrack_cachep)
 		goto err_cachep;
-
-	printk(KERN_INFO "nf_conntrack version %s (%u buckets, %d max)\n",
-	       NF_CONNTRACK_VERSION, nf_conntrack_htable_size,
-	       nf_conntrack_max);
 
 	ret = nf_conntrack_expect_init();
 	if (ret < 0)
