@@ -1353,7 +1353,6 @@ static int marvell_nfc_hw_ecc_bch_write_page_raw(struct mtd_info *mtd,
 	int data_len = lt->data_bytes;
 	int spare_len = lt->spare_bytes;
 	int ecc_len = lt->ecc_bytes;
-	int oob_len = spare_len + ecc_len;
 	int spare_offset = 0;
 	int ecc_offset = (lt->full_chunk_cnt * lt->spare_bytes) +
 		lt->last_spare_bytes;
@@ -1366,7 +1365,6 @@ static int marvell_nfc_hw_ecc_bch_write_page_raw(struct mtd_info *mtd,
 			data_len = lt->last_data_bytes;
 			spare_len = lt->last_spare_bytes;
 			ecc_len = lt->last_ecc_bytes;
-			oob_len = spare_len + ecc_len;
 		}
 
 		/* Point to the column of the next chunk */
