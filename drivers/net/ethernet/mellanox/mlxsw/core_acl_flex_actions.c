@@ -559,6 +559,53 @@ err_fwd_entry_get:
 	return ERR_PTR(err);
 }
 
+struct mlxsw_afa_counter {
+	struct mlxsw_afa_resource resource;
+	u32 counter_index;
+};
+
+static void
+mlxsw_afa_counter_destroy(struct mlxsw_afa_block *block,
+			  struct mlxsw_afa_counter *counter)
+{
+	block->afa->ops->counter_index_put(block->afa->ops_priv,
+					   counter->counter_index);
+	kfree(counter);
+}
+
+static void
+mlxsw_afa_counter_destructor(struct mlxsw_afa_block *block,
+			     struct mlxsw_afa_resource *resource)
+{
+	struct mlxsw_afa_counter *counter;
+
+	counter = container_of(resource, struct mlxsw_afa_counter, resource);
+	mlxsw_afa_counter_destroy(block, counter);
+}
+
+static struct mlxsw_afa_counter *
+mlxsw_afa_counter_create(struct mlxsw_afa_block *block)
+{
+	struct mlxsw_afa_counter *counter;
+	int err;
+
+	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	if (!counter)
+		return ERR_PTR(-ENOMEM);
+
+	err = block->afa->ops->counter_index_get(block->afa->ops_priv,
+						 &counter->counter_index);
+	if (err)
+		goto err_counter_index_get;
+	counter->resource.destructor = mlxsw_afa_counter_destructor;
+	mlxsw_afa_resource_add(block, &counter->resource);
+	return counter;
+
+err_counter_index_get:
+	kfree(counter);
+	return ERR_PTR(err);
+}
+
 #define MLXSW_AFA_ONE_ACTION_LEN 32
 #define MLXSW_AFA_PAYLOAD_OFFSET 4
 
@@ -876,17 +923,42 @@ mlxsw_afa_polcnt_pack(char *payload,
 	mlxsw_afa_polcnt_counter_index_set(payload, counter_index);
 }
 
-int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
-				   u32 counter_index)
+int mlxsw_afa_block_append_allocated_counter(struct mlxsw_afa_block *block,
+					     u32 counter_index)
 {
-	char *act = mlxsw_afa_block_append_action(block,
-						  MLXSW_AFA_POLCNT_CODE,
+	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_POLCNT_CODE,
 						  MLXSW_AFA_POLCNT_SIZE);
 	if (!act)
 		return -ENOBUFS;
 	mlxsw_afa_polcnt_pack(act, MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_PACKETS_BYTES,
 			      counter_index);
 	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_allocated_counter);
+
+int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
+				   u32 *p_counter_index)
+{
+	struct mlxsw_afa_counter *counter;
+	u32 counter_index;
+	int err;
+
+	counter = mlxsw_afa_counter_create(block);
+	if (IS_ERR(counter))
+		return PTR_ERR(counter);
+	counter_index = counter->counter_index;
+
+	err = mlxsw_afa_block_append_allocated_counter(block, counter_index);
+	if (err)
+		goto err_append_allocated_counter;
+
+	if (p_counter_index)
+		*p_counter_index = counter_index;
+	return 0;
+
+err_append_allocated_counter:
+	mlxsw_afa_counter_destroy(block, counter);
+	return err;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_counter);
 

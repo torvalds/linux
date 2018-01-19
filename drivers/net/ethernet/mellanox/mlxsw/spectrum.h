@@ -457,7 +457,6 @@ struct mlxsw_sp_acl_rule_info {
 	struct mlxsw_afk_element_values values;
 	struct mlxsw_afa_block *act_block;
 	unsigned int counter_index;
-	bool counter_valid;
 };
 
 enum mlxsw_sp_acl_profile {
