@@ -4946,6 +4946,8 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 		goto err1;
 	}
 
+	flowtable->hooknum	= hooknum;
+	flowtable->priority	= priority;
 	flowtable->ops		= ops;
 	flowtable->ops_len	= n;
 
