@@ -26,4 +26,9 @@ struct sha3_state {
 	u8		buf[SHA3_224_BLOCK_SIZE];
 };
 
+int crypto_sha3_init(struct shash_desc *desc);
+int crypto_sha3_update(struct shash_desc *desc, const u8 *data,
+		       unsigned int len);
+int crypto_sha3_final(struct shash_desc *desc, u8 *out);
+
 #endif
