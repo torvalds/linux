@@ -1785,7 +1785,7 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 	 * RCU or SRCU read lock is needed before checking quiesced flag.
 	 *
 	 * When queue is stopped or quiesced, ignore 'bypass_insert' from
-	 * blk_mq_request_direct_issue(), and return BLK_STS_OK to caller,
+	 * blk_mq_request_issue_directly(), and return BLK_STS_OK to caller,
 	 * and avoid driver to try to dispatch again.
 	 */
 	if (blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(q)) {
@@ -1833,7 +1833,7 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 	hctx_unlock(hctx, srcu_idx);
 }
 
-blk_status_t blk_mq_request_direct_issue(struct request *rq)
+blk_status_t blk_mq_request_issue_directly(struct request *rq)
 {
 	blk_status_t ret;
 	int srcu_idx;
