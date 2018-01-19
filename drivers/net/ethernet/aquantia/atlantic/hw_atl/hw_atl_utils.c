@@ -32,6 +32,8 @@
 #define HW_ATL_MPI_SPEED_SHIFT  16U
 
 #define HW_ATL_FW_VER_1X 0x01050006U
+#define HW_ATL_FW_VER_2X 0x02000000U
+#define HW_ATL_FW_VER_3X 0x03000000U
 
 static int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
 
@@ -46,6 +48,12 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 
 	if (hw_atl_utils_ver_match(HW_ATL_FW_VER_1X, self->fw_ver_actual) == 0)
 		*fw_ops = &aq_fw_1x_ops;
+	else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_2X,
+					self->fw_ver_actual) == 0)
+		*fw_ops = &aq_fw_2x_ops;
+	else if (hw_atl_utils_ver_match(HW_ATL_FW_VER_3X,
+					self->fw_ver_actual) == 0)
+		*fw_ops = &aq_fw_2x_ops;
 	else {
 		aq_pr_err("Bad FW version detected: %x\n",
 		       self->fw_ver_actual);
@@ -56,8 +64,8 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 	return err;
 }
 
-static int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
-					 u32 *p, u32 cnt)
+int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
+				  u32 *p, u32 cnt)
 {
 	int err = 0;
 

@@ -163,7 +163,7 @@ struct __packed hw_aq_atl_utils_mbox {
 #define HAL_ATLANTIC_UTILS_CHIP_REVISION_B0  0x02000000U
 
 #define IS_CHIP_FEATURE(_F_) (HAL_ATLANTIC_UTILS_CHIP_##_F_ & \
-				self->chip_features)
+	self->chip_features)
 
 enum hal_atl_utils_fw_state_e {
 	MPI_DEINIT = 0,
@@ -179,6 +179,64 @@ enum hal_atl_utils_fw_state_e {
 #define HAL_ATLANTIC_RATE_1G         BIT(4)
 #define HAL_ATLANTIC_RATE_100M       BIT(5)
 #define HAL_ATLANTIC_RATE_INVALID    BIT(6)
+
+enum hw_atl_fw2x_rate {
+	FW2X_RATE_100M    = 0x20,
+	FW2X_RATE_1G      = 0x100,
+	FW2X_RATE_2G5     = 0x200,
+	FW2X_RATE_5G      = 0x400,
+	FW2X_RATE_10G     = 0x800,
+};
+
+enum hw_atl_fw2x_caps_lo {
+	CAPS_LO_10BASET_HD = 0x00,
+	CAPS_LO_10BASET_FD,
+	CAPS_LO_100BASETX_HD,
+	CAPS_LO_100BASET4_HD,
+	CAPS_LO_100BASET2_HD,
+	CAPS_LO_100BASETX_FD,
+	CAPS_LO_100BASET2_FD,
+	CAPS_LO_1000BASET_HD,
+	CAPS_LO_1000BASET_FD,
+	CAPS_LO_2P5GBASET_FD,
+	CAPS_LO_5GBASET_FD,
+	CAPS_LO_10GBASET_FD,
+};
+
+enum hw_atl_fw2x_caps_hi {
+	CAPS_HI_RESERVED1 = 0x00,
+	CAPS_HI_10BASET_EEE,
+	CAPS_HI_RESERVED2,
+	CAPS_HI_PAUSE,
+	CAPS_HI_ASYMMETRIC_PAUSE,
+	CAPS_HI_100BASETX_EEE,
+	CAPS_HI_RESERVED3,
+	CAPS_HI_RESERVED4,
+	CAPS_HI_1000BASET_FD_EEE,
+	CAPS_HI_2P5GBASET_FD_EEE,
+	CAPS_HI_5GBASET_FD_EEE,
+	CAPS_HI_10GBASET_FD_EEE,
+	CAPS_HI_RESERVED5,
+	CAPS_HI_RESERVED6,
+	CAPS_HI_RESERVED7,
+	CAPS_HI_RESERVED8,
+	CAPS_HI_RESERVED9,
+	CAPS_HI_CABLE_DIAG,
+	CAPS_HI_TEMPERATURE,
+	CAPS_HI_DOWNSHIFT,
+	CAPS_HI_PTP_AVB_EN,
+	CAPS_HI_MEDIA_DETECT,
+	CAPS_HI_LINK_DROP,
+	CAPS_HI_SLEEP_PROXY,
+	CAPS_HI_WOL,
+	CAPS_HI_MAC_STOP,
+	CAPS_HI_EXT_LOOPBACK,
+	CAPS_HI_INT_LOOPBACK,
+	CAPS_HI_EFUSE_AGENT,
+	CAPS_HI_WOL_TIMER,
+	CAPS_HI_STATISTICS,
+	CAPS_HI_TRANSACTION_ID,
+};
 
 struct aq_hw_s;
 struct aq_fw_ops;
@@ -222,7 +280,10 @@ int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version);
 int hw_atl_utils_update_stats(struct aq_hw_s *self);
 
 struct aq_stats_s *hw_atl_utils_get_hw_stats(struct aq_hw_s *self);
+int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
+				  u32 *p, u32 cnt);
 
 extern const struct aq_fw_ops aq_fw_1x_ops;
+extern const struct aq_fw_ops aq_fw_2x_ops;
 
 #endif /* HW_ATL_UTILS_H */

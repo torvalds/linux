@@ -42,7 +42,6 @@ struct aq_hw_caps_s {
 	u8 rx_rings;
 	bool flow_control;
 	bool is_64_dma;
-	u32 fw_ver_expected;
 };
 
 struct aq_hw_link_status_s {
