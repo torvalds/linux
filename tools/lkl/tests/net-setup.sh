@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 TEST_TAP_IFNAME=lkl_test_tap
 TEST_IP_NETWORK=192.168.113.0

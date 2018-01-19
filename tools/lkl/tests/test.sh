@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
 basedir=$(cd $script_dir/..; pwd)
@@ -163,7 +163,7 @@ adb_push()
         adb shell mkdir -p $ANDROID_WDIR/$dir
 
         if [ "$type" = "script" ]; then
-            sed "s/\/bin\/bash/\/system\/bin\/sh/" $basedir/$1 | \
+            sed "s/\/usr\/bin\/env bash/\/system\/bin\/sh/" $basedir/$1 | \
                 adb shell cat \> $ANDROID_WDIR/$1
             adb shell chmod a+x $ANDROID_WDIR/$1
         else
