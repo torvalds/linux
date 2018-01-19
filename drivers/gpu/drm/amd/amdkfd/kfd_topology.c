@@ -677,7 +677,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	}
 
 	/* All hardware blocks have the same number of attributes. */
-	num_attrs = sizeof(perf_attr_iommu)/sizeof(struct kfd_perf_attr);
+	num_attrs = ARRAY_SIZE(perf_attr_iommu);
 	list_for_each_entry(perf, &dev->perf_props, list) {
 		perf->attr_group = kzalloc(sizeof(struct kfd_perf_attr)
 			* num_attrs + sizeof(struct attribute_group),
