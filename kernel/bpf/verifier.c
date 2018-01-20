@@ -4810,7 +4810,8 @@ process_bpf_exit:
 		insn_idx++;
 	}
 
-	verbose(env, "processed %d insns, stack depth ", insn_processed);
+	verbose(env, "processed %d insns (limit %d), stack depth ",
+		insn_processed, BPF_COMPLEXITY_LIMIT_INSNS);
 	for (i = 0; i < env->subprog_cnt + 1; i++) {
 		u32 depth = env->subprog_stack_depth[i];
 
