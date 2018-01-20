@@ -57,6 +57,7 @@ enum ceph_osd_data_type {
 #ifdef CONFIG_BLOCK
 	CEPH_OSD_DATA_TYPE_BIO,
 #endif /* CONFIG_BLOCK */
+	CEPH_OSD_DATA_TYPE_BVECS,
 };
 
 struct ceph_osd_data {
@@ -76,6 +77,7 @@ struct ceph_osd_data {
 			u32			bio_length;
 		};
 #endif /* CONFIG_BLOCK */
+		struct ceph_bvec_iter	bvec_pos;
 	};
 };
 
@@ -410,6 +412,9 @@ void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *osd_req,
 				    struct ceph_bio_iter *bio_pos,
 				    u32 bio_length);
 #endif /* CONFIG_BLOCK */
+void osd_req_op_extent_osd_data_bvec_pos(struct ceph_osd_request *osd_req,
+					 unsigned int which,
+					 struct ceph_bvec_iter *bvec_pos);
 
 extern void osd_req_op_cls_request_data_pagelist(struct ceph_osd_request *,
 					unsigned int which,
@@ -419,6 +424,9 @@ extern void osd_req_op_cls_request_data_pages(struct ceph_osd_request *,
 					struct page **pages, u64 length,
 					u32 alignment, bool pages_from_pool,
 					bool own_pages);
+void osd_req_op_cls_request_data_bvecs(struct ceph_osd_request *osd_req,
+				       unsigned int which,
+				       struct bio_vec *bvecs, u32 bytes);
 extern void osd_req_op_cls_response_data_pages(struct ceph_osd_request *,
 					unsigned int which,
 					struct page **pages, u64 length,
