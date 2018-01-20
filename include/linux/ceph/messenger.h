@@ -93,14 +93,60 @@ static __inline__ bool ceph_msg_data_type_valid(enum ceph_msg_data_type type)
 	}
 }
 
+#ifdef CONFIG_BLOCK
+
+struct ceph_bio_iter {
+	struct bio *bio;
+	struct bvec_iter iter;
+};
+
+#define __ceph_bio_iter_advance_step(it, n, STEP) do {			      \
+	unsigned int __n = (n), __cur_n;				      \
+									      \
+	while (__n) {							      \
+		BUG_ON(!(it)->iter.bi_size);				      \
+		__cur_n = min((it)->iter.bi_size, __n);			      \
+		(void)(STEP);						      \
+		bio_advance_iter((it)->bio, &(it)->iter, __cur_n);	      \
+		if (!(it)->iter.bi_size && (it)->bio->bi_next) {	      \
+			dout("__ceph_bio_iter_advance_step next bio\n");      \
+			(it)->bio = (it)->bio->bi_next;			      \
+			(it)->iter = (it)->bio->bi_iter;		      \
+		}							      \
+		__n -= __cur_n;						      \
+	}								      \
+} while (0)
+
+/*
+ * Advance @it by @n bytes.
+ */
+#define ceph_bio_iter_advance(it, n)					      \
+	__ceph_bio_iter_advance_step(it, n, 0)
+
+/*
+ * Advance @it by @n bytes, executing BVEC_STEP for each bio_vec.
+ */
+#define ceph_bio_iter_advance_step(it, n, BVEC_STEP)			      \
+	__ceph_bio_iter_advance_step(it, n, ({				      \
+		struct bio_vec bv;					      \
+		struct bvec_iter __cur_iter;				      \
+									      \
+		__cur_iter = (it)->iter;				      \
+		__cur_iter.bi_size = __cur_n;				      \
+		__bio_for_each_segment(bv, (it)->bio, __cur_iter, __cur_iter) \
+			(void)(BVEC_STEP);				      \
+	}))
+
+#endif /* CONFIG_BLOCK */
+
 struct ceph_msg_data {
 	struct list_head		links;	/* ceph_msg->data */
 	enum ceph_msg_data_type		type;
 	union {
 #ifdef CONFIG_BLOCK
 		struct {
-			struct bio	*bio;
-			size_t		bio_length;
+			struct ceph_bio_iter	bio_pos;
+			u32			bio_length;
 		};
 #endif /* CONFIG_BLOCK */
 		struct {
@@ -122,10 +168,7 @@ struct ceph_msg_data_cursor {
 	bool			need_crc;	/* crc update needed */
 	union {
 #ifdef CONFIG_BLOCK
-		struct {				/* bio */
-			struct bio	*bio;		/* bio from list */
-			struct bvec_iter bvec_iter;
-		};
+		struct ceph_bio_iter	bio_iter;
 #endif /* CONFIG_BLOCK */
 		struct {				/* pages */
 			unsigned int	page_offset;	/* offset in page */
@@ -290,8 +333,8 @@ extern void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
 extern void ceph_msg_data_add_pagelist(struct ceph_msg *msg,
 				struct ceph_pagelist *pagelist);
 #ifdef CONFIG_BLOCK
-extern void ceph_msg_data_add_bio(struct ceph_msg *msg, struct bio *bio,
-				size_t length);
+void ceph_msg_data_add_bio(struct ceph_msg *msg, struct ceph_bio_iter *bio_pos,
+			   u32 length);
 #endif /* CONFIG_BLOCK */
 
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,

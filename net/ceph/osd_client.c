@@ -146,10 +146,11 @@ static void ceph_osd_data_pagelist_init(struct ceph_osd_data *osd_data,
 
 #ifdef CONFIG_BLOCK
 static void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
-			struct bio *bio, size_t bio_length)
+				   struct ceph_bio_iter *bio_pos,
+				   u32 bio_length)
 {
 	osd_data->type = CEPH_OSD_DATA_TYPE_BIO;
-	osd_data->bio = bio;
+	osd_data->bio_pos = *bio_pos;
 	osd_data->bio_length = bio_length;
 }
 #endif /* CONFIG_BLOCK */
@@ -216,12 +217,14 @@ EXPORT_SYMBOL(osd_req_op_extent_osd_data_pagelist);
 
 #ifdef CONFIG_BLOCK
 void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *osd_req,
-			unsigned int which, struct bio *bio, size_t bio_length)
+				    unsigned int which,
+				    struct ceph_bio_iter *bio_pos,
+				    u32 bio_length)
 {
 	struct ceph_osd_data *osd_data;
 
 	osd_data = osd_req_op_data(osd_req, which, extent, osd_data);
-	ceph_osd_data_bio_init(osd_data, bio, bio_length);
+	ceph_osd_data_bio_init(osd_data, bio_pos, bio_length);
 }
 EXPORT_SYMBOL(osd_req_op_extent_osd_data_bio);
 #endif /* CONFIG_BLOCK */
@@ -826,7 +829,7 @@ static void ceph_osdc_msg_data_add(struct ceph_msg *msg,
 		ceph_msg_data_add_pagelist(msg, osd_data->pagelist);
 #ifdef CONFIG_BLOCK
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
-		ceph_msg_data_add_bio(msg, osd_data->bio, length);
+		ceph_msg_data_add_bio(msg, &osd_data->bio_pos, length);
 #endif
 	} else {
 		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);
