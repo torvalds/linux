@@ -375,8 +375,15 @@ struct mlx5_eq_pagefault {
 	mempool_t		*pool;
 };
 
+struct mlx5_cq_table {
+	/* protect radix tree */
+	spinlock_t		lock;
+	struct radix_tree_root	tree;
+};
+
 struct mlx5_eq {
 	struct mlx5_core_dev   *dev;
+	struct mlx5_cq_table	cq_table;
 	__be32 __iomem	       *doorbell;
 	u32			cons_index;
 	struct mlx5_buf		buf;
@@ -526,13 +533,6 @@ struct mlx5_core_health {
 	struct delayed_work		recover_work;
 };
 
-struct mlx5_cq_table {
-	/* protect radix tree
-	 */
-	spinlock_t		lock;
-	struct radix_tree_root	tree;
-};
-
 struct mlx5_qp_table {
 	/* protect radix tree
 	 */
@@ -653,10 +653,6 @@ struct mlx5_priv {
 	struct dentry	       *cq_debugfs;
 	struct dentry	       *cmdif_debugfs;
 	/* end: qp staff */
-
-	/* start: cq staff */
-	struct mlx5_cq_table	cq_table;
-	/* end: cq staff */
 
 	/* start: mkey staff */
 	struct mlx5_mkey_table	mkey_table;
@@ -1053,12 +1049,12 @@ int mlx5_eq_init(struct mlx5_core_dev *dev);
 void mlx5_eq_cleanup(struct mlx5_core_dev *dev);
 void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas);
 void mlx5_fill_page_frag_array(struct mlx5_frag_buf *frag_buf, __be64 *pas);
-void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
+void mlx5_cq_completion(struct mlx5_eq *eq, u32 cqn);
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
 void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool forced);
-void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
+void mlx5_cq_event(struct mlx5_eq *eq, u32 cqn, int event_type);
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name,
 		       enum mlx5_eq_type type);

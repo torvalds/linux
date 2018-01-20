@@ -415,7 +415,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 		switch (eqe->type) {
 		case MLX5_EVENT_TYPE_COMP:
 			cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
-			mlx5_cq_completion(dev, cqn);
+			mlx5_cq_completion(eq, cqn);
 			break;
 		case MLX5_EVENT_TYPE_DCT_DRAINED:
 			rsn = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
@@ -472,7 +472,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			cqn = be32_to_cpu(eqe->data.cq_err.cqn) & 0xffffff;
 			mlx5_core_warn(dev, "CQ error on CQN 0x%x, syndrome 0x%x\n",
 				       cqn, eqe->data.cq_err.syndrome);
-			mlx5_cq_event(dev, cqn, eqe->type);
+			mlx5_cq_event(eq, cqn, eqe->type);
 			break;
 
 		case MLX5_EVENT_TYPE_PAGE_REQUEST:
@@ -567,6 +567,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name,
 		       enum mlx5_eq_type type)
 {
+	struct mlx5_cq_table *cq_table = &eq->cq_table;
 	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
 	irq_handler_t handler;
@@ -575,6 +576,11 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	int inlen;
 	u32 *in;
 	int err;
+
+	/* Init CQ table */
+	memset(cq_table, 0, sizeof(*cq_table));
+	spin_lock_init(&cq_table->lock);
+	INIT_RADIX_TREE(&cq_table->tree, GFP_ATOMIC);
 
 	eq->type = type;
 	eq->nent = roundup_pow_of_two(nent + MLX5_NUM_SPARE_EQE);
