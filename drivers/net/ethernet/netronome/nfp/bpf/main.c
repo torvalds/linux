@@ -54,7 +54,7 @@ static bool nfp_net_ebpf_capable(struct nfp_net *nn)
 
 static int
 nfp_bpf_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
-		    struct bpf_prog *prog)
+		    struct bpf_prog *prog, struct netlink_ext_ack *extack)
 {
 	bool running, xdp_running;
 	int ret;
@@ -73,7 +73,7 @@ nfp_bpf_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 	ret = nfp_net_bpf_offload(nn, prog, running);
 	/* Stop offload if replace not possible */
 	if (ret && prog)
-		nfp_bpf_xdp_offload(app, nn, NULL);
+		nfp_bpf_xdp_offload(app, nn, NULL, extack);
 
 	nn->dp.bpf_offload_xdp = prog && !ret;
 	return ret;

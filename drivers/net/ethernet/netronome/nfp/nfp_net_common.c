@@ -3403,7 +3403,7 @@ nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog, u32 flags,
 	if (err)
 		return err;
 
-	err = nfp_app_xdp_offload(nn->app, nn, offload_prog);
+	err = nfp_app_xdp_offload(nn->app, nn, offload_prog, extack);
 	if (err && flags & XDP_FLAGS_HW_MODE)
 		return err;
 
