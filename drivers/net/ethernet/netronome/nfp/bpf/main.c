@@ -70,7 +70,7 @@ nfp_bpf_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 	if (prog && running && !xdp_running)
 		return -EBUSY;
 
-	ret = nfp_net_bpf_offload(nn, prog, running);
+	ret = nfp_net_bpf_offload(nn, prog, running, extack);
 	/* Stop offload if replace not possible */
 	if (ret && prog)
 		nfp_bpf_xdp_offload(app, nn, NULL, extack);
@@ -125,17 +125,31 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	struct nfp_bpf_vnic *bv;
 	int err;
 
-	if (type != TC_SETUP_CLSBPF ||
-	    !tc_can_offload(nn->dp.netdev) ||
-	    !nfp_net_ebpf_capable(nn) ||
-	    cls_bpf->common.protocol != htons(ETH_P_ALL) ||
-	    cls_bpf->common.chain_index)
+	if (type != TC_SETUP_CLSBPF) {
+		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
+				   "only offload of BPF classifiers supported");
+		return -EOPNOTSUPP;
+	}
+	if (!tc_can_offload_extack(nn->dp.netdev, cls_bpf->common.extack))
+		return -EOPNOTSUPP;
+	if (!nfp_net_ebpf_capable(nn)) {
+		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
+				   "NFP firmware does not support eBPF offload");
+		return -EOPNOTSUPP;
+	}
+	if (cls_bpf->common.protocol != htons(ETH_P_ALL)) {
+		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
+				   "only ETH_P_ALL supported as filter protocol");
+		return -EOPNOTSUPP;
+	}
+	if (cls_bpf->common.chain_index)
 		return -EOPNOTSUPP;
 
 	/* Only support TC direct action */
 	if (!cls_bpf->exts_integrated ||
 	    tcf_exts_has_actions(cls_bpf->exts)) {
-		nn_err(nn, "only direct action with no legacy actions supported\n");
+		NL_SET_ERR_MSG_MOD(cls_bpf->common.extack,
+				   "only direct action with no legacy actions supported");
 		return -EOPNOTSUPP;
 	}
 
@@ -152,7 +166,8 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 			return 0;
 	}
 
-	err = nfp_net_bpf_offload(nn, cls_bpf->prog, oldprog);
+	err = nfp_net_bpf_offload(nn, cls_bpf->prog, oldprog,
+				  cls_bpf->common.extack);
 	if (err)
 		return err;
 

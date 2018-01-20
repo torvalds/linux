@@ -281,7 +281,9 @@ int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn, struct netdev_bpf *bpf)
 	}
 }
 
-static int nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog)
+static int
+nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
+		 struct netlink_ext_ack *extack)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 	unsigned int max_mtu;
@@ -291,7 +293,7 @@ static int nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog)
 
 	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
 	if (max_mtu < nn->dp.netdev->mtu) {
-		nn_info(nn, "BPF offload not supported with MTU larger than HW packet split boundary\n");
+		NL_SET_ERR_MSG_MOD(extack, "BPF offload not supported with MTU larger than HW packet split boundary");
 		return -EOPNOTSUPP;
 	}
 
@@ -313,7 +315,8 @@ static int nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog)
 	/* Load up the JITed code */
 	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_BPF);
 	if (err)
-		nn_err(nn, "FW command error while loading BPF: %d\n", err);
+		NL_SET_ERR_MSG_MOD(extack,
+				   "FW command error while loading BPF");
 
 	dma_unmap_single(nn->dp.dev, dma_addr, nfp_prog->prog_len * sizeof(u64),
 			 DMA_TO_DEVICE);
@@ -322,7 +325,8 @@ static int nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog)
 	return err;
 }
 
-static void nfp_net_bpf_start(struct nfp_net *nn)
+static void
+nfp_net_bpf_start(struct nfp_net *nn, struct netlink_ext_ack *extack)
 {
 	int err;
 
@@ -331,7 +335,8 @@ static void nfp_net_bpf_start(struct nfp_net *nn)
 	nn_writel(nn, NFP_NET_CFG_CTRL, nn->dp.ctrl);
 	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_GEN);
 	if (err)
-		nn_err(nn, "FW command error while enabling BPF: %d\n", err);
+		NL_SET_ERR_MSG_MOD(extack,
+				   "FW command error while enabling BPF");
 }
 
 static int nfp_net_bpf_stop(struct nfp_net *nn)
@@ -346,7 +351,7 @@ static int nfp_net_bpf_stop(struct nfp_net *nn)
 }
 
 int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
-			bool old_prog)
+			bool old_prog, struct netlink_ext_ack *extack)
 {
 	int err;
 
@@ -364,7 +369,8 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 
 		cap = nn_readb(nn, NFP_NET_CFG_BPF_CAP);
 		if (!(cap & NFP_NET_BPF_CAP_RELO)) {
-			nn_err(nn, "FW does not support live reload\n");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "FW does not support live reload");
 			return -EBUSY;
 		}
 	}
@@ -376,12 +382,12 @@ int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
 	if (old_prog && !prog)
 		return nfp_net_bpf_stop(nn);
 
-	err = nfp_net_bpf_load(nn, prog);
+	err = nfp_net_bpf_load(nn, prog, extack);
 	if (err)
 		return err;
 
 	if (!old_prog)
-		nfp_net_bpf_start(nn);
+		nfp_net_bpf_start(nn, extack);
 
 	return 0;
 }

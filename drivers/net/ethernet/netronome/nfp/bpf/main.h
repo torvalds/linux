@@ -335,7 +335,7 @@ struct nfp_net;
 int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn,
 		struct netdev_bpf *bpf);
 int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
-			bool old_prog);
+			bool old_prog, struct netlink_ext_ack *extack);
 
 struct nfp_insn_meta *
 nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
