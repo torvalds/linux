@@ -444,8 +444,6 @@ static DEFINE_SPINLOCK(rbd_client_list_lock);
 static struct kmem_cache	*rbd_img_request_cache;
 static struct kmem_cache	*rbd_obj_request_cache;
 
-static struct bio_set		*rbd_bio_clone;
-
 static int rbd_major;
 static DEFINE_IDA(rbd_dev_id_ida);
 
@@ -1277,49 +1275,6 @@ static void zero_bios(struct ceph_bio_iter *bio_pos, u32 off, u32 bytes)
 }
 
 /*
- * bio helpers
- */
-
-static void bio_chain_put(struct bio *chain)
-{
-	struct bio *tmp;
-
-	while (chain) {
-		tmp = chain;
-		chain = chain->bi_next;
-		bio_put(tmp);
-	}
-}
-
-/*
- * zeros a bio chain, starting at specific offset
- */
-static void zero_bio_chain(struct bio *chain, int start_ofs)
-{
-	struct bio_vec bv;
-	struct bvec_iter iter;
-	unsigned long flags;
-	void *buf;
-	int pos = 0;
-
-	while (chain) {
-		bio_for_each_segment(bv, chain, iter) {
-			if (pos + bv.bv_len > start_ofs) {
-				int remainder = max(start_ofs - pos, 0);
-				buf = bvec_kmap_irq(&bv, &flags);
-				memset(buf + remainder, 0,
-				       bv.bv_len - remainder);
-				flush_dcache_page(bv.bv_page);
-				bvec_kunmap_irq(buf, &flags);
-			}
-			pos += bv.bv_len;
-		}
-
-		chain = chain->bi_next;
-	}
-}
-
-/*
  * similar to zero_bio_chain(), zeros data defined by a page array,
  * starting at the given byte offset from the start of the array and
  * continuing up to the given end offset.  The pages array is
@@ -1349,90 +1304,6 @@ static void zero_pages(struct page **pages, u64 offset, u64 end)
 		offset += length;
 		page++;
 	}
-}
-
-/*
- * Clone a portion of a bio, starting at the given byte offset
- * and continuing for the number of bytes indicated.
- */
-static struct bio *bio_clone_range(struct bio *bio_src,
-					unsigned int offset,
-					unsigned int len,
-					gfp_t gfpmask)
-{
-	struct bio *bio;
-
-	bio = bio_clone_fast(bio_src, gfpmask, rbd_bio_clone);
-	if (!bio)
-		return NULL;	/* ENOMEM */
-
-	bio_advance(bio, offset);
-	bio->bi_iter.bi_size = len;
-
-	return bio;
-}
-
-/*
- * Clone a portion of a bio chain, starting at the given byte offset
- * into the first bio in the source chain and continuing for the
- * number of bytes indicated.  The result is another bio chain of
- * exactly the given length, or a null pointer on error.
- *
- * The bio_src and offset parameters are both in-out.  On entry they
- * refer to the first source bio and the offset into that bio where
- * the start of data to be cloned is located.
- *
- * On return, bio_src is updated to refer to the bio in the source
- * chain that contains first un-cloned byte, and *offset will
- * contain the offset of that byte within that bio.
- */
-static struct bio *bio_chain_clone_range(struct bio **bio_src,
-					unsigned int *offset,
-					unsigned int len,
-					gfp_t gfpmask)
-{
-	struct bio *bi = *bio_src;
-	unsigned int off = *offset;
-	struct bio *chain = NULL;
-	struct bio **end;
-
-	/* Build up a chain of clone bios up to the limit */
-
-	if (!bi || off >= bi->bi_iter.bi_size || !len)
-		return NULL;		/* Nothing to clone */
-
-	end = &chain;
-	while (len) {
-		unsigned int bi_size;
-		struct bio *bio;
-
-		if (!bi) {
-			rbd_warn(NULL, "bio_chain exhausted with %u left", len);
-			goto out_err;	/* EINVAL; ran out of bio's */
-		}
-		bi_size = min_t(unsigned int, bi->bi_iter.bi_size - off, len);
-		bio = bio_clone_range(bi, off, bi_size, gfpmask);
-		if (!bio)
-			goto out_err;	/* ENOMEM */
-
-		*end = bio;
-		end = &bio->bi_next;
-
-		off += bi_size;
-		if (off == bi->bi_iter.bi_size) {
-			bi = bi->bi_next;
-			off = 0;
-		}
-		len -= bi_size;
-	}
-	*bio_src = bi;
-	*offset = off;
-
-	return chain;
-out_err:
-	bio_chain_put(chain);
-
-	return NULL;
 }
 
 /*
@@ -6390,16 +6261,8 @@ static int rbd_slab_init(void)
 	if (!rbd_obj_request_cache)
 		goto out_err;
 
-	rbd_assert(!rbd_bio_clone);
-	rbd_bio_clone = bioset_create(BIO_POOL_SIZE, 0, 0);
-	if (!rbd_bio_clone)
-		goto out_err_clone;
-
 	return 0;
 
-out_err_clone:
-	kmem_cache_destroy(rbd_obj_request_cache);
-	rbd_obj_request_cache = NULL;
 out_err:
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;
@@ -6415,10 +6278,6 @@ static void rbd_slab_exit(void)
 	rbd_assert(rbd_img_request_cache);
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;
-
-	rbd_assert(rbd_bio_clone);
-	bioset_free(rbd_bio_clone);
-	rbd_bio_clone = NULL;
 }
 
 static int __init rbd_init(void)
