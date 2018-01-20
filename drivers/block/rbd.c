@@ -219,7 +219,7 @@ typedef void (*rbd_obj_callback_t)(struct rbd_obj_request *);
 enum obj_request_type {
 	OBJ_REQUEST_NODATA = 1,
 	OBJ_REQUEST_BIO,	/* pointer into provided bio (list) */
-	OBJ_REQUEST_PAGES,
+	OBJ_REQUEST_BVECS,	/* pointer into provided bio_vec array */
 };
 
 enum obj_operation_type {
@@ -272,12 +272,12 @@ struct rbd_obj_request {
 	union {
 		struct ceph_bio_iter	bio_pos;
 		struct {
-			struct page	**pages;
-			u32		page_count;
+			struct ceph_bvec_iter	bvec_pos;
+			u32			bvec_count;
 		};
 	};
-	struct page		**copyup_pages;
-	u32			copyup_page_count;
+	struct bio_vec		*copyup_bvecs;
+	u32			copyup_bvec_count;
 
 	struct ceph_osd_request	*osd_req;
 
@@ -1272,36 +1272,14 @@ static void zero_bios(struct ceph_bio_iter *bio_pos, u32 off, u32 bytes)
 	}));
 }
 
-/*
- * similar to zero_bio_chain(), zeros data defined by a page array,
- * starting at the given byte offset from the start of the array and
- * continuing up to the given end offset.  The pages array is
- * assumed to be big enough to hold all bytes up to the end.
- */
-static void zero_pages(struct page **pages, u64 offset, u64 end)
+static void zero_bvecs(struct ceph_bvec_iter *bvec_pos, u32 off, u32 bytes)
 {
-	struct page **page = &pages[offset >> PAGE_SHIFT];
+	struct ceph_bvec_iter it = *bvec_pos;
 
-	rbd_assert(end > offset);
-	rbd_assert(end - offset <= (u64)SIZE_MAX);
-	while (offset < end) {
-		size_t page_offset;
-		size_t length;
-		unsigned long flags;
-		void *kaddr;
-
-		page_offset = offset & ~PAGE_MASK;
-		length = min_t(size_t, PAGE_SIZE - page_offset, end - offset);
-		local_irq_save(flags);
-		kaddr = kmap_atomic(*page);
-		memset(kaddr + page_offset, 0, length);
-		flush_dcache_page(*page);
-		kunmap_atomic(kaddr);
-		local_irq_restore(flags);
-
-		offset += length;
-		page++;
-	}
+	ceph_bvec_iter_advance(&it, off);
+	ceph_bvec_iter_advance_step(&it, bytes, ({
+		zero_bvec(&bv);
+	}));
 }
 
 /*
@@ -1461,7 +1439,7 @@ static bool obj_request_type_valid(enum obj_request_type type)
 	switch (type) {
 	case OBJ_REQUEST_NODATA:
 	case OBJ_REQUEST_BIO:
-	case OBJ_REQUEST_PAGES:
+	case OBJ_REQUEST_BVECS:
 		return true;
 	default:
 		return false;
@@ -1611,14 +1589,15 @@ rbd_img_obj_request_read_callback(struct rbd_obj_request *obj_request)
 		if (obj_request->type == OBJ_REQUEST_BIO)
 			zero_bios(&obj_request->bio_pos, 0, length);
 		else
-			zero_pages(obj_request->pages, 0, length);
+			zero_bvecs(&obj_request->bvec_pos, 0, length);
 		obj_request->result = 0;
 	} else if (xferred < length && !obj_request->result) {
 		if (obj_request->type == OBJ_REQUEST_BIO)
 			zero_bios(&obj_request->bio_pos, xferred,
 				  length - xferred);
 		else
-			zero_pages(obj_request->pages, xferred, length);
+			zero_bvecs(&obj_request->bvec_pos, xferred,
+				   length - xferred);
 	}
 	obj_request->xferred = length;
 	obj_request_done_set(obj_request);
@@ -1913,6 +1892,7 @@ rbd_obj_request_create(enum obj_request_type type)
 static void rbd_obj_request_destroy(struct kref *kref)
 {
 	struct rbd_obj_request *obj_request;
+	u32 i;
 
 	obj_request = container_of(kref, struct rbd_obj_request, kref);
 
@@ -1924,22 +1904,22 @@ static void rbd_obj_request_destroy(struct kref *kref)
 	if (obj_request->osd_req)
 		rbd_osd_req_destroy(obj_request->osd_req);
 
-	rbd_assert(obj_request_type_valid(obj_request->type));
 	switch (obj_request->type) {
 	case OBJ_REQUEST_NODATA:
 	case OBJ_REQUEST_BIO:
+	case OBJ_REQUEST_BVECS:
 		break;		/* Nothing to do */
-	case OBJ_REQUEST_PAGES:
-		/* img_data requests don't own their page array */
-		if (obj_request->pages &&
-		    !obj_request_img_data_test(obj_request))
-			ceph_release_page_vector(obj_request->pages,
-						obj_request->page_count);
-		break;
+	default:
+		rbd_assert(0);
 	}
 
-	ceph_release_page_vector(obj_request->copyup_pages,
-				 obj_request->copyup_page_count);
+	if (obj_request->copyup_bvecs) {
+		for (i = 0; i < obj_request->copyup_bvec_count; i++) {
+			if (obj_request->copyup_bvecs[i].bv_page)
+				__free_page(obj_request->copyup_bvecs[i].bv_page);
+		}
+		kfree(obj_request->copyup_bvecs);
+	}
 
 	kmem_cache_free(rbd_obj_request_cache, obj_request);
 }
@@ -2260,10 +2240,9 @@ static void rbd_img_obj_request_fill(struct rbd_obj_request *obj_request,
 	if (obj_request->type == OBJ_REQUEST_BIO)
 		osd_req_op_extent_osd_data_bio(osd_request, num_ops,
 					&obj_request->bio_pos, length);
-	else if (obj_request->type == OBJ_REQUEST_PAGES)
-		osd_req_op_extent_osd_data_pages(osd_request, num_ops,
-					obj_request->pages, length,
-					offset & ~PAGE_MASK, false, false);
+	else if (obj_request->type == OBJ_REQUEST_BVECS)
+		osd_req_op_extent_osd_data_bvec_pos(osd_request, num_ops,
+					&obj_request->bvec_pos);
 
 	/* Discards are also writes */
 	if (op_type == OBJ_OP_WRITE || op_type == OBJ_OP_DISCARD)
@@ -2288,7 +2267,7 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 	struct rbd_obj_request *obj_request = NULL;
 	struct rbd_obj_request *next_obj_request;
 	struct ceph_bio_iter bio_it;
-	struct page **pages = NULL;
+	struct ceph_bvec_iter bvec_it;
 	enum obj_operation_type op_type;
 	u64 img_offset;
 	u64 resid;
@@ -2305,8 +2284,8 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 		bio_it = *(struct ceph_bio_iter *)data_desc;
 		rbd_assert(img_offset ==
 			   bio_it.iter.bi_sector << SECTOR_SHIFT);
-	} else if (type == OBJ_REQUEST_PAGES) {
-		pages = data_desc;
+	} else if (type == OBJ_REQUEST_BVECS) {
+		bvec_it = *(struct ceph_bvec_iter *)data_desc;
 	}
 
 	while (resid) {
@@ -2332,15 +2311,10 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 		if (type == OBJ_REQUEST_BIO) {
 			obj_request->bio_pos = bio_it;
 			ceph_bio_iter_advance(&bio_it, length);
-		} else if (type == OBJ_REQUEST_PAGES) {
-			unsigned int page_count;
-
-			obj_request->pages = pages;
-			page_count = (u32)calc_pages_for(offset, length);
-			obj_request->page_count = page_count;
-			if ((offset + length) & ~PAGE_MASK)
-				page_count--;	/* more on last page */
-			pages += page_count;
+		} else if (type == OBJ_REQUEST_BVECS) {
+			obj_request->bvec_pos = bvec_it;
+			ceph_bvec_iter_shorten(&obj_request->bvec_pos, length);
+			ceph_bvec_iter_advance(&bvec_it, length);
 		}
 
 		osd_req = rbd_osd_req_create(rbd_dev, op_type,
@@ -2452,8 +2426,8 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	/* Initialize the copyup op */
 
 	osd_req_op_cls_init(osd_req, 0, CEPH_OSD_OP_CALL, "rbd", "copyup");
-	osd_req_op_cls_request_data_pages(osd_req, 0, orig_request->copyup_pages,
-					  parent_length, 0, false, false);
+	osd_req_op_cls_request_data_bvecs(osd_req, 0, orig_request->copyup_bvecs,
+					  parent_length);
 
 	/* Add the other op(s) */
 
@@ -2468,6 +2442,8 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 out_err:
 	rbd_obj_request_error(orig_request, img_result);
 }
+
+static int setup_copyup_bvecs(struct rbd_obj_request *obj_req, u64 obj_overlap);
 
 /*
  * Read from the parent image the range of data that covers the
@@ -2487,10 +2463,9 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 {
 	struct rbd_device *rbd_dev = obj_request->img_request->rbd_dev;
 	struct rbd_img_request *parent_request = NULL;
+	struct ceph_bvec_iter bvec_it = { 0 };
 	u64 img_offset;
 	u64 length;
-	struct page **pages = NULL;
-	u32 page_count;
 	int result;
 
 	rbd_assert(rbd_dev->parent != NULL);
@@ -2516,16 +2491,9 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 	 * Allocate a page array big enough to receive the data read
 	 * from the parent.
 	 */
-	page_count = (u32)calc_pages_for(0, length);
-	pages = ceph_alloc_page_vector(page_count, GFP_NOIO);
-	if (IS_ERR(pages)) {
-		result = PTR_ERR(pages);
+	result = setup_copyup_bvecs(obj_request, length);
+	if (result)
 		goto out_err;
-	}
-
-	rbd_assert(!obj_request->copyup_pages);
-	obj_request->copyup_pages = pages;
-	obj_request->copyup_page_count = page_count;
 
 	result = -ENOMEM;
 	parent_request = rbd_parent_request_create(obj_request,
@@ -2533,7 +2501,10 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 	if (!parent_request)
 		goto out_err;
 
-	result = rbd_img_request_fill(parent_request, OBJ_REQUEST_PAGES, pages);
+	bvec_it.bvecs = obj_request->copyup_bvecs;
+	bvec_it.iter.bi_size = length;
+	result = rbd_img_request_fill(parent_request, OBJ_REQUEST_BVECS,
+				      &bvec_it);
 	if (result)
 		goto out_err;
 
@@ -2751,6 +2722,34 @@ out_put_ireq:
 	return ret;
 }
 
+static int setup_copyup_bvecs(struct rbd_obj_request *obj_req, u64 obj_overlap)
+{
+	u32 i;
+
+	rbd_assert(!obj_req->copyup_bvecs);
+	obj_req->copyup_bvec_count = calc_pages_for(0, obj_overlap);
+	obj_req->copyup_bvecs = kcalloc(obj_req->copyup_bvec_count,
+					sizeof(*obj_req->copyup_bvecs),
+					GFP_NOIO);
+	if (!obj_req->copyup_bvecs)
+		return -ENOMEM;
+
+	for (i = 0; i < obj_req->copyup_bvec_count; i++) {
+		unsigned int len = min(obj_overlap, (u64)PAGE_SIZE);
+
+		obj_req->copyup_bvecs[i].bv_page = alloc_page(GFP_NOIO);
+		if (!obj_req->copyup_bvecs[i].bv_page)
+			return -ENOMEM;
+
+		obj_req->copyup_bvecs[i].bv_offset = 0;
+		obj_req->copyup_bvecs[i].bv_len = len;
+		obj_overlap -= len;
+	}
+
+	rbd_assert(!obj_overlap);
+	return 0;
+}
+
 static void rbd_img_parent_read_callback(struct rbd_img_request *img_request)
 {
 	struct rbd_obj_request *obj_request;
@@ -2832,8 +2831,8 @@ static void rbd_img_parent_read(struct rbd_obj_request *obj_request)
 		result = rbd_img_request_fill(img_request, OBJ_REQUEST_BIO,
 						&obj_request->bio_pos);
 	else
-		result = rbd_img_request_fill(img_request, OBJ_REQUEST_PAGES,
-						obj_request->pages);
+		result = rbd_img_request_fill(img_request, OBJ_REQUEST_BVECS,
+						&obj_request->bvec_pos);
 	if (result)
 		goto out_err;
 
