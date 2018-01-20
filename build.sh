@@ -64,6 +64,11 @@ then
     git pull
   fi
 
+  if [[ "$action" == "defconfig" ]];
+  then
+    nano arch/arm/configs/mt7623n_evb_fwu_defconfig
+  fi
+
   if [[ "$action" == "importconfig" ]];
   then
 #    cp ../mt7623n_evb_bpi_defconfig arch/arm/configs/

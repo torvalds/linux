@@ -61,6 +61,7 @@ config MTK_COMBO_CHIP_CONSYS_8127
 
 config MTK_COMBO_CHIP_CONSYS_7623
 	bool "CONSYS_7623"
+	#select MTK_PLATFORM::="mt7623"
 	help
 	  this config is used to decide SOC consys version
 	  in current platform is MT7623 and prepare proper
