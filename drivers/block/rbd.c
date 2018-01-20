@@ -2645,11 +2645,9 @@ static int rbd_img_obj_exists_submit(struct rbd_obj_request *obj_request)
 	struct rbd_device *rbd_dev = obj_request->img_request->rbd_dev;
 	struct rbd_obj_request *stat_request;
 	struct page **pages;
-	u32 page_count;
-	size_t size;
 	int ret;
 
-	stat_request = rbd_obj_request_create(OBJ_REQUEST_PAGES);
+	stat_request = rbd_obj_request_create(OBJ_REQUEST_NODATA);
 	if (!stat_request)
 		return -ENOMEM;
 
@@ -2670,22 +2668,19 @@ static int rbd_img_obj_exists_submit(struct rbd_obj_request *obj_request)
 	 *         le32 tv_nsec;
 	 *     } mtime;
 	 */
-	size = sizeof (__le64) + sizeof (__le32) + sizeof (__le32);
-	page_count = (u32)calc_pages_for(0, size);
-	pages = ceph_alloc_page_vector(page_count, GFP_NOIO);
+	pages = ceph_alloc_page_vector(1, GFP_NOIO);
 	if (IS_ERR(pages)) {
 		ret = PTR_ERR(pages);
 		goto fail_stat_request;
 	}
 
 	osd_req_op_init(stat_request->osd_req, 0, CEPH_OSD_OP_STAT, 0);
-	osd_req_op_raw_data_in_pages(stat_request->osd_req, 0, pages, size, 0,
-				     false, false);
+	osd_req_op_raw_data_in_pages(stat_request->osd_req, 0, pages,
+				     8 + sizeof(struct ceph_timespec),
+				     0, false, true);
 
 	rbd_obj_request_get(obj_request);
 	stat_request->obj_request = obj_request;
-	stat_request->pages = pages;
-	stat_request->page_count = page_count;
 	stat_request->callback = rbd_img_obj_exists_callback;
 
 	rbd_obj_request_submit(stat_request);
