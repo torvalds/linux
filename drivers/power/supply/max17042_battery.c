@@ -123,6 +123,8 @@ static int max17042_get_temperature(struct max17042_chip *chip, int *temp)
 static int max17042_get_status(struct max17042_chip *chip, int *status)
 {
 	int ret, charge_full, charge_now;
+	int avg_current;
+	u32 data;
 
 	ret = power_supply_am_i_supplied(chip->battery);
 	if (ret < 0) {
@@ -152,10 +154,31 @@ static int max17042_get_status(struct max17042_chip *chip, int *status)
 	if (ret < 0)
 		return ret;
 
-	if ((charge_full - charge_now) <= MAX17042_FULL_THRESHOLD)
+	if ((charge_full - charge_now) <= MAX17042_FULL_THRESHOLD) {
 		*status = POWER_SUPPLY_STATUS_FULL;
-	else
+		return 0;
+	}
+
+	/*
+	 * Even though we are supplied, we may still be discharging if the
+	 * supply is e.g. only delivering 5V 0.5A. Check current if available.
+	 */
+	if (!chip->pdata->enable_current_sense) {
 		*status = POWER_SUPPLY_STATUS_CHARGING;
+		return 0;
+	}
+
+	ret = regmap_read(chip->regmap, MAX17042_AvgCurrent, &data);
+	if (ret < 0)
+		return ret;
+
+	avg_current = sign_extend32(data, 15);
+	avg_current *= 1562500 / chip->pdata->r_sns;
+
+	if (avg_current > 0)
+		*status = POWER_SUPPLY_STATUS_CHARGING;
+	else
+		*status = POWER_SUPPLY_STATUS_DISCHARGING;
 
 	return 0;
 }
