@@ -3456,6 +3456,8 @@ xdp_func_proto(enum bpf_func_id func_id)
 		return &bpf_xdp_event_output_proto;
 	case BPF_FUNC_get_smp_processor_id:
 		return &bpf_get_smp_processor_id_proto;
+	case BPF_FUNC_csum_diff:
+		return &bpf_csum_diff_proto;
 	case BPF_FUNC_xdp_adjust_head:
 		return &bpf_xdp_adjust_head_proto;
 	case BPF_FUNC_xdp_adjust_meta:
