@@ -1146,7 +1146,7 @@ lnet_ipaddr_enumerate(__u32 **ipaddrsp)
 	if (nif <= 0)
 		return nif;
 
-	ipaddrs = kzalloc(nif * sizeof(*ipaddrs), GFP_KERNEL);
+	ipaddrs = kcalloc(nif, sizeof(*ipaddrs), GFP_KERNEL);
 	if (!ipaddrs) {
 		CERROR("Can't allocate ipaddrs[%d]\n", nif);
 		lnet_ipif_free_enumeration(ifnames, nif);
@@ -1179,7 +1179,7 @@ lnet_ipaddr_enumerate(__u32 **ipaddrsp)
 		*ipaddrsp = ipaddrs;
 	} else {
 		if (nip > 0) {
-			ipaddrs2 = kzalloc(nip * sizeof(*ipaddrs2),
+			ipaddrs2 = kcalloc(nip, sizeof(*ipaddrs2),
 					   GFP_KERNEL);
 			if (!ipaddrs2) {
 				CERROR("Can't allocate ipaddrs[%d]\n", nip);
