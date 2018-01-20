@@ -102,6 +102,93 @@ static struct bpf_test tests[] = {
 		.retval = -3,
 	},
 	{
+		"DIV32 by 0, zero check 1",
+		.insns = {
+			BPF_MOV32_IMM(BPF_REG_0, 42),
+			BPF_MOV32_IMM(BPF_REG_1, 0),
+			BPF_MOV32_IMM(BPF_REG_2, 1),
+			BPF_ALU32_REG(BPF_DIV, BPF_REG_2, BPF_REG_1),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 0,
+	},
+	{
+		"DIV32 by 0, zero check 2",
+		.insns = {
+			BPF_MOV32_IMM(BPF_REG_0, 42),
+			BPF_LD_IMM64(BPF_REG_1, 0xffffffff00000000LL),
+			BPF_MOV32_IMM(BPF_REG_2, 1),
+			BPF_ALU32_REG(BPF_DIV, BPF_REG_2, BPF_REG_1),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 0,
+	},
+	{
+		"DIV64 by 0, zero check",
+		.insns = {
+			BPF_MOV32_IMM(BPF_REG_0, 42),
+			BPF_MOV32_IMM(BPF_REG_1, 0),
+			BPF_MOV32_IMM(BPF_REG_2, 1),
+			BPF_ALU64_REG(BPF_DIV, BPF_REG_2, BPF_REG_1),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 0,
+	},
+	{
+		"MOD32 by 0, zero check 1",
+		.insns = {
+			BPF_MOV32_IMM(BPF_REG_0, 42),
+			BPF_MOV32_IMM(BPF_REG_1, 0),
+			BPF_MOV32_IMM(BPF_REG_2, 1),
+			BPF_ALU32_REG(BPF_MOD, BPF_REG_2, BPF_REG_1),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 0,
+	},
+	{
+		"MOD32 by 0, zero check 2",
+		.insns = {
+			BPF_MOV32_IMM(BPF_REG_0, 42),
+			BPF_LD_IMM64(BPF_REG_1, 0xffffffff00000000LL),
+			BPF_MOV32_IMM(BPF_REG_2, 1),
+			BPF_ALU32_REG(BPF_MOD, BPF_REG_2, BPF_REG_1),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 0,
+	},
+	{
+		"MOD64 by 0, zero check",
+		.insns = {
+			BPF_MOV32_IMM(BPF_REG_0, 42),
+			BPF_MOV32_IMM(BPF_REG_1, 0),
+			BPF_MOV32_IMM(BPF_REG_2, 1),
+			BPF_ALU64_REG(BPF_MOD, BPF_REG_2, BPF_REG_1),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 0,
+	},
+	{
+		"empty prog",
+		.insns = {
+		},
+		.errstr = "last insn is not an exit or jmp",
+		.result = REJECT,
+	},
+	{
+		"only exit insn",
+		.insns = {
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R0 !read_ok",
+		.result = REJECT,
+	},
+	{
 		"unreachable",
 		.insns = {
 			BPF_EXIT_INSN(),
