@@ -630,7 +630,8 @@ static int cc_cipher_process(struct ablkcipher_request *req,
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	struct cc_hw_desc desc[MAX_ABLKCIPHER_SEQ_LEN];
 	struct cc_crypto_req cc_req = {};
-	int rc, seq_len = 0, cts_restore_flag = 0;
+	int rc, cts_restore_flag = 0;
+	unsigned int seq_len = 0;
 	gfp_t flags = cc_gfp_flags(&req->base);
 
 	dev_dbg(dev, "%s req=%p info=%p nbytes=%d\n",

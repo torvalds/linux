@@ -1018,7 +1018,7 @@ static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 	struct device *dev = drvdata_to_dev(drvdata);
 	enum drv_crypto_direction direct = areq_ctx->gen_ctx.op_type;
 	unsigned int authsize = areq_ctx->req_authsize;
-	int src_last_bytes = 0, dst_last_bytes = 0;
+	u32 src_last_bytes = 0, dst_last_bytes = 0;
 	int rc = 0;
 	u32 src_mapped_nents = 0, dst_mapped_nents = 0;
 	u32 offset = 0;

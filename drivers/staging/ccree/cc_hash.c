@@ -410,7 +410,7 @@ static int cc_hash_digest(struct ahash_request *req)
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
 	cc_sram_addr_t larval_digest_addr =
 		cc_larval_digest_addr(ctx->drvdata, ctx->hash_mode);
-	int idx = 0;
+	unsigned int idx = 0;
 	int rc = 0;
 	gfp_t flags = cc_gfp_flags(&req->base);
 
@@ -506,7 +506,7 @@ static int cc_hash_digest(struct ahash_request *req)
 }
 
 static int cc_restore_hash(struct cc_hw_desc *desc, struct cc_hash_ctx *ctx,
-			   struct ahash_req_ctx *state, int idx)
+			   struct ahash_req_ctx *state, unsigned int idx)
 {
 	/* Restore hash digest */
 	hw_desc_init(&desc[idx]);
@@ -621,7 +621,7 @@ static int cc_hash_finup(struct ahash_request *req)
 	bool is_hmac = ctx->is_hmac;
 	struct cc_crypto_req cc_req = {};
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
-	int idx = 0;
+	unsigned int idx = 0;
 	int rc;
 	gfp_t flags = cc_gfp_flags(&req->base);
 
@@ -680,7 +680,7 @@ static int cc_hash_final(struct ahash_request *req)
 	bool is_hmac = ctx->is_hmac;
 	struct cc_crypto_req cc_req = {};
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
-	int idx = 0;
+	unsigned int idx = 0;
 	int rc;
 	gfp_t flags = cc_gfp_flags(&req->base);
 
@@ -945,7 +945,8 @@ static int cc_xcbc_setkey(struct crypto_ahash *ahash,
 	struct cc_crypto_req cc_req = {};
 	struct cc_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
-	int idx = 0, rc = 0;
+	unsigned int idx = 0;
+	int rc = 0;
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
 
 	dev_dbg(dev, "===== setkey (%d) ====\n", keylen);
@@ -1229,7 +1230,7 @@ static int cc_mac_final(struct ahash_request *req)
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct cc_crypto_req cc_req = {};
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
-	int idx = 0;
+	unsigned int idx = 0;
 	int rc = 0;
 	u32 key_size, key_len;
 	u32 digestsize = crypto_ahash_digestsize(tfm);
@@ -1351,7 +1352,7 @@ static int cc_mac_finup(struct ahash_request *req)
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct cc_crypto_req cc_req = {};
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
-	int idx = 0;
+	unsigned int idx = 0;
 	int rc = 0;
 	u32 key_len = 0;
 	u32 digestsize = crypto_ahash_digestsize(tfm);
@@ -1435,7 +1436,7 @@ static int cc_mac_digest(struct ahash_request *req)
 	struct cc_crypto_req cc_req = {};
 	struct cc_hw_desc desc[CC_MAX_HASH_SEQ_LEN];
 	u32 key_len;
-	int idx = 0;
+	unsigned int idx = 0;
 	int rc;
 	gfp_t flags = cc_gfp_flags(&req->base);
 

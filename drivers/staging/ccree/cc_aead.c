@@ -257,7 +257,8 @@ done:
 	aead_request_complete(areq, err);
 }
 
-static int xcbc_setkey(struct cc_hw_desc *desc, struct cc_aead_ctx *ctx)
+static unsigned int xcbc_setkey(struct cc_hw_desc *desc,
+				struct cc_aead_ctx *ctx)
 {
 	/* Load the AES key */
 	hw_desc_init(&desc[0]);
@@ -297,7 +298,8 @@ static int xcbc_setkey(struct cc_hw_desc *desc, struct cc_aead_ctx *ctx)
 	return 4;
 }
 
-static int hmac_setkey(struct cc_hw_desc *desc, struct cc_aead_ctx *ctx)
+static unsigned int hmac_setkey(struct cc_hw_desc *desc,
+				struct cc_aead_ctx *ctx)
 {
 	unsigned int hmac_pad_const[2] = { HMAC_IPAD_CONST, HMAC_OPAD_CONST };
 	unsigned int digest_ofs = 0;
@@ -307,7 +309,7 @@ static int hmac_setkey(struct cc_hw_desc *desc, struct cc_aead_ctx *ctx)
 			CC_SHA1_DIGEST_SIZE : CC_SHA256_DIGEST_SIZE;
 	struct cc_hmac_s *hmac = &ctx->auth_state.hmac;
 
-	int idx = 0;
+	unsigned int idx = 0;
 	int i;
 
 	/* calc derived HMAC key */
@@ -544,7 +546,8 @@ cc_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 	struct cc_crypto_req cc_req = {};
 	struct crypto_authenc_key_param *param;
 	struct cc_hw_desc desc[MAX_AEAD_SETKEY_SEQ];
-	int seq_len = 0, rc = -EINVAL;
+	unsigned int seq_len = 0;
+	int rc = -EINVAL;
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	dev_dbg(dev, "Setting key in context @%p for %s. key=%p keylen=%u\n",
@@ -1883,7 +1886,7 @@ static int cc_proc_aead(struct aead_request *req,
 			enum drv_crypto_direction direct)
 {
 	int rc = 0;
-	int seq_len = 0;
+	unsigned int seq_len = 0;
 	struct cc_hw_desc desc[MAX_AEAD_PROCESS_SEQ];
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
