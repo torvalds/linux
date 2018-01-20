@@ -679,6 +679,15 @@ static void tun_queue_purge(struct tun_file *tfile)
 	skb_queue_purge(&tfile->sk.sk_error_queue);
 }
 
+static void tun_cleanup_tx_ring(struct tun_file *tfile)
+{
+	if (tfile->tx_ring.queue) {
+		ptr_ring_cleanup(&tfile->tx_ring, tun_ptr_free);
+		xdp_rxq_info_unreg(&tfile->xdp_rxq);
+		memset(&tfile->tx_ring, 0, sizeof(tfile->tx_ring));
+	}
+}
+
 static void __tun_detach(struct tun_file *tfile, bool clean)
 {
 	struct tun_file *ntfile;
@@ -725,10 +734,7 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 			    tun->dev->reg_state == NETREG_REGISTERED)
 				unregister_netdevice(tun->dev);
 		}
-		if (tun) {
-			ptr_ring_cleanup(&tfile->tx_ring, tun_ptr_free);
-			xdp_rxq_info_unreg(&tfile->xdp_rxq);
-		}
+		tun_cleanup_tx_ring(tfile);
 		sock_put(&tfile->sk);
 	}
 }
@@ -770,12 +776,14 @@ static void tun_detach_all(struct net_device *dev)
 		tun_queue_purge(tfile);
 		xdp_rxq_info_unreg(&tfile->xdp_rxq);
 		sock_put(&tfile->sk);
+		tun_cleanup_tx_ring(tfile);
 	}
 	list_for_each_entry_safe(tfile, tmp, &tun->disabled, next) {
 		tun_enable_queue(tfile);
 		tun_queue_purge(tfile);
 		xdp_rxq_info_unreg(&tfile->xdp_rxq);
 		sock_put(&tfile->sk);
+		tun_cleanup_tx_ring(tfile);
 	}
 	BUG_ON(tun->numdisabled != 0);
 
@@ -3144,6 +3152,8 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	INIT_LIST_HEAD(&tfile->next);
 
 	sock_set_flag(&tfile->sk, SOCK_ZEROCOPY);
+
+	memset(&tfile->tx_ring, 0, sizeof(tfile->tx_ring));
 
 	return 0;
 }

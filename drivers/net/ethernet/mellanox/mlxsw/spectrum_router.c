@@ -821,13 +821,18 @@ static int mlxsw_sp_vr_lpm_tree_replace(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_lpm_tree *old_tree = fib->lpm_tree;
 	int err;
 
-	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
-	if (err)
-		return err;
 	fib->lpm_tree = new_tree;
 	mlxsw_sp_lpm_tree_hold(new_tree);
+	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
+	if (err)
+		goto err_tree_bind;
 	mlxsw_sp_lpm_tree_put(mlxsw_sp, old_tree);
 	return 0;
+
+err_tree_bind:
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, new_tree);
+	fib->lpm_tree = old_tree;
+	return err;
 }
 
 static int mlxsw_sp_vrs_lpm_tree_replace(struct mlxsw_sp *mlxsw_sp,
@@ -868,11 +873,14 @@ err_tree_replace:
 	return err;
 
 no_replace:
-	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
-	if (err)
-		return err;
 	fib->lpm_tree = new_tree;
 	mlxsw_sp_lpm_tree_hold(new_tree);
+	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
+	if (err) {
+		mlxsw_sp_lpm_tree_put(mlxsw_sp, new_tree);
+		fib->lpm_tree = NULL;
+		return err;
+	}
 	return 0;
 }
 

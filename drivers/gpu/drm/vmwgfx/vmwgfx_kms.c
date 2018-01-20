@@ -1863,7 +1863,7 @@ u32 vmw_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
  */
 int vmw_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	return -ENOSYS;
+	return -EINVAL;
 }
 
 /**

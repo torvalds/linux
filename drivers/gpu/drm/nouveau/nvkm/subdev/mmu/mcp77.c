@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, NVIDIA CORPORATION. All rights reserved.
+ * Copyright 2017 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -14,28 +14,28 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "gf100.h"
+#include "mem.h"
+#include "vmm.h"
 
-static const struct nvkm_bar_func
-gk20a_bar_func = {
-	.dtor = gf100_bar_dtor,
-	.oneinit = gf100_bar_oneinit,
-	.bar1.init = gf100_bar_bar1_init,
-	.bar1.wait = gf100_bar_bar1_wait,
-	.bar1.vmm = gf100_bar_bar1_vmm,
-	.flush = g84_bar_flush,
+#include <nvif/class.h>
+
+static const struct nvkm_mmu_func
+mcp77_mmu = {
+	.dma_bits = 40,
+	.mmu = {{ -1, -1, NVIF_CLASS_MMU_NV50}},
+	.mem = {{ -1,  0, NVIF_CLASS_MEM_NV50}, nv50_mem_new, nv50_mem_map },
+	.vmm = {{ -1, -1, NVIF_CLASS_VMM_NV50}, mcp77_vmm_new, false, 0x0200 },
+	.kind = nv50_mmu_kind,
+	.kind_sys = true,
 };
 
 int
-gk20a_bar_new(struct nvkm_device *device, int index, struct nvkm_bar **pbar)
+mcp77_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
-	int ret = gf100_bar_new_(&gk20a_bar_func, device, index, pbar);
-	if (ret == 0)
-		(*pbar)->iomap_uncached = true;
-	return ret;
+	return nvkm_mmu_new_(&mcp77_mmu, device, index, pmmu);
 }

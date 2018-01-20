@@ -2344,10 +2344,10 @@ static void dump_one_paca(int cpu)
 	DUMP(p, kernel_toc, "lx");
 	DUMP(p, kernelbase, "lx");
 	DUMP(p, kernel_msr, "lx");
-	DUMP(p, emergency_sp, "p");
+	DUMP(p, emergency_sp, "px");
 #ifdef CONFIG_PPC_BOOK3S_64
-	DUMP(p, nmi_emergency_sp, "p");
-	DUMP(p, mc_emergency_sp, "p");
+	DUMP(p, nmi_emergency_sp, "px");
+	DUMP(p, mc_emergency_sp, "px");
 	DUMP(p, in_nmi, "x");
 	DUMP(p, in_mce, "x");
 	DUMP(p, hmi_event_available, "x");
@@ -2375,17 +2375,21 @@ static void dump_one_paca(int cpu)
 	DUMP(p, slb_cache_ptr, "x");
 	for (i = 0; i < SLB_CACHE_ENTRIES; i++)
 		printf(" slb_cache[%d]:        = 0x%016lx\n", i, p->slb_cache[i]);
+
+	DUMP(p, rfi_flush_fallback_area, "px");
+	DUMP(p, l1d_flush_congruence, "llx");
+	DUMP(p, l1d_flush_sets, "llx");
 #endif
 	DUMP(p, dscr_default, "llx");
 #ifdef CONFIG_PPC_BOOK3E
-	DUMP(p, pgd, "p");
-	DUMP(p, kernel_pgd, "p");
-	DUMP(p, tcd_ptr, "p");
-	DUMP(p, mc_kstack, "p");
-	DUMP(p, crit_kstack, "p");
-	DUMP(p, dbg_kstack, "p");
+	DUMP(p, pgd, "px");
+	DUMP(p, kernel_pgd, "px");
+	DUMP(p, tcd_ptr, "px");
+	DUMP(p, mc_kstack, "px");
+	DUMP(p, crit_kstack, "px");
+	DUMP(p, dbg_kstack, "px");
 #endif
-	DUMP(p, __current, "p");
+	DUMP(p, __current, "px");
 	DUMP(p, kstack, "lx");
 	printf(" kstack_base          = 0x%016lx\n", p->kstack & ~(THREAD_SIZE - 1));
 	DUMP(p, stab_rr, "lx");
@@ -2403,7 +2407,7 @@ static void dump_one_paca(int cpu)
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-	DUMP(p, core_idle_state_ptr, "p");
+	DUMP(p, core_idle_state_ptr, "px");
 	DUMP(p, thread_idle_state, "x");
 	DUMP(p, thread_mask, "x");
 	DUMP(p, subcore_sibling_mask, "x");
