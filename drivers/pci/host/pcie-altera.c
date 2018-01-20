@@ -145,7 +145,7 @@ static bool altera_pcie_valid_device(struct altera_pcie *pcie,
 static int tlp_read_packet(struct altera_pcie *pcie, u32 *value)
 {
 	int i;
-	bool sop = 0;
+	bool sop = false;
 	u32 ctrl;
 	u32 reg0, reg1;
 	u32 comp_status = 1;
