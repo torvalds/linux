@@ -309,8 +309,6 @@ struct rbd_img_request {
 		struct request		*rq;		/* block request */
 		struct rbd_obj_request	*obj_request;	/* obj req initiator */
 	};
-	struct page		**copyup_pages;
-	u32			copyup_page_count;
 	spinlock_t		completion_lock;/* protects next_completion */
 	u32			next_completion;
 	rbd_img_callback_t	callback;
@@ -1940,6 +1938,9 @@ static void rbd_obj_request_destroy(struct kref *kref)
 		break;
 	}
 
+	ceph_release_page_vector(obj_request->copyup_pages,
+				 obj_request->copyup_page_count);
+
 	kmem_cache_free(rbd_obj_request_cache, obj_request);
 }
 
@@ -2372,8 +2373,6 @@ rbd_osd_copyup_callback(struct rbd_obj_request *obj_request)
 {
 	struct rbd_img_request *img_request;
 	struct rbd_device *rbd_dev;
-	struct page **pages;
-	u32 page_count;
 
 	dout("%s: obj %p\n", __func__, obj_request);
 
@@ -2385,14 +2384,6 @@ rbd_osd_copyup_callback(struct rbd_obj_request *obj_request)
 
 	rbd_dev = img_request->rbd_dev;
 	rbd_assert(rbd_dev);
-
-	pages = obj_request->copyup_pages;
-	rbd_assert(pages != NULL);
-	obj_request->copyup_pages = NULL;
-	page_count = obj_request->copyup_page_count;
-	rbd_assert(page_count);
-	obj_request->copyup_page_count = 0;
-	ceph_release_page_vector(pages, page_count);
 
 	/*
 	 * We want the transfer count to reflect the size of the
@@ -2412,22 +2403,13 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	struct rbd_obj_request *orig_request;
 	struct ceph_osd_request *osd_req;
 	struct rbd_device *rbd_dev;
-	struct page **pages;
 	enum obj_operation_type op_type;
-	u32 page_count;
 	int img_result;
 	u64 parent_length;
 
 	rbd_assert(img_request_child_test(img_request));
 
 	/* First get what we need from the image request */
-
-	pages = img_request->copyup_pages;
-	rbd_assert(pages != NULL);
-	img_request->copyup_pages = NULL;
-	page_count = img_request->copyup_page_count;
-	rbd_assert(page_count);
-	img_request->copyup_page_count = 0;
 
 	orig_request = img_request->obj_request;
 	rbd_assert(orig_request != NULL);
@@ -2447,7 +2429,6 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	 * and re-submit the original write request.
 	 */
 	if (!rbd_dev->parent_overlap) {
-		ceph_release_page_vector(pages, page_count);
 		rbd_obj_request_submit(orig_request);
 		return;
 	}
@@ -2467,14 +2448,12 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 		goto out_err;
 	rbd_osd_req_destroy(orig_request->osd_req);
 	orig_request->osd_req = osd_req;
-	orig_request->copyup_pages = pages;
-	orig_request->copyup_page_count = page_count;
 
 	/* Initialize the copyup op */
 
 	osd_req_op_cls_init(osd_req, 0, CEPH_OSD_OP_CALL, "rbd", "copyup");
-	osd_req_op_cls_request_data_pages(osd_req, 0, pages, parent_length, 0,
-						false, false);
+	osd_req_op_cls_request_data_pages(osd_req, 0, orig_request->copyup_pages,
+					  parent_length, 0, false, false);
 
 	/* Add the other op(s) */
 
@@ -2487,7 +2466,6 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	return;
 
 out_err:
-	ceph_release_page_vector(pages, page_count);
 	rbd_obj_request_error(orig_request, img_result);
 }
 
@@ -2542,9 +2520,12 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 	pages = ceph_alloc_page_vector(page_count, GFP_NOIO);
 	if (IS_ERR(pages)) {
 		result = PTR_ERR(pages);
-		pages = NULL;
 		goto out_err;
 	}
+
+	rbd_assert(!obj_request->copyup_pages);
+	obj_request->copyup_pages = pages;
+	obj_request->copyup_page_count = page_count;
 
 	result = -ENOMEM;
 	parent_request = rbd_parent_request_create(obj_request,
@@ -2556,19 +2537,13 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 	if (result)
 		goto out_err;
 
-	parent_request->copyup_pages = pages;
-	parent_request->copyup_page_count = page_count;
 	parent_request->callback = rbd_img_obj_parent_read_full_callback;
 
 	result = rbd_img_request_submit(parent_request);
 	if (!result)
 		return 0;
 
-	parent_request->copyup_pages = NULL;
-	parent_request->copyup_page_count = 0;
 out_err:
-	if (pages)
-		ceph_release_page_vector(pages, page_count);
 	if (parent_request)
 		rbd_img_request_put(parent_request);
 	return result;
