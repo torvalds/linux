@@ -656,6 +656,17 @@ static inline bool tc_can_offload(const struct net_device *dev)
 	return dev->features & NETIF_F_HW_TC;
 }
 
+static inline bool tc_can_offload_extack(const struct net_device *dev,
+					 struct netlink_ext_ack *extack)
+{
+	bool can = tc_can_offload(dev);
+
+	if (!can)
+		NL_SET_ERR_MSG(extack, "TC offload is disabled on net device");
+
+	return can;
+}
+
 static inline bool tc_skip_hw(u32 flags)
 {
 	return (flags & TCA_CLS_FLAGS_SKIP_HW) ? true : false;
