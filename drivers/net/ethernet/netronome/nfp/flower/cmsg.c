@@ -211,12 +211,6 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 
 	cmsg_hdr = nfp_flower_cmsg_get_hdr(skb);
 
-	if (unlikely(cmsg_hdr->version != NFP_FLOWER_CMSG_VER1)) {
-		nfp_flower_cmsg_warn(app, "Cannot handle repr control version %u\n",
-				     cmsg_hdr->version);
-		goto out;
-	}
-
 	type = cmsg_hdr->type;
 	switch (type) {
 	case NFP_FLOWER_CMSG_TYPE_PORT_REIFY:
@@ -224,9 +218,6 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 		break;
 	case NFP_FLOWER_CMSG_TYPE_PORT_MOD:
 		nfp_flower_cmsg_portmod_rx(app, skb);
-		break;
-	case NFP_FLOWER_CMSG_TYPE_FLOW_STATS:
-		nfp_flower_rx_flow_stats(app, skb);
 		break;
 	case NFP_FLOWER_CMSG_TYPE_NO_NEIGH:
 		nfp_tunnel_request_route(app, skb);
@@ -263,7 +254,23 @@ void nfp_flower_cmsg_process_rx(struct work_struct *work)
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)
 {
 	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_flower_cmsg_hdr *cmsg_hdr;
 
-	skb_queue_tail(&priv->cmsg_skbs, skb);
-	schedule_work(&priv->cmsg_work);
+	cmsg_hdr = nfp_flower_cmsg_get_hdr(skb);
+
+	if (unlikely(cmsg_hdr->version != NFP_FLOWER_CMSG_VER1)) {
+		nfp_flower_cmsg_warn(app, "Cannot handle repr control version %u\n",
+				     cmsg_hdr->version);
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
+	if (cmsg_hdr->type == NFP_FLOWER_CMSG_TYPE_FLOW_STATS) {
+		/* We need to deal with stats updates from HW asap */
+		nfp_flower_rx_flow_stats(app, skb);
+		dev_consume_skb_any(skb);
+	} else {
+		skb_queue_tail(&priv->cmsg_skbs, skb);
+		schedule_work(&priv->cmsg_work);
+	}
 }
