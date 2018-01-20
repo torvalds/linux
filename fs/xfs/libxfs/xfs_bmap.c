@@ -3390,6 +3390,8 @@ xfs_bmap_btalloc(
 	xfs_agnumber_t	fb_agno;	/* ag number of ap->firstblock */
 	xfs_agnumber_t	ag;
 	xfs_alloc_arg_t	args;
+	xfs_fileoff_t	orig_offset;
+	xfs_extlen_t	orig_length;
 	xfs_extlen_t	blen;
 	xfs_extlen_t	nextminlen = 0;
 	int		nullfb;		/* true if ap->firstblock isn't set */
@@ -3399,6 +3401,8 @@ xfs_bmap_btalloc(
 	int		stripe_align;
 
 	ASSERT(ap->length);
+	orig_offset = ap->offset;
+	orig_length = ap->length;
 
 	mp = ap->ip->i_mount;
 
@@ -3614,6 +3618,22 @@ xfs_bmap_btalloc(
 			*ap->firstblock = args.fsbno;
 		ASSERT(nullfb || fb_agno <= args.agno);
 		ap->length = args.len;
+		/*
+		 * If the extent size hint is active, we tried to round the
+		 * caller's allocation request offset down to extsz and the
+		 * length up to another extsz boundary.  If we found a free
+		 * extent we mapped it in starting at this new offset.  If the
+		 * newly mapped space isn't long enough to cover any of the
+		 * range of offsets that was originally requested, move the
+		 * mapping up so that we can fill as much of the caller's
+		 * original request as possible.  Free space is apparently
+		 * very fragmented so we're unlikely to be able to satisfy the
+		 * hints anyway.
+		 */
+		if (ap->length <= orig_length)
+			ap->offset = orig_offset;
+		else if (ap->offset + ap->length < orig_offset + orig_length)
+			ap->offset = orig_offset + orig_length - ap->length;
 		xfs_bmap_btalloc_accounting(ap, &args);
 	} else {
 		ap->blkno = NULLFSBLOCK;
