@@ -25,8 +25,6 @@
 
 #include "bpf_jit_32.h"
 
-int bpf_jit_enable __read_mostly;
-
 #define STACK_OFFSET(k)	(k)
 #define TMP_REG_1	(MAX_BPF_JIT_REG + 0)	/* TEMP Register 1 */
 #define TMP_REG_2	(MAX_BPF_JIT_REG + 1)	/* TEMP Register 2 */
