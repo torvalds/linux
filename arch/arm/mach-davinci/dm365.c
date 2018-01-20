@@ -1116,7 +1116,6 @@ static const struct davinci_soc_info davinci_soc_info_dm365 = {
 	.jtag_id_reg		= 0x01c40028,
 	.ids			= dm365_ids,
 	.ids_num		= ARRAY_SIZE(dm365_ids),
-	.cpu_clks		= dm365_clks,
 	.psc_bases		= dm365_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(dm365_psc_bases),
 	.pinmux_base		= DAVINCI_SYSTEM_MODULE_BASE,
@@ -1168,7 +1167,12 @@ void __init dm365_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm365);
 	davinci_map_sysmod();
-	davinci_clk_init(davinci_soc_info_dm365.cpu_clks);
+}
+
+void __init dm365_init_time(void)
+{
+	davinci_clk_init(dm365_clks);
+	davinci_timer_init();
 }
 
 static struct resource dm365_vpss_resources[] = {
