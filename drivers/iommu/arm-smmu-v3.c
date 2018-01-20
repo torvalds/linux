@@ -2328,10 +2328,15 @@ static void arm_smmu_setup_msis(struct arm_smmu_device *smmu)
 	if (!(smmu->features & ARM_SMMU_FEAT_MSI))
 		return;
 
+	if (!dev->msi_domain) {
+		dev_info(smmu->dev, "msi_domain absent - falling back to wired irqs\n");
+		return;
+	}
+
 	/* Allocate MSIs for evtq, gerror and priq. Ignore cmdq */
 	ret = platform_msi_domain_alloc_irqs(dev, nvec, arm_smmu_write_msi_msg);
 	if (ret) {
-		dev_warn(dev, "failed to allocate MSIs\n");
+		dev_warn(dev, "failed to allocate MSIs - falling back to wired irqs\n");
 		return;
 	}
 
