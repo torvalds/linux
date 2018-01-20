@@ -225,7 +225,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 	int i;
 #endif
 	const fmode_t mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
-	struct block_device *bdev = ERR_PTR(-ENODEV);
+	struct block_device *bdev;
 	struct block2mtd_dev *dev;
 	char *name;
 
