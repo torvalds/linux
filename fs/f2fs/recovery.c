@@ -195,6 +195,20 @@ out:
 	return err;
 }
 
+static void recover_inline_flags(struct inode *inode, struct f2fs_inode *ri)
+{
+	if (ri->i_inline & F2FS_PIN_FILE)
+		set_inode_flag(inode, FI_PIN_FILE);
+	else
+		clear_inode_flag(inode, FI_PIN_FILE);
+	if (ri->i_inline & F2FS_DATA_EXIST)
+		set_inode_flag(inode, FI_DATA_EXIST);
+	else
+		clear_inode_flag(inode, FI_DATA_EXIST);
+	if (!(ri->i_inline & F2FS_INLINE_DOTS))
+		clear_inode_flag(inode, FI_INLINE_DOTS);
+}
+
 static void recover_inode(struct inode *inode, struct page *page)
 {
 	struct f2fs_inode *raw = F2FS_INODE(page);
@@ -211,13 +225,16 @@ static void recover_inode(struct inode *inode, struct page *page)
 
 	F2FS_I(inode)->i_advise = raw->i_advise;
 
+	recover_inline_flags(inode, raw);
+
 	if (file_enc_name(inode))
 		name = "<encrypted>";
 	else
 		name = F2FS_INODE(page)->i_name;
 
-	f2fs_msg(inode->i_sb, KERN_NOTICE, "recover_inode: ino = %x, name = %s",
-			ino_of_node(page), name);
+	f2fs_msg(inode->i_sb, KERN_NOTICE,
+		"recover_inode: ino = %x, name = %s, inline = %x",
+			ino_of_node(page), name, raw->i_inline);
 }
 
 static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
