@@ -2146,8 +2146,7 @@ lnet_create_reply_msg(struct lnet_ni *ni, struct lnet_msg *getmsg)
 	the_lnet.ln_counters[cpt]->drop_length += getmd->md_length;
 	lnet_net_unlock(cpt);
 
-	if (msg)
-		kfree(msg);
+	kfree(msg);
 
 	return NULL;
 }
