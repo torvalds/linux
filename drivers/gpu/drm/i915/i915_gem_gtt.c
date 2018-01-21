@@ -377,6 +377,7 @@ static gen6_pte_t iris_pte_encode(dma_addr_t addr,
 static struct page *vm_alloc_page(struct i915_address_space *vm, gfp_t gfp)
 {
 	struct pagevec *pvec = &vm->free_pages;
+	struct pagevec stash;
 
 	if (I915_SELFTEST_ONLY(should_fail(&vm->fault_attr, 1)))
 		i915_gem_shrink_all(vm->i915);
@@ -395,7 +396,15 @@ static struct page *vm_alloc_page(struct i915_address_space *vm, gfp_t gfp)
 	if (likely(pvec->nr))
 		return pvec->pages[--pvec->nr];
 
-	/* Otherwise batch allocate pages to amoritize cost of set_pages_wc. */
+	/*
+	 * Otherwise batch allocate pages to amoritize cost of set_pages_wc.
+	 *
+	 * We have to be careful as page allocation may trigger the shrinker
+	 * (via direct reclaim) which will fill up the WC stash underneath us.
+	 * So we add our WB pages into a temporary pvec on the stack and merge
+	 * them into the WC stash after all the allocations are complete.
+	 */
+	pagevec_init(&stash);
 	do {
 		struct page *page;
 
@@ -403,15 +412,24 @@ static struct page *vm_alloc_page(struct i915_address_space *vm, gfp_t gfp)
 		if (unlikely(!page))
 			break;
 
-		pvec->pages[pvec->nr++] = page;
-	} while (pagevec_space(pvec));
+		stash.pages[stash.nr++] = page;
+	} while (stash.nr < pagevec_space(pvec));
 
-	if (unlikely(!pvec->nr))
-		return NULL;
+	if (stash.nr) {
+		int nr = min_t(int, stash.nr, pagevec_space(pvec));
+		struct page **pages = stash.pages + stash.nr - nr;
 
-	set_pages_array_wc(pvec->pages, pvec->nr);
+		if (nr && !set_pages_array_wc(pages, nr)) {
+			memcpy(pvec->pages + pvec->nr,
+			       pages, sizeof(pages[0]) * nr);
+			pvec->nr += nr;
+			stash.nr -= nr;
+		}
 
-	return pvec->pages[--pvec->nr];
+		pagevec_release(&stash);
+	}
+
+	return likely(pvec->nr) ? pvec->pages[--pvec->nr] : NULL;
 }
 
 static void vm_free_pages_release(struct i915_address_space *vm,
