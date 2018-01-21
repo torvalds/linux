@@ -200,6 +200,8 @@ struct tb_path {
  * @suspend: Connection manager specific suspend
  * @complete: Connection manager specific complete
  * @handle_event: Handle thunderbolt event
+ * @get_boot_acl: Get boot ACL list
+ * @set_boot_acl: Set boot ACL list
  * @approve_switch: Approve switch
  * @add_switch_key: Add key to switch
  * @challenge_switch_key: Challenge switch using key
@@ -217,6 +219,8 @@ struct tb_cm_ops {
 	void (*complete)(struct tb *tb);
 	void (*handle_event)(struct tb *tb, enum tb_cfg_pkg_type,
 			     const void *buf, size_t size);
+	int (*get_boot_acl)(struct tb *tb, uuid_t *uuids, size_t nuuids);
+	int (*set_boot_acl)(struct tb *tb, const uuid_t *uuids, size_t nuuids);
 	int (*approve_switch)(struct tb *tb, struct tb_switch *sw);
 	int (*add_switch_key)(struct tb *tb, struct tb_switch *sw);
 	int (*challenge_switch_key)(struct tb *tb, struct tb_switch *sw,

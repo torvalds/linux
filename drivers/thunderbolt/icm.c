@@ -56,6 +56,7 @@
  * @vnd_cap: Vendor defined capability where PCIe2CIO mailbox resides
  *	     (only set when @upstream_port is not %NULL)
  * @safe_mode: ICM is in safe mode
+ * @max_boot_acl: Maximum number of preboot ACL entries (%0 if not supported)
  * @is_supported: Checks if we can support ICM on this controller
  * @get_mode: Read and return the ICM firmware mode (optional)
  * @get_route: Find a route string for given switch
@@ -69,13 +70,15 @@ struct icm {
 	struct mutex request_lock;
 	struct delayed_work rescan_work;
 	struct pci_dev *upstream_port;
+	size_t max_boot_acl;
 	int vnd_cap;
 	bool safe_mode;
 	bool (*is_supported)(struct tb *tb);
 	int (*get_mode)(struct tb *tb);
 	int (*get_route)(struct tb *tb, u8 link, u8 depth, u64 *route);
 	int (*driver_ready)(struct tb *tb,
-			    enum tb_security_level *security_level);
+			    enum tb_security_level *security_level,
+			    size_t *nboot_acl);
 	void (*device_connected)(struct tb *tb,
 				 const struct icm_pkg_header *hdr);
 	void (*device_disconnected)(struct tb *tb,
@@ -250,7 +253,8 @@ err_free:
 }
 
 static int
-icm_fr_driver_ready(struct tb *tb, enum tb_security_level *security_level)
+icm_fr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
+		    size_t *nboot_acl)
 {
 	struct icm_fr_pkg_driver_ready_response reply;
 	struct icm_pkg_driver_ready request = {
@@ -827,6 +831,30 @@ static int icm_ar_get_mode(struct tb *tb)
 	return nhi_mailbox_mode(nhi);
 }
 
+static int
+icm_ar_driver_ready(struct tb *tb, enum tb_security_level *security_level,
+		    size_t *nboot_acl)
+{
+	struct icm_ar_pkg_driver_ready_response reply;
+	struct icm_pkg_driver_ready request = {
+		.hdr.code = ICM_DRIVER_READY,
+	};
+	int ret;
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (security_level)
+		*security_level = reply.info & ICM_AR_INFO_SLEVEL_MASK;
+	if (nboot_acl && (reply.info & ICM_AR_INFO_BOOT_ACL_SUPPORTED))
+		*nboot_acl = (reply.info & ICM_AR_INFO_BOOT_ACL_MASK) >>
+				ICM_AR_INFO_BOOT_ACL_SHIFT;
+	return 0;
+}
+
 static int icm_ar_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
 {
 	struct icm_ar_pkg_get_route_response reply;
@@ -846,6 +874,87 @@ static int icm_ar_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
 		return -EIO;
 
 	*route = get_route(reply.route_hi, reply.route_lo);
+	return 0;
+}
+
+static int icm_ar_get_boot_acl(struct tb *tb, uuid_t *uuids, size_t nuuids)
+{
+	struct icm_ar_pkg_preboot_acl_response reply;
+	struct icm_ar_pkg_preboot_acl request = {
+		.hdr = { .code = ICM_PREBOOT_ACL },
+	};
+	int ret, i;
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
+	for (i = 0; i < nuuids; i++) {
+		u32 *uuid = (u32 *)&uuids[i];
+
+		uuid[0] = reply.acl[i].uuid_lo;
+		uuid[1] = reply.acl[i].uuid_hi;
+
+		if (uuid[0] == 0xffffffff && uuid[1] == 0xffffffff) {
+			/* Map empty entries to null UUID */
+			uuid[0] = 0;
+			uuid[1] = 0;
+		} else {
+			/* Upper two DWs are always one's */
+			uuid[2] = 0xffffffff;
+			uuid[3] = 0xffffffff;
+		}
+	}
+
+	return ret;
+}
+
+static int icm_ar_set_boot_acl(struct tb *tb, const uuid_t *uuids,
+			       size_t nuuids)
+{
+	struct icm_ar_pkg_preboot_acl_response reply;
+	struct icm_ar_pkg_preboot_acl request = {
+		.hdr = {
+			.code = ICM_PREBOOT_ACL,
+			.flags = ICM_FLAGS_WRITE,
+		},
+	};
+	int ret, i;
+
+	for (i = 0; i < nuuids; i++) {
+		const u32 *uuid = (const u32 *)&uuids[i];
+
+		if (uuid_is_null(&uuids[i])) {
+			/*
+			 * Map null UUID to the empty (all one) entries
+			 * for ICM.
+			 */
+			request.acl[i].uuid_lo = 0xffffffff;
+			request.acl[i].uuid_hi = 0xffffffff;
+		} else {
+			/* Two high DWs need to be set to all one */
+			if (uuid[2] != 0xffffffff || uuid[3] != 0xffffffff)
+				return -EINVAL;
+
+			request.acl[i].uuid_lo = uuid[0];
+			request.acl[i].uuid_hi = uuid[1];
+		}
+	}
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
 	return 0;
 }
 
@@ -895,13 +1004,14 @@ static void icm_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 }
 
 static int
-__icm_driver_ready(struct tb *tb, enum tb_security_level *security_level)
+__icm_driver_ready(struct tb *tb, enum tb_security_level *security_level,
+		   size_t *nboot_acl)
 {
 	struct icm *icm = tb_priv(tb);
 	unsigned int retries = 50;
 	int ret;
 
-	ret = icm->driver_ready(tb, security_level);
+	ret = icm->driver_ready(tb, security_level, nboot_acl);
 	if (ret) {
 		tb_err(tb, "failed to send driver ready to ICM\n");
 		return ret;
@@ -1168,7 +1278,18 @@ static int icm_driver_ready(struct tb *tb)
 		return 0;
 	}
 
-	return __icm_driver_ready(tb, &tb->security_level);
+	ret = __icm_driver_ready(tb, &tb->security_level, &tb->nboot_acl);
+	if (ret)
+		return ret;
+
+	/*
+	 * Make sure the number of supported preboot ACL matches what we
+	 * expect or disable the whole feature.
+	 */
+	if (tb->nboot_acl > icm->max_boot_acl)
+		tb->nboot_acl = 0;
+
+	return 0;
 }
 
 static int icm_suspend(struct tb *tb)
@@ -1264,7 +1385,7 @@ static void icm_complete(struct tb *tb)
 	 * Now all existing children should be resumed, start events
 	 * from ICM to get updated status.
 	 */
-	__icm_driver_ready(tb, NULL);
+	__icm_driver_ready(tb, NULL, NULL);
 
 	/*
 	 * We do not get notifications of devices that have been
@@ -1317,7 +1438,7 @@ static int icm_disconnect_pcie_paths(struct tb *tb)
 	return nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_DISCONNECT_PCIE_PATHS, 0);
 }
 
-/* Falcon Ridge and Alpine Ridge */
+/* Falcon Ridge */
 static const struct tb_cm_ops icm_fr_ops = {
 	.driver_ready = icm_driver_ready,
 	.start = icm_start,
@@ -1325,6 +1446,24 @@ static const struct tb_cm_ops icm_fr_ops = {
 	.suspend = icm_suspend,
 	.complete = icm_complete,
 	.handle_event = icm_handle_event,
+	.approve_switch = icm_fr_approve_switch,
+	.add_switch_key = icm_fr_add_switch_key,
+	.challenge_switch_key = icm_fr_challenge_switch_key,
+	.disconnect_pcie_paths = icm_disconnect_pcie_paths,
+	.approve_xdomain_paths = icm_fr_approve_xdomain_paths,
+	.disconnect_xdomain_paths = icm_fr_disconnect_xdomain_paths,
+};
+
+/* Alpine Ridge */
+static const struct tb_cm_ops icm_ar_ops = {
+	.driver_ready = icm_driver_ready,
+	.start = icm_start,
+	.stop = icm_stop,
+	.suspend = icm_suspend,
+	.complete = icm_complete,
+	.handle_event = icm_handle_event,
+	.get_boot_acl = icm_ar_get_boot_acl,
+	.set_boot_acl = icm_ar_set_boot_acl,
 	.approve_switch = icm_fr_approve_switch,
 	.add_switch_key = icm_fr_add_switch_key,
 	.challenge_switch_key = icm_fr_challenge_switch_key,
@@ -1364,15 +1503,16 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_NHI:
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_NHI:
 	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_NHI:
+		icm->max_boot_acl = ICM_AR_PREBOOT_ACL_ENTRIES;
 		icm->is_supported = icm_ar_is_supported;
 		icm->get_mode = icm_ar_get_mode;
 		icm->get_route = icm_ar_get_route;
-		icm->driver_ready = icm_fr_driver_ready;
+		icm->driver_ready = icm_ar_driver_ready;
 		icm->device_connected = icm_fr_device_connected;
 		icm->device_disconnected = icm_fr_device_disconnected;
 		icm->xdomain_connected = icm_fr_xdomain_connected;
 		icm->xdomain_disconnected = icm_fr_xdomain_disconnected;
-		tb->cm_ops = &icm_fr_ops;
+		tb->cm_ops = &icm_ar_ops;
 		break;
 	}
 
