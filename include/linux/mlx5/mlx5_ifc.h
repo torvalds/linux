@@ -1031,7 +1031,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_hairpin_queues[0x5];
 	u8         reserved_at_3c8[0x3];
 	u8         log_max_hairpin_wq_data_sz[0x5];
-	u8         reserved_at_3d0[0xb];
+	u8         reserved_at_3d0[0x3];
+	u8         log_max_hairpin_num_packets[0x5];
+	u8         reserved_at_3d8[0x3];
 	u8         log_max_wq_sz[0x5];
 
 	u8         nic_vport_change_event[0x1];
@@ -1172,7 +1174,9 @@ struct mlx5_ifc_wq_bits {
 	u8         reserved_at_118[0x3];
 	u8         log_wq_sz[0x5];
 
-	u8         reserved_at_120[0xb];
+	u8         reserved_at_120[0x3];
+	u8         log_hairpin_num_packets[0x5];
+	u8         reserved_at_128[0x3];
 	u8         log_hairpin_data_sz[0x5];
 	u8         reserved_at_130[0x5];
 

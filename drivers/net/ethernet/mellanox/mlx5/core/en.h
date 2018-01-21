@@ -44,6 +44,7 @@
 #include <linux/mlx5/port.h>
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/transobj.h>
+#include <linux/mlx5/fs.h>
 #include <linux/rhashtable.h>
 #include <net/switchdev.h>
 #include <net/xdp.h>
@@ -560,6 +561,7 @@ struct mlx5e_channel {
 
 	/* data path - accessed per napi poll */
 	struct irq_desc *irq_desc;
+	struct mlx5e_ch_stats      stats;
 
 	/* control */
 	struct mlx5e_priv         *priv;
@@ -694,6 +696,11 @@ enum {
 	MLX5E_TTC_FT_LEVEL,
 	MLX5E_INNER_TTC_FT_LEVEL,
 	MLX5E_ARFS_FT_LEVEL
+};
+
+enum {
+	MLX5E_TC_FT_LEVEL = 0,
+	MLX5E_TC_TTC_FT_LEVEL,
 };
 
 struct mlx5e_ethtool_table {
@@ -834,7 +841,7 @@ void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi);
 
-void mlx5e_update_stats(struct mlx5e_priv *priv, bool full);
+void mlx5e_update_stats(struct mlx5e_priv *priv);
 
 int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
@@ -1024,11 +1031,26 @@ int mlx5e_create_direct_tirs(struct mlx5e_priv *priv);
 void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv);
 void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt);
 
-int mlx5e_create_ttc_table(struct mlx5e_priv *priv);
-void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv);
+struct ttc_params {
+	struct mlx5_flow_table_attr ft_attr;
+	u32 any_tt_tirn;
+	u32 indir_tirn[MLX5E_NUM_INDIR_TIRS];
+	struct mlx5e_ttc_table *inner_ttc;
+};
 
-int mlx5e_create_inner_ttc_table(struct mlx5e_priv *priv);
-void mlx5e_destroy_inner_ttc_table(struct mlx5e_priv *priv);
+void mlx5e_set_ttc_basic_params(struct mlx5e_priv *priv, struct ttc_params *ttc_params);
+void mlx5e_set_ttc_ft_params(struct ttc_params *ttc_params);
+void mlx5e_set_inner_ttc_ft_params(struct ttc_params *ttc_params);
+
+int mlx5e_create_ttc_table(struct mlx5e_priv *priv, struct ttc_params *params,
+			   struct mlx5e_ttc_table *ttc);
+void mlx5e_destroy_ttc_table(struct mlx5e_priv *priv,
+			     struct mlx5e_ttc_table *ttc);
+
+int mlx5e_create_inner_ttc_table(struct mlx5e_priv *priv, struct ttc_params *params,
+				 struct mlx5e_ttc_table *ttc);
+void mlx5e_destroy_inner_ttc_table(struct mlx5e_priv *priv,
+				   struct mlx5e_ttc_table *ttc);
 
 int mlx5e_create_tis(struct mlx5_core_dev *mdev, int tc,
 		     u32 underlay_qpn, u32 *tisn);
@@ -1040,6 +1062,8 @@ int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
 void mlx5e_update_stats_work(struct work_struct *work);
 u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout);
+
+int mlx5e_bits_invert(unsigned long a, int size);
 
 /* ethtool helpers */
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,

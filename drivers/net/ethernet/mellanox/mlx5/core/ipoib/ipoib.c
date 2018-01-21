@@ -241,7 +241,8 @@ static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 
 static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 {
-	int err;
+	struct ttc_params ttc_params = {};
+	int tt, err;
 
 	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
 					       MLX5_FLOW_NAMESPACE_KERNEL);
@@ -256,14 +257,23 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 		priv->netdev->hw_features &= ~NETIF_F_NTUPLE;
 	}
 
-	err = mlx5e_create_inner_ttc_table(priv);
+	mlx5e_set_ttc_basic_params(priv, &ttc_params);
+	mlx5e_set_inner_ttc_ft_params(&ttc_params);
+	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
+		ttc_params.indir_tirn[tt] = priv->inner_indir_tir[tt].tirn;
+
+	err = mlx5e_create_inner_ttc_table(priv, &ttc_params, &priv->fs.inner_ttc);
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create inner ttc table, err=%d\n",
 			   err);
 		goto err_destroy_arfs_tables;
 	}
 
-	err = mlx5e_create_ttc_table(priv);
+	mlx5e_set_ttc_ft_params(&ttc_params);
+	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
+		ttc_params.indir_tirn[tt] = priv->inner_indir_tir[tt].tirn;
+
+	err = mlx5e_create_ttc_table(priv, &ttc_params, &priv->fs.ttc);
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create ttc table, err=%d\n",
 			   err);
@@ -273,7 +283,7 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 	return 0;
 
 err_destroy_inner_ttc_table:
-	mlx5e_destroy_inner_ttc_table(priv);
+	mlx5e_destroy_inner_ttc_table(priv, &priv->fs.inner_ttc);
 err_destroy_arfs_tables:
 	mlx5e_arfs_destroy_tables(priv);
 
@@ -282,8 +292,8 @@ err_destroy_arfs_tables:
 
 static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 {
-	mlx5e_destroy_ttc_table(priv);
-	mlx5e_destroy_inner_ttc_table(priv);
+	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
+	mlx5e_destroy_inner_ttc_table(priv, &priv->fs.inner_ttc);
 	mlx5e_arfs_destroy_tables(priv);
 }
 

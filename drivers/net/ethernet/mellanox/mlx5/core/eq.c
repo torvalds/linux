@@ -530,6 +530,24 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 	return IRQ_HANDLED;
 }
 
+/* Some architectures don't latch interrupts when they are disabled, so using
+ * mlx5_eq_poll_irq_disabled could end up losing interrupts while trying to
+ * avoid losing them.  It is not recommended to use it, unless this is the last
+ * resort.
+ */
+u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq *eq)
+{
+	u32 count_eqe;
+
+	disable_irq(eq->irqn);
+	count_eqe = eq->cons_index;
+	mlx5_eq_int(eq->irqn, eq);
+	count_eqe = eq->cons_index - count_eqe;
+	enable_irq(eq->irqn);
+
+	return count_eqe;
+}
+
 static void init_eq_buf(struct mlx5_eq *eq)
 {
 	struct mlx5_eqe *eqe;
