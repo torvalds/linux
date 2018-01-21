@@ -3489,8 +3489,9 @@ static int arcmsr_polling_ccbdone(struct AdapterControlBlock *acb,
 static void arcmsr_set_iop_datetime(struct timer_list *t)
 {
 	struct AdapterControlBlock *pacb = from_timer(pacb, t, refresh_timer);
-	unsigned int days, j, i, a, b, c, d, e, m, year, mon, day, hour, min, sec, secs, next_time;
-	struct timeval tv;
+	unsigned int next_time;
+	struct tm tm;
+
 	union {
 		struct	{
 		uint16_t	signature;
@@ -3506,33 +3507,15 @@ static void arcmsr_set_iop_datetime(struct timer_list *t)
 		} b;
 	} datetime;
 
-	do_gettimeofday(&tv);
-	secs = (u32)(tv.tv_sec - (sys_tz.tz_minuteswest * 60));
-	days = secs / 86400;
-	secs = secs - 86400 * days;
-	j = days / 146097;
-	i = days - 146097 * j;
-	a = i + 719468;
-	b = ( 4 * a + 3 ) / 146097;
-	c = a - ( 146097 * b ) / 4;
-	d = ( 4 * c + 3 ) / 1461 ;
-	e = c - ( 1461 * d ) / 4 ;
-	m = ( 5 * e + 2 ) / 153 ;
-	year = 400 * j + 100 * b + d + m / 10 - 2000;
-	mon = m + 3 - 12 * ( m /10 );
-	day = e - ( 153 * m + 2 ) / 5 + 1;
-	hour = secs / 3600;
-	secs = secs - 3600 * hour;
-	min = secs / 60;
-	sec = secs - 60 * min;
+	time64_to_tm(ktime_get_real_seconds(), -sys_tz.tz_minuteswest * 60, &tm);
 
 	datetime.a.signature = 0x55AA;
-	datetime.a.year = year;
-	datetime.a.month = mon;
-	datetime.a.date = day;
-	datetime.a.hour = hour;
-	datetime.a.minute = min;
-	datetime.a.second = sec;
+	datetime.a.year = tm.tm_year - 100; /* base 2000 instead of 1900 */
+	datetime.a.month = tm.tm_mon;
+	datetime.a.date = tm.tm_mday;
+	datetime.a.hour = tm.tm_hour;
+	datetime.a.minute = tm.tm_min;
+	datetime.a.second = tm.tm_sec;
 
 	switch (pacb->adapter_type) {
 		case ACB_ADAPTER_TYPE_A: {
