@@ -62,7 +62,7 @@
 #define MIE	(1 << 3)	/* master if enable */
 #define TSBE	(1 << 2)
 #define FSB	(1 << 1)	/* force stop bit */
-#define ESG	(1 << 0)	/* en startbit gen */
+#define ESG	(1 << 0)	/* enable start bit gen */
 
 /* ICSSR (also for ICSIER) */
 #define GCAR	(1 << 6)	/* general call received */
@@ -331,7 +331,7 @@ static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 
 	rcar_i2c_write(priv, ICMAR, (priv->msg->addr << 1) | read);
 	/*
-	 * We don't have a testcase but the HW engineers say that the write order
+	 * We don't have a test case but the HW engineers say that the write order
 	 * of ICMSR and ICMCR depends on whether we issue START or REP_START. Since
 	 * it didn't cause a drawback for me, let's rather be safe than sorry.
 	 */
@@ -489,7 +489,7 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 
 		/*
 		 * Try to use DMA to transmit the rest of the data if
-		 * address transfer pashe just finished.
+		 * address transfer phase just finished.
 		 */
 		if (msr & MAT)
 			rcar_i2c_dma(priv);
