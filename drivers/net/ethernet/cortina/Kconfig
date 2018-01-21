@@ -14,6 +14,7 @@ if NET_VENDOR_CORTINA
 config GEMINI_ETHERNET
 	tristate "Gemini Gigabit Ethernet support"
 	depends on OF
+	depends on HAS_IOMEM
 	select PHYLIB
 	select CRC32
 	---help---
