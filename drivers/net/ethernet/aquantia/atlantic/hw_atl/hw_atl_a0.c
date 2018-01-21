@@ -18,45 +18,67 @@
 #include "hw_atl_llh.h"
 #include "hw_atl_a0_internal.h"
 
-static int hw_atl_a0_get_hw_caps(struct aq_hw_s *self,
-				 struct aq_hw_caps_s *aq_hw_caps,
-				 unsigned short device,
-				 unsigned short subsystem_device)
-{
-	memcpy(aq_hw_caps, &hw_atl_a0_hw_caps_, sizeof(*aq_hw_caps));
+#define DEFAULT_A0_BOARD_BASIC_CAPABILITIES \
+	.is_64_dma = true, \
+	.msix_irqs = 4U, \
+	.irq_mask = ~0U, \
+	.vecs = HW_ATL_A0_RSS_MAX, \
+	.tcs = HW_ATL_A0_TC_MAX, \
+	.rxd_alignment = 1U, \
+	.rxd_size = HW_ATL_A0_RXD_SIZE, \
+	.rxds = 248U, \
+	.txd_alignment = 1U, \
+	.txd_size = HW_ATL_A0_TXD_SIZE, \
+	.txds = 8U * 1024U, \
+	.txhwb_alignment = 4096U, \
+	.tx_rings = HW_ATL_A0_TX_RINGS, \
+	.rx_rings = HW_ATL_A0_RX_RINGS, \
+	.hw_features = NETIF_F_HW_CSUM | \
+			NETIF_F_RXHASH | \
+			NETIF_F_RXCSUM | \
+			NETIF_F_SG | \
+			NETIF_F_TSO, \
+	.hw_priv_flags = IFF_UNICAST_FLT, \
+	.flow_control = true, \
+	.mtu = HW_ATL_A0_MTU_JUMBO, \
+	.mac_regs_count = 88, \
+	.hw_alive_check_addr = 0x10U
 
-	if (device == HW_ATL_DEVICE_ID_D108 && subsystem_device == 0x0001)
-		aq_hw_caps->link_speed_msk &= ~HW_ATL_A0_RATE_10G;
+const struct aq_hw_caps_s hw_atl_a0_caps_aqc100 = {
+	DEFAULT_A0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_FIBRE,
+	.link_speed_msk = HW_ATL_A0_RATE_5G  |
+			  HW_ATL_A0_RATE_2G5 |
+			  HW_ATL_A0_RATE_1G  |
+			  HW_ATL_A0_RATE_100M,
+};
 
-	if (device == HW_ATL_DEVICE_ID_D109 && subsystem_device == 0x0001) {
-		aq_hw_caps->link_speed_msk &= ~HW_ATL_A0_RATE_10G;
-		aq_hw_caps->link_speed_msk &= ~HW_ATL_A0_RATE_5G;
-	}
+const struct aq_hw_caps_s hw_atl_a0_caps_aqc107 = {
+	DEFAULT_A0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = HW_ATL_A0_RATE_10G |
+			  HW_ATL_A0_RATE_5G  |
+			  HW_ATL_A0_RATE_2G5 |
+			  HW_ATL_A0_RATE_1G  |
+			  HW_ATL_A0_RATE_100M,
+};
 
-	return 0;
-}
+const struct aq_hw_caps_s hw_atl_a0_caps_aqc108 = {
+	DEFAULT_A0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = HW_ATL_A0_RATE_5G  |
+			  HW_ATL_A0_RATE_2G5 |
+			  HW_ATL_A0_RATE_1G  |
+			  HW_ATL_A0_RATE_100M,
+};
 
-static struct aq_hw_s *hw_atl_a0_create(struct aq_pci_func_s *aq_pci_func,
-					unsigned int port)
-{
-	struct aq_hw_s *self = NULL;
-
-	self = kzalloc(sizeof(*self), GFP_KERNEL);
-	if (!self)
-		goto err_exit;
-
-	self->aq_pci_func = aq_pci_func;
-
-	self->not_ff_addr = 0x10U;
-
-err_exit:
-	return self;
-}
-
-static void hw_atl_a0_destroy(struct aq_hw_s *self)
-{
-	kfree(self);
-}
+const struct aq_hw_caps_s hw_atl_a0_caps_aqc109 = {
+	DEFAULT_A0_BOARD_BASIC_CAPABILITIES,
+	.media_type = AQ_HW_MEDIA_TYPE_TP,
+	.link_speed_msk = HW_ATL_A0_RATE_2G5 |
+			  HW_ATL_A0_RATE_1G  |
+			  HW_ATL_A0_RATE_100M,
+};
 
 static int hw_atl_a0_hw_reset(struct aq_hw_s *self)
 {
@@ -83,7 +105,7 @@ static int hw_atl_a0_hw_reset(struct aq_hw_s *self)
 	if (err < 0)
 		goto err_exit;
 
-	hw_atl_utils_mpi_set(self, MPI_RESET, 0x0U);
+	self->aq_fw_ops->set_state(self, MPI_RESET);
 
 	err = aq_hw_err_from_flags(self);
 
@@ -332,7 +354,8 @@ static int hw_atl_a0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 
 	hw_atl_a0_hw_mac_addr_set(self, mac_addr);
 
-	hw_atl_utils_mpi_set(self, MPI_INIT, aq_nic_cfg->link_speed_msk);
+	self->aq_fw_ops->set_link_speed(self, aq_nic_cfg->link_speed_msk);
+	self->aq_fw_ops->set_state(self, MPI_INIT);
 
 	hw_atl_reg_tx_dma_debug_ctl_set(self, 0x800000b8U);
 	hw_atl_reg_tx_dma_debug_ctl_set(self, 0x000000b8U);
@@ -343,7 +366,7 @@ static int hw_atl_a0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 
 	/* Reset link status and read out initial hardware counters */
 	self->aq_link_status.mbps = 0;
-	hw_atl_utils_update_stats(self);
+	self->aq_fw_ops->update_stats(self);
 
 	err = aq_hw_err_from_flags(self);
 	if (err < 0)
@@ -849,27 +872,8 @@ static int hw_atl_a0_hw_ring_rx_stop(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_a0_hw_set_speed(struct aq_hw_s *self, u32 speed)
-{
-	int err = 0;
-
-	err = hw_atl_utils_mpi_set_speed(self, speed, MPI_INIT);
-	if (err < 0)
-		goto err_exit;
-
-err_exit:
-	return err;
-}
-
-static const struct aq_hw_ops hw_atl_ops_ = {
-	.create               = hw_atl_a0_create,
-	.destroy              = hw_atl_a0_destroy,
-	.get_hw_caps          = hw_atl_a0_get_hw_caps,
-
-	.hw_get_mac_permanent = hw_atl_utils_get_mac_permanent,
+const struct aq_hw_ops hw_atl_ops_a0 = {
 	.hw_set_mac_address   = hw_atl_a0_hw_mac_addr_set,
-	.hw_get_link_status   = hw_atl_utils_mpi_get_link_status,
-	.hw_set_link_speed    = hw_atl_a0_hw_set_speed,
 	.hw_init              = hw_atl_a0_hw_init,
 	.hw_deinit            = hw_atl_utils_hw_deinit,
 	.hw_set_power         = hw_atl_utils_hw_set_power,
@@ -899,21 +903,6 @@ static const struct aq_hw_ops hw_atl_ops_ = {
 	.hw_rss_set                  = hw_atl_a0_hw_rss_set,
 	.hw_rss_hash_set             = hw_atl_a0_hw_rss_hash_set,
 	.hw_get_regs                 = hw_atl_utils_hw_get_regs,
-	.hw_update_stats             = hw_atl_utils_update_stats,
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
 };
-
-const struct aq_hw_ops *hw_atl_a0_get_ops_by_id(struct pci_dev *pdev)
-{
-	bool is_vid_ok = (pdev->vendor == PCI_VENDOR_ID_AQUANTIA);
-	bool is_did_ok = ((pdev->device == HW_ATL_DEVICE_ID_0001) ||
-			(pdev->device == HW_ATL_DEVICE_ID_D100) ||
-			(pdev->device == HW_ATL_DEVICE_ID_D107) ||
-			(pdev->device == HW_ATL_DEVICE_ID_D108) ||
-			(pdev->device == HW_ATL_DEVICE_ID_D109));
-
-	bool is_rev_ok = (pdev->revision == 1U);
-
-	return (is_vid_ok && is_did_ok && is_rev_ok) ? &hw_atl_ops_ : NULL;
-}

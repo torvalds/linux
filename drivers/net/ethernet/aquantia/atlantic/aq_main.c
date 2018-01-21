@@ -43,14 +43,9 @@ struct net_device *aq_ndev_alloc(void)
 
 static int aq_ndev_open(struct net_device *ndev)
 {
-	struct aq_nic_s *aq_nic = NULL;
 	int err = 0;
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
-	aq_nic = aq_nic_alloc_hot(ndev);
-	if (!aq_nic) {
-		err = -ENOMEM;
-		goto err_exit;
-	}
 	err = aq_nic_init(aq_nic);
 	if (err < 0)
 		goto err_exit;
@@ -73,7 +68,6 @@ static int aq_ndev_close(struct net_device *ndev)
 	if (err < 0)
 		goto err_exit;
 	aq_nic_deinit(aq_nic);
-	aq_nic_free_hot_resources(aq_nic);
 
 err_exit:
 	return err;
@@ -145,15 +139,13 @@ static void aq_ndev_set_multicast_settings(struct net_device *ndev)
 
 	err = aq_nic_set_packet_filter(aq_nic, ndev->flags);
 	if (err < 0)
-		goto err_exit;
+		return;
 
 	if (netdev_mc_count(ndev)) {
 		err = aq_nic_set_multicast_list(aq_nic, ndev);
 		if (err < 0)
-			goto err_exit;
+			return;
 	}
-
-err_exit:;
 }
 
 static const struct net_device_ops aq_ndev_ops = {

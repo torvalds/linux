@@ -143,38 +143,5 @@
 #define HW_ATL_INTR_MODER_MIN  0xFF
 
 /* HW layer capabilities */
-static struct aq_hw_caps_s hw_atl_b0_hw_caps_ = {
-	.ports = 1U,
-	.is_64_dma = true,
-	.msix_irqs = 4U,
-	.irq_mask = ~0U,
-	.vecs = HW_ATL_B0_RSS_MAX,
-	.tcs = HW_ATL_B0_TC_MAX,
-	.rxd_alignment = 1U,
-	.rxd_size = HW_ATL_B0_RXD_SIZE,
-	.rxds = 8U * 1024U,
-	.txd_alignment = 1U,
-	.txd_size = HW_ATL_B0_TXD_SIZE,
-	.txds = 8U * 1024U,
-	.txhwb_alignment = 4096U,
-	.tx_rings = HW_ATL_B0_TX_RINGS,
-	.rx_rings = HW_ATL_B0_RX_RINGS,
-	.hw_features = NETIF_F_HW_CSUM |
-			NETIF_F_RXCSUM |
-			NETIF_F_RXHASH |
-			NETIF_F_SG |
-			NETIF_F_TSO |
-			NETIF_F_LRO,
-	.hw_priv_flags = IFF_UNICAST_FLT,
-	.link_speed_msk = (HW_ATL_B0_RATE_10G |
-			HW_ATL_B0_RATE_5G |
-			HW_ATL_B0_RATE_2G5 |
-			HW_ATL_B0_RATE_1G |
-			HW_ATL_B0_RATE_100M),
-	.flow_control = true,
-	.mtu = HW_ATL_B0_MTU_JUMBO,
-	.mac_regs_count = 88,
-	.fw_ver_expected = HW_ATL_B0_FW_VER_EXPECTED,
-};
 
 #endif /* HW_ATL_B0_INTERNAL_H */
