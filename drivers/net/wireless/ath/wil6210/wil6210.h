@@ -195,6 +195,8 @@ struct RGF_ICR {
 #define RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1	(0x880c2c)
 #define RGF_USER_SPARROW_M_4			(0x880c50) /* Sparrow */
 	#define BIT_SPARROW_M_4_SEL_SLEEP_OR_REF	BIT(2)
+#define RGF_USER_OTP_HW_RD_MACHINE_1	(0x880ce0)
+	#define BIT_NO_FLASH_INDICATION		BIT(8)
 
 #define RGF_DMA_EP_TX_ICR		(0x881bb4) /* struct RGF_ICR */
 	#define BIT_DMA_EP_TX_ICR_TX_DONE	BIT(0)
@@ -285,6 +287,9 @@ struct RGF_ICR {
 #define RGF_CAF_PLL_LOCK_STATUS		(0x88afec)
 	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
 
+#define USER_EXT_USER_PMU_3		(0x88d00c)
+	#define BIT_PMU_DEVICE_RDY		BIT(0)
+
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
 	#define JTAG_DEV_ID_SPARROW	(0x2632072f)
 	#define JTAG_DEV_ID_TALYN	(0x7e0e1)
@@ -293,6 +298,8 @@ struct RGF_ICR {
 #define RGF_USER_REVISION_ID_MASK	(3)
 	#define REVISION_ID_SPARROW_B0	(0x0)
 	#define REVISION_ID_SPARROW_D0	(0x3)
+
+#define RGF_OTP_MAC			(0x8a0620)
 
 /* crash codes for FW/Ucode stored here */
 
@@ -583,7 +590,8 @@ enum {
 };
 
 enum {
-	hw_capability_last
+	hw_capa_no_flash,
+	hw_capa_last
 };
 
 struct wil_probe_client_req {
@@ -659,7 +667,8 @@ struct wil6210_priv {
 	u8 chip_revision;
 	const char *hw_name;
 	const char *wil_fw_name;
-	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
+	char *board_file;
+	DECLARE_BITMAP(hw_capa, hw_capa_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	DECLARE_BITMAP(platform_capa, WIL_PLATFORM_CAPA_MAX);
 	u8 n_mids; /* number of additional MIDs as reported by FW */

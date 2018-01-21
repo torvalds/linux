@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -670,7 +671,7 @@ static void wil_set_oob_mode(struct wil6210_priv *wil, u8 mode)
 	}
 }
 
-static int wil_target_reset(struct wil6210_priv *wil)
+static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 {
 	int delay = 0;
 	u32 x, x1 = 0;
@@ -684,9 +685,11 @@ static int wil_target_reset(struct wil6210_priv *wil)
 
 	wil_halt_cpu(wil);
 
-	/* clear all boot loader "ready" bits */
-	wil_w(wil, RGF_USER_BL +
-	      offsetof(struct bl_dedicated_registers_v0, boot_loader_ready), 0);
+	if (!no_flash)
+		/* clear all boot loader "ready" bits */
+		wil_w(wil, RGF_USER_BL +
+		      offsetof(struct bl_dedicated_registers_v0,
+			       boot_loader_ready), 0);
 	/* Clear Fw Download notification */
 	wil_c(wil, RGF_USER_USAGE_6, BIT(0));
 
@@ -727,21 +730,33 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	wil_w(wil, RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
 
 	/* wait until device ready. typical time is 20..80 msec */
-	do {
-		msleep(RST_DELAY);
-		x = wil_r(wil, RGF_USER_BL +
-			  offsetof(struct bl_dedicated_registers_v0,
-				   boot_loader_ready));
-		if (x1 != x) {
-			wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n", x1, x);
-			x1 = x;
-		}
-		if (delay++ > RST_COUNT) {
-			wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
-				x);
-			return -ETIME;
-		}
-	} while (x != BL_READY);
+	if (no_flash)
+		do {
+			msleep(RST_DELAY);
+			x = wil_r(wil, USER_EXT_USER_PMU_3);
+			if (delay++ > RST_COUNT) {
+				wil_err(wil, "Reset not completed, PMU_3 0x%08x\n",
+					x);
+				return -ETIME;
+			}
+		} while ((x & BIT_PMU_DEVICE_RDY) == 0);
+	else
+		do {
+			msleep(RST_DELAY);
+			x = wil_r(wil, RGF_USER_BL +
+				  offsetof(struct bl_dedicated_registers_v0,
+					   boot_loader_ready));
+			if (x1 != x) {
+				wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n",
+					     x1, x);
+				x1 = x;
+			}
+			if (delay++ > RST_COUNT) {
+				wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
+					x);
+				return -ETIME;
+			}
+		} while (x != BL_READY);
 
 	wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
@@ -906,6 +921,27 @@ static void wil_bl_crash_info(struct wil6210_priv *wil, bool is_err)
 	}
 }
 
+static int wil_get_otp_info(struct wil6210_priv *wil)
+{
+	struct net_device *ndev = wil_to_ndev(wil);
+	struct wiphy *wiphy = wil_to_wiphy(wil);
+	u8 mac[8];
+
+	wil_memcpy_fromio_32(mac, wil->csr + HOSTADDR(RGF_OTP_MAC),
+			     sizeof(mac));
+	if (!is_valid_ether_addr(mac)) {
+		wil_err(wil, "Invalid MAC %pM\n", mac);
+		return -EINVAL;
+	}
+
+	ether_addr_copy(ndev->perm_addr, mac);
+	ether_addr_copy(wiphy->perm_addr, mac);
+	if (!is_valid_ether_addr(ndev->dev_addr))
+		ether_addr_copy(ndev->dev_addr, mac);
+
+	return 0;
+}
+
 static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 {
 	ulong to = msecs_to_jiffies(1000);
@@ -999,6 +1035,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 {
 	int rc;
 	unsigned long status_flags = BIT(wil_status_resetting);
+	int no_flash;
 
 	wil_dbg_misc(wil, "reset\n");
 
@@ -1074,20 +1111,28 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	flush_workqueue(wil->wq_service);
 	flush_workqueue(wil->wmi_wq);
 
-	wil_bl_crash_info(wil, false);
+	no_flash = test_bit(hw_capa_no_flash, wil->hw_capa);
+	if (!no_flash)
+		wil_bl_crash_info(wil, false);
 	wil_disable_irq(wil);
-	rc = wil_target_reset(wil);
+	rc = wil_target_reset(wil, no_flash);
 	wil6210_clear_irq(wil);
 	wil_enable_irq(wil);
 	wil_rx_fini(wil);
 	if (rc) {
-		wil_bl_crash_info(wil, true);
+		if (!no_flash)
+			wil_bl_crash_info(wil, true);
 		goto out;
 	}
 
-	rc = wil_get_bl_info(wil);
-	if (rc == -EAGAIN && !load_fw) /* ignore RF error if not going up */
-		rc = 0;
+	if (no_flash) {
+		rc = wil_get_otp_info(wil);
+	} else {
+		rc = wil_get_bl_info(wil);
+		if (rc == -EAGAIN && !load_fw)
+			/* ignore RF error if not going up */
+			rc = 0;
+	}
 	if (rc)
 		goto out;
 

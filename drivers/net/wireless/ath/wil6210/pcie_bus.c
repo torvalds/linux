@@ -44,7 +44,7 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 			    RGF_USER_REVISION_ID_MASK);
 	int platform_capa;
 
-	bitmap_zero(wil->hw_capabilities, hw_capability_last);
+	bitmap_zero(wil->hw_capa, hw_capa_last);
 	bitmap_zero(wil->fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	bitmap_zero(wil->platform_capa, WIL_PLATFORM_CAPA_MAX);
 	wil->wil_fw_name = ftm_mode ? WIL_FW_NAME_FTM_DEFAULT :
@@ -83,6 +83,9 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		memcpy(fw_mapping, talyn_fw_mapping, sizeof(talyn_fw_mapping));
 		wil->rgf_fw_assert_code_addr = TALYN_RGF_FW_ASSERT_CODE;
 		wil->rgf_ucode_assert_code_addr = TALYN_RGF_UCODE_ASSERT_CODE;
+		if (wil_r(wil, RGF_USER_OTP_HW_RD_MACHINE_1) &
+		    BIT_NO_FLASH_INDICATION)
+			set_bit(hw_capa_no_flash, wil->hw_capa);
 		break;
 	default:
 		wil_err(wil, "Unknown board hardware, chip_id 0x%08x, chip_revision 0x%08x\n",
@@ -92,7 +95,8 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		return -EINVAL;
 	}
 
-	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
+	wil_info(wil, "Board hardware is %s, flash %sexist\n", wil->hw_name,
+		 test_bit(hw_capa_no_flash, wil->hw_capa) ? "doesn't " : "");
 
 	/* Get platform capabilities */
 	if (wil->platform_ops.get_capa) {
