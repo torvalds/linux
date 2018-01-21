@@ -73,6 +73,10 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 			break;
 		}
 		break;
+	case JTAG_DEV_ID_TALYN:
+		wil->hw_name = "Talyn";
+		wil->hw_version = HW_VER_TALYN;
+		break;
 	default:
 		wil_err(wil, "Unknown board hardware, chip_id 0x%08x, chip_revision 0x%08x\n",
 			jtag_id, chip_revision);

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -286,6 +287,7 @@ struct RGF_ICR {
 
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
 	#define JTAG_DEV_ID_SPARROW	(0x2632072f)
+	#define JTAG_DEV_ID_TALYN	(0x7e0e1)
 
 #define RGF_USER_REVISION_ID		(0x88afe4)
 #define RGF_USER_REVISION_ID_MASK	(3)
@@ -300,6 +302,7 @@ enum {
 	HW_VER_UNKNOWN,
 	HW_VER_SPARROW_B0, /* REVISION_ID_SPARROW_B0 */
 	HW_VER_SPARROW_D0, /* REVISION_ID_SPARROW_D0 */
+	HW_VER_TALYN,	/* JTAG_DEV_ID_TALYN */
 };
 
 /* popular locations */
