@@ -266,16 +266,18 @@ static void kvmppc_tb_resync_done(void)
  *   secondary threads to proceed.
  * - All secondary threads will eventually call opal hmi handler on
  *   their exit path.
+ *
+ * Returns 1 if the timebase offset should be applied, 0 if not.
  */
 
 long kvmppc_realmode_hmi_handler(void)
 {
-	int ptid = local_paca->kvm_hstate.ptid;
 	bool resync_req;
 
-	/* This is only called on primary thread. */
-	BUG_ON(ptid != 0);
 	__this_cpu_inc(irq_stat.hmi_exceptions);
+
+	if (hmi_handle_debugtrig(NULL) >= 0)
+		return 1;
 
 	/*
 	 * By now primary thread has already completed guest->host
