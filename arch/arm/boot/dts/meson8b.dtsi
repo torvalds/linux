@@ -152,7 +152,7 @@
 
 	reset: reset-controller@4404 {
 		compatible = "amlogic,meson8b-reset";
-		reg = <0x4404 0x20>;
+		reg = <0x4404 0x9c>;
 		#reset-cells = <1>;
 	};
 
