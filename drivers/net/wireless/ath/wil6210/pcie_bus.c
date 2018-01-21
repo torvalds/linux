@@ -43,6 +43,7 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 	u8 chip_revision = (wil_r(wil, RGF_USER_REVISION_ID) &
 			    RGF_USER_REVISION_ID_MASK);
 	int platform_capa;
+	struct fw_map *iccm_section;
 
 	bitmap_zero(wil->hw_capa, hw_capa_last);
 	bitmap_zero(wil->fw_capabilities, WMI_FW_CAPABILITY_MAX);
@@ -94,6 +95,13 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 		wil->hw_version = HW_VER_UNKNOWN;
 		return -EINVAL;
 	}
+
+	iccm_section = wil_find_fw_mapping("fw_code");
+	if (!iccm_section) {
+		wil_err(wil, "fw_code section not found in fw_mapping\n");
+		return -EINVAL;
+	}
+	wil->iccm_base = iccm_section->host;
 
 	wil_info(wil, "Board hardware is %s, flash %sexist\n", wil->hw_name,
 		 test_bit(hw_capa_no_flash, wil->hw_capa) ? "doesn't " : "");

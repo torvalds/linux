@@ -185,6 +185,24 @@ static u32 wmi_addr_remap(u32 x)
 }
 
 /**
+ * find fw_mapping entry by section name
+ * @section - section name
+ *
+ * Return pointer to section or NULL if not found
+ */
+struct fw_map *wil_find_fw_mapping(const char *section)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fw_mapping); i++)
+		if (fw_mapping[i].name &&
+		    !strcmp(section, fw_mapping[i].name))
+			return &fw_mapping[i];
+
+	return NULL;
+}
+
+/**
  * Check address validity for WMI buffer; remap if needed
  * @ptr - internal (linker) fw/ucode address
  * @size - if non zero, validate the block does not

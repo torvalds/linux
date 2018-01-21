@@ -638,6 +638,98 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	destroy_workqueue(wil->wmi_wq);
 }
 
+static void wil_shutdown_bl(struct wil6210_priv *wil)
+{
+	u32 val;
+
+	wil_s(wil, RGF_USER_BL +
+	      offsetof(struct bl_dedicated_registers_v1,
+		       bl_shutdown_handshake), BL_SHUTDOWN_HS_GRTD);
+
+	usleep_range(100, 150);
+
+	val = wil_r(wil, RGF_USER_BL +
+		    offsetof(struct bl_dedicated_registers_v1,
+			     bl_shutdown_handshake));
+	if (val & BL_SHUTDOWN_HS_RTD) {
+		wil_dbg_misc(wil, "BL is ready for halt\n");
+		return;
+	}
+
+	wil_err(wil, "BL did not report ready for halt\n");
+}
+
+/* this format is used by ARC embedded CPU for instruction memory */
+static inline u32 ARC_me_imm32(u32 d)
+{
+	return ((d & 0xffff0000) >> 16) | ((d & 0x0000ffff) << 16);
+}
+
+/* defines access to interrupt vectors for wil_freeze_bl */
+#define ARC_IRQ_VECTOR_OFFSET(N)	((N) * 8)
+/* ARC long jump instruction */
+#define ARC_JAL_INST			(0x20200f80)
+
+static void wil_freeze_bl(struct wil6210_priv *wil)
+{
+	u32 jal, upc, saved;
+	u32 ivt3 = ARC_IRQ_VECTOR_OFFSET(3);
+
+	jal = wil_r(wil, wil->iccm_base + ivt3);
+	if (jal != ARC_me_imm32(ARC_JAL_INST)) {
+		wil_dbg_misc(wil, "invalid IVT entry found, skipping\n");
+		return;
+	}
+
+	/* prevent the target from entering deep sleep
+	 * and disabling memory access
+	 */
+	saved = wil_r(wil, RGF_USER_USAGE_8);
+	wil_w(wil, RGF_USER_USAGE_8, saved | BIT_USER_PREVENT_DEEP_SLEEP);
+	usleep_range(20, 25); /* let the BL process the bit */
+
+	/* redirect to endless loop in the INT_L1 context and let it trap */
+	wil_w(wil, wil->iccm_base + ivt3 + 4, ARC_me_imm32(ivt3));
+	usleep_range(20, 25); /* let the BL get into the trap */
+
+	/* verify the BL is frozen */
+	upc = wil_r(wil, RGF_USER_CPU_PC);
+	if (upc < ivt3 || (upc > (ivt3 + 8)))
+		wil_dbg_misc(wil, "BL freeze failed, PC=0x%08X\n", upc);
+
+	wil_w(wil, RGF_USER_USAGE_8, saved);
+}
+
+static void wil_bl_prepare_halt(struct wil6210_priv *wil)
+{
+	u32 tmp, ver;
+
+	/* before halting device CPU driver must make sure BL is not accessing
+	 * host memory. This is done differently depending on BL version:
+	 * 1. For very old BL versions the procedure is skipped
+	 * (not supported).
+	 * 2. For old BL version we use a special trick to freeze the BL
+	 * 3. For new BL versions we shutdown the BL using handshake procedure.
+	 */
+	tmp = wil_r(wil, RGF_USER_BL +
+		    offsetof(struct bl_dedicated_registers_v0,
+			     boot_loader_struct_version));
+	if (!tmp) {
+		wil_dbg_misc(wil, "old BL, skipping halt preperation\n");
+		return;
+	}
+
+	tmp = wil_r(wil, RGF_USER_BL +
+		    offsetof(struct bl_dedicated_registers_v1,
+			     bl_shutdown_handshake));
+	ver = BL_SHUTDOWN_HS_PROT_VER(tmp);
+
+	if (ver > 0)
+		wil_shutdown_bl(wil);
+	else
+		wil_freeze_bl(wil);
+}
+
 static inline void wil_halt_cpu(struct wil6210_priv *wil)
 {
 	wil_w(wil, RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
@@ -685,11 +777,16 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 
 	wil_halt_cpu(wil);
 
-	if (!no_flash)
+	if (!no_flash) {
 		/* clear all boot loader "ready" bits */
 		wil_w(wil, RGF_USER_BL +
 		      offsetof(struct bl_dedicated_registers_v0,
 			       boot_loader_ready), 0);
+		/* this should be safe to write even with old BLs */
+		wil_w(wil, RGF_USER_BL +
+		      offsetof(struct bl_dedicated_registers_v1,
+			       bl_shutdown_handshake), 0);
+	}
 	/* Clear Fw Download notification */
 	wil_c(wil, RGF_USER_USAGE_6, BIT(0));
 
@@ -1155,6 +1252,9 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	if (load_fw) {
 		wil_info(wil, "Use firmware <%s> + board <%s>\n",
 			 wil->wil_fw_name, WIL_BOARD_FILE_NAME);
+
+		if (!no_flash)
+			wil_bl_prepare_halt(wil);
 
 		wil_halt_cpu(wil);
 		memset(wil->fw_version, 0, sizeof(wil->fw_version));
