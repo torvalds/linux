@@ -61,6 +61,9 @@ struct netdevsim {
 	bool bpf_tc_non_bound_accept;
 	bool bpf_xdpdrv_accept;
 	bool bpf_xdpoffload_accept;
+
+	bool bpf_map_accept;
+	struct list_head bpf_bound_maps;
 };
 
 extern struct dentry *nsim_ddir;

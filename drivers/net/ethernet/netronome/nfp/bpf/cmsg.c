@@ -157,7 +157,14 @@ nfp_bpf_cmsg_wait_reply(struct nfp_app_bpf *bpf, enum nfp_bpf_cmsg_type type,
 			int tag)
 {
 	struct sk_buff *skb;
-	int err;
+	int i, err;
+
+	for (i = 0; i < 50; i++) {
+		udelay(4);
+		skb = nfp_bpf_reply(bpf, tag);
+		if (skb)
+			return skb;
+	}
 
 	err = wait_event_interruptible_timeout(bpf->cmsg_wq,
 					       skb = nfp_bpf_reply(bpf, tag),

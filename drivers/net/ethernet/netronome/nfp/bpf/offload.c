@@ -127,6 +127,7 @@ static int nfp_bpf_translate(struct nfp_net *nn, struct bpf_prog *prog)
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
 	unsigned int stack_size;
 	unsigned int max_instr;
+	int err;
 
 	stack_size = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
 	if (prog->aux->stack_depth > stack_size) {
@@ -143,7 +144,14 @@ static int nfp_bpf_translate(struct nfp_net *nn, struct bpf_prog *prog)
 	if (!nfp_prog->prog)
 		return -ENOMEM;
 
-	return nfp_bpf_jit(nfp_prog);
+	err = nfp_bpf_jit(nfp_prog);
+	if (err)
+		return err;
+
+	prog->aux->offload->jited_len = nfp_prog->prog_len * sizeof(u64);
+	prog->aux->offload->jited_image = nfp_prog->prog;
+
+	return 0;
 }
 
 static int nfp_bpf_destroy(struct nfp_net *nn, struct bpf_prog *prog)
@@ -168,6 +176,8 @@ nfp_bpf_map_get_next_key(struct bpf_offloaded_map *offmap,
 static int
 nfp_bpf_map_delete_elem(struct bpf_offloaded_map *offmap, void *key)
 {
+	if (offmap->map.map_type == BPF_MAP_TYPE_ARRAY)
+		return -EINVAL;
 	return nfp_bpf_ctrl_del_entry(offmap, key);
 }
 

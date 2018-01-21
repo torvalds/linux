@@ -900,6 +900,9 @@ struct xdp_md {
 	__u32 data;
 	__u32 data_end;
 	__u32 data_meta;
+	/* Below access go through struct xdp_rxq_info */
+	__u32 ingress_ifindex; /* rxq->dev->ifindex */
+	__u32 rx_queue_index;  /* rxq->queue_index  */
 };
 
 enum sk_action {
@@ -935,6 +938,9 @@ struct bpf_map_info {
 	__u32 max_entries;
 	__u32 map_flags;
 	char  name[BPF_OBJ_NAME_LEN];
+	__u32 ifindex;
+	__u64 netns_dev;
+	__u64 netns_ino;
 } __attribute__((aligned(8)));
 
 /* User bpf_sock_ops struct to access socket values and specify request ops
@@ -956,6 +962,12 @@ struct bpf_sock_ops {
 	__u32 local_ip6[4];	/* Stored in network byte order */
 	__u32 remote_port;	/* Stored in network byte order */
 	__u32 local_port;	/* stored in host byte order */
+	__u32 is_fullsock;	/* Some TCP fields are only valid if
+				 * there is a full socket. If not, the
+				 * fields read as zero.
+				 */
+	__u32 snd_cwnd;
+	__u32 srtt_us;		/* Averaged RTT << 3 in usecs */
 };
 
 /* List of known BPF sock_ops operators.
@@ -1010,7 +1022,8 @@ struct bpf_perf_event_value {
 #define BPF_DEVCG_DEV_CHAR	(1ULL << 1)
 
 struct bpf_cgroup_dev_ctx {
-	__u32 access_type; /* (access << 16) | type */
+	/* access_type encoded as (BPF_DEVCG_ACC_* << 16) | BPF_DEVCG_DEV_* */
+	__u32 access_type;
 	__u32 major;
 	__u32 minor;
 };
