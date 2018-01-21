@@ -125,7 +125,7 @@ where
   - flags is defined to specify the following properties:
 	* GPIO_ACTIVE_HIGH	- GPIO line is active high
 	* GPIO_ACTIVE_LOW	- GPIO line is active low
-	* GPIO_OPEN_DRAIN	- GPIO line ise set up as open drain
+	* GPIO_OPEN_DRAIN	- GPIO line is set up as open drain
 	* GPIO_OPEN_SOURCE	- GPIO line is set up as open source
 	* GPIO_PERSISTENT	- GPIO line is persistent during
 				  suspend/resume and maintains its value
