@@ -1070,7 +1070,7 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 	if (is_in_pci_mem_space(addr)) {
 		if (user_mode(regs)) {
 			pagefault_disable();
-			ret = get_user(regs->nip, &inst);
+			ret = get_user(inst, (__u32 __user *)regs->nip);
 			pagefault_enable();
 		} else {
 			ret = probe_kernel_address((void *)regs->nip, inst);
@@ -1304,10 +1304,8 @@ static int add_err_dev(struct platform_device *pdev)
 						   pdev->resource,
 						   pdev->num_resources,
 						   &pd, sizeof(pd));
-	if (IS_ERR(errdev))
-		return PTR_ERR(errdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(errdev);
 }
 
 static int fsl_pci_probe(struct platform_device *pdev)
