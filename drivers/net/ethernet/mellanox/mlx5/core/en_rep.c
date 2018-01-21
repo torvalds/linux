@@ -884,7 +884,6 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	mlx5e_set_rx_cq_mode_params(params, cq_period_mode);
 
-	params->tx_max_inline         = mlx5e_get_max_inline_cap(mdev);
 	params->num_tc                = 1;
 	params->lro_wqe_sz            = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
 

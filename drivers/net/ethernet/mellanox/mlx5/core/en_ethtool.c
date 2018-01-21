@@ -1118,13 +1118,9 @@ static int mlx5e_get_tunable(struct net_device *dev,
 			     const struct ethtool_tunable *tuna,
 			     void *data)
 {
-	const struct mlx5e_priv *priv = netdev_priv(dev);
-	int err = 0;
+	int err;
 
 	switch (tuna->id) {
-	case ETHTOOL_TX_COPYBREAK:
-		*(u32 *)data = priv->channels.params.tx_max_inline;
-		break;
 	case ETHTOOL_PFC_PREVENTION_TOUT:
 		err = mlx5e_get_pfc_prevention_tout(dev, data);
 		break;
@@ -1141,35 +1137,11 @@ static int mlx5e_set_tunable(struct net_device *dev,
 			     const void *data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5e_channels new_channels = {};
-	int err = 0;
-	u32 val;
+	int err;
 
 	mutex_lock(&priv->state_lock);
 
 	switch (tuna->id) {
-	case ETHTOOL_TX_COPYBREAK:
-		val = *(u32 *)data;
-		if (val > mlx5e_get_max_inline_cap(mdev)) {
-			err = -EINVAL;
-			break;
-		}
-
-		new_channels.params = priv->channels.params;
-		new_channels.params.tx_max_inline = val;
-
-		if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-			priv->channels.params = new_channels.params;
-			break;
-		}
-
-		err = mlx5e_open_channels(priv, &new_channels);
-		if (err)
-			break;
-		mlx5e_switch_priv_channels(priv, &new_channels, NULL);
-
-		break;
 	case ETHTOOL_PFC_PREVENTION_TOUT:
 		err = mlx5e_set_pfc_prevention_tout(dev, *(u16 *)data);
 		break;

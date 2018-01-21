@@ -240,7 +240,6 @@ struct mlx5e_params {
 	struct net_dim_cq_moder tx_cq_moderation;
 	bool lro_en;
 	u32 lro_wqe_sz;
-	u16 tx_max_inline;
 	u8  tx_min_inline_mode;
 	u8  rss_hfunc;
 	u8  toeplitz_hash_key[40];
@@ -366,7 +365,6 @@ struct mlx5e_txqsq {
 	void __iomem              *uar_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
-	u16                        max_inline;
 	u8                         min_inline_mode;
 	u16                        edge;
 	struct device             *pdev;
@@ -1017,7 +1015,6 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 			u16 rxq_index, u32 flow_id);
 #endif
 
-u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev);
 int mlx5e_create_tir(struct mlx5_core_dev *mdev,
 		     struct mlx5e_tir *tir, u32 *in, int inlen);
 void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
