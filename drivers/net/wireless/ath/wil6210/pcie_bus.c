@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -378,6 +379,7 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 static const struct pci_device_id wil6210_pcie_ids[] = {
 	{ PCI_DEVICE(0x1ae9, 0x0310) },
 	{ PCI_DEVICE(0x1ae9, 0x0302) }, /* same as above, firmware broken */
+	{ PCI_DEVICE(0x17cb, 0x1201) }, /* Talyn */
 	{ /* end: all zeroes */	},
 };
 MODULE_DEVICE_TABLE(pci, wil6210_pcie_ids);
