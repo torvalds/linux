@@ -33,12 +33,12 @@ The following example could be used to describe GPIO pins used as device enable
 and bit-banged data signals:
 
 	gpio1: gpio1 {
-		gpio-controller
-		 #gpio-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};
 	gpio2: gpio2 {
-		gpio-controller
-		 #gpio-cells = <1>;
+		gpio-controller;
+		#gpio-cells = <1>;
 	};
 	[...]
 
