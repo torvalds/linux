@@ -108,6 +108,13 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 							 out_dev);
 			if (err)
 				return err;
+		} else if (is_tcf_mirred_egress_mirror(a)) {
+			struct net_device *out_dev = tcf_mirred_dev(a);
+
+			err = mlxsw_sp_acl_rulei_act_mirror(mlxsw_sp, rulei,
+							    block, out_dev);
+			if (err)
+				return err;
 		} else if (is_tcf_vlan(a)) {
 			u16 proto = be16_to_cpu(tcf_vlan_push_proto(a));
 			u32 action = tcf_vlan_action(a);

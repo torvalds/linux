@@ -462,27 +462,6 @@ u16 mlxsw_sp_acl_ruleset_group_id(struct mlxsw_sp_acl_ruleset *ruleset)
 	return ops->ruleset_group_id(ruleset->priv);
 }
 
-static int
-mlxsw_sp_acl_rulei_counter_alloc(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_rule_info *rulei)
-{
-	int err;
-
-	err = mlxsw_sp_flow_counter_alloc(mlxsw_sp, &rulei->counter_index);
-	if (err)
-		return err;
-	rulei->counter_valid = true;
-	return 0;
-}
-
-static void
-mlxsw_sp_acl_rulei_counter_free(struct mlxsw_sp *mlxsw_sp,
-				struct mlxsw_sp_acl_rule_info *rulei)
-{
-	rulei->counter_valid = false;
-	mlxsw_sp_flow_counter_free(mlxsw_sp, rulei->counter_index);
-}
-
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl)
 {
@@ -587,6 +566,34 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 					  local_port, in_port);
 }
 
+int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  struct mlxsw_sp_acl_block *block,
+				  struct net_device *out_dev)
+{
+	struct mlxsw_sp_acl_block_binding *binding;
+	struct mlxsw_sp_port *out_port;
+	struct mlxsw_sp_port *in_port;
+
+	if (!list_is_singular(&block->binding_list))
+		return -EOPNOTSUPP;
+
+	binding = list_first_entry(&block->binding_list,
+				   struct mlxsw_sp_acl_block_binding, list);
+	in_port = binding->mlxsw_sp_port;
+	if (!mlxsw_sp_port_dev_check(out_dev))
+		return -EINVAL;
+
+	out_port = netdev_priv(out_dev);
+	if (out_port->mlxsw_sp != mlxsw_sp)
+		return -EINVAL;
+
+	return mlxsw_afa_block_append_mirror(rulei->act_block,
+					     in_port->local_port,
+					     out_port->local_port,
+					     binding->ingress);
+}
+
 int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule_info *rulei,
 				u32 action, u16 vid, u16 proto, u8 prio)
@@ -619,7 +626,7 @@ int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei)
 {
 	return mlxsw_afa_block_append_counter(rulei->act_block,
-					      rulei->counter_index);
+					      &rulei->counter_index);
 }
 
 int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
@@ -653,13 +660,8 @@ mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 		goto err_rulei_create;
 	}
 
-	err = mlxsw_sp_acl_rulei_counter_alloc(mlxsw_sp, rule->rulei);
-	if (err)
-		goto err_counter_alloc;
 	return rule;
 
-err_counter_alloc:
-	mlxsw_sp_acl_rulei_destroy(rule->rulei);
 err_rulei_create:
 	kfree(rule);
 err_alloc:
@@ -672,7 +674,6 @@ void mlxsw_sp_acl_rule_destroy(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_ruleset *ruleset = rule->ruleset;
 
-	mlxsw_sp_acl_rulei_counter_free(mlxsw_sp, rule->rulei);
 	mlxsw_sp_acl_rulei_destroy(rule->rulei);
 	kfree(rule);
 	mlxsw_sp_acl_ruleset_ref_dec(mlxsw_sp, ruleset);
