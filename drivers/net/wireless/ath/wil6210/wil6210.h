@@ -295,8 +295,12 @@ struct RGF_ICR {
 	#define REVISION_ID_SPARROW_D0	(0x3)
 
 /* crash codes for FW/Ucode stored here */
-#define RGF_FW_ASSERT_CODE		(0x91f020)
-#define RGF_UCODE_ASSERT_CODE		(0x91f028)
+
+/* ASSERT RGFs */
+#define SPARROW_RGF_FW_ASSERT_CODE	(0x91f020)
+#define SPARROW_RGF_UCODE_ASSERT_CODE	(0x91f028)
+#define TALYN_RGF_FW_ASSERT_CODE	(0xa37020)
+#define TALYN_RGF_UCODE_ASSERT_CODE	(0xa37028)
 
 enum {
 	HW_VER_UNKNOWN,
@@ -318,6 +322,10 @@ enum {
 #define WIL_DATA_COMPLETION_TO_MS 200
 
 /* Hardware definitions end */
+#define SPARROW_FW_MAPPING_TABLE_SIZE 10
+#define TALYN_FW_MAPPING_TABLE_SIZE 13
+#define MAX_FW_MAPPING_TABLE_SIZE 13
+
 struct fw_map {
 	u32 from; /* linker address - from, inclusive */
 	u32 to;   /* linker address - to, exclusive */
@@ -327,7 +335,9 @@ struct fw_map {
 };
 
 /* array size should be in sync with actual definition in the wmi.c */
-extern const struct fw_map fw_mapping[10];
+extern const struct fw_map sparrow_fw_mapping[SPARROW_FW_MAPPING_TABLE_SIZE];
+extern const struct fw_map talyn_fw_mapping[TALYN_FW_MAPPING_TABLE_SIZE];
+extern struct fw_map fw_mapping[MAX_FW_MAPPING_TABLE_SIZE];
 
 /**
  * mk_cidxtid - construct @cidxtid field
@@ -723,7 +733,7 @@ struct wil6210_priv {
 	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
 	struct dentry *debug;
-	struct wil_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
+	struct wil_blob_wrapper blobs[MAX_FW_MAPPING_TABLE_SIZE];
 	u8 discovery_mode;
 	u8 abft_len;
 	u8 wakeup_trigger;
@@ -758,6 +768,9 @@ struct wil6210_priv {
 	bool suspend_resp_comp;
 	u32 bus_request_kbps;
 	u32 bus_request_kbps_pre_suspend;
+
+	u32 rgf_fw_assert_code_addr;
+	u32 rgf_ucode_assert_code_addr;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)

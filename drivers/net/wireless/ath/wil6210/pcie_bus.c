@@ -36,7 +36,7 @@ static int wil6210_pm_notify(struct notifier_block *notify_block,
 			     unsigned long mode, void *unused);
 
 static
-void wil_set_capabilities(struct wil6210_priv *wil)
+int wil_set_capabilities(struct wil6210_priv *wil)
 {
 	const char *wil_fw_name;
 	u32 jtag_id = wil_r(wil, RGF_USER_JTAG_DEV_ID);
@@ -72,16 +72,24 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 			wil->hw_version = HW_VER_UNKNOWN;
 			break;
 		}
+		memcpy(fw_mapping, sparrow_fw_mapping,
+		       sizeof(sparrow_fw_mapping));
+		wil->rgf_fw_assert_code_addr = SPARROW_RGF_FW_ASSERT_CODE;
+		wil->rgf_ucode_assert_code_addr = SPARROW_RGF_UCODE_ASSERT_CODE;
 		break;
 	case JTAG_DEV_ID_TALYN:
 		wil->hw_name = "Talyn";
 		wil->hw_version = HW_VER_TALYN;
+		memcpy(fw_mapping, talyn_fw_mapping, sizeof(talyn_fw_mapping));
+		wil->rgf_fw_assert_code_addr = TALYN_RGF_FW_ASSERT_CODE;
+		wil->rgf_ucode_assert_code_addr = TALYN_RGF_UCODE_ASSERT_CODE;
 		break;
 	default:
 		wil_err(wil, "Unknown board hardware, chip_id 0x%08x, chip_revision 0x%08x\n",
 			jtag_id, chip_revision);
 		wil->hw_name = "Unknown";
 		wil->hw_version = HW_VER_UNKNOWN;
+		return -EINVAL;
 	}
 
 	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
@@ -97,6 +105,8 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	/* extract FW capabilities from file without loading the FW */
 	wil_request_firmware(wil, wil->wil_fw_name, false);
 	wil_refresh_fw_capabilities(wil);
+
+	return 0;
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)
@@ -307,7 +317,11 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* rollback to err_iounmap */
 	wil_info(wil, "CSR at %pR -> 0x%p\n", &pdev->resource[0], wil->csr);
 
-	wil_set_capabilities(wil);
+	rc = wil_set_capabilities(wil);
+	if (rc) {
+		wil_err(wil, "wil_set_capabilities failed, rc %d\n", rc);
+		goto err_iounmap;
+	}
 	wil6210_clear_irq(wil);
 
 	/* FW should raise IRQ when ready */
