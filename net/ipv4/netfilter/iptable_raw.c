@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/slab.h>
@@ -12,12 +13,25 @@
 
 static int __net_init iptable_raw_table_init(struct net *net);
 
+static bool raw_before_defrag __read_mostly;
+MODULE_PARM_DESC(raw_before_defrag, "Enable raw table before defrag");
+module_param(raw_before_defrag, bool, 0000);
+
 static const struct xt_table packet_raw = {
 	.name = "raw",
 	.valid_hooks =  RAW_VALID_HOOKS,
 	.me = THIS_MODULE,
 	.af = NFPROTO_IPV4,
 	.priority = NF_IP_PRI_RAW,
+	.table_init = iptable_raw_table_init,
+};
+
+static const struct xt_table packet_raw_before_defrag = {
+	.name = "raw",
+	.valid_hooks =  RAW_VALID_HOOKS,
+	.me = THIS_MODULE,
+	.af = NFPROTO_IPV4,
+	.priority = NF_IP_PRI_RAW_BEFORE_DEFRAG,
 	.table_init = iptable_raw_table_init,
 };
 
@@ -34,15 +48,19 @@ static struct nf_hook_ops *rawtable_ops __read_mostly;
 static int __net_init iptable_raw_table_init(struct net *net)
 {
 	struct ipt_replace *repl;
+	const struct xt_table *table = &packet_raw;
 	int ret;
+
+	if (raw_before_defrag)
+		table = &packet_raw_before_defrag;
 
 	if (net->ipv4.iptable_raw)
 		return 0;
 
-	repl = ipt_alloc_initial_table(&packet_raw);
+	repl = ipt_alloc_initial_table(table);
 	if (repl == NULL)
 		return -ENOMEM;
-	ret = ipt_register_table(net, &packet_raw, repl, rawtable_ops,
+	ret = ipt_register_table(net, table, repl, rawtable_ops,
 				 &net->ipv4.iptable_raw);
 	kfree(repl);
 	return ret;
@@ -63,8 +81,15 @@ static struct pernet_operations iptable_raw_net_ops = {
 static int __init iptable_raw_init(void)
 {
 	int ret;
+	const struct xt_table *table = &packet_raw;
 
-	rawtable_ops = xt_hook_ops_alloc(&packet_raw, iptable_raw_hook);
+	if (raw_before_defrag) {
+		table = &packet_raw_before_defrag;
+
+		pr_info("Enabling raw table before defrag\n");
+	}
+
+	rawtable_ops = xt_hook_ops_alloc(table, iptable_raw_hook);
 	if (IS_ERR(rawtable_ops))
 		return PTR_ERR(rawtable_ops);
 

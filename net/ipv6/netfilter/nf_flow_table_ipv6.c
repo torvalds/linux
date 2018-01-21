@@ -5,7 +5,6 @@
 #include <linux/rhashtable.h>
 #include <linux/ipv6.h>
 #include <linux/netdevice.h>
-#include <linux/ipv6.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
 #include <net/neighbour.h>

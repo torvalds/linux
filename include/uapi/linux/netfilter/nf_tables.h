@@ -174,6 +174,8 @@ enum nft_table_attributes {
 	NFTA_TABLE_NAME,
 	NFTA_TABLE_FLAGS,
 	NFTA_TABLE_USE,
+	NFTA_TABLE_HANDLE,
+	NFTA_TABLE_PAD,
 	__NFTA_TABLE_MAX
 };
 #define NFTA_TABLE_MAX		(__NFTA_TABLE_MAX - 1)
@@ -317,6 +319,7 @@ enum nft_set_desc_attributes {
  * @NFTA_SET_GC_INTERVAL: garbage collection interval (NLA_U32)
  * @NFTA_SET_USERDATA: user data (NLA_BINARY)
  * @NFTA_SET_OBJ_TYPE: stateful object type (NLA_U32: NFT_OBJECT_*)
+ * @NFTA_SET_HANDLE: set handle (NLA_U64)
  */
 enum nft_set_attributes {
 	NFTA_SET_UNSPEC,
@@ -335,6 +338,7 @@ enum nft_set_attributes {
 	NFTA_SET_USERDATA,
 	NFTA_SET_PAD,
 	NFTA_SET_OBJ_TYPE,
+	NFTA_SET_HANDLE,
 	__NFTA_SET_MAX
 };
 #define NFTA_SET_MAX		(__NFTA_SET_MAX - 1)
@@ -1314,6 +1318,7 @@ enum nft_ct_helper_attributes {
  * @NFTA_OBJ_TYPE: stateful object type (NLA_U32)
  * @NFTA_OBJ_DATA: stateful object data (NLA_NESTED)
  * @NFTA_OBJ_USE: number of references to this expression (NLA_U32)
+ * @NFTA_OBJ_HANDLE: object handle (NLA_U64)
  */
 enum nft_object_attributes {
 	NFTA_OBJ_UNSPEC,
@@ -1322,6 +1327,8 @@ enum nft_object_attributes {
 	NFTA_OBJ_TYPE,
 	NFTA_OBJ_DATA,
 	NFTA_OBJ_USE,
+	NFTA_OBJ_HANDLE,
+	NFTA_OBJ_PAD,
 	__NFTA_OBJ_MAX
 };
 #define NFTA_OBJ_MAX		(__NFTA_OBJ_MAX - 1)
@@ -1333,6 +1340,7 @@ enum nft_object_attributes {
  * @NFTA_FLOWTABLE_NAME: name of this flow table (NLA_STRING)
  * @NFTA_FLOWTABLE_HOOK: netfilter hook configuration(NLA_U32)
  * @NFTA_FLOWTABLE_USE: number of references to this flow table (NLA_U32)
+ * @NFTA_FLOWTABLE_HANDLE: object handle (NLA_U64)
  */
 enum nft_flowtable_attributes {
 	NFTA_FLOWTABLE_UNSPEC,
@@ -1340,6 +1348,8 @@ enum nft_flowtable_attributes {
 	NFTA_FLOWTABLE_NAME,
 	NFTA_FLOWTABLE_HOOK,
 	NFTA_FLOWTABLE_USE,
+	NFTA_FLOWTABLE_HANDLE,
+	NFTA_FLOWTABLE_PAD,
 	__NFTA_FLOWTABLE_MAX
 };
 #define NFTA_FLOWTABLE_MAX	(__NFTA_FLOWTABLE_MAX - 1)

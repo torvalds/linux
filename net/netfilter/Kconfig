@@ -506,7 +506,7 @@ config NFT_CT
 	  connection tracking information such as the flow state.
 
 config NFT_FLOW_OFFLOAD
-	depends on NF_CONNTRACK
+	depends on NF_CONNTRACK && NF_FLOW_TABLE
 	tristate "Netfilter nf_tables hardware flow offload module"
 	help
 	  This option adds the "flow_offload" expression that you can use to
@@ -665,8 +665,9 @@ endif # NF_TABLES_NETDEV
 endif # NF_TABLES
 
 config NF_FLOW_TABLE_INET
-	select NF_FLOW_TABLE
 	tristate "Netfilter flow table mixed IPv4/IPv6 module"
+	depends on NF_FLOW_TABLE_IPV4 && NF_FLOW_TABLE_IPV6
+	select NF_FLOW_TABLE
 	help
           This option adds the flow table mixed IPv4/IPv6 support.
 
@@ -674,6 +675,7 @@ config NF_FLOW_TABLE_INET
 
 config NF_FLOW_TABLE
 	tristate "Netfilter flow table module"
+	depends on NF_CONNTRACK && NF_TABLES
 	help
 	  This option adds the flow table core infrastructure.
 

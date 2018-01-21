@@ -42,40 +42,6 @@ nft_do_chain_bridge(void *priv,
 	return nft_do_chain(&pkt, priv);
 }
 
-static struct nft_af_info nft_af_bridge __read_mostly = {
-	.family		= NFPROTO_BRIDGE,
-	.nhooks		= NF_BR_NUMHOOKS,
-	.owner		= THIS_MODULE,
-};
-
-static int nf_tables_bridge_init_net(struct net *net)
-{
-	net->nft.bridge = kmalloc(sizeof(struct nft_af_info), GFP_KERNEL);
-	if (net->nft.bridge == NULL)
-		return -ENOMEM;
-
-	memcpy(net->nft.bridge, &nft_af_bridge, sizeof(nft_af_bridge));
-
-	if (nft_register_afinfo(net, net->nft.bridge) < 0)
-		goto err;
-
-	return 0;
-err:
-	kfree(net->nft.bridge);
-	return -ENOMEM;
-}
-
-static void nf_tables_bridge_exit_net(struct net *net)
-{
-	nft_unregister_afinfo(net, net->nft.bridge);
-	kfree(net->nft.bridge);
-}
-
-static struct pernet_operations nf_tables_bridge_net_ops = {
-	.init	= nf_tables_bridge_init_net,
-	.exit	= nf_tables_bridge_exit_net,
-};
-
 static const struct nf_chain_type filter_bridge = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
@@ -97,27 +63,11 @@ static const struct nf_chain_type filter_bridge = {
 
 static int __init nf_tables_bridge_init(void)
 {
-	int ret;
-
-	ret = nft_register_chain_type(&filter_bridge);
-	if (ret < 0)
-		return ret;
-
-	ret = register_pernet_subsys(&nf_tables_bridge_net_ops);
-	if (ret < 0)
-		goto err_register_subsys;
-
-	return ret;
-
-err_register_subsys:
-	nft_unregister_chain_type(&filter_bridge);
-
-	return ret;
+	return nft_register_chain_type(&filter_bridge);
 }
 
 static void __exit nf_tables_bridge_exit(void)
 {
-	unregister_pernet_subsys(&nf_tables_bridge_net_ops);
 	nft_unregister_chain_type(&filter_bridge);
 }
 
@@ -126,4 +76,4 @@ module_exit(nf_tables_bridge_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_FAMILY(AF_BRIDGE);
+MODULE_ALIAS_NFT_CHAIN(AF_BRIDGE, "filter");
