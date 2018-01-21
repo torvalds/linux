@@ -151,7 +151,7 @@ void dimcb_io_write(u32 __iomem *ptr32, u32 value)
  */
 void dimcb_on_error(u8 error_id, const char *error_message)
 {
-	pr_err("dimcb_on_error: error_id - %d, error_message - %s\n", error_id,
+	pr_err("%s: error_id - %d, error_message - %s\n", __func__, error_id,
 	       error_message);
 }
 
