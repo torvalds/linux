@@ -355,6 +355,7 @@ struct fw_map {
 
 /* array size should be in sync with actual definition in the wmi.c */
 extern const struct fw_map sparrow_fw_mapping[SPARROW_FW_MAPPING_TABLE_SIZE];
+extern const struct fw_map sparrow_d0_mac_rgf_ext;
 extern const struct fw_map talyn_fw_mapping[TALYN_FW_MAPPING_TABLE_SIZE];
 extern struct fw_map fw_mapping[MAX_FW_MAPPING_TABLE_SIZE];
 

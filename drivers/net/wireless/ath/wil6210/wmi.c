@@ -114,6 +114,14 @@ const struct fw_map sparrow_fw_mapping[] = {
 };
 
 /**
+ * @sparrow_d0_mac_rgf_ext - mac_rgf_ext section for Sparrow D0
+ * it is a bit larger to support extra features
+ */
+const struct fw_map sparrow_d0_mac_rgf_ext = {
+	0x88c000, 0x88c500, 0x88c000, "mac_rgf_ext", true
+};
+
+/**
  * @talyn_fw_mapping provides memory remapping table for Talyn
  *
  * array size should be in sync with the declaration in the wil6210.h

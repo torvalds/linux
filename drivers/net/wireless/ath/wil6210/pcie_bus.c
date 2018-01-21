@@ -43,7 +43,7 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 	u8 chip_revision = (wil_r(wil, RGF_USER_REVISION_ID) &
 			    RGF_USER_REVISION_ID_MASK);
 	int platform_capa;
-	struct fw_map *iccm_section;
+	struct fw_map *iccm_section, *sct;
 
 	bitmap_zero(wil->hw_capa, hw_capa_last);
 	bitmap_zero(wil->fw_capabilities, WMI_FW_CAPABILITY_MAX);
@@ -54,6 +54,8 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 
 	switch (jtag_id) {
 	case JTAG_DEV_ID_SPARROW:
+		memcpy(fw_mapping, sparrow_fw_mapping,
+		       sizeof(sparrow_fw_mapping));
 		switch (chip_revision) {
 		case REVISION_ID_SPARROW_D0:
 			wil->hw_name = "Sparrow D0";
@@ -63,6 +65,12 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 
 			if (wil_fw_verify_file_exists(wil, wil_fw_name))
 				wil->wil_fw_name = wil_fw_name;
+			sct = wil_find_fw_mapping("mac_rgf_ext");
+			if (!sct) {
+				wil_err(wil, "mac_rgf_ext section not found in fw_mapping\n");
+				return -EINVAL;
+			}
+			memcpy(sct, &sparrow_d0_mac_rgf_ext, sizeof(*sct));
 			break;
 		case REVISION_ID_SPARROW_B0:
 			wil->hw_name = "Sparrow B0";
@@ -73,8 +81,6 @@ int wil_set_capabilities(struct wil6210_priv *wil)
 			wil->hw_version = HW_VER_UNKNOWN;
 			break;
 		}
-		memcpy(fw_mapping, sparrow_fw_mapping,
-		       sizeof(sparrow_fw_mapping));
 		wil->rgf_fw_assert_code_addr = SPARROW_RGF_FW_ASSERT_CODE;
 		wil->rgf_ucode_assert_code_addr = SPARROW_RGF_UCODE_ASSERT_CODE;
 		break;
