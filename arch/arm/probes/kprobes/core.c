@@ -32,6 +32,7 @@
 #include <linux/percpu.h>
 #include <linux/bug.h>
 #include <asm/patch.h>
+#include <asm/sections.h>
 
 #include "../decode-arm.h"
 #include "../decode-thumb.h"
@@ -63,9 +64,6 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	const union decode_action *actions;
 	int is;
 	const struct decode_checker **checkers;
-
-	if (in_exception_text(addr))
-		return -EINVAL;
 
 #ifdef CONFIG_THUMB2_KERNEL
 	thumb = true;
@@ -679,4 +677,14 @@ int __init arch_init_kprobes()
 	register_undef_hook(&kprobes_arm_break_hook);
 #endif
 	return 0;
+}
+
+bool arch_within_kprobe_blacklist(unsigned long addr)
+{
+	void *a = (void *)addr;
+
+	return __in_irqentry_text(addr) ||
+	       in_entry_text(addr) ||
+	       in_idmap_text(addr) ||
+	       memory_contains(__kprobes_text_start, __kprobes_text_end, a, 1);
 }

@@ -401,7 +401,7 @@ void strp_data_ready(struct strparser *strp)
 	 * allows a thread in BH context to safely check if the process
 	 * lock is held. In this case, if the lock is held, queue work.
 	 */
-	if (sock_owned_by_user(strp->sk)) {
+	if (sock_owned_by_user_nocheck(strp->sk)) {
 		queue_work(strp_wq, &strp->work);
 		return;
 	}

@@ -76,7 +76,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define TTUSB_REV_2_2	0x22
 #define TTUSB_BUDGET_NAME "ttusb_stc_fw"
 
-/**
+/*
  *  since we're casting (struct ttusb*) <-> (struct dvb_demux*) around
  *  the dvb_demux field must be the first in struct!!
  */
@@ -713,7 +713,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 					}
 				}
 
-			/**
+			/*
 			 * if length is valid and we reached the end:
 			 * goto next muxpack
 			 */
@@ -729,7 +729,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 					/* maximum bytes, until we know the length */
 					ttusb->muxpack_len = 2;
 
-				/**
+				/*
 				 * no muxpacks left?
 				 * return to search-sync state
 				 */

@@ -33,6 +33,13 @@ module_param_named(redirect_dir, ovl_redirect_dir_def, bool, 0644);
 MODULE_PARM_DESC(ovl_redirect_dir_def,
 		 "Default to on or off for the redirect_dir feature");
 
+static bool ovl_redirect_always_follow =
+	IS_ENABLED(CONFIG_OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW);
+module_param_named(redirect_always_follow, ovl_redirect_always_follow,
+		   bool, 0644);
+MODULE_PARM_DESC(ovl_redirect_always_follow,
+		 "Follow redirects even if redirect_dir feature is turned off");
+
 static bool ovl_index_def = IS_ENABLED(CONFIG_OVERLAY_FS_INDEX);
 module_param_named(index, ovl_index_def, bool, 0644);
 MODULE_PARM_DESC(ovl_index_def,
@@ -232,6 +239,7 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 	kfree(ofs->config.lowerdir);
 	kfree(ofs->config.upperdir);
 	kfree(ofs->config.workdir);
+	kfree(ofs->config.redirect_mode);
 	if (ofs->creator_cred)
 		put_cred(ofs->creator_cred);
 	kfree(ofs);
@@ -244,6 +252,7 @@ static void ovl_put_super(struct super_block *sb)
 	ovl_free_fs(ofs);
 }
 
+/* Sync real dirty inodes in upper filesystem (if it exists) */
 static int ovl_sync_fs(struct super_block *sb, int wait)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
@@ -252,14 +261,24 @@ static int ovl_sync_fs(struct super_block *sb, int wait)
 
 	if (!ofs->upper_mnt)
 		return 0;
-	upper_sb = ofs->upper_mnt->mnt_sb;
-	if (!upper_sb->s_op->sync_fs)
+
+	/*
+	 * If this is a sync(2) call or an emergency sync, all the super blocks
+	 * will be iterated, including upper_sb, so no need to do anything.
+	 *
+	 * If this is a syncfs(2) call, then we do need to call
+	 * sync_filesystem() on upper_sb, but enough if we do it when being
+	 * called with wait == 1.
+	 */
+	if (!wait)
 		return 0;
 
-	/* real inodes have already been synced by sync_filesystem(ovl_sb) */
+	upper_sb = ofs->upper_mnt->mnt_sb;
+
 	down_read(&upper_sb->s_umount);
-	ret = upper_sb->s_op->sync_fs(upper_sb, wait);
+	ret = sync_filesystem(upper_sb);
 	up_read(&upper_sb->s_umount);
+
 	return ret;
 }
 
@@ -295,6 +314,11 @@ static bool ovl_force_readonly(struct ovl_fs *ofs)
 	return (!ofs->upper_mnt || !ofs->workdir);
 }
 
+static const char *ovl_redirect_mode_def(void)
+{
+	return ovl_redirect_dir_def ? "on" : "off";
+}
+
 /**
  * ovl_show_options
  *
@@ -313,12 +337,10 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	}
 	if (ofs->config.default_permissions)
 		seq_puts(m, ",default_permissions");
-	if (ofs->config.redirect_dir != ovl_redirect_dir_def)
-		seq_printf(m, ",redirect_dir=%s",
-			   ofs->config.redirect_dir ? "on" : "off");
+	if (strcmp(ofs->config.redirect_mode, ovl_redirect_mode_def()) != 0)
+		seq_printf(m, ",redirect_dir=%s", ofs->config.redirect_mode);
 	if (ofs->config.index != ovl_index_def)
-		seq_printf(m, ",index=%s",
-			   ofs->config.index ? "on" : "off");
+		seq_printf(m, ",index=%s", ofs->config.index ? "on" : "off");
 	return 0;
 }
 
@@ -348,8 +370,7 @@ enum {
 	OPT_UPPERDIR,
 	OPT_WORKDIR,
 	OPT_DEFAULT_PERMISSIONS,
-	OPT_REDIRECT_DIR_ON,
-	OPT_REDIRECT_DIR_OFF,
+	OPT_REDIRECT_DIR,
 	OPT_INDEX_ON,
 	OPT_INDEX_OFF,
 	OPT_ERR,
@@ -360,8 +381,7 @@ static const match_table_t ovl_tokens = {
 	{OPT_UPPERDIR,			"upperdir=%s"},
 	{OPT_WORKDIR,			"workdir=%s"},
 	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
-	{OPT_REDIRECT_DIR_ON,		"redirect_dir=on"},
-	{OPT_REDIRECT_DIR_OFF,		"redirect_dir=off"},
+	{OPT_REDIRECT_DIR,		"redirect_dir=%s"},
 	{OPT_INDEX_ON,			"index=on"},
 	{OPT_INDEX_OFF,			"index=off"},
 	{OPT_ERR,			NULL}
@@ -390,9 +410,36 @@ static char *ovl_next_opt(char **s)
 	return sbegin;
 }
 
+static int ovl_parse_redirect_mode(struct ovl_config *config, const char *mode)
+{
+	if (strcmp(mode, "on") == 0) {
+		config->redirect_dir = true;
+		/*
+		 * Does not make sense to have redirect creation without
+		 * redirect following.
+		 */
+		config->redirect_follow = true;
+	} else if (strcmp(mode, "follow") == 0) {
+		config->redirect_follow = true;
+	} else if (strcmp(mode, "off") == 0) {
+		if (ovl_redirect_always_follow)
+			config->redirect_follow = true;
+	} else if (strcmp(mode, "nofollow") != 0) {
+		pr_err("overlayfs: bad mount option \"redirect_dir=%s\"\n",
+		       mode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ovl_parse_opt(char *opt, struct ovl_config *config)
 {
 	char *p;
+
+	config->redirect_mode = kstrdup(ovl_redirect_mode_def(), GFP_KERNEL);
+	if (!config->redirect_mode)
+		return -ENOMEM;
 
 	while ((p = ovl_next_opt(&opt)) != NULL) {
 		int token;
@@ -428,12 +475,11 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			config->default_permissions = true;
 			break;
 
-		case OPT_REDIRECT_DIR_ON:
-			config->redirect_dir = true;
-			break;
-
-		case OPT_REDIRECT_DIR_OFF:
-			config->redirect_dir = false;
+		case OPT_REDIRECT_DIR:
+			kfree(config->redirect_mode);
+			config->redirect_mode = match_strdup(&args[0]);
+			if (!config->redirect_mode)
+				return -ENOMEM;
 			break;
 
 		case OPT_INDEX_ON:
@@ -458,7 +504,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 		config->workdir = NULL;
 	}
 
-	return 0;
+	return ovl_parse_redirect_mode(config, config->redirect_mode);
 }
 
 #define OVL_WORKDIR_NAME "work"
@@ -1160,7 +1206,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!cred)
 		goto out_err;
 
-	ofs->config.redirect_dir = ovl_redirect_dir_def;
 	ofs->config.index = ovl_index_def;
 	err = ovl_parse_opt((char *) data, &ofs->config);
 	if (err)

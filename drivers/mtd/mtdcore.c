@@ -1114,7 +1114,7 @@ static int mtd_check_oob_ops(struct mtd_info *mtd, loff_t offs,
 	if (!ops->oobbuf)
 		ops->ooblen = 0;
 
-	if (offs < 0 || offs + ops->len >= mtd->size)
+	if (offs < 0 || offs + ops->len > mtd->size)
 		return -EINVAL;
 
 	if (ops->ooblen) {

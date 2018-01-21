@@ -882,13 +882,10 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
-	if (bdi_debug_register(bdi, dev_name(dev))) {
-		device_destroy(bdi_class, dev->devt);
-		return -ENOMEM;
-	}
 	cgwb_bdi_register(bdi);
 	bdi->dev = dev;
 
+	bdi_debug_register(bdi, dev_name(dev));
 	set_bit(WB_registered, &bdi->wb.state);
 
 	spin_lock_bh(&bdi_lock);

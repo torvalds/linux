@@ -642,7 +642,6 @@ static const struct of_device_id bdc_of_match[] = {
 static struct platform_driver bdc_driver = {
 	.driver		= {
 		.name	= BRCM_BDC_NAME,
-		.owner	= THIS_MODULE,
 		.pm = &bdc_pm_ops,
 		.of_match_table	= bdc_of_match,
 	},

@@ -503,7 +503,8 @@ struct sctp_datamsg {
 	/* Did the messenge fail to send? */
 	int send_error;
 	u8 send_failed:1,
-	   can_delay;	    /* should this message be Nagle delayed */
+	   can_delay:1,	/* should this message be Nagle delayed */
+	   abandoned:1;	/* should this message be abandoned */
 };
 
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *,

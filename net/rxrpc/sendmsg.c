@@ -233,7 +233,7 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 		if (resend_at < 1)
 			resend_at = 1;
 
-		resend_at = now + rxrpc_resend_timeout;
+		resend_at += now;
 		WRITE_ONCE(call->resend_at, resend_at);
 		rxrpc_reduce_call_timer(call, resend_at, now,
 					rxrpc_timer_set_for_send);

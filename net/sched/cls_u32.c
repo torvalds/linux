@@ -45,7 +45,6 @@
 #include <net/netlink.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
-#include <linux/netdevice.h>
 #include <linux/idr.h>
 
 struct tc_u_knode {

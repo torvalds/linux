@@ -164,6 +164,7 @@ config PREEMPTIRQ_EVENTS
 	bool "Enable trace events for preempt and irq disable/enable"
 	select TRACE_IRQFLAGS
 	depends on DEBUG_PREEMPT || !PROVE_LOCKING
+	depends on TRACING
 	default n
 	help
 	  Enable tracing of disable and enable events for preemption and irqs.

@@ -405,13 +405,13 @@ bool sme_active(void)
 {
 	return sme_me_mask && !sev_enabled;
 }
-EXPORT_SYMBOL_GPL(sme_active);
+EXPORT_SYMBOL(sme_active);
 
 bool sev_active(void)
 {
 	return sme_me_mask && sev_enabled;
 }
-EXPORT_SYMBOL_GPL(sev_active);
+EXPORT_SYMBOL(sev_active);
 
 static const struct dma_map_ops sev_dma_ops = {
 	.alloc                  = sev_alloc,

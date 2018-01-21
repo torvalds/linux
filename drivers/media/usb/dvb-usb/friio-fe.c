@@ -297,7 +297,7 @@ static int jdvbt90502_set_frontend(struct dvb_frontend *fe)
 }
 
 
-/**
+/*
  * (reg, val) commad list to initialize this module.
  *  captured on a Windows box.
  */

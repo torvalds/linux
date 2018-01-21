@@ -186,7 +186,7 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 	struct intel_wait *wait, *n, *first;
 
 	if (!b->irq_armed)
-		return;
+		goto wakeup_signaler;
 
 	/* We only disarm the irq when we are idle (all requests completed),
 	 * so if the bottom-half remains asleep, it missed the request
@@ -208,6 +208,14 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 	b->waiters = RB_ROOT;
 
 	spin_unlock_irq(&b->rb_lock);
+
+	/*
+	 * The signaling thread may be asleep holding a reference to a request,
+	 * that had its signaling cancelled prior to being preempted. We need
+	 * to kick the signaler, just in case, to release any such reference.
+	 */
+wakeup_signaler:
+	wake_up_process(b->signaler);
 }
 
 static bool use_fake_irq(const struct intel_breadcrumbs *b)
@@ -651,23 +659,15 @@ static int intel_breadcrumbs_signaler(void *arg)
 		}
 
 		if (unlikely(do_schedule)) {
-			DEFINE_WAIT(exec);
-
 			if (kthread_should_park())
 				kthread_parkme();
 
-			if (kthread_should_stop()) {
-				GEM_BUG_ON(request);
+			if (unlikely(kthread_should_stop())) {
+				i915_gem_request_put(request);
 				break;
 			}
 
-			if (request)
-				add_wait_queue(&request->execute, &exec);
-
 			schedule();
-
-			if (request)
-				remove_wait_queue(&request->execute, &exec);
 		}
 		i915_gem_request_put(request);
 	} while (1);
