@@ -1262,7 +1262,12 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		rc = wil_request_firmware(wil, wil->wil_fw_name, true);
 		if (rc)
 			goto out;
-		rc = wil_request_firmware(wil, WIL_BOARD_FILE_NAME, true);
+		if (wil->brd_file_addr)
+			rc = wil_request_board(wil, WIL_BOARD_FILE_NAME);
+		else
+			rc = wil_request_firmware(wil,
+						  WIL_BOARD_FILE_NAME,
+						  true);
 		if (rc)
 			goto out;
 

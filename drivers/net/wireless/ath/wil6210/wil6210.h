@@ -681,6 +681,8 @@ struct wil6210_priv {
 	const char *hw_name;
 	const char *wil_fw_name;
 	char *board_file;
+	u32 brd_file_addr;
+	u32 brd_file_max_size;
 	DECLARE_BITMAP(hw_capa, hw_capa_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	DECLARE_BITMAP(platform_capa, WIL_PLATFORM_CAPA_MAX);
@@ -1053,6 +1055,7 @@ int wil_iftype_nl2wmi(enum nl80211_iftype type);
 
 int wil_request_firmware(struct wil6210_priv *wil, const char *name,
 			 bool load);
+int wil_request_board(struct wil6210_priv *wil, const char *name);
 bool wil_fw_verify_file_exists(struct wil6210_priv *wil, const char *name);
 
 void wil_pm_runtime_allow(struct wil6210_priv *wil);
