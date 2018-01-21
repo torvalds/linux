@@ -390,10 +390,12 @@
 	compatible = "amlogic,meson8-usb2-phy", "amlogic,meson-mx-usb2-phy";
 	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB0>;
 	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
 };
 
 &usb1_phy {
 	compatible = "amlogic,meson8-usb2-phy", "amlogic,meson-mx-usb2-phy";
 	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
 	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
 };
