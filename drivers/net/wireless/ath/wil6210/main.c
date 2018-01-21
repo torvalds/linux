@@ -764,6 +764,21 @@ static int wil_target_reset(struct wil6210_priv *wil, int no_flash)
 	wil_s(wil, RGF_DMA_OFUL_NID_0, BIT_DMA_OFUL_NID_0_RX_EXT_TR_EN |
 	      BIT_DMA_OFUL_NID_0_RX_EXT_A3_SRC);
 
+	if (no_flash) {
+		/* Reset OTP HW vectors to fit 40MHz */
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME1, 0x60001);
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME2, 0x20027);
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME3, 0x1);
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME4, 0x20027);
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME5, 0x30003);
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME6, 0x20002);
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME7, 0x60001);
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME8, 0x60001);
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME9, 0x60001);
+		wil_w(wil, RGF_USER_XPM_IFC_RD_TIME10, 0x60001);
+		wil_w(wil, RGF_USER_XPM_RD_DOUT_SAMPLE_TIME, 0x57);
+	}
+
 	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
 	return 0;
 }
