@@ -21,7 +21,6 @@
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/interrupt.h>
-#include <linux/kallsyms.h>
 #include <linux/init.h>
 #include <linux/elfcore.h>
 #include <linux/pm.h>
@@ -121,8 +120,8 @@ void __show_regs(struct pt_regs *regs)
 
 	show_regs_print_info(KERN_DEFAULT);
 
-	print_symbol("PC is at %s\n", instruction_pointer(regs));
-	print_symbol("LR is at %s\n", regs->ARM_lr);
+	printk("PC is at %pS\n", (void *)instruction_pointer(regs));
+	printk("LR is at %pS\n", (void *)regs->ARM_lr);
 	printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n",
 	       regs->ARM_pc, regs->ARM_lr, regs->ARM_cpsr);
 	printk("sp : %08lx  ip : %08lx  fp : %08lx\n",
