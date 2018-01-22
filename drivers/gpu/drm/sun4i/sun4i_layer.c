@@ -25,6 +25,50 @@ struct sun4i_plane_desc {
 	       uint32_t                nformats;
 };
 
+static void sun4i_backend_layer_reset(struct drm_plane *plane)
+{
+	struct sun4i_layer_state *state;
+
+	if (plane->state) {
+		state = state_to_sun4i_layer_state(plane->state);
+
+		__drm_atomic_helper_plane_destroy_state(&state->state);
+
+		kfree(state);
+		plane->state = NULL;
+	}
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state) {
+		plane->state = &state->state;
+		plane->state->plane = plane;
+	}
+}
+
+static struct drm_plane_state *
+sun4i_backend_layer_duplicate_state(struct drm_plane *plane)
+{
+	struct sun4i_layer_state *copy;
+
+	copy = kzalloc(sizeof(*copy), GFP_KERNEL);
+	if (!copy)
+		return NULL;
+
+	__drm_atomic_helper_plane_duplicate_state(plane, &copy->state);
+
+	return &copy->state;
+}
+
+static void sun4i_backend_layer_destroy_state(struct drm_plane *plane,
+					      struct drm_plane_state *state)
+{
+	struct sun4i_layer_state *s_state = state_to_sun4i_layer_state(state);
+
+	__drm_atomic_helper_plane_destroy_state(state);
+
+	kfree(s_state);
+}
+
 static void sun4i_backend_layer_atomic_disable(struct drm_plane *plane,
 					       struct drm_plane_state *old_state)
 {
@@ -52,11 +96,11 @@ static const struct drm_plane_helper_funcs sun4i_backend_layer_helper_funcs = {
 };
 
 static const struct drm_plane_funcs sun4i_backend_layer_funcs = {
-	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
-	.atomic_duplicate_state	= drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state	= sun4i_backend_layer_destroy_state,
+	.atomic_duplicate_state	= sun4i_backend_layer_duplicate_state,
 	.destroy		= drm_plane_cleanup,
 	.disable_plane		= drm_atomic_helper_disable_plane,
-	.reset			= drm_atomic_helper_plane_reset,
+	.reset			= sun4i_backend_layer_reset,
 	.update_plane		= drm_atomic_helper_update_plane,
 };
 
