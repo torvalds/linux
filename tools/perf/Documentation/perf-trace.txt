@@ -163,6 +163,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
         Implies '--call-graph dwarf' when --call-graph not present on the
         command line, on systems where DWARF unwinding was built in.
 
+--print-sample::
+	Print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info for the
+	raw_syscalls:sys_{enter,exit} tracepoints, for debugging.
+
 --proc-map-timeout::
 	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
 	because the file may be huge. A time out is needed in such cases.

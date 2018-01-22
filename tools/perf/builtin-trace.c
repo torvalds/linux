@@ -110,6 +110,7 @@ struct trace {
 	bool			summary;
 	bool			summary_only;
 	bool			show_comm;
+	bool			print_sample;
 	bool			show_tool_stats;
 	bool			trace_syscalls;
 	bool			kernel_syscallchains;
@@ -1578,6 +1579,23 @@ static int trace__printf_interrupted_entry(struct trace *trace, struct perf_samp
 	return printed;
 }
 
+static int trace__fprintf_sample(struct trace *trace, struct perf_evsel *evsel,
+				 struct perf_sample *sample, struct thread *thread)
+{
+	int printed = 0;
+
+	if (trace->print_sample) {
+		double ts = (double)sample->time / NSEC_PER_MSEC;
+
+		printed += fprintf(trace->output, "%22s %10.3f %s %d/%d [%d]\n",
+				   perf_evsel__name(evsel), ts,
+				   thread__comm_str(thread),
+				   sample->pid, sample->tid, sample->cpu);
+	}
+
+	return printed;
+}
+
 static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample)
@@ -1597,6 +1615,8 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		goto out_put;
+
+	trace__fprintf_sample(trace, evsel, sample, thread);
 
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
 
@@ -1687,6 +1707,8 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		goto out_put;
+
+	trace__fprintf_sample(trace, evsel, sample, thread);
 
 	if (trace->summary)
 		thread__update_stats(ttrace, id, sample);
@@ -3034,6 +3056,8 @@ int cmd_trace(int argc, const char **argv)
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
+	OPT_BOOLEAN(0, "print-sample", &trace.print_sample,
+			"print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info, for debugging"),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_UINTEGER('D', "delay", &trace.opts.initial_delay,
