@@ -43,6 +43,7 @@
 struct bpf_prog;
 struct net_device;
 struct netdev_bpf;
+struct netlink_ext_ack;
 struct pci_dev;
 struct sk_buff;
 struct sk_buff;
@@ -138,7 +139,8 @@ struct nfp_app_type {
 	int (*bpf)(struct nfp_app *app, struct nfp_net *nn,
 		   struct netdev_bpf *xdp);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
-			   struct bpf_prog *prog);
+			   struct bpf_prog *prog,
+			   struct netlink_ext_ack *extack);
 
 	int (*sriov_enable)(struct nfp_app *app, int num_vfs);
 	void (*sriov_disable)(struct nfp_app *app);
@@ -324,11 +326,12 @@ static inline int nfp_app_bpf(struct nfp_app *app, struct nfp_net *nn,
 }
 
 static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
-				      struct bpf_prog *prog)
+				      struct bpf_prog *prog,
+				      struct netlink_ext_ack *extack)
 {
 	if (!app || !app->type->xdp_offload)
 		return -EOPNOTSUPP;
-	return app->type->xdp_offload(app, nn, prog);
+	return app->type->xdp_offload(app, nn, prog, extack);
 }
 
 static inline bool __nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)

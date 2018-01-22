@@ -491,7 +491,7 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
 
-	tc_cls_common_offload_init(&cls_u32.common, tp);
+	tc_cls_common_offload_init(&cls_u32.common, tp, NULL);
 	cls_u32.command = TC_CLSU32_DELETE_HNODE;
 	cls_u32.hnode.divisor = h->divisor;
 	cls_u32.hnode.handle = h->handle;
@@ -501,7 +501,7 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 }
 
 static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
-				u32 flags)
+				u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
@@ -509,7 +509,7 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	bool offloaded = false;
 	int err;
 
-	tc_cls_common_offload_init(&cls_u32.common, tp);
+	tc_cls_common_offload_init(&cls_u32.common, tp, extack);
 	cls_u32.command = TC_CLSU32_NEW_HNODE;
 	cls_u32.hnode.divisor = h->divisor;
 	cls_u32.hnode.handle = h->handle;
@@ -534,7 +534,7 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n)
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
 
-	tc_cls_common_offload_init(&cls_u32.common, tp);
+	tc_cls_common_offload_init(&cls_u32.common, tp, NULL);
 	cls_u32.command = TC_CLSU32_DELETE_KNODE;
 	cls_u32.knode.handle = n->handle;
 
@@ -543,14 +543,14 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n)
 }
 
 static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
-				u32 flags)
+				u32 flags, struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block = tp->chain->block;
 	struct tc_cls_u32_offload cls_u32 = {};
 	bool skip_sw = tc_skip_sw(flags);
 	int err;
 
-	tc_cls_common_offload_init(&cls_u32.common, tp);
+	tc_cls_common_offload_init(&cls_u32.common, tp, extack);
 	cls_u32.command = TC_CLSU32_REPLACE_KNODE;
 	cls_u32.knode.handle = n->handle;
 	cls_u32.knode.fshift = n->fshift;
@@ -965,7 +965,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return err;
 		}
 
-		err = u32_replace_hw_knode(tp, new, flags);
+		err = u32_replace_hw_knode(tp, new, flags, extack);
 		if (err) {
 			u32_destroy_key(tp, new, false);
 			return err;
@@ -1016,7 +1016,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		ht->prio = tp->prio;
 		idr_init(&ht->handle_idr);
 
-		err = u32_replace_hw_hnode(tp, ht, flags);
+		err = u32_replace_hw_hnode(tp, ht, flags, extack);
 		if (err) {
 			idr_remove_ext(&tp_c->handle_idr, handle);
 			kfree(ht);
@@ -1122,7 +1122,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		struct tc_u_knode __rcu **ins;
 		struct tc_u_knode *pins;
 
-		err = u32_replace_hw_knode(tp, n, flags);
+		err = u32_replace_hw_knode(tp, n, flags, extack);
 		if (err)
 			goto errhw;
 

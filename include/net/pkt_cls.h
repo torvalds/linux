@@ -602,15 +602,18 @@ struct tc_cls_common_offload {
 	u32 chain_index;
 	__be16 protocol;
 	u32 prio;
+	struct netlink_ext_ack *extack;
 };
 
 static inline void
 tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
-			   const struct tcf_proto *tp)
+			   const struct tcf_proto *tp,
+			   struct netlink_ext_ack *extack)
 {
 	cls_common->chain_index = tp->chain->index;
 	cls_common->protocol = tp->protocol;
 	cls_common->prio = tp->prio;
+	cls_common->extack = extack;
 }
 
 struct tc_cls_u32_knode {
@@ -651,6 +654,17 @@ struct tc_cls_u32_offload {
 static inline bool tc_can_offload(const struct net_device *dev)
 {
 	return dev->features & NETIF_F_HW_TC;
+}
+
+static inline bool tc_can_offload_extack(const struct net_device *dev,
+					 struct netlink_ext_ack *extack)
+{
+	bool can = tc_can_offload(dev);
+
+	if (!can)
+		NL_SET_ERR_MSG(extack, "TC offload is disabled on net device");
+
+	return can;
 }
 
 static inline bool tc_skip_hw(u32 flags)
