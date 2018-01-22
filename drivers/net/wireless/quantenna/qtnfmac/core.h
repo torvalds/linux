@@ -108,8 +108,8 @@ struct qtnf_mac_info {
 	u32 max_acl_mac_addrs;
 	struct ieee80211_ht_cap ht_cap_mod_mask;
 	struct ieee80211_vht_cap vht_cap_mod_mask;
-	struct ieee80211_iface_limit *limits;
-	size_t n_limits;
+	struct ieee80211_iface_combination *if_comb;
+	size_t n_if_comb;
 	u8 *extended_capabilities;
 	u8 *extended_capabilities_mask;
 	u8 extended_capabilities_len;
@@ -151,6 +151,7 @@ struct qtnf_hw_info {
 
 struct qtnf_vif *qtnf_mac_get_free_vif(struct qtnf_wmac *mac);
 struct qtnf_vif *qtnf_mac_get_base_vif(struct qtnf_wmac *mac);
+void qtnf_mac_iface_comb_free(struct qtnf_wmac *mac);
 struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus);
 int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *priv,
 			 const char *name, unsigned char name_assign_type);

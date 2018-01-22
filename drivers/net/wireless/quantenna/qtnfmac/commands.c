@@ -1116,19 +1116,22 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 					const u8 *tlv_buf, size_t tlv_buf_size)
 {
-	struct ieee80211_iface_limit *limits = NULL;
-	const struct qlink_iface_limit *limit_record;
-	size_t record_count = 0, rec = 0;
-	u16 tlv_type, tlv_value_len;
-	struct qlink_iface_comb_num *comb;
+	struct ieee80211_iface_combination *comb = NULL;
+	size_t n_comb = 0;
+	struct ieee80211_iface_limit *limits;
+	const struct qlink_iface_comb_num *comb_num;
+	const struct qlink_iface_limit_record *rec;
+	const struct qlink_iface_limit *lim;
+	u16 rec_len;
+	u16 tlv_type;
+	u16 tlv_value_len;
 	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
 	u8 *ext_capa = NULL;
 	u8 *ext_capa_mask = NULL;
 	u8 ext_capa_len = 0;
 	u8 ext_capa_mask_len = 0;
-
-	mac->macinfo.n_limits = 0;
+	int i = 0;
 
 	tlv = (const struct qlink_tlv_hdr *)tlv_buf;
 	while (tlv_buf_size >= sizeof(struct qlink_tlv_hdr)) {
@@ -1143,52 +1146,77 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 
 		switch (tlv_type) {
 		case QTN_TLV_ID_NUM_IFACE_COMB:
-			if (unlikely(tlv_value_len != sizeof(*comb)))
+			if (tlv_value_len != sizeof(*comb_num))
 				return -EINVAL;
 
-			comb = (void *)tlv->val;
-			record_count = le16_to_cpu(comb->iface_comb_num);
+			comb_num = (void *)tlv->val;
 
-			mac->macinfo.n_limits = record_count;
-			/* free earlier iface limits memory */
-			kfree(mac->macinfo.limits);
-			mac->macinfo.limits =
-				kzalloc(sizeof(*mac->macinfo.limits) *
-					record_count, GFP_KERNEL);
+			/* free earlier iface comb memory */
+			qtnf_mac_iface_comb_free(mac);
 
-			if (unlikely(!mac->macinfo.limits))
+			mac->macinfo.n_if_comb =
+				le32_to_cpu(comb_num->iface_comb_num);
+
+			mac->macinfo.if_comb =
+				kcalloc(mac->macinfo.n_if_comb,
+					sizeof(*mac->macinfo.if_comb),
+					GFP_KERNEL);
+
+			if (!mac->macinfo.if_comb)
 				return -ENOMEM;
 
-			limits = mac->macinfo.limits;
+			comb = mac->macinfo.if_comb;
+
+			pr_debug("MAC%u: %zu iface combinations\n",
+				 mac->macid, mac->macinfo.n_if_comb);
+
 			break;
 		case QTN_TLV_ID_IFACE_LIMIT:
-			if (unlikely(!limits)) {
-				pr_warn("MAC%u: limits are not inited\n",
+			if (unlikely(!comb)) {
+				pr_warn("MAC%u: no combinations advertised\n",
 					mac->macid);
 				return -EINVAL;
 			}
 
-			if (unlikely(tlv_value_len != sizeof(*limit_record))) {
-				pr_warn("MAC%u: record size mismatch\n",
+			if (n_comb >= mac->macinfo.n_if_comb) {
+				pr_warn("MAC%u: combinations count exceeded\n",
 					mac->macid);
+				n_comb++;
+				break;
+			}
+
+			rec = (void *)tlv->val;
+			rec_len = sizeof(*rec) + rec->n_limits * sizeof(*lim);
+
+			if (unlikely(tlv_value_len != rec_len)) {
+				pr_warn("MAC%u: record %zu size mismatch\n",
+					mac->macid, n_comb);
 				return -EINVAL;
 			}
 
-			limit_record = (void *)tlv->val;
-			limits[rec].max = le16_to_cpu(limit_record->max_num);
-			limits[rec].types = qlink_iface_type_to_nl_mask(
-				le16_to_cpu(limit_record->type));
+			limits = kzalloc(sizeof(*limits) * rec->n_limits,
+					 GFP_KERNEL);
+			if (!limits)
+				return -ENOMEM;
 
-			/* supported modes: STA, AP */
-			limits[rec].types &= BIT(NL80211_IFTYPE_AP) |
-					     BIT(NL80211_IFTYPE_AP_VLAN) |
-					     BIT(NL80211_IFTYPE_STATION);
+			comb[n_comb].num_different_channels =
+				rec->num_different_channels;
+			comb[n_comb].max_interfaces =
+				le16_to_cpu(rec->max_interfaces);
+			comb[n_comb].n_limits = rec->n_limits;
+			comb[n_comb].limits = limits;
 
-			pr_debug("MAC%u: MAX: %u; TYPES: %.4X\n", mac->macid,
-				 limits[rec].max, limits[rec].types);
+			for (i = 0; i < rec->n_limits; i++) {
+				lim = &rec->limits[i];
+				limits[i].max = le16_to_cpu(lim->max_num);
+				limits[i].types =
+					qlink_iface_type_to_nl_mask(le16_to_cpu(lim->type));
+				pr_debug("MAC%u: comb[%zu]: MAX:%u TYPES:%.4X\n",
+					 mac->macid, n_comb,
+					 limits[i].max, limits[i].types);
+			}
 
-			if (limits[rec].types)
-				rec++;
+			n_comb++;
 			break;
 		case WLAN_EID_EXT_CAPABILITY:
 			if (unlikely(tlv_value_len > U8_MAX))
@@ -1216,9 +1244,9 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 		return -EINVAL;
 	}
 
-	if (mac->macinfo.n_limits != rec) {
+	if (mac->macinfo.n_if_comb != n_comb) {
 		pr_err("MAC%u: combination mismatch: reported=%zu parsed=%zu\n",
-		       mac->macid, mac->macinfo.n_limits, rec);
+		       mac->macid, mac->macinfo.n_if_comb, n_comb);
 		return -EINVAL;
 	}
 

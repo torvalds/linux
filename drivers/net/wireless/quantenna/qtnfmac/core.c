@@ -262,6 +262,23 @@ struct qtnf_vif *qtnf_mac_get_base_vif(struct qtnf_wmac *mac)
 	return vif;
 }
 
+void qtnf_mac_iface_comb_free(struct qtnf_wmac *mac)
+{
+	struct ieee80211_iface_combination *comb;
+	int i;
+
+	if (mac->macinfo.if_comb) {
+		for (i = 0; i < mac->macinfo.n_if_comb; i++) {
+			comb = &mac->macinfo.if_comb[i];
+			kfree(comb->limits);
+			comb->limits = NULL;
+		}
+
+		kfree(mac->macinfo.if_comb);
+		mac->macinfo.if_comb = NULL;
+	}
+}
+
 static void qtnf_vif_reset_handler(struct work_struct *work)
 {
 	struct qtnf_vif *vif = container_of(work, struct qtnf_vif, reset_work);
@@ -420,10 +437,9 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 		wiphy->bands[band] = NULL;
 	}
 
-	kfree(mac->macinfo.limits);
+	qtnf_mac_iface_comb_free(mac);
 	kfree(mac->macinfo.extended_capabilities);
 	kfree(mac->macinfo.extended_capabilities_mask);
-	kfree(wiphy->iface_combinations);
 	wiphy_free(wiphy);
 	bus->mac[macid] = NULL;
 }

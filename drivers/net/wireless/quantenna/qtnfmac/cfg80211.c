@@ -876,29 +876,29 @@ struct wiphy *qtnf_wiphy_allocate(struct qtnf_bus *bus)
 	return wiphy;
 }
 
-static int qtnf_wiphy_setup_if_comb(struct wiphy *wiphy,
-				    struct ieee80211_iface_combination *if_comb,
-				    const struct qtnf_mac_info *mac_info)
+static int
+qtnf_wiphy_setup_if_comb(struct wiphy *wiphy, struct qtnf_mac_info *mac_info)
 {
-	size_t max_interfaces = 0;
+	struct ieee80211_iface_combination *if_comb;
+	size_t n_if_comb;
 	u16 interface_modes = 0;
-	size_t i;
+	size_t i, j;
 
-	if (unlikely(!mac_info->limits || !mac_info->n_limits))
+	if_comb = mac_info->if_comb;
+	n_if_comb = mac_info->n_if_comb;
+
+	if (!if_comb || !n_if_comb)
 		return -ENOENT;
 
-	if_comb->limits = mac_info->limits;
-	if_comb->n_limits = mac_info->n_limits;
+	for (i = 0; i < n_if_comb; i++) {
+		if_comb[i].radar_detect_widths = mac_info->radar_detect_widths;
 
-	for (i = 0; i < mac_info->n_limits; i++) {
-		max_interfaces += mac_info->limits[i].max;
-		interface_modes |= mac_info->limits[i].types;
+		for (j = 0; j < if_comb[i].n_limits; j++)
+			interface_modes |= if_comb[i].limits[j].types;
 	}
 
-	if_comb->num_different_channels = 1;
-	if_comb->beacon_int_infra_match = true;
-	if_comb->max_interfaces = max_interfaces;
-	if_comb->radar_detect_widths = mac_info->radar_detect_widths;
+	wiphy->iface_combinations = if_comb;
+	wiphy->n_iface_combinations = n_if_comb;
 	wiphy->interface_modes = interface_modes;
 
 	return 0;
@@ -907,21 +907,12 @@ static int qtnf_wiphy_setup_if_comb(struct wiphy *wiphy,
 int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 {
 	struct wiphy *wiphy = priv_to_wiphy(mac);
-	struct ieee80211_iface_combination *iface_comb = NULL;
 	int ret;
 
 	if (!wiphy) {
 		pr_err("invalid wiphy pointer\n");
 		return -EFAULT;
 	}
-
-	iface_comb = kzalloc(sizeof(*iface_comb), GFP_KERNEL);
-	if (!iface_comb)
-		return -ENOMEM;
-
-	ret = qtnf_wiphy_setup_if_comb(wiphy, iface_comb, &mac->macinfo);
-	if (ret)
-		goto out;
 
 	wiphy->frag_threshold = mac->macinfo.frag_thr;
 	wiphy->rts_threshold = mac->macinfo.rts_thr;
@@ -934,10 +925,11 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->mgmt_stypes = qtnf_mgmt_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
 	wiphy->max_acl_mac_addrs = mac->macinfo.max_acl_mac_addrs;
-
-	wiphy->iface_combinations = iface_comb;
-	wiphy->n_iface_combinations = 1;
 	wiphy->max_num_csa_counters = 2;
+
+	ret = qtnf_wiphy_setup_if_comb(wiphy, &mac->macinfo);
+	if (ret)
+		goto out;
 
 	/* Initialize cipher suits */
 	wiphy->cipher_suites = qtnf_cipher_suites;
@@ -987,12 +979,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		ret = regulatory_hint(wiphy, hw_info->rd->alpha2);
 
 out:
-	if (ret) {
-		kfree(iface_comb);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 void qtnf_netdev_updown(struct net_device *ndev, bool up)

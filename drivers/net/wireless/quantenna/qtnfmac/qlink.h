@@ -1092,13 +1092,20 @@ struct qlink_tlv_hdr {
 	u8 val[0];
 } __packed;
 
+struct qlink_iface_comb_num {
+	__le32 iface_comb_num;
+} __packed;
+
 struct qlink_iface_limit {
 	__le16 max_num;
 	__le16 type;
 } __packed;
 
-struct qlink_iface_comb_num {
-	__le16 iface_comb_num;
+struct qlink_iface_limit_record {
+	__le16 max_interfaces;
+	u8 num_different_channels;
+	u8 n_limits;
+	struct qlink_iface_limit limits[0];
 } __packed;
 
 #define QLINK_RSSI_OFFSET	120
