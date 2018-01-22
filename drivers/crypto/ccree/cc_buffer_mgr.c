@@ -8,6 +8,7 @@
 
 #include "cc_buffer_mgr.h"
 #include "cc_lli_defs.h"
+#include "cc_cipher.h"
 
 enum dma_buffer_type {
 	DMA_NULL_TYPE = -1,
@@ -345,6 +346,130 @@ static int cc_map_sg(struct device *dev, struct scatterlist *sg,
 	}
 
 	return 0;
+}
+
+void cc_unmap_cipher_request(struct device *dev, void *ctx,
+			     unsigned int ivsize, struct scatterlist *src,
+			     struct scatterlist *dst)
+{
+	struct cipher_req_ctx *req_ctx = (struct cipher_req_ctx *)ctx;
+
+	if (req_ctx->gen_ctx.iv_dma_addr) {
+		dev_dbg(dev, "Unmapped iv: iv_dma_addr=%pad iv_size=%u\n",
+			&req_ctx->gen_ctx.iv_dma_addr, ivsize);
+		dma_unmap_single(dev, req_ctx->gen_ctx.iv_dma_addr,
+				 ivsize,
+				 req_ctx->is_giv ? DMA_BIDIRECTIONAL :
+				 DMA_TO_DEVICE);
+	}
+	/* Release pool */
+	if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI &&
+	    req_ctx->mlli_params.mlli_virt_addr) {
+		dma_pool_free(req_ctx->mlli_params.curr_pool,
+			      req_ctx->mlli_params.mlli_virt_addr,
+			      req_ctx->mlli_params.mlli_dma_addr);
+	}
+
+	dma_unmap_sg(dev, src, req_ctx->in_nents, DMA_BIDIRECTIONAL);
+	dev_dbg(dev, "Unmapped req->src=%pK\n", sg_virt(src));
+
+	if (src != dst) {
+		dma_unmap_sg(dev, dst, req_ctx->out_nents, DMA_BIDIRECTIONAL);
+		dev_dbg(dev, "Unmapped req->dst=%pK\n", sg_virt(dst));
+	}
+}
+
+int cc_map_cipher_request(struct cc_drvdata *drvdata, void *ctx,
+			  unsigned int ivsize, unsigned int nbytes,
+			  void *info, struct scatterlist *src,
+			  struct scatterlist *dst, gfp_t flags)
+{
+	struct cipher_req_ctx *req_ctx = (struct cipher_req_ctx *)ctx;
+	struct mlli_params *mlli_params = &req_ctx->mlli_params;
+	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
+	struct device *dev = drvdata_to_dev(drvdata);
+	struct buffer_array sg_data;
+	u32 dummy = 0;
+	int rc = 0;
+	u32 mapped_nents = 0;
+
+	req_ctx->dma_buf_type = CC_DMA_BUF_DLLI;
+	mlli_params->curr_pool = NULL;
+	sg_data.num_of_buffers = 0;
+
+	/* Map IV buffer */
+	if (ivsize) {
+		dump_byte_array("iv", (u8 *)info, ivsize);
+		req_ctx->gen_ctx.iv_dma_addr =
+			dma_map_single(dev, (void *)info,
+				       ivsize,
+				       req_ctx->is_giv ? DMA_BIDIRECTIONAL :
+				       DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, req_ctx->gen_ctx.iv_dma_addr)) {
+			dev_err(dev, "Mapping iv %u B at va=%pK for DMA failed\n",
+				ivsize, info);
+			return -ENOMEM;
+		}
+		dev_dbg(dev, "Mapped iv %u B at va=%pK to dma=%pad\n",
+			ivsize, info, &req_ctx->gen_ctx.iv_dma_addr);
+	} else {
+		req_ctx->gen_ctx.iv_dma_addr = 0;
+	}
+
+	/* Map the src SGL */
+	rc = cc_map_sg(dev, src, nbytes, DMA_BIDIRECTIONAL, &req_ctx->in_nents,
+		       LLI_MAX_NUM_OF_DATA_ENTRIES, &dummy, &mapped_nents);
+	if (rc) {
+		rc = -ENOMEM;
+		goto cipher_exit;
+	}
+	if (mapped_nents > 1)
+		req_ctx->dma_buf_type = CC_DMA_BUF_MLLI;
+
+	if (src == dst) {
+		/* Handle inplace operation */
+		if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
+			req_ctx->out_nents = 0;
+			cc_add_sg_entry(dev, &sg_data, req_ctx->in_nents, src,
+					nbytes, 0, true,
+					&req_ctx->in_mlli_nents);
+		}
+	} else {
+		/* Map the dst sg */
+		if (cc_map_sg(dev, dst, nbytes, DMA_BIDIRECTIONAL,
+			      &req_ctx->out_nents, LLI_MAX_NUM_OF_DATA_ENTRIES,
+			      &dummy, &mapped_nents)) {
+			rc = -ENOMEM;
+			goto cipher_exit;
+		}
+		if (mapped_nents > 1)
+			req_ctx->dma_buf_type = CC_DMA_BUF_MLLI;
+
+		if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
+			cc_add_sg_entry(dev, &sg_data, req_ctx->in_nents, src,
+					nbytes, 0, true,
+					&req_ctx->in_mlli_nents);
+			cc_add_sg_entry(dev, &sg_data, req_ctx->out_nents, dst,
+					nbytes, 0, true,
+					&req_ctx->out_mlli_nents);
+		}
+	}
+
+	if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
+		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
+		rc = cc_generate_mlli(dev, &sg_data, mlli_params, flags);
+		if (rc)
+			goto cipher_exit;
+	}
+
+	dev_dbg(dev, "areq_ctx->dma_buf_type = %s\n",
+		cc_dma_buf_type(req_ctx->dma_buf_type));
+
+	return 0;
+
+cipher_exit:
+	cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
+	return rc;
 }
 
 int cc_buffer_mgr_init(struct cc_drvdata *drvdata)

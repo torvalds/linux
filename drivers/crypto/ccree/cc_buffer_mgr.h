@@ -40,6 +40,14 @@ int cc_buffer_mgr_init(struct cc_drvdata *drvdata);
 
 int cc_buffer_mgr_fini(struct cc_drvdata *drvdata);
 
+int cc_map_cipher_request(struct cc_drvdata *drvdata, void *ctx,
+			  unsigned int ivsize, unsigned int nbytes,
+			  void *info, struct scatterlist *src,
+			  struct scatterlist *dst, gfp_t flags);
+
+void cc_unmap_cipher_request(struct device *dev, void *ctx, unsigned int ivsize,
+			     struct scatterlist *src, struct scatterlist *dst);
+
 int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 			      struct scatterlist *src, unsigned int nbytes,
 			      bool do_update, gfp_t flags);

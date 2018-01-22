@@ -15,6 +15,7 @@
 #endif
 #include <linux/dma-mapping.h>
 #include <crypto/algapi.h>
+#include <crypto/internal/skcipher.h>
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include <crypto/aead.h>
@@ -111,6 +112,7 @@ struct cc_drvdata {
 	struct platform_device *plat_dev;
 	cc_sram_addr_t mlli_sram_addr;
 	void *buff_mgr_handle;
+	void *cipher_handle;
 	void *request_mgr_handle;
 	void *ivgen_handle;
 	void *sram_mgr_handle;
@@ -124,8 +126,9 @@ struct cc_crypto_alg {
 	int cipher_mode;
 	int flow_mode; /* Note: currently, refers to the cipher mode only. */
 	int auth_mode;
+	unsigned int data_unit;
 	struct cc_drvdata *drvdata;
-	struct crypto_alg crypto_alg;
+	struct skcipher_alg skcipher_alg;
 };
 
 struct cc_alg_template {
@@ -140,6 +143,7 @@ struct cc_alg_template {
 	int cipher_mode;
 	int flow_mode; /* Note: currently, refers to the cipher mode only. */
 	int auth_mode;
+	unsigned int data_unit;
 	struct cc_drvdata *drvdata;
 };
 

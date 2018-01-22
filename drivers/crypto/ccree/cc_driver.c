@@ -19,6 +19,7 @@
 #include "cc_request_mgr.h"
 #include "cc_buffer_mgr.h"
 #include "cc_debugfs.h"
+#include "cc_cipher.h"
 #include "cc_ivgen.h"
 #include "cc_sram_mgr.h"
 #include "cc_pm.h"
@@ -278,8 +279,17 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_power_mgr_err;
 	}
 
+	/* Allocate crypto algs */
+	rc = cc_cipher_alloc(new_drvdata);
+	if (rc) {
+		dev_err(dev, "cc_cipher_alloc failed\n");
+		goto post_ivgen_err;
+	}
+
 	return 0;
 
+post_ivgen_err:
+	cc_ivgen_fini(new_drvdata);
 post_power_mgr_err:
 	cc_pm_fini(new_drvdata);
 post_buf_mgr_err:
@@ -308,6 +318,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	struct cc_drvdata *drvdata =
 		(struct cc_drvdata *)platform_get_drvdata(plat_dev);
 
+	cc_cipher_free(drvdata);
 	cc_ivgen_fini(drvdata);
 	cc_pm_fini(drvdata);
 	cc_buffer_mgr_fini(drvdata);
