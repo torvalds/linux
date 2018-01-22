@@ -1037,7 +1037,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			i40evf_print_link_message(adapter);
 			break;
 		case VIRTCHNL_EVENT_RESET_IMPENDING:
-			dev_info(&adapter->pdev->dev, "PF reset warning received\n");
+			dev_info(&adapter->pdev->dev, "Reset warning received from the PF\n");
 			if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING)) {
 				adapter->flags |= I40EVF_FLAG_RESET_PENDING;
 				dev_info(&adapter->pdev->dev, "Scheduling reset task\n");
