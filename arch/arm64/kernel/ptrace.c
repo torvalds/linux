@@ -180,12 +180,13 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 				struct pt_regs *regs)
 {
 	struct arch_hw_breakpoint *bkpt = counter_arch_bp(bp);
-	siginfo_t info = {
-		.si_signo	= SIGTRAP,
-		.si_errno	= 0,
-		.si_code	= TRAP_HWBKPT,
-		.si_addr	= (void __user *)(bkpt->trigger),
-	};
+	siginfo_t info;
+
+	clear_siginfo(&info);
+	info.si_signo	= SIGTRAP;
+	info.si_errno	= 0;
+	info.si_code	= TRAP_HWBKPT;
+	info.si_addr	= (void __user *)(bkpt->trigger);
 
 #ifdef CONFIG_COMPAT
 	if (is_compat_task()) {
