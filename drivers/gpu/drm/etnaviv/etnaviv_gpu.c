@@ -481,9 +481,14 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 		control |= VIVS_HI_CLOCK_CONTROL_ISOLATE_GPU;
 		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, control);
 
-		/* set soft reset. */
-		control |= VIVS_HI_CLOCK_CONTROL_SOFT_RESET;
-		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, control);
+		if (gpu->sec_mode == ETNA_SEC_KERNEL) {
+			gpu_write(gpu, VIVS_MMUv2_AHB_CONTROL,
+			          VIVS_MMUv2_AHB_CONTROL_RESET);
+		} else {
+			/* set soft reset. */
+			control |= VIVS_HI_CLOCK_CONTROL_SOFT_RESET;
+			gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, control);
+		}
 
 		/* wait for reset. */
 		usleep_range(10, 20);
@@ -594,6 +599,12 @@ void etnaviv_gpu_start_fe(struct etnaviv_gpu *gpu, u32 address, u16 prefetch)
 	gpu_write(gpu, VIVS_FE_COMMAND_CONTROL,
 		  VIVS_FE_COMMAND_CONTROL_ENABLE |
 		  VIVS_FE_COMMAND_CONTROL_PREFETCH(prefetch));
+
+	if (gpu->sec_mode == ETNA_SEC_KERNEL) {
+		gpu_write(gpu, VIVS_MMUv2_SEC_COMMAND_CONTROL,
+			  VIVS_MMUv2_SEC_COMMAND_CONTROL_ENABLE |
+			  VIVS_MMUv2_SEC_COMMAND_CONTROL_PREFETCH(prefetch));
+	}
 }
 
 static void etnaviv_gpu_setup_pulse_eater(struct etnaviv_gpu *gpu)
@@ -667,6 +678,12 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 		gpu_write(gpu, VIVS_MC_BUS_CONFIG, bus_config);
 	}
 
+	if (gpu->sec_mode == ETNA_SEC_KERNEL) {
+		u32 val = gpu_read(gpu, VIVS_MMUv2_AHB_CONTROL);
+		val |= VIVS_MMUv2_AHB_CONTROL_NONSEC_ACCESS;
+		gpu_write(gpu, VIVS_MMUv2_AHB_CONTROL, val);
+	}
+
 	/* setup the pulse eater */
 	etnaviv_gpu_setup_pulse_eater(gpu);
 
@@ -728,6 +745,14 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 		gpu->memory_base = PHYS_OFFSET;
 		gpu->identity.features &= ~chipFeatures_FAST_CLEAR;
 	}
+
+	/*
+	 * On cores with security features supported, we claim control over the
+	 * security states.
+	 */
+	if ((gpu->identity.minor_features7 & chipMinorFeatures7_BIT_SECURITY) &&
+	    (gpu->identity.minor_features10 & chipMinorFeatures10_SECURITY_AHB))
+		gpu->sec_mode = ETNA_SEC_KERNEL;
 
 	ret = etnaviv_hw_reset(gpu);
 	if (ret) {
@@ -1342,17 +1367,30 @@ static void sync_point_worker(struct work_struct *work)
 
 static void dump_mmu_fault(struct etnaviv_gpu *gpu)
 {
-	u32 status = gpu_read(gpu, VIVS_MMUv2_STATUS);
+	u32 status_reg, status;
 	int i;
 
+	if (gpu->sec_mode == ETNA_SEC_NONE)
+		status_reg = VIVS_MMUv2_STATUS;
+	else
+		status_reg = VIVS_MMUv2_SEC_STATUS;
+
+	status = gpu_read(gpu, status_reg);
 	dev_err_ratelimited(gpu->dev, "MMU fault status 0x%08x\n", status);
 
 	for (i = 0; i < 4; i++) {
+		u32 address_reg;
+
 		if (!(status & (VIVS_MMUv2_STATUS_EXCEPTION0__MASK << (i * 4))))
 			continue;
 
+		if (gpu->sec_mode == ETNA_SEC_NONE)
+			address_reg = VIVS_MMUv2_EXCEPTION_ADDR(i);
+		else
+			address_reg = VIVS_MMUv2_SEC_EXCEPTION_ADDR;
+
 		dev_err_ratelimited(gpu->dev, "MMU %d fault addr 0x%08x\n", i,
-				gpu_read(gpu, VIVS_MMUv2_EXCEPTION_ADDR(i)));
+				    gpu_read(gpu, address_reg));
 	}
 }
 
