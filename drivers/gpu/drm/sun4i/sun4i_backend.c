@@ -93,7 +93,7 @@ void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 static int sun4i_backend_drm_format_to_layer(struct drm_plane *plane,
 					     u32 format, u32 *mode)
 {
-	if ((plane->type == DRM_PLANE_TYPE_PRIMARY) &&
+	if (plane && (plane->type == DRM_PLANE_TYPE_PRIMARY) &&
 	    (format == DRM_FORMAT_ARGB8888))
 		format = DRM_FORMAT_XRGB8888;
 
