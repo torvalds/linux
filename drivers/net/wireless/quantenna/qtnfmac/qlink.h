@@ -663,16 +663,6 @@ struct qlink_acl_data {
 	struct qlink_mac_address mac_addrs[0];
 } __packed;
 
-/**
- * struct qlink_cmd_set_mac_acl - data for QLINK_CMD_SET_MAC_ACL command
- *
- * @acl: ACL data.
- */
-struct qlink_cmd_set_mac_acl {
-	struct qlink_cmd chdr;
-	struct qlink_acl_data acl;
-} __packed;
-
 /* QLINK Command Responses messages related definitions
  */
 

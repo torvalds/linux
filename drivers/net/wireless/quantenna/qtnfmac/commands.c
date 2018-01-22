@@ -187,7 +187,8 @@ static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 		len += sizeof(struct qlink_tlv_chandef);
 
 	if (s->acl)
-		len += qtnf_cmd_acl_data_size(s->acl);
+		len += sizeof(struct qlink_tlv_hdr) +
+		       qtnf_cmd_acl_data_size(s->acl);
 
 	if (len > (sizeof(struct qlink_cmd) + QTNF_MAX_CMD_BUF_SIZE)) {
 		pr_err("VIF%u.%u: can not fit AP settings: %u\n",
@@ -2637,19 +2638,21 @@ int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
 {
 	struct qtnf_bus *bus = vif->mac->bus;
 	struct sk_buff *cmd_skb;
-	struct qlink_cmd_set_mac_acl *cmd;
+	struct qlink_tlv_hdr *tlv;
+	size_t acl_size = qtnf_cmd_acl_data_size(params);
 	u16 res_code;
 	int ret;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
 					    QLINK_CMD_SET_MAC_ACL,
-					    sizeof(*cmd) +
-					    qtnf_cmd_acl_data_size(params));
+					    sizeof(struct qlink_cmd));
 	if (unlikely(!cmd_skb))
 		return -ENOMEM;
 
-	cmd = (struct qlink_cmd_set_mac_acl *)cmd_skb->data;
-	qlink_acl_data_cfg2q(params, &cmd->acl);
+	tlv = skb_put(cmd_skb, sizeof(*tlv) + acl_size);
+	tlv->type = cpu_to_le16(QTN_TLV_ID_ACL_DATA);
+	tlv->len = cpu_to_le16(acl_size);
+	qlink_acl_data_cfg2q(params, (struct qlink_acl_data *)tlv->val);
 
 	qtnf_bus_lock(bus);
 	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
