@@ -310,7 +310,7 @@
 	 * EEPROM contains the first stage bootloader, HW ID and Bluetooth MAC.
 	 */
 	eeprom@50 {
-		compatible = "microchip,24c128";
+		compatible = "microchip,24c128", "atmel,24c128";
 		pagesize = <64>;
 		read-only;
 		reg = <0x50>;
