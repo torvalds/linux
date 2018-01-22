@@ -119,9 +119,38 @@ qtnf_netdev_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 /* Netdev handler for getting stats.
  */
-static struct net_device_stats *qtnf_netdev_get_stats(struct net_device *dev)
+static void qtnf_netdev_get_stats64(struct net_device *ndev,
+				    struct rtnl_link_stats64 *stats)
 {
-	return &dev->stats;
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	unsigned int start;
+	int cpu;
+
+	netdev_stats_to_stats64(stats, &ndev->stats);
+
+	if (!vif->stats64)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		struct pcpu_sw_netstats *stats64;
+		u64 rx_packets, rx_bytes;
+		u64 tx_packets, tx_bytes;
+
+		stats64 = per_cpu_ptr(vif->stats64, cpu);
+
+		do {
+			start = u64_stats_fetch_begin_irq(&stats64->syncp);
+			rx_packets = stats64->rx_packets;
+			rx_bytes = stats64->rx_bytes;
+			tx_packets = stats64->tx_packets;
+			tx_bytes = stats64->tx_bytes;
+		} while (u64_stats_fetch_retry_irq(&stats64->syncp, start));
+
+		stats->rx_packets += rx_packets;
+		stats->rx_bytes += rx_bytes;
+		stats->tx_packets += tx_packets;
+		stats->tx_bytes += tx_bytes;
+	}
 }
 
 /* Netdev handler for transmission timeout.
@@ -156,7 +185,7 @@ const struct net_device_ops qtnf_netdev_ops = {
 	.ndo_stop = qtnf_netdev_close,
 	.ndo_start_xmit = qtnf_netdev_hard_start_xmit,
 	.ndo_tx_timeout = qtnf_netdev_tx_timeout,
-	.ndo_get_stats = qtnf_netdev_get_stats,
+	.ndo_get_stats64 = qtnf_netdev_get_stats64,
 };
 
 static int qtnf_mac_init_single_band(struct wiphy *wiphy,
@@ -289,6 +318,11 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 		qtnf_sta_list_init(&mac->iflist[i].sta_list);
 		mutex_init(&mac->mac_lock);
 		timer_setup(&mac->scan_timeout, NULL, 0);
+		mac->iflist[i].stats64 =
+			netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+		if (!mac->iflist[i].stats64)
+			pr_warn("VIF%u.%u: per cpu stats allocation failed\n",
+				macid, i);
 	}
 
 	qtnf_mac_init_primary_intf(mac);
@@ -364,6 +398,7 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 		}
 		rtnl_unlock();
 		qtnf_sta_list_free(&vif->sta_list);
+		free_percpu(vif->stats64);
 	}
 
 	if (mac->wiphy_registered)
@@ -642,6 +677,46 @@ void qtnf_wake_all_queues(struct net_device *ndev)
 	}
 }
 EXPORT_SYMBOL_GPL(qtnf_wake_all_queues);
+
+void qtnf_update_rx_stats(struct net_device *ndev, const struct sk_buff *skb)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	struct pcpu_sw_netstats *stats64;
+
+	if (unlikely(!vif || !vif->stats64)) {
+		ndev->stats.rx_packets++;
+		ndev->stats.rx_bytes += skb->len;
+		return;
+	}
+
+	stats64 = this_cpu_ptr(vif->stats64);
+
+	u64_stats_update_begin(&stats64->syncp);
+	stats64->rx_packets++;
+	stats64->rx_bytes += skb->len;
+	u64_stats_update_end(&stats64->syncp);
+}
+EXPORT_SYMBOL_GPL(qtnf_update_rx_stats);
+
+void qtnf_update_tx_stats(struct net_device *ndev, const struct sk_buff *skb)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	struct pcpu_sw_netstats *stats64;
+
+	if (unlikely(!vif || !vif->stats64)) {
+		ndev->stats.tx_packets++;
+		ndev->stats.tx_bytes += skb->len;
+		return;
+	}
+
+	stats64 = this_cpu_ptr(vif->stats64);
+
+	u64_stats_update_begin(&stats64->syncp);
+	stats64->tx_packets++;
+	stats64->tx_bytes += skb->len;
+	u64_stats_update_end(&stats64->syncp);
+}
+EXPORT_SYMBOL_GPL(qtnf_update_tx_stats);
 
 MODULE_AUTHOR("Quantenna Communications");
 MODULE_DESCRIPTION("Quantenna 802.11 wireless LAN FullMAC driver.");
