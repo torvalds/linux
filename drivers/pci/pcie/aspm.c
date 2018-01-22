@@ -228,6 +228,24 @@ static void pcie_aspm_configure_common_clock(struct pcie_link_state *link)
 	if (!(reg16 & PCI_EXP_LNKSTA_SLC))
 		same_clock = 0;
 
+	/* Port might be already in common clock mode */
+	pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &reg16);
+	if (same_clock && (reg16 & PCI_EXP_LNKCTL_CCC)) {
+		bool consistent = true;
+
+		list_for_each_entry(child, &linkbus->devices, bus_list) {
+			pcie_capability_read_word(child, PCI_EXP_LNKCTL,
+						  &reg16);
+			if (!(reg16 & PCI_EXP_LNKCTL_CCC)) {
+				consistent = false;
+				break;
+			}
+		}
+		if (consistent)
+			return;
+		pci_warn(parent, "ASPM: current common clock configuration is broken, reconfiguring\n");
+	}
+
 	/* Configure downstream component, all functions */
 	list_for_each_entry(child, &linkbus->devices, bus_list) {
 		pcie_capability_read_word(child, PCI_EXP_LNKCTL, &reg16);
