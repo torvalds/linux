@@ -392,3 +392,51 @@ void v4l2_get_timestamp(struct timeval *tv)
 	tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 }
 EXPORT_SYMBOL_GPL(v4l2_get_timestamp);
+
+int v4l2_g_parm_cap(struct video_device *vdev,
+		    struct v4l2_subdev *sd, struct v4l2_streamparm *a)
+{
+	struct v4l2_subdev_frame_interval ival = { 0 };
+	int ret;
+
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
+	if (vdev->device_caps & V4L2_CAP_READWRITE)
+		a->parm.capture.readbuffers = 2;
+	if (v4l2_subdev_has_op(sd, video, g_frame_interval))
+		a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	ret = v4l2_subdev_call(sd, video, g_frame_interval, &ival);
+	if (!ret)
+		a->parm.capture.timeperframe = ival.interval;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_g_parm_cap);
+
+int v4l2_s_parm_cap(struct video_device *vdev,
+		    struct v4l2_subdev *sd, struct v4l2_streamparm *a)
+{
+	struct v4l2_subdev_frame_interval ival = {
+		.interval = a->parm.capture.timeperframe
+	};
+	int ret;
+
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
+	memset(&a->parm, 0, sizeof(a->parm));
+	if (vdev->device_caps & V4L2_CAP_READWRITE)
+		a->parm.capture.readbuffers = 2;
+	else
+		a->parm.capture.readbuffers = 0;
+
+	if (v4l2_subdev_has_op(sd, video, g_frame_interval))
+		a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	ret = v4l2_subdev_call(sd, video, s_frame_interval, &ival);
+	if (!ret)
+		a->parm.capture.timeperframe = ival.interval;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_s_parm_cap);
