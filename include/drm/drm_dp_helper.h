@@ -75,6 +75,7 @@
 #define DP_MAX_DOWNSPREAD                   0x003
 # define DP_MAX_DOWNSPREAD_0_5		    (1 << 0)
 # define DP_NO_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
+# define DP_TPS4_SUPPORTED                  (1 << 7)
 
 #define DP_NORP                             0x004
 
@@ -345,7 +346,9 @@
 # define DP_TRAINING_PATTERN_1		    1
 # define DP_TRAINING_PATTERN_2		    2
 # define DP_TRAINING_PATTERN_3		    3	    /* 1.2 */
+# define DP_TRAINING_PATTERN_4              7       /* 1.4 */
 # define DP_TRAINING_PATTERN_MASK	    0x3
+# define DP_TRAINING_PATTERN_MASK_1_4	    0xf
 
 /* DPCD 1.1 only. For DPCD >= 1.2 see per-lane DP_LINK_QUAL_LANEn_SET */
 # define DP_LINK_QUAL_PATTERN_11_DISABLE    (0 << 2)
@@ -969,6 +972,20 @@ drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DPCD_REV] >= 0x12 &&
 		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
+}
+
+static inline bool
+drm_dp_tps4_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x14 &&
+		dpcd[DP_MAX_DOWNSPREAD] & DP_TPS4_SUPPORTED;
+}
+
+static inline u8
+drm_dp_training_pattern_mask(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return (dpcd[DP_DPCD_REV] >= 0x14) ? DP_TRAINING_PATTERN_MASK_1_4 :
+		DP_TRAINING_PATTERN_MASK;
 }
 
 static inline bool
