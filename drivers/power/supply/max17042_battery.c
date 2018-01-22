@@ -886,15 +886,12 @@ static void max17042_init_worker(struct work_struct *work)
 
 #ifdef CONFIG_OF
 static struct max17042_platform_data *
-max17042_get_pdata(struct max17042_chip *chip)
+max17042_get_of_pdata(struct max17042_chip *chip)
 {
 	struct device *dev = &chip->client->dev;
 	struct device_node *np = dev->of_node;
 	u32 prop;
 	struct max17042_platform_data *pdata;
-
-	if (!np)
-		return dev->platform_data;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -920,7 +917,8 @@ max17042_get_pdata(struct max17042_chip *chip)
 
 	return pdata;
 }
-#else
+#endif
+
 static struct max17042_reg_data max17047_default_pdata_init_regs[] = {
 	/*
 	 * Some firmwares do not set FullSOCThr, Enable End-of-Charge Detection
@@ -930,14 +928,11 @@ static struct max17042_reg_data max17047_default_pdata_init_regs[] = {
 };
 
 static struct max17042_platform_data *
-max17042_get_pdata(struct max17042_chip *chip)
+max17042_get_default_pdata(struct max17042_chip *chip)
 {
 	struct device *dev = &chip->client->dev;
 	struct max17042_platform_data *pdata;
 	int ret, misc_cfg;
-
-	if (dev->platform_data)
-		return dev->platform_data;
 
 	/*
 	 * The MAX17047 gets used on x86 where we might not have pdata, assume
@@ -971,7 +966,21 @@ max17042_get_pdata(struct max17042_chip *chip)
 
 	return pdata;
 }
+
+static struct max17042_platform_data *
+max17042_get_pdata(struct max17042_chip *chip)
+{
+	struct device *dev = &chip->client->dev;
+
+#ifdef CONFIG_OF
+	if (dev->of_node)
+		return max17042_get_of_pdata(chip);
 #endif
+	if (dev->platform_data)
+		return dev->platform_data;
+
+	return max17042_get_default_pdata(chip);
+}
 
 static const struct regmap_config max17042_regmap_config = {
 	.reg_bits = 8,
