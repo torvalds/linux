@@ -84,6 +84,30 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 		*value = gpu->identity.minor_features5;
 		break;
 
+	case ETNAVIV_PARAM_GPU_FEATURES_7:
+		*value = gpu->identity.minor_features6;
+		break;
+
+	case ETNAVIV_PARAM_GPU_FEATURES_8:
+		*value = gpu->identity.minor_features7;
+		break;
+
+	case ETNAVIV_PARAM_GPU_FEATURES_9:
+		*value = gpu->identity.minor_features8;
+		break;
+
+	case ETNAVIV_PARAM_GPU_FEATURES_10:
+		*value = gpu->identity.minor_features9;
+		break;
+
+	case ETNAVIV_PARAM_GPU_FEATURES_11:
+		*value = gpu->identity.minor_features10;
+		break;
+
+	case ETNAVIV_PARAM_GPU_FEATURES_12:
+		*value = gpu->identity.minor_features11;
+		break;
+
 	case ETNAVIV_PARAM_GPU_STREAM_COUNT:
 		*value = gpu->identity.stream_count;
 		break;
@@ -823,6 +847,18 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 		   gpu->identity.minor_features4);
 	seq_printf(m, "\t minor_features5: 0x%08x\n",
 		   gpu->identity.minor_features5);
+	seq_printf(m, "\t minor_features6: 0x%08x\n",
+		   gpu->identity.minor_features6);
+	seq_printf(m, "\t minor_features7: 0x%08x\n",
+		   gpu->identity.minor_features7);
+	seq_printf(m, "\t minor_features8: 0x%08x\n",
+		   gpu->identity.minor_features8);
+	seq_printf(m, "\t minor_features9: 0x%08x\n",
+		   gpu->identity.minor_features9);
+	seq_printf(m, "\t minor_features10: 0x%08x\n",
+		   gpu->identity.minor_features10);
+	seq_printf(m, "\t minor_features11: 0x%08x\n",
+		   gpu->identity.minor_features11);
 
 	seq_puts(m, "\tspecs\n");
 	seq_printf(m, "\t stream_count:  %d\n",
