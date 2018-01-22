@@ -2057,6 +2057,7 @@ static int ov5640_set_ctrl_exposure(struct ov5640_dev *sensor, int exp)
 		if (ret < 0)
 			return ret;
 		max_exp += ret;
+		ret = 0;
 
 		if (ctrls->exposure->val < max_exp)
 			ret = ov5640_set_exposure(sensor, ctrls->exposure->val);
