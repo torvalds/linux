@@ -949,6 +949,16 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	struct qtnf_hw_info *hwinfo = &bus->hw_info;
 	const struct qlink_tlv_hdr *tlv;
 	const struct qlink_tlv_reg_rule *tlv_rule;
+	const char *bld_name = NULL;
+	const char *bld_rev = NULL;
+	const char *bld_type = NULL;
+	const char *bld_label = NULL;
+	u32 bld_tmstamp = 0;
+	u32 plat_id = 0;
+	const char *hw_id = NULL;
+	const char *calibration_ver = NULL;
+	const char *uboot_ver = NULL;
+	u32 hw_ver = 0;
 	struct ieee80211_reg_rule *rule;
 	u16 tlv_type;
 	u16 tlv_value_len;
@@ -974,6 +984,10 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	hwinfo->rd->n_reg_rules = resp->n_reg_rules;
 	hwinfo->rd->alpha2[0] = resp->alpha2[0];
 	hwinfo->rd->alpha2[1] = resp->alpha2[1];
+
+	bld_tmstamp = le32_to_cpu(resp->bld_tmstamp);
+	plat_id = le32_to_cpu(resp->plat_id);
+	hw_ver = le32_to_cpu(resp->hw_ver);
 
 	switch (resp->dfs_region) {
 	case QLINK_DFS_FCC:
@@ -1035,6 +1049,27 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 			rule->flags = qtnf_cmd_resp_reg_rule_flags_parse(
 					le32_to_cpu(tlv_rule->flags));
 			break;
+		case QTN_TLV_ID_BUILD_NAME:
+			bld_name = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_BUILD_REV:
+			bld_rev = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_BUILD_TYPE:
+			bld_type = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_BUILD_LABEL:
+			bld_label = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_HW_ID:
+			hw_id = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_CALIBRATION_VER:
+			calibration_ver = (const void *)tlv->val;
+			break;
+		case QTN_TLV_ID_UBOOT_VER:
+			uboot_ver = (const void *)tlv->val;
+			break;
 		default:
 			break;
 		}
@@ -1056,6 +1091,21 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		hwinfo->rd->alpha2[0], hwinfo->rd->alpha2[1],
 		hwinfo->total_tx_chain, hwinfo->total_rx_chain,
 		hwinfo->hw_capab);
+
+	pr_info("\nBuild name:            %s"  \
+		"\nBuild revision:        %s"  \
+		"\nBuild type:            %s"  \
+		"\nBuild label:           %s"  \
+		"\nBuild timestamp:       %lu" \
+		"\nPlatform ID:           %lu" \
+		"\nHardware ID:           %s"  \
+		"\nCalibration version:   %s"  \
+		"\nU-Boot version:        %s"  \
+		"\nHardware version:      0x%08x",
+		bld_name, bld_rev, bld_type, bld_label,
+		(unsigned long)bld_tmstamp,
+		(unsigned long)plat_id,
+		hw_id, calibration_ver, uboot_ver, hw_ver);
 
 	return 0;
 }

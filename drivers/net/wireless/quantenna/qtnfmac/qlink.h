@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		10
+#define QLINK_PROTO_VER		11
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -764,6 +764,9 @@ struct qlink_resp_get_hw_info {
 	struct qlink_resp rhdr;
 	__le32 fw_ver;
 	__le32 hw_capab;
+	__le32 bld_tmstamp;
+	__le32 plat_id;
+	__le32 hw_ver;
 	__le16 ql_proto_ver;
 	u8 num_mac;
 	u8 mac_bitmap;
@@ -1074,6 +1077,13 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_IE_SET		= 0x0305,
 	QTN_TLV_ID_EXT_CAPABILITY_MASK	= 0x0306,
 	QTN_TLV_ID_ACL_DATA		= 0x0307,
+	QTN_TLV_ID_BUILD_NAME		= 0x0401,
+	QTN_TLV_ID_BUILD_REV		= 0x0402,
+	QTN_TLV_ID_BUILD_TYPE		= 0x0403,
+	QTN_TLV_ID_BUILD_LABEL		= 0x0404,
+	QTN_TLV_ID_HW_ID		= 0x0405,
+	QTN_TLV_ID_CALIBRATION_VER	= 0x0406,
+	QTN_TLV_ID_UBOOT_VER		= 0x0407,
 };
 
 struct qlink_tlv_hdr {
