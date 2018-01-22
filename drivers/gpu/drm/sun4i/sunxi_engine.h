@@ -12,6 +12,7 @@
 
 struct drm_plane;
 struct drm_device;
+struct drm_crtc_state;
 
 struct sunxi_engine;
 
