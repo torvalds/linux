@@ -161,8 +161,38 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 			  le32_to_cpu(rlc_hdr->reg_list_format_separate_array_offset_bytes));
 		DRM_DEBUG("reg_list_separate_size_bytes: %u\n",
 			  le32_to_cpu(rlc_hdr->reg_list_separate_size_bytes));
-		DRM_DEBUG("reg_list_separate_size_bytes: %u\n",
-			  le32_to_cpu(rlc_hdr->reg_list_separate_size_bytes));
+		DRM_DEBUG("reg_list_separate_array_offset_bytes: %u\n",
+			  le32_to_cpu(rlc_hdr->reg_list_separate_array_offset_bytes));
+		if (version_minor == 1) {
+			const struct rlc_firmware_header_v2_1 *v2_1 =
+				container_of(rlc_hdr, struct rlc_firmware_header_v2_1, v2_0);
+			DRM_DEBUG("reg_list_format_direct_reg_list_length: %u\n",
+				  le32_to_cpu(v2_1->reg_list_format_direct_reg_list_length));
+			DRM_DEBUG("save_restore_list_cntl_ucode_ver: %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_cntl_ucode_ver));
+			DRM_DEBUG("save_restore_list_cntl_feature_ver: %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_cntl_feature_ver));
+			DRM_DEBUG("save_restore_list_cntl_size_bytes %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_cntl_size_bytes));
+			DRM_DEBUG("save_restore_list_cntl_offset_bytes: %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_cntl_offset_bytes));
+			DRM_DEBUG("save_restore_list_gpm_ucode_ver: %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_gpm_ucode_ver));
+			DRM_DEBUG("save_restore_list_gpm_feature_ver: %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_gpm_feature_ver));
+			DRM_DEBUG("save_restore_list_gpm_size_bytes %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_gpm_size_bytes));
+			DRM_DEBUG("save_restore_list_gpm_offset_bytes: %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_gpm_offset_bytes));
+			DRM_DEBUG("save_restore_list_srm_ucode_ver: %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_srm_ucode_ver));
+			DRM_DEBUG("save_restore_list_srm_feature_ver: %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_srm_feature_ver));
+			DRM_DEBUG("save_restore_list_srm_size_bytes %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_srm_size_bytes));
+			DRM_DEBUG("save_restore_list_srm_offset_bytes: %u\n",
+				  le32_to_cpu(v2_1->save_restore_list_srm_offset_bytes));
+		}
 	} else {
 		DRM_ERROR("Unknown RLC ucode version: %u.%u\n", version_major, version_minor);
 	}
