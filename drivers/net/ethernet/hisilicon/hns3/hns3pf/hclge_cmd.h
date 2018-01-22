@@ -102,6 +102,10 @@ enum hclge_opcode_type {
 	HCLGE_OPC_STATS_64_BIT		= 0x0030,
 	HCLGE_OPC_STATS_32_BIT		= 0x0031,
 	HCLGE_OPC_STATS_MAC		= 0x0032,
+
+	HCLGE_OPC_QUERY_REG_NUM		= 0x0040,
+	HCLGE_OPC_QUERY_32_BIT_REG	= 0x0041,
+	HCLGE_OPC_QUERY_64_BIT_REG	= 0x0042,
 	/* Device management command */
 
 	/* MAC commond */
@@ -111,6 +115,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_LINK_STATUS	= 0x0307,
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
+	HCLGE_OPC_STATS_MAC_TRAFFIC	= 0x0314,
 	/* MACSEC command */
 
 	/* PFC/Pause CMD*/
@@ -223,6 +228,9 @@ enum hclge_opcode_type {
 
 	/* Mailbox cmd */
 	HCLGEVF_OPC_MBX_PF_TO_VF	= 0x2000,
+
+	/* Led command */
+	HCLGE_OPC_LED_STATUS_CFG	= 0xB000,
 };
 
 #define HCLGE_TQP_REG_OFFSET		0x80000
@@ -601,6 +609,28 @@ struct hclge_mac_vlan_mask_entry_cmd {
 	u8 rsv2[14];
 };
 
+#define HCLGE_MAC_MGR_MASK_VLAN_B		BIT(0)
+#define HCLGE_MAC_MGR_MASK_MAC_B		BIT(1)
+#define HCLGE_MAC_MGR_MASK_ETHERTYPE_B		BIT(2)
+#define HCLGE_MAC_ETHERTYPE_LLDP		0x88cc
+
+struct hclge_mac_mgr_tbl_entry_cmd {
+	u8      flags;
+	u8      resp_code;
+	__le16  vlan_tag;
+	__le32  mac_addr_hi32;
+	__le16  mac_addr_lo16;
+	__le16  rsv1;
+	__le16  ethter_type;
+	__le16  egress_port;
+	__le16  egress_queue;
+	u8      sw_port_id_aware;
+	u8      rsv2;
+	u8      i_port_bitmap;
+	u8      i_port_direction;
+	u8      rsv3[2];
+};
+
 #define HCLGE_CFG_MTA_MAC_SEL_S		0x0
 #define HCLGE_CFG_MTA_MAC_SEL_M		GENMASK(1, 0)
 #define HCLGE_CFG_MTA_MAC_EN_B		0x7
@@ -780,6 +810,23 @@ struct hclge_reset_cmd {
 #define HCLGE_NIC_CMQ_ENABLE		BIT(HCLGE_NIC_CMQ_EN_B)
 #define HCLGE_NIC_CMQ_DESC_NUM		1024
 #define HCLGE_NIC_CMQ_DESC_NUM_S	3
+
+#define HCLGE_LED_PORT_SPEED_STATE_S	0
+#define HCLGE_LED_PORT_SPEED_STATE_M	GENMASK(5, 0)
+#define HCLGE_LED_ACTIVITY_STATE_S	0
+#define HCLGE_LED_ACTIVITY_STATE_M	GENMASK(1, 0)
+#define HCLGE_LED_LINK_STATE_S		0
+#define HCLGE_LED_LINK_STATE_M		GENMASK(1, 0)
+#define HCLGE_LED_LOCATE_STATE_S	0
+#define HCLGE_LED_LOCATE_STATE_M	GENMASK(1, 0)
+
+struct hclge_set_led_state_cmd {
+	u8 port_speed_led_config;
+	u8 link_led_config;
+	u8 activity_led_config;
+	u8 locate_led_config;
+	u8 rsv[20];
+};
 
 int hclge_cmd_init(struct hclge_dev *hdev);
 static inline void hclge_write_reg(void __iomem *base, u32 reg, u32 value)

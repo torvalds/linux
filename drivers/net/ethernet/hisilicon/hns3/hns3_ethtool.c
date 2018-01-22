@@ -1063,6 +1063,38 @@ static int hns3_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+static int hns3_get_regs_len(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (!h->ae_algo->ops->get_regs_len)
+		return -EOPNOTSUPP;
+
+	return h->ae_algo->ops->get_regs_len(h);
+}
+
+static void hns3_get_regs(struct net_device *netdev,
+			  struct ethtool_regs *cmd, void *data)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (!h->ae_algo->ops->get_regs)
+		return;
+
+	h->ae_algo->ops->get_regs(h, &cmd->version, data);
+}
+
+static int hns3_set_phys_id(struct net_device *netdev,
+			    enum ethtool_phys_id_state state)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->set_led_id)
+		return -EOPNOTSUPP;
+
+	return h->ae_algo->ops->set_led_id(h, state);
+}
+
 static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_ringparam = hns3_get_ringparam,
@@ -1103,6 +1135,9 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.set_channels = hns3_set_channels,
 	.get_coalesce = hns3_get_coalesce,
 	.set_coalesce = hns3_set_coalesce,
+	.get_regs_len = hns3_get_regs_len,
+	.get_regs = hns3_get_regs,
+	.set_phys_id = hns3_set_phys_id,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)

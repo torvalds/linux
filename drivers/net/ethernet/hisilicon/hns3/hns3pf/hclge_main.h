@@ -550,6 +550,9 @@ struct hclge_dev {
 	bool accept_mta_mc; /* Whether accept mta filter multicast */
 
 	struct hclge_vlan_type_cfg vlan_type_cfg;
+
+	u64 rx_pkts_for_led;
+	u64 tx_pkts_for_led;
 };
 
 /* VPort level vlan tag configuration for TX direction */

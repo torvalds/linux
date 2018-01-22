@@ -39,6 +39,7 @@ static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
+static int hclge_update_led_status(struct hclge_dev *hdev);
 
 static struct hnae3_ae_algo ae_algo;
 
@@ -392,6 +393,16 @@ static const struct hclge_comm_stats_str g_mac_stats_string[] = {
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_bad_pkt_num)}
 };
 
+static const struct hclge_mac_mgr_tbl_entry_cmd hclge_mgr_table[] = {
+	{
+		.flags = HCLGE_MAC_MGR_MASK_VLAN_B,
+		.ethter_type = cpu_to_le16(HCLGE_MAC_ETHERTYPE_LLDP),
+		.mac_addr_hi32 = cpu_to_le32(htonl(0x0180C200)),
+		.mac_addr_lo16 = cpu_to_le16(htons(0x000E)),
+		.i_port_bitmap = 0x1,
+	},
+};
+
 static int hclge_64_bit_update_stats(struct hclge_dev *hdev)
 {
 #define HCLGE_64_BIT_CMD_NUM 5
@@ -491,6 +502,38 @@ static int hclge_32_bit_update_stats(struct hclge_dev *hdev)
 			desc_data++;
 		}
 	}
+
+	return 0;
+}
+
+static int hclge_mac_get_traffic_stats(struct hclge_dev *hdev)
+{
+	struct hclge_mac_stats *mac_stats = &hdev->hw_stats.mac_stats;
+	struct hclge_desc desc;
+	__le64 *desc_data;
+	int ret;
+
+	/* for fiber port, need to query the total rx/tx packets statstics,
+	 * used for data transferring checking.
+	 */
+	if (hdev->hw.mac.media_type != HNAE3_MEDIA_TYPE_FIBER)
+		return 0;
+
+	if (test_bit(HCLGE_STATE_STATISTICS_UPDATING, &hdev->state))
+		return 0;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_STATS_MAC_TRAFFIC, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Get MAC total pkt stats fail, ret = %d\n", ret);
+
+		return ret;
+	}
+
+	desc_data = (__le64 *)(&desc.data[0]);
+	mac_stats->mac_tx_total_pkt_num += le64_to_cpu(*desc_data++);
+	mac_stats->mac_rx_total_pkt_num += le64_to_cpu(*desc_data);
 
 	return 0;
 }
@@ -2836,13 +2879,20 @@ static void hclge_service_task(struct work_struct *work)
 	struct hclge_dev *hdev =
 		container_of(work, struct hclge_dev, service_task);
 
+	/* The total rx/tx packets statstics are wanted to be updated
+	 * per second. Both hclge_update_stats_for_all() and
+	 * hclge_mac_get_traffic_stats() can do it.
+	 */
 	if (hdev->hw_stats.stats_timer >= HCLGE_STATS_TIMER_INTERVAL) {
 		hclge_update_stats_for_all(hdev);
 		hdev->hw_stats.stats_timer = 0;
+	} else {
+		hclge_mac_get_traffic_stats(hdev);
 	}
 
 	hclge_update_speed_duplex(hdev);
 	hclge_update_link_status(hdev);
+	hclge_update_led_status(hdev);
 	hclge_service_complete(hdev);
 }
 
@@ -4249,6 +4299,91 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 	return status;
 }
 
+static int hclge_get_mac_ethertype_cmd_status(struct hclge_dev *hdev,
+					      u16 cmdq_resp, u8 resp_code)
+{
+#define HCLGE_ETHERTYPE_SUCCESS_ADD		0
+#define HCLGE_ETHERTYPE_ALREADY_ADD		1
+#define HCLGE_ETHERTYPE_MGR_TBL_OVERFLOW	2
+#define HCLGE_ETHERTYPE_KEY_CONFLICT		3
+
+	int return_status;
+
+	if (cmdq_resp) {
+		dev_err(&hdev->pdev->dev,
+			"cmdq execute failed for get_mac_ethertype_cmd_status, status=%d.\n",
+			cmdq_resp);
+		return -EIO;
+	}
+
+	switch (resp_code) {
+	case HCLGE_ETHERTYPE_SUCCESS_ADD:
+	case HCLGE_ETHERTYPE_ALREADY_ADD:
+		return_status = 0;
+		break;
+	case HCLGE_ETHERTYPE_MGR_TBL_OVERFLOW:
+		dev_err(&hdev->pdev->dev,
+			"add mac ethertype failed for manager table overflow.\n");
+		return_status = -EIO;
+		break;
+	case HCLGE_ETHERTYPE_KEY_CONFLICT:
+		dev_err(&hdev->pdev->dev,
+			"add mac ethertype failed for key conflict.\n");
+		return_status = -EIO;
+		break;
+	default:
+		dev_err(&hdev->pdev->dev,
+			"add mac ethertype failed for undefined, code=%d.\n",
+			resp_code);
+		return_status = -EIO;
+	}
+
+	return return_status;
+}
+
+static int hclge_add_mgr_tbl(struct hclge_dev *hdev,
+			     const struct hclge_mac_mgr_tbl_entry_cmd *req)
+{
+	struct hclge_desc desc;
+	u8 resp_code;
+	u16 retval;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_ETHTYPE_ADD, false);
+	memcpy(desc.data, req, sizeof(struct hclge_mac_mgr_tbl_entry_cmd));
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"add mac ethertype failed for cmd_send, ret =%d.\n",
+			ret);
+		return ret;
+	}
+
+	resp_code = (le32_to_cpu(desc.data[0]) >> 8) & 0xff;
+	retval = le16_to_cpu(desc.retval);
+
+	return hclge_get_mac_ethertype_cmd_status(hdev, retval, resp_code);
+}
+
+static int init_mgr_tbl(struct hclge_dev *hdev)
+{
+	int ret;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hclge_mgr_table); i++) {
+		ret = hclge_add_mgr_tbl(hdev, &hclge_mgr_table[i]);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"add mac ethertype failed, ret =%d.\n",
+				ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void hclge_get_mac_addr(struct hnae3_handle *handle, u8 *p)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -5271,6 +5406,12 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
+	ret = init_mgr_tbl(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "manager table init fail, ret =%d\n", ret);
+		return ret;
+	}
+
 	hclge_dcb_ops_set(hdev);
 
 	timer_setup(&hdev->service_timer, hclge_service_timer, 0);
@@ -5544,6 +5685,318 @@ static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
 	return ret;
 }
 
+static int hclge_get_regs_num(struct hclge_dev *hdev, u32 *regs_num_32_bit,
+			      u32 *regs_num_64_bit)
+{
+	struct hclge_desc desc;
+	u32 total_num;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_REG_NUM, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Query register number cmd failed, ret = %d.\n", ret);
+		return ret;
+	}
+
+	*regs_num_32_bit = le32_to_cpu(desc.data[0]);
+	*regs_num_64_bit = le32_to_cpu(desc.data[1]);
+
+	total_num = *regs_num_32_bit + *regs_num_64_bit;
+	if (!total_num)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
+				 void *data)
+{
+#define HCLGE_32_BIT_REG_RTN_DATANUM 8
+
+	struct hclge_desc *desc;
+	u32 *reg_val = data;
+	__le32 *desc_data;
+	int cmd_num;
+	int i, k, n;
+	int ret;
+
+	if (regs_num == 0)
+		return 0;
+
+	cmd_num = DIV_ROUND_UP(regs_num + 2, HCLGE_32_BIT_REG_RTN_DATANUM);
+	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_32_BIT_REG, true);
+	ret = hclge_cmd_send(&hdev->hw, desc, cmd_num);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Query 32 bit register cmd failed, ret = %d.\n", ret);
+		kfree(desc);
+		return ret;
+	}
+
+	for (i = 0; i < cmd_num; i++) {
+		if (i == 0) {
+			desc_data = (__le32 *)(&desc[i].data[0]);
+			n = HCLGE_32_BIT_REG_RTN_DATANUM - 2;
+		} else {
+			desc_data = (__le32 *)(&desc[i]);
+			n = HCLGE_32_BIT_REG_RTN_DATANUM;
+		}
+		for (k = 0; k < n; k++) {
+			*reg_val++ = le32_to_cpu(*desc_data++);
+
+			regs_num--;
+			if (!regs_num)
+				break;
+		}
+	}
+
+	kfree(desc);
+	return 0;
+}
+
+static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
+				 void *data)
+{
+#define HCLGE_64_BIT_REG_RTN_DATANUM 4
+
+	struct hclge_desc *desc;
+	u64 *reg_val = data;
+	__le64 *desc_data;
+	int cmd_num;
+	int i, k, n;
+	int ret;
+
+	if (regs_num == 0)
+		return 0;
+
+	cmd_num = DIV_ROUND_UP(regs_num + 1, HCLGE_64_BIT_REG_RTN_DATANUM);
+	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_64_BIT_REG, true);
+	ret = hclge_cmd_send(&hdev->hw, desc, cmd_num);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Query 64 bit register cmd failed, ret = %d.\n", ret);
+		kfree(desc);
+		return ret;
+	}
+
+	for (i = 0; i < cmd_num; i++) {
+		if (i == 0) {
+			desc_data = (__le64 *)(&desc[i].data[0]);
+			n = HCLGE_64_BIT_REG_RTN_DATANUM - 1;
+		} else {
+			desc_data = (__le64 *)(&desc[i]);
+			n = HCLGE_64_BIT_REG_RTN_DATANUM;
+		}
+		for (k = 0; k < n; k++) {
+			*reg_val++ = le64_to_cpu(*desc_data++);
+
+			regs_num--;
+			if (!regs_num)
+				break;
+		}
+	}
+
+	kfree(desc);
+	return 0;
+}
+
+static int hclge_get_regs_len(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 regs_num_32_bit, regs_num_64_bit;
+	int ret;
+
+	ret = hclge_get_regs_num(hdev, &regs_num_32_bit, &regs_num_64_bit);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Get register number failed, ret = %d.\n", ret);
+		return -EOPNOTSUPP;
+	}
+
+	return regs_num_32_bit * sizeof(u32) + regs_num_64_bit * sizeof(u64);
+}
+
+static void hclge_get_regs(struct hnae3_handle *handle, u32 *version,
+			   void *data)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 regs_num_32_bit, regs_num_64_bit;
+	int ret;
+
+	*version = hdev->fw_version;
+
+	ret = hclge_get_regs_num(hdev, &regs_num_32_bit, &regs_num_64_bit);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Get register number failed, ret = %d.\n", ret);
+		return;
+	}
+
+	ret = hclge_get_32_bit_regs(hdev, regs_num_32_bit, data);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Get 32 bit register failed, ret = %d.\n", ret);
+		return;
+	}
+
+	data = (u32 *)data + regs_num_32_bit;
+	ret = hclge_get_64_bit_regs(hdev, regs_num_64_bit,
+				    data);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"Get 64 bit register failed, ret = %d.\n", ret);
+}
+
+static int hclge_set_led_status_sfp(struct hclge_dev *hdev, u8 speed_led_status,
+				    u8 act_led_status, u8 link_led_status,
+				    u8 locate_led_status)
+{
+	struct hclge_set_led_state_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_LED_STATUS_CFG, false);
+
+	req = (struct hclge_set_led_state_cmd *)desc.data;
+	hnae_set_field(req->port_speed_led_config, HCLGE_LED_PORT_SPEED_STATE_M,
+		       HCLGE_LED_PORT_SPEED_STATE_S, speed_led_status);
+	hnae_set_field(req->link_led_config, HCLGE_LED_ACTIVITY_STATE_M,
+		       HCLGE_LED_ACTIVITY_STATE_S, act_led_status);
+	hnae_set_field(req->activity_led_config, HCLGE_LED_LINK_STATE_M,
+		       HCLGE_LED_LINK_STATE_S, link_led_status);
+	hnae_set_field(req->locate_led_config, HCLGE_LED_LOCATE_STATE_M,
+		       HCLGE_LED_LOCATE_STATE_S, locate_led_status);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"Send set led state cmd error, ret =%d\n", ret);
+
+	return ret;
+}
+
+enum hclge_led_status {
+	HCLGE_LED_OFF,
+	HCLGE_LED_ON,
+	HCLGE_LED_NO_CHANGE = 0xFF,
+};
+
+static int hclge_set_led_id(struct hnae3_handle *handle,
+			    enum ethtool_phys_id_state status)
+{
+#define BLINK_FREQUENCY		2
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+	int ret = 0;
+
+	if (phydev || hdev->hw.mac.media_type != HNAE3_MEDIA_TYPE_FIBER)
+		return -EOPNOTSUPP;
+
+	switch (status) {
+	case ETHTOOL_ID_ACTIVE:
+		ret = hclge_set_led_status_sfp(hdev,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_ON);
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		ret = hclge_set_led_status_sfp(hdev,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_NO_CHANGE,
+					       HCLGE_LED_OFF);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+enum hclge_led_port_speed {
+	HCLGE_SPEED_LED_FOR_1G,
+	HCLGE_SPEED_LED_FOR_10G,
+	HCLGE_SPEED_LED_FOR_25G,
+	HCLGE_SPEED_LED_FOR_40G,
+	HCLGE_SPEED_LED_FOR_50G,
+	HCLGE_SPEED_LED_FOR_100G,
+};
+
+static u8 hclge_led_get_speed_status(u32 speed)
+{
+	u8 speed_led;
+
+	switch (speed) {
+	case HCLGE_MAC_SPEED_1G:
+		speed_led = HCLGE_SPEED_LED_FOR_1G;
+		break;
+	case HCLGE_MAC_SPEED_10G:
+		speed_led = HCLGE_SPEED_LED_FOR_10G;
+		break;
+	case HCLGE_MAC_SPEED_25G:
+		speed_led = HCLGE_SPEED_LED_FOR_25G;
+		break;
+	case HCLGE_MAC_SPEED_40G:
+		speed_led = HCLGE_SPEED_LED_FOR_40G;
+		break;
+	case HCLGE_MAC_SPEED_50G:
+		speed_led = HCLGE_SPEED_LED_FOR_50G;
+		break;
+	case HCLGE_MAC_SPEED_100G:
+		speed_led = HCLGE_SPEED_LED_FOR_100G;
+		break;
+	default:
+		speed_led = HCLGE_LED_NO_CHANGE;
+	}
+
+	return speed_led;
+}
+
+static int hclge_update_led_status(struct hclge_dev *hdev)
+{
+	u8 port_speed_status, link_status, activity_status;
+	u64 rx_pkts, tx_pkts;
+
+	if (hdev->hw.mac.media_type != HNAE3_MEDIA_TYPE_FIBER)
+		return 0;
+
+	port_speed_status = hclge_led_get_speed_status(hdev->hw.mac.speed);
+
+	rx_pkts = hdev->hw_stats.mac_stats.mac_rx_total_pkt_num;
+	tx_pkts = hdev->hw_stats.mac_stats.mac_tx_total_pkt_num;
+	if (rx_pkts != hdev->rx_pkts_for_led ||
+	    tx_pkts != hdev->tx_pkts_for_led)
+		activity_status = HCLGE_LED_ON;
+	else
+		activity_status = HCLGE_LED_OFF;
+	hdev->rx_pkts_for_led = rx_pkts;
+	hdev->tx_pkts_for_led = tx_pkts;
+
+	if (hdev->hw.mac.link)
+		link_status = HCLGE_LED_ON;
+	else
+		link_status = HCLGE_LED_OFF;
+
+	return hclge_set_led_status_sfp(hdev, port_speed_status,
+					activity_status, link_status,
+					HCLGE_LED_NO_CHANGE);
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -5595,6 +6048,9 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_channels = hclge_set_channels,
 	.get_channels = hclge_get_channels,
 	.get_flowctrl_adv = hclge_get_flowctrl_adv,
+	.get_regs_len = hclge_get_regs_len,
+	.get_regs = hclge_get_regs,
+	.set_led_id = hclge_set_led_id,
 };
 
 static struct hnae3_ae_algo ae_algo = {

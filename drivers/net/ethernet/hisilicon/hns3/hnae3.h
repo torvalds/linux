@@ -356,7 +356,8 @@ struct hnae3_ae_ops {
 			    u32 stringset, u8 *data);
 	int (*get_sset_count)(struct hnae3_handle *handle, int stringset);
 
-	void (*get_regs)(struct hnae3_handle *handle, void *data);
+	void (*get_regs)(struct hnae3_handle *handle, u32 *version,
+			 void *data);
 	int (*get_regs_len)(struct hnae3_handle *handle);
 
 	u32 (*get_rss_key_size)(struct hnae3_handle *handle);
@@ -404,6 +405,8 @@ struct hnae3_ae_ops {
 	int (*set_channels)(struct hnae3_handle *handle, u32 new_tqps_num);
 	void (*get_flowctrl_adv)(struct hnae3_handle *handle,
 				 u32 *flowctrl_adv);
+	int (*set_led_id)(struct hnae3_handle *handle,
+			  enum ethtool_phys_id_state status);
 };
 
 struct hnae3_dcb_ops {
