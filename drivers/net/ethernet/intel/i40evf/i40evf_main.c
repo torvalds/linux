@@ -1027,6 +1027,7 @@ static void i40evf_up_complete(struct i40evf_adapter *adapter)
 void i40evf_down(struct i40evf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct i40evf_vlan_filter *vlf;
 	struct i40evf_mac_filter *f;
 
 	if (adapter->state <= __I40EVF_DOWN_PENDING)
@@ -1045,7 +1046,7 @@ void i40evf_down(struct i40evf_adapter *adapter)
 		f->remove = true;
 	}
 	/* remove all VLAN filters */
-	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
+	list_for_each_entry(vlf, &adapter->vlan_filter_list, list) {
 		f->remove = true;
 	}
 
@@ -3067,6 +3068,7 @@ static void i40evf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	struct i40evf_vlan_filter *vlf, *vlftmp;
 	struct i40evf_mac_filter *f, *ftmp;
 	struct i40e_hw *hw = &adapter->hw;
 	int err;
@@ -3129,9 +3131,10 @@ static void i40evf_remove(struct pci_dev *pdev)
 		list_del(&f->list);
 		kfree(f);
 	}
-	list_for_each_entry_safe(f, ftmp, &adapter->vlan_filter_list, list) {
-		list_del(&f->list);
-		kfree(f);
+	list_for_each_entry_safe(vlf, vlftmp, &adapter->vlan_filter_list,
+				 list) {
+		list_del(&vlf->list);
+		kfree(vlf);
 	}
 
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
