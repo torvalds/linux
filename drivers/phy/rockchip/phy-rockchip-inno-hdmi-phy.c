@@ -409,6 +409,7 @@ static int inno_hdmi_phy_power_off(struct phy *phy)
 	if (inno->plat_data->ops->power_off)
 		inno->plat_data->ops->power_off(inno);
 
+	inno->tmdsclock = 0;
 	dev_dbg(inno->dev, "Inno HDMI PHY Power Off\n");
 
 	return 0;
