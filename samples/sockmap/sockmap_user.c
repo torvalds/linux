@@ -109,7 +109,7 @@ static int sockmap_init_sockets(void)
 	}
 
 	/* Non-blocking sockets */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 2; i++) {
 		err = ioctl(*fds[i], FIONBIO, (char *)&one);
 		if (err < 0) {
 			perror("ioctl s1 failed()");
