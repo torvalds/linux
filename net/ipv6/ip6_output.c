@@ -148,7 +148,7 @@ int ip6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }
 
-static bool ip6_autoflowlabel(struct net *net, const struct ipv6_pinfo *np)
+bool ip6_autoflowlabel(struct net *net, const struct ipv6_pinfo *np)
 {
 	if (!np->autoflowlabel_set)
 		return ip6_default_np_autolabel(net);
