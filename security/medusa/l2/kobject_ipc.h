@@ -3,7 +3,7 @@
 
 struct ipc_kobject {	
 	unsigned int ipc_class;
-	key_t key;
+	int id;
 	MEDUSA_OBJECT_VARS;
 	MEDUSA_SUBJECT_VARS;
 };

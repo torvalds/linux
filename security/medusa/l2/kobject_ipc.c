@@ -9,7 +9,7 @@
 */
 MED_ATTRS(ipc_kobject) {
 	MED_ATTR_RO		(ipc_kobject, ipc_class, "ipc_class", MED_UNSIGNED),
-	MED_ATTR_RO		(ipc_kobject, key, "key", MED_SIGNED),
+	MED_ATTR_RO		(ipc_kobject, id, "id", MED_SIGNED),
 	MED_ATTR_END
 };
 
@@ -23,10 +23,10 @@ int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
 	
 	if(!security_s)
 		return -1;
-	ipck->key = ipcp->key;
+	ipck->id = ipcp->id;
 	ipck->ipc_class = security_s->ipc_class;
-	COPY_MEDUSA_SUBJECT_VARS(ipck, security_s);
-	COPY_MEDUSA_OBJECT_VARS(ipck, security_s);
+//	COPY_MEDUSA_SUBJECT_VARS(ipck, security_s);
+//	COPY_MEDUSA_OBJECT_VARS(ipck, security_s);
 	return 0;
 }
 
@@ -53,13 +53,13 @@ static struct medusa_kobject_s * ipc_fetch(struct medusa_kobject_s * kobj)
 	if (!ipc_kobj)
 		goto out_err;
 
-	if(medusa_ipc_info_lock(ipc_kobj->key, ipc_kobj->ipc_class, ipcp) != 0)
+	if(medusa_ipc_info_lock(ipc_kobj->id, ipc_kobj->ipc_class, ipcp) != 0)
 		goto out_err;
 	ipc_kern2kobj(&storage, ipcp);
 	medusa_ipc_info_unlock(ipcp);
 	return (struct medusa_kobject_s *)&storage;
 out_err:
-	return NULL;
+	return (struct medusa_kobject_s *)kobj;
 }
 
 static medusa_answer_t ipc_update(struct medusa_kobject_s * kobj)
