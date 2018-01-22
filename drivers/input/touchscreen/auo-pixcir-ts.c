@@ -408,8 +408,6 @@ static void auo_pixcir_input_close(struct input_dev *dev)
 	struct auo_pixcir_ts *ts = input_get_drvdata(dev);
 
 	auo_pixcir_stop(ts);
-
-	return;
 }
 
 static int __maybe_unused auo_pixcir_suspend(struct device *dev)
