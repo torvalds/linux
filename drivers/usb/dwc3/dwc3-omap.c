@@ -590,9 +590,25 @@ static int dwc3_omap_resume(struct device *dev)
 	return 0;
 }
 
+static void dwc3_omap_complete(struct device *dev)
+{
+	struct dwc3_omap	*omap = dev_get_drvdata(dev);
+
+	if (extcon_get_state(omap->edev, EXTCON_USB))
+		dwc3_omap_set_mailbox(omap, OMAP_DWC3_VBUS_VALID);
+	else
+		dwc3_omap_set_mailbox(omap, OMAP_DWC3_VBUS_OFF);
+
+	if (extcon_get_state(omap->edev, EXTCON_USB_HOST))
+		dwc3_omap_set_mailbox(omap, OMAP_DWC3_ID_GROUND);
+	else
+		dwc3_omap_set_mailbox(omap, OMAP_DWC3_ID_FLOAT);
+}
+
 static const struct dev_pm_ops dwc3_omap_dev_pm_ops = {
 
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_omap_suspend, dwc3_omap_resume)
+	.complete = dwc3_omap_complete,
 };
 
 #define DEV_PM_OPS	(&dwc3_omap_dev_pm_ops)
