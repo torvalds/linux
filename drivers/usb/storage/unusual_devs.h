@@ -28,10 +28,7 @@
  *	  explanation of the reason for the entry),
  *	- a copy of /sys/kernel/debug/usb/devices with your device plugged in
  *	  running with this patch.
- * Send your submission to either Phil Dibowitz <phil@ipom.com> or
- * Alan Stern <stern@rowland.harvard.edu>, and don't forget to CC: the
- * USB development list <linux-usb@vger.kernel.org> and the USB storage list
- * <usb-storage@lists.one-eyed-alien.net>
+ * Send your submission to the USB development list <linux-usb@vger.kernel.org>
  */
 
 /*
