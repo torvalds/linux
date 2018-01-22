@@ -2522,6 +2522,17 @@
 #define VXLAN_V(x) ((x) << VXLAN_S)
 #define VXLAN_G(x) (((x) >> VXLAN_S) & VXLAN_M)
 
+#define MPS_RX_GENEVE_TYPE_A 0x11238
+
+#define GENEVE_EN_S    16
+#define GENEVE_EN_V(x) ((x) << GENEVE_EN_S)
+#define GENEVE_EN_F    GENEVE_EN_V(1U)
+
+#define GENEVE_S    0
+#define GENEVE_M    0xffffU
+#define GENEVE_V(x) ((x) << GENEVE_S)
+#define GENEVE_G(x) (((x) >> GENEVE_S) & GENEVE_M)
+
 #define MPS_CLS_TCAM_Y_L_A 0xf000
 #define MPS_CLS_TCAM_DATA0_A 0xf000
 #define MPS_CLS_TCAM_DATA1_A 0xf004

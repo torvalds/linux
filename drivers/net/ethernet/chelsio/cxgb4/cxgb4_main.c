@@ -3020,6 +3020,17 @@ static void cxgb_del_udp_tunnel(struct net_device *netdev,
 		adapter->vxlan_port = 0;
 		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A, 0);
 		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (!adapter->geneve_port_cnt ||
+		    adapter->geneve_port != ti->port)
+			return; /* Invalid GENEVE destination port */
+
+		adapter->geneve_port_cnt--;
+		if (adapter->geneve_port_cnt)
+			return;
+
+		adapter->geneve_port = 0;
+		t4_write_reg(adapter, MPS_RX_GENEVE_TYPE_A, 0);
 	default:
 		return;
 	}
@@ -3055,17 +3066,11 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 	u8 match_all_mac[] = { 0, 0, 0, 0, 0, 0 };
 	int i, ret;
 
-	if (chip_ver < CHELSIO_T6)
+	if (chip_ver < CHELSIO_T6 || !adapter->rawf_cnt)
 		return;
 
 	switch (ti->type) {
 	case UDP_TUNNEL_TYPE_VXLAN:
-		/* For T6 fw reserves last 2 entries for
-		 * storing match all mac filter (config file entry).
-		 */
-		if (!adapter->rawf_cnt)
-			return;
-
 		/* Callback for adding vxlan port can be called with the same
 		 * port for both IPv4 and IPv6. We should not disable the
 		 * offloading when the same port for both protocols is added
@@ -3091,6 +3096,26 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 		t4_write_reg(adapter, MPS_RX_VXLAN_TYPE_A,
 			     VXLAN_V(be16_to_cpu(ti->port)) | VXLAN_EN_F);
 		break;
+	case UDP_TUNNEL_TYPE_GENEVE:
+		if (adapter->geneve_port_cnt &&
+		    adapter->geneve_port == ti->port) {
+			adapter->geneve_port_cnt++;
+			return;
+		}
+
+		/* We will support only one GENEVE port */
+		if (adapter->geneve_port_cnt) {
+			netdev_info(netdev, "UDP port %d already offloaded, not adding port %d\n",
+				    be16_to_cpu(adapter->geneve_port),
+				    be16_to_cpu(ti->port));
+			return;
+		}
+
+		adapter->geneve_port = ti->port;
+		adapter->geneve_port_cnt = 1;
+
+		t4_write_reg(adapter, MPS_RX_GENEVE_TYPE_A,
+			     GENEVE_V(be16_to_cpu(ti->port)) | GENEVE_EN_F);
 	default:
 		return;
 	}
@@ -3101,24 +3126,22 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 	 * we will remove this 'match all' entry and fallback to adding
 	 * exact match filters.
 	 */
-	if (adapter->rawf_cnt) {
-		for_each_port(adapter, i) {
-			pi = adap2pinfo(adapter, i);
+	for_each_port(adapter, i) {
+		pi = adap2pinfo(adapter, i);
 
-			ret = t4_alloc_raw_mac_filt(adapter, pi->viid,
-						    match_all_mac,
-						    match_all_mac,
-						    adapter->rawf_start +
-						    pi->port_id,
-						    1, pi->port_id, true);
-			if (ret < 0) {
-				netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
-					    be16_to_cpu(ti->port));
-				cxgb_del_udp_tunnel(netdev, ti);
-				return;
-			}
-			atomic_inc(&adapter->mps_encap[ret].refcnt);
+		ret = t4_alloc_raw_mac_filt(adapter, pi->viid,
+					    match_all_mac,
+					    match_all_mac,
+					    adapter->rawf_start +
+					    pi->port_id,
+					    1, pi->port_id, true);
+		if (ret < 0) {
+			netdev_info(netdev, "Failed to allocate a mac filter entry, not adding port %d\n",
+				    be16_to_cpu(ti->port));
+			cxgb_del_udp_tunnel(netdev, ti);
+			return;
 		}
+		atomic_inc(&adapter->mps_encap[ret].refcnt);
 	}
 }
 

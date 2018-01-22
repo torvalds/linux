@@ -846,6 +846,8 @@ struct adapter {
 	int msg_enable;
 	__be16 vxlan_port;
 	u8 vxlan_port_cnt;
+	__be16 geneve_port;
+	u8 geneve_port_cnt;
 
 	struct adapter_params params;
 	struct cxgb4_virt_res vres;

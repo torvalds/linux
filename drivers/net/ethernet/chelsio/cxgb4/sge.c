@@ -1199,6 +1199,8 @@ enum cpl_tx_tnl_lso_type cxgb_encap_offload_supported(struct sk_buff *skb)
 	case IPPROTO_UDP:
 		if (adapter->vxlan_port == udp_hdr(skb)->dest)
 			tnl_type = TX_TNL_TYPE_VXLAN;
+		else if (adapter->geneve_port == udp_hdr(skb)->dest)
+			tnl_type = TX_TNL_TYPE_GENEVE;
 		break;
 	default:
 		return tnl_type;
@@ -1238,6 +1240,7 @@ static inline void t6_fill_tnl_lso(struct sk_buff *skb,
 
 	switch (tnl_type) {
 	case TX_TNL_TYPE_VXLAN:
+	case TX_TNL_TYPE_GENEVE:
 		tnl_lso->UdpLenSetOut_to_TnlHdrLen =
 			htons(CPL_TX_TNL_LSO_UDPCHKCLROUT_F |
 			CPL_TX_TNL_LSO_UDPLENSETOUT_F);
