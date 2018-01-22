@@ -121,11 +121,9 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 	else
 		err = brcmf_proto_query_dcmd(drvr, ifp->ifidx, cmd, data, len);
 
-	if (err >= 0)
-		return 0;
-
-	brcmf_dbg(FIL, "Failed: %s (%d)\n",
-		  brcmf_fil_get_errstr((u32)(-err)), err);
+	if (err)
+		brcmf_dbg(FIL, "Failed: %s (%d)\n",
+			  brcmf_fil_get_errstr((u32)(-err)), err);
 
 	return err;
 }

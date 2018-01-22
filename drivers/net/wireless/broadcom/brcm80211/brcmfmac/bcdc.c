@@ -211,6 +211,8 @@ retry:
 		memcpy(buf, info, len);
 	}
 
+	ret = 0;
+
 	/* Check the ERROR flag */
 	if (flags & BCDC_DCMD_ERROR)
 		ret = le32_to_cpu(msg->status);
@@ -225,7 +227,7 @@ brcmf_proto_bcdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 {
 	struct brcmf_bcdc *bcdc = (struct brcmf_bcdc *)drvr->proto->pd;
 	struct brcmf_proto_bcdc_dcmd *msg = &bcdc->msg;
-	int ret = 0;
+	int ret;
 	u32 flags, id;
 
 	brcmf_dbg(BCDC, "Enter, cmd %d len %d\n", cmd, len);
@@ -248,6 +250,8 @@ brcmf_proto_bcdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 		ret = -EINVAL;
 		goto done;
 	}
+
+	ret = 0;
 
 	/* Check the ERROR flag */
 	if (flags & BCDC_DCMD_ERROR)
