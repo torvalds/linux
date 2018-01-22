@@ -1533,7 +1533,7 @@ int bpf__apply_obj_config(void)
 			(strcmp("__bpf_stdout__", 	\
 				bpf_map__name(pos)) == 0))
 
-int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
+int bpf__setup_stdout(struct perf_evlist *evlist)
 {
 	struct bpf_map_priv *tmpl_priv = NULL;
 	struct bpf_object *obj, *tmp;
