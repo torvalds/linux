@@ -2272,7 +2272,7 @@ static struct usba_ep * usba_udc_pdata(struct platform_device *pdev,
 
 static int usba_udc_probe(struct platform_device *pdev)
 {
-	struct resource *regs, *fifo;
+	struct resource *res;
 	struct clk *pclk, *hclk;
 	struct usba_udc *udc;
 	int irq, ret, i;
@@ -2284,10 +2284,18 @@ static int usba_udc_probe(struct platform_device *pdev)
 	udc->gadget = usba_gadget_template;
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, CTRL_IOMEM_ID);
-	fifo = platform_get_resource(pdev, IORESOURCE_MEM, FIFO_IOMEM_ID);
-	if (!regs || !fifo)
-		return -ENXIO;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, CTRL_IOMEM_ID);
+	udc->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(udc->regs))
+		return PTR_ERR(udc->regs);
+	dev_info(&pdev->dev, "MMIO registers at %pR mapped at %p\n",
+		 res, udc->regs);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, FIFO_IOMEM_ID);
+	udc->fifo = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(udc->fifo))
+		return PTR_ERR(udc->fifo);
+	dev_info(&pdev->dev, "FIFO at %pR mapped at %p\n", res, udc->fifo);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -2306,22 +2314,6 @@ static int usba_udc_probe(struct platform_device *pdev)
 	udc->pclk = pclk;
 	udc->hclk = hclk;
 	udc->vbus_pin = -ENODEV;
-
-	ret = -ENOMEM;
-	udc->regs = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
-	if (!udc->regs) {
-		dev_err(&pdev->dev, "Unable to map I/O memory, aborting.\n");
-		return ret;
-	}
-	dev_info(&pdev->dev, "MMIO registers at 0x%08lx mapped at %p\n",
-		 (unsigned long)regs->start, udc->regs);
-	udc->fifo = devm_ioremap(&pdev->dev, fifo->start, resource_size(fifo));
-	if (!udc->fifo) {
-		dev_err(&pdev->dev, "Unable to map FIFO, aborting.\n");
-		return ret;
-	}
-	dev_info(&pdev->dev, "FIFO at 0x%08lx mapped at %p\n",
-		 (unsigned long)fifo->start, udc->fifo);
 
 	platform_set_drvdata(pdev, udc);
 
