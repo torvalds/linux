@@ -1599,6 +1599,21 @@ int force_sig_pkuerr(void __user *addr, u32 pkey)
 }
 #endif
 
+/* For the crazy architectures that include trap information in
+ * the errno field, instead of an actual errno value.
+ */
+int force_sig_ptrace_errno_trap(int errno, void __user *addr)
+{
+	struct siginfo info;
+
+	clear_siginfo(&info);
+	info.si_signo = SIGTRAP;
+	info.si_errno = errno;
+	info.si_code  = TRAP_HWBKPT;
+	info.si_addr  = addr;
+	return force_sig_info(info.si_signo, &info, current);
+}
+
 int kill_pgrp(struct pid *pid, int sig, int priv)
 {
 	int ret;

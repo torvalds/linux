@@ -311,6 +311,8 @@ int send_sig_mceerr(int code, void __user *, short, struct task_struct *);
 int force_sig_bnderr(void __user *addr, void __user *lower, void __user *upper);
 int force_sig_pkuerr(void __user *addr, u32 pkey);
 
+int force_sig_ptrace_errno_trap(int errno, void __user *addr);
+
 extern int send_sig_info(int, struct siginfo *, struct task_struct *);
 extern int force_sigsegv(int, struct task_struct *);
 extern int force_sig_info(int, struct siginfo *, struct task_struct *);

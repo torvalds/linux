@@ -190,21 +190,23 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 
 #ifdef CONFIG_COMPAT
 	if (is_compat_task()) {
+		int si_errno = 0;
 		int i;
 
 		for (i = 0; i < ARM_MAX_BRP; ++i) {
 			if (current->thread.debug.hbp_break[i] == bp) {
-				info.si_errno = (i << 1) + 1;
+				si_errno = (i << 1) + 1;
 				break;
 			}
 		}
 
 		for (i = 0; i < ARM_MAX_WRP; ++i) {
 			if (current->thread.debug.hbp_watch[i] == bp) {
-				info.si_errno = -((i << 1) + 1);
+				si_errno = -((i << 1) + 1);
 				break;
 			}
 		}
+		force_sig_ptrace_errno_trap(si_errno, (void __user *)bkpt->trigger);
 	}
 #endif
 	force_sig_info(SIGTRAP, &info, current);
