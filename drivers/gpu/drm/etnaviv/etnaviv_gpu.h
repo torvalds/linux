@@ -84,6 +84,12 @@ struct etnaviv_chip_identity {
 	u8 varyings_count;
 };
 
+enum etnaviv_sec_mode {
+	ETNA_SEC_NONE = 0,
+	ETNA_SEC_KERNEL,
+	ETNA_SEC_TZ
+};
+
 struct etnaviv_event {
 	struct dma_fence *fence;
 	struct etnaviv_gem_submit *submit;
@@ -102,6 +108,7 @@ struct etnaviv_gpu {
 	struct device *dev;
 	struct mutex lock;
 	struct etnaviv_chip_identity identity;
+	enum etnaviv_sec_mode sec_mode;
 	struct etnaviv_file_private *lastctx;
 	struct workqueue_struct *wq;
 	struct drm_gpu_scheduler sched;
