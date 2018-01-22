@@ -580,11 +580,11 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
 
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
+		vm_size -= AMDGPU_VA_RESERVED_SIZE;
 		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
 		dev_info.virtual_address_max =
 			min(vm_size, AMDGPU_VA_HOLE_START);
 
-		vm_size -= AMDGPU_VA_RESERVED_SIZE;
 		if (vm_size > AMDGPU_VA_HOLE_START) {
 			dev_info.high_va_offset = AMDGPU_VA_HOLE_END;
 			dev_info.high_va_max = AMDGPU_VA_HOLE_END | vm_size;
