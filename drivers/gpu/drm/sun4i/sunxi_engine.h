@@ -23,6 +23,23 @@ struct sunxi_engine;
  */
 struct sunxi_engine_ops {
 	/**
+	 * @atomic_check:
+	 *
+	 * This callback allows to validate plane-update related CRTC
+	 * constraints specific to engines. This is mirroring the
+	 * &drm_crtc_helper_funcs.atomic_check callback, so any
+	 * documentation there applies.
+	 *
+	 * This function is optional.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code.
+	 */
+	int (*atomic_check)(struct sunxi_engine *engine,
+			    struct drm_crtc_state *state);
+
+	/**
 	 * @commit:
 	 *
 	 * This callback will trigger the hardware switch to commit
