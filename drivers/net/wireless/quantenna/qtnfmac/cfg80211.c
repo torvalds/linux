@@ -81,6 +81,41 @@ qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 };
 
 static int
+qtnf_validate_iface_combinations(struct wiphy *wiphy,
+				 struct qtnf_vif *change_vif,
+				 enum nl80211_iftype new_type)
+{
+	struct qtnf_wmac *mac;
+	struct qtnf_vif *vif;
+	int i;
+	int ret = 0;
+	struct iface_combination_params params = {
+		.num_different_channels = 1,
+	};
+
+	mac = wiphy_priv(wiphy);
+	if (!mac)
+		return -EFAULT;
+
+	for (i = 0; i < QTNF_MAX_INTF; i++) {
+		vif = &mac->iflist[i];
+		if (vif->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED)
+			params.iftype_num[vif->wdev.iftype]++;
+	}
+
+	if (change_vif) {
+		params.iftype_num[new_type]++;
+		params.iftype_num[change_vif->wdev.iftype]--;
+	} else {
+		params.iftype_num[new_type]++;
+	}
+
+	ret = cfg80211_check_combinations(wiphy, &params);
+
+	return ret;
+}
+
+static int
 qtnf_change_virtual_intf(struct wiphy *wiphy,
 			 struct net_device *dev,
 			 enum nl80211_iftype type,
@@ -89,6 +124,13 @@ qtnf_change_virtual_intf(struct wiphy *wiphy,
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	u8 *mac_addr;
 	int ret;
+
+	ret = qtnf_validate_iface_combinations(wiphy, vif, type);
+	if (ret) {
+		pr_err("VIF%u.%u combination check: failed to set type %d\n",
+		       vif->mac->macid, vif->vifid, type);
+		return ret;
+	}
 
 	if (params)
 		mac_addr = params->macaddr;
@@ -150,11 +192,19 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 	struct qtnf_wmac *mac;
 	struct qtnf_vif *vif;
 	u8 *mac_addr = NULL;
+	int ret;
 
 	mac = wiphy_priv(wiphy);
 
 	if (!mac)
 		return ERR_PTR(-EFAULT);
+
+	ret = qtnf_validate_iface_combinations(wiphy, NULL, type);
+	if (ret) {
+		pr_err("MAC%u invalid combination: failed to add type %d\n",
+		       mac->macid, type);
+		return ERR_PTR(ret);
+	}
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
