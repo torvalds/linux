@@ -336,6 +336,8 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, _adapter *padapter)
 	pxmitpriv->amsdu_debug_coalesce_one = 0;
 	pxmitpriv->amsdu_debug_coalesce_two = 0;
 #endif
+	pxmitpriv->tx_total_bytes = 0;
+	pxmitpriv->tx_bytes = 0;
 	rtw_hal_init_xmit_priv(padapter);
 
 exit:
@@ -2886,7 +2888,9 @@ void rtw_count_tx_stats(PADAPTER padapter, struct xmit_frame *pxmitframe, int sz
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
 	u8	pkt_num = 1;
-
+#ifdef LINK_LAYER_STATS_SUPPORT
+	pxmitpriv->tx_total_bytes += sz;
+#endif /* LINK_LAYER_STATS_SUPPORT */
 	if ((pxmitframe->frame_tag & 0x0f) == DATA_FRAMETAG) {
 #if defined(CONFIG_USB_TX_AGGREGATION) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 		pkt_num = pxmitframe->agg_num;

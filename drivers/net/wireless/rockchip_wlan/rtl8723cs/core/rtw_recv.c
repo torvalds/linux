@@ -151,6 +151,8 @@ sint _rtw_init_recv_priv(struct recv_priv *precvpriv, _adapter *padapter)
 
 	rtw_set_signal_stat_timer(precvpriv);
 #endif /* CONFIG_NEW_SIGNAL_STAT_PROCESS */
+	precvpriv->rx_total_bytes = 0;
+	precvpriv->rx_bytes = 0;
 
 exit:
 
@@ -4223,7 +4225,9 @@ int recv_func(_adapter *padapter, union recv_frame *rframe)
 	struct recv_priv *recvpriv = &padapter->recvpriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct mlme_priv *mlmepriv = &padapter->mlmepriv;
-
+#ifdef LINK_LAYER_STATS_SUPPORT
+	uint sz = 0;
+#endif /* LINK_LAYER_STATS_SUPPORT */
 	if (check_fwstate(mlmepriv, WIFI_MONITOR_STATE)) {
 		/* monitor mode */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24))
@@ -4248,7 +4252,10 @@ int recv_func(_adapter *padapter, union recv_frame *rframe)
 				RTW_INFO(FUNC_ADPT_FMT" dequeue %d from uc_swdec_pending_queue\n",
 					 FUNC_ADPT_ARG(padapter), cnt);
 		}
-
+#ifdef LINK_LAYER_STATS_SUPPORT
+	sz = get_recvframe_len(rframe);
+	recvpriv->rx_total_bytes += sz;
+#endif /* LINK_LAYER_STATS_SUPPORT */
 	DBG_COUNTER(padapter->rx_logs.core_rx);
 	ret = recv_func_prehandle(padapter, rframe);
 

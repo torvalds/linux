@@ -24,7 +24,7 @@ EXTRA_CFLAGS += -I$(src)/include
 EXTRA_CFLAGS += -I$(src)/hal/phydm
 
 EXTRA_LDFLAGS += --strip-debug
-
+EXTRA_CFLAGS += -DLINK_LAYER_STATS_SUPPORT
 CONFIG_AUTOCFG_CP = n
 
 ########################## WIFI IC ############################

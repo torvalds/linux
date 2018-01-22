@@ -2798,7 +2798,9 @@ int _netdev_open(struct net_device *pnetdev)
 #ifdef CONFIG_BT_COEXIST_SOCKET_TRX
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(padapter);
 #endif /* CONFIG_BT_COEXIST_SOCKET_TRX */
-
+#ifdef LINK_LAYER_STATS_SUPPORT
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+#endif
 
 	RTW_INFO(FUNC_NDEV_FMT" , bup=%d\n", FUNC_NDEV_ARG(pnetdev), padapter->bup);
 
@@ -2833,7 +2835,9 @@ int _netdev_open(struct net_device *pnetdev)
 #if 0/*#ifdef CONFIG_MI_WITH_MBSSID_CAM*/
 		rtw_hal_set_hwreg(padapter, HW_VAR_MAC_ADDR, adapter_mac_addr(padapter)); /* set mac addr to mac register */
 #endif
-
+#ifdef LINK_LAYER_STATS_SUPPORT
+		pmlmepriv->radio_on_start_time = rtw_get_current_time();
+#endif
 		RTW_INFO("MAC Address = "MAC_FMT"\n", MAC_ARG(pnetdev->dev_addr));
 
 		status = rtw_start_drv_threads(padapter);

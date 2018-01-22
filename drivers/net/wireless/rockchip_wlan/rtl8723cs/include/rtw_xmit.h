@@ -734,7 +734,7 @@ struct	xmit_priv	{
 	u8	vcs;
 	u8	vcs_type;
 	/* u16  rts_thresh; */
-
+	u64	tx_total_bytes;
 	u64	tx_bytes;
 	u64	tx_pkts;
 	u64	tx_drop;

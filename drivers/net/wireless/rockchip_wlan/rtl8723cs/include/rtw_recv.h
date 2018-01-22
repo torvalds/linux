@@ -402,7 +402,7 @@ struct recv_priv {
 
 
 	u32 is_any_non_be_pkts;
-
+	u64 rx_total_bytes;
 	u64	rx_bytes;
 	u64	rx_pkts;
 	u64	rx_drop;

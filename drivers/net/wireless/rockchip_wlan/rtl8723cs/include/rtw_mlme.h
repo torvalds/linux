@@ -849,6 +849,14 @@ struct mlme_priv {
 	u8 vendor_ie[WLAN_MAX_VENDOR_IE_NUM][WLAN_MAX_VENDOR_IE_LEN];
 	u32 vendor_ielen[WLAN_MAX_VENDOR_IE_NUM];
 #endif
+#ifdef LINK_LAYER_STATS_SUPPORT
+	u32 pwr_saving_time;
+	u32 radio_on_start_time;
+	u32 trx_total_time;
+	u32 on_time;
+	u32 tx_time;
+	u32 rx_time;
+#endif /* LINK_LAYER_STATS_SUPPORT */
 };
 
 #define mlme_set_scan_to_timer(mlme, ms) \

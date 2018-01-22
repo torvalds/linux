@@ -448,6 +448,9 @@ struct pwrctrl_priv {
 	u8 blpspg_info_up;
 #endif
 	u8 current_lps_hw_port_id;
+#ifdef LINK_LAYER_STATS_SUPPORT
+	u32 pwr_saving_start_time;
+#endif /* LINK_LAYER_STATS_SUPPORT */
 };
 
 #define rtw_get_ips_mode_req(pwrctl) \

@@ -120,6 +120,14 @@ sint	_rtw_init_mlme_priv(_adapter *padapter)
 		| RTW_FT_STA_OVER_DS_SUPPORTED
 		;
 #endif
+#ifdef LINK_LAYER_STATS_SUPPORT
+	pmlmepriv->radio_on_start_time = 0;
+	pmlmepriv->trx_total_time= 0;
+	pmlmepriv->on_time = 0;
+	pmlmepriv->tx_time = 0;
+	pmlmepriv->rx_time = 0;
+#endif /* LINK_LAYER_STATS_SUPPORT */
+
 	rtw_init_mlme_timer(padapter);
 
 exit:
@@ -3013,9 +3021,62 @@ static void collect_traffic_statistics(_adapter *padapter)
 	RTW_INFO("cur_rx_tp:%d\n", pdvobjpriv->traffic_stat.cur_rx_tp);
 	#endif
 }
+#ifdef LINK_LAYER_STATS_SUPPORT
+void LinkLayerStats(_adapter *padapter)
+{
+	struct mlme_priv		*pmlmepriv = &(padapter->mlmepriv);
+	struct xmit_priv		*pxmitpriv = &(padapter->xmitpriv);
+	struct recv_priv		*precvpriv = &(padapter->recvpriv);
+	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
+	u64 trx_total_bytes = 0;
+	u64 tmp = 0;
+	RTW_INFO("%s adapter type : %u\n", __func__, padapter->adapter_type);
+if ( padapter->bup == _TRUE ) {
 
+	pmlmepriv->on_time += rtw_get_passing_time_ms(pmlmepriv->radio_on_start_time);
+	pmlmepriv->radio_on_start_time = rtw_get_current_time();
+	if ( pwrpriv->bpower_saving == _TRUE ) {
+		pmlmepriv->pwr_saving_time += rtw_get_passing_time_ms(pwrpriv->pwr_saving_start_time);
+		pwrpriv->pwr_saving_start_time = rtw_get_current_time();
+	}
+
+	trx_total_bytes = pxmitpriv->tx_total_bytes + precvpriv->rx_total_bytes;
+	//Deviation caused by caculation start time
+	if ( pmlmepriv->pwr_saving_time > pmlmepriv->on_time )
+		pmlmepriv->pwr_saving_time = pmlmepriv->on_time;
+	pmlmepriv->trx_total_time = pmlmepriv->on_time - pmlmepriv->pwr_saving_time;
+	if ( trx_total_bytes == 0) {
+		pmlmepriv->tx_time = 0;
+		pmlmepriv->rx_time = 0;
+	} else {
+		tmp = (pxmitpriv->tx_total_bytes * pmlmepriv->trx_total_time);
+		tmp = rtw_division64(tmp, trx_total_bytes);
+		pmlmepriv->tx_time = tmp;
+
+		tmp = (precvpriv->rx_total_bytes * pmlmepriv->trx_total_time);
+		tmp = rtw_division64(tmp, trx_total_bytes);
+		pmlmepriv->rx_time = tmp;
+		//pmlmepriv->tx_time = (pmlmepriv->trx_total_time * pxmitpriv->tx_total_bytes) / trx_total_bytes;
+		//pmlmepriv->rx_time = (pmlmepriv->trx_total_time * precvpriv->rx_total_bytes) / trx_total_bytes;
+
+	}
+#if 1
+	RTW_INFO("- tx_bytes : %llu rx_bytes : %llu total bytes : %llu\n", pxmitpriv->tx_total_bytes, precvpriv->rx_total_bytes
+		, trx_total_bytes);
+	RTW_INFO("- pwr_saving_time : %u ms\n", pmlmepriv->pwr_saving_time);
+	RTW_INFO("- trx_total_time : %u ms\n", pmlmepriv->trx_total_time);	
+	RTW_INFO("- on_time : %u ms\n", pmlmepriv->on_time);
+	RTW_INFO("- tx_time : %u ms\n", pmlmepriv->tx_time);
+	RTW_INFO("- rx_time : %u ms\n", pmlmepriv->rx_time);
+#endif
+}
+}
+#endif
 void rtw_dynamic_check_timer_handlder(_adapter *adapter)
 {
+#ifdef LINK_LAYER_STATS_SUPPORT
+LinkLayerStats(adapter);
+#endif /* LINK_LAYER_STATS_SUPPORT */
 	if (!adapter)
 		return;
 
