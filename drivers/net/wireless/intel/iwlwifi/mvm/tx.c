@@ -648,7 +648,11 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 		if (info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE ||
 		    info.control.vif->type == NL80211_IFTYPE_AP ||
 		    info.control.vif->type == NL80211_IFTYPE_ADHOC) {
-			sta_id = mvmvif->bcast_sta.sta_id;
+			if (info.control.vif->type == NL80211_IFTYPE_P2P_DEVICE)
+				sta_id = mvmvif->bcast_sta.sta_id;
+			else
+				sta_id = mvmvif->mcast_sta.sta_id;
+
 			queue = iwl_mvm_get_ctrl_vif_queue(mvm, &info,
 							   hdr->frame_control);
 			if (queue < 0)
