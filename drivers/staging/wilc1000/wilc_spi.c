@@ -390,11 +390,11 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 #define NUM_DATA_BYTES (4)
 #define NUM_CRC_BYTES (2)
 #define NUM_DUMMY_BYTES (3)
-	if ((cmd == CMD_RESET) ||
-	    (cmd == CMD_TERMINATE) ||
-	    (cmd == CMD_REPEAT)) {
+	if (cmd == CMD_RESET ||
+	    cmd == CMD_TERMINATE ||
+	    cmd == CMD_REPEAT) {
 		len2 = len + (NUM_SKIP_BYTES + NUM_RSP_BYTES + NUM_DUMMY_BYTES);
-	} else if ((cmd == CMD_INTERNAL_READ) || (cmd == CMD_SINGLE_READ)) {
+	} else if (cmd == CMD_INTERNAL_READ || cmd == CMD_SINGLE_READ) {
 		if (!g_spi.crc_off) {
 			len2 = len + (NUM_RSP_BYTES + NUM_DATA_HDR_BYTES + NUM_DATA_BYTES
 				      + NUM_CRC_BYTES + NUM_DUMMY_BYTES);
@@ -425,9 +425,9 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 	/**
 	 * Command/Control response
 	 **/
-	if ((cmd == CMD_RESET) ||
-	    (cmd == CMD_TERMINATE) ||
-	    (cmd == CMD_REPEAT)) {
+	if (cmd == CMD_RESET ||
+	    cmd == CMD_TERMINATE ||
+	    cmd == CMD_REPEAT) {
 		rix++;         /* skip 1 byte */
 	}
 
@@ -453,8 +453,8 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 		return N_FAIL;
 	}
 
-	if ((cmd == CMD_INTERNAL_READ) || (cmd == CMD_SINGLE_READ) ||
-	    (cmd == CMD_DMA_READ) || (cmd == CMD_DMA_EXT_READ)) {
+	if (cmd == CMD_INTERNAL_READ || cmd == CMD_SINGLE_READ ||
+	    cmd == CMD_DMA_READ || cmd == CMD_DMA_EXT_READ) {
 		int retry;
 		/* u16 crc1, crc2; */
 		u8 crc[2];
@@ -480,7 +480,7 @@ static int spi_cmd_complete(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz,
 			return N_RESET;
 		}
 
-		if ((cmd == CMD_INTERNAL_READ) || (cmd == CMD_SINGLE_READ)) {
+		if (cmd == CMD_INTERNAL_READ || cmd == CMD_SINGLE_READ) {
 			/**
 			 * Read bytes
 			 **/

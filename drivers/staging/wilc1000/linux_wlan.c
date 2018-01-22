@@ -911,13 +911,13 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		return;
 
-	if ((dev->flags & IFF_ALLMULTI) ||
-	    (dev->mc.count) > WILC_MULTICAST_TABLE_SIZE) {
+	if (dev->flags & IFF_ALLMULTI ||
+	    dev->mc.count > WILC_MULTICAST_TABLE_SIZE) {
 		wilc_setup_multicast_filter(vif, false, 0);
 		return;
 	}
 
-	if ((dev->mc.count) == 0) {
+	if (dev->mc.count == 0) {
 		wilc_setup_multicast_filter(vif, true, 0);
 		return;
 	}
@@ -1030,7 +1030,7 @@ static int wilc_mac_close(struct net_device *ndev)
 	if (!hif_drv)
 		return 0;
 
-	if ((wl->open_ifcs) > 0)
+	if (wl->open_ifcs > 0)
 		wl->open_ifcs--;
 	else
 		return 0;

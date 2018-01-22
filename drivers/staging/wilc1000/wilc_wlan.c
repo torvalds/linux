@@ -693,7 +693,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 		i = 0;
 		do {
 			tqe = wilc_wlan_txq_remove_from_head(dev);
-			if (tqe && (vmm_table[i] != 0)) {
+			if (tqe && vmm_table[i] != 0) {
 				u32 header, buffer_offset;
 
 				vmm_table[i] = cpu_to_le32(vmm_table[i]);

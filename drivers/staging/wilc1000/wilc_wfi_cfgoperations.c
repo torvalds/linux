@@ -495,8 +495,8 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 
 		connect_status = conn_info->status;
 
-		if ((mac_status == MAC_DISCONNECTED) &&
-		    (conn_info->status == SUCCESSFUL_STATUSCODE)) {
+		if (mac_status == MAC_DISCONNECTED &&
+		    conn_info->status == SUCCESSFUL_STATUSCODE) {
 			connect_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			wilc_wlan_set_bssid(priv->dev, null_bssid,
 					    STATION_MODE);
@@ -548,9 +548,9 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt,
 
 		if (!wfi_drv->p2p_connect)
 			wlan_channel = INVALID_CHANNEL;
-		if ((wfi_drv->IFC_UP) && (dev == wl->vif[1]->ndev))
+		if (wfi_drv->IFC_UP && dev == wl->vif[1]->ndev)
 			disconn_info->reason = 3;
-		else if ((!wfi_drv->IFC_UP) && (dev == wl->vif[1]->ndev))
+		else if (!wfi_drv->IFC_UP && dev == wl->vif[1]->ndev)
 			disconn_info->reason = 1;
 
 		cfg80211_disconnected(dev, disconn_info->reason, disconn_info->ie,
@@ -671,7 +671,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		wfi_drv->p2p_connect = 0;
 
 	for (i = 0; i < last_scanned_cnt; i++) {
-		if ((sme->ssid_len == last_scanned_shadow[i].ssid_len) &&
+		if (sme->ssid_len == last_scanned_shadow[i].ssid_len &&
 		    memcmp(last_scanned_shadow[i].ssid,
 			   sme->ssid,
 			   sme->ssid_len) == 0) {
@@ -932,7 +932,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 				memcpy(priv->wilc_gtk[key_index]->key, params->key, params->key_len);
 				kfree(priv->wilc_gtk[key_index]->seq);
 
-				if ((params->seq_len) > 0) {
+				if (params->seq_len > 0) {
 					priv->wilc_gtk[key_index]->seq = kmalloc(params->seq_len, GFP_KERNEL);
 					memcpy(priv->wilc_gtk[key_index]->seq, params->seq, params->seq_len);
 				}
@@ -964,12 +964,12 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 
 				kfree(priv->wilc_ptk[key_index]->seq);
 
-				if ((params->seq_len) > 0)
+				if (params->seq_len > 0)
 					priv->wilc_ptk[key_index]->seq = kmalloc(params->seq_len, GFP_KERNEL);
 
 				memcpy(priv->wilc_ptk[key_index]->key, params->key, params->key_len);
 
-				if ((params->seq_len) > 0)
+				if (params->seq_len > 0)
 					memcpy(priv->wilc_ptk[key_index]->seq, params->seq, params->seq_len);
 
 				priv->wilc_ptk[key_index]->cipher = params->cipher;
@@ -1082,7 +1082,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		kfree(g_key_wep_params.key);
 		g_key_wep_params.key = NULL;
 
-		if ((priv->wilc_gtk[key_index]) != NULL) {
+		if (priv->wilc_gtk[key_index] != NULL) {
 			kfree(priv->wilc_gtk[key_index]->key);
 			priv->wilc_gtk[key_index]->key = NULL;
 			kfree(priv->wilc_gtk[key_index]->seq);
@@ -1092,7 +1092,7 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 			priv->wilc_gtk[key_index] = NULL;
 		}
 
-		if ((priv->wilc_ptk[key_index]) != NULL) {
+		if (priv->wilc_ptk[key_index] != NULL) {
 			kfree(priv->wilc_ptk[key_index]->key);
 			priv->wilc_ptk[key_index]->key = NULL;
 			kfree(priv->wilc_ptk[key_index]->seq);
@@ -1216,8 +1216,8 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 		sinfo->tx_failed = stats.tx_fail_cnt;
 		sinfo->txrate.legacy = stats.link_speed * 10;
 
-		if ((stats.link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH) &&
-		    (stats.link_speed != DEFAULT_LINK_SPEED))
+		if (stats.link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH &&
+		    stats.link_speed != DEFAULT_LINK_SPEED)
 			wilc_enable_tcp_ack_filter(true);
 		else if (stats.link_speed != DEFAULT_LINK_SPEED)
 			wilc_enable_tcp_ack_filter(false);
@@ -1893,7 +1893,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 		    struct cfg80211_ap_settings *settings)
 {
-	struct cfg80211_beacon_data *beacon = &(settings->beacon);
+	struct cfg80211_beacon_data *beacon = &settings->beacon;
 	struct wilc_priv *priv;
 	s32 ret = 0;
 	struct wilc *wl;
