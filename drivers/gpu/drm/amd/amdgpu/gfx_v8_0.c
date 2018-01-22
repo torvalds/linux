@@ -7132,11 +7132,11 @@ static void gfx_v8_0_ring_emit_ce_meta(struct amdgpu_ring *ring)
 	} ce_payload = {};
 
 	if (ring->adev->virt.chained_ib_support) {
-		ce_payload_addr = AMDGPU_CSA_VADDR +
+		ce_payload_addr = amdgpu_csa_vaddr(ring->adev) +
 			offsetof(struct vi_gfx_meta_data_chained_ib, ce_payload);
 		cnt_ce = (sizeof(ce_payload.chained) >> 2) + 4 - 2;
 	} else {
-		ce_payload_addr = AMDGPU_CSA_VADDR +
+		ce_payload_addr = amdgpu_csa_vaddr(ring->adev) +
 			offsetof(struct vi_gfx_meta_data, ce_payload);
 		cnt_ce = (sizeof(ce_payload.regular) >> 2) + 4 - 2;
 	}
@@ -7160,7 +7160,7 @@ static void gfx_v8_0_ring_emit_de_meta(struct amdgpu_ring *ring)
 		struct vi_de_ib_state_chained_ib chained;
 	} de_payload = {};
 
-	csa_addr = AMDGPU_CSA_VADDR;
+	csa_addr = amdgpu_csa_vaddr(ring->adev);
 	gds_addr = csa_addr + 4096;
 	if (ring->adev->virt.chained_ib_support) {
 		de_payload.chained.gds_backup_addrlo = lower_32_bits(gds_addr);

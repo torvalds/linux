@@ -3865,7 +3865,7 @@ static void gfx_v9_0_ring_emit_ce_meta(struct amdgpu_ring *ring)
 	int cnt;
 
 	cnt = (sizeof(ce_payload) >> 2) + 4 - 2;
-	csa_addr = AMDGPU_CSA_VADDR;
+	csa_addr = amdgpu_csa_vaddr(ring->adev);
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, cnt));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(2) |
@@ -3883,7 +3883,7 @@ static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring)
 	uint64_t csa_addr, gds_addr;
 	int cnt;
 
-	csa_addr = AMDGPU_CSA_VADDR;
+	csa_addr = amdgpu_csa_vaddr(ring->adev);
 	gds_addr = csa_addr + 4096;
 	de_payload.gds_backup_addrlo = lower_32_bits(gds_addr);
 	de_payload.gds_backup_addrhi = upper_32_bits(gds_addr);
