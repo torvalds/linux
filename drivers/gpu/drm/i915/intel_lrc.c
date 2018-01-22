@@ -778,6 +778,7 @@ static void execlists_submission_tasklet(unsigned long data)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port * const port = execlists->port;
 	struct drm_i915_private *dev_priv = engine->i915;
+	bool fw = false;
 
 	/* We can skip acquiring intel_runtime_pm_get() here as it was taken
 	 * on our behalf by the request (see i915_gem_mark_busy()) and it will
@@ -787,8 +788,6 @@ static void execlists_submission_tasklet(unsigned long data)
 	 * before allowing ourselves to idle and calling intel_runtime_pm_put().
 	 */
 	GEM_BUG_ON(!dev_priv->gt.awake);
-
-	intel_uncore_forcewake_get(dev_priv, execlists->fw_domains);
 
 	/* Prefer doing test_and_clear_bit() as a two stage operation to avoid
 	 * imposing the cost of a locked atomic transaction when submitting a
@@ -818,6 +817,12 @@ static void execlists_submission_tasklet(unsigned long data)
 		 */
 		__clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 		if (unlikely(execlists->csb_head == -1)) { /* following a reset */
+			if (!fw) {
+				intel_uncore_forcewake_get(dev_priv,
+							   execlists->fw_domains);
+				fw = true;
+			}
+
 			head = readl(dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)));
 			tail = GEN8_CSB_WRITE_PTR(head);
 			head = GEN8_CSB_READ_PTR(head);
@@ -830,10 +835,10 @@ static void execlists_submission_tasklet(unsigned long data)
 			head = execlists->csb_head;
 			tail = READ_ONCE(buf[write_idx]);
 		}
-		GEM_TRACE("%s cs-irq head=%d [%d], tail=%d [%d]\n",
+		GEM_TRACE("%s cs-irq head=%d [%d%s], tail=%d [%d%s]\n",
 			  engine->name,
-			  head, GEN8_CSB_READ_PTR(readl(dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))),
-			  tail, GEN8_CSB_WRITE_PTR(readl(dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))));
+			  head, GEN8_CSB_READ_PTR(readl(dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))), fw ? "" : "?",
+			  tail, GEN8_CSB_WRITE_PTR(readl(dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine)))), fw ? "" : "?");
 
 		while (head != tail) {
 			struct drm_i915_gem_request *rq;
@@ -943,7 +948,8 @@ static void execlists_submission_tasklet(unsigned long data)
 	if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT))
 		execlists_dequeue(engine);
 
-	intel_uncore_forcewake_put(dev_priv, execlists->fw_domains);
+	if (fw)
+		intel_uncore_forcewake_put(dev_priv, execlists->fw_domains);
 }
 
 static void insert_request(struct intel_engine_cs *engine,
