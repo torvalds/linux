@@ -682,8 +682,10 @@ static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 
 	gpu->grp_clks = devm_kcalloc(dev, sizeof(struct clk *), gpu->nr_clocks,
 		GFP_KERNEL);
-	if (!gpu->grp_clks)
+	if (!gpu->grp_clks) {
+		gpu->nr_clocks = 0;
 		return -ENOMEM;
+	}
 
 	of_property_for_each_string(dev->of_node, "clock-names", prop, name) {
 		gpu->grp_clks[i] = get_clock(dev, name);
