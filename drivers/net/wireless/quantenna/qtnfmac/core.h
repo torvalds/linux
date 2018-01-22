@@ -145,6 +145,8 @@ struct qtnf_hw_info {
 	struct ieee80211_regdomain *rd;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
+	char fw_version[ETHTOOL_FWVERS_LEN];
+	u32 hw_version;
 };
 
 struct qtnf_vif *qtnf_mac_get_free_vif(struct qtnf_wmac *mac);

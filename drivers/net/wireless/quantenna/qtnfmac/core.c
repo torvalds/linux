@@ -331,6 +331,10 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 	return mac;
 }
 
+static const struct ethtool_ops qtnf_ethtool_ops = {
+	.get_drvinfo = cfg80211_get_drvinfo,
+};
+
 int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 			 const char *name, unsigned char name_assign_type)
 {
@@ -358,6 +362,7 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
 	dev->watchdog_timeo = QTNF_DEF_WDOG_TIMEOUT;
 	dev->tx_queue_len = 100;
+	dev->ethtool_ops = &qtnf_ethtool_ops;
 
 	qdev_vif = netdev_priv(dev);
 	*((void **)qdev_vif) = vif;

@@ -1107,6 +1107,9 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		(unsigned long)plat_id,
 		hw_id, calibration_ver, uboot_ver, hw_ver);
 
+	strlcpy(hwinfo->fw_version, bld_label, sizeof(hwinfo->fw_version));
+	hwinfo->hw_version = hw_ver;
+
 	return 0;
 }
 

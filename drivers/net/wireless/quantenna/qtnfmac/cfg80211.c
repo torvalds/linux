@@ -972,6 +972,10 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
 	}
 
+	strlcpy(wiphy->fw_version, hw_info->fw_version,
+		sizeof(wiphy->fw_version));
+	wiphy->hw_version = hw_info->hw_version;
+
 	ret = wiphy_register(wiphy);
 	if (ret < 0)
 		goto out;
