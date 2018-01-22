@@ -16,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
+#include <linux/of_irq.h>
 #include <linux/property.h>
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
@@ -997,6 +998,32 @@ fwnode_get_next_child_node(const struct fwnode_handle *fwnode,
 EXPORT_SYMBOL_GPL(fwnode_get_next_child_node);
 
 /**
+ * fwnode_get_next_available_child_node - Return the next
+ * available child node handle for a node
+ * @fwnode: Firmware node to find the next child node for.
+ * @child: Handle to one of the node's child nodes or a %NULL handle.
+ */
+struct fwnode_handle *
+fwnode_get_next_available_child_node(const struct fwnode_handle *fwnode,
+				     struct fwnode_handle *child)
+{
+	struct fwnode_handle *next_child = child;
+
+	if (!fwnode)
+		return NULL;
+
+	do {
+		next_child = fwnode_get_next_child_node(fwnode, next_child);
+
+		if (!next_child || fwnode_device_is_available(next_child))
+			break;
+	} while (next_child);
+
+	return next_child;
+}
+EXPORT_SYMBOL_GPL(fwnode_get_next_available_child_node);
+
+/**
  * device_get_next_child_node - Return the next child node handle for a device
  * @dev: Device to find the next child node for.
  * @child: Handle to one of the device's child nodes or a null handle.
@@ -1126,21 +1153,21 @@ enum dev_dma_attr device_get_dma_attr(struct device *dev)
 EXPORT_SYMBOL_GPL(device_get_dma_attr);
 
 /**
- * device_get_phy_mode - Get phy mode for given device
- * @dev:	Pointer to the given device
+ * fwnode_get_phy_mode - Get phy mode for given firmware node
+ * @fwnode:	Pointer to the given node
  *
  * The function gets phy interface string from property 'phy-mode' or
  * 'phy-connection-type', and return its index in phy_modes table, or errno in
  * error case.
  */
-int device_get_phy_mode(struct device *dev)
+int fwnode_get_phy_mode(struct fwnode_handle *fwnode)
 {
 	const char *pm;
 	int err, i;
 
-	err = device_property_read_string(dev, "phy-mode", &pm);
+	err = fwnode_property_read_string(fwnode, "phy-mode", &pm);
 	if (err < 0)
-		err = device_property_read_string(dev,
+		err = fwnode_property_read_string(fwnode,
 						  "phy-connection-type", &pm);
 	if (err < 0)
 		return err;
@@ -1151,13 +1178,27 @@ int device_get_phy_mode(struct device *dev)
 
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(fwnode_get_phy_mode);
+
+/**
+ * device_get_phy_mode - Get phy mode for given device
+ * @dev:	Pointer to the given device
+ *
+ * The function gets phy interface string from property 'phy-mode' or
+ * 'phy-connection-type', and return its index in phy_modes table, or errno in
+ * error case.
+ */
+int device_get_phy_mode(struct device *dev)
+{
+	return fwnode_get_phy_mode(dev_fwnode(dev));
+}
 EXPORT_SYMBOL_GPL(device_get_phy_mode);
 
-static void *device_get_mac_addr(struct device *dev,
+static void *fwnode_get_mac_addr(struct fwnode_handle *fwnode,
 				 const char *name, char *addr,
 				 int alen)
 {
-	int ret = device_property_read_u8_array(dev, name, addr, alen);
+	int ret = fwnode_property_read_u8_array(fwnode, name, addr, alen);
 
 	if (ret == 0 && alen == ETH_ALEN && is_valid_ether_addr(addr))
 		return addr;
@@ -1165,8 +1206,8 @@ static void *device_get_mac_addr(struct device *dev,
 }
 
 /**
- * device_get_mac_address - Get the MAC for a given device
- * @dev:	Pointer to the device
+ * fwnode_get_mac_address - Get the MAC from the firmware node
+ * @fwnode:	Pointer to the firmware node
  * @addr:	Address of buffer to store the MAC in
  * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
  *
@@ -1187,21 +1228,58 @@ static void *device_get_mac_addr(struct device *dev,
  * In this case, the real MAC is in 'local-mac-address', and 'mac-address'
  * exists but is all zeros.
 */
-void *device_get_mac_address(struct device *dev, char *addr, int alen)
+void *fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr, int alen)
 {
 	char *res;
 
-	res = device_get_mac_addr(dev, "mac-address", addr, alen);
+	res = fwnode_get_mac_addr(fwnode, "mac-address", addr, alen);
 	if (res)
 		return res;
 
-	res = device_get_mac_addr(dev, "local-mac-address", addr, alen);
+	res = fwnode_get_mac_addr(fwnode, "local-mac-address", addr, alen);
 	if (res)
 		return res;
 
-	return device_get_mac_addr(dev, "address", addr, alen);
+	return fwnode_get_mac_addr(fwnode, "address", addr, alen);
+}
+EXPORT_SYMBOL(fwnode_get_mac_address);
+
+/**
+ * device_get_mac_address - Get the MAC for a given device
+ * @dev:	Pointer to the device
+ * @addr:	Address of buffer to store the MAC in
+ * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
+ */
+void *device_get_mac_address(struct device *dev, char *addr, int alen)
+{
+	return fwnode_get_mac_address(dev_fwnode(dev), addr, alen);
 }
 EXPORT_SYMBOL(device_get_mac_address);
+
+/**
+ * fwnode_irq_get - Get IRQ directly from a fwnode
+ * @fwnode:	Pointer to the firmware node
+ * @index:	Zero-based index of the IRQ
+ *
+ * Returns Linux IRQ number on success. Other values are determined
+ * accordingly to acpi_/of_ irq_get() operation.
+ */
+int fwnode_irq_get(struct fwnode_handle *fwnode, unsigned int index)
+{
+	struct device_node *of_node = to_of_node(fwnode);
+	struct resource res;
+	int ret;
+
+	if (IS_ENABLED(CONFIG_OF) && of_node)
+		return of_irq_get(of_node, index);
+
+	ret = acpi_irq_get(ACPI_HANDLE_FWNODE(fwnode), index, &res);
+	if (ret)
+		return ret;
+
+	return res.start;
+}
+EXPORT_SYMBOL(fwnode_irq_get);
 
 /**
  * device_graph_get_next_endpoint - Get next endpoint firmware node
