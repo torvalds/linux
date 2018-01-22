@@ -35,6 +35,8 @@
 #include <assert.h>
 #include <libgen.h>
 
+#include <getopt.h>
+
 #include "../bpf/bpf_load.h"
 #include "../bpf/bpf_util.h"
 #include "../bpf/libbpf.h"
@@ -46,15 +48,39 @@ void running_handler(int a);
 #define S1_PORT 10000
 #define S2_PORT 10001
 
-static int sockmap_test_sockets(int rate, int dot)
+/* global sockets */
+int s1, s2, c1, c2, p1, p2;
+
+static const struct option long_options[] = {
+	{"help",	no_argument,		NULL, 'h' },
+	{"cgroup",	required_argument,	NULL, 'c' },
+	{"rate",	required_argument,	NULL, 'r' },
+	{"verbose",	no_argument,		NULL, 'v' },
+	{0, 0, NULL, 0 }
+};
+
+static void usage(char *argv[])
 {
-	int i, sc, err, max_fd, one = 1;
-	int s1, s2, c1, c2, p1, p2;
+	int i;
+
+	printf(" Usage: %s --cgroup <cgroup_path>\n", argv[0]);
+	printf(" options:\n");
+	for (i = 0; long_options[i].name != 0; i++) {
+		printf(" --%-12s", long_options[i].name);
+		if (long_options[i].flag != NULL)
+			printf(" flag (internal value:%d)\n",
+				*long_options[i].flag);
+		else
+			printf(" -%c\n", long_options[i].val);
+	}
+	printf("\n");
+}
+
+static int sockmap_init_sockets(void)
+{
+	int i, err, one = 1;
 	struct sockaddr_in addr;
-	struct timeval timeout;
-	char buf[1024] = {0};
 	int *fds[4] = {&s1, &s2, &c1, &c2};
-	fd_set w;
 
 	s1 = s2 = p1 = p2 = c1 = c2 = 0;
 
@@ -63,8 +89,7 @@ static int sockmap_test_sockets(int rate, int dot)
 		*fds[i] = socket(AF_INET, SOCK_STREAM, 0);
 		if (*fds[i] < 0) {
 			perror("socket s1 failed()");
-			err = *fds[i];
-			goto out;
+			return errno;
 		}
 	}
 
@@ -74,7 +99,7 @@ static int sockmap_test_sockets(int rate, int dot)
 				 (char *)&one, sizeof(one));
 		if (err) {
 			perror("setsockopt failed()");
-			goto out;
+			return errno;
 		}
 	}
 
@@ -83,7 +108,7 @@ static int sockmap_test_sockets(int rate, int dot)
 		err = ioctl(*fds[i], FIONBIO, (char *)&one);
 		if (err < 0) {
 			perror("ioctl s1 failed()");
-			goto out;
+			return errno;
 		}
 	}
 
@@ -96,14 +121,14 @@ static int sockmap_test_sockets(int rate, int dot)
 	err = bind(s1, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0) {
 		perror("bind s1 failed()\n");
-		goto out;
+		return errno;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = bind(s2, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0) {
 		perror("bind s2 failed()\n");
-		goto out;
+		return errno;
 	}
 
 	/* Listen server sockets */
@@ -111,14 +136,14 @@ static int sockmap_test_sockets(int rate, int dot)
 	err = listen(s1, 32);
 	if (err < 0) {
 		perror("listen s1 failed()\n");
-		goto out;
+		return errno;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = listen(s2, 32);
 	if (err < 0) {
 		perror("listen s1 failed()\n");
-		goto out;
+		return errno;
 	}
 
 	/* Initiate Connect */
@@ -126,46 +151,56 @@ static int sockmap_test_sockets(int rate, int dot)
 	err = connect(c1, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0 && errno != EINPROGRESS) {
 		perror("connect c1 failed()\n");
-		goto out;
+		return errno;
 	}
 
 	addr.sin_port = htons(S2_PORT);
 	err = connect(c2, (struct sockaddr *)&addr, sizeof(addr));
 	if (err < 0 && errno != EINPROGRESS) {
 		perror("connect c2 failed()\n");
-		goto out;
+		return errno;
+	} else if (err < 0) {
+		err = 0;
 	}
 
 	/* Accept Connecrtions */
 	p1 = accept(s1, NULL, NULL);
 	if (p1 < 0) {
 		perror("accept s1 failed()\n");
-		goto out;
+		return errno;
 	}
 
 	p2 = accept(s2, NULL, NULL);
 	if (p2 < 0) {
 		perror("accept s1 failed()\n");
-		goto out;
+		return errno;
 	}
-
-	max_fd = p2;
-	timeout.tv_sec = 10;
-	timeout.tv_usec = 0;
 
 	printf("connected sockets: c1 <-> p1, c2 <-> p2\n");
 	printf("cgroups binding: c1(%i) <-> s1(%i) - - - c2(%i) <-> s2(%i)\n",
 		c1, s1, c2, s2);
+	return 0;
+}
+
+static int forever_ping_pong(int rate, int verbose)
+{
+	struct timeval timeout;
+	char buf[1024] = {0};
+	int sc;
+
+	timeout.tv_sec = 10;
+	timeout.tv_usec = 0;
 
 	/* Ping/Pong data from client to server */
 	sc = send(c1, buf, sizeof(buf), 0);
 	if (sc < 0) {
 		perror("send failed()\n");
-		goto out;
+		return sc;
 	}
 
 	do {
-		int s, rc, i;
+		int s, rc, i, max_fd = p2;
+		fd_set w;
 
 		/* FD sets */
 		FD_ZERO(&w);
@@ -193,7 +228,7 @@ static int sockmap_test_sockets(int rate, int dot)
 			if (rc < 0) {
 				if (errno != EWOULDBLOCK) {
 					perror("recv failed()\n");
-					break;
+					return rc;
 				}
 			}
 
@@ -205,35 +240,61 @@ static int sockmap_test_sockets(int rate, int dot)
 			sc = send(i, buf, rc, 0);
 			if (sc < 0) {
 				perror("send failed()\n");
-				break;
+				return sc;
 			}
 		}
-		sleep(rate);
-		if (dot) {
+
+		if (rate)
+			sleep(rate);
+
+		if (verbose) {
 			printf(".");
 			fflush(stdout);
 
 		}
 	} while (running);
 
-out:
-	close(s1);
-	close(s2);
-	close(p1);
-	close(p2);
-	close(c1);
-	close(c2);
-	return err;
+	return 0;
 }
 
 int main(int argc, char **argv)
 {
-	int rate = 1, dot = 1;
+	int rate = 1, verbose = 0;
+	int opt, longindex, err, cg_fd = 0;
 	char filename[256];
-	int err, cg_fd;
-	char *cg_path;
 
-	cg_path = argv[argc - 1];
+	while ((opt = getopt_long(argc, argv, "hvc:r:",
+				  long_options, &longindex)) != -1) {
+		switch (opt) {
+		/* Cgroup configuration */
+		case 'c':
+			cg_fd = open(optarg, O_DIRECTORY, O_RDONLY);
+			if (cg_fd < 0) {
+				fprintf(stderr,
+					"ERROR: (%i) open cg path failed: %s\n",
+					cg_fd, optarg);
+				return cg_fd;
+			}
+			break;
+		case 'r':
+			rate = atoi(optarg);
+			break;
+		case 'v':
+			verbose = 1;
+			break;
+		case 'h':
+		default:
+			usage(argv);
+			return -1;
+		}
+	}
+
+	if (!cg_fd) {
+		fprintf(stderr, "%s requires cgroup option: --cgroup <path>\n",
+			argv[0]);
+		return -1;
+	}
+
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 
 	running = 1;
@@ -245,14 +306,6 @@ int main(int argc, char **argv)
 		fprintf(stderr, "load_bpf_file: (%s) %s\n",
 			filename, strerror(errno));
 		return 1;
-	}
-
-	/* Cgroup configuration */
-	cg_fd = open(cg_path, O_DIRECTORY, O_RDONLY);
-	if (cg_fd < 0) {
-		fprintf(stderr, "ERROR: (%i) open cg path failed: %s\n",
-			cg_fd, cg_path);
-		return cg_fd;
 	}
 
 	/* Attach programs to sockmap */
@@ -280,12 +333,22 @@ int main(int argc, char **argv)
 		return err;
 	}
 
-	err = sockmap_test_sockets(rate, dot);
+	err = sockmap_init_sockets();
 	if (err) {
 		fprintf(stderr, "ERROR: test socket failed: %d\n", err);
-		return err;
+		goto out;
 	}
-	return 0;
+
+	err = forever_ping_pong(rate, verbose);
+out:
+	close(s1);
+	close(s2);
+	close(p1);
+	close(p2);
+	close(c1);
+	close(c2);
+	close(cg_fd);
+	return err;
 }
 
 void running_handler(int a)
