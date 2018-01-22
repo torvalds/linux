@@ -78,8 +78,8 @@
 			status = "okay";
 			logo,uboot = "logo.bmp";
 			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "center";
-			charge_logo,mode = "center";
+			logo,mode = "fullscreen";
+			charge_logo,mode = "fullscreen";
 			connect = <&vop_out_hdmi>;
 		};
 	};
