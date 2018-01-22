@@ -2797,8 +2797,11 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	err = rhashtable_insert_fast(&hwsim_radios_rht, &data->rht,
 				     hwsim_rht_params);
 	if (err < 0) {
-		pr_debug("mac80211_hwsim: radio index %d already present\n",
-			 idx);
+		if (info) {
+			GENL_SET_ERR_MSG(info, "perm addr already present");
+			NL_SET_BAD_ATTR(info->extack,
+					info->attrs[HWSIM_ATTR_PERM_ADDR]);
+		}
 		spin_unlock_bh(&hwsim_radio_lock);
 		goto failed_final_insert;
 	}
