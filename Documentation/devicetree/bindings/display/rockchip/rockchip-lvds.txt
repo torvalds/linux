@@ -25,6 +25,10 @@ Required properties:
 
 - rockchip,grf: phandle to the general register files syscon
 
+For px30 rgb output:
+- pinctrl-names: must contain a "m0" or "m1" entry.
+- pinctrl-0: pin control group to be used for this controller.
+
 Optional properties
 - pinctrl-names: must contain a "lcdc" entry.
 - pinctrl-0: pin control group to be used for this controller.
@@ -67,6 +71,21 @@ lvds_panel: lvds-panel {
 	};
 };
 
+For Rockchip PX30:
+
+RGB Output Pinctrl Example:
+
+&lvds {
+	pinctrl-names = "m0";
+	pinctrl-0 = <&lcdc_rgb_dclk_pin &lcdc_rgb_m0_den_pin &lcdc_rgb_m0_hsync_pin &lcdc_rgb_m0_vsync_pin &lcdc_rgb666_m0_data_pins>;
+};
+
+Or
+
+&lvds {
+	pinctrl-names = "m1";
+	pinctrl-0 = <&lcdc_rgb_dclk_pin &lcdc_rgb666_m1_data_pins>;
+};
 
 For Rockchip RK3288:
 

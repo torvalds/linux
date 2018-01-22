@@ -102,6 +102,15 @@
 #define RK3126_GRF_LVDS_CON0	0x0150
 #define RK3126_GRF_CON1		0x0144
 
+#define PX30_GRF_PD_VO_CON0	0x0434
+#define PX30_GRF_PD_VO_CON1	0x0438
+#define PX30_LVDS_OUTPUT_FORMAT(x)	(BITS_MASK(x, 0x3, 13) | BITS_EN(0x3, 13))
+#define PX30_LVDS_PHY_MODE(x)		(BITS_MASK(x, 0x1, 12) | BITS_EN(0x1, 12))
+#define PX30_LVDS_MSBSEL(x)		(BITS_MASK(x, 0x1, 11) | BITS_EN(0x1, 11))
+#define PX30_DPHY_FORCERXMODE(x)	(BITS_MASK(x, 0x1,  6) | BITS_EN(0x1,  6))
+#define PX30_RGB_VOP_SEL(x)		(BITS_MASK(x, 0x1,  2) | BITS_EN(0x1,  2))
+#define PX30_LVDS_VOP_SEL(x)		(BITS_MASK(x, 0x1,  1) | BITS_EN(0x1,  1))
+
 #define LVDS_FMT_MASK				(0x07 << 16)
 #define LVDS_MSB				BIT(3)
 #define LVDS_DUAL				BIT(4)
@@ -215,6 +224,7 @@ enum {
 };
 
 enum rockchip_lvds_sub_devtype {
+	PX30_LVDS,
 	RK3126_LVDS,
 	RK3288_LVDS,
 	RK336X_LVDS,

@@ -81,7 +81,10 @@ struct rockchip_lvds {
 
 	struct mutex suspend_lock;
 	int suspend;
-	struct dev_pin_info *pins;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pins_lcdc;
+	struct pinctrl_state *pins_m0;
+	struct pinctrl_state *pins_m1;
 	struct drm_display_mode mode;
 };
 
@@ -228,6 +231,21 @@ static int rk336x_lvds_poweron(struct rockchip_lvds *lvds)
 	u32 val;
 
 	if (lvds->output == DISPLAY_OUTPUT_RGB) {
+		if (LVDS_CHIP(lvds) == PX30_LVDS) {
+			if (lvds->pins_m0) {
+				pinctrl_select_state(lvds->pinctrl,
+						     lvds->pins_m0);
+				return 0;
+			} else if (lvds->pins_m1) {
+				pinctrl_select_state(lvds->pinctrl,
+						     lvds->pins_m1);
+			} else {
+				dev_err(lvds->dev,
+					"Can't find pinctrl state m0/m1\n");
+				WARN_ON(1);
+			}
+		}
+
 		/* enable lane */
 		lvds_writel(lvds, MIPIPHY_REG0, 0x7f);
 		val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) |
@@ -330,8 +348,7 @@ static int rockchip_lvds_poweron(struct rockchip_lvds *lvds)
 	}
 	if (LVDS_CHIP(lvds) == RK3288_LVDS)
 		rk3288_lvds_poweron(lvds);
-	else if ((LVDS_CHIP(lvds) == RK336X_LVDS) ||
-		 (LVDS_CHIP(lvds) == RK3126_LVDS))
+	else
 		rk336x_lvds_poweron(lvds);
 
 	return 0;
@@ -525,9 +542,9 @@ static void rockchip_lvds_grf_config(struct drm_encoder *encoder,
 
 	/* iomux to LCD data/sync mode */
 	if (lvds->output == DISPLAY_OUTPUT_RGB)
-		if (lvds->pins && !IS_ERR(lvds->pins->default_state))
-			pinctrl_select_state(lvds->pins->p,
-					     lvds->pins->default_state);
+		if (lvds->pins_lcdc)
+			pinctrl_select_state(lvds->pinctrl, lvds->pins_lcdc);
+
 	if (LVDS_CHIP(lvds) == RK3288_LVDS) {
 		val = lvds->format;
 		if (lvds->output == DISPLAY_OUTPUT_DUAL_LVDS)
@@ -640,6 +657,14 @@ static void rockchip_lvds_grf_config(struct drm_encoder *encoder,
 				return;
 			}
 		}
+	} else if (LVDS_CHIP(lvds) == PX30_LVDS) {
+		val = 0;
+		if (lvds->output == DISPLAY_OUTPUT_RGB && lvds->pins_m1)
+			val |= PX30_DPHY_FORCERXMODE(1);
+		else if (lvds->output == DISPLAY_OUTPUT_LVDS)
+			val |= PX30_LVDS_OUTPUT_FORMAT(lvds->format) |
+			       PX30_LVDS_MSBSEL(LVDS_MSB_D7);
+		regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1, val);
 	}
 }
 
@@ -666,6 +691,13 @@ static int rockchip_lvds_set_vop_source(struct rockchip_lvds *lvds,
 		ret = regmap_write(lvds->grf, lvds->soc_data->grf_soc_con6, val);
 		if (ret < 0)
 			return ret;
+	} else if (LVDS_CHIP(lvds) == PX30_LVDS) {
+		val = 0;
+		if (lvds->output == DISPLAY_OUTPUT_RGB)
+			val |= PX30_RGB_VOP_SEL(ret);
+		else if (lvds->output == DISPLAY_OUTPUT_LVDS)
+			val |= PX30_LVDS_VOP_SEL(ret);
+		regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1, val);
 	} else {
 		if (ret)
 			val = RK3366_LVDS_VOP_SEL_LIT;
@@ -753,6 +785,11 @@ static const struct drm_encoder_funcs rockchip_lvds_encoder_funcs = {
 	.destroy = rockchip_lvds_encoder_destroy,
 };
 
+static const struct rockchip_lvds_soc_data px30_lvds_data = {
+	.chip_type = PX30_LVDS,
+	.has_vop_sel = true,
+};
+
 static struct rockchip_lvds_soc_data rk3126_lvds_data = {
 	.chip_type = RK3126_LVDS,
 	.grf_soc_con7  = RK3126_GRF_LVDS_CON0,
@@ -782,6 +819,10 @@ static struct rockchip_lvds_soc_data rk3368_lvds_data = {
 };
 
 static const struct of_device_id rockchip_lvds_dt_ids[] = {
+	{
+		.compatible = "rockchip,px30-lvds",
+		.data = &px30_lvds_data
+	},
 	{
 		.compatible = "rockchip,rk3126-lvds",
 		.data = &rk3126_lvds_data
@@ -1004,8 +1045,7 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 		lvds->regs = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(lvds->regs))
 			return PTR_ERR(lvds->regs);
-	} else if ((LVDS_CHIP(lvds) == RK336X_LVDS) ||
-		   (LVDS_CHIP(lvds) == RK3126_LVDS)) {
+	} else {
 		/* lvds regs on MIPIPHY_REG */
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "mipi_lvds_phy");
@@ -1041,23 +1081,27 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 		return PTR_ERR(lvds->pclk);
 	}
 
-	lvds->pins = devm_kzalloc(lvds->dev, sizeof(*lvds->pins),
-				  GFP_KERNEL);
-	if (!lvds->pins)
-		return -ENOMEM;
-
-	lvds->pins->p = devm_pinctrl_get(lvds->dev);
-	if (IS_ERR(lvds->pins->p)) {
-		dev_info(lvds->dev, "no pinctrl handle\n");
-		devm_kfree(lvds->dev, lvds->pins);
-		lvds->pins = NULL;
+	lvds->pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR_OR_NULL(lvds->pinctrl)) {
+		dev_info(dev, "no pinctrl handle\n");
+		lvds->pinctrl = NULL;
 	} else {
-		lvds->pins->default_state =
-			pinctrl_lookup_state(lvds->pins->p, "lcdc");
-		if (IS_ERR(lvds->pins->default_state)) {
-			dev_info(lvds->dev, "no lcdc pinctrl state\n");
-			devm_kfree(lvds->dev, lvds->pins);
-			lvds->pins = NULL;
+		lvds->pins_lcdc = pinctrl_lookup_state(lvds->pinctrl, "lcdc");
+		if (IS_ERR(lvds->pins_lcdc)) {
+			dev_info(dev, "no lcdc pinctrl state\n");
+			lvds->pins_lcdc = NULL;
+		}
+
+		lvds->pins_m0 = pinctrl_lookup_state(lvds->pinctrl, "m0");
+		if (IS_ERR(lvds->pins_m0)) {
+			dev_info(dev, "no m0 pinctrl state\n");
+			lvds->pins_m0 = NULL;
+		}
+
+		lvds->pins_m1 = pinctrl_lookup_state(lvds->pinctrl, "m1");
+		if (IS_ERR(lvds->pins_m1)) {
+			dev_info(dev, "no m1 pinctrl state\n");
+			lvds->pins_m1 = NULL;
 		}
 	}
 
