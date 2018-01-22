@@ -139,7 +139,6 @@ struct davinci_i2c_dev {
 	u8			terminate;
 	struct i2c_adapter	adapter;
 #ifdef CONFIG_CPU_FREQ
-	struct completion	xfr_complete;
 	struct notifier_block	freq_transition;
 #endif
 	struct davinci_i2c_platform_data *pdata;
@@ -567,9 +566,6 @@ i2c_davinci_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	}
 
 	ret = num;
-#ifdef CONFIG_CPU_FREQ
-	complete(&dev->xfr_complete);
-#endif
 
 out:
 	pm_runtime_mark_last_busy(dev->dev);
@@ -717,13 +713,15 @@ static int i2c_davinci_cpufreq_transition(struct notifier_block *nb,
 	struct davinci_i2c_dev *dev;
 
 	dev = container_of(nb, struct davinci_i2c_dev, freq_transition);
+
+	i2c_lock_adapter(&dev->adapter);
 	if (val == CPUFREQ_PRECHANGE) {
-		wait_for_completion(&dev->xfr_complete);
 		davinci_i2c_reset_ctrl(dev, 0);
 	} else if (val == CPUFREQ_POSTCHANGE) {
 		i2c_davinci_calc_clk_dividers(dev);
 		davinci_i2c_reset_ctrl(dev, 1);
 	}
+	i2c_unlock_adapter(&dev->adapter);
 
 	return 0;
 }
@@ -790,9 +788,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	}
 
 	init_completion(&dev->cmd_complete);
-#ifdef CONFIG_CPU_FREQ
-	init_completion(&dev->xfr_complete);
-#endif
+
 	dev->dev = &pdev->dev;
 	dev->irq = irq;
 	dev->pdata = dev_get_platdata(&pdev->dev);
