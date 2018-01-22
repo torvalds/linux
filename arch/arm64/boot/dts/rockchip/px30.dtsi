@@ -676,6 +676,7 @@
 		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
 		clocks = <&cru PCLK_MIPIDSIPHY>, <&cru PCLK_MIPI_DSI>;
 		clock-names = "pclk_lvds", "pclk_lvds_ctl";
+		power-domains = <&power PX30_PD_VO>;
 		rockchip,grf = <&grf>;
 		status = "disabled";
 
@@ -683,19 +684,19 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			lvds_in: port@0 {
+			port@0 {
 				reg = <0>;
-
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				lvds_in_vopb: endpoint@0 {
+				lvds_in_vopl: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&vopb_out_lvds>;
-				};
-				lvds_in_vopl: endpoint@1 {
-					reg = <1>;
 					remote-endpoint = <&vopl_out_lvds>;
+				};
+
+				lvds_in_vopb: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopb_out_lvds>;
 				};
 			};
 		};
@@ -794,10 +795,7 @@
 		status = "disabled";
 
 		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
+			port {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
