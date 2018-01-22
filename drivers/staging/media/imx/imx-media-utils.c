@@ -93,7 +93,7 @@ static const struct imx_media_pixfmt rgb_formats[] = {
 		.bpp    = 32,
 		.ipufmt = true,
 	},
-	/*** raw bayer formats start here ***/
+	/*** raw bayer and grayscale formats start here ***/
 	{
 		.fourcc = V4L2_PIX_FMT_SBGGR8,
 		.codes  = {MEDIA_BUS_FMT_SBGGR8_1X8},
@@ -161,6 +161,12 @@ static const struct imx_media_pixfmt rgb_formats[] = {
 		},
 		.cs     = IPUV3_COLORSPACE_RGB,
 		.bpp    = 16,
+		.bayer  = true,
+	}, {
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.codes = {MEDIA_BUS_FMT_Y8_1X8},
+		.cs     = IPUV3_COLORSPACE_RGB,
+		.bpp    = 8,
 		.bayer  = true,
 	},
 	/***
