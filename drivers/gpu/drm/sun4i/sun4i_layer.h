@@ -24,6 +24,7 @@ struct sun4i_layer {
 
 struct sun4i_layer_state {
 	struct drm_plane_state	state;
+	bool			uses_frontend;
 };
 
 static inline struct sun4i_layer *

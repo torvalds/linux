@@ -25,6 +25,7 @@
 
 #include <video/videomode.h>
 
+#include "sun4i_backend.h"
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sunxi_engine.h"

@@ -26,6 +26,7 @@
 
 #include "sun4i_backend.h"
 #include "sun4i_drv.h"
+#include "sun4i_frontend.h"
 #include "sun4i_layer.h"
 #include "sunxi_engine.h"
 
@@ -203,6 +204,30 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 	return 0;
 }
 
+int sun4i_backend_update_layer_frontend(struct sun4i_backend *backend,
+					int layer, uint32_t fmt)
+{
+	u32 val;
+	int ret;
+
+	ret = sun4i_backend_drm_format_to_layer(NULL, fmt, &val);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Invalid format\n");
+		return ret;
+	}
+
+	regmap_update_bits(backend->engine.regs,
+			   SUN4I_BACKEND_ATTCTL_REG0(layer),
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_VDOEN,
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_VDOEN);
+
+	regmap_update_bits(backend->engine.regs,
+			   SUN4I_BACKEND_ATTCTL_REG1(layer),
+			   SUN4I_BACKEND_ATTCTL_REG1_LAY_FBFMT, val);
+
+	return 0;
+}
+
 int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 				      int layer, struct drm_plane *plane)
 {
@@ -244,6 +269,36 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 
 	return 0;
 }
+
+static void sun4i_backend_vblank_quirk(struct sunxi_engine *engine)
+{
+	struct sun4i_backend *backend = engine_to_sun4i_backend(engine);
+	struct sun4i_frontend *frontend = backend->frontend;
+
+	if (!frontend)
+		return;
+
+	/*
+	 * In a teardown scenario with the frontend involved, we have
+	 * to keep the frontend enabled until the next vblank, and
+	 * only then disable it.
+	 *
+	 * This is due to the fact that the backend will not take into
+	 * account the new configuration (with the plane that used to
+	 * be fed by the frontend now disabled) until we write to the
+	 * commit bit and the hardware fetches the new configuration
+	 * during the next vblank.
+	 *
+	 * So we keep the frontend around in order to prevent any
+	 * visual artifacts.
+	 */
+	spin_lock(&backend->frontend_lock);
+	if (backend->frontend_teardown) {
+		sun4i_frontend_exit(frontend);
+		backend->frontend_teardown = false;
+	}
+	spin_unlock(&backend->frontend_lock);
+};
 
 static int sun4i_backend_init_sat(struct device *dev) {
 	struct sun4i_backend *backend = dev_get_drvdata(dev);
@@ -329,11 +384,41 @@ static int sun4i_backend_of_get_id(struct device_node *node)
 	return ret;
 }
 
+/* TODO: This needs to take multiple pipelines into account */
+static struct sun4i_frontend *sun4i_backend_find_frontend(struct sun4i_drv *drv,
+							  struct device_node *node)
+{
+	struct device_node *port, *ep, *remote;
+	struct sun4i_frontend *frontend;
+
+	port = of_graph_get_port_by_id(node, 0);
+	if (!port)
+		return ERR_PTR(-EINVAL);
+
+	for_each_available_child_of_node(port, ep) {
+		remote = of_graph_get_remote_port_parent(ep);
+		if (!remote)
+			continue;
+
+		/* does this node match any registered engines? */
+		list_for_each_entry(frontend, &drv->frontend_list, list) {
+			if (remote == frontend->node) {
+				of_node_put(remote);
+				of_node_put(port);
+				return frontend;
+			}
+		}
+	}
+
+	return ERR_PTR(-EINVAL);
+}
+
 static const struct sunxi_engine_ops sun4i_backend_engine_ops = {
 	.commit				= sun4i_backend_commit,
 	.layers_init			= sun4i_layers_init,
 	.apply_color_correction		= sun4i_backend_apply_color_correction,
 	.disable_color_correction	= sun4i_backend_disable_color_correction,
+	.vblank_quirk			= sun4i_backend_vblank_quirk,
 };
 
 static struct regmap_config sun4i_backend_regmap_config = {
@@ -359,12 +444,17 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 	if (!backend)
 		return -ENOMEM;
 	dev_set_drvdata(dev, backend);
+	spin_lock_init(&backend->frontend_lock);
 
 	backend->engine.node = dev->of_node;
 	backend->engine.ops = &sun4i_backend_engine_ops;
 	backend->engine.id = sun4i_backend_of_get_id(dev->of_node);
 	if (backend->engine.id < 0)
 		return backend->engine.id;
+
+	backend->frontend = sun4i_backend_find_frontend(drv, dev->of_node);
+	if (IS_ERR(backend->frontend))
+		dev_warn(dev, "Couldn't find matching frontend, frontend features disabled\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
