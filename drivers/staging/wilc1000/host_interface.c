@@ -3730,8 +3730,8 @@ int wilc_add_station(struct wilc_vif *vif, struct add_sta_param *sta_param)
 	memcpy(add_sta_info, sta_param, sizeof(struct add_sta_param));
 	if (add_sta_info->rates_len > 0) {
 		add_sta_info->rates = kmemdup(sta_param->rates,
-				      add_sta_info->rates_len,
-				      GFP_KERNEL);
+					      add_sta_info->rates_len,
+					      GFP_KERNEL);
 		if (!add_sta_info->rates)
 			return -ENOMEM;
 	}

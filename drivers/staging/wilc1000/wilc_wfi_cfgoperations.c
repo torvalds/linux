@@ -470,10 +470,10 @@ static void CfgScanResult(enum scan_event scan_event,
 int wilc_connecting;
 
 static void cfg_connect_result(enum conn_event conn_disconn_evt,
-			     struct connect_info *conn_info,
-			     u8 mac_status,
-			     struct disconnect_info *disconn_info,
-			     void *priv_data)
+			       struct connect_info *conn_info,
+			       u8 mac_status,
+			       struct disconnect_info *disconn_info,
+			       void *priv_data)
 {
 	struct wilc_priv *priv;
 	struct net_device *dev;
@@ -623,18 +623,18 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 				}
 			}
 			ret = wilc_scan(vif, USER_SCAN, ACTIVE_SCAN,
-					     au8ScanChanList,
-					     request->n_channels,
-					     (const u8 *)request->ie,
-					     request->ie_len, CfgScanResult,
-					     (void *)priv, &strHiddenNetwork);
+					au8ScanChanList,
+					request->n_channels,
+					(const u8 *)request->ie,
+					request->ie_len, CfgScanResult,
+					(void *)priv, &strHiddenNetwork);
 		} else {
 			ret = wilc_scan(vif, USER_SCAN, ACTIVE_SCAN,
-					     au8ScanChanList,
-					     request->n_channels,
-					     (const u8 *)request->ie,
-					     request->ie_len, CfgScanResult,
-					     (void *)priv, NULL);
+					au8ScanChanList,
+					request->n_channels,
+					(const u8 *)request->ie,
+					request->ie_len, CfgScanResult,
+					(void *)priv, NULL);
 		}
 	} else {
 		netdev_err(priv->dev, "Requested scanned channels over\n");
@@ -793,11 +793,11 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	wilc_wlan_set_bssid(dev, pstrNetworkInfo->bssid, STATION_MODE);
 
 	ret = wilc_set_join_req(vif, pstrNetworkInfo->bssid, sme->ssid,
-				     sme->ssid_len, sme->ie, sme->ie_len,
-				     cfg_connect_result, (void *)priv,
-				     u8security, auth_type,
-				     pstrNetworkInfo->ch,
-				     pstrNetworkInfo->join_params);
+				sme->ssid_len, sme->ie, sme->ie_len,
+				cfg_connect_result, (void *)priv,
+				u8security, auth_type,
+				pstrNetworkInfo->ch,
+				pstrNetworkInfo->join_params);
 	if (ret != 0) {
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
 		ret = -ENOENT;
