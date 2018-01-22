@@ -27,6 +27,7 @@
 #include <linux/raid/pq.h>
 #include <linux/semaphore.h>
 #include <linux/uuid.h>
+#include <linux/list_sort.h>
 #include <asm/div64.h>
 #include "ctree.h"
 #include "extent_map.h"
@@ -1103,6 +1104,20 @@ out:
 	return ret;
 }
 
+static int devid_cmp(void *priv, struct list_head *a, struct list_head *b)
+{
+	struct btrfs_device *dev1, *dev2;
+
+	dev1 = list_entry(a, struct btrfs_device, dev_list);
+	dev2 = list_entry(b, struct btrfs_device, dev_list);
+
+	if (dev1->devid < dev2->devid)
+		return -1;
+	else if (dev1->devid > dev2->devid)
+		return 1;
+	return 0;
+}
+
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       fmode_t flags, void *holder)
 {
@@ -1113,6 +1128,7 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		fs_devices->opened++;
 		ret = 0;
 	} else {
+		list_sort(NULL, &fs_devices->devices, devid_cmp);
 		ret = __btrfs_open_devices(fs_devices, flags, holder);
 	}
 	mutex_unlock(&uuid_mutex);
