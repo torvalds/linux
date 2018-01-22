@@ -4426,17 +4426,9 @@ flags_complete:
 	 * unsupported FW versions.
 	 */
 	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
-		if (pf->hw.func_caps.npar_enable) {
+		if (!(pf->hw_features & I40E_HW_STOPPABLE_FW_LLDP)) {
 			dev_warn(&pf->pdev->dev,
-				 "Unable to change FW LLDP if NPAR active\n");
-			return -EOPNOTSUPP;
-		}
-
-		if (pf->hw.aq.api_maj_ver < 1 ||
-		    (pf->hw.aq.api_maj_ver == 1 &&
-		     pf->hw.aq.api_min_ver < 7)) {
-			dev_warn(&pf->pdev->dev,
-				 "FW ver does not support changing FW LLDP\n");
+				 "Device does not support changing FW LLDP\n");
 			return -EOPNOTSUPP;
 		}
 	}
