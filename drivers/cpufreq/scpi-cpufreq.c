@@ -197,11 +197,8 @@ static int scpi_cpufreq_exit(struct cpufreq_policy *policy)
 static void scpi_cpufreq_ready(struct cpufreq_policy *policy)
 {
 	struct scpi_data *priv = policy->driver_data;
-	struct thermal_cooling_device *cdev;
 
-	cdev = of_cpufreq_cooling_register(policy);
-	if (!IS_ERR(cdev))
-		priv->cdev = cdev;
+	priv->cdev = of_cpufreq_cooling_register(policy);
 }
 
 static struct cpufreq_driver scpi_cpufreq_driver = {
