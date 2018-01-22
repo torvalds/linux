@@ -9,8 +9,6 @@
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
-#define DEBUG
-
 #include <linux/fs.h>
 #include <linux/magic.h>
 #include <linux/mount.h>
