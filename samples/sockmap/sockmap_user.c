@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <sys/wait.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -195,7 +196,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 {
 	struct msghdr msg = {0};
 	struct iovec *iov;
-	int i, flags = 0;
+	int i, flags = MSG_NOSIGNAL;
 
 	iov = calloc(iov_count, sizeof(struct iovec));
 	if (!iov)
@@ -275,25 +276,47 @@ out_errno:
 
 static int sendmsg_test(int iov_count, int iov_buf, int cnt, int verbose)
 {
+	int txpid, rxpid, err = 0;
 	struct msg_stats s = {0};
-	int err;
+	int status;
 
-	err = msg_loop(c1, iov_count, iov_buf, cnt, &s, true);
-	if (err) {
-		fprintf(stderr,
-			"msg_loop_tx: iov_count %i iov_buf %i cnt %i err %i\n",
-			iov_count, iov_buf, cnt, err);
-		return err;
+	errno = 0;
+
+	rxpid = fork();
+	if (rxpid == 0) {
+		err = msg_loop(p2, iov_count, iov_buf, cnt, &s, false);
+		if (err)
+			fprintf(stderr,
+				"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
+				iov_count, iov_buf, cnt, err);
+		fprintf(stdout, "rx_sendmsg: TX_bytes %zu RX_bytes %zu\n",
+			s.bytes_sent, s.bytes_recvd);
+		shutdown(p2, SHUT_RDWR);
+		shutdown(p1, SHUT_RDWR);
+		exit(1);
+	} else if (rxpid == -1) {
+		perror("msg_loop_rx: ");
+		return errno;
 	}
 
-	err = msg_loop(p2, iov_count, iov_buf, cnt, &s, false);
-	if (err)
-		fprintf(stderr,
-			"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
-			iov_count, iov_buf, cnt, err);
+	txpid = fork();
+	if (txpid == 0) {
+		err = msg_loop(c1, iov_count, iov_buf, cnt, &s, true);
+		if (err)
+			fprintf(stderr,
+				"msg_loop_tx: iov_count %i iov_buf %i cnt %i err %i\n",
+				iov_count, iov_buf, cnt, err);
+		fprintf(stdout, "tx_sendmsg: TX_bytes %zu RX_bytes %zu\n",
+			s.bytes_sent, s.bytes_recvd);
+		shutdown(c1, SHUT_RDWR);
+		exit(1);
+	} else if (txpid == -1) {
+		perror("msg_loop_tx: ");
+		return errno;
+	}
 
-	fprintf(stdout, "sendmsg: TX_bytes %zu RX_bytes %zu\n",
-		s.bytes_sent, s.bytes_recvd);
+	assert(waitpid(rxpid, &status, 0) == rxpid);
+	assert(waitpid(txpid, &status, 0) == txpid);
 	return err;
 }
 
