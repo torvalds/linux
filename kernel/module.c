@@ -3938,6 +3938,12 @@ static const char *get_ksymbol(struct module *mod,
 	return symname(kallsyms, best);
 }
 
+void * __weak dereference_module_function_descriptor(struct module *mod,
+						     void *ptr)
+{
+	return ptr;
+}
+
 /* For kallsyms to ask for address resolution.  NULL means not found.  Careful
  * not to lock to avoid deadlock on oopses, simply disable preemption. */
 const char *module_address_lookup(unsigned long addr,

@@ -93,6 +93,15 @@ static unsigned int local_entry_offset(const Elf64_Sym *sym)
 {
 	return 0;
 }
+
+void *dereference_module_function_descriptor(struct module *mod, void *ptr)
+{
+	if (ptr < (void *)mod->arch.start_opd ||
+			ptr >= (void *)mod->arch.end_opd)
+		return ptr;
+
+	return dereference_function_descriptor(ptr);
+}
 #endif
 
 #define STUB_MAGIC 0x73747562 /* stub */
@@ -344,6 +353,11 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 		else if (strcmp(secstrings+sechdrs[i].sh_name,"__versions")==0)
 			dedotify_versions((void *)hdr + sechdrs[i].sh_offset,
 					  sechdrs[i].sh_size);
+		else if (!strcmp(secstrings + sechdrs[i].sh_name, ".opd")) {
+			me->arch.start_opd = sechdrs[i].sh_addr;
+			me->arch.end_opd = sechdrs[i].sh_addr +
+					   sechdrs[i].sh_size;
+		}
 
 		/* We don't handle .init for the moment: rename to _init */
 		while ((p = strstr(secstrings + sechdrs[i].sh_name, ".init")))
