@@ -1605,12 +1605,17 @@ static int write_partial_message_data(struct ceph_connection *con)
 	 * been revoked, so use the zero page.
 	 */
 	crc = do_datacrc ? le32_to_cpu(msg->footer.data_crc) : 0;
-	while (cursor->resid) {
+	while (cursor->total_resid) {
 		struct page *page;
 		size_t page_offset;
 		size_t length;
 		bool last_piece;
 		int ret;
+
+		if (!cursor->resid) {
+			ceph_msg_data_advance(cursor, 0);
+			continue;
+		}
 
 		page = ceph_msg_data_next(cursor, &page_offset, &length,
 					  &last_piece);
@@ -2327,7 +2332,12 @@ static int read_partial_msg_data(struct ceph_connection *con)
 
 	if (do_datacrc)
 		crc = con->in_data_crc;
-	while (cursor->resid) {
+	while (cursor->total_resid) {
+		if (!cursor->resid) {
+			ceph_msg_data_advance(cursor, 0);
+			continue;
+		}
+
 		page = ceph_msg_data_next(cursor, &page_offset, &length, NULL);
 		ret = ceph_tcp_recvpage(con->sock, page, page_offset, length);
 		if (ret <= 0) {
