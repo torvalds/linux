@@ -56,6 +56,9 @@ static const struct option long_options[] = {
 	{"cgroup",	required_argument,	NULL, 'c' },
 	{"rate",	required_argument,	NULL, 'r' },
 	{"verbose",	no_argument,		NULL, 'v' },
+	{"iov_count",	required_argument,	NULL, 'i' },
+	{"length",	required_argument,	NULL, 'l' },
+	{"test",	required_argument,	NULL, 't' },
 	{0, 0, NULL, 0 }
 };
 
@@ -182,6 +185,118 @@ static int sockmap_init_sockets(void)
 	return 0;
 }
 
+struct msg_stats {
+	size_t bytes_sent;
+	size_t bytes_recvd;
+};
+
+static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
+		    struct msg_stats *s, bool tx)
+{
+	struct msghdr msg = {0};
+	struct iovec *iov;
+	int i, flags = 0;
+
+	iov = calloc(iov_count, sizeof(struct iovec));
+	if (!iov)
+		return errno;
+
+	for (i = 0; i < iov_count; i++) {
+		char *d = calloc(iov_length, sizeof(char));
+
+		if (!d) {
+			fprintf(stderr, "iov_count %i/%i OOM\n", i, iov_count);
+			goto out_errno;
+		}
+		iov[i].iov_base = d;
+		iov[i].iov_len = iov_length;
+	}
+
+	msg.msg_iov = iov;
+	msg.msg_iovlen = iov_count;
+
+	if (tx) {
+		for (i = 0; i < cnt; i++) {
+			int sent = sendmsg(fd, &msg, flags);
+
+			if (sent < 0) {
+				perror("send loop error:");
+				goto out_errno;
+			}
+			s->bytes_sent += sent;
+		}
+	} else {
+		int slct, recv, max_fd = fd;
+		struct timeval timeout;
+		float total_bytes;
+		fd_set w;
+
+		total_bytes = (float)iov_count * (float)iov_length * (float)cnt;
+		while (s->bytes_recvd < total_bytes) {
+			timeout.tv_sec = 1;
+			timeout.tv_usec = 0;
+
+			/* FD sets */
+			FD_ZERO(&w);
+			FD_SET(fd, &w);
+
+			slct = select(max_fd + 1, &w, NULL, NULL, &timeout);
+			if (slct == -1) {
+				perror("select()");
+				goto out_errno;
+			} else if (!slct) {
+				fprintf(stderr, "unexpected timeout\n");
+				errno = -EIO;
+				goto out_errno;
+			}
+
+			recv = recvmsg(fd, &msg, flags);
+			if (recv < 0) {
+				if (errno != EWOULDBLOCK) {
+					perror("recv failed()\n");
+					goto out_errno;
+				}
+			}
+
+			s->bytes_recvd += recv;
+		}
+	}
+
+	for (i = 0; i < iov_count; i++)
+		free(iov[i].iov_base);
+	free(iov);
+	return 0;
+out_errno:
+	for (i = 0; i < iov_count; i++)
+		free(iov[i].iov_base);
+	free(iov);
+	return errno;
+}
+
+static int sendmsg_test(int iov_count, int iov_buf, int cnt, int verbose)
+{
+	struct msg_stats s = {0};
+	int err;
+
+	err = msg_loop(c1, iov_count, iov_buf, cnt, &s, true);
+	if (err) {
+		fprintf(stderr,
+			"msg_loop_tx: iov_count %i iov_buf %i cnt %i err %i\n",
+			iov_count, iov_buf, cnt, err);
+		return err;
+	}
+
+	err = msg_loop(p2, iov_count, iov_buf, cnt, &s, false);
+	if (err)
+		fprintf(stderr,
+			"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
+			iov_count, iov_buf, cnt, err);
+
+	fprintf(stdout, "sendmsg: TX_bytes %zu RX_bytes %zu\n",
+		s.bytes_sent, s.bytes_recvd);
+	return err;
+}
+
 static int forever_ping_pong(int rate, int verbose)
 {
 	struct timeval timeout;
@@ -257,13 +372,19 @@ static int forever_ping_pong(int rate, int verbose)
 	return 0;
 }
 
+enum {
+	PING_PONG,
+	SENDMSG,
+};
+
 int main(int argc, char **argv)
 {
-	int rate = 1, verbose = 0;
+	int iov_count = 1, length = 1024, rate = 1, verbose = 0;
 	int opt, longindex, err, cg_fd = 0;
+	int test = PING_PONG;
 	char filename[256];
 
-	while ((opt = getopt_long(argc, argv, "hvc:r:",
+	while ((opt = getopt_long(argc, argv, "hvc:r:i:l:t:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		/* Cgroup configuration */
@@ -281,6 +402,22 @@ int main(int argc, char **argv)
 			break;
 		case 'v':
 			verbose = 1;
+			break;
+		case 'i':
+			iov_count = atoi(optarg);
+			break;
+		case 'l':
+			length = atoi(optarg);
+			break;
+		case 't':
+			if (strcmp(optarg, "ping") == 0) {
+				test = PING_PONG;
+			} else if (strcmp(optarg, "sendmsg") == 0) {
+				test = SENDMSG;
+			} else {
+				usage(argv);
+				return -1;
+			}
 			break;
 		case 'h':
 		default:
@@ -339,7 +476,12 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	err = forever_ping_pong(rate, verbose);
+	if (test == PING_PONG)
+		err = forever_ping_pong(rate, verbose);
+	else if (test == SENDMSG)
+		err = sendmsg_test(iov_count, length, rate, verbose);
+	else
+		fprintf(stderr, "unknown test\n");
 out:
 	close(s1);
 	close(s2);
