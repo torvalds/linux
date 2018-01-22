@@ -27,6 +27,7 @@
 #include <time.h>
 
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 
 #include <linux/netlink.h>
@@ -447,6 +448,7 @@ enum {
 int main(int argc, char **argv)
 {
 	int iov_count = 1, length = 1024, rate = 1, verbose = 0;
+	struct rlimit r = {10 * 1024 * 1024, RLIM_INFINITY};
 	int opt, longindex, err, cg_fd = 0;
 	int test = PING_PONG;
 	char filename[256];
@@ -499,6 +501,11 @@ int main(int argc, char **argv)
 		fprintf(stderr, "%s requires cgroup option: --cgroup <path>\n",
 			argv[0]);
 		return -1;
+	}
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return 1;
 	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
