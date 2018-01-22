@@ -9,6 +9,7 @@
 #include "cc_request_mgr.h"
 #include "cc_sram_mgr.h"
 #include "cc_ivgen.h"
+#include "cc_hash.h"
 #include "cc_pm.h"
 
 #define POWER_DOWN_ENABLE 0x01
@@ -60,6 +61,9 @@ int cc_pm_resume(struct device *dev)
 		dev_err(dev, "cc_resume_req_queue (%x)\n", rc);
 		return rc;
 	}
+
+	/* must be after the queue resuming as it uses the HW queue*/
+	cc_init_hash_sram(drvdata);
 
 	cc_init_iv_sram(drvdata);
 	return 0;

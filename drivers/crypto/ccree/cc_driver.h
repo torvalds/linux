@@ -113,6 +113,7 @@ struct cc_drvdata {
 	cc_sram_addr_t mlli_sram_addr;
 	void *buff_mgr_handle;
 	void *cipher_handle;
+	void *hash_handle;
 	void *request_mgr_handle;
 	void *ivgen_handle;
 	void *sram_mgr_handle;

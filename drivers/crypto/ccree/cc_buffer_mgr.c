@@ -9,6 +9,7 @@
 #include "cc_buffer_mgr.h"
 #include "cc_lli_defs.h"
 #include "cc_cipher.h"
+#include "cc_hash.h"
 
 enum dma_buffer_type {
 	DMA_NULL_TYPE = -1,
@@ -348,9 +349,33 @@ static int cc_map_sg(struct device *dev, struct scatterlist *sg,
 	return 0;
 }
 
+static int cc_set_hash_buf(struct device *dev, struct ahash_req_ctx *areq_ctx,
+			   u8 *curr_buff, u32 curr_buff_cnt,
+			   struct buffer_array *sg_data)
+{
+	dev_dbg(dev, " handle curr buff %x set to   DLLI\n", curr_buff_cnt);
+	/* create sg for the current buffer */
+	sg_init_one(areq_ctx->buff_sg, curr_buff, curr_buff_cnt);
+	if (dma_map_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE) != 1) {
+		dev_err(dev, "dma_map_sg() src buffer failed\n");
+		return -ENOMEM;
+	}
+	dev_dbg(dev, "Mapped curr_buff: dma_address=%pad page=%p addr=%pK offset=%u length=%u\n",
+		&sg_dma_address(areq_ctx->buff_sg), sg_page(areq_ctx->buff_sg),
+		sg_virt(areq_ctx->buff_sg), areq_ctx->buff_sg->offset,
+		areq_ctx->buff_sg->length);
+	areq_ctx->data_dma_buf_type = CC_DMA_BUF_DLLI;
+	areq_ctx->curr_sg = areq_ctx->buff_sg;
+	areq_ctx->in_nents = 0;
+	/* prepare for case of MLLI */
+	cc_add_sg_entry(dev, sg_data, 1, areq_ctx->buff_sg, curr_buff_cnt, 0,
+			false, NULL);
+	return 0;
+}
+
 void cc_unmap_cipher_request(struct device *dev, void *ctx,
-			     unsigned int ivsize, struct scatterlist *src,
-			     struct scatterlist *dst)
+				unsigned int ivsize, struct scatterlist *src,
+				struct scatterlist *dst)
 {
 	struct cipher_req_ctx *req_ctx = (struct cipher_req_ctx *)ctx;
 
@@ -470,6 +495,238 @@ int cc_map_cipher_request(struct cc_drvdata *drvdata, void *ctx,
 cipher_exit:
 	cc_unmap_cipher_request(dev, req_ctx, ivsize, src, dst);
 	return rc;
+}
+
+int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
+			      struct scatterlist *src, unsigned int nbytes,
+			      bool do_update, gfp_t flags)
+{
+	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
+	struct device *dev = drvdata_to_dev(drvdata);
+	u8 *curr_buff = cc_hash_buf(areq_ctx);
+	u32 *curr_buff_cnt = cc_hash_buf_cnt(areq_ctx);
+	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
+	struct buffer_array sg_data;
+	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
+	u32 dummy = 0;
+	u32 mapped_nents = 0;
+
+	dev_dbg(dev, "final params : curr_buff=%pK curr_buff_cnt=0x%X nbytes = 0x%X src=%pK curr_index=%u\n",
+		curr_buff, *curr_buff_cnt, nbytes, src, areq_ctx->buff_index);
+	/* Init the type of the dma buffer */
+	areq_ctx->data_dma_buf_type = CC_DMA_BUF_NULL;
+	mlli_params->curr_pool = NULL;
+	sg_data.num_of_buffers = 0;
+	areq_ctx->in_nents = 0;
+
+	if (nbytes == 0 && *curr_buff_cnt == 0) {
+		/* nothing to do */
+		return 0;
+	}
+
+	/*TODO: copy data in case that buffer is enough for operation */
+	/* map the previous buffer */
+	if (*curr_buff_cnt) {
+		if (cc_set_hash_buf(dev, areq_ctx, curr_buff, *curr_buff_cnt,
+				    &sg_data)) {
+			return -ENOMEM;
+		}
+	}
+
+	if (src && nbytes > 0 && do_update) {
+		if (cc_map_sg(dev, src, nbytes, DMA_TO_DEVICE,
+			      &areq_ctx->in_nents, LLI_MAX_NUM_OF_DATA_ENTRIES,
+			      &dummy, &mapped_nents)) {
+			goto unmap_curr_buff;
+		}
+		if (src && mapped_nents == 1 &&
+		    areq_ctx->data_dma_buf_type == CC_DMA_BUF_NULL) {
+			memcpy(areq_ctx->buff_sg, src,
+			       sizeof(struct scatterlist));
+			areq_ctx->buff_sg->length = nbytes;
+			areq_ctx->curr_sg = areq_ctx->buff_sg;
+			areq_ctx->data_dma_buf_type = CC_DMA_BUF_DLLI;
+		} else {
+			areq_ctx->data_dma_buf_type = CC_DMA_BUF_MLLI;
+		}
+	}
+
+	/*build mlli */
+	if (areq_ctx->data_dma_buf_type == CC_DMA_BUF_MLLI) {
+		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
+		/* add the src data to the sg_data */
+		cc_add_sg_entry(dev, &sg_data, areq_ctx->in_nents, src, nbytes,
+				0, true, &areq_ctx->mlli_nents);
+		if (cc_generate_mlli(dev, &sg_data, mlli_params, flags))
+			goto fail_unmap_din;
+	}
+	/* change the buffer index for the unmap function */
+	areq_ctx->buff_index = (areq_ctx->buff_index ^ 1);
+	dev_dbg(dev, "areq_ctx->data_dma_buf_type = %s\n",
+		cc_dma_buf_type(areq_ctx->data_dma_buf_type));
+	return 0;
+
+fail_unmap_din:
+	dma_unmap_sg(dev, src, areq_ctx->in_nents, DMA_TO_DEVICE);
+
+unmap_curr_buff:
+	if (*curr_buff_cnt)
+		dma_unmap_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE);
+
+	return -ENOMEM;
+}
+
+int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
+			       struct scatterlist *src, unsigned int nbytes,
+			       unsigned int block_size, gfp_t flags)
+{
+	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
+	struct device *dev = drvdata_to_dev(drvdata);
+	u8 *curr_buff = cc_hash_buf(areq_ctx);
+	u32 *curr_buff_cnt = cc_hash_buf_cnt(areq_ctx);
+	u8 *next_buff = cc_next_buf(areq_ctx);
+	u32 *next_buff_cnt = cc_next_buf_cnt(areq_ctx);
+	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
+	unsigned int update_data_len;
+	u32 total_in_len = nbytes + *curr_buff_cnt;
+	struct buffer_array sg_data;
+	struct buff_mgr_handle *buff_mgr = drvdata->buff_mgr_handle;
+	unsigned int swap_index = 0;
+	u32 dummy = 0;
+	u32 mapped_nents = 0;
+
+	dev_dbg(dev, " update params : curr_buff=%pK curr_buff_cnt=0x%X nbytes=0x%X src=%pK curr_index=%u\n",
+		curr_buff, *curr_buff_cnt, nbytes, src, areq_ctx->buff_index);
+	/* Init the type of the dma buffer */
+	areq_ctx->data_dma_buf_type = CC_DMA_BUF_NULL;
+	mlli_params->curr_pool = NULL;
+	areq_ctx->curr_sg = NULL;
+	sg_data.num_of_buffers = 0;
+	areq_ctx->in_nents = 0;
+
+	if (total_in_len < block_size) {
+		dev_dbg(dev, " less than one block: curr_buff=%pK *curr_buff_cnt=0x%X copy_to=%pK\n",
+			curr_buff, *curr_buff_cnt, &curr_buff[*curr_buff_cnt]);
+		areq_ctx->in_nents =
+			cc_get_sgl_nents(dev, src, nbytes, &dummy, NULL);
+		sg_copy_to_buffer(src, areq_ctx->in_nents,
+				  &curr_buff[*curr_buff_cnt], nbytes);
+		*curr_buff_cnt += nbytes;
+		return 1;
+	}
+
+	/* Calculate the residue size*/
+	*next_buff_cnt = total_in_len & (block_size - 1);
+	/* update data len */
+	update_data_len = total_in_len - *next_buff_cnt;
+
+	dev_dbg(dev, " temp length : *next_buff_cnt=0x%X update_data_len=0x%X\n",
+		*next_buff_cnt, update_data_len);
+
+	/* Copy the new residue to next buffer */
+	if (*next_buff_cnt) {
+		dev_dbg(dev, " handle residue: next buff %pK skip data %u residue %u\n",
+			next_buff, (update_data_len - *curr_buff_cnt),
+			*next_buff_cnt);
+		cc_copy_sg_portion(dev, next_buff, src,
+				   (update_data_len - *curr_buff_cnt),
+				   nbytes, CC_SG_TO_BUF);
+		/* change the buffer index for next operation */
+		swap_index = 1;
+	}
+
+	if (*curr_buff_cnt) {
+		if (cc_set_hash_buf(dev, areq_ctx, curr_buff, *curr_buff_cnt,
+				    &sg_data)) {
+			return -ENOMEM;
+		}
+		/* change the buffer index for next operation */
+		swap_index = 1;
+	}
+
+	if (update_data_len > *curr_buff_cnt) {
+		if (cc_map_sg(dev, src, (update_data_len - *curr_buff_cnt),
+			      DMA_TO_DEVICE, &areq_ctx->in_nents,
+			      LLI_MAX_NUM_OF_DATA_ENTRIES, &dummy,
+			      &mapped_nents)) {
+			goto unmap_curr_buff;
+		}
+		if (mapped_nents == 1 &&
+		    areq_ctx->data_dma_buf_type == CC_DMA_BUF_NULL) {
+			/* only one entry in the SG and no previous data */
+			memcpy(areq_ctx->buff_sg, src,
+			       sizeof(struct scatterlist));
+			areq_ctx->buff_sg->length = update_data_len;
+			areq_ctx->data_dma_buf_type = CC_DMA_BUF_DLLI;
+			areq_ctx->curr_sg = areq_ctx->buff_sg;
+		} else {
+			areq_ctx->data_dma_buf_type = CC_DMA_BUF_MLLI;
+		}
+	}
+
+	if (areq_ctx->data_dma_buf_type == CC_DMA_BUF_MLLI) {
+		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
+		/* add the src data to the sg_data */
+		cc_add_sg_entry(dev, &sg_data, areq_ctx->in_nents, src,
+				(update_data_len - *curr_buff_cnt), 0, true,
+				&areq_ctx->mlli_nents);
+		if (cc_generate_mlli(dev, &sg_data, mlli_params, flags))
+			goto fail_unmap_din;
+	}
+	areq_ctx->buff_index = (areq_ctx->buff_index ^ swap_index);
+
+	return 0;
+
+fail_unmap_din:
+	dma_unmap_sg(dev, src, areq_ctx->in_nents, DMA_TO_DEVICE);
+
+unmap_curr_buff:
+	if (*curr_buff_cnt)
+		dma_unmap_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE);
+
+	return -ENOMEM;
+}
+
+void cc_unmap_hash_request(struct device *dev, void *ctx,
+			   struct scatterlist *src, bool do_revert)
+{
+	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
+	u32 *prev_len = cc_next_buf_cnt(areq_ctx);
+
+	/*In case a pool was set, a table was
+	 *allocated and should be released
+	 */
+	if (areq_ctx->mlli_params.curr_pool) {
+		dev_dbg(dev, "free MLLI buffer: dma=%pad virt=%pK\n",
+			&areq_ctx->mlli_params.mlli_dma_addr,
+			areq_ctx->mlli_params.mlli_virt_addr);
+		dma_pool_free(areq_ctx->mlli_params.curr_pool,
+			      areq_ctx->mlli_params.mlli_virt_addr,
+			      areq_ctx->mlli_params.mlli_dma_addr);
+	}
+
+	if (src && areq_ctx->in_nents) {
+		dev_dbg(dev, "Unmapped sg src: virt=%pK dma=%pad len=0x%X\n",
+			sg_virt(src), &sg_dma_address(src), sg_dma_len(src));
+		dma_unmap_sg(dev, src,
+			     areq_ctx->in_nents, DMA_TO_DEVICE);
+	}
+
+	if (*prev_len) {
+		dev_dbg(dev, "Unmapped buffer: areq_ctx->buff_sg=%pK dma=%pad len 0x%X\n",
+			sg_virt(areq_ctx->buff_sg),
+			&sg_dma_address(areq_ctx->buff_sg),
+			sg_dma_len(areq_ctx->buff_sg));
+		dma_unmap_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE);
+		if (!do_revert) {
+			/* clean the previous data length for update
+			 * operation
+			 */
+			*prev_len = 0;
+		} else {
+			areq_ctx->buff_index ^= 1;
+		}
+	}
 }
 
 int cc_buffer_mgr_init(struct cc_drvdata *drvdata)

@@ -20,6 +20,7 @@
 #include "cc_buffer_mgr.h"
 #include "cc_debugfs.h"
 #include "cc_cipher.h"
+#include "cc_hash.h"
 #include "cc_ivgen.h"
 #include "cc_sram_mgr.h"
 #include "cc_pm.h"
@@ -286,8 +287,17 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_ivgen_err;
 	}
 
+	/* hash must be allocated before aead since hash exports APIs */
+	rc = cc_hash_alloc(new_drvdata);
+	if (rc) {
+		dev_err(dev, "cc_hash_alloc failed\n");
+		goto post_cipher_err;
+	}
+
 	return 0;
 
+post_cipher_err:
+	cc_cipher_free(new_drvdata);
 post_ivgen_err:
 	cc_ivgen_fini(new_drvdata);
 post_power_mgr_err:
@@ -318,6 +328,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	struct cc_drvdata *drvdata =
 		(struct cc_drvdata *)platform_get_drvdata(plat_dev);
 
+	cc_hash_free(drvdata);
 	cc_cipher_free(drvdata);
 	cc_ivgen_fini(drvdata);
 	cc_pm_fini(drvdata);
@@ -405,6 +416,8 @@ static struct platform_driver ccree_driver = {
 static int __init ccree_init(void)
 {
 	int ret;
+
+	cc_hash_global_init();
 
 	ret = cc_debugfs_global_init();
 	if (ret)
