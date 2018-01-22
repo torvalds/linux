@@ -58,6 +58,8 @@
 #define I2C_ADDR_7BITS_MAX	0x77
 #define I2C_ADDR_7BITS_COUNT	(I2C_ADDR_7BITS_MAX + 1)
 
+#define I2C_ADDR_DEVICE_ID	0x7c
+
 /*
  * core_lock protects i2c_adapter_idr, and guarantees that device detection,
  * deletion of detected devices, and attach_adapter calls are serialized
@@ -1967,6 +1969,37 @@ int i2c_transfer_buffer_flags(const struct i2c_client *client, char *buf,
 	return (ret == 1) ? count : ret;
 }
 EXPORT_SYMBOL(i2c_transfer_buffer_flags);
+
+/**
+ * i2c_get_device_id - get manufacturer, part id and die revision of a device
+ * @client: The device to query
+ * @id: The queried information
+ *
+ * Returns negative errno on error, zero on success.
+ */
+int i2c_get_device_id(const struct i2c_client *client,
+		      struct i2c_device_identity *id)
+{
+	struct i2c_adapter *adap = client->adapter;
+	union i2c_smbus_data raw_id;
+	int ret;
+
+	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_READ_I2C_BLOCK))
+		return -EOPNOTSUPP;
+
+	raw_id.block[0] = 3;
+	ret = i2c_smbus_xfer(adap, I2C_ADDR_DEVICE_ID, 0,
+			     I2C_SMBUS_READ, client->addr << 1,
+			     I2C_SMBUS_I2C_BLOCK_DATA, &raw_id);
+	if (ret)
+		return ret;
+
+	id->manufacturer_id = (raw_id.block[1] << 4) | (raw_id.block[2] >> 4);
+	id->part_id = ((raw_id.block[2] & 0xf) << 5) | (raw_id.block[3] >> 3);
+	id->die_revision = raw_id.block[3] & 0x7;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i2c_get_device_id);
 
 /* ----------------------------------------------------
  * the i2c address scanning function
