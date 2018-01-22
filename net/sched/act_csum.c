@@ -67,7 +67,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 
 	if (!tcf_idr_check(tn, parm->index, a, bind)) {
 		ret = tcf_idr_create(tn, parm->index, est, a,
-				     &act_csum_ops, bind, false);
+				     &act_csum_ops, bind, true);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
@@ -542,9 +542,9 @@ static int tcf_csum(struct sk_buff *skb, const struct tc_action *a,
 	int action;
 	u32 update_flags;
 
-	spin_lock(&p->tcf_lock);
 	tcf_lastuse_update(&p->tcf_tm);
-	bstats_update(&p->tcf_bstats, skb);
+	bstats_cpu_update(this_cpu_ptr(p->common.cpu_bstats), skb);
+	spin_lock(&p->tcf_lock);
 	action = p->tcf_action;
 	update_flags = p->update_flags;
 	spin_unlock(&p->tcf_lock);
@@ -566,9 +566,7 @@ static int tcf_csum(struct sk_buff *skb, const struct tc_action *a,
 	return action;
 
 drop:
-	spin_lock(&p->tcf_lock);
-	p->tcf_qstats.drops++;
-	spin_unlock(&p->tcf_lock);
+	qstats_drop_inc(this_cpu_ptr(p->common.cpu_qstats));
 	return TC_ACT_SHOT;
 }
 
