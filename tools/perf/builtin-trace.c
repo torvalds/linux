@@ -56,6 +56,7 @@
 #include <linux/random.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
+#include <fcntl.h>
 
 #include "sane_ctype.h"
 

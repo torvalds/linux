@@ -26,6 +26,9 @@
 #include <sys/timerfd.h>
 #endif
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <linux/kernel.h>
 #include <linux/time64.h>
