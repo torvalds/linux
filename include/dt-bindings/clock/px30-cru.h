@@ -295,8 +295,8 @@
 #define SRST_NANDC_H		89
 #define SRST_NANDC		90
 #define SRST_GMAC_NIU_A		92
-#define SRST_GAMC_NIU_P		93
-#define SRST_GAMC_A		94
+#define SRST_GMAC_NIU_P		93
+#define SRST_GMAC_A		94
 
 #define SRST_PMU_NIU_P		96
 #define SRST_PMU_SGRF_P		97
