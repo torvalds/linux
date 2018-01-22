@@ -336,6 +336,18 @@ struct iwl_mvm_vif_bf_data {
 };
 
 /**
+ * struct iwl_probe_resp_data - data for NoA/CSA updates
+ * @rcu_head: used for freeing the data on update
+ * @notif: notification data
+ * @noa_len: length of NoA attribute, calculated from the notification
+ */
+struct iwl_probe_resp_data {
+	struct rcu_head rcu_head;
+	struct iwl_probe_resp_data_notif notif;
+	int noa_len;
+};
+
+/**
  * struct iwl_mvm_vif - data per Virtual Interface, it is a MAC context
  * @id: between 0 and 3
  * @color: to solve races upon MAC addition and removal
@@ -365,6 +377,8 @@ struct iwl_mvm_vif_bf_data {
  *	average signal of beacons retrieved from the firmware
  * @csa_failed: CSA failed to schedule time event, report an error later
  * @features: hw features active for this vif
+ * @probe_resp_data: data from FW notification to store NOA and CSA related
+ *	data to be inserted into probe response.
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -460,6 +474,8 @@ struct iwl_mvm_vif {
 
 	/* TCP Checksum Offload */
 	netdev_features_t features;
+
+	struct iwl_probe_resp_data __rcu *probe_resp_data;
 };
 
 static inline struct iwl_mvm_vif *
@@ -1602,6 +1618,8 @@ void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
 unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *exclude_vif);
+void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
+				   struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb);
 /* Bindings */

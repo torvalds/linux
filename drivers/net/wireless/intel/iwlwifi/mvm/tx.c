@@ -626,6 +626,66 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 	}
 }
 
+static void iwl_mvm_probe_resp_set_noa(struct iwl_mvm *mvm,
+				       struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct iwl_mvm_vif *mvmvif =
+		iwl_mvm_vif_from_mac80211(info->control.vif);
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
+	int base_len = (u8 *)mgmt->u.probe_resp.variable - (u8 *)mgmt;
+	struct iwl_probe_resp_data *resp_data;
+	u8 *ie, *pos;
+	u8 match[] = {
+		(WLAN_OUI_WFA >> 16) & 0xff,
+		(WLAN_OUI_WFA >> 8) & 0xff,
+		WLAN_OUI_WFA & 0xff,
+		WLAN_OUI_TYPE_WFA_P2P,
+	};
+
+	rcu_read_lock();
+
+	resp_data = rcu_dereference(mvmvif->probe_resp_data);
+	if (!resp_data)
+		goto out;
+
+	if (!resp_data->notif.noa_active)
+		goto out;
+
+	ie = (u8 *)cfg80211_find_ie_match(WLAN_EID_VENDOR_SPECIFIC,
+					  mgmt->u.probe_resp.variable,
+					  skb->len - base_len,
+					  match, 4, 2);
+	if (!ie) {
+		IWL_DEBUG_TX(mvm, "probe resp doesn't have P2P IE\n");
+		goto out;
+	}
+
+	if (skb_tailroom(skb) < resp_data->noa_len) {
+		if (pskb_expand_head(skb, 0, resp_data->noa_len, GFP_ATOMIC)) {
+			IWL_ERR(mvm,
+				"Failed to reallocate probe resp\n");
+			goto out;
+		}
+	}
+
+	pos = skb_put(skb, resp_data->noa_len);
+
+	*pos++ = WLAN_EID_VENDOR_SPECIFIC;
+	/* Set length of IE body (not including ID and length itself) */
+	*pos++ = resp_data->noa_len - 2;
+	*pos++ = (WLAN_OUI_WFA >> 16) & 0xff;
+	*pos++ = (WLAN_OUI_WFA >> 8) & 0xff;
+	*pos++ = WLAN_OUI_WFA & 0xff;
+	*pos++ = WLAN_OUI_TYPE_WFA_P2P;
+
+	memcpy(pos, &resp_data->notif.noa_attr,
+	       resp_data->noa_len - sizeof(struct ieee80211_vendor_ie));
+
+out:
+	rcu_read_unlock();
+}
+
 int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -634,6 +694,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	struct iwl_device_cmd *dev_cmd;
 	u8 sta_id;
 	int hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 	int queue;
 
 	/* IWL_MVM_OFFCHANNEL_QUEUE is used for ROC packets that can be used
@@ -694,6 +755,9 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			sta_id = mvm->snif_sta.sta_id;
 		}
 	}
+
+	if (unlikely(ieee80211_is_probe_resp(fc)))
+		iwl_mvm_probe_resp_set_noa(mvm, skb);
 
 	IWL_DEBUG_TX(mvm, "station Id %d, queue=%d\n", sta_id, queue);
 
@@ -1015,6 +1079,9 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_INVALID_STA))
 		return -1;
+
+	if (unlikely(ieee80211_is_probe_resp(fc)))
+		iwl_mvm_probe_resp_set_noa(mvm, skb);
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, info, hdrlen,
 					sta, mvmsta->sta_id);
