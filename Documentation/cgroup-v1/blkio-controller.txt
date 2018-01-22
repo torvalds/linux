@@ -29,7 +29,7 @@ cgroups. Here is what you can do.
 	CONFIG_CFQ_GROUP_IOSCHED=y
 
 - Compile and boot into kernel and mount IO controller (blkio); see
-  cgroups.txt, Why are cgroups needed?.
+  cgroups.txt, Why are cgroups needed?
 
 	mount -t tmpfs cgroup_root /sys/fs/cgroup
 	mkdir /sys/fs/cgroup/blkio
@@ -95,7 +95,7 @@ Hierarchical Cgroups
 ====================
 
 Both CFQ and throttling implement hierarchy support; however,
-throttling's hierarchy support is enabled iff "sane_behavior" is
+throttling's hierarchy support is enabled if "sane_behavior" is
 enabled from cgroup side, which currently is a development option and
 not publicly available.
 
@@ -181,13 +181,13 @@ Proportional weight policy files
           please refer to Documentation/block/cfq-iosched.txt.
 
 - blkio.time
-	- disk time allocated to cgroup per device in milliseconds. First
+	- Disk time allocated to cgroup per device in milliseconds. First
 	  two fields specify the major and minor number of the device and
 	  third field specifies the disk time allocated to group in
 	  milliseconds.
 
 - blkio.sectors
-	- number of sectors transferred to/from disk by the group. First
+	- Number of sectors transferred to/from disk by the group. First
 	  two fields specify the major and minor number of the device and
 	  third field specifies the number of sectors transferred by the
 	  group to/from the device.
@@ -282,7 +282,7 @@ Proportional weight policy files
 
 - blkio.dequeue
 	- Debugging aid only enabled if CONFIG_DEBUG_BLK_CGROUP=y. This
-	  gives the statistics about how many a times a group was dequeued
+	  gives the statistics about how many times a group was dequeued
 	  from service tree of the device. First two fields specify the major
 	  and minor number of the device and third field specifies the number
 	  of times a group was dequeued from a particular device.
