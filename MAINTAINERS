@@ -10641,11 +10641,9 @@ S:	Maintained
 F:	drivers/pci/dwc/*spear*
 
 PCMCIA SUBSYSTEM
-P:	Linux PCMCIA Team
-L:	linux-pcmcia@lists.infradead.org
-W:	http://lists.infradead.org/mailman/listinfo/linux-pcmcia
+M:	Dominik Brodowski <linux@dominikbrodowski.net>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brodo/pcmcia.git
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/pcmcia/
 F:	tools/pcmcia/
 F:	drivers/pcmcia/
