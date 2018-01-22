@@ -141,7 +141,6 @@ int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 				     int layer, struct drm_plane *plane)
 {
 	struct drm_plane_state *state = plane->state;
-	struct drm_framebuffer *fb = state->fb;
 
 	DRM_DEBUG_DRIVER("Updating layer %d\n", layer);
 
@@ -152,12 +151,6 @@ int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 			     SUN4I_BACKEND_DISSIZE(state->crtc_w,
 						   state->crtc_h));
 	}
-
-	/* Set the line width */
-	DRM_DEBUG_DRIVER("Layer line width: %d bits\n", fb->pitches[0] * 8);
-	regmap_write(backend->engine.regs,
-		     SUN4I_BACKEND_LAYLINEWIDTH_REG(layer),
-		     fb->pitches[0] * 8);
 
 	/* Set height and width */
 	DRM_DEBUG_DRIVER("Layer size W: %u H: %u\n",
@@ -217,6 +210,12 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	struct drm_framebuffer *fb = state->fb;
 	u32 lo_paddr, hi_paddr;
 	dma_addr_t paddr;
+
+	/* Set the line width */
+	DRM_DEBUG_DRIVER("Layer line width: %d bits\n", fb->pitches[0] * 8);
+	regmap_write(backend->engine.regs,
+		     SUN4I_BACKEND_LAYLINEWIDTH_REG(layer),
+		     fb->pitches[0] * 8);
 
 	/* Get the start of the displayed memory */
 	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
