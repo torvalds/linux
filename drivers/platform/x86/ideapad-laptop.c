@@ -284,19 +284,7 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int debugfs_status_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debugfs_status_show, inode->i_private);
-}
-
-static const struct file_operations debugfs_status_fops = {
-	.owner = THIS_MODULE,
-	.open = debugfs_status_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(debugfs_status);
 
 static int debugfs_cfg_show(struct seq_file *s, void *data)
 {
@@ -337,19 +325,7 @@ static int debugfs_cfg_show(struct seq_file *s, void *data)
 	}
 	return 0;
 }
-
-static int debugfs_cfg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debugfs_cfg_show, inode->i_private);
-}
-
-static const struct file_operations debugfs_cfg_fops = {
-	.owner = THIS_MODULE,
-	.open = debugfs_cfg_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(debugfs_cfg);
 
 static int ideapad_debugfs_init(struct ideapad_private *priv)
 {
