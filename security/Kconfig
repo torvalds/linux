@@ -40,6 +40,16 @@ config SECURITY
 
 	  If you are unsure how to answer this question, answer N.
 
+config PAGE_TABLE_ISOLATION
+	bool "Remove the kernel mapping in user mode"
+	default y
+	depends on X86_64 && SMP
+	help
+	  This enforces a strict kernel and user space isolation, in order
+	  to close hardware side channels on kernel address information.
+
+	  If you are unsure how to answer this question, answer Y.
+
 config SECURITYFS
 	bool "Enable the securityfs filesystem"
 	help

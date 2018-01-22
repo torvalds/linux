@@ -9,6 +9,7 @@
  */
 #undef CONFIG_PARAVIRT
 #undef CONFIG_PARAVIRT_SPINLOCKS
+#undef CONFIG_PAGE_TABLE_ISOLATION
 #undef CONFIG_KASAN
 
 #include <linux/linkage.h>

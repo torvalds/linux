@@ -541,6 +541,7 @@ static int ksz9031_read_status(struct phy_device *phydev)
 		phydev->link = 0;
 		if (phydev->drv->config_intr && phy_interrupt_is_valid(phydev))
 			phydev->drv->config_intr(phydev);
+		return genphy_config_aneg(phydev);
 	}
 
 	return 0;

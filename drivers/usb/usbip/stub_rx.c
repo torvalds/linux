@@ -230,9 +230,6 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 		if (priv->seqnum != pdu->u.cmd_unlink.seqnum)
 			continue;
 
-		dev_info(&priv->urb->dev->dev, "unlink urb %p\n",
-			 priv->urb);
-
 		/*
 		 * This matched urb is not completed yet (i.e., be in
 		 * flight in usb hcd hardware/driver). Now we are
@@ -271,8 +268,8 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 		ret = usb_unlink_urb(priv->urb);
 		if (ret != -EINPROGRESS)
 			dev_err(&priv->urb->dev->dev,
-				"failed to unlink a urb %p, ret %d\n",
-				priv->urb, ret);
+				"failed to unlink a urb # %lu, ret %d\n",
+				priv->seqnum, ret);
 
 		return 0;
 	}

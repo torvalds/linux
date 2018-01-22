@@ -994,9 +994,17 @@ static bool is_blacklisted(unsigned int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-	if (c->x86 == 6 && c->x86_model == 79) {
-		pr_err_once("late loading on model 79 is disabled.\n");
-		return true;
+	/*
+	 * Late loading on model 79 with microcode revision less than 0x0b000021
+	 * may result in a system hang. This behavior is documented in item
+	 * BDF90, #334165 (Intel Xeon Processor E7-8800/4800 v4 Product Family).
+	 */
+	if (c->x86 == 6 &&
+	    c->x86_model == 79 &&
+	    c->x86_mask == 0x01 &&
+	    c->microcode < 0x0b000021) {
+		pr_err_once("Erratum BDF90: late loading with revision < 0x0b000021 (0x%x) disabled.\n", c->microcode);
+		pr_err_once("Please consider either early loading through initrd/built-in or a potential BIOS update.\n");
 	}
 
 	return false;

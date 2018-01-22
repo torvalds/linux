@@ -58,6 +58,7 @@
 #include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
 #include <linux/freezer.h>
+#include <linux/kaiser.h>
 #include <linux/delayacct.h>
 #include <linux/taskstats_kern.h>
 #include <linux/random.h>
@@ -171,6 +172,7 @@ static inline void free_thread_stack(unsigned long *stack)
 {
 	struct page *page = virt_to_page(stack);
 
+	kaiser_unmap_thread_stack(stack);
 	__free_kmem_pages(page, THREAD_SIZE_ORDER);
 }
 # else
@@ -354,6 +356,10 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 		goto free_stack;
 
 	tsk->stack = stack;
+
+	err = kaiser_map_thread_stack(tsk->stack);
+	if (err)
+		goto free_stack;
 #ifdef CONFIG_SECCOMP
 	/*
 	 * We must handle setting up seccomp filters once we're under
