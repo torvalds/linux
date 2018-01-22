@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
+if [ -n "$LKL_HOST_CONFIG_BSD" ]; then
+TEST_TAP_IFNAME=tap
+else
 TEST_TAP_IFNAME=lkl_test_tap
+fi
 TEST_IP_NETWORK=192.168.113.0
 TEST_IP_NETMASK=24
 TEST_IP6_NETWORK=fc03::0
@@ -94,6 +98,15 @@ tap_prepare()
 
 tap_setup()
 {
+    if [ -n "$LKL_HOST_CONFIG_BSD" ]; then
+        lkl_test_cmd sudo ifconfig tap create
+        lkl_test_cmd sudo sysctl net.link.tap.up_on_open=1
+        lkl_test_cmd sudo sysctl net.link.tap.user_open=1
+        lkl_test_cmd sudo ifconfig $(tap_ifname) $(ip_host)
+        lkl_test_cmd sudo ifconfig $(tap_ifname) inet6 $(ip6_host)
+        return
+    fi
+
     lkl_test_cmd sudo ip tuntap add dev $(tap_ifname $1) mode tap user $TAP_USER
     lkl_test_cmd sudo ip link set dev $(tap_ifname $1) up
     lkl_test_cmd sudo ip addr add dev $(tap_ifname $1) $(ip_host_mask $1)
@@ -110,6 +123,11 @@ tap_setup()
 
 tap_cleanup()
 {
+    if [ -n "$LKL_HOST_CONFIG_BSD" ]; then
+        lkl_test_cmd sudo ifconfig $(tap_ifname) destroy
+        return
+    fi
+
     lkl_test_cmd sudo ip link set dev $(tap_ifname $1) down
     lkl_test_cmd sudo ip tuntap del dev $(tap_ifname $1) mode tap
 }
