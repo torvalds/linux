@@ -296,6 +296,17 @@ static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
 	return sun4i_backend_plane_uses_scaler(state);
 }
 
+static void sun4i_backend_atomic_begin(struct sunxi_engine *engine,
+				       struct drm_crtc_state *old_state)
+{
+	u32 val;
+
+	WARN_ON(regmap_read_poll_timeout(engine->regs,
+					 SUN4I_BACKEND_REGBUFFCTL_REG,
+					 val, !(val & SUN4I_BACKEND_REGBUFFCTL_LOADCTL),
+					 100, 50000));
+}
+
 static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 				      struct drm_crtc_state *crtc_state)
 {
@@ -478,6 +489,7 @@ static struct sun4i_frontend *sun4i_backend_find_frontend(struct sun4i_drv *drv,
 }
 
 static const struct sunxi_engine_ops sun4i_backend_engine_ops = {
+	.atomic_begin			= sun4i_backend_atomic_begin,
 	.atomic_check			= sun4i_backend_atomic_check,
 	.commit				= sun4i_backend_commit,
 	.layers_init			= sun4i_layers_init,
