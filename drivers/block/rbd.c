@@ -2124,15 +2124,13 @@ static struct rbd_img_request *rbd_img_request_create(
 {
 	struct rbd_img_request *img_request;
 
-	img_request = kmem_cache_alloc(rbd_img_request_cache, GFP_NOIO);
+	img_request = kmem_cache_zalloc(rbd_img_request_cache, GFP_NOIO);
 	if (!img_request)
 		return NULL;
 
-	img_request->rq = NULL;
 	img_request->rbd_dev = rbd_dev;
 	img_request->offset = offset;
 	img_request->length = length;
-	img_request->flags = 0;
 	if (op_type == OBJ_OP_DISCARD) {
 		img_request_discard_set(img_request);
 		img_request->snapc = snapc;
@@ -2144,11 +2142,8 @@ static struct rbd_img_request *rbd_img_request_create(
 	}
 	if (rbd_dev_parent_get(rbd_dev))
 		img_request_layered_set(img_request);
+
 	spin_lock_init(&img_request->completion_lock);
-	img_request->next_completion = 0;
-	img_request->callback = NULL;
-	img_request->result = 0;
-	img_request->obj_request_count = 0;
 	INIT_LIST_HEAD(&img_request->obj_requests);
 	kref_init(&img_request->kref);
 
