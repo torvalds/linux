@@ -90,6 +90,12 @@
 #define SCLK_CORE_VPU		75
 #define SCLK_GMAC_RMII		76
 #define SCLK_UART2_SRC		77
+#define SCLK_NANDC_DIV		78
+#define SCLK_NANDC_DIV50	79
+#define SCLK_SDIO_DIV		80
+#define SCLK_SDIO_DIV50		81
+#define SCLK_EMMC_DIV		82
+#define SCLK_EMMC_DIV50		83
 
 /* dclk gates */
 #define DCLK_VOPB		150

@@ -142,8 +142,8 @@ PNAME(mux_gpll_cpll_p)		= { "gpll", "cpll" };
 PNAME(mux_gpll_npll_p)		= { "gpll", "npll" };
 PNAME(mux_gpll_xin24m_p)		= { "gpll", "xin24m"};
 PNAME(mux_gpll_cpll_npll_p)		= { "gpll", "cpll", "npll" };
-PNAME(mux_gpll_cpll_npll_xin24m_p)	= { "gpll", "cpll", "npll" };
-PNAME(mux_gpll_xin24m_npll_p)		= { "gpll", "xin24m", "npll", "xin24m" };
+PNAME(mux_gpll_cpll_npll_xin24m_p)	= { "gpll", "cpll", "npll", "xin24m" };
+PNAME(mux_gpll_xin24m_npll_p)		= { "gpll", "xin24m", "npll"};
 PNAME(mux_pdm_p)		= { "clk_pdm_src", "clk_pdm_frac" };
 PNAME(mux_i2s0_tx_p)		= { "clk_i2s0_tx_src", "clk_i2s0_tx_frac", "mclk_i2s0_tx_in", "xin12m"};
 PNAME(mux_i2s0_rx_p)		= { "clk_i2s0_rx_src", "clk_i2s0_rx_frac", "mclk_i2s0_rx_in", "xin12m"};
@@ -494,37 +494,37 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 			PX30_CLKGATE_CON(6), 0, GFLAGS),
 	MUX(0, "clk_nandc_src", mux_gpll_cpll_npll_p,  0,
 			PX30_CLKSEL_CON(15), 6, 2, MFLAGS),
-	COMPOSITE_NOMUX(0, "clk_nandc_div", "clk_nandc_src", 0,
+	COMPOSITE_NOMUX(SCLK_NANDC_DIV, "clk_nandc_div", "clk_nandc_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(15), 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(5), 11, GFLAGS),
-	COMPOSITE_NOMUX(0, "clk_nandc_div50", "clk_nandc_src", 0,
+	COMPOSITE_NOMUX(SCLK_NANDC_DIV50, "clk_nandc_div50", "clk_nandc_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(15), 8, 5, DFLAGS,
 			PX30_CLKGATE_CON(5), 12, GFLAGS),
-	COMPOSITE_NODIV(SCLK_NANDC, "clk_nandc", mux_nandc_p, CLK_SET_RATE_PARENT,
+	COMPOSITE_NODIV(SCLK_NANDC, "clk_nandc", mux_nandc_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			PX30_CLKSEL_CON(15), 15, 1, MFLAGS,
 			PX30_CLKGATE_CON(5), 13, GFLAGS),
 
 	MUX(0, "clk_sdio_src", mux_gpll_cpll_npll_xin24m_p,  0,
 			PX30_CLKSEL_CON(18), 14, 2, MFLAGS),
-	COMPOSITE_NOMUX(0, "clk_sdio_div", "clk_sdio_src", 0,
+	COMPOSITE_NOMUX(SCLK_SDIO_DIV, "clk_sdio_div", "clk_sdio_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(18), 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(6), 1, GFLAGS),
-	COMPOSITE_NOMUX(0, "clk_sdio_div50", "clk_sdio_src", 0,
+	COMPOSITE_NOMUX(SCLK_SDIO_DIV50, "clk_sdio_div50", "clk_sdio_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(19), 0, 8, DFLAGS,
 			PX30_CLKGATE_CON(6), 2, GFLAGS),
-	COMPOSITE_NODIV(SCLK_SDIO, "clk_sdio", mux_sdio_p, CLK_SET_RATE_PARENT,
+	COMPOSITE_NODIV(SCLK_SDIO, "clk_sdio", mux_sdio_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			PX30_CLKSEL_CON(19), 15, 1, MFLAGS,
 			PX30_CLKGATE_CON(6), 3, GFLAGS),
 
 	MUX(0, "clk_emmc_src", mux_gpll_cpll_npll_xin24m_p,  0,
 			PX30_CLKSEL_CON(20), 14, 2, MFLAGS),
-	COMPOSITE_NOMUX(0, "clk_emmc_div", "clk_emmc_src", 0,
+	COMPOSITE_NOMUX(SCLK_EMMC_DIV, "clk_emmc_div", "clk_emmc_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(20), 0, 8, DFLAGS,
 			PX30_CLKGATE_CON(6), 4, GFLAGS),
-	COMPOSITE_NOMUX(0, "clk_emmc_div50", "clk_emmc_src", 0,
+	COMPOSITE_NOMUX(SCLK_EMMC_DIV50, "clk_emmc_div50", "clk_emmc_src", CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(21), 0, 8, DFLAGS,
 			PX30_CLKGATE_CON(6), 5, GFLAGS),
-	COMPOSITE_NODIV(SCLK_EMMC, "clk_emmc", mux_emmc_p, CLK_SET_RATE_PARENT,
+	COMPOSITE_NODIV(SCLK_EMMC, "clk_emmc", mux_emmc_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			PX30_CLKSEL_CON(21), 15, 1, MFLAGS,
 			PX30_CLKGATE_CON(6), 6, GFLAGS),
 
