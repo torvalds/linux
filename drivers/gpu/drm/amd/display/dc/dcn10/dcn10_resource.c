@@ -152,7 +152,10 @@ enum dcn10_clk_src_array_id {
 	DCN10_CLK_SRC_PLL1,
 	DCN10_CLK_SRC_PLL2,
 	DCN10_CLK_SRC_PLL3,
-	DCN10_CLK_SRC_TOTAL
+	DCN10_CLK_SRC_TOTAL,
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	DCN101_CLK_SRC_TOTAL = DCN10_CLK_SRC_PLL3
+#endif
 };
 
 /* begin *********************
@@ -1163,6 +1166,10 @@ static bool construct(
 	/* max pipe num for ASIC before check pipe fuses */
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (dc->ctx->dce_version == DCN_VERSION_1_01)
+		pool->base.pipe_count = 3;
+#endif
 	dc->caps.max_video_width = 3840;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
@@ -1194,12 +1201,27 @@ static bool construct(
 			dcn10_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL2,
 				&clk_src_regs[2], false);
+
+#ifdef CONFIG_DRM_AMD_DC_DCN1_01
+	if (dc->ctx->dce_version == DCN_VERSION_1_0) {
+		pool->base.clock_sources[DCN10_CLK_SRC_PLL3] =
+				dcn10_clock_source_create(ctx, ctx->dc_bios,
+					CLOCK_SOURCE_COMBO_PHY_PLL3,
+					&clk_src_regs[3], false);
+	}
+#else
 	pool->base.clock_sources[DCN10_CLK_SRC_PLL3] =
 			dcn10_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL3,
 				&clk_src_regs[3], false);
+#endif
 
 	pool->base.clk_src_count = DCN10_CLK_SRC_TOTAL;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (dc->ctx->dce_version == DCN_VERSION_1_01)
+		pool->base.clk_src_count = DCN101_CLK_SRC_TOTAL;
+#endif
 
 	pool->base.dp_clock_source =
 			dcn10_clock_source_create(ctx, ctx->dc_bios,
@@ -1246,6 +1268,18 @@ static bool construct(
 	memcpy(dc->dcn_ip, &dcn10_ip_defaults, sizeof(dcn10_ip_defaults));
 	memcpy(dc->dcn_soc, &dcn10_soc_defaults, sizeof(dcn10_soc_defaults));
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (dc->ctx->dce_version == DCN_VERSION_1_01) {
+		struct dcn_soc_bounding_box *dcn_soc = dc->dcn_soc;
+		struct dcn_ip_params *dcn_ip = dc->dcn_ip;
+		struct display_mode_lib *dml = &dc->dml;
+
+		dml->ip.max_num_dpp = 3;
+		/* TODO how to handle 23.84? */
+		dcn_soc->dram_clock_change_latency = 23;
+		dcn_ip->max_num_dpp = 3;
+	}
+#endif
 	if (ASICREV_IS_RV1_F0(dc->ctx->asic_id.hw_internal_rev)) {
 		dc->dcn_soc->urgent_latency = 3;
 		dc->debug.disable_dmcu = true;

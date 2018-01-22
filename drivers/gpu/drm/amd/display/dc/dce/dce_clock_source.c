@@ -601,6 +601,9 @@ static uint32_t dce110_get_pix_clk_dividers(
 	case DCN_VERSION_1_0:
 #endif
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	case DCN_VERSION_1_01:
+#endif
 		dce112_get_pix_clk_dividers_helper(clk_src,
 				pll_settings, pix_clk_params);
 		break;
@@ -905,6 +908,10 @@ static bool dce110_program_pix_clk(
 	case DCE_VERSION_12_0:
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	case DCN_VERSION_1_01:
 #endif
 
 		if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
