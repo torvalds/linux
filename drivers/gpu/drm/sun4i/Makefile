@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 sun4i-backend-y			+= sun4i_backend.o sun4i_layer.o
+sun4i-frontend-y		+= sun4i_frontend.o
 
 sun4i-drm-y			+= sun4i_drv.o
 sun4i-drm-y			+= sun4i_framebuffer.o
@@ -24,6 +25,6 @@ obj-$(CONFIG_DRM_SUN4I)		+= sun4i-tcon.o
 obj-$(CONFIG_DRM_SUN4I)		+= sun4i_tv.o
 obj-$(CONFIG_DRM_SUN4I)		+= sun6i_drc.o
 
-obj-$(CONFIG_DRM_SUN4I_BACKEND)	+= sun4i-backend.o
+obj-$(CONFIG_DRM_SUN4I_BACKEND)	+= sun4i-backend.o sun4i-frontend.o
 obj-$(CONFIG_DRM_SUN4I_HDMI)	+= sun4i-drm-hdmi.o
 obj-$(CONFIG_DRM_SUN8I_MIXER)	+= sun8i-mixer.o
