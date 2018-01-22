@@ -298,18 +298,24 @@ static inline float recvdBps(struct msg_stats s)
 	return s.bytes_recvd / (s.end.tv_sec - s.start.tv_sec);
 }
 
-static int sendmsg_test(int iov_count, int iov_buf, int cnt, int verbose)
+static int sendmsg_test(int iov_count, int iov_buf, int cnt,
+			int verbose, bool base)
 {
-	int txpid, rxpid, err = 0;
+	float sent_Bps = 0, recvd_Bps = 0;
+	int rx_fd, txpid, rxpid, err = 0;
 	struct msg_stats s = {0};
 	int status;
-	float sent_Bps = 0, recvd_Bps = 0;
 
 	errno = 0;
 
+	if (base)
+		rx_fd = p1;
+	else
+		rx_fd = p2;
+
 	rxpid = fork();
 	if (rxpid == 0) {
-		err = msg_loop(p2, iov_count, iov_buf, cnt, &s, false);
+		err = msg_loop(rx_fd, iov_count, iov_buf, cnt, &s, false);
 		if (err)
 			fprintf(stderr,
 				"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
@@ -435,6 +441,7 @@ static int forever_ping_pong(int rate, int verbose)
 enum {
 	PING_PONG,
 	SENDMSG,
+	BASE,
 };
 
 int main(int argc, char **argv)
@@ -474,6 +481,8 @@ int main(int argc, char **argv)
 				test = PING_PONG;
 			} else if (strcmp(optarg, "sendmsg") == 0) {
 				test = SENDMSG;
+			} else if (strcmp(optarg, "base") == 0) {
+				test = BASE;
 			} else {
 				usage(argv);
 				return -1;
@@ -498,6 +507,10 @@ int main(int argc, char **argv)
 
 	/* catch SIGINT */
 	signal(SIGINT, running_handler);
+
+	/* If base test skip BPF setup */
+	if (test == BASE)
+		goto run;
 
 	if (load_bpf_file(filename)) {
 		fprintf(stderr, "load_bpf_file: (%s) %s\n",
@@ -530,6 +543,7 @@ int main(int argc, char **argv)
 		return err;
 	}
 
+run:
 	err = sockmap_init_sockets();
 	if (err) {
 		fprintf(stderr, "ERROR: test socket failed: %d\n", err);
@@ -539,7 +553,9 @@ int main(int argc, char **argv)
 	if (test == PING_PONG)
 		err = forever_ping_pong(rate, verbose);
 	else if (test == SENDMSG)
-		err = sendmsg_test(iov_count, length, rate, verbose);
+		err = sendmsg_test(iov_count, length, rate, verbose, false);
+	else if (test == BASE)
+		err = sendmsg_test(iov_count, length, rate, verbose, true);
 	else
 		fprintf(stderr, "unknown test\n");
 out:
