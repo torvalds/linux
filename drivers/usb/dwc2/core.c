@@ -450,12 +450,15 @@ static void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg)
 	u32 gusbcfg;
 
 	gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
-	gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
-	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
 
-	if (dwc2_iddig_filter_enabled(hsotg))
-		msleep(100);
+	if (gusbcfg & (GUSBCFG_FORCEHOSTMODE | GUSBCFG_FORCEDEVMODE)) {
+		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
+		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
+		dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
+
+		if (dwc2_iddig_filter_enabled(hsotg))
+			msleep(100);
+	}
 }
 
 /*
