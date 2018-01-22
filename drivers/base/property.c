@@ -742,34 +742,24 @@ static int property_entry_copy_data(struct property_entry *dst,
 {
 	int error;
 
-	dst->name = kstrdup(src->name, GFP_KERNEL);
-	if (!dst->name)
-		return -ENOMEM;
-
 	if (src->is_array) {
-		if (!src->length) {
-			error = -ENODATA;
-			goto out_free_name;
-		}
+		if (!src->length)
+			return -ENODATA;
 
 		if (src->is_string) {
 			error = property_copy_string_array(dst, src);
 			if (error)
-				goto out_free_name;
+				return error;
 		} else {
 			dst->pointer.raw_data = kmemdup(src->pointer.raw_data,
 							src->length, GFP_KERNEL);
-			if (!dst->pointer.raw_data) {
-				error = -ENOMEM;
-				goto out_free_name;
-			}
+			if (!dst->pointer.raw_data)
+				return -ENOMEM;
 		}
 	} else if (src->is_string) {
 		dst->value.str = kstrdup(src->value.str, GFP_KERNEL);
-		if (!dst->value.str && src->value.str) {
-			error = -ENOMEM;
-			goto out_free_name;
-		}
+		if (!dst->value.str && src->value.str)
+			return -ENOMEM;
 	} else {
 		dst->value.raw_data = src->value.raw_data;
 	}
@@ -778,11 +768,15 @@ static int property_entry_copy_data(struct property_entry *dst,
 	dst->is_array = src->is_array;
 	dst->is_string = src->is_string;
 
+	dst->name = kstrdup(src->name, GFP_KERNEL);
+	if (!dst->name)
+		goto out_free_data;
+
 	return 0;
 
-out_free_name:
-	kfree(dst->name);
-	return error;
+out_free_data:
+	property_entry_free_data(dst);
+	return -ENOMEM;
 }
 
 /**
