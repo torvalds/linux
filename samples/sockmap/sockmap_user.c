@@ -24,6 +24,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <time.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -189,14 +190,16 @@ static int sockmap_init_sockets(void)
 struct msg_stats {
 	size_t bytes_sent;
 	size_t bytes_recvd;
+	struct timespec start;
+	struct timespec end;
 };
 
 static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		    struct msg_stats *s, bool tx)
 {
 	struct msghdr msg = {0};
+	int err, i, flags = MSG_NOSIGNAL;
 	struct iovec *iov;
-	int i, flags = MSG_NOSIGNAL;
 
 	iov = calloc(iov_count, sizeof(struct iovec));
 	if (!iov)
@@ -217,6 +220,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 	msg.msg_iovlen = iov_count;
 
 	if (tx) {
+		clock_gettime(CLOCK_MONOTONIC, &s->start);
 		for (i = 0; i < cnt; i++) {
 			int sent = sendmsg(fd, &msg, flags);
 
@@ -226,6 +230,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 			}
 			s->bytes_sent += sent;
 		}
+		clock_gettime(CLOCK_MONOTONIC, &s->end);
 	} else {
 		int slct, recv, max_fd = fd;
 		struct timeval timeout;
@@ -233,6 +238,9 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		fd_set w;
 
 		total_bytes = (float)iov_count * (float)iov_length * (float)cnt;
+		err = clock_gettime(CLOCK_MONOTONIC, &s->start);
+		if (err < 0)
+			perror("recv start time: ");
 		while (s->bytes_recvd < total_bytes) {
 			timeout.tv_sec = 1;
 			timeout.tv_usec = 0;
@@ -244,16 +252,19 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 			slct = select(max_fd + 1, &w, NULL, NULL, &timeout);
 			if (slct == -1) {
 				perror("select()");
+				clock_gettime(CLOCK_MONOTONIC, &s->end);
 				goto out_errno;
 			} else if (!slct) {
 				fprintf(stderr, "unexpected timeout\n");
 				errno = -EIO;
+				clock_gettime(CLOCK_MONOTONIC, &s->end);
 				goto out_errno;
 			}
 
 			recv = recvmsg(fd, &msg, flags);
 			if (recv < 0) {
 				if (errno != EWOULDBLOCK) {
+					clock_gettime(CLOCK_MONOTONIC, &s->end);
 					perror("recv failed()\n");
 					goto out_errno;
 				}
@@ -261,6 +272,7 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 
 			s->bytes_recvd += recv;
 		}
+		clock_gettime(CLOCK_MONOTONIC, &s->end);
 	}
 
 	for (i = 0; i < iov_count; i++)
@@ -274,11 +286,24 @@ out_errno:
 	return errno;
 }
 
+static float giga = 1000000000;
+
+static inline float sentBps(struct msg_stats s)
+{
+	return s.bytes_sent / (s.end.tv_sec - s.start.tv_sec);
+}
+
+static inline float recvdBps(struct msg_stats s)
+{
+	return s.bytes_recvd / (s.end.tv_sec - s.start.tv_sec);
+}
+
 static int sendmsg_test(int iov_count, int iov_buf, int cnt, int verbose)
 {
 	int txpid, rxpid, err = 0;
 	struct msg_stats s = {0};
 	int status;
+	float sent_Bps = 0, recvd_Bps = 0;
 
 	errno = 0;
 
@@ -289,10 +314,16 @@ static int sendmsg_test(int iov_count, int iov_buf, int cnt, int verbose)
 			fprintf(stderr,
 				"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
 				iov_count, iov_buf, cnt, err);
-		fprintf(stdout, "rx_sendmsg: TX_bytes %zu RX_bytes %zu\n",
-			s.bytes_sent, s.bytes_recvd);
 		shutdown(p2, SHUT_RDWR);
 		shutdown(p1, SHUT_RDWR);
+		if (s.end.tv_sec - s.start.tv_sec) {
+			sent_Bps = sentBps(s);
+			recvd_Bps = recvdBps(s);
+		}
+		fprintf(stdout,
+			"rx_sendmsg: TX: %zuB %fB/s %fGB/s RX: %zuB %fB/s %fGB/s\n",
+			s.bytes_sent, sent_Bps, sent_Bps/giga,
+			s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
 		exit(1);
 	} else if (rxpid == -1) {
 		perror("msg_loop_rx: ");
@@ -306,9 +337,15 @@ static int sendmsg_test(int iov_count, int iov_buf, int cnt, int verbose)
 			fprintf(stderr,
 				"msg_loop_tx: iov_count %i iov_buf %i cnt %i err %i\n",
 				iov_count, iov_buf, cnt, err);
-		fprintf(stdout, "tx_sendmsg: TX_bytes %zu RX_bytes %zu\n",
-			s.bytes_sent, s.bytes_recvd);
 		shutdown(c1, SHUT_RDWR);
+		if (s.end.tv_sec - s.start.tv_sec) {
+			sent_Bps = sentBps(s);
+			recvd_Bps = recvdBps(s);
+		}
+		fprintf(stdout,
+			"tx_sendmsg: TX: %zuB %fB/s %f GB/s RX: %zuB %fB/s %fGB/s\n",
+			s.bytes_sent, sent_Bps, sent_Bps/giga,
+			s.bytes_recvd, recvd_Bps, recvd_Bps/giga);
 		exit(1);
 	} else if (txpid == -1) {
 		perror("msg_loop_tx: ");
