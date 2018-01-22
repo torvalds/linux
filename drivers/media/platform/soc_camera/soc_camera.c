@@ -1788,17 +1788,19 @@ static int default_s_selection(struct soc_camera_device *icd,
 }
 
 static int default_g_parm(struct soc_camera_device *icd,
-			  struct v4l2_streamparm *parm)
+			  struct v4l2_streamparm *a)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	return v4l2_subdev_call(sd, video, g_parm, parm);
+
+	return v4l2_g_parm_cap(icd->vdev, sd, a);
 }
 
 static int default_s_parm(struct soc_camera_device *icd,
-			  struct v4l2_streamparm *parm)
+			  struct v4l2_streamparm *a)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	return v4l2_subdev_call(sd, video, s_parm, parm);
+
+	return v4l2_s_parm_cap(icd->vdev, sd, a);
 }
 
 static int default_enum_framesizes(struct soc_camera_device *icd,

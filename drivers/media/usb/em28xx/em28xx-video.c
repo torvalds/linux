@@ -1582,17 +1582,26 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 static int vidioc_g_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *p)
 {
+	struct v4l2_subdev_frame_interval ival = { 0 };
 	struct em28xx      *dev  = video_drvdata(file);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	int rc = 0;
 
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
-	if (dev->board.is_webcam)
+	p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	if (dev->board.is_webcam) {
 		rc = v4l2_device_call_until_err(&v4l2->v4l2_dev, 0,
-						video, g_parm, p);
-	else
+						video, g_frame_interval, &ival);
+		if (!rc)
+			p->parm.capture.timeperframe = ival.interval;
+	} else {
 		v4l2_video_std_frame_period(v4l2->norm,
 					    &p->parm.capture.timeperframe);
+	}
 
 	return rc;
 }
@@ -1601,10 +1610,27 @@ static int vidioc_s_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *p)
 {
 	struct em28xx *dev = video_drvdata(file);
+	struct v4l2_subdev_frame_interval ival = {
+		0,
+		p->parm.capture.timeperframe
+	};
+	int rc = 0;
 
+	if (!dev->board.is_webcam)
+		return -ENOTTY;
+
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
+	memset(&p->parm, 0, sizeof(p->parm));
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
-	return v4l2_device_call_until_err(&dev->v4l2->v4l2_dev,
-					  0, video, s_parm, p);
+	p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	rc = v4l2_device_call_until_err(&dev->v4l2->v4l2_dev, 0,
+					video, s_frame_interval, &ival);
+	if (!rc)
+		p->parm.capture.timeperframe = ival.interval;
+	return rc;
 }
 
 static int vidioc_enum_input(struct file *file, void *priv,

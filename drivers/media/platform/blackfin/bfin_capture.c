@@ -712,24 +712,18 @@ static int bcap_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int bcap_g_parm(struct file *file, void *fh,
-				struct v4l2_streamparm *a)
+static int bcap_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	return v4l2_subdev_call(bcap_dev->sd, video, g_parm, a);
+	return v4l2_g_parm_cap(video_devdata(file), bcap_dev->sd, a);
 }
 
-static int bcap_s_parm(struct file *file, void *fh,
-				struct v4l2_streamparm *a)
+static int bcap_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	return v4l2_subdev_call(bcap_dev->sd, video, s_parm, a);
+	return v4l2_s_parm_cap(video_devdata(file), bcap_dev->sd, a);
 }
 
 static int bcap_log_status(struct file *file, void *priv)

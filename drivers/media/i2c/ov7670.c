@@ -1100,30 +1100,24 @@ static int ov7670_get_fmt(struct v4l2_subdev *sd,
  * Implement G/S_PARM.  There is a "high quality" mode we could try
  * to do someday; for now, we just do the frame rate tweak.
  */
-static int ov7670_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+static int ov7670_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *ival)
 {
-	struct v4l2_captureparm *cp = &parms->parm.capture;
 	struct ov7670_info *info = to_state(sd);
 
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
-	cp->capability = V4L2_CAP_TIMEPERFRAME;
-	info->devtype->get_framerate(sd, &cp->timeperframe);
+	info->devtype->get_framerate(sd, &ival->interval);
 
 	return 0;
 }
 
-static int ov7670_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+static int ov7670_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *ival)
 {
-	struct v4l2_captureparm *cp = &parms->parm.capture;
-	struct v4l2_fract *tpf = &cp->timeperframe;
+	struct v4l2_fract *tpf = &ival->interval;
 	struct ov7670_info *info = to_state(sd);
 
-	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
-	cp->capability = V4L2_CAP_TIMEPERFRAME;
 	return info->devtype->set_framerate(sd, tpf);
 }
 
@@ -1636,8 +1630,8 @@ static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops ov7670_video_ops = {
-	.s_parm = ov7670_s_parm,
-	.g_parm = ov7670_g_parm,
+	.s_frame_interval = ov7670_s_frame_interval,
+	.g_frame_interval = ov7670_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov7670_pad_ops = {

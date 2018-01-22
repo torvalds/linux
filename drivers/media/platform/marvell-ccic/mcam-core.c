@@ -1443,24 +1443,24 @@ static int mcam_vidioc_s_input(struct file *filp, void *priv, unsigned int i)
  * the level which controls the number of read buffers.
  */
 static int mcam_vidioc_g_parm(struct file *filp, void *priv,
-		struct v4l2_streamparm *parms)
+		struct v4l2_streamparm *a)
 {
 	struct mcam_camera *cam = video_drvdata(filp);
 	int ret;
 
-	ret = sensor_call(cam, video, g_parm, parms);
-	parms->parm.capture.readbuffers = n_dma_bufs;
+	ret = v4l2_g_parm_cap(video_devdata(filp), cam->sensor, a);
+	a->parm.capture.readbuffers = n_dma_bufs;
 	return ret;
 }
 
 static int mcam_vidioc_s_parm(struct file *filp, void *priv,
-		struct v4l2_streamparm *parms)
+		struct v4l2_streamparm *a)
 {
 	struct mcam_camera *cam = video_drvdata(filp);
 	int ret;
 
-	ret = sensor_call(cam, video, s_parm, parms);
-	parms->parm.capture.readbuffers = n_dma_bufs;
+	ret = v4l2_s_parm_cap(video_devdata(filp), cam->sensor, a);
+	a->parm.capture.readbuffers = n_dma_bufs;
 	return ret;
 }
 
