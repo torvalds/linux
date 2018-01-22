@@ -455,8 +455,8 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 	}
 
 	label->len = 0;
-#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-	if (bmval[2] & FATTR4_WORD2_SECURITY_LABEL) {
+	if (IS_ENABLED(CONFIG_NFSD_V4_SECURITY_LABEL) &&
+	    bmval[2] & FATTR4_WORD2_SECURITY_LABEL) {
 		READ_BUF(4);
 		len += 4;
 		dummy32 = be32_to_cpup(p++); /* lfs: we don't use it */
@@ -476,7 +476,6 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		if (!label->data)
 			return nfserr_jukebox;
 	}
-#endif
 	if (bmval[2] & FATTR4_WORD2_MODE_UMASK) {
 		if (!umask)
 			goto xdr_error;
