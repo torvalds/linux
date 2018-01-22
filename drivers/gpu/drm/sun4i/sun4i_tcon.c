@@ -540,6 +540,7 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 	struct sun4i_tcon *tcon = private;
 	struct drm_device *drm = tcon->drm;
 	struct sun4i_crtc *scrtc = tcon->crtc;
+	struct sunxi_engine *engine = scrtc->engine;
 	unsigned int status;
 
 	regmap_read(tcon->regs, SUN4I_TCON_GINT0_REG, &status);
@@ -556,6 +557,9 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 			   SUN4I_TCON_GINT0_VBLANK_INT(0) |
 			   SUN4I_TCON_GINT0_VBLANK_INT(1),
 			   0);
+
+	if (engine->ops->vblank_quirk)
+		engine->ops->vblank_quirk(engine);
 
 	return IRQ_HANDLED;
 }
