@@ -4193,10 +4193,10 @@ mlxsw_sp_fib_node_entry_is_first(const struct mlxsw_sp_fib_node *fib_node,
 }
 
 static int mlxsw_sp_fib_lpm_tree_link(struct mlxsw_sp *mlxsw_sp,
-				      struct mlxsw_sp_fib *fib,
 				      struct mlxsw_sp_fib_node *fib_node)
 {
 	struct mlxsw_sp_prefix_usage req_prefix_usage = {{ 0 } };
+	struct mlxsw_sp_fib *fib = fib_node->fib;
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	int err;
 
@@ -4230,8 +4230,10 @@ static int mlxsw_sp_fib_lpm_tree_link(struct mlxsw_sp *mlxsw_sp,
 }
 
 static void mlxsw_sp_fib_lpm_tree_unlink(struct mlxsw_sp *mlxsw_sp,
-					 struct mlxsw_sp_fib *fib)
+					 struct mlxsw_sp_fib_node *fib_node)
 {
+	struct mlxsw_sp_fib *fib = fib_node->fib;
+
 	if (!list_is_singular(&fib->node_list))
 		return;
 	/* Last node is being unlinked from the FIB. Unbind the
@@ -4271,7 +4273,7 @@ static int mlxsw_sp_fib_node_init(struct mlxsw_sp *mlxsw_sp,
 		return err;
 	fib_node->fib = fib;
 
-	err = mlxsw_sp_fib_lpm_tree_link(mlxsw_sp, fib, fib_node);
+	err = mlxsw_sp_fib_lpm_tree_link(mlxsw_sp, fib_node);
 	if (err)
 		goto err_fib_lpm_tree_link;
 
@@ -4291,7 +4293,7 @@ static void mlxsw_sp_fib_node_fini(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_fib *fib = fib_node->fib;
 
 	mlxsw_sp_fib_node_prefix_dec(fib_node);
-	mlxsw_sp_fib_lpm_tree_unlink(mlxsw_sp, fib);
+	mlxsw_sp_fib_lpm_tree_unlink(mlxsw_sp, fib_node);
 	fib_node->fib = NULL;
 	mlxsw_sp_fib_node_remove(fib, fib_node);
 }
