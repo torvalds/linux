@@ -349,14 +349,6 @@ mlxsw_sp_prefix_usage_eq(struct mlxsw_sp_prefix_usage *prefix_usage1,
 	return !memcmp(prefix_usage1, prefix_usage2, sizeof(*prefix_usage1));
 }
 
-static bool
-mlxsw_sp_prefix_usage_none(struct mlxsw_sp_prefix_usage *prefix_usage)
-{
-	struct mlxsw_sp_prefix_usage prefix_usage_none = {{ 0 } };
-
-	return mlxsw_sp_prefix_usage_eq(prefix_usage, &prefix_usage_none);
-}
-
 static void
 mlxsw_sp_prefix_usage_cpy(struct mlxsw_sp_prefix_usage *prefix_usage1,
 			  struct mlxsw_sp_prefix_usage *prefix_usage2)
@@ -4240,8 +4232,11 @@ static int mlxsw_sp_fib_lpm_tree_link(struct mlxsw_sp *mlxsw_sp,
 static void mlxsw_sp_fib_lpm_tree_unlink(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_fib *fib)
 {
-	if (!mlxsw_sp_prefix_usage_none(&fib->prefix_usage))
+	if (!list_is_singular(&fib->node_list))
 		return;
+	/* Last node is being unlinked from the FIB. Unbind the
+	 * tree and drop the reference.
+	 */
 	mlxsw_sp_vr_lpm_tree_unbind(mlxsw_sp, fib);
 	mlxsw_sp_lpm_tree_put(mlxsw_sp, fib->lpm_tree);
 	fib->lpm_tree = NULL;
