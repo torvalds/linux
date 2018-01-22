@@ -58,8 +58,6 @@ static bool has_full_constraints;
 
 static struct dentry *debugfs_root;
 
-static struct class regulator_class;
-
 /*
  * struct regulator_map
  *
@@ -111,11 +109,6 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 					  struct device *dev,
 					  const char *supply_name);
 static void _regulator_put(struct regulator *regulator);
-
-static struct regulator_dev *dev_to_rdev(struct device *dev)
-{
-	return container_of(dev, struct regulator_dev, dev);
-}
 
 static const char *rdev_get_name(struct regulator_dev *rdev)
 {
@@ -1415,20 +1408,6 @@ static void regulator_supply_alias(struct device **dev, const char **supply)
 		*dev = map->alias_dev;
 		*supply = map->alias_supply;
 	}
-}
-
-static int of_node_match(struct device *dev, const void *data)
-{
-	return dev->of_node == data;
-}
-
-static struct regulator_dev *of_find_regulator_by_node(struct device_node *np)
-{
-	struct device *dev;
-
-	dev = class_find_device(&regulator_class, NULL, np, of_node_match);
-
-	return dev ? dev_to_rdev(dev) : NULL;
 }
 
 static int regulator_match(struct device *dev, const void *data)
@@ -3918,7 +3897,7 @@ static void regulator_dev_release(struct device *dev)
 	kfree(rdev);
 }
 
-static struct class regulator_class = {
+struct class regulator_class = {
 	.name = "regulator",
 	.dev_release = regulator_dev_release,
 	.dev_groups = regulator_dev_groups,
