@@ -3018,6 +3018,16 @@ static int srp_reset_host(struct scsi_cmnd *scmnd)
 	return srp_reconnect_rport(target->rport) == 0 ? SUCCESS : FAILED;
 }
 
+static int srp_target_alloc(struct scsi_target *starget)
+{
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
+	struct srp_target_port *target = host_to_target(shost);
+
+	if (target->target_can_queue)
+		starget->can_queue = target->target_can_queue;
+	return 0;
+}
+
 static int srp_slave_alloc(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
@@ -3231,6 +3241,7 @@ static struct scsi_host_template srp_template = {
 	.module				= THIS_MODULE,
 	.name				= "InfiniBand SRP initiator",
 	.proc_name			= DRV_NAME,
+	.target_alloc			= srp_target_alloc,
 	.slave_alloc			= srp_slave_alloc,
 	.slave_configure		= srp_slave_configure,
 	.info				= srp_target_info,
@@ -3398,6 +3409,7 @@ enum {
 	SRP_OPT_QUEUE_SIZE	= 1 << 14,
 	SRP_OPT_IP_SRC		= 1 << 15,
 	SRP_OPT_IP_DEST		= 1 << 16,
+	SRP_OPT_TARGET_CAN_QUEUE= 1 << 17,
 };
 
 static unsigned int srp_opt_mandatory[] = {
@@ -3419,6 +3431,7 @@ static const match_table_t srp_opt_tokens = {
 	{ SRP_OPT_SERVICE_ID,		"service_id=%s"		},
 	{ SRP_OPT_MAX_SECT,		"max_sect=%d" 		},
 	{ SRP_OPT_MAX_CMD_PER_LUN,	"max_cmd_per_lun=%d" 	},
+	{ SRP_OPT_TARGET_CAN_QUEUE,	"target_can_queue=%d"	},
 	{ SRP_OPT_IO_CLASS,		"io_class=%x"		},
 	{ SRP_OPT_INITIATOR_EXT,	"initiator_ext=%s"	},
 	{ SRP_OPT_CMD_SG_ENTRIES,	"cmd_sg_entries=%u"	},
@@ -3605,6 +3618,15 @@ static int srp_parse_options(struct net *net, const char *buf,
 				goto out;
 			}
 			target->scsi_host->cmd_per_lun = token;
+			break;
+
+		case SRP_OPT_TARGET_CAN_QUEUE:
+			if (match_int(args, &token) || token < 1) {
+				pr_warn("bad max target_can_queue parameter '%s'\n",
+					p);
+				goto out;
+			}
+			target->target_can_queue = token;
 			break;
 
 		case SRP_OPT_IO_CLASS:
