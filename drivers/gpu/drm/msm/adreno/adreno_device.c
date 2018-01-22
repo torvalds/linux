@@ -84,7 +84,7 @@ static const struct adreno_info gpulist[] = {
 		.quirks = ADRENO_QUIRK_TWO_PASS_USE_WFI |
 			ADRENO_QUIRK_FAULT_DETECT_MASK,
 		.init = a5xx_gpu_init,
-		.gpmufw = "a530v3_gpmu.fw2",
+		.powerfw = "a530v3_gpmu.fw2",
 		.zapfw = "a530_zap.mdt",
 	},
 };
