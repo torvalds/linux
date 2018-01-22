@@ -28,6 +28,7 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
+		ethernet0 = &gmac;
 	};
 
 	cpus {
@@ -740,6 +741,28 @@
 		clock-names = "usbhost", "arbiter", "utmi";
 		phys = <&u2phy_host>;
 		phy-names = "usb";
+	};
+
+	gmac: ethernet@ff360000 {
+		compatible = "rockchip,px30-gmac";
+		reg = <0x0 0xff360000 0x0 0x10000>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&cru SCLK_GMAC>, <&cru SCLK_GMAC_RX_TX>,
+			 <&cru SCLK_GMAC_RX_TX>, <&cru SCLK_MAC_REF>,
+			 <&cru SCLK_MAC_REFOUT>, <&cru ACLK_GMAC>,
+			 <&cru PCLK_GMAC>, <&cru SCLK_GMAC_RMII>;
+		clock-names = "stmmaceth", "mac_clk_rx",
+			      "mac_clk_tx", "clk_mac_ref",
+			      "clk_mac_refout", "aclk_mac",
+			      "pclk_mac", "clk_mac_speed";
+		phy-mode = "rmii";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rmii_pins>;
+		resets = <&cru SRST_GMAC_A>;
+		reset-names = "stmmaceth";
+		power-domains = <&power PX30_PD_GMAC>;
 		status = "disabled";
 	};
 
