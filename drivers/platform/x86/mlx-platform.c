@@ -476,6 +476,8 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 	{ }
 };
 
+MODULE_DEVICE_TABLE(dmi, mlxplat_dmi_table);
+
 static int __init mlxplat_init(void)
 {
 	struct mlxplat_priv *priv;
@@ -581,8 +583,3 @@ module_exit(mlxplat_exit);
 MODULE_AUTHOR("Vadim Pasternak (vadimp@mellanox.com)");
 MODULE_DESCRIPTION("Mellanox platform driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_ALIAS("dmi:*:*Mellanox*:MSN24*:");
-MODULE_ALIAS("dmi:*:*Mellanox*:MSN27*:");
-MODULE_ALIAS("dmi:*:*Mellanox*:MSB*:");
-MODULE_ALIAS("dmi:*:*Mellanox*:MSX*:");
-MODULE_ALIAS("dmi:*:*Mellanox*:MSN21*:");
