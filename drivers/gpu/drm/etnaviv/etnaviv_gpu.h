@@ -170,6 +170,7 @@ static inline bool fence_completed(struct etnaviv_gpu *gpu, u32 fence)
 int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value);
 
 int etnaviv_gpu_init(struct etnaviv_gpu *gpu);
+bool etnaviv_fill_identity_from_hwdb(struct etnaviv_gpu *gpu);
 
 #ifdef CONFIG_DEBUG_FS
 int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m);

@@ -374,6 +374,13 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 	dev_info(gpu->dev, "model: GC%x, revision: %x\n",
 		 gpu->identity.model, gpu->identity.revision);
 
+	/*
+	 * If there is a match in the HWDB, we aren't interested in the
+	 * remaining register values, as they might be wrong.
+	 */
+	if (etnaviv_fill_identity_from_hwdb(gpu))
+		return;
+
 	gpu->identity.features = gpu_read(gpu, VIVS_HI_CHIP_FEATURE);
 
 	/* Disable fast clear on GC700. */
