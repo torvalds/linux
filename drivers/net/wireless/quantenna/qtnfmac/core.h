@@ -133,7 +133,7 @@ struct qtnf_wmac {
 	struct qtnf_vif iflist[QTNF_MAX_INTF];
 	struct cfg80211_scan_request *scan_req;
 	struct mutex mac_lock;	/* lock during wmac speicific ops */
-	struct timer_list scan_timeout;
+	struct delayed_work scan_timeout;
 };
 
 struct qtnf_hw_info {
@@ -168,6 +168,7 @@ void qtnf_update_tx_stats(struct net_device *ndev, const struct sk_buff *skb);
 void qtnf_virtual_intf_cleanup(struct net_device *ndev);
 
 void qtnf_netdev_updown(struct net_device *ndev, bool up);
+void qtnf_scan_done(struct qtnf_wmac *mac, bool aborted);
 
 static inline struct qtnf_vif *qtnf_netdev_get_priv(struct net_device *dev)
 {

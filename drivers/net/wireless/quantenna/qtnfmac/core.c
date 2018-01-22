@@ -311,6 +311,37 @@ static void qtnf_mac_init_primary_intf(struct qtnf_wmac *mac)
 	vif->cons_tx_timeout_cnt = 0;
 }
 
+static void qtnf_mac_scan_finish(struct qtnf_wmac *mac, bool aborted)
+{
+	struct cfg80211_scan_info info = {
+		.aborted = aborted,
+	};
+
+	mutex_lock(&mac->mac_lock);
+
+	if (mac->scan_req) {
+		cfg80211_scan_done(mac->scan_req, &info);
+		mac->scan_req = NULL;
+	}
+
+	mutex_unlock(&mac->mac_lock);
+}
+
+void qtnf_scan_done(struct qtnf_wmac *mac, bool aborted)
+{
+	cancel_delayed_work_sync(&mac->scan_timeout);
+	qtnf_mac_scan_finish(mac, aborted);
+}
+
+static void qtnf_mac_scan_timeout(struct work_struct *work)
+{
+	struct qtnf_wmac *mac =
+		container_of(work, struct qtnf_wmac, scan_timeout.work);
+
+	pr_warn("MAC%d: scan timed out\n", mac->macid);
+	qtnf_mac_scan_finish(mac, true);
+}
+
 static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 					     unsigned int macid)
 {
@@ -334,7 +365,7 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 		mac->iflist[i].vifid = i;
 		qtnf_sta_list_init(&mac->iflist[i].sta_list);
 		mutex_init(&mac->mac_lock);
-		timer_setup(&mac->scan_timeout, NULL, 0);
+		INIT_DELAYED_WORK(&mac->scan_timeout, qtnf_mac_scan_timeout);
 		mac->iflist[i].stats64 =
 			netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 		if (!mac->iflist[i].stats64)
