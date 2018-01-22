@@ -11,6 +11,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
@@ -270,6 +271,69 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	return 0;
 }
 
+static bool sun4i_backend_plane_uses_scaler(struct drm_plane_state *state)
+{
+	u16 src_h = state->src_h >> 16;
+	u16 src_w = state->src_w >> 16;
+
+	DRM_DEBUG_DRIVER("Input size %dx%d, output size %dx%d\n",
+			 src_w, src_h, state->crtc_w, state->crtc_h);
+
+	if ((state->crtc_h != src_h) || (state->crtc_w != src_w))
+		return true;
+
+	return false;
+}
+
+static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
+{
+	struct sun4i_layer *layer = plane_to_sun4i_layer(state->plane);
+	struct sun4i_backend *backend = layer->backend;
+
+	if (IS_ERR(backend->frontend))
+		return false;
+
+	return sun4i_backend_plane_uses_scaler(state);
+}
+
+static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
+				      struct drm_crtc_state *crtc_state)
+{
+	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_device *drm = state->dev;
+	struct drm_plane *plane;
+	unsigned int num_frontend_planes = 0;
+
+	DRM_DEBUG_DRIVER("Starting checking our planes\n");
+
+	if (!crtc_state->planes_changed)
+		return 0;
+
+	drm_for_each_plane_mask(plane, drm, crtc_state->plane_mask) {
+		struct drm_plane_state *plane_state =
+			drm_atomic_get_plane_state(state, plane);
+		struct sun4i_layer_state *layer_state =
+			state_to_sun4i_layer_state(plane_state);
+
+		if (sun4i_backend_plane_uses_frontend(plane_state)) {
+			DRM_DEBUG_DRIVER("Using the frontend for plane %d\n",
+					 plane->index);
+
+			layer_state->uses_frontend = true;
+			num_frontend_planes++;
+		} else {
+			layer_state->uses_frontend = false;
+		}
+	}
+
+	if (num_frontend_planes > SUN4I_BACKEND_NUM_FRONTEND_LAYERS) {
+		DRM_DEBUG_DRIVER("Too many planes going through the frontend, rejecting\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void sun4i_backend_vblank_quirk(struct sunxi_engine *engine)
 {
 	struct sun4i_backend *backend = engine_to_sun4i_backend(engine);
@@ -414,6 +478,7 @@ static struct sun4i_frontend *sun4i_backend_find_frontend(struct sun4i_drv *drv,
 }
 
 static const struct sunxi_engine_ops sun4i_backend_engine_ops = {
+	.atomic_check			= sun4i_backend_atomic_check,
 	.commit				= sun4i_backend_commit,
 	.layers_init			= sun4i_layers_init,
 	.apply_color_correction		= sun4i_backend_apply_color_correction,

@@ -144,6 +144,8 @@
 #define SUN4I_BACKEND_HWCCOLORTAB_OFF		0x4c00
 #define SUN4I_BACKEND_PIPE_OFF(p)		(0x5000 + (0x400 * (p)))
 
+#define SUN4I_BACKEND_NUM_FRONTEND_LAYERS	1
+
 struct sun4i_backend {
 	struct sunxi_engine	engine;
 	struct sun4i_frontend	*frontend;
