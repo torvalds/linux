@@ -2404,6 +2404,48 @@ static void intel_enable_ddi_hdmi(struct intel_encoder *encoder,
 					  crtc_state->hdmi_high_tmds_clock_ratio,
 					  crtc_state->hdmi_scrambling);
 
+	/* Display WA #1143: skl,kbl,cfl */
+	if (IS_GEN9_BC(dev_priv)) {
+		/*
+		 * For some reason these chicken bits have been
+		 * stuffed into a transcoder register, event though
+		 * the bits affect a specific DDI port rather than
+		 * a specific transcoder.
+		 */
+		static const enum transcoder port_to_transcoder[] = {
+			[PORT_A] = TRANSCODER_EDP,
+			[PORT_B] = TRANSCODER_A,
+			[PORT_C] = TRANSCODER_B,
+			[PORT_D] = TRANSCODER_C,
+			[PORT_E] = TRANSCODER_A,
+		};
+		enum transcoder transcoder = port_to_transcoder[port];
+		u32 val;
+
+		val = I915_READ(CHICKEN_TRANS(transcoder));
+
+		if (port == PORT_E)
+			val |= DDIE_TRAINING_OVERRIDE_ENABLE |
+				DDIE_TRAINING_OVERRIDE_VALUE;
+		else
+			val |= DDI_TRAINING_OVERRIDE_ENABLE |
+				DDI_TRAINING_OVERRIDE_VALUE;
+
+		I915_WRITE(CHICKEN_TRANS(transcoder), val);
+		POSTING_READ(CHICKEN_TRANS(transcoder));
+
+		udelay(1);
+
+		if (port == PORT_E)
+			val &= ~(DDIE_TRAINING_OVERRIDE_ENABLE |
+				 DDIE_TRAINING_OVERRIDE_VALUE);
+		else
+			val &= ~(DDI_TRAINING_OVERRIDE_ENABLE |
+				 DDI_TRAINING_OVERRIDE_VALUE);
+
+		I915_WRITE(CHICKEN_TRANS(transcoder), val);
+	}
+
 	/* In HDMI/DVI mode, the port width, and swing/emphasis values
 	 * are ignored so nothing special needs to be done besides
 	 * enabling the port.
