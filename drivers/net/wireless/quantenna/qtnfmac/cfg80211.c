@@ -679,7 +679,6 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		return ret;
 	}
 
-	vif->sta_state = QTNF_STA_DISCONNECTED;
 	return 0;
 }
 
