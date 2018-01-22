@@ -548,7 +548,6 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 
 #include "trace/beauty/arch_errno_names.c"
 #include "trace/beauty/eventfd.c"
-#include "trace/beauty/flock.c"
 #include "trace/beauty/futex_op.c"
 #include "trace/beauty/futex_val3.c"
 #include "trace/beauty/mmap.c"
