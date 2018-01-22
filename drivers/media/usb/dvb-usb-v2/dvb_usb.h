@@ -138,7 +138,7 @@ struct dvb_usb_driver_info {
 struct dvb_usb_rc {
 	const char *map_name;
 	u64 allowed_protos;
-	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+	int (*change_protocol)(struct rc_dev *dev, u64 *rc_proto);
 	int (*query) (struct dvb_usb_device *d);
 	unsigned int interval;
 	enum rc_driver_type driver_type;

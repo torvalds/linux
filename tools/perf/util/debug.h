@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* For debugging general purposes */
 #ifndef __PERF_DEBUG_H
 #define __PERF_DEBUG_H

@@ -49,10 +49,10 @@ static struct rc_map_table terratec_slim_2[] = {
 
 static struct rc_map_list terratec_slim_2_map = {
 	.map = {
-		.scan    = terratec_slim_2,
-		.size    = ARRAY_SIZE(terratec_slim_2),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_TERRATEC_SLIM_2,
+		.scan     = terratec_slim_2,
+		.size     = ARRAY_SIZE(terratec_slim_2),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_TERRATEC_SLIM_2,
 	}
 };
 

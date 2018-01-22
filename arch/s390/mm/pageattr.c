@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2011
  * Author(s): Jan Glauber <jang@linux.vnet.ibm.com>
@@ -7,6 +8,7 @@
 #include <asm/cacheflush.h>
 #include <asm/facility.h>
 #include <asm/pgtable.h>
+#include <asm/pgalloc.h>
 #include <asm/page.h>
 #include <asm/set_memory.h>
 
@@ -191,7 +193,7 @@ static int split_pud_page(pud_t *pudp, unsigned long addr)
 	pud_t new;
 	int i, ro, nx;
 
-	pm_dir = vmem_pmd_alloc();
+	pm_dir = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 	if (!pm_dir)
 		return -ENOMEM;
 	pmd_addr = pud_pfn(*pudp) << PAGE_SHIFT;
@@ -328,7 +330,7 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 		return;
 	}
 	for (i = 0; i < nr; i++) {
-		__ptep_ipte(address, pte, IPTE_GLOBAL);
+		__ptep_ipte(address, pte, 0, 0, IPTE_GLOBAL);
 		address += PAGE_SIZE;
 		pte++;
 	}

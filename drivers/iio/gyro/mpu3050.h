@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/iio/iio.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>

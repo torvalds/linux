@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Kconfig for uClinux(non-paged MM) depend configurations
 # Hyok S. Choi <hyok.choi@samsung.com>
@@ -52,8 +53,8 @@ config REMAP_VECTORS_TO_RAM
 
 config ARM_MPU
        bool 'Use the ARM v7 PMSA Compliant MPU'
-       depends on CPU_V7
-       default y
+       depends on CPU_V7 || CPU_V7M
+       default y if CPU_V7
        help
          Some ARM systems without an MMU have instead a Memory Protection
          Unit (MPU) that defines the type and permissions for regions of

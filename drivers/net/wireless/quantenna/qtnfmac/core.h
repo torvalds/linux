@@ -42,37 +42,20 @@
 
 #define QTNF_MAX_SSID_LIST_LENGTH	2
 #define QTNF_MAX_VSIE_LEN		255
-#define QTNF_MAX_ALPHA_LEN		2
 #define QTNF_MAX_INTF			8
 #define QTNF_MAX_EVENT_QUEUE_LEN	255
 #define QTNF_DEFAULT_BG_SCAN_PERIOD	300
 #define QTNF_MAX_BG_SCAN_PERIOD		0xffff
+#define QTNF_SCAN_TIMEOUT_SEC		15
 
 #define QTNF_DEF_BSS_PRIORITY		0
 #define QTNF_DEF_WDOG_TIMEOUT		5
 #define QTNF_TX_TIMEOUT_TRSHLD		100
 
-#define QTNF_STATE_AP_CONFIG		BIT(2)
-#define QTNF_STATE_AP_START		BIT(1)
-
 extern const struct net_device_ops qtnf_netdev_ops;
+
 struct qtnf_bus;
 struct qtnf_vif;
-
-struct qtnf_bss_config {
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	u8 bssid[ETH_ALEN];
-	size_t ssid_len;
-	u8 dtim;
-	u16 bcn_period;
-	u16 auth_type;
-	bool privacy;
-	enum nl80211_mfp mfp;
-	struct cfg80211_chan_def chandef;
-	struct cfg80211_crypto_settings crypto;
-	u16 bg_scan_period;
-	u32 connect_flags;
-};
 
 struct qtnf_sta_node {
 	struct list_head list;
@@ -92,6 +75,8 @@ enum qtnf_sta_state {
 
 struct qtnf_vif {
 	struct wireless_dev wdev;
+	u8 bssid[ETH_ALEN];
+	u8 mac_addr[ETH_ALEN];
 	u8 vifid;
 	u8 bss_priority;
 	u8 bss_status;
@@ -99,16 +84,14 @@ struct qtnf_vif {
 	u16 mgmt_frames_bitmask;
 	struct net_device *netdev;
 	struct qtnf_wmac *mac;
-	u8 mac_addr[ETH_ALEN];
+
 	struct work_struct reset_work;
-	struct qtnf_bss_config bss_cfg;
 	struct qtnf_sta_list sta_list;
 	unsigned long cons_tx_timeout_cnt;
 };
 
 struct qtnf_mac_info {
 	u8 bands_cap;
-	u8 phymode_cap;
 	u8 dev_mac[ETH_ALEN];
 	u8 num_tx_chain;
 	u8 num_rx_chain;
@@ -119,10 +102,19 @@ struct qtnf_mac_info {
 	u8 sretry_limit;
 	u8 coverage_class;
 	u8 radar_detect_widths;
-	struct ieee80211_ht_cap ht_cap;
-	struct ieee80211_vht_cap vht_cap;
+	struct ieee80211_ht_cap ht_cap_mod_mask;
+	struct ieee80211_vht_cap vht_cap_mod_mask;
 	struct ieee80211_iface_limit *limits;
 	size_t n_limits;
+};
+
+struct qtnf_chan_stats {
+	u32 chan_num;
+	u32 cca_tx;
+	u32 cca_rx;
+	u32 cca_busy;
+	u32 cca_try;
+	s8 chan_noise;
 };
 
 struct qtnf_wmac {
@@ -133,17 +125,19 @@ struct qtnf_wmac {
 	struct qtnf_mac_info macinfo;
 	struct qtnf_vif iflist[QTNF_MAX_INTF];
 	struct cfg80211_scan_request *scan_req;
+	struct mutex mac_lock;	/* lock during wmac speicific ops */
+	struct timer_list scan_timeout;
 };
 
 struct qtnf_hw_info {
+	u16 ql_proto_ver;
 	u8 num_mac;
 	u8 mac_bitmap;
-	u8 alpha2_code[QTNF_MAX_ALPHA_LEN];
 	u32 fw_ver;
-	u16 ql_proto_ver;
+	u32 hw_capab;
+	struct ieee80211_regdomain *rd;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
-	u32 hw_capab;
 };
 
 struct qtnf_vif *qtnf_mac_get_free_vif(struct qtnf_wmac *mac);
@@ -158,9 +152,7 @@ int qtnf_cmd_send_get_phy_params(struct qtnf_wmac *mac);
 
 struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid);
 struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb);
-struct net_device *qtnf_classify_skb_no_mbss(struct qtnf_bus *bus,
-					     struct sk_buff *skb);
-
+void qtnf_wake_all_queues(struct net_device *ndev);
 void qtnf_virtual_intf_cleanup(struct net_device *ndev);
 
 void qtnf_netdev_updown(struct net_device *ndev, bool up);

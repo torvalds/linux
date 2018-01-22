@@ -319,10 +319,9 @@ static int ptp_gianfar_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	now = tmr_cnt_read(etsects);
 	now += delta;
 	tmr_cnt_write(etsects, now);
+	set_fipers(etsects);
 
 	spin_unlock_irqrestore(&etsects->lock, flags);
-
-	set_fipers(etsects);
 
 	return 0;
 }
@@ -411,7 +410,7 @@ static int ptp_gianfar_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info ptp_gianfar_caps = {
+static const struct ptp_clock_info ptp_gianfar_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "gianfar clock",
 	.max_adj	= 512000,

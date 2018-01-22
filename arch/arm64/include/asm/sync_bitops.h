@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SYNC_BITOPS_H__
 #define __ASM_SYNC_BITOPS_H__
 

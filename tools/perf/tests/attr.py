@@ -1,4 +1,5 @@
 #! /usr/bin/python
+# SPDX-License-Identifier: GPL-2.0
 
 import os
 import sys
@@ -8,6 +9,20 @@ import tempfile
 import logging
 import shutil
 import ConfigParser
+
+def data_equal(a, b):
+    # Allow multiple values in assignment separated by '|'
+    a_list = a.split('|')
+    b_list = b.split('|')
+
+    for a_item in a_list:
+        for b_item in b_list:
+            if (a_item == b_item):
+                return True
+            elif (a_item == '*') or (b_item == '*'):
+                return True
+
+    return False
 
 class Fail(Exception):
     def __init__(self, test, msg):
@@ -82,34 +97,25 @@ class Event(dict):
         self.add(base)
         self.add(data)
 
-    def compare_data(self, a, b):
-        # Allow multiple values in assignment separated by '|'
-        a_list = a.split('|')
-        b_list = b.split('|')
-
-        for a_item in a_list:
-            for b_item in b_list:
-                if (a_item == b_item):
-                    return True
-                elif (a_item == '*') or (b_item == '*'):
-                    return True
-
-        return False
-
     def equal(self, other):
         for t in Event.terms:
             log.debug("      [%s] %s %s" % (t, self[t], other[t]));
             if not self.has_key(t) or not other.has_key(t):
                 return False
-            if not self.compare_data(self[t], other[t]):
+            if not data_equal(self[t], other[t]):
                 return False
         return True
+
+    def optional(self):
+        if self.has_key('optional') and self['optional'] == '1':
+            return True
+        return False
 
     def diff(self, other):
         for t in Event.terms:
             if not self.has_key(t) or not other.has_key(t):
                 continue
-            if not self.compare_data(self[t], other[t]):
+            if not data_equal(self[t], other[t]):
 		log.warning("expected %s=%s, got %s" % (t, self[t], other[t]))
 
 # Test file description needs to have following sections:
@@ -218,9 +224,9 @@ class Test(object):
               self.perf, self.command, tempdir, self.args)
         ret = os.WEXITSTATUS(os.system(cmd))
 
-        log.info("  '%s' ret %d " % (cmd, ret))
+        log.info("  '%s' ret '%s', expected '%s'" % (cmd, str(ret), str(self.ret)))
 
-        if ret != int(self.ret):
+        if not data_equal(str(ret), str(self.ret)):
             raise Unsup(self)
 
     def compare(self, expect, result):
@@ -232,6 +238,7 @@ class Test(object):
         # events in result. Fail if there's not any.
         for exp_name, exp_event in expect.items():
             exp_list = []
+            res_event = {}
             log.debug("    matching [%s]" % exp_name)
             for res_name, res_event in result.items():
                 log.debug("      to [%s]" % res_name)
@@ -244,9 +251,15 @@ class Test(object):
             log.debug("    match: [%s] matches %s" % (exp_name, str(exp_list)))
 
             # we did not any matching event - fail
-            if (not exp_list):
-		exp_event.diff(res_event)
-                raise Fail(self, 'match failure');
+            if not exp_list:
+                if exp_event.optional():
+                    log.debug("    %s does not match, but is optional" % exp_name)
+                else:
+                    if not res_event:
+                        log.debug("    res_event is empty");
+                    else:
+                        exp_event.diff(res_event)
+                    raise Fail(self, 'match failure');
 
             match[exp_name] = exp_list
 

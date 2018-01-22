@@ -230,7 +230,7 @@ config HID_CMEDIA
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
-	depends on USB_HID && I2C && GPIOLIB
+	depends on USB_HID && HIDRAW && I2C && GPIOLIB
 	select GPIOLIB_IRQCHIP
 	---help---
 	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
@@ -281,6 +281,7 @@ config HID_ELECOM
 	Support for ELECOM devices:
 	  - BM084 Bluetooth Mouse
 	  - DEFT Trackball (Wired and wireless)
+	  - HUGE Trackball (Wired and wireless)
 
 config HID_ELO
 	tristate "ELO USB 4000/4500 touchscreen"
@@ -749,11 +750,10 @@ config HID_PRIMAX
 	HID standard.
 
 config HID_RETRODE
-	tristate "Retrode"
+	tristate "Retrode 2 USB adapter for vintage video games"
 	depends on USB_HID
 	---help---
 	Support for
-
 	  * Retrode 2 cartridge and controller adapter
 
 config HID_ROCCAT
@@ -924,7 +924,7 @@ config HID_UDRAW_PS3
 
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"
-	depends on HID
+	depends on USB_HID
 	select POWER_SUPPLY
 	select NEW_LEDS
 	select LEDS_CLASS

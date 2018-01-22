@@ -59,6 +59,7 @@ struct h264_fb {
  * @read_idx  : read index
  * @write_idx : write index
  * @count     : buffer count in list
+ * @reserved  : for 8 bytes alignment
  */
 struct h264_ring_fb_list {
 	struct h264_fb fb_list[H264_MAX_FB_NUM];

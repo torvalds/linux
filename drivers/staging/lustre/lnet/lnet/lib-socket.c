@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -40,8 +41,8 @@
 #include <linux/syscalls.h>
 #include <net/sock.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/linux/lnet/lib-lnet.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-lnet.h>
 
 static int
 kernel_sock_unlocked_ioctl(struct file *filp, int cmd, unsigned long arg)
@@ -70,16 +71,12 @@ lnet_sock_ioctl(int cmd, unsigned long arg)
 	}
 
 	sock_filp = sock_alloc_file(sock, 0, NULL);
-	if (IS_ERR(sock_filp)) {
-		sock_release(sock);
-		rc = PTR_ERR(sock_filp);
-		goto out;
-	}
+	if (IS_ERR(sock_filp))
+		return PTR_ERR(sock_filp);
 
 	rc = kernel_sock_unlocked_ioctl(sock_filp, cmd, arg);
 
 	fput(sock_filp);
-out:
 	return rc;
 }
 

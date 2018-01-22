@@ -183,18 +183,20 @@ int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
 }
 
 static struct plat_stmmacenet_data ls1x_eth0_pdata = {
-	.bus_id		= 0,
-	.phy_addr	= -1,
+	.bus_id			= 0,
+	.phy_addr		= -1,
 #if defined(CONFIG_LOONGSON1_LS1B)
-	.interface	= PHY_INTERFACE_MODE_MII,
+	.interface		= PHY_INTERFACE_MODE_MII,
 #elif defined(CONFIG_LOONGSON1_LS1C)
-	.interface	= PHY_INTERFACE_MODE_RMII,
+	.interface		= PHY_INTERFACE_MODE_RMII,
 #endif
-	.mdio_bus_data	= &ls1x_mdio_bus_data,
-	.dma_cfg	= &ls1x_eth_dma_cfg,
-	.has_gmac	= 1,
-	.tx_coe		= 1,
-	.init		= ls1x_eth_mux_init,
+	.mdio_bus_data		= &ls1x_mdio_bus_data,
+	.dma_cfg		= &ls1x_eth_dma_cfg,
+	.has_gmac		= 1,
+	.tx_coe			= 1,
+	.rx_queues_to_use	= 1,
+	.tx_queues_to_use	= 1,
+	.init			= ls1x_eth_mux_init,
 };
 
 static struct resource ls1x_eth0_resources[] = {
@@ -222,14 +224,16 @@ struct platform_device ls1x_eth0_pdev = {
 
 #ifdef CONFIG_LOONGSON1_LS1B
 static struct plat_stmmacenet_data ls1x_eth1_pdata = {
-	.bus_id		= 1,
-	.phy_addr	= -1,
-	.interface	= PHY_INTERFACE_MODE_MII,
-	.mdio_bus_data	= &ls1x_mdio_bus_data,
-	.dma_cfg	= &ls1x_eth_dma_cfg,
-	.has_gmac	= 1,
-	.tx_coe		= 1,
-	.init		= ls1x_eth_mux_init,
+	.bus_id			= 1,
+	.phy_addr		= -1,
+	.interface		= PHY_INTERFACE_MODE_MII,
+	.mdio_bus_data		= &ls1x_mdio_bus_data,
+	.dma_cfg		= &ls1x_eth_dma_cfg,
+	.has_gmac		= 1,
+	.tx_coe			= 1,
+	.rx_queues_to_use	= 1,
+	.tx_queues_to_use	= 1,
+	.init			= ls1x_eth_mux_init,
 };
 
 static struct resource ls1x_eth1_resources[] = {

@@ -26,5 +26,6 @@
 
 extern const struct amd_ip_funcs ci_dpm_ip_funcs;
 extern const struct amd_ip_funcs kv_dpm_ip_funcs;
-
+extern const struct amd_pm_funcs ci_dpm_funcs;
+extern const struct amd_pm_funcs kv_dpm_funcs;
 #endif

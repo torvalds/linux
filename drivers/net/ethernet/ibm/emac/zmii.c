@@ -121,15 +121,15 @@ int zmii_attach(struct platform_device *ofdev, int input, int *mode)
 		} else
 			dev->mode = *mode;
 
-		printk(KERN_NOTICE "%s: bridge in %s mode\n",
-		       ofdev->dev.of_node->full_name,
+		printk(KERN_NOTICE "%pOF: bridge in %s mode\n",
+		       ofdev->dev.of_node,
 		       zmii_mode_name(dev->mode));
 	} else {
 		/* All inputs must use the same mode */
 		if (*mode != PHY_MODE_NA && *mode != dev->mode) {
 			printk(KERN_ERR
-			       "%s: invalid mode %d specified for input %d\n",
-			       ofdev->dev.of_node->full_name, *mode, input);
+			       "%pOF: invalid mode %d specified for input %d\n",
+			       ofdev->dev.of_node, *mode, input);
 			mutex_unlock(&dev->lock);
 			return -EINVAL;
 		}
@@ -250,8 +250,7 @@ static int zmii_probe(struct platform_device *ofdev)
 
 	rc = -ENXIO;
 	if (of_address_to_resource(np, 0, &regs)) {
-		printk(KERN_ERR "%s: Can't get registers address\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get registers address\n", np);
 		goto err_free;
 	}
 
@@ -259,8 +258,7 @@ static int zmii_probe(struct platform_device *ofdev)
 	dev->base = (struct zmii_regs __iomem *)ioremap(regs.start,
 						sizeof(struct zmii_regs));
 	if (dev->base == NULL) {
-		printk(KERN_ERR "%s: Can't map device registers!\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't map device registers!\n", np);
 		goto err_free;
 	}
 
@@ -270,8 +268,7 @@ static int zmii_probe(struct platform_device *ofdev)
 	/* Disable all inputs by default */
 	out_be32(&dev->base->fer, 0);
 
-	printk(KERN_INFO
-	       "ZMII %s initialized\n", ofdev->dev.of_node->full_name);
+	printk(KERN_INFO "ZMII %pOF initialized\n", ofdev->dev.of_node);
 	wmb();
 	platform_set_drvdata(ofdev, dev);
 

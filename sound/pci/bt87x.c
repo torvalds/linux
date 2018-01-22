@@ -353,7 +353,7 @@ static irqreturn_t snd_bt87x_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct snd_pcm_hardware snd_bt87x_digital_hw = {
+static const struct snd_pcm_hardware snd_bt87x_digital_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -370,7 +370,7 @@ static struct snd_pcm_hardware snd_bt87x_digital_hw = {
 	.periods_max = 255,
 };
 
-static struct snd_pcm_hardware snd_bt87x_analog_hw = {
+static const struct snd_pcm_hardware snd_bt87x_analog_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |

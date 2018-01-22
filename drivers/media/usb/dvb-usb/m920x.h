@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DVB_USB_M920X_H_
 #define _DVB_USB_M920X_H_
 

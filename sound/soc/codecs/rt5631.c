@@ -1653,7 +1653,7 @@ static struct snd_soc_dai_driver rt5631_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5631 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5631 = {
 	.probe = rt5631_probe,
 	.set_bias_level = rt5631_set_bias_level,
 	.suspend_bias_off = true,

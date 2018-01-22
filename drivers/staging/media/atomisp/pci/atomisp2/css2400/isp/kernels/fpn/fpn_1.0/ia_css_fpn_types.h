@@ -15,11 +15,11 @@
 #ifndef __IA_CSS_FPN_TYPES_H
 #define __IA_CSS_FPN_TYPES_H
 
-/** @file
+/* @file
 * CSS-API header file for Fixed Pattern Noise parameters.
 */
 
-/** Fixed Pattern Noise table.
+/* Fixed Pattern Noise table.
  *
  *  This contains the fixed patterns noise values
  *  obtained from a black frame capture.
@@ -33,15 +33,15 @@
  */
 
 struct ia_css_fpn_table {
-	int16_t *data;		/**< Table content (fixed patterns noise).
+	int16_t *data;		/** Table content (fixed patterns noise).
 					u0.[13-shift], [0,63] */
-	uint32_t width;		/**< Table width (in pixels).
+	uint32_t width;		/** Table width (in pixels).
 					This is the input frame width. */
-	uint32_t height;	/**< Table height (in pixels).
+	uint32_t height;	/** Table height (in pixels).
 					This is the input frame height. */
-	uint32_t shift;		/**< Common exponent of table content.
+	uint32_t shift;		/** Common exponent of table content.
 					u8.0, [0,13] */
-	uint32_t enabled;	/**< Fpn is enabled.
+	uint32_t enabled;	/** Fpn is enabled.
 					bool */
 };
 

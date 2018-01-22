@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ifndef CROSS_COMPILE
 CFLAGS := -std=gnu99
 CFLAGS_vdso_standalone_test_x86 := -nostdlib -fno-asynchronous-unwind-tables -fno-stack-protector

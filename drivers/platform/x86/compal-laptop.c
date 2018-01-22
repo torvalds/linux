@@ -805,7 +805,7 @@ static int dmi_check_cb_extra(const struct dmi_system_id *id)
 	return 1;
 }
 
-static struct dmi_system_id __initdata compal_dmi_table[] = {
+static const struct dmi_system_id compal_dmi_table[] __initconst = {
 	{
 		.ident = "FL90/IFL90",
 		.matches = {

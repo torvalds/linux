@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_MSI_H
 #define LINUX_MSI_H
 
@@ -66,6 +67,7 @@ struct fsl_mc_msi_desc {
  * @mask_pos:	[PCI MSI]   Mask register position
  * @mask_base:	[PCI MSI-X] Mask register base address
  * @platform:	[platform]  Platform device specific msi descriptor data
+ * @fsl_mc:	[fsl-mc]    FSL MC device specific msi descriptor data
  */
 struct msi_desc {
 	/* Shared device/bus type independent data */
@@ -282,6 +284,11 @@ enum {
 	MSI_FLAG_PCI_MSIX		= (1 << 3),
 	/* Needs early activate, required for PCI */
 	MSI_FLAG_ACTIVATE_EARLY		= (1 << 4),
+	/*
+	 * Must reactivate when irq is started even when
+	 * MSI_FLAG_ACTIVATE_EARLY has been set.
+	 */
+	MSI_FLAG_MUST_REACTIVATE	= (1 << 5),
 };
 
 int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,

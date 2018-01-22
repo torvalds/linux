@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Tests x86 Memory Protection Keys (see Documentation/x86/protection-keys.txt)
  *
@@ -188,17 +189,29 @@ void lots_o_noops_around_write(int *write_to_me)
 #define u64 uint64_t
 
 #ifdef __i386__
-#define SYS_mprotect_key 380
-#define SYS_pkey_alloc	 381
-#define SYS_pkey_free	 382
+
+#ifndef SYS_mprotect_key
+# define SYS_mprotect_key 380
+#endif
+#ifndef SYS_pkey_alloc
+# define SYS_pkey_alloc	 381
+# define SYS_pkey_free	 382
+#endif
 #define REG_IP_IDX REG_EIP
 #define si_pkey_offset 0x14
+
 #else
-#define SYS_mprotect_key 329
-#define SYS_pkey_alloc	 330
-#define SYS_pkey_free	 331
+
+#ifndef SYS_mprotect_key
+# define SYS_mprotect_key 329
+#endif
+#ifndef SYS_pkey_alloc
+# define SYS_pkey_alloc	 330
+# define SYS_pkey_free	 331
+#endif
 #define REG_IP_IDX REG_RIP
 #define si_pkey_offset 0x20
+
 #endif
 
 void dump_mem(void *dumpme, int len_bytes)
@@ -212,19 +225,18 @@ void dump_mem(void *dumpme, int len_bytes)
 	}
 }
 
-#define __SI_FAULT      (3 << 16)
-#define SEGV_BNDERR     (__SI_FAULT|3)  /* failed address bound checks */
-#define SEGV_PKUERR     (__SI_FAULT|4)
+#define SEGV_BNDERR     3  /* failed address bound checks */
+#define SEGV_PKUERR     4
 
 static char *si_code_str(int si_code)
 {
-	if (si_code & SEGV_MAPERR)
+	if (si_code == SEGV_MAPERR)
 		return "SEGV_MAPERR";
-	if (si_code & SEGV_ACCERR)
+	if (si_code == SEGV_ACCERR)
 		return "SEGV_ACCERR";
-	if (si_code & SEGV_BNDERR)
+	if (si_code == SEGV_BNDERR)
 		return "SEGV_BNDERR";
-	if (si_code & SEGV_PKUERR)
+	if (si_code == SEGV_PKUERR)
 		return "SEGV_PKUERR";
 	return "UNKNOWN";
 }
@@ -238,7 +250,7 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 	unsigned long ip;
 	char *fpregs;
 	u32 *pkru_ptr;
-	u64 si_pkey;
+	u64 siginfo_pkey;
 	u32 *si_pkey_ptr;
 	int pkru_offset;
 	fpregset_t fpregset;
@@ -280,9 +292,9 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
 	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
 	dump_mem(si_pkey_ptr - 8, 24);
-	si_pkey = *si_pkey_ptr;
-	pkey_assert(si_pkey < NR_PKEYS);
-	last_si_pkey = si_pkey;
+	siginfo_pkey = *si_pkey_ptr;
+	pkey_assert(siginfo_pkey < NR_PKEYS);
+	last_si_pkey = siginfo_pkey;
 
 	if ((si->si_code == SEGV_MAPERR) ||
 	    (si->si_code == SEGV_ACCERR) ||
@@ -294,7 +306,7 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 	dprintf1("signal pkru from xsave: %08x\n", *pkru_ptr);
 	/* need __rdpkru() version so we do not do shadow_pkru checking */
 	dprintf1("signal pkru from  pkru: %08x\n", __rdpkru());
-	dprintf1("si_pkey from siginfo: %jx\n", si_pkey);
+	dprintf1("pkey from siginfo: %jx\n", siginfo_pkey);
 	*(u64 *)pkru_ptr = 0x00000000;
 	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
 	pkru_faults++;

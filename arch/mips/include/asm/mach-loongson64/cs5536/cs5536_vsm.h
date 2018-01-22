@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * the read/write interfaces for Virtual Support Module(VSM)
  *

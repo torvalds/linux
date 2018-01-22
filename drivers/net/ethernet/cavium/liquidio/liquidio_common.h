@@ -27,8 +27,8 @@
 
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
-#define LIQUIDIO_BASE_MINOR_VERSION 5
-#define LIQUIDIO_BASE_MICRO_VERSION 1
+#define LIQUIDIO_BASE_MINOR_VERSION 7
+#define LIQUIDIO_BASE_MICRO_VERSION 0
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
 #define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
@@ -84,9 +84,13 @@ enum octeon_tag_type {
 #define OPCODE_NIC_IF_CFG              0x09
 #define OPCODE_NIC_VF_DRV_NOTICE       0x0A
 #define OPCODE_NIC_INTRMOD_PARAMS      0x0B
+#define OPCODE_NIC_SYNC_OCTEON_TIME	0x14
 #define VF_DRV_LOADED                  1
 #define VF_DRV_REMOVED                -1
 #define VF_DRV_MACADDR_CHANGED         2
+
+#define OPCODE_NIC_VF_REP_PKT          0x15
+#define OPCODE_NIC_VF_REP_CMD          0x16
 
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
 
@@ -106,6 +110,11 @@ enum octeon_tag_type {
 #define MAX_IOQ_INTERRUPTS_PER_PF   (64 * 2)
 #define MAX_IOQ_INTERRUPTS_PER_VF   (8 * 2)
 
+#define SCR2_BIT_FW_LOADED	    63
+
+/* App specific capabilities from firmware to pf driver */
+#define LIQUIDIO_TIME_SYNC_CAP 0x1
+#define LIQUIDIO_SWITCHDEV_CAP 0x2
 
 static inline u32 incr_index(u32 index, u32 count, u32 max)
 {
@@ -189,7 +198,6 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_Q                0
 
 /* NIC Command types */
-#define   OCTNET_CMD_RESET_PF         0x0
 #define   OCTNET_CMD_CHANGE_MTU       0x1
 #define   OCTNET_CMD_CHANGE_MACADDR   0x2
 #define   OCTNET_CMD_CHANGE_DEVFLAGS  0x3
@@ -226,6 +234,9 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 #define   OCTNET_CMD_SET_UC_LIST       0x1b
 #define   OCTNET_CMD_SET_VF_LINKSTATE  0x1c
+
+#define   OCTNET_CMD_QUEUE_COUNT_CTL	0x1f
+
 #define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
 #define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
 #define   OCTNET_CMD_RXCSUM_ENABLE     0x0
@@ -234,6 +245,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_TXCSUM_DISABLE    0x1
 #define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
 #define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
+
+#define   LIO_CMD_WAIT_TM 100
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
@@ -768,6 +781,7 @@ struct nic_rx_stats {
 	/* firmware stats */
 	u64 fw_total_rcvd;
 	u64 fw_total_fwd;
+	u64 fw_total_fwd_bytes;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
@@ -814,6 +828,7 @@ struct nic_tx_stats {
 	u64 fw_tso;		/* number of tso requests */
 	u64 fw_tso_fwd;		/* number of packets segmented in tso */
 	u64 fw_tx_vxlan;
+	u64 fw_err_pki;
 };
 
 struct oct_link_stats {
@@ -894,4 +909,60 @@ union oct_nic_if_cfg {
 	} s;
 };
 
+struct lio_time {
+	s64 sec;   /* seconds */
+	s64 nsec;  /* nanoseconds */
+};
+
+struct lio_vf_rep_stats {
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_dropped;
+
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_dropped;
+};
+
+enum lio_vf_rep_req_type {
+	LIO_VF_REP_REQ_NONE,
+	LIO_VF_REP_REQ_STATE,
+	LIO_VF_REP_REQ_MTU,
+	LIO_VF_REP_REQ_STATS,
+	LIO_VF_REP_REQ_DEVNAME
+};
+
+enum {
+	LIO_VF_REP_STATE_DOWN,
+	LIO_VF_REP_STATE_UP
+};
+
+#define LIO_IF_NAME_SIZE 16
+struct lio_vf_rep_req {
+	u8 req_type;
+	u8 ifidx;
+	u8 rsvd[6];
+
+	union {
+		struct lio_vf_rep_name {
+			char name[LIO_IF_NAME_SIZE];
+		} rep_name;
+
+		struct lio_vf_rep_mtu {
+			u32 mtu;
+			u32 rsvd;
+		} rep_mtu;
+
+		struct lio_vf_rep_state {
+			u8 state;
+			u8 rsvd[7];
+		} rep_state;
+	};
+};
+
+struct lio_vf_rep_resp {
+	u64 rh;
+	u8  status;
+	u8  rsvd[7];
+};
 #endif

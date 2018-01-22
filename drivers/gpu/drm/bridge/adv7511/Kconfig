@@ -21,3 +21,11 @@ config DRM_I2C_ADV7533
 	default y
 	help
 	  Support for the Analog Devices ADV7533 DSI to HDMI encoder.
+
+config DRM_I2C_ADV7511_CEC
+	bool "ADV7511/33 HDMI CEC driver"
+	depends on DRM_I2C_ADV7511
+	select CEC_CORE
+	default y
+	help
+	  When selected the HDMI transmitter will support the CEC feature.

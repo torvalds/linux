@@ -68,6 +68,8 @@ config SND_SOC_RK3399_GRU_SOUND
 	select SND_SOC_RT5514
 	select SND_SOC_DA7219
 	select SND_SOC_RT5514_SPI
+	select SND_SOC_HDMI_CODEC
+	select SND_SOC_DMIC
 	help
 	  Say Y or M here if you want to add support multiple codecs for SoC
 	  audio on Rockchip RK3399 GRU boards.

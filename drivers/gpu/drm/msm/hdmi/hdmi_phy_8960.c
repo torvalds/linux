@@ -48,7 +48,7 @@ static const char * const hdmi_phy_8960_reg_names[] = {
 };
 
 static const char * const hdmi_phy_8960_clk_names[] = {
-	"slave_iface_clk",
+	"slave_iface",
 };
 
 const struct hdmi_phy_cfg msm_hdmi_phy_8960_cfg = {

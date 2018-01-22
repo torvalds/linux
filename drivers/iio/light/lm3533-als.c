@@ -827,7 +827,6 @@ static int lm3533_als_disable(struct lm3533_als *als)
 static const struct iio_info lm3533_als_info = {
 	.attrs		= &lm3533_als_attribute_group,
 	.event_attrs	= &lm3533_als_event_attribute_group,
-	.driver_module	= THIS_MODULE,
 	.read_raw	= &lm3533_als_read_raw,
 };
 

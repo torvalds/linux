@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPILINUX_KERNEL_PAGE_FLAGS_H
 #define _UAPILINUX_KERNEL_PAGE_FLAGS_H
 

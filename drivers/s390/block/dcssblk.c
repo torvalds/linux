@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dcssblk.c -- the S/390 block driver for dcss memory
  *
@@ -856,14 +857,14 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 	blk_queue_split(q, &bio);
 
 	bytes_done = 0;
-	dev_info = bio->bi_bdev->bd_disk->private_data;
+	dev_info = bio->bi_disk->private_data;
 	if (dev_info == NULL)
 		goto fail;
 	if ((bio->bi_iter.bi_sector & 7) != 0 ||
 	    (bio->bi_iter.bi_size & 4095) != 0)
 		/* Request is not page-aligned. */
 		goto fail;
-	if (bio_end_sector(bio) > get_capacity(bio->bi_bdev->bd_disk)) {
+	if (bio_end_sector(bio) > get_capacity(bio->bi_disk)) {
 		/* Request beyond end of DCSS segment. */
 		goto fail;
 	}

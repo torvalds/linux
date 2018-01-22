@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARCH_POWERPC_MM_VPHN_H_
 #define _ARCH_POWERPC_MM_VPHN_H_
 

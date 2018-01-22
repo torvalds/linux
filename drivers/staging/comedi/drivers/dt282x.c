@@ -1062,6 +1062,8 @@ static void dt282x_alloc_dma(struct comedi_device *dev,
 					   PAGE_SIZE, 0);
 	if (!devpriv->dma)
 		free_irq(irq_num, dev);
+	else
+		dev->irq = irq_num;
 }
 
 static void dt282x_free_dma(struct comedi_device *dev)

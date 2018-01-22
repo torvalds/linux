@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
@@ -174,6 +175,9 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	if (readonly)
 		set_bit(DASD_FLAG_DEVICE_RO, &device->flags);
 
+	/* FBA supports discard, set the according feature bit */
+	dasd_set_feature(cdev, DASD_FEATURE_DISCARD, 1);
+
 	dev_info(&device->cdev->dev,
 		 "New FBA DASD %04X/%02X (CU %04X/%02X) with %d MB "
 		 "and %d B/blk%s\n",
@@ -247,9 +251,192 @@ static void dasd_fba_check_for_device_change(struct dasd_device *device,
 		dasd_generic_handle_state_change(device);
 };
 
-static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
-					      struct dasd_block *block,
-					      struct request *req)
+
+/*
+ * Builds a CCW with no data payload
+ */
+static void ccw_write_no_data(struct ccw1 *ccw)
+{
+	ccw->cmd_code = DASD_FBA_CCW_WRITE;
+	ccw->flags |= CCW_FLAG_SLI;
+	ccw->count = 0;
+}
+
+/*
+ * Builds a CCW that writes only zeroes.
+ */
+static void ccw_write_zero(struct ccw1 *ccw, int count)
+{
+	ccw->cmd_code = DASD_FBA_CCW_WRITE;
+	ccw->flags |= CCW_FLAG_SLI;
+	ccw->count = count;
+	ccw->cda = (__u32) (addr_t) page_to_phys(ZERO_PAGE(0));
+}
+
+/*
+ * Helper function to count the amount of necessary CCWs within a given range
+ * with 4k alignment and command chaining in mind.
+ */
+static int count_ccws(sector_t first_rec, sector_t last_rec,
+		      unsigned int blocks_per_page)
+{
+	sector_t wz_stop = 0, d_stop = 0;
+	int cur_pos = 0;
+	int count = 0;
+
+	if (first_rec % blocks_per_page != 0) {
+		wz_stop = first_rec + blocks_per_page -
+			(first_rec % blocks_per_page) - 1;
+		if (wz_stop > last_rec)
+			wz_stop = last_rec;
+		cur_pos = wz_stop - first_rec + 1;
+		count++;
+	}
+
+	if (last_rec - (first_rec + cur_pos) + 1 >= blocks_per_page) {
+		if ((last_rec - blocks_per_page + 1) % blocks_per_page != 0)
+			d_stop = last_rec - ((last_rec - blocks_per_page + 1) %
+					     blocks_per_page);
+		else
+			d_stop = last_rec;
+
+		cur_pos += d_stop - (first_rec + cur_pos) + 1;
+		count++;
+	}
+
+	if (cur_pos == 0 || first_rec + cur_pos - 1 < last_rec)
+		count++;
+
+	return count;
+}
+
+/*
+ * This function builds a CCW request for block layer discard requests.
+ * Each page in the z/VM hypervisor that represents certain records of an FBA
+ * device will be padded with zeros. This is a special behaviour of the WRITE
+ * command which is triggered when no data payload is added to the CCW.
+ *
+ * Note: Due to issues in some z/VM versions, we can't fully utilise this
+ * special behaviour. We have to keep a 4k (or 8 block) alignment in mind to
+ * work around those issues and write actual zeroes to the unaligned parts in
+ * the request. This workaround might be removed in the future.
+ */
+static struct dasd_ccw_req *dasd_fba_build_cp_discard(
+						struct dasd_device *memdev,
+						struct dasd_block *block,
+						struct request *req)
+{
+	struct LO_fba_data *LO_data;
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+
+	sector_t wz_stop = 0, d_stop = 0;
+	sector_t first_rec, last_rec;
+
+	unsigned int blksize = block->bp_block;
+	unsigned int blocks_per_page;
+	int wz_count = 0;
+	int d_count = 0;
+	int cur_pos = 0; /* Current position within the extent */
+	int count = 0;
+	int cplength;
+	int datasize;
+	int nr_ccws;
+
+	first_rec = blk_rq_pos(req) >> block->s2b_shift;
+	last_rec =
+		(blk_rq_pos(req) + blk_rq_sectors(req) - 1) >> block->s2b_shift;
+	count = last_rec - first_rec + 1;
+
+	blocks_per_page = BLOCKS_PER_PAGE(blksize);
+	nr_ccws = count_ccws(first_rec, last_rec, blocks_per_page);
+
+	/* define extent + nr_ccws * locate record + nr_ccws * single CCW */
+	cplength = 1 + 2 * nr_ccws;
+	datasize = sizeof(struct DE_fba_data) +
+		nr_ccws * (sizeof(struct LO_fba_data) + sizeof(struct ccw1));
+
+	cqr = dasd_smalloc_request(DASD_FBA_MAGIC, cplength, datasize, memdev);
+	if (IS_ERR(cqr))
+		return cqr;
+
+	ccw = cqr->cpaddr;
+
+	define_extent(ccw++, cqr->data, WRITE, blksize, first_rec, count);
+	LO_data = cqr->data + sizeof(struct DE_fba_data);
+
+	/* First part is not aligned. Calculate range to write zeroes. */
+	if (first_rec % blocks_per_page != 0) {
+		wz_stop = first_rec + blocks_per_page -
+			(first_rec % blocks_per_page) - 1;
+		if (wz_stop > last_rec)
+			wz_stop = last_rec;
+		wz_count = wz_stop - first_rec + 1;
+
+		ccw[-1].flags |= CCW_FLAG_CC;
+		locate_record(ccw++, LO_data++, WRITE, cur_pos, wz_count);
+
+		ccw[-1].flags |= CCW_FLAG_CC;
+		ccw_write_zero(ccw++, wz_count * blksize);
+
+		cur_pos = wz_count;
+	}
+
+	/* We can do proper discard when we've got at least blocks_per_page blocks. */
+	if (last_rec - (first_rec + cur_pos) + 1 >= blocks_per_page) {
+		/* is last record at page boundary? */
+		if ((last_rec - blocks_per_page + 1) % blocks_per_page != 0)
+			d_stop = last_rec - ((last_rec - blocks_per_page + 1) %
+					     blocks_per_page);
+		else
+			d_stop = last_rec;
+
+		d_count = d_stop - (first_rec + cur_pos) + 1;
+
+		ccw[-1].flags |= CCW_FLAG_CC;
+		locate_record(ccw++, LO_data++, WRITE, cur_pos, d_count);
+
+		ccw[-1].flags |= CCW_FLAG_CC;
+		ccw_write_no_data(ccw++);
+
+		cur_pos += d_count;
+	}
+
+	/* We might still have some bits left which need to be zeroed. */
+	if (cur_pos == 0 || first_rec + cur_pos - 1 < last_rec) {
+		if (d_stop != 0)
+			wz_count = last_rec - d_stop;
+		else if (wz_stop != 0)
+			wz_count = last_rec - wz_stop;
+		else
+			wz_count = count;
+
+		ccw[-1].flags |= CCW_FLAG_CC;
+		locate_record(ccw++, LO_data++, WRITE, cur_pos, wz_count);
+
+		ccw[-1].flags |= CCW_FLAG_CC;
+		ccw_write_zero(ccw++, wz_count * blksize);
+	}
+
+	if (blk_noretry_request(req) ||
+	    block->base->features & DASD_FEATURE_FAILFAST)
+		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
+
+	cqr->startdev = memdev;
+	cqr->memdev = memdev;
+	cqr->block = block;
+	cqr->expires = memdev->default_expires * HZ;	/* default 5 minutes */
+	cqr->retries = memdev->default_retries;
+	cqr->buildclk = get_tod_clock();
+	cqr->status = DASD_CQR_FILLED;
+
+	return cqr;
+}
+
+static struct dasd_ccw_req *dasd_fba_build_cp_regular(
+						struct dasd_device *memdev,
+						struct dasd_block *block,
+						struct request *req)
 {
 	struct dasd_fba_private *private = block->base->private;
 	unsigned long *idaws;
@@ -370,6 +557,16 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
+}
+
+static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device *memdev,
+					      struct dasd_block *block,
+					      struct request *req)
+{
+	if (req_op(req) == REQ_OP_DISCARD || req_op(req) == REQ_OP_WRITE_ZEROES)
+		return dasd_fba_build_cp_discard(memdev, block, req);
+	else
+		return dasd_fba_build_cp_regular(memdev, block, req);
 }
 
 static int

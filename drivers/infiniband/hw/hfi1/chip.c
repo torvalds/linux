@@ -1012,14 +1012,15 @@ static struct flag_table dc8051_info_err_flags[] = {
  */
 static struct flag_table dc8051_info_host_msg_flags[] = {
 	FLAG_ENTRY0("Host request done", 0x0001),
-	FLAG_ENTRY0("BC SMA message", 0x0002),
-	FLAG_ENTRY0("BC PWR_MGM message", 0x0004),
+	FLAG_ENTRY0("BC PWR_MGM message", 0x0002),
+	FLAG_ENTRY0("BC SMA message", 0x0004),
 	FLAG_ENTRY0("BC Unknown message (BCC)", 0x0008),
 	FLAG_ENTRY0("BC Unknown message (LCB)", 0x0010),
 	FLAG_ENTRY0("External device config request", 0x0020),
 	FLAG_ENTRY0("VerifyCap all frames received", 0x0040),
 	FLAG_ENTRY0("LinkUp achieved", 0x0080),
 	FLAG_ENTRY0("Link going down", 0x0100),
+	FLAG_ENTRY0("Link width downgraded", 0x0200),
 };
 
 static u32 encoded_size(u32 size);
@@ -1035,7 +1036,6 @@ static void read_vc_local_link_width(struct hfi1_devdata *dd, u8 *misc_bits,
 				     u8 *flag_bits, u16 *link_widths);
 static void read_remote_device_id(struct hfi1_devdata *dd, u16 *device_id,
 				  u8 *device_rev);
-static void read_mgmt_allowed(struct hfi1_devdata *dd, u8 *mgmt_allowed);
 static void read_local_lni(struct hfi1_devdata *dd, u8 *enable_lane_rx);
 static int read_tx_settings(struct hfi1_devdata *dd, u8 *enable_lane_tx,
 			    u8 *tx_polarity_inversion,
@@ -1064,8 +1064,15 @@ static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
 static int read_idle_sma(struct hfi1_devdata *dd, u64 *data);
 static int thermal_init(struct hfi1_devdata *dd);
 
+static void update_statusp(struct hfi1_pportdata *ppd, u32 state);
+static int wait_phys_link_offline_substates(struct hfi1_pportdata *ppd,
+					    int msecs);
 static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				  int msecs);
+static void log_state_transition(struct hfi1_pportdata *ppd, u32 state);
+static void log_physical_state(struct hfi1_pportdata *ppd, u32 state);
+static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
+				   int msecs);
 static void read_planned_down_reason_code(struct hfi1_devdata *dd, u8 *pdrrc);
 static void read_link_down_reason(struct hfi1_devdata *dd, u8 *ldr);
 static void handle_temp_err(struct hfi1_devdata *dd);
@@ -1294,25 +1301,71 @@ CNTR_ELEM(#name, \
 	  CNTR_SYNTH, \
 	  access_ibp_##cntr)
 
+/**
+ * hfi_addr_from_offset - return addr for readq/writeq
+ * @dd - the dd device
+ * @offset - the offset of the CSR within bar0
+ *
+ * This routine selects the appropriate base address
+ * based on the indicated offset.
+ */
+static inline void __iomem *hfi1_addr_from_offset(
+	const struct hfi1_devdata *dd,
+	u32 offset)
+{
+	if (offset >= dd->base2_start)
+		return dd->kregbase2 + (offset - dd->base2_start);
+	return dd->kregbase1 + offset;
+}
+
+/**
+ * read_csr - read CSR at the indicated offset
+ * @dd - the dd device
+ * @offset - the offset of the CSR within bar0
+ *
+ * Return: the value read or all FF's if there
+ * is no mapping
+ */
 u64 read_csr(const struct hfi1_devdata *dd, u32 offset)
 {
-	if (dd->flags & HFI1_PRESENT) {
-		return readq((void __iomem *)dd->kregbase + offset);
-	}
+	if (dd->flags & HFI1_PRESENT)
+		return readq(hfi1_addr_from_offset(dd, offset));
 	return -1;
 }
 
+/**
+ * write_csr - write CSR at the indicated offset
+ * @dd - the dd device
+ * @offset - the offset of the CSR within bar0
+ * @value - value to write
+ */
 void write_csr(const struct hfi1_devdata *dd, u32 offset, u64 value)
 {
-	if (dd->flags & HFI1_PRESENT)
-		writeq(value, (void __iomem *)dd->kregbase + offset);
+	if (dd->flags & HFI1_PRESENT) {
+		void __iomem *base = hfi1_addr_from_offset(dd, offset);
+
+		/* avoid write to RcvArray */
+		if (WARN_ON(offset >= RCV_ARRAY && offset < dd->base2_start))
+			return;
+		writeq(value, base);
+	}
 }
 
+/**
+ * get_csr_addr - return te iomem address for offset
+ * @dd - the dd device
+ * @offset - the offset of the CSR within bar0
+ *
+ * Return: The iomem address to use in subsequent
+ * writeq/readq operations.
+ */
 void __iomem *get_csr_addr(
-	struct hfi1_devdata *dd,
+	const struct hfi1_devdata *dd,
 	u32 offset)
 {
-	return (void __iomem *)dd->kregbase + offset;
+	if (dd->flags & HFI1_PRESENT)
+		return hfi1_addr_from_offset(dd, offset);
+	return NULL;
 }
 
 static inline u64 read_write_csr(const struct hfi1_devdata *dd, u32 csr,
@@ -5484,9 +5537,9 @@ static void handle_cce_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
  * associated with them.
  */
 #define RCVERR_CHECK_TIME 10
-static void update_rcverr_timer(unsigned long opaque)
+static void update_rcverr_timer(struct timer_list *t)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)opaque;
+	struct hfi1_devdata *dd = from_timer(dd, t, rcverr_timer);
 	struct hfi1_pportdata *ppd = dd->pport;
 	u32 cur_ovfl_cnt = read_dev_cntr(dd, C_RCV_OVF, CNTR_INVALID_VL);
 
@@ -5496,7 +5549,7 @@ static void update_rcverr_timer(unsigned long opaque)
 		set_link_down_reason(
 		ppd, OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN, 0,
 		OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN);
-		queue_work(ppd->hfi1_wq, &ppd->link_bounce_work);
+		queue_work(ppd->link_wq, &ppd->link_bounce_work);
 	}
 	dd->rcv_ovfl_cnt = (u32)cur_ovfl_cnt;
 
@@ -5505,7 +5558,7 @@ static void update_rcverr_timer(unsigned long opaque)
 
 static int init_rcverr(struct hfi1_devdata *dd)
 {
-	setup_timer(&dd->rcverr_timer, update_rcverr_timer, (unsigned long)dd);
+	timer_setup(&dd->rcverr_timer, update_rcverr_timer, 0);
 	/* Assume the hardware counter has been reset */
 	dd->rcv_ovfl_cnt = 0;
 	return mod_timer(&dd->rcverr_timer, jiffies + HZ * RCVERR_CHECK_TIME);
@@ -5513,9 +5566,8 @@ static int init_rcverr(struct hfi1_devdata *dd)
 
 static void free_rcverr(struct hfi1_devdata *dd)
 {
-	if (dd->rcverr_timer.data)
+	if (dd->rcverr_timer.function)
 		del_timer_sync(&dd->rcverr_timer);
-	dd->rcverr_timer.data = 0;
 }
 
 static void handle_rxe_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
@@ -6051,7 +6103,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 				 * will not happen. We have to do it here
 				 * before turning the DC off.
 				 */
-				queue_work(ppd->hfi1_wq, &ppd->link_down_work);
+				queue_work(ppd->link_wq, &ppd->link_down_work);
 			}
 		} else {
 			dd_dev_info(dd, "%s: QSFP module inserted\n",
@@ -6086,7 +6138,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 
 	/* Schedule the QSFP work only if there is a cable attached. */
 	if (qsfp_mod_present(ppd))
-		queue_work(ppd->hfi1_wq, &ppd->qsfp_info.qsfp_work);
+		queue_work(ppd->link_wq, &ppd->qsfp_info.qsfp_work);
 }
 
 static int request_host_lcb_access(struct hfi1_devdata *dd)
@@ -6466,12 +6518,11 @@ static void _dc_start(struct hfi1_devdata *dd)
 	if (!dd->dc_shutdown)
 		return;
 
-	/* Take the 8051 out of reset */
-	write_csr(dd, DC_DC8051_CFG_RST, 0ull);
-	/* Wait until 8051 is ready */
-	if (wait_fm_ready(dd, TIMEOUT_8051_START))
-		dd_dev_err(dd, "%s: timeout starting 8051 firmware\n",
-			   __func__);
+	/*
+	 * Take the 8051 out of reset, wait until 8051 is ready, and set host
+	 * version bit.
+	 */
+	release_and_wait_ready_8051_firmware(dd);
 
 	/* Take away reset for LCB and RX FPE (set in lcb_shutdown). */
 	write_csr(dd, DCC_CFG_RESET, 0x10);
@@ -6735,13 +6786,17 @@ static void wait_for_freeze_status(struct hfi1_devdata *dd, int freeze)
 static void rxe_freeze(struct hfi1_devdata *dd)
 {
 	int i;
+	struct hfi1_ctxtdata *rcd;
 
 	/* disable port */
 	clear_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
 
 	/* disable all receive contexts */
-	for (i = 0; i < dd->num_rcv_contexts; i++)
-		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS, i);
+	for (i = 0; i < dd->num_rcv_contexts; i++) {
+		rcd = hfi1_rcd_get_by_index(dd, i);
+		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS, rcd);
+		hfi1_rcd_put(rcd);
+	}
 }
 
 /*
@@ -6753,21 +6808,25 @@ static void rxe_freeze(struct hfi1_devdata *dd)
 static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 {
 	u32 rcvmask;
-	int i;
+	u16 i;
+	struct hfi1_ctxtdata *rcd;
 
 	/* enable all kernel contexts */
 	for (i = 0; i < dd->num_rcv_contexts; i++) {
-		struct hfi1_ctxtdata *rcd = dd->rcd[i];
+		rcd = hfi1_rcd_get_by_index(dd, i);
 
 		/* Ensure all non-user contexts(including vnic) are enabled */
-		if (!rcd || !rcd->sc || (rcd->sc->type == SC_USER))
+		if (!rcd ||
+		    (i >= dd->first_dyn_alloc_ctxt && !rcd->is_vnic)) {
+			hfi1_rcd_put(rcd);
 			continue;
-
+		}
 		rcvmask = HFI1_RCVCTRL_CTXT_ENB;
 		/* HFI1_RCVCTRL_TAILUPD_[ENB|DIS] needs to be set explicitly */
-		rcvmask |= HFI1_CAP_KGET_MASK(dd->rcd[i]->flags, DMA_RTAIL) ?
+		rcvmask |= HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ?
 			HFI1_RCVCTRL_TAILUPD_ENB : HFI1_RCVCTRL_TAILUPD_DIS;
-		hfi1_rcvctrl(dd, rcvmask, i);
+		hfi1_rcvctrl(dd, rcvmask, rcd);
+		hfi1_rcd_put(rcd);
 	}
 
 	/* enable port */
@@ -6906,7 +6965,7 @@ static void reset_neighbor_info(struct hfi1_pportdata *ppd)
 
 static const char * const link_down_reason_strs[] = {
 	[OPA_LINKDOWN_REASON_NONE] = "None",
-	[OPA_LINKDOWN_REASON_RCV_ERROR_0] = "Recive error 0",
+	[OPA_LINKDOWN_REASON_RCV_ERROR_0] = "Receive error 0",
 	[OPA_LINKDOWN_REASON_BAD_PKT_LEN] = "Bad packet length",
 	[OPA_LINKDOWN_REASON_PKT_TOO_LONG] = "Packet too long",
 	[OPA_LINKDOWN_REASON_PKT_TOO_SHORT] = "Packet too short",
@@ -6996,6 +7055,7 @@ void handle_link_down(struct work_struct *work)
 	/* Go offline first, then deal with reading/writing through 8051 */
 	was_up = !!(ppd->host_link_state & HLS_UP);
 	set_link_state(ppd, HLS_DN_OFFLINE);
+	xchg(&ppd->is_link_down_queued, 0);
 
 	if (was_up) {
 		lcl_reason = 0;
@@ -7135,27 +7195,6 @@ static int lcb_to_port_ltp(int lcb_crc)
 		port_ltp = PORT_LTP_CRC_MODE_16;
 
 	return port_ltp;
-}
-
-/*
- * Our neighbor has indicated that we are allowed to act as a fabric
- * manager, so place the full management partition key in the second
- * (0-based) pkey array position (see OPAv1, section 20.2.2.6.8). Note
- * that we should already have the limited management partition key in
- * array element 1, and also that the port is not yet up when
- * add_full_mgmt_pkey() is invoked.
- */
-static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
-{
-	struct hfi1_devdata *dd = ppd->dd;
-
-	/* Sanity check - ppd->pkeys[2] should be 0, or already initialized */
-	if (!((ppd->pkeys[2] == 0) || (ppd->pkeys[2] == FULL_MGMT_P_KEY)))
-		dd_dev_warn(dd, "%s pkey[2] already set to 0x%x, resetting it to 0x%x\n",
-			    __func__, ppd->pkeys[2], FULL_MGMT_P_KEY);
-	ppd->pkeys[2] = FULL_MGMT_P_KEY;
-	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
-	hfi1_event_pkey_change(ppd->dd, ppd->port);
 }
 
 static void clear_full_mgmt_pkey(struct hfi1_pportdata *ppd)
@@ -7330,7 +7369,7 @@ void handle_verify_cap(struct work_struct *work)
 	struct hfi1_devdata *dd = ppd->dd;
 	u64 reg;
 	u8 power_management;
-	u8 continious;
+	u8 continuous;
 	u8 vcu;
 	u8 vau;
 	u8 z;
@@ -7349,21 +7388,17 @@ void handle_verify_cap(struct work_struct *work)
 	lcb_shutdown(dd, 0);
 	adjust_lcb_for_fpga_serdes(dd);
 
-	read_vc_remote_phy(dd, &power_management, &continious);
+	read_vc_remote_phy(dd, &power_management, &continuous);
 	read_vc_remote_fabric(dd, &vau, &z, &vcu, &vl15buf,
 			      &partner_supported_crc);
 	read_vc_remote_link_width(dd, &remote_tx_rate, &link_widths);
 	read_remote_device_id(dd, &device_id, &device_rev);
-	/*
-	 * And the 'MgmtAllowed' information, which is exchanged during
-	 * LNI, is also be available at this point.
-	 */
-	read_mgmt_allowed(dd, &ppd->mgmt_allowed);
+
 	/* print the active widths */
 	get_link_widths(dd, &active_tx, &active_rx);
 	dd_dev_info(dd,
 		    "Peer PHY: power management 0x%x, continuous updates 0x%x\n",
-		    (int)power_management, (int)continious);
+		    (int)power_management, (int)continuous);
 	dd_dev_info(dd,
 		    "Peer Fabric: vAU %d, Z %d, vCU %d, vl15 credits 0x%x, CRC sizes 0x%x\n",
 		    (int)vau, (int)z, (int)vcu, (int)vl15buf,
@@ -7485,9 +7520,6 @@ void handle_verify_cap(struct work_struct *work)
 	/* give 8051 access to the LCB CSRs */
 	write_csr(dd, DC_LCB_ERR_EN, 0); /* mask LCB errors */
 	set_8051_lcb_access(dd);
-
-	if (ppd->mgmt_allowed)
-		add_full_mgmt_pkey(ppd);
 
 	/* tell the 8051 to go to LinkUp */
 	set_link_state(ppd, HLS_GOING_UP);
@@ -7689,12 +7721,12 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			host_msg &= ~(u64)HOST_REQ_DONE;
 		}
 		if (host_msg & BC_SMA_MSG) {
-			queue_work(ppd->hfi1_wq, &ppd->sma_message_work);
+			queue_work(ppd->link_wq, &ppd->sma_message_work);
 			host_msg &= ~(u64)BC_SMA_MSG;
 		}
 		if (host_msg & LINKUP_ACHIEVED) {
 			dd_dev_info(dd, "8051: Link up\n");
-			queue_work(ppd->hfi1_wq, &ppd->link_up_work);
+			queue_work(ppd->link_wq, &ppd->link_up_work);
 			host_msg &= ~(u64)LINKUP_ACHIEVED;
 		}
 		if (host_msg & EXT_DEVICE_CFG_REQ) {
@@ -7702,7 +7734,7 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			host_msg &= ~(u64)EXT_DEVICE_CFG_REQ;
 		}
 		if (host_msg & VERIFY_CAP_FRAME) {
-			queue_work(ppd->hfi1_wq, &ppd->link_vc_work);
+			queue_work(ppd->link_wq, &ppd->link_vc_work);
 			host_msg &= ~(u64)VERIFY_CAP_FRAME;
 		}
 		if (host_msg & LINK_GOING_DOWN) {
@@ -7717,7 +7749,7 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			host_msg &= ~(u64)LINK_GOING_DOWN;
 		}
 		if (host_msg & LINK_WIDTH_DOWNGRADED) {
-			queue_work(ppd->hfi1_wq, &ppd->link_downgrade_work);
+			queue_work(ppd->link_wq, &ppd->link_downgrade_work);
 			host_msg &= ~(u64)LINK_WIDTH_DOWNGRADED;
 		}
 		if (host_msg) {
@@ -7752,15 +7784,22 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	if (queue_link_down) {
 		/*
 		 * if the link is already going down or disabled, do not
-		 * queue another
+		 * queue another. If there's a link down entry already
+		 * queued, don't queue another one.
 		 */
 		if ((ppd->host_link_state &
 		    (HLS_GOING_OFFLINE | HLS_LINK_COOLDOWN)) ||
 		    ppd->link_enabled == 0) {
-			dd_dev_info(dd, "%s: not queuing link down\n",
-				    __func__);
+			dd_dev_info(dd, "%s: not queuing link down. host_link_state %x, link_enabled %x\n",
+				    __func__, ppd->host_link_state,
+				    ppd->link_enabled);
 		} else {
-			queue_work(ppd->hfi1_wq, &ppd->link_down_work);
+			if (xchg(&ppd->is_link_down_queued, 1) == 1)
+				dd_dev_info(dd,
+					    "%s: link down request already queued\n",
+					    __func__);
+			else
+				queue_work(ppd->link_wq, &ppd->link_down_work);
 		}
 	}
 }
@@ -7968,7 +8007,7 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		dd_dev_info_ratelimited(dd, "%s: PortErrorAction bounce\n",
 					__func__);
 		set_link_down_reason(ppd, lcl_reason, 0, lcl_reason);
-		queue_work(ppd->hfi1_wq, &ppd->link_bounce_work);
+		queue_work(ppd->link_wq, &ppd->link_bounce_work);
 	}
 }
 
@@ -8052,14 +8091,15 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 	char *err_detail;
 
 	if (likely(source < dd->num_rcv_contexts)) {
-		rcd = dd->rcd[source];
+		rcd = hfi1_rcd_get_by_index(dd, source);
 		if (rcd) {
 			/* Check for non-user contexts, including vnic */
-			if ((source < dd->first_dyn_alloc_ctxt) ||
-			    (rcd->sc && (rcd->sc->type == SC_KERNEL)))
+			if (source < dd->first_dyn_alloc_ctxt || rcd->is_vnic)
 				rcd->do_interrupt(rcd, 0);
 			else
 				handle_user_interrupt(rcd);
+
+			hfi1_rcd_put(rcd);
 			return;	/* OK */
 		}
 		/* received an interrupt, but no rcd */
@@ -8081,12 +8121,14 @@ static void is_rcv_urgent_int(struct hfi1_devdata *dd, unsigned int source)
 	char *err_detail;
 
 	if (likely(source < dd->num_rcv_contexts)) {
-		rcd = dd->rcd[source];
+		rcd = hfi1_rcd_get_by_index(dd, source);
 		if (rcd) {
 			/* only pay attention to user urgent interrupts */
-			if ((source >= dd->first_dyn_alloc_ctxt) &&
-			    (!rcd->sc || (rcd->sc->type == SC_USER)))
+			if (source >= dd->first_dyn_alloc_ctxt &&
+			    !rcd->is_vnic)
 				handle_user_interrupt(rcd);
+
+			hfi1_rcd_put(rcd);
 			return;	/* OK */
 		}
 		/* received an interrupt, but no rcd */
@@ -8167,6 +8209,7 @@ static irqreturn_t general_interrupt(int irq, void *data)
 	u64 regs[CCE_NUM_INT_CSRS];
 	u32 bit;
 	int i;
+	irqreturn_t handled = IRQ_NONE;
 
 	this_cpu_inc(*dd->int_counter);
 
@@ -8187,9 +8230,10 @@ static irqreturn_t general_interrupt(int irq, void *data)
 	for_each_set_bit(bit, (unsigned long *)&regs[0],
 			 CCE_NUM_INT_CSRS * 64) {
 		is_interrupt(dd, bit);
+		handled = IRQ_HANDLED;
 	}
 
-	return IRQ_HANDLED;
+	return handled;
 }
 
 static irqreturn_t sdma_interrupt(int irq, void *data)
@@ -8219,8 +8263,8 @@ static irqreturn_t sdma_interrupt(int irq, void *data)
 		/* handle the interrupt(s) */
 		sdma_engine_interrupt(sde, status);
 	} else {
-		dd_dev_err(dd, "SDMA engine %u interrupt, but no status bits set\n",
-			   sde->this_idx);
+		dd_dev_err_ratelimited(dd, "SDMA engine %u interrupt, but no status bits set\n",
+				       sde->this_idx);
 	}
 	return IRQ_HANDLED;
 }
@@ -8291,7 +8335,7 @@ static irqreturn_t receive_context_interrupt(int irq, void *data)
 	int disposition;
 	int present;
 
-	trace_hfi1_receive_interrupt(dd, rcd->ctxt);
+	trace_hfi1_receive_interrupt(dd, rcd);
 	this_cpu_inc(*dd->int_counter);
 	aspm_ctx_disable(rcd);
 
@@ -8520,29 +8564,22 @@ int write_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 data)
 }
 
 /*
+ * If the 8051 is in reset mode (dd->dc_shutdown == 1), this function
+ * will still continue executing.
+ *
  * Returns:
  *	< 0 = Linux error, not able to get access
  *	> 0 = 8051 command RETURN_CODE
  */
-static int do_8051_command(
-	struct hfi1_devdata *dd,
-	u32 type,
-	u64 in_data,
-	u64 *out_data)
+static int _do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
+			    u64 *out_data)
 {
 	u64 reg, completed;
 	int return_code;
 	unsigned long timeout;
 
+	lockdep_assert_held(&dd->dc8051_lock);
 	hfi1_cdbg(DC8051, "type %d, data 0x%012llx", type, in_data);
-
-	mutex_lock(&dd->dc8051_lock);
-
-	/* We can't send any commands to the 8051 if it's in reset */
-	if (dd->dc_shutdown) {
-		return_code = -ENODEV;
-		goto fail;
-	}
 
 	/*
 	 * If an 8051 host command timed out previously, then the 8051 is
@@ -8644,6 +8681,29 @@ static int do_8051_command(
 	write_csr(dd, DC_DC8051_CFG_HOST_CMD_0, 0);
 
 fail:
+	return return_code;
+}
+
+/*
+ * Returns:
+ *	< 0 = Linux error, not able to get access
+ *	> 0 = 8051 command RETURN_CODE
+ */
+static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
+			   u64 *out_data)
+{
+	int return_code;
+
+	mutex_lock(&dd->dc8051_lock);
+	/* We can't send any commands to the 8051 if it's in reset */
+	if (dd->dc_shutdown) {
+		return_code = -ENODEV;
+		goto fail;
+	}
+
+	return_code = _do_8051_command(dd, type, in_data, out_data);
+
+fail:
 	mutex_unlock(&dd->dc8051_lock);
 	return return_code;
 }
@@ -8653,22 +8713,35 @@ static int set_physical_link_state(struct hfi1_devdata *dd, u64 state)
 	return do_8051_command(dd, HCMD_CHANGE_PHY_STATE, state, NULL);
 }
 
-int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
-		     u8 lane_id, u32 config_data)
+static int _load_8051_config(struct hfi1_devdata *dd, u8 field_id,
+			     u8 lane_id, u32 config_data)
 {
 	u64 data;
 	int ret;
 
+	lockdep_assert_held(&dd->dc8051_lock);
 	data = (u64)field_id << LOAD_DATA_FIELD_ID_SHIFT
 		| (u64)lane_id << LOAD_DATA_LANE_ID_SHIFT
 		| (u64)config_data << LOAD_DATA_DATA_SHIFT;
-	ret = do_8051_command(dd, HCMD_LOAD_CONFIG_DATA, data, NULL);
+	ret = _do_8051_command(dd, HCMD_LOAD_CONFIG_DATA, data, NULL);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd,
 			   "load 8051 config: field id %d, lane %d, err %d\n",
 			   (int)field_id, (int)lane_id, ret);
 	}
 	return ret;
+}
+
+int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
+		     u8 lane_id, u32 config_data)
+{
+	int return_code;
+
+	mutex_lock(&dd->dc8051_lock);
+	return_code = _load_8051_config(dd, field_id, lane_id, config_data);
+	mutex_unlock(&dd->dc8051_lock);
+
+	return return_code;
 }
 
 /*
@@ -8781,6 +8854,21 @@ static void read_remote_device_id(struct hfi1_devdata *dd, u16 *device_id,
 			& REMOTE_DEVICE_REV_MASK;
 }
 
+int write_host_interface_version(struct hfi1_devdata *dd, u8 version)
+{
+	u32 frame;
+	u32 mask;
+
+	lockdep_assert_held(&dd->dc8051_lock);
+	mask = (HOST_INTERFACE_VERSION_MASK << HOST_INTERFACE_VERSION_SHIFT);
+	read_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG, &frame);
+	/* Clear, then set field */
+	frame &= ~mask;
+	frame |= ((u32)version << HOST_INTERFACE_VERSION_SHIFT);
+	return _load_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG,
+				 frame);
+}
+
 void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
 		      u8 *ver_patch)
 {
@@ -8841,14 +8929,6 @@ static void read_local_lni(struct hfi1_devdata *dd, u8 *enable_lane_rx)
 
 	read_8051_config(dd, LOCAL_LNI_INFO, GENERAL_CONFIG, &frame);
 	*enable_lane_rx = (frame >> ENABLE_LANE_RX_SHIFT) & ENABLE_LANE_RX_MASK;
-}
-
-static void read_mgmt_allowed(struct hfi1_devdata *dd, u8 *mgmt_allowed)
-{
-	u32 frame;
-
-	read_8051_config(dd, REMOTE_LNI_INFO, GENERAL_CONFIG, &frame);
-	*mgmt_allowed = (frame >> MGMT_ALLOWED_SHIFT) & MGMT_ALLOWED_MASK;
 }
 
 static void read_last_local_state(struct hfi1_devdata *dd, u32 *lls)
@@ -9072,25 +9152,6 @@ static int do_quick_linkup(struct hfi1_devdata *dd)
 }
 
 /*
- * Set the SerDes to internal loopback mode.
- * Returns 0 on success, -errno on error.
- */
-static int set_serdes_loopback_mode(struct hfi1_devdata *dd)
-{
-	int ret;
-
-	ret = set_physical_link_state(dd, PLS_INTERNAL_SERDES_LOOPBACK);
-	if (ret == HCMD_SUCCESS)
-		return 0;
-	dd_dev_err(dd,
-		   "Set physical link state to SerDes Loopback failed with return %d\n",
-		   ret);
-	if (ret >= 0)
-		ret = -EINVAL;
-	return ret;
-}
-
-/*
  * Do all special steps to set up loopback.
  */
 static int init_loopback(struct hfi1_devdata *dd)
@@ -9115,13 +9176,11 @@ static int init_loopback(struct hfi1_devdata *dd)
 		return 0;
 	}
 
-	/* handle serdes loopback */
-	if (loopback == LOOPBACK_SERDES) {
-		/* internal serdes loopack needs quick linkup on RTL */
-		if (dd->icode == ICODE_RTL_SILICON)
-			quick_linkup = 1;
-		return set_serdes_loopback_mode(dd);
-	}
+	/*
+	 * SerDes loopback init sequence is handled in set_local_link_attributes
+	 */
+	if (loopback == LOOPBACK_SERDES)
+		return 0;
 
 	/* LCB loopback - handled at poll time */
 	if (loopback == LOOPBACK_LCB) {
@@ -9180,7 +9239,7 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 	u8 tx_polarity_inversion;
 	u8 rx_polarity_inversion;
 	int ret;
-
+	u32 misc_bits = 0;
 	/* reset our fabric serdes to clear any lingering problems */
 	fabric_serdes_reset(dd);
 
@@ -9226,7 +9285,14 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
 
-	ret = write_vc_local_link_width(dd, 0, 0,
+	/*
+	 * SerDes loopback init sequence requires
+	 * setting bit 0 of MISC_CONFIG_BITS
+	 */
+	if (loopback == LOOPBACK_SERDES)
+		misc_bits |= 1 << LOOPBACK_SERDES_CONFIG_BIT_MASK_SHIFT;
+
+	ret = write_vc_local_link_width(dd, misc_bits, 0,
 					opa_to_vc_link_widths(
 						ppd->link_width_enabled));
 	if (ret != HCMD_SUCCESS)
@@ -9257,12 +9323,6 @@ int start_link(struct hfi1_pportdata *ppd)
 	 */
 	tune_serdes(ppd);
 
-	if (!ppd->link_enabled) {
-		dd_dev_info(ppd->dd,
-			    "%s: stopping link start because link is disabled\n",
-			    __func__);
-		return 0;
-	}
 	if (!ppd->driver_link_ready) {
 		dd_dev_info(ppd->dd,
 			    "%s: stopping link start because driver is not ready\n",
@@ -9334,7 +9394,7 @@ static void set_qsfp_int_n(struct hfi1_pportdata *ppd, u8 enable)
 	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_MASK : ASIC_QSFP1_MASK, mask);
 }
 
-void reset_qsfp(struct hfi1_pportdata *ppd)
+int reset_qsfp(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	u64 mask, qsfp_mask;
@@ -9364,6 +9424,13 @@ void reset_qsfp(struct hfi1_pportdata *ppd)
 	 * for alarms and warnings
 	 */
 	set_qsfp_int_n(ppd, 1);
+
+	/*
+	 * After the reset, AOC transmitters are enabled by default. They need
+	 * to be turned off to complete the QSFP setup before they can be
+	 * enabled again.
+	 */
+	return set_qsfp_tx(ppd, 0);
 }
 
 static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
@@ -9373,13 +9440,13 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 
 	if ((qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_ALARM) ||
 	    (qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_WARNING))
-		dd_dev_info(dd, "%s: QSFP cable temperature too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP cable temperature too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[0] & QSFP_LOW_TEMP_ALARM) ||
 	    (qsfp_interrupt_status[0] & QSFP_LOW_TEMP_WARNING))
-		dd_dev_info(dd, "%s: QSFP cable temperature too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP cable temperature too low\n",
+			   __func__);
 
 	/*
 	 * The remaining alarms/warnings don't matter if the link is down.
@@ -9389,75 +9456,75 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 
 	if ((qsfp_interrupt_status[1] & QSFP_HIGH_VCC_ALARM) ||
 	    (qsfp_interrupt_status[1] & QSFP_HIGH_VCC_WARNING))
-		dd_dev_info(dd, "%s: QSFP supply voltage too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP supply voltage too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[1] & QSFP_LOW_VCC_ALARM) ||
 	    (qsfp_interrupt_status[1] & QSFP_LOW_VCC_WARNING))
-		dd_dev_info(dd, "%s: QSFP supply voltage too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP supply voltage too low\n",
+			   __func__);
 
 	/* Byte 2 is vendor specific */
 
 	if ((qsfp_interrupt_status[3] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[3] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 1/2 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 1/2 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[3] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[3] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 1/2 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 1/2 power too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[4] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[4] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 3/4 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 3/4 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[4] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[4] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 3/4 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 3/4 power too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[5] & QSFP_HIGH_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[5] & QSFP_HIGH_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 bias too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 bias too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[5] & QSFP_LOW_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[5] & QSFP_LOW_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 bias too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 bias too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[6] & QSFP_HIGH_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[6] & QSFP_HIGH_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 bias too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 bias too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[6] & QSFP_LOW_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[6] & QSFP_LOW_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 bias too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 bias too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[7] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[7] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[7] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[7] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 power too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[8] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[8] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[8] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[8] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 power too low\n",
+			   __func__);
 
 	/* Bytes 9-10 and 11-12 are reserved */
 	/* Bytes 13-15 are vendor specific */
@@ -9479,6 +9546,13 @@ void qsfp_event(struct work_struct *work)
 	/* Sanity check */
 	if (!qsfp_mod_present(ppd))
 		return;
+
+	if (ppd->host_link_state == HLS_DN_DISABLE) {
+		dd_dev_info(ppd->dd,
+			    "%s: stopping link start because link is disabled\n",
+			    __func__);
+		return;
+	}
 
 	/*
 	 * Turn DC back on after cable has been re-inserted. Up until
@@ -9635,7 +9709,7 @@ static void try_start_link(struct hfi1_pportdata *ppd)
 			    "QSFP not responding, waiting and retrying %d\n",
 			    (int)ppd->qsfp_retry_count);
 		ppd->qsfp_retry_count++;
-		queue_delayed_work(ppd->hfi1_wq, &ppd->start_link_work,
+		queue_delayed_work(ppd->link_wq, &ppd->start_link_work,
 				   msecs_to_jiffies(QSFP_RETRY_WAIT));
 		return;
 	}
@@ -9712,9 +9786,9 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 	cancel_delayed_work_sync(&ppd->start_link_work);
 
 	ppd->offline_disabled_reason =
-			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_SMA_DISABLED);
-	set_link_down_reason(ppd, OPA_LINKDOWN_REASON_SMA_DISABLED, 0,
-			     OPA_LINKDOWN_REASON_SMA_DISABLED);
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_REBOOT);
+	set_link_down_reason(ppd, OPA_LINKDOWN_REASON_REBOOT, 0,
+			     OPA_LINKDOWN_REASON_REBOOT);
 	set_link_state(ppd, HLS_DN_OFFLINE);
 
 	/* disable the port */
@@ -9742,17 +9816,6 @@ static inline int init_cpu_counters(struct hfi1_devdata *dd)
 	return 0;
 }
 
-static const char * const pt_names[] = {
-	"expected",
-	"eager",
-	"invalid"
-};
-
-static const char *pt_name(u32 type)
-{
-	return type >= ARRAY_SIZE(pt_names) ? "unknown" : pt_names[type];
-}
-
 /*
  * index is the index into the receive array
  */
@@ -9760,35 +9823,34 @@ void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		  u32 type, unsigned long pa, u16 order)
 {
 	u64 reg;
-	void __iomem *base = (dd->rcvarray_wc ? dd->rcvarray_wc :
-			      (dd->kregbase + RCV_ARRAY));
 
 	if (!(dd->flags & HFI1_PRESENT))
 		goto done;
 
-	if (type == PT_INVALID) {
+	if (type == PT_INVALID || type == PT_INVALID_FLUSH) {
 		pa = 0;
+		order = 0;
 	} else if (type > PT_INVALID) {
 		dd_dev_err(dd,
 			   "unexpected receive array type %u for index %u, not handled\n",
 			   type, index);
 		goto done;
 	}
-
-	hfi1_cdbg(TID, "type %s, index 0x%x, pa 0x%lx, bsize 0x%lx",
-		  pt_name(type), index, pa, (unsigned long)order);
+	trace_hfi1_put_tid(dd, index, type, pa, order);
 
 #define RT_ADDR_SHIFT 12	/* 4KB kernel address boundary */
 	reg = RCV_ARRAY_RT_WRITE_ENABLE_SMASK
 		| (u64)order << RCV_ARRAY_RT_BUF_SIZE_SHIFT
 		| ((pa >> RT_ADDR_SHIFT) & RCV_ARRAY_RT_ADDR_MASK)
 					<< RCV_ARRAY_RT_ADDR_SHIFT;
-	writeq(reg, base + (index * 8));
+	trace_hfi1_write_rcvarray(dd->rcvarray_wc + (index * 8), reg);
+	writeq(reg, dd->rcvarray_wc + (index * 8));
 
-	if (type == PT_EAGER)
+	if (type == PT_EAGER || type == PT_INVALID_FLUSH || (index & 3) == 3)
 		/*
-		 * Eager entries are written one-by-one so we have to push them
-		 * after we write the entry.
+		 * Eager entries are written and flushed
+		 *
+		 * Expected entries are flushed every 4 writes
 		 */
 		flush_wc();
 done:
@@ -9808,15 +9870,6 @@ void hfi1_clear_tids(struct hfi1_ctxtdata *rcd)
 	for (i = rcd->expected_base;
 			i < rcd->expected_base + rcd->expected_count; i++)
 		hfi1_put_tid(dd, i, PT_INVALID, 0, 0);
-}
-
-struct ib_header *hfi1_get_msgheader(
-	struct hfi1_devdata *dd, __le32 *rhf_addr)
-{
-	u32 offset = rhf_hdrq_offset(rhf_to_cpu(rhf_addr));
-
-	return (struct ib_header *)
-		(rhf_addr - dd->rhf_offset + offset);
 }
 
 static const char * const ib_cfg_name_strings[] = {
@@ -9876,7 +9929,7 @@ int hfi1_get_ib_cfg(struct hfi1_pportdata *ppd, int which)
 		goto unimplemented;
 
 	case HFI1_IB_CFG_OP_VLS:
-		val = ppd->vls_operational;
+		val = ppd->actual_vls_operational;
 		break;
 	case HFI1_IB_CFG_VL_HIGH_CAP: /* VL arb high priority table size */
 		val = VL_ARB_HIGH_PRIO_TABLE_SIZE;
@@ -9891,7 +9944,7 @@ int hfi1_get_ib_cfg(struct hfi1_pportdata *ppd, int which)
 		val = ppd->phy_error_threshold;
 		break;
 	case HFI1_IB_CFG_LINKDEFAULT: /* IB link default (sleep/poll) */
-		val = dd->link_default;
+		val = HLS_DEFAULT;
 		break;
 
 	case HFI1_IB_CFG_HRTBT: /* Heartbeat off/enable/auto */
@@ -10010,10 +10063,16 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	struct hfi1_devdata *dd = ppd->dd;
 	u32 mask = ~((1U << ppd->lmc) - 1);
 	u64 c1 = read_csr(ppd->dd, DCC_CFG_PORT_CONFIG1);
+	u32 lid;
 
+	/*
+	 * Program 0 in CSR if port lid is extended. This prevents
+	 * 9B packets being sent out for large lids.
+	 */
+	lid = (ppd->lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) ? 0 : ppd->lid;
 	c1 &= ~(DCC_CFG_PORT_CONFIG1_TARGET_DLID_SMASK
 		| DCC_CFG_PORT_CONFIG1_DLID_MASK_SMASK);
-	c1 |= ((ppd->lid & DCC_CFG_PORT_CONFIG1_TARGET_DLID_MASK)
+	c1 |= ((lid & DCC_CFG_PORT_CONFIG1_TARGET_DLID_MASK)
 			<< DCC_CFG_PORT_CONFIG1_TARGET_DLID_SHIFT) |
 	      ((mask & DCC_CFG_PORT_CONFIG1_DLID_MASK_MASK)
 			<< DCC_CFG_PORT_CONFIG1_DLID_MASK_SHIFT);
@@ -10024,7 +10083,7 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	 */
 	sreg = ((mask & SEND_CTXT_CHECK_SLID_MASK_MASK) <<
 			SEND_CTXT_CHECK_SLID_MASK_SHIFT) |
-	       (((ppd->lid & mask) & SEND_CTXT_CHECK_SLID_VALUE_MASK) <<
+	       (((lid & mask) & SEND_CTXT_CHECK_SLID_VALUE_MASK) <<
 			SEND_CTXT_CHECK_SLID_VALUE_SHIFT);
 
 	for (i = 0; i < dd->chip_send_contexts; i++) {
@@ -10034,29 +10093,7 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	}
 
 	/* Now we have to do the same thing for the sdma engines */
-	sdma_update_lmc(dd, mask, ppd->lid);
-}
-
-static int wait_phy_linkstate(struct hfi1_devdata *dd, u32 state, u32 msecs)
-{
-	unsigned long timeout;
-	u32 curr_state;
-
-	timeout = jiffies + msecs_to_jiffies(msecs);
-	while (1) {
-		curr_state = read_physical_state(dd);
-		if (curr_state == state)
-			break;
-		if (time_after(jiffies, timeout)) {
-			dd_dev_err(dd,
-				   "timeout waiting for phy link state 0x%x, current state is 0x%x\n",
-				   state, curr_state);
-			return -ETIMEDOUT;
-		}
-		usleep_range(1950, 2050); /* sleep 2ms-ish */
-	}
-
-	return 0;
+	sdma_update_lmc(dd, mask, lid);
 }
 
 static const char *state_completed_string(u32 completed)
@@ -10110,6 +10147,10 @@ static const char * const state_complete_reasons[] = {
 	[0x33] =
 	  "Link partner completed the VerifyCap state, but the passing lanes do not meet the local link width policy",
 	[0x34] = tx_out_of_policy,
+	[0x35] = "Negotiated link width is mutually exclusive",
+	[0x36] =
+	  "Timed out before receiving verifycap frames in VerifyCap.Exchange",
+	[0x37] = "Unable to resolve secure data exchange",
 };
 
 static const char *state_complete_reason_code_string(struct hfi1_pportdata *ppd,
@@ -10238,8 +10279,7 @@ static void force_logical_link_state_down(struct hfi1_pportdata *ppd)
 	write_csr(dd, DC_LCB_CFG_ALLOW_LINK_UP, 0);
 	write_csr(dd, DC_LCB_CFG_IGNORE_LOST_RCLK, 0);
 
-	/* call again to adjust ppd->statusp, if needed */
-	get_logical_state(ppd);
+	dd_dev_info(ppd->dd, "logical state forced to LINK_DOWN\n");
 }
 
 /*
@@ -10253,46 +10293,56 @@ static void force_logical_link_state_down(struct hfi1_pportdata *ppd)
 static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 {
 	struct hfi1_devdata *dd = ppd->dd;
-	u32 pstate, previous_state;
+	u32 previous_state;
+	int offline_state_ret;
 	int ret;
-	int do_transition;
-	int do_wait;
 
 	update_lcb_cache(dd);
 
 	previous_state = ppd->host_link_state;
 	ppd->host_link_state = HLS_GOING_OFFLINE;
-	pstate = read_physical_state(dd);
-	if (pstate == PLS_OFFLINE) {
-		do_transition = 0;	/* in right state */
-		do_wait = 0;		/* ...no need to wait */
-	} else if ((pstate & 0xf0) == PLS_OFFLINE) {
-		do_transition = 0;	/* in an offline transient state */
-		do_wait = 1;		/* ...wait for it to settle */
-	} else {
-		do_transition = 1;	/* need to move to offline */
-		do_wait = 1;		/* ...will need to wait */
+
+	/* start offline transition */
+	ret = set_physical_link_state(dd, (rem_reason << 8) | PLS_OFFLINE);
+
+	if (ret != HCMD_SUCCESS) {
+		dd_dev_err(dd,
+			   "Failed to transition to Offline link state, return %d\n",
+			   ret);
+		return -EINVAL;
 	}
+	if (ppd->offline_disabled_reason ==
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE))
+		ppd->offline_disabled_reason =
+		HFI1_ODR_MASK(OPA_LINKDOWN_REASON_TRANSIENT);
 
-	if (do_transition) {
-		ret = set_physical_link_state(dd,
-					      (rem_reason << 8) | PLS_OFFLINE);
+	offline_state_ret = wait_phys_link_offline_substates(ppd, 10000);
+	if (offline_state_ret < 0)
+		return offline_state_ret;
 
-		if (ret != HCMD_SUCCESS) {
+	/* Disabling AOC transmitters */
+	if (ppd->port_type == PORT_TYPE_QSFP &&
+	    ppd->qsfp_info.limiting_active &&
+	    qsfp_mod_present(ppd)) {
+		int ret;
+
+		ret = acquire_chip_resource(dd, qsfp_resource(dd), QSFP_WAIT);
+		if (ret == 0) {
+			set_qsfp_tx(ppd, 0);
+			release_chip_resource(dd, qsfp_resource(dd));
+		} else {
+			/* not fatal, but should warn */
 			dd_dev_err(dd,
-				   "Failed to transition to Offline link state, return %d\n",
-				   ret);
-			return -EINVAL;
+				   "Unable to acquire lock to turn off QSFP TX\n");
 		}
-		if (ppd->offline_disabled_reason ==
-				HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE))
-			ppd->offline_disabled_reason =
-			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_TRANSIENT);
 	}
 
-	if (do_wait) {
-		/* it can take a while for the link to go down */
-		ret = wait_phy_linkstate(dd, PLS_OFFLINE, 10000);
+	/*
+	 * Wait for the offline.Quiet transition if it hasn't happened yet. It
+	 * can take a while for the link to go down.
+	 */
+	if (offline_state_ret != PLS_OFFLINE_QUIET) {
+		ret = wait_physical_linkstate(ppd, PLS_OFFLINE, 30000);
 		if (ret < 0)
 			return ret;
 	}
@@ -10310,22 +10360,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 		force_logical_link_state_down(ppd);
 
 	ppd->host_link_state = HLS_LINK_COOLDOWN; /* LCB access allowed */
-
-	if (ppd->port_type == PORT_TYPE_QSFP &&
-	    ppd->qsfp_info.limiting_active &&
-	    qsfp_mod_present(ppd)) {
-		int ret;
-
-		ret = acquire_chip_resource(dd, qsfp_resource(dd), QSFP_WAIT);
-		if (ret == 0) {
-			set_qsfp_tx(ppd, 0);
-			release_chip_resource(dd, qsfp_resource(dd));
-		} else {
-			/* not fatal, but should warn */
-			dd_dev_err(dd,
-				   "Unable to acquire lock to turn off QSFP TX\n");
-		}
-	}
+	update_statusp(ppd, IB_PORT_DOWN);
 
 	/*
 	 * The LNI has a mandatory wait time after the physical state
@@ -10359,6 +10394,9 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 			& (HLS_DN_POLL | HLS_VERIFY_CAP | HLS_GOING_UP)) {
 		/* went down while attempting link up */
 		check_lni_states(ppd);
+
+		/* The QSFP doesn't need to be reset on LNI failure */
+		ppd->qsfp_info.reset_needed = 0;
 	}
 
 	/* the active link width (downgrade) is 0 on link down */
@@ -10415,11 +10453,11 @@ static const char *link_state_reason_name(struct hfi1_pportdata *ppd, u32 state)
 }
 
 /*
- * driver_physical_state - convert the driver's notion of a port's
+ * driver_pstate - convert the driver's notion of a port's
  * state (an HLS_*) into a physical state (a {IB,OPA}_PORTPHYSSTATE_*).
  * Return -1 (converted to a u32) to indicate error.
  */
-u32 driver_physical_state(struct hfi1_pportdata *ppd)
+u32 driver_pstate(struct hfi1_pportdata *ppd)
 {
 	switch (ppd->host_link_state) {
 	case HLS_UP_INIT:
@@ -10449,11 +10487,11 @@ u32 driver_physical_state(struct hfi1_pportdata *ppd)
 }
 
 /*
- * driver_logical_state - convert the driver's notion of a port's
+ * driver_lstate - convert the driver's notion of a port's
  * state (an HLS_*) into a logical state (a IB_PORT_*). Return -1
  * (converted to a u32) to indicate error.
  */
-u32 driver_logical_state(struct hfi1_pportdata *ppd)
+u32 driver_lstate(struct hfi1_pportdata *ppd)
 {
 	if (ppd->host_link_state && (ppd->host_link_state & HLS_DOWN))
 		return IB_PORT_DOWN;
@@ -10484,6 +10522,14 @@ void set_link_down_reason(struct hfi1_pportdata *ppd, u8 lcl_reason,
 }
 
 /*
+ * Verify if BCT for data VLs is non-zero.
+ */
+static inline bool data_vls_operational(struct hfi1_pportdata *ppd)
+{
+	return !!ppd->actual_vls_operational;
+}
+
+/*
  * Change the physical and/or logical link state.
  *
  * Do not call this routine while inside an interrupt.  It contains
@@ -10502,7 +10548,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 
 	orig_new_state = state;
 	if (state == HLS_DN_DOWNDEF)
-		state = dd->link_default;
+		state = HLS_DEFAULT;
 
 	/* interpret poll -> poll as a link bounce */
 	poll_bounce = ppd->host_link_state == HLS_DN_POLL &&
@@ -10545,38 +10591,60 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			goto unexpected;
 		}
 
+		/*
+		 * Wait for Link_Up physical state.
+		 * Physical and Logical states should already be
+		 * be transitioned to LinkUp and LinkInit respectively.
+		 */
+		ret = wait_physical_linkstate(ppd, PLS_LINKUP, 1000);
+		if (ret) {
+			dd_dev_err(dd,
+				   "%s: physical state did not change to LINK-UP\n",
+				   __func__);
+			break;
+		}
+
 		ret = wait_logical_linkstate(ppd, IB_PORT_INIT, 1000);
 		if (ret) {
 			dd_dev_err(dd,
 				   "%s: logical state did not change to INIT\n",
 				   __func__);
-		} else {
-			/* clear old transient LINKINIT_REASON code */
-			if (ppd->linkinit_reason >= OPA_LINKINIT_REASON_CLEAR)
-				ppd->linkinit_reason =
-					OPA_LINKINIT_REASON_LINKUP;
-
-			/* enable the port */
-			add_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
-
-			handle_linkup_change(dd, 1);
-			ppd->host_link_state = HLS_UP_INIT;
+			break;
 		}
+
+		/* clear old transient LINKINIT_REASON code */
+		if (ppd->linkinit_reason >= OPA_LINKINIT_REASON_CLEAR)
+			ppd->linkinit_reason =
+				OPA_LINKINIT_REASON_LINKUP;
+
+		/* enable the port */
+		add_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
+
+		handle_linkup_change(dd, 1);
+		ppd->host_link_state = HLS_UP_INIT;
+		update_statusp(ppd, IB_PORT_INIT);
 		break;
 	case HLS_UP_ARMED:
 		if (ppd->host_link_state != HLS_UP_INIT)
 			goto unexpected;
 
-		ppd->host_link_state = HLS_UP_ARMED;
+		if (!data_vls_operational(ppd)) {
+			dd_dev_err(dd,
+				   "%s: data VLs not operational\n", __func__);
+			ret = -EINVAL;
+			break;
+		}
+
 		set_logical_state(dd, LSTATE_ARMED);
 		ret = wait_logical_linkstate(ppd, IB_PORT_ARMED, 1000);
 		if (ret) {
-			/* logical state didn't change, stay at init */
-			ppd->host_link_state = HLS_UP_INIT;
 			dd_dev_err(dd,
 				   "%s: logical state did not change to ARMED\n",
 				   __func__);
+			break;
 		}
+		ppd->host_link_state = HLS_UP_ARMED;
+		update_statusp(ppd, IB_PORT_ARMED);
 		/*
 		 * The simulator does not currently implement SMA messages,
 		 * so neighbor_normal is not set.  Set it here when we first
@@ -10589,18 +10657,17 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		if (ppd->host_link_state != HLS_UP_ARMED)
 			goto unexpected;
 
-		ppd->host_link_state = HLS_UP_ACTIVE;
 		set_logical_state(dd, LSTATE_ACTIVE);
 		ret = wait_logical_linkstate(ppd, IB_PORT_ACTIVE, 1000);
 		if (ret) {
-			/* logical state didn't change, stay at armed */
-			ppd->host_link_state = HLS_UP_ARMED;
 			dd_dev_err(dd,
 				   "%s: logical state did not change to ACTIVE\n",
 				   __func__);
 		} else {
 			/* tell all engines to go running */
 			sdma_all_running(dd);
+			ppd->host_link_state = HLS_UP_ACTIVE;
+			update_statusp(ppd, IB_PORT_ACTIVE);
 
 			/* Signal the IB layer that the port has went active */
 			event.device = &dd->verbs_dev.rdi.ibdev;
@@ -10658,6 +10725,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		 */
 		if (ret)
 			goto_offline(ppd, 0);
+		else
+			log_physical_state(ppd, PLS_POLLING);
 		break;
 	case HLS_DN_DISABLE:
 		/* link is disabled */
@@ -10682,6 +10751,13 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 				ret = -EINVAL;
 				break;
 			}
+			ret = wait_physical_linkstate(ppd, PLS_DISABLED, 10000);
+			if (ret) {
+				dd_dev_err(dd,
+					   "%s: physical state did not change to DISABLED\n",
+					   __func__);
+				break;
+			}
 			dc_shutdown(dd);
 		}
 		ppd->host_link_state = HLS_DN_DISABLE;
@@ -10699,6 +10775,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		if (ppd->host_link_state != HLS_DN_POLL)
 			goto unexpected;
 		ppd->host_link_state = HLS_VERIFY_CAP;
+		log_physical_state(ppd, PLS_CONFIGPHY_VERIFYCAP);
 		break;
 	case HLS_GOING_UP:
 		if (ppd->host_link_state != HLS_VERIFY_CAP)
@@ -11693,15 +11770,17 @@ static u32 encoded_size(u32 size)
 	return 0x1;	/* if invalid, go with the minimum size */
 }
 
-void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
+void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
+		  struct hfi1_ctxtdata *rcd)
 {
-	struct hfi1_ctxtdata *rcd;
 	u64 rcvctrl, reg;
 	int did_enable = 0;
+	u16 ctxt;
 
-	rcd = dd->rcd[ctxt];
 	if (!rcd)
 		return;
+
+	ctxt = rcd->ctxt;
 
 	hfi1_cdbg(RCVCTRL, "ctxt %d op 0x%x", ctxt, op);
 
@@ -11992,9 +12071,8 @@ static void free_cntrs(struct hfi1_devdata *dd)
 	struct hfi1_pportdata *ppd;
 	int i;
 
-	if (dd->synth_stats_timer.data)
+	if (dd->synth_stats_timer.function)
 		del_timer_sync(&dd->synth_stats_timer);
-	dd->synth_stats_timer.data = 0;
 	ppd = (struct hfi1_pportdata *)(dd + 1);
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
 		kfree(ppd->cntrs);
@@ -12270,9 +12348,9 @@ static void do_update_synth_timer(struct work_struct *work)
 	}
 }
 
-static void update_synth_timer(unsigned long opaque)
+static void update_synth_timer(struct timer_list *t)
 {
-	struct hfi1_devdata *dd = (struct hfi1_devdata *)opaque;
+	struct hfi1_devdata *dd = from_timer(dd, t, synth_stats_timer);
 
 	queue_work(dd->update_cntr_wq, &dd->update_cntr_work);
 	mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);
@@ -12290,8 +12368,7 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	const int bit_type_32_sz = strlen(bit_type_32);
 
 	/* set up the stats timer; the add_timer is done at the end */
-	setup_timer(&dd->synth_stats_timer, update_synth_timer,
-		    (unsigned long)dd);
+	timer_setup(&dd->synth_stats_timer, update_synth_timer, 0);
 
 	/***********************/
 	/* per device counters */
@@ -12604,20 +12681,19 @@ const char *opa_pstate_name(u32 pstate)
 	return "unknown";
 }
 
-/*
- * Read the hardware link state and set the driver's cached value of it.
- * Return the (new) current value.
+/**
+ * update_statusp - Update userspace status flag
+ * @ppd: Port data structure
+ * @state: port state information
+ *
+ * Actual port status is determined by the host_link_state value
+ * in the ppd.
+ *
+ * host_link_state MUST be updated before updating the user space
+ * statusp.
  */
-u32 get_logical_state(struct hfi1_pportdata *ppd)
+static void update_statusp(struct hfi1_pportdata *ppd, u32 state)
 {
-	u32 new_state;
-
-	new_state = chip_to_opa_lstate(ppd->dd, read_logical_state(ppd->dd));
-	if (new_state != ppd->lstate) {
-		dd_dev_info(ppd->dd, "logical state changed to %s (0x%x)\n",
-			    opa_lstate_name(new_state), new_state);
-		ppd->lstate = new_state;
-	}
 	/*
 	 * Set port status flags in the page mapped into userspace
 	 * memory. Do it here to ensure a reliable state - this is
@@ -12627,7 +12703,7 @@ u32 get_logical_state(struct hfi1_pportdata *ppd)
 	 * function.
 	 */
 	if (ppd->statusp) {
-		switch (ppd->lstate) {
+		switch (state) {
 		case IB_PORT_DOWN:
 		case IB_PORT_INIT:
 			*ppd->statusp &= ~(HFI1_STATUS_IB_CONF |
@@ -12641,7 +12717,8 @@ u32 get_logical_state(struct hfi1_pportdata *ppd)
 			break;
 		}
 	}
-	return ppd->lstate;
+	dd_dev_info(ppd->dd, "logical state changed to %s (0x%x)\n",
+		    opa_lstate_name(state), state);
 }
 
 /**
@@ -12658,35 +12735,116 @@ static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				  int msecs)
 {
 	unsigned long timeout;
+	u32 new_state;
 
 	timeout = jiffies + msecs_to_jiffies(msecs);
 	while (1) {
-		if (get_logical_state(ppd) == state)
-			return 0;
-		if (time_after(jiffies, timeout))
+		new_state = chip_to_opa_lstate(ppd->dd,
+					       read_logical_state(ppd->dd));
+		if (new_state == state)
 			break;
+		if (time_after(jiffies, timeout)) {
+			dd_dev_err(ppd->dd,
+				   "timeout waiting for link state 0x%x\n",
+				   state);
+			return -ETIMEDOUT;
+		}
 		msleep(20);
 	}
-	dd_dev_err(ppd->dd, "timeout waiting for link state 0x%x\n", state);
 
-	return -ETIMEDOUT;
+	return 0;
 }
 
-u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd)
+static void log_state_transition(struct hfi1_pportdata *ppd, u32 state)
 {
-	u32 pstate;
-	u32 ib_pstate;
+	u32 ib_pstate = chip_to_opa_pstate(ppd->dd, state);
 
-	pstate = read_physical_state(ppd->dd);
-	ib_pstate = chip_to_opa_pstate(ppd->dd, pstate);
-	if (ppd->last_pstate != ib_pstate) {
-		dd_dev_info(ppd->dd,
-			    "%s: physical state changed to %s (0x%x), phy 0x%x\n",
-			    __func__, opa_pstate_name(ib_pstate), ib_pstate,
-			    pstate);
-		ppd->last_pstate = ib_pstate;
+	dd_dev_info(ppd->dd,
+		    "physical state changed to %s (0x%x), phy 0x%x\n",
+		    opa_pstate_name(ib_pstate), ib_pstate, state);
+}
+
+/*
+ * Read the physical hardware link state and check if it matches host
+ * drivers anticipated state.
+ */
+static void log_physical_state(struct hfi1_pportdata *ppd, u32 state)
+{
+	u32 read_state = read_physical_state(ppd->dd);
+
+	if (read_state == state) {
+		log_state_transition(ppd, state);
+	} else {
+		dd_dev_err(ppd->dd,
+			   "anticipated phy link state 0x%x, read 0x%x\n",
+			   state, read_state);
 	}
-	return ib_pstate;
+}
+
+/*
+ * wait_physical_linkstate - wait for an physical link state change to occur
+ * @ppd: port device
+ * @state: the state to wait for
+ * @msecs: the number of milliseconds to wait
+ *
+ * Wait up to msecs milliseconds for physical link state change to occur.
+ * Returns 0 if state reached, otherwise -ETIMEDOUT.
+ */
+static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
+				   int msecs)
+{
+	u32 read_state;
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(msecs);
+	while (1) {
+		read_state = read_physical_state(ppd->dd);
+		if (read_state == state)
+			break;
+		if (time_after(jiffies, timeout)) {
+			dd_dev_err(ppd->dd,
+				   "timeout waiting for phy link state 0x%x\n",
+				   state);
+			return -ETIMEDOUT;
+		}
+		usleep_range(1950, 2050); /* sleep 2ms-ish */
+	}
+
+	log_state_transition(ppd, state);
+	return 0;
+}
+
+/*
+ * wait_phys_link_offline_quiet_substates - wait for any offline substate
+ * @ppd: port device
+ * @msecs: the number of milliseconds to wait
+ *
+ * Wait up to msecs milliseconds for any offline physical link
+ * state change to occur.
+ * Returns 0 if at least one state is reached, otherwise -ETIMEDOUT.
+ */
+static int wait_phys_link_offline_substates(struct hfi1_pportdata *ppd,
+					    int msecs)
+{
+	u32 read_state;
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(msecs);
+	while (1) {
+		read_state = read_physical_state(ppd->dd);
+		if ((read_state & 0xF0) == PLS_OFFLINE)
+			break;
+		if (time_after(jiffies, timeout)) {
+			dd_dev_err(ppd->dd,
+				   "timeout waiting for phy link offline.quiet substates. Read state 0x%x, %dms\n",
+				   read_state, msecs);
+			return -ETIMEDOUT;
+		}
+		usleep_range(1950, 2050); /* sleep 2ms-ish */
+	}
+
+	log_state_transition(ppd, read_state);
+	return read_state;
 }
 
 #define CLEAR_STATIC_RATE_CONTROL_SMASK(r) \
@@ -12740,6 +12898,32 @@ int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp)
 	return ret;
 }
 
+/**
+ * get_int_mask - get 64 bit int mask
+ * @dd - the devdata
+ * @i - the csr (relative to CCE_INT_MASK)
+ *
+ * Returns the mask with the urgent interrupt mask
+ * bit clear for kernel receive contexts.
+ */
+static u64 get_int_mask(struct hfi1_devdata *dd, u32 i)
+{
+	u64 mask = U64_MAX; /* default to no change */
+
+	if (i >= (IS_RCVURGENT_START / 64) && i < (IS_RCVURGENT_END / 64)) {
+		int j = (i - (IS_RCVURGENT_START / 64)) * 64;
+		int k = !j ? IS_RCVURGENT_START % 64 : 0;
+
+		if (j)
+			j -= IS_RCVURGENT_START % 64;
+		/* j = 0..dd->first_dyn_alloc_ctxt - 1,k = 0..63 */
+		for (; j < dd->first_dyn_alloc_ctxt && k < 64; j++, k++)
+			/* convert to bit in mask and clear */
+			mask &= ~BIT_ULL(k);
+	}
+	return mask;
+}
+
 /* ========================================================================= */
 
 /*
@@ -12753,9 +12937,12 @@ void set_intr_state(struct hfi1_devdata *dd, u32 enable)
 	 * In HFI, the mask needs to be 1 to allow interrupts.
 	 */
 	if (enable) {
-		/* enable all interrupts */
-		for (i = 0; i < CCE_NUM_INT_CSRS; i++)
-			write_csr(dd, CCE_INT_MASK + (8 * i), ~(u64)0);
+		/* enable all interrupts but urgent on kernel contexts */
+		for (i = 0; i < CCE_NUM_INT_CSRS; i++) {
+			u64 mask = get_int_mask(dd, i);
+
+			write_csr(dd, CCE_INT_MASK + (8 * i), mask);
+		}
 
 		init_qsfp_int(dd);
 	} else {
@@ -12809,30 +12996,24 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 		for (i = 0; i < dd->num_msix_entries; i++, me++) {
 			if (!me->arg) /* => no irq, no affinity */
 				continue;
-			hfi1_put_irq_affinity(dd, &dd->msix_entries[i]);
-			free_irq(me->msix.vector, me->arg);
+			hfi1_put_irq_affinity(dd, me);
+			pci_free_irq(dd->pcidev, i, me->arg);
 		}
+
+		/* clean structures */
+		kfree(dd->msix_entries);
+		dd->msix_entries = NULL;
+		dd->num_msix_entries = 0;
 	} else {
 		/* INTx */
 		if (dd->requested_intx_irq) {
-			free_irq(dd->pcidev->irq, dd);
+			pci_free_irq(dd->pcidev, 0, dd);
 			dd->requested_intx_irq = 0;
 		}
-	}
-
-	/* turn off interrupts */
-	if (dd->num_msix_entries) {
-		/* MSI-X */
-		pci_disable_msix(dd->pcidev);
-	} else {
-		/* INTx */
 		disable_intx(dd->pcidev);
 	}
 
-	/* clean structures */
-	kfree(dd->msix_entries);
-	dd->msix_entries = NULL;
-	dd->num_msix_entries = 0;
+	pci_free_irq_vectors(dd->pcidev);
 }
 
 /*
@@ -12885,10 +13066,8 @@ static int request_intx_irq(struct hfi1_devdata *dd)
 {
 	int ret;
 
-	snprintf(dd->intx_name, sizeof(dd->intx_name), DRIVER_NAME "_%d",
-		 dd->unit);
-	ret = request_irq(dd->pcidev->irq, general_interrupt,
-			  IRQF_SHARED, dd->intx_name, dd);
+	ret = pci_request_irq(dd->pcidev, 0, general_interrupt, NULL, dd,
+			      DRIVER_NAME "_%d", dd->unit);
 	if (ret)
 		dd_dev_err(dd, "unable to request INTx interrupt, err %d\n",
 			   ret);
@@ -12910,7 +13089,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 	first_sdma = last_general;
 	last_sdma = first_sdma + dd->num_sdma;
 	first_rx = last_sdma;
-	last_rx = first_rx + dd->n_krcv_queues + HFI1_NUM_VNIC_CTXT;
+	last_rx = first_rx + dd->n_krcv_queues + dd->num_vnic_contexts;
 
 	/* VNIC MSIx interrupts get mapped when VNIC contexts are created */
 	dd->first_dyn_msix_idx = first_rx + dd->n_krcv_queues;
@@ -12931,13 +13110,14 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		int idx;
 		struct hfi1_ctxtdata *rcd = NULL;
 		struct sdma_engine *sde = NULL;
+		char name[MAX_NAME_SIZE];
 
-		/* obtain the arguments to request_irq */
+		/* obtain the arguments to pci_request_irq */
 		if (first_general <= i && i < last_general) {
 			idx = i - first_general;
 			handler = general_interrupt;
 			arg = dd;
-			snprintf(me->name, sizeof(me->name),
+			snprintf(name, sizeof(name),
 				 DRIVER_NAME "_%d", dd->unit);
 			err_info = "general";
 			me->type = IRQ_GENERAL;
@@ -12946,14 +13126,14 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			sde = &dd->per_sdma[idx];
 			handler = sdma_interrupt;
 			arg = sde;
-			snprintf(me->name, sizeof(me->name),
+			snprintf(name, sizeof(name),
 				 DRIVER_NAME "_%d sdma%d", dd->unit, idx);
 			err_info = "sdma";
 			remap_sdma_interrupts(dd, idx, i);
 			me->type = IRQ_SDMA;
 		} else if (first_rx <= i && i < last_rx) {
 			idx = i - first_rx;
-			rcd = dd->rcd[idx];
+			rcd = hfi1_rcd_get_by_index_safe(dd, idx);
 			if (rcd) {
 				/*
 				 * Set the interrupt register and mask for this
@@ -12965,13 +13145,14 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 				handler = receive_context_interrupt;
 				thread = receive_context_thread;
 				arg = rcd;
-				snprintf(me->name, sizeof(me->name),
+				snprintf(name, sizeof(name),
 					 DRIVER_NAME "_%d kctxt%d",
 					 dd->unit, idx);
 				err_info = "receive context";
 				remap_intr(dd, IS_RCVAVAIL_START + idx, i);
 				me->type = IRQ_RCVCTXT;
 				rcd->msix_intr = i;
+				hfi1_rcd_put(rcd);
 			}
 		} else {
 			/* not in our expected range - complain, then
@@ -12985,26 +13166,25 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		if (!arg)
 			continue;
 		/* make sure the name is terminated */
-		me->name[sizeof(me->name) - 1] = 0;
-
-		ret = request_threaded_irq(me->msix.vector, handler, thread, 0,
-					   me->name, arg);
+		name[sizeof(name) - 1] = 0;
+		me->irq = pci_irq_vector(dd->pcidev, i);
+		ret = pci_request_irq(dd->pcidev, i, handler, thread, arg,
+				      name);
 		if (ret) {
 			dd_dev_err(dd,
-				   "unable to allocate %s interrupt, vector %d, index %d, err %d\n",
-				   err_info, me->msix.vector, idx, ret);
+				   "unable to allocate %s interrupt, irq %d, index %d, err %d\n",
+				   err_info, me->irq, idx, ret);
 			return ret;
 		}
 		/*
-		 * assign arg after request_irq call, so it will be
+		 * assign arg after pci_request_irq call, so it will be
 		 * cleaned up
 		 */
 		me->arg = arg;
 
 		ret = hfi1_get_irq_affinity(dd, me);
 		if (ret)
-			dd_dev_err(dd,
-				   "unable to pin IRQ %d\n", ret);
+			dd_dev_err(dd, "unable to pin IRQ %d\n", ret);
 	}
 
 	return ret;
@@ -13015,7 +13195,7 @@ void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd)
 	int i;
 
 	if (!dd->num_msix_entries) {
-		synchronize_irq(dd->pcidev->irq);
+		synchronize_irq(pci_irq_vector(dd->pcidev, 0));
 		return;
 	}
 
@@ -13023,7 +13203,7 @@ void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd)
 		struct hfi1_ctxtdata *rcd = dd->vnic.ctxt[i];
 		struct hfi1_msix_entry *me = &dd->msix_entries[rcd->msix_intr];
 
-		synchronize_irq(me->msix.vector);
+		synchronize_irq(me->irq);
 	}
 }
 
@@ -13036,7 +13216,7 @@ void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 		return;
 
 	hfi1_put_irq_affinity(dd, me);
-	free_irq(me->msix.vector, me->arg);
+	pci_free_irq(dd->pcidev, rcd->msix_intr, me->arg);
 
 	me->arg = NULL;
 }
@@ -13059,23 +13239,21 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 	rcd->ireg = (IS_RCVAVAIL_START + idx) / 64;
 	rcd->imask = ((u64)1) <<
 		  ((IS_RCVAVAIL_START + idx) % 64);
-
-	snprintf(me->name, sizeof(me->name),
-		 DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
-	me->name[sizeof(me->name) - 1] = 0;
 	me->type = IRQ_RCVCTXT;
-
+	me->irq = pci_irq_vector(dd->pcidev, rcd->msix_intr);
 	remap_intr(dd, IS_RCVAVAIL_START + idx, rcd->msix_intr);
 
-	ret = request_threaded_irq(me->msix.vector, receive_context_interrupt,
-				   receive_context_thread, 0, me->name, arg);
+	ret = pci_request_irq(dd->pcidev, rcd->msix_intr,
+			      receive_context_interrupt,
+			      receive_context_thread, arg,
+			      DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
 	if (ret) {
-		dd_dev_err(dd, "vnic irq request (vector %d, idx %d) fail %d\n",
-			   me->msix.vector, idx, ret);
+		dd_dev_err(dd, "vnic irq request (irq %d, idx %d) fail %d\n",
+			   me->irq, idx, ret);
 		return;
 	}
 	/*
-	 * assign arg after request_irq call, so it will be
+	 * assign arg after pci_request_irq call, so it will be
 	 * cleaned up
 	 */
 	me->arg = arg;
@@ -13084,7 +13262,7 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 	if (ret) {
 		dd_dev_err(dd,
 			   "unable to pin IRQ %d\n", ret);
-		free_irq(me->msix.vector, me->arg);
+		pci_free_irq(dd->pcidev, rcd->msix_intr, me->arg);
 	}
 }
 
@@ -13107,9 +13285,8 @@ static void reset_interrupts(struct hfi1_devdata *dd)
 
 static int set_up_interrupts(struct hfi1_devdata *dd)
 {
-	struct hfi1_msix_entry *entries;
-	u32 total, request;
-	int i, ret;
+	u32 total;
+	int ret, request;
 	int single_interrupt = 0; /* we expect to have all the interrupts */
 
 	/*
@@ -13118,42 +13295,35 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	 *		slow source, SDMACleanupDone)
 	 *	N interrupts - one per used SDMA engine
 	 *	M interrupt - one per kernel receive context
+	 *	V interrupt - one for each VNIC context
 	 */
-	total = 1 + dd->num_sdma + dd->n_krcv_queues + HFI1_NUM_VNIC_CTXT;
-
-	entries = kcalloc(total, sizeof(*entries), GFP_KERNEL);
-	if (!entries) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-	/* 1-1 MSI-X entry assignment */
-	for (i = 0; i < total; i++)
-		entries[i].msix.entry = i;
+	total = 1 + dd->num_sdma + dd->n_krcv_queues + dd->num_vnic_contexts;
 
 	/* ask for MSI-X interrupts */
-	request = total;
-	request_msix(dd, &request, entries);
-
-	if (request == 0) {
+	request = request_msix(dd, total);
+	if (request < 0) {
+		ret = request;
+		goto fail;
+	} else if (request == 0) {
 		/* using INTx */
 		/* dd->num_msix_entries already zero */
-		kfree(entries);
 		single_interrupt = 1;
 		dd_dev_err(dd, "MSI-X failed, using INTx interrupts\n");
+	} else if (request < total) {
+		/* using MSI-X, with reduced interrupts */
+		dd_dev_err(dd, "reduced interrupt found, wanted %u, got %u\n",
+			   total, request);
+		ret = -EINVAL;
+		goto fail;
 	} else {
-		/* using MSI-X */
-		dd->num_msix_entries = request;
-		dd->msix_entries = entries;
-
-		if (request != total) {
-			/* using MSI-X, with reduced interrupts */
-			dd_dev_err(
-				dd,
-				"cannot handle reduced interrupt case, want %u, got %u\n",
-				total, request);
-			ret = -EINVAL;
+		dd->msix_entries = kcalloc(total, sizeof(*dd->msix_entries),
+					   GFP_KERNEL);
+		if (!dd->msix_entries) {
+			ret = -ENOMEM;
 			goto fail;
 		}
+		/* using MSI-X */
+		dd->num_msix_entries = total;
 		dd_dev_info(dd, "%u MSI-X interrupts allocated\n", total);
 	}
 
@@ -13188,15 +13358,18 @@ fail:
  *                             in array of contexts
  *	freectxts  - number of free user contexts
  *	num_send_contexts - number of PIO send contexts being used
+ *	num_vnic_contexts - number of contexts reserved for VNIC
  */
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
 	unsigned long num_kernel_contexts;
+	u16 num_vnic_contexts = HFI1_NUM_VNIC_CTXT;
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
 	int qos_rmt_count;
 	int user_rmt_reduced;
+	u32 n_usr_ctxts;
 
 	/*
 	 * Kernel receive contexts:
@@ -13225,59 +13398,63 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 			   num_kernel_contexts);
 		num_kernel_contexts = dd->chip_send_contexts - num_vls - 1;
 	}
+
+	/* Accommodate VNIC contexts if possible */
+	if ((num_kernel_contexts + num_vnic_contexts) > dd->chip_rcv_contexts) {
+		dd_dev_err(dd, "No receive contexts available for VNIC\n");
+		num_vnic_contexts = 0;
+	}
+	total_contexts = num_kernel_contexts + num_vnic_contexts;
+
 	/*
 	 * User contexts:
 	 *	- default to 1 user context per real (non-HT) CPU core if
 	 *	  num_user_contexts is negative
 	 */
 	if (num_user_contexts < 0)
-		num_user_contexts =
-			cpumask_weight(&node_affinity.real_cpu_mask);
-
-	total_contexts = num_kernel_contexts + num_user_contexts;
-
+		n_usr_ctxts = cpumask_weight(&node_affinity.real_cpu_mask);
+	else
+		n_usr_ctxts = num_user_contexts;
 	/*
 	 * Adjust the counts given a global max.
 	 */
-	if (total_contexts > dd->chip_rcv_contexts) {
+	if (total_contexts + n_usr_ctxts > dd->chip_rcv_contexts) {
 		dd_dev_err(dd,
-			   "Reducing # user receive contexts to: %d, from %d\n",
-			   (int)(dd->chip_rcv_contexts - num_kernel_contexts),
-			   (int)num_user_contexts);
-		num_user_contexts = dd->chip_rcv_contexts - num_kernel_contexts;
+			   "Reducing # user receive contexts to: %d, from %u\n",
+			   (int)(dd->chip_rcv_contexts - total_contexts),
+			   n_usr_ctxts);
 		/* recalculate */
-		total_contexts = num_kernel_contexts + num_user_contexts;
+		n_usr_ctxts = dd->chip_rcv_contexts - total_contexts;
 	}
 
 	/* each user context requires an entry in the RMT */
 	qos_rmt_count = qos_rmt_entries(dd, NULL, NULL);
-	if (qos_rmt_count + num_user_contexts > NUM_MAP_ENTRIES) {
+	if (qos_rmt_count + n_usr_ctxts > NUM_MAP_ENTRIES) {
 		user_rmt_reduced = NUM_MAP_ENTRIES - qos_rmt_count;
 		dd_dev_err(dd,
-			   "RMT size is reducing the number of user receive contexts from %d to %d\n",
-			   (int)num_user_contexts,
+			   "RMT size is reducing the number of user receive contexts from %u to %d\n",
+			   n_usr_ctxts,
 			   user_rmt_reduced);
 		/* recalculate */
-		num_user_contexts = user_rmt_reduced;
-		total_contexts = num_kernel_contexts + num_user_contexts;
+		n_usr_ctxts = user_rmt_reduced;
 	}
 
-	/* Accommodate VNIC contexts */
-	if ((total_contexts + HFI1_NUM_VNIC_CTXT) <= dd->chip_rcv_contexts)
-		total_contexts += HFI1_NUM_VNIC_CTXT;
+	total_contexts += n_usr_ctxts;
 
 	/* the first N are kernel contexts, the rest are user/vnic contexts */
 	dd->num_rcv_contexts = total_contexts;
 	dd->n_krcv_queues = num_kernel_contexts;
 	dd->first_dyn_alloc_ctxt = num_kernel_contexts;
-	dd->num_user_contexts = num_user_contexts;
-	dd->freectxts = num_user_contexts;
+	dd->num_vnic_contexts = num_vnic_contexts;
+	dd->num_user_contexts = n_usr_ctxts;
+	dd->freectxts = n_usr_ctxts;
 	dd_dev_info(dd,
-		    "rcv contexts: chip %d, used %d (kernel %d, user %d)\n",
+		    "rcv contexts: chip %d, used %d (kernel %d, vnic %u, user %u)\n",
 		    (int)dd->chip_rcv_contexts,
 		    (int)dd->num_rcv_contexts,
 		    (int)dd->n_krcv_queues,
-		    (int)dd->num_rcv_contexts - dd->n_krcv_queues);
+		    dd->num_vnic_contexts,
+		    dd->num_user_contexts);
 
 	/*
 	 * Receive array allocation:
@@ -13396,8 +13573,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 
 	/* RcvArray */
 	for (i = 0; i < dd->chip_rcv_array_count; i++)
-		write_csr(dd, RCV_ARRAY + (8 * i),
-			  RCV_ARRAY_RT_WRITE_ENABLE_SMASK);
+		hfi1_put_tid(dd, i, PT_INVALID_FLUSH, 0, 0);
 
 	/* RcvQPMapTable */
 	for (i = 0; i < 32; i++)
@@ -13831,9 +14007,10 @@ static void init_sc2vl_tables(struct hfi1_devdata *dd)
  * a reset following the (possible) FLR in this routine.
  *
  */
-static void init_chip(struct hfi1_devdata *dd)
+static int init_chip(struct hfi1_devdata *dd)
 {
 	int i;
+	int ret = 0;
 
 	/*
 	 * Put the HFI CSRs in a known state.
@@ -13881,12 +14058,22 @@ static void init_chip(struct hfi1_devdata *dd)
 		pcie_flr(dd->pcidev);
 
 		/* restore command and BARs */
-		restore_pci_variables(dd);
+		ret = restore_pci_variables(dd);
+		if (ret) {
+			dd_dev_err(dd, "%s: Could not restore PCI variables\n",
+				   __func__);
+			return ret;
+		}
 
 		if (is_ax(dd)) {
 			dd_dev_info(dd, "Resetting CSRs with FLR\n");
 			pcie_flr(dd->pcidev);
-			restore_pci_variables(dd);
+			ret = restore_pci_variables(dd);
+			if (ret) {
+				dd_dev_err(dd, "%s: Could not restore PCI variables\n",
+					   __func__);
+				return ret;
+			}
 		}
 	} else {
 		dd_dev_info(dd, "Resetting CSRs with writes\n");
@@ -13914,6 +14101,7 @@ static void init_chip(struct hfi1_devdata *dd)
 	write_csr(dd, ASIC_QSFP1_OUT, 0x1f);
 	write_csr(dd, ASIC_QSFP2_OUT, 0x1f);
 	init_chip_resources(dd);
+	return ret;
 }
 
 static void init_early_variables(struct hfi1_devdata *dd)
@@ -14365,6 +14553,7 @@ void hfi1_deinit_vnic_rsm(struct hfi1_devdata *dd)
 static void init_rxe(struct hfi1_devdata *dd)
 {
 	struct rsm_map_table *rmt;
+	u64 val;
 
 	/* enable all receive errors */
 	write_csr(dd, RCV_ERR_MASK, ~0ull);
@@ -14389,6 +14578,11 @@ static void init_rxe(struct hfi1_devdata *dd)
 	 * (64 bytes).  Max_Payload_Size is possibly modified upward in
 	 * tune_pcie_caps() which is called after this routine.
 	 */
+
+	/* Have 16 bytes (4DW) of bypass header available in header queue */
+	val = read_csr(dd, RCV_BYPASS);
+	val |= (4ull << 16);
+	write_csr(dd, RCV_BYPASS, val);
 }
 
 static void init_other(struct hfi1_devdata *dd)
@@ -14470,99 +14664,86 @@ static void init_txe(struct hfi1_devdata *dd)
 		write_csr(dd, SEND_CM_TIMER_CTRL, HFI1_CREDIT_RETURN_RATE);
 }
 
-int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt, u16 jkey)
+int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd,
+		       u16 jkey)
 {
-	struct hfi1_ctxtdata *rcd = dd->rcd[ctxt];
-	unsigned sctxt;
-	int ret = 0;
+	u8 hw_ctxt;
 	u64 reg;
 
-	if (!rcd || !rcd->sc) {
-		ret = -EINVAL;
-		goto done;
-	}
-	sctxt = rcd->sc->hw_context;
+	if (!rcd || !rcd->sc)
+		return -EINVAL;
+
+	hw_ctxt = rcd->sc->hw_context;
 	reg = SEND_CTXT_CHECK_JOB_KEY_MASK_SMASK | /* mask is always 1's */
 		((jkey & SEND_CTXT_CHECK_JOB_KEY_VALUE_MASK) <<
 		 SEND_CTXT_CHECK_JOB_KEY_VALUE_SHIFT);
 	/* JOB_KEY_ALLOW_PERMISSIVE is not allowed by default */
 	if (HFI1_CAP_KGET_MASK(rcd->flags, ALLOW_PERM_JKEY))
 		reg |= SEND_CTXT_CHECK_JOB_KEY_ALLOW_PERMISSIVE_SMASK;
-	write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_JOB_KEY, reg);
+	write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_JOB_KEY, reg);
 	/*
 	 * Enable send-side J_KEY integrity check, unless this is A0 h/w
 	 */
 	if (!is_ax(dd)) {
-		reg = read_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE);
+		reg = read_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_ENABLE);
 		reg |= SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
-		write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE, reg);
+		write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_ENABLE, reg);
 	}
 
 	/* Enable J_KEY check on receive context. */
 	reg = RCV_KEY_CTRL_JOB_KEY_ENABLE_SMASK |
 		((jkey & RCV_KEY_CTRL_JOB_KEY_VALUE_MASK) <<
 		 RCV_KEY_CTRL_JOB_KEY_VALUE_SHIFT);
-	write_kctxt_csr(dd, ctxt, RCV_KEY_CTRL, reg);
-done:
-	return ret;
+	write_kctxt_csr(dd, rcd->ctxt, RCV_KEY_CTRL, reg);
+
+	return 0;
 }
 
-int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt)
+int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 {
-	struct hfi1_ctxtdata *rcd = dd->rcd[ctxt];
-	unsigned sctxt;
-	int ret = 0;
+	u8 hw_ctxt;
 	u64 reg;
 
-	if (!rcd || !rcd->sc) {
-		ret = -EINVAL;
-		goto done;
-	}
-	sctxt = rcd->sc->hw_context;
-	write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_JOB_KEY, 0);
+	if (!rcd || !rcd->sc)
+		return -EINVAL;
+
+	hw_ctxt = rcd->sc->hw_context;
+	write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_JOB_KEY, 0);
 	/*
 	 * Disable send-side J_KEY integrity check, unless this is A0 h/w.
 	 * This check would not have been enabled for A0 h/w, see
 	 * set_ctxt_jkey().
 	 */
 	if (!is_ax(dd)) {
-		reg = read_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE);
+		reg = read_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_ENABLE);
 		reg &= ~SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
-		write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE, reg);
+		write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_ENABLE, reg);
 	}
 	/* Turn off the J_KEY on the receive side */
-	write_kctxt_csr(dd, ctxt, RCV_KEY_CTRL, 0);
-done:
-	return ret;
+	write_kctxt_csr(dd, rcd->ctxt, RCV_KEY_CTRL, 0);
+
+	return 0;
 }
 
-int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt, u16 pkey)
+int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd,
+		       u16 pkey)
 {
-	struct hfi1_ctxtdata *rcd;
-	unsigned sctxt;
-	int ret = 0;
+	u8 hw_ctxt;
 	u64 reg;
 
-	if (ctxt < dd->num_rcv_contexts) {
-		rcd = dd->rcd[ctxt];
-	} else {
-		ret = -EINVAL;
-		goto done;
-	}
-	if (!rcd || !rcd->sc) {
-		ret = -EINVAL;
-		goto done;
-	}
-	sctxt = rcd->sc->hw_context;
+	if (!rcd || !rcd->sc)
+		return -EINVAL;
+
+	hw_ctxt = rcd->sc->hw_context;
 	reg = ((u64)pkey & SEND_CTXT_CHECK_PARTITION_KEY_VALUE_MASK) <<
 		SEND_CTXT_CHECK_PARTITION_KEY_VALUE_SHIFT;
-	write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_PARTITION_KEY, reg);
-	reg = read_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE);
+	write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_PARTITION_KEY, reg);
+	reg = read_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_ENABLE);
 	reg |= SEND_CTXT_CHECK_ENABLE_CHECK_PARTITION_KEY_SMASK;
 	reg &= ~SEND_CTXT_CHECK_ENABLE_DISALLOW_KDETH_PACKETS_SMASK;
-	write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE, reg);
-done:
-	return ret;
+	write_kctxt_csr(dd, hw_ctxt, SEND_CTXT_CHECK_ENABLE, reg);
+
+	return 0;
 }
 
 int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt)
@@ -14571,9 +14752,6 @@ int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt)
 	u64 reg;
 
 	if (!ctxt || !ctxt->sc)
-		return -EINVAL;
-
-	if (ctxt->ctxt >= dd->num_rcv_contexts)
 		return -EINVAL;
 
 	hw_ctxt = ctxt->sc->hw_context;
@@ -14773,7 +14951,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		}
 		ppd->vls_supported = num_vls;
 		ppd->vls_operational = ppd->vls_supported;
-		ppd->actual_vls_operational = ppd->vls_supported;
 		/* Set the default MTU. */
 		for (vl = 0; vl < num_vls; vl++)
 			dd->vld[vl].mtu = hfi1_max_mtu;
@@ -14782,7 +14959,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		 * Set the initial values to reasonable default, will be set
 		 * for real when link is up.
 		 */
-		ppd->lstate = IB_PORT_DOWN;
 		ppd->overrun_threshold = 0x4;
 		ppd->phy_error_threshold = 0xf;
 		ppd->port_crc_mode_enabled = link_crc_mask;
@@ -14793,10 +14969,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		/* start in offline */
 		ppd->host_link_state = HLS_DN_OFFLINE;
 		init_vl_arb_caches(ppd);
-		ppd->last_pstate = 0xff; /* invalid value */
 	}
-
-	dd->link_default = HLS_DN_POLL;
 
 	/*
 	 * Do remaining PCIe setup and save PCIe values in dd.
@@ -14806,6 +14979,11 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	ret = hfi1_pcie_ddinit(dd, pdev);
 	if (ret < 0)
 		goto bail_free;
+
+	/* Save PCI space registers to rewrite after device reset */
+	ret = save_pci_variables(dd);
+	if (ret < 0)
+		goto bail_cleanup;
 
 	/* verify that reads actually work, save revision for reset check */
 	dd->revision = read_csr(dd, CCE_REVISION);
@@ -14899,7 +15077,9 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		goto bail_cleanup;
 
 	/* obtain chip sizes, reset chip CSRs */
-	init_chip(dd);
+	ret = init_chip(dd);
+	if (ret)
+		goto bail_cleanup;
 
 	/* read in the PCIe link speed information */
 	ret = pcie_speeds(dd);
@@ -14974,9 +15154,15 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret)
 		goto bail_cleanup;
 
-	ret = hfi1_create_ctxts(dd);
+	ret = hfi1_create_kctxts(dd);
 	if (ret)
 		goto bail_cleanup;
+
+	/*
+	 * Initialize aspm, to be done after gen3 transition and setting up
+	 * contexts and before enabling interrupts
+	 */
+	aspm_init(dd);
 
 	dd->rcvhdrsize = DEFAULT_RCVHDRSIZE;
 	/*
@@ -14996,7 +15182,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 			goto bail_cleanup;
 	}
 
-	/* use contexts created by hfi1_create_ctxts */
+	/* use contexts created by hfi1_create_kctxts */
 	ret = set_up_interrupts(dd);
 	if (ret)
 		goto bail_cleanup;

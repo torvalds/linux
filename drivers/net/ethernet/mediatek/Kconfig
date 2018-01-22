@@ -7,11 +7,11 @@ config NET_VENDOR_MEDIATEK
 if NET_VENDOR_MEDIATEK
 
 config NET_MEDIATEK_SOC
-	tristate "MediaTek MT7623 Gigabit ethernet support"
-	depends on NET_VENDOR_MEDIATEK && (MACH_MT7623 || MACH_MT2701)
+	tristate "MediaTek SoC Gigabit Ethernet support"
+	depends on NET_VENDOR_MEDIATEK
 	select PHYLIB
 	---help---
 	  This driver supports the gigabit ethernet MACs in the
-	  MediaTek MT2701/MT7623 chipset family.
+	  MediaTek SoC family.
 
 endif #NET_VENDOR_MEDIATEK

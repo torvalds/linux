@@ -44,7 +44,7 @@ int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
 		}
 		mapi->map = &maps[i];
 		mapi->indio_dev = indio_dev;
-		list_add(&mapi->l, &iio_map_list);
+		list_add_tail(&mapi->l, &iio_map_list);
 		i++;
 	}
 error_ret:
@@ -205,8 +205,8 @@ static struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
 		if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
 			break;
 		else if (name && index >= 0) {
-			pr_err("ERROR: could not get IIO channel %s:%s(%i)\n",
-				np->full_name, name ? name : "", index);
+			pr_err("ERROR: could not get IIO channel %pOF:%s(%i)\n",
+				np, name ? name : "", index);
 			return NULL;
 		}
 

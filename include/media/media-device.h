@@ -68,7 +68,6 @@ struct media_device_ops {
  * @serial:	Device serial number (optional)
  * @bus_info:	Unique and stable device location identifier
  * @hw_revision: Hardware device revision
- * @driver_version: Device driver version
  * @topology_version: Monotonic counter for storing the version of the graph
  *		topology. Should be incremented each time the topology changes.
  * @id:		Unique ID used on the last registered graph object
@@ -134,7 +133,6 @@ struct media_device {
 	char serial[40];
 	char bus_info[32];
 	u32 hw_revision;
-	u32 driver_version;
 
 	u64 topology_version;
 
@@ -248,11 +246,6 @@ void media_device_cleanup(struct media_device *mdev);
  *  - &media_entity.hw_revision is the hardware device revision in a
  *    driver-specific format. When possible the revision should be formatted
  *    with the KERNEL_VERSION() macro.
- *
- *  - &media_entity.driver_version is formatted with the KERNEL_VERSION()
- *    macro. The version minor must be incremented when new features are added
- *    to the userspace API without breaking binary compatibility. The version
- *    major must be incremented when binary compatibility is broken.
  *
  * .. note::
  *

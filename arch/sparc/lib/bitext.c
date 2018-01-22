@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * bitext.c: kernel little helper (of bit shuffling variety).
  *

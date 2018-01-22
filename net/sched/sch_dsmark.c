@@ -85,21 +85,21 @@ static struct Qdisc *dsmark_leaf(struct Qdisc *sch, unsigned long arg)
 	return p->q;
 }
 
-static unsigned long dsmark_get(struct Qdisc *sch, u32 classid)
+static unsigned long dsmark_find(struct Qdisc *sch, u32 classid)
 {
-	pr_debug("%s(sch %p,[qdisc %p],classid %x)\n",
-		 __func__, sch, qdisc_priv(sch), classid);
-
 	return TC_H_MIN(classid) + 1;
 }
 
 static unsigned long dsmark_bind_filter(struct Qdisc *sch,
 					unsigned long parent, u32 classid)
 {
-	return dsmark_get(sch, classid);
+	pr_debug("%s(sch %p,[qdisc %p],classid %x)\n",
+		 __func__, sch, qdisc_priv(sch), classid);
+
+	return dsmark_find(sch, classid);
 }
 
-static void dsmark_put(struct Qdisc *sch, unsigned long cl)
+static void dsmark_unbind_filter(struct Qdisc *sch, unsigned long cl)
 {
 }
 
@@ -344,7 +344,7 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		goto errout;
 
-	err = tcf_block_get(&p->block, &p->filter_list);
+	err = tcf_block_get(&p->block, &p->filter_list, sch);
 	if (err)
 		return err;
 
@@ -469,14 +469,13 @@ nla_put_failure:
 static const struct Qdisc_class_ops dsmark_class_ops = {
 	.graft		=	dsmark_graft,
 	.leaf		=	dsmark_leaf,
-	.get		=	dsmark_get,
-	.put		=	dsmark_put,
+	.find		=	dsmark_find,
 	.change		=	dsmark_change,
 	.delete		=	dsmark_delete,
 	.walk		=	dsmark_walk,
 	.tcf_block	=	dsmark_tcf_block,
 	.bind_tcf	=	dsmark_bind_filter,
-	.unbind_tcf	=	dsmark_put,
+	.unbind_tcf	=	dsmark_unbind_filter,
 	.dump		=	dsmark_dump_class,
 };
 

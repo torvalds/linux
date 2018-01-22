@@ -1367,7 +1367,7 @@
 			ranges;
 			status = "disabled";
 
-			dwc3@15400000 {
+			usbdrd_dwc3: dwc3@15400000 {
 				compatible = "snps,dwc3";
 				reg = <0x15400000 0x10000>;
 				interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
@@ -1414,7 +1414,7 @@
 			ranges;
 			status = "disabled";
 
-			usbdrd_dwc3_0: dwc3@15a00000 {
+			usbhost_dwc3: dwc3@15a00000 {
 				compatible = "snps,dwc3";
 				reg = <0x15a00000 0x10000>;
 				interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;

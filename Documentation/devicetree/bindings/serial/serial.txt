@@ -43,7 +43,6 @@ Examples:
 		rng-gpios = <&gpio2 25 GPIO_ACTIVE_LOW>;
 		cts-gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
 		rts-gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
-		status = "okay";
 	};
 
 	scifa4: serial@e6c80000 {
@@ -54,5 +53,4 @@ Examples:
 		clock-names = "fck";
 		power-domains = <&pd_a3sp>;
 		uart-has-rtscts;
-		status = "okay";
 	};

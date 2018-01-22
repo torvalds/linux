@@ -108,15 +108,6 @@ static struct pci_ops tile_cfg_ops;
 /* Mask of CPUs that should receive PCIe interrupts. */
 static struct cpumask intr_cpus_map;
 
-/* We don't need to worry about the alignment of resources. */
-resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-				       resource_size_t size,
-				       resource_size_t align)
-{
-	return res->start;
-}
-EXPORT_SYMBOL(pcibios_align_resource);
-
 /*
  * Pick a CPU to receive and handle the PCIe interrupts, based on the IRQ #.
  * For now, we simply send interrupts to non-dataplane CPUs.
@@ -669,6 +660,7 @@ int __init pcibios_init(void)
 	resource_size_t offset;
 	LIST_HEAD(resources);
 	int next_busno;
+	struct pci_host_bridge *bridge;
 	int i;
 
 	tile_pci_init();
@@ -881,14 +873,24 @@ int __init pcibios_init(void)
 					controller->mem_offset);
 		pci_add_resource(&resources, &controller->io_space);
 		controller->first_busno = next_busno;
-		bus = pci_scan_root_bus(NULL, next_busno, controller->ops,
-					controller, &resources);
+
+		bridge = pci_alloc_host_bridge(0);
+		if (!bridge)
+			break;
+
+		list_splice_init(&resources, &bridge->windows);
+		bridge->dev.parent = NULL;
+		bridge->sysdata = controller;
+		bridge->busnr = next_busno;
+		bridge->ops = controller->ops;
+		bridge->swizzle_irq = pci_common_swizzle;
+		bridge->map_irq = tile_map_irq;
+
+		pci_scan_root_bus_bridge(bridge);
+		bus = bridge->bus;
 		controller->root_bus = bus;
 		next_busno = bus->busn_res.end + 1;
 	}
-
-	/* Do machine dependent PCI interrupt routing */
-	pci_fixup_irqs(pci_common_swizzle, tile_map_irq);
 
 	/*
 	 * This comes from the generic Linux PCI driver.
@@ -1037,11 +1039,6 @@ alloc_mem_map_failed:
 	return 0;
 }
 subsys_initcall(pcibios_init);
-
-/* No bus fixups needed. */
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-}
 
 /* Process any "pci=" kernel boot arguments. */
 char *__init pcibios_setup(char *str)

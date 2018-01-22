@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * It is possible to use SO_REUSEPORT to open multiple sockets bound to
  * equivalent local addresses using AF_INET and AF_INET6 at the same time.  If

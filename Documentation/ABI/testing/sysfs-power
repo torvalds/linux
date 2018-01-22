@@ -18,7 +18,8 @@ Description:
 		Writing one of the above strings to this file causes the system
 		to transition into the corresponding state, if available.
 
-		See Documentation/power/states.txt for more information.
+		See Documentation/admin-guide/pm/sleep-states.rst for more
+		information.
 
 What:		/sys/power/mem_sleep
 Date:		November 2016
@@ -35,7 +36,8 @@ Description:
 		represented by it to be used on subsequent attempts to suspend
 		the system.
 
-		See Documentation/power/states.txt for more information.
+		See Documentation/admin-guide/pm/sleep-states.rst for more
+		information.
 
 What:		/sys/power/disk
 Date:		September 2006
@@ -127,7 +129,7 @@ Description:
 
 What;		/sys/power/pm_trace_dev_match
 Date:		October 2010
-Contact:	James Hogan <james@albanarts.com>
+Contact:	James Hogan <jhogan@kernel.org>
 Description:
 		The /sys/power/pm_trace_dev_match file contains the name of the
 		device associated with the last PM event point saved in the RTC
@@ -273,3 +275,15 @@ Description:
 
 		This output is useful for system wakeup diagnostics of spurious
 		wakeup interrupts.
+
+What:		/sys/power/pm_debug_messages
+Date:		July 2017
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		The /sys/power/pm_debug_messages file controls the printing
+		of debug messages from the system suspend/hiberbation
+		infrastructure to the kernel log.
+
+		Writing a "1" to this file enables the debug messages and
+		writing a "0" (default) to it disables them.  Reads from
+		this file return the current value.

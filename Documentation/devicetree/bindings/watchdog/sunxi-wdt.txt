@@ -8,7 +8,7 @@ Required properties:
 
 Example:
 
-wdt: watchdog@01c20c90 {
+wdt: watchdog@1c20c90 {
 	compatible = "allwinner,sun4i-a10-wdt";
 	reg = <0x01c20c90 0x10>;
 };

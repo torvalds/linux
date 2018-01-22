@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Runs API tests for struct drm_mm (DRM range manager)
 
 if ! /sbin/modprobe -n -q test-drm_mm; then

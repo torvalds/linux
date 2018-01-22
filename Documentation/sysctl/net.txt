@@ -46,13 +46,13 @@ translate these BPF proglets into native CPU instructions. There are
 two flavors of JITs, the newer eBPF JIT currently supported on:
   - x86_64
   - arm64
+  - arm32
   - ppc64
   - sparc64
   - mips64
   - s390x
 
 And the older cBPF JIT supported on the following archs:
-  - arm
   - mips
   - ppc
   - sparc

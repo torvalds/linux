@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
+#include <linux/mmu_context.h>
 #include <asm/cputable.h>
 #include <asm/current.h>
 #include <asm/copro.h>
@@ -95,7 +96,6 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 
 	pr_devel("afu_open pe: %i\n", ctx->pe);
 	file->private_data = ctx;
-	cxl_ctx_get();
 
 	/* indicate success */
 	rc = 0;
@@ -221,9 +221,32 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	/* ensure this mm_struct can't be freed */
 	cxl_context_mm_count_get(ctx);
 
-	/* decrement the use count */
-	if (ctx->mm)
+	if (ctx->mm) {
+		/* decrement the use count from above */
 		mmput(ctx->mm);
+		/* make TLBIs for this context global */
+		mm_context_add_copro(ctx->mm);
+	}
+
+	/*
+	 * Increment driver use count. Enables global TLBIs for hash
+	 * and callbacks to handle the segment table
+	 */
+	cxl_ctx_get();
+
+	/*
+	 * A barrier is needed to make sure all TLBIs are global
+	 * before we attach and the context starts being used by the
+	 * adapter.
+	 *
+	 * Needed after mm_context_add_copro() for radix and
+	 * cxl_ctx_get() for hash/p8.
+	 *
+	 * The barrier should really be mb(), since it involves a
+	 * device. However, it's only useful when we have local
+	 * vs. global TLBIs, i.e SMP=y. So keep smp_mb().
+	 */
+	smp_mb();
 
 	trace_cxl_attach(ctx, work.work_element_descriptor, work.num_interrupts, amr);
 
@@ -233,7 +256,10 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 		cxl_adapter_context_put(ctx->afu->adapter);
 		put_pid(ctx->pid);
 		ctx->pid = NULL;
+		cxl_ctx_put();
 		cxl_context_mm_count_put(ctx);
+		if (ctx->mm)
+			mm_context_remove_copro(ctx->mm);
 		goto out;
 	}
 

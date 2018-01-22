@@ -1,14 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Asm versions of Xen pv-ops, suitable for either direct use or
- * inlining.  The inline versions are the same as the direct-use
- * versions, with the pre- and post-amble chopped off.
- *
- * This code is encoded for size rather than absolute efficiency, with
- * a view to being able to inline as much as possible.
+ * Asm versions of Xen pv-ops, suitable for direct use.
  *
  * We only bother with direct forms (ie, vcpu in pda) of the
- * operations here; the indirect forms are better handled in C, since
- * they're generally too large to inline anyway.
+ * operations here; the indirect forms are better handled in C.
  */
 
 #include <asm/thread_info.h>
@@ -18,21 +13,10 @@
 
 #include <xen/interface/xen.h>
 
-#include "xen-asm.h"
+#include <linux/linkage.h>
 
-/*
- * Force an event check by making a hypercall, but preserve regs
- * before making the call.
- */
-check_events:
-	push %eax
-	push %ecx
-	push %edx
-	call xen_force_evtchn_callback
-	pop %edx
-	pop %ecx
-	pop %eax
-	ret
+/* Pseudo-flag used for virtual NMI, which we don't implement yet */
+#define XEN_EFLAGS_NMI  0x80000000
 
 /*
  * This is run where a normal iret would be run, with the same stack setup:

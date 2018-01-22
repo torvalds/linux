@@ -14,48 +14,113 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/**************************************************************
- * This file defines the driver FIPS APIs                     *
- **************************************************************/
+#include <linux/kernel.h>
+#include <linux/fips.h>
 
-#include <linux/module.h>
+#include "ssi_config.h"
+#include "ssi_driver.h"
 #include "ssi_fips.h"
 
-extern int ssi_fips_ext_get_state(enum cc_fips_state_t *p_state);
-extern int ssi_fips_ext_get_error(enum cc_fips_error *p_err);
+static void fips_dsr(unsigned long devarg);
 
-/*
- * This function returns the REE FIPS state.
- * It should be called by kernel module.
+struct ssi_fips_handle {
+	struct tasklet_struct tasklet;
+};
+
+/* The function called once at driver entry point to check
+ * whether TEE FIPS error occurred.
  */
-int ssi_fips_get_state(enum cc_fips_state_t *p_state)
+static bool cc_get_tee_fips_status(struct ssi_drvdata *drvdata)
 {
-	int rc = 0;
+	u32 reg;
 
-	if (!p_state)
-		return -EINVAL;
-
-	rc = ssi_fips_ext_get_state(p_state);
-
-	return rc;
+	reg = cc_ioread(drvdata, CC_REG(GPR_HOST));
+	return (reg == (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK));
 }
 
-EXPORT_SYMBOL(ssi_fips_get_state);
-
 /*
- * This function returns the REE FIPS error.
- * It should be called by kernel module.
+ * This function should push the FIPS REE library status towards the TEE library
+ * by writing the error state to HOST_GPR0 register.
  */
-int ssi_fips_get_error(enum cc_fips_error *p_err)
+void cc_set_ree_fips_status(struct ssi_drvdata *drvdata, bool status)
 {
-	int rc = 0;
+	int val = CC_FIPS_SYNC_REE_STATUS;
 
-	if (!p_err)
-		return -EINVAL;
+	val |= (status ? CC_FIPS_SYNC_MODULE_OK : CC_FIPS_SYNC_MODULE_ERROR);
 
-	rc = ssi_fips_ext_get_error(p_err);
-
-	return rc;
+	cc_iowrite(drvdata, CC_REG(HOST_GPR0), val);
 }
 
-EXPORT_SYMBOL(ssi_fips_get_error);
+void ssi_fips_fini(struct ssi_drvdata *drvdata)
+{
+	struct ssi_fips_handle *fips_h = drvdata->fips_handle;
+
+	if (!fips_h)
+		return; /* Not allocated */
+
+	/* Kill tasklet */
+	tasklet_kill(&fips_h->tasklet);
+
+	kfree(fips_h);
+	drvdata->fips_handle = NULL;
+}
+
+void fips_handler(struct ssi_drvdata *drvdata)
+{
+	struct ssi_fips_handle *fips_handle_ptr =
+		drvdata->fips_handle;
+
+	tasklet_schedule(&fips_handle_ptr->tasklet);
+}
+
+static inline void tee_fips_error(struct device *dev)
+{
+	if (fips_enabled)
+		panic("ccree: TEE reported cryptographic error in fips mode!\n");
+	else
+		dev_err(dev, "TEE reported error!\n");
+}
+
+/* Deferred service handler, run as interrupt-fired tasklet */
+static void fips_dsr(unsigned long devarg)
+{
+	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
+	struct device *dev = drvdata_to_dev(drvdata);
+	u32 irq, state, val;
+
+	irq = (drvdata->irq & (SSI_GPR0_IRQ_MASK));
+
+	if (irq) {
+		state = cc_ioread(drvdata, CC_REG(GPR_HOST));
+
+		if (state != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK))
+			tee_fips_error(dev);
+	}
+
+	/* after verifing that there is nothing to do,
+	 * unmask AXI completion interrupt.
+	 */
+	val = (CC_REG(HOST_IMR) & ~irq);
+	cc_iowrite(drvdata, CC_REG(HOST_IMR), val);
+}
+
+/* The function called once at driver entry point .*/
+int ssi_fips_init(struct ssi_drvdata *p_drvdata)
+{
+	struct ssi_fips_handle *fips_h;
+	struct device *dev = drvdata_to_dev(p_drvdata);
+
+	fips_h = kzalloc(sizeof(*fips_h), GFP_KERNEL);
+	if (!fips_h)
+		return -ENOMEM;
+
+	p_drvdata->fips_handle = fips_h;
+
+	dev_dbg(dev, "Initializing fips tasklet\n");
+	tasklet_init(&fips_h->tasklet, fips_dsr, (unsigned long)p_drvdata);
+
+	if (!cc_get_tee_fips_status(p_drvdata))
+		tee_fips_error(dev);
+
+	return 0;
+}

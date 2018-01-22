@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for talking to the CUDA.  The CUDA is a microcontroller
  * which controls the ADB, system power, RTC, and various other things.

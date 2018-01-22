@@ -157,7 +157,6 @@ static int tlc4541_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info tlc4541_info = {
 	.read_raw = &tlc4541_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int tlc4541_probe(struct spi_device *spi)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /*
  * Bond several ethernet interfaces into a Cisco, running 'Etherchannel'.
  *

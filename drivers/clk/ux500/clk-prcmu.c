@@ -186,7 +186,7 @@ static void clk_prcmu_opp_volt_unprepare(struct clk_hw *hw)
 	clk->is_prepared = 0;
 }
 
-static struct clk_ops clk_prcmu_scalable_ops = {
+static const struct clk_ops clk_prcmu_scalable_ops = {
 	.prepare = clk_prcmu_prepare,
 	.unprepare = clk_prcmu_unprepare,
 	.is_prepared = clk_prcmu_is_prepared,
@@ -198,7 +198,7 @@ static struct clk_ops clk_prcmu_scalable_ops = {
 	.set_rate = clk_prcmu_set_rate,
 };
 
-static struct clk_ops clk_prcmu_gate_ops = {
+static const struct clk_ops clk_prcmu_gate_ops = {
 	.prepare = clk_prcmu_prepare,
 	.unprepare = clk_prcmu_unprepare,
 	.is_prepared = clk_prcmu_is_prepared,
@@ -208,19 +208,19 @@ static struct clk_ops clk_prcmu_gate_ops = {
 	.recalc_rate = clk_prcmu_recalc_rate,
 };
 
-static struct clk_ops clk_prcmu_scalable_rate_ops = {
+static const struct clk_ops clk_prcmu_scalable_rate_ops = {
 	.is_enabled = clk_prcmu_is_enabled,
 	.recalc_rate = clk_prcmu_recalc_rate,
 	.round_rate = clk_prcmu_round_rate,
 	.set_rate = clk_prcmu_set_rate,
 };
 
-static struct clk_ops clk_prcmu_rate_ops = {
+static const struct clk_ops clk_prcmu_rate_ops = {
 	.is_enabled = clk_prcmu_is_enabled,
 	.recalc_rate = clk_prcmu_recalc_rate,
 };
 
-static struct clk_ops clk_prcmu_opp_gate_ops = {
+static const struct clk_ops clk_prcmu_opp_gate_ops = {
 	.prepare = clk_prcmu_opp_prepare,
 	.unprepare = clk_prcmu_opp_unprepare,
 	.is_prepared = clk_prcmu_is_prepared,
@@ -230,7 +230,7 @@ static struct clk_ops clk_prcmu_opp_gate_ops = {
 	.recalc_rate = clk_prcmu_recalc_rate,
 };
 
-static struct clk_ops clk_prcmu_opp_volt_scalable_ops = {
+static const struct clk_ops clk_prcmu_opp_volt_scalable_ops = {
 	.prepare = clk_prcmu_opp_volt_prepare,
 	.unprepare = clk_prcmu_opp_volt_unprepare,
 	.is_prepared = clk_prcmu_is_prepared,
@@ -247,7 +247,7 @@ static struct clk *clk_reg_prcmu(const char *name,
 				 u8 cg_sel,
 				 unsigned long rate,
 				 unsigned long flags,
-				 struct clk_ops *clk_prcmu_ops)
+				 const struct clk_ops *clk_prcmu_ops)
 {
 	struct clk_prcmu *clk;
 	struct clk_init_data clk_prcmu_init;
@@ -258,11 +258,9 @@ static struct clk *clk_reg_prcmu(const char *name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	clk = kzalloc(sizeof(struct clk_prcmu), GFP_KERNEL);
-	if (!clk) {
-		pr_err("clk_prcmu: %s could not allocate clk\n", __func__);
+	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	if (!clk)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	clk->cg_sel = cg_sel;
 	clk->is_prepared = 1;

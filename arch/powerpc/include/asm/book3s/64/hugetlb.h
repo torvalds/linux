@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_HUGETLB_H
 #define _ASM_POWERPC_BOOK3S_64_HUGETLB_H
 /*
@@ -54,9 +55,7 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
 #ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
 static inline bool gigantic_page_supported(void)
 {
-	if (radix_enabled())
-		return true;
-	return false;
+	return true;
 }
 #endif
 

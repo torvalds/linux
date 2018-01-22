@@ -79,14 +79,39 @@ done:
 	return uval;
 }
 
+#ifdef CONFIG_ISA_ARCV2
+
 void arch_cpu_idle(void)
 {
-	/* sleep, but enable all interrupts before committing */
+	/* Re-enable interrupts <= default irq priority before commiting SLEEP */
+	const unsigned int arg = 0x10 | ARCV2_IRQ_DEF_PRIO;
+
 	__asm__ __volatile__(
 		"sleep %0	\n"
 		:
-		:"I"(ISA_SLEEP_ARG)); /* can't be "r" has to be embedded const */
+		:"I"(arg)); /* can't be "r" has to be embedded const */
 }
+
+#elif defined(CONFIG_EZNPS_MTM_EXT)	/* ARC700 variant in NPS */
+
+void arch_cpu_idle(void)
+{
+	/* only the calling HW thread needs to sleep */
+	__asm__ __volatile__(
+		".word %0	\n"
+		:
+		:"i"(CTOP_INST_HWSCHD_WFT_IE12));
+}
+
+#else	/* ARC700 */
+
+void arch_cpu_idle(void)
+{
+	/* sleep, but enable both set E1/E2 (levels of interrutps) before committing */
+	__asm__ __volatile__("sleep 0x3	\n");
+}
+
+#endif
 
 asmlinkage void ret_from_fork(void);
 
@@ -208,6 +233,10 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
 	 * Interrupts enabled
 	 */
 	regs->status32 = STATUS_U_MASK | STATUS_L_MASK | ISA_INIT_STATUS_BITS;
+
+#ifdef CONFIG_EZNPS_MTM_EXT
+	regs->eflags = 0;
+#endif
 
 	/* bogus seed values for debugging */
 	regs->lp_start = 0x10;

@@ -40,9 +40,9 @@ static const struct mfd_cell rtsx_usb_cells[] = {
 	},
 };
 
-static void rtsx_usb_sg_timed_out(unsigned long data)
+static void rtsx_usb_sg_timed_out(struct timer_list *t)
 {
-	struct rtsx_ucr *ucr = (struct rtsx_ucr *)data;
+	struct rtsx_ucr *ucr = from_timer(ucr, t, sg_timer);
 
 	dev_dbg(&ucr->pusb_intf->dev, "%s: sg transfer timed out", __func__);
 	usb_sg_cancel(&ucr->current_sg);
@@ -663,7 +663,7 @@ static int rtsx_usb_probe(struct usb_interface *intf,
 		goto out_init_fail;
 
 	/* initialize USB SG transfer timer */
-	setup_timer(&ucr->sg_timer, rtsx_usb_sg_timed_out, (unsigned long) ucr);
+	timer_setup(&ucr->sg_timer, rtsx_usb_sg_timed_out, 0);
 
 	ret = mfd_add_hotplug_devices(&intf->dev, rtsx_usb_cells,
 				      ARRAY_SIZE(rtsx_usb_cells));

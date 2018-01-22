@@ -53,6 +53,42 @@
 #include "common.h"
 #include "sdma.h"
 
+#define LINK_UP_DELAY  500  /* in microseconds */
+
+static void set_mgmt_allowed(struct hfi1_pportdata *ppd)
+{
+	u32 frame;
+	struct hfi1_devdata *dd = ppd->dd;
+
+	if (ppd->neighbor_type == NEIGHBOR_TYPE_HFI) {
+		ppd->mgmt_allowed = 1;
+	} else {
+		read_8051_config(dd, REMOTE_LNI_INFO, GENERAL_CONFIG, &frame);
+		ppd->mgmt_allowed = (frame >> MGMT_ALLOWED_SHIFT)
+		& MGMT_ALLOWED_MASK;
+	}
+}
+
+/*
+ * Our neighbor has indicated that we are allowed to act as a fabric
+ * manager, so place the full management partition key in the second
+ * (0-based) pkey array position. Note that we should already have
+ * the limited management partition key in array element 1, and also
+ * that the port is not yet up when add_full_mgmt_pkey() is invoked.
+ */
+static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+
+	/* Sanity check - ppd->pkeys[2] should be 0, or already initialized */
+	if (!((ppd->pkeys[2] == 0) || (ppd->pkeys[2] == FULL_MGMT_P_KEY)))
+		dd_dev_warn(dd, "%s pkey[2] already set to 0x%x, resetting it to 0x%x\n",
+			    __func__, ppd->pkeys[2], FULL_MGMT_P_KEY);
+	ppd->pkeys[2] = FULL_MGMT_P_KEY;
+	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+	hfi1_event_pkey_change(ppd->dd, ppd->port);
+}
+
 /**
  * format_hwmsg - format a single hwerror message
  * @msg message buffer
@@ -102,9 +138,16 @@ static void signal_ib_event(struct hfi1_pportdata *ppd, enum ib_event_type ev)
 	ib_dispatch_event(&event);
 }
 
-/*
+/**
+ * handle_linkup_change - finish linkup/down state changes
+ * @dd: valid device
+ * @linkup: link state information
+ *
  * Handle a linkup or link down notification.
+ * The HW needs time to finish its link up state change. Give it that chance.
+ *
  * This is called outside an interrupt.
+ *
  */
 void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 {
@@ -151,6 +194,18 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 			    ppd->neighbor_guid, ppd->neighbor_type,
 			    ppd->neighbor_port_number);
 
+		/* HW needs LINK_UP_DELAY to settle, give it that chance */
+		udelay(LINK_UP_DELAY);
+
+		/*
+		 * 'MgmtAllowed' information, which is exchanged during
+		 * LNI, is available at this point.
+		 */
+		set_mgmt_allowed(ppd);
+
+		if (ppd->mgmt_allowed)
+			add_full_mgmt_pkey(ppd);
+
 		/* physical link went up */
 		ppd->linkup = 1;
 		ppd->offline_disabled_reason =
@@ -164,6 +219,7 @@ void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup)
 		ppd->linkup = 0;
 
 		/* clear HW details of the previous connection */
+		ppd->actual_vls_operational = 0;
 		reset_link_credits(dd);
 
 		/* freeze after a link down to guarantee a clean egress */
@@ -196,7 +252,7 @@ void handle_user_interrupt(struct hfi1_ctxtdata *rcd)
 
 	if (test_and_clear_bit(HFI1_CTXT_WAITING_RCV, &rcd->event_flags)) {
 		wake_up_interruptible(&rcd->wait);
-		hfi1_rcvctrl(dd, HFI1_RCVCTRL_INTRAVAIL_DIS, rcd->ctxt);
+		hfi1_rcvctrl(dd, HFI1_RCVCTRL_INTRAVAIL_DIS, rcd);
 	} else if (test_and_clear_bit(HFI1_CTXT_WAITING_URG,
 							&rcd->event_flags)) {
 		rcd->urgent++;

@@ -156,7 +156,6 @@ static int prox_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info prox_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &prox_read_raw,
 	.write_raw = &prox_write_raw,
 };

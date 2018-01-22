@@ -42,11 +42,6 @@
    this contains a helper + a amdgpu fb
    the helper contains a pointer to amdgpu framebuffer baseclass.
 */
-struct amdgpu_fbdev {
-	struct drm_fb_helper helper;
-	struct amdgpu_framebuffer rfb;
-	struct amdgpu_device *adev;
-};
 
 static int
 amdgpufb_open(struct fb_info *info, int user)
@@ -118,7 +113,7 @@ static void amdgpufb_destroy_pinned_object(struct drm_gem_object *gobj)
 		amdgpu_bo_unpin(abo);
 		amdgpu_bo_unreserve(abo);
 	}
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 }
 
 static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
@@ -149,7 +144,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
 				       AMDGPU_GEM_CREATE_VRAM_CLEARED,
-				       true, &gobj);
+				       true, NULL, &gobj);
 	if (ret) {
 		pr_err("failed to allocate framebuffer (%d)\n", aligned_size);
 		return -ENOMEM;
@@ -245,13 +240,12 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &amdgpufb_ops;
 
 	tmp = amdgpu_bo_gpu_offset(abo) - adev->mc.vram_start;
 	info->fix.smem_start = adev->mc.aper_base + tmp;
 	info->fix.smem_len = amdgpu_bo_size(abo);
-	info->screen_base = abo->kptr;
+	info->screen_base = amdgpu_bo_kptr(abo);
 	info->screen_size = amdgpu_bo_size(abo);
 
 	drm_fb_helper_fill_var(info, &rfbdev->helper, sizes->fb_width, sizes->fb_height);
@@ -281,7 +275,7 @@ out:
 
 	}
 	if (fb && ret) {
-		drm_gem_object_unreference_unlocked(gobj);
+		drm_gem_object_put_unlocked(gobj);
 		drm_framebuffer_unregister_private(fb);
 		drm_framebuffer_cleanup(fb);
 		kfree(fb);
@@ -304,39 +298,15 @@ static int amdgpu_fbdev_destroy(struct drm_device *dev, struct amdgpu_fbdev *rfb
 	if (rfb->obj) {
 		amdgpufb_destroy_pinned_object(rfb->obj);
 		rfb->obj = NULL;
+		drm_framebuffer_unregister_private(&rfb->base);
+		drm_framebuffer_cleanup(&rfb->base);
 	}
 	drm_fb_helper_fini(&rfbdev->helper);
-	drm_framebuffer_unregister_private(&rfb->base);
-	drm_framebuffer_cleanup(&rfb->base);
 
 	return 0;
 }
 
-/** Sets the color ramps on behalf of fbcon */
-static void amdgpu_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				      u16 blue, int regno)
-{
-	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-
-	amdgpu_crtc->lut_r[regno] = red >> 6;
-	amdgpu_crtc->lut_g[regno] = green >> 6;
-	amdgpu_crtc->lut_b[regno] = blue >> 6;
-}
-
-/** Gets the color ramps on behalf of fbcon */
-static void amdgpu_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				      u16 *blue, int regno)
-{
-	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-
-	*red = amdgpu_crtc->lut_r[regno] << 6;
-	*green = amdgpu_crtc->lut_g[regno] << 6;
-	*blue = amdgpu_crtc->lut_b[regno] << 6;
-}
-
 static const struct drm_fb_helper_funcs amdgpu_fb_helper_funcs = {
-	.gamma_set = amdgpu_crtc_fb_gamma_set,
-	.gamma_get = amdgpu_crtc_fb_gamma_get,
 	.fb_probe = amdgpufb_create,
 };
 
@@ -378,7 +348,8 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(adev->ddev);
+	if (!amdgpu_device_has_dc_support(adev))
+		drm_helper_disable_unused_functions(adev->ddev);
 
 	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
 	return 0;

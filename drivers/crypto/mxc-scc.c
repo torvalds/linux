@@ -708,8 +708,8 @@ static int mxc_scc_probe(struct platform_device *pdev)
 	for (i = 0; i < 2; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0) {
-			dev_err(dev, "failed to get irq resource\n");
-			ret = -EINVAL;
+			dev_err(dev, "failed to get irq resource: %d\n", irq);
+			ret = irq;
 			goto err_out;
 		}
 

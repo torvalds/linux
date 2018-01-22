@@ -304,14 +304,14 @@ static void __init berlin2q_clock_setup(struct device_node *np)
 
 	gbase = of_iomap(parent_np, 0);
 	if (!gbase) {
-		pr_err("%s: Unable to map global base\n", np->full_name);
+		pr_err("%pOF: Unable to map global base\n", np);
 		return;
 	}
 
 	/* BG2Q CPU PLL is not part of global registers */
 	cpupll_base = of_iomap(parent_np, 1);
 	if (!cpupll_base) {
-		pr_err("%s: Unable to map cpupll base\n", np->full_name);
+		pr_err("%pOF: Unable to map cpupll base\n", np);
 		iounmap(gbase);
 		return;
 	}
@@ -376,8 +376,7 @@ static void __init berlin2q_clock_setup(struct device_node *np)
 		if (!IS_ERR(hws[n]))
 			continue;
 
-		pr_err("%s: Unable to register leaf clock %d\n",
-		       np->full_name, n);
+		pr_err("%pOF: Unable to register leaf clock %d\n", np, n);
 		goto bg2q_fail;
 	}
 

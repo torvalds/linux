@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 r8188eu-y :=				\
 		core/rtw_ap.o		\
 		core/rtw_cmd.o		\

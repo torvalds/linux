@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -32,10 +33,10 @@
 
 #define DEBUG_SUBSYSTEM S_LOV
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd_class.h"
-#include "../include/lustre/lustre_idl.h"
+#include <obd_class.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 #include "lov_internal.h"
 
 static void lov_init_set(struct lov_request_set *set)
@@ -43,13 +44,10 @@ static void lov_init_set(struct lov_request_set *set)
 	set->set_count = 0;
 	atomic_set(&set->set_completes, 0);
 	atomic_set(&set->set_success, 0);
-	atomic_set(&set->set_finish_checked, 0);
 	INIT_LIST_HEAD(&set->set_list);
-	atomic_set(&set->set_refcount, 1);
-	init_waitqueue_head(&set->set_waitq);
 }
 
-void lov_finish_set(struct lov_request_set *set)
+static void lov_finish_set(struct lov_request_set *set)
 {
 	struct list_head *pos, *n;
 
@@ -66,32 +64,12 @@ void lov_finish_set(struct lov_request_set *set)
 	kfree(set);
 }
 
-static int lov_set_finished(struct lov_request_set *set, int idempotent)
-{
-	int completes = atomic_read(&set->set_completes);
-
-	CDEBUG(D_INFO, "check set %d/%d\n", completes, set->set_count);
-
-	if (completes == set->set_count) {
-		if (idempotent)
-			return 1;
-		if (atomic_inc_return(&set->set_finish_checked) == 1)
-			return 1;
-	}
-	return 0;
-}
-
 static void lov_update_set(struct lov_request_set *set,
 			   struct lov_request *req, int rc)
 {
-	req->rq_complete = 1;
-	req->rq_rc = rc;
-
 	atomic_inc(&set->set_completes);
 	if (rc == 0)
 		atomic_inc(&set->set_success);
-
-	wake_up(&set->set_waitq);
 }
 
 static void lov_set_add_req(struct lov_request *req,
@@ -173,8 +151,8 @@ out:
 			(tot) += (add);				 \
 	} while (0)
 
-int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,
-		    int success)
+static int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,
+			   int success)
 {
 	if (success) {
 		__u32 expected_stripes = lov_get_stripecnt(&obd->u.lov,
@@ -205,7 +183,9 @@ int lov_fini_statfs_set(struct lov_request_set *set)
 		rc = lov_fini_statfs(set->set_obd, set->set_oi->oi_osfs,
 				     atomic_read(&set->set_success));
 	}
-	lov_put_reqset(set);
+
+	lov_finish_set(set);
+
 	return rc;
 }
 
@@ -307,14 +287,7 @@ static int cb_statfs_update(void *cookie, int rc)
 out_update:
 	lov_update_statfs(osfs, lov_sfs, success);
 	obd_putref(lovobd);
-
 out:
-	if (set->set_oi->oi_flags & OBD_STATFS_PTLRPCD &&
-	    lov_set_finished(set, 0)) {
-		lov_statfs_interpret(NULL, set, set->set_count !=
-				     atomic_read(&set->set_success));
-	}
-
 	return 0;
 }
 

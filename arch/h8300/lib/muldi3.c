@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "libgcc.h"
 
 #define __ll_B ((UWtype) 1 << (W_TYPE_SIZE / 2))

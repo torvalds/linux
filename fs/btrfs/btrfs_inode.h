@@ -36,14 +36,13 @@
 #define BTRFS_INODE_ORPHAN_META_RESERVED	1
 #define BTRFS_INODE_DUMMY			2
 #define BTRFS_INODE_IN_DEFRAG			3
-#define BTRFS_INODE_DELALLOC_META_RESERVED	4
-#define BTRFS_INODE_HAS_ORPHAN_ITEM		5
-#define BTRFS_INODE_HAS_ASYNC_EXTENT		6
-#define BTRFS_INODE_NEEDS_FULL_SYNC		7
-#define BTRFS_INODE_COPY_EVERYTHING		8
-#define BTRFS_INODE_IN_DELALLOC_LIST		9
-#define BTRFS_INODE_READDIO_NEED_LOCK		10
-#define BTRFS_INODE_HAS_PROPS		        11
+#define BTRFS_INODE_HAS_ORPHAN_ITEM		4
+#define BTRFS_INODE_HAS_ASYNC_EXTENT		5
+#define BTRFS_INODE_NEEDS_FULL_SYNC		6
+#define BTRFS_INODE_COPY_EVERYTHING		7
+#define BTRFS_INODE_IN_DELALLOC_LIST		8
+#define BTRFS_INODE_READDIO_NEED_LOCK		9
+#define BTRFS_INODE_HAS_PROPS		        10
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -176,12 +175,18 @@ struct btrfs_inode {
 	 * of extent items we've reserved metadata for.
 	 */
 	unsigned outstanding_extents;
-	unsigned reserved_extents;
+
+	struct btrfs_block_rsv block_rsv;
 
 	/*
-	 * always compress this one file
+	 * Cached values of inode properties
 	 */
-	unsigned force_compress;
+	unsigned prop_compress;		/* per-file compression algorithm */
+	/*
+	 * Force compression on the file using the defrag ioctl, could be
+	 * different from prop_compress and takes precedence if set
+	 */
+	unsigned defrag_compress;
 
 	struct btrfs_delayed_node *delayed_node;
 
@@ -207,7 +212,7 @@ struct btrfs_inode {
 
 extern unsigned char btrfs_filetype_table[];
 
-static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
+static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
 {
 	return container_of(inode, struct btrfs_inode, vfs_inode);
 }
@@ -231,7 +236,7 @@ static inline void btrfs_insert_inode_hash(struct inode *inode)
 	__insert_inode_hash(inode, h);
 }
 
-static inline u64 btrfs_ino(struct btrfs_inode *inode)
+static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 {
 	u64 ino = inode->location.objectid;
 
@@ -260,6 +265,17 @@ static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
 	if (inode->location.objectid == BTRFS_FREE_INO_OBJECTID)
 		return true;
 	return false;
+}
+
+static inline void btrfs_mod_outstanding_extents(struct btrfs_inode *inode,
+						 int mod)
+{
+	lockdep_assert_held(&inode->lock);
+	inode->outstanding_extents += mod;
+	if (btrfs_is_free_space_inode(inode))
+		return;
+	trace_btrfs_inode_mod_outstanding_extents(inode->root, btrfs_ino(inode),
+						  mod);
 }
 
 static inline int btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)

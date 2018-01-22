@@ -1689,7 +1689,7 @@ config SERIAL_MVEBU_CONSOLE
 	  Otherwise, say 'N'.
 
 config SERIAL_OWL
-	bool "Actions Semi Owl serial port support"
+	tristate "Actions Semi Owl serial port support"
 	depends on ARCH_ACTIONS || COMPILE_TEST
 	select SERIAL_CORE
 	help
@@ -1705,7 +1705,7 @@ config SERIAL_OWL_CONSOLE
 	default y
 	help
 	  Say 'Y' here if you wish to use Actions Semiconductor S500/S900 UART
-	  as the system console. Only earlycon is implemented currently.
+	  as the system console.
 
 endmenu
 

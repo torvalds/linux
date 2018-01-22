@@ -29,8 +29,9 @@ static void __init arc_set_early_base_baud(unsigned long dt_root)
 {
 	if (of_flat_dt_is_compatible(dt_root, "abilis,arc-tb10x"))
 		arc_base_baud = 166666666;	/* Fixed 166.6MHz clk (TB10x) */
-	else if (of_flat_dt_is_compatible(dt_root, "snps,arc-sdp"))
-		arc_base_baud = 33333333;	/* Fixed 33MHz clk (AXS10x) */
+	else if (of_flat_dt_is_compatible(dt_root, "snps,arc-sdp") ||
+		 of_flat_dt_is_compatible(dt_root, "snps,hsdk"))
+		arc_base_baud = 33333333;	/* Fixed 33MHz clk (AXS10x & HSDK) */
 	else if (of_flat_dt_is_compatible(dt_root, "ezchip,arc-nps"))
 		arc_base_baud = 800000000;      /* Fixed 800MHz clk (NPS) */
 	else

@@ -148,7 +148,7 @@ static struct platform_driver snd_mpu401_driver = {
 
 #define IO_EXTENT 2
 
-static struct pnp_device_id snd_mpu401_pnpids[] = {
+static const struct pnp_device_id snd_mpu401_pnpids[] = {
 	{ .id = "PNPb006" },
 	{ .id = "" }
 };

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # SATA/PATA driver configuration
 #
@@ -150,6 +151,16 @@ config AHCI_CEVA
 	help
 	  This option enables support for the CEVA AHCI SATA.
 	  It can be found on the Xilinx Zynq UltraScale+ MPSoC.
+
+	  If unsure, say N.
+
+config AHCI_MTK
+	tristate "MediaTek AHCI SATA support"
+	depends on ARCH_MEDIATEK
+	select MFD_SYSCON
+	help
+	  This option enables support for the MediaTek SoC's
+	  onboard AHCI SATA controller.
 
 	  If unsure, say N.
 

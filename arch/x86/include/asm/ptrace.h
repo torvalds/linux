@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PTRACE_H
 #define _ASM_X86_PTRACE_H
 
@@ -9,6 +10,20 @@
 #ifdef __i386__
 
 struct pt_regs {
+	/*
+	 * NB: 32-bit x86 CPUs are inconsistent as what happens in the
+	 * following cases (where %seg represents a segment register):
+	 *
+	 * - pushl %seg: some do a 16-bit write and leave the high
+	 *   bits alone
+	 * - movl %seg, [mem]: some do a 16-bit write despite the movl
+	 * - IDT entry: some (e.g. 486) will leave the high bits of CS
+	 *   and (if applicable) SS undefined.
+	 *
+	 * Fortunately, x86-32 doesn't read the high bits on POP or IRET,
+	 * so we can just treat all of the segment registers as 16-bit
+	 * values.
+	 */
 	unsigned long bx;
 	unsigned long cx;
 	unsigned long dx;
@@ -16,16 +31,22 @@ struct pt_regs {
 	unsigned long di;
 	unsigned long bp;
 	unsigned long ax;
-	unsigned long ds;
-	unsigned long es;
-	unsigned long fs;
-	unsigned long gs;
+	unsigned short ds;
+	unsigned short __dsh;
+	unsigned short es;
+	unsigned short __esh;
+	unsigned short fs;
+	unsigned short __fsh;
+	unsigned short gs;
+	unsigned short __gsh;
 	unsigned long orig_ax;
 	unsigned long ip;
-	unsigned long cs;
+	unsigned short cs;
+	unsigned short __csh;
 	unsigned long flags;
 	unsigned long sp;
-	unsigned long ss;
+	unsigned short ss;
+	unsigned short __ssh;
 };
 
 #else /* __i386__ */
@@ -115,9 +136,9 @@ static inline int v8086_mode(struct pt_regs *regs)
 #endif
 }
 
-#ifdef CONFIG_X86_64
 static inline bool user_64bit_mode(struct pt_regs *regs)
 {
+#ifdef CONFIG_X86_64
 #ifndef CONFIG_PARAVIRT
 	/*
 	 * On non-paravirt systems, this is the only long mode CPL 3
@@ -128,8 +149,12 @@ static inline bool user_64bit_mode(struct pt_regs *regs)
 	/* Headers are too twisted for this to go in paravirt.h. */
 	return regs->cs == __USER_CS || regs->cs == pv_info.extra_user_64bit_cs;
 #endif
+#else /* !CONFIG_X86_64 */
+	return false;
+#endif
 }
 
+#ifdef CONFIG_X86_64
 #define current_user_stack_pointer()	current_pt_regs()->sp
 #define compat_user_stack_pointer()	current_pt_regs()->sp
 #endif
@@ -176,6 +201,17 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
 	if (offset == offsetof(struct pt_regs, sp) &&
 	    regs->cs == __KERNEL_CS)
 		return kernel_stack_pointer(regs);
+
+	/* The selector fields are 16-bit. */
+	if (offset == offsetof(struct pt_regs, cs) ||
+	    offset == offsetof(struct pt_regs, ss) ||
+	    offset == offsetof(struct pt_regs, ds) ||
+	    offset == offsetof(struct pt_regs, es) ||
+	    offset == offsetof(struct pt_regs, fs) ||
+	    offset == offsetof(struct pt_regs, gs)) {
+		return *(u16 *)((unsigned long)regs + offset);
+
+	}
 #endif
 	return *(unsigned long *)((unsigned long)regs + offset);
 }

@@ -9,6 +9,7 @@
 #include <linux/of_address.h>
 
 #include "compat.h"
+#include "ctrl.h"
 #include "regs.h"
 #include "jr.h"
 #include "desc.h"
@@ -171,7 +172,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 
 	while (rd_reg32(&jrp->rregs->outring_used)) {
 
-		head = ACCESS_ONCE(jrp->head);
+		head = READ_ONCE(jrp->head);
 
 		spin_lock(&jrp->outlock);
 
@@ -340,7 +341,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	spin_lock_bh(&jrp->inplock);
 
 	head = jrp->head;
-	tail = ACCESS_ONCE(jrp->tail);
+	tail = READ_ONCE(jrp->tail);
 
 	if (!rd_reg32(&jrp->rregs->inpring_avail) ||
 	    CIRC_SPACE(head, tail, JOBR_DEPTH) <= 0) {
@@ -499,7 +500,11 @@ static int caam_jr_probe(struct platform_device *pdev)
 	jrpriv->rregs = (struct caam_job_ring __iomem __force *)ctrl;
 
 	if (sizeof(dma_addr_t) == sizeof(u64)) {
-		if (of_device_is_compatible(nprop, "fsl,sec-v5.0-job-ring"))
+		if (caam_dpaa2)
+			error = dma_set_mask_and_coherent(jrdev,
+							  DMA_BIT_MASK(49));
+		else if (of_device_is_compatible(nprop,
+						 "fsl,sec-v5.0-job-ring"))
 			error = dma_set_mask_and_coherent(jrdev,
 							  DMA_BIT_MASK(40));
 		else

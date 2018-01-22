@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Device driver for Microgate SyncLink GT serial adapters.
  *
@@ -5,8 +6,6 @@
  * paulkf@microgate.com
  *
  * Microgate and SyncLink are trademarks of Microgate Corporation
- *
- * This code is released under the GNU General Public License (GPL)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -95,7 +94,7 @@ MODULE_LICENSE("GPL");
 #define MGSL_MAGIC 0x5401
 #define MAX_DEVICES 32
 
-static struct pci_device_id pci_table[] = {
+static const struct pci_device_id pci_table[] = {
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT2_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT4_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
@@ -494,8 +493,8 @@ static void free_bufs(struct slgt_info *info, struct slgt_desc *bufs, int count)
 static int  alloc_tmp_rbuf(struct slgt_info *info);
 static void free_tmp_rbuf(struct slgt_info *info);
 
-static void tx_timeout(unsigned long context);
-static void rx_timeout(unsigned long context);
+static void tx_timeout(struct timer_list *t);
+static void rx_timeout(struct timer_list *t);
 
 /*
  * ioctl handlers
@@ -3598,8 +3597,8 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 		info->adapter_num = adapter_num;
 		info->port_num = port_num;
 
-		setup_timer(&info->tx_timer, tx_timeout, (unsigned long)info);
-		setup_timer(&info->rx_timer, rx_timeout, (unsigned long)info);
+		timer_setup(&info->tx_timer, tx_timeout, 0);
+		timer_setup(&info->rx_timer, rx_timeout, 0);
 
 		/* Copy configuration info to device instance data */
 		info->pdev = pdev;
@@ -5113,9 +5112,9 @@ static int adapter_test(struct slgt_info *info)
 /*
  * transmit timeout handler
  */
-static void tx_timeout(unsigned long context)
+static void tx_timeout(struct timer_list *t)
 {
-	struct slgt_info *info = (struct slgt_info*)context;
+	struct slgt_info *info = from_timer(info, t, tx_timer);
 	unsigned long flags;
 
 	DBGINFO(("%s tx_timeout\n", info->device_name));
@@ -5137,9 +5136,9 @@ static void tx_timeout(unsigned long context)
 /*
  * receive buffer polling timer
  */
-static void rx_timeout(unsigned long context)
+static void rx_timeout(struct timer_list *t)
 {
-	struct slgt_info *info = (struct slgt_info*)context;
+	struct slgt_info *info = from_timer(info, t, rx_timer);
 	unsigned long flags;
 
 	DBGINFO(("%s rx_timeout\n", info->device_name));

@@ -7,17 +7,37 @@ Description:
 		HMAC-sha1 value across the extended attributes, storing the
 		value as the extended attribute 'security.evm'.
 
-		EVM depends on the Kernel Key Retention System to provide it
-		with a trusted/encrypted key for the HMAC-sha1 operation.
-		The key is loaded onto the root's keyring using keyctl.  Until
-		EVM receives notification that the key has been successfully
-		loaded onto the keyring (echo 1 > <securityfs>/evm), EVM
-		can not create or validate the 'security.evm' xattr, but
-		returns INTEGRITY_UNKNOWN.  Loading the key and signaling EVM
-		should be done as early as possible.  Normally this is done
-		in the initramfs, which has already been measured as part
-		of the trusted boot.  For more information on creating and
-		loading existing trusted/encrypted keys, refer to:
-		Documentation/keys-trusted-encrypted.txt.  (A sample dracut
-		patch, which loads the trusted/encrypted key and enables
-		EVM, is available from http://linux-ima.sourceforge.net/#EVM.)
+		EVM supports two classes of security.evm. The first is
+		an HMAC-sha1 generated locally with a
+		trusted/encrypted key stored in the Kernel Key
+		Retention System. The second is a digital signature
+		generated either locally or remotely using an
+		asymmetric key. These keys are loaded onto root's
+		keyring using keyctl, and EVM is then enabled by
+		echoing a value to <securityfs>/evm:
+
+		1: enable HMAC validation and creation
+		2: enable digital signature validation
+		3: enable HMAC and digital signature validation and HMAC
+		   creation
+
+		Further writes will be blocked if HMAC support is enabled or
+		if bit 32 is set:
+
+		echo 0x80000002 ><securityfs>/evm
+
+		will enable digital signature validation and block
+		further writes to <securityfs>/evm.
+
+		Until this is done, EVM can not create or validate the
+		'security.evm' xattr, but returns INTEGRITY_UNKNOWN.
+		Loading keys and signaling EVM should be done as early
+		as possible.  Normally this is done in the initramfs,
+		which has already been measured as part of the trusted
+		boot.  For more information on creating and loading
+		existing trusted/encrypted keys, refer to:
+
+		Documentation/security/keys/trusted-encrypted.rst. Both dracut
+		(via 97masterkey and 98integrity) and systemd (via
+		core/ima-setup) have support for loading keys at boot
+		time.

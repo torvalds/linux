@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -46,15 +47,15 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 /* class_put_type() */
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_fid.h>
 #include <linux/list.h>
-#include "../../include/linux/libcfs/libcfs_hash.h"	/* for cfs_hash stuff */
-#include "../include/cl_object.h"
-#include "../include/lu_object.h"
+#include <linux/libcfs/libcfs_hash.h>	/* for cfs_hash stuff */
+#include <cl_object.h>
+#include <lu_object.h>
 #include "cl_internal.h"
 
 static struct kmem_cache *cl_env_kmem;

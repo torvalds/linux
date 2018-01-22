@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _INCLUDE_SOUND_ALC5623_H
 #define _INCLUDE_SOUND_ALC5623_H
 struct alc5623_platform_data {

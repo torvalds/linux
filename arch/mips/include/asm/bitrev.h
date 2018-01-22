@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MIPS_ASM_BITREV_H__
 #define __MIPS_ASM_BITREV_H__
 

@@ -1,9 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Siemens ID Mouse driver v0.6
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License as
-  published by the Free Software Foundation; either version 2 of
-  the License, or (at your option) any later version.
 
   Copyright (C) 2004-5 by Florian 'Floe' Echtler  <echtler@fs.tum.de>
                       and Andreas  'ad'  Deresch <aderesch@fs.tum.de>
@@ -33,8 +29,6 @@
 #define HEADER "P5 225 289 255 "
 #define IMGSIZE ((WIDTH * HEIGHT) + sizeof(HEADER)-1)
 
-/* version information */
-#define DRIVER_VERSION "0.6"
 #define DRIVER_SHORT   "idmouse"
 #define DRIVER_AUTHOR  "Florian 'Floe' Echtler <echtler@fs.tum.de>"
 #define DRIVER_DESC    "Siemens ID Mouse FingerTIP Sensor Driver"

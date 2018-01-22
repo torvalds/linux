@@ -229,7 +229,7 @@ struct ubi_ec_hdr {
  * copy. UBI also calculates data CRC when the data is moved and stores it at
  * the @data_crc field of the copy (P1). So when UBI needs to pick one physical
  * eraseblock of two (P or P1), the @copy_flag of the newer one (P1) is
- * examined. If it is cleared, the situation* is simple and the newer one is
+ * examined. If it is cleared, the situation is simple and the newer one is
  * picked. If it is set, the data CRC of the copy (P1) is examined. If the CRC
  * checksum is correct, this physical eraseblock is selected (P1). Otherwise
  * the older one (P) is selected.
@@ -389,7 +389,7 @@ struct ubi_vtbl_record {
 #define UBI_FM_POOL_MAGIC	0x67AF4D08
 #define UBI_FM_EBA_MAGIC	0xf0c040a8
 
-/* A fastmap supber block can be located between PEB 0 and
+/* A fastmap super block can be located between PEB 0 and
  * UBI_FM_MAX_START */
 #define UBI_FM_MAX_START	64
 

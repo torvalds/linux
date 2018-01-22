@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the 98626/98644/internal serial interface on hp300/hp400
  * (based on the National Semiconductor INS8250/NS16550AF/WD16C552 UARTs)

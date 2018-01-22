@@ -10,18 +10,18 @@ Required properties:
 
 Required properties for new device trees
 - clocks	: phandle to the 32kHz external oscillator
-- clock-output-names : name of the LOSC clock created
+- clock-output-names : names of the LOSC and its external output clocks created
 - #clock-cells  : must be equals to 1. The RTC provides two clocks: the
 		  LOSC and its external output, with index 0 and 1
 		  respectively.
 
 Example:
 
-rtc: rtc@01f00000 {
+rtc: rtc@1f00000 {
 	compatible = "allwinner,sun6i-a31-rtc";
 	reg = <0x01f00000 0x54>;
 	interrupts = <0 40 4>, <0 41 4>;
-	clock-output-names = "osc32k";
+	clock-output-names = "osc32k", "osc32k-out";
 	clocks = <&ext_osc32k>;
 	#clock-cells = <1>;
 };

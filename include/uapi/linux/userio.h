@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-note */
 /*
  * userio: virtual serio device support
  * Copyright (C) 2015 Red Hat

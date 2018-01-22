@@ -282,8 +282,7 @@ static void taos_disconnect(struct serio *serio)
 {
 	struct taos_data *taos = serio_get_drvdata(serio);
 
-	if (taos->client)
-		i2c_unregister_device(taos->client);
+	i2c_unregister_device(taos->client);
 	i2c_del_adapter(&taos->adapter);
 	serio_close(serio);
 	kfree(taos);
@@ -291,7 +290,7 @@ static void taos_disconnect(struct serio *serio)
 	dev_info(&serio->dev, "Disconnected from TAOS EVM\n");
 }
 
-static struct serio_device_id taos_serio_ids[] = {
+static const struct serio_device_id taos_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_TAOSEVM,

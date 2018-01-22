@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* central.c: Central FHC driver for Sunfire/Starfire/Wildfire.
  *
  * Copyright (C) 1997, 1999, 2008 David S. Miller (davem@davemloft.net)

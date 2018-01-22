@@ -61,7 +61,7 @@
 #define SZ_1T				(SZ_1G*1024ULL)
 #define PIPE_PHY_RATE_RD(src)		((0xc000 & (u32)(src)) >> 0xe)
 
-#define ROOT_CAP_AND_CTRL		0x5C
+#define XGENE_V1_PCI_EXP_CAP		0x40
 
 /* PCIe IP version */
 #define XGENE_PCIE_IP_VER_UNKN		0
@@ -160,7 +160,7 @@ static bool xgene_pcie_hide_rc_bars(struct pci_bus *bus, int offset)
 }
 
 static void __iomem *xgene_pcie_map_bus(struct pci_bus *bus, unsigned int devfn,
-			      int offset)
+					int offset)
 {
 	if ((pci_is_root_bus(bus) && devfn != 0) ||
 	    xgene_pcie_hide_rc_bars(bus, offset))
@@ -189,7 +189,7 @@ static int xgene_pcie_config_read32(struct pci_bus *bus, unsigned int devfn,
 	 * Avoid this by not claiming to support CRS.
 	 */
 	if (pci_is_root_bus(bus) && (port->version == XGENE_PCIE_IP_VER_1) &&
-	    ((where & ~0x3) == ROOT_CAP_AND_CTRL))
+	    ((where & ~0x3) == XGENE_V1_PCI_EXP_CAP + PCI_EXP_RTCTL))
 		*val &= ~(PCI_EXP_RTCAP_CRSVIS << 16);
 
 	if (size <= 2)
@@ -265,12 +265,12 @@ static int xgene_v1_pcie_ecam_init(struct pci_config_window *cfg)
 }
 
 struct pci_ecam_ops xgene_v1_pcie_ecam_ops = {
-	.bus_shift      = 16,
-	.init           = xgene_v1_pcie_ecam_init,
-	.pci_ops        = {
-		.map_bus        = xgene_pcie_map_bus,
-		.read           = xgene_pcie_config_read32,
-		.write          = pci_generic_config_write,
+	.bus_shift	= 16,
+	.init		= xgene_v1_pcie_ecam_init,
+	.pci_ops	= {
+		.map_bus	= xgene_pcie_map_bus,
+		.read		= xgene_pcie_config_read32,
+		.write		= pci_generic_config_write,
 	}
 };
 
@@ -280,12 +280,12 @@ static int xgene_v2_pcie_ecam_init(struct pci_config_window *cfg)
 }
 
 struct pci_ecam_ops xgene_v2_pcie_ecam_ops = {
-	.bus_shift      = 16,
-	.init           = xgene_v2_pcie_ecam_init,
-	.pci_ops        = {
-		.map_bus        = xgene_pcie_map_bus,
-		.read           = xgene_pcie_config_read32,
-		.write          = pci_generic_config_write,
+	.bus_shift	= 16,
+	.init		= xgene_v2_pcie_ecam_init,
+	.pci_ops	= {
+		.map_bus	= xgene_pcie_map_bus,
+		.read		= xgene_pcie_config_read32,
+		.write		= pci_generic_config_write,
 	}
 };
 #endif
@@ -318,7 +318,7 @@ static u64 xgene_pcie_set_ib_mask(struct xgene_pcie_port *port, u32 addr,
 }
 
 static void xgene_pcie_linkup(struct xgene_pcie_port *port,
-				   u32 *lanes, u32 *speed)
+			      u32 *lanes, u32 *speed)
 {
 	u32 val32;
 
@@ -542,24 +542,6 @@ static void xgene_pcie_setup_ib_reg(struct xgene_pcie_port *port,
 	xgene_pcie_setup_pims(port, pim_reg, pci_addr, ~(size - 1));
 }
 
-static int pci_dma_range_parser_init(struct of_pci_range_parser *parser,
-				     struct device_node *node)
-{
-	const int na = 3, ns = 2;
-	int rlen;
-
-	parser->node = node;
-	parser->pna = of_n_addr_cells(node);
-	parser->np = parser->pna + na + ns;
-
-	parser->range = of_get_property(node, "dma-ranges", &rlen);
-	if (!parser->range)
-		return -ENOENT;
-	parser->end = parser->range + rlen / sizeof(__be32);
-
-	return 0;
-}
-
 static int xgene_pcie_parse_map_dma_ranges(struct xgene_pcie_port *port)
 {
 	struct device_node *np = port->node;
@@ -568,7 +550,7 @@ static int xgene_pcie_parse_map_dma_ranges(struct xgene_pcie_port *port)
 	struct device *dev = port->dev;
 	u8 ib_reg_mask = 0;
 
-	if (pci_dma_range_parser_init(&parser, np)) {
+	if (of_pci_dma_range_parser_init(&parser, np)) {
 		dev_err(dev, "missing dma-ranges property\n");
 		return -EINVAL;
 	}
@@ -593,8 +575,7 @@ static void xgene_pcie_clear_config(struct xgene_pcie_port *port)
 		xgene_pcie_writel(port, i, 0);
 }
 
-static int xgene_pcie_setup(struct xgene_pcie_port *port,
-			    struct list_head *res,
+static int xgene_pcie_setup(struct xgene_pcie_port *port, struct list_head *res,
 			    resource_size_t io_base)
 {
 	struct device *dev = port->dev;
@@ -629,7 +610,7 @@ static struct pci_ops xgene_pcie_ops = {
 	.write = pci_generic_config_write32,
 };
 
-static int xgene_pcie_probe_bridge(struct platform_device *pdev)
+static int xgene_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = dev->of_node;
@@ -706,11 +687,11 @@ static const struct of_device_id xgene_pcie_match_table[] = {
 
 static struct platform_driver xgene_pcie_driver = {
 	.driver = {
-		   .name = "xgene-pcie",
-		   .of_match_table = of_match_ptr(xgene_pcie_match_table),
-		   .suppress_bind_attrs = true,
+		.name = "xgene-pcie",
+		.of_match_table = of_match_ptr(xgene_pcie_match_table),
+		.suppress_bind_attrs = true,
 	},
-	.probe = xgene_pcie_probe_bridge,
+	.probe = xgene_pcie_probe,
 };
 builtin_platform_driver(xgene_pcie_driver);
 #endif

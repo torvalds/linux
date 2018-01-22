@@ -869,7 +869,7 @@ static int _write_mirror(struct ore_io_state *ios, int cur_comp)
 					goto out;
 				}
 
-				bio->bi_bdev = NULL;
+				bio->bi_disk = NULL;
 				bio->bi_next = NULL;
 				per_dev->offset = master_dev->offset;
 				per_dev->length = master_dev->length;

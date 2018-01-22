@@ -73,6 +73,8 @@ struct nfp_rtsym_table;
  * @mac_stats_mem:	Pointer to mapped MAC stats area
  * @vf_cfg_bar:		Pointer to the CPP area for the VF configuration BAR
  * @vf_cfg_mem:		Pointer to mapped VF configuration area
+ * @vfcfg_tbl2_area:	Pointer to the CPP area for the VF config table
+ * @vfcfg_tbl2:		Pointer to mapped VF config table
  * @irq_entries:	Array of MSI-X entries for all vNICs
  * @limit_vfs:		Number of VFs supported by firmware (~0 for PCI limit)
  * @num_vfs:		Number of SR-IOV VFs enabled
@@ -107,6 +109,8 @@ struct nfp_pf {
 	u8 __iomem *mac_stats_mem;
 	struct nfp_cpp_area *vf_cfg_bar;
 	u8 __iomem *vf_cfg_mem;
+	struct nfp_cpp_area *vfcfg_tbl2_area;
+	u8 __iomem *vfcfg_tbl2;
 
 	struct msix_entry *irq_entries;
 

@@ -22,6 +22,8 @@ Optional properties for main touchpad device:
     experiment to determine which bit corresponds to which input. Use
     KEY_RESERVED for unused padding values.
 
+- reset-gpios: GPIO specifier for the touchscreen's reset pin (active low)
+
 Example:
 
 	touch@4b {

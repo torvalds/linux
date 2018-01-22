@@ -57,6 +57,25 @@ config LEDS_AAT1290
 	depends on PINCTRL
 	help
 	 This option enables support for the LEDs on the AAT1290.
+config LEDS_APU
+	tristate "Front panel LED support for PC Engines APU/APU2 boards"
+	depends on LEDS_CLASS
+	depends on X86 && DMI
+	help
+	  This driver makes the PC Engines APU/APU2 front panel LEDs
+	  accessible from userspace programs through the LED subsystem.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-apu.
+
+config LEDS_AS3645A
+	tristate "AS3645A LED flash controller support"
+	depends on I2C && LEDS_CLASS_FLASH
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
+	help
+	  Enable LED flash class support for AS3645A LED flash
+	  controller. V4L2 flash API is provided as well if
+	  CONFIG_V4L2_FLASH_API is enabled.
 
 config LEDS_BCM6328
 	tristate "LED Support for Broadcom BCM6328"
@@ -376,6 +395,17 @@ config LEDS_PCA955X
 	  This option enables support for LEDs connected to PCA955x
 	  LED driver chips accessed via the I2C bus.  Supported
 	  devices include PCA9550, PCA9551, PCA9552, and PCA9553.
+
+config LEDS_PCA955X_GPIO
+	bool "Enable GPIO support for PCA955X"
+	depends on LEDS_PCA955X
+	depends on GPIOLIB
+	help
+	  Allow unused pins on PCA955X to be used as gpio.
+
+	  To use a pin as gpio the pin type should be set to
+	  PCA955X_TYPE_GPIO in the device tree.
+
 
 config LEDS_PCA963X
 	tristate "LED support for PCA963x I2C chip"

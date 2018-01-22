@@ -37,8 +37,7 @@ static void huge_free_pages(struct drm_i915_gem_object *obj,
 	kfree(pages);
 }
 
-static struct sg_table *
-huge_get_pages(struct drm_i915_gem_object *obj)
+static int huge_get_pages(struct drm_i915_gem_object *obj)
 {
 #define GFP (GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY)
 	const unsigned long nreal = obj->scratch / PAGE_SIZE;
@@ -49,11 +48,11 @@ huge_get_pages(struct drm_i915_gem_object *obj)
 
 	pages = kmalloc(sizeof(*pages), GFP);
 	if (!pages)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	if (sg_alloc_table(pages, npages, GFP)) {
 		kfree(pages);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	sg = pages->sgl;
@@ -81,11 +80,14 @@ huge_get_pages(struct drm_i915_gem_object *obj)
 	if (i915_gem_gtt_prepare_pages(obj, pages))
 		goto err;
 
-	return pages;
+	__i915_gem_object_set_pages(obj, pages, PAGE_SIZE);
+
+	return 0;
 
 err:
 	huge_free_pages(obj, pages);
-	return ERR_PTR(-ENOMEM);
+
+	return -ENOMEM;
 #undef GFP
 }
 
@@ -111,6 +113,7 @@ huge_gem_object(struct drm_i915_private *i915,
 		dma_addr_t dma_size)
 {
 	struct drm_i915_gem_object *obj;
+	unsigned int cache_level;
 
 	GEM_BUG_ON(!phys_size || phys_size > dma_size);
 	GEM_BUG_ON(!IS_ALIGNED(phys_size, PAGE_SIZE));
@@ -128,9 +131,8 @@ huge_gem_object(struct drm_i915_private *i915,
 
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	obj->cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
-	obj->cache_coherent = i915_gem_object_is_coherent(obj);
-	obj->cache_dirty = !obj->cache_coherent;
+	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	i915_gem_object_set_cache_coherency(obj, cache_level);
 	obj->scratch = phys_size;
 
 	return obj;

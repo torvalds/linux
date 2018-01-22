@@ -7,9 +7,9 @@
  *  this source tree.
  */
 
-#define QEDF_VERSION		"8.18.22.0"
+#define QEDF_VERSION		"8.20.5.0"
 #define QEDF_DRIVER_MAJOR_VER		8
-#define QEDF_DRIVER_MINOR_VER		18
-#define QEDF_DRIVER_REV_VER		22
+#define QEDF_DRIVER_MINOR_VER		20
+#define QEDF_DRIVER_REV_VER		5
 #define QEDF_DRIVER_ENG_VER		0
 

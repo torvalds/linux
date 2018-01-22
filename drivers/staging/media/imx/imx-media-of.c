@@ -100,9 +100,9 @@ static void of_get_remote_pad(struct device_node *epnode,
 	}
 }
 
-static struct imx_media_subdev *
+static int
 of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
-		bool is_csi_port)
+		bool is_csi_port, struct imx_media_subdev **subdev)
 {
 	struct imx_media_subdev *imxsd;
 	int i, num_pads, ret;
@@ -110,13 +110,25 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 	if (!of_device_is_available(sd_np)) {
 		dev_dbg(imxmd->md.dev, "%s: %s not enabled\n", __func__,
 			sd_np->name);
-		return NULL;
+		*subdev = NULL;
+		/* unavailable is not an error */
+		return 0;
 	}
 
 	/* register this subdev with async notifier */
 	imxsd = imx_media_add_async_subdev(imxmd, sd_np, NULL);
-	if (IS_ERR_OR_NULL(imxsd))
-		return imxsd;
+	ret = PTR_ERR_OR_ZERO(imxsd);
+	if (ret) {
+		if (ret == -EEXIST) {
+			/* already added, everything is fine */
+			*subdev = NULL;
+			return 0;
+		}
+
+		/* other error, can't continue */
+		return ret;
+	}
+	*subdev = imxsd;
 
 	if (is_csi_port) {
 		/*
@@ -137,10 +149,11 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 	} else {
 		num_pads = of_get_port_count(sd_np);
 		if (num_pads != 1) {
+			/* confused, but no reason to give up here */
 			dev_warn(imxmd->md.dev,
 				 "%s: unknown device %s with %d ports\n",
 				 __func__, sd_np->name, num_pads);
-			return NULL;
+			return 0;
 		}
 
 		/*
@@ -151,7 +164,7 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 	}
 
 	if (imxsd->num_sink_pads >= num_pads)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	imxsd->num_src_pads = num_pads - imxsd->num_sink_pads;
 
@@ -191,20 +204,15 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 
 			ret = of_add_pad_link(imxmd, pad, sd_np, remote_np,
 					      i, remote_pad);
-			if (ret) {
-				imxsd = ERR_PTR(ret);
+			if (ret)
 				break;
-			}
 
 			if (i < imxsd->num_sink_pads) {
 				/* follow sink endpoints upstream */
-				remote_imxsd = of_parse_subdev(imxmd,
-							       remote_np,
-							       false);
-				if (IS_ERR(remote_imxsd)) {
-					imxsd = remote_imxsd;
+				ret = of_parse_subdev(imxmd, remote_np,
+						      false, &remote_imxsd);
+				if (ret)
 					break;
-				}
 			}
 
 			of_node_put(remote_np);
@@ -212,14 +220,14 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 
 		if (port != sd_np)
 			of_node_put(port);
-		if (IS_ERR(imxsd)) {
+		if (ret) {
 			of_node_put(remote_np);
 			of_node_put(epnode);
 			break;
 		}
 	}
 
-	return imxsd;
+	return ret;
 }
 
 int imx_media_of_parse(struct imx_media_dev *imxmd,
@@ -236,11 +244,9 @@ int imx_media_of_parse(struct imx_media_dev *imxmd,
 		if (!csi_np)
 			break;
 
-		lcsi = of_parse_subdev(imxmd, csi_np, true);
-		if (IS_ERR(lcsi)) {
-			ret = PTR_ERR(lcsi);
+		ret = of_parse_subdev(imxmd, csi_np, true, &lcsi);
+		if (ret)
 			goto err_put;
-		}
 
 		ret = of_property_read_u32(csi_np, "reg", &csi_id);
 		if (ret) {

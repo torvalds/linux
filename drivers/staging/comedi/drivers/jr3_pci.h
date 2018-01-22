@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Helper types to take care of the fact that the DSP card memory
  * is 16 bits, but aligned on a 32 bit PCI boundary

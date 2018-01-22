@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Pass a breakpoint through to Codescape */
 
 #include <asm/tbx.h>

@@ -261,12 +261,12 @@ _GLOBAL(memcpy_power7)
 
 .machine push
 .machine "power4"
-	dcbt	r0,r6,0b01000
-	dcbt	r0,r7,0b01010
-	dcbtst	r0,r9,0b01000
-	dcbtst	r0,r10,0b01010
+	dcbt	0,r6,0b01000
+	dcbt	0,r7,0b01010
+	dcbtst	0,r9,0b01000
+	dcbtst	0,r10,0b01010
 	eieio
-	dcbt	r0,r8,0b01010	/* GO */
+	dcbt	0,r8,0b01010	/* GO */
 .machine pop
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
@@ -321,26 +321,26 @@ _GLOBAL(memcpy_power7)
 	li	r11,48
 
 	bf	cr7*4+3,5f
-	lvx	v1,r0,r4
+	lvx	v1,0,r4
 	addi	r4,r4,16
-	stvx	v1,r0,r3
+	stvx	v1,0,r3
 	addi	r3,r3,16
 
 5:	bf	cr7*4+2,6f
-	lvx	v1,r0,r4
+	lvx	v1,0,r4
 	lvx	v0,r4,r9
 	addi	r4,r4,32
-	stvx	v1,r0,r3
+	stvx	v1,0,r3
 	stvx	v0,r3,r9
 	addi	r3,r3,32
 
 6:	bf	cr7*4+1,7f
-	lvx	v3,r0,r4
+	lvx	v3,0,r4
 	lvx	v2,r4,r9
 	lvx	v1,r4,r10
 	lvx	v0,r4,r11
 	addi	r4,r4,64
-	stvx	v3,r0,r3
+	stvx	v3,0,r3
 	stvx	v2,r3,r9
 	stvx	v1,r3,r10
 	stvx	v0,r3,r11
@@ -366,7 +366,7 @@ _GLOBAL(memcpy_power7)
 	 */
 	.align	5
 8:
-	lvx	v7,r0,r4
+	lvx	v7,0,r4
 	lvx	v6,r4,r9
 	lvx	v5,r4,r10
 	lvx	v4,r4,r11
@@ -375,7 +375,7 @@ _GLOBAL(memcpy_power7)
 	lvx	v1,r4,r15
 	lvx	v0,r4,r16
 	addi	r4,r4,128
-	stvx	v7,r0,r3
+	stvx	v7,0,r3
 	stvx	v6,r3,r9
 	stvx	v5,r3,r10
 	stvx	v4,r3,r11
@@ -396,29 +396,29 @@ _GLOBAL(memcpy_power7)
 	mtocrf	0x01,r6
 
 	bf	cr7*4+1,9f
-	lvx	v3,r0,r4
+	lvx	v3,0,r4
 	lvx	v2,r4,r9
 	lvx	v1,r4,r10
 	lvx	v0,r4,r11
 	addi	r4,r4,64
-	stvx	v3,r0,r3
+	stvx	v3,0,r3
 	stvx	v2,r3,r9
 	stvx	v1,r3,r10
 	stvx	v0,r3,r11
 	addi	r3,r3,64
 
 9:	bf	cr7*4+2,10f
-	lvx	v1,r0,r4
+	lvx	v1,0,r4
 	lvx	v0,r4,r9
 	addi	r4,r4,32
-	stvx	v1,r0,r3
+	stvx	v1,0,r3
 	stvx	v0,r3,r9
 	addi	r3,r3,32
 
 10:	bf	cr7*4+3,11f
-	lvx	v1,r0,r4
+	lvx	v1,0,r4
 	addi	r4,r4,16
-	stvx	v1,r0,r3
+	stvx	v1,0,r3
 	addi	r3,r3,16
 
 	/* Up to 15B to go */
@@ -499,25 +499,25 @@ _GLOBAL(memcpy_power7)
 	addi	r4,r4,16
 
 	bf	cr7*4+3,5f
-	lvx	v1,r0,r4
+	lvx	v1,0,r4
 	VPERM(v8,v0,v1,v16)
 	addi	r4,r4,16
-	stvx	v8,r0,r3
+	stvx	v8,0,r3
 	addi	r3,r3,16
 	vor	v0,v1,v1
 
 5:	bf	cr7*4+2,6f
-	lvx	v1,r0,r4
+	lvx	v1,0,r4
 	VPERM(v8,v0,v1,v16)
 	lvx	v0,r4,r9
 	VPERM(v9,v1,v0,v16)
 	addi	r4,r4,32
-	stvx	v8,r0,r3
+	stvx	v8,0,r3
 	stvx	v9,r3,r9
 	addi	r3,r3,32
 
 6:	bf	cr7*4+1,7f
-	lvx	v3,r0,r4
+	lvx	v3,0,r4
 	VPERM(v8,v0,v3,v16)
 	lvx	v2,r4,r9
 	VPERM(v9,v3,v2,v16)
@@ -526,7 +526,7 @@ _GLOBAL(memcpy_power7)
 	lvx	v0,r4,r11
 	VPERM(v11,v1,v0,v16)
 	addi	r4,r4,64
-	stvx	v8,r0,r3
+	stvx	v8,0,r3
 	stvx	v9,r3,r9
 	stvx	v10,r3,r10
 	stvx	v11,r3,r11
@@ -552,7 +552,7 @@ _GLOBAL(memcpy_power7)
 	 */
 	.align	5
 8:
-	lvx	v7,r0,r4
+	lvx	v7,0,r4
 	VPERM(v8,v0,v7,v16)
 	lvx	v6,r4,r9
 	VPERM(v9,v7,v6,v16)
@@ -569,7 +569,7 @@ _GLOBAL(memcpy_power7)
 	lvx	v0,r4,r16
 	VPERM(v15,v1,v0,v16)
 	addi	r4,r4,128
-	stvx	v8,r0,r3
+	stvx	v8,0,r3
 	stvx	v9,r3,r9
 	stvx	v10,r3,r10
 	stvx	v11,r3,r11
@@ -590,7 +590,7 @@ _GLOBAL(memcpy_power7)
 	mtocrf	0x01,r6
 
 	bf	cr7*4+1,9f
-	lvx	v3,r0,r4
+	lvx	v3,0,r4
 	VPERM(v8,v0,v3,v16)
 	lvx	v2,r4,r9
 	VPERM(v9,v3,v2,v16)
@@ -599,27 +599,27 @@ _GLOBAL(memcpy_power7)
 	lvx	v0,r4,r11
 	VPERM(v11,v1,v0,v16)
 	addi	r4,r4,64
-	stvx	v8,r0,r3
+	stvx	v8,0,r3
 	stvx	v9,r3,r9
 	stvx	v10,r3,r10
 	stvx	v11,r3,r11
 	addi	r3,r3,64
 
 9:	bf	cr7*4+2,10f
-	lvx	v1,r0,r4
+	lvx	v1,0,r4
 	VPERM(v8,v0,v1,v16)
 	lvx	v0,r4,r9
 	VPERM(v9,v1,v0,v16)
 	addi	r4,r4,32
-	stvx	v8,r0,r3
+	stvx	v8,0,r3
 	stvx	v9,r3,r9
 	addi	r3,r3,32
 
 10:	bf	cr7*4+3,11f
-	lvx	v1,r0,r4
+	lvx	v1,0,r4
 	VPERM(v8,v0,v1,v16)
 	addi	r4,r4,16
-	stvx	v8,r0,r3
+	stvx	v8,0,r3
 	addi	r3,r3,16
 
 	/* Up to 15B to go */

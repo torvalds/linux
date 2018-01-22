@@ -355,16 +355,16 @@ static int hisi_spi_nor_register(struct device_node *np,
 
 	ret = of_property_read_u32(np, "reg", &priv->chipselect);
 	if (ret) {
-		dev_err(dev, "There's no reg property for %s\n",
-			np->full_name);
+		dev_err(dev, "There's no reg property for %pOF\n",
+			np);
 		return ret;
 	}
 
 	ret = of_property_read_u32(np, "spi-max-frequency",
 			&priv->clkrate);
 	if (ret) {
-		dev_err(dev, "There's no spi-max-frequency property for %s\n",
-			np->full_name);
+		dev_err(dev, "There's no spi-max-frequency property for %pOF\n",
+			np);
 		return ret;
 	}
 	priv->host = host;

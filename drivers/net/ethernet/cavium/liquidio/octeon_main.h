@@ -35,6 +35,12 @@
 
 #define DRV_NAME "LiquidIO"
 
+struct octeon_device_priv {
+	/** Tasklet structures for this device. */
+	struct tasklet_struct droq_tasklet;
+	unsigned long napi_mask;
+};
+
 /** This structure is used by NIC driver to store information required
  * to free the sk_buff when the packet has been fetched by Octeon.
  * Bytes offset below assume worst-case of a 64-bit system.
@@ -57,7 +63,7 @@ struct octnet_buf_free_info {
 };
 
 /* BQL-related functions */
-void octeon_report_sent_bytes_to_bql(void *buf, int reqtype);
+int octeon_report_sent_bytes_to_bql(void *buf, int reqtype);
 void octeon_update_tx_completion_counters(void *buf, int reqtype,
 					  unsigned int *pkts_compl,
 					  unsigned int *bytes_compl);

@@ -1,8 +1,9 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) AES XTS crypto API support
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
  *
+ * Author: Gary R Hook <gary.hook@amd.com>
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
 #include <crypto/aes.h>
+#include <crypto/xts.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 
@@ -37,46 +39,26 @@ struct ccp_unit_size_map {
 	u32 value;
 };
 
-static struct ccp_unit_size_map unit_size_map[] = {
+static struct ccp_unit_size_map xts_unit_sizes[] = {
 	{
-		.size	= 4096,
-		.value	= CCP_XTS_AES_UNIT_SIZE_4096,
-	},
-	{
-		.size	= 2048,
-		.value	= CCP_XTS_AES_UNIT_SIZE_2048,
-	},
-	{
-		.size	= 1024,
-		.value	= CCP_XTS_AES_UNIT_SIZE_1024,
-	},
-	{
-		.size	= 512,
-		.value	= CCP_XTS_AES_UNIT_SIZE_512,
-	},
-	{
-		.size	= 256,
-		.value	= CCP_XTS_AES_UNIT_SIZE__LAST,
-	},
-	{
-		.size	= 128,
-		.value	= CCP_XTS_AES_UNIT_SIZE__LAST,
-	},
-	{
-		.size	= 64,
-		.value	= CCP_XTS_AES_UNIT_SIZE__LAST,
-	},
-	{
-		.size	= 32,
-		.value	= CCP_XTS_AES_UNIT_SIZE__LAST,
-	},
-	{
-		.size	= 16,
+		.size   = 16,
 		.value	= CCP_XTS_AES_UNIT_SIZE_16,
 	},
 	{
-		.size	= 1,
-		.value	= CCP_XTS_AES_UNIT_SIZE__LAST,
+		.size   = 512,
+		.value	= CCP_XTS_AES_UNIT_SIZE_512,
+	},
+	{
+		.size   = 1024,
+		.value	= CCP_XTS_AES_UNIT_SIZE_1024,
+	},
+	{
+		.size   = 2048,
+		.value	= CCP_XTS_AES_UNIT_SIZE_2048,
+	},
+	{
+		.size   = 4096,
+		.value	= CCP_XTS_AES_UNIT_SIZE_4096,
 	},
 };
 
@@ -96,14 +78,25 @@ static int ccp_aes_xts_complete(struct crypto_async_request *async_req, int ret)
 static int ccp_aes_xts_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			      unsigned int key_len)
 {
-	struct ccp_ctx *ctx = crypto_tfm_ctx(crypto_ablkcipher_tfm(tfm));
+	struct crypto_tfm *xfm = crypto_ablkcipher_tfm(tfm);
+	struct ccp_ctx *ctx = crypto_tfm_ctx(xfm);
+	unsigned int ccpversion = ccp_version();
+	int ret;
 
-	/* Only support 128-bit AES key with a 128-bit Tweak key,
-	 * otherwise use the fallback
+	ret = xts_check_key(xfm, key, key_len);
+	if (ret)
+		return ret;
+
+	/* Version 3 devices support 128-bit keys; version 5 devices can
+	 * accommodate 128- and 256-bit keys.
 	 */
 	switch (key_len) {
 	case AES_KEYSIZE_128 * 2:
 		memcpy(ctx->u.aes.key, key, key_len);
+		break;
+	case AES_KEYSIZE_256 * 2:
+		if (ccpversion > CCP_VERSION(3, 0))
+			memcpy(ctx->u.aes.key, key, key_len);
 		break;
 	}
 	ctx->u.aes.key_len = key_len / 2;
@@ -117,6 +110,8 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 {
 	struct ccp_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct ccp_aes_req_ctx *rctx = ablkcipher_request_ctx(req);
+	unsigned int ccpversion = ccp_version();
+	unsigned int fallback = 0;
 	unsigned int unit;
 	u32 unit_size;
 	int ret;
@@ -130,18 +125,32 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	if (!req->info)
 		return -EINVAL;
 
+	/* Check conditions under which the CCP can fulfill a request. The
+	 * device can handle input plaintext of a length that is a multiple
+	 * of the unit_size, bug the crypto implementation only supports
+	 * the unit_size being equal to the input length. This limits the
+	 * number of scenarios we can handle.
+	 */
 	unit_size = CCP_XTS_AES_UNIT_SIZE__LAST;
-	if (req->nbytes <= unit_size_map[0].size) {
-		for (unit = 0; unit < ARRAY_SIZE(unit_size_map); unit++) {
-			if (!(req->nbytes & (unit_size_map[unit].size - 1))) {
-				unit_size = unit_size_map[unit].value;
-				break;
-			}
+	for (unit = 0; unit < ARRAY_SIZE(xts_unit_sizes); unit++) {
+		if (req->nbytes == xts_unit_sizes[unit].size) {
+			unit_size = unit;
+			break;
 		}
 	}
-
-	if ((unit_size == CCP_XTS_AES_UNIT_SIZE__LAST) ||
-	    (ctx->u.aes.key_len != AES_KEYSIZE_128)) {
+	/* The CCP has restrictions on block sizes. Also, a version 3 device
+	 * only supports AES-128 operations; version 5 CCPs support both
+	 * AES-128 and -256 operations.
+	 */
+	if (unit_size == CCP_XTS_AES_UNIT_SIZE__LAST)
+		fallback = 1;
+	if ((ccpversion < CCP_VERSION(5, 0)) &&
+	    (ctx->u.aes.key_len != AES_KEYSIZE_128))
+		fallback = 1;
+	if ((ctx->u.aes.key_len != AES_KEYSIZE_128) &&
+	    (ctx->u.aes.key_len != AES_KEYSIZE_256))
+		fallback = 1;
+	if (fallback) {
 		SKCIPHER_REQUEST_ON_STACK(subreq, ctx->u.aes.tfm_skcipher);
 
 		/* Use the fallback to process the request for any
@@ -164,6 +173,7 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	memset(&rctx->cmd, 0, sizeof(rctx->cmd));
 	INIT_LIST_HEAD(&rctx->cmd.entry);
 	rctx->cmd.engine = CCP_ENGINE_XTS_AES_128;
+	rctx->cmd.u.xts.type = CCP_AES_TYPE_128;
 	rctx->cmd.u.xts.action = (encrypt) ? CCP_AES_ACTION_ENCRYPT
 					   : CCP_AES_ACTION_DECRYPT;
 	rctx->cmd.u.xts.unit_size = unit_size;

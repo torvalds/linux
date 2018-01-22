@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/font.h>
 
 static const unsigned char fontdata_6x10[] = {

@@ -407,7 +407,7 @@ static int sst_cdev_caps(struct snd_compr_caps *caps)
 	return 0;
 }
 
-static struct snd_compr_codec_caps caps_mp3 = {
+static const struct snd_compr_codec_caps caps_mp3 = {
 	.num_descriptors = 1,
 	.descriptor[0].max_ch = 2,
 	.descriptor[0].sample_rates[0] = 48000,
@@ -424,7 +424,7 @@ static struct snd_compr_codec_caps caps_mp3 = {
 	.descriptor[0].formats = 0,
 };
 
-static struct snd_compr_codec_caps caps_aac = {
+static const struct snd_compr_codec_caps caps_aac = {
 	.num_descriptors = 2,
 	.descriptor[1].max_ch = 2,
 	.descriptor[0].sample_rates[0] = 48000,

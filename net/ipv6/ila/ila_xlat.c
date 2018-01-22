@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/jhash.h>
 #include <linux/netfilter.h>
 #include <linux/rcupdate.h>
@@ -120,6 +121,7 @@ static const struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
 	[ILA_ATTR_LOCATOR_MATCH] = { .type = NLA_U64, },
 	[ILA_ATTR_IFINDEX] = { .type = NLA_U32, },
 	[ILA_ATTR_CSUM_MODE] = { .type = NLA_U8, },
+	[ILA_ATTR_IDENT_TYPE] = { .type = NLA_U8, },
 };
 
 static int parse_nl_config(struct genl_info *info,
@@ -137,6 +139,14 @@ static int parse_nl_config(struct genl_info *info,
 
 	if (info->attrs[ILA_ATTR_CSUM_MODE])
 		xp->ip.csum_mode = nla_get_u8(info->attrs[ILA_ATTR_CSUM_MODE]);
+	else
+		xp->ip.csum_mode = ILA_CSUM_NO_ACTION;
+
+	if (info->attrs[ILA_ATTR_IDENT_TYPE])
+		xp->ip.ident_type = nla_get_u8(
+				info->attrs[ILA_ATTR_IDENT_TYPE]);
+	else
+		xp->ip.ident_type = ILA_ATYPE_USE_FORMAT;
 
 	if (info->attrs[ILA_ATTR_IFINDEX])
 		xp->ifindex = nla_get_s32(info->attrs[ILA_ATTR_IFINDEX]);
@@ -197,7 +207,7 @@ static void ila_free_cb(void *ptr, void *arg)
 	}
 }
 
-static int ila_xlat_addr(struct sk_buff *skb, bool set_csum_neutral);
+static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila);
 
 static unsigned int
 ila_nf_input(void *priv,
@@ -208,7 +218,7 @@ ila_nf_input(void *priv,
 	return NF_ACCEPT;
 }
 
-static struct nf_hook_ops ila_nf_hook_ops[] __read_mostly = {
+static const struct nf_hook_ops ila_nf_hook_ops[] = {
 	{
 		.hook = ila_nf_input,
 		.pf = NFPROTO_IPV6,
@@ -395,7 +405,8 @@ static int ila_fill_info(struct ila_map *ila, struct sk_buff *msg)
 			      (__force u64)ila->xp.ip.locator_match.v64,
 			      ILA_ATTR_PAD) ||
 	    nla_put_s32(msg, ILA_ATTR_IFINDEX, ila->xp.ifindex) ||
-	    nla_put_u32(msg, ILA_ATTR_CSUM_MODE, ila->xp.ip.csum_mode))
+	    nla_put_u8(msg, ILA_ATTR_CSUM_MODE, ila->xp.ip.csum_mode) ||
+	    nla_put_u8(msg, ILA_ATTR_IDENT_TYPE, ila->xp.ip.ident_type))
 		return -1;
 
 	return 0;
@@ -606,7 +617,7 @@ static struct pernet_operations ila_net_ops = {
 	.size = sizeof(struct ila_net),
 };
 
-static int ila_xlat_addr(struct sk_buff *skb, bool set_csum_neutral)
+static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila)
 {
 	struct ila_map *ila;
 	struct ipv6hdr *ip6h = ipv6_hdr(skb);
@@ -616,16 +627,16 @@ static int ila_xlat_addr(struct sk_buff *skb, bool set_csum_neutral)
 
 	/* Assumes skb contains a valid IPv6 header that is pulled */
 
-	if (!ila_addr_is_ila(iaddr)) {
-		/* Type indicates this is not an ILA address */
-		return 0;
-	}
+	/* No check here that ILA type in the mapping matches what is in the
+	 * address. We assume that whatever sender gaves us can be translated.
+	 * The checksum mode however is relevant.
+	 */
 
 	rcu_read_lock();
 
 	ila = ila_lookup_wildcards(iaddr, skb->dev->ifindex, ilan);
 	if (ila)
-		ila_update_ipv6_locator(skb, &ila->xp.ip, set_csum_neutral);
+		ila_update_ipv6_locator(skb, &ila->xp.ip, sir2ila);
 
 	rcu_read_unlock();
 

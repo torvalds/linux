@@ -3749,9 +3749,9 @@ static void ql_get_board_info(struct ql3_adapter *qdev)
 	qdev->pci_slot = (u8) PCI_SLOT(qdev->pdev->devfn);
 }
 
-static void ql3xxx_timer(unsigned long ptr)
+static void ql3xxx_timer(struct timer_list *t)
 {
-	struct ql3_adapter *qdev = (struct ql3_adapter *)ptr;
+	struct ql3_adapter *qdev = from_timer(qdev, t, adapter_timer);
 	queue_delayed_work(qdev->workqueue, &qdev->link_state_work, 0);
 }
 
@@ -3891,10 +3891,8 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	INIT_DELAYED_WORK(&qdev->tx_timeout_work, ql_tx_timeout_work);
 	INIT_DELAYED_WORK(&qdev->link_state_work, ql_link_state_machine_work);
 
-	init_timer(&qdev->adapter_timer);
-	qdev->adapter_timer.function = ql3xxx_timer;
+	timer_setup(&qdev->adapter_timer, ql3xxx_timer, 0);
 	qdev->adapter_timer.expires = jiffies + HZ * 2;	/* two second delay */
-	qdev->adapter_timer.data = (unsigned long)qdev;
 
 	if (!cards_found) {
 		pr_alert("%s\n", DRV_STRING);

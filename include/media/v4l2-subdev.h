@@ -793,6 +793,8 @@ struct v4l2_subdev_platform_data {
  *	list.
  * @asd: Pointer to respective &struct v4l2_async_subdev.
  * @notifier: Pointer to the managing notifier.
+ * @subdev_notifier: A sub-device notifier implicitly registered for the sub-
+ *		     device using v4l2_device_register_sensor_subdev().
  * @pdata: common part of subdevice platform data
  *
  * Each instance of a subdev driver should create this struct, either
@@ -823,6 +825,7 @@ struct v4l2_subdev {
 	struct list_head async_list;
 	struct v4l2_async_subdev *asd;
 	struct v4l2_async_notifier *notifier;
+	struct v4l2_async_notifier *subdev_notifier;
 	struct v4l2_subdev_platform_data *pdata;
 };
 
@@ -982,8 +985,16 @@ void v4l2_subdev_init(struct v4l2_subdev *sd,
  * Example: err = v4l2_subdev_call(sd, video, s_std, norm);
  */
 #define v4l2_subdev_call(sd, o, f, args...)				\
-	(!(sd) ? -ENODEV : (((sd)->ops->o && (sd)->ops->o->f) ?	\
-		(sd)->ops->o->f((sd), ##args) : -ENOIOCTLCMD))
+	({								\
+		int __result;						\
+		if (!(sd))						\
+			__result = -ENODEV;				\
+		else if (!((sd)->ops->o && (sd)->ops->o->f))		\
+			__result = -ENOIOCTLCMD;			\
+		else							\
+			__result = (sd)->ops->o->f((sd), ##args);	\
+		__result;						\
+	})
 
 #define v4l2_subdev_has_op(sd, o, f) \
 	((sd)->ops->o && (sd)->ops->o->f)

@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for the iWave-RZG1M Qseven carrier board
+ * Device Tree Source for the iWave-RZ/G1M Qseven board
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
  *
@@ -10,16 +10,9 @@
 
 /dts-v1/;
 #include "r8a7743-iwg20m.dtsi"
+#include "iwg20d-q7-common.dtsi"
 
 / {
 	model = "iWave Systems RainboW-G20D-Qseven board based on RZ/G1M";
 	compatible = "iwave,g20d", "iwave,g20m", "renesas,r8a7743";
-
-	aliases {
-		serial0 = &scif0;
-	};
-};
-
-&scif0 {
-	status = "okay";
 };

@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -142,7 +143,6 @@ MODULE_DEVICE_TABLE(of, samsung_usb2_phy_of_match);
 
 static int samsung_usb2_phy_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	const struct samsung_usb2_phy_config *cfg;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
@@ -155,12 +155,9 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	match = of_match_node(samsung_usb2_phy_of_match, pdev->dev.of_node);
-	if (!match) {
-		dev_err(dev, "of_match_node() failed\n");
+	cfg = of_device_get_match_data(dev);
+	if (!cfg)
 		return -EINVAL;
-	}
-	cfg = match->data;
 
 	drv = devm_kzalloc(dev, sizeof(struct samsung_usb2_phy_driver) +
 		cfg->num_phys * sizeof(struct samsung_usb2_phy_instance),

@@ -479,26 +479,6 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	return psb_framebuffer_create(dev, cmd, r);
 }
 
-static void psbfb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-							u16 blue, int regno)
-{
-	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-
-	gma_crtc->lut_r[regno] = red >> 8;
-	gma_crtc->lut_g[regno] = green >> 8;
-	gma_crtc->lut_b[regno] = blue >> 8;
-}
-
-static void psbfb_gamma_get(struct drm_crtc *crtc, u16 *red,
-					u16 *green, u16 *blue, int regno)
-{
-	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-
-	*red = gma_crtc->lut_r[regno] << 8;
-	*green = gma_crtc->lut_g[regno] << 8;
-	*blue = gma_crtc->lut_b[regno] << 8;
-}
-
 static int psbfb_probe(struct drm_fb_helper *helper,
 				struct drm_fb_helper_surface_size *sizes)
 {
@@ -525,8 +505,6 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 }
 
 static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
-	.gamma_set = psbfb_gamma_set,
-	.gamma_get = psbfb_gamma_get,
 	.fb_probe = psbfb_probe,
 };
 

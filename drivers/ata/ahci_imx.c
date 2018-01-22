@@ -230,7 +230,7 @@ static int read_adc_sum(void *dev, u16 rtune_ctl_reg, void __iomem * mmio)
 {
 	u16 adc_out_reg, read_sum;
 	u32 index, read_attempt;
-	const u32 attempt_limit = 100;
+	const u32 attempt_limit = 200;
 
 	imx_phy_reg_addressing(SATA_PHY_CR_CLOCK_RTUNE_CTL, mmio);
 	imx_phy_reg_write(rtune_ctl_reg, mmio);

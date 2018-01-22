@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -17,27 +18,27 @@
 		#size-cells = <1>;
 		ranges;
 
-		mpss@08000000 {
+		mpss@8000000 {
 			reg = <0x08000000 0x5100000>;
 			no-map;
 		};
 
-		mba@00d100000 {
+		mba@d100000 {
 			reg = <0x0d100000 0x100000>;
 			no-map;
 		};
 
-		reserved@0d200000 {
+		reserved@d200000 {
 			reg = <0x0d200000 0xa00000>;
 			no-map;
 		};
 
-		adsp_region: adsp@0dc00000 {
+		adsp_region: adsp@dc00000 {
 			reg = <0x0dc00000 0x1900000>;
 			no-map;
 		};
 
-		venus@0f500000 {
+		venus@f500000 {
 			reg = <0x0f500000 0x500000>;
 			no-map;
 		};
@@ -47,17 +48,17 @@
 			no-map;
 		};
 
-		tz@0fc00000 {
+		tz@fc00000 {
 			reg = <0x0fc00000 0x160000>;
 			no-map;
 		};
 
-		rfsa@0fd60000 {
+		rfsa@fd60000 {
 			reg = <0x0fd60000 0x20000>;
 			no-map;
 		};
 
-		rmtfs@0fd80000 {
+		rmtfs@fd80000 {
 			reg = <0x0fd80000 0x180000>;
 			no-map;
 		};
@@ -613,6 +614,20 @@
 			status = "disabled";
 		};
 
+		sdhci@f9864900 {
+			compatible = "qcom,sdhci-msm-v4";
+			reg = <0xf9864900 0x11c>, <0xf9864000 0x800>;
+			reg-names = "hc_mem", "core_mem";
+			interrupts = <GIC_SPI 127 IRQ_TYPE_NONE>,
+				     <GIC_SPI 224 IRQ_TYPE_NONE>;
+			interrupt-names = "hc_irq", "pwr_irq";
+			clocks = <&gcc GCC_SDCC3_APPS_CLK>,
+				 <&gcc GCC_SDCC3_AHB_CLK>,
+				 <&xo_board>;
+			clock-names = "core", "iface", "xo";
+			status = "disabled";
+		};
+
 		sdhci@f98a4900 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0xf98a4900 0x11c>, <0xf98a4000 0x800>;
@@ -779,7 +794,7 @@
 		};
 
 		replicator@fc31c000 {
-			compatible = "qcom,coresight-replicator1x", "arm,primecell";
+			compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
 			reg = <0xfc31c000 0x1000>;
 
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;

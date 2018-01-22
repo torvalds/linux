@@ -45,7 +45,7 @@
 			clock-frequency = <25000000>;
 		};
 
-		arm_timer_clk: arm_timer_clk {
+		arm_timer_clk: arm-timer {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <50000000>;
@@ -79,6 +79,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart0>;
 			clocks = <&peri_clk 0>;
+			resets = <&peri_rst 0>;
 		};
 
 		serial1: serial@54006900 {
@@ -89,6 +90,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart1>;
 			clocks = <&peri_clk 1>;
+			resets = <&peri_rst 1>;
 		};
 
 		serial2: serial@54006a00 {
@@ -99,6 +101,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart2>;
 			clocks = <&peri_clk 2>;
+			resets = <&peri_rst 2>;
 		};
 
 		serial3: serial@54006b00 {
@@ -109,6 +112,21 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_uart3>;
 			clocks = <&peri_clk 3>;
+			resets = <&peri_rst 3>;
+		};
+
+		gpio: gpio@55000000 {
+			compatible = "socionext,uniphier-gpio";
+			reg = <0x55000000 0x200>;
+			interrupt-parent = <&aidet>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 0>;
+			gpio-ranges-group-names = "gpio_range";
+			ngpios = <248>;
+			socionext,interrupt-ranges = <0 48 16>, <16 154 5>;
 		};
 
 		i2c0: i2c@58780000 {
@@ -121,6 +139,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c0>;
 			clocks = <&peri_clk 4>;
+			resets = <&peri_rst 4>;
 			clock-frequency = <100000>;
 		};
 
@@ -134,6 +153,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c1>;
 			clocks = <&peri_clk 5>;
+			resets = <&peri_rst 5>;
 			clock-frequency = <100000>;
 		};
 
@@ -147,6 +167,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c2>;
 			clocks = <&peri_clk 6>;
+			resets = <&peri_rst 6>;
 			clock-frequency = <100000>;
 		};
 
@@ -160,6 +181,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_i2c3>;
 			clocks = <&peri_clk 7>;
+			resets = <&peri_rst 7>;
 			clock-frequency = <100000>;
 		};
 
@@ -173,6 +195,7 @@
 			#size-cells = <0>;
 			interrupts = <0 25 4>;
 			clocks = <&peri_clk 9>;
+			resets = <&peri_rst 9>;
 			clock-frequency = <400000>;
 		};
 
@@ -184,6 +207,7 @@
 			#size-cells = <0>;
 			interrupts = <0 26 4>;
 			clocks = <&peri_clk 10>;
+			resets = <&peri_rst 10>;
 			clock-frequency = <400000>;
 		};
 
@@ -241,7 +265,8 @@
 			interrupts = <0 80 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb2>;
-			clocks = <&mio_clk 7>, <&mio_clk 8>, <&mio_clk 12>;
+			clocks = <&sys_clk 8>, <&mio_clk 7>, <&mio_clk 8>,
+				 <&mio_clk 12>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 8>,
 				 <&mio_rst 12>;
 		};
@@ -253,7 +278,8 @@
 			interrupts = <0 81 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb3>;
-			clocks = <&mio_clk 7>, <&mio_clk 9>, <&mio_clk 13>;
+			clocks = <&sys_clk 8>, <&mio_clk 7>, <&mio_clk 9>,
+				 <&mio_clk 13>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 9>,
 				 <&mio_rst 13>;
 		};
@@ -266,6 +292,13 @@
 			pinctrl: pinctrl {
 				compatible = "socionext,uniphier-pro4-pinctrl";
 			};
+		};
+
+		aidet: aidet@5fc20000 {
+			compatible = "socionext,uniphier-pro4-aidet";
+			reg = <0x5fc20000 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		timer@60000200 {
@@ -305,7 +338,19 @@
 				#reset-cells = <1>;
 			};
 		};
+
+		nand: nand@68000000 {
+			compatible = "socionext,uniphier-denali-nand-v5a";
+			status = "disabled";
+			reg-names = "nand_data", "denali_reg";
+			reg = <0x68000000 0x20>, <0x68100000 0x1000>;
+			interrupts = <0 65 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_nand>;
+			clocks = <&sys_clk 2>;
+			resets = <&sys_rst 2>;
+		};
 	};
 };
 
-/include/ "uniphier-pinctrl.dtsi"
+#include "uniphier-pinctrl.dtsi"

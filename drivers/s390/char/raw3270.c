@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * IBM/3270 Driver - core functions.
  *
@@ -1082,7 +1083,7 @@ static struct attribute * raw3270_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group raw3270_attr_group = {
+static const struct attribute_group raw3270_attr_group = {
 	.attrs = raw3270_attrs,
 };
 

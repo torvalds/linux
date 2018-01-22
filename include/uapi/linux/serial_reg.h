@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /*
  * include/linux/serial_reg.h
  *
@@ -157,6 +158,7 @@
  */
 #define UART_DLL	0	/* Out: Divisor Latch Low */
 #define UART_DLM	1	/* Out: Divisor Latch High */
+#define UART_DIV_MAX	0xFFFF	/* Max divisor value */
 
 /*
  * LCR=0xBF (or DLAB=1 for 16C660)

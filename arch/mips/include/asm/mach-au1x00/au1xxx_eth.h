@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __AU1X00_ETH_DATA_H
 #define __AU1X00_ETH_DATA_H
 

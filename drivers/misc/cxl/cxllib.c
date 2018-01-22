@@ -219,8 +219,17 @@ int cxllib_handle_fault(struct mm_struct *mm, u64 addr, u64 size, u64 flags)
 
 	down_read(&mm->mmap_sem);
 
-	for (dar = addr; dar < addr + size; dar += page_size) {
-		if (!vma || dar < vma->vm_start || dar > vma->vm_end) {
+	vma = find_vma(mm, addr);
+	if (!vma) {
+		pr_err("Can't find vma for addr %016llx\n", addr);
+		rc = -EFAULT;
+		goto out;
+	}
+	/* get the size of the pages allocated */
+	page_size = vma_kernel_pagesize(vma);
+
+	for (dar = (addr & ~(page_size - 1)); dar < (addr + size); dar += page_size) {
+		if (dar < vma->vm_start || dar >= vma->vm_end) {
 			vma = find_vma(mm, addr);
 			if (!vma) {
 				pr_err("Can't find vma for addr %016llx\n", addr);

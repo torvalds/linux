@@ -127,12 +127,13 @@ static const struct file_operations sctpprobe_fops = {
 	.llseek = noop_llseek,
 };
 
-static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
-					    const struct sctp_endpoint *ep,
-					    const struct sctp_association *asoc,
-					    const sctp_subtype_t type,
-					    void *arg,
-					    sctp_cmd_seq_t *commands)
+static enum sctp_disposition jsctp_sf_eat_sack(
+					struct net *net,
+					const struct sctp_endpoint *ep,
+					const struct sctp_association *asoc,
+					const union sctp_subtype type,
+					void *arg,
+					struct sctp_cmd_seq *commands)
 {
 	struct sctp_chunk *chunk = arg;
 	struct sk_buff *skb = chunk->skb;

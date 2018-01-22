@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "jz4780.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	compatible = "img,ci20", "ingenic,jz4780";
@@ -20,6 +22,13 @@
 		device_type = "memory";
 		reg = <0x0 0x10000000
 		       0x30000000 0x30000000>;
+	};
+
+	eth0_power: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "eth0_power";
+		gpio = <&gpb 25 GPIO_ACTIVE_LOW>;
+		enable-active-high;
 	};
 };
 
@@ -123,6 +132,29 @@
 			};
 		};
 	};
+
+	dm9000@6 {
+		compatible = "davicom,dm9000";
+		davicom,no-eeprom;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pins_nemc_cs6>;
+
+		reg = <6 0 1   /* addr */
+		       6 2 1>; /* data */
+
+		ingenic,nemc-tAS = <15>;
+		ingenic,nemc-tAH = <10>;
+		ingenic,nemc-tBP = <20>;
+		ingenic,nemc-tAW = <50>;
+		ingenic,nemc-tSTRV = <100>;
+
+		reset-gpios = <&gpf 12 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&eth0_power>;
+
+		interrupt-parent = <&gpe>;
+		interrupts = <19 4>;
+	};
 };
 
 &bch {
@@ -163,6 +195,12 @@
 	pins_nemc_cs1: nemc-cs1 {
 		function = "nemc-cs1";
 		groups = "nemc-cs1";
+		bias-disable;
+	};
+
+	pins_nemc_cs6: nemc-cs6 {
+		function = "nemc-cs6";
+		groups = "nemc-cs6";
 		bias-disable;
 	};
 };

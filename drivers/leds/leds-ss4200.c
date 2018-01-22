@@ -91,7 +91,7 @@ MODULE_PARM_DESC(nodetect, "Skip DMI-based hardware detection");
  * detected as working, but in reality it is not) as low as
  * possible.
  */
-static struct dmi_system_id nas_led_whitelist[] __initdata = {
+static const struct dmi_system_id nas_led_whitelist[] __initconst = {
 	{
 		.callback = ss4200_led_dmi_callback,
 		.ident = "Intel SS4200-E",

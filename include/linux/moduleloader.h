@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MODULELOADER_H
 #define _LINUX_MODULELOADER_H
 /* The stuff needed for archs to support modules. */

@@ -106,6 +106,13 @@ static int mlx5_get_mcam_reg(struct mlx5_core_dev *dev)
 				   MLX5_MCAM_REGS_FIRST_128);
 }
 
+static int mlx5_get_qcam_reg(struct mlx5_core_dev *dev)
+{
+	return mlx5_query_qcam_reg(dev, dev->caps.qcam,
+				   MLX5_QCAM_FEATURE_ENHANCED_FEATURES,
+				   MLX5_QCAM_REGS_FIRST_128);
+}
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 {
 	int err;
@@ -116,6 +123,12 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, eth_net_offloads)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_ETHERNET_OFFLOADS);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, ipoib_enhanced_offloads)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_IPOIB_ENHANCED_OFFLOADS);
 		if (err)
 			return err;
 	}
@@ -175,6 +188,9 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, mcam_reg))
 		mlx5_get_mcam_reg(dev);
+
+	if (MLX5_CAP_GEN(dev, qcam_reg))
+		mlx5_get_qcam_reg(dev);
 
 	return 0;
 }

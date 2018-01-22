@@ -57,7 +57,7 @@ static void malidp_de_plane_destroy(struct drm_plane *plane)
 	struct malidp_plane *mp = to_malidp_plane(plane);
 
 	if (mp->base.fb)
-		drm_framebuffer_unreference(mp->base.fb);
+		drm_framebuffer_put(mp->base.fb);
 
 	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
@@ -128,7 +128,6 @@ static void malidp_plane_atomic_print_state(struct drm_printer *p,
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = malidp_de_plane_destroy,
 	.reset = malidp_plane_reset,
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
@@ -186,8 +185,9 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 	fb = state->fb;
 
-	ms->format = malidp_hw_get_format_id(&mp->hwdev->map, mp->layer->id,
-					    fb->format->format);
+	ms->format = malidp_hw_get_format_id(&mp->hwdev->hw->map,
+					     mp->layer->id,
+					     fb->format->format);
 	if (ms->format == MALIDP_INVALID_FORMAT_ID)
 		return -EINVAL;
 
@@ -212,7 +212,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	 * third plane stride register.
 	 */
 	if (ms->n_planes == 3 &&
-	    !(mp->hwdev->features & MALIDP_DEVICE_LV_HAS_3_STRIDES) &&
+	    !(mp->hwdev->hw->features & MALIDP_DEVICE_LV_HAS_3_STRIDES) &&
 	    (state->fb->pitches[1] != state->fb->pitches[2]))
 		return -EINVAL;
 
@@ -230,9 +230,9 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	if (state->rotation & MALIDP_ROTATED_MASK) {
 		int val;
 
-		val = mp->hwdev->rotmem_required(mp->hwdev, state->crtc_h,
-						 state->crtc_w,
-						 fb->format->format);
+		val = mp->hwdev->hw->rotmem_required(mp->hwdev, state->crtc_h,
+						     state->crtc_w,
+						     fb->format->format);
 		if (val < 0)
 			return val;
 
@@ -252,7 +252,7 @@ static void malidp_de_set_plane_pitches(struct malidp_plane *mp,
 		return;
 
 	if (num_planes == 3)
-		num_strides = (mp->hwdev->features &
+		num_strides = (mp->hwdev->hw->features &
 			       MALIDP_DEVICE_LV_HAS_3_STRIDES) ? 3 : 2;
 
 	for (i = 0; i < num_strides; ++i)
@@ -265,13 +265,11 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 				   struct drm_plane_state *old_state)
 {
 	struct malidp_plane *mp;
-	const struct malidp_hw_regmap *map;
 	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
 	u32 src_w, src_h, dest_w, dest_h, val;
 	int i;
 
 	mp = to_malidp_plane(plane);
-	map = &mp->hwdev->map;
 
 	/* convert src values from Q16 fixed point to integer */
 	src_w = plane->state->src_w >> 16;
@@ -364,7 +362,7 @@ static const struct drm_plane_helper_funcs malidp_de_plane_helper_funcs = {
 int malidp_de_planes_init(struct drm_device *drm)
 {
 	struct malidp_drm *malidp = drm->dev_private;
-	const struct malidp_hw_regmap *map = &malidp->dev->map;
+	const struct malidp_hw_regmap *map = &malidp->dev->hw->map;
 	struct malidp_plane *plane = NULL;
 	enum drm_plane_type plane_type;
 	unsigned long crtcs = 1 << drm->mode_config.num_crtc;
@@ -398,7 +396,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 					DRM_PLANE_TYPE_OVERLAY;
 		ret = drm_universal_plane_init(drm, &plane->base, crtcs,
 					       &malidp_de_plane_funcs, formats,
-					       n, plane_type, NULL);
+					       n, NULL, plane_type, NULL);
 		if (ret < 0)
 			goto cleanup;
 

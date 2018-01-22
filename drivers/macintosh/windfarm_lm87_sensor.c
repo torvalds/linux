@@ -91,7 +91,7 @@ static void wf_lm87_release(struct wf_sensor *sr)
 	kfree(lm);
 }
 
-static struct wf_sensor_ops wf_lm87_ops = {
+static const struct wf_sensor_ops wf_lm87_ops = {
 	.get_value	= wf_lm87_get,
 	.release	= wf_lm87_release,
 	.owner		= THIS_MODULE,
@@ -126,8 +126,8 @@ static int wf_lm87_probe(struct i2c_client *client,
 		}
 	}
 	if (!name) {
-		pr_warning("wf_lm87: Unsupported sensor %s\n",
-			   client->dev.of_node->full_name);
+		pr_warning("wf_lm87: Unsupported sensor %pOF\n",
+			   client->dev.of_node);
 		return -ENODEV;
 	}
 

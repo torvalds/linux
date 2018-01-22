@@ -34,10 +34,6 @@
 /* Limit of the crypto queue before reaching the backlog */
 #define CESA_CRYPTO_DEFAULT_MAX_QLEN 128
 
-static int allhwsupport = !IS_ENABLED(CONFIG_CRYPTO_DEV_MV_CESA);
-module_param_named(allhwsupport, allhwsupport, int, 0444);
-MODULE_PARM_DESC(allhwsupport, "Enable support for all hardware (even it if overlaps with the mv_cesa driver)");
-
 struct mv_cesa_dev *cesa_dev;
 
 struct crypto_async_request *
@@ -76,8 +72,6 @@ static void mv_cesa_rearm_engine(struct mv_cesa_engine *engine)
 
 	ctx = crypto_tfm_ctx(req->tfm);
 	ctx->ops->step(req);
-
-	return;
 }
 
 static int mv_cesa_std_process(struct mv_cesa_engine *engine, u32 status)
@@ -183,8 +177,7 @@ int mv_cesa_queue_req(struct crypto_async_request *req,
 	spin_lock_bh(&engine->lock);
 	ret = crypto_enqueue_request(&engine->queue, req);
 	if ((mv_cesa_req_get_type(creq) == CESA_DMA_REQ) &&
-	    (ret == -EINPROGRESS ||
-	    (ret == -EBUSY && req->flags & CRYPTO_TFM_REQ_MAY_BACKLOG)))
+	    (ret == -EINPROGRESS || ret == -EBUSY))
 		mv_cesa_tdma_chain(engine, creq);
 	spin_unlock_bh(&engine->lock);
 
@@ -202,7 +195,7 @@ static int mv_cesa_add_algs(struct mv_cesa_dev *cesa)
 	int i, j;
 
 	for (i = 0; i < cesa->caps->ncipher_algs; i++) {
-		ret = crypto_register_alg(cesa->caps->cipher_algs[i]);
+		ret = crypto_register_skcipher(cesa->caps->cipher_algs[i]);
 		if (ret)
 			goto err_unregister_crypto;
 	}
@@ -222,7 +215,7 @@ err_unregister_ahash:
 
 err_unregister_crypto:
 	for (j = 0; j < i; j++)
-		crypto_unregister_alg(cesa->caps->cipher_algs[j]);
+		crypto_unregister_skcipher(cesa->caps->cipher_algs[j]);
 
 	return ret;
 }
@@ -235,10 +228,10 @@ static void mv_cesa_remove_algs(struct mv_cesa_dev *cesa)
 		crypto_unregister_ahash(cesa->caps->ahash_algs[i]);
 
 	for (i = 0; i < cesa->caps->ncipher_algs; i++)
-		crypto_unregister_alg(cesa->caps->cipher_algs[i]);
+		crypto_unregister_skcipher(cesa->caps->cipher_algs[i]);
 }
 
-static struct crypto_alg *orion_cipher_algs[] = {
+static struct skcipher_alg *orion_cipher_algs[] = {
 	&mv_cesa_ecb_des_alg,
 	&mv_cesa_cbc_des_alg,
 	&mv_cesa_ecb_des3_ede_alg,
@@ -254,7 +247,7 @@ static struct ahash_alg *orion_ahash_algs[] = {
 	&mv_ahmac_sha1_alg,
 };
 
-static struct crypto_alg *armada_370_cipher_algs[] = {
+static struct skcipher_alg *armada_370_cipher_algs[] = {
 	&mv_cesa_ecb_des_alg,
 	&mv_cesa_cbc_des_alg,
 	&mv_cesa_ecb_des3_ede_alg,
@@ -459,9 +452,6 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		caps = match->data;
 	}
 
-	if ((caps == &orion_caps || caps == &kirkwood_caps) && !allhwsupport)
-		return -ENOTSUPP;
-
 	cesa = devm_kzalloc(dev, sizeof(*cesa), GFP_KERNEL);
 	if (!cesa)
 		return -ENOMEM;
@@ -599,9 +589,16 @@ static int mv_cesa_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id mv_cesa_plat_id_table[] = {
+	{ .name = "mv_crypto" },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(platform, mv_cesa_plat_id_table);
+
 static struct platform_driver marvell_cesa = {
 	.probe		= mv_cesa_probe,
 	.remove		= mv_cesa_remove,
+	.id_table	= mv_cesa_plat_id_table,
 	.driver		= {
 		.name	= "marvell-cesa",
 		.of_match_table = mv_cesa_of_match_table,

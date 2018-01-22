@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_PHY_DA8XX_USB)		+= phy-da8xx-usb.o
 obj-$(CONFIG_PHY_DM816X_USB)		+= phy-dm816x-usb.o
 obj-$(CONFIG_OMAP_CONTROL_PHY)		+= phy-omap-control.o

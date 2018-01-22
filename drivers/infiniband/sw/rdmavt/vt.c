@@ -202,8 +202,13 @@ static int rvt_modify_port(struct ib_device *ibdev, u8 port_num,
 		return -EINVAL;
 
 	rvp = rdi->ports[port_index];
-	rvp->port_cap_flags |= props->set_port_cap_mask;
-	rvp->port_cap_flags &= ~props->clr_port_cap_mask;
+	if (port_modify_mask & IB_PORT_OPA_MASK_CHG) {
+		rvp->port_cap3_flags |= props->set_port_cap_mask;
+		rvp->port_cap3_flags &= ~props->clr_port_cap_mask;
+	} else {
+		rvp->port_cap_flags |= props->set_port_cap_mask;
+		rvp->port_cap_flags &= ~props->clr_port_cap_mask;
+	}
 
 	if (props->set_port_cap_mask || props->clr_port_cap_mask)
 		rdi->driver_f.cap_mask_chg(rdi, port_num);

@@ -1,0 +1,23 @@
+NXP TFA9879 class-D audio amplifier
+
+Required properties:
+
+- compatible : "nxp,tfa9879"
+
+- reg : the I2C address of the device
+
+Example:
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	codec: tfa9879@6c {
+		#sound-dai-cells = <0>;
+		compatible = "nxp,tfa9879";
+		reg = <0x6c>;
+        };
+};
+

@@ -88,7 +88,7 @@ MODULE_PARM_DESC(joystick, "Enable gameport.");
 static int isa_registered;
 static int pnp_registered;
 
-static struct pnp_card_device_id sscape_pnpids[] = {
+static const struct pnp_card_device_id sscape_pnpids[] = {
 	{ .id = "ENS3081", .devs = { { "ENS0000" } } }, /* Soundscape PnP */
 	{ .id = "ENS4081", .devs = { { "ENS1011" } } },	/* VIVO90 */
 	{ .id = "" }	/* end */

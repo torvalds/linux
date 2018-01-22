@@ -101,6 +101,51 @@
 	status = "okay";
 };
 
+&gpio1 {
+	gpio-line-names =
+		"", "", "SD2_WP", "", "SD2_CD", "I2C3_SCL",
+			"I2C3_SDA", "I2C4_SCL",
+		"I2C4_SDA", "", "", "", "", "", "", "",
+		"", "PWM3", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio3 {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "USB_OTG_VBUS", "",
+		"UART3_TXD", "UART3_RXD", "", "", "EIM_D28", "", "", "";
+};
+
+&gpio4 {
+	gpio-line-names =
+		"", "", "", "", "", "", "UART4_TXD", "UART4_RXD",
+		"UART5_TXD", "UART5_RXD", "", "", "", "", "", "",
+		"GPIO4_16", "GPIO4_17", "GPIO4_18", "GPIO4_19", "",
+			"CSPI3_CLK", "CSPI3_MOSI", "CSPI3_MISO",
+		"CSPI3_CS0", "CSPI3_CS1", "GPIO4_26", "GPIO4_27",
+			"CSPI3_RDY", "PWM1", "PWM2", "GPIO4_31";
+};
+
+&gpio5 {
+	gpio-line-names =
+		"", "", "EIM_A25", "", "", "GPIO5_05", "GPIO5_06",
+			"GPIO5_07",
+		"GPIO5_08", "CSPI2_CS1", "CSPI2_MOSI", "CSPI2_MISO",
+			"CSPI2_CS0", "CSPI2_CLK", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio7 {
+	gpio-line-names =
+		"SD3_CD", "SD3_WP", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
 &hdmi {
 	ddc-i2c-bus = <&i2c2>;
 	status = "okay";
@@ -112,7 +157,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
@@ -120,7 +165,7 @@
 		VDDIO-supply = <&reg_3p3v>;
 	};
 
-	pmic: pf0100@08 {
+	pmic: pf0100@8 {
 		compatible = "fsl,pfuze100";
 		reg = <0x08>;
 		interrupt-parent = <&gpio5>;

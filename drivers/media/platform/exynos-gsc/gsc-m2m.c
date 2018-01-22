@@ -747,7 +747,7 @@ static const struct v4l2_file_operations gsc_m2m_fops = {
 	.mmap		= gsc_m2m_mmap,
 };
 
-static struct v4l2_m2m_ops gsc_m2m_ops = {
+static const struct v4l2_m2m_ops gsc_m2m_ops = {
 	.device_run	= gsc_m2m_device_run,
 	.job_abort	= gsc_m2m_job_abort,
 };

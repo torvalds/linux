@@ -1567,7 +1567,7 @@ static int __init samsung_dmi_matched(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id __initdata samsung_dmi_table[] = {
+static const struct dmi_system_id samsung_dmi_table[] __initconst = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR,

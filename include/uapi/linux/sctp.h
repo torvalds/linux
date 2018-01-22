@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -122,6 +123,8 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_RESET_ASSOC	120
 #define SCTP_ADD_STREAMS	121
 #define SCTP_SOCKOPT_PEELOFF_FLAGS 122
+#define SCTP_STREAM_SCHEDULER	123
+#define SCTP_STREAM_SCHEDULER_VALUE	124
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
@@ -376,7 +379,7 @@ struct sctp_remote_error {
 	__u16 sre_type;
 	__u16 sre_flags;
 	__u32 sre_length;
-	__u16 sre_error;
+	__be16 sre_error;
 	sctp_assoc_t sre_assoc_id;
 	__u8 sre_data[0];
 };
@@ -814,6 +817,12 @@ struct sctp_assoc_value {
     uint32_t                assoc_value;
 };
 
+struct sctp_stream_value {
+	sctp_assoc_t assoc_id;
+	uint16_t stream_id;
+	uint16_t stream_value;
+};
+
 /*
  * 7.2.2 Peer Address Information
  *
@@ -1086,6 +1095,14 @@ struct sctp_add_streams {
 	sctp_assoc_t sas_assoc_id;
 	uint16_t sas_instrms;
 	uint16_t sas_outstrms;
+};
+
+/* SCTP Stream schedulers */
+enum sctp_sched_type {
+	SCTP_SS_FCFS,
+	SCTP_SS_PRIO,
+	SCTP_SS_RR,
+	SCTP_SS_MAX = SCTP_SS_RR
 };
 
 #endif /* _UAPI_SCTP_H */

@@ -1023,8 +1023,6 @@ static int fs_enet_probe(struct platform_device *ofdev)
 
 	ndev->ethtool_ops = &fs_ethtool_ops;
 
-	init_timer(&fep->phy_timer_list);
-
 	netif_carrier_off(ndev);
 
 	ndev->features |= NETIF_F_SG;

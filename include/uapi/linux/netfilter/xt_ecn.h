@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* iptables module for matching the ECN header in IPv4 and TCP header
  *
  * (C) 2002 Harald Welte <laforge@gnumonks.org>

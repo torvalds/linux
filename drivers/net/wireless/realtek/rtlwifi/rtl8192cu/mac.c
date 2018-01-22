@@ -352,11 +352,10 @@ u32 rtl92c_get_txdma_status(struct ieee80211_hw *hw)
 void rtl92c_enable_interrupt(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
-	if (IS_HARDWARE_TYPE_8192CE(rtlhal)) {
+	if (IS_HARDWARE_TYPE_8192CE(rtlpriv)) {
 		rtl_write_dword(rtlpriv, REG_HIMR, rtlpci->irq_mask[0] &
 				0xFFFFFFFF);
 		rtl_write_dword(rtlpriv, REG_HIMRE, rtlpci->irq_mask[1] &

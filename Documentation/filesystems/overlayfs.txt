@@ -156,6 +156,40 @@ handle it in two different ways:
    root of the overlay.  Finally the directory is moved to the new
    location.
 
+There are several ways to tune the "redirect_dir" feature.
+
+Kernel config options:
+
+- OVERLAY_FS_REDIRECT_DIR:
+    If this is enabled, then redirect_dir is turned on by  default.
+- OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW:
+    If this is enabled, then redirects are always followed by default. Enabling
+    this results in a less secure configuration.  Enable this option only when
+    worried about backward compatibility with kernels that have the redirect_dir
+    feature and follow redirects even if turned off.
+
+Module options (can also be changed through /sys/module/overlay/parameters/*):
+
+- "redirect_dir=BOOL":
+    See OVERLAY_FS_REDIRECT_DIR kernel config option above.
+- "redirect_always_follow=BOOL":
+    See OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW kernel config option above.
+- "redirect_max=NUM":
+    The maximum number of bytes in an absolute redirect (default is 256).
+
+Mount options:
+
+- "redirect_dir=on":
+    Redirects are enabled.
+- "redirect_dir=follow":
+    Redirects are not created, but followed.
+- "redirect_dir=off":
+    Redirects are not created and only followed if "redirect_always_follow"
+    feature is enabled in the kernel/module config.
+- "redirect_dir=nofollow":
+    Redirects are not created and not followed (equivalent to "redirect_dir=off"
+    if "redirect_always_follow" feature is not enabled).
+
 Non-directories
 ---------------
 
@@ -210,8 +244,11 @@ path as another overlay mount and it may use a lower layer path that is
 beneath or above the path of another overlay lower layer path.
 
 Using an upper layer path and/or a workdir path that are already used by
-another overlay mount is not allowed and will fail with EBUSY.  Using
+another overlay mount is not allowed and may fail with EBUSY.  Using
 partially overlapping paths is not allowed but will not fail with EBUSY.
+If files are accessed from two overlayfs mounts which share or overlap the
+upper layer and/or workdir path the behavior of the overlay is undefined,
+though it will not result in a crash or deadlock.
 
 Mounting an overlay using an upper layer path, where the upper layer path
 was previously used by another mounted overlay in combination with a

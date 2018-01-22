@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* pci_sun4v_asm: Hypervisor calls for PCI support.
  *
  * Copyright (C) 2006, 2008 David S. Miller <davem@davemloft.net>

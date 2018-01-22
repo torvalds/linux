@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2012 Xyratex Technology Limited
  *
@@ -12,9 +13,8 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include "../include/obd_support.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_ver.h"
+#include <obd_support.h>
+#include <lustre_dlm.h>
 #include "llite_internal.h"
 
 /* If we ever have hundreds of extended attributes, we might want to consider
@@ -365,7 +365,8 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	}
 
 	if (oit->it_status < 0) {
-		CDEBUG(D_CACHE, "getxattr intent returned %d for fid " DFID "\n",
+		CDEBUG(D_CACHE,
+		       "getxattr intent returned %d for fid " DFID "\n",
 		       oit->it_status, PFID(ll_inode2fid(inode)));
 		rc = oit->it_status;
 		/* xattr data is so large that we don't want to cache it */

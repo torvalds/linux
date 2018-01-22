@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_ELEVATOR_H
 #define _LINUX_ELEVATOR_H
 
@@ -144,6 +145,7 @@ struct elevator_type
 	size_t icq_align;	/* ditto */
 	struct elv_fs_entry *elevator_attrs;
 	char elevator_name[ELV_NAME_MAX];
+	const char *elevator_alias;
 	struct module *elevator_owner;
 	bool uses_mq;
 #ifdef CONFIG_BLK_DEBUG_FS

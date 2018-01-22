@@ -63,7 +63,11 @@ profile[MLX5_CQ_PERIOD_NUM_MODES][MLX5E_PARAMS_AM_NUM_PROFILES] = {
 
 static inline struct mlx5e_cq_moder mlx5e_am_get_profile(u8 cq_period_mode, int ix)
 {
-	return profile[cq_period_mode][ix];
+	struct mlx5e_cq_moder cq_moder;
+
+	cq_moder = profile[cq_period_mode][ix];
+	cq_moder.cq_period_mode = cq_period_mode;
+	return cq_moder;
 }
 
 struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode)
@@ -75,7 +79,7 @@ struct mlx5e_cq_moder mlx5e_am_get_def_profile(u8 rx_cq_period_mode)
 	else /* MLX5_CQ_PERIOD_MODE_START_FROM_EQE */
 		default_profile_ix = MLX5E_RX_AM_DEF_PROFILE_EQE;
 
-	return profile[rx_cq_period_mode][default_profile_ix];
+	return mlx5e_am_get_profile(rx_cq_period_mode, default_profile_ix);
 }
 
 /* Adaptive moderation logic */

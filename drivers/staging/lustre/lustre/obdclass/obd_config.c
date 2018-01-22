@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -38,12 +39,12 @@
 
 #include <linux/string.h>
 
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/llog_swab.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre_log.h"
-#include "../include/lustre_param.h"
-#include "../include/obd_class.h"
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <llog_swab.h>
+#include <lprocfs_status.h>
+#include <lustre_log.h>
+#include <uapi/linux/lustre/lustre_param.h>
+#include <obd_class.h>
 
 #include "llog_internal.h"
 
@@ -169,6 +170,40 @@ int class_parse_nid_quiet(char *buf, lnet_nid_t *nid, char **endh)
 	return class_parse_value(buf, CLASS_PARSE_NID, (void *)nid, endh, 1);
 }
 EXPORT_SYMBOL(class_parse_nid_quiet);
+
+char *lustre_cfg_string(struct lustre_cfg *lcfg, u32 index)
+{
+	char *s;
+
+	if (!lcfg->lcfg_buflens[index])
+		return NULL;
+
+	s = lustre_cfg_buf(lcfg, index);
+	if (!s)
+		return NULL;
+
+	/*
+	 * make sure it's NULL terminated, even if this kills a char
+	 * of data.  Try to use the padding first though.
+	 */
+	if (s[lcfg->lcfg_buflens[index] - 1] != '\0') {
+		size_t last = ALIGN(lcfg->lcfg_buflens[index], 8) - 1;
+		char lost;
+
+		/* Use the smaller value */
+		if (last > lcfg->lcfg_buflens[index])
+			last = lcfg->lcfg_buflens[index];
+
+		lost = s[last];
+		s[last] = '\0';
+		if (lost != '\0') {
+			CWARN("Truncated buf %d to '%s' (lost '%c'...)\n",
+			      index, s, lost);
+		}
+	}
+	return s;
+}
+EXPORT_SYMBOL(lustre_cfg_string);
 
 /********************** class fns **********************/
 
@@ -1107,7 +1142,8 @@ int class_config_llog_handler(const struct lu_env *env,
 		struct lustre_cfg_bufs bufs;
 		char *inst_name = NULL;
 		int inst_len = 0;
-		int inst = 0, swab = 0;
+		size_t lcfg_len;
+		int swab = 0;
 
 		lcfg = (struct lustre_cfg *)cfg_buf;
 		if (lcfg->lcfg_version == __swab32(LUSTRE_CFG_VERSION)) {
@@ -1198,7 +1234,6 @@ int class_config_llog_handler(const struct lu_env *env,
 
 		if (clli && clli->cfg_instance &&
 		    LUSTRE_CFG_BUFLEN(lcfg, 0) > 0) {
-			inst = 1;
 			inst_len = LUSTRE_CFG_BUFLEN(lcfg, 0) +
 				   sizeof(clli->cfg_instance) * 2 + 4;
 			inst_name = kasprintf(GFP_NOFS, "%s-%p",
@@ -1238,8 +1273,14 @@ int class_config_llog_handler(const struct lu_env *env,
 						   clli->cfg_obdname);
 		}
 
-		lcfg_new = lustre_cfg_new(lcfg->lcfg_command, &bufs);
+		lcfg_len = lustre_cfg_len(bufs.lcfg_bufcount, bufs.lcfg_buflen);
+		lcfg_new = kzalloc(lcfg_len, GFP_NOFS);
+		if (!lcfg_new) {
+			rc = -ENOMEM;
+			goto out;
+		}
 
+		lustre_cfg_init(lcfg_new, lcfg->lcfg_command, &bufs);
 		lcfg_new->lcfg_num   = lcfg->lcfg_num;
 		lcfg_new->lcfg_flags = lcfg->lcfg_flags;
 
@@ -1262,10 +1303,8 @@ int class_config_llog_handler(const struct lu_env *env,
 		lcfg_new->lcfg_nal = 0; /* illegal value for obsolete field */
 
 		rc = class_process_config(lcfg_new);
-		lustre_cfg_free(lcfg_new);
-
-		if (inst)
-			kfree(inst_name);
+		kfree(lcfg_new);
+		kfree(inst_name);
 		break;
 	}
 	default:
@@ -1426,9 +1465,11 @@ int class_manual_cleanup(struct obd_device *obd)
 
 	lustre_cfg_bufs_reset(&bufs, obd->obd_name);
 	lustre_cfg_bufs_set_string(&bufs, 1, flags);
-	lcfg = lustre_cfg_new(LCFG_CLEANUP, &bufs);
-	if (IS_ERR(lcfg))
-		return PTR_ERR(lcfg);
+	lcfg = kzalloc(lustre_cfg_len(bufs.lcfg_bufcount, bufs.lcfg_buflen),
+			GFP_NOFS);
+	if (!lcfg)
+		return -ENOMEM;
+	lustre_cfg_init(lcfg, LCFG_CLEANUP, &bufs);
 
 	rc = class_process_config(lcfg);
 	if (rc) {
@@ -1442,7 +1483,7 @@ int class_manual_cleanup(struct obd_device *obd)
 	if (rc)
 		CERROR("detach failed %d: %s\n", rc, obd->obd_name);
 out:
-	lustre_cfg_free(lcfg);
+	kfree(lcfg);
 	return rc;
 }
 EXPORT_SYMBOL(class_manual_cleanup);

@@ -26,7 +26,7 @@ Optional properties:
 	clock frequencies table is used)
 
 Examples:
-	usb3503@08 {
+	usb3503@8 {
 		compatible = "smsc,usb3503";
 		reg = <0x08>;
 		connect-gpios = <&gpx3 0 1>;

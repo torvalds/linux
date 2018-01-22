@@ -64,7 +64,7 @@
 static DEFINE_MUTEX(drbd_main_mutex);
 static int drbd_open(struct block_device *bdev, fmode_t mode);
 static void drbd_release(struct gendisk *gd, fmode_t mode);
-static void md_sync_timer_fn(unsigned long data);
+static void md_sync_timer_fn(struct timer_list *t);
 static int w_bitmap_io(struct drbd_work *w, int unused);
 
 MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
@@ -77,41 +77,41 @@ MODULE_PARM_DESC(minor_count, "Approximate number of drbd devices ("
 MODULE_ALIAS_BLOCKDEV_MAJOR(DRBD_MAJOR);
 
 #include <linux/moduleparam.h>
-/* allow_open_on_secondary */
-MODULE_PARM_DESC(allow_oos, "DONT USE!");
 /* thanks to these macros, if compiled into the kernel (not-module),
- * this becomes the boot parameter drbd.minor_count */
-module_param(minor_count, uint, 0444);
-module_param(disable_sendpage, bool, 0644);
-module_param(allow_oos, bool, 0);
-module_param(proc_details, int, 0644);
+ * these become boot parameters (e.g., drbd.minor_count) */
 
 #ifdef CONFIG_DRBD_FAULT_INJECTION
-int enable_faults;
-int fault_rate;
-static int fault_count;
-int fault_devs;
+int drbd_enable_faults;
+int drbd_fault_rate;
+static int drbd_fault_count;
+static int drbd_fault_devs;
 /* bitmap of enabled faults */
-module_param(enable_faults, int, 0664);
+module_param_named(enable_faults, drbd_enable_faults, int, 0664);
 /* fault rate % value - applies to all enabled faults */
-module_param(fault_rate, int, 0664);
+module_param_named(fault_rate, drbd_fault_rate, int, 0664);
 /* count of faults inserted */
-module_param(fault_count, int, 0664);
+module_param_named(fault_count, drbd_fault_count, int, 0664);
 /* bitmap of devices to insert faults on */
-module_param(fault_devs, int, 0644);
+module_param_named(fault_devs, drbd_fault_devs, int, 0644);
 #endif
 
-/* module parameter, defined */
-unsigned int minor_count = DRBD_MINOR_COUNT_DEF;
-bool disable_sendpage;
-bool allow_oos;
-int proc_details;       /* Detail level in proc drbd*/
+/* module parameters we can keep static */
+static bool drbd_allow_oos; /* allow_open_on_secondary */
+static bool drbd_disable_sendpage;
+MODULE_PARM_DESC(allow_oos, "DONT USE!");
+module_param_named(allow_oos, drbd_allow_oos, bool, 0);
+module_param_named(disable_sendpage, drbd_disable_sendpage, bool, 0644);
 
+/* module parameters we share */
+int drbd_proc_details; /* Detail level in proc drbd*/
+module_param_named(proc_details, drbd_proc_details, int, 0644);
+/* module parameters shared with defaults */
+unsigned int drbd_minor_count = DRBD_MINOR_COUNT_DEF;
 /* Module parameter for setting the user mode helper program
  * to run. Default is /sbin/drbdadm */
-char usermode_helper[80] = "/sbin/drbdadm";
-
-module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0644);
+char drbd_usermode_helper[80] = "/sbin/drbdadm";
+module_param_named(minor_count, drbd_minor_count, uint, 0444);
+module_param_string(usermode_helper, drbd_usermode_helper, sizeof(drbd_usermode_helper), 0644);
 
 /* in 2.6.x, our device mapping and config info contains our virtual gendisks
  * as member "struct gendisk *vdisk;"
@@ -923,7 +923,9 @@ void drbd_gen_and_send_sync_uuid(struct drbd_peer_device *peer_device)
 }
 
 /* communicated if (agreed_features & DRBD_FF_WSAME) */
-void assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p, struct request_queue *q)
+static void
+assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p,
+					struct request_queue *q)
 {
 	if (q) {
 		p->qlim->physical_block_size = cpu_to_be32(queue_physical_block_size(q));
@@ -1560,7 +1562,7 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
 	 * put_page(); and would cause either a VM_BUG directly, or
 	 * __page_cache_release a page that would actually still be referenced
 	 * by someone, leading to some obscure delayed Oops somewhere else. */
-	if (disable_sendpage || (page_count(page) < 1) || PageSlab(page))
+	if (drbd_disable_sendpage || (page_count(page) < 1) || PageSlab(page))
 		return _drbd_no_send_page(peer_device, page, offset, size, msg_flags);
 
 	msg_flags |= MSG_NOSIGNAL;
@@ -1932,7 +1934,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	if (device->state.role != R_PRIMARY) {
 		if (mode & FMODE_WRITE)
 			rv = -EROFS;
-		else if (!allow_oos)
+		else if (!drbd_allow_oos)
 			rv = -EMEDIUMTYPE;
 	}
 
@@ -1950,6 +1952,19 @@ static void drbd_release(struct gendisk *gd, fmode_t mode)
 	mutex_lock(&drbd_main_mutex);
 	device->open_cnt--;
 	mutex_unlock(&drbd_main_mutex);
+}
+
+/* need to hold resource->req_lock */
+void drbd_queue_unplug(struct drbd_device *device)
+{
+	if (device->state.pdsk >= D_INCONSISTENT && device->state.conn >= C_CONNECTED) {
+		D_ASSERT(device, device->state.role == R_PRIMARY);
+		if (test_and_clear_bit(UNPLUG_REMOTE, &device->flags)) {
+			drbd_queue_work_if_unqueued(
+				&first_peer_device(device)->connection->sender_work,
+				&device->unplug_work);
+		}
+	}
 }
 
 static void drbd_set_defaults(struct drbd_device *device)
@@ -2008,18 +2023,10 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	device->unplug_work.cb  = w_send_write_hint;
 	device->bm_io_work.w.cb = w_bitmap_io;
 
-	init_timer(&device->resync_timer);
-	init_timer(&device->md_sync_timer);
-	init_timer(&device->start_resync_timer);
-	init_timer(&device->request_timer);
-	device->resync_timer.function = resync_timer_fn;
-	device->resync_timer.data = (unsigned long) device;
-	device->md_sync_timer.function = md_sync_timer_fn;
-	device->md_sync_timer.data = (unsigned long) device;
-	device->start_resync_timer.function = start_resync_timer_fn;
-	device->start_resync_timer.data = (unsigned long) device;
-	device->request_timer.function = request_timer_fn;
-	device->request_timer.data = (unsigned long) device;
+	timer_setup(&device->resync_timer, resync_timer_fn, 0);
+	timer_setup(&device->md_sync_timer, md_sync_timer_fn, 0);
+	timer_setup(&device->start_resync_timer, start_resync_timer_fn, 0);
+	timer_setup(&device->request_timer, request_timer_fn, 0);
 
 	init_waitqueue_head(&device->misc_wait);
 	init_waitqueue_head(&device->state_wait);
@@ -2131,7 +2138,7 @@ static void drbd_destroy_mempools(void)
 static int drbd_create_mempools(void)
 {
 	struct page *page;
-	const int number = (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count;
+	const int number = (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * drbd_minor_count;
 	int i;
 
 	/* prepare our caches and mempools */
@@ -2167,13 +2174,12 @@ static int drbd_create_mempools(void)
 		goto Enomem;
 
 	/* mempools */
-	drbd_io_bio_set = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_RESCUER);
+	drbd_io_bio_set = bioset_create(BIO_POOL_SIZE, 0, 0);
 	if (drbd_io_bio_set == NULL)
 		goto Enomem;
 
 	drbd_md_io_bio_set = bioset_create(DRBD_MIN_POOL_PAGES, 0,
-					   BIOSET_NEED_BVECS |
-					   BIOSET_NEED_RESCUER);
+					   BIOSET_NEED_BVECS);
 	if (drbd_md_io_bio_set == NULL)
 		goto Enomem;
 
@@ -2409,7 +2415,6 @@ static void drbd_cleanup(void)
 		destroy_workqueue(retry.wq);
 
 	drbd_genl_unregister();
-	drbd_debugfs_cleanup();
 
 	idr_for_each_entry(&drbd_devices, device, i)
 		drbd_delete_device(device);
@@ -2419,6 +2424,8 @@ static void drbd_cleanup(void)
 		list_del(&resource->resources);
 		drbd_free_resource(resource);
 	}
+
+	drbd_debugfs_cleanup();
 
 	drbd_destroy_mempools();
 	unregister_blkdev(DRBD_MAJOR, "drbd");
@@ -2972,12 +2979,12 @@ static int __init drbd_init(void)
 {
 	int err;
 
-	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
-		pr_err("invalid minor_count (%d)\n", minor_count);
+	if (drbd_minor_count < DRBD_MINOR_COUNT_MIN || drbd_minor_count > DRBD_MINOR_COUNT_MAX) {
+		pr_err("invalid minor_count (%d)\n", drbd_minor_count);
 #ifdef MODULE
 		return -EINVAL;
 #else
-		minor_count = DRBD_MINOR_COUNT_DEF;
+		drbd_minor_count = DRBD_MINOR_COUNT_DEF;
 #endif
 	}
 
@@ -3710,9 +3717,9 @@ int drbd_md_test_flag(struct drbd_backing_dev *bdev, int flag)
 	return (bdev->md.flags & flag) != 0;
 }
 
-static void md_sync_timer_fn(unsigned long data)
+static void md_sync_timer_fn(struct timer_list *t)
 {
-	struct drbd_device *device = (struct drbd_device *) data;
+	struct drbd_device *device = from_timer(device, t, md_sync_timer);
 	drbd_device_post_work(device, MD_SYNC);
 }
 
@@ -3900,12 +3907,12 @@ _drbd_insert_fault(struct drbd_device *device, unsigned int type)
 	static struct fault_random_state rrs = {0, 0};
 
 	unsigned int ret = (
-		(fault_devs == 0 ||
-			((1 << device_to_minor(device)) & fault_devs) != 0) &&
-		(((_drbd_fault_random(&rrs) % 100) + 1) <= fault_rate));
+		(drbd_fault_devs == 0 ||
+			((1 << device_to_minor(device)) & drbd_fault_devs) != 0) &&
+		(((_drbd_fault_random(&rrs) % 100) + 1) <= drbd_fault_rate));
 
 	if (ret) {
-		fault_count++;
+		drbd_fault_count++;
 
 		if (__ratelimit(&drbd_ratelimit_state))
 			drbd_warn(device, "***Simulating %s failure\n",

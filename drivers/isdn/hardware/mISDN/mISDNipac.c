@@ -172,7 +172,6 @@ isac_fill_fifo(struct isac_hw *isac)
 		pr_debug("%s: %s dbusytimer running\n", isac->name, __func__);
 		del_timer(&isac->dch.timer);
 	}
-	init_timer(&isac->dch.timer);
 	isac->dch.timer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ)/1000);
 	add_timer(&isac->dch.timer);
 	if (isac->dch.debug & DEBUG_HW_DFIFO) {
@@ -727,8 +726,9 @@ isac_release(struct isac_hw *isac)
 }
 
 static void
-dbusy_timer_handler(struct isac_hw *isac)
+dbusy_timer_handler(struct timer_list *t)
 {
+	struct isac_hw *isac = from_timer(isac, t, dch.timer);
 	int rbch, star;
 	u_long flags;
 
@@ -796,8 +796,7 @@ isac_init(struct isac_hw *isac)
 	}
 	isac->mon_tx = NULL;
 	isac->mon_rx = NULL;
-	setup_timer(&isac->dch.timer, (void *)dbusy_timer_handler,
-		    (long)isac);
+	timer_setup(&isac->dch.timer, dbusy_timer_handler, 0);
 	isac->mocr = 0xaa;
 	if (isac->type & IPAC_TYPE_ISACX) {
 		/* Disable all IRQ */

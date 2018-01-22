@@ -51,6 +51,16 @@ not active. Some transmitters do this automatically but some have to
 be explicitly programmed to do so, and some are unable to do so
 altogether due to hardware constraints.
 
+Stopping the transmitter
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A transmitter stops sending the stream of images as a result of
+calling the ``.s_stream()`` callback. Some transmitters may stop the
+stream at a frame boundary whereas others stop immediately,
+effectively leaving the current frame unfinished. The receiver driver
+should not make assumptions either way, but function properly in both
+cases.
+
 Receiver drivers
 ----------------
 

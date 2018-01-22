@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "wilc_wfi_cfgoperations.h"
 #include "host_interface.h"
 #include <linux/errno.h>
@@ -214,48 +215,39 @@ static u32 get_rssi_avg(struct network_info *network_info)
 	return rssi_v;
 }
 
-static void refresh_scan(void *user_void, u8 all, bool direct_scan)
+static void refresh_scan(struct wilc_priv *priv, bool direct_scan)
 {
-	struct wilc_priv *priv;
-	struct wiphy *wiphy;
-	struct cfg80211_bss *bss = NULL;
+	struct wiphy *wiphy = priv->dev->ieee80211_ptr->wiphy;
 	int i;
-	int rssi = 0;
-
-	priv = user_void;
-	wiphy = priv->dev->ieee80211_ptr->wiphy;
 
 	for (i = 0; i < last_scanned_cnt; i++) {
 		struct network_info *network_info;
+		s32 freq;
+		struct ieee80211_channel *channel;
+		int rssi;
+		struct cfg80211_bss *bss;
 
 		network_info = &last_scanned_shadow[i];
 
-		if (!network_info->found || all) {
-			s32 freq;
-			struct ieee80211_channel *channel;
+		if (!memcmp("DIRECT-", network_info->ssid, 7) && !direct_scan)
+			continue;
 
-			if (network_info) {
-				freq = ieee80211_channel_to_frequency((s32)network_info->ch, NL80211_BAND_2GHZ);
-				channel = ieee80211_get_channel(wiphy, freq);
-
-				rssi = get_rssi_avg(network_info);
-				if (memcmp("DIRECT-", network_info->ssid, 7) ||
-				    direct_scan) {
-					bss = cfg80211_inform_bss(wiphy,
-								  channel,
-								  CFG80211_BSS_FTYPE_UNKNOWN,
-								  network_info->bssid,
-								  network_info->tsf_hi,
-								  network_info->cap_info,
-								  network_info->beacon_period,
-								  (const u8 *)network_info->ies,
-								  (size_t)network_info->ies_len,
-								  (s32)rssi * 100,
-								  GFP_KERNEL);
-					cfg80211_put_bss(wiphy, bss);
-				}
-			}
-		}
+		freq = ieee80211_channel_to_frequency((s32)network_info->ch,
+						      NL80211_BAND_2GHZ);
+		channel = ieee80211_get_channel(wiphy, freq);
+		rssi = get_rssi_avg(network_info);
+		bss = cfg80211_inform_bss(wiphy,
+					  channel,
+					  CFG80211_BSS_FTYPE_UNKNOWN,
+					  network_info->bssid,
+					  network_info->tsf_hi,
+					  network_info->cap_info,
+					  network_info->beacon_period,
+					  (const u8 *)network_info->ies,
+					  (size_t)network_info->ies_len,
+					  (s32)rssi * 100,
+					  GFP_KERNEL);
+		cfg80211_put_bss(wiphy, bss);
 	}
 }
 
@@ -275,7 +267,7 @@ static void update_scan_time(void)
 		last_scanned_shadow[i].time_scan = jiffies;
 }
 
-static void remove_network_from_shadow(unsigned long arg)
+static void remove_network_from_shadow(struct timer_list *unused)
 {
 	unsigned long now = jiffies;
 	int i, j;
@@ -296,12 +288,11 @@ static void remove_network_from_shadow(unsigned long arg)
 	}
 
 	if (last_scanned_cnt != 0) {
-		hAgingTimer.data = arg;
 		mod_timer(&hAgingTimer, jiffies + msecs_to_jiffies(AGING_TIME));
 	}
 }
 
-static void clear_duringIP(unsigned long arg)
+static void clear_duringIP(struct timer_list *unused)
 {
 	wilc_optaining_ip = false;
 }
@@ -313,7 +304,6 @@ static int is_network_in_shadow(struct network_info *pstrNetworkInfo,
 	int i;
 
 	if (last_scanned_cnt == 0) {
-		hAgingTimer.data = (unsigned long)user_void;
 		mod_timer(&hAgingTimer, jiffies + msecs_to_jiffies(AGING_TIME));
 		state = -1;
 	} else {
@@ -442,7 +432,7 @@ static void CfgScanResult(enum scan_event scan_event,
 				}
 			}
 		} else if (scan_event == SCAN_EVENT_DONE) {
-			refresh_scan(priv, 1, false);
+			refresh_scan(priv, false);
 
 			mutex_lock(&priv->scan_req_lock);
 
@@ -466,7 +456,7 @@ static void CfgScanResult(enum scan_event scan_event,
 				};
 
 				update_scan_time();
-				refresh_scan(priv, 1, false);
+				refresh_scan(priv, false);
 
 				cfg80211_scan_done(priv->pstrScanReq, &info);
 				priv->bCfgScanning = false;
@@ -540,7 +530,7 @@ static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 			}
 
 			if (bNeedScanRefresh)
-				refresh_scan(priv, 1, true);
+				refresh_scan(priv, true);
 		}
 
 		cfg80211_connect_result(dev, pstrConnectInfo->bssid,
@@ -1120,7 +1110,6 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 		g_key_gtk_params.key = NULL;
 		kfree(g_key_gtk_params.seq);
 		g_key_gtk_params.seq = NULL;
-
 	}
 
 	if (key_index >= 0 && key_index <= 3) {
@@ -1626,7 +1615,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 	*cookie = (unsigned long)buf;
 	priv->u64tx_cookie = *cookie;
-	mgmt = (const struct ieee80211_mgmt *) buf;
+	mgmt = (const struct ieee80211_mgmt *)buf;
 
 	if (ieee80211_is_mgmt(mgmt->frame_control)) {
 		mgmt_tx = kmalloc(sizeof(struct p2p_mgmt_data), GFP_KERNEL);
@@ -2289,8 +2278,8 @@ int wilc_init_host_int(struct net_device *net)
 
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
-		setup_timer(&hAgingTimer, remove_network_from_shadow, 0);
-		setup_timer(&wilc_during_ip_timer, clear_duringIP, 0);
+		timer_setup(&hAgingTimer, remove_network_from_shadow, 0);
+		timer_setup(&wilc_during_ip_timer, clear_duringIP, 0);
 	}
 	op_ifcs++;
 

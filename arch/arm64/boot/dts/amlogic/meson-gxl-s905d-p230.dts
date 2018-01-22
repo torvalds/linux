@@ -97,6 +97,13 @@
 	};
 };
 
+&cec_AO {
+	status = "okay";
+	pinctrl-0 = <&ao_cec_pins>;
+	pinctrl-names = "default";
+	hdmi-phandle = <&hdmi_tx>;
+};
+
 /* P230 has exclusive choice between internal or external PHY */
 &ethmac {
 	pinctrl-0 = <&eth_pins>;
@@ -121,9 +128,10 @@
 		compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 		max-speed = <1000>;
+		interrupt-parent = <&gpio_intc>;
+		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
-
 
 &hdmi_tx {
 	status = "okay";

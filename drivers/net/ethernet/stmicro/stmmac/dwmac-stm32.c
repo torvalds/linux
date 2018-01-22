@@ -1,8 +1,8 @@
 /*
  * dwmac-stm32.c - DWMAC Specific Glue layer for STM32 MCU
  *
- * Copyright (C) Alexandre Torgue 2015
- * Author:  Alexandre Torgue <alexandre.torgue@gmail.com>
+ * Copyright (C) STMicroelectronics SA 2017
+ * Author:  Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
  * License terms:  GNU General Public License (GPL), version 2
  *
  */

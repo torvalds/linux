@@ -27,7 +27,7 @@
 	.align 1024	; HW requierment for restart first PC
 
 ENTRY(res_service)
-#ifdef CONFIG_EZNPS_MTM_EXT
+#if defined(CONFIG_EZNPS_MTM_EXT) && defined(CONFIG_EZNPS_SHARED_AUX_REGS)
 	; There is no work for HW thread id != 0
 	lr	r3, [CTOP_AUX_THREAD_ID]
 	cmp	r3, 0

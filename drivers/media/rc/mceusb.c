@@ -188,6 +188,8 @@ enum mceusb_model_type {
 	TIVO_KIT,
 	MCE_GEN2_NO_TX,
 	HAUPPAUGE_CX_HYBRID_TV,
+	EVROMEDIA_FULL_HYBRID_FULLHD,
+	ASTROMETA_T2HYBRID,
 };
 
 struct mceusb_model {
@@ -247,9 +249,19 @@ static const struct mceusb_model mceusb_model[] = {
 		.mce_gen2 = 1,
 		.rc_map = RC_MAP_TIVO,
 	},
+	[EVROMEDIA_FULL_HYBRID_FULLHD] = {
+		.name = "Evromedia USB Full Hybrid Full HD",
+		.no_tx = 1,
+		.rc_map = RC_MAP_MSI_DIGIVOX_III,
+	},
+	[ASTROMETA_T2HYBRID] = {
+		.name = "Astrometa T2Hybrid",
+		.no_tx = 1,
+		.rc_map = RC_MAP_ASTROMETA_T2HYBRID,
+	}
 };
 
-static struct usb_device_id mceusb_dev_table[] = {
+static const struct usb_device_id mceusb_dev_table[] = {
 	/* Original Microsoft MCE IR Transceiver (often HP-branded) */
 	{ USB_DEVICE(VENDOR_MICROSOFT, 0x006d),
 	  .driver_info = MCE_GEN1 },
@@ -398,6 +410,12 @@ static struct usb_device_id mceusb_dev_table[] = {
 	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
 	/* Adaptec / HP eHome Receiver */
 	{ USB_DEVICE(VENDOR_ADAPTEC, 0x0094) },
+	/* Evromedia USB Full Hybrid Full HD */
+	{ USB_DEVICE(0x1b80, 0xd3b2),
+	  .driver_info = EVROMEDIA_FULL_HYBRID_FULLHD },
+	/* Astrometa T2hybrid */
+	{ USB_DEVICE(0x15f4, 0x0135),
+	  .driver_info = ASTROMETA_T2HYBRID },
 
 	/* Terminating entry */
 	{ }
@@ -538,12 +556,12 @@ static int mceusb_cmd_datasize(u8 cmd, u8 subcmd)
 	return datasize;
 }
 
-static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
-				 int buf_len, int offset, int len, bool out)
+static void mceusb_dev_printdata(struct mceusb_dev *ir, u8 *buf, int buf_len,
+				 int offset, int len, bool out)
 {
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	char *inout;
-	u8 cmd, subcmd, data1, data2, data3, data4;
+	u8 cmd, subcmd, *data;
 	struct device *dev = ir->dev;
 	int start, skip = 0;
 	u32 carrier, period;
@@ -564,17 +582,14 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 	start  = offset + skip;
 	cmd    = buf[start] & 0xff;
 	subcmd = buf[start + 1] & 0xff;
-	data1  = buf[start + 2] & 0xff;
-	data2  = buf[start + 3] & 0xff;
-	data3  = buf[start + 4] & 0xff;
-	data4  = buf[start + 5] & 0xff;
+	data = buf + start + 2;
 
 	switch (cmd) {
 	case MCE_CMD_NULL:
 		if (subcmd == MCE_CMD_NULL)
 			break;
 		if ((subcmd == MCE_CMD_PORT_SYS) &&
-		    (data1 == MCE_CMD_RESUME))
+		    (data[0] == MCE_CMD_RESUME))
 			dev_dbg(dev, "Device resume requested");
 		else
 			dev_dbg(dev, "Unknown command 0x%02x 0x%02x",
@@ -585,7 +600,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 		case MCE_RSP_EQEMVER:
 			if (!out)
 				dev_dbg(dev, "Emulator interface version %x",
-					 data1);
+					 data[0]);
 			break;
 		case MCE_CMD_G_REVISION:
 			if (len == 2)
@@ -603,13 +618,13 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 		case MCE_RSP_EQWAKEVERSION:
 			if (!out)
 				dev_dbg(dev, "Wake version, proto: 0x%02x, payload: 0x%02x, address: 0x%02x, version: 0x%02x",
-					 data1, data2, data3, data4);
+					data[0], data[1], data[2], data[3]);
 			break;
 		case MCE_RSP_GETPORTSTATUS:
 			if (!out)
 				/* We use data1 + 1 here, to match hw labels */
 				dev_dbg(dev, "TX port %d: blaster is%s connected",
-					 data1 + 1, data4 ? " not" : "");
+					 data[0] + 1, data[3] ? " not" : "");
 			break;
 		case MCE_CMD_FLASHLED:
 			dev_dbg(dev, "Attempting to flash LED");
@@ -630,11 +645,11 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			break;
 		case MCE_CMD_UNKNOWN:
 			dev_dbg(dev, "Resp to 9f 05 of 0x%02x 0x%02x",
-				 data1, data2);
+				data[0], data[1]);
 			break;
 		case MCE_RSP_EQIRCFS:
-			period = DIV_ROUND_CLOSEST(
-					(1U << data1 * 2) * (data2 + 1), 10);
+			period = DIV_ROUND_CLOSEST((1U << data[0] * 2) *
+						   (data[1] + 1), 10);
 			if (!period)
 				break;
 			carrier = (1000 * 1000) / period;
@@ -646,11 +661,12 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			break;
 		case MCE_RSP_EQIRTXPORTS:
 			dev_dbg(dev, "%s transmit blaster mask of 0x%02x",
-				 inout, data1);
+				 inout, data[0]);
 			break;
 		case MCE_RSP_EQIRTIMEOUT:
 			/* value is in units of 50us, so x*50/1000 ms */
-			period = ((data1 << 8) | data2) * MCE_TIME_UNIT / 1000;
+			period = ((data[0] << 8) | data[1]) *
+				  MCE_TIME_UNIT / 1000;
 			dev_dbg(dev, "%s receive timeout of %d ms",
 				 inout, period);
 			break;
@@ -662,7 +678,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			break;
 		case MCE_RSP_EQIRRXPORTEN:
 			dev_dbg(dev, "%s %s-range receive sensor in use",
-				 inout, data1 == 0x02 ? "short" : "long");
+				 inout, data[0] == 0x02 ? "short" : "long");
 			break;
 		case MCE_CMD_GETIRRXPORTEN:
 		/* aka MCE_RSP_EQIRRXCFCNT */
@@ -670,13 +686,13 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 				dev_dbg(dev, "Get receive sensor");
 			else if (ir->learning_enabled)
 				dev_dbg(dev, "RX pulse count: %d",
-					 ((data1 << 8) | data2));
+					((data[0] << 8) | data[1]));
 			break;
 		case MCE_RSP_EQIRNUMPORTS:
 			if (out)
 				break;
 			dev_dbg(dev, "Num TX ports: %x, num RX ports: %x",
-				 data1, data2);
+				data[0], data[1]);
 			break;
 		case MCE_RSP_CMD_ILLEGAL:
 			dev_dbg(dev, "Illegal PORT_IR command");
@@ -1264,12 +1280,12 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 
 	usb_make_path(ir->usbdev, ir->phys, sizeof(ir->phys));
 
-	rc->input_name = ir->name;
+	rc->device_name = ir->name;
 	rc->input_phys = ir->phys;
 	usb_to_input_id(ir->usbdev, &rc->input_id);
 	rc->dev.parent = dev;
 	rc->priv = ir;
-	rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rc->timeout = MS_TO_NS(100);
 	if (!ir->flags.no_tx) {
 		rc->s_tx_mask = mceusb_set_tx_mask;

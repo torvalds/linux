@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <babeltrace/ctf-writer/writer.h>
 #include <babeltrace/ctf-ir/stream-class.h>

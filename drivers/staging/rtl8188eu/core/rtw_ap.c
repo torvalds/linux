@@ -119,7 +119,7 @@ static void update_BCNTIM(struct adapter *padapter)
 	}
 	*dst_ie++ = _TIM_IE_;
 
-	if ((pstapriv->tim_bitmap&0xff00) && (pstapriv->tim_bitmap&0x00fc))
+	if ((pstapriv->tim_bitmap & 0xff00) && (pstapriv->tim_bitmap & 0x00fc))
 		tim_ielen = 5;
 	else
 		tim_ielen = 4;
@@ -129,7 +129,7 @@ static void update_BCNTIM(struct adapter *padapter)
 	*dst_ie++ = 0;/* DTIM count */
 	*dst_ie++ = 1;/* DTIM period */
 
-	if (pstapriv->tim_bitmap&BIT(0))/* for bc/mc frames */
+	if (pstapriv->tim_bitmap & BIT(0))/* for bc/mc frames */
 		*dst_ie++ = BIT(0);/* bitmap ctrl */
 	else
 		*dst_ie++ = 0;
@@ -583,10 +583,10 @@ static void update_bmc_sta(struct adapter *padapter)
 		{
 			u8 arg = 0;
 
-			arg = psta->mac_id&0x1f;
+			arg = psta->mac_id & 0x1f;
 			arg |= BIT(7);
 			tx_ra_bitmap |= ((raid << 28) & 0xf0000000);
-			DBG_88E("update_bmc_sta, mask = 0x%x, arg = 0x%x\n", tx_ra_bitmap, arg);
+			DBG_88E("%s, mask = 0x%x, arg = 0x%x\n", __func__, tx_ra_bitmap, arg);
 
 			/* bitmap[0:27] = tx_rate_bitmap */
 			/* bitmap[28:31]= Rate Adaptive id */
@@ -754,7 +754,7 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	}
 
 	/* setting only at  first time */
-	if (!(pmlmepriv->cur_network.join_res)) {
+	if (pmlmepriv->cur_network.join_res != true) {
 		/* WEP Key will be set before this function, do not
 		 * clear CAM.
 		 */
@@ -1043,7 +1043,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		    (psecuritypriv->wpa2_pairwise_cipher & WPA_CIPHER_CCMP))
 			pht_cap->ampdu_params_info |= (IEEE80211_HT_CAP_AMPDU_DENSITY & (0x07 << 2));
 		else
-			pht_cap->ampdu_params_info |= (IEEE80211_HT_CAP_AMPDU_DENSITY&0x00);
+			pht_cap->ampdu_params_info |= (IEEE80211_HT_CAP_AMPDU_DENSITY & 0x00);
 
 		/* set  Max Rx AMPDU size  to 64K */
 		pht_cap->ampdu_params_info |= (IEEE80211_HT_CAP_AMPDU_FACTOR & 0x03);
@@ -1719,7 +1719,7 @@ int rtw_sta_flush(struct adapter *padapter)
 
 	DBG_88E(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(padapter->pnetdev));
 
-	if ((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
+	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
 		return 0;
 
 	spin_lock_bh(&pstapriv->asoc_list_lock);
@@ -1754,7 +1754,7 @@ void sta_info_update(struct adapter *padapter, struct sta_info *psta)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	/* update wmm cap. */
-	if (WLAN_STA_WME&flags)
+	if (WLAN_STA_WME & flags)
 		psta->qos_option = 1;
 	else
 		psta->qos_option = 0;
@@ -1763,7 +1763,7 @@ void sta_info_update(struct adapter *padapter, struct sta_info *psta)
 		psta->qos_option = 0;
 
 	/* update 802.11n ht cap. */
-	if (WLAN_STA_HT&flags) {
+	if (WLAN_STA_HT & flags) {
 		psta->htpriv.ht_option = true;
 		psta->qos_option = 1;
 	} else {

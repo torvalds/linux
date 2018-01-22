@@ -3773,10 +3773,11 @@ static void _rtl8821ae_iqk_tx(struct ieee80211_hw *hw, enum radio_path path)
 	u32	tx_fail, rx_fail, delay_count, iqk_ready, cal_retry, cal = 0, temp_reg65;
 	int	tx_x = 0, tx_y = 0, rx_x = 0, rx_y = 0, tx_average = 0, rx_average = 0;
 	int	tx_x0[cal_num], tx_y0[cal_num], tx_x0_rxk[cal_num],
-		tx_y0_rxk[cal_num], rx_x0[cal_num], rx_y0[cal_num];
+		tx_y0_rxk[cal_num], rx_x0[cal_num], rx_y0[cal_num],
+		tx_dt[cal_num], rx_dt[cal_num];
 	bool	tx0iqkok = false, rx0iqkok = false;
 	bool	vdf_enable = false;
-	int	i, k, vdf_y[3], vdf_x[3], tx_dt[3], rx_dt[3],
+	int	i, k, vdf_y[3], vdf_x[3],
 		ii, dx = 0, dy = 0, tx_finish = 0, rx_finish = 0;
 
 	RT_TRACE(rtlpriv, COMP_IQK, DBG_LOUD,

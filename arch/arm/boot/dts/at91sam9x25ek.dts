@@ -16,6 +16,10 @@
 
 	ahb {
 		apb {
+			can1: can@f8004000 {
+				status = "okay";
+			};
+
 			macb0: ethernet@f802c000 {
 				phy-mode = "rmii";
 				status = "okay";
@@ -23,6 +27,12 @@
 
 			macb1: ethernet@f8030000 {
 				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			pwm0: pwm@f8034000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_pwm0_pwm0_1>;
 				status = "okay";
 			};
 		};

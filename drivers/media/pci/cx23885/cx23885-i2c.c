@@ -264,13 +264,13 @@ static const struct i2c_algorithm cx23885_i2c_algo_template = {
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_adapter cx23885_i2c_adap_template = {
+static const struct i2c_adapter cx23885_i2c_adap_template = {
 	.name              = "cx23885",
 	.owner             = THIS_MODULE,
 	.algo              = &cx23885_i2c_algo_template,
 };
 
-static struct i2c_client cx23885_i2c_client_template = {
+static const struct i2c_client cx23885_i2c_client_template = {
 	.name	= "cx23885 internal",
 };
 

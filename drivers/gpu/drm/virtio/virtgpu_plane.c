@@ -298,7 +298,7 @@ struct drm_plane *virtio_gpu_plane_init(struct virtio_gpu_device *vgdev,
 	ret = drm_universal_plane_init(dev, plane, 1 << index,
 				       &virtio_gpu_plane_funcs,
 				       formats, nformats,
-				       type, NULL);
+				       NULL, type, NULL);
 	if (ret)
 		goto err_plane_init;
 

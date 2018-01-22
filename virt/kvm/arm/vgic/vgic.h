@@ -140,7 +140,8 @@ vgic_get_mmio_region(struct kvm_vcpu *vcpu, struct vgic_io_device *iodev,
 struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 			      u32 intid);
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq);
-bool vgic_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq);
+bool vgic_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq,
+			   unsigned long flags);
 void vgic_kick_vcpus(struct kvm *kvm);
 
 int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
@@ -219,5 +220,31 @@ int vgic_debug_destroy(struct kvm *kvm);
 
 bool lock_all_vcpus(struct kvm *kvm);
 void unlock_all_vcpus(struct kvm *kvm);
+
+static inline int vgic_v3_max_apr_idx(struct kvm_vcpu *vcpu)
+{
+	struct vgic_cpu *cpu_if = &vcpu->arch.vgic_cpu;
+
+	/*
+	 * num_pri_bits are initialized with HW supported values.
+	 * We can rely safely on num_pri_bits even if VM has not
+	 * restored ICC_CTLR_EL1 before restoring APnR registers.
+	 */
+	switch (cpu_if->num_pri_bits) {
+	case 7: return 3;
+	case 6: return 1;
+	default: return 0;
+	}
+}
+
+int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
+			 u32 devid, u32 eventid, struct vgic_irq **irq);
+struct vgic_its *vgic_msi_to_its(struct kvm *kvm, struct kvm_msi *msi);
+
+bool vgic_supports_direct_msis(struct kvm *kvm);
+int vgic_v4_init(struct kvm *kvm);
+void vgic_v4_teardown(struct kvm *kvm);
+int vgic_v4_sync_hwstate(struct kvm_vcpu *vcpu);
+int vgic_v4_flush_hwstate(struct kvm_vcpu *vcpu);
 
 #endif

@@ -230,7 +230,7 @@ static void vbox_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	ttm_pool_unpopulate(ttm);
 }
 
-struct ttm_bo_driver vbox_bo_driver = {
+static struct ttm_bo_driver vbox_bo_driver = {
 	.ttm_tt_create = vbox_ttm_tt_create,
 	.ttm_tt_populate = vbox_ttm_tt_populate,
 	.ttm_tt_unpopulate = vbox_ttm_tt_unpopulate,

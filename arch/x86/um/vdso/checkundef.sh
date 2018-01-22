@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 nm="$1"
 file="$2"
 $nm "$file" | grep '^ *U' > /dev/null 2>&1

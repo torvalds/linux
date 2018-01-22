@@ -18,13 +18,15 @@
 #include "msm_ringbuffer.h"
 #include "msm_gpu.h"
 
-struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int size)
+struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
+		void *memptrs, uint64_t memptrs_iova)
 {
 	struct msm_ringbuffer *ring;
+	char name[32];
 	int ret;
 
-	if (WARN_ON(!is_power_of_2(size)))
-		return ERR_PTR(-EINVAL);
+	/* We assume everwhere that MSM_GPU_RINGBUFFER_SZ is a power of 2 */
+	BUILD_BUG_ON(!is_power_of_2(MSM_GPU_RINGBUFFER_SZ));
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring) {
@@ -33,34 +35,46 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int size)
 	}
 
 	ring->gpu = gpu;
-	ring->bo = msm_gem_new(gpu->dev, size, MSM_BO_WC);
-	if (IS_ERR(ring->bo)) {
-		ret = PTR_ERR(ring->bo);
-		ring->bo = NULL;
-		goto fail;
-	}
+	ring->id = id;
+	/* Pass NULL for the iova pointer - we will map it later */
+	ring->start = msm_gem_kernel_new(gpu->dev, MSM_GPU_RINGBUFFER_SZ,
+		MSM_BO_WC, gpu->aspace, &ring->bo, NULL);
 
-	ring->start = msm_gem_get_vaddr(ring->bo);
 	if (IS_ERR(ring->start)) {
 		ret = PTR_ERR(ring->start);
+		ring->start = 0;
 		goto fail;
 	}
-	ring->end   = ring->start + (size / 4);
+	ring->end   = ring->start + (MSM_GPU_RINGBUFFER_SZ >> 2);
+	ring->next  = ring->start;
 	ring->cur   = ring->start;
 
-	ring->size = size;
+	ring->memptrs = memptrs;
+	ring->memptrs_iova = memptrs_iova;
+
+	INIT_LIST_HEAD(&ring->submits);
+	spin_lock_init(&ring->lock);
+
+	snprintf(name, sizeof(name), "gpu-ring-%d", ring->id);
+
+	ring->fctx = msm_fence_context_alloc(gpu->dev, name);
 
 	return ring;
 
 fail:
-	if (ring)
-		msm_ringbuffer_destroy(ring);
+	msm_ringbuffer_destroy(ring);
 	return ERR_PTR(ret);
 }
 
 void msm_ringbuffer_destroy(struct msm_ringbuffer *ring)
 {
+	if (IS_ERR_OR_NULL(ring))
+		return;
+
+	msm_fence_context_free(ring->fctx);
+
 	if (ring->bo) {
+		msm_gem_put_iova(ring->bo, ring->gpu->aspace);
 		msm_gem_put_vaddr(ring->bo);
 		drm_gem_object_unreference_unlocked(ring->bo);
 	}

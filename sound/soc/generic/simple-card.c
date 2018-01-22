@@ -104,12 +104,6 @@ static int asoc_simple_card_init_jack(struct snd_soc_card *card,
 	return 0;
 }
 
-static void asoc_simple_card_remove_jack(struct asoc_simple_jack *sjack)
-{
-	if (gpio_is_valid(sjack->gpio.gpio))
-		snd_soc_jack_free_gpios(&sjack->jack, 1, &sjack->gpio);
-}
-
 static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -493,10 +487,6 @@ err:
 static int asoc_simple_card_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct simple_card_data *priv = snd_soc_card_get_drvdata(card);
-
-	asoc_simple_card_remove_jack(&priv->hp_jack);
-	asoc_simple_card_remove_jack(&priv->mic_jack);
 
 	return asoc_simple_card_clean_reference(card);
 }

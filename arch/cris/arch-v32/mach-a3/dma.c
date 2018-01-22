@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Wrapper for DMA channel allocator that starts clocks etc */
 
 #include <linux/kernel.h>

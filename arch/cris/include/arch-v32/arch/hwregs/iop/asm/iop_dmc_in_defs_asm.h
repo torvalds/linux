@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __iop_dmc_in_defs_asm_h
 #define __iop_dmc_in_defs_asm_h
 

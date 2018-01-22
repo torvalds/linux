@@ -1075,7 +1075,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 
 	/* give an index to each format */
 	index = 0;
-	j = 0;
 	for (i = gspca_dev->cam.nmodes; --i >= 0; ) {
 		fmt_tb[index] = gspca_dev->cam.cam_mode[i].pixelformat;
 		j = 0;
@@ -1964,7 +1963,7 @@ out:
 	return ret;
 }
 
-static struct v4l2_file_operations dev_fops = {
+static const struct v4l2_file_operations dev_fops = {
 	.owner = THIS_MODULE,
 	.open = dev_open,
 	.release = dev_close,

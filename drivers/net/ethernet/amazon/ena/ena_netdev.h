@@ -44,7 +44,7 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	1
-#define DRV_MODULE_VER_MINOR	2
+#define DRV_MODULE_VER_MINOR	3
 #define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
@@ -52,7 +52,7 @@
 #define DRV_MODULE_VERSION \
 	__stringify(DRV_MODULE_VER_MAJOR) "."	\
 	__stringify(DRV_MODULE_VER_MINOR) "."	\
-	__stringify(DRV_MODULE_VER_SUBMINOR) "k"
+	__stringify(DRV_MODULE_VER_SUBMINOR) "K"
 #endif
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
@@ -185,6 +185,7 @@ struct ena_stats_tx {
 	u64 tx_poll;
 	u64 doorbells;
 	u64 bad_req_id;
+	u64 missed_tx;
 };
 
 struct ena_stats_rx {
@@ -257,8 +258,8 @@ struct ena_ring {
 
 struct ena_stats_dev {
 	u64 tx_timeout;
-	u64 io_suspend;
-	u64 io_resume;
+	u64 suspend;
+	u64 resume;
 	u64 wd_expired;
 	u64 interface_up;
 	u64 interface_down;
@@ -271,7 +272,8 @@ enum ena_flags_t {
 	ENA_FLAG_DEV_UP,
 	ENA_FLAG_LINK_UP,
 	ENA_FLAG_MSIX_ENABLED,
-	ENA_FLAG_TRIGGER_RESET
+	ENA_FLAG_TRIGGER_RESET,
+	ENA_FLAG_ONGOING_RESET
 };
 
 /* adapter specific private data structure */
@@ -326,11 +328,10 @@ struct ena_adapter {
 
 	/* timer service */
 	struct work_struct reset_task;
-	struct work_struct suspend_io_task;
-	struct work_struct resume_io_task;
 	struct timer_list timer_service;
 
 	bool wd_state;
+	bool dev_up_before_reset;
 	unsigned long last_keep_alive_jiffies;
 
 	struct u64_stats_sync syncp;

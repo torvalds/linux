@@ -335,16 +335,12 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 	if (pipe == NULL)
 		return;
 
+	/*
+	 * If the DL commit raced with the frame end interrupt, the commit ends
+	 * up being postponed by one frame. @completed represents whether the
+	 * active frame was finished or postponed.
+	 */
 	completed = vsp1_dlm_irq_frame_end(pipe->output->dlm);
-	if (!completed) {
-		/*
-		 * If the DL commit raced with the frame end interrupt, the
-		 * commit ends up being postponed by one frame. Return
-		 * immediately without calling the pipeline's frame end handler
-		 * or incrementing the sequence number.
-		 */
-		return;
-	}
 
 	if (pipe->hgo)
 		vsp1_hgo_frame_end(pipe->hgo);
@@ -352,8 +348,12 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 	if (pipe->hgt)
 		vsp1_hgt_frame_end(pipe->hgt);
 
+	/*
+	 * Regardless of frame completion we still need to notify the pipe
+	 * frame_end to account for vblank events.
+	 */
 	if (pipe->frame_end)
-		pipe->frame_end(pipe);
+		pipe->frame_end(pipe, completed);
 
 	pipe->sequence++;
 }
@@ -373,13 +373,36 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 		return;
 
 	/*
-	 * The BRU background color has a fixed alpha value set to 255, the
-	 * output alpha value is thus always equal to 255.
+	 * The BRU and BRS background color has a fixed alpha value set to 255,
+	 * the output alpha value is thus always equal to 255.
 	 */
-	if (pipe->uds_input->type == VSP1_ENTITY_BRU)
+	if (pipe->uds_input->type == VSP1_ENTITY_BRU ||
+	    pipe->uds_input->type == VSP1_ENTITY_BRS)
 		alpha = 255;
 
 	vsp1_uds_set_alpha(pipe->uds, dl, alpha);
+}
+
+/*
+ * Propagate the partition calculations through the pipeline
+ *
+ * Work backwards through the pipe, allowing each entity to update the partition
+ * parameters based on its configuration, and the entity connected to its
+ * source. Each entity must produce the partition required for the previous
+ * entity in the pipeline.
+ */
+void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
+				       struct vsp1_partition *partition,
+				       unsigned int index,
+				       struct vsp1_partition_window *window)
+{
+	struct vsp1_entity *entity;
+
+	list_for_each_entry_reverse(entity, &pipe->entities, list_pipe) {
+		if (entity->ops->partition)
+			entity->ops->partition(entity, pipe, partition, index,
+					       window);
+	}
 }
 
 void vsp1_pipelines_suspend(struct vsp1_device *vsp1)

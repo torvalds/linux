@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config SUPERH
 	def_bool y
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST

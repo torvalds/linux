@@ -12,9 +12,9 @@
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/of.h>
 
+#include <asm/mips-cps.h>
 #include <asm/time.h>
 
 unsigned int get_c0_compare_int(void)

@@ -113,7 +113,7 @@ query_free_page:
 		RT_TRACE(
 			_module_hal_xmit_c_,
 			_drv_notice_,
-			("%s: bSurpriseRemoved(wirte port)\n", __func__)
+			("%s: bSurpriseRemoved(write port)\n", __func__)
 		);
 		goto free_xmitbuf;
 	}
@@ -490,7 +490,7 @@ int rtl8723bs_xmit_thread(void *context)
 
 
 	ret = _SUCCESS;
-	padapter = (struct adapter *)context;
+	padapter = context;
 	pxmitpriv = &padapter->xmitpriv;
 
 	rtw_sprintf(thread_name, 20, "%s-"ADPT_FMT, thread_name, ADPT_ARG(padapter));

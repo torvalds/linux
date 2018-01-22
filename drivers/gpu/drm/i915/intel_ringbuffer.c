@@ -402,17 +402,18 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 	 */
 	if (IS_GEN7(dev_priv)) {
 		switch (engine->id) {
+		/*
+		 * No more rings exist on Gen7. Default case is only to shut up
+		 * gcc switch check warning.
+		 */
+		default:
+			GEM_BUG_ON(engine->id);
 		case RCS:
 			mmio = RENDER_HWS_PGA_GEN7;
 			break;
 		case BCS:
 			mmio = BLT_HWS_PGA_GEN7;
 			break;
-		/*
-		 * VCS2 actually doesn't exist on Gen7. Only shut up
-		 * gcc switch check warning
-		 */
-		case VCS2:
 		case VCS:
 			mmio = BSD_HWS_PGA_GEN7;
 			break;
@@ -426,6 +427,9 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 		/* XXX: gen8 returns to sanity */
 		mmio = RING_HWS_PGA(engine->mmio_base);
 	}
+
+	if (INTEL_GEN(dev_priv) >= 6)
+		I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
 
 	I915_WRITE(mmio, engine->status_page.ggtt_offset);
 	POSTING_READ(mmio);
@@ -479,11 +483,6 @@ static bool stop_ring(struct intel_engine_cs *engine)
 	I915_WRITE_CTL(engine, 0);
 	I915_WRITE_HEAD(engine, 0);
 	I915_WRITE_TAIL(engine, 0);
-
-	if (INTEL_GEN(dev_priv) > 2) {
-		(void)I915_READ_CTL(engine);
-		I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
-	}
 
 	return (I915_READ_HEAD(engine) & HEAD_ADDR) == 0;
 }
@@ -566,6 +565,9 @@ static int init_ring_common(struct intel_engine_cs *engine)
 
 	intel_engine_init_hangcheck(engine);
 
+	if (INTEL_GEN(dev_priv) > 2)
+		I915_WRITE_MODE(engine, _MASKED_BIT_DISABLE(STOP_RING));
+
 out:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
@@ -575,7 +577,16 @@ out:
 static void reset_ring_common(struct intel_engine_cs *engine,
 			      struct drm_i915_gem_request *request)
 {
-	/* Try to restore the logical GPU state to match the continuation
+	/*
+	 * RC6 must be prevented until the reset is complete and the engine
+	 * reinitialised. If it occurs in the middle of this sequence, the
+	 * state written to/loaded from the power context is ill-defined (e.g.
+	 * the PP_BASE_DIR may be lost).
+	 */
+	assert_forcewakes_active(engine->i915, FORCEWAKE_ALL);
+
+	/*
+	 * Try to restore the logical GPU state to match the continuation
 	 * of the request queue. If we skip the context/PD restore, then
 	 * the next request may try to execute assuming that its context
 	 * is valid and loaded on the GPU and so may try to access invalid
@@ -776,6 +787,24 @@ static u32 *gen6_signal(struct drm_i915_gem_request *req, u32 *cs)
 		*cs++ = MI_NOOP;
 
 	return cs;
+}
+
+static void cancel_requests(struct intel_engine_cs *engine)
+{
+	struct drm_i915_gem_request *request;
+	unsigned long flags;
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+
+	/* Mark all submitted requests as skipped. */
+	list_for_each_entry(request, &engine->timeline->requests, link) {
+		GEM_BUG_ON(!request->global_seqno);
+		if (!i915_gem_request_completed(request))
+			dma_fence_set_error(&request->fence, -EIO);
+	}
+	/* Remaining _unready_ requests will be nop'ed when submitted */
+
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
 static void i9xx_submit_request(struct drm_i915_gem_request *request)
@@ -1174,113 +1203,7 @@ i915_emit_bb_start(struct drm_i915_gem_request *req,
 	return 0;
 }
 
-static void cleanup_phys_status_page(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
 
-	if (!dev_priv->status_page_dmah)
-		return;
-
-	drm_pci_free(&dev_priv->drm, dev_priv->status_page_dmah);
-	engine->status_page.page_addr = NULL;
-}
-
-static void cleanup_status_page(struct intel_engine_cs *engine)
-{
-	struct i915_vma *vma;
-	struct drm_i915_gem_object *obj;
-
-	vma = fetch_and_zero(&engine->status_page.vma);
-	if (!vma)
-		return;
-
-	obj = vma->obj;
-
-	i915_vma_unpin(vma);
-	i915_vma_close(vma);
-
-	i915_gem_object_unpin_map(obj);
-	__i915_gem_object_release_unless_active(obj);
-}
-
-static int init_status_page(struct intel_engine_cs *engine)
-{
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	unsigned int flags;
-	void *vaddr;
-	int ret;
-
-	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
-	if (IS_ERR(obj)) {
-		DRM_ERROR("Failed to allocate status page\n");
-		return PTR_ERR(obj);
-	}
-
-	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
-	if (ret)
-		goto err;
-
-	vma = i915_vma_instance(obj, &engine->i915->ggtt.base, NULL);
-	if (IS_ERR(vma)) {
-		ret = PTR_ERR(vma);
-		goto err;
-	}
-
-	flags = PIN_GLOBAL;
-	if (!HAS_LLC(engine->i915))
-		/* On g33, we cannot place HWS above 256MiB, so
-		 * restrict its pinning to the low mappable arena.
-		 * Though this restriction is not documented for
-		 * gen4, gen5, or byt, they also behave similarly
-		 * and hang if the HWS is placed at the top of the
-		 * GTT. To generalise, it appears that all !llc
-		 * platforms have issues with us placing the HWS
-		 * above the mappable region (even though we never
-		 * actualy map it).
-		 */
-		flags |= PIN_MAPPABLE;
-	ret = i915_vma_pin(vma, 0, 4096, flags);
-	if (ret)
-		goto err;
-
-	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
-	if (IS_ERR(vaddr)) {
-		ret = PTR_ERR(vaddr);
-		goto err_unpin;
-	}
-
-	engine->status_page.vma = vma;
-	engine->status_page.ggtt_offset = i915_ggtt_offset(vma);
-	engine->status_page.page_addr = memset(vaddr, 0, PAGE_SIZE);
-
-	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
-			 engine->name, i915_ggtt_offset(vma));
-	return 0;
-
-err_unpin:
-	i915_vma_unpin(vma);
-err:
-	i915_gem_object_put(obj);
-	return ret;
-}
-
-static int init_phys_status_page(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	GEM_BUG_ON(engine->id != RCS);
-
-	dev_priv->status_page_dmah =
-		drm_pci_alloc(&dev_priv->drm, PAGE_SIZE, PAGE_SIZE);
-	if (!dev_priv->status_page_dmah)
-		return -ENOMEM;
-
-	engine->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
-	memset(engine->status_page.page_addr, 0, PAGE_SIZE);
-
-	return 0;
-}
 
 int intel_ring_pin(struct intel_ring *ring,
 		   struct drm_i915_private *i915,
@@ -1321,6 +1244,8 @@ int intel_ring_pin(struct intel_ring *ring,
 	if (IS_ERR(addr))
 		goto err;
 
+	vma->obj->pin_global++;
+
 	ring->vaddr = addr;
 	return 0;
 
@@ -1352,6 +1277,7 @@ void intel_ring_unpin(struct intel_ring *ring)
 		i915_gem_object_unpin_map(ring->vma->obj);
 	ring->vaddr = NULL;
 
+	ring->vma->obj->pin_global--;
 	i915_vma_unpin(ring->vma);
 }
 
@@ -1516,6 +1442,7 @@ intel_ring_context_pin(struct intel_engine_cs *engine,
 			goto err;
 
 		ce->state->obj->mm.dirty = true;
+		ce->state->obj->pin_global++;
 	}
 
 	/* The kernel context is only used as a placeholder for flushing the
@@ -1550,8 +1477,10 @@ static void intel_ring_context_unpin(struct intel_engine_cs *engine,
 	if (--ce->pin_count)
 		return;
 
-	if (ce->state)
+	if (ce->state) {
+		ce->state->obj->pin_global--;
 		i915_vma_unpin(ce->state);
+	}
 
 	i915_gem_context_put(ctx);
 }
@@ -1567,17 +1496,10 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	if (err)
 		goto err;
 
-	if (HWS_NEEDS_PHYSICAL(engine->i915))
-		err = init_phys_status_page(engine);
-	else
-		err = init_status_page(engine);
-	if (err)
-		goto err;
-
 	ring = intel_engine_create_ring(engine, 32 * PAGE_SIZE);
 	if (IS_ERR(ring)) {
 		err = PTR_ERR(ring);
-		goto err_hws;
+		goto err;
 	}
 
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
@@ -1592,11 +1514,6 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 
 err_ring:
 	intel_ring_free(ring);
-err_hws:
-	if (HWS_NEEDS_PHYSICAL(engine->i915))
-		cleanup_phys_status_page(engine);
-	else
-		cleanup_status_page(engine);
 err:
 	intel_engine_cleanup_common(engine);
 	return err;
@@ -1614,11 +1531,6 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 
 	if (engine->cleanup)
 		engine->cleanup(engine);
-
-	if (HWS_NEEDS_PHYSICAL(dev_priv))
-		cleanup_phys_status_page(engine);
-	else
-		cleanup_status_page(engine);
 
 	intel_engine_cleanup_common(engine);
 
@@ -1711,6 +1623,9 @@ u32 *intel_ring_begin(struct drm_i915_gem_request *req,
 	unsigned int need_wrap = 0;
 	unsigned int total_bytes;
 	u32 *cs;
+
+	/* Packets must be qword aligned. */
+	GEM_BUG_ON(num_dwords & 1);
 
 	total_bytes = bytes + req->reserved_space;
 	GEM_BUG_ON(total_bytes > ring->effective_size);
@@ -1980,7 +1895,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	struct drm_i915_gem_object *obj;
 	int ret, i;
 
-	if (!i915.semaphores)
+	if (!i915_modparams.semaphores)
 		return;
 
 	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore) {
@@ -2080,7 +1995,7 @@ err_obj:
 	i915_gem_object_put(obj);
 err:
 	DRM_DEBUG_DRIVER("Failed to allocate space for semaphores, disabling\n");
-	i915.semaphores = 0;
+	i915_modparams.semaphores = 0;
 }
 
 static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
@@ -2112,11 +2027,13 @@ static void intel_ring_init_irq(struct drm_i915_private *dev_priv,
 static void i9xx_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = i9xx_submit_request;
+	engine->cancel_requests = cancel_requests;
 }
 
 static void gen6_bsd_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = gen6_bsd_submit_request;
+	engine->cancel_requests = cancel_requests;
 }
 
 static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
@@ -2135,12 +2052,12 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 
 	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = i9xx_emit_breadcrumb_sz;
-	if (i915.semaphores) {
+	if (i915_modparams.semaphores) {
 		int num_rings;
 
 		engine->emit_breadcrumb = gen6_sema_emit_breadcrumb;
 
-		num_rings = hweight32(INTEL_INFO(dev_priv)->ring_mask) - 1;
+		num_rings = INTEL_INFO(dev_priv)->num_rings - 1;
 		if (INTEL_GEN(dev_priv) >= 8) {
 			engine->emit_breadcrumb_sz += num_rings * 6;
 		} else {
@@ -2179,13 +2096,12 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 		engine->emit_breadcrumb = gen8_render_emit_breadcrumb;
 		engine->emit_breadcrumb_sz = gen8_render_emit_breadcrumb_sz;
 		engine->emit_flush = gen8_render_ring_flush;
-		if (i915.semaphores) {
+		if (i915_modparams.semaphores) {
 			int num_rings;
 
 			engine->semaphore.signal = gen8_rcs_signal;
 
-			num_rings =
-				hweight32(INTEL_INFO(dev_priv)->ring_mask) - 1;
+			num_rings = INTEL_INFO(dev_priv)->num_rings - 1;
 			engine->emit_breadcrumb_sz += num_rings * 8;
 		}
 	} else if (INTEL_GEN(dev_priv) >= 6) {

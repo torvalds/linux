@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * VLAN		An implementation of 802.1Q VLAN tagging.
  *

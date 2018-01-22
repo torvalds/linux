@@ -117,12 +117,12 @@ static int igt_random_insert_remove(void *arg)
 
 	mock_engine_reset(engine);
 
-	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_TEMPORARY);
+	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_KERNEL);
 	if (!waiters)
 		goto out_engines;
 
 	bitmap = kcalloc(DIV_ROUND_UP(count, BITS_PER_LONG), sizeof(*bitmap),
-			 GFP_TEMPORARY);
+			 GFP_KERNEL);
 	if (!bitmap)
 		goto out_waiters;
 
@@ -187,12 +187,12 @@ static int igt_insert_complete(void *arg)
 
 	mock_engine_reset(engine);
 
-	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_TEMPORARY);
+	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_KERNEL);
 	if (!waiters)
 		goto out_engines;
 
 	bitmap = kcalloc(DIV_ROUND_UP(count, BITS_PER_LONG), sizeof(*bitmap),
-			 GFP_TEMPORARY);
+			 GFP_KERNEL);
 	if (!bitmap)
 		goto out_waiters;
 
@@ -271,13 +271,7 @@ struct igt_wakeup {
 	u32 seqno;
 };
 
-static int wait_atomic(atomic_t *p)
-{
-	schedule();
-	return 0;
-}
-
-static int wait_atomic_timeout(atomic_t *p)
+static int wait_atomic_timeout(atomic_t *p, unsigned int mode)
 {
 	return schedule_timeout(10 * HZ) ? 0 : -ETIMEDOUT;
 }
@@ -348,7 +342,7 @@ static void igt_wake_all_sync(atomic_t *ready,
 	atomic_set(ready, 0);
 	wake_up_all(wq);
 
-	wait_on_atomic_t(set, wait_atomic, TASK_UNINTERRUPTIBLE);
+	wait_on_atomic_t(set, atomic_t_wait, TASK_UNINTERRUPTIBLE);
 	atomic_set(ready, count);
 	atomic_set(done, count);
 }
@@ -368,7 +362,7 @@ static int igt_wakeup(void *arg)
 
 	mock_engine_reset(engine);
 
-	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_TEMPORARY);
+	waiters = kvmalloc_array(count, sizeof(*waiters), GFP_KERNEL);
 	if (!waiters)
 		goto out_engines;
 

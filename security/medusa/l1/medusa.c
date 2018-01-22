@@ -486,7 +486,10 @@ static int medusa_l1_file_open(struct file *file, const struct cred *cred)
 //	return 0;
 //}
 
-static int medusa_l1_task_create(unsigned long clone_flags)
+/* 
+* TODO TODO TODO: add support of 'task' in medusa_fork()
+*/
+static int medusa_l1_task_alloc(struct task_struct *task, unsigned long clone_flags)
 {
 	if(medusa_fork(clone_flags) == MED_NO)
 		return -EPERM;
@@ -1217,6 +1220,8 @@ static int medusa_l1_bprm_set_creds(struct linux_binprm *bprm)
 //	return 0;
 }
 
+/*
+// bprm_secureexec removed from v4.14
 static int medusa_l1_bprm_secureexec(struct linux_binprm *bprm)
 {
 	return 0;
@@ -1225,6 +1230,7 @@ static int medusa_l1_bprm_secureexec(struct linux_binprm *bprm)
 
 	return 0;
 }
+*/
 	
 
 static int medusa_l1_inode_setxattr(struct dentry *dentry, const char *name,
@@ -1302,7 +1308,6 @@ static struct security_hook_list medusa_l1_hooks[] = {
 
 	LSM_HOOK_INIT(bprm_set_creds, medusa_l1_bprm_set_creds),
 	LSM_HOOK_INIT(bprm_check_security, medusa_l1_bprm_check_security),
-	LSM_HOOK_INIT(bprm_secureexec, medusa_l1_bprm_secureexec),
 	LSM_HOOK_INIT(bprm_committing_creds, medusa_l1_bprm_committing_creds),
 	LSM_HOOK_INIT(bprm_committed_creds, medusa_l1_bprm_committed_creds),
 
@@ -1377,15 +1382,17 @@ static struct security_hook_list medusa_l1_hooks[] = {
 
 	//LSM_HOOK_INIT(dentry_open, medusa_l1_dentry_open),
 
-	LSM_HOOK_INIT(task_create, medusa_l1_task_create),
+	LSM_HOOK_INIT(task_alloc, medusa_l1_task_alloc),
 	LSM_HOOK_INIT(task_free, medusa_l1_task_free),
-	// LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
-	// LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
+	// cred_alloc_blank --> medusa_l1_cred_alloc_blank: transfered to medusa_l1_special
+	// cred_free --> medusa_l1_cred_free: transfered to medusa_l1_special
 	LSM_HOOK_INIT(cred_prepare, medusa_l1_cred_prepare),
 	LSM_HOOK_INIT(cred_transfer, medusa_l1_cred_transfer),
 	LSM_HOOK_INIT(kernel_act_as, medusa_l1_kernel_act_as),
 	LSM_HOOK_INIT(kernel_create_files_as, medusa_l1_kernel_create_files_as),
 	LSM_HOOK_INIT(kernel_module_request, medusa_l1_kernel_module_request),
+	// TODO LSM_HOOK_INIT(kernel_read_file, ???),
+	// TODO LSM_HOOK_INIT(kernel_post_read_file, ???),
 	//LSM_HOOK_INIT(kernel_module_from_file, medusa_l1_kernel_module_from_file),
 	LSM_HOOK_INIT(task_fix_setuid, medusa_l1_task_fix_setuid),
 	LSM_HOOK_INIT(task_setpgid, medusa_l1_task_setpgid),

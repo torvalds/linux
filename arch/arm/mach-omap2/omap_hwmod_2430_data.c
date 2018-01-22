@@ -153,7 +153,6 @@ static struct omap_dma_dev_attr dma_dev_attr = {
 static struct omap_hwmod omap2430_dma_system_hwmod = {
 	.name		= "dma",
 	.class		= &omap2xxx_dma_hwmod_class,
-	.mpu_irqs	= omap2_dma_system_irqs,
 	.main_clk	= "core_l3_ck",
 	.dev_attr	= &dma_dev_attr,
 	.flags		= HWMOD_NO_IDLEST,
@@ -572,7 +571,6 @@ static struct omap_hwmod_ocp_if omap2430_l4_core__dma_system = {
 	.master		= &omap2xxx_l4_core_hwmod,
 	.slave		= &omap2430_dma_system_hwmod,
 	.clk		= "sdma_ick",
-	.addr		= omap2_dma_system_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

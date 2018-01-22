@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _PARISC_TYPES_H
 #define _PARISC_TYPES_H
 

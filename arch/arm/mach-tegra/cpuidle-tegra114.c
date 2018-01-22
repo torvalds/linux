@@ -60,7 +60,7 @@ static int tegra114_idle_power_down(struct cpuidle_device *dev,
 	return index;
 }
 
-static void tegra114_idle_enter_freeze(struct cpuidle_device *dev,
+static void tegra114_idle_enter_s2idle(struct cpuidle_device *dev,
 				       struct cpuidle_driver *drv,
 				       int index)
 {
@@ -77,7 +77,7 @@ static struct cpuidle_driver tegra_idle_driver = {
 #ifdef CONFIG_PM_SLEEP
 		[1] = {
 			.enter			= tegra114_idle_power_down,
-			.enter_freeze		= tegra114_idle_enter_freeze,
+			.enter_s2idle		= tegra114_idle_enter_s2idle,
 			.exit_latency		= 500,
 			.target_residency	= 1000,
 			.flags			= CPUIDLE_FLAG_TIMER_STOP,

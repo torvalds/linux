@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_UML_INIT_H
 #define _LINUX_UML_INIT_H
 
@@ -40,7 +41,7 @@
 typedef int (*initcall_t)(void);
 typedef void (*exitcall_t)(void);
 
-#include <linux/compiler.h>
+#include <linux/compiler_types.h>
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */

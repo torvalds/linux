@@ -30,6 +30,7 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *, struct sk_buff *);
 
 int ovs_ct_execute(struct net *, struct sk_buff *, struct sw_flow_key *,
 		   const struct ovs_conntrack_info *);
+int ovs_ct_clear(struct sk_buff *skb, struct sw_flow_key *key);
 
 void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key);
 int ovs_ct_put_key(const struct sw_flow_key *swkey,
@@ -70,6 +71,12 @@ static inline int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 				 const struct ovs_conntrack_info *info)
 {
 	kfree_skb(skb);
+	return -ENOTSUPP;
+}
+
+static inline int ovs_ct_clear(struct sk_buff *skb,
+			       struct sw_flow_key *key)
+{
 	return -ENOTSUPP;
 }
 

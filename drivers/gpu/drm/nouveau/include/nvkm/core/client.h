@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_CLIENT_H__
 #define __NVKM_CLIENT_H__
 #define nvkm_client(p) container_of((p), struct nvkm_client, object)
@@ -16,7 +17,8 @@ struct nvkm_client {
 	void *data;
 	int (*ntfy)(const void *, u32, const void *, u32);
 
-	struct nvkm_vm *vm;
+	struct list_head umem;
+	spinlock_t lock;
 };
 
 int  nvkm_client_new(const char *name, u64 device, const char *cfg,

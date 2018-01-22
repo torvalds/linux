@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/nfs/callback.c
  *
@@ -48,15 +49,15 @@ static int nfs4_callback_up_net(struct svc_serv *serv, struct net *net)
 	if (ret <= 0)
 		goto out_err;
 	nn->nfs_callback_tcpport = ret;
-	dprintk("NFS: Callback listener port = %u (af %u, net %p)\n",
-			nn->nfs_callback_tcpport, PF_INET, net);
+	dprintk("NFS: Callback listener port = %u (af %u, net %x)\n",
+		nn->nfs_callback_tcpport, PF_INET, net->ns.inum);
 
 	ret = svc_create_xprt(serv, "tcp", net, PF_INET6,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret > 0) {
 		nn->nfs_callback_tcpport6 = ret;
-		dprintk("NFS: Callback listener port = %u (af %u, net %p)\n",
-				nn->nfs_callback_tcpport6, PF_INET6, net);
+		dprintk("NFS: Callback listener port = %u (af %u, net %x\n",
+			nn->nfs_callback_tcpport6, PF_INET6, net->ns.inum);
 	} else if (ret != -EAFNOSUPPORT)
 		goto out_err;
 	return 0;
@@ -184,7 +185,7 @@ static void nfs_callback_down_net(u32 minorversion, struct svc_serv *serv, struc
 	if (--nn->cb_users[minorversion])
 		return;
 
-	dprintk("NFS: destroy per-net callback data; net=%p\n", net);
+	dprintk("NFS: destroy per-net callback data; net=%x\n", net->ns.inum);
 	svc_shutdown_net(serv, net);
 }
 
@@ -197,7 +198,7 @@ static int nfs_callback_up_net(int minorversion, struct svc_serv *serv,
 	if (nn->cb_users[minorversion]++)
 		return 0;
 
-	dprintk("NFS: create per-net callback data; net=%p\n", net);
+	dprintk("NFS: create per-net callback data; net=%x\n", net->ns.inum);
 
 	ret = svc_bind(serv, net);
 	if (ret < 0) {
@@ -222,30 +223,30 @@ err_socks:
 err_bind:
 	nn->cb_users[minorversion]--;
 	dprintk("NFS: Couldn't create callback socket: err = %d; "
-			"net = %p\n", ret, net);
+			"net = %x\n", ret, net->ns.inum);
 	return ret;
 }
 
-static struct svc_serv_ops nfs40_cb_sv_ops = {
+static const struct svc_serv_ops nfs40_cb_sv_ops = {
 	.svo_function		= nfs4_callback_svc,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 	.svo_setup		= svc_set_num_threads_sync,
 	.svo_module		= THIS_MODULE,
 };
 #if defined(CONFIG_NFS_V4_1)
-static struct svc_serv_ops nfs41_cb_sv_ops = {
+static const struct svc_serv_ops nfs41_cb_sv_ops = {
 	.svo_function		= nfs41_callback_svc,
 	.svo_enqueue_xprt	= svc_xprt_do_enqueue,
 	.svo_setup		= svc_set_num_threads_sync,
 	.svo_module		= THIS_MODULE,
 };
 
-static struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+static const struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 	[0] = &nfs40_cb_sv_ops,
 	[1] = &nfs41_cb_sv_ops,
 };
 #else
-static struct svc_serv_ops *nfs4_cb_sv_ops[] = {
+static const struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 	[0] = &nfs40_cb_sv_ops,
 	[1] = NULL,
 };
@@ -254,8 +255,8 @@ static struct svc_serv_ops *nfs4_cb_sv_ops[] = {
 static struct svc_serv *nfs_callback_create_svc(int minorversion)
 {
 	struct nfs_callback_data *cb_info = &nfs_callback_info[minorversion];
+	const struct svc_serv_ops *sv_ops;
 	struct svc_serv *serv;
-	struct svc_serv_ops *sv_ops;
 
 	/*
 	 * Check whether we're already up and running.

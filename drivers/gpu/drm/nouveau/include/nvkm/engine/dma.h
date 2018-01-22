@@ -1,6 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_DMA_H__
 #define __NVKM_DMA_H__
 #include <core/engine.h>
+#include <core/object.h>
 struct nvkm_client;
 
 struct nvkm_dmaobj {

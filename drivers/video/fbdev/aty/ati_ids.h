@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ATI PCI IDs from XFree86, kept here to make sync'ing with
  * XFree much simpler. Currently, this list is only used by

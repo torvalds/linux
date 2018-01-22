@@ -147,7 +147,7 @@ static void exe_cp(const char *src, const char *dest)
 }
 
 #define XX_DIR_LEN 200
-static int check_execveat_pathmax(int dot_dfd, const char *src, int is_script)
+static int check_execveat_pathmax(int root_dfd, const char *src, int is_script)
 {
 	int fail = 0;
 	int ii, count, len;
@@ -156,20 +156,30 @@ static int check_execveat_pathmax(int dot_dfd, const char *src, int is_script)
 
 	if (*longpath == '\0') {
 		/* Create a filename close to PATH_MAX in length */
+		char *cwd = getcwd(NULL, 0);
+
+		if (!cwd) {
+			printf("Failed to getcwd(), errno=%d (%s)\n",
+			       errno, strerror(errno));
+			return 2;
+		}
+		strcpy(longpath, cwd);
+		strcat(longpath, "/");
 		memset(longname, 'x', XX_DIR_LEN - 1);
 		longname[XX_DIR_LEN - 1] = '/';
 		longname[XX_DIR_LEN] = '\0';
-		count = (PATH_MAX - 3) / XX_DIR_LEN;
+		count = (PATH_MAX - 3 - strlen(cwd)) / XX_DIR_LEN;
 		for (ii = 0; ii < count; ii++) {
 			strcat(longpath, longname);
 			mkdir(longpath, 0755);
 		}
-		len = (PATH_MAX - 3) - (count * XX_DIR_LEN);
+		len = (PATH_MAX - 3 - strlen(cwd)) - (count * XX_DIR_LEN);
 		if (len <= 0)
 			len = 1;
 		memset(longname, 'y', len);
 		longname[len] = '\0';
 		strcat(longpath, longname);
+		free(cwd);
 	}
 	exe_cp(src, longpath);
 
@@ -190,7 +200,7 @@ static int check_execveat_pathmax(int dot_dfd, const char *src, int is_script)
 	}
 
 	/*
-	 * Execute as a long pathname relative to ".".  If this is a script,
+	 * Execute as a long pathname relative to "/".  If this is a script,
 	 * the interpreter will launch but fail to open the script because its
 	 * name ("/dev/fd/5/xxx....") is bigger than PATH_MAX.
 	 *
@@ -200,10 +210,10 @@ static int check_execveat_pathmax(int dot_dfd, const char *src, int is_script)
 	 * the exit status shall be 126."), so allow either.
 	 */
 	if (is_script)
-		fail += check_execveat_invoked_rc(dot_dfd, longpath, 0,
+		fail += check_execveat_invoked_rc(root_dfd, longpath + 1, 0,
 						  127, 126);
 	else
-		fail += check_execveat(dot_dfd, longpath, 0);
+		fail += check_execveat(root_dfd, longpath + 1, 0);
 
 	return fail;
 }
@@ -218,6 +228,7 @@ static int run_tests(void)
 	int subdir_dfd_ephemeral = open_or_die("subdir.ephemeral",
 					       O_DIRECTORY|O_RDONLY);
 	int dot_dfd = open_or_die(".", O_DIRECTORY|O_RDONLY);
+	int root_dfd = open_or_die("/", O_DIRECTORY|O_RDONLY);
 	int dot_dfd_path = open_or_die(".", O_DIRECTORY|O_RDONLY|O_PATH);
 	int dot_dfd_cloexec = open_or_die(".", O_DIRECTORY|O_RDONLY|O_CLOEXEC);
 	int fd = open_or_die("execveat", O_RDONLY);
@@ -353,8 +364,8 @@ static int run_tests(void)
 	/* Attempt to execute relative to non-directory => ENOTDIR */
 	fail += check_execveat_fail(fd, "execveat", 0, ENOTDIR);
 
-	fail += check_execveat_pathmax(dot_dfd, "execveat", 0);
-	fail += check_execveat_pathmax(dot_dfd, "script", 1);
+	fail += check_execveat_pathmax(root_dfd, "execveat", 0);
+	fail += check_execveat_pathmax(root_dfd, "script", 1);
 	return fail;
 }
 

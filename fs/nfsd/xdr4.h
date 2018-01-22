@@ -538,6 +538,7 @@ struct nfsd4_seek {
 
 struct nfsd4_op {
 	int					opnum;
+	const struct nfsd4_operation *		opdesc;
 	__be32					status;
 	union nfsd4_op_u {
 		struct nfsd4_access		access;
@@ -614,6 +615,7 @@ struct nfsd4_compoundargs {
 	__be32 *			end;
 	struct page **			pagelist;
 	int				pagelen;
+	bool				tail;
 	__be32				tmp[8];
 	__be32 *			tmpp;
 	struct svcxdr_tmpbuf		*to_free;
@@ -647,9 +649,18 @@ static inline bool nfsd4_is_solo_sequence(struct nfsd4_compoundres *resp)
 	return resp->opcnt == 1 && args->ops[0].opnum == OP_SEQUENCE;
 }
 
-static inline bool nfsd4_not_cached(struct nfsd4_compoundres *resp)
+/*
+ * The session reply cache only needs to cache replies that the client
+ * actually asked us to.  But it's almost free for us to cache compounds
+ * consisting of only a SEQUENCE op, so we may as well cache those too.
+ * Also, the protocol doesn't give us a convenient response in the case
+ * of a replay of a solo SEQUENCE op that wasn't cached
+ * (RETRY_UNCACHED_REP can only be returned in the second op of a
+ * compound).
+ */
+static inline bool nfsd4_cache_this(struct nfsd4_compoundres *resp)
 {
-	return !(resp->cstate.slot->sl_flags & NFSD4_SLOT_CACHETHIS)
+	return (resp->cstate.slot->sl_flags & NFSD4_SLOT_CACHETHIS)
 		|| nfsd4_is_solo_sequence(resp);
 }
 
@@ -661,6 +672,7 @@ static inline bool nfsd4_last_compound_op(struct svc_rqst *rqstp)
 	return argp->opcnt == resp->opcnt;
 }
 
+const struct nfsd4_operation *OPDESC(struct nfsd4_op *op);
 int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op);
 void warn_on_nonidempotent_op(struct nfsd4_op *op);
 
@@ -747,6 +759,53 @@ extern __be32 nfsd4_test_stateid(struct svc_rqst *rqstp,
 extern __be32 nfsd4_free_stateid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *);
 extern void nfsd4_bump_seqid(struct nfsd4_compound_state *, __be32 nfserr);
+
+enum nfsd4_op_flags {
+	ALLOWED_WITHOUT_FH = 1 << 0,    /* No current filehandle required */
+	ALLOWED_ON_ABSENT_FS = 1 << 1,  /* ops processed on absent fs */
+	ALLOWED_AS_FIRST_OP = 1 << 2,   /* ops reqired first in compound */
+	/* For rfc 5661 section 2.6.3.1.1: */
+	OP_HANDLES_WRONGSEC = 1 << 3,
+	OP_IS_PUTFH_LIKE = 1 << 4,
+	/*
+	 * These are the ops whose result size we estimate before
+	 * encoding, to avoid performing an op then not being able to
+	 * respond or cache a response.  This includes writes and setattrs
+	 * as well as the operations usually called "nonidempotent":
+	 */
+	OP_MODIFIES_SOMETHING = 1 << 5,
+	/*
+	 * Cache compounds containing these ops in the xid-based drc:
+	 * We use the DRC for compounds containing non-idempotent
+	 * operations, *except* those that are 4.1-specific (since
+	 * sessions provide their own EOS), and except for stateful
+	 * operations other than setclientid and setclientid_confirm
+	 * (since sequence numbers provide EOS for open, lock, etc in
+	 * the v4.0 case).
+	 */
+	OP_CACHEME = 1 << 6,
+	/*
+	 * These are ops which clear current state id.
+	 */
+	OP_CLEAR_STATEID = 1 << 7,
+	/* Most ops return only an error on failure; some may do more: */
+	OP_NONTRIVIAL_ERROR_ENCODE = 1 << 8,
+};
+
+struct nfsd4_operation {
+	__be32 (*op_func)(struct svc_rqst *, struct nfsd4_compound_state *,
+			union nfsd4_op_u *);
+	void (*op_release)(union nfsd4_op_u *);
+	u32 op_flags;
+	char *op_name;
+	/* Try to get response size before operation */
+	u32 (*op_rsize_bop)(struct svc_rqst *, struct nfsd4_op *);
+	void (*op_get_currentstateid)(struct nfsd4_compound_state *,
+			union nfsd4_op_u *);
+	void (*op_set_currentstateid)(struct nfsd4_compound_state *,
+			union nfsd4_op_u *);
+};
+
 
 #endif
 

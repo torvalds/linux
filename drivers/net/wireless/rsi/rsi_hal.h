@@ -52,6 +52,39 @@
 #define FW_LOADING_SUCCESSFUL		'S'
 #define LOADING_INITIATED		'1'
 
+#define RSI_ULP_RESET_REG		0x161
+#define RSI_WATCH_DOG_TIMER_1		0x16c
+#define RSI_WATCH_DOG_TIMER_2		0x16d
+#define RSI_WATCH_DOG_DELAY_TIMER_1		0x16e
+#define RSI_WATCH_DOG_DELAY_TIMER_2		0x16f
+#define RSI_WATCH_DOG_TIMER_ENABLE		0x170
+
+#define RSI_ULP_WRITE_0			00
+#define RSI_ULP_WRITE_2			02
+#define RSI_ULP_WRITE_50		50
+
+#define RSI_RESTART_WDT			BIT(11)
+#define RSI_BYPASS_ULP_ON_WDT		BIT(1)
+
+#define RSI_ULP_TIMER_ENABLE		((0xaa000) | RSI_RESTART_WDT |	\
+					 RSI_BYPASS_ULP_ON_WDT)
+#define RSI_RF_SPI_PROG_REG_BASE_ADDR	0x40080000
+
+#define RSI_GSPI_CTRL_REG0		(RSI_RF_SPI_PROG_REG_BASE_ADDR)
+#define RSI_GSPI_CTRL_REG1		(RSI_RF_SPI_PROG_REG_BASE_ADDR + 0x2)
+#define RSI_GSPI_DATA_REG0		(RSI_RF_SPI_PROG_REG_BASE_ADDR + 0x4)
+#define RSI_GSPI_DATA_REG1		(RSI_RF_SPI_PROG_REG_BASE_ADDR + 0x6)
+#define RSI_GSPI_DATA_REG2		(RSI_RF_SPI_PROG_REG_BASE_ADDR + 0x8)
+
+#define RSI_GSPI_CTRL_REG0_VALUE		0x340
+
+#define RSI_GSPI_DMA_MODE			BIT(13)
+
+#define RSI_GSPI_2_ULP			BIT(12)
+#define RSI_GSPI_TRIG			BIT(7)
+#define RSI_GSPI_READ			BIT(6)
+#define RSI_GSPI_RF_SPI_ACTIVE		BIT(8)
+
 /* Boot loader commands */
 #define SEND_RPS_FILE			'2'
 
@@ -66,6 +99,11 @@
 #define RSI_DEV_OPMODE_WIFI_ALONE	1
 #define RSI_DEV_COEX_MODE_WIFI_ALONE	1
 
+#define BBP_INFO_40MHZ 0x6
+
+#define FW_FLASH_OFFSET			0x820
+#define LMAC_VER_OFFSET			(FW_FLASH_OFFSET + 0x200)
+
 struct bl_header {
 	__le32 flags;
 	__le32 image_no;
@@ -79,6 +117,36 @@ struct ta_metadata {
 	unsigned int address;
 };
 
+struct rsi_mgmt_desc {
+	__le16 len_qno;
+	u8 frame_type;
+	u8 misc_flags;
+	u8 xtend_desc_size;
+	u8 header_len;
+	__le16 frame_info;
+	__le16 rate_info;
+	__le16 bbp_info;
+	__le16 seq_ctrl;
+	u8 reserved2;
+	u8 sta_id;
+} __packed;
+
+struct rsi_data_desc {
+	__le16 len_qno;
+	u8 cfm_frame_type;
+	u8 misc_flags;
+	u8 xtend_desc_size;
+	u8 header_len;
+	__le16 frame_info;
+	__le16 rate_info;
+	__le16 bbp_info;
+	__le16 mac_flags;
+	u8 qid_tid;
+	u8 sta_id;
+} __packed;
+
 int rsi_hal_device_init(struct rsi_hw *adapter);
+int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb);
+int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb);
 
 #endif

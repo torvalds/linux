@@ -16,17 +16,7 @@ The key service can be configured on by enabling:
 
 This document has the following sections:
 
-	- Key overview
-	- Key service overview
-	- Key access permissions
-	- SELinux support
-	- New procfs files
-	- Userspace system call interface
-	- Kernel services
-	- Notes on accessing payload contents
-	- Defining a key type
-	- Request-key callback service
-	- Garbage collection
+.. contents:: :local:
 
 
 Key Overview
@@ -443,7 +433,7 @@ The main syscalls are:
      /sbin/request-key will be invoked in an attempt to obtain a key. The
      callout_info string will be passed as an argument to the program.
 
-     See also Documentation/security/keys-request-key.txt.
+     See also Documentation/security/keys/request-key.rst.
 
 
 The keyctl syscall functions are:
@@ -638,12 +628,12 @@ The keyctl syscall functions are:
      defined key type will return its data as is. If a key type does not
      implement this function, error EOPNOTSUPP will result.
 
-     As much of the data as can be fitted into the buffer will be copied to
-     userspace if the buffer pointer is not NULL.
+     If the specified buffer is too small, then the size of the buffer required
+     will be returned.  Note that in this case, the contents of the buffer may
+     have been overwritten in some undefined way.
 
-     On a successful return, the function will always return the amount of data
-     available rather than the amount copied.
-
+     Otherwise, on success, the function will return the amount of data copied
+     into the buffer.
 
   *  Instantiate a partially constructed key::
 
@@ -973,7 +963,7 @@ payload contents" for more information.
     If successful, the key will have been attached to the default keyring for
     implicitly obtained request-key keys, as set by KEYCTL_SET_REQKEY_KEYRING.
 
-    See also Documentation/security/keys-request-key.txt.
+    See also Documentation/security/keys/request-key.rst.
 
 
  *  To search for a key, passing auxiliary data to the upcaller, call::

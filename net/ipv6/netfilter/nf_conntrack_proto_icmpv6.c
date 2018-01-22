@@ -84,16 +84,6 @@ static bool icmpv6_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-/* Print out the per-protocol part of the tuple. */
-static void icmpv6_print_tuple(struct seq_file *s,
-			      const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "type=%u code=%u id=%u ",
-		   tuple->dst.u.icmp.type,
-		   tuple->dst.u.icmp.code,
-		   ntohs(tuple->src.u.icmp.id));
-}
-
 static unsigned int *icmpv6_get_timeouts(struct net *net)
 {
 	return &icmpv6_pernet(net)->timeout;
@@ -104,8 +94,6 @@ static int icmpv6_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
-		       u_int8_t pf,
-		       unsigned int hooknum,
 		       unsigned int *timeout)
 {
 	/* Do not immediately delete the connection after the first
@@ -131,11 +119,6 @@ static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
 		pr_debug("icmpv6: can't create new conn with type %u\n",
 			 type + 128);
 		nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
-		if (LOG_INVALID(nf_ct_net(ct), IPPROTO_ICMPV6))
-			nf_log_packet(nf_ct_net(ct), PF_INET6, 0, skb, NULL,
-				      NULL, NULL,
-				      "nf_ct_icmpv6: invalid new with type %d ",
-				      type + 128);
 		return false;
 	}
 	return true;
@@ -144,8 +127,7 @@ static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
 static int
 icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 		     struct sk_buff *skb,
-		     unsigned int icmp6off,
-		     unsigned int hooknum)
+		     unsigned int icmp6off)
 {
 	struct nf_conntrack_tuple intuple, origtuple;
 	const struct nf_conntrack_tuple_hash *h;
@@ -153,7 +135,7 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_zone tmp;
 
-	NF_CT_ASSERT(!skb_nfct(skb));
+	WARN_ON(skb_nfct(skb));
 
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuplepr(skb,
@@ -193,6 +175,12 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
+static void icmpv6_error_log(const struct sk_buff *skb, struct net *net,
+			     u8 pf, const char *msg)
+{
+	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_ICMPV6, "%s", msg);
+}
+
 static int
 icmpv6_error(struct net *net, struct nf_conn *tmpl,
 	     struct sk_buff *skb, unsigned int dataoff,
@@ -204,17 +192,13 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 
 	icmp6h = skb_header_pointer(skb, dataoff, sizeof(_ih), &_ih);
 	if (icmp6h == NULL) {
-		if (LOG_INVALID(net, IPPROTO_ICMPV6))
-			nf_log_packet(net, PF_INET6, 0, skb, NULL, NULL, NULL,
-			      "nf_ct_icmpv6: short packet ");
+		icmpv6_error_log(skb, net, pf, "short packet");
 		return -NF_ACCEPT;
 	}
 
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
-		if (LOG_INVALID(net, IPPROTO_ICMPV6))
-			nf_log_packet(net, PF_INET6, 0, skb, NULL, NULL, NULL,
-				      "nf_ct_icmpv6: ICMPv6 checksum failed ");
+		icmpv6_error_log(skb, net, pf, "ICMPv6 checksum failed");
 		return -NF_ACCEPT;
 	}
 
@@ -229,7 +213,7 @@ icmpv6_error(struct net *net, struct nf_conn *tmpl,
 	if (icmp6h->icmp6_type >= 128)
 		return NF_ACCEPT;
 
-	return icmpv6_error_message(net, tmpl, skb, dataoff, hooknum);
+	return icmpv6_error_message(net, tmpl, skb, dataoff);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -275,9 +259,14 @@ static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
 	return 0;
 }
 
-static int icmpv6_nlattr_tuple_size(void)
+static unsigned int icmpv6_nlattr_tuple_size(void)
 {
-	return nla_policy_len(icmpv6_nla_policy, CTA_PROTO_MAX + 1);
+	static unsigned int size __read_mostly;
+
+	if (!size)
+		size = nla_policy_len(icmpv6_nla_policy, CTA_PROTO_MAX + 1);
+
+	return size;
 }
 #endif
 
@@ -367,10 +356,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 {
 	.l3proto		= PF_INET6,
 	.l4proto		= IPPROTO_ICMPV6,
-	.name			= "icmpv6",
 	.pkt_to_tuple		= icmpv6_pkt_to_tuple,
 	.invert_tuple		= icmpv6_invert_tuple,
-	.print_tuple		= icmpv6_print_tuple,
 	.packet			= icmpv6_packet,
 	.get_timeouts		= icmpv6_get_timeouts,
 	.new			= icmpv6_new,

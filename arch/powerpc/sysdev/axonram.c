@@ -110,7 +110,7 @@ axon_ram_irq_handler(int irq, void *dev)
 static blk_qc_t
 axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 {
-	struct axon_ram_bank *bank = bio->bi_bdev->bd_disk->private_data;
+	struct axon_ram_bank *bank = bio->bi_disk->private_data;
 	unsigned long phys_mem, phys_end;
 	void *user_mem;
 	struct bio_vec vec;
@@ -184,19 +184,16 @@ static int axon_ram_probe(struct platform_device *device)
 	static int axon_ram_bank_id = -1;
 	struct axon_ram_bank *bank;
 	struct resource resource;
-	int rc = 0;
+	int rc;
 
 	axon_ram_bank_id++;
 
-	dev_info(&device->dev, "Found memory controller on %s\n",
-			device->dev.of_node->full_name);
+	dev_info(&device->dev, "Found memory controller on %pOF\n",
+			device->dev.of_node);
 
-	bank = kzalloc(sizeof(struct axon_ram_bank), GFP_KERNEL);
-	if (bank == NULL) {
-		dev_err(&device->dev, "Out of memory\n");
-		rc = -ENOMEM;
-		goto failed;
-	}
+	bank = kzalloc(sizeof(*bank), GFP_KERNEL);
+	if (!bank)
+		return -ENOMEM;
 
 	device->dev.platform_data = bank;
 
@@ -292,25 +289,22 @@ static int axon_ram_probe(struct platform_device *device)
 	return 0;
 
 failed:
-	if (bank != NULL) {
-		if (bank->irq_id)
-			free_irq(bank->irq_id, device);
-		if (bank->disk != NULL) {
-			if (bank->disk->major > 0)
-				unregister_blkdev(bank->disk->major,
-						bank->disk->disk_name);
-			if (bank->disk->flags & GENHD_FL_UP)
-				del_gendisk(bank->disk);
-			put_disk(bank->disk);
-		}
-		kill_dax(bank->dax_dev);
-		put_dax(bank->dax_dev);
-		device->dev.platform_data = NULL;
-		if (bank->io_addr != 0)
-			iounmap((void __iomem *) bank->io_addr);
-		kfree(bank);
+	if (bank->irq_id)
+		free_irq(bank->irq_id, device);
+	if (bank->disk != NULL) {
+		if (bank->disk->major > 0)
+			unregister_blkdev(bank->disk->major,
+					bank->disk->disk_name);
+		if (bank->disk->flags & GENHD_FL_UP)
+			del_gendisk(bank->disk);
+		put_disk(bank->disk);
 	}
-
+	kill_dax(bank->dax_dev);
+	put_dax(bank->dax_dev);
+	device->dev.platform_data = NULL;
+	if (bank->io_addr != 0)
+		iounmap((void __iomem *) bank->io_addr);
+	kfree(bank);
 	return rc;
 }
 

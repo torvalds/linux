@@ -186,16 +186,20 @@ static int igt_vma_create(void *arg)
 				goto end;
 		}
 
-		list_for_each_entry_safe(ctx, cn, &contexts, link)
+		list_for_each_entry_safe(ctx, cn, &contexts, link) {
+			list_del_init(&ctx->link);
 			mock_context_close(ctx);
+		}
 	}
 
 end:
 	/* Final pass to lookup all created contexts */
 	err = create_vmas(i915, &objects, &contexts);
 out:
-	list_for_each_entry_safe(ctx, cn, &contexts, link)
+	list_for_each_entry_safe(ctx, cn, &contexts, link) {
+		list_del_init(&ctx->link);
 		mock_context_close(ctx);
+	}
 
 	list_for_each_entry_safe(obj, on, &objects, st_link)
 		i915_gem_object_put(obj);

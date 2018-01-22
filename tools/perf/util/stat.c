@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
@@ -69,7 +70,7 @@ double rel_stddev_stats(double stddev, double avg)
 bool __perf_evsel_stat__is(struct perf_evsel *evsel,
 			   enum perf_stat_evsel_id id)
 {
-	struct perf_stat_evsel *ps = evsel->priv;
+	struct perf_stat_evsel *ps = evsel->stats;
 
 	return ps->id == id;
 }
@@ -93,7 +94,7 @@ static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
 
 void perf_stat_evsel_id_init(struct perf_evsel *evsel)
 {
-	struct perf_stat_evsel *ps = evsel->priv;
+	struct perf_stat_evsel *ps = evsel->stats;
 	int i;
 
 	/* ps->id is 0 hence PERF_STAT_EVSEL_ID__NONE by default */
@@ -109,7 +110,7 @@ void perf_stat_evsel_id_init(struct perf_evsel *evsel)
 static void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
 {
 	int i;
-	struct perf_stat_evsel *ps = evsel->priv;
+	struct perf_stat_evsel *ps = evsel->stats;
 
 	for (i = 0; i < 3; i++)
 		init_stats(&ps->res_stats[i]);
@@ -119,8 +120,8 @@ static void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
 
 static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
 {
-	evsel->priv = zalloc(sizeof(struct perf_stat_evsel));
-	if (evsel->priv == NULL)
+	evsel->stats = zalloc(sizeof(struct perf_stat_evsel));
+	if (evsel->stats == NULL)
 		return -ENOMEM;
 	perf_evsel__reset_stat_priv(evsel);
 	return 0;
@@ -128,7 +129,11 @@ static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
 
 static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
 {
-	zfree(&evsel->priv);
+	struct perf_stat_evsel *ps = evsel->stats;
+
+	if (ps)
+		free(ps->group_data);
+	zfree(&evsel->stats);
 }
 
 static int perf_evsel__alloc_prev_raw_counts(struct perf_evsel *evsel,
@@ -273,7 +278,9 @@ process_counter_values(struct perf_stat_config *config, struct perf_evsel *evsel
 			perf_evsel__compute_deltas(evsel, cpu, thread, count);
 		perf_counts_values__scale(count, config->scale, NULL);
 		if (config->aggr_mode == AGGR_NONE)
-			perf_stat__update_shadow_stats(evsel, count->values, cpu);
+			perf_stat__update_shadow_stats(evsel, count->val, cpu);
+		if (config->aggr_mode == AGGR_THREAD)
+			perf_stat__update_shadow_stats(evsel, count->val, 0);
 		break;
 	case AGGR_GLOBAL:
 		aggr->val += count->val;
@@ -314,9 +321,8 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 			      struct perf_evsel *counter)
 {
 	struct perf_counts_values *aggr = &counter->counts->aggr;
-	struct perf_stat_evsel *ps = counter->priv;
+	struct perf_stat_evsel *ps = counter->stats;
 	u64 *count = counter->counts->aggr.values;
-	u64 val;
 	int i, ret;
 
 	aggr->val = aggr->ena = aggr->run = 0;
@@ -356,8 +362,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	val = counter->scale * *count;
-	perf_stat__update_shadow_stats(counter, &val, 0);
+	perf_stat__update_shadow_stats(counter, *count, 0);
 
 	return 0;
 }

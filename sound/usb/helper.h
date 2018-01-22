@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __USBAUDIO_HELPER_H
 #define __USBAUDIO_HELPER_H
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/fsnotify_backend.h>
 #include <linux/path.h>
 #include <linux/slab.h>
@@ -21,7 +22,6 @@ struct fanotify_event_info {
 	struct pid *tgid;
 };
 
-#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 /*
  * Structure for permission fanotify events. It gets allocated and freed in
  * fanotify_handle_event() since we wait there for user response. When the
@@ -40,7 +40,12 @@ FANOTIFY_PE(struct fsnotify_event *fse)
 {
 	return container_of(fse, struct fanotify_perm_event_info, fae.fse);
 }
-#endif
+
+static inline bool fanotify_is_perm_event(u32 mask)
+{
+	return IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS) &&
+		mask & FAN_ALL_PERM_EVENTS;
+}
 
 static inline struct fanotify_event_info *FANOTIFY_E(struct fsnotify_event *fse)
 {

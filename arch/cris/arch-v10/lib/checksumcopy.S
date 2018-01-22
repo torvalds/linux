@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * A fast checksum+copy routine using movem
  * Copyright (c) 1998, 2001 Axis Communications AB

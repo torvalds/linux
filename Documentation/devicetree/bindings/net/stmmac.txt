@@ -12,7 +12,7 @@ Required properties:
 	Valid interrupt names are:
   - "macirq" (combined signal for various interrupt events)
   - "eth_wake_irq" (the interrupt to manage the remote wake-up packet detection)
-  - "eth_lpi" (the interrupt that occurs when Tx or Rx enters/exits LPI state)
+  - "eth_lpi" (the interrupt that occurs when Rx exits the LPI state)
 - phy-mode: See ethernet.txt file in the same directory.
 - snps,reset-gpio 	gpio number for phy reset.
 - snps,reset-active-low boolean flag to indicate if phy reset is active low.

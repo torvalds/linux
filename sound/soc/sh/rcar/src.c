@@ -27,7 +27,6 @@ struct rsnd_src {
 #define RSND_SRC_NAME_SIZE 16
 
 #define rsnd_src_get(priv, id) ((struct rsnd_src *)(priv->src) + id)
-#define rsnd_src_to_dma(src) ((src)->dma)
 #define rsnd_src_nr(priv) ((priv)->src_nr)
 #define rsnd_src_sync_is_enabled(mod) (rsnd_mod_to_src(mod)->sen.val)
 
@@ -108,7 +107,6 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 	int is_play = rsnd_io_is_play(io);
 
 	/*
-	 *
 	 * Playback
 	 * runtime_rate -> [SRC] -> convert_rate
 	 *
@@ -203,13 +201,13 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	use_src = (fin != fout) | rsnd_src_sync_is_enabled(mod);
 
 	/*
-	 *	SRC_ADINR
+	 * SRC_ADINR
 	 */
 	adinr = rsnd_get_adinr_bit(mod, io) |
 		rsnd_runtime_channel_original(io);
 
 	/*
-	 *	SRC_IFSCR / SRC_IFSVR
+	 * SRC_IFSCR / SRC_IFSVR
 	 */
 	ifscr = 0;
 	fsrate = 0;
@@ -223,7 +221,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	}
 
 	/*
-	 *	SRC_SRCCR / SRC_ROUTE_MODE0
+	 * SRC_SRCCR / SRC_ROUTE_MODE0
 	 */
 	cr	= 0x00011110;
 	route	= 0x0;
@@ -581,20 +579,24 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 		src->irq = irq_of_parse_and_map(np, 0);
 		if (!src->irq) {
 			ret = -EINVAL;
+			of_node_put(np);
 			goto rsnd_src_probe_done;
 		}
 
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
+			of_node_put(np);
 			goto rsnd_src_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(src),
 				    &rsnd_src_ops, clk, rsnd_mod_get_status,
 				    RSND_MOD_SRC, i);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			goto rsnd_src_probe_done;
+		}
 
 skip:
 		i++;

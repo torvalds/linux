@@ -210,12 +210,6 @@ static struct workqueue_struct *vhost_scsi_workqueue;
 static DEFINE_MUTEX(vhost_scsi_mutex);
 static LIST_HEAD(vhost_scsi_list);
 
-static int iov_num_pages(void __user *iov_base, size_t iov_len)
-{
-	return (PAGE_ALIGN((unsigned long)iov_base + iov_len) -
-	       ((unsigned long)iov_base & PAGE_MASK)) >> PAGE_SHIFT;
-}
-
 static void vhost_scsi_done_inflight(struct kref *kref)
 {
 	struct vhost_scsi_inflight *inflight;
@@ -519,7 +513,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 					vs_completion_work);
 	DECLARE_BITMAP(signal, VHOST_SCSI_MAX_VQ);
 	struct virtio_scsi_cmd_resp v_rsp;
-	struct vhost_scsi_cmd *cmd;
+	struct vhost_scsi_cmd *cmd, *t;
 	struct llist_node *llnode;
 	struct se_cmd *se_cmd;
 	struct iov_iter iov_iter;
@@ -527,7 +521,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 
 	bitmap_zero(signal, VHOST_SCSI_MAX_VQ);
 	llnode = llist_del_all(&vs->vs_completion_list);
-	llist_for_each_entry(cmd, llnode, tvc_completion_list) {
+	llist_for_each_entry_safe(cmd, t, llnode, tvc_completion_list) {
 		se_cmd = &cmd->tvc_se_cmd;
 
 		pr_debug("%s tv_cmd %p resid %u status %#02x\n", __func__,
@@ -618,48 +612,31 @@ vhost_scsi_get_tag(struct vhost_virtqueue *vq, struct vhost_scsi_tpg *tpg,
  */
 static int
 vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
-		      void __user *ptr,
-		      size_t len,
+		      struct iov_iter *iter,
 		      struct scatterlist *sgl,
 		      bool write)
 {
-	unsigned int npages = 0, offset, nbytes;
-	unsigned int pages_nr = iov_num_pages(ptr, len);
-	struct scatterlist *sg = sgl;
 	struct page **pages = cmd->tvc_upages;
-	int ret, i;
+	struct scatterlist *sg = sgl;
+	ssize_t bytes;
+	size_t offset;
+	unsigned int npages = 0;
 
-	if (pages_nr > VHOST_SCSI_PREALLOC_UPAGES) {
-		pr_err("vhost_scsi_map_to_sgl() pages_nr: %u greater than"
-		       " preallocated VHOST_SCSI_PREALLOC_UPAGES: %u\n",
-			pages_nr, VHOST_SCSI_PREALLOC_UPAGES);
-		return -ENOBUFS;
-	}
-
-	ret = get_user_pages_fast((unsigned long)ptr, pages_nr, write, pages);
+	bytes = iov_iter_get_pages(iter, pages, LONG_MAX,
+				VHOST_SCSI_PREALLOC_UPAGES, &offset);
 	/* No pages were pinned */
-	if (ret < 0)
-		goto out;
-	/* Less pages pinned than wanted */
-	if (ret != pages_nr) {
-		for (i = 0; i < ret; i++)
-			put_page(pages[i]);
-		ret = -EFAULT;
-		goto out;
-	}
+	if (bytes <= 0)
+		return bytes < 0 ? bytes : -EFAULT;
 
-	while (len > 0) {
-		offset = (uintptr_t)ptr & ~PAGE_MASK;
-		nbytes = min_t(unsigned int, PAGE_SIZE - offset, len);
-		sg_set_page(sg, pages[npages], nbytes, offset);
-		ptr += nbytes;
-		len -= nbytes;
-		sg++;
-		npages++;
-	}
+	iov_iter_advance(iter, bytes);
 
-out:
-	return ret;
+	while (bytes) {
+		unsigned n = min_t(unsigned, PAGE_SIZE - offset, bytes);
+		sg_set_page(sg++, pages[npages++], n, offset);
+		bytes -= n;
+		offset = 0;
+	}
+	return npages;
 }
 
 static int
@@ -687,24 +664,20 @@ vhost_scsi_iov_to_sgl(struct vhost_scsi_cmd *cmd, bool write,
 		      struct iov_iter *iter,
 		      struct scatterlist *sg, int sg_count)
 {
-	size_t off = iter->iov_offset;
-	int i, ret;
+	struct scatterlist *p = sg;
+	int ret;
 
-	for (i = 0; i < iter->nr_segs; i++) {
-		void __user *base = iter->iov[i].iov_base + off;
-		size_t len = iter->iov[i].iov_len - off;
-
-		ret = vhost_scsi_map_to_sgl(cmd, base, len, sg, write);
+	while (iov_iter_count(iter)) {
+		ret = vhost_scsi_map_to_sgl(cmd, iter, sg, write);
 		if (ret < 0) {
-			for (i = 0; i < sg_count; i++) {
-				struct page *page = sg_page(&sg[i]);
+			while (p < sg) {
+				struct page *page = sg_page(p++);
 				if (page)
 					put_page(page);
 			}
 			return ret;
 		}
 		sg += ret;
-		off = 0;
 	}
 	return 0;
 }
@@ -929,7 +902,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			continue;
 		}
 
-		tpg = ACCESS_ONCE(vs_tpg[*target]);
+		tpg = READ_ONCE(vs_tpg[*target]);
 		if (unlikely(!tpg)) {
 			/* Target does not exist, fail the request */
 			vhost_scsi_send_bad_target(vs, vq, head, out);

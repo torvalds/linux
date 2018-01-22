@@ -47,6 +47,7 @@
 #include <asm/mmu.h>
 #include <asm/paca.h>
 #include <asm/pgtable.h>
+#include <asm/powernv.h>
 #include <asm/iommu.h>
 #include <asm/btext.h>
 #include <asm/sections.h>
@@ -228,7 +229,7 @@ static void __init check_cpu_pa_features(unsigned long node)
 		      ibm_pa_features, ARRAY_SIZE(ibm_pa_features));
 }
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 static void __init init_mmu_slb_size(unsigned long node)
 {
 	const __be32 *slb_size_ptr;
@@ -658,6 +659,38 @@ static void __init early_reserve_mem(void)
 #endif
 }
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static bool tm_disabled __initdata;
+
+static int __init parse_ppc_tm(char *str)
+{
+	bool res;
+
+	if (kstrtobool(str, &res))
+		return -EINVAL;
+
+	tm_disabled = !res;
+
+	return 0;
+}
+early_param("ppc_tm", parse_ppc_tm);
+
+static void __init tm_init(void)
+{
+	if (tm_disabled) {
+		pr_info("Disabling hardware transactional memory (HTM)\n");
+		cur_cpu_spec->cpu_user_features2 &=
+			~(PPC_FEATURE2_HTM_NOSC | PPC_FEATURE2_HTM);
+		cur_cpu_spec->cpu_features &= ~CPU_FTR_TM;
+		return;
+	}
+
+	pnv_tm_init();
+}
+#else
+static void tm_init(void) { }
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+
 void __init early_init_devtree(void *params)
 {
 	phys_addr_t limit;
@@ -766,6 +799,8 @@ void __init early_init_devtree(void *params)
 	if (of_flat_dt_is_compatible(of_get_flat_dt_root(), "sony,ps3"))
 		powerpc_firmware_features |= FW_FEATURE_PS3_POSSIBLE;
 #endif
+
+	tm_init();
 
 	DBG(" <- early_init_devtree()\n");
 }

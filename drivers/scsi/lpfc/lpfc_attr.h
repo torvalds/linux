@@ -46,6 +46,16 @@ lpfc_param_store(name)\
 static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 		   lpfc_##name##_show, lpfc_##name##_store)
 
+#define LPFC_BBCR_ATTR_RW(name, defval, minval, maxval, desc) \
+static uint lpfc_##name = defval;\
+module_param(lpfc_##name, uint, 0444);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_param_show(name)\
+lpfc_param_init(name, defval, minval, maxval)\
+lpfc_param_store(name)\
+static DEVICE_ATTR(lpfc_##name, 0444 | 0644,\
+		   lpfc_##name##_show, lpfc_##name##_store)
+
 #define LPFC_ATTR_HEX_R(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
 module_param(lpfc_##name, uint, S_IRUGO);\

@@ -1315,7 +1315,7 @@ static int cit_set_sharpness(struct gspca_dev *gspca_dev, s32 val)
 		break;
 	case CIT_MODEL1: {
 		int i;
-		const unsigned short sa[] = {
+		static const unsigned short sa[] = {
 			0x11, 0x13, 0x16, 0x18, 0x1a, 0x8, 0x0a };
 
 		for (i = 0; i < cit_model1_ntries; i++)

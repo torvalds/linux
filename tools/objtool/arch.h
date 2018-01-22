@@ -31,8 +31,9 @@
 #define INSN_RETURN		6
 #define INSN_CONTEXT_SWITCH	7
 #define INSN_STACK		8
-#define INSN_NOP		9
-#define INSN_OTHER		10
+#define INSN_BUG		9
+#define INSN_NOP		10
+#define INSN_OTHER		11
 #define INSN_LAST		INSN_OTHER
 
 enum op_dest_type {

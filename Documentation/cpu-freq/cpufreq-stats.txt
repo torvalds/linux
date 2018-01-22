@@ -90,6 +90,9 @@ Freq_i to Freq_j. Freq_i is in descending order with increasing rows and
 Freq_j is in descending order with increasing columns. The output here also 
 contains the actual freq values for each row and column for better readability.
 
+If the transition table is bigger than PAGE_SIZE, reading this will
+return an -EFBIG error.
+
 --------------------------------------------------------------------------------
 <mysystem>:/sys/devices/system/cpu/cpu0/cpufreq/stats # cat trans_table
    From  :    To

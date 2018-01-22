@@ -461,7 +461,6 @@ static const struct iio_info ad7291_info = {
 	.write_event_config = &ad7291_write_event_config,
 	.read_event_value = &ad7291_read_event_value,
 	.write_event_value = &ad7291_write_event_value,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad7291_probe(struct i2c_client *client,

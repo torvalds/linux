@@ -192,6 +192,156 @@ const struct ath10k_hw_values qca4019_values = {
 	.ce_desc_meta_data_lsb          = 4,
 };
 
+const struct ath10k_hw_regs wcn3990_regs = {
+	.rtc_soc_base_address			= 0x00000000,
+	.rtc_wmac_base_address			= 0x00000000,
+	.soc_core_base_address			= 0x00000000,
+	.ce_wrapper_base_address		= 0x0024C000,
+	.ce0_base_address			= 0x00240000,
+	.ce1_base_address			= 0x00241000,
+	.ce2_base_address			= 0x00242000,
+	.ce3_base_address			= 0x00243000,
+	.ce4_base_address			= 0x00244000,
+	.ce5_base_address			= 0x00245000,
+	.ce6_base_address			= 0x00246000,
+	.ce7_base_address			= 0x00247000,
+	.ce8_base_address			= 0x00248000,
+	.ce9_base_address			= 0x00249000,
+	.ce10_base_address			= 0x0024A000,
+	.ce11_base_address			= 0x0024B000,
+	.soc_chip_id_address			= 0x000000f0,
+	.soc_reset_control_si0_rst_mask		= 0x00000001,
+	.soc_reset_control_ce_rst_mask		= 0x00000100,
+	.ce_wrap_intr_sum_host_msi_lsb		= 0x0000000c,
+	.ce_wrap_intr_sum_host_msi_mask		= 0x00fff000,
+	.pcie_intr_fw_mask			= 0x00100000,
+};
+
+static struct ath10k_hw_ce_regs_addr_map wcn3990_src_ring = {
+	.msb	= 0x00000010,
+	.lsb	= 0x00000010,
+	.mask	= GENMASK(17, 17),
+};
+
+static struct ath10k_hw_ce_regs_addr_map wcn3990_dst_ring = {
+	.msb	= 0x00000012,
+	.lsb	= 0x00000012,
+	.mask	= GENMASK(18, 18),
+};
+
+static struct ath10k_hw_ce_regs_addr_map wcn3990_dmax = {
+	.msb	= 0x00000000,
+	.lsb	= 0x00000000,
+	.mask	= GENMASK(15, 0),
+};
+
+static struct ath10k_hw_ce_ctrl1 wcn3990_ctrl1 = {
+	.addr		= 0x00000018,
+	.src_ring	= &wcn3990_src_ring,
+	.dst_ring	= &wcn3990_dst_ring,
+	.dmax		= &wcn3990_dmax,
+};
+
+static struct ath10k_hw_ce_regs_addr_map wcn3990_host_ie_cc = {
+	.mask	= GENMASK(0, 0),
+};
+
+static struct ath10k_hw_ce_host_ie wcn3990_host_ie = {
+	.copy_complete	= &wcn3990_host_ie_cc,
+};
+
+static struct ath10k_hw_ce_host_wm_regs wcn3990_wm_reg = {
+	.dstr_lmask	= 0x00000010,
+	.dstr_hmask	= 0x00000008,
+	.srcr_lmask	= 0x00000004,
+	.srcr_hmask	= 0x00000002,
+	.cc_mask	= 0x00000001,
+	.wm_mask	= 0x0000001E,
+	.addr		= 0x00000030,
+};
+
+static struct ath10k_hw_ce_misc_regs wcn3990_misc_reg = {
+	.axi_err	= 0x00000100,
+	.dstr_add_err	= 0x00000200,
+	.srcr_len_err	= 0x00000100,
+	.dstr_mlen_vio	= 0x00000080,
+	.dstr_overflow	= 0x00000040,
+	.srcr_overflow	= 0x00000020,
+	.err_mask	= 0x000003E0,
+	.addr		= 0x00000038,
+};
+
+static struct ath10k_hw_ce_regs_addr_map wcn3990_src_wm_low = {
+	.msb	= 0x00000000,
+	.lsb	= 0x00000010,
+	.mask	= GENMASK(31, 16),
+};
+
+static struct ath10k_hw_ce_regs_addr_map wcn3990_src_wm_high = {
+	.msb	= 0x0000000f,
+	.lsb	= 0x00000000,
+	.mask	= GENMASK(15, 0),
+};
+
+static struct ath10k_hw_ce_dst_src_wm_regs wcn3990_wm_src_ring = {
+	.addr		= 0x0000004c,
+	.low_rst	= 0x00000000,
+	.high_rst	= 0x00000000,
+	.wm_low		= &wcn3990_src_wm_low,
+	.wm_high	= &wcn3990_src_wm_high,
+};
+
+static struct ath10k_hw_ce_regs_addr_map wcn3990_dst_wm_low = {
+	.lsb	= 0x00000010,
+	.mask	= GENMASK(31, 16),
+};
+
+static struct ath10k_hw_ce_regs_addr_map wcn3990_dst_wm_high = {
+	.msb	= 0x0000000f,
+	.lsb	= 0x00000000,
+	.mask	= GENMASK(15, 0),
+};
+
+static struct ath10k_hw_ce_dst_src_wm_regs wcn3990_wm_dst_ring = {
+	.addr		= 0x00000050,
+	.low_rst	= 0x00000000,
+	.high_rst	= 0x00000000,
+	.wm_low		= &wcn3990_dst_wm_low,
+	.wm_high	= &wcn3990_dst_wm_high,
+};
+
+const struct ath10k_hw_ce_regs wcn3990_ce_regs = {
+	.sr_base_addr		= 0x00000000,
+	.sr_size_addr		= 0x00000008,
+	.dr_base_addr		= 0x0000000c,
+	.dr_size_addr		= 0x00000014,
+	.misc_ie_addr		= 0x00000034,
+	.sr_wr_index_addr	= 0x0000003c,
+	.dst_wr_index_addr	= 0x00000040,
+	.current_srri_addr	= 0x00000044,
+	.current_drri_addr	= 0x00000048,
+	.ddr_addr_for_rri_low	= 0x00000004,
+	.ddr_addr_for_rri_high	= 0x00000008,
+	.ce_rri_low		= 0x0024C004,
+	.ce_rri_high		= 0x0024C008,
+	.host_ie_addr		= 0x0000002c,
+	.ctrl1_regs		= &wcn3990_ctrl1,
+	.host_ie		= &wcn3990_host_ie,
+	.wm_regs		= &wcn3990_wm_reg,
+	.misc_regs		= &wcn3990_misc_reg,
+	.wm_srcr		= &wcn3990_wm_src_ring,
+	.wm_dstr		= &wcn3990_wm_dst_ring,
+};
+
+const struct ath10k_hw_values wcn3990_values = {
+	.rtc_state_val_on		= 5,
+	.ce_count			= 12,
+	.msi_assign_ce_max		= 12,
+	.num_target_ce_config_wlan	= 12,
+	.ce_desc_meta_data_mask		= 0xFFF0,
+	.ce_desc_meta_data_lsb		= 4,
+};
+
 static struct ath10k_hw_ce_regs_addr_map qcax_src_ring = {
 	.msb	= 0x00000010,
 	.lsb	= 0x00000010,
@@ -307,7 +457,7 @@ static struct ath10k_hw_ce_dst_src_wm_regs qcax_wm_dst_ring = {
 	.wm_high	= &qcax_dst_wm_high,
 };
 
-struct ath10k_hw_ce_regs qcax_ce_regs = {
+const struct ath10k_hw_ce_regs qcax_ce_regs = {
 	.sr_base_addr		= 0x00000000,
 	.sr_size_addr		= 0x00000004,
 	.dr_base_addr		= 0x00000008,
@@ -454,8 +604,13 @@ static void ath10k_hw_qca988x_set_coverage_class(struct ath10k *ar,
 
 	/* Only modify registers if the core is started. */
 	if ((ar->state != ATH10K_STATE_ON) &&
-	    (ar->state != ATH10K_STATE_RESTARTED))
+	    (ar->state != ATH10K_STATE_RESTARTED)) {
+		spin_lock_bh(&ar->data_lock);
+		/* Store config value for when radio boots up */
+		ar->fw_coverage.coverage_class = value;
+		spin_unlock_bh(&ar->data_lock);
 		goto unlock;
+	}
 
 	/* Retrieve the current values of the two registers that need to be
 	 * adjusted.
@@ -487,7 +642,7 @@ static void ath10k_hw_qca988x_set_coverage_class(struct ath10k *ar,
 		ar->fw_coverage.reg_ack_cts_timeout_orig = timeout_reg;
 	ar->fw_coverage.reg_phyclk = phyclk_reg;
 
-	/* Calculat new value based on the (original) firmware calculation. */
+	/* Calculate new value based on the (original) firmware calculation. */
 	slottime_reg = ar->fw_coverage.reg_slottime_orig;
 	timeout_reg = ar->fw_coverage.reg_ack_cts_timeout_orig;
 

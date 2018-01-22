@@ -104,6 +104,7 @@
 #define HPTE_R_C		ASM_CONST(0x0000000000000080)
 #define HPTE_R_R		ASM_CONST(0x0000000000000100)
 #define HPTE_R_KEY_LO		ASM_CONST(0x0000000000000e00)
+#define HPTE_R_KEY		(HPTE_R_KEY_LO | HPTE_R_KEY_HI)
 
 #define HPTE_V_1TB_SEG		ASM_CONST(0x4000000000000000)
 #define HPTE_V_VRMA_MASK	ASM_CONST(0x4001ffffff000000)
@@ -468,7 +469,7 @@ extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     int psize, int ssize);
 int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 			int psize, int ssize);
-extern void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
+extern void pseries_add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
 #ifdef CONFIG_PPC_PSERIES
@@ -605,7 +606,7 @@ extern void slb_set_size(u16 size);
 
 /* 4 bits per slice and we have one slice per 1TB */
 #define SLICE_ARRAY_SIZE	(H_PGTABLE_RANGE >> 41)
-#define TASK_SLICE_ARRAY_SZ(x)	((x)->context.addr_limit >> 41)
+#define TASK_SLICE_ARRAY_SZ(x)	((x)->context.slb_addr_limit >> 41)
 
 #ifndef __ASSEMBLY__
 

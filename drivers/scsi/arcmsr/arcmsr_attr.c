@@ -190,7 +190,7 @@ static ssize_t arcmsr_sysfs_iop_message_clear(struct file *filp,
 	return 1;
 }
 
-static struct bin_attribute arcmsr_sysfs_message_read_attr = {
+static const struct bin_attribute arcmsr_sysfs_message_read_attr = {
 	.attr = {
 		.name = "mu_read",
 		.mode = S_IRUSR ,
@@ -199,7 +199,7 @@ static struct bin_attribute arcmsr_sysfs_message_read_attr = {
 	.read = arcmsr_sysfs_iop_message_read,
 };
 
-static struct bin_attribute arcmsr_sysfs_message_write_attr = {
+static const struct bin_attribute arcmsr_sysfs_message_write_attr = {
 	.attr = {
 		.name = "mu_write",
 		.mode = S_IWUSR,
@@ -208,7 +208,7 @@ static struct bin_attribute arcmsr_sysfs_message_write_attr = {
 	.write = arcmsr_sysfs_iop_message_write,
 };
 
-static struct bin_attribute arcmsr_sysfs_message_clear_attr = {
+static const struct bin_attribute arcmsr_sysfs_message_clear_attr = {
 	.attr = {
 		.name = "mu_clear",
 		.mode = S_IWUSR,

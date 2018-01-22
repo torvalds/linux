@@ -4,7 +4,7 @@ config HVC_DRIVER
 	bool
 	help
 	  Generic "hypervisor virtual console" infrastructure for various
-	  hypervisors (pSeries, iSeries, Xen, lguest).
+	  hypervisors (pSeries, iSeries, Xen).
 	  It will automatically be selected if one of the back-end console drivers
 	  is selected.
 

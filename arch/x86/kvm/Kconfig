@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # KVM configuration
 #
@@ -23,6 +24,7 @@ config KVM
 	depends on HIGH_RES_TIMERS
 	# for TASKSTATS/TASK_DELAY_ACCT:
 	depends on NET && MULTIUSER
+	depends on X86_LOCAL_APIC
 	select PREEMPT_NOTIFIERS
 	select MMU_NOTIFIER
 	select ANON_INODES
@@ -89,6 +91,5 @@ config KVM_MMU_AUDIT
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
 source drivers/vhost/Kconfig
-source drivers/lguest/Kconfig
 
 endif # VIRTUALIZATION

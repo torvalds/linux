@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * IDT Winchip specific Machine Check Exception Reporting
  * (C) Copyright 2002 Alan Cox <alan@lxorguk.ukuu.org.uk>

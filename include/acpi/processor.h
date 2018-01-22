@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ACPI_PROCESSOR_H
 #define __ACPI_PROCESSOR_H
 

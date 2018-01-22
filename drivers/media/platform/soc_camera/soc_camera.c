@@ -820,7 +820,7 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 	return res;
 }
 
-static struct v4l2_file_operations soc_camera_fops = {
+static const struct v4l2_file_operations soc_camera_fops = {
 	.owner		= THIS_MODULE,
 	.open		= soc_camera_open,
 	.release	= soc_camera_close,
@@ -1391,6 +1391,12 @@ static int soc_camera_async_complete(struct v4l2_async_notifier *notifier)
 	return 0;
 }
 
+static const struct v4l2_async_notifier_operations soc_camera_async_ops = {
+	.bound = soc_camera_async_bound,
+	.unbind = soc_camera_async_unbind,
+	.complete = soc_camera_async_complete,
+};
+
 static int scan_async_group(struct soc_camera_host *ici,
 			    struct v4l2_async_subdev **asd, unsigned int size)
 {
@@ -1437,9 +1443,7 @@ static int scan_async_group(struct soc_camera_host *ici,
 
 	sasc->notifier.subdevs = asd;
 	sasc->notifier.num_subdevs = size;
-	sasc->notifier.bound = soc_camera_async_bound;
-	sasc->notifier.unbind = soc_camera_async_unbind;
-	sasc->notifier.complete = soc_camera_async_complete;
+	sasc->notifier.ops = &soc_camera_async_ops;
 
 	icd->sasc = sasc;
 	icd->parent = ici->v4l2_dev.dev;
@@ -1537,9 +1541,7 @@ static int soc_of_bind(struct soc_camera_host *ici,
 
 	sasc->notifier.subdevs = &info->subdev;
 	sasc->notifier.num_subdevs = 1;
-	sasc->notifier.bound = soc_camera_async_bound;
-	sasc->notifier.unbind = soc_camera_async_unbind;
-	sasc->notifier.complete = soc_camera_async_complete;
+	sasc->notifier.ops = &soc_camera_async_ops;
 
 	icd->sasc = sasc;
 	icd->parent = ici->v4l2_dev.dev;
@@ -1550,8 +1552,7 @@ static int soc_of_bind(struct soc_camera_host *ici,
 		v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
 				  client->adapter->nr, client->addr);
 	else
-		v4l2_clk_name_of(clk_name, sizeof(clk_name),
-				 of_node_full_name(remote));
+		v4l2_clk_name_of(clk_name, sizeof(clk_name), remote);
 
 	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, icd);
 	if (IS_ERR(icd->clk)) {
@@ -1590,8 +1591,7 @@ static void scan_of_host(struct soc_camera_host *ici)
 
 		ren = of_graph_get_remote_port(epn);
 		if (!ren) {
-			dev_notice(dev, "no remote for %s\n",
-				   of_node_full_name(epn));
+			dev_notice(dev, "no remote for %pOF\n", epn);
 			continue;
 		}
 

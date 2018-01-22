@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/capability.h>
 
 #define COMMON_FILE_SOCK_PERMS "ioctl", "read", "write", "create", \
@@ -48,6 +49,8 @@ struct security_class_mapping secclass_map[] = {
 	    "setrlimit", "rlimitinh", "dyntransition", "setcurrent",
 	    "execmem", "execstack", "execheap", "setkeycreate",
 	    "setsockcreate", "getrlimit", NULL } },
+	{ "process2",
+	  { "nnp_transition", "nosuid_transition", NULL } },
 	{ "system",
 	  { "ipc_info", "syslog_read", "syslog_mod",
 	    "syslog_console", "module_request", "module_load", NULL } },
@@ -235,6 +238,8 @@ struct security_class_mapping secclass_map[] = {
 	  { "access", NULL } },
 	{ "infiniband_endport",
 	  { "manage_subnet", NULL } },
+	{ "bpf",
+	  {"map_create", "map_read", "map_write", "prog_load", "prog_run"} },
 	{ NULL }
   };
 

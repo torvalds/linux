@@ -11,7 +11,7 @@
 #include "r8a7795.dtsi"
 
 &soc {
-	xhci1: usb@ee0400000 {
+	xhci1: usb@ee040000 {
 		compatible = "renesas,xhci-r8a7795", "renesas,rcar-gen3-xhci";
 		reg = <0 0xee040000 0 0xc00>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -20,6 +20,14 @@
 		resets = <&cpg 327>;
 		status = "disabled";
 	};
+
+	/delete-node/ usb-phy@ee0e0200;
+	/delete-node/ usb@ee0e0100;
+	/delete-node/ usb@ee0e0000;
+	/delete-node/ usb@e659c000;
+
+	/delete-node/ dma-controller@e6460000;
+	/delete-node/ dma-controller@e6470000;
 
 	fcpf2: fcp@fe952000 {
 		compatible = "renesas,fcpf";
@@ -79,6 +87,5 @@
 };
 
 &du {
-	compatible = "renesas,du-r8a7795";
 	vsps = <&vspd0 &vspd1 &vspd2 &vspd3>;
 };

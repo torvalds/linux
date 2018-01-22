@@ -68,7 +68,7 @@
 #define GEM_MAX_TX_LEN		((unsigned int)((1 << GEM_TX_FRMLEN_SIZE) - 1) & ~((unsigned int)(MACB_TX_LEN_ALIGN - 1)))
 
 #define GEM_MTU_MIN_SIZE	ETH_MIN_MTU
-#define MACB_NETIF_LSO		(NETIF_F_TSO | NETIF_F_UFO)
+#define MACB_NETIF_LSO		NETIF_F_TSO
 
 #define MACB_WOL_HAS_MAGIC_PACKET	(0x1 << 0)
 #define MACB_WOL_ENABLED		(0x1 << 1)
@@ -611,6 +611,9 @@ static int macb_mii_init(struct macb *bp)
 err_out_unregister_bus:
 	mdiobus_unregister(bp->mii_bus);
 err_out_free_mdiobus:
+	of_node_put(bp->phy_node);
+	if (np && of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
 	mdiobus_free(bp->mii_bus);
 err_out:
 	return err;
@@ -1217,8 +1220,6 @@ static int macb_poll(struct napi_struct *napi, int budget)
 
 	status = macb_readl(bp, RSR);
 	macb_writel(bp, RSR, status);
-
-	work_done = 0;
 
 	netdev_vdbg(bp->dev, "poll: status = %08lx, budget = %d\n",
 		    (unsigned long)status, budget);
@@ -3552,6 +3553,9 @@ static int macb_probe(struct platform_device *pdev)
 err_out_unregister_mdio:
 	phy_disconnect(dev->phydev);
 	mdiobus_unregister(bp->mii_bus);
+	of_node_put(bp->phy_node);
+	if (np && of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
 	mdiobus_free(bp->mii_bus);
 
 	/* Shutdown the PHY if there is a GPIO reset */
@@ -3574,6 +3578,7 @@ static int macb_remove(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct macb *bp;
+	struct device_node *np = pdev->dev.of_node;
 
 	dev = platform_get_drvdata(pdev);
 
@@ -3582,6 +3587,8 @@ static int macb_remove(struct platform_device *pdev)
 		if (dev->phydev)
 			phy_disconnect(dev->phydev);
 		mdiobus_unregister(bp->mii_bus);
+		if (np && of_phy_is_fixed_link(np))
+			of_phy_deregister_fixed_link(np);
 		dev->phydev = NULL;
 		mdiobus_free(bp->mii_bus);
 

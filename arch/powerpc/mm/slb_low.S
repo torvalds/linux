@@ -121,12 +121,25 @@ slb_miss_kernel_load_vmemmap:
 1:
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-	/* vmalloc mapping gets the encoding from the PACA as the mapping
-	 * can be demoted from 64K -> 4K dynamically on some machines
+	/*
+	 * r10 contains the ESID, which is the original faulting EA shifted
+	 * right by 28 bits. We need to compare that with (H_VMALLOC_END >> 28)
+	 * which is 0xd00038000. That can't be used as an immediate, even if we
+	 * ignored the 0xd, so we have to load it into a register, and we only
+	 * have one register free. So we must load all of (H_VMALLOC_END >> 28)
+	 * into a register and compare ESID against that.
 	 */
-	clrldi	r11,r10,48
-	cmpldi	r11,(H_VMALLOC_SIZE >> 28) - 1
-	bgt	5f
+	lis	r11,(H_VMALLOC_END >> 32)@h	// r11 = 0xffffffffd0000000
+	ori	r11,r11,(H_VMALLOC_END >> 32)@l	// r11 = 0xffffffffd0003800
+	// Rotate left 4, then mask with 0xffffffff0
+	rldic	r11,r11,4,28			// r11 = 0xd00038000
+	cmpld	r10,r11				// if r10 >= r11
+	bge	5f				//   goto io_mapping
+
+	/*
+	 * vmalloc mapping gets the encoding from the PACA as the mapping
+	 * can be demoted from 64K -> 4K dynamically on some machines.
+	 */
 	lhz	r11,PACAVMALLOCSLLP(r13)
 	b	6f
 5:
@@ -154,7 +167,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
         /*
          * user space make sure we are within the allowed limit
 	 */
-	ld	r11,PACA_ADDR_LIMIT(r13)
+	ld	r11,PACA_SLB_ADDR_LIMIT(r13)
 	cmpld	r3,r11
 	bge-	8f
 
@@ -296,10 +309,6 @@ slb_compare_rr_to_size:
 	srdi	r10,r10,(SID_SHIFT_1T - SID_SHIFT)	/* get 1T ESID */
 	rldimi  r10,r9,ESID_BITS_1T,0
 	ASM_VSID_SCRAMBLE(r10,r9,r11,1T)
-	/*
-	 * bits above VSID_BITS_1T need to be ignored from r10
-	 * also combine VSID and flags
-	 */
 
 	li	r10,MMU_SEGSIZE_1T
 	rldimi	r11,r10,SLB_VSID_SSIZE_SHIFT,0	/* insert segment size */

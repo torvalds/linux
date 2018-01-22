@@ -55,7 +55,7 @@ MODULE_AUTHOR("Jaime Velasco Juan <jsagarribay@gmail.com> and Nicolas VIVIEN");
 MODULE_DESCRIPTION("Syntek DC1125 webcam driver");
 
 /* Some cameras have audio interfaces, we aren't interested in those */
-static struct usb_device_id stkwebcam_table[] = {
+static const struct usb_device_id stkwebcam_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x174f, 0xa311, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x05e1, 0x0501, 0xff, 0xff, 0xff) },
 	{ }
@@ -1202,7 +1202,7 @@ static const struct v4l2_ctrl_ops stk_ctrl_ops = {
 	.s_ctrl = stk_s_ctrl,
 };
 
-static struct v4l2_file_operations v4l_stk_fops = {
+static const struct v4l2_file_operations v4l_stk_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l_stk_open,
 	.release = v4l_stk_release,
@@ -1244,7 +1244,7 @@ static void stk_v4l_dev_release(struct video_device *vd)
 	kfree(dev);
 }
 
-static struct video_device stk_v4l_data = {
+static const struct video_device stk_v4l_data = {
 	.name = "stkwebcam",
 	.fops = &v4l_stk_fops,
 	.ioctl_ops = &v4l_stk_ioctl_ops,

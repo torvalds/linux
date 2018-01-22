@@ -704,11 +704,17 @@ static int omap3xxx_prm_late_init(void)
 			omap3430_pre_es3_1_reconfigure_io_chain;
 
 	np = of_find_matching_node(NULL, omap3_prm_dt_match_table);
-	if (np) {
-		irq_num = of_irq_get(np, 0);
-		if (irq_num >= 0)
-			omap3_prcm_irq_setup.irq = irq_num;
+	if (!np) {
+		pr_err("PRM: no device tree node for interrupt?\n");
+
+		return -ENODEV;
 	}
+
+	irq_num = of_irq_get(np, 0);
+	if (irq_num == -EPROBE_DEFER)
+		return irq_num;
+
+	omap3_prcm_irq_setup.irq = irq_num;
 
 	omap3xxx_prm_enable_io_wakeup();
 

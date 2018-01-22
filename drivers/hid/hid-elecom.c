@@ -3,6 +3,7 @@
  *  Copyright (c) 2010 Richard Nauber <Richard.Nauber@gmail.com>
  *  Copyright (c) 2016 Yuxuan Shui <yshuiv7@gmail.com>
  *  Copyright (c) 2017 Diego Elio Pettenò <flameeyes@flameeyes.eu>
+ *  Copyright (c) 2017 Alex Manoussakis <amanou@gnu.org>
  */
 
 /*
@@ -32,9 +33,11 @@ static __u8 *elecom_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		break;
 	case USB_DEVICE_ID_ELECOM_DEFT_WIRED:
 	case USB_DEVICE_ID_ELECOM_DEFT_WIRELESS:
-		/* The DEFT trackball has eight buttons, but its descriptor only
-		 * reports five, disabling the three Fn buttons on the top of
-		 * the mouse.
+	case USB_DEVICE_ID_ELECOM_HUGE_WIRED:
+	case USB_DEVICE_ID_ELECOM_HUGE_WIRELESS:
+		/* The DEFT/HUGE trackball has eight buttons, but its descriptor
+		 * only reports five, disabling the three Fn buttons on the top
+		 * of the mouse.
 		 *
 		 * Apply the following diff to the descriptor:
 		 *
@@ -62,7 +65,7 @@ static __u8 *elecom_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		 * End Collection,                     End Collection,
 		 */
 		if (*rsize == 213 && rdesc[13] == 5 && rdesc[21] == 5) {
-			hid_info(hdev, "Fixing up Elecom DEFT Fn buttons\n");
+			hid_info(hdev, "Fixing up Elecom DEFT/HUGE Fn buttons\n");
 			rdesc[13] = 8; /* Button/Variable Report Count */
 			rdesc[21] = 8; /* Button/Variable Usage Maximum */
 			rdesc[29] = 0; /* Button/Constant Report Count */
@@ -76,6 +79,8 @@ static const struct hid_device_id elecom_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_ELECOM, USB_DEVICE_ID_ELECOM_BM084) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ELECOM, USB_DEVICE_ID_ELECOM_DEFT_WIRED) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ELECOM, USB_DEVICE_ID_ELECOM_DEFT_WIRELESS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ELECOM, USB_DEVICE_ID_ELECOM_HUGE_WIRED) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ELECOM, USB_DEVICE_ID_ELECOM_HUGE_WIRELESS) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, elecom_devices);

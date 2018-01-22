@@ -186,7 +186,6 @@ static int bma220_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info bma220_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= bma220_read_raw,
 	.write_raw		= bma220_write_raw,
 	.attrs			= &bma220_attribute_group,

@@ -48,7 +48,7 @@ static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
 	for (i = 0; i < cfg->num_clks; i++) {
 		struct clk *clk;
 
-		clk = devm_clk_get(dev, cfg->clk_names[i]);
+		clk = msm_clk_get(phy->pdev, cfg->clk_names[i]);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
 			dev_err(dev, "failed to get phy clock: %s (%d)\n",

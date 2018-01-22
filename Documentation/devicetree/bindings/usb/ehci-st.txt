@@ -22,7 +22,7 @@ See: Documentation/devicetree/bindings/reset/reset.txt
 
 Example:
 
-	ehci1: usb@0xfe203e00 {
+	ehci1: usb@fe203e00 {
 		compatible = "st,st-ehci-300x";
 		reg = <0xfe203e00 0x100>;
 		interrupts = <GIC_SPI 148 IRQ_TYPE_NONE>;
@@ -31,7 +31,6 @@ Example:
 		clocks = <&clk_s_a1_ls 0>;
 		phys = <&usb2_phy>;
 		phy-names = "usb";
-		status = "okay";
 
 		resets = <&powerdown STIH416_USB1_POWERDOWN>,
 			 <&softreset STIH416_USB1_SOFTRESET>;

@@ -143,15 +143,6 @@ struct fscache_cookie_def {
 	void (*mark_page_cached)(void *cookie_netfs_data,
 				 struct address_space *mapping,
 				 struct page *page);
-
-	/* indicate the cookie is no longer cached
-	 * - this function is called when the backing store currently caching
-	 *   a cookie is removed
-	 * - the netfs should use this to clean up any markers indicating
-	 *   cached pages
-	 * - this is mandatory for any object that may have data
-	 */
-	void (*now_uncached)(void *cookie_netfs_data);
 };
 
 /*
@@ -764,7 +755,7 @@ bool fscache_maybe_release_page(struct fscache_cookie *cookie,
 {
 	if (fscache_cookie_valid(cookie) && PageFsCache(page))
 		return __fscache_maybe_release_page(cookie, page, gfp);
-	return false;
+	return true;
 }
 
 /**

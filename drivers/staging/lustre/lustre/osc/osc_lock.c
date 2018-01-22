@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -37,9 +38,9 @@
 
 #define DEBUG_SUBSYSTEM S_OSC
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 /* fid_build_reg_res_name() */
-#include "../include/lustre_fid.h"
+#include <lustre_fid.h>
 
 #include "osc_cl_internal.h"
 

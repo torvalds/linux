@@ -130,15 +130,7 @@ static struct netdev_queue *mq_queue_get(struct Qdisc *sch, unsigned long cl)
 static struct netdev_queue *mq_select_queue(struct Qdisc *sch,
 					    struct tcmsg *tcm)
 {
-	unsigned int ntx = TC_H_MIN(tcm->tcm_parent);
-	struct netdev_queue *dev_queue = mq_queue_get(sch, ntx);
-
-	if (!dev_queue) {
-		struct net_device *dev = qdisc_dev(sch);
-
-		return netdev_get_tx_queue(dev, 0);
-	}
-	return dev_queue;
+	return mq_queue_get(sch, TC_H_MIN(tcm->tcm_parent));
 }
 
 static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
@@ -165,17 +157,13 @@ static struct Qdisc *mq_leaf(struct Qdisc *sch, unsigned long cl)
 	return dev_queue->qdisc_sleeping;
 }
 
-static unsigned long mq_get(struct Qdisc *sch, u32 classid)
+static unsigned long mq_find(struct Qdisc *sch, u32 classid)
 {
 	unsigned int ntx = TC_H_MIN(classid);
 
 	if (!mq_queue_get(sch, ntx))
 		return 0;
 	return ntx;
-}
-
-static void mq_put(struct Qdisc *sch, unsigned long cl)
-{
 }
 
 static int mq_dump_class(struct Qdisc *sch, unsigned long cl,
@@ -223,8 +211,7 @@ static const struct Qdisc_class_ops mq_class_ops = {
 	.select_queue	= mq_select_queue,
 	.graft		= mq_graft,
 	.leaf		= mq_leaf,
-	.get		= mq_get,
-	.put		= mq_put,
+	.find		= mq_find,
 	.walk		= mq_walk,
 	.dump		= mq_dump_class,
 	.dump_stats	= mq_dump_class_stats,

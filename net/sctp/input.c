@@ -399,20 +399,24 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 		return;
 	}
 
-	if (t->param_flags & SPP_PMTUD_ENABLE) {
-		/* Update transports view of the MTU */
-		sctp_transport_update_pmtu(t, pmtu);
+	if (!(t->param_flags & SPP_PMTUD_ENABLE))
+		/* We can't allow retransmitting in such case, as the
+		 * retransmission would be sized just as before, and thus we
+		 * would get another icmp, and retransmit again.
+		 */
+		return;
 
-		/* Update association pmtu. */
-		sctp_assoc_sync_pmtu(asoc);
-	}
-
-	/* Retransmit with the new pmtu setting.
-	 * Normally, if PMTU discovery is disabled, an ICMP Fragmentation
-	 * Needed will never be sent, but if a message was sent before
-	 * PMTU discovery was disabled that was larger than the PMTU, it
-	 * would not be fragmented, so it must be re-transmitted fragmented.
+	/* Update transports view of the MTU. Return if no update was needed.
+	 * If an update wasn't needed/possible, it also doesn't make sense to
+	 * try to retransmit now.
 	 */
+	if (!sctp_transport_update_pmtu(t, pmtu))
+		return;
+
+	/* Update association pmtu. */
+	sctp_assoc_sync_pmtu(asoc);
+
+	/* Retransmit with the new pmtu setting. */
 	sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
 }
 
@@ -421,7 +425,7 @@ void sctp_icmp_redirect(struct sock *sk, struct sctp_transport *t,
 {
 	struct dst_entry *dst;
 
-	if (!t)
+	if (sock_owned_by_user(sk) || !t)
 		return;
 	dst = sctp_transport_dst_check(t);
 	if (dst)
@@ -794,7 +798,7 @@ hit:
 struct sctp_hash_cmp_arg {
 	const union sctp_addr	*paddr;
 	const struct net	*net;
-	u16			lport;
+	__be16			lport;
 };
 
 static inline int sctp_hash_cmp(struct rhashtable_compare_arg *arg,
@@ -820,37 +824,37 @@ out:
 	return err;
 }
 
-static inline u32 sctp_hash_obj(const void *data, u32 len, u32 seed)
+static inline __u32 sctp_hash_obj(const void *data, u32 len, u32 seed)
 {
 	const struct sctp_transport *t = data;
 	const union sctp_addr *paddr = &t->ipaddr;
 	const struct net *net = sock_net(t->asoc->base.sk);
-	u16 lport = htons(t->asoc->base.bind_addr.port);
-	u32 addr;
+	__be16 lport = htons(t->asoc->base.bind_addr.port);
+	__u32 addr;
 
 	if (paddr->sa.sa_family == AF_INET6)
 		addr = jhash(&paddr->v6.sin6_addr, 16, seed);
 	else
-		addr = paddr->v4.sin_addr.s_addr;
+		addr = (__force __u32)paddr->v4.sin_addr.s_addr;
 
-	return  jhash_3words(addr, ((__u32)paddr->v4.sin_port) << 16 |
+	return  jhash_3words(addr, ((__force __u32)paddr->v4.sin_port) << 16 |
 			     (__force __u32)lport, net_hash_mix(net), seed);
 }
 
-static inline u32 sctp_hash_key(const void *data, u32 len, u32 seed)
+static inline __u32 sctp_hash_key(const void *data, u32 len, u32 seed)
 {
 	const struct sctp_hash_cmp_arg *x = data;
 	const union sctp_addr *paddr = x->paddr;
 	const struct net *net = x->net;
-	u16 lport = x->lport;
-	u32 addr;
+	__be16 lport = x->lport;
+	__u32 addr;
 
 	if (paddr->sa.sa_family == AF_INET6)
 		addr = jhash(&paddr->v6.sin6_addr, 16, seed);
 	else
-		addr = paddr->v4.sin_addr.s_addr;
+		addr = (__force __u32)paddr->v4.sin_addr.s_addr;
 
-	return  jhash_3words(addr, ((__u32)paddr->v4.sin_port) << 16 |
+	return  jhash_3words(addr, ((__force __u32)paddr->v4.sin_port) << 16 |
 			     (__force __u32)lport, net_hash_mix(net), seed);
 }
 
@@ -1111,7 +1115,7 @@ static struct sctp_association *__sctp_rcv_asconf_lookup(
 					__be16 peer_port,
 					struct sctp_transport **transportp)
 {
-	sctp_addip_chunk_t *asconf = (struct sctp_addip_chunk *)ch;
+	struct sctp_addip_chunk *asconf = (struct sctp_addip_chunk *)ch;
 	struct sctp_af *af;
 	union sctp_addr_param *param;
 	union sctp_addr paddr;

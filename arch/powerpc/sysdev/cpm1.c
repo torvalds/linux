@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * General Purpose functions for the global management of the
  * Communication Processor Module.

@@ -60,10 +60,10 @@ static struct rc_map_table pixelview_new[] = {
 
 static struct rc_map_list pixelview_new_map = {
 	.map = {
-		.scan    = pixelview_new,
-		.size    = ARRAY_SIZE(pixelview_new),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_PIXELVIEW_NEW,
+		.scan     = pixelview_new,
+		.size     = ARRAY_SIZE(pixelview_new),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_PIXELVIEW_NEW,
 	}
 };
 

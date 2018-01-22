@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Core
 obj-y					+= pinctrl-sunxi.o
 

@@ -19,7 +19,7 @@ Optional properties:
 
 Example:
 
-ak8974@0f {
+ak8974@f {
 	compatible = "asahi-kasei,ak8974";
 	reg = <0x0f>;
 	avdd-supply = <&foo_reg>;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * CAAM/SEC 4.x functions for using scatterlists in caam driver
  *
@@ -5,7 +6,13 @@
  *
  */
 
+#ifndef _SG_SW_SEC4_H_
+#define _SG_SW_SEC4_H_
+
+#include "ctrl.h"
 #include "regs.h"
+#include "sg_sw_qm2.h"
+#include "../../../drivers/staging/fsl-mc/include/dpaa2-fd.h"
 
 struct sec4_sg_entry {
 	u64 ptr;
@@ -19,9 +26,15 @@ struct sec4_sg_entry {
 static inline void dma_to_sec4_sg_one(struct sec4_sg_entry *sec4_sg_ptr,
 				      dma_addr_t dma, u32 len, u16 offset)
 {
-	sec4_sg_ptr->ptr = cpu_to_caam_dma64(dma);
-	sec4_sg_ptr->len = cpu_to_caam32(len);
-	sec4_sg_ptr->bpid_offset = cpu_to_caam32(offset & SEC4_SG_OFFSET_MASK);
+	if (caam_dpaa2) {
+		dma_to_qm_sg_one((struct dpaa2_sg_entry *)sec4_sg_ptr, dma, len,
+				 offset);
+	} else {
+		sec4_sg_ptr->ptr = cpu_to_caam_dma64(dma);
+		sec4_sg_ptr->len = cpu_to_caam32(len);
+		sec4_sg_ptr->bpid_offset = cpu_to_caam32(offset &
+							 SEC4_SG_OFFSET_MASK);
+	}
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "sec4_sg_ptr@: ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, sec4_sg_ptr,
@@ -47,6 +60,14 @@ sg_to_sec4_sg(struct scatterlist *sg, int sg_count,
 	return sec4_sg_ptr - 1;
 }
 
+static inline void sg_to_sec4_set_last(struct sec4_sg_entry *sec4_sg_ptr)
+{
+	if (caam_dpaa2)
+		dpaa2_sg_set_final((struct dpaa2_sg_entry *)sec4_sg_ptr, true);
+	else
+		sec4_sg_ptr->len |= cpu_to_caam32(SEC4_SG_LEN_FIN);
+}
+
 /*
  * convert scatterlist to h/w link table format
  * scatterlist must have been previously dma mapped
@@ -56,20 +77,7 @@ static inline void sg_to_sec4_sg_last(struct scatterlist *sg, int sg_count,
 				      u16 offset)
 {
 	sec4_sg_ptr = sg_to_sec4_sg(sg, sg_count, sec4_sg_ptr, offset);
-	sec4_sg_ptr->len |= cpu_to_caam32(SEC4_SG_LEN_FIN);
+	sg_to_sec4_set_last(sec4_sg_ptr);
 }
 
-static inline struct sec4_sg_entry *sg_to_sec4_sg_len(
-	struct scatterlist *sg, unsigned int total,
-	struct sec4_sg_entry *sec4_sg_ptr)
-{
-	do {
-		unsigned int len = min(sg_dma_len(sg), total);
-
-		dma_to_sec4_sg_one(sec4_sg_ptr, sg_dma_address(sg), len, 0);
-		sec4_sg_ptr++;
-		sg = sg_next(sg);
-		total -= len;
-	} while (total);
-	return sec4_sg_ptr - 1;
-}
+#endif /* _SG_SW_SEC4_H_ */

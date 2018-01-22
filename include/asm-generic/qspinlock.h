@@ -22,17 +22,6 @@
 #include <asm-generic/qspinlock_types.h>
 
 /**
- * queued_spin_unlock_wait - wait until the _current_ lock holder releases the lock
- * @lock : Pointer to queued spinlock structure
- *
- * There is a very slight possibility of live-lock if the lockers keep coming
- * and the waiter is just unfortunate enough to not see any unlock state.
- */
-#ifndef queued_spin_unlock_wait
-extern void queued_spin_unlock_wait(struct qspinlock *lock);
-#endif
-
-/**
  * queued_spin_is_locked - is the spinlock locked?
  * @lock: Pointer to queued spinlock structure
  * Return: 1 if it is locked, 0 otherwise
@@ -41,8 +30,6 @@ extern void queued_spin_unlock_wait(struct qspinlock *lock);
 static __always_inline int queued_spin_is_locked(struct qspinlock *lock)
 {
 	/*
-	 * See queued_spin_unlock_wait().
-	 *
 	 * Any !0 state indicates it is locked, even if _Q_LOCKED_VAL
 	 * isn't immediately observable.
 	 */
@@ -134,7 +121,5 @@ static __always_inline bool virt_spin_lock(struct qspinlock *lock)
 #define arch_spin_lock(l)		queued_spin_lock(l)
 #define arch_spin_trylock(l)		queued_spin_trylock(l)
 #define arch_spin_unlock(l)		queued_spin_unlock(l)
-#define arch_spin_lock_flags(l, f)	queued_spin_lock(l)
-#define arch_spin_unlock_wait(l)	queued_spin_unlock_wait(l)
 
 #endif /* __ASM_GENERIC_QSPINLOCK_H */

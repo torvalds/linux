@@ -324,7 +324,7 @@ hangcheck_get_action(struct intel_engine_cs *engine,
 	if (engine->hangcheck.seqno != hc->seqno)
 		return ENGINE_ACTIVE_SEQNO;
 
-	if (i915_seqno_passed(hc->seqno, intel_engine_last_submit(engine)))
+	if (intel_engine_is_idle(engine))
 		return ENGINE_IDLE;
 
 	return engine_stuck(engine, hc->acthd);
@@ -428,7 +428,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	unsigned int hung = 0, stuck = 0;
 	int busy_count = 0;
 
-	if (!i915.enable_hangcheck)
+	if (!i915_modparams.enable_hangcheck)
 		return;
 
 	if (!READ_ONCE(dev_priv->gt.awake))

@@ -129,7 +129,6 @@ struct cbq_class {
 	struct tcf_proto __rcu	*filter_list;
 	struct tcf_block	*block;
 
-	int			refcnt;
 	int			filters;
 
 	struct cbq_class	*defaults[TC_PRIO_MAX + 1];
@@ -256,6 +255,7 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		case TC_ACT_STOLEN:
 		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
+			/* fall through */
 		case TC_ACT_SHOT:
 			return NULL;
 		case TC_ACT_RECLASSIFY:
@@ -1158,11 +1158,14 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	if ((q->link.R_tab = qdisc_get_rtab(r, tb[TCA_CBQ_RTAB])) == NULL)
 		return -EINVAL;
 
-	err = qdisc_class_hash_init(&q->clhash);
-	if (err < 0)
+	err = tcf_block_get(&q->link.block, &q->link.filter_list, sch);
+	if (err)
 		goto put_rtab;
 
-	q->link.refcnt = 1;
+	err = qdisc_class_hash_init(&q->clhash);
+	if (err < 0)
+		goto put_block;
+
 	q->link.sibling = &q->link;
 	q->link.common.classid = sch->handle;
 	q->link.qdisc = sch;
@@ -1194,6 +1197,9 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 
 	cbq_addprio(q, &q->link);
 	return 0;
+
+put_block:
+	tcf_block_put(q->link.block);
 
 put_rtab:
 	qdisc_put_rtab(q->link.R_tab);
@@ -1389,20 +1395,14 @@ static void cbq_qlen_notify(struct Qdisc *sch, unsigned long arg)
 {
 	struct cbq_class *cl = (struct cbq_class *)arg;
 
-	if (cl->q->q.qlen == 0)
-		cbq_deactivate_class(cl);
+	cbq_deactivate_class(cl);
 }
 
-static unsigned long cbq_get(struct Qdisc *sch, u32 classid)
+static unsigned long cbq_find(struct Qdisc *sch, u32 classid)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
-	struct cbq_class *cl = cbq_class_lookup(q, classid);
 
-	if (cl) {
-		cl->refcnt++;
-		return (unsigned long)cl;
-	}
-	return 0;
+	return (unsigned long)cbq_class_lookup(q, classid);
 }
 
 static void cbq_destroy_class(struct Qdisc *sch, struct cbq_class *cl)
@@ -1446,25 +1446,6 @@ static void cbq_destroy(struct Qdisc *sch)
 			cbq_destroy_class(sch, cl);
 	}
 	qdisc_class_hash_destroy(&q->clhash);
-}
-
-static void cbq_put(struct Qdisc *sch, unsigned long arg)
-{
-	struct cbq_class *cl = (struct cbq_class *)arg;
-
-	if (--cl->refcnt == 0) {
-#ifdef CONFIG_NET_CLS_ACT
-		spinlock_t *root_lock = qdisc_root_sleeping_lock(sch);
-		struct cbq_sched_data *q = qdisc_priv(sch);
-
-		spin_lock_bh(root_lock);
-		if (q->rx_class == cl)
-			q->rx_class = NULL;
-		spin_unlock_bh(root_lock);
-#endif
-
-		cbq_destroy_class(sch, cl);
-	}
 }
 
 static int
@@ -1593,7 +1574,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	if (cl == NULL)
 		goto failure;
 
-	err = tcf_block_get(&cl->block, &cl->filter_list);
+	err = tcf_block_get(&cl->block, &cl->filter_list, sch);
 	if (err) {
 		kfree(cl);
 		return err;
@@ -1613,7 +1594,6 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 
 	cl->R_tab = rtab;
 	rtab = NULL;
-	cl->refcnt = 1;
 	cl->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid);
 	if (!cl->q)
 		cl->q = &noop_qdisc;
@@ -1694,12 +1674,7 @@ static int cbq_delete(struct Qdisc *sch, unsigned long arg)
 	cbq_rmprio(q, cl);
 	sch_tree_unlock(sch);
 
-	BUG_ON(--cl->refcnt == 0);
-	/*
-	 * This shouldn't happen: we "hold" one cops->get() when called
-	 * from tc_ctl_tclass; the destroy method is done from cops->put().
-	 */
-
+	cbq_destroy_class(sch, cl);
 	return 0;
 }
 
@@ -1765,8 +1740,7 @@ static const struct Qdisc_class_ops cbq_class_ops = {
 	.graft		=	cbq_graft,
 	.leaf		=	cbq_leaf,
 	.qlen_notify	=	cbq_qlen_notify,
-	.get		=	cbq_get,
-	.put		=	cbq_put,
+	.find		=	cbq_find,
 	.change		=	cbq_change_class,
 	.delete		=	cbq_delete,
 	.walk		=	cbq_walk,

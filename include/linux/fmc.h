@@ -132,6 +132,8 @@ struct fmc_operations {
 	uint32_t (*read32)(struct fmc_device *fmc, int offset);
 	void (*write32)(struct fmc_device *fmc, uint32_t value, int offset);
 	int (*validate)(struct fmc_device *fmc, struct fmc_driver *drv);
+	int (*reprogram_raw)(struct fmc_device *f, struct fmc_driver *d,
+			     void *gw, unsigned long len);
 	int (*reprogram)(struct fmc_device *f, struct fmc_driver *d, char *gw);
 	int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
 			   char *name, int flags);
@@ -144,6 +146,8 @@ struct fmc_operations {
 };
 
 /* Prefer this helper rather than calling of fmc->reprogram directly */
+int fmc_reprogram_raw(struct fmc_device *fmc, struct fmc_driver *d,
+		      void *gw, unsigned long len, int sdb_entry);
 extern int fmc_reprogram(struct fmc_device *f, struct fmc_driver *d, char *gw,
 		     int sdb_entry);
 
@@ -180,6 +184,9 @@ struct fmc_device {
 	uint32_t device_id;		/* Filled by the device */
 	char *mezzanine_name;		/* Defaults to ``fmc'' */
 	void *mezzanine_data;
+
+	struct dentry *dbg_dir;
+	struct dentry *dbg_sdb_dump;
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
 
@@ -217,14 +224,23 @@ static inline void fmc_set_drvdata(struct fmc_device *fmc, void *data)
 	dev_set_drvdata(&fmc->dev, data);
 }
 
-/* The 4 access points */
+struct fmc_gateware {
+	void *bitstream;
+	unsigned long len;
+};
+
+/* The 5 access points */
 extern int fmc_driver_register(struct fmc_driver *drv);
 extern void fmc_driver_unregister(struct fmc_driver *drv);
 extern int fmc_device_register(struct fmc_device *tdev);
+extern int fmc_device_register_gw(struct fmc_device *tdev,
+				  struct fmc_gateware *gw);
 extern void fmc_device_unregister(struct fmc_device *tdev);
 
-/* Two more for device sets, all driven by the same FPGA */
+/* Three more for device sets, all driven by the same FPGA */
 extern int fmc_device_register_n(struct fmc_device **devs, int n);
+extern int fmc_device_register_n_gw(struct fmc_device **devs, int n,
+				    struct fmc_gateware *gw);
 extern void fmc_device_unregister_n(struct fmc_device **devs, int n);
 
 /* Internal cross-calls between files; not exported to other modules */
@@ -232,6 +248,23 @@ extern int fmc_match(struct device *dev, struct device_driver *drv);
 extern int fmc_fill_id_info(struct fmc_device *fmc);
 extern void fmc_free_id_info(struct fmc_device *fmc);
 extern void fmc_dump_eeprom(const struct fmc_device *fmc);
-extern void fmc_dump_sdb(const struct fmc_device *fmc);
+
+/* helpers for FMC operations */
+extern int fmc_irq_request(struct fmc_device *fmc, irq_handler_t h,
+			   char *name, int flags);
+extern void fmc_irq_free(struct fmc_device *fmc);
+extern void fmc_irq_ack(struct fmc_device *fmc);
+extern int fmc_validate(struct fmc_device *fmc, struct fmc_driver *drv);
+extern int fmc_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio,
+			   int ngpio);
+extern int fmc_read_ee(struct fmc_device *fmc, int pos, void *d, int l);
+extern int fmc_write_ee(struct fmc_device *fmc, int pos, const void *d, int l);
+
+/* helpers for FMC operations */
+extern int fmc_irq_request(struct fmc_device *fmc, irq_handler_t h,
+			   char *name, int flags);
+extern void fmc_irq_free(struct fmc_device *fmc);
+extern void fmc_irq_ack(struct fmc_device *fmc);
+extern int fmc_validate(struct fmc_device *fmc, struct fmc_driver *drv);
 
 #endif /* __LINUX_FMC_H__ */

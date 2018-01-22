@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -87,6 +87,7 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 	bool elf32;
 	u32 flags;
 	int ret;
+	loff_t pos;
 
 	elf32 = ehdr->e32.e_ident[EI_CLASS] == ELFCLASS32;
 	flags = elf32 ? ehdr->e32.e_flags : ehdr->e64.e_flags;
@@ -108,21 +109,16 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 
 		if (phdr32->p_filesz < sizeof(abiflags))
 			return -EINVAL;
-
-		ret = kernel_read(elf, phdr32->p_offset,
-				  (char *)&abiflags,
-				  sizeof(abiflags));
+		pos = phdr32->p_offset;
 	} else {
 		if (phdr64->p_type != PT_MIPS_ABIFLAGS)
 			return 0;
 		if (phdr64->p_filesz < sizeof(abiflags))
 			return -EINVAL;
-
-		ret = kernel_read(elf, phdr64->p_offset,
-				  (char *)&abiflags,
-				  sizeof(abiflags));
+		pos = phdr64->p_offset;
 	}
 
+	ret = kernel_read(elf, &abiflags, sizeof(abiflags), &pos);
 	if (ret < 0)
 		return ret;
 	if (ret != sizeof(abiflags))

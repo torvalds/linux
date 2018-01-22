@@ -121,7 +121,7 @@ static inline int64_t __gxio_dma_queue_reserve(__gxio_dma_queue_t *dma_queue,
 		 * if the result is LESS than "hw_complete_count".
 		 */
 		uint64_t complete;
-		complete = ACCESS_ONCE(dma_queue->hw_complete_count);
+		complete = READ_ONCE(dma_queue->hw_complete_count);
 		slot |= (complete & 0xffffffffff000000);
 		if (slot < complete)
 			slot += 0x1000000;

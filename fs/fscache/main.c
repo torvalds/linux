@@ -195,12 +195,3 @@ static void __exit fscache_exit(void)
 }
 
 module_exit(fscache_exit);
-
-/*
- * wait_on_atomic_t() sleep function for uninterruptible waiting
- */
-int fscache_wait_atomic_t(atomic_t *p)
-{
-	schedule();
-	return 0;
-}

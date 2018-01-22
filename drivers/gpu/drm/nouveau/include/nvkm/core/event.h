@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_EVENT_H__
 #define __NVKM_EVENT_H__
 #include <core/os.h>

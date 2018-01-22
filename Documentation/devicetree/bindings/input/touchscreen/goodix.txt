@@ -2,7 +2,8 @@ Device tree bindings for Goodix GT9xx series touchscreen controller
 
 Required properties:
 
- - compatible		: Should be "goodix,gt911"
+ - compatible		: Should be "goodix,gt1151"
+				 or "goodix,gt911"
 				 or "goodix,gt9110"
 				 or "goodix,gt912"
 				 or "goodix,gt927"

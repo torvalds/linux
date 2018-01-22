@@ -25,9 +25,6 @@ PCI Support Library
 .. kernel-doc:: drivers/pci/irq.c
    :export:
 
-.. kernel-doc:: drivers/pci/htirq.c
-   :export:
-
 .. kernel-doc:: drivers/pci/probe.c
    :export:
 

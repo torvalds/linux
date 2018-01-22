@@ -120,18 +120,14 @@ struct malidp_hw_regmap {
 /* Unlike DP550/650, DP500 has 3 stride registers in its video layer. */
 #define MALIDP_DEVICE_LV_HAS_3_STRIDES	BIT(0)
 
-struct malidp_hw_device {
-	const struct malidp_hw_regmap map;
-	void __iomem *regs;
+struct malidp_hw_device;
 
-	/* APB clock */
-	struct clk *pclk;
-	/* AXI clock */
-	struct clk *aclk;
-	/* main clock for display core */
-	struct clk *mclk;
-	/* pixel clock for display core */
-	struct clk *pxlclk;
+/*
+ * Static structure containing hardware specific data and pointers to
+ * functions that behave differently between various versions of the IP.
+ */
+struct malidp_hw {
+	const struct malidp_hw_regmap map;
 
 	/*
 	 * Validate the driver instance against the hardware bits
@@ -182,15 +178,6 @@ struct malidp_hw_device {
 			     struct videomode *vm);
 
 	u8 features;
-
-	u8 min_line_size;
-	u16 max_line_size;
-
-	/* track the device PM state */
-	bool pm_suspended;
-
-	/* size of memory used for rotating layers, up to two banks available */
-	u32 rotation_memory[2];
 };
 
 /* Supported variants of the hardware */
@@ -202,7 +189,33 @@ enum {
 	MALIDP_MAX_DEVICES
 };
 
-extern const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES];
+extern const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES];
+
+/*
+ * Structure used by the driver during runtime operation.
+ */
+struct malidp_hw_device {
+	struct malidp_hw *hw;
+	void __iomem *regs;
+
+	/* APB clock */
+	struct clk *pclk;
+	/* AXI clock */
+	struct clk *aclk;
+	/* main clock for display core */
+	struct clk *mclk;
+	/* pixel clock for display core */
+	struct clk *pxlclk;
+
+	u8 min_line_size;
+	u16 max_line_size;
+
+	/* track the device PM state */
+	bool pm_suspended;
+
+	/* size of memory used for rotating layers, up to two banks available */
+	u32 rotation_memory[2];
+};
 
 static inline u32 malidp_hw_read(struct malidp_hw_device *hwdev, u32 reg)
 {
@@ -240,9 +253,9 @@ static inline u32 malidp_get_block_base(struct malidp_hw_device *hwdev,
 {
 	switch (block) {
 	case MALIDP_SE_BLOCK:
-		return hwdev->map.se_base;
+		return hwdev->hw->map.se_base;
 	case MALIDP_DC_BLOCK:
-		return hwdev->map.dc_base;
+		return hwdev->hw->map.dc_base;
 	}
 
 	return 0;
@@ -275,7 +288,7 @@ u8 malidp_hw_get_format_id(const struct malidp_hw_regmap *map,
 static inline bool malidp_hw_pitch_valid(struct malidp_hw_device *hwdev,
 					 unsigned int pitch)
 {
-	return !(pitch & (hwdev->map.bus_align_bytes - 1));
+	return !(pitch & (hwdev->hw->map.bus_align_bytes - 1));
 }
 
 /* U16.16 */
@@ -308,8 +321,8 @@ static inline void malidp_se_set_enh_coeffs(struct malidp_hw_device *hwdev)
 	};
 	u32 val = MALIDP_SE_SET_ENH_LIMIT_LOW(MALIDP_SE_ENH_LOW_LEVEL) |
 		  MALIDP_SE_SET_ENH_LIMIT_HIGH(MALIDP_SE_ENH_HIGH_LEVEL);
-	u32 image_enh = hwdev->map.se_base +
-			((hwdev->map.features & MALIDP_REGMAP_HAS_CLEARIRQ) ?
+	u32 image_enh = hwdev->hw->map.se_base +
+			((hwdev->hw->map.features & MALIDP_REGMAP_HAS_CLEARIRQ) ?
 			 0x10 : 0xC) + MALIDP_SE_IMAGE_ENH;
 	u32 enh_coeffs = image_enh + MALIDP_SE_ENH_COEFF0;
 	int i;

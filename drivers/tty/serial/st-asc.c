@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * st-asc.c: ST Asynchronous serial controller (ASC) driver
  *
  * Copyright (C) 2003-2013 STMicroelectronics (R&D) Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #if defined(CONFIG_SERIAL_ST_ASC_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
@@ -310,7 +305,7 @@ static void asc_receive_chars(struct uart_port *port)
 	if (mode == ASC_CTL_MODE_8BIT || mode == ASC_CTL_MODE_8BIT_PAR)
 		ignore_pe = true;
 
-	if (port->irq_wake)
+	if (irqd_is_wakeup_set(irq_get_irq_data(port->irq)))
 		pm_wakeup_event(tport->tty->dev, 0);
 
 	while ((status = asc_in(port, ASC_STA)) & ASC_STA_RBF) {

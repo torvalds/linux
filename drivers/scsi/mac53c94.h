@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mac53c94.h: definitions for the driver for the 53c94 SCSI bus adaptor
  * found on Power Macintosh computers, controlling the external SCSI chain.

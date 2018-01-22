@@ -36,7 +36,6 @@ Example:
 		clocks = <&cpg CPG_MOD 522>;
 		power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
 		#thermal-sensor-cells = <1>;
-		status = "okay";
 	};
 
 	thermal-zones {

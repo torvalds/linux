@@ -3467,11 +3467,9 @@ static int adv7842_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	state = devm_kzalloc(&client->dev, sizeof(struct adv7842_state), GFP_KERNEL);
-	if (!state) {
-		v4l_err(client, "Could not allocate adv7842_state memory!\n");
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
+	if (!state)
 		return -ENOMEM;
-	}
 
 	/* platform data */
 	state->pdata = *pdata;
@@ -3568,8 +3566,7 @@ static int adv7842_probe(struct i2c_client *client,
 #if IS_ENABLED(CONFIG_VIDEO_ADV7842_CEC)
 	state->cec_adap = cec_allocate_adapter(&adv7842_cec_adap_ops,
 		state, dev_name(&client->dev),
-		CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC, ADV7842_MAX_ADDRS);
+		CEC_CAP_DEFAULTS, ADV7842_MAX_ADDRS);
 	err = PTR_ERR_OR_ZERO(state->cec_adap);
 	if (err)
 		goto err_entity;
@@ -3608,7 +3605,7 @@ static int adv7842_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_device_id adv7842_id[] = {
+static const struct i2c_device_id adv7842_id[] = {
 	{ "adv7842", 0 },
 	{ }
 };

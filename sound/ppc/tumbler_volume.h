@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* volume tables, taken from TAS3001c data manual */
 /* volume gain values */
 /* 0 = -70 dB, 175 = 18.0 dB in 0.5 dB step */

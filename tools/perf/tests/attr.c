@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * The struct perf_event_attr test support.
  *
@@ -36,6 +37,7 @@
 #define ENV "PERF_TEST_ATTR"
 
 static char *dir;
+static bool ready;
 
 void test_attr__init(void)
 {
@@ -66,6 +68,9 @@ static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
 {
 	FILE *file;
 	char path[PATH_MAX];
+
+	if (!ready)
+		return 0;
 
 	snprintf(path, PATH_MAX, "%s/event-%d-%llu-%d", dir,
 		 attr->type, attr->config, fd);
@@ -136,12 +141,18 @@ void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
 {
 	int errno_saved = errno;
 
-	if (store_event(attr, pid, cpu, fd, group_fd, flags)) {
+	if ((fd != -1) && store_event(attr, pid, cpu, fd, group_fd, flags)) {
 		pr_err("test attr FAILED");
 		exit(128);
 	}
 
 	errno = errno_saved;
+}
+
+void test_attr__ready(void)
+{
+	if (unlikely(test_attr__enabled) && !ready)
+		ready = true;
 }
 
 static int run_dir(const char *d, const char *perf)
@@ -156,10 +167,10 @@ static int run_dir(const char *d, const char *perf)
 	snprintf(cmd, 3*PATH_MAX, PYTHON " %s/attr.py -d %s/attr/ -p %s %.*s",
 		 d, d, perf, vcnt, v);
 
-	return system(cmd);
+	return system(cmd) ? TEST_FAIL : TEST_OK;
 }
 
-int test__attr(int subtest __maybe_unused)
+int test__attr(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct stat st;
 	char path_perf[PATH_MAX];

@@ -345,7 +345,7 @@ static void dummy_setup(struct net_device *dev)
 	dev->flags &= ~IFF_MULTICAST;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
 	dev->features	|= NETIF_F_SG | NETIF_F_FRAGLIST;
-	dev->features	|= NETIF_F_ALL_TSO | NETIF_F_UFO;
+	dev->features	|= NETIF_F_ALL_TSO;
 	dev->features	|= NETIF_F_HW_CSUM | NETIF_F_HIGHDMA | NETIF_F_LLTX;
 	dev->features	|= NETIF_F_GSO_ENCAP_ALL;
 	dev->hw_features |= dev->features;
@@ -353,7 +353,7 @@ static void dummy_setup(struct net_device *dev)
 	eth_hw_addr_random(dev);
 
 	dev->min_mtu = 0;
-	dev->max_mtu = ETH_MAX_MTU;
+	dev->max_mtu = 0;
 }
 
 static int dummy_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -388,7 +388,7 @@ static int __init dummy_init_one(void)
 	int err;
 
 	dev_dummy = alloc_netdev(sizeof(struct dummy_priv),
-				 "dummy%d", NET_NAME_UNKNOWN, dummy_setup);
+				 "dummy%d", NET_NAME_ENUM, dummy_setup);
 	if (!dev_dummy)
 		return -ENOMEM;
 

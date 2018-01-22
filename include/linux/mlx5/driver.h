@@ -49,6 +49,8 @@
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
 #include <linux/mlx5/srq.h>
+#include <linux/timecounter.h>
+#include <linux/ptp_clock_kernel.h>
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -105,8 +107,11 @@ enum {
 };
 
 enum {
+	MLX5_REG_QPTS            = 0x4002,
 	MLX5_REG_QETCR		 = 0x4005,
 	MLX5_REG_QTCT		 = 0x400a,
+	MLX5_REG_QPDPM           = 0x4013,
+	MLX5_REG_QCAM            = 0x4019,
 	MLX5_REG_DCBX_PARAM      = 0x4020,
 	MLX5_REG_DCBX_APP        = 0x4021,
 	MLX5_REG_FPGA_CAP	 = 0x4022,
@@ -139,6 +144,11 @@ enum {
 	MLX5_REG_MCAM		 = 0x907f,
 };
 
+enum mlx5_qpts_trust_state {
+	MLX5_QPTS_TRUST_PCP  = 1,
+	MLX5_QPTS_TRUST_DSCP = 2,
+};
+
 enum mlx5_dcbx_oper_mode {
 	MLX5E_DCBX_PARAM_VER_OPER_HOST  = 0x0,
 	MLX5E_DCBX_PARAM_VER_OPER_AUTO  = 0x3,
@@ -160,6 +170,13 @@ enum dbg_rsc_type {
 	MLX5_DBG_RSC_QP,
 	MLX5_DBG_RSC_EQ,
 	MLX5_DBG_RSC_CQ,
+};
+
+enum port_state_policy {
+	MLX5_POLICY_DOWN	= 0,
+	MLX5_POLICY_UP		= 1,
+	MLX5_POLICY_FOLLOW	= 2,
+	MLX5_POLICY_INVALID	= 0xffffffff
 };
 
 struct mlx5_field_desc {
@@ -185,6 +202,7 @@ enum mlx5_dev_event {
 	MLX5_DEV_EVENT_GUID_CHANGE,
 	MLX5_DEV_EVENT_CLIENT_REREG,
 	MLX5_DEV_EVENT_PPS,
+	MLX5_DEV_EVENT_DELAY_DROP_TIMEOUT,
 };
 
 enum mlx5_port_status {
@@ -291,7 +309,7 @@ struct mlx5_cmd {
 	struct semaphore pages_sem;
 	int	mode;
 	struct mlx5_cmd_work_ent *ent_arr[MLX5_MAX_COMMANDS];
-	struct pci_pool *pool;
+	struct dma_pool *pool;
 	struct mlx5_cmd_debug dbg;
 	struct cmd_msg_cache cache[MLX5_NUM_COMMAND_CACHES];
 	int checksum_disabled;
@@ -410,6 +428,7 @@ enum mlx5_res_type {
 	MLX5_RES_SQ	= MLX5_EVENT_QUEUE_TYPE_SQ,
 	MLX5_RES_SRQ	= 3,
 	MLX5_RES_XSRQ	= 4,
+	MLX5_RES_XRQ	= 5,
 };
 
 struct mlx5_core_rsc_common {
@@ -525,6 +544,9 @@ struct mlx5_mkey_table {
 
 struct mlx5_vf_context {
 	int	enabled;
+	u64	port_guid;
+	u64	node_guid;
+	enum port_state_policy	policy;
 };
 
 struct mlx5_core_sriov {
@@ -550,6 +572,7 @@ struct mlx5_fc_stats {
 	unsigned long sampling_interval; /* jiffies */
 };
 
+struct mlx5_mpfs;
 struct mlx5_eswitch;
 struct mlx5_lag;
 struct mlx5_pagefault;
@@ -597,7 +620,6 @@ struct mlx5_port_module_event_stats {
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
-	struct msix_entry	*msix_arr;
 	struct mlx5_irq_info	*irq_info;
 
 	/* pages stuff */
@@ -646,7 +668,11 @@ struct mlx5_priv {
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
 
+	struct list_head	waiting_events_list;
+	bool			is_accum_events;
+
 	struct mlx5_flow_steering *steering;
+	struct mlx5_mpfs        *mpfs;
 	struct mlx5_eswitch     *eswitch;
 	struct mlx5_core_sriov	sriov;
 	struct mlx5_lag		*lag;
@@ -745,6 +771,27 @@ struct mlx5_rsvd_gids {
 	struct ida ida;
 };
 
+#define MAX_PIN_NUM	8
+struct mlx5_pps {
+	u8                         pin_caps[MAX_PIN_NUM];
+	struct work_struct         out_work;
+	u64                        start[MAX_PIN_NUM];
+	u8                         enabled;
+};
+
+struct mlx5_clock {
+	rwlock_t                   lock;
+	struct cyclecounter        cycles;
+	struct timecounter         tc;
+	struct hwtstamp_config     hwtstamp_config;
+	u32                        nominal_c_mult;
+	unsigned long              overflow_period;
+	struct delayed_work        overflow_work;
+	struct ptp_clock          *ptp;
+	struct ptp_clock_info      ptp_info;
+	struct mlx5_pps            pps_info;
+};
+
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
 	/* sync pci state */
@@ -759,6 +806,8 @@ struct mlx5_core_dev {
 		u32 hca_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 		u32 pcam[MLX5_ST_SZ_DW(pcam_reg)];
 		u32 mcam[MLX5_ST_SZ_DW(mcam_reg)];
+		u32 fpga[MLX5_ST_SZ_DW(fpga_cap)];
+		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
 	} caps;
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
@@ -784,6 +833,7 @@ struct mlx5_core_dev {
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap         *rmap;
 #endif
+	struct mlx5_clock        clock;
 };
 
 struct mlx5_db {
@@ -840,13 +890,6 @@ struct mlx5_pas {
 	u8	log_sz;
 };
 
-enum port_state_policy {
-	MLX5_POLICY_DOWN	= 0,
-	MLX5_POLICY_UP		= 1,
-	MLX5_POLICY_FOLLOW	= 2,
-	MLX5_POLICY_INVALID	= 0xffffffff
-};
-
 enum phy_port_state {
 	MLX5_AAA_111
 };
@@ -882,8 +925,6 @@ static inline void *mlx5_buf_offset(struct mlx5_buf *buf, int offset)
 {
 		return buf->direct.buf + offset;
 }
-
-extern struct workqueue_struct *mlx5_core_wq;
 
 #define STRUCT_FIELD(header, field) \
 	.struct_offset_bytes = offsetof(struct ib_unpacked_ ## header, field),      \
@@ -1008,7 +1049,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       enum mlx5_eq_type type);
 int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 int mlx5_start_eqs(struct mlx5_core_dev *dev);
-int mlx5_stop_eqs(struct mlx5_core_dev *dev);
+void mlx5_stop_eqs(struct mlx5_core_dev *dev);
 int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 		    unsigned int *irqn);
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
@@ -1089,7 +1130,7 @@ enum {
 };
 
 enum {
-	MAX_UMR_CACHE_ENTRY = 20,
+	MR_CACHE_LAST_STD_ENTRY = 20,
 	MLX5_IMR_MTT_CACHE_ENTRY,
 	MLX5_IMR_KSM_CACHE_ENTRY,
 	MAX_MR_CACHE_ENTRIES
@@ -1124,6 +1165,10 @@ int mlx5_cmd_create_vport_lag(struct mlx5_core_dev *dev);
 int mlx5_cmd_destroy_vport_lag(struct mlx5_core_dev *dev);
 bool mlx5_lag_is_active(struct mlx5_core_dev *dev);
 struct net_device *mlx5_lag_get_roce_netdev(struct mlx5_core_dev *dev);
+int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
+				 u64 *values,
+				 int num_counters,
+				 size_t *offsets);
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
 
@@ -1182,5 +1227,11 @@ static inline bool mlx5_rl_is_supported(struct mlx5_core_dev *dev)
 enum {
 	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
 };
+
+static inline const struct cpumask *
+mlx5_get_vector_affinity(struct mlx5_core_dev *dev, int vector)
+{
+	return pci_irq_get_affinity(dev->pdev, MLX5_EQ_VEC_COMP_BASE + vector);
+}
 
 #endif /* MLX5_DRIVER_H */

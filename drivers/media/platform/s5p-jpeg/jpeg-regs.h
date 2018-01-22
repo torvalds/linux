@@ -371,7 +371,7 @@
 #define EXYNOS4_NF_SHIFT			16
 #define EXYNOS4_NF_MASK				0xff
 #define EXYNOS4_NF(x)				\
-	(((x) << EXYNOS4_NF_SHIFT) & EXYNOS4_NF_MASK)
+	(((x) & EXYNOS4_NF_MASK) << EXYNOS4_NF_SHIFT)
 
 /* JPEG quantizer table register */
 #define EXYNOS4_QTBL_CONTENT(n)	(0x100 + (n) * 0x40)

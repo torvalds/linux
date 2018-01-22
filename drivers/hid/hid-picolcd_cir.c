@@ -113,10 +113,10 @@ int picolcd_init_cir(struct picolcd_data *data, struct hid_report *report)
 		return -ENOMEM;
 
 	rdev->priv             = data;
-	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rdev->open             = picolcd_cir_open;
 	rdev->close            = picolcd_cir_close;
-	rdev->input_name       = data->hdev->name;
+	rdev->device_name      = data->hdev->name;
 	rdev->input_phys       = data->hdev->phys;
 	rdev->input_id.bustype = data->hdev->bus;
 	rdev->input_id.vendor  = data->hdev->vendor;

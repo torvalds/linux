@@ -1184,7 +1184,7 @@ static void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 
 	spin_lock_init(&hwif->lock);
 
-	setup_timer(&hwif->timer, &ide_timer_expiry, (unsigned long)hwif);
+	timer_setup(&hwif->timer, ide_timer_expiry, 0);
 
 	init_completion(&hwif->gendev_rel_comp);
 
@@ -1451,6 +1451,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif_init(hwif) == 0) {
 			printk(KERN_INFO "%s: failed to initialize IDE "
 					 "interface\n", hwif->name);
+			device_unregister(hwif->portdev);
 			device_unregister(&hwif->gendev);
 			ide_disable_port(hwif);
 			continue;

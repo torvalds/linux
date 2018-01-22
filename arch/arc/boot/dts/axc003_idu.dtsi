@@ -24,10 +24,25 @@
 
 		ranges = <0x00000000 0x0 0xf0000000 0x10000000>;
 
-		core_clk: core_clk {
+		input_clk: input-clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
-			clock-frequency = <100000000>;
+			clock-frequency = <33333333>;
+		};
+
+		core_clk: core-clk@80 {
+			compatible = "snps,axs10x-arc-pll-clock";
+			reg = <0x80 0x10>, <0x100 0x10>;
+			#clock-cells = <0>;
+			clocks = <&input_clk>;
+
+			/*
+			 * Set initial core pll output frequency to 100MHz.
+			 * It will be applied at the core pll driver probing
+			 * on early boot.
+			 */
+			assigned-clocks = <&core_clk>;
+			assigned-clock-rates = <100000000>;
 		};
 
 		core_intc: archs-intc@cpu {
@@ -108,7 +123,7 @@
 
 	memory {
 		device_type = "memory";
-		/* CONFIG_KERNEL_RAM_BASE_ADDRESS needs to match low mem start */
+		/* CONFIG_LINUX_RAM_BASE needs to match low mem start */
 		reg = <0x0 0x80000000 0x0 0x20000000	/* 512 MiB low mem */
 		       0x1 0xc0000000 0x0 0x40000000>;	/* 1 GiB highmem */
 	};

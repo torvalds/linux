@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -39,10 +40,9 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <linux/module.h>
-#include "../include/lustre/lustre_idl.h"
-#include "../include/lustre_fid.h"
+#include <lustre_fid.h>
 
 /**
  * A cluster-wide range from which fid-sequences are granted to servers and

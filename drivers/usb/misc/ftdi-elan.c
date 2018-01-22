@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB FTDI client driver for Elan Digital Systems's Uxxx adapters
  *
@@ -6,11 +7,6 @@
  *
  * Author and Maintainer - Tony Olech - Elan Digital Systems
  * tony.olech@elandigitalsystems.com
- *
- * This program is free software;you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
- *
  *
  * This driver was written by Tony Olech(tony.olech@elandigitalsystems.com)
  * based on various USB client drivers in the 2.6.15 linux kernel
@@ -305,9 +301,9 @@ static int ftdi_elan_command_engine(struct usb_ftdi *ftdi);
 static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi);
 static int ftdi_elan_hcd_init(struct usb_ftdi *ftdi)
 {
-	int result;
 	if (ftdi->platform_dev.dev.parent)
 		return -EBUSY;
+
 	ftdi_elan_get_kref(ftdi);
 	ftdi->platform_data.potpg = 100;
 	ftdi->platform_data.reset = NULL;
@@ -324,8 +320,8 @@ static int ftdi_elan_hcd_init(struct usb_ftdi *ftdi)
 	request_module("u132_hcd");
 	dev_info(&ftdi->udev->dev, "registering '%s'\n",
 		 ftdi->platform_dev.name);
-	result = platform_device_register(&ftdi->platform_dev);
-	return result;
+
+	return platform_device_register(&ftdi->platform_dev);
 }
 
 static void ftdi_elan_abandon_completions(struct usb_ftdi *ftdi)
@@ -857,7 +853,7 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
 	target->actual = 0;
 	target->non_null = (ed_length >> 15) & 0x0001;
 	target->repeat_number = (ed_length >> 11) & 0x000F;
-	if (ed_type == 0x02) {
+	if (ed_type == 0x02 || ed_type == 0x03) {
 		if (payload == 0 || target->abandoning > 0) {
 			target->abandoning = 0;
 			mutex_unlock(&ftdi->u132_lock);
@@ -873,31 +869,6 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
 			mutex_unlock(&ftdi->u132_lock);
 			return b;
 		}
-	} else if (ed_type == 0x03) {
-		if (payload == 0 || target->abandoning > 0) {
-			target->abandoning = 0;
-			mutex_unlock(&ftdi->u132_lock);
-			ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
-					      payload);
-			ftdi->received = 0;
-			ftdi->expected = 4;
-			ftdi->ed_found = 0;
-			return ftdi->response;
-		} else {
-			ftdi->expected = 4 + payload;
-			ftdi->ed_found = 1;
-			mutex_unlock(&ftdi->u132_lock);
-			return b;
-		}
-	} else if (ed_type == 0x01) {
-		target->abandoning = 0;
-		mutex_unlock(&ftdi->u132_lock);
-		ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
-				      payload);
-		ftdi->received = 0;
-		ftdi->expected = 4;
-		ftdi->ed_found = 0;
-		return ftdi->response;
 	} else {
 		target->abandoning = 0;
 		mutex_unlock(&ftdi->u132_lock);

@@ -225,7 +225,9 @@ static int mn88473_set_frontend(struct dvb_frontend *fe)
 
 	/* PLP */
 	if (c->delivery_system == SYS_DVBT2) {
-		ret = regmap_write(dev->regmap[2], 0x36, c->stream_id);
+		ret = regmap_write(dev->regmap[2], 0x36,
+				(c->stream_id == NO_STREAM_ID_FILTER) ? 0 :
+				c->stream_id );
 		if (ret)
 			goto err;
 	}

@@ -159,7 +159,6 @@ static struct nvmem_config lpc18xx_nvmem_config = {
 	.word_size = 4,
 	.reg_read = lpc18xx_eeprom_read,
 	.reg_write = lpc18xx_eeprom_gather_write,
-	.owner = THIS_MODULE,
 };
 
 static int lpc18xx_eeprom_probe(struct platform_device *pdev)
@@ -197,7 +196,7 @@ static int lpc18xx_eeprom_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rst = devm_reset_control_get(dev, NULL);
+	rst = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(rst)) {
 		dev_err(dev, "failed to get reset: %ld\n", PTR_ERR(rst));
 		ret = PTR_ERR(rst);

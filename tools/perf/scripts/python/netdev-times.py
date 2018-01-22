@@ -1,4 +1,5 @@
 # Display a process of packets and processed time.
+# SPDX-License-Identifier: GPL-2.0
 # It helps us to investigate networking or network device.
 #
 # options

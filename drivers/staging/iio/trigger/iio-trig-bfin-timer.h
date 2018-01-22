@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __IIO_BFIN_TIMER_TRIGGER_H__
 #define __IIO_BFIN_TIMER_TRIGGER_H__
 

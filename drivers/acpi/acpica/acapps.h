@@ -114,6 +114,8 @@ ac_get_all_tables_from_file(char *filename,
 			    u8 get_only_aml_tables,
 			    struct acpi_new_table_desc **return_list_head);
 
+void ac_delete_table_list(struct acpi_new_table_desc *list_head);
+
 u8 ac_is_file_binary(FILE * file);
 
 acpi_status ac_validate_table_header(FILE * file, long table_offset);

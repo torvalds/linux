@@ -599,7 +599,7 @@ void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 
 	/* skip key loading if they are loaded due to sharing */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
-				   JUMP_COND_SHRD | JUMP_COND_SELF);
+				   JUMP_COND_SHRD);
 	if (cdata->key_inline)
 		append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 				  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
@@ -688,8 +688,7 @@ void cnstr_shdsc_gcm_decap(u32 * const desc, struct alginfo *cdata,
 
 	/* skip key loading if they are loaded due to sharing */
 	key_jump_cmd = append_jump(desc, JUMP_JSL |
-				   JUMP_TEST_ALL | JUMP_COND_SHRD |
-				   JUMP_COND_SELF);
+				   JUMP_TEST_ALL | JUMP_COND_SHRD);
 	if (cdata->key_inline)
 		append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
 				  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);

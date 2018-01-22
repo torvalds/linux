@@ -55,9 +55,14 @@ enum {
 	REG_GTH_SCRPD1		= 0xe4, /* ScratchPad[1] */
 	REG_GTH_SCRPD2		= 0xe8, /* ScratchPad[2] */
 	REG_GTH_SCRPD3		= 0xec, /* ScratchPad[3] */
+	REG_TSCU_TSUCTRL	= 0x2000, /* TSCU control register */
+	REG_TSCU_TSCUSTAT	= 0x2004, /* TSCU status register */
 };
 
 /* waiting for Pipeline Empty bit(s) to assert for GTH */
 #define GTH_PLE_WAITLOOP_DEPTH	10000
+
+#define TSUCTRL_CTCRESYNC	BIT(0)
+#define TSCUSTAT_CTCSYNCING	BIT(1)
 
 #endif /* __INTEL_TH_GTH_H__ */

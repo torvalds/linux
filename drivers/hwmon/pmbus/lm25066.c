@@ -28,7 +28,7 @@
 #include <linux/i2c.h>
 #include "pmbus.h"
 
-enum chips { lm25056, lm25063, lm25066, lm5064, lm5066 };
+enum chips { lm25056, lm25063, lm25066, lm5064, lm5066, lm5066i };
 
 #define LM25066_READ_VAUX		0xd0
 #define LM25066_MFR_READ_IIN		0xd1
@@ -65,7 +65,7 @@ struct __coeff {
 #define PSC_CURRENT_IN_L	(PSC_NUM_CLASSES)
 #define PSC_POWER_L		(PSC_NUM_CLASSES + 1)
 
-static struct __coeff lm25066_coeff[5][PSC_NUM_CLASSES + 2] = {
+static struct __coeff lm25066_coeff[6][PSC_NUM_CLASSES + 2] = {
 	[lm25056] = {
 		[PSC_VOLTAGE_IN] = {
 			.m = 16296,
@@ -210,6 +210,41 @@ static struct __coeff lm25066_coeff[5][PSC_NUM_CLASSES + 2] = {
 			.m = 16,
 		},
 	},
+	[lm5066i] = {
+		[PSC_VOLTAGE_IN] = {
+			.m = 4617,
+			.b = -140,
+			.R = -2,
+		},
+		[PSC_VOLTAGE_OUT] = {
+			.m = 4602,
+			.b = 500,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN] = {
+			.m = 15076,
+			.b = -504,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN_L] = {
+			.m = 7645,
+			.b = 100,
+			.R = -2,
+		},
+		[PSC_POWER] = {
+			.m = 1701,
+			.b = -4000,
+			.R = -3,
+		},
+		[PSC_POWER_L] = {
+			.m = 861,
+			.b = -965,
+			.R = -3,
+		},
+		[PSC_TEMPERATURE] = {
+			.m = 16,
+		},
+	},
 };
 
 struct lm25066_data {
@@ -250,6 +285,7 @@ static int lm25066_read_word_data(struct i2c_client *client, int page, int reg)
 			ret = DIV_ROUND_CLOSEST(ret * 70, 453);
 			break;
 		case lm5066:
+		case lm5066i:
 			/* VIN: 2.18 mV VAUX: 725 uV LSB */
 			ret = DIV_ROUND_CLOSEST(ret * 725, 2180);
 			break;
@@ -488,16 +524,18 @@ static int lm25066_probe(struct i2c_client *client,
 	info->m[PSC_VOLTAGE_OUT] = coeff[PSC_VOLTAGE_OUT].m;
 	info->b[PSC_VOLTAGE_OUT] = coeff[PSC_VOLTAGE_OUT].b;
 	info->R[PSC_VOLTAGE_OUT] = coeff[PSC_VOLTAGE_OUT].R;
-	info->b[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].b;
 	info->R[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].R;
-	info->b[PSC_POWER] = coeff[PSC_POWER].b;
 	info->R[PSC_POWER] = coeff[PSC_POWER].R;
 	if (config & LM25066_DEV_SETUP_CL) {
 		info->m[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN_L].m;
+		info->b[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN_L].b;
 		info->m[PSC_POWER] = coeff[PSC_POWER_L].m;
+		info->b[PSC_POWER] = coeff[PSC_POWER_L].b;
 	} else {
 		info->m[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].m;
+		info->b[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].b;
 		info->m[PSC_POWER] = coeff[PSC_POWER].m;
+		info->b[PSC_POWER] = coeff[PSC_POWER].b;
 	}
 
 	return pmbus_do_probe(client, id, info);
@@ -509,6 +547,7 @@ static const struct i2c_device_id lm25066_id[] = {
 	{"lm25066", lm25066},
 	{"lm5064", lm5064},
 	{"lm5066", lm5066},
+	{"lm5066i", lm5066i},
 	{ }
 };
 

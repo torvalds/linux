@@ -134,10 +134,10 @@ static struct rc_map_table nec_terratec_cinergy_xs[] = {
 
 static struct rc_map_list nec_terratec_cinergy_xs_map = {
 	.map = {
-		.scan    = nec_terratec_cinergy_xs,
-		.size    = ARRAY_SIZE(nec_terratec_cinergy_xs),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_NEC_TERRATEC_CINERGY_XS,
+		.scan     = nec_terratec_cinergy_xs,
+		.size     = ARRAY_SIZE(nec_terratec_cinergy_xs),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_NEC_TERRATEC_CINERGY_XS,
 	}
 };
 

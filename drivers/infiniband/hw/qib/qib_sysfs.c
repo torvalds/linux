@@ -247,7 +247,7 @@ static struct kobj_type qib_port_cc_ktype = {
 	.release = qib_port_release,
 };
 
-static struct bin_attribute cc_table_bin_attr = {
+static const struct bin_attribute cc_table_bin_attr = {
 	.attr = {.name = "cc_table_bin", .mode = 0444},
 	.read = read_cc_table_bin,
 	.size = PAGE_SIZE,
@@ -286,7 +286,7 @@ static ssize_t read_cc_setting_bin(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute cc_setting_bin_attr = {
+static const struct bin_attribute cc_setting_bin_attr = {
 	.attr = {.name = "cc_settings_bin", .mode = 0444},
 	.read = read_cc_setting_bin,
 	.size = PAGE_SIZE,

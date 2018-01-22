@@ -13,6 +13,7 @@ libperf-y += find_bit.o
 libperf-y += kallsyms.o
 libperf-y += levenshtein.o
 libperf-y += llvm-utils.o
+libperf-y += mmap.o
 libperf-y += memswap.o
 libperf-y += parse-events.o
 libperf-y += perf_regs.o
@@ -22,6 +23,7 @@ libperf-y += rbtree.o
 libperf-y += libstring.o
 libperf-y += bitmap.o
 libperf-y += hweight.o
+libperf-y += smt.o
 libperf-y += quote.o
 libperf-y += strbuf.o
 libperf-y += string.o
@@ -33,6 +35,7 @@ libperf-y += dso.o
 libperf-y += symbol.o
 libperf-y += symbol_fprintf.o
 libperf-y += color.o
+libperf-y += metricgroup.o
 libperf-y += header.o
 libperf-y += callchain.o
 libperf-y += values.o
@@ -77,6 +80,7 @@ libperf-y += data.o
 libperf-y += tsc.o
 libperf-y += cloexec.o
 libperf-y += call-path.o
+libperf-y += rwsem.o
 libperf-y += thread-stack.o
 libperf-$(CONFIG_AUXTRACE) += auxtrace.o
 libperf-$(CONFIG_AUXTRACE) += intel-pt-decoder/
@@ -93,6 +97,7 @@ libperf-y += drv_configs.o
 libperf-y += units.o
 libperf-y += time-utils.o
 libperf-y += expr-bison.o
+libperf-y += branch.o
 
 libperf-$(CONFIG_LIBBPF) += bpf-loader.o
 libperf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
@@ -102,6 +107,10 @@ libperf-$(CONFIG_LIBELF) += probe-event.o
 
 ifndef CONFIG_LIBELF
 libperf-y += symbol-minimal.o
+endif
+
+ifndef CONFIG_SETNS
+libperf-y += setns.o
 endif
 
 libperf-$(CONFIG_DWARF) += probe-finder.o

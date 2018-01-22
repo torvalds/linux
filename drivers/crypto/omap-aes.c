@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/aes.h>
+#include <crypto/gcm.h>
 #include <crypto/engine.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/aead.h>
@@ -767,7 +768,7 @@ static struct aead_alg algs_aead_gcm[] = {
 	},
 	.init		= omap_aes_gcm_cra_init,
 	.exit		= omap_aes_gcm_cra_exit,
-	.ivsize		= 12,
+	.ivsize		= GCM_AES_IV_SIZE,
 	.maxauthsize	= AES_BLOCK_SIZE,
 	.setkey		= omap_aes_gcm_setkey,
 	.encrypt	= omap_aes_gcm_encrypt,
@@ -788,7 +789,7 @@ static struct aead_alg algs_aead_gcm[] = {
 	.init		= omap_aes_gcm_cra_init,
 	.exit		= omap_aes_gcm_cra_exit,
 	.maxauthsize	= AES_BLOCK_SIZE,
-	.ivsize		= 8,
+	.ivsize		= GCM_RFC4106_IV_SIZE,
 	.setkey		= omap_aes_4106gcm_setkey,
 	.encrypt	= omap_aes_4106gcm_encrypt,
 	.decrypt	= omap_aes_4106gcm_decrypt,
@@ -974,11 +975,10 @@ static int omap_aes_get_res_of(struct omap_aes_dev *dd,
 		struct device *dev, struct resource *res)
 {
 	struct device_node *node = dev->of_node;
-	const struct of_device_id *match;
 	int err = 0;
 
-	match = of_match_device(of_match_ptr(omap_aes_of_match), dev);
-	if (!match) {
+	dd->pdata = of_device_get_match_data(dev);
+	if (!dd->pdata) {
 		dev_err(dev, "no compatible OF match\n");
 		err = -EINVAL;
 		goto err;
@@ -990,8 +990,6 @@ static int omap_aes_get_res_of(struct omap_aes_dev *dd,
 		err = -EINVAL;
 		goto err;
 	}
-
-	dd->pdata = match->data;
 
 err:
 	return err;
@@ -1095,6 +1093,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0) {
 			dev_err(dev, "can't get IRQ resource\n");
+			err = irq;
 			goto err_irq;
 		}
 

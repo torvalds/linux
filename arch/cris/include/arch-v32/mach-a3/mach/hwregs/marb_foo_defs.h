@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __marb_foo_defs_h
 #define __marb_foo_defs_h
 

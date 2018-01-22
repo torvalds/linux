@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	/* %o0: devhandle
 	 * %o1:	devino
 	 *
@@ -105,6 +106,17 @@ ENTRY(sun4v_cpu_yield)
 	retl
 	 nop
 ENDPROC(sun4v_cpu_yield)
+
+	/* %o0: cpuid
+	 *
+	 * returns %o0:	status
+	 */
+ENTRY(sun4v_cpu_poke)
+	mov     HV_FAST_CPU_POKE, %o5
+	ta      HV_FAST_TRAP
+	retl
+	 nop
+ENDPROC(sun4v_cpu_poke)
 
 	/* %o0:	type
 	 * %o1:	queue paddr

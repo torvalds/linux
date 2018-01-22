@@ -76,17 +76,17 @@ static void est_fetch_counters(struct net_rate_estimator *e,
 
 }
 
-static void est_timer(unsigned long arg)
+static void est_timer(struct timer_list *t)
 {
-	struct net_rate_estimator *est = (struct net_rate_estimator *)arg;
+	struct net_rate_estimator *est = from_timer(est, t, timer);
 	struct gnet_stats_basic_packed b;
 	u64 rate, brate;
 
 	est_fetch_counters(est, &b);
-	brate = (b.bytes - est->last_bytes) << (8 - est->ewma_log);
+	brate = (b.bytes - est->last_bytes) << (10 - est->ewma_log - est->intvl_log);
 	brate -= (est->avbps >> est->ewma_log);
 
-	rate = (u64)(b.packets - est->last_packets) << (8 - est->ewma_log);
+	rate = (u64)(b.packets - est->last_packets) << (10 - est->ewma_log - est->intvl_log);
 	rate -= (est->avpps >> est->ewma_log);
 
 	write_seqcount_begin(&est->seq);
@@ -170,7 +170,7 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 	}
 
 	est->next_jiffies = jiffies + ((HZ/4) << intvl_log);
-	setup_timer(&est->timer, est_timer, (unsigned long)est);
+	timer_setup(&est->timer, est_timer, 0);
 	mod_timer(&est->timer, est->next_jiffies);
 
 	rcu_assign_pointer(*rate_est, est);

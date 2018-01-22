@@ -40,6 +40,7 @@ To summarize,
 Required properties of an internal channel:
 -------------------------------------------
 - compatible:	"renesas,r8a7795-drif" if DRIF controller is a part of R8A7795 SoC.
+		"renesas,r8a7796-drif" if DRIF controller is a part of R8A7796 SoC.
 		"renesas,rcar-gen3-drif" for a generic R-Car Gen3 compatible device.
 
 		When compatible with the generic version, nodes must list the

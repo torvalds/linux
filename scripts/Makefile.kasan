@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ifdef CONFIG_KASAN
 ifdef CONFIG_KASAN_INLINE
 	call_threshold := 10000

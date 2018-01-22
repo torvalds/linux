@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DRM_ATI_PCIGART_H
 #define DRM_ATI_PCIGART_H
 

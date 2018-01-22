@@ -325,7 +325,7 @@ static int hdac_component_master_match(struct device *dev, void *data)
  */
 int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops *aops)
 {
-	if (WARN_ON(!hdac_acomp))
+	if (!hdac_acomp)
 		return -ENODEV;
 
 	hdac_acomp->audio_ops = aops;
@@ -336,7 +336,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_i915_register_notifier);
 /* check whether intel graphics is present */
 static bool i915_gfx_present(void)
 {
-	static struct pci_device_id ids[] = {
+	static const struct pci_device_id ids[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_ANY_ID),
 		  .class = PCI_BASE_CLASS_DISPLAY << 16,
 		  .class_mask = 0xff << 16 },

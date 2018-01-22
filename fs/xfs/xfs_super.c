@@ -210,11 +210,11 @@ xfs_parseargs(
 	/*
 	 * Copy binary VFS mount flags we are interested in.
 	 */
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		mp->m_flags |= XFS_MOUNT_RDONLY;
-	if (sb->s_flags & MS_DIRSYNC)
+	if (sb->s_flags & SB_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
-	if (sb->s_flags & MS_SYNCHRONOUS)
+	if (sb->s_flags & SB_SYNCHRONOUS)
 		mp->m_flags |= XFS_MOUNT_WSYNC;
 
 	/*
@@ -714,17 +714,26 @@ STATIC void
 xfs_close_devices(
 	struct xfs_mount	*mp)
 {
+	struct dax_device *dax_ddev = mp->m_ddev_targp->bt_daxdev;
+
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp) {
 		struct block_device *logdev = mp->m_logdev_targp->bt_bdev;
+		struct dax_device *dax_logdev = mp->m_logdev_targp->bt_daxdev;
+
 		xfs_free_buftarg(mp, mp->m_logdev_targp);
 		xfs_blkdev_put(logdev);
+		fs_put_dax(dax_logdev);
 	}
 	if (mp->m_rtdev_targp) {
 		struct block_device *rtdev = mp->m_rtdev_targp->bt_bdev;
+		struct dax_device *dax_rtdev = mp->m_rtdev_targp->bt_daxdev;
+
 		xfs_free_buftarg(mp, mp->m_rtdev_targp);
 		xfs_blkdev_put(rtdev);
+		fs_put_dax(dax_rtdev);
 	}
 	xfs_free_buftarg(mp, mp->m_ddev_targp);
+	fs_put_dax(dax_ddev);
 }
 
 /*
@@ -742,6 +751,8 @@ xfs_open_devices(
 	struct xfs_mount	*mp)
 {
 	struct block_device	*ddev = mp->m_super->s_bdev;
+	struct dax_device	*dax_ddev = fs_dax_get_by_bdev(ddev);
+	struct dax_device	*dax_logdev = NULL, *dax_rtdev = NULL;
 	struct block_device	*logdev = NULL, *rtdev = NULL;
 	int			error;
 
@@ -752,6 +763,7 @@ xfs_open_devices(
 		error = xfs_blkdev_get(mp, mp->m_logname, &logdev);
 		if (error)
 			goto out;
+		dax_logdev = fs_dax_get_by_bdev(logdev);
 	}
 
 	if (mp->m_rtname) {
@@ -765,24 +777,25 @@ xfs_open_devices(
 			error = -EINVAL;
 			goto out_close_rtdev;
 		}
+		dax_rtdev = fs_dax_get_by_bdev(rtdev);
 	}
 
 	/*
 	 * Setup xfs_mount buffer target pointers
 	 */
 	error = -ENOMEM;
-	mp->m_ddev_targp = xfs_alloc_buftarg(mp, ddev);
+	mp->m_ddev_targp = xfs_alloc_buftarg(mp, ddev, dax_ddev);
 	if (!mp->m_ddev_targp)
 		goto out_close_rtdev;
 
 	if (rtdev) {
-		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev);
+		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev, dax_rtdev);
 		if (!mp->m_rtdev_targp)
 			goto out_free_ddev_targ;
 	}
 
 	if (logdev && logdev != ddev) {
-		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev);
+		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev, dax_logdev);
 		if (!mp->m_logdev_targp)
 			goto out_free_rtdev_targ;
 	} else {
@@ -798,10 +811,14 @@ xfs_open_devices(
 	xfs_free_buftarg(mp, mp->m_ddev_targp);
  out_close_rtdev:
 	xfs_blkdev_put(rtdev);
+	fs_put_dax(dax_rtdev);
  out_close_logdev:
-	if (logdev && logdev != ddev)
+	if (logdev && logdev != ddev) {
 		xfs_blkdev_put(logdev);
+		fs_put_dax(dax_logdev);
+	}
  out:
+	fs_put_dax(dax_ddev);
 	return error;
 }
 
@@ -1220,7 +1237,7 @@ xfs_test_remount_options(
 	tmp_mp->m_super = sb;
 	error = xfs_parseargs(tmp_mp, options);
 	xfs_free_fsname(tmp_mp);
-	kfree(tmp_mp);
+	kmem_free(tmp_mp);
 
 	return error;
 }
@@ -1295,7 +1312,7 @@ xfs_fs_remount(
 	}
 
 	/* ro -> rw */
-	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !(*flags & MS_RDONLY)) {
+	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !(*flags & SB_RDONLY)) {
 		if (mp->m_flags & XFS_MOUNT_NORECOVERY) {
 			xfs_warn(mp,
 		"ro->rw transition prohibited on norecovery mount");
@@ -1343,6 +1360,7 @@ xfs_fs_remount(
 			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 			return error;
 		}
+		xfs_queue_cowblocks(mp);
 
 		/* Create the per-AG metadata reservation pool .*/
 		error = xfs_fs_reserve_ag_blocks(mp);
@@ -1351,7 +1369,15 @@ xfs_fs_remount(
 	}
 
 	/* rw -> ro */
-	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & MS_RDONLY)) {
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & SB_RDONLY)) {
+		/* Get rid of any leftover CoW reservations... */
+		cancel_delayed_work_sync(&mp->m_cowblocks_work);
+		error = xfs_icache_free_cowblocks(mp, NULL);
+		if (error) {
+			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+			return error;
+		}
+
 		/* Free the per-AG metadata reservation pool. */
 		error = xfs_fs_unreserve_ag_blocks(mp);
 		if (error) {
@@ -1620,7 +1646,7 @@ xfs_fs_fill_super(
 
 	/* version 5 superblocks support inode version counters. */
 	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
-		sb->s_flags |= MS_I_VERSION;
+		sb->s_flags |= SB_I_VERSION;
 
 	if (mp->m_flags & XFS_MOUNT_DAX) {
 		xfs_warn(mp,
@@ -1635,6 +1661,16 @@ xfs_fs_fill_super(
 		if (xfs_sb_version_hasreflink(&mp->m_sb))
 			xfs_alert(mp,
 		"DAX and reflink have not been tested together!");
+	}
+
+	if (mp->m_flags & XFS_MOUNT_DISCARD) {
+		struct request_queue *q = bdev_get_queue(sb->s_bdev);
+
+		if (!blk_queue_discard(q)) {
+			xfs_warn(mp, "mounting with \"discard\" option, but "
+					"the device does not support discard");
+			mp->m_flags &= ~XFS_MOUNT_DISCARD;
+		}
 	}
 
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {

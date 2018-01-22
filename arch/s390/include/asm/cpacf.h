@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * CP Assist for Cryptographic Functions (CPACF)
  *
- * Copyright IBM Corp. 2003, 2016
+ * Copyright IBM Corp. 2003, 2017
  * Author(s): Thomas Spatzier
  *	      Jan Glauber
  *	      Harald Freudenberger (freude@de.ibm.com)
@@ -133,6 +134,22 @@
 #define CPACF_PRNO_TRNG_Q_R2C_RATIO	0x70
 #define CPACF_PRNO_TRNG			0x72
 
+/*
+ * Function codes for the KMA (CIPHER MESSAGE WITH AUTHENTICATION)
+ * instruction
+ */
+#define CPACF_KMA_QUERY		0x00
+#define CPACF_KMA_GCM_AES_128	0x12
+#define CPACF_KMA_GCM_AES_192	0x13
+#define CPACF_KMA_GCM_AES_256	0x14
+
+/*
+ * Flags for the KMA (CIPHER MESSAGE WITH AUTHENTICATION) instruction
+ */
+#define CPACF_KMA_LPC	0x100	/* Last-Plaintext/Ciphertext */
+#define CPACF_KMA_LAAD	0x200	/* Last-AAD */
+#define CPACF_KMA_HS	0x400	/* Hash-subkey Supplied */
+
 typedef struct { unsigned char bytes[16]; } cpacf_mask_t;
 
 /**
@@ -178,6 +195,8 @@ static inline int __cpacf_check_opcode(unsigned int opcode)
 		return test_facility(77);	/* check for MSA4 */
 	case CPACF_PRNO:
 		return test_facility(57);	/* check for MSA5 */
+	case CPACF_KMA:
+		return test_facility(146);	/* check for MSA8 */
 	default:
 		BUG();
 	}
@@ -466,6 +485,38 @@ static inline void cpacf_pckmo(long func, void *param)
 		"       .insn   rre,%[opc] << 16,0,0\n" /* PCKMO opcode */
 		:
 		: [fc] "d" (r0), [pba] "a" (r1), [opc] "i" (CPACF_PCKMO)
+		: "cc", "memory");
+}
+
+/**
+ * cpacf_kma() - executes the KMA (CIPHER MESSAGE WITH AUTHENTICATION)
+ *		 instruction
+ * @func: the function code passed to KMA; see CPACF_KMA_xxx defines
+ * @param: address of parameter block; see POP for details on each func
+ * @dest: address of destination memory area
+ * @src: address of source memory area
+ * @src_len: length of src operand in bytes
+ * @aad: address of additional authenticated data memory area
+ * @aad_len: length of aad operand in bytes
+ */
+static inline void cpacf_kma(unsigned long func, void *param, u8 *dest,
+			     const u8 *src, unsigned long src_len,
+			     const u8 *aad, unsigned long aad_len)
+{
+	register unsigned long r0 asm("0") = (unsigned long) func;
+	register unsigned long r1 asm("1") = (unsigned long) param;
+	register unsigned long r2 asm("2") = (unsigned long) src;
+	register unsigned long r3 asm("3") = (unsigned long) src_len;
+	register unsigned long r4 asm("4") = (unsigned long) aad;
+	register unsigned long r5 asm("5") = (unsigned long) aad_len;
+	register unsigned long r6 asm("6") = (unsigned long) dest;
+
+	asm volatile(
+		"0:	.insn	rrf,%[opc] << 16,%[dst],%[src],%[aad],0\n"
+		"	brc	1,0b\n"	/* handle partial completion */
+		: [dst] "+a" (r6), [src] "+a" (r2), [slen] "+d" (r3),
+		  [aad] "+a" (r4), [alen] "+d" (r5)
+		: [fc] "d" (r0), [pba] "a" (r1), [opc] "i" (CPACF_KMA)
 		: "cc", "memory");
 }
 

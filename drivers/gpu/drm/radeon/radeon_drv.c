@@ -43,7 +43,6 @@
 #include <drm/drm_fb_helper.h>
 
 #include <drm/drm_crtc_helper.h>
-#include "radeon_kfd.h"
 
 /*
  * KMS wrapper.
@@ -338,14 +337,6 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 {
 	int ret;
 
-	/*
-	 * Initialize amdkfd before starting radeon. If it was not loaded yet,
-	 * defer radeon probing
-	 */
-	ret = radeon_kfd_init();
-	if (ret == -EPROBE_DEFER)
-		return ret;
-
 	if (vga_switcheroo_client_probe_defer(pdev))
 		return -EPROBE_DEFER;
 
@@ -567,7 +558,6 @@ static struct drm_driver kms_driver = {
 	.open = radeon_driver_open_kms,
 	.postclose = radeon_driver_postclose_kms,
 	.lastclose = radeon_driver_lastclose_kms,
-	.set_busid = drm_pci_set_busid,
 	.unload = radeon_driver_unload_kms,
 	.get_vblank_counter = radeon_get_vblank_counter_kms,
 	.enable_vblank = radeon_enable_vblank_kms,
@@ -584,7 +574,6 @@ static struct drm_driver kms_driver = {
 	.gem_close_object = radeon_gem_object_close,
 	.dumb_create = radeon_mode_dumb_create,
 	.dumb_map_offset = radeon_mode_dumb_mmap,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &radeon_driver_kms_fops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
@@ -642,14 +631,12 @@ static int __init radeon_init(void)
 		return -EINVAL;
 	}
 
-	/* let modprobe override vga console setting */
-	return drm_pci_init(driver, pdriver);
+	return pci_register_driver(pdriver);
 }
 
 static void __exit radeon_exit(void)
 {
-	radeon_kfd_fini();
-	drm_pci_exit(driver, pdriver);
+	pci_unregister_driver(pdriver);
 	radeon_unregister_atpx_handler();
 }
 

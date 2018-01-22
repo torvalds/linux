@@ -202,7 +202,6 @@ static struct drm_encoder *tfp410_connector_best_encoder(
 
 static const struct drm_connector_funcs tfp410_connector_funcs = {
 	.destroy            = tfp410_connector_destroy,
-	.dpms               = drm_atomic_helper_connector_dpms,
 	.detect             = tfp410_connector_detect,
 	.fill_modes         = drm_helper_probe_single_connector_modes,
 	.reset              = drm_atomic_helper_connector_reset,
@@ -290,8 +289,6 @@ static const struct tilcdc_module_ops tfp410_module_ops = {
  * Device:
  */
 
-static struct of_device_id tfp410_of_match[];
-
 static int tfp410_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -376,7 +373,7 @@ static int tfp410_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tfp410_of_match[] = {
+static const struct of_device_id tfp410_of_match[] = {
 		{ .compatible = "ti,tilcdc,tfp410", },
 		{ },
 };

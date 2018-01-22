@@ -887,12 +887,9 @@ static void mtip_issue_non_ncq_command(struct mtip_port *port, int tag)
 static bool mtip_pause_ncq(struct mtip_port *port,
 				struct host_to_dev_fis *fis)
 {
-	struct host_to_dev_fis *reply;
 	unsigned long task_file_data;
 
-	reply = port->rxfis + RX_FIS_D2H_REG;
 	task_file_data = readl(port->mmio+PORT_TFDATA);
-
 	if ((task_file_data & 1))
 		return false;
 
@@ -1020,7 +1017,6 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 		.opts = opts
 	};
 	int rv = 0;
-	unsigned long start;
 
 	/* Make sure the buffer is 8 byte aligned. This is asic specific. */
 	if (buffer & 0x00000007) {
@@ -1057,7 +1053,6 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 	/* Copy the command to the command table */
 	memcpy(int_cmd->command, fis, fis_len*4);
 
-	start = jiffies;
 	rq->timeout = timeout;
 
 	/* insert request and run queue */
@@ -3015,7 +3010,6 @@ static int mtip_hw_init(struct driver_data *dd)
 {
 	int i;
 	int rv;
-	unsigned int num_command_slots;
 	unsigned long timeout, timetaken;
 
 	dd->mmio = pcim_iomap_table(dd->pdev)[MTIP_ABAR];
@@ -3025,7 +3019,6 @@ static int mtip_hw_init(struct driver_data *dd)
 		rv = -EIO;
 		goto out1;
 	}
-	num_command_slots = dd->slot_groups * 32;
 
 	hba_setup(dd);
 

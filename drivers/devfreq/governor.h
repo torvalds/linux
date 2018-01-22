@@ -69,4 +69,8 @@ extern int devfreq_remove_governor(struct devfreq_governor *governor);
 
 extern int devfreq_update_status(struct devfreq *devfreq, unsigned long freq);
 
+static inline int devfreq_update_stats(struct devfreq *df)
+{
+	return df->profile->get_dev_status(df->dev.parent, &df->last_status);
+}
 #endif /* _GOVERNOR_H */

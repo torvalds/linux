@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Run headers_$1 command for all suitable architectures
 
 # Stop on error

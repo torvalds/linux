@@ -35,6 +35,7 @@
 #define ST_GYRO_DEFAULT_OUT_Z_L_ADDR		0x2c
 
 /* FULLSCALE */
+#define ST_GYRO_FS_AVL_245DPS			245
 #define ST_GYRO_FS_AVL_250DPS			250
 #define ST_GYRO_FS_AVL_500DPS			500
 #define ST_GYRO_FS_AVL_2000DPS			2000
@@ -110,14 +111,23 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			.mask = 0x80,
 		},
 		.drdy_irq = {
-			.addr = 0x22,
-			.mask_int2 = 0x08,
+			.int2 = {
+				.addr = 0x22,
+				.mask = 0x08,
+			},
 			/*
 			 * The sensor has IHL (active low) and open
 			 * drain settings, but only for INT1 and not
 			 * for the DRDY line on INT2.
 			 */
-			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x07,
+			},
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
@@ -180,14 +190,23 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			.mask = 0x80,
 		},
 		.drdy_irq = {
-			.addr = 0x22,
-			.mask_int2 = 0x08,
+			.int2 = {
+				.addr = 0x22,
+				.mask = 0x08,
+			},
 			/*
 			 * The sensor has IHL (active low) and open
 			 * drain settings, but only for INT1 and not
 			 * for the DRDY line on INT2.
 			 */
-			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x07,
+			},
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
@@ -196,17 +215,17 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 		.wai = 0xd7,
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
-			[0] = L3GD20_GYRO_DEV_NAME,
+			[0] = L3GD20H_GYRO_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_gyro_16bit_channels,
 		.odr = {
 			.addr = 0x20,
 			.mask = 0xc0,
 			.odr_avl = {
-				{ .hz = 95, .value = 0x00, },
-				{ .hz = 190, .value = 0x01, },
-				{ .hz = 380, .value = 0x02, },
-				{ .hz = 760, .value = 0x03, },
+				{ .hz = 100, .value = 0x00, },
+				{ .hz = 200, .value = 0x01, },
+				{ .hz = 400, .value = 0x02, },
+				{ .hz = 800, .value = 0x03, },
 			},
 		},
 		.pw = {
@@ -224,7 +243,7 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			.mask = 0x30,
 			.fs_avl = {
 				[0] = {
-					.num = ST_GYRO_FS_AVL_250DPS,
+					.num = ST_GYRO_FS_AVL_245DPS,
 					.value = 0x00,
 					.gain = IIO_DEGREE_TO_RAD(8750),
 				},
@@ -245,14 +264,23 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			.mask = 0x80,
 		},
 		.drdy_irq = {
-			.addr = 0x22,
-			.mask_int2 = 0x08,
+			.int2 = {
+				.addr = 0x22,
+				.mask = 0x08,
+			},
 			/*
 			 * The sensor has IHL (active low) and open
 			 * drain settings, but only for INT1 and not
 			 * for the DRDY line on INT2.
 			 */
-			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x07,
+			},
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
@@ -325,7 +353,6 @@ static const struct attribute_group st_gyro_attribute_group = {
 };
 
 static const struct iio_info gyro_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &st_gyro_attribute_group,
 	.read_raw = &st_gyro_read_raw,
 	.write_raw = &st_gyro_write_raw,
@@ -334,7 +361,6 @@ static const struct iio_info gyro_info = {
 
 #ifdef CONFIG_IIO_TRIGGER
 static const struct iio_trigger_ops st_gyro_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = ST_GYRO_TRIGGER_SET_STATE,
 	.validate_device = st_sensors_validate_device,
 };

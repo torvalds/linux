@@ -1,6 +1,6 @@
 /*
  * da9211.h - Regulator device driver for DA9211/DA9212
- * /DA9213/DA9214/DA9215
+ * /DA9213/DA9223/DA9214/DA9224/DA9215/DA9225
  * Copyright (C) 2015  Dialog Semiconductor Ltd.
  *
  * This program is free software; you can redistribute it and/or
@@ -25,8 +25,11 @@ enum da9211_chip_id {
 	DA9211,
 	DA9212,
 	DA9213,
+	DA9223,
 	DA9214,
+	DA9224,
 	DA9215,
+	DA9225,
 };
 
 struct da9211_pdata {

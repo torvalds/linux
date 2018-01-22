@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ccflags-$(CONFIG_USB_WUSB_CBAF_DEBUG) := -DDEBUG
 
 obj-$(CONFIG_USB_WUSB)		+= wusbcore.o

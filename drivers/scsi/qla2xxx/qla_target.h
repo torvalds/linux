@@ -705,6 +705,7 @@ struct qla_tgt_func_tmpl {
 	int (*get_dif_tags)(struct qla_tgt_cmd *cmd, uint16_t *pfw_prot_opts);
 	int (*chk_dif_tags)(uint32_t tag);
 	void (*add_target)(struct scsi_qla_host *);
+	void (*remove_target)(struct scsi_qla_host *);
 };
 
 int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
@@ -959,6 +960,7 @@ struct qla_tgt_mgmt_cmd {
 	uint8_t fc_tm_rsp;
 	struct fc_port *sess;
 	struct qla_qpair *qpair;
+	struct scsi_qla_host *vha;
 	struct se_cmd se_cmd;
 	struct work_struct free_work;
 	unsigned int flags;

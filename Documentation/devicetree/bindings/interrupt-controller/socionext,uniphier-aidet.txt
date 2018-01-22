@@ -1,0 +1,32 @@
+UniPhier AIDET
+
+UniPhier AIDET (ARM Interrupt Detector) is an add-on block for ARM GIC (Generic
+Interrupt Controller).  GIC itself can handle only high level and rising edge
+interrupts.  The AIDET provides logic inverter to support low level and falling
+edge interrupts.
+
+Required properties:
+- compatible: Should be one of the following:
+    "socionext,uniphier-ld4-aidet"  - for LD4 SoC
+    "socionext,uniphier-pro4-aidet" - for Pro4 SoC
+    "socionext,uniphier-sld8-aidet" - for sLD8 SoC
+    "socionext,uniphier-pro5-aidet" - for Pro5 SoC
+    "socionext,uniphier-pxs2-aidet" - for PXs2/LD6b SoC
+    "socionext,uniphier-ld11-aidet" - for LD11 SoC
+    "socionext,uniphier-ld20-aidet" - for LD20 SoC
+    "socionext,uniphier-pxs3-aidet" - for PXs3 SoC
+- reg: Specifies offset and length of the register set for the device.
+- interrupt-controller: Identifies the node as an interrupt controller
+- #interrupt-cells : Specifies the number of cells needed to encode an interrupt
+  source.  The value should be 2.  The first cell defines the interrupt number
+  (corresponds to the SPI interrupt number of GIC).  The second cell specifies
+  the trigger type as defined in interrupts.txt in this directory.
+
+Example:
+
+	aidet: aidet@5fc20000 {
+		compatible = "socionext,uniphier-pro4-aidet";
+		reg = <0x5fc20000 0x200>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};

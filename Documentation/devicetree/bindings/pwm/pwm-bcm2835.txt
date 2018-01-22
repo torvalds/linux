@@ -6,7 +6,7 @@ Required properties:
 - clocks: This clock defines the base clock frequency of the PWM hardware
   system, the period and the duty_cycle of the PWM signal is a multiple of
   the base period.
-- #pwm-cells: Should be 2. See pwm.txt in this directory for a description of
+- #pwm-cells: Should be 3. See pwm.txt in this directory for a description of
   the cells format.
 
 Examples:
@@ -15,7 +15,7 @@ pwm@2020c000 {
 	compatible = "brcm,bcm2835-pwm";
 	reg = <0x2020c000 0x28>;
 	clocks = <&clk_pwm>;
-	#pwm-cells = <2>;
+	#pwm-cells = <3>;
 };
 
 clocks {

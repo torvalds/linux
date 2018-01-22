@@ -69,7 +69,6 @@
 
 #include "mailbox.h"
 
-#define MAX_PCC_SUBSPACES	256
 #define MBOX_IRQ_NAME		"pcc-mbox"
 
 static struct mbox_chan *pcc_mbox_channels;
@@ -266,7 +265,7 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 	init_completion(&chan->tx_complete);
 
 	if (chan->txdone_method == TXDONE_BY_POLL && cl->knows_txdone)
-		chan->txdone_method |= TXDONE_BY_ACK;
+		chan->txdone_method = TXDONE_BY_ACK;
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 
@@ -312,7 +311,7 @@ void pcc_mbox_free_channel(struct mbox_chan *chan)
 	spin_lock_irqsave(&chan->lock, flags);
 	chan->cl = NULL;
 	chan->active_req = NULL;
-	if (chan->txdone_method == (TXDONE_BY_POLL | TXDONE_BY_ACK))
+	if (chan->txdone_method == TXDONE_BY_ACK)
 		chan->txdone_method = TXDONE_BY_POLL;
 
 	spin_unlock_irqrestore(&chan->lock, flags);
@@ -457,10 +456,8 @@ static int __init acpi_pcc_probe(void)
 	/* Search for PCCT */
 	status = acpi_get_table(ACPI_SIG_PCCT, 0, &pcct_tbl);
 
-	if (ACPI_FAILURE(status) || !pcct_tbl) {
-		pr_warn("PCCT header not found.\n");
+	if (ACPI_FAILURE(status) || !pcct_tbl)
 		return -ENODEV;
-	}
 
 	count = acpi_table_parse_entries(ACPI_SIG_PCCT,
 			sizeof(struct acpi_table_pcct),

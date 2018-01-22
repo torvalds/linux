@@ -166,7 +166,7 @@ of_err:
 static int davinci_gpio_probe(struct platform_device *pdev)
 {
 	static int ctrl_num, bank_base;
-	int gpio, bank;
+	int gpio, bank, ret = 0;
 	unsigned ngpio, nbank;
 	struct davinci_gpio_controller *chips;
 	struct davinci_gpio_platform_data *pdata;
@@ -232,10 +232,23 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	for (gpio = 0, bank = 0; gpio < ngpio; gpio += 32, bank++)
 		chips->regs[bank] = gpio_base + offset_array[bank];
 
-	gpiochip_add_data(&chips->chip, chips);
+	ret = devm_gpiochip_add_data(dev, &chips->chip, chips);
+	if (ret)
+		goto err;
+
 	platform_set_drvdata(pdev, chips);
-	davinci_gpio_irq_setup(pdev);
+	ret = davinci_gpio_irq_setup(pdev);
+	if (ret)
+		goto err;
+
 	return 0;
+
+err:
+	/* Revert the static variable increments */
+	ctrl_num--;
+	bank_base -= ngpio;
+
+	return ret;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -370,7 +383,7 @@ static int gpio_irq_type_unbanked(struct irq_data *data, unsigned trigger)
 	u32 mask;
 
 	d = (struct davinci_gpio_controller *)irq_data_get_irq_handler_data(data);
-	g = (struct davinci_gpio_regs __iomem *)d->regs;
+	g = (struct davinci_gpio_regs __iomem *)d->regs[0];
 	mask = __gpio_mask(data->irq - d->base_irq);
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
@@ -477,8 +490,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 
 	clk = devm_clk_get(dev, "gpio");
 	if (IS_ERR(clk)) {
-		printk(KERN_ERR "Error %ld getting gpio clock?\n",
-		       PTR_ERR(clk));
+		dev_err(dev, "Error %ld getting gpio clock\n", PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 	ret = clk_prepare_enable(clk);

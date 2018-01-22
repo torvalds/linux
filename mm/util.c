@@ -614,7 +614,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 		return 0;
 
 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
-		free = global_page_state(NR_FREE_PAGES);
+		free = global_zone_page_state(NR_FREE_PAGES);
 		free += global_node_page_state(NR_FILE_PAGES);
 
 		/*

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IP22_ZILOG_H
 #define _IP22_ZILOG_H
 

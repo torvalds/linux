@@ -930,6 +930,14 @@ static inline bool is_ipv4_pkt(struct sk_buff *skb)
 	return skb->protocol == htons(ETH_P_IP) && ip_hdr(skb)->version == 4;
 }
 
+static inline bool is_ipv6_ext_hdr(struct sk_buff *skb)
+{
+	if (ip_hdr(skb)->version == 6)
+		return ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr);
+	else
+		return false;
+}
+
 #define be_error_recovering(adapter)	\
 		(adapter->flags & BE_FLAGS_TRY_RECOVERY)
 

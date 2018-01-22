@@ -52,8 +52,8 @@ struct __dispatch {
  *  @return  Failure: NULL
  *
  */
-static inline void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
-					    u16 opcode, u16 subcode)
+void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
+			      u16 opcode, u16 subcode)
 {
 	int idx;
 	struct list_head *dispatch;
@@ -145,6 +145,8 @@ octeon_droq_destroy_ring_buffers(struct octeon_device *oct,
 
 	for (i = 0; i < droq->max_count; i++) {
 		pg_info = &droq->recv_buf_list[i].pg_info;
+		if (!pg_info)
+			continue;
 
 		if (pg_info->dma)
 			lio_unmap_ring(oct->pci_dev,
@@ -207,6 +209,10 @@ int octeon_delete_droq(struct octeon_device *oct, u32 q_no)
 			     droq->desc_ring, droq->desc_ring_dma);
 
 	memset(droq, 0, OCT_DROQ_SIZE);
+	oct->io_qmask.oq &= ~(1ULL << q_no);
+	vfree(oct->droq[q_no]);
+	oct->droq[q_no] = NULL;
+	oct->num_oqs--;
 
 	return 0;
 }
@@ -275,12 +281,12 @@ int octeon_init_droq(struct octeon_device *oct,
 		droq->max_count);
 
 	droq->recv_buf_list = (struct octeon_recv_buffer *)
-			      vmalloc_node(droq->max_count *
+			      vzalloc_node(droq->max_count *
 						OCT_DROQ_RECVBUF_SIZE,
 						numa_node);
 	if (!droq->recv_buf_list)
 		droq->recv_buf_list = (struct octeon_recv_buffer *)
-				      vmalloc(droq->max_count *
+				      vzalloc(droq->max_count *
 						OCT_DROQ_RECVBUF_SIZE);
 	if (!droq->recv_buf_list) {
 		dev_err(&oct->pci_dev->dev, "Output queue recv buf list alloc failed\n");

@@ -12,3 +12,6 @@ Description:
 				Ethernet over USB link
 		dev_addr	- MAC address of device's end of this
 				Ethernet over USB link
+		class		- USB interface class, default is 02 (hex)
+		subclass	- USB interface subclass, default is 06 (hex)
+		protocol	- USB interface protocol, default is 00 (hex)

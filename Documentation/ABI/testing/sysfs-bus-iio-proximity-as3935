@@ -14,3 +14,11 @@ Description:
 		Show or set the gain boost of the amp, from 0-31 range.
 		18 = indoors (default)
 		14 = outdoors
+
+What		/sys/bus/iio/devices/iio:deviceX/noise_level_tripped
+Date:		May 2017
+KernelVersion:	4.13
+Contact:	Matt Ranostay <matt.ranostay@konsulko.com>
+Description:
+		When 1 the noise level is over the trip level and not reporting
+		valid data

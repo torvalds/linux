@@ -38,18 +38,13 @@ int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr)
 {
 	struct rxe_port *port;
 
-	if (rdma_ah_get_port_num(attr) != 1) {
-		pr_info("invalid port_num = %d\n", rdma_ah_get_port_num(attr));
-		return -EINVAL;
-	}
-
 	port = &rxe->port;
 
 	if (rdma_ah_get_ah_flags(attr) & IB_AH_GRH) {
 		u8 sgid_index = rdma_ah_read_grh(attr)->sgid_index;
 
 		if (sgid_index > port->attr.gid_tbl_len) {
-			pr_info("invalid sgid index = %d\n", sgid_index);
+			pr_warn("invalid sgid index = %d\n", sgid_index);
 			return -EINVAL;
 		}
 	}

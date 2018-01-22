@@ -184,10 +184,14 @@ static void bcma_core_mips_print_irq(struct bcma_device *dev, unsigned int irq)
 {
 	int i;
 	static const char *irq_name[] = {"2(S)", "3", "4", "5", "6", "D", "I"};
-	printk(KERN_DEBUG KBUILD_MODNAME ": core 0x%04x, irq :", dev->id.id);
-	for (i = 0; i <= 6; i++)
-		printk(" %s%s", irq_name[i], i == irq ? "*" : " ");
-	printk("\n");
+	char interrupts[20];
+	char *ints = interrupts;
+
+	for (i = 0; i < ARRAY_SIZE(irq_name); i++)
+		ints += sprintf(ints, " %s%c",
+				irq_name[i], i == irq ? '*' : ' ');
+
+	bcma_debug(dev->bus, "core 0x%04x, irq:%s\n", dev->id.id, interrupts);
 }
 
 static void bcma_core_mips_dump_irq(struct bcma_bus *bus)

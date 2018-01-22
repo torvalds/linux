@@ -117,7 +117,8 @@ static irqreturn_t mfgpt_tick(int irq, void *dev_id)
 	/* Turn off the clock (and clear the event) */
 	disable_timer(cs5535_event_clock);
 
-	if (clockevent_state_shutdown(&cs5535_clockevent))
+	if (clockevent_state_detached(&cs5535_clockevent) ||
+	    clockevent_state_shutdown(&cs5535_clockevent))
 		return IRQ_HANDLED;
 
 	/* Clear the counter */

@@ -16,4 +16,4 @@ obj-y += cvmx-pko.o cvmx-spi.o cvmx-cmd-queue.o \
 	cvmx-helper-loop.o cvmx-helper-spi.o cvmx-helper-util.o \
 	cvmx-interrupt-decodes.o cvmx-interrupt-rsl.o
 
-obj-y += cvmx-helper-errata.o cvmx-helper-jtag.o
+obj-y += cvmx-helper-errata.o cvmx-helper-jtag.o cvmx-boot-vector.o

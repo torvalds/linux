@@ -324,6 +324,13 @@ enum pvrdma_mw_type {
 	PVRDMA_MW_TYPE_2 = 2,
 };
 
+struct pvrdma_srq_attr {
+	u32			max_wr;
+	u32			max_sge;
+	u32			srq_limit;
+	u32			reserved;
+};
+
 struct pvrdma_qp_attr {
 	enum pvrdma_qp_state	qp_state;
 	enum pvrdma_qp_state	cur_qp_state;
@@ -420,6 +427,17 @@ int pvrdma_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
 struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 			       struct ib_udata *udata);
 int pvrdma_destroy_ah(struct ib_ah *ah);
+
+struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
+				 struct ib_srq_init_attr *init_attr,
+				 struct ib_udata *udata);
+int pvrdma_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
+		      enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
+int pvrdma_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
+int pvrdma_destroy_srq(struct ib_srq *srq);
+int pvrdma_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
+			 struct ib_recv_wr **bad_wr);
+
 struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			       struct ib_qp_init_attr *init_attr,
 			       struct ib_udata *udata);

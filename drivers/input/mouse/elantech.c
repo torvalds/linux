@@ -700,7 +700,9 @@ static int elantech_debounce_check_v2(struct psmouse *psmouse)
          * When we encounter packet that matches this exactly, it means the
          * hardware is in debounce status. Just ignore the whole packet.
          */
-        const u8 debounce_packet[] = { 0x84, 0xff, 0xff, 0x02, 0xff, 0xff };
+	static const u8 debounce_packet[] = {
+		0x84, 0xff, 0xff, 0x02, 0xff, 0xff
+	};
         unsigned char *packet = psmouse->packet;
 
         return !memcmp(packet, debounce_packet, sizeof(debounce_packet));
@@ -741,7 +743,9 @@ static int elantech_packet_check_v2(struct psmouse *psmouse)
 static int elantech_packet_check_v3(struct psmouse *psmouse)
 {
 	struct elantech_data *etd = psmouse->private;
-	const u8 debounce_packet[] = { 0xc4, 0xff, 0xff, 0x02, 0xff, 0xff };
+	static const u8 debounce_packet[] = {
+		0xc4, 0xff, 0xff, 0x02, 0xff, 0xff
+	};
 	unsigned char *packet = psmouse->packet;
 
 	/*
@@ -1377,7 +1381,7 @@ static struct attribute *elantech_attrs[] = {
 	NULL
 };
 
-static struct attribute_group elantech_attr_group = {
+static const struct attribute_group elantech_attr_group = {
 	.attrs = elantech_attrs,
 };
 
@@ -1609,7 +1613,7 @@ static int elantech_set_properties(struct elantech_data *etd)
 		case 5:
 			etd->hw_version = 3;
 			break;
-		case 6 ... 14:
+		case 6 ... 15:
 			etd->hw_version = 4;
 			break;
 		default:

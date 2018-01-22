@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RDS_IB_H
 #define _RDS_IB_H
 
@@ -215,8 +216,6 @@ struct rds_ib_device {
 	struct list_head	conn_list;
 	struct ib_device	*dev;
 	struct ib_pd		*pd;
-	bool                    has_fmr;
-	bool                    has_fr;
 	bool                    use_fastreg;
 
 	unsigned int		max_mrs;

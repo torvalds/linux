@@ -273,7 +273,6 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	vfbdev->helper.fb = fb;
 
 	strcpy(info->fix.id, "virtiodrmfb");
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &virtio_gpufb_ops;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
@@ -309,7 +308,7 @@ static int virtio_gpu_fbdev_destroy(struct drm_device *dev,
 
 	return 0;
 }
-static struct drm_fb_helper_funcs virtio_gpu_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs virtio_gpu_fb_helper_funcs = {
 	.fb_probe = virtio_gpufb_create,
 };
 

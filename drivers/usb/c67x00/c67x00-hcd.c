@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * c67x00-hcd.c: Cypress C67X00 USB Host Controller Driver
  *
  * Copyright (C) 2006-2008 Barco N.V.
  *    Derived from the Cypress cy7c67200/300 ezusb linux driver and
  *    based on multiple host controller drivers inside the linux kernel.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA  02110-1301  USA.
  */
 
 #include <linux/device.h>
@@ -305,7 +291,7 @@ static int c67x00_hcd_get_frame(struct usb_hcd *hcd)
 	return temp_val ? (temp_val - 1) : HOST_FRAME_MASK;
 }
 
-static struct hc_driver c67x00_hc_driver = {
+static const struct hc_driver c67x00_hc_driver = {
 	.description	= "c67x00-hcd",
 	.product_desc	= "Cypress C67X00 Host Controller",
 	.hcd_priv_size	= sizeof(struct c67x00_hcd),

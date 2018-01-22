@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* registers.h: register frame declarations
  *
  * Copyright (C) 2003 Red Hat, Inc. All Rights Reserved.

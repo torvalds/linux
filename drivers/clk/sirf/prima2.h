@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #define SIRFSOC_CLKC_CLK_EN0    0x0000
 #define SIRFSOC_CLKC_CLK_EN1    0x0004
 #define SIRFSOC_CLKC_REF_CFG    0x0014

@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * bdc_core.c - BRCM BDC USB3.0 device controller core operations
  *
  * Copyright (C) 2014 Broadcom Corporation
  *
  * Author: Ashwini Pahuja
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -24,9 +19,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/of.h>
+#include <linux/phy/phy.h>
 #include <linux/moduleparam.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/clk.h>
 
 #include "bdc.h"
 #include "bdc_dbg.h"
@@ -444,6 +441,43 @@ static int bdc_hw_init(struct bdc *bdc)
 	return 0;
 }
 
+static int bdc_phy_init(struct bdc *bdc)
+{
+	int phy_num;
+	int ret;
+
+	for (phy_num = 0; phy_num < bdc->num_phys; phy_num++) {
+		ret = phy_init(bdc->phys[phy_num]);
+		if (ret)
+			goto err_exit_phy;
+		ret = phy_power_on(bdc->phys[phy_num]);
+		if (ret) {
+			phy_exit(bdc->phys[phy_num]);
+			goto err_exit_phy;
+		}
+	}
+
+	return 0;
+
+err_exit_phy:
+	while (--phy_num >= 0) {
+		phy_power_off(bdc->phys[phy_num]);
+		phy_exit(bdc->phys[phy_num]);
+	}
+
+	return ret;
+}
+
+static void bdc_phy_exit(struct bdc *bdc)
+{
+	int phy_num;
+
+	for (phy_num = 0; phy_num < bdc->num_phys; phy_num++) {
+		phy_power_off(bdc->phys[phy_num]);
+		phy_exit(bdc->phys[phy_num]);
+	}
+}
+
 static int bdc_probe(struct platform_device *pdev)
 {
 	struct bdc *bdc;
@@ -452,11 +486,28 @@ static int bdc_probe(struct platform_device *pdev)
 	int irq;
 	u32 temp;
 	struct device *dev = &pdev->dev;
+	struct clk *clk;
+	int phy_num;
 
 	dev_dbg(dev, "%s()\n", __func__);
+
+	clk = devm_clk_get(dev, "sw_usbd");
+	if (IS_ERR(clk)) {
+		dev_info(dev, "Clock not found in Device Tree\n");
+		clk = NULL;
+	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		dev_err(dev, "could not enable clock\n");
+		return ret;
+	}
+
 	bdc = devm_kzalloc(dev, sizeof(*bdc), GFP_KERNEL);
 	if (!bdc)
 		return -ENOMEM;
+
+	bdc->clk = clk;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	bdc->regs = devm_ioremap_resource(dev, res);
@@ -473,35 +524,66 @@ static int bdc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bdc);
 	bdc->irq = irq;
 	bdc->dev = dev;
-	dev_dbg(bdc->dev, "bdc->regs: %p irq=%d\n", bdc->regs, bdc->irq);
+	dev_dbg(dev, "bdc->regs: %p irq=%d\n", bdc->regs, bdc->irq);
+
+	bdc->num_phys = of_count_phandle_with_args(dev->of_node,
+						"phys", "#phy-cells");
+	if (bdc->num_phys > 0) {
+		bdc->phys = devm_kcalloc(dev, bdc->num_phys,
+					sizeof(struct phy *), GFP_KERNEL);
+		if (!bdc->phys)
+			return -ENOMEM;
+	} else {
+		bdc->num_phys = 0;
+	}
+	dev_info(dev, "Using %d phy(s)\n", bdc->num_phys);
+
+	for (phy_num = 0; phy_num < bdc->num_phys; phy_num++) {
+		bdc->phys[phy_num] = devm_of_phy_get_by_index(
+			dev, dev->of_node, phy_num);
+		if (IS_ERR(bdc->phys[phy_num])) {
+			ret = PTR_ERR(bdc->phys[phy_num]);
+			dev_err(bdc->dev,
+				"BDC phy specified but not found:%d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = bdc_phy_init(bdc);
+	if (ret) {
+		dev_err(bdc->dev, "BDC phy init failure:%d\n", ret);
+		return ret;
+	}
 
 	temp = bdc_readl(bdc->regs, BDC_BDCCAP1);
 	if ((temp & BDC_P64) &&
 			!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
-		dev_dbg(bdc->dev, "Using 64-bit address\n");
+		dev_dbg(dev, "Using 64-bit address\n");
 	} else {
-		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 		if (ret) {
-			dev_err(bdc->dev, "No suitable DMA config available, abort\n");
+			dev_err(dev,
+				"No suitable DMA config available, abort\n");
 			return -ENOTSUPP;
 		}
-		dev_dbg(bdc->dev, "Using 32-bit address\n");
+		dev_dbg(dev, "Using 32-bit address\n");
 	}
 	ret = bdc_hw_init(bdc);
 	if (ret) {
-		dev_err(bdc->dev, "BDC init failure:%d\n", ret);
-		return ret;
+		dev_err(dev, "BDC init failure:%d\n", ret);
+		goto phycleanup;
 	}
 	ret = bdc_udc_init(bdc);
 	if (ret) {
-		dev_err(bdc->dev, "BDC Gadget init failure:%d\n", ret);
+		dev_err(dev, "BDC Gadget init failure:%d\n", ret);
 		goto cleanup;
 	}
 	return 0;
 
 cleanup:
 	bdc_hw_exit(bdc);
-
+phycleanup:
+	bdc_phy_exit(bdc);
 	return ret;
 }
 
@@ -513,13 +595,55 @@ static int bdc_remove(struct platform_device *pdev)
 	dev_dbg(bdc->dev, "%s ()\n", __func__);
 	bdc_udc_exit(bdc);
 	bdc_hw_exit(bdc);
+	bdc_phy_exit(bdc);
+	clk_disable_unprepare(bdc->clk);
+	return 0;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int bdc_suspend(struct device *dev)
+{
+	struct bdc *bdc = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(bdc->clk);
+	return 0;
+}
+
+static int bdc_resume(struct device *dev)
+{
+	struct bdc *bdc = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(bdc->clk);
+	if (ret) {
+		dev_err(bdc->dev, "err enabling the clock\n");
+		return ret;
+	}
+	ret = bdc_reinit(bdc);
+	if (ret) {
+		dev_err(bdc->dev, "err in bdc reinit\n");
+		return ret;
+	}
 
 	return 0;
 }
 
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(bdc_pm_ops, bdc_suspend,
+		bdc_resume);
+
+static const struct of_device_id bdc_of_match[] = {
+	{ .compatible = "brcm,bdc-v0.16" },
+	{ .compatible = "brcm,bdc" },
+	{ /* sentinel */ }
+};
+
 static struct platform_driver bdc_driver = {
 	.driver		= {
 		.name	= BRCM_BDC_NAME,
+		.pm = &bdc_pm_ops,
+		.of_match_table	= bdc_of_match,
 	},
 	.probe		= bdc_probe,
 	.remove		= bdc_remove,

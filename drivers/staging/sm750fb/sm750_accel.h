@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ACCEL_H__
 #define ACCEL_H__
 

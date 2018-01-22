@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
+#include <media/v4l2-async.h>
 #include <media/v4l2-fwnode.h>
 
 #include "rcar-vin.h"
@@ -77,14 +78,14 @@ static int rvin_digital_notify_complete(struct v4l2_async_notifier *notifier)
 	int ret;
 
 	/* Verify subdevices mbus format */
-	if (!rvin_mbus_supported(&vin->digital)) {
+	if (!rvin_mbus_supported(vin->digital)) {
 		vin_err(vin, "Unsupported media bus format for %s\n",
-			vin->digital.subdev->name);
+			vin->digital->subdev->name);
 		return -EINVAL;
 	}
 
 	vin_dbg(vin, "Found media bus format for %s: %d\n",
-		vin->digital.subdev->name, vin->digital.code);
+		vin->digital->subdev->name, vin->digital->code);
 
 	ret = v4l2_device_register_subdev_nodes(&vin->v4l2_dev);
 	if (ret < 0) {
@@ -103,7 +104,7 @@ static void rvin_digital_notify_unbind(struct v4l2_async_notifier *notifier,
 
 	vin_dbg(vin, "unbind digital subdev %s\n", subdev->name);
 	rvin_v4l2_remove(vin);
-	vin->digital.subdev = NULL;
+	vin->digital->subdev = NULL;
 }
 
 static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
@@ -120,117 +121,75 @@ static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
 	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SOURCE);
 	if (ret < 0)
 		return ret;
-	vin->digital.source_pad = ret;
+	vin->digital->source_pad = ret;
 
 	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SINK);
-	vin->digital.sink_pad = ret < 0 ? 0 : ret;
+	vin->digital->sink_pad = ret < 0 ? 0 : ret;
 
-	vin->digital.subdev = subdev;
+	vin->digital->subdev = subdev;
 
 	vin_dbg(vin, "bound subdev %s source pad: %u sink pad: %u\n",
-		subdev->name, vin->digital.source_pad,
-		vin->digital.sink_pad);
+		subdev->name, vin->digital->source_pad,
+		vin->digital->sink_pad);
 
 	return 0;
 }
+static const struct v4l2_async_notifier_operations rvin_digital_notify_ops = {
+	.bound = rvin_digital_notify_bound,
+	.unbind = rvin_digital_notify_unbind,
+	.complete = rvin_digital_notify_complete,
+};
 
-static int rvin_digitial_parse_v4l2(struct rvin_dev *vin,
-				    struct device_node *ep,
-				    struct v4l2_mbus_config *mbus_cfg)
+
+static int rvin_digital_parse_v4l2(struct device *dev,
+				   struct v4l2_fwnode_endpoint *vep,
+				   struct v4l2_async_subdev *asd)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep;
-	int ret;
+	struct rvin_dev *vin = dev_get_drvdata(dev);
+	struct rvin_graph_entity *rvge =
+		container_of(asd, struct rvin_graph_entity, asd);
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &v4l2_ep);
-	if (ret) {
-		vin_err(vin, "Could not parse v4l2 endpoint\n");
-		return -EINVAL;
-	}
+	if (vep->base.port || vep->base.id)
+		return -ENOTCONN;
 
-	mbus_cfg->type = v4l2_ep.bus_type;
+	rvge->mbus_cfg.type = vep->bus_type;
 
-	switch (mbus_cfg->type) {
+	switch (rvge->mbus_cfg.type) {
 	case V4L2_MBUS_PARALLEL:
 		vin_dbg(vin, "Found PARALLEL media bus\n");
-		mbus_cfg->flags = v4l2_ep.bus.parallel.flags;
+		rvge->mbus_cfg.flags = vep->bus.parallel.flags;
 		break;
 	case V4L2_MBUS_BT656:
 		vin_dbg(vin, "Found BT656 media bus\n");
-		mbus_cfg->flags = 0;
+		rvge->mbus_cfg.flags = 0;
 		break;
 	default:
 		vin_err(vin, "Unknown media bus type\n");
 		return -EINVAL;
 	}
 
-	return 0;
-}
-
-static int rvin_digital_graph_parse(struct rvin_dev *vin)
-{
-	struct device_node *ep, *np;
-	int ret;
-
-	vin->digital.asd.match.fwnode.fwnode = NULL;
-	vin->digital.subdev = NULL;
-
-	/*
-	 * Port 0 id 0 is local digital input, try to get it.
-	 * Not all instances can or will have this, that is OK
-	 */
-	ep = of_graph_get_endpoint_by_regs(vin->dev->of_node, 0, 0);
-	if (!ep)
-		return 0;
-
-	np = of_graph_get_remote_port_parent(ep);
-	if (!np) {
-		vin_err(vin, "No remote parent for digital input\n");
-		of_node_put(ep);
-		return -EINVAL;
-	}
-	of_node_put(np);
-
-	ret = rvin_digitial_parse_v4l2(vin, ep, &vin->digital.mbus_cfg);
-	of_node_put(ep);
-	if (ret)
-		return ret;
-
-	vin->digital.asd.match.fwnode.fwnode = of_fwnode_handle(np);
-	vin->digital.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+	vin->digital = rvge;
 
 	return 0;
 }
 
 static int rvin_digital_graph_init(struct rvin_dev *vin)
 {
-	struct v4l2_async_subdev **subdevs = NULL;
 	int ret;
 
-	ret = rvin_digital_graph_parse(vin);
+	ret = v4l2_async_notifier_parse_fwnode_endpoints(
+		vin->dev, &vin->notifier,
+		sizeof(struct rvin_graph_entity), rvin_digital_parse_v4l2);
 	if (ret)
 		return ret;
 
-	if (!vin->digital.asd.match.fwnode.fwnode) {
-		vin_dbg(vin, "No digital subdevice found\n");
+	if (!vin->digital)
 		return -ENODEV;
-	}
 
-	/* Register the subdevices notifier. */
-	subdevs = devm_kzalloc(vin->dev, sizeof(*subdevs), GFP_KERNEL);
-	if (subdevs == NULL)
-		return -ENOMEM;
+	vin_dbg(vin, "Found digital subdevice %pOF\n",
+		to_of_node(vin->digital->asd.match.fwnode.fwnode));
 
-	subdevs[0] = &vin->digital.asd;
-
-	vin_dbg(vin, "Found digital subdevice %s\n",
-		of_node_full_name(to_of_node(subdevs[0]->match.fwnode.fwnode)));
-
-	vin->notifier.num_subdevs = 1;
-	vin->notifier.subdevs = subdevs;
-	vin->notifier.bound = rvin_digital_notify_bound;
-	vin->notifier.unbind = rvin_digital_notify_unbind;
-	vin->notifier.complete = rvin_digital_notify_complete;
-
+	vin->notifier.ops = &rvin_digital_notify_ops;
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
@@ -290,6 +249,8 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	platform_set_drvdata(pdev, vin);
+
 	ret = rvin_digital_graph_init(vin);
 	if (ret < 0)
 		goto error;
@@ -297,11 +258,10 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 
-	platform_set_drvdata(pdev, vin);
-
 	return 0;
 error:
 	rvin_dma_remove(vin);
+	v4l2_async_notifier_cleanup(&vin->notifier);
 
 	return ret;
 }
@@ -313,6 +273,7 @@ static int rcar_vin_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	v4l2_async_notifier_unregister(&vin->notifier);
+	v4l2_async_notifier_cleanup(&vin->notifier);
 
 	rvin_dma_remove(vin);
 

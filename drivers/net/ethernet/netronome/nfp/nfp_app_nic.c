@@ -60,8 +60,8 @@ nfp_app_nic_vnic_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 	return nn->port->type == NFP_PORT_INVALID;
 }
 
-int nfp_app_nic_vnic_init(struct nfp_app *app, struct nfp_net *nn,
-			  unsigned int id)
+int nfp_app_nic_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
+			   unsigned int id)
 {
 	int err;
 

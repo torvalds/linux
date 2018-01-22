@@ -820,8 +820,7 @@ static void term_afu(struct cxlflash_cfg *cfg)
 	for (k = cfg->afu->num_hwqs - 1; k >= 0; k--)
 		term_intr(cfg, UNMAP_THREE, k);
 
-	if (cfg->afu)
-		stop_afu(cfg);
+	stop_afu(cfg);
 
 	for (k = cfg->afu->num_hwqs - 1; k >= 0; k--)
 		term_mc(cfg, k);
@@ -1635,7 +1634,10 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	ssize_t vpd_size;
 	char vpd_data[CXLFLASH_VPD_LEN];
 	char tmp_buf[WWPN_BUF_LEN] = { 0 };
-	char *wwpn_vpd_tags[MAX_FC_PORTS] = { "V5", "V6", "V7", "V8" };
+	const struct dev_dependent_vals *ddv = (struct dev_dependent_vals *)
+						cfg->dev_id->driver_data;
+	const bool wwpn_vpd_required = ddv->flags & CXLFLASH_WWPN_VPD_REQUIRED;
+	const char *wwpn_vpd_tags[MAX_FC_PORTS] = { "V5", "V6", "V7", "V8" };
 
 	/* Get the VPD data from the device */
 	vpd_size = cxl_read_adapter_vpd(pdev, vpd_data, sizeof(vpd_data));
@@ -1672,17 +1674,24 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	 * value. Note that we must copy to a temporary buffer
 	 * because the conversion service requires that the ASCII
 	 * string be terminated.
+	 *
+	 * Allow for WWPN not being found for all devices, setting
+	 * the returned WWPN to zero when not found. Notify with a
+	 * log error for cards that should have had WWPN keywords
+	 * in the VPD - cards requiring WWPN will not have their
+	 * ports programmed and operate in an undefined state.
 	 */
 	for (k = 0; k < cfg->num_fc_ports; k++) {
 		j = ro_size;
 		i = ro_start + PCI_VPD_LRDT_TAG_SIZE;
 
 		i = pci_vpd_find_info_keyword(vpd_data, i, j, wwpn_vpd_tags[k]);
-		if (unlikely(i < 0)) {
-			dev_err(dev, "%s: Port %d WWPN not found in VPD\n",
-				__func__, k);
-			rc = -ENODEV;
-			goto out;
+		if (i < 0) {
+			if (wwpn_vpd_required)
+				dev_err(dev, "%s: Port %d WWPN not found\n",
+					__func__, k);
+			wwpn[k] = 0ULL;
+			continue;
 		}
 
 		j = pci_vpd_info_field_size(&vpd_data[i]);
@@ -3146,7 +3155,7 @@ static struct scsi_host_template driver_template = {
  * Device dependent values
  */
 static struct dev_dependent_vals dev_corsa_vals = { CXLFLASH_MAX_SECTORS,
-					0ULL };
+					CXLFLASH_WWPN_VPD_REQUIRED };
 static struct dev_dependent_vals dev_flash_gt_vals = { CXLFLASH_MAX_SECTORS,
 					CXLFLASH_NOTIFY_SHUTDOWN };
 static struct dev_dependent_vals dev_briard_vals = { CXLFLASH_MAX_SECTORS,
@@ -3381,12 +3390,6 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 
 		if (ulen > HT_CXLFLASH_AFU_DEBUG_MAX_DATA_LEN) {
 			rc = -EINVAL;
-			goto out;
-		}
-
-		if (unlikely(!access_ok(is_write ? VERIFY_READ : VERIFY_WRITE,
-					ubuf, ulen))) {
-			rc = -EFAULT;
 			goto out;
 		}
 

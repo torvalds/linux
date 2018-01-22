@@ -71,7 +71,7 @@ struct drm_crtc_helper_funcs {
 	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
 	 * also support using this hook for enabling and disabling a CRTC to
 	 * facilitate transitions to atomic, but it is deprecated. Instead
-	 * @enable and @disable should be used.
+	 * @atomic_enable and @atomic_disable should be used.
 	 */
 	void (*dpms)(struct drm_crtc *crtc, int mode);
 
@@ -85,8 +85,8 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
 	 * also support using this hook for disabling a CRTC to facilitate
-	 * transitions to atomic, but it is deprecated. Instead @disable should
-	 * be used.
+	 * transitions to atomic, but it is deprecated. Instead @atomic_disable
+	 * should be used.
 	 */
 	void (*prepare)(struct drm_crtc *crtc);
 
@@ -100,8 +100,8 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
 	 * also support using this hook for enabling a CRTC to facilitate
-	 * transitions to atomic, but it is deprecated. Instead @enable should
-	 * be used.
+	 * transitions to atomic, but it is deprecated. Instead @atomic_enable
+	 * should be used.
 	 */
 	void (*commit)(struct drm_crtc *crtc);
 
@@ -222,7 +222,7 @@ struct drm_crtc_helper_funcs {
 	 * pipeline is suspended using either DPMS or the new "ACTIVE" property.
 	 * Which means register values set in this callback might get reset when
 	 * the CRTC is suspended, but not restored.  Such drivers should instead
-	 * move all their CRTC setup into the @enable callback.
+	 * move all their CRTC setup into the @atomic_enable callback.
 	 *
 	 * This callback is optional.
 	 */
@@ -267,22 +267,6 @@ struct drm_crtc_helper_funcs {
 				    enum mode_set_atomic);
 
 	/**
-	 * @load_lut:
-	 *
-	 * Load a LUT prepared with the &drm_fb_helper_funcs.gamma_set vfunc.
-	 *
-	 * This callback is optional and is only used by the fbdev emulation
-	 * helpers.
-	 *
-	 * FIXME:
-	 *
-	 * This callback is functionally redundant with the core gamma table
-	 * support and simply exists because the fbdev hasn't yet been
-	 * refactored to use the core gamma table interfaces.
-	 */
-	void (*load_lut)(struct drm_crtc *crtc);
-
-	/**
 	 * @disable:
 	 *
 	 * This callback should be used to disable the CRTC. With the atomic
@@ -297,7 +281,7 @@ struct drm_crtc_helper_funcs {
 	 * Atomic drivers don't need to implement it if there's no need to
 	 * disable anything at the CRTC level. To ensure that runtime PM
 	 * handling (using either DPMS or the new "ACTIVE" property) works
-	 * @disable must be the inverse of @enable for atomic drivers.
+	 * @disable must be the inverse of @atomic_enable for atomic drivers.
 	 * Atomic drivers should consider to use @atomic_disable instead of
 	 * this one.
 	 *
@@ -316,24 +300,6 @@ struct drm_crtc_helper_funcs {
 	void (*disable)(struct drm_crtc *crtc);
 
 	/**
-	 * @enable:
-	 *
-	 * This callback should be used to enable the CRTC. With the atomic
-	 * drivers it is called before all encoders connected to this CRTC are
-	 * enabled through the encoder's own &drm_encoder_helper_funcs.enable
-	 * hook.  If that sequence is too simple drivers can just add their own
-	 * hooks and call it from this CRTC callback here by looping over all
-	 * encoders connected to it using for_each_encoder_on_crtc().
-	 *
-	 * This hook is used only by atomic helpers, for symmetry with @disable.
-	 * Atomic drivers don't need to implement it if there's no need to
-	 * enable anything at the CRTC level. To ensure that runtime PM handling
-	 * (using either DPMS or the new "ACTIVE" property) works
-	 * @enable must be the inverse of @disable for atomic drivers.
-	 */
-	void (*enable)(struct drm_crtc *crtc);
-
-	/**
 	 * @atomic_check:
 	 *
 	 * Drivers should check plane-update related CRTC constraints in this
@@ -348,7 +314,7 @@ struct drm_crtc_helper_funcs {
 	 * implementation in drm_atomic_helper_check().
 	 *
 	 * When using drm_atomic_helper_check_planes() this hook is called
-	 * after the &drm_plane_helper_funcs.atomc_check hook for planes, which
+	 * after the &drm_plane_helper_funcs.atomic_check hook for planes, which
 	 * allows drivers to assign shared resources requested by planes in this
 	 * callback here. For more complicated dependencies the driver can call
 	 * the provided check helpers multiple times until the computed state
@@ -431,6 +397,30 @@ struct drm_crtc_helper_funcs {
 	 */
 	void (*atomic_flush)(struct drm_crtc *crtc,
 			     struct drm_crtc_state *old_crtc_state);
+
+	/**
+	 * @atomic_enable:
+	 *
+	 * This callback should be used to enable the CRTC. With the atomic
+	 * drivers it is called before all encoders connected to this CRTC are
+	 * enabled through the encoder's own &drm_encoder_helper_funcs.enable
+	 * hook.  If that sequence is too simple drivers can just add their own
+	 * hooks and call it from this CRTC callback here by looping over all
+	 * encoders connected to it using for_each_encoder_on_crtc().
+	 *
+	 * This hook is used only by atomic helpers, for symmetry with
+	 * @atomic_disable. Atomic drivers don't need to implement it if there's
+	 * no need to enable anything at the CRTC level. To ensure that runtime
+	 * PM handling (using either DPMS or the new "ACTIVE" property) works
+	 * @atomic_enable must be the inverse of @atomic_disable for atomic
+	 * drivers.
+	 *
+	 * Drivers can use the @old_crtc_state input parameter if the operations
+	 * needed to enable the CRTC don't depend solely on the new state but
+	 * also on the transition between the old state and the new state.
+	 */
+	void (*atomic_enable)(struct drm_crtc *crtc,
+			      struct drm_crtc_state *old_crtc_state);
 
 	/**
 	 * @atomic_disable:
@@ -1129,6 +1119,56 @@ struct drm_plane_helper_funcs {
 	 */
 	void (*atomic_disable)(struct drm_plane *plane,
 			       struct drm_plane_state *old_state);
+
+	/**
+	 * @atomic_async_check:
+	 *
+	 * Drivers should set this function pointer to check if the plane state
+	 * can be updated in a async fashion. Here async means "not vblank
+	 * synchronized".
+	 *
+	 * This hook is called by drm_atomic_async_check() to establish if a
+	 * given update can be committed asynchronously, that is, if it can
+	 * jump ahead of the state currently queued for update.
+	 *
+	 * RETURNS:
+	 *
+	 * Return 0 on success and any error returned indicates that the update
+	 * can not be applied in asynchronous manner.
+	 */
+	int (*atomic_async_check)(struct drm_plane *plane,
+				  struct drm_plane_state *state);
+
+	/**
+	 * @atomic_async_update:
+	 *
+	 * Drivers should set this function pointer to perform asynchronous
+	 * updates of planes, that is, jump ahead of the currently queued
+	 * state and update the plane. Here async means "not vblank
+	 * synchronized".
+	 *
+	 * This hook is called by drm_atomic_helper_async_commit().
+	 *
+	 * An async update will happen on legacy cursor updates. An async
+	 * update won't happen if there is an outstanding commit modifying
+	 * the same plane.
+	 *
+	 * Note that unlike &drm_plane_helper_funcs.atomic_update this hook
+	 * takes the new &drm_plane_state as parameter. When doing async_update
+	 * drivers shouldn't replace the &drm_plane_state but update the
+	 * current one with the new plane configurations in the new
+	 * plane_state.
+	 *
+	 * FIXME:
+	 *  - It only works for single plane updates
+	 *  - Async Pageflips are not supported yet
+	 *  - Some hw might still scan out the old buffer until the next
+	 *    vblank, however we let go of the fb references as soon as
+	 *    we run this hook. For now drivers must implement their own workers
+	 *    for deferring if needed, until a common solution is created.
+	 */
+	void (*atomic_async_update)(struct drm_plane *plane,
+				    struct drm_plane_state *new_state);
 };
 
 /**
@@ -1169,7 +1209,8 @@ struct drm_mode_config_helper_funcs {
 	 * After the atomic update is committed to the hardware this hook needs
 	 * to call drm_atomic_helper_commit_hw_done(). Then wait for the upate
 	 * to be executed by the hardware, for example using
-	 * drm_atomic_helper_wait_for_vblanks(), and then clean up the old
+	 * drm_atomic_helper_wait_for_vblanks() or
+	 * drm_atomic_helper_wait_for_flip_done(), and then clean up the old
 	 * framebuffers using drm_atomic_helper_cleanup_planes().
 	 *
 	 * When disabling a CRTC this hook _must_ stall for the commit to

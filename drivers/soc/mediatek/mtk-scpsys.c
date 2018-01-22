@@ -22,6 +22,7 @@
 
 #include <dt-bindings/power/mt2701-power.h>
 #include <dt-bindings/power/mt6797-power.h>
+#include <dt-bindings/power/mt7622-power.h>
 #include <dt-bindings/power/mt8173-power.h>
 
 #define SPM_VDE_PWR_CON			0x0210
@@ -39,6 +40,11 @@
 #define SPM_MFG_2D_PWR_CON		0x02c0
 #define SPM_MFG_ASYNC_PWR_CON		0x02c4
 #define SPM_USB_PWR_CON			0x02cc
+#define SPM_ETHSYS_PWR_CON		0x02e0	/* MT7622 */
+#define SPM_HIF0_PWR_CON		0x02e4	/* MT7622 */
+#define SPM_HIF1_PWR_CON		0x02e8	/* MT7622 */
+#define SPM_WB_PWR_CON			0x02ec	/* MT7622 */
+
 
 #define SPM_PWR_STATUS			0x060c
 #define SPM_PWR_STATUS_2ND		0x0610
@@ -64,6 +70,10 @@
 #define PWR_STATUS_MFG_ASYNC		BIT(23)
 #define PWR_STATUS_AUDIO		BIT(24)
 #define PWR_STATUS_USB			BIT(25)
+#define PWR_STATUS_ETHSYS		BIT(24)	/* MT7622 */
+#define PWR_STATUS_HIF0			BIT(25)	/* MT7622 */
+#define PWR_STATUS_HIF1			BIT(26)	/* MT7622 */
+#define PWR_STATUS_WB			BIT(27)	/* MT7622 */
 
 enum clk_id {
 	CLK_NONE,
@@ -73,6 +83,7 @@ enum clk_id {
 	CLK_VENC_LT,
 	CLK_ETHIF,
 	CLK_VDEC,
+	CLK_HIFSEL,
 	CLK_MAX,
 };
 
@@ -84,6 +95,7 @@ static const char * const clk_names[] = {
 	"venc_lt",
 	"ethif",
 	"vdec",
+	"hif_sel",
 	NULL,
 };
 
@@ -122,6 +134,19 @@ struct scp {
 	void __iomem *base;
 	struct regmap *infracfg;
 	struct scp_ctrl_reg ctrl_reg;
+};
+
+struct scp_subdomain {
+	int origin;
+	int subdomain;
+};
+
+struct scp_soc_data {
+	const struct scp_domain_data *domains;
+	int num_domains;
+	const struct scp_subdomain *subdomains;
+	int num_subdomains;
+	const struct scp_ctrl_reg regs;
 };
 
 static int scpsys_domain_is_on(struct scp_domain *scpd)
@@ -336,17 +361,6 @@ out:
 	return ret;
 }
 
-static bool scpsys_active_wakeup(struct device *dev)
-{
-	struct generic_pm_domain *genpd;
-	struct scp_domain *scpd;
-
-	genpd = pd_to_genpd(dev->pm_domain);
-	scpd = container_of(genpd, struct scp_domain, genpd);
-
-	return scpd->data->active_wakeup;
-}
-
 static void init_clks(struct platform_device *pdev, struct clk **clk)
 {
 	int i;
@@ -357,7 +371,7 @@ static void init_clks(struct platform_device *pdev, struct clk **clk)
 
 static struct scp *init_scp(struct platform_device *pdev,
 			const struct scp_domain_data *scp_domain_data, int num,
-			struct scp_ctrl_reg *scp_ctrl_reg)
+			const struct scp_ctrl_reg *scp_ctrl_reg)
 {
 	struct genpd_onecell_data *pd_data;
 	struct resource *res;
@@ -441,7 +455,8 @@ static struct scp *init_scp(struct platform_device *pdev,
 		genpd->name = data->name;
 		genpd->power_off = scpsys_power_off;
 		genpd->power_on = scpsys_power_on;
-		genpd->dev_ops.active_wakeup = scpsys_active_wakeup;
+		if (scpd->data->active_wakeup)
+			genpd->flags |= GENPD_FLAG_ACTIVE_WAKEUP;
 	}
 
 	return scp;
@@ -565,26 +580,6 @@ static const struct scp_domain_data scp_domain_data_mt2701[] = {
 	},
 };
 
-#define NUM_DOMAINS_MT2701	ARRAY_SIZE(scp_domain_data_mt2701)
-
-static int __init scpsys_probe_mt2701(struct platform_device *pdev)
-{
-	struct scp *scp;
-	struct scp_ctrl_reg scp_reg;
-
-	scp_reg.pwr_sta_offs = SPM_PWR_STATUS;
-	scp_reg.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND;
-
-	scp = init_scp(pdev, scp_domain_data_mt2701, NUM_DOMAINS_MT2701,
-		       &scp_reg);
-	if (IS_ERR(scp))
-		return PTR_ERR(scp);
-
-	mtk_register_power_domains(pdev, scp, NUM_DOMAINS_MT2701);
-
-	return 0;
-}
-
 /*
  * MT6797 power domain support
  */
@@ -649,51 +644,62 @@ static const struct scp_domain_data scp_domain_data_mt6797[] = {
 	},
 };
 
-#define NUM_DOMAINS_MT6797	ARRAY_SIZE(scp_domain_data_mt6797)
 #define SPM_PWR_STATUS_MT6797		0x0180
 #define SPM_PWR_STATUS_2ND_MT6797	0x0184
 
-static int __init scpsys_probe_mt6797(struct platform_device *pdev)
-{
-	struct scp *scp;
-	struct genpd_onecell_data *pd_data;
-	int ret;
-	struct scp_ctrl_reg scp_reg;
+static const struct scp_subdomain scp_subdomain_mt6797[] = {
+	{MT6797_POWER_DOMAIN_MM, MT6797_POWER_DOMAIN_VDEC},
+	{MT6797_POWER_DOMAIN_MM, MT6797_POWER_DOMAIN_ISP},
+	{MT6797_POWER_DOMAIN_MM, MT6797_POWER_DOMAIN_VENC},
+	{MT6797_POWER_DOMAIN_MM, MT6797_POWER_DOMAIN_MJC},
+};
 
-	scp_reg.pwr_sta_offs = SPM_PWR_STATUS_MT6797;
-	scp_reg.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND_MT6797;
+/*
+ * MT7622 power domain support
+ */
 
-	scp = init_scp(pdev, scp_domain_data_mt6797, NUM_DOMAINS_MT6797,
-		       &scp_reg);
-	if (IS_ERR(scp))
-		return PTR_ERR(scp);
-
-	mtk_register_power_domains(pdev, scp, NUM_DOMAINS_MT6797);
-
-	pd_data = &scp->pd_data;
-
-	ret = pm_genpd_add_subdomain(pd_data->domains[MT6797_POWER_DOMAIN_MM],
-				     pd_data->domains[MT6797_POWER_DOMAIN_VDEC]);
-	if (ret && IS_ENABLED(CONFIG_PM))
-		dev_err(&pdev->dev, "Failed to add subdomain: %d\n", ret);
-
-	ret = pm_genpd_add_subdomain(pd_data->domains[MT6797_POWER_DOMAIN_MM],
-				     pd_data->domains[MT6797_POWER_DOMAIN_ISP]);
-	if (ret && IS_ENABLED(CONFIG_PM))
-		dev_err(&pdev->dev, "Failed to add subdomain: %d\n", ret);
-
-	ret = pm_genpd_add_subdomain(pd_data->domains[MT6797_POWER_DOMAIN_MM],
-				     pd_data->domains[MT6797_POWER_DOMAIN_VENC]);
-	if (ret && IS_ENABLED(CONFIG_PM))
-		dev_err(&pdev->dev, "Failed to add subdomain: %d\n", ret);
-
-	ret = pm_genpd_add_subdomain(pd_data->domains[MT6797_POWER_DOMAIN_MM],
-				     pd_data->domains[MT6797_POWER_DOMAIN_MJC]);
-	if (ret && IS_ENABLED(CONFIG_PM))
-		dev_err(&pdev->dev, "Failed to add subdomain: %d\n", ret);
-
-	return 0;
-}
+static const struct scp_domain_data scp_domain_data_mt7622[] = {
+	[MT7622_POWER_DOMAIN_ETHSYS] = {
+		.name = "ethsys",
+		.sta_mask = PWR_STATUS_ETHSYS,
+		.ctl_offs = SPM_ETHSYS_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(15, 12),
+		.clk_id = {CLK_NONE},
+		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_ETHSYS,
+		.active_wakeup = true,
+	},
+	[MT7622_POWER_DOMAIN_HIF0] = {
+		.name = "hif0",
+		.sta_mask = PWR_STATUS_HIF0,
+		.ctl_offs = SPM_HIF0_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(15, 12),
+		.clk_id = {CLK_HIFSEL},
+		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_HIF0,
+		.active_wakeup = true,
+	},
+	[MT7622_POWER_DOMAIN_HIF1] = {
+		.name = "hif1",
+		.sta_mask = PWR_STATUS_HIF1,
+		.ctl_offs = SPM_HIF1_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(15, 12),
+		.clk_id = {CLK_HIFSEL},
+		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_HIF1,
+		.active_wakeup = true,
+	},
+	[MT7622_POWER_DOMAIN_WB] = {
+		.name = "wb",
+		.sta_mask = PWR_STATUS_WB,
+		.ctl_offs = SPM_WB_PWR_CON,
+		.sram_pdn_bits = 0,
+		.sram_pdn_ack_bits = 0,
+		.clk_id = {CLK_NONE},
+		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_WB,
+		.active_wakeup = true,
+	},
+};
 
 /*
  * MT8173 power domain support
@@ -789,39 +795,50 @@ static const struct scp_domain_data scp_domain_data_mt8173[] = {
 	},
 };
 
-#define NUM_DOMAINS_MT8173	ARRAY_SIZE(scp_domain_data_mt8173)
+static const struct scp_subdomain scp_subdomain_mt8173[] = {
+	{MT8173_POWER_DOMAIN_MFG_ASYNC, MT8173_POWER_DOMAIN_MFG_2D},
+	{MT8173_POWER_DOMAIN_MFG_2D, MT8173_POWER_DOMAIN_MFG},
+};
 
-static int __init scpsys_probe_mt8173(struct platform_device *pdev)
-{
-	struct scp *scp;
-	struct genpd_onecell_data *pd_data;
-	int ret;
-	struct scp_ctrl_reg scp_reg;
+static const struct scp_soc_data mt2701_data = {
+	.domains = scp_domain_data_mt2701,
+	.num_domains = ARRAY_SIZE(scp_domain_data_mt2701),
+	.regs = {
+		.pwr_sta_offs = SPM_PWR_STATUS,
+		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND
+	}
+};
 
-	scp_reg.pwr_sta_offs = SPM_PWR_STATUS;
-	scp_reg.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND;
+static const struct scp_soc_data mt6797_data = {
+	.domains = scp_domain_data_mt6797,
+	.num_domains = ARRAY_SIZE(scp_domain_data_mt6797),
+	.subdomains = scp_subdomain_mt6797,
+	.num_subdomains = ARRAY_SIZE(scp_subdomain_mt6797),
+	.regs = {
+		.pwr_sta_offs = SPM_PWR_STATUS_MT6797,
+		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND_MT6797
+	}
+};
 
-	scp = init_scp(pdev, scp_domain_data_mt8173, NUM_DOMAINS_MT8173,
-		       &scp_reg);
-	if (IS_ERR(scp))
-		return PTR_ERR(scp);
+static const struct scp_soc_data mt7622_data = {
+	.domains = scp_domain_data_mt7622,
+	.num_domains = ARRAY_SIZE(scp_domain_data_mt7622),
+	.regs = {
+		.pwr_sta_offs = SPM_PWR_STATUS,
+		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND
+	}
+};
 
-	mtk_register_power_domains(pdev, scp, NUM_DOMAINS_MT8173);
-
-	pd_data = &scp->pd_data;
-
-	ret = pm_genpd_add_subdomain(pd_data->domains[MT8173_POWER_DOMAIN_MFG_ASYNC],
-		pd_data->domains[MT8173_POWER_DOMAIN_MFG_2D]);
-	if (ret && IS_ENABLED(CONFIG_PM))
-		dev_err(&pdev->dev, "Failed to add subdomain: %d\n", ret);
-
-	ret = pm_genpd_add_subdomain(pd_data->domains[MT8173_POWER_DOMAIN_MFG_2D],
-		pd_data->domains[MT8173_POWER_DOMAIN_MFG]);
-	if (ret && IS_ENABLED(CONFIG_PM))
-		dev_err(&pdev->dev, "Failed to add subdomain: %d\n", ret);
-
-	return 0;
-}
+static const struct scp_soc_data mt8173_data = {
+	.domains = scp_domain_data_mt8173,
+	.num_domains = ARRAY_SIZE(scp_domain_data_mt8173),
+	.subdomains = scp_subdomain_mt8173,
+	.num_subdomains = ARRAY_SIZE(scp_subdomain_mt8173),
+	.regs = {
+		.pwr_sta_offs = SPM_PWR_STATUS,
+		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND
+	}
+};
 
 /*
  * scpsys driver init
@@ -830,13 +847,16 @@ static int __init scpsys_probe_mt8173(struct platform_device *pdev)
 static const struct of_device_id of_scpsys_match_tbl[] = {
 	{
 		.compatible = "mediatek,mt2701-scpsys",
-		.data = scpsys_probe_mt2701,
+		.data = &mt2701_data,
 	}, {
 		.compatible = "mediatek,mt6797-scpsys",
-		.data = scpsys_probe_mt6797,
+		.data = &mt6797_data,
+	}, {
+		.compatible = "mediatek,mt7622-scpsys",
+		.data = &mt7622_data,
 	}, {
 		.compatible = "mediatek,mt8173-scpsys",
-		.data = scpsys_probe_mt8173,
+		.data = &mt8173_data,
 	}, {
 		/* sentinel */
 	}
@@ -844,16 +864,33 @@ static const struct of_device_id of_scpsys_match_tbl[] = {
 
 static int scpsys_probe(struct platform_device *pdev)
 {
-	int (*probe)(struct platform_device *);
-	const struct of_device_id *of_id;
+	const struct of_device_id *match;
+	const struct scp_subdomain *sd;
+	const struct scp_soc_data *soc;
+	struct scp *scp;
+	struct genpd_onecell_data *pd_data;
+	int i, ret;
 
-	of_id = of_match_node(of_scpsys_match_tbl, pdev->dev.of_node);
-	if (!of_id || !of_id->data)
-		return -EINVAL;
+	match = of_match_device(of_scpsys_match_tbl, &pdev->dev);
+	soc = (const struct scp_soc_data *)match->data;
 
-	probe = of_id->data;
+	scp = init_scp(pdev, soc->domains, soc->num_domains, &soc->regs);
+	if (IS_ERR(scp))
+		return PTR_ERR(scp);
 
-	return probe(pdev);
+	mtk_register_power_domains(pdev, scp, soc->num_domains);
+
+	pd_data = &scp->pd_data;
+
+	for (i = 0, sd = soc->subdomains ; i < soc->num_subdomains ; i++) {
+		ret = pm_genpd_add_subdomain(pd_data->domains[sd->origin],
+					     pd_data->domains[sd->subdomain]);
+		if (ret && IS_ENABLED(CONFIG_PM))
+			dev_err(&pdev->dev, "Failed to add subdomain: %d\n",
+				ret);
+	}
+
+	return 0;
 }
 
 static struct platform_driver scpsys_drv = {

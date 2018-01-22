@@ -20,11 +20,11 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
+#include <linux/usb/pd.h>
+#include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
 
-#include "pd.h"
 #include "tcpci.h"
-#include "tcpm.h"
 
 #define PD_RETRY_COUNT 3
 
@@ -139,6 +139,7 @@ static enum typec_cc_status tcpci_to_typec_cc(unsigned int cc, bool sink)
 	case 0x3:
 		if (sink)
 			return TYPEC_CC_RP_3_0;
+		/* fall through */
 	case 0x0:
 	default:
 		return TYPEC_CC_OPEN;

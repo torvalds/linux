@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/syscalls.h>
 #include <linux/export.h>
 #include <linux/fs.h>
@@ -34,11 +35,11 @@ static int flags_by_mnt(int mnt_flags)
 static int flags_by_sb(int s_flags)
 {
 	int flags = 0;
-	if (s_flags & MS_SYNCHRONOUS)
+	if (s_flags & SB_SYNCHRONOUS)
 		flags |= ST_SYNCHRONOUS;
-	if (s_flags & MS_MANDLOCK)
+	if (s_flags & SB_MANDLOCK)
 		flags |= ST_MANDLOCK;
-	if (s_flags & MS_RDONLY)
+	if (s_flags & SB_RDONLY)
 		flags |= ST_RDONLY;
 	return flags;
 }
@@ -216,7 +217,7 @@ SYSCALL_DEFINE3(fstatfs64, unsigned int, fd, size_t, sz, struct statfs64 __user 
 	return error;
 }
 
-int vfs_ustat(dev_t dev, struct kstatfs *sbuf)
+static int vfs_ustat(dev_t dev, struct kstatfs *sbuf)
 {
 	struct super_block *s = user_get_super(dev);
 	int err;

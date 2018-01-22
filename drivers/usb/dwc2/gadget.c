@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -8,10 +9,6 @@
  *      http://armlinux.simtec.co.uk/
  *
  * S3C USB2.0 High-speed / OtG driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -198,46 +195,10 @@ int dwc2_hsotg_tx_fifo_count(struct dwc2_hsotg *hsotg)
 {
 	if (hsotg->hw_params.en_multiple_tx_fifo)
 		/* In dedicated FIFO mode we need count of IN EPs */
-		return (dwc2_readl(hsotg->regs + GHWCFG4)  &
-			GHWCFG4_NUM_IN_EPS_MASK) >> GHWCFG4_NUM_IN_EPS_SHIFT;
+		return hsotg->hw_params.num_dev_in_eps;
 	else
 		/* In shared FIFO mode we need count of Periodic IN EPs */
 		return hsotg->hw_params.num_dev_perio_in_ep;
-}
-
-/**
- * dwc2_hsotg_ep_info_size - return Endpoint Info Control block size in DWORDs
- */
-static int dwc2_hsotg_ep_info_size(struct dwc2_hsotg *hsotg)
-{
-	int val = 0;
-	int i;
-	u32 ep_dirs;
-
-	/*
-	 * Don't need additional space for ep info control registers in
-	 * slave mode.
-	 */
-	if (!using_dma(hsotg)) {
-		dev_dbg(hsotg->dev, "Buffer DMA ep info size 0\n");
-		return 0;
-	}
-
-	/*
-	 * Buffer DMA mode - 1 location per endpoit
-	 * Descriptor DMA mode - 4 locations per endpoint
-	 */
-	ep_dirs = hsotg->hw_params.dev_ep_dirs;
-
-	for (i = 0; i <= hsotg->hw_params.num_dev_ep; i++) {
-		val += ep_dirs & 3 ? 1 : 2;
-		ep_dirs >>= 2;
-	}
-
-	if (using_desc_dma(hsotg))
-		val = val * 4;
-
-	return val;
 }
 
 /**
@@ -246,7 +207,6 @@ static int dwc2_hsotg_ep_info_size(struct dwc2_hsotg *hsotg)
  */
 int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg)
 {
-	int ep_info_size;
 	int addr;
 	int tx_addr_max;
 	u32 np_tx_fifo_size;
@@ -255,8 +215,7 @@ int dwc2_hsotg_tx_fifo_total_depth(struct dwc2_hsotg *hsotg)
 				hsotg->params.g_np_tx_fifo_size);
 
 	/* Get Endpoint Info Control block size in DWORDs. */
-	ep_info_size = dwc2_hsotg_ep_info_size(hsotg);
-	tx_addr_max = hsotg->hw_params.total_fifo_size - ep_info_size;
+	tx_addr_max = hsotg->hw_params.total_fifo_size;
 
 	addr = hsotg->params.g_rx_fifo_size + np_tx_fifo_size;
 	if (tx_addr_max <= addr)
@@ -3202,6 +3161,8 @@ void dwc2_hsotg_disconnect(struct dwc2_hsotg *hsotg)
 
 	call_gadget(hsotg, disconnect);
 	hsotg->lx_state = DWC2_L3;
+
+	usb_gadget_set_state(&hsotg->gadget, USB_STATE_NOTATTACHED);
 }
 
 /**
@@ -4004,6 +3965,11 @@ static int dwc2_hsotg_ep_disable(struct usb_ep *ep)
 		return -EINVAL;
 	}
 
+	if (hsotg->op_state != OTG_STATE_B_PERIPHERAL) {
+		dev_err(hsotg->dev, "%s: called in host mode?\n", __func__);
+		return -EINVAL;
+	}
+
 	epctrl_reg = dir_in ? DIEPCTL(index) : DOEPCTL(index);
 
 	spin_lock_irqsave(&hsotg->lock, flags);
@@ -4179,7 +4145,7 @@ static int dwc2_hsotg_ep_sethalt_lock(struct usb_ep *ep, int value)
 	return ret;
 }
 
-static struct usb_ep_ops dwc2_hsotg_ep_ops = {
+static const struct usb_ep_ops dwc2_hsotg_ep_ops = {
 	.enable		= dwc2_hsotg_ep_enable,
 	.disable	= dwc2_hsotg_ep_disable,
 	.alloc_request	= dwc2_hsotg_ep_alloc_request,

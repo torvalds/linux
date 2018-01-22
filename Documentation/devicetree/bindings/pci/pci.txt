@@ -1,12 +1,12 @@
 PCI bus bridges have standardized Device Tree bindings:
 
 PCI Bus Binding to: IEEE Std 1275-1994
-http://www.firmware.org/1275/bindings/pci/pci2_1.pdf
+http://www.devicetree.org/open-firmware/bindings/pci/pci2_1.pdf
 
 And for the interrupt mapping part:
 
 Open Firmware Recommended Practice: Interrupt Mapping
-http://www.firmware.org/1275/practice/imap/imap0_9d.pdf
+http://www.devicetree.org/open-firmware/practice/imap/imap0_9d.pdf
 
 Additionally to the properties specified in the above standards a host bridge
 driver implementation may support the following properties:

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * These are the public elements of the Linux kernel AX.25 code. A similar
  * file netrom.h exists for the NET/ROM protocol.

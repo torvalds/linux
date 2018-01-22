@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * <linux/usb/audio.h> -- USB Audio definitions.
  *

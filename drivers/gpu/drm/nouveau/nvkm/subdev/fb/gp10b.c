@@ -28,7 +28,6 @@ gp10b_fb = {
 	.init = gm200_fb_init,
 	.init_page = gm200_fb_init_page,
 	.intr = gf100_fb_intr,
-	.memtype_valid = gf100_fb_memtype_valid,
 };
 
 int

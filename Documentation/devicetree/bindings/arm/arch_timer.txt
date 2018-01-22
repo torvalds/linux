@@ -108,6 +108,5 @@ Example:
 			frame-number = <1>
 			interrupts = <0 15 0x8>;
 			reg = <0xf0003000 0x1000>;
-			status = "disabled";
 		};
 	};

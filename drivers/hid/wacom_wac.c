@@ -567,8 +567,8 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 				keys = data[9] & 0x07;
 			}
 		} else {
-			buttons = ((data[6] & 0x10) << 10) |
-			          ((data[5] & 0x10) << 9)  |
+			buttons = ((data[6] & 0x10) << 5)  |
+			          ((data[5] & 0x10) << 4)  |
 			          ((data[6] & 0x0F) << 4)  |
 			          (data[5] & 0x0F);
 		}
@@ -1227,11 +1227,17 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 			continue;
 
 		if (range) {
+			/* Fix rotation alignment: userspace expects zero at left */
+			int16_t rotation = (int16_t)get_unaligned_le16(&frame[9]);
+			rotation += 1800/4;
+			if (rotation > 899)
+				rotation -= 1800;
+
 			input_report_abs(pen_input, ABS_X, get_unaligned_le16(&frame[1]));
 			input_report_abs(pen_input, ABS_Y, get_unaligned_le16(&frame[3]));
-			input_report_abs(pen_input, ABS_TILT_X, frame[7]);
-			input_report_abs(pen_input, ABS_TILT_Y, frame[8]);
-			input_report_abs(pen_input, ABS_Z, get_unaligned_le16(&frame[9]));
+			input_report_abs(pen_input, ABS_TILT_X, (char)frame[7]);
+			input_report_abs(pen_input, ABS_TILT_Y, (char)frame[8]);
+			input_report_abs(pen_input, ABS_Z, rotation);
 			input_report_abs(pen_input, ABS_WHEEL, get_unaligned_le16(&frame[11]));
 		}
 		input_report_abs(pen_input, ABS_PRESSURE, get_unaligned_le16(&frame[5]));
@@ -1319,12 +1325,19 @@ static void wacom_intuos_pro2_bt_pad(struct wacom_wac *wacom)
 	unsigned char *data = wacom->data;
 
 	int buttons = (data[282] << 1) | ((data[281] >> 6) & 0x01);
-	int ring = data[285];
-	int prox = buttons | (ring & 0x80);
+	int ring = data[285] & 0x7F;
+	bool ringstatus = data[285] & 0x80;
+	bool prox = buttons || ringstatus;
+
+	/* Fix touchring data: userspace expects 0 at left and increasing clockwise */
+	ring = 71 - ring;
+	ring += 3*72/16;
+	if (ring > 71)
+		ring -= 72;
 
 	wacom_report_numbered_buttons(pad_input, 9, buttons);
 
-	input_report_abs(pad_input, ABS_WHEEL, (ring & 0x80) ? (ring & 0x7f) : 0);
+	input_report_abs(pad_input, ABS_WHEEL, ringstatus ? ring : 0);
 
 	input_report_key(pad_input, wacom->tool[1], prox ? 1 : 0);
 	input_report_abs(pad_input, ABS_MISC, prox ? PAD_DEVICE_ID : 0);
@@ -1616,6 +1629,20 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 	return 0;
 }
 
+static int wacom_offset_rotation(struct input_dev *input, struct hid_usage *usage,
+				 int value, int num, int denom)
+{
+	struct input_absinfo *abs = &input->absinfo[usage->code];
+	int range = (abs->maximum - abs->minimum + 1);
+
+	value += num*range/denom;
+	if (value > abs->maximum)
+		value -= range;
+	else if (value < abs->minimum)
+		value += range;
+	return value;
+}
+
 int wacom_equivalent_usage(int usage)
 {
 	if ((usage & HID_USAGE_PAGE) == WACOM_HID_UP_WACOMDIGITIZER) {
@@ -1846,7 +1873,13 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_TOUCHRINGSTATUS:
-		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
+		/*
+		 * Only set up type/code association. Completely mapping
+		 * this usage may overwrite the axis resolution and range.
+		 */
+		usage->type = EV_ABS;
+		usage->code = ABS_WHEEL;
+		set_bit(EV_ABS, input->evbit);
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_BUTTONCONFIG:
@@ -1892,6 +1925,7 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 	int i;
 	bool is_touch_on = value;
+	bool do_report = false;
 
 	/*
 	 * Avoid reporting this event and setting inrange_state if this usage
@@ -1906,6 +1940,29 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 	}
 
 	switch (equivalent_usage) {
+	case WACOM_HID_WD_TOUCHRING:
+		/*
+		 * Userspace expects touchrings to increase in value with
+		 * clockwise gestures and have their zero point at the
+		 * tablet's left. HID events "should" be clockwise-
+		 * increasing and zero at top, though the MobileStudio
+		 * Pro and 2nd-gen Intuos Pro don't do this...
+		 */
+		if (hdev->vendor == 0x56a &&
+		    (hdev->product == 0x34d || hdev->product == 0x34e ||  /* MobileStudio Pro */
+		     hdev->product == 0x357 || hdev->product == 0x358)) { /* Intuos Pro 2 */
+			value = (field->logical_maximum - value);
+
+			if (hdev->product == 0x357 || hdev->product == 0x358)
+				value = wacom_offset_rotation(input, usage, value, 3, 16);
+			else if (hdev->product == 0x34d || hdev->product == 0x34e)
+				value = wacom_offset_rotation(input, usage, value, 1, 2);
+		}
+		else {
+			value = wacom_offset_rotation(input, usage, value, 1, 4);
+		}
+		do_report = true;
+		break;
 	case WACOM_HID_WD_TOUCHRINGSTATUS:
 		if (!value)
 			input_event(input, usage->type, usage->code, 0);
@@ -1939,10 +1996,14 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 					 value, i);
 		 /* fall through*/
 	default:
+		do_report = true;
+		break;
+	}
+
+	if (do_report) {
 		input_event(input, usage->type, usage->code, value);
 		if (value)
 			wacom_wac->hid_data.pad_input_event_flag = true;
-		break;
 	}
 }
 
@@ -2079,23 +2140,41 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 	case HID_DG_TIPSWITCH:
 		wacom_wac->hid_data.tipswitch |= value;
 		return;
-	case HID_DG_TOOLSERIALNUMBER:
-		wacom_wac->serial[0] = (wacom_wac->serial[0] & ~0xFFFFFFFFULL);
-		wacom_wac->serial[0] |= (__u32)value;
+	case HID_DG_BARRELSWITCH:
+		wacom_wac->hid_data.barrelswitch = value;
 		return;
+	case HID_DG_BARRELSWITCH2:
+		wacom_wac->hid_data.barrelswitch2 = value;
+		return;
+	case HID_DG_TOOLSERIALNUMBER:
+		if (value) {
+			wacom_wac->serial[0] = (wacom_wac->serial[0] & ~0xFFFFFFFFULL);
+			wacom_wac->serial[0] |= (__u32)value;
+		}
+		return;
+	case HID_DG_TWIST:
+		/*
+		 * Userspace expects pen twist to have its zero point when
+		 * the buttons/finger is on the tablet's left. HID values
+		 * are zero when buttons are toward the top.
+		 */
+		value = wacom_offset_rotation(input, usage, value, 1, 4);
+		break;
 	case WACOM_HID_WD_SENSE:
 		wacom_wac->hid_data.sense_state = value;
 		return;
 	case WACOM_HID_WD_SERIALHI:
-		wacom_wac->serial[0] = (wacom_wac->serial[0] & 0xFFFFFFFF);
-		wacom_wac->serial[0] |= ((__u64)value) << 32;
-		/*
-		 * Non-USI EMR devices may contain additional tool type
-		 * information here. See WACOM_HID_WD_TOOLTYPE case for
-		 * more details.
-		 */
-		if (value >> 20 == 1) {
-			wacom_wac->id[0] |= value & 0xFFFFF;
+		if (value) {
+			wacom_wac->serial[0] = (wacom_wac->serial[0] & 0xFFFFFFFF);
+			wacom_wac->serial[0] |= ((__u64)value) << 32;
+			/*
+			 * Non-USI EMR devices may contain additional tool type
+			 * information here. See WACOM_HID_WD_TOOLTYPE case for
+			 * more details.
+			 */
+			if (value >> 20 == 1) {
+				wacom_wac->id[0] |= value & 0xFFFFF;
+			}
 		}
 		return;
 	case WACOM_HID_WD_TOOLTYPE:
@@ -2144,11 +2223,11 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 	if (!usage->type || delay_pen_events(wacom_wac))
 		return;
 
-	/* send pen events only when the pen is in/entering/leaving proximity */
-	if (!wacom_wac->hid_data.inrange_state && !wacom_wac->tool[0])
-		return;
-
-	input_event(input, usage->type, usage->code, value);
+	/* send pen events only when the pen is in range */
+	if (wacom_wac->hid_data.inrange_state)
+		input_event(input, usage->type, usage->code, value);
+	else if (wacom_wac->shared->stylus_in_proximity && !wacom_wac->hid_data.sense_state)
+		input_event(input, usage->type, usage->code, 0);
 }
 
 static void wacom_wac_pen_pre_report(struct hid_device *hdev,
@@ -2163,11 +2242,11 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct input_dev *input = wacom_wac->pen_input;
-	bool prox = wacom_wac->hid_data.inrange_state;
-	bool range = wacom_wac->hid_data.sense_state;
+	bool range = wacom_wac->hid_data.inrange_state;
+	bool sense = wacom_wac->hid_data.sense_state;
 
-	if (!wacom_wac->tool[0] && prox) { /* first in prox */
-		/* Going into proximity select tool */
+	if (!wacom_wac->tool[0] && range) { /* first in range */
+		/* Going into range select tool */
 		if (wacom_wac->hid_data.invert_state)
 			wacom_wac->tool[0] = BTN_TOOL_RUBBER;
 		else if (wacom_wac->id[0])
@@ -2177,10 +2256,16 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	}
 
 	/* keep pen state for touch events */
-	wacom_wac->shared->stylus_in_proximity = range;
+	wacom_wac->shared->stylus_in_proximity = sense;
 
 	if (!delay_pen_events(wacom_wac) && wacom_wac->tool[0]) {
 		int id = wacom_wac->id[0];
+		int sw_state = wacom_wac->hid_data.barrelswitch |
+			       (wacom_wac->hid_data.barrelswitch2 << 1);
+
+		input_report_key(input, BTN_STYLUS, sw_state == 1);
+		input_report_key(input, BTN_STYLUS2, sw_state == 2);
+		input_report_key(input, BTN_STYLUS3, sw_state == 3);
 
 		/*
 		 * Non-USI EMR tools should have their IDs mangled to
@@ -2196,10 +2281,10 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 		 */
 		input_report_key(input, BTN_TOUCH,
 				wacom_wac->hid_data.tipswitch);
-		input_report_key(input, wacom_wac->tool[0], prox);
+		input_report_key(input, wacom_wac->tool[0], sense);
 		if (wacom_wac->serial[0]) {
 			input_event(input, EV_MSC, MSC_SERIAL, wacom_wac->serial[0]);
-			input_report_abs(input, ABS_MISC, id);
+			input_report_abs(input, ABS_MISC, sense ? id : 0);
 		}
 
 		wacom_wac->hid_data.tipswitch = false;
@@ -2207,9 +2292,10 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 		input_sync(input);
 	}
 
-	if (!prox) {
+	if (!sense) {
 		wacom_wac->tool[0] = 0;
 		wacom_wac->id[0] = 0;
+		wacom_wac->serial[0] = 0;
 	}
 }
 
@@ -3226,9 +3312,11 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 	else
 		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 
-	if (features->type == HID_GENERIC)
-		/* setup has already been done */
+	if (features->type == HID_GENERIC) {
+		/* setup has already been done; apply otherwise-undetectible quirks */
+		input_set_capability(input_dev, EV_KEY, BTN_STYLUS3);
 		return 0;
+	}
 
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 	__set_bit(ABS_MISC, input_dev->absbit);

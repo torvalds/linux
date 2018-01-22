@@ -16,7 +16,7 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/err.h>
 
 #define TWL_PWM0_ON		0x00

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DT_BINDINGS_MEMORY_TEGRA114_MC_H
 #define DT_BINDINGS_MEMORY_TEGRA114_MC_H
 

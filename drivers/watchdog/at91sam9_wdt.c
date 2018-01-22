@@ -120,9 +120,9 @@ static inline void at91_wdt_reset(struct at91wdt *wdt)
 /*
  * Timer tick
  */
-static void at91_ping(unsigned long data)
+static void at91_ping(struct timer_list *t)
 {
-	struct at91wdt *wdt = (struct at91wdt *)data;
+	struct at91wdt *wdt = from_timer(wdt, t, timer);
 	if (time_before(jiffies, wdt->next_heartbeat) ||
 	    !watchdog_active(&wdt->wdd)) {
 		at91_wdt_reset(wdt);
@@ -222,7 +222,7 @@ static int at91_wdt_init(struct platform_device *pdev, struct at91wdt *wdt)
 			 "watchdog already configured differently (mr = %x expecting %x)\n",
 			 tmp & wdt->mr_mask, wdt->mr & wdt->mr_mask);
 
-	setup_timer(&wdt->timer, at91_ping, (unsigned long)wdt);
+	timer_setup(&wdt->timer, at91_ping, 0);
 
 	/*
 	 * Use min_heartbeat the first time to avoid spurious watchdog reset:

@@ -1183,7 +1183,10 @@ static void btc8723b2ant_set_ant_path(struct btc_coexist *btcoexist,
 		}
 
 		/* fixed internal switch S1->WiFi, S0->BT */
-		btcoexist->btc_write_4byte(btcoexist, 0x948, 0x0);
+		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT)
+			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x0);
+		else
+			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x280);
 
 		switch (antpos_type) {
 		case BTC_ANT_WIFI_AT_MAIN:

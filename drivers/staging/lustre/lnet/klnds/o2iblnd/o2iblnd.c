@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -2936,7 +2937,7 @@ failed:
 net_failed:
 	kiblnd_shutdown(ni);
 
-	CDEBUG(D_NET, "kiblnd_startup failed\n");
+	CDEBUG(D_NET, "%s failed\n", __func__);
 	return -ENETDOWN;
 }
 

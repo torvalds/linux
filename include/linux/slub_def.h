@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SLUB_DEF_H
 #define _LINUX_SLUB_DEF_H
 
@@ -81,7 +82,7 @@ struct kmem_cache_order_objects {
 struct kmem_cache {
 	struct kmem_cache_cpu __percpu *cpu_slab;
 	/* Used for retriving partial slabs etc */
-	unsigned long flags;
+	slab_flags_t flags;
 	unsigned long min_partial;
 	int size;		/* The size of an object including meta data */
 	int object_size;	/* The size of an object without meta data */
@@ -113,6 +114,10 @@ struct kmem_cache {
 #ifdef CONFIG_SYSFS
 	struct kset *memcg_kset;
 #endif
+#endif
+
+#ifdef CONFIG_SLAB_FREELIST_HARDENED
+	unsigned long random;
 #endif
 
 #ifdef CONFIG_NUMA

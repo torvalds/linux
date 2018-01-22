@@ -24,7 +24,7 @@ Optional properties:
 
 Example:
 
-sdhci0: sdhci@0x18041000 {
+sdhci0: sdhci@18041000 {
 	compatible = "brcm,sdhci-iproc-cygnus";
 	reg = <0x18041000 0x100>;
 	interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;

@@ -38,7 +38,8 @@
 #define SPT_PMC_SLP_S0_RES_COUNTER_STEP		0x64
 #define PMC_BASE_ADDR_MASK			~(SPT_PMC_MMIO_REG_LEN - 1)
 #define MTPMC_MASK				0xffff0000
-#define NUM_ENTRIES				5
+#define PPFEAR_MAX_NUM_ENTRIES			5
+#define SPT_PPFEAR_NUM_ENTRIES			5
 #define SPT_PMC_READ_DISABLE_BIT		0x16
 #define SPT_PMC_MSG_FULL_STS_BIT		0x18
 #define NUM_RETRIES				100
@@ -126,10 +127,37 @@ struct pmc_bit_map {
 	u32 bit_mask;
 };
 
+/**
+ * struct pmc_reg_map - Structure used to define parameter unique to a
+			PCH family
+ * @pfear_sts:		Maps name of IP block to PPFEAR* bit
+ * @mphy_sts:		Maps name of MPHY lane to MPHY status lane status bit
+ * @pll_sts:		Maps name of PLL to corresponding bit status
+ * @slp_s0_offset:	PWRMBASE offset to read SLP_S0 residency
+ * @ltr_ignore_offset:	PWRMBASE offset to read/write LTR ignore bit
+ * @base_address:	Base address of PWRMBASE defined in BIOS writer guide
+ * @regmap_length:	Length of memory to map from PWRMBASE address to access
+ * @ppfear0_offset:	PWRMBASE offset to to read PPFEAR*
+ * @ppfear_buckets:	Number of 8 bits blocks to read all IP blocks from
+ *			PPFEAR
+ * @pm_cfg_offset:	PWRMBASE offset to PM_CFG register
+ * @pm_read_disable_bit: Bit index to read PMC_READ_DISABLE
+ *
+ * Each PCH has unique set of register offsets and bit indexes. This structure
+ * captures them to have a common implementation.
+ */
 struct pmc_reg_map {
 	const struct pmc_bit_map *pfear_sts;
 	const struct pmc_bit_map *mphy_sts;
 	const struct pmc_bit_map *pll_sts;
+	const u32 slp_s0_offset;
+	const u32 ltr_ignore_offset;
+	const u32 base_address;
+	const int regmap_length;
+	const u32 ppfear0_offset;
+	const int ppfear_buckets;
+	const u32 pm_cfg_offset;
+	const int pm_read_disable_bit;
 };
 
 /**

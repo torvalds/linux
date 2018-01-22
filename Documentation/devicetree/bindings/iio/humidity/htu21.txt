@@ -1,0 +1,13 @@
+*HTU21 - Measurement-Specialties htu21 temperature & humidity sensor and humidity part of MS8607 sensor
+
+Required properties:
+
+	- compatible: should be "meas,htu21" or "meas,ms8607-humidity"
+	- reg: I2C address of the sensor
+
+Example:
+
+htu21@40 {
+	compatible = "meas,htu21";
+	reg = <0x40>;
+};

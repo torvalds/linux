@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 p54common-objs			:= eeprom.o fwio.o txrx.o main.o
 p54common-$(CONFIG_P54_LEDS)	+= led.o
 

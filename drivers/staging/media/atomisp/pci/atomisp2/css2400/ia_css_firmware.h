@@ -15,21 +15,21 @@
 #ifndef __IA_CSS_FIRMWARE_H
 #define __IA_CSS_FIRMWARE_H
 
-/** @file
+/* @file
  * This file contains firmware loading/unloading support functionality
  */
 
 #include "ia_css_err.h"
 #include "ia_css_env.h"
 
-/** CSS firmware package structure.
+/* CSS firmware package structure.
  */
 struct ia_css_fw {
-	void	    *data;  /**< pointer to the firmware data */
-	unsigned int bytes; /**< length in bytes of firmware data */
+	void	    *data;  /** pointer to the firmware data */
+	unsigned int bytes; /** length in bytes of firmware data */
 };
 
-/** @brief Loads the firmware
+/* @brief Loads the firmware
  * @param[in]	env		Environment, provides functions to access the
  *				environment in which the CSS code runs. This is
  *				used for host side memory access and message
@@ -51,7 +51,7 @@ enum ia_css_err
 ia_css_load_firmware(const struct ia_css_env *env,
 	    const struct ia_css_fw  *fw);
 
-/** @brief Unloads the firmware
+/* @brief Unloads the firmware
  * @return	None
  *
  * This function unloads the firmware loaded by ia_css_load_firmware.
@@ -61,7 +61,7 @@ ia_css_load_firmware(const struct ia_css_env *env,
 void
 ia_css_unload_firmware(void);
 
-/** @brief Checks firmware version
+/* @brief Checks firmware version
  * @param[in]	fw	Firmware package containing the firmware for all
  *			predefined ISP binaries.
  * @return		Returns true when the firmware version matches with the CSS

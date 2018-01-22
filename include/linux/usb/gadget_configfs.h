@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __GADGET_CONFIGFS__
 #define __GADGET_CONFIGFS__
 

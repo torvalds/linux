@@ -24,6 +24,7 @@
 #include <linux/of_device.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
+#include <linux/psci.h>
 #include <linux/slab.h>
 
 #include "core.h"
@@ -175,19 +176,19 @@ void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned int reg_width,
 	BUG();
 }
 
-u32 sh_pfc_read_reg(struct sh_pfc *pfc, u32 reg, unsigned int width)
+u32 sh_pfc_read(struct sh_pfc *pfc, u32 reg)
 {
-	return sh_pfc_read_raw_reg(sh_pfc_phys_to_virt(pfc, reg), width);
+	return sh_pfc_read_raw_reg(sh_pfc_phys_to_virt(pfc, reg), 32);
 }
 
-void sh_pfc_write_reg(struct sh_pfc *pfc, u32 reg, unsigned int width, u32 data)
+void sh_pfc_write(struct sh_pfc *pfc, u32 reg, u32 data)
 {
 	if (pfc->info->unlock_reg)
 		sh_pfc_write_raw_reg(
 			sh_pfc_phys_to_virt(pfc, pfc->info->unlock_reg), 32,
 			~data);
 
-	sh_pfc_write_raw_reg(sh_pfc_phys_to_virt(pfc, reg), width, data);
+	sh_pfc_write_raw_reg(sh_pfc_phys_to_virt(pfc, reg), 32, data);
 }
 
 static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
@@ -389,15 +390,20 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	return 0;
 }
 
-const struct sh_pfc_bias_info *
-sh_pfc_pin_to_bias_info(const struct sh_pfc_bias_info *info,
-			unsigned int num, unsigned int pin)
+const struct pinmux_bias_reg *
+sh_pfc_pin_to_bias_reg(const struct sh_pfc *pfc, unsigned int pin,
+		       unsigned int *bit)
 {
-	unsigned int i;
+	unsigned int i, j;
 
-	for (i = 0; i < num; i++)
-		if (info[i].pin == pin)
-			return &info[i];
+	for (i = 0; pfc->info->bias_regs[i].puen; i++) {
+		for (j = 0; j < ARRAY_SIZE(pfc->info->bias_regs[i].pins); j++) {
+			if (pfc->info->bias_regs[i].pins[j] == pin) {
+				*bit = j;
+				return &pfc->info->bias_regs[i];
+			}
+		}
+	}
 
 	WARN_ONCE(1, "Pin %u is not in bias info list\n", pin);
 
@@ -551,6 +557,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7796_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77995
+	{
+		.compatible = "renesas,pfc-r8a77995",
+		.data = &r8a77995_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_SH73A0
 	{
 		.compatible = "renesas,pfc-sh73a0",
@@ -561,9 +573,99 @@ static const struct of_device_id sh_pfc_of_table[] = {
 };
 #endif
 
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM_PSCI_FW)
+static void sh_pfc_nop_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
+{
+}
+
+static void sh_pfc_save_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
+{
+	pfc->saved_regs[idx] = sh_pfc_read(pfc, reg);
+}
+
+static void sh_pfc_restore_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
+{
+	sh_pfc_write(pfc, reg, pfc->saved_regs[idx]);
+}
+
+static unsigned int sh_pfc_walk_regs(struct sh_pfc *pfc,
+	void (*do_reg)(struct sh_pfc *pfc, u32 reg, unsigned int idx))
+{
+	unsigned int i, n = 0;
+
+	if (pfc->info->cfg_regs)
+		for (i = 0; pfc->info->cfg_regs[i].reg; i++)
+			do_reg(pfc, pfc->info->cfg_regs[i].reg, n++);
+
+	if (pfc->info->drive_regs)
+		for (i = 0; pfc->info->drive_regs[i].reg; i++)
+			do_reg(pfc, pfc->info->drive_regs[i].reg, n++);
+
+	if (pfc->info->bias_regs)
+		for (i = 0; pfc->info->bias_regs[i].puen; i++) {
+			do_reg(pfc, pfc->info->bias_regs[i].puen, n++);
+			if (pfc->info->bias_regs[i].pud)
+				do_reg(pfc, pfc->info->bias_regs[i].pud, n++);
+		}
+
+	if (pfc->info->ioctrl_regs)
+		for (i = 0; pfc->info->ioctrl_regs[i].reg; i++)
+			do_reg(pfc, pfc->info->ioctrl_regs[i].reg, n++);
+
+	return n;
+}
+
+static int sh_pfc_suspend_init(struct sh_pfc *pfc)
+{
+	unsigned int n;
+
+	/* This is the best we can do to check for the presence of PSCI */
+	if (!psci_ops.cpu_suspend)
+		return 0;
+
+	n = sh_pfc_walk_regs(pfc, sh_pfc_nop_reg);
+	if (!n)
+		return 0;
+
+	pfc->saved_regs = devm_kmalloc_array(pfc->dev, n,
+					     sizeof(*pfc->saved_regs),
+					     GFP_KERNEL);
+	if (!pfc->saved_regs)
+		return -ENOMEM;
+
+	dev_dbg(pfc->dev, "Allocated space to save %u regs\n", n);
+	return 0;
+}
+
+static int sh_pfc_suspend_noirq(struct device *dev)
+{
+	struct sh_pfc *pfc = dev_get_drvdata(dev);
+
+	if (pfc->saved_regs)
+		sh_pfc_walk_regs(pfc, sh_pfc_save_reg);
+	return 0;
+}
+
+static int sh_pfc_resume_noirq(struct device *dev)
+{
+	struct sh_pfc *pfc = dev_get_drvdata(dev);
+
+	if (pfc->saved_regs)
+		sh_pfc_walk_regs(pfc, sh_pfc_restore_reg);
+	return 0;
+}
+
+static const struct dev_pm_ops sh_pfc_pm  = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_pfc_suspend_noirq, sh_pfc_resume_noirq)
+};
+#define DEV_PM_OPS	&sh_pfc_pm
+#else
+static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP && CONFIG_ARM_PSCI_FW */
+
 static int sh_pfc_probe(struct platform_device *pdev)
 {
-	const struct platform_device_id *platid = platform_get_device_id(pdev);
 #ifdef CONFIG_OF
 	struct device_node *np = pdev->dev.of_node;
 #endif
@@ -576,10 +678,7 @@ static int sh_pfc_probe(struct platform_device *pdev)
 		info = of_device_get_match_data(&pdev->dev);
 	else
 #endif
-		info = platid ? (const void *)platid->driver_data : NULL;
-
-	if (info == NULL)
-		return -ENODEV;
+		info = (const void *)platform_get_device_id(pdev)->driver_data;
 
 	pfc = devm_kzalloc(&pdev->dev, sizeof(*pfc), GFP_KERNEL);
 	if (pfc == NULL)
@@ -602,6 +701,10 @@ static int sh_pfc_probe(struct platform_device *pdev)
 		/* .init() may have overridden pfc->info */
 		info = pfc->info;
 	}
+
+	ret = sh_pfc_suspend_init(pfc);
+	if (ret)
+		return ret;
 
 	/* Enable dummy states for those platforms without pinctrl support */
 	if (!of_have_populated_dt())
@@ -677,7 +780,6 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_SHX3
 	{ "pfc-shx3", (kernel_ulong_t)&shx3_pinmux_info },
 #endif
-	{ "sh-pfc", 0 },
 	{ },
 };
 
@@ -687,6 +789,7 @@ static struct platform_driver sh_pfc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.of_match_table = of_match_ptr(sh_pfc_of_table),
+		.pm     = DEV_PM_OPS,
 	},
 };
 

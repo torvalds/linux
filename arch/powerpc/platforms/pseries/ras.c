@@ -69,7 +69,8 @@ static int __init init_ras_IRQ(void)
 	/* Hotplug Events */
 	np = of_find_node_by_path("/event-sources/hot-plug-events");
 	if (np != NULL) {
-		request_event_sources_irqs(np, ras_hotplug_interrupt,
+		if (dlpar_workqueue_init() == 0)
+			request_event_sources_irqs(np, ras_hotplug_interrupt,
 					   "RAS_HOTPLUG");
 		of_node_put(np);
 	}
@@ -379,6 +380,21 @@ static void fwnmi_release_errinfo(void)
 
 int pSeries_system_reset_exception(struct pt_regs *regs)
 {
+#ifdef __LITTLE_ENDIAN__
+	/*
+	 * Some firmware byteswaps SRR registers and gives incorrect SRR1. Try
+	 * to detect the bad SRR1 pattern here. Flip the NIP back to correct
+	 * endian for reporting purposes. Unfortunately the MSR can't be fixed,
+	 * so clear it. It will be missing MSR_RI so we won't try to recover.
+	 */
+	if ((be64_to_cpu(regs->msr) &
+			(MSR_LE|MSR_RI|MSR_DR|MSR_IR|MSR_ME|MSR_PR|
+			 MSR_ILE|MSR_HV|MSR_SF)) == (MSR_DR|MSR_SF)) {
+		regs->nip = be64_to_cpu((__be64)regs->nip);
+		regs->msr = 0;
+	}
+#endif
+
 	if (fwnmi_active) {
 		struct rtas_error_log *errhdr = fwnmi_get_errinfo(regs);
 		if (errhdr) {

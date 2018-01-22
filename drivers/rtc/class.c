@@ -161,6 +161,9 @@ static struct rtc_device *rtc_allocate_device(void)
 
 	device_initialize(&rtc->dev);
 
+	/* Drivers can revise this default after allocating the device. */
+	rtc->set_offset_nsec =  NSEC_PER_SEC / 2;
+
 	rtc->irq_freq = 1;
 	rtc->max_user_freq = 64;
 	rtc->dev.class = rtc_class;

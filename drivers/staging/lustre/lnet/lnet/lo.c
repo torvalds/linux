@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -29,7 +30,8 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include "../../include/linux/lnet/lib-lnet.h"
+
+#include <linux/lnet/lib-lnet.h>
 
 static int
 lolnd_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)

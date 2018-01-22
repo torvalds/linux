@@ -31,6 +31,9 @@
 #include <media/rc-core.h>
 #include <media/cec-notifier.h>
 
+#define CEC_CAP_DEFAULTS (CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT | \
+			  CEC_CAP_PASSTHROUGH | CEC_CAP_RC)
+
 /**
  * struct cec_devnode - cec device node
  * @dev:	cec device
@@ -61,6 +64,7 @@ struct cec_devnode {
 
 struct cec_adapter;
 struct cec_data;
+struct cec_pin;
 
 struct cec_data {
 	struct list_head list;
@@ -81,7 +85,13 @@ struct cec_msg_entry {
 	struct cec_msg		msg;
 };
 
-#define CEC_NUM_EVENTS		CEC_EVENT_LOST_MSGS
+struct cec_event_entry {
+	struct list_head	list;
+	struct cec_event	ev;
+};
+
+#define CEC_NUM_CORE_EVENTS 2
+#define CEC_NUM_EVENTS CEC_EVENT_PIN_HPD_HIGH
 
 struct cec_fh {
 	struct list_head	list;
@@ -92,9 +102,11 @@ struct cec_fh {
 
 	/* Events */
 	wait_queue_head_t	wait;
-	unsigned int		pending_events;
-	struct cec_event	events[CEC_NUM_EVENTS];
 	struct mutex		lock;
+	struct list_head	events[CEC_NUM_EVENTS]; /* queued events */
+	u8			queued_events[CEC_NUM_EVENTS];
+	unsigned int		total_queued_events;
+	struct cec_event_entry	core_events[CEC_NUM_CORE_EVENTS];
 	struct list_head	msgs; /* queued messages */
 	unsigned int		queued_msgs;
 };
@@ -114,6 +126,7 @@ struct cec_adap_ops {
 	int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 			     u32 signal_free_time, struct cec_msg *msg);
 	void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
+	void (*adap_free)(struct cec_adapter *adap);
 
 	/* High-level CEC message callback */
 	int (*received)(struct cec_adapter *adap, struct cec_msg *msg);
@@ -167,15 +180,27 @@ struct cec_adapter {
 	bool needs_hpd;
 	bool is_configuring;
 	bool is_configured;
+	bool cec_pin_is_high;
 	u32 monitor_all_cnt;
+	u32 monitor_pin_cnt;
 	u32 follower_cnt;
 	struct cec_fh *cec_follower;
 	struct cec_fh *cec_initiator;
 	bool passthrough;
 	struct cec_log_addrs log_addrs;
 
+	u32 tx_timeouts;
+
+#ifdef CONFIG_MEDIA_CEC_RC
+	bool rc_repeating;
+	int rc_last_scancode;
+	u64 rc_last_keypress;
+#endif
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier *notifier;
+#endif
+#ifdef CONFIG_CEC_PIN
+	struct cec_pin *pin;
 #endif
 
 	struct dentry *cec_dir;
@@ -184,7 +209,7 @@ struct cec_adapter {
 	u16 phys_addrs[15];
 	u32 sequence;
 
-	char input_name[32];
+	char device_name[32];
 	char input_phys[32];
 	char input_drv[32];
 };
@@ -226,15 +251,60 @@ int cec_transmit_msg(struct cec_adapter *adap, struct cec_msg *msg,
 		     bool block);
 
 /* Called by the adapter */
-void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
-		       u8 nack_cnt, u8 low_drive_cnt, u8 error_cnt);
+void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
+			  u8 arb_lost_cnt, u8 nack_cnt, u8 low_drive_cnt,
+			  u8 error_cnt, ktime_t ts);
+
+static inline void cec_transmit_done(struct cec_adapter *adap, u8 status,
+				     u8 arb_lost_cnt, u8 nack_cnt,
+				     u8 low_drive_cnt, u8 error_cnt)
+{
+	cec_transmit_done_ts(adap, status, arb_lost_cnt, nack_cnt,
+			     low_drive_cnt, error_cnt, ktime_get());
+}
 /*
  * Simplified version of cec_transmit_done for hardware that doesn't retry
  * failed transmits. So this is always just one attempt in which case
  * the status is sufficient.
  */
-void cec_transmit_attempt_done(struct cec_adapter *adap, u8 status);
-void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg);
+void cec_transmit_attempt_done_ts(struct cec_adapter *adap,
+				  u8 status, ktime_t ts);
+
+static inline void cec_transmit_attempt_done(struct cec_adapter *adap,
+					     u8 status)
+{
+	cec_transmit_attempt_done_ts(adap, status, ktime_get());
+}
+
+void cec_received_msg_ts(struct cec_adapter *adap,
+			 struct cec_msg *msg, ktime_t ts);
+
+static inline void cec_received_msg(struct cec_adapter *adap,
+				    struct cec_msg *msg)
+{
+	cec_received_msg_ts(adap, msg, ktime_get());
+}
+
+/**
+ * cec_queue_pin_cec_event() - queue a CEC pin event with a given timestamp.
+ *
+ * @adap:	pointer to the cec adapter
+ * @is_high:	when true the CEC pin is high, otherwise it is low
+ * @ts:		the timestamp for this event
+ *
+ */
+void cec_queue_pin_cec_event(struct cec_adapter *adap,
+			     bool is_high, ktime_t ts);
+
+/**
+ * cec_queue_pin_hpd_event() - queue a pin event with a given timestamp.
+ *
+ * @adap:	pointer to the cec adapter
+ * @is_high:	when true the HPD pin is high, otherwise it is low
+ * @ts:		the timestamp for this event
+ *
+ */
+void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts);
 
 /**
  * cec_get_edid_phys_addr() - find and return the physical address
@@ -311,11 +381,6 @@ u16 cec_phys_addr_for_input(u16 phys_addr, u8 input);
  */
 int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port);
 
-#ifdef CONFIG_CEC_NOTIFIER
-void cec_register_cec_notifier(struct cec_adapter *adap,
-			       struct cec_notifier *notifier);
-#endif
-
 #else
 
 static inline int cec_register_adapter(struct cec_adapter *adap,
@@ -362,6 +427,10 @@ static inline u16 cec_phys_addr_for_input(u16 phys_addr, u8 input)
 
 static inline int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
 {
+	if (parent)
+		*parent = phys_addr;
+	if (port)
+		*port = 0;
 	return 0;
 }
 

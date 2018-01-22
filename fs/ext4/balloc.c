@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/ext4/balloc.c
  *
@@ -600,22 +601,21 @@ int ext4_claim_free_clusters(struct ext4_sb_info *sbi,
  * ext4_should_retry_alloc() is called when ENOSPC is returned, and if
  * it is profitable to retry the operation, this function will wait
  * for the current or committing transaction to complete, and then
- * return TRUE.
- *
- * if the total number of retries exceed three times, return FALSE.
+ * return TRUE.  We will only retry once.
  */
 int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 {
 	if (!ext4_has_free_clusters(EXT4_SB(sb), 1, 0) ||
-	    (*retries)++ > 3 ||
+	    (*retries)++ > 1 ||
 	    !EXT4_SB(sb)->s_journal)
 		return 0;
 
-	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
-
 	smp_mb();
-	if (EXT4_SB(sb)->s_mb_free_pending)
-		jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
+	if (EXT4_SB(sb)->s_mb_free_pending == 0)
+		return 0;
+
+	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
+	jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
 	return 1;
 }
 

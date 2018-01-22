@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* TTL modification module for IP tables
  * (C) 2000 by Harald Welte <laforge@netfilter.org> */
 

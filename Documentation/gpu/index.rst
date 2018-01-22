@@ -15,6 +15,7 @@ Linux GPU Driver Developer's Guide
    pl111
    tegra
    tinydrm
+   tve200
    vc4
    vga-switcheroo
    vgaarbiter

@@ -500,7 +500,7 @@ static int mtk_crypto_probe(struct platform_device *pdev)
 		cryp->irq[i] = platform_get_irq(pdev, i);
 		if (cryp->irq[i] < 0) {
 			dev_err(cryp->dev, "no IRQ:%d resource info\n", i);
-			return -ENXIO;
+			return cryp->irq[i];
 		}
 	}
 

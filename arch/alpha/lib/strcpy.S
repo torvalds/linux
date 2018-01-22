@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/alpha/lib/strcpy.S
  * Contributed by Richard Henderson (rth@tamu.edu)

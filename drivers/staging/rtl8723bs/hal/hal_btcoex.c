@@ -419,10 +419,10 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 	padapter = pBtCoexist->Adapter;
 	pHalData = GET_HAL_DATA(padapter);
 	mlmeext = &padapter->mlmeextpriv;
-	pu8 = (u8 *)pOutBuf;
-	pS4Tmp = (s32 *)pOutBuf;
-	pU4Tmp = (u32 *)pOutBuf;
-	pU1Tmp = (u8 *)pOutBuf;
+	pu8 = pOutBuf;
+	pS4Tmp = pOutBuf;
+	pU4Tmp = pOutBuf;
+	pU1Tmp = pOutBuf;
 	ret = true;
 
 	switch (getType) {
@@ -463,7 +463,7 @@ static u8 halbtcoutsrc_Get(void *pBtcContext, u8 getType, void *pOutBuf)
 		break;
 
 	case BTC_GET_BL_WIFI_UNDER_5G:
-		*pu8 = (pHalData->CurrentBandType == 1) ? true : false;
+		*pu8 = pHalData->CurrentBandType == 1;
 		break;
 
 	case BTC_GET_BL_WIFI_AP_MODE_ENABLE:
@@ -585,9 +585,9 @@ static u8 halbtcoutsrc_Set(void *pBtcContext, u8 setType, void *pInBuf)
 	pBtCoexist = (PBTC_COEXIST)pBtcContext;
 	padapter = pBtCoexist->Adapter;
 	pHalData = GET_HAL_DATA(padapter);
-	pu8 = (u8 *)pInBuf;
-	pU1Tmp = (u8 *)pInBuf;
-	pU4Tmp = (u32 *)pInBuf;
+	pu8 = pInBuf;
+	pU1Tmp = pInBuf;
+	pU4Tmp = pInBuf;
 	ret = true;
 
 	if (!halbtcoutsrc_IsBtCoexistAvailable(pBtCoexist))
@@ -1411,15 +1411,8 @@ void hal_btcoex_SetSingleAntPath(struct adapter *padapter, u8 singleAntPath)
 
 u8 hal_btcoex_Initialize(struct adapter *padapter)
 {
-	u8 ret1;
-	u8 ret2;
-
-
 	memset(&GLBtCoexist, 0, sizeof(GLBtCoexist));
-	ret1 = EXhalbtcoutsrc_InitlizeVariables((void *)padapter);
-	ret2 = (ret1 == true) ? true : false;
-
-	return ret2;
+	return EXhalbtcoutsrc_InitlizeVariables((void *)padapter);
 }
 
 void hal_btcoex_PowerOnSetting(struct adapter *padapter)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -32,8 +33,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/vfs.h>
-#include "../include/obd_class.h"
-#include "../include/lprocfs_status.h"
+#include <obd_class.h>
+#include <lprocfs_status.h>
 #include "mdc_internal.h"
 
 static ssize_t active_show(struct kobject *kobj, struct attribute *attr,
@@ -57,7 +58,7 @@ static ssize_t active_store(struct kobject *kobj, struct attribute *attr,
 	if (rc)
 		return rc;
 
-	if (val < 0 || val > 1)
+	if (val > 1)
 		return -ERANGE;
 
 	/* opposite senses */
@@ -219,7 +220,7 @@ static struct attribute *mdc_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group mdc_attr_group = {
+static const struct attribute_group mdc_attr_group = {
 	.attrs = mdc_attrs,
 };
 

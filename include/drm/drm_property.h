@@ -273,6 +273,8 @@ int drm_property_replace_global_blob(struct drm_device *dev,
 				     const void *data,
 				     struct drm_mode_object *obj_holds_id,
 				     struct drm_property *prop_holds_id);
+bool drm_property_replace_blob(struct drm_property_blob **blob,
+			       struct drm_property_blob *new_blob);
 struct drm_property_blob *drm_property_blob_get(struct drm_property_blob *blob);
 void drm_property_blob_put(struct drm_property_blob *blob);
 
@@ -303,17 +305,19 @@ drm_property_unreference_blob(struct drm_property_blob *blob)
 }
 
 /**
- * drm_connector_find - find property object
+ * drm_property_find - find property object
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: property object id
  *
  * This function looks up the property object specified by id and returns it.
  */
 static inline struct drm_property *drm_property_find(struct drm_device *dev,
+						     struct drm_file *file_priv,
 						     uint32_t id)
 {
 	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_PROPERTY);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_PROPERTY);
 	return mo ? obj_to_property(mo) : NULL;
 }
 

@@ -33,7 +33,7 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 	if (!np)
 		goto out_err;
 
-	np->full_name = kstrdup(path, GFP_KERNEL);
+	np->full_name = kstrdup(kbasename(path), GFP_KERNEL);
 	if (!np->full_name)
 		goto out_err;
 
@@ -362,20 +362,13 @@ static int do_update_property(char *buf, size_t bufsize)
 static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t count,
 			  loff_t *off)
 {
-	int rv = 0;
+	int rv;
 	char *kbuf;
 	char *tmp;
 
-	if (!(kbuf = kmalloc(count + 1, GFP_KERNEL))) {
-		rv = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(kbuf, buf, count)) {
-		rv = -EFAULT;
-		goto out;
-	}
-
-	kbuf[count] = '\0';
+	kbuf = memdup_user_nul(buf, count);
+	if (IS_ERR(kbuf))
+		return PTR_ERR(kbuf);
 
 	tmp = strchr(kbuf, ' ');
 	if (!tmp) {

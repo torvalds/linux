@@ -1673,6 +1673,7 @@ struct aac_dev
 	struct aac_hba_map_info	hba_map[AAC_MAX_BUSES][AAC_MAX_TARGETS];
 	u8			adapter_shutdown;
 	u32			handle_pci_error;
+	bool			init_reset;
 };
 
 #define aac_adapter_interrupt(dev) \
@@ -1723,6 +1724,8 @@ struct aac_dev
 #define FIB_CONTEXT_FLAG_FASTRESP		(0x00000008)
 #define FIB_CONTEXT_FLAG_NATIVE_HBA		(0x00000010)
 #define FIB_CONTEXT_FLAG_NATIVE_HBA_TMF	(0x00000020)
+#define FIB_CONTEXT_FLAG_SCSI_CMD	(0x00000040)
+#define FIB_CONTEXT_FLAG_EH_RESET	(0x00000080)
 
 /*
  *	Define the command values
@@ -2698,6 +2701,11 @@ static inline int aac_is_src(struct aac_dev *dev)
 		device == PMC_DEVICE_S8)
 		return 1;
 	return 0;
+}
+
+static inline int aac_supports_2T(struct aac_dev *dev)
+{
+	return (dev->adapter_info.options & AAC_OPT_NEW_COMM_64);
 }
 
 char * get_container_type(unsigned type);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __M68KNOMMU_UACCESS_H
 #define __M68KNOMMU_UACCESS_H
 

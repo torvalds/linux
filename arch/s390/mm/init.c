@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999
@@ -26,6 +27,7 @@
 #include <linux/poison.h>
 #include <linux/initrd.h>
 #include <linux/export.h>
+#include <linux/cma.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
 #include <asm/processor.h>
@@ -84,7 +86,7 @@ void __init paging_init(void)
 	psw_t psw;
 
 	init_mm.pgd = swapper_pg_dir;
-	if (VMALLOC_END > (1UL << 42)) {
+	if (VMALLOC_END > _REGION2_SIZE) {
 		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
 		pgd_type = _REGION2_ENTRY_EMPTY;
 	} else {
@@ -93,8 +95,8 @@ void __init paging_init(void)
 	}
 	init_mm.context.asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
 	S390_lowcore.kernel_asce = init_mm.context.asce;
-	clear_table((unsigned long *) init_mm.pgd, pgd_type,
-		    sizeof(unsigned long)*2048);
+	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
+	crst_table_init((unsigned long *) init_mm.pgd, pgd_type);
 	vmem_map_init();
 
         /* enable virtual mapping in kernel mode */
@@ -137,13 +139,15 @@ void __init mem_init(void)
 	free_all_bootmem();
 	setup_zero_pages();	/* Setup zeroed pages. */
 
+	cmma_init_nodat();
+
 	mem_init_print_info(NULL);
 }
 
 void free_initmem(void)
 {
-	__set_memory((unsigned long) _sinittext,
-		     (_einittext - _sinittext) >> PAGE_SHIFT,
+	__set_memory((unsigned long)_sinittext,
+		     (unsigned long)(_einittext - _sinittext) >> PAGE_SHIFT,
 		     SET_MEMORY_RW | SET_MEMORY_NX);
 	free_initmem_default(POISON_FREE_INITMEM);
 }
@@ -166,6 +170,58 @@ unsigned long memory_block_size_bytes(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+
+#ifdef CONFIG_CMA
+
+/* Prevent memory blocks which contain cma regions from going offline */
+
+struct s390_cma_mem_data {
+	unsigned long start;
+	unsigned long end;
+};
+
+static int s390_cma_check_range(struct cma *cma, void *data)
+{
+	struct s390_cma_mem_data *mem_data;
+	unsigned long start, end;
+
+	mem_data = data;
+	start = cma_get_base(cma);
+	end = start + cma_get_size(cma);
+	if (end < mem_data->start)
+		return 0;
+	if (start >= mem_data->end)
+		return 0;
+	return -EBUSY;
+}
+
+static int s390_cma_mem_notifier(struct notifier_block *nb,
+				 unsigned long action, void *data)
+{
+	struct s390_cma_mem_data mem_data;
+	struct memory_notify *arg;
+	int rc = 0;
+
+	arg = data;
+	mem_data.start = arg->start_pfn << PAGE_SHIFT;
+	mem_data.end = mem_data.start + (arg->nr_pages << PAGE_SHIFT);
+	if (action == MEM_GOING_OFFLINE)
+		rc = cma_for_each_area(s390_cma_check_range, &mem_data);
+	return notifier_from_errno(rc);
+}
+
+static struct notifier_block s390_cma_mem_nb = {
+	.notifier_call = s390_cma_mem_notifier,
+};
+
+static int __init s390_cma_mem_init(void)
+{
+	return register_memory_notifier(&s390_cma_mem_nb);
+}
+device_initcall(s390_cma_mem_init);
+
+#endif /* CONFIG_CMA */
+
 int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
 {
 	unsigned long start_pfn = PFN_DOWN(start);

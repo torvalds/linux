@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2007,2012
  *
@@ -252,6 +253,7 @@ static int sclp_attach_storage(u8 id)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = PAGE_SIZE;
+	sccb->header.function_code = 0x40;
 	rc = sclp_sync_request_timeout(0x00080001 | id << 8, sccb,
 				       SCLP_QUEUE_INTERVAL);
 	if (rc)

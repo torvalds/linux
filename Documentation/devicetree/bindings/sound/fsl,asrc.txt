@@ -41,7 +41,7 @@ Required properties:
 
 Example:
 
-asrc: asrc@02034000 {
+asrc: asrc@2034000 {
 	compatible = "fsl,imx53-asrc";
 	reg = <0x02034000 0x4000>;
 	interrupts = <0 50 IRQ_TYPE_LEVEL_HIGH>;
@@ -61,5 +61,4 @@ asrc: asrc@02034000 {
 		"txa", "txb", "txc";
 	fsl,asrc-rate  = <48000>;
 	fsl,asrc-width = <16>;
-	status = "okay";
 };

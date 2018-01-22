@@ -840,6 +840,13 @@ static const struct dmi_system_id __initconst i8042_dmi_kbdreset_table[] = {
 		},
 	},
 	{
+		/* Gigabyte P57 - Elantech touchpad */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "P57"),
+		},
+	},
+	{
 		/* Schenker XMG C504 - Elantech touchpad */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "XMG"),
@@ -927,7 +934,7 @@ static int i8042_pnp_aux_probe(struct pnp_dev *dev, const struct pnp_device_id *
 	return 0;
 }
 
-static struct pnp_device_id pnp_kbd_devids[] = {
+static const struct pnp_device_id pnp_kbd_devids[] = {
 	{ .id = "PNP0300", .driver_data = 0 },
 	{ .id = "PNP0301", .driver_data = 0 },
 	{ .id = "PNP0302", .driver_data = 0 },
@@ -957,7 +964,7 @@ static struct pnp_driver i8042_pnp_kbd_driver = {
 	},
 };
 
-static struct pnp_device_id pnp_aux_devids[] = {
+static const struct pnp_device_id pnp_aux_devids[] = {
 	{ .id = "AUI0200", .driver_data = 0 },
 	{ .id = "FJC6000", .driver_data = 0 },
 	{ .id = "FJC6001", .driver_data = 0 },

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* pci_sun4v.c: SUN4V specific PCI controller support.
  *
  * Copyright (C) 2006, 2007, 2008 David S. Miller (davem@davemloft.net)

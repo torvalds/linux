@@ -323,7 +323,7 @@ static int lp5523_init_program_engine(struct lp55xx_chip *chip)
 
 	if (status != LP5523_ENG_STATUS_MASK) {
 		dev_err(&chip->cl->dev,
-			"cound not configure LED engine, status = 0x%.2x\n",
+			"could not configure LED engine, status = 0x%.2x\n",
 			status);
 		ret = -1;
 	}

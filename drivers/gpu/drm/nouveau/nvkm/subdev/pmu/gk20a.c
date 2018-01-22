@@ -196,9 +196,10 @@ gk20a_dvfs_data= {
 
 static const struct nvkm_pmu_func
 gk20a_pmu = {
+	.enabled = gf100_pmu_enabled,
 	.init = gk20a_pmu_init,
 	.fini = gk20a_pmu_fini,
-	.reset = gt215_pmu_reset,
+	.reset = gf100_pmu_reset,
 };
 
 int

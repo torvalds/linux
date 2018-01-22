@@ -52,6 +52,7 @@ static void vgem_gem_free_object(struct drm_gem_object *obj)
 	struct drm_vgem_gem_object *vgem_obj = to_vgem_bo(obj);
 
 	kvfree(vgem_obj->pages);
+	mutex_destroy(&vgem_obj->pages_lock);
 
 	if (obj->import_attach)
 		drm_prime_gem_destroy(obj, vgem_obj->table);
@@ -76,11 +77,15 @@ static int vgem_gem_fault(struct vm_fault *vmf)
 	if (page_offset > num_pages)
 		return VM_FAULT_SIGBUS;
 
+	ret = -ENOENT;
+	mutex_lock(&obj->pages_lock);
 	if (obj->pages) {
 		get_page(obj->pages[page_offset]);
 		vmf->page = obj->pages[page_offset];
 		ret = 0;
-	} else {
+	}
+	mutex_unlock(&obj->pages_lock);
+	if (ret) {
 		struct page *page;
 
 		page = shmem_read_mapping_page(
@@ -161,6 +166,8 @@ static struct drm_vgem_gem_object *__vgem_gem_create(struct drm_device *dev,
 		return ERR_PTR(ret);
 	}
 
+	mutex_init(&obj->pages_lock);
+
 	return obj;
 }
 
@@ -183,7 +190,7 @@ static struct drm_gem_object *vgem_gem_create(struct drm_device *dev,
 		return ERR_CAST(obj);
 
 	ret = drm_gem_handle_create(file, &obj->base, handle);
-	drm_gem_object_unreference_unlocked(&obj->base);
+	drm_gem_object_put_unlocked(&obj->base);
 	if (ret)
 		goto err;
 
@@ -238,7 +245,7 @@ static int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
 
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 unref:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return ret;
 }
@@ -271,40 +278,70 @@ static const struct file_operations vgem_driver_fops = {
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.unlocked_ioctl = drm_ioctl,
+	.compat_ioctl	= drm_compat_ioctl,
 	.release	= drm_release,
 };
 
+static struct page **vgem_pin_pages(struct drm_vgem_gem_object *bo)
+{
+	mutex_lock(&bo->pages_lock);
+	if (bo->pages_pin_count++ == 0) {
+		struct page **pages;
+
+		pages = drm_gem_get_pages(&bo->base);
+		if (IS_ERR(pages)) {
+			bo->pages_pin_count--;
+			mutex_unlock(&bo->pages_lock);
+			return pages;
+		}
+
+		bo->pages = pages;
+	}
+	mutex_unlock(&bo->pages_lock);
+
+	return bo->pages;
+}
+
+static void vgem_unpin_pages(struct drm_vgem_gem_object *bo)
+{
+	mutex_lock(&bo->pages_lock);
+	if (--bo->pages_pin_count == 0) {
+		drm_gem_put_pages(&bo->base, bo->pages, true, true);
+		bo->pages = NULL;
+	}
+	mutex_unlock(&bo->pages_lock);
+}
+
 static int vgem_prime_pin(struct drm_gem_object *obj)
 {
+	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 	long n_pages = obj->size >> PAGE_SHIFT;
 	struct page **pages;
+
+	pages = vgem_pin_pages(bo);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
 
 	/* Flush the object from the CPU cache so that importers can rely
 	 * on coherent indirect access via the exported dma-address.
 	 */
-	pages = drm_gem_get_pages(obj);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
-
 	drm_clflush_pages(pages, n_pages);
-	drm_gem_put_pages(obj, pages, true, false);
 
 	return 0;
 }
 
+static void vgem_prime_unpin(struct drm_gem_object *obj)
+{
+	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
+
+	vgem_unpin_pages(bo);
+}
+
 static struct sg_table *vgem_prime_get_sg_table(struct drm_gem_object *obj)
 {
-	struct sg_table *st;
-	struct page **pages;
+	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 
-	pages = drm_gem_get_pages(obj);
-	if (IS_ERR(pages))
-		return ERR_CAST(pages);
-
-	st = drm_prime_pages_to_sg(pages, obj->size >> PAGE_SHIFT);
-	drm_gem_put_pages(obj, pages, false, false);
-
-	return st;
+	return drm_prime_pages_to_sg(bo->pages, bo->base.size >> PAGE_SHIFT);
 }
 
 static struct drm_gem_object* vgem_prime_import(struct drm_device *dev,
@@ -333,6 +370,8 @@ static struct drm_gem_object *vgem_prime_import_sg_table(struct drm_device *dev,
 		__vgem_gem_destroy(obj);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	obj->pages_pin_count++; /* perma-pinned */
 	drm_prime_sg_to_page_addr_arrays(obj->table, obj->pages, NULL,
 					npages);
 	return &obj->base;
@@ -340,23 +379,23 @@ static struct drm_gem_object *vgem_prime_import_sg_table(struct drm_device *dev,
 
 static void *vgem_prime_vmap(struct drm_gem_object *obj)
 {
+	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 	long n_pages = obj->size >> PAGE_SHIFT;
 	struct page **pages;
-	void *addr;
 
-	pages = drm_gem_get_pages(obj);
+	pages = vgem_pin_pages(bo);
 	if (IS_ERR(pages))
 		return NULL;
 
-	addr = vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
-	drm_gem_put_pages(obj, pages, false, false);
-
-	return addr;
+	return vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
 }
 
 static void vgem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
+	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
+
 	vunmap(vaddr);
+	vgem_unpin_pages(bo);
 }
 
 static int vgem_prime_mmap(struct drm_gem_object *obj,
@@ -409,6 +448,7 @@ static struct drm_driver vgem_driver = {
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_pin = vgem_prime_pin,
+	.gem_prime_unpin = vgem_prime_unpin,
 	.gem_prime_import = vgem_prime_import,
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import_sg_table = vgem_prime_import_sg_table,

@@ -11,9 +11,20 @@ Required properties:
 - interrupts		: property with a value describing the interrupt
 			  number
 
-Optional properties:
+The following are mandatory properties for DRA7x, AM33xx and AM43xx SoCs only:
 - ti,hwmods		: Must be "d_can<n>" or "c_can<n>", n being the
 			  instance number
+
+The following are mandatory properties for Keystone 2 66AK2G SoCs only:
+- power-domains		: Should contain a phandle to a PM domain provider node
+			  and an args specifier containing the DCAN device id
+			  value. This property is as per the binding,
+			  Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+- clocks		: CAN functional clock phandle. This property is as per the
+			  binding,
+			  Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+
+Optional properties:
 - syscon-raminit	: Handle to system control region that contains the
 			  RAMINIT register, register offset to the RAMINIT
 			  register and the CAN instance number (0 offset).

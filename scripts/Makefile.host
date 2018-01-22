@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # ==========================================================================
 # Building binaries on the host system
 # Binaries are used during the compilation of the kernel, for example
@@ -48,15 +49,6 @@ host-cxxobjs	:= $(sort $(foreach m,$(host-cxxmulti),$($(m)-cxxobjs)))
 host-cshobjs	:= $(sort $(foreach m,$(host-cshlib),$($(m:.so=-objs))))
 host-cxxshobjs	:= $(sort $(foreach m,$(host-cxxshlib),$($(m:.so=-objs))))
 
-# output directory for programs/.o files
-# hostprogs-y := tools/build may have been specified.
-# Retrieve also directory of .o files from prog-objs or prog-cxxobjs notation
-host-objdirs := $(dir $(__hostprogs) $(host-cobjs) $(host-cxxobjs))
-
-host-objdirs := $(strip $(sort $(filter-out ./,$(host-objdirs))))
-
-
-__hostprogs     := $(addprefix $(obj)/,$(__hostprogs))
 host-csingle	:= $(addprefix $(obj)/,$(host-csingle))
 host-cmulti	:= $(addprefix $(obj)/,$(host-cmulti))
 host-cobjs	:= $(addprefix $(obj)/,$(host-cobjs))
@@ -66,9 +58,6 @@ host-cshlib	:= $(addprefix $(obj)/,$(host-cshlib))
 host-cxxshlib	:= $(addprefix $(obj)/,$(host-cxxshlib))
 host-cshobjs	:= $(addprefix $(obj)/,$(host-cshobjs))
 host-cxxshobjs	:= $(addprefix $(obj)/,$(host-cxxshobjs))
-host-objdirs    := $(addprefix $(obj)/,$(host-objdirs))
-
-obj-dirs += $(host-objdirs)
 
 #####
 # Handle options to gcc. Support building with separate output directory

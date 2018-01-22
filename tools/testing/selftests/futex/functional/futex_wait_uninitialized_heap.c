@@ -99,7 +99,8 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	printf("%s: Test the uninitialized futex value in FUTEX_WAIT\n",
+	ksft_print_header();
+	ksft_print_msg("%s: Test the uninitialized futex value in FUTEX_WAIT\n",
 	       basename(argv[0]));
 
 

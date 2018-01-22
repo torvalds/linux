@@ -30,18 +30,17 @@
  *
  */
 
-#include "storage_class.h"
 
 #include "system_local.h"
 #include "stream_buffer_local.h"
 
 #ifndef __INLINE_STREAM_BUFFER__
-#define STORAGE_CLASS_STREAM_BUFFER_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_STREAM_BUFFER_H extern
 #define STORAGE_CLASS_STREAM_BUFFER_C
 #include "stream_buffer_public.h"
 #else  /* __INLINE_STREAM_BUFFER__ */
-#define STORAGE_CLASS_STREAM_BUFFER_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_STREAM_BUFFER_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_STREAM_BUFFER_H static inline
+#define STORAGE_CLASS_STREAM_BUFFER_C static inline
 #include "stream_buffer_private.h"
 #endif /* __INLINE_STREAM_BUFFER__ */
 

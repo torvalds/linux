@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SUBCMD_PAGER_H
 #define __SUBCMD_PAGER_H
 

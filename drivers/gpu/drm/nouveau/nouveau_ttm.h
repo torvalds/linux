@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NOUVEAU_TTM_H__
 #define __NOUVEAU_TTM_H__
 

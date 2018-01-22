@@ -34,11 +34,12 @@ struct vsp1_du_lif_config {
 	unsigned int width;
 	unsigned int height;
 
-	void (*callback)(void *);
+	void (*callback)(void *, bool);
 	void *callback_data;
 };
 
-int vsp1_du_setup_lif(struct device *dev, const struct vsp1_du_lif_config *cfg);
+int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
+		      const struct vsp1_du_lif_config *cfg);
 
 struct vsp1_du_atomic_config {
 	u32 pixelformat;
@@ -50,10 +51,11 @@ struct vsp1_du_atomic_config {
 	unsigned int zpos;
 };
 
-void vsp1_du_atomic_begin(struct device *dev);
-int vsp1_du_atomic_update(struct device *dev, unsigned int rpf,
+void vsp1_du_atomic_begin(struct device *dev, unsigned int pipe_index);
+int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
+			  unsigned int rpf,
 			  const struct vsp1_du_atomic_config *cfg);
-void vsp1_du_atomic_flush(struct device *dev);
+void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index);
 int vsp1_du_map_sg(struct device *dev, struct sg_table *sgt);
 void vsp1_du_unmap_sg(struct device *dev, struct sg_table *sgt);
 

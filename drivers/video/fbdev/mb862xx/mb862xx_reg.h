@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Fujitsu MB862xx Graphics Controller Registers/Bits
  */

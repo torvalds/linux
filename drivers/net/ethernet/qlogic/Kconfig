@@ -117,4 +117,7 @@ config QED_ISCSI
 config QED_FCOE
 	bool
 
+config QED_OOO
+	bool
+
 endif # NET_VENDOR_QLOGIC

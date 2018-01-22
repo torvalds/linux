@@ -179,7 +179,7 @@ nothing_to_copy:
 	sld	r3, r3, r0
 	li	r0, 0
 1:
-	dcbf	r0,r3
+	dcbf	0,r3
 	addi	r3,r3,0x20
 	bdnz	1b
 

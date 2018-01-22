@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "tegra30.dtsi"
@@ -1925,6 +1926,16 @@
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
+	};
+
+	usb@7d000000 {
+		compatible = "nvidia,tegra30-udc";
+		status = "okay";
+		dr_mode = "peripheral";
+	};
+
+	usb-phy@7d000000 {
+		status = "okay";
 	};
 
 	usb@7d004000 {

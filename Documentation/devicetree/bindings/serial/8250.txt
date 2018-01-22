@@ -14,6 +14,8 @@ Required properties:
 	  tegra132, or tegra210.
 	- "nxp,lpc3220-uart"
 	- "ralink,rt2880-uart"
+	- For MediaTek BTIF, must contain '"mediatek,<chip>-btif",
+	  "mediatek,mtk-btif"' where <chip> is mt7622, mt7623.
 	- "altr,16550-FIFO32"
 	- "altr,16550-FIFO64"
 	- "altr,16550-FIFO128"

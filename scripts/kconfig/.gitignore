@@ -5,7 +5,6 @@ config*
 *.lex.c
 *.tab.c
 *.tab.h
-zconf.hash.c
 *.moc
 gconf.glade.h
 *.pot

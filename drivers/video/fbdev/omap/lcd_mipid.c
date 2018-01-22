@@ -496,7 +496,7 @@ static void mipid_cleanup(struct lcd_panel *panel)
 		mipid_esd_stop_check(md);
 }
 
-static struct lcd_panel mipid_panel = {
+static const struct lcd_panel mipid_panel = {
 	.config		= OMAP_LCDC_PANEL_TFT,
 
 	.bpp		= 16,

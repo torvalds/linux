@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DOVE_DIVIDER_H
 #define DOVE_DIVIDER_H
 

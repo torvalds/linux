@@ -191,7 +191,7 @@ static int __init lpc32xx_of_ic_init(struct device_node *node,
 
 	irqc->base = of_iomap(node, 0);
 	if (!irqc->base) {
-		pr_err("%s: unable to map registers\n", node->full_name);
+		pr_err("%pOF: unable to map registers\n", node);
 		kfree(irqc);
 		return -EINVAL;
 	}

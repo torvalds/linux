@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2012
  *
@@ -262,10 +263,6 @@ static int zpci_cfg_store(struct zpci_dev *zdev, int offset, u32 val, u8 len)
 	return rc;
 }
 
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-}
-
 resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				       resource_size_t size,
 				       resource_size_t align)
@@ -372,7 +369,8 @@ static void zpci_irq_handler(struct airq_struct *airq)
 				/* End of second scan with interrupts on. */
 				break;
 			/* First scan complete, reenable interrupts. */
-			zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
+			if (zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC))
+				break;
 			si = 0;
 			continue;
 		}
@@ -776,6 +774,7 @@ void pcibios_remove_bus(struct pci_bus *bus)
 
 	zpci_exit_slot(zdev);
 	zpci_cleanup_bus_resources(zdev);
+	zpci_destroy_iommu(zdev);
 	zpci_free_domain(zdev);
 
 	spin_lock(&zpci_list_lock);
@@ -848,11 +847,15 @@ int zpci_create_device(struct zpci_dev *zdev)
 	if (rc)
 		goto out;
 
+	rc = zpci_init_iommu(zdev);
+	if (rc)
+		goto out_free;
+
 	mutex_init(&zdev->lock);
 	if (zdev->state == ZPCI_FN_STATE_CONFIGURED) {
 		rc = zpci_enable_device(zdev);
 		if (rc)
-			goto out_free;
+			goto out_destroy_iommu;
 	}
 	rc = zpci_scan_bus(zdev);
 	if (rc)
@@ -869,6 +872,8 @@ int zpci_create_device(struct zpci_dev *zdev)
 out_disable:
 	if (zdev->state == ZPCI_FN_STATE_ONLINE)
 		zpci_disable_device(zdev);
+out_destroy_iommu:
+	zpci_destroy_iommu(zdev);
 out_free:
 	zpci_free_domain(zdev);
 out:
@@ -953,7 +958,7 @@ static int __init pci_base_init(void)
 	if (!s390_pci_probe)
 		return 0;
 
-	if (!test_facility(69) || !test_facility(71) || !test_facility(72))
+	if (!test_facility(69) || !test_facility(71))
 		return 0;
 
 	rc = zpci_debug_init();

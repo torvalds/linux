@@ -208,29 +208,12 @@ static void vgic_v3_access_apr_reg(struct kvm_vcpu *vcpu,
 static bool access_gic_aprn(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			    const struct sys_reg_desc *r, u8 apr)
 {
-	struct vgic_cpu *vgic_v3_cpu = &vcpu->arch.vgic_cpu;
 	u8 idx = r->Op2 & 3;
 
-	/*
-	 * num_pri_bits are initialized with HW supported values.
-	 * We can rely safely on num_pri_bits even if VM has not
-	 * restored ICC_CTLR_EL1 before restoring APnR registers.
-	 */
-	switch (vgic_v3_cpu->num_pri_bits) {
-	case 7:
-		vgic_v3_access_apr_reg(vcpu, p, apr, idx);
-		break;
-	case 6:
-		if (idx > 1)
-			goto err;
-		vgic_v3_access_apr_reg(vcpu, p, apr, idx);
-		break;
-	default:
-		if (idx > 0)
-			goto err;
-		vgic_v3_access_apr_reg(vcpu, p, apr, idx);
-	}
+	if (idx > vgic_v3_max_apr_idx(vcpu))
+		goto err;
 
+	vgic_v3_access_apr_reg(vcpu, p, apr, idx);
 	return true;
 err:
 	if (!p->is_write)

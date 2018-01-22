@@ -192,7 +192,7 @@ static int touchit213_connect(struct serio *serio, struct serio_driver *drv)
  * The serio driver structure.
  */
 
-static struct serio_device_id touchit213_serio_ids[] = {
+static const struct serio_device_id touchit213_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_TOUCHIT213,

@@ -29,6 +29,7 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/input/mt.h>
+#include <linux/usb.h> /* For to_usb_interface for T100 touchpad intf check */
 
 #include "hid-ids.h"
 
@@ -38,23 +39,18 @@ MODULE_AUTHOR("Victor Vlasenko <victor.vlasenko@sysgears.com>");
 MODULE_AUTHOR("Frederik Wenigwieser <frederik.wenigwieser@gmail.com>");
 MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 
+#define T100_TPAD_INTF 2
+
+#define T100CHI_MOUSE_REPORT_ID 0x06
 #define FEATURE_REPORT_ID 0x0d
 #define INPUT_REPORT_ID 0x5d
 #define FEATURE_KBD_REPORT_ID 0x5a
-
-#define INPUT_REPORT_SIZE 28
 #define FEATURE_KBD_REPORT_SIZE 16
 
 #define SUPPORT_KBD_BACKLIGHT BIT(0)
 
-#define MAX_CONTACTS 5
-
-#define MAX_X 2794
-#define MAX_Y 1758
 #define MAX_TOUCH_MAJOR 8
 #define MAX_PRESSURE 128
-
-#define CONTACT_DATA_SIZE 5
 
 #define BTN_LEFT_MASK 0x01
 #define CONTACT_TOOL_TYPE_MASK 0x80
@@ -70,6 +66,8 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_NO_CONSUMER_USAGES	BIT(4)
 #define QUIRK_USE_KBD_BACKLIGHT		BIT(5)
 #define QUIRK_T100_KEYBOARD		BIT(6)
+#define QUIRK_T100CHI			BIT(7)
+#define QUIRK_G752_KEYBOARD		BIT(8)
 
 #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
 						 QUIRK_NO_INIT_REPORTS | \
@@ -88,19 +86,62 @@ struct asus_kbd_leds {
 	bool removed;
 };
 
+struct asus_touchpad_info {
+	int max_x;
+	int max_y;
+	int res_x;
+	int res_y;
+	int contact_size;
+	int max_contacts;
+};
+
 struct asus_drvdata {
 	unsigned long quirks;
 	struct input_dev *input;
 	struct asus_kbd_leds *kbd_backlight;
+	const struct asus_touchpad_info *tp;
 	bool enable_backlight;
 };
 
-static void asus_report_contact_down(struct input_dev *input,
+static const struct asus_touchpad_info asus_i2c_tp = {
+	.max_x = 2794,
+	.max_y = 1758,
+	.contact_size = 5,
+	.max_contacts = 5,
+};
+
+static const struct asus_touchpad_info asus_t100ta_tp = {
+	.max_x = 2240,
+	.max_y = 1120,
+	.res_x = 30, /* units/mm */
+	.res_y = 27, /* units/mm */
+	.contact_size = 5,
+	.max_contacts = 5,
+};
+
+static const struct asus_touchpad_info asus_t100chi_tp = {
+	.max_x = 2640,
+	.max_y = 1320,
+	.res_x = 31, /* units/mm */
+	.res_y = 29, /* units/mm */
+	.contact_size = 3,
+	.max_contacts = 4,
+};
+
+static void asus_report_contact_down(struct asus_drvdata *drvdat,
 		int toolType, u8 *data)
 {
-	int touch_major, pressure;
-	int x = (data[0] & CONTACT_X_MSB_MASK) << 4 | data[1];
-	int y = MAX_Y - ((data[0] & CONTACT_Y_MSB_MASK) << 8 | data[2]);
+	struct input_dev *input = drvdat->input;
+	int touch_major, pressure, x, y;
+
+	x = (data[0] & CONTACT_X_MSB_MASK) << 4 | data[1];
+	y = drvdat->tp->max_y - ((data[0] & CONTACT_Y_MSB_MASK) << 8 | data[2]);
+
+	input_report_abs(input, ABS_MT_POSITION_X, x);
+	input_report_abs(input, ABS_MT_POSITION_Y, y);
+
+	if (drvdat->tp->contact_size < 5)
+		return;
 
 	if (toolType == MT_TOOL_PALM) {
 		touch_major = MAX_TOUCH_MAJOR;
@@ -110,18 +151,19 @@ static void asus_report_contact_down(struct input_dev *input,
 		pressure = data[4] & CONTACT_PRESSURE_MASK;
 	}
 
-	input_report_abs(input, ABS_MT_POSITION_X, x);
-	input_report_abs(input, ABS_MT_POSITION_Y, y);
 	input_report_abs(input, ABS_MT_TOUCH_MAJOR, touch_major);
 	input_report_abs(input, ABS_MT_PRESSURE, pressure);
 }
 
 /* Required for Synaptics Palm Detection */
-static void asus_report_tool_width(struct input_dev *input)
+static void asus_report_tool_width(struct asus_drvdata *drvdat)
 {
-	struct input_mt *mt = input->mt;
+	struct input_mt *mt = drvdat->input->mt;
 	struct input_mt_slot *oldest;
 	int oldid, count, i;
+
+	if (drvdat->tp->contact_size < 5)
+		return;
 
 	oldest = NULL;
 	oldid = mt->trkid;
@@ -141,35 +183,42 @@ static void asus_report_tool_width(struct input_dev *input)
 	}
 
 	if (oldest) {
-		input_report_abs(input, ABS_TOOL_WIDTH,
+		input_report_abs(drvdat->input, ABS_TOOL_WIDTH,
 			input_mt_get_value(oldest, ABS_MT_TOUCH_MAJOR));
 	}
 }
 
-static void asus_report_input(struct input_dev *input, u8 *data)
+static int asus_report_input(struct asus_drvdata *drvdat, u8 *data, int size)
 {
-	int i;
+	int i, toolType = MT_TOOL_FINGER;
 	u8 *contactData = data + 2;
 
-	for (i = 0; i < MAX_CONTACTS; i++) {
+	if (size != 3 + drvdat->tp->contact_size * drvdat->tp->max_contacts)
+		return 0;
+
+	for (i = 0; i < drvdat->tp->max_contacts; i++) {
 		bool down = !!(data[1] & BIT(i+3));
-		int toolType = contactData[3] & CONTACT_TOOL_TYPE_MASK ?
+
+		if (drvdat->tp->contact_size >= 5)
+			toolType = contactData[3] & CONTACT_TOOL_TYPE_MASK ?
 						MT_TOOL_PALM : MT_TOOL_FINGER;
 
-		input_mt_slot(input, i);
-		input_mt_report_slot_state(input, toolType, down);
+		input_mt_slot(drvdat->input, i);
+		input_mt_report_slot_state(drvdat->input, toolType, down);
 
 		if (down) {
-			asus_report_contact_down(input, toolType, contactData);
-			contactData += CONTACT_DATA_SIZE;
+			asus_report_contact_down(drvdat, toolType, contactData);
+			contactData += drvdat->tp->contact_size;
 		}
 	}
 
-	input_report_key(input, BTN_LEFT, data[1] & BTN_LEFT_MASK);
-	asus_report_tool_width(input);
+	input_report_key(drvdat->input, BTN_LEFT, data[1] & BTN_LEFT_MASK);
+	asus_report_tool_width(drvdat);
 
-	input_mt_sync_frame(input);
-	input_sync(input);
+	input_mt_sync_frame(drvdat->input);
+	input_sync(drvdat->input);
+
+	return 1;
 }
 
 static int asus_raw_event(struct hid_device *hdev,
@@ -177,12 +226,8 @@ static int asus_raw_event(struct hid_device *hdev,
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	if (drvdata->quirks & QUIRK_IS_MULTITOUCH &&
-					 data[0] == INPUT_REPORT_ID &&
-						size == INPUT_REPORT_SIZE) {
-		asus_report_input(drvdata->input, data);
-		return 1;
-	}
+	if (drvdata->tp && data[0] == INPUT_REPORT_ID)
+		return asus_report_input(drvdata, data, size);
 
 	return 0;
 }
@@ -334,19 +379,35 @@ static int asus_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	struct input_dev *input = hi->input;
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	if (drvdata->quirks & QUIRK_IS_MULTITOUCH) {
+	/* T100CHI uses MULTI_INPUT, bind the touchpad to the mouse hid_input */
+	if (drvdata->quirks & QUIRK_T100CHI &&
+	    hi->report->id != T100CHI_MOUSE_REPORT_ID)
+		return 0;
+
+	if (drvdata->tp) {
 		int ret;
 
-		input_set_abs_params(input, ABS_MT_POSITION_X, 0, MAX_X, 0, 0);
-		input_set_abs_params(input, ABS_MT_POSITION_Y, 0, MAX_Y, 0, 0);
-		input_set_abs_params(input, ABS_TOOL_WIDTH, 0, MAX_TOUCH_MAJOR, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, MAX_TOUCH_MAJOR, 0, 0);
-		input_set_abs_params(input, ABS_MT_PRESSURE, 0, MAX_PRESSURE, 0, 0);
+		input_set_abs_params(input, ABS_MT_POSITION_X, 0,
+				     drvdata->tp->max_x, 0, 0);
+		input_set_abs_params(input, ABS_MT_POSITION_Y, 0,
+				     drvdata->tp->max_y, 0, 0);
+		input_abs_set_res(input, ABS_MT_POSITION_X, drvdata->tp->res_x);
+		input_abs_set_res(input, ABS_MT_POSITION_Y, drvdata->tp->res_y);
+
+		if (drvdata->tp->contact_size >= 5) {
+			input_set_abs_params(input, ABS_TOOL_WIDTH, 0,
+					     MAX_TOUCH_MAJOR, 0, 0);
+			input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0,
+					     MAX_TOUCH_MAJOR, 0, 0);
+			input_set_abs_params(input, ABS_MT_PRESSURE, 0,
+					      MAX_PRESSURE, 0, 0);
+		}
 
 		__set_bit(BTN_LEFT, input->keybit);
 		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 
-		ret = input_mt_init_slots(input, MAX_CONTACTS, INPUT_MT_POINTER);
+		ret = input_mt_init_slots(input, drvdata->tp->max_contacts,
+					  INPUT_MT_POINTER);
 
 		if (ret) {
 			hid_err(hdev, "Asus input mt init slots failed: %d\n", ret);
@@ -376,6 +437,26 @@ static int asus_input_mapping(struct hid_device *hdev,
 		 * We do it all manually in asus_input_configured
 		 */
 		return -1;
+	}
+
+	/*
+	 * Ignore a bunch of bogus collections in the T100CHI descriptor.
+	 * This avoids a bunch of non-functional hid_input devices getting
+	 * created because of the T100CHI using HID_QUIRK_MULTI_INPUT.
+	 */
+	if (drvdata->quirks & QUIRK_T100CHI) {
+		if (field->application == (HID_UP_GENDESK | 0x0080) ||
+		    usage->hid == (HID_UP_GENDEVCTRLS | 0x0024) ||
+		    usage->hid == (HID_UP_GENDEVCTRLS | 0x0025) ||
+		    usage->hid == (HID_UP_GENDEVCTRLS | 0x0026))
+			return -1;
+		/*
+		 * We use the hid_input for the mouse report for the touchpad,
+		 * keep the left button, to avoid the core removing it.
+		 */
+		if (field->application == HID_GD_MOUSE &&
+		    usage->hid != (HID_UP_BUTTON | 1))
+			return -1;
 	}
 
 	/* ASUS-specific keyboard hotkeys */
@@ -496,7 +577,7 @@ static int __maybe_unused asus_reset_resume(struct hid_device *hdev)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	if (drvdata->quirks & QUIRK_IS_MULTITOUCH)
+	if (drvdata->tp)
 		return asus_start_multitouch(hdev);
 
 	return 0;
@@ -516,6 +597,28 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	hid_set_drvdata(hdev, drvdata);
 
 	drvdata->quirks = id->driver_data;
+
+	if (drvdata->quirks & QUIRK_IS_MULTITOUCH)
+		drvdata->tp = &asus_i2c_tp;
+
+	if (drvdata->quirks & QUIRK_T100_KEYBOARD) {
+		struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+
+		if (intf->altsetting->desc.bInterfaceNumber == T100_TPAD_INTF) {
+			drvdata->quirks = QUIRK_SKIP_INPUT_MAPPING;
+			drvdata->tp = &asus_t100ta_tp;
+		}
+	}
+
+	if (drvdata->quirks & QUIRK_T100CHI) {
+		/*
+		 * All functionality is on a single HID interface and for
+		 * userspace the touchpad must be a separate input_dev.
+		 */
+		hdev->quirks |= HID_QUIRK_MULTI_INPUT |
+				HID_QUIRK_NO_EMPTY_INPUT;
+		drvdata->tp = &asus_t100chi_tp;
+	}
 
 	if (drvdata->quirks & QUIRK_NO_INIT_REPORTS)
 		hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
@@ -538,13 +641,13 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_stop_hw;
 	}
 
-	if (drvdata->quirks & QUIRK_IS_MULTITOUCH) {
+	if (drvdata->tp) {
 		drvdata->input->name = "Asus TouchPad";
 	} else {
 		drvdata->input->name = "Asus Keyboard";
 	}
 
-	if (drvdata->quirks & QUIRK_IS_MULTITOUCH) {
+	if (drvdata->tp) {
 		ret = asus_start_multitouch(hdev);
 		if (ret)
 			goto err_stop_hw;
@@ -568,6 +671,11 @@ static void asus_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
+static const __u8 asus_g752_fixed_rdesc[] = {
+        0x19, 0x00,			/*   Usage Minimum (0x00)       */
+        0x2A, 0xFF, 0x00,		/*   Usage Maximum (0xFF)       */
+};
+
 static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
@@ -578,10 +686,54 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "Fixing up Asus notebook report descriptor\n");
 		rdesc[55] = 0xdd;
 	}
+	/* For the T100TA keyboard dock */
 	if (drvdata->quirks & QUIRK_T100_KEYBOARD &&
 		 *rsize == 76 && rdesc[73] == 0x81 && rdesc[74] == 0x01) {
 		hid_info(hdev, "Fixing up Asus T100 keyb report descriptor\n");
 		rdesc[74] &= ~HID_MAIN_ITEM_CONSTANT;
+	}
+	/* For the T100CHI keyboard dock */
+	if (drvdata->quirks & QUIRK_T100CHI &&
+		 *rsize == 403 && rdesc[388] == 0x09 && rdesc[389] == 0x76) {
+		/*
+		 * Change Usage (76h) to Usage Minimum (00h), Usage Maximum
+		 * (FFh) and clear the flags in the Input() byte.
+		 * Note the descriptor has a bogus 0 byte at the end so we
+		 * only need 1 extra byte.
+		 */
+		*rsize = 404;
+		rdesc = kmemdup(rdesc, *rsize, GFP_KERNEL);
+		if (!rdesc)
+			return NULL;
+
+		hid_info(hdev, "Fixing up T100CHI keyb report descriptor\n");
+		memmove(rdesc + 392, rdesc + 390, 12);
+		rdesc[388] = 0x19;
+		rdesc[389] = 0x00;
+		rdesc[390] = 0x29;
+		rdesc[391] = 0xff;
+		rdesc[402] = 0x00;
+	}
+	if (drvdata->quirks & QUIRK_G752_KEYBOARD &&
+		 *rsize == 75 && rdesc[61] == 0x15 && rdesc[62] == 0x00) {
+		/* report is missing usage mninum and maximum */
+		__u8 *new_rdesc;
+		size_t new_size = *rsize + sizeof(asus_g752_fixed_rdesc);
+
+		new_rdesc = devm_kzalloc(&hdev->dev, new_size, GFP_KERNEL);
+		if (new_rdesc == NULL)
+			return rdesc;
+
+		hid_info(hdev, "Fixing up Asus G752 keyb report descriptor\n");
+		/* copy the valid part */
+		memcpy(new_rdesc, rdesc, 61);
+		/* insert missing part */
+		memcpy(new_rdesc + 61, asus_g752_fixed_rdesc, sizeof(asus_g752_fixed_rdesc));
+		/* copy remaining data */
+		memcpy(new_rdesc + 61 + sizeof(asus_g752_fixed_rdesc), rdesc + 61, *rsize - 61);
+
+		*rsize = new_size;
+		rdesc = new_rdesc;
 	}
 
 	return rdesc;
@@ -593,15 +745,20 @@ static const struct hid_device_id asus_devices[] = {
 	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_I2C_TOUCHPAD), I2C_TOUCHPAD_QUIRKS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
-		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD1) },
+		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD1), QUIRK_USE_KBD_BACKLIGHT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD2), QUIRK_USE_KBD_BACKLIGHT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_ROG_KEYBOARD3), QUIRK_G752_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_T100_KEYBOARD),
 	  QUIRK_T100_KEYBOARD | QUIRK_NO_CONSUMER_USAGES },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_ASUS_AK1D) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_ASUS_MD_5110) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_JESS, USB_DEVICE_ID_ASUS_MD_5112) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_T100CHI_KEYBOARD), QUIRK_T100CHI },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, asus_devices);

@@ -83,6 +83,7 @@ int mmc_send_status(struct mmc_card *card, u32 *status)
 {
 	return __mmc_send_status(card, status, MMC_CMD_RETRIES);
 }
+EXPORT_SYMBOL_GPL(mmc_send_status);
 
 static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 {
@@ -946,7 +947,7 @@ static int mmc_read_bkops_status(struct mmc_card *card)
 /**
  *	mmc_start_bkops - start BKOPS for supported cards
  *	@card: MMC card to start BKOPS
- *	@form_exception: A flag to indicate if this function was
+ *	@from_exception: A flag to indicate if this function was
  *			 called due to an exception raised by the card
  *
  *	Start background operations whenever requested.
@@ -976,7 +977,6 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	    from_exception)
 		return;
 
-	mmc_claim_host(card->host);
 	if (card->ext_csd.raw_bkops_status >= EXT_CSD_BKOPS_LEVEL_2) {
 		timeout = MMC_OPS_TIMEOUT_MS;
 		use_busy_signal = true;
@@ -994,7 +994,7 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 		pr_warn("%s: Error %d starting bkops\n",
 			mmc_hostname(card->host), err);
 		mmc_retune_release(card->host);
-		goto out;
+		return;
 	}
 
 	/*
@@ -1006,9 +1006,8 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 		mmc_card_set_doing_bkops(card);
 	else
 		mmc_retune_release(card->host);
-out:
-	mmc_release_host(card->host);
 }
+EXPORT_SYMBOL(mmc_start_bkops);
 
 /*
  * Flush the cache to the non-volatile storage.

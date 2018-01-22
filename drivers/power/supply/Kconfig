@@ -182,7 +182,21 @@ config CHARGER_SBS
         tristate "SBS Compliant charger"
         depends on I2C
         help
-	  Say Y to include support for SBS compilant battery chargers.
+	  Say Y to include support for SBS compliant battery chargers.
+
+config MANAGER_SBS
+	tristate "Smart Battery System Manager"
+	depends on I2C && I2C_MUX && GPIOLIB
+	select I2C_SMBUS
+	help
+	  Say Y here to include support for Smart Battery System Manager
+	  ICs. The driver reports online and charging status via sysfs.
+	  It presents itself also as I2C mux which allows to bind
+	  smart battery driver to its ports.
+	  Supported is for example LTC1760.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called sbs-manager.
 
 config BATTERY_BQ27XXX
 	tristate "BQ27xxx battery driver"
@@ -197,6 +211,15 @@ config BATTERY_BQ27XXX_I2C
 	help
 	  Say Y here to enable support for batteries with BQ27xxx chips
 	  connected over an I2C bus.
+
+config BATTERY_BQ27XXX_HDQ
+	tristate "BQ27xxx HDQ support"
+	depends on BATTERY_BQ27XXX
+	depends on W1
+	default y
+	help
+	  Say Y here to enable support for batteries with BQ27xxx chips
+	  connected over an HDQ bus.
 
 config BATTERY_BQ27XXX_DT_UPDATES_NVM
 	bool "BQ27xxx support for update of NVM/flash data memory"
@@ -313,6 +336,19 @@ config BATTERY_MAX17042
 	  with MAX17042. This driver also supports max17047/50 chips which are
 	  improved version of max17042.
 
+config BATTERY_MAX1721X
+	tristate "MAX17211/MAX17215 standalone gas-gauge"
+	depends on W1
+	select REGMAP_W1
+	help
+	  MAX1721x is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. MAX17211 used with single cell
+	  battery. MAX17215 designed for muticell battery. Both them have
+	  OneWire (W1) host interface.
+
+	  Say Y here to enable support for the MAX17211/MAX17215 standalone
+	  battery gas-gauge.
+
 config BATTERY_Z2
 	tristate "Z2 battery driver"
 	depends on I2C && MACH_ZIPIT2
@@ -365,6 +401,7 @@ config BATTERY_RX51
 config CHARGER_CPCAP
 	tristate "CPCAP PMIC Charger Driver"
 	depends on MFD_CPCAP && IIO
+	depends on OMAP_USB2 || (!OMAP_USB2 && COMPILE_TEST)
 	default MFD_CPCAP
 	help
 	  Say Y to enable support for CPCAP PMIC charger driver for Motorola

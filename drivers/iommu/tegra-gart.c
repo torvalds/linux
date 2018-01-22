@@ -61,6 +61,8 @@ struct gart_device {
 	struct list_head	client;
 	spinlock_t		client_lock;	/* for client list */
 	struct device		*dev;
+
+	struct iommu_device	iommu;		/* IOMMU Core handle */
 };
 
 struct gart_domain {
@@ -334,12 +336,35 @@ static bool gart_iommu_capable(enum iommu_cap cap)
 	return false;
 }
 
+static int gart_iommu_add_device(struct device *dev)
+{
+	struct iommu_group *group = iommu_group_get_for_dev(dev);
+
+	if (IS_ERR(group))
+		return PTR_ERR(group);
+
+	iommu_group_put(group);
+
+	iommu_device_link(&gart_handle->iommu, dev);
+
+	return 0;
+}
+
+static void gart_iommu_remove_device(struct device *dev)
+{
+	iommu_group_remove_device(dev);
+	iommu_device_unlink(&gart_handle->iommu, dev);
+}
+
 static const struct iommu_ops gart_iommu_ops = {
 	.capable	= gart_iommu_capable,
 	.domain_alloc	= gart_iommu_domain_alloc,
 	.domain_free	= gart_iommu_domain_free,
 	.attach_dev	= gart_iommu_attach_dev,
 	.detach_dev	= gart_iommu_detach_dev,
+	.add_device	= gart_iommu_add_device,
+	.remove_device	= gart_iommu_remove_device,
+	.device_group	= generic_device_group,
 	.map		= gart_iommu_map,
 	.map_sg		= default_iommu_map_sg,
 	.unmap		= gart_iommu_unmap,
@@ -378,6 +403,7 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	struct resource *res, *res_remap;
 	void __iomem *gart_regs;
 	struct device *dev = &pdev->dev;
+	int ret;
 
 	if (gart_handle)
 		return -EIO;
@@ -402,6 +428,22 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	if (!gart_regs) {
 		dev_err(dev, "failed to remap GART registers\n");
 		return -ENXIO;
+	}
+
+	ret = iommu_device_sysfs_add(&gart->iommu, &pdev->dev, NULL,
+				     dev_name(&pdev->dev));
+	if (ret) {
+		dev_err(dev, "Failed to register IOMMU in sysfs\n");
+		return ret;
+	}
+
+	iommu_device_set_ops(&gart->iommu, &gart_iommu_ops);
+
+	ret = iommu_device_register(&gart->iommu);
+	if (ret) {
+		dev_err(dev, "Failed to register IOMMU\n");
+		iommu_device_sysfs_remove(&gart->iommu);
+		return ret;
 	}
 
 	gart->dev = &pdev->dev;
@@ -429,6 +471,9 @@ static int tegra_gart_probe(struct platform_device *pdev)
 static int tegra_gart_remove(struct platform_device *pdev)
 {
 	struct gart_device *gart = platform_get_drvdata(pdev);
+
+	iommu_device_unregister(&gart->iommu);
+	iommu_device_sysfs_remove(&gart->iommu);
 
 	writel(0, gart->regs + GART_CONFIG);
 	if (gart->savedata)

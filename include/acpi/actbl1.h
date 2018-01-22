@@ -69,6 +69,7 @@
 #define ACPI_SIG_HEST           "HEST"	/* Hardware Error Source Table */
 #define ACPI_SIG_MADT           "APIC"	/* Multiple APIC Description Table */
 #define ACPI_SIG_MSCT           "MSCT"	/* Maximum System Characteristics Table */
+#define ACPI_SIG_PDTT           "PDTT"	/* Processor Debug Trigger Table */
 #define ACPI_SIG_PPTT           "PPTT"	/* Processor Properties Topology Table */
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
 #define ACPI_SIG_SLIT           "SLIT"	/* System Locality Distance Information Table */
@@ -1279,6 +1280,35 @@ struct acpi_nfit_flush_address {
 	u8 reserved[6];		/* Reserved, must be zero */
 	u64 hint_address[1];	/* Variable length */
 };
+
+/*******************************************************************************
+ *
+ * PDTT - Processor Debug Trigger Table (ACPI 6.2)
+ *        Version 0
+ *
+ ******************************************************************************/
+
+struct acpi_table_pdtt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u8 trigger_count;
+	u8 reserved[3];
+	u32 array_offset;
+};
+
+/*
+ * PDTT Communication Channel Identifier Structure.
+ * The number of these structures is defined by trigger_count above,
+ * starting at array_offset.
+ */
+struct acpi_pdtt_channel {
+	u16 sub_channel_id;
+};
+
+/* Mask and Flags for above */
+
+#define ACPI_PDTT_SUBCHANNEL_ID_MASK        0x00FF
+#define ACPI_PDTT_RUNTIME_TRIGGER           (1<<8)
+#define ACPI_PPTT_WAIT_COMPLETION           (1<<9)
 
 /*******************************************************************************
  *

@@ -204,7 +204,10 @@ done_asic:
 	return ret;
 }
 
-/* magic character sequence that trails an image */
+/* magic character sequence that begins an image */
+#define IMAGE_START_MAGIC "APO="
+
+/* magic character sequence that might trail an image */
 #define IMAGE_TRAIL_MAGIC "egamiAPO"
 
 /* EPROM file types */
@@ -261,6 +264,12 @@ static int read_partition_platform_config(struct hfi1_devdata *dd, void **data,
 	if (ret) {
 		kfree(buffer);
 		return ret;
+	}
+
+	/* config partition is valid only if it starts with IMAGE_START_MAGIC */
+	if (memcmp(buffer, IMAGE_START_MAGIC, strlen(IMAGE_START_MAGIC))) {
+		kfree(buffer);
+		return -ENOENT;
 	}
 
 	/* scan for image magic that may trail the actual data */

@@ -1702,7 +1702,7 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	bttv_dma_free(q,fh->btv,buf);
 }
 
-static struct videobuf_queue_ops bttv_video_qops = {
+static const struct videobuf_queue_ops bttv_video_qops = {
 	.buf_setup    = buffer_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_queue    = buffer_queue,
@@ -3652,9 +3652,9 @@ bttv_irq_wakeup_vbi(struct bttv *btv, struct bttv_buffer *wakeup,
 	wake_up(&wakeup->vb.done);
 }
 
-static void bttv_irq_timeout(unsigned long data)
+static void bttv_irq_timeout(struct timer_list *t)
 {
-	struct bttv *btv = (struct bttv *)data;
+	struct bttv *btv = from_timer(btv, t, timeout);
 	struct bttv_buffer_set old,new;
 	struct bttv_buffer *ovbi;
 	struct bttv_buffer *item;
@@ -4043,7 +4043,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	INIT_LIST_HEAD(&btv->capture);
 	INIT_LIST_HEAD(&btv->vcapture);
 
-	setup_timer(&btv->timeout, bttv_irq_timeout, (unsigned long)btv);
+	timer_setup(&btv->timeout, bttv_irq_timeout, 0);
 
 	btv->i2c_rc = -1;
 	btv->tuner_type  = UNSET;
@@ -4388,7 +4388,7 @@ static int bttv_resume(struct pci_dev *pci_dev)
 }
 #endif
 
-static struct pci_device_id bttv_pci_tbl[] = {
+static const struct pci_device_id bttv_pci_tbl[] = {
 	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT848), 0},
 	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT849), 0},
 	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT878), 0},

@@ -34,7 +34,7 @@
 #define MAX_FIXED_DMIC_PARAMS_SIZE 727
 
 /* Maximum number of coefficients up down mixer module */
-#define UP_DOWN_MIXER_MAX_COEFF		6
+#define UP_DOWN_MIXER_MAX_COEFF		8
 
 #define MODULE_MAX_IN_PINS	8
 #define MODULE_MAX_OUT_PINS	8
@@ -43,6 +43,13 @@
 #define SKL_MIC_MAX_CH_SUPPORT	8
 #define SKL_DEFAULT_MIC_SEL_GAIN	0x3FF
 #define SKL_MIC_SEL_SWITCH	0x3
+
+#define SKL_OUTPUT_PIN		0
+#define SKL_INPUT_PIN		1
+#define SKL_MAX_PATH_CONFIGS	8
+#define SKL_MAX_MODULES_IN_PIPE	8
+#define SKL_MAX_MODULE_FORMATS		32
+#define SKL_MAX_MODULE_RESOURCES	32
 
 enum skl_channel_index {
 	SKL_CHANNEL_LEFT = 0,
@@ -131,6 +138,11 @@ struct skl_cpr_cfg {
 	struct skl_cpr_gtw_cfg gtw_cfg;
 } __packed;
 
+struct skl_cpr_pin_fmt {
+	u32 sink_id;
+	struct skl_audio_data_format src_fmt;
+	struct skl_audio_data_format dst_fmt;
+} __packed;
 
 struct skl_src_module_cfg {
 	struct skl_base_cfg base_cfg;
@@ -149,6 +161,7 @@ struct skl_up_down_mixer_cfg {
 	u32 coeff_sel;
 	/* Pass the user coeff in this array */
 	s32 coeff[UP_DOWN_MIXER_MAX_COEFF];
+	u32 ch_map;
 } __packed;
 
 struct skl_algo_cfg {
@@ -214,6 +227,7 @@ struct skl_kpb_params {
 };
 
 struct skl_module_inst_id {
+	uuid_le mod_uuid;
 	int module_id;
 	u32 instance_id;
 	int pvt_id;
@@ -266,6 +280,23 @@ struct skl_pipe_params {
 	unsigned int link_bps;
 };
 
+struct skl_pipe_fmt {
+	u32 freq;
+	u8 channels;
+	u8 bps;
+};
+
+struct skl_pipe_mcfg {
+	u8 res_idx;
+	u8 fmt_idx;
+};
+
+struct skl_path_config {
+	u8 mem_pages;
+	struct skl_pipe_fmt in_fmt;
+	struct skl_pipe_fmt out_fmt;
+};
+
 struct skl_pipe {
 	u8 ppl_id;
 	u8 pipe_priority;
@@ -274,6 +305,10 @@ struct skl_pipe {
 	u8 lp_mode;
 	struct skl_pipe_params *p_params;
 	enum skl_pipe_state state;
+	u8 direction;
+	u8 cur_config_idx;
+	u8 nr_cfgs;
+	struct skl_path_config configs[SKL_MAX_PATH_CONFIGS];
 	struct list_head w_list;
 	bool passthru;
 };
@@ -292,9 +327,57 @@ enum d0i3_capability {
 	SKL_D0I3_NON_STREAMING = 2,
 };
 
+struct skl_module_pin_fmt {
+	u8 id;
+	struct skl_module_fmt fmt;
+};
+
+struct skl_module_iface {
+	u8 fmt_idx;
+	u8 nr_in_fmt;
+	u8 nr_out_fmt;
+	struct skl_module_pin_fmt inputs[MAX_IN_QUEUE];
+	struct skl_module_pin_fmt outputs[MAX_OUT_QUEUE];
+};
+
+struct skl_module_pin_resources {
+	u8 pin_index;
+	u32 buf_size;
+};
+
+struct skl_module_res {
+	u8 id;
+	u32 is_pages;
+	u32 cps;
+	u32 ibs;
+	u32 obs;
+	u32 dma_buffer_size;
+	u32 cpc;
+	u8 nr_input_pins;
+	u8 nr_output_pins;
+	struct skl_module_pin_resources input[MAX_IN_QUEUE];
+	struct skl_module_pin_resources output[MAX_OUT_QUEUE];
+};
+
+struct skl_module {
+	uuid_le uuid;
+	u8 loadable;
+	u8 input_pin_type;
+	u8 output_pin_type;
+	u8 max_input_pins;
+	u8 max_output_pins;
+	u8 nr_resources;
+	u8 nr_interfaces;
+	struct skl_module_res resources[SKL_MAX_MODULE_RESOURCES];
+	struct skl_module_iface formats[SKL_MAX_MODULE_FORMATS];
+};
+
 struct skl_module_cfg {
 	u8 guid[16];
 	struct skl_module_inst_id id;
+	struct skl_module *module;
+	int res_idx;
+	int fmt_idx;
 	u8 domain;
 	bool homogenous_inputs;
 	bool homogenous_outputs;
@@ -329,6 +412,7 @@ struct skl_module_cfg {
 	enum skl_module_state m_state;
 	struct skl_pipe *pipe;
 	struct skl_specific_cfg formats_config;
+	struct skl_pipe_mcfg mod_cfg[SKL_MAX_MODULES_IN_PIPE];
 };
 
 struct skl_algo_data {
@@ -372,8 +456,8 @@ static inline struct skl *get_skl_ctx(struct device *dev)
 
 int skl_tplg_be_update_params(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params);
-int skl_dsp_set_dma_control(struct skl_sst *ctx,
-		struct skl_module_cfg *mconfig);
+int skl_dsp_set_dma_control(struct skl_sst *ctx, u32 *caps,
+			u32 caps_size, u32 node_id);
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
 int skl_tplg_init(struct snd_soc_platform *platform,
@@ -418,4 +502,7 @@ int skl_pcm_host_dma_prepare(struct device *dev,
 			struct skl_pipe_params *params);
 int skl_pcm_link_dma_prepare(struct device *dev,
 			struct skl_pipe_params *params);
+
+int skl_dai_load(struct snd_soc_component *cmp,
+		 struct snd_soc_dai_driver *pcm_dai);
 #endif

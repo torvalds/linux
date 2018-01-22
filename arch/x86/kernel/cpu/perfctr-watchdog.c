@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * local apic based NMI watchdog for various CPUs.
  *

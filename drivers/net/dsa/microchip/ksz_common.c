@@ -394,7 +394,8 @@ static int ksz_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds)
+static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
+						  int port)
 {
 	return DSA_TAG_PROTO_KSZ;
 }
@@ -638,55 +639,6 @@ static int ksz_port_vlan_del(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int ksz_port_vlan_dump(struct dsa_switch *ds, int port,
-			      struct switchdev_obj_port_vlan *vlan,
-			      switchdev_obj_dump_cb_t *cb)
-{
-	struct ksz_device *dev = ds->priv;
-	u16 vid;
-	u16 data;
-	struct vlan_table *vlan_cache;
-	int err = 0;
-
-	mutex_lock(&dev->vlan_mutex);
-
-	/* use dev->vlan_cache due to lack of searching valid vlan entry */
-	for (vid = vlan->vid_begin; vid < dev->num_vlans; vid++) {
-		vlan_cache = &dev->vlan_cache[vid];
-
-		if (!(vlan_cache->table[0] & VLAN_VALID))
-			continue;
-
-		vlan->vid_begin = vid;
-		vlan->vid_end = vid;
-		vlan->flags = 0;
-		if (vlan_cache->table[2] & BIT(port)) {
-			if (vlan_cache->table[1] & BIT(port))
-				vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
-			ksz_pread16(dev, port, REG_PORT_DEFAULT_VID, &data);
-			if (vid == (data & 0xFFFFF))
-				vlan->flags |= BRIDGE_VLAN_INFO_PVID;
-
-			err = cb(&vlan->obj);
-			if (err)
-				break;
-		}
-	}
-
-	mutex_unlock(&dev->vlan_mutex);
-
-	return err;
-}
-
-static int ksz_port_fdb_prepare(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_fdb *fdb,
-				struct switchdev_trans *trans)
-{
-	/* nothing needed */
-
-	return 0;
-}
-
 struct alu_struct {
 	/* entry 1 */
 	u8	is_static:1;
@@ -706,30 +658,31 @@ struct alu_struct {
 	u8	mac[ETH_ALEN];
 };
 
-static void ksz_port_fdb_add(struct dsa_switch *ds, int port,
-			     const struct switchdev_obj_port_fdb *fdb,
-			     struct switchdev_trans *trans)
+static int ksz_port_fdb_add(struct dsa_switch *ds, int port,
+			    const unsigned char *addr, u16 vid)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 alu_table[4];
 	u32 data;
+	int ret = 0;
 
 	mutex_lock(&dev->alu_mutex);
 
 	/* find any entry with mac & vid */
-	data = fdb->vid << ALU_FID_INDEX_S;
-	data |= ((fdb->addr[0] << 8) | fdb->addr[1]);
+	data = vid << ALU_FID_INDEX_S;
+	data |= ((addr[0] << 8) | addr[1]);
 	ksz_write32(dev, REG_SW_ALU_INDEX_0, data);
 
-	data = ((fdb->addr[2] << 24) | (fdb->addr[3] << 16));
-	data |= ((fdb->addr[4] << 8) | fdb->addr[5]);
+	data = ((addr[2] << 24) | (addr[3] << 16));
+	data |= ((addr[4] << 8) | addr[5]);
 	ksz_write32(dev, REG_SW_ALU_INDEX_1, data);
 
 	/* start read operation */
 	ksz_write32(dev, REG_SW_ALU_CTRL__4, ALU_READ | ALU_START);
 
 	/* wait to be finished */
-	if (wait_alu_ready(dev, ALU_START, 1000) < 0) {
+	ret = wait_alu_ready(dev, ALU_START, 1000);
+	if (ret < 0) {
 		dev_dbg(dev->dev, "Failed to read ALU\n");
 		goto exit;
 	}
@@ -740,27 +693,30 @@ static void ksz_port_fdb_add(struct dsa_switch *ds, int port,
 	/* update ALU entry */
 	alu_table[0] = ALU_V_STATIC_VALID;
 	alu_table[1] |= BIT(port);
-	if (fdb->vid)
+	if (vid)
 		alu_table[1] |= ALU_V_USE_FID;
-	alu_table[2] = (fdb->vid << ALU_V_FID_S);
-	alu_table[2] |= ((fdb->addr[0] << 8) | fdb->addr[1]);
-	alu_table[3] = ((fdb->addr[2] << 24) | (fdb->addr[3] << 16));
-	alu_table[3] |= ((fdb->addr[4] << 8) | fdb->addr[5]);
+	alu_table[2] = (vid << ALU_V_FID_S);
+	alu_table[2] |= ((addr[0] << 8) | addr[1]);
+	alu_table[3] = ((addr[2] << 24) | (addr[3] << 16));
+	alu_table[3] |= ((addr[4] << 8) | addr[5]);
 
 	write_table(ds, alu_table);
 
 	ksz_write32(dev, REG_SW_ALU_CTRL__4, ALU_WRITE | ALU_START);
 
 	/* wait to be finished */
-	if (wait_alu_ready(dev, ALU_START, 1000) < 0)
-		dev_dbg(dev->dev, "Failed to read ALU\n");
+	ret = wait_alu_ready(dev, ALU_START, 1000);
+	if (ret < 0)
+		dev_dbg(dev->dev, "Failed to write ALU\n");
 
 exit:
 	mutex_unlock(&dev->alu_mutex);
+
+	return ret;
 }
 
 static int ksz_port_fdb_del(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_fdb *fdb)
+			    const unsigned char *addr, u16 vid)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 alu_table[4];
@@ -770,12 +726,12 @@ static int ksz_port_fdb_del(struct dsa_switch *ds, int port,
 	mutex_lock(&dev->alu_mutex);
 
 	/* read any entry with mac & vid */
-	data = fdb->vid << ALU_FID_INDEX_S;
-	data |= ((fdb->addr[0] << 8) | fdb->addr[1]);
+	data = vid << ALU_FID_INDEX_S;
+	data |= ((addr[0] << 8) | addr[1]);
 	ksz_write32(dev, REG_SW_ALU_INDEX_0, data);
 
-	data = ((fdb->addr[2] << 24) | (fdb->addr[3] << 16));
-	data |= ((fdb->addr[4] << 8) | fdb->addr[5]);
+	data = ((addr[2] << 24) | (addr[3] << 16));
+	data |= ((addr[4] << 8) | addr[5]);
 	ksz_write32(dev, REG_SW_ALU_INDEX_1, data);
 
 	/* start read operation */
@@ -850,12 +806,11 @@ static void convert_alu(struct alu_struct *alu, u32 *alu_table)
 }
 
 static int ksz_port_fdb_dump(struct dsa_switch *ds, int port,
-			     struct switchdev_obj_port_fdb *fdb,
-			     switchdev_obj_dump_cb_t *cb)
+			     dsa_fdb_dump_cb_t *cb, void *data)
 {
 	struct ksz_device *dev = ds->priv;
 	int ret = 0;
-	u32 data;
+	u32 ksz_data;
 	u32 alu_table[4];
 	struct alu_struct alu;
 	int timeout;
@@ -868,8 +823,8 @@ static int ksz_port_fdb_dump(struct dsa_switch *ds, int port,
 	do {
 		timeout = 1000;
 		do {
-			ksz_read32(dev, REG_SW_ALU_CTRL__4, &data);
-			if ((data & ALU_VALID) || !(data & ALU_START))
+			ksz_read32(dev, REG_SW_ALU_CTRL__4, &ksz_data);
+			if ((ksz_data & ALU_VALID) || !(ksz_data & ALU_START))
 				break;
 			usleep_range(1, 10);
 		} while (timeout-- > 0);
@@ -886,18 +841,11 @@ static int ksz_port_fdb_dump(struct dsa_switch *ds, int port,
 		convert_alu(&alu, alu_table);
 
 		if (alu.port_forward & BIT(port)) {
-			fdb->vid = alu.fid;
-			if (alu.is_static)
-				fdb->ndm_state = NUD_NOARP;
-			else
-				fdb->ndm_state = NUD_REACHABLE;
-			ether_addr_copy(fdb->addr, alu.mac);
-
-			ret = cb(&fdb->obj);
+			ret = cb(alu.mac, alu.fid, alu.is_static, data);
 			if (ret)
 				goto exit;
 		}
-	} while (data & ALU_START);
+	} while (ksz_data & ALU_START);
 
 exit:
 
@@ -1065,14 +1013,6 @@ exit:
 	return ret;
 }
 
-static int ksz_port_mdb_dump(struct dsa_switch *ds, int port,
-			     struct switchdev_obj_port_mdb *mdb,
-			     switchdev_obj_dump_cb_t *cb)
-{
-	/* this is not called by switch layer */
-	return 0;
-}
-
 static int ksz_port_mirror_add(struct dsa_switch *ds, int port,
 			       struct dsa_mall_mirror_tc_entry *mirror,
 			       bool ingress)
@@ -1129,15 +1069,12 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_vlan_prepare	= ksz_port_vlan_prepare,
 	.port_vlan_add		= ksz_port_vlan_add,
 	.port_vlan_del		= ksz_port_vlan_del,
-	.port_vlan_dump		= ksz_port_vlan_dump,
-	.port_fdb_prepare	= ksz_port_fdb_prepare,
 	.port_fdb_dump		= ksz_port_fdb_dump,
 	.port_fdb_add		= ksz_port_fdb_add,
 	.port_fdb_del		= ksz_port_fdb_del,
 	.port_mdb_prepare       = ksz_port_mdb_prepare,
 	.port_mdb_add           = ksz_port_mdb_add,
 	.port_mdb_del           = ksz_port_mdb_del,
-	.port_mdb_dump          = ksz_port_mdb_dump,
 	.port_mirror_add	= ksz_port_mirror_add,
 	.port_mirror_del	= ksz_port_mirror_del,
 };

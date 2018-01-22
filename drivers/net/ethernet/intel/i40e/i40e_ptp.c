@@ -130,7 +130,7 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	}
 
 	smp_mb(); /* Force any pending update before accessing. */
-	adj = ACCESS_ONCE(pf->ptp_base_adj);
+	adj = READ_ONCE(pf->ptp_base_adj);
 
 	freq = adj;
 	freq *= ppb;
@@ -158,13 +158,12 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	struct timespec64 now, then;
+	struct timespec64 now;
 
-	then = ns_to_timespec64(delta);
 	mutex_lock(&pf->tmreg_lock);
 
 	i40e_ptp_read(pf, &now);
-	now = timespec64_add(now, then);
+	timespec64_add_ns(&now, delta);
 	i40e_ptp_write(pf, (const struct timespec64 *)&now);
 
 	mutex_unlock(&pf->tmreg_lock);
@@ -500,7 +499,7 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 	wr32(hw, I40E_PRTTSYN_INC_H, incval >> 32);
 
 	/* Update the base adjustement value. */
-	ACCESS_ONCE(pf->ptp_base_adj) = incval;
+	WRITE_ONCE(pf->ptp_base_adj, incval);
 	smp_mb(); /* Force the above update. */
 }
 
@@ -570,7 +569,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
-		if (!(pf->flags & I40E_FLAG_PTP_L4_CAPABLE))
+		if (!(pf->hw_features & I40E_HW_PTP_L4_CAPABLE))
 			return -ERANGE;
 		pf->ptp_rx = true;
 		tsyntype = I40E_PRTTSYN_CTL1_V1MESSTYPE0_MASK |
@@ -584,7 +583,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
-		if (!(pf->flags & I40E_FLAG_PTP_L4_CAPABLE))
+		if (!(pf->hw_features & I40E_HW_PTP_L4_CAPABLE))
 			return -ERANGE;
 		/* fall through */
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
@@ -593,7 +592,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 		pf->ptp_rx = true;
 		tsyntype = I40E_PRTTSYN_CTL1_V2MESSTYPE0_MASK |
 			   I40E_PRTTSYN_CTL1_TSYNTYPE_V2;
-		if (pf->flags & I40E_FLAG_PTP_L4_CAPABLE) {
+		if (pf->hw_features & I40E_HW_PTP_L4_CAPABLE) {
 			tsyntype |= I40E_PRTTSYN_CTL1_UDP_ENA_MASK;
 			config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		} else {

@@ -27,10 +27,9 @@
 #define __RTL_PCI_H__
 
 #include <linux/pci.h>
-/*
-1: MSDU packet queue,
-2: Rx Command Queue
-*/
+/* 1: MSDU packet queue,
+ * 2: Rx Command Queue
+ */
 #define RTL_PCI_RX_MPDU_QUEUE			0
 #define RTL_PCI_RX_CMD_QUEUE			1
 #define RTL_PCI_MAX_RX_QUEUE			2
@@ -40,6 +39,7 @@
 
 #define RT_TXDESC_NUM				128
 #define TX_DESC_NUM_92E				512
+#define TX_DESC_NUM_8822B			512
 #define RT_TXDESC_NUM_BE_QUEUE			256
 
 #define BK_QUEUE				0
@@ -51,6 +51,7 @@
 #define MGNT_QUEUE				6
 #define HIGH_QUEUE				7
 #define HCCA_QUEUE				8
+#define H2C_QUEUE				TXCMD_QUEUE	/* In 8822B */
 
 #define RTL_PCI_DEVICE(vend, dev, cfg)  \
 	.vendor = (vend), \
@@ -108,6 +109,7 @@
 #define RTL_PCI_8192EE_DID	0x818B	/*8192ee*/
 #define RTL_PCI_8821AE_DID	0x8821	/*8821ae*/
 #define RTL_PCI_8812AE_DID	0x8812	/*8812ae*/
+#define RTL_PCI_8822BE_DID	0xB822	/*8822be*/
 
 /*8192 support 16 pages of IO registers*/
 #define RTL_MEM_MAPPED_IO_RANGE_8190PCI		0x1000
@@ -143,13 +145,7 @@ struct rtl_pci_capabilities_header {
  * RX wifi info == RX descriptor in old flow
  */
 struct rtl_tx_buffer_desc {
-#if (RTL8192EE_SEG_NUM == 2)
-	u32 dword[2*(DMA_IS_64BIT + 1)*8]; /*seg = 8*/
-#elif (RTL8192EE_SEG_NUM == 1)
-	u32 dword[2*(DMA_IS_64BIT + 1)*4]; /*seg = 4*/
-#elif (RTL8192EE_SEG_NUM == 0)
-	u32 dword[2*(DMA_IS_64BIT + 1)*2]; /*seg = 2*/
-#endif
+	u32 dword[4 * (1 << (BUFDESC_SEG_NUM + 1))];
 } __packed;
 
 struct rtl_tx_desc {
@@ -157,7 +153,7 @@ struct rtl_tx_desc {
 } __packed;
 
 struct rtl_rx_buffer_desc { /*rx buffer desc*/
-	u32 dword[2];
+	u32 dword[4];
 } __packed;
 
 struct rtl_rx_desc { /*old: rx desc new: rx wifi info*/
@@ -215,7 +211,7 @@ struct rtl_pci {
 
 	/*irq */
 	u8 irq_alloc;
-	u32 irq_mask[2];
+	u32 irq_mask[4];	/* 0-1: normal, 2: unused, 3: h2c */
 	u32 sys_irq_mask;
 
 	/*Bcn control register setting */
@@ -229,8 +225,9 @@ struct rtl_pci {
 	u8 const_hostpci_aspm_setting;
 	/*pci-e device */
 	u8 const_devicepci_aspm_setting;
-	/*If it supports ASPM, Offset[560h] = 0x40,
-	   otherwise Offset[560h] = 0x00. */
+	/* If it supports ASPM, Offset[560h] = 0x40,
+	 * otherwise Offset[560h] = 0x00.
+	 */
 	bool support_aspm;
 	bool support_backdoor;
 
@@ -285,7 +282,7 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw);
 extern const struct rtl_intf_ops rtl_pci_ops;
 
 int rtl_pci_probe(struct pci_dev *pdev,
-			    const struct pci_device_id *id);
+		  const struct pci_device_id *id);
 void rtl_pci_disconnect(struct pci_dev *pdev);
 #ifdef CONFIG_PM_SLEEP
 int rtl_pci_suspend(struct device *dev);
@@ -293,34 +290,34 @@ int rtl_pci_resume(struct device *dev);
 #endif /* CONFIG_PM_SLEEP */
 static inline u8 pci_read8_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
-	return readb((u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	return readb((u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline u16 pci_read16_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
-	return readw((u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	return readw((u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline u32 pci_read32_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
-	return readl((u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	return readl((u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline void pci_write8_async(struct rtl_priv *rtlpriv, u32 addr, u8 val)
 {
-	writeb(val, (u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	writeb(val, (u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline void pci_write16_async(struct rtl_priv *rtlpriv,
 				     u32 addr, u16 val)
 {
-	writew(val, (u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	writew(val, (u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline void pci_write32_async(struct rtl_priv *rtlpriv,
 				     u32 addr, u32 val)
 {
-	writel(val, (u8 __iomem *) rtlpriv->io.pci_mem_start + addr);
+	writel(val, (u8 __iomem *)rtlpriv->io.pci_mem_start + addr);
 }
 
 static inline u16 calc_fifo_space(u16 rp, u16 wp)

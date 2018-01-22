@@ -36,8 +36,6 @@ struct octeon_cn23xx_vf {
 
 #define CN23XX_MAILBOX_MSGPARAM_SIZE		6
 
-#define MAX_VF_IP_OP_PENDING_PKT_COUNT		100
-
 void cn23xx_vf_ask_pf_to_do_flr(struct octeon_device *oct);
 
 int cn23xx_octeon_pfvf_handshake(struct octeon_device *oct);

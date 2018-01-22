@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <drm/drmP.h>
 #include <drm/drm_mode.h>
 #include "nouveau_drv.h"

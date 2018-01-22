@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  *  (c) Copyright 2008, RealTEK Technologies Inc. All Rights Reserved.
@@ -294,7 +295,7 @@ static void cmpk_handle_query_config_rx(struct net_device *dev, u8 *pmsg)
 	 * windows OS. So we have to read the content byte by byte or transfer
 	 * endian type before copy the message copy.
 	 */
-	rx_query_cfg.cfg_action		= (pmsg[4] & 0x80000000) >> 31;
+	rx_query_cfg.cfg_action		= (pmsg[4] & 0x80) >> 7;
 	rx_query_cfg.cfg_type		= (pmsg[4] & 0x60) >> 5;
 	rx_query_cfg.cfg_size		= (pmsg[4] & 0x18) >> 3;
 	rx_query_cfg.cfg_page		= (pmsg[6] & 0x0F) >> 0;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_SEGMENT_H
 #define _ASM_X86_SEGMENT_H
 
@@ -235,11 +236,21 @@
  */
 #define EARLY_IDT_HANDLER_SIZE 9
 
+/*
+ * xen_early_idt_handler_array is for Xen pv guests: for each entry in
+ * early_idt_handler_array it contains a prequel in the form of
+ * pop %rcx; pop %r11; jmp early_idt_handler_array[i]; summing up to
+ * max 8 bytes.
+ */
+#define XEN_EARLY_IDT_HANDLER_SIZE 8
+
 #ifndef __ASSEMBLY__
 
 extern const char early_idt_handler_array[NUM_EXCEPTION_VECTORS][EARLY_IDT_HANDLER_SIZE];
-#ifdef CONFIG_TRACING
-# define trace_early_idt_handler_array early_idt_handler_array
+extern void early_ignore_irq(void);
+
+#if defined(CONFIG_X86_64) && defined(CONFIG_XEN_PV)
+extern const char xen_early_idt_handler_array[NUM_EXCEPTION_VECTORS][XEN_EARLY_IDT_HANDLER_SIZE];
 #endif
 
 /*

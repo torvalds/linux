@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_UACCESS_H__
 #define __LINUX_UACCESS_H__
 
@@ -156,7 +157,7 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 }
 #ifdef CONFIG_COMPAT
 static __always_inline unsigned long __must_check
-copy_in_user(void __user *to, const void *from, unsigned long n)
+copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
 	might_fault();
 	if (access_ok(VERIFY_WRITE, to, n) && access_ok(VERIFY_READ, from, n))

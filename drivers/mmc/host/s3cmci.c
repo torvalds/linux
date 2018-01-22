@@ -1313,7 +1313,7 @@ static void s3cmci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	s3cmci_check_sdio_irq(host);
 }
 
-static struct mmc_host_ops s3cmci_ops = {
+static const struct mmc_host_ops s3cmci_ops = {
 	.request	= s3cmci_request,
 	.set_ios	= s3cmci_set_ios,
 	.get_ro		= mmc_gpio_get_ro,
@@ -1424,7 +1424,9 @@ static const struct file_operations s3cmci_fops_state = {
 struct s3cmci_reg {
 	unsigned short	addr;
 	unsigned char	*name;
-} debug_regs[] = {
+};
+
+static const struct s3cmci_reg debug_regs[] = {
 	DBG_REG(CON),
 	DBG_REG(PRE),
 	DBG_REG(CMDARG),
@@ -1446,7 +1448,7 @@ struct s3cmci_reg {
 static int s3cmci_regs_show(struct seq_file *seq, void *v)
 {
 	struct s3cmci_host *host = seq->private;
-	struct s3cmci_reg *rptr = debug_regs;
+	const struct s3cmci_reg *rptr = debug_regs;
 
 	for (; rptr->name; rptr++)
 		seq_printf(seq, "SDI%s\t=0x%08x\n", rptr->name,

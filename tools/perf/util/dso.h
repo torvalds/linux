@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_DSO
 #define __PERF_DSO
 
@@ -6,10 +7,11 @@
 #include <linux/rbtree.h>
 #include <sys/types.h>
 #include <stdbool.h>
-#include <pthread.h>
+#include "rwsem.h"
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include "map.h"
+#include "namespaces.h"
 #include "build-id.h"
 
 enum dso_binary_type {
@@ -20,6 +22,7 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__JAVA_JIT,
 	DSO_BINARY_TYPE__DEBUGLINK,
 	DSO_BINARY_TYPE__BUILD_ID_CACHE,
+	DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO,
 	DSO_BINARY_TYPE__FEDORA_DEBUGINFO,
 	DSO_BINARY_TYPE__UBUNTU_DEBUGINFO,
 	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
@@ -127,7 +130,7 @@ struct dso_cache {
 struct dsos {
 	struct list_head head;
 	struct rb_root	 root;	/* rbtree root sorted by long name */
-	pthread_rwlock_t lock;
+	struct rw_semaphore lock;
 };
 
 struct auxtrace_cache;
@@ -139,6 +142,8 @@ struct dso {
 	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
+	struct rb_root	 inlined_nodes;
+	struct rb_root	 srclines;
 	struct {
 		u64		addr;
 		struct symbol	*symbol;
@@ -187,6 +192,7 @@ struct dso {
 		void	 *priv;
 		u64	 db_id;
 	};
+	struct nsinfo	*nsinfo;
 	refcount_t	 refcnt;
 	char		 name[0];
 };

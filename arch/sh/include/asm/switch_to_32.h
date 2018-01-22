@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_SWITCH_TO_32_H
 #define __ASM_SH_SWITCH_TO_32_H
 

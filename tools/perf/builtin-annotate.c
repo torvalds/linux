@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * builtin-annotate.c
  *
@@ -177,14 +178,11 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	 */
 	process_branch_stack(sample->branch_stack, al, sample);
 
-	sample->period = 1;
-	sample->weight = 1;
-
 	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
-	ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+	ret = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
 	hists__inc_nr_samples(hists, true);
 	return ret;
 }
@@ -359,7 +357,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (total_nr_samples == 0) {
-		ui__error("The %s file has no samples!\n", session->file->path);
+		ui__error("The %s file has no samples!\n", session->data->file.path);
 		goto out;
 	}
 
@@ -397,21 +395,23 @@ int cmd_annotate(int argc, const char **argv)
 			.namespaces = perf_event__process_namespaces,
 			.attr	= perf_event__process_attr,
 			.build_id = perf_event__process_build_id,
+			.tracing_data   = perf_event__process_tracing_data,
+			.feature	= perf_event__process_feature,
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,
 		},
 	};
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
 	};
-	const struct option options[] = {
+	struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('s', "symbol", &annotate.sym_hist_filter, "symbol",
 		    "symbol to annotate"),
-	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &data.force, "don't complain, do it"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('q', "quiet", &quiet, "do now show any message"),
@@ -446,13 +446,20 @@ int cmd_annotate(int argc, const char **argv)
 		    "Show event group information together"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
+	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
+		    "Show a column with the number of samples"),
 	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
 			     "'always' (default), 'never' or 'auto' only applicable to --stdio mode",
 			     stdio__config_color, "always"),
 	OPT_END()
 	};
-	int ret = hists__init();
+	int ret;
 
+	set_option_flag(options, 0, "show-total-period", PARSE_OPT_EXCLUSIVE);
+	set_option_flag(options, 0, "show-nr-samples", PARSE_OPT_EXCLUSIVE);
+
+
+	ret = hists__init();
 	if (ret < 0)
 		return ret;
 
@@ -468,12 +475,17 @@ int cmd_annotate(int argc, const char **argv)
 		annotate.sym_hist_filter = argv[0];
 	}
 
+	if (symbol_conf.show_nr_samples && annotate.use_gtk) {
+		pr_err("--show-nr-samples is not available in --gtk mode at this time\n");
+		return ret;
+	}
+
 	if (quiet)
 		perf_quiet_option();
 
-	file.path  = input_name;
+	data.file.path = input_name;
 
-	annotate.session = perf_session__new(&file, false, &annotate.tool);
+	annotate.session = perf_session__new(&data, false, &annotate.tool);
 	if (annotate.session == NULL)
 		return -1;
 

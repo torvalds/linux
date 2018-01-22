@@ -297,12 +297,16 @@ union drm_vmw_surface_reference_arg {
  * @version: Allows expanding the execbuf ioctl parameters without breaking
  * backwards compatibility, since user-space will always tell the kernel
  * which version it uses.
- * @flags: Execbuf flags. None currently.
+ * @flags: Execbuf flags.
+ * @imported_fence_fd:  FD for a fence imported from another device
  *
  * Argument to the DRM_VMW_EXECBUF Ioctl.
  */
 
 #define DRM_VMW_EXECBUF_VERSION 2
+
+#define DRM_VMW_EXECBUF_FLAG_IMPORT_FENCE_FD (1 << 0)
+#define DRM_VMW_EXECBUF_FLAG_EXPORT_FENCE_FD (1 << 1)
 
 struct drm_vmw_execbuf_arg {
 	__u64 commands;
@@ -312,7 +316,7 @@ struct drm_vmw_execbuf_arg {
 	__u32 version;
 	__u32 flags;
 	__u32 context_handle;
-	__u32 pad64;
+	__s32 imported_fence_fd;
 };
 
 /**
@@ -328,6 +332,7 @@ struct drm_vmw_execbuf_arg {
  * @passed_seqno: The highest seqno number processed by the hardware
  * so far. This can be used to mark user-space fence objects as signaled, and
  * to determine whether a fence seqno might be stale.
+ * @fd: FD associated with the fence, -1 if not exported
  * @error: This member should've been set to -EFAULT on submission.
  * The following actions should be take on completion:
  * error == -EFAULT: Fence communication failed. The host is synchronized.
@@ -345,7 +350,7 @@ struct drm_vmw_fence_rep {
 	__u32 mask;
 	__u32 seqno;
 	__u32 passed_seqno;
-	__u32 pad64;
+	__s32 fd;
 	__s32 error;
 };
 

@@ -8,6 +8,7 @@ Required properties:
 - compatible: should be one of the following:
    - "allwinner,sun4i-a10-i2s"
    - "allwinner,sun6i-a31-i2s"
+   - "allwinner,sun8i-h3-i2s"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: should contain the I2S interrupt.
@@ -22,11 +23,12 @@ Required properties:
 
 Required properties for the following compatibles:
 	- "allwinner,sun6i-a31-i2s"
+	- "allwinner,sun8i-h3-i2s"
 - resets: phandle to the reset line for this codec
 
 Example:
 
-i2s0: i2s@01c22400 {
+i2s0: i2s@1c22400 {
 	#sound-dai-cells = <0>;
 	compatible = "allwinner,sun4i-a10-i2s";
 	reg = <0x01c22400 0x400>;

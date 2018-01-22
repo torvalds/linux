@@ -225,7 +225,7 @@ static u32 __attribute_const__ gf2_multiply(u32 x, u32 y, u32 modulus)
 }
 
 /**
- * crc32_generic_shift - Append len 0 bytes to crc, in logarithmic time
+ * crc32_generic_shift - Append @len 0 bytes to crc, in logarithmic time
  * @crc: The original little-endian CRC (i.e. lsbit is x^31 coefficient)
  * @len: The number of bytes. @crc is multiplied by x^(8*@len)
  * @polynomial: The modulus used to reduce the result to 32 bits.

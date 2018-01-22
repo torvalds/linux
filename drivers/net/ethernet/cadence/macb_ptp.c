@@ -192,7 +192,7 @@ static int gem_ptp_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info gem_ptp_caps_template = {
+static const struct ptp_clock_info gem_ptp_caps_template = {
 	.owner		= THIS_MODULE,
 	.name		= GEM_PTP_TIMER_NAME,
 	.max_adj	= 0,

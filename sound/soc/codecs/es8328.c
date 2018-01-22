@@ -830,7 +830,7 @@ const struct regmap_config es8328_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(es8328_regmap_config);
 
-static struct snd_soc_codec_driver es8328_codec_driver = {
+static const struct snd_soc_codec_driver es8328_codec_driver = {
 	.probe		  = es8328_codec_probe,
 	.suspend	  = es8328_suspend,
 	.resume		  = es8328_resume,

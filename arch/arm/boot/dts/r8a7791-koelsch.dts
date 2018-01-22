@@ -330,9 +330,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	clocks = <&mstp7_clks R8A7791_CLK_DU0>,
-		 <&mstp7_clks R8A7791_CLK_DU1>,
-		 <&mstp7_clks R8A7791_CLK_LVDS0>,
+	clocks = <&cpg CPG_MOD 724>, <&cpg CPG_MOD 723>, <&cpg CPG_MOD 726>,
 		 <&x13_clk>, <&x2_clk>;
 	clock-names = "du.0", "du.1", "lvds.0",
 		      "dclkin.0", "dclkin.1";
@@ -642,11 +640,19 @@
 		};
 	};
 
+	cec_clock: cec-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12000000>;
+	};
+
 	hdmi@39 {
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&cec_clock>;
+		clock-names = "cec";
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
@@ -702,7 +708,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "renesas,24c02";
+		compatible = "renesas,24c02", "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 	};

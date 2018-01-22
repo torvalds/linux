@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Macintosh Nubus Interface Code
  *
@@ -18,11 +19,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/hwtest.h>
-#include <asm/mac_via.h>
-#include <asm/mac_oss.h>
-
-extern void via_nubus_init(void);
-extern void oss_nubus_init(void);
 
 /* Constants */
 
@@ -840,14 +836,6 @@ static int __init nubus_init(void)
 	if (!MACH_IS_MAC)
 		return 0;
 
-	/* Initialize the NuBus interrupts */
-	if (oss_present) {
-		oss_nubus_init();
-	} else {
-		via_nubus_init();
-	}
-
-	/* And probe */
 	pr_info("NuBus: Scanning NuBus slots.\n");
 	nubus_devices = NULL;
 	nubus_boards = NULL;

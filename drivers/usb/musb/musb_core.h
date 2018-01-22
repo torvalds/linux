@@ -1,35 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MUSB OTG driver defines
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
  * Copyright (C) 2006-2007 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- * NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
- * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #ifndef __MUSB_CORE_H__
@@ -345,6 +320,7 @@ struct musb {
 	struct list_head	pending_list;	/* pending work list */
 
 	struct timer_list	otg_timer;
+	struct timer_list	dev_timer;
 	struct notifier_block	nb;
 
 	struct dma_controller	*dma_controller;
@@ -428,6 +404,8 @@ struct musb {
 	unsigned		test_mode:1;
 	unsigned		softconnect:1;
 
+	unsigned		flush_irq_work:1;
+
 	u8			address;
 	u8			test_mode_nr;
 	u16			ackpend;		/* ep0 */
@@ -463,6 +441,30 @@ struct musb {
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)
 {
 	return container_of(g, struct musb, g);
+}
+
+static inline char *musb_ep_xfertype_string(u8 type)
+{
+	char *s;
+
+	switch (type) {
+	case USB_ENDPOINT_XFER_CONTROL:
+		s = "ctrl";
+		break;
+	case USB_ENDPOINT_XFER_ISOC:
+		s = "iso";
+		break;
+	case USB_ENDPOINT_XFER_BULK:
+		s = "bulk";
+		break;
+	case USB_ENDPOINT_XFER_INT:
+		s = "int";
+		break;
+	default:
+		s = "";
+		break;
+	}
+	return s;
 }
 
 #ifdef CONFIG_BLACKFIN

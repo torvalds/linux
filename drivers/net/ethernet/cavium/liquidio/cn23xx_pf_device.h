@@ -24,8 +24,6 @@
 
 #include "cn23xx_pf_regs.h"
 
-#define LIO_CMD_WAIT_TM 100
-
 /* Register address and configuration for a CN23XX devices.
  * If device specific changes need to be made then add a struct to include
  * device specific fields as shown in the commented section

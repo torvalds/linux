@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_VGTOD_H
 #define _ASM_X86_VGTOD_H
 
@@ -48,7 +49,7 @@ static inline unsigned gtod_read_begin(const struct vsyscall_gtod_data *s)
 	unsigned ret;
 
 repeat:
-	ret = ACCESS_ONCE(s->seq);
+	ret = READ_ONCE(s->seq);
 	if (unlikely(ret & 1)) {
 		cpu_relax();
 		goto repeat;

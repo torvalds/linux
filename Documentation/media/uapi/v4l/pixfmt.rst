@@ -19,20 +19,19 @@ see also :ref:`VIDIOC_G_FBUF <VIDIOC_G_FBUF>`.)
 .. toctree::
     :maxdepth: 1
 
-    pixfmt-002
-    pixfmt-003
-    pixfmt-004
-    colorspaces
-    pixfmt-006
-    pixfmt-007
-    pixfmt-008
+    pixfmt-v4l2
+    pixfmt-v4l2-mplane
+    pixfmt-intro
     pixfmt-indexed
     pixfmt-rgb
     yuv-formats
     hsv-formats
     depth-formats
-    pixfmt-013
+    pixfmt-compressed
     sdr-formats
     tch-formats
     meta-formats
     pixfmt-reserved
+    colorspaces
+    colorspaces-defs
+    colorspaces-details

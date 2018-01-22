@@ -150,7 +150,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 			suspend_state = &constraints->state_disk;
 			break;
 		case PM_SUSPEND_ON:
-		case PM_SUSPEND_FREEZE:
+		case PM_SUSPEND_TO_IDLE:
 		case PM_SUSPEND_STANDBY:
 		default:
 			continue;
@@ -333,7 +333,7 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		search = of_get_child_by_name(dev->of_node,
 					      desc->regulators_node);
 	else
-		search = dev->of_node;
+		search = of_node_get(dev->of_node);
 
 	if (!search) {
 		dev_dbg(dev, "Failed to find regulator container node '%s'\n",

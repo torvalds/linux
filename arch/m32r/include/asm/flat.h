@@ -95,7 +95,7 @@ static inline unsigned long m32r_flat_get_addr_from_rp (u32 *rp,
 	return ~0;      /* bogus value */
 }
 
-static inline void flat_put_addr_at_rp(u32 *rp, u32 addr, u32 relval)
+static inline int flat_put_addr_at_rp(u32 *rp, u32 addr, u32 relval)
 {
         unsigned int reloc = flat_m32r_get_reloc_type (relval);
 	if (reloc & 0xf0) {
@@ -133,6 +133,7 @@ static inline void flat_put_addr_at_rp(u32 *rp, u32 addr, u32 relval)
 			break;
 		}
 	}
+	return 0;
 }
 
 // kludge - text_len is a local variable in the only user.

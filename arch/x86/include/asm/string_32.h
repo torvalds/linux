@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_STRING_32_H
 #define _ASM_X86_STRING_32_H
 
@@ -178,8 +179,6 @@ static inline void *__memcpy3d(void *to, const void *from, size_t len)
  *	No 3D Now!
  */
 
-#ifndef CONFIG_KMEMCHECK
-
 #if (__GNUC__ >= 4)
 #define memcpy(t, f, n) __builtin_memcpy(t, f, n)
 #else
@@ -187,13 +186,6 @@ static inline void *__memcpy3d(void *to, const void *from, size_t len)
 	(__builtin_constant_p((n))		\
 	 ? __constant_memcpy((t), (f), (n))	\
 	 : __memcpy((t), (f), (n)))
-#endif
-#else
-/*
- * kmemcheck becomes very happy if we use the REP instructions unconditionally,
- * because it means that we know both memory operands in advance.
- */
-#define memcpy(t, f, n) __memcpy((t), (f), (n))
 #endif
 
 #endif
@@ -339,6 +331,30 @@ extern void *memset(void *, int, size_t);
 	 : __memset((s), (c), (count)))
 #endif
 #endif /* !CONFIG_FORTIFY_SOURCE */
+
+#define __HAVE_ARCH_MEMSET16
+static inline void *memset16(uint16_t *s, uint16_t v, size_t n)
+{
+	int d0, d1;
+	asm volatile("rep\n\t"
+		     "stosw"
+		     : "=&c" (d0), "=&D" (d1)
+		     : "a" (v), "1" (s), "0" (n)
+		     : "memory");
+	return s;
+}
+
+#define __HAVE_ARCH_MEMSET32
+static inline void *memset32(uint32_t *s, uint32_t v, size_t n)
+{
+	int d0, d1;
+	asm volatile("rep\n\t"
+		     "stosl"
+		     : "=&c" (d0), "=&D" (d1)
+		     : "a" (v), "1" (s), "0" (n)
+		     : "memory");
+	return s;
+}
 
 /*
  * find the first occurrence of byte 'c', or 1 past the area if none

@@ -191,4 +191,7 @@ static inline void rvt_skip_sge(struct rvt_sge_state *ss, u32 length,
 	}
 }
 
+bool rvt_ss_has_lkey(struct rvt_sge_state *ss, u32 lkey);
+bool rvt_mr_has_lkey(struct rvt_mregion *mr, u32 lkey);
+
 #endif          /* DEF_RDMAVT_INCMRH */

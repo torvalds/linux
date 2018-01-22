@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _METAG_STRING_H_
 #define _METAG_STRING_H_
 

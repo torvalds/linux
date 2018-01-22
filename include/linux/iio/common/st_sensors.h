@@ -131,28 +131,39 @@ struct st_sensor_das {
 };
 
 /**
+ * struct st_sensor_int_drdy - ST sensor device drdy line parameters
+ * @addr: address of INT drdy register.
+ * @mask: mask to enable drdy line.
+ * @addr_od: address to enable/disable Open Drain on the INT line.
+ * @mask_od: mask to enable/disable Open Drain on the INT line.
+ */
+struct st_sensor_int_drdy {
+	u8 addr;
+	u8 mask;
+	u8 addr_od;
+	u8 mask_od;
+};
+
+/**
  * struct st_sensor_data_ready_irq - ST sensor device data-ready interrupt
- * @addr: address of the register.
- * @mask_int1: mask to enable/disable IRQ on INT1 pin.
- * @mask_int2: mask to enable/disable IRQ on INT2 pin.
+ * struct int1 - data-ready configuration register for INT1 pin.
+ * struct int2 - data-ready configuration register for INT2 pin.
  * @addr_ihl: address to enable/disable active low on the INT lines.
  * @mask_ihl: mask to enable/disable active low on the INT lines.
- * @addr_od: address to enable/disable Open Drain on the INT lines.
- * @mask_od: mask to enable/disable Open Drain on the INT lines.
- * @addr_stat_drdy: address to read status of DRDY (data ready) interrupt
+ * struct stat_drdy - status register of DRDY (data ready) interrupt.
  * struct ig1 - represents the Interrupt Generator 1 of sensors.
  * @en_addr: address of the enable ig1 register.
  * @en_mask: mask to write the on/off value for enable.
  */
 struct st_sensor_data_ready_irq {
-	u8 addr;
-	u8 mask_int1;
-	u8 mask_int2;
+	struct st_sensor_int_drdy int1;
+	struct st_sensor_int_drdy int2;
 	u8 addr_ihl;
 	u8 mask_ihl;
-	u8 addr_od;
-	u8 mask_od;
-	u8 addr_stat_drdy;
+	struct {
+		u8 addr;
+		u8 mask;
+	} stat_drdy;
 	struct {
 		u8 en_addr;
 		u8 en_mask;
@@ -331,5 +342,17 @@ ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf);
+
+#ifdef CONFIG_OF
+void st_sensors_of_name_probe(struct device *dev,
+			      const struct of_device_id *match,
+			      char *name, int len);
+#else
+static inline void st_sensors_of_name_probe(struct device *dev,
+					    const struct of_device_id *match,
+					    char *name, int len)
+{
+}
+#endif
 
 #endif /* ST_SENSORS_H */

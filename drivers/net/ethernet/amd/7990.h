@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * 7990.h -- LANCE ethernet IC generic routines.
  * This is an attempt to separate out the bits of various ethernet

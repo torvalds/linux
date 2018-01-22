@@ -728,7 +728,6 @@ static int pm8xxx_of_xlate(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info pm8xxx_xoadc_info = {
-	.driver_module = THIS_MODULE,
 	.of_xlate = pm8xxx_of_xlate,
 	.read_raw = pm8xxx_read_raw,
 };

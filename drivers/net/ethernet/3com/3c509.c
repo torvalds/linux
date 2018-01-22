@@ -392,7 +392,7 @@ static struct isa_driver el3_isa_driver = {
 static int isa_registered;
 
 #ifdef CONFIG_PNP
-static struct pnp_device_id el3_pnp_ids[] = {
+static const struct pnp_device_id el3_pnp_ids[] = {
 	{ .id = "TCM5090" }, /* 3Com Etherlink III (TP) */
 	{ .id = "TCM5091" }, /* 3Com Etherlink III */
 	{ .id = "TCM5094" }, /* 3Com Etherlink III (combo) */
@@ -474,7 +474,7 @@ static int pnp_registered;
 #endif /* CONFIG_PNP */
 
 #ifdef CONFIG_EISA
-static struct eisa_device_id el3_eisa_ids[] = {
+static const struct eisa_device_id el3_eisa_ids[] = {
 		{ "TCM5090" },
 		{ "TCM5091" },
 		{ "TCM5092" },

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 zreladdr-$(CONFIG_ARCH_DAVINCI_DA8XX)		+= 0xc0008000
 params_phys-$(CONFIG_ARCH_DAVINCI_DA8XX)	:= 0xc0000100
 initrd_phys-$(CONFIG_ARCH_DAVINCI_DA8XX)	:= 0xc0800000

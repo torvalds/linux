@@ -234,6 +234,23 @@ ahd_selid_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x49, regvalue, cur_col, wrap));
 }
 
+static const ahd_reg_parse_entry_t SIMODE0_parse_table[] = {
+	{ "ENARBDO",		0x01, 0x01 },
+	{ "ENSPIORDY",		0x02, 0x02 },
+	{ "ENOVERRUN",		0x04, 0x04 },
+	{ "ENIOERR",		0x08, 0x08 },
+	{ "ENSELINGO",		0x10, 0x10 },
+	{ "ENSELDI",		0x20, 0x20 },
+	{ "ENSELDO",		0x40, 0x40 }
+};
+
+int
+ahd_simode0_print(u_int regvalue, u_int *cur_col, u_int wrap)
+{
+	return (ahd_print_register(SIMODE0_parse_table, 7, "SIMODE0",
+	    0x4b, regvalue, cur_col, wrap));
+}
+
 static const ahd_reg_parse_entry_t SSTAT0_parse_table[] = {
 	{ "ARBDO",		0x01, 0x01 },
 	{ "SPIORDY",		0x02, 0x02 },
@@ -249,23 +266,6 @@ int
 ahd_sstat0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(SSTAT0_parse_table, 8, "SSTAT0",
-	    0x4b, regvalue, cur_col, wrap));
-}
-
-static const ahd_reg_parse_entry_t SIMODE0_parse_table[] = {
-	{ "ENARBDO",		0x01, 0x01 },
-	{ "ENSPIORDY",		0x02, 0x02 },
-	{ "ENOVERRUN",		0x04, 0x04 },
-	{ "ENIOERR",		0x08, 0x08 },
-	{ "ENSELINGO",		0x10, 0x10 },
-	{ "ENSELDI",		0x20, 0x20 },
-	{ "ENSELDO",		0x40, 0x40 }
-};
-
-int
-ahd_simode0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SIMODE0_parse_table, 7, "SIMODE0",
 	    0x4b, regvalue, cur_col, wrap));
 }
 

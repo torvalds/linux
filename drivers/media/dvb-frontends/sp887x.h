@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
    Driver for the Spase sp887x demodulator
 */

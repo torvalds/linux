@@ -163,7 +163,7 @@ static int wmt_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops wmt_pinmux_ops = {
+static const struct pinmux_ops wmt_pinmux_ops = {
 	.get_functions_count = wmt_pmx_get_functions_count,
 	.get_function_name = wmt_pmx_get_function_name,
 	.get_function_groups = wmt_pmx_get_function_groups,
@@ -409,7 +409,7 @@ fail:
 	return err;
 }
 
-static struct pinctrl_ops wmt_pctl_ops = {
+static const struct pinctrl_ops wmt_pctl_ops = {
 	.get_groups_count = wmt_get_groups_count,
 	.get_group_name	= wmt_get_group_name,
 	.get_group_pins	= wmt_get_group_pins,
@@ -472,7 +472,7 @@ static int wmt_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 	return 0;
 }
 
-static struct pinconf_ops wmt_pinconf_ops = {
+static const struct pinconf_ops wmt_pinconf_ops = {
 	.pin_config_get = wmt_pinconf_get,
 	.pin_config_set = wmt_pinconf_set,
 };
@@ -546,7 +546,7 @@ static int wmt_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	return pinctrl_gpio_direction_output(chip->base + offset);
 }
 
-static struct gpio_chip wmt_gpio_chip = {
+static const struct gpio_chip wmt_gpio_chip = {
 	.label = "gpio-wmt",
 	.owner = THIS_MODULE,
 	.request = gpiochip_generic_request,

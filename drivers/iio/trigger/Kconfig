@@ -24,6 +24,17 @@ config IIO_INTERRUPT_TRIGGER
 	  To compile this driver as a module, choose M here: the
 	  module will be called iio-trig-interrupt.
 
+config IIO_STM32_LPTIMER_TRIGGER
+	tristate "STM32 Low-Power Timer Trigger"
+	depends on MFD_STM32_LPTIMER || COMPILE_TEST
+	help
+	  Select this option to enable STM32 Low-Power Timer Trigger.
+	  This can be used as trigger source for STM32 internal ADC
+	  and/or DAC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stm32-lptimer-trigger.
+
 config IIO_STM32_TIMER_TRIGGER
 	tristate "STM32 Timer Trigger"
 	depends on (ARCH_STM32 && OF && MFD_STM32_TIMERS) || COMPILE_TEST

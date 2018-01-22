@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
@@ -25,6 +26,9 @@ const char *stack_type_name(enum stack_type type)
 	if (type == STACK_TYPE_SOFTIRQ)
 		return "SOFTIRQ";
 
+	if (type == STACK_TYPE_ENTRY)
+		return "ENTRY_TRAMPOLINE";
+
 	return NULL;
 }
 
@@ -37,7 +41,7 @@ static bool in_hardirq_stack(unsigned long *stack, struct stack_info *info)
 	 * This is a software stack, so 'end' can be a valid stack pointer.
 	 * It just means the stack is empty.
 	 */
-	if (stack < begin || stack > end)
+	if (stack <= begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_IRQ;
@@ -62,7 +66,7 @@ static bool in_softirq_stack(unsigned long *stack, struct stack_info *info)
 	 * This is a software stack, so 'end' can be a valid stack pointer.
 	 * It just means the stack is empty.
 	 */
-	if (stack < begin || stack > end)
+	if (stack <= begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_SOFTIRQ;
@@ -91,6 +95,9 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 
 	if (task != current)
 		goto unknown;
+
+	if (in_entry_stack(stack, info))
+		goto recursion_check;
 
 	if (in_hardirq_stack(stack, info))
 		goto recursion_check;

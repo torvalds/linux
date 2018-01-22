@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * trampoline.S: Jump start slave processors on sparc64.
  *

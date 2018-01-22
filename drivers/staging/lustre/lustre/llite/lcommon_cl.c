@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -37,24 +38,23 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../../include/linux/libcfs/libcfs.h"
-# include <linux/fs.h>
-# include <linux/sched.h>
-# include <linux/mm.h>
-# include <linux/quotaops.h>
-# include <linux/highmem.h>
-# include <linux/pagemap.h>
-# include <linux/rbtree.h>
+#include <linux/libcfs/libcfs.h>
+#include <linux/fs.h>
+#include <linux/sched.h>
+#include <linux/mm.h>
+#include <linux/quotaops.h>
+#include <linux/highmem.h>
+#include <linux/pagemap.h>
+#include <linux/rbtree.h>
 
-#include "../include/obd.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_ver.h"
-#include "../include/lustre_mdc.h"
-#include "../include/cl_object.h"
+#include <obd.h>
+#include <obd_support.h>
+#include <lustre_fid.h>
+#include <lustre_dlm.h>
+#include <lustre_mdc.h>
+#include <cl_object.h>
 
-#include "../llite/llite_internal.h"
+#include "llite_internal.h"
 
 /*
  * ccc_ prefix stands for "Common Client Code".

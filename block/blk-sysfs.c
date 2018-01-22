@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions related to sysfs handling
  */
@@ -449,12 +450,9 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 		ret = wbt_init(q);
 		if (ret)
 			return ret;
-
-		rwb = q->rq_wb;
-		if (!rwb)
-			return -EINVAL;
 	}
 
+	rwb = q->rq_wb;
 	if (val == -1)
 		rwb->min_lat_nsec = wbt_default_latency_nsec(q);
 	else if (val >= 0)
@@ -931,7 +929,9 @@ void blk_unregister_queue(struct gendisk *disk)
 	if (WARN_ON(!q))
 		return;
 
+	mutex_lock(&q->sysfs_lock);
 	queue_flag_clear_unlocked(QUEUE_FLAG_REGISTERED, q);
+	mutex_unlock(&q->sysfs_lock);
 
 	wbt_exit(q);
 

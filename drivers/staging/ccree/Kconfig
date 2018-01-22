@@ -23,12 +23,3 @@ config CRYPTO_DEV_CCREE
 	  Choose this if you wish to use hardware acceleration of
 	  cryptographic operations on the system REE.
 	  If unsure say Y.
-
-config CCREE_FIPS_SUPPORT
-	bool "Turn on CryptoCell 7XX REE FIPS mode support"
-	depends on CRYPTO_DEV_CCREE
-	default n
-	help
-	  Say 'Y' to enable support for FIPS compliant mode by the
-	  CCREE driver.
-	  If unsure say N.

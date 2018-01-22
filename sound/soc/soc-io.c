@@ -41,6 +41,20 @@ int snd_soc_component_read(struct snd_soc_component *component,
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_read);
 
+unsigned int snd_soc_component_read32(struct snd_soc_component *component,
+				      unsigned int reg)
+{
+	unsigned int val;
+	int ret;
+
+	ret = snd_soc_component_read(component, reg, &val);
+	if (ret < 0)
+		return -1;
+
+	return val;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_read32);
+
 /**
  * snd_soc_component_write() - Write register value
  * @component: Component to write to

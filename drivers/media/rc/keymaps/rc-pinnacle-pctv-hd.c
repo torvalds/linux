@@ -47,10 +47,10 @@ static struct rc_map_table pinnacle_pctv_hd[] = {
 
 static struct rc_map_list pinnacle_pctv_hd_map = {
 	.map = {
-		.scan    = pinnacle_pctv_hd,
-		.size    = ARRAY_SIZE(pinnacle_pctv_hd),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_PINNACLE_PCTV_HD,
+		.scan     = pinnacle_pctv_hd,
+		.size     = ARRAY_SIZE(pinnacle_pctv_hd),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_PINNACLE_PCTV_HD,
 	}
 };
 

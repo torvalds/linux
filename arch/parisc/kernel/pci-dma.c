@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
 ** PARISC 1.1 Dynamic DMA mapping support.
 ** This implementation is for PA-RISC platforms that do not support
@@ -41,7 +42,7 @@ static unsigned long pcxl_used_bytes __read_mostly = 0;
 static unsigned long pcxl_used_pages __read_mostly = 0;
 
 extern unsigned long pcxl_dma_start; /* Start of pcxl dma mapping area */
-static spinlock_t   pcxl_res_lock;
+static DEFINE_SPINLOCK(pcxl_res_lock);
 static char    *pcxl_res_map;
 static int     pcxl_res_hint;
 static int     pcxl_res_size;
@@ -390,7 +391,6 @@ pcxl_dma_init(void)
 	if (pcxl_dma_start == 0)
 		return 0;
 
-	spin_lock_init(&pcxl_res_lock);
 	pcxl_res_size = PCXL_DMA_MAP_SIZE >> (PAGE_SHIFT + 3);
 	pcxl_res_hint = 0;
 	pcxl_res_map = (char *)__get_free_pages(GFP_KERNEL,
@@ -572,6 +572,12 @@ static void pa11_dma_sync_sg_for_device(struct device *dev, struct scatterlist *
 		flush_kernel_vmap_range(sg_virt(sg), sg->length);
 }
 
+static void pa11_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
+	       enum dma_data_direction direction)
+{
+	flush_kernel_dcache_range((unsigned long)vaddr, size);
+}
+
 const struct dma_map_ops pcxl_dma_ops = {
 	.dma_supported =	pa11_dma_supported,
 	.alloc =		pa11_dma_alloc,
@@ -584,6 +590,7 @@ const struct dma_map_ops pcxl_dma_ops = {
 	.sync_single_for_device = pa11_dma_sync_single_for_device,
 	.sync_sg_for_cpu =	pa11_dma_sync_sg_for_cpu,
 	.sync_sg_for_device =	pa11_dma_sync_sg_for_device,
+	.cache_sync =		pa11_dma_cache_sync,
 };
 
 static void *pcx_dma_alloc(struct device *dev, size_t size,
@@ -620,4 +627,5 @@ const struct dma_map_ops pcx_dma_ops = {
 	.sync_single_for_device = pa11_dma_sync_single_for_device,
 	.sync_sg_for_cpu =	pa11_dma_sync_sg_for_cpu,
 	.sync_sg_for_device =	pa11_dma_sync_sg_for_device,
+	.cache_sync =		pa11_dma_cache_sync,
 };

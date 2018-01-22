@@ -71,17 +71,33 @@ static const struct always_present_id always_present_ids[] = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "Venue 11 Pro 7130"),
 	      }),
 	/*
-	 * The GPD win BIOS dated 20170320 has disabled the accelerometer, the
+	 * The GPD win BIOS dated 20170221 has disabled the accelerometer, the
 	 * drivers sometimes cause crashes under Windows and this is how the
 	 * manufacturer has solved this :| Note that the the DMI data is less
 	 * generic then it seems, a board_vendor of "AMI Corporation" is quite
 	 * rare and a board_name of "Default String" also is rare.
+	 *
+	 * Unfortunately the GPD pocket also uses these strings and its BIOS
+	 * was copy-pasted from the GPD win, so it has a disabled KIOX000A
+	 * node which we should not enable, thus we also check the BIOS date.
 	 */
 	ENTRY("KIOX000A", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {
 		DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
 		DMI_MATCH(DMI_BOARD_NAME, "Default string"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "Default string"),
+		DMI_MATCH(DMI_BIOS_DATE, "02/21/2017")
+	      }),
+	ENTRY("KIOX000A", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {
+		DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+		DMI_MATCH(DMI_BOARD_NAME, "Default string"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Default string"),
 		DMI_MATCH(DMI_BIOS_DATE, "03/20/2017")
+	      }),
+	ENTRY("KIOX000A", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {
+		DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+		DMI_MATCH(DMI_BOARD_NAME, "Default string"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Default string"),
+		DMI_MATCH(DMI_BIOS_DATE, "05/25/2017")
 	      }),
 };
 

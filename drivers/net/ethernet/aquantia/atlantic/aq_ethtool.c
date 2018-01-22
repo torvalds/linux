@@ -56,10 +56,6 @@ aq_ethtool_set_link_ksettings(struct net_device *ndev,
 	return aq_nic_set_link_ksettings(aq_nic, cmd);
 }
 
-/* there "5U" is number of queue[#] stats lines (InPackets+...+InErrors) */
-static const unsigned int aq_ethtool_stat_queue_lines = 5U;
-static const unsigned int aq_ethtool_stat_queue_chars =
-	5U * ETH_GSTRING_LEN;
 static const char aq_ethtool_stat_names[][ETH_GSTRING_LEN] = {
 	"InPackets",
 	"InUCast",
@@ -70,69 +66,39 @@ static const char aq_ethtool_stat_names[][ETH_GSTRING_LEN] = {
 	"OutUCast",
 	"OutMCast",
 	"OutBCast",
-	"InUCastOctects",
-	"OutUCastOctects",
-	"InMCastOctects",
-	"OutMCastOctects",
-	"InBCastOctects",
-	"OutBCastOctects",
-	"InOctects",
-	"OutOctects",
+	"InUCastOctets",
+	"OutUCastOctets",
+	"InMCastOctets",
+	"OutMCastOctets",
+	"InBCastOctets",
+	"OutBCastOctets",
+	"InOctets",
+	"OutOctets",
 	"InPacketsDma",
 	"OutPacketsDma",
 	"InOctetsDma",
 	"OutOctetsDma",
 	"InDroppedDma",
-	"Queue[0] InPackets",
-	"Queue[0] OutPackets",
-	"Queue[0] InJumboPackets",
-	"Queue[0] InLroPackets",
-	"Queue[0] InErrors",
-	"Queue[1] InPackets",
-	"Queue[1] OutPackets",
-	"Queue[1] InJumboPackets",
-	"Queue[1] InLroPackets",
-	"Queue[1] InErrors",
-	"Queue[2] InPackets",
-	"Queue[2] OutPackets",
-	"Queue[2] InJumboPackets",
-	"Queue[2] InLroPackets",
-	"Queue[2] InErrors",
-	"Queue[3] InPackets",
-	"Queue[3] OutPackets",
-	"Queue[3] InJumboPackets",
-	"Queue[3] InLroPackets",
-	"Queue[3] InErrors",
-	"Queue[4] InPackets",
-	"Queue[4] OutPackets",
-	"Queue[4] InJumboPackets",
-	"Queue[4] InLroPackets",
-	"Queue[4] InErrors",
-	"Queue[5] InPackets",
-	"Queue[5] OutPackets",
-	"Queue[5] InJumboPackets",
-	"Queue[5] InLroPackets",
-	"Queue[5] InErrors",
-	"Queue[6] InPackets",
-	"Queue[6] OutPackets",
-	"Queue[6] InJumboPackets",
-	"Queue[6] InLroPackets",
-	"Queue[6] InErrors",
-	"Queue[7] InPackets",
-	"Queue[7] OutPackets",
-	"Queue[7] InJumboPackets",
-	"Queue[7] InLroPackets",
-	"Queue[7] InErrors",
+};
+
+static const char aq_ethtool_queue_stat_names[][ETH_GSTRING_LEN] = {
+	"Queue[%d] InPackets",
+	"Queue[%d] OutPackets",
+	"Queue[%d] Restarts",
+	"Queue[%d] InJumboPackets",
+	"Queue[%d] InLroPackets",
+	"Queue[%d] InErrors",
 };
 
 static void aq_ethtool_stats(struct net_device *ndev,
 			     struct ethtool_stats *stats, u64 *data)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
 
-/* ASSERT: Need add lines to aq_ethtool_stat_names if AQ_CFG_VECS_MAX > 8 */
-	BUILD_BUG_ON(AQ_CFG_VECS_MAX > 8);
-	memset(data, 0, ARRAY_SIZE(aq_ethtool_stat_names) * sizeof(u64));
+	memset(data, 0, (ARRAY_SIZE(aq_ethtool_stat_names) +
+				ARRAY_SIZE(aq_ethtool_queue_stat_names) *
+				cfg->vecs) * sizeof(u64));
 	aq_nic_get_stats(aq_nic, data);
 }
 
@@ -154,8 +120,8 @@ static void aq_ethtool_get_drvinfo(struct net_device *ndev,
 
 	strlcpy(drvinfo->bus_info, pdev ? pci_name(pdev) : "",
 		sizeof(drvinfo->bus_info));
-	drvinfo->n_stats = ARRAY_SIZE(aq_ethtool_stat_names) -
-		(AQ_CFG_VECS_MAX - cfg->vecs) * aq_ethtool_stat_queue_lines;
+	drvinfo->n_stats = ARRAY_SIZE(aq_ethtool_stat_names) +
+		cfg->vecs * ARRAY_SIZE(aq_ethtool_queue_stat_names);
 	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = regs_count;
 	drvinfo->eedump_len = 0;
@@ -164,14 +130,25 @@ static void aq_ethtool_get_drvinfo(struct net_device *ndev,
 static void aq_ethtool_get_strings(struct net_device *ndev,
 				   u32 stringset, u8 *data)
 {
+	int i, si;
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+	u8 *p = data;
 
-	if (stringset == ETH_SS_STATS)
-		memcpy(data, *aq_ethtool_stat_names,
-		       sizeof(aq_ethtool_stat_names) -
-		       (AQ_CFG_VECS_MAX - cfg->vecs) *
-		       aq_ethtool_stat_queue_chars);
+	if (stringset == ETH_SS_STATS) {
+		memcpy(p, *aq_ethtool_stat_names,
+		       sizeof(aq_ethtool_stat_names));
+		p = p + sizeof(aq_ethtool_stat_names);
+		for (i = 0; i < cfg->vecs; i++) {
+			for (si = 0;
+				si < ARRAY_SIZE(aq_ethtool_queue_stat_names);
+				si++) {
+				snprintf(p, ETH_GSTRING_LEN,
+					 aq_ethtool_queue_stat_names[si], i);
+				p += ETH_GSTRING_LEN;
+			}
+		}
+	}
 }
 
 static int aq_ethtool_get_sset_count(struct net_device *ndev, int stringset)
@@ -182,9 +159,8 @@ static int aq_ethtool_get_sset_count(struct net_device *ndev, int stringset)
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		ret = ARRAY_SIZE(aq_ethtool_stat_names) -
-			(AQ_CFG_VECS_MAX - cfg->vecs) *
-			aq_ethtool_stat_queue_lines;
+		ret = ARRAY_SIZE(aq_ethtool_stat_names) +
+			cfg->vecs * ARRAY_SIZE(aq_ethtool_queue_stat_names);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -245,6 +221,69 @@ static int aq_ethtool_get_rxnfc(struct net_device *ndev,
 	return err;
 }
 
+static int aq_ethtool_get_coalesce(struct net_device *ndev,
+				   struct ethtool_coalesce *coal)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+
+	if (cfg->itr == AQ_CFG_INTERRUPT_MODERATION_ON ||
+	    cfg->itr == AQ_CFG_INTERRUPT_MODERATION_AUTO) {
+		coal->rx_coalesce_usecs = cfg->rx_itr;
+		coal->tx_coalesce_usecs = cfg->tx_itr;
+		coal->rx_max_coalesced_frames = 0;
+		coal->tx_max_coalesced_frames = 0;
+	} else {
+		coal->rx_coalesce_usecs = 0;
+		coal->tx_coalesce_usecs = 0;
+		coal->rx_max_coalesced_frames = 1;
+		coal->tx_max_coalesced_frames = 1;
+	}
+	return 0;
+}
+
+static int aq_ethtool_set_coalesce(struct net_device *ndev,
+				   struct ethtool_coalesce *coal)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(aq_nic);
+
+	/* This is not yet supported
+	 */
+	if (coal->use_adaptive_rx_coalesce || coal->use_adaptive_tx_coalesce)
+		return -EOPNOTSUPP;
+
+	/* Atlantic only supports timing based coalescing
+	 */
+	if (coal->rx_max_coalesced_frames > 1 ||
+	    coal->rx_coalesce_usecs_irq ||
+	    coal->rx_max_coalesced_frames_irq)
+		return -EOPNOTSUPP;
+
+	if (coal->tx_max_coalesced_frames > 1 ||
+	    coal->tx_coalesce_usecs_irq ||
+	    coal->tx_max_coalesced_frames_irq)
+		return -EOPNOTSUPP;
+
+	/* We do not support frame counting. Check this
+	 */
+	if (!(coal->rx_max_coalesced_frames == !coal->rx_coalesce_usecs))
+		return -EOPNOTSUPP;
+	if (!(coal->tx_max_coalesced_frames == !coal->tx_coalesce_usecs))
+		return -EOPNOTSUPP;
+
+	if (coal->rx_coalesce_usecs > AQ_CFG_INTERRUPT_MODERATION_USEC_MAX ||
+	    coal->tx_coalesce_usecs > AQ_CFG_INTERRUPT_MODERATION_USEC_MAX)
+		return -EINVAL;
+
+	cfg->itr = AQ_CFG_INTERRUPT_MODERATION_ON;
+
+	cfg->rx_itr = coal->rx_coalesce_usecs;
+	cfg->tx_itr = coal->tx_coalesce_usecs;
+
+	return aq_nic_update_interrupt_moderation_settings(aq_nic);
+}
+
 const struct ethtool_ops aq_ethtool_ops = {
 	.get_link            = aq_ethtool_get_link,
 	.get_regs_len        = aq_ethtool_get_regs_len,
@@ -259,4 +298,6 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.get_ethtool_stats   = aq_ethtool_stats,
 	.get_link_ksettings  = aq_ethtool_get_link_ksettings,
 	.set_link_ksettings  = aq_ethtool_set_link_ksettings,
+	.get_coalesce	     = aq_ethtool_get_coalesce,
+	.set_coalesce	     = aq_ethtool_set_coalesce,
 };

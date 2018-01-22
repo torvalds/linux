@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -34,7 +35,7 @@
 #ifndef _SEQ_RANGE_H_
 #define _SEQ_RANGE_H_
 
-#include "lustre/lustre_idl.h"
+#include <uapi/linux/lustre/lustre_idl.h>
 
 /**
  * computes the sequence range type \a range

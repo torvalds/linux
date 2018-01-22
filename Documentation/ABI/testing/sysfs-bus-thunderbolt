@@ -45,6 +45,8 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	When a devices supports Thunderbolt secure connect it will
 		have this attribute. Writing 32 byte hex string changes
 		authorization to use the secure connection method instead.
+		Writing an empty string clears the key and regular connection
+		method can be used again.
 
 What:		/sys/bus/thunderbolt/devices/.../device
 Date:		Sep 2017
@@ -108,3 +110,51 @@ Description:	When new NVM image is written to the non-active NVM
 		is directly the status value from the DMA configuration
 		based mailbox before the device is power cycled. Writing
 		0 here clears the status.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/key
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains name of the property directory the XDomain
+		service exposes. This entry describes the protocol in
+		question. Following directories are already reserved by
+		the Apple XDomain specification:
+
+		network:  IP/ethernet over Thunderbolt
+		targetdm: Target disk mode protocol over Thunderbolt
+		extdisp:  External display mode protocol over Thunderbolt
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/modalias
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	Stores the same MODALIAS value emitted by uevent for
+		the XDomain service. Format: tbtsvc:kSpNvNrN
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcid
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains XDomain protocol identifier the XDomain
+		service supports.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcvers
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains XDomain protocol version the XDomain
+		service supports.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcrevs
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains XDomain software version the XDomain
+		service supports.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcstns
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains XDomain service specific settings as
+		bitmask. Format: %x

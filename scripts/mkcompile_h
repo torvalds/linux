@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 
 TARGET=$1
 ARCH=$2
@@ -27,12 +28,7 @@ LC_ALL=C
 export LC_ALL
 
 if [ -z "$KBUILD_BUILD_VERSION" ]; then
-	if [ -r .version ]; then
-		VERSION=`cat .version`
-	else
-		VERSION=0
-		echo 0 > .version
-	fi
+	VERSION=$(cat .version 2>/dev/null || echo 1)
 else
 	VERSION=$KBUILD_BUILD_VERSION
 fi

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kvm guest debug support
  *
  * Copyright IBM Corp. 2014
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): David Hildenbrand <dahi@linux.vnet.ibm.com>
  */
@@ -308,7 +305,7 @@ static inline int in_addr_range(u64 addr, u64 a, u64 b)
 		return (addr >= a) && (addr <= b);
 	else
 		/* "overflowing" interval */
-		return (addr <= a) && (addr >= b);
+		return (addr >= a) || (addr <= b);
 }
 
 #define end_of_range(bp_info) (bp_info->addr + bp_info->len - 1)

@@ -134,7 +134,7 @@ static int idt77252_proc_read(struct atm_dev *dev, loff_t * pos,
 static void idt77252_softint(struct work_struct *work);
 
 
-static struct atmdev_ops idt77252_ops =
+static const struct atmdev_ops idt77252_ops =
 {
 	.dev_close	= idt77252_dev_close,
 	.open		= idt77252_open,
@@ -1528,9 +1528,9 @@ idt77252_tx(struct idt77252_dev *card)
 
 
 static void
-tst_timer(unsigned long data)
+tst_timer(struct timer_list *t)
 {
-	struct idt77252_dev *card = (struct idt77252_dev *)data;
+	struct idt77252_dev *card = from_timer(card, t, tst_timer);
 	unsigned long base, idle, jump;
 	unsigned long flags;
 	u32 pc;
@@ -2073,21 +2073,19 @@ idt77252_rate_logindex(struct idt77252_dev *card, int pcr)
 }
 
 static void
-idt77252_est_timer(unsigned long data)
+idt77252_est_timer(struct timer_list *t)
 {
-	struct vc_map *vc = (struct vc_map *)data;
+	struct rate_estimator *est = from_timer(est, t, timer);
+	struct vc_map *vc = est->vc;
 	struct idt77252_dev *card = vc->card;
-	struct rate_estimator *est;
 	unsigned long flags;
 	u32 rate, cps;
 	u64 ncells;
 	u8 lacr;
 
 	spin_lock_irqsave(&vc->lock, flags);
-	est = vc->estimator;
-	if (!est)
+	if (!vc->estimator)
 		goto out;
-
 	ncells = est->cells;
 
 	rate = ((u32)(ncells - est->last_cells)) << (7 - est->interval);
@@ -2126,10 +2124,11 @@ idt77252_init_est(struct vc_map *vc, int pcr)
 	est->maxcps = pcr < 0 ? -pcr : pcr;
 	est->cps = est->maxcps;
 	est->avcps = est->cps << 5;
+	est->vc = vc;
 
 	est->interval = 2;		/* XXX: make this configurable */
 	est->ewma_log = 2;		/* XXX: make this configurable */
-	setup_timer(&est->timer, idt77252_est_timer, (unsigned long)vc);
+	timer_setup(&est->timer, idt77252_est_timer, 0);
 	mod_timer(&est->timer, jiffies + ((HZ / 4) << est->interval));
 
 	return est;
@@ -2209,16 +2208,20 @@ static int
 idt77252_init_ubr(struct idt77252_dev *card, struct vc_map *vc,
 		  struct atm_vcc *vcc, struct atm_qos *qos)
 {
+	struct rate_estimator *est = NULL;
 	unsigned long flags;
 	int tcr;
 
 	spin_lock_irqsave(&vc->lock, flags);
 	if (vc->estimator) {
-		del_timer(&vc->estimator->timer);
-		kfree(vc->estimator);
+		est = vc->estimator;
 		vc->estimator = NULL;
 	}
 	spin_unlock_irqrestore(&vc->lock, flags);
+	if (est) {
+		del_timer_sync(&est->timer);
+		kfree(est);
+	}
 
 	tcr = atm_pcr_goal(&qos->txtp);
 	if (tcr == 0)
@@ -3631,7 +3634,7 @@ static int idt77252_init_one(struct pci_dev *pcidev,
 	spin_lock_init(&card->cmd_lock);
 	spin_lock_init(&card->tst_lock);
 
-	setup_timer(&card->tst_timer, tst_timer, (unsigned long)card);
+	timer_setup(&card->tst_timer, tst_timer, 0);
 
 	/* Do the I/O remapping... */
 	card->membase = ioremap(membase, 1024);
@@ -3725,7 +3728,7 @@ err_out_disable_pdev:
 	return err;
 }
 
-static struct pci_device_id idt77252_pci_tbl[] =
+static const struct pci_device_id idt77252_pci_tbl[] =
 {
 	{ PCI_VDEVICE(IDT, PCI_DEVICE_ID_IDT_IDT77252), 0 },
 	{ 0, }

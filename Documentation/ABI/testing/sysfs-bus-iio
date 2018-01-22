@@ -119,6 +119,15 @@ Description:
 		unique to allow association with event codes. Units after
 		application of scale and offset are milliamps.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_powerY_raw
+KernelVersion:	4.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no bias removal etc.) power measurement from
+		channel Y. The number must always be specified and
+		unique to allow association with event codes. Units after
+		application of scale and offset are milliwatts.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceY_raw
 KernelVersion:	3.2
 Contact:	linux-iio@vger.kernel.org
@@ -513,6 +522,7 @@ Description:
 		Specifies the output powerdown mode.
 		DAC output stage is disconnected from the amplifier and
 		1kohm_to_gnd: connected to ground via an 1kOhm resistor,
+		2.5kohm_to_gnd: connected to ground via a 2.5kOhm resistor,
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
 		90kohm_to_gnd: connected to ground via a 90kOhm resistor,
@@ -1233,9 +1243,9 @@ What:		/sys/.../iio:deviceX/in_distance_raw
 KernelVersion:	4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
-		This attribute is used to read the distance covered by the user
-		since the last reboot while activated. Units after application
-		of scale are meters.
+		This attribute is used to read the measured distance to an object
+		or the distance covered by the user since the last reboot while
+		activated. Units after application of scale are meters.
 
 What:		/sys/bus/iio/devices/iio:deviceX/store_eeprom
 KernelVersion:	3.4.0

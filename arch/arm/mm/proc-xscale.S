@@ -104,6 +104,7 @@
 	.endm
 
 	.data
+	.align	2
 clean_addr:	.word	CLEAN_ADDR
 
 	.text

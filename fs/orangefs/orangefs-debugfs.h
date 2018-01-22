@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 int orangefs_debugfs_init(int);
 void orangefs_debugfs_cleanup(void);
 int orangefs_client_debug_init(void);

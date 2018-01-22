@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "qcom-ipq8064-v1.0.dtsi"
 
 / {

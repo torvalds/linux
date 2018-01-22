@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef	__SPI_BITBANG_H
 #define	__SPI_BITBANG_H
 

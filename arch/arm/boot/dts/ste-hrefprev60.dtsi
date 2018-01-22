@@ -30,7 +30,7 @@
 
 		i2c@80004000 {
 			tps61052@33 {
-				compatible = "tps61052";
+				compatible = "ti,tps61052";
 				reg = <0x33>;
 			};
 

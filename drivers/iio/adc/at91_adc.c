@@ -594,7 +594,6 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 }
 
 static const struct iio_trigger_ops at91_adc_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &at91_adc_configure_trigger,
 };
 
@@ -799,7 +798,7 @@ static u32 calc_startup_ticks_9x5(u32 startup_time, u32 adc_clk_khz)
 	 * For sama5d3x and at91sam9x5, the formula changes to:
 	 * Startup Time = <lookup_table_value> / ADC Clock
 	 */
-	const int startup_lookup[] = {
+	static const int startup_lookup[] = {
 		0,   8,   16,  24,
 		64,  80,  96,  112,
 		512, 576, 640, 704,
@@ -976,7 +975,6 @@ static int at91_adc_probe_pdata(struct at91_adc_state *st,
 }
 
 static const struct iio_info at91_adc_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &at91_adc_read_raw,
 };
 

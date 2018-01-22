@@ -203,9 +203,6 @@ static int imx_es8328_remove(struct platform_device *pdev)
 {
 	struct imx_es8328_data *data = platform_get_drvdata(pdev);
 
-	snd_soc_jack_free_gpios(&headset_jack, ARRAY_SIZE(headset_jack_gpios),
-				headset_jack_gpios);
-
 	snd_soc_unregister_card(&data->card);
 
 	return 0;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_COMPAT_H
 #define _LINUX_COMPAT_H
 /*
@@ -27,7 +28,7 @@
 #endif
 
 #ifndef __SC_DELOUSE
-#define __SC_DELOUSE(t,v) ((t)(unsigned long)(v))
+#define __SC_DELOUSE(t,v) ((__force t)(unsigned long)(v))
 #endif
 
 #define COMPAT_SYSCALL_DEFINE0(name) \
@@ -170,15 +171,6 @@ extern int get_compat_itimerspec64(struct itimerspec64 *its,
 			const struct compat_itimerspec __user *uits);
 extern int put_compat_itimerspec64(const struct itimerspec64 *its,
 			struct compat_itimerspec __user *uits);
-
-/*
- * This function convert a timespec if necessary and returns a *user
- * space* pointer.  If no conversion is necessary, it returns the
- * initial pointer.  NULL is a legitimate argument and will always
- * output NULL.
- */
-extern int compat_convert_timespec(struct timespec __user **,
-				   const void __user *);
 
 struct compat_iovec {
 	compat_uptr_t	iov_base;
@@ -365,10 +357,10 @@ asmlinkage ssize_t compat_sys_pwritev(compat_ulong_t fd,
 		compat_ulong_t vlen, u32 pos_low, u32 pos_high);
 asmlinkage ssize_t compat_sys_preadv2(compat_ulong_t fd,
 		const struct compat_iovec __user *vec,
-		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, rwf_t flags);
 asmlinkage ssize_t compat_sys_pwritev2(compat_ulong_t fd,
 		const struct compat_iovec __user *vec,
-		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, rwf_t flags);
 
 #ifdef __ARCH_WANT_COMPAT_SYS_PREADV64
 asmlinkage long compat_sys_preadv64(unsigned long fd,
@@ -380,6 +372,18 @@ asmlinkage long compat_sys_preadv64(unsigned long fd,
 asmlinkage long compat_sys_pwritev64(unsigned long fd,
 		const struct compat_iovec __user *vec,
 		unsigned long vlen, loff_t pos);
+#endif
+
+#ifdef __ARCH_WANT_COMPAT_SYS_PREADV64V2
+asmlinkage long  compat_sys_readv64v2(unsigned long fd,
+		const struct compat_iovec __user *vec,
+		unsigned long vlen, loff_t pos, rwf_t flags);
+#endif
+
+#ifdef __ARCH_WANT_COMPAT_SYS_PWRITEV64V2
+asmlinkage long compat_sys_pwritev64v2(unsigned long fd,
+		const struct compat_iovec __user *vec,
+		unsigned long vlen, loff_t pos, rwf_t flags);
 #endif
 
 asmlinkage long compat_sys_lseek(unsigned int, compat_off_t, unsigned int);
@@ -440,11 +444,6 @@ static inline int compat_timespec_compare(struct compat_timespec *lhs,
 	return lhs->tv_nsec - rhs->tv_nsec;
 }
 
-extern int get_compat_itimerspec(struct itimerspec *dst,
-				 const struct compat_itimerspec __user *src);
-extern int put_compat_itimerspec(struct compat_itimerspec __user *dst,
-				 const struct itimerspec *src);
-
 asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv,
 		struct timezone __user *tz);
 asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
@@ -452,8 +451,9 @@ asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
 
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
-extern void sigset_from_compat(sigset_t *set, const compat_sigset_t *compat);
-extern void sigset_to_compat(compat_sigset_t *compat, const sigset_t *set);
+extern int get_compat_sigset(sigset_t *set, const compat_sigset_t __user *compat);
+extern int put_compat_sigset(compat_sigset_t __user *compat,
+			     const sigset_t *set, unsigned int size);
 
 asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
 		compat_ulong_t maxnode, const compat_ulong_t __user *old_nodes,

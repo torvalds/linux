@@ -219,7 +219,7 @@ retry_bteop:
 				BTE_LNSTAT_LOAD(bte), *bte->most_rcnt_na) );
 			bte->bte_error_count++;
 			bte->bh_error = IBLS_ERROR;
-			bte_error_handler((unsigned long)NODEPDA(bte->bte_cnode));
+			bte_error_handler(NODEPDA(bte->bte_cnode));
 			*bte->most_rcnt_na = BTE_WORD_AVAILABLE;
 			goto retry_bteop;
 		}
@@ -414,6 +414,12 @@ EXPORT_SYMBOL(bte_unaligned_copy);
  * Block Transfer Engine initialization functions.
  *
  ***********************************************************************/
+static void bte_recovery_timeout(struct timer_list *t)
+{
+	struct nodepda_s *nodepda = from_timer(nodepda, t, bte_recovery_timer);
+
+	bte_error_handler(nodepda);
+}
 
 /*
  * bte_init_node(nodepda, cnode)
@@ -436,9 +442,7 @@ void bte_init_node(nodepda_t * mynodepda, cnodeid_t cnode)
 	 * will point at this one bte_recover structure to get the lock.
 	 */
 	spin_lock_init(&mynodepda->bte_recovery_lock);
-	init_timer(&mynodepda->bte_recovery_timer);
-	mynodepda->bte_recovery_timer.function = bte_error_handler;
-	mynodepda->bte_recovery_timer.data = (unsigned long)mynodepda;
+	timer_setup(&mynodepda->bte_recovery_timer, bte_recovery_timeout, 0);
 
 	for (i = 0; i < BTES_PER_NODE; i++) {
 		u64 *base_addr;

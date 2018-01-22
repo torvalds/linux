@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DRIVERS_PCI_H
 #define DRIVERS_PCI_H
 
@@ -192,7 +193,7 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 }
 extern const struct attribute_group *pci_dev_groups[];
 extern const struct attribute_group *pcibus_groups[];
-extern struct device_type pci_dev_type;
+extern const struct device_type pci_dev_type;
 extern const struct attribute_group *pci_bus_groups[];
 
 
@@ -235,6 +236,7 @@ enum pci_bar_type {
 	pci_bar_mem64,		/* A 64-bit memory BAR */
 };
 
+int pci_configure_extended_tags(struct pci_dev *dev, void *ign);
 bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *pl,
 				int crs_timeout);
 int pci_setup_device(struct pci_dev *dev);
@@ -262,6 +264,7 @@ struct pci_sriov {
 	u16 num_VFs;		/* number of VFs available */
 	u16 offset;		/* first VF Routing ID offset */
 	u16 stride;		/* following VF stride */
+	u16 vf_device;		/* VF device ID */
 	u32 pgsz;		/* page size for BAR alignment */
 	u8 link;		/* Function Dependency Link */
 	u8 max_VF_buses;	/* max buses consumed by VFs */
@@ -364,5 +367,13 @@ static inline int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 int acpi_get_rc_resources(struct device *dev, const char *hid, u16 segment,
 			  struct resource *res);
 #endif
+
+u32 pci_rebar_get_possible_sizes(struct pci_dev *pdev, int bar);
+int pci_rebar_get_current_size(struct pci_dev *pdev, int bar);
+int pci_rebar_set_size(struct pci_dev *pdev, int bar, int size);
+static inline u64 pci_rebar_size_to_bytes(int size)
+{
+	return 1ULL << (size + 20);
+}
 
 #endif /* DRIVERS_PCI_H */

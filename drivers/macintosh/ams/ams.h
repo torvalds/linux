@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/i2c.h>
 #include <linux/input-polldev.h>
 #include <linux/kthread.h>

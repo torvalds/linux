@@ -93,8 +93,7 @@ static void st_reg_completion_cb(void *priv_data, int data)
 	complete(&lhst->wait_reg_completion);
 }
 
-/* Called by Shared Transport layer when receive data is
- * available */
+/* Called by Shared Transport layer when receive data is available */
 static long st_receive(void *priv_data, struct sk_buff *skb)
 {
 	struct ti_st *lhst = priv_data;
@@ -198,7 +197,8 @@ static int ti_st_open(struct hci_dev *hdev)
 		}
 
 		/* Is ST registration callback
-		 * called with ERROR status? */
+		 * called with ERROR status?
+		 */
 		if (hst->reg_status != 0) {
 			BT_ERR("ST registration completed with invalid "
 					"status %d", hst->reg_status);
@@ -276,7 +276,7 @@ static int ti_st_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 static int bt_ti_probe(struct platform_device *pdev)
 {
-	static struct ti_st *hst;
+	struct ti_st *hst;
 	struct hci_dev *hdev;
 	int err;
 

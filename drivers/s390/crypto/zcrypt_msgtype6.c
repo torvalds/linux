@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  zcrypt 2.1.0
  *
@@ -9,20 +10,6 @@
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
  *				  Ralph Wuerthner <rwuerthn@de.ibm.com>
  *  MSGTYPE restruct:		  Holger Dengler <hd@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define KMSG_COMPONENT "zcrypt"
@@ -140,7 +127,7 @@ struct function_and_rules_block {
  *   + 0x000A 'MRP     ' (MCL3 'PK' or CEX2C 'PK')
  * - VUD block
  */
-static struct CPRBX static_cprbx = {
+static const struct CPRBX static_cprbx = {
 	.cprb_len	=  0x00DC,
 	.cprb_ver_id	=  0x02,
 	.func_id	= {0x54, 0x32},
@@ -474,7 +461,8 @@ static int XCRB_msg_to_type6CPRB_msgX(struct ap_message *ap_msg,
 	*fcode = (msg->hdr.function_code[0] << 8) | msg->hdr.function_code[1];
 	*dom = (unsigned short *)&msg->cprbx.domain;
 
-	if (memcmp(function_code, "US", 2) == 0)
+	if (memcmp(function_code, "US", 2) == 0
+	    || memcmp(function_code, "AU", 2) == 0)
 		ap_msg->special = 1;
 	else
 		ap_msg->special = 0;

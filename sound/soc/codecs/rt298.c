@@ -1113,7 +1113,7 @@ static struct snd_soc_dai_driver rt298_dai[] = {
 
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt298 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt298 = {
 	.probe = rt298_probe,
 	.remove = rt298_remove,
 	.suspend = rt298_suspend,

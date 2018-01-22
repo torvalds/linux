@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Include paths to be used in interface defining headers */
 #ifndef POWERPC_PERF_REQ_GEN_H_
 #define POWERPC_PERF_REQ_GEN_H_

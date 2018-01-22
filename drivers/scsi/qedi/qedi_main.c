@@ -794,12 +794,13 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 	u32 log_page_size;
 	int rval = 0;
 
-	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_DISC, "Min number of MSIX %d\n",
-		  MIN_NUM_CPUS_MSIX(qedi));
 
 	num_sq_pages = (MAX_OUSTANDING_TASKS_PER_CON * 8) / PAGE_SIZE;
 
 	qedi->num_queues = MIN_NUM_CPUS_MSIX(qedi);
+
+	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+		  "Number of CQ count is %d\n", qedi->num_queues);
 
 	memset(&qedi->pf_params.iscsi_pf_params, 0,
 	       sizeof(qedi->pf_params.iscsi_pf_params));
@@ -1575,7 +1576,7 @@ struct qedi_cmd *qedi_get_cmd_from_tid(struct qedi_ctx *qedi, u32 tid)
 {
 	struct qedi_cmd *cmd = NULL;
 
-	if (tid > MAX_ISCSI_TASK_ENTRIES)
+	if (tid >= MAX_ISCSI_TASK_ENTRIES)
 		return NULL;
 
 	cmd = qedi->itt_map[tid].p_cmd;
@@ -2179,8 +2180,11 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		goto free_host;
 	}
 
-	qedi->msix_count = MAX_NUM_MSIX_PF;
 	atomic_set(&qedi->link_state, QEDI_LINK_DOWN);
+
+	rc = qedi_ops->fill_dev_info(qedi->cdev, &qedi->dev_info);
+	if (rc)
+		goto free_host;
 
 	if (mode != QEDI_MODE_RECOVERY) {
 		rc = qedi_set_iscsi_pf_param(qedi);

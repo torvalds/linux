@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_PCI_DMA_H
 #define _LINUX_PCI_DMA_H
 

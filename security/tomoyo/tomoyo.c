@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * security/tomoyo/tomoyo.c
  *
@@ -76,7 +77,7 @@ static int tomoyo_bprm_set_creds(struct linux_binprm *bprm)
 	 * Do only if this function is called for the first time of an execve
 	 * operation.
 	 */
-	if (bprm->cred_prepared)
+	if (bprm->called_set_creds)
 		return 0;
 #ifndef CONFIG_SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
 	/*

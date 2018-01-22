@@ -411,7 +411,40 @@ hidma_prep_dma_memcpy(struct dma_chan *dmach, dma_addr_t dest, dma_addr_t src,
 		return NULL;
 
 	hidma_ll_set_transfer_params(mdma->lldev, mdesc->tre_ch,
-				     src, dest, len, flags);
+				     src, dest, len, flags,
+				     HIDMA_TRE_MEMCPY);
+
+	/* Place descriptor in prepared list */
+	spin_lock_irqsave(&mchan->lock, irqflags);
+	list_add_tail(&mdesc->node, &mchan->prepared);
+	spin_unlock_irqrestore(&mchan->lock, irqflags);
+
+	return &mdesc->desc;
+}
+
+static struct dma_async_tx_descriptor *
+hidma_prep_dma_memset(struct dma_chan *dmach, dma_addr_t dest, int value,
+		size_t len, unsigned long flags)
+{
+	struct hidma_chan *mchan = to_hidma_chan(dmach);
+	struct hidma_desc *mdesc = NULL;
+	struct hidma_dev *mdma = mchan->dmadev;
+	unsigned long irqflags;
+
+	/* Get free descriptor */
+	spin_lock_irqsave(&mchan->lock, irqflags);
+	if (!list_empty(&mchan->free)) {
+		mdesc = list_first_entry(&mchan->free, struct hidma_desc, node);
+		list_del(&mdesc->node);
+	}
+	spin_unlock_irqrestore(&mchan->lock, irqflags);
+
+	if (!mdesc)
+		return NULL;
+
+	hidma_ll_set_transfer_params(mdma->lldev, mdesc->tre_ch,
+				     value, dest, len, flags,
+				     HIDMA_TRE_MEMSET);
 
 	/* Place descriptor in prepared list */
 	spin_lock_irqsave(&mchan->lock, irqflags);
@@ -776,6 +809,7 @@ static int hidma_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(dmadev->ddev.dev);
 
 	dma_cap_set(DMA_MEMCPY, dmadev->ddev.cap_mask);
+	dma_cap_set(DMA_MEMSET, dmadev->ddev.cap_mask);
 	if (WARN_ON(!pdev->dev.dma_mask)) {
 		rc = -ENXIO;
 		goto dmafree;
@@ -786,6 +820,7 @@ static int hidma_probe(struct platform_device *pdev)
 	dmadev->dev_trca = trca;
 	dmadev->trca_resource = trca_resource;
 	dmadev->ddev.device_prep_dma_memcpy = hidma_prep_dma_memcpy;
+	dmadev->ddev.device_prep_dma_memset = hidma_prep_dma_memset;
 	dmadev->ddev.device_alloc_chan_resources = hidma_alloc_chan_resources;
 	dmadev->ddev.device_free_chan_resources = hidma_free_chan_resources;
 	dmadev->ddev.device_tx_status = hidma_tx_status;

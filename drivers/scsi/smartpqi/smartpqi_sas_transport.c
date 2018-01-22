@@ -329,14 +329,6 @@ static int pqi_sas_phy_speed(struct sas_phy *phy,
 	return -EINVAL;
 }
 
-/* SMP = Serial Management Protocol */
-
-static int pqi_sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
-	struct request *req)
-{
-	return -EINVAL;
-}
-
 struct sas_function_template pqi_sas_transport_functions = {
 	.get_linkerrors = pqi_sas_get_linkerrors,
 	.get_enclosure_identifier = pqi_sas_get_enclosure_identifier,
@@ -346,5 +338,4 @@ struct sas_function_template pqi_sas_transport_functions = {
 	.phy_setup = pqi_sas_phy_setup,
 	.phy_release = pqi_sas_phy_release,
 	.set_phy_speed = pqi_sas_phy_speed,
-	.smp_handler = pqi_sas_smp_handler,
 };

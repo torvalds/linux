@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * LEGO USB Tower driver
  *
  * Copyright (C) 2003 David Glance <davidgsf@sourceforge.net>
  *               2001-2004 Juergen Stuber <starblue@users.sourceforge.net>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation; either version 2 of
- *	the License, or (at your option) any later version.
  *
  * derived from USB Skeleton driver - 0.5
  * Copyright (C) 2001 Greg Kroah-Hartman (greg@kroah.com)
@@ -88,8 +84,6 @@
 #include <linux/poll.h>
 
 
-/* Version Information */
-#define DRIVER_VERSION "v0.96"
 #define DRIVER_AUTHOR "Juergen Stuber <starblue@sourceforge.net>"
 #define DRIVER_DESC "LEGO USB Tower Driver"
 

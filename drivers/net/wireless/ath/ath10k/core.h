@@ -92,6 +92,7 @@ enum ath10k_bus {
 	ATH10K_BUS_PCI,
 	ATH10K_BUS_AHB,
 	ATH10K_BUS_SDIO,
+	ATH10K_BUS_USB,
 };
 
 static inline const char *ath10k_bus_str(enum ath10k_bus bus)
@@ -103,6 +104,8 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 		return "ahb";
 	case ATH10K_BUS_SDIO:
 		return "sdio";
+	case ATH10K_BUS_USB:
+		return "usb";
 	}
 
 	return "unknown";
@@ -459,7 +462,7 @@ struct ath10k_ce_crash_hdr {
 struct ath10k_fw_crash_data {
 	bool crashed_since_read;
 
-	uuid_le uuid;
+	guid_t guid;
 	struct timespec timestamp;
 	__le32 registers[REG_DUMP_COUNT_QCA988X];
 	struct ath10k_ce_crash_data ce_crash_data[CE_COUNT_MAX];
@@ -608,6 +611,9 @@ enum ath10k_fw_features {
 	 * not creating monitor vdev while configuring mesh node.
 	 */
 	ATH10K_FW_FEATURE_ALLOWS_MESH_BCAST = 16,
+
+	/* Firmware does not support power save in station mode. */
+	ATH10K_FW_FEATURE_NO_PS = 17,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
@@ -992,6 +998,10 @@ struct ath10k {
 		u32 reg_ack_cts_timeout_conf;
 		u32 reg_ack_cts_timeout_orig;
 	} fw_coverage;
+
+	u32 ampdu_reference;
+
+	void *ce_priv;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

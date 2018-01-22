@@ -29,6 +29,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_dv_timings_cap`.
 
 
 Description
@@ -97,7 +98,7 @@ that doesn't support them will return an ``EINVAL`` error code.
 
 
 
-.. tabularcolumns:: |p{1.0cm}|p{3.5cm}|p{3.5cm}|p{9.5cm}|
+.. tabularcolumns:: |p{1.0cm}|p{4.0cm}|p{3.5cm}|p{9.2cm}|
 
 .. c:type:: v4l2_dv_timings_cap
 

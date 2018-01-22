@@ -122,7 +122,7 @@ static irqreturn_t venc_isr(int irq, void *arg)
 	int fid;
 	int i;
 
-	if ((NULL == arg) || (NULL == disp_dev->dev[0]))
+	if (!arg || !disp_dev->dev[0])
 		return IRQ_HANDLED;
 
 	if (venc_is_second_field(disp_dev))
@@ -337,10 +337,10 @@ static void vpbe_stop_streaming(struct vb2_queue *vq)
 		vb2_buffer_done(&layer->cur_frm->vb.vb2_buf,
 				VB2_BUF_STATE_ERROR);
 	} else {
-		if (layer->cur_frm != NULL)
+		if (layer->cur_frm)
 			vb2_buffer_done(&layer->cur_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
-		if (layer->next_frm != NULL)
+		if (layer->next_frm)
 			vb2_buffer_done(&layer->next_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
 	}
@@ -355,7 +355,7 @@ static void vpbe_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&disp->dma_queue_lock, flags);
 }
 
-static struct vb2_ops video_qops = {
+static const struct vb2_ops video_qops = {
 	.queue_setup = vpbe_buffer_queue_setup,
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
@@ -947,7 +947,7 @@ static int vpbe_display_s_std(struct file *file, void *priv,
 	if (vb2_is_busy(&layer->buffer_queue))
 		return -EBUSY;
 
-	if (NULL != vpbe_dev->ops.s_std) {
+	if (vpbe_dev->ops.s_std) {
 		ret = vpbe_dev->ops.s_std(vpbe_dev, std_id);
 		if (ret) {
 			v4l2_err(&vpbe_dev->v4l2_dev,
@@ -1000,8 +1000,7 @@ static int vpbe_display_enum_output(struct file *file, void *priv,
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,	"VIDIOC_ENUM_OUTPUT\n");
 
 	/* Enumerate outputs */
-
-	if (NULL == vpbe_dev->ops.enum_outputs)
+	if (!vpbe_dev->ops.enum_outputs)
 		return -EINVAL;
 
 	ret = vpbe_dev->ops.enum_outputs(vpbe_dev, output);
@@ -1030,7 +1029,7 @@ static int vpbe_display_s_output(struct file *file, void *priv,
 	if (vb2_is_busy(&layer->buffer_queue))
 		return -EBUSY;
 
-	if (NULL == vpbe_dev->ops.set_output)
+	if (!vpbe_dev->ops.set_output)
 		return -EINVAL;
 
 	ret = vpbe_dev->ops.set_output(vpbe_dev, i);
@@ -1077,7 +1076,7 @@ vpbe_display_enum_dv_timings(struct file *file, void *priv,
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_ENUM_DV_TIMINGS\n");
 
 	/* Enumerate outputs */
-	if (NULL == vpbe_dev->ops.enum_dv_timings)
+	if (!vpbe_dev->ops.enum_dv_timings)
 		return -EINVAL;
 
 	ret = vpbe_dev->ops.enum_dv_timings(vpbe_dev, timings);
@@ -1275,7 +1274,7 @@ static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_enum_dv_timings	 = vpbe_display_enum_dv_timings,
 };
 
-static struct v4l2_file_operations vpbe_fops = {
+static const struct v4l2_file_operations vpbe_fops = {
 	.owner = THIS_MODULE,
 	.open = vpbe_display_open,
 	.release = vpbe_display_release,
@@ -1292,7 +1291,7 @@ static int vpbe_device_get(struct device *dev, void *data)
 	if (strcmp("vpbe_controller", pdev->name) == 0)
 		vpbe_disp->vpbe_dev = platform_get_drvdata(pdev);
 
-	if (strstr(pdev->name, "vpbe-osd") != NULL)
+	if (strstr(pdev->name, "vpbe-osd"))
 		vpbe_disp->osd_device = platform_get_drvdata(pdev);
 
 	return 0;
@@ -1305,15 +1304,10 @@ static int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 	struct video_device *vbd = NULL;
 
 	/* Allocate memory for four plane display objects */
-
-	disp_dev->dev[i] =
-		kzalloc(sizeof(struct vpbe_layer), GFP_KERNEL);
-
-	/* If memory allocation fails, return error */
-	if (!disp_dev->dev[i]) {
-		printk(KERN_ERR "ran out of memory\n");
+	disp_dev->dev[i] = kzalloc(sizeof(*disp_dev->dev[i]), GFP_KERNEL);
+	if (!disp_dev->dev[i])
 		return  -ENOMEM;
-	}
+
 	spin_lock_init(&disp_dev->dev[i]->irqlock);
 	mutex_init(&disp_dev->dev[i]->opslock);
 
@@ -1397,8 +1391,7 @@ static int vpbe_display_probe(struct platform_device *pdev)
 
 	printk(KERN_DEBUG "vpbe_display_probe\n");
 	/* Allocate memory for vpbe_display */
-	disp_dev = devm_kzalloc(&pdev->dev, sizeof(struct vpbe_display),
-				GFP_KERNEL);
+	disp_dev = devm_kzalloc(&pdev->dev, sizeof(*disp_dev), GFP_KERNEL);
 	if (!disp_dev)
 		return -ENOMEM;
 
@@ -1414,7 +1407,7 @@ static int vpbe_display_probe(struct platform_device *pdev)
 
 	v4l2_dev = &disp_dev->vpbe_dev->v4l2_dev;
 	/* Initialize the vpbe display controller */
-	if (NULL != disp_dev->vpbe_dev->ops.initialize) {
+	if (disp_dev->vpbe_dev->ops.initialize) {
 		err = disp_dev->vpbe_dev->ops.initialize(&pdev->dev,
 							 disp_dev->vpbe_dev);
 		if (err) {
@@ -1482,7 +1475,7 @@ static int vpbe_display_probe(struct platform_device *pdev)
 probe_out:
 	for (k = 0; k < VPBE_DISPLAY_MAX_DEVICES; k++) {
 		/* Unregister video device */
-		if (disp_dev->dev[k] != NULL) {
+		if (disp_dev->dev[k]) {
 			video_unregister_device(&disp_dev->dev[k]->video_dev);
 			kfree(disp_dev->dev[k]);
 		}
@@ -1504,7 +1497,7 @@ static int vpbe_display_remove(struct platform_device *pdev)
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_display_remove\n");
 
 	/* deinitialize the vpbe display controller */
-	if (NULL != vpbe_dev->ops.deinitialize)
+	if (vpbe_dev->ops.deinitialize)
 		vpbe_dev->ops.deinitialize(&pdev->dev, vpbe_dev);
 	/* un-register device */
 	for (i = 0; i < VPBE_DISPLAY_MAX_DEVICES; i++) {

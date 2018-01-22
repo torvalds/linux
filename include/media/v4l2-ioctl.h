@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  *	V 4 L 2   D R I V E R   H E L P E R   A P I

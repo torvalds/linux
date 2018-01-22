@@ -76,10 +76,22 @@ static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 static void dpaa2_eth_get_drvinfo(struct net_device *net_dev,
 				  struct ethtool_drvinfo *drvinfo)
 {
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	u16 fw_major, fw_minor;
+	int err;
+
 	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, dpaa2_eth_drv_version,
 		sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+
+	err =  dpni_get_api_version(priv->mc_io, 0, &fw_major, &fw_minor);
+	if (!err)
+		snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+			 "%u.%u", fw_major, fw_minor);
+	else
+		strlcpy(drvinfo->fw_version, "N/A",
+			sizeof(drvinfo->fw_version));
+
 	strlcpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
 }
@@ -216,8 +228,6 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 			break;
 		case 2:
 			num_cnt = sizeof(dpni_stats.page_2) / sizeof(u64);
-			break;
-		default:
 			break;
 		}
 		for (k = 0; k < num_cnt; k++)

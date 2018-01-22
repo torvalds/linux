@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Wrapper for DMA channel allocator that updates DMA client muxing.
  * Copyright 2004-2007, Axis Communications AB
  */

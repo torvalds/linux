@@ -52,7 +52,6 @@
 struct mlxsw_sp_acl {
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_afk *afk;
-	struct mlxsw_afa *afa;
 	struct mlxsw_sp_fid *dummy_fid;
 	const struct mlxsw_sp_acl_ops *ops;
 	struct rhashtable ruleset_ht;
@@ -74,6 +73,7 @@ struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl)
 struct mlxsw_sp_acl_ruleset_ht_key {
 	struct net_device *dev; /* dev this ruleset is bound to */
 	bool ingress;
+	u32 chain_index;
 	const struct mlxsw_sp_acl_profile_ops *ops;
 };
 
@@ -163,7 +163,8 @@ static void mlxsw_sp_acl_ruleset_destroy(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_ruleset *ruleset,
-				     struct net_device *dev, bool ingress)
+				     struct net_device *dev, bool ingress,
+				     u32 chain_index)
 {
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
@@ -171,13 +172,20 @@ static int mlxsw_sp_acl_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
 
 	ruleset->ht_key.dev = dev;
 	ruleset->ht_key.ingress = ingress;
+	ruleset->ht_key.chain_index = chain_index;
 	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_node,
 				     mlxsw_sp_acl_ruleset_ht_params);
 	if (err)
 		return err;
-	err = ops->ruleset_bind(mlxsw_sp, ruleset->priv, dev, ingress);
-	if (err)
-		goto err_ops_ruleset_bind;
+	if (!ruleset->ht_key.chain_index) {
+		/* We only need ruleset with chain index 0, the implicit one,
+		 * to be directly bound to device. The rest of the rulesets
+		 * are bound by "Goto action set".
+		 */
+		err = ops->ruleset_bind(mlxsw_sp, ruleset->priv, dev, ingress);
+		if (err)
+			goto err_ops_ruleset_bind;
+	}
 	return 0;
 
 err_ops_ruleset_bind:
@@ -192,7 +200,8 @@ static void mlxsw_sp_acl_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 
-	ops->ruleset_unbind(mlxsw_sp, ruleset->priv);
+	if (!ruleset->ht_key.chain_index)
+		ops->ruleset_unbind(mlxsw_sp, ruleset->priv);
 	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
 			       mlxsw_sp_acl_ruleset_ht_params);
 }
@@ -211,14 +220,48 @@ static void mlxsw_sp_acl_ruleset_ref_dec(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_ruleset_destroy(mlxsw_sp, ruleset);
 }
 
+static struct mlxsw_sp_acl_ruleset *
+__mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp_acl *acl, struct net_device *dev,
+			      bool ingress, u32 chain_index,
+			      const struct mlxsw_sp_acl_profile_ops *ops)
+{
+	struct mlxsw_sp_acl_ruleset_ht_key ht_key;
+
+	memset(&ht_key, 0, sizeof(ht_key));
+	ht_key.dev = dev;
+	ht_key.ingress = ingress;
+	ht_key.chain_index = chain_index;
+	ht_key.ops = ops;
+	return rhashtable_lookup_fast(&acl->ruleset_ht, &ht_key,
+				      mlxsw_sp_acl_ruleset_ht_params);
+}
+
 struct mlxsw_sp_acl_ruleset *
-mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
-			 struct net_device *dev, bool ingress,
+mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
+			    bool ingress, u32 chain_index,
+			    enum mlxsw_sp_acl_profile profile)
+{
+	const struct mlxsw_sp_acl_profile_ops *ops;
+	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
+	struct mlxsw_sp_acl_ruleset *ruleset;
+
+	ops = acl->ops->profile_ops(mlxsw_sp, profile);
+	if (!ops)
+		return ERR_PTR(-EINVAL);
+	ruleset = __mlxsw_sp_acl_ruleset_lookup(acl, dev, ingress,
+						chain_index, ops);
+	if (!ruleset)
+		return ERR_PTR(-ENOENT);
+	return ruleset;
+}
+
+struct mlxsw_sp_acl_ruleset *
+mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
+			 bool ingress, u32 chain_index,
 			 enum mlxsw_sp_acl_profile profile)
 {
 	const struct mlxsw_sp_acl_profile_ops *ops;
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
-	struct mlxsw_sp_acl_ruleset_ht_key ht_key;
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	int err;
 
@@ -226,12 +269,8 @@ mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
 	if (!ops)
 		return ERR_PTR(-EINVAL);
 
-	memset(&ht_key, 0, sizeof(ht_key));
-	ht_key.dev = dev;
-	ht_key.ingress = ingress;
-	ht_key.ops = ops;
-	ruleset = rhashtable_lookup_fast(&acl->ruleset_ht, &ht_key,
-					 mlxsw_sp_acl_ruleset_ht_params);
+	ruleset = __mlxsw_sp_acl_ruleset_lookup(acl, dev, ingress,
+						chain_index, ops);
 	if (ruleset) {
 		mlxsw_sp_acl_ruleset_ref_inc(ruleset);
 		return ruleset;
@@ -239,7 +278,8 @@ mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
 	ruleset = mlxsw_sp_acl_ruleset_create(mlxsw_sp, ops);
 	if (IS_ERR(ruleset))
 		return ruleset;
-	err = mlxsw_sp_acl_ruleset_bind(mlxsw_sp, ruleset, dev, ingress);
+	err = mlxsw_sp_acl_ruleset_bind(mlxsw_sp, ruleset, dev,
+					ingress, chain_index);
 	if (err)
 		goto err_ruleset_bind;
 	return ruleset;
@@ -253,6 +293,13 @@ void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_ruleset *ruleset)
 {
 	mlxsw_sp_acl_ruleset_ref_dec(mlxsw_sp, ruleset);
+}
+
+u16 mlxsw_sp_acl_ruleset_group_id(struct mlxsw_sp_acl_ruleset *ruleset)
+{
+	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
+
+	return ops->ruleset_group_id(ruleset->priv);
 }
 
 static int
@@ -285,7 +332,7 @@ mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl)
 	rulei = kzalloc(sizeof(*rulei), GFP_KERNEL);
 	if (!rulei)
 		return NULL;
-	rulei->act_block = mlxsw_afa_block_create(acl->afa);
+	rulei->act_block = mlxsw_afa_block_create(acl->mlxsw_sp->afa);
 	if (IS_ERR(rulei->act_block)) {
 		err = PTR_ERR(rulei->act_block);
 		goto err_afa_block_create;
@@ -331,15 +378,15 @@ void mlxsw_sp_acl_rulei_keymask_buf(struct mlxsw_sp_acl_rule_info *rulei,
 				 key_value, mask_value, len);
 }
 
-void mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei)
+int mlxsw_sp_acl_rulei_act_continue(struct mlxsw_sp_acl_rule_info *rulei)
 {
-	mlxsw_afa_block_continue(rulei->act_block);
+	return mlxsw_afa_block_continue(rulei->act_block);
 }
 
-void mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
-				 u16 group_id)
+int mlxsw_sp_acl_rulei_act_jump(struct mlxsw_sp_acl_rule_info *rulei,
+				u16 group_id)
 {
-	mlxsw_afa_block_jump(rulei->act_block, group_id);
+	return mlxsw_afa_block_jump(rulei->act_block, group_id);
 }
 
 int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei)
@@ -349,7 +396,8 @@ int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei)
 
 int mlxsw_sp_acl_rulei_act_trap(struct mlxsw_sp_acl_rule_info *rulei)
 {
-	return mlxsw_afa_block_append_trap(rulei->act_block);
+	return mlxsw_afa_block_append_trap(rulei->act_block,
+					   MLXSW_TRAP_ID_ACL0);
 }
 
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
@@ -369,7 +417,7 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 		local_port = mlxsw_sp_port->local_port;
 		in_port = false;
 	} else {
-		/* If out_dev is NULL, the called wants to
+		/* If out_dev is NULL, the caller wants to
 		 * set forward to ingress port.
 		 */
 		local_port = 0;
@@ -605,85 +653,6 @@ int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-#define MLXSW_SP_KDVL_ACT_EXT_SIZE 1
-
-static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
-				     char *enc_actions, bool is_first)
-{
-	struct mlxsw_sp *mlxsw_sp = priv;
-	char pefa_pl[MLXSW_REG_PEFA_LEN];
-	u32 kvdl_index;
-	int err;
-
-	/* The first action set of a TCAM entry is stored directly in TCAM,
-	 * not KVD linear area.
-	 */
-	if (is_first)
-		return 0;
-
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KDVL_ACT_EXT_SIZE,
-				  &kvdl_index);
-	if (err)
-		return err;
-	mlxsw_reg_pefa_pack(pefa_pl, kvdl_index, enc_actions);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pefa), pefa_pl);
-	if (err)
-		goto err_pefa_write;
-	*p_kvdl_index = kvdl_index;
-	return 0;
-
-err_pefa_write:
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
-	return err;
-}
-
-static void mlxsw_sp_act_kvdl_set_del(void *priv, u32 kvdl_index,
-				      bool is_first)
-{
-	struct mlxsw_sp *mlxsw_sp = priv;
-
-	if (is_first)
-		return;
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
-}
-
-static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
-					   u8 local_port)
-{
-	struct mlxsw_sp *mlxsw_sp = priv;
-	char ppbs_pl[MLXSW_REG_PPBS_LEN];
-	u32 kvdl_index;
-	int err;
-
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1, &kvdl_index);
-	if (err)
-		return err;
-	mlxsw_reg_ppbs_pack(ppbs_pl, kvdl_index, local_port);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ppbs), ppbs_pl);
-	if (err)
-		goto err_ppbs_write;
-	*p_kvdl_index = kvdl_index;
-	return 0;
-
-err_ppbs_write:
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
-	return err;
-}
-
-static void mlxsw_sp_act_kvdl_fwd_entry_del(void *priv, u32 kvdl_index)
-{
-	struct mlxsw_sp *mlxsw_sp = priv;
-
-	mlxsw_sp_kvdl_free(mlxsw_sp, kvdl_index);
-}
-
-static const struct mlxsw_afa_ops mlxsw_sp_act_afa_ops = {
-	.kvdl_set_add		= mlxsw_sp_act_kvdl_set_add,
-	.kvdl_set_del		= mlxsw_sp_act_kvdl_set_del,
-	.kvdl_fwd_entry_add	= mlxsw_sp_act_kvdl_fwd_entry_add,
-	.kvdl_fwd_entry_del	= mlxsw_sp_act_kvdl_fwd_entry_del,
-};
-
 int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 {
 	const struct mlxsw_sp_acl_ops *acl_ops = &mlxsw_sp_acl_tcam_ops;
@@ -703,14 +672,6 @@ int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp)
 	if (!acl->afk) {
 		err = -ENOMEM;
 		goto err_afk_create;
-	}
-
-	acl->afa = mlxsw_afa_create(MLXSW_CORE_RES_GET(mlxsw_sp->core,
-						       ACL_ACTIONS_PER_SET),
-				    &mlxsw_sp_act_afa_ops, mlxsw_sp);
-	if (IS_ERR(acl->afa)) {
-		err = PTR_ERR(acl->afa);
-		goto err_afa_create;
 	}
 
 	err = rhashtable_init(&acl->ruleset_ht,
@@ -744,8 +705,6 @@ err_acl_ops_init:
 err_fid_get:
 	rhashtable_destroy(&acl->ruleset_ht);
 err_rhashtable_init:
-	mlxsw_afa_destroy(acl->afa);
-err_afa_create:
 	mlxsw_afk_destroy(acl->afk);
 err_afk_create:
 	kfree(acl);
@@ -762,7 +721,6 @@ void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp)
 	WARN_ON(!list_empty(&acl->rules));
 	mlxsw_sp_fid_put(acl->dummy_fid);
 	rhashtable_destroy(&acl->ruleset_ht);
-	mlxsw_afa_destroy(acl->afa);
 	mlxsw_afk_destroy(acl->afk);
 	kfree(acl);
 }

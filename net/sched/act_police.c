@@ -40,8 +40,6 @@ struct tcf_police {
 
 #define to_police(pc) ((struct tcf_police *)pc)
 
-#define POL_TAB_MASK     15
-
 /* old policer structure from before tc actions */
 struct tc_police_compat {
 	u32			index;
@@ -101,18 +99,18 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_POLICE_TBF]);
-	exists = tcf_hash_check(tn, parm->index, a, bind);
+	exists = tcf_idr_check(tn, parm->index, a, bind);
 	if (exists && bind)
 		return 0;
 
 	if (!exists) {
-		ret = tcf_hash_create(tn, parm->index, NULL, a,
-				      &act_police_ops, bind, false);
+		ret = tcf_idr_create(tn, parm->index, NULL, a,
+				     &act_police_ops, bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
-		tcf_hash_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -188,7 +186,7 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 		return ret;
 
 	police->tcfp_t_c = ktime_get_ns();
-	tcf_hash_insert(tn, *a);
+	tcf_idr_insert(tn, *a);
 
 	return ret;
 
@@ -196,7 +194,7 @@ failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_cleanup(*a, est);
+		tcf_idr_cleanup(*a, est);
 	return err;
 }
 
@@ -310,7 +308,7 @@ static int tcf_police_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 MODULE_AUTHOR("Alexey Kuznetsov");
@@ -333,7 +331,7 @@ static __net_init int police_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 
-	return tc_action_net_init(tn, &act_police_ops, POL_TAB_MASK);
+	return tc_action_net_init(tn, &act_police_ops);
 }
 
 static void __net_exit police_exit_net(struct net *net)

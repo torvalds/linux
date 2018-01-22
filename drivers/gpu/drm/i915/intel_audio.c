@@ -606,11 +606,6 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder,
 			 connector->encoder->base.id,
 			 connector->encoder->name);
 
-	/* ELD Conn_Type */
-	connector->eld[5] &= ~(3 << 2);
-	if (intel_crtc_has_dp_encoder(crtc_state))
-		connector->eld[5] |= (1 << 2);
-
 	connector->eld[6] = drm_av_sync_delay(connector, adjusted_mode) / 2;
 
 	if (dev_priv->display.audio_codec_enable)
@@ -759,7 +754,7 @@ static struct intel_encoder *get_saved_enc(struct drm_i915_private *dev_priv,
 {
 	struct intel_encoder *encoder;
 
-	if (WARN_ON(pipe >= I915_MAX_PIPES))
+	if (WARN_ON(pipe >= INTEL_INFO(dev_priv)->num_pipes))
 		return NULL;
 
 	/* MST */

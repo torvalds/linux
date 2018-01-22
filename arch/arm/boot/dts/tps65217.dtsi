@@ -18,11 +18,14 @@
 
 	charger {
 		compatible = "ti,tps65217-charger";
+		interrupts = <0>, <1>;
+		interrupt-names = "USB", "AC";
 		status = "disabled";
 	};
 
 	pwrbutton {
 		compatible = "ti,tps65217-pwrbutton";
+		interrupts = <2>;
 		status = "disabled";
 	};
 

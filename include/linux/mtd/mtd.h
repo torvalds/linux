@@ -206,6 +206,15 @@ struct mtd_pairing_scheme {
 
 struct module;	/* only needed for owner field in mtd_info */
 
+/**
+ * struct mtd_debug_info - debugging information for an MTD device.
+ *
+ * @dfs_dir: direntry object of the MTD device debugfs directory
+ */
+struct mtd_debug_info {
+	struct dentry *dfs_dir;
+};
+
 struct mtd_info {
 	u_char type;
 	uint32_t flags;
@@ -258,7 +267,7 @@ struct mtd_info {
 	 */
 	unsigned int bitflip_threshold;
 
-	// Kernel-only stuff starts here.
+	/* Kernel-only stuff starts here. */
 	const char *name;
 	int index;
 
@@ -288,10 +297,6 @@ struct mtd_info {
 	int (*_point) (struct mtd_info *mtd, loff_t from, size_t len,
 		       size_t *retlen, void **virt, resource_size_t *phys);
 	int (*_unpoint) (struct mtd_info *mtd, loff_t from, size_t len);
-	unsigned long (*_get_unmapped_area) (struct mtd_info *mtd,
-					     unsigned long len,
-					     unsigned long offset,
-					     unsigned long flags);
 	int (*_read) (struct mtd_info *mtd, loff_t from, size_t len,
 		      size_t *retlen, u_char *buf);
 	int (*_write) (struct mtd_info *mtd, loff_t to, size_t len,
@@ -346,6 +351,7 @@ struct mtd_info {
 	struct module *owner;
 	struct device dev;
 	int usecount;
+	struct mtd_debug_info dbg;
 };
 
 int mtd_ooblayout_ecc(struct mtd_info *mtd, int section,

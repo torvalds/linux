@@ -135,7 +135,9 @@ static int mdio_bus_phy_resume(struct device *dev)
 	if (!mdio_bus_phy_may_suspend(phydev))
 		goto no_resume;
 
+	mutex_lock(&phydev->lock);
 	ret = phy_resume(phydev);
+	mutex_unlock(&phydev->lock);
 	if (ret < 0)
 		return ret;
 
@@ -688,6 +690,19 @@ struct phy_device *phy_find_first(struct mii_bus *bus)
 }
 EXPORT_SYMBOL(phy_find_first);
 
+static void phy_link_change(struct phy_device *phydev, bool up, bool do_carrier)
+{
+	struct net_device *netdev = phydev->attached_dev;
+
+	if (do_carrier) {
+		if (up)
+			netif_carrier_on(netdev);
+		else
+			netif_carrier_off(netdev);
+	}
+	phydev->adjust_link(netdev);
+}
+
 /**
  * phy_prepare_link - prepares the PHY layer to monitor link status
  * @phydev: target phy_device struct
@@ -861,21 +876,37 @@ void phy_attached_info(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_attached_info);
 
-#define ATTACHED_FMT "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)"
+#define ATTACHED_FMT "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%s)"
 void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 {
 	const char *drv_name = phydev->drv ? phydev->drv->name : "unbound";
+	char *irq_str;
+	char irq_num[8];
+
+	switch(phydev->irq) {
+	case PHY_POLL:
+		irq_str = "POLL";
+		break;
+	case PHY_IGNORE_INTERRUPT:
+		irq_str = "IGNORE";
+		break;
+	default:
+		snprintf(irq_num, sizeof(irq_num), "%d", phydev->irq);
+		irq_str = irq_num;
+		break;
+	}
+
 
 	if (!fmt) {
 		dev_info(&phydev->mdio.dev, ATTACHED_FMT "\n",
 			 drv_name, phydev_name(phydev),
-			 phydev->irq);
+			 irq_str);
 	} else {
 		va_list ap;
 
 		dev_info(&phydev->mdio.dev, ATTACHED_FMT,
 			 drv_name, phydev_name(phydev),
-			 phydev->irq);
+			 irq_str);
 
 		va_start(ap, fmt);
 		vprintk(fmt, ap);
@@ -953,6 +984,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		goto error;
 	}
 
+	phydev->phy_link_change = phy_link_change;
 	phydev->attached_dev = dev;
 	dev->phydev = phydev;
 
@@ -996,7 +1028,9 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	if (err)
 		goto error;
 
+	mutex_lock(&phydev->lock);
 	phy_resume(phydev);
+	mutex_unlock(&phydev->lock);
 	phy_led_triggers_register(phydev);
 
 	return err;
@@ -1072,6 +1106,7 @@ void phy_detach(struct phy_device *phydev)
 	phydev->attached_dev->phydev = NULL;
 	phydev->attached_dev = NULL;
 	phy_suspend(phydev);
+	phydev->phylink = NULL;
 
 	phy_led_triggers_unregister(phydev);
 
@@ -1125,6 +1160,8 @@ int phy_resume(struct phy_device *phydev)
 {
 	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
 	int ret = 0;
+
+	WARN_ON(!mutex_is_locked(&phydev->lock));
 
 	if (phydev->drv && phydrv->resume)
 		ret = phydrv->resume(phydev);
@@ -1608,12 +1645,8 @@ int genphy_resume(struct phy_device *phydev)
 {
 	int value;
 
-	mutex_lock(&phydev->lock);
-
 	value = phy_read(phydev, MII_BMCR);
 	phy_write(phydev, MII_BMCR, value & ~BMCR_PDOWN);
-
-	mutex_unlock(&phydev->lock);
 
 	return 0;
 }

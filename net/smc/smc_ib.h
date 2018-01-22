@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -51,12 +52,12 @@ int smc_ib_register_client(void) __init;
 void smc_ib_unregister_client(void);
 bool smc_ib_port_active(struct smc_ib_device *smcibdev, u8 ibport);
 int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport);
-int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,
-		   struct smc_buf_desc *buf_slot,
-		   enum dma_data_direction data_direction);
-void smc_ib_buf_unmap(struct smc_ib_device *smcibdev, int bufsize,
+int smc_ib_buf_map_sg(struct smc_ib_device *smcibdev,
 		      struct smc_buf_desc *buf_slot,
 		      enum dma_data_direction data_direction);
+void smc_ib_buf_unmap_sg(struct smc_ib_device *smcibdev,
+			 struct smc_buf_desc *buf_slot,
+			 enum dma_data_direction data_direction);
 void smc_ib_dealloc_protection_domain(struct smc_link *lnk);
 int smc_ib_create_protection_domain(struct smc_link *lnk);
 void smc_ib_destroy_queue_pair(struct smc_link *lnk);
@@ -65,6 +66,13 @@ int smc_ib_ready_link(struct smc_link *lnk);
 int smc_ib_modify_qp_rts(struct smc_link *lnk);
 int smc_ib_modify_qp_reset(struct smc_link *lnk);
 long smc_ib_setup_per_ibdev(struct smc_ib_device *smcibdev);
-
-
+int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
+			     struct smc_buf_desc *buf_slot);
+void smc_ib_put_memory_region(struct ib_mr *mr);
+void smc_ib_sync_sg_for_cpu(struct smc_ib_device *smcibdev,
+			    struct smc_buf_desc *buf_slot,
+			    enum dma_data_direction data_direction);
+void smc_ib_sync_sg_for_device(struct smc_ib_device *smcibdev,
+			       struct smc_buf_desc *buf_slot,
+			       enum dma_data_direction data_direction);
 #endif

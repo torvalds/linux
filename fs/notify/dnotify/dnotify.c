@@ -133,7 +133,7 @@ static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 	kmem_cache_free(dnotify_mark_cache, dn_mark);
 }
 
-static struct fsnotify_ops dnotify_fsnotify_ops = {
+static const struct fsnotify_ops dnotify_fsnotify_ops = {
 	.handle_event = dnotify_handle_event,
 	.free_mark = dnotify_free_mark,
 };
@@ -319,7 +319,11 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
 		spin_lock(&fsn_mark->lock);
 	} else {
-		fsnotify_add_mark_locked(new_fsn_mark, inode, NULL, 0);
+		error = fsnotify_add_mark_locked(new_fsn_mark, inode, NULL, 0);
+		if (error) {
+			mutex_unlock(&dnotify_group->mark_mutex);
+			goto out_err;
+		}
 		spin_lock(&new_fsn_mark->lock);
 		fsn_mark = new_fsn_mark;
 		dn_mark = new_dn_mark;
@@ -345,6 +349,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		 */
 		if (dn_mark == new_dn_mark)
 			destroy = 1;
+		error = 0;
 		goto out;
 	}
 

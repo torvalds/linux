@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -40,10 +41,9 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_ver.h"
+#include <obd_support.h>
+#include <lustre_fid.h>
+#include <lustre_dlm.h>
 #include "llite_internal.h"
 
 static int ll_create_it(struct inode *dir, struct dentry *dentry,
@@ -205,7 +205,8 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 
 		if (!fid_res_name_eq(ll_inode2fid(inode),
 				     &lock->l_resource->lr_name)) {
-			LDLM_ERROR(lock, "data mismatch with object " DFID "(%p)",
+			LDLM_ERROR(lock,
+				   "data mismatch with object " DFID "(%p)",
 				   PFID(ll_inode2fid(inode)), inode);
 			LBUG();
 		}
@@ -290,7 +291,8 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 				 * we have to invalidate the negative children
 				 * on master inode
 				 */
-				CDEBUG(D_INODE, "Invalidate s" DFID " m" DFID "\n",
+				CDEBUG(D_INODE,
+				       "Invalidate s" DFID " m" DFID "\n",
 				       PFID(ll_inode2fid(inode)),
 				       PFID(&lli->lli_pfid));
 
@@ -490,7 +492,7 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 	*de = alias;
 
 	if (!it_disposition(it, DISP_LOOKUP_NEG)) {
-		/* we have lookup look - unhide dentry */
+		/* We have the "lookup" lock, so unhide dentry */
 		if (bits & MDS_INODELOCK_LOOKUP)
 			d_lustre_revalidate(*de);
 	} else if (!it_disposition(it, DISP_OPEN_CREATE)) {
@@ -562,8 +564,7 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 		}
 	}
 
-	if (it->it_op & IT_OPEN && it->it_flags & FMODE_WRITE &&
-	    dentry->d_sb->s_flags & MS_RDONLY)
+	if (it->it_op & IT_OPEN && it->it_flags & FMODE_WRITE && sb_rdonly(dentry->d_sb))
 		return ERR_PTR(-EROFS);
 
 	if (it->it_op & IT_CREAT)
@@ -738,7 +739,8 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 
 			*opened |= FILE_CREATED;
 		}
-		if (d_really_is_positive(dentry) && it_disposition(it, DISP_OPEN_OPEN)) {
+		if (d_really_is_positive(dentry) &&
+		    it_disposition(it, DISP_OPEN_OPEN)) {
 			/* Open dentry. */
 			if (S_ISFIFO(d_inode(dentry)->i_mode)) {
 				/* We cannot call open here as it might
@@ -951,7 +953,9 @@ static int ll_mknod(struct inode *dir, struct dentry *dchild,
 
 	switch (mode & S_IFMT) {
 	case 0:
-		mode |= S_IFREG; /* for mode = 0 case, fallthrough */
+		mode |= S_IFREG;
+		/* for mode = 0 case */
+		/* fall through */
 	case S_IFREG:
 	case S_IFCHR:
 	case S_IFBLK:
@@ -982,7 +986,8 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 {
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir=" DFID "(%p), flags=%u, excl=%d\n",
+	CDEBUG(D_VFSTRACE,
+	       "VFS Op:name=%pd, dir=" DFID "(%p), flags=%u, excl=%d\n",
 	       dentry, PFID(ll_inode2fid(dir)), dir, mode, want_excl);
 
 	rc = ll_mknod(dir, dentry, mode, 0);
@@ -1103,7 +1108,8 @@ static int ll_link(struct dentry *old_dentry, struct inode *dir,
 	struct md_op_data *op_data;
 	int err;
 
-	CDEBUG(D_VFSTRACE, "VFS Op: inode=" DFID "(%p), dir=" DFID "(%p), target=%pd\n",
+	CDEBUG(D_VFSTRACE,
+	       "VFS Op: inode=" DFID "(%p), dir=" DFID "(%p), target=%pd\n",
 	       PFID(ll_inode2fid(src)), src, PFID(ll_inode2fid(dir)), dir,
 	       new_dentry);
 

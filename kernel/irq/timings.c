@@ -264,7 +264,7 @@ u64 irq_timings_next_event(u64 now)
 	 * order to prevent the timings circular buffer to be updated
 	 * while we are reading it.
 	 */
-	WARN_ON_ONCE(!irqs_disabled());
+	lockdep_assert_irqs_disabled();
 
 	/*
 	 * Number of elements in the circular buffer: If it happens it

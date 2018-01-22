@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file is deprecated, and will be removed once existing users have been
  * updated. New dts{,i} files should *not* include skeleton.dtsi, and should

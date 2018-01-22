@@ -72,21 +72,6 @@ static void xgpu_ai_mailbox_set_valid(struct amdgpu_device *adev, bool val)
 		      reg);
 }
 
-static void xgpu_ai_mailbox_trans_msg(struct amdgpu_device *adev,
-				      enum idh_request req)
-{
-	u32 reg;
-
-	reg = RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
-					     mmBIF_BX_PF0_MAILBOX_MSGBUF_TRN_DW0));
-	reg = REG_SET_FIELD(reg, BIF_BX_PF0_MAILBOX_MSGBUF_TRN_DW0,
-			    MSGBUF_DATA, req);
-	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_MSGBUF_TRN_DW0),
-		      reg);
-
-	xgpu_ai_mailbox_set_valid(adev, true);
-}
-
 static int xgpu_ai_mailbox_rcv_msg(struct amdgpu_device *adev,
 				   enum idh_event event)
 {
@@ -154,13 +139,25 @@ static int xgpu_ai_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 	return r;
 }
 
-
-static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
-					enum idh_request req)
-{
+static void xgpu_ai_mailbox_trans_msg (struct amdgpu_device *adev,
+	      enum idh_request req, u32 data1, u32 data2, u32 data3) {
+	u32 reg;
 	int r;
 
-	xgpu_ai_mailbox_trans_msg(adev, req);
+	reg = RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
+					     mmBIF_BX_PF0_MAILBOX_MSGBUF_TRN_DW0));
+	reg = REG_SET_FIELD(reg, BIF_BX_PF0_MAILBOX_MSGBUF_TRN_DW0,
+			    MSGBUF_DATA, req);
+	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_MSGBUF_TRN_DW0),
+		      reg);
+	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_MSGBUF_TRN_DW1),
+				data1);
+	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_MSGBUF_TRN_DW2),
+				data2);
+	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_MSGBUF_TRN_DW3),
+				data3);
+
+	xgpu_ai_mailbox_set_valid(adev, true);
 
 	/* start to poll ack */
 	r = xgpu_ai_poll_ack(adev);
@@ -168,6 +165,14 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 		pr_err("Doesn't get ack from pf, continue\n");
 
 	xgpu_ai_mailbox_set_valid(adev, false);
+}
+
+static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
+					enum idh_request req)
+{
+	int r;
+
+	xgpu_ai_mailbox_trans_msg(adev, req, 0, 0, 0);
 
 	/* start to check msg if request is idh_req_gpu_init_access */
 	if (req == IDH_REQ_GPU_INIT_ACCESS ||
@@ -177,6 +182,12 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 		if (r) {
 			pr_err("Doesn't get READY_TO_ACCESS_GPU from pf, give up\n");
 			return r;
+		}
+		/* Retrieve checksum from mailbox2 */
+		if (req == IDH_REQ_GPU_INIT_ACCESS) {
+			adev->virt.fw_reserve.checksum_key =
+				RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0,
+					mmBIF_BX_PF0_MAILBOX_MSGBUF_RCV_DW2));
 		}
 	}
 
@@ -342,4 +353,5 @@ const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.req_full_gpu	= xgpu_ai_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_ai_release_full_gpu_access,
 	.reset_gpu = xgpu_ai_request_reset,
+	.trans_msg = xgpu_ai_mailbox_trans_msg,
 };

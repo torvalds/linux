@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015 Oracle.  All rights reserved.
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
@@ -344,7 +345,7 @@ frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 /* Post a REG_MR Work Request to register a memory region
  * for remote access via RDMA READ or RDMA WRITE.
  */
-static int
+static struct rpcrdma_mr_seg *
 frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	    int nsegs, bool writing, struct rpcrdma_mw **out)
 {
@@ -364,7 +365,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 			rpcrdma_defer_mr_recovery(mw);
 		mw = rpcrdma_get_mw(r_xprt);
 		if (!mw)
-			return -ENOBUFS;
+			return ERR_PTR(-ENOBUFS);
 	} while (mw->frmr.fr_state != FRMR_IS_INVALID);
 	frmr = &mw->frmr;
 	frmr->fr_state = FRMR_IS_VALID;
@@ -401,7 +402,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	if (unlikely(n != mw->mw_nents))
 		goto out_mapmr_err;
 
-	dprintk("RPC:       %s: Using frmr %p to map %u segments (%u bytes)\n",
+	dprintk("RPC:       %s: Using frmr %p to map %u segments (%llu bytes)\n",
 		__func__, frmr, mw->mw_nents, mr->length);
 
 	key = (u8)(mr->rkey & 0x000000FF);
@@ -419,7 +420,6 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 			 IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
 			 IB_ACCESS_REMOTE_READ;
 
-	rpcrdma_set_signaled(&r_xprt->rx_ep, &reg_wr->wr);
 	rc = ib_post_send(ia->ri_id->qp, &reg_wr->wr, &bad_wr);
 	if (rc)
 		goto out_senderr;
@@ -429,25 +429,25 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	mw->mw_offset = mr->iova;
 
 	*out = mw;
-	return mw->mw_nents;
+	return seg;
 
 out_dmamap_err:
 	pr_err("rpcrdma: failed to DMA map sg %p sg_nents %d\n",
 	       mw->mw_sg, i);
 	frmr->fr_state = FRMR_IS_INVALID;
 	rpcrdma_put_mw(r_xprt, mw);
-	return -EIO;
+	return ERR_PTR(-EIO);
 
 out_mapmr_err:
 	pr_err("rpcrdma: failed to map mr %p (%d/%d)\n",
 	       frmr->fr_mr, n, mw->mw_nents);
 	rpcrdma_defer_mr_recovery(mw);
-	return -EIO;
+	return ERR_PTR(-EIO);
 
 out_senderr:
 	pr_err("rpcrdma: FRMR registration ib_post_send returned %i\n", rc);
 	rpcrdma_defer_mr_recovery(mw);
-	return -ENOTCONN;
+	return ERR_PTR(-ENOTCONN);
 }
 
 /* Invalidate all memory regions that were registered for "req".
@@ -507,12 +507,6 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mws)
 	f->fr_cqe.done = frwr_wc_localinv_wake;
 	reinit_completion(&f->fr_linv_done);
 
-	/* Initialize CQ count, since there is always a signaled
-	 * WR being posted here.  The new cqcount depends on how
-	 * many SQEs are about to be consumed.
-	 */
-	rpcrdma_init_cqcount(&r_xprt->rx_ep, count);
-
 	/* Transport disconnect drains the receive CQ before it
 	 * replaces the QP. The RPC reply handler won't call us
 	 * unless ri_id->qp is a valid pointer.
@@ -545,7 +539,6 @@ reset_mrs:
 	/* Find and reset the MRs in the LOCAL_INV WRs that did not
 	 * get posted.
 	 */
-	rpcrdma_init_cqcount(&r_xprt->rx_ep, -count);
 	while (bad_wr) {
 		f = container_of(bad_wr, struct rpcrdma_frmr,
 				 fr_invwr);
@@ -558,28 +551,9 @@ reset_mrs:
 	goto unmap;
 }
 
-/* Use a slow, safe mechanism to invalidate all memory regions
- * that were registered for "req".
- */
-static void
-frwr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
-		   bool sync)
-{
-	struct rpcrdma_mw *mw;
-
-	while (!list_empty(&req->rl_registered)) {
-		mw = rpcrdma_pop_mw(&req->rl_registered);
-		if (sync)
-			frwr_op_recover_mr(mw);
-		else
-			rpcrdma_defer_mr_recovery(mw);
-	}
-}
-
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
 	.ro_unmap_sync			= frwr_op_unmap_sync,
-	.ro_unmap_safe			= frwr_op_unmap_safe,
 	.ro_recover_mr			= frwr_op_recover_mr,
 	.ro_open			= frwr_op_open,
 	.ro_maxpages			= frwr_op_maxpages,

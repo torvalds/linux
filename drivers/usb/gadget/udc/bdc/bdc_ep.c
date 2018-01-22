@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * bdc_ep.c - BRCM BDC USB3.0 device controller endpoint related functions
  *
@@ -6,12 +7,6 @@
  * Author: Ashwini Pahuja
  *
  * Based on drivers under drivers/usb/
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
  */
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -777,9 +772,9 @@ static int ep_dequeue(struct bdc_ep *ep, struct bdc_req *req)
 	 */
 
 	/* The current hw dequeue pointer */
-	tmp_32 = bdc_readl(bdc->regs, BDC_EPSTS0(0));
+	tmp_32 = bdc_readl(bdc->regs, BDC_EPSTS0);
 	deq_ptr_64 = tmp_32;
-	tmp_32 = bdc_readl(bdc->regs, BDC_EPSTS1(0));
+	tmp_32 = bdc_readl(bdc->regs, BDC_EPSTS1);
 	deq_ptr_64 |= ((u64)tmp_32 << 32);
 
 	/* we have the dma addr of next bd that will be fetched by hardware */

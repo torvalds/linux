@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * builtin-config.c
  *
@@ -13,6 +14,7 @@
 #include "util/util.h"
 #include "util/debug.h"
 #include "util/config.h"
+#include <linux/string.h>
 
 static bool use_system_config, use_user_config;
 
@@ -33,8 +35,7 @@ static struct option config_options[] = {
 	OPT_END()
 };
 
-static int set_config(struct perf_config_set *set, const char *file_name,
-		      const char *var, const char *value)
+static int set_config(struct perf_config_set *set, const char *file_name)
 {
 	struct perf_config_section *section = NULL;
 	struct perf_config_item *item = NULL;
@@ -48,7 +49,6 @@ static int set_config(struct perf_config_set *set, const char *file_name,
 	if (!fp)
 		return -1;
 
-	perf_config_set__collect(set, file_name, var, value);
 	fprintf(fp, "%s\n", first_line);
 
 	/* overwrite configvariables */
@@ -58,7 +58,7 @@ static int set_config(struct perf_config_set *set, const char *file_name,
 		fprintf(fp, "[%s]\n", section->name);
 
 		perf_config_items__for_each_entry(&section->items, item) {
-			if (!use_system_config && section->from_system_config)
+			if (!use_system_config && item->from_system_config)
 				continue;
 			if (item->value)
 				fprintf(fp, "\t%s = %s\n",
@@ -79,7 +79,7 @@ static int show_spec_config(struct perf_config_set *set, const char *var)
 		return -1;
 
 	perf_config_items__for_each_entry(&set->sections, section) {
-		if (prefixcmp(var, section->name) != 0)
+		if (!strstarts(var, section->name))
 			continue;
 
 		perf_config_items__for_each_entry(&section->items, item) {
@@ -160,6 +160,7 @@ int cmd_config(int argc, const char **argv)
 	struct perf_config_set *set;
 	char *user_config = mkpath("%s/.perfconfig", getenv("HOME"));
 	const char *config_filename;
+	bool changed = false;
 
 	argc = parse_options(argc, argv, config_options, config_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
@@ -230,14 +231,25 @@ int cmd_config(int argc, const char **argv)
 					goto out_err;
 				}
 			} else {
-				if (set_config(set, config_filename, var, value) < 0) {
-					pr_err("Failed to set '%s=%s' on %s\n",
-					       var, value, config_filename);
+				if (perf_config_set__collect(set, config_filename,
+							     var, value) < 0) {
+					pr_err("Failed to add '%s=%s'\n",
+					       var, value);
 					free(arg);
 					goto out_err;
 				}
+				changed = true;
 			}
 			free(arg);
+		}
+
+		if (!changed)
+			break;
+
+		if (set_config(set, config_filename) < 0) {
+			pr_err("Failed to set the configs on %s\n",
+			       config_filename);
+			goto out_err;
 		}
 	}
 

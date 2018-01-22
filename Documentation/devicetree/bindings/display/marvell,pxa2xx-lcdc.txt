@@ -23,7 +23,6 @@ Example:
 		reg = <0x44000000 0x10000>;
 		interrupts = <17>;
 		clocks = <&clks CLK_LCD>;
-		status = "okay";
 
 		port {
 			lcdc_out: endpoint {

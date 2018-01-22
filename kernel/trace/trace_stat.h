@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __TRACE_STAT_H
 #define __TRACE_STAT_H
 

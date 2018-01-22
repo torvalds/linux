@@ -55,8 +55,7 @@ static int crypto_pcbc_encrypt_segment(struct skcipher_request *req,
 	do {
 		crypto_xor(iv, src, bsize);
 		crypto_cipher_encrypt_one(tfm, dst, iv);
-		memcpy(iv, dst, bsize);
-		crypto_xor(iv, src, bsize);
+		crypto_xor_cpy(iv, dst, src, bsize);
 
 		src += bsize;
 		dst += bsize;
@@ -79,8 +78,7 @@ static int crypto_pcbc_encrypt_inplace(struct skcipher_request *req,
 		memcpy(tmpbuf, src, bsize);
 		crypto_xor(iv, src, bsize);
 		crypto_cipher_encrypt_one(tfm, src, iv);
-		memcpy(iv, tmpbuf, bsize);
-		crypto_xor(iv, src, bsize);
+		crypto_xor_cpy(iv, tmpbuf, src, bsize);
 
 		src += bsize;
 	} while ((nbytes -= bsize) >= bsize);
@@ -127,8 +125,7 @@ static int crypto_pcbc_decrypt_segment(struct skcipher_request *req,
 	do {
 		crypto_cipher_decrypt_one(tfm, dst, src);
 		crypto_xor(dst, iv, bsize);
-		memcpy(iv, src, bsize);
-		crypto_xor(iv, dst, bsize);
+		crypto_xor_cpy(iv, dst, src, bsize);
 
 		src += bsize;
 		dst += bsize;
@@ -153,8 +150,7 @@ static int crypto_pcbc_decrypt_inplace(struct skcipher_request *req,
 		memcpy(tmpbuf, src, bsize);
 		crypto_cipher_decrypt_one(tfm, src, src);
 		crypto_xor(src, iv, bsize);
-		memcpy(iv, tmpbuf, bsize);
-		crypto_xor(iv, src, bsize);
+		crypto_xor_cpy(iv, src, tmpbuf, bsize);
 
 		src += bsize;
 	} while ((nbytes -= bsize) >= bsize);

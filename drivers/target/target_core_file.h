@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef TARGET_CORE_FILE_H
 #define TARGET_CORE_FILE_H
 

@@ -192,7 +192,7 @@ STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_dump_state(
 		ia_css_print("IBUF controller ID %d Process ID %d isp_sync_state 0x%x\n", ID, i, state->proc_state[i].isp_sync_state);
 	}
 }
-/** end of NCI */
+/* end of NCI */
 
 /*****************************************************
  *
@@ -227,7 +227,7 @@ STORAGE_CLASS_IBUF_CTRL_C void ibuf_ctrl_reg_store(
 
 	ia_css_device_store_uint32(IBUF_CTRL_BASE[ID] + reg*sizeof(hrt_data), value);
 }
-/** end of DLI */
+/* end of DLI */
 
 
 #endif /* __IBUF_CTRL_PRIVATE_H_INCLUDED__ */

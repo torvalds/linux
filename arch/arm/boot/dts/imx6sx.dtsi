@@ -95,7 +95,7 @@
 		};
 	};
 
-	intc: interrupt-controller@00a01000 {
+	intc: interrupt-controller@a01000 {
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
@@ -153,13 +153,13 @@
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		ocram: sram@00900000 {
+		ocram: sram@900000 {
 			compatible = "mmio-sram";
 			reg = <0x00900000 0x20000>;
 			clocks = <&clks IMX6SX_CLK_OCRAM>;
 		};
 
-		L2: l2-cache@00a02000 {
+		L2: l2-cache@a02000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x00a02000 0x1000>;
 			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
@@ -169,7 +169,7 @@
 			arm,data-latency = <4 2 3>;
 		};
 
-		gpu: gpu@01800000 {
+		gpu: gpu@1800000 {
 			compatible = "vivante,gc";
 			reg = <0x01800000 0x4000>;
 			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
@@ -179,7 +179,7 @@
 			clock-names = "bus", "core", "shader";
 		};
 
-		dma_apbh: dma-apbh@01804000 {
+		dma_apbh: dma-apbh@1804000 {
 			compatible = "fsl,imx6sx-dma-apbh", "fsl,imx28-dma-apbh";
 			reg = <0x01804000 0x2000>;
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
@@ -192,7 +192,7 @@
 			clocks = <&clks IMX6SX_CLK_APBH_DMA>;
 		};
 
-		gpmi: gpmi-nand@01806000{
+		gpmi: gpmi-nand@1806000{
 			compatible = "fsl,imx6sx-gpmi-nand";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -212,21 +212,21 @@
 			status = "disabled";
 		};
 
-		aips1: aips-bus@02000000 {
+		aips1: aips-bus@2000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x02000000 0x100000>;
 			ranges;
 
-			spba-bus@02000000 {
+			spba-bus@2000000 {
 				compatible = "fsl,spba-bus", "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0x02000000 0x40000>;
 				ranges;
 
-				spdif: spdif@02004000 {
+				spdif: spdif@2004000 {
 					compatible = "fsl,imx6sx-spdif", "fsl,imx35-spdif";
 					reg = <0x02004000 0x4000>;
 					interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
@@ -248,7 +248,7 @@
 					status = "disabled";
 				};
 
-				ecspi1: ecspi@02008000 {
+				ecspi1: ecspi@2008000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -260,7 +260,7 @@
 					status = "disabled";
 				};
 
-				ecspi2: ecspi@0200c000 {
+				ecspi2: ecspi@200c000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -272,7 +272,7 @@
 					status = "disabled";
 				};
 
-				ecspi3: ecspi@02010000 {
+				ecspi3: ecspi@2010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -284,7 +284,7 @@
 					status = "disabled";
 				};
 
-				ecspi4: ecspi@02014000 {
+				ecspi4: ecspi@2014000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -296,7 +296,7 @@
 					status = "disabled";
 				};
 
-				uart1: serial@02020000 {
+				uart1: serial@2020000 {
 					compatible = "fsl,imx6sx-uart",
 						     "fsl,imx6q-uart", "fsl,imx21-uart";
 					reg = <0x02020000 0x4000>;
@@ -309,7 +309,7 @@
 					status = "disabled";
 				};
 
-				esai: esai@02024000 {
+				esai: esai@2024000 {
 					reg = <0x02024000 0x4000>;
 					interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_ESAI_IPG>,
@@ -322,7 +322,7 @@
 					status = "disabled";
 				};
 
-				ssi1: ssi@02028000 {
+				ssi1: ssi@2028000 {
 					#sound-dai-cells = <0>;
 					compatible = "fsl,imx6sx-ssi", "fsl,imx51-ssi";
 					reg = <0x02028000 0x4000>;
@@ -336,7 +336,7 @@
 					status = "disabled";
 				};
 
-				ssi2: ssi@0202c000 {
+				ssi2: ssi@202c000 {
 					#sound-dai-cells = <0>;
 					compatible = "fsl,imx6sx-ssi", "fsl,imx51-ssi";
 					reg = <0x0202c000 0x4000>;
@@ -350,7 +350,7 @@
 					status = "disabled";
 				};
 
-				ssi3: ssi@02030000 {
+				ssi3: ssi@2030000 {
 					#sound-dai-cells = <0>;
 					compatible = "fsl,imx6sx-ssi", "fsl,imx51-ssi";
 					reg = <0x02030000 0x4000>;
@@ -364,7 +364,7 @@
 					status = "disabled";
 				};
 
-				asrc: asrc@02034000 {
+				asrc: asrc@2034000 {
 					reg = <0x02034000 0x4000>;
 					interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_ASRC_MEM>,
@@ -381,7 +381,7 @@
 				};
 			};
 
-			pwm1: pwm@02080000 {
+			pwm1: pwm@2080000 {
 				compatible = "fsl,imx6sx-pwm", "fsl,imx27-pwm";
 				reg = <0x02080000 0x4000>;
 				interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
@@ -391,7 +391,7 @@
 				#pwm-cells = <2>;
 			};
 
-			pwm2: pwm@02084000 {
+			pwm2: pwm@2084000 {
 				compatible = "fsl,imx6sx-pwm", "fsl,imx27-pwm";
 				reg = <0x02084000 0x4000>;
 				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
@@ -401,7 +401,7 @@
 				#pwm-cells = <2>;
 			};
 
-			pwm3: pwm@02088000 {
+			pwm3: pwm@2088000 {
 				compatible = "fsl,imx6sx-pwm", "fsl,imx27-pwm";
 				reg = <0x02088000 0x4000>;
 				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -411,7 +411,7 @@
 				#pwm-cells = <2>;
 			};
 
-			pwm4: pwm@0208c000 {
+			pwm4: pwm@208c000 {
 				compatible = "fsl,imx6sx-pwm", "fsl,imx27-pwm";
 				reg = <0x0208c000 0x4000>;
 				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
@@ -421,7 +421,7 @@
 				#pwm-cells = <2>;
 			};
 
-			flexcan1: can@02090000 {
+			flexcan1: can@2090000 {
 				compatible = "fsl,imx6sx-flexcan", "fsl,imx6q-flexcan";
 				reg = <0x02090000 0x4000>;
 				interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
@@ -431,7 +431,7 @@
 				status = "disabled";
 			};
 
-			flexcan2: can@02094000 {
+			flexcan2: can@2094000 {
 				compatible = "fsl,imx6sx-flexcan", "fsl,imx6q-flexcan";
 				reg = <0x02094000 0x4000>;
 				interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
@@ -441,7 +441,7 @@
 				status = "disabled";
 			};
 
-			gpt: gpt@02098000 {
+			gpt: gpt@2098000 {
 				compatible = "fsl,imx6sx-gpt", "fsl,imx31-gpt";
 				reg = <0x02098000 0x4000>;
 				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
@@ -450,7 +450,7 @@
 				clock-names = "ipg", "per";
 			};
 
-			gpio1: gpio@0209c000 {
+			gpio1: gpio@209c000 {
 				compatible = "fsl,imx6sx-gpio", "fsl,imx35-gpio";
 				reg = <0x0209c000 0x4000>;
 				interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>,
@@ -462,7 +462,7 @@
 				gpio-ranges = <&iomuxc 0 5 26>;
 			};
 
-			gpio2: gpio@020a0000 {
+			gpio2: gpio@20a0000 {
 				compatible = "fsl,imx6sx-gpio", "fsl,imx35-gpio";
 				reg = <0x020a0000 0x4000>;
 				interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
@@ -474,7 +474,7 @@
 				gpio-ranges = <&iomuxc 0 31 20>;
 			};
 
-			gpio3: gpio@020a4000 {
+			gpio3: gpio@20a4000 {
 				compatible = "fsl,imx6sx-gpio", "fsl,imx35-gpio";
 				reg = <0x020a4000 0x4000>;
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
@@ -486,7 +486,7 @@
 				gpio-ranges = <&iomuxc 0 51 29>;
 			};
 
-			gpio4: gpio@020a8000 {
+			gpio4: gpio@20a8000 {
 				compatible = "fsl,imx6sx-gpio", "fsl,imx35-gpio";
 				reg = <0x020a8000 0x4000>;
 				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
@@ -498,7 +498,7 @@
 				gpio-ranges = <&iomuxc 0 80 32>;
 			};
 
-			gpio5: gpio@020ac000 {
+			gpio5: gpio@20ac000 {
 				compatible = "fsl,imx6sx-gpio", "fsl,imx35-gpio";
 				reg = <0x020ac000 0x4000>;
 				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
@@ -510,7 +510,7 @@
 				gpio-ranges = <&iomuxc 0 112 24>;
 			};
 
-			gpio6: gpio@020b0000 {
+			gpio6: gpio@20b0000 {
 				compatible = "fsl,imx6sx-gpio", "fsl,imx35-gpio";
 				reg = <0x020b0000 0x4000>;
 				interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
@@ -522,7 +522,7 @@
 				gpio-ranges = <&iomuxc 0 136 12>, <&iomuxc 12 158 11>;
 			};
 
-			gpio7: gpio@020b4000 {
+			gpio7: gpio@20b4000 {
 				compatible = "fsl,imx6sx-gpio", "fsl,imx35-gpio";
 				reg = <0x020b4000 0x4000>;
 				interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
@@ -534,7 +534,7 @@
 				gpio-ranges = <&iomuxc 0 148 10>, <&iomuxc 10 169 2>;
 			};
 
-			kpp: kpp@020b8000 {
+			kpp: kpp@20b8000 {
 				compatible = "fsl,imx6sx-kpp", "fsl,imx21-kpp";
 				reg = <0x020b8000 0x4000>;
 				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
@@ -542,14 +542,14 @@
 				status = "disabled";
 			};
 
-			wdog1: wdog@020bc000 {
+			wdog1: wdog@20bc000 {
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";
 				reg = <0x020bc000 0x4000>;
 				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_DUMMY>;
 			};
 
-			wdog2: wdog@020c0000 {
+			wdog2: wdog@20c0000 {
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";
 				reg = <0x020c0000 0x4000>;
 				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
@@ -557,7 +557,7 @@
 				status = "disabled";
 			};
 
-			clks: ccm@020c4000 {
+			clks: ccm@20c4000 {
 				compatible = "fsl,imx6sx-ccm";
 				reg = <0x020c4000 0x4000>;
 				interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>,
@@ -567,7 +567,7 @@
 				clock-names = "ckil", "osc", "ipp_di0", "ipp_di1";
 			};
 
-			anatop: anatop@020c8000 {
+			anatop: anatop@20c8000 {
 				compatible = "fsl,imx6sx-anatop", "fsl,imx6q-anatop",
 					     "syscon", "simple-bus";
 				reg = <0x020c8000 0x1000>;
@@ -675,11 +675,12 @@
 				compatible = "fsl,imx6sx-tempmon", "fsl,imx6q-tempmon";
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 				fsl,tempmon = <&anatop>;
-				fsl,tempmon-data = <&ocotp>;
+				nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+				nvmem-cell-names = "calib", "temp_grade";
 				clocks = <&clks IMX6SX_CLK_PLL3_USB_OTG>;
 			};
 
-			usbphy1: usbphy@020c9000 {
+			usbphy1: usbphy@20c9000 {
 				compatible = "fsl,imx6sx-usbphy", "fsl,imx23-usbphy";
 				reg = <0x020c9000 0x1000>;
 				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
@@ -687,7 +688,7 @@
 				fsl,anatop = <&anatop>;
 			};
 
-			usbphy2: usbphy@020ca000 {
+			usbphy2: usbphy@20ca000 {
 				compatible = "fsl,imx6sx-usbphy", "fsl,imx23-usbphy";
 				reg = <0x020ca000 0x1000>;
 				interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
@@ -695,7 +696,7 @@
 				fsl,anatop = <&anatop>;
 			};
 
-			snvs: snvs@020cc000 {
+			snvs: snvs@20cc000 {
 				compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
 				reg = <0x020cc000 0x4000>;
 
@@ -710,6 +711,7 @@
 					compatible = "syscon-poweroff";
 					regmap = <&snvs>;
 					offset = <0x38>;
+					value = <0x60>;
 					mask = <0x60>;
 					status = "disabled";
 				};
@@ -723,17 +725,17 @@
 				};
 			};
 
-			epit1: epit@020d0000 {
+			epit1: epit@20d0000 {
 				reg = <0x020d0000 0x4000>;
 				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			epit2: epit@020d4000 {
+			epit2: epit@20d4000 {
 				reg = <0x020d4000 0x4000>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			src: src@020d8000 {
+			src: src@20d8000 {
 				compatible = "fsl,imx6sx-src", "fsl,imx51-src";
 				reg = <0x020d8000 0x4000>;
 				interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
@@ -741,7 +743,7 @@
 				#reset-cells = <1>;
 			};
 
-			gpc: gpc@020dc000 {
+			gpc: gpc@20dc000 {
 				compatible = "fsl,imx6sx-gpc", "fsl,imx6q-gpc";
 				reg = <0x020dc000 0x4000>;
 				interrupt-controller;
@@ -750,18 +752,18 @@
 				interrupt-parent = <&intc>;
 			};
 
-			iomuxc: iomuxc@020e0000 {
+			iomuxc: iomuxc@20e0000 {
 				compatible = "fsl,imx6sx-iomuxc";
 				reg = <0x020e0000 0x4000>;
 			};
 
-			gpr: iomuxc-gpr@020e4000 {
+			gpr: iomuxc-gpr@20e4000 {
 				compatible = "fsl,imx6sx-iomuxc-gpr",
 					     "fsl,imx6q-iomuxc-gpr", "syscon";
 				reg = <0x020e4000 0x4000>;
 			};
 
-			sdma: sdma@020ec000 {
+			sdma: sdma@20ec000 {
 				compatible = "fsl,imx6sx-sdma", "fsl,imx6q-sdma";
 				reg = <0x020ec000 0x4000>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
@@ -774,7 +776,7 @@
 			};
 		};
 
-		aips2: aips-bus@02100000 {
+		aips2: aips-bus@2100000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -808,7 +810,7 @@
 				};
 			};
 
-			usbotg1: usb@02184000 {
+			usbotg1: usb@2184000 {
 				compatible = "fsl,imx6sx-usb", "fsl,imx27-usb";
 				reg = <0x02184000 0x200>;
 				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
@@ -822,7 +824,7 @@
 				status = "disabled";
 			};
 
-			usbotg2: usb@02184200 {
+			usbotg2: usb@2184200 {
 				compatible = "fsl,imx6sx-usb", "fsl,imx27-usb";
 				reg = <0x02184200 0x200>;
 				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
@@ -835,7 +837,7 @@
 				status = "disabled";
 			};
 
-			usbh: usb@02184400 {
+			usbh: usb@2184400 {
 				compatible = "fsl,imx6sx-usb", "fsl,imx27-usb";
 				reg = <0x02184400 0x200>;
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
@@ -850,14 +852,14 @@
 				status = "disabled";
 			};
 
-			usbmisc: usbmisc@02184800 {
+			usbmisc: usbmisc@2184800 {
 				#index-cells = <1>;
 				compatible = "fsl,imx6sx-usbmisc", "fsl,imx6q-usbmisc";
 				reg = <0x02184800 0x200>;
 				clocks = <&clks IMX6SX_CLK_USBOH3>;
 			};
 
-			fec1: ethernet@02188000 {
+			fec1: ethernet@2188000 {
 				compatible = "fsl,imx6sx-fec", "fsl,imx6q-fec";
 				reg = <0x02188000 0x4000>;
 				interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
@@ -874,7 +876,7 @@
 				status = "disabled";
 			};
 
-			mlb: mlb@0218c000 {
+			mlb: mlb@218c000 {
 				reg = <0x0218c000 0x4000>;
 				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
@@ -883,7 +885,7 @@
 				status = "disabled";
 			};
 
-			usdhc1: usdhc@02190000 {
+			usdhc1: usdhc@2190000 {
 				compatible = "fsl,imx6sx-usdhc", "fsl,imx6sl-usdhc";
 				reg = <0x02190000 0x4000>;
 				interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
@@ -895,7 +897,7 @@
 				status = "disabled";
 			};
 
-			usdhc2: usdhc@02194000 {
+			usdhc2: usdhc@2194000 {
 				compatible = "fsl,imx6sx-usdhc", "fsl,imx6sl-usdhc";
 				reg = <0x02194000 0x4000>;
 				interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
@@ -907,7 +909,7 @@
 				status = "disabled";
 			};
 
-			usdhc3: usdhc@02198000 {
+			usdhc3: usdhc@2198000 {
 				compatible = "fsl,imx6sx-usdhc", "fsl,imx6sl-usdhc";
 				reg = <0x02198000 0x4000>;
 				interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
@@ -919,7 +921,7 @@
 				status = "disabled";
 			};
 
-			usdhc4: usdhc@0219c000 {
+			usdhc4: usdhc@219c000 {
 				compatible = "fsl,imx6sx-usdhc", "fsl,imx6sl-usdhc";
 				reg = <0x0219c000 0x4000>;
 				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
@@ -931,7 +933,7 @@
 				status = "disabled";
 			};
 
-			i2c1: i2c@021a0000 {
+			i2c1: i2c@21a0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-i2c", "fsl,imx21-i2c";
@@ -941,7 +943,7 @@
 				status = "disabled";
 			};
 
-			i2c2: i2c@021a4000 {
+			i2c2: i2c@21a4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-i2c", "fsl,imx21-i2c";
@@ -951,7 +953,7 @@
 				status = "disabled";
 			};
 
-			i2c3: i2c@021a8000 {
+			i2c3: i2c@21a8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-i2c", "fsl,imx21-i2c";
@@ -961,12 +963,12 @@
 				status = "disabled";
 			};
 
-			mmdc: mmdc@021b0000 {
+			mmdc: mmdc@21b0000 {
 				compatible = "fsl,imx6sx-mmdc", "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
 			};
 
-			fec2: ethernet@021b4000 {
+			fec2: ethernet@21b4000 {
 				compatible = "fsl,imx6sx-fec", "fsl,imx6q-fec";
 				reg = <0x021b4000 0x4000>;
 				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
@@ -981,7 +983,7 @@
 				status = "disabled";
 			};
 
-			weim: weim@021b8000 {
+			weim: weim@21b8000 {
 				#address-cells = <2>;
 				#size-cells = <1>;
 				compatible = "fsl,imx6sx-weim", "fsl,imx6q-weim";
@@ -992,13 +994,23 @@
 				status = "disabled";
 			};
 
-			ocotp: ocotp@021bc000 {
+			ocotp: ocotp@21bc000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
 				compatible = "fsl,imx6sx-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
 				clocks = <&clks IMX6SX_CLK_OCOTP>;
+
+				tempmon_calib: calib@38 {
+					reg = <0x38 4>;
+				};
+
+				tempmon_temp_grade: temp-grade@20 {
+					reg = <0x20 4>;
+				};
 			};
 
-			sai1: sai@021d4000 {
+			sai1: sai@21d4000 {
 				compatible = "fsl,imx6sx-sai";
 				reg = <0x021d4000 0x4000>;
 				interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
@@ -1011,13 +1023,13 @@
 				status = "disabled";
 			};
 
-			audmux: audmux@021d8000 {
+			audmux: audmux@21d8000 {
 				compatible = "fsl,imx6sx-audmux", "fsl,imx31-audmux";
 				reg = <0x021d8000 0x4000>;
 				status = "disabled";
 			};
 
-			sai2: sai@021dc000 {
+			sai2: sai@21dc000 {
 				compatible = "fsl,imx6sx-sai";
 				reg = <0x021dc000 0x4000>;
 				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -1030,7 +1042,7 @@
 				status = "disabled";
 			};
 
-			qspi1: qspi@021e0000 {
+			qspi1: qspi@21e0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-qspi";
@@ -1043,7 +1055,7 @@
 				status = "disabled";
 			};
 
-			qspi2: qspi@021e4000 {
+			qspi2: qspi@21e4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-qspi";
@@ -1056,7 +1068,7 @@
 				status = "disabled";
 			};
 
-			uart2: serial@021e8000 {
+			uart2: serial@21e8000 {
 				compatible = "fsl,imx6sx-uart",
 					     "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021e8000 0x4000>;
@@ -1069,7 +1081,7 @@
 				status = "disabled";
 			};
 
-			uart3: serial@021ec000 {
+			uart3: serial@21ec000 {
 				compatible = "fsl,imx6sx-uart",
 					     "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021ec000 0x4000>;
@@ -1082,7 +1094,7 @@
 				status = "disabled";
 			};
 
-			uart4: serial@021f0000 {
+			uart4: serial@21f0000 {
 				compatible = "fsl,imx6sx-uart",
 					     "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021f0000 0x4000>;
@@ -1095,7 +1107,7 @@
 				status = "disabled";
 			};
 
-			uart5: serial@021f4000 {
+			uart5: serial@21f4000 {
 				compatible = "fsl,imx6sx-uart",
 					     "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021f4000 0x4000>;
@@ -1108,7 +1120,7 @@
 				status = "disabled";
 			};
 
-			i2c4: i2c@021f8000 {
+			i2c4: i2c@21f8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-i2c", "fsl,imx21-i2c";
@@ -1119,21 +1131,21 @@
 			};
 		};
 
-		aips3: aips-bus@02200000 {
+		aips3: aips-bus@2200000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x02200000 0x100000>;
 			ranges;
 
-			spba-bus@02200000 {
+			spba-bus@2200000 {
 				compatible = "fsl,spba-bus", "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0x02240000 0x40000>;
 				ranges;
 
-				csi1: csi@02214000 {
+				csi1: csi@2214000 {
 					reg = <0x02214000 0x4000>;
 					interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_DISPLAY_AXI>,
@@ -1143,7 +1155,7 @@
 					status = "disabled";
 				};
 
-				pxp: pxp@02218000 {
+				pxp: pxp@2218000 {
 					reg = <0x02218000 0x4000>;
 					interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_PXP_AXI>,
@@ -1152,7 +1164,7 @@
 					status = "disabled";
 				};
 
-				csi2: csi@0221c000 {
+				csi2: csi@221c000 {
 					reg = <0x0221c000 0x4000>;
 					interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_DISPLAY_AXI>,
@@ -1162,7 +1174,7 @@
 					status = "disabled";
 				};
 
-				lcdif1: lcdif@02220000 {
+				lcdif1: lcdif@2220000 {
 					compatible = "fsl,imx6sx-lcdif", "fsl,imx28-lcdif";
 					reg = <0x02220000 0x4000>;
 					interrupts = <GIC_SPI 5 IRQ_TYPE_EDGE_RISING>;
@@ -1173,7 +1185,7 @@
 					status = "disabled";
 				};
 
-				lcdif2: lcdif@02224000 {
+				lcdif2: lcdif@2224000 {
 					compatible = "fsl,imx6sx-lcdif", "fsl,imx28-lcdif";
 					reg = <0x02224000 0x4000>;
 					interrupts = <GIC_SPI 6 IRQ_TYPE_EDGE_RISING>;
@@ -1184,7 +1196,7 @@
 					status = "disabled";
 				};
 
-				vadc: vadc@02228000 {
+				vadc: vadc@2228000 {
 					reg = <0x02228000 0x4000>, <0x0222c000 0x4000>;
 					reg-names = "vadc-vafe", "vadc-vdec";
 					clocks = <&clks IMX6SX_CLK_VADC>,
@@ -1194,7 +1206,7 @@
 				};
 			};
 
-			adc1: adc@02280000 {
+			adc1: adc@2280000 {
 				compatible = "fsl,imx6sx-adc", "fsl,vf610-adc";
 				reg = <0x02280000 0x4000>;
 				interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
@@ -1205,7 +1217,7 @@
 				status = "disabled";
 			};
 
-			adc2: adc@02284000 {
+			adc2: adc@2284000 {
 				compatible = "fsl,imx6sx-adc", "fsl,vf610-adc";
 				reg = <0x02284000 0x4000>;
 				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
@@ -1216,7 +1228,7 @@
 				status = "disabled";
 			};
 
-			wdog3: wdog@02288000 {
+			wdog3: wdog@2288000 {
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";
 				reg = <0x02288000 0x4000>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
@@ -1224,7 +1236,7 @@
 				status = "disabled";
 			};
 
-			ecspi5: ecspi@0228c000 {
+			ecspi5: ecspi@228c000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6sx-ecspi", "fsl,imx51-ecspi";
@@ -1236,7 +1248,7 @@
 				status = "disabled";
 			};
 
-			uart6: serial@022a0000 {
+			uart6: serial@22a0000 {
 				compatible = "fsl,imx6sx-uart",
 					     "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x022a0000 0x4000>;
@@ -1249,7 +1261,7 @@
 				status = "disabled";
 			};
 
-			pwm5: pwm@022a4000 {
+			pwm5: pwm@22a4000 {
 				compatible = "fsl,imx6sx-pwm", "fsl,imx27-pwm";
 				reg = <0x022a4000 0x4000>;
 				interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
@@ -1259,7 +1271,7 @@
 				#pwm-cells = <2>;
 			};
 
-			pwm6: pwm@022a8000 {
+			pwm6: pwm@22a8000 {
 				compatible = "fsl,imx6sx-pwm", "fsl,imx27-pwm";
 				reg = <0x022a8000 0x4000>;
 				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
@@ -1269,7 +1281,7 @@
 				#pwm-cells = <2>;
 			};
 
-			pwm7: pwm@022ac000 {
+			pwm7: pwm@22ac000 {
 				compatible = "fsl,imx6sx-pwm", "fsl,imx27-pwm";
 				reg = <0x022ac000 0x4000>;
 				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -1279,7 +1291,7 @@
 				#pwm-cells = <2>;
 			};
 
-			pwm8: pwm@0022b0000 {
+			pwm8: pwm@22b0000 {
 				compatible = "fsl,imx6sx-pwm", "fsl,imx27-pwm";
 				reg = <0x0022b0000 0x4000>;
 				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;

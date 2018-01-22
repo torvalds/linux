@@ -55,7 +55,7 @@ Example:
 codec: codec@4b {
 	compatible = "cirrus,cs42l56";
 	reg = <0x4b>;
-	gpio-reset = <&gpio 10 0>;
+	cirrus,gpio-nreset = <&gpio 10 0>;
 	cirrus,chgfreq-divisor = <0x05>;
 	cirrus.ain1_ref_cfg;
 	cirrus,micbias-lvl = <5>;

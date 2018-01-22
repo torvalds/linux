@@ -18,7 +18,6 @@ Example:
 
 	ethernet@40028000 {
 		compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
-		status = "disabled";
 		reg = <0x40028000 0x8000>;
 		reg-names = "stmmaceth";
 		interrupts = <0 61 0>, <0 62 0>;

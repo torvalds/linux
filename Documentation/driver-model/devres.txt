@@ -237,6 +237,7 @@ CLOCK
   devm_clk_get()
   devm_clk_put()
   devm_clk_hw_register()
+  devm_of_clk_add_hw_provider()
 
 DMA
   dmam_alloc_coherent()
@@ -312,6 +313,7 @@ IRQ
   devm_irq_alloc_descs_from()
   devm_irq_alloc_generic_chip()
   devm_irq_setup_generic_chip()
+  devm_irq_sim_init()
 
 LED
   devm_led_classdev_register()

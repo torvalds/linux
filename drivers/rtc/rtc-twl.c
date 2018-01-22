@@ -31,7 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 
 enum twl_class {
 	TWL_4030 = 0,

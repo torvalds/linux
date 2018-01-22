@@ -65,9 +65,9 @@ bool wil_p2p_is_social_scan(struct cfg80211_scan_request *request)
 	       (request->channels[0]->hw_value == P2P_DMG_SOCIAL_CHANNEL);
 }
 
-void wil_p2p_discovery_timer_fn(ulong x)
+void wil_p2p_discovery_timer_fn(struct timer_list *t)
 {
-	struct wil6210_priv *wil = (void *)x;
+	struct wil6210_priv *wil = from_timer(wil, t, p2p.discovery_timer);
 
 	wil_dbg_misc(wil, "p2p_discovery_timer_fn\n");
 

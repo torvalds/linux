@@ -221,7 +221,7 @@ static int ptp_dte_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info ptp_dte_caps = {
+static const struct ptp_clock_info ptp_dte_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "DTE PTP timer",
 	.max_adj	= 50000000,

@@ -105,7 +105,7 @@ static int mt7621_wdt_bootcause(void)
 	return 0;
 }
 
-static struct watchdog_info mt7621_wdt_info = {
+static const struct watchdog_info mt7621_wdt_info = {
 	.identity = "Mediatek Watchdog",
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 };
@@ -135,7 +135,7 @@ static int mt7621_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(mt7621_wdt_base))
 		return PTR_ERR(mt7621_wdt_base);
 
-	mt7621_wdt_reset = devm_reset_control_get(&pdev->dev, NULL);
+	mt7621_wdt_reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (!IS_ERR(mt7621_wdt_reset))
 		reset_control_deassert(mt7621_wdt_reset);
 

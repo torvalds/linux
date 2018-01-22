@@ -194,6 +194,7 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gicp->dev = &pdev->dev;
+	spin_lock_init(&gicp->spi_lock);
 
 	gicp->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!gicp->res)

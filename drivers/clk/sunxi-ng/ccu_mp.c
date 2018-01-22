@@ -172,3 +172,83 @@ const struct clk_ops ccu_mp_ops = {
 	.recalc_rate	= ccu_mp_recalc_rate,
 	.set_rate	= ccu_mp_set_rate,
 };
+
+/*
+ * Support for MMC timing mode switching
+ *
+ * The MMC clocks on some SoCs support switching between old and
+ * new timing modes. A platform specific API is provided to query
+ * and set the timing mode on supported SoCs.
+ *
+ * In addition, a special class of ccu_mp_ops is provided, which
+ * takes in to account the timing mode switch. When the new timing
+ * mode is active, the clock output rate is halved. This new class
+ * is a wrapper around the generic ccu_mp_ops. When clock rates
+ * are passed through to ccu_mp_ops callbacks, they are doubled
+ * if the new timing mode bit is set, to account for the post
+ * divider. Conversely, when clock rates are passed back, they
+ * are halved if the mode bit is set.
+ */
+
+static unsigned long ccu_mp_mmc_recalc_rate(struct clk_hw *hw,
+					    unsigned long parent_rate)
+{
+	unsigned long rate = ccu_mp_recalc_rate(hw, parent_rate);
+	struct ccu_common *cm = hw_to_ccu_common(hw);
+	u32 val = readl(cm->base + cm->reg);
+
+	if (val & CCU_MMC_NEW_TIMING_MODE)
+		return rate / 2;
+	return rate;
+}
+
+static int ccu_mp_mmc_determine_rate(struct clk_hw *hw,
+				     struct clk_rate_request *req)
+{
+	struct ccu_common *cm = hw_to_ccu_common(hw);
+	u32 val = readl(cm->base + cm->reg);
+	int ret;
+
+	/* adjust the requested clock rate */
+	if (val & CCU_MMC_NEW_TIMING_MODE) {
+		req->rate *= 2;
+		req->min_rate *= 2;
+		req->max_rate *= 2;
+	}
+
+	ret = ccu_mp_determine_rate(hw, req);
+
+	/* re-adjust the requested clock rate back */
+	if (val & CCU_MMC_NEW_TIMING_MODE) {
+		req->rate /= 2;
+		req->min_rate /= 2;
+		req->max_rate /= 2;
+	}
+
+	return ret;
+}
+
+static int ccu_mp_mmc_set_rate(struct clk_hw *hw, unsigned long rate,
+			       unsigned long parent_rate)
+{
+	struct ccu_common *cm = hw_to_ccu_common(hw);
+	u32 val = readl(cm->base + cm->reg);
+
+	if (val & CCU_MMC_NEW_TIMING_MODE)
+		rate *= 2;
+
+	return ccu_mp_set_rate(hw, rate, parent_rate);
+}
+
+const struct clk_ops ccu_mp_mmc_ops = {
+	.disable	= ccu_mp_disable,
+	.enable		= ccu_mp_enable,
+	.is_enabled	= ccu_mp_is_enabled,
+
+	.get_parent	= ccu_mp_get_parent,
+	.set_parent	= ccu_mp_set_parent,
+
+	.determine_rate	= ccu_mp_mmc_determine_rate,
+	.recalc_rate	= ccu_mp_mmc_recalc_rate,
+	.set_rate	= ccu_mp_mmc_set_rate,
+};

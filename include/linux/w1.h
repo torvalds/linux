@@ -68,6 +68,7 @@ struct w1_reg_num {
  * @family: module for device family type
  * @family_data: pointer for use by the family module
  * @dev: kernel device identifier
+ * @hwmon: pointer to hwmon device
  *
  */
 struct w1_slave {
@@ -83,6 +84,7 @@ struct w1_slave {
 	struct w1_family	*family;
 	void			*family_data;
 	struct device		dev;
+	struct device		*hwmon;
 };
 
 typedef void (*w1_slave_found_callback)(struct w1_master *, u64);
@@ -250,11 +252,13 @@ void w1_remove_master_device(struct w1_bus_master *master);
  * @add_slave: add_slave
  * @remove_slave: remove_slave
  * @groups: sysfs group
+ * @chip_info: pointer to struct hwmon_chip_info
  */
 struct w1_family_ops {
 	int  (*add_slave)(struct w1_slave *sl);
 	void (*remove_slave)(struct w1_slave *sl);
 	const struct attribute_group **groups;
+	const struct hwmon_chip_info *chip_info;
 };
 
 /**
@@ -289,6 +293,7 @@ void w1_unregister_family(struct w1_family *family);
 			w1_unregister_family)
 
 u8 w1_triplet(struct w1_master *dev, int bdir);
+u8 w1_touch_bit(struct w1_master *dev, int bit);
 void w1_write_8(struct w1_master *, u8);
 u8 w1_read_8(struct w1_master *);
 int w1_reset_bus(struct w1_master *);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/types.h>
 #include <net/net_namespace.h>
 #include <linux/netfilter/nf_conntrack_common.h>

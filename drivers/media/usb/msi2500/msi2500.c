@@ -386,7 +386,7 @@ static void msi2500_isoc_handler(struct urb *urb)
 	if (unlikely(urb->status == -ENOENT ||
 		     urb->status == -ECONNRESET ||
 		     urb->status == -ESHUTDOWN)) {
-		dev_dbg(dev->dev, "URB (%p) unlinked %ssynchronuously\n",
+		dev_dbg(dev->dev, "URB (%p) unlinked %ssynchronously\n",
 			urb, urb->status == -ENOENT ? "" : "a");
 		return;
 	}
@@ -1143,7 +1143,7 @@ static const struct v4l2_file_operations msi2500_fops = {
 	.unlocked_ioctl           = video_ioctl2,
 };
 
-static struct video_device msi2500_template = {
+static const struct video_device msi2500_template = {
 	.name                     = "Mirics MSi3101 SDR Dongle",
 	.release                  = video_device_release_empty,
 	.fops                     = &msi2500_fops,
@@ -1308,7 +1308,7 @@ err:
 }
 
 /* USB device ID list */
-static struct usb_device_id msi2500_id_table[] = {
+static const struct usb_device_id msi2500_id_table[] = {
 	{USB_DEVICE(0x1df7, 0x2500)}, /* Mirics MSi3101 SDR Dongle */
 	{USB_DEVICE(0x2040, 0xd300)}, /* Hauppauge WinTV 133559 LF */
 	{}

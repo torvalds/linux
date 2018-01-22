@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for loading USB isight firmware
  *
  * Copyright (C) 2008 Matthew Garrett <mjg@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation, version 2.
  *
  * The USB isight cameras in recent Apples are roughly compatible with the USB
  * video class specification, and can be driven by uvcvideo. However, they

@@ -319,13 +319,10 @@
 	ti,pmic-shutdown-controller;
 
 	charger {
-		interrupts = <0>, <1>;
-		interrupt-names = "USB", "AC";
 		status = "okay";
 	};
 
 	pwrbutton {
-		interrupts = <2>;
 		status = "okay";
 	};
 

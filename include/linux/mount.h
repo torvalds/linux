@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  * Definitions for mount interface. This describes the in the kernel build 

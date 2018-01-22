@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _R819XU_PHYREG_H
 #define _R819XU_PHYREG_H
 

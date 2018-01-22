@@ -10,6 +10,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/tinydrm.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
@@ -128,7 +129,7 @@ tinydrm_fb_create(struct drm_device *drm, struct drm_file *file_priv,
 {
 	struct tinydrm_device *tdev = drm->dev_private;
 
-	return drm_fb_cma_create_with_funcs(drm, file_priv, mode_cmd,
+	return drm_gem_fb_create_with_funcs(drm, file_priv, mode_cmd,
 					    tdev->fb_funcs);
 }
 

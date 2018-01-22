@@ -205,3 +205,12 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs
 
 	return orig_ret_vaddr;
 }
+
+bool arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,
+				struct pt_regs *regs)
+{
+	if (ctx == RP_CHECK_CHAIN_CALL)
+		return regs->gpr[1] <= ret->stack;
+	else
+		return regs->gpr[1] < ret->stack;
+}

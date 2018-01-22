@@ -503,7 +503,7 @@ static struct attribute *bldev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group bldev_attr_group = {
+static const struct attribute_group bldev_attr_group = {
 	.attrs = bldev_attrs,
 };
 
@@ -719,6 +719,9 @@ static int acx565akm_probe(struct spi_device *spi)
 	int r;
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
+
+	if (!spi->dev.of_node)
+		return -ENODEV;
 
 	spi->mode = SPI_MODE_3;
 

@@ -118,12 +118,12 @@ static int __init asp_init_chip(struct parisc_device *dev)
 	return ret;
 }
 
-static struct parisc_device_id asp_tbl[] = {
+static const struct parisc_device_id asp_tbl[] __initconst = {
 	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00070 },
 	{ 0, }
 };
 
-struct parisc_driver asp_driver = {
+struct parisc_driver asp_driver __refdata = {
 	.name =		"asp",
 	.id_table =	asp_tbl,
 	.probe =	asp_init_chip,

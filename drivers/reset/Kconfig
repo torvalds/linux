@@ -28,18 +28,24 @@ config RESET_ATH79
 	  This enables the ATH79 reset controller driver that supports the
 	  AR71xx SoC reset controller.
 
+config RESET_AXS10X
+	bool "AXS10x Reset Driver" if COMPILE_TEST
+	default ARC_PLAT_AXS10X
+	help
+	  This enables the reset controller driver for AXS10x.
+
 config RESET_BERLIN
 	bool "Berlin Reset Driver" if COMPILE_TEST
 	default ARCH_BERLIN
 	help
 	  This enables the reset controller driver for Marvell Berlin SoCs.
 
-config RESET_GEMINI
-	bool "Gemini Reset Driver" if COMPILE_TEST
-	default ARCH_GEMINI
-	select MFD_SYSCON
+config RESET_HSDK
+	bool "Synopsys HSDK Reset Driver"
+	depends on HAS_IOMEM
+	depends on ARC_SOC_HSDK || COMPILE_TEST
 	help
-	  This enables the reset controller driver for Cortina Systems Gemini.
+	  This enables the reset controller driver for HSDK board.
 
 config RESET_IMX7
 	bool "i.MX7 Reset Driver" if COMPILE_TEST
@@ -47,6 +53,12 @@ config RESET_IMX7
 	select MFD_SYSCON
 	help
 	  This enables the reset controller driver for i.MX7 SoCs.
+
+config RESET_LANTIQ
+	bool "Lantiq XWAY Reset Driver" if COMPILE_TEST
+	default SOC_TYPE_XWAY
+	help
+	  This enables the reset controller driver for Lantiq / Intel XWAY SoCs.
 
 config RESET_LPC18XX
 	bool "LPC18xx/43xx Reset Driver" if COMPILE_TEST
@@ -69,21 +81,21 @@ config RESET_PISTACHIO
 	help
 	  This enables the reset driver for ImgTec Pistachio SoCs.
 
-config RESET_SOCFPGA
-	bool "SoCFPGA Reset Driver" if COMPILE_TEST
-	default ARCH_SOCFPGA
+config RESET_SIMPLE
+	bool "Simple Reset Controller Driver" if COMPILE_TEST
+	default ARCH_SOCFPGA || ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX
 	help
-	  This enables the reset controller driver for Altera SoCFPGAs.
+	  This enables a simple reset controller driver for reset lines that
+	  that can be asserted and deasserted by toggling bits in a contiguous,
+	  exclusive register space.
 
-config RESET_STM32
-	bool "STM32 Reset Driver" if COMPILE_TEST
-	default ARCH_STM32
-	help
-	  This enables the RCC reset controller driver for STM32 MCUs.
+	  Currently this driver supports Altera SoCFPGAs, the RCC reset
+	  controller in STM32 MCUs, Allwinner SoCs, and ZTE's zx2967 family.
 
 config RESET_SUNXI
 	bool "Allwinner SoCs Reset Driver" if COMPILE_TEST && !ARCH_SUNXI
 	default ARCH_SUNXI
+	select RESET_SIMPLE
 	help
 	  This enables the reset driver for Allwinner SoCs.
 
@@ -114,12 +126,6 @@ config RESET_UNIPHIER
 	  Support for reset controllers on UniPhier SoCs.
 	  Say Y if you want to control reset signals provided by System Control
 	  block, Media I/O block, Peripheral Block.
-
-config RESET_ZX2967
-	bool "ZTE ZX2967 Reset Driver"
-	depends on ARCH_ZX || COMPILE_TEST
-	help
-	  This enables the reset controller driver for ZTE's zx2967 family.
 
 config RESET_ZYNQ
 	bool "ZYNQ Reset Driver" if COMPILE_TEST

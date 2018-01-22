@@ -24,6 +24,12 @@
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
+
+	uart5_clk: uart5-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <921600>;
+		#clock-cells = <0>;
+	};
 };
 
 &timer {
@@ -32,4 +38,5 @@
 
 &uart5 {
 	status = "okay";
+	clocks = <&uart5_clk>;
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xfrm4_input.c
  *
@@ -22,6 +23,12 @@ int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb)
 	return xfrm4_extract_header(skb);
 }
 
+static int xfrm4_rcv_encap_finish2(struct net *net, struct sock *sk,
+				   struct sk_buff *skb)
+{
+	return dst_input(skb);
+}
+
 static inline int xfrm4_rcv_encap_finish(struct net *net, struct sock *sk,
 					 struct sk_buff *skb)
 {
@@ -32,7 +39,11 @@ static inline int xfrm4_rcv_encap_finish(struct net *net, struct sock *sk,
 					 iph->tos, skb->dev))
 			goto drop;
 	}
-	return dst_input(skb);
+
+	if (xfrm_trans_queue(skb, xfrm4_rcv_encap_finish2))
+		goto drop;
+
+	return 0;
 drop:
 	kfree_skb(skb);
 	return NET_RX_DROP;

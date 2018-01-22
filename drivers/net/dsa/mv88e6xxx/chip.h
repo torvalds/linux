@@ -97,133 +97,6 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6390,  /* 6190 6190X 6191 6290 6390 6390X */
 };
 
-enum mv88e6xxx_cap {
-	/* Energy Efficient Ethernet.
-	 */
-	MV88E6XXX_CAP_EEE,
-
-	/* Multi-chip Addressing Mode.
-	 * Some chips respond to only 2 registers of its own SMI device address
-	 * when it is non-zero, and use indirect access to internal registers.
-	 */
-	MV88E6XXX_CAP_SMI_CMD,		/* (0x00) SMI Command */
-	MV88E6XXX_CAP_SMI_DATA,		/* (0x01) SMI Data */
-
-	/* Switch Global (1) Registers.
-	 */
-	MV88E6XXX_CAP_G1_ATU_FID,	/* (0x01) ATU FID Register */
-	MV88E6XXX_CAP_G1_VTU_FID,	/* (0x02) VTU FID Register */
-
-	/* Switch Global 2 Registers.
-	 * The device contains a second set of global 16-bit registers.
-	 */
-	MV88E6XXX_CAP_GLOBAL2,
-	MV88E6XXX_CAP_G2_INT,		/* (0x00) Interrupt Status */
-	MV88E6XXX_CAP_G2_MGMT_EN_2X,	/* (0x02) MGMT Enable Register 2x */
-	MV88E6XXX_CAP_G2_MGMT_EN_0X,	/* (0x03) MGMT Enable Register 0x */
-	MV88E6XXX_CAP_G2_POT,		/* (0x0f) Priority Override Table */
-
-	/* Per VLAN Spanning Tree Unit (STU).
-	 * The Port State database, if present, is accessed through VTU
-	 * operations and dedicated SID registers. See MV88E6352_G1_VTU_SID.
-	 */
-	MV88E6XXX_CAP_STU,
-
-	/* VLAN Table Unit.
-	 * The VTU is used to program 802.1Q VLANs. See MV88E6XXX_G1_VTU_OP.
-	 */
-	MV88E6XXX_CAP_VTU,
-};
-
-/* Bitmask of capabilities */
-#define MV88E6XXX_FLAG_EEE		BIT_ULL(MV88E6XXX_CAP_EEE)
-
-#define MV88E6XXX_FLAG_SMI_CMD		BIT_ULL(MV88E6XXX_CAP_SMI_CMD)
-#define MV88E6XXX_FLAG_SMI_DATA		BIT_ULL(MV88E6XXX_CAP_SMI_DATA)
-
-#define MV88E6XXX_FLAG_G1_VTU_FID	BIT_ULL(MV88E6XXX_CAP_G1_VTU_FID)
-
-#define MV88E6XXX_FLAG_GLOBAL2		BIT_ULL(MV88E6XXX_CAP_GLOBAL2)
-#define MV88E6XXX_FLAG_G2_INT		BIT_ULL(MV88E6XXX_CAP_G2_INT)
-#define MV88E6XXX_FLAG_G2_MGMT_EN_2X	BIT_ULL(MV88E6XXX_CAP_G2_MGMT_EN_2X)
-#define MV88E6XXX_FLAG_G2_MGMT_EN_0X	BIT_ULL(MV88E6XXX_CAP_G2_MGMT_EN_0X)
-#define MV88E6XXX_FLAG_G2_POT		BIT_ULL(MV88E6XXX_CAP_G2_POT)
-
-/* Multi-chip Addressing Mode */
-#define MV88E6XXX_FLAGS_MULTI_CHIP	\
-	(MV88E6XXX_FLAG_SMI_CMD |	\
-	 MV88E6XXX_FLAG_SMI_DATA)
-
-#define MV88E6XXX_FLAGS_FAMILY_6095	\
-	(MV88E6XXX_FLAG_GLOBAL2 |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6097	\
-	(MV88E6XXX_FLAG_G1_VTU_FID |	\
-	 MV88E6XXX_FLAG_GLOBAL2 |	\
-	 MV88E6XXX_FLAG_G2_INT |        \
-	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6165	\
-	(MV88E6XXX_FLAG_G1_VTU_FID |	\
-	 MV88E6XXX_FLAG_GLOBAL2 |	\
-	 MV88E6XXX_FLAG_G2_INT |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6185	\
-	(MV88E6XXX_FLAG_GLOBAL2 |	\
-	 MV88E6XXX_FLAG_G2_INT |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6320	\
-	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAG_GLOBAL2 |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6341	\
-	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAG_G1_VTU_FID |	\
-	 MV88E6XXX_FLAG_GLOBAL2 |	\
-	 MV88E6XXX_FLAG_G2_INT |	\
-	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6351	\
-	(MV88E6XXX_FLAG_G1_VTU_FID |	\
-	 MV88E6XXX_FLAG_GLOBAL2 |	\
-	 MV88E6XXX_FLAG_G2_INT |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6352	\
-	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAG_G1_VTU_FID |	\
-	 MV88E6XXX_FLAG_GLOBAL2 |	\
-	 MV88E6XXX_FLAG_G2_INT |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
-	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6390	\
-	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAG_GLOBAL2 |	\
-	 MV88E6XXX_FLAG_G2_INT |        \
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
-
 struct mv88e6xxx_ops;
 
 struct mv88e6xxx_info {
@@ -235,11 +108,18 @@ struct mv88e6xxx_info {
 	unsigned int max_vid;
 	unsigned int port_base_addr;
 	unsigned int global1_addr;
+	unsigned int global2_addr;
 	unsigned int age_time_coeff;
 	unsigned int g1_irqs;
+	unsigned int g2_irqs;
 	bool pvt;
+
+	/* Multi-chip Addressing Mode.
+	 * Some chips respond to only 2 registers of its own SMI device address
+	 * when it is non-zero, and use indirect access to internal registers.
+	 */
+	bool multi_chip;
 	enum dsa_tag_protocol tag_protocol;
-	unsigned long long flags;
 
 	/* Mask for FromPort and ToPort value of PortVec used in ATU Move
 	 * operation. 0 means that the ATU Move operation is not supported.
@@ -359,6 +239,9 @@ struct mv88e6xxx_ops {
 			 struct mii_bus *bus,
 			 int addr, int reg, u16 val);
 
+	/* Priority Override Table operations */
+	int (*pot_clear)(struct mv88e6xxx_chip *chip);
+
 	/* PHY Polling Unit (PPU) operations */
 	int (*ppu_enable)(struct mv88e6xxx_chip *chip);
 	int (*ppu_disable)(struct mv88e6xxx_chip *chip);
@@ -449,7 +332,6 @@ struct mv88e6xxx_ops {
 	int (*set_egress_port)(struct mv88e6xxx_chip *chip, int port);
 	const struct mv88e6xxx_irq_ops *watchdog_ops;
 
-	/* Can be either in g1 or g2, so don't use a prefix */
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
 
 	/* Power on/off a SERDES interface */
@@ -481,12 +363,6 @@ struct mv88e6xxx_hw_stat {
 	int reg;
 	int type;
 };
-
-static inline bool mv88e6xxx_has(struct mv88e6xxx_chip *chip,
-				 unsigned long flags)
-{
-	return (chip->info->flags & flags) == flags;
-}
 
 static inline bool mv88e6xxx_has_pvt(struct mv88e6xxx_chip *chip)
 {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* net/atm/signaling.c - ATM signaling */
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -217,7 +218,7 @@ static void sigd_close(struct atm_vcc *vcc)
 	read_unlock(&vcc_sklist_lock);
 }
 
-static struct atmdev_ops sigd_dev_ops = {
+static const struct atmdev_ops sigd_dev_ops = {
 	.close = sigd_close,
 	.send =	sigd_send
 };

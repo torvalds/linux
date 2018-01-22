@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * hw.h - DesignWare HS OTG Controller hardware definitions
  *

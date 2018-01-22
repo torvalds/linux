@@ -51,6 +51,7 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio6 23 GPIO_ACTIVE_LOW>;	/* gpio_183 */
 		vcc-supply = <&hsusb2_power>;
+		#phy-cells = <0>;
 	};
 
 	/* Regulator to trigger the nPoweron signal of the Wifi module */
@@ -181,7 +182,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&w3cbw003c_npoweron>;
-	vmmc_aux-supply = <&w3cbw003c_wifi_nreset>;
+	vqmmc-supply = <&w3cbw003c_wifi_nreset>;
 	bus-width = <4>;
 	cap-sdio-irq;
 	non-removable;

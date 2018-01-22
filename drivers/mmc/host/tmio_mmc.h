@@ -81,13 +81,13 @@
 #define TMIO_STAT_CMD_BUSY      BIT(30)
 #define TMIO_STAT_ILL_ACCESS    BIT(31)
 
+/* Definitions for values the CTL_SD_CARD_CLK_CTL register can take */
 #define	CLK_CTL_DIV_MASK	0xff
 #define	CLK_CTL_SCLKEN		BIT(8)
 
+/* Definitions for values the CTL_SD_MEM_CARD_OPT register can take */
 #define CARD_OPT_WIDTH8		BIT(13)
 #define CARD_OPT_WIDTH		BIT(15)
-
-#define TMIO_BBS		512		/* Boot block size */
 
 /* Definitions for values the CTL_SDIO_STATUS register can take */
 #define TMIO_SDIO_STAT_IOIRQ	0x0001
@@ -96,6 +96,9 @@
 #define TMIO_SDIO_MASK_ALL	0xc007
 
 #define TMIO_SDIO_SETBITS_MASK	0x0006
+
+/* Definitions for values the CTL_DMA_ENABLE register can take */
+#define DMA_ENABLE_DMASDRW	BIT(1)
 
 /* Define some IRQ masks */
 /* This is the mask used at reset by the chip */
@@ -122,6 +125,7 @@ struct tmio_mmc_dma_ops {
 			struct tmio_mmc_data *pdata);
 	void (*release)(struct tmio_mmc_host *host);
 	void (*abort)(struct tmio_mmc_host *host);
+	void (*dataend)(struct tmio_mmc_host *host);
 };
 
 struct tmio_mmc_host {
@@ -151,6 +155,7 @@ struct tmio_mmc_host {
 	struct dma_chan		*chan_rx;
 	struct dma_chan		*chan_tx;
 	struct completion	dma_dataend;
+	struct tasklet_struct	dma_complete;
 	struct tasklet_struct	dma_issue;
 	struct scatterlist	bounce_sg;
 	u8			*bounce_buf;

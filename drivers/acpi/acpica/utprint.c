@@ -176,7 +176,7 @@ const char *acpi_ut_scan_number(const char *string, u64 *number_ptr)
 	u64 number = 0;
 
 	while (isdigit((int)*string)) {
-		number *= 10;
+		acpi_ut_short_multiply(number, 10, &number);
 		number += *(string++) - '0';
 	}
 
@@ -286,7 +286,7 @@ static char *acpi_ut_format_number(char *string,
 	/* Generate full string in reverse order */
 
 	pos = acpi_ut_put_number(reversed_string, number, base, upper);
-	i = ACPI_PTR_DIFF(pos, reversed_string);
+	i = (s32)ACPI_PTR_DIFF(pos, reversed_string);
 
 	/* Printing 100 using %2d gives "100", not "00" */
 
@@ -475,7 +475,7 @@ int vsnprintf(char *string, acpi_size size, const char *format, va_list args)
 			if (!s) {
 				s = "<NULL>";
 			}
-			length = acpi_ut_bound_string_length(s, precision);
+			length = (s32)acpi_ut_bound_string_length(s, precision);
 			if (!(type & ACPI_FORMAT_LEFT)) {
 				while (length < width--) {
 					pos =
@@ -579,7 +579,7 @@ int vsnprintf(char *string, acpi_size size, const char *format, va_list args)
 		}
 	}
 
-	return (ACPI_PTR_DIFF(pos, string));
+	return ((int)ACPI_PTR_DIFF(pos, string));
 }
 
 /*******************************************************************************

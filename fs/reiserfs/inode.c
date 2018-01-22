@@ -1776,7 +1776,7 @@ int reiserfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct reiserfs_transaction_handle th;
 	int jbegin_count = 1;
 
-	if (inode->i_sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(inode->i_sb))
 		return -EROFS;
 	/*
 	 * memory pressure can sometimes initiate write_inode calls with
@@ -2106,7 +2106,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 			journal_end(th);
 			goto out_inserted_sd;
 		}
-	} else if (inode->i_sb->s_flags & MS_POSIXACL) {
+	} else if (inode->i_sb->s_flags & SB_POSIXACL) {
 		reiserfs_warning(inode->i_sb, "jdm-13090",
 				 "ACLs aren't enabled in the fs, "
 				 "but vfs thinks they are!");

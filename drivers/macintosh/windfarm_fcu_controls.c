@@ -470,8 +470,8 @@ static void wf_fcu_lookup_fans(struct wf_fcu_priv *pv)
 				id = ((*reg) - 0x30) / 2;
 			if (id > 7) {
 				pr_warning("wf_fcu: Can't parse "
-				       "fan ID in device-tree for %s\n",
-					   np->full_name);
+				       "fan ID in device-tree for %pOF\n",
+					   np);
 				break;
 			}
 			wf_fcu_add_fan(pv, name, type, id);

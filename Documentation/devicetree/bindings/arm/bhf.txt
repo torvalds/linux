@@ -1,0 +1,6 @@
+Beckhoff Automation Platforms Device Tree Bindings
+--------------------------------------------------
+
+CX9020 Embedded PC
+Required root node properties:
+    - compatible = "bhf,cx9020", "fsl,imx53";

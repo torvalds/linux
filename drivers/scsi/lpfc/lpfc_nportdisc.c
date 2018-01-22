@@ -216,7 +216,7 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	pring = lpfc_phba_elsring(phba);
 
 	/* In case of error recovery path, we might have a NULL pring here */
-	if (!pring)
+	if (unlikely(!pring))
 		return;
 
 	/* Abort outstanding I/O on NPort <nlp_DID> */
@@ -1724,6 +1724,9 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 				lpfc_nvme_update_localport(vport);
 			}
 
+		} else if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
+			ndlp->nlp_fc4_type |= NLP_FC4_FCP;
+
 		} else if (ndlp->nlp_fc4_type == 0) {
 			rc = lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID,
 					 0, ndlp->nlp_DID);
@@ -1890,6 +1893,15 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		if ((vport->port_type == LPFC_NPIV_PORT) &&
 		    vport->cfg_restrict_login) {
 			goto out;
+		}
+
+		/* When the rport rejected the FCP PRLI as unsupported.
+		 * This should only happen in Pt2Pt so an NVME PRLI
+		 * should be outstanding still.
+		 */
+		if (npr && ndlp->nlp_flag & NLP_FCP_PRLI_RJT) {
+			ndlp->nlp_fc4_type &= ~NLP_FC4_FCP;
+			goto out_err;
 		}
 
 		/* The LS Req had some error.  Don't let this be a
@@ -2189,12 +2201,15 @@ lpfc_device_rm_logo_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			  void *arg, uint32_t evt)
 {
 	/*
-	 * Take no action.  If a LOGO is outstanding, then possibly DevLoss has
-	 * timed out and is calling for Device Remove.  In this case, the LOGO
-	 * must be allowed to complete in state LOGO_ISSUE so that the rpi
-	 * and other NLP flags are correctly cleaned up.
+	 * DevLoss has timed out and is calling for Device Remove.
+	 * In this case, abort the LOGO and cleanup the ndlp
 	 */
-	return ndlp->nlp_state;
+
+	lpfc_unreg_rpi(vport, ndlp);
+	/* software abort outstanding PLOGI */
+	lpfc_els_abort(vport->phba, ndlp);
+	lpfc_drop_node(vport, ndlp);
+	return NLP_STE_FREED_NODE;
 }
 
 static uint32_t

@@ -1,6 +1,6 @@
 * Freescale i.MX6 PCIe interface
 
-This PCIe host controller is based on the Synopsis Designware PCIe IP
+This PCIe host controller is based on the Synopsys DesignWare PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
@@ -52,7 +52,7 @@ Additional required properties for imx7d-pcie:
 
 Example:
 
-	pcie@0x01000000 {
+	pcie@01000000 {
 		compatible = "fsl,imx6q-pcie", "snps,dw-pcie";
 		reg = <0x01ffc000 0x04000>,
 		      <0x01f00000 0x80000>;

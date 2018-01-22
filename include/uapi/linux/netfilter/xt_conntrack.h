@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /* Header file for kernel module to match connection tracking information.
  * GPL (C) 2001  Marc Boucher (marc@mbsi.ca).
  */

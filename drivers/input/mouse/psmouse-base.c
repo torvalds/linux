@@ -101,7 +101,7 @@ static struct attribute *psmouse_attributes[] = {
 	NULL
 };
 
-static struct attribute_group psmouse_attribute_group = {
+static const struct attribute_group psmouse_attribute_group = {
 	.attrs	= psmouse_attributes,
 };
 

@@ -350,7 +350,7 @@ If something goes wrong
    help debugging the problem.  The text above the dump is also
    important: it tells something about why the kernel dumped code (in
    the above example, it's due to a bad kernel pointer). More information
-   on making sense of the dump is in Documentation/admin-guide/oops-tracing.rst
+   on making sense of the dump is in Documentation/admin-guide/bug-hunting.rst
 
  - If you compiled the kernel with CONFIG_KALLSYMS you can send the dump
    as is, otherwise you will have to use the ``ksymoops`` program to make

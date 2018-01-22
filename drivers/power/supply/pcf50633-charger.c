@@ -43,7 +43,6 @@ int pcf50633_mbc_usb_curlim_set(struct pcf50633 *pcf, int ma)
 	struct pcf50633_mbc *mbc = platform_get_drvdata(pcf->mbc_pdev);
 	int ret = 0;
 	u8 bits;
-	int charging_start = 1;
 	u8 mbcs2, chgmod;
 	unsigned int mbcc5;
 
@@ -58,7 +57,6 @@ int pcf50633_mbc_usb_curlim_set(struct pcf50633 *pcf, int ma)
 		ma = 100;
 	} else {
 		bits = PCF50633_MBCC7_USB_SUSPEND;
-		charging_start = 0;
 		ma = 0;
 	}
 
@@ -254,7 +252,7 @@ static struct attribute *pcf50633_mbc_sysfs_entries[] = {
 	NULL,
 };
 
-static struct attribute_group mbc_attr_group = {
+static const struct attribute_group mbc_attr_group = {
 	.name	= NULL,			/* put in device directory */
 	.attrs	= pcf50633_mbc_sysfs_entries,
 };

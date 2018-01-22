@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - test for function event triggers
 # flags: instance
 #
@@ -26,7 +27,7 @@ do_reset() {
 fail() { # mesg
     do_reset
     echo $1
-    exit $FAIL
+    exit_fail
 }
 
 SLEEP_TIME=".1"
@@ -47,8 +48,7 @@ test_event_enabled() {
 
     e=`cat $EVENT_ENABLE`
     if [ "$e" != $val ]; then
-	echo "Expected $val but found $e"
-	exit 1
+	fail "Expected $val but found $e"
     fi
 }
 

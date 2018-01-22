@@ -83,26 +83,16 @@ struct virtio_crypto_sym_session_info {
 	__u64 session_id;
 };
 
-struct virtio_crypto_ablkcipher_ctx {
-	struct virtio_crypto *vcrypto;
-	struct crypto_tfm *tfm;
-
-	struct virtio_crypto_sym_session_info enc_sess_info;
-	struct virtio_crypto_sym_session_info dec_sess_info;
-};
+struct virtio_crypto_request;
+typedef void (*virtio_crypto_data_callback)
+		(struct virtio_crypto_request *vc_req, int len);
 
 struct virtio_crypto_request {
-	/* Cipher or aead */
-	uint32_t type;
 	uint8_t status;
-	struct virtio_crypto_ablkcipher_ctx *ablkcipher_ctx;
-	struct ablkcipher_request *ablkcipher_req;
 	struct virtio_crypto_op_data_req *req_data;
 	struct scatterlist **sgs;
-	uint8_t *iv;
-	/* Encryption? */
-	bool encrypt;
 	struct data_queue *dataq;
+	virtio_crypto_data_callback alg_cb;
 };
 
 int virtcrypto_devmgr_add_dev(struct virtio_crypto *vcrypto_dev);
@@ -119,10 +109,6 @@ void virtcrypto_dev_stop(struct virtio_crypto *vcrypto);
 int virtio_crypto_ablkcipher_crypt_req(
 	struct crypto_engine *engine,
 	struct ablkcipher_request *req);
-void virtio_crypto_ablkcipher_finalize_req(
-	struct virtio_crypto_request *vc_req,
-	struct ablkcipher_request *req,
-	int err);
 
 void
 virtcrypto_clear_request(struct virtio_crypto_request *vc_req);

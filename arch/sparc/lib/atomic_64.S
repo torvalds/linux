@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* atomic.S: These things are too big to do inline.
  *
  * Copyright (C) 1999, 2007 2012 David S. Miller (davem@davemloft.net)

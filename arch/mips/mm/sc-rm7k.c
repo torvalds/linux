@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sc-rm7k.c: RM7000 cache management functions.
  *

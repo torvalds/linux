@@ -112,12 +112,13 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 				    __pa_symbol(&__vvar_page) >> PAGE_SHIFT);
 	} else if (sym_offset == image->sym_pvclock_page) {
 		struct pvclock_vsyscall_time_info *pvti =
-			pvclock_pvti_cpu0_va();
+			pvclock_get_pvti_cpu0_va();
 		if (pvti && vclock_was_used(VCLOCK_PVCLOCK)) {
-			ret = vm_insert_pfn(
+			ret = vm_insert_pfn_prot(
 				vma,
 				vmf->address,
-				__pa(pvti) >> PAGE_SHIFT);
+				__pa(pvti) >> PAGE_SHIFT,
+				pgprot_decrypted(vma->vm_page_prot));
 		}
 	} else if (sym_offset == image->sym_hvclock_page) {
 		struct ms_hyperv_tsc_page *tsc_pg = hv_get_tsc_page();
@@ -351,7 +352,7 @@ static void vgetcpu_cpu_init(void *arg)
 	 * and 8 bits for the node)
 	 */
 	d.limit0 = cpu | ((node & 0xf) << 12);
-	d.limit = node >> 4;
+	d.limit1 = node >> 4;
 	d.type = 5;		/* RO data, expand down, accessed */
 	d.dpl = 3;		/* Visible to user code */
 	d.s = 1;		/* Not a system segment */

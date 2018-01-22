@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Karol Kosik <karo9@interia.eu>
  * Copyright (C) 2015-2016 Samsung Electronics
  *               Igor Kotrasinski <i.kotrasinsk@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <net/sock.h>
@@ -97,6 +85,13 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 	memset(&pdu_header, 0, sizeof(pdu_header));
 	memset(&msg, 0, sizeof(msg));
 
+	if (urb->actual_length > 0 && !urb->transfer_buffer) {
+		dev_err(&udc->gadget.dev,
+			"urb: actual_length %d transfer_buffer null\n",
+			urb->actual_length);
+		return -1;
+	}
+
 	if (urb_p->type == USB_ENDPOINT_XFER_ISOC)
 		iovnum = 2 + urb->number_of_packets;
 	else
@@ -112,8 +107,8 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 
 	/* 1. setup usbip_header */
 	setup_ret_submit_pdu(&pdu_header, urb_p);
-	usbip_dbg_stub_tx("setup txdata seqnum: %d urb: %p\n",
-			  pdu_header.base.seqnum, urb);
+	usbip_dbg_stub_tx("setup txdata seqnum: %d\n",
+			  pdu_header.base.seqnum);
 	usbip_header_correct_endian(&pdu_header, 1);
 
 	iov[iovnum].iov_base = &pdu_header;

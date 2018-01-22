@@ -236,7 +236,8 @@ vc4_allocate_bin_bo(struct drm_device *drm)
 	INIT_LIST_HEAD(&list);
 
 	while (true) {
-		struct vc4_bo *bo = vc4_bo_create(drm, size, true);
+		struct vc4_bo *bo = vc4_bo_create(drm, size, true,
+						  VC4_BO_TYPE_BIN);
 
 		if (IS_ERR(bo)) {
 			ret = PTR_ERR(bo);
@@ -326,6 +327,9 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 		return ret;
 
 	vc4_v3d_init_hw(vc4->dev);
+
+	/* We disabled the IRQ as part of vc4_irq_uninstall in suspend. */
+	enable_irq(vc4->dev->irq);
 	vc4_irq_postinstall(vc4->dev);
 
 	return 0;

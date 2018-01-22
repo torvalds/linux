@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Toradex AG
+ * Copyright 2014-2017 Toradex AG
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
@@ -55,13 +55,9 @@
 		     "fsl,imx6q";
 
 	aliases {
-		i2c0 = &i2cddc;
-		i2c1 = &i2c1;
+		i2c0 = &i2c1;
+		i2c1 = &i2c3;
 		i2c2 = &i2c2;
-		i2c3 = &i2c3;
-	};
-
-	aliases {
 		rtc0 = &rtc_i2c;
 		rtc1 = &snvs_rtc;
 	};
@@ -80,7 +76,7 @@
 		};
 	};
 
-	lcd_display: display@di0 {
+	lcd_display: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -164,15 +160,10 @@
 };
 
 &hdmi {
-	ddc-i2c-bus = <&i2cddc>;
 	status = "okay";
 };
 
-&i2cddc {
-	status = "okay";
-};
-
-/* GEN1_I2C: I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
+/* I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
 &i2c1 {
 	status = "okay";
 
@@ -186,6 +177,14 @@
 		compatible = "st,m41t00";
 		reg = <0x68>;
 	};
+};
+
+/*
+ * I2C3_SDA/SCL (CAM) on MXM3 pin 201/203 (e.g. camera sensor on carrier
+ * board)
+ */
+&i2c3 {
+	status = "okay";
 };
 
 &ipu1_di1_disp1 {
@@ -268,16 +267,13 @@
 /* SD1 */
 &usdhc2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sd_cd>;
+	pinctrl-0 = <&pinctrl_usdhc2 &pinctrl_sd_cd>;
 	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
 &iomuxc {
-	/*
-	 * Mux the Apalis GPIOs
-	 * GPIO5, 6 used by optional fusion_F0710A kernel module
-	 */
+	/* Mux the Apalis GPIOs */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_apalis_gpio1 &pinctrl_apalis_gpio2
 		     &pinctrl_apalis_gpio3 &pinctrl_apalis_gpio4

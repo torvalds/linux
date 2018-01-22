@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPICCISS_IOCTLH
 #define _UAPICCISS_IOCTLH
 

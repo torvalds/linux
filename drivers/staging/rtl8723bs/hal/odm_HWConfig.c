@@ -106,7 +106,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 	u8 LNA_idx, VGA_idx;
 	PPHY_STATUS_RPT_8192CD_T pPhyStaRpt = (PPHY_STATUS_RPT_8192CD_T)pPhyStatus;
 
-	isCCKrate = (pPktinfo->DataRate <= DESC_RATE11M) ? true : false;
+	isCCKrate = pPktinfo->DataRate <= DESC_RATE11M;
 	pPhyInfo->RxMIMOSignalQuality[ODM_RF_PATH_A] = -1;
 	pPhyInfo->RxMIMOSignalQuality[ODM_RF_PATH_B] = -1;
 

@@ -132,7 +132,6 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
-	num-slots = <1>;
 	vmmc-supply = <&vcc_sd>;
 	status = "okay";
 };
@@ -141,7 +140,6 @@
 	bus-width = <4>;
 	disable-wp;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vcc_wifi>;

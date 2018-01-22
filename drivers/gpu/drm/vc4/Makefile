@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Please keep these build lists sorted!
 
 # core driver code
@@ -24,5 +25,3 @@ vc4-y := \
 vc4-$(CONFIG_DEBUG_FS) += vc4_debugfs.o
 
 obj-$(CONFIG_DRM_VC4)  += vc4.o
-
-CFLAGS_vc4_trace_points.o := -I$(src)

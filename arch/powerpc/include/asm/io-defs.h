@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* This file is meant to be include multiple times by other headers */
 /* last 2 argments are used by platforms/cell/io-workarounds.[ch] */
 

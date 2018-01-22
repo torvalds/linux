@@ -38,16 +38,10 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 
-#ifdef CONFIG_EISA
-#include <linux/ioport.h>
-#include <linux/eisa.h>
-#endif
-
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
 
-#include <asm/kmemcheck.h>
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
 #include <asm/debugreg.h>
@@ -57,6 +51,7 @@
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/fpu/internal.h>
+#include <asm/cpu_entry_area.h>
 #include <asm/mce.h>
 #include <asm/fixmap.h>
 #include <asm/mach_traps.h>
@@ -65,25 +60,19 @@
 #include <asm/trace/mpx.h>
 #include <asm/mpx.h>
 #include <asm/vm86.h>
+#include <asm/umip.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
-
-/* No need to be aligned, but done to keep all IDTs defined the same way. */
-gate_desc debug_idt_table[NR_VECTORS] __page_aligned_bss;
 #else
 #include <asm/processor-flags.h>
 #include <asm/setup.h>
 #include <asm/proto.h>
 #endif
 
-/* Must be page-aligned because the real IDT is used in a fixmap. */
-gate_desc idt_table[NR_VECTORS] __page_aligned_bss;
-
-DECLARE_BITMAP(used_vectors, NR_VECTORS);
-EXPORT_SYMBOL_GPL(used_vectors);
+DECLARE_BITMAP(system_vectors, NR_VECTORS);
 
 static inline void cond_local_irq_enable(struct pt_regs *regs)
 {
@@ -153,8 +142,7 @@ void ist_begin_non_atomic(struct pt_regs *regs)
 	 * will catch asm bugs and any attempt to use ist_preempt_enable
 	 * from double_fault.
 	 */
-	BUG_ON((unsigned long)(current_top_of_stack() -
-			       current_stack_pointer()) >= THREAD_SIZE);
+	BUG_ON(!on_thread_stack());
 
 	preempt_enable_no_resched();
 }
@@ -219,9 +207,6 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 
 	if (!user_mode(regs)) {
 		if (fixup_exception(regs, trapnr))
-			return 0;
-
-		if (fixup_bug(regs, trapnr))
 			return 0;
 
 		tsk->thread.error_code = error_code;
@@ -304,6 +289,13 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
+	/*
+	 * WARN*()s end up here; fix them up before we call the
+	 * notifier chain.
+	 */
+	if (!user_mode(regs) && fixup_bug(regs, trapnr))
+		return;
+
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
 		cond_local_irq_enable(regs);
@@ -357,23 +349,42 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 
 	/*
 	 * If IRET takes a non-IST fault on the espfix64 stack, then we
-	 * end up promoting it to a doublefault.  In that case, modify
-	 * the stack to make it look like we just entered the #GP
-	 * handler from user space, similar to bad_iret.
+	 * end up promoting it to a doublefault.  In that case, take
+	 * advantage of the fact that we're not using the normal (TSS.sp0)
+	 * stack right now.  We can write a fake #GP(0) frame at TSS.sp0
+	 * and then modify our own IRET frame so that, when we return,
+	 * we land directly at the #GP(0) vector with the stack already
+	 * set up according to its expectations.
+	 *
+	 * The net result is that our #GP handler will think that we
+	 * entered from usermode with the bad user context.
 	 *
 	 * No need for ist_enter here because we don't use RCU.
 	 */
-	if (((long)regs->sp >> PGDIR_SHIFT) == ESPFIX_PGD_ENTRY &&
+	if (((long)regs->sp >> P4D_SHIFT) == ESPFIX_PGD_ENTRY &&
 		regs->cs == __KERNEL_CS &&
 		regs->ip == (unsigned long)native_irq_return_iret)
 	{
-		struct pt_regs *normal_regs = task_pt_regs(current);
+		struct pt_regs *gpregs = (struct pt_regs *)this_cpu_read(cpu_tss_rw.x86_tss.sp0) - 1;
 
-		/* Fake a #GP(0) from userspace. */
-		memmove(&normal_regs->ip, (void *)regs->sp, 5*8);
-		normal_regs->orig_ax = 0;  /* Missing (lost) #GP error code */
+		/*
+		 * regs->sp points to the failing IRET frame on the
+		 * ESPFIX64 stack.  Copy it to the entry stack.  This fills
+		 * in gpregs->ss through gpregs->ip.
+		 *
+		 */
+		memmove(&gpregs->ip, (void *)regs->sp, 5*8);
+		gpregs->orig_ax = 0;  /* Missing (lost) #GP error code */
+
+		/*
+		 * Adjust our frame so that we return straight to the #GP
+		 * vector with the expected RSP value.  This is safe because
+		 * we won't enable interupts or schedule before we invoke
+		 * general_protection, so nothing will clobber the stack
+		 * frame we just set up.
+		 */
 		regs->ip = (unsigned long)general_protection;
-		regs->sp = (unsigned long)&normal_regs->orig_ax;
+		regs->sp = (unsigned long)&gpregs->orig_ax;
 
 		return;
 	}
@@ -398,7 +409,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	 *
 	 *   Processors update CR2 whenever a page fault is detected. If a
 	 *   second page fault occurs while an earlier page fault is being
-	 *   deliv- ered, the faulting linear address of the second fault will
+	 *   delivered, the faulting linear address of the second fault will
 	 *   overwrite the contents of CR2 (replacing the previous
 	 *   address). These updates to CR2 occur even if the page fault
 	 *   results in a double fault or occurs during the delivery of a
@@ -526,6 +537,11 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	cond_local_irq_enable(regs);
 
+	if (static_cpu_has(X86_FEATURE_UMIP)) {
+		if (user_mode(regs) && fixup_umip_exception(regs))
+			return;
+	}
+
 	if (v8086_mode(regs)) {
 		local_irq_enable();
 		handle_vm86_fault((struct kernel_vm86_regs *) regs, error_code);
@@ -609,14 +625,15 @@ NOKPROBE_SYMBOL(do_int3);
 
 #ifdef CONFIG_X86_64
 /*
- * Help handler running on IST stack to switch off the IST stack if the
- * interrupted code was in user mode. The actual stack switch is done in
- * entry_64.S
+ * Help handler running on a per-cpu (IST or entry trampoline) stack
+ * to switch to the normal thread stack if the interrupted code was in
+ * user mode. The actual stack switch is done in entry_64.S
  */
 asmlinkage __visible notrace struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
-	struct pt_regs *regs = task_pt_regs(current);
-	*regs = *eregs;
+	struct pt_regs *regs = (struct pt_regs *)this_cpu_read(cpu_current_top_of_stack) - 1;
+	if (regs != eregs)
+		*regs = *eregs;
 	return regs;
 }
 NOKPROBE_SYMBOL(sync_regs);
@@ -632,13 +649,13 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 	/*
 	 * This is called from entry_64.S early in handling a fault
 	 * caused by a bad iret to user mode.  To handle the fault
-	 * correctly, we want move our stack frame to task_pt_regs
-	 * and we want to pretend that the exception came from the
-	 * iret target.
+	 * correctly, we want to move our stack frame to where it would
+	 * be had we entered directly on the entry stack (rather than
+	 * just below the IRET frame) and we want to pretend that the
+	 * exception came from the IRET target.
 	 */
 	struct bad_iret_stack *new_stack =
-		container_of(task_pt_regs(current),
-			     struct bad_iret_stack, regs);
+		(struct bad_iret_stack *)this_cpu_read(cpu_tss_rw.x86_tss.sp0) - 1;
 
 	/* Copy the IRET target to the new stack. */
 	memmove(&new_stack->regs.ip, (void *)s->regs.sp, 5*8);
@@ -752,10 +769,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	if (!dr6 && user_mode(regs))
 		user_icebp = 1;
 
-	/* Catch kmemcheck conditions! */
-	if ((dr6 & DR_STEP) && kmemcheck_trap(regs))
-		goto exit;
-
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
 
@@ -803,14 +816,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_dec();
 
 exit:
-#if defined(CONFIG_X86_32)
-	/*
-	 * This is the most likely code path that involves non-trivial use
-	 * of the SYSENTER stack.  Check that we haven't overrun it.
-	 */
-	WARN(this_cpu_read(cpu_tss.SYSENTER_stack_canary) != STACK_END_MAGIC,
-	     "Overran or corrupted SYSENTER stack\n");
-#endif
 	ist_exit(regs);
 }
 NOKPROBE_SYMBOL(do_debug);
@@ -935,115 +940,30 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 }
 #endif
 
-/* Set of traps needed for early debugging. */
-void __init early_trap_init(void)
-{
-	/*
-	 * Don't use IST to set DEBUG_STACK as it doesn't work until TSS
-	 * is ready in cpu_init() <-- trap_init(). Before trap_init(),
-	 * CPU runs at ring 0 so it is impossible to hit an invalid
-	 * stack.  Using the original stack works well enough at this
-	 * early stage. DEBUG_STACK will be equipped after cpu_init() in
-	 * trap_init().
-	 *
-	 * We don't need to set trace_idt_table like set_intr_gate(),
-	 * since we don't have trace_debug and it will be reset to
-	 * 'debug' in trap_init() by set_intr_gate_ist().
-	 */
-	set_intr_gate_notrace(X86_TRAP_DB, debug);
-	/* int3 can be called from all */
-	set_system_intr_gate(X86_TRAP_BP, &int3);
-#ifdef CONFIG_X86_32
-	set_intr_gate(X86_TRAP_PF, page_fault);
-#endif
-	load_idt(&idt_descr);
-}
-
-void __init early_trap_pf_init(void)
-{
-#ifdef CONFIG_X86_64
-	set_intr_gate(X86_TRAP_PF, page_fault);
-#endif
-}
-
 void __init trap_init(void)
 {
-	int i;
+	/* Init cpu_entry_area before IST entries are set up */
+	setup_cpu_entry_areas();
 
-#ifdef CONFIG_EISA
-	void __iomem *p = early_ioremap(0x0FFFD9, 4);
-
-	if (readl(p) == 'E' + ('I'<<8) + ('S'<<16) + ('A'<<24))
-		EISA_bus = 1;
-	early_iounmap(p, 4);
-#endif
-
-	set_intr_gate(X86_TRAP_DE, divide_error);
-	set_intr_gate_ist(X86_TRAP_NMI, &nmi, NMI_STACK);
-	/* int4 can be called from all */
-	set_system_intr_gate(X86_TRAP_OF, &overflow);
-	set_intr_gate(X86_TRAP_BR, bounds);
-	set_intr_gate(X86_TRAP_UD, invalid_op);
-	set_intr_gate(X86_TRAP_NM, device_not_available);
-#ifdef CONFIG_X86_32
-	set_task_gate(X86_TRAP_DF, GDT_ENTRY_DOUBLEFAULT_TSS);
-#else
-	set_intr_gate_ist(X86_TRAP_DF, &double_fault, DOUBLEFAULT_STACK);
-#endif
-	set_intr_gate(X86_TRAP_OLD_MF, coprocessor_segment_overrun);
-	set_intr_gate(X86_TRAP_TS, invalid_TSS);
-	set_intr_gate(X86_TRAP_NP, segment_not_present);
-	set_intr_gate(X86_TRAP_SS, stack_segment);
-	set_intr_gate(X86_TRAP_GP, general_protection);
-	set_intr_gate(X86_TRAP_SPURIOUS, spurious_interrupt_bug);
-	set_intr_gate(X86_TRAP_MF, coprocessor_error);
-	set_intr_gate(X86_TRAP_AC, alignment_check);
-#ifdef CONFIG_X86_MCE
-	set_intr_gate_ist(X86_TRAP_MC, &machine_check, MCE_STACK);
-#endif
-	set_intr_gate(X86_TRAP_XF, simd_coprocessor_error);
-
-	/* Reserve all the builtin and the syscall vector: */
-	for (i = 0; i < FIRST_EXTERNAL_VECTOR; i++)
-		set_bit(i, used_vectors);
-
-#ifdef CONFIG_IA32_EMULATION
-	set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_compat);
-	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
-#endif
-
-#ifdef CONFIG_X86_32
-	set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
-	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
-#endif
+	idt_setup_traps();
 
 	/*
 	 * Set the IDT descriptor to a fixed read-only location, so that the
 	 * "sidt" instruction will not leak the location of the kernel, and
 	 * to defend the IDT against arbitrary memory write vulnerabilities.
 	 * It will be reloaded in cpu_init() */
-	__set_fixmap(FIX_RO_IDT, __pa_symbol(idt_table), PAGE_KERNEL_RO);
-	idt_descr.address = fix_to_virt(FIX_RO_IDT);
+	cea_set_pte(CPU_ENTRY_AREA_RO_IDT_VADDR, __pa_symbol(idt_table),
+		    PAGE_KERNEL_RO);
+	idt_descr.address = CPU_ENTRY_AREA_RO_IDT;
 
 	/*
 	 * Should be a barrier for any external CPU state:
 	 */
 	cpu_init();
 
-	/*
-	 * X86_TRAP_DB and X86_TRAP_BP have been set
-	 * in early_trap_init(). However, ITS works only after
-	 * cpu_init() loads TSS. See comments in early_trap_init().
-	 */
-	set_intr_gate_ist(X86_TRAP_DB, &debug, DEBUG_STACK);
-	/* int3 can be called from all */
-	set_system_intr_gate_ist(X86_TRAP_BP, &int3, DEBUG_STACK);
+	idt_setup_ist_traps();
 
 	x86_init.irqs.trap_init();
 
-#ifdef CONFIG_X86_64
-	memcpy(&debug_idt_table, &idt_table, IDT_ENTRIES * 16);
-	set_nmi_gate(X86_TRAP_DB, &debug);
-	set_nmi_gate(X86_TRAP_BP, &int3);
-#endif
+	idt_setup_debugidt_traps();
 }

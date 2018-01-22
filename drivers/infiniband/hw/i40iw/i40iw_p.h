@@ -35,11 +35,13 @@
 #ifndef I40IW_P_H
 #define I40IW_P_H
 
-#define PAUSE_TIMER_VALUE  0xFFFF
-#define REFRESH_THRESHOLD  0x7FFF
-#define HIGH_THRESHOLD     0x800
-#define LOW_THRESHOLD      0x200
-#define ALL_TC2PFC         0xFF
+#define PAUSE_TIMER_VALUE       0xFFFF
+#define REFRESH_THRESHOLD       0x7FFF
+#define HIGH_THRESHOLD          0x800
+#define LOW_THRESHOLD           0x200
+#define ALL_TC2PFC              0xFF
+#define CQP_COMPL_WAIT_TIME     0x3E8
+#define CQP_TIMEOUT_THRESHOLD   5
 
 void i40iw_debug_buf(struct i40iw_sc_dev *dev, enum i40iw_debug_flag mask,
 		     char *desc, u64 *buf, u32 size);
@@ -51,9 +53,13 @@ void i40iw_sc_cqp_post_sq(struct i40iw_sc_cqp *cqp);
 
 u64 *i40iw_sc_cqp_get_next_send_wqe(struct i40iw_sc_cqp *cqp, u64 scratch);
 
+void i40iw_check_cqp_progress(struct i40iw_cqp_timeout *cqp_timeout, struct i40iw_sc_dev *dev);
+
 enum i40iw_status_code i40iw_sc_mr_fast_register(struct i40iw_sc_qp *qp,
 						 struct i40iw_fast_reg_stag_info *info,
 						 bool post_sq);
+
+void i40iw_insert_wqe_hdr(u64 *wqe, u64 header);
 
 /* HMC/FPM functions */
 enum i40iw_status_code i40iw_sc_init_iw_hmc(struct i40iw_sc_dev *dev,
@@ -80,7 +86,7 @@ void i40iw_sc_vsi_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_init_info *inf
 
 void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2params);
 void i40iw_qp_add_qos(struct i40iw_sc_qp *qp);
-
+void i40iw_qp_rem_qos(struct i40iw_sc_qp *qp);
 void i40iw_terminate_send_fin(struct i40iw_sc_qp *qp);
 
 void i40iw_terminate_connection(struct i40iw_sc_qp *qp, struct i40iw_aeqe_info *info);
@@ -117,5 +123,6 @@ enum i40iw_status_code i40iw_allocate_virt_mem(struct i40iw_hw *hw,
 enum i40iw_status_code i40iw_free_virt_mem(struct i40iw_hw *hw,
 					   struct i40iw_virt_mem *mem);
 u8 i40iw_get_encoded_wqe_size(u32 wqsize, bool cqpsq);
+void i40iw_reinitialize_ieq(struct i40iw_sc_dev *dev);
 
 #endif

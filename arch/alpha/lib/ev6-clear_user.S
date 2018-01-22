@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/alpha/lib/ev6-clear_user.S
  * 21264 version contributed by Rick Gorton <rick.gorton@alpha-processor.com>

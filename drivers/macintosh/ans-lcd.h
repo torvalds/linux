@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PPC_ANS_LCD_H
 #define _PPC_ANS_LCD_H
 

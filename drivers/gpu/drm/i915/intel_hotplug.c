@@ -76,26 +76,54 @@
  * it will use i915_hotplug_work_func where this logic is handled.
  */
 
-bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port)
+/**
+ * intel_hpd_port - return port hard associated with certain pin.
+ * @pin: the hpd pin to get associated port
+ *
+ * Return port that is associatade with @pin and PORT_NONE if no port is
+ * hard associated with that @pin.
+ */
+enum port intel_hpd_pin_to_port(enum hpd_pin pin)
 {
 	switch (pin) {
 	case HPD_PORT_A:
-		*port = PORT_A;
-		return true;
+		return PORT_A;
 	case HPD_PORT_B:
-		*port = PORT_B;
-		return true;
+		return PORT_B;
 	case HPD_PORT_C:
-		*port = PORT_C;
-		return true;
+		return PORT_C;
 	case HPD_PORT_D:
-		*port = PORT_D;
-		return true;
+		return PORT_D;
 	case HPD_PORT_E:
-		*port = PORT_E;
-		return true;
+		return PORT_E;
 	default:
-		return false;	/* no hpd */
+		return PORT_NONE; /* no port for this pin */
+	}
+}
+
+/**
+ * intel_hpd_pin - return pin hard associated with certain port.
+ * @port: the hpd port to get associated pin
+ *
+ * Return pin that is associatade with @port and HDP_NONE if no pin is
+ * hard associated with that @port.
+ */
+enum hpd_pin intel_hpd_pin(enum port port)
+{
+	switch (port) {
+	case PORT_A:
+		return HPD_PORT_A;
+	case PORT_B:
+		return HPD_PORT_B;
+	case PORT_C:
+		return HPD_PORT_C;
+	case PORT_D:
+		return HPD_PORT_D;
+	case PORT_E:
+		return HPD_PORT_E;
+	default:
+		MISSING_CASE(port);
+		return HPD_NONE;
 	}
 }
 
@@ -389,8 +417,9 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 		if (!(BIT(i) & pin_mask))
 			continue;
 
-		is_dig_port = intel_hpd_pin_to_port(i, &port) &&
-			      dev_priv->hotplug.irq_port[port];
+		port = intel_hpd_pin_to_port(i);
+		is_dig_port = port != PORT_NONE &&
+			dev_priv->hotplug.irq_port[port];
 
 		if (is_dig_port) {
 			bool long_hpd = long_mask & BIT(i);

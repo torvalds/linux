@@ -38,6 +38,12 @@ static inline void *akcipher_request_ctx(struct akcipher_request *req)
 	return req->__ctx;
 }
 
+static inline void akcipher_set_reqsize(struct crypto_akcipher *akcipher,
+					unsigned int reqsize)
+{
+	crypto_akcipher_alg(akcipher)->reqsize = reqsize;
+}
+
 static inline void *akcipher_tfm_ctx(struct crypto_akcipher *tfm)
 {
 	return tfm->base.__crt_ctx;

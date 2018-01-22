@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __TOOLS_KALLSYMS_H_
 #define __TOOLS_KALLSYMS_H_ 1
 

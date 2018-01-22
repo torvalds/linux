@@ -19,7 +19,7 @@ SoC common .dtsi file:
 		allwinner,pull = <0>;
 	};
 ...
-	can0: can@01c2bc00 {
+	can0: can@1c2bc00 {
 		compatible = "allwinner,sun4i-a10-can";
 		reg = <0x01c2bc00 0x400>;
 		interrupts = <0 26 4>;
@@ -29,7 +29,7 @@ SoC common .dtsi file:
 
 Board specific .dts file:
 
-	can0: can@01c2bc00 {
+	can0: can@1c2bc00 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&can0_pins_a>;
 		status = "okay";

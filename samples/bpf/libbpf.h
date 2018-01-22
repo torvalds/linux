@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* eBPF mini library */
 #ifndef __LIBBPF_H
 #define __LIBBPF_H

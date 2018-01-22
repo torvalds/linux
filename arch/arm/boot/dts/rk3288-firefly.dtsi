@@ -46,7 +46,7 @@
 / {
 	memory@0 {
 		device_type = "memory";
-		reg = <0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	adc-keys {
@@ -208,7 +208,6 @@
 	cap-mmc-highspeed;
 	disable-wp;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_pwr>, <&emmc_bus8>;
 	vmmc-supply = <&vcc_io>;
@@ -527,7 +526,6 @@
 	bus-width = <4>;
 	disable-wp;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4>, <&sdio0_cmd>, <&sdio0_clk>;
 	vmmc-supply = <&vbat_wl>;
@@ -541,7 +539,6 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	disable-wp;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk>, <&sdmmc_cmd>, <&sdmmc_cd>, <&sdmmc_bus4>;
 	vmmc-supply = <&vcc_sd>;

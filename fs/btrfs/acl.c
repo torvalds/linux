@@ -114,13 +114,17 @@ out:
 int btrfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	int ret;
+	umode_t old_mode = inode->i_mode;
 
 	if (type == ACL_TYPE_ACCESS && acl) {
 		ret = posix_acl_update_mode(inode, &inode->i_mode, &acl);
 		if (ret)
 			return ret;
 	}
-	return __btrfs_set_acl(NULL, inode, acl, type);
+	ret = __btrfs_set_acl(NULL, inode, acl, type);
+	if (ret)
+		inode->i_mode = old_mode;
+	return ret;
 }
 
 /*

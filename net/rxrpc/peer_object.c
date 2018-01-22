@@ -411,3 +411,16 @@ void rxrpc_kernel_get_peer(struct socket *sock, struct rxrpc_call *call,
 	*_srx = call->peer->srx;
 }
 EXPORT_SYMBOL(rxrpc_kernel_get_peer);
+
+/**
+ * rxrpc_kernel_get_rtt - Get a call's peer RTT
+ * @sock: The socket on which the call is in progress.
+ * @call: The call to query
+ *
+ * Get the call's peer RTT.
+ */
+u64 rxrpc_kernel_get_rtt(struct socket *sock, struct rxrpc_call *call)
+{
+	return call->peer->rtt;
+}
+EXPORT_SYMBOL(rxrpc_kernel_get_rtt);

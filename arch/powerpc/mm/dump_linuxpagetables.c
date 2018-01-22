@@ -112,7 +112,7 @@ struct flag_info {
 
 static const struct flag_info flag_array[] = {
 	{
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 		.mask	= _PAGE_PRIVILEGED,
 		.val	= 0,
 #else
@@ -147,7 +147,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "present",
 		.clear	= "       ",
 	}, {
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 		.mask	= H_PAGE_HASHPTE,
 		.val	= H_PAGE_HASHPTE,
 #else
@@ -157,7 +157,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "hpte",
 		.clear	= "    ",
 	}, {
-#ifndef CONFIG_PPC_STD_MMU_64
+#ifndef CONFIG_PPC_BOOK3S_64
 		.mask	= _PAGE_GUARDED,
 		.val	= _PAGE_GUARDED,
 		.set	= "guarded",
@@ -174,7 +174,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "accessed",
 		.clear	= "        ",
 	}, {
-#ifndef CONFIG_PPC_STD_MMU_64
+#ifndef CONFIG_PPC_BOOK3S_64
 		.mask	= _PAGE_WRITETHRU,
 		.val	= _PAGE_WRITETHRU,
 		.set	= "write through",
@@ -350,7 +350,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 					  st->current_flags,
 					  pg_level[st->level].num);
 
-			seq_puts(st->seq, "\n");
+			seq_putc(st->seq, '\n');
 		}
 
 		/*
@@ -450,7 +450,7 @@ static void populate_markers(void)
 	address_markers[i++].start_address = PHB_IO_END;
 	address_markers[i++].start_address = IOREMAP_BASE;
 	address_markers[i++].start_address = IOREMAP_END;
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	address_markers[i++].start_address =  H_VMEMMAP_BASE;
 #else
 	address_markers[i++].start_address =  VMEMMAP_BASE;

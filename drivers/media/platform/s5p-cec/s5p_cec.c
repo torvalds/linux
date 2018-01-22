@@ -92,7 +92,10 @@ static irqreturn_t s5p_cec_irq_handler(int irq, void *priv)
 	dev_dbg(cec->dev, "irq received\n");
 
 	if (status & CEC_STATUS_TX_DONE) {
-		if (status & CEC_STATUS_TX_ERROR) {
+		if (status & CEC_STATUS_TX_NACK) {
+			dev_dbg(cec->dev, "CEC_STATUS_TX_NACK set\n");
+			cec->tx = STATE_NACK;
+		} else if (status & CEC_STATUS_TX_ERROR) {
 			dev_dbg(cec->dev, "CEC_STATUS_TX_ERROR set\n");
 			cec->tx = STATE_ERROR;
 		} else {
@@ -133,6 +136,12 @@ static irqreturn_t s5p_cec_irq_handler_thread(int irq, void *priv)
 	switch (cec->tx) {
 	case STATE_DONE:
 		cec_transmit_done(cec->adap, CEC_TX_STATUS_OK, 0, 0, 0, 0);
+		cec->tx = STATE_IDLE;
+		break;
+	case STATE_NACK:
+		cec_transmit_done(cec->adap,
+			CEC_TX_STATUS_MAX_RETRIES | CEC_TX_STATUS_NACK,
+			0, 1, 0, 0);
 		cec->tx = STATE_IDLE;
 		break;
 	case STATE_ERROR:
@@ -219,11 +228,8 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	if (cec->notifier == NULL)
 		return -ENOMEM;
 
-	cec->adap = cec_allocate_adapter(&s5p_cec_adap_ops, cec,
-		CEC_NAME,
-		CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC |
-		(needs_hpd ? CEC_CAP_NEEDS_HPD : 0), 1);
+	cec->adap = cec_allocate_adapter(&s5p_cec_adap_ops, cec, CEC_NAME,
+		CEC_CAP_DEFAULTS | (needs_hpd ? CEC_CAP_NEEDS_HPD : 0), 1);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;

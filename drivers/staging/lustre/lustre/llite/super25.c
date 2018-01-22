@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -34,11 +35,11 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include "../include/lustre_ha.h"
-#include "../include/lustre_dlm.h"
+#include <lustre_ha.h>
+#include <lustre_dlm.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include "../include/lprocfs_status.h"
+#include <lprocfs_status.h>
 #include "llite_internal.h"
 
 static struct kmem_cache *ll_inode_cachep;
@@ -88,7 +89,8 @@ static int __init lustre_init(void)
 	struct timespec64 ts;
 	int i, rc, seed[2];
 
-	BUILD_BUG_ON(sizeof(LUSTRE_VOLATILE_HDR) != LUSTRE_VOLATILE_HDR_LEN + 1);
+	BUILD_BUG_ON(sizeof(LUSTRE_VOLATILE_HDR) !=
+		     LUSTRE_VOLATILE_HDR_LEN + 1);
 
 	/* print an address of _any_ initialized kernel symbol from this
 	 * module, to allow debugging with gdb that doesn't support data

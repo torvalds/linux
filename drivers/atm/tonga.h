@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* drivers/atm/tonga.h - Efficient Networks Tonga (PCI bridge) declarations */
  
 /* Written 1995 by Werner Almesberger, EPFL LRC */

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Provides code common for host and device side USB.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
  *
  * If either host side (ie. CONFIG_USB=y) or device side USB stack
  * (ie. CONFIG_USB_GADGET=y) is compiled in the kernel, this module is
@@ -190,10 +187,7 @@ EXPORT_SYMBOL_GPL(of_usb_get_dr_mode_by_phy);
  */
 bool of_usb_host_tpl_support(struct device_node *np)
 {
-	if (of_find_property(np, "tpl-support", NULL))
-		return true;
-
-	return false;
+	return of_property_read_bool(np, "tpl-support");
 }
 EXPORT_SYMBOL_GPL(of_usb_host_tpl_support);
 
@@ -227,8 +221,8 @@ int of_usb_update_otg_caps(struct device_node *np,
 				otg_caps->otg_rev = otg_rev;
 			break;
 		default:
-			pr_err("%s: unsupported otg-rev: 0x%x\n",
-						np->full_name, otg_rev);
+			pr_err("%pOF: unsupported otg-rev: 0x%x\n",
+						np, otg_rev);
 			return -EINVAL;
 		}
 	} else {
@@ -240,11 +234,11 @@ int of_usb_update_otg_caps(struct device_node *np,
 		otg_caps->otg_rev = 0;
 	}
 
-	if (of_find_property(np, "hnp-disable", NULL))
+	if (of_property_read_bool(np, "hnp-disable"))
 		otg_caps->hnp_support = false;
-	if (of_find_property(np, "srp-disable", NULL))
+	if (of_property_read_bool(np, "srp-disable"))
 		otg_caps->srp_support = false;
-	if (of_find_property(np, "adp-disable", NULL) ||
+	if (of_property_read_bool(np, "adp-disable") ||
 				(otg_caps->otg_rev < 0x0200))
 		otg_caps->adp_support = false;
 

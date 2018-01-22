@@ -20,13 +20,13 @@
 #include <memory_access.h>    /* mmmgr_malloc, mhmm_free */
 #include <ia_css_debug.h>
 
-/**
+/*
  * @brief VBUF resource handles
  */
 #define NUM_HANDLES 1000
 struct ia_css_rmgr_vbuf_handle handle_table[NUM_HANDLES];
 
-/**
+/*
  * @brief VBUF resource pool - refpool
  */
 struct ia_css_rmgr_vbuf_pool refpool = {
@@ -37,7 +37,7 @@ struct ia_css_rmgr_vbuf_pool refpool = {
 	NULL,			/* handles */
 };
 
-/**
+/*
  * @brief VBUF resource pool - writepool
  */
 struct ia_css_rmgr_vbuf_pool writepool = {
@@ -48,7 +48,7 @@ struct ia_css_rmgr_vbuf_pool writepool = {
 	NULL,			/* handles */
 };
 
-/**
+/*
  * @brief VBUF resource pool - hmmbufferpool
  */
 struct ia_css_rmgr_vbuf_pool hmmbufferpool = {
@@ -63,7 +63,7 @@ struct ia_css_rmgr_vbuf_pool *vbuf_ref = &refpool;
 struct ia_css_rmgr_vbuf_pool *vbuf_write = &writepool;
 struct ia_css_rmgr_vbuf_pool *hmm_buffer_pool = &hmmbufferpool;
 
-/**
+/*
  * @brief Initialize the reference count (host, vbuf)
  */
 static void rmgr_refcount_init_vbuf(void)
@@ -72,7 +72,7 @@ static void rmgr_refcount_init_vbuf(void)
 	memset(&handle_table, 0, sizeof(handle_table));
 }
 
-/**
+/*
  * @brief Retain the reference count for a handle (host, vbuf)
  *
  * @param handle	The pointer to the handle
@@ -109,7 +109,7 @@ void ia_css_rmgr_refcount_retain_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
 	(*handle)->count++;
 }
 
-/**
+/*
  * @brief Release the reference count for a handle (host, vbuf)
  *
  * @param handle	The pointer to the handle
@@ -131,7 +131,7 @@ void ia_css_rmgr_refcount_release_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
 	}
 }
 
-/**
+/*
  * @brief Initialize the resource pool (host, vbuf)
  *
  * @param pool	The pointer to the pool
@@ -163,7 +163,7 @@ enum ia_css_err ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 	return err;
 }
 
-/**
+/*
  * @brief Uninitialize the resource pool (host, vbuf)
  *
  * @param pool	The pointer to the pool
@@ -174,7 +174,7 @@ void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_rmgr_uninit_vbuf()\n");
 	if (pool == NULL) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR, "ia_css_rmgr_uninit_vbuf(): NULL argument\n");
-		 return;
+		return;
 	}
 	if (pool->handles != NULL) {
 		/* free the hmm buffers */
@@ -197,7 +197,7 @@ void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 	}
 }
 
-/**
+/*
  * @brief Push a handle to the pool
  *
  * @param pool		The pointer to the pool
@@ -224,7 +224,7 @@ void rmgr_push_handle(struct ia_css_rmgr_vbuf_pool *pool,
 	assert(succes);
 }
 
-/**
+/*
  * @brief Pop a handle from the pool
  *
  * @param pool		The pointer to the pool
@@ -254,7 +254,7 @@ void rmgr_pop_handle(struct ia_css_rmgr_vbuf_pool *pool,
 	}
 }
 
-/**
+/*
  * @brief Acquire a handle from the pool (host, vbuf)
  *
  * @param pool		The pointer to the pool
@@ -302,7 +302,7 @@ void ia_css_rmgr_acq_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 	ia_css_rmgr_refcount_retain_vbuf(handle);
 }
 
-/**
+/*
  * @brief Release a handle to the pool (host, vbuf)
  *
  * @param pool		The pointer to the pool

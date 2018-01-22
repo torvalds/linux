@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SCHED_TASK_H
 #define _LINUX_SCHED_TASK_H
 
@@ -30,7 +31,6 @@ extern int lockdep_tasklist_lock_is_held(void);
 
 extern asmlinkage void schedule_tail(struct task_struct *prev);
 extern void init_idle(struct task_struct *idle, int cpu);
-extern void init_idle_bootup_task(struct task_struct *idle);
 
 extern int sched_fork(unsigned long clone_flags, struct task_struct *p);
 extern void sched_dead(struct task_struct *p);

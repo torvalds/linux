@@ -80,7 +80,7 @@ static struct resource bcu_resources[] = {
 	},
 };
 
-static struct mfd_cell crystal_cove_dev[] = {
+static struct mfd_cell crystal_cove_byt_dev[] = {
 	{
 		.name = "crystal_cove_pwrsrc",
 		.num_resources = ARRAY_SIZE(pwrsrc_resources),
@@ -108,6 +108,17 @@ static struct mfd_cell crystal_cove_dev[] = {
 	},
 	{
 		.name = "crystal_cove_pmic",
+	},
+	{
+		.name = "crystal_cove_pwm",
+	},
+};
+
+static struct mfd_cell crystal_cove_cht_dev[] = {
+	{
+		.name = "crystal_cove_gpio",
+		.num_resources = ARRAY_SIZE(gpio_resources),
+		.resources = gpio_resources,
 	},
 	{
 		.name = "crystal_cove_pwm",
@@ -155,10 +166,18 @@ static const struct regmap_irq_chip crystal_cove_irq_chip = {
 	.mask_base = CRYSTAL_COVE_REG_MIRQLVL1,
 };
 
-struct intel_soc_pmic_config intel_soc_pmic_config_crc = {
+struct intel_soc_pmic_config intel_soc_pmic_config_byt_crc = {
 	.irq_flags = IRQF_TRIGGER_RISING,
-	.cell_dev = crystal_cove_dev,
-	.n_cell_devs = ARRAY_SIZE(crystal_cove_dev),
+	.cell_dev = crystal_cove_byt_dev,
+	.n_cell_devs = ARRAY_SIZE(crystal_cove_byt_dev),
+	.regmap_config = &crystal_cove_regmap_config,
+	.irq_chip = &crystal_cove_irq_chip,
+};
+
+struct intel_soc_pmic_config intel_soc_pmic_config_cht_crc = {
+	.irq_flags = IRQF_TRIGGER_RISING,
+	.cell_dev = crystal_cove_cht_dev,
+	.n_cell_devs = ARRAY_SIZE(crystal_cove_cht_dev),
 	.regmap_config = &crystal_cove_regmap_config,
 	.irq_chip = &crystal_cove_irq_chip,
 };

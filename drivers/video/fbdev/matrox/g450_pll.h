@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __G450_PLL_H__
 #define __G450_PLL_H__
 

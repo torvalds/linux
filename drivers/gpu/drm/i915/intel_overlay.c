@@ -799,9 +799,13 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret != 0)
 		return ret;
 
+	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
+
 	vma = i915_gem_object_pin_to_display_plane(new_bo, 0, NULL);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto out_pin_section;
+	}
 
 	ret = i915_vma_put_fence(vma);
 	if (ret)
@@ -886,6 +890,9 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 
 out_unpin:
 	i915_gem_object_unpin_from_display_plane(vma);
+out_pin_section:
+	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
+
 	return ret;
 }
 
@@ -1127,7 +1134,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	if (!params)
 		return -ENOMEM;
 
-	drmmode_crtc = drm_crtc_find(dev, put_image_rec->crtc_id);
+	drmmode_crtc = drm_crtc_find(dev, file_priv, put_image_rec->crtc_id);
 	if (!drmmode_crtc) {
 		ret = -ENOENT;
 		goto out_free;

@@ -61,7 +61,7 @@ static int dt_get_transition_latency(struct device *cpu_dev)
 	return transition_latency;
 }
 
-static struct cpufreq_arm_bL_ops dt_bL_ops = {
+static const struct cpufreq_arm_bL_ops dt_bL_ops = {
 	.name	= "dt-bl",
 	.get_transition_latency = dt_get_transition_latency,
 	.init_opp_table = dev_pm_opp_of_cpumask_add_table,

@@ -406,8 +406,10 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 		name.len = strlen(name.name);
 	}
 	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);
-	if (unlikely(!path.dentry))
+	if (unlikely(!path.dentry)) {
+		sock_release(sock);
 		return ERR_PTR(-ENOMEM);
+	}
 	path.mnt = mntget(sock_mnt);
 
 	d_instantiate(path.dentry, SOCK_INODE(sock));
@@ -415,9 +417,11 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 	file = alloc_file(&path, FMODE_READ | FMODE_WRITE,
 		  &socket_file_ops);
 	if (IS_ERR(file)) {
-		/* drop dentry, keep inode */
+		/* drop dentry, keep inode for a bit */
 		ihold(d_inode(path.dentry));
 		path_put(&path);
+		/* ... and now kill it properly */
+		sock_release(sock);
 		return file;
 	}
 
@@ -432,8 +436,10 @@ static int sock_map_fd(struct socket *sock, int flags)
 {
 	struct file *newfile;
 	int fd = get_unused_fd_flags(flags);
-	if (unlikely(fd < 0))
+	if (unlikely(fd < 0)) {
+		sock_release(sock);
 		return fd;
+	}
 
 	newfile = sock_alloc_file(sock, flags, NULL);
 	if (likely(!IS_ERR(newfile))) {
@@ -568,7 +574,6 @@ struct socket *sock_alloc(void)
 
 	sock = SOCKET_I(inode);
 
-	kmemcheck_annotate_bitfield(sock, type);
 	inode->i_ino = get_next_ino();
 	inode->i_mode = S_IFSOCK | S_IRWXUGO;
 	inode->i_uid = current_fsuid();
@@ -651,6 +656,20 @@ int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 	return sock_sendmsg(sock, msg);
 }
 EXPORT_SYMBOL(kernel_sendmsg);
+
+int kernel_sendmsg_locked(struct sock *sk, struct msghdr *msg,
+			  struct kvec *vec, size_t num, size_t size)
+{
+	struct socket *sock = sk->sk_socket;
+
+	if (!sock->ops->sendmsg_locked)
+		return sock_no_sendmsg_locked(sk, msg, size);
+
+	iov_iter_kvec(&msg->msg_iter, WRITE | ITER_KVEC, vec, num, size);
+
+	return sock->ops->sendmsg_locked(sk, msg, msg_data_left(msg));
+}
+EXPORT_SYMBOL(kernel_sendmsg_locked);
 
 static bool skb_is_err_queue(const struct sk_buff *skb)
 {
@@ -1317,19 +1336,9 @@ SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
 
 	retval = sock_create(family, type, protocol, &sock);
 	if (retval < 0)
-		goto out;
+		return retval;
 
-	retval = sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
-	if (retval < 0)
-		goto out_release;
-
-out:
-	/* It may be already another descriptor 8) Not kernel problem. */
-	return retval;
-
-out_release:
-	sock_release(sock);
-	return retval;
+	return sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
 }
 
 /*
@@ -1353,87 +1362,72 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
 	/*
+	 * reserve descriptors and make sure we won't fail
+	 * to return them to userland.
+	 */
+	fd1 = get_unused_fd_flags(flags);
+	if (unlikely(fd1 < 0))
+		return fd1;
+
+	fd2 = get_unused_fd_flags(flags);
+	if (unlikely(fd2 < 0)) {
+		put_unused_fd(fd1);
+		return fd2;
+	}
+
+	err = put_user(fd1, &usockvec[0]);
+	if (err)
+		goto out;
+
+	err = put_user(fd2, &usockvec[1]);
+	if (err)
+		goto out;
+
+	/*
 	 * Obtain the first socket and check if the underlying protocol
 	 * supports the socketpair call.
 	 */
 
 	err = sock_create(family, type, protocol, &sock1);
-	if (err < 0)
+	if (unlikely(err < 0))
 		goto out;
 
 	err = sock_create(family, type, protocol, &sock2);
-	if (err < 0)
-		goto out_release_1;
-
-	err = sock1->ops->socketpair(sock1, sock2);
-	if (err < 0)
-		goto out_release_both;
-
-	fd1 = get_unused_fd_flags(flags);
-	if (unlikely(fd1 < 0)) {
-		err = fd1;
-		goto out_release_both;
+	if (unlikely(err < 0)) {
+		sock_release(sock1);
+		goto out;
 	}
 
-	fd2 = get_unused_fd_flags(flags);
-	if (unlikely(fd2 < 0)) {
-		err = fd2;
-		goto out_put_unused_1;
+	err = sock1->ops->socketpair(sock1, sock2);
+	if (unlikely(err < 0)) {
+		sock_release(sock2);
+		sock_release(sock1);
+		goto out;
 	}
 
 	newfile1 = sock_alloc_file(sock1, flags, NULL);
 	if (IS_ERR(newfile1)) {
 		err = PTR_ERR(newfile1);
-		goto out_put_unused_both;
+		sock_release(sock2);
+		goto out;
 	}
 
 	newfile2 = sock_alloc_file(sock2, flags, NULL);
 	if (IS_ERR(newfile2)) {
 		err = PTR_ERR(newfile2);
-		goto out_fput_1;
+		fput(newfile1);
+		goto out;
 	}
-
-	err = put_user(fd1, &usockvec[0]);
-	if (err)
-		goto out_fput_both;
-
-	err = put_user(fd2, &usockvec[1]);
-	if (err)
-		goto out_fput_both;
 
 	audit_fd_pair(fd1, fd2);
 
 	fd_install(fd1, newfile1);
 	fd_install(fd2, newfile2);
-	/* fd1 and fd2 may be already another descriptors.
-	 * Not kernel problem.
-	 */
-
 	return 0;
 
-out_fput_both:
-	fput(newfile2);
-	fput(newfile1);
-	put_unused_fd(fd2);
-	put_unused_fd(fd1);
-	goto out;
-
-out_fput_1:
-	fput(newfile1);
-	put_unused_fd(fd2);
-	put_unused_fd(fd1);
-	sock_release(sock2);
-	goto out;
-
-out_put_unused_both:
-	put_unused_fd(fd2);
-out_put_unused_1:
-	put_unused_fd(fd1);
-out_release_both:
-	sock_release(sock2);
-out_release_1:
-	sock_release(sock1);
 out:
+	put_unused_fd(fd2);
+	put_unused_fd(fd1);
 	return err;
 }
 
@@ -1549,7 +1543,6 @@ SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
 	if (IS_ERR(newfile)) {
 		err = PTR_ERR(newfile);
 		put_unused_fd(newfd);
-		sock_release(newsock);
 		goto out_put;
 	}
 
@@ -2628,6 +2621,15 @@ out_fs:
 
 core_initcall(sock_init);	/* early initcall */
 
+static int __init jit_init(void)
+{
+#ifdef CONFIG_BPF_JIT_ALWAYS_ON
+	bpf_jit_enable = 1;
+#endif
+	return 0;
+}
+pure_initcall(jit_init);
+
 #ifdef CONFIG_PROC_FS
 void socket_seq_show(struct seq_file *seq)
 {
@@ -3376,6 +3378,19 @@ int kernel_sendpage(struct socket *sock, struct page *page, int offset,
 }
 EXPORT_SYMBOL(kernel_sendpage);
 
+int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
+			   size_t size, int flags)
+{
+	struct socket *sock = sk->sk_socket;
+
+	if (sock->ops->sendpage_locked)
+		return sock->ops->sendpage_locked(sk, page, offset, size,
+						  flags);
+
+	return sock_no_sendpage_locked(sk, page, offset, size, flags);
+}
+EXPORT_SYMBOL(kernel_sendpage_locked);
+
 int kernel_sock_ioctl(struct socket *sock, int cmd, unsigned long arg)
 {
 	mm_segment_t oldfs = get_fs();
@@ -3405,7 +3420,6 @@ u32 kernel_sock_ip_overhead(struct sock *sk)
 	struct inet_sock *inet;
 	struct ip_options_rcu *opt;
 	u32 overhead = 0;
-	bool owned_by_user;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct ipv6_pinfo *np;
 	struct ipv6_txoptions *optv6 = NULL;
@@ -3414,13 +3428,12 @@ u32 kernel_sock_ip_overhead(struct sock *sk)
 	if (!sk)
 		return overhead;
 
-	owned_by_user = sock_owned_by_user(sk);
 	switch (sk->sk_family) {
 	case AF_INET:
 		inet = inet_sk(sk);
 		overhead += sizeof(struct iphdr);
 		opt = rcu_dereference_protected(inet->inet_opt,
-						owned_by_user);
+						sock_owned_by_user(sk));
 		if (opt)
 			overhead += opt->opt.optlen;
 		return overhead;
@@ -3430,7 +3443,7 @@ u32 kernel_sock_ip_overhead(struct sock *sk)
 		overhead += sizeof(struct ipv6hdr);
 		if (np)
 			optv6 = rcu_dereference_protected(np->opt,
-							  owned_by_user);
+							  sock_owned_by_user(sk));
 		if (optv6)
 			overhead += (optv6->opt_flen + optv6->opt_nflen);
 		return overhead;

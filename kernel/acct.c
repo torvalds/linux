@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/kernel/acct.c
  *
@@ -101,7 +102,7 @@ static int check_free_space(struct bsd_acct_struct *acct)
 {
 	struct kstatfs sbuf;
 
-	if (time_is_before_jiffies(acct->needcheck))
+	if (time_is_after_jiffies(acct->needcheck))
 		goto out;
 
 	/* May block */
@@ -146,7 +147,7 @@ static struct bsd_acct_struct *acct_get(struct pid_namespace *ns)
 again:
 	smp_rmb();
 	rcu_read_lock();
-	res = to_acct(ACCESS_ONCE(ns->bacct));
+	res = to_acct(READ_ONCE(ns->bacct));
 	if (!res) {
 		rcu_read_unlock();
 		return NULL;
@@ -158,7 +159,7 @@ again:
 	}
 	rcu_read_unlock();
 	mutex_lock(&res->lock);
-	if (res != to_acct(ACCESS_ONCE(ns->bacct))) {
+	if (res != to_acct(READ_ONCE(ns->bacct))) {
 		mutex_unlock(&res->lock);
 		acct_put(res);
 		goto again;
@@ -516,7 +517,7 @@ static void do_acct_process(struct bsd_acct_struct *acct)
 	if (file_start_write_trylock(file)) {
 		/* it's been opened O_APPEND, so position is irrelevant */
 		loff_t pos = 0;
-		__kernel_write(file, (char *)&ac, sizeof(acct_t), &pos);
+		__kernel_write(file, &ac, sizeof(acct_t), &pos);
 		file_end_write(file);
 	}
 out:

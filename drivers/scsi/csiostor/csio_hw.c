@@ -3347,9 +3347,10 @@ csio_mberr_worker(void *data)
  *
  **/
 static void
-csio_hw_mb_timer(uintptr_t data)
+csio_hw_mb_timer(struct timer_list *t)
 {
-	struct csio_hw *hw = (struct csio_hw *)data;
+	struct csio_mbm *mbm = from_timer(mbm, t, timer);
+	struct csio_hw *hw = mbm->hw;
 	struct csio_mb *mbp = NULL;
 
 	spin_lock_irq(&hw->lock);
@@ -3715,9 +3716,9 @@ csio_mgmt_req_lookup(struct csio_mgmtm *mgmtm, struct csio_ioreq *io_req)
  * Return - none.
  */
 static void
-csio_mgmt_tmo_handler(uintptr_t data)
+csio_mgmt_tmo_handler(struct timer_list *t)
 {
-	struct csio_mgmtm *mgmtm = (struct csio_mgmtm *) data;
+	struct csio_mgmtm *mgmtm = from_timer(mgmtm, t, mgmt_timer);
 	struct list_head *tmp;
 	struct csio_ioreq *io_req;
 
@@ -3797,11 +3798,7 @@ csio_mgmtm_cleanup(struct csio_mgmtm *mgmtm)
 static int
 csio_mgmtm_init(struct csio_mgmtm *mgmtm, struct csio_hw *hw)
 {
-	struct timer_list *timer = &mgmtm->mgmt_timer;
-
-	init_timer(timer);
-	timer->function = csio_mgmt_tmo_handler;
-	timer->data = (unsigned long)mgmtm;
+	timer_setup(&mgmtm->mgmt_timer, csio_mgmt_tmo_handler, 0);
 
 	INIT_LIST_HEAD(&mgmtm->active_q);
 	INIT_LIST_HEAD(&mgmtm->cbfn_q);

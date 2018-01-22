@@ -98,7 +98,7 @@ static int _rtl8821ae_fw_free_to_go(struct ieee80211_hw *hw)
 
 	if (counter >= FW_8821AE_POLLING_TIMEOUT_COUNT) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "chksum report faill ! REG_MCUFWDL:0x%08x .\n",
+			 "chksum report fail! REG_MCUFWDL:0x%08x .\n",
 			  value32);
 		goto exit;
 	}
@@ -1923,6 +1923,7 @@ void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
 				   u8 *tmp_buf)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
 
 	switch (c2h_cmd_id) {
 	case C2H_8812_DBG:
@@ -1938,9 +1939,15 @@ void rtl8821ae_c2h_content_parsing(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,
 			 "[C2H], C2H_8812_BT_INFO!!\n");
 		if (rtlpriv->cfg->ops->get_btc_status())
-			rtlpriv->btcoexist.btc_ops->btc_btinfo_notify(rtlpriv,
-								      tmp_buf,
-								      c2h_cmd_len);
+			btc_ops->btc_btinfo_notify(rtlpriv, tmp_buf,
+						   c2h_cmd_len);
+		break;
+	case C2H_8812_BT_MP:
+		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
+			 "[C2H], C2H_8812_BT_MP!!\n");
+		if (rtlpriv->cfg->ops->get_btc_status())
+			btc_ops->btc_btmpinfo_notify(rtlpriv, tmp_buf,
+						     c2h_cmd_len);
 		break;
 	default:
 		break;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* pci-irq.c: PCI IRQ routing on the FRV motherboard
  *
  * Copyright (C) 2003 Red Hat, Inc. All Rights Reserved.

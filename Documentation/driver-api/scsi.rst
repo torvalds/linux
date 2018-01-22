@@ -28,7 +28,7 @@ SCSI commands can be transported over just about any kind of bus, and
 are the default protocol for storage devices attached to USB, SATA, SAS,
 Fibre Channel, FireWire, and ATAPI devices. SCSI packets are also
 commonly exchanged over Infiniband,
-`I20 <http://i2o.shadowconnect.com/faq.php>`__, TCP/IP
+`I2O <http://i2o.shadowconnect.com/faq.php>`__, TCP/IP
 (`iSCSI <https://en.wikipedia.org/wiki/ISCSI>`__), even `Parallel
 ports <http://cyberelk.net/tim/parport/parscsi.html>`__.
 
@@ -222,14 +222,6 @@ drivers/scsi/hosts.c
 mid to lowlevel SCSI driver interface
 
 .. kernel-doc:: drivers/scsi/hosts.c
-   :export:
-
-drivers/scsi/constants.c
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-mid to lowlevel SCSI driver interface
-
-.. kernel-doc:: drivers/scsi/constants.c
    :export:
 
 Transport classes

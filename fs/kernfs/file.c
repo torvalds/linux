@@ -616,7 +616,7 @@ static void kernfs_put_open_node(struct kernfs_node *kn,
 
 static int kernfs_fop_open(struct inode *inode, struct file *file)
 {
-	struct kernfs_node *kn = file->f_path.dentry->d_fsdata;
+	struct kernfs_node *kn = inode->i_private;
 	struct kernfs_root *root = kernfs_root(kn);
 	const struct kernfs_ops *ops;
 	struct kernfs_open_file *of;
@@ -768,7 +768,7 @@ static void kernfs_release_file(struct kernfs_node *kn,
 
 static int kernfs_fop_release(struct inode *inode, struct file *filp)
 {
-	struct kernfs_node *kn = filp->f_path.dentry->d_fsdata;
+	struct kernfs_node *kn = inode->i_private;
 	struct kernfs_open_file *of = kernfs_of(filp);
 
 	if (kn->flags & KERNFS_HAS_RELEASE) {
@@ -835,7 +835,7 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 static unsigned int kernfs_fop_poll(struct file *filp, poll_table *wait)
 {
 	struct kernfs_open_file *of = kernfs_of(filp);
-	struct kernfs_node *kn = filp->f_path.dentry->d_fsdata;
+	struct kernfs_node *kn = kernfs_dentry_node(filp->f_path.dentry);
 	struct kernfs_open_node *on = kn->attr.open;
 
 	if (!kernfs_get_active(kn))
@@ -895,7 +895,7 @@ repeat:
 		 * have the matching @file available.  Look up the inodes
 		 * and generate the events manually.
 		 */
-		inode = ilookup(info->sb, kn->ino);
+		inode = ilookup(info->sb, kn->id.ino);
 		if (!inode)
 			continue;
 
@@ -903,7 +903,7 @@ repeat:
 		if (parent) {
 			struct inode *p_inode;
 
-			p_inode = ilookup(info->sb, parent->ino);
+			p_inode = ilookup(info->sb, parent->id.ino);
 			if (p_inode) {
 				fsnotify(p_inode, FS_MODIFY | FS_EVENT_ON_CHILD,
 					 inode, FSNOTIFY_EVENT_INODE, kn->name, 0);
@@ -997,7 +997,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	if (key) {
-		lockdep_init_map(&kn->dep_map, "s_active", key, 0);
+		lockdep_init_map(&kn->dep_map, "kn->count", key, 0);
 		kn->flags |= KERNFS_LOCKDEP;
 	}
 #endif

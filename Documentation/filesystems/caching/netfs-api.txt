@@ -151,8 +151,6 @@ To define an object, a structure of the following type should be filled out:
 		void (*mark_pages_cached)(void *cookie_netfs_data,
 					  struct address_space *mapping,
 					  struct pagevec *cached_pvec);
-
-		void (*now_uncached)(void *cookie_netfs_data);
 	};
 
 This has the following fields:

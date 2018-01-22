@@ -609,21 +609,20 @@ static void intel_vgpu_release_work(struct work_struct *work)
 	__intel_vgpu_release(vgpu);
 }
 
-static uint64_t intel_vgpu_get_bar0_addr(struct intel_vgpu *vgpu)
+static uint64_t intel_vgpu_get_bar_addr(struct intel_vgpu *vgpu, int bar)
 {
 	u32 start_lo, start_hi;
 	u32 mem_type;
-	int pos = PCI_BASE_ADDRESS_0;
 
-	start_lo = (*(u32 *)(vgpu->cfg_space.virtual_cfg_space + pos)) &
+	start_lo = (*(u32 *)(vgpu->cfg_space.virtual_cfg_space + bar)) &
 			PCI_BASE_ADDRESS_MEM_MASK;
-	mem_type = (*(u32 *)(vgpu->cfg_space.virtual_cfg_space + pos)) &
+	mem_type = (*(u32 *)(vgpu->cfg_space.virtual_cfg_space + bar)) &
 			PCI_BASE_ADDRESS_MEM_TYPE_MASK;
 
 	switch (mem_type) {
 	case PCI_BASE_ADDRESS_MEM_TYPE_64:
 		start_hi = (*(u32 *)(vgpu->cfg_space.virtual_cfg_space
-						+ pos + 4));
+						+ bar + 4));
 		break;
 	case PCI_BASE_ADDRESS_MEM_TYPE_32:
 	case PCI_BASE_ADDRESS_MEM_TYPE_1M:
@@ -635,6 +634,21 @@ static uint64_t intel_vgpu_get_bar0_addr(struct intel_vgpu *vgpu)
 	}
 
 	return ((u64)start_hi << 32) | start_lo;
+}
+
+static int intel_vgpu_bar_rw(struct intel_vgpu *vgpu, int bar, uint64_t off,
+			     void *buf, unsigned int count, bool is_write)
+{
+	uint64_t bar_start = intel_vgpu_get_bar_addr(vgpu, bar);
+	int ret;
+
+	if (is_write)
+		ret = intel_gvt_ops->emulate_mmio_write(vgpu,
+					bar_start + off, buf, count);
+	else
+		ret = intel_gvt_ops->emulate_mmio_read(vgpu,
+					bar_start + off, buf, count);
+	return ret;
 }
 
 static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
@@ -661,20 +675,14 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 						buf, count);
 		break;
 	case VFIO_PCI_BAR0_REGION_INDEX:
-	case VFIO_PCI_BAR1_REGION_INDEX:
-		if (is_write) {
-			uint64_t bar0_start = intel_vgpu_get_bar0_addr(vgpu);
-
-			ret = intel_gvt_ops->emulate_mmio_write(vgpu,
-						bar0_start + pos, buf, count);
-		} else {
-			uint64_t bar0_start = intel_vgpu_get_bar0_addr(vgpu);
-
-			ret = intel_gvt_ops->emulate_mmio_read(vgpu,
-						bar0_start + pos, buf, count);
-		}
+		ret = intel_vgpu_bar_rw(vgpu, PCI_BASE_ADDRESS_0, pos,
+					buf, count, is_write);
 		break;
 	case VFIO_PCI_BAR2_REGION_INDEX:
+		ret = intel_vgpu_bar_rw(vgpu, PCI_BASE_ADDRESS_2, pos,
+					buf, count, is_write);
+		break;
+	case VFIO_PCI_BAR1_REGION_INDEX:
 	case VFIO_PCI_BAR3_REGION_INDEX:
 	case VFIO_PCI_BAR4_REGION_INDEX:
 	case VFIO_PCI_BAR5_REGION_INDEX:
@@ -970,7 +978,7 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 		switch (info.index) {
 		case VFIO_PCI_CONFIG_REGION_INDEX:
 			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-			info.size = INTEL_GVT_MAX_CFG_SPACE_SZ;
+			info.size = vgpu->gvt->device_info.cfg_space_size;
 			info.flags = VFIO_REGION_INFO_FLAG_READ |
 				     VFIO_REGION_INFO_FLAG_WRITE;
 			break;
@@ -1170,10 +1178,27 @@ vgpu_id_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "\n");
 }
 
+static ssize_t
+hw_id_show(struct device *dev, struct device_attribute *attr,
+	   char *buf)
+{
+	struct mdev_device *mdev = mdev_from_dev(dev);
+
+	if (mdev) {
+		struct intel_vgpu *vgpu = (struct intel_vgpu *)
+			mdev_get_drvdata(mdev);
+		return sprintf(buf, "%u\n",
+			       vgpu->shadow_ctx->hw_id);
+	}
+	return sprintf(buf, "\n");
+}
+
 static DEVICE_ATTR_RO(vgpu_id);
+static DEVICE_ATTR_RO(hw_id);
 
 static struct attribute *intel_vgpu_attrs[] = {
 	&dev_attr_vgpu_id.attr,
+	&dev_attr_hw_id.attr,
 	NULL
 };
 

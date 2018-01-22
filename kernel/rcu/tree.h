@@ -103,6 +103,7 @@ struct rcu_node {
 				/* Online CPUs for next expedited GP. */
 				/*  Any CPU that has ever been online will */
 				/*  have its bit set. */
+	unsigned long ffmask;	/* Fully functional CPUs. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
 				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
@@ -219,8 +220,6 @@ struct rcu_data {
 					/* qlen at last check for QS forcing */
 	unsigned long	n_cbs_invoked;	/* count of RCU cbs invoked. */
 	unsigned long	n_nocbs_invoked; /* count of no-CBs RCU cbs invoked. */
-	unsigned long   n_cbs_orphaned; /* RCU cbs orphaned by dying CPU */
-	unsigned long   n_cbs_adopted;  /* RCU cbs adopted from dying CPU */
 	unsigned long	n_force_qs_snap;
 					/* did other CPU force QS recently? */
 	long		blimit;		/* Upper limit on a processed batch */
@@ -268,7 +267,9 @@ struct rcu_data {
 	struct rcu_head **nocb_follower_tail;
 	struct swait_queue_head nocb_wq; /* For nocb kthreads to sleep on. */
 	struct task_struct *nocb_kthread;
+	raw_spinlock_t nocb_lock;	/* Guard following pair of fields. */
 	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
+	struct timer_list nocb_timer;	/* Enforce finite deferral. */
 
 	/* The following fields are used by the leader, hence own cacheline. */
 	struct rcu_head *nocb_gp_head ____cacheline_internodealigned_in_smp;
@@ -285,6 +286,10 @@ struct rcu_data {
 
 	/* 8) RCU CPU stall data. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
+	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
+	struct irq_work rcu_iw;		/* Check for non-irq activity. */
+	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
+	unsigned long rcu_iw_gpnum;	/* ->gpnum associated with ->rcu_iw. */
 
 	int cpu;
 	struct rcu_state *rsp;
@@ -349,15 +354,6 @@ struct rcu_state {
 	short gp_state;				/* GP kthread sleep state. */
 
 	/* End of fields guarded by root rcu_node's lock. */
-
-	raw_spinlock_t orphan_lock ____cacheline_internodealigned_in_smp;
-						/* Protect following fields. */
-	struct rcu_cblist orphan_pend;		/* Orphaned callbacks that */
-						/*  need a grace period. */
-	struct rcu_cblist orphan_done;		/* Orphaned callbacks that */
-						/*  are ready to invoke. */
-						/* (Contains counts.) */
-	/* End of fields guarded by orphan_lock. */
 
 	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
@@ -495,7 +491,7 @@ static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
 static void rcu_init_one_nocb(struct rcu_node *rnp);
 static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 			    bool lazy, unsigned long flags);
-static bool rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
+static bool rcu_nocb_adopt_orphan_cbs(struct rcu_data *my_rdp,
 				      struct rcu_data *rdp,
 				      unsigned long flags);
 static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);

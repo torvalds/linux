@@ -152,6 +152,8 @@
 };
 
 &hdmi {
+	status = "okay";
+	ddc = <&i2c_2>;
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_LOW>;
 	vdd_osc-supply = <&ldo10_reg>;
 	vdd_pll-supply = <&ldo8_reg>;
@@ -455,15 +457,9 @@
 
 &i2c_2 {
 	status = "okay";
-
+	/* used by HDMI DDC */
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <66000>;
-	samsung,i2c-slave-addr = <0x50>;
-
-	hdmiddc@50 {
-		compatible = "samsung,exynos4210-hdmiddc";
-		reg = <0x50>;
-	};
 };
 
 &i2c_3 {
@@ -489,15 +485,9 @@
 
 &i2c_8 {
 	status = "okay";
-
+	/* used by HDMI PHY */
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <66000>;
-	samsung,i2c-slave-addr = <0x38>;
-
-	hdmiphy@38 {
-		compatible = "samsung,exynos4212-hdmiphy";
-		reg = <0x38>;
-	};
 };
 
 &i2c_9 {
@@ -516,9 +506,12 @@
 	status = "okay";
 };
 
+&mixer {
+	status = "okay";
+};
+
 &mmc_0 {
 	status = "okay";
-	num-slots = <1>;
 	broken-cd;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
@@ -533,7 +526,6 @@
 
 &mmc_2 {
 	status = "okay";
-	num-slots = <1>;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;

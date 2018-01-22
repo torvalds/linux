@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MACIO_ASIC_H__
 #define __MACIO_ASIC_H__
 #ifdef __KERNEL__

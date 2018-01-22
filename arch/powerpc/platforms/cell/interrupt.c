@@ -303,8 +303,8 @@ static void __init init_one_iic(unsigned int hw_cpu, unsigned long addr,
 	iic->node = of_node_get(node);
 	out_be64(&iic->regs->prio, 0);
 
-	printk(KERN_INFO "IIC for CPU %d target id 0x%x : %s\n",
-	       hw_cpu, iic->target_id, node->full_name);
+	printk(KERN_INFO "IIC for CPU %d target id 0x%x : %pOF\n",
+	       hw_cpu, iic->target_id, node);
 }
 
 static int __init setup_iic(void)

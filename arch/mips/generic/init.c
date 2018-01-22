@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -16,10 +16,11 @@
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
+#include <asm/bootinfo.h>
 #include <asm/fw/fw.h>
 #include <asm/irq_cpu.h>
 #include <asm/machine.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 #include <asm/prom.h>
 #include <asm/smp-ops.h>
 #include <asm/time.h>
@@ -88,6 +89,8 @@ void __init *plat_get_fdt(void)
 	return (void *)fdt;
 }
 
+#ifdef CONFIG_RELOCATABLE
+
 void __init plat_fdt_relocated(void *new_location)
 {
 	/*
@@ -100,6 +103,8 @@ void __init plat_fdt_relocated(void *new_location)
 	if (fw_arg0 == -2)
 		fw_arg1 = (unsigned long)new_location;
 }
+
+#endif /* CONFIG_RELOCATABLE */
 
 void __init plat_mem_setup(void)
 {

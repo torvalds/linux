@@ -244,7 +244,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	wil_dbg_irq(wil, "ISR RX 0x%08x\n", isr);
 
 	if (unlikely(!isr)) {
-		wil_err(wil, "spurious IRQ: RX\n");
+		wil_err_ratelimited(wil, "spurious IRQ: RX\n");
 		return IRQ_NONE;
 	}
 
@@ -269,11 +269,12 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 				need_unmask = false;
 				napi_schedule(&wil->napi_rx);
 			} else {
-				wil_err(wil,
+				wil_err_ratelimited(
+					wil,
 					"Got Rx interrupt while stopping interface\n");
 			}
 		} else {
-			wil_err(wil, "Got Rx interrupt while in reset\n");
+			wil_err_ratelimited(wil, "Got Rx interrupt while in reset\n");
 		}
 	}
 
@@ -302,7 +303,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 	wil_dbg_irq(wil, "ISR TX 0x%08x\n", isr);
 
 	if (unlikely(!isr)) {
-		wil_err(wil, "spurious IRQ: TX\n");
+		wil_err_ratelimited(wil, "spurious IRQ: TX\n");
 		return IRQ_NONE;
 	}
 
@@ -318,12 +319,13 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 			need_unmask = false;
 			napi_schedule(&wil->napi_tx);
 		} else {
-			wil_err(wil, "Got Tx interrupt while in reset\n");
+			wil_err_ratelimited(wil, "Got Tx interrupt while in reset\n");
 		}
 	}
 
 	if (unlikely(isr))
-		wil_err(wil, "un-handled TX ISR bits 0x%08x\n", isr);
+		wil_err_ratelimited(wil, "un-handled TX ISR bits 0x%08x\n",
+				    isr);
 
 	/* Tx IRQ will be enabled when NAPI processing finished */
 

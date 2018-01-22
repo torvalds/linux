@@ -225,6 +225,7 @@ struct parport {
 	struct pardevice *waittail;
 
 	struct list_head list;
+	struct timer_list timer;
 	unsigned int flags;
 
 	void *sysctl_table;

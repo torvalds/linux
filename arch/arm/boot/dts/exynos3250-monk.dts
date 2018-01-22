@@ -32,7 +32,7 @@
 		reg =  <0x40000000 0x1ff00000>;
 	};
 
-	firmware@0205F000 {
+	firmware@205f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0205F000 0x1000>;
 	};
@@ -426,7 +426,6 @@
 &mshc_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	num-slots = <1>;
 	broken-cd;
 	non-removable;
 	cap-mmc-highspeed;

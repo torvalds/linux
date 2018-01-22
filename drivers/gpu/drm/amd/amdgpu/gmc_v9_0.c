@@ -23,12 +23,17 @@
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "gmc_v9_0.h"
+#include "amdgpu_atomfirmware.h"
 
 #include "vega10/soc15ip.h"
 #include "vega10/HDP/hdp_4_0_offset.h"
 #include "vega10/HDP/hdp_4_0_sh_mask.h"
 #include "vega10/GC/gc_9_0_sh_mask.h"
+#include "vega10/DC/dce_12_0_offset.h"
+#include "vega10/DC/dce_12_0_sh_mask.h"
 #include "vega10/vega10_enum.h"
+#include "vega10/MMHUB/mmhub_1_0_offset.h"
+#include "vega10/ATHUB/athub_1_0_offset.h"
 
 #include "soc15_common.h"
 
@@ -68,13 +73,25 @@ static const u32 golden_settings_vega10_hdp[] =
 	0xf6e, 0x0fffffff, 0x00000000,
 };
 
+static const u32 golden_settings_mmhub_1_0_0[] =
+{
+	SOC15_REG_OFFSET(MMHUB, 0, mmDAGB1_WRCLI2), 0x00000007, 0xfe5fe0fa,
+	SOC15_REG_OFFSET(MMHUB, 0, mmMMEA1_DRAM_WR_CLI2GRP_MAP0), 0x00000030, 0x55555565
+};
+
+static const u32 golden_settings_athub_1_0_0[] =
+{
+	SOC15_REG_OFFSET(ATHUB, 0, mmRPB_ARB_CNTL), 0x0000ff00, 0x00000800,
+	SOC15_REG_OFFSET(ATHUB, 0, mmRPB_ARB_CNTL2), 0x00ff00ff, 0x00080008
+};
+
 static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *src,
 					unsigned type,
 					enum amdgpu_interrupt_state state)
 {
 	struct amdgpu_vmhub *hub;
-	u32 tmp, reg, bits, i;
+	u32 tmp, reg, bits, i, j;
 
 	bits = VM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
 		VM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
@@ -86,43 +103,26 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		/* MM HUB */
-		hub = &adev->vmhub[AMDGPU_MMHUB];
-		for (i = 0; i< 16; i++) {
-			reg = hub->vm_context0_cntl + i;
-			tmp = RREG32(reg);
-			tmp &= ~bits;
-			WREG32(reg, tmp);
-		}
-
-		/* GFX HUB */
-		hub = &adev->vmhub[AMDGPU_GFXHUB];
-		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + i;
-			tmp = RREG32(reg);
-			tmp &= ~bits;
-			WREG32(reg, tmp);
+		for (j = 0; j < AMDGPU_MAX_VMHUBS; j++) {
+			hub = &adev->vmhub[j];
+			for (i = 0; i < 16; i++) {
+				reg = hub->vm_context0_cntl + i;
+				tmp = RREG32(reg);
+				tmp &= ~bits;
+				WREG32(reg, tmp);
+			}
 		}
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		/* MM HUB */
-		hub = &adev->vmhub[AMDGPU_MMHUB];
-		for (i = 0; i< 16; i++) {
-			reg = hub->vm_context0_cntl + i;
-			tmp = RREG32(reg);
-			tmp |= bits;
-			WREG32(reg, tmp);
+		for (j = 0; j < AMDGPU_MAX_VMHUBS; j++) {
+			hub = &adev->vmhub[j];
+			for (i = 0; i < 16; i++) {
+				reg = hub->vm_context0_cntl + i;
+				tmp = RREG32(reg);
+				tmp |= bits;
+				WREG32(reg, tmp);
+			}
 		}
-
-		/* GFX HUB */
-		hub = &adev->vmhub[AMDGPU_GFXHUB];
-		for (i = 0; i < 16; i++) {
-			reg = hub->vm_context0_cntl + i;
-			tmp = RREG32(reg);
-			tmp |= bits;
-			WREG32(reg, tmp);
-		}
-		break;
 	default:
 		break;
 	}
@@ -392,7 +392,16 @@ static int gmc_v9_0_early_init(void *handle)
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	unsigned vm_inv_eng[AMDGPU_MAX_VMHUBS] = { 3, 3 };
+	/*
+	 * The latest engine allocation on gfx9 is:
+	 * Engine 0, 1: idle
+	 * Engine 2, 3: firmware
+	 * Engine 4~13: amdgpu ring, subject to change when ring number changes
+	 * Engine 14~15: idle
+	 * Engine 16: kfd tlb invalidation
+	 * Engine 17: Gart flushes
+	 */
+	unsigned vm_inv_eng[AMDGPU_MAX_VMHUBS] = { 4, 4 };
 	unsigned i;
 
 	for(i = 0; i < adev->num_rings; ++i) {
@@ -405,9 +414,9 @@ static int gmc_v9_0_late_init(void *handle)
 			 ring->funcs->vmhub);
 	}
 
-	/* Engine 17 is used for GART flushes */
+	/* Engine 16 is used for KFD and 17 for GART flushes */
 	for(i = 0; i < AMDGPU_MAX_VMHUBS; ++i)
-		BUG_ON(vm_inv_eng[i] > 17);
+		BUG_ON(vm_inv_eng[i] > 16);
 
 	return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
 }
@@ -419,8 +428,7 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 	if (!amdgpu_sriov_vf(adev))
 		base = mmhub_v1_0_get_fb_location(adev);
 	amdgpu_vram_location(adev, &adev->mc, base);
-	adev->mc.gtt_base_align = 0;
-	amdgpu_gtt_location(adev, mc);
+	amdgpu_gart_location(adev, mc);
 	/* base offset of vram pages */
 	if (adev->flags & AMD_IS_APU)
 		adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
@@ -442,43 +450,46 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	u32 tmp;
 	int chansize, numchan;
 
-	/* hbm memory channel size */
-	chansize = 128;
+	adev->mc.vram_width = amdgpu_atomfirmware_get_vram_width(adev);
+	if (!adev->mc.vram_width) {
+		/* hbm memory channel size */
+		chansize = 128;
 
-	tmp = RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0);
-	tmp &= DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK;
-	tmp >>= DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
-	switch (tmp) {
-	case 0:
-	default:
-		numchan = 1;
-		break;
-	case 1:
-		numchan = 2;
-		break;
-	case 2:
-		numchan = 0;
-		break;
-	case 3:
-		numchan = 4;
-		break;
-	case 4:
-		numchan = 0;
-		break;
-	case 5:
-		numchan = 8;
-		break;
-	case 6:
-		numchan = 0;
-		break;
-	case 7:
-		numchan = 16;
-		break;
-	case 8:
-		numchan = 2;
-		break;
+		tmp = RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0);
+		tmp &= DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK;
+		tmp >>= DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
+		switch (tmp) {
+		case 0:
+		default:
+			numchan = 1;
+			break;
+		case 1:
+			numchan = 2;
+			break;
+		case 2:
+			numchan = 0;
+			break;
+		case 3:
+			numchan = 4;
+			break;
+		case 4:
+			numchan = 0;
+			break;
+		case 5:
+			numchan = 8;
+			break;
+		case 6:
+			numchan = 0;
+			break;
+		case 7:
+			numchan = 16;
+			break;
+		case 8:
+			numchan = 2;
+			break;
+		}
+		adev->mc.vram_width = numchan * chansize;
 	}
-	adev->mc.vram_width = numchan * chansize;
 
 	/* Could aper size report 0 ? */
 	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
@@ -494,14 +505,20 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	if (adev->mc.visible_vram_size > adev->mc.real_vram_size)
 		adev->mc.visible_vram_size = adev->mc.real_vram_size;
 
-	/* unless the user had overridden it, set the gart
-	 * size equal to the 1024 or vram, whichever is larger.
-	 */
-	if (amdgpu_gart_size == -1)
-		adev->mc.gtt_size = max((AMDGPU_DEFAULT_GTT_SIZE_MB << 20),
-					adev->mc.mc_vram_size);
-	else
-		adev->mc.gtt_size = (uint64_t)amdgpu_gart_size << 20;
+	/* set the gart size */
+	if (amdgpu_gart_size == -1) {
+		switch (adev->asic_type) {
+		case CHIP_VEGA10:  /* all engines support GPUVM */
+		default:
+			adev->mc.gart_size = 256ULL << 20;
+			break;
+		case CHIP_RAVEN:   /* DCE SG support */
+			adev->mc.gart_size = 1024ULL << 20;
+			break;
+		}
+	} else {
+		adev->mc.gart_size = (u64)amdgpu_gart_size << 20;
+	}
 
 	gmc_v9_0_vram_gtt_location(adev, &adev->mc);
 
@@ -537,10 +554,21 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	spin_lock_init(&adev->mc.invalidate_lock);
 
-	if (adev->flags & AMD_IS_APU) {
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
-		amdgpu_vm_adjust_size(adev, 64);
-	} else {
+		if (adev->rev_id == 0x0 || adev->rev_id == 0x1) {
+			adev->vm_manager.vm_size = 1U << 18;
+			adev->vm_manager.block_size = 9;
+			adev->vm_manager.num_level = 3;
+			amdgpu_vm_set_fragment_size(adev, 9);
+		} else {
+			/* vm_size is 64GB for legacy 2-level page support */
+			amdgpu_vm_adjust_size(adev, 64, 9);
+			adev->vm_manager.num_level = 1;
+		}
+		break;
+	case CHIP_VEGA10:
 		/* XXX Don't know how to get VRAM type yet. */
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_HBM;
 		/*
@@ -550,10 +578,17 @@ static int gmc_v9_0_sw_init(void *handle)
 		 */
 		adev->vm_manager.vm_size = 1U << 18;
 		adev->vm_manager.block_size = 9;
-		DRM_INFO("vm size is %llu GB, block size is %u-bit\n",
-				adev->vm_manager.vm_size,
-				adev->vm_manager.block_size);
+		adev->vm_manager.num_level = 3;
+		amdgpu_vm_set_fragment_size(adev, 9);
+		break;
+	default:
+		break;
 	}
+
+	DRM_INFO("vm size is %llu GB, block size is %u-bit,fragment size is %u-bit\n",
+			adev->vm_manager.vm_size,
+			adev->vm_manager.block_size,
+			adev->vm_manager.fragment_size);
 
 	/* This interrupt is VMC page fault.*/
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VMC, 0,
@@ -619,11 +654,6 @@ static int gmc_v9_0_sw_init(void *handle)
 	adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
 	adev->vm_manager.id_mgr[AMDGPU_MMHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
 
-	/* TODO: fix num_level for APU when updating vm size and block size */
-	if (adev->flags & AMD_IS_APU)
-		adev->vm_manager.num_level = 1;
-	else
-		adev->vm_manager.num_level = 3;
 	amdgpu_vm_manager_init(adev);
 
 	return 0;
@@ -658,8 +688,17 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+		amdgpu_program_register_sequence(adev,
+						golden_settings_mmhub_1_0_0,
+						(const u32)ARRAY_SIZE(golden_settings_mmhub_1_0_0));
+		amdgpu_program_register_sequence(adev,
+						golden_settings_athub_1_0_0,
+						(const u32)ARRAY_SIZE(golden_settings_athub_1_0_0));
 		break;
 	case CHIP_RAVEN:
+		amdgpu_program_register_sequence(adev,
+						golden_settings_athub_1_0_0,
+						(const u32)ARRAY_SIZE(golden_settings_athub_1_0_0));
 		break;
 	default:
 		break;
@@ -689,12 +728,6 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	/* After HDP is initialized, flush HDP.*/
-	if (adev->flags & AMD_IS_APU)
-		nbio_v7_0_hdp_flush(adev);
-	else
-		nbio_v6_1_hdp_flush(adev);
-
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
 		mmhub_v1_0_initialize_power_gating(adev);
@@ -712,13 +745,16 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	tmp = RREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL);
-	tmp |= HDP_MISC_CNTL__FLUSH_INVALIDATE_CACHE_MASK;
-	WREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL, tmp);
+	WREG32_FIELD15(HDP, 0, HDP_MISC_CNTL, FLUSH_INVALIDATE_CACHE, 1);
 
 	tmp = RREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL);
 	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
 
+	/* After HDP is initialized, flush HDP.*/
+	if (adev->flags & AMD_IS_APU)
+		nbio_v7_0_hdp_flush(adev);
+	else
+		nbio_v6_1_hdp_flush(adev);
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
 		value = false;
@@ -727,11 +763,10 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	gfxhub_v1_0_set_fault_enable_default(adev, value);
 	mmhub_v1_0_set_fault_enable_default(adev, value);
-
 	gmc_v9_0_gart_flush_gpu_tlb(adev, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
-		 (unsigned)(adev->mc.gtt_size >> 20),
+		 (unsigned)(adev->mc.gart_size >> 20),
 		 (unsigned long long)adev->gart.table_addr);
 	adev->gart.ready = true;
 	return 0;
@@ -744,6 +779,14 @@ static int gmc_v9_0_hw_init(void *handle)
 
 	/* The sequence of these two function calls matters.*/
 	gmc_v9_0_init_golden_registers(adev);
+
+	if (adev->mode_info.num_crtc) {
+		/* Lockout access through VGA aperture*/
+		WREG32_FIELD15(DCE, 0, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
+
+		/* disable VGA render */
+		WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
+	}
 
 	r = gmc_v9_0_gart_enable(adev);
 
@@ -784,9 +827,7 @@ static int gmc_v9_0_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gmc_v9_0_hw_fini(adev);
-
-	return 0;
+	return gmc_v9_0_hw_fini(adev);
 }
 
 static int gmc_v9_0_resume(void *handle)

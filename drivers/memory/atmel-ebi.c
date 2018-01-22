@@ -51,6 +51,7 @@ struct atmel_ebi {
 	struct  {
 		struct regmap *regmap;
 		struct clk *clk;
+		const struct atmel_hsmc_reg_layout *layout;
 	} smc;
 
 	struct device *dev;
@@ -84,8 +85,8 @@ static void at91sam9_ebi_get_config(struct atmel_ebi_dev *ebid,
 static void sama5_ebi_get_config(struct atmel_ebi_dev *ebid,
 				 struct atmel_ebi_dev_config *conf)
 {
-	atmel_hsmc_cs_conf_get(ebid->ebi->smc.regmap, conf->cs,
-			       &conf->smcconf);
+	atmel_hsmc_cs_conf_get(ebid->ebi->smc.regmap, ebid->ebi->smc.layout,
+			       conf->cs, &conf->smcconf);
 }
 
 static const struct atmel_smc_timing_xlate timings_xlate_table[] = {
@@ -158,8 +159,8 @@ static int atmel_ebi_xslate_smc_timings(struct atmel_ebi_dev *ebid,
 out:
 	if (ret) {
 		dev_err(ebid->ebi->dev,
-			"missing or invalid timings definition in %s",
-			np->full_name);
+			"missing or invalid timings definition in %pOF",
+			np);
 		return ret;
 	}
 
@@ -269,8 +270,8 @@ static int atmel_ebi_xslate_smc_config(struct atmel_ebi_dev *ebid,
 		return -EINVAL;
 
 	if ((ret > 0 && !required) || (!ret && required)) {
-		dev_err(ebid->ebi->dev, "missing atmel,smc- properties in %s",
-			np->full_name);
+		dev_err(ebid->ebi->dev, "missing atmel,smc- properties in %pOF",
+			np);
 		return -EINVAL;
 	}
 
@@ -287,8 +288,8 @@ static void at91sam9_ebi_apply_config(struct atmel_ebi_dev *ebid,
 static void sama5_ebi_apply_config(struct atmel_ebi_dev *ebid,
 				   struct atmel_ebi_dev_config *conf)
 {
-	atmel_hsmc_cs_conf_apply(ebid->ebi->smc.regmap, conf->cs,
-				 &conf->smcconf);
+	atmel_hsmc_cs_conf_apply(ebid->ebi->smc.regmap, ebid->ebi->smc.layout,
+				 conf->cs, &conf->smcconf);
 }
 
 static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
@@ -313,8 +314,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 
 		if (cs >= AT91_MATRIX_EBI_NUM_CS ||
 		    !(ebi->caps->available_cs & BIT(cs))) {
-			dev_err(dev, "invalid reg property in %s\n",
-				np->full_name);
+			dev_err(dev, "invalid reg property in %pOF\n", np);
 			return -EINVAL;
 		}
 
@@ -323,7 +323,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 	}
 
 	if (!numcs) {
-		dev_err(dev, "invalid reg property in %s\n", np->full_name);
+		dev_err(dev, "invalid reg property in %pOF\n", np);
 		return -EINVAL;
 	}
 
@@ -527,6 +527,10 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 	if (IS_ERR(ebi->smc.regmap))
 		return PTR_ERR(ebi->smc.regmap);
 
+	ebi->smc.layout = atmel_hsmc_get_reg_layout(smc_np);
+	if (IS_ERR(ebi->smc.layout))
+		return PTR_ERR(ebi->smc.layout);
+
 	ebi->smc.clk = of_clk_get(smc_np, 0);
 	if (IS_ERR(ebi->smc.clk)) {
 		if (PTR_ERR(ebi->smc.clk) != -ENOENT)
@@ -571,8 +575,8 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 
 		ret = atmel_ebi_dev_setup(ebi, child, reg_cells);
 		if (ret) {
-			dev_err(dev, "failed to configure EBI bus for %s, disabling the device",
-				child->full_name);
+			dev_err(dev, "failed to configure EBI bus for %pOF, disabling the device",
+				child);
 
 			ret = atmel_ebi_dev_disable(ebi, child);
 			if (ret)

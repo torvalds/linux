@@ -47,7 +47,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 /**
  * audit_resource - audit setting resource limit
  * @profile: profile being enforced  (NOT NULL)
- * @resoure: rlimit being auditing
+ * @resource: rlimit being auditing
  * @value: value being set
  * @error: error value
  *
@@ -128,7 +128,7 @@ int aa_task_setrlimit(struct aa_label *label, struct task_struct *task,
 		error = fn_for_each(label, profile,
 				audit_resource(profile, resource,
 					       new_rlim->rlim_max, peer,
-					       "cap_sys_resoure", -EACCES));
+					       "cap_sys_resource", -EACCES));
 	else
 		error = fn_for_each_confined(label, profile,
 				profile_setrlimit(profile, resource, new_rlim));

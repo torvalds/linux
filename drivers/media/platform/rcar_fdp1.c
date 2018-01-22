@@ -1132,7 +1132,7 @@ static int fdp1_device_process(struct fdp1_ctx *ctx)
  * mem2mem callbacks
  */
 
-/**
+/*
  * job_ready() - check whether an instance is ready to be scheduled to run
  */
 static int fdp1_m2m_job_ready(void *priv)
@@ -2032,7 +2032,7 @@ static void fdp1_stop_streaming(struct vb2_queue *q)
 	}
 }
 
-static struct vb2_ops fdp1_qops = {
+static const struct vb2_ops fdp1_qops = {
 	.queue_setup	 = fdp1_queue_setup,
 	.buf_prepare	 = fdp1_buf_prepare,
 	.buf_queue	 = fdp1_buf_queue,

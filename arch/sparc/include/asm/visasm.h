@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SPARC64_VISASM_H
 #define _SPARC64_VISASM_H
 

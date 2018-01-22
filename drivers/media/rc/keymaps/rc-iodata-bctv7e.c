@@ -65,10 +65,10 @@ static struct rc_map_table iodata_bctv7e[] = {
 
 static struct rc_map_list iodata_bctv7e_map = {
 	.map = {
-		.scan    = iodata_bctv7e,
-		.size    = ARRAY_SIZE(iodata_bctv7e),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_IODATA_BCTV7E,
+		.scan     = iodata_bctv7e,
+		.size     = ARRAY_SIZE(iodata_bctv7e),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_IODATA_BCTV7E,
 	}
 };
 

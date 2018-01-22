@@ -702,24 +702,62 @@ static u32 qede_get_link(struct net_device *dev)
 static int qede_get_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *coal)
 {
+	void *rx_handle = NULL, *tx_handle = NULL;
 	struct qede_dev *edev = netdev_priv(dev);
-	u16 rxc, txc;
+	u16 rx_coal, tx_coal, i, rc = 0;
+	struct qede_fastpath *fp;
+
+	rx_coal = QED_DEFAULT_RX_USECS;
+	tx_coal = QED_DEFAULT_TX_USECS;
 
 	memset(coal, 0, sizeof(struct ethtool_coalesce));
-	edev->ops->common->get_coalesce(edev->cdev, &rxc, &txc);
 
-	coal->rx_coalesce_usecs = rxc;
-	coal->tx_coalesce_usecs = txc;
+	__qede_lock(edev);
+	if (edev->state == QEDE_STATE_OPEN) {
+		for_each_queue(i) {
+			fp = &edev->fp_array[i];
 
-	return 0;
+			if (fp->type & QEDE_FASTPATH_RX) {
+				rx_handle = fp->rxq->handle;
+				break;
+			}
+		}
+
+		rc = edev->ops->get_coalesce(edev->cdev, &rx_coal, rx_handle);
+		if (rc) {
+			DP_INFO(edev, "Read Rx coalesce error\n");
+			goto out;
+		}
+
+		for_each_queue(i) {
+			fp = &edev->fp_array[i];
+			if (fp->type & QEDE_FASTPATH_TX) {
+				tx_handle = fp->txq->handle;
+				break;
+			}
+		}
+
+		rc = edev->ops->get_coalesce(edev->cdev, &tx_coal, tx_handle);
+		if (rc)
+			DP_INFO(edev, "Read Tx coalesce error\n");
+	}
+
+out:
+	__qede_unlock(edev);
+
+	coal->rx_coalesce_usecs = rx_coal;
+	coal->tx_coalesce_usecs = tx_coal;
+
+	return rc;
 }
 
 static int qede_set_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *coal)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	struct qede_fastpath *fp;
 	int i, rc = 0;
-	u16 rxc, txc, sb_id;
+	u16 rxc, txc;
 
 	if (!netif_running(dev)) {
 		DP_INFO(edev, "Interface is down\n");
@@ -730,21 +768,36 @@ static int qede_set_coalesce(struct net_device *dev,
 	    coal->tx_coalesce_usecs > QED_COALESCE_MAX) {
 		DP_INFO(edev,
 			"Can't support requested %s coalesce value [max supported value %d]\n",
-			coal->rx_coalesce_usecs > QED_COALESCE_MAX ? "rx"
-								   : "tx",
-			QED_COALESCE_MAX);
+			coal->rx_coalesce_usecs > QED_COALESCE_MAX ? "rx" :
+			"tx", QED_COALESCE_MAX);
 		return -EINVAL;
 	}
 
 	rxc = (u16)coal->rx_coalesce_usecs;
 	txc = (u16)coal->tx_coalesce_usecs;
 	for_each_queue(i) {
-		sb_id = edev->fp_array[i].sb_info->igu_sb_id;
-		rc = edev->ops->common->set_coalesce(edev->cdev, rxc, txc,
-						     (u16)i, sb_id);
-		if (rc) {
-			DP_INFO(edev, "Set coalesce error, rc = %d\n", rc);
-			return rc;
+		fp = &edev->fp_array[i];
+
+		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
+			rc = edev->ops->common->set_coalesce(edev->cdev,
+							     rxc, 0,
+							     fp->rxq->handle);
+			if (rc) {
+				DP_INFO(edev,
+					"Set RX coalesce error, rc = %d\n", rc);
+				return rc;
+			}
+		}
+
+		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
+			rc = edev->ops->common->set_coalesce(edev->cdev,
+							     0, txc,
+							     fp->txq->handle);
+			if (rc) {
+				DP_INFO(edev,
+					"Set TX coalesce error, rc = %d\n", rc);
+				return rc;
+			}
 		}
 	}
 
@@ -1045,20 +1098,34 @@ static int qede_get_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 }
 
 static int qede_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
-			  u32 *rules __always_unused)
+			  u32 *rule_locs)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	int rc = 0;
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXRINGS:
 		info->data = QEDE_RSS_COUNT(edev);
-		return 0;
+		break;
 	case ETHTOOL_GRXFH:
-		return qede_get_rss_flags(edev, info);
+		rc = qede_get_rss_flags(edev, info);
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		info->rule_cnt = qede_get_arfs_filter_count(edev);
+		info->data = QEDE_RFS_MAX_FLTR;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		rc = qede_get_cls_rule_entry(edev, info);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		rc = qede_get_cls_rule_all(edev, info, rule_locs);
+		break;
 	default:
 		DP_ERR(edev, "Command parameters not supported\n");
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
+
+	return rc;
 }
 
 static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
@@ -1168,14 +1235,24 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 static int qede_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	int rc;
 
 	switch (info->cmd) {
 	case ETHTOOL_SRXFH:
-		return qede_set_rss_flags(edev, info);
+		rc = qede_set_rss_flags(edev, info);
+		break;
+	case ETHTOOL_SRXCLSRLINS:
+		rc = qede_add_cls_rule(edev, info);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		rc = qede_del_cls_rule(edev, info);
+		break;
 	default:
 		DP_INFO(edev, "Command parameters not supported\n");
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
+
+	return rc;
 }
 
 static u32 qede_get_rxfh_indir_size(struct net_device *dev)
@@ -1607,6 +1684,87 @@ static int qede_get_tunable(struct net_device *dev,
 	return 0;
 }
 
+static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_output current_link;
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+
+	if (!current_link.eee_supported) {
+		DP_INFO(edev, "EEE is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (current_link.eee.adv_caps & QED_EEE_1G_ADV)
+		edata->advertised = ADVERTISED_1000baseT_Full;
+	if (current_link.eee.adv_caps & QED_EEE_10G_ADV)
+		edata->advertised |= ADVERTISED_10000baseT_Full;
+	if (current_link.sup_caps & QED_EEE_1G_ADV)
+		edata->supported = ADVERTISED_1000baseT_Full;
+	if (current_link.sup_caps & QED_EEE_10G_ADV)
+		edata->supported |= ADVERTISED_10000baseT_Full;
+	if (current_link.eee.lp_adv_caps & QED_EEE_1G_ADV)
+		edata->lp_advertised = ADVERTISED_1000baseT_Full;
+	if (current_link.eee.lp_adv_caps & QED_EEE_10G_ADV)
+		edata->lp_advertised |= ADVERTISED_10000baseT_Full;
+
+	edata->tx_lpi_timer = current_link.eee.tx_lpi_timer;
+	edata->eee_enabled = current_link.eee.enable;
+	edata->tx_lpi_enabled = current_link.eee.tx_lpi_enable;
+	edata->eee_active = current_link.eee_active;
+
+	return 0;
+}
+
+static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qed_link_output current_link;
+	struct qed_link_params params;
+
+	if (!edev->ops->common->can_link_change(edev->cdev)) {
+		DP_INFO(edev, "Link settings are not allowed to be changed\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&current_link, 0, sizeof(current_link));
+	edev->ops->common->get_link(edev->cdev, &current_link);
+
+	if (!current_link.eee_supported) {
+		DP_INFO(edev, "EEE is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	memset(&params, 0, sizeof(params));
+	params.override_flags |= QED_LINK_OVERRIDE_EEE_CONFIG;
+
+	if (!(edata->advertised & (ADVERTISED_1000baseT_Full |
+				   ADVERTISED_10000baseT_Full)) ||
+	    ((edata->advertised & (ADVERTISED_1000baseT_Full |
+				   ADVERTISED_10000baseT_Full)) !=
+	     edata->advertised)) {
+		DP_VERBOSE(edev, QED_MSG_DEBUG,
+			   "Invalid advertised capabilities %d\n",
+			   edata->advertised);
+		return -EINVAL;
+	}
+
+	if (edata->advertised & ADVERTISED_1000baseT_Full)
+		params.eee.adv_caps = QED_EEE_1G_ADV;
+	if (edata->advertised & ADVERTISED_10000baseT_Full)
+		params.eee.adv_caps |= QED_EEE_10G_ADV;
+	params.eee.enable = edata->eee_enabled;
+	params.eee.tx_lpi_enable = edata->tx_lpi_enabled;
+	params.eee.tx_lpi_timer = edata->tx_lpi_timer;
+
+	params.link_up = true;
+	edev->ops->common->set_link(edev->cdev, &params);
+
+	return 0;
+}
+
 static const struct ethtool_ops qede_ethtool_ops = {
 	.get_link_ksettings = qede_get_link_ksettings,
 	.set_link_ksettings = qede_set_link_ksettings,
@@ -1640,6 +1798,9 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_channels = qede_get_channels,
 	.set_channels = qede_set_channels,
 	.self_test = qede_self_test,
+	.get_eee = qede_get_eee,
+	.set_eee = qede_set_eee,
+
 	.get_tunable = qede_get_tunable,
 	.set_tunable = qede_set_tunable,
 };
@@ -1650,6 +1811,8 @@ static const struct ethtool_ops qede_vf_ethtool_ops = {
 	.get_msglevel = qede_get_msglevel,
 	.set_msglevel = qede_set_msglevel,
 	.get_link = qede_get_link,
+	.get_coalesce = qede_get_coalesce,
+	.set_coalesce = qede_set_coalesce,
 	.get_ringparam = qede_get_ringparam,
 	.set_ringparam = qede_set_ringparam,
 	.get_strings = qede_get_strings,

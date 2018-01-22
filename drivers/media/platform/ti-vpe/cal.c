@@ -1420,7 +1420,7 @@ static const struct v4l2_ioctl_ops cal_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static struct video_device cal_videodev = {
+static const struct video_device cal_videodev = {
 	.name		= CAL_MODULE_NAME,
 	.fops		= &cal_fops,
 	.ioctl_ops	= &cal_ioctl_ops,
@@ -1521,6 +1521,11 @@ static int cal_async_complete(struct v4l2_async_notifier *notifier)
 
 	return 0;
 }
+
+static const struct v4l2_async_notifier_operations cal_async_ops = {
+	.bound = cal_async_bound,
+	.complete = cal_async_complete,
+};
 
 static int cal_complete_ctx(struct cal_ctx *ctx)
 {
@@ -1702,7 +1707,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
 	asd->match.fwnode.fwnode = of_fwnode_handle(sensor_node);
 
-	remote_ep = of_parse_phandle(ep_node, "remote-endpoint", 0);
+	remote_ep = of_graph_get_remote_endpoint(ep_node);
 	if (!remote_ep) {
 		ctx_dbg(3, ctx, "can't get remote-endpoint\n");
 		goto cleanup_exit;
@@ -1736,8 +1741,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	ctx->asd_list[0] = asd;
 	ctx->notifier.subdevs = ctx->asd_list;
 	ctx->notifier.num_subdevs = 1;
-	ctx->notifier.bound = cal_async_bound;
-	ctx->notifier.complete = cal_async_complete;
+	ctx->notifier.ops = &cal_async_ops;
 	ret = v4l2_async_notifier_register(&ctx->v4l2_dev,
 					   &ctx->notifier);
 	if (ret) {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  *
@@ -46,10 +47,9 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 
-#include "../../../include/linux/libcfs/libcfs.h"
-#include "../../../include/linux/lnet/lnet.h"
-#include "../../../include/linux/lnet/lib-lnet.h"
-#include "../../../include/linux/lnet/socklnd.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-lnet.h>
+#include <linux/lnet/socklnd.h>
 
 /* assume one thread for each connection type */
 #define SOCKNAL_NSCHEDS		3
@@ -358,11 +358,7 @@ struct ksock_conn {
 	__u8               ksnc_rx_scheduled; /* being progressed */
 	__u8               ksnc_rx_state;     /* what is being read */
 	int                ksnc_rx_nob_left;  /* # bytes to next hdr/body */
-	int                ksnc_rx_nob_wanted;/* bytes actually wanted */
-	int                ksnc_rx_niov;      /* # iovec frags */
-	struct kvec        *ksnc_rx_iov;      /* the iovec frags */
-	int                ksnc_rx_nkiov;     /* # page frags */
-	struct bio_vec		*ksnc_rx_kiov;	/* the page frags */
+	struct iov_iter    ksnc_rx_to;		/* copy destination */
 	union ksock_rxiovspace ksnc_rx_iov_space; /* space for frag descriptors */
 	__u32              ksnc_rx_csum;      /* partial checksum for incoming
 					       * data
@@ -518,17 +514,6 @@ extern struct ksock_proto ksocknal_protocol_v3x;
 #ifndef CPU_MASK_NONE
 #define CPU_MASK_NONE   0UL
 #endif
-
-static inline __u32 ksocknal_csum(__u32 crc, unsigned char const *p, size_t len)
-{
-#if 1
-	return crc32_le(crc, p, len);
-#else
-	while (len-- > 0)
-		crc = ((crc + 0x100) & ~0xff) | ((crc + *p++) & 0xff) ;
-	return crc;
-#endif
-}
 
 static inline int
 ksocknal_route_mask(void)
@@ -712,8 +697,7 @@ int ksocknal_lib_setup_sock(struct socket *so);
 int ksocknal_lib_send_iov(struct ksock_conn *conn, struct ksock_tx *tx);
 int ksocknal_lib_send_kiov(struct ksock_conn *conn, struct ksock_tx *tx);
 void ksocknal_lib_eager_ack(struct ksock_conn *conn);
-int ksocknal_lib_recv_iov(struct ksock_conn *conn);
-int ksocknal_lib_recv_kiov(struct ksock_conn *conn);
+int ksocknal_lib_recv(struct ksock_conn *conn);
 int ksocknal_lib_get_conn_tunables(struct ksock_conn *conn, int *txmem,
 				   int *rxmem, int *nagle);
 

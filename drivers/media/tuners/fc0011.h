@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_FC0011_H_
 #define LINUX_FC0011_H_
 

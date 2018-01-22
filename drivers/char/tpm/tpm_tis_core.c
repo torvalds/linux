@@ -51,7 +51,7 @@ static int wait_startup(struct tpm_chip *chip, int l)
 
 		if (access & TPM_ACCESS_VALID)
 			return 0;
-		msleep(TPM_TIMEOUT);
+		tpm_msleep(TPM_TIMEOUT);
 	} while (time_before(jiffies, stop));
 	return -1;
 }
@@ -117,7 +117,7 @@ again:
 		do {
 			if (check_locality(chip, l))
 				return l;
-			msleep(TPM_TIMEOUT);
+			tpm_msleep(TPM_TIMEOUT);
 		} while (time_before(jiffies, stop));
 	}
 	return -1;
@@ -164,7 +164,7 @@ static int get_burstcount(struct tpm_chip *chip)
 		burstcnt = (value >> 8) & 0xFFFF;
 		if (burstcnt)
 			return burstcnt;
-		msleep(TPM_TIMEOUT);
+		tpm_msleep(TPM_TIMEOUT);
 	} while (time_before(jiffies, stop));
 	return -EBUSY;
 }
@@ -252,7 +252,7 @@ out:
  * tpm.c can skip polling for the data to be available as the interrupt is
  * waited for here
  */
-static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
+static int tpm_tis_send_data(struct tpm_chip *chip, const u8 *buf, size_t len)
 {
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int rc, status, burstcnt;
@@ -343,7 +343,7 @@ static void disable_interrupts(struct tpm_chip *chip)
  * tpm.c can skip polling for the data to be available as the interrupt is
  * waited for here
  */
-static int tpm_tis_send_main(struct tpm_chip *chip, u8 *buf, size_t len)
+static int tpm_tis_send_main(struct tpm_chip *chip, const u8 *buf, size_t len)
 {
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int rc;
@@ -396,7 +396,7 @@ static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	priv->irq = irq;
 	chip->flags |= TPM_CHIP_FLAG_IRQ;
 	if (!priv->irq_tested)
-		msleep(1);
+		tpm_msleep(1);
 	if (!priv->irq_tested)
 		disable_interrupts(chip);
 	priv->irq_tested = true;
@@ -445,7 +445,7 @@ static int probe_itpm(struct tpm_chip *chip)
 {
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int rc = 0;
-	u8 cmd_getticks[] = {
+	static const u8 cmd_getticks[] = {
 		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0a,
 		0x00, 0x00, 0x00, 0xf1
 	};

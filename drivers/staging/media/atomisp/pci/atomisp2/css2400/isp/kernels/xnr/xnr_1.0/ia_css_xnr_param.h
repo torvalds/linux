@@ -41,7 +41,7 @@ struct sh_css_isp_xnr_vamem_params {
 };
 
 struct sh_css_isp_xnr_params {
-	/** XNR threshold.
+	/* XNR threshold.
 	 * type:u0.16 but actual valid range is:[0,255]
 	 * valid range is dependent on SH_CSS_ISP_YUV_BITS (currently 8bits)
 	 * default: 25 */

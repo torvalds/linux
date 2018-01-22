@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __nosy_dump_h__
 #define __nosy_dump_h__
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __pinmux_defs_h
 #define __pinmux_defs_h
 

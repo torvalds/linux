@@ -141,6 +141,11 @@ extern const char *acpi_gbl_ptyp_decode[];
 #define ACPI_MSG_SUFFIX \
 	acpi_os_printf (" (%8.8X/%s-%u)\n", ACPI_CA_VERSION, module_name, line_number)
 
+/* Flags to indicate implicit or explicit string-to-integer conversion */
+
+#define ACPI_IMPLICIT_CONVERSION        TRUE
+#define ACPI_NO_IMPLICIT_CONVERSION     FALSE
+
 /* Types for Resource descriptor entries */
 
 #define ACPI_INVALID_RESOURCE           0
@@ -197,15 +202,31 @@ void acpi_ut_strlwr(char *src_string);
 
 int acpi_ut_stricmp(char *string1, char *string2);
 
-acpi_status acpi_ut_strtoul64(char *string, u32 flags, u64 *ret_integer);
+/*
+ * utstrsuppt - string-to-integer conversion support functions
+ */
+acpi_status acpi_ut_convert_octal_string(char *string, u64 *return_value);
+
+acpi_status acpi_ut_convert_decimal_string(char *string, u64 *return_value_ptr);
+
+acpi_status acpi_ut_convert_hex_string(char *string, u64 *return_value_ptr);
+
+char acpi_ut_remove_whitespace(char **string);
+
+char acpi_ut_remove_leading_zeros(char **string);
+
+u8 acpi_ut_detect_hex_prefix(char **string);
+
+u8 acpi_ut_detect_octal_prefix(char **string);
 
 /*
- * Values for Flags above
- * Note: LIMIT values correspond to acpi_gbl_integer_byte_width values (4/8)
+ * utstrtoul64 - string-to-integer conversion functions
  */
-#define ACPI_STRTOUL_32BIT          0x04	/* 4 bytes */
-#define ACPI_STRTOUL_64BIT          0x08	/* 8 bytes */
-#define ACPI_STRTOUL_BASE16         0x10	/* Default: Base10/16 */
+acpi_status acpi_ut_strtoul64(char *string, u64 *ret_integer);
+
+u64 acpi_ut_explicit_strtoul64(char *string);
+
+u64 acpi_ut_implicit_strtoul64(char *string);
 
 /*
  * utglobal - Global data structures and procedures
@@ -516,7 +537,7 @@ union acpi_generic_state *acpi_ut_create_update_state(union acpi_operand_object
 
 union acpi_generic_state *acpi_ut_create_pkg_state(void *internal_object,
 						   void *external_object,
-						   u16 index);
+						   u32 index);
 
 acpi_status
 acpi_ut_create_update_state_and_push(union acpi_operand_object *object,
@@ -537,6 +558,13 @@ acpi_ut_divide(u64 in_dividend,
 acpi_status
 acpi_ut_short_divide(u64 in_dividend,
 		     u32 divisor, u64 *out_quotient, u32 *out_remainder);
+
+acpi_status
+acpi_ut_short_multiply(u64 in_multiplicand, u32 multiplier, u64 *outproduct);
+
+acpi_status acpi_ut_short_shift_left(u64 operand, u32 count, u64 *out_result);
+
+acpi_status acpi_ut_short_shift_right(u64 operand, u32 count, u64 *out_result);
 
 /*
  * utmisc

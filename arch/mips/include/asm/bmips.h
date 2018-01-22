@@ -48,8 +48,8 @@
 #include <asm/r4kcache.h>
 #include <asm/smp-ops.h>
 
-extern struct plat_smp_ops bmips43xx_smp_ops;
-extern struct plat_smp_ops bmips5000_smp_ops;
+extern const struct plat_smp_ops bmips43xx_smp_ops;
+extern const struct plat_smp_ops bmips5000_smp_ops;
 
 static inline int register_bmips_smp_ops(void)
 {

@@ -11,6 +11,19 @@ config SUN50I_A64_CCU
 	default ARM64 && ARCH_SUNXI
 	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 
+config SUN4I_A10_CCU
+	bool "Support for the Allwinner A10/A20 CCU"
+	select SUNXI_CCU_DIV
+	select SUNXI_CCU_MULT
+	select SUNXI_CCU_NK
+	select SUNXI_CCU_NKM
+	select SUNXI_CCU_NM
+	select SUNXI_CCU_MP
+	select SUNXI_CCU_PHASE
+	default MACH_SUN4I
+	default MACH_SUN7I
+	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST
+
 config SUN5I_CCU
 	bool "Support for the Allwinner sun5i family CCM"
 	default MACH_SUN5I
@@ -47,6 +60,11 @@ config SUN8I_V3S_CCU
 
 config SUN8I_DE2_CCU
 	bool "Support for the Allwinner SoCs DE2 CCU"
+
+config SUN8I_R40_CCU
+	bool "Support for the Allwinner R40 CCU"
+	default MACH_SUN8I
+	depends on MACH_SUN8I || COMPILE_TEST
 
 config SUN9I_A80_CCU
 	bool "Support for the Allwinner A80 CCU"

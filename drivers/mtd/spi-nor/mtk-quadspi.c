@@ -24,7 +24,6 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
@@ -405,6 +404,29 @@ static int mt8173_nor_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 	return ret;
 }
 
+static void mt8173_nor_disable_clk(struct mt8173_nor *mt8173_nor)
+{
+	clk_disable_unprepare(mt8173_nor->spi_clk);
+	clk_disable_unprepare(mt8173_nor->nor_clk);
+}
+
+static int mt8173_nor_enable_clk(struct mt8173_nor *mt8173_nor)
+{
+	int ret;
+
+	ret = clk_prepare_enable(mt8173_nor->spi_clk);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(mt8173_nor->nor_clk);
+	if (ret) {
+		clk_disable_unprepare(mt8173_nor->spi_clk);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int mtk_nor_init(struct mt8173_nor *mt8173_nor,
 			struct device_node *flash_node)
 {
@@ -469,15 +491,11 @@ static int mtk_nor_drv_probe(struct platform_device *pdev)
 		return PTR_ERR(mt8173_nor->nor_clk);
 
 	mt8173_nor->dev = &pdev->dev;
-	ret = clk_prepare_enable(mt8173_nor->spi_clk);
+
+	ret = mt8173_nor_enable_clk(mt8173_nor);
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(mt8173_nor->nor_clk);
-	if (ret) {
-		clk_disable_unprepare(mt8173_nor->spi_clk);
-		return ret;
-	}
 	/* only support one attached flash */
 	flash_np = of_get_next_available_child(pdev->dev.of_node, NULL);
 	if (!flash_np) {
@@ -488,10 +506,9 @@ static int mtk_nor_drv_probe(struct platform_device *pdev)
 	ret = mtk_nor_init(mt8173_nor, flash_np);
 
 nor_free:
-	if (ret) {
-		clk_disable_unprepare(mt8173_nor->spi_clk);
-		clk_disable_unprepare(mt8173_nor->nor_clk);
-	}
+	if (ret)
+		mt8173_nor_disable_clk(mt8173_nor);
+
 	return ret;
 }
 
@@ -499,10 +516,37 @@ static int mtk_nor_drv_remove(struct platform_device *pdev)
 {
 	struct mt8173_nor *mt8173_nor = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(mt8173_nor->spi_clk);
-	clk_disable_unprepare(mt8173_nor->nor_clk);
+	mt8173_nor_disable_clk(mt8173_nor);
+
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int mtk_nor_suspend(struct device *dev)
+{
+	struct mt8173_nor *mt8173_nor = dev_get_drvdata(dev);
+
+	mt8173_nor_disable_clk(mt8173_nor);
+
+	return 0;
+}
+
+static int mtk_nor_resume(struct device *dev)
+{
+	struct mt8173_nor *mt8173_nor = dev_get_drvdata(dev);
+
+	return mt8173_nor_enable_clk(mt8173_nor);
+}
+
+static const struct dev_pm_ops mtk_nor_dev_pm_ops = {
+	.suspend = mtk_nor_suspend,
+	.resume = mtk_nor_resume,
+};
+
+#define MTK_NOR_DEV_PM_OPS	(&mtk_nor_dev_pm_ops)
+#else
+#define MTK_NOR_DEV_PM_OPS	NULL
+#endif
 
 static const struct of_device_id mtk_nor_of_ids[] = {
 	{ .compatible = "mediatek,mt8173-nor"},
@@ -515,6 +559,7 @@ static struct platform_driver mtk_nor_driver = {
 	.remove = mtk_nor_drv_remove,
 	.driver = {
 		.name = "mtk-nor",
+		.pm = MTK_NOR_DEV_PM_OPS,
 		.of_match_table = mtk_nor_of_ids,
 	},
 };

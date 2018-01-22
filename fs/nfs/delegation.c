@@ -1041,6 +1041,33 @@ int nfs_delegations_present(struct nfs_client *clp)
 }
 
 /**
+ * nfs4_refresh_delegation_stateid - Update delegation stateid seqid
+ * @dst: stateid to refresh
+ * @inode: inode to check
+ *
+ * Returns "true" and updates "dst->seqid" * if inode had a delegation
+ * that matches our delegation stateid. Otherwise "false" is returned.
+ */
+bool nfs4_refresh_delegation_stateid(nfs4_stateid *dst, struct inode *inode)
+{
+	struct nfs_delegation *delegation;
+	bool ret = false;
+	if (!inode)
+		goto out;
+
+	rcu_read_lock();
+	delegation = rcu_dereference(NFS_I(inode)->delegation);
+	if (delegation != NULL &&
+	    nfs4_stateid_match_other(dst, &delegation->stateid)) {
+		dst->seqid = delegation->stateid.seqid;
+		return ret;
+	}
+	rcu_read_unlock();
+out:
+	return ret;
+}
+
+/**
  * nfs4_copy_delegation_stateid - Copy inode's state ID information
  * @inode: inode to check
  * @flags: delegation type requirement
@@ -1089,7 +1116,7 @@ bool nfs4_delegation_flush_on_close(const struct inode *inode)
 	delegation = rcu_dereference(nfsi->delegation);
 	if (delegation == NULL || !(delegation->type & FMODE_WRITE))
 		goto out;
-	if (nfsi->nrequests < delegation->pagemod_limit)
+	if (atomic_long_read(&nfsi->nrequests) < delegation->pagemod_limit)
 		ret = false;
 out:
 	rcu_read_unlock();

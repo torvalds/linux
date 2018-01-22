@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /* Linux ISDN subsystem, sync PPP, interface to ipppd
  *
  * Copyright 1994-1999  by Fritz Elfert (fritz@isdn4linux.de)

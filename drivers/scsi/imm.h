@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /*  Driver for the Iomega MatchMaker parallel port SCSI HBA embedded in 
  * the Iomega ZIP Plus drive

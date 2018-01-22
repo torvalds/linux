@@ -512,28 +512,26 @@ pxa3xx_gcu_mmap(struct file *file, struct vm_area_struct *vma)
 
 #ifdef PXA3XX_GCU_DEBUG_TIMER
 static struct timer_list pxa3xx_gcu_debug_timer;
+static struct pxa3xx_gcu_priv *debug_timer_priv;
 
-static void pxa3xx_gcu_debug_timedout(unsigned long ptr)
+static void pxa3xx_gcu_debug_timedout(struct timer_list *unused)
 {
-	struct pxa3xx_gcu_priv *priv = (struct pxa3xx_gcu_priv *) ptr;
+	struct pxa3xx_gcu_priv *priv = debug_timer_priv;
 
 	QERROR("Timer DUMP");
 
-	/* init the timer structure */
-	init_timer(&pxa3xx_gcu_debug_timer);
-	pxa3xx_gcu_debug_timer.function = pxa3xx_gcu_debug_timedout;
-	pxa3xx_gcu_debug_timer.data = ptr;
-	pxa3xx_gcu_debug_timer.expires = jiffies + 5*HZ; /* one second */
-
-	add_timer(&pxa3xx_gcu_debug_timer);
+	mod_timer(&pxa3xx_gcu_debug_timer, jiffies + 5 * HZ);
 }
 
-static void pxa3xx_gcu_init_debug_timer(void)
+static void pxa3xx_gcu_init_debug_timer(struct pxa3xx_gcu_priv *priv)
 {
-	pxa3xx_gcu_debug_timedout((unsigned long) &pxa3xx_gcu_debug_timer);
+	/* init the timer structure */
+	debug_timer_priv = priv;
+	timer_setup(&pxa3xx_gcu_debug_timer, pxa3xx_gcu_debug_timedout, 0);
+	pxa3xx_gcu_debug_timedout(NULL);
 }
 #else
-static inline void pxa3xx_gcu_init_debug_timer(void) {}
+static inline void pxa3xx_gcu_init_debug_timer(struct pxa3xx_gcu_priv *priv) {}
 #endif
 
 static int
@@ -626,8 +624,8 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	/* request the IRQ */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "no IRQ defined\n");
-		return -ENODEV;
+		dev_err(dev, "no IRQ defined: %d\n", irq);
+		return irq;
 	}
 
 	ret = devm_request_irq(dev, irq, pxa3xx_gcu_handle_irq,
@@ -670,7 +668,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	priv->resource_mem = r;
 	pxa3xx_gcu_reset(priv);
-	pxa3xx_gcu_init_debug_timer();
+	pxa3xx_gcu_init_debug_timer(priv);
 
 	dev_info(dev, "registered @0x%p, DMA 0x%p (%d bytes), IRQ %d\n",
 			(void *) r->start, (void *) priv->shared_phys,

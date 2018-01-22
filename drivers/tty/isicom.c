@@ -1,9 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  *	Original driver code supplied by Multi-Tech
  *
  *	Changes
@@ -150,7 +146,7 @@
 static int isicom_probe(struct pci_dev *, const struct pci_device_id *);
 static void isicom_remove(struct pci_dev *);
 
-static struct pci_device_id isicom_pci_tbl[] = {
+static const struct pci_device_id isicom_pci_tbl[] = {
 	{ PCI_DEVICE(VENDOR_ID, 0x2028) },
 	{ PCI_DEVICE(VENDOR_ID, 0x2051) },
 	{ PCI_DEVICE(VENDOR_ID, 0x2052) },
@@ -174,10 +170,10 @@ static struct pci_driver isicom_driver = {
 static int prev_card = 3;	/*	start servicing isi_card[0]	*/
 static struct tty_driver *isicom_normal;
 
-static void isicom_tx(unsigned long _data);
+static void isicom_tx(struct timer_list *unused);
 static void isicom_start(struct tty_struct *tty);
 
-static DEFINE_TIMER(tx, isicom_tx, 0, 0);
+static DEFINE_TIMER(tx, isicom_tx);
 
 /*   baud index mappings from linux defns to isi */
 
@@ -398,7 +394,7 @@ static inline int __isicom_paranoia_check(struct isi_port const *port,
  *	will do the rest of the work for us.
  */
 
-static void isicom_tx(unsigned long _data)
+static void isicom_tx(struct timer_list *unused)
 {
 	unsigned long flags, base;
 	unsigned int retries;

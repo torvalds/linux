@@ -46,7 +46,8 @@ static enum drm_mode_status malidp_crtc_mode_valid(struct drm_crtc *crtc,
 	return MODE_OK;
 }
 
-static void malidp_crtc_enable(struct drm_crtc *crtc)
+static void malidp_crtc_atomic_enable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
 {
 	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
 	struct malidp_hw_device *hwdev = malidp->dev;
@@ -64,19 +65,24 @@ static void malidp_crtc_enable(struct drm_crtc *crtc)
 	/* We rely on firmware to set mclk to a sensible level. */
 	clk_set_rate(hwdev->pxlclk, crtc->state->adjusted_mode.crtc_clock * 1000);
 
-	hwdev->modeset(hwdev, &vm);
-	hwdev->leave_config_mode(hwdev);
+	hwdev->hw->modeset(hwdev, &vm);
+	hwdev->hw->leave_config_mode(hwdev);
 	drm_crtc_vblank_on(crtc);
 }
 
-static void malidp_crtc_disable(struct drm_crtc *crtc)
+static void malidp_crtc_atomic_disable(struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state)
 {
 	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
 	struct malidp_hw_device *hwdev = malidp->dev;
 	int err;
 
+	/* always disable planes on the CRTC that is being turned off */
+	drm_atomic_helper_disable_planes_on_crtc(old_state, false);
+
 	drm_crtc_vblank_off(crtc);
-	hwdev->enter_config_mode(hwdev);
+	hwdev->hw->enter_config_mode(hwdev);
+
 	clk_disable_unprepare(hwdev->pxlclk);
 
 	err = pm_runtime_put(crtc->dev->dev);
@@ -317,7 +323,7 @@ static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
 
 mclk_calc:
 	drm_display_mode_to_videomode(&state->adjusted_mode, &vm);
-	ret = hwdev->se_calc_mclk(hwdev, s, &vm);
+	ret = hwdev->hw->se_calc_mclk(hwdev, s, &vm);
 	if (ret < 0)
 		return -EINVAL;
 	return 0;
@@ -408,9 +414,9 @@ static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs malidp_crtc_helper_funcs = {
 	.mode_valid = malidp_crtc_mode_valid,
-	.enable = malidp_crtc_enable,
-	.disable = malidp_crtc_disable,
 	.atomic_check = malidp_crtc_atomic_check,
+	.atomic_enable = malidp_crtc_atomic_enable,
+	.atomic_disable = malidp_crtc_atomic_disable,
 };
 
 static struct drm_crtc_state *malidp_crtc_duplicate_state(struct drm_crtc *crtc)
@@ -473,7 +479,7 @@ static int malidp_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct malidp_hw_device *hwdev = malidp->dev;
 
 	malidp_hw_enable_irq(hwdev, MALIDP_DE_BLOCK,
-			     hwdev->map.de_irq_map.vsync_irq);
+			     hwdev->hw->map.de_irq_map.vsync_irq);
 	return 0;
 }
 
@@ -483,7 +489,7 @@ static void malidp_crtc_disable_vblank(struct drm_crtc *crtc)
 	struct malidp_hw_device *hwdev = malidp->dev;
 
 	malidp_hw_disable_irq(hwdev, MALIDP_DE_BLOCK,
-			      hwdev->map.de_irq_map.vsync_irq);
+			      hwdev->hw->map.de_irq_map.vsync_irq);
 }
 
 static const struct drm_crtc_funcs malidp_crtc_funcs = {

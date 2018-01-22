@@ -146,9 +146,9 @@ static irqreturn_t w90p910_ts_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void w90p910_check_pen_up(unsigned long data)
+static void w90p910_check_pen_up(struct timer_list *t)
 {
-	struct w90p910_ts *w90p910_ts = (struct w90p910_ts *) data;
+	struct w90p910_ts *w90p910_ts = from_timer(w90p910_ts, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&w90p910_ts->lock, flags);
@@ -232,8 +232,7 @@ static int w90x900ts_probe(struct platform_device *pdev)
 	w90p910_ts->input = input_dev;
 	w90p910_ts->state = TS_IDLE;
 	spin_lock_init(&w90p910_ts->lock);
-	setup_timer(&w90p910_ts->timer, w90p910_check_pen_up,
-		    (unsigned long)w90p910_ts);
+	timer_setup(&w90p910_ts->timer, w90p910_check_pen_up, 0);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {

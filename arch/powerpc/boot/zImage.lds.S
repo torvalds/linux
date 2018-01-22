@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <asm-generic/vmlinux.lds.h>
 
 #ifdef CONFIG_PPC64_BOOT_WRAPPER

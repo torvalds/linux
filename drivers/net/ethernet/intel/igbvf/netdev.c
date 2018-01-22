@@ -810,7 +810,7 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		read_barrier_depends();
+		smp_rmb();
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)))
@@ -1235,7 +1235,12 @@ static void igbvf_set_rlpml(struct igbvf_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	max_frame_size = adapter->max_frame_size + VLAN_TAG_SIZE;
+
+	spin_lock_bh(&hw->mbx_lock);
+
 	e1000_rlpml_set_vf(hw, max_frame_size);
+
+	spin_unlock_bh(&hw->mbx_lock);
 }
 
 static int igbvf_vlan_rx_add_vid(struct net_device *netdev,
@@ -1244,10 +1249,16 @@ static int igbvf_vlan_rx_add_vid(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	if (hw->mac.ops.set_vfta(hw, vid, true)) {
 		dev_err(&adapter->pdev->dev, "Failed to add vlan id %d\n", vid);
+		spin_unlock_bh(&hw->mbx_lock);
 		return -EINVAL;
 	}
+
+	spin_unlock_bh(&hw->mbx_lock);
+
 	set_bit(vid, adapter->active_vlans);
 	return 0;
 }
@@ -1258,11 +1269,17 @@ static int igbvf_vlan_rx_kill_vid(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	if (hw->mac.ops.set_vfta(hw, vid, false)) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to remove vlan id %d\n", vid);
+		spin_unlock_bh(&hw->mbx_lock);
 		return -EINVAL;
 	}
+
+	spin_unlock_bh(&hw->mbx_lock);
+
 	clear_bit(vid, adapter->active_vlans);
 	return 0;
 }
@@ -1428,7 +1445,11 @@ static void igbvf_set_multi(struct net_device *netdev)
 	netdev_for_each_mc_addr(ha, netdev)
 		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	hw->mac.ops.update_mc_addr_list(hw, mta_list, i, 0, 0);
+
+	spin_unlock_bh(&hw->mbx_lock);
 	kfree(mta_list);
 }
 
@@ -1449,16 +1470,24 @@ static int igbvf_set_uni(struct net_device *netdev)
 		return -ENOSPC;
 	}
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	/* Clear all unicast MAC filters */
 	hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_CLR, NULL);
+
+	spin_unlock_bh(&hw->mbx_lock);
 
 	if (!netdev_uc_empty(netdev)) {
 		struct netdev_hw_addr *ha;
 
 		/* Add MAC filters one by one */
 		netdev_for_each_uc_addr(ha, netdev) {
+			spin_lock_bh(&hw->mbx_lock);
+
 			hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_ADD,
 						ha->addr);
+
+			spin_unlock_bh(&hw->mbx_lock);
 			udelay(200);
 		}
 	}
@@ -1503,11 +1532,15 @@ static void igbvf_reset(struct igbvf_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	/* Allow time for pending master requests to run */
 	if (mac->ops.reset_hw(hw))
 		dev_err(&adapter->pdev->dev, "PF still resetting\n");
 
 	mac->ops.init_hw(hw);
+
+	spin_unlock_bh(&hw->mbx_lock);
 
 	if (is_valid_ether_addr(adapter->hw.mac.addr)) {
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
@@ -1643,6 +1676,7 @@ static int igbvf_sw_init(struct igbvf_adapter *adapter)
 	igbvf_irq_disable(adapter);
 
 	spin_lock_init(&adapter->stats_lock);
+	spin_lock_init(&adapter->hw.mbx_lock);
 
 	set_bit(__IGBVF_DOWN, &adapter->state);
 	return 0;
@@ -1786,7 +1820,11 @@ static int igbvf_set_mac(struct net_device *netdev, void *p)
 
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
+
+	spin_unlock_bh(&hw->mbx_lock);
 
 	if (!ether_addr_equal(addr->sa_data, hw->mac.addr))
 		return -EADDRNOTAVAIL;
@@ -1858,7 +1896,12 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
 	if (test_bit(__IGBVF_DOWN, &adapter->state))
 		return false;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	ret_val = hw->mac.ops.check_for_link(hw);
+
+	spin_unlock_bh(&hw->mbx_lock);
+
 	link_active = !hw->mac.get_link_status;
 
 	/* if check for link returns error we will need to reset */
@@ -1872,9 +1915,9 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
  * igbvf_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
-static void igbvf_watchdog(unsigned long data)
+static void igbvf_watchdog(struct timer_list *t)
 {
-	struct igbvf_adapter *adapter = (struct igbvf_adapter *)data;
+	struct igbvf_adapter *adapter = from_timer(adapter, t, watchdog_timer);
 
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
@@ -2808,6 +2851,8 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = MAX_STD_JUMBO_FRAME_SIZE;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	/*reset the controller to put the device in a known good state */
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
@@ -2824,6 +2869,8 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       netdev->addr_len);
 	}
 
+	spin_unlock_bh(&hw->mbx_lock);
+
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		dev_info(&pdev->dev, "Assigning random MAC address.\n");
 		eth_hw_addr_random(netdev);
@@ -2831,8 +2878,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       netdev->addr_len);
 	}
 
-	setup_timer(&adapter->watchdog_timer, &igbvf_watchdog,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->watchdog_timer, igbvf_watchdog, 0);
 
 	INIT_WORK(&adapter->reset_task, igbvf_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igbvf_watchdog_task);

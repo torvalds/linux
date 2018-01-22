@@ -93,8 +93,6 @@ static void print_speed(unsigned long speed)
 		if (speed > 1000000)
 			printf("%u.%06u GHz", ((unsigned int) speed/1000000),
 				((unsigned int) speed%1000000));
-		else if (speed > 100000)
-			printf("%u MHz", (unsigned int) speed);
 		else if (speed > 1000)
 			printf("%u.%03u MHz", ((unsigned int) speed/1000),
 				(unsigned int) (speed%1000));

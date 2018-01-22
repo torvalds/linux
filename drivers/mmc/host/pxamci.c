@@ -702,11 +702,7 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	pxamci_init_ocr(host);
 
-	/*
-	 * This architecture used to disable bounce buffers through its
-	 * defconfig, now it is done at runtime as a host property.
-	 */
-	mmc->caps = MMC_CAP_NO_BOUNCE_BUFF;
+	mmc->caps = 0;
 	host->cmdat = 0;
 	if (!cpu_is_pxa25x()) {
 		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;

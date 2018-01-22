@@ -265,7 +265,8 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		sctp_ulpq_clear_pd(ulpq);
 
 	if (queue == &sk->sk_receive_queue && !sp->data_ready_signalled) {
-		sp->data_ready_signalled = 1;
+		if (!sock_owned_by_user(sk))
+			sp->data_ready_signalled = 1;
 		sk->sk_data_ready(sk);
 	}
 	return 1;
@@ -1083,29 +1084,21 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		      gfp_t gfp)
 {
-	struct sctp_association *asoc;
-	__u16 needed, freed;
+	struct sctp_association *asoc = ulpq->asoc;
+	__u32 freed = 0;
+	__u16 needed;
 
-	asoc = ulpq->asoc;
-
-	if (chunk) {
-		needed = ntohs(chunk->chunk_hdr->length);
-		needed -= sizeof(struct sctp_data_chunk);
-	} else
-		needed = SCTP_DEFAULT_MAXWINDOW;
-
-	freed = 0;
+	needed = ntohs(chunk->chunk_hdr->length) -
+		 sizeof(struct sctp_data_chunk);
 
 	if (skb_queue_empty(&asoc->base.sk->sk_receive_queue)) {
 		freed = sctp_ulpq_renege_order(ulpq, needed);
-		if (freed < needed) {
+		if (freed < needed)
 			freed += sctp_ulpq_renege_frags(ulpq, needed - freed);
-		}
 	}
 	/* If able to free enough room, accept this chunk. */
-	if (chunk && (freed >= needed)) {
-		int retval;
-		retval = sctp_ulpq_tail_data(ulpq, chunk, gfp);
+	if (freed >= needed) {
+		int retval = sctp_ulpq_tail_data(ulpq, chunk, gfp);
 		/*
 		 * Enter partial delivery if chunk has not been
 		 * delivered; otherwise, drain the reassembly queue.

@@ -29,7 +29,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
-    Pointer to an enum v4l2_priority type.
+    Pointer to an enum :c:type:`v4l2_priority` type.
 
 
 Description

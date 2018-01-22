@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright IBM Corp. 1999, 2010
  *
@@ -21,13 +22,13 @@ ENTRY(startup_continue)
 	xc	__LC_LPP+1(7,0),__LC_LPP+1	# clear lpp and current_pid
 	mvi	__LC_LPP,0x80			#   and set LPP_MAGIC
 	.insn	s,0xb2800000,__LC_LPP		# load program parameter
-0:	larl	%r1,sched_clock_base_cc
-	mvc	0(8,%r1),__LC_LAST_UPDATE_CLOCK
+0:	larl	%r1,tod_clock_base
+	mvc	0(16,%r1),__LC_BOOT_CLOCK
 	larl	%r13,.LPG1		# get base
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
 	lg	%r12,.Lparmaddr-.LPG1(%r13)	# pointer to parameter area
 					# move IPL device to lowcore
-	lghi	%r0,__LC_PASTE
+	larl	%r0,boot_vdso_data
 	stg	%r0,__LC_VDSO_PER_CPU
 #
 # Setup stack

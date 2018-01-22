@@ -133,6 +133,9 @@ enum virtchnl_ops {
 	VIRTCHNL_OP_CONFIG_RSS_LUT = 24,
 	VIRTCHNL_OP_GET_RSS_HENA_CAPS = 25,
 	VIRTCHNL_OP_SET_RSS_HENA = 26,
+	VIRTCHNL_OP_ENABLE_VLAN_STRIPPING = 27,
+	VIRTCHNL_OP_DISABLE_VLAN_STRIPPING = 28,
+	VIRTCHNL_OP_REQUEST_QUEUES = 29,
 };
 
 /* This macro is used to generate a compilation error if a structure
@@ -223,7 +226,7 @@ struct virtchnl_vsi_resource {
 
 VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 
-/* VF offload flags
+/* VF capability flags
  * VIRTCHNL_VF_OFFLOAD_L2 flag is inclusive of base mode L2 offloads including
  * TX/RX Checksum offloading and TSO for non-tunnelled packets.
  */
@@ -233,6 +236,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 #define VIRTCHNL_VF_OFFLOAD_RSS_AQ		0x00000008
 #define VIRTCHNL_VF_OFFLOAD_RSS_REG		0x00000010
 #define VIRTCHNL_VF_OFFLOAD_WB_ON_ITR		0x00000020
+#define VIRTCHNL_VF_OFFLOAD_REQ_QUEUES		0x00000040
 #define VIRTCHNL_VF_OFFLOAD_VLAN		0x00010000
 #define VIRTCHNL_VF_OFFLOAD_RX_POLLING		0x00020000
 #define VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2	0x00040000
@@ -251,7 +255,7 @@ struct virtchnl_vf_resource {
 	u16 max_vectors;
 	u16 max_mtu;
 
-	u32 vf_offload_flags;
+	u32 vf_cap_flags;
 	u32 rss_key_size;
 	u32 rss_lut_size;
 
@@ -321,6 +325,21 @@ struct virtchnl_vsi_queue_config_info {
 	u16 num_queue_pairs;
 	u32 pad;
 	struct virtchnl_queue_pair_info qpair[1];
+};
+
+/* VIRTCHNL_OP_REQUEST_QUEUES
+ * VF sends this message to request the PF to allocate additional queues to
+ * this VF.  Each VF gets a guaranteed number of queues on init but asking for
+ * additional queues must be negotiated.  This is a best effort request as it
+ * is possible the PF does not have enough queues left to support the request.
+ * If the PF cannot support the number requested it will respond with the
+ * maximum number it is able to support.  If the request is successful, PF will
+ * then reset the VF to institute required changes.
+ */
+
+/* VF resource request */
+struct virtchnl_vf_res_request {
+	u16 num_queue_pairs;
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(72, virtchnl_vsi_queue_config_info);
@@ -685,6 +704,12 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_SET_RSS_HENA:
 		valid_len = sizeof(struct virtchnl_rss_hena);
+		break;
+	case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
+	case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
+		break;
+	case VIRTCHNL_OP_REQUEST_QUEUES:
+		valid_len = sizeof(struct virtchnl_vf_res_request);
 		break;
 	/* These are always errors coming from the VF. */
 	case VIRTCHNL_OP_EVENT:

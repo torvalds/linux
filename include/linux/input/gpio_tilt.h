@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _INPUT_GPIO_TILT_H
 #define _INPUT_GPIO_TILT_H
 

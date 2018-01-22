@@ -70,11 +70,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 	case HostCmd_CMD_802_11_SCAN_EXT:
-		mwifiex_cancel_pending_scan_cmd(adapter);
-
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
-		adapter->scan_processing = false;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
+		mwifiex_cancel_scan(adapter);
 		break;
 
 	case HostCmd_CMD_MAC_CONTROL:
@@ -298,9 +294,8 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 			priv->bitmap_rates[1] =
 				le16_to_cpu(rate_scope->ofdm_rate_bitmap);
 			for (i = 0;
-			     i <
-			     sizeof(rate_scope->ht_mcs_rate_bitmap) /
-			     sizeof(u16); i++)
+			     i < ARRAY_SIZE(rate_scope->ht_mcs_rate_bitmap);
+			     i++)
 				priv->bitmap_rates[2 + i] =
 					le16_to_cpu(rate_scope->
 						    ht_mcs_rate_bitmap[i]);

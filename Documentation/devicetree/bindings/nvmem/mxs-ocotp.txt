@@ -21,5 +21,4 @@ Example for i.MX28:
 		#size-cells = <1>;
 		reg = <0x8002c000 0x2000>;
 		clocks = <&clks 25>;
-		status = "okay";
 	};

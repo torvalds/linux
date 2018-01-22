@@ -228,7 +228,7 @@ static void get_single_name(acpi_handle handle, char *name)
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER};
 
 	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)))
-		pr_warn("Failed get name from handle\n");
+		pr_warn("Failed to get device name from acpi handle\n");
 	else {
 		memcpy(name, buffer.pointer, ACPI_NAME_SIZE);
 		kfree(buffer.pointer);

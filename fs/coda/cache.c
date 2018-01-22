@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Cache operations for Coda.
  * For Linux 2.1: (C) 1997 Carnegie Mellon University

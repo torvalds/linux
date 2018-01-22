@@ -118,7 +118,6 @@ static struct nvmem_config ocotp_config = {
 	.name = "mxs-ocotp",
 	.stride = 16,
 	.word_size = 4,
-	.owner = THIS_MODULE,
 	.reg_read = mxs_ocotp_read,
 };
 

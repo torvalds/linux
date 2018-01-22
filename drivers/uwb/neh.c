@@ -115,7 +115,7 @@ struct uwb_rc_neh {
 	struct list_head list_node;
 };
 
-static void uwb_rc_neh_timer(unsigned long arg);
+static void uwb_rc_neh_timer(struct timer_list *t);
 
 static void uwb_rc_neh_release(struct kref *kref)
 {
@@ -223,7 +223,7 @@ struct uwb_rc_neh *uwb_rc_neh_add(struct uwb_rc *rc, struct uwb_rccb *cmd,
 
 	kref_init(&neh->kref);
 	INIT_LIST_HEAD(&neh->list_node);
-	setup_timer(&neh->timer, uwb_rc_neh_timer, (unsigned long)neh);
+	timer_setup(&neh->timer, uwb_rc_neh_timer, 0);
 
 	neh->rc = rc;
 	neh->evt_type = expected_type;
@@ -565,9 +565,9 @@ void uwb_rc_neh_error(struct uwb_rc *rc, int error)
 EXPORT_SYMBOL_GPL(uwb_rc_neh_error);
 
 
-static void uwb_rc_neh_timer(unsigned long arg)
+static void uwb_rc_neh_timer(struct timer_list *t)
 {
-	struct uwb_rc_neh *neh = (struct uwb_rc_neh *)arg;
+	struct uwb_rc_neh *neh = from_timer(neh, t, timer);
 	struct uwb_rc *rc = neh->rc;
 	unsigned long flags;
 

@@ -48,12 +48,16 @@
 /* helper macros */
 #define __mlx5_nullp(typ) ((struct mlx5_ifc_##typ##_bits *)0)
 #define __mlx5_bit_sz(typ, fld) sizeof(__mlx5_nullp(typ)->fld)
-#define __mlx5_bit_off(typ, fld) ((unsigned)(unsigned long)(&(__mlx5_nullp(typ)->fld)))
+#define __mlx5_bit_off(typ, fld) (offsetof(struct mlx5_ifc_##typ##_bits, fld))
+#define __mlx5_16_off(typ, fld) (__mlx5_bit_off(typ, fld) / 16)
 #define __mlx5_dw_off(typ, fld) (__mlx5_bit_off(typ, fld) / 32)
 #define __mlx5_64_off(typ, fld) (__mlx5_bit_off(typ, fld) / 64)
+#define __mlx5_16_bit_off(typ, fld) (16 - __mlx5_bit_sz(typ, fld) - (__mlx5_bit_off(typ, fld) & 0xf))
 #define __mlx5_dw_bit_off(typ, fld) (32 - __mlx5_bit_sz(typ, fld) - (__mlx5_bit_off(typ, fld) & 0x1f))
 #define __mlx5_mask(typ, fld) ((u32)((1ull << __mlx5_bit_sz(typ, fld)) - 1))
 #define __mlx5_dw_mask(typ, fld) (__mlx5_mask(typ, fld) << __mlx5_dw_bit_off(typ, fld))
+#define __mlx5_mask16(typ, fld) ((u16)((1ull << __mlx5_bit_sz(typ, fld)) - 1))
+#define __mlx5_16_mask(typ, fld) (__mlx5_mask16(typ, fld) << __mlx5_16_bit_off(typ, fld))
 #define __mlx5_st_sz_bits(typ) sizeof(struct mlx5_ifc_##typ##_bits)
 
 #define MLX5_FLD_SZ_BYTES(typ, fld) (__mlx5_bit_sz(typ, fld) / 8)
@@ -115,6 +119,19 @@ __mlx5_mask(typ, fld))
 	pr_debug(#fld " = 0x%llx\n", ___t); \
 	___t; \
 })
+
+#define MLX5_GET16(typ, p, fld) ((be16_to_cpu(*((__be16 *)(p) +\
+__mlx5_16_off(typ, fld))) >> __mlx5_16_bit_off(typ, fld)) & \
+__mlx5_mask16(typ, fld))
+
+#define MLX5_SET16(typ, p, fld, v) do { \
+	u16 _v = v; \
+	BUILD_BUG_ON(__mlx5_st_sz_bits(typ) % 16);             \
+	*((__be16 *)(p) + __mlx5_16_off(typ, fld)) = \
+	cpu_to_be16((be16_to_cpu(*((__be16 *)(p) + __mlx5_16_off(typ, fld))) & \
+		     (~__mlx5_16_mask(typ, fld))) | (((_v) & __mlx5_mask16(typ, fld)) \
+		     << __mlx5_16_bit_off(typ, fld))); \
+} while (0)
 
 /* Big endian getters */
 #define MLX5_GET64_BE(typ, p, fld) (*((__be64 *)(p) +\
@@ -290,6 +307,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_GPIO_EVENT	   = 0x15,
 	MLX5_EVENT_TYPE_PORT_MODULE_EVENT  = 0x16,
 	MLX5_EVENT_TYPE_REMOTE_CONFIG	   = 0x19,
+	MLX5_EVENT_TYPE_GENERAL_EVENT	   = 0x22,
 	MLX5_EVENT_TYPE_PPS_EVENT          = 0x25,
 
 	MLX5_EVENT_TYPE_DB_BF_CONGESTION   = 0x1a,
@@ -302,6 +320,10 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE   = 0xd,
 
 	MLX5_EVENT_TYPE_FPGA_ERROR         = 0x20,
+};
+
+enum {
+	MLX5_GENERAL_SUBTYPE_DELAY_DROP_TIMEOUT = 0x1,
 };
 
 enum {
@@ -709,7 +731,7 @@ static inline int mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
 	return (cqe->op_own >> 2) & 0x3;
 }
 
-static inline int get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
+static inline u8 get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 {
 	return (cqe->lro_tcppsh_abort_dupack >> 6) & 1;
 }
@@ -968,14 +990,13 @@ enum mlx5_cap_type {
 	MLX5_CAP_ATOMIC,
 	MLX5_CAP_ROCE,
 	MLX5_CAP_IPOIB_OFFLOADS,
-	MLX5_CAP_EOIB_OFFLOADS,
+	MLX5_CAP_IPOIB_ENHANCED_OFFLOADS,
 	MLX5_CAP_FLOW_TABLE,
 	MLX5_CAP_ESWITCH_FLOW_TABLE,
 	MLX5_CAP_ESWITCH,
 	MLX5_CAP_RESERVED,
 	MLX5_CAP_VECTOR_CALC,
 	MLX5_CAP_QOS,
-	MLX5_CAP_FPGA,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -996,6 +1017,14 @@ enum mlx5_mcam_feature_groups {
 	MLX5_MCAM_FEATURE_ENHANCED_FEATURES         = 0x0,
 };
 
+enum mlx5_qcam_reg_groups {
+	MLX5_QCAM_REGS_FIRST_128                    = 0x0,
+};
+
+enum mlx5_qcam_feature_groups {
+	MLX5_QCAM_FEATURE_ENHANCED_FEATURES         = 0x0,
+};
+
 /* GET Dev Caps macros */
 #define MLX5_CAP_GEN(mdev, cap) \
 	MLX5_GET(cmd_hca_cap, mdev->caps.hca_cur[MLX5_CAP_GENERAL], cap)
@@ -1010,6 +1039,10 @@ enum mlx5_mcam_feature_groups {
 #define MLX5_CAP_ETH_MAX(mdev, cap) \
 	MLX5_GET(per_protocol_networking_offload_caps,\
 		 mdev->caps.hca_max[MLX5_CAP_ETHERNET_OFFLOADS], cap)
+
+#define MLX5_CAP_IPOIB_ENHANCED(mdev, cap) \
+	MLX5_GET(per_protocol_networking_offload_caps,\
+		 mdev->caps.hca_cur[MLX5_CAP_IPOIB_ENHANCED_OFFLOADS], cap)
 
 #define MLX5_CAP_ROCE(mdev, cap) \
 	MLX5_GET(roce_cap, mdev->caps.hca_cur[MLX5_CAP_ROCE], cap)
@@ -1100,11 +1133,17 @@ enum mlx5_mcam_feature_groups {
 #define MLX5_CAP_MCAM_FEATURE(mdev, fld) \
 	MLX5_GET(mcam_reg, (mdev)->caps.mcam, mng_feature_cap_mask.enhanced_features.fld)
 
+#define MLX5_CAP_QCAM_REG(mdev, fld) \
+	MLX5_GET(qcam_reg, (mdev)->caps.qcam, qos_access_reg_cap_mask.reg_cap.fld)
+
+#define MLX5_CAP_QCAM_FEATURE(mdev, fld) \
+	MLX5_GET(qcam_reg, (mdev)->caps.qcam, qos_feature_cap_mask.feature_cap.fld)
+
 #define MLX5_CAP_FPGA(mdev, cap) \
-	MLX5_GET(fpga_cap, (mdev)->caps.hca_cur[MLX5_CAP_FPGA], cap)
+	MLX5_GET(fpga_cap, (mdev)->caps.fpga, cap)
 
 #define MLX5_CAP64_FPGA(mdev, cap) \
-	MLX5_GET64(fpga_cap, (mdev)->caps.hca_cur[MLX5_CAP_FPGA], cap)
+	MLX5_GET64(fpga_cap, (mdev)->caps.fpga, cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,

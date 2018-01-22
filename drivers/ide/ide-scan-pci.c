@@ -56,6 +56,7 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
 {
 	struct list_head *l;
 	struct pci_driver *d;
+	int ret;
 
 	list_for_each(l, &ide_pci_drivers) {
 		d = list_entry(l, struct pci_driver, node);
@@ -63,10 +64,14 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
 			const struct pci_device_id *id =
 				pci_match_id(d->id_table, dev);
 
-			if (id != NULL && d->probe(dev, id) >= 0) {
-				dev->driver = d;
-				pci_dev_get(dev);
-				return 1;
+			if (id != NULL) {
+				pci_assign_irq(dev);
+				ret = d->probe(dev, id);
+				if (ret >= 0) {
+					dev->driver = d;
+					pci_dev_get(dev);
+					return 1;
+				}
 			}
 		}
 	}

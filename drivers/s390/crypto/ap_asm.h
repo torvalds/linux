@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright IBM Corp. 2016
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -69,16 +70,19 @@ static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
 }
 
 /**
- * ap_aqic(): Enable interruption for a specific AP.
+ * ap_aqic(): Control interruption for a specific AP.
  * @qid: The AP queue number
+ * @qirqctrl: struct ap_qirq_ctrl (64 bit value)
  * @ind: The notification indicator byte
  *
  * Returns AP queue status.
  */
-static inline struct ap_queue_status ap_aqic(ap_qid_t qid, void *ind)
+static inline struct ap_queue_status ap_aqic(ap_qid_t qid,
+					     struct ap_qirq_ctrl qirqctrl,
+					     void *ind)
 {
 	register unsigned long reg0 asm ("0") = qid | (3UL << 24);
-	register unsigned long reg1_in asm ("1") = (8UL << 44) | AP_ISC;
+	register struct ap_qirq_ctrl reg1_in asm ("1") = qirqctrl;
 	register struct ap_queue_status reg1_out asm ("1");
 	register void *reg2 asm ("2") = ind;
 
@@ -111,6 +115,49 @@ static inline int ap_qci(void *config)
 		: "cc", "memory");
 
 	return reg1;
+}
+
+/*
+ * union ap_qact_ap_info - used together with the
+ * ap_aqic() function to provide a convenient way
+ * to handle the ap info needed by the qact function.
+ */
+union ap_qact_ap_info {
+	unsigned long val;
+	struct {
+		unsigned int	  : 3;
+		unsigned int mode : 3;
+		unsigned int	  : 26;
+		unsigned int cat  : 8;
+		unsigned int	  : 8;
+		unsigned char ver[2];
+	};
+};
+
+/**
+ * ap_qact(): Query AP combatibility type.
+ * @qid: The AP queue number
+ * @apinfo: On input the info about the AP queue. On output the
+ *	    alternate AP queue info provided by the qact function
+ *	    in GR2 is stored in.
+ *
+ * Returns AP queue status. Check response_code field for failures.
+ */
+static inline struct ap_queue_status ap_qact(ap_qid_t qid, int ifbit,
+					     union ap_qact_ap_info *apinfo)
+{
+	register unsigned long reg0 asm ("0") = qid | (5UL << 24)
+		| ((ifbit & 0x01) << 22);
+	register unsigned long reg1_in asm ("1") = apinfo->val;
+	register struct ap_queue_status reg1_out asm ("1");
+	register unsigned long reg2 asm ("2") = 0;
+
+	asm volatile(
+		".long 0xb2af0000"		/* PQAP(QACT) */
+		: "+d" (reg0), "+d" (reg1_in), "=d" (reg1_out), "+d" (reg2)
+		: : "cc");
+	apinfo->val = reg2;
+	return reg1_out;
 }
 
 /**

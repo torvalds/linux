@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/ipc/namespace.c
  * Copyright (C) 2006 Pavel Emelyanov <xemul@openvz.org> OpenVZ, SWsoft Inc.
@@ -50,20 +51,32 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 		goto fail_free;
 	ns->ns.ops = &ipcns_operations;
 
-	atomic_set(&ns->count, 1);
+	refcount_set(&ns->count, 1);
 	ns->user_ns = get_user_ns(user_ns);
 	ns->ucounts = ucounts;
 
-	err = mq_init_ns(ns);
+	err = sem_init_ns(ns);
 	if (err)
 		goto fail_put;
+	err = msg_init_ns(ns);
+	if (err)
+		goto fail_destroy_sem;
+	err = shm_init_ns(ns);
+	if (err)
+		goto fail_destroy_msg;
 
-	sem_init_ns(ns);
-	msg_init_ns(ns);
-	shm_init_ns(ns);
+	err = mq_init_ns(ns);
+	if (err)
+		goto fail_destroy_shm;
 
 	return ns;
 
+fail_destroy_shm:
+	shm_exit_ns(ns);
+fail_destroy_msg:
+	msg_exit_ns(ns);
+fail_destroy_sem:
+	sem_exit_ns(ns);
 fail_put:
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
@@ -144,7 +157,7 @@ static void free_ipc_ns(struct ipc_namespace *ns)
  */
 void put_ipc_ns(struct ipc_namespace *ns)
 {
-	if (atomic_dec_and_lock(&ns->count, &mq_lock)) {
+	if (refcount_dec_and_lock(&ns->count, &mq_lock)) {
 		mq_clear_sbinfo(ns);
 		spin_unlock(&mq_lock);
 		mq_put_mnt(ns);

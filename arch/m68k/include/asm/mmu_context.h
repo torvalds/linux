@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __M68K_MMU_CONTEXT_H
 #define __M68K_MMU_CONTEXT_H
 
@@ -91,7 +92,6 @@ static inline void activate_mm(struct mm_struct *active_mm,
 
 #define deactivate_mm(tsk, mm) do { } while (0)
 
-extern void mmu_context_init(void);
 #define prepare_arch_switch(next) load_ksp_mmu(next)
 
 static inline void load_ksp_mmu(struct task_struct *task)

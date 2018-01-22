@@ -411,16 +411,16 @@ static int rackmeter_probe(struct macio_dev* mdev,
 #if 0 /* Use that when i2s-a is finally an mdev per-se */
 	if (macio_resource_count(mdev) < 2 || macio_irq_count(mdev) < 2) {
 		printk(KERN_ERR
-		       "rackmeter: found match but lacks resources: %s"
+		       "rackmeter: found match but lacks resources: %pOF"
 		       " (%d resources, %d interrupts)\n",
-		       mdev->ofdev.node->full_name);
+		       mdev->ofdev.dev.of_node);
 		rc = -ENXIO;
 		goto bail_free;
 	}
 	if (macio_request_resources(mdev, "rackmeter")) {
 		printk(KERN_ERR
-		       "rackmeter: failed to request resources: %s\n",
-		       mdev->ofdev.node->full_name);
+		       "rackmeter: failed to request resources: %pOF\n",
+		       mdev->ofdev.dev.of_node);
 		rc = -EBUSY;
 		goto bail_free;
 	}
@@ -431,8 +431,8 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	    of_address_to_resource(i2s, 0, &ri2s) ||
 	    of_address_to_resource(i2s, 1, &rdma)) {
 		printk(KERN_ERR
-		       "rackmeter: found match but lacks resources: %s",
-		       mdev->ofdev.dev.of_node->full_name);
+		       "rackmeter: found match but lacks resources: %pOF",
+		       mdev->ofdev.dev.of_node);
 		rc = -ENXIO;
 		goto bail_free;
 	}
@@ -579,7 +579,7 @@ static int rackmeter_shutdown(struct macio_dev* mdev)
 	return 0;
 }
 
-static struct of_device_id rackmeter_match[] = {
+static const struct of_device_id rackmeter_match[] = {
 	{ .name = "i2s" },
 	{ }
 };

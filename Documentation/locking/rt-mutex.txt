@@ -28,14 +28,13 @@ magic bullet for poorly designed applications, but it allows
 well-designed applications to use userspace locks in critical parts of
 an high priority thread, without losing determinism.
 
-The enqueueing of the waiters into the rtmutex waiter list is done in
+The enqueueing of the waiters into the rtmutex waiter tree is done in
 priority order. For same priorities FIFO order is chosen. For each
 rtmutex, only the top priority waiter is enqueued into the owner's
-priority waiters list. This list too queues in priority order. Whenever
+priority waiters tree. This tree too queues in priority order. Whenever
 the top priority waiter of a task changes (for example it timed out or
-got a signal), the priority of the owner task is readjusted. [The
-priority enqueueing is handled by "plists", see include/linux/plist.h
-for more details.]
+got a signal), the priority of the owner task is readjusted. The
+priority enqueueing is handled by "pi_waiters".
 
 RT-mutexes are optimized for fastpath operations and have no internal
 locking overhead when locking an uncontended mutex or unlocking a mutex
@@ -46,34 +45,29 @@ is used]
 The state of the rt-mutex is tracked via the owner field of the rt-mutex
 structure:
 
-rt_mutex->owner holds the task_struct pointer of the owner. Bit 0 and 1
-are used to keep track of the "owner is pending" and "rtmutex has
-waiters" state.
+lock->owner holds the task_struct pointer of the owner. Bit 0 is used to
+keep track of the "lock has waiters" state.
 
- owner		bit1	bit0
- NULL		0	0	mutex is free (fast acquire possible)
- NULL		0	1	invalid state
- NULL		1	0	Transitional state*
- NULL		1	1	invalid state
- taskpointer	0	0	mutex is held (fast release possible)
- taskpointer	0	1	task is pending owner
- taskpointer	1	0	mutex is held and has waiters
- taskpointer	1	1	task is pending owner and mutex has waiters
+ owner        bit0
+ NULL         0       lock is free (fast acquire possible)
+ NULL         1       lock is free and has waiters and the top waiter
+			is going to take the lock*
+ taskpointer  0       lock is held (fast release possible)
+ taskpointer  1       lock is held and has waiters**
 
-Pending-ownership handling is a performance optimization:
-pending-ownership is assigned to the first (highest priority) waiter of
-the mutex, when the mutex is released. The thread is woken up and once
-it starts executing it can acquire the mutex. Until the mutex is taken
-by it (bit 0 is cleared) a competing higher priority thread can "steal"
-the mutex which puts the woken up thread back on the waiters list.
+The fast atomic compare exchange based acquire and release is only
+possible when bit 0 of lock->owner is 0.
 
-The pending-ownership optimization is especially important for the
-uninterrupted workflow of high-prio tasks which repeatedly
-takes/releases locks that have lower-prio waiters. Without this
-optimization the higher-prio thread would ping-pong to the lower-prio
-task [because at unlock time we always assign a new owner].
+(*) It also can be a transitional state when grabbing the lock
+with ->wait_lock is held. To prevent any fast path cmpxchg to the lock,
+we need to set the bit0 before looking at the lock, and the owner may be
+NULL in this small time, hence this can be a transitional state.
 
-(*) The "mutex has waiters" bit gets set to take the lock. If the lock
-doesn't already have an owner, this bit is quickly cleared if there are
-no waiters.  So this is a transitional state to synchronize with looking
-at the owner field of the mutex and the mutex owner releasing the lock.
+(**) There is a small time when bit 0 is set but there are no
+waiters. This can happen when grabbing the lock in the slow path.
+To prevent a cmpxchg of the owner releasing the lock, we need to
+set this bit before looking at the lock.
+
+BTW, there is still technically a "Pending Owner", it's just not called
+that anymore. The pending owner happens to be the top_waiter of a lock
+that has no owner and has been woken up to grab the lock.

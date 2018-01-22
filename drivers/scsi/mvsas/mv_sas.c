@@ -790,7 +790,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 	slot->n_elem = n_elem;
 	slot->slot_tag = tag;
 
-	slot->buf = pci_pool_alloc(mvi->dma_pool, GFP_ATOMIC, &slot->buf_dma);
+	slot->buf = dma_pool_alloc(mvi->dma_pool, GFP_ATOMIC, &slot->buf_dma);
 	if (!slot->buf) {
 		rc = -ENOMEM;
 		goto err_out_tag;
@@ -840,7 +840,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 	return rc;
 
 err_out_slot_buf:
-	pci_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
+	dma_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
 err_out_tag:
 	mvs_tag_free(mvi, tag);
 err_out:
@@ -918,7 +918,7 @@ static void mvs_slot_task_free(struct mvs_info *mvi, struct sas_task *task,
 	}
 
 	if (slot->buf) {
-		pci_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
+		dma_pool_free(mvi->dma_pool, slot->buf, slot->buf_dma);
 		slot->buf = NULL;
 	}
 	list_del_init(&slot->entry);
@@ -1283,9 +1283,10 @@ static void mvs_task_done(struct sas_task *task)
 	complete(&task->slow_task->completion);
 }
 
-static void mvs_tmf_timedout(unsigned long data)
+static void mvs_tmf_timedout(struct timer_list *t)
 {
-	struct sas_task *task = (struct sas_task *)data;
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;
 
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	complete(&task->slow_task->completion);
@@ -1309,7 +1310,6 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		memcpy(&task->ssp_task, parameter, para_len);
 		task->task_done = mvs_task_done;
 
-		task->slow_task->timer.data = (unsigned long) task;
 		task->slow_task->timer.function = mvs_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + MVS_TASK_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
@@ -1954,9 +1954,9 @@ static int mvs_handle_event(struct mvs_info *mvi, void *data, int handler)
 	return ret;
 }
 
-static void mvs_sig_time_out(unsigned long tphy)
+static void mvs_sig_time_out(struct timer_list *t)
 {
-	struct mvs_phy *phy = (struct mvs_phy *)tphy;
+	struct mvs_phy *phy = from_timer(phy, t, timer);
 	struct mvs_info *mvi = phy->mvi;
 	u8 phy_no;
 
@@ -2020,7 +2020,6 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 		MVS_CHIP_DISP->write_port_irq_mask(mvi, phy_no,
 					tmp | PHYEV_SIG_FIS);
 		if (phy->timer.function == NULL) {
-			phy->timer.data = (unsigned long)phy;
 			phy->timer.function = mvs_sig_time_out;
 			phy->timer.expires = jiffies + 5*HZ;
 			add_timer(&phy->timer);

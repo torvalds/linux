@@ -97,8 +97,8 @@ group spi_quad
  - pins 15-16
  - functions spi, gpio
 
-group uart_2
- - pins 9-10
+group uart2
+ - pins 9-10 and 18-19
  - functions uart, gpio
 
 Available groups and functions for the South bridge:

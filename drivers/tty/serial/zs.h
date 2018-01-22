@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * zs.h: Definitions for the DECstation Z85C30 serial driver.
  *

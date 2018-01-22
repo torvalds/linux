@@ -34,6 +34,12 @@ struct mtk_iommu_suspend_reg {
 	u32				int_main_control;
 };
 
+enum mtk_iommu_plat {
+	M4U_MT2701,
+	M4U_MT2712,
+	M4U_MT8173,
+};
+
 struct mtk_iommu_domain;
 
 struct mtk_iommu_data {
@@ -50,6 +56,9 @@ struct mtk_iommu_data {
 	bool				tlb_flush_active;
 
 	struct iommu_device		iommu;
+	enum mtk_iommu_plat		m4u_plat;
+
+	struct list_head		list;
 };
 
 static inline int compare_of(struct device *dev, void *data)

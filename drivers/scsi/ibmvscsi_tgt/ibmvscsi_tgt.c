@@ -3767,7 +3767,7 @@ static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 	 */
 	if ((vscsi->flags & (CLIENT_FAILED | RESPONSE_Q_DOWN))) {
 		pr_err("write_pending failed since: %d\n", vscsi->flags);
-		return 0;
+		return -EIO;
 	}
 
 	rc = srp_transfer_data(cmd, &vio_iu(iue)->srp.cmd, ibmvscsis_rdma,
@@ -4086,7 +4086,7 @@ static struct class ibmvscsis_class = {
 	.dev_groups	= ibmvscsis_dev_groups,
 };
 
-static struct vio_device_id ibmvscsis_device_table[] = {
+static const struct vio_device_id ibmvscsis_device_table[] = {
 	{ "v-scsi-host", "IBM,v-scsi-host" },
 	{ "", "" }
 };

@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 
 /*
  * Special Micron status bit that indicates when the block has been

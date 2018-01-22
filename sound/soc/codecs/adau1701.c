@@ -757,7 +757,7 @@ static int adau1701_resume(struct snd_soc_codec *codec)
 #define adau1701_suspend 	NULL
 #endif /* CONFIG_PM */
 
-static struct snd_soc_codec_driver adau1701_codec_drv = {
+static const struct snd_soc_codec_driver adau1701_codec_drv = {
 	.probe			= adau1701_probe,
 	.remove			= adau1701_remove,
 	.resume			= adau1701_resume,

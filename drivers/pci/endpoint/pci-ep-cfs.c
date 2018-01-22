@@ -150,7 +150,7 @@ static struct configfs_item_operations pci_epc_item_ops = {
 	.drop_link	= pci_epc_epf_unlink,
 };
 
-static struct config_item_type pci_epc_type = {
+static const struct config_item_type pci_epc_type = {
 	.ct_item_ops	= &pci_epc_item_ops,
 	.ct_attrs	= pci_epc_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -361,7 +361,7 @@ static struct configfs_item_operations pci_epf_ops = {
 	.release		= pci_epf_release,
 };
 
-static struct config_item_type pci_epf_type = {
+static const struct config_item_type pci_epf_type = {
 	.ct_item_ops	= &pci_epf_ops,
 	.ct_attrs	= pci_epf_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -400,7 +400,7 @@ static struct configfs_group_operations pci_epf_group_ops = {
 	.drop_item      = &pci_epf_drop,
 };
 
-static struct config_item_type pci_epf_group_type = {
+static const struct config_item_type pci_epf_group_type = {
 	.ct_group_ops	= &pci_epf_group_ops,
 	.ct_owner	= THIS_MODULE,
 };
@@ -428,15 +428,15 @@ void pci_ep_cfs_remove_epf_group(struct config_group *group)
 }
 EXPORT_SYMBOL(pci_ep_cfs_remove_epf_group);
 
-static struct config_item_type pci_functions_type = {
+static const struct config_item_type pci_functions_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-static struct config_item_type pci_controllers_type = {
+static const struct config_item_type pci_controllers_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-static struct config_item_type pci_ep_type = {
+static const struct config_item_type pci_ep_type = {
 	.ct_owner	= THIS_MODULE,
 };
 

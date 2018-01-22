@@ -266,6 +266,32 @@ static u64 cs_etm_get_config(struct auxtrace_record *itr)
 	return config;
 }
 
+#ifndef BIT
+#define BIT(N) (1UL << (N))
+#endif
+
+static u64 cs_etmv4_get_config(struct auxtrace_record *itr)
+{
+	u64 config = 0;
+	u64 config_opts = 0;
+
+	/*
+	 * The perf event variable config bits represent both
+	 * the command line options and register programming
+	 * bits in ETMv3/PTM. For ETMv4 we must remap options
+	 * to real bits
+	 */
+	config_opts = cs_etm_get_config(itr);
+	if (config_opts & BIT(ETM_OPT_CYCACC))
+		config |= BIT(ETM4_CFG_BIT_CYCACC);
+	if (config_opts & BIT(ETM_OPT_TS))
+		config |= BIT(ETM4_CFG_BIT_TS);
+	if (config_opts & BIT(ETM_OPT_RETSTK))
+		config |= BIT(ETM4_CFG_BIT_RETSTK);
+
+	return config;
+}
+
 static size_t
 cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 		      struct perf_evlist *evlist __maybe_unused)
@@ -363,7 +389,7 @@ static void cs_etm_get_metadata(int cpu, u32 *offset,
 		magic = __perf_cs_etmv4_magic;
 		/* Get trace configuration register */
 		info->priv[*offset + CS_ETMV4_TRCCONFIGR] =
-						cs_etm_get_config(itr);
+						cs_etmv4_get_config(itr);
 		/* Get traceID from the framework */
 		info->priv[*offset + CS_ETMV4_TRCTRACEIDR] =
 						coresight_get_trace_id(cpu);

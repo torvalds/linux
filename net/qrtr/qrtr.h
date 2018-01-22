@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __QRTR_H_
 #define __QRTR_H_
 

@@ -54,6 +54,17 @@ static const struct rockchip_grf_info rk3288_grf __initconst = {
 	.num_values = ARRAY_SIZE(rk3288_defaults),
 };
 
+#define RK3328_GRF_SOC_CON4		0x410
+
+static const struct rockchip_grf_value rk3328_defaults[] __initconst = {
+	{ "jtag switching", RK3328_GRF_SOC_CON4, HIWORD_UPDATE(0, 1, 12) },
+};
+
+static const struct rockchip_grf_info rk3328_grf __initconst = {
+	.values = rk3328_defaults,
+	.num_values = ARRAY_SIZE(rk3328_defaults),
+};
+
 #define RK3368_GRF_SOC_CON15		0x43c
 
 static const struct rockchip_grf_value rk3368_defaults[] __initconst = {
@@ -83,6 +94,9 @@ static const struct of_device_id rockchip_grf_dt_match[] __initconst = {
 	}, {
 		.compatible = "rockchip,rk3288-grf",
 		.data = (void *)&rk3288_grf,
+	}, {
+		.compatible = "rockchip,rk3328-grf",
+		.data = (void *)&rk3328_grf,
 	}, {
 		.compatible = "rockchip,rk3368-grf",
 		.data = (void *)&rk3368_grf,

@@ -135,7 +135,7 @@ static struct v4l2_ioctl_ops radio_si4713_ioctl_ops = {
 };
 
 /* radio_si4713_vdev_template - video device interface */
-static struct video_device radio_si4713_vdev_template = {
+static const struct video_device radio_si4713_vdev_template = {
 	.fops			= &radio_si4713_fops,
 	.name			= "radio-si4713",
 	.release		= video_device_release_empty,

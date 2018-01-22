@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	6522 Versatile Interface Adapter (VIA)
  *
@@ -106,6 +107,7 @@ static int gIER,gIFR,gBufA,gBufB;
 static u8 nubus_disabled;
 
 void via_debug_dump(void);
+static void via_nubus_init(void);
 
 /*
  * Initialize the VIAs
@@ -113,29 +115,25 @@ void via_debug_dump(void);
  * First we figure out where they actually _are_ as well as what type of
  * VIA we have for VIA2 (it could be a real VIA or an RBV or even an OSS.)
  * Then we pretty much clear them out and disable all IRQ sources.
- *
- * Note: the OSS is actually "detected" here and not in oss_init(). It just
- *	 seems more logical to do it here since via_init() needs to know
- *	 these things anyways.
  */
 
 void __init via_init(void)
 {
-	switch(macintosh_config->via_type) {
+	via1 = (void *)VIA1_BASE;
+	pr_debug("VIA1 detected at %p\n", via1);
+
+	if (oss_present) {
+		via2 = NULL;
+		rbv_present = 0;
+	} else {
+		switch (macintosh_config->via_type) {
 
 		/* IIci, IIsi, IIvx, IIvi (P6xx), LC series */
 
 		case MAC_VIA_IICI:
-			via1 = (void *) VIA1_BASE;
-			if (macintosh_config->ident == MAC_MODEL_IIFX) {
-				via2 = NULL;
-				rbv_present = 0;
-				oss_present = 1;
-			} else {
-				via2 = (void *) RBV_BASE;
-				rbv_present = 1;
-				oss_present = 0;
-			}
+			via2 = (void *)RBV_BASE;
+			pr_debug("VIA2 (RBV) detected at %p\n", via2);
+			rbv_present = 1;
 			if (macintosh_config->ident == MAC_MODEL_LCIII) {
 				rbv_clear = 0x00;
 			} else {
@@ -154,29 +152,19 @@ void __init via_init(void)
 
 		case MAC_VIA_QUADRA:
 		case MAC_VIA_II:
-			via1 = (void *) VIA1_BASE;
 			via2 = (void *) VIA2_BASE;
+			pr_debug("VIA2 detected at %p\n", via2);
 			rbv_present = 0;
-			oss_present = 0;
 			rbv_clear = 0x00;
 			gIER = vIER;
 			gIFR = vIFR;
 			gBufA = vBufA;
 			gBufB = vBufB;
 			break;
+
 		default:
 			panic("UNKNOWN VIA TYPE");
-	}
-
-	printk(KERN_INFO "VIA1 at %p is a 6522 or clone\n", via1);
-
-	printk(KERN_INFO "VIA2 at %p is ", via2);
-	if (rbv_present) {
-		printk("an RBV\n");
-	} else if (oss_present) {
-		printk("an OSS\n");
-	} else {
-		printk("a 6522 or clone\n");
+		}
 	}
 
 #ifdef DEBUG_VIA
@@ -252,6 +240,8 @@ void __init via_init(void)
 		via2[vACR] &= ~0x03; /* disable port A & B latches */
 	}
 
+	via_nubus_init();
+
 	/* Everything below this point is VIA2 only... */
 
 	if (rbv_present)
@@ -303,9 +293,9 @@ void via_debug_dump(void)
 		(uint) via1[vDirA], (uint) via1[vDirB], (uint) via1[vACR]);
 	printk(KERN_DEBUG "         PCR = 0x%02X  IFR = 0x%02X IER = 0x%02X\n",
 		(uint) via1[vPCR], (uint) via1[vIFR], (uint) via1[vIER]);
-	if (oss_present) {
-		printk(KERN_DEBUG "VIA2: <OSS>\n");
-	} else if (rbv_present) {
+	if (!via2)
+		return;
+	if (rbv_present) {
 		printk(KERN_DEBUG "VIA2:  IFR = 0x%02X  IER = 0x%02X\n",
 			(uint) via2[rIFR], (uint) via2[rIER]);
 		printk(KERN_DEBUG "      SIFR = 0x%02X SIER = 0x%02X\n",
@@ -373,7 +363,7 @@ int via_get_cache_disable(void)
  * Initialize VIA2 for Nubus access
  */
 
-void __init via_nubus_init(void)
+static void __init via_nubus_init(void)
 {
 	/* unlock nubus transactions */
 

@@ -15,6 +15,7 @@
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/dmapool.h>
+#include <linux/iopoll.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -25,14 +26,13 @@
 #include <scsi/sas_ata.h>
 #include <scsi/libsas.h>
 
-#define DRV_VERSION "v1.6"
-
 #define HISI_SAS_MAX_PHYS	9
 #define HISI_SAS_MAX_QUEUES	32
 #define HISI_SAS_QUEUE_SLOTS 512
-#define HISI_SAS_MAX_ITCT_ENTRIES 2048
+#define HISI_SAS_MAX_ITCT_ENTRIES 1024
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_RESET_BIT	0
+#define HISI_SAS_REJECT_CMD_BIT	1
 
 #define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_status_buffer))
 #define HISI_SAS_COMMAND_TABLE_SZ (sizeof(union hisi_sas_command_table))
@@ -90,12 +90,20 @@ enum hisi_sas_dev_type {
 	HISI_SAS_DEV_TYPE_SATA,
 };
 
+struct hisi_sas_hw_error {
+	u32 irq_msk;
+	u32 msk;
+	int shift;
+	const char *msg;
+	int reg;
+	const struct hisi_sas_hw_error *sub;
+};
+
 struct hisi_sas_phy {
 	struct hisi_hba	*hisi_hba;
 	struct hisi_sas_port	*port;
 	struct asd_sas_phy	sas_phy;
 	struct sas_identify	identify;
-	struct timer_list	timer;
 	struct work_struct	phyup_ws;
 	u64		port_id; /* from hw */
 	u64		dev_sas_addr;
@@ -132,6 +140,7 @@ struct hisi_sas_dq {
 struct hisi_sas_device {
 	struct hisi_hba		*hisi_hba;
 	struct domain_device	*sas_device;
+	struct completion *completion;
 	struct hisi_sas_dq	*dq;
 	struct list_head	list;
 	u64 attached_phy;
@@ -189,9 +198,10 @@ struct hisi_sas_hw {
 	int (*slot_complete)(struct hisi_hba *hisi_hba,
 			     struct hisi_sas_slot *slot);
 	void (*phys_init)(struct hisi_hba *hisi_hba);
-	void (*phy_enable)(struct hisi_hba *hisi_hba, int phy_no);
+	void (*phy_start)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_disable)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_hard_reset)(struct hisi_hba *hisi_hba, int phy_no);
+	void (*get_events)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_set_linkrate)(struct hisi_hba *hisi_hba, int phy_no,
 			struct sas_phy_linkrates *linkrates);
 	enum sas_linkrate (*phy_get_max_linkrate)(void);
@@ -201,6 +211,7 @@ struct hisi_sas_hw {
 	void (*dereg_device)(struct hisi_hba *hisi_hba,
 				struct domain_device *device);
 	int (*soft_reset)(struct hisi_hba *hisi_hba);
+	u32 (*get_phys_state)(struct hisi_hba *hisi_hba);
 	int max_command_entries;
 	int complete_hdr_size;
 };
@@ -331,7 +342,11 @@ struct hisi_sas_initial_fis {
 };
 
 struct hisi_sas_breakpoint {
-	u8	data[128];	/*io128 byte*/
+	u8	data[128];
+};
+
+struct hisi_sas_sata_breakpoint {
+	struct hisi_sas_breakpoint tag[32];
 };
 
 struct hisi_sas_sge {
@@ -390,6 +405,7 @@ struct hisi_sas_slot_buf_table {
 extern struct scsi_transport_template *hisi_sas_stt;
 extern struct scsi_host_template *hisi_sas_sht;
 
+extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
 extern void hisi_sas_init_add(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost);
 extern void hisi_sas_free(struct hisi_hba *hisi_hba);
@@ -408,6 +424,6 @@ extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct sas_task *task,
 				    struct hisi_sas_slot *slot);
 extern void hisi_sas_init_mem(struct hisi_hba *hisi_hba);
-extern void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
-				     u32 state);
+extern void hisi_sas_rst_work_handler(struct work_struct *work);
+extern void hisi_sas_kill_tasklets(struct hisi_hba *hisi_hba);
 #endif

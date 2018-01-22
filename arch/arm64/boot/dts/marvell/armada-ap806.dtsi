@@ -241,6 +241,12 @@
 
 			};
 
+			watchdog: watchdog@600000 {
+				compatible = "arm,sbsa-gwdt";
+				reg = <0x610000 0x1000>, <0x600000 0x1000>;
+				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 			ap_sdhci0: sdhci@6e0000 {
 				compatible = "marvell,armada-ap806-sdhci";
 				reg = <0x6e0000 0x300>;
@@ -254,7 +260,7 @@
 
 			ap_syscon: system-controller@6f4000 {
 				compatible = "syscon", "simple-mfd";
-				reg = <0x6f4000 0x1000>;
+				reg = <0x6f4000 0x2000>;
 
 				ap_clk: clock {
 					compatible = "marvell,ap806-clock";
@@ -263,9 +269,14 @@
 
 				ap_pinctrl: pinctrl {
 					compatible = "marvell,ap806-pinctrl";
+
+					uart0_pins: uart0-pins {
+						marvell,pins = "mpp11", "mpp19";
+						marvell,function = "uart0";
+					};
 				};
 
-				ap_gpio: gpio {
+				ap_gpio: gpio@1040 {
 					compatible = "marvell,armada-8k-gpio";
 					offset = <0x1040>;
 					ngpios = <20>;

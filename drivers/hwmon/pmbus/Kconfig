@@ -37,6 +37,15 @@ config SENSORS_ADM1275
 	  This driver can also be built as a module. If so, the module will
 	  be called adm1275.
 
+config SENSORS_IBM_CFFPS
+	tristate "IBM Common Form Factor Power Supply"
+	help
+	  If you say yes here you get hardware monitoring support for the IBM
+	  Common Form Factor power supply.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ibm-cffps.
+
 config SENSORS_IR35221
 	tristate "Infineon IR35221"
 	default n
@@ -105,6 +114,16 @@ config SENSORS_MAX20751
 	  This driver can also be built as a module. If so, the module will
 	  be called max20751.
 
+config SENSORS_MAX31785
+	tristate "Maxim MAX31785 and compatibles"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX31785.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max31785.
+
 config SENSORS_MAX34440
 	tristate "Maxim MAX34440 and compatibles"
 	default n
@@ -134,6 +153,15 @@ config SENSORS_TPS40422
 
 	  This driver can also be built as a module. If so, the module will
 	  be called tps40422.
+
+config SENSORS_TPS53679
+	tristate "TI TPS53679"
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  TPS53679.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tps53679.
 
 config SENSORS_UCD9000
 	tristate "TI UCD90120, UCD90124, UCD90160, UCD9090, UCD90910"

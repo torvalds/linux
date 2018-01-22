@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # mpt3sas makefile
 obj-$(CONFIG_SCSI_MPT3SAS) += mpt3sas.o
 mpt3sas-y +=  mpt3sas_base.o     \

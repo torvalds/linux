@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MACH_SDK7786_FPGA_H
 #define __MACH_SDK7786_FPGA_H
 

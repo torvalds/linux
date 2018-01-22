@@ -370,7 +370,7 @@ nlmsvc_mark_resources(struct net *net)
 {
 	struct nlm_host hint;
 
-	dprintk("lockd: nlmsvc_mark_resources for net %p\n", net);
+	dprintk("lockd: %s for net %x\n", __func__, net ? net->ns.inum : 0);
 	hint.net = net;
 	nlm_traverse_files(&hint, nlmsvc_mark_host, NULL);
 }

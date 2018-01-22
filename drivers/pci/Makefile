@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the PCI bus specific drivers.
 #
@@ -16,15 +17,9 @@ obj-$(CONFIG_PCIEPORTBUS) += pcie/
 
 # Build the PCI Hotplug drivers if we were asked to
 obj-$(CONFIG_HOTPLUG_PCI) += hotplug/
-ifdef CONFIG_HOTPLUG_PCI
-obj-y += hotplug-pci.o
-endif
 
 # Build the PCI MSI interrupt support
 obj-$(CONFIG_PCI_MSI) += msi.o
-
-# Build the Hypertransport interrupt support
-obj-$(CONFIG_HT_IRQ) += htirq.o
 
 obj-$(CONFIG_PCI_ATS) += ats.o
 obj-$(CONFIG_PCI_IOV) += iov.o

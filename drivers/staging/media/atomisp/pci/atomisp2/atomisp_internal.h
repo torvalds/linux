@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 #ifndef __ATOMISP_INTERNAL_H__
@@ -28,9 +24,6 @@
 #include <linux/kernel.h>
 #include <linux/pm_qos.h>
 #include <linux/idr.h>
-
-#include <asm/intel-mid.h>
-#include "../../include/asm/intel_mid_pcihelpers.h"
 
 #include <media/media-device.h>
 #include <media/v4l2-subdev.h>
@@ -74,15 +67,6 @@
 
 #define ATOMISP_PCI_REV_MRFLD_A0_MAX	0
 #define ATOMISP_PCI_REV_BYT_A0_MAX	4
-
-#define ATOMISP_MAJOR		0
-#define ATOMISP_MINOR		5
-#define ATOMISP_PATCHLEVEL	1
-
-#define DRIVER_VERSION_STR	__stringify(ATOMISP_MAJOR) \
-	"." __stringify(ATOMISP_MINOR) "." __stringify(ATOMISP_PATCHLEVEL)
-#define DRIVER_VERSION		KERNEL_VERSION(ATOMISP_MAJOR, \
-	ATOMISP_MINOR, ATOMISP_PATCHLEVEL)
 
 #define ATOM_ISP_STEP_WIDTH	2
 #define ATOM_ISP_STEP_HEIGHT	2
@@ -309,10 +293,6 @@ struct atomisp_device {
 	container_of(dev, struct atomisp_device, v4l2_dev)
 
 extern struct device *atomisp_dev;
-
-extern void *atomisp_kernel_malloc(size_t bytes);
-
-extern void atomisp_kernel_free(void *ptr);
 
 #define atomisp_is_wdt_running(a) timer_pending(&(a)->wdt)
 #ifdef ISP2401

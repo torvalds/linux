@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* arch/sparc64/kernel/ktlb.S: Kernel mapping TLB miss handling.
  *
  * Copyright (C) 1995, 1997, 2005, 2008 David S. Miller <davem@davemloft.net>

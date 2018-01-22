@@ -25,7 +25,7 @@ Example:
 		};
 	};
 	...
-	i2c0: i2c-master@0d090000 {
+	i2c0: i2c-master@d090000 {
 		...
 		cdce706: clock-synth@69 {
 			compatible = "ti,cdce706";

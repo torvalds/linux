@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * resource.c - Contains functions for registering and analyzing resource information
  *

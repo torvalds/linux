@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifndef __LINUX_KBUILD_H
 # error "Please do not build this file directly, build asm-offsets.c instead"
 #endif
@@ -20,9 +21,11 @@ static char syscalls_ia32[] = {
 int main(void)
 {
 #ifdef CONFIG_PARAVIRT
-	OFFSET(PV_IRQ_adjust_exception_frame, pv_irq_ops, adjust_exception_frame);
 	OFFSET(PV_CPU_usergs_sysret64, pv_cpu_ops, usergs_sysret64);
 	OFFSET(PV_CPU_swapgs, pv_cpu_ops, swapgs);
+#ifdef CONFIG_DEBUG_ENTRY
+	OFFSET(PV_IRQ_save_fl, pv_irq_ops, save_fl);
+#endif
 	BLANK();
 #endif
 
@@ -63,6 +66,7 @@ int main(void)
 
 	OFFSET(TSS_ist, tss_struct, x86_tss.ist);
 	OFFSET(TSS_sp0, tss_struct, x86_tss.sp0);
+	OFFSET(TSS_sp1, tss_struct, x86_tss.sp1);
 	BLANK();
 
 #ifdef CONFIG_CC_STACKPROTECTOR

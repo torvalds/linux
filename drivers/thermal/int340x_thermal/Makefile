@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_INT340X_THERMAL)	+= int3400_thermal.o
 obj-$(CONFIG_INT340X_THERMAL)	+= int340x_thermal_zone.o
 obj-$(CONFIG_INT340X_THERMAL)	+= int3402_thermal.o

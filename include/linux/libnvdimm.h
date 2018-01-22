@@ -18,6 +18,18 @@
 #include <linux/sizes.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
+#include <linux/spinlock.h>
+
+struct badrange_entry {
+	u64 start;
+	u64 length;
+	struct list_head list;
+};
+
+struct badrange {
+	struct list_head list;
+	spinlock_t lock;
+};
 
 enum {
 	/* when a dimm supports both PMEM and BLK access a label is required */
@@ -87,6 +99,7 @@ struct nd_mapping_desc {
 	struct nvdimm *nvdimm;
 	u64 start;
 	u64 size;
+	int position;
 };
 
 struct nd_region_desc {
@@ -128,9 +141,12 @@ static inline struct nd_blk_region_desc *to_blk_region_desc(
 
 }
 
-int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length);
-void nvdimm_forget_poison(struct nvdimm_bus *nvdimm_bus,
-		phys_addr_t start, unsigned int len);
+void badrange_init(struct badrange *badrange);
+int badrange_add(struct badrange *badrange, u64 addr, u64 length);
+void badrange_forget(struct badrange *badrange, phys_addr_t start,
+		unsigned int len);
+int nvdimm_bus_add_badrange(struct nvdimm_bus *nvdimm_bus, u64 addr,
+		u64 length);
 struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 		struct nvdimm_bus_descriptor *nfit_desc);
 void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus);
@@ -173,4 +189,19 @@ u64 nd_fletcher64(void *addr, size_t len, bool le);
 void nvdimm_flush(struct nd_region *nd_region);
 int nvdimm_has_flush(struct nd_region *nd_region);
 int nvdimm_has_cache(struct nd_region *nd_region);
+
+#ifdef CONFIG_ARCH_HAS_PMEM_API
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
+void arch_wb_cache_pmem(void *addr, size_t size);
+void arch_invalidate_pmem(void *addr, size_t size);
+#else
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WT
+static inline void arch_wb_cache_pmem(void *addr, size_t size)
+{
+}
+static inline void arch_invalidate_pmem(void *addr, size_t size)
+{
+}
+#endif
+
 #endif /* __LIBNVDIMM_H__ */

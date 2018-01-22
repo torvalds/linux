@@ -626,7 +626,7 @@ static ssize_t lp8788_show_charger_status(struct device *dev,
 {
 	struct lp8788_charger *pchg = dev_get_drvdata(dev);
 	enum lp8788_charging_state state;
-	char *desc[LP8788_MAX_CHG_STATE] = {
+	static const char * const desc[LP8788_MAX_CHG_STATE] = {
 		[LP8788_OFF] = "CHARGER OFF",
 		[LP8788_WARM_UP] = "WARM UP",
 		[LP8788_LOW_INPUT] = "LOW INPUT STATE",
@@ -650,8 +650,10 @@ static ssize_t lp8788_show_eoc_time(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct lp8788_charger *pchg = dev_get_drvdata(dev);
-	char *stime[] = { "400ms", "5min", "10min", "15min",
-			"20min", "25min", "30min", "No timeout" };
+	static const char * const stime[] = {
+		"400ms", "5min", "10min", "15min",
+		"20min", "25min", "30min", "No timeout"
+	};
 	u8 val;
 
 	lp8788_read_byte(pchg->lp, LP8788_CHG_EOC, &val);
@@ -665,9 +667,13 @@ static ssize_t lp8788_show_eoc_level(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct lp8788_charger *pchg = dev_get_drvdata(dev);
-	char *abs_level[] = { "25mA", "49mA", "75mA", "98mA" };
-	char *relative_level[] = { "5%", "10%", "15%", "20%" };
-	char *level;
+	static const char * const abs_level[] = {
+			"25mA", "49mA", "75mA", "98mA"
+	};
+	static const char * const relative_level[] = {
+			"5%", "10%", "15%", "20%"
+	};
+	const char *level;
 	u8 val;
 	u8 mode;
 

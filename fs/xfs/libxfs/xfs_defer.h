@@ -59,6 +59,7 @@ enum xfs_defer_ops_type {
 };
 
 #define XFS_DEFER_OPS_NR_INODES	2	/* join up to two inodes */
+#define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
 
 struct xfs_defer_ops {
 	bool			dop_committed;	/* did any trans commit? */
@@ -66,18 +67,19 @@ struct xfs_defer_ops {
 	struct list_head	dop_intake;	/* unlogged pending work */
 	struct list_head	dop_pending;	/* logged pending work */
 
-	/* relog these inodes with each roll */
+	/* relog these with each roll */
 	struct xfs_inode	*dop_inodes[XFS_DEFER_OPS_NR_INODES];
+	struct xfs_buf		*dop_bufs[XFS_DEFER_OPS_NR_BUFS];
 };
 
 void xfs_defer_add(struct xfs_defer_ops *dop, enum xfs_defer_ops_type type,
 		struct list_head *h);
-int xfs_defer_finish(struct xfs_trans **tp, struct xfs_defer_ops *dop,
-		struct xfs_inode *ip);
+int xfs_defer_finish(struct xfs_trans **tp, struct xfs_defer_ops *dop);
 void xfs_defer_cancel(struct xfs_defer_ops *dop);
 void xfs_defer_init(struct xfs_defer_ops *dop, xfs_fsblock_t *fbp);
 bool xfs_defer_has_unfinished_work(struct xfs_defer_ops *dop);
-int xfs_defer_join(struct xfs_defer_ops *dop, struct xfs_inode *ip);
+int xfs_defer_ijoin(struct xfs_defer_ops *dop, struct xfs_inode *ip);
+int xfs_defer_bjoin(struct xfs_defer_ops *dop, struct xfs_buf *bp);
 
 /* Description of a deferred type. */
 struct xfs_defer_op_type {

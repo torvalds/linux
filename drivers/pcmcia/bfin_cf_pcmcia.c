@@ -86,9 +86,9 @@ static int bfin_cf_ss_init(struct pcmcia_socket *s)
 }
 
 /* the timer is primarily to kick this socket's pccardd */
-static void bfin_cf_timer(unsigned long _cf)
+static void bfin_cf_timer(struct timer_list *t)
 {
-	struct bfin_cf_socket *cf = (void *)_cf;
+	struct bfin_cf_socket *cf = from_timer(cf, t, timer);
 	unsigned short present = bfin_cf_present(cf->cd_pfx);
 
 	if (present != cf->present) {
@@ -227,7 +227,7 @@ static int bfin_cf_probe(struct platform_device *pdev)
 
 	cf->cd_pfx = cd_pfx;
 
-	setup_timer(&cf->timer, bfin_cf_timer, (unsigned long)cf);
+	timer_setup(&cf->timer, bfin_cf_timer, 0);
 
 	cf->pdev = pdev;
 	platform_set_drvdata(pdev, cf);

@@ -281,6 +281,11 @@ struct igb_ring {
 	u16 count;			/* number of desc. in the ring */
 	u8 queue_index;			/* logical index of the ring*/
 	u8 reg_idx;			/* physical index of the ring */
+	bool cbs_enable;		/* indicates if CBS is enabled */
+	s32 idleslope;			/* idleSlope in kbps */
+	s32 sendslope;			/* sendSlope in kbps */
+	s32 hicredit;			/* hiCredit in bytes */
+	s32 locredit;			/* loCredit in bytes */
 
 	/* everything past this point are written often */
 	u16 next_to_clean;
@@ -621,6 +626,7 @@ struct igb_adapter {
 #define IGB_FLAG_EEE			BIT(14)
 #define IGB_FLAG_VLAN_PROMISC		BIT(15)
 #define IGB_FLAG_RX_LEGACY		BIT(16)
+#define IGB_FLAG_FQTSS			BIT(17)
 
 /* Media Auto Sense */
 #define IGB_MAS_ENABLE_0		0X0001

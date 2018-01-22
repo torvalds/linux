@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 s5p-fimc-objs := fimc-core.o fimc-reg.o fimc-m2m.o fimc-capture.o media-dev.o
 exynos-fimc-lite-objs += fimc-lite-reg.o fimc-lite.o
 s5p-csis-objs := mipi-csis.o

@@ -183,7 +183,7 @@ static int wake_atomic_t_function(struct wait_queue_entry *wq_entry, unsigned mo
  */
 static __sched
 int __wait_on_atomic_t(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry,
-		       int (*action)(atomic_t *), unsigned mode)
+		       wait_atomic_t_action_f action, unsigned int mode)
 {
 	atomic_t *val;
 	int ret = 0;
@@ -193,7 +193,7 @@ int __wait_on_atomic_t(struct wait_queue_head *wq_head, struct wait_bit_queue_en
 		val = wbq_entry->key.flags;
 		if (atomic_read(val) == 0)
 			break;
-		ret = (*action)(val);
+		ret = (*action)(val, mode);
 	} while (!ret && atomic_read(val) != 0);
 	finish_wait(wq_head, &wbq_entry->wq_entry);
 	return ret;
@@ -210,8 +210,9 @@ int __wait_on_atomic_t(struct wait_queue_head *wq_head, struct wait_bit_queue_en
 		},							\
 	}
 
-__sched int out_of_line_wait_on_atomic_t(atomic_t *p, int (*action)(atomic_t *),
-					 unsigned mode)
+__sched int out_of_line_wait_on_atomic_t(atomic_t *p,
+					 wait_atomic_t_action_f action,
+					 unsigned int mode)
 {
 	struct wait_queue_head *wq_head = atomic_t_waitqueue(p);
 	DEFINE_WAIT_ATOMIC_T(wq_entry, p);
@@ -219,6 +220,15 @@ __sched int out_of_line_wait_on_atomic_t(atomic_t *p, int (*action)(atomic_t *),
 	return __wait_on_atomic_t(wq_head, &wq_entry, action, mode);
 }
 EXPORT_SYMBOL(out_of_line_wait_on_atomic_t);
+
+__sched int atomic_t_wait(atomic_t *counter, unsigned int mode)
+{
+	schedule();
+	if (signal_pending_state(mode, current))
+		return -EINTR;
+	return 0;
+}
+EXPORT_SYMBOL(atomic_t_wait);
 
 /**
  * wake_up_atomic_t - Wake up a waiter on a atomic_t

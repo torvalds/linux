@@ -482,7 +482,7 @@ static struct crypto_alg cbc_aes_alg = {
 	}
 };
 
-static struct x86_cpu_id padlock_cpu_id[] = {
+static const struct x86_cpu_id padlock_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_XCRYPT),
 	{}
 };

@@ -139,11 +139,11 @@ static int zx_spdif_hw_params(struct snd_pcm_substream *substream,
 {
 	struct zx_spdif_info *zx_spdif = dev_get_drvdata(socdai->dev);
 	struct zx_spdif_info *spdif = snd_soc_dai_get_drvdata(socdai);
-	struct snd_dmaengine_dai_dma_data *dma_data = &zx_spdif->dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data =
+		snd_soc_dai_get_dma_data(socdai, substream);
 	u32 val, ch_num, rate;
 	int ret;
 
-	dma_data = snd_soc_dai_get_dma_data(socdai, substream);
 	dma_data->addr_width = params_width(params) >> 3;
 
 	val = readl_relaxed(zx_spdif->reg_base + ZX_CTRL);
@@ -264,7 +264,7 @@ static void zx_spdif_shutdown(struct snd_pcm_substream *substream,
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S18_3LE \
 	| SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops zx_spdif_dai_ops = {
+static const struct snd_soc_dai_ops zx_spdif_dai_ops = {
 	.trigger	= zx_spdif_trigger,
 	.startup	= zx_spdif_startup,
 	.shutdown	= zx_spdif_shutdown,

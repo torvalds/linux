@@ -50,7 +50,6 @@ panel_bridge_connector_helper_funcs = {
 };
 
 static const struct drm_connector_funcs panel_bridge_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
@@ -158,7 +157,6 @@ struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
 					u32 connector_type)
 {
 	struct panel_bridge *panel_bridge;
-	int ret;
 
 	if (!panel)
 		return ERR_PTR(-EINVAL);
@@ -176,9 +174,7 @@ struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
 	panel_bridge->bridge.of_node = panel->dev->of_node;
 #endif
 
-	ret = drm_bridge_add(&panel_bridge->bridge);
-	if (ret)
-		return ERR_PTR(ret);
+	drm_bridge_add(&panel_bridge->bridge);
 
 	return &panel_bridge->bridge;
 }
@@ -192,9 +188,47 @@ EXPORT_SYMBOL(drm_panel_bridge_add);
  */
 void drm_panel_bridge_remove(struct drm_bridge *bridge)
 {
-	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
+	struct panel_bridge *panel_bridge;
+
+	if (!bridge)
+		return;
+
+	if (bridge->funcs != &panel_bridge_bridge_funcs)
+		return;
+
+	panel_bridge = drm_bridge_to_panel_bridge(bridge);
 
 	drm_bridge_remove(bridge);
 	devm_kfree(panel_bridge->panel->dev, bridge);
 }
 EXPORT_SYMBOL(drm_panel_bridge_remove);
+
+static void devm_drm_panel_bridge_release(struct device *dev, void *res)
+{
+	struct drm_bridge **bridge = res;
+
+	drm_panel_bridge_remove(*bridge);
+}
+
+struct drm_bridge *devm_drm_panel_bridge_add(struct device *dev,
+					     struct drm_panel *panel,
+					     u32 connector_type)
+{
+	struct drm_bridge **ptr, *bridge;
+
+	ptr = devres_alloc(devm_drm_panel_bridge_release, sizeof(*ptr),
+			   GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	bridge = drm_panel_bridge_add(panel, connector_type);
+	if (!IS_ERR(bridge)) {
+		*ptr = bridge;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return bridge;
+}
+EXPORT_SYMBOL(devm_drm_panel_bridge_add);

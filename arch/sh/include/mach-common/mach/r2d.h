@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_RENESAS_RTS7751R2D_H
 #define __ASM_SH_RENESAS_RTS7751R2D_H
 

@@ -178,9 +178,9 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 				SDE_PORTE_HOTPLUG_SPT);
 		vgpu_vreg(vgpu, SKL_FUSE_STATUS) |=
 				SKL_FUSE_DOWNLOAD_STATUS |
-				SKL_FUSE_PG0_DIST_STATUS |
-				SKL_FUSE_PG1_DIST_STATUS |
-				SKL_FUSE_PG2_DIST_STATUS;
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG0) |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG1) |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG2);
 		vgpu_vreg(vgpu, LCPLL1_CTL) |=
 				LCPLL_PLL_ENABLE |
 				LCPLL_PLL_LOCK;
@@ -266,6 +266,8 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	/* Clear host CRT status, so guest couldn't detect this host CRT. */
 	if (IS_BROADWELL(dev_priv))
 		vgpu_vreg(vgpu, PCH_ADPA) &= ~ADPA_CRT_HOTPLUG_MONITOR_MASK;
+
+	vgpu_vreg(vgpu, PIPECONF(PIPE_A)) |= PIPECONF_ENABLE;
 }
 
 static void clean_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num)
@@ -307,6 +309,7 @@ static int setup_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num,
 	port->type = type;
 
 	emulate_monitor_status_change(vgpu);
+
 	return 0;
 }
 

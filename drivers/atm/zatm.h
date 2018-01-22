@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* drivers/atm/zatm.h - ZeitNet ZN122x device driver declarations */
 
 /* Written 1995-1998 by Werner Almesberger, EPFL LRC/ICA */

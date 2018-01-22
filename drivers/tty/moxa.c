@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*****************************************************************************/
 /*
  *           moxa.c  -- MOXA Intellio family multiport serial driver.
@@ -7,11 +8,6 @@
  *
  *      This code is loosely based on the Linux serial driver, written by
  *      Linus Torvalds, Theodore T'so and others.
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  */
 
 /*
@@ -88,7 +84,7 @@ static char *moxa_brdname[] =
 };
 
 #ifdef CONFIG_PCI
-static struct pci_device_id moxa_pcibrds[] = {
+static const struct pci_device_id moxa_pcibrds[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_C218),
 		.driver_data = MOXA_BOARD_C218_PCI },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MOXA, PCI_DEVICE_ID_MOXA_C320),
@@ -202,7 +198,7 @@ static void moxa_hangup(struct tty_struct *);
 static int moxa_tiocmget(struct tty_struct *tty);
 static int moxa_tiocmset(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear);
-static void moxa_poll(unsigned long);
+static void moxa_poll(struct timer_list *);
 static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
 static void moxa_shutdown(struct tty_port *);
 static int moxa_carrier_raised(struct tty_port *);
@@ -428,7 +424,7 @@ static const struct tty_port_operations moxa_port_ops = {
 };
 
 static struct tty_driver *moxaDriver;
-static DEFINE_TIMER(moxaTimer, moxa_poll, 0, 0);
+static DEFINE_TIMER(moxaTimer, moxa_poll);
 
 /*
  * HW init
@@ -1433,7 +1429,7 @@ put:
 	return 0;
 }
 
-static void moxa_poll(unsigned long ignored)
+static void moxa_poll(struct timer_list *unused)
 {
 	struct moxa_board_conf *brd;
 	u16 __iomem *ip;

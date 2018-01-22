@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_X86_KVM_PARA_H
 #define _UAPI_ASM_X86_KVM_PARA_H
 
@@ -108,6 +109,5 @@ struct kvm_vcpu_pv_apf_data {
 #define KVM_PV_EOI_MASK (0x1 << KVM_PV_EOI_BIT)
 #define KVM_PV_EOI_ENABLED KVM_PV_EOI_MASK
 #define KVM_PV_EOI_DISABLED 0x0
-
 
 #endif /* _UAPI_ASM_X86_KVM_PARA_H */

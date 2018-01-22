@@ -30,7 +30,8 @@
 #include <linux/list.h>
 #include <linux/irqreturn.h>
 
-struct drm_device;
+#include <drm/drm_device.h>
+
 struct drm_file;
 struct drm_gem_object;
 struct drm_master;
@@ -154,7 +155,7 @@ struct drm_driver {
 	 * reverse order of the initialization.  Similarly to the load
 	 * hook, this handler is deprecated and its usage should be
 	 * dropped in favor of an open-coded teardown function at the
-	 * driver layer.  See drm_dev_unregister() and drm_dev_unref()
+	 * driver layer.  See drm_dev_unregister() and drm_dev_put()
 	 * for the proper way to remove a &struct drm_device.
 	 *
 	 * The unload() hook is called right after unregistering
@@ -172,8 +173,6 @@ struct drm_driver {
 	 * to finalize the device and then freeing the struct themselves.
 	 */
 	void (*release) (struct drm_device *);
-
-	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
 
 	/**
 	 * @get_vblank_counter:
@@ -325,7 +324,7 @@ struct drm_driver {
 	 */
 	bool (*get_vblank_timestamp) (struct drm_device *dev, unsigned int pipe,
 				     int *max_error,
-				     struct timeval *vblank_time,
+				     ktime_t *vblank_time,
 				     bool in_vblank_irq);
 
 	/**
@@ -392,6 +391,11 @@ struct drm_driver {
 	 */
 	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv);
 
+	/**
+	 * @debugfs_init:
+	 *
+	 * Allows drivers to create driver-specific debugfs files.
+	 */
 	int (*debugfs_init)(struct drm_minor *minor);
 
 	/**
@@ -410,7 +414,18 @@ struct drm_driver {
 	 */
 	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
 
+	/**
+	 * @gem_open_object:
+	 *
+	 * Driver hook called upon gem handle creation
+	 */
 	int (*gem_open_object) (struct drm_gem_object *, struct drm_file *);
+
+	/**
+	 * @gem_close_object:
+	 *
+	 * Driver hook called upon gem handle release
+	 */
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
 
 	/**
@@ -423,19 +438,34 @@ struct drm_driver {
 						    size_t size);
 
 	/* prime: */
-	/* export handle -> fd (see drm_gem_prime_handle_to_fd() helper) */
+	/**
+	 * @prime_handle_to_fd:
+	 *
+	 * export handle -> fd (see drm_gem_prime_handle_to_fd() helper)
+	 */
 	int (*prime_handle_to_fd)(struct drm_device *dev, struct drm_file *file_priv,
 				uint32_t handle, uint32_t flags, int *prime_fd);
-	/* import fd -> handle (see drm_gem_prime_fd_to_handle() helper) */
+	/**
+	 * @prime_fd_to_handle:
+	 *
+	 * import fd -> handle (see drm_gem_prime_fd_to_handle() helper)
+	 */
 	int (*prime_fd_to_handle)(struct drm_device *dev, struct drm_file *file_priv,
 				int prime_fd, uint32_t *handle);
-	/* export GEM -> dmabuf */
+	/**
+	 * @gem_prime_export:
+	 *
+	 * export GEM -> dmabuf
+	 */
 	struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
 				struct drm_gem_object *obj, int flags);
-	/* import dmabuf -> GEM */
+	/**
+	 * @gem_prime_import:
+	 *
+	 * import dmabuf -> GEM
+	 */
 	struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
 				struct dma_buf *dma_buf);
-	/* low-level interface used by drm_gem_prime_{import,export} */
 	int (*gem_prime_pin)(struct drm_gem_object *obj);
 	void (*gem_prime_unpin)(struct drm_gem_object *obj);
 	struct reservation_object * (*gem_prime_res_obj)(
@@ -507,19 +537,46 @@ struct drm_driver {
 			    struct drm_device *dev,
 			    uint32_t handle);
 
-	/* Driver private ops for this object */
+	/**
+	 * @gem_vm_ops: Driver private ops for this object
+	 */
 	const struct vm_operations_struct *gem_vm_ops;
 
+	/** @major: driver major number */
 	int major;
+	/** @minor: driver minor number */
 	int minor;
+	/** @patchlevel: driver patch level */
 	int patchlevel;
+	/** @name: driver name */
 	char *name;
+	/** @desc: driver description */
 	char *desc;
+	/** @date: driver date */
 	char *date;
 
+	/** @driver_features: driver features */
 	u32 driver_features;
+
+	/**
+	 * @ioctls:
+	 *
+	 * Array of driver-private IOCTL description entries. See the chapter on
+	 * :ref:`IOCTL support in the userland interfaces
+	 * chapter<drm_driver_ioctl>` for the full details.
+	 */
+
 	const struct drm_ioctl_desc *ioctls;
+	/** @num_ioctls: Number of entries in @ioctls. */
 	int num_ioctls;
+
+	/**
+	 * @fops:
+	 *
+	 * File operations for the DRM device node. See the discussion in
+	 * :ref:`file operations<drm_driver_fops>` for in-depth coverage and
+	 * some examples.
+	 */
 	const struct file_operations *fops;
 
 	/* Everything below here is for legacy driver, never use! */
@@ -554,10 +611,28 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 int drm_dev_register(struct drm_device *dev, unsigned long flags);
 void drm_dev_unregister(struct drm_device *dev);
 
-void drm_dev_ref(struct drm_device *dev);
+void drm_dev_get(struct drm_device *dev);
+void drm_dev_put(struct drm_device *dev);
 void drm_dev_unref(struct drm_device *dev);
 void drm_put_dev(struct drm_device *dev);
-void drm_unplug_dev(struct drm_device *dev);
+void drm_dev_unplug(struct drm_device *dev);
+
+/**
+ * drm_dev_is_unplugged - is a DRM device unplugged
+ * @dev: DRM device
+ *
+ * This function can be called to check whether a hotpluggable is unplugged.
+ * Unplugging itself is singalled through drm_dev_unplug(). If a device is
+ * unplugged, these two functions guarantee that any store before calling
+ * drm_dev_unplug() is visible to callers of this function after it completes
+ */
+static inline int drm_dev_is_unplugged(struct drm_device *dev)
+{
+	int ret = atomic_read(&dev->unplugged);
+	smp_rmb();
+	return ret;
+}
+
 
 int drm_dev_set_unique(struct drm_device *dev, const char *name);
 

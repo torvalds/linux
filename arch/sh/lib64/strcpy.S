@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Cloned and hacked for uClibc by Paul Mundt, December 2003 */
 /* Modified by SuperH, Inc. September 2003 */
 ! Entry: arg0: destination

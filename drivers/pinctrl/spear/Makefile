@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # SPEAr pinmux support
 
 obj-$(CONFIG_PINCTRL_SPEAR_PLGPIO)	+= pinctrl-plgpio.o

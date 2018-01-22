@@ -40,11 +40,11 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"1.0.4-100"
+#define DRIVER_VERSION		"1.1.2-126"
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		0
-#define DRIVER_RELEASE		4
-#define DRIVER_REVISION		100
+#define DRIVER_MINOR		1
+#define DRIVER_RELEASE		2
+#define DRIVER_REVISION		126
 
 #define DRIVER_NAME		"Microsemi PQI Driver (v" \
 				DRIVER_VERSION BUILD_TIMESTAMP ")"
@@ -431,10 +431,10 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		cdb[1] = CISS_GET_RAID_MAP;
 		put_unaligned_be32(buffer_length, &cdb[6]);
 		break;
-	case SA_CACHE_FLUSH:
+	case SA_FLUSH_CACHE:
 		request->data_direction = SOP_WRITE_FLAG;
 		cdb[0] = BMIC_WRITE;
-		cdb[6] = BMIC_CACHE_FLUSH;
+		cdb[6] = BMIC_FLUSH_CACHE;
 		put_unaligned_be16(buffer_length, &cdb[7]);
 		break;
 	case BMIC_IDENTIFY_CONTROLLER:
@@ -585,14 +585,13 @@ static int pqi_identify_physical_device(struct pqi_ctrl_info *ctrl_info,
 	return rc;
 }
 
-#define SA_CACHE_FLUSH_BUFFER_LENGTH	4
-
-static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
+static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info,
+	enum bmic_flush_cache_shutdown_event shutdown_event)
 {
 	int rc;
 	struct pqi_raid_path_request request;
 	int pci_direction;
-	u8 *buffer;
+	struct bmic_flush_cache *flush_cache;
 
 	/*
 	 * Don't bother trying to flush the cache if the controller is
@@ -601,13 +600,15 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
 	if (pqi_ctrl_offline(ctrl_info))
 		return -ENXIO;
 
-	buffer = kzalloc(SA_CACHE_FLUSH_BUFFER_LENGTH, GFP_KERNEL);
-	if (!buffer)
+	flush_cache = kzalloc(sizeof(*flush_cache), GFP_KERNEL);
+	if (!flush_cache)
 		return -ENOMEM;
 
+	flush_cache->shutdown_event = shutdown_event;
+
 	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		SA_CACHE_FLUSH, RAID_CTLR_LUNID, buffer,
-		SA_CACHE_FLUSH_BUFFER_LENGTH, 0, &pci_direction);
+		SA_FLUSH_CACHE, RAID_CTLR_LUNID, flush_cache,
+		sizeof(*flush_cache), 0, &pci_direction);
 	if (rc)
 		goto out;
 
@@ -618,7 +619,7 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
 		pci_direction);
 
 out:
-	kfree(buffer);
+	kfree(flush_cache);
 
 	return rc;
 }
@@ -1077,9 +1078,9 @@ static int pqi_validate_raid_map(struct pqi_ctrl_info *ctrl_info,
 
 bad_raid_map:
 	dev_warn(&ctrl_info->pci_dev->dev,
-		"scsi %d:%d:%d:%d %s\n",
-		ctrl_info->scsi_host->host_no,
-		device->bus, device->target, device->lun, err_msg);
+		"logical device %08x%08x %s\n",
+		*((u32 *)&device->scsi3addr),
+		*((u32 *)&device->scsi3addr[4]), err_msg);
 
 	return -EINVAL;
 }
@@ -2859,11 +2860,12 @@ out:
 
 #define PQI_HEARTBEAT_TIMER_INTERVAL	(10 * HZ)
 
-static void pqi_heartbeat_timer_handler(unsigned long data)
+static void pqi_heartbeat_timer_handler(struct timer_list *t)
 {
 	int num_interrupts;
 	u32 heartbeat_count;
-	struct pqi_ctrl_info *ctrl_info = (struct pqi_ctrl_info *)data;
+	struct pqi_ctrl_info *ctrl_info = from_timer(ctrl_info, t,
+						     heartbeat_timer);
 
 	pqi_check_ctrl_health(ctrl_info);
 	if (pqi_ctrl_offline(ctrl_info))
@@ -2901,8 +2903,6 @@ static void pqi_start_heartbeat_timer(struct pqi_ctrl_info *ctrl_info)
 
 	ctrl_info->heartbeat_timer.expires =
 		jiffies + PQI_HEARTBEAT_TIMER_INTERVAL;
-	ctrl_info->heartbeat_timer.data = (unsigned long)ctrl_info;
-	ctrl_info->heartbeat_timer.function = pqi_heartbeat_timer_handler;
 	add_timer(&ctrl_info->heartbeat_timer);
 }
 
@@ -3007,11 +3007,9 @@ static void pqi_change_irq_mode(struct pqi_ctrl_info *ctrl_info,
 			break;
 		case IRQ_MODE_INTX:
 			pqi_configure_legacy_intx(ctrl_info, true);
-			sis_disable_msix(ctrl_info);
 			sis_enable_intx(ctrl_info);
 			break;
 		case IRQ_MODE_NONE:
-			sis_disable_msix(ctrl_info);
 			break;
 		}
 		break;
@@ -3019,14 +3017,12 @@ static void pqi_change_irq_mode(struct pqi_ctrl_info *ctrl_info,
 		switch (new_mode) {
 		case IRQ_MODE_MSIX:
 			pqi_configure_legacy_intx(ctrl_info, false);
-			sis_disable_intx(ctrl_info);
 			sis_enable_msix(ctrl_info);
 			break;
 		case IRQ_MODE_INTX:
 			break;
 		case IRQ_MODE_NONE:
 			pqi_configure_legacy_intx(ctrl_info, false);
-			sis_disable_intx(ctrl_info);
 			break;
 		}
 		break;
@@ -5498,6 +5494,7 @@ static int pqi_passthru_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
 	case XFER_NONE:
 	case XFER_WRITE:
 	case XFER_READ:
+	case XFER_READ | XFER_WRITE:
 		break;
 	default:
 		return -EINVAL;
@@ -5537,6 +5534,9 @@ static int pqi_passthru_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
 		break;
 	case XFER_READ:
 		request.data_direction = SOP_READ_FLAG;
+		break;
+	case XFER_READ | XFER_WRITE:
+		request.data_direction = SOP_BIDIRECTIONAL;
 		break;
 	}
 
@@ -5889,28 +5889,62 @@ static void pqi_unregister_scsi(struct pqi_ctrl_info *ctrl_info)
 	scsi_host_put(shost);
 }
 
-#define PQI_RESET_ACTION_RESET		0x1
+static int pqi_wait_for_pqi_reset_completion(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc = 0;
+	struct pqi_device_registers __iomem *pqi_registers;
+	unsigned long timeout;
+	unsigned int timeout_msecs;
+	union pqi_reset_register reset_reg;
 
-#define PQI_RESET_TYPE_NO_RESET		0x0
-#define PQI_RESET_TYPE_SOFT_RESET	0x1
-#define PQI_RESET_TYPE_FIRM_RESET	0x2
-#define PQI_RESET_TYPE_HARD_RESET	0x3
+	pqi_registers = ctrl_info->pqi_registers;
+	timeout_msecs = readw(&pqi_registers->max_reset_timeout) * 100;
+	timeout = msecs_to_jiffies(timeout_msecs) + jiffies;
+
+	while (1) {
+		msleep(PQI_RESET_POLL_INTERVAL_MSECS);
+		reset_reg.all_bits = readl(&pqi_registers->device_reset);
+		if (reset_reg.bits.reset_action == PQI_RESET_ACTION_COMPLETED)
+			break;
+		pqi_check_ctrl_health(ctrl_info);
+		if (pqi_ctrl_offline(ctrl_info)) {
+			rc = -ENXIO;
+			break;
+		}
+		if (time_after(jiffies, timeout)) {
+			rc = -ETIMEDOUT;
+			break;
+		}
+	}
+
+	return rc;
+}
 
 static int pqi_reset(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
-	u32 reset_params;
+	union pqi_reset_register reset_reg;
 
-	reset_params = (PQI_RESET_ACTION_RESET << 5) |
-		PQI_RESET_TYPE_HARD_RESET;
+	if (ctrl_info->pqi_reset_quiesce_supported) {
+		rc = sis_pqi_reset_quiesce(ctrl_info);
+		if (rc) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"PQI reset failed during quiesce with error %d\n",
+				rc);
+			return rc;
+		}
+	}
 
-	writel(reset_params,
-		&ctrl_info->pqi_registers->device_reset);
+	reset_reg.all_bits = 0;
+	reset_reg.bits.reset_type = PQI_RESET_TYPE_HARD_RESET;
+	reset_reg.bits.reset_action = PQI_RESET_ACTION_RESET;
 
-	rc = pqi_wait_for_pqi_mode_ready(ctrl_info);
+	writel(reset_reg.all_bits, &ctrl_info->pqi_registers->device_reset);
+
+	rc = pqi_wait_for_pqi_reset_completion(ctrl_info);
 	if (rc)
 		dev_err(&ctrl_info->pci_dev->dev,
-			"PQI reset failed\n");
+			"PQI reset failed with error %d\n", rc);
 
 	return rc;
 }
@@ -6007,7 +6041,12 @@ static int pqi_revert_to_sis_mode(struct pqi_ctrl_info *ctrl_info)
 	rc = pqi_reset(ctrl_info);
 	if (rc)
 		return rc;
-	sis_reenable_sis_mode(ctrl_info);
+	rc = sis_reenable_sis_mode(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"re-enabling SIS mode failed with error %d\n", rc);
+		return rc;
+	}
 	pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
 
 	return 0;
@@ -6425,7 +6464,7 @@ static struct pqi_ctrl_info *pqi_alloc_ctrl_info(int numa_node)
 	INIT_DELAYED_WORK(&ctrl_info->rescan_work, pqi_rescan_worker);
 	INIT_DELAYED_WORK(&ctrl_info->update_time_work, pqi_update_time_worker);
 
-	init_timer(&ctrl_info->heartbeat_timer);
+	timer_setup(&ctrl_info->heartbeat_timer, pqi_heartbeat_timer_handler, 0);
 	INIT_WORK(&ctrl_info->ctrl_offline_work, pqi_ctrl_offline_worker);
 
 	sema_init(&ctrl_info->sync_request_sem,
@@ -6659,7 +6698,8 @@ static void pqi_shutdown(struct pci_dev *pci_dev)
 	 * Write all data in the controller's battery-backed cache to
 	 * storage.
 	 */
-	rc = pqi_flush_cache(ctrl_info);
+	rc = pqi_flush_cache(ctrl_info, SHUTDOWN);
+	pqi_reset(ctrl_info);
 	if (rc == 0)
 		return;
 
@@ -6703,7 +6743,7 @@ static __maybe_unused int pqi_suspend(struct pci_dev *pci_dev, pm_message_t stat
 	pqi_cancel_rescan_worker(ctrl_info);
 	pqi_wait_until_scan_finished(ctrl_info);
 	pqi_wait_until_lun_reset_finished(ctrl_info);
-	pqi_flush_cache(ctrl_info);
+	pqi_flush_cache(ctrl_info, SUSPEND);
 	pqi_ctrl_block_requests(ctrl_info);
 	pqi_ctrl_wait_until_quiesced(ctrl_info);
 	pqi_wait_until_inbound_queues_empty(ctrl_info);
@@ -6781,7 +6821,7 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_ADAPTEC2, 0x0605)
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0608)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
@@ -6810,6 +6850,10 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_ADAPTEC2, 0x0806)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x0807)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
@@ -6849,6 +6893,10 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x090a)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_ADAPTEC2, 0x1200)
 	},
 	{
@@ -6877,7 +6925,19 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1302)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1303)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_ADAPTEC2, 0x1380)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_DELL, 0x1fe0)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
@@ -6897,11 +6957,7 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_HP, 0x0604)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_HP, 0x0606)
+			       PCI_VENDOR_ID_HP, 0x0609)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
@@ -6929,14 +6985,6 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_HP, 0x0656)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_HP, 0x0657)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_HP, 0x0700)
 	},
 	{
@@ -6954,14 +7002,6 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_HP, 0x1101)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_HP, 0x1102)
-	},
-	{
-		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
-			       PCI_VENDOR_ID_HP, 0x1150)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,

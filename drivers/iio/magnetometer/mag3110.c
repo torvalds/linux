@@ -333,7 +333,6 @@ static const struct iio_info mag3110_info = {
 	.attrs = &mag3110_group,
 	.read_raw = &mag3110_read_raw,
 	.write_raw = &mag3110_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const unsigned long mag3110_scan_masks[] = {0x7, 0xf, 0};

@@ -324,6 +324,7 @@ restart:
 	if (res) {
 		pr_warn("Bearer <%s> rejected, enable failure (%d)\n",
 			name, -res);
+		kfree(b);
 		return -EINVAL;
 	}
 
@@ -347,8 +348,10 @@ restart:
 	if (skb)
 		tipc_bearer_xmit_skb(net, bearer_id, skb, &b->bcast_addr);
 
-	if (tipc_mon_create(net, bearer_id))
+	if (tipc_mon_create(net, bearer_id)) {
+		bearer_disable(net, b);
 		return -ENOMEM;
+	}
 
 	pr_info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
 		name,
@@ -365,30 +368,6 @@ static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b)
 	tipc_node_delete_links(net, b->identity);
 	tipc_disc_reset(net, b);
 	return 0;
-}
-
-/* tipc_bearer_reset_all - reset all links on all bearers
- */
-void tipc_bearer_reset_all(struct net *net)
-{
-	struct tipc_bearer *b;
-	int i;
-
-	for (i = 0; i < MAX_BEARERS; i++) {
-		b = bearer_get(net, i);
-		if (b)
-			clear_bit_unlock(0, &b->up);
-	}
-	for (i = 0; i < MAX_BEARERS; i++) {
-		b = bearer_get(net, i);
-		if (b)
-			tipc_reset_bearer(net, b);
-	}
-	for (i = 0; i < MAX_BEARERS; i++) {
-		b = bearer_get(net, i);
-		if (b)
-			test_and_set_bit_lock(0, &b->up);
-	}
 }
 
 /**
@@ -661,7 +640,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 		break;
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGENAME:
-		bearer_disable(dev_net(dev), b);
+		bearer_disable(net, b);
 		break;
 	}
 	return NOTIFY_OK;

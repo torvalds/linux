@@ -70,6 +70,7 @@ static const struct dma_fence_ops i915_clflush_ops = {
 
 static void __i915_do_clflush(struct drm_i915_gem_object *obj)
 {
+	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
 	drm_clflush_sg(obj->mm.pages);
 	intel_fb_obj_flush(obj, ORIGIN_CPU);
 }
@@ -139,7 +140,8 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * snooping behaviour occurs naturally as the result of our domain
 	 * tracking.
 	 */
-	if (!(flags & I915_CLFLUSH_FORCE) && obj->cache_coherent)
+	if (!(flags & I915_CLFLUSH_FORCE) &&
+	    obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ)
 		return false;
 
 	trace_i915_gem_object_clflush(obj);

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * definition for kvm on s390
  *
  * Copyright IBM Corp. 2008, 2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -242,6 +239,8 @@ static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
 	kvm_s390_rewind_psw(vcpu, kvm_s390_get_ilen(vcpu));
 }
 
+int handle_sthyi(struct kvm_vcpu *vcpu);
+
 /* implemented in priv.c */
 int is_valid_psw(psw_t *psw);
 int kvm_s390_handle_aa(struct kvm_vcpu *vcpu);
@@ -268,10 +267,9 @@ void kvm_s390_vsie_destroy(struct kvm *kvm);
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
 
-/* implemented in sthyi.c */
-int handle_sthyi(struct kvm_vcpu *vcpu);
-
 /* implemented in kvm-s390.c */
+void kvm_s390_set_tod_clock_ext(struct kvm *kvm,
+				 const struct kvm_s390_vm_tod_clock *gtod);
 void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
 int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr);

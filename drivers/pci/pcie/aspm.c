@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * File:	drivers/pci/pcie/aspm.c
  * Enabling PCIe link L0s/L1 state and Clock Power Management
@@ -450,24 +451,25 @@ static void aspm_calc_l1ss_info(struct pcie_link_state *link,
 	if (!(link->aspm_support & ASPM_STATE_L1_2_MASK))
 		return;
 
-	/* Choose the greater of the two T_cmn_mode_rstr_time */
-	val1 = (upreg->l1ss_cap >> 8) & 0xFF;
-	val2 = (upreg->l1ss_cap >> 8) & 0xFF;
+	/* Choose the greater of the two Port Common_Mode_Restore_Times */
+	val1 = (upreg->l1ss_cap & PCI_L1SS_CAP_CM_RESTORE_TIME) >> 8;
+	val2 = (dwreg->l1ss_cap & PCI_L1SS_CAP_CM_RESTORE_TIME) >> 8;
 	if (val1 > val2)
 		link->l1ss.ctl1 |= val1 << 8;
 	else
 		link->l1ss.ctl1 |= val2 << 8;
+
 	/*
 	 * We currently use LTR L1.2 threshold to be fixed constant picked from
 	 * Intel's coreboot.
 	 */
 	link->l1ss.ctl1 |= LTR_L1_2_THRESHOLD_BITS;
 
-	/* Choose the greater of the two T_pwr_on */
-	val1 = (upreg->l1ss_cap >> 19) & 0x1F;
-	scale1 = (upreg->l1ss_cap >> 16) & 0x03;
-	val2 = (dwreg->l1ss_cap >> 19) & 0x1F;
-	scale2 = (dwreg->l1ss_cap >> 16) & 0x03;
+	/* Choose the greater of the two Port T_POWER_ON times */
+	val1   = (upreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_VALUE) >> 19;
+	scale1 = (upreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_SCALE) >> 16;
+	val2   = (dwreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_VALUE) >> 19;
+	scale2 = (dwreg->l1ss_cap & PCI_L1SS_CAP_P_PWR_ON_SCALE) >> 16;
 
 	if (calc_l1ss_pwron(link->pdev, scale1, val1) >
 	    calc_l1ss_pwron(link->downstream, scale2, val2))
@@ -646,21 +648,26 @@ static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 
 	if (enable_req & ASPM_STATE_L1_2_MASK) {
 
-		/* Program T_pwr_on in both ports */
+		/* Program T_POWER_ON times in both ports */
 		pci_write_config_dword(parent, up_cap_ptr + PCI_L1SS_CTL2,
 				       link->l1ss.ctl2);
 		pci_write_config_dword(child, dw_cap_ptr + PCI_L1SS_CTL2,
 				       link->l1ss.ctl2);
 
-		/* Program T_cmn_mode in parent */
+		/* Program Common_Mode_Restore_Time in upstream device */
 		pci_clear_and_set_dword(parent, up_cap_ptr + PCI_L1SS_CTL1,
-					0xFF00, link->l1ss.ctl1);
+					PCI_L1SS_CTL1_CM_RESTORE_TIME,
+					link->l1ss.ctl1);
 
-		/* Program LTR L1.2 threshold in both ports */
-		pci_clear_and_set_dword(parent,	dw_cap_ptr + PCI_L1SS_CTL1,
-					0xE3FF0000, link->l1ss.ctl1);
+		/* Program LTR_L1.2_THRESHOLD time in both ports */
+		pci_clear_and_set_dword(parent,	up_cap_ptr + PCI_L1SS_CTL1,
+					PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
+					PCI_L1SS_CTL1_LTR_L12_TH_SCALE,
+					link->l1ss.ctl1);
 		pci_clear_and_set_dword(child, dw_cap_ptr + PCI_L1SS_CTL1,
-					0xE3FF0000, link->l1ss.ctl1);
+					PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
+					PCI_L1SS_CTL1_LTR_L12_TH_SCALE,
+					link->l1ss.ctl1);
 	}
 
 	val = 0;
@@ -802,10 +809,14 @@ static struct pcie_link_state *alloc_pcie_link_state(struct pci_dev *pdev)
 
 	/*
 	 * Root Ports and PCI/PCI-X to PCIe Bridges are roots of PCIe
-	 * hierarchies.
+	 * hierarchies.  Note that some PCIe host implementations omit
+	 * the root ports entirely, in which case a downstream port on
+	 * a switch may become the root of the link state chain for all
+	 * its subordinate endpoints.
 	 */
 	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT ||
-	    pci_pcie_type(pdev) == PCI_EXP_TYPE_PCIE_BRIDGE) {
+	    pci_pcie_type(pdev) == PCI_EXP_TYPE_PCIE_BRIDGE ||
+	    !pdev->bus->parent->self) {
 		link->root = link;
 	} else {
 		struct pcie_link_state *parent;
@@ -1060,7 +1071,8 @@ void pci_disable_link_state(struct pci_dev *pdev, int state)
 }
 EXPORT_SYMBOL(pci_disable_link_state);
 
-static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
+static int pcie_aspm_set_policy(const char *val,
+				const struct kernel_param *kp)
 {
 	int i;
 	struct pcie_link_state *link;
@@ -1087,7 +1099,7 @@ static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-static int pcie_aspm_get_policy(char *buffer, struct kernel_param *kp)
+static int pcie_aspm_get_policy(char *buffer, const struct kernel_param *kp)
 {
 	int i, cnt = 0;
 	for (i = 0; i < ARRAY_SIZE(policy_str); i++)

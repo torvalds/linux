@@ -216,12 +216,16 @@
  * .data section
  */
 #define DATA_DATA							\
+	*(.xiptext)							\
 	*(DATA_MAIN)							\
 	*(.ref.data)							\
 	*(.data..shared_aligned) /* percpu related */			\
 	MEM_KEEP(init.data)						\
 	MEM_KEEP(exit.data)						\
 	*(.data.unlikely)						\
+	VMLINUX_SYMBOL(__start_once) = .;				\
+	*(.data.once)							\
+	VMLINUX_SYMBOL(__end_once) = .;					\
 	STRUCT_ALIGN();							\
 	*(__tracepoints)						\
 	/* implement dynamic printk debug */				\
@@ -458,6 +462,7 @@
 #define TEXT_TEXT							\
 		ALIGN_FUNCTION();					\
 		*(.text.hot TEXT_MAIN .text.fixup .text.unlikely)	\
+		*(.text..refcount)					\
 		*(.ref.text)						\
 	MEM_KEEP(init.text)						\
 	MEM_KEEP(exit.text)						\
@@ -497,25 +502,17 @@
 		*(.entry.text)						\
 		VMLINUX_SYMBOL(__entry_text_end) = .;
 
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
 #define IRQENTRY_TEXT							\
 		ALIGN_FUNCTION();					\
 		VMLINUX_SYMBOL(__irqentry_text_start) = .;		\
 		*(.irqentry.text)					\
 		VMLINUX_SYMBOL(__irqentry_text_end) = .;
-#else
-#define IRQENTRY_TEXT
-#endif
 
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
 #define SOFTIRQENTRY_TEXT						\
 		ALIGN_FUNCTION();					\
 		VMLINUX_SYMBOL(__softirqentry_text_start) = .;		\
 		*(.softirqentry.text)					\
 		VMLINUX_SYMBOL(__softirqentry_text_end) = .;
-#else
-#define SOFTIRQENTRY_TEXT
-#endif
 
 /* Section used for early init (in .S files) */
 #define HEAD_TEXT  *(.head.text)
@@ -694,6 +691,31 @@
 #define BUG_TABLE
 #endif
 
+#ifdef CONFIG_UNWINDER_ORC
+#define ORC_UNWIND_TABLE						\
+	. = ALIGN(4);							\
+	.orc_unwind_ip : AT(ADDR(.orc_unwind_ip) - LOAD_OFFSET) {	\
+		VMLINUX_SYMBOL(__start_orc_unwind_ip) = .;		\
+		KEEP(*(.orc_unwind_ip))					\
+		VMLINUX_SYMBOL(__stop_orc_unwind_ip) = .;		\
+	}								\
+	. = ALIGN(6);							\
+	.orc_unwind : AT(ADDR(.orc_unwind) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(__start_orc_unwind) = .;			\
+		KEEP(*(.orc_unwind))					\
+		VMLINUX_SYMBOL(__stop_orc_unwind) = .;			\
+	}								\
+	. = ALIGN(4);							\
+	.orc_lookup : AT(ADDR(.orc_lookup) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(orc_lookup) = .;				\
+		. += (((SIZEOF(.text) + LOOKUP_BLOCK_SIZE - 1) /	\
+			LOOKUP_BLOCK_SIZE) + 1) * 4;			\
+		VMLINUX_SYMBOL(orc_lookup_end) = .;			\
+	}
+#else
+#define ORC_UNWIND_TABLE
+#endif
+
 #ifdef CONFIG_PM_TRACE
 #define TRACEDATA							\
 	. = ALIGN(4);							\
@@ -760,6 +782,24 @@
 #endif
 
 /*
+ * Memory encryption operates on a page basis. Since we need to clear
+ * the memory encryption mask for this section, it needs to be aligned
+ * on a page boundary and be a page-size multiple in length.
+ *
+ * Note: We use a separate section so that only this section gets
+ * decrypted to avoid exposing more than we wish.
+ */
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+#define PERCPU_DECRYPTED_SECTION					\
+	. = ALIGN(PAGE_SIZE);						\
+	*(.data..percpu..decrypted)					\
+	. = ALIGN(PAGE_SIZE);
+#else
+#define PERCPU_DECRYPTED_SECTION
+#endif
+
+
+/*
  * Default discarded sections.
  *
  * Some archs want to discard exit text/data at runtime rather than
@@ -797,6 +837,7 @@
 	. = ALIGN(cacheline);						\
 	*(.data..percpu)						\
 	*(.data..percpu..shared_aligned)				\
+	PERCPU_DECRYPTED_SECTION					\
 	VMLINUX_SYMBOL(__per_cpu_end) = .;
 
 /**
@@ -880,7 +921,7 @@
 		DATA_DATA						\
 		CONSTRUCTORS						\
 	}								\
-	BUG_TABLE
+	BUG_TABLE							\
 
 #define INIT_TEXT_SECTION(inittext_align)				\
 	. = ALIGN(inittext_align);					\

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __ARCH_PARISC_TERMBITS_H__
 #define __ARCH_PARISC_TERMBITS_H__
 

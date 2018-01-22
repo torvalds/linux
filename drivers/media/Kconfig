@@ -8,6 +8,11 @@ config CEC_CORE
 config CEC_NOTIFIER
 	bool
 
+config CEC_PIN
+	bool
+
+source "drivers/media/rc/Kconfig"
+
 menuconfig MEDIA_SUPPORT
 	tristate "Multimedia support"
 	depends on HAS_IOMEM
@@ -71,20 +76,6 @@ config MEDIA_SDR_SUPPORT
 	  Enable software defined radio support.
 
 	  Say Y when you have a software defined radio device.
-
-config MEDIA_RC_SUPPORT
-	bool "Remote Controller support"
-	depends on INPUT
-	---help---
-	  Enable support for Remote Controllers on Linux. This is
-	  needed in order to support several video capture adapters,
-	  standalone IR receivers/transmitters, and RF receivers.
-
-	  Enable this option if you have a video capture board even
-	  if you don't need IR, as otherwise, you may not be able to
-	  compile the driver for your adapter.
-
-	  Say Y when you have a TV or an IR device.
 
 config MEDIA_CEC_SUPPORT
        bool "HDMI CEC support"
@@ -175,7 +166,6 @@ config TTPCI_EEPROM
 source "drivers/media/dvb-core/Kconfig"
 
 comment "Media drivers"
-source "drivers/media/rc/Kconfig"
 
 #
 # V4L platform/mem2mem drivers

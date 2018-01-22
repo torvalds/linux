@@ -24,7 +24,7 @@ static irqreturn_t t_handler(int irq, void *dev_id)
 {
 	struct fmc_device *fmc = dev_id;
 
-	fmc->op->irq_ack(fmc);
+	fmc_irq_ack(fmc);
 	dev_info(&fmc->dev, "received irq %i\n", irq);
 	return IRQ_HANDLED;
 }
@@ -46,25 +46,21 @@ static int t_probe(struct fmc_device *fmc)
 	int ret;
 	int index = 0;
 
-	if (fmc->op->validate)
-		index = fmc->op->validate(fmc, &t_drv);
+	index = fmc_validate(fmc, &t_drv);
 	if (index < 0)
 		return -EINVAL; /* not our device: invalid */
 
-	ret = fmc->op->irq_request(fmc, t_handler, "fmc-trivial", IRQF_SHARED);
+	ret = fmc_irq_request(fmc, t_handler, "fmc-trivial", IRQF_SHARED);
 	if (ret < 0)
 		return ret;
 	/* ignore error code of call below, we really don't care */
-	fmc->op->gpio_config(fmc, t_gpio, ARRAY_SIZE(t_gpio));
+	fmc_gpio_config(fmc, t_gpio, ARRAY_SIZE(t_gpio));
 
-	/* Reprogram, if asked to. ESRCH == no filename specified */
-	ret = -ESRCH;
-	if (fmc->op->reprogram)
-		ret = fmc->op->reprogram(fmc, &t_drv, "");
-	if (ret == -ESRCH)
+	ret = fmc_reprogram(fmc, &t_drv, "", 0);
+	if (ret == -EPERM) /* programming not supported */
 		ret = 0;
 	if (ret < 0)
-		fmc->op->irq_free(fmc);
+		fmc_irq_free(fmc);
 
 	/* FIXME: reprogram LM32 too */
 	return ret;
@@ -72,7 +68,7 @@ static int t_probe(struct fmc_device *fmc)
 
 static int t_remove(struct fmc_device *fmc)
 {
-	fmc->op->irq_free(fmc);
+	fmc_irq_free(fmc);
 	return 0;
 }
 

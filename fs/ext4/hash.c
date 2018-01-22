@@ -148,8 +148,6 @@ static void str2hashbuf_signed(const char *msg, int len, __u32 *buf, int num)
 	if (len > num*4)
 		len = num * 4;
 	for (i = 0; i < len; i++) {
-		if ((i % 4) == 0)
-			val = pad;
 		val = ((int) scp[i]) + (val << 8);
 		if ((i % 4) == 3) {
 			*buf++ = val;
@@ -176,8 +174,6 @@ static void str2hashbuf_unsigned(const char *msg, int len, __u32 *buf, int num)
 	if (len > num*4)
 		len = num * 4;
 	for (i = 0; i < len; i++) {
-		if ((i % 4) == 0)
-			val = pad;
 		val = ((int) ucp[i]) + (val << 8);
 		if ((i % 4) == 3) {
 			*buf++ = val;

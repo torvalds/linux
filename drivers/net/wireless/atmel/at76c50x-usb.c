@@ -130,7 +130,7 @@ MODULE_FIRMWARE("atmel_at76c505amx-rfmd.bin");
 
 #define USB_DEVICE_DATA(__ops)	.driver_info = (kernel_ulong_t)(__ops)
 
-static struct usb_device_id dev_table[] = {
+static const struct usb_device_id dev_table[] = {
 	/*
 	 * at76c503-i3861
 	 */
@@ -518,11 +518,11 @@ exit:
 
 /* LED trigger */
 static int tx_activity;
-static void at76_ledtrig_tx_timerfunc(unsigned long data);
-static DEFINE_TIMER(ledtrig_tx_timer, at76_ledtrig_tx_timerfunc, 0, 0);
+static void at76_ledtrig_tx_timerfunc(struct timer_list *unused);
+static DEFINE_TIMER(ledtrig_tx_timer, at76_ledtrig_tx_timerfunc);
 DEFINE_LED_TRIGGER(ledtrig_tx);
 
-static void at76_ledtrig_tx_timerfunc(unsigned long data)
+static void at76_ledtrig_tx_timerfunc(struct timer_list *unused)
 {
 	static int tx_lastactivity;
 

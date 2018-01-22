@@ -1337,7 +1337,7 @@ int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		 */
 		return 0;
 
-	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	err = file_write_and_wait_range(file, start, end);
 	if (err)
 		return err;
 	inode_lock(inode);
@@ -1406,7 +1406,7 @@ int ubifs_update_time(struct inode *inode, struct timespec *time,
 	if (flags & S_MTIME)
 		inode->i_mtime = *time;
 
-	if (!(inode->i_sb->s_flags & MS_LAZYTIME))
+	if (!(inode->i_sb->s_flags & SB_LAZYTIME))
 		iflags |= I_DIRTY_SYNC;
 
 	release = ui->dirty;
@@ -1490,7 +1490,10 @@ static int ubifs_migrate_page(struct address_space *mapping,
 		SetPagePrivate(newpage);
 	}
 
-	migrate_page_copy(newpage, page);
+	if (mode != MIGRATE_SYNC_NO_COPY)
+		migrate_page_copy(newpage, page);
+	else
+		migrate_page_states(newpage, page);
 	return MIGRATEPAGE_SUCCESS;
 }
 #endif

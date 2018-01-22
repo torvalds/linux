@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the ADB controller in the Mac I/O (Hydra) chip.
  */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* clear_page.S: UltraSparc optimized copy page.
  *
  * Copyright (C) 1996, 1998, 1999, 2000, 2004 David S. Miller (davem@redhat.com)

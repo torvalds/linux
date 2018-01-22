@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atm_zatm.h - Driver-specific declarations of the ZATM driver (for use by
 		driver-specific utilities) */
 

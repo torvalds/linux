@@ -2217,9 +2217,15 @@ struct lpfc_mbx_reg_vfi {
 	uint32_t e_d_tov;
 	uint32_t r_a_tov;
 	uint32_t word10;
-#define lpfc_reg_vfi_nport_id_SHIFT		0
-#define lpfc_reg_vfi_nport_id_MASK		0x00FFFFFF
-#define lpfc_reg_vfi_nport_id_WORD		word10
+#define lpfc_reg_vfi_nport_id_SHIFT	0
+#define lpfc_reg_vfi_nport_id_MASK	0x00FFFFFF
+#define lpfc_reg_vfi_nport_id_WORD	word10
+#define lpfc_reg_vfi_bbcr_SHIFT		27
+#define lpfc_reg_vfi_bbcr_MASK		0x00000001
+#define lpfc_reg_vfi_bbcr_WORD		word10
+#define lpfc_reg_vfi_bbscn_SHIFT	28
+#define lpfc_reg_vfi_bbscn_MASK		0x0000000F
+#define lpfc_reg_vfi_bbscn_WORD		word10
 };
 
 struct lpfc_mbx_init_vpi {
@@ -2646,7 +2652,16 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_link_speed_MASK	0x0000FFFF
 #define lpfc_mbx_rd_conf_link_speed_WORD	word6
 	uint32_t rsvd_7;
-	uint32_t rsvd_8;
+	uint32_t word8;
+#define lpfc_mbx_rd_conf_bbscn_min_SHIFT	0
+#define lpfc_mbx_rd_conf_bbscn_min_MASK		0x0000000F
+#define lpfc_mbx_rd_conf_bbscn_min_WORD		word8
+#define lpfc_mbx_rd_conf_bbscn_max_SHIFT	4
+#define lpfc_mbx_rd_conf_bbscn_max_MASK		0x0000000F
+#define lpfc_mbx_rd_conf_bbscn_max_WORD		word8
+#define lpfc_mbx_rd_conf_bbscn_def_SHIFT	8
+#define lpfc_mbx_rd_conf_bbscn_def_MASK		0x0000000F
+#define lpfc_mbx_rd_conf_bbscn_def_WORD		word8
 	uint32_t word9;
 #define lpfc_mbx_rd_conf_lmt_SHIFT		0
 #define lpfc_mbx_rd_conf_lmt_MASK		0x0000FFFF
@@ -3621,7 +3636,7 @@ struct lpfc_mbx_get_port_name {
 #define MB_CEQ_STATUS_QUEUE_FLUSHING		0x4
 #define MB_CQE_STATUS_DMA_FAILED		0x5
 
-#define LPFC_MBX_WR_CONFIG_MAX_BDE		8
+#define LPFC_MBX_WR_CONFIG_MAX_BDE		1
 struct lpfc_mbx_wr_object {
 	struct mbox_header header;
 	union {

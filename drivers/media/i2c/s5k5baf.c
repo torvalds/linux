@@ -1374,7 +1374,7 @@ static int s5k5baf_get_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_selection *sel)
 {
-	static enum selection_rect rtype;
+	enum selection_rect rtype;
 	struct s5k5baf *state = to_s5k5baf(sd);
 
 	rtype = s5k5baf_get_sel_rect(sel->pad, sel->target);
@@ -1863,8 +1863,7 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 
 	node_ep = of_graph_get_next_endpoint(node, NULL);
 	if (!node_ep) {
-		dev_err(dev, "no endpoint defined at node %s\n",
-			node->full_name);
+		dev_err(dev, "no endpoint defined at node %pOF\n", node);
 		return -EINVAL;
 	}
 
@@ -1882,8 +1881,8 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 	case V4L2_MBUS_PARALLEL:
 		break;
 	default:
-		dev_err(dev, "unsupported bus in endpoint defined at node %s\n",
-			node->full_name);
+		dev_err(dev, "unsupported bus in endpoint defined at node %pOF\n",
+			node);
 		return -EINVAL;
 	}
 

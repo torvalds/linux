@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Userland implementation of clock_gettime() for 64 bits processes in a
  * s390 kernel for use in the vDSO
  *
  *  Copyright IBM Corp. 2008
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  */
 #include <asm/vdso.h>
 #include <asm/asm-offsets.h>
@@ -114,23 +111,12 @@ __kernel_clock_gettime:
 	br	%r14
 
 	/* CPUCLOCK_VIRT for this thread */
-9:	icm	%r0,15,__VDSO_ECTG_OK(%r5)
+9:	lghi	%r4,0
+	icm	%r0,15,__VDSO_ECTG_OK(%r5)
 	jz	12f
-	ear	%r2,%a4
-	llilh	%r4,0x0100
-	sar	%a4,%r4
-	lghi	%r4,0
-	epsw	%r5,0
-	sacf	512				/* Magic ectg instruction */
+	sacf	256				/* Magic ectg instruction */
 	.insn	ssf,0xc80100000000,__VDSO_ECTG_BASE(4),__VDSO_ECTG_USER(4),4
-	tml	%r5,0x4000
-	jo	11f
-	tml	%r5,0x8000
-	jno	10f
-	sacf	256
-	j	11f
-10:	sacf	0
-11:	sar	%a4,%r2
+	sacf	0
 	algr	%r1,%r0				/* r1 = cputime as TOD value */
 	mghi	%r1,1000			/* convert to nanoseconds */
 	srlg	%r1,%r1,12			/* r1 = cputime in nanosec */

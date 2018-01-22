@@ -79,13 +79,13 @@ static int clk_prcc_is_enabled(struct clk_hw *hw)
 	return clk->is_enabled;
 }
 
-static struct clk_ops clk_prcc_pclk_ops = {
+static const struct clk_ops clk_prcc_pclk_ops = {
 	.enable = clk_prcc_pclk_enable,
 	.disable = clk_prcc_pclk_disable,
 	.is_enabled = clk_prcc_is_enabled,
 };
 
-static struct clk_ops clk_prcc_kclk_ops = {
+static const struct clk_ops clk_prcc_kclk_ops = {
 	.enable = clk_prcc_kclk_enable,
 	.disable = clk_prcc_kclk_disable,
 	.is_enabled = clk_prcc_is_enabled,
@@ -96,7 +96,7 @@ static struct clk *clk_reg_prcc(const char *name,
 				resource_size_t phy_base,
 				u32 cg_sel,
 				unsigned long flags,
-				struct clk_ops *clk_prcc_ops)
+				const struct clk_ops *clk_prcc_ops)
 {
 	struct clk_prcc *clk;
 	struct clk_init_data clk_prcc_init;
@@ -107,11 +107,9 @@ static struct clk *clk_reg_prcc(const char *name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	clk = kzalloc(sizeof(struct clk_prcc), GFP_KERNEL);
-	if (!clk) {
-		pr_err("clk_prcc: %s could not allocate clk\n", __func__);
+	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	if (!clk)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	clk->base = ioremap(phy_base, SZ_4K);
 	if (!clk->base)

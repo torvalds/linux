@@ -614,6 +614,8 @@ acpi_ns_check_package_list(struct acpi_evaluate_info *info,
 
 		default:	/* Should not get here, type was validated by caller */
 
+			ACPI_ERROR((AE_INFO, "Invalid Package type: %X",
+				    package->ret_info.type));
 			return (AE_AML_INTERNAL);
 		}
 

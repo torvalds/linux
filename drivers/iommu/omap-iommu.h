@@ -29,17 +29,26 @@ struct iotlb_entry {
 };
 
 /**
+ * struct omap_iommu_device - omap iommu device data
+ * @pgtable:	page table used by an omap iommu attached to a domain
+ * @iommu_dev:	pointer to store an omap iommu instance attached to a domain
+ */
+struct omap_iommu_device {
+	u32 *pgtable;
+	struct omap_iommu *iommu_dev;
+};
+
+/**
  * struct omap_iommu_domain - omap iommu domain
- * @pgtable:	the page table
- * @iommu_dev:	an omap iommu device attached to this domain. only a single
- *		iommu device can be attached for now.
+ * @num_iommus: number of iommus in this domain
+ * @iommus:	omap iommu device data for all iommus in this domain
  * @dev:	Device using this domain.
  * @lock:	domain lock, should be taken when attaching/detaching
  * @domain:	generic domain handle used by iommu core code
  */
 struct omap_iommu_domain {
-	u32 *pgtable;
-	struct omap_iommu *iommu_dev;
+	u32 num_iommus;
+	struct omap_iommu_device *iommus;
 	struct device *dev;
 	spinlock_t lock;
 	struct iommu_domain domain;
@@ -61,6 +70,7 @@ struct omap_iommu {
 	 */
 	u32		*iopgd;
 	spinlock_t	page_table_lock; /* protect iopgd */
+	dma_addr_t	pd_dma;
 
 	int		nr_tlb_entries;
 
@@ -95,17 +105,6 @@ struct iotlb_lock {
 	short base;
 	short vict;
 };
-
-/**
- * dev_to_omap_iommu() - retrieves an omap iommu object from a user device
- * @dev: iommu client device
- */
-static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
-{
-	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
-
-	return arch_data->iommu_dev;
-}
 
 /*
  * MMU Register offsets

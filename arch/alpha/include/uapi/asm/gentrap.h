@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _ASMAXP_GENTRAP_H
 #define _ASMAXP_GENTRAP_H
 

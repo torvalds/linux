@@ -1708,11 +1708,10 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		err = dma_declare_coherent_memory(&pdev->dev, res->start,
 						  res->start,
 						  resource_size(res),
-						  DMA_MEMORY_MAP |
 						  DMA_MEMORY_EXCLUSIVE);
-		if (!err) {
+		if (err) {
 			dev_err(&pdev->dev, "Unable to declare CEU memory.\n");
-			return -ENXIO;
+			return err;
 		}
 
 		pcdev->video_limit = resource_size(res);

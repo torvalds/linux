@@ -459,7 +459,7 @@ static const struct i2c_algorithm cx231xx_algo = {
 	.functionality = functionality,
 };
 
-static struct i2c_adapter cx231xx_adap_template = {
+static const struct i2c_adapter cx231xx_adap_template = {
 	.owner = THIS_MODULE,
 	.name = "cx231xx",
 	.algo = &cx231xx_algo,
@@ -538,7 +538,7 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 
 	bus->i2c_adap.algo_data = bus;
 	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
-	i2c_add_adapter(&bus->i2c_adap);
+	bus->i2c_rc = i2c_add_adapter(&bus->i2c_adap);
 
 	if (0 != bus->i2c_rc)
 		dev_warn(dev->dev,
@@ -551,10 +551,10 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
  * cx231xx_i2c_unregister()
  * unregister i2c_bus
  */
-int cx231xx_i2c_unregister(struct cx231xx_i2c *bus)
+void cx231xx_i2c_unregister(struct cx231xx_i2c *bus)
 {
-	i2c_del_adapter(&bus->i2c_adap);
-	return 0;
+	if (!bus->i2c_rc)
+		i2c_del_adapter(&bus->i2c_adap);
 }
 
 /*

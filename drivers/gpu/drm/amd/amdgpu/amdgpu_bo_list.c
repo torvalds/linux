@@ -83,7 +83,7 @@ static int amdgpu_bo_list_create(struct amdgpu_device *adev,
 	r = idr_alloc(&fpriv->bo_list_handles, list, 1, 0, GFP_KERNEL);
 	mutex_unlock(&fpriv->bo_list_lock);
 	if (r < 0) {
-		kfree(list);
+		amdgpu_bo_list_free(list);
 		return r;
 	}
 	*id = r;
@@ -136,7 +136,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 		}
 
 		bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
-		drm_gem_object_unreference_unlocked(gobj);
+		drm_gem_object_put_unlocked(gobj);
 
 		usermm = amdgpu_ttm_tt_get_usermm(bo->tbo.ttm);
 		if (usermm) {
@@ -156,11 +156,11 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 		entry->tv.bo = &entry->robj->tbo;
 		entry->tv.shared = !entry->robj->prime_shared_count;
 
-		if (entry->robj->prefered_domains == AMDGPU_GEM_DOMAIN_GDS)
+		if (entry->robj->preferred_domains == AMDGPU_GEM_DOMAIN_GDS)
 			gds_obj = entry->robj;
-		if (entry->robj->prefered_domains == AMDGPU_GEM_DOMAIN_GWS)
+		if (entry->robj->preferred_domains == AMDGPU_GEM_DOMAIN_GWS)
 			gws_obj = entry->robj;
-		if (entry->robj->prefered_domains == AMDGPU_GEM_DOMAIN_OA)
+		if (entry->robj->preferred_domains == AMDGPU_GEM_DOMAIN_OA)
 			oa_obj = entry->robj;
 
 		total_size += amdgpu_bo_size(entry->robj);
@@ -270,7 +270,7 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	union drm_amdgpu_bo_list *args = data;
 	uint32_t handle = args->in.list_handle;
-	const void __user *uptr = (const void*)(uintptr_t)args->in.bo_info_ptr;
+	const void __user *uptr = u64_to_user_ptr(args->in.bo_info_ptr);
 
 	struct drm_amdgpu_bo_list_entry *info;
 	struct amdgpu_bo_list *list;

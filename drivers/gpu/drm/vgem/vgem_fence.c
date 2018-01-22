@@ -85,9 +85,9 @@ static const struct dma_fence_ops vgem_fence_ops = {
 	.timeline_value_str = vgem_fence_timeline_value_str,
 };
 
-static void vgem_fence_timeout(unsigned long data)
+static void vgem_fence_timeout(struct timer_list *t)
 {
-	struct vgem_fence *fence = (struct vgem_fence *)data;
+	struct vgem_fence *fence = from_timer(fence, t, timer);
 
 	dma_fence_signal(&fence->base);
 }
@@ -105,7 +105,7 @@ static struct dma_fence *vgem_fence_create(struct vgem_file *vfile,
 	dma_fence_init(&fence->base, &vgem_fence_ops, &fence->lock,
 		       dma_fence_context_alloc(1), 1);
 
-	setup_timer(&fence->timer, vgem_fence_timeout, (unsigned long)fence);
+	timer_setup(&fence->timer, vgem_fence_timeout, 0);
 
 	/* We force the fence to expire within 10s to prevent driver hangs */
 	mod_timer(&fence->timer, jiffies + VGEM_FENCE_TIMEOUT);
@@ -213,7 +213,7 @@ err_fence:
 		dma_fence_put(fence);
 	}
 err:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return ret;
 }
 

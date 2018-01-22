@@ -25,6 +25,7 @@
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_trace.h"
+#include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_log.h"
 
@@ -325,6 +326,21 @@ xfs_ail_delete(
 	xfs_trans_ail_cursor_clear(ailp, lip);
 }
 
+static inline uint
+xfsaild_push_item(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip)
+{
+	/*
+	 * If log item pinning is enabled, skip the push and track the item as
+	 * pinned. This can help induce head-behind-tail conditions.
+	 */
+	if (XFS_TEST_ERROR(false, ailp->xa_mount, XFS_ERRTAG_LOG_ITEM_PIN))
+		return XFS_ITEM_PINNED;
+
+	return lip->li_ops->iop_push(lip, &ailp->xa_buf_list);
+}
+
 static long
 xfsaild_push(
 	struct xfs_ail		*ailp)
@@ -382,7 +398,7 @@ xfsaild_push(
 		 * rely on the AIL cursor implementation to be able to deal with
 		 * the dropped lock.
 		 */
-		lock_result = lip->li_ops->iop_push(lip, &ailp->xa_buf_list);
+		lock_result = xfsaild_push_item(ailp, lip);
 		switch (lock_result) {
 		case XFS_ITEM_SUCCESS:
 			XFS_STATS_INC(mp, xs_push_ail_success);
@@ -499,11 +515,26 @@ xfsaild(
 	current->flags |= PF_MEMALLOC;
 	set_freezable();
 
-	while (!kthread_should_stop()) {
+	while (1) {
 		if (tout && tout <= 20)
-			__set_current_state(TASK_KILLABLE);
+			set_current_state(TASK_KILLABLE);
 		else
-			__set_current_state(TASK_INTERRUPTIBLE);
+			set_current_state(TASK_INTERRUPTIBLE);
+
+		/*
+		 * Check kthread_should_stop() after we set the task state
+		 * to guarantee that we either see the stop bit and exit or
+		 * the task state is reset to runnable such that it's not
+		 * scheduled out indefinitely and detects the stop bit at
+		 * next iteration.
+		 *
+		 * A memory barrier is included in above task state set to
+		 * serialize again kthread_stop().
+		 */
+		if (kthread_should_stop()) {
+			__set_current_state(TASK_RUNNING);
+			break;
+		}
 
 		spin_lock(&ailp->xa_lock);
 
@@ -687,12 +718,13 @@ xfs_trans_ail_update_bulk(
 bool
 xfs_ail_delete_one(
 	struct xfs_ail		*ailp,
-	struct xfs_log_item 	*lip)
+	struct xfs_log_item	*lip)
 {
 	struct xfs_log_item	*mlip = xfs_ail_min(ailp);
 
 	trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
 	xfs_ail_delete(ailp, lip);
+	xfs_clear_li_failed(lip);
 	lip->li_flags &= ~XFS_LI_IN_AIL;
 	lip->li_lsn = 0;
 

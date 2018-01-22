@@ -84,17 +84,20 @@ static void xenkbd_handle_key_event(struct xenkbd_info *info,
 				    struct xenkbd_key *key)
 {
 	struct input_dev *dev;
+	int value = key->pressed;
 
 	if (test_bit(key->keycode, info->ptr->keybit)) {
 		dev = info->ptr;
 	} else if (test_bit(key->keycode, info->kbd->keybit)) {
 		dev = info->kbd;
+		if (key->pressed && test_bit(key->keycode, info->kbd->key))
+			value = 2; /* Mark as autorepeat */
 	} else {
 		pr_warn("unhandled keycode 0x%x\n", key->keycode);
 		return;
 	}
 
-	input_report_key(dev, key->keycode, key->pressed);
+	input_event(dev, EV_KEY, key->keycode, value);
 	input_sync(dev);
 }
 
@@ -323,8 +326,6 @@ static int xenkbd_probe(struct xenbus_device *dev,
 				     0, width, 0, 0);
 		input_set_abs_params(mtouch, ABS_MT_POSITION_Y,
 				     0, height, 0, 0);
-		input_set_abs_params(mtouch, ABS_MT_PRESSURE,
-				     0, 255, 0, 0);
 
 		ret = input_mt_init_slots(mtouch, num_cont, INPUT_MT_DIRECT);
 		if (ret) {

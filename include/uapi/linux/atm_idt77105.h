@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* atm_idt77105.h - Driver-specific declarations of the IDT77105 driver (for
  * use by driver-specific utilities) */
 

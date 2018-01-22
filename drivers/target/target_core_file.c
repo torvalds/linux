@@ -443,7 +443,7 @@ fd_do_prot_fill(struct se_device *se_dev, sector_t lba, sector_t nolb,
 
 	for (prot = 0; prot < prot_length;) {
 		sector_t len = min_t(sector_t, bufsize, prot_length - prot);
-		ssize_t ret = kernel_write(prot_fd, buf, len, pos + prot);
+		ssize_t ret = kernel_write(prot_fd, buf, len, &pos);
 
 		if (ret != len) {
 			pr_err("vfs_write to prot file failed: %zd\n", ret);
@@ -481,6 +481,10 @@ fd_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 	struct file *file = FD_DEV(cmd->se_dev)->fd_file;
 	struct inode *inode = file->f_mapping->host;
 	int ret;
+
+	if (!nolb) {
+		return 0;
+	}
 
 	if (cmd->se_dev->dev_attrib.pi_prot_type) {
 		ret = fd_do_prot_unmap(cmd, lba, nolb);

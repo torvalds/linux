@@ -130,7 +130,7 @@ config USB_GADGET_STORAGE_NUM_BUFFERS
 
 config U_SERIAL_CONSOLE
 	bool "Serial gadget console support"
-	depends on USB_G_SERIAL
+	depends on USB_U_SERIAL
 	help
 	   It supports the serial gadget can be used as a console.
 

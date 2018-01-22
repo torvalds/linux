@@ -109,7 +109,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
  * @vq: vb2_queue ptr
  * @nbuffers: ptr to number of buffers requested by application
  * @nplanes:: contains number of distinct video planes needed to hold a frame
- * @sizes[]: contains the size (in bytes) of each plane.
+ * @sizes: contains the size (in bytes) of each plane.
  * @alloc_devs: ptr to allocation context
  *
  * This callback function is called when reqbuf() is called to adjust
@@ -167,7 +167,7 @@ static void vpif_buffer_queue(struct vb2_buffer *vb)
 
 /**
  * vpif_start_streaming : Starts the DMA engine for streaming
- * @vb: ptr to vb2_buffer
+ * @vq: ptr to vb2_buffer
  * @count: number of buffers
  */
 static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -312,7 +312,7 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&common->irqlock, flags);
 }
 
-static struct vb2_ops video_qops = {
+static const struct vb2_ops video_qops = {
 	.queue_setup		= vpif_buffer_queue_setup,
 	.buf_prepare		= vpif_buffer_prepare,
 	.start_streaming	= vpif_start_streaming,
@@ -629,7 +629,7 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 
 /**
  * vpif_get_default_field() - Get default field type based on interface
- * @vpif_params - ptr to vpif params
+ * @iface: ptr to vpif interface
  */
 static inline enum v4l2_field vpif_get_default_field(
 				struct vpif_interface *iface)
@@ -640,8 +640,8 @@ static inline enum v4l2_field vpif_get_default_field(
 
 /**
  * vpif_config_addr() - function to configure buffer address in vpif
- * @ch - channel ptr
- * @muxmode - channel mux mode
+ * @ch: channel ptr
+ * @muxmode: channel mux mode
  */
 static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 {
@@ -661,9 +661,9 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 
 /**
  * vpif_input_to_subdev() - Maps input to sub device
- * @vpif_cfg - global config ptr
- * @chan_cfg - channel config ptr
- * @input_index - Given input index from application
+ * @vpif_cfg: global config ptr
+ * @chan_cfg: channel config ptr
+ * @input_index: Given input index from application
  *
  * lookup the sub device information for a given input index.
  * we report all the inputs to application. inputs table also
@@ -699,9 +699,9 @@ static int vpif_input_to_subdev(
 
 /**
  * vpif_set_input() - Select an input
- * @vpif_cfg - global config ptr
- * @ch - channel
- * @_index - Given input index from application
+ * @vpif_cfg: global config ptr
+ * @ch: channel
+ * @index: Given input index from application
  *
  * Select the given input.
  */
@@ -792,7 +792,7 @@ static int vpif_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
  * vpif_g_std() - get STD handler
  * @file: file ptr
  * @priv: file handle
- * @std_id: ptr to std id
+ * @std: ptr to std id
  */
 static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
 {
@@ -933,7 +933,7 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
  * vpif_enum_fmt_vid_cap() - ENUM_FMT handler
  * @file: file ptr
  * @priv: file handle
- * @index: input index
+ * @fmt: ptr to V4L2 format descriptor
  */
 static int vpif_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *fmt)
@@ -1344,7 +1344,7 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 };
 
 /* vpif file operations */
-static struct v4l2_file_operations vpif_fops = {
+static const struct v4l2_file_operations vpif_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l2_fh_open,
 	.release = vb2_fop_release,
@@ -1397,9 +1397,9 @@ static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 			vpif_obj.config->chan_config->inputs[i].subdev_name =
 				(char *)to_of_node(subdev->fwnode)->full_name;
 			vpif_dbg(2, debug,
-				 "%s: setting input %d subdev_name = %s\n",
+				 "%s: setting input %d subdev_name = %pOF\n",
 				 __func__, i,
-				 to_of_node(subdev->fwnode)->full_name);
+				 to_of_node(subdev->fwnode));
 			return 0;
 		}
 	}
@@ -1500,6 +1500,11 @@ static int vpif_async_complete(struct v4l2_async_notifier *notifier)
 	return vpif_probe_complete();
 }
 
+static const struct v4l2_async_notifier_operations vpif_async_ops = {
+	.bound = vpif_async_bound,
+	.complete = vpif_async_complete,
+};
+
 static struct vpif_capture_config *
 vpif_capture_get_pdata(struct platform_device *pdev)
 {
@@ -1557,8 +1562,8 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Could not parse the endpoint\n");
 			goto done;
 		}
-		dev_dbg(&pdev->dev, "Endpoint %s, bus_width = %d\n",
-			endpoint->full_name, bus_cfg.bus.parallel.bus_width);
+		dev_dbg(&pdev->dev, "Endpoint %pOF, bus_width = %d\n",
+			endpoint, bus_cfg.bus.parallel.bus_width);
 		flags = bus_cfg.bus.parallel.flags;
 
 		if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
@@ -1569,13 +1574,13 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 
 		rem = of_graph_get_remote_port_parent(endpoint);
 		if (!rem) {
-			dev_dbg(&pdev->dev, "Remote device at %s not found\n",
-				endpoint->full_name);
+			dev_dbg(&pdev->dev, "Remote device at %pOF not found\n",
+				endpoint);
 			goto done;
 		}
 
-		dev_dbg(&pdev->dev, "Remote device %s, %s found\n",
-			rem->name, rem->full_name);
+		dev_dbg(&pdev->dev, "Remote device %s, %pOF found\n",
+			rem->name, rem);
 		sdinfo->name = rem->full_name;
 
 		pdata->asd[i] = devm_kzalloc(&pdev->dev,
@@ -1593,9 +1598,11 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 	}
 
 done:
-	pdata->asd_sizes[0] = i;
-	pdata->subdev_count = i;
-	pdata->card_name = "DA850/OMAP-L138 Video Capture";
+	if (pdata) {
+		pdata->asd_sizes[0] = i;
+		pdata->subdev_count = i;
+		pdata->card_name = "DA850/OMAP-L138 Video Capture";
+	}
 
 	return pdata;
 }
@@ -1689,8 +1696,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	} else {
 		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
 		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
-		vpif_obj.notifier.bound = vpif_async_bound;
-		vpif_obj.notifier.complete = vpif_async_complete;
+		vpif_obj.notifier.ops = &vpif_async_ops;
 		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
 						   &vpif_obj.notifier);
 		if (err) {
@@ -1739,6 +1745,7 @@ static int vpif_remove(struct platform_device *device)
 #ifdef CONFIG_PM_SLEEP
 /**
  * vpif_suspend: vpif device suspend
+ * @dev: pointer to &struct device
  */
 static int vpif_suspend(struct device *dev)
 {

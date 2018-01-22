@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 OBJECT_FILES_NON_STANDARD := y
 
 purgatory-y := purgatory.o stack.o setup-x86_$(BITS).o sha256.o entry64.o string.o

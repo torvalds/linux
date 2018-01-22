@@ -371,6 +371,36 @@ extern ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
 				      bool zeropage);
 #endif /* CONFIG_HUGETLB_PAGE */
 
+static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
+						pmd_t *dst_pmd,
+						struct vm_area_struct *dst_vma,
+						unsigned long dst_addr,
+						unsigned long src_addr,
+						struct page **page,
+						bool zeropage)
+{
+	ssize_t err;
+
+	if (vma_is_anonymous(dst_vma)) {
+		if (!zeropage)
+			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
+					       dst_addr, src_addr, page);
+		else
+			err = mfill_zeropage_pte(dst_mm, dst_pmd,
+						 dst_vma, dst_addr);
+	} else {
+		if (!zeropage)
+			err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
+						     dst_vma, dst_addr,
+						     src_addr, page);
+		else
+			err = shmem_mfill_zeropage_pte(dst_mm, dst_pmd,
+						       dst_vma, dst_addr);
+	}
+
+	return err;
+}
+
 static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 					      unsigned long dst_start,
 					      unsigned long src_start,
@@ -487,22 +517,8 @@ retry:
 		BUG_ON(pmd_none(*dst_pmd));
 		BUG_ON(pmd_trans_huge(*dst_pmd));
 
-		if (vma_is_anonymous(dst_vma)) {
-			if (!zeropage)
-				err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
-						       dst_addr, src_addr,
-						       &page);
-			else
-				err = mfill_zeropage_pte(dst_mm, dst_pmd,
-							 dst_vma, dst_addr);
-		} else {
-			err = -EINVAL; /* if zeropage is true return -EINVAL */
-			if (likely(!zeropage))
-				err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
-							     dst_vma, dst_addr,
-							     src_addr, &page);
-		}
-
+		err = mfill_atomic_pte(dst_mm, dst_pmd, dst_vma, dst_addr,
+				       src_addr, &page, zeropage);
 		cond_resched();
 
 		if (unlikely(err == -EFAULT)) {

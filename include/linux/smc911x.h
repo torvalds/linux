@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SMC911X_H__
 #define __SMC911X_H__
 

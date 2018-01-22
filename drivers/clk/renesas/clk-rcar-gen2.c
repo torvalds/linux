@@ -407,8 +407,7 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 
 	if (rcar_rst_read_mode_pins(&cpg_mode)) {
 		/* Backward-compatibility with old DT */
-		pr_warn("%s: failed to obtain mode pins from RST\n",
-			np->full_name);
+		pr_warn("%pOF: failed to obtain mode pins from RST\n", np);
 		cpg_mode = rcar_gen2_read_mode_pins();
 	}
 
@@ -424,7 +423,6 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 		/* We're leaking memory on purpose, there's no point in cleaning
 		 * up as the system won't boot anyway.
 		 */
-		pr_err("%s: failed to allocate cpg\n", __func__);
 		return;
 	}
 

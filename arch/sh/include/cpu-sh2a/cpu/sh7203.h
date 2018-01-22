@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH7203_H__
 #define __ASM_SH7203_H__
 

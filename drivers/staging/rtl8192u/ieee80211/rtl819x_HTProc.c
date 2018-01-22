@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 //As this function is mainly ported from Windows driver, so leave the name little changed. If any confusion caused, tell me. Created by WB. 2008.05.08
 #include "ieee80211.h"
@@ -176,7 +177,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "<Log HT Information Element>. Called by %s\n", TitleString);
 
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tPrimary channel = %d\n", pHTInfoEle->ControlChl);
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tSenondary channel =");
+	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tSecondary channel =");
 	switch (pHTInfoEle->ExtChlOffset)
 	{
 		case 0:

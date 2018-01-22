@@ -13,7 +13,6 @@ Example (for ARM-based BeagleBoard xM with TPM_TIS on SPI4):
 
 &mcspi4 {
 
-        status = "okay";
 
         tpm_tis@0 {
 

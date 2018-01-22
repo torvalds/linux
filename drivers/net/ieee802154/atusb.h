@@ -50,6 +50,14 @@ enum atusb_requests {
 	ATUSB_EUI64_READ,
 };
 
+enum {
+	ATUSB_HW_TYPE_100813,	/* 2010-08-13 */
+	ATUSB_HW_TYPE_101216,	/* 2010-12-16 */
+	ATUSB_HW_TYPE_110131,	/* 2011-01-31, ATmega32U2-based */
+	ATUSB_HW_TYPE_RZUSB,	/* Atmel Raven USB dongle with at86rf230 */
+	ATUSB_HW_TYPE_HULUSB,	/* Busware HUL USB dongle with at86rf212 */
+};
+
 /*
  * Direction	bRequest		wValue		wIndex	wLength
  *

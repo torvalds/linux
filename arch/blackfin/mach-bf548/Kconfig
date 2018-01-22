@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config BF542
 	def_bool y
 	depends on BF542_std || BF542M

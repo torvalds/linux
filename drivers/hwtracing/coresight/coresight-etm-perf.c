@@ -53,14 +53,16 @@ static DEFINE_PER_CPU(struct coresight_device *, csdev_src);
 /* ETMv3.5/PTM's ETMCR is 'config' */
 PMU_FORMAT_ATTR(cycacc,		"config:" __stringify(ETM_OPT_CYCACC));
 PMU_FORMAT_ATTR(timestamp,	"config:" __stringify(ETM_OPT_TS));
+PMU_FORMAT_ATTR(retstack,	"config:" __stringify(ETM_OPT_RETSTK));
 
 static struct attribute *etm_config_formats_attr[] = {
 	&format_attr_cycacc.attr,
 	&format_attr_timestamp.attr,
+	&format_attr_retstack.attr,
 	NULL,
 };
 
-static struct attribute_group etm_pmu_format_group = {
+static const struct attribute_group etm_pmu_format_group = {
 	.name   = "format",
 	.attrs  = etm_config_formats_attr,
 };

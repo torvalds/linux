@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PINCTRL_MTK_MT8127_H
 #define __PINCTRL_MTK_MT8127_H
 

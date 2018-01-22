@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_PINCTRL_TEGRA)		+= pinctrl-tegra.o
 obj-$(CONFIG_PINCTRL_TEGRA20)		+= pinctrl-tegra20.o
 obj-$(CONFIG_PINCTRL_TEGRA30)		+= pinctrl-tegra30.o

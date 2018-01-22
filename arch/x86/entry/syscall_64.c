@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* System call table for x86-64. */
 
 #include <linux/linkage.h>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* pci_impl.h: Helper definitions for PCI controller support.
  *
  * Copyright (C) 1999, 2007 David S. Miller (davem@davemloft.net)

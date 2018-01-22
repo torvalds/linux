@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Generic algorithms support
 #
@@ -858,6 +859,17 @@ config CRYPTO_SHA3
 
 	  References:
 	  http://keccak.noekeon.org/
+
+config CRYPTO_SM3
+	tristate "SM3 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
+	  It is part of the Chinese Commercial Cryptography suite.
+
+	  References:
+	  http://www.oscca.gov.cn/UpFile/20101222141857786.pdf
+	  https://datatracker.ietf.org/doc/html/draft-shen-sm3-hash
 
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
@@ -1753,6 +1765,8 @@ config CRYPTO_USER_API_AEAD
 	tristate "User-space interface for AEAD cipher algorithms"
 	depends on NET
 	select CRYPTO_AEAD
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_NULL
 	select CRYPTO_USER_API
 	help
 	  This option enables the user-spaces interface for AEAD

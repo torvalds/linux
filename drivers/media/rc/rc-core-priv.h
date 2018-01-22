@@ -27,7 +27,7 @@ struct ir_raw_handler {
 
 	u64 protocols; /* which are handled by this handler */
 	int (*decode)(struct rc_dev *dev, struct ir_raw_event event);
-	int (*encode)(enum rc_type protocol, u32 scancode,
+	int (*encode)(enum rc_proto protocol, u32 scancode,
 		      struct ir_raw_event *events, unsigned int max);
 
 	/* These two should only be used by the lirc decoder */
@@ -41,8 +41,9 @@ struct ir_raw_event_ctrl {
 	/* fifo for the pulse/space durations */
 	DECLARE_KFIFO(kfifo, struct ir_raw_event, MAX_IR_EVENT_SIZE);
 	ktime_t				last_event;	/* when last event occurred */
-	enum raw_event_type		last_type;	/* last event type */
 	struct rc_dev			*dev;		/* pointer to the parent rc_dev */
+	/* edge driver */
+	struct timer_list edge_handle;
 
 	/* raw decoder state follows */
 	struct ir_raw_event prev_ev;
@@ -105,7 +106,7 @@ struct ir_raw_event_ctrl {
 	} mce_kbd;
 	struct lirc_codec {
 		struct rc_dev *dev;
-		struct lirc_driver *drv;
+		struct lirc_dev *ldev;
 		int carrier_low;
 
 		ktime_t gap_start;

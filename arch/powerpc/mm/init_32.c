@@ -113,6 +113,12 @@ void __init MMU_setup(void)
 		__map_without_bats = 1;
 		__map_without_ltlbs = 1;
 	}
+#ifdef CONFIG_STRICT_KERNEL_RWX
+	if (rodata_enabled) {
+		__map_without_bats = 1;
+		__map_without_ltlbs = 1;
+	}
+#endif
 }
 
 /*
@@ -132,8 +138,6 @@ void __init MMU_init(void)
 	 * Reserve gigantic pages for hugetlb.  This MUST occur before
 	 * lowmem_end_addr is initialized below.
 	 */
-	reserve_hugetlb_gpages();
-
 	if (memblock.memory.cnt > 1) {
 #ifndef CONFIG_WII
 		memblock_enforce_memory_limit(memblock.memory.regions[0].size);

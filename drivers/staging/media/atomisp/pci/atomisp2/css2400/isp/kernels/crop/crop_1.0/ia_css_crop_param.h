@@ -19,7 +19,7 @@
 #include "dma.h"
 #include "sh_css_internal.h" /* sh_css_crop_pos */
 
-/** Crop frame */
+/* Crop frame */
 struct sh_css_isp_crop_isp_config {
 	uint32_t width_a_over_b;
 	struct dma_port_config port_b;

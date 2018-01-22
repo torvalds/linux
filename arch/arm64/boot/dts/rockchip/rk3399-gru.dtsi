@@ -164,14 +164,9 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	ppvar_bigcpu: ppvar-bigcpu {
+	ppvar_bigcpu_pwm: ppvar-bigcpu-pwm {
 		compatible = "pwm-regulator";
-		regulator-name = "ppvar_bigcpu";
-		/*
-		 * OVP circuit requires special handling which is not yet
-		 * represented. Keep disabled for now.
-		 */
-		status = "disabled";
+		regulator-name = "ppvar_bigcpu_pwm";
 
 		pwms = <&pwm1 0 3337 0>;
 		pwm-supply = <&ppvar_sys>;
@@ -181,18 +176,28 @@
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <798674>;
-		regulator-max-microvolt = <1302172>;
+		regulator-min-microvolt = <800107>;
+		regulator-max-microvolt = <1302232>;
 	};
 
-	ppvar_litcpu: ppvar-litcpu {
+	ppvar_bigcpu: ppvar-bigcpu {
+		compatible = "vctrl-regulator";
+		regulator-name = "ppvar_bigcpu";
+
+		regulator-min-microvolt = <800107>;
+		regulator-max-microvolt = <1302232>;
+
+		ctrl-supply = <&ppvar_bigcpu_pwm>;
+		ctrl-voltage-range = <800107 1302232>;
+
+		regulator-settling-time-up-us = <322>;
+		min-slew-down-rate = <225>;
+		ovp-threshold-percent = <16>;
+	};
+
+	ppvar_litcpu_pwm: ppvar-litcpu-pwm {
 		compatible = "pwm-regulator";
-		regulator-name = "ppvar_litcpu";
-		/*
-		 * OVP circuit requires special handling which is not yet
-		 * represented. Keep disabled for now.
-		 */
-		status = "disabled";
+		regulator-name = "ppvar_litcpu_pwm";
 
 		pwms = <&pwm2 0 3337 0>;
 		pwm-supply = <&ppvar_sys>;
@@ -202,18 +207,28 @@
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <799065>;
-		regulator-max-microvolt = <1303738>;
+		regulator-min-microvolt = <797743>;
+		regulator-max-microvolt = <1307837>;
 	};
 
-	ppvar_gpu: ppvar-gpu {
+	ppvar_litcpu: ppvar-litcpu {
+		compatible = "vctrl-regulator";
+		regulator-name = "ppvar_litcpu";
+
+		regulator-min-microvolt = <797743>;
+		regulator-max-microvolt = <1307837>;
+
+		ctrl-supply = <&ppvar_litcpu_pwm>;
+		ctrl-voltage-range = <797743 1307837>;
+
+		regulator-settling-time-up-us = <384>;
+		min-slew-down-rate = <225>;
+		ovp-threshold-percent = <16>;
+	};
+
+	ppvar_gpu_pwm: ppvar-gpu-pwm {
 		compatible = "pwm-regulator";
-		regulator-name = "ppvar_gpu";
-		/*
-		 * OVP circuit requires special handling which is not yet
-		 * represented. Keep disabled for now.
-		 */
-		status = "disabled";
+		regulator-name = "ppvar_gpu_pwm";
 
 		pwms = <&pwm0 0 3337 0>;
 		pwm-supply = <&ppvar_sys>;
@@ -223,18 +238,28 @@
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <785782>;
-		regulator-max-microvolt = <1217729>;
+		regulator-min-microvolt = <786384>;
+		regulator-max-microvolt = <1217747>;
 	};
 
-	ppvar_centerlogic: ppvar-centerlogic {
+	ppvar_gpu: ppvar-gpu {
+		compatible = "vctrl-regulator";
+		regulator-name = "ppvar_gpu";
+
+		regulator-min-microvolt = <786384>;
+		regulator-max-microvolt = <1217747>;
+
+		ctrl-supply = <&ppvar_gpu_pwm>;
+		ctrl-voltage-range = <786384 1217747>;
+
+		regulator-settling-time-up-us = <390>;
+		min-slew-down-rate = <225>;
+		ovp-threshold-percent = <16>;
+	};
+
+	ppvar_centerlogic_pwm: ppvar-centerlogic-pwm {
 		compatible = "pwm-regulator";
-		regulator-name = "ppvar_centerlogic";
-		/*
-		 * OVP circuit requires special handling which is not yet
-		 * represented. Keep disabled for now.
-		 */
-		status = "disabled";
+		regulator-name = "ppvar_centerlogic_pwm";
 
 		pwms = <&pwm3 0 3337 0>;
 		pwm-supply = <&ppvar_sys>;
@@ -244,8 +269,23 @@
 		/* EC turns on w/ ppvar_centerlogic_en; always on for AP */
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <800069>;
-		regulator-max-microvolt = <1049692>;
+		regulator-min-microvolt = <799434>;
+		regulator-max-microvolt = <1049925>;
+	};
+
+	ppvar_centerlogic: ppvar-centerlogic {
+		compatible = "vctrl-regulator";
+		regulator-name = "ppvar_centerlogic";
+
+		regulator-min-microvolt = <799434>;
+		regulator-max-microvolt = <1049925>;
+
+		ctrl-supply = <&ppvar_centerlogic_pwm>;
+		ctrl-voltage-range = <799434 1049925>;
+
+		regulator-settling-time-up-us = <378>;
+		min-slew-down-rate = <225>;
+		ovp-threshold-percent = <16>;
 	};
 
 	/* Schematics call this PPVAR even though it's fixed */
@@ -474,7 +514,8 @@
 	sound {
 		compatible = "rockchip,rk3399-gru-sound";
 		rockchip,cpu = <&i2s0 &i2s2>;
-		rockchip,codec = <&max98357a &headsetcodec &codec>;
+		rockchip,codec = <&max98357a &headsetcodec
+				  &codec &wacky_spi_audio>;
 	};
 };
 
@@ -555,6 +596,11 @@
 	status = "okay";
 };
 
+&gpu {
+	mali-supply = <&ppvar_gpu>;
+	status = "okay";
+};
+
 ap_i2c_mic: &i2c1 {
 	status = "okay";
 
@@ -567,12 +613,7 @@ ap_i2c_mic: &i2c1 {
 	headsetcodec: rt5514@57 {
 		compatible = "realtek,rt5514";
 		reg = <0x57>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mic_int>;
-		realtek,dmic-init-delay = <20>;
-		wakeup-source;
+		realtek,dmic-init-delay-ms = <20>;
 	};
 };
 
@@ -781,9 +822,13 @@ ap_i2c_audio: &i2c8 {
 	wacky_spi_audio: spi2@0 {
 		compatible = "realtek,rt5514";
 		reg = <0>;
-
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mic_int>;
 		/* May run faster once verified. */
 		spi-max-frequency = <10000000>;
+		wakeup-source;
 	};
 };
 
@@ -1031,7 +1076,7 @@ ap_i2c_audio: &i2c8 {
 		 * hurt and dw_mmc will ignore it.  We make sure to disable
 		 * the pull though so we don't burn needless power.
 		 */
-		sdmmc_cd: sdmcc-cd {
+		sdmmc_cd: sdmmc-cd {
 			rockchip,pins =
 				<0 7 RK_FUNC_1 &pcfg_pull_none>;
 		};

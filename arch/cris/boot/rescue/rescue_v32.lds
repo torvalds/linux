@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*#OUTPUT_FORMAT(elf32-us-cris) */
 OUTPUT_ARCH (crisv32)
 /* Now that NAND support has been stripped, this file could be simplified,

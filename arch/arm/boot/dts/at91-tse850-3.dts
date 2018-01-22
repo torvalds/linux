@@ -221,6 +221,7 @@
 	jc42@18 {
 		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
 		reg = <0x18>;
+		smbus-timeout-disable;
 	};
 
 	dpot: mcp4651-104@28 {

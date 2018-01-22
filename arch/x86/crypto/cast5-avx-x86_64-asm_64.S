@@ -47,7 +47,7 @@
 /**********************************************************************
   16-way AVX cast5
  **********************************************************************/
-#define CTX %rdi
+#define CTX %r15
 
 #define RL1 %xmm0
 #define RR1 %xmm1
@@ -70,8 +70,8 @@
 
 #define RTMP %xmm15
 
-#define RID1  %rbp
-#define RID1d %ebp
+#define RID1  %rdi
+#define RID1d %edi
 #define RID2  %rsi
 #define RID2d %esi
 
@@ -226,7 +226,7 @@
 .align 16
 __cast5_enc_blk16:
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	RL1: blocks 1 and 2
 	 *	RR1: blocks 3 and 4
 	 *	RL2: blocks 5 and 6
@@ -246,8 +246,10 @@ __cast5_enc_blk16:
 	 *	RR4: encrypted blocks 15 and 16
 	 */
 
-	pushq %rbp;
+	pushq %r15;
 	pushq %rbx;
+
+	movq %rdi, CTX;
 
 	vmovdqa .Lbswap_mask, RKM;
 	vmovd .Lfirst_mask, R1ST;
@@ -283,7 +285,7 @@ __cast5_enc_blk16:
 
 .L__skip_enc:
 	popq %rbx;
-	popq %rbp;
+	popq %r15;
 
 	vmovdqa .Lbswap_mask, RKM;
 
@@ -298,7 +300,7 @@ ENDPROC(__cast5_enc_blk16)
 .align 16
 __cast5_dec_blk16:
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	RL1: encrypted blocks 1 and 2
 	 *	RR1: encrypted blocks 3 and 4
 	 *	RL2: encrypted blocks 5 and 6
@@ -318,8 +320,10 @@ __cast5_dec_blk16:
 	 *	RR4: decrypted blocks 15 and 16
 	 */
 
-	pushq %rbp;
+	pushq %r15;
 	pushq %rbx;
+
+	movq %rdi, CTX;
 
 	vmovdqa .Lbswap_mask, RKM;
 	vmovd .Lfirst_mask, R1ST;
@@ -356,7 +360,7 @@ __cast5_dec_blk16:
 
 	vmovdqa .Lbswap_mask, RKM;
 	popq %rbx;
-	popq %rbp;
+	popq %r15;
 
 	outunpack_blocks(RR1, RL1, RTMP, RX, RKM);
 	outunpack_blocks(RR2, RL2, RTMP, RX, RKM);
@@ -372,12 +376,14 @@ ENDPROC(__cast5_dec_blk16)
 
 ENTRY(cast5_ecb_enc_16way)
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
 	FRAME_BEGIN
+	pushq %r15;
 
+	movq %rdi, CTX;
 	movq %rsi, %r11;
 
 	vmovdqu (0*4*4)(%rdx), RL1;
@@ -400,18 +406,22 @@ ENTRY(cast5_ecb_enc_16way)
 	vmovdqu RR4, (6*4*4)(%r11);
 	vmovdqu RL4, (7*4*4)(%r11);
 
+	popq %r15;
 	FRAME_END
 	ret;
 ENDPROC(cast5_ecb_enc_16way)
 
 ENTRY(cast5_ecb_dec_16way)
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
 
 	FRAME_BEGIN
+	pushq %r15;
+
+	movq %rdi, CTX;
 	movq %rsi, %r11;
 
 	vmovdqu (0*4*4)(%rdx), RL1;
@@ -434,20 +444,22 @@ ENTRY(cast5_ecb_dec_16way)
 	vmovdqu RR4, (6*4*4)(%r11);
 	vmovdqu RL4, (7*4*4)(%r11);
 
+	popq %r15;
 	FRAME_END
 	ret;
 ENDPROC(cast5_ecb_dec_16way)
 
 ENTRY(cast5_cbc_dec_16way)
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	%rsi: dst
 	 *	%rdx: src
 	 */
 	FRAME_BEGIN
-
 	pushq %r12;
+	pushq %r15;
 
+	movq %rdi, CTX;
 	movq %rsi, %r11;
 	movq %rdx, %r12;
 
@@ -483,23 +495,24 @@ ENTRY(cast5_cbc_dec_16way)
 	vmovdqu RR4, (6*16)(%r11);
 	vmovdqu RL4, (7*16)(%r11);
 
+	popq %r15;
 	popq %r12;
-
 	FRAME_END
 	ret;
 ENDPROC(cast5_cbc_dec_16way)
 
 ENTRY(cast5_ctr_16way)
 	/* input:
-	 *	%rdi: ctx, CTX
+	 *	%rdi: ctx
 	 *	%rsi: dst
 	 *	%rdx: src
 	 *	%rcx: iv (big endian, 64bit)
 	 */
 	FRAME_BEGIN
-
 	pushq %r12;
+	pushq %r15;
 
+	movq %rdi, CTX;
 	movq %rsi, %r11;
 	movq %rdx, %r12;
 
@@ -558,8 +571,8 @@ ENTRY(cast5_ctr_16way)
 	vmovdqu RR4, (6*16)(%r11);
 	vmovdqu RL4, (7*16)(%r11);
 
+	popq %r15;
 	popq %r12;
-
 	FRAME_END
 	ret;
 ENDPROC(cast5_ctr_16way)

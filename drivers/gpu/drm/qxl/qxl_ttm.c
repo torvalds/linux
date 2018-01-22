@@ -136,8 +136,8 @@ int qxl_mmap(struct file *filp, struct vm_area_struct *vma)
 		 "filp->private_data->minor->dev->dev_private == NULL\n");
 		return -EINVAL;
 	}
-	QXL_INFO(qdev, "%s: filp->private_data = 0x%p, vma->vm_pgoff = %lx\n",
-		 __func__, filp->private_data, vma->vm_pgoff);
+	DRM_DEBUG_DRIVER("filp->private_data = 0x%p, vma->vm_pgoff = %lx\n",
+		  filp->private_data, vma->vm_pgoff);
 
 	r = ttm_bo_mmap(filp, vma, &qdev->mman.bdev);
 	if (unlikely(r != 0))
@@ -187,7 +187,7 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
 	struct qxl_bo *qbo;
-	static struct ttm_place placements = {
+	static const struct ttm_place placements = {
 		.fpfn = 0,
 		.lpfn = 0,
 		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM

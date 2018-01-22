@@ -67,6 +67,8 @@ type).
 
 The ops argument allows the driver to specify a number of callbacks:
 
+.. tabularcolumns:: |p{1.5cm}|p{16.0cm}|
+
 ======== ==============================================================
 Callback Description
 ======== ==============================================================

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* K8 NUMA support */
 /* Copyright 2002,2003 by Andi Kleen, SuSE Labs */
 /* 2.5 Version loosely based on the NUMAQ Code by Pat Gaughen. */

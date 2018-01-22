@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * omap_udc.h -- for omap 3.2 udc, with OTG support
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "term.h"
 #include <stdlib.h>
 #include <termios.h>

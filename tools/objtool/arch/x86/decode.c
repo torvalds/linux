@@ -19,9 +19,9 @@
 #include <stdlib.h>
 
 #define unlikely(cond) (cond)
-#include "insn/insn.h"
-#include "insn/inat.c"
-#include "insn/insn.c"
+#include <asm/insn.h>
+#include "lib/inat.c"
+#include "lib/insn.c"
 
 #include "../../elf.h"
 #include "../../arch.h"
@@ -86,8 +86,8 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 	struct insn insn;
 	int x86_64, sign;
 	unsigned char op1, op2, rex = 0, rex_b = 0, rex_r = 0, rex_w = 0,
-		      modrm = 0, modrm_mod = 0, modrm_rm = 0, modrm_reg = 0,
-		      sib = 0;
+		      rex_x = 0, modrm = 0, modrm_mod = 0, modrm_rm = 0,
+		      modrm_reg = 0, sib = 0;
 
 	x86_64 = is_x86_64(elf);
 	if (x86_64 == -1)
@@ -114,6 +114,7 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		rex = insn.rex_prefix.bytes[0];
 		rex_w = X86_REX_W(rex) >> 3;
 		rex_r = X86_REX_R(rex) >> 2;
+		rex_x = X86_REX_X(rex) >> 1;
 		rex_b = X86_REX_B(rex);
 	}
 
@@ -137,7 +138,7 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 			*type = INSN_STACK;
 			op->src.type = OP_SRC_ADD;
 			op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
-			op->dest.type = OP_SRC_REG;
+			op->dest.type = OP_DEST_REG;
 			op->dest.reg = CFI_SP;
 		}
 		break;
@@ -207,16 +208,28 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		break;
 
 	case 0x89:
-		if (rex == 0x48 && modrm == 0xe5) {
+		if (rex_w && !rex_r && modrm_mod == 3 && modrm_reg == 4) {
 
-			/* mov %rsp, %rbp */
+			/* mov %rsp, reg */
 			*type = INSN_STACK;
 			op->src.type = OP_SRC_REG;
 			op->src.reg = CFI_SP;
 			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_BP;
+			op->dest.reg = op_to_cfi_reg[modrm_rm][rex_b];
 			break;
 		}
+
+		if (rex_w && !rex_b && modrm_mod == 3 && modrm_rm == 4) {
+
+			/* mov reg, %rsp */
+			*type = INSN_STACK;
+			op->src.type = OP_SRC_REG;
+			op->src.reg = op_to_cfi_reg[modrm_reg][rex_r];
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = CFI_SP;
+			break;
+		}
+
 		/* fallthrough */
 	case 0x88:
 		if (!rex_b &&
@@ -269,7 +282,22 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		break;
 
 	case 0x8d:
-		if (rex == 0x48 && modrm == 0x65) {
+		if (sib == 0x24 && rex_w && !rex_b && !rex_x) {
+
+			*type = INSN_STACK;
+			if (!insn.displacement.value) {
+				/* lea (%rsp), reg */
+				op->src.type = OP_SRC_REG;
+			} else {
+				/* lea disp(%rsp), reg */
+				op->src.type = OP_SRC_ADD;
+				op->src.offset = insn.displacement.value;
+			}
+			op->src.reg = CFI_SP;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
+
+		} else if (rex == 0x48 && modrm == 0x65) {
 
 			/* lea disp(%rbp), %rsp */
 			*type = INSN_STACK;
@@ -278,71 +306,9 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 			op->src.offset = insn.displacement.value;
 			op->dest.type = OP_DEST_REG;
 			op->dest.reg = CFI_SP;
-			break;
-		}
 
-		if (rex == 0x48 && (modrm == 0xa4 || modrm == 0x64) &&
-		    sib == 0x24) {
-
-			/* lea disp(%rsp), %rsp */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = CFI_SP;
-			op->src.offset = insn.displacement.value;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
-			break;
-		}
-
-		if (rex == 0x48 && modrm == 0x2c && sib == 0x24) {
-
-			/* lea (%rsp), %rbp */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_REG;
-			op->src.reg = CFI_SP;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_BP;
-			break;
-		}
-
-		if (rex == 0x4c && modrm == 0x54 && sib == 0x24 &&
-		    insn.displacement.value == 8) {
-
-			/*
-			 * lea 0x8(%rsp), %r10
-			 *
-			 * Here r10 is the "drap" pointer, used as a stack
-			 * pointer helper when the stack gets realigned.
-			 */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = CFI_SP;
-			op->src.offset = 8;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_R10;
-			break;
-		}
-
-		if (rex == 0x4c && modrm == 0x6c && sib == 0x24 &&
-		    insn.displacement.value == 16) {
-
-			/*
-			 * lea 0x10(%rsp), %r13
-			 *
-			 * Here r13 is the "drap" pointer, used as a stack
-			 * pointer helper when the stack gets realigned.
-			 */
-			*type = INSN_STACK;
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = CFI_SP;
-			op->src.offset = 16;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_R13;
-			break;
-		}
-
-		if (rex == 0x49 && modrm == 0x62 &&
-		    insn.displacement.value == -8) {
+		} else if (rex == 0x49 && modrm == 0x62 &&
+			   insn.displacement.value == -8) {
 
 			/*
 			 * lea -0x8(%r10), %rsp
@@ -356,11 +322,9 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 			op->src.offset = -8;
 			op->dest.type = OP_DEST_REG;
 			op->dest.reg = CFI_SP;
-			break;
-		}
 
-		if (rex == 0x49 && modrm == 0x65 &&
-		    insn.displacement.value == -16) {
+		} else if (rex == 0x49 && modrm == 0x65 &&
+			   insn.displacement.value == -16) {
 
 			/*
 			 * lea -0x10(%r13), %rsp
@@ -374,7 +338,6 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 			op->src.offset = -16;
 			op->dest.type = OP_DEST_REG;
 			op->dest.reg = CFI_SP;
-			break;
 		}
 
 		break;
@@ -406,20 +369,27 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 
 	case 0x0f:
 
-		if (op2 >= 0x80 && op2 <= 0x8f)
+		if (op2 >= 0x80 && op2 <= 0x8f) {
+
 			*type = INSN_JUMP_CONDITIONAL;
-		else if (op2 == 0x05 || op2 == 0x07 || op2 == 0x34 ||
-			 op2 == 0x35)
+
+		} else if (op2 == 0x05 || op2 == 0x07 || op2 == 0x34 ||
+			   op2 == 0x35) {
 
 			/* sysenter, sysret */
 			*type = INSN_CONTEXT_SWITCH;
 
-		else if (op2 == 0x0d || op2 == 0x1f)
+		} else if (op2 == 0x0b || op2 == 0xb9) {
+
+			/* ud2 */
+			*type = INSN_BUG;
+
+		} else if (op2 == 0x0d || op2 == 0x1f) {
 
 			/* nopl/nopw */
 			*type = INSN_NOP;
 
-		else if (op2 == 0xa0 || op2 == 0xa8) {
+		} else if (op2 == 0xa0 || op2 == 0xa8) {
 
 			/* push fs/gs */
 			*type = INSN_STACK;

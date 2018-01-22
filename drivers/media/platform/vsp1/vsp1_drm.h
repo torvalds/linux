@@ -18,38 +18,44 @@
 #include "vsp1_pipe.h"
 
 /**
- * vsp1_drm - State for the API exposed to the DRM driver
+ * vsp1_drm_pipeline - State for the API exposed to the DRM driver
  * @pipe: the VSP1 pipeline used for display
- * @num_inputs: number of active pipeline inputs at the beginning of an update
- * @inputs: source crop rectangle, destination compose rectangle and z-order
- *	position for every input
+ * @enabled: pipeline state at the beginning of an update
  * @du_complete: frame completion callback for the DU driver (optional)
  * @du_private: data to be passed to the du_complete callback
  */
-struct vsp1_drm {
+struct vsp1_drm_pipeline {
 	struct vsp1_pipeline pipe;
-	unsigned int num_inputs;
+	bool enabled;
+
+	/* Frame synchronisation */
+	void (*du_complete)(void *, bool);
+	void *du_private;
+};
+
+/**
+ * vsp1_drm - State for the API exposed to the DRM driver
+ * @pipe: the VSP1 DRM pipeline used for display
+ * @inputs: source crop rectangle, destination compose rectangle and z-order
+ *	position for every input (indexed by RPF index)
+ */
+struct vsp1_drm {
+	struct vsp1_drm_pipeline pipe[VSP1_MAX_LIF];
+
 	struct {
-		bool enabled;
 		struct v4l2_rect crop;
 		struct v4l2_rect compose;
 		unsigned int zpos;
 	} inputs[VSP1_MAX_RPF];
-
-	/* Frame synchronisation */
-	void (*du_complete)(void *);
-	void *du_private;
 };
 
-static inline struct vsp1_drm *to_vsp1_drm(struct vsp1_pipeline *pipe)
+static inline struct vsp1_drm_pipeline *
+to_vsp1_drm_pipeline(struct vsp1_pipeline *pipe)
 {
-	return container_of(pipe, struct vsp1_drm, pipe);
+	return container_of(pipe, struct vsp1_drm_pipeline, pipe);
 }
 
 int vsp1_drm_init(struct vsp1_device *vsp1);
 void vsp1_drm_cleanup(struct vsp1_device *vsp1);
-int vsp1_drm_create_links(struct vsp1_device *vsp1);
-
-void vsp1_drm_display_start(struct vsp1_device *vsp1);
 
 #endif /* __VSP1_DRM_H__ */

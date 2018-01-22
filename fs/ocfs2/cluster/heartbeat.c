@@ -505,8 +505,7 @@ static inline void o2hb_bio_wait_dec(struct o2hb_bio_wait_ctxt *wc,
 	}
 }
 
-static void o2hb_wait_on_io(struct o2hb_region *reg,
-			    struct o2hb_bio_wait_ctxt *wc)
+static void o2hb_wait_on_io(struct o2hb_bio_wait_ctxt *wc)
 {
 	o2hb_bio_wait_dec(wc, 1);
 	wait_for_completion(&wc->wc_io_complete);
@@ -554,7 +553,7 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
 
 	/* Must put everything in 512 byte sectors for the bio... */
 	bio->bi_iter.bi_sector = (reg->hr_start_block + cs) << (bits - 9);
-	bio->bi_bdev = reg->hr_bdev;
+	bio_set_dev(bio, reg->hr_bdev);
 	bio->bi_private = wc;
 	bio->bi_end_io = o2hb_bio_end_io;
 	bio_set_op_attrs(bio, op, op_flags);
@@ -608,7 +607,7 @@ static int o2hb_read_slots(struct o2hb_region *reg,
 	status = 0;
 
 bail_and_wait:
-	o2hb_wait_on_io(reg, &wc);
+	o2hb_wait_on_io(&wc);
 	if (wc.wc_error && !status)
 		status = wc.wc_error;
 
@@ -1162,7 +1161,7 @@ static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
 	 * before we can go to steady state.  This ensures that
 	 * people we find in our steady state have seen us.
 	 */
-	o2hb_wait_on_io(reg, &write_wc);
+	o2hb_wait_on_io(&write_wc);
 	if (write_wc.wc_error) {
 		/* Do not re-arm the write timeout on I/O error - we
 		 * can't be sure that the new block ever made it to
@@ -1275,7 +1274,7 @@ static int o2hb_thread(void *data)
 		o2hb_prepare_block(reg, 0);
 		ret = o2hb_issue_node_write(reg, &write_wc);
 		if (ret == 0)
-			o2hb_wait_on_io(reg, &write_wc);
+			o2hb_wait_on_io(&write_wc);
 		else
 			mlog_errno(ret);
 	}
@@ -2026,7 +2025,7 @@ static struct configfs_item_operations o2hb_region_item_ops = {
 	.release		= o2hb_region_release,
 };
 
-static struct config_item_type o2hb_region_type = {
+static const struct config_item_type o2hb_region_type = {
 	.ct_item_ops	= &o2hb_region_item_ops,
 	.ct_attrs	= o2hb_region_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -2311,7 +2310,7 @@ static struct configfs_group_operations o2hb_heartbeat_group_group_ops = {
 	.drop_item	= o2hb_heartbeat_group_drop_item,
 };
 
-static struct config_item_type o2hb_heartbeat_group_type = {
+static const struct config_item_type o2hb_heartbeat_group_type = {
 	.ct_group_ops	= &o2hb_heartbeat_group_group_ops,
 	.ct_attrs	= o2hb_heartbeat_group_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -2576,22 +2575,6 @@ void o2hb_unregister_callback(const char *region_uuid,
 }
 EXPORT_SYMBOL_GPL(o2hb_unregister_callback);
 
-int o2hb_check_node_heartbeating(u8 node_num)
-{
-	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
-
-	o2hb_fill_node_map(testing_map, sizeof(testing_map));
-	if (!test_bit(node_num, testing_map)) {
-		mlog(ML_HEARTBEAT,
-		     "node (%u) does not have heartbeating enabled.\n",
-		     node_num);
-		return 0;
-	}
-
-	return 1;
-}
-EXPORT_SYMBOL_GPL(o2hb_check_node_heartbeating);
-
 int o2hb_check_node_heartbeating_no_sem(u8 node_num)
 {
 	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
@@ -2625,23 +2608,6 @@ int o2hb_check_node_heartbeating_from_callback(u8 node_num)
 	return 1;
 }
 EXPORT_SYMBOL_GPL(o2hb_check_node_heartbeating_from_callback);
-
-/* Makes sure our local node is configured with a node number, and is
- * heartbeating. */
-int o2hb_check_local_node_heartbeating(void)
-{
-	u8 node_num;
-
-	/* if this node was set then we have networking */
-	node_num = o2nm_this_node();
-	if (node_num == O2NM_MAX_NODES) {
-		mlog(ML_HEARTBEAT, "this node has not been configured.\n");
-		return 0;
-	}
-
-	return o2hb_check_node_heartbeating(node_num);
-}
-EXPORT_SYMBOL_GPL(o2hb_check_local_node_heartbeating);
 
 /*
  * this is just a hack until we get the plumbing which flips file systems

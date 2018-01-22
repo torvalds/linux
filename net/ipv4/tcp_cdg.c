@@ -85,7 +85,6 @@ struct cdg {
 	u8  state;
 	u8  delack;
 	u32 rtt_seq;
-	u32 undo_cwnd;
 	u32 shadow_wnd;
 	u16 backoff_cnt;
 	u16 sample_cnt;
@@ -330,8 +329,6 @@ static u32 tcp_cdg_ssthresh(struct sock *sk)
 	struct cdg *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	ca->undo_cwnd = tp->snd_cwnd;
-
 	if (ca->state == CDG_BACKOFF)
 		return max(2U, (tp->snd_cwnd * min(1024U, backoff_beta)) >> 10);
 
@@ -342,13 +339,6 @@ static u32 tcp_cdg_ssthresh(struct sock *sk)
 	if (use_shadow)
 		return max3(2U, ca->shadow_wnd, tp->snd_cwnd >> 1);
 	return max(2U, tp->snd_cwnd >> 1);
-}
-
-static u32 tcp_cdg_undo_cwnd(struct sock *sk)
-{
-	struct cdg *ca = inet_csk_ca(sk);
-
-	return max(tcp_sk(sk)->snd_cwnd, ca->undo_cwnd);
 }
 
 static void tcp_cdg_cwnd_event(struct sock *sk, const enum tcp_ca_event ev)
@@ -399,11 +389,11 @@ static void tcp_cdg_release(struct sock *sk)
 	kfree(ca->gradients);
 }
 
-struct tcp_congestion_ops tcp_cdg __read_mostly = {
+static struct tcp_congestion_ops tcp_cdg __read_mostly = {
 	.cong_avoid = tcp_cdg_cong_avoid,
 	.cwnd_event = tcp_cdg_cwnd_event,
 	.pkts_acked = tcp_cdg_acked,
-	.undo_cwnd = tcp_cdg_undo_cwnd,
+	.undo_cwnd = tcp_reno_undo_cwnd,
 	.ssthresh = tcp_cdg_ssthresh,
 	.release = tcp_cdg_release,
 	.init = tcp_cdg_init,

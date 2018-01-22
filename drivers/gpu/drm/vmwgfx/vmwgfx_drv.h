@@ -40,10 +40,12 @@
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
+#include <linux/sync_file.h>
 
-#define VMWGFX_DRIVER_DATE "20170607"
+#define VMWGFX_DRIVER_NAME "vmwgfx"
+#define VMWGFX_DRIVER_DATE "20170612"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 13
+#define VMWGFX_DRIVER_MINOR 14
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -351,6 +353,12 @@ struct vmw_otable_batch {
 	struct ttm_buffer_object *otable_bo;
 };
 
+enum {
+	VMW_IRQTHREAD_FENCE,
+	VMW_IRQTHREAD_CMDBUF,
+	VMW_IRQTHREAD_MAX
+};
+
 struct vmw_private {
 	struct ttm_bo_device bdev;
 	struct ttm_bo_global_ref bo_global_ref;
@@ -529,6 +537,7 @@ struct vmw_private {
 	struct vmw_otable_batch otable_batch;
 
 	struct vmw_cmdbuf_man *cman;
+	DECLARE_BITMAP(irqthread_pending, VMW_IRQTHREAD_MAX);
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -561,24 +570,21 @@ static inline struct vmw_master *vmw_master(struct drm_master *master)
 static inline void vmw_write(struct vmw_private *dev_priv,
 			     unsigned int offset, uint32_t value)
 {
-	unsigned long irq_flags;
-
-	spin_lock_irqsave(&dev_priv->hw_lock, irq_flags);
+	spin_lock(&dev_priv->hw_lock);
 	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
 	outl(value, dev_priv->io_start + VMWGFX_VALUE_PORT);
-	spin_unlock_irqrestore(&dev_priv->hw_lock, irq_flags);
+	spin_unlock(&dev_priv->hw_lock);
 }
 
 static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 				unsigned int offset)
 {
-	unsigned long irq_flags;
 	u32 val;
 
-	spin_lock_irqsave(&dev_priv->hw_lock, irq_flags);
+	spin_lock(&dev_priv->hw_lock);
 	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
 	val = inl(dev_priv->io_start + VMWGFX_VALUE_PORT);
-	spin_unlock_irqrestore(&dev_priv->hw_lock, irq_flags);
+	spin_unlock(&dev_priv->hw_lock);
 
 	return val;
 }
@@ -821,7 +827,8 @@ extern int vmw_execbuf_process(struct drm_file *file_priv,
 			       uint32_t dx_context_handle,
 			       struct drm_vmw_fence_rep __user
 			       *user_fence_rep,
-			       struct vmw_fence_obj **out_fence);
+			       struct vmw_fence_obj **out_fence,
+			       uint32_t flags);
 extern void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 					    struct vmw_fence_obj *fence);
 extern void vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv);
@@ -836,23 +843,23 @@ extern void vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 					struct drm_vmw_fence_rep __user
 					*user_fence_rep,
 					struct vmw_fence_obj *fence,
-					uint32_t fence_handle);
+					uint32_t fence_handle,
+					int32_t out_fence_fd,
+					struct sync_file *sync_file);
 extern int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 				      struct ttm_buffer_object *bo,
 				      bool interruptible,
 				      bool validate_as_mob);
-
+bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd);
 
 /**
  * IRQs and wating - vmwgfx_irq.c
  */
 
-extern irqreturn_t vmw_irq_handler(int irq, void *arg);
 extern int vmw_wait_seqno(struct vmw_private *dev_priv, bool lazy,
 			  uint32_t seqno, bool interruptible,
 			  unsigned long timeout);
-extern void vmw_irq_preinstall(struct drm_device *dev);
-extern int vmw_irq_postinstall(struct drm_device *dev);
+extern int vmw_irq_install(struct drm_device *dev, int irq);
 extern void vmw_irq_uninstall(struct drm_device *dev);
 extern bool vmw_seqno_passed(struct vmw_private *dev_priv,
 				uint32_t seqno);
@@ -1150,13 +1157,13 @@ extern void *vmw_cmdbuf_reserve(struct vmw_cmdbuf_man *man, size_t size,
 extern void vmw_cmdbuf_commit(struct vmw_cmdbuf_man *man, size_t size,
 			      struct vmw_cmdbuf_header *header,
 			      bool flush);
-extern void vmw_cmdbuf_tasklet_schedule(struct vmw_cmdbuf_man *man);
 extern void *vmw_cmdbuf_alloc(struct vmw_cmdbuf_man *man,
 			      size_t size, bool interruptible,
 			      struct vmw_cmdbuf_header **p_header);
 extern void vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header);
 extern int vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man,
 				bool interruptible);
+extern void vmw_cmdbuf_irqthread(struct vmw_cmdbuf_man *man);
 
 
 /**

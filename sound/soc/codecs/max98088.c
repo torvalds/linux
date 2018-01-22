@@ -1698,7 +1698,7 @@ static int max98088_remove(struct snd_soc_codec *codec)
        return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_max98088 = {
+static const struct snd_soc_codec_driver soc_codec_dev_max98088 = {
 	.probe   = max98088_probe,
 	.remove  = max98088_remove,
 	.set_bias_level = max98088_set_bias_level,

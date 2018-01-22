@@ -21,6 +21,15 @@ config ATLAS_PH_SENSOR
 	 To compile this driver as module, choose M here: the
 	 module will be called atlas-ph-sensor.
 
+config CCS811
+	tristate "AMS CCS811 VOC sensor"
+	depends on I2C
+    select IIO_BUFFER
+    select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to build I2C interface support for the AMS
+	  CCS811 VOC (Volatile Organic Compounds) sensor
+
 config IAQCORE
 	tristate "AMS iAQ-Core VOC sensors"
 	depends on I2C

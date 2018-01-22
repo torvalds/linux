@@ -224,7 +224,6 @@ static int highbank_mc_probe(struct platform_device *pdev)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = pdev->dev.driver->name;
-	mci->mod_ver = "1";
 	mci->ctl_name = id->compatible;
 	mci->dev_name = dev_name(&pdev->dev);
 	mci->scrub_mode = SCRUB_SW_SRC;

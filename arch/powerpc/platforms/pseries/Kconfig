@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_PSERIES
 	depends on PPC64 && PPC_BOOK3S
 	bool "IBM pSeries & new (POWER5-based) iSeries"
@@ -7,6 +8,7 @@ config PPC_PSERIES
 	select PCI
 	select PCI_MSI
 	select PPC_XICS
+	select PPC_XIVE_SPAPR
 	select PPC_ICP_NATIVE
 	select PPC_ICP_HV
 	select PPC_ICS_RTAS

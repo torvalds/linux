@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_ENGINE_H__
 #define __NVKM_ENGINE_H__
 #define nvkm_engine(p) container_of((p), struct nvkm_engine, subdev)
@@ -15,6 +16,7 @@ struct nvkm_engine {
 
 struct nvkm_engine_func {
 	void *(*dtor)(struct nvkm_engine *);
+	void (*preinit)(struct nvkm_engine *);
 	int (*oneinit)(struct nvkm_engine *);
 	int (*init)(struct nvkm_engine *);
 	int (*fini)(struct nvkm_engine *, bool suspend);

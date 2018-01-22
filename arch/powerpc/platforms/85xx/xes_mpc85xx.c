@@ -100,8 +100,8 @@ static void xes_mpc85xx_fixups(void)
 		err = of_address_to_resource(np, 0, &r[0]);
 		if (err) {
 			printk(KERN_WARNING "xes_mpc85xx: Could not get "
-			       "resource for device tree node '%s'",
-			       np->full_name);
+			       "resource for device tree node '%pOF'",
+			       np);
 			continue;
 		}
 

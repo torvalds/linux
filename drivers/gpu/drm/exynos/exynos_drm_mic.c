@@ -21,8 +21,11 @@
 #include <linux/component.h>
 #include <linux/pm_runtime.h>
 #include <drm/drmP.h>
+#include <drm/drm_encoder.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+
+#include "exynos_drm_drv.h"
 
 /* Sysreg registers for MIC */
 #define DSD_CFG_MUX	0x1004
@@ -84,12 +87,6 @@
 #define MIC_HFP_SIZE_2D(x)		((x) & 0x3fff)
 
 #define MIC_BS_SIZE_2D(x)	((x) & 0x3fff)
-
-enum {
-	ENDPOINT_DECON_NODE,
-	ENDPOINT_DSI_NODE,
-	NUM_ENDPOINTS
-};
 
 static char *clk_names[] = { "pclk_mic0", "sclk_rgb_vclk_to_mic0" };
 #define NUM_CLKS		ARRAY_SIZE(clk_names)
@@ -229,36 +226,6 @@ static void mic_set_reg_on(struct exynos_mic *mic, bool enable)
 	writel(reg, mic->reg + MIC_OP);
 }
 
-static int parse_dt(struct exynos_mic *mic)
-{
-	int ret = 0, i, j;
-	struct device_node *remote_node;
-	struct device_node *nodes[3];
-
-	/*
-	 * The order of endpoints does matter.
-	 * The first node must be for decon and the second one must be for dsi.
-	 */
-	for (i = 0, j = 0; i < NUM_ENDPOINTS; i++) {
-		remote_node = of_graph_get_remote_node(mic->dev->of_node, i, 0);
-		if (!remote_node) {
-			ret = -EPIPE;
-			goto exit;
-		}
-		nodes[j++] = remote_node;
-
-		if (i == ENDPOINT_DECON_NODE &&
-			of_get_child_by_name(remote_node, "i80-if-timings"))
-			mic->i80_mode = 1;
-	}
-
-exit:
-	while (--j > -1)
-		of_node_put(nodes[j]);
-
-	return ret;
-}
-
 static void mic_disable(struct drm_bridge *bridge) { }
 
 static void mic_post_disable(struct drm_bridge *bridge)
@@ -286,6 +253,7 @@ static void mic_mode_set(struct drm_bridge *bridge,
 
 	mutex_lock(&mic_mutex);
 	drm_display_mode_to_videomode(mode, &mic->vm);
+	mic->i80_mode = to_exynos_crtc(bridge->encoder->crtc)->i80_mode;
 	mutex_unlock(&mic_mutex);
 }
 
@@ -417,10 +385,6 @@ static int exynos_mic_probe(struct platform_device *pdev)
 
 	mic->dev = dev;
 
-	ret = parse_dt(mic);
-	if (ret)
-		goto err;
-
 	ret = of_address_to_resource(dev->of_node, 0, &res);
 	if (ret) {
 		DRM_ERROR("mic: Failed to get mem region for MIC\n");
@@ -456,11 +420,7 @@ static int exynos_mic_probe(struct platform_device *pdev)
 	mic->bridge.funcs = &mic_bridge_funcs;
 	mic->bridge.of_node = dev->of_node;
 
-	ret = drm_bridge_add(&mic->bridge);
-	if (ret) {
-		DRM_ERROR("mic: Failed to add MIC to the global bridge list\n");
-		return ret;
-	}
+	drm_bridge_add(&mic->bridge);
 
 	pm_runtime_enable(dev);
 

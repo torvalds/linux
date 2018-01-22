@@ -136,19 +136,14 @@ struct pci_ops dc21285_ops = {
 static struct timer_list serr_timer;
 static struct timer_list perr_timer;
 
-static void dc21285_enable_error(unsigned long __data)
+static void dc21285_enable_error(struct timer_list *timer)
 {
-	switch (__data) {
-	case IRQ_PCI_SERR:
-		del_timer(&serr_timer);
-		break;
+	del_timer(timer);
 
-	case IRQ_PCI_PERR:
-		del_timer(&perr_timer);
-		break;
-	}
-
-	enable_irq(__data);
+	if (timer == &serr_timer)
+		enable_irq(IRQ_PCI_SERR);
+	else if (timer == &perr_timer)
+		enable_irq(IRQ_PCI_PERR);
 }
 
 /*
@@ -323,13 +318,8 @@ void __init dc21285_preinit(void)
 		*CSR_PCICMD = (*CSR_PCICMD & 0xffff) | PCICMD_ERROR_BITS;
 	}
 
-	init_timer(&serr_timer);
-	init_timer(&perr_timer);
-
-	serr_timer.data = IRQ_PCI_SERR;
-	serr_timer.function = dc21285_enable_error;
-	perr_timer.data = IRQ_PCI_PERR;
-	perr_timer.function = dc21285_enable_error;
+	timer_setup(&serr_timer, dc21285_enable_error, 0);
+	timer_setup(&perr_timer, dc21285_enable_error, 0);
 
 	/*
 	 * We don't care if these fail.

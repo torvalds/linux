@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1999 Cort Dougan <cort@cs.nmt.edu>
  */
@@ -73,13 +74,6 @@ do {									\
 	__smp_lwsync();							\
 	___p1;								\
 })
-
-/*
- * This must resolve to hwsync on SMP for the context switch path.
- * See _switch, and core scheduler context switch memory ordering
- * comments.
- */
-#define smp_mb__before_spinlock()   smp_mb()
 
 #include <asm-generic/barrier.h>
 

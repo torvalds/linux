@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASMPARISC_ELF_H
 #define __ASMPARISC_ELF_H
 

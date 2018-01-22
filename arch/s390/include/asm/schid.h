@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ASM_SCHID_H
 #define ASM_SCHID_H
 

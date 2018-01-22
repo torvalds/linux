@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XT_PHYSDEV_H
 #define _XT_PHYSDEV_H
 

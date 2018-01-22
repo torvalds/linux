@@ -1,0 +1,17 @@
+* Device tree bindings for TI TPS61050/61052 Boost Converters
+
+The TP61050/TPS61052 is a high-power "white LED driver". The
+device provides LED, GPIO and regulator functionalities.
+
+Required properties:
+- compatible:		"ti,tps61050" or "ti,tps61052"
+- reg:			Specifies the I2C slave address
+
+Example:
+
+i2c0 {
+	tps61052@33 {
+		compatible = "ti,tps61052";
+		reg = <0x33>;
+	};
+};

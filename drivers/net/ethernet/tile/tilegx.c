@@ -40,7 +40,7 @@
 #include <linux/tcp.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
-#include <linux/tick.h>
+#include <linux/sched/isolation.h>
 
 #include <asm/checksum.h>
 #include <asm/homecache.h>
@@ -873,7 +873,7 @@ static int ptp_mpipe_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-static struct ptp_clock_info ptp_mpipe_caps = {
+static const struct ptp_clock_info ptp_mpipe_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "mPIPE clock",
 	.max_adj	= 999999999,
@@ -2270,8 +2270,8 @@ static int __init tile_net_init_module(void)
 		tile_net_dev_init(name, mac);
 
 	if (!network_cpus_init())
-		cpumask_and(&network_cpus_map, housekeeping_cpumask(),
-			    cpu_online_mask);
+		cpumask_and(&network_cpus_map,
+			    housekeeping_cpumask(HK_FLAG_MISC), cpu_online_mask);
 
 	return 0;
 }

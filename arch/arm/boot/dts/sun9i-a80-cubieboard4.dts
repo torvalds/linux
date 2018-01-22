@@ -62,8 +62,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_cubieboard4>;
 
 		green {
 			label = "cubieboard4:green:usr";
@@ -76,7 +74,7 @@
 		};
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&ac100_rtc 1>;
 		clock-names = "ext_clock";
@@ -87,7 +85,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins>, <&mmc0_cd_pin_cubieboard4>;
+	pinctrl-0 = <&mmc0_pins>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 18 GPIO_ACTIVE_HIGH>; /* PH18 */
@@ -97,7 +95,7 @@
 
 &mmc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins>, <&wifi_en_pin_cubieboard4>;
+	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&reg_dldo1>;
 	vqmmc-supply = <&reg_cldo3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
@@ -130,28 +128,8 @@
 	clocks = <&ac100_rtc 0>;
 };
 
-&pio {
-	led_pins_cubieboard4: led-pins@0 {
-		pins = "PH6", "PH17";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_cubieboard4: mmc0_cd_pin@0 {
-		pins = "PH18";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-};
-
 &r_ir {
 	status = "okay";
-};
-
-&r_pio {
-	wifi_en_pin_cubieboard4: wifi_en_pin@0 {
-		pins = "PL2";
-		function = "gpio_out";
-	};
 };
 
 &r_rsb {
@@ -427,6 +405,6 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };

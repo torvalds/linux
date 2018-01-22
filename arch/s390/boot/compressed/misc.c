@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Definitions and wrapper functions for kernel decompressor
  *
@@ -169,9 +170,7 @@ unsigned long decompress_kernel(void)
 	free_mem_ptr = (unsigned long) &_end;
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
 
-	puts("Uncompressing Linux... ");
 	__decompress(input_data, input_len, NULL, NULL, output, 0, NULL, error);
-	puts("Ok, booting the kernel.\n");
 	return (unsigned long) output;
 }
 

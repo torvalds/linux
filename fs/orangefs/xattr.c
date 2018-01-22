@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -76,7 +77,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	if (strlen(name) > ORANGEFS_MAX_XATTR_NAMELEN)
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
 
 	fsuid = from_kuid(&init_user_ns, current_fsuid());
@@ -169,7 +170,7 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int ret = -ENOMEM;
 
-	if (strlen(name) > ORANGEFS_MAX_XATTR_NAMELEN)
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
 
 	down_write(&orangefs_inode->xattr_sem);
@@ -233,13 +234,13 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 
 	if (size > ORANGEFS_MAX_XATTR_VALUELEN)
 		return -EINVAL;
-	if (strlen(name) > ORANGEFS_MAX_XATTR_NAMELEN)
+	if (strlen(name) >= ORANGEFS_MAX_XATTR_NAMELEN)
 		return -EINVAL;
 
 	internal_flag = convert_to_internal_xattr_flags(flags);
 
 	/* This is equivalent to a removexattr */
-	if (size == 0 && value == NULL) {
+	if (size == 0 && !value) {
 		gossip_debug(GOSSIP_XATTR_DEBUG,
 			     "removing xattr (%s)\n",
 			     name);
@@ -311,7 +312,7 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	int i = 0;
 	int returned_count = 0;
 
-	if (size > 0 && buffer == NULL) {
+	if (size > 0 && !buffer) {
 		gossip_err("%s: bogus NULL pointers\n", __func__);
 		return -EINVAL;
 	}
@@ -442,7 +443,7 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 
 }
 
-static struct xattr_handler orangefs_xattr_default_handler = {
+static const struct xattr_handler orangefs_xattr_default_handler = {
 	.prefix = "",  /* match any name => handlers called with full name */
 	.get = orangefs_xattr_get_default,
 	.set = orangefs_xattr_set_default,

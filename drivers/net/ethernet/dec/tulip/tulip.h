@@ -43,7 +43,7 @@ struct tulip_chip_table {
 	int io_size;
 	int valid_intrs;	/* CSR7 interrupt enable settings */
 	int flags;
-	void (*media_timer) (unsigned long);
+	void (*media_timer) (struct timer_list *);
 	work_func_t media_task;
 };
 
@@ -476,7 +476,7 @@ void t21142_lnk_change(struct net_device *dev, int csr5);
 
 /* PNIC2.c */
 void pnic2_lnk_change(struct net_device *dev, int csr5);
-void pnic2_timer(unsigned long data);
+void pnic2_timer(struct timer_list *t);
 void pnic2_start_nway(struct net_device *dev);
 void pnic2_lnk_change(struct net_device *dev, int csr5);
 
@@ -504,19 +504,19 @@ void tulip_find_mii (struct net_device *dev, int board_idx);
 /* pnic.c */
 void pnic_do_nway(struct net_device *dev);
 void pnic_lnk_change(struct net_device *dev, int csr5);
-void pnic_timer(unsigned long data);
+void pnic_timer(struct timer_list *t);
 
 /* timer.c */
 void tulip_media_task(struct work_struct *work);
-void mxic_timer(unsigned long data);
-void comet_timer(unsigned long data);
+void mxic_timer(struct timer_list *t);
+void comet_timer(struct timer_list *t);
 
 /* tulip_core.c */
 extern int tulip_debug;
 extern const char * const medianame[];
 extern const char tulip_media_cap[];
-extern struct tulip_chip_table tulip_tbl[];
-void oom_timer(unsigned long data);
+extern const struct tulip_chip_table tulip_tbl[];
+void oom_timer(struct timer_list *t);
 extern u8 t21040_csr13[];
 
 static inline void tulip_start_rxtx(struct tulip_private *tp)

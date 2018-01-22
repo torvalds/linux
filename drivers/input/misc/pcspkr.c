@@ -18,25 +18,30 @@
 #include <linux/input.h>
 #include <linux/platform_device.h>
 #include <linux/timex.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("PC Speaker beeper driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:pcspkr");
 
-static int pcspkr_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
+static int pcspkr_event(struct input_dev *dev, unsigned int type,
+			unsigned int code, int value)
 {
 	unsigned int count = 0;
 	unsigned long flags;
 
 	if (type != EV_SND)
-		return -1;
+		return -EINVAL;
 
 	switch (code) {
-		case SND_BELL: if (value) value = 1000;
-		case SND_TONE: break;
-		default: return -1;
+	case SND_BELL:
+		if (value)
+			value = 1000;
+	case SND_TONE:
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	if (value > 20 && value < 32767)

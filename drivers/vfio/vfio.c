@@ -85,6 +85,7 @@ struct vfio_group {
 	struct list_head		unbound_list;
 	struct mutex			unbound_lock;
 	atomic_t			opened;
+	wait_queue_head_t		container_q;
 	bool				noiommu;
 	struct kvm			*kvm;
 	struct blocking_notifier_head	notifier;
@@ -138,9 +139,10 @@ struct iommu_group *vfio_iommu_group_get(struct device *dev)
 	iommu_group_set_name(group, "vfio-noiommu");
 	iommu_group_set_iommudata(group, &noiommu, NULL);
 	ret = iommu_group_add_device(group, dev);
-	iommu_group_put(group);
-	if (ret)
+	if (ret) {
+		iommu_group_put(group);
 		return NULL;
+	}
 
 	/*
 	 * Where to taint?  At this point we've added an IOMMU group for a
@@ -337,6 +339,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 	mutex_init(&group->unbound_lock);
 	atomic_set(&group->container_users, 0);
 	atomic_set(&group->opened, 0);
+	init_waitqueue_head(&group->container_q);
 	group->iommu_group = iommu_group;
 #ifdef CONFIG_VFIO_NOIOMMU
 	group->noiommu = (iommu_group_get_iommudata(iommu_group) == &noiommu);
@@ -662,7 +665,7 @@ static int vfio_dev_viable(struct device *dev, void *data)
 {
 	struct vfio_group *group = data;
 	struct vfio_device *device;
-	struct device_driver *drv = ACCESS_ONCE(dev->driver);
+	struct device_driver *drv = READ_ONCE(dev->driver);
 	struct vfio_unbound_dev *unbound;
 	int ret = -EINVAL;
 
@@ -993,6 +996,23 @@ void *vfio_del_group_dev(struct device *dev)
 		}
 	} while (ret <= 0);
 
+	/*
+	 * In order to support multiple devices per group, devices can be
+	 * plucked from the group while other devices in the group are still
+	 * in use.  The container persists with this group and those remaining
+	 * devices still attached.  If the user creates an isolation violation
+	 * by binding this device to another driver while the group is still in
+	 * use, that's their fault.  However, in the case of removing the last,
+	 * or potentially the only, device in the group there can be no other
+	 * in-use devices in the group.  The user has done their due diligence
+	 * and we should lay no claims to those devices.  In order to do that,
+	 * we need to make sure the group is detached from the container.
+	 * Without this stall, we're potentially racing with a user process
+	 * that may attempt to immediately bind this device to another driver.
+	 */
+	if (list_empty(&group->device_list))
+		wait_event(group->container_q, !group->container);
+
 	vfio_group_put(group);
 
 	return device_data;
@@ -1298,6 +1318,7 @@ static void __vfio_group_unset_container(struct vfio_group *group)
 					  group->iommu_group);
 
 	group->container = NULL;
+	wake_up(&group->container_q);
 	list_del(&group->container_next);
 
 	/* Detaching the last group deprivileges a container, remove iommu */

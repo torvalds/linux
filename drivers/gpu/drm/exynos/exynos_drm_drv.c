@@ -37,8 +37,6 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-static struct device *exynos_drm_get_dma_device(void);
-
 int exynos_atomic_check(struct drm_device *dev,
 			struct drm_atomic_state *state)
 {
@@ -145,12 +143,10 @@ static struct drm_driver exynos_drm_driver = {
 	.gem_free_object_unlocked = exynos_drm_gem_free_object,
 	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
 	.dumb_create		= exynos_drm_gem_dumb_create,
-	.dumb_map_offset	= exynos_drm_gem_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= drm_gem_prime_export,
-	.gem_prime_import	= drm_gem_prime_import,
+	.gem_prime_import	= exynos_drm_gem_prime_import,
 	.gem_prime_get_sg_table	= exynos_drm_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table	= exynos_drm_gem_prime_import_sg_table,
 	.gem_prime_vmap		= exynos_drm_gem_prime_vmap,
@@ -170,23 +166,21 @@ static struct drm_driver exynos_drm_driver = {
 static int exynos_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
+	struct exynos_drm_private *private;
 
 	if (pm_runtime_suspended(dev) || !drm_dev)
 		return 0;
 
-	drm_connector_list_iter_begin(drm_dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		int old_dpms = connector->dpms;
+	private = drm_dev->dev_private;
 
-		if (connector->funcs->dpms)
-			connector->funcs->dpms(connector, DRM_MODE_DPMS_OFF);
-
-		/* Set the old mode back to the connector for resume */
-		connector->dpms = old_dpms;
+	drm_kms_helper_poll_disable(drm_dev);
+	exynos_drm_fbdev_suspend(drm_dev);
+	private->suspend_state = drm_atomic_helper_suspend(drm_dev);
+	if (IS_ERR(private->suspend_state)) {
+		exynos_drm_fbdev_resume(drm_dev);
+		drm_kms_helper_poll_enable(drm_dev);
+		return PTR_ERR(private->suspend_state);
 	}
-	drm_connector_list_iter_end(&conn_iter);
 
 	return 0;
 }
@@ -194,22 +188,15 @@ static int exynos_drm_suspend(struct device *dev)
 static int exynos_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
+	struct exynos_drm_private *private;
 
 	if (pm_runtime_suspended(dev) || !drm_dev)
 		return 0;
 
-	drm_connector_list_iter_begin(drm_dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (connector->funcs->dpms) {
-			int dpms = connector->dpms;
-
-			connector->dpms = DRM_MODE_DPMS_OFF;
-			connector->funcs->dpms(connector, dpms);
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
+	private = drm_dev->dev_private;
+	drm_atomic_helper_resume(drm_dev, private->suspend_state);
+	exynos_drm_fbdev_resume(drm_dev);
+	drm_kms_helper_poll_enable(drm_dev);
 
 	return 0;
 }
@@ -312,6 +299,27 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 	return match ?: ERR_PTR(-ENODEV);
 }
 
+static struct device *exynos_drm_get_dma_device(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(exynos_drm_drivers); ++i) {
+		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
+		struct device *dev;
+
+		if (!info->driver || !(info->flags & DRM_DMA_DEVICE))
+			continue;
+
+		while ((dev = bus_find_device(&platform_bus_type, NULL,
+					    &info->driver->driver,
+					    (void *)platform_bus_type.match))) {
+			put_device(dev);
+			return dev;
+		}
+	}
+	return NULL;
+}
+
 static int exynos_drm_bind(struct device *dev)
 {
 	struct exynos_drm_private *private;
@@ -395,8 +403,9 @@ static int exynos_drm_bind(struct device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm);
 
-	/* force connectors detection */
-	drm_helper_hpd_irq_event(drm);
+	ret = exynos_drm_fbdev_init(drm);
+	if (ret)
+		goto err_cleanup_poll;
 
 	/* register the DRM device */
 	ret = drm_dev_register(drm, 0);
@@ -407,6 +416,7 @@ static int exynos_drm_bind(struct device *dev)
 
 err_cleanup_fbdev:
 	exynos_drm_fbdev_fini(drm);
+err_cleanup_poll:
 	drm_kms_helper_poll_fini(drm);
 	exynos_drm_device_subdrv_remove(drm);
 err_unbind_all:
@@ -439,6 +449,7 @@ static void exynos_drm_unbind(struct device *dev)
 
 	kfree(drm->dev_private);
 	drm->dev_private = NULL;
+	dev_set_drvdata(dev, NULL);
 
 	drm_dev_unref(drm);
 }
@@ -476,27 +487,6 @@ static struct platform_driver exynos_drm_platform_driver = {
 		.pm	= &exynos_drm_pm_ops,
 	},
 };
-
-static struct device *exynos_drm_get_dma_device(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(exynos_drm_drivers); ++i) {
-		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
-		struct device *dev;
-
-		if (!info->driver || !(info->flags & DRM_DMA_DEVICE))
-			continue;
-
-		while ((dev = bus_find_device(&platform_bus_type, NULL,
-					    &info->driver->driver,
-					    (void *)platform_bus_type.match))) {
-			put_device(dev);
-			return dev;
-		}
-	}
-	return NULL;
-}
 
 static void exynos_drm_unregister_devices(void)
 {

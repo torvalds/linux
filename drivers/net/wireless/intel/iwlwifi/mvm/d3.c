@@ -664,6 +664,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	int ret, i;
 	struct iwl_binding_cmd binding_cmd = {};
 	struct iwl_time_quota_cmd quota_cmd = {};
+	struct iwl_time_quota_data *quota;
 	u32 status;
 	int size;
 
@@ -745,17 +746,20 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return ret;
 
 	/* and some quota */
-	quota_cmd.quotas[0].id_and_color =
+	quota = iwl_mvm_quota_cmd_get_quota(mvm, &quota_cmd, 0);
+	quota->id_and_color =
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->phy_ctxt->id,
 						mvmvif->phy_ctxt->color));
-	quota_cmd.quotas[0].quota = cpu_to_le32(IWL_MVM_MAX_QUOTA);
-	quota_cmd.quotas[0].max_duration = cpu_to_le32(IWL_MVM_MAX_QUOTA);
+	quota->quota = cpu_to_le32(IWL_MVM_MAX_QUOTA);
+	quota->max_duration = cpu_to_le32(IWL_MVM_MAX_QUOTA);
 
-	for (i = 1; i < MAX_BINDINGS; i++)
-		quota_cmd.quotas[i].id_and_color = cpu_to_le32(FW_CTXT_INVALID);
+	for (i = 1; i < MAX_BINDINGS; i++) {
+		quota = iwl_mvm_quota_cmd_get_quota(mvm, &quota_cmd, i);
+		quota->id_and_color = cpu_to_le32(FW_CTXT_INVALID);
+	}
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, TIME_QUOTA_CMD, 0,
-				   sizeof(quota_cmd), &quota_cmd);
+				   iwl_mvm_quota_cmd_size(mvm), &quota_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send quota: %d\n", ret);
 
@@ -2167,7 +2171,7 @@ out:
 	 * 1. We are not using a unified image
 	 * 2. We are using a unified image but had an error while exiting D3
 	 */
-	set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
+	set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
 	set_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status);
 	/*
 	 * When switching images we return 1, which causes mac80211

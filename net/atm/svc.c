@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* net/atm/svc.c - ATM SVC sockets */
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */

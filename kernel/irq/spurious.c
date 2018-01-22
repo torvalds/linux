@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/kernel/irq/spurious.c
  *
@@ -19,8 +20,8 @@
 static int irqfixup __read_mostly;
 
 #define POLL_SPURIOUS_IRQ_INTERVAL (HZ/10)
-static void poll_spurious_irqs(unsigned long dummy);
-static DEFINE_TIMER(poll_spurious_irq_timer, poll_spurious_irqs, 0, 0);
+static void poll_spurious_irqs(struct timer_list *unused);
+static DEFINE_TIMER(poll_spurious_irq_timer, poll_spurious_irqs);
 static int irq_poll_cpu;
 static atomic_t irq_poll_active;
 
@@ -142,7 +143,7 @@ out:
 	return ok;
 }
 
-static void poll_spurious_irqs(unsigned long dummy)
+static void poll_spurious_irqs(struct timer_list *unused)
 {
 	struct irq_desc *desc;
 	int i;

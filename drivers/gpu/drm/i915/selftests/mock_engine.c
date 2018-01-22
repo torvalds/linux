@@ -32,9 +32,9 @@ static struct mock_request *first_request(struct mock_engine *engine)
 					link);
 }
 
-static void hw_delay_complete(unsigned long data)
+static void hw_delay_complete(struct timer_list *t)
 {
-	struct mock_engine *engine = (typeof(engine))data;
+	struct mock_engine *engine = from_timer(engine, t, hw_delay);
 	struct mock_request *request;
 
 	spin_lock(&engine->hw_lock);
@@ -123,10 +123,12 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 }
 
 struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
-				    const char *name)
+				    const char *name,
+				    int id)
 {
 	struct mock_engine *engine;
-	static int id;
+
+	GEM_BUG_ON(id >= I915_NUM_ENGINES);
 
 	engine = kzalloc(sizeof(*engine) + PAGE_SIZE, GFP_KERNEL);
 	if (!engine)
@@ -141,7 +143,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	/* minimal engine setup for requests */
 	engine->base.i915 = i915;
 	snprintf(engine->base.name, sizeof(engine->base.name), "%s", name);
-	engine->base.id = id++;
+	engine->base.id = id;
 	engine->base.status_page.page_addr = (void *)(engine + 1);
 
 	engine->base.context_pin = mock_context_pin;
@@ -159,9 +161,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 
 	/* fake hw queue */
 	spin_lock_init(&engine->hw_lock);
-	setup_timer(&engine->hw_delay,
-		    hw_delay_complete,
-		    (unsigned long)engine);
+	timer_setup(&engine->hw_delay, hw_delay_complete, 0);
 	INIT_LIST_HEAD(&engine->hw_queue);
 
 	return &engine->base;

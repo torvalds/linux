@@ -68,6 +68,8 @@ Optional properties:
 - adi,disable-timing-generator: Only for ADV7533. Disables the internal timing
   generator. The chip will rely on the sync signals in the DSI data lanes,
   rather than generate its own timings for HDMI output.
+- clocks: from common clock binding: reference to the CEC clock.
+- clock-names: from common clock binding: must be "cec".
 
 Required nodes:
 
@@ -89,6 +91,8 @@ Example
 		reg = <39>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <29 IRQ_TYPE_EDGE_FALLING>;
+		clocks = <&cec_clock>;
+		clock-names = "cec";
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";

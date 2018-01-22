@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Setup platform devices needed by the Freescale multi-port host
  * and/or dual-role USB controller modules based on the description
  * in flat device tree.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -55,8 +51,8 @@ static struct fsl_usb2_dev_data *get_dr_mode_data(struct device_node *np)
 				return &dr_mode_data[i];
 		}
 	}
-	pr_warn("%s: Invalid 'dr_mode' property, fallback to host mode\n",
-		np->full_name);
+	pr_warn("%pOF: Invalid 'dr_mode' property, fallback to host mode\n",
+		np);
 	return &dr_mode_data[0]; /* mode not specified, use host */
 }
 

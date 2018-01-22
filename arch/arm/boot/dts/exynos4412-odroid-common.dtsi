@@ -20,7 +20,7 @@
 		stdout-path = &serial_1;
 	};
 
-	firmware@0204F000 {
+	firmware@204f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0204F000 0x1000>;
 	};
@@ -31,8 +31,6 @@
 		pinctrl-0 = <&gpio_power_key>;
 
 		power_key {
-			interrupt-parent = <&gpx1>;
-			interrupts = <3 IRQ_TYPE_NONE>;
 			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "power key";
@@ -253,7 +251,7 @@
 	samsung,i2c-max-bus-freq = <400000>;
 	status = "okay";
 
-	usb3503: usb3503@08 {
+	usb3503: usb3503@8 {
 		compatible = "smsc,usb3503";
 		reg = <0x08>;
 
@@ -263,7 +261,7 @@
 		initial-mode = <1>;
 	};
 
-	max77686: pmic@09 {
+	max77686: pmic@9 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx3>;
 		interrupts = <2 IRQ_TYPE_NONE>;
@@ -516,7 +514,6 @@
 	mmc-pwrseq = <&emmc_pwrseq>;
 	status = "okay";
 
-	num-slots = <1>;
 	broken-cd;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;

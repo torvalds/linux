@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2014, 2015 Intel Corporation; author Matt Fleming
  *

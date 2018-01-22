@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * kernel/lockdep_internals.h
  *
@@ -143,6 +144,8 @@ struct lockdep_stats {
 	int	redundant_softirqs_on;
 	int	redundant_softirqs_off;
 	int	nr_unused_locks;
+	int	nr_redundant_checks;
+	int	nr_redundant;
 	int	nr_cyclic_checks;
 	int	nr_cyclic_check_recursions;
 	int	nr_find_usage_forwards_checks;

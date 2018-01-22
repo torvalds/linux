@@ -39,7 +39,7 @@
 		};
 	};
 
-	display0: display@di0 {
+	display1: disp1 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb24";
 		pinctrl-names = "default";
@@ -61,12 +61,12 @@
 
 		port {
 			display0_in: endpoint {
-				remote-endpoint = <&ipu_di0_disp0>;
+				remote-endpoint = <&ipu_di0_disp1>;
 			};
 		};
 	};
 
-	display1: display@di1 {
+	display2: disp2 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb565";
 		pinctrl-names = "default";
@@ -93,7 +93,7 @@
 
 		port {
 			display1_in: endpoint {
-				remote-endpoint = <&ipu_di1_disp1>;
+				remote-endpoint = <&ipu_di1_disp2>;
 			};
 		};
 	};
@@ -337,7 +337,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	sgtl5000: codec@0a {
+	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_clkcodec>;
@@ -348,11 +348,11 @@
 	};
 };
 
-&ipu_di0_disp0 {
+&ipu_di0_disp1 {
 	remote-endpoint = <&display0_in>;
 };
 
-&ipu_di1_disp1 {
+&ipu_di1_disp2 {
 	remote-endpoint = <&display1_in>;
 };
 

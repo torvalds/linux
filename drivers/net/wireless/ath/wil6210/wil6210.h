@@ -30,7 +30,6 @@ extern bool no_fw_recovery;
 extern unsigned int mtu_max;
 extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
-extern u32 vring_idle_trsh;
 extern bool rx_align_2;
 extern bool rx_large_buf;
 extern bool debug_fw;
@@ -90,6 +89,11 @@ struct wil_suspend_stats {
 	unsigned long failed_resumes;
 	unsigned long rejected_by_device;
 	unsigned long rejected_by_host;
+	unsigned long long total_suspend_time;
+	unsigned long long min_suspend_time;
+	unsigned long long max_suspend_time;
+	ktime_t collection_start;
+	ktime_t suspend_start_time;
 };
 
 /* Calculate MAC buffer size for the firmware. It includes all overhead,
@@ -166,6 +170,10 @@ struct RGF_ICR {
 #define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
 #define RGF_USER_BL			(0x880A3C) /* Boot Loader */
 #define RGF_USER_FW_REV_ID		(0x880a8c) /* chip revision */
+#define RGF_USER_FW_CALIB_RESULT	(0x880a90) /* b0-7:result
+						    * b8-15:signature
+						    */
+	#define CALIB_RESULT_SIGNATURE	(0x11)
 #define RGF_USER_CLKS_CTL_0		(0x880abc)
 	#define BIT_USER_CLKS_CAR_AHB_SW_SEL	BIT(1) /* ref clk/PLL */
 	#define BIT_USER_CLKS_RST_PWGD	BIT(11) /* reset on "power good" */
@@ -260,6 +268,7 @@ struct RGF_ICR {
 	#define BIT_DMA_PSEUDO_CAUSE_MISC	BIT(2)
 
 #define RGF_HP_CTRL			(0x88265c)
+#define RGF_PAL_UNIT_ICR		(0x88266c) /* struct RGF_ICR */
 #define RGF_PCIE_LOS_COUNTER_CTL	(0x882dc4)
 
 /* MAC timer, usec, for packet lifetime */
@@ -684,6 +693,7 @@ struct wil6210_priv {
 	u8 vring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
 	struct wil_sta_info sta[WIL6210_MAX_CID];
 	int bcast_vring;
+	u32 vring_idle_trsh; /* HW fetches up to 16 descriptors at once  */
 	bool use_extended_dma_addr; /* indicates whether we are using 48 bits */
 	/* scan */
 	struct cfg80211_scan_request *scan_request;
@@ -718,6 +728,8 @@ struct wil6210_priv {
 	struct wil_halp halp;
 
 	enum wmi_ps_profile_type ps_profile;
+
+	int fw_calib_result;
 
 #ifdef CONFIG_PM
 #ifdef CONFIG_PM_SLEEP
@@ -906,7 +918,7 @@ void wil6210_mask_halp(struct wil6210_priv *wil);
 
 /* P2P */
 bool wil_p2p_is_social_scan(struct cfg80211_scan_request *request);
-void wil_p2p_discovery_timer_fn(ulong x);
+void wil_p2p_discovery_timer_fn(struct timer_list *t);
 int wil_p2p_search(struct wil6210_priv *wil,
 		   struct cfg80211_scan_request *request);
 int wil_p2p_listen(struct wil6210_priv *wil, struct wireless_dev *wdev,
@@ -929,8 +941,14 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct cfg80211_mgmt_tx_params *params,
 			 u64 *cookie);
 
+#if defined(CONFIG_WIL6210_DEBUGFS)
 int wil6210_debugfs_init(struct wil6210_priv *wil);
 void wil6210_debugfs_remove(struct wil6210_priv *wil);
+#else
+static inline int wil6210_debugfs_init(struct wil6210_priv *wil) { return 0; }
+static inline void wil6210_debugfs_remove(struct wil6210_priv *wil) {}
+#endif
+
 int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 		       struct station_info *sinfo);
 

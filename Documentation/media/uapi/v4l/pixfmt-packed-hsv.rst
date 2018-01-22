@@ -17,11 +17,14 @@ cylinder: 0 being the smallest value and 255 the maximum.
 
 The values are packed in 24 or 32 bit formats.
 
+
 .. raw:: latex
 
-    \newline\begin{adjustbox}{width=\columnwidth}
+    \begingroup
+    \tiny
+    \setlength{\tabcolsep}{2pt}
 
-.. tabularcolumns:: |p{4.2cm}|p{1.0cm}|p{0.7cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.2cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{0.4cm}|p{1.7cm}|
+.. tabularcolumns:: |p{2.0cm}|p{0.54cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|
 
 .. _packed-hsv-formats:
 
@@ -33,11 +36,8 @@ The values are packed in 24 or 32 bit formats.
       - Code
       -
       - :cspan:`7` Byte 0 in memory
-      -
       - :cspan:`7` Byte 1
-      -
       - :cspan:`7` Byte 2
-      -
       - :cspan:`7` Byte 3
     * -
       -
@@ -50,7 +50,7 @@ The values are packed in 24 or 32 bit formats.
       - 2
       - 1
       - 0
-      -
+
       - 7
       - 6
       - 5
@@ -59,7 +59,7 @@ The values are packed in 24 or 32 bit formats.
       - 2
       - 1
       - 0
-      -
+
       - 7
       - 6
       - 5
@@ -68,7 +68,7 @@ The values are packed in 24 or 32 bit formats.
       - 2
       - 1
       - 0
-      -
+
       - 7
       - 6
       - 5
@@ -90,7 +90,7 @@ The values are packed in 24 or 32 bit formats.
       -
       -
       -
-      -
+
       - h\ :sub:`7`
       - h\ :sub:`6`
       - h\ :sub:`5`
@@ -99,7 +99,7 @@ The values are packed in 24 or 32 bit formats.
       - h\ :sub:`2`
       - h\ :sub:`1`
       - h\ :sub:`0`
-      -
+
       - s\ :sub:`7`
       - s\ :sub:`6`
       - s\ :sub:`5`
@@ -108,7 +108,7 @@ The values are packed in 24 or 32 bit formats.
       - s\ :sub:`2`
       - s\ :sub:`1`
       - s\ :sub:`0`
-      -
+
       - v\ :sub:`7`
       - v\ :sub:`6`
       - v\ :sub:`5`
@@ -130,7 +130,7 @@ The values are packed in 24 or 32 bit formats.
       - h\ :sub:`2`
       - h\ :sub:`1`
       - h\ :sub:`0`
-      -
+
       - s\ :sub:`7`
       - s\ :sub:`6`
       - s\ :sub:`5`
@@ -139,7 +139,7 @@ The values are packed in 24 or 32 bit formats.
       - s\ :sub:`2`
       - s\ :sub:`1`
       - s\ :sub:`0`
-      -
+
       - v\ :sub:`7`
       - v\ :sub:`6`
       - v\ :sub:`5`
@@ -149,9 +149,9 @@ The values are packed in 24 or 32 bit formats.
       - v\ :sub:`1`
       - v\ :sub:`0`
       -
-      -
+
 .. raw:: latex
 
-    \end{adjustbox}\newline\newline
+    \endgroup
 
 Bit 7 is the most significant bit.

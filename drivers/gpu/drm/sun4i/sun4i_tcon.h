@@ -37,6 +37,7 @@
 #define SUN4I_TCON0_CTL_TCON_ENABLE			BIT(31)
 #define SUN4I_TCON0_CTL_CLK_DELAY_MASK			GENMASK(8, 4)
 #define SUN4I_TCON0_CTL_CLK_DELAY(delay)		((delay << 4) & SUN4I_TCON0_CTL_CLK_DELAY_MASK)
+#define SUN4I_TCON0_CTL_SRC_SEL_MASK			GENMASK(2, 0)
 
 #define SUN4I_TCON0_DCLK_REG			0x44
 #define SUN4I_TCON0_DCLK_GATE_BIT			(31)
@@ -85,6 +86,7 @@
 #define SUN4I_TCON1_CTL_INTERLACE_ENABLE		BIT(20)
 #define SUN4I_TCON1_CTL_CLK_DELAY_MASK			GENMASK(8, 4)
 #define SUN4I_TCON1_CTL_CLK_DELAY(delay)		((delay << 4) & SUN4I_TCON1_CTL_CLK_DELAY_MASK)
+#define SUN4I_TCON1_CTL_SRC_SEL_MASK			GENMASK(1, 0)
 
 #define SUN4I_TCON1_BASIC0_REG			0x94
 #define SUN4I_TCON1_BASIC0_X(width)			((((width) - 1) & 0xfff) << 16)
@@ -143,9 +145,14 @@
 
 #define SUN4I_TCON_MAX_CHANNELS		2
 
+struct sun4i_tcon;
+
 struct sun4i_tcon_quirks {
-	bool	has_unknown_mux; /* sun5i has undocumented mux */
 	bool	has_channel_1;	/* a33 does not have channel 1 */
+	bool	needs_de_be_mux; /* sun6i needs mux to select backend */
+
+	/* callback to handle tcon muxing options */
+	int	(*set_mux)(struct sun4i_tcon *, const struct drm_encoder *);
 };
 
 struct sun4i_tcon {
@@ -183,24 +190,11 @@ struct sun4i_tcon {
 struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node);
 struct drm_panel *sun4i_tcon_find_panel(struct device_node *node);
 
-/* Global Control */
-void sun4i_tcon_disable(struct sun4i_tcon *tcon);
-void sun4i_tcon_enable(struct sun4i_tcon *tcon);
-
-/* Channel Control */
-void sun4i_tcon_channel_disable(struct sun4i_tcon *tcon, int channel);
-void sun4i_tcon_channel_enable(struct sun4i_tcon *tcon, int channel);
-
 void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable);
-
-/* Mode Related Controls */
-void sun4i_tcon_switch_interlace(struct sun4i_tcon *tcon,
-				 bool enable);
-void sun4i_tcon_set_mux(struct sun4i_tcon *tcon, int channel,
-			struct drm_encoder *encoder);
-void sun4i_tcon0_mode_set(struct sun4i_tcon *tcon,
-			  struct drm_display_mode *mode);
-void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
-			  struct drm_display_mode *mode);
+void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
+			 const struct drm_encoder *encoder,
+			 const struct drm_display_mode *mode);
+void sun4i_tcon_set_status(struct sun4i_tcon *crtc,
+			   const struct drm_encoder *encoder, bool enable);
 
 #endif /* __SUN4I_TCON_H__ */

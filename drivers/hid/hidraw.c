@@ -337,8 +337,8 @@ static void drop_ref(struct hidraw *hidraw, int exists_bit)
 			kfree(hidraw);
 		} else {
 			/* close device for last reader */
-			hid_hw_power(hidraw->hid, PM_HINT_NORMAL);
 			hid_hw_close(hidraw->hid);
+			hid_hw_power(hidraw->hid, PM_HINT_NORMAL);
 		}
 	}
 }

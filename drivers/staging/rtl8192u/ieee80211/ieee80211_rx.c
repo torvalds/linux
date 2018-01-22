@@ -2385,7 +2385,7 @@ static inline void ieee80211_process_probe_response(
 	struct ieee80211_probe_response *beacon,
 	struct ieee80211_rx_stats *stats)
 {
-	struct ieee80211_network network;
+	struct ieee80211_network *network;
 	struct ieee80211_network *target;
 	struct ieee80211_network *oldest = NULL;
 #ifdef CONFIG_IEEE80211_DEBUG
@@ -2397,7 +2397,10 @@ static inline void ieee80211_process_probe_response(
 	u16 capability;
 	//u8 wmm_info;
 
-	memset(&network, 0, sizeof(struct ieee80211_network));
+	network = kzalloc(sizeof(*network), GFP_ATOMIC);
+	if (!network)
+		goto out;
+
 	capability = le16_to_cpu(beacon->capability);
 	IEEE80211_DEBUG_SCAN(
 		"'%s' (%pM): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
@@ -2420,14 +2423,14 @@ static inline void ieee80211_process_probe_response(
 		(capability & (1 << 0x1)) ? '1' : '0',
 		(capability & (1 << 0x0)) ? '1' : '0');
 
-	if (ieee80211_network_init(ieee, beacon, &network, stats)) {
+	if (ieee80211_network_init(ieee, beacon, network, stats)) {
 		IEEE80211_DEBUG_SCAN("Dropped '%s' (%pM) via %s.\n",
 				     escape_essid(info_element->data,
 						  info_element->len),
 				     beacon->header.addr3,
 				     fc == IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
-		return;
+		goto out;
 	}
 
 	// For Asus EeePc request,
@@ -2437,8 +2440,8 @@ static inline void ieee80211_process_probe_response(
 	//       then wireless adapter should do active scan from ch1~11 and
 	//       passive scan from ch12~14
 
-	if (!IsLegalChannel(ieee, network.channel))
-		return;
+	if (!IsLegalChannel(ieee, network->channel))
+		goto out;
 	if (ieee->bGlobalDomain)
 	{
 		if (fc == IEEE80211_STYPE_PROBE_RESP)
@@ -2446,19 +2449,19 @@ static inline void ieee80211_process_probe_response(
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
 			{
-				if (!IsLegalChannel(ieee, network.channel)) {
-					printk("GetScanInfo(): For Country code, filter probe response at channel(%d).\n", network.channel);
-					return;
+				if (!IsLegalChannel(ieee, network->channel)) {
+					printk("GetScanInfo(): For Country code, filter probe response at channel(%d).\n", network->channel);
+					goto out;
 				}
 			}
 			// Case 2: No any country code.
 			else
 			{
 				// Filter over channel ch12~14
-				if (network.channel > 11)
+				if (network->channel > 11)
 				{
-					printk("GetScanInfo(): For Global Domain, filter probe response at channel(%d).\n", network.channel);
-					return;
+					printk("GetScanInfo(): For Global Domain, filter probe response at channel(%d).\n", network->channel);
+					goto out;
 				}
 			}
 		}
@@ -2467,19 +2470,19 @@ static inline void ieee80211_process_probe_response(
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
 			{
-				if (!IsLegalChannel(ieee, network.channel)) {
-					printk("GetScanInfo(): For Country code, filter beacon at channel(%d).\n",network.channel);
-					return;
+				if (!IsLegalChannel(ieee, network->channel)) {
+					printk("GetScanInfo(): For Country code, filter beacon at channel(%d).\n",network->channel);
+					goto out;
 				}
 			}
 			// Case 2: No any country code.
 			else
 			{
 				// Filter over channel ch12~14
-				if (network.channel > 14)
+				if (network->channel > 14)
 				{
-					printk("GetScanInfo(): For Global Domain, filter beacon at channel(%d).\n",network.channel);
-					return;
+					printk("GetScanInfo(): For Global Domain, filter beacon at channel(%d).\n",network->channel);
+					goto out;
 				}
 			}
 		}
@@ -2497,8 +2500,8 @@ static inline void ieee80211_process_probe_response(
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	if (is_same_network(&ieee->current_network, &network, ieee)) {
-		update_network(&ieee->current_network, &network);
+	if (is_same_network(&ieee->current_network, network, ieee)) {
+		update_network(&ieee->current_network, network);
 		if ((ieee->current_network.mode == IEEE_N_24G || ieee->current_network.mode == IEEE_G)
 		&& ieee->current_network.berp_info_valid){
 		if(ieee->current_network.erp_value& ERP_UseProtection)
@@ -2512,11 +2515,11 @@ static inline void ieee80211_process_probe_response(
 				ieee->LinkDetectInfo.NumRecvBcnInPeriod++;
 		}
 		else //hidden AP
-			network.flags = (~NETWORK_EMPTY_ESSID & network.flags)|(NETWORK_EMPTY_ESSID & ieee->current_network.flags);
+			network->flags = (~NETWORK_EMPTY_ESSID & network->flags)|(NETWORK_EMPTY_ESSID & ieee->current_network.flags);
 	}
 
 	list_for_each_entry(target, &ieee->network_list, list) {
-		if (is_same_network(target, &network, ieee))
+		if (is_same_network(target, network, ieee))
 			break;
 		if ((oldest == NULL) ||
 		    (target->last_scanned < oldest->last_scanned))
@@ -2545,16 +2548,16 @@ static inline void ieee80211_process_probe_response(
 
 #ifdef CONFIG_IEEE80211_DEBUG
 		IEEE80211_DEBUG_SCAN("Adding '%s' (%pM) via %s.\n",
-				     escape_essid(network.ssid,
-						  network.ssid_len),
-				     network.bssid,
+				     escape_essid(network->ssid,
+						  network->ssid_len),
+				     network->bssid,
 				     fc == IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 #endif
-		memcpy(target, &network, sizeof(*target));
+		memcpy(target, network, sizeof(*target));
 		list_add_tail(&target->list, &ieee->network_list);
 		if(ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE)
-			ieee80211_softmac_new_net(ieee,&network);
+			ieee80211_softmac_new_net(ieee,network);
 	} else {
 		IEEE80211_DEBUG_SCAN("Updating '%s' (%pM) via %s.\n",
 				     escape_essid(target->ssid,
@@ -2570,27 +2573,30 @@ static inline void ieee80211_process_probe_response(
 		renew = !time_after(target->last_scanned + ieee->scan_age, jiffies);
 		//YJ,add,080819,for hidden ap
 		if(is_beacon(beacon->header.frame_ctl) == 0)
-			network.flags = (~NETWORK_EMPTY_ESSID & network.flags)|(NETWORK_EMPTY_ESSID & target->flags);
-		//if(strncmp(network.ssid, "linksys-c",9) == 0)
-		//	printk("====>2 network.ssid=%s FLAG=%d target.ssid=%s FLAG=%d\n", network.ssid, network.flags, target->ssid, target->flags);
-		if(((network.flags & NETWORK_EMPTY_ESSID) == NETWORK_EMPTY_ESSID) \
-		    && (((network.ssid_len > 0) && (strncmp(target->ssid, network.ssid, network.ssid_len)))\
-		    ||((ieee->current_network.ssid_len == network.ssid_len)&&(strncmp(ieee->current_network.ssid, network.ssid, network.ssid_len) == 0)&&(ieee->state == IEEE80211_NOLINK))))
+			network->flags = (~NETWORK_EMPTY_ESSID & network->flags)|(NETWORK_EMPTY_ESSID & target->flags);
+		//if(strncmp(network->ssid, "linksys-c",9) == 0)
+		//	printk("====>2 network->ssid=%s FLAG=%d target.ssid=%s FLAG=%d\n", network->ssid, network->flags, target->ssid, target->flags);
+		if(((network->flags & NETWORK_EMPTY_ESSID) == NETWORK_EMPTY_ESSID) \
+		    && (((network->ssid_len > 0) && (strncmp(target->ssid, network->ssid, network->ssid_len)))\
+		    ||((ieee->current_network.ssid_len == network->ssid_len)&&(strncmp(ieee->current_network.ssid, network->ssid, network->ssid_len) == 0)&&(ieee->state == IEEE80211_NOLINK))))
 			renew = 1;
 		//YJ,add,080819,for hidden ap,end
 
-		update_network(target, &network);
+		update_network(target, network);
 		if(renew && (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE))
-			ieee80211_softmac_new_net(ieee,&network);
+			ieee80211_softmac_new_net(ieee,network);
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
-	if (is_beacon(beacon->header.frame_ctl)&&is_same_network(&ieee->current_network, &network, ieee)&&\
+	if (is_beacon(beacon->header.frame_ctl)&&is_same_network(&ieee->current_network, network, ieee)&&\
 		(ieee->state == IEEE80211_LINKED)) {
 		if (ieee->handle_beacon != NULL) {
 			ieee->handle_beacon(ieee->dev,beacon,&ieee->current_network);
 		}
 	}
+
+out:
+	kfree(network);
 }
 
 void ieee80211_rx_mgt(struct ieee80211_device *ieee,

@@ -61,9 +61,6 @@ struct nouveau_crtc {
 
 	struct {
 		struct nouveau_bo *nvbo;
-		uint16_t r[256];
-		uint16_t g[256];
-		uint16_t b[256];
 		int depth;
 	} lut;
 

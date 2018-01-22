@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Header for the Gemini SATA bridge */
 #ifndef SATA_GEMINI_H
 #define SATA_GEMINI_H

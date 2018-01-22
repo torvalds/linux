@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Dump R4x00 TLB for debugging purposes.
  *

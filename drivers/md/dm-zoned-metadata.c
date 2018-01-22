@@ -409,7 +409,7 @@ static struct dmz_mblock *dmz_fetch_mblock(struct dmz_metadata *zmd,
 	}
 
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio->bi_bdev = zmd->dev->bdev;
+	bio_set_dev(bio, zmd->dev->bdev);
 	bio->bi_private = mblk;
 	bio->bi_end_io = dmz_mblock_bio_end_io;
 	bio_set_op_attrs(bio, REQ_OP_READ, REQ_META | REQ_PRIO);
@@ -564,7 +564,7 @@ static void dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
 	set_bit(DMZ_META_WRITING, &mblk->state);
 
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio->bi_bdev = zmd->dev->bdev;
+	bio_set_dev(bio, zmd->dev->bdev);
 	bio->bi_private = mblk;
 	bio->bi_end_io = dmz_mblock_bio_end_io;
 	bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_META | REQ_PRIO);
@@ -586,7 +586,7 @@ static int dmz_rdwr_block(struct dmz_metadata *zmd, int op, sector_t block,
 		return -ENOMEM;
 
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio->bi_bdev = zmd->dev->bdev;
+	bio_set_dev(bio, zmd->dev->bdev);
 	bio_set_op_attrs(bio, op, REQ_SYNC | REQ_META | REQ_PRIO);
 	bio_add_page(bio, page, DMZ_BLOCK_SIZE, 0);
 	ret = submit_bio_wait(bio);

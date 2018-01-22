@@ -67,7 +67,8 @@ struct mqd_manager {
 
 	int	(*load_mqd)(struct mqd_manager *mm, void *mqd,
 				uint32_t pipe_id, uint32_t queue_id,
-				uint32_t __user *wptr);
+				struct queue_properties *p,
+				struct mm_struct *mms);
 
 	int	(*update_mqd)(struct mqd_manager *mm, void *mqd,
 				struct queue_properties *q);

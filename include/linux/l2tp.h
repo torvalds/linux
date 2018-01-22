@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * L2TP-over-IP socket for L2TPv3.
  *

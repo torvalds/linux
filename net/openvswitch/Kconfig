@@ -14,6 +14,7 @@ config OPENVSWITCH
 	select MPLS
 	select NET_MPLS_GSO
 	select DST_CACHE
+	select NET_NSH
 	---help---
 	  Open vSwitch is a multilayer Ethernet switch targeted at virtualized
 	  environments.  In addition to supporting a variety of features

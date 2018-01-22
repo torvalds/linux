@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2001, 2007
  * Authors:	Fritz Elfert (felfert@millenux.com)

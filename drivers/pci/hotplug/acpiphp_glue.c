@@ -462,18 +462,15 @@ static void enable_slot(struct acpiphp_slot *slot)
 	acpiphp_rescan_slot(slot);
 	max = acpiphp_max_busnr(bus);
 	for (pass = 0; pass < 2; pass++) {
-		list_for_each_entry(dev, &bus->devices, bus_list) {
+		for_each_pci_bridge(dev, bus) {
 			if (PCI_SLOT(dev->devfn) != slot->device)
 				continue;
 
-			if (pci_is_bridge(dev)) {
-				max = pci_scan_bridge(bus, dev, max, pass);
-				if (pass && dev->subordinate) {
-					check_hotplug_bridge(slot, dev);
-					pcibios_resource_survey_bus(dev->subordinate);
-					__pci_bus_size_bridges(dev->subordinate,
-							       &add_list);
-				}
+			max = pci_scan_bridge(bus, dev, max, pass);
+			if (pass && dev->subordinate) {
+				check_hotplug_bridge(slot, dev);
+				pcibios_resource_survey_bus(dev->subordinate);
+				__pci_bus_size_bridges(dev->subordinate, &add_list);
 			}
 		}
 	}

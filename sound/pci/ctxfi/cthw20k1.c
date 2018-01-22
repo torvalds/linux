@@ -2154,7 +2154,7 @@ static void hw_write_pci(struct hw *hw, u32 reg, u32 data)
 		&container_of(hw, struct hw20k1, hw)->reg_pci_lock, flags);
 }
 
-static struct hw ct20k1_preset = {
+static const struct hw ct20k1_preset = {
 	.irq = -1,
 
 	.card_init = hw_card_init,

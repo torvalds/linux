@@ -12,7 +12,7 @@ Refer to clocks/clock-bindings.txt for generic clock consumer properties.
 
 Example:
 
-sdio2: sdio@0x3f1a0000 {
+sdio2: sdio@3f1a0000 {
 	compatible = "brcm,kona-sdhci";
 	reg = <0x3f1a0000 0x10000>;
 	clocks = <&sdio3_clk>;

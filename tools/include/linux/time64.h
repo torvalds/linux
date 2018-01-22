@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _TOOLS_LINUX_TIME64_H
 #define _TOOLS_LINUX_TIME64_H
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_PM_PRIV_H__
 #define __NVKM_PM_PRIV_H__
 #define nvkm_pm(p) container_of((p), struct nvkm_pm, engine)
@@ -67,6 +68,7 @@ struct nvkm_specdom {
 };
 
 #define nvkm_perfdom(p) container_of((p), struct nvkm_perfdom, object)
+#include <core/object.h>
 
 struct nvkm_perfdom {
 	struct nvkm_object object;

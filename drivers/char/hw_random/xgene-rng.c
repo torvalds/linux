@@ -100,9 +100,9 @@ struct xgene_rng_dev {
 	struct clk *clk;
 };
 
-static void xgene_rng_expired_timer(unsigned long arg)
+static void xgene_rng_expired_timer(struct timer_list *t)
 {
-	struct xgene_rng_dev *ctx = (struct xgene_rng_dev *) arg;
+	struct xgene_rng_dev *ctx = from_timer(ctx, t, failure_timer);
 
 	/* Clear failure counter as timer expired */
 	disable_irq(ctx->irq);
@@ -113,8 +113,6 @@ static void xgene_rng_expired_timer(unsigned long arg)
 
 static void xgene_rng_start_timer(struct xgene_rng_dev *ctx)
 {
-	ctx->failure_timer.data = (unsigned long) ctx;
-	ctx->failure_timer.function = xgene_rng_expired_timer;
 	ctx->failure_timer.expires = jiffies + 120 * HZ;
 	add_timer(&ctx->failure_timer);
 }
@@ -292,7 +290,7 @@ static int xgene_rng_init(struct hwrng *rng)
 	struct xgene_rng_dev *ctx = (struct xgene_rng_dev *) rng->priv;
 
 	ctx->failure_cnt = 0;
-	init_timer(&ctx->failure_timer);
+	timer_setup(&ctx->failure_timer, xgene_rng_expired_timer, 0);
 
 	ctx->revision = readl(ctx->csr_base + RNG_EIP_REV);
 

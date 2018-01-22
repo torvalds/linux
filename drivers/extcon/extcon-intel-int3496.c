@@ -19,7 +19,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -171,7 +171,7 @@ static int int3496_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct acpi_device_id int3496_acpi_match[] = {
+static const struct acpi_device_id int3496_acpi_match[] = {
 	{ "INT3496" },
 	{ }
 };

@@ -39,6 +39,18 @@
 #include <linux/tcp.h>
 #include <linux/sctp.h>
 #include <linux/ipv6.h>
+#include <linux/kernel.h>
+#include <linux/bitops.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
+#include <linux/wait.h>
+#include <linux/delay.h>
+#include <linux/gfp.h>
+#include <linux/skbuff.h>
+#include <linux/dma-mapping.h>
+#include <linux/etherdevice.h>
+#include <linux/socket.h>
+#include <linux/jiffies.h>
 #include <net/ip6_checksum.h>
 #include <net/udp.h>
 
@@ -90,6 +102,7 @@ struct i40e_vsi {
 #define I40E_TX_CTXTDESC(R, i) \
 	(&(((struct i40e_tx_context_desc *)((R)->desc))[i]))
 #define MAX_QUEUES 16
+#define I40EVF_MAX_REQ_QUEUES 4
 
 #define I40EVF_HKEY_ARRAY_SIZE ((I40E_VFQF_HKEY_MAX_INDEX + 1) * 4)
 #define I40EVF_HLUT_ARRAY_SIZE ((I40E_VFQF_HLUT_MAX_INDEX + 1) * 4)
@@ -109,7 +122,7 @@ struct i40e_q_vector {
 #define ITR_COUNTDOWN_START 100
 	u8 itr_countdown;	/* when 0 or 1 update ITR */
 	int v_idx;	/* vector index in list */
-	char name[IFNAMSIZ + 9];
+	char name[IFNAMSIZ + 15];
 	bool arm_wb_state;
 	cpumask_t affinity_mask;
 	struct irq_affinity_notify affinity_notify;
@@ -183,10 +196,12 @@ struct i40evf_adapter {
 	struct work_struct adminq_task;
 	struct delayed_work client_task;
 	struct delayed_work init_task;
+	wait_queue_head_t down_waitqueue;
 	struct i40e_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
 	char misc_vector_name[IFNAMSIZ + 9];
 	int num_active_queues;
+	int num_req_queues;
 
 	/* TX */
 	struct i40e_ring *tx_rings;
@@ -207,26 +222,25 @@ struct i40evf_adapter {
 
 	u32 flags;
 #define I40EVF_FLAG_RX_CSUM_ENABLED		BIT(0)
-#define I40EVF_FLAG_IMIR_ENABLED		BIT(5)
-#define I40EVF_FLAG_MQ_CAPABLE			BIT(6)
-#define I40EVF_FLAG_PF_COMMS_FAILED		BIT(8)
-#define I40EVF_FLAG_RESET_PENDING		BIT(9)
-#define I40EVF_FLAG_RESET_NEEDED		BIT(10)
-#define I40EVF_FLAG_WB_ON_ITR_CAPABLE		BIT(11)
-#define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(12)
-#define I40EVF_FLAG_ADDR_SET_BY_PF		BIT(13)
-#define I40EVF_FLAG_SERVICE_CLIENT_REQUESTED	BIT(14)
-#define I40EVF_FLAG_CLIENT_NEEDS_OPEN		BIT(15)
-#define I40EVF_FLAG_CLIENT_NEEDS_CLOSE		BIT(16)
-#define I40EVF_FLAG_CLIENT_NEEDS_L2_PARAMS	BIT(17)
-#define I40EVF_FLAG_PROMISC_ON			BIT(18)
-#define I40EVF_FLAG_ALLMULTI_ON			BIT(19)
-#define I40EVF_FLAG_LEGACY_RX			BIT(20)
+#define I40EVF_FLAG_IMIR_ENABLED		BIT(1)
+#define I40EVF_FLAG_MQ_CAPABLE			BIT(2)
+#define I40EVF_FLAG_PF_COMMS_FAILED		BIT(3)
+#define I40EVF_FLAG_RESET_PENDING		BIT(4)
+#define I40EVF_FLAG_RESET_NEEDED		BIT(5)
+#define I40EVF_FLAG_WB_ON_ITR_CAPABLE		BIT(6)
+#define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(7)
+#define I40EVF_FLAG_ADDR_SET_BY_PF		BIT(8)
+#define I40EVF_FLAG_SERVICE_CLIENT_REQUESTED	BIT(9)
+#define I40EVF_FLAG_CLIENT_NEEDS_OPEN		BIT(10)
+#define I40EVF_FLAG_CLIENT_NEEDS_CLOSE		BIT(11)
+#define I40EVF_FLAG_CLIENT_NEEDS_L2_PARAMS	BIT(12)
+#define I40EVF_FLAG_PROMISC_ON			BIT(13)
+#define I40EVF_FLAG_ALLMULTI_ON			BIT(14)
+#define I40EVF_FLAG_LEGACY_RX			BIT(15)
+#define I40EVF_FLAG_REINIT_ITR_NEEDED		BIT(16)
 /* duplicates for common code */
 #define I40E_FLAG_DCB_ENABLED			0
 #define I40E_FLAG_RX_CSUM_ENABLED		I40EVF_FLAG_RX_CSUM_ENABLED
-#define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
-#define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE
 #define I40E_FLAG_LEGACY_RX			I40EVF_FLAG_LEGACY_RX
 	/* flags for admin queue service task */
 	u32 aq_required;
@@ -250,6 +264,8 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_RELEASE_PROMISC		BIT(16)
 #define I40EVF_FLAG_AQ_REQUEST_ALLMULTI		BIT(17)
 #define I40EVF_FLAG_AQ_RELEASE_ALLMULTI		BIT(18)
+#define I40EVF_FLAG_AQ_ENABLE_VLAN_STRIPPING	BIT(19)
+#define I40EVF_FLAG_AQ_DISABLE_VLAN_STRIPPING	BIT(20)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -266,19 +282,19 @@ struct i40evf_adapter {
 	enum virtchnl_link_speed link_speed;
 	enum virtchnl_ops current_op;
 #define CLIENT_ALLOWED(_a) ((_a)->vf_res ? \
-			    (_a)->vf_res->vf_offload_flags & \
+			    (_a)->vf_res->vf_cap_flags & \
 				VIRTCHNL_VF_OFFLOAD_IWARP : \
 			    0)
 #define CLIENT_ENABLED(_a) ((_a)->cinst)
 /* RSS by the PF should be preferred over RSS via other methods. */
-#define RSS_PF(_a) ((_a)->vf_res->vf_offload_flags & \
+#define RSS_PF(_a) ((_a)->vf_res->vf_cap_flags & \
 		    VIRTCHNL_VF_OFFLOAD_RSS_PF)
-#define RSS_AQ(_a) ((_a)->vf_res->vf_offload_flags & \
+#define RSS_AQ(_a) ((_a)->vf_res->vf_cap_flags & \
 		    VIRTCHNL_VF_OFFLOAD_RSS_AQ)
-#define RSS_REG(_a) (!((_a)->vf_res->vf_offload_flags & \
+#define RSS_REG(_a) (!((_a)->vf_res->vf_cap_flags & \
 		       (VIRTCHNL_VF_OFFLOAD_RSS_AQ | \
 			VIRTCHNL_VF_OFFLOAD_RSS_PF)))
-#define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_offload_flags & \
+#define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_cap_flags & \
 			  VIRTCHNL_VF_OFFLOAD_VLAN)
 	struct virtchnl_vf_resource *vf_res; /* incl. all VSIs */
 	struct virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
@@ -336,6 +352,7 @@ void i40evf_deconfigure_queues(struct i40evf_adapter *adapter);
 void i40evf_enable_queues(struct i40evf_adapter *adapter);
 void i40evf_disable_queues(struct i40evf_adapter *adapter);
 void i40evf_map_queues(struct i40evf_adapter *adapter);
+int i40evf_request_queues(struct i40evf_adapter *adapter, int num);
 void i40evf_add_ether_addrs(struct i40evf_adapter *adapter);
 void i40evf_del_ether_addrs(struct i40evf_adapter *adapter);
 void i40evf_add_vlans(struct i40evf_adapter *adapter);
@@ -347,6 +364,8 @@ void i40evf_get_hena(struct i40evf_adapter *adapter);
 void i40evf_set_hena(struct i40evf_adapter *adapter);
 void i40evf_set_rss_key(struct i40evf_adapter *adapter);
 void i40evf_set_rss_lut(struct i40evf_adapter *adapter);
+void i40evf_enable_vlan_stripping(struct i40evf_adapter *adapter);
+void i40evf_disable_vlan_stripping(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);

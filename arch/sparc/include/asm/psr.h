@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * psr.h: This file holds the macros for masking off various parts of
  *        the processor status register on the Sparc. This is valid

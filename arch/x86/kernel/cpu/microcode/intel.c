@@ -34,6 +34,7 @@
 #include <linux/mm.h>
 
 #include <asm/microcode_intel.h>
+#include <asm/intel-family.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
@@ -146,18 +147,18 @@ static bool microcode_matches(struct microcode_header_intel *mc_header,
 	return false;
 }
 
-static struct ucode_patch *__alloc_microcode_buf(void *data, unsigned int size)
+static struct ucode_patch *memdup_patch(void *data, unsigned int size)
 {
 	struct ucode_patch *p;
 
 	p = kzalloc(sizeof(struct ucode_patch), GFP_KERNEL);
 	if (!p)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	p->data = kmemdup(data, size, GFP_KERNEL);
 	if (!p->data) {
 		kfree(p);
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	}
 
 	return p;
@@ -183,8 +184,8 @@ static void save_microcode_patch(void *data, unsigned int size)
 			if (mc_hdr->rev <= mc_saved_hdr->rev)
 				continue;
 
-			p = __alloc_microcode_buf(data, size);
-			if (IS_ERR(p))
+			p = memdup_patch(data, size);
+			if (!p)
 				pr_err("Error allocating buffer %p\n", data);
 			else
 				list_replace(&iter->plist, &p->plist);
@@ -196,24 +197,25 @@ static void save_microcode_patch(void *data, unsigned int size)
 	 * newly found.
 	 */
 	if (!prev_found) {
-		p = __alloc_microcode_buf(data, size);
-		if (IS_ERR(p))
+		p = memdup_patch(data, size);
+		if (!p)
 			pr_err("Error allocating buffer for %p\n", data);
 		else
 			list_add_tail(&p->plist, &microcode_cache);
 	}
+
+	if (!p)
+		return;
 
 	/*
 	 * Save for early loading. On 32-bit, that needs to be a physical
 	 * address as the APs are running from physical addresses, before
 	 * paging has been enabled.
 	 */
-	if (p) {
-		if (IS_ENABLED(CONFIG_X86_32))
-			intel_ucode_patch = (struct microcode_intel *)__pa_nodebug(p->data);
-		else
-			intel_ucode_patch = p->data;
-	}
+	if (IS_ENABLED(CONFIG_X86_32))
+		intel_ucode_patch = (struct microcode_intel *)__pa_nodebug(p->data);
+	else
+		intel_ucode_patch = p->data;
 }
 
 static int microcode_sanity_check(void *mc, int print_err)
@@ -563,15 +565,6 @@ static void print_ucode(struct ucode_cpu_info *uci)
 }
 #else
 
-/*
- * Flush global tlb. We only do this in x86_64 where paging has been enabled
- * already and PGE should be enabled as well.
- */
-static inline void flush_tlb_early(void)
-{
-	__native_flush_tlb_global_irq_disabled();
-}
-
 static inline void print_ucode(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc;
@@ -600,10 +593,6 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 	if (rev != mc->hdr.rev)
 		return -1;
 
-#ifdef CONFIG_X86_64
-	/* Flush global tlb. This is precaution. */
-	flush_tlb_early();
-#endif
 	uci->cpu_sig.rev = rev;
 
 	if (early)
@@ -917,6 +906,27 @@ static int get_ucode_fw(void *to, const void *from, size_t n)
 	return 0;
 }
 
+static bool is_blacklisted(unsigned int cpu)
+{
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+	/*
+	 * Late loading on model 79 with microcode revision less than 0x0b000021
+	 * may result in a system hang. This behavior is documented in item
+	 * BDF90, #334165 (Intel Xeon Processor E7-8800/4800 v4 Product Family).
+	 */
+	if (c->x86 == 6 &&
+	    c->x86_model == INTEL_FAM6_BROADWELL_X &&
+	    c->x86_mask == 0x01 &&
+	    c->microcode < 0x0b000021) {
+		pr_err_once("Erratum BDF90: late loading with revision < 0x0b000021 (0x%x) disabled.\n", c->microcode);
+		pr_err_once("Please consider either early loading through initrd/built-in or a potential BIOS update.\n");
+		return true;
+	}
+
+	return false;
+}
+
 static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 					     bool refresh_fw)
 {
@@ -924,6 +934,9 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	const struct firmware *firmware;
 	enum ucode_state ret;
+
+	if (is_blacklisted(cpu))
+		return UCODE_NFOUND;
 
 	sprintf(name, "intel-ucode/%02x-%02x-%02x",
 		c->x86, c->x86_model, c->x86_mask);
@@ -949,6 +962,9 @@ static int get_ucode_user(void *to, const void *from, size_t n)
 static enum ucode_state
 request_microcode_user(int cpu, const void __user *buf, size_t size)
 {
+	if (is_blacklisted(cpu))
+		return UCODE_NFOUND;
+
 	return generic_load_microcode(cpu, (void *)buf, size, &get_ucode_user);
 }
 

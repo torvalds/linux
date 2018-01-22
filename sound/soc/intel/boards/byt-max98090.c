@@ -173,20 +173,8 @@ static int byt_max98090_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int byt_max98090_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct byt_max98090_private *priv = snd_soc_card_get_drvdata(card);
-
-	snd_soc_jack_free_gpios(&priv->jack, ARRAY_SIZE(hs_jack_gpios),
-				hs_jack_gpios);
-
-	return 0;
-}
-
 static struct platform_driver byt_max98090_driver = {
 	.probe = byt_max98090_probe,
-	.remove = byt_max98090_remove,
 	.driver = {
 		.name = "byt-max98090",
 		.pm = &snd_soc_pm_ops,

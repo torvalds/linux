@@ -24,8 +24,6 @@
 #include <net/tc_act/tc_pedit.h>
 #include <uapi/linux/tc_act/tc_pedit.h>
 
-#define PEDIT_TAB_MASK	15
-
 static unsigned int pedit_net_id;
 static struct tc_action_ops act_pedit_ops;
 
@@ -168,17 +166,17 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	if (IS_ERR(keys_ex))
 		return PTR_ERR(keys_ex);
 
-	if (!tcf_hash_check(tn, parm->index, a, bind)) {
+	if (!tcf_idr_check(tn, parm->index, a, bind)) {
 		if (!parm->nkeys)
 			return -EINVAL;
-		ret = tcf_hash_create(tn, parm->index, est, a,
-				      &act_pedit_ops, bind, false);
+		ret = tcf_idr_create(tn, parm->index, est, a,
+				     &act_pedit_ops, bind, false);
 		if (ret)
 			return ret;
 		p = to_pedit(*a);
 		keys = kmalloc(ksize, GFP_KERNEL);
 		if (keys == NULL) {
-			tcf_hash_cleanup(*a, est);
+			tcf_idr_cleanup(*a, est);
 			kfree(keys_ex);
 			return -ENOMEM;
 		}
@@ -186,7 +184,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	} else {
 		if (bind)
 			return 0;
-		tcf_hash_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 		p = to_pedit(*a);
@@ -214,7 +212,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 
 	spin_unlock_bh(&p->tcf_lock);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(tn, *a);
+		tcf_idr_insert(tn, *a);
 	return ret;
 }
 
@@ -432,7 +430,7 @@ static int tcf_pedit_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 static struct tc_action_ops act_pedit_ops = {
@@ -452,7 +450,7 @@ static __net_init int pedit_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, pedit_net_id);
 
-	return tc_action_net_init(tn, &act_pedit_ops, PEDIT_TAB_MASK);
+	return tc_action_net_init(tn, &act_pedit_ops);
 }
 
 static void __net_exit pedit_exit_net(struct net *net)

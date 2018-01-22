@@ -38,6 +38,7 @@
 #include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
+#include <asm/unwinder.h>
 
 extern char _etext, _stext;
 
@@ -45,61 +46,20 @@ int kstack_depth_to_print = 0x180;
 int lwa_flag;
 unsigned long __user *lwa_addr;
 
-static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
+void print_trace(void *data, unsigned long addr, int reliable)
 {
-	return p > (void *)tinfo && p < (void *)tinfo + THREAD_SIZE - 3;
-}
-
-void show_trace(struct task_struct *task, unsigned long *stack)
-{
-	struct thread_info *context;
-	unsigned long addr;
-
-	context = (struct thread_info *)
-	    ((unsigned long)stack & (~(THREAD_SIZE - 1)));
-
-	while (valid_stack_ptr(context, stack)) {
-		addr = *stack++;
-		if (__kernel_text_address(addr)) {
-			printk(" [<%08lx>]", addr);
-			print_symbol(" %s", addr);
-			printk("\n");
-		}
-	}
-	printk(" =======================\n");
+	pr_emerg("[<%p>] %s%pS\n", (void *) addr, reliable ? "" : "? ",
+	       (void *) addr);
 }
 
 /* displays a short stack trace */
 void show_stack(struct task_struct *task, unsigned long *esp)
 {
-	unsigned long addr, *stack;
-	int i;
-
 	if (esp == NULL)
 		esp = (unsigned long *)&esp;
 
-	stack = esp;
-
-	printk("Stack dump [0x%08lx]:\n", (unsigned long)esp);
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (kstack_end(stack))
-			break;
-		if (__get_user(addr, stack)) {
-			/* This message matches "failing address" marked
-			   s390 in ksymoops, so lines containing it will
-			   not be filtered out by ksymoops.  */
-			printk("Failing address 0x%lx\n", (unsigned long)stack);
-			break;
-		}
-		stack++;
-
-		printk("sp + %02d: 0x%08lx\n", i * 4, addr);
-	}
-	printk("\n");
-
-	show_trace(task, esp);
-
-	return;
+	pr_emerg("Call trace:\n");
+	unwind_stack(NULL, esp, print_trace);
 }
 
 void show_trace_task(struct task_struct *tsk)
@@ -115,7 +75,7 @@ void show_registers(struct pt_regs *regs)
 	int in_kernel = 1;
 	unsigned long esp;
 
-	esp = (unsigned long)(&regs->sp);
+	esp = (unsigned long)(regs->sp);
 	if (user_mode(regs))
 		in_kernel = 0;
 

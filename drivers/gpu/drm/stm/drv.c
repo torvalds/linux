@@ -17,15 +17,9 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "ltdc.h"
-
-#define DRIVER_NAME		"stm"
-#define DRIVER_DESC		"STMicroelectronics SoC DRM"
-#define DRIVER_DATE		"20170330"
-#define DRIVER_MAJOR		1
-#define DRIVER_MINOR		0
-#define DRIVER_PATCH_LEVEL	0
 
 #define STM_MAX_FB_WIDTH	2048
 #define STM_MAX_FB_HEIGHT	2048 /* same as width to handle orientation */
@@ -38,7 +32,7 @@ static void drv_output_poll_changed(struct drm_device *ddev)
 }
 
 static const struct drm_mode_config_funcs drv_mode_config_funcs = {
-	.fb_create = drm_fb_cma_create,
+	.fb_create = drm_gem_fb_create,
 	.output_poll_changed = drv_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
@@ -59,16 +53,14 @@ static struct drm_driver drv_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
 	.lastclose = drv_lastclose,
-	.name = DRIVER_NAME,
-	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCH_LEVEL,
+	.name = "stm",
+	.desc = "STMicroelectronics SoC DRM",
+	.date = "20170330",
+	.major = 1,
+	.minor = 0,
+	.patchlevel = 0,
 	.fops = &drv_driver_fops,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
@@ -206,7 +198,7 @@ static struct platform_driver stm_drm_platform_driver = {
 	.probe = stm_drm_platform_probe,
 	.remove = stm_drm_platform_remove,
 	.driver = {
-		.name = DRIVER_NAME,
+		.name = "stm32-display",
 		.of_match_table = drv_dt_ids,
 	},
 };

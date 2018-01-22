@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define USE_HW_I2C
 #ifdef USE_HW_I2C
 #include "ddk750_chip.h"

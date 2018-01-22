@@ -26,6 +26,9 @@
 #include <linux/nmi.h>
 #include <linux/console.h>
 #include <linux/bug.h>
+#include <linux/ratelimit.h>
+#include <linux/debugfs.h>
+#include <asm/sections.h>
 
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
@@ -321,6 +324,7 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
 	{ 'E', ' ', true },	/* TAINT_UNSIGNED_MODULE */
 	{ 'L', ' ', false },	/* TAINT_SOFTLOCKUP */
 	{ 'K', ' ', true },	/* TAINT_LIVEPATCH */
+	{ 'X', ' ', true },	/* TAINT_AUX */
 };
 
 /**
@@ -342,6 +346,7 @@ const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
  *  'E' - Unsigned module has been loaded.
  *  'L' - A soft lockup has previously occurred.
  *  'K' - Kernel has been live patched.
+ *  'X' - Auxiliary taint, for distros' use.
  *
  *	The string is overwritten by the next call to print_tainted().
  */
@@ -517,7 +522,8 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 {
 	disable_trace_on_warning();
 
-	pr_warn("------------[ cut here ]------------\n");
+	if (args)
+		pr_warn(CUT_HERE);
 
 	if (file)
 		pr_warn("WARNING: CPU: %d PID: %d at %s:%d %pS\n",
@@ -581,9 +587,49 @@ EXPORT_SYMBOL(warn_slowpath_fmt_taint);
 
 void warn_slowpath_null(const char *file, int line)
 {
+	pr_warn(CUT_HERE);
 	__warn(file, line, __builtin_return_address(0), TAINT_WARN, NULL, NULL);
 }
 EXPORT_SYMBOL(warn_slowpath_null);
+#else
+void __warn_printk(const char *fmt, ...)
+{
+	va_list args;
+
+	pr_warn(CUT_HERE);
+
+	va_start(args, fmt);
+	vprintk(fmt, args);
+	va_end(args);
+}
+EXPORT_SYMBOL(__warn_printk);
+#endif
+
+#ifdef CONFIG_BUG
+
+/* Support resetting WARN*_ONCE state */
+
+static int clear_warn_once_set(void *data, u64 val)
+{
+	generic_bug_clear_once();
+	memset(__start_once, 0, __end_once - __start_once);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(clear_warn_once_fops,
+			NULL,
+			clear_warn_once_set,
+			"%lld\n");
+
+static __init int register_warn_debugfs(void)
+{
+	/* Don't care about failure */
+	debugfs_create_file("clear_warn_once", 0200, NULL,
+			    NULL, &clear_warn_once_fops);
+	return 0;
+}
+
+device_initcall(register_warn_debugfs);
 #endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR
@@ -599,6 +645,17 @@ __visible void __stack_chk_fail(void)
 }
 EXPORT_SYMBOL(__stack_chk_fail);
 
+#endif
+
+#ifdef CONFIG_ARCH_HAS_REFCOUNT
+void refcount_error_report(struct pt_regs *regs, const char *err)
+{
+	WARN_RATELIMIT(1, "refcount_t %s at %pB in %s[%d], uid/euid: %u/%u\n",
+		err, (void *)instruction_pointer(regs),
+		current->comm, task_pid_nr(current),
+		from_kuid_munged(&init_user_ns, current_uid()),
+		from_kuid_munged(&init_user_ns, current_euid()));
+}
 #endif
 
 core_param(panic, panic_timeout, int, 0644);

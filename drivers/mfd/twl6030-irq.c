@@ -35,7 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kthread.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
 #include <linux/of.h>

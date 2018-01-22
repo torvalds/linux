@@ -544,8 +544,8 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 					soc_data->mod_list_mask))
 			continue;
 
-		rst = reset_control_get(&pdev->dev,
-					configlink_mods[i].rst_name);
+		rst = reset_control_get_exclusive(&pdev->dev,
+						  configlink_mods[i].rst_name);
 		if (IS_ERR(rst)) {
 			dev_err(&pdev->dev, "Can't get reset %s\n",
 				configlink_mods[i].rst_name);

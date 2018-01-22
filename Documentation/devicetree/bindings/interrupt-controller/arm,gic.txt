@@ -155,7 +155,7 @@ Example:
 		      <0x0 0xe112f000 0 0x02000>,
 		      <0x0 0xe1140000 0 0x10000>,
 		      <0x0 0xe1160000 0 0x10000>;
-		v2m0: v2m@0x8000 {
+		v2m0: v2m@8000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x80000 0 0x1000>;
@@ -163,7 +163,7 @@ Example:
 
 		....
 
-		v2mN: v2m@0x9000 {
+		v2mN: v2m@9000 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x90000 0 0x1000>;

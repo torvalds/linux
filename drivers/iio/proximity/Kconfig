@@ -32,6 +32,16 @@ config LIDAR_LITE_V2
 	  To compile this driver as a module, choose M here: the
 	  module will be called pulsedlight-lite-v2
 
+config RFD77402
+	tristate "RFD77402 ToF sensor"
+	depends on I2C
+	help
+	  Say Y to build a driver for the RFD77420 Time-of-Flight (distance)
+	  sensor module with I2C interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rfd77402.
+
 config SRF04
 	tristate "Devantech SRF04 ultrasonic ranger sensor"
 	depends on GPIOLIB
@@ -57,12 +67,12 @@ config SX9500
 	  module will be called sx9500.
 
 config SRF08
-	tristate "Devantech SRF08 ultrasonic ranger sensor"
+	tristate "Devantech SRF02/SRF08/SRF10 ultrasonic ranger sensor"
 	depends on I2C
 	help
-	  Say Y here to build a driver for Devantech SRF08 ultrasonic
-	  ranger sensor. This driver can be used to measure the distance
-	  of objects.
+	  Say Y here to build a driver for Devantech SRF02/SRF08/SRF10
+	  ultrasonic ranger sensors with i2c interface.
+	  This driver can be used to measure the distance of objects.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called srf08.

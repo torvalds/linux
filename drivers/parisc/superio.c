@@ -482,14 +482,14 @@ superio_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return -ENODEV;
 }
 
-static const struct pci_device_id superio_tbl[] = {
+static const struct pci_device_id superio_tbl[] __initconst = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87560_LIO) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87560_USB) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87415) },
 	{ 0, }
 };
 
-static struct pci_driver superio_driver = {
+static struct pci_driver superio_driver __refdata = {
 	.name =         SUPERIO,
 	.id_table =     superio_tbl,
 	.probe =        superio_probe,

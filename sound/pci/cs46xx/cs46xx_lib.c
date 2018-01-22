@@ -1438,7 +1438,7 @@ static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct snd_pcm_hardware snd_cs46xx_playback =
+static const struct snd_pcm_hardware snd_cs46xx_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED | 
@@ -1460,7 +1460,7 @@ static struct snd_pcm_hardware snd_cs46xx_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_cs46xx_capture =
+static const struct snd_pcm_hardware snd_cs46xx_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |

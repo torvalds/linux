@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* eBPF example program:
  *
  * - Loads eBPF program

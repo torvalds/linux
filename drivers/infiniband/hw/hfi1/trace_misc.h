@@ -72,6 +72,26 @@ TRACE_EVENT(hfi1_interrupt,
 		      __entry->src)
 );
 
+DECLARE_EVENT_CLASS(
+	hfi1_csr_template,
+	TP_PROTO(void __iomem *addr, u64 value),
+	TP_ARGS(addr, value),
+	TP_STRUCT__entry(
+		__field(void __iomem *, addr)
+		__field(u64, value)
+	),
+	TP_fast_assign(
+		__entry->addr = addr;
+		__entry->value = value;
+	),
+	TP_printk("addr %p value %llx", __entry->addr, __entry->value)
+);
+
+DEFINE_EVENT(
+	hfi1_csr_template, hfi1_write_rcvarray,
+	TP_PROTO(void __iomem *addr, u64 value),
+	TP_ARGS(addr, value));
+
 #ifdef CONFIG_FAULT_INJECTION
 TRACE_EVENT(hfi1_fault_opcode,
 	    TP_PROTO(struct rvt_qp *qp, u8 opcode),

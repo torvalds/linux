@@ -43,9 +43,17 @@ static struct freq_attr *cpufreq_dt_attr[] = {
 static int set_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	struct private_data *priv = policy->driver_data;
+	unsigned long freq = policy->freq_table[index].frequency;
+	int ret;
 
-	return dev_pm_opp_set_rate(priv->cpu_dev,
-				   policy->freq_table[index].frequency * 1000);
+	ret = dev_pm_opp_set_rate(priv->cpu_dev, freq * 1000);
+
+	if (!ret) {
+		arch_set_freq_scale(policy->related_cpus, freq,
+				    policy->cpuinfo.max_freq);
+	}
+
+	return ret;
 }
 
 /*
@@ -274,6 +282,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		transition_latency = CPUFREQ_ETERNAL;
 
 	policy->cpuinfo.transition_latency = transition_latency;
+	policy->dvfs_possible_from_any_cpu = true;
 
 	return 0;
 

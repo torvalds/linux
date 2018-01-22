@@ -241,7 +241,7 @@ static bool always_valid(struct drm_i915_private *i915)
 
 static bool needs_mi_store_dword(struct drm_i915_private *i915)
 {
-	return igt_can_mi_store_dword_imm(i915);
+	return intel_engine_can_store_dword(i915->engine[RCS]);
 }
 
 static const struct igt_coherency_mode {

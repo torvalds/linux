@@ -298,7 +298,7 @@ static long cpts_overflow_check(struct ptp_clock_info *ptp)
 	return (long)delay;
 }
 
-static struct ptp_clock_info cpts_info = {
+static const struct ptp_clock_info cpts_info = {
 	.owner		= THIS_MODULE,
 	.name		= "CTPS timer",
 	.max_adj	= 1000000,

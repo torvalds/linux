@@ -44,9 +44,9 @@ struct dm_delay_info {
 
 static DEFINE_MUTEX(delayed_bios_lock);
 
-static void handle_delayed_timer(unsigned long data)
+static void handle_delayed_timer(struct timer_list *t)
 {
-	struct delay_c *dc = (struct delay_c *)data;
+	struct delay_c *dc = from_timer(dc, t, delay_timer);
 
 	queue_work(dc->kdelayd_wq, &dc->flush_expired_bios);
 }
@@ -195,7 +195,7 @@ out:
 		goto bad_queue;
 	}
 
-	setup_timer(&dc->delay_timer, handle_delayed_timer, (unsigned long)dc);
+	timer_setup(&dc->delay_timer, handle_delayed_timer, 0);
 
 	INIT_WORK(&dc->flush_expired_bios, flush_expired_bios);
 	INIT_LIST_HEAD(&dc->delayed_bios);
@@ -282,7 +282,7 @@ static int delay_map(struct dm_target *ti, struct bio *bio)
 	struct delay_c *dc = ti->private;
 
 	if ((bio_data_dir(bio) == WRITE) && (dc->dev_write)) {
-		bio->bi_bdev = dc->dev_write->bdev;
+		bio_set_dev(bio, dc->dev_write->bdev);
 		if (bio_sectors(bio))
 			bio->bi_iter.bi_sector = dc->start_write +
 				dm_target_offset(ti, bio->bi_iter.bi_sector);
@@ -290,7 +290,7 @@ static int delay_map(struct dm_target *ti, struct bio *bio)
 		return delay_bio(dc, dc->write_delay, bio);
 	}
 
-	bio->bi_bdev = dc->dev_read->bdev;
+	bio_set_dev(bio, dc->dev_read->bdev);
 	bio->bi_iter.bi_sector = dc->start_read +
 		dm_target_offset(ti, bio->bi_iter.bi_sector);
 

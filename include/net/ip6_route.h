@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_IP6_ROUTE_H
 #define _NET_IP6_ROUTE_H
 
@@ -95,6 +96,11 @@ int ip6_route_add(struct fib6_config *cfg, struct netlink_ext_ack *extack);
 int ip6_ins_rt(struct rt6_info *);
 int ip6_del_rt(struct rt6_info *);
 
+void rt6_flush_exceptions(struct rt6_info *rt);
+int rt6_remove_exception_rt(struct rt6_info *rt);
+void rt6_age_exceptions(struct rt6_info *rt, struct fib6_gc_args *gc_args,
+			unsigned long now);
+
 static inline int ip6_route_get_saddr(struct net *net, struct rt6_info *rt,
 				      const struct in6_addr *daddr,
 				      unsigned int prefs,
@@ -115,6 +121,7 @@ static inline int ip6_route_get_saddr(struct net *net, struct rt6_info *rt,
 
 struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
 			    const struct in6_addr *saddr, int oif, int flags);
+u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb);
 
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev, struct flowi6 *fl6);
 
@@ -163,6 +170,16 @@ void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
 
+static inline const struct rt6_info *skb_rt6_info(const struct sk_buff *skb)
+{
+	const struct dst_entry *dst = skb_dst(skb);
+	const struct rt6_info *rt6 = NULL;
+
+	if (dst)
+		rt6 = container_of(dst, struct rt6_info, dst);
+
+	return rt6;
+}
 
 /*
  *	Store a destination cache entry in a socket
@@ -194,7 +211,7 @@ static inline bool ipv6_anycast_destination(const struct dst_entry *dst,
 	struct rt6_info *rt = (struct rt6_info *)dst;
 
 	return rt->rt6i_flags & RTF_ANYCAST ||
-		(rt->rt6i_dst.plen != 128 &&
+		(rt->rt6i_dst.plen < 127 &&
 		 ipv6_addr_equal(&rt->rt6i_dst.addr, daddr));
 }
 

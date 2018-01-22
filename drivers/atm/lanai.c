@@ -1586,8 +1586,8 @@ static int service_buffer_allocate(struct lanai_dev *lanai)
 	    lanai->pci);
 	if (unlikely(lanai->service.start == NULL))
 		return -ENOMEM;
-	DPRINTK("allocated service buffer at 0x%08lX, size %zu(%d)\n",
-	    (unsigned long) lanai->service.start,
+	DPRINTK("allocated service buffer at %p, size %zu(%d)\n",
+	    lanai->service.start,
 	    lanai_buf_size(&lanai->service),
 	    lanai_buf_size_cardorder(&lanai->service));
 	/* Clear ServWrite register to be safe */
@@ -1761,9 +1761,9 @@ static void iter_dequeue(struct lanai_dev *lanai, vci_t vci)
 }
 #endif /* !DEBUG_RW */
 
-static void lanai_timed_poll(unsigned long arg)
+static void lanai_timed_poll(struct timer_list *t)
 {
-	struct lanai_dev *lanai = (struct lanai_dev *) arg;
+	struct lanai_dev *lanai = from_timer(lanai, t, timer);
 #ifndef DEBUG_RW
 	unsigned long flags;
 #ifdef USE_POWERDOWN
@@ -1790,10 +1790,8 @@ static void lanai_timed_poll(unsigned long arg)
 
 static inline void lanai_timed_poll_start(struct lanai_dev *lanai)
 {
-	init_timer(&lanai->timer);
+	timer_setup(&lanai->timer, lanai_timed_poll, 0);
 	lanai->timer.expires = jiffies + LANAI_POLL_PERIOD;
-	lanai->timer.data = (unsigned long) lanai;
-	lanai->timer.function = lanai_timed_poll;
 	add_timer(&lanai->timer);
 }
 
@@ -2220,9 +2218,9 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 #endif
 	memcpy(atmdev->esi, eeprom_mac(lanai), ESI_LEN);
 	lanai_timed_poll_start(lanai);
-	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d, base=0x%lx, irq=%u "
+	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d, base=%p, irq=%u "
 		"(%pMF)\n", lanai->number, (int) lanai->pci->revision,
-		(unsigned long) lanai->base, lanai->pci->irq, atmdev->esi);
+		lanai->base, lanai->pci->irq, atmdev->esi);
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): LANAI%s, serialno=%u(0x%X), "
 	    "board_rev=%d\n", lanai->number,
 	    lanai->type==lanai2 ? "2" : "HB", (unsigned int) lanai->serialno,
@@ -2589,7 +2587,7 @@ static int lanai_init_one(struct pci_dev *pci,
 	return result;
 }
 
-static struct pci_device_id lanai_pci_tbl[] = {
+static const struct pci_device_id lanai_pci_tbl[] = {
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAI2) },
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAIHB) },
 	{ 0, }	/* terminal entry */

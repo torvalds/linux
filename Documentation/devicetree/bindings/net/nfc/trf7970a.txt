@@ -23,7 +23,6 @@ Optional SoC Specific Properties:
 Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 
 &spi1 {
-	status = "okay";
 
 	nfc@0 {
 		compatible = "ti,trf7970a";
@@ -41,6 +40,5 @@ Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 		irq-status-read-quirk;
 		en2-rf-quirk;
 		clock-frequency = <27120000>;
-		status = "okay";
 	};
 };

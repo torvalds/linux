@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2010
@@ -29,11 +30,13 @@
 #define MACHINE_FLAG_TE		_BITUL(11)
 #define MACHINE_FLAG_TLB_LC	_BITUL(12)
 #define MACHINE_FLAG_VX		_BITUL(13)
-#define MACHINE_FLAG_NX		_BITUL(14)
-#define MACHINE_FLAG_GS		_BITUL(15)
+#define MACHINE_FLAG_TLB_GUEST	_BITUL(14)
+#define MACHINE_FLAG_NX		_BITUL(15)
+#define MACHINE_FLAG_GS		_BITUL(16)
+#define MACHINE_FLAG_SCC	_BITUL(17)
 
 #define LPP_MAGIC		_BITUL(31)
-#define LPP_PFAULT_PID_MASK	_AC(0xffffffff, UL)
+#define LPP_PID_MASK		_AC(0xffffffff, UL)
 
 #ifndef __ASSEMBLY__
 
@@ -68,8 +71,10 @@ extern void detect_memory_memblock(void);
 #define MACHINE_HAS_TE		(S390_lowcore.machine_flags & MACHINE_FLAG_TE)
 #define MACHINE_HAS_TLB_LC	(S390_lowcore.machine_flags & MACHINE_FLAG_TLB_LC)
 #define MACHINE_HAS_VX		(S390_lowcore.machine_flags & MACHINE_FLAG_VX)
+#define MACHINE_HAS_TLB_GUEST	(S390_lowcore.machine_flags & MACHINE_FLAG_TLB_GUEST)
 #define MACHINE_HAS_NX		(S390_lowcore.machine_flags & MACHINE_FLAG_NX)
 #define MACHINE_HAS_GS		(S390_lowcore.machine_flags & MACHINE_FLAG_GS)
+#define MACHINE_HAS_SCC		(S390_lowcore.machine_flags & MACHINE_FLAG_SCC)
 
 /*
  * Console mode. Override with conmode=
@@ -93,9 +98,6 @@ extern char vmpoff_cmd[];
 #define SET_CONSOLE_VT220	do { console_mode = 4; } while (0)
 #define SET_CONSOLE_HVC		do { console_mode = 5; } while (0)
 
-#define NSS_NAME_SIZE	8
-extern char kernel_nss_name[];
-
 #ifdef CONFIG_PFAULT
 extern int pfault_init(void);
 extern void pfault_fini(void);
@@ -104,9 +106,16 @@ extern void pfault_fini(void);
 #define pfault_fini()		do { } while (0)
 #endif /* CONFIG_PFAULT */
 
+#ifdef CONFIG_VMCP
+void vmcp_cma_reserve(void);
+#else
+static inline void vmcp_cma_reserve(void) { }
+#endif
+
 void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault);
 
-extern void cmma_init(void);
+void cmma_init(void);
+void cmma_init_nodat(void);
 
 extern void (*_machine_restart)(char *command);
 extern void (*_machine_halt)(void);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if ARCH_W90X900
 
 config CPU_W90P910

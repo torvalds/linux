@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Atomic operations usable in machine independent code */
 #ifndef _LINUX_ATOMIC_H
 #define _LINUX_ATOMIC_H
@@ -38,6 +39,9 @@
  * Besides, if an arch has a special barrier for acquire/release, it could
  * implement its own __atomic_op_* and use the same framework for building
  * variants
+ *
+ * If an architecture overrides __atomic_op_acquire() it will probably want
+ * to define smp_mb__after_spinlock().
  */
 #ifndef __atomic_op_acquire
 #define __atomic_op_acquire(op, args...)				\
@@ -650,6 +654,8 @@ static inline int atomic_dec_if_positive(atomic_t *v)
 }
 #endif
 
+#define atomic_cond_read_acquire(v, c)	smp_cond_load_acquire(&(v)->counter, (c))
+
 #ifdef CONFIG_GENERIC_ATOMIC64
 #include <asm-generic/atomic64.h>
 #endif
@@ -1068,6 +1074,8 @@ static inline long long atomic64_fetch_andnot_release(long long i, atomic64_t *v
 	return atomic64_fetch_and_release(~i, v);
 }
 #endif
+
+#define atomic64_cond_read_acquire(v, c)	smp_cond_load_acquire(&(v)->counter, (c))
 
 #include <asm-generic/atomic-long.h>
 

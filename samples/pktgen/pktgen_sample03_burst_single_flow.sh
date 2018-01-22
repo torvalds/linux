@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Script for max single flow performance
 #  - If correctly tuned[1], single CPU 10G wirespeed small pkts is possible[2]
@@ -30,7 +31,7 @@ if [ -z "$DEST_IP" ]; then
 fi
 [ -z "$DST_MAC" ]   && DST_MAC="90:e2:ba:ff:ff:ff"
 [ -z "$BURST" ]     && BURST=32
-[ -z "$CLONE_SKB" ] && CLONE_SKB="100000"
+[ -z "$CLONE_SKB" ] && CLONE_SKB="0" # No need for clones when bursting
 [ -z "$COUNT" ]     && COUNT="0" # Zero means indefinitely
 
 # Base Config

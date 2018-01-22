@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PARISC_MMU_CONTEXT_H
 #define __PARISC_MMU_CONTEXT_H
 
@@ -62,6 +63,9 @@ static inline void switch_mm(struct mm_struct *prev,
 		struct mm_struct *next, struct task_struct *tsk)
 {
 	unsigned long flags;
+
+	if (prev == next)
+		return;
 
 	local_irq_save(flags);
 	switch_mm_irqs_off(prev, next, tsk);

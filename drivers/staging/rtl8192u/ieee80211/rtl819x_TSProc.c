@@ -1,15 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "ieee80211.h"
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include "rtl819x_TS.h"
 
-static void TsSetupTimeOut(unsigned long data)
+static void TsSetupTimeOut(struct timer_list *unused)
 {
 	// Not implement yet
 	// This is used for WMMSA and ACM , that would send ADDTSReq frame.
 }
 
-static void TsInactTimeout(unsigned long data)
+static void TsInactTimeout(struct timer_list *unused)
 {
 	// Not implement yet
 	// This is used for WMMSA and ACM.
@@ -22,9 +23,9 @@ static void TsInactTimeout(unsigned long data)
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
-static void RxPktPendingTimeout(unsigned long data)
+static void RxPktPendingTimeout(struct timer_list *t)
 {
-	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
+	PRX_TS_RECORD	pRxTs = from_timer(pRxTs, t, RxPktPendingTimer);
 	struct ieee80211_device *ieee = container_of(pRxTs, struct ieee80211_device, RxTsRecord[pRxTs->num]);
 
 	PRX_REORDER_ENTRY	pReorderEntry = NULL;
@@ -89,9 +90,9 @@ static void RxPktPendingTimeout(unsigned long data)
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
-static void TsAddBaProcess(unsigned long data)
+static void TsAddBaProcess(struct timer_list *t)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	PTX_TS_RECORD	pTxTs = from_timer(pTxTs, t, TsAddBaTimer);
 	u8 num = pTxTs->num;
 	struct ieee80211_device *ieee = container_of(pTxTs, struct ieee80211_device, TxTsRecord[num]);
 
@@ -145,16 +146,15 @@ void TSInitialize(struct ieee80211_device *ieee)
 		pTxTS->num = count;
 		// The timers for the operation of Traffic Stream and Block Ack.
 		// DLS related timer will be add here in the future!!
-		setup_timer(&pTxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
-			    (unsigned long)pTxTS);
-		setup_timer(&pTxTS->TsCommonInfo.InactTimer, TsInactTimeout,
-			    (unsigned long)pTxTS);
-		setup_timer(&pTxTS->TsAddBaTimer, TsAddBaProcess,
-			    (unsigned long)pTxTS);
-		setup_timer(&pTxTS->TxPendingBARecord.Timer, BaSetupTimeOut,
-			    (unsigned long)pTxTS);
-		setup_timer(&pTxTS->TxAdmittedBARecord.Timer,
-			    TxBaInactTimeout, (unsigned long)pTxTS);
+		timer_setup(&pTxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
+			    0);
+		timer_setup(&pTxTS->TsCommonInfo.InactTimer, TsInactTimeout,
+			    0);
+		timer_setup(&pTxTS->TsAddBaTimer, TsAddBaProcess, 0);
+		timer_setup(&pTxTS->TxPendingBARecord.Timer, BaSetupTimeOut,
+			    0);
+		timer_setup(&pTxTS->TxAdmittedBARecord.Timer,
+			    TxBaInactTimeout, 0);
 		ResetTxTsEntry(pTxTS);
 		list_add_tail(&pTxTS->TsCommonInfo.List, &ieee->Tx_TS_Unused_List);
 		pTxTS++;
@@ -167,14 +167,13 @@ void TSInitialize(struct ieee80211_device *ieee)
 	for(count = 0; count < TOTAL_TS_NUM; count++) {
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
-		setup_timer(&pRxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
-			    (unsigned long)pRxTS);
-		setup_timer(&pRxTS->TsCommonInfo.InactTimer, TsInactTimeout,
-			    (unsigned long)pRxTS);
-		setup_timer(&pRxTS->RxAdmittedBARecord.Timer,
-			    RxBaInactTimeout, (unsigned long)pRxTS);
-		setup_timer(&pRxTS->RxPktPendingTimer, RxPktPendingTimeout,
-			    (unsigned long)pRxTS);
+		timer_setup(&pRxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
+			    0);
+		timer_setup(&pRxTS->TsCommonInfo.InactTimer, TsInactTimeout,
+			    0);
+		timer_setup(&pRxTS->RxAdmittedBARecord.Timer,
+			    RxBaInactTimeout, 0);
+		timer_setup(&pRxTS->RxPktPendingTimer, RxPktPendingTimeout, 0);
 		ResetRxTsEntry(pRxTS);
 		list_add_tail(&pRxTS->TsCommonInfo.List, &ieee->Rx_TS_Unused_List);
 		pRxTS++;

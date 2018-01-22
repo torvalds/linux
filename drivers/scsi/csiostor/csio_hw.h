@@ -368,6 +368,9 @@ struct csio_hw_stats {
 #define	CSIO_HWF_HOST_INTR_ENABLED	0x00000200	/* Are host interrupts
 							 * enabled?
 							 */
+#define CSIO_HWF_ROOT_NO_RELAXED_ORDERING 0x00000400	/* Is PCIe relaxed
+							 * ordering enabled
+							 */
 
 #define csio_is_hw_intr_enabled(__hw)	\
 				((__hw)->flags & CSIO_HWF_HW_INTR_ENABLED)
@@ -465,7 +468,7 @@ struct csio_hw {
 	struct csio_pport	pport[CSIO_MAX_PPORTS];	/* Ports (XGMACs) */
 	struct csio_hw_params	params;			/* Hw parameters */
 
-	struct pci_pool		*scsi_pci_pool;		/* PCI pool for SCSI */
+	struct dma_pool		*scsi_dma_pool;		/* DMA pool for SCSI */
 	mempool_t		*mb_mempool;		/* Mailbox memory pool*/
 	mempool_t		*rnode_mempool;		/* rnode memory pool */
 

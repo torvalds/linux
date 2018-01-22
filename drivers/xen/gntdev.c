@@ -380,10 +380,8 @@ static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
 		}
 		range = 0;
 		while (range < pages) {
-			if (map->unmap_ops[offset+range].handle == -1) {
-				range--;
+			if (map->unmap_ops[offset+range].handle == -1)
 				break;
-			}
 			range++;
 		}
 		err = __unmap_grant_pages(map, offset, range);
@@ -1024,6 +1022,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	mutex_unlock(&priv->lock);
 
 	if (use_ptemod) {
+		map->pages_vm_start = vma->vm_start;
 		err = apply_to_page_range(vma->vm_mm, vma->vm_start,
 					  vma->vm_end - vma->vm_start,
 					  find_grant_ptes, map);
@@ -1061,7 +1060,6 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 					    set_grant_ptes_as_special, NULL);
 		}
 #endif
-		map->pages_vm_start = vma->vm_start;
 	}
 
 	return 0;
@@ -1073,8 +1071,10 @@ unlock_out:
 out_unlock_put:
 	mutex_unlock(&priv->lock);
 out_put_map:
-	if (use_ptemod)
+	if (use_ptemod) {
 		map->vma = NULL;
+		unmap_grant_pages(map, 0, map->count);
+	}
 	gntdev_put_map(priv, map);
 	return err;
 }

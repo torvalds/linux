@@ -43,6 +43,7 @@
 #include "usnic_ib_qp_grp.h"
 #include "usnic_vnic.h"
 #include "usnic_ib_verbs.h"
+#include "usnic_ib_sysfs.h"
 #include "usnic_log.h"
 #include "usnic_ib_sysfs.h"
 

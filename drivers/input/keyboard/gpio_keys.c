@@ -353,7 +353,7 @@ static struct attribute *gpio_keys_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group gpio_keys_attr_group = {
+static const struct attribute_group gpio_keys_attr_group = {
 	.attrs = gpio_keys_attrs,
 };
 
@@ -419,9 +419,9 @@ static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void gpio_keys_irq_timer(unsigned long _data)
+static void gpio_keys_irq_timer(struct timer_list *t)
 {
-	struct gpio_button_data *bdata = (struct gpio_button_data *)_data;
+	struct gpio_button_data *bdata = from_timer(bdata, t, release_timer);
 	struct input_dev *input = bdata->input;
 	unsigned long flags;
 
@@ -582,8 +582,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		}
 
 		bdata->release_delay = button->debounce_interval;
-		setup_timer(&bdata->release_timer,
-			    gpio_keys_irq_timer, (unsigned long)bdata);
+		timer_setup(&bdata->release_timer, gpio_keys_irq_timer, 0);
 
 		isr = gpio_keys_irq_isr;
 		irqflags = 0;
@@ -827,7 +826,7 @@ static int gpio_keys_probe(struct platform_device *pdev)
 
 	fwnode_handle_put(child);
 
-	error = sysfs_create_group(&dev->kobj, &gpio_keys_attr_group);
+	error = devm_device_add_group(dev, &gpio_keys_attr_group);
 	if (error) {
 		dev_err(dev, "Unable to export keys/switches, error: %d\n",
 			error);
@@ -838,21 +837,10 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(dev, "Unable to register input device, error: %d\n",
 			error);
-		goto err_remove_group;
+		return error;
 	}
 
 	device_init_wakeup(dev, wakeup);
-
-	return 0;
-
-err_remove_group:
-	sysfs_remove_group(&dev->kobj, &gpio_keys_attr_group);
-	return error;
-}
-
-static int gpio_keys_remove(struct platform_device *pdev)
-{
-	sysfs_remove_group(&pdev->dev.kobj, &gpio_keys_attr_group);
 
 	return 0;
 }
@@ -912,7 +900,6 @@ static SIMPLE_DEV_PM_OPS(gpio_keys_pm_ops, gpio_keys_suspend, gpio_keys_resume);
 
 static struct platform_driver gpio_keys_device_driver = {
 	.probe		= gpio_keys_probe,
-	.remove		= gpio_keys_remove,
 	.driver		= {
 		.name	= "gpio-keys",
 		.pm	= &gpio_keys_pm_ops,

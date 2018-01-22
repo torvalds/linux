@@ -221,7 +221,7 @@ static void pl061_irq_handler(struct irq_desc *desc)
 	pending = readb(pl061->base + GPIOMIS);
 	if (pending) {
 		for_each_set_bit(offset, &pending, PL061_GPIO_NR)
-			generic_handle_irq(irq_find_mapping(gc->irqdomain,
+			generic_handle_irq(irq_find_mapping(gc->irq.domain,
 							    offset));
 	}
 
@@ -405,7 +405,7 @@ static const struct dev_pm_ops pl061_dev_pm_ops = {
 };
 #endif
 
-static struct amba_id pl061_ids[] = {
+static const struct amba_id pl061_ids[] = {
 	{
 		.id	= 0x00041061,
 		.mask	= 0x000fffff,

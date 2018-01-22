@@ -28,8 +28,6 @@
 #include <linux/netfilter_ipv4/ip_tables.h>
 
 
-#define IPT_TAB_MASK     15
-
 static unsigned int ipt_net_id;
 static struct tc_action_ops act_ipt_ops;
 
@@ -118,33 +116,33 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 	if (tb[TCA_IPT_INDEX] != NULL)
 		index = nla_get_u32(tb[TCA_IPT_INDEX]);
 
-	exists = tcf_hash_check(tn, index, a, bind);
+	exists = tcf_idr_check(tn, index, a, bind);
 	if (exists && bind)
 		return 0;
 
 	if (tb[TCA_IPT_HOOK] == NULL || tb[TCA_IPT_TARG] == NULL) {
 		if (exists)
-			tcf_hash_release(*a, bind);
+			tcf_idr_release(*a, bind);
 		return -EINVAL;
 	}
 
 	td = (struct xt_entry_target *)nla_data(tb[TCA_IPT_TARG]);
 	if (nla_len(tb[TCA_IPT_TARG]) < td->u.target_size) {
 		if (exists)
-			tcf_hash_release(*a, bind);
+			tcf_idr_release(*a, bind);
 		return -EINVAL;
 	}
 
 	if (!exists) {
-		ret = tcf_hash_create(tn, index, est, a, ops, bind,
-				      false);
+		ret = tcf_idr_create(tn, index, est, a, ops, bind,
+				     false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
 		if (bind)/* dont override defaults */
 			return 0;
-		tcf_hash_release(*a, bind);
+		tcf_idr_release(*a, bind);
 
 		if (!ovr)
 			return -EEXIST;
@@ -180,7 +178,7 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 	ipt->tcfi_hook  = hook;
 	spin_unlock_bh(&ipt->tcf_lock);
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(tn, *a);
+		tcf_idr_insert(tn, *a);
 	return ret;
 
 err3:
@@ -189,7 +187,7 @@ err2:
 	kfree(tname);
 err1:
 	if (ret == ACT_P_CREATED)
-		tcf_hash_cleanup(*a, est);
+		tcf_idr_cleanup(*a, est);
 	return err;
 }
 
@@ -316,7 +314,7 @@ static int tcf_ipt_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, ipt_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 static struct tc_action_ops act_ipt_ops = {
@@ -336,7 +334,7 @@ static __net_init int ipt_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, ipt_net_id);
 
-	return tc_action_net_init(tn, &act_ipt_ops, IPT_TAB_MASK);
+	return tc_action_net_init(tn, &act_ipt_ops);
 }
 
 static void __net_exit ipt_exit_net(struct net *net)
@@ -366,7 +364,7 @@ static int tcf_xt_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, xt_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 static struct tc_action_ops act_xt_ops = {
@@ -386,7 +384,7 @@ static __net_init int xt_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, xt_net_id);
 
-	return tc_action_net_init(tn, &act_xt_ops, IPT_TAB_MASK);
+	return tc_action_net_init(tn, &act_xt_ops);
 }
 
 static void __net_exit xt_exit_net(struct net *net)

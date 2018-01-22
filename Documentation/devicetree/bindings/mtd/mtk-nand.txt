@@ -131,7 +131,7 @@ Example:
 				read-only;
 				reg = <0x00000000 0x00400000>;
 			};
-			android@0x00400000 {
+			android@00400000 {
 				label = "android";
 				reg = <0x00400000 0x12c00000>;
 			};

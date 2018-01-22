@@ -411,13 +411,6 @@ pcibios_disable_device (struct pci_dev *dev)
 		acpi_pci_irq_disable(dev);
 }
 
-resource_size_t
-pcibios_align_resource (void *data, const struct resource *res,
-		        resource_size_t size, resource_size_t align)
-{
-	return res->start;
-}
-
 /**
  * ia64_pci_get_legacy_mem - generic legacy mem routine
  * @bus: bus to get legacy memory base address for

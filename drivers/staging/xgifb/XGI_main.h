@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XGIFB_MAIN
 #define _XGIFB_MAIN
 /* ------------------- Constant Definitions ------------------------- */

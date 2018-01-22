@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __IEEE802154_NL802154_H
 #define __IEEE802154_NL802154_H
 

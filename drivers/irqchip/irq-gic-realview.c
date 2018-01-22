@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Special GIC quirks for the ARM RealView
  * Copyright (C) 2015 Linus Walleij

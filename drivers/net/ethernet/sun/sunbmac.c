@@ -523,9 +523,9 @@ static int try_next_permutation(struct bigmac *bp, void __iomem *tregs)
 	return -1;
 }
 
-static void bigmac_timer(unsigned long data)
+static void bigmac_timer(struct timer_list *t)
 {
-	struct bigmac *bp = (struct bigmac *) data;
+	struct bigmac *bp = from_timer(bp, t, bigmac_timer);
 	void __iomem *tregs = bp->tregs;
 	int restart_timer = 0;
 
@@ -613,8 +613,6 @@ static void bigmac_begin_auto_negotiation(struct bigmac *bp)
 	bp->timer_state = ltrywait;
 	bp->timer_ticks = 0;
 	bp->bigmac_timer.expires = jiffies + (12 * HZ) / 10;
-	bp->bigmac_timer.data = (unsigned long) bp;
-	bp->bigmac_timer.function = bigmac_timer;
 	add_timer(&bp->bigmac_timer);
 }
 
@@ -921,7 +919,7 @@ static int bigmac_open(struct net_device *dev)
 		printk(KERN_ERR "BIGMAC: Can't order irq %d to go.\n", dev->irq);
 		return ret;
 	}
-	init_timer(&bp->bigmac_timer);
+	timer_setup(&bp->bigmac_timer, bigmac_timer, 0);
 	ret = bigmac_init_hw(bp, 0);
 	if (ret)
 		free_irq(dev->irq, bp);
@@ -1172,7 +1170,7 @@ static int bigmac_ether_init(struct platform_device *op,
 					      "board-version", 1);
 
 	/* Init auto-negotiation timer state. */
-	init_timer(&bp->bigmac_timer);
+	timer_setup(&bp->bigmac_timer, bigmac_timer, 0);
 	bp->timer_state = asleep;
 	bp->timer_ticks = 0;
 

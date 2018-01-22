@@ -210,8 +210,6 @@ struct ath10k_sdio {
 	/* temporary buffer for BMI requests */
 	u8 *bmi_buf;
 
-	wait_queue_head_t irq_wq;
-
 	bool is_disabled;
 
 	struct workqueue_struct *workqueue;

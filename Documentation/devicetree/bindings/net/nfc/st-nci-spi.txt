@@ -19,7 +19,6 @@ Example (for ARM-based BeagleBoard xM with ST21NFCB on SPI4):
 
 &mcspi4 {
 
-	status = "okay";
 
 	st21nfcb: st21nfcb@0 {
 

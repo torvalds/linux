@@ -418,7 +418,7 @@ static int video_set_report_key_events(const struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id video_dmi_table[] = {
+static const struct dmi_system_id video_dmi_table[] = {
 	/*
 	 * Broken _BQC workaround http://bugzilla.kernel.org/show_bug.cgi?id=13121
 	 */

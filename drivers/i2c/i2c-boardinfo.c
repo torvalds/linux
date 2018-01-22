@@ -86,6 +86,7 @@ int i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsig
 					property_entries_dup(info->properties);
 			if (IS_ERR(devinfo->board_info.properties)) {
 				status = PTR_ERR(devinfo->board_info.properties);
+				kfree(devinfo);
 				break;
 			}
 		}
@@ -98,6 +99,7 @@ int i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsig
 					GFP_KERNEL);
 			if (!devinfo->board_info.resources) {
 				status = -ENOMEM;
+				kfree(devinfo);
 				break;
 			}
 		}

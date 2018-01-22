@@ -282,7 +282,7 @@ static void stop_streaming(struct vb2_queue *vq)
  * vb2_ops_wait_prepare/finish helper functions. If q->lock would be NULL,
  * then this driver would have to provide these ops.
  */
-static struct vb2_ops skel_qops = {
+static const struct vb2_ops skel_qops = {
 	.queue_setup		= queue_setup,
 	.buf_prepare		= buffer_prepare,
 	.buf_queue		= buffer_queue,
@@ -772,8 +772,10 @@ static int skeleton_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Allocate a new instance */
 	skel = devm_kzalloc(&pdev->dev, sizeof(struct skeleton), GFP_KERNEL);
-	if (!skel)
-		return -ENOMEM;
+	if (!skel) {
+		ret = -ENOMEM;
+		goto disable_pci;
+	}
 
 	/* Allocate the interrupt */
 	ret = devm_request_irq(&pdev->dev, pdev->irq,

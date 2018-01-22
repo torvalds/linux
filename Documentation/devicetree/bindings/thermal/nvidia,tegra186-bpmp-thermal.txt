@@ -1,0 +1,32 @@
+NVIDIA Tegra186 BPMP thermal sensor
+
+In Tegra186, the BPMP (Boot and Power Management Processor) implements an
+interface that is used to read system temperatures, including CPU cluster
+and GPU temperatures. This binding describes the thermal sensor that is
+exposed by BPMP.
+
+The BPMP thermal node must be located directly inside the main BPMP node. See
+../firmware/nvidia,tegra186-bpmp.txt for details of the BPMP binding.
+
+This node represents a thermal sensor. See thermal.txt for details of the
+core thermal binding.
+
+Required properties:
+- compatible:
+    Array of strings.
+    One of:
+    - "nvidia,tegra186-bpmp-thermal".
+- #thermal-sensor-cells: Cell for sensor index.
+    Single-cell integer.
+    Must be <1>.
+
+Example:
+
+bpmp {
+	...
+
+	bpmp_thermal: thermal {
+		compatible = "nvidia,tegra186-bpmp-thermal";
+		#thermal-sensor-cells = <1>;
+	};
+};

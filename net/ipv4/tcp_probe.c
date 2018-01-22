@@ -105,8 +105,9 @@ static inline int tcp_probe_avail(void)
  * Note: arguments must match tcp_rcv_established()!
  */
 static void jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
-				 const struct tcphdr *th, unsigned int len)
+				 const struct tcphdr *th)
 {
+	unsigned int len = skb->len;
 	const struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_sock *inet = inet_sk(sk);
 
@@ -145,7 +146,7 @@ static void jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				BUG();
 			}
 
-			p->length = skb->len;
+			p->length = len;
 			p->snd_nxt = tp->snd_nxt;
 			p->snd_una = tp->snd_una;
 			p->snd_cwnd = tp->snd_cwnd;

@@ -185,6 +185,13 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 		ucmsg = cmsg_compat_nxthdr(kmsg, ucmsg, ucmlen);
 	}
 
+	/*
+	 * check the length of messages copied in is the same as the
+	 * what we get from the first loop
+	 */
+	if ((char *)kcmsg - (char *)kcmsg_base != kcmlen)
+		goto Einval;
+
 	/* Ok, looks like we made it.  Hook it up and return success. */
 	kmsg->msg_control = kcmsg_base;
 	kmsg->msg_controllen = kcmlen;

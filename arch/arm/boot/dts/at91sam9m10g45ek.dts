@@ -166,6 +166,10 @@
 				status = "okay";
 			};
 
+			ac97: sound@fffac000 {
+				status = "okay";
+			};
+
 			adc0: adc@fffb0000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <
@@ -286,14 +290,14 @@
 			};
 		};
 
-		usb0: ohci@00700000 {
+		usb0: ohci@700000 {
 			status = "okay";
 			num-ports = <2>;
 			atmel,vbus-gpio = <&pioD 1 GPIO_ACTIVE_LOW
 					   &pioD 3 GPIO_ACTIVE_LOW>;
 		};
 
-		usb1: ehci@00800000 {
+		usb1: ehci@800000 {
 			status = "okay";
 		};
 	};

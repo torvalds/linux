@@ -21,5 +21,4 @@ Example:
 		flt-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
 		chg-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
 		cen-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
-		status = "okay";
 	};

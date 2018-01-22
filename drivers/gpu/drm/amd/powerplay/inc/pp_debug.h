@@ -42,6 +42,12 @@
 		}				\
 	} while (0)
 
+#define PP_ASSERT(cond, msg)	\
+	do {					\
+		if (!(cond)) {			\
+			pr_warn("%s\n", msg);	\
+		}				\
+	} while (0)
 
 #define PP_DBG_LOG(fmt, ...) \
 	do { \

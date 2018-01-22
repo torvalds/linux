@@ -296,12 +296,14 @@ int xfrm_unregister_type_offload(const struct xfrm_type_offload *type,
 }
 EXPORT_SYMBOL(xfrm_unregister_type_offload);
 
-static const struct xfrm_type_offload *xfrm_get_type_offload(u8 proto, unsigned short family)
+static const struct xfrm_type_offload *
+xfrm_get_type_offload(u8 proto, unsigned short family, bool try_load)
 {
 	struct xfrm_state_afinfo *afinfo;
 	const struct xfrm_type_offload **typemap;
 	const struct xfrm_type_offload *type;
 
+retry:
 	afinfo = xfrm_state_get_afinfo(family);
 	if (unlikely(afinfo == NULL))
 		return NULL;
@@ -310,6 +312,12 @@ static const struct xfrm_type_offload *xfrm_get_type_offload(u8 proto, unsigned 
 	type = typemap[proto];
 	if ((type && !try_module_get(type->owner)))
 		type = NULL;
+
+	if (!type && try_load) {
+		request_module("xfrm-offload-%d-%d", family, proto);
+		try_load = 0;
+		goto retry;
+	}
 
 	rcu_read_unlock();
 	return type;
@@ -548,7 +556,7 @@ out:
 	return HRTIMER_NORESTART;
 }
 
-static void xfrm_replay_timer_handler(unsigned long data);
+static void xfrm_replay_timer_handler(struct timer_list *t);
 
 struct xfrm_state *xfrm_state_alloc(struct net *net)
 {
@@ -566,8 +574,7 @@ struct xfrm_state *xfrm_state_alloc(struct net *net)
 		INIT_HLIST_NODE(&x->byspi);
 		tasklet_hrtimer_init(&x->mtimer, xfrm_timer_handler,
 					CLOCK_BOOTTIME, HRTIMER_MODE_ABS);
-		setup_timer(&x->rtimer, xfrm_replay_timer_handler,
-				(unsigned long)x);
+		timer_setup(&x->rtimer, xfrm_replay_timer_handler, 0);
 		x->curlft.add_time = get_seconds();
 		x->lft.soft_byte_limit = XFRM_INF;
 		x->lft.soft_packet_limit = XFRM_INF;
@@ -724,11 +731,12 @@ restart:
 			}
 		}
 	}
-	if (cnt)
-		err = 0;
-
 out:
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
+	if (cnt) {
+		err = 0;
+		xfrm_policy_cache_flush();
+	}
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_flush);
@@ -1335,6 +1343,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
 
 	if (orig->aead) {
 		x->aead = xfrm_algo_aead_clone(orig->aead);
+		x->geniv = orig->geniv;
 		if (!x->aead)
 			goto error;
 	}
@@ -1870,9 +1879,9 @@ void xfrm_state_walk_done(struct xfrm_state_walk *walk, struct net *net)
 }
 EXPORT_SYMBOL(xfrm_state_walk_done);
 
-static void xfrm_replay_timer_handler(unsigned long data)
+static void xfrm_replay_timer_handler(struct timer_list *t)
 {
-	struct xfrm_state *x = (struct xfrm_state *)data;
+	struct xfrm_state *x = from_timer(x, t, rtimer);
 
 	spin_lock(&x->lock);
 
@@ -2060,6 +2069,7 @@ int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen
 	if (err >= 0) {
 		xfrm_sk_policy_insert(sk, err, pol);
 		xfrm_pol_put(pol);
+		__sk_dst_reset(sk);
 		err = 0;
 	}
 
@@ -2172,7 +2182,7 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 	return mtu - x->props.header_len;
 }
 
-int __xfrm_init_state(struct xfrm_state *x, bool init_replay)
+int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 {
 	struct xfrm_state_afinfo *afinfo;
 	struct xfrm_mode *inner_mode;
@@ -2237,7 +2247,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay)
 	if (x->type == NULL)
 		goto error;
 
-	x->type_offload = xfrm_get_type_offload(x->id.proto, family);
+	x->type_offload = xfrm_get_type_offload(x->id.proto, family, offload);
 
 	err = x->type->init_state(x);
 	if (err)
@@ -2265,7 +2275,7 @@ EXPORT_SYMBOL(__xfrm_init_state);
 
 int xfrm_init_state(struct xfrm_state *x)
 {
-	return __xfrm_init_state(x, true);
+	return __xfrm_init_state(x, true, false);
 }
 
 EXPORT_SYMBOL(xfrm_init_state);

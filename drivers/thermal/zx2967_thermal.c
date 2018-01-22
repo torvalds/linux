@@ -111,7 +111,7 @@ unlock:
 	return ret;
 }
 
-static struct thermal_zone_of_device_ops zx2967_of_thermal_ops = {
+static const struct thermal_zone_of_device_ops zx2967_of_thermal_ops = {
 	.get_temp = zx2967_thermal_get_temp,
 };
 

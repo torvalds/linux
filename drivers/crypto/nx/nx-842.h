@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __NX_842_H__
 #define __NX_842_H__
@@ -76,9 +77,17 @@
 #define CSB_CC_DECRYPT_OVERFLOW	(64)
 /* asym crypt codes */
 #define CSB_CC_MINV_OVERFLOW	(128)
+/*
+ * HW error - Job did not finish in the maximum time allowed.
+ * Job terminated.
+ */
+#define CSB_CC_HW_EXPIRED_TIMER		(224)
 /* These are reserved for hypervisor use */
 #define CSB_CC_HYP_RESERVE_START	(240)
 #define CSB_CC_HYP_RESERVE_END		(253)
+#define CSB_CC_HYP_RESERVE_P9_END	(251)
+/* No valid interrupt server (P9 or later). */
+#define CSB_CC_HYP_RESERVE_NO_INTR_SERVER	(252)
 #define CSB_CC_HYP_NO_HW		(254)
 #define CSB_CC_HYP_HANG_ABORTED		(255)
 
@@ -99,11 +108,6 @@ static inline unsigned long nx842_get_pa(void *addr)
 
 	return page_to_phys(vmalloc_to_page(addr)) + offset_in_page(addr);
 }
-
-/* Get/Set bit fields */
-#define MASK_LSH(m)		(__builtin_ffsl(m) - 1)
-#define GET_FIELD(v, m)		(((v) & (m)) >> MASK_LSH(m))
-#define SET_FIELD(v, m, val)	(((v) & ~(m)) | (((val) << MASK_LSH(m)) & (m)))
 
 /**
  * This provides the driver's constraints.  Different nx842 implementations

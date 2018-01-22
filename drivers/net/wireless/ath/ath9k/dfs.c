@@ -326,7 +326,7 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 	if (ard.ext_rssi & 0x80)
 		ard.ext_rssi = 0;
 
-	vdata_end = (char *)data + datalen;
+	vdata_end = data + datalen;
 	ard.pulse_bw_info = vdata_end[-1];
 	ard.pulse_length_ext = vdata_end[-2];
 	ard.pulse_length_pri = vdata_end[-3];

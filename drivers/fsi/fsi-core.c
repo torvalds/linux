@@ -185,7 +185,7 @@ static int fsi_slave_calc_addr(struct fsi_slave *slave, uint32_t *addrp,
 	return 0;
 }
 
-int fsi_slave_report_and_clear_errors(struct fsi_slave *slave)
+static int fsi_slave_report_and_clear_errors(struct fsi_slave *slave)
 {
 	struct fsi_master *master = slave->master;
 	uint32_t irq, stat;
@@ -215,8 +215,8 @@ int fsi_slave_report_and_clear_errors(struct fsi_slave *slave)
 
 static int fsi_slave_set_smode(struct fsi_master *master, int link, int id);
 
-int fsi_slave_handle_error(struct fsi_slave *slave, bool write, uint32_t addr,
-		size_t size)
+static int fsi_slave_handle_error(struct fsi_slave *slave, bool write,
+				  uint32_t addr, size_t size)
 {
 	struct fsi_master *master = slave->master;
 	int rc, link;
@@ -475,7 +475,7 @@ static ssize_t fsi_slave_sysfs_raw_write(struct file *file,
 	return count;
 }
 
-static struct bin_attribute fsi_slave_raw_attr = {
+static const struct bin_attribute fsi_slave_raw_attr = {
 	.attr = {
 		.name = "raw",
 		.mode = 0600,
@@ -499,7 +499,7 @@ static ssize_t fsi_slave_sysfs_term_write(struct file *file,
 	return count;
 }
 
-static struct bin_attribute fsi_slave_term_attr = {
+static const struct bin_attribute fsi_slave_term_attr = {
 	.attr = {
 		.name = "term",
 		.mode = 0200,

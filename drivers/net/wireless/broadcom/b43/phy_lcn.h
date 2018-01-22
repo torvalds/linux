@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef B43_PHY_LCN_H_
 #define B43_PHY_LCN_H_
 

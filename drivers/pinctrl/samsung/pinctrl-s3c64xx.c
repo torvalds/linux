@@ -280,7 +280,7 @@ static void s3c64xx_irq_set_function(struct samsung_pinctrl_drv_data *d,
 	u32 val;
 
 	/* Make sure that pin is configured as interrupt */
-	reg = bank->pctl_base + bank->pctl_offset;
+	reg = d->virt_base + bank->pctl_offset;
 	shift = pin;
 	if (bank_type->fld_width[PINCFG_TYPE_FUNC] * shift >= 32) {
 		/* 4-bit bank type with 2 con regs */
@@ -308,8 +308,9 @@ static void s3c64xx_irq_set_function(struct samsung_pinctrl_drv_data *d,
 static inline void s3c64xx_gpio_irq_set_mask(struct irq_data *irqd, bool mask)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	unsigned char index = EINT_OFFS(bank->eint_offset) + irqd->hwirq;
-	void __iomem *reg = bank->eint_base + EINTMASK_REG(bank->eint_offset);
+	void __iomem *reg = d->virt_base + EINTMASK_REG(bank->eint_offset);
 	u32 val;
 
 	val = readl(reg);
@@ -333,8 +334,9 @@ static void s3c64xx_gpio_irq_mask(struct irq_data *irqd)
 static void s3c64xx_gpio_irq_ack(struct irq_data *irqd)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	unsigned char index = EINT_OFFS(bank->eint_offset) + irqd->hwirq;
-	void __iomem *reg = bank->eint_base + EINTPEND_REG(bank->eint_offset);
+	void __iomem *reg = d->virt_base + EINTPEND_REG(bank->eint_offset);
 
 	writel(1 << index, reg);
 }
@@ -357,7 +359,7 @@ static int s3c64xx_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 	s3c64xx_irq_set_handler(irqd, type);
 
 	/* Set up interrupt trigger */
-	reg = bank->eint_base + EINTCON_REG(bank->eint_offset);
+	reg = d->virt_base + EINTCON_REG(bank->eint_offset);
 	shift = EINT_OFFS(bank->eint_offset) + irqd->hwirq;
 	shift = 4 * (shift / 4); /* 4 EINTs per trigger selector */
 
@@ -409,8 +411,7 @@ static void s3c64xx_eint_gpio_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct s3c64xx_eint_gpio_data *data = irq_desc_get_handler_data(desc);
-	struct irq_data *irqd = irq_desc_get_irq_data(desc);
-	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *drvdata = data->drvdata;
 
 	chained_irq_enter(chip, desc);
 
@@ -420,7 +421,7 @@ static void s3c64xx_eint_gpio_irq(struct irq_desc *desc)
 		unsigned int pin;
 		unsigned int virq;
 
-		svc = readl(bank->eint_base + SERVICE_REG);
+		svc = readl(drvdata->virt_base + SERVICE_REG);
 		group = SVC_GROUP(svc);
 		pin = svc & SVC_NUM_MASK;
 
@@ -515,15 +516,15 @@ static inline void s3c64xx_eint0_irq_set_mask(struct irq_data *irqd, bool mask)
 {
 	struct s3c64xx_eint0_domain_data *ddata =
 					irq_data_get_irq_chip_data(irqd);
-	struct samsung_pin_bank *bank = ddata->bank;
+	struct samsung_pinctrl_drv_data *d = ddata->bank->drvdata;
 	u32 val;
 
-	val = readl(bank->eint_base + EINT0MASK_REG);
+	val = readl(d->virt_base + EINT0MASK_REG);
 	if (mask)
 		val |= 1 << ddata->eints[irqd->hwirq];
 	else
 		val &= ~(1 << ddata->eints[irqd->hwirq]);
-	writel(val, bank->eint_base + EINT0MASK_REG);
+	writel(val, d->virt_base + EINT0MASK_REG);
 }
 
 static void s3c64xx_eint0_irq_unmask(struct irq_data *irqd)
@@ -540,10 +541,10 @@ static void s3c64xx_eint0_irq_ack(struct irq_data *irqd)
 {
 	struct s3c64xx_eint0_domain_data *ddata =
 					irq_data_get_irq_chip_data(irqd);
-	struct samsung_pin_bank *bank = ddata->bank;
+	struct samsung_pinctrl_drv_data *d = ddata->bank->drvdata;
 
 	writel(1 << ddata->eints[irqd->hwirq],
-					bank->eint_base + EINT0PEND_REG);
+					d->virt_base + EINT0PEND_REG);
 }
 
 static int s3c64xx_eint0_irq_set_type(struct irq_data *irqd, unsigned int type)
@@ -551,7 +552,7 @@ static int s3c64xx_eint0_irq_set_type(struct irq_data *irqd, unsigned int type)
 	struct s3c64xx_eint0_domain_data *ddata =
 					irq_data_get_irq_chip_data(irqd);
 	struct samsung_pin_bank *bank = ddata->bank;
-	struct samsung_pinctrl_drv_data *d = ddata->bank->drvdata;
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	void __iomem *reg;
 	int trigger;
 	u8 shift;
@@ -566,7 +567,7 @@ static int s3c64xx_eint0_irq_set_type(struct irq_data *irqd, unsigned int type)
 	s3c64xx_irq_set_handler(irqd, type);
 
 	/* Set up interrupt trigger */
-	reg = bank->eint_base + EINT0CON0_REG;
+	reg = d->virt_base + EINT0CON0_REG;
 	shift = ddata->eints[irqd->hwirq];
 	if (shift >= EINT_MAX_PER_REG) {
 		reg += 4;
@@ -598,19 +599,14 @@ static struct irq_chip s3c64xx_eint0_irq_chip = {
 static inline void s3c64xx_irq_demux_eint(struct irq_desc *desc, u32 range)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct irq_data *irqd = irq_desc_get_irq_data(desc);
-	struct s3c64xx_eint0_domain_data *ddata =
-					irq_data_get_irq_chip_data(irqd);
-	struct samsung_pin_bank *bank = ddata->bank;
-
 	struct s3c64xx_eint0_data *data = irq_desc_get_handler_data(desc);
-
+	struct samsung_pinctrl_drv_data *drvdata = data->drvdata;
 	unsigned int pend, mask;
 
 	chained_irq_enter(chip, desc);
 
-	pend = readl(bank->eint_base + EINT0PEND_REG);
-	mask = readl(bank->eint_base + EINT0MASK_REG);
+	pend = readl(drvdata->virt_base + EINT0PEND_REG);
+	mask = readl(drvdata->virt_base + EINT0MASK_REG);
 
 	pend = pend & range & ~mask;
 	pend &= range;

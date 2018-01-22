@@ -342,6 +342,63 @@ static void cik_sdma_rlc_stop(struct amdgpu_device *adev)
 }
 
 /**
+ * cik_ctx_switch_enable - stop the async dma engines context switch
+ *
+ * @adev: amdgpu_device pointer
+ * @enable: enable/disable the DMA MEs context switch.
+ *
+ * Halt or unhalt the async dma engines context switch (VI).
+ */
+static void cik_ctx_switch_enable(struct amdgpu_device *adev, bool enable)
+{
+	u32 f32_cntl, phase_quantum = 0;
+	int i;
+
+	if (amdgpu_sdma_phase_quantum) {
+		unsigned value = amdgpu_sdma_phase_quantum;
+		unsigned unit = 0;
+
+		while (value > (SDMA0_PHASE0_QUANTUM__VALUE_MASK >>
+				SDMA0_PHASE0_QUANTUM__VALUE__SHIFT)) {
+			value = (value + 1) >> 1;
+			unit++;
+		}
+		if (unit > (SDMA0_PHASE0_QUANTUM__UNIT_MASK >>
+			    SDMA0_PHASE0_QUANTUM__UNIT__SHIFT)) {
+			value = (SDMA0_PHASE0_QUANTUM__VALUE_MASK >>
+				 SDMA0_PHASE0_QUANTUM__VALUE__SHIFT);
+			unit = (SDMA0_PHASE0_QUANTUM__UNIT_MASK >>
+				SDMA0_PHASE0_QUANTUM__UNIT__SHIFT);
+			WARN_ONCE(1,
+			"clamping sdma_phase_quantum to %uK clock cycles\n",
+				  value << unit);
+		}
+		phase_quantum =
+			value << SDMA0_PHASE0_QUANTUM__VALUE__SHIFT |
+			unit  << SDMA0_PHASE0_QUANTUM__UNIT__SHIFT;
+	}
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		f32_cntl = RREG32(mmSDMA0_CNTL + sdma_offsets[i]);
+		if (enable) {
+			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
+					AUTO_CTXSW_ENABLE, 1);
+			if (amdgpu_sdma_phase_quantum) {
+				WREG32(mmSDMA0_PHASE0_QUANTUM + sdma_offsets[i],
+				       phase_quantum);
+				WREG32(mmSDMA0_PHASE1_QUANTUM + sdma_offsets[i],
+				       phase_quantum);
+			}
+		} else {
+			f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_CNTL,
+					AUTO_CTXSW_ENABLE, 0);
+		}
+
+		WREG32(mmSDMA0_CNTL + sdma_offsets[i], f32_cntl);
+	}
+}
+
+/**
  * cik_sdma_enable - stop the async dma engines
  *
  * @adev: amdgpu_device pointer
@@ -537,6 +594,8 @@ static int cik_sdma_start(struct amdgpu_device *adev)
 
 	/* halt the engine before programing */
 	cik_sdma_enable(adev, false);
+	/* enable sdma ring preemption */
+	cik_ctx_switch_enable(adev, true);
 
 	/* start the gfx rings and rlc compute queues */
 	r = cik_sdma_gfx_resume(adev);
@@ -984,6 +1043,7 @@ static int cik_sdma_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	cik_ctx_switch_enable(adev, false);
 	cik_sdma_enable(adev, false);
 
 	return 0;
@@ -1327,8 +1387,13 @@ static void cik_sdma_set_buffer_funcs(struct amdgpu_device *adev)
 }
 
 static const struct amdgpu_vm_pte_funcs cik_sdma_vm_pte_funcs = {
+	.copy_pte_num_dw = 7,
 	.copy_pte = cik_sdma_vm_copy_pte,
+
 	.write_pte = cik_sdma_vm_write_pte,
+
+	.set_max_nums_pte_pde = 0x1fffff >> 3,
+	.set_pte_pde_num_dw = 10,
 	.set_pte_pde = cik_sdma_vm_set_pte_pde,
 };
 

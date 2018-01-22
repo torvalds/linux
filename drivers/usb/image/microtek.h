@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
  /*
  * Driver for Microtek Scanmaker X6 USB scanner and possibly others.
  * 

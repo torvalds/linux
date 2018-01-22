@@ -704,7 +704,7 @@ static const struct v4l2_file_operations fimc_m2m_fops = {
 	.mmap		= v4l2_m2m_fop_mmap,
 };
 
-static struct v4l2_m2m_ops m2m_ops = {
+static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= fimc_device_run,
 	.job_abort	= fimc_job_abort,
 };

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/atomic.h>
 #include <linux/clk.h>
 #include <linux/delay.h>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* IA64-specific clocksource additions */
 
 #ifndef _ASM_IA64_CLOCKSOURCE_H

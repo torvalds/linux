@@ -140,7 +140,8 @@ MODULE_DEVICE_TABLE(usb, ath3k_table);
 
 #define BTUSB_ATH3012		0x80
 /* This table is to load patch and sysconfig files
- * for AR3012 */
+ * for AR3012
+ */
 static const struct usb_device_id ath3k_blist_tbl[] = {
 
 	/* Atheros AR3012 with sflash firmware*/

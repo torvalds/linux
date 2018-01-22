@@ -309,19 +309,14 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
 	case DRM_FORMAT_BGRA8888:
+	default:
 		val |= WINCONx_BPPMODE_32BPP_BGRA | WINCONx_BLD_PIX |
 			WINCONx_ALPHA_SEL;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
-	default:
-		DRM_DEBUG_KMS("invalid pixel size so using unpacked 24bpp.\n");
-
-		val |= WINCONx_BPPMODE_24BPP_xRGB;
-		val |= WINCONx_BURSTLEN_16WORD;
-		break;
 	}
 
-	DRM_DEBUG_KMS("bpp = %d\n", fb->format->cpp[0] * 8);
+	DRM_DEBUG_KMS("cpp = %d\n", fb->format->cpp[0]);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -398,7 +393,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	unsigned int last_x;
 	unsigned int last_y;
 	unsigned int win = plane->index;
-	unsigned int bpp = fb->format->cpp[0];
+	unsigned int cpp = fb->format->cpp[0];
 	unsigned int pitch = fb->pitches[0];
 
 	if (ctx->suspended)
@@ -418,7 +413,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	val = (unsigned long)exynos_drm_fb_dma_addr(fb, 0);
 	writel(val, ctx->regs + VIDW_BUF_START(win));
 
-	padding = (pitch / bpp) - fb->width;
+	padding = (pitch / cpp) - fb->width;
 
 	/* buffer size */
 	writel(fb->width + padding, ctx->regs + VIDW_WHOLE_X(win));

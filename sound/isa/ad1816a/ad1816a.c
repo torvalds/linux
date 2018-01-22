@@ -63,7 +63,7 @@ MODULE_PARM_DESC(enable, "Enable ad1816a based soundcard.");
 module_param_array(clockfreq, int, NULL, 0444);
 MODULE_PARM_DESC(clockfreq, "Clock frequency for ad1816a driver (default = 0).");
 
-static struct pnp_card_device_id snd_ad1816a_pnpids[] = {
+static const struct pnp_card_device_id snd_ad1816a_pnpids[] = {
 	/* Analog Devices AD1815 */
 	{ .id = "ADS7150", .devs = { { .id = "ADS7150" }, { .id = "ADS7151" } } },
 	/* Analog Device AD1816? */

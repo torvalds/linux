@@ -330,7 +330,8 @@ static unsigned int ipv4_synproxy_hook(void *priv,
 	if (synproxy == NULL)
 		return NF_ACCEPT;
 
-	if (nf_is_loopback_packet(skb))
+	if (nf_is_loopback_packet(skb) ||
+	    ip_hdr(skb)->protocol != IPPROTO_TCP)
 		return NF_ACCEPT;
 
 	thoff = ip_hdrlen(skb);
@@ -416,7 +417,7 @@ static unsigned int ipv4_synproxy_hook(void *priv,
 	return NF_ACCEPT;
 }
 
-static struct nf_hook_ops ipv4_synproxy_ops[] __read_mostly = {
+static const struct nf_hook_ops ipv4_synproxy_ops[] = {
 	{
 		.hook		= ipv4_synproxy_hook,
 		.pf		= NFPROTO_IPV4,

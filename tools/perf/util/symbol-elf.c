@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
@@ -259,7 +260,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
-	u64 plt_offset;
+	u64 plt_offset, plt_header_size, plt_entry_size;
 	GElf_Shdr shdr_plt;
 	struct symbol *f;
 	GElf_Shdr shdr_rel_plt, shdr_dynsym;
@@ -326,6 +327,23 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 
 	nr_rel_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
 	plt_offset = shdr_plt.sh_offset;
+	switch (ehdr.e_machine) {
+		case EM_ARM:
+			plt_header_size = 20;
+			plt_entry_size = 12;
+			break;
+
+		case EM_AARCH64:
+			plt_header_size = 32;
+			plt_entry_size = 16;
+			break;
+
+		default: /* FIXME: s390/alpha/mips/parisc/poperpc/sh/sparc/xtensa need to be checked */
+			plt_header_size = shdr_plt.sh_entsize;
+			plt_entry_size = shdr_plt.sh_entsize;
+			break;
+	}
+	plt_offset += plt_header_size;
 
 	if (shdr_rel_plt.sh_type == SHT_RELA) {
 		GElf_Rela pos_mem, *pos;
@@ -335,7 +353,6 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 			const char *elf_name = NULL;
 			char *demangled = NULL;
 			symidx = GELF_R_SYM(pos->r_info);
-			plt_offset += shdr_plt.sh_entsize;
 			gelf_getsym(syms, symidx, &sym);
 
 			elf_name = elf_sym__name(&sym, symstrs);
@@ -346,11 +363,12 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 				 "%s@plt", elf_name);
 			free(demangled);
 
-			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
+			f = symbol__new(plt_offset, plt_entry_size,
 					STB_GLOBAL, sympltname);
 			if (!f)
 				goto out_elf_end;
 
+			plt_offset += plt_entry_size;
 			symbols__insert(&dso->symbols[map->type], f);
 			++nr;
 		}
@@ -361,7 +379,6 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 			const char *elf_name = NULL;
 			char *demangled = NULL;
 			symidx = GELF_R_SYM(pos->r_info);
-			plt_offset += shdr_plt.sh_entsize;
 			gelf_getsym(syms, symidx, &sym);
 
 			elf_name = elf_sym__name(&sym, symstrs);
@@ -372,11 +389,12 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 				 "%s@plt", elf_name);
 			free(demangled);
 
-			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
+			f = symbol__new(plt_offset, plt_entry_size,
 					STB_GLOBAL, sympltname);
 			if (!f)
 				goto out_elf_end;
 
+			plt_offset += plt_entry_size;
 			symbols__insert(&dso->symbols[map->type], f);
 			++nr;
 		}
@@ -391,7 +409,7 @@ out_elf_end:
 	return 0;
 }
 
-char *dso__demangle_sym(struct dso *dso, int kmodule, char *elf_name)
+char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 {
 	return demangle_sym(dso, kmodule, elf_name);
 }
@@ -1442,7 +1460,7 @@ static int kcore_copy__parse_kallsyms(struct kcore_copy_info *kci,
 
 static int kcore_copy__process_modules(void *arg,
 				       const char *name __maybe_unused,
-				       u64 start)
+				       u64 start, u64 size __maybe_unused)
 {
 	struct kcore_copy_info *kci = arg;
 

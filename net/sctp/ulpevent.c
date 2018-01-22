@@ -371,19 +371,19 @@ sctp_ulpevent_make_remote_error(const struct sctp_association *asoc,
 				struct sctp_chunk *chunk, __u16 flags,
 				gfp_t gfp)
 {
-	struct sctp_ulpevent *event;
 	struct sctp_remote_error *sre;
+	struct sctp_ulpevent *event;
+	struct sctp_errhdr *ch;
 	struct sk_buff *skb;
-	sctp_errhdr_t *ch;
 	__be16 cause;
 	int elen;
 
-	ch = (sctp_errhdr_t *)(chunk->skb->data);
+	ch = (struct sctp_errhdr *)(chunk->skb->data);
 	cause = ch->cause;
-	elen = SCTP_PAD4(ntohs(ch->length)) - sizeof(sctp_errhdr_t);
+	elen = SCTP_PAD4(ntohs(ch->length)) - sizeof(*ch);
 
 	/* Pull off the ERROR header.  */
-	skb_pull(chunk->skb, sizeof(sctp_errhdr_t));
+	skb_pull(chunk->skb, sizeof(*ch));
 
 	/* Copy the skb to a new skb with room for us to prepend
 	 * notification with.
@@ -847,7 +847,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_sender_dry_event(
 
 struct sctp_ulpevent *sctp_ulpevent_make_stream_reset_event(
 	const struct sctp_association *asoc, __u16 flags, __u16 stream_num,
-	__u16 *stream_list, gfp_t gfp)
+	__be16 *stream_list, gfp_t gfp)
 {
 	struct sctp_stream_reset_event *sreset;
 	struct sctp_ulpevent *event;

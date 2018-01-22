@@ -158,7 +158,7 @@ int ssi_ivgen_init_sram_pool(struct ssi_drvdata *drvdata)
 void ssi_ivgen_fini(struct ssi_drvdata *drvdata)
 {
 	struct ssi_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
-	struct device *device = &(drvdata->plat_dev->dev);
+	struct device *device = &drvdata->plat_dev->dev;
 
 	if (!ivgen_ctx)
 		return;
@@ -166,7 +166,8 @@ void ssi_ivgen_fini(struct ssi_drvdata *drvdata)
 	if (ivgen_ctx->pool_meta) {
 		memset(ivgen_ctx->pool_meta, 0, SSI_IVPOOL_META_SIZE);
 		dma_free_coherent(device, SSI_IVPOOL_META_SIZE,
-			ivgen_ctx->pool_meta, ivgen_ctx->pool_meta_dma);
+				  ivgen_ctx->pool_meta,
+				  ivgen_ctx->pool_meta_dma);
 	}
 
 	ivgen_ctx->pool = NULL_SRAM_ADDR;
@@ -190,28 +191,27 @@ int ssi_ivgen_init(struct ssi_drvdata *drvdata)
 	int rc;
 
 	/* Allocate "this" context */
-	drvdata->ivgen_handle = kzalloc(sizeof(struct ssi_ivgen_ctx), GFP_KERNEL);
-	if (!drvdata->ivgen_handle) {
-		SSI_LOG_ERR("Not enough memory to allocate IVGEN context "
-			   "(%zu B)\n", sizeof(struct ssi_ivgen_ctx));
-		rc = -ENOMEM;
-		goto out;
-	}
+	drvdata->ivgen_handle = kzalloc(sizeof(*drvdata->ivgen_handle),
+					GFP_KERNEL);
+	if (!drvdata->ivgen_handle)
+		return -ENOMEM;
+
 	ivgen_ctx = drvdata->ivgen_handle;
 
 	/* Allocate pool's header for intial enc. key/IV */
 	ivgen_ctx->pool_meta = dma_alloc_coherent(device, SSI_IVPOOL_META_SIZE,
-			&ivgen_ctx->pool_meta_dma, GFP_KERNEL);
+						  &ivgen_ctx->pool_meta_dma,
+						  GFP_KERNEL);
 	if (!ivgen_ctx->pool_meta) {
-		SSI_LOG_ERR("Not enough memory to allocate DMA of pool_meta "
-			   "(%u B)\n", SSI_IVPOOL_META_SIZE);
+		dev_err(device, "Not enough memory to allocate DMA of pool_meta (%u B)\n",
+			SSI_IVPOOL_META_SIZE);
 		rc = -ENOMEM;
 		goto out;
 	}
 	/* Allocate IV pool in SRAM */
 	ivgen_ctx->pool = ssi_sram_mgr_alloc(drvdata, SSI_IVPOOL_SIZE);
 	if (ivgen_ctx->pool == NULL_SRAM_ADDR) {
-		SSI_LOG_ERR("SRAM pool exhausted\n");
+		dev_err(device, "SRAM pool exhausted\n");
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -245,6 +245,7 @@ int ssi_ivgen_getiv(
 {
 	struct ssi_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
 	unsigned int idx = *iv_seq_len;
+	struct device *dev = drvdata_to_dev(drvdata);
 	unsigned int t;
 
 	if ((iv_out_size != CC_AES_IV_SIZE) &&
@@ -288,7 +289,7 @@ int ssi_ivgen_getiv(
 	ivgen_ctx->next_iv_ofs += iv_out_size;
 
 	if ((SSI_IVPOOL_SIZE - ivgen_ctx->next_iv_ofs) < CC_AES_IV_SIZE) {
-		SSI_LOG_DEBUG("Pool exhausted, regenerating iv-pool\n");
+		dev_dbg(dev, "Pool exhausted, regenerating iv-pool\n");
 		/* pool is drained -regenerate it! */
 		return ssi_ivgen_generate_pool(ivgen_ctx, iv_seq, iv_seq_len);
 	}

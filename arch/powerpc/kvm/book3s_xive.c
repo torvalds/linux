@@ -48,7 +48,6 @@
 #define __x_tima		xive_tima
 #define __x_eoi_page(xd)	((void __iomem *)((xd)->eoi_mmio))
 #define __x_trig_page(xd)	((void __iomem *)((xd)->trig_mmio))
-#define __x_readb	__raw_readb
 #define __x_writeb	__raw_writeb
 #define __x_readw	__raw_readw
 #define __x_readq	__raw_readq
@@ -623,7 +622,7 @@ int kvmppc_xive_get_xive(struct kvm *kvm, u32 irq, u32 *server,
 		return -EINVAL;
 	state = &sb->irq_state[idx];
 	arch_spin_lock(&sb->lock);
-	*server = state->guest_server;
+	*server = state->act_server;
 	*priority = state->guest_priority;
 	arch_spin_unlock(&sb->lock);
 
@@ -726,7 +725,8 @@ u64 kvmppc_xive_get_icp(struct kvm_vcpu *vcpu)
 
 	/* Return the per-cpu state for state saving/migration */
 	return (u64)xc->cppr << KVM_REG_PPC_ICP_CPPR_SHIFT |
-	       (u64)xc->mfrr << KVM_REG_PPC_ICP_MFRR_SHIFT;
+	       (u64)xc->mfrr << KVM_REG_PPC_ICP_MFRR_SHIFT |
+	       (u64)0xff << KVM_REG_PPC_ICP_PPRI_SHIFT;
 }
 
 int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
@@ -1332,7 +1332,7 @@ static int xive_get_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	xive->saved_src_count++;
 
 	/* Convert saved state into something compatible with xics */
-	val = state->guest_server;
+	val = state->act_server;
 	prio = state->saved_scan_prio;
 
 	if (prio == MASKED) {
@@ -1508,7 +1508,6 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	/* First convert prio and mark interrupt as untargetted */
 	act_prio = xive_prio_from_guest(guest_prio);
 	state->act_priority = MASKED;
-	state->guest_server = server;
 
 	/*
 	 * We need to drop the lock due to the mutex below. Hopefully
@@ -1560,7 +1559,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 
 	/*
 	 * Restore P and Q. If the interrupt was pending, we
-	 * force both P and Q, which will trigger a resend.
+	 * force Q and !P, which will trigger a resend.
 	 *
 	 * That means that a guest that had both an interrupt
 	 * pending (queued) and Q set will restore with only
@@ -1568,7 +1567,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	 * is perfectly fine as coalescing interrupts that haven't
 	 * been presented yet is always allowed.
 	 */
-	if (val & KVM_XICS_PRESENTED || val & KVM_XICS_PENDING)
+	if (val & KVM_XICS_PRESENTED && !(val & KVM_XICS_PENDING))
 		state->old_p = true;
 	if (val & KVM_XICS_QUEUED || val & KVM_XICS_PENDING)
 		state->old_q = true;

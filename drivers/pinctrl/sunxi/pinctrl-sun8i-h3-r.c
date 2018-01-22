@@ -20,12 +20,12 @@ static const struct sunxi_desc_pin sun8i_h3_r_pins[] = {
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 0),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
-		  SUNXI_FUNCTION(0x2, "s_twi"),         /* SCK */
+		  SUNXI_FUNCTION(0x2, "s_i2c"),         /* SCK */
 		  SUNXI_FUNCTION_IRQ_BANK(0x6, 0, 0)),	/* PL_EINT0 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 1),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
-		  SUNXI_FUNCTION(0x2, "s_twi"),         /* SDA */
+		  SUNXI_FUNCTION(0x2, "s_i2c"),         /* SDA */
 		  SUNXI_FUNCTION_IRQ_BANK(0x6, 0, 1)),	/* PL_EINT1 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 2),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
@@ -82,7 +82,8 @@ static const struct sunxi_pinctrl_desc sun8i_h3_r_pinctrl_data = {
 	.npins = ARRAY_SIZE(sun8i_h3_r_pins),
 	.irq_banks = 1,
 	.pin_base = PL_BASE,
-	.irq_read_needs_mux = true
+	.irq_read_needs_mux = true,
+	.disable_strict_mode = true,
 };
 
 static int sun8i_h3_r_pinctrl_probe(struct platform_device *pdev)

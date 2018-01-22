@@ -1402,9 +1402,10 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 	return _SUCCESS;
 }
 
-void r8712_use_tkipkey_handler(unsigned long data)
+void r8712_use_tkipkey_handler(struct timer_list *t)
 {
-	struct _adapter *padapter = (struct _adapter *)data;
+	struct _adapter *padapter =
+                from_timer(padapter, t, securitypriv.tkip_timer);
 
 	padapter->securitypriv.busetkipkey = true;
 }
