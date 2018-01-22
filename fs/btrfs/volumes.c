@@ -709,7 +709,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state) &&
 	    device->devid != BTRFS_DEV_REPLACE_DEVID) {
 		fs_devices->rw_devices++;
-		list_add(&device->dev_alloc_list, &fs_devices->alloc_list);
+		list_add_tail(&device->dev_alloc_list, &fs_devices->alloc_list);
 	}
 	brelse(bh);
 
