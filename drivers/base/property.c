@@ -695,6 +695,23 @@ int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
 }
 EXPORT_SYMBOL_GPL(fwnode_property_get_reference_args);
 
+static void property_entry_free_data(const struct property_entry *p)
+{
+	size_t i, nval;
+
+	if (p->is_array) {
+		if (p->is_string && p->pointer.str) {
+			nval = p->length / sizeof(const char *);
+			for (i = 0; i < nval; i++)
+				kfree(p->pointer.str[i]);
+		}
+		kfree(p->pointer.raw_data);
+	} else if (p->is_string) {
+		kfree(p->value.str);
+	}
+	kfree(p->name);
+}
+
 static int property_copy_string_array(struct property_entry *dst,
 				      const struct property_entry *src)
 {
@@ -766,23 +783,6 @@ static int property_entry_copy_data(struct property_entry *dst,
 out_free_name:
 	kfree(dst->name);
 	return error;
-}
-
-static void property_entry_free_data(const struct property_entry *p)
-{
-	size_t i, nval;
-
-	if (p->is_array) {
-		if (p->is_string && p->pointer.str) {
-			nval = p->length / sizeof(const char *);
-			for (i = 0; i < nval; i++)
-				kfree(p->pointer.str[i]);
-		}
-		kfree(p->pointer.raw_data);
-	} else if (p->is_string) {
-		kfree(p->value.str);
-	}
-	kfree(p->name);
 }
 
 /**
