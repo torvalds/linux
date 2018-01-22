@@ -4700,8 +4700,11 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	BUG_ON(!alloc_profile_is_valid(type, 0));
 
-	if (list_empty(&fs_devices->alloc_list))
+	if (list_empty(&fs_devices->alloc_list)) {
+		if (btrfs_test_opt(info, ENOSPC_DEBUG))
+			btrfs_debug(info, "%s: no writable device", __func__);
 		return -ENOSPC;
+	}
 
 	index = __get_raid_index(type);
 
@@ -4784,8 +4787,14 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		if (ret == 0)
 			max_avail = max_stripe_size * dev_stripes;
 
-		if (max_avail < BTRFS_STRIPE_LEN * dev_stripes)
+		if (max_avail < BTRFS_STRIPE_LEN * dev_stripes) {
+			if (btrfs_test_opt(info, ENOSPC_DEBUG))
+				btrfs_debug(info,
+			"%s: devid %llu has no free space, have=%llu want=%u",
+					    __func__, device->devid, max_avail,
+					    BTRFS_STRIPE_LEN * dev_stripes);
 			continue;
+		}
 
 		if (ndevs == fs_devices->rw_devices) {
 			WARN(1, "%s: found more than %llu devices\n",
@@ -4810,6 +4819,12 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	if (ndevs < devs_increment * sub_stripes || ndevs < devs_min) {
 		ret = -ENOSPC;
+		if (btrfs_test_opt(info, ENOSPC_DEBUG)) {
+			btrfs_debug(info,
+	"%s: not enough devices with free space: have=%d minimum required=%d",
+				    __func__, ndevs, min(devs_min,
+				    devs_increment * sub_stripes));
+		}
 		goto error;
 	}
 
