@@ -120,10 +120,6 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	qtnf_scan_done(vif->mac, true);
 
-	if (qtnf_cmd_send_del_intf(vif))
-		pr_err("VIF%u.%u: failed to delete VIF\n", vif->mac->macid,
-		       vif->vifid);
-
 	/* Stop data */
 	netif_tx_stop_all_queues(netdev);
 	if (netif_carrier_ok(netdev))
@@ -131,6 +127,10 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdevice(netdev);
+
+	if (qtnf_cmd_send_del_intf(vif))
+		pr_err("VIF%u.%u: failed to delete VIF\n", vif->mac->macid,
+		       vif->vifid);
 
 	vif->netdev->ieee80211_ptr = NULL;
 	vif->netdev = NULL;
