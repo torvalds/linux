@@ -659,7 +659,7 @@ static ssize_t tool_mw_trans_read(struct file *filep, char __user *ubuf,
 	ret = ntb_mw_get_align(inmw->tc->ntb, inmw->pidx, inmw->widx,
 			       &addr_align, &size_align, &size_max);
 	if (ret)
-		return ret;
+		goto err;
 
 	off += scnprintf(buf + off, buf_size - off,
 			 "Inbound MW     \t%d\n",
@@ -694,6 +694,8 @@ static ssize_t tool_mw_trans_read(struct file *filep, char __user *ubuf,
 			 &size_max);
 
 	ret = simple_read_from_buffer(ubuf, size, offp, buf, off);
+
+err:
 	kfree(buf);
 
 	return ret;
