@@ -66,6 +66,7 @@ struct tb_switch_nvm {
  * @nvm: Pointer to the NVM if the switch has one (%NULL otherwise)
  * @no_nvm_upgrade: Prevent NVM upgrade of this switch
  * @safe_mode: The switch is in safe-mode
+ * @boot: Whether the switch was already authorized on boot or not
  * @authorized: Whether the switch is authorized by user or policy
  * @work: Work used to automatically authorize a switch
  * @security_level: Switch supported security level
@@ -99,6 +100,7 @@ struct tb_switch {
 	struct tb_switch_nvm *nvm;
 	bool no_nvm_upgrade;
 	bool safe_mode;
+	bool boot;
 	unsigned int authorized;
 	struct work_struct work;
 	enum tb_security_level security_level;

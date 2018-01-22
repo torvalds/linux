@@ -775,6 +775,15 @@ static ssize_t authorized_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(authorized);
 
+static ssize_t boot_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+
+	return sprintf(buf, "%u\n", sw->boot);
+}
+static DEVICE_ATTR_RO(boot);
+
 static ssize_t device_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
@@ -951,6 +960,7 @@ static DEVICE_ATTR_RO(unique_id);
 
 static struct attribute *switch_attrs[] = {
 	&dev_attr_authorized.attr,
+	&dev_attr_boot.attr,
 	&dev_attr_device.attr,
 	&dev_attr_device_name.attr,
 	&dev_attr_key.attr,
@@ -977,6 +987,10 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 	} else if (attr == &dev_attr_nvm_authenticate.attr ||
 		   attr == &dev_attr_nvm_version.attr) {
 		if (sw->dma_port)
+			return attr->mode;
+		return 0;
+	} else if (attr == &dev_attr_boot.attr) {
+		if (tb_route(sw))
 			return attr->mode;
 		return 0;
 	}

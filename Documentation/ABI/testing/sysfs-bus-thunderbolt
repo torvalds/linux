@@ -38,6 +38,13 @@ Description:	This attribute is used to authorize Thunderbolt devices
 		   the device did not contain a key at all, and
 		   EKEYREJECTED if the challenge response did not match.
 
+What: /sys/bus/thunderbolt/devices/.../boot
+Date:		Jun 2018
+KernelVersion:	4.17
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains 1 if Thunderbolt device was already
+		authorized on boot and 0 otherwise.
+
 What: /sys/bus/thunderbolt/devices/.../key
 Date:		Sep 2017
 KernelVersion:	4.13
